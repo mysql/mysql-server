@@ -79,10 +79,10 @@ mysys/my_perf.c, contributed by Facebook under the following license.
  * factor of two increase in speed on a Power PC G4 (PPC7455) using gcc -O3.
  */
 
-#include <string.h> /* memcmp() */
-
 #include "univ.i"
 #include "ut0crc32.h"
+
+#include <string.h> /* memcmp() */
 
 ib_ut_crc32_t	ut_crc32;
 
@@ -142,21 +142,10 @@ ut_cpuid(
 	ib_uint32_t*	features_edx)	/*!< out: CPU features edx */
 {
 	ib_uint32_t	sig;
-	asm volatile (
-		"mov %%ebx, %%edi;"	/* Save %ebx */
-		"cpuid;"
-		"mov %%ebx, %%esi;"
-		"mov %%edi, %%ebx;"
-		: "=S" (vend[0]), "=c" (vend[2]), "=d" (vend[1])
-		: "a" (0)
-		: "edi");
-	asm volatile (
-		"mov %%ebx, %%edi;"	/* Save %ebx */
-		"cpuid;"
-		"mov %%edi, %%ebx;"
-		: "=a" (sig), "=c" (*features_ecx), "=d" (*features_edx)
-		: "a" (1)
-		: "edi");
+	asm("cpuid" : "=b" (vend[0]), "=c" (vend[2]), "=d" (vend[1]) : "a" (0));
+	asm("cpuid" : "=a" (sig), "=c" (*features_ecx), "=d" (*features_edx)
+	    : "a" (1)
+	    : "ebx");
 
 	*model = ((sig >> 4) & 0xF);
 	*family = ((sig >> 8) & 0xF);

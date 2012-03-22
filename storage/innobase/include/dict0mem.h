@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2012, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -30,6 +30,7 @@ Created 1/8/1996 Heikki Tuuri
 #include "dict0types.h"
 #include "data0type.h"
 #include "mem0mem.h"
+#include "row0types.h"
 #include "rem0types.h"
 #include "btr0types.h"
 #ifndef UNIV_HOTBACKUP
@@ -119,8 +120,6 @@ to cache the BLOB prefixes. */
 #define DICT_TF_BITS	(DICT_TF_WIDTH_COMPACT		\
 			+ DICT_TF_WIDTH_ZIP_SSIZE	\
 			+ DICT_TF_WIDTH_ATOMIC_BLOBS)
-/** Width of all the currently unknown/unused table flags */
-#define DICT_TF_WIDTH_UNUSED	((UNIV_WORD_SIZE * 8) - DICT_TF_BITS)
 
 /** A mask of all the known/used bits in table flags */
 #define DICT_TF_BIT_MASK	(~(~0 << DICT_TF_BITS))
@@ -172,21 +171,25 @@ to cache the BLOB prefixes. */
 These flags will be stored in SYS_TABLES.MIX_LEN.  All unused flags
 will be written as 0.  The column may contain garbage for tables
 created with old versions of InnoDB that only implemented
-ROW_FORMAT=REDUNDANT. */
+ROW_FORMAT=REDUNDANT.  InnoDB engines do not check these flags
+for unknown bits in order to protect backward incompatibility. */
 /* @{ */
 /** Total number of bits in table->flags2. */
-#define DICT_TF2_BITS			4
+#define DICT_TF2_BITS			5
 #define DICT_TF2_BIT_MASK		~(~0 << DICT_TF2_BITS)
 
-#define DICT_TF2_TEMPORARY		1	/*!< TRUE for tables from
-						CREATE TEMPORARY TABLE. */
-#define DICT_TF2_FTS_HAS_DOC_ID		2	/* Has internal defined
-						DOC ID column */
-#define DICT_TF2_FTS			4	/* has an FTS index */
-#define DICT_TF2_FTS_ADD_DOC_ID		8	/* Need to add Doc ID column
-						for FTS index build.
-						This is a transient bit
-						for index build */
+/** TEMPORARY; TRUE for tables from CREATE TEMPORARY TABLE. */
+#define DICT_TF2_TEMPORARY		1
+/** The table has an internal defined DOC ID column */
+#define DICT_TF2_FTS_HAS_DOC_ID		2
+/** The table has an FTS index */
+#define DICT_TF2_FTS			4
+/** Need to add Doc ID column for FTS index build.
+This is a transient bit for index build */
+#define DICT_TF2_FTS_ADD_DOC_ID		8
+/** This bit is used during table creation to indicate that it will
+use its own tablespace instead of the system tablespace. */
+#define DICT_TF2_USE_TABLESPACE		16
 /* @} */
 
 #define DICT_TF2_FLAG_SET(table, flag)				\
@@ -470,15 +473,24 @@ struct dict_index_struct{
 	unsigned	n_nullable:10;/*!< number of nullable fields */
 	unsigned	cached:1;/*!< TRUE if the index object is in the
 				dictionary cache */
-	unsigned	to_be_dropped:1;
-				/*!< TRUE if this index is marked to be
-				dropped in ha_innobase::prepare_drop_index(),
-				otherwise FALSE */
+	unsigned	online_status:2;
+				/*!< enum online_index_status */
 	dict_field_t*	fields;	/*!< array of field descriptions */
 #ifndef UNIV_HOTBACKUP
 	UT_LIST_NODE_T(dict_index_t)
 			indexes;/*!< list of indexes of the table */
-	btr_search_t*	search_info; /*!< info used in optimistic searches */
+	union {
+		btr_search_t*	search; /*!< info used in optimistic searches;
+					valid when online_status is one of
+					ONLINE_INDEX_COMPLETE,
+					ONLINE_INDEX_ABORTED,
+					ONLINE_INDEX_ABORTED_DROPPED */
+		row_log_t*	online_log;
+					/*!< the log of modifications
+					during online index creation;
+					valid when online_status is
+					ONLINE_INDEX_CREATION */
+	} info;
 	/*----------------------*/
 	/** Statistics for query optimization */
 	/* @{ */
@@ -525,6 +537,23 @@ struct dict_index_struct{
 /** Value of dict_index_struct::magic_n */
 # define DICT_INDEX_MAGIC_N	76789786
 #endif
+};
+
+/** The status of online index creation */
+enum online_index_status {
+	/** the index is complete and ready for access */
+	ONLINE_INDEX_COMPLETE = 0,
+	/** the index is being created, online
+	(allowing concurrent modifications) */
+	ONLINE_INDEX_CREATION,
+	/** the online index creation was aborted and the index
+	should be dropped as soon as index->table->n_ref_count reaches 0 */
+	ONLINE_INDEX_ABORTED,
+	/** the online index creation was aborted, the index was
+	dropped from the data dictionary and the tablespace, and it
+	should be dropped from the data dictionary cache as soon as
+	index->table->n_ref_count reaches 0. */
+	ONLINE_INDEX_ABORTED_DROPPED
 };
 
 /** Data structure for a foreign key constraint; an example:
@@ -581,7 +610,6 @@ a foreign key constraint is enforced, therefore RESTRICT just means no flag */
 #define DICT_FOREIGN_ON_UPDATE_NO_ACTION 32	/*!< ON UPDATE NO ACTION */
 /* @} */
 
-
 /** Data structure for a database table.  Most fields will be
 initialized to 0, NULL or FALSE in dict_mem_table_create(). */
 struct dict_table_struct{
@@ -618,6 +646,10 @@ struct dict_table_struct{
 				or a table that has no FK relationships */
 	unsigned	corrupted:1;
 				/*!< TRUE if table is corrupted */
+	unsigned	drop_aborted:1;
+				/*!< TRUE if some indexes should be dropped
+				after ONLINE_INDEX_ABORTED
+				or ONLINE_INDEX_ABORTED_DROPPED */
 	dict_col_t*	cols;	/*!< array of column descriptions */
 	const char*	col_names;
 				/*!< Column names packed in a character string
@@ -714,7 +746,7 @@ struct dict_table_struct{
 				lock we keep a pointer to the transaction
 				here in the autoinc_trx variable. This is to
 				avoid acquiring the lock_sys_t::mutex and
-			       	scanning the vector in trx_t.
+				scanning the vector in trx_t.
 
 				When an AUTOINC lock has to wait, the
 				corresponding lock instance is created on
@@ -762,8 +794,8 @@ struct dict_table_struct{
 				MySQL does NOT itself check the number of
 				open handles at drop */
 	UT_LIST_BASE_NODE_T(lock_t)
-			locks; /*!< list of locks on the table; protected
-			       by lock_sys->mutex */
+			locks;	/*!< list of locks on the table; protected
+				by lock_sys->mutex */
 #endif /* !UNIV_HOTBACKUP */
 
 #ifdef UNIV_DEBUG

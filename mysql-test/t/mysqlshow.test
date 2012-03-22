@@ -43,4 +43,21 @@ DROP TABLE t1, t2;
 #
 --exec $MYSQL_SHOW --protocol=tcp --bind-address=127.0.0.1 test
 
---echo End of 5.0 tests
+--echo #
+--echo # Bug#12688860 : SECURITY RECOMMENDATION: PASSWORDS ON CLI
+--echo #
+
+--disable_warnings
+DROP DATABASE IF EXISTS b12688860_db;
+--enable_warnings
+
+CREATE DATABASE b12688860_db;
+CREATE TABLE b12688860_db.b12688860_tab (c1 INT);
+
+--exec $MYSQL_SHOW -uroot --password="" b12688860_db 2>&1
+
+DROP TABLE b12688860_db.b12688860_tab;
+DROP DATABASE b12688860_db;
+
+--echo
+--echo End of tests

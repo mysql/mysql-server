@@ -5,7 +5,8 @@
 let $DEFAULT_TRACE_MEM_SIZE=1048576; # 1MB
 eval set optimizer_trace_max_mem_size=$DEFAULT_TRACE_MEM_SIZE;
 
-set optimizer_trace="enabled=on,end_marker=on";
+set end_markers_in_json=on;
+set optimizer_trace="enabled=on";
 
 --echo # check that if a sub-statement should not be traced,
 --echo # it is not traced even if inside a traced top statement
@@ -156,10 +157,7 @@ SELECT t1.f2 FROM t1
 STRAIGHT_JOIN (t2 JOIN t3 ON t3.f2  = t2.f2  ) ON t3 .f2  = t2 .f2
 HAVING ('v', 'i') NOT IN (SELECT f2, MIN(f2) FROM t1)
 ORDER BY f2;
---echo Maps should say that t2 and t3 depend on t1
---echo (because of straight_join), they don't, this is
---echo bug#11766858 and bug#11752239
---replace_regex /("sort_buffer_size":) [0-9]+/\1 NNN/
+--replace_regex /("sort_buffer_size":) [0-9]+/\1 "NNN"/
 select TRACE from information_schema.OPTIMIZER_TRACE;
 
 DROP TABLES t1,t2,t3;
@@ -172,7 +170,7 @@ DROP TABLES t1,t2,t3;
 create table t1 (a int, b int);
 insert into t1 values (1,1), (2,null), (3, 4);
 select max(x) from (select sum(a) as x from t1 group by b) as teeone;
---replace_regex /("sort_buffer_size":) [0-9]+/\1 NNN/
+--replace_regex /("sort_buffer_size":) [0-9]+/\1 "NNN"/
 select TRACE from information_schema.OPTIMIZER_TRACE;
 drop table t1;
 
@@ -616,7 +614,18 @@ SELECT SUM(alias2.col_varchar_nokey) , alias2.pk AS field2 FROM t1 AS alias1
 STRAIGHT_JOIN t2 AS alias2 ON alias2.pk = alias1.col_int_key WHERE alias1.pk
 GROUP BY field2 ORDER BY alias1.col_int_key,alias2.pk ;
 eval $query;
---replace_regex /("sort_buffer_size":) [0-9]+/\1 NNN/
+--replace_regex /("sort_buffer_size":) [0-9]+/\1 "NNN"/
 SELECT * FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
 
 DROP TABLE t1,t2;
+
+--echo #
+--echo # Trace of "condition on constant tables"
+--echo #
+create table t1(a int) engine=myisam;
+insert into t1 values(26);
+create table t2(b int primary key, c int) engine=myisam;
+insert into t2 values(1,100),(2,200),(3,300);
+select * from t1,t2 where t1.a+t2.c=cos(10) and t2.b=2;
+SELECT * FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
+drop table t1,t2;

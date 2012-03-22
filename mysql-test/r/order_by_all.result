@@ -589,7 +589,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	1000	Using filesort
 explain select id,t from t1 force index (primary) order by id;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	index	NULL	PRIMARY	4	NULL	1000	
+1	SIMPLE	t1	index	NULL	PRIMARY	4	NULL	1000	NULL
 drop table t1;
 CREATE TABLE t1 (
 FieldKey varchar(36) NOT NULL default '',
@@ -1017,8 +1017,8 @@ explain SELECT t1.b as a, t2.b as c FROM
 t1 JOIN t1 t2 ON (t1.a = t2.a AND t2.a = 2)  
 ORDER BY c;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	const	PRIMARY	PRIMARY	4	const	1	
-1	SIMPLE	t2	const	PRIMARY	PRIMARY	4	const	1	
+1	SIMPLE	t1	const	PRIMARY	PRIMARY	4	const	1	NULL
+1	SIMPLE	t2	const	PRIMARY	PRIMARY	4	const	1	NULL
 CREATE TABLE t2 LIKE t1;
 INSERT INTO t2 SELECT * from t1;
 CREATE TABLE t3 LIKE t1;
@@ -1071,7 +1071,7 @@ CREATE TABLE t2 (a INT, b INT, KEY a (a,b));
 INSERT INTO t2 VALUES (1,1),(1,2),(2,1),(2,2);
 EXPLAIN SELECT 1 FROM t1,t2 WHERE t1.b=2 AND t1.a=t2.a ORDER BY t2.b;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	const	PRIMARY,b	b	5	const	1	
+1	SIMPLE	t1	const	PRIMARY,b	b	5	const	1	NULL
 1	SIMPLE	t2	ref	a	a	5	const	2	Using where; Using index
 DROP TABLE t1,t2;
 CREATE TABLE t1(
@@ -1461,7 +1461,7 @@ INSERT INTO t1 VALUES (1, 10), (2, NULL);
 EXPLAIN
 SELECT 1 AS col FROM t1 WHERE a=2 AND (c=10 OR c IS NULL) ORDER BY c;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ref_or_null	a_c,a	a_c	10	const,const	1	Using where
+1	SIMPLE	t1	ref	a_c,a	a	5	const	1	Using where; Using filesort
 # Must return 1 row
 SELECT 1 AS col FROM t1 WHERE a=2 AND (c=10 OR c IS NULL) ORDER BY c;
 col
@@ -1470,7 +1470,7 @@ col
 EXPLAIN
 SELECT 1 AS col FROM t1 WHERE a=2 AND (c=10 OR c IS NULL) ORDER BY c DESC;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-x	x	x	ref_or_null	a_c,a	x	x	x	x	x
+x	x	x	ref	a_c,a	x	x	x	x	x
 # Must return 1 row
 SELECT 1 AS col FROM t1 WHERE a=2 AND (c=10 OR c IS NULL) ORDER BY c DESC;
 col
@@ -2490,7 +2490,7 @@ EXPLAIN
 SELECT * FROM t1 FORCE INDEX FOR ORDER BY (a), t2 WHERE t1.a < 2 ORDER BY t1.a;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	range	a	a	5	NULL	2	Using index condition
-1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	10	
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	10	NULL
 # should have "using filesort"
 EXPLAIN 
 SELECT * FROM t1 USE INDEX FOR ORDER BY (a), t2 WHERE t1.a < 2 ORDER BY t1.a;
@@ -2587,4 +2587,88 @@ i1	i2
 4	4
 5	5
 DROP TABLE t1, t2, t3;
+#
+# Bug #11885377 VOID JOIN_READ_KEY_UNLOCK_ROW(ST_JOIN_TABLE*): ASSERTION
+# `TAB->REF.USE_COUNT'
+#
+CREATE TABLE t1(a INT PRIMARY KEY);
+CREATE TABLE t2(b INT,c INT);
+INSERT INTO t1 VALUES (1), (2);
+INSERT INTO t2 VALUES (1,2), (2,3);
+SELECT (SELECT 1 FROM t1 WHERE a=b AND c=1 ORDER BY a DESC) FROM t2;
+(SELECT 1 FROM t1 WHERE a=b AND c=1 ORDER BY a DESC)
+NULL
+NULL
+DROP TABLE t1, t2;
+#
+# Bug #13531865
+# TEST_IF_SKIP_SORT_ORDER() INCORRECTLY SKIP FILESORT IF
+# 'TYPE' IS REF_OR_NULL 
+# 
+#
+CREATE TABLE t1 (
+a INT,
+c INT,
+UNIQUE KEY a_c (a,c),
+KEY (a)) engine=myisam;
+INSERT INTO t1 VALUES (1,10), (2,NULL), (2,10);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+# Using 'KEY a_c' for order-by opt, would have required 
+# REF_OR_NULL access which never can be order_by skipped.
+# -> Keep initial REF on 'KEY a' selected by cond. optimizer
+EXPLAIN
+SELECT c FROM t1 WHERE a=2 AND (c=10 OR c IS NULL);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ref	a_c,a	a	5	const	1	Using where
+EXPLAIN
+SELECT c FROM t1 WHERE a=2 AND (c=10 OR c IS NULL) ORDER BY c;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ref	a_c,a	a	5	const	1	Using where; Using filesort
+SELECT c FROM t1 WHERE a=2 AND (c=10 OR c IS NULL) ORDER BY c;
+c
+NULL
+10
+EXPLAIN
+SELECT c FROM t1 WHERE a=2 AND (c=10 OR c IS NULL) ORDER BY c DESC;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ref	a_c,a	a	5	const	1	Using where; Using filesort
+SELECT c FROM t1 WHERE a=2 AND (c=10 OR c IS NULL) ORDER BY c DESC;
+c
+10
+NULL
+DROP TABLE t1;
+#
+# Bug #13528826 
+# TEST_IF_CHEAPER_ORDERING(): CALCULATES INCORRECT 'SELECT_LIMIT'
+# 
+#
+CREATE TABLE t1(a int PRIMARY KEY, b int) ENGINE=myisam;
+INSERT INTO t1 VALUES
+(5, 10), (2, 70), (7, 80), (6, 20), (1, 50), (9, 40), (8, 30), (3, 60);
+CREATE TABLE t2 (p int, a int, INDEX i_a(a)) ENGINE=myisam;
+INSERT INTO t2 VALUES
+(103, 7), (109, 3), (102, 3), (108, 1), (106, 3),
+(107, 7), (105, 1), (101, 3), (100, 7), (110, 1);
+# number of rows in t1 was incorrectly used as an 
+# implicit limit-clause if not explicit specified
+EXPLAIN
+SELECT t1.a FROM t1 LEFT JOIN t2 ON t1.a=t2.a ORDER BY t1.a;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index	NULL	PRIMARY	4	NULL	8	Using index
+1	SIMPLE	t2	ref	i_a	i_a	5	test.t1.a	2	Using index
+# Query above used to be explained identical to this:
+EXPLAIN
+SELECT t1.a FROM t1 LEFT JOIN t2 ON t1.a=t2.a ORDER BY t1.a LIMIT 8;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index	NULL	PRIMARY	4	NULL	4	Using index
+1	SIMPLE	t2	ref	i_a	i_a	5	test.t1.a	2	Using index
+# A really high limit was required to give the correct explain
+EXPLAIN
+SELECT t1.a FROM t1 LEFT JOIN t2 ON t1.a=t2.a ORDER BY t1.a LIMIT 1000;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index	NULL	PRIMARY	4	NULL	8	Using index
+1	SIMPLE	t2	ref	i_a	i_a	5	test.t1.a	2	Using index
+DROP TABLE t1, t2;
 set optimizer_switch=default;

@@ -41,6 +41,7 @@ Created 11/5/1995 Heikki Tuuri
 #include "btr0btr.h"
 #include "buf0buddy.h"
 #include "buf0buf.h"
+#include "buf0dblwr.h"
 #include "buf0flu.h"
 #include "buf0rea.h"
 #include "btr0sea.h"
@@ -560,13 +561,18 @@ buf_LRU_free_from_unzip_LRU_list(
 	     scanned = 1, freed = FALSE;
 	     block != NULL && !freed
 	     && (scan_all || scanned < srv_LRU_scan_depth);
-	     block = UT_LIST_GET_PREV(unzip_LRU, block), ++scanned) {
+	     ++scanned) {
+
+		buf_block_t*	prev_block = UT_LIST_GET_PREV(unzip_LRU,
+						block);
 
 		ut_ad(buf_block_get_state(block) == BUF_BLOCK_FILE_PAGE);
 		ut_ad(block->in_unzip_LRU_list);
 		ut_ad(block->page.in_LRU_list);
 
 		freed = buf_LRU_free_block(&block->page, FALSE);
+
+		block = prev_block;
 	}
 
 	MONITOR_INC_VALUE_CUMULATIVE(
@@ -599,9 +605,11 @@ buf_LRU_free_from_common_LRU_list(
 	     scanned = 1, freed = FALSE;
 	     bpage != NULL && !freed
 	     && (scan_all || scanned < srv_LRU_scan_depth);
-	     bpage = UT_LIST_GET_PREV(LRU, bpage), ++scanned) {
+	     ++scanned) {
 
 		unsigned	accessed;
+		buf_page_t*	prev_bpage = UT_LIST_GET_PREV(LRU,
+						bpage);
 
 		ut_ad(buf_page_in_file(bpage));
 		ut_ad(bpage->in_LRU_list);
@@ -614,6 +622,8 @@ buf_LRU_free_from_common_LRU_list(
 			the effectiveness of readahead */
 			++buf_pool->stat.n_ra_pages_evicted;
 		}
+
+		bpage = prev_bpage;
 	}
 
 	MONITOR_INC_VALUE_CUMULATIVE(
@@ -857,7 +867,7 @@ loop:
 
 	if (buf_pool->init_flush[BUF_FLUSH_LRU]
 	    && srv_use_doublewrite_buf
-	    && trx_doublewrite != NULL) {
+	    && buf_dblwr != NULL) {
 
 		/* If there is an LRU flush happening in the background
 		then we wait for it to end instead of trying a single
@@ -1492,7 +1502,7 @@ func_exit:
 			? BUF_BLOCK_ZIP_DIRTY
 			: BUF_BLOCK_ZIP_PAGE;
 		UNIV_MEM_DESC(b->zip.data,
-			      page_zip_get_size(&b->zip), b);
+			      page_zip_get_size(&b->zip));
 
 		/* The fields in_page_hash and in_LRU_list of
 		the to-be-freed block descriptor should have
@@ -2029,7 +2039,7 @@ buf_LRU_old_ratio_update_instance(
 	} else {
 		buf_pool->LRU_old_ratio = ratio;
 	}
-	/* the reverse of 
+	/* the reverse of
 	ratio = old_pct * BUF_LRU_OLD_RATIO_DIV / 100 */
 	return((uint) (ratio * 100 / (double) BUF_LRU_OLD_RATIO_DIV + 0.5));
 }

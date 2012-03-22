@@ -51,6 +51,19 @@ typedef ulonglong sql_mode_t;
 typedef struct st_db_worker_hash_entry db_worker_hash_entry;
 
 #define PREFIX_SQL_LOAD "SQL_LOAD-"
+
+/**
+   Maximum length of the name of a temporary file
+   PREFIX LENGTH - 9 
+   UUID          - UUID_LENGTH
+   SEPARATORS    - 2
+   SERVER ID     - 10 (range of server ID 1 to (2^32)-1 = 4,294,967,295)
+   FILE ID       - 10 (uint)
+   EXTENSION     - 7  (Assuming that the extension is always less than 7 
+                       characters)
+*/
+#define TEMP_FILE_MAX_LEN UUID_LENGTH+38 
+
 #define LONG_FIND_ROW_THRESHOLD 60 /* seconds */
 
 /**
@@ -678,6 +691,10 @@ enum Log_event_type
   IGNORABLE_LOG_EVENT= 28,
   ROWS_QUERY_LOG_EVENT= 29,
 
+  GTID_LOG_EVENT= 30,
+  ANONYMOUS_GTID_LOG_EVENT= 31,
+
+  PREVIOUS_GTIDS_LOG_EVENT= 32,
   /*
     Add new events here - right above this comment!
     Existing events (except ENUM_END_EVENT) should never change their numbers
@@ -793,21 +810,6 @@ typedef struct st_print_event_info
   bool have_unflushed_events;
 } PRINT_EVENT_INFO;
 #endif
-
-/**
-  the struct aggregates two paramenters that identify an event
-  uniquely in scope of communication of a particular master and slave couple.
-  I.e there can not be 2 events from the same staying connected master which
-  have the same coordinates.
-  @note
-  Such identifier is not yet unique generally as the event originating master
-  is resetable. Also the crashed master can be replaced with some other.
-*/
-typedef struct event_coordinates
-{
-  char * file_name; // binlog file name (directories stripped)
-  my_off_t  pos;       // event's position in the binlog file
-} LOG_POS_COORD;
 
 /**
   @class Log_event
@@ -1058,6 +1060,13 @@ public:
   */
   uint32 server_id;
 
+  /*
+    The server id read from the Binlog.  server_id above has
+    lowest bits of this only according to the value of
+    opt_server_id_bits
+  */
+  uint32 unmasked_server_id;
+
   /**
     Some 16 flags. See the definitions above for LOG_EVENT_TIME_F,
     LOG_EVENT_FORCED_ROTATE_F, LOG_EVENT_THREAD_SPECIFIC_F, and
@@ -1145,23 +1154,26 @@ public:
 #ifdef HAVE_REPLICATION
   int net_send(Protocol *protocol, const char* log_name, my_off_t pos);
 
-  /*
-    pack_info() is used by SHOW BINLOG EVENTS; as print() it prepares and sends
-    a string to display to the user, so it resembles print().
-  */
+  /**
+    Stores a string representation of this event in the Protocol.
+    This is used by SHOW BINLOG EVENTS.
 
-  virtual void pack_info(Protocol *protocol);
+    @retval 0 success
+    @retval nonzero error
+  */
+  virtual int pack_info(Protocol *protocol);
 
 #endif /* HAVE_REPLICATION */
   virtual const char* get_db()
   {
     return thd ? thd->db : 0;
   }
-#else
+#else // ifdef MYSQL_SERVER
   Log_event(enum_event_cache_type cache_type_arg= EVENT_INVALID_CACHE,
             enum_event_logging_type logging_type_arg= EVENT_INVALID_LOGGING)
   : temp_buf(0), event_cache_type(cache_type_arg),
-  event_logging_type(logging_type_arg) { }
+    event_logging_type(logging_type_arg)
+  { }
     /* avoid having to link mysqlbinlog against libpthread */
   static Log_event* read_log_event(IO_CACHE* file,
                                    const Format_description_log_event
@@ -1173,7 +1185,7 @@ public:
                     bool is_more);
   void print_base64(IO_CACHE* file, PRINT_EVENT_INFO* print_event_info,
                     bool is_more);
-#endif
+#endif // ifdef MYSQL_SERVER ... else
   /* 
      The value is set by caller of FD constructor and
      Log_event::write_header() for the rest.
@@ -2066,7 +2078,7 @@ public:
   virtual uchar mts_number_dbs() { return mts_accessed_dbs; }
 
 #ifdef HAVE_REPLICATION
-  void pack_info(Protocol* protocol);
+  int pack_info(Protocol* protocol);
 #endif /* HAVE_REPLICATION */
 #else
   void print_query_header(IO_CACHE* file, PRINT_EVENT_INFO* print_event_info);
@@ -2415,7 +2427,7 @@ public:
                   Name_resolution_context *context);
   const char* get_db() { return db; }
 #ifdef HAVE_REPLICATION
-  void pack_info(Protocol* protocol);
+  int pack_info(Protocol* protocol);
 #endif /* HAVE_REPLICATION */
 #else
   void print(FILE* file, PRINT_EVENT_INFO* print_event_info);
@@ -2514,7 +2526,7 @@ public:
 #ifdef MYSQL_SERVER
   Start_log_event_v3();
 #ifdef HAVE_REPLICATION
-  void pack_info(Protocol* protocol);
+  int pack_info(Protocol* protocol);
 #endif /* HAVE_REPLICATION */
 #else
   Start_log_event_v3() {}
@@ -2672,7 +2684,7 @@ public:
     :Log_event(thd_arg, 0, cache_type_arg, logging_type_arg),
     val(val_arg), type(type_arg) { }
 #ifdef HAVE_REPLICATION
-  void pack_info(Protocol* protocol);
+  int pack_info(Protocol* protocol);
 #endif /* HAVE_REPLICATION */
 #else
   void print(FILE* file, PRINT_EVENT_INFO* print_event_info);
@@ -2750,7 +2762,7 @@ class Rand_log_event: public Log_event
     :Log_event(thd_arg, 0, cache_type_arg, logging_type_arg),
     seed1(seed1_arg), seed2(seed2_arg) { }
 #ifdef HAVE_REPLICATION
-  void pack_info(Protocol* protocol);
+  int pack_info(Protocol* protocol);
 #endif /* HAVE_REPLICATION */
 #else
   void print(FILE* file, PRINT_EVENT_INFO* print_event_info);
@@ -2799,7 +2811,7 @@ class Xid_log_event: public Log_event
   xid(x)
   { }
 #ifdef HAVE_REPLICATION
-  void pack_info(Protocol* protocol);
+  int pack_info(Protocol* protocol);
 #endif /* HAVE_REPLICATION */
 #else
   void print(FILE* file, PRINT_EVENT_INFO* print_event_info);
@@ -2820,6 +2832,7 @@ private:
   virtual int do_apply_event(Relay_log_info const *rli);
   virtual int do_apply_event_worker(Slave_worker *rli);
   enum_skip_reason do_shall_skip(Relay_log_info *rli);
+  bool do_commit(THD *thd);
 #endif
 };
 
@@ -2859,7 +2872,7 @@ public:
     { 
       is_null= !val;
     }
-  void pack_info(Protocol* protocol);
+  int pack_info(Protocol* protocol);
 #else
   void print(FILE* file, PRINT_EVENT_INFO* print_event_info);
 #endif
@@ -2990,7 +3003,7 @@ public:
 		   uint ident_len_arg,
 		   ulonglong pos_arg, uint flags);
 #ifdef HAVE_REPLICATION
-  void pack_info(Protocol* protocol);
+  int pack_info(Protocol* protocol);
 #endif /* HAVE_REPLICATION */
 #else
   void print(FILE* file, PRINT_EVENT_INFO* print_event_info);
@@ -3051,7 +3064,7 @@ public:
 			uchar* block_arg, uint block_len_arg,
 			bool using_trans);
 #ifdef HAVE_REPLICATION
-  void pack_info(Protocol* protocol);
+  int pack_info(Protocol* protocol);
 #endif /* HAVE_REPLICATION */
 #else
   void print(FILE* file, PRINT_EVENT_INFO* print_event_info);
@@ -3123,7 +3136,7 @@ public:
   Append_block_log_event(THD* thd, const char* db_arg, uchar* block_arg,
 			 uint block_len_arg, bool using_trans);
 #ifdef HAVE_REPLICATION
-  void pack_info(Protocol* protocol);
+  int pack_info(Protocol* protocol);
   virtual int get_create_or_append() const;
 #endif /* HAVE_REPLICATION */
 #else
@@ -3164,7 +3177,7 @@ public:
 #ifdef MYSQL_SERVER
   Delete_file_log_event(THD* thd, const char* db_arg, bool using_trans);
 #ifdef HAVE_REPLICATION
-  void pack_info(Protocol* protocol);
+  int pack_info(Protocol* protocol);
 #endif /* HAVE_REPLICATION */
 #else
   void print(FILE* file, PRINT_EVENT_INFO* print_event_info);
@@ -3205,7 +3218,7 @@ public:
 #ifdef MYSQL_SERVER
   Execute_load_log_event(THD* thd, const char* db_arg, bool using_trans);
 #ifdef HAVE_REPLICATION
-  void pack_info(Protocol* protocol);
+  int pack_info(Protocol* protocol);
 #endif /* HAVE_REPLICATION */
 #else
   void print(FILE* file, PRINT_EVENT_INFO* print_event_info);
@@ -3310,7 +3323,7 @@ public:
                                bool using_trans, bool immediate,
                                bool suppress_use, int errcode);
 #ifdef HAVE_REPLICATION
-  void pack_info(Protocol* protocol);
+  int pack_info(Protocol* protocol);
 #endif /* HAVE_REPLICATION */
 #else
   void print(FILE* file, PRINT_EVENT_INFO* print_event_info);
@@ -3755,7 +3768,7 @@ public:
 #endif
 
 #if defined(MYSQL_SERVER) && defined(HAVE_REPLICATION)
-  virtual void pack_info(Protocol *protocol);
+  virtual int pack_info(Protocol *protocol);
 #endif
 
 #ifdef MYSQL_CLIENT
@@ -3867,7 +3880,7 @@ public:
   flag_set get_flags(flag_set flags_arg) const { return m_flags & flags_arg; }
 
 #if defined(MYSQL_SERVER) && defined(HAVE_REPLICATION)
-  virtual void pack_info(Protocol *protocol);
+  virtual int pack_info(Protocol *protocol);
 #endif
 
 #ifdef MYSQL_CLIENT
@@ -4359,7 +4372,7 @@ public:
 #endif
 
 #ifdef MYSQL_SERVER
-  void pack_info(Protocol*);
+  int pack_info(Protocol*);
 #endif
 
   Incident_log_event(const char *buf, uint event_len,
@@ -4406,6 +4419,12 @@ private:
   architecture, so adding new derived events shall not harm
   the old slaves that support ignorable log event mechanism
   (they will just ignore unrecognized ignorable events).
+
+  @note The only thing that makes an event ignorable is that it has
+  the LOG_EVENT_IGNORABLE_F flag set.  It is not strictly necessary
+  that ignorable event types derive from Ignorable_log_event; they may
+  just as well derive from Log_event and pass LOG_EVENT_IGNORABLE_F as
+  argument to the Log_event constructor.
 **/
 class Ignorable_log_event : public Log_event {
 public:
@@ -4422,11 +4441,10 @@ public:
 
   Ignorable_log_event(const char *buf,
                       const Format_description_log_event *descr_event);
-
   virtual ~Ignorable_log_event();
 
 #ifndef MYSQL_CLIENT
-  void pack_info(Protocol*);
+  int pack_info(Protocol*);
 #endif
 
 #ifdef MYSQL_CLIENT
@@ -4457,7 +4475,7 @@ public:
 #endif
 
 #ifndef MYSQL_CLIENT
-  void pack_info(Protocol*);
+  int pack_info(Protocol*);
 #endif
 
   Rows_query_log_event(const char *buf, uint event_len,
@@ -4531,12 +4549,230 @@ private:
 };
 #endif
 
-int append_query_string(const CHARSET_INFO *csinfo,
+int append_query_string(THD *thd, const CHARSET_INFO *csinfo,
                         String const *from, String *to);
-bool sqlcom_can_generate_row_events(const THD *thd);
 bool event_checksum_test(uchar *buf, ulong event_len, uint8 alg);
 uint8 get_checksum_alg(const char* buf, ulong len);
 extern TYPELIB binlog_checksum_typelib;
+
+class Gtid_log_event : public Log_event
+{
+public:
+#ifndef MYSQL_CLIENT
+  /**
+    Create a new event using the GTID from the given Gtid_specification,
+    or from @@SESSION.GTID_NEXT if spec==NULL.
+  */
+  Gtid_log_event(THD *thd_arg, bool using_trans,
+                 const Gtid_specification *spec= NULL);
+#endif
+
+#ifndef MYSQL_CLIENT
+  int pack_info(Protocol*);
+#endif
+
+  Gtid_log_event(const char *buffer, uint event_len,
+                 const Format_description_log_event *descr_event);
+
+  virtual ~Gtid_log_event() {}
+
+  Log_event_type get_type_code()
+  {
+    DBUG_ENTER("Gtid_log_event::get_type_code()");
+    Log_event_type ret= (spec.type == ANONYMOUS_GROUP ?
+                         ANONYMOUS_GTID_LOG_EVENT : GTID_LOG_EVENT);
+    DBUG_PRINT("info", ("code=%d=%s", ret, get_type_str(ret)));
+    DBUG_RETURN(ret);
+  }
+
+  int get_data_size() { return POST_HEADER_LENGTH; }
+
+private:
+  /// Used internally by both print() and pack_info().
+  size_t to_string(char *buf) const;
+
+public:
+#ifdef MYSQL_CLIENT
+  void print(FILE *file, PRINT_EVENT_INFO *print_event_info);
+#endif
+#ifdef MYSQL_SERVER
+  bool write_data_header(IO_CACHE *file);
+#endif
+
+#if defined(MYSQL_SERVER) && defined(HAVE_REPLICATION)
+  int do_apply_event(Relay_log_info const *rli);
+  int do_update_pos(Relay_log_info *rli);
+#endif
+
+  /**
+    Return the group type for this Gtid_log_event: this can be
+    either ANONYMOUS_GROUP, AUTOMATIC_GROUP, or GTID_GROUP.
+  */
+  enum_group_type get_type() const { return spec.type; }
+  bool is_valid() const { return true; }
+
+  /**
+    Return the SID for this GTID.  The SID is shared with the
+    Log_event so it should not be modified.
+  */
+  const rpl_sid* get_sid() const { return &sid; }
+  /**
+    Return the SIDNO relative to the global sid_map for this GTID.
+
+    This requires a lookup and possibly even update of global_sid_map,
+    hence global_sid_lock must be held.  If global_sid_lock is not
+    held, the caller must pass need_lock=true.  If there is an error
+    (e.g. out of memory) while updating global_sid_map, this function
+    returns a negative number.
+
+    @param need_lock If true, the read lock on global_sid_lock is
+    acquired and released inside this function; if false, the read
+    lock or write lock must be held prior to calling this function.
+    @retval SIDNO if successful
+    @retval negative if adding SID to global_sid_map causes an error.
+  */
+  rpl_sidno get_sidno(bool need_lock)
+  {
+    if (spec.gtid.sidno < 0)
+    {
+      if (need_lock)
+        global_sid_lock.rdlock();
+      else
+        global_sid_lock.assert_some_lock();
+      spec.gtid.sidno= global_sid_map.add_sid(sid);
+      if (need_lock)
+        global_sid_lock.unlock();
+    }
+    return spec.gtid.sidno;
+  }
+  /**
+    Return the SIDNO relative to the given Sid_map for this GTID.
+
+    This assumes that the Sid_map is local to the thread, and thus
+    does not use locks.
+
+    @param sid_map The sid_map to use.
+    @retval SIDNO if successful.
+    @negative if adding SID to sid_map causes an error.
+  */
+  rpl_sidno get_sidno(Sid_map *sid_map)
+  {
+    return sid_map->add_sid(sid);
+  }
+  /// Return the GNO for this GTID.
+  rpl_gno get_gno() const { return spec.gtid.gno; }
+  /// Return true if this is the last group of the transaction, else false.
+  bool get_commit_flag() const { return commit_flag; }
+
+private:
+  /// string holding the text "SET @@GLOBAL.GTID_NEXT = '"
+  static const char *SET_STRING_PREFIX;
+  /// Length of SET_STRING_PREFIX
+  static const size_t SET_STRING_PREFIX_LENGTH= 26;
+  /// The maximal length of the entire "SET ..." query.
+  static const size_t MAX_SET_STRING_LENGTH= SET_STRING_PREFIX_LENGTH +
+    rpl_sid::TEXT_LENGTH + 1 + MAX_GNO_TEXT_LENGTH + 1;
+
+  /// Length of the commit_flag in event encoding
+  static const int ENCODED_FLAG_LENGTH= 1;
+  /// Length of SID in event encoding
+  static const int ENCODED_SID_LENGTH= rpl_sid::BYTE_LENGTH;
+  /// Length of GNO in event encoding
+  static const int ENCODED_GNO_LENGTH= 8;
+
+public:
+  /// Total length of post header
+  static const int POST_HEADER_LENGTH=
+    ENCODED_FLAG_LENGTH + ENCODED_SID_LENGTH + ENCODED_GNO_LENGTH;
+
+private:
+  /**
+    Internal representation of the GTID.  The SIDNO will be
+    uninitialized (value -1) until the first call to get_sidno(bool).
+  */
+  Gtid_specification spec;
+  /// SID for this GTID.
+  rpl_sid sid;
+  /// True if this is the last group of the transaction, false otherwise.
+  bool commit_flag;
+};
+
+
+class Previous_gtids_log_event : public Log_event
+{
+public:
+#ifndef MYSQL_CLIENT
+  Previous_gtids_log_event(const Gtid_set *set);
+#endif
+
+#ifndef MYSQL_CLIENT
+  int pack_info(Protocol*);
+#endif
+
+  Previous_gtids_log_event(const char *buffer, uint event_len,
+                           const Format_description_log_event *descr_event);
+  virtual ~Previous_gtids_log_event() {}
+
+  Log_event_type get_type_code() { return PREVIOUS_GTIDS_LOG_EVENT; }
+
+  bool is_valid() const { return buf != NULL; }
+  int get_data_size() { return buf_size; }
+
+#ifdef MYSQL_CLIENT
+  void print(FILE *file, PRINT_EVENT_INFO *print_event_info);
+#endif
+#ifdef MYSQL_SERVER
+  bool write(IO_CACHE* file)
+  {
+    if (DBUG_EVALUATE_IF("skip_writing_previous_gtids_log_event", 1, 0))
+    {
+      DBUG_PRINT("info", ("skip writing Previous_gtids_log_event because of debug option 'skip_writing_previous_gtids_log_event'"));
+      return false;
+    }
+
+    if (DBUG_EVALUATE_IF("write_partial_previous_gtids_log_event", 1, 0))
+    {
+      DBUG_PRINT("info", ("writing partial Previous_gtids_log_event because of debug option 'write_partial_previous_gtids_log_event'"));
+      return (Log_event::write_header(file, get_data_size()) ||
+              Log_event::write_data_header(file));
+    }
+  
+    return (Log_event::write_header(file, get_data_size()) ||
+            Log_event::write_data_header(file) ||
+            write_data_body(file) ||
+            Log_event::write_footer(file));
+  }
+  bool write_data_body(IO_CACHE *file);
+#endif
+
+  /// Return the encoded buffer, or NULL on error.
+  const uchar *get_buf() { return buf; }
+  /**
+    Return the formatted string, or NULL on error.
+
+    The string is allocated using my_malloc and it is the
+    responsibility of the caller to free it.
+  */
+  char *get_str(size_t *length,
+                const Gtid_set::String_format *string_format) const;
+  /// Add all GTIDs from this event to the given Gtid_set.
+  int add_to_set(Gtid_set *gtid_set) const;
+
+#if defined(MYSQL_SERVER) && defined(HAVE_REPLICATION)
+  int do_apply_event(Relay_log_info const *rli) { return 0; }
+  int do_update_pos(Relay_log_info *rli);
+#endif
+
+private:
+  int buf_size;
+  const uchar *buf;
+};
+
+inline bool is_gtid_event(Log_event* evt)
+{
+  return (evt->get_type_code() == GTID_LOG_EVENT ||
+          evt->get_type_code() == ANONYMOUS_GTID_LOG_EVENT);
+}
 
 /**
   @} (end of group Replication)

@@ -1,5 +1,6 @@
 SET optimizer_trace_max_mem_size=1048576;
-SET optimizer_trace="enabled=on,end_marker=on,one_line=off";
+SET optimizer_trace="enabled=on,one_line=off";
+SET end_markers_in_json="on";
 CREATE TABLE tmp (
 pk INT PRIMARY KEY AUTO_INCREMENT,
 col1 CHAR (1)
@@ -133,7 +134,7 @@ SELECT uniq, col1 FROM t1 GROUP BY col2,uniq LIMIT 3	{
                 "key_length": 1040,
                 "unique_constraint": true,
                 "location": "disk (MyISAM)",
-                "record_format": "fixed"
+                "record_format": "packed"
               } /* tmp_table_info */
             } /* creating_tmp_table */
           },
@@ -153,7 +154,7 @@ SELECT uniq, col1 FROM t1 GROUP BY col2,uniq LIMIT 3	{
             "filesort_priority_queue_optimization": {
               "limit": 3,
               "rows_estimate": 18,
-              "row_size": 1043,
+              "row_size": 1042,
               "memory_available": 262144,
               "chosen": true
             } /* filesort_priority_queue_optimization */,
@@ -163,7 +164,7 @@ SELECT uniq, col1 FROM t1 GROUP BY col2,uniq LIMIT 3	{
               "rows": 4,
               "examined_rows": 8,
               "number_of_tmp_files": 0,
-              "sort_buffer_size": 4204,
+              "sort_buffer_size": 4200,
               "sort_mode": "<sort_key, rowid>"
             } /* filesort_summary */
           }
@@ -484,7 +485,7 @@ SELECT uniq, col1, col2 FROM t1 GROUP BY uniq	{
                 "key_length": 13,
                 "unique_constraint": false,
                 "location": "disk (MyISAM)",
-                "record_format": "fixed"
+                "record_format": "packed"
               } /* tmp_table_info */
             } /* converting_tmp_table_to_myisam */
           },
@@ -506,7 +507,7 @@ SELECT uniq, col1, col2 FROM t1 GROUP BY uniq	{
               "rows": 16,
               "examined_rows": 16,
               "number_of_tmp_files": 0,
-              "sort_buffer_size": 676,
+              "sort_buffer_size": 650,
               "sort_mode": "<sort_key, rowid>"
             } /* filesort_summary */
           }
@@ -516,4 +517,132 @@ SELECT uniq, col1, col2 FROM t1 GROUP BY uniq	{
   ] /* steps */
 }	0	0
 SET GLOBAL tmp_table_size= @old_size;
+SELECT pool_id FROM information_schema.innodb_buffer_page LIMIT 1;
+pool_id
+0
+SELECT * FROM information_schema.OPTIMIZER_TRACE;
+QUERY	TRACE	MISSING_BYTES_BEYOND_MAX_MEM_SIZE	INSUFFICIENT_PRIVILEGES
+SELECT pool_id FROM information_schema.innodb_buffer_page LIMIT 1	{
+  "steps": [
+    {
+      "creating_tmp_table": {
+        "tmp_table_info": {
+          "database": "information_schema",
+          "table": "innodb_buffer_page",
+          "row_length": 6852,
+          "key_length": 0,
+          "unique_constraint": false,
+          "location": "memory (heap)",
+          "row_limit_estimate": 1
+        } /* tmp_table_info */
+      } /* creating_tmp_table */
+    },
+    {
+      "join_preparation": {
+        "select#": 1,
+        "steps": [
+          {
+            "expanded_query": "/* select#1 */ select `information_schema`.`innodb_buffer_page`.`POOL_ID` AS `pool_id` from `information_schema`.`innodb_buffer_page` limit 1"
+          }
+        ] /* steps */
+      } /* join_preparation */
+    },
+    {
+      "join_optimization": {
+        "select#": 1,
+        "steps": [
+          {
+            "table_dependencies": [
+              {
+                "database": "information_schema",
+                "table": "innodb_buffer_page",
+                "row_may_be_null": false,
+                "map_bit": 0,
+                "depends_on_map_bits": [
+                ] /* depends_on_map_bits */
+              }
+            ] /* table_dependencies */
+          },
+          {
+            "rows_estimation": [
+              {
+                "database": "information_schema",
+                "table": "innodb_buffer_page",
+                "table_scan": {
+                  "rows": 2,
+                  "cost": 10
+                } /* table_scan */
+              }
+            ] /* rows_estimation */
+          },
+          {
+            "considered_execution_plans": [
+              {
+                "database": "information_schema",
+                "table": "innodb_buffer_page",
+                "best_access_path": {
+                  "considered_access_paths": [
+                    {
+                      "access_type": "scan",
+                      "rows": 2,
+                      "cost": 10.1,
+                      "chosen": true
+                    }
+                  ] /* considered_access_paths */
+                } /* best_access_path */,
+                "cost_for_plan": 10.5,
+                "rows_for_plan": 2,
+                "chosen": true
+              }
+            ] /* considered_execution_plans */
+          },
+          {
+            "attaching_conditions_to_tables": {
+              "original_condition": null,
+              "attached_conditions_computation": [
+              ] /* attached_conditions_computation */,
+              "attached_conditions_summary": [
+                {
+                  "database": "information_schema",
+                  "table": "innodb_buffer_page",
+                  "attached": null
+                }
+              ] /* attached_conditions_summary */
+            } /* attaching_conditions_to_tables */
+          },
+          {
+            "refine_plan": [
+              {
+                "database": "information_schema",
+                "table": "innodb_buffer_page",
+                "access_type": "table_scan"
+              }
+            ] /* refine_plan */
+          }
+        ] /* steps */
+      } /* join_optimization */
+    },
+    {
+      "join_execution": {
+        "select#": 1,
+        "steps": [
+          {
+            "converting_tmp_table_to_myisam": {
+              "cause": "memory_table_size_exceeded",
+              "tmp_table_info": {
+                "database": "information_schema",
+                "table": "innodb_buffer_page",
+                "row_length": 6852,
+                "key_length": 0,
+                "unique_constraint": false,
+                "location": "disk (MyISAM)",
+                "record_format": "packed"
+              } /* tmp_table_info */
+            } /* converting_tmp_table_to_myisam */
+          }
+        ] /* steps */
+      } /* join_execution */
+    }
+  ] /* steps */
+}	0	0
 DROP TABLE t1, tmp;

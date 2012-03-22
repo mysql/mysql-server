@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2012, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -682,8 +682,12 @@ void
 buf_page_print(
 /*===========*/
 	const byte*	read_buf,	/*!< in: a database page */
-	ulint		zip_size)	/*!< in: compressed page size, or
-				0 for uncompressed pages */
+	ulint		zip_size,	/*!< in: compressed page size, or
+					0 for uncompressed pages */
+	ulint		flags)		/*!< in: 0 or
+					BUF_PAGE_PRINT_NO_CRASH or
+					BUF_PAGE_PRINT_NO_FULL */
+
 {
 #ifndef UNIV_HOTBACKUP
 	dict_index_t*	index;
@@ -694,11 +698,14 @@ buf_page_print(
 		size = UNIV_PAGE_SIZE;
 	}
 
-	ut_print_timestamp(stderr);
-	fprintf(stderr, " InnoDB: Page dump in ascii and hex (%lu bytes):\n",
-		(ulong) size);
-	ut_print_buf(stderr, read_buf, size);
-	fputs("\nInnoDB: End of page dump\n", stderr);
+	if (!(flags & BUF_PAGE_PRINT_NO_FULL)) {
+		ut_print_timestamp(stderr);
+		fprintf(stderr,
+			" InnoDB: Page dump in ascii and hex (%lu bytes):\n",
+			(ulong) size);
+		ut_print_buf(stderr, read_buf, size);
+		fputs("\nInnoDB: End of page dump\n", stderr);
+	}
 
 	if (zip_size) {
 		/* Print compressed page. */
@@ -848,6 +855,8 @@ buf_page_print(
 		      stderr);
 		break;
 	}
+
+	ut_ad(flags & BUF_PAGE_PRINT_NO_CRASH);
 }
 
 #ifndef UNIV_HOTBACKUP
@@ -918,7 +927,7 @@ buf_block_init(
 	buf_block_t*	block,		/*!< in: pointer to control block */
 	byte*		frame)		/*!< in: pointer to buffer frame */
 {
-	UNIV_MEM_DESC(frame, UNIV_PAGE_SIZE, block);
+	UNIV_MEM_DESC(frame, UNIV_PAGE_SIZE);
 
 	block->frame = frame;
 
@@ -975,7 +984,6 @@ buf_block_init(
 #endif /* PFS_SKIP_BUFFER_MUTEX_RWLOCK || PFS_GROUP_BUFFER_SYNC */
 
 	ut_ad(rw_lock_validate(&(block->lock)));
-
 }
 
 /********************************************************************//**
@@ -1042,11 +1050,8 @@ buf_chunk_init(
 	for (i = chunk->size; i--; ) {
 
 		buf_block_init(buf_pool, block, frame);
+		UNIV_MEM_INVALID(block->frame, UNIV_PAGE_SIZE);
 
-#ifdef HAVE_purify
-		/* Wipe contents of frame to eliminate a Purify warning */
-		memset(block->frame, '\0', UNIV_PAGE_SIZE);
-#endif
 		/* Add the block to the free list */
 		UT_LIST_ADD_LAST(list, buf_pool->free, (&block->page));
 
@@ -1219,7 +1224,7 @@ buf_pool_init_instance(
 	if (buf_pool_size > 0) {
 		buf_pool->n_chunks = 1;
 
-		buf_pool->chunks = chunk = 
+		buf_pool->chunks = chunk =
 			(buf_chunk_t*) mem_zalloc(sizeof *chunk);
 
 		UT_LIST_INIT(buf_pool->free);
@@ -1298,8 +1303,10 @@ buf_pool_free_instance(
 		ut_ad(bpage->in_LRU_list);
 
 		if (state != BUF_BLOCK_FILE_PAGE) {
-			/* We must not have any dirty block. */
-			ut_ad(state == BUF_BLOCK_ZIP_PAGE);
+			/* We must not have any dirty block except
+			when doing a fast shutdown. */
+			ut_ad(state == BUF_BLOCK_ZIP_PAGE
+			      || srv_fast_shutdown == 2);
 			buf_page_free_descriptor(bpage);
 		}
 
@@ -2308,8 +2315,8 @@ buf_pointer_is_block_field_instance(
 	/* TODO: protect buf_pool->chunks with a mutex (it will
 	currently remain constant after buf_pool_init()) */
 	while (chunk < echunk) {
-		if (ptr >= (void *)chunk->blocks
-		    && ptr < (void *)(chunk->blocks + chunk->size)) {
+		if (ptr >= (void*) chunk->blocks
+		    && ptr < (void*) (chunk->blocks + chunk->size)) {
 
 			return(TRUE);
 		}
@@ -2361,7 +2368,7 @@ buf_block_is_uncompressed(
 		return(FALSE);
 	}
 
-	return(buf_pointer_is_block_field_instance(buf_pool, (void *)block));
+	return(buf_pointer_is_block_field_instance(buf_pool, (void*) block));
 }
 
 /********************************************************************//**
@@ -2633,7 +2640,7 @@ wait_until_unfixed:
 		block->lock_hash_val = lock_rec_hash(space, offset);
 
 		UNIV_MEM_DESC(&block->page.zip.data,
-			      page_zip_get_size(&block->page.zip), block);
+			      page_zip_get_size(&block->page.zip));
 
 		if (buf_page_get_state(&block->page)
 		    == BUF_BLOCK_ZIP_PAGE) {
@@ -2658,7 +2665,7 @@ wait_until_unfixed:
 
 		block->page.buf_fix_count = 1;
 		buf_block_set_io_fix(block, BUF_IO_READ);
-		rw_lock_x_lock_func(&block->lock, 0, file, line);
+		rw_lock_x_lock_inline(&block->lock, 0, file, line);
 
 		UNIV_MEM_INVALID(bpage, sizeof *bpage);
 
@@ -2833,14 +2840,14 @@ wait_until_unfixed:
 		break;
 
 	case RW_S_LATCH:
-		rw_lock_s_lock_func(&(block->lock), 0, file, line);
+		rw_lock_s_lock_inline(&(block->lock), 0, file, line);
 
 		fix_type = MTR_MEMO_PAGE_S_FIX;
 		break;
 
 	default:
 		ut_ad(rw_latch == RW_X_LATCH);
-		rw_lock_x_lock_func(&(block->lock), 0, file, line);
+		rw_lock_x_lock_inline(&(block->lock), 0, file, line);
 
 		fix_type = MTR_MEMO_PAGE_X_FIX;
 		break;
@@ -2923,8 +2930,8 @@ buf_page_optimistic_get(
 						file, line);
 		fix_type = MTR_MEMO_PAGE_S_FIX;
 	} else {
-		success = rw_lock_x_lock_func_nowait(&(block->lock),
-						     file, line);
+		success = rw_lock_x_lock_func_nowait_inline(&(block->lock),
+							    file, line);
 		fix_type = MTR_MEMO_PAGE_X_FIX;
 	}
 
@@ -3056,8 +3063,8 @@ buf_page_get_known_nowait(
 						file, line);
 		fix_type = MTR_MEMO_PAGE_S_FIX;
 	} else {
-		success = rw_lock_x_lock_func_nowait(&(block->lock),
-						     file, line);
+		success = rw_lock_x_lock_func_nowait_inline(&(block->lock),
+							    file, line);
 		fix_type = MTR_MEMO_PAGE_X_FIX;
 	}
 
@@ -3077,9 +3084,18 @@ buf_page_get_known_nowait(
 	ut_a(buf_block_get_state(block) == BUF_BLOCK_FILE_PAGE);
 #endif /* UNIV_DEBUG || UNIV_BUF_DEBUG */
 #if defined UNIV_DEBUG_FILE_ACCESSES || defined UNIV_DEBUG
-	mutex_enter(&block->mutex);
-	ut_a(!block->page.file_page_was_freed);
-	mutex_exit(&block->mutex);
+	if (mode != BUF_KEEP_OLD) {
+		/* If mode == BUF_KEEP_OLD, we are executing an I/O
+		completion routine.  Avoid a bogus assertion failure
+		when ibuf_merge_or_delete_for_page() is processing a
+		page that was just freed due to DROP INDEX, or
+		deleting a record from SYS_INDEXES. This check will be
+		skipped in recv_recover_page() as well. */
+
+		mutex_enter(&block->mutex);
+		ut_a(!block->page.file_page_was_freed);
+		mutex_exit(&block->mutex);
+	}
 #endif
 
 #ifdef UNIV_IBUF_COUNT_DEBUG
@@ -3149,8 +3165,8 @@ buf_page_try_get_func(
 		S-latch. */
 
 		fix_type = MTR_MEMO_PAGE_X_FIX;
-		success = rw_lock_x_lock_func_nowait(&block->lock,
-						     file, line);
+		success = rw_lock_x_lock_func_nowait_inline(&block->lock,
+							    file, line);
 	}
 
 	if (!success) {
@@ -3477,7 +3493,7 @@ err_exit:
 
 		mutex_enter(&buf_pool->zip_mutex);
 		UNIV_MEM_DESC(bpage->zip.data,
-			      page_zip_get_size(&bpage->zip), bpage);
+			      page_zip_get_size(&bpage->zip));
 
 		buf_page_init_low(bpage);
 
@@ -3719,7 +3735,7 @@ buf_page_monitor(
 		? bpage->zip.data
 		: ((buf_block_t*) bpage)->frame;
 
-	switch(fil_page_get_type(frame)) {
+	switch (fil_page_get_type(frame)) {
 		ulint	level;
 
 	case FIL_PAGE_INDEX:
@@ -3901,7 +3917,7 @@ buf_page_io_complete(
 			frame + FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID);
 
 		if (bpage->space == TRX_SYS_SPACE
-		    && trx_doublewrite_page_inside(bpage->offset)) {
+		    && buf_dblwr_page_inside(bpage->offset)) {
 
 			ut_print_timestamp(stderr);
 			fprintf(stderr,
@@ -3943,7 +3959,8 @@ corrupt:
 				"InnoDB: You may have to recover"
 				" from a backup.\n",
 				(ulong) bpage->offset);
-			buf_page_print(frame, buf_page_get_zip_size(bpage));
+			buf_page_print(frame, buf_page_get_zip_size(bpage),
+				       BUF_PAGE_PRINT_NO_CRASH);
 			fprintf(stderr,
 				"InnoDB: Database page corruption on disk"
 				" or a failed\n"
@@ -5036,7 +5053,7 @@ buf_print_io(
 	} else {
 		ut_a(srv_buf_pool_instances == 1);
 
-		pool_info_total = pool_info = 
+		pool_info_total = pool_info =
 			static_cast<buf_pool_info_t*>(
 				mem_zalloc(sizeof *pool_info));
 	}

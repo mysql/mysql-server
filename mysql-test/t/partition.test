@@ -2433,3 +2433,46 @@ SELECT 1 FROM t1 AS t1_0 JOIN t1 ON t1_0.a LIKE (SELECT 1 FROM t1);
 SELECT * FROM vtmp;
 DROP VIEW vtmp;
 DROP TABLE t1;
+
+--echo #
+--echo # Bug#13580775 ASSERTION FAILED: RECORD_LENGTH == M_RECORD_LENGTH,
+--echo # FILE FILESORT_UTILS.CC
+--echo #
+
+CREATE TABLE t1 (
+  a INT PRIMARY KEY,
+  b INT,
+  c CHAR(1),
+  d INT,
+  KEY (c,d)
+) PARTITION BY KEY () PARTITIONS 1;
+
+INSERT INTO t1 VALUES (1,1,'a',1), (2,2,'a',1);
+
+SELECT 1 FROM t1 WHERE 1 IN
+(SELECT  group_concat(b)
+ FROM t1
+ WHERE c > geomfromtext('point(1 1)')
+ GROUP BY b
+);
+
+DROP TABLE t1;
+
+--echo #
+--echo # WL#5855 (EXPLAIN FORMAT=JSON) partition test
+--echo #
+
+CREATE TABLE t1 (c1 int(11) DEFAULT NULL, KEY c1 (c1))
+  PARTITION BY RANGE (c1)
+    (PARTITION a VALUES LESS THAN (10),
+     PARTITION b VALUES LESS THAN (100),
+     PARTITION c VALUES LESS THAN MAXVALUE);
+
+INSERT INTO t1 VALUES (1),(2),(3),(4),(5),(6),(7),(8),(9),(10),(11),(12),(13),(14),(15),(16),(17),(18),(19),(20);
+
+let $query=SELECT c1 FROM t1 WHERE (c1 > 2 AND c1 < 15);
+--eval EXPLAIN PARTITIONS $query
+--eval EXPLAIN EXTENDED $query
+--eval EXPLAIN FORMAT=JSON $query
+
+DROP TABLE t1;

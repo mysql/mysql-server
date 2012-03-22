@@ -363,9 +363,9 @@ buf_buddy_relocate(
 	pool), so there is nothing wrong about this.  The
 	mach_read_from_4() calls here will only trigger bogus
 	Valgrind memcheck warnings in UNIV_DEBUG_VALGRIND builds. */
-	space	= mach_read_from_4((const byte *) src
+	space	= mach_read_from_4((const byte*) src
 				   + FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID);
-	page_no	= mach_read_from_4((const byte *) src
+	page_no	= mach_read_from_4((const byte*) src
 				   + FIL_PAGE_OFFSET);
 	/* Suppress Valgrind warnings about conditional jump
 	on uninitialized value. */

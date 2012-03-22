@@ -2,7 +2,7 @@
 #define HANDLER_INCLUDED
 
 /*
-   Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License
@@ -35,6 +35,8 @@
 #include <ft_global.h>
 #include <keycache.h>
 
+class Alter_info;
+
 // the following is for checking tables
 
 #define HA_ADMIN_ALREADY_DONE	  1
@@ -51,6 +53,21 @@
 #define HA_ADMIN_NEEDS_UPGRADE  -10
 #define HA_ADMIN_NEEDS_ALTER    -11
 #define HA_ADMIN_NEEDS_CHECK    -12
+
+/**
+   Return values for check_if_supported_inplace_alter().
+
+   @see check_if_supported_inplace_alter() for description of
+   the individual values.
+*/
+enum enum_alter_inplace_result {
+  HA_ALTER_ERROR,
+  HA_ALTER_INPLACE_NOT_SUPPORTED,
+  HA_ALTER_INPLACE_EXCLUSIVE_LOCK,
+  HA_ALTER_INPLACE_SHARED_LOCK,
+  HA_ALTER_INPLACE_NO_LOCK_AFTER_PREPARE,
+  HA_ALTER_INPLACE_NO_LOCK
+};
 
 /* Bits in table_flags() to show what database can do */
 
@@ -92,8 +109,8 @@
 #define HA_CAN_INSERT_DELAYED  (1 << 14)
 /*
   If we get the primary key columns for free when we do an index read
-  It also implies that we have to retrive the primary key when using
-  position() and rnd_pos().
+  (usually, it also implies that HA_PRIMARY_KEY_REQUIRED_FOR_POSITION
+  flag is set).
 */
 #define HA_PRIMARY_KEY_IN_READ_INDEX (1 << 15)
 /*
@@ -167,6 +184,10 @@
  */
 #define HA_BINLOG_FLAGS (HA_BINLOG_ROW_CAPABLE | HA_BINLOG_STMT_CAPABLE)
 
+/*
+  The handler supports read before write removal optimization
+*/
+#define HA_READ_BEFORE_WRITE_REMOVAL  (LL(1) << 38)
 
 /* bits in index_flags(index_number) for what you can do with index */
 #define HA_READ_NEXT            1       /* TODO really use this flag */
@@ -184,8 +205,11 @@
 
 
 
-/*
+/**
   bits in alter_table_flags:
+
+  @deprecated with WL#5534: Online ALTER TABLE.
+  @see check_if_supported_inplace_alter()
 */
 /*
   These bits are set if different kinds of indexes can be created or dropped
@@ -298,8 +322,24 @@
 #define HA_CACHE_TBL_ASKTRANSACT 2
 #define HA_CACHE_TBL_TRANSACT    4
 
-/* Options of START TRANSACTION statement (and later of SET TRANSACTION stmt) */
-#define MYSQL_START_TRANS_OPT_WITH_CONS_SNAPSHOT 1
+/**
+  Options for the START TRANSACTION statement.
+
+  Note that READ ONLY and READ WRITE are logically mutually exclusive.
+  This is enforced by the parser and depended upon by trans_begin().
+
+  We need two flags instead of one in order to differentiate between
+  situation when no READ WRITE/ONLY clause were given and thus transaction
+  is implicitly READ WRITE and the case when READ WRITE clause was used
+  explicitly.
+*/
+
+// WITH CONSISTENT SNAPSHOT option
+static const uint MYSQL_START_TRANS_OPT_WITH_CONS_SNAPSHOT = 1;
+// READ ONLY option
+static const uint MYSQL_START_TRANS_OPT_READ_ONLY          = 2;
+// READ WRITE option
+static const uint MYSQL_START_TRANS_OPT_READ_WRITE         = 4;
 
 /* Flags for method is_fatal_error */
 #define HA_CHECK_DUP_KEY 1
@@ -889,12 +929,224 @@ typedef struct st_ha_create_information
   uint options;				/* OR of HA_CREATE_ options */
   uint merge_insert_method;
   uint extra_size;                      /* length of extra data segment */
-  enum enum_ha_unused unused1;
-  bool frm_only;                        /* 1 if no ha_create_table() */
   bool varchar;                         /* 1 if table has a VARCHAR */
   enum ha_storage_media storage_media;  /* DEFAULT, DISK or MEMORY */
-  enum enum_ha_unused unused2;
 } HA_CREATE_INFO;
+
+/**
+  In-place alter handler context.
+
+  This is a superclass intended to be subclassed by individual handlers
+  in order to store handler unique context between in-place alter API calls.
+
+  The handler is responsible for creating the object. This can be done
+  as early as during check_if_supported_inplace_alter().
+
+  The SQL layer is responsible for destroying the object.
+  The class extends Sql_alloc so the memory will be mem root allocated.
+
+  @see Alter_inplace_info
+*/
+
+class inplace_alter_handler_ctx : public Sql_alloc
+{
+public:
+  bool pending_add_index;
+
+  inplace_alter_handler_ctx()
+    :pending_add_index(false)
+  {}
+  virtual ~inplace_alter_handler_ctx() {}
+};
+
+
+/**
+  Class describing changes to be done by ALTER TABLE.
+  Instance of this class is passed to storage engine in order
+  to determine if this ALTER TABLE can be done using in-place
+  algorithm. It is also used for executing the ALTER TABLE
+  using in-place algorithm.
+*/
+
+class Alter_inplace_info
+{
+public:
+  /**
+     Bits to show in detail what operations the storage engine is
+     to execute.
+
+     All these operations are supported as in-place operations by the
+     SQL layer. This means that operations that by their nature must
+     be performed by copying the table to a temporary table, will not
+     have their own flags here (e.g. ALTER TABLE FORCE, ALTER TABLE
+     ENGINE).
+
+     We generally try to specify handler flags only if there are real
+     changes. But in cases when it is cumbersome to determine if some
+     attribute has really changed we might choose to set flag
+     pessimistically, for example, relying on parser output only.
+  */
+  typedef ulong HA_ALTER_FLAGS;
+
+  // Add non-unique, non-primary index
+  static const HA_ALTER_FLAGS ADD_INDEX                  = 1L << 0;
+
+  // Drop non-unique, non-primary index
+  static const HA_ALTER_FLAGS DROP_INDEX                 = 1L << 1;
+
+  // Add unique, non-primary index
+  static const HA_ALTER_FLAGS ADD_UNIQUE_INDEX           = 1L << 2;
+
+  // Drop unique, non-primary index
+  static const HA_ALTER_FLAGS DROP_UNIQUE_INDEX          = 1L << 3;
+
+  // Add primary index
+  static const HA_ALTER_FLAGS ADD_PK_INDEX               = 1L << 4;
+
+  // Drop primary index
+  static const HA_ALTER_FLAGS DROP_PK_INDEX              = 1L << 5;
+
+  // Add column
+  static const HA_ALTER_FLAGS ADD_COLUMN                 = 1L << 6;
+
+  // Drop column
+  static const HA_ALTER_FLAGS DROP_COLUMN                = 1L << 7;
+
+  // Rename column
+  static const HA_ALTER_FLAGS ALTER_COLUMN_NAME          = 1L << 8;
+
+  // Change column datatype
+  static const HA_ALTER_FLAGS ALTER_COLUMN_TYPE          = 1L << 9;
+
+  /**
+    Change column datatype in such way that new type has compatible
+    packed representation with old type, so it is theoretically
+    possible to perform change by only updating data dictionary
+    without changing table rows.
+  */
+  static const HA_ALTER_FLAGS ALTER_COLUMN_EQUAL_PACK_LENGTH = 1L << 10;
+
+  // Reorder column
+  static const HA_ALTER_FLAGS ALTER_COLUMN_ORDER         = 1L << 11;
+
+  // Change column from NULL to NOT NULL or vice versa
+  static const HA_ALTER_FLAGS ALTER_COLUMN_NULLABLE      = 1L << 12;
+
+  // Set or remove default column value
+  static const HA_ALTER_FLAGS ALTER_COLUMN_DEFAULT       = 1L << 13;
+
+  // Add foreign key
+  static const HA_ALTER_FLAGS ADD_FOREIGN_KEY            = 1L << 14;
+
+  // Drop foreign key
+  static const HA_ALTER_FLAGS DROP_FOREIGN_KEY           = 1L << 15;
+
+  // table_options changed, see HA_CREATE_INFO::used_fields for details.
+  static const HA_ALTER_FLAGS CHANGE_CREATE_OPTION       = 1L << 16;
+
+  // Table is renamed
+  static const HA_ALTER_FLAGS ALTER_RENAME               = 1L << 17;
+
+  /**
+    Create options (like MAX_ROWS) for the new version of table.
+
+    @note The referenced instance of HA_CREATE_INFO object was already
+          used to create new .FRM file for table being altered. So it
+          has been processed by mysql_prepare_create_table() already.
+          For example, this means that it has HA_OPTION_PACK_RECORD
+          flag in HA_CREATE_INFO::table_options member correctly set.
+  */
+  HA_CREATE_INFO *create_info;
+
+  /**
+    Alter options, fields and keys for the new version of table.
+
+    @note The referenced instance of Alter_info object was already
+          used to create new .FRM file for table being altered. So it
+          has been processed by mysql_prepare_create_table() already.
+          In particular, this means that in Create_field objects for
+          fields which were present in some form in the old version
+          of table, Create_field::field member points to corresponding
+          Field instance for old version of table.
+  */
+  Alter_info *alter_info;
+
+  /**
+    Array of KEYs for new version of table - including KEYs to be added.
+
+    @note Currently this array is produced as result of
+          mysql_prepare_create_table() call.
+          This means that it follows different convention for
+          KEY_PART_INFO::fieldnr values than objects in TABLE::key_info
+          array.
+
+    @todo This is mainly due to the fact that we need to keep compatibility
+          with deprecated handler::add_index() call. We plan to switch to
+          TABLE::key_info numbering once the deprecated API is removed.
+
+    KEYs are sorted - see sort_keys().
+  */
+  KEY  *key_info_buffer;
+
+  /** Size of key_info_buffer array. */
+  uint key_count;
+
+  /** Size of index_drop_buffer array. */
+  uint index_drop_count;
+
+  /**
+     Array of pointers to KEYs to be dropped belonging to the TABLE instance
+     for the old version of the table.
+  */
+  KEY  **index_drop_buffer;
+
+  /** Size of index_add_buffer array. */
+  uint index_add_count;
+
+  /**
+     Array of indexes into key_info_buffer for KEYs to be added,
+     sorted in increasing order.
+  */
+  uint *index_add_buffer;
+
+  /**
+     Context information to allow handlers to keep context between in-place
+     alter API calls.
+
+     @see inplace_alter_handler_ctx for information about object lifecycle.
+  */
+  inplace_alter_handler_ctx *handler_ctx;
+
+  /**
+     Flags describing in detail which operations the storage engine is to execute.
+  */
+  HA_ALTER_FLAGS handler_flags;
+
+  /** true for ALTER IGNORE TABLE ... */
+  const bool ignore;
+
+  Alter_inplace_info(HA_CREATE_INFO *create_info_arg,
+                     Alter_info *alter_info_arg,
+                     KEY *key_info_arg, uint key_count_arg,
+                     bool ignore_arg)
+    : create_info(create_info_arg),
+    alter_info(alter_info_arg),
+    key_info_buffer(key_info_arg),
+    key_count(key_count_arg),
+    index_drop_count(0),
+    index_drop_buffer(NULL),
+    index_add_count(0),
+    index_add_buffer(NULL),
+    handler_ctx(NULL),
+    handler_flags(0),
+    ignore(ignore_arg)
+  {}
+
+  ~Alter_inplace_info()
+  {
+    delete handler_ctx;
+  }
+};
 
 
 typedef struct st_key_create_information
@@ -1163,6 +1415,10 @@ void get_sweep_read_cost(TABLE *table, ha_rows nrows, bool interrupted,
 /* 
   The MRR user will provide ranges in key order, and MRR implementation
   must return rows in key order.
+  Passing this flag to multi_read_range_init() may cause the
+  default MRR handler to be used even if HA_MRR_USE_DEFAULT_IMPL
+  was not specified.
+  (If the native MRR impl. can not provide SORTED result)
 */
 #define HA_MRR_SORTED 8
 
@@ -1190,6 +1446,15 @@ void get_sweep_read_cost(TABLE *table, ha_rows nrows, bool interrupted,
   will not have NULL values.
 */
 #define HA_MRR_NO_NULL_ENDPOINTS 128
+
+/*
+  Set by the MRR implementation to signal that it will natively
+  produced sorted result if multi_range_read_init() is called with
+  the HA_MRR_SORTED flag - Else multi_range_read_init(HA_MRR_SORTED)
+  will revert to use the default MRR implementation. 
+*/
+#define HA_MRR_SUPPORT_SORTED 256
+
 
 class ha_statistics
 {
@@ -1263,6 +1528,16 @@ public:
   {}
   virtual ~handler_add_index() {}
 };
+
+
+/** Base class to be used by handlers different shares */
+class Handler_share
+{
+public:
+  Handler_share() {}
+  virtual ~Handler_share() {}
+};
+
 
 /**
   The handler class is the interface for dynamically loadable
@@ -1435,6 +1710,11 @@ private:
     object. This cloned handler object needs to know about the lock_type used.
   */
   int m_lock_type;
+  /**
+    Pointer where to store/retrieve the Handler_share pointer.
+    For non partitioned handlers this is &TABLE_SHARE::ha_share.
+  */
+  Handler_share **ha_share;
 
 public:
   handler(handlerton *ht_arg, TABLE_SHARE *share_arg)
@@ -1448,11 +1728,11 @@ public:
     pushed_cond(0), pushed_idx_cond(NULL), pushed_idx_cond_keyno(MAX_KEY),
     next_insert_id(0), insert_id_for_cur_row(0),
     auto_inc_intervals_count(0),
-    m_psi(NULL), m_lock_type(F_UNLCK)
+    m_psi(NULL), m_lock_type(F_UNLCK), ha_share(NULL)
     {
       DBUG_PRINT("info",
                  ("handler created F_UNLCK %d F_RDLCK %d F_WRLCK %d",
-                  F_UNLCK, F_RDLCK, F_UNLCK));
+                  F_UNLCK, F_RDLCK, F_WRLCK));
     }
   virtual ~handler(void)
   {
@@ -1568,7 +1848,6 @@ public:
   int ha_disable_indexes(uint mode);
   int ha_enable_indexes(uint mode);
   int ha_discard_or_import_tablespace(my_bool discard);
-  void ha_prepare_for_alter();
   int ha_rename_table(const char *from, const char *to);
   int ha_delete_table(const char *name);
   void ha_drop_table(const char *name);
@@ -1589,7 +1868,8 @@ public:
 
   void adjust_next_insert_id_after_explicit_value(ulonglong nr);
   int update_auto_increment();
-  void print_keydup_error(uint key_nr, const char *msg);
+  void print_keydup_error(KEY *key, const char *msg);
+  void print_keydup_error(KEY *key);
   virtual void print_error(int error, myf errflag);
   virtual bool get_error_message(int error, String *buf);
   uint get_dup_key(int error);
@@ -1939,8 +2219,15 @@ public:
   { return FALSE; }
   virtual char* get_foreign_key_create_info()
   { return(NULL);}  /* gets foreign key create string from InnoDB */
-  /** used in ALTER TABLE; 1 if changing storage engine is allowed */
-  virtual bool can_switch_engines() { return 1; }
+  /**
+    Used in ALTER TABLE to check if changing storage engine is allowed.
+
+    @note Called without holding thr_lock.c lock.
+
+    @retval true   Changing storage engine is allowed.
+    @retval false  Changing storage engine not allowed.
+  */
+  virtual bool can_switch_engines() { return true; }
   /**
     Get the list of foreign keys in this table.
 
@@ -2000,40 +2287,45 @@ public:
 
   virtual ulong index_flags(uint idx, uint part, bool all_parts) const =0;
 
-/**
-   First phase of in-place add index.
-   Handlers are supposed to create new indexes here but not make them
-   visible.
+  /**
+    First phase of in-place add index in old, deprecated in-place ALTER API.
+    Handlers are supposed to create new indexes here but not make them visible.
 
-   @param table_arg   Table to add index to
-   @param key_info    Information about new indexes
-   @param num_of_key  Number of new indexes
-   @param add[out]    Context of handler specific information needed
-                      for final_add_index().
+    @param table_arg   Table to add index to
+    @param key_info    Information about new indexes
+    @param num_of_key  Number of new indexes
+    @param add[out]    Context of handler specific information needed
+                       for final_add_index().
 
-   @note This function can be called with less than exclusive metadata
-   lock depending on which flags are listed in alter_table_flags.
-*/
+    @note This function can be called with less than exclusive metadata
+    lock depending on which flags are listed in alter_table_flags.
+  */
   virtual int add_index(TABLE *table_arg, KEY *key_info, uint num_of_keys,
-                        handler_add_index **add)
+                        inplace_alter_handler_ctx **add)
   { return (HA_ERR_WRONG_COMMAND); }
 
-/**
-   Second and last phase of in-place add index.
-   Commit or rollback pending new indexes.
+  /**
+    Second and last phase of in-place add index in old, deprecated in-place
+    ALTER API. Commit or rollback pending new indexes.
 
-   @param add     Context of handler specific information from add_index().
-   @param commit  If true, commit. If false, rollback index changes.
+    @param add     Context of handler specific information from add_index().
+    @param commit  If true, commit. If false, rollback index changes.
 
-   @note This function is called with exclusive metadata lock.
-*/
-  virtual int final_add_index(handler_add_index *add, bool commit)
+    @note This function is called with exclusive metadata lock.
+  */
+  virtual int final_add_index(inplace_alter_handler_ctx *add, bool commit)
   { return (HA_ERR_WRONG_COMMAND); }
 
-  virtual int prepare_drop_index(TABLE *table_arg, uint *key_num,
-                                 uint num_of_keys)
+  /**
+    First phase of in-place drop index in old, deprecated in-place ALTER API.
+  */
+  virtual int prepare_drop_index(KEY **keys, uint num_of_keys)
   { return (HA_ERR_WRONG_COMMAND); }
-  virtual int final_drop_index(TABLE *table_arg)
+  /**
+    Second and last phase of in-place drop index in old, deprecated in-place
+    ALTER API.
+  */
+  virtual int final_drop_index()
   { return (HA_ERR_WRONG_COMMAND); }
 
   uint max_record_length() const
@@ -2227,9 +2519,257 @@ public:
    in_range_check_pushed_down= false;
  }
 
+ /**
+   Part of old, deprecated in-place ALTER API.
+ */
  virtual bool check_if_incompatible_data(HA_CREATE_INFO *create_info,
 					 uint table_changes)
  { return COMPATIBLE_DATA_NO; }
+
+ /* On-line/in-place ALTER TABLE interface. */
+
+ /*
+   Here is an outline of on-line/in-place ALTER TABLE execution through
+   this interface.
+
+   Phase 1 : Initialization
+   ========================
+   During this phase we determine which algorithm should be used
+   for execution of ALTER TABLE and what level concurrency it will
+   require.
+
+   *) This phase starts by opening the table and preparing description
+      of the new version of the table.
+   *) Then we check if it is impossible even in theory to carry out
+      this ALTER TABLE using the in-place algorithm. For example, because
+      we need to change storage engine or the user has explicitly requested
+      usage of the "copy" algorithm.
+   *) If in-place ALTER TABLE is theoretically possible, we continue
+      by compiling differences between old and new versions of the table
+      in the form of HA_ALTER_FLAGS bitmap. We also build a few
+      auxiliary structures describing requested changes and store
+      all these data in the Alter_inplace_info object.
+   *) Then the handler::check_if_supported_inplace_alter() method is called
+      in order to find if the storage engine can carry out changes requested
+      by this ALTER TABLE using the in-place algorithm. To determine this,
+      the engine can rely on data in HA_ALTER_FLAGS/Alter_inplace_info
+      passed to it as well as on its own checks. If the in-place algorithm
+      can be used for this ALTER TABLE, the level of required concurrency for
+      its execution is also returned.
+      If any errors occur during the handler call, ALTER TABLE is aborted
+      and no further handler functions are called.
+   *) Locking requirements of the in-place algorithm are compared to any
+      concurrency requirements specified by user. If there is a conflict
+      between them, we either switch to the copy algorithm or emit an error.
+
+   Phase 2 : Execution
+   ===================
+
+   In this phase the operations are executed.
+
+   *) As the first step, we acquire a lock corresponding to the concurrency
+      level which was returned by handler::check_if_supported_inplace_alter()
+      and requested by the user. This lock is held for most of the
+      duration of in-place ALTER (if HA_ALTER_INPLACE_NO_LOCK_AFTER_PREPARE
+      was returned we acquire a write lock for duration of the next step only).
+   *) After that we call handler::ha_prepare_inplace_alter_table() to give the
+      storage engine a chance to update its internal structures with a higher
+      lock level than the one that will be used for the main step of algorithm.
+      After that we downgrade the lock if it is necessary.
+   *) After that, the main step of this phase and algorithm is executed.
+      We call the handler::ha_inplace_alter_table() method, which carries out the
+      changes requested by ALTER TABLE but does not makes them visible to other
+      connections yet.
+   *) We ensure that no other connection uses the table by upgrading our
+      lock on it to exclusive.
+   *) a) If the previous step succeeds, handler::ha_commit_inplace_alter_table() is
+         called to allow the storage engine to do any final updates to its structures,
+         to make all earlier changes durable and visible to other connections.
+      b) If we have failed to upgrade lock or any errors have occured during the
+         handler functions calls (including commit), we call
+         handler::ha_commit_inplace_alter_table()
+         to rollback all changes which were done during previous steps.
+
+  Phase 3 : Final
+  ===============
+
+  In this phase we:
+
+  *) Update SQL-layer data-dictionary by installing .FRM file for the new version
+     of the table.
+  *) Inform the storage engine about this change by calling the
+     handler::ha_notify_table_changed() method.
+  *) Destroy the Alter_inplace_info and handler_ctx objects.
+
+ */
+
+ /**
+    Check if a storage engine supports a particular alter table in-place
+
+    @param    altered_table     TABLE object for new version of table.
+    @param    ha_alter_info     Structure describing changes to be done
+                                by ALTER TABLE and holding data used
+                                during in-place alter.
+
+    @retval   HA_ALTER_ERROR                  Unexpected error.
+    @retval   HA_ALTER_INPLACE_NOT_SUPPORTED  Not supported, must use copy.
+    @retval   HA_ALTER_INPLACE_EXCLUSIVE_LOCK Supported, but requires X lock.
+    @retval   HA_ALTER_INPLACE_SHARED_LOCK    Supported, but requires SNW lock.
+    @retval   HA_ALTER_INPLACE_NO_LOCK_AFTER_PREPARE
+                                              Supported, concurrent reads/writes
+                                              allowed. However, prepare phase
+                                              requires SNW lock.
+    @retval   HA_ALTER_INPLACE_NO_LOCK        Supported, concurrent
+                                              reads/writes allowed.
+
+    @note The default implementation uses the old in-place ALTER API
+    to determine if the storage engine supports in-place ALTER or not.
+
+    @note Called without holding thr_lock.c lock.
+ */
+ virtual enum_alter_inplace_result
+ check_if_supported_inplace_alter(TABLE *altered_table,
+                                  Alter_inplace_info *ha_alter_info);
+
+
+ /**
+    Public functions wrapping the actual handler call.
+    @see prepare_inplace_alter_table()
+ */
+ bool ha_prepare_inplace_alter_table(TABLE *altered_table,
+                                     Alter_inplace_info *ha_alter_info);
+
+
+ /**
+    Public function wrapping the actual handler call.
+    @see inplace_alter_table()
+ */
+ bool ha_inplace_alter_table(TABLE *altered_table,
+                             Alter_inplace_info *ha_alter_info)
+ {
+   return inplace_alter_table(altered_table, ha_alter_info);
+ }
+
+
+ /**
+    Public function wrapping the actual handler call.
+    Allows us to enforce asserts regardless of handler implementation.
+    @see commit_inplace_alter_table()
+ */
+ bool ha_commit_inplace_alter_table(TABLE *altered_table,
+                                    Alter_inplace_info *ha_alter_info,
+                                    bool commit);
+
+
+ /**
+    Public function wrapping the actual handler call.
+    @see notify_table_changed()
+ */
+ void ha_notify_table_changed()
+ {
+   notify_table_changed();
+ }
+
+
+protected:
+ /**
+    Allows the storage engine to update internal structures with concurrent
+    writes blocked. If check_if_supported_inplace_alter() returns
+    HA_ALTER_INPLACE_NO_LOCK_AFTER_PREPARE, this function is called with
+    writes blocked, otherwise the same level of locking as for
+    inplace_alter_table() will be used.
+
+    @note Storage engines are responsible for reporting any errors by
+    calling my_error()/print_error()
+
+    @note If this function reports error, commit_inplace_alter_table()
+    will be called with commit= false.
+
+    @note For partitioning, failing to prepare one partition, means that
+    commit_inplace_alter_table() will be called to roll back changes for
+    all partitions. This means that commit_inplace_alter_table() might be
+    called without prepare_inplace_alter_table() having been called first
+    for a given partition.
+
+    @param    altered_table     TABLE object for new version of table.
+    @param    ha_alter_info     Structure describing changes to be done
+                                by ALTER TABLE and holding data used
+                                during in-place alter.
+
+    @retval   true              Error
+    @retval   false             Success
+ */
+ virtual bool prepare_inplace_alter_table(TABLE *altered_table,
+                                          Alter_inplace_info *ha_alter_info)
+ { return false; }
+
+
+ /**
+    Alter the table structure in-place with operations specified using HA_ALTER_FLAGS
+    and Alter_inplace_info. The level of concurrency allowed during this
+    operation depends on the return value from check_if_supported_inplace_alter().
+
+    @note Storage engines are responsible for reporting any errors by
+    calling my_error()/print_error()
+
+    @note If this function reports error, commit_inplace_alter_table()
+    will be called with commit= false.
+
+    @param    altered_table     TABLE object for new version of table.
+    @param    ha_alter_info     Structure describing changes to be done
+                                by ALTER TABLE and holding data used
+                                during in-place alter.
+
+    @retval   true              Error
+    @retval   false             Success
+ */
+ virtual bool inplace_alter_table(TABLE *altered_table,
+                                  Alter_inplace_info *ha_alter_info);
+
+
+ /**
+    Commit or rollback the changes made during prepare_inplace_alter_table()
+    and inplace_alter_table() inside the storage engine.
+    Note that in case of rollback the allowed level of concurrency during
+    this operation will be the same as for inplace_alter_table() and thus
+    might be higher than during prepare_inplace_alter_table(). (For example,
+    concurrent writes were blocked during prepare, but might not be during
+    rollback).
+
+    @note Storage engines are responsible for reporting any errors by
+    calling my_error()/print_error()
+
+    @note If this function with commit= true reports error, it will be called
+    again with commit= false.
+
+    @note In case of partitioning, this function might be called for rollback
+    without prepare_inplace_alter_table() having been called first.
+    @see prepare_inplace_alter_table().
+
+    @param    altered_table     TABLE object for new version of table.
+    @param    ha_alter_info     Structure describing changes to be done
+                                by ALTER TABLE and holding data used
+                                during in-place alter.
+    @param    commit            True => Commit, False => Rollback.
+
+    @retval   true              Error
+    @retval   false             Success
+ */
+ virtual bool commit_inplace_alter_table(TABLE *altered_table,
+                                         Alter_inplace_info *ha_alter_info,
+                                         bool commit);
+
+
+ /**
+    Notify the storage engine that the table structure (.FRM) has been updated.
+
+    @note No errors are allowed during notify_table_changed().
+ */
+ virtual void notify_table_changed();
+
+public:
+ /* End of On-line/in-place ALTER TABLE interface. */
+
 
   /**
     use_hidden_primary_key() is called in case of an update/delete when
@@ -2449,6 +2989,20 @@ public:
   { return HA_ERR_WRONG_COMMAND; }
   virtual int rename_partitions(const char *path)
   { return HA_ERR_WRONG_COMMAND; }
+  virtual bool set_ha_share_ref(Handler_share **arg_ha_share)
+  {
+    DBUG_ASSERT(!ha_share);
+    DBUG_ASSERT(arg_ha_share);
+    if (ha_share || !arg_ha_share)
+      return true;
+    ha_share= arg_ha_share;
+    return false;
+  }
+protected:
+  Handler_share *get_ha_share_ptr();
+  void set_ha_share_ptr(Handler_share *arg_ha_share);
+  void lock_shared_ha_data();
+  void unlock_shared_ha_data();
 };
 
 
@@ -2471,6 +3025,7 @@ public:
 
   DsMrr_impl()
     : h2(NULL) {};
+  ~DsMrr_impl() { DBUG_ASSERT(h2 == NULL); }
   
   /*
     The "owner" handler object (the one that calls dsmrr_XXX functions.
@@ -2503,6 +3058,18 @@ public:
   int dsmrr_init(handler *h, RANGE_SEQ_IF *seq_funcs, void *seq_init_param, 
                  uint n_ranges, uint mode, HANDLER_BUFFER *buf);
   void dsmrr_close();
+
+  /**
+    Resets the DS-MRR object to the state it had after being intialized.
+
+    If there is an open scan then this will be closed.
+    
+    This function should be called by handler::ha_reset() which is called
+    when a statement is completed in order to make the handler object ready
+    for re-use by a different statement.
+  */
+
+  void reset();
   int dsmrr_fill_buffer();
   int dsmrr_next(char **range_info);
 
@@ -2604,7 +3171,7 @@ int ha_release_temporary_latches(THD *thd);
 
 /* transactions: interface to handlerton functions */
 int ha_start_consistent_snapshot(THD *thd);
-int ha_commit_or_rollback_by_xid(XID *xid, bool commit);
+int ha_commit_or_rollback_by_xid(THD *thd, XID *xid, bool commit);
 int ha_commit_one_phase(THD *thd, bool all);
 int ha_commit_trans(THD *thd, bool all);
 int ha_rollback_trans(THD *thd, bool all);

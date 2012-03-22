@@ -1,0 +1,9 @@
+############################################################
+# By JBM 2006-02-15 Wrapper for rpl_multi_update3.test     #
+# to reuse test code between engine runs                   #
+############################################################
+-- source include/have_ndb.inc
+-- source include/master-slave.inc
+let $engine_type=NDB;
+-- source extra/rpl_tests/rpl_multi_update3.test
+--source include/rpl_end.inc

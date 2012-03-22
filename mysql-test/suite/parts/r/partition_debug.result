@@ -1268,7 +1268,7 @@ a	b
 3	Original from partition p0
 4	Original from partition p0
 ALTER TABLE t1 EXCHANGE PARTITION p0 WITH TABLE t2;
-ERROR HY000: Error on rename of './test/t2' to './test/#sqlx-nnnn_nnnn' (errno: 0)
+ERROR HY000: Error on rename of './test/t2' to './test/#sqlx-nnnn_nnnn' (errno: 0 - n/a)
 # State after failure
 t1#P#p0.MYD
 t1#P#p0.MYI
@@ -1472,7 +1472,7 @@ a	b
 3	Original from partition p0
 4	Original from partition p0
 ALTER TABLE t1 EXCHANGE PARTITION p0 WITH TABLE t2;
-ERROR HY000: Error on rename of './test/t1#P#p0' to './test/t2' (errno: 0)
+ERROR HY000: Error on rename of './test/t1#P#p0' to './test/t2' (errno: 0 - n/a)
 # State after failure
 t1#P#p0.MYD
 t1#P#p0.MYI
@@ -1676,7 +1676,7 @@ a	b
 3	Original from partition p0
 4	Original from partition p0
 ALTER TABLE t1 EXCHANGE PARTITION p0 WITH TABLE t2;
-ERROR HY000: Error on rename of './test/#sqlx-nnnn_nnnn' to './test/t1#P#p0' (errno: 0)
+ERROR HY000: Error on rename of './test/#sqlx-nnnn_nnnn' to './test/t1#P#p0' (errno: 0 - n/a)
 # State after failure
 t1#P#p0.MYD
 t1#P#p0.MYI

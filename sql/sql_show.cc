@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -55,6 +55,9 @@
 #include "debug_sync.h"
 #include "datadict.h"   // dd_frm_type()
 #include "opt_trace.h"     // Optimizer trace information schema tables
+#include "sql_tmp_table.h" // Tmp tables
+#include "sql_optimizer.h" // JOIN
+#include "global_threads.h"
 
 #include <algorithm>
 using std::max;
@@ -507,7 +510,10 @@ void
 ignore_db_dirs_free()
 {
   if (opt_ignore_db_dirs)
+  {
     my_free(opt_ignore_db_dirs);
+    opt_ignore_db_dirs= NULL;
+  }
   ignore_db_dirs_reset();
   delete_dynamic(&ignore_db_dirs_array);
   my_hash_free(&ignore_db_dirs_hash);
@@ -662,7 +668,11 @@ find_files(THD *thd, List<LEX_STRING> *files, const char *db,
     if (my_errno == ENOENT)
       my_error(ER_BAD_DB_ERROR, MYF(ME_BELL+ME_WAITTANG), db);
     else
-      my_error(ER_CANT_READ_DIR, MYF(ME_BELL+ME_WAITTANG), path, my_errno);
+    {
+      char errbuf[MYSYS_STRERROR_SIZE];
+      my_error(ER_CANT_READ_DIR, MYF(ME_BELL+ME_WAITTANG), path,
+               my_errno, my_strerror(errbuf, sizeof(errbuf), my_errno));
+    }
     DBUG_RETURN(FIND_FILES_DIR);
   }
 
@@ -1295,13 +1305,11 @@ static void append_directory(THD *thd, String *packet, const char *dir_type,
   @bool  lcase             Whether to print in lower case.
   @return                  false on success, true on error.
 */
-static bool get_field_on_update_clause(Field *timestamp_field,
-                                       Field *field, String *val, bool lcase)
+static bool print_on_update_clause(Field *field, String *val, bool lcase)
 {
   DBUG_ASSERT(val->charset()->mbminlen == 1);
   val->length(0);
-  if (timestamp_field == field &&
-      field->unireg_check != Field::TIMESTAMP_DN_FIELD)
+  if (field->has_update_default_function())
   {
     if (lcase)
       val->copy(STRING_WITH_LEN("on update "), val->charset());
@@ -1316,31 +1324,27 @@ static bool get_field_on_update_clause(Field *timestamp_field,
 }
 
 
-static bool get_field_default_value(THD *thd, Field *timestamp_field,
-                                    Field *field, String *def_value,
-                                    bool quoted)
+static bool print_default_clause(THD *thd, Field *field, String *def_value,
+                                 bool quoted)
 {
-  bool has_default;
-  bool has_now_default;
   enum enum_field_types field_type= field->type();
 
-  /*
-     We are using CURRENT_TIMESTAMP instead of NOW because it is
-     more standard
-  */
-  has_now_default= (timestamp_field == field &&
-                    field->unireg_check != Field::TIMESTAMP_UN_FIELD);
-
-  has_default= (field_type != FIELD_TYPE_BLOB &&
-                !(field->flags & NO_DEFAULT_VALUE_FLAG) &&
-                field->unireg_check != Field::NEXT_NUMBER &&
-                !((thd->variables.sql_mode & (MODE_MYSQL323 | MODE_MYSQL40))
-                  && has_now_default));
+  const bool has_now_default= field->has_insert_default_function();
+  const bool has_default=
+    (field_type != FIELD_TYPE_BLOB &&
+     !(field->flags & NO_DEFAULT_VALUE_FLAG) &&
+     field->unireg_check != Field::NEXT_NUMBER &&
+     !((thd->variables.sql_mode & (MODE_MYSQL323 | MODE_MYSQL40))
+       && has_now_default));
 
   def_value->length(0);
   if (has_default)
   {
     if (has_now_default)
+      /*
+        We are using CURRENT_TIMESTAMP instead of NOW because it is the SQL
+        standard.
+      */
     {
       def_value->append(STRING_WITH_LEN("CURRENT_TIMESTAMP"));
       if (field->decimals() > 0)
@@ -1426,7 +1430,9 @@ int store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
   handler *file= table->file;
   TABLE_SHARE *share= table->s;
   HA_CREATE_INFO create_info;
+#ifdef WITH_PARTITION_STORAGE_ENGINE
   bool show_table_options= FALSE;
+#endif /* WITH_PARTITION_STORAGE_ENGINE */
   bool foreign_db_mode=  (thd->variables.sql_mode & (MODE_POSTGRESQL |
                                                      MODE_ORACLE |
                                                      MODE_MSSQL |
@@ -1537,17 +1543,14 @@ int store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
       packet->append(STRING_WITH_LEN(" NULL"));
     }
 
-    if (get_field_default_value(thd, table->get_timestamp_field(),
-                                field, &def_value, 1))
+    if (print_default_clause(thd, field, &def_value, true))
     {
       packet->append(STRING_WITH_LEN(" DEFAULT "));
       packet->append(def_value.ptr(), def_value.length(), system_charset_info);
     }
 
     if (!limited_mysql_mode &&
-        get_field_on_update_clause(table->get_timestamp_field(),
-                                   field, &def_value, false))
-    
+        print_on_update_clause(field, &def_value, false))
     {
       packet->append(STRING_WITH_LEN(" "));
       packet->append(def_value);
@@ -1642,7 +1645,9 @@ int store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
   packet->append(STRING_WITH_LEN("\n)"));
   if (!(thd->variables.sql_mode & MODE_NO_TABLE_OPTIONS) && !foreign_db_mode)
   {
+#ifdef WITH_PARTITION_STORAGE_ENGINE
     show_table_options= TRUE;
+#endif /* WITH_PARTITION_STORAGE_ENGINE */
 
     /* TABLESPACE and STORAGE */
     if (share->tablespace ||
@@ -1994,7 +1999,7 @@ view_store_create_info(THD *thd, TABLE_LIST *table, String *buff)
   returns for each thread: thread id, user, host, db, command, info
 ****************************************************************************/
 
-class thread_info :public ilink {
+class thread_info :public ilink<thread_info> {
 public:
   static void *operator new(size_t size)
   {
@@ -4563,7 +4568,7 @@ static int get_schema_column_record(THD *thd, TABLE_LIST *tables,
   const char *wild= lex->wild ? lex->wild->ptr() : NullS;
   CHARSET_INFO *cs= system_charset_info;
   TABLE *show_table;
-  Field **ptr, *field, *timestamp_field;
+  Field **ptr, *field;
   int count;
   DBUG_ENTER("get_schema_column_record");
 
@@ -4587,7 +4592,6 @@ static int get_schema_column_record(THD *thd, TABLE_LIST *tables,
   show_table= tables->table;
   count= 0;
   ptr= show_table->field;
-  timestamp_field= show_table->get_timestamp_field();
   show_table->use_all_columns();               // Required for default
   restore_record(show_table, s->default_values);
 
@@ -4641,7 +4645,7 @@ static int get_schema_column_record(THD *thd, TABLE_LIST *tables,
     field->sql_type(type);
     table->field[IS_COLUMNS_COLUMN_TYPE]->store(type.ptr(), type.length(), cs);
 
-    if (get_field_default_value(thd, timestamp_field, field, &type, 0))
+    if (print_default_clause(thd, field, &type, false))
     {
       table->field[IS_COLUMNS_COLUMN_DEFAULT]->store(type.ptr(), type.length(),
                                                     cs);
@@ -4660,7 +4664,7 @@ static int get_schema_column_record(THD *thd, TABLE_LIST *tables,
     if (field->unireg_check == Field::NEXT_NUMBER)
       table->field[IS_COLUMNS_EXTRA]->store(STRING_WITH_LEN("auto_increment"),
                                             cs);
-    if (get_field_on_update_clause(timestamp_field, field, &type, true))
+    if (print_on_update_clause(field, &type, true))
       table->field[IS_COLUMNS_EXTRA]->store(type.ptr(), type.length(), cs);
     table->field[IS_COLUMNS_COLUMN_COMMENT]->store(field->comment.str,
                                                    field->comment.length, cs);
@@ -4975,12 +4979,12 @@ bool store_schema_params(THD *thd, TABLE *table, TABLE *proc_table,
       }
     }
 
-    sp_pcontext *spcont= sp->get_parse_context();
-    uint params= spcont->context_var_count();
-    for (uint i= 0 ; i < params ; i++)
+    sp_pcontext *sp_root_parsing_ctx= sp->get_root_parsing_context();
+
+    for (uint i= 0; i < sp_root_parsing_ctx->context_var_count(); i++)
     {
       const char *tmp_buff;
-      sp_variable *spvar= spcont->find_variable(i);
+      sp_variable *spvar= sp_root_parsing_ctx->find_variable(i);
       field_def= &spvar->field_def;
       switch (spvar->mode) {
       case sp_variable::MODE_IN:

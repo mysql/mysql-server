@@ -2019,6 +2019,30 @@ D120
 SELECT HEX(INSERT(_utf8 0xD18FD18E, 2, 1, 0x20));
 HEX(INSERT(_utf8 0xD18FD18E, 2, 1, 0x20))
 D120D18E
+#
+# Bug#11752408 - 43593: DUMP/BACKUP/RESTORE/UPGRADE TOOLS FAILS BECAUSE OF UTF8_GENERAL_CI
+#
+CREATE TABLE t1 (a VARCHAR(10) CHARACTER SET utf8 COLLATE utf8_general_mysql500_ci);
+INSERT INTO t1 VALUES ('a'),('r'),('s'),(_latin1 0xDF),(_latin1 0xF7),('t'),('z');
+SELECT * FROM t1 ORDER BY a;
+a
+a
+r
+s
+t
+z
+ß
+÷
+SELECT a, COUNT(*) FROM t1 GROUP BY a;
+a	COUNT(*)
+a	1
+r	1
+s	1
+t	1
+z	1
+ß	1
+÷	1
+DROP TABLE t1;
 End of 5.1 tests
 Start of 5.4 tests
 SET NAMES utf8mb3;
@@ -5040,8 +5064,8 @@ DATE_SUB(CAST('2007-08-03 17:33:00' AS DATETIME), INTERVAL 1 MINUTE) AS field_da
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
 def					field_str1	254	87	10	Y	0	31	33
 def					field1_str2	254	87	19	Y	0	31	33
-def					field_date	10	10	10	Y	160	0	63
-def					field_datetime	12	19	19	Y	160	0	63
+def					field_date	10	10	10	Y	128	0	63
+def					field_datetime	12	19	19	Y	128	0	63
 field_str1	field1_str2	field_date	field_datetime
 2007-08-02	2007-08-03 17:32:00	2007-08-02	2007-08-03 17:32:00
 SELECT
@@ -5075,7 +5099,7 @@ Note	1003	/* select#1 */ select (v_LastPaymentDate@0 < now()) AS `v_LastPaymentD
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Note	1003	/* select#1 */ select concat(convert(v_LastPaymentDate@0 using utf8),now()) AS `CONCAT(v_LastPaymentDate, NOW())`
+Note	1003	/* select#1 */ select concat(v_LastPaymentDate@0,now()) AS `CONCAT(v_LastPaymentDate, NOW())`
 DROP PROCEDURE p1;
 #
 # Bug#52159 returning time type from function and empty left join causes debug assertion
@@ -5524,6 +5548,23 @@ b
 c
 drop table t1;
 set max_sort_length=default;
+#
+# Bugs#12635232: VALGRIND WARNINGS: IS_IPV6, IS_IPV4, INET6_ATON,
+# INET6_NTOA + MULTIBYTE CHARSET.
+#
+SET NAMES utf8;
+SELECT is_ipv4(inet_ntoa('1'));
+is_ipv4(inet_ntoa('1'))
+1
+SELECT is_ipv6(inet_ntoa('1'));
+is_ipv6(inet_ntoa('1'))
+0
+SELECT inet6_aton(inet_ntoa('1'));
+inet6_aton(inet_ntoa('1'))
+   
+SELECT inet6_ntoa(inet_ntoa('1'));
+inet6_ntoa(inet_ntoa('1'))
+NULL
 #
 # End of 5.6 tests
 #

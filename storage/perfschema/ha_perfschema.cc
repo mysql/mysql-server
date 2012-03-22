@@ -164,6 +164,8 @@ static struct st_mysql_show_var pfs_status_vars[]=
     (char*) &stage_class_lost, SHOW_LONG},
   {"Performance_schema_statement_classes_lost",
     (char*) &statement_class_lost, SHOW_LONG},
+  {"Performance_schema_digest_lost",
+    (char*) &digest_lost, SHOW_LONG},
   {NullS, NullS, SHOW_LONG}
 };
 
@@ -289,6 +291,9 @@ int ha_perfschema::rnd_init(bool scan)
     m_table= m_table_share->m_open_table();
   else
     m_table->reset_position();
+
+  if (m_table != NULL)
+    m_table->rnd_init(scan);
 
   result= m_table ? 0 : HA_ERR_OUT_OF_MEM;
   DBUG_RETURN(result);

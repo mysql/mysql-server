@@ -1,5 +1,6 @@
 set optimizer_trace_max_mem_size=1048576;
-set optimizer_trace="enabled=on,end_marker=on";
+set end_markers_in_json=on;
+set optimizer_trace="enabled=on";
 # check that if a sub-statement should not be traced,
 # it is not traced even if inside a traced top statement
 
@@ -176,7 +177,7 @@ set dummy@2 NULL	{
 set optimizer_trace_offset=default, optimizer_trace_limit=default;
 select @@optimizer_trace;
 @@optimizer_trace
-enabled=off,end_marker=on,one_line=off
+enabled=off,one_line=off
 set optimizer_trace="enabled=on";
 drop function f1;
 
@@ -331,6 +332,7 @@ TRACE
                     "range_scan_alternatives": [
                       {
                         "index": "a",
+                        "index_dives_for_eq_ranges": true,
                         "ranges": [
                           "12 < a"
                         ] /* ranges */,
@@ -675,9 +677,6 @@ f
 f
 f
 f
-Maps should say that t2 and t3 depend on t1
-(because of straight_join), they don't, this is
-bug#11766858 and bug#11752239
 select TRACE from information_schema.OPTIMIZER_TRACE;
 TRACE
 {
@@ -706,7 +705,10 @@ TRACE
                     "select#": 2,
                     "from": "IN (SELECT)",
                     "to": "materialization",
-                    "chosen": false
+                    "has_nullable_expressions": true,
+                    "treat_UNKNOWN_as_FALSE": false,
+                    "chosen": false,
+                    "cause": "cannot_handle_partial_matches"
                   } /* transformation */
                 },
                 {
@@ -797,6 +799,7 @@ TRACE
                 "row_may_be_null": false,
                 "map_bit": 1,
                 "depends_on_map_bits": [
+                  0
                 ] /* depends_on_map_bits */
               },
               {
@@ -805,6 +808,7 @@ TRACE
                 "row_may_be_null": false,
                 "map_bit": 2,
                 "depends_on_map_bits": [
+                  0
                 ] /* depends_on_map_bits */
               }
             ] /* table_dependencies */
@@ -834,9 +838,10 @@ TRACE
               {
                 "database": "test",
                 "table": "t3",
-                "rows": 1,
-                "cost": 1,
-                "table_type": "system"
+                "table_scan": {
+                  "rows": 1,
+                  "cost": 2
+                } /* table_scan */
               }
             ] /* rows_estimation */
           },
@@ -861,6 +866,45 @@ TRACE
                 "rest_of_plan": [
                   {
                     "database": "test",
+                    "table": "t3",
+                    "best_access_path": {
+                      "considered_access_paths": [
+                        {
+                          "access_type": "scan",
+                          "using_join_cache": true,
+                          "rows": 1,
+                          "cost": 2.005,
+                          "chosen": true
+                        }
+                      ] /* considered_access_paths */
+                    } /* best_access_path */,
+                    "cost_for_plan": 4.8147,
+                    "rows_for_plan": 2,
+                    "rest_of_plan": [
+                      {
+                        "database": "test",
+                        "table": "t2",
+                        "best_access_path": {
+                          "considered_access_paths": [
+                            {
+                              "access_type": "scan",
+                              "using_join_cache": true,
+                              "rows": 2,
+                              "cost": 2.0099,
+                              "chosen": true
+                            }
+                          ] /* considered_access_paths */
+                        } /* best_access_path */,
+                        "cost_for_plan": 7.6247,
+                        "rows_for_plan": 4,
+                        "sort_cost": 4,
+                        "new_cost_for_plan": 11.625,
+                        "chosen": true
+                      }
+                    ] /* rest_of_plan */
+                  },
+                  {
+                    "database": "test",
                     "table": "t2",
                     "best_access_path": {
                       "considered_access_paths": [
@@ -875,34 +919,15 @@ TRACE
                     } /* best_access_path */,
                     "cost_for_plan": 5.2196,
                     "rows_for_plan": 4,
-                    "sort_cost": 4,
-                    "new_cost_for_plan": 9.2196,
-                    "chosen": true
+                    "pruned_by_heuristic": true
                   }
                 ] /* rest_of_plan */
-              },
-              {
-                "database": "test",
-                "table": "t2",
-                "best_access_path": {
-                  "considered_access_paths": [
-                    {
-                      "access_type": "scan",
-                      "rows": 2,
-                      "cost": 2.0098,
-                      "chosen": true
-                    }
-                  ] /* considered_access_paths */
-                } /* best_access_path */,
-                "cost_for_plan": 2.4098,
-                "rows_for_plan": 2,
-                "pruned_by_heuristic": true
               }
             ] /* considered_execution_plans */
           },
           {
             "attaching_conditions_to_tables": {
-              "original_condition": "(`test`.`t2`.`f2` = 'f')",
+              "original_condition": "(`test`.`t2`.`f2` = `test`.`t3`.`f2`)",
               "attached_conditions_computation": [
               ] /* attached_conditions_computation */,
               "attached_conditions_summary": [
@@ -913,8 +938,13 @@ TRACE
                 },
                 {
                   "database": "test",
+                  "table": "t3",
+                  "attached": null
+                },
+                {
+                  "database": "test",
                   "table": "t2",
-                  "attached": "(`test`.`t2`.`f2` = 'f')"
+                  "attached": "(`test`.`t2`.`f2` = `test`.`t3`.`f2`)"
                 }
               ] /* attached_conditions_summary */
             } /* attaching_conditions_to_tables */
@@ -937,6 +967,11 @@ TRACE
               {
                 "database": "test",
                 "table": "t1",
+                "access_type": "table_scan"
+              },
+              {
+                "database": "test",
+                "table": "t3",
                 "access_type": "table_scan"
               },
               {
@@ -1130,7 +1165,7 @@ TRACE
               "rows": 4,
               "examined_rows": 4,
               "number_of_tmp_files": 0,
-              "sort_buffer_size": NNN,
+              "sort_buffer_size": "NNN",
               "sort_mode": "<sort_key, rowid>"
             } /* filesort_summary */
           }
@@ -1390,7 +1425,7 @@ TRACE
                     "rows": 3,
                     "examined_rows": 3,
                     "number_of_tmp_files": 0,
-                    "sort_buffer_size": NNN,
+                    "sort_buffer_size": "NNN",
                     "sort_mode": "<sort_key, rowid>"
                   } /* filesort_summary */
                 }
@@ -1635,7 +1670,7 @@ insert into t1 values(3)	{
   "steps": [
   ] /* steps */
 }	0	0
-SET @a=(select count(a) from t1 where a>0)	{
+SET  @a=(select count(a) from t1 where a>0)	{
   "steps": [
     {
       "join_preparation": {
@@ -1893,7 +1928,7 @@ jump_if_not 11(15) (case_expr@0 = 2)	{
   "steps": [
   ] /* steps */
 }	0	0
-SET @b=2	{
+SET  @b=2	{
   "steps": [
   ] /* steps */
 }	0	0
@@ -2405,7 +2440,8 @@ table3.col_varchar_10_utf8_key	{
                 "table": "table2",
                 "rows": 1,
                 "cost": 1,
-                "table_type": "system"
+                "table_type": "system",
+                "empty": true
               },
               {
                 "database": "test",
@@ -2456,6 +2492,10 @@ table3.col_varchar_10_utf8_key	{
                 ] /* rest_of_plan */
               }
             ] /* considered_execution_plans */
+          },
+          {
+            "condition_on_constant_tables": "1",
+            "condition_value": true
           },
           {
             "attaching_conditions_to_tables": {
@@ -2592,7 +2632,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t0	ALL	NULL	NULL	NULL	NULL	10	Using where
 2	DEPENDENT SUBQUERY	t1	index	a	a	5	NULL	10	Using where; Using index
 2	DEPENDENT SUBQUERY	t2	ref	a	a	5	test.t1.a	1	Using index
-2	DEPENDENT SUBQUERY	t3	ref	a	a	5	test.t2.a	1	Using where; Using index
+2	DEPENDENT SUBQUERY	t3	ref	a	a	5	test.t1.a	1	Using index
 select * from information_schema.optimizer_trace;
 QUERY	TRACE	MISSING_BYTES_BEYOND_MAX_MEM_SIZE	INSUFFICIENT_PRIVILEGES
 explain select * 
@@ -2615,14 +2655,6 @@ from t0 where a in
                     "select#": 2,
                     "from": "IN (SELECT)",
                     "to": "semijoin",
-                    "chosen": false
-                  } /* transformation */
-                },
-                {
-                  "transformation": {
-                    "select#": 2,
-                    "from": "IN (SELECT)",
-                    "to": "materialization",
                     "chosen": false
                   } /* transformation */
                 },
@@ -3241,7 +3273,7 @@ from t0 where a in
                       {
                         "database": "test",
                         "table": "t3",
-                        "attached": "(`test`.`t3`.`a` = `test`.`t1`.`a`)"
+                        "attached": null
                       }
                     ] /* attached_conditions_summary */
                   } /* attaching_conditions_to_tables */
@@ -3310,7 +3342,7 @@ select 497, tmp.ID, NULL from (select 497 as ID, MAX(t3.DATA) as DATA      from 
         "select#": 2,
         "steps": [
           {
-            "expanded_query": "/* select#2 */ select 497 AS `ID`,max(`test`.`t3`.`DATA`) AS `DATA` from ((`test`.`t1` join `test`.`t2` on((`test`.`t1`.`OBJECTID` = `test`.`t2`.`ID`))) join `test`.`t3` on((`test`.`t1`.`OBJECTID` = `test`.`t3`.`ID`))) group by `test`.`t2`.`PARID` order by max(`test`.`t3`.`DATA`) desc"
+            "expanded_query": "/* select#2 */ select 497 AS `ID`,max(`test`.`t3`.`DATA`) AS `DATA` from ((`test`.`t1` join `test`.`t2` on((`test`.`t1`.`OBJECTID` = `test`.`t2`.`ID`))) join `test`.`t3` on((`test`.`t1`.`OBJECTID` = `test`.`t3`.`ID`))) group by `test`.`t2`.`PARID` order by `DATA` desc"
           }
         ] /* steps */
       } /* join_preparation */
@@ -3320,7 +3352,7 @@ select 497, tmp.ID, NULL from (select 497 as ID, MAX(t3.DATA) as DATA      from 
         "select#": 1,
         "steps": [
           {
-            "expanded_query": "/* select#1 */ select 497 AS `497`,`tmp`.`ID` AS `ID`,NULL AS `NULL` from (/* select#2 */ select 497 AS `ID`,max(`test`.`t3`.`DATA`) AS `DATA` from ((`test`.`t1` join `test`.`t2` on((`test`.`t1`.`OBJECTID` = `test`.`t2`.`ID`))) join `test`.`t3` on((`test`.`t1`.`OBJECTID` = `test`.`t3`.`ID`))) group by `test`.`t2`.`PARID` order by max(`test`.`t3`.`DATA`) desc) `tmp`"
+            "expanded_query": "/* select#1 */ select 497 AS `497`,`tmp`.`ID` AS `ID`,NULL AS `NULL` from (/* select#2 */ select 497 AS `ID`,max(`test`.`t3`.`DATA`) AS `DATA` from ((`test`.`t1` join `test`.`t2` on((`test`.`t1`.`OBJECTID` = `test`.`t2`.`ID`))) join `test`.`t3` on((`test`.`t1`.`OBJECTID` = `test`.`t3`.`ID`))) group by `test`.`t2`.`PARID` order by `DATA` desc) `tmp`"
           }
         ] /* steps */
       } /* join_preparation */
@@ -3339,7 +3371,7 @@ select 497, tmp.ID, NULL from (select 497 as ID, MAX(t3.DATA) as DATA      from 
                       "JOIN_condition_to_WHERE",
                       "parenthesis_removal"
                     ] /* transformations */,
-                    "expanded_query": "/* select#2 */ select 497 AS `ID`,max(`test`.`t3`.`DATA`) AS `DATA` from `test`.`t1` join `test`.`t2` join `test`.`t3` where ((`test`.`t1`.`OBJECTID` = `test`.`t3`.`ID`) and (`test`.`t1`.`OBJECTID` = `test`.`t2`.`ID`)) group by `test`.`t2`.`PARID` order by max(`test`.`t3`.`DATA`) desc"
+                    "expanded_query": "/* select#2 */ select 497 AS `ID`,max(`test`.`t3`.`DATA`) AS `DATA` from `test`.`t1` join `test`.`t2` join `test`.`t3` where ((`test`.`t1`.`OBJECTID` = `test`.`t3`.`ID`) and (`test`.`t1`.`OBJECTID` = `test`.`t2`.`ID`)) group by `test`.`t2`.`PARID` order by `DATA` desc"
                   } /* transformations_to_nested_joins */
                 },
                 {
@@ -3443,7 +3475,8 @@ select 497, tmp.ID, NULL from (select 497 as ID, MAX(t3.DATA) as DATA      from 
                       "table": "t1",
                       "rows": 1,
                       "cost": 1,
-                      "table_type": "system"
+                      "table_type": "system",
+                      "empty": true
                     },
                     {
                       "database": "test",
@@ -3992,7 +4025,8 @@ select replace(t3._field_140, "\r","^M"),t3_id,min(t3._field_131), min(t3._field
                 "table": "t3",
                 "rows": 1,
                 "cost": 1,
-                "table_type": "const"
+                "table_type": "const",
+                "empty": false
               },
               {
                 "database": "test",
@@ -4027,6 +4061,7 @@ select replace(t3._field_140, "\r","^M"),t3_id,min(t3._field_131), min(t3._field
                     "range_scan_alternatives": [
                       {
                         "index": "PRIMARY",
+                        "index_dives_for_eq_ranges": true,
                         "ranges": [
                           "1 <= seq_0_id <= 1"
                         ] /* ranges */,
@@ -4114,6 +4149,7 @@ select replace(t3._field_140, "\r","^M"),t3_id,min(t3._field_131), min(t3._field
                     "range_scan_alternatives": [
                       {
                         "index": "PRIMARY",
+                        "index_dives_for_eq_ranges": true,
                         "ranges": [
                           "1 <= seq_0_id <= 1"
                         ] /* ranges */,
@@ -4211,6 +4247,7 @@ select replace(t3._field_140, "\r","^M"),t3_id,min(t3._field_131), min(t3._field
                     "range_scan_alternatives": [
                       {
                         "index": "PRIMARY",
+                        "index_dives_for_eq_ranges": true,
                         "ranges": [
                           "1 <= seq_0_id <= 1"
                         ] /* ranges */,
@@ -4457,6 +4494,10 @@ select replace(t3._field_140, "\r","^M"),t3_id,min(t3._field_131), min(t3._field
             ] /* considered_execution_plans */
           },
           {
+            "condition_on_constant_tables": "1",
+            "condition_value": true
+          },
+          {
             "attaching_conditions_to_tables": {
               "original_condition": "1",
               "attached_conditions_computation": [
@@ -4655,7 +4696,7 @@ GROUP BY field2 ORDER BY alias1.col_int_key,alias2.pk	{
         "select#": 1,
         "steps": [
           {
-            "expanded_query": "/* select#1 */ select sum(`test`.`alias2`.`col_varchar_nokey`) AS `SUM(alias2.col_varchar_nokey)`,`test`.`alias2`.`pk` AS `field2` from (`test`.`t1` `alias1` straight_join `test`.`t2` `alias2` on((`test`.`alias2`.`pk` = `test`.`alias1`.`col_int_key`))) where `test`.`alias1`.`pk` group by `test`.`alias2`.`pk` order by `test`.`alias1`.`col_int_key`,`test`.`alias2`.`pk`"
+            "expanded_query": "/* select#1 */ select sum(`test`.`alias2`.`col_varchar_nokey`) AS `SUM(alias2.col_varchar_nokey)`,`test`.`alias2`.`pk` AS `field2` from (`test`.`t1` `alias1` straight_join `test`.`t2` `alias2` on((`test`.`alias2`.`pk` = `test`.`alias1`.`col_int_key`))) where `test`.`alias1`.`pk` group by `field2` order by `test`.`alias1`.`col_int_key`,`test`.`alias2`.`pk`"
           }
         ] /* steps */
       } /* join_preparation */
@@ -4670,7 +4711,7 @@ GROUP BY field2 ORDER BY alias1.col_int_key,alias2.pk	{
                 "JOIN_condition_to_WHERE",
                 "parenthesis_removal"
               ] /* transformations */,
-              "expanded_query": "/* select#1 */ select sum(`test`.`alias2`.`col_varchar_nokey`) AS `SUM(alias2.col_varchar_nokey)`,`test`.`alias2`.`pk` AS `field2` from `test`.`t1` `alias1` straight_join `test`.`t2` `alias2` where (`test`.`alias1`.`pk` and (`test`.`alias2`.`pk` = `test`.`alias1`.`col_int_key`)) group by `test`.`alias2`.`pk` order by `test`.`alias1`.`col_int_key`,`test`.`alias2`.`pk`"
+              "expanded_query": "/* select#1 */ select sum(`test`.`alias2`.`col_varchar_nokey`) AS `SUM(alias2.col_varchar_nokey)`,`test`.`alias2`.`pk` AS `field2` from `test`.`t1` `alias1` straight_join `test`.`t2` `alias2` where (`test`.`alias1`.`pk` and (`test`.`alias2`.`pk` = `test`.`alias1`.`col_int_key`)) group by `field2` order by `test`.`alias1`.`col_int_key`,`test`.`alias2`.`pk`"
             } /* transformations_to_nested_joins */
           },
           {
@@ -4861,14 +4902,14 @@ GROUP BY field2 ORDER BY alias1.col_int_key,alias2.pk	{
           {
             "clause_processing": {
               "clause": "GROUP BY",
-              "original_clause": "`test`.`alias2`.`pk`",
+              "original_clause": "`field2`",
               "items": [
                 {
                   "item": "`test`.`alias2`.`pk`"
                 }
               ] /* items */,
               "resulting_clause_is_simple": false,
-              "resulting_clause": "`test`.`alias2`.`pk`"
+              "resulting_clause": "`field2`"
             } /* clause_processing */
           },
           {
@@ -4921,7 +4962,7 @@ GROUP BY field2 ORDER BY alias1.col_int_key,alias2.pk	{
               "rows": 8,
               "examined_rows": 8,
               "number_of_tmp_files": 0,
-              "sort_buffer_size": NNN,
+              "sort_buffer_size": "NNN",
               "sort_mode": "<sort_key, rowid>"
             } /* filesort_summary */
           }
@@ -4931,3 +4972,121 @@ GROUP BY field2 ORDER BY alias1.col_int_key,alias2.pk	{
   ] /* steps */
 }	0	0
 DROP TABLE t1,t2;
+#
+# Trace of "condition on constant tables"
+#
+create table t1(a int) engine=myisam;
+insert into t1 values(26);
+create table t2(b int primary key, c int) engine=myisam;
+insert into t2 values(1,100),(2,200),(3,300);
+select * from t1,t2 where t1.a+t2.c=cos(10) and t2.b=2;
+a	b	c
+SELECT * FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
+QUERY	TRACE	MISSING_BYTES_BEYOND_MAX_MEM_SIZE	INSUFFICIENT_PRIVILEGES
+select * from t1,t2 where t1.a+t2.c=cos(10) and t2.b=2	{
+  "steps": [
+    {
+      "join_preparation": {
+        "select#": 1,
+        "steps": [
+          {
+            "expanded_query": "/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c` from `test`.`t1` join `test`.`t2` where (((`test`.`t1`.`a` + `test`.`t2`.`c`) = cos(10)) and (`test`.`t2`.`b` = 2))"
+          }
+        ] /* steps */
+      } /* join_preparation */
+    },
+    {
+      "join_optimization": {
+        "select#": 1,
+        "steps": [
+          {
+            "condition_processing": {
+              "condition": "WHERE",
+              "original_condition": "(((`test`.`t1`.`a` + `test`.`t2`.`c`) = cos(10)) and (`test`.`t2`.`b` = 2))",
+              "steps": [
+                {
+                  "transformation": "equality_propagation",
+                  "resulting_condition": "(((`test`.`t1`.`a` + `test`.`t2`.`c`) = cos(10)) and multiple equal(2, `test`.`t2`.`b`))"
+                },
+                {
+                  "transformation": "constant_propagation",
+                  "resulting_condition": "(((`test`.`t1`.`a` + `test`.`t2`.`c`) = cos(10)) and multiple equal(2, `test`.`t2`.`b`))"
+                },
+                {
+                  "transformation": "trivial_condition_removal",
+                  "resulting_condition": "(((`test`.`t1`.`a` + `test`.`t2`.`c`) = cos(10)) and multiple equal(2, `test`.`t2`.`b`))"
+                }
+              ] /* steps */
+            } /* condition_processing */
+          },
+          {
+            "table_dependencies": [
+              {
+                "database": "test",
+                "table": "t1",
+                "row_may_be_null": false,
+                "map_bit": 0,
+                "depends_on_map_bits": [
+                ] /* depends_on_map_bits */
+              },
+              {
+                "database": "test",
+                "table": "t2",
+                "row_may_be_null": false,
+                "map_bit": 1,
+                "depends_on_map_bits": [
+                ] /* depends_on_map_bits */
+              }
+            ] /* table_dependencies */
+          },
+          {
+            "ref_optimizer_key_uses": [
+              {
+                "database": "test",
+                "table": "t2",
+                "field": "b",
+                "equals": "2",
+                "null_rejecting": false
+              }
+            ] /* ref_optimizer_key_uses */
+          },
+          {
+            "rows_estimation": [
+              {
+                "database": "test",
+                "table": "t1",
+                "rows": 1,
+                "cost": 1,
+                "table_type": "system",
+                "empty": false
+              },
+              {
+                "database": "test",
+                "table": "t2",
+                "rows": 1,
+                "cost": 1,
+                "table_type": "const",
+                "empty": false
+              }
+            ] /* rows_estimation */
+          },
+          {
+            "condition_on_constant_tables": "(('26' + '200') = cos(10))",
+            "condition_value": false
+          }
+        ] /* steps */,
+        "empty_result": {
+          "cause": "Impossible WHERE noticed after reading const tables"
+        } /* empty_result */
+      } /* join_optimization */
+    },
+    {
+      "join_execution": {
+        "select#": 1,
+        "steps": [
+        ] /* steps */
+      } /* join_execution */
+    }
+  ] /* steps */
+}	0	0
+drop table t1,t2;

@@ -147,16 +147,6 @@ ix+0
 0
 20030101000000
 drop table t1;
-create table t1 (t1 timestamp, t2 timestamp default now());
-ERROR HY000: Incorrect table definition; there can be only one TIMESTAMP column with CURRENT_TIMESTAMP in DEFAULT or ON UPDATE clause
-create table t1 (t1 timestamp, t2 timestamp on update now());
-ERROR HY000: Incorrect table definition; there can be only one TIMESTAMP column with CURRENT_TIMESTAMP in DEFAULT or ON UPDATE clause
-create table t1 (t1 timestamp, t2 timestamp default now() on update now());
-ERROR HY000: Incorrect table definition; there can be only one TIMESTAMP column with CURRENT_TIMESTAMP in DEFAULT or ON UPDATE clause
-create table t1 (t1 timestamp default now(), t2 timestamp on update now());
-ERROR HY000: Incorrect table definition; there can be only one TIMESTAMP column with CURRENT_TIMESTAMP in DEFAULT or ON UPDATE clause
-create table t1 (t1 timestamp on update now(), t2 timestamp default now() on update now());
-ERROR HY000: Incorrect table definition; there can be only one TIMESTAMP column with CURRENT_TIMESTAMP in DEFAULT or ON UPDATE clause
 create table t1 (t1 timestamp default '2003-01-01 00:00:00', t2 datetime, t3 timestamp);
 SET TIMESTAMP=1000000000;
 insert into t1 values ();
@@ -632,3 +622,100 @@ MAX(dt) = '2011-01-06 12:34:30'
 1
 DROP TABLE t1;
 End of 5.5 tests
+#
+# Start of 5.6 tests
+#
+#
+# Bug#13596893 - "ERROR 1690 (22003): BIGINT UNSIGNED VALUE IS OUT OF RANGE" ON DATE OPERATION
+#
+CREATE TABLE t1 (
+`c1` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+`c2` TIMESTAMP NOT NULL DEFAULT '0000-00-00 00:00:00'
+);
+INSERT INTO t1 VALUES ('2003-05-16 23:53:29','2000-01-27 23:13:41');
+SELECT c2-c1 FROM t1;
+c2-c1
+-30389003988
+SELECT * FROM t1;
+c1	c2
+2003-05-16 23:53:29	2000-01-27 23:13:41
+SELECT TIMESTAMP'2000-01-27 23:13:41' - TIMESTAMP'2003-05-16 23:53:29';
+TIMESTAMP'2000-01-27 23:13:41' - TIMESTAMP'2003-05-16 23:53:29'
+-30389003988
+SELECT TIMESTAMP('2000-01-27','23:13:41') - TIMESTAMP('2003-05-16','23:53:29');
+TIMESTAMP('2000-01-27','23:13:41') - TIMESTAMP('2003-05-16','23:53:29')
+-30389003988
+DROP TABLE t1;
+#
+# Test for bug#11747847 - 34280: create table fails if NO_ZERO_DATE
+# or NO_ZERO_IN_DATE SQL mode is set.
+DROP TABLE IF EXISTS t1, t2, t3;
+SET @org_mode=@@sql_mode;
+#Table creation in strict mode
+SET @@sql_mode='NO_ZERO_DATE,STRICT_ALL_TABLES';
+CREATE TABLE t1 (c1 TIMESTAMP DEFAULT 0);
+ERROR 42000: Invalid default value for 'c1'
+CREATE TABLE t1 (c1 TIMESTAMP DEFAULT '0000-00-00 00:00:00');
+ERROR 42000: Invalid default value for 'c1'
+SET @@sql_mode='NO_ZERO_IN_DATE,STRICT_ALL_TABLES';
+CREATE TABLE t1 (c1 TIMESTAMP DEFAULT '2012-02-00 12:12:12');
+ERROR 42000: Invalid default value for 'c1'
+#Table creation in non-strict mode but with NO_ZERO_DATE/NO_ZERO_IN_DATE
+SET @@sql_mode='NO_ZERO_DATE';
+CREATE TABLE t1 (c1 TIMESTAMP DEFAULT 0);
+Warnings:
+Warning	1264	Out of range value for column 'c1' at row 1
+CREATE TABLE t2 (c1 TIMESTAMP DEFAULT '0000-00-00 00:00:00');
+Warnings:
+Warning	1264	Out of range value for column 'c1' at row 1
+SET @@sql_mode='NO_ZERO_IN_DATE';
+CREATE TABLE t3 (c1 TIMESTAMP DEFAULT '2012-02-00 12:12:12');
+Warnings:
+Warning	1264	Out of range value for column 'c1' at row 1
+DROP TABLE t1, t2, t3;
+#Table creation with out any SQL modes
+SET @@sql_mode='';
+CREATE TABLE t1 (c1 TIMESTAMP DEFAULT 0);
+CREATE TABLE t2 (c1 TIMESTAMP DEFAULT '0000-00-00 00:00:00');
+CREATE TABLE t3 (c1 TIMESTAMP DEFAULT '2012-02-00 12:12:12');
+Warnings:
+Warning	1264	Out of range value for column 'c1' at row 1
+DROP TABLE t1, t2, t3;
+CREATE TABLE t1 (c1 INT);
+#Alter table in strict mode with NO_ZERO_DATE/NO_ZERO_IN_DATE
+SET @@sql_mode='NO_ZERO_DATE,STRICT_ALL_TABLES';
+ALTER TABLE t1 ADD c2 TIMESTAMP DEFAULT 0;
+ERROR 42000: Invalid default value for 'c2'
+ALTER TABLE t1 ADD c2 TIMESTAMP DEFAULT '0000-00-00';
+ERROR 42000: Invalid default value for 'c2'
+SET @@sql_mode='NO_ZERO_IN_DATE,STRICT_ALL_TABLES';
+ALTER TABLE t1 ADD c2 TIMESTAMP DEFAULT '2012-02-00';
+ERROR 42000: Invalid default value for 'c2'
+#Alter table in non-strict mode but with NO_ZERO_DATE/NO_ZERO_IN_DATE
+SET @@sql_mode='NO_ZERO_DATE';
+ALTER TABLE t1 ADD c2 TIMESTAMP DEFAULT 0;
+Warnings:
+Warning	1264	Out of range value for column 'c2' at row 1
+ALTER TABLE t1 ADD c3 TIMESTAMP DEFAULT '0000-00-00';
+Warnings:
+Warning	1264	Out of range value for column 'c2' at row 1
+Warning	1264	Out of range value for column 'c3' at row 1
+SET @@sql_mode='NO_ZERO_IN_DATE';
+ALTER TABLE t1 ADD c4 TIMESTAMP DEFAULT '2012-02-00';
+Warnings:
+Warning	1264	Out of range value for column 'c4' at row 1
+DROP TABLE t1;
+CREATE TABLE t1 (c1 INT);
+#Alter table with out any SQL modes
+SET @@sql_mode='';
+ALTER TABLE t1 ADD c2 TIMESTAMP DEFAULT 0;
+ALTER TABLE t1 ADD c3 TIMESTAMP DEFAULT '0000-00-00';
+ALTER TABLE t1 ADD c4 TIMESTAMP DEFAULT '2012-02-00';
+Warnings:
+Warning	1264	Out of range value for column 'c4' at row 1
+DROP TABLE t1;
+SET @@sql_mode= @org_mode;
+# END of Test for bug#11747847 - 34280
+#
+# End of 5.6 tests
+#

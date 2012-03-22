@@ -825,7 +825,16 @@ Events::init(my_bool opt_noacl_or_bootstrap)
   */
   thd->thread_stack= (char*) &thd;
   thd->store_globals();
-
+  /*
+    Set current time for the thread that handles events.
+    Current time is stored in data member start_time of THD class.
+    Subsequently, this value is used to check whether event was expired
+    when make loading events from storage. Check for event expiration time
+    is done at Event_queue_element::compute_next_execution_time() where
+    event's status set to Event_parse_data::DISABLED and dropped flag set
+    to true if event was expired.
+  */
+  thd->set_time();
   /*
     We will need Event_db_repository anyway, even if the scheduler is
     disabled - to perform events DDL.
@@ -1085,13 +1094,19 @@ Events::load_events_from_db(THD *thd)
     NOTE: even if we run in read-only mode, we should be able to lock the
     mysql.event table for writing. In order to achieve this, we should call
     mysql_lock_tables() under the super user.
+
+    Same goes for transaction access mode.
+    Temporarily reset it to read-write.
   */
 
   saved_master_access= thd->security_ctx->master_access;
   thd->security_ctx->master_access |= SUPER_ACL;
+  bool save_tx_read_only= thd->tx_read_only;
+  thd->tx_read_only= false;
 
   ret= db_repository->open_event_table(thd, TL_WRITE, &table);
 
+  thd->tx_read_only= save_tx_read_only;
   thd->security_ctx->master_access= saved_master_access;
 
   if (ret)
@@ -1108,8 +1123,7 @@ Events::load_events_from_db(THD *thd)
   while (!(read_record_info.read_record(&read_record_info)))
   {
     Event_queue_element *et;
-    bool created;
-    bool drop_on_completion;
+    bool created, dropped;
 
     if (!(et= new Event_queue_element))
       goto end;
@@ -1124,10 +1138,13 @@ Events::load_events_from_db(THD *thd)
       delete et;
       goto end;
     }
-    drop_on_completion= (et->on_completion ==
-                         Event_parse_data::ON_COMPLETION_DROP);
 
-
+    /**
+      Since the Event_queue_element object could be deleted inside
+      Event_queue::create_event we should save the value of dropped flag
+      into the temporary variable.
+    */
+    dropped= et->dropped;
     if (event_queue->create_event(thd, et, &created))
     {
       /* Out of memory */
@@ -1136,7 +1153,7 @@ Events::load_events_from_db(THD *thd)
     }
     if (created)
       count++;
-    else if (drop_on_completion)
+    else if (dropped)
     {
       /*
         If not created, a stale event - drop if immediately if

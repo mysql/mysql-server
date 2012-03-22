@@ -38,5 +38,7 @@ set global slave_checkpoint_group="foo";
 set global slave_checkpoint_group=0;
 set global slave_checkpoint_group=cast(-1 as unsigned int);
 
+select @@global.slave_checkpoint_group as "truncated to the maximum" ;
+
 SET @@global.slave_checkpoint_group = @start_global_value;
 SELECT @@global.slave_checkpoint_group;

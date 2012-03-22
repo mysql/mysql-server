@@ -37,7 +37,11 @@ int my_rename(const char *from, const char *to, myf MyFlags)
       my_errno=EEXIST;
       error= -1;
       if (MyFlags & MY_FAE+MY_WME)
-	my_error(EE_LINK, MYF(ME_BELL+ME_WAITTANG),from,to,my_errno);
+      {
+        char errbuf[MYSYS_STRERROR_SIZE];
+        my_error(EE_LINK, MYF(ME_BELL+ME_WAITTANG), from, to,
+                 my_errno, my_strerror(errbuf, sizeof(errbuf), my_errno));
+      }
       DBUG_RETURN(error);
     }
     my_errno=save_errno;
@@ -55,7 +59,11 @@ int my_rename(const char *from, const char *to, myf MyFlags)
     my_errno=errno;
     error = -1;
     if (MyFlags & (MY_FAE+MY_WME))
-      my_error(EE_LINK, MYF(ME_BELL+ME_WAITTANG),from,to,my_errno);
+    {
+      char errbuf[MYSYS_STRERROR_SIZE];
+      my_error(EE_LINK, MYF(ME_BELL+ME_WAITTANG), from, to,
+               my_errno, my_strerror(errbuf, sizeof(errbuf), my_errno));
+    }
   }
   else if (MyFlags & MY_SYNC_DIR)
   {

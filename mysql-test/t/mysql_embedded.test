@@ -9,10 +9,10 @@ if(!$MYSQL_EMBEDDED)
 {
   --skip Test requires mysql_embedded executable
 }
---exec $MYSQL_EMBEDDED -e 'select 1'
+--exec $MYSQL_EMBEDDED --defaults-file=$PATH_CONFIG_FILE -e "select 1"
 
 --echo #
 --echo # Bug#11764633 : 57491: THD->MAIN_DA.IS_OK() ASSERT IN EMBEDDED
 --echo #
 
---exec $MYSQL_EMBEDDED -e '\T foo/bar'
+--exec $MYSQL_EMBEDDED --defaults-file=$PATH_CONFIG_FILE -e "\T foo/bar"

@@ -16,7 +16,7 @@ create table t2 (a int, b int) ENGINE=MyISAM;
 reset master;
 load data infile '../../std_data/rpl_loaddata.dat' into table t2 /* will be "killed" in the middle */;
 ERROR 70100: Query execution was interrupted
-show binlog events from <binlog_start>;
+include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Begin_load_query	#	#	;file_id=#;block_len=#

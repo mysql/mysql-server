@@ -10,7 +10,7 @@ TABLE_ID	NAME	POS	MTYPE	PRTYPE	LEN
 12	POS	1	6	0	4
 12	FOR_COL_NAME	2	1	524292	0
 12	REF_COL_NAME	3	1	524292	0
-SELECT * FROM INFORMATION_SCHEMA.INNODB_SYS_FIELDS WHERE name NOT IN ('database_name', 'table_name', 'index_name', 'stat_name');
+SELECT * FROM INFORMATION_SCHEMA.INNODB_SYS_FIELDS WHERE name NOT IN ('database_name', 'table_name', 'index_name', 'stat_name', 'Master_Id', 'Worker_Id');;
 INDEX_ID	NAME	POS
 11	ID	0
 12	FOR_NAME	0
@@ -26,7 +26,7 @@ mysql/innodb_index_stats_ibfk_1	database_name	database_name	0
 mysql/innodb_index_stats_ibfk_1	table_name	table_name	1
 SELECT count(*) FROM INFORMATION_SCHEMA.INNODB_SYS_TABLESTATS;
 count(*)
-4
+7
 CREATE TABLE parent (id INT NOT NULL,
 PRIMARY KEY (id)) ENGINE=INNODB;
 CREATE TABLE child (id INT, parent_id INT,
@@ -55,6 +55,9 @@ SYS_FOREIGN	0	7	0
 SYS_FOREIGN_COLS	0	7	0
 mysql/innodb_index_stats	1	11	0
 mysql/innodb_table_stats	1	9	0
+mysql/slave_master_info	1	27	0
+mysql/slave_relay_log_info	1	11	0
+mysql/slave_worker_info	1	16	0
 test/child	1	5	0
 test/parent	1	4	0
 SELECT name, n_fields

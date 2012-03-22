@@ -548,25 +548,25 @@ que_graph_free_recursive(
 
 		break;
 	case QUE_NODE_PROC:
-		que_graph_free_stat_list(((proc_node_t*)node)->stat_list);
+		que_graph_free_stat_list(((proc_node_t*) node)->stat_list);
 
 		break;
 	case QUE_NODE_IF:
-		que_graph_free_stat_list(((if_node_t*)node)->stat_list);
-		que_graph_free_stat_list(((if_node_t*)node)->else_part);
-		que_graph_free_stat_list(((if_node_t*)node)->elsif_list);
+		que_graph_free_stat_list(((if_node_t*) node)->stat_list);
+		que_graph_free_stat_list(((if_node_t*) node)->else_part);
+		que_graph_free_stat_list(((if_node_t*) node)->elsif_list);
 
 		break;
 	case QUE_NODE_ELSIF:
-		que_graph_free_stat_list(((elsif_node_t*)node)->stat_list);
+		que_graph_free_stat_list(((elsif_node_t*) node)->stat_list);
 
 		break;
 	case QUE_NODE_WHILE:
-		que_graph_free_stat_list(((while_node_t*)node)->stat_list);
+		que_graph_free_stat_list(((while_node_t*) node)->stat_list);
 
 		break;
 	case QUE_NODE_FOR:
-		que_graph_free_stat_list(((for_node_t*)node)->stat_list);
+		que_graph_free_stat_list(((for_node_t*) node)->stat_list);
 
 		break;
 
@@ -764,7 +764,7 @@ que_thr_dec_refer_count(
 	ut_ad(trx_mutex_own(trx));
 
 	if (thr->state == QUE_THR_RUNNING) {
-	       
+
 		if (!que_thr_stop(thr)) {
 
 			ut_a(next_thr != NULL && *next_thr == NULL);

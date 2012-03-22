@@ -37,7 +37,10 @@ SELECT variable_value FROM information_schema.global_status
 --disable_query_log
 --let table_stats_id = `SELECT table_id FROM information_schema.innodb_sys_tables WHERE name = 'mysql/innodb_table_stats'`
 --let index_stats_id = `SELECT table_id FROM information_schema.innodb_sys_tables WHERE name = 'mysql/innodb_index_stats'`
---eval SELECT * FROM INFORMATION_SCHEMA.INNODB_SYS_INDEXES WHERE table_id NOT IN ($table_stats_id, $index_stats_id)
+--let $rep_table_1 = `SELECT table_id FROM information_schema.innodb_sys_tables WHERE name = 'mysql/slave_master_info'`
+--let $rep_table_2 = `SELECT table_id FROM information_schema.innodb_sys_tables WHERE name = 'mysql/slave_relay_log_info'`
+--let $rep_table_3 = `SELECT table_id FROM information_schema.innodb_sys_tables WHERE name = 'mysql/slave_worker_info'`
+--eval SELECT * FROM INFORMATION_SCHEMA.INNODB_SYS_INDEXES WHERE table_id NOT IN ($table_stats_id, $index_stats_id, $rep_table_1, $rep_table_2, $rep_table_3)
 --enable_query_log
 
 --echo # Test 4) The maximum row size is dependent upon the page size.
@@ -296,55 +299,26 @@ INSERT INTO t2 VALUES ('jejdkrun87'),('adfd72nh9k'),
 ('adfdpplkeock'),('adfdijnmnb78k'),('adfdijn0loKNHJik');
 
 CREATE TABLE t1(a int, b blob, c text, d text NOT NULL)
-	ENGINE=innodb DEFAULT CHARSET=utf8;
+ENGINE=innodb DEFAULT CHARSET=utf8;
 
-# r2667 The following test is disabled because MySQL behavior changed.
-# r2667 The test was added with this comment:
-# r2667
-# r2667 ------------------------------------------------------------------------
-# r2667 r1699 | marko | 2007-08-10 19:53:19 +0300 (Fri, 10 Aug 2007) | 5 lines
-# r2667
-# r2667 branches/zip: Add changes that accidentally omitted from r1698:
-# r2667
-# r2667 innodb-index.test, innodb-index.result: Add a test for creating
-# r2667 a PRIMARY KEY on a column that contains a NULL value.
-# r2667 ------------------------------------------------------------------------
-# r2667
-# r2667 but in BZR-r2667:
-# r2667 http://bazaar.launchpad.net/~mysql/mysql-server/mysql-5.1/revision/davi%40mysql.com-20080617141221-8yre8ys9j4uw3xx5?start_revid=joerg%40mysql.com-20080630105418-7qoe5ehomgrcdb89
-# r2667 MySQL changed the behavior to do full table copy when creating PRIMARY INDEX
-# r2667 on a non-NULL column instead of calling ::add_index() which would fail (and
-# r2667 this is what we were testing here). Before r2667 the code execution path was
-# r2667 like this (when adding PRIMARY INDEX on a non-NULL column with ALTER TABLE):
-# r2667
-# r2667 mysql_alter_table()
-# r2667   compare_tables()  // would return ALTER_TABLE_INDEX_CHANGED
-# r2667   ::add_index()  // would fail with "primary index cannot contain NULL"
-# r2667
-# r2667 after r2667 the code execution path is the following:
-# r2667
-# r2667 mysql_alter_table()
-# r2667   compare_tables()  // returns ALTER_TABLE_DATA_CHANGED
-# r2667   full copy is done, without calling ::add_index()
-# r2667
-# r2667 To enable, remove "# r2667: " below.
-# r2667
-# r2667: INSERT INTO t1 VALUES (null,null,null,'null');
 INSERT INTO t1
 SELECT a,LEFT(REPEAT(d,100*a),65535),REPEAT(d,20*a),d FROM t2,t3;
 DROP TABLE t2, t3;
 SELECT COUNT(*) FROM t1 WHERE a=44;
-SELECT a,LENGTH(b),b=LEFT(REPEAT(d,100*a),65535),LENGTH(c),c=REPEAT(d,20*a),d FROM t1;
-# r2667: --error ER_PRIMARY_CANT_HAVE_NULL
-# r2667: ALTER TABLE t1 ADD PRIMARY KEY (a), ADD KEY (b(20));
-# r2667: DELETE FROM t1 WHERE d='null';
+SELECT a,
+LENGTH(b),b=LEFT(REPEAT(d,100*a),65535),LENGTH(c),c=REPEAT(d,20*a),d FROM t1;
+# in-place alter table should trigger ER_PRIMARY_CANT_HAVE_NULL
+--error ER_DUP_ENTRY
+ALTER TABLE t1 ADD PRIMARY KEY (a), ADD KEY (b(20));
+DELETE FROM t1 WHERE d='null';
 --error ER_DUP_ENTRY
 ALTER TABLE t1 ADD PRIMARY KEY (a), ADD KEY (b(20));
 DELETE FROM t1 WHERE a%2;
 CHECK TABLE t1;
 ALTER TABLE t1 ADD PRIMARY KEY (a,b(255),c(255)), ADD KEY (b(767));
 SELECT COUNT(*) FROM t1 WHERE a=44;
-SELECT a, LENGTH(b), b=LEFT(REPEAT(d,100*a), 65535),LENGTH(c), c=REPEAT(d,20*a), d FROM t1;
+SELECT a,
+LENGTH(b), b=LEFT(REPEAT(d,100*a), 65535),LENGTH(c), c=REPEAT(d,20*a), d FROM t1;
 SHOW CREATE TABLE t1;
 CHECK TABLE t1;
 EXPLAIN SELECT * FROM t1 WHERE b LIKE 'adfd%';
@@ -418,46 +392,87 @@ EXPLAIN SELECT * FROM t1 WHERE b LIKE 'adfd%';
 # end disabled45225_1
 DROP TABLE t1;
 
-
 --echo # Test 8) Test creating a table that could lead to undo log overflow.
---echo # In the undo log, we write a 768-byte prefix (REC_MAX_INDEX_COL_LEN)
---echo # of each externally stored column that appears as a column prefix in an index.
---echo # For this test case, it would suffice to write 1 byte, though.
-# This test was moved from mysql-index.test
 CREATE TABLE t1(a blob,b blob,c blob,d blob,e blob,f blob,g blob,
                 h blob,i blob,j blob,k blob,l blob,m blob,n blob,
 		o blob,p blob,q blob,r blob,s blob,t blob,u blob)
 		ENGINE=InnoDB ROW_FORMAT=dynamic;
+SET @a = repeat('a', 767);
+SET @b = repeat('b', 767);
+SET @c = repeat('c', 767);
+SET @d = repeat('d', 767);
+SET @e = repeat('e', 767);
+
+# With no indexes defined, we can update all columns to max key part length.
+INSERT INTO t1 VALUES (@a,@a,@a,@a,@a,@a,@a,@a,@a,@a,@a,@a,@a,@a,@a,@a,@a,@a,@a,@a,@a);
+UPDATE t1 SET a=@b,b=@b,c=@b,d=@b,e=@b,f=@b,g=@b,h=@b,i=@b,j=@b,
+              k=@b,l=@b,m=@b,n=@b,o=@b,p=@b,q=@b,r=@b,s=@b,t=@b,u=@b;
+
+# With this many indexes defined, we can still update all fields.
 CREATE INDEX t1a ON t1 (a(767));
 CREATE INDEX t1b ON t1 (b(767));
 CREATE INDEX t1c ON t1 (c(767));
 CREATE INDEX t1d ON t1 (d(767));
 CREATE INDEX t1e ON t1 (e(767));
+UPDATE t1 SET a=@c,b=@c,c=@c,d=@c,e=@c,f=@c,g=@c,h=@c,i=@c,j=@c,
+              k=@c,l=@c,m=@c,n=@c,o=@c,p=@c,q=@c,r=@c,s=@c,t=@c,u=@c;
+
+# Add one more index and the UNDO record becomes too big to update all columns.
+# But a single transaction can update the columns in separate statements.
+# because the UNDO records will be smaller.
 CREATE INDEX t1f ON t1 (f(767));
+--error ER_UNDO_RECORD_TOO_BIG
+UPDATE t1 SET a=@d,b=@d,c=@d,d=@d,e=@d,f=@d,g=@d,h=@d,i=@d,j=@d,
+              k=@d,l=@d,m=@d,n=@d,o=@d,p=@d,q=@d,r=@d,s=@d,t=@d,u=@d;
+BEGIN;
+UPDATE t1 SET a=@d,b=@d,c=@d,d=@d,e=@d;
+UPDATE t1 SET f=@d,g=@d,h=@d,i=@d,j=@d,k=@d,l=@d,m=@d,
+              n=@d,o=@d,p=@d,q=@d,r=@d,s=@d,t=@d,u=@d;
+COMMIT;
+
+# More indexes can still be added and a single field can still be updated
 CREATE INDEX t1g ON t1 (g(767));
+UPDATE t1 SET g=@e;
 CREATE INDEX t1h ON t1 (h(767));
+UPDATE t1 SET h=@e;
 CREATE INDEX t1i ON t1 (i(767));
+UPDATE t1 SET i=@e;
 CREATE INDEX t1j ON t1 (j(767));
+UPDATE t1 SET j=@e;
 CREATE INDEX t1k ON t1 (k(767));
+UPDATE t1 SET k=@e;
 CREATE INDEX t1l ON t1 (l(767));
+UPDATE t1 SET l=@e;
 CREATE INDEX t1m ON t1 (m(767));
+UPDATE t1 SET m=@e;
 CREATE INDEX t1n ON t1 (n(767));
+UPDATE t1 SET n=@e;
 CREATE INDEX t1o ON t1 (o(767));
+UPDATE t1 SET o=@e;
 CREATE INDEX t1p ON t1 (p(767));
+UPDATE t1 SET p=@e;
 CREATE INDEX t1q ON t1 (q(767));
+UPDATE t1 SET q=@e;
 CREATE INDEX t1r ON t1 (r(767));
+UPDATE t1 SET r=@e;
 CREATE INDEX t1s ON t1 (s(767));
+UPDATE t1 SET s=@e;
+
+# Add one more index and we cannot update a column to its defined index length.
+# This is a problem.  It means that the DDL is allowed to create a table
+# that CANNOT be updated.  See bug#12953735.
 CREATE INDEX t1t ON t1 (t(767));
---error 139
+--error ER_UNDO_RECORD_TOO_BIG
+UPDATE t1 SET t=@e;
+
+# The function dict_index_too_big_for_undo() prevents us from adding
+# one more index.  But it is too late.  The record is already too big.
+# See bug#12953735
+--error ER_TOO_BIG_ROWSIZE
 CREATE INDEX t1u ON t1 (u(767));
---error 139
+--error ER_TOO_BIG_ROWSIZE
 CREATE INDEX t1ut ON t1 (u(767), t(767));
 CREATE INDEX t1st ON t1 (s(767), t(767));
-SHOW CREATE TABLE t1;
---error 139
-CREATE INDEX t1u ON t1 (u(767));
-ALTER TABLE t1 ROW_FORMAT=compact;
-CREATE INDEX t1u ON t1 (u(767));
 
 SHOW CREATE TABLE t1;
 DROP TABLE t1;

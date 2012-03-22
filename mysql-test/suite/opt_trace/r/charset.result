@@ -1,10 +1,11 @@
-set @@session.optimizer_trace="enabled=on,end_marker=on";
+set @@session.end_markers_in_json=on;
+set @@session.optimizer_trace="enabled=on";
 create table t1(a int);
 insert into t1 values(1);
 set names latin1;
 explain extended select '¡¬√ƒ≈', _latin1'¡¬√ƒ≈' from t1 limit 1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	system	NULL	NULL	NULL	NULL	1	100.00	
+1	SIMPLE	t1	system	NULL	NULL	NULL	NULL	1	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select '¡¬√ƒ≈' AS `¡¬√ƒ≈`,_latin1'\xC1\xC2\xC3\xC4\xC5' AS `¡¬√ƒ≈` from dual limit 1
 select (@query:=QUERY)+NULL, (@trace:=TRACE)+NULL from information_schema.OPTIMIZER_TRACE;
@@ -47,7 +48,8 @@ explain extended select '¡¬√ƒ≈', _latin1'¡¬√ƒ≈' from t1 limit 1	{
                 "table": "t1",
                 "rows": 1,
                 "cost": 1,
-                "table_type": "system"
+                "table_type": "system",
+                "empty": false
               }
             ] /* rows_estimation */
           },
@@ -114,7 +116,8 @@ explain extended select '√Å√Ç√É√Ñ√Ö', _latin1'√Å√Ç√É√Ñ√Ö' from t1 limit 1	{
                 "table": "t1",
                 "rows": 1,
                 "cost": 1,
-                "table_type": "system"
+                "table_type": "system",
+                "empty": false
               }
             ] /* rows_estimation */
           },
@@ -212,7 +215,8 @@ select * from v1 where v1.col = '√Å√Ç√É√Ñ√Ö'	{
                       "table": "t1",
                       "rows": 1,
                       "cost": 1,
-                      "table_type": "system"
+                      "table_type": "system",
+                      "empty": false
                     }
                   ] /* rows_estimation */
                 },
@@ -295,9 +299,14 @@ select * from v1 where v1.col = '√Å√Ç√É√Ñ√Ö'	{
                 "table": "v1",
                 "rows": 1,
                 "cost": 1,
-                "table_type": "system"
+                "table_type": "system",
+                "empty": false
               }
             ] /* rows_estimation */
+          },
+          {
+            "condition_on_constant_tables": "1",
+            "condition_value": true
           },
           {
             "attaching_conditions_to_tables": {
@@ -425,6 +434,7 @@ select * from t1 where c < '√Å√Ç√É√Ñ√Ö'	{
                     "range_scan_alternatives": [
                       {
                         "index": "PRIMARY",
+                        "index_dives_for_eq_ranges": true,
                         "ranges": [
                           "c <= √Å√Ç√É√Ñ"
                         ] /* ranges */,
@@ -628,6 +638,7 @@ select `col
                     "range_scan_alternatives": [
                       {
                         "index": "index\n1\ta",
+                        "index_dives_for_eq_ranges": true,
                         "ranges": [
                           "NULL < col\n1\ta < 6"
                         ] /* ranges */,

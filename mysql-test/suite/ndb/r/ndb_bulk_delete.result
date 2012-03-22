@@ -1,0 +1,73 @@
+create table t1 (a int key) engine ndb;
+insert into t1 values (1);
+insert into t1 select a+1 from t1;
+insert into t1 select a+2 from t1;
+insert into t1 select a+4 from t1;
+insert into t1 select a+8 from t1;
+insert into t1 select a+16 from t1;
+insert into t1 select a+32 from t1;
+insert into t1 select a+64 from t1;
+insert into t1 select a+128 from t1;
+select count(*) from t1;
+count(*)
+256
+
+# test: simple delete of multiple pk's
+# expected result 1 roundtrips
+# 0 - info call
+# 0 - read the rows (with read before delete, this is 1)
+# 0 - delete the rows (without bulk update this is 5 + 1 for execute no commit)
+# 1 - delete the row + commit the transaction
+
+delete from t1 where a in (1,7, 90, 100, 130);
+affected rows: 5
+@ndb_execute_count:=VARIABLE_VALUE-@ndb_init_execute_count
+1
+affected rows: 1
+# expected result 1 roundtrips
+# 0 - info call
+# 0 - read the rows 
+# 0 - delete the rows 
+# 1 - commit
+# affected = 0
+
+delete from t1 where a=1000;
+affected rows: 0
+@ndb_execute_count:=VARIABLE_VALUE-@ndb_init_execute_count
+1
+affected rows: 1
+# expected result 1 roundtrips
+# 0 - info call
+# 0 - read the rows 
+# 0 - delete the rows 
+# 1 - commit
+# affected = 0
+
+delete from t1 where a in (1000, 1001, 1002, 1003, 1004);
+affected rows: 0
+@ndb_execute_count:=VARIABLE_VALUE-@ndb_init_execute_count
+1
+affected rows: 1
+select count(*) as "0(was deleted)" from t1 where a in (1,7, 90, 100, 130);
+0(was deleted)
+0
+select count(*) as "0(never existed)" from t1 where a=1000;
+0(never existed)
+0
+select count(*) as "0(never existed)" from t1
+where a in (1000, 1001, 1002, 1003, 1004);
+0(never existed)
+0
+select count(*) as "251(remaining)" from t1;
+251(remaining)
+251
+select count(*) as "5(not deleted)" from t1 where a in (2, 3, 4, 5, 6);
+5(not deleted)
+5
+drop table t1;
+create table t2 (a int primary key, b varchar(256)) engine ndb;
+Has loaded 2000 rows
+2000
+Should be 1500 rows left now
+1500
+drop table t2, t3;

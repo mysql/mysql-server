@@ -35,7 +35,7 @@
 #if defined (__STDC_VERSION__) && __STDC_VERSION__ >= 199901L
 
 /* C99 says to define __STDC_LIMIT_MACROS before including stdint.h,
- * if you want the limit (max/min) macros for int types. 
+ * if you want the limit (max/min) macros for int types.
  */
 #ifndef __STDC_LIMIT_MACROS
 #define __STDC_LIMIT_MACROS 1
@@ -52,7 +52,7 @@ typedef uint32_t flex_uint32_t;
 typedef signed char flex_int8_t;
 typedef short int flex_int16_t;
 typedef int flex_int32_t;
-typedef unsigned char flex_uint8_t; 
+typedef unsigned char flex_uint8_t;
 typedef unsigned short int flex_uint16_t;
 typedef unsigned int flex_uint32_t;
 #endif /* ! C99 */
@@ -168,7 +168,7 @@ extern FILE *yyin, *yyout;
 #define EOB_ACT_LAST_MATCH 2
 
     #define YY_LESS_LINENO(n)
-    
+
 /* Return all but the first "n" matched characters back to the input stream. */
 #define yyless(n) \
 	do \
@@ -225,7 +225,7 @@ struct yy_buffer_state
 
     int yy_bs_lineno; /**< The line count. */
     int yy_bs_column; /**< The column count. */
-    
+
 	/* Whether to try to fill the input buffer when we reach the
 	 * end of it.
 	 */
@@ -276,7 +276,7 @@ static yy_size_t yy_n_chars;		/* number of characters read into yy_ch_buf */
 yy_size_t yyleng;
 
 /* Points to current character in buffer. */
-static char *yy_c_buf_p = (char *) 0;
+static char *yy_c_buf_p = (char*) 0;
 static int yy_init = 0;		/* whether we need to initialize */
 static int yy_start = 0;	/* start state number */
 
@@ -338,7 +338,7 @@ void yyfree (void *  );
 
 typedef unsigned char YY_CHAR;
 
-FILE *yyin = (FILE *) 0, *yyout = (FILE *) 0;
+FILE *yyin = (FILE*) 0, *yyout = (FILE*) 0;
 
 typedef int yy_state_type;
 
@@ -1065,7 +1065,7 @@ YY_DECL
 	register yy_state_type yy_current_state;
 	register char *yy_cp, *yy_bp;
 	register int yy_act;
-    
+
 #line 112 "pars0lex.l"
 
 
@@ -1894,7 +1894,7 @@ YY_RULE_SETUP
 #line 564 "pars0lex.l"
 {
 			yylval = sym_tab_add_id(pars_sym_tab_global,
-							(byte*)yytext,
+							(byte*) yytext,
 							ut_strlen(yytext));
 			return(PARS_ID_TOKEN);
 }
@@ -1904,7 +1904,7 @@ YY_RULE_SETUP
 #line 571 "pars0lex.l"
 {
 			yylval = sym_tab_add_id(pars_sym_tab_global,
-							(byte*)yytext,
+							(byte*) yytext,
 							ut_strlen(yytext));
 			return(PARS_TABLE_NAME_TOKEN);
 }
@@ -2320,9 +2320,9 @@ static int yy_get_next_buffer (void)
 				else
 					b->yy_buf_size *= 2;
 
-				b->yy_ch_buf = (char *)
+				b->yy_ch_buf = (char*)
 					/* Include room in for 2 EOB chars. */
-					yyrealloc((void *) b->yy_ch_buf,b->yy_buf_size + 2  );
+					yyrealloc((void*) b->yy_ch_buf,b->yy_buf_size + 2  );
 				}
 			else
 				/* Can't grow it, we don't own it. */
@@ -2371,7 +2371,7 @@ static int yy_get_next_buffer (void)
 	if ((yy_size_t) ((yy_n_chars) + number_to_move) > YY_CURRENT_BUFFER_LVALUE->yy_buf_size) {
 		/* Extend the array by 50%, plus the number we really need. */
 		yy_size_t new_size = (yy_n_chars) + number_to_move + ((yy_n_chars) >> 1);
-		YY_CURRENT_BUFFER_LVALUE->yy_ch_buf = (char *) yyrealloc((void *) YY_CURRENT_BUFFER_LVALUE->yy_ch_buf,new_size  );
+		YY_CURRENT_BUFFER_LVALUE->yy_ch_buf = (char*) yyrealloc((void*) YY_CURRENT_BUFFER_LVALUE->yy_ch_buf,new_size  );
 		if ( ! YY_CURRENT_BUFFER_LVALUE->yy_ch_buf )
 			YY_FATAL_ERROR( "out of dynamic memory in yy_get_next_buffer()" );
 	}
@@ -2391,7 +2391,7 @@ static int yy_get_next_buffer (void)
 {
 	register yy_state_type yy_current_state;
 	register char *yy_cp;
-    
+
 	yy_current_state = (yy_start);
 
 	for ( yy_cp = (yytext_ptr) + YY_MORE_ADJ; yy_cp < (yy_c_buf_p); ++yy_cp )
@@ -2451,7 +2451,7 @@ static int yy_get_next_buffer (void)
 
 {
 	int c;
-    
+
 	*(yy_c_buf_p) = (yy_hold_char);
 
 	if ( *(yy_c_buf_p) == YY_END_OF_BUFFER_CHAR )
@@ -2508,7 +2508,7 @@ static int yy_get_next_buffer (void)
 			}
 		}
 
-	c = *(unsigned char *) (yy_c_buf_p);	/* cast for 8-bit char's */
+	c = *(unsigned char*) (yy_c_buf_p);	/* cast for 8-bit char's */
 	*(yy_c_buf_p) = '\0';	/* preserve yytext */
 	(yy_hold_char) = *++(yy_c_buf_p);
 
@@ -2518,12 +2518,12 @@ static int yy_get_next_buffer (void)
 
 /** Immediately switch to a different input stream.
  * @param input_file A readable stream.
- * 
+ *
  * @note This function does not reset the start condition to @c INITIAL .
  */
     void yyrestart  (FILE * input_file )
 {
-    
+
 	if ( ! YY_CURRENT_BUFFER ){
         yyensure_buffer_stack ();
 		YY_CURRENT_BUFFER_LVALUE =
@@ -2536,11 +2536,11 @@ static int yy_get_next_buffer (void)
 
 /** Switch to a different input buffer.
  * @param new_buffer The new input buffer.
- * 
+ *
  */
     __attribute__((unused)) static void yy_switch_to_buffer  (YY_BUFFER_STATE  new_buffer )
 {
-    
+
 	/* TODO. We should be able to replace this entire function body
 	 * with
 	 *		yypop_buffer_state();
@@ -2580,13 +2580,13 @@ static void yy_load_buffer_state  (void)
 /** Allocate and initialize an input buffer state.
  * @param file A readable stream.
  * @param size The character buffer size in bytes. When in doubt, use @c YY_BUF_SIZE.
- * 
+ *
  * @return the allocated buffer state.
  */
     static YY_BUFFER_STATE yy_create_buffer  (FILE * file, int  size )
 {
 	YY_BUFFER_STATE b;
-    
+
 	b = (YY_BUFFER_STATE) yyalloc(sizeof( struct yy_buffer_state )  );
 	if ( ! b )
 		YY_FATAL_ERROR( "out of dynamic memory in yy_create_buffer()" );
@@ -2596,7 +2596,7 @@ static void yy_load_buffer_state  (void)
 	/* yy_ch_buf has to be 2 characters longer than the size given because
 	 * we need to put in 2 end-of-buffer characters.
 	 */
-	b->yy_ch_buf = (char *) yyalloc(b->yy_buf_size + 2  );
+	b->yy_ch_buf = (char*) yyalloc(b->yy_buf_size + 2  );
 	if ( ! b->yy_ch_buf )
 		YY_FATAL_ERROR( "out of dynamic memory in yy_create_buffer()" );
 
@@ -2609,11 +2609,11 @@ static void yy_load_buffer_state  (void)
 
 /** Destroy the buffer.
  * @param b a buffer created with yy_create_buffer()
- * 
+ *
  */
     void yy_delete_buffer (YY_BUFFER_STATE  b )
 {
-    
+
 	if ( ! b )
 		return;
 
@@ -2621,9 +2621,9 @@ static void yy_load_buffer_state  (void)
 		YY_CURRENT_BUFFER_LVALUE = (YY_BUFFER_STATE) 0;
 
 	if ( b->yy_is_our_buffer )
-		yyfree((void *) b->yy_ch_buf  );
+		yyfree((void*) b->yy_ch_buf  );
 
-	yyfree((void *) b  );
+	yyfree((void*) b  );
 }
 
 /* Initializes or reinitializes a buffer.
@@ -2634,7 +2634,7 @@ static void yy_load_buffer_state  (void)
 
 {
 	int oerrno = errno;
-    
+
 	yy_flush_buffer(b );
 
 	b->yy_input_file = file;
@@ -2650,13 +2650,13 @@ static void yy_load_buffer_state  (void)
     }
 
         b->yy_is_interactive = 0;
-    
+
 	errno = oerrno;
 }
 
 /** Discard all buffered characters. On the next scan, YY_INPUT will be called.
  * @param b the buffer state to be flushed, usually @c YY_CURRENT_BUFFER.
- * 
+ *
  */
     void yy_flush_buffer (YY_BUFFER_STATE  b )
 {
@@ -2685,7 +2685,7 @@ static void yy_load_buffer_state  (void)
  *  the current state. This function will allocate the stack
  *  if necessary.
  *  @param new_buffer The new state.
- *  
+ *
  */
 void yypush_buffer_state (YY_BUFFER_STATE new_buffer )
 {
@@ -2715,7 +2715,7 @@ void yypush_buffer_state (YY_BUFFER_STATE new_buffer )
 
 /** Removes and deletes the top of the stack, if present.
  *  The next element becomes the new top.
- *  
+ *
  */
 void yypop_buffer_state (void)
 {
@@ -2739,7 +2739,7 @@ void yypop_buffer_state (void)
 static void yyensure_buffer_stack (void)
 {
 	yy_size_t num_to_alloc;
-    
+
 	if (!(yy_buffer_stack)) {
 
 		/* First allocation is just for 2 elements, since we don't know if this
@@ -2747,14 +2747,14 @@ static void yyensure_buffer_stack (void)
 		 * immediate realloc on the next call.
          */
 		num_to_alloc = 1;
-		(yy_buffer_stack) = (struct yy_buffer_state**)yyalloc
+		(yy_buffer_stack) = (struct yy_buffer_state**) yyalloc
 								(num_to_alloc * sizeof(struct yy_buffer_state*)
 								);
 		if ( ! (yy_buffer_stack) )
 			YY_FATAL_ERROR( "out of dynamic memory in yyensure_buffer_stack()" );
-								  
+
 		memset((yy_buffer_stack), 0, num_to_alloc * sizeof(struct yy_buffer_state*));
-				
+
 		(yy_buffer_stack_max) = num_to_alloc;
 		(yy_buffer_stack_top) = 0;
 		return;
@@ -2766,7 +2766,7 @@ static void yyensure_buffer_stack (void)
 		int grow_size = 8 /* arbitrary grow size */;
 
 		num_to_alloc = (yy_buffer_stack_max) + grow_size;
-		(yy_buffer_stack) = (struct yy_buffer_state**)yyrealloc
+		(yy_buffer_stack) = (struct yy_buffer_state**) yyrealloc
 								((yy_buffer_stack),
 								num_to_alloc * sizeof(struct yy_buffer_state*)
 								);
@@ -2809,16 +2809,16 @@ static void yy_fatal_error (yyconst char* msg )
 /* Accessor  methods (get/set functions) to struct members. */
 
 /** Get the current line number.
- * 
+ *
  */
 int yyget_lineno  (void)
 {
-        
+
     return yylineno;
 }
 
 /** Get the input stream.
- * 
+ *
  */
 FILE *yyget_in  (void)
 {
@@ -2826,7 +2826,7 @@ FILE *yyget_in  (void)
 }
 
 /** Get the output stream.
- * 
+ *
  */
 FILE *yyget_out  (void)
 {
@@ -2834,7 +2834,7 @@ FILE *yyget_out  (void)
 }
 
 /** Get the length of the current token.
- * 
+ *
  */
 yy_size_t yyget_leng  (void)
 {
@@ -2842,7 +2842,7 @@ yy_size_t yyget_leng  (void)
 }
 
 /** Get the current token.
- * 
+ *
  */
 
 char *yyget_text  (void)
@@ -2852,18 +2852,18 @@ char *yyget_text  (void)
 
 /** Set the current line number.
  * @param line_number
- * 
+ *
  */
 void yyset_lineno (int  line_number )
 {
-    
+
     yylineno = line_number;
 }
 
 /** Set the input stream. This does not discard the current
  * input buffer.
  * @param in_str A readable stream.
- * 
+ *
  * @see yy_switch_to_buffer
  */
 void yyset_in (FILE *  in_str )
@@ -2895,7 +2895,7 @@ static int yy_init_globals (void)
     (yy_buffer_stack) = 0;
     (yy_buffer_stack_top) = 0;
     (yy_buffer_stack_max) = 0;
-    (yy_c_buf_p) = (char *) 0;
+    (yy_c_buf_p) = (char*) 0;
     (yy_init) = 0;
     (yy_start) = 0;
 
@@ -2904,8 +2904,8 @@ static int yy_init_globals (void)
     yyin = stdin;
     yyout = stdout;
 #else
-    yyin = (FILE *) 0;
-    yyout = (FILE *) 0;
+    yyin = (FILE*) 0;
+    yyout = (FILE*) 0;
 #endif
 
     /* For future reference: Set errno on error, since we are called by
@@ -2917,7 +2917,7 @@ static int yy_init_globals (void)
 /* yylex_destroy is for both reentrant and non-reentrant scanners. */
 __attribute__((unused)) static int yylex_destroy  (void)
 {
-    
+
     /* Pop the buffer stack, destroying each element. */
 	while(YY_CURRENT_BUFFER){
 		yy_delete_buffer(YY_CURRENT_BUFFER  );
@@ -2962,24 +2962,24 @@ static int yy_flex_strlen (yyconst char * s )
 
 void *yyalloc (yy_size_t  size )
 {
-	return (void *) malloc( size );
+	return (void*) malloc( size );
 }
 
 void *yyrealloc  (void * ptr, yy_size_t  size )
 {
-	/* The cast to (char *) in the following accommodates both
+	/* The cast to (char*) in the following accommodates both
 	 * implementations that use char* generic pointers, and those
 	 * that use void* generic pointers.  It works with the latter
 	 * because both ANSI C and C++ allow castless assignment from
 	 * any pointer type to void*, and deal with argument conversions
 	 * as though doing an assignment.
 	 */
-	return (void *) realloc( (char *) ptr, size );
+	return (void*) realloc( (char*) ptr, size );
 }
 
 void yyfree (void * ptr )
 {
-	free( (char *) ptr );	/* see yyrealloc() for (char *) cast */
+	free( (char*) ptr );	/* see yyrealloc() for (char*) cast */
 }
 
 #define YYTABLES_NAME "yytables"

@@ -119,3 +119,45 @@ SELECT * FROM t1 WHERE FIND_IN_SET(NULL, NULL) IS UNKNOWN;
 
 --echo
 DROP TABLE t1;
+
+--echo #
+--echo # BUG#12211480: GROUP BY MAKE_SET WITH EMPTY SET VALUES CRASH IN MY_HASH_SORT_SIMPLE
+--echo #
+
+CREATE TABLE t1 (a INT, b CHAR NOT NULL);
+INSERT INTO t1 VALUES (NULL,'1'),(NULL,'1');
+SELECT COUNT(*) FROM t1 GROUP BY MAKE_SET(a,b);
+
+DROP TABLE t1;
+
+--echo # End of test BUG#12211480
+
+--echo #
+--echo # Bug#12677197 MAKE_SET() AND MY_EMPTY_STRING BUGS CAUSE CRASHING
+--echo #
+
+do
+nullif( ( rtrim( make_set((cast(('%S') as unsigned)),
+                          (point((0xaf),(''))))
+               )
+        ), (''))
+;
+
+do
+dayofmonth( ( not( trim( trailing( convert((''), binary(4)))
+                   from( make_set( ('>>'), ('`'))))
+                 )))
+;
+
+do quote(make_set((''), (cast(('-2147483649.1') as binary(513)))));
+
+do
+trim( both(-8388607)
+      from( make_set( ( extract( minute_second from
+                                 ( str_to_date((rpad(1.0,4,1)), ('')))
+                               )
+                       ),
+                       ( char((connection_id()) using macce)))
+          )
+    )
+;

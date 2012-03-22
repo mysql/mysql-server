@@ -67,3 +67,12 @@ SHOW DATABASES;
 SHOW DATABASES;
 DROP DATABASE bug58090;
 
+--echo #
+--echo # Bug#12688860 : SECURITY RECOMMENDATION: PASSWORDS ON CLI
+--echo #
+
+--echo Executing mysqlslap with password.
+--exec $MYSQL_SLAP -uroot --password="" --silent --iterations=1 --concurrency=1 --auto-generate-sql 2>&1
+
+--echo
+--echo End of tests

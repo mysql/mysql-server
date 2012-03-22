@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2011, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2012, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -19,7 +19,6 @@ INCLUDE_DIRECTORIES(
   ${CMAKE_SOURCE_DIR}/regex 
   ${ZLIB_INCLUDE_DIR}
   ${SSL_INCLUDE_DIRS}
-  ${SSL_INTERNAL_INCLUDE_DIRS}
   ${CMAKE_BINARY_DIR}/sql
 )
 
@@ -70,11 +69,15 @@ SET(SQL_SHARED_SOURCES
   keycaches.cc
   lock.cc
   log.cc
+  md5.cc
   mdl.cc
   mf_iocache.cc
   my_decimal.cc
+  my_rnd.cc
   net_serv.cc
   opt_explain.cc
+  opt_explain_traditional.cc
+  opt_explain_json.cc
   opt_range.cc
   opt_sum.cc 
   opt_trace.cc
@@ -86,10 +89,13 @@ SET(SQL_SHARED_SOURCES
   procedure.cc 
   protocol.cc
   records.cc
+  rpl_constants.cc
   rpl_handler.cc
   scheduler.cc 
   set_var.cc 
+  sha1.cc
   sha2.cc
+  signal_handler.cc
   sp.cc
   sp_cache.cc
   sp_head.cc
@@ -114,24 +120,28 @@ SET(SQL_SHARED_SOURCES
   sql_derived.cc
   sql_do.cc 
   sql_error.cc
+  sql_executor.cc
   sql_get_diagnostics.cc
   sql_handler.cc
   sql_help.cc
   sql_insert.cc
-  sql_join_cache.cc
+  sql_join_buffer.cc
   sql_lex.cc 
   sql_list.cc
   sql_load.cc
   sql_locale.cc
   sql_manager.cc
+  sql_optimizer.cc
   sql_parse.cc
   sql_partition.cc
   sql_partition_admin.cc
+  sql_planner.cc
   sql_plugin.cc
   sql_prepare.cc
   sql_profile.cc
   sql_reload.cc
-  sql_rename.cc 
+  sql_rename.cc
+  sql_resolver.cc
   sql_rewrite.cc
   sql_select.cc
   sql_servers.cc
@@ -143,6 +153,7 @@ SET(SQL_SHARED_SOURCES
   sql_tablespace.cc
   sql_test.cc
   sql_time.cc
+  sql_tmp_table.cc
   sql_trigger.cc
   sql_truncate.cc
   sql_udf.cc
@@ -202,7 +213,11 @@ IF(WIN32)
   TARGET_LINK_LIBRARIES(sql auth_win_client)
 ENDIF()
 
-SET (BINLOG_SOURCE log_event.cc log_event_old.cc binlog.cc sql_binlog.cc
+SET (BINLOG_SOURCE uuid.cc rpl_gtid_misc.cc
+                   rpl_gtid_sid_map.cc rpl_gtid_set.cc rpl_gtid_specification.cc
+                   rpl_gtid_state.cc rpl_gtid_owned.cc rpl_gtid_cache.cc
+                   rpl_gtid_execution.cc rpl_gtid_mutex_cond_array.cc
+                   log_event.cc log_event_old.cc binlog.cc sql_binlog.cc
 		   rpl_filter.cc rpl_record.cc rpl_record_old.cc rpl_utility.cc
 		   rpl_injector.cc)
 ADD_LIBRARY(binlog ${BINLOG_SOURCE})
@@ -411,7 +426,11 @@ INSTALL(FILES ${DUMMY_FILE} DESTINATION data/test COMPONENT DataFiles)
 
 # Install initial database on windows
 IF(NOT CMAKE_CROSSCOMPILING)
-  GET_TARGET_PROPERTY(MYSQLD_EXECUTABLE mysqld LOCATION)
+  IF(DEBUG_EXTNAME)
+    GET_TARGET_PROPERTY(MYSQLD_EXECUTABLE mysqld LOCATION_DEBUG)
+  ELSE()
+    GET_TARGET_PROPERTY(MYSQLD_EXECUTABLE mysqld LOCATION)
+  ENDIF()
 ENDIF()
 IF(WIN32 AND MYSQLD_EXECUTABLE)
   CONFIGURE_FILE(

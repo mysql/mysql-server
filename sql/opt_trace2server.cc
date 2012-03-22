@@ -195,7 +195,7 @@ Opt_trace_start::Opt_trace_start(THD *thd, TABLE_LIST *tbl,
   }
 
   error= ctx->start(support_I_S, support_dbug_or_missing_priv,
-                    (var & Opt_trace_context::FLAG_END_MARKER),
+                    thd->variables.end_markers_in_json,
                     (var & Opt_trace_context::FLAG_ONE_LINE),
                     thd->variables.optimizer_trace_offset,
                     thd->variables.optimizer_trace_limit,

@@ -1,4 +1,4 @@
-/* Copyright (c) 2004, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2012, Oracle and/or its affiliates. All rights reserved.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License as published by
@@ -122,12 +122,16 @@ my_bool check_date(const MYSQL_TIME *ltime, my_bool not_zero_date,
 {
   if (not_zero_date)
   {
-    if ((((flags & TIME_NO_ZERO_IN_DATE) || !(flags & TIME_FUZZY_DATE)) &&
-         (ltime->month == 0 || ltime->day == 0)) ||
-        (!(flags & TIME_INVALID_DATES) &&
-         ltime->month && ltime->day > days_in_month[ltime->month-1] &&
-         (ltime->month != 2 || calc_days_in_year(ltime->year) != 366 ||
-          ltime->day != 29)))
+    if (((flags & TIME_NO_ZERO_IN_DATE) || !(flags & TIME_FUZZY_DATE)) &&
+        (ltime->month == 0 || ltime->day == 0))
+    {
+      *was_cut= MYSQL_TIME_WARN_ZERO_IN_DATE;
+      return TRUE;
+    }
+    else if ((!(flags & TIME_INVALID_DATES) &&
+              ltime->month && ltime->day > days_in_month[ltime->month-1] &&
+              (ltime->month != 2 || calc_days_in_year(ltime->year) != 366 ||
+               ltime->day != 29)))
     {
       *was_cut= MYSQL_TIME_WARN_OUT_OF_RANGE;
       return TRUE;
@@ -909,6 +913,9 @@ void my_init_time(void)
   my_time.hour=		(uint) l_time->tm_hour;
   my_time.minute=	(uint) l_time->tm_min;
   my_time.second=	(uint) l_time->tm_sec;
+  my_time.time_type= MYSQL_TIMESTAMP_DATETIME;
+  my_time.neg= 0;
+  my_time.second_part= 0;
   my_system_gmt_sec(&my_time, &my_time_zone, &not_used); /* Init my_time_zone */
 }
 

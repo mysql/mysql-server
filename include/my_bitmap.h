@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2001, 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2001, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -100,7 +100,14 @@ static inline my_bool bitmap_is_set(const MY_BITMAP *map, uint bit)
   return ((uchar*)map->bitmap)[bit / 8] & (1 << (bit & 7));
 }
 
+/**
+   Quite unlike other C comparison functions ending with 'cmp', e.g. memcmp(),
+   strcmp(), this function returns true if the bitmaps are equal, and false
+   otherwise.
 
+   @retval true The bitmaps are equal.
+   @retval false The bitmaps differ.
+ */
 static inline my_bool bitmap_cmp(const MY_BITMAP *map1, const MY_BITMAP *map2)
 {
   if (memcmp(map1->bitmap, map2->bitmap, 4*(no_words_in_map(map1)-1)) != 0)

@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -150,14 +150,15 @@ bool get_key_map_from_key_list(key_map *map, TABLE *table,
                                List<String> *index_list);
 TABLE *open_table_uncached(THD *thd, const char *path, const char *db,
 			   const char *table_name,
-                           bool add_to_temporary_tables_list);
+                           bool add_to_temporary_tables_list,
+                           bool open_in_engine);
 TABLE *find_locked_table(TABLE *list, const char *db, const char *table_name);
 thr_lock_type read_lock_type_for_table(THD *thd,
                                        Query_tables_list *prelocking_ctx,
                                        TABLE_LIST *table_list);
 
 my_bool mysql_rm_tmp_tables(void);
-bool rm_temporary_table(handlerton *base, char *path);
+bool rm_temporary_table(handlerton *base, const char *path);
 void close_tables_for_reopen(THD *thd, TABLE_LIST **tables,
                              const MDL_savepoint &start_of_statement_svp);
 TABLE_LIST *find_table_in_list(TABLE_LIST *table,
@@ -429,11 +430,6 @@ class Lock_tables_prelocking_strategy : public DML_prelocking_strategy
 class Alter_table_prelocking_strategy : public Prelocking_strategy
 {
 public:
-
-  Alter_table_prelocking_strategy(Alter_info *alter_info)
-    : m_alter_info(alter_info)
-  {}
-
   virtual bool handle_routine(THD *thd, Query_tables_list *prelocking_ctx,
                               Sroutine_hash_entry *rt, sp_head *sp,
                               bool *need_prelocking);
@@ -441,9 +437,6 @@ public:
                             TABLE_LIST *table_list, bool *need_prelocking);
   virtual bool handle_view(THD *thd, Query_tables_list *prelocking_ctx,
                            TABLE_LIST *table_list, bool *need_prelocking);
-
-private:
-  Alter_info *m_alter_info;
 };
 
 

@@ -371,8 +371,8 @@ JOIN t2 ON t3.a=t2.a
 JOIN t4 WHERE t4.a IN (t1.b, t2.b);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t3	index	PRIMARY	PRIMARY	4	NULL	4	Using index
-1	SIMPLE	t1	eq_ref	PRIMARY	PRIMARY	4	test.t3.a	1	
-1	SIMPLE	t2	eq_ref	PRIMARY	PRIMARY	4	test.t3.a	1	
+1	SIMPLE	t1	eq_ref	PRIMARY	PRIMARY	4	test.t3.a	1	NULL
+1	SIMPLE	t2	eq_ref	PRIMARY	PRIMARY	4	test.t3.a	1	NULL
 1	SIMPLE	t4	ALL	PRIMARY	NULL	NULL	NULL	7	Range checked for each record (index map: 0x1)
 SELECT STRAIGHT_JOIN * FROM t3 
 JOIN t1 ON t3.a=t1.a 
@@ -389,8 +389,8 @@ FROM t3, t1, t2
 WHERE t3.a=t1.a AND t3.a=t2.a;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t3	index	PRIMARY	PRIMARY	4	NULL	4	Using index
-1	PRIMARY	t1	eq_ref	PRIMARY	PRIMARY	4	test.t3.a	1	
-1	PRIMARY	t2	eq_ref	PRIMARY	PRIMARY	4	test.t3.a	1	
+1	PRIMARY	t1	eq_ref	PRIMARY	PRIMARY	4	test.t3.a	1	NULL
+1	PRIMARY	t2	eq_ref	PRIMARY	PRIMARY	4	test.t3.a	1	NULL
 2	DEPENDENT SUBQUERY	t4	index	NULL	PRIMARY	4	NULL	7	Using where; Using index
 SELECT STRAIGHT_JOIN 
 (SELECT SUM(t4.a) FROM t4 WHERE t4.a IN (t1.b, t2.b)) 
@@ -470,6 +470,8 @@ SELECT HEX(a) FROM t2 WHERE a IN
 HEX(a)
 7FFFFFFFFFFFFFFE
 7FFFFFFFFFFFFFFF
+Warnings:
+Warning	1292	Truncated incorrect DOUBLE value: 'abc'
 CREATE TABLE t3 (a BIGINT UNSIGNED);
 INSERT INTO t3 VALUES (9223372036854775551);
 SELECT HEX(a) FROM t3 WHERE a IN (9223372036854775807, 42);
@@ -817,5 +819,12 @@ def				MAX(f1)	MAX(f1)	13	4	4	Y	32864	0	63
 MAX(f1)
 2001
 DROP TABLE t1;
+#
+# Bug #11764651-57510: IN(string,real,string) causes invalid read in sort function
+#
+SELECT LEFT(GEOMFROMTEXT("POINT(0 0)"),1) IN (@@global.query_cache_type,1,"");
+LEFT(GEOMFROMTEXT("POINT(0 0)"),1) IN (@@global.query_cache_type,1,"")
+0
+# End of test BUG#11764651-57510
 End of 5.1 tests
 set optimizer_switch=default;

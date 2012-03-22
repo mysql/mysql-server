@@ -91,7 +91,7 @@ struct fts_psort_struct {
 	fts_psort_common_t*	psort_common;	/*!< ptr to all psort info */
 };
 
-/** Structure stores information from string tokenization operation */ 
+/** Structure stores information from string tokenization operation */
 struct fts_tokenize_ctx {
 	ulint			processed_len;  /*!< processed string length */
 	ulint			init_pos;       /*!< doc start position */

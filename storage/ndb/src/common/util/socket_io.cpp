@@ -1,4 +1,5 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,14 +12,41 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #include <ndb_global.h>
 
-#include <NdbTCP.h>
-#include <socket_io.h>
-#include <NdbOut.hpp>
-#include <NdbTick.h>
+#include <portlib/NdbTCP.h>
+#include <portlib/NdbTick.h>
+#include <util/socket_io.h>
+#include <util/BaseString.hpp>
+
+static inline
+int
+poll_socket(ndb_socket_t socket, bool read, bool write,
+            int timeout_millis, int* total_elapsed_millis)
+{
+  const NDB_TICKS start = NdbTick_CurrentMillisecond();
+
+  timeout_millis -= *total_elapsed_millis;
+
+  if (timeout_millis <= 0)
+    return 0; // Timeout occured
+
+  const int res =
+    ndb_poll(socket, read, write, false, timeout_millis);
+
+  // Calculate elapsed time in this function
+  const int elapsed_millis = (int)(NdbTick_CurrentMillisecond() - start);
+  assert(elapsed_millis >= 0);
+
+  // Update the total elapsed time
+  *total_elapsed_millis += elapsed_millis;
+
+  return res;
+}
+
 
 extern "C"
 int
@@ -26,24 +54,14 @@ read_socket(NDB_SOCKET_TYPE socket, int timeout_millis,
 	    char * buf, int buflen){
   if(buflen < 1)
     return 0;
-  
-  fd_set readset;
-  FD_ZERO(&readset);
-  FD_SET(socket, &readset);
-  
-  struct timeval timeout;
-  timeout.tv_sec  = (timeout_millis / 1000);
-  timeout.tv_usec = (timeout_millis % 1000) * 1000;
 
-  const int selectRes = select(socket + 1, &readset, 0, 0, &timeout);
-  if(selectRes == 0)
-    return 0;
-  
-  if(selectRes == -1){
-    return -1;
-  }
+  int elapsed_millis = 0;
+  const int res = poll_socket(socket, true, false,
+                              timeout_millis, &elapsed_millis);
+  if (res <= 0)
+    return res;
 
-  return recv(socket, &buf[0], buflen, 0);
+  return (int)my_recv(socket, &buf[0], buflen, 0);
 }
 
 extern "C"
@@ -53,37 +71,25 @@ readln_socket(NDB_SOCKET_TYPE socket, int timeout_millis, int *time,
   if(buflen <= 1)
     return 0;
 
-  fd_set readset;
-  FD_ZERO(&readset);
-  FD_SET(socket, &readset);
-
-  struct timeval timeout;
-  timeout.tv_sec  = (timeout_millis / 1000);
-  timeout.tv_usec = (timeout_millis % 1000) * 1000;
-
   if(mutex)
     NdbMutex_Unlock(mutex);
-  Uint64 tick= NdbTick_CurrentMillisecond();
-  const int selectRes = select(socket + 1, &readset, 0, 0, &timeout);
 
-  *time= NdbTick_CurrentMillisecond() - tick;
+  const int res = poll_socket(socket, true, false,
+                              timeout_millis, time);
+
   if(mutex)
     NdbMutex_Lock(mutex);
 
-  if(selectRes == 0){
-    return 0;
-  }
-
-  if(selectRes == -1){
-    return -1;
-  }
+  if (res <= 0)
+    return res;
 
   char* ptr = buf;
   int len = buflen;
   do
   {
     int t;
-    while((t = recv(socket, ptr, len, MSG_PEEK)) == -1 && errno == EINTR);
+    while((t = (int)my_recv(socket, ptr, len, MSG_PEEK)) == -1
+          && socket_errno == EINTR);
     
     if(t < 1)
     {
@@ -100,17 +106,22 @@ readln_socket(NDB_SOCKET_TYPE socket, int timeout_millis, int *time,
 	 */
 	for (len = 1 + i; len; )
 	{
-	  while ((t = recv(socket, ptr, len, 0)) == -1 && errno == EINTR);
+	  while ((t = (int)my_recv(socket, ptr, len, 0)) == -1
+                 && socket_errno == EINTR);
 	  if (t < 1)
 	    return -1;
 	  ptr += t;
 	  len -= t;
 	}
-	if (i > 0 && buf[i-1] == '\r')
+	if (t > 1 && ptr[-2] == '\r')
 	{
-	  buf[i-1] = '\n';
+	  ptr[-2] = '\n';
+          ptr[-1] = '\0';
 	  ptr--;
 	}
+
+        *time = 0;
+
 	ptr[0]= 0;
 	return ptr - buf;
       }
@@ -118,7 +129,7 @@ readln_socket(NDB_SOCKET_TYPE socket, int timeout_millis, int *time,
     
     for (int tmp = t; tmp; )
     {
-      while ((t = recv(socket, ptr, tmp, 0)) == -1 && errno == EINTR);
+      while ((t = (int)my_recv(socket, ptr, tmp, 0)) == -1 && socket_errno == EINTR);
       if (t < 1)
       {
 	return -1;
@@ -126,20 +137,20 @@ readln_socket(NDB_SOCKET_TYPE socket, int timeout_millis, int *time,
       ptr += t;
       len -= t;
       tmp -= t;
+      if (t > 0 && buf[t-1] == '\r')
+      {
+        buf[t-1] = '\n';
+        ptr--;
+      }
     }
 
-    FD_ZERO(&readset);
-    FD_SET(socket, &readset);
-    timeout.tv_sec  = ((timeout_millis - *time) / 1000);
-    timeout.tv_usec = ((timeout_millis - *time) % 1000) * 1000;
-
-    tick= NdbTick_CurrentMillisecond();
-    const int selectRes = select(socket + 1, &readset, 0, 0, &timeout);
-    *time= NdbTick_CurrentMillisecond() - tick;
-
-    if(selectRes != 1){
+    if (poll_socket(socket, true, false, timeout_millis, time) != 1)
+    {
+      // Read some bytes but didn't find newline before all time was
+      // used up => return error
       return -1;
     }
+
   } while (len > 0);
   
   return -1;
@@ -149,25 +160,13 @@ extern "C"
 int
 write_socket(NDB_SOCKET_TYPE socket, int timeout_millis, int *time,
 	     const char buf[], int len){
-  fd_set writeset;
-  FD_ZERO(&writeset);
-  FD_SET(socket, &writeset);
-  struct timeval timeout;
-  timeout.tv_sec  = (timeout_millis / 1000);
-  timeout.tv_usec = (timeout_millis % 1000) * 1000;
 
-
-  Uint64 tick= NdbTick_CurrentMillisecond();
-  const int selectRes = select(socket + 1, 0, &writeset, 0, &timeout);
-  *time= NdbTick_CurrentMillisecond() - tick;
-
-  if(selectRes != 1){
+  if (poll_socket(socket, false, true, timeout_millis, time) != 1)
     return -1;
-  }
 
   const char * tmp = &buf[0];
   while(len > 0){
-    const int w = send(socket, tmp, len, 0);
+    const int w = (int)my_send(socket, tmp, len, 0);
     if(w == -1){
       return -1;
     }
@@ -176,19 +175,9 @@ write_socket(NDB_SOCKET_TYPE socket, int timeout_millis, int *time,
     
     if(len == 0)
       break;
-    
-    FD_ZERO(&writeset);
-    FD_SET(socket, &writeset);
-    timeout.tv_sec  = ((timeout_millis - *time) / 1000);
-    timeout.tv_usec = ((timeout_millis - *time) % 1000) * 1000;
 
-    Uint64 tick= NdbTick_CurrentMillisecond();
-    const int selectRes2 = select(socket + 1, 0, &writeset, 0, &timeout);
-    *time= NdbTick_CurrentMillisecond() - tick;
-
-    if(selectRes2 != 1){
+    if (poll_socket(socket, false, true, timeout_millis, time) != 1)
       return -1;
-    }
   }
   
   return 0;

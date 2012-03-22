@@ -71,5 +71,13 @@ set collation_connection=latin2_bin;
 --source include/weight_string_l1.inc
 
 --echo #
+--echo # Bugs#12635232: VALGRIND WARNINGS: IS_IPV6, IS_IPV4, INET6_ATON,
+--echo # INET6_NTOA + MULTIBYTE CHARSET.
+--echo #
+
+SET NAMES latin2;
+--source include/ctype_inet.inc
+
+--echo #
 --echo # End of 5.6 tests
 --echo #

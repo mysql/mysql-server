@@ -254,6 +254,24 @@ dict_boot(void)
 	mtr_t		mtr;
 	ulint		error;
 
+	/* Be sure these constants do not ever change.  To avoid bloat,
+	only check the *NUM_FIELDS* in each table */
+
+	ut_ad(DICT_NUM_COLS__SYS_TABLES == 8);
+	ut_ad(DICT_NUM_FIELDS__SYS_TABLES == 10);
+	ut_ad(DICT_NUM_FIELDS__SYS_TABLE_IDS == 2);
+	ut_ad(DICT_NUM_COLS__SYS_COLUMNS == 7);
+	ut_ad(DICT_NUM_FIELDS__SYS_COLUMNS == 9);
+	ut_ad(DICT_NUM_COLS__SYS_INDEXES == 7);
+	ut_ad(DICT_NUM_FIELDS__SYS_INDEXES == 9);
+	ut_ad(DICT_NUM_COLS__SYS_FIELDS == 3);
+	ut_ad(DICT_NUM_FIELDS__SYS_FIELDS == 5);
+	ut_ad(DICT_NUM_COLS__SYS_FOREIGN == 4);
+	ut_ad(DICT_NUM_FIELDS__SYS_FOREIGN == 6);
+	ut_ad(DICT_NUM_FIELDS__SYS_FOREIGN_FOR_NAME == 2);
+	ut_ad(DICT_NUM_COLS__SYS_FOREIGN_COLS == 4);
+	ut_ad(DICT_NUM_FIELDS__SYS_FOREIGN_COLS == 6);
+
 	mtr_start(&mtr);
 
 	/* Create the hash tables etc. */
@@ -379,20 +397,6 @@ dict_boot(void)
 	dict_mem_table_add_col(table, heap, "SPACE", DATA_INT, 0, 4);
 	dict_mem_table_add_col(table, heap, "PAGE_NO", DATA_INT, 0, 4);
 
-	/* The '+ 2' below comes from the fields DB_TRX_ID, DB_ROLL_PTR */
-#if DICT_SYS_INDEXES_PAGE_NO_FIELD != 6 + 2
-#error "DICT_SYS_INDEXES_PAGE_NO_FIELD != 6 + 2"
-#endif
-#if DICT_SYS_INDEXES_SPACE_NO_FIELD != 5 + 2
-#error "DICT_SYS_INDEXES_SPACE_NO_FIELD != 5 + 2"
-#endif
-#if DICT_SYS_INDEXES_TYPE_FIELD != 4 + 2
-#error "DICT_SYS_INDEXES_TYPE_FIELD != 4 + 2"
-#endif
-#if DICT_SYS_INDEXES_NAME_FIELD != 2 + 2
-#error "DICT_SYS_INDEXES_NAME_FIELD != 2 + 2"
-#endif
-
 	table->id = DICT_INDEXES_ID;
 
 	dict_table_add_to_cache(table, FALSE, heap);
@@ -443,6 +447,7 @@ dict_boot(void)
 	ut_a(error == DB_SUCCESS);
 
 	mtr_commit(&mtr);
+
 	/*-------------------------*/
 
 	/* Initialize the insert buffer table and index for each tablespace */

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2012, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -610,13 +610,13 @@ trx_undo_write_xid(
 	mtr_t*		mtr)	/*!< in: mtr */
 {
 	mlog_write_ulint(log_hdr + TRX_UNDO_XA_FORMAT,
-			 (ulint)xid->formatID, MLOG_4BYTES, mtr);
+			 (ulint) xid->formatID, MLOG_4BYTES, mtr);
 
 	mlog_write_ulint(log_hdr + TRX_UNDO_XA_TRID_LEN,
-			 (ulint)xid->gtrid_length, MLOG_4BYTES, mtr);
+			 (ulint) xid->gtrid_length, MLOG_4BYTES, mtr);
 
 	mlog_write_ulint(log_hdr + TRX_UNDO_XA_BQUAL_LEN,
-			 (ulint)xid->bqual_length, MLOG_4BYTES, mtr);
+			 (ulint) xid->bqual_length, MLOG_4BYTES, mtr);
 
 	mlog_write_string(log_hdr + TRX_UNDO_XA_XID, (const byte*) xid->data,
 			  XIDDATASIZE, mtr);
@@ -631,7 +631,7 @@ trx_undo_read_xid(
 	trx_ulogf_t*	log_hdr,/*!< in: undo log header */
 	XID*		xid)	/*!< out: X/Open XA Transaction Identification */
 {
-	xid->formatID = (long)mach_read_from_4(log_hdr + TRX_UNDO_XA_FORMAT);
+	xid->formatID = (long) mach_read_from_4(log_hdr + TRX_UNDO_XA_FORMAT);
 
 	xid->gtrid_length
 		= (long) mach_read_from_4(log_hdr + TRX_UNDO_XA_TRID_LEN);
@@ -879,9 +879,9 @@ trx_undo_discard_latest_update_undo(
 #ifndef UNIV_HOTBACKUP
 /********************************************************************//**
 Tries to add a page to the undo log segment where the undo log is placed.
-@return	page number if success, else FIL_NULL */
+@return	X-latched block if success, else NULL */
 UNIV_INTERN
-ulint
+buf_block_t*
 trx_undo_add_page(
 /*==============*/
 	trx_t*		trx,	/*!< in: transaction */
@@ -891,11 +891,10 @@ trx_undo_add_page(
 				the rollback segment mutex */
 {
 	page_t*		header_page;
+	buf_block_t*	new_block;
 	page_t*		new_page;
 	trx_rseg_t*	rseg;
-	ulint		page_no;
 	ulint		n_reserved;
-	ibool		success;
 
 	ut_ad(mutex_own(&(trx->undo_mutex)));
 	ut_ad(mutex_own(&(trx->rseg->mutex)));
@@ -904,37 +903,37 @@ trx_undo_add_page(
 
 	if (rseg->curr_size == rseg->max_size) {
 
-		return(FIL_NULL);
+		return(NULL);
 	}
 
 	header_page = trx_undo_page_get(undo->space, undo->zip_size,
 					undo->hdr_page_no, mtr);
 
-	success = fsp_reserve_free_extents(&n_reserved, undo->space, 1,
-					   FSP_UNDO, mtr);
-	if (!success) {
+	if (!fsp_reserve_free_extents(&n_reserved, undo->space, 1,
+				      FSP_UNDO, mtr)) {
 
-		return(FIL_NULL);
+		return(NULL);
 	}
 
-	page_no = fseg_alloc_free_page_general(header_page + TRX_UNDO_SEG_HDR
-					       + TRX_UNDO_FSEG_HEADER,
-					       undo->top_page_no + 1, FSP_UP,
-					       TRUE, mtr, mtr);
+	new_block = fseg_alloc_free_page_general(
+		TRX_UNDO_SEG_HDR + TRX_UNDO_FSEG_HEADER
+		+ header_page,
+		undo->top_page_no + 1, FSP_UP, TRUE, mtr, mtr);
 
 	fil_space_release_free_extents(undo->space, n_reserved);
 
-	if (page_no == FIL_NULL) {
+	if (new_block == NULL) {
 
 		/* No space left */
 
-		return(FIL_NULL);
+		return(NULL);
 	}
 
-	undo->last_page_no = page_no;
+	ut_ad(rw_lock_get_x_lock_count(&new_block->lock) == 1);
+	buf_block_dbg_add_level(new_block, SYNC_TRX_UNDO_PAGE);
+	undo->last_page_no = buf_block_get_page_no(new_block);
 
-	new_page = trx_undo_page_get(undo->space, undo->zip_size,
-				     page_no, mtr);
+	new_page = buf_block_get_frame(new_block);
 
 	trx_undo_page_init(new_page, undo->type, mtr);
 
@@ -943,7 +942,7 @@ trx_undo_add_page(
 	undo->size++;
 	rseg->curr_size++;
 
-	return(page_no);
+	return(new_block);
 }
 
 /********************************************************************//**

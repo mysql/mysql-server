@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -78,10 +78,10 @@ static MYSQL_THDVAR_ULONG(repair_threads, PLUGIN_VAR_RQCMDARG,
   "disables parallel repair", NULL, NULL,
   1, 1, ULONG_MAX, 1);
 
-static MYSQL_THDVAR_ULONG(sort_buffer_size, PLUGIN_VAR_RQCMDARG,
+static MYSQL_THDVAR_ULONGLONG(sort_buffer_size, PLUGIN_VAR_RQCMDARG,
   "The buffer that is allocated when sorting the index when doing "
   "a REPAIR or when creating indexes with CREATE INDEX or ALTER TABLE", NULL, NULL,
-  8192*1024, (long) (MIN_SORT_BUFFER + MALLOC_OVERHEAD), ULONG_MAX, 1);
+  8192 * 1024, (long) (MIN_SORT_BUFFER + MALLOC_OVERHEAD), SIZE_T_MAX, 1);
 
 static MYSQL_SYSVAR_BOOL(use_mmap, opt_myisam_use_mmap, PLUGIN_VAR_NOCMDARG,
   "Use memory mapping for reading and writing MyISAM tables", NULL, NULL, FALSE);
@@ -297,7 +297,7 @@ int table2myisam(TABLE *table_arg, MI_KEYDEF **keydef_out,
         keydef[i].seg[j].flag|= HA_BLOB_PART;
         /* save number of bytes used to pack length */
         keydef[i].seg[j].bit_start= (uint) (field->pack_length() -
-                                            share->blob_ptr_size);
+                                            portable_sizeof_char_ptr);
       }
       else if (field->type() == MYSQL_TYPE_BIT)
       {
@@ -773,10 +773,6 @@ int ha_myisam::write_row(uchar *buf)
 {
   ha_statistic_increment(&SSV::ha_write_count);
 
-  /* If we have a timestamp column, update it to the current time */
-  if (table->timestamp_field_type & TIMESTAMP_AUTO_SET_ON_INSERT)
-    table->get_timestamp_field()->set_time();
-
   /*
     If we have an auto_increment column and we are writing a changed row
     or a new row, then update the auto_increment value in the record.
@@ -1014,7 +1010,9 @@ int ha_myisam::repair(THD *thd, MI_CHECK &param, bool do_optimize)
   if (! thd->locked_tables_mode &&
       mi_lock_database(file, table->s->tmp_table ? F_EXTRA_LCK : F_WRLCK))
   {
-    mi_check_print_error(&param,ER(ER_CANT_LOCK),my_errno);
+    char errbuf[MYSYS_STRERROR_SIZE];
+    mi_check_print_error(&param, ER(ER_CANT_LOCK), my_errno,
+                         my_strerror(errbuf, sizeof(errbuf), my_errno));
     DBUG_RETURN(HA_ADMIN_FAILED);
   }
 
@@ -1555,8 +1553,6 @@ bool ha_myisam::is_crashed() const
 int ha_myisam::update_row(const uchar *old_data, uchar *new_data)
 {
   ha_statistic_increment(&SSV::ha_update_count);
-  if (table->timestamp_field_type & TIMESTAMP_AUTO_SET_ON_UPDATE)
-    table->get_timestamp_field()->set_time();
   return mi_update(file,old_data,new_data);
 }
 
@@ -1786,19 +1782,21 @@ int ha_myisam::info(uint flag)
     share->db_options_in_use= misam_info.options;
     stats.block_size= myisam_block_size;        /* record block size */
 
-    /* Update share */
-    if (share->tmp_table == NO_TMP_TABLE)
-      mysql_mutex_lock(&share->LOCK_ha_data);
+    /*
+      Update share.
+      lock_shared_ha_data is slighly abused here, since there is no other
+      way of locking the TABLE_SHARE.
+    */
+    lock_shared_ha_data();
     share->keys_in_use.set_prefix(share->keys);
     share->keys_in_use.intersect_extended(misam_info.key_map);
     share->keys_for_keyread.intersect(share->keys_in_use);
     share->db_record_offset= misam_info.record_offset;
+    unlock_shared_ha_data();
     if (share->key_parts)
       memcpy((char*) table->key_info[0].rec_per_key,
 	     (char*) misam_info.rec_per_key,
              sizeof(table->key_info[0].rec_per_key[0])*share->key_parts);
-    if (share->tmp_table == NO_TMP_TABLE)
-      mysql_mutex_unlock(&share->LOCK_ha_data);
 
    /*
      Set data_file_name and index_file_name to point at the symlink value
@@ -1843,7 +1841,7 @@ int ha_myisam::reset(void)
   DBUG_ASSERT(pushed_idx_cond == NULL);
   DBUG_ASSERT(pushed_idx_cond_keyno == MAX_KEY);
   mi_set_index_cond_func(file, NULL, 0);
-  ds_mrr.dsmrr_close();
+  ds_mrr.reset();
   return mi_reset(file);
 }
 
@@ -1946,9 +1944,26 @@ int ha_myisam::create(const char *name, register TABLE *table_arg,
                                (ulonglong) 0);
   create_info.data_file_length= ((ulonglong) share->max_rows *
                                  share->avg_row_length);
-  create_info.data_file_name= ha_create_info->data_file_name;
-  create_info.index_file_name= ha_create_info->index_file_name;
   create_info.language= share->table_charset->number;
+
+#ifdef HAVE_READLINK
+  if (my_use_symdir)
+  {
+    create_info.data_file_name= ha_create_info->data_file_name;
+    create_info.index_file_name= ha_create_info->index_file_name;
+  }
+  else
+#endif /* HAVE_READLINK */
+  {
+    if (ha_create_info->data_file_name)
+      push_warning_printf(table_arg->in_use, Sql_condition::WARN_LEVEL_WARN,
+                          WARN_OPTION_IGNORED, ER(WARN_OPTION_IGNORED),
+                          "DATA DIRECTORY");
+    if (ha_create_info->index_file_name)
+      push_warning_printf(table_arg->in_use, Sql_condition::WARN_LEVEL_WARN,
+                          WARN_OPTION_IGNORED, ER(WARN_OPTION_IGNORED),
+                          "INDEX DIRECTORY");
+  }
 
   if (ha_create_info->options & HA_LEX_CREATE_TMP_TABLE)
     create_flags|= HA_CREATE_TMP_TABLE;

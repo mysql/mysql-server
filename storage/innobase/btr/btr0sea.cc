@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2012, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -217,7 +217,15 @@ btr_search_disable_ref_count(
 	for (index = dict_table_get_first_index(table); index;
 	     index = dict_table_get_next_index(index)) {
 
-		index->search_info->ref_count = 0;
+		switch (dict_index_get_online_status(index)) {
+		case ONLINE_INDEX_CREATION:
+		case ONLINE_INDEX_ABORTED:
+		case ONLINE_INDEX_ABORTED_DROPPED:
+			break;
+		case ONLINE_INDEX_COMPLETE:
+			btr_search_get_info(index)->ref_count = 0;
+			break;
+		}
 	}
 }
 
@@ -1076,6 +1084,7 @@ btr_search_drop_page_hash_index(
 	mem_heap_t*		heap;
 	const dict_index_t*	index;
 	ulint*			offsets;
+	btr_search_t*		info;
 
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(!rw_lock_own(&btr_search_latch, RW_LOCK_SHARED));
@@ -1101,6 +1110,29 @@ retry:
 	}
 
 	ut_a(!dict_index_is_ibuf(index));
+#ifdef UNIV_DEBUG
+	switch (dict_index_get_online_status(index)) {
+	case ONLINE_INDEX_COMPLETE:
+		/* The index has been published. */
+	case ONLINE_INDEX_ABORTED:
+		/* Either the index creation was aborted due to an
+		error observed by InnoDB (in which case there should
+		not be any adaptive hash index entries), or it was
+		completed and then flagged aborted in
+		rollback_inplace_alter_table(). In the latter case,
+		there could exist adaptive hash index entries. */
+		break;
+	case ONLINE_INDEX_CREATION:
+		/* The adaptive hash index should not be built during
+		online index creation. */
+	case ONLINE_INDEX_ABORTED_DROPPED:
+		/* The index should have been dropped from the tablespace
+		already, and the adaptive hash index entries should have
+		been dropped as well. */
+		ut_error;
+	}
+#endif /* UNIV_DEBUG */
+
 	table = btr_search_sys->hash_index;
 
 #ifdef UNIV_SYNC_DEBUG
@@ -1195,8 +1227,9 @@ next_rec:
 		ha_remove_all_nodes_to_page(table, folds[i], page);
 	}
 
-	ut_a(index->search_info->ref_count > 0);
-	index->search_info->ref_count--;
+	info = btr_search_get_info(block->index);
+	ut_a(info->ref_count > 0);
+	info->ref_count--;
 
 	block->index = NULL;
 
@@ -1216,7 +1249,7 @@ cleanup:
 			index->name, (ulong) block->n_pointers);
 		rw_lock_x_unlock(&btr_search_latch);
 
-		btr_search_validate();
+		ut_ad(btr_search_validate());
 	} else {
 		rw_lock_x_unlock(&btr_search_latch);
 	}
@@ -1298,6 +1331,7 @@ btr_search_build_page_hash_index(
 
 	ut_ad(index);
 	ut_a(!dict_index_is_ibuf(index));
+	ut_ad(!dict_index_is_online_ddl(index));
 
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(!rw_lock_own(&btr_search_latch, RW_LOCK_EX));
@@ -1437,7 +1471,7 @@ btr_search_build_page_hash_index(
 	have to take care not to increment the counter in that
 	case. */
 	if (!block->index) {
-		index->search_info->ref_count++;
+		btr_search_get_info(index)->ref_count++;
 	}
 
 	block->n_hash_helps = 0;
@@ -1959,7 +1993,9 @@ btr_search_validate(void)
 					(ulong) block->curr_left_side);
 
 				if (n_page_dumps < 20) {
-					buf_page_print(page, 0);
+					buf_page_print(
+						page, 0,
+						BUF_PAGE_PRINT_NO_CRASH);
 					n_page_dumps++;
 				}
 			}

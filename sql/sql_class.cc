@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -24,6 +24,7 @@
 *****************************************************************************/
 
 #include "my_global.h"                          /* NO_EMBEDDED_ACCESS_CHECKS */
+#include "binlog.h"
 #include "sql_priv.h"
 #include "unireg.h"                    // REQUIRED: for other includes
 #include "sql_class.h"
@@ -57,6 +58,8 @@
 #include "sql_parse.h"                          // is_update_query
 #include "sql_callback.h"
 #include "lock.h"
+#include "global_threads.h"
+#include "mysqld.h"
 
 #include <mysql/psi/mysql_statement.h>
 
@@ -641,6 +644,12 @@ int thd_tx_isolation(const THD *thd)
 }
 
 extern "C"
+int thd_tx_is_read_only(const THD *thd)
+{
+  return (int) thd->tx_read_only;
+}
+
+extern "C"
 void thd_inc_row_count(THD *thd)
 {
   thd->get_stmt_da()->inc_current_row_for_warning();
@@ -797,12 +806,13 @@ THD::THD(bool enable_plugins)
    in_lock_tables(0),
    bootstrap(0),
    derived_tables_processing(FALSE),
-   spcont(NULL),
+   sp_runtime_ctx(NULL),
    m_parser_state(NULL),
 #if defined(ENABLED_DEBUG_SYNC)
    debug_sync_control(0),
 #endif /* defined(ENABLED_DEBUG_SYNC) */
    m_enable_plugins(enable_plugins),
+   owned_gtid_set(&global_sid_map),
    main_da(0, false),
    m_stmt_da(&main_da)
 {
@@ -878,6 +888,7 @@ THD::THD(bool enable_plugins)
   proc_info="login";
   where= THD::DEFAULT_WHERE;
   server_id = ::server_id;
+  unmasked_server_id = server_id;
   slave_net = 0;
   set_command(COM_CONNECT);
   *scramble= '\0';
@@ -919,6 +930,9 @@ THD::THD(bool enable_plugins)
   m_binlog_invoker= FALSE;
   memset(&invoker_user, 0, sizeof(invoker_user));
   memset(&invoker_host, 0, sizeof(invoker_host));
+
+  binlog_next_event_pos.file_name= NULL;
+  binlog_next_event_pos.pos= 0;
 }
 
 
@@ -1245,6 +1259,7 @@ void THD::init(void)
 			TL_WRITE_LOW_PRIORITY :
 			TL_WRITE);
   tx_isolation= (enum_tx_isolation) variables.tx_isolation;
+  tx_read_only= variables.tx_read_only;
   update_charset();
   reset_current_stmt_binlog_format_row();
   memset(&status_var, 0, sizeof(status_var));
@@ -1258,6 +1273,9 @@ void THD::init(void)
   /* Initialize the Debug Sync Facility. See debug_sync.cc. */
   debug_sync_init_thread(this);
 #endif /* defined(ENABLED_DEBUG_SYNC) */
+
+  owned_gtid.sidno= 0;
+  owned_gtid.gno= 0;
 }
 
 
@@ -1403,6 +1421,8 @@ THD::~THD()
   if (m_enable_plugins)
     plugin_thdvar_cleanup(this);
 
+  clear_next_event_pos();
+
   DBUG_PRINT("info", ("freeing security context"));
   main_security_ctx.destroy();
   my_free(db);
@@ -1415,8 +1435,20 @@ THD::~THD()
 #ifndef EMBEDDED_LIBRARY
   if (rli_fake)
   {
+    rli_fake->end_info();
     delete rli_fake;
     rli_fake= NULL;
+  }
+
+  if (variables.gtid_next_list.gtid_set != NULL)
+  {
+#ifdef HAVE_NDB_BINLOG
+    delete variables.gtid_next_list.gtid_set;
+    variables.gtid_next_list.gtid_set= NULL;
+    variables.gtid_next_list.is_non_null= false;
+#else
+    DBUG_ASSERT(0);
+#endif
   }
   
   mysql_audit_free_thd(this);
@@ -2041,13 +2073,14 @@ int THD::send_explain_fields(select_result *result)
   item->maybe_null=1;
   field_list.push_back(item= new Item_return_int("rows", 10,
                                                  MYSQL_TYPE_LONGLONG));
+  item->maybe_null= 1;
   if (lex->describe & DESCRIBE_EXTENDED)
   {
     field_list.push_back(item= new Item_float("filtered", 0.1234, 2, 4));
     item->maybe_null=1;
   }
-  item->maybe_null= 1;
   field_list.push_back(new Item_empty_string("Extra", 255, cs));
+  item->maybe_null= 1;
   return (result->send_result_set_metadata(field_list,
                                            Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF));
 }
@@ -2067,17 +2100,6 @@ void THD::close_active_vio()
   DBUG_VOID_RETURN;
 }
 #endif
-
-
-struct Item_change_record: public ilink
-{
-  Item **place;
-  Item *old_value;
-  /* Placement new was hidden by `new' in ilink (TODO: check): */
-  static void *operator new(size_t size, void *mem) { return mem; }
-  static void operator delete(void *ptr, size_t size) {}
-  static void operator delete(void *ptr, void *mem) { /* never called */ }
-};
 
 
 /*
@@ -2111,6 +2133,23 @@ void THD::nocheck_register_item_tree_change(Item **place, Item *old_value,
 }
 
 
+void THD::change_item_tree_place(Item **old_ref, Item **new_ref)
+{
+  I_List_iterator<Item_change_record> it(change_list);
+  Item_change_record *change;
+  while ((change= it++))
+  {
+    if (change->place == old_ref)
+    {
+      DBUG_PRINT("info", ("change_item_tree_place old_ref %p new_ref %p",
+                          old_ref, new_ref));
+      change->place= new_ref;
+      break;
+    }
+  }
+}
+
+
 void THD::rollback_item_tree_changes()
 {
   I_List_iterator<Item_change_record> it(change_list);
@@ -2118,7 +2157,13 @@ void THD::rollback_item_tree_changes()
   DBUG_ENTER("rollback_item_tree_changes");
 
   while ((change= it++))
+  {
+    DBUG_PRINT("info",
+               ("rollback_item_tree_changes "
+                "place %p curr_value %p old_value %p",
+                change->place, *change->place, change->old_value));
     *change->place= change->old_value;
+  }
   /* We can forget about changes memory: it's allocated in runtime memroot */
   change_list.empty();
   DBUG_VOID_RETURN;
@@ -2153,10 +2198,12 @@ bool select_result::check_simple_select() const
 }
 
 
-static String default_line_term("\n",default_charset_info);
-static String default_escaped("\\",default_charset_info);
-static String default_field_term("\t",default_charset_info);
-static String default_xml_row_term("<row>", default_charset_info);
+static const String default_line_term("\n",default_charset_info);
+static const String default_escaped("\\",default_charset_info);
+static const String default_field_term("\t",default_charset_info);
+static const String default_xml_row_term("<row>", default_charset_info);
+static const String my_empty_string("",default_charset_info);
+
 
 sql_exchange::sql_exchange(char *name, bool flag,
                            enum enum_filetype filetype_arg)
@@ -2189,7 +2236,7 @@ void select_send::abort_result_set()
 {
   DBUG_ENTER("select_send::abort_result_set");
 
-  if (is_result_set_started && thd->spcont)
+  if (is_result_set_started && thd->sp_runtime_ctx)
   {
     /*
       We're executing a stored procedure, have an open result
@@ -2200,7 +2247,7 @@ void select_send::abort_result_set()
       otherwise the client will hang due to the violation of the
       client/server protocol.
     */
-    thd->spcont->end_partial_result_set= TRUE;
+    thd->sp_runtime_ctx->end_partial_result_set= TRUE;
   }
   DBUG_VOID_RETURN;
 }
@@ -2793,7 +2840,9 @@ bool select_dump::send_data(List<Item> &items)
     }
     else if (my_b_write(&cache,(uchar*) res->ptr(),res->length()))
     {
-      my_error(ER_ERROR_ON_WRITE, MYF(0), path, my_errno);
+      char errbuf[MYSYS_STRERROR_SIZE];
+      my_error(ER_ERROR_ON_WRITE, MYF(0), path, my_errno,
+               my_strerror(errbuf, sizeof(errbuf), my_errno));
       goto err;
     }
   }
@@ -2953,6 +3002,12 @@ bool select_exists_subselect::send_data(List<Item> &items)
     unit->offset_limit_cnt--;
     DBUG_RETURN(0);
   }
+  /*
+    A subquery may be evaluated 1) by executing the JOIN 2) by optimized
+    functions (index_subquery, subquery materialization).
+    It's only in (1) that we get here when we find a row. In (2) "value" is
+    set elsewhere.
+  */
   it->value= 1;
   it->assigned(1);
   DBUG_RETURN(0);
@@ -3305,7 +3360,7 @@ bool select_dumpvar::send_data(List<Item> &items)
   {
     if (mv->local)
     {
-      if (thd->spcont->set_variable(thd, mv->offset, &item))
+      if (thd->sp_runtime_ctx->set_variable(thd, mv->offset, &item))
 	    DBUG_RETURN(1);
     }
     else
@@ -3533,6 +3588,160 @@ bool Security_context::user_matches(Security_context *them)
 {
   return ((user != NULL) && (them->user != NULL) &&
           !strcmp(user, them->user));
+}
+
+
+void Log_throttle::new_window(ulonglong now)
+{
+  count= 0;
+  total_exec_time= 0;
+  total_lock_time= 0;
+  window_end= now + window_size;
+}
+
+
+Log_throttle::Log_throttle(ulong *threshold, mysql_mutex_t *lock,
+                           ulong window_usecs,
+                           bool (*logger)(THD *, const char *, uint),
+                           const char *msg)
+  :total_exec_time(0), total_lock_time(0), window_end(0),
+   rate(threshold),
+   window_size(window_usecs), count(0),
+   summary_template(msg), LOCK_log_throttle(lock), log_summary(logger)
+{
+  aggregate_sctx.init();
+}
+
+
+ulong Log_throttle::prepare_summary(THD *thd)
+{
+  ulong ret= 0;
+  /*
+    Previous throttling window is over or rate changed.
+    Return the number of lines we throttled.
+  */
+  if (count > *rate)
+  {
+    ret= count - *rate;
+    count= 0;                                 // prevent writing it again.
+  }
+  return ret;
+}
+
+
+void Log_throttle::print_summary(THD *thd, ulong suppressed,
+                                 ulonglong print_lock_time,
+                                 ulonglong print_exec_time)
+{
+  /*
+    We synthesize these values so the totals in the log will be
+    correct (just in case somebody analyses them), even if the
+    start/stop times won't be (as they're an aggregate which will
+    usually mostly lie within [ window_end - window_size ; window_end ]
+  */
+  ulonglong save_start_utime=      thd->start_utime;
+  ulonglong save_utime_after_lock= thd->utime_after_lock;
+  Security_context *save_sctx=     thd->security_ctx;
+
+  char buf[128];
+
+  snprintf(buf, sizeof(buf), summary_template, suppressed);
+
+  mysql_mutex_lock(&thd->LOCK_thd_data);
+  thd->start_utime=                thd->current_utime() - print_exec_time;
+  thd->utime_after_lock=           thd->start_utime + print_lock_time;
+  thd->security_ctx=               (Security_context *) &aggregate_sctx;
+  mysql_mutex_unlock(&thd->LOCK_thd_data);
+
+  (*log_summary)(thd, buf, strlen(buf));
+
+  mysql_mutex_lock(&thd->LOCK_thd_data);
+  thd->security_ctx    = save_sctx;
+  thd->start_utime     = save_start_utime;
+  thd->utime_after_lock= save_utime_after_lock;
+  mysql_mutex_unlock(&thd->LOCK_thd_data);
+}
+
+
+bool Log_throttle::flush(THD *thd)
+{
+  // Write summary if we throttled.
+  lock_exclusive();
+  ulonglong print_lock_time=  total_lock_time;
+  ulonglong print_exec_time=  total_exec_time;
+  ulong     suppressed_count= prepare_summary(thd);
+  unlock();
+  if (suppressed_count > 0)
+  {
+    print_summary(thd, suppressed_count, print_lock_time, print_exec_time);
+    return true;
+  }
+  return false;
+}
+
+
+bool Log_throttle::log(THD *thd, bool eligible)
+{
+  bool  suppress_current= false;
+
+  /*
+    If throttling is enabled, we might have to write a summary even if
+    the current query is not of the type we handle.
+  */
+  if (*rate > 0)
+  {
+    lock_exclusive();
+
+    ulong     suppressed_count=   0;
+    ulonglong print_lock_time=    total_lock_time;
+    ulonglong print_exec_time=    total_exec_time;
+    ulonglong end_utime_of_query= thd->current_utime();
+
+    /*
+      If the window has expired, we'll try to write a summary line.
+      The subroutine will know whether we actually need to.
+    */
+    if (!in_window(end_utime_of_query))
+    {
+      suppressed_count= prepare_summary(thd);
+      // start new window only if this is the statement type we handle
+      if (eligible)
+        new_window(end_utime_of_query);
+    }
+    if (eligible && (inc_queries() > *rate))
+    {
+      /*
+        Current query's logging should be suppressed.
+        Add its execution time and lock time to totals for the current window.
+      */
+      total_exec_time += (end_utime_of_query - thd->start_utime);
+      total_lock_time += (thd->utime_after_lock - thd->start_utime);
+      suppress_current= true;
+    }
+
+    unlock();
+
+    /*
+      print_summary() is deferred until after we release the locks to
+      avoid congestion. All variables we hand in are local to the caller,
+      so things would even be safe if print_summary() hadn't finished by the
+      time the next one comes around (60s later at the earliest for now).
+      The current design will produce correct data, but does not guarantee
+      order (there is a theoretical race condition here where the above
+      new_window()/unlock() may enable a different thread to print a warning
+      for the new window before the current thread gets to print_summary().
+      If the requirements ever change, add a print_lock to the object that
+      is held during print_summary(), AND that is briefly locked before
+      returning from this function if(eligible && !suppress_current).
+      This should ensure correct ordering of summaries with regard to any
+      follow-up summaries as well as to any (non-suppressed) warnings (of
+      the type we handle) from the next window.
+    */
+    if (suppressed_count > 0)
+      print_summary(thd, suppressed_count, print_lock_time, print_exec_time);
+  }
+
+  return suppress_current;
 }
 
 
@@ -4223,3 +4432,141 @@ void xid_cache_delete(XID_STATE *xid_state)
   mysql_mutex_unlock(&LOCK_xid_cache);
 }
 
+
+/**
+   Allocates and initializes a MY_BITMAP bitmap, containing one bit per column
+   in the table. The table THD's MEM_ROOT is used to allocate memory.
+
+   @param      table   The table whose columns should be used as a template
+                       for the bitmap.
+   @param[out] bitmap  A pointer to the allocated bitmap.
+
+   @retval false Suceess.
+   @retval true Memory allocation error.
+*/
+static bool allocate_column_bitmap(TABLE *table, MY_BITMAP **bitmap)
+{
+  DBUG_ENTER("allocate_column_bitmap");
+  const uint number_bits= table->s->fields;
+  MY_BITMAP *the_struct;
+  my_bitmap_map *the_bits;
+
+  DBUG_ASSERT(current_thd == table->in_use);
+  if (multi_alloc_root(table->in_use->mem_root,
+                       &the_struct, sizeof(MY_BITMAP),
+                       &the_bits, bitmap_buffer_size(number_bits),
+                       NULL) == NULL)
+    DBUG_RETURN(true);
+
+  if (bitmap_init(the_struct, the_bits, number_bits, FALSE) != 0)
+    DBUG_RETURN(true);
+
+  *bitmap= the_struct;
+
+  DBUG_RETURN(false);
+}
+
+
+bool COPY_INFO::get_function_default_columns(TABLE *table)
+{
+  DBUG_ENTER("COPY_INFO::get_function_default_columns");
+
+  if (m_function_default_columns != NULL)
+    DBUG_RETURN(false);
+
+  if (allocate_column_bitmap(table, &m_function_default_columns))
+    DBUG_RETURN(true);
+
+  if (!m_manage_defaults)
+    DBUG_RETURN(false); // leave bitmap full of zeroes
+
+  /* Find columns with function default on insert or update. */
+  for (uint i= 0; i < table->s->fields; ++i)
+  {
+    Field *f= table->field[i];
+    if ((m_optype == INSERT_OPERATION && f->has_insert_default_function()) ||
+        (m_optype == UPDATE_OPERATION && f->has_update_default_function()))
+      bitmap_set_bit(m_function_default_columns, f->field_index);
+  }
+
+  /*
+    Remove explicitly assigned columns from the bitmap. The assignment
+    target (lvalue) may not always be a column (Item_field), e.g. we could
+    be inserting into a view, whose column is actually a base table's column
+    converted with COLLATE: the lvalue would then be an
+    Item_func_set_collation.
+    If the lvalue is an expression tree, we clear all columns in it from the
+    bitmap.
+  */
+  List<Item> *all_changed_columns[2]=
+    { m_changed_columns, m_changed_columns2 };
+  for (uint i= 0; i < 2; i++)
+  {
+    if (all_changed_columns[i] != NULL)
+    {
+      List_iterator<Item> lvalue_it(*all_changed_columns[i]);
+      Item *lvalue_item;
+      while ((lvalue_item= lvalue_it++) != NULL)
+        lvalue_item->walk(&Item::remove_column_from_bitmap,
+                          true,
+                          reinterpret_cast<uchar*>(m_function_default_columns));
+    }
+  }
+
+  DBUG_RETURN(false);
+}
+
+
+void COPY_INFO::set_function_defaults(TABLE *table)
+{
+  DBUG_ENTER("COPY_INFO::set_function_defaults");
+
+  DBUG_ASSERT(m_function_default_columns != NULL);
+
+  /* Quick reject test for checking the case when no defaults are invoked. */
+  if (bitmap_is_clear_all(m_function_default_columns))
+    DBUG_VOID_RETURN;
+
+  for (uint i= 0; i < table->s->fields; ++i)
+    if (bitmap_is_set(m_function_default_columns, i))
+    {
+      DBUG_ASSERT(bitmap_is_set(table->write_set, i));
+      switch (m_optype)
+      {
+      case INSERT_OPERATION:
+        table->field[i]->evaluate_insert_default_function();
+        break;
+      case UPDATE_OPERATION:
+        table->field[i]->evaluate_update_default_function();
+        break;
+      }
+    }
+  DBUG_VOID_RETURN;
+}
+
+void THD::set_next_event_pos(const char* _filename, ulonglong _pos)
+{
+  char*& filename= binlog_next_event_pos.file_name;
+  if (filename == NULL)
+  {
+    /* First time, allocate maximal buffer */
+    filename= (char*) my_malloc(FN_REFLEN+1, MYF(MY_WME));
+    if (filename == NULL) return;
+  }
+
+  assert(strlen(_filename) <= FN_REFLEN);
+  strcpy(filename, _filename);
+  filename[ FN_REFLEN ]= 0;
+
+  binlog_next_event_pos.pos= _pos;
+};
+
+void THD::clear_next_event_pos()
+{
+  if (binlog_next_event_pos.file_name != NULL)
+  {
+    my_free(binlog_next_event_pos.file_name);
+  }
+  binlog_next_event_pos.file_name= NULL;
+  binlog_next_event_pos.pos= 0;
+};

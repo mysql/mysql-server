@@ -255,7 +255,7 @@ class Item_cache;
 
 class Item_in_optimizer: public Item_bool_func
 {
-protected:
+private:
   Item_cache *cache;
   bool save_cache;
   /* 
@@ -370,9 +370,9 @@ public:
   Item_bool_func2(Item *a,Item *b)
     :Item_int_func(a,b), cmp(tmp_arg, tmp_arg+1), abort_on_null(FALSE) {}
   void fix_length_and_dec();
-  void set_cmp_func()
+  int set_cmp_func()
   {
-    cmp.set_cmp_func(this, tmp_arg, tmp_arg+1, TRUE);
+    return cmp.set_cmp_func(this, tmp_arg, tmp_arg+1, TRUE);
   }
   optimize_type select_optimize() const { return OPTIMIZE_OP; }
   virtual enum Functype rev_functype() const { return UNKNOWN_FUNC; }
@@ -1124,7 +1124,13 @@ public:
     value(value_buff, sizeof(value_buff), cs) {}
   void store_value(Item *item)
   {
-    value_res= item->val_str(&value);
+    String *res= item->val_str(&value);
+    if(res && (res != &value))
+    {
+      // 'res' may point in item's temporary internal data, so make a copy
+      value.copy(*res);
+    }
+    value_res= &value;
   }
   int cmp(Item *arg)
   {
@@ -1475,7 +1481,8 @@ class Item_in_subselect;
 
 /* 
   This is like IS NOT NULL but it also remembers if it ever has
-  encountered a NULL.
+  encountered a NULL; it remembers this in the "was_null" property of the
+  "owner" item.
 */
 class Item_is_not_null_test :public Item_func_isnull
 {
@@ -1590,7 +1597,6 @@ class Item_cond :public Item_bool_func
 protected:
   List<Item> list;
   bool abort_on_null;
-  table_map and_tables_cache;
 
 public:
   /* Item_cond() is only used to create top level items */
@@ -1626,7 +1632,7 @@ public:
 
   enum Type type() const { return COND_ITEM; }
   List<Item>* argument_list() { return &list; }
-  table_map used_tables() const;
+  table_map used_tables() const { return used_tables_cache; }
   void update_used_tables();
   virtual void print(String *str, enum_query_type query_type);
   void split_sum_func(THD *thd, Ref_ptr_array ref_pointer_array,
@@ -1737,6 +1743,11 @@ public:
   Item_equal(Item_field *f1, Item_field *f2);
   Item_equal(Item *c, Item_field *f);
   Item_equal(Item_equal *item_equal);
+  virtual ~Item_equal()
+  {
+    delete eval_item;
+  }
+
   inline Item* get_const() { return const_item; }
   void compare_const(Item *c);
   void add(Item *c, Item_field *f);
@@ -1815,8 +1826,6 @@ public:
   enum Functype functype() const { return COND_AND_FUNC; }
   longlong val_int();
   const char *func_name() const { return "and"; }
-  table_map not_null_tables() const
-  { return abort_on_null ? not_null_tables_cache: and_tables_cache; }
   Item* copy_andor_structure(THD *thd)
   {
     Item_cond_and *item;
@@ -1846,7 +1855,6 @@ public:
   enum Functype functype() const { return COND_OR_FUNC; }
   longlong val_int();
   const char *func_name() const { return "or"; }
-  table_map not_null_tables() const { return and_tables_cache; }
   Item* copy_andor_structure(THD *thd)
   {
     Item_cond_or *item;

@@ -243,8 +243,7 @@ static int assign_condition_item(MEM_ROOT *mem_root, const char* name, THD *thd,
   truncated= assign_fixed_string(mem_root, & my_charset_utf8_bin, 64, ci, str);
   if (truncated)
   {
-    if (thd->variables.sql_mode & (MODE_STRICT_TRANS_TABLES |
-                                   MODE_STRICT_ALL_TABLES))
+    if (thd->is_strict_mode())
     {
       thd->raise_error_printf(ER_COND_ITEM_TOO_LONG, name);
       DBUG_RETURN(1);
@@ -348,8 +347,7 @@ int Sql_cmd_common_signal::eval_signal_informations(THD *thd, Sql_condition *con
                                    & utf8_text, str);
     if (truncated)
     {
-      if (thd->variables.sql_mode & (MODE_STRICT_TRANS_TABLES |
-                                     MODE_STRICT_ALL_TABLES))
+      if (thd->is_strict_mode())
       {
         thd->raise_error_printf(ER_COND_ITEM_TOO_LONG,
                                 "MESSAGE_TEXT");
@@ -498,7 +496,8 @@ bool Sql_cmd_resignal::execute(THD *thd)
   // passed to the caller's Warning_info.
   da->set_warning_info_id(thd->query_id);
 
-  if (! thd->spcont || ! (signaled= thd->spcont->raised_condition()))
+  if (! thd->sp_runtime_ctx ||
+      ! (signaled= thd->sp_runtime_ctx->raised_condition()))
   {
     thd->raise_error(ER_RESIGNAL_WITHOUT_ACTIVE_HANDLER);
     DBUG_RETURN(true);

@@ -6,6 +6,8 @@
 source include/not_embedded.inc;
 source include/have_log_bin.inc;
 
+CALL mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT.");
+
 --disable_warnings
 drop table if exists t1,t2,t3;
 drop database if exists mysqltest;
@@ -138,6 +140,7 @@ INSERT INTO t2(ParId) VALUES(1), (2), (3);
 
 select * from t2;
 
+--disable_warnings ONCE
 UPDATE t2, t1 SET t2.tst = t1.tst, t2.tst1 = t1.tst1 WHERE t2.ParId = t1.Id;
 
 select * from t2;
@@ -295,6 +298,7 @@ drop table t1,t2;
 
 create table t1 (a int not null auto_increment primary key, b int not null);
 insert into t1 (b) values (1),(2),(3),(4);
+--disable_warnings ONCE
 update t1, t1 as t2 set t1.b=t2.b+1 where t1.a=t2.a;
 select * from t1;
 drop table t1;
@@ -352,6 +356,7 @@ create table `t2` (`c2_id` int(10) unsigned NULL auto_increment, `c2_p_id` int(1
 insert into t1 values (0,'A01-Comp',1);
 insert into t1 values (0,'B01-Comp',1);
 insert into t2 values (0,1,'A Note',1);
+--disable_warnings ONCE
 update t1 left join t2 on p_id = c2_p_id set c2_note = 'asdf-1' where p_id = 2;
 select * from t1;
 select * from t2;
@@ -747,6 +752,43 @@ SELECT * FROM t2;
 
 DROP TABLE t1,t2;
 
+--echo # Bug#13256831 - ERROR 1032 (HY000): CAN'T FIND RECORD
+
+CREATE TABLE t1 (f1 INT PRIMARY KEY, f2 INT) ENGINE=InnoDB;
+CREATE TABLE t2 (f1 INT PRIMARY KEY, f2 INT) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (5, 7);
+INSERT INTO t2 VALUES (6, 97);
+
+CREATE ALGORITHM = MERGE VIEW v1 AS 
+SELECT a2.f1 AS f1, a2.f2 AS f2
+FROM t1 AS a1 JOIN t2 AS a2 ON a1.f2 > a2.f1 
+WITH LOCAL CHECK OPTION; 
+
+SELECT * FROM v1;
+UPDATE v1 SET f1 = 1;
+SELECT * FROM v1;
+
+DROP TABLE t1, t2;
+DROP VIEW v1;
+
+--echo #
+--echo # BUG #11766576 - 59715: UPDATE IGNORE, 1 ROW AFFECTED
+--echo #
+
+--disable_warnings
+DROP TABLE IF EXISTS t1, t2;
+--enable_warnings
+
+CREATE TABLE t1 (id INT PRIMARY KEY);
+INSERT INTO t1 VALUES (1), (2);
+
+--enable_info
+UPDATE IGNORE t1, (SELECT 1 AS duplicate_id) AS t2 SET t1.id=t2.duplicate_id;
+--disable_info
+
+--echo # Check that no rows changed.
+SELECT * FROM t1;
+DROP TABLE t1;
 
 
 

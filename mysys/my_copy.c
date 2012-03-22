@@ -107,7 +107,11 @@ int my_copy(const char *from, const char *to, myf MyFlags)
     {
       my_errno= errno;
       if (MyFlags & (MY_FAE+MY_WME))
-        my_error(EE_CHANGE_PERMISSIONS, MYF(ME_BELL+ME_WAITTANG), from, errno);
+      {
+        char  errbuf[MYSYS_STRERROR_SIZE];
+        my_error(EE_CHANGE_PERMISSIONS, MYF(ME_BELL+ME_WAITTANG), from,
+                 errno, my_strerror(errbuf, sizeof(errbuf), errno));
+      }
       goto err;
     }
 #if !defined(__WIN__)
@@ -116,7 +120,11 @@ int my_copy(const char *from, const char *to, myf MyFlags)
     {
       my_errno= errno;
       if (MyFlags & (MY_FAE+MY_WME))
-        my_error(EE_CHANGE_OWNERSHIP, MYF(ME_BELL+ME_WAITTANG), from, errno);
+      {
+        char  errbuf[MYSYS_STRERROR_SIZE];
+        my_error(EE_CHANGE_OWNERSHIP, MYF(ME_BELL+ME_WAITTANG), from,
+                 errno, my_strerror(errbuf, sizeof(errbuf), errno));
+      }
       goto err;
     }
 #endif

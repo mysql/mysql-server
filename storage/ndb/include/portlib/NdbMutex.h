@@ -1,4 +1,6 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (C) 2003-2006, 2008 MySQL AB, 2009 Sun Microsystems, Inc.
+    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,36 +13,61 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #ifndef NDB_MUTEX_H
 #define NDB_MUTEX_H
 
 #include <ndb_global.h>
 
-#ifdef NDB_WIN32
-#include <winsock2.h>
-#include <ws2tcpip.h>
-#endif
-
 #ifdef	__cplusplus
 extern "C" {
 #endif
 
 #if defined NDB_WIN32
-typedef CRITICAL_SECTION NdbMutex;
+#include <my_pthread.h>
 #else
 #include <pthread.h>
+#endif
+#ifndef NDB_MUTEX_STAT
 typedef pthread_mutex_t NdbMutex;
+#else
+typedef struct {
+  pthread_mutex_t mutex;
+  unsigned cnt_lock;
+  unsigned cnt_lock_contention;
+  unsigned cnt_trylock_ok;
+  unsigned cnt_trylock_nok;
+  unsigned long long min_lock_wait_time_ns;
+  unsigned long long sum_lock_wait_time_ns;
+  unsigned long long max_lock_wait_time_ns;
+  unsigned long long min_hold_time_ns;
+  unsigned long long sum_hold_time_ns;
+  unsigned long long max_hold_time_ns;
+  unsigned long long lock_start_time_ns;
+  char name[32];
+} NdbMutex;
 #endif
 
 /**
  * Create a mutex
+ *  - the allocated mutex should be released by calling
+ *    NdbMutex_Destroy 
  *
- * p_mutex: pointer to the mutex structure
  * returnvalue: pointer to the mutex structure
  */
 NdbMutex* NdbMutex_Create(void);
+NdbMutex* NdbMutex_CreateWithName(const char * name);
+
+/**
+ * Initialize a mutex created with file-storage or on the stack
+ *
+ * * p_mutex: pointer to the mutex structure
+ * * returnvalue: 0 = succeeded, -1 = failed
+ */
+int NdbMutex_Init(NdbMutex* p_mutex);
+int NdbMutex_InitWithName(NdbMutex* p_mutex, const char * name);
 
 /**
  * Destroy a mutex
@@ -81,6 +108,7 @@ int NdbMutex_Trylock(NdbMutex* p_mutex);
 #ifdef __cplusplus
 class NdbLockable {
   friend class Guard;
+  friend class Guard2;
 public:
   NdbLockable() { m_mutex = NdbMutex_Create(); }
   ~NdbLockable() { NdbMutex_Destroy(m_mutex); }
@@ -100,6 +128,16 @@ public:
   Guard(NdbMutex *mtx) : m_mtx(mtx) { NdbMutex_Lock(m_mtx); };
   Guard(NdbLockable & l) : m_mtx(l.m_mutex) { NdbMutex_Lock(m_mtx); }; 
   ~Guard() { NdbMutex_Unlock(m_mtx); };
+private:
+  NdbMutex *m_mtx;
+};
+
+class Guard2
+{
+public:
+  Guard2(NdbMutex *mtx) : m_mtx(mtx) { if (m_mtx) NdbMutex_Lock(m_mtx);};
+  Guard2(NdbLockable & l) : m_mtx(l.m_mutex) { if(m_mtx)NdbMutex_Lock(m_mtx);};
+  ~Guard2() { if (m_mtx) NdbMutex_Unlock(m_mtx); };
 private:
   NdbMutex *m_mtx;
 };

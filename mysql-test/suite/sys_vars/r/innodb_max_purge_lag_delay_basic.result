@@ -1,0 +1,43 @@
+SELECT @@GLOBAL.innodb_max_purge_lag_delay;
+@@GLOBAL.innodb_max_purge_lag_delay
+0
+0 Expected
+SET @@GLOBAL.innodb_max_purge_lag_delay=1;
+SELECT COUNT(@@GLOBAL.innodb_max_purge_lag_delay);
+COUNT(@@GLOBAL.innodb_max_purge_lag_delay)
+1
+1 Expected
+SELECT VARIABLE_VALUE
+FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+WHERE VARIABLE_NAME='innodb_max_purge_lag_delay';
+VARIABLE_VALUE
+1
+1 Expected
+SELECT @@innodb_max_purge_lag_delay = @@GLOBAL.innodb_max_purge_lag_delay;
+@@innodb_max_purge_lag_delay = @@GLOBAL.innodb_max_purge_lag_delay
+1
+1 Expected
+SELECT COUNT(@@innodb_max_purge_lag_delay);
+COUNT(@@innodb_max_purge_lag_delay)
+1
+1 Expected
+SELECT COUNT(@@local.innodb_max_purge_lag_delay);
+ERROR HY000: Variable 'innodb_max_purge_lag_delay' is a GLOBAL variable
+Expected error 'Variable is a GLOBAL variable'
+SELECT COUNT(@@SESSION.innodb_max_purge_lag_delay);
+ERROR HY000: Variable 'innodb_max_purge_lag_delay' is a GLOBAL variable
+Expected error 'Variable is a GLOBAL variable'
+SELECT innodb_max_purge_lag_delay = @@SESSION.innodb_max_purge_lag_delay;
+ERROR 42S22: Unknown column 'innodb_max_purge_lag_delay' in 'field list'
+set global innodb_max_purge_lag_delay = -1;
+Warnings:
+Warning	1292	Truncated incorrect innodb_max_purge_lag_delay value: '-1'
+set global innodb_max_purge_lag_delay = 1000000;
+set global innodb_max_purge_lag_delay = 10000000;
+set global innodb_max_purge_lag_delay = 100000000;
+Warnings:
+Warning	1292	Truncated incorrect innodb_max_purge_lag_delay value: '100000000'
+set global innodb_max_purge_lag_delay = 100000001;
+Warnings:
+Warning	1292	Truncated incorrect innodb_max_purge_lag_delay value: '100000001'
+set global innodb_max_purge_lag_delay = 0;

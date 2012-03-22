@@ -8,6 +8,8 @@ source include/have_debug.inc;
 source include/have_binlog_checksum_off.inc;
 source include/master-slave.inc;
 
+call mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT.");
+
 # Currently only statement-based-specific bugs are here
 -- source include/have_binlog_format_statement.inc
 
@@ -41,18 +43,12 @@ call mtr.add_suppression("Slave SQL.*suffer.*http:..bugs.mysql.com.bug.php.id=24
 SELECT * FROM t1;
 
 # restart replication for the next testcase
-stop slave;
---source include/wait_for_slave_to_stop.inc
-reset slave;
-connection master;
-reset master;
-drop table t1;
-connection slave;
-start slave;
---source include/wait_for_slave_to_start.inc
+--let $rpl_only_running_threads= 1
+--source include/rpl_reset.inc
+--connection master
+DROP TABLE t1;
 
 # testcase with INSERT SELECT
-connection master;
 CREATE TABLE t1 (
   id bigint(20) unsigned NOT NULL auto_increment,
   field_1 int(10) unsigned NOT NULL,

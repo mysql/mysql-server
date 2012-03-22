@@ -47,7 +47,7 @@ source include/check_slave_no_error.inc;
 # Now we skip *one* table map event. If the execution starts right
 # after that table map event, *one* of the involved tables will be
 # changed.
-SET GLOBAL SQL_SLAVE_SKIP_COUNTER=1;
+SET GLOBAL SQL_SLAVE_SKIP_COUNTER=2;
 START SLAVE;
 --source include/wait_for_slave_to_start.inc
 sync_with_master;
@@ -76,7 +76,7 @@ connection slave;
 --replace_result $master_log_pos MASTER_LOG_POS
 eval START SLAVE UNTIL MASTER_LOG_FILE='master-bin.000001', MASTER_LOG_POS=$master_log_pos;
 source include/wait_for_slave_sql_to_stop.inc;
-SET GLOBAL SQL_SLAVE_SKIP_COUNTER=1;
+SET GLOBAL SQL_SLAVE_SKIP_COUNTER=2;
 START SLAVE;
 --source include/wait_for_slave_to_start.inc
 sync_with_master;
@@ -144,7 +144,7 @@ save_master_pos;
 
 --echo *** On Slave ***
 connection slave;
-SET GLOBAL SQL_SLAVE_SKIP_COUNTER=1;
+SET GLOBAL SQL_SLAVE_SKIP_COUNTER=2;
 source include/start_slave.inc;
 sync_with_master;
 
@@ -193,7 +193,7 @@ save_master_pos;
 
 --echo *** On Slave ***
 connection slave;
-SET GLOBAL SQL_SLAVE_SKIP_COUNTER=1;
+SET GLOBAL SQL_SLAVE_SKIP_COUNTER=2;
 source include/start_slave.inc;
 sync_with_master;
 
@@ -229,7 +229,7 @@ save_master_pos;
 
 --echo *** On Slave ***
 connection slave;
-SET GLOBAL SQL_SLAVE_SKIP_COUNTER=10;
+SET GLOBAL SQL_SLAVE_SKIP_COUNTER=11;
 source include/start_slave.inc;
 sync_with_master;
 
@@ -264,7 +264,7 @@ save_master_pos;
 
 --echo *** On Slave ***
 connection slave;
-SET GLOBAL SQL_SLAVE_SKIP_COUNTER=1;
+SET GLOBAL SQL_SLAVE_SKIP_COUNTER=2;
 source include/start_slave.inc;
 sync_with_master;
 
@@ -302,7 +302,7 @@ save_master_pos;
 
 --echo *** On Slave ***
 connection slave;
-SET GLOBAL SQL_SLAVE_SKIP_COUNTER=1;
+SET GLOBAL SQL_SLAVE_SKIP_COUNTER=2;
 source include/start_slave.inc;
 sync_with_master;
 

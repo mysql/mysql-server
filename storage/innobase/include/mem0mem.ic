@@ -193,7 +193,7 @@ mem_heap_alloc(
 
 	free = mem_block_get_free(block);
 
-	buf = (byte*)block + free;
+	buf = (byte*) block + free;
 
 	mem_block_set_free(block, free + MEM_SPACE_NEEDED(n));
 
@@ -202,16 +202,12 @@ mem_heap_alloc(
 		       n + MEM_FIELD_HEADER_SIZE + MEM_FIELD_TRAILER_SIZE);
 
 	/* In the debug version write debugging info to the field */
-	mem_field_init((byte*)buf, n);
+	mem_field_init((byte*) buf, n);
 
 	/* Advance buf to point at the storage which will be given to the
 	caller */
-	buf = (byte*)buf + MEM_FIELD_HEADER_SIZE;
+	buf = (byte*) buf + MEM_FIELD_HEADER_SIZE;
 
-#endif
-#ifdef UNIV_SET_MEM_TO_ZERO
-	UNIV_MEM_ALLOC(buf, n);
-	memset(buf, '\0', n);
 #endif
 	UNIV_MEM_ALLOC(buf, n);
 	return(buf);
@@ -233,7 +229,7 @@ mem_heap_get_heap_top(
 
 	block = UT_LIST_GET_LAST(heap->base);
 
-	buf = (byte*)block + mem_block_get_free(block);
+	buf = (byte*) block + mem_block_get_free(block);
 
 	return(buf);
 }
@@ -276,8 +272,8 @@ mem_heap_free_heap_top(
 	block = UT_LIST_GET_LAST(heap->base);
 
 	while (block != NULL) {
-		if (((byte*)block + mem_block_get_free(block) >= old_top)
-		    && ((byte*)block <= old_top)) {
+		if (((byte*) block + mem_block_get_free(block) >= old_top)
+		    && ((byte*) block <= old_top)) {
 			/* Found the right block */
 
 			break;
@@ -296,22 +292,22 @@ mem_heap_free_heap_top(
 	ut_ad(block);
 
 	/* Set the free field of block */
-	mem_block_set_free(block, old_top - (byte*)block);
+	mem_block_set_free(block, old_top - (byte*) block);
 
 #ifdef UNIV_MEM_DEBUG
 	ut_ad(mem_block_get_start(block) <= mem_block_get_free(block));
 
 	/* In the debug version erase block from top up */
-	mem_erase_buf(old_top, (byte*)block + block->len - old_top);
+	mem_erase_buf(old_top, (byte*) block + block->len - old_top);
 
 	/* Update allocated memory count */
 	mutex_enter(&mem_hash_mutex);
 	mem_current_allocated_memory -= (total_size - size);
 	mutex_exit(&mem_hash_mutex);
 #else /* UNIV_MEM_DEBUG */
-	UNIV_MEM_ASSERT_W(old_top, (byte*)block + block->len - old_top);
+	UNIV_MEM_ASSERT_W(old_top, (byte*) block + block->len - old_top);
 #endif /* UNIV_MEM_DEBUG */
-	UNIV_MEM_ALLOC(old_top, (byte*)block + block->len - old_top);
+	UNIV_MEM_ALLOC(old_top, (byte*) block + block->len - old_top);
 
 	/* If free == start, we may free the block if it is not the first
 	one */
@@ -330,7 +326,7 @@ mem_heap_empty(
 /*===========*/
 	mem_heap_t*	heap)	/*!< in: heap to empty */
 {
-	mem_heap_free_heap_top(heap, (byte*)heap + mem_block_get_start(heap));
+	mem_heap_free_heap_top(heap, (byte*) heap + mem_block_get_start(heap));
 #ifndef UNIV_HOTBACKUP
 	if (heap->free_block) {
 		mem_heap_free_block_free(heap);
@@ -398,7 +394,7 @@ mem_heap_free_top(
 	ut_ad(mem_block_get_start(block) <= mem_block_get_free(block));
 
 	/* In the debug version check the consistency, and erase field */
-	mem_field_erase((byte*)block + mem_block_get_free(block), n);
+	mem_field_erase((byte*) block + mem_block_get_free(block), n);
 #endif
 
 	/* If free == start, we may free the block if it is not the first
@@ -542,12 +538,13 @@ mem_alloc_func(
 		m -= MEM_FIELD_HEADER_SIZE + MEM_FIELD_TRAILER_SIZE;
 #endif /* UNIV_MEM_DEBUG */
 		ut_ad(m >= n);
-		*size = n = m;
+		n = m;
+		*size = m;
 	}
 
 	buf = mem_heap_alloc(heap, n);
 
-	ut_a((byte*)heap == (byte*)buf - MEM_BLOCK_HEADER_SIZE
+	ut_a((byte*) heap == (byte*) buf - MEM_BLOCK_HEADER_SIZE
 	     - MEM_FIELD_HEADER_SIZE);
 	return(buf);
 }
@@ -566,7 +563,7 @@ mem_free_func(
 {
 	mem_heap_t*   heap;
 
-	heap = (mem_heap_t*)((byte*)ptr - MEM_BLOCK_HEADER_SIZE
+	heap = (mem_heap_t*)((byte*) ptr - MEM_BLOCK_HEADER_SIZE
 			     - MEM_FIELD_HEADER_SIZE);
 	mem_heap_free_func(heap, file_name, line);
 }

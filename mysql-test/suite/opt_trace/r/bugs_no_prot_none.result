@@ -1,5 +1,6 @@
 set optimizer_trace_max_mem_size=1048576;
-SET optimizer_trace="enabled=on,end_marker=on,one_line=off";
+SET end_markers_in_json=on;
+SET optimizer_trace="enabled=on,one_line=off";
 #
 # BUG#12430646 - SEL_ARG::LEFT AND RIGHT POINTERS INCORRECTLY 
 #                USED. CRASHES OPTIMIZER TRACING
@@ -174,14 +175,6 @@ WHERE sq2_alias1.col_varchar_nokey <= alias1.col_varchar_key
                         "transformation": {
                           "select#": 4,
                           "from": "IN (SELECT)",
-                          "to": "materialization",
-                          "chosen": false
-                        } /* transformation */
-                      },
-                      {
-                        "transformation": {
-                          "select#": 4,
-                          "from": "IN (SELECT)",
                           "to": "EXISTS (CORRELATED SELECT)",
                           "chosen": true,
                           "evaluating_constant_where_conditions": [
@@ -199,14 +192,6 @@ WHERE sq2_alias1.col_varchar_nokey <= alias1.col_varchar_key
                     "select#": 2,
                     "from": "IN (SELECT)",
                     "to": "semijoin",
-                    "chosen": false
-                  } /* transformation */
-                },
-                {
-                  "transformation": {
-                    "select#": 2,
-                    "from": "IN (SELECT)",
-                    "to": "materialization",
                     "chosen": false
                   } /* transformation */
                 },
@@ -284,7 +269,8 @@ WHERE sq2_alias1.col_varchar_nokey <= alias1.col_varchar_key
                 "table": "where_subselect_19379",
                 "rows": 1,
                 "cost": 1,
-                "table_type": "system"
+                "table_type": "system",
+                "empty": true
               }
             ] /* rows_estimation */
           }
@@ -383,14 +369,6 @@ FROM t1
                   "transformation": {
                     "select#": 2,
                     "from": "IN (SELECT)",
-                    "to": "materialization",
-                    "chosen": false
-                  } /* transformation */
-                },
-                {
-                  "transformation": {
-                    "select#": 2,
-                    "from": "IN (SELECT)",
                     "to": "EXISTS (CORRELATED SELECT)",
                     "chosen": true,
                     "evaluating_constant_where_conditions": [
@@ -459,7 +437,8 @@ FROM t1
                 "table": "where_subselect_19033",
                 "rows": 1,
                 "cost": 1,
-                "table_type": "system"
+                "table_type": "system",
+                "empty": false
               }
             ] /* rows_estimation */
           },
@@ -520,7 +499,8 @@ FROM t1
                             "table": "t1",
                             "rows": 1,
                             "cost": 1,
-                            "table_type": "system"
+                            "table_type": "system",
+                            "empty": false
                           }
                         ] /* rows_estimation */
                       },
@@ -571,7 +551,8 @@ FROM t1
                                         "table": "t2",
                                         "rows": 1,
                                         "cost": 1,
-                                        "table_type": "system"
+                                        "table_type": "system",
+                                        "empty": false
                                       }
                                     ] /* rows_estimation */
                                   },
@@ -606,6 +587,10 @@ FROM t1
                 }
               ] /* steps */
             } /* subselect_execution */
+          },
+          {
+            "condition_on_constant_tables": "<in_optimizer>('7',<exists>(/* select#2 */ select 1 from dual where (<cache>('7') = (/* select#3 */ select '7' from dual))))",
+            "condition_value": true
           },
           {
             "attaching_conditions_to_tables": {
@@ -816,14 +801,6 @@ ON table2 .col_int_key = table1 .col_int_key
                     "select#": 3,
                     "from": "IN (SELECT)",
                     "to": "semijoin",
-                    "chosen": false
-                  } /* transformation */
-                },
-                {
-                  "transformation": {
-                    "select#": 3,
-                    "from": "IN (SELECT)",
-                    "to": "materialization",
                     "chosen": false
                   } /* transformation */
                 },
@@ -1551,3 +1528,318 @@ ON table2 .col_int_key = table1 .col_int_key
   ] /* steps */
 }	0	0
 DROP TABLE where_subselect_20070,t1;
+#
+# Bug#13430443 - ASSERTION `NEW_TYPE[0] != 'U'' FAILED. WHEN
+# OPTIMIZER_TRACE IS ENABLED
+#
+CREATE TABLE t1
+(a INT,b INT,c INT, KEY(a),KEY (a,c)) ENGINE=INNODB;
+SELECT 1 FROM t1 WHERE 1 LIKE
+(SELECT a FROM t1 WHERE a = 1 ORDER BY c);
+1
+SELECT * FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
+QUERY	TRACE	MISSING_BYTES_BEYOND_MAX_MEM_SIZE	INSUFFICIENT_PRIVILEGES
+SELECT 1 FROM t1 WHERE 1 LIKE
+(SELECT a FROM t1 WHERE a = 1 ORDER BY c)	{
+  "steps": [
+    {
+      "join_preparation": {
+        "select#": 1,
+        "steps": [
+          {
+            "join_preparation": {
+              "select#": 2,
+              "steps": [
+                {
+                  "expanded_query": "/* select#2 */ select `test`.`t1`.`a` from `test`.`t1` where (`test`.`t1`.`a` = 1) order by `test`.`t1`.`c`"
+                }
+              ] /* steps */
+            } /* join_preparation */
+          },
+          {
+            "subselect_execution": {
+              "select#": 2,
+              "steps": [
+                {
+                  "join_optimization": {
+                    "select#": 2,
+                    "steps": [
+                      {
+                        "condition_processing": {
+                          "condition": "WHERE",
+                          "original_condition": "(`test`.`t1`.`a` = 1)",
+                          "steps": [
+                            {
+                              "transformation": "equality_propagation",
+                              "resulting_condition": "multiple equal(1, `test`.`t1`.`a`)"
+                            },
+                            {
+                              "transformation": "constant_propagation",
+                              "resulting_condition": "multiple equal(1, `test`.`t1`.`a`)"
+                            },
+                            {
+                              "transformation": "trivial_condition_removal",
+                              "resulting_condition": "multiple equal(1, `test`.`t1`.`a`)"
+                            }
+                          ] /* steps */
+                        } /* condition_processing */
+                      },
+                      {
+                        "table_dependencies": [
+                          {
+                            "database": "test",
+                            "table": "t1",
+                            "row_may_be_null": false,
+                            "map_bit": 0,
+                            "depends_on_map_bits": [
+                            ] /* depends_on_map_bits */
+                          }
+                        ] /* table_dependencies */
+                      },
+                      {
+                        "ref_optimizer_key_uses": [
+                          {
+                            "database": "test",
+                            "table": "t1",
+                            "field": "a",
+                            "equals": "1",
+                            "null_rejecting": false
+                          },
+                          {
+                            "database": "test",
+                            "table": "t1",
+                            "field": "a",
+                            "equals": "1",
+                            "null_rejecting": false
+                          }
+                        ] /* ref_optimizer_key_uses */
+                      },
+                      {
+                        "rows_estimation": [
+                          {
+                            "database": "test",
+                            "table": "t1",
+                            "range_analysis": {
+                              "table_scan": {
+                                "rows": 1,
+                                "cost": 3.3
+                              } /* table_scan */,
+                              "potential_range_indices": [
+                                {
+                                  "index": "a",
+                                  "usable": true,
+                                  "key_parts": [
+                                    "a"
+                                  ] /* key_parts */
+                                },
+                                {
+                                  "index": "a_2",
+                                  "usable": true,
+                                  "key_parts": [
+                                    "a",
+                                    "c"
+                                  ] /* key_parts */
+                                }
+                              ] /* potential_range_indices */,
+                              "best_covering_index_scan": {
+                                "index": "a_2",
+                                "cost": 1.2,
+                                "chosen": true
+                              } /* best_covering_index_scan */,
+                              "setup_range_conditions": [
+                              ] /* setup_range_conditions */,
+                              "group_index_range": {
+                                "chosen": false,
+                                "cause": "not_group_by_or_distinct"
+                              } /* group_index_range */,
+                              "analyzing_range_alternatives": {
+                                "range_scan_alternatives": [
+                                  {
+                                    "index": "a",
+                                    "index_dives_for_eq_ranges": true,
+                                    "ranges": [
+                                      "1 <= a <= 1"
+                                    ] /* ranges */,
+                                    "index_only": false,
+                                    "rows": 1,
+                                    "cost": 2.21,
+                                    "rowid_ordered": true,
+                                    "chosen": false,
+                                    "cause": "cost"
+                                  },
+                                  {
+                                    "index": "a_2",
+                                    "index_dives_for_eq_ranges": true,
+                                    "ranges": [
+                                      "1 <= a <= 1"
+                                    ] /* ranges */,
+                                    "index_only": true,
+                                    "rows": 1,
+                                    "cost": 2.21,
+                                    "rowid_ordered": false,
+                                    "chosen": false,
+                                    "cause": "cost"
+                                  }
+                                ] /* range_scan_alternatives */,
+                                "analyzing_roworder_intersect": {
+                                  "usable": false,
+                                  "cause": "too_few_roworder_scans"
+                                } /* analyzing_roworder_intersect */
+                              } /* analyzing_range_alternatives */
+                            } /* range_analysis */
+                          }
+                        ] /* rows_estimation */
+                      },
+                      {
+                        "considered_execution_plans": [
+                          {
+                            "database": "test",
+                            "table": "t1",
+                            "best_access_path": {
+                              "considered_access_paths": [
+                                {
+                                  "access_type": "ref",
+                                  "index": "a",
+                                  "rows": 1,
+                                  "cost": 1.2,
+                                  "chosen": true
+                                },
+                                {
+                                  "access_type": "ref",
+                                  "index": "a_2",
+                                  "rows": 1,
+                                  "cost": 1.2,
+                                  "chosen": false
+                                },
+                                {
+                                  "access_type": "scan",
+                                  "cause": "covering_index_better_than_full_scan",
+                                  "chosen": false
+                                }
+                              ] /* considered_access_paths */
+                            } /* best_access_path */,
+                            "cost_for_plan": 1.2,
+                            "rows_for_plan": 1,
+                            "chosen": true
+                          }
+                        ] /* considered_execution_plans */
+                      },
+                      {
+                        "attaching_conditions_to_tables": {
+                          "original_condition": "(`test`.`t1`.`a` = 1)",
+                          "attached_conditions_computation": [
+                          ] /* attached_conditions_computation */,
+                          "attached_conditions_summary": [
+                            {
+                              "database": "test",
+                              "table": "t1",
+                              "attached": null
+                            }
+                          ] /* attached_conditions_summary */
+                        } /* attaching_conditions_to_tables */
+                      },
+                      {
+                        "clause_processing": {
+                          "clause": "ORDER BY",
+                          "original_clause": "`test`.`t1`.`c`",
+                          "items": [
+                            {
+                              "item": "`test`.`t1`.`c`"
+                            }
+                          ] /* items */,
+                          "resulting_clause_is_simple": true,
+                          "resulting_clause": "`test`.`t1`.`c`"
+                        } /* clause_processing */
+                      },
+                      {
+                        "refine_plan": [
+                          {
+                            "database": "test",
+                            "table": "t1"
+                          }
+                        ] /* refine_plan */
+                      },
+                      {
+                        "reconsidering_access_paths_for_index_ordering": {
+                          "index_order_summary": {
+                            "database": "test",
+                            "table": "t1",
+                            "index": "a_2",
+                            "order_direction": "asc",
+                            "plan_changed": true,
+                            "access_type": "ref"
+                          } /* index_order_summary */
+                        } /* reconsidering_access_paths_for_index_ordering */
+                      }
+                    ] /* steps */
+                  } /* join_optimization */
+                },
+                {
+                  "join_execution": {
+                    "select#": 2,
+                    "steps": [
+                    ] /* steps */
+                  } /* join_execution */
+                }
+              ] /* steps */
+            } /* subselect_execution */
+          },
+          {
+            "expanded_query": "/* select#1 */ select 1 AS `1` from `test`.`t1` where (1 like (/* select#2 */ select `test`.`t1`.`a` from `test`.`t1` where (`test`.`t1`.`a` = 1) order by `test`.`t1`.`c`))"
+          }
+        ] /* steps */
+      } /* join_preparation */
+    },
+    {
+      "join_optimization": {
+        "select#": 1,
+        "steps": [
+          {
+            "condition_processing": {
+              "condition": "WHERE",
+              "original_condition": "(1 like (/* select#2 */ select `test`.`t1`.`a` from `test`.`t1` where (`test`.`t1`.`a` = 1) order by `test`.`t1`.`c`))",
+              "steps": [
+                {
+                  "transformation": "equality_propagation",
+                  "subselect_evaluation": [
+                  ] /* subselect_evaluation */,
+                  "resulting_condition": "(1 like (/* select#2 */ select `test`.`t1`.`a` from `test`.`t1` where (`test`.`t1`.`a` = 1) order by `test`.`t1`.`c`))"
+                },
+                {
+                  "transformation": "constant_propagation",
+                  "subselect_evaluation": [
+                  ] /* subselect_evaluation */,
+                  "resulting_condition": "(1 like (/* select#2 */ select `test`.`t1`.`a` from `test`.`t1` where (`test`.`t1`.`a` = 1) order by `test`.`t1`.`c`))"
+                },
+                {
+                  "transformation": "trivial_condition_removal",
+                  "subselect_evaluation": [
+                    {
+                      "subselect_execution": {
+                        "select#": 2,
+                        "steps": [
+                        ] /* steps */
+                      } /* subselect_execution */
+                    }
+                  ] /* subselect_evaluation */,
+                  "resulting_condition": null
+                }
+              ] /* steps */
+            } /* condition_processing */
+          }
+        ] /* steps */,
+        "empty_result": {
+          "cause": "Impossible WHERE"
+        } /* empty_result */
+      } /* join_optimization */
+    },
+    {
+      "join_execution": {
+        "select#": 1,
+        "steps": [
+        ] /* steps */
+      } /* join_execution */
+    }
+  ] /* steps */
+}	0	0
+DROP TABLE t1;

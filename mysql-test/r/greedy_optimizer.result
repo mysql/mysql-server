@@ -125,9 +125,9 @@ select @@optimizer_search_depth;
 EXPLAIN select t1.c11 from t1, t2, t3, t4, t5, t6, t7 where t1.c12 = t2.c21 and t2.c22 = t3.c31 and t3.c32 = t4.c41 and t4.c42 = t5.c51 and t5.c52 = t6.c61 and t6.c62 = t7.c71;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	6	Using where
-1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	4	test.t2.c22	1	
+1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	4	test.t2.c22	1	NULL
 1	SIMPLE	t4	ALL	NULL	NULL	NULL	NULL	12	Using where; Using join buffer (Block Nested Loop)
-1	SIMPLE	t5	eq_ref	PRIMARY	PRIMARY	4	test.t4.c42	1	
+1	SIMPLE	t5	eq_ref	PRIMARY	PRIMARY	4	test.t4.c42	1	NULL
 1	SIMPLE	t6	ALL	NULL	NULL	NULL	NULL	18	Using where; Using join buffer (Block Nested Loop)
 1	SIMPLE	t7	eq_ref	PRIMARY	PRIMARY	4	test.t6.c62	1	Using index
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	Using where; Using join buffer (Block Nested Loop)
@@ -148,9 +148,9 @@ Total_handler_reads
 EXPLAIN select t1.c11 from t7, t6, t5, t4, t3, t2, t1 where t1.c12 = t2.c21 and t2.c22 = t3.c31 and t3.c32 = t4.c41 and t4.c42 = t5.c51 and t5.c52 = t6.c61 and t6.c62 = t7.c71;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	6	Using where
-1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	4	test.t2.c22	1	
+1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	4	test.t2.c22	1	NULL
 1	SIMPLE	t4	ALL	NULL	NULL	NULL	NULL	12	Using where; Using join buffer (Block Nested Loop)
-1	SIMPLE	t5	eq_ref	PRIMARY	PRIMARY	4	test.t4.c42	1	
+1	SIMPLE	t5	eq_ref	PRIMARY	PRIMARY	4	test.t4.c42	1	NULL
 1	SIMPLE	t6	ALL	NULL	NULL	NULL	NULL	18	Using where; Using join buffer (Block Nested Loop)
 1	SIMPLE	t7	eq_ref	PRIMARY	PRIMARY	4	test.t6.c62	1	Using index
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	Using where; Using join buffer (Block Nested Loop)
@@ -260,11 +260,11 @@ select @@optimizer_search_depth;
 1
 EXPLAIN select t1.c11 from t1, t2, t3, t4, t5, t6, t7 where t1.c12 = t2.c21 and t2.c22 = t3.c31 and t3.c32 = t4.c41 and t4.c42 = t5.c51 and t5.c52 = t6.c61 and t6.c62 = t7.c71;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	NULL
 1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	6	Using where; Using join buffer (Block Nested Loop)
-1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	4	test.t2.c22	1	
+1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	4	test.t2.c22	1	NULL
 1	SIMPLE	t4	ALL	NULL	NULL	NULL	NULL	12	Using where; Using join buffer (Block Nested Loop)
-1	SIMPLE	t5	eq_ref	PRIMARY	PRIMARY	4	test.t4.c42	1	
+1	SIMPLE	t5	eq_ref	PRIMARY	PRIMARY	4	test.t4.c42	1	NULL
 1	SIMPLE	t6	ALL	NULL	NULL	NULL	NULL	18	Using where; Using join buffer (Block Nested Loop)
 1	SIMPLE	t7	eq_ref	PRIMARY	PRIMARY	4	test.t6.c62	1	Using index
 SHOW STATUS LIKE 'Last_query_cost';
@@ -283,11 +283,11 @@ Total_handler_reads
 46
 EXPLAIN select t1.c11 from t7, t6, t5, t4, t3, t2, t1 where t1.c12 = t2.c21 and t2.c22 = t3.c31 and t3.c32 = t4.c41 and t4.c42 = t5.c51 and t5.c52 = t6.c61 and t6.c62 = t7.c71;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	NULL
 1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	6	Using where; Using join buffer (Block Nested Loop)
-1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	4	test.t2.c22	1	
+1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	4	test.t2.c22	1	NULL
 1	SIMPLE	t4	ALL	NULL	NULL	NULL	NULL	12	Using where; Using join buffer (Block Nested Loop)
-1	SIMPLE	t5	eq_ref	PRIMARY	PRIMARY	4	test.t4.c42	1	
+1	SIMPLE	t5	eq_ref	PRIMARY	PRIMARY	4	test.t4.c42	1	NULL
 1	SIMPLE	t6	ALL	NULL	NULL	NULL	NULL	18	Using where; Using join buffer (Block Nested Loop)
 1	SIMPLE	t7	eq_ref	PRIMARY	PRIMARY	4	test.t6.c62	1	Using index
 SHOW STATUS LIKE 'Last_query_cost';
@@ -353,7 +353,7 @@ Total_handler_reads
 EXPLAIN select t1.c11 from t1, t2, t3, t4, t5, t6, t7 where t1.c11 = t2.c21 and t1.c12 = t3.c31 and t1.c13 = t4.c41 and t1.c14 = t5.c51 and t1.c15 = t6.c61 and t1.c16 = t7.c71 and t2.c22 = t3.c32 and t2.c23 = t4.c42 and t2.c24 = t5.c52 and t2.c25 = t6.c62 and t2.c26 = t7.c72 and t3.c33 = t4.c43 and t3.c34 = t5.c53 and t3.c35 = t6.c63 and t3.c36 = t7.c73 and t4.c42 = t5.c54 and t4.c43 = t6.c64 and t4.c44 = t7.c74 and t5.c52 = t6.c65 and t5.c53 = t7.c75 and t6.c62 = t7.c76;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ALL	PRIMARY	NULL	NULL	NULL	3	Using where
-1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	4	test.t1.c12	1	
+1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	4	test.t1.c12	1	NULL
 1	SIMPLE	t5	eq_ref	PRIMARY	PRIMARY	4	test.t1.c14	1	Using where
 1	SIMPLE	t7	eq_ref	PRIMARY	PRIMARY	4	test.t1.c16	1	Using where
 1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	6	Using where; Using join buffer (Block Nested Loop)
@@ -373,7 +373,7 @@ Total_handler_reads
 EXPLAIN select t1.c11 from t7, t6, t5, t4, t3, t2, t1 where t1.c11 = t2.c21 and t1.c12 = t3.c31 and t1.c13 = t4.c41 and t1.c14 = t5.c51 and t1.c15 = t6.c61 and t1.c16 = t7.c71 and t2.c22 = t3.c32 and t2.c23 = t4.c42 and t2.c24 = t5.c52 and t2.c25 = t6.c62 and t2.c26 = t7.c72 and t3.c33 = t4.c43 and t3.c34 = t5.c53 and t3.c35 = t6.c63 and t3.c36 = t7.c73 and t4.c42 = t5.c54 and t4.c43 = t6.c64 and t4.c44 = t7.c74 and t5.c52 = t6.c65 and t5.c53 = t7.c75 and t6.c62 = t7.c76;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ALL	PRIMARY	NULL	NULL	NULL	3	Using where
-1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	4	test.t1.c12	1	
+1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	4	test.t1.c12	1	NULL
 1	SIMPLE	t5	eq_ref	PRIMARY	PRIMARY	4	test.t1.c14	1	Using where
 1	SIMPLE	t7	eq_ref	PRIMARY	PRIMARY	4	test.t1.c16	1	Using where
 1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	6	Using where; Using join buffer (Block Nested Loop)
@@ -397,9 +397,9 @@ select @@optimizer_search_depth;
 EXPLAIN select t1.c11 from t1, t2, t3, t4, t5, t6, t7 where t1.c12 = t2.c21 and t2.c22 = t3.c31 and t3.c32 = t4.c41 and t4.c42 = t5.c51 and t5.c52 = t6.c61 and t6.c62 = t7.c71;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	6	Using where
-1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	4	test.t2.c22	1	
+1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	4	test.t2.c22	1	NULL
 1	SIMPLE	t4	ALL	NULL	NULL	NULL	NULL	12	Using where; Using join buffer (Block Nested Loop)
-1	SIMPLE	t5	eq_ref	PRIMARY	PRIMARY	4	test.t4.c42	1	
+1	SIMPLE	t5	eq_ref	PRIMARY	PRIMARY	4	test.t4.c42	1	NULL
 1	SIMPLE	t6	ALL	NULL	NULL	NULL	NULL	18	Using where; Using join buffer (Block Nested Loop)
 1	SIMPLE	t7	eq_ref	PRIMARY	PRIMARY	4	test.t6.c62	1	Using index
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	Using where; Using join buffer (Block Nested Loop)
@@ -420,9 +420,9 @@ Total_handler_reads
 EXPLAIN select t1.c11 from t7, t6, t5, t4, t3, t2, t1 where t1.c12 = t2.c21 and t2.c22 = t3.c31 and t3.c32 = t4.c41 and t4.c42 = t5.c51 and t5.c52 = t6.c61 and t6.c62 = t7.c71;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	6	Using where
-1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	4	test.t2.c22	1	
+1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	4	test.t2.c22	1	NULL
 1	SIMPLE	t4	ALL	NULL	NULL	NULL	NULL	12	Using where; Using join buffer (Block Nested Loop)
-1	SIMPLE	t5	eq_ref	PRIMARY	PRIMARY	4	test.t4.c42	1	
+1	SIMPLE	t5	eq_ref	PRIMARY	PRIMARY	4	test.t4.c42	1	NULL
 1	SIMPLE	t6	ALL	NULL	NULL	NULL	NULL	18	Using where; Using join buffer (Block Nested Loop)
 1	SIMPLE	t7	eq_ref	PRIMARY	PRIMARY	4	test.t6.c62	1	Using index
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	Using where; Using join buffer (Block Nested Loop)
@@ -536,11 +536,11 @@ select @@optimizer_search_depth;
 0
 EXPLAIN select t1.c11 from t1, t2, t3, t4, t5, t6, t7 where t1.c12 = t2.c21 and t2.c22 = t3.c31 and t3.c32 = t4.c41 and t4.c42 = t5.c51 and t5.c52 = t6.c61 and t6.c62 = t7.c71;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	NULL
 1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	6	Using where; Using join buffer (Block Nested Loop)
-1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	4	test.t2.c22	1	
+1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	4	test.t2.c22	1	NULL
 1	SIMPLE	t4	ALL	NULL	NULL	NULL	NULL	12	Using where; Using join buffer (Block Nested Loop)
-1	SIMPLE	t5	eq_ref	PRIMARY	PRIMARY	4	test.t4.c42	1	
+1	SIMPLE	t5	eq_ref	PRIMARY	PRIMARY	4	test.t4.c42	1	NULL
 1	SIMPLE	t6	ALL	NULL	NULL	NULL	NULL	18	Using where; Using join buffer (Block Nested Loop)
 1	SIMPLE	t7	eq_ref	PRIMARY	PRIMARY	4	test.t6.c62	1	Using index
 SHOW STATUS LIKE 'Last_query_cost';
@@ -559,11 +559,11 @@ Total_handler_reads
 46
 EXPLAIN select t1.c11 from t7, t6, t5, t4, t3, t2, t1 where t1.c12 = t2.c21 and t2.c22 = t3.c31 and t3.c32 = t4.c41 and t4.c42 = t5.c51 and t5.c52 = t6.c61 and t6.c62 = t7.c71;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	NULL
 1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	6	Using where; Using join buffer (Block Nested Loop)
-1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	4	test.t2.c22	1	
+1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	4	test.t2.c22	1	NULL
 1	SIMPLE	t4	ALL	NULL	NULL	NULL	NULL	12	Using where; Using join buffer (Block Nested Loop)
-1	SIMPLE	t5	eq_ref	PRIMARY	PRIMARY	4	test.t4.c42	1	
+1	SIMPLE	t5	eq_ref	PRIMARY	PRIMARY	4	test.t4.c42	1	NULL
 1	SIMPLE	t6	ALL	NULL	NULL	NULL	NULL	18	Using where; Using join buffer (Block Nested Loop)
 1	SIMPLE	t7	eq_ref	PRIMARY	PRIMARY	4	test.t6.c62	1	Using index
 SHOW STATUS LIKE 'Last_query_cost';
@@ -629,7 +629,7 @@ Total_handler_reads
 EXPLAIN select t1.c11 from t1, t2, t3, t4, t5, t6, t7 where t1.c11 = t2.c21 and t1.c12 = t3.c31 and t1.c13 = t4.c41 and t1.c14 = t5.c51 and t1.c15 = t6.c61 and t1.c16 = t7.c71 and t2.c22 = t3.c32 and t2.c23 = t4.c42 and t2.c24 = t5.c52 and t2.c25 = t6.c62 and t2.c26 = t7.c72 and t3.c33 = t4.c43 and t3.c34 = t5.c53 and t3.c35 = t6.c63 and t3.c36 = t7.c73 and t4.c42 = t5.c54 and t4.c43 = t6.c64 and t4.c44 = t7.c74 and t5.c52 = t6.c65 and t5.c53 = t7.c75 and t6.c62 = t7.c76;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ALL	PRIMARY	NULL	NULL	NULL	3	Using where
-1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	4	test.t1.c12	1	
+1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	4	test.t1.c12	1	NULL
 1	SIMPLE	t5	eq_ref	PRIMARY	PRIMARY	4	test.t1.c14	1	Using where
 1	SIMPLE	t7	eq_ref	PRIMARY	PRIMARY	4	test.t1.c16	1	Using where
 1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	6	Using where; Using join buffer (Block Nested Loop)
@@ -649,7 +649,7 @@ Total_handler_reads
 EXPLAIN select t1.c11 from t7, t6, t5, t4, t3, t2, t1 where t1.c11 = t2.c21 and t1.c12 = t3.c31 and t1.c13 = t4.c41 and t1.c14 = t5.c51 and t1.c15 = t6.c61 and t1.c16 = t7.c71 and t2.c22 = t3.c32 and t2.c23 = t4.c42 and t2.c24 = t5.c52 and t2.c25 = t6.c62 and t2.c26 = t7.c72 and t3.c33 = t4.c43 and t3.c34 = t5.c53 and t3.c35 = t6.c63 and t3.c36 = t7.c73 and t4.c42 = t5.c54 and t4.c43 = t6.c64 and t4.c44 = t7.c74 and t5.c52 = t6.c65 and t5.c53 = t7.c75 and t6.c62 = t7.c76;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ALL	PRIMARY	NULL	NULL	NULL	3	Using where
-1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	4	test.t1.c12	1	
+1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	4	test.t1.c12	1	NULL
 1	SIMPLE	t5	eq_ref	PRIMARY	PRIMARY	4	test.t1.c14	1	Using where
 1	SIMPLE	t7	eq_ref	PRIMARY	PRIMARY	4	test.t1.c16	1	Using where
 1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	6	Using where; Using join buffer (Block Nested Loop)
@@ -672,11 +672,11 @@ select @@optimizer_search_depth;
 1
 EXPLAIN select t1.c11 from t1, t2, t3, t4, t5, t6, t7 where t1.c12 = t2.c21 and t2.c22 = t3.c31 and t3.c32 = t4.c41 and t4.c42 = t5.c51 and t5.c52 = t6.c61 and t6.c62 = t7.c71;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	NULL
 1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	6	Using where; Using join buffer (Block Nested Loop)
-1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	4	test.t2.c22	1	
+1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	4	test.t2.c22	1	NULL
 1	SIMPLE	t4	ALL	NULL	NULL	NULL	NULL	12	Using where; Using join buffer (Block Nested Loop)
-1	SIMPLE	t5	eq_ref	PRIMARY	PRIMARY	4	test.t4.c42	1	
+1	SIMPLE	t5	eq_ref	PRIMARY	PRIMARY	4	test.t4.c42	1	NULL
 1	SIMPLE	t6	ALL	NULL	NULL	NULL	NULL	18	Using where; Using join buffer (Block Nested Loop)
 1	SIMPLE	t7	eq_ref	PRIMARY	PRIMARY	4	test.t6.c62	1	Using index
 SHOW STATUS LIKE 'Last_query_cost';
@@ -695,11 +695,11 @@ Total_handler_reads
 46
 EXPLAIN select t1.c11 from t7, t6, t5, t4, t3, t2, t1 where t1.c12 = t2.c21 and t2.c22 = t3.c31 and t3.c32 = t4.c41 and t4.c42 = t5.c51 and t5.c52 = t6.c61 and t6.c62 = t7.c71;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	NULL
 1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	6	Using where; Using join buffer (Block Nested Loop)
-1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	4	test.t2.c22	1	
+1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	4	test.t2.c22	1	NULL
 1	SIMPLE	t4	ALL	NULL	NULL	NULL	NULL	12	Using where; Using join buffer (Block Nested Loop)
-1	SIMPLE	t5	eq_ref	PRIMARY	PRIMARY	4	test.t4.c42	1	
+1	SIMPLE	t5	eq_ref	PRIMARY	PRIMARY	4	test.t4.c42	1	NULL
 1	SIMPLE	t6	ALL	NULL	NULL	NULL	NULL	18	Using where; Using join buffer (Block Nested Loop)
 1	SIMPLE	t7	eq_ref	PRIMARY	PRIMARY	4	test.t6.c62	1	Using index
 SHOW STATUS LIKE 'Last_query_cost';
@@ -765,7 +765,7 @@ Total_handler_reads
 EXPLAIN select t1.c11 from t1, t2, t3, t4, t5, t6, t7 where t1.c11 = t2.c21 and t1.c12 = t3.c31 and t1.c13 = t4.c41 and t1.c14 = t5.c51 and t1.c15 = t6.c61 and t1.c16 = t7.c71 and t2.c22 = t3.c32 and t2.c23 = t4.c42 and t2.c24 = t5.c52 and t2.c25 = t6.c62 and t2.c26 = t7.c72 and t3.c33 = t4.c43 and t3.c34 = t5.c53 and t3.c35 = t6.c63 and t3.c36 = t7.c73 and t4.c42 = t5.c54 and t4.c43 = t6.c64 and t4.c44 = t7.c74 and t5.c52 = t6.c65 and t5.c53 = t7.c75 and t6.c62 = t7.c76;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ALL	PRIMARY	NULL	NULL	NULL	3	Using where
-1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	4	test.t1.c12	1	
+1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	4	test.t1.c12	1	NULL
 1	SIMPLE	t5	eq_ref	PRIMARY	PRIMARY	4	test.t1.c14	1	Using where
 1	SIMPLE	t7	eq_ref	PRIMARY	PRIMARY	4	test.t1.c16	1	Using where
 1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	6	Using where; Using join buffer (Block Nested Loop)
@@ -785,7 +785,7 @@ Total_handler_reads
 EXPLAIN select t1.c11 from t7, t6, t5, t4, t3, t2, t1 where t1.c11 = t2.c21 and t1.c12 = t3.c31 and t1.c13 = t4.c41 and t1.c14 = t5.c51 and t1.c15 = t6.c61 and t1.c16 = t7.c71 and t2.c22 = t3.c32 and t2.c23 = t4.c42 and t2.c24 = t5.c52 and t2.c25 = t6.c62 and t2.c26 = t7.c72 and t3.c33 = t4.c43 and t3.c34 = t5.c53 and t3.c35 = t6.c63 and t3.c36 = t7.c73 and t4.c42 = t5.c54 and t4.c43 = t6.c64 and t4.c44 = t7.c74 and t5.c52 = t6.c65 and t5.c53 = t7.c75 and t6.c62 = t7.c76;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ALL	PRIMARY	NULL	NULL	NULL	3	Using where
-1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	4	test.t1.c12	1	
+1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	4	test.t1.c12	1	NULL
 1	SIMPLE	t5	eq_ref	PRIMARY	PRIMARY	4	test.t1.c14	1	Using where
 1	SIMPLE	t7	eq_ref	PRIMARY	PRIMARY	4	test.t1.c16	1	Using where
 1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	6	Using where; Using join buffer (Block Nested Loop)
@@ -808,11 +808,11 @@ select @@optimizer_search_depth;
 62
 EXPLAIN select t1.c11 from t1, t2, t3, t4, t5, t6, t7 where t1.c12 = t2.c21 and t2.c22 = t3.c31 and t3.c32 = t4.c41 and t4.c42 = t5.c51 and t5.c52 = t6.c61 and t6.c62 = t7.c71;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	NULL
 1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	6	Using where; Using join buffer (Block Nested Loop)
-1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	4	test.t2.c22	1	
+1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	4	test.t2.c22	1	NULL
 1	SIMPLE	t4	ALL	NULL	NULL	NULL	NULL	12	Using where; Using join buffer (Block Nested Loop)
-1	SIMPLE	t5	eq_ref	PRIMARY	PRIMARY	4	test.t4.c42	1	
+1	SIMPLE	t5	eq_ref	PRIMARY	PRIMARY	4	test.t4.c42	1	NULL
 1	SIMPLE	t6	ALL	NULL	NULL	NULL	NULL	18	Using where; Using join buffer (Block Nested Loop)
 1	SIMPLE	t7	eq_ref	PRIMARY	PRIMARY	4	test.t6.c62	1	Using index
 SHOW STATUS LIKE 'Last_query_cost';
@@ -831,11 +831,11 @@ Total_handler_reads
 46
 EXPLAIN select t1.c11 from t7, t6, t5, t4, t3, t2, t1 where t1.c12 = t2.c21 and t2.c22 = t3.c31 and t3.c32 = t4.c41 and t4.c42 = t5.c51 and t5.c52 = t6.c61 and t6.c62 = t7.c71;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	NULL
 1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	6	Using where; Using join buffer (Block Nested Loop)
-1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	4	test.t2.c22	1	
+1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	4	test.t2.c22	1	NULL
 1	SIMPLE	t4	ALL	NULL	NULL	NULL	NULL	12	Using where; Using join buffer (Block Nested Loop)
-1	SIMPLE	t5	eq_ref	PRIMARY	PRIMARY	4	test.t4.c42	1	
+1	SIMPLE	t5	eq_ref	PRIMARY	PRIMARY	4	test.t4.c42	1	NULL
 1	SIMPLE	t6	ALL	NULL	NULL	NULL	NULL	18	Using where; Using join buffer (Block Nested Loop)
 1	SIMPLE	t7	eq_ref	PRIMARY	PRIMARY	4	test.t6.c62	1	Using index
 SHOW STATUS LIKE 'Last_query_cost';
@@ -901,7 +901,7 @@ Total_handler_reads
 EXPLAIN select t1.c11 from t1, t2, t3, t4, t5, t6, t7 where t1.c11 = t2.c21 and t1.c12 = t3.c31 and t1.c13 = t4.c41 and t1.c14 = t5.c51 and t1.c15 = t6.c61 and t1.c16 = t7.c71 and t2.c22 = t3.c32 and t2.c23 = t4.c42 and t2.c24 = t5.c52 and t2.c25 = t6.c62 and t2.c26 = t7.c72 and t3.c33 = t4.c43 and t3.c34 = t5.c53 and t3.c35 = t6.c63 and t3.c36 = t7.c73 and t4.c42 = t5.c54 and t4.c43 = t6.c64 and t4.c44 = t7.c74 and t5.c52 = t6.c65 and t5.c53 = t7.c75 and t6.c62 = t7.c76;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ALL	PRIMARY	NULL	NULL	NULL	3	Using where
-1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	4	test.t1.c12	1	
+1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	4	test.t1.c12	1	NULL
 1	SIMPLE	t5	eq_ref	PRIMARY	PRIMARY	4	test.t1.c14	1	Using where
 1	SIMPLE	t7	eq_ref	PRIMARY	PRIMARY	4	test.t1.c16	1	Using where
 1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	6	Using where; Using join buffer (Block Nested Loop)
@@ -921,7 +921,7 @@ Total_handler_reads
 EXPLAIN select t1.c11 from t7, t6, t5, t4, t3, t2, t1 where t1.c11 = t2.c21 and t1.c12 = t3.c31 and t1.c13 = t4.c41 and t1.c14 = t5.c51 and t1.c15 = t6.c61 and t1.c16 = t7.c71 and t2.c22 = t3.c32 and t2.c23 = t4.c42 and t2.c24 = t5.c52 and t2.c25 = t6.c62 and t2.c26 = t7.c72 and t3.c33 = t4.c43 and t3.c34 = t5.c53 and t3.c35 = t6.c63 and t3.c36 = t7.c73 and t4.c42 = t5.c54 and t4.c43 = t6.c64 and t4.c44 = t7.c74 and t5.c52 = t6.c65 and t5.c53 = t7.c75 and t6.c62 = t7.c76;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ALL	PRIMARY	NULL	NULL	NULL	3	Using where
-1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	4	test.t1.c12	1	
+1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	4	test.t1.c12	1	NULL
 1	SIMPLE	t5	eq_ref	PRIMARY	PRIMARY	4	test.t1.c14	1	Using where
 1	SIMPLE	t7	eq_ref	PRIMARY	PRIMARY	4	test.t1.c16	1	Using where
 1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	6	Using where; Using join buffer (Block Nested Loop)
@@ -1033,32 +1033,32 @@ INSERT INTO t10000(I)
 SELECT X.I FROM t100 AS X, t100 AS Y;
 EXPLAIN SELECT * FROM t10,t100,t10000;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t10	ALL	NULL	NULL	NULL	NULL	10	
+1	SIMPLE	t10	ALL	NULL	NULL	NULL	NULL	10	NULL
 1	SIMPLE	t100	ALL	NULL	NULL	NULL	NULL	100	Using join buffer (Block Nested Loop)
 1	SIMPLE	t10000	ALL	NULL	NULL	NULL	NULL	10000	Using join buffer (Block Nested Loop)
 EXPLAIN SELECT * FROM t10,t10000,t100;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t10	ALL	NULL	NULL	NULL	NULL	10	
+1	SIMPLE	t10	ALL	NULL	NULL	NULL	NULL	10	NULL
 1	SIMPLE	t100	ALL	NULL	NULL	NULL	NULL	100	Using join buffer (Block Nested Loop)
 1	SIMPLE	t10000	ALL	NULL	NULL	NULL	NULL	10000	Using join buffer (Block Nested Loop)
 EXPLAIN SELECT * FROM t100,t10,t10000;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t10	ALL	NULL	NULL	NULL	NULL	10	
+1	SIMPLE	t10	ALL	NULL	NULL	NULL	NULL	10	NULL
 1	SIMPLE	t100	ALL	NULL	NULL	NULL	NULL	100	Using join buffer (Block Nested Loop)
 1	SIMPLE	t10000	ALL	NULL	NULL	NULL	NULL	10000	Using join buffer (Block Nested Loop)
 EXPLAIN SELECT * FROM t100,t10000,t10;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t10	ALL	NULL	NULL	NULL	NULL	10	
+1	SIMPLE	t10	ALL	NULL	NULL	NULL	NULL	10	NULL
 1	SIMPLE	t100	ALL	NULL	NULL	NULL	NULL	100	Using join buffer (Block Nested Loop)
 1	SIMPLE	t10000	ALL	NULL	NULL	NULL	NULL	10000	Using join buffer (Block Nested Loop)
 EXPLAIN SELECT * FROM t10000,t10,t100;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t10	ALL	NULL	NULL	NULL	NULL	10	
+1	SIMPLE	t10	ALL	NULL	NULL	NULL	NULL	10	NULL
 1	SIMPLE	t100	ALL	NULL	NULL	NULL	NULL	100	Using join buffer (Block Nested Loop)
 1	SIMPLE	t10000	ALL	NULL	NULL	NULL	NULL	10000	Using join buffer (Block Nested Loop)
 EXPLAIN SELECT * FROM t10000,t100,t10;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t10	ALL	NULL	NULL	NULL	NULL	10	
+1	SIMPLE	t10	ALL	NULL	NULL	NULL	NULL	10	NULL
 1	SIMPLE	t100	ALL	NULL	NULL	NULL	NULL	100	Using join buffer (Block Nested Loop)
 1	SIMPLE	t10000	ALL	NULL	NULL	NULL	NULL	10000	Using join buffer (Block Nested Loop)
 flush status;
@@ -1068,7 +1068,7 @@ AND t10000.K=t10.I;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t10	ALL	NULL	NULL	NULL	NULL	10	Using where
 1	SIMPLE	t100	eq_ref	PRIMARY	PRIMARY	4	test.t10.I	1	Using index
-1	SIMPLE	t10000	eq_ref	PRIMARY	PRIMARY	4	test.t100.K	1	Using where; Using index
+1	SIMPLE	t10000	eq_ref	PRIMARY	PRIMARY	4	test.t10.I	1	Using index
 SELECT STRAIGHT_JOIN COUNT(*) FROM t10,t100,t10000
 WHERE t100.K=t10.I
 AND t10000.K=t10.I;
@@ -1094,7 +1094,7 @@ AND t10000.K=t10.I;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t10	ALL	NULL	NULL	NULL	NULL	10	Using where
 1	SIMPLE	t100	eq_ref	PRIMARY	PRIMARY	4	test.t10.I	1	Using index
-1	SIMPLE	t10000	eq_ref	PRIMARY	PRIMARY	4	test.t100.K	1	Using where; Using index
+1	SIMPLE	t10000	eq_ref	PRIMARY	PRIMARY	4	test.t10.I	1	Using index
 SELECT COUNT(*) FROM t10,t100,t10000
 WHERE t100.K=t10.I
 AND t10000.K=t10.I;
@@ -1107,7 +1107,7 @@ AND t10000.K=t10.I;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t10	ALL	NULL	NULL	NULL	NULL	10	Using where
 1	SIMPLE	t100	eq_ref	PRIMARY	PRIMARY	4	test.t10.I	1	Using index
-1	SIMPLE	t10000	eq_ref	PRIMARY	PRIMARY	4	test.t100.K	1	Using where; Using index
+1	SIMPLE	t10000	eq_ref	PRIMARY	PRIMARY	4	test.t10.I	1	Using index
 SELECT COUNT(*) FROM t10,t10000,t100
 WHERE t100.K=t10.I
 AND t10000.K=t10.I;
@@ -1429,7 +1429,7 @@ AND t10000.I=t10.I;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t10	index	IX	IX	5	NULL	10	Using where; Using index
 1	SIMPLE	t100	eq_ref	PRIMARY	PRIMARY	4	test.t10.I	1	Using index
-1	SIMPLE	t10000	ref	IX	IX	5	test.t100.K	1000	Using where; Using index
+1	SIMPLE	t10000	ref	IX	IX	5	test.t10.I	1000	Using index
 SELECT STRAIGHT_JOIN COUNT(*) FROM t10,t100,t10000
 WHERE t100.K=t10.I
 AND t10000.I=t10.I;
@@ -1442,7 +1442,7 @@ AND t10000.I=t10.I;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t10	index	IX	IX	5	NULL	10	Using where; Using index
 1	SIMPLE	t100	eq_ref	PRIMARY	PRIMARY	4	test.t10.I	1	Using index
-1	SIMPLE	t10000	ref	IX	IX	5	test.t100.K	1000	Using where; Using index
+1	SIMPLE	t10000	ref	IX	IX	5	test.t10.I	1000	Using index
 SELECT COUNT(*) FROM t10,t100,t10000
 WHERE t100.K=t10.I
 AND t10000.I=t10.I;
@@ -1455,7 +1455,7 @@ AND t10000.I=t10.I;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t10	index	IX	IX	5	NULL	10	Using where; Using index
 1	SIMPLE	t100	eq_ref	PRIMARY	PRIMARY	4	test.t10.I	1	Using index
-1	SIMPLE	t10000	ref	IX	IX	5	test.t100.K	1000	Using where; Using index
+1	SIMPLE	t10000	ref	IX	IX	5	test.t10.I	1000	Using index
 SELECT COUNT(*) FROM t10,t10000,t100
 WHERE t100.K=t10.I
 AND t10000.I=t10.I;
@@ -1501,7 +1501,7 @@ AND Y.I=t10.I;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t10	index	IX	IX	5	NULL	10	Using where; Using index
 1	SIMPLE	X	eq_ref	PRIMARY	PRIMARY	4	test.t10.I	1	Using index
-1	SIMPLE	Y	ref	IX	IX	5	test.X.K	1000	Using where; Using index
+1	SIMPLE	Y	ref	IX	IX	5	test.t10.I	1000	Using index
 SELECT STRAIGHT_JOIN COUNT(*) FROM t10,t10000 X,t10000 Y
 WHERE X.K=t10.I
 AND Y.I=t10.I;
@@ -1514,7 +1514,7 @@ AND Y.I=t10.I;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t10	index	IX	IX	5	NULL	10	Using where; Using index
 1	SIMPLE	X	eq_ref	PRIMARY	PRIMARY	4	test.t10.I	1	Using index
-1	SIMPLE	Y	ref	IX	IX	5	test.X.K	1000	Using where; Using index
+1	SIMPLE	Y	ref	IX	IX	5	test.t10.I	1000	Using index
 SELECT COUNT(*) FROM t10,t10000 X,t10000 Y
 WHERE X.K=t10.I
 AND Y.I=t10.I;
@@ -1527,7 +1527,7 @@ AND Y.I=t10.I;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t10	index	IX	IX	5	NULL	10	Using where; Using index
 1	SIMPLE	X	eq_ref	PRIMARY	PRIMARY	4	test.t10.I	1	Using index
-1	SIMPLE	Y	ref	IX	IX	5	test.X.K	1000	Using where; Using index
+1	SIMPLE	Y	ref	IX	IX	5	test.t10.I	1000	Using index
 SELECT COUNT(*) FROM t10,t10000 Y,t10000 X
 WHERE X.K=t10.I
 AND Y.I=t10.I;
@@ -1540,7 +1540,7 @@ AND Y.I=X.K;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t10	index	IX	IX	5	NULL	10	Using where; Using index
 1	SIMPLE	X	eq_ref	PRIMARY	PRIMARY	4	test.t10.I	1	Using index
-1	SIMPLE	Y	ref	IX	IX	5	test.X.K	1000	Using where; Using index
+1	SIMPLE	Y	ref	IX	IX	5	test.t10.I	1000	Using index
 SELECT STRAIGHT_JOIN COUNT(*) FROM t10,t10000 X,t10000 Y
 WHERE X.K=t10.I
 AND Y.I=X.K;
@@ -1553,7 +1553,7 @@ AND Y.I=X.K;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t10	index	IX	IX	5	NULL	10	Using where; Using index
 1	SIMPLE	X	eq_ref	PRIMARY	PRIMARY	4	test.t10.I	1	Using index
-1	SIMPLE	Y	ref	IX	IX	5	test.X.K	1000	Using where; Using index
+1	SIMPLE	Y	ref	IX	IX	5	test.t10.I	1000	Using index
 SELECT COUNT(*) FROM t10,t10000 X,t10000 Y
 WHERE X.K=t10.I
 AND Y.I=X.K;
@@ -1566,7 +1566,7 @@ AND Y.I=X.K;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t10	index	IX	IX	5	NULL	10	Using where; Using index
 1	SIMPLE	X	eq_ref	PRIMARY	PRIMARY	4	test.t10.I	1	Using index
-1	SIMPLE	Y	ref	IX	IX	5	test.X.K	1000	Using where; Using index
+1	SIMPLE	Y	ref	IX	IX	5	test.t10.I	1000	Using index
 SELECT COUNT(*) FROM t10,t10000 Y,t10000 X
 WHERE X.K=t10.I
 AND Y.I=X.K;

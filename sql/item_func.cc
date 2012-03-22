@@ -50,6 +50,7 @@
 #include "debug_sync.h"
 #include <mysql/plugin.h>
 #include <mysql/service_thd_wait.h>
+#include "rpl_gtid.h"
 
 using std::min;
 using std::max;
@@ -370,15 +371,16 @@ Item *Item_func::transform(Item_transformer transformer, uchar *argument)
                        nodes of the tree of the object
   @param arg_t         parameter to be passed to the transformer
 
-  @return
-    Item returned as the result of transformation of the root node
+  @return              Item returned as result of transformation of the node,
+                       the same item if no transformation applied, or NULL if
+                       transformation caused an error.
 */
 
 Item *Item_func::compile(Item_analyzer analyzer, uchar **arg_p,
                          Item_transformer transformer, uchar *arg_t)
 {
   if (!(this->*analyzer)(arg_p))
-    return 0;
+    return this;
   if (arg_count)
   {
     Item **arg,**arg_end;
@@ -390,7 +392,9 @@ Item *Item_func::compile(Item_analyzer analyzer, uchar **arg_p,
       */   
       uchar *arg_v= *arg_p;
       Item *new_item= (*arg)->compile(analyzer, &arg_v, transformer, arg_t);
-      if (new_item && *arg != new_item)
+      if (new_item == NULL)
+        return NULL;
+      if (*arg != new_item)
         current_thd->change_item_tree(arg, new_item);
     }
   }
@@ -596,6 +600,7 @@ void Item_func_numhybrid::fix_num_length_and_dec()
 */
 void Item_func::count_datetime_length(Item **item, uint nitems)
 {
+  unsigned_flag= 0;
   decimals= 0;
   if (field_type() != MYSQL_TYPE_DATE)
   {
@@ -611,16 +616,13 @@ void Item_func::count_datetime_length(Item **item, uint nitems)
     case MYSQL_TYPE_DATETIME:
     case MYSQL_TYPE_TIMESTAMP:
       len+= MAX_DATETIME_WIDTH;
-      unsigned_flag= 1;
       break;
     case MYSQL_TYPE_DATE:
     case MYSQL_TYPE_NEWDATE:
       len+= MAX_DATE_WIDTH;
-      unsigned_flag= 1;
       break;
     case MYSQL_TYPE_TIME:
       len+= MAX_TIME_WIDTH;
-      unsigned_flag= 0;
       break;
     default:
       DBUG_ASSERT(0);
@@ -789,9 +791,10 @@ void Item_num_op::find_num_type(void)
   DBUG_ASSERT(arg_count == 2);
   Item_result r0= args[0]->numeric_context_result_type();
   Item_result r1= args[1]->numeric_context_result_type();
+  
+  DBUG_ASSERT(r0 != STRING_RESULT && r1 != STRING_RESULT);
 
-  if (r0 == REAL_RESULT || r1 == REAL_RESULT ||
-      r0 == STRING_RESULT || r1 ==STRING_RESULT)
+  if (r0 == REAL_RESULT || r1 == REAL_RESULT)
   {
     /*
       Since DATE/TIME/DATETIME data types return INT_RESULT/DECIMAL_RESULT
@@ -2701,12 +2704,13 @@ double Item_func_units::val_real()
 
 void Item_func_min_max::fix_length_and_dec()
 {
+  uint string_arg_count= 0;
   int max_int_part=0;
   bool datetime_found= FALSE;
   decimals=0;
   max_length=0;
   maybe_null=0;
-  cmp_type=args[0]->result_type();
+  cmp_type= args[0]->temporal_with_date_as_number_result_type();
 
   for (uint i=0 ; i < arg_count ; i++)
   {
@@ -2715,7 +2719,10 @@ void Item_func_min_max::fix_length_and_dec()
     set_if_bigger(max_int_part, args[i]->decimal_int_part());
     if (args[i]->maybe_null)
       maybe_null=1;
-    cmp_type=item_cmp_type(cmp_type,args[i]->result_type());
+    cmp_type= item_cmp_type(cmp_type,
+                            args[i]->temporal_with_date_as_number_result_type());
+    if (args[i]->result_type() == STRING_RESULT)
+     string_arg_count++;
     if (args[i]->result_type() != ROW_RESULT &&
         args[i]->is_temporal_with_date())
     {
@@ -2724,8 +2731,10 @@ void Item_func_min_max::fix_length_and_dec()
         datetime_item= args[i];
     }
   }
-  if (cmp_type == STRING_RESULT)
+  
+  if (string_arg_count == arg_count)
   {
+    // We compare as strings only if all arguments were strings.
     agg_arg_charsets_for_string_result_with_comparison(collation,
                                                        args, arg_count);
     if (datetime_found)
@@ -3103,6 +3112,15 @@ my_decimal *Item_func_min_max::val_decimal(my_decimal *dec)
       res= 0;
       break;
     }
+  }
+  
+  if (res)
+  {
+    /*
+      Need this to make val_str() always return fixed
+      number of fractional digits, according to "decimals".
+    */
+    my_decimal_round(E_DEC_FATAL_ERROR, res, decimals, false, res);
   }
   return res;
 }
@@ -4032,7 +4050,8 @@ longlong Item_master_pos_wait::val_int()
 #ifdef HAVE_REPLICATION
   longlong pos = (ulong)args[1]->val_int();
   longlong timeout = (arg_count==3) ? args[2]->val_int() : 0 ;
-  if ((event_count = active_mi->rli->wait_for_pos(thd, log_name, pos, timeout)) == -2)
+  if (active_mi == NULL ||
+      (event_count = active_mi->rli->wait_for_pos(thd, log_name, pos, timeout)) == -2)
   {
     null_value = 1;
     event_count=0;
@@ -4040,6 +4059,70 @@ longlong Item_master_pos_wait::val_int()
 #endif
   return event_count;
 }
+
+longlong Item_master_gtid_set_wait::val_int()
+{
+  DBUG_ASSERT(fixed == 1);
+  THD* thd = current_thd;
+  String *gtid= args[0]->val_str(&value);
+  int event_count= 0;
+
+  null_value=0;
+  if (thd->slave_thread || !gtid)
+  {
+    null_value = 1;
+    return event_count;
+  }
+
+#if defined(HAVE_REPLICATION)
+  longlong timeout = (arg_count== 2) ? args[1]->val_int() : 0;
+  if ((event_count = active_mi->rli->wait_for_gtid_set(thd, gtid, timeout)) == -2)
+  {
+    null_value = 1;
+    event_count=0;
+  }
+#endif
+
+  return event_count;
+}
+
+#ifdef HAVE_REPLICATION
+/**
+  Return 1 if both arguments are Gtid_sets and the first is a subset
+  of the second.  Generate an error if any of the arguments is not a
+  Gtid_set.
+*/
+longlong Item_func_gtid_subset::val_int()
+{
+  DBUG_ENTER("Item_func_gtid_subset::val_int()");
+  if (args[0]->null_value || args[1]->null_value)
+  {
+    null_value= true;
+    DBUG_RETURN(0);
+  }
+  String *string1, *string2;
+  const char *charp1, *charp2;
+  int ret= 1;
+  enum_return_status status;
+  // get strings without lock
+  if ((string1= args[0]->val_str(&buf1)) != NULL &&
+      (charp1= string1->c_ptr_safe()) != NULL &&
+      (string2= args[1]->val_str(&buf2)) != NULL &&
+      (charp2= string2->c_ptr_safe()) != NULL)
+  {
+    Sid_map sid_map(NULL/*no rwlock*/);
+    // compute sets while holding locks
+    const Gtid_set sub_set(&sid_map, charp1, &status);
+    if (status == RETURN_STATUS_OK)
+    {
+      const Gtid_set super_set(&sid_map, charp2, &status);
+      if (status == RETURN_STATUS_OK)
+        ret= sub_set.is_subset(&super_set) ? 1 : 0;
+    }
+  }
+  DBUG_RETURN(ret);
+}
+#endif
 
 
 /**
@@ -6597,6 +6680,27 @@ void Item_func_sp::fix_length_and_dec()
 }
 
 
+void Item_func_sp::update_null_value()
+{
+  /*
+    This method is called when we try to check if the item value is NULL.
+    We call Item_func_sp::execute() to get value of null_value attribute
+    as a side effect of its execution.
+    We ignore any error since update_null_value() doesn't return value.
+    We used to delegate nullability check to Item::update_null_value as
+    a result of a chain of function calls:
+     Item_func_isnull::val_int --> Item_func::is_null -->
+      Item::update_null_value -->Item_func_sp::val_int -->
+        Field_varstring::val_int
+    Such approach resulted in a call of push_warning_printf() in case
+    if a stored program value couldn't be cast to integer (the case when
+    for example there was a stored function that declared as returning
+    varchar(1) and a function's implementation returned "Y" from its body).
+  */
+  execute();
+}
+
+
 /**
   @brief Execute function & store value in field.
 
@@ -6774,9 +6878,42 @@ bool
 Item_func_sp::fix_fields(THD *thd, Item **ref)
 {
   bool res;
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
+  Security_context *save_security_ctx= thd->security_ctx;
+#endif
+
   DBUG_ENTER("Item_func_sp::fix_fields");
   DBUG_ASSERT(fixed == 0);
- 
+
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
+  /* 
+    Checking privileges to execute the function while creating view and
+    executing the function of select.
+   */
+  if (!(thd->lex->context_analysis_only & CONTEXT_ANALYSIS_ONLY_VIEW) ||
+      (thd->lex->sql_command == SQLCOM_CREATE_VIEW))
+  {
+    if (context->security_ctx)
+    {
+      /* Set view definer security context */
+      thd->security_ctx= context->security_ctx;
+    }
+
+    /*
+      Check whether user has execute privilege or not
+     */
+    res= check_routine_access(thd, EXECUTE_ACL, m_name->m_db.str,
+                              m_name->m_name.str, 0, FALSE);
+    thd->security_ctx= save_security_ctx;
+
+    if (res)
+    {
+      context->process_error(thd);
+      DBUG_RETURN(res);
+    }
+  }
+#endif
+
   /*
     We must call init_result_field before Item_func::fix_fields() 
     to make m_sp and result_field members available to fix_length_and_dec(),

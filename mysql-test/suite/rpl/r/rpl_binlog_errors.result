@@ -101,7 +101,7 @@ count(*)
 1
 ### check that the incident event is written to the current log
 SET GLOBAL debug="-d,error_unique_log_filename";
-show binlog events from <binlog_start> limit 4,1;
+include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Incident	#	#	#1 (LOST_EVENTS)
 DELETE FROM t4;
@@ -172,14 +172,14 @@ count(*)
 SET SQL_LOG_BIN=1;
 SET GLOBAL debug="-d,error_unique_log_filename";
 ###################### TEST #10
-call mtr.add_suppression("MSYQL_BIN_LOG::open failed to sync the index file.");
+call mtr.add_suppression("MYSQL_BIN_LOG::open failed to sync the index file.");
 call mtr.add_suppression("Could not open .*");
 RESET MASTER;
 SHOW WARNINGS;
 Level	Code	Message
 SET GLOBAL debug="+d,fault_injection_registering_index";
 FLUSH LOGS;
-ERROR HY000: Can't open file: 'master-bin.000002' (errno: 1)
+ERROR HY000: Can't open file: 'master-bin.000002' (errno: 1 - Operation not permitted)
 SET GLOBAL debug="-d,fault_injection_registering_index";
 SHOW BINARY LOGS;
 ERROR HY000: You are not using binary logging
@@ -193,7 +193,7 @@ DROP TABLE t5;
 include/rpl_restart_server.inc [server_number=1]
 SET GLOBAL debug="+d,fault_injection_openning_index";
 FLUSH LOGS;
-ERROR HY000: Can't open file: 'master-bin.index' (errno: 1)
+ERROR HY000: Can't open file: 'master-bin.index' (errno: 1 - Operation not permitted)
 SET GLOBAL debug="-d,fault_injection_openning_index";
 RESET MASTER;
 ERROR HY000: Binlog closed, cannot RESET MASTER
@@ -207,7 +207,7 @@ include/rpl_restart_server.inc [server_number=1]
 ###################### TEST #12
 SET GLOBAL debug="+d,fault_injection_new_file_rotate_event";
 FLUSH LOGS;
-ERROR HY000: Can't open file: 'master-bin' (errno: 2)
+ERROR HY000: Can't open file: 'master-bin' (errno: 2 - No such file or directory)
 SET GLOBAL debug="-d,fault_injection_new_file_rotate_event";
 RESET MASTER;
 ERROR HY000: Binlog closed, cannot RESET MASTER
@@ -229,7 +229,7 @@ include/rpl_reset.inc
 call mtr.add_suppression("Slave I/O: Relay log write failure: could not queue event from master.*");
 call mtr.add_suppression("Error writing file .*");
 call mtr.add_suppression("Could not open .*");
-call mtr.add_suppression("MSYQL_BIN_LOG::open failed to sync the index file.");
+call mtr.add_suppression("MYSQL_BIN_LOG::open failed to sync the index file.");
 call mtr.add_suppression("Can't generate a unique log-filename .*");
 ###################### TEST #13
 SET @old_debug=@@global.debug;

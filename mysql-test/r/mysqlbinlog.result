@@ -154,7 +154,6 @@ COMMIT
 SET TIMESTAMP=1000000000/*!*/;
 BEGIN
 /*!*/;
-SET INSERT_ID=1/*!*/;
 SET TIMESTAMP=1000000000/*!*/;
 COMMIT
 /*!*/;
@@ -355,7 +354,6 @@ COMMIT
 SET TIMESTAMP=1000000000/*!*/;
 BEGIN
 /*!*/;
-SET INSERT_ID=1/*!*/;
 SET TIMESTAMP=1000000000/*!*/;
 COMMIT
 /*!*/;
@@ -896,7 +894,7 @@ CREATE TABLE t1(id int);
 DROP TABLE t1;
 DROP DATABASE test1;
 FLUSH LOGS;
-show binlog events in 'master-bin.000002' from <binlog_start>;
+include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000002	#	Query	#	#	CREATE DATABASE test1
 master-bin.000002	#	Query	#	#	use `test1`; CREATE TABLE t1(id int)
@@ -917,3 +915,25 @@ t1
 SHOW TABLES IN test;
 Tables_in_test
 SET GLOBAL SERVER_ID = 1;
+#
+# Bug#12688860 : SECURITY RECOMMENDATION: PASSWORDS ON CLI
+#
+Warning: Using a password on the command line interface can be insecure.
+/*!40019 SET @@session.max_insert_delayed_threads=0*/;
+/*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
+DELIMITER /*!*/;
+# at 4
+#010619 20:55:55 server id 2  end_log_pos 76 	Start: binlog v 2, server v 4.0.0-debug-log created 010619 20:55:55 at startup
+ROLLBACK/*!*/;
+BINLOG '
+K5IvOwECAAAASwAAAAEAAAAAAAIANC4wLjAtZGVidWctbG9nAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAArki87
+'/*!*/;
+# at 79
+#010619 20:56:06 server id 2  end_log_pos 0 	Stop
+DELIMITER ;
+# End of log file
+ROLLBACK /* added by mysqlbinlog */;
+/*!50003 SET COMPLETION_TYPE=@OLD_COMPLETION_TYPE*/;
+
+End of tests

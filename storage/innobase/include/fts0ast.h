@@ -117,7 +117,7 @@ fts_ast_create_node_list(
 	fts_ast_node_t*	expr);			/*!< in: ast expr */
 /********************************************************************
 Create a sub-expression list node. This function takes ownership of
-expr and is responsible for deleting it. */ 
+expr and is responsible for deleting it. */
 extern
 fts_ast_node_t*
 fts_ast_create_node_subexp_list(

@@ -272,7 +272,7 @@ Database	Table	In_use	Name_locked
 test	t_bug44738_uppercase	0	0
 # So attempt to create table with the same name should fail.
 create table t_bug44738_UPPERCASE (i int);
-ERROR HY000: Can't find file: 't_bug44738_uppercase' (errno: 2)
+ERROR HY000: Can't find file: 't_bug44738_uppercase' (errno: 2 - No such file or directory)
 # And should succeed after FLUSH TABLES.
 flush tables;
 create table t_bug44738_UPPERCASE (i int);

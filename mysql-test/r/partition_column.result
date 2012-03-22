@@ -98,7 +98,7 @@ hex(a)
 00410000
 explain partitions select hex(a) from t1 where a like 'A_';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p0	system	NULL	NULL	NULL	NULL	1	
+1	SIMPLE	t1	p0	system	NULL	NULL	NULL	NULL	1	NULL
 alter table t1 remove partitioning;
 select hex(a) from t1 where a like 'A_';
 hex(a)
@@ -492,7 +492,7 @@ t1	CREATE TABLE `t1` (
 insert into t1 values (1, 'A', 1);
 explain partitions select * from t1 where a = 1 AND b <= 'A' and c = 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p0,p1	system	NULL	NULL	NULL	NULL	1	
+1	SIMPLE	t1	p0,p1	system	NULL	NULL	NULL	NULL	1	NULL
 select * from t1 where a = 1 AND b <= 'A' and c = 1;
 a	b	c
 1	A	1

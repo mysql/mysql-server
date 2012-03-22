@@ -2236,7 +2236,7 @@ EXPLAIN (SELECT max(b), a FROM t1 GROUP BY a) UNION
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	range	NULL	a	5	NULL	8	Using index for group-by
 2	UNION	t1	range	NULL	a	5	NULL	8	Using index for group-by
-NULL	UNION RESULT	<union1,2>	ALL	NULL	NULL	NULL	NULL	NULL	
+NULL	UNION RESULT	<union1,2>	ALL	NULL	NULL	NULL	NULL	NULL	Using temporary
 EXPLAIN SELECT (SELECT max(b) FROM t1 GROUP BY a HAVING a < 2) x
 FROM t1 AS t1_outer;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
@@ -2256,7 +2256,7 @@ EXPLAIN SELECT 1 FROM t1 AS t1_outer WHERE
 a IN (SELECT max(b) FROM t1 GROUP BY a HAVING a < 2);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1_outer	index	NULL	a	10	NULL	15	Using where; Using index
-2	DEPENDENT SUBQUERY	t1	index	NULL	a	10	NULL	1	Using index
+2	SUBQUERY	t1	range	NULL	a	5	NULL	8	Using index for group-by
 EXPLAIN SELECT 1 FROM t1 AS t1_outer GROUP BY a HAVING 
 a > (SELECT max(b) FROM t1 GROUP BY a HAVING a < 2);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
@@ -2863,7 +2863,7 @@ SELECT COUNT(DISTINCT a) FROM t1 HAVING COUNT(DISTINCT b) < 10;
 COUNT(DISTINCT a)
 EXPLAIN SELECT COUNT(DISTINCT a) FROM t1 HAVING COUNT(DISTINCT c) < 10;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	16	
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	16	NULL
 SELECT COUNT(DISTINCT a) FROM t1 HAVING COUNT(DISTINCT c) < 10;
 COUNT(DISTINCT a)
 2
@@ -2908,7 +2908,7 @@ COUNT(DISTINCT a)	SUM(DISTINCT a)	AVG(DISTINCT a)
 2	3	1.5000
 EXPLAIN SELECT COUNT(DISTINCT a), SUM(DISTINCT a), AVG(DISTINCT f) FROM t2;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	16	
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	16	NULL
 SELECT COUNT(DISTINCT a), SUM(DISTINCT a), AVG(DISTINCT f) FROM t2;
 COUNT(DISTINCT a)	SUM(DISTINCT a)	AVG(DISTINCT f)
 2	3	1.0000
@@ -2920,13 +2920,13 @@ COUNT(DISTINCT a, b)	COUNT(DISTINCT b, a)
 16	16
 EXPLAIN SELECT COUNT(DISTINCT a, b), COUNT(DISTINCT b, f) FROM t2;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	16	
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	16	NULL
 SELECT COUNT(DISTINCT a, b), COUNT(DISTINCT b, f) FROM t2;
 COUNT(DISTINCT a, b)	COUNT(DISTINCT b, f)
 16	8
 EXPLAIN SELECT COUNT(DISTINCT a, b), COUNT(DISTINCT b, d) FROM t2;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	16	
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	16	NULL
 SELECT COUNT(DISTINCT a, b), COUNT(DISTINCT b, d) FROM t2;
 COUNT(DISTINCT a, b)	COUNT(DISTINCT b, d)
 16	8

@@ -33,6 +33,7 @@ Created 1/8/1996 Heikki Tuuri
 #include "data0type.h"
 #include "mach0data.h"
 #include "dict0dict.h"
+#include "fts0priv.h"
 #ifndef UNIV_HOTBACKUP
 #include "ha_prototypes.h"	/* innobase_casedn_str(),
 				innobase_get_lower_case_table_names */
@@ -112,11 +113,12 @@ dict_mem_table_create(
 	if (dict_table_has_fts_index(table)
 	    || DICT_TF2_FLAG_IS_SET(table, DICT_TF2_FTS_HAS_DOC_ID)
 	    || DICT_TF2_FLAG_IS_SET(table, DICT_TF2_FTS_ADD_DOC_ID)) {
-                table->fts = fts_create(table);
+		table->fts = fts_create(table);
 		table->fts->cache = fts_cache_create(table);
-        } else {
-                table->fts = NULL;
-        }
+		fts_optimize_add_table(table);
+	} else {
+		table->fts = NULL;
+	}
 #endif /* !UNIV_HOTBACKUP */
 
 	return(table);
@@ -134,6 +136,15 @@ dict_mem_table_free(
 	ut_ad(table->magic_n == DICT_TABLE_MAGIC_N);
 	ut_d(table->cached = FALSE);
 
+        if (dict_table_has_fts_index(table)
+            || DICT_TF2_FLAG_IS_SET(table, DICT_TF2_FTS_HAS_DOC_ID)
+            || DICT_TF2_FLAG_IS_SET(table, DICT_TF2_FTS_ADD_DOC_ID)) {
+		if (table->fts) {
+			fts_free(table);
+		}
+
+		fts_optimize_remove_table(table);
+	}
 #ifndef UNIV_HOTBACKUP
 	mutex_free(&(table->autoinc_mutex));
 #endif /* UNIV_HOTBACKUP */
@@ -336,7 +347,7 @@ dict_mem_foreign_table_name_lookup_set(
 
 			len = strlen(foreign->foreign_table_name) + 1;
 
-			foreign->foreign_table_name_lookup = 
+			foreign->foreign_table_name_lookup =
 				static_cast<char*>(
 					mem_heap_alloc(foreign->heap, len));
 		}
@@ -367,7 +378,7 @@ dict_mem_referenced_table_name_lookup_set(
 
 			len = strlen(foreign->referenced_table_name) + 1;
 
-			foreign->referenced_table_name_lookup = 
+			foreign->referenced_table_name_lookup =
 				static_cast<char*>(
 					mem_heap_alloc(foreign->heap, len));
 		}

@@ -568,9 +568,11 @@ static int default_local_infile_init(void **ptr, const char *filename,
   fn_format(tmp_name, filename, "", "", MY_UNPACK_FILENAME);
   if ((data->fd = my_open(tmp_name, O_RDONLY, MYF(0))) < 0)
   {
+    char errbuf[MYSYS_STRERROR_SIZE];
     data->error_num= my_errno;
     my_snprintf(data->error_msg, sizeof(data->error_msg)-1,
-                EE(EE_FILENOTFOUND), tmp_name, data->error_num);
+                EE(EE_FILENOTFOUND), tmp_name, data->error_num,
+                my_strerror(errbuf, sizeof(errbuf), data->error_num));
     return 1;
   }
   return 0; /* ok */
@@ -599,10 +601,11 @@ static int default_local_infile_read(void *ptr, char *buf, uint buf_len)
 
   if ((count= (int) my_read(data->fd, (uchar *) buf, buf_len, MYF(0))) < 0)
   {
+    char errbuf[MYSYS_STRERROR_SIZE];
     data->error_num= EE_READ; /* the errmsg for not entire file read */
     my_snprintf(data->error_msg, sizeof(data->error_msg)-1,
-		EE(EE_READ),
-		data->filename, my_errno);
+                EE(EE_READ), data->filename,
+                my_errno, my_strerror(errbuf, sizeof(errbuf), my_errno));
   }
   return count;
 }

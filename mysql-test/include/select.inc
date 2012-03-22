@@ -4275,3 +4275,29 @@ GROUP BY t2.a ORDER BY t1.a;
 DROP TABLE t1;
 
 --echo # End of test BUG#57203
+
+--echo #
+--echo # Bug#63020: Function "format"'s 'locale' argument is not considered
+--echo #	     when creating a "view'
+--echo #
+
+CREATE TABLE t1 (f1 DECIMAL(10,2));
+INSERT INTO t1 VALUES (11.67),(17865.3),(12345678.92);
+CREATE VIEW view_t1 AS SELECT FORMAT(f1,1,'sk_SK') AS f1 FROM t1;
+SHOW CREATE VIEW view_t1;
+SELECT * FROM view_t1;
+
+DROP TABLE t1;
+DROP VIEW view_t1;
+
+--echo # End of test  BUG#63020
+
+--echo #
+--echo # Bug #13571700 TINYBLOB NOT NULL, CRASH IN PROTOCOL::NET_STORE_DATA
+--echo #
+
+CREATE TABLE t1 (a TINYBLOB NOT NULL);
+SELECT a, COUNT(*) FROM t1 WHERE 0;
+DROP TABLE t1;
+
+--echo # End of test BUG#13571700

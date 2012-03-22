@@ -655,6 +655,25 @@ INSERT INTO proxies_priv SELECT * FROM tmp_proxies_priv WHERE @had_proxies_priv_
 DROP TABLE tmp_proxies_priv;
 
 
+#
+# mysql.ndb_binlog_index
+#
+# Change type from BIGINT to INT
+ALTER TABLE ndb_binlog_index
+  MODIFY inserts INT UNSIGNED NOT NULL,
+  MODIFY updates INT UNSIGNED NOT NULL,
+  MODIFY deletes INT UNSIGNED NOT NULL,
+  MODIFY schemaops INT UNSIGNED NOT NULL;
+# Add new columns
+ALTER TABLE ndb_binlog_index
+  ADD orig_server_id INT UNSIGNED NOT NULL,
+  ADD orig_epoch BIGINT UNSIGNED NOT NULL,
+  ADD gci INT UNSIGNED NOT NULL;
+# New primary key
+ALTER TABLE ndb_binlog_index
+  DROP PRIMARY KEY,
+  ADD PRIMARY KEY(epoch, orig_server_id, orig_epoch);
+
 # Activate the new, possible modified privilege tables
 # This should not be needed, but gives us some extra testing that the above
 # changes was correct
@@ -663,3 +682,20 @@ flush privileges;
 
 ALTER TABLE slave_master_info ADD Ssl_crl TEXT CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'The file used for the Certificate Revocation List (CRL)';
 ALTER TABLE slave_master_info ADD Ssl_crlpath TEXT CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'The path used for Certificate Revocation List (CRL) files';
+
+--
+-- Check for accounts with old pre-4.1 passwords and issue a warning
+--
+
+-- SCRAMBLED_PASSWORD_CHAR_LENGTH_323 = 16
+SET @deprecated_pwds=(SELECT COUNT(*) FROM mysql.user WHERE LENGTH(password) = 16 AND plugin='');
+
+-- signal the deprecation error
+DROP PROCEDURE IF EXISTS mysql.warn_pre41_pwd;
+CREATE PROCEDURE mysql.warn_pre41_pwd() SIGNAL SQLSTATE '01000' SET MESSAGE_TEXT='Pre-4.1 password hash is deprecated and will be removed in a future release. Please upgrade the user definitions using it to a new format.';
+SET @cmd='call mysql.warn_pre41_pwd()';
+SET @str=IF(@deprecated_pwds > 0, @cmd, 'SET @dummy=0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+DROP PROCEDURE mysql.warn_pre41_pwd;

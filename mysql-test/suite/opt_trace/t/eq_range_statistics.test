@@ -1,0 +1,103 @@
+# Tests for eq_range_index_dive_limit variable: 
+#   test that the number of ranges are counted correctly and 
+#   index statistics kicks in when more than 
+#   eq_range_index_dive_limit equality ranges are in the 
+#   predicate
+
+--source include/have_optimizer_trace.inc
+--source include/have_debug.inc
+
+SET optimizer_trace_max_mem_size=1048576; # 1MB
+SET optimizer_trace="enabled=on,one_line=off";
+SET end_markers_in_json="on";
+
+SET eq_range_index_dive_limit=default;
+SELECT @@eq_range_index_dive_limit;
+
+CREATE TABLE t1 (
+       a INT, 
+       b INT, 
+       KEY (a,b)
+);
+
+INSERT INTO t1 VALUES (1,1), (2,2), (3,3);
+INSERT INTO t1 VALUES (4,1), (4,2), (4,3);
+INSERT INTO t1 VALUES (5,1), (5,2), (5,3);
+
+SHOW INDEX FROM t1;
+ANALYZE TABLE t1;      
+SHOW INDEX FROM t1;
+
+--echo #####
+--echo # Apply knowledge about the statistics (each index value for 
+--echo # the first key part has an estimate of 2 rows) to ensure that 
+--echo # index statistics kicks in correctly.
+--echo #####
+
+--echo # Index dives are done, giving correct estimate of 3 records
+EXPLAIN SELECT * FROM t1 WHERE a IN (1,2,3);
+
+SET eq_range_index_dive_limit=3;
+SELECT @@eq_range_index_dive_limit;
+
+# Crash server if records_in_range() is called
+SET SESSION DEBUG="+d,crash_records_in_range";
+--echo # Index statistics kicks in, giving incorrect estimate of 3x2=6 records
+EXPLAIN SELECT * FROM t1 WHERE a IN (1,2,3);
+SELECT * FROM t1 WHERE a IN (1,2,3);
+SET SESSION DEBUG="-d,crash_records_in_range";
+
+--echo #####
+--echo # Below: A number of tests to verify that the number of equality ranges
+--echo # are counted correctly
+--echo #####
+
+# The limit is 3
+
+--echo
+--echo # 2 equality ranges: should not use index statistics
+EXPLAIN SELECT * FROM t1 WHERE a=5 OR a>10 OR a IN (1);
+SELECT * FROM information_schema.OPTIMIZER_TRACE;
+
+# This query will use index statistics (as shown in trace) but
+# we cannot make it crash if records_in_range() is called
+# because the "a>10" range will correctly call records_in_range()
+--echo
+--echo # 3 equality ranges: should use index statistics
+EXPLAIN SELECT * FROM t1 WHERE a=5 OR a>10 OR a IN (1,2);
+SELECT * FROM information_schema.OPTIMIZER_TRACE;
+
+# Crash server if records_in_range() is called
+--echo
+--echo # 3 equality ranges: should use index statistics
+SET SESSION DEBUG="+d,crash_records_in_range";
+EXPLAIN SELECT * FROM t1 WHERE a=5 AND (b=2 OR b=3 OR b=4);
+SELECT * FROM information_schema.OPTIMIZER_TRACE;
+SET SESSION DEBUG="-d,crash_records_in_range";
+
+--echo
+--echo # 2 equality ranges: should not use index statistics
+EXPLAIN SELECT * FROM t1 WHERE a=5 AND (b=2 OR b=3 OR b>4);
+SELECT * FROM information_schema.OPTIMIZER_TRACE;
+
+--echo
+--echo # 2 equality ranges: should not use index statistics
+EXPLAIN SELECT * FROM t1 WHERE a=5 AND (b=2 OR b=3 OR b IS NULL);
+SELECT * FROM information_schema.OPTIMIZER_TRACE;
+
+--echo
+--echo # 0 equality ranges: should not use index statistics
+EXPLAIN SELECT * FROM t1 WHERE a>5 AND (b=2 OR b=3 OR b=4);
+SELECT * FROM information_schema.OPTIMIZER_TRACE;
+
+# Turn index statistics off
+SET eq_range_index_dive_limit=0;
+
+--echo
+--echo # 1 equality range: should not use index statistics
+EXPLAIN SELECT * FROM t1 WHERE a=5;
+SELECT * FROM information_schema.OPTIMIZER_TRACE;
+
+DROP TABLE t1;
+
+SET eq_range_index_dive_limit=default;

@@ -565,9 +565,11 @@ public:
   bool fix_fields(THD *thd, Item **ref)
   {
     DBUG_ASSERT(fixed == 0);
-    return ((!item->fixed && item->fix_fields(thd, &item)) ||
-	    item->check_cols(1) ||
-	    Item_func::fix_fields(thd, ref));
+    bool res= ((!item->fixed && item->fix_fields(thd, &item)) ||
+               item->check_cols(1) ||
+               Item_func::fix_fields(thd, ref));
+    maybe_null|= item->maybe_null;
+    return res;
   }
   void split_sum_func(THD *thd, Ref_ptr_array ref_pointer_array,
                       List<Item> &fields);
@@ -752,6 +754,24 @@ public:
   const char *func_name() const { return "like_range_max"; }
 };
 #endif
+
+
+class Item_char_typecast :public Item_str_func
+{
+  int cast_length;
+  const CHARSET_INFO *cast_cs, *from_cs;
+  bool charset_conversion;
+  String tmp_value;
+public:
+  Item_char_typecast(Item *a, int length_arg, const CHARSET_INFO *cs_arg)
+    :Item_str_func(a), cast_length(length_arg), cast_cs(cs_arg) {}
+  enum Functype functype() const { return CHAR_TYPECAST_FUNC; }
+  bool eq(const Item *item, bool binary_cmp) const;
+  const char *func_name() const { return "cast_as_char"; }
+  String *val_str(String *a);
+  void fix_length_and_dec();
+  virtual void print(String *str, enum_query_type query_type);
+};
 
 
 class Item_func_binary :public Item_str_func
@@ -992,6 +1012,16 @@ public:
   String *val_str(String *);
 };
 
-extern String my_empty_string;
+#ifdef HAVE_REPLICATION
+class Item_func_gtid_subtract: public Item_str_ascii_func
+{
+  String buf1, buf2;
+public:
+  Item_func_gtid_subtract(Item *a, Item *b) :Item_str_ascii_func(a, b) {}
+  void fix_length_and_dec();
+  const char *func_name() const{ return "gtid_subtract"; }
+  String *val_str_ascii(String *);
+};
+#endif // if HAVE_REPLICATION
 
 #endif /* ITEM_STRFUNC_INCLUDED */

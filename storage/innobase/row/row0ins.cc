@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2012, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -23,6 +23,8 @@ Insert into a table
 Created 4/20/1996 Heikki Tuuri
 *******************************************************/
 
+#include "m_string.h" /* for my_sys.h */
+#include "my_sys.h" /* DEBUG_SYNC_C_IF_THD */
 #include "row0ins.h"
 
 #ifdef UNIV_NONINL
@@ -98,7 +100,7 @@ ins_node_create(
 
 /***********************************************************//**
 Creates an entry template for each index of a table. */
-UNIV_INTERN
+static
 void
 ins_node_create_entry_list(
 /*=======================*/
@@ -107,6 +109,7 @@ ins_node_create_entry_list(
 	dict_index_t*	index;
 	dtuple_t*	entry;
 
+	ut_ad(node->ins_type != INS_DIRECT);
 	ut_ad(node->entry_sys_heap);
 
 	UT_LIST_INIT(node->entry_list);
@@ -202,7 +205,9 @@ ins_node_set_new_row(
 
 	/* Create templates for index entries */
 
-	ins_node_create_entry_list(node);
+	if (node->ins_type != INS_DIRECT) {
+		ins_node_create_entry_list(node);
+	}
 
 	/* Allocate from entry_sys_heap buffers for sys fields */
 
@@ -236,6 +241,7 @@ row_ins_sec_index_entry_by_modify(
 	mem_heap_t*	heap;
 	upd_t*		update;
 	rec_t*		rec;
+	const ulint*	offsets;
 	ulint		err;
 
 	rec = btr_cur_get_rec(cursor);
@@ -249,16 +255,22 @@ row_ins_sec_index_entry_by_modify(
 	there are char fields in them. Therefore we have to calculate the
 	difference. */
 
-	heap = mem_heap_create(1024);
-
+	heap = mem_heap_create(
+		sizeof(upd_t)
+		+ REC_OFFS_HEADER_SIZE * sizeof(*offsets)
+		+ dtuple_get_n_fields(entry)
+		* (sizeof(upd_field_t) + sizeof *offsets));
+	offsets = rec_get_offsets(rec, cursor->index, NULL,
+				  ULINT_UNDEFINED, &heap);
 	update = row_upd_build_sec_rec_difference_binary(
-		cursor->index, entry, rec, thr_get_trx(thr), heap);
+		rec, cursor->index, offsets, entry, heap);
 	if (mode == BTR_MODIFY_LEAF) {
 		/* Try an optimistic updating of the record, keeping changes
 		within the page */
 
 		err = btr_cur_optimistic_update(BTR_KEEP_SYS_FLAG, cursor,
-						update, 0, thr, mtr);
+						update, 0, thr,
+						thr_get_trx(thr)->id, mtr);
 		switch (err) {
 		case DB_OVERFLOW:
 		case DB_UNDERFLOW:
@@ -276,7 +288,8 @@ row_ins_sec_index_entry_by_modify(
 
 		err = btr_cur_pessimistic_update(BTR_KEEP_SYS_FLAG, cursor,
 						 &heap, &dummy_big_rec, update,
-						 0, thr, mtr);
+						 0, thr,
+						 thr_get_trx(thr)->id, mtr);
 		ut_ad(!dummy_big_rec);
 	}
 func_exit:
@@ -335,7 +348,7 @@ row_ins_clust_index_entry_by_modify(
 		within the page */
 
 		err = btr_cur_optimistic_update(0, cursor, update, 0, thr,
-						mtr);
+						thr_get_trx(thr)->id, mtr);
 		switch (err) {
 		case DB_OVERFLOW:
 		case DB_UNDERFLOW:
@@ -351,7 +364,7 @@ row_ins_clust_index_entry_by_modify(
 		}
 		err = btr_cur_pessimistic_update(
 			BTR_KEEP_POS_FLAG, cursor, heap, big_rec, update,
-			0, thr, mtr);
+			0, thr, thr_get_trx(thr)->id, mtr);
 	}
 
 	return(err);
@@ -1070,7 +1083,7 @@ row_ins_foreign_check_on_constraint(
 			fputs("\n"
 			      "InnoDB: Submit a detailed bug report to"
 			      " http://bugs.mysql.com\n", stderr);
-
+			ut_ad(0);
 			err = DB_SUCCESS;
 
 			goto nonstandard_exit_func;
@@ -1687,7 +1700,8 @@ row_ins_check_foreign_constraints(
 			if (foreign->referenced_table == NULL) {
 
 				ref_table = dict_table_open_on_name(
-					foreign->referenced_table_name_lookup, FALSE);
+					foreign->referenced_table_name_lookup,
+					FALSE, FALSE);
 			}
 
 			if (0 == trx->dict_operation_lock_mode) {
@@ -1721,7 +1735,7 @@ row_ins_check_foreign_constraints(
 			}
 
 			if (ref_table != NULL) {
-				dict_table_close(ref_table, FALSE);
+				dict_table_close(ref_table, FALSE, FALSE);
 			}
 
 			if (err != DB_SUCCESS) {
@@ -1941,7 +1955,7 @@ row_ins_duplicate_error_in_clust(
 
 	UT_NOT_USED(mtr);
 
-	ut_a(dict_index_is_clust(cursor->index));
+	ut_ad(dict_index_is_clust(cursor->index));
 	ut_ad(dict_index_is_unique(cursor->index));
 
 	/* NOTE: For unique non-clustered indexes there may be any number
@@ -2051,8 +2065,8 @@ row_ins_duplicate_error_in_clust(
 			}
 		}
 
-		ut_a(!dict_index_is_clust(cursor->index));
 		/* This should never happen */
+		ut_error;
 	}
 
 	err = DB_SUCCESS;
@@ -2080,12 +2094,12 @@ row_ins_must_modify_rec(
 /*====================*/
 	const btr_cur_t*	cursor)	/*!< in: B-tree cursor */
 {
-	/* NOTE: (compare to the note in row_ins_duplicate_error) Because node
-	pointers on upper levels of the B-tree may match more to entry than
-	to actual user records on the leaf level, we have to check if the
-	candidate record is actually a user record. In a clustered index
-	node pointers contain index->n_unique first fields, and in the case
-	of a secondary index, all fields of the index. */
+	/* NOTE: (compare to the note in row_ins_duplicate_error_in_clust)
+	Because node pointers on upper levels of the B-tree may match more
+	to entry than to actual user records on the leaf level, we
+	have to check if the candidate record is actually a user record.
+	A clustered index node pointer contains index->n_unique first fields,
+	and a secondary index node pointer contains all index fields. */
 
 	return(cursor->low_match
 	       >= dict_index_get_n_unique_in_tree(cursor->index)
@@ -2225,30 +2239,44 @@ row_ins_index_entry_low(
 			if (big_rec) {
 				ut_a(err == DB_SUCCESS);
 				/* Write out the externally stored
-				columns, but allocate the pages and
-				write the pointers using the
-				mini-transaction of the record update.
-				If any pages were freed in the update,
-				temporarily mark them allocated so
-				that off-page columns will not
-				overwrite them. We must do this,
-				because we will write the redo log for
-				the BLOB writes before writing the
-				redo log for the record update. Thus,
-				redo log application at crash recovery
-				will see BLOBs being written to free pages. */
+				columns while still x-latching
+				index->lock and block->lock. Allocate
+				pages for big_rec in the mtr that
+				modified the B-tree, but be sure to skip
+				any pages that were freed in mtr. We will
+				write out the big_rec pages before
+				committing the B-tree mini-transaction. If
+				the system crashes so that crash recovery
+				will not replay the mtr_commit(&mtr), the
+				big_rec pages will be left orphaned until
+				the pages are allocated for something else.
 
-				btr_mark_freed_leaves(index, &mtr, TRUE);
+				TODO: If the allocation extends the
+				tablespace, it will not be redo
+				logged, in either mini-transaction.
+				Tablespace extension should be
+				redo-logged in the big_rec
+				mini-transaction, so that recovery
+				will not fail when the big_rec was
+				written to the extended portion of the
+				file, in case the file was somehow
+				truncated in the crash. */
 
 				rec = btr_cur_get_rec(&cursor);
 				offsets = rec_get_offsets(
 					rec, index, NULL,
 					ULINT_UNDEFINED, &heap);
 
+				DEBUG_SYNC_C_IF_THD(
+					thr_get_trx(thr)->mysql_thd,
+					"before_row_ins_upd_extern");
 				err = btr_store_big_rec_extern_fields(
 					index, btr_cur_get_block(&cursor),
 					rec, offsets, big_rec, &mtr,
-					FALSE, &mtr);
+					BTR_STORE_INSERT_UPDATE);
+				DEBUG_SYNC_C_IF_THD(
+					thr_get_trx(thr)->mysql_thd,
+					"after_row_ins_upd_extern");
 				/* If writing big_rec fails (for
 				example, because of DB_OUT_OF_FILE_SPACE),
 				the record will be corrupted. Even if
@@ -2259,11 +2287,15 @@ row_ins_index_entry_low(
 				external storage. This non-update
 				would not have been written to the
 				undo log, and thus the record cannot
-				be rolled back. */
+				be rolled back.
+
+				However, because we have not executed
+				mtr_commit(mtr) yet, the update will
+				not be replayed in crash recovery, and
+				the following assertion failure will
+				effectively "roll back" the operation. */
 				ut_a(err == DB_SUCCESS);
-				/* Free the pages again
-				in order to avoid a leak. */
-				btr_mark_freed_leaves(index, &mtr, FALSE);
+				mtr_commit(&mtr);
 				goto stored_big_rec;
 			}
 		} else {
@@ -2294,33 +2326,71 @@ function_exit:
 	mtr_commit(&mtr);
 
 	if (UNIV_LIKELY_NULL(big_rec)) {
-		mtr_start(&mtr);
-
-		btr_cur_search_to_nth_level(index, 0, entry, PAGE_CUR_LE,
-					    BTR_MODIFY_TREE, &cursor, 0,
-					    __FILE__, __LINE__, &mtr);
-		rec = btr_cur_get_rec(&cursor);
-		offsets = rec_get_offsets(rec, index, NULL,
-					  ULINT_UNDEFINED, &heap);
-
-		err = btr_store_big_rec_extern_fields(
-			index, btr_cur_get_block(&cursor),
-			rec, offsets, big_rec, &mtr, FALSE, NULL);
-
+		DBUG_EXECUTE_IF(
+			"row_ins_extern_checkpoint",
+			log_make_checkpoint_at(IB_ULONGLONG_MAX, TRUE););
+		err = row_ins_index_entry_big_rec(
+			entry, big_rec, NULL, &heap, index,
+			thr_get_trx(thr)->mysql_thd, __FILE__, __LINE__);
 stored_big_rec:
 		if (modify) {
 			dtuple_big_rec_free(big_rec);
 		} else {
 			dtuple_convert_back_big_rec(index, entry, big_rec);
 		}
-
-		mtr_commit(&mtr);
 	}
 
 	if (UNIV_LIKELY_NULL(heap)) {
 		mem_heap_free(heap);
 	}
 	return(err);
+}
+
+/***************************************************************//**
+Tries to insert the externally stored fields (off-page columns)
+of a clustered index entry.
+@return DB_SUCCESS or DB_OUT_OF_FILE_SPACE */
+UNIV_INTERN
+ulint
+row_ins_index_entry_big_rec_func(
+/*=============================*/
+	const dtuple_t*		entry,	/*!< in/out: index entry to insert */
+	const big_rec_t*	big_rec,/*!< in: externally stored fields */
+	ulint*			offsets,/*!< in/out: rec offsets */
+	mem_heap_t**		heap,	/*!< in/out: memory heap */
+	dict_index_t*		index,	/*!< in: index */
+	const char*		file,	/*!< in: file name of caller */
+#ifndef DBUG_OFF
+	const void*		thd,	/*!< in: connection, or NULL */
+#endif /* DBUG_OFF */
+	ulint			line)	/*!< in: line number of caller */
+{
+	mtr_t		mtr;
+	btr_cur_t	cursor;
+	rec_t*		rec;
+	ulint		error;
+
+	ut_ad(dict_index_is_clust(index));
+
+	DEBUG_SYNC_C_IF_THD(thd, "before_row_ins_extern_latch");
+
+	mtr_start(&mtr);
+	btr_cur_search_to_nth_level(index, 0, entry, PAGE_CUR_LE,
+				    BTR_MODIFY_TREE, &cursor, 0,
+				    file, line, &mtr);
+	rec = btr_cur_get_rec(&cursor);
+	offsets = rec_get_offsets(rec, index, offsets,
+				  ULINT_UNDEFINED, heap);
+
+	DEBUG_SYNC_C_IF_THD(thd, "before_row_ins_extern");
+	error = btr_store_big_rec_extern_fields(
+		index, btr_cur_get_block(&cursor),
+		rec, offsets, big_rec, &mtr, BTR_STORE_INSERT);
+	DEBUG_SYNC_C_IF_THD(thd, "after_row_ins_extern");
+
+	mtr_commit(&mtr);
+
+	return(error);
 }
 
 /***************************************************************//**
@@ -2342,6 +2412,9 @@ row_ins_index_entry(
 {
 	ulint	err;
 
+	/* Only clustered indexes may contain externally stored columns. */
+	ut_ad(dict_index_is_clust(index) || !n_ext);
+
 	if (foreign && UT_LIST_GET_FIRST(index->table->foreign_list)) {
 		err = row_ins_check_foreign_constraints(index->table, index,
 							entry, thr);
@@ -2349,6 +2422,12 @@ row_ins_index_entry(
 
 			return(err);
 		}
+	}
+
+	if (dict_index_online_trylog(index, entry, thr_get_trx(thr)->id,
+				     ROW_OP_INSERT)) {
+
+		return(DB_SUCCESS);
 	}
 
 	/* Try first optimistic descent to the B-tree */
@@ -2381,7 +2460,8 @@ row_ins_index_entry_set_vals(
 	ulint	n_fields;
 	ulint	i;
 
-	ut_ad(entry && row);
+	ut_ad(row);
+	ut_ad(entry);
 
 	n_fields = dtuple_get_n_fields(entry);
 
@@ -2546,24 +2626,24 @@ row_ins(
 	ins_node_t*	node,	/*!< in: row insert node */
 	que_thr_t*	thr)	/*!< in: query thread */
 {
-	ulint	err;
-
-	ut_ad(node && thr);
-
 	if (node->state == INS_NODE_ALLOC_ROW_ID) {
 
 		row_ins_alloc_row_id_step(node);
 
 		node->index = dict_table_get_first_index(node->table);
-		node->entry = UT_LIST_GET_FIRST(node->entry_list);
 
-		if (node->ins_type == INS_SEARCHED) {
-
+		switch (node->ins_type) {
+		case INS_DIRECT:
+			node->entry = NULL;
+			break;
+		case INS_SEARCHED:
+			node->entry = UT_LIST_GET_FIRST(node->entry_list);
 			row_ins_get_row_from_select(node);
-
-		} else if (node->ins_type == INS_VALUES) {
-
+			break;
+		case INS_VALUES:
+			node->entry = UT_LIST_GET_FIRST(node->entry_list);
 			row_ins_get_row_from_values(node);
+			break;
 		}
 
 		node->state = INS_NODE_INSERT_ENTRIES;
@@ -2572,23 +2652,42 @@ row_ins(
 	ut_ad(node->state == INS_NODE_INSERT_ENTRIES);
 
 	while (node->index != NULL) {
-		if (node->index->type != DICT_FTS) {
-			err = row_ins_index_entry_step(node, thr);
+		ulint	err;
 
-			if (err != DB_SUCCESS) {
-
-				return(err);
-			}
+		if (node->index->type & DICT_FTS) {
+			goto next_index;
 		}
 
+		if (node->ins_type == INS_DIRECT) {
+			/* node->entry == NULL here, except when
+			row_ins_index_entry_step() returned
+			DB_LOCK_WAIT on the previous call and
+			row_insert_for_mysql() retried the insert. */
+			node->entry = row_build_index_entry(
+				node->row, NULL, node->index,
+				node->entry_sys_heap);
+		}
+
+		err = row_ins_index_entry_step(node, thr);
+
+		if (err != DB_SUCCESS) {
+
+			return(err);
+		}
+
+next_index:
 		node->index = dict_table_get_next_index(node->index);
-		node->entry = UT_LIST_GET_NEXT(tuple_list, node->entry);
+		node->entry = (node->ins_type != INS_DIRECT)
+			? UT_LIST_GET_NEXT(tuple_list, node->entry)
+			: NULL;
 
 		/* Skip corrupted secondary index and its entry */
 		while (node->index && dict_index_is_corrupted(node->index)) {
 
 			node->index = dict_table_get_next_index(node->index);
-			node->entry = UT_LIST_GET_NEXT(tuple_list, node->entry);
+			node->entry = (node->ins_type != INS_DIRECT)
+				? UT_LIST_GET_NEXT(tuple_list, node->entry)
+				: NULL;
 		}
 	}
 

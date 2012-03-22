@@ -1345,9 +1345,13 @@ int _my_b_async_read(register IO_CACHE *info, uchar *Buffer, size_t Count)
     if (info->aio_result.result.aio_errno)
     {
       if (info->myflags & MY_WME)
-	my_error(EE_READ, MYF(ME_BELL+ME_WAITTANG),
-		 my_filename(info->file),
-		 info->aio_result.result.aio_errno);
+      {
+        char errbuf[MYSYS_STRERROR_SIZE];
+        my_error(EE_READ, MYF(ME_BELL+ME_WAITTANG),
+                 my_filename(info->file),
+                 info->aio_result.result.aio_errno,
+                 my_strerror(errbuf, sizeof(errbuf),
+                             info->aio_result.result.aio_errno));
       my_errno=info->aio_result.result.aio_errno;
       info->error= -1;
       return(1);
@@ -1438,11 +1442,14 @@ int _my_b_async_read(register IO_CACHE *info, uchar *Buffer, size_t Count)
 
       if (Count != use_length)
       {					/* Didn't find hole block */
-	if (info->myflags & (MY_WME | MY_FAE | MY_FNABP) && Count != org_Count)
-	  my_error(EE_EOFERR, MYF(ME_BELL+ME_WAITTANG),
-		   my_filename(info->file),my_errno);
-	info->error=(int) (read_length+left_length);
-	return 1;
+        if (info->myflags & (MY_WME | MY_FAE | MY_FNABP) && Count != org_Count)
+        {
+          char errbuf[MYSYS_STRERROR_SIZE];
+          my_error(EE_EOFERR, MYF(ME_BELL+ME_WAITTANG), my_filename(info->file),
+                   my_errno, my_strerror(errbuf, sizeof(errbuf), my_errno));
+        }
+        info->error=(int) (read_length+left_length);
+        return 1;
       }
     }
     else

@@ -1650,14 +1650,18 @@ void MYSQL_LOG::close(uint exiting)
 
     if (mysql_file_sync(log_file.file, MYF(MY_WME)) && ! write_error)
     {
+      char errbuf[MYSYS_STRERROR_SIZE];
       write_error= 1;
-      sql_print_error(ER(ER_ERROR_ON_WRITE), name, errno);
+      sql_print_error(ER(ER_ERROR_ON_WRITE), name, errno,
+                      my_strerror(errbuf, sizeof(errbuf), errno));
     }
 
     if (mysql_file_close(log_file.file, MYF(MY_WME)) && ! write_error)
     {
+      char errbuf[MYSYS_STRERROR_SIZE];
       write_error= 1;
-      sql_print_error(ER(ER_ERROR_ON_WRITE), name, errno);
+      sql_print_error(ER(ER_ERROR_ON_WRITE), name, errno,
+                      my_strerror(errbuf, sizeof(errbuf), errno));
     }
   }
 
@@ -1839,8 +1843,10 @@ err:
 
   if (!write_error)
   {
+    char errbuf[MYSYS_STRERROR_SIZE];
     write_error= 1;
-    sql_print_error(ER(ER_ERROR_ON_WRITE), name, errno);
+    sql_print_error(ER(ER_ERROR_ON_WRITE), name, errno,
+                    my_strerror(errbuf, sizeof(errbuf), errno));
   }
   mysql_mutex_unlock(&LOCK_log);
   return TRUE;
@@ -1990,8 +1996,10 @@ bool MYSQL_QUERY_LOG::write(THD *thd, time_t current_time,
       error= 1;
       if (! write_error)
       {
+        char errbuf[MYSYS_STRERROR_SIZE];
         write_error= 1;
-        sql_print_error(ER(ER_ERROR_ON_WRITE), name, error);
+        sql_print_error(ER(ER_ERROR_ON_WRITE), name, error,
+                        my_strerror(errbuf, sizeof(errbuf), errno));
       }
     }
   }

@@ -59,6 +59,8 @@
 #VARCHAR(M)    
 #
 
+--let $_saved_conn= $CURRENT_CONNECTION
+
 let $binformat = `SHOW VARIABLES LIKE '%binlog_format%'`;
 --echo
 --echo ***********************************************************
@@ -449,7 +451,6 @@ connection master;
 --echo ** Stop and Reset Slave **
 --echo
 STOP SLAVE;
-RESET SLAVE;
 --echo
 --echo ** create table slave side **
 eval CREATE TABLE t10 (a INT PRIMARY KEY, b BLOB, c CHAR(5)
@@ -461,12 +462,14 @@ eval CREATE TABLE t10 (a INT PRIMARY KEY, b BLOB, c CHAR(5)
 --connection master
 eval CREATE TABLE t10 (a INT KEY, b BLOB, f DOUBLE DEFAULT '233',
                       c CHAR(5), e INT DEFAULT '1')ENGINE=$engine_type;
-RESET MASTER;
 
 --echo
 --echo *** Start Slave ***
 connection slave;
-START SLAVE;
+
+# reset master and slave and start slave
+--let $rpl_only_running_threads= 1
+--source include/rpl_reset.inc
 
 --echo
 --echo *** Master Data Insert ***
@@ -506,7 +509,6 @@ sync_slave_with_master;
 --echo
 --echo  *** Create t11 on slave  ***
 STOP SLAVE;
-RESET SLAVE;
 
 eval CREATE TABLE t11 (a INT PRIMARY KEY, b BLOB, c VARCHAR(254)
                        ) ENGINE=$engine_type;
@@ -517,12 +519,13 @@ connection master;
 eval CREATE TABLE t11 (a INT KEY, b BLOB, f TEXT,
                       c CHAR(5) DEFAULT 'test', e INT DEFAULT '1')ENGINE=$engine_type;
 
-RESET MASTER;
-
 --echo
 --echo *** Start Slave ***
 connection slave;
-START SLAVE;
+
+# reset master and slave and start slave
+--let $rpl_only_running_threads= 1
+--source include/rpl_reset.inc
 
 --echo
 --echo *** Master Data Insert ***
@@ -562,7 +565,6 @@ sync_slave_with_master;
 --echo
 --echo  *** Create t12 on slave  ***
 STOP SLAVE;
-RESET SLAVE;
 eval CREATE TABLE t12 (a INT PRIMARY KEY, b BLOB, c BLOB
                        ) ENGINE=$engine_type;
 
@@ -572,12 +574,13 @@ connection master;
 eval CREATE TABLE t12 (a INT KEY, b BLOB, f TEXT,
                       c CHAR(5) DEFAULT 'test', e INT DEFAULT '1')ENGINE=$engine_type;
 
-RESET MASTER;
-
 --echo
 --echo *** Start Slave ***
 connection slave;
-START SLAVE;
+
+# reset master and slave and start slave
+--let $rpl_only_running_threads= 1
+--source include/rpl_reset.inc
 
 --echo
 --echo *** Master Data Insert ***
@@ -613,7 +616,6 @@ sync_slave_with_master;
 --echo
 --echo *** Create t14 on slave  ***
 STOP SLAVE;
-RESET SLAVE;
 eval CREATE TABLE t14 (c1 INT PRIMARY KEY, c4 BLOB, c5 CHAR(5)
                        ) ENGINE=$engine_type;
 
@@ -625,12 +627,13 @@ eval CREATE TABLE t14 (c1 INT KEY, c4 BLOB, c5 CHAR(5),
                       c7 TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP
                       )ENGINE=$engine_type;
 
-RESET MASTER;
-
 --echo
 --echo *** Start Slave ***
 connection slave;
-START SLAVE;
+
+# reset master and slave and start slave
+--let $rpl_only_running_threads= 1
+--source include/rpl_reset.inc
 
 --echo
 --echo *** Master Data Insert ***
@@ -688,7 +691,6 @@ connection slave;
 #***************************
 
 STOP SLAVE;
-RESET SLAVE;
 
 --echo
 --echo *** Drop t14  ***
@@ -696,10 +698,12 @@ DROP TABLE t14;
 
 connection master;
 DROP TABLE t14;
-RESET MASTER;
 
 connection slave;
-START SLAVE;
+
+# reset master and slave and start slave
+--let $rpl_only_running_threads= 1
+--source include/rpl_reset.inc
 
 #################################################
 --echo
@@ -710,7 +714,6 @@ START SLAVE;
 --echo
 --echo *** Create t15 on slave  ***
 STOP SLAVE;
-RESET SLAVE;
 eval CREATE TABLE t15 (c1 INT PRIMARY KEY, c4 BLOB, c5 CHAR(5)
                        ) ENGINE=$engine_type;
 
@@ -722,12 +725,13 @@ eval CREATE TABLE t15 (c1 INT KEY, c4 BLOB, c5 CHAR(5),
                       c7 TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP
                       )ENGINE=$engine_type;
 
-RESET MASTER;
-
 --echo
 --echo *** Start Slave ***
 connection slave;
-START SLAVE;
+
+# reset master and slave and start slave
+--let $rpl_only_running_threads= 1
+--source include/rpl_reset.inc
 
 --echo
 --echo *** Master Data Insert ***
@@ -752,7 +756,6 @@ connection slave;
 --let $show_slave_sql_error= 1
 --source include/wait_for_slave_sql_error.inc
 STOP SLAVE;
-RESET SLAVE;
 
 --echo
 --echo *** Drop t15  ***
@@ -760,10 +763,12 @@ DROP TABLE t15;
 
 connection master;
 DROP TABLE t15;
-RESET MASTER;
 
 connection slave;
-START SLAVE;
+
+# reset master and slave and start slave
+--let $rpl_only_running_threads= 1
+--source include/rpl_reset.inc
 
 ####################################################
 --echo
@@ -774,7 +779,6 @@ START SLAVE;
 --echo
 --echo *** Create t16 on slave  ***
 STOP SLAVE;
-RESET SLAVE;
 eval CREATE TABLE t16 (c1 INT PRIMARY KEY, c4 BLOB, c5 CHAR(5)
                        ) ENGINE=$engine_type;
 
@@ -786,12 +790,13 @@ eval CREATE TABLE t16 (c1 INT KEY, c4 BLOB, c5 CHAR(5),
                       c7 TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP
                       )ENGINE=$engine_type;
 
-RESET MASTER;
-
 --echo
 --echo *** Start Slave ***
 connection slave;
-START SLAVE;
+
+# reset master and slave and start slave
+--let $rpl_only_running_threads= 1
+--source include/rpl_reset.inc
 
 --echo
 --echo *** Master Create Index and Data Insert ***
@@ -829,7 +834,6 @@ connection slave;
 --let $show_slave_sql_error= 1
 --source include/wait_for_slave_sql_error.inc
 STOP SLAVE;
-RESET SLAVE;
 
 --echo
 --echo *** Drop t16  ***
@@ -837,11 +841,12 @@ DROP TABLE t16;
 
 connection master;
 DROP TABLE t16;
-RESET MASTER;
 
 connection slave;
-START SLAVE;
-#*******************************************
+
+# reset master and slave and start slave
+--let $rpl_only_running_threads= 1
+--source include/rpl_reset.inc
 
 ####################################################
 --echo
@@ -852,7 +857,6 @@ START SLAVE;
 --echo
 --echo *** Create t17 on slave  ***
 STOP SLAVE;
-RESET SLAVE;
 eval CREATE TABLE t17 (c1 INT PRIMARY KEY, c4 BLOB, c5 CHAR(5)
                        ) ENGINE=$engine_type;
 
@@ -864,12 +868,13 @@ eval CREATE TABLE t17 (c1 INT KEY, c4 BLOB, c5 CHAR(5),
                       c7 TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP
                       )ENGINE=$engine_type;
 
-RESET MASTER;
-
 --echo
 --echo *** Start Slave ***
 connection slave;
-START SLAVE;
+
+# reset master and slave and start slave
+--let $rpl_only_running_threads= 1
+--source include/rpl_reset.inc
 
 --echo
 --echo *** Master Data Insert ***
@@ -918,7 +923,6 @@ sync_slave_with_master;
 --echo 
 
 STOP SLAVE;
-RESET SLAVE;
 eval CREATE TABLE t18 (c1 INT PRIMARY KEY, c4 BLOB, c5 CHAR(5)
                        ) ENGINE=$engine_type;
 
@@ -930,12 +934,13 @@ eval CREATE TABLE t18 (c1 INT KEY, c4 BLOB, c5 CHAR(5),
                       c7 TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP
                       )ENGINE=$engine_type;
 
-RESET MASTER;
-
 --echo
 --echo *** Start Slave ***
 connection slave;
-START SLAVE;
+
+# reset master and slave and start slave
+--let $rpl_only_running_threads= 1
+--source include/rpl_reset.inc
 
 --echo
 --echo *** Master Data Insert ***
@@ -981,7 +986,6 @@ sync_slave_with_master;
 --echo
 --echo *** Create t5 on slave  ***
 STOP SLAVE;
-RESET SLAVE;
 eval CREATE TABLE t5 (c1 INT PRIMARY KEY, c4 BLOB, c5 CHAR(5)
                        ) ENGINE=$engine_type;
 
@@ -993,12 +997,13 @@ eval CREATE TABLE t5 (c1 INT KEY, c4 BLOB, c5 CHAR(5),
                       c7 TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP
                       )ENGINE=$engine_type;
 
-RESET MASTER;
-
 --echo
 --echo *** Start Slave ***
 connection slave;
-START SLAVE;
+
+# reset master and slave and start slave
+--let $rpl_only_running_threads= 1
+--source include/rpl_reset.inc
 
 --echo
 --echo *** Master Data Insert ***
@@ -1056,3 +1061,5 @@ SELECT * FROM t1;
 -- connection master
 DROP TABLE t1; 
 -- sync_slave_with_master
+
+--connection $_saved_conn

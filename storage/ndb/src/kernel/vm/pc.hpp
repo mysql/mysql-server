@@ -1,4 +1,6 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (C) 2003-2006, 2008 MySQL AB, 2008, 2009 Sun Microsystems, Inc.
+    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +13,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #ifndef PC_H
 #define PC_H
@@ -27,57 +30,59 @@
 #define jamLine(line)
 #define jamEntry()
 #define jamEntryLine(line)
-
-#else
-#ifdef NDB_WIN32
-
-#define jam() { \
-  Uint32 tEmulatedJamIndex = theEmulatedJamIndex; \
-  *(Uint32*)(theEmulatedJam + tEmulatedJamIndex) = __LINE__; \
-  theEmulatedJamIndex = (tEmulatedJamIndex + 4) & JAM_MASK; }
-#define jamLine(line) { \
-  Uint32 tEmulatedJamIndex = theEmulatedJamIndex; \
-  *(Uint32*)(theEmulatedJam + tEmulatedJamIndex) = line; \
-  theEmulatedJamIndex = (tEmulatedJamIndex + 4) & JAM_MASK; }
-#define jamEntry() { \
-  theEmulatedJamBlockNumber = number(); \
-  Uint32 tEmulatedJamIndex = theEmulatedJamIndex; \
-  *(Uint32*)(theEmulatedJam + tEmulatedJamIndex) = \
-    ((theEmulatedJamBlockNumber << 20) | __LINE__); \
-  theEmulatedJamIndex = (tEmulatedJamIndex + 4) & JAM_MASK; }
-#define jamEntryLine(line) { \
-  theEmulatedJamBlockNumber = number(); \
-  Uint32 tEmulatedJamIndex = theEmulatedJamIndex; \
-  *(Uint32*)(theEmulatedJam + tEmulatedJamIndex) = \
-    ((theEmulatedJamBlockNumber << 20) | (line)); \
-  theEmulatedJamIndex = (tEmulatedJamIndex + 4) & JAM_MASK; }
+#define jamBlock(block)
+#define jamBlockLine(block, line)
+#define jamEntryBlock(block)
+#define jamEntryBlockLine(block, line)
+#define jamNoBlock()
+#define jamNoBlockLine(line)
+#define thrjamEntry(buf)
+#define thrjamEntryLine(buf, line)
+#define thrjam(buf)
+#define thrjamLine(buf, line)
 
 #else
 
-#define jam() { \
-  Uint32 tEmulatedJamIndex = theEmulatedJamIndex; \
-  *(Uint32*)((UintPtr)theEmulatedJam + (Uint32)tEmulatedJamIndex) = __LINE__; \
-  theEmulatedJamIndex = (tEmulatedJamIndex + 4) & JAM_MASK; }
-#define jamLine(line) { \
-  Uint32 tEmulatedJamIndex = theEmulatedJamIndex; \
-  *(Uint32*)((UintPtr)theEmulatedJam + (Uint32)tEmulatedJamIndex) = line; \
-  theEmulatedJamIndex = (tEmulatedJamIndex + 4) & JAM_MASK; }
-#define jamEntry() { \
-  theEmulatedJamBlockNumber = number(); \
-  Uint32 tEmulatedJamIndex = theEmulatedJamIndex; \
-  *(Uint32*)((UintPtr)theEmulatedJam + (Uint32)tEmulatedJamIndex) = \
-    ((theEmulatedJamBlockNumber << 20) | __LINE__); \
-  theEmulatedJamIndex = (tEmulatedJamIndex + 4) & JAM_MASK; }
-#define jamEntryLine(line) { \
-  theEmulatedJamBlockNumber = number(); \
-  Uint32 tEmulatedJamIndex = theEmulatedJamIndex; \
-  *(Uint32*)((UintPtr)theEmulatedJam + (Uint32)tEmulatedJamIndex) = \
-    ((theEmulatedJamBlockNumber << 20) | (line)); \
-  theEmulatedJamIndex = (tEmulatedJamIndex + 4) & JAM_MASK; }
+#define thrjamEntryBlockLine(jamBufferArg, blockNo, line) \
+  do { \
+    EmulatedJamBuffer* jamBuffer = jamBufferArg; \
+    Uint32 blockNumber = blockNo; \
+    Uint32 jamIndex = jamBuffer->theEmulatedJamIndex; \
+    jamBuffer->theEmulatedJam[jamIndex++] = (blockNumber << 20) | (line); \
+    jamBuffer->theEmulatedJamBlockNumber = blockNumber; \
+    jamBuffer->theEmulatedJamIndex = jamIndex & JAM_MASK; \
+  } while (0)
+
+#define thrjamLine(jamBufferArg, line) \
+  do { \
+    EmulatedJamBuffer* jamBuffer = jamBufferArg; \
+    Uint32 jamIndex = jamBuffer->theEmulatedJamIndex; \
+    jamBuffer->theEmulatedJam[jamIndex++] = (line); \
+    jamBuffer->theEmulatedJamIndex = jamIndex & JAM_MASK; \
+  } while(0)
+
+#define jamBlockLine(block, line) thrjamLine(block->jamBuffer(), line)
+#define jamBlock(block) jamBlockLine((block), __LINE__)
+#define jamLine(line) jamBlockLine(this, (line))
+#define jam() jamLine(__LINE__)
+#define jamBlockEntryLine(block, line) \
+  thrjamEntryBlockLine(block->jamBuffer(), block->number(), line)
+#define jamEntryBlock(block) jamEntryBlockLine(block, __LINE__)
+#define jamEntryLine(line) jamBlockEntryLine(this, (line))
+#define jamEntry() jamEntryLine(__LINE__)
+
+#define jamNoBlockLine(line) \
+    thrjamLine((EmulatedJamBuffer *)NdbThread_GetTlsKey(NDB_THREAD_TLS_JAM), \
+               (line))
+#define jamNoBlock() jamNoBlockLine(__LINE__)
+
+#define thrjamEntryLine(buf, line) thrjamEntryBlockLine(buf, number(), line)
+
+#define thrjam(buf) thrjamLine(buf, __LINE__)
+#define thrjamEntry(buf) thrjamEntryLine(buf, __LINE__)
 
 #endif
 
-#endif
 #ifndef NDB_OPT
 #define ptrCheck(ptr, limit, rec) if (ptr.i < (limit)) ptr.p = &rec[ptr.i]; else ptr.p = NULL
 
@@ -122,18 +127,25 @@
 
 // -------- ERROR INSERT MACROS -------
 #ifdef ERROR_INSERT
-#define ERROR_INSERT_VARIABLE UintR cerrorInsert
+#define ERROR_INSERT_VARIABLE UintR cerrorInsert, c_error_insert_extra
 #define ERROR_INSERTED(x) (cerrorInsert == (x))
 #define ERROR_INSERTED_CLEAR(x) (cerrorInsert == (x) ? (cerrorInsert = 0, true) : false)
+#define ERROR_INSERT_VALUE cerrorInsert
+#define ERROR_INSERT_EXTRA c_error_insert_extra
 #define SET_ERROR_INSERT_VALUE(x) cerrorInsert = x
+#define SET_ERROR_INSERT_VALUE2(x,y) cerrorInsert = x; c_error_insert_extra = y
 #define CLEAR_ERROR_INSERT_VALUE cerrorInsert = 0
 #else
 #define ERROR_INSERT_VARIABLE typedef void * cerrorInsert // Will generate compiler error if used
 #define ERROR_INSERTED(x) false
 #define ERROR_INSERTED_CLEAR(x) false
-#define SET_ERROR_INSERT_VALUE(x)
-#define CLEAR_ERROR_INSERT_VALUE
+#define ERROR_INSERT_VALUE 0
+#define SET_ERROR_INSERT_VALUE(x) do { } while(0)
+#define SET_ERROR_INSERT_VALUE2(x,y) do { } while(0)
+#define CLEAR_ERROR_INSERT_VALUE do { } while(0)
 #endif
+
+#define DECLARE_DUMP0(BLOCK, CODE, DESC) if (arg == CODE)
 
 /* ------------------------------------------------------------------------- */
 /*       COMMONLY USED CONSTANTS.                                            */
@@ -204,7 +216,7 @@
     progError(__LINE__, NDBD_EXIT_NDBASSERT, __FILE__); \
   }
 #else
-#define ndbassert(check)
+#define ndbassert(check) do { } while(0)
 #endif
 
 #define ndbrequireErr(check, error) \

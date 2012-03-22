@@ -18,18 +18,21 @@
 #ifndef MYSQL_CLIENT
 #include "unireg.h"                      // REQUIRED by later includes
 #include "rpl_rli.h"
-#include "sql_select.h"
+#include "sql_tmp_table.h"               // tmp tables
+#include "rpl_rli.h"
+#include "log_event.h"
 
 #include <algorithm>
 
 using std::min;
 using std::max;
 
+
 /**
    Function to compare two size_t integers for their relative
    order. Used below.
  */
-int compare(size_t a, size_t b)
+static int compare(size_t a, size_t b)
 {
   if (a < b)
     return -1;
@@ -44,7 +47,7 @@ int compare(size_t a, size_t b)
 
    The somewhat contorted expression is to avoid overflow.
  */
-uint32 uint_max(int bits) {
+static uint32 uint_max(int bits) {
   return (((1UL << (bits - 1)) - 1) << 1) | 1;
 }
 
@@ -193,6 +196,7 @@ int compare_lengths(Field *field, enum_field_types source_type, uint16 metadata)
   DBUG_PRINT("result", ("%d", result));
   DBUG_RETURN(result);
 }
+
 
 /*********************************************************************
  *                   table_def member definitions                    *
@@ -360,8 +364,8 @@ uint32 table_def::calc_field_size(uint col, uchar *master_data) const
 
 /**
  */
-void show_sql_type(enum_field_types type, uint16 metadata, String *str,
-                   const CHARSET_INFO *field_cs)
+static void show_sql_type(enum_field_types type, uint16 metadata, String *str,
+                          const CHARSET_INFO *field_cs)
 {
   DBUG_ENTER("show_sql_type");
   DBUG_PRINT("enter", ("type: %d, metadata: 0x%x", type, metadata));
@@ -1158,3 +1162,4 @@ bool event_checksum_test(uchar *event_buf, ulong event_len, uint8 alg)
   }
   return DBUG_EVALUATE_IF("simulate_checksum_test_failure", TRUE, res);
 }
+

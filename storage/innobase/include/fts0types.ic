@@ -172,7 +172,7 @@ fts_utf8_string_cmp(
 }
 
 /******************************************************************//**
-Compare two UTF-8 strings, and return match (0) if 
+Compare two UTF-8 strings, and return match (0) if
 passed in "key" value equals or is the prefix of the "node" value.
 @return < 0 if n1 < n2, 0 if n1 == n2, > 0 if n1 > n2 */
 UNIV_INLINE
@@ -189,7 +189,7 @@ fts_utf8_string_cmp_prefix(
 	const fts_string_t* s2 = (const fts_string_t*) p2;
 
 	len = ut_min(s1->f_len, s2->f_len);
-	
+
 	result = cmp_data_data_slow_varchar(s1->f_str, len, s2->f_str, len);
 
 	if (result) {
@@ -326,7 +326,7 @@ ulint
 innobase_strnxfrm(
 /*==============*/
         const CHARSET_INFO*	cs,	/*!< in: Character set */
-        const uchar*		p2,	/*!< in: string */	
+        const uchar*		p2,	/*!< in: string */
         const ulint		len2);	/*!< in: string length */
 
 /******************************************************************//**

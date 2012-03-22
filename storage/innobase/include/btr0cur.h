@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2012, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -31,14 +31,22 @@ Created 10/16/1994 Heikki Tuuri
 #include "page0cur.h"
 #include "btr0types.h"
 
-/* Mode flags for btr_cur operations; these can be ORed */
-#define BTR_NO_UNDO_LOG_FLAG	1	/* do no undo logging */
-#define BTR_NO_LOCKING_FLAG	2	/* do no record lock checking */
-#define BTR_KEEP_SYS_FLAG	4	/* sys fields will be found from the
-					update vector or inserted entry */
-#define BTR_KEEP_POS_FLAG	8	/* btr_cur_pessimistic_update()
-					must keep cursor position when
-					moving columns to big_rec */
+/** Mode flags for btr_cur operations; these can be ORed */
+enum {
+	/** do no undo logging */
+	BTR_NO_UNDO_LOG_FLAG = 1,
+	/** do no record lock checking */
+	BTR_NO_LOCKING_FLAG = 2,
+	/** sys fields will be found in the update vector or inserted
+	entry */
+	BTR_KEEP_SYS_FLAG = 4,
+	/** btr_cur_pessimistic_update() must keep cursor position
+	when moving columns to big_rec */
+	BTR_KEEP_POS_FLAG = 8,
+	/** the caller is creating the index or wants to bypass the
+	index->info.online creation log */
+	BTR_CREATE_FLAG = 16
+};
 
 #ifndef UNIV_HOTBACKUP
 #include "que0types.h"
@@ -274,9 +282,12 @@ btr_cur_update_in_place(
 	const upd_t*	update,	/*!< in: update vector */
 	ulint		cmpl_info,/*!< in: compiler info on secondary index
 				updates */
-	que_thr_t*	thr,	/*!< in: query thread */
-	mtr_t*		mtr);	/*!< in: mtr; must be committed before
+	que_thr_t*	thr,	/*!< in: query thread, or NULL if
+				appropriate flags are set */
+	trx_id_t	trx_id,	/*!< in: transaction id */
+	mtr_t*		mtr)	/*!< in: mtr; must be committed before
 				latching any further pages */
+	__attribute__((warn_unused_result, nonnull(2,3,7)));
 /*************************************************************//**
 Tries to update a record on a page in an index tree. It is assumed that mtr
 holds an x-latch on the page. The operation does not succeed if there is too
@@ -297,9 +308,12 @@ btr_cur_optimistic_update(
 				contain trx id and roll ptr fields */
 	ulint		cmpl_info,/*!< in: compiler info on secondary index
 				updates */
-	que_thr_t*	thr,	/*!< in: query thread */
-	mtr_t*		mtr);	/*!< in: mtr; must be committed before
+	que_thr_t*	thr,	/*!< in: query thread, or NULL if
+				appropriate flags are set */
+	trx_id_t	trx_id,	/*!< in: transaction id */
+	mtr_t*		mtr)	/*!< in: mtr; must be committed before
 				latching any further pages */
+	__attribute__((warn_unused_result, nonnull(2,3,7)));
 /*************************************************************//**
 Performs an update of a record on a page of a tree. It is assumed
 that mtr holds an x-latch on the tree and on the cursor page. If the
@@ -323,9 +337,12 @@ btr_cur_pessimistic_update(
 				the values in update vector have no effect */
 	ulint		cmpl_info,/*!< in: compiler info on secondary index
 				updates */
-	que_thr_t*	thr,	/*!< in: query thread */
-	mtr_t*		mtr);	/*!< in: mtr; must be committed before
+	que_thr_t*	thr,	/*!< in: query thread, or NULL if
+				appropriate flags are set */
+	trx_id_t	trx_id,	/*!< in: transaction id */
+	mtr_t*		mtr)	/*!< in: mtr; must be committed before
 				latching any further pages */
+	__attribute__((warn_unused_result, nonnull(2,5,9)));
 /***********************************************************//**
 Marks a clustered index record deleted. Writes an undo log record to
 undo log on this delete marking. Writes in the trx id field the id
@@ -336,12 +353,10 @@ UNIV_INTERN
 ulint
 btr_cur_del_mark_set_clust_rec(
 /*===========================*/
-	ulint		flags,	/*!< in: undo logging and locking flags */
 	buf_block_t*	block,	/*!< in/out: buffer block of the record */
 	rec_t*		rec,	/*!< in/out: record */
 	dict_index_t*	index,	/*!< in: clustered index of the record */
 	const ulint*	offsets,/*!< in: rec_get_offsets(rec) */
-	ibool		val,	/*!< in: value to set */
 	que_thr_t*	thr,	/*!< in: query thread */
 	mtr_t*		mtr)	/*!< in: mtr */
 	__attribute__((nonnull));
@@ -382,16 +397,27 @@ but no latch on the whole tree.
 @return	TRUE if success, i.e., the page did not become too empty */
 UNIV_INTERN
 ibool
-btr_cur_optimistic_delete(
-/*======================*/
+btr_cur_optimistic_delete_func(
+/*===========================*/
 	btr_cur_t*	cursor,	/*!< in: cursor on the record to delete;
 				cursor stays valid: if deletion succeeds,
 				on function exit it points to the successor
 				of the deleted record */
-	mtr_t*		mtr);	/*!< in: mtr; if this function returns
+# ifdef UNIV_DEBUG
+	ulint		flags,	/*!< in: BTR_CREATE_FLAG or 0 */
+# endif /* UNIV_DEBUG */
+	mtr_t*		mtr)	/*!< in: mtr; if this function returns
 				TRUE on a leaf page of a secondary
 				index, the mtr must be committed
 				before latching any further pages */
+	__attribute__((nonnull, warn_unused_result));
+# ifdef UNIV_DEBUG
+#  define btr_cur_optimistic_delete(cursor, flags, mtr)		\
+	btr_cur_optimistic_delete_func(cursor, flags, mtr)
+# else /* UNIV_DEBUG */
+#  define btr_cur_optimistic_delete(cursor, flags, mtr)		\
+	btr_cur_optimistic_delete_func(cursor, mtr)
+# endif /* UNIV_DEBUG */
 /*************************************************************//**
 Removes the record on which the tree cursor is positioned. Tries
 to compress the page if its fillfactor drops below a threshold
@@ -417,8 +443,10 @@ btr_cur_pessimistic_delete(
 				if compression does not occur, the cursor
 				stays valid: it points to successor of
 				deleted record on function exit */
+	ulint		flags,	/*!< in: BTR_CREATE_FLAG or 0 */
 	enum trx_rb_ctx	rb_ctx,	/*!< in: rollback context */
-	mtr_t*		mtr);	/*!< in: mtr */
+	mtr_t*		mtr)	/*!< in: mtr */
+	__attribute__((nonnull));
 #endif /* !UNIV_HOTBACKUP */
 /***********************************************************//**
 Parses a redo log record of updating a record in-place.
@@ -500,6 +528,27 @@ btr_cur_disown_inherited_fields(
 	const upd_t*	update,	/*!< in: update vector */
 	mtr_t*		mtr)	/*!< in/out: mini-transaction */
 	__attribute__((nonnull(2,3,4,5,6)));
+
+/** Operation code for btr_store_big_rec_extern_fields(). */
+enum blob_op {
+	/** Store off-page columns for a freshly inserted record */
+	BTR_STORE_INSERT = 0,
+	/** Store off-page columns for an insert by update */
+	BTR_STORE_INSERT_UPDATE,
+	/** Store off-page columns for an update */
+	BTR_STORE_UPDATE
+};
+
+/*******************************************************************//**
+Determine if an operation on off-page columns is an update.
+@return TRUE if op != BTR_STORE_INSERT */
+UNIV_INLINE
+ibool
+btr_blob_op_is_update(
+/*==================*/
+	enum blob_op	op)	/*!< in: operation */
+	__attribute__((warn_unused_result));
+
 /*******************************************************************//**
 Stores the fields in big_rec_vec to the tablespace and puts pointers to
 them in rec.  The extern flags in rec will have to be set beforehand.
@@ -507,58 +556,23 @@ The fields are stored on pages allocated from leaf node
 file segment of the index tree.
 @return	DB_SUCCESS or DB_OUT_OF_FILE_SPACE */
 UNIV_INTERN
-ulint
-btr_store_big_rec_extern_fields_func(
-/*=================================*/
+enum db_err
+btr_store_big_rec_extern_fields(
+/*============================*/
 	dict_index_t*	index,		/*!< in: index of rec; the index tree
 					MUST be X-latched */
 	buf_block_t*	rec_block,	/*!< in/out: block containing rec */
-	rec_t*		rec,		/*!< in: record */
+	rec_t*		rec,		/*!< in/out: record */
 	const ulint*	offsets,	/*!< in: rec_get_offsets(rec, index);
 					the "external storage" flags in offsets
 					will not correspond to rec when
 					this function returns */
 	const big_rec_t*big_rec_vec,	/*!< in: vector containing fields
 					to be stored externally */
-#ifdef UNIV_DEBUG
-	mtr_t*		local_mtr,	/*!< in: mtr containing the
-					latch to rec and to the tree */
-#endif /* UNIV_DEBUG */
-#if defined UNIV_DEBUG || defined UNIV_BLOB_LIGHT_DEBUG
-	ibool		update_in_place,/*! in: TRUE if the record is updated
-					in place (not delete+insert) */
-#endif /* UNIV_DEBUG || UNIV_BLOB_LIGHT_DEBUG */
-	mtr_t*		alloc_mtr)	/*!< in/out: in an insert, NULL;
-					in an update, local_mtr for
-					allocating BLOB pages and
-					updating BLOB pointers; alloc_mtr
-					must not have freed any leaf pages */
-	__attribute__((nonnull(1,2,3,4,5), warn_unused_result));
-
-/** Stores the fields in big_rec_vec to the tablespace and puts pointers to
-them in rec.  The extern flags in rec will have to be set beforehand.
-The fields are stored on pages allocated from leaf node
-file segment of the index tree.
-@param index	in: clustered index; MUST be X-latched by mtr
-@param b	in/out: block containing rec; MUST be X-latched by mtr
-@param rec	in/out: clustered index record
-@param offs	in: rec_get_offsets(rec, index);
-		the "external storage" flags in offsets will not be adjusted
-@param big	in: vector containing fields to be stored externally
-@param mtr	in: mini-transaction that holds x-latch on index and b
-@param upd	in: TRUE if the record is updated in place (not delete+insert)
-@param rmtr	in/out: in updates, the mini-transaction that holds rec
-@return	DB_SUCCESS or DB_OUT_OF_FILE_SPACE */
-#ifdef UNIV_DEBUG
-# define btr_store_big_rec_extern_fields(index,b,rec,offs,big,mtr,upd,rmtr) \
-	btr_store_big_rec_extern_fields_func(index,b,rec,offs,big,mtr,upd,rmtr)
-#elif defined UNIV_BLOB_LIGHT_DEBUG
-# define btr_store_big_rec_extern_fields(index,b,rec,offs,big,mtr,upd,rmtr) \
-	btr_store_big_rec_extern_fields_func(index,b,rec,offs,big,upd,rmtr)
-#else
-# define btr_store_big_rec_extern_fields(index,b,rec,offs,big,mtr,upd,rmtr) \
-	btr_store_big_rec_extern_fields_func(index,b,rec,offs,big,rmtr)
-#endif
+	mtr_t*		btr_mtr,	/*!< in: mtr containing the
+					latches to the clustered index */
+	enum blob_op	op)		/*! in: operation code */
+	__attribute__((nonnull, warn_unused_result));
 
 /*******************************************************************//**
 Frees the space in an externally stored field to the file space
@@ -751,7 +765,7 @@ struct btr_cur_struct {
 					for comparison to the adjacent user
 					record if that record is on a
 					different leaf page! (See the note in
-					row_ins_duplicate_key.) */
+					row_ins_duplicate_error_in_clust.) */
 	ulint		up_bytes;	/*!< number of matched bytes to the
 					right at the time cursor positioned;
 					only used internally in searches: not

@@ -10,6 +10,9 @@
 source include/master-slave.inc;
 source include/have_binlog_format_row.inc;
 
+--let $binlog_filename= query_get_value(SHOW MASTER STATUS, File, 1)
+--let $MYSQLD_DATADIR= `select @@datadir`
+
 let $binlog_start= query_get_value("SHOW MASTER STATUS", Position, 1);
 CREATE TABLE t1 (a int not null auto_increment, data1 LONGBLOB,
                  data2 LONGBLOB, PRIMARY KEY(a));
@@ -24,10 +27,15 @@ SELECT LENGTH(data1), LENGTH(data2) FROM t1 WHERE a = 1;
 
 let $old_max_allowed_packet= `SELECT @@global.max_allowed_packet`;
 SET @@global.max_allowed_packet=4194304;
-let $MYSQLD_DATADIR= `select @@datadir`;
+FLUSH LOGS;
+--let $prefix=`SELECT UUID()`
+--let $binlog_uuid_filename= $MYSQLTEST_VARDIR/tmp/$prefix-bin.log
+--copy_file $MYSQLD_DATADIR/$binlog_filename $binlog_uuid_filename
+--source include/rpl_reset.inc
+
 --echo # On master, test the added 'binlog-row-event-max-size' mysqlbinlog option
 --echo # works fine and the data is inserted by executing the dumped ROW event
---exec $MYSQL_BINLOG --binlog-row-event-max-size=2097152  --start-position=$start_pos --stop-position=$end_pos $MYSQLD_DATADIR/master-bin.000001 | $MYSQL test 2>&1
+--exec $MYSQL_BINLOG --binlog-row-event-max-size=2097152  --start-position=$start_pos --stop-position=$end_pos $binlog_uuid_filename | $MYSQL test 2>&1
 SELECT LENGTH(data1), LENGTH(data2) FROM t1 WHERE a = 1;
 eval set @@global.max_allowed_packet= $old_max_allowed_packet;
 
@@ -50,6 +58,7 @@ connection master;
 DROP TABLE t1;
 
 sync_slave_with_master;
+--source include/rpl_reset.inc
 
 --echo # Test it will cause ER_MASTER_FATAL_ERROR_READING_BINLOG when the value
 --echo # of the bigger one of max_allowed_packet and binlog_row_event_max_size
@@ -58,6 +67,9 @@ connection master;
 
 CREATE TABLE t1 (a int not null auto_increment, data1 LONGBLOB,
                  data2 LONGBLOB, data3 LONGBLOB, PRIMARY KEY(a));
+
+--sync_slave_with_master
+--connection master
 
 INSERT INTO t1 (data1, data2, data3) VALUES (repeat('a',1000000), repeat('a', 1000000), repeat('a', 1000000));
 
@@ -72,20 +84,19 @@ call mtr.add_suppression("The slave coordinator and worker threads are stopped, 
 
 # Show slave last IO errno
 drop table t1;
-let $slave_io_errno= 1236;
-#
-# Win and Unix path is printed differently: BUG#13055685. So
-# show_slave_io_error is made 0 until the bug fixes provide necessary
-# facilities
-#
-let $show_slave_io_error= 0;
-source include/wait_for_slave_io_error.inc;
+--let $slave_io_errno= 1236
+--let $show_slave_io_error= 1
+# Mask line numbers
+--let $slave_io_error_replace= / at [0-9]*/ at XXX/
+--source include/wait_for_slave_io_error.inc
 
 --echo ==== clean up ====
 
 # clear errno
 --source include/stop_slave_sql.inc
 RESET SLAVE;
+RESET MASTER;
 
+--remove_file $binlog_uuid_filename
 --let $rpl_only_running_threads= 1
 --source include/rpl_end.inc

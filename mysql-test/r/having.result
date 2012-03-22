@@ -612,4 +612,45 @@ HAVING (1 ,6) IN (SELECT 3, 6)
 ORDER BY t1.f1;
 f1
 DROP TABLE t1, t2;
+#
+# Bug#13406172: HAVING CLAUSE ON AGGREGATED COLUMN RETURNS
+#               WRONG RESULT WITH MYISAM
+#
+CREATE TABLE ot (i int) ENGINE=MyISAM;
+INSERT INTO ot VALUES (1);
+CREATE TABLE it (i int) ENGINE=MyISAM;
+INSERT INTO it VALUES (7), (8);
+SELECT COUNT(i) AS x 
+FROM ot 
+WHERE (i) IN (SELECT i FROM it WHERE it.i <= 4) OR i IS NULL 
+HAVING x > 1;
+x
+CREATE FUNCTION f(a INTEGER) RETURNS INTEGER DETERMINISTIC RETURN a*a;
+SELECT BIT_AND(i) AS x
+FROM ot
+WHERE f(2) < 2
+HAVING x < 2;
+x
+DROP TABLE it,ot;
+DROP FUNCTION f;
+#
+# Bug#11760517: MIN/MAX FAILS TO EVALUATE HAVING CONDITION, 
+#               RETURNS INCORRECT NULL RESULT
+#
+CREATE TABLE t1 (pk INT PRIMARY KEY, i4 INT);
+INSERT INTO t1 VALUES (2,7), (4,7), (6,2), (17,0);
+
+SELECT MIN(table1.i4), MIN(table2.pk) as min_pk
+FROM t1 as table1, t1 as table2
+WHERE table1.pk = 1;
+MIN(table1.i4)	min_pk
+NULL	NULL
+
+SELECT MIN(table1.i4), MIN(table2.pk) as min_pk
+FROM t1 as table1, t1 as table2
+WHERE table1.pk = 1
+HAVING min_pk <= 10;
+MIN(table1.i4)	min_pk
+
+DROP TABLE t1;
 End of 5.6 tests

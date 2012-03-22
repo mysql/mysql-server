@@ -25,20 +25,16 @@
 #include "sql_cache.h"                          // query_cache_*
 #include "sql_base.h"                           // open_temprary_table
 #include "sql_table.h"                         // build_table_filename
-#include "lock.h"                              // unlock_table_name
 #include "sql_view.h"             // check_key_in_view, mysql_frm_type
-#include "sql_parse.h"            // mysql_init_select
 #include "sql_acl.h"              // *_ACL
 #include "filesort.h"             // filesort
-#include "sql_handler.h"          // mysql_ha_rm_tables
 #include "sql_select.h"
-#include "sp_head.h"
-#include "sql_trigger.h"
-#include "transaction.h"
 #include "opt_trace.h"                          // Opt_trace_object
 #include "opt_explain.h"
 #include "records.h"                            // init_read_record,
                                                 // end_read_record
+#include "sql_optimizer.h"                      // remove_eq_conds
+#include "sql_resolver.h"                       // setup_order, fix_inner_refs
 
 /**
   Implement DELETE SQL word.
@@ -263,7 +259,7 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, Item *conds,
   if (thd->lex->describe)
   {
     err= explain_single_table_modification(thd, table, select, usable_index,
-                                           limit, false, need_sort);
+                                           limit, false, need_sort, false);
     goto exit_without_my_ok;
   }
 

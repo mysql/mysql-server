@@ -54,7 +54,7 @@ typedef LPTHREAD_START_ROUTINE	os_thread_func_t;
 
 /** Required to get around a build error on Windows. Even though our functions
 are defined/declared as WINAPI f(LPVOID a); the compiler complains that they
-are defined as: os_thread_ret_t (__cdecl *)(void *). Because our functions
+are defined as: os_thread_ret_t (__cdecl*)(void*). Because our functions
 don't access the arguments and don't return any value, we should be safe. */
 #define os_thread_create(f,a,i)	\
 	os_thread_create_func(reinterpret_cast<os_thread_func_t>(f), a, i)

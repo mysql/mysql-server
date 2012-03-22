@@ -902,6 +902,7 @@ SHOW TRIGGERS;
 Trigger	Event	Table	Statement	Timing	Created	sql_mode	Definer	character_set_client	collation_connection	Database Collation
 RESET MASTER;
 START SLAVE;
+include/rpl_reset.inc
 
 ---> Test for BUG#20438
 

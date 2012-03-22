@@ -670,3 +670,163 @@ SELECT * FROM t1
 
 SELECT * FROM t1;
 DROP TABLE t1;
+
+# This is to test the update operation on FTS indexed and non-indexed
+# column
+CREATE TABLE t1(ID INT PRIMARY KEY,
+		no_fts_field VARCHAR(10),
+		fts_field VARCHAR(10),
+		FULLTEXT INDEX f(fts_field)) ENGINE=INNODB;
+
+INSERT INTO t1 VALUES (1, 'AAA', 'BBB');
+
+SELECT * FROM t1 WHERE MATCH(fts_field) against("BBB");
+
+# Update FULLTEXT indexed column, Doc ID will be updated
+UPDATE t1 SET fts_field='anychange' where id = 1;
+
+SELECT * FROM t1 WHERE MATCH(fts_field) against("anychange");
+
+# Update non-FULLTEXT indexed column, Doc ID stay to be the same
+UPDATE t1 SET no_fts_field='anychange' where id = 1;
+
+SELECT * FROM t1 WHERE MATCH(fts_field) against("anychange");
+
+# Update both FULLTEXT indexed and non-indexed column, Doc ID will be updated
+UPDATE t1 SET no_fts_field='anychange', fts_field='other' where id = 1;
+
+SELECT * FROM t1 WHERE MATCH(fts_field) against("other");
+
+SELECT * FROM t1 WHERE MATCH(fts_field) against("BBB");
+
+# FTS index dropped, the DOC_ID column is kept, however, the ID will not
+# change
+DROP INDEX f on t1;
+
+UPDATE t1 SET fts_field='anychange' where id = 1;
+
+UPDATE t1 SET no_fts_field='anychange' where id = 1;
+
+UPDATE t1 SET no_fts_field='anychange', fts_field='other' where id = 1;
+
+CREATE FULLTEXT INDEX f ON t1(FTS_FIELD);
+
+SELECT * FROM t1 WHERE MATCH(fts_field) against("other");
+
+DROP TABLE t1;
+
+# Test on user supplied 'FTS_DOC_ID'
+CREATE TABLE t1(`FTS_DOC_ID` serial,
+		no_fts_field VARCHAR(10),
+		fts_field VARCHAR(10),
+		FULLTEXT INDEX f(fts_field)) ENGINE=INNODB;
+
+INSERT INTO t1 VALUES (1, 'AAA', 'BBB');
+
+# Doc ID must be updated as well (HA_FTS_INVALID_DOCID).
+--error 182
+UPDATE t1 SET fts_field='anychange' where FTS_DOC_ID = 1;
+
+UPDATE t1 SET fts_field='anychange', FTS_DOC_ID = 2 where FTS_DOC_ID = 1;
+
+SELECT * FROM t1 WHERE MATCH(fts_field) against("anychange");
+
+# "BBB" should be marked as deleted.
+SELECT * FROM t1 WHERE MATCH(fts_field) against("BBB");
+
+UPDATE t1 SET no_fts_field='anychange' where FTS_DOC_ID = 2;
+
+SELECT * FROM t1 WHERE MATCH(fts_field) against("anychange");
+
+# "HA_FTS_INVALID_DOCID"
+--error 182
+UPDATE t1 SET no_fts_field='anychange', fts_field='other' where FTS_DOC_ID = 2;
+
+SELECT * FROM t1 WHERE MATCH(fts_field) against("other");
+
+# Doc ID must be monotonically increase (HA_FTS_INVALID_DOCID)
+--error 182
+UPDATE t1 SET  FTS_DOC_ID = 1 where FTS_DOC_ID = 2;
+
+DROP INDEX f ON t1;
+
+# After FULLTEXT index dropped, we can update the fields freely
+UPDATE t1 SET fts_field='newchange' where FTS_DOC_ID = 2;
+
+UPDATE t1 SET no_fts_field='anychange' where FTS_DOC_ID = 2;
+
+SELECT * FROM t1;
+
+DROP TABLE t1;
+
+CREATE TABLE t1(ID INT PRIMARY KEY,
+		no_fts_field VARCHAR(10),
+		fts_field VARCHAR(10),
+		FULLTEXT INDEX f(fts_field), index k(fts_field)) ENGINE=INNODB;
+
+CREATE TABLE t2(ID INT PRIMARY KEY,
+		no_fts_field VARCHAR(10),
+		fts_field VARCHAR(10),
+		FULLTEXT INDEX f(fts_field),
+		INDEX k2(fts_field),
+		FOREIGN KEY(fts_field) REFERENCES
+		t1(fts_field) ON UPDATE CASCADE) ENGINE=INNODB;
+
+INSERT INTO t1 VALUES (1, 'AAA', 'BBB');
+
+INSERT INTO t2 VALUES (1, 'AAA', 'BBB');
+
+update t1 set fts_field='newchange' where id =1;
+
+SELECT * FROM t1 WHERE MATCH(fts_field) against("BBB");
+SELECT * FROM t2 WHERE MATCH(fts_field) against("BBB");
+SELECT * FROM t1 WHERE MATCH(fts_field) against("newchange");
+SELECT * FROM t2 WHERE MATCH(fts_field) against("newchange");
+
+DROP TABLE t2;
+
+DROP TABLE t1;
+
+# Testcases adopted from innodb_multi_update.test
+
+CREATE TABLE t1(id INT PRIMARY KEY,
+		fts_field VARCHAR(10),
+		FULLTEXT INDEX f(fts_field)) ENGINE=INNODB;
+
+
+CREATE TABLE t2(id INT PRIMARY KEY,
+		fts_field VARCHAR(10),
+		FULLTEXT INDEX f(fts_field)) ENGINE=INNODB;
+
+INSERT INTO t1 values (1,'100'),(2,'200'),(3,'300'),(4,'400'),(5,'500'),(6,'600'), (7,'700'),(8,'800'),(9,'900'),(10,'1000'),(11,'1100'),(12,'1200');
+INSERT INTO t2 values (1,'100'),(2,'200'),(3,'300'),(4,'400'),(5,'500'),(6,'600'), (7,'700'),(8,'800');
+
+UPDATE t1, t2 set t1.fts_field = CONCAT(t1.fts_field, 'foo');
+
+UPDATE t1, t2 set t1.fts_field = CONCAT(t1.fts_field, 'foo') WHERE t1.fts_field = "100foo";
+
+# Update two tables in the same statement
+UPDATE t1, t2 set t1.fts_field = CONCAT(t1.fts_field, 'xoo'), t2.fts_field = CONCAT(t1.fts_field, 'xoo') where t1.fts_field=CONCAT(t2.fts_field, 'foo');
+
+# Following selects shows whether the correct Doc ID are updated
+
+# This row should present in table t1
+SELECT * FROM t1 WHERE MATCH(fts_field) against("100foofoo");
+
+# Following rows should be dropped
+SELECT * FROM t1 WHERE MATCH(fts_field) against("100foo");
+SELECT * FROM t1 WHERE MATCH(fts_field) against("100");
+
+# This row should present in table t2
+SELECT * FROM t2 WHERE MATCH(fts_field) against("400fooxoo");
+SELECT * FROM t2 WHERE MATCH(fts_field) against("100");
+
+# Follow rows should be marked as dropped
+SELECT * FROM t2 WHERE MATCH(fts_field) against("200");
+SELECT * FROM t2 WHERE MATCH(fts_field) against("400");
+
+
+DROP TABLE t1;
+
+DROP TABLE t2;
+

@@ -201,3 +201,47 @@ NULL
 1,2,3,4,5,6,7
 
 DROP TABLE t1;
+#
+# BUG#12211480: GROUP BY MAKE_SET WITH EMPTY SET VALUES CRASH IN MY_HASH_SORT_SIMPLE
+#
+CREATE TABLE t1 (a INT, b CHAR NOT NULL);
+INSERT INTO t1 VALUES (NULL,'1'),(NULL,'1');
+SELECT COUNT(*) FROM t1 GROUP BY MAKE_SET(a,b);
+COUNT(*)
+2
+DROP TABLE t1;
+# End of test BUG#12211480
+#
+# Bug#12677197 MAKE_SET() AND MY_EMPTY_STRING BUGS CAUSE CRASHING
+#
+do
+nullif( ( rtrim( make_set((cast(('%S') as unsigned)),
+(point((0xaf),(''))))
+)
+), (''))
+;
+Warnings:
+Warning	1292	Truncated incorrect INTEGER value: '%S'
+do
+dayofmonth( ( not( trim( trailing( convert((''), binary(4)))
+from( make_set( ('>>'), ('`'))))
+)))
+;
+Warnings:
+Warning	1292	Truncated incorrect INTEGER value: '>>'
+Warning	1292	Incorrect datetime value: '1'
+do quote(make_set((''), (cast(('-2147483649.1') as binary(513)))));
+Warnings:
+Warning	1292	Truncated incorrect INTEGER value: ''
+do
+trim( both(-8388607)
+from( make_set( ( extract( minute_second from
+( str_to_date((rpad(1.0,4,1)), ('')))
+)
+),
+( char((connection_id()) using macce)))
+)
+)
+;
+Warnings:
+Warning	1292	Truncated incorrect date value: '1.01'

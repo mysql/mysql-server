@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -22,6 +22,7 @@
 #include "event_db_repository.h"
 #include "sql_connect.h"         // init_new_connection_handler_thread
 #include "sql_acl.h"             // SUPER_ACL
+#include "global_threads.h"
 
 /**
   @addtogroup Event_Scheduler
@@ -404,8 +405,12 @@ Event_scheduler::start()
     We should run the event scheduler thread under the super-user privileges.
     In particular, this is needed to be able to lock the mysql.event table
     for writing when the server is running in the read-only mode.
+
+    Same goes for transaction access mode. Set it to read-write for this thd.
   */
   new_thd->security_ctx->master_access |= SUPER_ACL;
+  new_thd->variables.tx_read_only= false;
+  new_thd->tx_read_only= false;
 
   scheduler_param_value=
     (struct scheduler_param *)my_malloc(sizeof(struct scheduler_param), MYF(0));

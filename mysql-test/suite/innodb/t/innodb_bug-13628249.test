@@ -1,0 +1,119 @@
+# This is the test case for bug#13628249. Make sure that InnoDB starts
+# up correctly and is able to shutdown with --innodb-force-recovery >= 3
+# after a crash with active user tranactions.
+
+#
+# Not supported in embedded
+--source include/not_embedded.inc
+
+#
+# This test case needs to crash the server. Needs a debug server.
+--source include/have_debug.inc
+#
+# Don't test this under valgrind, memory leaks will occur.
+--source include/not_valgrind.inc
+#
+# This test case needs InnoDB.
+-- source include/have_innodb.inc
+
+# Avoid CrashReporter popup on Mac
+--source include/not_crashrep.inc
+
+##### Restart the server in force recovery mode
+--echo # Stop server
+
+# Write file to make mysql-test-run.pl wait for the server to stop
+-- exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+
+# Request shutdown
+-- send_shutdown
+
+# Call script that will poll the server waiting for it to disapear
+-- source include/wait_until_disconnected.inc
+
+--echo # Restart server.
+
+# Write file to make mysql-test-run.pl start up the server again, ensure
+# that no background threads are started, so that we can check that it
+# shuts down properly.
+--exec echo "restart:--innodb-force-recovery=2" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+
+# Turn on reconnect
+--enable_reconnect
+
+# Call script that will poll the server waiting for it to be back online again
+--source include/wait_until_connected_again.inc
+
+# Turn off reconnect again
+--disable_reconnect
+
+##### Restart the server in normal mode
+# Write file to make mysql-test-run.pl wait for the server to stop
+-- exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+
+# Send a shutdown request to the server
+-- send_shutdown
+
+# Call script that will poll the server waiting for it to disapear
+-- source include/wait_until_disconnected.inc
+
+--echo # Restart server.
+
+# Write file to make mysql-test-run.pl start up the server again, ensure
+# that no background threads are started, so that we can check that it
+# shuts down properly.
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+
+# Turn on reconnect
+--enable_reconnect
+
+# Call script that will poll the server waiting for it to be back online again
+--source include/wait_until_connected_again.inc
+
+# Turn off reconnect again
+--disable_reconnect
+
+
+#
+# Create test data.
+#
+CREATE TABLE t1(c1 INT PRIMARY KEY) ENGINE=InnoDB;
+BEGIN;
+INSERT INTO t1 VALUES(1), (2), (3), (4);
+
+# Request a crash on next execution of commit.
+SET SESSION debug="+d,crash_commit_before";
+
+# Write file to make mysql-test-run.pl start up the server again
+--exec echo "restart:--innodb-force-recovery=3" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+
+# Execute the statement that causes the crash.
+--error 2013
+COMMIT;
+
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+--disable_reconnect
+
+SELECT COUNT(*) IN (0,4) yes FROM t1;
+
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--send_shutdown
+--source include/wait_until_disconnected.inc
+
+--exec echo "restart:--innodb-force-recovery=5" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+--disable_reconnect
+
+SELECT COUNT(*) IN (0,4) yes FROM t1;
+
+# Restart the server in normal mode now, otherwise the DROP TABLE t1;
+# will cause an assertion failure because essentially it is in read-only
+# mode. For -innodb-force-recovery >= 3 a transaction is not assigned a
+# rollback segment.
+-- source include/restart_mysqld.inc
+
+SELECT COUNT(*) IN (0,4) yes FROM t1;
+
+DROP TABLE t1;

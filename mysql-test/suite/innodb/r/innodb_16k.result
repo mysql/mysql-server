@@ -45,7 +45,7 @@ c26 char(200), c27 char(200), c28 char(200), c29 char(200), c30 char(200),
 c31 char(200), c32 char(200), c33 char(200), c34 char(200), c35 char(200),
 c36 char(200), c37 char(200), c38 char(200), c39 char(200), c40 char(212)
 ) ROW_FORMAT=redundant;
-ERROR 42000: Row size too large. The maximum row size for the used table type, not counting BLOBs, is 8123. You have to change some columns to TEXT or BLOBs
+ERROR 42000: Row size too large. The maximum row size for the used table type, not counting BLOBs, is 8123. This includes storage overhead, check the manual. You have to change some columns to TEXT or BLOBs
 CREATE TABLE t1 (
 c01 char(200), c02 char(200), c03 char(200), c04 char(200), c05 char(200),
 c06 char(200), c07 char(200), c08 char(200), c09 char(200), c10 char(200),
@@ -67,7 +67,7 @@ c26 char(200), c27 char(200), c28 char(200), c29 char(200), c30 char(200),
 c31 char(200), c32 char(200), c33 char(200), c34 char(200), c35 char(200),
 c36 char(200), c37 char(200), c38 char(200), c39 char(250), c40 char(247)
 ) ROW_FORMAT=compact;
-ERROR 42000: Row size too large. The maximum row size for the used table type, not counting BLOBs, is 8126. You have to change some columns to TEXT or BLOBs
+ERROR 42000: Row size too large. The maximum row size for the used table type, not counting BLOBs, is 8126. This includes storage overhead, check the manual. You have to change some columns to TEXT or BLOBs
 CREATE TABLE t1 (
 c01 char(200), c02 char(200), c03 char(200), c04 char(200), c05 char(200),
 c06 char(200), c07 char(200), c08 char(200), c09 char(200), c10 char(200),
@@ -89,7 +89,7 @@ c26 char(200), c27 char(200), c28 char(200), c29 char(200), c30 char(200),
 c31 char(200), c32 char(200), c33 char(200), c34 char(200), c35 char(200),
 c36 char(200), c37 char(200), c38 char(200), c39 char(200), c40 char(160)
 ) ROW_FORMAT=compressed;
-ERROR 42000: Row size too large. The maximum row size for the used table type, not counting BLOBs, is 8126. You have to change some columns to TEXT or BLOBs
+ERROR 42000: Row size too large. The maximum row size for the used table type, not counting BLOBs, is 8126. This includes storage overhead, check the manual. You have to change some columns to TEXT or BLOBs
 CREATE TABLE t1 (
 c01 char(200), c02 char(200), c03 char(200), c04 char(200), c05 char(200),
 c06 char(200), c07 char(200), c08 char(200), c09 char(200), c10 char(200),
@@ -111,7 +111,7 @@ c26 char(200), c27 char(200), c28 char(200), c29 char(200), c30 char(200),
 c31 char(200), c32 char(200), c33 char(200), c34 char(200), c35 char(200),
 c36 char(200), c37 char(200), c38 char(200), c39 char(250), c40 char(247)
 ) ROW_FORMAT=dynamic;
-ERROR 42000: Row size too large. The maximum row size for the used table type, not counting BLOBs, is 8126. You have to change some columns to TEXT or BLOBs
+ERROR 42000: Row size too large. The maximum row size for the used table type, not counting BLOBs, is 8126. This includes storage overhead, check the manual. You have to change some columns to TEXT or BLOBs
 CREATE TABLE t1 (a varchar(255) character set utf8,
 b varchar(255) character set utf8,
 c varchar(255) character set utf8,
@@ -294,7 +294,8 @@ DROP TABLE t2, t3;
 SELECT COUNT(*) FROM t1 WHERE a=44;
 COUNT(*)
 5
-SELECT a,LENGTH(b),b=LEFT(REPEAT(d,100*a),65535),LENGTH(c),c=REPEAT(d,20*a),d FROM t1;
+SELECT a,
+LENGTH(b),b=LEFT(REPEAT(d,100*a),65535),LENGTH(c),c=REPEAT(d,20*a),d FROM t1;
 a	LENGTH(b)	b=LEFT(REPEAT(d,100*a),65535)	LENGTH(c)	c=REPEAT(d,20*a)	d
 22	22000	1	4400	1	adfd72nh9k
 22	35200	1	7040	1	adfdijn0loKNHJik
@@ -323,6 +324,9 @@ a	LENGTH(b)	b=LEFT(REPEAT(d,100*a),65535)	LENGTH(c)	c=REPEAT(d,20*a)	d
 66	65535	1	13200	1	jejdkrun87
 ALTER TABLE t1 ADD PRIMARY KEY (a), ADD KEY (b(20));
 ERROR 23000: Duplicate entry '22' for key 'PRIMARY'
+DELETE FROM t1 WHERE d='null';
+ALTER TABLE t1 ADD PRIMARY KEY (a), ADD KEY (b(20));
+ERROR 23000: Duplicate entry '22' for key 'PRIMARY'
 DELETE FROM t1 WHERE a%2;
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
@@ -331,7 +335,8 @@ ALTER TABLE t1 ADD PRIMARY KEY (a,b(255),c(255)), ADD KEY (b(767));
 SELECT COUNT(*) FROM t1 WHERE a=44;
 COUNT(*)
 5
-SELECT a, LENGTH(b), b=LEFT(REPEAT(d,100*a), 65535),LENGTH(c), c=REPEAT(d,20*a), d FROM t1;
+SELECT a,
+LENGTH(b), b=LEFT(REPEAT(d,100*a), 65535),LENGTH(c), c=REPEAT(d,20*a), d FROM t1;
 a	LENGTH(b)	b=LEFT(REPEAT(d,100*a), 65535)	LENGTH(c)	c=REPEAT(d,20*a)	d
 22	22000	1	4400	1	adfd72nh9k
 22	35200	1	7040	1	adfdijn0loKNHJik
@@ -366,37 +371,67 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ALL	b	NULL	NULL	NULL	15	Using where
 DROP TABLE t1;
 # Test 8) Test creating a table that could lead to undo log overflow.
-# In the undo log, we write a 768-byte prefix (REC_MAX_INDEX_COL_LEN)
-# of each externally stored column that appears as a column prefix in an index.
-# For this test case, it would suffice to write 1 byte, though.
 CREATE TABLE t1(a blob,b blob,c blob,d blob,e blob,f blob,g blob,
 h blob,i blob,j blob,k blob,l blob,m blob,n blob,
 o blob,p blob,q blob,r blob,s blob,t blob,u blob)
 ENGINE=InnoDB ROW_FORMAT=dynamic;
+SET @a = repeat('a', 767);
+SET @b = repeat('b', 767);
+SET @c = repeat('c', 767);
+SET @d = repeat('d', 767);
+SET @e = repeat('e', 767);
+INSERT INTO t1 VALUES (@a,@a,@a,@a,@a,@a,@a,@a,@a,@a,@a,@a,@a,@a,@a,@a,@a,@a,@a,@a,@a);
+UPDATE t1 SET a=@b,b=@b,c=@b,d=@b,e=@b,f=@b,g=@b,h=@b,i=@b,j=@b,
+k=@b,l=@b,m=@b,n=@b,o=@b,p=@b,q=@b,r=@b,s=@b,t=@b,u=@b;
 CREATE INDEX t1a ON t1 (a(767));
 CREATE INDEX t1b ON t1 (b(767));
 CREATE INDEX t1c ON t1 (c(767));
 CREATE INDEX t1d ON t1 (d(767));
 CREATE INDEX t1e ON t1 (e(767));
+UPDATE t1 SET a=@c,b=@c,c=@c,d=@c,e=@c,f=@c,g=@c,h=@c,i=@c,j=@c,
+k=@c,l=@c,m=@c,n=@c,o=@c,p=@c,q=@c,r=@c,s=@c,t=@c,u=@c;
 CREATE INDEX t1f ON t1 (f(767));
+UPDATE t1 SET a=@d,b=@d,c=@d,d=@d,e=@d,f=@d,g=@d,h=@d,i=@d,j=@d,
+k=@d,l=@d,m=@d,n=@d,o=@d,p=@d,q=@d,r=@d,s=@d,t=@d,u=@d;
+ERROR HY000: Undo log record is too big.
+BEGIN;
+UPDATE t1 SET a=@d,b=@d,c=@d,d=@d,e=@d;
+UPDATE t1 SET f=@d,g=@d,h=@d,i=@d,j=@d,k=@d,l=@d,m=@d,
+n=@d,o=@d,p=@d,q=@d,r=@d,s=@d,t=@d,u=@d;
+COMMIT;
 CREATE INDEX t1g ON t1 (g(767));
+UPDATE t1 SET g=@e;
 CREATE INDEX t1h ON t1 (h(767));
+UPDATE t1 SET h=@e;
 CREATE INDEX t1i ON t1 (i(767));
+UPDATE t1 SET i=@e;
 CREATE INDEX t1j ON t1 (j(767));
+UPDATE t1 SET j=@e;
 CREATE INDEX t1k ON t1 (k(767));
+UPDATE t1 SET k=@e;
 CREATE INDEX t1l ON t1 (l(767));
+UPDATE t1 SET l=@e;
 CREATE INDEX t1m ON t1 (m(767));
+UPDATE t1 SET m=@e;
 CREATE INDEX t1n ON t1 (n(767));
+UPDATE t1 SET n=@e;
 CREATE INDEX t1o ON t1 (o(767));
+UPDATE t1 SET o=@e;
 CREATE INDEX t1p ON t1 (p(767));
+UPDATE t1 SET p=@e;
 CREATE INDEX t1q ON t1 (q(767));
+UPDATE t1 SET q=@e;
 CREATE INDEX t1r ON t1 (r(767));
+UPDATE t1 SET r=@e;
 CREATE INDEX t1s ON t1 (s(767));
+UPDATE t1 SET s=@e;
 CREATE INDEX t1t ON t1 (t(767));
+UPDATE t1 SET t=@e;
+ERROR HY000: Undo log record is too big.
 CREATE INDEX t1u ON t1 (u(767));
-ERROR HY000: Too big row
+ERROR 42000: Row size too large. The maximum row size for the used table type, not counting BLOBs, is 8126. This includes storage overhead, check the manual. You have to change some columns to TEXT or BLOBs
 CREATE INDEX t1ut ON t1 (u(767), t(767));
-ERROR HY000: Too big row
+ERROR 42000: Row size too large. The maximum row size for the used table type, not counting BLOBs, is 8126. This includes storage overhead, check the manual. You have to change some columns to TEXT or BLOBs
 CREATE INDEX t1st ON t1 (s(767), t(767));
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -444,57 +479,6 @@ t1	CREATE TABLE `t1` (
   KEY `t1t` (`t`(767)),
   KEY `t1st` (`s`(767),`t`(767))
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=DYNAMIC
-CREATE INDEX t1u ON t1 (u(767));
-ERROR HY000: Too big row
-ALTER TABLE t1 ROW_FORMAT=compact;
-CREATE INDEX t1u ON t1 (u(767));
-SHOW CREATE TABLE t1;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `a` blob,
-  `b` blob,
-  `c` blob,
-  `d` blob,
-  `e` blob,
-  `f` blob,
-  `g` blob,
-  `h` blob,
-  `i` blob,
-  `j` blob,
-  `k` blob,
-  `l` blob,
-  `m` blob,
-  `n` blob,
-  `o` blob,
-  `p` blob,
-  `q` blob,
-  `r` blob,
-  `s` blob,
-  `t` blob,
-  `u` blob,
-  KEY `t1a` (`a`(767)),
-  KEY `t1b` (`b`(767)),
-  KEY `t1c` (`c`(767)),
-  KEY `t1d` (`d`(767)),
-  KEY `t1e` (`e`(767)),
-  KEY `t1f` (`f`(767)),
-  KEY `t1g` (`g`(767)),
-  KEY `t1h` (`h`(767)),
-  KEY `t1i` (`i`(767)),
-  KEY `t1j` (`j`(767)),
-  KEY `t1k` (`k`(767)),
-  KEY `t1l` (`l`(767)),
-  KEY `t1m` (`m`(767)),
-  KEY `t1n` (`n`(767)),
-  KEY `t1o` (`o`(767)),
-  KEY `t1p` (`p`(767)),
-  KEY `t1q` (`q`(767)),
-  KEY `t1r` (`r`(767)),
-  KEY `t1s` (`s`(767)),
-  KEY `t1t` (`t`(767)),
-  KEY `t1st` (`s`(767),`t`(767)),
-  KEY `t1u` (`u`(767))
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=COMPACT
 DROP TABLE t1;
 SET GLOBAL innodb_file_format = `Barracuda`;
 SET GLOBAL innodb_file_per_table = ON;
@@ -628,19 +612,19 @@ UPDATE bug12547647 SET c = REPEAT('b',16928);
 ERROR HY000: Undo log record is too big.
 SHOW WARNINGS;
 Level	Code	Message
-Error	1743	Undo log record is too big.
+Error	1713	Undo log record is too big.
 DROP TABLE bug12547647;
 SET SESSION innodb_strict_mode = off;
 CREATE TABLE t1(
 c text NOT NULL, d text NOT NULL,
 PRIMARY KEY (c(767),d(767)))
 ENGINE=InnoDB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=1 CHARSET=ASCII;
-ERROR 42000: Row size too large. The maximum row size for the used table type, not counting BLOBs, is 8126. You have to change some columns to TEXT or BLOBs
+ERROR 42000: Row size too large. The maximum row size for the used table type, not counting BLOBs, is 8126. This includes storage overhead, check the manual. You have to change some columns to TEXT or BLOBs
 CREATE TABLE t1(
 c text NOT NULL, d text NOT NULL,
 PRIMARY KEY (c(767),d(767)))
 ENGINE=InnoDB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=2 CHARSET=ASCII;
-ERROR 42000: Row size too large. The maximum row size for the used table type, not counting BLOBs, is 8126. You have to change some columns to TEXT or BLOBs
+ERROR 42000: Row size too large. The maximum row size for the used table type, not counting BLOBs, is 8126. This includes storage overhead, check the manual. You have to change some columns to TEXT or BLOBs
 CREATE TABLE t1(
 c text NOT NULL, d text NOT NULL,
 PRIMARY KEY (c(767),d(767)))
@@ -648,7 +632,7 @@ ENGINE=InnoDB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=4 CHARSET=ASCII;
 drop table t1;
 CREATE TABLE t1(c text, PRIMARY KEY (c(440)))
 ENGINE=InnoDB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=1 CHARSET=ASCII;
-ERROR 42000: Row size too large. The maximum row size for the used table type, not counting BLOBs, is 8126. You have to change some columns to TEXT or BLOBs
+ERROR 42000: Row size too large. The maximum row size for the used table type, not counting BLOBs, is 8126. This includes storage overhead, check the manual. You have to change some columns to TEXT or BLOBs
 CREATE TABLE t1(c text, PRIMARY KEY (c(438)))
 ENGINE=InnoDB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=1 CHARSET=ASCII;
 INSERT INTO t1 VALUES(REPEAT('A',512)),(REPEAT('B',512));
@@ -685,7 +669,7 @@ SELECT COUNT(*) FROM
 (SELECT * FROM t1 FORCE INDEX (idx,PRIMARY)
 WHERE a BETWEEN 2 AND 7 OR pk=1000000) AS t;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	1536	
+1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	1536	NULL
 2	DERIVED	t1	index_merge	PRIMARY,idx	idx,PRIMARY	5,4	NULL	1536	Using sort_union(idx,PRIMARY); Using where
 SELECT COUNT(*) FROM
 (SELECT * FROM t1 FORCE INDEX (idx,PRIMARY)

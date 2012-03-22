@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2012, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -53,35 +53,6 @@ UNIV_INTERN ulint	data_dummy;
 #endif /* UNIV_DEBUG */
 
 #ifndef UNIV_HOTBACKUP
-/*********************************************************************//**
-Tests if dfield data length and content is equal to the given.
-@return	TRUE if equal */
-UNIV_INTERN
-ibool
-dfield_data_is_binary_equal(
-/*========================*/
-	const dfield_t*	field,	/*!< in: field */
-	ulint		len,	/*!< in: data length or UNIV_SQL_NULL */
-	const byte*	data)	/*!< in: data */
-{
-	if (len != dfield_get_len(field)) {
-
-		return(FALSE);
-	}
-
-	if (len == UNIV_SQL_NULL) {
-
-		return(TRUE);
-	}
-
-	if (0 != memcmp(dfield_get_data(field), data, len)) {
-
-		return(FALSE);
-	}
-
-	return(TRUE);
-}
-
 /************************************************************//**
 Compare two data tuples, respecting the collation of character fields.
 @return 1, 0 , -1 if tuple1 is greater, equal, less, respectively,
@@ -335,7 +306,7 @@ dfield_print(
 		break;
 	case DATA_INT:
 		ut_a(len == 4); /* only works for 32-bit integers */
-		fprintf(stderr, "%d", (int)mach_read_from_4(data));
+		fprintf(stderr, "%d", (int) mach_read_from_4(data));
 		break;
 	default:
 		ut_error;

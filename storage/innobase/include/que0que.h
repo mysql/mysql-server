@@ -346,7 +346,7 @@ void
 que_close(void);
 /*===========*/
 
-/* Query graph query thread node: the fields are protected by the 
+/* Query graph query thread node: the fields are protected by the
 trx_t::mutex with the exceptions named below */
 
 struct que_thr_struct{

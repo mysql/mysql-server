@@ -349,7 +349,7 @@ WHERE ts BETWEEN '0000-00-00' AND '2010-00-01 00:00:00'
 ORDER BY ts DESC
 LIMIT 2;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	PRIMARY	PRIMARY	4	NULL	4	Using index condition
+1	SIMPLE	t1	range	PRIMARY	PRIMARY	4	NULL	4	Using where
 
 DROP TABLE t1;
 #
@@ -511,9 +511,9 @@ ON table3.col_varchar_key = table2.col_varchar_key)
 ON table3.col_int_nokey = table1.col_int_key
 WHERE table3.col_int_key != SOME ( SELECT c1 FROM t2 );
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	table2	index	col_varchar_key	col_varchar_key	9	NULL	19	Using where; Using index
+1	PRIMARY	table1	ALL	col_int_key	NULL	NULL	NULL	19	NULL
+1	PRIMARY	table2	range	col_varchar_key	col_varchar_key	4	NULL	18	Using where; Using index; Using join buffer (Block Nested Loop)
 1	PRIMARY	table3	ref	col_varchar_key	col_varchar_key	4	test.table2.col_varchar_key	1	Using where
-1	PRIMARY	table1	ref	col_int_key	col_int_key	5	test.table3.col_int_nokey	1	
 2	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	1	Using where
 SELECT table1.col_int_nokey
 FROM t1 AS table1 STRAIGHT_JOIN (
@@ -543,8 +543,8 @@ WHERE t1.pk < 317 AND 2 IN (SELECT COUNT(t2.c1)
 FROM t2)
 ORDER BY t1.c2;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	range	PRIMARY	PRIMARY	4	NULL	1	Using index condition; Using where; Using filesort
-2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	1	
+1	PRIMARY	t1	range	PRIMARY	PRIMARY	4	NULL	1	Using where; Using filesort
+2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	1	NULL
 SELECT t1.c1
 FROM t1
 WHERE t1.pk < 317 AND 2 IN (SELECT COUNT(t2.c1)
@@ -579,7 +579,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	1	Using where
 2	DEPENDENT SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	1	Using where
 2	DEPENDENT SUBQUERY	t2	ref	c1	c1	3	test.t3.c1	1	Using where
-3	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	1	
+3	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	1	NULL
 SELECT i1
 FROM t1
 WHERE EXISTS (SELECT t2.c1
@@ -628,7 +628,7 @@ PRIMARY KEY (pk)
 INSERT INTO t1 VALUES (1,9),(2,7),(3,6),(4,3),(5,1);
 EXPLAIN SELECT pk, c1 FROM t1 WHERE pk <> 3;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	PRIMARY	PRIMARY	4	NULL	4	Using index condition
+1	SIMPLE	t1	range	PRIMARY	PRIMARY	4	NULL	4	Using where
 SET SESSION optimizer_switch='index_condition_pushdown=off';
 SELECT pk, c1 FROM t1 WHERE pk <> 3;
 pk	c1
@@ -709,8 +709,8 @@ EXPLAIN SELECT c2 FROM t1 JOIN t2 ON t1.c1 = t2.c1
 WHERE (t2.pk <= 4 AND t1.pk IN (2,1)) OR
 (t1.pk > 1 AND t2.pk BETWEEN 6 AND 6);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	PRIMARY	PRIMARY	4	NULL	1	Using index condition
-1	SIMPLE	t2	range	PRIMARY	PRIMARY	4	NULL	2	Using index condition; Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	t1	range	PRIMARY	PRIMARY	4	NULL	1	Using where
+1	SIMPLE	t2	range	PRIMARY	PRIMARY	4	NULL	2	Using where; Using join buffer (Block Nested Loop)
 SELECT c2 FROM t1 JOIN t2 ON t1.c1 = t2.c1
 WHERE (t2.pk <= 4 AND t1.pk IN (2,1)) OR
 (t1.pk > 1 AND t2.pk BETWEEN 6 AND 6);
@@ -794,6 +794,7 @@ PRIMARY KEY (pk),
 KEY col_int_key (i1)
 );
 INSERT INTO t2 VALUES (1,7,'f');
+set @old_opt_switch=@@optimizer_switch;
 EXPLAIN SELECT t1.i1
 FROM t1
 WHERE t1.i1 NOT IN
@@ -821,6 +822,7 @@ OR SUBQUERY_t2.c1 = 'a'
 i1
 NULL
 133
+set @@optimizer_switch=@old_opt_switch;
 DROP TABLE t1,t2;
 #
 # Bug#11876420 "MISSING ROW IN RESULT WITH SUBQUERY + IN + XOR + 
@@ -845,6 +847,7 @@ c1 VARCHAR(1),
 KEY col_varchar_key (c1)
 ) ENGINE=InnoDB;
 INSERT INTO t3 VALUES (NULL,'w'), (1,NULL), (2,'d');
+set @old_opt_switch=@@optimizer_switch;
 EXPLAIN SELECT i1
 FROM t3
 WHERE c1 IN
@@ -856,7 +859,7 @@ WHERE t1.c1 > t2.c1
 XOR i1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	3	Using where
-2	DEPENDENT SUBQUERY	t2	ALL	col_varchar_key	NULL	NULL	NULL	1	
+2	DEPENDENT SUBQUERY	t2	ALL	col_varchar_key	NULL	NULL	NULL	1	NULL
 2	DEPENDENT SUBQUERY	t1	ref_or_null	col_varchar_key	col_varchar_key	4	func	2	Using where; Full scan on NULL key
 SELECT i1
 FROM t3
@@ -870,6 +873,7 @@ XOR i1;
 i1
 1
 2
+set @@optimizer_switch=@old_opt_switch;
 DROP TABLE t1, t2, t3;
 #
 # Bug#12355958 "FAILING ASSERTION: TRX->LOCK.N_ACTIVE_THRS == 1"
@@ -886,10 +890,10 @@ FROM t1 AS a1 JOIN (SELECT * FROM t1 LIMIT 1) AS a2 ON a2.b = a1.b
 WHERE a1.a = (SELECT pk FROM t1 LIMIT 1) 
 AND (a1.a != a2.a OR a1.b IS NULL);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	<derived2>	system	NULL	NULL	NULL	NULL	1	
+1	PRIMARY	<derived2>	system	NULL	NULL	NULL	NULL	1	NULL
 1	PRIMARY	a1	ref	b	b	2	const	1	Using where
 3	SUBQUERY	t1	index	NULL	b	2	NULL	1	Using index
-2	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	1	
+2	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	1	NULL
 SELECT a1.pk 
 FROM t1 AS a1 JOIN (SELECT * FROM t1 LIMIT 1) AS a2 ON a2.b = a1.b
 WHERE a1.a = (SELECT pk FROM t1 LIMIT 1) 
@@ -901,10 +905,10 @@ FROM v1 AS a1 JOIN (SELECT * FROM v1 LIMIT 1) AS a2 ON a2.b = a1.b
 WHERE a1.a = (SELECT pk FROM v1 LIMIT 1) 
 AND (a1.a != a2.a OR a1.b IS NULL);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	<derived2>	system	NULL	NULL	NULL	NULL	1	
+1	PRIMARY	<derived2>	system	NULL	NULL	NULL	NULL	1	NULL
 1	PRIMARY	t1	ref	b	b	2	const	1	Using where
 3	SUBQUERY	t1	index	NULL	b	2	NULL	1	Using index
-2	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	1	
+2	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	1	NULL
 SELECT a1.pk 
 FROM v1 AS a1 JOIN (SELECT * FROM v1 LIMIT 1) AS a2 ON a2.b = a1.b
 WHERE a1.a = (SELECT pk FROM v1 LIMIT 1) 
@@ -929,7 +933,7 @@ FROM t1 AS alias1 STRAIGHT_JOIN t1 AS alias2
 ON alias2.pk AND alias2.pk <= alias1.c1
 WHERE alias2.pk = 1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	alias1	ALL	NULL	NULL	NULL	NULL	2	
+1	SIMPLE	alias1	ALL	NULL	NULL	NULL	NULL	2	NULL
 1	SIMPLE	alias2	const	PRIMARY	PRIMARY	4	const	1	Using where
 SELECT alias2.i1
 FROM t1 AS alias1 STRAIGHT_JOIN t1 AS alias2
@@ -988,14 +992,14 @@ INSERT INTO t2 VALUES (0,9),(3,10),(4,6),(6,1),(100,3),(200,5);
 set @old_opt_switch=@@optimizer_switch;
 SET optimizer_switch="block_nested_loop=off";
 EXPLAIN SELECT t2.col_int_key AS field1
-FROM t2 JOIN t1 ON t2.col_int_key
+FROM t2 USE INDEX(col_int_key) STRAIGHT_JOIN t1 ON t2.col_int_key
 WHERE t2.pk < 7 AND t2.col_int_key <> 7
 GROUP BY field1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	range	PRIMARY,col_int_key	col_int_key	5	NULL	5	Using where
+1	SIMPLE	t2	range	col_int_key	col_int_key	5	NULL	5	Using where; Using index
 1	SIMPLE	t1	index	NULL	col_int_key	5	NULL	4	Using index
 SELECT t2.col_int_key AS field1
-FROM t2 JOIN t1 ON t2.col_int_key
+FROM t2 USE INDEX(col_int_key) STRAIGHT_JOIN t1 ON t2.col_int_key
 WHERE t2.pk < 7 AND t2.col_int_key <> 7
 GROUP BY field1;
 field1
@@ -1036,6 +1040,30 @@ i2
 2
 20
 DROP PROCEDURE proc1;
+DROP TABLE t1, t2;
+#
+# Bug#13655397 "CRASH IN SYNC_THREAD_LEVELS_NONEMPTY_TRX"
+#
+CREATE TABLE t1 (
+i1 INTEGER NOT NULL,
+i2 INTEGER NOT NULL,
+KEY (i1)
+);
+INSERT INTO t1 VALUES (4,4), (5,5);
+CREATE TABLE t2 (
+pk INTEGER NOT NULL,
+PRIMARY KEY (pk)
+);
+INSERT INTO t2 VALUES (1);
+CREATE FUNCTION f1() RETURNS INTEGER
+RETURN (SELECT MOD(COUNT(DISTINCT pk), 10) FROM t2);
+EXPLAIN SELECT i1, i2 FROM t1 WHERE f1() = 1 AND i1 = 5;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ref	i1	i1	4	const	1	Using where
+SELECT i1, i2 FROM t1 WHERE f1() = 1 AND i1 = 5;
+i1	i2
+5	5
+DROP FUNCTION f1;
 DROP TABLE t1, t2;
 set default_storage_engine= @save_storage_engine;
 set optimizer_switch=default;

@@ -500,11 +500,14 @@ int init_embedded_server(int argc, char **argv, char **groups)
     This mess is to allow people to call the init function without
     having to mess with a fake argv
    */
-  int *argcp;
-  char ***argvp;
-  int fake_argc = 1;
-  char *fake_argv[] = { (char *)"", 0 };
-  const char *fake_groups[] = { "server", "embedded", 0 };
+  int *argcp= NULL;
+  char ***argvp= NULL;
+  int fake_argc= 1;
+  char *fake_argv[2];
+  char fake_server[]= "server";
+  char fake_embedded[]= "embedded";
+  char *fake_groups[]= { fake_server, fake_embedded, NULL };
+  char fake_name[]= "fake_name";
   my_bool acl_error;
 
   if (my_thread_init())
@@ -513,17 +516,21 @@ int init_embedded_server(int argc, char **argv, char **groups)
   if (argc)
   {
     argcp= &argc;
-    argvp= (char***) &argv;
+    argvp= &argv;
   }
   else
   {
+    fake_argv[0]= fake_name;
+    fake_argv[1]= NULL;
+
+    char **foo= &fake_argv[0];
     argcp= &fake_argc;
-    argvp= (char ***) &fake_argv;
+    argvp= &foo;
   }
   if (!groups)
-    groups= (char**) fake_groups;
+    groups= fake_groups;
 
-  my_progname= (char *)"mysql_embedded";
+  my_progname= "mysql_embedded";
 
   /*
     Perform basic logger initialization logger. Should be called after
@@ -628,6 +635,23 @@ int init_embedded_server(int argc, char **argv, char **groups)
   }
 
   execute_ddl_log_recovery();
+
+  /* Signal successful initialization */
+  mysql_mutex_lock(&LOCK_server_started);
+  mysqld_server_started= 1;
+  mysql_cond_signal(&COND_server_started);
+  mysql_mutex_unlock(&LOCK_server_started);
+
+#ifdef WITH_NDBCLUSTER_STORAGE_ENGINE
+  /* engine specific hook, to be made generic */
+  if (ndb_wait_setup_func && ndb_wait_setup_func(opt_ndb_wait_setup))
+  {
+    sql_print_warning("NDB : Tables not available after %lu seconds."
+                      "  Consider increasing --ndb-wait-setup value",
+                      opt_ndb_wait_setup);
+  }
+#endif
+
   return 0;
 }
 
@@ -893,7 +917,7 @@ write_eof_packet(THD *thd, uint server_status, uint statement_warn_count)
     is cleared between substatements, and mysqltest gets confused
   */
   thd->cur_data->embedded_info->warning_count=
-    (thd->spcont ? 0 : min(statement_warn_count, 65535U));
+    (thd->sp_runtime_ctx ? 0 : min(statement_warn_count, 65535U));
   return FALSE;
 }
 

@@ -55,7 +55,7 @@ select v1.b from v1;
 ERROR 42S22: Unknown column 'v1.b' in 'field list'
 explain extended select c from v1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	5	100.00	
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select (`test`.`t1`.`b` + 1) AS `c` from `test`.`t1`
 create algorithm=temptable view v2 (c) as select b+1 from t1;
@@ -71,8 +71,8 @@ c
 11
 explain extended select c from v2;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	5	100.00	
-2	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	5	100.00	
+1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+2	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select `v2`.`c` AS `c` from `test`.`v2`
 create view v3 (c) as select a+1 from v1;
@@ -89,7 +89,7 @@ c
 12
 explain extended select c from v3;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	5	100.00	
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select ((`test`.`t1`.`b` + 1) + 1) AS `c` from `test`.`t1`
 create algorithm=temptable view v4 (c) as select c+1 from v2;
@@ -102,9 +102,9 @@ c
 12
 explain extended select c from v4;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	5	100.00	
-2	DERIVED	<derived3>	ALL	NULL	NULL	NULL	NULL	5	100.00	
-3	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	5	100.00	
+1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+2	DERIVED	<derived3>	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+3	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select `v4`.`c` AS `c` from `test`.`v4`
 create view v5 (c) as select c+1 from v2;
@@ -117,8 +117,8 @@ c
 12
 explain extended select c from v5;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	<derived3>	ALL	NULL	NULL	NULL	NULL	5	100.00	
-3	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	5	100.00	
+1	PRIMARY	<derived3>	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+3	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select (`v2`.`c` + 1) AS `c` from `test`.`v2`
 create algorithm=temptable view v6 (c) as select c+1 from v1;
@@ -131,8 +131,8 @@ c
 12
 explain extended select c from v6;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	5	100.00	
-2	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	5	100.00	
+1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+2	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select `v6`.`c` AS `c` from `test`.`v6`
 show tables;
@@ -237,7 +237,7 @@ a
 3
 explain select * from v1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	6	
+1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	6	NULL
 2	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	6	Using temporary
 select * from t1;
 a
@@ -302,7 +302,7 @@ a+1
 4
 explain select * from v1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	2	
+1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	2	NULL
 2	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	4	Using filesort
 drop view v1;
 drop table t1;
@@ -1417,7 +1417,7 @@ a	a	b
 4	NULL	NULL
 explain extended select * from t3 left join v3 on (t3.a = v3.a);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t3	ALL	NULL	NULL	NULL	NULL	3	100.00	
+1	SIMPLE	t3	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where; Using join buffer (Block Nested Loop)
 1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Using join buffer (Block Nested Loop)
 Warnings:
@@ -1432,7 +1432,7 @@ a	a	b
 4	NULL	NULL
 explain extended select * from t3 left join v4 on (t3.a = v4.a);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t3	ALL	NULL	NULL	NULL	NULL	3	100.00	
+1	SIMPLE	t3	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where; Using join buffer (Block Nested Loop)
 1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Using join buffer (Block Nested Loop)
 Warnings:
@@ -2686,7 +2686,7 @@ SELECT id, date(d) + INTERVAL TIME_TO_SEC(d) SECOND AS t, COUNT(*)
 FROM t1 GROUP BY id, t;
 SHOW CREATE VIEW v1;
 View	Create View	character_set_client	collation_connection
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `t1`.`id` AS `id`,(cast(`t1`.`d` as date) + interval time_to_sec(`t1`.`d`) second) AS `t`,count(0) AS `COUNT(*)` from `t1` group by `t1`.`id`,(cast(`t1`.`d` as date) + interval time_to_sec(`t1`.`d`) second)	latin1	latin1_swedish_ci
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `t1`.`id` AS `id`,(cast(`t1`.`d` as date) + interval time_to_sec(`t1`.`d`) second) AS `t`,count(0) AS `COUNT(*)` from `t1` group by `t1`.`id`,`t`	latin1	latin1_swedish_ci
 SELECT * FROM v1;
 id	t	COUNT(*)
 DROP VIEW v1;
@@ -2960,11 +2960,11 @@ INSERT INTO t1 VALUES (1), (3), (2);
 EXPLAIN SELECT * FROM t1 t WHERE t.s1+1 < (SELECT MAX(t1.s1) FROM t1);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t	ALL	NULL	NULL	NULL	NULL	3	Using where
-2	SUBQUERY	t1	ALL	NULL	NULL	NULL	NULL	3	
+2	SUBQUERY	t1	ALL	NULL	NULL	NULL	NULL	3	NULL
 EXPLAIN SELECT * FROM v1 t WHERE t.s1+1 < (SELECT MAX(t1.s1) FROM t1);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	Using where
-2	SUBQUERY	t1	ALL	NULL	NULL	NULL	NULL	3	
+2	SUBQUERY	t1	ALL	NULL	NULL	NULL	NULL	3	NULL
 DROP VIEW v1;
 DROP TABLE t1;
 create table t1 (s1 int);
@@ -3349,9 +3349,9 @@ a
 3
 EXPLAIN SELECT * FROM t1 UNION SELECT * FROM v1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	
-2	UNION	t1	ALL	NULL	NULL	NULL	NULL	3	
-NULL	UNION RESULT	<union1,2>	ALL	NULL	NULL	NULL	NULL	NULL	
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	NULL
+2	UNION	t1	ALL	NULL	NULL	NULL	NULL	3	NULL
+NULL	UNION RESULT	<union1,2>	ALL	NULL	NULL	NULL	NULL	NULL	Using temporary
 SELECT * FROM v1 UNION SELECT * FROM t1;
 a
 1
@@ -3359,9 +3359,9 @@ a
 3
 EXPLAIN SELECT * FROM v1 UNION SELECT * FROM t1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	
-2	UNION	t1	ALL	NULL	NULL	NULL	NULL	3	
-NULL	UNION RESULT	<union1,2>	ALL	NULL	NULL	NULL	NULL	NULL	
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	NULL
+2	UNION	t1	ALL	NULL	NULL	NULL	NULL	3	NULL
+NULL	UNION RESULT	<union1,2>	ALL	NULL	NULL	NULL	NULL	NULL	Using temporary
 SELECT * FROM t1 UNION SELECT * FROM v1 ORDER BY a;
 a
 1
@@ -3369,9 +3369,9 @@ a
 3
 EXPLAIN SELECT * FROM t1 UNION SELECT * FROM v1 ORDER BY a;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	
-2	UNION	t1	ALL	NULL	NULL	NULL	NULL	3	
-NULL	UNION RESULT	<union1,2>	ALL	NULL	NULL	NULL	NULL	NULL	Using filesort
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	NULL
+2	UNION	t1	ALL	NULL	NULL	NULL	NULL	3	NULL
+NULL	UNION RESULT	<union1,2>	ALL	NULL	NULL	NULL	NULL	NULL	Using temporary; Using filesort
 DROP VIEW v1;
 DROP TABLE t1;
 CREATE VIEW v1 AS SELECT CAST( 1.23456789 AS DECIMAL( 7,5 ) ) AS col;
@@ -3538,8 +3538,8 @@ INSERT INTO t3 VALUES
 EXPLAIN SELECT t.person_id AS a, t.person_id AS b FROM v1 t WHERE t.person_id=6;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	profile	const	PRIMARY	PRIMARY	4	const	1	Using temporary; Using filesort
-1	SIMPLE	userrole	ref	idx_person_id,idx_role_id	idx_person_id	4	const	2	
-1	SIMPLE	role	eq_ref	PRIMARY	PRIMARY	4	test.userrole.role_id	1	
+1	SIMPLE	userrole	ref	idx_person_id,idx_role_id	idx_person_id	4	const	2	NULL
+1	SIMPLE	role	eq_ref	PRIMARY	PRIMARY	4	test.userrole.role_id	1	NULL
 SELECT t.person_id AS a, t.person_id AS b FROM v1 t WHERE t.person_id=6;
 a	b
 6	6
@@ -3581,7 +3581,7 @@ View	Create View	character_set_client	collation_connection
 v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `t1`.`a` AS `a`,`t1`.`b` AS `b` from `t1` FORCE INDEX (PRIMARY) FORCE INDEX (`b`) order by `t1`.`a`	latin1	latin1_swedish_ci
 EXPLAIN SELECT * FROM v1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	index	NULL	PRIMARY	4	NULL	15	
+1	SIMPLE	t1	index	NULL	PRIMARY	4	NULL	15	NULL
 CREATE VIEW v2 AS SELECT * FROM t1 USE KEY () ORDER BY a;
 SHOW CREATE VIEW v2;
 View	Create View	character_set_client	collation_connection
@@ -4128,4 +4128,86 @@ ERROR HY000: View 'test.v2' references invalid table(s) or column(s) or function
 DROP VIEW v2;
 DROP VIEW v1;
 DROP FUNCTION f2;
+DROP TABLE t1;
+#
+# Bug#13418197: ASSERTION `(*TABLES)->REGINFO.LOCK_TYPE >=
+#               TL_READ' FAILED | MYSQL_LOCK_TABLES
+#
+DROP TABLE IF EXISTS t1;
+CREATE TEMPORARY TABLE t1 (a INT) engine=InnoDB;
+CREATE VIEW t1 AS SELECT 1;
+DROP VIEW t1;
+DROP TEMPORARY TABLE t1;
+#
+# Bug#13601606: FAILED VIEW CREATION ERROR MESSAGE (FOR DB NOT PRESENT) 
+#               NEEDS BIG IMPROVEMENT 
+#
+DROP DATABASE IF EXISTS nodb;
+CREATE VIEW nodb.a AS SELECT 1;
+ERROR 42000: Unknown database 'nodb'
+#
+# Bug#13633549 HANDLE_FATAL_SIGNAL IN 
+#              TEST_IF_SKIP_SORT_ORDER/CREATE_SORT_INDEX
+#
+CREATE TABLE t1 (
+pk        INT AUTO_INCREMENT,
+c_int_key INT,
+PRIMARY KEY (pk),
+KEY (c_int_key)
+) 
+ENGINE=innodb;
+CREATE VIEW v_t1 AS SELECT * FROM t1;
+CREATE TABLE t2 (
+pk              INT auto_increment,
+c_varchar_600_x VARCHAR(600),
+c_int_key       INT,
+c_varchar_600_y VARCHAR(600),
+c_varchar_600_z VARCHAR(600),
+PRIMARY KEY (pk),
+KEY (c_int_key)
+) 
+ENGINE=innodb;
+CREATE VIEW v_t2 AS SELECT * FROM t2;
+INSERT INTO t2 VALUES
+(
+NULL,
+repeat('x', 600),
+3,
+repeat('y', 600),
+repeat('z', 600)
+);
+SELECT a1.pk AS f1
+FROM v_t1 AS a1 LEFT JOIN v_t2 AS a2 ON a1.pk=a2.c_int_key
+WHERE 
+a1.pk > 8
+OR ((a1.pk BETWEEN 9 AND 13) AND a1.pk = 90)
+ORDER BY f1 ;
+f1
+DROP TABLE t1, t2;
+DROP VIEW v_t1, v_t2;
+#
+# Bug#13783777 CONSTANT PROPAGATION IS WRONG FOR
+#              DISJUNCTIVE PREDICATES IN VIEWS
+#
+CREATE TABLE t1 (
+pk INTEGER,
+PRIMARY KEY (pk)
+);
+INSERT INTO t1 VALUES (1), (2);
+CREATE VIEW v_t1 AS SELECT * FROM t1;
+SELECT pk
+FROM t1
+WHERE
+pk > 8
+OR ((pk BETWEEN 9 AND 13) AND pk = 90)
+;
+pk
+SELECT pk
+FROM v_t1
+WHERE
+pk > 8
+OR ((pk BETWEEN 9 AND 13) AND pk = 90)
+;
+pk
+DROP VIEW v_t1;
 DROP TABLE t1;

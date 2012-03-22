@@ -1,5 +1,7 @@
 -- source include/not_embedded.inc
 -- source include/have_log_bin.inc
+
+call mtr.add_suppression('Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT.'); 
 #
 # SQL Syntax for Prepared Statements test
 #
@@ -238,8 +240,10 @@ prepare stmt1 from "select 1 into @var";
 execute stmt1;
 execute stmt1;
 prepare stmt1 from "create table t1 select 1 as i";
+--disable_warnings ONCE
 execute stmt1;
 drop table t1;
+--disable_warnings ONCE
 execute stmt1;
 prepare stmt1 from "insert into t1 select i from t1";
 execute stmt1;
@@ -431,6 +435,7 @@ deallocate prepare stmt;
 create table t1 (a int); 
 insert into t1 values (1),(2),(3);
 create table t2 select * from t1;
+--disable_warnings
 prepare stmt FROM 'create table t2 select * from t1';
 drop table t2;
 execute stmt;
@@ -440,6 +445,7 @@ execute stmt;
 execute stmt;
 drop table t2;
 execute stmt;
+--enable_warnings
 drop table t1,t2;
 deallocate prepare stmt;
 
@@ -1172,6 +1178,7 @@ create database mysqltest character set utf8;
 prepare stmt1 from "create table mysqltest.t1 (c char(10))";
 prepare stmt2 from "create table mysqltest.t2 select 'test'";
 execute stmt1;
+--disable_warnings ONCE
 execute stmt2;
 show create table mysqltest.t1;
 show create table mysqltest.t2;
@@ -1179,6 +1186,7 @@ drop table mysqltest.t1;
 drop table mysqltest.t2;
 alter database mysqltest character set latin1;
 execute stmt1;
+--disable_warnings ONCE
 execute stmt2;
 show create table mysqltest.t1;
 show create table mysqltest.t2;

@@ -110,7 +110,7 @@ eval_exp(
 {
 	if (que_node_get_type(exp_node) == QUE_NODE_SYMBOL) {
 
-		eval_sym((sym_node_t*)exp_node);
+		eval_sym((sym_node_t*) exp_node);
 
 		return;
 	}
@@ -140,7 +140,7 @@ eval_node_set_int_val(
 
 	ut_ad(dfield_get_len(dfield) == 4);
 
-	mach_write_to_4(data, (ulint)val);
+	mach_write_to_4(data, (ulint) val);
 }
 
 /*****************************************************************//**

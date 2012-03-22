@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -410,19 +410,15 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
         */
         Alter_info *alter_info= &lex->alter_info;
 
-        if (alter_info->flags & ALTER_ADMIN_PARTITION)
+        if (alter_info->flags & Alter_info::ALTER_ADMIN_PARTITION)
         {
           if (!table->table->part_info)
           {
             my_error(ER_PARTITION_MGMT_ON_NONPARTITIONED, MYF(0));
             DBUG_RETURN(TRUE);
           }
-          uint num_parts_found;
-          uint num_parts_opt= alter_info->partition_names.elements;
-          num_parts_found= set_part_state(alter_info, table->table->part_info,
-                                          PART_ADMIN);
-          if (num_parts_found != num_parts_opt &&
-              (!(alter_info->flags & ALTER_ALL_PARTITION)))
+          
+          if (set_part_state(alter_info, table->table->part_info, PART_ADMIN))
           {
             char buff[FN_REFLEN + MYSQL_ERRMSG_SIZE];
             size_t length;
@@ -453,6 +449,9 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
       case  1:           // error, message written to net
         trans_rollback_stmt(thd);
         trans_rollback(thd);
+        /* Make sure this table instance is not reused after the operation. */
+        if (table->table)
+          table->table->m_needs_reopen= true;
         close_thread_tables(thd);
         thd->mdl_context.release_transactional_locks();
         DBUG_PRINT("admin", ("simple error, admin next table"));
@@ -525,6 +524,9 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
       protocol->store(buff, length, system_charset_info);
       trans_commit_stmt(thd);
       trans_commit(thd);
+      /* Make sure this table instance is not reused after the operation. */
+      if (table->table)
+        table->table->m_needs_reopen= true;
       close_thread_tables(thd);
       thd->mdl_context.release_transactional_locks();
       lex->reset_query_tables_list(FALSE);
@@ -601,6 +603,9 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
 
         trans_rollback_stmt(thd);
         trans_rollback(thd);
+        /* Make sure this table instance is not reused after the operation. */
+        if (table->table)
+          table->table->m_needs_reopen= true;
         close_thread_tables(thd);
         thd->mdl_context.release_transactional_locks();
 
@@ -821,6 +826,9 @@ send_result_message:
           }
           thd->clear_error();
         }
+        /* Make sure this table instance is not reused after the operation. */
+        if (table->table)
+          table->table->m_needs_reopen= true;
       }
       result_code= result_code ? HA_ADMIN_FAILED : HA_ADMIN_OK;
       table->next_local= save_next_local;
@@ -920,6 +928,9 @@ send_result_message:
 err:
   trans_rollback_stmt(thd);
   trans_rollback(thd);
+  /* Make sure this table instance is not reused after the operation. */
+  if (table->table)
+    table->table->m_needs_reopen= true;
   close_thread_tables(thd);			// Shouldn't be needed
   thd->mdl_context.release_transactional_locks();
   DBUG_RETURN(TRUE);
@@ -955,6 +966,11 @@ bool mysql_assign_to_keycache(THD* thd, TABLE_LIST* tables,
     DBUG_RETURN(TRUE);
   }
   mysql_mutex_unlock(&LOCK_global_system_variables);
+  if (!key_cache->key_cache_inited)
+  {
+    my_error(ER_UNKNOWN_KEY_CACHE, MYF(0), key_cache_name->str);
+    DBUG_RETURN(true);
+  }
   check_opt.key_cache= key_cache;
   DBUG_RETURN(mysql_admin_table(thd, tables, &check_opt,
                                 "assign_to_keycache", TL_READ_NO_INSERT, 0, 0,

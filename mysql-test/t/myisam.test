@@ -470,7 +470,9 @@ create table t2 (a int not null, primary key (a));
 insert into t1 values (1);
 insert into t2 values (1),(2);
 select sql_big_result distinct t1.a from t1,t2 order by t2.a;
+FLUSH STATUS;
 select distinct t1.a from t1,t2 order by t2.a;
+SHOW SESSION STATUS LIKE 'Sort_scan%';
 select sql_big_result distinct t1.a from t1,t2;
 explain select sql_big_result distinct t1.a from t1,t2 order by t2.a;
 explain select distinct t1.a from t1,t2 order by t2.a;
@@ -1665,6 +1667,20 @@ CHECK TABLE t1;
 DROP TABLE t1;
 SET GLOBAL myisam_use_mmap=default;
 
+--echo #
+--echo # BUG 11756869 - 48848: MYISAMCHK DOING SORT RECOVER IN CERTAIN
+--echo #                       CASES RESETS DATA POINTER TO SMAL
+--echo #
+CREATE TABLE t1(a INT, KEY(a));
+ALTER TABLE t1 DISABLE KEYS;
+let $MYSQLD_DATADIR= `select @@datadir`;
+SET @before:= (SELECT MAX_DATA_LENGTH FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME='t1' AND TABLE_SCHEMA='test');
+FLUSH TABLES;
+--replace_result $MYSQLD_DATADIR MYSQLD_DATADIR
+--exec $MYISAMCHK -sn $MYSQLD_DATADIR/test/t1
+SET @after:= (SELECT MAX_DATA_LENGTH FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME='t1' AND TABLE_SCHEMA='test');
+SELECT @before=@after;
+DROP TABLE t1;
 --echo End of 5.1 tests
 
 --echo #

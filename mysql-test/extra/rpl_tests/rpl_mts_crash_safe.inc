@@ -1,21 +1,38 @@
+# ==== Purpose ====
 #
-# This file relies on the rpl_mixing_engines.inc which provides an engine
-# to process commands.
+# This file is an engine to process commands like
+# rpl_mixing_engines.inc.  It has the same set of commands, and in
+# addition the extra command 'recovery'.  The 'configure' and 'clean'
+# commands are also extended version of the same commands in
+# rpl_mixing_engines.inc.
 #
+# ==== Usage ====
+#
+# See rpl_mixing_engines.inc.
+#
+# ==== Implementation ====
+#
+# This file has its own code for 'configure' and 'clean'.  Other
+# commands are delegated to rpl_mixing_engines.inc.
+
+--let $rmcs_initial_commands= $commands
 
 #
 # Creates tables used throughout the test and changes the type of the
 # mysql.slave_relay_log_info to Innodb.
 #
-if (`SELECT HEX(@commands) = HEX('configure')`)
+if ($commands == configure)
 {
+  --echo ==== begin rpl_mts_crash_safe.inc:configure ====
   --let $count_database=1
   while ($count_database <= $max_workers)
   {
+    --echo ---- begin configure database test_$count_database ----
     --connection master
-    SET @commands= 'configure';
+    --let $commands= configure
     --let $database_name=test_$count_database
     --source extra/rpl_tests/rpl_mixing_engines.inc
+    --echo ---- end configure database test_$count_database ----
     inc $count_database;
   }
 
@@ -33,10 +50,13 @@ if (`SELECT HEX(@commands) = HEX('configure')`)
   SHOW CREATE TABLE mysql.slave_master_info;
   SHOW CREATE TABLE mysql.slave_relay_log_info;
   SHOW CREATE TABLE mysql.slave_worker_info;
+  --let $commands=
+  --echo ==== end rpl_mts_crash_safe.inc:configure ====
 }
 
-if (`SELECT HEX(@commands) = HEX('clean')`)
+if ($commands == clean)
 {
+  --echo ==== begin rpl_mts_crash_safe.inc:clean ====
   --connection slave
   --source include/stop_slave.inc
   --disable_query_log
@@ -49,15 +69,20 @@ if (`SELECT HEX(@commands) = HEX('clean')`)
   --let $count_database=1
   while ($count_database <= $max_workers)
   {
-    SET @commands= 'clean';
+    --echo ---- begin clean database test_$count_database ----
+    --let $commands= clean
     --let $database_name=test_$count_database
     --source extra/rpl_tests/rpl_mixing_engines.inc
+    --echo ---- end clean database test_$count_database ----
     inc $count_database;
   }
+  --let $commands=
+  --echo ==== end rpl_mts_crash_safe.inc:clean ====
 }
 
-if (`SELECT HEX(@commands) = HEX('recovery')`)
+if ($commands == recovery)
 {
+  --echo ==== begin rpl_mts_crash_safe.inc:recovery ====
   --connection master
   let $m_before_master_file= query_get_value("SHOW MASTER STATUS", "File", 1);
   let $m_before_master_pos= query_get_value("SHOW MASTER STATUS", "Position", 1);
@@ -89,6 +114,7 @@ if (`SELECT HEX(@commands) = HEX('recovery')`)
   --source include/start_slave_io.inc
   let $wait_condition=SELECT Master_log_pos = $m_before_master_pos AND Master_log_name = "$m_before_master_file" FROM mysql.slave_master_info;
   --source include/wait_condition.inc
+  --enable_query_log
 
   --source include/start_slave_sql.inc
   let $wait_condition=SELECT Master_log_pos = $m_before_master_pos AND Master_log_name = "$m_before_master_file" FROM mysql.slave_relay_log_info;
@@ -98,11 +124,16 @@ if (`SELECT HEX(@commands) = HEX('recovery')`)
   eval SET @@global.slave_parallel_workers= $saved_current_workers;
   eval SET @@global.slave_checkpoint_period= $saved_current_checkpoint;
 
-  SET @command= '';
+  --let $commands=
+  --echo ==== end rpl_mts_crash_safe.inc:recovery ====
 }
 
-if (`SELECT HEX(@commands) != HEX('')`)
+if ($commands != '')
 {
+  --echo ==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
   --connection master
   --source extra/rpl_tests/rpl_mixing_engines.inc
+  --echo ==== end rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 }
+
+--let $commands= $rmcs_initial_commands

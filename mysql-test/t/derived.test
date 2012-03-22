@@ -1112,42 +1112,6 @@ DROP TABLE t1,t2;
 --echo #
 
 --echo #
---echo # Bug#13354889: Crash on a derived table with more than 64 fields.
---echo #
-create table t1 (
-field00 int, field01 int, field02 int, field03 int,
-field04 int, field05 int, field06 int, field07 int,
-field10 int, field11 int, field12 int, field13 int,
-field14 int, field15 int, field16 int, field17 int,
-field20 int, field21 int, field22 int, field23 int,
-field24 int, field25 int, field26 int, field27 int,
-field30 int, field31 int, field32 int, field33 int,
-field34 int, field35 int, field36 int, field37 int,
-field40 int, field41 int, field42 int, field43 int,
-field44 int, field45 int, field46 int, field47 int,
-field50 int, field51 int, field52 int, field53 int,
-field54 int, field55 int, field56 int, field57 int,
-field60 int, field61 int, field62 int, field63 int,
-field64 int, field65 int, field66 int, field67 int,
-field70 int, field71 int, field72 int, field73 int,
-field74 int, field75 int, field76 int, field77 int,
-field100 int
-);
-
-insert into t1(field100) values (1),(2),(3),(4),(5),(6),(7),(8),(9),(0);
-insert into t1 select * from t1;
-insert into t1 select * from t1;
-insert into t1 select * from t1;
-
-select tt.field100 from t1 join (select * from t1) tt where t1.field100=tt.field100
-limit 1;
---echo Should use auto_key0 and ref access.
-explain 
-select tt.field100 from t1 join (select * from t1) tt where t1.field100=tt.field100
-limit 1;
-
-drop table t1;
---echo #
 --echo # Bug#13383857: Another crash in memcpy from
 --echo #               join_cache::write_record_data with semijoin
 --echo #
@@ -1243,3 +1207,114 @@ eval $query;
 DROP TABLE t1, t2, t3;
 
 --echo #
+--echo # Bug#13354889: Crash on a derived table with more than 64 fields.
+--echo #
+create table t1 (
+field00 int, field01 int, field02 int, field03 int,
+field04 int, field05 int, field06 int, field07 int,
+field10 int, field11 int, field12 int, field13 int,
+field14 int, field15 int, field16 int, field17 int,
+field20 int, field21 int, field22 int, field23 int,
+field24 int, field25 int, field26 int, field27 int,
+field30 int, field31 int, field32 int, field33 int,
+field34 int, field35 int, field36 int, field37 int,
+field40 int, field41 int, field42 int, field43 int,
+field44 int, field45 int, field46 int, field47 int,
+field50 int, field51 int, field52 int, field53 int,
+field54 int, field55 int, field56 int, field57 int,
+field60 int, field61 int, field62 int, field63 int,
+field64 int, field65 int, field66 int, field67 int,
+field70 int, field71 int, field72 int, field73 int,
+field74 int, field75 int, field76 int, field77 int,
+field100 int
+);
+
+insert into t1(field100) values (1),(2),(3),(4),(5),(6),(7),(8),(9),(0);
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+
+select tt.field100 from t1 join (select * from t1) tt where t1.field100=tt.field100
+limit 1;
+--echo Should use auto_key0 and ref access.
+explain 
+select tt.field100 from t1 join (select * from t1) tt where t1.field100=tt.field100
+limit 1;
+
+drop table t1;
+--echo #
+
+--echo #
+--echo # Bug#13390138: crash in memcpy from join_cache::write_record_data
+--echo #
+
+CREATE TABLE t1 (
+  col_varchar_key varchar(1),
+  col_varchar_nokey varchar(1),
+  KEY col_varchar_key (col_varchar_key)
+) ENGINE=MyISAM;
+
+INSERT INTO t1 VALUES ('r','r');
+
+CREATE TABLE t2 (
+  col_varchar_key varchar(1),
+  col_varchar_nokey varchar(1),
+  KEY col_varchar_key (col_varchar_key)
+);
+
+INSERT INTO t2 VALUES
+ (NULL,NULL),
+ ('r','r');
+
+CREATE TABLE t3 (
+  col_int_key int,
+  col_varchar_key varchar(1),
+  col_varchar_nokey varchar(1),
+  KEY col_int_key (col_int_key),
+  KEY col_varchar_key (col_varchar_key, col_int_key)
+);
+
+INSERT INTO t3 VALUES
+ (9,'f','f'),
+ (4,'y','y'),
+ (3,'u','u'),
+ (2,'m','m'),
+ (NULL,NULL,NULL),
+ (2,'o','o'),
+ (NULL,'r','r'),
+ (6,'m','m'),
+ (7,'q','q'),
+ (6,'c','c');
+
+let $query=
+SELECT grandparent.col_varchar_nokey AS g1
+FROM (SELECT * FROM t3) AS grandparent
+WHERE grandparent.col_varchar_nokey IN
+ (SELECT parent.col_varchar_key AS p1
+  FROM (SELECT * FROM t2) AS parent
+  WHERE grandparent.col_varchar_key IN (
+    SELECT child1.col_varchar_key AS c1
+    FROM (SELECT * FROM t1) AS child1
+      LEFT JOIN (SELECT * FROM t2) AS child2
+      ON child1.col_varchar_nokey <> child2.col_varchar_key
+    )
+    AND grandparent.col_int_key IS UNKNOWN
+  )
+ORDER BY grandparent.col_varchar_nokey;
+
+eval explain $query;
+eval $query;
+
+DROP TABLE t1, t2, t3;
+
+--echo #
+--echo # Bug#13457552: Crash on instantiating a derived table in a query with
+--echo #               empty result.
+--echo #
+CREATE TABLE t1 ( pk INT, col_blob BLOB ) ENGINE = MyISAM;
+CREATE TABLE t2 ( pk INT, col_blob BLOB ) ENGINE = InnoDB;
+SELECT pk FROM ( SELECT col_blob, pk FROM t2 ) AS A NATURAL JOIN t1;
+EXPLAIN SELECT pk FROM ( SELECT col_blob, pk FROM t2 ) AS A NATURAL JOIN t1;
+DROP TABLE t1,t2;
+
+

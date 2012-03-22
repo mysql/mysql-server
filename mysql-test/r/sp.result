@@ -2724,20 +2724,23 @@ userid
 drop procedure bug8116|
 drop table t3|
 drop procedure if exists bug6857|
-create procedure bug6857(counter int)
+create procedure bug6857()
 begin
 declare t0, t1 int;
 declare plus bool default 0;
-set t0 = current_time();
-while counter > 0 do
-set counter = counter - 1;
-end while;
-set t1 = current_time();
+set t0 = unix_timestamp();
+select sleep(1.1);
+set t1 = unix_timestamp();
 if t1 > t0 then
 set plus = 1;
 end if;
 select plus;
 end|
+call bug6857()|
+sleep(1.1)
+0
+plus
+1
 drop procedure bug6857|
 drop procedure if exists bug8757|
 create procedure bug8757()
@@ -7614,6 +7617,26 @@ f1()
 1
 DROP FUNCTION f1;
 #
+# Bug#12577230
+# RERUN OF STORED FUNCTION CAUSES SEGFAULT IN MAKE_JOIN_SELECT
+#
+CREATE TABLE t1 (a INT) ENGINE=myisam;
+INSERT INTO t1 VALUES (1);
+CREATE VIEW v1 AS SELECT a FROM t1;
+CREATE PROCEDURE p1()
+SELECT 1 FROM v1 JOIN t1 ON v1.a
+WHERE (SELECT 1 FROM t1 WHERE v1.a)
+;
+CALL p1();
+1
+1
+CALL p1();
+1
+1
+DROP PROCEDURE p1;
+DROP TABLE t1;
+DROP VIEW v1;
+#
 # WL#2111: Add non-reserved ROW_COUNT keyword.
 #
 DROP PROCEDURE IF EXISTS p1;
@@ -7635,4 +7658,44 @@ row_count()
 ROW_COUNT
 0
 DROP PROCEDURE p1;
+#
+# BUG #11748187 - 35410: STORED FUNCTION: CONFUSING 'ORDER CLAUSE' IN ERROR MESSAGE
+#
+DROP FUNCTION if exists f1;
+CREATE FUNCTION f1 (p_value INT) RETURNS INT DETERMINISTIC RETURN x;
+SELECT f1(1);
+ERROR 42S22: Unknown column 'x' in 'field list'
+DROP FUNCTION f1;
+#
+# BUG #12872824 (formerly known as 62125): testing stored function
+#                result for null incorrectly yields 1292 warning.
+DROP FUNCTION IF EXISTS f1;
+DROP FUNCTION IF EXISTS f2;
+DROP FUNCTION IF EXISTS f3;
+DROP FUNCTION IF EXISTS f4;
+CREATE FUNCTION f1() RETURNS VARCHAR(1)
+BEGIN RETURN 'X'; END;/
+CREATE FUNCTION f2() RETURNS CHAR(1)
+BEGIN RETURN 'X'; END;/
+CREATE FUNCTION f3() RETURNS VARCHAR(1)
+BEGIN RETURN NULL; END;/
+CREATE FUNCTION f4() RETURNS CHAR(1)
+BEGIN RETURN NULL; END;/
+SELECT f1() IS NULL;
+f1() IS NULL
+0
+SELECT f2() IS NULL;
+f2() IS NULL
+0
+SELECT f3() IS NULL;
+f3() IS NULL
+1
+SELECT f4() IS NULL;
+f4() IS NULL
+1
+DROP FUNCTION f1;
+DROP FUNCTION f2;
+DROP FUNCTION f3;
+DROP FUNCTION f4;
+#
 # End of 5.6 tests

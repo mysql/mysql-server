@@ -1,0 +1,39 @@
+###############################################################################
+# Description :
+#   Test that using server-id-bits and composite AnyValues works in that.
+#   1) Composite AnyValues are correctly split into ServerId and UserData
+#      by MySQLDs listening to NdbApi events.
+#   2) Composite AnyValues are placed into the ServerId of events in the
+#      Binary logs of attached binlogging MySQLDs
+#   3) Composite ServerIds are correctly split into ServerId by the replication
+#      framework on the slave-side for the purposes of :
+#      a) Loop detection
+#      b) ndb_apply_status updates
+#   4) Composite ServerIds are placed into the composite AnyValues of row
+#      operations by the slave
+#   5) Binlogging MySQLDs on the slave correctly identify replicated composite
+#      AnyValues as being replicated.
+#
+# This test is a re-run of rpl_ndb_slave_lsu with different configuration :
+#   a) server-id-bits is set to 7, implying that :
+#      - Only the bottom 7 bits of event ServerIds written to the Binlog are
+#        set to the ServerId.  The other bits come from the event AnyValue
+#        received by the Binlog injector. 
+#      - Only the bottom 7 bits of ServerIds received in Binlogs are used as
+#        the ServerId in the Slave, the other bits are ignored, but are placed
+#        in the AnyValue of resulting NdbApi operations.
+#   b) NDB_TEST_ANYVALUE_USERDATA is set to Y
+#      - This causes MySQLD to set the UserData part of the AnyValue (in this
+#        case bits 8-30) to '1'.
+#        This results in AnyValues and replicated ServerIds having an 'offset'
+#        of 2^24 << 7 == 2147483520
+#        This offset can be seen when comparing the SHOW BINLOG EVENTS ServerId
+#        values (which use the server-id-bits to only show the server-id, to 
+#        output from the mysqlbinlog tool when it passed no server-id-bits
+#        option, and shows the full serverid.
+#        It can be seen that events originating on the master are given a
+#        composite server id which is available at the slave as it is written
+#        into the binlog of the slave running with --log-slave-updates on.
+###############################################################################
+--source include/have_debug.inc
+--source suite/ndb_rpl/t/ndb_rpl_slave_lsu.test

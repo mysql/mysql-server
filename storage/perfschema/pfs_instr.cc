@@ -613,8 +613,7 @@ PFS_mutex* create_mutex(PFS_mutex_class *klass, const void *identity)
       in a given loop by a given thread, other threads will not attempt this
       slot.
     */
-    PFS_atomic::add_u32(& mutex_monotonic_index, 1);
-    index= mutex_monotonic_index % mutex_max;
+    index= PFS_atomic::add_u32(& mutex_monotonic_index, 1) % mutex_max;
     pfs= mutex_array + index;
 
     if (pfs->m_lock.is_free())
@@ -674,8 +673,7 @@ PFS_rwlock* create_rwlock(PFS_rwlock_class *klass, const void *identity)
   while (++attempts <= rwlock_max)
   {
     /* See create_mutex() */
-    PFS_atomic::add_u32(& rwlock_monotonic_index, 1);
-    index= rwlock_monotonic_index % rwlock_max;
+    index= PFS_atomic::add_u32(& rwlock_monotonic_index, 1) % rwlock_max;
     pfs= rwlock_array + index;
 
     if (pfs->m_lock.is_free())
@@ -738,8 +736,7 @@ PFS_cond* create_cond(PFS_cond_class *klass, const void *identity)
   while (++attempts <= cond_max)
   {
     /* See create_mutex() */
-    PFS_atomic::add_u32(& cond_monotonic_index, 1);
-    index= cond_monotonic_index % cond_max;
+    index= PFS_atomic::add_u32(& cond_monotonic_index, 1) % cond_max;
     pfs= cond_array + index;
 
     if (pfs->m_lock.is_free())
@@ -808,8 +805,7 @@ PFS_thread* create_thread(PFS_thread_class *klass, const void *identity,
   while (++attempts <= thread_max)
   {
     /* See create_mutex() */
-    PFS_atomic::add_u32(& thread_monotonic_index, 1);
-    index= thread_monotonic_index % thread_max;
+    index= PFS_atomic::add_u32(& thread_monotonic_index, 1) % thread_max;
     pfs= thread_array + index;
 
     if (pfs->m_lock.is_free())
@@ -823,7 +819,7 @@ PFS_thread* create_thread(PFS_thread_class *klass, const void *identity,
         pfs->m_event_id= 1;
         pfs->m_enabled= true;
         pfs->m_class= klass;
-        pfs->m_events_waits_count= WAIT_STACK_BOTTOM;
+        pfs->m_events_waits_current= & pfs->m_events_waits_stack[WAIT_STACK_BOTTOM];
         pfs->m_waits_history_full= false;
         pfs->m_waits_history_index= 0;
         pfs->m_stages_history_full= false;
@@ -840,6 +836,7 @@ PFS_thread* create_thread(PFS_thread_class *klass, const void *identity,
         pfs->m_user_hash_pins= NULL;
         pfs->m_account_hash_pins= NULL;
         pfs->m_host_hash_pins= NULL;
+        pfs->m_digest_hash_pins= NULL;
 
         pfs->m_username_length= 0;
         pfs->m_hostname_length= 0;
@@ -1029,6 +1026,11 @@ void destroy_thread(PFS_thread *pfs)
     lf_hash_put_pins(pfs->m_host_hash_pins);
     pfs->m_host_hash_pins= NULL;
   }
+  if (pfs->m_digest_hash_pins)
+  {
+    lf_hash_put_pins(pfs->m_digest_hash_pins);
+    pfs->m_digest_hash_pins= NULL;
+  }
   pfs->m_lock.allocated_to_free();
 }
 
@@ -1174,8 +1176,7 @@ search:
   while (++attempts <= file_max)
   {
     /* See create_mutex() */
-    PFS_atomic::add_u32(& file_monotonic_index, 1);
-    index= file_monotonic_index % file_max;
+    index= PFS_atomic::add_u32(& file_monotonic_index, 1) % file_max;
     pfs= file_array + index;
 
     if (pfs->m_lock.is_free())
@@ -1290,8 +1291,7 @@ PFS_table* create_table(PFS_table_share *share, PFS_thread *opening_thread,
   while (++attempts <= table_max)
   {
     /* See create_mutex() */
-    PFS_atomic::add_u32(& table_monotonic_index, 1);
-    index= table_monotonic_index % table_max;
+    index= PFS_atomic::add_u32(& table_monotonic_index, 1) % table_max;
     pfs= table_array + index;
 
     if (pfs->m_lock.is_free())
@@ -1309,7 +1309,7 @@ PFS_table* create_table(PFS_table_share *share, PFS_thread *opening_thread,
         pfs->m_has_io_stats= false;
         pfs->m_has_lock_stats= false;
         share->inc_refcount();
-        pfs->m_table_stat.reset();
+        pfs->m_table_stat.fast_reset();
         pfs->m_thread_owner= opening_thread;
         pfs->m_lock.dirty_to_allocated();
         return pfs;
@@ -1329,12 +1329,24 @@ void PFS_table::sanitized_aggregate(void)
   */
   PFS_table_share *safe_share= sanitize_table_share(m_share);
   PFS_thread *safe_thread= sanitize_thread(m_thread_owner);
-  if ((safe_share != NULL && safe_thread != NULL) &&
-      (m_has_io_stats || m_has_lock_stats))
+  if ((safe_share != NULL && safe_thread != NULL))
   {
-    safe_aggregate(& m_table_stat, safe_share, safe_thread);
-    m_has_io_stats= false;
-    m_has_lock_stats= false;
+    if (m_has_io_stats && m_has_lock_stats)
+    {
+      safe_aggregate(& m_table_stat, safe_share, safe_thread);
+      m_has_io_stats= false;
+      m_has_lock_stats= false;
+    }
+    else if (m_has_io_stats)
+    {
+      safe_aggregate_io(& m_table_stat, safe_share, safe_thread);
+      m_has_io_stats= false;
+    }
+    else if (m_has_lock_stats)
+    {
+      safe_aggregate_lock(& m_table_stat, safe_share, safe_thread);
+      m_has_lock_stats= false;
+    }
   }
 }
 
@@ -1368,6 +1380,8 @@ void PFS_table::safe_aggregate(PFS_table_stat *table_stat,
   DBUG_ASSERT(table_share != NULL);
   DBUG_ASSERT(thread != NULL);
 
+  uint key_count= sanitize_index_count(table_share->m_key_count);
+
   if (flag_thread_instrumentation && thread->m_enabled)
   {
     PFS_single_stat *event_name_array;
@@ -1379,7 +1393,7 @@ void PFS_table::safe_aggregate(PFS_table_stat *table_stat,
       (for wait/io/table/sql/handler)
     */
     index= global_table_io_class.m_event_name_index;
-    table_stat->sum_io(& event_name_array[index]);
+    table_stat->sum_io(& event_name_array[index], key_count);
 
     /*
       Aggregate to EVENTS_WAITS_SUMMARY_BY_THREAD_BY_EVENT_NAME
@@ -1390,8 +1404,8 @@ void PFS_table::safe_aggregate(PFS_table_stat *table_stat,
   }
 
   /* Aggregate to TABLE_IO_SUMMARY, TABLE_LOCK_SUMMARY */
-  table_share->m_table_stat.aggregate(table_stat);
-  table_stat->reset();
+  table_share->m_table_stat.aggregate(table_stat, key_count);
+  table_stat->fast_reset();
 }
 
 void PFS_table::safe_aggregate_io(PFS_table_stat *table_stat,
@@ -1401,6 +1415,8 @@ void PFS_table::safe_aggregate_io(PFS_table_stat *table_stat,
   DBUG_ASSERT(table_stat != NULL);
   DBUG_ASSERT(table_share != NULL);
   DBUG_ASSERT(thread != NULL);
+
+  uint key_count= sanitize_index_count(table_share->m_key_count);
 
   if (flag_thread_instrumentation && thread->m_enabled)
   {
@@ -1413,12 +1429,12 @@ void PFS_table::safe_aggregate_io(PFS_table_stat *table_stat,
       (for wait/io/table/sql/handler)
     */
     index= global_table_io_class.m_event_name_index;
-    table_stat->sum_io(& event_name_array[index]);
+    table_stat->sum_io(& event_name_array[index], key_count);
   }
 
   /* Aggregate to TABLE_IO_SUMMARY */
-  table_share->m_table_stat.aggregate_io(table_stat);
-  table_stat->reset();
+  table_share->m_table_stat.aggregate_io(table_stat, key_count);
+  table_stat->fast_reset_io();
 }
 
 void PFS_table::safe_aggregate_lock(PFS_table_stat *table_stat,
@@ -1445,7 +1461,7 @@ void PFS_table::safe_aggregate_lock(PFS_table_stat *table_stat,
 
   /* Aggregate to TABLE_LOCK_SUMMARY */
   table_share->m_table_stat.aggregate_lock(table_stat);
-  table_stat->reset();
+  table_stat->fast_reset_lock();
 }
 
 /**

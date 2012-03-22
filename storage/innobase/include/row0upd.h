@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2012, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -101,7 +101,7 @@ byte*
 row_upd_write_sys_vals_to_log(
 /*==========================*/
 	dict_index_t*	index,	/*!< in: clustered index */
-	trx_t*		trx,	/*!< in: transaction */
+	trx_id_t	trx_id,	/*!< in: transaction id */
 	roll_ptr_t	roll_ptr,/*!< in: roll ptr of the undo log record */
 	byte*		log_ptr,/*!< pointer to a buffer of size > 20 opened
 				in mlog */
@@ -118,7 +118,7 @@ row_upd_rec_sys_fields(
 				uncompressed part will be updated, or NULL */
 	dict_index_t*	index,	/*!< in: clustered index */
 	const ulint*	offsets,/*!< in: rec_get_offsets(rec, index) */
-	trx_t*		trx,	/*!< in: transaction */
+	const trx_t*	trx,	/*!< in: transaction */
 	roll_ptr_t	roll_ptr);/*!< in: roll ptr of the undo log record */
 /*********************************************************************//**
 Sets the trx id or roll ptr field of a clustered index entry. */
@@ -192,11 +192,12 @@ UNIV_INTERN
 upd_t*
 row_upd_build_sec_rec_difference_binary(
 /*====================================*/
-	dict_index_t*	index,	/*!< in: index */
-	const dtuple_t*	entry,	/*!< in: entry to insert */
 	const rec_t*	rec,	/*!< in: secondary index record */
-	trx_t*		trx,	/*!< in: transaction */
-	mem_heap_t*	heap);	/*!< in: memory heap from which allocated */
+	dict_index_t*	index,	/*!< in: index */
+	const ulint*	offsets,/*!< in: rec_get_offsets(rec, index) */
+	const dtuple_t*	entry,	/*!< in: entry to insert */
+	mem_heap_t*	heap)	/*!< in: memory heap from which allocated */
+	__attribute__((warn_unused_result, nonnull));
 /***************************************************************//**
 Builds an update vector from those fields, excluding the roll ptr and
 trx id fields, which in an index entry differ from a record that has

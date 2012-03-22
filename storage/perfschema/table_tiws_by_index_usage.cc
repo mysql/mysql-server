@@ -273,6 +273,12 @@ void table_tiws_by_index_usage::reset_position(void)
   m_next_pos.reset();
 }
 
+int table_tiws_by_index_usage::rnd_init(bool scan)
+{
+  m_normalizer= time_normalizer::get(wait_timer);
+  return 0;
+}
+
 int table_tiws_by_index_usage::rnd_next(void)
 {
   PFS_table_share *table_share;
@@ -284,15 +290,16 @@ int table_tiws_by_index_usage::rnd_next(void)
     table_share= &table_share_array[m_pos.m_index_1];
     if (table_share->m_lock.is_populated())
     {
-      if (m_pos.m_index_2 < table_share->m_key_count)
+      uint safe_key_count= sanitize_index_count(table_share->m_key_count);
+      if (m_pos.m_index_2 < safe_key_count)
       {
         make_row(table_share, m_pos.m_index_2);
         m_next_pos.set_after(&m_pos);
         return 0;
       }
-      if (m_pos.m_index_2 <= MAX_KEY)
+      if (m_pos.m_index_2 <= MAX_INDEXES)
       {
-        m_pos.m_index_2= MAX_KEY;
+        m_pos.m_index_2= MAX_INDEXES;
         make_row(table_share, m_pos.m_index_2);
         m_next_pos.set_after(&m_pos);
         return 0;
@@ -313,12 +320,13 @@ table_tiws_by_index_usage::rnd_pos(const void *pos)
   table_share= &table_share_array[m_pos.m_index_1];
   if (table_share->m_lock.is_populated())
   {
-    if (m_pos.m_index_2 < table_share->m_key_count)
+    uint safe_key_count= sanitize_index_count(table_share->m_key_count);
+    if (m_pos.m_index_2 < safe_key_count)
     {
       make_row(table_share, m_pos.m_index_2);
       return 0;
     }
-    if (m_pos.m_index_2 == MAX_KEY)
+    if (m_pos.m_index_2 == MAX_INDEXES)
     {
       make_row(table_share, m_pos.m_index_2);
       return 0;
@@ -346,9 +354,7 @@ void table_tiws_by_index_usage::make_row(PFS_table_share *share, uint index)
     return;
 
   m_row_exists= true;
-
-  time_normalizer *normalizer= time_normalizer::get(wait_timer);
-  m_row.m_stat.set(normalizer, & visitor.m_stat);
+  m_row.m_stat.set(m_normalizer, & visitor.m_stat);
 }
 
 int table_tiws_by_index_usage::read_row_values(TABLE *table,

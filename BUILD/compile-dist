@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright (c) 2004, 2010, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2004, 2012, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -16,68 +16,19 @@
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 #
-# This script's purpose is to update the automake/autoconf helper scripts and
-# to run a plain "configure" without any special compile flags. Only features
-# that affect the content of the source distribution are enabled. The resulting
-# tree can then be picked up by "make dist" to create the "pristine source
-# package" that is used as the basis for all other binary builds.
+# This script's purpose is to prepare for a subsequent 'make dist';
+# We don't actually have to compile anything,
+# as the 'dist' target in our .cmake files is self-contained
+#   i.e. it generates source dependencies.
 #
-test -f Makefile && make maintainer-clean
 
 path=`dirname $0`
 . $path/autorun.sh
 
-gmake=
-for x in gmake gnumake make; do
-  if $x --version 2>/dev/null | grep GNU > /dev/null; then
-    gmake=$x
-    break;
-  fi
-done
-
-if [ -z "$gmake" ]; then
-  # Our build may not depend on GNU make, but I wouldn't count on it
-  echo "Please install GNU make, and ensure it is in your path as gnumake, gmake, or make" >&2
-  exit 2
-fi
-
-# Default to gcc for CC and CXX
-if test -z "$CXX" ; then
-  export CXX
-  CXX=g++
-  # Set some required compile options
-  if test -z "$CXXFLAGS" ; then
-    export CXXFLAGS
-    CXXFLAGS="-felide-constructors"
-  fi
-fi
-
-if test -z "$CC" ; then
-  export CC
-  CC=gcc
-fi
-
-
-# Use ccache, if available
-if ccache -V > /dev/null 2>&1
-then
-  if echo "$CC" | grep -v ccache > /dev/null
-  then
-    export CC
-    CC="ccache $CC"
-  fi
-  if echo "$CXX" | grep -v ccache > /dev/null
-  then
-    export CXX
-    CXX="ccache $CXX"
-  fi
-fi
-
-# Make sure to enable all features that affect "make dist"
-# Remember that configure restricts the man pages to the configured features !
+# By default we get the "community" feature set from
+#    cmake/build_configurations/feature_set.cmake
+# We include ndbcluster in the configuration, so that it is picked up
+#    by 'make dist' in case someone wants a pushbuild tree for cluster.
+#
 ./configure \
-  --with-embedded-server \
-  --with-perfschema \
   --with-ndbcluster
-$gmake
-

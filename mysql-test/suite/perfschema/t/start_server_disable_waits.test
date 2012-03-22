@@ -1,0 +1,28 @@
+# Tests for PERFORMANCE_SCHEMA
+
+--source include/not_embedded.inc
+--source include/have_perfschema.inc
+
+--source ../include/start_server_common.inc
+
+# Expect no enabled waits instruments
+select * from performance_schema.setup_instruments
+  where name like "wait/%" and enabled='YES';
+
+# Expect no wait statistics collected
+
+select * from performance_schema.events_waits_summary_global_by_event_name
+  where event_name like "wait/%" and count_star > 0;
+
+select * from performance_schema.events_waits_summary_by_thread_by_event_name
+  where event_name like "wait/%" and count_star > 0;
+
+select * from performance_schema.events_waits_summary_by_user_by_event_name
+  where event_name like "wait/%" and count_star > 0;
+
+select * from performance_schema.events_waits_summary_by_host_by_event_name
+  where event_name like "wait/%" and count_star > 0;
+
+select * from performance_schema.events_waits_summary_by_account_by_event_name
+  where event_name like "wait/%" and count_star > 0;
+

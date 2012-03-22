@@ -58,6 +58,7 @@ static MYSQL *mysql= 0;
 static char current_db[]= "client_test_db";
 static unsigned int test_count= 0;
 static unsigned int opt_count= 0;
+static unsigned int opt_count_read= 0;
 static unsigned int iter_count= 0;
 static my_bool have_innodb= FALSE;
 static char *opt_plugin_dir= 0, *opt_default_auth= 0;
@@ -67,6 +68,9 @@ static const char *opt_vardir= "mysql-test/var";
 
 static longlong opt_getopt_ll_test= 0;
 
+static char **defaults_argv;
+static int   original_argc;
+static char **original_argv;
 static int embedded_server_arg_count= 0;
 static char *embedded_server_args[MAX_SERVER_ARGS];
 
@@ -81,6 +85,11 @@ static time_t start_time, end_time;
 static double total_time;
 
 const char *default_dbug_option= "d:t:o,/tmp/mysql_client_test.trace";
+
+/*
+  Read and parse arguments and MySQL options from my.cnf
+*/
+static const char *client_test_load_default_groups[]= { "client", 0 };
 
 struct my_tests_st
 {
@@ -110,6 +119,7 @@ if (!opt_silent) \
 static void print_error(const char *msg);
 static void print_st_error(MYSQL_STMT *stmt, const char *msg);
 static void client_disconnect(MYSQL* mysql, my_bool drop_db);
+static void get_options(int *argc, char ***argv);
 
 
 /*
@@ -268,7 +278,7 @@ static my_bool check_have_innodb(MYSQL *conn)
   MYSQL_RES *res;
   MYSQL_ROW row;
   int rc;
-  my_bool result;
+  my_bool result= FALSE;
 
   rc= mysql_query(conn, 
                   "SELECT (support = 'YES' or support = 'DEFAULT' or support = 'ENABLED') "
@@ -280,7 +290,8 @@ static my_bool check_have_innodb(MYSQL *conn)
   row= mysql_fetch_row(res);
   DIE_UNLESS(row);
 
-  result= strcmp(row[1], "1") == 0;
+  if (row[0] && row[1])
+    result= strcmp(row[1], "1") == 0;
   mysql_free_result(res);
   return result;
 }
@@ -8193,7 +8204,7 @@ static void test_field_misc()
 
 
 /*
-  Test SET OPTION feature with prepare stmts
+  Test SET feature with prepare stmts
   bug #85 (reported by mark@mysql.com)
 */
 
@@ -8208,7 +8219,7 @@ static void test_set_option()
   mysql_autocommit(mysql, TRUE);
 
   /* LIMIT the rows count to 2 */
-  rc= mysql_query(mysql, "SET OPTION SQL_SELECT_LIMIT= 2");
+  rc= mysql_query(mysql, "SET SQL_SELECT_LIMIT= 2");
   myquery(rc);
 
   rc= mysql_query(mysql, "DROP TABLE IF EXISTS test_limit");
@@ -8249,7 +8260,7 @@ static void test_set_option()
   /* RESET the LIMIT the rows count to 0 */
   if (!opt_silent)
     fprintf(stdout, "\n with SQL_SELECT_LIMIT=DEFAULT (prepare)");
-  rc= mysql_query(mysql, "SET OPTION SQL_SELECT_LIMIT=DEFAULT");
+  rc= mysql_query(mysql, "SET SQL_SELECT_LIMIT=DEFAULT");
   myquery(rc);
 
   stmt= mysql_simple_prepare(mysql, "SELECT * FROM test_limit");
@@ -8263,6 +8274,119 @@ static void test_set_option()
 
   mysql_stmt_close(stmt);
 }
+
+
+#ifdef EMBEDDED_LIBRARY
+static void test_embedded_start_stop()
+{
+  MYSQL *mysql_emb=NULL;
+  int i, j;
+  int argc= original_argc;                    // Start with the original args
+  char **argv, **my_argv;
+  char test_name[]= "test_embedded_start_stop";
+#define EMBEDDED_RESTARTS 64
+
+  myheader("test_embedded_start_stop");
+
+  /* Must stop the main embedded server, since we use the same config. */
+  client_disconnect(mysql, 0);    /* disconnect from server */
+  free_defaults(defaults_argv);
+  mysql_server_end();
+  /* Free everything allocated by my_once_alloc */
+  my_end(0);
+
+  /*
+    Use a copy of the original arguments.
+    The arguments will be altered when reading the configs and parsing
+    options.
+  */
+  my_argv= malloc((argc + 1) * sizeof(char*));
+  if (!my_argv)
+    exit(1);
+
+  /* Test restarting the embedded library many times. */
+  for (i= 1; i <= EMBEDDED_RESTARTS; i++)
+  {
+    argv= my_argv;
+    argv[0]= test_name;
+    for (j= 1; j < argc; j++)
+      argv[j]= original_argv[j];
+
+    /* Initialize everything again. */
+    MY_INIT(argv[0]);
+
+    /* Load the client defaults from the .cnf file[s]. */
+    if (load_defaults("my", client_test_load_default_groups, &argc, &argv))
+    {
+      myerror("load_defaults failed"); 
+      exit(1);
+    }
+
+    /* Parse the options (including the ones given from defaults files). */
+    get_options(&argc, &argv);
+
+    /* mysql_library_init is the same as mysql_server_init. */
+    if (mysql_library_init(embedded_server_arg_count,
+                           embedded_server_args,
+                           (char**) embedded_server_groups))
+    {
+      myerror("mysql_library_init failed"); 
+      exit(1);
+    }
+
+    /* Create a client connection. */
+    if (!(mysql_emb= mysql_client_init(NULL)))
+    {
+      myerror("mysql_client_init failed");
+      exit(1);
+    }
+
+    /* Connect it and see if we can use the database. */
+    if (!(mysql_real_connect(mysql_emb, opt_host, opt_user,
+                             opt_password, current_db, 0,
+                             NULL, 0)))
+    {
+      myerror("mysql_real_connect failed");
+    }
+
+    /* Close the client connection */
+    mysql_close(mysql_emb);
+    mysql_emb = NULL;
+    /* Free arguments allocated for defaults files. */
+    free_defaults(defaults_argv);
+    /* mysql_library_end is a define for mysql_server_end. */
+    mysql_library_end();
+    /* Free everything allocated by my_once_alloc */
+    my_end(0);
+  }
+
+  argc= original_argc;
+  argv= my_argv;
+  argv[0]= test_name;
+  for (j= 1; j < argc; j++)
+    argv[j]= original_argv[j];
+
+  MY_INIT(argv[0]);
+
+  if (load_defaults("my", client_test_load_default_groups, &argc, &argv))
+  {
+    myerror("load_defaults failed \n "); 
+    exit(1);
+  }
+
+  get_options(&argc, &argv);
+
+  /* Must start the main embedded server again after the test. */
+  if (mysql_server_init(embedded_server_arg_count,
+                        embedded_server_args,
+                        (char**) embedded_server_groups))
+    DIE("Can't initialize MySQL server");
+
+  /* connect to server with no flags, default protocol, auto reconnect true */
+  mysql= client_connect(0, MYSQL_PROTOCOL_DEFAULT, 1);
+  free(my_argv);
+}
+#endif /* EMBEDDED_LIBRARY */
 
 
 /*
@@ -20009,18 +20133,44 @@ static void test_bug13001491()
 
 
 /*
-  Read and parse arguments and MySQL options from my.cnf
+  WL#5968: Implement START TRANSACTION READ (WRITE|ONLY);
+  Check that the SERVER_STATUS_IN_TRANS_READONLY flag is set properly.
 */
+static void test_wl5968()
+{
+  int rc;
 
-static const char *client_test_load_default_groups[]= { "client", 0 };
-static char **defaults_argv;
+  myheader("test_wl5968");
+
+  rc= mysql_query(mysql, "START TRANSACTION");
+  myquery(rc);
+  DIE_UNLESS(mysql->server_status & SERVER_STATUS_IN_TRANS);
+  DIE_UNLESS(!(mysql->server_status & SERVER_STATUS_IN_TRANS_READONLY));
+  rc= mysql_query(mysql, "COMMIT");
+  myquery(rc);
+  rc= mysql_query(mysql, "START TRANSACTION READ ONLY");
+  myquery(rc);
+  DIE_UNLESS(mysql->server_status & SERVER_STATUS_IN_TRANS);
+  DIE_UNLESS(mysql->server_status & SERVER_STATUS_IN_TRANS_READONLY);
+  rc= mysql_query(mysql, "COMMIT");
+  myquery(rc);
+  DIE_UNLESS(!(mysql->server_status & SERVER_STATUS_IN_TRANS));
+  DIE_UNLESS(!(mysql->server_status & SERVER_STATUS_IN_TRANS_READONLY));
+  rc= mysql_query(mysql, "START TRANSACTION");
+  myquery(rc);
+  DIE_UNLESS(mysql->server_status & SERVER_STATUS_IN_TRANS);
+  DIE_UNLESS(!(mysql->server_status & SERVER_STATUS_IN_TRANS_READONLY));
+  rc= mysql_query(mysql, "COMMIT");
+  myquery(rc);
+}
+
 
 static struct my_option client_test_long_options[] =
 {
   {"basedir", 'b', "Basedir for tests.", &opt_basedir,
    &opt_basedir, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"count", 't', "Number of times test to be executed", &opt_count,
-   &opt_count, 0, GET_UINT, REQUIRED_ARG, 1, 0, 0, 0, 0, 0},
+  {"count", 't', "Number of times test to be executed", &opt_count_read,
+   &opt_count_read, 0, GET_UINT, REQUIRED_ARG, 1, 0, 0, 0, 0, 0},
   {"database", 'D', "Database to use", &opt_db, &opt_db,
    0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"debug", '#', "Output debug log", &default_dbug_option,
@@ -20176,6 +20326,9 @@ static struct my_tests_st my_tests[]= {
   { "test_stiny_bug", test_stiny_bug },
   { "test_field_misc", test_field_misc },
   { "test_set_option", test_set_option },
+#ifdef EMBEDDED_LIBRARY
+  { "test_embedded_start_stop", test_embedded_start_stop },
+#endif
 #ifndef EMBEDDED_LIBRARY
   { "test_prepare_grant", test_prepare_grant },
 #endif
@@ -20358,6 +20511,7 @@ static struct my_tests_st my_tests[]= {
   { "test_bug12337762", test_bug12337762 },
   { "test_bug11754979", test_bug11754979 },
   { "test_bug13001491", test_bug13001491 },
+  { "test_wl5968", test_wl5968 },
   { 0, 0 }
 };
 
@@ -20434,6 +20588,11 @@ static void get_options(int *argc, char ***argv)
 {
   int ho_error;
 
+  /* Copy argv from load_defaults, so we can free it when done. */
+  defaults_argv= *argv;
+  /* reset --silent option */
+  opt_silent= 0;
+
   if ((ho_error= handle_options(argc, argv, client_test_long_options,
                                 get_one_option)))
     exit(ho_error);
@@ -20454,9 +20613,12 @@ static void print_test_output()
     fprintf(stdout, "\n\n");
     fprintf(stdout, "All '%d' tests were successful (in '%d' iterations)",
             test_count-1, opt_count);
-    fprintf(stdout, "\n  Total execution time: %g SECS", total_time);
-    if (opt_count > 1)
-      fprintf(stdout, " (Avg: %g SECS)", total_time/opt_count);
+    if (!opt_silent)
+    {
+      fprintf(stdout, "\n  Total execution time: %g SECS", total_time);
+      if (opt_count > 1)
+        fprintf(stdout, " (Avg: %g SECS)", total_time/opt_count);
+    }
 
     fprintf(stdout, "\n\n!!! SUCCESS !!!\n");
   }
@@ -20469,15 +20631,38 @@ static void print_test_output()
 
 int main(int argc, char **argv)
 {
+  int i;
+  char **tests_to_run= NULL, **curr_test;
   struct my_tests_st *fptr;
 
   MY_INIT(argv[0]);
 
+  /* Copy the original arguments, so it can be reused for restarting. */
+  original_argc= argc;
+  original_argv= malloc(argc * sizeof(char*));
+  if (argc && !original_argv)
+    exit(1);
+  for (i= 0; i < argc; i++)
+    original_argv[i]= strdup(argv[i]);
+
   if (load_defaults("my", client_test_load_default_groups, &argc, &argv))
     exit(1);
 
-  defaults_argv= argv;
   get_options(&argc, &argv);
+
+  /* Set main opt_count. */
+  opt_count= opt_count_read;
+
+  /* If there are any arguments left (named tests), save them. */
+  if (argc)
+  {
+    tests_to_run= malloc((argc + 1) * sizeof(char*));
+    if (!tests_to_run)
+      exit(1);
+    for (i= 0; i < argc; i++)
+      tests_to_run[i]= strdup(argv[i]);
+    tests_to_run[i]= NULL;
+  }
 
   if (mysql_server_init(embedded_server_arg_count,
                         embedded_server_args,
@@ -20493,18 +20678,18 @@ int main(int argc, char **argv)
     /* Start of tests */
     test_count= 1;
     start_time= time((time_t *)0);
-    if (!argc)
+    if (!tests_to_run)
     {
       for (fptr= my_tests; fptr->name; fptr++)
         (*fptr->function)();	
     }
     else
     {
-      for ( ; *argv ; argv++)
+      for (curr_test= tests_to_run ; *curr_test ; curr_test++)
       {
         for (fptr= my_tests; fptr->name; fptr++)
         {
-          if (!strcmp(fptr->name, *argv))
+          if (!strcmp(fptr->name, *curr_test))
           {
             (*fptr->function)();
             break;
@@ -20517,6 +20702,7 @@ int main(int argc, char **argv)
                   my_progname);
           client_disconnect(mysql, 1);
           free_defaults(defaults_argv);
+          mysql_server_end();
           exit(1);
         }
       }
@@ -20540,5 +20726,17 @@ int main(int argc, char **argv)
 
   my_end(0);
 
+  for (i= 0; i < original_argc; i++)
+    free(original_argv[i]);
+  if (original_argc)
+    free(original_argv);
+  if (tests_to_run)
+  {
+    for (curr_test= tests_to_run ; *curr_test ; curr_test++)
+      free(*curr_test);
+    free(tests_to_run);
+  }
+  my_free(opt_password);
+  my_free(opt_host);
   exit(0);
 }

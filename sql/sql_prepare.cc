@@ -891,7 +891,7 @@ static bool insert_params_with_log(Prepared_statement *stmt, uchar *null_array,
     */
     else if (! is_param_long_data_type(param))
       DBUG_RETURN(1);
-    res= param->query_val_str(&str);
+    res= param->query_val_str(thd, &str);
     if (param->convert_str_value(thd))
       DBUG_RETURN(1);                           /* out of memory */
 
@@ -1065,7 +1065,7 @@ static bool emb_insert_params_with_log(Prepared_statement *stmt,
           DBUG_RETURN(1);
       }
     }
-    res= param->query_val_str(&str);
+    res= param->query_val_str(thd, &str);
     if (param->convert_str_value(thd))
       DBUG_RETURN(1);                           /* out of memory */
 
@@ -1211,7 +1211,7 @@ static bool insert_params_from_vars_with_log(Prepared_statement *stmt,
     setup_one_conversion_function(thd, param, param->param_type);
     if (param->set_from_user_var(thd, entry))
       DBUG_RETURN(1);
-    val= param->query_val_str(&buf);
+    val= param->query_val_str(thd, &buf);
 
     if (param->convert_str_value(thd))
       DBUG_RETURN(1);                           /* out of memory */
@@ -1247,6 +1247,17 @@ static bool mysql_test_insert(Prepared_statement *stmt,
   List_iterator_fast<List_item> its(values_list);
   List_item *values;
   DBUG_ENTER("mysql_test_insert");
+
+  /*
+    Since INSERT DELAYED doesn't support temporary tables, we could
+    not pre-open temporary tables for SQLCOM_INSERT / SQLCOM_REPLACE.
+    Open them here instead.
+  */
+  if (table_list->lock_type != TL_WRITE_DELAYED)
+  {
+    if (open_temporary_tables(thd, table_list))
+      goto error;
+  }
 
   if (insert_precheck(thd, table_list))
     goto error;
@@ -1786,6 +1797,13 @@ static bool mysql_test_create_view(Prepared_statement *stmt)
   if (create_view_precheck(thd, tables, view, lex->create_view_mode))
     goto err;
 
+  /*
+    Since we can't pre-open temporary tables for SQLCOM_CREATE_VIEW,
+    (see mysql_create_view) we have to do it here instead.
+  */
+  if (open_temporary_tables(thd, tables))
+    goto err;
+
   if (open_normal_and_derived_tables(thd, tables, MYSQL_OPEN_FORCE_SHARED_MDL))
     goto err;
 
@@ -2228,6 +2246,9 @@ void mysqld_stmt_prepare(THD *thd, const char *packet, uint packet_length)
 
   thd->protocol= save_protocol;
 
+  sp_cache_enforce_limit(thd->sp_proc_cache, stored_program_cache_size);
+  sp_cache_enforce_limit(thd->sp_func_cache, stored_program_cache_size);
+
   /* check_prepared_statemnt sends the metadata packet in case of success */
   DBUG_VOID_RETURN;
 }
@@ -2425,7 +2446,7 @@ void reinit_stmt_before_use(THD *thd, LEX *lex)
   {
     if (!sl->first_execution)
     {
-      /* remove option which was put by mysql_explain_union() */
+      /* remove option which was put by mysql_explain_unit() */
       sl->options&= ~SELECT_DESCRIBE;
 
       /* see unique_table() */
@@ -2600,6 +2621,9 @@ void mysqld_stmt_execute(THD *thd, char *packet_arg, uint packet_length)
   thd->protocol= &thd->protocol_binary;
   stmt->execute_loop(&expanded_query, open_cursor, packet, packet_end);
   thd->protocol= save_protocol;
+
+  sp_cache_enforce_limit(thd->sp_proc_cache, stored_program_cache_size);
+  sp_cache_enforce_limit(thd->sp_func_cache, stored_program_cache_size);
 
   /* Close connection socket; for use with client testing (Bug#43560). */
   DBUG_EXECUTE_IF("close_conn_after_stmt_execute", vio_close(thd->net.vio););
@@ -3035,7 +3059,7 @@ Execute_sql_statement::execute_server_code(THD *thd)
   thd->m_statement_psi= parent_locker;
 
   /* report error issued during command execution */
-  if (error == 0 && thd->spcont == NULL)
+  if (error == 0 && thd->sp_runtime_ctx == NULL)
     general_log_write(thd, COM_STMT_EXECUTE,
                       thd->query(), thd->query_length());
 
@@ -3342,7 +3366,7 @@ bool Prepared_statement::prepare(const char *packet, uint packet_len)
       sub-statements inside stored procedures are not logged into
       the general log.
     */
-    if (thd->spcont == NULL)
+    if (thd->sp_runtime_ctx == NULL)
       general_log_write(thd, COM_STMT_PREPARE, query(), query_length());
   }
   DBUG_RETURN(error);
@@ -3870,7 +3894,7 @@ bool Prepared_statement::execute(String *expanded_query, bool open_cursor)
     sub-statements inside stored procedures are not logged into
     the general log.
   */
-  if (error == 0 && thd->spcont == NULL)
+  if (error == 0 && thd->sp_runtime_ctx == NULL)
     general_log_write(thd, COM_STMT_EXECUTE, thd->query(), thd->query_length());
 
 error:

@@ -169,23 +169,19 @@ connection default;
 --error ER_LOCK_OR_ACTIVE_TRANSACTION
 set global read_only=1;
 unlock tables ;
-# The following call blocks until con1 releases the read lock.
-# Blocking is a limitation, and could be improved.
---echo send set global read_only=1;
-send set global read_only=1;
+
+# after unlock tables in current connection
+# the next command must be executed successfully
+set global read_only=1;
+select @@global.read_only;
 
 --echo connection con1;
 connection con1;
 select @@global.read_only;
 unlock tables ;
-let $wait_condition= SELECT @@global.read_only= 1;
---source include/wait_condition.inc
-select @@global.read_only;
 
 --echo connection default;
 connection default;
---echo reap;
-reap;
 
 # pending transaction / READ_ONLY
 # - is an error in the same connection
@@ -302,6 +298,65 @@ delete from mysql.columns_priv where User like 'mysqltest_%';
 flush privileges;
 drop database mysqltest_db1;
 set global read_only= @start_read_only;
+
+
+--echo #
+--echo # WL#5968 Implement START TRANSACTION READ (WRITE|ONLY);
+--echo #
+
+--echo #
+--echo # Test interaction with read_only system variable.
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+CREATE TABLE t1(a INT);
+INSERT INTO t1 VALUES (1), (2);
+
+CREATE USER user1;
+connect (con1, localhost, user1);
+connection default;
+
+SET GLOBAL read_only= 1;
+
+--echo # All allowed with super privilege
+START TRANSACTION;
+COMMIT;
+
+START TRANSACTION READ ONLY;
+COMMIT;
+
+START TRANSACTION READ WRITE;
+COMMIT;
+
+--echo # We allow implicit RW transaction without super privilege
+--echo # for compatibility reasons
+connection con1;
+START TRANSACTION;
+--echo # Check that table updates are still disallowed.
+--error ER_OPTION_PREVENTS_STATEMENT
+INSERT INTO t1 VALUES (3);
+--error ER_OPTION_PREVENTS_STATEMENT
+UPDATE t1 SET a= 1;
+--error ER_OPTION_PREVENTS_STATEMENT
+DELETE FROM t1;
+COMMIT;
+
+START TRANSACTION READ ONLY;
+COMMIT;
+
+--echo # Explicit RW trans is not allowed without super privilege
+--error ER_OPTION_PREVENTS_STATEMENT
+START TRANSACTION READ WRITE;
+COMMIT;
+disconnect con1;
+--source include/wait_until_disconnected.inc
+connection default;
+DROP USER user1;
+
+SET GLOBAL read_only= 0;
+DROP TABLE t1;
 
 # Wait till all disconnects are completed
 --source include/wait_until_count_sessions.inc

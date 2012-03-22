@@ -210,7 +210,7 @@ struct fts_word_freq_struct {
 };
 
 /********************************************************************
-Callback function to fetch the rows in an FTS INDEX record. 
+Callback function to fetch the rows in an FTS INDEX record.
 @return always TRUE */
 static
 ibool
@@ -1041,7 +1041,7 @@ fts_query_intersect(
 
 #ifdef FTS_INTERNAL_DIAG_PRINT
 	fprintf(stderr, "INTERSECT: Searching: '%.*s'\n",
-		(int)token->f_len, token->f_str);
+		(int) token->f_len, token->f_str);
 #endif
 
 	if (!query->inited) {
@@ -1188,7 +1188,7 @@ fts_query_cache(
 	ut_a(index_cache != NULL);
 
 	if (query->cur_node->term.wildcard
-	    && query->flags != FTS_PROXIMITY 
+	    && query->flags != FTS_PROXIMITY
 	    && query->flags != FTS_PHRASE) {
 		/* Wildcard search the index cache */
 		fts_cache_find_wildcard(query, index_cache, token);
@@ -1221,7 +1221,7 @@ ulint
 fts_query_union(
 /*============*/
 	fts_query_t*		query,	/*!< in: query instance */
-	const fts_string_t*	token)	/*!< in: token to search */
+	fts_string_t*		token)	/*!< in: token to search */
 {
 	fts_fetch_t		fetch;
 	ulint			n_doc_ids = 0;
@@ -1244,6 +1244,16 @@ fts_query_union(
 
 	if (token->f_len == 0) {
 		return(query->error);
+	}
+
+	/* Single '%' would confuse parser in pars_like_rebind(). In addition,
+	our wildcard search only supports prefix search */
+	if (*token->f_str == '%') {
+		if (token->f_len == 1) {
+			return(query->error);
+		}
+		token->f_str++;
+		token->f_len--;
 	}
 
 	fts_query_cache(query, token);
@@ -1415,7 +1425,7 @@ fts_query_match_phrase_terms(
 		ulint			offset;
 
 		ret = innobase_mysql_fts_get_token(
-			phrase->charset, ptr, (byte *) end,
+			phrase->charset, ptr, (byte*) end,
 			&match, &offset);
 
 		if (match.f_len > 0) {
@@ -1591,7 +1601,7 @@ fts_query_fetch_document(
 
 	while (exp) {
 		dfield_t*	dfield = que_node_get_val(exp);
-		void*		data = NULL; 
+		void*		data = NULL;
 		ulint		cur_len;
 
 		if (dfield_is_ext(dfield)) {
@@ -2234,14 +2244,14 @@ fts_query_phrase_search(
 				query->matched = query->match_array[i];
 			}
 
-			fts_query_cache(query, token);
-
 			fts_index_fetch_nodes(
 				trx, &graph, &query->fts_index_table,
 				token, &fetch);
 
 			fts_que_graph_free(graph);
 			graph = NULL;
+
+			fts_query_cache(query, token);
 
 			if (!(query->flags & FTS_PHRASE)
 			    && !(query->flags & FTS_PROXIMITY)) {
@@ -2324,13 +2334,13 @@ ulint
 fts_query_execute(
 /*==============*/
 	fts_query_t*		query,	/*!< in: query instance */
-	const fts_string_t*	token)	/*!< in: token to search */
+	fts_string_t*		token)	/*!< in: token to search */
 {
 	switch (query->oper) {
 	case FTS_NONE:
 	case FTS_NEGATE:
-	case FTS_INCR_RATING: // FIXME
-	case FTS_DECR_RATING: // FIXME
+	case FTS_INCR_RATING:
+	case FTS_DECR_RATING:
 		query->error = fts_query_union(query, token);
 		break;
 
@@ -2409,7 +2419,7 @@ fts_query_visitor(
 
 	query->cur_node = node;
 
-	switch(node->type) {
+	switch (node->type) {
 	case FTS_AST_TEXT:
 		token.f_str = node->text.ptr;
 		token.f_len = ut_strlen((char*) token.f_str);
@@ -2547,7 +2557,7 @@ fts_ast_visit_sub_exp(
 
 #if 0
 /*****************************************************************//***
-Check if the doc id exists in the ilist. 
+Check if the doc id exists in the ilist.
 @return TRUE if doc id found */
 static
 ulint
@@ -2657,7 +2667,7 @@ fts_query_filter_doc_ids(
 		if (calc_doc_count) {
 			word_freq->doc_count++;
 		}
-		
+
 		/* We simply collect the matching instances here. */
 		if (query->collect_positions) {
 			ib_alloc_t*	heap_alloc;
@@ -2764,6 +2774,7 @@ fts_query_read_node(
 
 	/* Lookup the word in our rb tree, it must exist. */
 	ret = rbt_search(query->word_freqs, &parent, term);
+
 	ut_a(ret == 0);
 
 	word_freq = rbt_value(fts_word_freq_t, parent.last);
@@ -3420,7 +3431,7 @@ fts_print_doc_id(
 		ranking = rbt_value(fts_ranking_t, node);
 
 		fprintf(stderr, "doc_ids info, doc_id: %ld \n",
-			(ulint)ranking->doc_id);
+			(ulint) ranking->doc_id);
 
 		for (node_word = rbt_first(ranking->words);
 		     node_word;
@@ -3511,7 +3522,7 @@ fts_expand_query(
 			strp = rbt_value(const byte*, node_word);
 			/* FIXME: We are discarding a const qualifier here. */
 			str.f_str = (byte*) *strp;
-			str.f_len = ut_strlen((const char*)str.f_str);
+			str.f_len = ut_strlen((const char*) str.f_str);
 			ret = rbt_delete(result_doc.tokens, &str);
 
 			/* The word must exist in the doc we found */
@@ -3519,7 +3530,7 @@ fts_expand_query(
 				fprintf(stderr, " InnoDB: Error: Did not "
 					"find word %s in doc %ld for query "
 					"expansion search.\n", str.f_str,
-					(ulint)ranking->doc_id);
+					(ulint) ranking->doc_id);
 			}
 		}
 	}
@@ -3601,7 +3612,7 @@ fts_check_phrase_proximity(
 
 			if (k == ib_vector_size(query->match_array[j])) {
 				end_list = TRUE;
-	
+
 				if (match[j]->doc_id != match[0]->doc_id) {
 					/* no match */
 					if (query->flags & FTS_PHRASE) {

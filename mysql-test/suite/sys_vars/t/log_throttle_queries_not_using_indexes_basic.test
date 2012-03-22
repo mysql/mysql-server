@@ -1,0 +1,55 @@
+################## mysql-test\t\log_queries_not_using_indexes_basic.test ######
+#                                                                             #
+# Variable Name: log_throttle_queries_not_using_indexes                       #
+# Scope: Global                                                               #
+# Access Type: Dynamic                                                        #
+# Data Type:                                                                  #
+#                                                                             #
+#                                                                             #
+# Creation Date: 2011-11-07                                                   #
+# Author : Azundris (tnuernbe)                                                #
+#                                                                             #
+# Description:Test Cases of Dynamic System Variable                           #
+#             log_throttle_queries_not_using_indexes                          #
+#             that checks the behavior of this variable in the following ways #
+#              * Value Check                                                  #
+#              * Scope Check                                                  #
+#                                                                             #
+# Reference:                                                                  #
+#  http://dev.mysql.com/doc/refman/5.6/en/server-system-variables.html        #
+#                                                                             #
+###############################################################################
+
+SET @start_value= @@global.log_throttle_queries_not_using_indexes;
+
+SET @@global.log_throttle_queries_not_using_indexes= DEFAULT;
+SELECT @@global.log_throttle_queries_not_using_indexes;
+
+SET @@global.log_throttle_queries_not_using_indexes= 1000;
+SELECT @@global.log_throttle_queries_not_using_indexes;
+
+# should throw a clipping warning
+SET @@global.log_throttle_queries_not_using_indexes= -1;
+SELECT @@global.log_throttle_queries_not_using_indexes;
+
+SET @@global.log_throttle_queries_not_using_indexes= 5;
+SELECT @@global.log_throttle_queries_not_using_indexes;
+
+--error ER_WRONG_TYPE_FOR_VAR
+SET @@global.log_throttle_queries_not_using_indexes= OFF;
+SELECT @@global.log_throttle_queries_not_using_indexes;
+
+--error ER_WRONG_TYPE_FOR_VAR
+SET @@global.log_throttle_queries_not_using_indexes= ON;
+SELECT @@global.log_throttle_queries_not_using_indexes;
+
+--error ER_WRONG_TYPE_FOR_VAR
+SET GLOBAL log_throttle_queries_not_using_indexes= 0.01;
+
+--error ER_GLOBAL_VARIABLE
+SET SESSION log_throttle_queries_not_using_indexes= 0;
+
+--error ER_GLOBAL_VARIABLE
+SET LOCAL log_throttle_queries_not_using_indexes= 0;
+
+SET @@global.log_throttle_queries_not_using_indexes= @start_value;

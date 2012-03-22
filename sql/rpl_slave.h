@@ -58,6 +58,14 @@ typedef enum { SLAVE_THD_IO, SLAVE_THD_SQL, SLAVE_THD_WORKER } SLAVE_THD_TYPE;
 #define MTS_WORKER_UNDEF ((ulong) -1)
 #define MTS_MAX_WORKERS  1024
 
+/* 
+   When using tables to store the slave workers bitmaps,
+   we use a BLOB field. The maximum size of a BLOB is:
+
+   2^16-1 = 65535 bytes => (2^16-1) * 8 = 524280 bits
+*/
+#define MTS_MAX_BITS_IN_GROUP ((1L << 19) - 8) /* 524280 */
+
 // Forward declarations
 class Relay_log_info;
 class Master_info;
@@ -170,7 +178,8 @@ int init_info(Master_info* mi, bool ignore_if_no_info, int thread_mask);
 void end_info(Master_info* mi);
 int remove_info(Master_info* mi);
 int flush_master_info(Master_info* mi, bool force);
-void init_slave_skip_errors(const char* arg);
+void add_slave_skip_errors(const char* arg);
+void set_slave_skip_errors(char** slave_skip_errors_ptr);
 int register_slave_on_master(MYSQL* mysql);
 int terminate_slave_threads(Master_info* mi, int thread_mask,
 			     bool skip_lock = 0);
@@ -198,8 +207,7 @@ int start_slave_thread(
 int fetch_master_table(THD* thd, const char* db_name, const char* table_name,
 		       Master_info* mi, MYSQL* mysql, bool overwrite);
 
-bool show_master_info(THD* thd, Master_info* mi);
-bool show_binlog_info(THD* thd);
+bool show_slave_status(THD* thd, Master_info* mi);
 bool rpl_master_has_bug(const Relay_log_info *rli, uint bug_id, bool report,
                         bool (*pred)(const void *), const void *param);
 bool rpl_master_erroneous_autoinc(THD* thd);

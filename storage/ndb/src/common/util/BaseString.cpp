@@ -1,4 +1,5 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +12,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 /* -*- c-basic-offset: 4; -*- */
 #include <ndb_global.h>
@@ -37,6 +39,7 @@ BaseString::BaseString(const char* s)
     {
       m_chr = NULL;
       m_len = 0;
+      return;
     }
     const size_t n = strlen(s);
     m_chr = new char[n + 1];
@@ -48,6 +51,26 @@ BaseString::BaseString(const char* s)
     }
     memcpy(m_chr, s, n + 1);
     m_len = n;
+}
+
+BaseString::BaseString(const char * s, size_t n)
+{
+  if (s == NULL || n == 0)
+  {
+    m_chr = NULL;
+    m_len = 0;
+    return;
+  }
+  m_chr = new char[n + 1];
+  if (m_chr == NULL)
+  {
+    errno = ENOMEM;
+    m_len = 0;
+    return;
+  }
+  memcpy(m_chr, s, n);
+  m_chr[n] = 0;
+  m_len = n;
 }
 
 BaseString::BaseString(const BaseString& str)
@@ -83,6 +106,8 @@ BaseString::assign(const char* s)
 {
     if (s == NULL)
     {
+      if (m_chr)
+        delete[] m_chr;
       m_chr = NULL;
       m_len = 0;
       return *this;
@@ -135,6 +160,9 @@ BaseString::assign(const BaseString& str, size_t n)
 BaseString&
 BaseString::append(const char* s)
 {
+    if (s == NULL)
+      return *this;
+
     size_t n = strlen(s);
     char* t = new char[m_len + n + 1];
     if (t)
@@ -201,7 +229,8 @@ BaseString::assfmt(const char *fmt, ...)
 	m_chr = t;
     }
     va_start(ap, fmt);
-    basestring_vsnprintf(m_chr, l, fmt, ap);
+    l = basestring_vsnprintf(m_chr, l, fmt, ap);
+    assert(l == (int)strlen(m_chr));
     va_end(ap);
     m_len = strlen(m_chr);
     return *this;
@@ -268,7 +297,7 @@ BaseString::split(Vector<BaseString> &v,
 }
 
 ssize_t
-BaseString::indexOf(char c) {
+BaseString::indexOf(char c) const {
     char *p;
     p = strchr(m_chr, c);
     if(p == NULL)
@@ -277,7 +306,7 @@ BaseString::indexOf(char c) {
 }
 
 ssize_t
-BaseString::lastIndexOf(char c) {
+BaseString::lastIndexOf(char c) const {
     char *p;
     p = strrchr(m_chr, c);
     if(p == NULL)
@@ -286,7 +315,7 @@ BaseString::lastIndexOf(char c) {
 }
 
 BaseString
-BaseString::substr(ssize_t start, ssize_t stop) {
+BaseString::substr(ssize_t start, ssize_t stop) const {
     if(stop < 0)
 	stop = length();
     ssize_t len = stop-start;
@@ -438,11 +467,13 @@ BaseString::trim(const char * delim){
 char*
 BaseString::trim(char * str, const char * delim){
     int len = strlen(str) - 1;
-    for(; len > 0 && strchr(delim, str[len]); len--);
-    
+    for(; len > 0 && strchr(delim, str[len]); len--)
+      ;
+
     int pos = 0;
-    for(; pos <= len && strchr(delim, str[pos]); pos++);
-    
+    for(; pos <= len && strchr(delim, str[pos]); pos++)
+      ;
+
     if(pos > len){
 	str[0] = 0;
 	return 0;
@@ -470,83 +501,168 @@ BaseString::snprintf(char *str, size_t size, const char *format, ...)
   return(ret);
 }
 
+BaseString
+BaseString::getText(unsigned size, const Uint32 data[])
+{
+  BaseString to;
+  char * buf = (char*)malloc(32*size+1);
+  if (buf)
+  {
+    BitmaskImpl::getText(size, data, buf);
+    to.append(buf);
+    free(buf);
+  }
+  return to;
+}
+
+BaseString
+BaseString::getPrettyText(unsigned size, const Uint32 data[])
+{
+  const char* delimiter = "";
+  unsigned found = 0;
+  const unsigned MAX_BITS = sizeof(Uint32) * 8 * size;
+  BaseString to;
+  for (unsigned i = 0; i < MAX_BITS; i++)
+  {
+    if (BitmaskImpl::get(size, data, i))
+    {
+      to.appfmt("%s%d", delimiter, i);
+      found++;
+      if (found < BitmaskImpl::count(size, data) - 1)
+        delimiter = ", ";
+      else
+        delimiter = " and ";
+    }
+  }
+  return to;
+}
+
+BaseString
+BaseString::getPrettyTextShort(unsigned size, const Uint32 data[])
+{
+  const char* delimiter = "";
+  const unsigned MAX_BITS = sizeof(Uint32) * 8 * size;
+  BaseString to;
+  for (unsigned i = 0; i < MAX_BITS; i++)
+  {
+    if (BitmaskImpl::get(size, data, i))
+    {
+      to.appfmt("%s%d", delimiter, i);
+      delimiter = ",";
+    }
+  }
+  return to;
+}
+
+const void*
+BaseString_get_key(const void* key, size_t* key_length)
+{
+  const BaseString* str = (const BaseString*)key;
+  *key_length = str->length();
+  return str->c_str();
+}
 
 #ifdef TEST_BASE_STRING
 
-/*
-g++ -g -Wall -o tbs -DTEST_BASE_STRING -I$NDB_TOP/include/util \
-        -I$NDB_TOP/include/portlib BaseString.cpp
-valgrind ./tbs
-*/
+#include <NdbTap.hpp>
 
-int main()
+TAPTEST(BaseString)
 {
     BaseString s("abc");
     BaseString t(s);
     s.assign("def");
     t.append("123");
-    assert(s == "def");
-    assert(t == "abc123");
+    OK(s == "def");
+    OK(t == "abc123");
     s.assign("");
     t.assign("");
     for (unsigned i = 0; i < 1000; i++) {
 	s.append("xyz");
 	t.assign(s);
-	assert(strlen(t.c_str()) % 3 == 0);
+	OK(strlen(t.c_str()) % 3 == 0);
     }
 
     {
 	BaseString s(":123:abc:;:foo:");
 	Vector<BaseString> v;
-	assert(s.split(v, ":;") == 7);
+	OK(s.split(v, ":;") == 7);
 
-	assert(v[0] == "");
-	assert(v[1] == "123");
-	assert(v[2] == "abc");
-	assert(v[3] == "");
-	assert(v[4] == "");
-	assert(v[5] == "foo");
-	assert(v[6] == "");
+	OK(v[0] == "");
+	OK(v[1] == "123");
+	OK(v[2] == "abc");
+	OK(v[3] == "");
+	OK(v[4] == "");
+	OK(v[5] == "foo");
+	OK(v[6] == "");
     }
 
     {
 	BaseString s(":123:abc:foo:bar");
 	Vector<BaseString> v;
-	assert(s.split(v, ":;", 4) == 4);
+	OK(s.split(v, ":;", 4) == 4);
 
-	assert(v[0] == "");
-	assert(v[1] == "123");
-	assert(v[2] == "abc");
-	assert(v[3] == "foo:bar");
+	OK(v[0] == "");
+	OK(v[1] == "123");
+	OK(v[2] == "abc");
+	OK(v[3] == "foo:bar");
 
 	BaseString n;
 	n.append(v, "()");
-	assert(n == "()123()abc()foo:bar");
+	OK(n == "()123()abc()foo:bar");
 	n = "";
 	n.append(v);
-	assert(n == " 123 abc foo:bar");
+	OK(n == " 123 abc foo:bar");
     }
 
     {
-	assert(BaseString("hamburger").substr(4,2) == "");
-	assert(BaseString("hamburger").substr(3) == "burger");
-	assert(BaseString("hamburger").substr(4,8) == "urge");
-	assert(BaseString("smiles").substr(1,5) == "mile");
-	assert(BaseString("012345").indexOf('2') == 2);
-	assert(BaseString("hej").indexOf('X') == -1);
+	OK(BaseString("hamburger").substr(4,2) == "");
+	OK(BaseString("hamburger").substr(3) == "burger");
+	OK(BaseString("hamburger").substr(4,8) == "urge");
+	OK(BaseString("smiles").substr(1,5) == "mile");
+	OK(BaseString("012345").indexOf('2') == 2);
+	OK(BaseString("hej").indexOf('X') == -1);
     }
 
     {
-	assert(BaseString(" 1").trim(" ") == "1");
-	assert(BaseString("1 ").trim(" ") == "1");
-	assert(BaseString(" 1 ").trim(" ") == "1");
-	assert(BaseString("abc\t\n\r kalleabc\t\r\n").trim("abc\t\r\n ") == "kalle");
-	assert(BaseString(" ").trim(" ") == "");
+	OK(BaseString(" 1").trim(" ") == "1");
+	OK(BaseString("1 ").trim(" ") == "1");
+	OK(BaseString(" 1 ").trim(" ") == "1");
+	OK(BaseString("abc\t\n\r kalleabc\t\r\n").trim("abc\t\r\n ") == "kalle");
+	OK(BaseString(" ").trim(" ") == "");
     }
-    return 0;
+
+    // Tests for BUG#38662
+    BaseString s2(NULL);
+    BaseString s3;
+    BaseString s4("elf");
+
+    OK(s3.append((const char*)NULL) == "");
+    OK(s4.append((const char*)NULL) == "elf");
+    OK(s4.append(s3) == "elf");
+    OK(s4.append(s2) == "elf");
+    OK(s4.append(s4) == "elfelf");
+
+    OK(s3.assign((const char*)NULL).c_str() == NULL);
+    OK(s4.assign((const char*)NULL).c_str() == NULL);
+    OK(s4.assign(s4).c_str() == NULL);
+
+    //tests for Bug #45733 Cluster with more than 4 storage node 
+    for(int i=0;i<20;i++) 
+    {
+#define BIG_ASSFMT_OK(X) do{u_int x=(X);OK(s2.assfmt("%*s",x,"Z").length() == x);}while(0)
+      BIG_ASSFMT_OK(8);
+      BIG_ASSFMT_OK(511);
+      BIG_ASSFMT_OK(512);
+      BIG_ASSFMT_OK(513);
+      BIG_ASSFMT_OK(1023);
+      BIG_ASSFMT_OK(1024);
+      BIG_ASSFMT_OK(1025);
+      BIG_ASSFMT_OK(20*1024*1024);
+    }
+
+    return 1; // OK
 }
 
 #endif
 
-template class Vector<char *>;
 template class Vector<BaseString>;

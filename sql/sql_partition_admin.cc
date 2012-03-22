@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -71,7 +71,7 @@ bool Sql_cmd_alter_table_exchange_partition::execute(THD *thd)
   /* Must be set in the parser */
   DBUG_ASSERT(select_lex->db);
   /* also check the table to be exchanged with the partition */
-  DBUG_ASSERT(alter_info.flags & ALTER_EXCHANGE_PARTITION);
+  DBUG_ASSERT(alter_info.flags & Alter_info::ALTER_EXCHANGE_PARTITION);
 
   if (check_access(thd, priv_needed, first_table->db,
                    &first_table->grant.privilege,
@@ -175,15 +175,10 @@ static bool compare_table_with_partition(THD *thd, TABLE *table,
 {
   HA_CREATE_INFO table_create_info, part_create_info;
   Alter_info part_alter_info;
-  Alter_table_change_level alter_change_level;
-  /* Unused */
-  KEY *key_info_buffer;
-  uint *index_drop_buffer, index_drop_count;
-  uint *index_add_buffer, index_add_count;
-  uint candidate_key_count= 0;
+  Alter_table_ctx part_alter_ctx; // Not used
   DBUG_ENTER("compare_table_with_partition");
 
-  alter_change_level= ALTER_TABLE_METADATA_ONLY;
+  bool metadata_equal= false;
   memset(&part_create_info, 0, sizeof(HA_CREATE_INFO));
   memset(&table_create_info, 0, sizeof(HA_CREATE_INFO));
 
@@ -194,7 +189,7 @@ static bool compare_table_with_partition(THD *thd, TABLE *table,
   part_table->use_all_columns();
   table->use_all_columns();
   if (mysql_prepare_alter_table(thd, part_table, &part_create_info,
-                                &part_alter_info))
+                                &part_alter_info, &part_alter_ctx))
   {
     my_error(ER_TABLES_DIFFERENT_METADATA, MYF(0));
     DBUG_RETURN(TRUE);
@@ -215,17 +210,14 @@ static bool compare_table_with_partition(THD *thd, TABLE *table,
     the same, so any table using data/index_file_name will fail.
   */
   if (mysql_compare_tables(table, &part_alter_info, &part_create_info,
-                           0, &alter_change_level, &key_info_buffer,
-                           &index_drop_buffer, &index_drop_count,
-                           &index_add_buffer, &index_add_count,
-                           &candidate_key_count, TRUE))
+                           &metadata_equal))
   {
     my_error(ER_TABLES_DIFFERENT_METADATA, MYF(0));
     DBUG_RETURN(TRUE);
   }
 
   DEBUG_SYNC(thd, "swap_partition_after_compare_tables");
-  if (alter_change_level != ALTER_TABLE_METADATA_ONLY)
+  if (!metadata_equal)
   {
     my_error(ER_TABLES_DIFFERENT_METADATA, MYF(0));
     DBUG_RETURN(TRUE);
@@ -340,12 +332,12 @@ static bool exchange_name_with_ddl_log(THD *thd,
     2) write the execution entry with a link to the action entry
   */
   DBUG_EXECUTE_IF("exchange_partition_fail_1", goto err_no_action_written;);
-  DBUG_EXECUTE_IF("exchange_partition_abort_1", abort(););
+  DBUG_EXECUTE_IF("exchange_partition_abort_1", DBUG_SUICIDE(););
   if (write_ddl_log_entry(&exchange_entry, &log_entry))
     goto err_no_action_written;
 
   DBUG_EXECUTE_IF("exchange_partition_fail_2", goto err_no_execute_written;);
-  DBUG_EXECUTE_IF("exchange_partition_abort_2", abort(););
+  DBUG_EXECUTE_IF("exchange_partition_abort_2", DBUG_SUICIDE(););
   if (write_execute_ddl_log_entry(log_entry->entry_pos, FALSE, &exec_log_entry))
     goto err_no_execute_written;
   /* ddl_log is written and synced */
@@ -361,63 +353,66 @@ static bool exchange_name_with_ddl_log(THD *thd,
   /* call rename table from table to tmp-name */
   DBUG_EXECUTE_IF("exchange_partition_fail_3",
                   my_error(ER_ERROR_ON_RENAME, MYF(0),
-                           name, tmp_name, 0);
+                           name, tmp_name, 0, "n/a");
                   error_set= TRUE;
                   goto err_rename;);
-  DBUG_EXECUTE_IF("exchange_partition_abort_3", abort(););
+  DBUG_EXECUTE_IF("exchange_partition_abort_3", DBUG_SUICIDE(););
   if (file->ha_rename_table(name, tmp_name))
   {
-    my_error(ER_ERROR_ON_RENAME, MYF(0),
-             name, tmp_name, my_errno);
+    char errbuf[MYSYS_STRERROR_SIZE];
+    my_error(ER_ERROR_ON_RENAME, MYF(0), name, tmp_name,
+             my_errno, my_strerror(errbuf, sizeof(errbuf), my_errno));
     error_set= TRUE;
     goto err_rename;
   }
   DBUG_EXECUTE_IF("exchange_partition_fail_4", goto err_rename;);
-  DBUG_EXECUTE_IF("exchange_partition_abort_4", abort(););
+  DBUG_EXECUTE_IF("exchange_partition_abort_4", DBUG_SUICIDE(););
   if (deactivate_ddl_log_entry(log_entry->entry_pos))
     goto err_rename;
 
   /* call rename table from partition to table */
   DBUG_EXECUTE_IF("exchange_partition_fail_5",
                   my_error(ER_ERROR_ON_RENAME, MYF(0),
-                           from_name, name, 0);
+                           from_name, name, 0, "n/a");
                   error_set= TRUE;
                   goto err_rename;);
-  DBUG_EXECUTE_IF("exchange_partition_abort_5", abort(););
+  DBUG_EXECUTE_IF("exchange_partition_abort_5", DBUG_SUICIDE(););
   if (file->ha_rename_table(from_name, name))
   {
-    my_error(ER_ERROR_ON_RENAME, MYF(0),
-             from_name, name, my_errno);
+    char errbuf[MYSYS_STRERROR_SIZE];
+    my_error(ER_ERROR_ON_RENAME, MYF(0), from_name, name,
+             my_errno, my_strerror(errbuf, sizeof(errbuf), my_errno));
     error_set= TRUE;
     goto err_rename;
   }
   DBUG_EXECUTE_IF("exchange_partition_fail_6", goto err_rename;);
-  DBUG_EXECUTE_IF("exchange_partition_abort_6", abort(););
+  DBUG_EXECUTE_IF("exchange_partition_abort_6", DBUG_SUICIDE(););
   if (deactivate_ddl_log_entry(log_entry->entry_pos))
     goto err_rename;
 
   /* call rename table from tmp-nam to partition */
   DBUG_EXECUTE_IF("exchange_partition_fail_7",
                   my_error(ER_ERROR_ON_RENAME, MYF(0),
-                           tmp_name, from_name, 0);
+                           tmp_name, from_name, 0, "n/a");
                   error_set= TRUE;
                   goto err_rename;);
-  DBUG_EXECUTE_IF("exchange_partition_abort_7", abort(););
+  DBUG_EXECUTE_IF("exchange_partition_abort_7", DBUG_SUICIDE(););
   if (file->ha_rename_table(tmp_name, from_name))
   {
-    my_error(ER_ERROR_ON_RENAME, MYF(0),
-             tmp_name, from_name, my_errno);
+    char errbuf[MYSYS_STRERROR_SIZE];
+    my_error(ER_ERROR_ON_RENAME, MYF(0), tmp_name, from_name,
+             my_errno, my_strerror(errbuf, sizeof(errbuf), my_errno));
     error_set= TRUE;
     goto err_rename;
   }
   DBUG_EXECUTE_IF("exchange_partition_fail_8", goto err_rename;);
-  DBUG_EXECUTE_IF("exchange_partition_abort_8", abort(););
+  DBUG_EXECUTE_IF("exchange_partition_abort_8", DBUG_SUICIDE(););
   if (deactivate_ddl_log_entry(log_entry->entry_pos))
     goto err_rename;
 
   /* The exchange is complete and ddl_log is deactivated */
   DBUG_EXECUTE_IF("exchange_partition_fail_9", goto err_rename;);
-  DBUG_EXECUTE_IF("exchange_partition_abort_9", abort(););
+  DBUG_EXECUTE_IF("exchange_partition_abort_9", DBUG_SUICIDE(););
   /* all OK */
   error= FALSE;
   delete file;
@@ -482,12 +477,12 @@ bool Sql_cmd_alter_table_exchange_partition::
   char temp_file_name[FN_REFLEN+1];
   uint swap_part_id;
   uint part_file_name_len;
-  Alter_table_prelocking_strategy alter_prelocking_strategy(alter_info);
+  Alter_table_prelocking_strategy alter_prelocking_strategy;
   MDL_ticket *swap_table_mdl_ticket= NULL;
   MDL_ticket *part_table_mdl_ticket= NULL;
   bool error= TRUE;
   DBUG_ENTER("mysql_exchange_partition");
-  DBUG_ASSERT(alter_info->flags & ALTER_EXCHANGE_PARTITION);
+  DBUG_ASSERT(alter_info->flags & Alter_info::ALTER_EXCHANGE_PARTITION);
 
   partition_name= alter_info->partition_names.head();
 
@@ -517,6 +512,7 @@ bool Sql_cmd_alter_table_exchange_partition::
     we need some info from the engine, which we can only access after open,
     to be able to verify the structure/metadata.
   */
+  table_list->mdl_request.set_type(MDL_SHARED_NO_WRITE);
   if (open_and_lock_tables(thd, table_list, FALSE, 0,
                            &alter_prelocking_strategy))
     DBUG_RETURN(TRUE);
@@ -627,9 +623,9 @@ err:
   if (thd->locked_tables_mode)
   {
     if (swap_table_mdl_ticket)
-      swap_table_mdl_ticket->downgrade_exclusive_lock(MDL_SHARED_NO_READ_WRITE);
+      swap_table_mdl_ticket->downgrade_lock(MDL_SHARED_NO_READ_WRITE);
     if (part_table_mdl_ticket)
-      part_table_mdl_ticket->downgrade_exclusive_lock(MDL_SHARED_NO_READ_WRITE);
+      part_table_mdl_ticket->downgrade_lock(MDL_SHARED_NO_READ_WRITE);
   }
 
   if (!error)
@@ -653,7 +649,7 @@ bool Sql_cmd_alter_table_analyze_partition::execute(THD *thd)
     Flag that it is an ALTER command which administrates partitions, used
     by ha_partition
   */
-  thd->lex->alter_info.flags|= ALTER_ADMIN_PARTITION;
+  thd->lex->alter_info.flags|= Alter_info::ALTER_ADMIN_PARTITION;
 
   res= Sql_cmd_analyze_table::execute(thd);
     
@@ -670,7 +666,7 @@ bool Sql_cmd_alter_table_check_partition::execute(THD *thd)
     Flag that it is an ALTER command which administrates partitions, used
     by ha_partition
   */
-  thd->lex->alter_info.flags|= ALTER_ADMIN_PARTITION;
+  thd->lex->alter_info.flags|= Alter_info::ALTER_ADMIN_PARTITION;
 
   res= Sql_cmd_check_table::execute(thd);
 
@@ -687,7 +683,7 @@ bool Sql_cmd_alter_table_optimize_partition::execute(THD *thd)
     Flag that it is an ALTER command which administrates partitions, used
     by ha_partition
   */
-  thd->lex->alter_info.flags|= ALTER_ADMIN_PARTITION;
+  thd->lex->alter_info.flags|= Alter_info::ALTER_ADMIN_PARTITION;
 
   res= Sql_cmd_optimize_table::execute(thd);
 
@@ -704,7 +700,7 @@ bool Sql_cmd_alter_table_repair_partition::execute(THD *thd)
     Flag that it is an ALTER command which administrates partitions, used
     by ha_partition
   */
-  thd->lex->alter_info.flags|= ALTER_ADMIN_PARTITION;
+  thd->lex->alter_info.flags|= Alter_info::ALTER_ADMIN_PARTITION;
 
   res= Sql_cmd_repair_table::execute(thd);
 
@@ -725,8 +721,8 @@ bool Sql_cmd_alter_table_truncate_partition::execute(THD *thd)
     Flag that it is an ALTER command which administrates partitions, used
     by ha_partition.
   */
-  thd->lex->alter_info.flags|= ALTER_ADMIN_PARTITION |
-                               ALTER_TRUNCATE_PARTITION;
+  thd->lex->alter_info.flags|= Alter_info::ALTER_ADMIN_PARTITION |
+                               Alter_info::ALTER_TRUNCATE_PARTITION;
 
   /* Fix the lock types (not the same as ordinary ALTER TABLE). */
   first_table->lock_type= TL_WRITE;
@@ -761,7 +757,7 @@ bool Sql_cmd_alter_table_truncate_partition::execute(THD *thd)
     mandates an exclusive metadata lock.
   */
   MDL_ticket *ticket= first_table->table->mdl_ticket;
-  if (thd->mdl_context.upgrade_shared_lock_to_exclusive(ticket, timeout))
+  if (thd->mdl_context.upgrade_shared_lock(ticket, MDL_EXCLUSIVE, timeout))
     DBUG_RETURN(TRUE);
 
   tdc_remove_table(thd, TDC_RT_REMOVE_NOT_OWN, first_table->db,
@@ -790,7 +786,7 @@ bool Sql_cmd_alter_table_truncate_partition::execute(THD *thd)
     to a shared one.
   */
   if (thd->locked_tables_mode)
-    ticket->downgrade_exclusive_lock(MDL_SHARED_NO_READ_WRITE);
+    ticket->downgrade_lock(MDL_SHARED_NO_READ_WRITE);
 
   if (! error)
     my_ok(thd);

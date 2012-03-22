@@ -89,17 +89,13 @@ ut_mem_init(void)
 #endif /* !UNIV_HOTBACKUP */
 
 /**********************************************************************//**
-Allocates memory. Sets it also to zero if UNIV_SET_MEM_TO_ZERO is
-defined and set_to_zero is TRUE.
+Allocates memory.
 @return	own: allocated memory */
 UNIV_INTERN
 void*
 ut_malloc_low(
 /*==========*/
 	ulint	n,		/*!< in: number of bytes to allocate */
-	ibool	set_to_zero,	/*!< in: TRUE if allocated memory should be
-				set to zero if UNIV_SET_MEM_TO_ZERO is
-				defined */
 	ibool	assert_on_error)/*!< in: if TRUE, we crash mysqld if the
 				memory cannot be allocated */
 {
@@ -111,12 +107,6 @@ ut_malloc_low(
 		ret = malloc(n);
 		ut_a(ret || !assert_on_error);
 
-#ifdef UNIV_SET_MEM_TO_ZERO
-		if (set_to_zero) {
-			memset(ret, '\0', n);
-			UNIV_MEM_ALLOC(ret, n);
-		}
-#endif
 		return(ret);
 	}
 
@@ -198,96 +188,25 @@ retry:
 		}
 	}
 
-	if (set_to_zero) {
-#ifdef UNIV_SET_MEM_TO_ZERO
-		memset(ret, '\0', n + sizeof(ut_mem_block_t));
-#endif
-	}
-
 	UNIV_MEM_ALLOC(ret, n + sizeof(ut_mem_block_t));
 
-	((ut_mem_block_t*)ret)->size = n + sizeof(ut_mem_block_t);
-	((ut_mem_block_t*)ret)->magic_n = UT_MEM_MAGIC_N;
+	((ut_mem_block_t*) ret)->size = n + sizeof(ut_mem_block_t);
+	((ut_mem_block_t*) ret)->magic_n = UT_MEM_MAGIC_N;
 
 	ut_total_allocated_memory += n + sizeof(ut_mem_block_t);
 
 	UT_LIST_ADD_FIRST(mem_block_list, ut_mem_block_list,
-			  ((ut_mem_block_t*)ret));
+			  ((ut_mem_block_t*) ret));
 	os_fast_mutex_unlock(&ut_list_mutex);
 
-	return((void*)((byte*)ret + sizeof(ut_mem_block_t)));
+	return((void*)((byte*) ret + sizeof(ut_mem_block_t)));
 #else /* !UNIV_HOTBACKUP */
 	void*	ret = malloc(n);
 	ut_a(ret || !assert_on_error);
 
-# ifdef UNIV_SET_MEM_TO_ZERO
-	if (set_to_zero) {
-		memset(ret, '\0', n);
-		UNIV_MEM_ALLOC(ret, n);
-	}
-# endif
 	return(ret);
 #endif /* !UNIV_HOTBACKUP */
 }
-
-/**********************************************************************//**
-Allocates memory. Sets it also to zero if UNIV_SET_MEM_TO_ZERO is
-defined.
-@return	own: allocated memory */
-UNIV_INTERN
-void*
-ut_malloc(
-/*======*/
-	ulint	n)	/*!< in: number of bytes to allocate */
-{
-#ifndef UNIV_HOTBACKUP
-	return(ut_malloc_low(n, TRUE, TRUE));
-#else /* !UNIV_HOTBACKUP */
-	return(malloc(n));
-#endif /* !UNIV_HOTBACKUP */
-}
-
-#ifndef UNIV_HOTBACKUP
-/**********************************************************************//**
-Tests if malloc of n bytes would succeed. ut_malloc() asserts if memory runs
-out. It cannot be used if we want to return an error message. Prints to
-stderr a message if fails.
-@return	TRUE if succeeded */
-UNIV_INTERN
-ibool
-ut_test_malloc(
-/*===========*/
-	ulint	n)	/*!< in: try to allocate this many bytes */
-{
-	void*	ret;
-
-	ret = malloc(n);
-
-	if (ret == NULL) {
-		ut_print_timestamp(stderr);
-		fprintf(stderr,
-			"  InnoDB: Error: cannot allocate"
-			" %lu bytes of memory for\n"
-			"InnoDB: a BLOB with malloc! Total allocated memory\n"
-			"InnoDB: by InnoDB %lu bytes."
-			" Operating system errno: %d\n"
-			"InnoDB: Check if you should increase"
-			" the swap file or\n"
-			"InnoDB: ulimits of your operating system.\n"
-			"InnoDB: On FreeBSD check you have"
-			" compiled the OS with\n"
-			"InnoDB: a big enough maximum process size.\n",
-			(ulong) n,
-			(ulong) ut_total_allocated_memory,
-			(int) errno);
-		return(FALSE);
-	}
-
-	free(ret);
-
-	return(TRUE);
-}
-#endif /* !UNIV_HOTBACKUP */
 
 /**********************************************************************//**
 Frees a memory block allocated with ut_malloc. Freeing a NULL pointer is
@@ -308,7 +227,7 @@ ut_free(
 		return;
 	}
 
-	block = (ut_mem_block_t*)((byte*)ptr - sizeof(ut_mem_block_t));
+	block = (ut_mem_block_t*)((byte*) ptr - sizeof(ut_mem_block_t));
 
 	os_fast_mutex_lock(&ut_list_mutex);
 
@@ -379,7 +298,7 @@ ut_realloc(
 		return(NULL);
 	}
 
-	block = (ut_mem_block_t*)((byte*)ptr - sizeof(ut_mem_block_t));
+	block = (ut_mem_block_t*)((byte*) ptr - sizeof(ut_mem_block_t));
 
 	ut_a(block->magic_n == UT_MEM_MAGIC_N);
 
@@ -570,7 +489,7 @@ ut_strreplace(
 	ulint		s1_len = strlen(s1);
 	ulint		s2_len = strlen(s2);
 	ulint		count = 0;
-	int		len_delta = (int)s2_len - (int)s1_len;
+	int		len_delta = (int) s2_len - (int) s1_len;
 
 	str_end = str + str_len;
 

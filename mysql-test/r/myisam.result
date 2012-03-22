@@ -71,10 +71,10 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	4	Using filesort
 explain select a,b from t1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	4	
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	4	NULL
 explain select a,b,c from t1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	4	
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	4	NULL
 drop table t1;
 CREATE TABLE t1 (a INT);
 INSERT INTO  t1 VALUES (1), (2), (3);
@@ -345,23 +345,23 @@ t1	1	c_2	1	c	A	5	NULL	NULL	YES	BTREE
 t1	1	c_2	2	a	A	5	NULL	NULL		BTREE		
 explain select * from t1,t2 where t1.a=t2.a;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	ALL	a	NULL	NULL	NULL	2	
+1	SIMPLE	t2	ALL	a	NULL	NULL	NULL	2	NULL
 1	SIMPLE	t1	ALL	a	NULL	NULL	NULL	5	Using where; Using join buffer (Block Nested Loop)
 explain select * from t1,t2 force index(a) where t1.a=t2.a;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	ALL	a	NULL	NULL	NULL	2	
+1	SIMPLE	t2	ALL	a	NULL	NULL	NULL	2	NULL
 1	SIMPLE	t1	ALL	a	NULL	NULL	NULL	5	Using where; Using join buffer (Block Nested Loop)
 explain select * from t1 force index(a),t2 force index(a) where t1.a=t2.a;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	ALL	a	NULL	NULL	NULL	2	
-1	SIMPLE	t1	ref	a	a	4	test.t2.a	3	
+1	SIMPLE	t2	ALL	a	NULL	NULL	NULL	2	NULL
+1	SIMPLE	t1	ref	a	a	4	test.t2.a	3	NULL
 explain select * from t1,t2 where t1.b=t2.b;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t2	ALL	b	NULL	NULL	NULL	2	Using where
-1	SIMPLE	t1	ref	b	b	5	test.t2.b	1	
+1	SIMPLE	t1	ref	b	b	5	test.t2.b	1	NULL
 explain select * from t1,t2 force index(c) where t1.a=t2.a;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	2	
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	2	NULL
 1	SIMPLE	t1	ALL	a	NULL	NULL	NULL	5	Using where; Using join buffer (Block Nested Loop)
 explain select * from t1 where a=0 or a=2;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
@@ -371,7 +371,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	range	a	a	4	NULL	4	Using index condition
 explain select * from t1 where c=1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ref	c,c_2	c	5	const	1	
+1	SIMPLE	t1	ref	c,c_2	c	5	const	1	NULL
 explain select * from t1 use index() where c=1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	5	Using where
@@ -490,9 +490,13 @@ insert into t2 values (1),(2);
 select sql_big_result distinct t1.a from t1,t2 order by t2.a;
 a
 1
+FLUSH STATUS;
 select distinct t1.a from t1,t2 order by t2.a;
 a
 1
+SHOW SESSION STATUS LIKE 'Sort_scan%';
+Variable_name	Value
+Sort_scan	0
 select sql_big_result distinct t1.a from t1,t2;
 a
 1
@@ -1286,15 +1290,15 @@ i	10
 select sql_big_result v,count(c) from t1 group by v limit 10;
 v	count(c)
 a	1
-a 	10
-b     	10
-c    	10
-d   	10
-e  	10
-f     	10
-g    	10
+a	10
+b	10
+c	10
+d	10
+e	10
+f	10
+g	10
 h	10
-i     	10
+i	10
 select c,count(*) from t1 group by c limit 10;
 c	count(*)
 a	1
@@ -1675,7 +1679,7 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
 create table t1 (v varchar(65535));
-ERROR 42000: Row size too large. The maximum row size for the used table type, not counting BLOBs, is 65535. You have to change some columns to TEXT or BLOBs
+ERROR 42000: Row size too large. The maximum row size for the used table type, not counting BLOBs, is 65535. This includes storage overhead, check the manual. You have to change some columns to TEXT or BLOBs
 set storage_engine=MyISAM;
 Warnings:
 Warning	1287	'@@storage_engine' is deprecated and will be removed in a future release. Please use '@@default_storage_engine' instead
@@ -2442,6 +2446,19 @@ Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
 DROP TABLE t1;
 SET GLOBAL myisam_use_mmap=default;
+#
+# BUG 11756869 - 48848: MYISAMCHK DOING SORT RECOVER IN CERTAIN
+#                       CASES RESETS DATA POINTER TO SMAL
+#
+CREATE TABLE t1(a INT, KEY(a));
+ALTER TABLE t1 DISABLE KEYS;
+SET @before:= (SELECT MAX_DATA_LENGTH FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME='t1' AND TABLE_SCHEMA='test');
+FLUSH TABLES;
+SET @after:= (SELECT MAX_DATA_LENGTH FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME='t1' AND TABLE_SCHEMA='test');
+SELECT @before=@after;
+@before=@after
+1
+DROP TABLE t1;
 End of 5.1 tests
 #
 # Bug#43600: Incorrect type conversion caused wrong result.
@@ -2459,7 +2476,7 @@ insert into t1 values (0),(1),(2),(3),(4);
 insert into t2 select A.a + 10 *B.a, 1, 'filler' from t1 A, t1 B;
 explain select * from t1, t2 where t2.a=t1.a and t2.b + 1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	5	
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	5	NULL
 1	SIMPLE	t2	ref	a	a	4	test.t1.a	1	Using index condition
 select * from t1, t2 where t2.a=t1.a and t2.b + 1;
 a	a	b	filler

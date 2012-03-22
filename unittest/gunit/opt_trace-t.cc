@@ -18,6 +18,7 @@
    Unit test of the Optimizer trace API (WL#5257)
 */
 
+// First include (the generated) my_config.h, to get correct platform defines.
 #include "my_config.h"
 #include <gtest/gtest.h>
 
@@ -80,10 +81,15 @@ void do_check_json_compliance(const char *str, size_t length)
 #endif
 }
 
+extern "C"
+void my_error_handler(uint error, const char *str, myf MyFlags);
+
+
 class TraceContentTest : public ::testing::Test
 {
 public:
   Opt_trace_context trace;
+  static bool oom; ///< whether we got an OOM error from opt trace
 protected:
   static void SetUpTestCase()
   {
@@ -96,18 +102,20 @@ protected:
     // Setting debug flags triggers enter/exit trace, so redirect to /dev/null
     DBUG_SET("o," IF_WIN("NUL", "/dev/null"));
   }
-  static bool oom; ///< whether we got an OOM error from opt trace
-  static void my_error_handler(uint error, const char *str, myf MyFlags)
-  {
-    const uint EE= static_cast<uint>(EE_OUTOFMEMORY);
-    EXPECT_EQ(EE, error);
-    if (error == EE)
-      oom= true;
-  }
+
 };
-
-
 bool TraceContentTest::oom;
+
+
+void my_error_handler(uint error, const char *str, myf MyFlags)
+{
+  const uint EE= static_cast<uint>(EE_OUTOFMEMORY);
+  EXPECT_EQ(EE, error);
+  if (error == EE)
+    TraceContentTest::oom= true;
+}
+
+
 
 TEST_F(TraceContentTest, ConstructAndDestruct)
 {
@@ -210,71 +218,6 @@ TEST_F(TraceContentTest, NormalUsage)
   EXPECT_EQ(0U, info.missing_bytes);
   EXPECT_FALSE(info.missing_priv);
   EXPECT_FALSE(oom);
-  it.next();
-  ASSERT_TRUE(it.at_end());
-}
-
-
-/**
-   Test Opt_trace_context::get_tail(). Same as TraceContentTest.NormalUsage
-   but with a get_tail() in the middle.
-*/
-TEST_F(TraceContentTest, Tail)
-{
-  ASSERT_FALSE(trace.start(true, false, true, false, -1, 1, ULONG_MAX,
-                           all_features));
-  {
-    Opt_trace_object oto(&trace);
-    {
-      Opt_trace_array ota(&trace, "one array");
-      ota.add(200.4);
-      {
-        Opt_trace_object oto1(&trace);
-        oto1.add_utf8("one key", "one value", 7). // test explicit length
-          add("another key", 100LL);
-      }
-      ota.add_utf8("one string element", 15);    // test explicit length
-      ota.add(true);
-    }
-    oto.add("yet another key", -1000LL);
-    {
-      Opt_trace_array ota(&trace, "another array");
-      ota.add(1LL).add(2LL).add(3LL).add(4LL);
-    }
-  }
-  const char *tail= trace.get_tail(40);
-  trace.end();
-  Opt_trace_iterator it(&trace);
-  ASSERT_FALSE(it.at_end());
-  Opt_trace_info info;
-  it.get_value(&info);
-  const char expected[]=
-    "{\n"
-    "  \"one array\": [\n"
-    "    200.4,\n"
-    "    {\n"
-    "      \"one key\": \"one val\",\n"
-    "      \"another key\": 100\n"
-    "    },\n"
-    "    \"one string elem\",\n"
-    "    true\n"
-    "  ] /* one array */,\n"
-    "  \"yet another key\": -1000,\n"
-    "  \"another array\": [\n"
-    "    1,\n"
-    "    2,\n"
-    "    3,\n"
-    "    4\n"
-    "  ] /* another array */\n"
-    "}";
-  EXPECT_STREQ(expected, info.trace_ptr);
-  EXPECT_EQ(sizeof(expected) - 1, info.trace_length);
-  EXPECT_EQ((void *)0, info.query_ptr);
-  EXPECT_EQ(0U, info.query_length);
-  EXPECT_EQ(0U, info.missing_bytes);
-  EXPECT_FALSE(info.missing_priv);
-  EXPECT_FALSE(oom);
-  EXPECT_EQ(0, strcmp(expected + sizeof(expected) - 1 - 40, tail));
   it.next();
   ASSERT_TRUE(it.at_end());
 }

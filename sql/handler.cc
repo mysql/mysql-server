@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -19,6 +19,7 @@
   Handler-calling-functions
 */
 
+#include "binlog.h"
 #include "sql_priv.h"
 #include "unireg.h"
 #include "rpl_handler.h"
@@ -37,6 +38,7 @@
 #include "probes_mysql.h"
 #include <mysql/psi/mysql_table.h>
 #include "debug_sync.h"         // DEBUG_SYNC
+#include <my_bit.h>
 
 #ifdef WITH_PARTITION_STORAGE_ENGINE
 #include "ha_partition.h"
@@ -517,6 +519,7 @@ int ha_initialize_handlerton(st_plugin_int *plugin)
     the switch below and hton->state should be removed when
     command-line options for plugins will be implemented
   */
+  DBUG_PRINT("info", ("hton->state=%d", hton->state));
   switch (hton->state) {
   case SHOW_OPTION_NO:
     break;
@@ -1013,11 +1016,14 @@ void trans_register_ha(THD *thd, bool all, handlerton *ht_arg)
   {
     trans= &thd->transaction.all;
     thd->server_status|= SERVER_STATUS_IN_TRANS;
+    if (thd->tx_read_only)
+      thd->server_status|= SERVER_STATUS_IN_TRANS_READONLY;
+    DBUG_PRINT("info", ("setting SERVER_STATUS_IN_TRANS"));
   }
   else
     trans= &thd->transaction.stmt;
 
-  ha_info= thd->ha_data[ht_arg->slot].ha_info + static_cast<unsigned>(all);
+  ha_info= thd->ha_data[ht_arg->slot].ha_info + (all ? 1 : 0);
 
   if (ha_info->is_started())
     DBUG_VOID_RETURN; /* already registered, return */
@@ -1167,6 +1173,8 @@ int ha_commit_trans(THD *thd, bool all)
   my_xid xid= thd->transaction.xid_state.xid.get_my_xid();
   DBUG_ENTER("ha_commit_trans");
 
+  DBUG_PRINT("info", ("all=%d thd->in_sub_stmt=%d ha_info=%p is_real_trans=%d",
+                      all, thd->in_sub_stmt, ha_info, is_real_trans));
   /*
     We must not commit the normal transaction if a statement
     transaction is pending. Otherwise statement transaction
@@ -1447,6 +1455,8 @@ int ha_rollback_trans(THD *thd, bool all)
   if (all)
     thd->transaction_rollback_request= FALSE;
 
+  gtid_rollback(thd);
+
   /*
     If the transaction cannot be rolled back safely, warn; don't warn if this
     is a slave thread (because when a slave thread executes a ROLLBACK, it has
@@ -1494,7 +1504,7 @@ static my_bool xarollback_handlerton(THD *unused1, plugin_ref plugin,
 }
 
 
-int ha_commit_or_rollback_by_xid(XID *xid, bool commit)
+int ha_commit_or_rollback_by_xid(THD *thd, XID *xid, bool commit)
 {
   struct xahton_st xaop;
   xaop.xid= xid;
@@ -1502,6 +1512,8 @@ int ha_commit_or_rollback_by_xid(XID *xid, bool commit)
 
   plugin_foreach(NULL, commit ? xacommit_handlerton : xarollback_handlerton,
                  MYSQL_STORAGE_ENGINE_PLUGIN, &xaop);
+
+  gtid_rollback(thd);
 
   return xaop.result;
 }
@@ -2119,7 +2131,11 @@ int ha_delete_table(THD *thd, handlerton *table_type, const char *path,
 
 #ifdef HAVE_PSI_TABLE_INTERFACE
   if (likely(error == 0))
-    PSI_CALL(drop_table_share)(db, strlen(db), alias, strlen(alias));
+  {
+    my_bool temp_table= (my_bool)is_prefix(alias, tmp_file_prefix);
+    PSI_CALL(drop_table_share)(temp_table, db, strlen(db),
+                               alias, strlen(alias));
+  }
 #endif
 
   DBUG_RETURN(error);
@@ -2131,26 +2147,33 @@ int ha_delete_table(THD *thd, handlerton *table_type, const char *path,
 handler *handler::clone(const char *name, MEM_ROOT *mem_root)
 {
   handler *new_handler= get_new_handler(table->s, mem_root, ht);
+
+  if (!new_handler)
+    return NULL;
+  if (new_handler->set_ha_share_ref(ha_share))
+    goto err;
+
   /*
     Allocate handler->ref here because otherwise ha_open will allocate it
     on this->table->mem_root and we will not be able to reclaim that memory 
     when the clone handler object is destroyed.
   */
-  if (new_handler &&
-     !(new_handler->ref= (uchar*) alloc_root(mem_root,
-                                             ALIGN_SIZE(ref_length)*2)))
-    new_handler= NULL;
+  if (!(new_handler->ref= (uchar*) alloc_root(mem_root,
+                                              ALIGN_SIZE(ref_length)*2)))
+    goto err;
   /*
     TODO: Implement a more efficient way to have more than one index open for
     the same table instance. The ha_open call is not cachable for clone.
   */
-  if (new_handler && new_handler->ha_open(table,
-                                          name,
-                                          table->db_stat,
-                                          HA_OPEN_IGNORE_IF_LOCKED))
-    new_handler= NULL;
+  if (new_handler->ha_open(table, name, table->db_stat,
+                           HA_OPEN_IGNORE_IF_LOCKED))
+    goto err;
 
   return new_handler;
+
+err:
+  delete new_handler;
+  return NULL;
 }
 
 
@@ -2173,25 +2196,24 @@ THD *handler::ha_thd(void) const
 
 void handler::unbind_psi()
 {
-#ifdef HAVE_PSI_INTERFACE
+#ifdef HAVE_PSI_TABLE_INTERFACE
   /*
     Notify the instrumentation that this table is not owned
     by this thread any more.
   */
-  if (likely(PSI_server != NULL))
-    PSI_server->unbind_table(m_psi);
+  PSI_CALL(unbind_table)(m_psi);
 #endif
 }
 
 void handler::rebind_psi()
 {
-#ifdef HAVE_PSI_INTERFACE
+#ifdef HAVE_PSI_TABLE_INTERFACE
   /*
     Notify the instrumentation that this table is now owned
     by this thread.
   */
-  if (likely(PSI_server != NULL))
-    PSI_server->rebind_table(m_psi);
+  PSI_table_share *share_psi= ha_table_share_psi(table_share);
+  m_psi= PSI_CALL(rebind_table)(share_psi, this, m_psi);
 #endif
 }
 
@@ -2280,12 +2302,9 @@ int handler::ha_rnd_next(uchar *buf)
   int result;
   DBUG_ASSERT(table_share->tmp_table != NO_TMP_TABLE ||
               m_lock_type != F_UNLCK);
-  MYSQL_TABLE_WAIT_VARIABLES(locker, state) /* no ';' */
 
-  MYSQL_START_TABLE_IO_WAIT(locker, &state, m_psi,
-                            PSI_TABLE_FETCH_ROW, MAX_KEY, 0);
-  result= rnd_next(buf);
-  MYSQL_END_TABLE_IO_WAIT(locker);
+  MYSQL_TABLE_IO_WAIT(m_psi, PSI_TABLE_FETCH_ROW, MAX_KEY, 0,
+    { result= rnd_next(buf); })
   return result;
 }
 
@@ -2294,12 +2313,9 @@ int handler::ha_rnd_pos(uchar *buf, uchar *pos)
   int result;
   DBUG_ASSERT(table_share->tmp_table != NO_TMP_TABLE ||
               m_lock_type != F_UNLCK);
-  MYSQL_TABLE_WAIT_VARIABLES(locker, state) /* no ';' */
 
-  MYSQL_START_TABLE_IO_WAIT(locker, &state, m_psi,
-                            PSI_TABLE_FETCH_ROW, MAX_KEY, 0);
-  result= rnd_pos(buf, pos);
-  MYSQL_END_TABLE_IO_WAIT(locker);
+  MYSQL_TABLE_IO_WAIT(m_psi, PSI_TABLE_FETCH_ROW, MAX_KEY, 0,
+    { result= rnd_pos(buf, pos); })
   return result;
 }
 
@@ -2310,12 +2326,9 @@ int handler::ha_index_read_map(uchar *buf, const uchar *key,
   int result;
   DBUG_ASSERT(table_share->tmp_table != NO_TMP_TABLE ||
               m_lock_type != F_UNLCK);
-  MYSQL_TABLE_WAIT_VARIABLES(locker, state) /* no ';' */
 
-  MYSQL_START_TABLE_IO_WAIT(locker, &state, m_psi,
-                            PSI_TABLE_FETCH_ROW, active_index, 0);
-  result= index_read_map(buf, key, keypart_map, find_flag);
-  MYSQL_END_TABLE_IO_WAIT(locker);
+  MYSQL_TABLE_IO_WAIT(m_psi, PSI_TABLE_FETCH_ROW, active_index, 0,
+    { result= index_read_map(buf, key, keypart_map, find_flag); })
   return result;
 }
 
@@ -2327,12 +2340,9 @@ int handler::ha_index_read_idx_map(uchar *buf, uint index, const uchar *key,
   DBUG_ASSERT(table_share->tmp_table != NO_TMP_TABLE ||
               m_lock_type != F_UNLCK);
   DBUG_ASSERT(end_range == NULL);
-  MYSQL_TABLE_WAIT_VARIABLES(locker, state) /* no ';' */
 
-  MYSQL_START_TABLE_IO_WAIT(locker, &state, m_psi,
-                            PSI_TABLE_FETCH_ROW, index, 0);
-  result= index_read_idx_map(buf, index, key, keypart_map, find_flag);
-  MYSQL_END_TABLE_IO_WAIT(locker);
+  MYSQL_TABLE_IO_WAIT(m_psi, PSI_TABLE_FETCH_ROW, index, 0,
+    { result= index_read_idx_map(buf, index, key, keypart_map, find_flag); })
   return result;
 }
 
@@ -2341,12 +2351,9 @@ int handler::ha_index_next(uchar * buf)
   int result;
   DBUG_ASSERT(table_share->tmp_table != NO_TMP_TABLE ||
               m_lock_type != F_UNLCK);
-  MYSQL_TABLE_WAIT_VARIABLES(locker, state) /* no ';' */
 
-  MYSQL_START_TABLE_IO_WAIT(locker, &state, m_psi,
-                            PSI_TABLE_FETCH_ROW, active_index, 0);
-  result= index_next(buf);
-  MYSQL_END_TABLE_IO_WAIT(locker);
+  MYSQL_TABLE_IO_WAIT(m_psi, PSI_TABLE_FETCH_ROW, active_index, 0,
+    { result= index_next(buf); })
   return result;
 }
 
@@ -2355,12 +2362,9 @@ int handler::ha_index_prev(uchar * buf)
   int result;
   DBUG_ASSERT(table_share->tmp_table != NO_TMP_TABLE ||
               m_lock_type != F_UNLCK);
-  MYSQL_TABLE_WAIT_VARIABLES(locker, state) /* no ';' */
 
-  MYSQL_START_TABLE_IO_WAIT(locker, &state, m_psi,
-                            PSI_TABLE_FETCH_ROW, active_index, 0);
-  result= index_prev(buf);
-  MYSQL_END_TABLE_IO_WAIT(locker);
+  MYSQL_TABLE_IO_WAIT(m_psi, PSI_TABLE_FETCH_ROW, active_index, 0,
+    { result= index_prev(buf); })
   return result;
 }
 
@@ -2369,12 +2373,9 @@ int handler::ha_index_first(uchar * buf)
   int result;
   DBUG_ASSERT(table_share->tmp_table != NO_TMP_TABLE ||
               m_lock_type != F_UNLCK);
-  MYSQL_TABLE_WAIT_VARIABLES(locker, state) /* no ';' */
 
-  MYSQL_START_TABLE_IO_WAIT(locker, &state, m_psi,
-                            PSI_TABLE_FETCH_ROW, active_index, 0);
-  result= index_first(buf);
-  MYSQL_END_TABLE_IO_WAIT(locker);
+  MYSQL_TABLE_IO_WAIT(m_psi, PSI_TABLE_FETCH_ROW, active_index, 0,
+    { result= index_first(buf); })
   return result;
 }
 
@@ -2383,12 +2384,9 @@ int handler::ha_index_last(uchar * buf)
   int result;
   DBUG_ASSERT(table_share->tmp_table != NO_TMP_TABLE ||
               m_lock_type != F_UNLCK);
-  MYSQL_TABLE_WAIT_VARIABLES(locker, state) /* no ';' */
 
-  MYSQL_START_TABLE_IO_WAIT(locker, &state, m_psi,
-                            PSI_TABLE_FETCH_ROW, active_index, 0);
-  result= index_last(buf);
-  MYSQL_END_TABLE_IO_WAIT(locker);
+  MYSQL_TABLE_IO_WAIT(m_psi, PSI_TABLE_FETCH_ROW, active_index, 0,
+    { result= index_last(buf); })
   return result;
 }
 
@@ -2397,12 +2395,9 @@ int handler::ha_index_next_same(uchar *buf, const uchar *key, uint keylen)
   int result;
   DBUG_ASSERT(table_share->tmp_table != NO_TMP_TABLE ||
               m_lock_type != F_UNLCK);
-  MYSQL_TABLE_WAIT_VARIABLES(locker, state) /* no ';' */
 
-  MYSQL_START_TABLE_IO_WAIT(locker, &state, m_psi,
-                            PSI_TABLE_FETCH_ROW, active_index, 0);
-  result= index_next_same(buf, key, keylen);
-  MYSQL_END_TABLE_IO_WAIT(locker);
+  MYSQL_TABLE_IO_WAIT(m_psi, PSI_TABLE_FETCH_ROW, active_index, 0,
+    { result= index_next_same(buf, key, keylen); })
   return result;
 }
 
@@ -2412,12 +2407,9 @@ int handler::ha_index_read(uchar *buf, const uchar *key, uint key_len,
   int result;
   DBUG_ASSERT(table_share->tmp_table != NO_TMP_TABLE ||
               m_lock_type != F_UNLCK);
-  MYSQL_TABLE_WAIT_VARIABLES(locker, state) /* no ';' */
 
-  MYSQL_START_TABLE_IO_WAIT(locker, &state, m_psi,
-                            PSI_TABLE_FETCH_ROW, active_index, 0);
-  result= index_read(buf, key, key_len, find_flag);
-  MYSQL_END_TABLE_IO_WAIT(locker);
+  MYSQL_TABLE_IO_WAIT(m_psi, PSI_TABLE_FETCH_ROW, active_index, 0,
+    { result= index_read(buf, key, key_len, find_flag); })
   return result;
 }
 
@@ -2426,12 +2418,9 @@ int handler::ha_index_read_last(uchar *buf, const uchar *key, uint key_len)
   int result;
   DBUG_ASSERT(table_share->tmp_table != NO_TMP_TABLE ||
               m_lock_type != F_UNLCK);
-  MYSQL_TABLE_WAIT_VARIABLES(locker, state) /* no ';' */
 
-  MYSQL_START_TABLE_IO_WAIT(locker, &state, m_psi,
-                            PSI_TABLE_FETCH_ROW, active_index, 0);
-  result= index_read_last(buf, key, key_len);
-  MYSQL_END_TABLE_IO_WAIT(locker);
+  MYSQL_TABLE_IO_WAIT(m_psi, PSI_TABLE_FETCH_ROW, active_index, 0,
+    { result= index_read_last(buf, key, key_len); })
   return result;
 }
 
@@ -2913,13 +2902,13 @@ void handler::ha_release_auto_increment()
 }
 
 
-void handler::print_keydup_error(uint key_nr, const char *msg)
+void handler::print_keydup_error(KEY *key, const char *msg)
 {
   /* Write the duplicated key in the error message */
-  char key[MAX_KEY_LENGTH];
-  String str(key,sizeof(key),system_charset_info);
+  char key_buff[MAX_KEY_LENGTH];
+  String str(key_buff,sizeof(key_buff),system_charset_info);
 
-  if (key_nr == MAX_KEY)
+  if (key == NULL)
   {
     /* Key is unknown */
     str.copy("", 0, system_charset_info);
@@ -2928,7 +2917,7 @@ void handler::print_keydup_error(uint key_nr, const char *msg)
   else
   {
     /* Table is opened and defined at this point */
-    key_unpack(&str,table,(uint) key_nr);
+    key_unpack(&str,table, key);
     uint max_length=MYSQL_ERRMSG_SIZE-(uint) strlen(msg);
     if (str.length() >= max_length)
     {
@@ -2936,8 +2925,14 @@ void handler::print_keydup_error(uint key_nr, const char *msg)
       str.append(STRING_WITH_LEN("..."));
     }
     my_printf_error(ER_DUP_ENTRY, msg,
-		    MYF(0), str.c_ptr_safe(), table->key_info[key_nr].name);
+		    MYF(0), str.c_ptr_safe(), key->name);
   }
+}
+
+
+void handler::print_keydup_error(KEY *key)
+{
+  print_keydup_error(key, ER(ER_DUP_ENTRY_WITH_KEY_NAME));
 }
 
 
@@ -2964,7 +2959,12 @@ void handler::print_error(int error, myf errflag)
     textno=ER_FILE_USED;
     break;
   case ENOENT:
-    textno=ER_FILE_NOT_FOUND;
+    {
+      char errbuf[MYSYS_STRERROR_SIZE];
+      textno=ER_FILE_NOT_FOUND;
+      my_error(textno, errflag, table_share->table_name.str,
+               error, my_strerror(errbuf, sizeof(errbuf), error));
+    }
     break;
   case HA_ERR_KEY_NOT_FOUND:
   case HA_ERR_NO_ACTIVE_RECORD:
@@ -2980,7 +2980,7 @@ void handler::print_error(int error, myf errflag)
     uint key_nr=get_dup_key(error);
     if ((int) key_nr >= 0)
     {
-      print_keydup_error(key_nr, ER(ER_DUP_ENTRY_WITH_KEY_NAME));
+      print_keydup_error(key_nr == MAX_KEY ? NULL : &table->key_info[key_nr]);
       DBUG_VOID_RETURN;
     }
     textno=ER_DUP_KEY;
@@ -2994,9 +2994,12 @@ void handler::print_error(int error, myf errflag)
     char rec_buf[MAX_KEY_LENGTH];
     String rec(rec_buf, sizeof(rec_buf), system_charset_info);
     /* Table is opened and defined at this point */
-    key_unpack(&rec, table, 0 /* just print the subset of fields that are
-                              part of the first index, printing the whole
-                              row from there is not easy */);
+
+    /*
+      Just print the subset of fields that are part of the first index,
+      printing the whole row from there is not easy.
+    */
+    key_unpack(&rec, table, &table->key_info[0]);
 
     char child_table_name[NAME_LEN + 1];
     char child_key_name[NAME_LEN + 1];
@@ -3156,7 +3159,8 @@ void handler::print_error(int error, myf errflag)
       DBUG_VOID_RETURN;
     }
   }
-  my_error(textno, errflag, table_share->table_name.str, error);
+  if (textno != ER_FILE_NOT_FOUND)
+    my_error(textno, errflag, table_share->table_name.str, error);
   DBUG_VOID_RETURN;
 }
 
@@ -3682,22 +3686,447 @@ handler::ha_discard_or_import_tablespace(my_bool discard)
 }
 
 
+bool handler::ha_commit_inplace_alter_table(TABLE *altered_table,
+                                            Alter_inplace_info *ha_alter_info,
+                                            bool commit)
+{
+   /*
+     At this point we should have an exclusive metadata lock on the table.
+     The exception is if we're about to roll back changes (commit= false).
+     In this case, we might be rolling back after a failed lock upgrade,
+     so we could be holding the same lock level as for inplace_alter_table().
+   */
+   DBUG_ASSERT(ha_thd()->mdl_context.is_lock_owner(MDL_key::TABLE,
+                                                   table->s->db.str,
+                                                   table->s->table_name.str,
+                                                   MDL_EXCLUSIVE) ||
+               !commit);
+
+   return commit_inplace_alter_table(altered_table, ha_alter_info, commit);
+}
+
+
 /**
-  Prepare for alter: public interface.
+   @brief Check if both DROP and CREATE are present for an index in ALTER TABLE
 
-  Called to prepare an *online* ALTER.
+   @details Checks if any index is being modified (present as both DROP INDEX
+   and ADD INDEX) in the current ALTER TABLE statement. Needed for disabling
+   in-place ALTER TABLE.
 
-  @sa handler::prepare_for_alter()
+   @param ha_alter_info     Structure holding data used during in-place alter.
+
+   @return presence of index being altered
+   @retval FALSE  No such index
+   @retval TRUE   Have at least 1 index modified
 */
 
-void
-handler::ha_prepare_for_alter()
+static bool is_index_maintenance_unique(const Alter_inplace_info *ha_alter_info)
+{
+  const KEY *add_key;
+  const KEY *drop_key;
+  const uint *idx_add_p;
+  uint idx_drop;
+
+  for (idx_add_p= ha_alter_info->index_add_buffer;
+       idx_add_p < ha_alter_info->index_add_buffer +
+         ha_alter_info->index_add_count; idx_add_p++)
+  {
+    add_key= ha_alter_info->key_info_buffer + *idx_add_p;
+    for (idx_drop= 0; idx_drop < ha_alter_info->index_drop_count; idx_drop++)
+    {
+      drop_key= ha_alter_info->index_drop_buffer[idx_drop];
+      if (!my_strcasecmp(system_charset_info, add_key->name, drop_key->name))
+        return true;
+    }
+  }
+  return false;
+}
+
+
+/**
+   Check if engine supports in-place operation for this type of index and
+   update enum_alter_inplace_result accordingly.
+
+   @param[in]      handler_alter_flags  Flags specifying handler support for
+                                        in-place alter.
+   @param[in,out]  result               Current level of in-place alter support.
+   @param[in]      no_write_flag        *_NO_WRITE flag to check.
+   @param[in]      no_read_write_flag   *_NO_READ_WRITE flag to check.
+*/
+
+static void check_alter_index_flags(ulong handler_alter_flags,
+                                    enum_alter_inplace_result *result,
+                                    ulong no_write_flag,
+                                    ulong no_read_write_flag)
+{
+  /*
+    If we already know that the operation must be done using copy algorithm,
+    there's nothing left to check.
+  */
+  if (*result == HA_ALTER_INPLACE_NOT_SUPPORTED)
+    return;
+  if (handler_alter_flags & no_write_flag)
+  {
+    if (*result != HA_ALTER_INPLACE_EXCLUSIVE_LOCK)
+      *result= HA_ALTER_INPLACE_SHARED_LOCK;
+  }
+  else if (handler_alter_flags & no_read_write_flag)
+    *result= HA_ALTER_INPLACE_EXCLUSIVE_LOCK;
+  else
+    *result= HA_ALTER_INPLACE_NOT_SUPPORTED;
+}
+
+
+/*
+   Default implementation to support in-place alter table
+   and old online add/drop index API
+*/
+
+enum_alter_inplace_result
+handler::check_if_supported_inplace_alter(TABLE *altered_table,
+                                          Alter_inplace_info *ha_alter_info)
+{
+  DBUG_ENTER("check_if_supported_alter");
+
+  HA_CREATE_INFO *create_info= ha_alter_info->create_info;
+
+  ulong handler_alter_flags= table->file->alter_table_flags(0);
+  DBUG_PRINT("info", ("handler_alter_flags: %lu", handler_alter_flags));
+
+  Alter_inplace_info::HA_ALTER_FLAGS inplace_online_operations=
+    Alter_inplace_info::ADD_INDEX |
+    Alter_inplace_info::DROP_INDEX |
+    Alter_inplace_info::ADD_UNIQUE_INDEX |
+    Alter_inplace_info::DROP_UNIQUE_INDEX |
+    Alter_inplace_info::ADD_PK_INDEX |
+    Alter_inplace_info::DROP_PK_INDEX;
+  Alter_inplace_info::HA_ALTER_FLAGS inplace_offline_operations=
+    Alter_inplace_info::ALTER_COLUMN_EQUAL_PACK_LENGTH |
+    Alter_inplace_info::ALTER_COLUMN_NAME |
+    Alter_inplace_info::ALTER_COLUMN_DEFAULT |
+    Alter_inplace_info::CHANGE_CREATE_OPTION |
+    Alter_inplace_info::ALTER_RENAME;
+  Alter_inplace_info::HA_ALTER_FLAGS copy_operations=
+    ~(inplace_online_operations) & ~(inplace_offline_operations);
+
+  /* Is there at least one operation that requires copy algorithm? */
+  if (ha_alter_info->handler_flags & copy_operations)
+    DBUG_RETURN(HA_ALTER_INPLACE_NOT_SUPPORTED);
+
+  /*
+    Bug #49838 DROP INDEX and ADD UNIQUE INDEX for same index may
+    corrupt definition at engine
+  */
+  if (is_index_maintenance_unique(ha_alter_info))
+    DBUG_RETURN(HA_ALTER_INPLACE_NOT_SUPPORTED);
+
+  /*
+    ALTER TABLE tbl_name CONVERT TO CHARACTER SET .. and
+    ALTER TABLE table_name DEFAULT CHARSET = .. most likely
+    change column charsets and so not supported in-place through
+    old API.
+
+    Changing of PACK_KEYS, MAX_ROWS and ROW_FORMAT options were
+    not supported as in-place operations in old API either.
+  */
+  if (create_info->used_fields & (HA_CREATE_USED_CHARSET |
+                                  HA_CREATE_USED_DEFAULT_CHARSET |
+                                  HA_CREATE_USED_PACK_KEYS |
+                                  HA_CREATE_USED_MAX_ROWS) ||
+      (table->s->row_type != create_info->row_type))
+    DBUG_RETURN(HA_ALTER_INPLACE_NOT_SUPPORTED);
+
+  /*
+    At this point we know that we won't be adding, dropping or
+    reordering columns so we can use simple algorithm to properly
+    set FIELD_IN_ADD_INDEX flag needed by old version of in-place
+    API.
+  */
+  DBUG_ASSERT(!(ha_alter_info->handler_flags &
+                (Alter_inplace_info::ADD_COLUMN |
+                 Alter_inplace_info::DROP_COLUMN |
+                 Alter_inplace_info::ALTER_COLUMN_ORDER)));
+  /* Start by clearing this marker for all fields. */
+  for (uint i= 0; i < table->s->fields; i++)
+    table->field[i]->flags&= ~FIELD_IN_ADD_INDEX;
+  /*
+    Then go through all new indexes and use the fact that
+    fields position has not changed to mark fields belonging
+    to newly added indexes.
+  */
+  for (uint i= 0; i < ha_alter_info->index_add_count; i++)
+  {
+    KEY *k= ha_alter_info->key_info_buffer + ha_alter_info->index_add_buffer[i];
+    KEY_PART_INFO *key_part, *end;
+    for(key_part= k->key_part, end= key_part + k->key_parts;
+        key_part != end; key_part++)
+      table->field[key_part->fieldnr]->flags|= FIELD_IN_ADD_INDEX;
+  }
+
+  /* We now know that it's only inplace_online_operations. */
+  enum_alter_inplace_result result= HA_ALTER_ERROR;
+
+  /* Is there at least one in-place operation that must be done offline? */
+  if (ha_alter_info->handler_flags & inplace_offline_operations)
+  {
+    uint table_changes= (ha_alter_info->handler_flags &
+                         Alter_inplace_info::ALTER_COLUMN_EQUAL_PACK_LENGTH) ?
+                        IS_EQUAL_PACK_LENGTH : IS_EQUAL_YES;
+    if (table->file->check_if_incompatible_data(create_info, table_changes)
+        == COMPATIBLE_DATA_YES)
+      result= HA_ALTER_INPLACE_EXCLUSIVE_LOCK;
+    else
+      DBUG_RETURN(HA_ALTER_INPLACE_NOT_SUPPORTED);
+  }
+
+  /*
+    Bug#11750045 - 40344: ALTER IGNORE TABLE T ADD INDEX DOES NOT IGNORE
+    IN FAST INDEX CREATION.
+    Supporting IGNORE for in-place ALTER is problematic as IGNORE requires
+    that offending rows are deleted, which complicates locking.
+    Use copy instead.
+  */
+  if (ha_alter_info->ignore)
+    DBUG_RETURN(HA_ALTER_INPLACE_NOT_SUPPORTED);
+
+  /*
+    Bug#13411182 ASSERTION PREBUILT->TABLE->N_REF_COUNT == 2 ON ADD FULLTEXT
+    Creating a fulltext index in InnoDB has the same locking requirements
+    as adding a primary index since it may require a rebuild of the primary
+    index.
+  */
+  if (ha_alter_info->handler_flags & (Alter_inplace_info::ADD_INDEX |
+                                      Alter_inplace_info::ADD_UNIQUE_INDEX))
+  {
+    for (uint i= 0; i < ha_alter_info->index_add_count; i++)
+    {
+      KEY *key=
+        &ha_alter_info->key_info_buffer[ha_alter_info->index_add_buffer[i]];
+      if (key->flags & HA_FULLTEXT)
+      {
+        check_alter_index_flags(handler_alter_flags, &result,
+                                HA_INPLACE_ADD_PK_INDEX_NO_WRITE,
+                                HA_INPLACE_ADD_PK_INDEX_NO_READ_WRITE);
+        break;
+      }
+    }
+  }
+
+  /* Add index */
+  if (ha_alter_info->handler_flags & Alter_inplace_info::ADD_INDEX)
+  {
+    check_alter_index_flags(handler_alter_flags, &result,
+                            HA_INPLACE_ADD_INDEX_NO_WRITE,
+                            HA_INPLACE_ADD_INDEX_NO_READ_WRITE);
+  }
+  /* Drop index */
+  if (ha_alter_info->handler_flags & Alter_inplace_info::DROP_INDEX)
+  {
+    check_alter_index_flags(handler_alter_flags, &result,
+                            HA_INPLACE_DROP_INDEX_NO_WRITE,
+                            HA_INPLACE_DROP_INDEX_NO_READ_WRITE);
+  }
+  /* Add unique index */
+  if (ha_alter_info->handler_flags & Alter_inplace_info::ADD_UNIQUE_INDEX)
+  {
+    check_alter_index_flags(handler_alter_flags, &result,
+                            HA_INPLACE_ADD_UNIQUE_INDEX_NO_WRITE,
+                            HA_INPLACE_ADD_UNIQUE_INDEX_NO_READ_WRITE);
+  }
+  /* Drop unique index */
+  if (ha_alter_info->handler_flags & Alter_inplace_info::DROP_UNIQUE_INDEX)
+  {
+    check_alter_index_flags(handler_alter_flags, &result,
+                            HA_INPLACE_DROP_UNIQUE_INDEX_NO_WRITE,
+                            HA_INPLACE_DROP_UNIQUE_INDEX_NO_READ_WRITE);
+  }
+  /* Add primary key */
+  if (ha_alter_info->handler_flags & Alter_inplace_info::ADD_PK_INDEX)
+  {
+    check_alter_index_flags(handler_alter_flags, &result,
+                            HA_INPLACE_ADD_PK_INDEX_NO_WRITE,
+                            HA_INPLACE_ADD_PK_INDEX_NO_READ_WRITE);
+  }
+  /* Drop primary key */
+  if (ha_alter_info->handler_flags & Alter_inplace_info::DROP_PK_INDEX)
+  {
+    check_alter_index_flags(handler_alter_flags, &result,
+                            HA_INPLACE_DROP_PK_INDEX_NO_WRITE,
+                            HA_INPLACE_DROP_PK_INDEX_NO_READ_WRITE);
+  }
+
+  /* At least one ha_alter_info->handler_flags check should be hit. */
+  DBUG_ASSERT(result != HA_ALTER_ERROR);
+
+  DBUG_RETURN(result);
+}
+
+
+bool handler::ha_prepare_inplace_alter_table(TABLE *altered_table,
+                                             Alter_inplace_info *ha_alter_info)
 {
   DBUG_ASSERT(table_share->tmp_table != NO_TMP_TABLE ||
               m_lock_type != F_UNLCK);
   mark_trx_read_write();
 
   prepare_for_alter();
+
+  return prepare_inplace_alter_table(altered_table, ha_alter_info);
+}
+
+
+/*
+   Default implementation to support in-place alter table
+   and old online add/drop index API
+*/
+
+bool handler::inplace_alter_table(TABLE *altered_table,
+                                  Alter_inplace_info *ha_alter_info)
+{
+  DBUG_ENTER("inplace_alter_table");
+  int error= 0;
+  Alter_inplace_info::HA_ALTER_FLAGS adding=
+    Alter_inplace_info::ADD_INDEX |
+    Alter_inplace_info::ADD_UNIQUE_INDEX |
+    Alter_inplace_info::ADD_PK_INDEX;
+  Alter_inplace_info::HA_ALTER_FLAGS dropping=
+    Alter_inplace_info::DROP_INDEX |
+    Alter_inplace_info::DROP_UNIQUE_INDEX |
+    Alter_inplace_info::DROP_PK_INDEX;
+
+  if (ha_alter_info->handler_flags & adding)
+  {
+    KEY           *key_info;
+    KEY           *key;
+    uint          *idx_p;
+    uint          *idx_end_p;
+    KEY_PART_INFO *key_part;
+    KEY_PART_INFO *part_end;
+    key_info= (KEY*) ha_thd()->alloc(sizeof(KEY) * ha_alter_info->index_add_count);
+    key= key_info;
+    for (idx_p=  ha_alter_info->index_add_buffer,
+         idx_end_p= idx_p + ha_alter_info->index_add_count;
+         idx_p < idx_end_p;
+         idx_p++, key++)
+     {
+      /* Copy the KEY struct. */
+       *key= ha_alter_info->key_info_buffer[*idx_p];
+      /*
+        Fix the key parts.
+        Note that this is only safe since we know at this point that
+        we're not adding new columns or reordering columns.
+      */
+      part_end= key->key_part + key->key_parts;
+      for (key_part= key->key_part; key_part < part_end; key_part++)
+        key_part->field= table->field[key_part->fieldnr];
+     }
+    /* Add the indexes. */
+    if ((error= add_index(table, key_info,
+                          ha_alter_info->index_add_count,
+                          &ha_alter_info->handler_ctx)))
+    {
+      /*
+        Exchange the key_info for the error message. If we exchange
+        key number by key name in the message later, we need correct info.
+      */
+      KEY *save_key_info= table->key_info;
+      table->key_info= key_info;
+      table->file->print_error(error, MYF(0));
+      table->key_info= save_key_info;
+      DBUG_RETURN(true);
+    }
+    DBUG_ASSERT(ha_alter_info->handler_ctx);
+    ha_alter_info->handler_ctx->pending_add_index= true;
+  }
+
+  if (ha_alter_info->handler_flags & dropping)
+  {
+    /* Currently we must finalize add index if we also drop indexes */
+    if (ha_alter_info->handler_ctx &&
+        ha_alter_info->handler_ctx->pending_add_index)
+    {
+      /* Committing index changes needs exclusive metadata lock. */
+      DBUG_ASSERT(ha_thd()->mdl_context.is_lock_owner(MDL_key::TABLE,
+                                                      table->s->db.str,
+                                                      table->s->table_name.str,
+                                                      MDL_EXCLUSIVE));
+      if ((error= final_add_index(ha_alter_info->handler_ctx, true)))
+      {
+        print_error(error, MYF(0));
+        DBUG_RETURN(true);
+      }
+      ha_alter_info->handler_ctx->pending_add_index= false;
+    }
+
+    DBUG_PRINT("info", ("Renumbering indexes"));
+    /* The prepare_drop_index() method takes an array of keys. */
+    if ((error= prepare_drop_index(ha_alter_info->index_drop_buffer,
+                                   ha_alter_info->index_drop_count)))
+    {
+      table->file->print_error(error, MYF(0));
+      DBUG_RETURN(true);
+    }
+  }
+
+  DBUG_RETURN(false);
+}
+
+
+/*
+   Default implementation to support in-place alter table
+   and old online add/drop index API
+*/
+
+bool handler::commit_inplace_alter_table(TABLE *altered_table,
+                                         Alter_inplace_info *ha_alter_info,
+                                         bool commit)
+{
+  DBUG_ENTER("commit_inplace_alter_table");
+  int error= 0;
+  Alter_inplace_info::HA_ALTER_FLAGS dropping=
+    Alter_inplace_info::DROP_INDEX |
+    Alter_inplace_info::DROP_UNIQUE_INDEX |
+    Alter_inplace_info::DROP_PK_INDEX;
+
+  // Do not call final_drop_index() if commit= false.
+  if (commit && (ha_alter_info->handler_flags & dropping))
+  {
+    if ((error= final_drop_index()))
+    {
+      print_error(error, MYF(0));
+      DBUG_RETURN(true);
+    }
+  }
+
+  if (ha_alter_info->handler_ctx &&
+      ha_alter_info->handler_ctx->pending_add_index)
+  {
+    ha_alter_info->handler_ctx->pending_add_index= false;
+    if ((error= final_add_index(ha_alter_info->handler_ctx, commit)))
+    {
+      print_error(error, MYF(0));
+      DBUG_RETURN(true);
+    }
+  }
+
+  /*
+    For safety. With old API this object was deleted by the handler.
+    With new API the deletion is done by the SQL layer.
+  */
+  ha_alter_info->handler_ctx= NULL;
+
+  DBUG_RETURN(false);
+}
+
+
+/*
+   Default implementation to support in-place alter table
+   and old online add/drop index API
+*/
+
+void handler::notify_table_changed()
+{
+  ha_create_handler_files(table->s->path.str, NULL, CHF_INDEX_FLAG, NULL);
 }
 
 
@@ -3775,7 +4204,13 @@ int
 handler::ha_create_handler_files(const char *name, const char *old_name,
                         int action_flag, HA_CREATE_INFO *info)
 {
-  DBUG_ASSERT(m_lock_type == F_UNLCK);
+  /*
+    Normally this is done when unlocked, but in fast_alter_partition_table,
+    it is done on an already locked handler when preparing to alter/rename
+    partitions.
+  */
+  DBUG_ASSERT(m_lock_type == F_UNLCK ||
+              (!old_name && strcmp(name, table_share->path.str)));
   mark_trx_read_write();
 
   return create_handler_files(name, old_name, action_flag, info);
@@ -3796,8 +4231,12 @@ handler::ha_change_partitions(HA_CREATE_INFO *create_info,
                      const uchar *pack_frm_data,
                      size_t pack_frm_len)
 {
+  /*
+    Must have at least RDLCK or be a TMP table. Read lock is needed to read
+    from current partitions and write lock will be taken on new partitions.
+  */
   DBUG_ASSERT(table_share->tmp_table != NO_TMP_TABLE ||
-              m_lock_type == F_WRLCK);
+              m_lock_type != F_UNLCK);
   mark_trx_read_write();
 
   return change_partitions(create_info, path, copied, deleted,
@@ -3814,8 +4253,8 @@ handler::ha_change_partitions(HA_CREATE_INFO *create_info,
 int
 handler::ha_drop_partitions(const char *path)
 {
-  DBUG_ASSERT(table_share->tmp_table != NO_TMP_TABLE ||
-              m_lock_type == F_WRLCK);
+  DBUG_ASSERT(!table->db_stat);
+
   mark_trx_read_write();
 
   return drop_partitions(path);
@@ -3831,8 +4270,7 @@ handler::ha_drop_partitions(const char *path)
 int
 handler::ha_rename_partitions(const char *path)
 {
-  DBUG_ASSERT(table_share->tmp_table != NO_TMP_TABLE ||
-              m_lock_type == F_WRLCK);
+  DBUG_ASSERT(!table->db_stat);
   mark_trx_read_write();
 
   return rename_partitions(path);
@@ -3955,7 +4393,7 @@ void handler::get_dynamic_partition_info(PARTITION_STATS *stat_info,
 int ha_create_table(THD *thd, const char *path,
                     const char *db, const char *table_name,
                     HA_CREATE_INFO *create_info,
-		    bool update_create_info)
+                    bool update_create_info)
 {
   int error= 1;
   TABLE table;
@@ -3963,16 +4401,17 @@ int ha_create_table(THD *thd, const char *path,
   const char *name;
   TABLE_SHARE share;
   DBUG_ENTER("ha_create_table");
+#ifdef HAVE_PSI_TABLE_INTERFACE
+  my_bool temp_table= (my_bool)is_prefix(table_name, tmp_file_prefix) ||
+               (create_info->options & HA_LEX_CREATE_TMP_TABLE ? TRUE : FALSE);
+#endif
   
   init_tmp_table_share(thd, &share, db, 0, table_name, path);
   if (open_table_def(thd, &share, 0))
     goto err;
 
 #ifdef HAVE_PSI_TABLE_INTERFACE
-  {
-    my_bool temp= (create_info->options & HA_LEX_CREATE_TMP_TABLE ? TRUE : FALSE);
-    share.m_psi= PSI_CALL(get_table_share)(temp, &share);
-  }
+  share.m_psi= PSI_CALL(get_table_share)(temp_table, &share);
 #endif
 
   if (open_table_from_share(thd, &share, "", 0, (uint) READ_ALL, 0, &table,
@@ -3990,6 +4429,10 @@ int ha_create_table(THD *thd, const char *path,
   {
     strxmov(name_buff, db, ".", table_name, NullS);
     my_error(ER_CANT_CREATE_TABLE, MYF(ME_BELL+ME_WAITTANG), name_buff, error);
+#ifdef HAVE_PSI_TABLE_INTERFACE
+    PSI_CALL(drop_table_share)(temp_table, db, strlen(db), table_name,
+                               strlen(table_name));
+#endif
   }
 err:
   free_table_share(&share);
@@ -4582,6 +5025,8 @@ handler::multi_range_read_info_const(uint keyno, RANGE_SEQ_IF *seq,
   /* Default MRR implementation doesn't need buffer */
   *bufsz= 0;
 
+  DBUG_EXECUTE_IF("bug13822652_2", thd->killed= THD::KILL_QUERY;);
+
   seq_it= seq->init(seq_init_param, n_ranges, *flags);
   while (!seq->next(seq_it, &range))
   {
@@ -4602,10 +5047,40 @@ handler::multi_range_read_info_const(uint keyno, RANGE_SEQ_IF *seq,
       min_endp= range.start_key.length? &range.start_key : NULL;
       max_endp= range.end_key.length? &range.end_key : NULL;
     }
-    if ((range.range_flag & UNIQUE_RANGE) && !(range.range_flag & NULL_RANGE))
+    /*
+      Get the number of rows in the range. This is done by calling
+      records_in_range() unless:
+
+        1) The range is an equality range and the index is unique.
+           There cannot be more than one matching row, so 1 is
+           assumed. Note that it is possible that the correct number
+           is actually 0, so the row estimate may be too high in this
+           case. Also note: ranges of the form "x IS NULL" may have more
+           than 1 mathing row so records_in_range() is called for these.
+        2) a) The range is an equality range but the index is either 
+              not unique or all of the keyparts are not used. 
+           b) The user has requested that index statistics should be used
+              for equality ranges to avoid the incurred overhead of 
+              index dives in records_in_range().
+           c) Index statistics is available.
+           Ranges of the form "x IS NULL" will not use index statistics 
+           because the number of rows with this value are likely to be 
+           very different than the values in the index statistics.
+    */
+    int keyparts_used= 0;
+    if ((range.range_flag & UNIQUE_RANGE) &&                        // 1)
+        !(range.range_flag & NULL_RANGE))
       rows= 1; /* there can be at most one row */
+    else if ((range.range_flag & EQ_RANGE) &&                       // 2a)
+             (range.range_flag & USE_INDEX_STATISTICS) &&           // 2b)
+             (keyparts_used= my_count_bits(range.start_key.keypart_map)) &&
+             table->key_info[keyno].rec_per_key[keyparts_used-1] && // 2c)
+             !(range.range_flag & NULL_RANGE))
+      rows= table->key_info[keyno].rec_per_key[keyparts_used-1];
     else
     {
+      DBUG_EXECUTE_IF("crash_records_in_range", DBUG_SUICIDE(););
+      DBUG_ASSERT(min_endp || max_endp);
       if (HA_POS_ERROR == (rows= this->records_in_range(keyno, min_endp, 
                                                         max_endp)))
       {
@@ -4620,7 +5095,9 @@ handler::multi_range_read_info_const(uint keyno, RANGE_SEQ_IF *seq,
   if (total_rows != HA_POS_ERROR)
   {
     /* The following calculation is the same as in multi_range_read_info(): */
-    *flags |= HA_MRR_USE_DEFAULT_IMPL;
+    *flags|= HA_MRR_USE_DEFAULT_IMPL;
+    *flags|= HA_MRR_SUPPORT_SORTED;
+
     DBUG_ASSERT(cost->is_zero());
     if ((*flags & HA_MRR_INDEX_ONLY) && total_rows > 2)
       cost->add_io(index_only_read_time(keyno, total_rows) *
@@ -4674,7 +5151,8 @@ ha_rows handler::multi_range_read_info(uint keyno, uint n_ranges, uint n_rows,
 {
   *bufsz= 0; /* Default implementation doesn't need a buffer */
 
-  *flags |= HA_MRR_USE_DEFAULT_IMPL;
+  *flags|= HA_MRR_USE_DEFAULT_IMPL;
+  *flags|= HA_MRR_SUPPORT_SORTED;
 
   DBUG_ASSERT(cost->is_zero());
 
@@ -4817,8 +5295,27 @@ scan_it_again:
   Initialize and start the MRR scan. Depending on the mode parameter, this
   may use default or DS-MRR implementation.
 
-  @param h               Table handler to be used
-  @param key             Index to be used
+  The DS-MRR implementation will use a second handler object (h2) for
+  doing scan on the index:
+  - on the first call to this function the h2 handler will be created
+    and h2 will be opened using the same index as the main handler
+    is set to use. The index scan on the main index will be closed
+    and it will be re-opened to read records from the table using either 
+    no key or the primary key. The h2 handler will be deleted when
+    reset() is called (which should happen on the end of the statement).
+  - when dsmrr_close() is called the index scan on h2 is closed.
+  - on following calls to this function one of the following must be valid:
+    a. if dsmrr_close has been called:
+       the main handler (h) must be open on an index, h2 will be opened
+       using this index, and the index on h will be closed and 
+       h will be re-opened to read reads from the table using either
+       no key or the primary key.
+    b. dsmrr_close has not been called:
+       h2 will already be open, the main handler h must be set up
+       to read records from the table (handler->inited is RND) either
+       using the primary index or using no index at all.
+
+  @param h_arg           Table handler to be used
   @param seq_funcs       Interval sequence enumeration functions
   @param seq_init_param  Interval sequence enumeration parameter
   @param n_ranges        Number of ranges in the sequence.
@@ -4834,17 +5331,17 @@ int DsMrr_impl::dsmrr_init(handler *h_arg, RANGE_SEQ_IF *seq_funcs,
                            HANDLER_BUFFER *buf)
 {
   uint elem_size;
-  Item *pushed_cond= NULL;
-  handler *new_h2= 0;
   int retval= 0;
   DBUG_ENTER("DsMrr_impl::dsmrr_init");
+  THD *thd= h_arg->table->in_use;     // current THD
 
   /*
     index_merge may invoke a scan on an object for which dsmrr_info[_const]
     has not been called, so set the owner handler here as well.
   */
   h= h_arg;
-  if (mode & HA_MRR_USE_DEFAULT_IMPL || mode & HA_MRR_SORTED)
+  if (!thd->optimizer_switch_flag(OPTIMIZER_SWITCH_MRR) ||
+      mode & (HA_MRR_USE_DEFAULT_IMPL | HA_MRR_SORTED)) // DS-MRR doesn't sort
   {
     use_default_impl= TRUE;
     retval= h->handler::multi_range_read_init(seq_funcs, seq_init_param,
@@ -4884,94 +5381,103 @@ int DsMrr_impl::dsmrr_init(handler *h_arg, RANGE_SEQ_IF *seq_funcs,
   rowids_buf_end= rowids_buf_last;
 
   /*
-    There can be two cases:
-    - This is the first call since index_init(), h2==NULL
-       Need to setup h2 then.
-    - This is not the first call, h2 is initalized and set up appropriately.
-       The caller might have called h->index_init(), need to switch h to
-       rnd_pos calls.
+    The DS-MRR scan uses a second handler object (h2) for doing the
+    index scan. Create this by cloning the primary handler
+    object. The h2 handler object is deleted when DsMrr_impl::reset()
+    is called.
   */
   if (!h2)
   {
-    /* Create a separate handler object to do rndpos() calls. */
-    THD *thd= current_thd;
+    handler *new_h2;
     /*
       ::clone() takes up a lot of stack, especially on 64 bit platforms.
       The constant 5 is an empiric result.
+      @todo Is this still the case? Leave it as it is for now but could
+            likely be removed?
     */
     if (check_stack_overrun(thd, 5*STACK_MIN_SIZE, (uchar*) &new_h2))
       DBUG_RETURN(1);
-    DBUG_ASSERT(h->active_index != MAX_KEY);
-    uint mrr_keyno= h->active_index;
 
-    if (!(new_h2= h->clone(h->table->s->normalized_path.str, thd->mem_root)) ||
-        new_h2->ha_external_lock(thd, h->m_lock_type))
-    {
-      delete new_h2;
+    if (!(new_h2= h->clone(h->table->s->normalized_path.str, thd->mem_root)))
       DBUG_RETURN(1);
-    }
-
-    if (mrr_keyno == h->pushed_idx_cond_keyno)
-      pushed_cond= h->pushed_idx_cond;
-
-    /*
-      Caution: this call will invoke this->dsmrr_close(). Do not put the
-      created secondary table handler into this->h2 or it will delete it.
-    */
-    if ((retval= h->ha_index_end()))
-    {
-      h2=new_h2;
-      goto error;
-    }
-
     h2= new_h2; /* Ok, now can put it into h2 */
     table->prepare_for_position();
-    h2->extra(HA_EXTRA_KEYREAD);
+  }
 
-    if ((retval= h2->ha_index_init(mrr_keyno, FALSE)))
+  /*
+    Open the index scan on h2 using the key from the primary handler.
+  */
+  if (h2->active_index == MAX_KEY)
+  {
+    DBUG_ASSERT(h->active_index != MAX_KEY);
+    const uint mrr_keyno= h->active_index;
+
+    if ((retval= h2->ha_external_lock(thd, h->m_lock_type)))
       goto error;
 
-    use_default_impl= FALSE;
-    if (pushed_cond)
-      h2->idx_cond_push(mrr_keyno, pushed_cond);
+    if ((retval= h2->extra(HA_EXTRA_KEYREAD)))
+      goto error;
+
+    if ((retval= h2->ha_index_init(mrr_keyno, false)))
+      goto error;
+
+    // Transfer ICP from h to h2
+    if (mrr_keyno == h->pushed_idx_cond_keyno)
+    {
+      if (h2->idx_cond_push(mrr_keyno, h->pushed_idx_cond))
+      {
+        retval= 1;
+        goto error;
+      }
+    }
+    else
+    {
+      // Cancel any potentially previously pushed index conditions
+      h2->cancel_pushed_idx_cond();
+    }
   }
   else
   {
     /*
-      We get here when the access alternates betwen MRR scan(s) and non-MRR
-      scans.
+      h2 has already an open index. This happens when the DS-MRR scan
+      is re-started without closing it first. In this case the primary
+      handler must be used for reading records from the table, ie. it
+      must not be opened for doing a new range scan. In this case
+      the active_index must either not be set or be the primary key.
     */
+    DBUG_ASSERT(h->inited == handler::RND);
+    DBUG_ASSERT(h->active_index == MAX_KEY || 
+                h->active_index == table->s->primary_key);
+  }
 
-    /* 
-      Verify consistency between the two handler objects:
-      1. The main handler should either use the primary key or not have an
-         active index at this point since the clone handler (h2) is used for
-         reading the index.
-      2. The index used for ICP should be the same for the two handlers or
-         it should not be set on the clone handler (h2).
-      3. The ICP function should be the same for the two handlers or it should
-         not be set for the clone handler (h2).
-    */
-    DBUG_ASSERT(h->active_index == table->s->primary_key ||
-                h->active_index == MAX_KEY);
-    DBUG_ASSERT(h->pushed_idx_cond_keyno == h2->pushed_idx_cond_keyno || 
-                h2->pushed_idx_cond_keyno == MAX_KEY);
-    DBUG_ASSERT(h->pushed_idx_cond == h2->pushed_idx_cond || 
-                h2->pushed_idx_cond == NULL);
-
+  /*
+    The index scan is now transferred to h2 and we can close the open
+    index scan on the primary handler.
+  */
+  if (h->inited == handler::INDEX)
+  {
     /*
-      Calling h->index_end() will invoke dsmrr_close() for this object,
-      which will delete h2. We need to keep it, so save put it away and dont
-      let it be deleted:
+      Calling h->ha_index_end() will invoke dsmrr_close() for this object,
+      which will close the index scan on h2. We need to keep it open, so 
+      temporarily move h2 out of the DsMrr object.
     */
     handler *save_h2= h2;
     h2= NULL;
-    int res= (h->inited == handler::INDEX && (retval= h->ha_index_end()));
+    retval= h->ha_index_end();
     h2= save_h2;
-    use_default_impl= FALSE;
-    if (res)
+    if (retval)
       goto error;
   }
+
+  /*
+    Verify consistency between h and h2.
+  */
+  DBUG_ASSERT(h->inited != handler::INDEX);
+  DBUG_ASSERT(h->active_index == MAX_KEY || 
+              h->active_index == table->s->primary_key);
+  DBUG_ASSERT(h2->inited == handler::INDEX);
+  DBUG_ASSERT(h2->active_index != MAX_KEY);
+  DBUG_ASSERT(h->m_lock_type == h2->m_lock_type);
 
   if ((retval= h2->handler::multi_range_read_init(seq_funcs, seq_init_param, 
                                                   n_ranges, mode, buf)))
@@ -5005,7 +5511,7 @@ int DsMrr_impl::dsmrr_init(handler *h_arg, RANGE_SEQ_IF *seq_funcs,
   DBUG_RETURN(0);
 error:
   h2->ha_index_or_rnd_end();
-  h2->ha_external_lock(current_thd, F_UNLCK);
+  h2->ha_external_lock(thd, F_UNLCK);
   h2->close();
   delete h2;
   h2= NULL;
@@ -5017,15 +5523,32 @@ error:
 void DsMrr_impl::dsmrr_close()
 {
   DBUG_ENTER("DsMrr_impl::dsmrr_close");
-  if (h2)
+
+  // If there is an open index on h2, then close it
+  if (h2 && h2->active_index != MAX_KEY)
   {
     h2->ha_index_or_rnd_end();
     h2->ha_external_lock(current_thd, F_UNLCK);
+  }
+  use_default_impl= true;
+  DBUG_VOID_RETURN;
+}
+
+
+void DsMrr_impl::reset()
+{
+  DBUG_ENTER("DsMrr_impl::reset");
+
+  if (h2)
+  {
+    // Close any ongoing DS-MRR scan 
+    dsmrr_close();
+
+    // Close and delete the h2 handler
     h2->close();
     delete h2;
     h2= NULL;
   }
-  use_default_impl= TRUE;
   DBUG_VOID_RETURN;
 }
 
@@ -5056,7 +5579,7 @@ static int rowid_cmp(void *h, uchar *a, uchar *b)
 int DsMrr_impl::dsmrr_fill_buffer()
 {
   char *range_info;
-  int res;
+  int res= 0;
   DBUG_ENTER("DsMrr_impl::dsmrr_fill_buffer");
 
   rowids_buf_cur= rowids_buf;
@@ -5174,6 +5697,7 @@ ha_rows DsMrr_impl::dsmrr_info(uint keyno, uint n_ranges, uint rows,
     DBUG_PRINT("info", ("Default MRR implementation choosen"));
     *flags= def_flags;
     *bufsz= def_bufsz;
+    DBUG_ASSERT(*flags & HA_MRR_USE_DEFAULT_IMPL);
   }
   else
   {
@@ -5217,6 +5741,7 @@ ha_rows DsMrr_impl::dsmrr_info_const(uint keyno, RANGE_SEQ_IF *seq,
     DBUG_PRINT("info", ("Default MRR implementation choosen"));
     *flags= def_flags;
     *bufsz= def_bufsz;
+    DBUG_ASSERT(*flags & HA_MRR_USE_DEFAULT_IMPL);
   }
   else
   {
@@ -5256,12 +5781,11 @@ bool DsMrr_impl::choose_mrr_impl(uint keyno, ha_rows rows, uint *flags,
   bool res;
   THD *thd= current_thd;
   if (!thd->optimizer_switch_flag(OPTIMIZER_SWITCH_MRR) ||
-      *flags & HA_MRR_INDEX_ONLY ||
+      *flags & (HA_MRR_INDEX_ONLY | HA_MRR_SORTED) || // Unsupported by DS-MRR
       (keyno == table->s->primary_key && h->primary_key_is_clustered()) ||
        key_uses_partial_cols(table, keyno))
   {
-    /* Use the default implementation */
-    *flags |= HA_MRR_USE_DEFAULT_IMPL;
+    /* Use the default implementation, don't modify args: See comments  */
     return TRUE;
   }
   
@@ -5285,7 +5809,7 @@ bool DsMrr_impl::choose_mrr_impl(uint keyno, ha_rows rows, uint *flags,
   if (force_dsmrr || (dsmrr_cost.total_cost() <= cost->total_cost()))
   {
     *flags &= ~HA_MRR_USE_DEFAULT_IMPL;  /* Use the DS-MRR implementation */
-    *flags &= ~HA_MRR_SORTED;          /* We will return unordered output */
+    *flags &= ~HA_MRR_SUPPORT_SORTED;    /* We can't provide ordered output */
     *cost= dsmrr_cost;
     res= FALSE;
   }
@@ -5896,7 +6420,7 @@ static int write_locked_table_maps(THD *thd)
 typedef bool Log_func(THD*, TABLE*, bool,
                       const uchar*, const uchar*);
 
-static int binlog_log_row(TABLE* table,
+int binlog_log_row(TABLE* table,
                           const uchar *before_record,
                           const uchar *after_record,
                           Log_func *log_func)
@@ -5937,8 +6461,7 @@ static int binlog_log_row(TABLE* table,
 
 int handler::ha_external_lock(THD *thd, int lock_type)
 {
-  MYSQL_TABLE_WAIT_VARIABLES(locker, state) /* no ';' */
-
+  int error;
   DBUG_ENTER("handler::ha_external_lock");
   /*
     Whether this is lock or unlock, this should be true, and is to verify that
@@ -5974,16 +6497,14 @@ int handler::ha_external_lock(THD *thd, int lock_type)
   }
 
   ha_statistic_increment(&SSV::ha_external_lock_count);
-  MYSQL_START_TABLE_LOCK_WAIT(locker, &state, m_psi,
-                              PSI_TABLE_EXTERNAL_LOCK, lock_type);
+
+  MYSQL_TABLE_LOCK_WAIT(m_psi, PSI_TABLE_EXTERNAL_LOCK, lock_type,
+    { error= external_lock(thd, lock_type); })
 
   /*
     We cache the table flags if the locking succeeded. Otherwise, we
     keep them as they were when they were fetched in ha_open().
   */
-  int error= external_lock(thd, lock_type);
-
-  MYSQL_END_TABLE_LOCK_WAIT(locker);
 
   if (error == 0)
   {
@@ -6053,18 +6574,15 @@ int handler::ha_write_row(uchar *buf)
   Log_func *log_func= Write_rows_log_event::binlog_row_logging_function;
   DBUG_ASSERT(table_share->tmp_table != NO_TMP_TABLE ||
               m_lock_type == F_WRLCK);
-  MYSQL_TABLE_WAIT_VARIABLES(locker, state) /* no ';' */
 
   DBUG_ENTER("handler::ha_write_row");
 
   MYSQL_INSERT_ROW_START(table_share->db.str, table_share->table_name.str);
   mark_trx_read_write();
-  MYSQL_START_TABLE_IO_WAIT(locker, &state, m_psi,
-                            PSI_TABLE_WRITE_ROW, MAX_KEY, 0);
 
-  error= write_row(buf);
+  MYSQL_TABLE_IO_WAIT(m_psi, PSI_TABLE_WRITE_ROW, MAX_KEY, 0,
+    { error= write_row(buf); })
 
-  MYSQL_END_TABLE_IO_WAIT(locker);
   MYSQL_INSERT_ROW_DONE(error);
   if (unlikely(error))
     DBUG_RETURN(error);
@@ -6081,7 +6599,6 @@ int handler::ha_update_row(const uchar *old_data, uchar *new_data)
   DBUG_ASSERT(table_share->tmp_table != NO_TMP_TABLE ||
               m_lock_type == F_WRLCK);
   Log_func *log_func= Update_rows_log_event::binlog_row_logging_function;
-  MYSQL_TABLE_WAIT_VARIABLES(locker, state) /* no ';' */
 
   /*
     Some storage engines require that the new record is in record[0]
@@ -6092,12 +6609,9 @@ int handler::ha_update_row(const uchar *old_data, uchar *new_data)
   MYSQL_UPDATE_ROW_START(table_share->db.str, table_share->table_name.str);
   mark_trx_read_write();
 
-  MYSQL_START_TABLE_IO_WAIT(locker, &state, m_psi,
-                            PSI_TABLE_UPDATE_ROW, active_index, 0);
+  MYSQL_TABLE_IO_WAIT(m_psi, PSI_TABLE_UPDATE_ROW, active_index, 0,
+    { error= update_row(old_data, new_data);})
 
-  error= update_row(old_data, new_data);
-
-  MYSQL_END_TABLE_IO_WAIT(locker);
   MYSQL_UPDATE_ROW_DONE(error);
   if (unlikely(error))
     return error;
@@ -6112,17 +6626,13 @@ int handler::ha_delete_row(const uchar *buf)
   DBUG_ASSERT(table_share->tmp_table != NO_TMP_TABLE ||
               m_lock_type == F_WRLCK);
   Log_func *log_func= Delete_rows_log_event::binlog_row_logging_function;
-  MYSQL_TABLE_WAIT_VARIABLES(locker, state) /* no ';' */
 
   MYSQL_DELETE_ROW_START(table_share->db.str, table_share->table_name.str);
   mark_trx_read_write();
 
-  MYSQL_START_TABLE_IO_WAIT(locker, &state, m_psi,
-                            PSI_TABLE_DELETE_ROW, active_index, 0);
+  MYSQL_TABLE_IO_WAIT(m_psi, PSI_TABLE_DELETE_ROW, active_index, 0,
+    { error= delete_row(buf);})
 
-  error= delete_row(buf);
-
-  MYSQL_END_TABLE_IO_WAIT(locker);
   MYSQL_DELETE_ROW_DONE(error);
   if (unlikely(error))
     return error;
@@ -6142,6 +6652,78 @@ void handler::use_hidden_primary_key()
 {
   /* fallback to use all columns in the table to identify row */
   table->use_all_columns();
+}
+
+
+/**
+  Get an initialized ha_share.
+
+  @return Initialized ha_share
+    @retval NULL    ha_share is not yet initialized.
+    @retval != NULL previous initialized ha_share.
+
+  @note
+  If not a temp table, then LOCK_ha_data must be held.
+*/
+
+Handler_share *handler::get_ha_share_ptr()
+{
+  DBUG_ENTER("handler::get_ha_share_ptr");
+  DBUG_ASSERT(ha_share && table_share);
+
+#ifndef DBUG_OFF
+  if (table_share->tmp_table == NO_TMP_TABLE)
+    mysql_mutex_assert_owner(&table_share->LOCK_ha_data);
+#endif
+
+  DBUG_RETURN(*ha_share);
+}
+
+
+/**
+  Set ha_share to be used by all instances of the same table/partition.
+
+  @param ha_share    Handler_share to be shared.
+
+  @note
+  If not a temp table, then LOCK_ha_data must be held.
+*/
+
+void handler::set_ha_share_ptr(Handler_share *arg_ha_share)
+{
+  DBUG_ENTER("handler::set_ha_share_ptr");
+  DBUG_ASSERT(ha_share);
+#ifndef DBUG_OFF
+  if (table_share->tmp_table == NO_TMP_TABLE)
+    mysql_mutex_assert_owner(&table_share->LOCK_ha_data);
+#endif
+
+  *ha_share= arg_ha_share;
+  DBUG_VOID_RETURN;
+}
+
+
+/**
+  Take a lock for protecting shared handler data.
+*/
+
+void handler::lock_shared_ha_data()
+{
+  DBUG_ASSERT(table_share);
+  if (table_share->tmp_table == NO_TMP_TABLE)
+    mysql_mutex_lock(&table_share->LOCK_ha_data);
+}
+
+
+/**
+  Release lock for protecting ha_share.
+*/
+
+void handler::unlock_shared_ha_data()
+{
+  DBUG_ASSERT(table_share);
+  if (table_share->tmp_table == NO_TMP_TABLE)
+    mysql_mutex_unlock(&table_share->LOCK_ha_data);
 }
 
 
