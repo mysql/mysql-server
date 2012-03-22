@@ -2759,9 +2759,14 @@ bool Optimize_table_order::semijoin_firstmatch_loosescan_access_paths(
     rowcount= positions[first_tab - 1].prefix_record_count;
   }
 
-  const uint table_count=
-    my_count_bits(positions[first_tab].table->emb_sj_nest->sj_inner_tables);
+  uint table_count= 0;
   uint no_jbuf_before;
+  for (uint i= first_tab; i <= last_tab; i++)
+  {
+    remaining_tables|= positions[i].table->table->map;
+    if (positions[i].table->emb_sj_nest)
+      table_count++;
+  }
   if (loosescan)
   {
     // LooseScan: May use join buffering for all tables after last inner table.
@@ -2778,8 +2783,6 @@ bool Optimize_table_order::semijoin_firstmatch_loosescan_access_paths(
     no_jbuf_before= (table_count > 1) ? last_tab + 1 : first_tab;
   }
 
-  for (uint i= first_tab; i <= last_tab; i++)
-    remaining_tables|= positions[i].table->table->map;
 
   for (uint i= first_tab; i <= last_tab; i++)
   {
