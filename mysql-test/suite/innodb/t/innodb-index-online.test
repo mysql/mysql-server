@@ -1,5 +1,7 @@
 --source include/have_innodb.inc
 --source include/have_debug_sync.inc
+# Temporarily prohibit Valgrind runs until Bug#13875241 is resolved
+--source include/not_valgrind.inc
 
 SET GLOBAL DEBUG='d,query,debug_sync_exec:i:A,ds.trace';
 SET DEBUG='+d,debug_sync_abort_on_timeout';
