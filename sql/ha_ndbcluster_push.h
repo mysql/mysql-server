@@ -98,8 +98,7 @@ public:
    * of operation specified by the arguments.
    */
   bool match_definition(int type, //NdbQueryOperationDef::Type, 
-                        const NDB_INDEX_DATA* idx,
-                        bool needSorted) const;
+                        const NDB_INDEX_DATA* idx) const;
 
   /** Create an executable instance of this defined query. */
   NdbQuery* make_query_instance(

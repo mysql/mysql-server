@@ -210,8 +210,6 @@ namespace AQP
 
     void dbug_print() const;
 
-    bool is_fixed_ordered_index() const;
-
     bool uses_join_cache() const;
 
   private:
