@@ -125,7 +125,19 @@ enum db_err {
 	DB_STRONG_FAIL,
 	DB_ZIP_OVERFLOW,
 	DB_RECORD_NOT_FOUND = 1500,
-	DB_END_OF_INDEX
+	DB_END_OF_INDEX,
+
+        /* The following are API only error codes. */
+	DB_DATA_MISMATCH = 2000,	/*!< Column update or read failed
+					because the types mismatch */
+
+	DB_SCHEMA_NOT_LOCKED,		/*!< If an API function expects the
+					schema to be locked in exclusive mode
+					and if it's not then that API function
+					will return this error code */
+
+	DB_NOT_FOUND			/*!< Generic error code for "Not found"
+					type of errors */
 };
 
 #endif

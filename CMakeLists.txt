@@ -121,7 +121,14 @@ FOREACH(_base
 ENDFOREACH()
 
 
-
+IF(UNIX)
+  OPTION(WITH_INNODB_MEMCACHED "" OFF)
+  OPTION(ENABLE_MEMCACHED_SASL "Enable SASL on InnoDB Memcached" OFF)
+  OPTION(ENABLE_MEMCACHED_SASL_PWDB "Enable SASL on InnoDB Memcached" OFF)
+ELSE()
+  OPTION(WITH_INNODB_MEMCACHED "" OFF)
+ENDIF()
+ 
 # Following autotools tradition, add preprocessor definitions
 # specified in environment variable CPPFLAGS
 IF(DEFINED ENV{CPPFLAGS})
@@ -149,7 +156,11 @@ OPTION(MYSQL_MAINTAINER_MODE
 # Whether the maintainer mode compiler options should be enabled.
 IF(MYSQL_MAINTAINER_MODE)
   IF(CMAKE_C_COMPILER_ID MATCHES "GNU")
-    SET_MYSQL_MAINTAINER_GNU_C_OPTIONS()
+    IF(WITH_INNODB_MEMCACHED)
+      SET_MYSQL_MAINTAINER_GNU_C_OPTIONS_NO_WERROR()
+    ELSE()
+      SET_MYSQL_MAINTAINER_GNU_C_OPTIONS()
+    ENDIF()
   ENDIF()
   IF(CMAKE_CXX_COMPILER_ID MATCHES "GNU")
     SET_MYSQL_MAINTAINER_GNU_CXX_OPTIONS()
@@ -165,6 +176,7 @@ ENDIF()
 # Add macros
 INCLUDE(character_sets)
 INCLUDE(zlib)
+INCLUDE(libevent)
 INCLUDE(ssl)
 INCLUDE(readline)
 INCLUDE(mysql_version)
@@ -191,7 +203,6 @@ ENDIF()
 OPTION (WITH_UNIT_TESTS "Compile MySQL with unit tests" ON)
 MARK_AS_ADVANCED(CYBOZU BACKUP_TEST WITHOUT_SERVER DISABLE_SHARED)
 
- 
 OPTION(ENABLE_DEBUG_SYNC "Enable debug sync (debug builds only)" ON) 
 IF(ENABLE_DEBUG_SYNC) 
   SET(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -DENABLED_DEBUG_SYNC") 
@@ -258,7 +269,7 @@ ENDIF()
 
 # Add safemutex for debug configurations, except on Windows
 # (safemutex has never worked on Windows)
-IF(WITH_DEBUG AND NOT WIN32)
+IF(WITH_DEBUG AND NOT WIN32 AND NOT WITH_INNODB_MEMCACHED)
   FOREACH(LANG C CXX)
       SET(CMAKE_${LANG}_FLAGS_DEBUG
           "${CMAKE_${LANG}_FLAGS_DEBUG} -DSAFE_MUTEX")
@@ -301,6 +312,8 @@ MYSQL_CHECK_ZLIB_WITH_COMPRESS()
 MYSQL_CHECK_SSL()
 # Add readline or libedit.
 MYSQL_CHECK_READLINE()
+# Add libevent
+MYSQL_CHECK_LIBEVENT()
 
 #
 # Setup maintainer mode options by the end. Platform checks are

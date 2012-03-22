@@ -352,6 +352,14 @@ ulint
 innobase_get_lower_case_table_names(void);
 /*=====================================*/
 
+/*****************************************************************//**
+Frees a possible InnoDB trx object associated with the current THD.
+@return 0 or error number */
+int
+innobase_close_thd(
+/*===============*/
+	void*		thd);		/*!< in: MySQL thread handle for
+					which to close the connection */
 /*************************************************************//**
 Get the next token from the given string and store it in *token. */
 UNIV_INTERN
