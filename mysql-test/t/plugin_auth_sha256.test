@@ -1,6 +1,13 @@
 --source include/not_embedded.inc
 --source include/mysql_upgrade_preparation.inc
 
+# This test will intentionally generate errors in the server error log
+# when a broken password is inserted into the mysql.user table.
+# The below suppression is to clear those errors.
+--disable_query_log
+call mtr.add_suppression(".*Password salt for user.*");
+--enable_query_log
+
 CREATE USER 'kristofer' IDENTIFIED WITH 'sha256_password';
 SET GLOBAL old_passwords= 2;
 SET SESSION old_passwords= 2;

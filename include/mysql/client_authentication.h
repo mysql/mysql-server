@@ -6,8 +6,6 @@
 
 C_MODE_START
 int sha256_password_auth_client(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql);
-void set_path_to_rsa_pk_pem(const char *complete_path);
-void sha256_password_options(const char *opt, const void *value);
 C_MODE_END
 
 #endif
