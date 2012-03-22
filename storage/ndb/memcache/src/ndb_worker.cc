@@ -460,8 +460,8 @@ op_status_t WorkerStep1::do_read() {
   
   NdbOperation::LockMode lockmode;
   NdbTransaction::ExecType commitflag;
-  if(plan->canUseSimpleRead()) {
-    lockmode = NdbOperation::LM_SimpleRead;
+  if(plan->canUseCommittedRead()) {
+    lockmode = NdbOperation::LM_CommittedRead;
     commitflag = NdbTransaction::Commit;
   }
   else {

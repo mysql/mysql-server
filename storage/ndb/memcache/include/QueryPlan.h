@@ -52,7 +52,7 @@ class QueryPlan {
   ~QueryPlan();
   bool canHaveExternalValue() const;
   bool shouldExternalizeValue(size_t length) const;
-  bool canUseSimpleRead() const;
+  bool canUseCommittedRead() const;
   Uint64 getAutoIncrement() const;
   void debug_dump() const;
   bool hasDataOnDisk() const;
@@ -103,7 +103,7 @@ inline bool QueryPlan::hasDataOnDisk() const {
   return has_disk_storage;
 }
 
-inline bool QueryPlan::canUseSimpleRead() const {
+inline bool QueryPlan::canUseCommittedRead() const {
   return(pk_access && (! extern_store) && (! spec->exp_column));
 }
 
