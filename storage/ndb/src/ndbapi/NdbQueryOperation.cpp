@@ -122,6 +122,7 @@ public:
   explicit TupleCorrelation(Uint32 val)
   : m_correlation(val)
   {}
+
   Uint32 toUint32() const 
   { return m_correlation; }
 
@@ -3078,6 +3079,18 @@ NdbQueryImpl::doSend(int nodeId, bool lastFlag)
                                       batchByteSize);
     assert(batchRows==root.getMaxBatchRows());
     assert(batchRows<=batchByteSize);
+
+    /**
+     * Check if query is a sorted scan-scan.
+     * Ordering can then only be guarented by restricting
+     * parent batch to contain single rows.
+     * (Child scans will have 'normal' batch size).
+     */
+    if (root.getOrdering() != NdbQueryOptions::ScanOrdering_unordered &&
+        getQueryDef().getQueryType() == NdbQueryDef::MultiScanQuery)
+    {
+      batchRows = 1;
+    }
     ScanTabReq::setScanBatch(reqInfo, batchRows);
     scanTabReq->batch_byte_size = batchByteSize;
     scanTabReq->first_batch_size = batchRows;
@@ -5103,16 +5116,6 @@ NdbQueryOperationImpl::setOrdering(NdbQueryOptions::ScanOrdering ordering)
      .getOrdering() != NdbQueryOptions::ScanOrdering_void)
   {
     getQuery().setErrorCode(QRY_SCAN_ORDER_ALREADY_SET);
-    return -1;
-  }
-  
-  /* Check if query is sorted and has multiple scan operations. This 
-   * combination is not implemented.
-   */
-  if (ordering != NdbQueryOptions::ScanOrdering_unordered &&
-      getQueryDef().getQueryType() == NdbQueryDef::MultiScanQuery)
-  {
-    getQuery().setErrorCode(QRY_MULTIPLE_SCAN_SORTED);
     return -1;
   }
   
