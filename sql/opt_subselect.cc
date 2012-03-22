@@ -4933,7 +4933,6 @@ bool setup_jtbm_semi_joins(JOIN *join, List<TABLE_LIST> *join_list,
 
 bool JOIN::choose_subquery_plan(table_map join_tables)
 {
-  Join_plan_state save_qep; /* The original QEP of the subquery. */
   enum_reopt_result reopt_result= REOPT_NONE;
   Item_in_subselect *in_subs;
 
@@ -4952,11 +4951,14 @@ bool JOIN::choose_subquery_plan(table_map join_tables)
   }
   else
     return false;
+
   /* A strategy must be chosen earlier. */
   DBUG_ASSERT(in_subs->has_strategy());
   DBUG_ASSERT(in_to_exists_where || in_to_exists_having);
   DBUG_ASSERT(!in_to_exists_where || in_to_exists_where->fixed);
   DBUG_ASSERT(!in_to_exists_having || in_to_exists_having->fixed);
+
+  Join_plan_state save_qep; /* The original QEP of the subquery. */
 
   /*
     Compute and compare the costs of materialization and in-exists if both

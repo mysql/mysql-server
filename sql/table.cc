@@ -2241,30 +2241,35 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
   /*
     Process virtual columns, if any.
   */
-  if (!(vfield_ptr = (Field **) alloc_root(&outparam->mem_root,
-                                          (uint) ((share->vfields+1)*
-                                                  sizeof(Field*)))))
-    goto err;
-
-  outparam->vfield= vfield_ptr;
-  
-  for (field_ptr= outparam->field; *field_ptr; field_ptr++)
+  if (!share->vfields)
+    outparam->vfield= NULL;
+  else
   {
-    if ((*field_ptr)->vcol_info)
+    if (!(vfield_ptr = (Field **) alloc_root(&outparam->mem_root,
+                                             (uint) ((share->vfields+1)*
+                                                     sizeof(Field*)))))
+      goto err;
+
+    outparam->vfield= vfield_ptr;
+
+    for (field_ptr= outparam->field; *field_ptr; field_ptr++)
     {
-      if (unpack_vcol_info_from_frm(thd,
-                                    outparam,
-                                    *field_ptr,
-                                    &(*field_ptr)->vcol_info->expr_str,
-                                    &error_reported))
+      if ((*field_ptr)->vcol_info)
       {
-        error= 4; // in case no error is reported
-        goto err;
+        if (unpack_vcol_info_from_frm(thd,
+                                      outparam,
+                                      *field_ptr,
+                                      &(*field_ptr)->vcol_info->expr_str,
+                                      &error_reported))
+        {
+          error= 4; // in case no error is reported
+          goto err;
+        }
+        *(vfield_ptr++)= *field_ptr;
       }
-      *(vfield_ptr++)= *field_ptr;
     }
+    *vfield_ptr= 0;                              // End marker
   }
-  *vfield_ptr= 0;                              // End marker
 
 #ifdef WITH_PARTITION_STORAGE_ENGINE
   if (share->partition_info_len && outparam->file)

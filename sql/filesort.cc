@@ -569,7 +569,7 @@ static ha_rows find_all_keys(SORTPARAM *param, SQL_SELECT *select,
     {
       if ((error= select->quick->get_next()))
         break;
-      if (!error)
+      if (!error && sort_form->vfield)
         update_virtual_fields(thd, sort_form);
       file->position(sort_form->record[0]);
       DBUG_EXECUTE_IF("debug_filesort", dbug_print_record(sort_form, TRUE););
@@ -588,7 +588,7 @@ static ha_rows find_all_keys(SORTPARAM *param, SQL_SELECT *select,
       else
       {
 	error=file->ha_rnd_next(sort_form->record[0]);
-	if (!error)
+	if (!error && sort_form->vfield)
 	  update_virtual_fields(thd, sort_form);
 	if (!flag)
 	{
