@@ -413,25 +413,21 @@ extern "C"
 void generate_user_salt(char *buffer, int buffer_len)
 {
   char *end= buffer + buffer_len;
-  /* Use pointer arithmetics as it is faster way to do so. */
-  for (; buffer < end; buffer++)
-  {
-    do
-    {
-      // TODO change below to my_rnd_ssl() when the code is merged
-      /////////////////////////////////////////////////////////////
-      unsigned int num;
 #ifdef HAVE_YASSL
-      yaSSL::RAND_bytes((unsigned char *)&num, sizeof (unsigned int));
+  yaSSL::RAND_bytes((unsigned char *) buffer, buffer_len);
 #else
-      RAND_bytes((unsigned char *) &num, sizeof (unsigned int));
-#endif      
-      int ch= (int)(127.0 * ((double)num / UINT_MAX));
-      /////////////////////////////////////////////////////////////
-      *buffer= (char) ch;
-    } while (*buffer == '$' || *buffer == 0 );
+  RAND_bytes((unsigned char *) buffer, buffer_len);
+#endif
+      
+  /* Sequence must be a legal UTF8 string */
+  for (; buffer < end; buffer++)
+  { 
+    *buffer &= 0x7f;
+    if (*buffer == '\0' || *buffer == '$')
+      *buffer= *buffer + 1;
   }
-  *buffer= '\0';
+  /* Make sure the buffer is terminated properly */
+  *end= '\0';
 }
 
 void xor_string(char *to, int to_len, char *pattern, int pattern_len)

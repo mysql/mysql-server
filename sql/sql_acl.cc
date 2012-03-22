@@ -10841,8 +10841,11 @@ int init_rsa_keys(void)
   return 0;
 }
 
-int init_sha256_password_handler(void *plugin_ref)
+static MYSQL_PLUGIN plugin_info_ptr;
+
+int init_sha256_password_handler(MYSQL_PLUGIN plugin_ref)
 {
+  plugin_info_ptr= plugin_ref;
   return 0;
 }
 
@@ -10879,7 +10882,7 @@ static int sha256_password_authenticate(MYSQL_PLUGIN_VIO *vio,
 
   DBUG_ENTER("sha256_password_authenticate");
 
-  generate_user_salt(scramble, SCRAMBLE_LENGTH);
+  generate_user_salt(scramble, SCRAMBLE_LENGTH + 1);
 
   if (vio->write_packet(vio, (unsigned char *) scramble, SCRAMBLE_LENGTH))
     DBUG_RETURN(CR_ERROR);
@@ -10923,10 +10926,20 @@ static int sha256_password_authenticate(MYSQL_PLUGIN_VIO *vio,
       Without the keys encryption isn't possible.
     */
     if (private_key == NULL || public_key == NULL)
-      DBUG_RETURN(CR_ERROR);    
+    {
+      my_plugin_log_message(&plugin_info_ptr, MY_ERROR_LEVEL, 
+        "Authentication requires either RSA keys or SSL encryption");
+      DBUG_RETURN(CR_ERROR);
+    }
+      
 
     if ((cipher_length= g_rsa_keys.get_cipher_length()) > MAX_CIPHER_LENGTH)
+    {
+      my_plugin_log_message(&plugin_info_ptr, MY_ERROR_LEVEL, 
+        "RSA key cipher length of %u is too long. Max value is %u.",
+        g_rsa_keys.get_cipher_length(), MAX_CIPHER_LENGTH);
       DBUG_RETURN(CR_ERROR);
+    }
 
     /*
       Client sent a "public key request"-packet ?
@@ -10950,7 +10963,7 @@ static int sha256_password_authenticate(MYSQL_PLUGIN_VIO *vio,
       must correspond to the expected cipher length.
     */
     if (pkt_len != cipher_length)
-      DBUG_RETURN(CR_ERROR);  
+      DBUG_RETURN(CR_ERROR);
     
     /* Decrypt password */
     RSA_private_decrypt(cipher_length, pkt, plain_text, private_key,
@@ -10981,6 +10994,9 @@ static int sha256_password_authenticate(MYSQL_PLUGIN_VIO *vio,
   if (extract_user_salt(&user_salt_begin, &user_salt_end) != CRYPT_SALT_LENGTH)
   {
     /* User salt is not correct */
+    my_plugin_log_message(&plugin_info_ptr, MY_ERROR_LEVEL, 
+      "Password salt for user '%s' is corrupt.",
+      info->user_name);
     DBUG_RETURN(CR_ERROR);
   }
 

@@ -8,12 +8,27 @@
 
 #include <string.h>
 #include <stdarg.h>
+#include <pthread.h>
 #include <openssl/rsa.h>
 #include <openssl/pem.h>
 #include <openssl/err.h>
 #include "mysql/service_my_plugin_log.h"
 
 #define MAX_CIPHER_LENGTH 1024
+pthread_mutex_t g_public_key_mutex;
+
+int sha256_password_init(char *a, size_t b, int, va_list c)
+{
+  pthread_mutex_init(&g_public_key_mutex, 0);
+  return 0;
+}
+
+int sha256_password_deinit(void)
+{
+  pthread_mutex_destroy(&g_public_key_mutex);
+  return 0;
+}
+
 
 /**
   Reads and parse RSA public key data from a file.
@@ -23,12 +38,17 @@
   @return Pointer to the RSA public key storage buffer
 */
 
-RSA *sha256_password_init(MYSQL *mysql)
+RSA *rsa_init(MYSQL *mysql)
 {
   static RSA *g_public_key= NULL;
+  RSA *key= NULL;
+
+  pthread_mutex_lock(&g_public_key_mutex);
+  key= g_public_key;
+  pthread_mutex_unlock(&g_public_key_mutex);
   
-  if (g_public_key != NULL)
-    return g_public_key;
+  if (key != NULL)
+    return key;
 
   FILE *pub_key_file;  
   if (mysql->options.extension != NULL)
@@ -39,27 +59,23 @@ RSA *sha256_password_init(MYSQL *mysql)
                       
   if (pub_key_file == NULL)
   {
-      //String error;
-      //error.append("Can't locate server public key '");
-      //error.append(mysql->options.extension->server_public_key_path);
-      //error.append("'");
-      // TODO Figure out where to send the error and how.
+      fprintf(stderr,"Can't locate server public key '%s'\n",
+              mysql->options.extension->server_public_key_path);
       return 0;
   }
   
-  g_public_key= PEM_read_RSA_PUBKEY(pub_key_file, 0, 0, 0);
+  pthread_mutex_lock(&g_public_key_mutex);
+  key= g_public_key= PEM_read_RSA_PUBKEY(pub_key_file, 0, 0, 0);
+  pthread_mutex_unlock(&g_public_key_mutex);
   fclose(pub_key_file);
   if (g_public_key == NULL)
   {
-    //String error;
-    //error.append("Public key is not in PEM format: '");
-    //error.append(mysql->options.extension->server_public_key_path);
-    //error.append("'");
-    // TODO Figure out where to send the error and how.
+    fprintf(stderr, "Public key is not in PEM format: '%s'\n",
+            mysql->options.extension->server_public_key_path);
     return 0;
   }
 
-  return g_public_key;
+  return key;
 }
 
 
@@ -93,7 +109,10 @@ int sha256_password_auth_client(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql)
     password.
   */
   if (vio->read_packet(vio, &pkt) != SCRAMBLE_LENGTH)
+  {
+    DBUG_PRINT("info",("Scramble is not of correct length."));
     DBUG_RETURN(CR_ERROR);
+  }
   /*
     Copy the scramble to the stack or it will be lost on the next use of the 
     net buffer.
@@ -105,7 +124,7 @@ int sha256_password_auth_client(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql)
   
   /* If connection isn't secure attempt to get the RSA public key file */
   if (!connection_is_secure)
-    public_key= sha256_password_init(mysql);
+    public_key= rsa_init(mysql);
 
   if (!uses_password)
   {
