@@ -40,6 +40,8 @@ FUNCTION (INSTALL_DEBUG_SYMBOLS)
     IF(CMAKE_GENERATOR MATCHES "Visual Studio")
       STRING(REPLACE "${CMAKE_CFG_INTDIR}" "\${CMAKE_INSTALL_CONFIG_NAME}" pdb_location ${pdb_location})
     ENDIF()
+	
+    set(comp "")
     IF(ARG_COMPONENT STREQUAL "Server")
       IF(target MATCHES "mysqld" OR type MATCHES "MODULE")
         #MESSAGE("PDB: ${targets}")
@@ -52,11 +54,12 @@ FUNCTION (INSTALL_DEBUG_SYMBOLS)
         OR ARG_COMPONENT MATCHES SharedLibraries
         OR ARG_COMPONENT MATCHES Embedded)
         SET(comp Debuginfo)
-      ELSE()
-        SET(comp Debuginfo_archive_only) # not in MSI
-      ENDIF()	  
+      ENDIF()
     ENDIF()
 
+    IF(NOT comp)
+      SET(comp Debuginfo_archive_only) # not in MSI
+    ENDIF()
     INSTALL(FILES ${pdb_location} DESTINATION ${ARG_INSTALL_LOCATION} COMPONENT ${comp})
   ENDFOREACH()
   ENDIF()
