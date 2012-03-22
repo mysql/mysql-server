@@ -113,6 +113,7 @@
 #cmakedefine HAVE_LIBCRYPT 1
 #cmakedefine HAVE_LIBMTMALLOC 1
 #cmakedefine HAVE_LIBWRAP 1
+#cmakedefine HAVE_LIBRESOLV 1
 /* Does "struct timespec" have a "sec" and "nsec" field? */
 #cmakedefine HAVE_TIMESPEC_TS_SEC 1
 
@@ -303,6 +304,26 @@
 #cmakedefine STRUCT_DIRENT_HAS_D_NAMLEN 1
 #cmakedefine SPRINTF_RETURNS_INT 1
 
+#cmakedefine DNS_USE_CPU_CLOCK_FOR_ID 1
+#cmakedefine HAVE_EPOLL 1
+#cmakedefine HAVE_EPOLL_CTL 1
+/* #cmakedefine HAVE_EVENT_PORTS 1 */
+#cmakedefine HAVE_INET_NTOP 1
+#cmakedefine HAVE_KQUEUE 1
+#cmakedefine HAVE_WORKING_KQUEUE 1
+#cmakedefine HAVE_SIGNAL 1
+#cmakedefine HAVE_TIMERADD 1
+#cmakedefine HAVE_TIMERCLEAR 1
+#cmakedefine HAVE_TIMERCMP 1
+#cmakedefine HAVE_TIMERISSET 1
+
+#cmakedefine HAVE_DEVPOLL 1
+#cmakedefine HAVE_SIGNAL_H 1
+#cmakedefine HAVE_SYS_DEVPOLL_H 1
+#cmakedefine HAVE_SYS_EPOLL_H 1
+#cmakedefine HAVE_SYS_EVENT_H 1
+#cmakedefine HAVE_SYS_QUEUE_H 1
+#cmakedefine HAVE_TAILQFOREACH 1
 #define USE_MB 1
 #define USE_MB_IDENT 1
 
@@ -503,6 +524,14 @@
 #define NOMINMAX
 #endif
 
+/*
+   Memcached config options
+*/
+#cmakedefine WITH_INNODB_MEMCACHED 1
+#cmakedefine ENABLE_MEMCACHED_SASL 1
+#cmakedefine ENABLE_MEMCACHED_SASL_PWDB 1
+#cmakedefine HAVE_SASL_SASL_H 1
+#cmakedefine HAVE_HTONLL 1
 
 /*
   MySQL features

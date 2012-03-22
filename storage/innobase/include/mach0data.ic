@@ -776,5 +776,55 @@ mach_read_int_type(
 
 	return(ret);
 }
+/*********************************************************//**
+Swap byte ordering. */
+UNIV_INLINE
+void
+mach_swap_byte_order(
+/*=================*/
+        byte*           dest,           /*!< out: where to write */
+        const byte*     from,           /*!< in: where to read from */
+        ulint           len)            /*!< in: length of src */
+{
+        ut_ad(len > 0);
+        ut_ad(len <= 8);
+
+        dest += len;
+
+        switch (len & 0x7) {
+        case 0: *--dest = *from++;
+        case 7: *--dest = *from++;
+        case 6: *--dest = *from++;
+        case 5: *--dest = *from++;
+        case 4: *--dest = *from++;
+        case 3: *--dest = *from++;
+        case 2: *--dest = *from++;
+        case 1: *--dest = *from;
+        }
+}
+/*************************************************************
+Convert integral type from host byte order (big-endian) storage
+byte order. */
+UNIV_INLINE
+void
+mach_write_int_type(
+/*================*/
+        byte*           dest,           /*!< in: where to write*/
+        const byte*     src,            /*!< in: where to read from */
+        ulint           len,            /*!< in: length of src */
+        ibool           usign)          /*!< in: signed or unsigned flag */
+{
+#ifdef WORDS_BIGENDIAN
+        memcpy(dest, src, len);
+#else
+        mach_swap_byte_order(dest, src, len);
+
+#endif
+        if (!usign) {
+
+                *dest ^=  0x80;
+        }
+}
+
 #endif /* !UNIV_HOTBACKUP */
 #endif /* !UNIV_INNOCHECKSUM */
