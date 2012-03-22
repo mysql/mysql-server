@@ -3140,6 +3140,7 @@ storage/ndb/**/*.class
 storage/ndb/src/ndbjtie/**/*.sh
 storage/ndb/src/ndbjtie/**/*.log
 storage/ndb/src/ndbjtie/**/*.cmd
+storage/ndb/src/ndbjtie/**/*_test
 storage/ndb/clusterj/**/*MANIFEST.MF
 storage/ndb/clusterj/**/*manifest.mf
 storage/ndb/test/crund/*.cnf
