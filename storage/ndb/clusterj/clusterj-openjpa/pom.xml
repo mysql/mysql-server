@@ -24,12 +24,12 @@
   <parent>
     <groupId>com.mysql.clusterj</groupId>
     <artifactId>clusterj-aggregate</artifactId>
-    <version>7.1.20-SNAPSHOT</version>
+    <version>7.1.21-SNAPSHOT</version>
   </parent>
   <modelVersion>4.0.0</modelVersion>
   <groupId>com.mysql.clusterj</groupId>
   <artifactId>clusterj-openjpa</artifactId>
-  <version>7.1.20-SNAPSHOT</version>
+  <version>7.1.21-SNAPSHOT</version>
   <packaging>bundle</packaging>
   <name>ClusterJ OpenJPA Integration</name>
 
