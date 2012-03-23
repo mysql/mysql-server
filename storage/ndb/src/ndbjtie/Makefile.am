@@ -67,6 +67,7 @@ MGMAPI_java = \
 NDBAPI_DIR = $(srcdir)/com/mysql/ndbjtie/ndbapi
 NDBAPI_java = \
 		$(NDBAPI_DIR)/NDBAPI.java \
+		$(NDBAPI_DIR)/NDBAPIConst.java \
 		$(NDBAPI_DIR)/Ndb.java \
 		$(NDBAPI_DIR)/NdbBlob.java \
 		$(NDBAPI_DIR)/NdbBlobConst.java \
@@ -121,6 +122,7 @@ javah: $(NDBJTIE_JAR)
 		com.mysql.ndbjtie.mysql.CharsetMap \
 		com.mysql.ndbjtie.mgmapi.MGMAPI \
 		com.mysql.ndbjtie.ndbapi.NDBAPI \
+		com.mysql.ndbjtie.ndbapi.NDBAPIConst \
 		com.mysql.ndbjtie.ndbapi.Ndb \
 		com.mysql.ndbjtie.ndbapi.NdbBlob \
 		com.mysql.ndbjtie.ndbapi.NdbDictionary \
