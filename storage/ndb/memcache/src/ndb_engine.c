@@ -173,7 +173,6 @@ static ENGINE_ERROR_CODE ndb_initialize(ENGINE_HANDLE* handle,
   /* Initalize the debug library */
   DEBUG_INIT(NULL, ndb_eng->startup_options.debug_enable);
   DEBUG_ENTER();
-  print_debug_startup_info();
   
   /* Connect to the Primary cluster */
   if(!(connect_to_primary_cluster(ndb_eng->startup_options.connectstring,
@@ -244,6 +243,8 @@ static ENGINE_ERROR_CODE ndb_initialize(ENGINE_HANDLE* handle,
   if(return_status == ENGINE_SUCCESS) {
     set_initial_cas_ids(& ndb_eng->cas_hi, & ndb_eng->cas_lo);
   }
+
+  print_debug_startup_info();
 
   /* Listen for reconfiguration signals */
   if(ndb_eng->startup_options.reconf_enable) {

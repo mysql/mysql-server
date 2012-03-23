@@ -55,6 +55,7 @@
 #include "hash_item_util.h"
 #include "ndb_worker.h"
 #include "ndb_error_logger.h"
+#include "ndb_engine_errors.h"
 
 /**********************************************************
   Schedduler::schedule()
@@ -113,6 +114,7 @@ ndb_async_callback callback_close;    // just call worker_close()
 */
 
 worker_step worker_close;             /* Close tx and yield scheduler */
+worker_step worker_commit;            /* exec(Commit) if needed before close */
 worker_step worker_append; 
 worker_step worker_check_read;
 worker_step worker_finalize_read;
@@ -687,7 +689,6 @@ op_status_t WorkerStep1::do_math() {
 
 void callback_main(int, NdbTransaction *tx, void *itemptr) {
   workitem *wqitem = (workitem *) itemptr;
-  // ndb_pipeline * & pipeline = wqitem->pipeline;
     
   /************** Error handling ***********/  
   /* No Error */
@@ -752,7 +753,7 @@ void callback_main(int, NdbTransaction *tx, void *itemptr) {
     wqitem->status = & status_block_misc_error;
   }
 
-  worker_close(tx, wqitem);
+  worker_commit(tx, wqitem);
 }
 
 
@@ -856,12 +857,34 @@ void callback_close(int result, NdbTransaction *tx, void *itemptr) {
 
 /***************** WORKER STEPS **********************************************/
 
+void worker_commit(NdbTransaction *tx, workitem *item) {
+  /* If the transaction has not been committed, we need to send an empty 
+     execute call and commit it.  Otherwise close() will block. */
+  if(tx->commitStatus() == NdbTransaction::Started) {
+    item->pipeline->scheduler->reschedule(item);
+    tx->executeAsynchPrepare(NdbTransaction::Commit, callback_close, (void *) item);    
+  }
+  else 
+    worker_close(tx, item);
+}
+
+
 void worker_close(NdbTransaction *tx, workitem *wqitem) {
   DEBUG_PRINT("%d.%d", wqitem->pipeline->id, wqitem->id);
+  Uint64 nwaits_pre, nwaits_post;
   ndb_pipeline * & pipeline = wqitem->pipeline;
+  Ndb * & ndb = wqitem->ndb_instance->db;
+
+  nwaits_pre  = ndb->getClientStat(Ndb::WaitExecCompleteCount);
   tx->close();
+  nwaits_post = ndb->getClientStat(Ndb::WaitExecCompleteCount);
+
+  if(nwaits_post > nwaits_pre) 
+    log_app_error(& AppError9003_SyncClose);
+ 
   if(wqitem->ext_val) 
     delete wqitem->ext_val;
+
   pipeline->engine->server.cookie->store_engine_specific(wqitem->cookie, wqitem); 
   pipeline->scheduler->yield(wqitem);
 }
@@ -1010,7 +1033,7 @@ void worker_finalize_read(NdbTransaction *tx, workitem *wqitem) {
     build_hash_item(wqitem, op, exp_time);
   }
 
-  worker_close(tx, wqitem);
+  worker_commit(tx, wqitem);
 }
 
 
