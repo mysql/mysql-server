@@ -3344,23 +3344,26 @@ int JOIN_TAB_SCAN::next()
   int skip_rc;
   READ_RECORD *info= &join_tab->read_record;
   SQL_SELECT *select= join_tab->cache_select;
+  TABLE *table= join_tab->table;
+  THD *thd= join->thd;
+
   if (is_first_record)
     is_first_record= FALSE;
   else
     err= info->read_record(info);
-  if (!err)
-    update_virtual_fields(join->thd, join_tab->table);
-  while (!err && select && (skip_rc= select->skip_record(join->thd)) <= 0)
+  if (!err && table->vfield)
+    update_virtual_fields(thd, table);
+  while (!err && select && (skip_rc= select->skip_record(thd)) <= 0)
   {
-    if (join->thd->killed || skip_rc < 0) 
+    if (thd->killed || skip_rc < 0) 
       return 1;
     /* 
       Move to the next record if the last retrieved record does not
       meet the condition pushed to the table join_tab.
     */
     err= info->read_record(info);
-    if (!err)
-      update_virtual_fields(join->thd, join_tab->table);
+    if (!err && table->vfield)
+      update_virtual_fields(thd, table);
   } 
   return err; 
 }
@@ -3874,7 +3877,8 @@ int JOIN_TAB_SCAN_MRR::next()
     */ 
     DBUG_ASSERT(cache->buff <= (uchar *) (*ptr) &&
                 (uchar *) (*ptr) <= cache->end_pos);
-    update_virtual_fields(join->thd, join_tab->table);
+    if (join_tab->table->vfield)
+      update_virtual_fields(join->thd, join_tab->table);
   }
   return rc;
 }

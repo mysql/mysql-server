@@ -4706,7 +4706,7 @@ int open_tables(THD *thd, TABLE_LIST **start, uint *counter, uint flags)
     temporary mem_root for new .frm parsing.
     TODO: variables for size
   */
-  init_sql_alloc(&new_frm_mem, 8024, 8024);
+  init_sql_alloc(&new_frm_mem, 8024, 0);
 
   thd->current_tablenr= 0;
  restart:
@@ -8648,14 +8648,9 @@ fill_record(THD * thd, List<Item> &fields, List<Item> &values,
   }
   /* Update virtual fields*/
   thd->abort_on_warning= FALSE;
-  if (vcol_table)
-  {
-    if (vcol_table->vfield)
-    {
-      if (update_virtual_fields(thd, vcol_table, TRUE))
-        goto err;
-    }
-  }
+  if (vcol_table && vcol_table->vfield &&
+      update_virtual_fields(thd, vcol_table, TRUE))
+    goto err;
   thd->abort_on_warning= save_abort_on_warning;
   thd->no_errors=        save_no_errors;
   DBUG_RETURN(thd->is_error());

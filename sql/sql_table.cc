@@ -8078,7 +8078,8 @@ copy_data_between_tables(THD *thd, TABLE *from,TABLE *to,
       error= 1;
       break;
     }
-    update_virtual_fields(thd, from);
+    if (from->vfield)
+      update_virtual_fields(thd, from);
     thd->row_count++;
     if (++thd->progress.counter >= time_to_report_progress)
     {
@@ -8106,7 +8107,8 @@ copy_data_between_tables(THD *thd, TABLE *from,TABLE *to,
       copy_ptr->do_copy(copy_ptr);
     }
     prev_insert_id= to->file->next_insert_id;
-    update_virtual_fields(thd, to, TRUE);
+    if (to->vfield)
+      update_virtual_fields(thd, to, TRUE);
     if (thd->is_error())
     {
       error= 1;

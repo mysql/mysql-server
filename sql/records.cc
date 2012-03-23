@@ -401,7 +401,7 @@ int rr_sequential(READ_RECORD *info)
       break;
     }
   }
-  if (!tmp)
+  if (!tmp && info->table->vfield)
     update_virtual_fields(info->thd, info->table);
   return tmp;
 }
