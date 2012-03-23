@@ -48,3 +48,13 @@ NdbInstance::~NdbInstance() {
 }
 
 
+void NdbInstance::non_blocking_close(NdbTransaction *tx) {
+  Uint64 nwaits_pre, nwaits_post;
+  nwaits_pre = db->getClientStat(Ndb::WaitExecCompleteCount);
+
+  tx->close();
+
+  nwaits_post = db->getClientStat(Ndb::WaitExecCompleteCount);  
+  assert(nwaits_pre == nwaits_post);
+}
+
