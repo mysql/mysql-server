@@ -30,12 +30,14 @@ flush (CACHEFILE f __attribute__((__unused__)),
        int UU(fd),
        CACHEKEY k  __attribute__((__unused__)),
        void *v     __attribute__((__unused__)),
+       void** UU(dd),
        void *e     __attribute__((__unused__)),
        PAIR_ATTR s      __attribute__((__unused__)),
        PAIR_ATTR* new_size      __attribute__((__unused__)),
        BOOL w      __attribute__((__unused__)),
        BOOL keep   __attribute__((__unused__)),
-       BOOL c      __attribute__((__unused__))
+       BOOL c      __attribute__((__unused__)),
+        BOOL UU(is_clone)
        ) {
     PAIR_ATTR *expect = e;
     if (!keep) {
@@ -85,6 +87,7 @@ run_test (void) {
                                         def_fetch,
                                         def_pf_req_callback,
                                         def_pf_callback,
+                                        TRUE, 
                                         &expect);
         assert_zero(r);
         r = toku_cachetable_unpin(f1, make_blocknum(i+1), i+1, CACHETABLE_DIRTY, attrs[i]);
@@ -109,6 +112,7 @@ run_test (void) {
                                     def_fetch,
                                     def_pf_req_callback,
                                     def_pf_callback,
+                                    TRUE, 
                                     &expect);
     toku_cachetable_unpin(f1, make_blocknum(n_pairs + 1), n_pairs + 1, CACHETABLE_CLEAN,
                           make_pair_attr(test_limit - expect.size + 20));

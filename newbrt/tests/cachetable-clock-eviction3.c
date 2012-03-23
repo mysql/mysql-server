@@ -10,12 +10,14 @@ flush (CACHEFILE f __attribute__((__unused__)),
        int UU(fd),
        CACHEKEY k  __attribute__((__unused__)),
        void* UU(v),
+       void** UU(dd),
        void *e     __attribute__((__unused__)),
        PAIR_ATTR s      __attribute__((__unused__)),
        PAIR_ATTR* new_size      __attribute__((__unused__)),
        BOOL w      __attribute__((__unused__)),
        BOOL keep,
-       BOOL c      __attribute__((__unused__))
+       BOOL c      __attribute__((__unused__)),
+        BOOL UU(is_clone)
        ) {
     assert(flush_may_occur);
     if (!keep) {
@@ -31,6 +33,7 @@ fetch (CACHEFILE f        __attribute__((__unused__)),
        CACHEKEY k         __attribute__((__unused__)),
        u_int32_t fullhash __attribute__((__unused__)),
        void **value       __attribute__((__unused__)),
+       void** UU(dd),
        PAIR_ATTR *sizep        __attribute__((__unused__)),
        int  *dirtyp,
        void *extraargs    __attribute__((__unused__))
@@ -48,18 +51,21 @@ other_flush (CACHEFILE f __attribute__((__unused__)),
        int UU(fd),
        CACHEKEY k  __attribute__((__unused__)),
        void *v     __attribute__((__unused__)),
+	     void** UU(dd),
        void *e     __attribute__((__unused__)),
        PAIR_ATTR s      __attribute__((__unused__)),
        PAIR_ATTR* new_size      __attribute__((__unused__)),
        BOOL w      __attribute__((__unused__)),
        BOOL keep   __attribute__((__unused__)),
-       BOOL c      __attribute__((__unused__))
+       BOOL c      __attribute__((__unused__)),
+        BOOL UU(is_clone)
        ) {
 }
 
 static void 
 pe_est_callback(
     void* UU(brtnode_pv), 
+    void* UU(dd),
     long* bytes_freed_estimate, 
     enum partial_eviction_cost *cost, 
     void* UU(write_extraargs)
@@ -118,7 +124,7 @@ cachetable_test (void) {
       wc.flush_callback = flush;
       wc.pe_est_callback = pe_est_callback;
       wc.pe_callback = pe_callback;
-      r = toku_cachetable_get_and_pin(f1, make_blocknum(1), 1, &v1, &s1, wc, fetch, def_pf_req_callback, def_pf_callback, NULL);
+      r = toku_cachetable_get_and_pin(f1, make_blocknum(1), 1, &v1, &s1, wc, fetch, def_pf_req_callback, def_pf_callback, TRUE, NULL);
       r = toku_cachetable_unpin(f1, make_blocknum(1), 1, CACHETABLE_CLEAN, make_pair_attr(4));
     }
     for (int i = 0; i < 8; i++) {
@@ -126,7 +132,7 @@ cachetable_test (void) {
       wc.flush_callback = flush;
       wc.pe_est_callback = pe_est_callback;
       wc.pe_callback = pe_callback;
-      r = toku_cachetable_get_and_pin(f1, make_blocknum(2), 2, &v2, &s2, wc, fetch, def_pf_req_callback, def_pf_callback, NULL);
+      r = toku_cachetable_get_and_pin(f1, make_blocknum(2), 2, &v2, &s2, wc, fetch, def_pf_req_callback, def_pf_callback, TRUE, NULL);
       r = toku_cachetable_unpin(f1, make_blocknum(2), 2, CACHETABLE_CLEAN, make_pair_attr(4));
     }
     for (int i = 0; i < 4; i++) {
@@ -134,7 +140,7 @@ cachetable_test (void) {
       wc.flush_callback = flush;
       wc.pe_est_callback = pe_est_callback;
       wc.pe_callback = pe_callback;
-      r = toku_cachetable_get_and_pin(f1, make_blocknum(3), 3, &v2, &s2, wc, fetch, def_pf_req_callback, def_pf_callback, NULL);
+      r = toku_cachetable_get_and_pin(f1, make_blocknum(3), 3, &v2, &s2, wc, fetch, def_pf_req_callback, def_pf_callback, TRUE, NULL);
       r = toku_cachetable_unpin(f1, make_blocknum(3), 3, CACHETABLE_CLEAN, make_pair_attr(4));
     }
     for (int i = 0; i < 2; i++) {
@@ -142,7 +148,7 @@ cachetable_test (void) {
       wc.flush_callback = flush;
       wc.pe_est_callback = pe_est_callback;
       wc.pe_callback = pe_callback;
-      r = toku_cachetable_get_and_pin(f1, make_blocknum(4), 4, &v2, &s2, wc, fetch, def_pf_req_callback, def_pf_callback, NULL);
+      r = toku_cachetable_get_and_pin(f1, make_blocknum(4), 4, &v2, &s2, wc, fetch, def_pf_req_callback, def_pf_callback, TRUE, NULL);
       r = toku_cachetable_unpin(f1, make_blocknum(4), 4, CACHETABLE_CLEAN, make_pair_attr(4));
     }
     flush_may_occur = FALSE;

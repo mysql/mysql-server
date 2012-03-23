@@ -45,6 +45,7 @@ run_test (void) {
                                         def_fetch,
                                         def_pf_req_callback,
                                         def_pf_callback,
+                                        TRUE, 
                                         NULL);
         assert_zero(r);
         // set cachepressure_size to 0

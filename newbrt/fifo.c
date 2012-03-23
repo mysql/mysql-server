@@ -226,3 +226,19 @@ DBT *fill_dbt_for_fifo_entry(DBT *dbt, const struct fifo_entry *entry) {
 const struct fifo_entry *toku_fifo_get_entry(FIFO fifo, long off) {
     return toku_fifo_iterate_internal_get_entry(fifo, off);
 }
+
+void toku_fifo_clone(FIFO orig_fifo, FIFO* cloned_fifo) {
+    struct fifo *XMALLOC(new_fifo);
+    assert(new_fifo);
+    new_fifo->n_items_in_fifo = orig_fifo->n_items_in_fifo;
+    new_fifo->memory_start = 0;
+    new_fifo->memory_used = orig_fifo->memory_used - orig_fifo->memory_start;
+    new_fifo->memory_size = new_fifo->memory_used;
+    new_fifo->memory = toku_xmalloc(new_fifo->memory_size);
+    memcpy(
+        new_fifo->memory, 
+        orig_fifo->memory + orig_fifo->memory_start, 
+        new_fifo->memory_size
+        );
+    *cloned_fifo = new_fifo;
+}

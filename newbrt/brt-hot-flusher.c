@@ -280,6 +280,7 @@ toku_brt_hot_optimize(BRT brt,
                                                (BLOCKNUM) *rootp,
                                                fullhash,
                                                &bfe,
+                                               TRUE, 
                                                0,
                                                NULL,
                                                &root);

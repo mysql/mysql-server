@@ -97,12 +97,15 @@ static void flush_forchain (CACHEFILE f            __attribute__((__unused__)),
                             int UU(fd),
 			    CACHEKEY  key,
 			    void     *value,
+			    void** UU(dd),
 			    void     *extra        __attribute__((__unused__)),
 			    PAIR_ATTR      size         __attribute__((__unused__)),
         PAIR_ATTR* new_size      __attribute__((__unused__)),
 			    BOOL      write_me     __attribute__((__unused__)),
 			    BOOL      keep_me      __attribute__((__unused__)),
-			    BOOL      for_checkpoint     __attribute__((__unused__))) {
+			    BOOL      for_checkpoint     __attribute__((__unused__)),
+        BOOL UU(is_clone)
+			    ) {
     if (keep_me) return;
     int *v = value;
     //toku_cachetable_print_state(ct);
@@ -112,7 +115,9 @@ static void flush_forchain (CACHEFILE f            __attribute__((__unused__)),
     //print_ints();
 }
 
-static int fetch_forchain (CACHEFILE f, int UU(fd), CACHEKEY key, u_int32_t fullhash, void**value, PAIR_ATTR *sizep __attribute__((__unused__)), int * dirtyp, void*extraargs) {
+static int fetch_forchain (CACHEFILE f, int UU(fd), CACHEKEY key, u_int32_t fullhash, void**value, 
+			   void** UU(dd),
+PAIR_ATTR *sizep __attribute__((__unused__)), int * dirtyp, void*extraargs) {
     assert(toku_cachetable_hash(f, key)==fullhash);
     assert((long)extraargs==(long)key.b);
     *value = (void*)(long)key.b;
@@ -197,6 +202,7 @@ static void test_chaining (void) {
 					    fetch_forchain,
 					    def_pf_req_callback,
 					    def_pf_callback,
+					    TRUE, 
                                             (void*)(long)whichkey.b
 					    );
 	    assert(r==0);

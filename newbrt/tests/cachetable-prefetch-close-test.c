@@ -13,12 +13,14 @@ flush (CACHEFILE f __attribute__((__unused__)),
        int UU(fd),
        CACHEKEY k  __attribute__((__unused__)),
        void *v     __attribute__((__unused__)),
+       void** UU(dd),
        void *e     __attribute__((__unused__)),
        PAIR_ATTR s      __attribute__((__unused__)),
        PAIR_ATTR* new_size      __attribute__((__unused__)),
        BOOL w      __attribute__((__unused__)),
        BOOL keep   __attribute__((__unused__)),
-       BOOL c      __attribute__((__unused__))
+       BOOL c      __attribute__((__unused__)),
+        BOOL UU(is_clone)
        ) {
     assert(w == FALSE);
 }
@@ -31,6 +33,7 @@ fetch (CACHEFILE f        __attribute__((__unused__)),
        CACHEKEY k         __attribute__((__unused__)),
        u_int32_t fullhash __attribute__((__unused__)),
        void **value       __attribute__((__unused__)),
+       void** UU(dd),
        PAIR_ATTR *sizep        __attribute__((__unused__)),
        int  *dirtyp       __attribute__((__unused__)),
        void *extraargs    __attribute__((__unused__))
@@ -80,6 +83,7 @@ static void cachetable_prefetch_full_test (BOOL partial_fetch) {
             fetch,
             def_pf_req_callback,
             def_pf_callback,
+            TRUE, 
             0
             );
         assert(r==0);

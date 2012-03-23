@@ -137,3 +137,11 @@ size_t toku_mempool_footprint(struct mempool *mp) {
     size_t rval = toku_memory_footprint(base, touched);
     return rval;
 }
+
+void toku_mempool_clone(struct mempool* orig_mp, struct mempool* new_mp) {
+    new_mp->frag_size = orig_mp->frag_size;
+    new_mp->free_offset = orig_mp->free_offset;
+    new_mp->size = orig_mp->free_offset; // only make the cloned mempool store what is needed
+    new_mp->base = toku_xmalloc(new_mp->size);
+    memcpy(new_mp->base, orig_mp->base, new_mp->size);
+}

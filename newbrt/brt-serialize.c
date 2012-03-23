@@ -237,7 +237,7 @@ serialize_node_header_size(BRTNODE node) {
 }
 
 static void
-serialize_node_header(BRTNODE node, struct wbuf *wbuf) {
+serialize_node_header(BRTNODE node, BRTNODE_DISK_DATA ndd, struct wbuf *wbuf) {
     if (node->height == 0) 
         wbuf_nocrc_literal_bytes(wbuf, "tokuleaf", 8);
     else 
@@ -248,9 +248,9 @@ serialize_node_header(BRTNODE node, struct wbuf *wbuf) {
     wbuf_nocrc_uint(wbuf, BUILD_ID);
     wbuf_nocrc_int (wbuf, node->n_children);
     for (int i=0; i<node->n_children; i++) {
-	assert(BP_SIZE(node,i)>0);
-	wbuf_nocrc_int(wbuf, BP_START(node, i)); // save the beginning of the partition
-        wbuf_nocrc_int(wbuf, BP_SIZE (node, i));         // and the size
+        assert(BP_SIZE(ndd,i)>0);
+        wbuf_nocrc_int(wbuf, BP_START(ndd, i)); // save the beginning of the partition
+        wbuf_nocrc_int(wbuf, BP_SIZE (ndd, i));         // and the size
     }
     // checksum the header
     u_int32_t end_to_end_checksum = x1764_memory(wbuf->buf, wbuf_get_woffset(wbuf));
@@ -500,7 +500,7 @@ sum_item (OMTVALUE lev, u_int32_t UU(idx), void *vsi) {
 // Because all messages above have been applied, setting msn of all new basements 
 // to max msn of existing basements is correct.  (There cannot be any messages in
 // buffers above that still need to be applied.)
-static void
+void
 rebalance_brtnode_leaf(BRTNODE node, unsigned int basementnodesize)
 {
     assert(node->height == 0);
@@ -688,9 +688,6 @@ rebalance_brtnode_leaf(BRTNODE node, unsigned int basementnodesize)
 }  // end of rebalance_brtnode_leaf()
 
 static void
-serialize_and_compress(BRTNODE node, int npartitions, struct sub_block sb[]);
-
-static void
 serialize_and_compress_partition(BRTNODE node, int childnum, SUB_BLOCK sb)
 {
     serialize_brtnode_partition(node, childnum, sb);
@@ -729,70 +726,12 @@ toku_create_compressed_partition_from_available(
 }
 
 
-// tests are showing that serial insertions are slightly faster 
-// using the pthreads than using CILK. Disabling CILK until we have
-// some evidence that it is faster
-#ifdef HAVE_CILK
-
 static void
 serialize_and_compress(BRTNODE node, int npartitions, struct sub_block sb[]) {
-#pragma cilk grainsize = 2
-    cilk_for (int i = 0; i < npartitions; i++) {
+    for (int i = 0; i < npartitions; i++) {
         serialize_and_compress_partition(node, i, &sb[i]);
     }
 }
-
-#else
-
-struct serialize_compress_work {
-    struct work base;
-    BRTNODE node;
-    int i;
-    struct sub_block *sb;
-};
-
-static void *
-serialize_and_compress_worker(void *arg) {
-    struct workset *ws = (struct workset *) arg;
-    while (1) {
-        struct serialize_compress_work *w = (struct serialize_compress_work *) workset_get(ws);
-        if (w == NULL)
-            break;
-        int i = w->i;
-        serialize_and_compress_partition(w->node, i, &w->sb[i]);
-    }
-    workset_release_ref(ws);
-    return arg;
-}
-
-static void
-serialize_and_compress(BRTNODE node, int npartitions, struct sub_block sb[]) {
-    if (npartitions == 1) {
-        serialize_and_compress_partition(node, 0, &sb[0]);
-    } else {
-        int T = num_cores;
-        if (T > npartitions)
-            T = npartitions;
-        if (T > 0)
-            T = T - 1;
-        struct workset ws;
-        workset_init(&ws);
-        struct serialize_compress_work work[npartitions];
-        workset_lock(&ws);
-        for (int i = 0; i < npartitions; i++) {
-            work[i] = (struct serialize_compress_work) { .node = node, .i = i, .sb = sb };
-            workset_put_locked(&ws, &work[i].base);
-        }
-        workset_unlock(&ws);
-        toku_thread_pool_run(brt_pool, 0, &T, serialize_and_compress_worker, &ws);
-        workset_add_ref(&ws, T);
-        serialize_and_compress_worker(&ws);
-        workset_join(&ws);
-        workset_destroy(&ws);
-    }
-}
-
-#endif
 
 // Writes out each child to a separate malloc'd buffer, then compresses
 // all of them, and writes the uncompressed header, to bytes_to_write,
@@ -800,14 +739,16 @@ serialize_and_compress(BRTNODE node, int npartitions, struct sub_block sb[]) {
 //
 int
 toku_serialize_brtnode_to_memory (BRTNODE node,
+                                         BRTNODE_DISK_DATA* ndd,
                                   unsigned int basementnodesize,
+                                  BOOL do_rebalancing,
                           /*out*/ size_t *n_bytes_to_write,
                           /*out*/ char  **bytes_to_write)
 {
     toku_assert_entire_node_in_memory(node);
 
-    if (node->height == 0) {
-	rebalance_brtnode_leaf(node, basementnodesize);
+    if (do_rebalancing && node->height == 0) {
+        rebalance_brtnode_leaf(node, basementnodesize);
     }
     const int npartitions = node->n_children;
 
@@ -815,6 +756,7 @@ toku_serialize_brtnode_to_memory (BRTNODE node,
     // For internal nodes, a sub block is a message buffer
     // For leaf nodes, a sub block is a basement node
     struct sub_block *XMALLOC_N(npartitions, sb);
+    *ndd = toku_xrealloc(*ndd, npartitions*sizeof(**ndd));
     struct sub_block sb_node_info;
     for (int i = 0; i < npartitions; i++) {
         sub_block_init(&sb[i]);;
@@ -845,8 +787,8 @@ toku_serialize_brtnode_to_memory (BRTNODE node,
     // store the BP_SIZESs
     for (int i = 0; i < node->n_children; i++) {
 	u_int32_t len         = sb[i].compressed_size + 4; // data and checksum
-        BP_SIZE (node,i) = len;
-	BP_START(node,i) = total_node_size;
+        BP_SIZE (*ndd,i) = len;
+	BP_START(*ndd,i) = total_node_size;
         total_node_size += sb[i].compressed_size + 4;
     }
 
@@ -857,7 +799,7 @@ toku_serialize_brtnode_to_memory (BRTNODE node,
     // write the header
     struct wbuf wb;
     wbuf_init(&wb, curr_ptr, serialize_node_header_size(node));
-    serialize_node_header(node, &wb);
+    serialize_node_header(node, *ndd, &wb);
     assert(wb.ndone == wb.size);
     curr_ptr += serialize_node_header_size(node);
 
@@ -895,12 +837,12 @@ toku_serialize_brtnode_to_memory (BRTNODE node,
 }
 
 int
-toku_serialize_brtnode_to (int fd, BLOCKNUM blocknum, BRTNODE node, struct brt_header *h, int UU(n_workitems), int UU(n_threads), BOOL for_checkpoint) {
+toku_serialize_brtnode_to (int fd, BLOCKNUM blocknum, BRTNODE node, BRTNODE_DISK_DATA* ndd, BOOL do_rebalancing, struct brt_header *h, int UU(n_workitems), int UU(n_threads), BOOL for_checkpoint) {
 
     size_t n_to_write;
     char *compressed_buf = NULL;
     {
-	int r = toku_serialize_brtnode_to_memory(node, h->basementnodesize,
+	int r = toku_serialize_brtnode_to_memory(node, ndd, h->basementnodesize, do_rebalancing,
                                                  &n_to_write, &compressed_buf);
 	if (r!=0) return r;
     }
@@ -1046,6 +988,41 @@ BASEMENTNODE toku_create_empty_bn(void) {
     return bn;
 }
 
+struct mp_pair {
+    void* orig_base;
+    void* new_base;
+    OMT omt;
+};
+
+static int fix_mp_offset(OMTVALUE v, u_int32_t i, void* extra) {
+    struct mp_pair* p = extra;
+    char* old_value = v;
+    char *new_value = old_value - (char *)p->orig_base + (char *)p->new_base;
+    toku_omt_set_at(p->omt, (OMTVALUE) new_value, i);
+    return 0;
+}
+        
+BASEMENTNODE toku_clone_bn(BASEMENTNODE orig_bn) {
+    BASEMENTNODE bn = toku_create_empty_bn_no_buffer();
+    bn->max_msn_applied = orig_bn->max_msn_applied;
+    bn->n_bytes_in_buffer = orig_bn->n_bytes_in_buffer;
+    bn->seqinsert = orig_bn->seqinsert;
+    bn->stale_ancestor_messages_applied = orig_bn->stale_ancestor_messages_applied;
+    bn->stat64_delta = orig_bn->stat64_delta;
+    toku_mempool_clone(&orig_bn->buffer_mempool, &bn->buffer_mempool);
+    toku_omt_clone_noptr(&bn->buffer, orig_bn->buffer);
+    struct mp_pair p;
+    p.orig_base = toku_mempool_get_base(&orig_bn->buffer_mempool);
+    p.new_base = toku_mempool_get_base(&bn->buffer_mempool);
+    p.omt = bn->buffer;
+    toku_omt_iterate(
+        bn->buffer,
+        fix_mp_offset,
+        &p
+        );
+    return bn;
+}
+
 BASEMENTNODE toku_create_empty_bn_no_buffer(void) {
     BASEMENTNODE XMALLOC(bn);
     bn->max_msn_applied.msn = 0;
@@ -1068,6 +1045,17 @@ NONLEAF_CHILDINFO toku_create_empty_nl(void) {
     return cn;
 }
 
+// does NOT create OMTs, just the FIFO
+NONLEAF_CHILDINFO toku_clone_nl(NONLEAF_CHILDINFO orig_childinfo) {
+    NONLEAF_CHILDINFO XMALLOC(cn);
+    cn->n_bytes_in_buffer = orig_childinfo->n_bytes_in_buffer;    
+    cn->fresh_message_tree = NULL;
+    cn->stale_message_tree = NULL;
+    cn->broadcast_list = NULL;
+    toku_fifo_clone(orig_childinfo->buffer, &cn->buffer);
+    return cn;
+}
+
 void destroy_basement_node (BASEMENTNODE bn)
 {
     // The buffer may have been freed already, in some cases.
@@ -1080,9 +1068,9 @@ void destroy_basement_node (BASEMENTNODE bn)
 void destroy_nonleaf_childinfo (NONLEAF_CHILDINFO nl)
 {
     toku_fifo_free(&nl->buffer);
-    toku_omt_destroy(&nl->fresh_message_tree);
-    toku_omt_destroy(&nl->stale_message_tree);
-    toku_omt_destroy(&nl->broadcast_list);
+    if (nl->fresh_message_tree) toku_omt_destroy(&nl->fresh_message_tree);
+    if (nl->stale_message_tree) toku_omt_destroy(&nl->stale_message_tree);
+    if (nl->broadcast_list) toku_omt_destroy(&nl->broadcast_list);
     toku_free(nl);
 }
 
@@ -1402,6 +1390,7 @@ check_and_copy_compressed_sub_block_worker(struct rbuf curr_rbuf, struct sub_blo
 }
 
 static int deserialize_brtnode_header_from_rbuf_if_small_enough (BRTNODE *brtnode,
+                                                                 BRTNODE_DISK_DATA* ndd, 
                                                                  BLOCKNUM blocknum,
                                                                  u_int32_t fullhash,
                                                                  struct brtnode_fetch_extra *bfe,
@@ -1455,10 +1444,11 @@ static int deserialize_brtnode_header_from_rbuf_if_small_enough (BRTNODE *brtnod
     }
 
     XMALLOC_N(node->n_children, node->bp);
+    *ndd = toku_xmalloc(node->n_children*sizeof(**ndd));
     // read the partition locations
     for (int i=0; i<node->n_children; i++) {
-        BP_START(node,i) = rbuf_int(rb);
-        BP_SIZE (node,i) = rbuf_int(rb);
+        BP_START(*ndd,i) = rbuf_int(rb);
+        BP_SIZE (*ndd,i) = rbuf_int(rb);
     }
 
     u_int32_t checksum = x1764_memory(rb->buf, rb->ndone);
@@ -1517,7 +1507,7 @@ static int deserialize_brtnode_header_from_rbuf_if_small_enough (BRTNODE *brtnod
 
     if (bfe->type != brtnode_fetch_none) {
         PAIR_ATTR attr;
-        toku_brtnode_pf_callback(node, bfe, fd, &attr);
+        toku_brtnode_pf_callback(node, *ndd, bfe, fd, &attr);
     }
     // handle clock
     for (int i = 0; i < node->n_children; i++) {
@@ -1532,6 +1522,7 @@ static int deserialize_brtnode_header_from_rbuf_if_small_enough (BRTNODE *brtnod
  cleanup:
     if (r!=0) {
 	if (node) {
+            toku_free(*ndd);
 	    toku_free(node->bp);
 	    toku_free(node);
 	}
@@ -1542,6 +1533,7 @@ static int deserialize_brtnode_header_from_rbuf_if_small_enough (BRTNODE *brtnod
 static int
 deserialize_brtnode_from_rbuf(
     BRTNODE *brtnode,
+    BRTNODE_DISK_DATA* ndd,
     BLOCKNUM blocknum,
     u_int32_t fullhash,
     struct brtnode_fetch_extra* bfe,
@@ -1577,10 +1569,11 @@ deserialize_brtnode_from_rbuf(
     node->build_id = rbuf_int(rb);
     node->n_children = rbuf_int(rb);
     XMALLOC_N(node->n_children, node->bp);
+    *ndd = toku_xmalloc(node->n_children*sizeof(**ndd));
     // read the partition locations
     for (int i=0; i<node->n_children; i++) {
-        BP_START(node,i) = rbuf_int(rb);
-        BP_SIZE (node,i) = rbuf_int(rb);
+        BP_START(*ndd,i) = rbuf_int(rb);
+        BP_SIZE (*ndd,i) = rbuf_int(rb);
     }
     // verify checksum of header stored
     u_int32_t checksum = x1764_memory(rb->buf, rb->ndone);
@@ -1609,8 +1602,8 @@ deserialize_brtnode_from_rbuf(
     // Previously, this code was a for loop with spawns inside and a sync at the end.
     // But now the loop is parallelizeable since we don't have a dependency on the work done so far.
     cilk_for (int i = 0; i < node->n_children; i++) {
-        u_int32_t curr_offset = BP_START(node,i);
-        u_int32_t curr_size   = BP_SIZE(node,i);
+        u_int32_t curr_offset = BP_START(*ndd,i);
+        u_int32_t curr_size   = BP_SIZE(*ndd,i);
         // the compressed, serialized partitions start at where rb is currently pointing,
         // which would be rb->buf + rb->ndone
         // we need to intialize curr_rbuf to point to this place
@@ -1665,7 +1658,7 @@ cleanup:
 }
 
 void
-toku_deserialize_bp_from_disk(BRTNODE node, int childnum, int fd, struct brtnode_fetch_extra* bfe) {
+toku_deserialize_bp_from_disk(BRTNODE node, BRTNODE_DISK_DATA ndd, int childnum, int fd, struct brtnode_fetch_extra* bfe) {
     assert(BP_STATE(node,childnum) == PT_ON_DISK);
     assert(node->bp[childnum].ptr.tag == BCT_NULL);
     
@@ -1687,8 +1680,8 @@ toku_deserialize_bp_from_disk(BRTNODE node, int childnum, int fd, struct brtnode
         &total_node_disk_size
         );
 
-    u_int32_t curr_offset = BP_START(node, childnum);
-    u_int32_t curr_size   = BP_SIZE (node, childnum);
+    u_int32_t curr_offset = BP_START(ndd, childnum);
+    u_int32_t curr_size   = BP_SIZE (ndd, childnum);
     struct rbuf rb = {.buf = NULL, .size = 0, .ndone = 0};
 
     u_int8_t *XMALLOC_N(curr_size, raw_block);
@@ -1738,6 +1731,7 @@ int toku_deserialize_brtnode_from (int fd,
 				   BLOCKNUM blocknum,
 				   u_int32_t fullhash,
 				   BRTNODE *brtnode,
+				   BRTNODE_DISK_DATA* ndd,
 				   struct brtnode_fetch_extra* bfe)
 // Effect: Read a node in.  If possible, read just the header.
 {
@@ -1746,7 +1740,7 @@ int toku_deserialize_brtnode_from (int fd,
     struct rbuf rb = RBUF_INITIALIZER;
     read_brtnode_header_from_fd_into_rbuf_if_small_enough(fd, blocknum, bfe->h, &rb);
 
-    int r = deserialize_brtnode_header_from_rbuf_if_small_enough(brtnode, blocknum, fullhash, bfe, &rb, fd);
+    int r = deserialize_brtnode_header_from_rbuf_if_small_enough(brtnode, ndd, blocknum, fullhash, bfe, &rb, fd);
     if (r != 0) {
 	toku_free(rb.buf);
 	rb = RBUF_INITIALIZER;
@@ -1756,7 +1750,7 @@ int toku_deserialize_brtnode_from (int fd,
 	r = read_block_from_fd_into_rbuf(fd, blocknum, bfe->h, &rb);
 	if (r != 0) { goto cleanup; } // if we were successful, then we are done.
 
-	r = deserialize_brtnode_from_rbuf(brtnode, blocknum, fullhash, bfe, &rb);
+	r = deserialize_brtnode_from_rbuf(brtnode, ndd, blocknum, fullhash, bfe, &rb);
 	if (r!=0) {
 	    dump_bad_block(rb.buf,rb.size);
 	}

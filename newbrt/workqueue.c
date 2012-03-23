@@ -16,10 +16,12 @@
 // Create fixed number of worker threads, all waiting on a single queue
 // of work items (WORKQUEUE).
 
-void toku_init_workers(WORKQUEUE wq, THREADPOOL *tpptr) {
+void toku_init_workers(WORKQUEUE wq, THREADPOOL *tpptr, int fraction) {
     workqueue_init(wq);
+    assert(fraction > 0);
     int nprocs = toku_os_get_number_active_processors();
-    int nthreads = nprocs*2;
+    int nthreads = (nprocs*2)/fraction;
+    if (nthreads == 0) nthreads = 1;
     toku_thread_pool_create(tpptr, nthreads);
     toku_thread_pool_run(*tpptr, 0, &nthreads, toku_worker, wq);
 }

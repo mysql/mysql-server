@@ -11,12 +11,14 @@ flush (CACHEFILE f __attribute__((__unused__)),
        int UU(fd),
        CACHEKEY k  __attribute__((__unused__)),
        void *v     __attribute__((__unused__)),
+       void** UU(dd),
        void *e     __attribute__((__unused__)),
        PAIR_ATTR s      __attribute__((__unused__)),
        PAIR_ATTR* new_size      __attribute__((__unused__)),
        BOOL w      __attribute__((__unused__)),
        BOOL keep   __attribute__((__unused__)),
-       BOOL c      __attribute__((__unused__))
+       BOOL c      __attribute__((__unused__)),
+        BOOL UU(is_clone)
        ) {
   /* Do nothing */
   if (verbose) { printf("FLUSH: %d\n", (int)k.b); }
@@ -28,6 +30,7 @@ fetch (CACHEFILE f        __attribute__((__unused__)),
        CACHEKEY k         __attribute__((__unused__)),
        u_int32_t fullhash __attribute__((__unused__)),
        void **value,
+       void** UU(dd),
        PAIR_ATTR *sizep,
        int  *dirtyp,
        void *extraargs
@@ -41,6 +44,7 @@ fetch (CACHEFILE f        __attribute__((__unused__)),
 static void 
 pe_est_callback(
     void* UU(brtnode_pv), 
+    void* UU(dd),
     long* bytes_freed_estimate, 
     enum partial_eviction_cost *cost, 
     void* UU(write_extraargs)
@@ -120,6 +124,7 @@ cachetable_test (void) {
       wc, 
       fetch, 
       def_pf_req_callback, def_pf_callback, 
+      TRUE, 
       &val1
       );
   r = toku_cachetable_unpin(f1, make_blocknum(1), 1, CACHETABLE_CLEAN, make_pair_attr(8));

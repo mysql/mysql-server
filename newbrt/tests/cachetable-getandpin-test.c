@@ -7,12 +7,14 @@ flush (CACHEFILE cf     __attribute__((__unused__)),
        int UU(fd),
        CACHEKEY key     __attribute__((__unused__)),
        void *v          __attribute__((__unused__)),
+       void** UU(dd),
        void *extraargs  __attribute__((__unused__)),
        PAIR_ATTR size        __attribute__((__unused__)),
        PAIR_ATTR* new_size      __attribute__((__unused__)),
        BOOL write_me    __attribute__((__unused__)),
        BOOL keep_me     __attribute__((__unused__)),
-       BOOL for_checkpoint    __attribute__((__unused__))
+       BOOL for_checkpoint    __attribute__((__unused__)),
+        BOOL UU(is_clone)
        ) {
     assert((long) key.b == size.size);
     if (!keep_me) toku_free(v);
@@ -25,6 +27,7 @@ fetch (
     CACHEKEY key, 
     u_int32_t hash, 
     void **vptr, 
+    void** UU(dd),
     PAIR_ATTR *sizep, 
     int *dirtyp, 
     void *extra
@@ -57,7 +60,7 @@ cachetable_getandpin_test (int n) {
         void *v; long size;
         CACHETABLE_WRITE_CALLBACK wc = def_write_callback(NULL);
         wc.flush_callback = flush;
-        r = toku_cachetable_get_and_pin(f1, make_blocknum(i), hi, &v, &size, wc, fetch, def_pf_req_callback, def_pf_callback, 0);
+        r = toku_cachetable_get_and_pin(f1, make_blocknum(i), hi, &v, &size, wc, fetch, def_pf_req_callback, def_pf_callback, TRUE, 0);
         assert(r == 0);
         assert(size == i);
 

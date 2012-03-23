@@ -13,12 +13,14 @@ flush (CACHEFILE f __attribute__((__unused__)),
        int UU(fd),
        CACHEKEY k  __attribute__((__unused__)),
        void *v     __attribute__((__unused__)),
+       void** UU(dd),
        void *e     __attribute__((__unused__)),
        PAIR_ATTR s      __attribute__((__unused__)),
        PAIR_ATTR* new_size      __attribute__((__unused__)),
        BOOL w      __attribute__((__unused__)),
        BOOL keep   __attribute__((__unused__)),
-       BOOL c      __attribute__((__unused__))
+       BOOL c      __attribute__((__unused__)),
+        BOOL UU(is_clone)
        ) {
     if (do_sleep) {
         sleep(2);
@@ -59,6 +61,7 @@ static void cachetable_predef_fetch_maybegetandpin_test (void) {
             def_fetch,
             def_pf_req_callback,
             def_pf_callback,
+            TRUE, 
             0
             );
         assert(r==0);
@@ -83,6 +86,7 @@ static void cachetable_predef_fetch_maybegetandpin_test (void) {
         def_fetch,
         def_pf_req_callback,
         def_pf_callback,
+        TRUE, 
         0
         );
     assert(r==0);
@@ -95,9 +99,9 @@ static void cachetable_predef_fetch_maybegetandpin_test (void) {
     // now verify that the block we are trying to evict may be pinned
     wc = def_write_callback(NULL);
     wc.flush_callback = flush;
-    r = toku_cachetable_get_and_pin_nonblocking(f1, key, fullhash, &v, &size, wc, def_fetch, def_pf_req_callback, def_pf_callback, NULL, NULL);
+    r = toku_cachetable_get_and_pin_nonblocking(f1, key, fullhash, &v, &size, wc, def_fetch, def_pf_req_callback, def_pf_callback, TRUE, NULL, NULL);
     assert(r == TOKUDB_TRY_AGAIN);
-    r = toku_cachetable_get_and_pin(f1, key, fullhash, &v, &size, wc, def_fetch, def_pf_req_callback, def_pf_callback, NULL);
+    r = toku_cachetable_get_and_pin(f1, key, fullhash, &v, &size, wc, def_fetch, def_pf_req_callback, def_pf_callback, TRUE, NULL);
     assert(r == 0 && v == 0 && size == 8);
     do_sleep = FALSE;
 

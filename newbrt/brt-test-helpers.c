@@ -98,6 +98,7 @@ int toku_testsetup_get_sersize(BRT brt, BLOCKNUM diskoff) // Return the size on 
         toku_brtnode_fetch_callback,
         toku_brtnode_pf_req_callback,
         toku_brtnode_pf_callback,
+        TRUE,
         &bfe
         );
     assert(r==0);
@@ -124,6 +125,7 @@ int toku_testsetup_insert_to_leaf (BRT brt, BLOCKNUM blocknum, char *key, int ke
 	toku_brtnode_fetch_callback,
         toku_brtnode_pf_req_callback,
         toku_brtnode_pf_callback,
+        TRUE,
 	&bfe
 	);
     if (r!=0) return r;
@@ -172,6 +174,7 @@ toku_pin_node_with_min_bfe(BRTNODE* node, BLOCKNUM b, BRT t)
         b,
         toku_cachetable_hash(t->h->cf, b),
         &bfe,
+        TRUE,
         0,
         NULL,
         node
@@ -196,6 +199,7 @@ int toku_testsetup_insert_to_nonleaf (BRT brt, BLOCKNUM blocknum, enum brt_msg_t
 	toku_brtnode_fetch_callback,
         toku_brtnode_pf_req_callback,
         toku_brtnode_pf_callback,
+        TRUE,
 	&bfe
         );
     if (r!=0) return r;

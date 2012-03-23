@@ -2806,7 +2806,8 @@ static void finish_leafnode (struct dbout *out, struct leaf_buf *lbuf, int progr
     // serialize leaf to buffer
     size_t serialized_leaf_size = 0;
     char *serialized_leaf = NULL;
-    result = toku_serialize_brtnode_to_memory(lbuf->node, target_basementnodesize, &serialized_leaf_size, &serialized_leaf);
+    BRTNODE_DISK_DATA ndd = NULL;
+    result = toku_serialize_brtnode_to_memory(lbuf->node, &ndd, target_basementnodesize, TRUE, &serialized_leaf_size, &serialized_leaf);
 
     // write it out
     if (result == 0) {
@@ -2822,8 +2823,10 @@ static void finish_leafnode (struct dbout *out, struct leaf_buf *lbuf, int progr
     }
 
     // free the node
-    if (serialized_leaf)
+    if (serialized_leaf) {
+        toku_free(ndd);
         toku_free(serialized_leaf);
+    }
     toku_brtnode_free(&lbuf->node);
     xids_destroy(&lbuf->xids);
     toku_free(lbuf);
@@ -3015,11 +3018,12 @@ static void write_nonleaf_node (BRTLOADER bl, struct dbout *out, int64_t blocknu
         BP_STATE(node,i) = PT_AVAIL;
     }
 
+    BRTNODE_DISK_DATA ndd = NULL;
     if (result == 0) {
         size_t n_bytes;
         char *bytes;
         int r;
-        r = toku_serialize_brtnode_to_memory(node, target_basementnodesize, &n_bytes, &bytes);
+        r = toku_serialize_brtnode_to_memory(node, &ndd, target_basementnodesize, TRUE, &n_bytes, &bytes);
         if (r) {
             result = r;
         } else {
@@ -3049,6 +3053,7 @@ static void write_nonleaf_node (BRTLOADER bl, struct dbout *out, int64_t blocknu
     toku_free(node->bp);
     toku_free(node->childkeys);
     toku_free(node);
+    toku_free(ndd);
     toku_free(subtree_info);
 
     blocknum_of_new_node = blocknum_of_new_node;

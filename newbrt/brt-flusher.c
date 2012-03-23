@@ -400,7 +400,7 @@ ct_maybe_merge_child(struct flusher_advice *fa,
             CACHEKEY *rootp = toku_calculate_root_offset_pointer(h, &fullhash);
             struct brtnode_fetch_extra bfe;
             fill_bfe_for_full_read(&bfe, h);
-            toku_pin_brtnode_off_client_thread(h, *rootp, fullhash, &bfe, 0,NULL, &root_node);
+            toku_pin_brtnode_off_client_thread(h, *rootp, fullhash, &bfe, TRUE, 0, NULL, &root_node);
             toku_assert_entire_node_in_memory(root_node);
 
             toku_brtheader_release_treelock(h);
@@ -512,8 +512,6 @@ handle_split_of_child(
     BP_BLOCKNUM(node, childnum+1) = childb->thisnodename;
     BP_WORKDONE(node, childnum+1)  = 0;
     BP_STATE(node,childnum+1) = PT_AVAIL;
-    BP_START(node,childnum+1) = 0;
-    BP_SIZE(node,childnum+1) = 0;
 
     set_BNC(node, childnum+1, toku_create_empty_nl());
 
@@ -824,8 +822,6 @@ brtleaf_split(
             for (int i = 0; i < num_children_in_b; i++) {
                 BP_BLOCKNUM(B,i).b = 0;
                 BP_STATE(B,i) = PT_AVAIL;
-                BP_START(B,i) = 0;
-                BP_SIZE(B,i) = 0;
                 BP_WORKDONE(B,i) = 0;
                 set_BLB(B, i, toku_create_empty_bn());
             }
@@ -1361,7 +1357,7 @@ brt_merge_child(
         u_int32_t childfullhash = compute_child_fullhash(h->cf, node, childnuma);
         struct brtnode_fetch_extra bfe;
         fill_bfe_for_full_read(&bfe, h);
-        toku_pin_brtnode_off_client_thread(h, BP_BLOCKNUM(node, childnuma), childfullhash, &bfe, 1, &node, &childa);
+        toku_pin_brtnode_off_client_thread(h, BP_BLOCKNUM(node, childnuma), childfullhash, &bfe, TRUE, 1, &node, &childa);
     }
     // for test
     call_flusher_thread_callback(ft_flush_before_pin_second_node_for_merge);
@@ -1372,7 +1368,7 @@ brt_merge_child(
         u_int32_t childfullhash = compute_child_fullhash(h->cf, node, childnumb);
         struct brtnode_fetch_extra bfe;
         fill_bfe_for_full_read(&bfe, h);
-        toku_pin_brtnode_off_client_thread(h, BP_BLOCKNUM(node, childnumb), childfullhash, &bfe, 2, dep_nodes, &childb);
+        toku_pin_brtnode_off_client_thread(h, BP_BLOCKNUM(node, childnumb), childfullhash, &bfe, TRUE, 2, dep_nodes, &childb);
     }
 
     if (toku_bnc_n_entries(BNC(node,childnuma))>0) {
@@ -1498,7 +1494,7 @@ flush_some_child(
     // Note that we don't read the entire node into memory yet.
     // The idea is let's try to do the minimum work before releasing the parent lock
     fill_bfe_for_min_read(&bfe, h);
-    toku_pin_brtnode_off_client_thread(h, targetchild, childfullhash, &bfe, 1, &parent, &child);
+    toku_pin_brtnode_off_client_thread(h, targetchild, childfullhash, &bfe, TRUE, 1, &parent, &child);
 
     // for test
     call_flusher_thread_callback(ft_flush_after_child_pin);

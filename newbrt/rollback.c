@@ -492,8 +492,8 @@ toku_rollback_log_free(ROLLBACK_LOG_NODE *log_p) {
 }
 
 static void toku_rollback_flush_callback (CACHEFILE cachefile, int fd, BLOCKNUM logname,
-                                          void *rollback_v, void *extraargs, PAIR_ATTR size, PAIR_ATTR* new_size,
-                                          BOOL write_me, BOOL keep_me, BOOL for_checkpoint) {
+                                          void *rollback_v,  void** UU(disk_data), void *extraargs, PAIR_ATTR size, PAIR_ATTR* new_size,
+                                          BOOL write_me, BOOL keep_me, BOOL for_checkpoint, BOOL UU(is_clone)) {
     int r;
     ROLLBACK_LOG_NODE  log = rollback_v;
     struct brt_header *h   = extraargs;
@@ -524,7 +524,7 @@ static void toku_rollback_flush_callback (CACHEFILE cachefile, int fd, BLOCKNUM 
 }
 
 static int toku_rollback_fetch_callback (CACHEFILE cachefile, int fd, BLOCKNUM logname, u_int32_t fullhash,
-					 void **rollback_pv, PAIR_ATTR *sizep, int * UU(dirtyp), void *extraargs) {
+					 void **rollback_pv,  void** UU(disk_data), PAIR_ATTR *sizep, int * UU(dirtyp), void *extraargs) {
     int r;
     struct brt_header *h = extraargs;
     assert(h->cf == cachefile);
@@ -539,6 +539,7 @@ static int toku_rollback_fetch_callback (CACHEFILE cachefile, int fd, BLOCKNUM l
 
 static void toku_rollback_pe_est_callback(
     void* rollback_v, 
+    void* UU(disk_data),
     long* bytes_freed_estimate, 
     enum partial_eviction_cost *cost, 
     void* UU(write_extraargs)
@@ -565,7 +566,7 @@ static BOOL toku_rollback_pf_req_callback(void* UU(brtnode_pv), void* UU(read_ex
     return FALSE;
 }
 
-static int toku_rollback_pf_callback(void* UU(brtnode_pv), void* UU(read_extraargs), int UU(fd), PAIR_ATTR* UU(sizep)) {
+static int toku_rollback_pf_callback(void* UU(brtnode_pv),  void* UU(disk_data), void* UU(read_extraargs), int UU(fd), PAIR_ATTR* UU(sizep)) {
     // should never be called, given that toku_rollback_pf_req_callback always returns false
     assert(FALSE);
     return 0;
@@ -588,6 +589,7 @@ static inline CACHETABLE_WRITE_CALLBACK get_write_callbacks_for_rollback_log(str
     wc.pe_est_callback = toku_rollback_pe_est_callback;
     wc.pe_callback = toku_rollback_pe_callback;
     wc.cleaner_callback = toku_rollback_cleaner_callback;
+    wc.clone_callback = NULL;
     wc.write_extraargs = h;
     return wc;
 }
@@ -873,6 +875,7 @@ int toku_get_and_pin_rollback_log(TOKUTXN txn, TXNID xid, uint64_t sequence, BLO
                                         toku_rollback_fetch_callback,
                                         toku_rollback_pf_req_callback,
                                         toku_rollback_pf_callback,
+                                        TRUE, // may_modify_value
                                         h
                                         );
         assert(r==0);

@@ -166,6 +166,7 @@ doit (void) {
         node_leaf,
         toku_cachetable_hash(brt->h->cf, node_leaf),
         &bfe,
+        TRUE, 
         0,
         NULL,
         &node
@@ -194,6 +195,7 @@ doit (void) {
         node_leaf,
         toku_cachetable_hash(brt->h->cf, node_leaf),
         &bfe,
+        TRUE, 
         0,
         NULL,
         &node
@@ -213,6 +215,7 @@ doit (void) {
         node_internal,
         toku_cachetable_hash(brt->h->cf, node_internal),
         &bfe,
+        TRUE, 
         0,
         NULL,
         &node
@@ -236,6 +239,7 @@ doit (void) {
         node_internal,
         toku_cachetable_hash(brt->h->cf, node_internal),
         &bfe,
+        TRUE, 
         0,
         NULL,
         &node

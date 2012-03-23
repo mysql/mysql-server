@@ -36,24 +36,26 @@ test_prefetch_read(int fd, BRT UU(brt), struct brt_header *brt_h) {
     // disable_prefetching to TRUE
     cursor->disable_prefetching = TRUE;
     fill_bfe_for_prefetch(&bfe, brt_h, cursor);
-    r = toku_deserialize_brtnode_from(fd, make_blocknum(20), 0/*pass zero for hash*/, &dn, &bfe);
+    BRTNODE_DISK_DATA ndd = NULL;
+    r = toku_deserialize_brtnode_from(fd, make_blocknum(20), 0/*pass zero for hash*/, &dn, &ndd, &bfe);
     assert(r==0);
     assert(dn->n_children == 3);
     assert(BP_STATE(dn,0) == PT_ON_DISK);
     assert(BP_STATE(dn,1) == PT_ON_DISK);
     assert(BP_STATE(dn,2) == PT_ON_DISK);
-    r = toku_brtnode_pf_callback(dn, &bfe, fd, &attr);
+    r = toku_brtnode_pf_callback(dn, ndd, &bfe, fd, &attr);
     assert(BP_STATE(dn,0) == PT_ON_DISK);
     assert(BP_STATE(dn,1) == PT_ON_DISK);
     assert(BP_STATE(dn,2) == PT_ON_DISK);
     destroy_bfe_for_prefetch(&bfe);
     toku_brtnode_free(&dn);
+    toku_free(ndd);
 
     // now enable prefetching again
     cursor->disable_prefetching = FALSE;
     
     fill_bfe_for_prefetch(&bfe, brt_h, cursor);
-    r = toku_deserialize_brtnode_from(fd, make_blocknum(20), 0/*pass zero for hash*/, &dn, &bfe);
+    r = toku_deserialize_brtnode_from(fd, make_blocknum(20), 0/*pass zero for hash*/, &dn, &ndd, &bfe);
     assert(r==0);
     assert(dn->n_children == 3);
     assert(BP_STATE(dn,0) == PT_AVAIL);
@@ -63,18 +65,19 @@ test_prefetch_read(int fd, BRT UU(brt), struct brt_header *brt_h) {
     assert(BP_STATE(dn,0) == PT_COMPRESSED);
     assert(BP_STATE(dn,1) == PT_COMPRESSED);
     assert(BP_STATE(dn,2) == PT_COMPRESSED);
-    r = toku_brtnode_pf_callback(dn, &bfe, fd, &attr);
+    r = toku_brtnode_pf_callback(dn, ndd, &bfe, fd, &attr);
     assert(BP_STATE(dn,0) == PT_AVAIL);
     assert(BP_STATE(dn,1) == PT_AVAIL);
     assert(BP_STATE(dn,2) == PT_AVAIL);
     destroy_bfe_for_prefetch(&bfe);
     toku_brtnode_free(&dn);
+    toku_free(ndd);
 
     u_int64_t left_key = 150;
     toku_fill_dbt(&cursor->range_lock_left_key, &left_key, sizeof(u_int64_t));
     cursor->left_is_neg_infty = FALSE;
     fill_bfe_for_prefetch(&bfe, brt_h, cursor);
-    r = toku_deserialize_brtnode_from(fd, make_blocknum(20), 0/*pass zero for hash*/, &dn, &bfe);
+    r = toku_deserialize_brtnode_from(fd, make_blocknum(20), 0/*pass zero for hash*/, &dn, &ndd, &bfe);
     assert(r==0);
     assert(dn->n_children == 3);
     assert(BP_STATE(dn,0) == PT_ON_DISK);
@@ -84,18 +87,19 @@ test_prefetch_read(int fd, BRT UU(brt), struct brt_header *brt_h) {
     assert(BP_STATE(dn,0) == PT_ON_DISK);
     assert(BP_STATE(dn,1) == PT_COMPRESSED);
     assert(BP_STATE(dn,2) == PT_COMPRESSED);
-    r = toku_brtnode_pf_callback(dn, &bfe, fd, &attr);
+    r = toku_brtnode_pf_callback(dn, ndd, &bfe, fd, &attr);
     assert(BP_STATE(dn,0) == PT_ON_DISK);
     assert(BP_STATE(dn,1) == PT_AVAIL);
     assert(BP_STATE(dn,2) == PT_AVAIL);
     destroy_bfe_for_prefetch(&bfe);
     toku_brtnode_free(&dn);
+    toku_free(ndd);
 
     u_int64_t right_key = 151;
     toku_fill_dbt(&cursor->range_lock_right_key, &right_key, sizeof(u_int64_t));
     cursor->right_is_pos_infty = FALSE;
     fill_bfe_for_prefetch(&bfe, brt_h, cursor);
-    r = toku_deserialize_brtnode_from(fd, make_blocknum(20), 0/*pass zero for hash*/, &dn, &bfe);
+    r = toku_deserialize_brtnode_from(fd, make_blocknum(20), 0/*pass zero for hash*/, &dn, &ndd, &bfe);
     assert(r==0);
     assert(dn->n_children == 3);
     assert(BP_STATE(dn,0) == PT_ON_DISK);
@@ -105,17 +109,18 @@ test_prefetch_read(int fd, BRT UU(brt), struct brt_header *brt_h) {
     assert(BP_STATE(dn,0) == PT_ON_DISK);
     assert(BP_STATE(dn,1) == PT_COMPRESSED);
     assert(BP_STATE(dn,2) == PT_ON_DISK);
-    r = toku_brtnode_pf_callback(dn, &bfe, fd, &attr);
+    r = toku_brtnode_pf_callback(dn, ndd, &bfe, fd, &attr);
     assert(BP_STATE(dn,0) == PT_ON_DISK);
     assert(BP_STATE(dn,1) == PT_AVAIL);
     assert(BP_STATE(dn,2) == PT_ON_DISK);
     destroy_bfe_for_prefetch(&bfe);
     toku_brtnode_free(&dn);
+    toku_free(ndd);
 
     left_key = 100000;
     right_key = 100000;
     fill_bfe_for_prefetch(&bfe, brt_h, cursor);
-    r = toku_deserialize_brtnode_from(fd, make_blocknum(20), 0/*pass zero for hash*/, &dn, &bfe);
+    r = toku_deserialize_brtnode_from(fd, make_blocknum(20), 0/*pass zero for hash*/, &dn, &ndd, &bfe);
     assert(r==0);
     assert(dn->n_children == 3);
     assert(BP_STATE(dn,0) == PT_ON_DISK);
@@ -125,17 +130,18 @@ test_prefetch_read(int fd, BRT UU(brt), struct brt_header *brt_h) {
     assert(BP_STATE(dn,0) == PT_ON_DISK);
     assert(BP_STATE(dn,1) == PT_ON_DISK);
     assert(BP_STATE(dn,2) == PT_COMPRESSED);
-    r = toku_brtnode_pf_callback(dn, &bfe, fd, &attr);
+    r = toku_brtnode_pf_callback(dn, ndd, &bfe, fd, &attr);
     assert(BP_STATE(dn,0) == PT_ON_DISK);
     assert(BP_STATE(dn,1) == PT_ON_DISK);
     assert(BP_STATE(dn,2) == PT_AVAIL);
     destroy_bfe_for_prefetch(&bfe);
+    toku_free(ndd);
     toku_brtnode_free(&dn);
 
     left_key = 100;
     right_key = 100;
     fill_bfe_for_prefetch(&bfe, brt_h, cursor);
-    r = toku_deserialize_brtnode_from(fd, make_blocknum(20), 0/*pass zero for hash*/, &dn, &bfe);
+    r = toku_deserialize_brtnode_from(fd, make_blocknum(20), 0/*pass zero for hash*/, &dn, &ndd, &bfe);
     assert(r==0);
     assert(dn->n_children == 3);
     assert(BP_STATE(dn,0) == PT_AVAIL);
@@ -145,12 +151,13 @@ test_prefetch_read(int fd, BRT UU(brt), struct brt_header *brt_h) {
     assert(BP_STATE(dn,0) == PT_COMPRESSED);
     assert(BP_STATE(dn,1) == PT_ON_DISK);
     assert(BP_STATE(dn,2) == PT_ON_DISK);
-    r = toku_brtnode_pf_callback(dn, &bfe, fd, &attr);
+    r = toku_brtnode_pf_callback(dn, ndd, &bfe, fd, &attr);
     assert(BP_STATE(dn,0) == PT_AVAIL);
     assert(BP_STATE(dn,1) == PT_ON_DISK);
     assert(BP_STATE(dn,2) == PT_ON_DISK);
     destroy_bfe_for_prefetch(&bfe);
     toku_brtnode_free(&dn);
+    toku_free(ndd);
 
     toku_free(cursor);
 }
@@ -161,6 +168,7 @@ test_subset_read(int fd, BRT UU(brt), struct brt_header *brt_h) {
     brt_h->compare_fun = int64_key_cmp;    
     BRT_CURSOR cursor = toku_malloc(sizeof *cursor);
     BRTNODE dn = NULL;
+    BRTNODE_DISK_DATA ndd = NULL;
     PAIR_ATTR attr;
     
     // first test that prefetching everything should work
@@ -191,7 +199,7 @@ test_subset_read(int fd, BRT UU(brt), struct brt_header *brt_h) {
     // set disable_prefetching ON
     bfe.child_to_read = 2;
     bfe.disable_prefetching = TRUE;
-    r = toku_deserialize_brtnode_from(fd, make_blocknum(20), 0/*pass zero for hash*/, &dn, &bfe);
+    r = toku_deserialize_brtnode_from(fd, make_blocknum(20), 0/*pass zero for hash*/, &dn, &ndd, &bfe);
     assert(r==0);
     assert(dn->n_children == 3);
     assert(BP_STATE(dn,0) == PT_ON_DISK);
@@ -206,16 +214,17 @@ test_subset_read(int fd, BRT UU(brt), struct brt_header *brt_h) {
     assert(BP_STATE(dn,0) == PT_ON_DISK);
     assert(BP_STATE(dn,1) == PT_ON_DISK);
     assert(BP_STATE(dn,2) == PT_COMPRESSED);
-    r = toku_brtnode_pf_callback(dn, &bfe, fd, &attr);
+    r = toku_brtnode_pf_callback(dn, ndd, &bfe, fd, &attr);
     assert(BP_STATE(dn,0) == PT_ON_DISK);
     assert(BP_STATE(dn,1) == PT_ON_DISK);
     assert(BP_STATE(dn,2) == PT_AVAIL);
     toku_brtnode_free(&dn);
+    toku_free(ndd);
 
     // fake the childnum to read
     bfe.child_to_read = 2;
     bfe.disable_prefetching = FALSE;
-    r = toku_deserialize_brtnode_from(fd, make_blocknum(20), 0/*pass zero for hash*/, &dn, &bfe);
+    r = toku_deserialize_brtnode_from(fd, make_blocknum(20), 0/*pass zero for hash*/, &dn, &ndd, &bfe);
     assert(r==0);
     assert(dn->n_children == 3);
     assert(BP_STATE(dn,0) == PT_ON_DISK);
@@ -230,15 +239,16 @@ test_subset_read(int fd, BRT UU(brt), struct brt_header *brt_h) {
     assert(BP_STATE(dn,0) == PT_ON_DISK);
     assert(BP_STATE(dn,1) == PT_COMPRESSED);
     assert(BP_STATE(dn,2) == PT_COMPRESSED);
-    r = toku_brtnode_pf_callback(dn, &bfe, fd, &attr);
+    r = toku_brtnode_pf_callback(dn, ndd, &bfe, fd, &attr);
     assert(BP_STATE(dn,0) == PT_ON_DISK);
     assert(BP_STATE(dn,1) == PT_AVAIL);
     assert(BP_STATE(dn,2) == PT_AVAIL);
     toku_brtnode_free(&dn);
+    toku_free(ndd);
 
     // fake the childnum to read
     bfe.child_to_read = 0;
-    r = toku_deserialize_brtnode_from(fd, make_blocknum(20), 0/*pass zero for hash*/, &dn, &bfe);
+    r = toku_deserialize_brtnode_from(fd, make_blocknum(20), 0/*pass zero for hash*/, &dn, &ndd, &bfe);
     assert(r==0);
     assert(dn->n_children == 3);
     assert(BP_STATE(dn,0) == PT_AVAIL);
@@ -253,11 +263,12 @@ test_subset_read(int fd, BRT UU(brt), struct brt_header *brt_h) {
     assert(BP_STATE(dn,0) == PT_COMPRESSED);
     assert(BP_STATE(dn,1) == PT_COMPRESSED);
     assert(BP_STATE(dn,2) == PT_ON_DISK);
-    r = toku_brtnode_pf_callback(dn, &bfe, fd, &attr);
+    r = toku_brtnode_pf_callback(dn, ndd, &bfe, fd, &attr);
     assert(BP_STATE(dn,0) == PT_AVAIL);
     assert(BP_STATE(dn,1) == PT_AVAIL);
     assert(BP_STATE(dn,2) == PT_ON_DISK);
     toku_brtnode_free(&dn);
+    toku_free(ndd);
 
     toku_free(cursor);
 }
@@ -345,8 +356,8 @@ test_prefetching(void) {
         assert(offset == BLOCK_ALLOCATOR_TOTAL_HEADER_RESERVE);
         assert(size   == 100);
     }
-
-    r = toku_serialize_brtnode_to(fd, make_blocknum(20), &sn, brt->h, 1, 1, FALSE);
+    BRTNODE_DISK_DATA ndd = NULL;
+    r = toku_serialize_brtnode_to(fd, make_blocknum(20), &sn, &ndd, TRUE, brt->h, 1, 1, FALSE);
     assert(r==0);
 
     test_prefetch_read(fd, brt, brt_h);    
@@ -365,6 +376,7 @@ test_prefetching(void) {
     toku_blocktable_destroy(&brt_h->blocktable);
     toku_free(brt_h);
     toku_free(brt);
+    toku_free(ndd);
 
     r = close(fd); assert(r != -1);
 }

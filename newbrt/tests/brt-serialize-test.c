@@ -102,19 +102,19 @@ string_key_cmp(DB *UU(e), const DBT *a, const DBT *b)
 }
 
 static void
-setup_dn(enum brtnode_verify_type bft, int fd, struct brt_header *brt_h, BRTNODE *dn) {
+setup_dn(enum brtnode_verify_type bft, int fd, struct brt_header *brt_h, BRTNODE *dn, BRTNODE_DISK_DATA* ndd) {
     int r;
     brt_h->compare_fun = string_key_cmp;
     if (bft == read_all) {
         struct brtnode_fetch_extra bfe;
         fill_bfe_for_full_read(&bfe, brt_h);
-        r = toku_deserialize_brtnode_from(fd, make_blocknum(20), 0/*pass zero for hash*/, dn, &bfe);
+        r = toku_deserialize_brtnode_from(fd, make_blocknum(20), 0/*pass zero for hash*/, dn, ndd, &bfe);
         assert(r==0);
     }
     else if (bft == read_compressed || bft == read_none) {
         struct brtnode_fetch_extra bfe;
         fill_bfe_for_min_read(&bfe, brt_h);
-        r = toku_deserialize_brtnode_from(fd, make_blocknum(20), 0/*pass zero for hash*/, dn, &bfe);
+        r = toku_deserialize_brtnode_from(fd, make_blocknum(20), 0/*pass zero for hash*/, dn, ndd, &bfe);
         assert(r==0);
         // assert all bp's are compressed or on disk.
         for (int i = 0; i < (*dn)->n_children; i++) {
@@ -143,7 +143,7 @@ setup_dn(enum brtnode_verify_type bft, int fd, struct brt_header *brt_h, BRTNODE
                 PAIR_ATTR attr;
                 fill_bfe_for_full_read(&bfe, brt_h);
                 assert(toku_brtnode_pf_req_callback(*dn, &bfe));
-                r = toku_brtnode_pf_callback(*dn, &bfe, fd, &attr);
+                r = toku_brtnode_pf_callback(*dn, *ndd, &bfe, fd, &attr);
                 assert(r==0);
                 // assert all bp's are available
                 for (int i = 0; i < (*dn)->n_children; i++) {
@@ -166,7 +166,7 @@ setup_dn(enum brtnode_verify_type bft, int fd, struct brt_header *brt_h, BRTNODE
         fill_bfe_for_full_read(&bfe, brt_h);
         assert(toku_brtnode_pf_req_callback(*dn, &bfe));
         PAIR_ATTR attr;
-        r = toku_brtnode_pf_callback(*dn, &bfe, fd, &attr);
+        r = toku_brtnode_pf_callback(*dn, *ndd, &bfe, fd, &attr);
         assert(r==0);
         // assert all bp's are available
         for (int i = 0; i < (*dn)->n_children; i++) {
@@ -180,8 +180,25 @@ setup_dn(enum brtnode_verify_type bft, int fd, struct brt_header *brt_h, BRTNODE
     }
 }
 
+static void write_sn_to_disk(int fd, BRT brt, BRTNODE sn, BRTNODE_DISK_DATA* src_ndd, BOOL do_clone) {
+    int r;
+    if (do_clone) {
+        void* cloned_node_v = NULL;
+        PAIR_ATTR attr;
+        toku_brtnode_clone_callback(sn, &cloned_node_v, &attr, FALSE, brt->h);
+        BRTNODE cloned_node = cloned_node_v;
+        r = toku_serialize_brtnode_to(fd, make_blocknum(20), cloned_node, src_ndd, FALSE, brt->h, 1, 1, FALSE);
+        assert(r==0);        
+        toku_brtnode_free(&cloned_node);
+    }
+    else {
+        r = toku_serialize_brtnode_to(fd, make_blocknum(20), sn, src_ndd, TRUE, brt->h, 1, 1, FALSE);
+        assert(r==0);
+    }
+}
+
 static void
-test_serialize_leaf_check_msn(enum brtnode_verify_type bft) {
+test_serialize_leaf_check_msn(enum brtnode_verify_type bft, BOOL do_clone) {
     //    struct brt source_brt;
     const int nodesize = 1024;
     struct brtnode sn, *dn;
@@ -256,11 +273,12 @@ test_serialize_leaf_check_msn(enum brtnode_verify_type bft) {
         assert(offset == BLOCK_ALLOCATOR_TOTAL_HEADER_RESERVE);
         assert(size   == 100);
     }
+    BRTNODE_DISK_DATA src_ndd = NULL;
+    BRTNODE_DISK_DATA dest_ndd = NULL;
 
-    r = toku_serialize_brtnode_to(fd, make_blocknum(20), &sn, brt->h, 1, 1, FALSE);
-    assert(r==0);
+    write_sn_to_disk(fd, brt, &sn, &src_ndd, do_clone);
 
-    setup_dn(bft, fd, brt_h, &dn);
+    setup_dn(bft, fd, brt_h, &dn, &dest_ndd);
 
     assert(dn->thisnodename.b==20);
 
@@ -285,10 +303,10 @@ test_serialize_leaf_check_msn(enum brtnode_verify_type bft) {
         u_int32_t last_i = 0;
         for (u_int32_t i = 0; i < npartitions; ++i) {
             assert(BLB_MAX_MSN_APPLIED(dn, i).msn == POSTSERIALIZE_MSN_ON_DISK.msn);
-            assert(dn->bp[i].start > 0);
-            assert(dn->bp[i].size  > 0);
+            assert(dest_ndd[i].start > 0);
+            assert(dest_ndd[i].size  > 0);
             if (i > 0) {
-                assert(dn->bp[i].start >= dn->bp[i-1].start + dn->bp[i-1].size);
+                assert(dest_ndd[i].start >= dest_ndd[i-1].start + dest_ndd[i-1].size);
             }
             toku_omt_iterate(BLB_BUFFER(dn, i), check_leafentries, &extra);
             u_int32_t keylen;
@@ -308,9 +326,9 @@ test_serialize_leaf_check_msn(enum brtnode_verify_type bft) {
         kv_pair_free(sn.childkeys[i]);
     }
     for (int i = 0; i < sn.n_children; i++) {
-	BASEMENTNODE bn = BLB(&sn, i);
-	struct mempool * mp = &bn->buffer_mempool;
-	toku_mempool_destroy(mp);
+        BASEMENTNODE bn = BLB(&sn, i);
+        struct mempool * mp = &bn->buffer_mempool;
+        toku_mempool_destroy(mp);
         destroy_basement_node(BLB(&sn, i));
     }
     toku_free(sn.bp);
@@ -321,12 +339,14 @@ test_serialize_leaf_check_msn(enum brtnode_verify_type bft) {
     toku_brtheader_destroy_treelock(brt_h);
     toku_free(brt_h);
     toku_free(brt);
+    toku_free(src_ndd);
+    toku_free(dest_ndd);
 
     r = close(fd); assert(r != -1);
 }
 
 static void
-test_serialize_leaf_with_large_pivots(enum brtnode_verify_type bft) {
+test_serialize_leaf_with_large_pivots(enum brtnode_verify_type bft, BOOL do_clone) {
     int r;
     struct brtnode sn, *dn;
     const int keylens = 256*1024, vallens = 0, nrows = 8;
@@ -396,11 +416,12 @@ test_serialize_leaf_with_large_pivots(enum brtnode_verify_type bft) {
         assert(offset == BLOCK_ALLOCATOR_TOTAL_HEADER_RESERVE);
         assert(size   == 100);
     }
+    BRTNODE_DISK_DATA src_ndd = NULL;
+    BRTNODE_DISK_DATA dest_ndd = NULL;
 
-    r = toku_serialize_brtnode_to(fd, make_blocknum(20), &sn, brt->h, 1, 1, FALSE);
-    assert(r==0);
+    write_sn_to_disk(fd, brt, &sn, &src_ndd, do_clone);
 
-    setup_dn(bft, fd, brt_h, &dn);
+    setup_dn(bft, fd, brt_h, &dn, &dest_ndd);
     
     assert(dn->thisnodename.b==20);
 
@@ -428,10 +449,10 @@ test_serialize_leaf_with_large_pivots(enum brtnode_verify_type bft) {
         struct check_leafentries_struct extra = { .nelts = nrows, .elts = les, .i = 0, .cmp = omt_cmp };
         u_int32_t last_i = 0;
         for (u_int32_t i = 0; i < npartitions; ++i) {
-            assert(dn->bp[i].start > 0);
-            assert(dn->bp[i].size  > 0);
+            assert(dest_ndd[i].start > 0);
+            assert(dest_ndd[i].size  > 0);
             if (i > 0) {
-                assert(dn->bp[i].start >= dn->bp[i-1].start + dn->bp[i-1].size);
+                assert(dest_ndd[i].start >= dest_ndd[i-1].start + dest_ndd[i-1].size);
             }
             assert(toku_omt_size(BLB_BUFFER(dn, i)) > 0);
             toku_omt_iterate(BLB_BUFFER(dn, i), check_leafentries, &extra);
@@ -461,12 +482,14 @@ test_serialize_leaf_with_large_pivots(enum brtnode_verify_type bft) {
     toku_brtheader_destroy_treelock(brt_h);
     toku_free(brt_h);
     toku_free(brt);
+    toku_free(src_ndd);
+    toku_free(dest_ndd);
 
     r = close(fd); assert(r != -1);
 }
 
 static void
-test_serialize_leaf_with_many_rows(enum brtnode_verify_type bft) {
+test_serialize_leaf_with_many_rows(enum brtnode_verify_type bft, BOOL do_clone) {
     int r;
     struct brtnode sn, *dn;
     const int keylens = sizeof(int), vallens = sizeof(int), nrows = 196*1024;
@@ -533,10 +556,11 @@ test_serialize_leaf_with_many_rows(enum brtnode_verify_type bft) {
         assert(size   == 100);
     }
 
-    r = toku_serialize_brtnode_to(fd, make_blocknum(20), &sn, brt->h, 1, 1, FALSE);
-    assert(r==0);
+    BRTNODE_DISK_DATA src_ndd = NULL;
+    BRTNODE_DISK_DATA dest_ndd = NULL;
+    write_sn_to_disk(fd, brt, &sn, &src_ndd, do_clone);
 
-    setup_dn(bft, fd, brt_h, &dn);
+    setup_dn(bft, fd, brt_h, &dn, &dest_ndd);
 
     assert(dn->thisnodename.b==20);
 
@@ -561,10 +585,10 @@ test_serialize_leaf_with_many_rows(enum brtnode_verify_type bft) {
         struct check_leafentries_struct extra = { .nelts = nrows, .elts = les, .i = 0, .cmp = omt_int_cmp };
         u_int32_t last_i = 0;
         for (u_int32_t i = 0; i < npartitions; ++i) {
-            assert(dn->bp[i].start > 0);
-            assert(dn->bp[i].size  > 0);
+            assert(dest_ndd[i].start > 0);
+            assert(dest_ndd[i].size  > 0);
             if (i > 0) {
-                assert(dn->bp[i].start >= dn->bp[i-1].start + dn->bp[i-1].size);
+                assert(dest_ndd[i].start >= dest_ndd[i-1].start + dest_ndd[i-1].size);
             }
             assert(toku_omt_size(BLB_BUFFER(dn, i)) > 0);
             toku_omt_iterate(BLB_BUFFER(dn, i), check_leafentries, &extra);
@@ -595,13 +619,15 @@ test_serialize_leaf_with_many_rows(enum brtnode_verify_type bft) {
     toku_brtheader_destroy_treelock(brt_h);
     toku_free(brt_h);
     toku_free(brt);
+    toku_free(src_ndd);
+    toku_free(dest_ndd);
 
     r = close(fd); assert(r != -1);
 }
 
 
 static void
-test_serialize_leaf_with_large_rows(enum brtnode_verify_type bft) {
+test_serialize_leaf_with_large_rows(enum brtnode_verify_type bft, BOOL do_clone) {
     int r;
     struct brtnode sn, *dn;
     const uint32_t nrows = 7;
@@ -674,10 +700,11 @@ test_serialize_leaf_with_large_rows(enum brtnode_verify_type bft) {
         assert(size   == 100);
     }
 
-    r = toku_serialize_brtnode_to(fd, make_blocknum(20), &sn, brt->h, 1, 1, FALSE);
-    assert(r==0);
+    BRTNODE_DISK_DATA src_ndd = NULL;
+    BRTNODE_DISK_DATA dest_ndd = NULL;
+    write_sn_to_disk(fd, brt, &sn, &src_ndd, do_clone);
 
-    setup_dn(bft, fd, brt_h, &dn);
+    setup_dn(bft, fd, brt_h, &dn, &dest_ndd);
 
     assert(dn->thisnodename.b==20);
 
@@ -708,10 +735,10 @@ test_serialize_leaf_with_large_rows(enum brtnode_verify_type bft) {
         struct check_leafentries_struct extra = { .nelts = nrows, .elts = les, .i = 0, .cmp = omt_cmp };
         u_int32_t last_i = 0;
         for (u_int32_t i = 0; i < npartitions; ++i) {
-            assert(dn->bp[i].start > 0);
-            assert(dn->bp[i].size  > 0);
+            assert(dest_ndd[i].start > 0);
+            assert(dest_ndd[i].size  > 0);
             if (i > 0) {
-                assert(dn->bp[i].start >= dn->bp[i-1].start + dn->bp[i-1].size);
+                assert(dest_ndd[i].start >= dest_ndd[i-1].start + dest_ndd[i-1].size);
             }
             assert(toku_omt_size(BLB_BUFFER(dn, i)) > 0);
             toku_omt_iterate(BLB_BUFFER(dn, i), check_leafentries, &extra);
@@ -741,13 +768,15 @@ test_serialize_leaf_with_large_rows(enum brtnode_verify_type bft) {
     toku_brtheader_destroy_treelock(brt_h);
     toku_free(brt_h);
     toku_free(brt);
+    toku_free(src_ndd);
+    toku_free(dest_ndd);
 
     r = close(fd); assert(r != -1);
 }
 
 
 static void
-test_serialize_leaf_with_empty_basement_nodes(enum brtnode_verify_type bft) {
+test_serialize_leaf_with_empty_basement_nodes(enum brtnode_verify_type bft, BOOL do_clone) {
     const int nodesize = 1024;
     struct brtnode sn, *dn;
 
@@ -830,11 +859,11 @@ test_serialize_leaf_with_empty_basement_nodes(enum brtnode_verify_type bft) {
         assert(offset == BLOCK_ALLOCATOR_TOTAL_HEADER_RESERVE);
         assert(size   == 100);
     }
+    BRTNODE_DISK_DATA src_ndd = NULL;
+    BRTNODE_DISK_DATA dest_ndd = NULL;
+    write_sn_to_disk(fd, brt, &sn, &src_ndd, do_clone);
 
-    r = toku_serialize_brtnode_to(fd, make_blocknum(20), &sn, brt->h, 1, 1, FALSE);
-    assert(r==0);
-
-    setup_dn(bft, fd, brt_h, &dn);
+    setup_dn(bft, fd, brt_h, &dn, &dest_ndd);
 
     assert(dn->thisnodename.b==20);
 
@@ -857,10 +886,10 @@ test_serialize_leaf_with_empty_basement_nodes(enum brtnode_verify_type bft) {
         struct check_leafentries_struct extra = { .nelts = 3, .elts = elts, .i = 0, .cmp = omt_cmp };
         u_int32_t last_i = 0;
         for (u_int32_t i = 0; i < npartitions; ++i) {
-            assert(dn->bp[i].start > 0);
-            assert(dn->bp[i].size  > 0);
+            assert(dest_ndd[i].start > 0);
+            assert(dest_ndd[i].size  > 0);
             if (i > 0) {
-                assert(dn->bp[i].start >= dn->bp[i-1].start + dn->bp[i-1].size);
+                assert(dest_ndd[i].start >= dest_ndd[i-1].start + dest_ndd[i-1].size);
             }
             assert(toku_omt_size(BLB_BUFFER(dn, i)) > 0);
             toku_omt_iterate(BLB_BUFFER(dn, i), check_leafentries, &extra);
@@ -890,12 +919,14 @@ test_serialize_leaf_with_empty_basement_nodes(enum brtnode_verify_type bft) {
     toku_brtheader_destroy_treelock(brt_h);
     toku_free(brt_h);
     toku_free(brt);
+    toku_free(src_ndd);
+    toku_free(dest_ndd);
 
     r = close(fd); assert(r != -1);
 }
 
 static void
-test_serialize_leaf_with_multiple_empty_basement_nodes(enum brtnode_verify_type bft) {
+test_serialize_leaf_with_multiple_empty_basement_nodes(enum brtnode_verify_type bft, BOOL do_clone) {
     const int nodesize = 1024;
     struct brtnode sn, *dn;
 
@@ -954,10 +985,11 @@ test_serialize_leaf_with_multiple_empty_basement_nodes(enum brtnode_verify_type 
         assert(size   == 100);
     }
 
-    r = toku_serialize_brtnode_to(fd, make_blocknum(20), &sn, brt->h, 1, 1, FALSE);
-    assert(r==0);
+    BRTNODE_DISK_DATA src_ndd = NULL;
+    BRTNODE_DISK_DATA dest_ndd = NULL;
+    write_sn_to_disk(fd, brt, &sn, &src_ndd, do_clone);
 
-    setup_dn(bft, fd, brt_h, &dn);
+    setup_dn(bft, fd, brt_h, &dn, &dest_ndd);
 
     assert(dn->thisnodename.b==20);
 
@@ -973,10 +1005,10 @@ test_serialize_leaf_with_multiple_empty_basement_nodes(enum brtnode_verify_type 
         struct check_leafentries_struct extra = { .nelts = 0, .elts = NULL, .i = 0, .cmp = omt_cmp };
         u_int32_t last_i = 0;
         for (u_int32_t i = 0; i < npartitions; ++i) {
-            assert(dn->bp[i].start > 0);
-            assert(dn->bp[i].size  > 0);
+            assert(dest_ndd[i].start > 0);
+            assert(dest_ndd[i].size  > 0);
             if (i > 0) {
-                assert(dn->bp[i].start >= dn->bp[i-1].start + dn->bp[i-1].size);
+                assert(dest_ndd[i].start >= dest_ndd[i-1].start + dest_ndd[i-1].size);
             }
             assert(toku_omt_size(BLB_BUFFER(dn, i)) == 0);
             toku_omt_iterate(BLB_BUFFER(dn, i), check_leafentries, &extra);
@@ -1002,13 +1034,15 @@ test_serialize_leaf_with_multiple_empty_basement_nodes(enum brtnode_verify_type 
     toku_brtheader_destroy_treelock(brt_h);
     toku_free(brt_h);
     toku_free(brt);
+    toku_free(src_ndd);
+    toku_free(dest_ndd);
 
     r = close(fd); assert(r != -1);
 }
 
 
 static void
-test_serialize_leaf(enum brtnode_verify_type bft) {
+test_serialize_leaf(enum brtnode_verify_type bft, BOOL do_clone) {
     //    struct brt source_brt;
     const int nodesize = 1024;
     struct brtnode sn, *dn;
@@ -1016,6 +1050,8 @@ test_serialize_leaf(enum brtnode_verify_type bft) {
     int fd = open(__FILE__ ".brt", O_RDWR|O_CREAT|O_BINARY, S_IRWXU|S_IRWXG|S_IRWXO); assert(fd >= 0);
 
     int r;
+    BRTNODE_DISK_DATA src_ndd = NULL;
+    BRTNODE_DISK_DATA dest_ndd = NULL;
 
     sn.max_msn_applied_to_node_on_disk.msn = 0;
     sn.nodesize = nodesize;
@@ -1079,10 +1115,9 @@ test_serialize_leaf(enum brtnode_verify_type bft) {
         assert(size   == 100);
     }
 
-    r = toku_serialize_brtnode_to(fd, make_blocknum(20), &sn, brt->h, 1, 1, FALSE);
-    assert(r==0);
+    write_sn_to_disk(fd, brt, &sn, &src_ndd, do_clone);
 
-    setup_dn(bft, fd, brt_h, &dn);
+    setup_dn(bft, fd, brt_h, &dn, &dest_ndd);
 
     assert(dn->thisnodename.b==20);
 
@@ -1105,10 +1140,10 @@ test_serialize_leaf(enum brtnode_verify_type bft) {
         struct check_leafentries_struct extra = { .nelts = 3, .elts = elts, .i = 0, .cmp = omt_cmp };
         u_int32_t last_i = 0;
         for (u_int32_t i = 0; i < npartitions; ++i) {
-            assert(dn->bp[i].start > 0);
-            assert(dn->bp[i].size  > 0);
+            assert(dest_ndd[i].start > 0);
+            assert(dest_ndd[i].size  > 0);
             if (i > 0) {
-                assert(dn->bp[i].start >= dn->bp[i-1].start + dn->bp[i-1].size);
+                assert(dest_ndd[i].start >= dest_ndd[i-1].start + dest_ndd[i-1].size);
             }
             toku_omt_iterate(BLB_BUFFER(dn, i), check_leafentries, &extra);
             u_int32_t keylen;
@@ -1141,12 +1176,14 @@ test_serialize_leaf(enum brtnode_verify_type bft) {
     toku_brtheader_destroy_treelock(brt_h);
     toku_free(brt_h);
     toku_free(brt);
+    toku_free(src_ndd);
+    toku_free(dest_ndd);
 
     r = close(fd); assert(r != -1);
 }
 
 static void
-test_serialize_nonleaf(enum brtnode_verify_type bft) {
+test_serialize_nonleaf(enum brtnode_verify_type bft, BOOL do_clone) {
     //    struct brt source_brt;
     const int nodesize = 1024;
     struct brtnode sn, *dn;
@@ -1222,11 +1259,11 @@ test_serialize_nonleaf(enum brtnode_verify_type bft) {
         assert(offset == BLOCK_ALLOCATOR_TOTAL_HEADER_RESERVE);
         assert(size   == 100);
     }
+    BRTNODE_DISK_DATA src_ndd = NULL;
+    BRTNODE_DISK_DATA dest_ndd = NULL;
+    write_sn_to_disk(fd, brt, &sn, &src_ndd, do_clone);
 
-    r = toku_serialize_brtnode_to(fd, make_blocknum(20), &sn, brt->h, 1, 1, FALSE);
-    assert(r==0);
-
-    setup_dn(bft, fd, brt_h, &dn);
+    setup_dn(bft, fd, brt_h, &dn, &dest_ndd);
 
     assert(dn->thisnodename.b==20);
 
@@ -1339,43 +1376,69 @@ test_serialize_nonleaf(enum brtnode_verify_type bft) {
     toku_brtheader_destroy_treelock(brt_h);
     toku_free(brt_h);
     toku_free(brt);
+    toku_free(src_ndd);
+    toku_free(dest_ndd);
 
     r = close(fd); assert(r != -1);
 }
 
 int
 test_main (int argc __attribute__((__unused__)), const char *argv[] __attribute__((__unused__))) {
-    test_serialize_leaf(read_none);
-    test_serialize_leaf(read_all);
-    test_serialize_leaf(read_compressed);
+    test_serialize_leaf(read_none, FALSE);
+    test_serialize_leaf(read_all, FALSE);
+    test_serialize_leaf(read_compressed, FALSE);
+    test_serialize_leaf(read_none, TRUE);
+    test_serialize_leaf(read_all, TRUE);
+    test_serialize_leaf(read_compressed, TRUE);
 
-    test_serialize_leaf_with_empty_basement_nodes(read_none);
-    test_serialize_leaf_with_empty_basement_nodes(read_all);
-    test_serialize_leaf_with_empty_basement_nodes(read_compressed);
+    test_serialize_leaf_with_empty_basement_nodes(read_none, FALSE);
+    test_serialize_leaf_with_empty_basement_nodes(read_all, FALSE);
+    test_serialize_leaf_with_empty_basement_nodes(read_compressed, FALSE);
+    test_serialize_leaf_with_empty_basement_nodes(read_none, TRUE);
+    test_serialize_leaf_with_empty_basement_nodes(read_all, TRUE);
+    test_serialize_leaf_with_empty_basement_nodes(read_compressed, TRUE);
 
-    test_serialize_leaf_with_multiple_empty_basement_nodes(read_none);
-    test_serialize_leaf_with_multiple_empty_basement_nodes(read_all);
-    test_serialize_leaf_with_multiple_empty_basement_nodes(read_compressed);
+    test_serialize_leaf_with_multiple_empty_basement_nodes(read_none, FALSE);
+    test_serialize_leaf_with_multiple_empty_basement_nodes(read_all, FALSE);
+    test_serialize_leaf_with_multiple_empty_basement_nodes(read_compressed, FALSE);
+    test_serialize_leaf_with_multiple_empty_basement_nodes(read_none, TRUE);
+    test_serialize_leaf_with_multiple_empty_basement_nodes(read_all, TRUE);
+    test_serialize_leaf_with_multiple_empty_basement_nodes(read_compressed, TRUE);
 
-    test_serialize_leaf_with_large_rows(read_none);
-    test_serialize_leaf_with_large_rows(read_all);
-    test_serialize_leaf_with_large_rows(read_compressed);
+    test_serialize_leaf_with_large_rows(read_none, FALSE);
+    test_serialize_leaf_with_large_rows(read_all, FALSE);
+    test_serialize_leaf_with_large_rows(read_compressed, FALSE);
+    test_serialize_leaf_with_large_rows(read_none, TRUE);
+    test_serialize_leaf_with_large_rows(read_all, TRUE);
+    test_serialize_leaf_with_large_rows(read_compressed, TRUE);
 
-    test_serialize_leaf_with_many_rows(read_none);
-    test_serialize_leaf_with_many_rows(read_all);
-    test_serialize_leaf_with_many_rows(read_compressed);
+    test_serialize_leaf_with_many_rows(read_none, FALSE);
+    test_serialize_leaf_with_many_rows(read_all, FALSE);
+    test_serialize_leaf_with_many_rows(read_compressed, FALSE);
+    test_serialize_leaf_with_many_rows(read_none, TRUE);
+    test_serialize_leaf_with_many_rows(read_all, TRUE);
+    test_serialize_leaf_with_many_rows(read_compressed, TRUE);
 
-    test_serialize_leaf_with_large_pivots(read_none);
-    test_serialize_leaf_with_large_pivots(read_all);
-    test_serialize_leaf_with_large_pivots(read_compressed);
+    test_serialize_leaf_with_large_pivots(read_none, FALSE);
+    test_serialize_leaf_with_large_pivots(read_all, FALSE);
+    test_serialize_leaf_with_large_pivots(read_compressed, FALSE);
+    test_serialize_leaf_with_large_pivots(read_none, TRUE);
+    test_serialize_leaf_with_large_pivots(read_all, TRUE);
+    test_serialize_leaf_with_large_pivots(read_compressed, TRUE);
 
-    test_serialize_leaf_check_msn(read_none);
-    test_serialize_leaf_check_msn(read_all);
-    test_serialize_leaf_check_msn(read_compressed);
+    test_serialize_leaf_check_msn(read_none, FALSE);
+    test_serialize_leaf_check_msn(read_all, FALSE);
+    test_serialize_leaf_check_msn(read_compressed, FALSE);
+    test_serialize_leaf_check_msn(read_none, TRUE);
+    test_serialize_leaf_check_msn(read_all, TRUE);
+    test_serialize_leaf_check_msn(read_compressed, TRUE);
 
-    test_serialize_nonleaf(read_none);
-    test_serialize_nonleaf(read_all);
-    test_serialize_nonleaf(read_compressed);
+    test_serialize_nonleaf(read_none, FALSE);
+    test_serialize_nonleaf(read_all, FALSE);
+    test_serialize_nonleaf(read_compressed, FALSE);
+    test_serialize_nonleaf(read_none, TRUE);
+    test_serialize_nonleaf(read_all, TRUE);
+    test_serialize_nonleaf(read_compressed, TRUE);
 
     return 0;
 }

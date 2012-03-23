@@ -130,14 +130,14 @@ enum cachetable_dirty {
 // When for_checkpoint is true, this was a 'pending' write
 // Returns: 0 if success, otherwise an error number.
 // Can access fd (fd is protected by a readlock during call)
-typedef void (*CACHETABLE_FLUSH_CALLBACK)(CACHEFILE, int fd, CACHEKEY key, void *value, void *write_extraargs, PAIR_ATTR size, PAIR_ATTR* new_size, BOOL write_me, BOOL keep_me, BOOL for_checkpoint);
+typedef void (*CACHETABLE_FLUSH_CALLBACK)(CACHEFILE, int fd, CACHEKEY key, void *value, void **disk_data, void *write_extraargs, PAIR_ATTR size, PAIR_ATTR* new_size, BOOL write_me, BOOL keep_me, BOOL for_checkpoint, BOOL is_clone);
 
 // The fetch callback is called when a thread is attempting to get and pin a memory
 // object and it is not in the cachetable.
 // Returns: 0 if success, otherwise an error number.  The address and size of the object
 // associated with the key are returned.
 // Can access fd (fd is protected by a readlock during call)
-typedef int (*CACHETABLE_FETCH_CALLBACK)(CACHEFILE, int fd, CACHEKEY key, u_int32_t fullhash, void **value, PAIR_ATTR *sizep, int *dirtyp, void *read_extraargs);
+typedef int (*CACHETABLE_FETCH_CALLBACK)(CACHEFILE, int fd, CACHEKEY key, u_int32_t fullhash, void **value_data, void **disk_data, PAIR_ATTR *sizep, int *dirtyp, void *read_extraargs);
 
 // The cachetable calls the partial eviction estimate callback to determine if 
 // partial eviction is a cheap operation that may be called by on the client thread
@@ -147,7 +147,7 @@ typedef int (*CACHETABLE_FETCH_CALLBACK)(CACHEFILE, int fd, CACHEKEY key, u_int3
 // to return an estimate of the number of bytes it will free
 // so that the cachetable can estimate how much data is being evicted on background threads.
 // If cost is PE_CHEAP, then the callback does not set bytes_freed_estimate.
-typedef void (*CACHETABLE_PARTIAL_EVICTION_EST_CALLBACK)(void *brtnode_pv, long* bytes_freed_estimate, enum partial_eviction_cost *cost, void *write_extraargs);
+typedef void (*CACHETABLE_PARTIAL_EVICTION_EST_CALLBACK)(void *brtnode_pv, void* disk_data, long* bytes_freed_estimate, enum partial_eviction_cost *cost, void *write_extraargs);
 
 // The cachetable calls the partial eviction callback is to possibly try and partially evict pieces
 // of the PAIR. The callback determines the strategy for what to evict. The callback may choose to free
@@ -173,16 +173,19 @@ typedef BOOL (*CACHETABLE_PARTIAL_FETCH_REQUIRED_CALLBACK)(void *brtnode_pv, voi
 // The new PAIR_ATTR of the PAIR is returned in sizep
 // Can access fd (fd is protected by a readlock during call)
 // Returns: 0 if success, otherwise an error number.  
-typedef int (*CACHETABLE_PARTIAL_FETCH_CALLBACK)(void *brtnode_pv, void *read_extraargs, int fd, PAIR_ATTR *sizep);
+typedef int (*CACHETABLE_PARTIAL_FETCH_CALLBACK)(void *value_data, void* disk_data, void *read_extraargs, int fd, PAIR_ATTR *sizep);
 
 // TODO(leif) XXX TODO XXX
 typedef int (*CACHETABLE_CLEANER_CALLBACK)(void *brtnode_pv, BLOCKNUM blocknum, u_int32_t fullhash, void *write_extraargs);
+
+typedef void (*CACHETABLE_CLONE_CALLBACK)(void* value_data, void** cloned_value_data, PAIR_ATTR* new_attr, BOOL for_checkpoint, void* write_extraargs);
 
 typedef struct {
     CACHETABLE_FLUSH_CALLBACK flush_callback;
     CACHETABLE_PARTIAL_EVICTION_EST_CALLBACK pe_est_callback;
     CACHETABLE_PARTIAL_EVICTION_CALLBACK pe_callback; 
     CACHETABLE_CLEANER_CALLBACK cleaner_callback;
+    CACHETABLE_CLONE_CALLBACK clone_callback;
     void* write_extraargs; // parameter for flush_callback, pe_est_callback, pe_callback, and cleaner_callback
 } CACHETABLE_WRITE_CALLBACK;
 
@@ -262,6 +265,7 @@ int toku_cachetable_get_and_pin_with_dep_pairs (
     CACHETABLE_FETCH_CALLBACK fetch_callback, 
     CACHETABLE_PARTIAL_FETCH_REQUIRED_CALLBACK pf_req_callback,
     CACHETABLE_PARTIAL_FETCH_CALLBACK pf_callback,
+    BOOL may_modify_value,
     void* read_extraargs, // parameter for fetch_callback, pf_req_callback, and pf_callback
     u_int32_t num_dependent_pairs, // number of dependent pairs that we may need to checkpoint
     CACHEFILE* dependent_cfs, // array of cachefiles of dependent pairs
@@ -286,8 +290,19 @@ int toku_cachetable_get_and_pin (
     CACHETABLE_FETCH_CALLBACK fetch_callback, 
     CACHETABLE_PARTIAL_FETCH_REQUIRED_CALLBACK pf_req_callback,
     CACHETABLE_PARTIAL_FETCH_CALLBACK pf_callback,
+    BOOL may_modify_value,
     void* read_extraargs // parameter for fetch_callback, pf_req_callback, and pf_callback
     );
+
+// does partial fetch on a pinned pair
+void toku_cachetable_pf_pinned_pair(
+    void* value,
+    CACHETABLE_PARTIAL_FETCH_CALLBACK pf_callback,
+    void* read_extraargs,
+    CACHEFILE cf,
+    CACHEKEY key,
+    u_int32_t fullhash
+    ); 
 
 struct unlockers {
     BOOL       locked;
@@ -309,6 +324,7 @@ int toku_cachetable_get_and_pin_nonblocking (
     CACHETABLE_FETCH_CALLBACK fetch_callback, 
     CACHETABLE_PARTIAL_FETCH_REQUIRED_CALLBACK pf_req_callback  __attribute__((unused)),
     CACHETABLE_PARTIAL_FETCH_CALLBACK pf_callback  __attribute__((unused)),
+    BOOL may_modify_value,
     void *read_extraargs, // parameter for fetch_callback, pf_req_callback, and pf_callback
     UNLOCKERS unlockers
     );
