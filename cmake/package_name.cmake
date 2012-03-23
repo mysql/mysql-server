@@ -116,8 +116,15 @@ IF(NOT VERSION)
     SET(PRODUCT_TAG)
   ENDIF()
 
-  SET(package_name "mysql${PRODUCT_TAG}-${VERSION}-${SYSTEM_NAME_AND_PROCESSOR}")
-  
+  IF("${VERSION}" MATCHES "-ndb-")
+    STRING(REGEX REPLACE "^.*-ndb-" "" NDBVERSION "${VERSION}")
+    SET(package_name "mysql-cluster${PRODUCT_TAG}-${NDBVERSION}-${SYSTEM_NAME_AND_PROCESSOR}")
+  ELSE()
+    SET(package_name "mysql${PRODUCT_TAG}-${VERSION}-${SYSTEM_NAME_AND_PROCESSOR}")
+  ENDIF()
+
+  MESSAGE("-- Packaging as: ${package_name}")
+
   # Sometimes package suffix is added (something like "-icc-glibc23")
   IF(PACKAGE_SUFFIX)
     SET(package_name "${package_name}${PACKAGE_SUFFIX}")
