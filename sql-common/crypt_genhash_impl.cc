@@ -8,6 +8,7 @@
 #include <limits.h>
 #ifdef HAVE_YASSL
 #include <sha.hpp>
+#include <openssl/ssl.h>
 #else
 #include <sys/types.h>
 #include <openssl/sha.h>
