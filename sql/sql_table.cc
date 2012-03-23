@@ -4934,6 +4934,7 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table, TABLE_LIST* src_table,
     the original table. This is documented behavior.
   */
   local_create_info.data_file_name= local_create_info.index_file_name= NULL;
+  local_create_info.alias= create_info->alias;
 
   if ((res= mysql_create_table_no_lock(thd, table->db, table->table_name,
                                        &local_create_info, &local_alter_info,
