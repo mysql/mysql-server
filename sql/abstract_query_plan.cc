@@ -63,22 +63,6 @@ namespace AQP
     return m_join_tabs + join_tab_no;
   }
 
-  bool
-  Join_plan::group_by_filesort_is_skippable() const
-  {
-    const JOIN* const join= m_join_tabs->join;
-    return (join->group_list && join->simple_group && 
-            join->ordered_index_usage==JOIN::ordered_index_group_by);
-  }
-
-  bool
-  Join_plan::order_by_filesort_is_skippable() const
-  {
-    const JOIN* const join= m_join_tabs->join;
-    return (join->order && join->simple_order && 
-            join->ordered_index_usage==JOIN::ordered_index_order_by);
-  }
-
   /**
     Determine join type between this table access and some other table
     access that preceeds it in the join plan..
@@ -308,7 +292,12 @@ namespace AQP
         "'PROCEDURE'-clause post processing cannot be pushed.";
       DBUG_VOID_RETURN;
     }
-    
+
+    /**
+     * OLEJA: I think this restriction can be removed
+     * now as WL5558 and other changes has cleaned up the 
+     * ORDER/GROUP BY optimize + execute path.
+     */
     if (join->group_list && !join->tmp_table_param.quick_group)
     {
       m_access_type= AT_OTHER;

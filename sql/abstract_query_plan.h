@@ -71,14 +71,6 @@ namespace AQP
 
     uint get_access_count() const;
 
-    /**
-      Can filesort(), normally required by execution of GROUP BY 
-      or ORDER BY, be skipped due to the columns already being
-      accessible in required sorted order.
-    */
-    bool group_by_filesort_is_skippable() const;
-    bool order_by_filesort_is_skippable() const;
-
   private:
     /** 
       Array of the JOIN_TABs that are the internal representation of table

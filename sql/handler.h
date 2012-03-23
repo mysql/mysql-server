@@ -863,7 +863,7 @@ struct handlerton
 
 #ifndef MCP_WL4784
    int (*make_pushed_join)(handlerton *hton, THD* thd, 
-                           AQP::Join_plan* plan,
+                           const AQP::Join_plan* plan,
                            uint* pushed);
 #endif
 #ifndef MCP_GLOBAL_SCHEMA_LOCK
@@ -2790,7 +2790,7 @@ int ha_release_savepoint(THD *thd, SAVEPOINT *sv);
 
 #ifndef MCP_WL4784
 /* Build pushed joins in handlers implementing this feature */
-int ha_make_pushed_joins(THD *thd, AQP::Join_plan* plan, uint* pushed);
+int ha_make_pushed_joins(THD *thd, const AQP::Join_plan* plan, uint* pushed);
 #endif
 
 /* these are called by storage engines */

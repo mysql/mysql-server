@@ -786,14 +786,14 @@ explain extended
     (x.a <= 2 or (x.a,x.b) in ((0,0),(5,0),(4,3))) and
     y.a=x.d and y.b=x.b;
 
-# Test ORDER BY expressons
+# Test ORDER BY expressions
 # Filesort on pushed joins are not possible as the
 # read of rows to be filesorted will also prefetch rows from pushed child
 # operands. These are not cached by the filesort buffer mechanisnm and are
 # effectively lost.
 # With pushed joins we either has to:
 #  1)  find a suitable ordered index which we can create an ordered indexscan on 
-#  (-> joinType() -> JT_NExT, or type: 'index' w/ explain)
+#  (-> joinType() -> JT_NEXT, or type: 'index' w/ explain)
 #  or:
 # 2) Use a temporary result file for the result, which is then filesort'ed
 #  (-> 'Using temporary; Using filesort')

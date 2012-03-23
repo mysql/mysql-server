@@ -950,6 +950,17 @@ JOIN::optimize()
 #ifndef MCP_WL4784
   if (make_pushed_join(thd, this))
     DBUG_RETURN(1);
+
+  {
+    int active_pushed_joins= 0;
+    for (uint i= this->const_tables; i < this->tables; i++)
+    {
+      JOIN_TAB *const tab= this->join_tab+i;
+      pick_table_access_method (tab, &active_pushed_joins);
+    }
+    /* Ensure all (if any) pushed joins were processed. */
+    DBUG_ASSERT(!active_pushed_joins);
+  }
 #endif
 
   tmp_having= having;
@@ -984,6 +995,17 @@ setup_subq_exit:
 }
 
 #ifndef MCP_WL4784
+/**
+  Push join to handler, if possible. Currently this is only supported by
+  NDB.
+
+  @note If it happens so that handler can't do ordering this function
+  will force tmp table creation and resolving ORDER/GROUP BY by filesort.
+
+  @returns
+    0      ok, join isn't pushed or pushed without errors.
+    error  handler's error otherwise
+*/
 static int
 make_pushed_join(THD *thd, JOIN *join)
 {
@@ -1004,12 +1026,14 @@ make_pushed_join(THD *thd, JOIN *join)
   if (join->const_tables < join->tables &&
       join->join_tab[join->const_tables].table->file->number_of_pushed_joins() > 0)
   {
-    if (join->group_list && join->simple_group && !plan.group_by_filesort_is_skippable())
+    if (join->group_list && join->simple_group && 
+        join->ordered_index_usage!=JOIN::ordered_index_group_by)
     {
       join->need_tmp= 1;
       join->simple_order= join->simple_group= 0;
     }
-    else if (join->order && join->simple_order && !plan.order_by_filesort_is_skippable())
+    else if (join->order && join->simple_order && 
+             join->ordered_index_usage!=JOIN::ordered_index_order_by)
     {
       join->need_tmp= 1;
       join->simple_order= join->simple_group= 0;

@@ -4347,9 +4347,9 @@ int ha_table_exists_in_engine(THD* thd, const char* db, const char* name)
 */
 struct st_make_pushed_join_args
 {
-  AQP::Join_plan* plan;  // Query plan provided by optimizer
-  uint pushed;           // #operations which was pushed.
-  int err;               // Error code to return.
+  const AQP::Join_plan* plan; // Query plan provided by optimizer
+  uint pushed;                // #operations which was pushed.
+  int err;                    // Error code to return.
 };
 
 static my_bool make_pushed_join_handlerton(THD *thd, plugin_ref plugin,
@@ -4372,7 +4372,7 @@ static my_bool make_pushed_join_handlerton(THD *thd, plugin_ref plugin,
   return FALSE;
 }
 
-int ha_make_pushed_joins(THD *thd, AQP::Join_plan* plan, uint* pushed)
+int ha_make_pushed_joins(THD *thd, const AQP::Join_plan* plan, uint* pushed)
 {
   DBUG_ENTER("ha_make_pushed_joins");
   st_make_pushed_join_args args= {plan, 0, 0};

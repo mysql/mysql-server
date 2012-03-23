@@ -2633,7 +2633,13 @@ make_join_readinfo(JOIN *join, ulonglong options, uint no_jbuf_after)
     tab->sorted= (tab->type != JT_EQ_REF) ? sorted : false;
     sorted= false;                              // only first must be sorted
     table->status= STATUS_GARBAGE | STATUS_NOT_FOUND;
+#ifndef MCP_WL4784
+    tab->read_first_record= NULL; // Access methods not set yet
+    tab->read_record.read_record= NULL;
+    tab->read_record.unlock_row= rr_unlock_row;
+#else
     pick_table_access_method (tab);
+#endif
 
     Opt_trace_object trace_refine_table(trace);
     trace_refine_table.add_utf8_table(table);
@@ -3830,7 +3836,9 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
             goto use_filesort;
 
           DBUG_ASSERT(tab->type != JT_REF_OR_NULL && tab->type != JT_FT);
+#ifdef MCP_WL4784
           pick_table_access_method(tab);
+#endif
 	}
 	else
 	{
