@@ -30,6 +30,7 @@ set @@global.slave_net_timeout= 10;
 # default period slave_net_timeout/2
 #
 --replace_result $MASTER_MYPORT MASTER_PORT
+--replace_column 2 ####
 eval change master to master_host='127.0.0.1',master_port=$MASTER_MYPORT, master_user='root';
 --query_vertical show status like 'Slave_heartbeat_period';
 
@@ -37,6 +38,7 @@ eval change master to master_host='127.0.0.1',master_port=$MASTER_MYPORT, master
 # the max for the period is ULONG_MAX/1000; an attempt to exceed it is  denied
 #
 --replace_result $MASTER_MYPORT MASTER_PORT
+--replace_column 2 ####
 --error ER_SLAVE_HEARTBEAT_VALUE_OUT_OF_RANGE
 eval change master to master_host='127.0.0.1',master_port=$MASTER_MYPORT, master_user='root', master_heartbeat_period= 4294968;
 --query_vertical show status like 'Slave_heartbeat_period';
@@ -47,6 +49,7 @@ eval change master to master_host='127.0.0.1',master_port=$MASTER_MYPORT, master
 #
 connection slave;
 --replace_result $MASTER_MYPORT MASTER_PORT
+--replace_column 2 ####
 ### 5.1 mtr does not have --warning ER_SLAVE_HEARTBEAT_VALUE_OUT_OF_RANGE
 eval change master to master_host='127.0.0.1',master_port=$MASTER_MYPORT, master_user='root', master_heartbeat_period= 0.0009999;
 --query_vertical show status like 'Slave_heartbeat_period';
@@ -55,10 +58,12 @@ eval change master to master_host='127.0.0.1',master_port=$MASTER_MYPORT, master
 # the actual max and min must be accepted
 #
 --replace_result $MASTER_MYPORT MASTER_PORT
+--replace_column 2 ####
 eval change master to master_host='127.0.0.1',master_port=$MASTER_MYPORT, master_user='root', master_heartbeat_period= 4294967;
 --query_vertical show status like 'Slave_heartbeat_period';
 
 --replace_result $MASTER_MYPORT MASTER_PORT
+--replace_column 2 ####
 eval change master to master_host='127.0.0.1',master_port=$MASTER_MYPORT, master_user='root', master_heartbeat_period= 0.001;
 --query_vertical show status like 'Slave_heartbeat_period';
 
@@ -69,6 +74,7 @@ reset slave;
 #
 set @@global.slave_net_timeout= 5;
 --replace_result $MASTER_MYPORT MASTER_PORT
+--replace_column 2 ####
 eval change master to master_host='127.0.0.1',master_port=$MASTER_MYPORT, master_user='root', master_heartbeat_period= 5.001;
 --query_vertical show status like 'Slave_heartbeat_period';
 
@@ -79,6 +85,7 @@ reset slave;
 #
 set @@global.slave_net_timeout= 5;
 --replace_result $MASTER_MYPORT MASTER_PORT
+--replace_column 2 ####
 eval change master to master_host='127.0.0.1',master_port=$MASTER_MYPORT, master_user='root', master_heartbeat_period= 4;
 --query_vertical show status like 'Slave_heartbeat_period';
 set @@global.slave_net_timeout= 3 /* must be a warning */;
@@ -107,6 +114,7 @@ connection slave;
 set @@global.slave_net_timeout= 10;
 --replace_result $MASTER_MYPORT MASTER_PORT
 # no error this time but rather a warning
+--replace_column 2 ####
 eval change master to master_host='127.0.0.1',master_port=$MASTER_MYPORT, master_user='root', master_heartbeat_period= 0.5;
 --query_vertical show status like 'Slave_heartbeat_period';
 

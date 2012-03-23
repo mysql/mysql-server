@@ -18,6 +18,7 @@ reset slave;
 SET GLOBAL debug="d,simulate_io_slave_error_on_init,simulate_sql_slave_error_on_init";
 
 --disable_query_log
+--replace_regex /[0-9]{4}/####/
 eval CHANGE MASTER TO MASTER_USER='root',
                       MASTER_CONNECT_RETRY=1,
                       MASTER_HOST='127.0.0.1',

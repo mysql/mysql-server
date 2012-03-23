@@ -17,12 +17,14 @@ let $status_items= Master_User, Master_Host;
 source include/show_slave_status.inc;
 
 source include/stop_slave.inc;
+--replace_column 2 ####
 change master to master_user='test';
 source include/show_slave_status.inc;
 
 reset slave;
 source include/show_slave_status.inc;
 
+--replace_column 2 ####
 change master to master_user='root';
 source include/start_slave.inc;
 sync_with_master;
@@ -56,12 +58,14 @@ source include/check_slave_no_error.inc;
 # verifying start slave resets Last_IO_Error and Last_IO_Errno.
 #
 
+--replace_column 2 ####
 change master to master_user='impossible_user_name';
 start slave;
 let $slave_io_errno= 1045;
 --source include/wait_for_slave_io_error.inc
 --source include/stop_slave_sql.inc
 
+--replace_column 2 ####
 change master to master_user='root';
 source include/start_slave.inc;
 source include/check_slave_no_error.inc;
@@ -71,6 +75,7 @@ source include/check_slave_no_error.inc;
 #
 
 stop slave;
+--replace_column 2 ####
 change master to master_user='impossible_user_name';
 start slave;
 let $slave_io_errno= 1045;
@@ -79,6 +84,7 @@ let $slave_io_errno= 1045;
 
 reset slave;
 source include/check_slave_no_error.inc;
+--replace_column 2 ####
 change master to master_user='root';
 
 
@@ -105,6 +111,7 @@ if ($_show_master_host != No such row)
 }
 
 --replace_result $_slave_master_host MASTER_HOST $_slave_master_user MASTER_USER $_slave_master_port MASTER_PORT
+--replace_column 2 ####
 --eval CHANGE MASTER TO MASTER_HOST= '$_slave_master_host', MASTER_USER= '$_slave_master_user', MASTER_PORT= $_slave_master_port
 --source include/start_slave.inc
 

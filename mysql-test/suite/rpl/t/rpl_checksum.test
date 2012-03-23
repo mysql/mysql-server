@@ -208,6 +208,7 @@ sync_slave_with_master;
 select count(*) as 'must be zero' from t3;
 source include/stop_slave.inc;
 --replace_result $MASTER_MYPORT MASTER_PORT
+--replace_column 2 ####
 eval change master to master_host='127.0.0.1',master_port=$MASTER_MYPORT, master_user='root';
 
 connection master;

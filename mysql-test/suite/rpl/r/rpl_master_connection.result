@@ -1,7 +1,7 @@
 include/master-slave.inc
 Warnings:
-Note	1756	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	1757	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
 [connection master]
 SET SQL_LOG_BIN=0;
 SELECT user, plugin, authentication_string, password FROM mysql.user WHERE user != 'root';
@@ -30,8 +30,8 @@ SET SQL_LOG_BIN=1;
 include/stop_slave.inc
 CHANGE MASTER TO MASTER_USER= 'DOES NOT EXIST', MASTER_PASSWORD = 'DOES NOT EXIST';
 Warnings:
-Note	1756	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	1757	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
 START SLAVE SQL_THREAD USER= 'regular_user_p' PASSWORD= 'password';
 ERROR HY000: Setting authentication options is not possible when only the Slave SQL Thread is being started.
 START SLAVE SQL_THREAD USER= 'regular_user_p' PASSWORD= 'password' DEFAULT_AUTH= 'auth_test_plugin';
@@ -40,176 +40,176 @@ START SLAVE SQL_THREAD USER= 'regular_user_p' PASSWORD= 'password' DEFAULT_AUTH=
 ERROR HY000: Setting authentication options is not possible when only the Slave SQL Thread is being started.
 START SLAVE IO_THREAD USER= 'regular_user_p' PASSWORD= 'password';
 Warnings:
-Note	1756	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 include/wait_for_slave_io_to_start.inc
 include/stop_slave_io.inc
 START SLAVE IO_THREAD USER= 'regular_user_p' PASSWORD= 'password' DEFAULT_AUTH= 'auth_test_plugin';
 Warnings:
-Note	1756	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 include/wait_for_slave_io_to_start.inc
 include/stop_slave_io.inc
 START SLAVE IO_THREAD USER= 'regular_user_p' PASSWORD= 'password' DEFAULT_AUTH= 'auth_test_plugin' PLUGIN_DIR= 'PLUGIN_AUTH_DIR';
 Warnings:
-Note	1756	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 include/wait_for_slave_io_to_start.inc
 include/stop_slave_io.inc
 START SLAVE IO_THREAD, SQL_THREAD USER= 'regular_user_p' PASSWORD= 'password';
 Warnings:
-Note	1756	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 include/wait_for_slave_io_to_start.inc
 include/stop_slave_io.inc
 START SLAVE IO_THREAD, SQL_THREAD USER= 'regular_user_p' PASSWORD= 'password' DEFAULT_AUTH= 'auth_test_plugin';
 Warnings:
-Note	1756	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 include/wait_for_slave_io_to_start.inc
 include/stop_slave_io.inc
 START SLAVE IO_THREAD, SQL_THREAD USER= 'regular_user_p' PASSWORD= 'password' DEFAULT_AUTH= 'auth_test_plugin' PLUGIN_DIR= 'PLUGIN_AUTH_DIR';
 Warnings:
-Note	1756	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 include/wait_for_slave_io_to_start.inc
 include/stop_slave_io.inc
 include/stop_slave.inc
 CHANGE MASTER TO MASTER_USER= 'DOES NOT EXIST', MASTER_PASSWORD = 'DOES NOT EXIST';
 Warnings:
-Note	1756	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	1757	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
 START SLAVE USER= 'regular_user_p' PASSWORD= 'password';
 Warnings:
-Note	1756	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 include/wait_for_slave_to_start.inc
 include/check_slave_is_running.inc
 include/stop_slave.inc
 CHANGE MASTER TO MASTER_USER= 'DOES NOT EXIST', MASTER_PASSWORD = 'DOES NOT EXIST';
 Warnings:
-Note	1756	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	1757	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
 START SLAVE USER= 'regular_user_wp' PASSWORD= '';
 Warnings:
-Note	1756	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 include/wait_for_slave_to_start.inc
 include/check_slave_is_running.inc
 include/stop_slave.inc
 CHANGE MASTER TO MASTER_USER= 'DOES NOT EXIST', MASTER_PASSWORD = 'DOES NOT EXIST';
 Warnings:
-Note	1756	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	1757	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
 START SLAVE USER= 'regular_user_p' PASSWORD= 'password';
 Warnings:
-Note	1756	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 include/wait_for_slave_to_start.inc
 include/check_slave_is_running.inc
 include/stop_slave.inc
 CHANGE MASTER TO MASTER_USER= 'DOES NOT EXIST', MASTER_PASSWORD = 'DOES NOT EXIST';
 Warnings:
-Note	1756	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	1757	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
 START SLAVE USER= 'regular_user_wp' PASSWORD= '';
 Warnings:
-Note	1756	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 include/wait_for_slave_to_start.inc
 include/check_slave_is_running.inc
 include/stop_slave.inc
 CHANGE MASTER TO MASTER_USER= 'DOES NOT EXIST', MASTER_PASSWORD = 'DOES NOT EXIST';
 Warnings:
-Note	1756	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	1757	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
 START SLAVE USER= 'regular_user_wp';
 Warnings:
-Note	1756	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 include/wait_for_slave_to_start.inc
 include/check_slave_is_running.inc
 include/stop_slave.inc
 CHANGE MASTER TO MASTER_USER= 'DOES NOT EXIST', MASTER_PASSWORD = 'DOES NOT EXIST';
 Warnings:
-Note	1756	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	1757	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
 START SLAVE USER= 'plug_user_p' PASSWORD= 'proxy_user_p';
 Warnings:
-Note	1756	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 include/wait_for_slave_to_start.inc
 include/check_slave_is_running.inc
 include/stop_slave.inc
 CHANGE MASTER TO MASTER_USER= 'DOES NOT EXIST', MASTER_PASSWORD = 'DOES NOT EXIST';
 Warnings:
-Note	1756	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	1757	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
 START SLAVE USER= 'plug_user_wp' PASSWORD= 'proxy_user_wp';
 Warnings:
-Note	1756	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 include/wait_for_slave_to_start.inc
 include/check_slave_is_running.inc
 include/stop_slave.inc
 CHANGE MASTER TO MASTER_USER= 'DOES NOT EXIST', MASTER_PASSWORD = 'DOES NOT EXIST';
 Warnings:
-Note	1756	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	1757	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
 START SLAVE USER= 'plug_user_p' PASSWORD= 'proxy_user_p' PLUGIN_DIR= 'PLUGIN_AUTH_DIR';
 Warnings:
-Note	1756	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 include/wait_for_slave_to_start.inc
 include/check_slave_is_running.inc
 include/stop_slave.inc
 CHANGE MASTER TO MASTER_USER= 'DOES NOT EXIST', MASTER_PASSWORD = 'DOES NOT EXIST';
 Warnings:
-Note	1756	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	1757	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
 START SLAVE USER= 'plug_user_wp' PASSWORD= 'proxy_user_wp' PLUGIN_DIR= 'PLUGIN_AUTH_DIR';
 Warnings:
-Note	1756	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 include/wait_for_slave_to_start.inc
 include/check_slave_is_running.inc
 include/stop_slave.inc
 CHANGE MASTER TO MASTER_USER= 'DOES NOT EXIST', MASTER_PASSWORD = 'DOES NOT EXIST';
 Warnings:
-Note	1756	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	1757	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
 START SLAVE USER= 'plug_user_p' PASSWORD= 'proxy_user_p' DEFAULT_AUTH= 'auth_test_plugin';
 Warnings:
-Note	1756	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 include/wait_for_slave_to_start.inc
 include/check_slave_is_running.inc
 include/stop_slave.inc
 CHANGE MASTER TO MASTER_USER= 'DOES NOT EXIST', MASTER_PASSWORD = 'DOES NOT EXIST';
 Warnings:
-Note	1756	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	1757	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
 START SLAVE USER= 'plug_user_wp' PASSWORD= 'proxy_user_wp' DEFAULT_AUTH= 'auth_test_plugin';
 Warnings:
-Note	1756	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 include/wait_for_slave_to_start.inc
 include/check_slave_is_running.inc
 include/stop_slave.inc
 CHANGE MASTER TO MASTER_USER= 'DOES NOT EXIST', MASTER_PASSWORD = 'DOES NOT EXIST';
 Warnings:
-Note	1756	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	1757	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
 START SLAVE USER= 'plug_user_p' PASSWORD= 'proxy_user_p' DEFAULT_AUTH= 'auth_test_plugin' PLUGIN_DIR= 'PLUGIN_AUTH_DIR';
 Warnings:
-Note	1756	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 include/wait_for_slave_to_start.inc
 include/check_slave_is_running.inc
 include/stop_slave.inc
 CHANGE MASTER TO MASTER_USER= 'DOES NOT EXIST', MASTER_PASSWORD = 'DOES NOT EXIST';
 Warnings:
-Note	1756	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	1757	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
 START SLAVE USER= 'plug_user_wp' PASSWORD= 'proxy_user_wp' DEFAULT_AUTH= 'auth_test_plugin' PLUGIN_DIR= 'PLUGIN_AUTH_DIR';
 Warnings:
-Note	1756	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 include/wait_for_slave_to_start.inc
 include/check_slave_is_running.inc
 include/stop_slave.inc
 CHANGE MASTER TO MASTER_USER= 'plug_user_p', MASTER_PASSWORD= 'proxy_user_p';
 Warnings:
-Note	1756	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	1757	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
 include/start_slave.inc
 include/check_slave_is_running.inc
 include/stop_slave.inc
 CHANGE MASTER TO MASTER_USER= 'plug_user_wp', MASTER_PASSWORD= 'proxy_user_wp';
 Warnings:
-Note	1756	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	1757	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
 include/start_slave.inc
 include/check_slave_is_running.inc
 CREATE USER 'ssl_user' IDENTIFIED BY '';
@@ -217,7 +217,7 @@ GRANT ALL ON *.* TO ssl_user REQUIRE SSL;
 include/stop_slave.inc
 CHANGE MASTER TO MASTER_USER= 'root', MASTER_PASSWORD = '';
 Warnings:
-Note	1757	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
+Note	####	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
 include/start_slave.inc
 include/stop_slave.inc
 START SLAVE USER= 'root' PASSWORD= '';

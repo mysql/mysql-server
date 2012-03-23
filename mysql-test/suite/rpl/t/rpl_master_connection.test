@@ -63,6 +63,7 @@ SET SQL_LOG_BIN=1;
 # Check Property 0
 #
 --source include/stop_slave.inc
+--replace_column 2 ####
 CHANGE MASTER TO MASTER_USER= 'DOES NOT EXIST', MASTER_PASSWORD = 'DOES NOT EXIST';
 
 --replace_result $PLUGIN_AUTH_DIR PLUGIN_AUTH_DIR
@@ -78,31 +79,37 @@ CHANGE MASTER TO MASTER_USER= 'DOES NOT EXIST', MASTER_PASSWORD = 'DOES NOT EXIS
 --eval START SLAVE SQL_THREAD USER= 'regular_user_p' PASSWORD= 'password' DEFAULT_AUTH= 'auth_test_plugin' PLUGIN_DIR= '$PLUGIN_AUTH_DIR'
 
 --replace_result $PLUGIN_AUTH_DIR PLUGIN_AUTH_DIR
+--replace_column 2 ####
 --eval START SLAVE IO_THREAD USER= 'regular_user_p' PASSWORD= 'password'
 --source include/wait_for_slave_io_to_start.inc
 --source include/stop_slave_io.inc
 
 --replace_result $PLUGIN_AUTH_DIR PLUGIN_AUTH_DIR
+--replace_column 2 ####
 --eval START SLAVE IO_THREAD USER= 'regular_user_p' PASSWORD= 'password' DEFAULT_AUTH= 'auth_test_plugin'
 --source include/wait_for_slave_io_to_start.inc
 --source include/stop_slave_io.inc
 
 --replace_result $PLUGIN_AUTH_DIR PLUGIN_AUTH_DIR
+--replace_column 2 ####
 --eval START SLAVE IO_THREAD USER= 'regular_user_p' PASSWORD= 'password' DEFAULT_AUTH= 'auth_test_plugin' PLUGIN_DIR= '$PLUGIN_AUTH_DIR'
 --source include/wait_for_slave_io_to_start.inc
 --source include/stop_slave_io.inc
 
 --replace_result $PLUGIN_AUTH_DIR PLUGIN_AUTH_DIR
+--replace_column 2 ####
 --eval START SLAVE IO_THREAD, SQL_THREAD USER= 'regular_user_p' PASSWORD= 'password'
 --source include/wait_for_slave_io_to_start.inc
 --source include/stop_slave_io.inc
 
 --replace_result $PLUGIN_AUTH_DIR PLUGIN_AUTH_DIR
+--replace_column 2 ####
 --eval START SLAVE IO_THREAD, SQL_THREAD USER= 'regular_user_p' PASSWORD= 'password' DEFAULT_AUTH= 'auth_test_plugin'
 --source include/wait_for_slave_io_to_start.inc
 --source include/stop_slave_io.inc
 
 --replace_result $PLUGIN_AUTH_DIR PLUGIN_AUTH_DIR
+--replace_column 2 ####
 --eval START SLAVE IO_THREAD, SQL_THREAD USER= 'regular_user_p' PASSWORD= 'password' DEFAULT_AUTH= 'auth_test_plugin' PLUGIN_DIR= '$PLUGIN_AUTH_DIR'
 --source include/wait_for_slave_io_to_start.inc
 --source include/stop_slave_io.inc
@@ -111,7 +118,9 @@ CHANGE MASTER TO MASTER_USER= 'DOES NOT EXIST', MASTER_PASSWORD = 'DOES NOT EXIS
 # Check Property 1.
 #
 --source include/stop_slave.inc
+--replace_column 2 ####
 CHANGE MASTER TO MASTER_USER= 'DOES NOT EXIST', MASTER_PASSWORD = 'DOES NOT EXIST';
+--replace_column 2 ####
 --eval START SLAVE USER= 'regular_user_p' PASSWORD= 'password'
 --source include/wait_for_slave_to_start.inc
 --source include/check_slave_is_running.inc
@@ -120,7 +129,9 @@ CHANGE MASTER TO MASTER_USER= 'DOES NOT EXIST', MASTER_PASSWORD = 'DOES NOT EXIS
 # Check Property 1.
 #
 --source include/stop_slave.inc
+--replace_column 2 ####
 CHANGE MASTER TO MASTER_USER= 'DOES NOT EXIST', MASTER_PASSWORD = 'DOES NOT EXIST';
+--replace_column 2 ####
 --eval START SLAVE USER= 'regular_user_wp' PASSWORD= ''
 --source include/wait_for_slave_to_start.inc
 --source include/check_slave_is_running.inc
@@ -129,7 +140,9 @@ CHANGE MASTER TO MASTER_USER= 'DOES NOT EXIST', MASTER_PASSWORD = 'DOES NOT EXIS
 # Check Property 1.
 #
 --source include/stop_slave.inc
+--replace_column 2 ####
 CHANGE MASTER TO MASTER_USER= 'DOES NOT EXIST', MASTER_PASSWORD = 'DOES NOT EXIST';
+--replace_column 2 ####
 --eval START SLAVE USER= 'regular_user_p' PASSWORD= 'password'
 --source include/wait_for_slave_to_start.inc
 --source include/check_slave_is_running.inc
@@ -138,7 +151,9 @@ CHANGE MASTER TO MASTER_USER= 'DOES NOT EXIST', MASTER_PASSWORD = 'DOES NOT EXIS
 # Check Property 1.
 #
 --source include/stop_slave.inc
+--replace_column 2 ####
 CHANGE MASTER TO MASTER_USER= 'DOES NOT EXIST', MASTER_PASSWORD = 'DOES NOT EXIST';
+--replace_column 2 ####
 --eval START SLAVE USER= 'regular_user_wp' PASSWORD= ''
 --source include/wait_for_slave_to_start.inc
 --source include/check_slave_is_running.inc
@@ -147,7 +162,9 @@ CHANGE MASTER TO MASTER_USER= 'DOES NOT EXIST', MASTER_PASSWORD = 'DOES NOT EXIS
 # Check Property 1.
 #
 --source include/stop_slave.inc
+--replace_column 2 ####
 CHANGE MASTER TO MASTER_USER= 'DOES NOT EXIST', MASTER_PASSWORD = 'DOES NOT EXIST';
+--replace_column 2 ####
 --eval START SLAVE USER= 'regular_user_wp'
 --source include/wait_for_slave_to_start.inc
 --source include/check_slave_is_running.inc
@@ -157,7 +174,9 @@ CHANGE MASTER TO MASTER_USER= 'DOES NOT EXIST', MASTER_PASSWORD = 'DOES NOT EXIS
 #
 --source include/stop_slave.inc
 --replace_result $MASTER_MYSOCK MASTER_MYSOCK $PLUGIN_AUTH_OPT PLUGIN_AUTH_OPT
+--replace_column 2 ####
 CHANGE MASTER TO MASTER_USER= 'DOES NOT EXIST', MASTER_PASSWORD = 'DOES NOT EXIST';
+--replace_column 2 ####
 --eval START SLAVE USER= 'plug_user_p' PASSWORD= 'proxy_user_p'
 --source include/wait_for_slave_to_start.inc
 --source include/check_slave_is_running.inc
@@ -167,7 +186,9 @@ CHANGE MASTER TO MASTER_USER= 'DOES NOT EXIST', MASTER_PASSWORD = 'DOES NOT EXIS
 #
 --source include/stop_slave.inc
 --replace_result $MASTER_MYSOCK MASTER_MYSOCK $PLUGIN_AUTH_OPT PLUGIN_AUTH_OPT
+--replace_column 2 ####
 CHANGE MASTER TO MASTER_USER= 'DOES NOT EXIST', MASTER_PASSWORD = 'DOES NOT EXIST';
+--replace_column 2 ####
 --eval START SLAVE USER= 'plug_user_wp' PASSWORD= 'proxy_user_wp'
 --source include/wait_for_slave_to_start.inc
 --source include/check_slave_is_running.inc
@@ -176,8 +197,10 @@ CHANGE MASTER TO MASTER_USER= 'DOES NOT EXIST', MASTER_PASSWORD = 'DOES NOT EXIS
 # Check Property 2.
 #
 --source include/stop_slave.inc
+--replace_column 2 ####
 CHANGE MASTER TO MASTER_USER= 'DOES NOT EXIST', MASTER_PASSWORD = 'DOES NOT EXIST';
 --replace_result $PLUGIN_AUTH_DIR PLUGIN_AUTH_DIR
+--replace_column 2 ####
 --eval START SLAVE USER= 'plug_user_p' PASSWORD= 'proxy_user_p' PLUGIN_DIR= '$PLUGIN_AUTH_DIR'
 --source include/wait_for_slave_to_start.inc
 --source include/check_slave_is_running.inc
@@ -186,8 +209,10 @@ CHANGE MASTER TO MASTER_USER= 'DOES NOT EXIST', MASTER_PASSWORD = 'DOES NOT EXIS
 # Check Property 2.
 #
 --source include/stop_slave.inc
+--replace_column 2 ####
 CHANGE MASTER TO MASTER_USER= 'DOES NOT EXIST', MASTER_PASSWORD = 'DOES NOT EXIST';
 --replace_result $PLUGIN_AUTH_DIR PLUGIN_AUTH_DIR
+--replace_column 2 ####
 --eval START SLAVE USER= 'plug_user_wp' PASSWORD= 'proxy_user_wp' PLUGIN_DIR= '$PLUGIN_AUTH_DIR'
 --source include/wait_for_slave_to_start.inc
 --source include/check_slave_is_running.inc
@@ -196,8 +221,10 @@ CHANGE MASTER TO MASTER_USER= 'DOES NOT EXIST', MASTER_PASSWORD = 'DOES NOT EXIS
 # Check Property 2.
 #
 --source include/stop_slave.inc
+--replace_column 2 ####
 CHANGE MASTER TO MASTER_USER= 'DOES NOT EXIST', MASTER_PASSWORD = 'DOES NOT EXIST';
 --replace_result $PLUGIN_AUTH_DIR PLUGIN_AUTH_DIR
+--replace_column 2 ####
 --eval START SLAVE USER= 'plug_user_p' PASSWORD= 'proxy_user_p' DEFAULT_AUTH= 'auth_test_plugin'
 --source include/wait_for_slave_to_start.inc
 --source include/check_slave_is_running.inc
@@ -206,8 +233,10 @@ CHANGE MASTER TO MASTER_USER= 'DOES NOT EXIST', MASTER_PASSWORD = 'DOES NOT EXIS
 # Check Property 2.
 #
 --source include/stop_slave.inc
+--replace_column 2 ####
 CHANGE MASTER TO MASTER_USER= 'DOES NOT EXIST', MASTER_PASSWORD = 'DOES NOT EXIST';
 --replace_result $PLUGIN_AUTH_DIR PLUGIN_AUTH_DIR
+--replace_column 2 ####
 --eval START SLAVE USER= 'plug_user_wp' PASSWORD= 'proxy_user_wp' DEFAULT_AUTH= 'auth_test_plugin'
 --source include/wait_for_slave_to_start.inc
 --source include/check_slave_is_running.inc
@@ -216,8 +245,10 @@ CHANGE MASTER TO MASTER_USER= 'DOES NOT EXIST', MASTER_PASSWORD = 'DOES NOT EXIS
 # Check Property 2.
 #
 --source include/stop_slave.inc
+--replace_column 2 ####
 CHANGE MASTER TO MASTER_USER= 'DOES NOT EXIST', MASTER_PASSWORD = 'DOES NOT EXIST';
 --replace_result $PLUGIN_AUTH_DIR PLUGIN_AUTH_DIR
+--replace_column 2 ####
 --eval START SLAVE USER= 'plug_user_p' PASSWORD= 'proxy_user_p' DEFAULT_AUTH= 'auth_test_plugin' PLUGIN_DIR= '$PLUGIN_AUTH_DIR'
 --source include/wait_for_slave_to_start.inc
 --source include/check_slave_is_running.inc
@@ -226,8 +257,10 @@ CHANGE MASTER TO MASTER_USER= 'DOES NOT EXIST', MASTER_PASSWORD = 'DOES NOT EXIS
 # Check Property 2.
 #
 --source include/stop_slave.inc
+--replace_column 2 ####
 CHANGE MASTER TO MASTER_USER= 'DOES NOT EXIST', MASTER_PASSWORD = 'DOES NOT EXIST';
 --replace_result $PLUGIN_AUTH_DIR PLUGIN_AUTH_DIR
+--replace_column 2 ####
 --eval START SLAVE USER= 'plug_user_wp' PASSWORD= 'proxy_user_wp' DEFAULT_AUTH= 'auth_test_plugin' PLUGIN_DIR= '$PLUGIN_AUTH_DIR'
 --source include/wait_for_slave_to_start.inc
 --source include/check_slave_is_running.inc
@@ -236,6 +269,7 @@ CHANGE MASTER TO MASTER_USER= 'DOES NOT EXIST', MASTER_PASSWORD = 'DOES NOT EXIS
 # Check Property 3.
 #
 --source include/stop_slave.inc
+--replace_column 2 ####
 CHANGE MASTER TO MASTER_USER= 'plug_user_p', MASTER_PASSWORD= 'proxy_user_p';
 --source include/start_slave.inc
 --source include/check_slave_is_running.inc
@@ -244,6 +278,7 @@ CHANGE MASTER TO MASTER_USER= 'plug_user_p', MASTER_PASSWORD= 'proxy_user_p';
 # Check Property 3.
 #
 --source include/stop_slave.inc
+--replace_column 2 ####
 CHANGE MASTER TO MASTER_USER= 'plug_user_wp', MASTER_PASSWORD= 'proxy_user_wp';
 --source include/start_slave.inc
 --source include/check_slave_is_running.inc
@@ -259,6 +294,7 @@ GRANT ALL ON *.* TO ssl_user REQUIRE SSL;
 --replace_result $SLAVE_MYPORT SLAVE_MYPORT
 connect (con_ssl,127.0.0.1,ssl_user,,test,$SLAVE_MYPORT,,SSL);
 --connection con_ssl
+--replace_column 2 ####
 CHANGE MASTER TO MASTER_USER= 'root', MASTER_PASSWORD = '';
 --source include/start_slave.inc
 

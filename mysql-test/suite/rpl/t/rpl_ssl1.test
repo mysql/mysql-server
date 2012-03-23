@@ -15,6 +15,7 @@ sync_slave_with_master;
 #trying to use this user without ssl
 stop slave;
 --source include/wait_for_slave_to_stop.inc
+--replace_column 2 ####
 change master to master_user='replssl',master_password='';
 start slave;
 
@@ -31,6 +32,7 @@ select * from t1;
 stop slave;
 --source include/wait_for_slave_to_stop.inc
 --replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
+--replace_column 2 ####
 eval change master to master_ssl=1 , master_ssl_ca ='$MYSQL_TEST_DIR/std_data/cacert.pem', master_ssl_cert='$MYSQL_TEST_DIR/std_data/client-cert.pem', master_ssl_key='$MYSQL_TEST_DIR/std_data/client-key.pem';
 start slave;
 --source include/wait_for_slave_to_start.inc
@@ -50,6 +52,7 @@ source include/check_slave_is_running.inc;
 #checking if replication works without ssl also performing clean up
 stop slave;
 --source include/wait_for_slave_to_stop.inc
+--replace_column 2 ####
 change master to master_user='root',master_password='', master_ssl=0;
 start slave;
 --source include/wait_for_slave_to_start.inc
@@ -67,6 +70,7 @@ connection slave;
 stop slave;
 --source include/wait_for_slave_to_stop.inc
 --replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
+--replace_column 2 ####
 eval change master to
  master_host="localhost",
  master_ssl=1 ,
@@ -97,6 +101,7 @@ connection master;
 drop table t1;
 sync_slave_with_master;
 --source include/stop_slave.inc
+--replace_column 2 ####
 CHANGE MASTER TO
  master_host="127.0.0.1",
  master_ssl_ca ='',

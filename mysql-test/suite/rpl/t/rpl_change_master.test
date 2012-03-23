@@ -24,6 +24,7 @@ connection slave;
 ###
 --source include/stop_slave.inc
 --replace_result $MASTER_MYPORT MASTER_PORT
+--replace_column 2 ####
 --error ER_WRONG_ARGUMENTS
 eval CHANGE MASTER TO MASTER_USER='root', MASTER_HOST='', MASTER_PORT=$MASTER_MYPORT;
 
@@ -32,18 +33,22 @@ eval CHANGE MASTER TO MASTER_USER='root', MASTER_HOST='', MASTER_PORT=$MASTER_MY
 ### in string values.
 ###
 --replace_result $MASTER_MYPORT MASTER_PORT
+--replace_column 2 ####
 --error ER_WRONG_VALUE
 eval CHANGE MASTER TO MASTER_USER='root', MASTER_HOST='127.0.0.1\n127.0.0.1', MASTER_PORT=$MASTER_MYPORT;
 
 --replace_result $MASTER_MYPORT MASTER_PORT
+--replace_column 2 ####
 --error ER_WRONG_VALUE
 eval CHANGE MASTER TO MASTER_USER='root\n', MASTER_HOST='master2.mycompany.com', MASTER_PORT=$MASTER_MYPORT, MASTER_USER='replication', MASTER_PASSWORD='bigs3cret', MASTER_LOG_FILE='master2-bin.001', MASTER_LOG_POS=4;
 
 --replace_result $MASTER_MYPORT MASTER_PORT
+--replace_column 2 ####
 --error ER_WRONG_VALUE
 eval CHANGE MASTER TO MASTER_USER='root', MASTER_HOST='master2.mycompany.com', MASTER_PORT=$MASTER_MYPORT, MASTER_USER='repli\ncation', MASTER_PASSWORD='bigs3cret', MASTER_LOG_FILE='master2-bin.001', MASTER_LOG_POS=4;
 
 --replace_result $MASTER_MYPORT MASTER_PORT
+--replace_column 2 ####
 --error ER_WRONG_VALUE
 eval CHANGE MASTER TO MASTER_USER='root', MASTER_HOST='master2.mycompany.com', MASTER_PORT=$MASTER_MYPORT, MASTER_USER='replication', MASTER_PASSWORD='bigs3cret', MASTER_LOG_FILE='master2-bin.\n001', MASTER_LOG_POS=4;
 
@@ -51,6 +56,7 @@ eval CHANGE MASTER TO MASTER_USER='root', MASTER_HOST='master2.mycompany.com', M
 ### This should be accepted.
 ###
 --replace_result $MASTER_MYPORT MASTER_PORT
+--replace_column 2 ####
 eval CHANGE MASTER TO MASTER_USER='root', MASTER_HOST='127.0.0.1', MASTER_PORT=$MASTER_MYPORT;
 
 --source include/start_slave.inc
