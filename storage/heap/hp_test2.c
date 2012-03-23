@@ -72,7 +72,7 @@ int main(int argc, char *argv[])
   get_options(argc,argv);
   
   bzero(&hp_create_info, sizeof(hp_create_info));
-  hp_create_info.max_table_size= 1024L*1024L;
+  hp_create_info.max_table_size= 2*1024L*1024L;
 
   write_count=update=opt_delete=0;
   key_check=0;
@@ -642,7 +642,7 @@ static int get_options(int argc,char *argv[])
     case 'V':
     case 'I':
     case '?':
-      printf("%s  Ver 1.1 for %s at %s\n",progname,SYSTEM_TYPE,MACHINE_TYPE);
+      printf("%s  Ver 1.2 for %s at %s\n",progname,SYSTEM_TYPE,MACHINE_TYPE);
       puts("TCX Datakonsult AB, by Monty, for your professional use\n");
       printf("Usage: %s [-?ABIKLsWv] [-m#] [-t#]\n",progname);
       exit(0);
