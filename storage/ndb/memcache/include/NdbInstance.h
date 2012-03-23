@@ -33,7 +33,7 @@
 #include "workitem.h"
 
 #define VPSZ sizeof(void *)
-#define TOTAL_SZ (3 * VPSZ) + sizeof(int)
+#define TOTAL_SZ ((3 * VPSZ) + sizeof(int))
 #define PADDING (64 - TOTAL_SZ)
 
 
