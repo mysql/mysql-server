@@ -924,32 +924,6 @@ NegativeTest::runGraphTest() const
     builder->destroy();
   }
 
-  // Try adding a child scan to a sorted query.
-  {
-    NdbQueryBuilder* const builder = NdbQueryBuilder::create();
-
-    NdbQueryOptions parentOptions;
-    parentOptions.setOrdering(NdbQueryOptions::ScanOrdering_ascending);
-
-    const NdbQueryIndexScanOperationDef* parentOperation
-      = builder->scanIndex(m_nt1OrdIdx, m_nt1Tab, NULL, &parentOptions);
-    ASSERT_ALWAYS(parentOperation != NULL);
-
-    const NdbQueryOperand* const childOperands[] =
-      {builder->linkedValue(parentOperation, "ui1"),
-      NULL};
-    const NdbQueryIndexBound bound(childOperands);
-
-    if (builder->scanIndex(m_nt1OrdIdx, m_nt1Tab, &bound) != NULL ||
-        builder->getNdbError().code != QRY_MULTIPLE_SCAN_SORTED)
-    {
-      g_err << "Sorted query with scan child scan gave unexpected result.";
-      builder->destroy();
-      return NDBT_FAILED;
-    }
-    builder->destroy();
-  }
-
   /**
    * Try adding a child operation with two parents that are not descendants of each
    * other (i.e. a diamond-shaped query graph).
