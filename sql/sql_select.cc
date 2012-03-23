@@ -3046,12 +3046,11 @@ make_join_statistics(JOIN *join, List<TABLE_LIST> &tables_list,
   key_map const_ref, eq_part;
   bool has_expensive_keyparts;
   TABLE **table_vector;
-  JOIN_TAB *stat,*stat_end,*s,**stat_ref;
+  JOIN_TAB *stat,*stat_end,*s,**stat_ref, **stat_vector;
   KEYUSE *keyuse,*start_keyuse;
   table_map outer_join=0;
   table_map no_rows_const_tables= 0;
   SARGABLE_PARAM *sargables= 0;
-  JOIN_TAB *stat_vector[MAX_TABLES+1];
   List_iterator<TABLE_LIST> ti(tables_list);
   TABLE_LIST *tables;
   DBUG_ENTER("make_join_statistics");
@@ -3060,9 +3059,19 @@ make_join_statistics(JOIN *join, List<TABLE_LIST> &tables_list,
   table_count=join->table_count;
 
   stat=(JOIN_TAB*) join->thd->calloc(sizeof(JOIN_TAB)*(table_count));
-  stat_ref=(JOIN_TAB**) join->thd->alloc(sizeof(JOIN_TAB*)*MAX_TABLES);
+  stat_ref=(JOIN_TAB**) join->thd->alloc(sizeof(JOIN_TAB*)*
+                                         (MAX_TABLES + table_count + 1));
+  stat_vector= stat_ref + MAX_TABLES;
   table_vector=(TABLE**) join->thd->alloc(sizeof(TABLE*)*(table_count*2));
-  if (!stat || !stat_ref || !table_vector)
+  join->positions= new (join->thd->mem_root) POSITION[(table_count+1)];
+  /*
+    best_positions is ok to allocate with alloc() as we copy things to it with
+    memcpy()
+  */
+  join->best_positions= (POSITION*) join->thd->alloc(sizeof(POSITION)*
+                                                     (table_count +1));
+
+  if (join->thd->is_fatal_error)
     DBUG_RETURN(1);				// Eom /* purecov: inspected */
 
   join->best_ref=stat_vector;
@@ -15927,7 +15936,8 @@ join_read_system(JOIN_TAB *tab)
       empty_record(table);			// Make empty record
       return -1;
     }
-    update_virtual_fields(tab->join->thd, table);
+    if (table->vfield)
+      update_virtual_fields(tab->join->thd, table);
     store_record(table,record[1]);
   }
   else if (!table->status)			// Only happens with left join
@@ -15976,7 +15986,8 @@ join_read_const(JOIN_TAB *tab)
 	return report_error(table, error);
       return -1;
     }
-    update_virtual_fields(tab->join->thd, table);
+    if (table->vfield)
+      update_virtual_fields(tab->join->thd, table);
     store_record(table,record[1]);
   }
   else if (!(table->status & ~STATUS_NULL_ROW))	// Only happens with left join

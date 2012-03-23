@@ -4961,7 +4961,8 @@ bool JOIN::choose_subquery_plan(table_map join_tables)
   DBUG_ASSERT(!in_to_exists_where || in_to_exists_where->fixed);
   DBUG_ASSERT(!in_to_exists_having || in_to_exists_having->fixed);
 
-  Join_plan_state save_qep; /* The original QEP of the subquery. */
+  /* The original QEP of the subquery. */
+  Join_plan_state save_qep(table_count);
 
   /*
     Compute and compare the costs of materialization and in-exists if both

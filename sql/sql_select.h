@@ -742,7 +742,7 @@ public:
   Information about a position of table within a join order. Used in join
   optimization.
 */
-typedef struct st_position
+typedef struct st_position :public Sql_alloc
 {
   /* The table that's put into join order */
   JOIN_TAB *table;
@@ -844,23 +844,36 @@ protected:
   */
   class Join_plan_state {
   public:
-    DYNAMIC_ARRAY keyuse; /* Copy of the JOIN::keyuse array. */
-    POSITION best_positions[MAX_TABLES+1]; /* Copy of JOIN::best_positions */
+    DYNAMIC_ARRAY keyuse;        /* Copy of the JOIN::keyuse array. */
+    POSITION *best_positions;    /* Copy of JOIN::best_positions */
     /* Copies of the JOIN_TAB::keyuse pointers for each JOIN_TAB. */
-    KEYUSE *join_tab_keyuse[MAX_TABLES];
+    KEYUSE **join_tab_keyuse;
     /* Copies of JOIN_TAB::checked_keys for each JOIN_TAB. */
-    key_map join_tab_checked_keys[MAX_TABLES];
-    SJ_MATERIALIZATION_INFO *sj_mat_info[MAX_TABLES];
+    key_map *join_tab_checked_keys;
+    SJ_MATERIALIZATION_INFO **sj_mat_info;
+    my_bool error;
   public:
-    Join_plan_state()
+    Join_plan_state(uint tables) : error(0)
     {   
       keyuse.elements= 0;
       keyuse.buffer= NULL;
+      best_positions= 0;                        /* To detect errors */
+      error= my_multi_malloc(MYF(MY_WME),
+                             &best_positions,
+                             sizeof(*best_positions) * (tables + 1),
+                             &join_tab_keyuse,
+                             sizeof(*join_tab_keyuse) * tables,
+                             &join_tab_checked_keys,
+                             sizeof(*join_tab_checked_keys) * tables,
+                             &sj_mat_info,
+                             sizeof(sj_mat_info) * tables,
+                             NullS) == 0;
     }
     Join_plan_state(JOIN *join);
     ~Join_plan_state()
     {
       delete_dynamic(&keyuse);
+      my_free(best_positions, MYF(0));
     }
   };
 
@@ -961,7 +974,7 @@ public:
   */
   ha_rows  fetch_limit;
   /* Finally picked QEP. This is result of join optimization */
-  POSITION best_positions[MAX_TABLES+1];
+  POSITION *best_positions;
 
 /******* Join optimization state members start *******/
   /*
@@ -971,7 +984,7 @@ public:
   TABLE_LIST *emb_sjm_nest;
   
   /* Current join optimization state */
-  POSITION positions[MAX_TABLES+1];
+  POSITION *positions;
   
   /*
     Bitmap of nested joins embedding the position at the end of the current 
@@ -1241,6 +1254,7 @@ public:
     exec_const_cond= 0;
     group_optimized_away= 0;
     no_rows_in_result_called= 0;
+    positions= best_positions= 0;
 
     all_fields= fields_arg;
     if (&fields_list != &fields_arg)      /* Avoid valgrind-warning */
