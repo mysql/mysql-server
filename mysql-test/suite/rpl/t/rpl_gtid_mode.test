@@ -308,6 +308,7 @@ RESET MASTER;
 --let $pos= query_get_value(SHOW MASTER STATUS, Position, 1)
 --connection slave
 --replace_result $SERVER_MYPORT_1 PORT $file FILE $pos POS
+--replace_column 2 ####
 eval CHANGE MASTER TO MASTER_HOST = '127.0.0.1', MASTER_PORT = $SERVER_MYPORT_1, MASTER_USER = 'root', MASTER_LOG_FILE = '$file', MASTER_LOG_POS = $pos, MASTER_CONNECT_RETRY = 1;
 
 --echo ---- Slave can't connect ----

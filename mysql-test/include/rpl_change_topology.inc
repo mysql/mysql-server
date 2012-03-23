@@ -269,6 +269,7 @@ if (!$rpl_skip_change_master)
           --let $_rpl_change_master_position= $_rpl_change_master_position, MASTER_LOG_POS = $_rpl_master_log_pos
         }
       }
+      --replace_regex /[0-9]{4}/####/
       eval CHANGE MASTER TO MASTER_HOST = '127.0.0.1', MASTER_PORT = $_rpl_port, MASTER_USER = 'root', $_rpl_change_master_position, MASTER_CONNECT_RETRY = 1;
     }
     if ($_rpl_master == '')

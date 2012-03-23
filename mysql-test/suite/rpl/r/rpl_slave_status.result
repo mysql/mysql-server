@@ -1,7 +1,7 @@
 include/master-slave.inc
 Warnings:
-Note	1756	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	1757	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
 [connection master]
 ==== Create new replication user ====
 [on master]
@@ -10,8 +10,8 @@ GRANT REPLICATION SLAVE ON *.* TO rpl@127.0.0.1 IDENTIFIED BY 'rpl';
 include/stop_slave.inc
 CHANGE MASTER TO master_user='rpl', master_password='rpl';
 Warnings:
-Note	1756	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	1757	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
 include/start_slave.inc
 ==== Do replication as new user ====
 [on master]
@@ -37,8 +37,8 @@ include/wait_for_slave_io_error.inc [errno=1045]
 include/stop_slave_sql.inc
 CHANGE MASTER TO MASTER_USER = 'root', MASTER_PASSWORD = '';
 Warnings:
-Note	1756	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	1757	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
 include/rpl_reset.inc
 [on master]
 DROP TABLE t1;

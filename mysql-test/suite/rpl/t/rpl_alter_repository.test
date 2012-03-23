@@ -108,11 +108,13 @@ START SLAVE SQL_THREAD;
 --error ER_COL_COUNT_DOESNT_MATCH_CORRUPTED_V2
 RESET SLAVE ALL;
 --replace_result $_slave_master_host MASTER_HOST $_slave_master_user MASTER_USER $_slave_master_port MASTER_PORT $_slave_master_log_file MASTER_LOG_FILE $_slave_master_log_pos MASTER_LOG_POS
+--replace_column 2 ####
 --error ER_COL_COUNT_DOESNT_MATCH_CORRUPTED_V2
 --eval CHANGE MASTER TO MASTER_HOST= '$_slave_master_host', MASTER_USER= '$_slave_master_user', MASTER_PORT= $_slave_master_port, MASTER_LOG_FILE= '$_slave_master_log_file', MASTER_LOG_POS= $_slave_master_log_pos
 ALTER TABLE mysql.slave_relay_log_info ADD COLUMN (Sql_delay INTEGER NOT NULL COMMENT 'The number of seconds that the slave must lag behind the master.');
 RESET SLAVE ALL;
 --replace_result $_slave_master_host MASTER_HOST $_slave_master_user MASTER_USER $_slave_master_port MASTER_PORT $_slave_master_log_file MASTER_LOG_FILE $_slave_master_log_pos MASTER_LOG_POS
+--replace_column 2 ####
 --eval CHANGE MASTER TO MASTER_HOST= '$_slave_master_host', MASTER_USER= '$_slave_master_user', MASTER_PORT= $_slave_master_port, MASTER_LOG_FILE= '$_slave_master_log_file', MASTER_LOG_POS= $_slave_master_log_pos
 --source include/start_slave.inc
 --connection master
@@ -190,11 +192,13 @@ START SLAVE SQL_THREAD;
 --error ER_COL_COUNT_DOESNT_MATCH_CORRUPTED_V2
 RESET SLAVE ALL;
 --replace_result $_slave_master_host MASTER_HOST $_slave_master_user MASTER_USER $_slave_master_port MASTER_PORT $_slave_master_log_file MASTER_LOG_FILE $_slave_master_log_pos MASTER_LOG_POS
+--replace_column 2 ####
 --error ER_COL_COUNT_DOESNT_MATCH_CORRUPTED_V2
 --eval CHANGE MASTER TO MASTER_HOST= '$_slave_master_host', MASTER_USER= '$_slave_master_user', MASTER_PORT= $_slave_master_port, MASTER_LOG_FILE= '$_slave_master_log_file', MASTER_LOG_POS= $_slave_master_log_pos
 ALTER TABLE mysql.slave_master_info ADD COLUMN (Retry_count BIGINT UNSIGNED NOT NULL COMMENT 'Number of reconnect attempts, to the master, before giving up.');
 RESET SLAVE ALL;
 --replace_result $_slave_master_host MASTER_HOST $_slave_master_user MASTER_USER $_slave_master_port MASTER_PORT $_slave_master_log_file MASTER_LOG_FILE $_slave_master_log_pos MASTER_LOG_POS
+--replace_column 2 ####
 --eval CHANGE MASTER TO MASTER_HOST= '$_slave_master_host', MASTER_USER= '$_slave_master_user', MASTER_PORT= $_slave_master_port, MASTER_LOG_FILE= '$_slave_master_log_file', MASTER_LOG_POS= $_slave_master_log_pos
 --source include/start_slave.inc
 --connection master

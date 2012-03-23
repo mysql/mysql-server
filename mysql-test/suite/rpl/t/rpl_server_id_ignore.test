@@ -28,12 +28,14 @@ echo master_id: $master_id;
 
 stop slave;
 --echo *** --replicate-same-server-id and change master option can clash ***
+--replace_column 2 ####
 --error ER_SLAVE_IGNORE_SERVER_IDS
 change master to IGNORE_SERVER_IDS= (2, 1);
 --echo *** must be empty due to the error ***
 let $ignore_list= query_get_value(SHOW SLAVE STATUS, Replicate_Ignore_Server_Ids, 1);
 echo ignore server id list: $ignore_list;
 
+--replace_column 2 ####
 change master to IGNORE_SERVER_IDS= (10, 100);
 --echo *** must be 10, 100 ***
 let $ignore_list= query_get_value(SHOW SLAVE STATUS, Replicate_Ignore_Server_Ids, 1);
@@ -42,8 +44,10 @@ reset slave;
 --echo *** must be empty due to reset slave ***
 let $ignore_list= query_get_value(SHOW SLAVE STATUS, Replicate_Ignore_Server_Ids, 1);
 echo ignore server id list: $ignore_list;
+--replace_column 2 ####
 change master to IGNORE_SERVER_IDS= (10, 100);
 --echo *** CHANGE MASTER with IGNORE_SERVER_IDS option overrides (does not increment) the previous setup ***
+--replace_column 2 ####
 change master to IGNORE_SERVER_IDS= (5, 1, 4, 3, 1);
 --echo *** must be 1, 3, 4, 5 due to overriding policy ***
 let $ignore_list= query_get_value(SHOW SLAVE STATUS, Replicate_Ignore_Server_Ids, 1);
@@ -81,15 +85,18 @@ if (`select $slave_relay_pos1 - $slave_relay_pos0`)
 stop slave;
 source include/wait_for_slave_to_stop.inc;
 reset slave;
+--replace_column 2 ####
 change master to IGNORE_SERVER_IDS= (10, 100);
 --echo *** the list must remain (10, 100) after reset slave ***
 let $ignore_list= query_get_value(SHOW SLAVE STATUS, Replicate_Ignore_Server_Ids, 1);
 
+--replace_column 2 ####
 change master to IGNORE_SERVER_IDS= ();
 --echo *** must be empty due to IGNORE_SERVER_IDS empty list ***
 let $ignore_list= query_get_value(SHOW SLAVE STATUS, Replicate_Ignore_Server_Ids, 1);
 echo ignore server id list: $ignore_list;
 --replace_result $MASTER_MYPORT MASTER_PORT
+--replace_column 2 ####
 eval change master to master_host='127.0.0.1', master_port=$MASTER_MYPORT, master_user='root';
 start slave;
 

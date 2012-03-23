@@ -32,6 +32,7 @@ if ($read_pos == $exec_pos)
   echo 'Read_Master_Log_Pos: $read_pos' == 'Exec_Master_Log_Pos: $exec_pos';
   die Failed because Read_Master_Log_Pos is equal to Exec_Master_Log_Pos;
 } 
+--replace_column 2 ####
 change master to master_user='root';
 let $read_pos= query_get_value(SHOW SLAVE STATUS, Read_Master_Log_Pos, 1);
 let $exec_pos= query_get_value(SHOW SLAVE STATUS, Exec_Master_Log_Pos, 1);
