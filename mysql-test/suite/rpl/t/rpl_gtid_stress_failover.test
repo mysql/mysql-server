@@ -79,6 +79,7 @@
 #
 # Created as part of WL#3584: Global Transaction Identifiers
 
+--source include/big_test.inc
 --source include/have_gtid.inc
 
 # This test case has path issues when executing the 

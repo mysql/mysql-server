@@ -2253,8 +2253,8 @@ static auth_plugin_t sha256_password_client_plugin=
   {1, 0, 0},
   "GPL",
   NULL,
-  NULL,
-  NULL,
+  sha256_password_init,
+  sha256_password_deinit,
   NULL,
   sha256_password_auth_client
 };

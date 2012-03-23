@@ -6,6 +6,8 @@
 
 C_MODE_START
 int sha256_password_auth_client(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql);
+int sha256_password_init(char *, size_t, int, va_list);
+int sha256_password_deinit(void);
 C_MODE_END
 
 #endif

@@ -65,7 +65,6 @@ rpl.rpl_mixed_binlog_max_cache_size : lsoares 2010-05-26 WL#5408  Reduce Pushbui
 rpl.rpl_mixed_bit_pk : lsoares 2010-05-26 WL#5408  Reduce Pushbuild2 turnaround times for rpl suite.
 rpl.rpl_mixed_ddl_dml : lsoares 2010-05-26 WL#5408  Reduce Pushbuild2 turnaround times for rpl suite.
 rpl.rpl_mixed_implicit_commit_binlog : lsoares 2010-05-26 WL#5408  Reduce Pushbuild2 turnaround times for rpl suite.
-rpl.rpl_mixed_mixing_engines : lsoares 2010-05-26 WL#5408  Reduce Pushbuild2 turnaround times for rpl suite.
 rpl.rpl_mixed_row_innodb : lsoares 2010-05-26 WL#5408  Reduce Pushbuild2 turnaround times for rpl suite.
 rpl.rpl_mix_found_rows : lsoares 2010-05-26 WL#5408  Reduce Pushbuild2 turnaround times for rpl suite.
 rpl.rpl_multi_delete2 : lsoares 2010-05-26 WL#5408  Reduce Pushbuild2 turnaround times for rpl suite.
@@ -78,9 +77,6 @@ rpl.rpl_multi_update : lsoares 2010-05-26 WL#5408  Reduce Pushbuild2 turnaround 
 rpl.rpl_mysql_upgrade : lsoares 2010-05-26 WL#5408  Reduce Pushbuild2 turnaround times for rpl suite.
 rpl.rpl_name_const : lsoares 2010-05-26 WL#5408  Reduce Pushbuild2 turnaround times for rpl suite.
 rpl.rpl_nondeterministic_functions : lsoares 2010-05-26 WL#5408  Reduce Pushbuild2 turnaround times for rpl suite.
-rpl.rpl_non_direct_mixed_mixing_engines : lsoares 2010-05-26 WL#5408  Reduce Pushbuild2 turnaround times for rpl suite.
-rpl.rpl_non_direct_row_mixing_engines : lsoares 2010-05-26 WL#5408  Reduce Pushbuild2 turnaround times for rpl suite.
-rpl.rpl_non_direct_stm_mixing_engines : lsoares 2010-05-26 WL#5408  Reduce Pushbuild2 turnaround times for rpl suite.
 rpl.rpl_not_null_myisam : lsoares 2010-05-26 WL#5408  Reduce Pushbuild2 turnaround times for rpl suite.
 rpl.rpl_optimize : lsoares 2010-05-26 WL#5408  Reduce Pushbuild2 turnaround times for rpl suite.
 rpl.rpl_ps : lsoares 2010-05-26 WL#5408  Reduce Pushbuild2 turnaround times for rpl suite.
@@ -106,7 +102,6 @@ rpl.rpl_row_implicit_commit_binlog : lsoares 2010-05-26 WL#5408  Reduce Pushbuil
 rpl.rpl_row_inexist_tbl : lsoares 2010-05-26 WL#5408  Reduce Pushbuild2 turnaround times for rpl suite.
 rpl.rpl_row_loaddata_concurrent : lsoares 2010-05-26 WL#5408  Reduce Pushbuild2 turnaround times for rpl suite.
 rpl.rpl_row_max_relay_size : lsoares 2010-05-26 WL#5408  Reduce Pushbuild2 turnaround times for rpl suite.
-rpl.rpl_row_mixing_engines : lsoares 2010-05-26 WL#5408  Reduce Pushbuild2 turnaround times for rpl suite.
 rpl.rpl_row_reset_slave : lsoares 2010-05-26 WL#5408  Reduce Pushbuild2 turnaround times for rpl suite.
 rpl.rpl_row_show_relaylog_events : lsoares 2010-05-26 WL#5408  Reduce Pushbuild2 turnaround times for rpl suite.
 rpl.rpl_row_sp001 : lsoares 2010-05-26 WL#5408  Reduce Pushbuild2 turnaround times for rpl suite.
@@ -160,7 +155,6 @@ rpl.rpl_stm_loaddata_concurrent : lsoares 2010-05-26 WL#5408  Reduce Pushbuild2 
 rpl.rpl_stm_loadfile : lsoares 2010-05-26 WL#5408  Reduce Pushbuild2 turnaround times for rpl suite.
 rpl.rpl_stm_log : lsoares 2010-05-26 WL#5408  Reduce Pushbuild2 turnaround times for rpl suite.
 rpl.rpl_stm_max_relay_size : lsoares 2010-05-26 WL#5408  Reduce Pushbuild2 turnaround times for rpl suite.
-rpl.rpl_stm_mixing_engines : lsoares 2010-05-26 WL#5408  Reduce Pushbuild2 turnaround times for rpl suite.
 rpl.rpl_stm_mix_show_relaylog_events : lsoares 2010-05-26 WL#5408  Reduce Pushbuild2 turnaround times for rpl suite.
 rpl.rpl_stm_multi_query : lsoares 2010-05-26 WL#5408  Reduce Pushbuild2 turnaround times for rpl suite.
 rpl.rpl_stm_no_op : lsoares 2010-05-26 WL#5408  Reduce Pushbuild2 turnaround times for rpl suite.

@@ -19,5 +19,6 @@
 # -DHAVE_purify : activates misc. ifdefs in the source code
 
 path=`dirname $0`
-cmake $path/.. -DWITH_DEBUG=1 -DWITH_VALGRIND=1 -DCMAKE_CXX_FLAGS=-DHAVE_purify
-gmake -j 4
+cmake $path/.. -DWITH_DEBUG=1 -DWITH_VALGRIND=1 \
+    -DCMAKE_C_FLAGS=-DHAVE_purify -DCMAKE_CXX_FLAGS=-DHAVE_purify
+make
