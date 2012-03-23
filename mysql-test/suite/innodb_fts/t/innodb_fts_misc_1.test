@@ -1,5 +1,5 @@
 #------------------------------------------------------------------------------
-# FTS with FK and update casecade
+# FTS with FK and update cascade
 #-------------------------------------------------------------------------------
 --disable_warnings
 drop table if exists t2,t1;
@@ -830,3 +830,60 @@ DROP TABLE t1;
 
 DROP TABLE t2;
 
+
+--echo
+--echo BUG#13701973/64274: MYSQL THREAD WAS SUSPENDED WHEN EXECUTE UPDATE QUERY
+--echo
+# FTS setup did not track which tables it had already looked at to see whether
+# they need initialization. Hilarity ensued when hitting circular dependencies.
+
+SET @OLD_FOREIGN_KEY_CHECKS=@@FOREIGN_KEY_CHECKS, FOREIGN_KEY_CHECKS=0;
+
+CREATE TABLE t1 (
+  t1_id INT(10) UNSIGNED NOT NULL,
+  t2_id INT(10) UNSIGNED DEFAULT NULL,
+  PRIMARY KEY (t1_id),
+  FOREIGN KEY (t2_id) REFERENCES t2 (t2_id)
+    ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB;
+
+CREATE TABLE t2 (
+  t1_id INT(10) UNSIGNED NOT NULL,
+  t2_id INT(10) UNSIGNED NOT NULL,
+  t3_id INT(10) UNSIGNED NOT NULL,
+  t4_id INT(10) UNSIGNED NOT NULL,
+  PRIMARY KEY (t2_id),
+  FOREIGN KEY (t1_id) REFERENCES t1 (t1_id),
+  FOREIGN KEY (t3_id) REFERENCES t3 (t3_id)
+    ON DELETE CASCADE ON UPDATE CASCADE,
+  FOREIGN KEY (t4_id) REFERENCES t4 (t4_id)
+) ENGINE=InnoDB;
+
+CREATE TABLE t3 (
+  t3_id INT(10) UNSIGNED NOT NULL AUTO_INCREMENT,
+  payload char(3),
+  PRIMARY KEY (t3_id)
+) ENGINE=InnoDB;
+
+INSERT INTO t3 VALUES (1, '100');
+
+CREATE TABLE t4 (
+  t2_id INT(10) UNSIGNED DEFAULT NULL,
+  t4_id INT(10) UNSIGNED NOT NULL,
+  PRIMARY KEY (t4_id),
+  FOREIGN KEY (t2_id) REFERENCES t2 (t2_id)
+    ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB;
+
+SET FOREIGN_KEY_CHECKS=1;
+
+UPDATE t3 SET payload='101' WHERE t3_id=1;
+
+SET FOREIGN_KEY_CHECKS=0;
+
+DROP TABLE t1;
+DROP TABLE t2;
+DROP TABLE t3;
+DROP TABLE t4;
+
+SET FOREIGN_KEY_CHECKS=@OLD_FOREIGN_KEY_CHECKS;

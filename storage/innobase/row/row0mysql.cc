@@ -1529,16 +1529,18 @@ void
 init_fts_doc_id_for_ref(
 /*====================*/
 	dict_table_t*	table,		/*!< in: table */
-	ulint		depth)		/*!< in: recusive call depth */
+	ulint*		depth)		/*!< in: recusive call depth */
 {
 	dict_foreign_t* foreign;
 
 	foreign = UT_LIST_GET_FIRST(table->referenced_list);
 
-	depth++;
+	table->fk_max_recusive_level = 0;
+
+	(*depth)++;
 
 	/* Limit on tables involved in cascading delete/update */
-	if (depth > FK_MAX_CASCADE_DEL) {
+	if (*depth > FK_MAX_CASCADE_DEL) {
 		return;
 	}
 
@@ -1579,6 +1581,7 @@ row_update_for_mysql(
 	upd_node_t*	node;
 	dict_table_t*	table		= prebuilt->table;
 	trx_t*		trx		= prebuilt->trx;
+	ulint		fk_depth	= 0;
 
 	ut_ad(prebuilt && trx);
 	UT_NOT_USED(mysql_rec);
@@ -1629,7 +1632,7 @@ row_update_for_mysql(
 
 	row_mysql_delay_if_needed();
 
-	init_fts_doc_id_for_ref(table, 0);
+	init_fts_doc_id_for_ref(table, &fk_depth);
 
 	trx_start_if_not_started_xa(trx);
 
