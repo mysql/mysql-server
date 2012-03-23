@@ -24,6 +24,7 @@
 #
 # Implemented as part of WL#3584: Global Transaction Identifiers
 
+--source include/big_test.inc
 --source include/have_gtid.inc
 --source include/master-slave.inc
 --source include/not_windows.inc

@@ -4,6 +4,7 @@
 # Purpose: To test changes to mysqlbinlog for row based bin logs #
 # We are using .opt file since we need small binlog size         #
 ##################################################################
+--source include/big_test.inc
 # Include Section
 # Make sure that we have row based bin log
 -- source include/have_binlog_format_row.inc
