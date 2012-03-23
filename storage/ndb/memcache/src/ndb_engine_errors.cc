@@ -30,3 +30,7 @@ ndberror_struct AppError9002_NoNDBs =
     "No Ndb Instances in freelist", 0
   };
 
+ndberror_struct AppError9003_SyncClose =
+  { ndberror_st_temporary , ndberror_cl_application , 9003, -1,
+    "Waited for synchronous close of NDB transaction", 0 
+  };

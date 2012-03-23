@@ -22,8 +22,11 @@
 
 #include <ndberror.h>
 
+/* Errors 9000 - 9099 are reported as "Scheduler Error" */
 extern ndberror_struct AppError9001_ReconfLock;
 extern ndberror_struct AppError9002_NoNDBs;
+extern ndberror_struct AppError9003_SyncClose;
 
+/* Errors 9100 and up are reported as "Memcached Error" */
 
 #endif
