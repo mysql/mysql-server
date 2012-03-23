@@ -1004,16 +1004,12 @@ make_pushed_join(THD *thd, JOIN *join)
   if (join->const_tables < join->tables &&
       join->join_tab[join->const_tables].table->file->number_of_pushed_joins() > 0)
   {
-    const handler *ha=join->join_tab[join->const_tables].table->file;
-
-    if (join->group_list && join->simple_group &&
-        (!plan.group_by_filesort_is_skippable() || ha->test_push_flag(HA_PUSH_NO_ORDERED_INDEX)))
+    if (join->group_list && join->simple_group && !plan.group_by_filesort_is_skippable())
     {
       join->need_tmp= 1;
       join->simple_order= join->simple_group= 0;
     }
-    else if (join->order && join->simple_order &&
-             (!plan.order_by_filesort_is_skippable() || ha->test_push_flag(HA_PUSH_NO_ORDERED_INDEX)))
+    else if (join->order && join->simple_order && !plan.order_by_filesort_is_skippable())
     {
       join->need_tmp= 1;
       join->simple_order= join->simple_group= 0;

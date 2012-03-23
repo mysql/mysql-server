@@ -484,28 +484,6 @@ namespace AQP
   {}
 
   /**
-    @return True iff ordered index access is *required* from this operation. 
-  */
-  bool Table_access::is_fixed_ordered_index() const
-  {
-    const JOIN_TAB* const join_tab= get_join_tab();
-
-    /* For the QUICK_SELECT_I classes we can disable ordered index usage by
-     * setting 'QUICK_SELECT_I::sorted = false'.
-     * However, QUICK_SELECT_I::QS_TYPE_RANGE_DESC is special as its 
-     * internal implementation requires its 'multi-ranges' to be retrieved
-     * in (descending) sorted order from the underlying table.
-     */
-    if (join_tab->select != NULL &&
-        join_tab->select->quick != NULL)
-    {
-      QUICK_SELECT_I *quick= join_tab->select->quick;
-      return (quick->get_type() == QUICK_SELECT_I::QS_TYPE_RANGE_DESC);
-    }
-    return false;
-  }
-
-  /**
     Check if the results from this operation will joined with results 
     from the next operation using a join buffer (instead of plain nested loop).
     @return True if using a join buffer. 
