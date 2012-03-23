@@ -17,7 +17,7 @@
 #define MAX_CIPHER_LENGTH 1024
 pthread_mutex_t g_public_key_mutex;
 
-int sha256_password_init(char *a, size_t b, int, va_list c)
+int sha256_password_init(char *a, size_t b, int c, va_list d)
 {
   pthread_mutex_init(&g_public_key_mutex, 0);
   return 0;
