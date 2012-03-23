@@ -125,7 +125,12 @@ int report_error(TABLE *table, int error);
 int safe_index_read(JOIN_TAB *tab);
 SORT_FIELD * make_unireg_sortorder(ORDER *order, uint *length,
                                   SORT_FIELD *sortorder);
+
+#ifndef MCP_WL4784
+void pick_table_access_method(JOIN_TAB *tab, int *active_pushed_joins);
+#else
 void pick_table_access_method(JOIN_TAB *tab);
+#endif
 
 int join_read_const_table(JOIN_TAB *tab, POSITION *pos);
 void join_read_key_unlock_row(st_join_table *tab);
