@@ -64,6 +64,7 @@ typedef struct st_tokudb_share {
     // key is hidden
     //
     DB *key_file[MAX_KEY +1];
+    rw_lock_t key_file_lock;
     uint status, version, capabilities;
     uint ref_length;
     //
