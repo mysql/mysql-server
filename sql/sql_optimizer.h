@@ -302,6 +302,8 @@ public:
     operator       ORDER *()       { return order; }
     operator const ORDER *() const { return order; }
 
+    ORDER* operator->() const { return order; }
+ 
     void clean() { order= NULL; src= ESC_none; flags= ESP_none; }
 
     void set_flag(Explain_sort_property flag)
