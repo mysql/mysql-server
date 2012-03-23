@@ -24,6 +24,11 @@ INCLUDE (CheckCCompilerFlag)
 INCLUDE (CheckCSourceRuns)
 INCLUDE (CheckSymbolExists)
 
+# Turn on c99 mode when compiling with Sun Studio
+IF("${CMAKE_C_COMPILER_ID}" STREQUAL "SunPro")
+  SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -xc99")
+  MESSAGE("-- Running ${CMAKE_C_COMPILER_ID} in c99 mode")
+ENDIF()
 
 # WITH_PIC options.Not of much use, PIC is taken care of on platforms
 # where it makes sense anyway.
@@ -1009,6 +1014,45 @@ ELSEIF(NOT WITH_ATOMIC_OPS)
     return 0;
   }"
   HAVE_GCC_ATOMIC_BUILTINS)
+  IF(NOT HAVE_GCC_ATOMIC_BUILTINS)
+    # Try if atomics become available once we instruct gcc
+    # to generate pentium+ instructions.
+    SET(SAVE_C_FLAGS "${CMAKE_C_FLAGS}")
+    SET(SAVE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
+    SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -march=pentium")
+    SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -march=pentium")
+    CHECK_CXX_SOURCE_COMPILES("
+    int main()
+    {
+      int foo= -10; int bar= 10;
+      long long int foo64= -10; long long int bar64= 10;
+      if (!__sync_fetch_and_add(&foo, bar) || foo)
+        return -1;
+      bar= __sync_lock_test_and_set(&foo, bar);
+      if (bar || foo != 10)
+        return -1;
+      bar= __sync_val_compare_and_swap(&bar, foo, 15);
+      if (bar)
+        return -1;
+      if (!__sync_fetch_and_add(&foo64, bar64) || foo64)
+        return -1;
+      bar64= __sync_lock_test_and_set(&foo64, bar64);
+      if (bar64 || foo64 != 10)
+        return -1;
+      bar64= __sync_val_compare_and_swap(&bar64, foo, 15);
+      if (bar64)
+        return -1;
+      return 0;
+    }"
+    HAVE_GCC_ATOMIC_BUILTINS_WITH_MARCH_PENTIUM)
+    IF(HAVE_GCC_ATOMIC_BUILTINS_WITH_MARCH_PENTIUM)
+      SET(HAVE_GCC_ATOMIC_BUILTINS 1)
+      MESSAGE("-- Using -march=pentium to enable atomic builtins")
+    ELSE()
+      SET(CMAKE_C_FLAGS "${SAVE_C_FLAGS}")
+      SET(CMAKE_CXX_FLAGS "${SAVE_CXX_FLAGS}")
+    ENDIF()
+  ENDIF()
 ELSE()
   MESSAGE(FATAL_ERROR "${WITH_ATOMIC_OPS} is not a valid value for WITH_ATOMIC_OPS!")
 ENDIF()

@@ -135,9 +135,14 @@ IF(MSVC)
  INSTALL_DEBUG_TARGET(mysqlserver DESTINATION ${INSTALL_LIBDIR}/debug)
 ENDIF()
 
-IF(UNIX)
- INSTALL_DEBUG_TARGET(mysqlserver DESTINATION ${INSTALL_LIBDIR} RENAME
-  ${CMAKE_STATIC_LIBRARY_PREFIX}mysqld-debug)
+#
+# The debug version of the embedded server is big, and at present causes
+# the Solaris SVR4 packages to be too big (>2GB) for the packaging tools
+# to handle.  So, for now, we just disable it for those builds.
+# 
+IF(UNIX AND NOT INSTALL_LAYOUT MATCHES "SVR4")
+  INSTALL_DEBUG_TARGET(mysqlserver DESTINATION ${INSTALL_LIBDIR} RENAME
+   ${CMAKE_STATIC_LIBRARY_PREFIX}mysqld-debug)
 ENDIF()
 
 IF(MSVC AND NOT DISABLE_SHARED)
