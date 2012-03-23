@@ -23,7 +23,7 @@ set tmp_table_size=1024;
 
 # Set debug flag so an error is returned when
 # tmp table in query is converted from heap to myisam
-set session debug_dbug="d,raise_error";
+set session debug_dbug="+d,raise_error";
 
 --replace_regex /in table '[^']+'/in table 'tmp_table'/
 --error ER_DUP_KEY

@@ -172,6 +172,20 @@ struct link {
 #define NOT_MATCHED     0
 
 /*
+ * Debugging settings can be shared between threads.
+ * But FILE* streams cannot normally be shared - what if
+ * one thread closes a stream, while another thread still uses it?
+ * As a workaround, we have shared FILE pointers with reference counters
+ */
+typedef struct {
+  FILE *file;
+  uint used;
+} sFILE;
+
+sFILE shared_stdout = { 0, 1 << 30 }, *sstdout = &shared_stdout;
+sFILE shared_stderr = { 0, 1 << 30 }, *sstderr = &shared_stderr;
+
+/*
  *      Debugging settings can be pushed or popped off of a
  *      stack which is implemented as a linked list.  Note
  *      that the head of the list is the current settings and the
@@ -186,7 +200,7 @@ struct settings {
   uint maxdepth;                /* Current maximum trace depth          */
   uint delay;                   /* Delay after each output line         */
   uint sub_level;               /* Sub this from code_state->level      */
-  FILE *out_file;               /* Current output stream                */
+  sFILE *out_file;              /* Current output stream                */
   char name[FN_REFLEN];         /* Name of output file                  */
   struct link *functions;       /* List of functions                    */
   struct link *keywords;        /* List of debug keywords               */
@@ -251,11 +265,11 @@ static void FreeList(struct link *linkp);
 
         /* OpenClose debug output stream */
 static void DBUGOpenFile(CODE_STATE *,const char *, const char *, int);
-static void DBUGCloseFile(CODE_STATE *cs, FILE *fp);
+static void DBUGCloseFile(CODE_STATE *cs, sFILE *new_value);
         /* Push current debug settings */
 static void PushState(CODE_STATE *cs);
 	/* Free memory associated with debug state. */
-static void FreeState (CODE_STATE *cs, struct settings *state, int free_state);
+static void FreeState (CODE_STATE *cs, int free_state);
         /* Test for tracing enabled */
 static int DoTrace(CODE_STATE *cs);
 /*
@@ -328,9 +342,11 @@ static CODE_STATE *code_state(void)
   if (!init_done)
   {
     init_done=TRUE;
+    sstdout->file= stdout;
+    sstderr->file= stderr;
     pthread_mutex_init(&THR_LOCK_dbug, NULL);
     bzero(&init_settings, sizeof(init_settings));
-    init_settings.out_file=stderr;
+    init_settings.out_file= sstderr;
     init_settings.flags=OPEN_APPEND;
   }
 
@@ -455,12 +471,12 @@ static int DbugParse(CODE_STATE *cs, const char *control)
   rel= control[0] == '+' || control[0] == '-';
   if ((!rel || (!stack->out_file && !stack->next)))
   {
-    FreeState(cs, stack, 0);
+    FreeState(cs, 0);
     stack->flags= 0;
     stack->delay= 0;
     stack->maxdepth= 0;
     stack->sub_level= 0;
-    stack->out_file= stderr;
+    stack->out_file= sstderr;
     stack->functions= NULL;
     stack->keywords= NULL;
     stack->processes= NULL;
@@ -472,22 +488,17 @@ static int DbugParse(CODE_STATE *cs, const char *control)
     stack->maxdepth= stack->next->maxdepth;
     stack->sub_level= stack->next->sub_level;
     strcpy(stack->name, stack->next->name);
+    stack->out_file= stack->next->out_file;
+    stack->out_file->used++;
     if (stack->next == &init_settings)
     {
-      /*
-        Never share with the global parent - it can change under your feet.
-
-        Reset out_file to stderr to prevent sharing of trace files between
-        global and session settings.
-      */
-      stack->out_file= stderr;
+      /* never share with the global parent - it can change under your feet */
       stack->functions= ListCopy(init_settings.functions);
       stack->keywords= ListCopy(init_settings.keywords);
       stack->processes= ListCopy(init_settings.processes);
     }
     else
     {
-      stack->out_file= stack->next->out_file;
       stack->functions= stack->next->functions;
       stack->keywords= stack->next->keywords;
       stack->processes= stack->next->processes;
@@ -581,10 +592,8 @@ static int DbugParse(CODE_STATE *cs, const char *control)
     case 'o':
       if (sign < 0)
       {
-        if (!is_shared(stack, out_file))
-          DBUGCloseFile(cs, stack->out_file);
+        DBUGCloseFile(cs, sstderr);
         stack->flags &= ~FLUSH_ON_WRITE;
-        stack->out_file= stderr;
         break;
       }
       if (c == 'a' || c == 'A')
@@ -884,18 +893,15 @@ void _db_set_init_(const char *control)
 
 void _db_pop_()
 {
-  struct settings *discard;
   uint old_fflags;
   CODE_STATE *cs;
 
   get_code_state_or_return;
 
-  discard= cs->stack;
-  if (discard != &init_settings)
+  if (cs->stack != &init_settings)
   {
     old_fflags=fflags(cs);
-    cs->stack= discard->next;
-    FreeState(cs, discard, 1);
+    FreeState(cs, 1);
     FixTraceFlags(old_fflags, cs);
   }
 }
@@ -1009,7 +1015,7 @@ int _db_explain_ (CODE_STATE *cs, char *buf, size_t len)
   op_str_to_buf(
     ((cs->stack->flags & FLUSH_ON_WRITE ? 0 : 32) |
      (cs->stack->flags & OPEN_APPEND ? 'A' : 'O')),
-    cs->stack->name, cs->stack->out_file != stderr);
+    cs->stack->name, cs->stack->out_file != sstderr);
   op_list_to_buf('p', cs->stack->processes, cs->stack->processes);
   op_bool_to_buf('P', cs->stack->flags & PROCESS_ON);
   op_bool_to_buf('r', cs->stack->sub_level != 0);
@@ -1125,7 +1131,7 @@ void _db_enter_(const char *_func_, const char *_file_,
         pthread_mutex_lock(&THR_LOCK_dbug);
       DoPrefix(cs, _line_);
       Indent(cs, cs->level);
-      (void) fprintf(cs->stack->out_file, ">%s\n", cs->func);
+      (void) fprintf(cs->stack->out_file->file, ">%s\n", cs->func);
       DbugFlush(cs);                       /* This does a unlock */
     }
     break;
@@ -1182,7 +1188,7 @@ void _db_return_(uint _line_, struct _db_stack_frame_ *_stack_frame_)
         pthread_mutex_lock(&THR_LOCK_dbug);
       DoPrefix(cs, _line_);
       Indent(cs, cs->level);
-      (void) fprintf(cs->stack->out_file, "<%s\n", cs->func);
+      (void) fprintf(cs->stack->out_file->file, "<%s\n", cs->func);
       DbugFlush(cs);
     }
   }
@@ -1271,9 +1277,9 @@ void _db_doprnt_(const char *format,...)
     if (TRACING)
       Indent(cs, cs->level + 1);
     else
-      (void) fprintf(cs->stack->out_file, "%s: ", cs->func);
-    (void) fprintf(cs->stack->out_file, "%s: ", cs->u_keyword);
-    DbugVfprintf(cs->stack->out_file, format, args);
+      (void) fprintf(cs->stack->out_file->file, "%s: ", cs->func);
+    (void) fprintf(cs->stack->out_file->file, "%s: ", cs->u_keyword);
+    DbugVfprintf(cs->stack->out_file->file, format, args);
     DbugFlush(cs);
     errno=save_errno;
   }
@@ -1333,9 +1339,9 @@ void _db_dump_(uint _line_, const char *keyword,
     }
     else
     {
-      fprintf(cs->stack->out_file, "%s: ", cs->func);
+      fprintf(cs->stack->out_file->file, "%s: ", cs->func);
     }
-    (void) fprintf(cs->stack->out_file, "%s: Memory: 0x%lx  Bytes: (%ld)\n",
+    (void) fprintf(cs->stack->out_file->file, "%s: Memory: 0x%lx  Bytes: (%ld)\n",
             keyword, (ulong) memory, (long) length);
 
     pos=0;
@@ -1344,14 +1350,14 @@ void _db_dump_(uint _line_, const char *keyword,
       uint tmp= *((unsigned char*) memory++);
       if ((pos+=3) >= 80)
       {
-        fputc('\n',cs->stack->out_file);
+        fputc('\n',cs->stack->out_file->file);
         pos=3;
       }
-      fputc(_dig_vec_upper[((tmp >> 4) & 15)], cs->stack->out_file);
-      fputc(_dig_vec_upper[tmp & 15], cs->stack->out_file);
-      fputc(' ',cs->stack->out_file);
+      fputc(_dig_vec_upper[((tmp >> 4) & 15)], cs->stack->out_file->file);
+      fputc(_dig_vec_upper[tmp & 15], cs->stack->out_file->file);
+      fputc(' ',cs->stack->out_file->file);
     }
-    (void) fputc('\n',cs->stack->out_file);
+    (void) fputc('\n',cs->stack->out_file->file);
     DbugFlush(cs);
   }
   else if (!cs->locked)
@@ -1578,8 +1584,9 @@ static void PushState(CODE_STATE *cs)
  *	state. If free_state is set, also free 'state'
  *
  */
-static void FreeState(CODE_STATE *cs, struct settings *state, int free_state)
+static void FreeState(CODE_STATE *cs, int free_state)
 {
+  struct settings *state= cs->stack;
   if (!is_shared(state, keywords))
     FreeList(state->keywords);
   if (!is_shared(state, functions))
@@ -1587,13 +1594,14 @@ static void FreeState(CODE_STATE *cs, struct settings *state, int free_state)
   if (!is_shared(state, processes))
     FreeList(state->processes);
 
-  if (!is_shared(state, out_file))
-    DBUGCloseFile(cs, state->out_file);
-  else
-    (void) fflush(state->out_file);
+  DBUGCloseFile(cs, NULL);
 
   if (free_state)
-    free((void*) state);
+  {
+    struct settings *next= state->next;
+    free(state);
+    cs->stack= next;
+  }
 }
 
 
@@ -1616,8 +1624,6 @@ static void FreeState(CODE_STATE *cs, struct settings *state, int free_state)
  */
 void _db_end_()
 {
-  struct settings *discard;
-  static struct settings tmp;
   CODE_STATE *cs;
   /*
     Set _dbug_on_ to be able to do full reset even when DEBUGGER_OFF was
@@ -1627,24 +1633,8 @@ void _db_end_()
   cs= code_state();
 
   if (cs)
-    while ((discard= cs->stack))
-    {
-      if (discard == &init_settings)
-        break;
-      cs->stack= discard->next;
-      FreeState(cs, discard, 1);
-    }
-  tmp= init_settings;
-
-  init_settings.flags=    OPEN_APPEND;
-  init_settings.out_file= stderr;
-  init_settings.maxdepth= 0;
-  init_settings.delay= 0;
-  init_settings.sub_level= 0;
-  init_settings.functions= 0;
-  init_settings.keywords= 0;
-  init_settings.processes= 0;
-  FreeState(cs, &tmp, 0);
+    while (cs->stack && cs->stack != &init_settings)
+      FreeState(cs, 1);
 }
 
 
@@ -1683,7 +1673,7 @@ FILE *_db_fp_(void)
 {
   CODE_STATE *cs;
   get_code_state_or_return NULL;
-  return cs->stack->out_file;
+  return cs->stack->out_file->file;
 }
 
 /*
@@ -1744,9 +1734,9 @@ static void Indent(CODE_STATE *cs, int indent)
   for (count= 0; count < indent ; count++)
   {
     if ((count % INDENT) == 0)
-      fputc('|',cs->stack->out_file);
+      fputc('|',cs->stack->out_file->file);
     else
-      fputc(' ',cs->stack->out_file);
+      fputc(' ',cs->stack->out_file->file);
   }
 }
 
@@ -1805,10 +1795,10 @@ static void DoPrefix(CODE_STATE *cs, uint _line_)
   cs->lineno++;
   if (cs->stack->flags & PID_ON)
   {
-    (void) fprintf(cs->stack->out_file, "%-7s: ", my_thread_name());
+    (void) fprintf(cs->stack->out_file->file, "%-7s: ", my_thread_name());
   }
   if (cs->stack->flags & NUMBER_ON)
-    (void) fprintf(cs->stack->out_file, "%5d: ", cs->lineno);
+    (void) fprintf(cs->stack->out_file->file, "%5d: ", cs->lineno);
   if (cs->stack->flags & TIMESTAMP_ON)
   {
 #ifdef __WIN__
@@ -1816,7 +1806,7 @@ static void DoPrefix(CODE_STATE *cs, uint _line_)
        in system ticks, 10 ms intervals. See my_getsystime.c for high res */
     SYSTEMTIME loc_t;
     GetLocalTime(&loc_t);
-    (void) fprintf (cs->stack->out_file,
+    (void) fprintf (cs->stack->out_file->file,
                     /* "%04d-%02d-%02d " */
                     "%02d:%02d:%02d.%06d ",
                     /*tm_p->tm_year + 1900, tm_p->tm_mon + 1, tm_p->tm_mday,*/
@@ -1828,7 +1818,7 @@ static void DoPrefix(CODE_STATE *cs, uint _line_)
     {
       if ((tm_p= localtime((const time_t *)&tv.tv_sec)))
       {
-        (void) fprintf (cs->stack->out_file,
+        (void) fprintf (cs->stack->out_file->file,
                         /* "%04d-%02d-%02d " */
                         "%02d:%02d:%02d.%06d ",
                         /*tm_p->tm_year + 1900, tm_p->tm_mon + 1, tm_p->tm_mday,*/
@@ -1839,13 +1829,13 @@ static void DoPrefix(CODE_STATE *cs, uint _line_)
 #endif
   }
   if (cs->stack->flags & PROCESS_ON)
-    (void) fprintf(cs->stack->out_file, "%s: ", cs->process);
+    (void) fprintf(cs->stack->out_file->file, "%s: ", cs->process);
   if (cs->stack->flags & FILE_ON)
-    (void) fprintf(cs->stack->out_file, "%14s: ", BaseName(cs->file));
+    (void) fprintf(cs->stack->out_file->file, "%14s: ", BaseName(cs->file));
   if (cs->stack->flags & LINE_ON)
-    (void) fprintf(cs->stack->out_file, "%5d: ", _line_);
+    (void) fprintf(cs->stack->out_file->file, "%5d: ", _line_);
   if (cs->stack->flags & DEPTH_ON)
-    (void) fprintf(cs->stack->out_file, "%4d: ", cs->level);
+    (void) fprintf(cs->stack->out_file->file, "%4d: ", cs->level);
 }
 
 
@@ -1884,9 +1874,7 @@ static void DBUGOpenFile(CODE_STATE *cs,
     name=cs->stack->name;
     if (strcmp(name, "-") == 0)
     {
-      if (!is_shared(cs->stack, out_file))
-        DBUGCloseFile(cs, cs->stack->out_file);
-      cs->stack->out_file= stdout;
+      DBUGCloseFile(cs, sstdout);
       cs->stack->flags |= FLUSH_ON_WRITE;
       cs->stack->name[0]=0;
     }
@@ -1908,9 +1896,10 @@ static void DBUGOpenFile(CODE_STATE *cs,
         }
         else
         {
-          if (!is_shared(cs->stack, out_file))
-            DBUGCloseFile(cs, cs->stack->out_file);
-          cs->stack->out_file= fp;
+          sFILE *sfp= (sFILE *)DbugMalloc(sizeof(sFILE));
+          sfp->file= fp;
+          sfp->used= 1;
+          DBUGCloseFile(cs, sfp);
         }
       }
     }
@@ -1934,16 +1923,30 @@ static void DBUGOpenFile(CODE_STATE *cs,
  *
  */
 
-static void DBUGCloseFile(CODE_STATE *cs, FILE *fp)
+static void DBUGCloseFile(CODE_STATE *cs, sFILE *new_value)
 {
-  if (cs && fp && fp != stderr && fp != stdout && fclose(fp) == EOF)
+  sFILE *fp;
+  if (!cs || !cs->stack || !cs->stack->out_file)
+    return;
+  if (!cs->locked)
+    pthread_mutex_lock(&THR_LOCK_dbug);
+
+  fp= cs->stack->out_file;
+  if (--fp->used == 0)
   {
-    if (!cs->locked)
-      pthread_mutex_lock(&THR_LOCK_dbug);
-    (void) fprintf(cs->stack->out_file, ERR_CLOSE, cs->process);
-    perror("");
-    DbugFlush(cs);
+    if (fclose(fp->file) == EOF)
+    {
+      (void) fprintf(stderr, ERR_CLOSE, cs->process);
+      perror("");
+    }
+    else
+    {
+      free(fp);
+    }
   }
+  cs->stack->out_file= new_value;
+  if (!cs->locked)
+    pthread_mutex_unlock(&THR_LOCK_dbug);
 }
 
 
@@ -2111,7 +2114,7 @@ static void DbugFlush(CODE_STATE *cs)
 {
   if (cs->stack->flags & FLUSH_ON_WRITE)
   {
-    (void) fflush(cs->stack->out_file);
+    (void) fflush(cs->stack->out_file->file);
     if (cs->stack->delay)
       (void) Delay(cs->stack->delay);
   }
@@ -2126,7 +2129,7 @@ void _db_flush_()
 {
   CODE_STATE *cs;
   get_code_state_or_return;
-  (void) fflush(cs->stack->out_file);
+  (void) fflush(cs->stack->out_file->file);
 }
 
 
