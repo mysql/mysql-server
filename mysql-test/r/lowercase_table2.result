@@ -277,3 +277,16 @@ ERROR HY000: Can't find file: 't_bug44738_uppercase' (errno: 2 - No such file or
 flush tables;
 create table t_bug44738_UPPERCASE (i int);
 drop table t_bug44738_UPPERCASE;
+# BUG#13702397 - 64211: 'CREATE TABLE ... LIKE ...'
+#                       FAILS TO KEEP CASE
+#
+CREATE TABLE TestTable1 (a int);
+SHOW TABLES;
+Tables_in_test
+TestTable1
+CREATE TABLE TestTable2 LIKE TestTable1;
+SHOW TABLES;
+Tables_in_test
+TestTable1
+TestTable2
+DROP TABLE TestTable1, TestTable2;
