@@ -42,7 +42,6 @@ public:
   /* Public Methods */
   NdbInstance(Ndb_cluster_connection *, int);
   ~NdbInstance();
-  void non_blocking_close(NdbTransaction *);
   void link_workitem(workitem *);
   void unlink_workitem(workitem *);
 
