@@ -590,17 +590,17 @@ void check_io(FILE *file)
 
 static void print_version(void)
 {
-  printf("%s  Ver %s Distrib %s, for %s (%s)\n",my_progname,DUMP_VERSION,
+  printf("%s  Ver %s Distrib %s, for %s (%s)\n",my_progname_short,DUMP_VERSION,
          MYSQL_SERVER_VERSION,SYSTEM_TYPE,MACHINE_TYPE);
 } /* print_version */
 
 
 static void short_usage_sub(void)
 {
-  printf("Usage: %s [OPTIONS] database [tables]\n", my_progname);
+  printf("Usage: %s [OPTIONS] database [tables]\n", my_progname_short);
   printf("OR     %s [OPTIONS] --databases [OPTIONS] DB1 [DB2 DB3...]\n",
-         my_progname);
-  printf("OR     %s [OPTIONS] --all-databases [OPTIONS]\n", my_progname);
+         my_progname_short);
+  printf("OR     %s [OPTIONS] --all-databases [OPTIONS]\n", my_progname_short);
 }
 
 
@@ -620,7 +620,7 @@ static void usage(void)
 static void short_usage(void)
 {
   short_usage_sub();
-  printf("For more options, use %s --help\n", my_progname);
+  printf("For more options, use %s --help\n", my_progname_short);
 }
 
 
@@ -947,7 +947,7 @@ static int get_options(int *argc, char ***argv)
                 fields_terminated))
   {
     fprintf(stderr,
-            "%s: You must use option --tab with --fields-...\n", my_progname);
+            "%s: You must use option --tab with --fields-...\n", my_progname_short);
     return(EX_USAGE);
   }
 
@@ -965,7 +965,7 @@ static int get_options(int *argc, char ***argv)
   if (opt_single_transaction && opt_lock_all_tables)
   {
     fprintf(stderr, "%s: You can't use --single-transaction and "
-            "--lock-all-tables at the same time.\n", my_progname);
+            "--lock-all-tables at the same time.\n", my_progname_short);
     return(EX_USAGE);
   }
   if (opt_master_data)
@@ -977,14 +977,14 @@ static int get_options(int *argc, char ***argv)
     lock_tables= 0;
   if (enclosed && opt_enclosed)
   {
-    fprintf(stderr, "%s: You can't use ..enclosed.. and ..optionally-enclosed.. at the same time.\n", my_progname);
+    fprintf(stderr, "%s: You can't use ..enclosed.. and ..optionally-enclosed.. at the same time.\n", my_progname_short);
     return(EX_USAGE);
   }
   if ((opt_databases || opt_alldbs) && path)
   {
     fprintf(stderr,
             "%s: --databases or --all-databases can't be used with --tab.\n",
-            my_progname);
+            my_progname_short);
     return(EX_USAGE);
   }
   if (strcmp(default_charset, charset_info->csname) &&
@@ -1036,7 +1036,7 @@ static void die(int error_num, const char* fmt_reason, ...)
   my_vsnprintf(buffer, sizeof(buffer), fmt_reason, args);
   va_end(args);
 
-  fprintf(stderr, "%s: %s\n", my_progname, buffer);
+  fprintf(stderr, "%s: %s\n", my_progname_short, buffer);
   fflush(stderr);
 
   ignore_errors= 0; /* force the exit */
@@ -1070,7 +1070,7 @@ static void maybe_die(int error_num, const char* fmt_reason, ...)
   my_vsnprintf(buffer, sizeof(buffer), fmt_reason, args);
   va_end(args);
 
-  fprintf(stderr, "%s: %s\n", my_progname, buffer);
+  fprintf(stderr, "%s: %s\n", my_progname_short, buffer);
   fflush(stderr);
 
   maybe_exit(error_num);
@@ -2152,7 +2152,7 @@ static uint dump_events_for_db(char *db)
           if (create_delimiter(row[3], delimiter, sizeof(delimiter)) == NULL)
           {
             fprintf(stderr, "%s: Warning: Can't create delimiter for event '%s'\n",
-                    my_progname, event_name);
+                    my_progname_short, event_name);
             DBUG_RETURN(1);
           }
 
@@ -2766,7 +2766,7 @@ static uint get_table_structure(char *table, char *db, char *table_type,
   else
   {
     verbose_msg("%s: Warning: Can't set SQL_QUOTE_SHOW_CREATE option (%s)\n",
-                my_progname, mysql_error(mysql));
+                my_progname_short, mysql_error(mysql));
 
     my_snprintf(query_buff, sizeof(query_buff), show_fields_stmt, db, table);
 
@@ -2877,7 +2877,7 @@ static uint get_table_structure(char *table, char *db, char *table_type,
           goto continue_xml;
         }
         fprintf(stderr, "%s: Can't get keys for table %s (%s)\n",
-                my_progname, result_table, mysql_error(mysql));
+                my_progname_short, result_table, mysql_error(mysql));
         if (path)
           my_fclose(sql_file, MYF(MY_WME));
         DBUG_RETURN(0);
@@ -3533,7 +3533,7 @@ static void dump_table(char *table, char *db)
     if (mysql_num_fields(res) != num_fields)
     {
       fprintf(stderr,"%s: Error in field count for table: %s !  Aborting.\n",
-              my_progname, result_table);
+              my_progname_short, result_table);
       error= EX_CONSCHECK;
       goto err;
     }
@@ -3798,7 +3798,7 @@ static void dump_table(char *table, char *db)
     {
       my_snprintf(buf, sizeof(buf),
                   "%s: Error %d: %s when dumping table %s at row: %ld\n",
-                  my_progname,
+                  my_progname_short,
                   mysql_errno(mysql),
                   mysql_error(mysql),
                   result_table,
@@ -3992,8 +3992,8 @@ static int dump_tablespaces(char* ts_where)
       DBUG_RETURN(0);
     }
 
-    my_printf_error(0, "Error: '%s' when trying to dump tablespaces",
-                    MYF(0), mysql_error(mysql));
+    fprintf(stderr, "%s: Error: '%s' when trying to dump tablespaces\n",
+                    my_progname_short, mysql_error(mysql));
     DBUG_RETURN(1);
   }
 
@@ -4138,8 +4138,8 @@ static int dump_all_databases()
     if (mysql_query(mysql, "SHOW DATABASES") ||
         !(tableres= mysql_store_result(mysql)))
     {
-      my_printf_error(0, "Error: Couldn't execute 'SHOW DATABASES': %s",
-                      MYF(0), mysql_error(mysql));
+      fprintf(stderr, "%s: Error: Couldn't execute 'SHOW DATABASES': %s\n",
+                      my_progname_short, mysql_error(mysql));
       return 1;
     }
     while ((row= mysql_fetch_row(tableres)))
@@ -4666,8 +4666,8 @@ static int do_show_master_status(MYSQL *mysql_con, int consistent_binlog_pos)
       if (!ignore_errors)
       {
         /* SHOW MASTER STATUS reports nothing and --force is not enabled */
-        my_printf_error(0, "Error: Binlogging on server not active",
-                        MYF(0));
+        fprintf(stderr, "%s: Error: Binlogging on server not active\n",
+                my_progname_short);
         maybe_exit(EX_MYSQLERR);
         return 1;
       }
@@ -4750,7 +4750,7 @@ static int do_show_slave_status(MYSQL *mysql_con)
     if (!ignore_errors)
     {
       /* SHOW SLAVE STATUS reports nothing and --force is not enabled */
-      my_printf_error(0, "Error: Slave not set up", MYF(0));
+      fprintf(stderr, "%s: Error: Slave not set up\n", my_progname_short);
     }
     mysql_free_result(slave);
     return 1;
@@ -4810,7 +4810,7 @@ static int do_start_slave_sql(MYSQL *mysql_con)
   /* now, start slave if stopped */
   if (mysql_query_with_error_report(mysql_con, 0, "START SLAVE"))
   {
-    my_printf_error(0, "Error: Unable to start slave", MYF(0));
+    fprintf(stderr, "%s: Error: Unable to start slave\n", my_progname_short);
     return 1;
   }
   return(0);
@@ -5452,8 +5452,9 @@ int main(int argc, char **argv)
   char bin_log_name[FN_REFLEN];
   int exit_code;
   int consistent_binlog_pos= 0;
-  MY_INIT("mysqldump");
+  MY_INIT(argv[0]);
 
+  sf_leaking_memory=1; /* don't report memory leaks on early exits */
   compatible_mode_normal_str[0]= 0;
   default_charset= (char *)mysql_universal_client_charset;
   bzero((char*) &ignore_table, sizeof(ignore_table));
@@ -5464,6 +5465,7 @@ int main(int argc, char **argv)
     free_resources();
     exit(exit_code);
   }
+  sf_leaking_memory=0; /* from now on we cleanup properly */
 
   /*
     Disable comments in xml mode if 'comments' option is not explicitly used.

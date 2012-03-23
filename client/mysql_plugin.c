@@ -100,6 +100,7 @@ int main(int argc,char *argv[])
   char operation[16];
 
   MY_INIT(argv[0]);
+  sf_leaking_memory=1; /* don't report memory leaks on early exits */
   plugin_data.name= 0; // initialize name
   
   /*

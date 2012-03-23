@@ -975,6 +975,7 @@ int main(int argc, char **argv)
   char **defaults_argv;
 
   MY_INIT(argv[0]);
+  sf_leaking_memory=1; /* don't report memory leaks on early exits */
   /*
   ** Check out the args
   */
@@ -984,6 +985,7 @@ int main(int argc, char **argv)
   defaults_argv= argv;
   if (get_options(&argc, &argv))
     goto end1;
+  sf_leaking_memory=0; /* from now on we cleanup properly */
 
   ret= EX_MYSQLERR;
   if (dbConnect(current_host, current_user, opt_password))

@@ -197,7 +197,7 @@ INSERT INTO t1 VALUES (1), (2);
 --exec $MYSQL_DUMP --skip-create --skip-comments --ssl --ssl-ca=$MYSQL_TEST_DIR/std_data/cacert.pem --ssl-key=$MYSQL_TEST_DIR/std_data/client-key.pem --ssl-cert=$MYSQL_TEST_DIR/std_data/client-cert.pem test
 
 # With wrong parameters
---replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
+--replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR mysqldump.exe mysqldump
 --error 2
 --exec $MYSQL_DUMP --skip-create --skip-comments --ssl --ssl-cert=$MYSQL_TEST_DIR/std_data/client-cert.pem test 2>&1
 

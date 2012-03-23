@@ -255,7 +255,7 @@ get_one_option(int optid, const struct my_option *opt,
     puts(ORACLE_WELCOME_COPYRIGHT_NOTICE("2000, 2010"));
     puts("MariaDB utility for upgrading databases to new MariaDB versions.\n");
     my_print_help(my_long_options);
-    exit(0);
+    die(0);
     break;
 
   case '#':

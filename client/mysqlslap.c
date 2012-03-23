@@ -317,6 +317,7 @@ int main(int argc, char **argv)
   option_string *eptr;
 
   MY_INIT(argv[0]);
+  sf_leaking_memory=1; /* don't report memory leaks on early exits */
 
   if (load_defaults("my",load_default_groups,&argc,&argv))
   {
@@ -330,6 +331,7 @@ int main(int argc, char **argv)
     my_end(0);
     exit(1);
   }
+  sf_leaking_memory=0; /* from now on we cleanup properly */
 
   /* Seed the random number generator if we will be using it. */
   if (auto_generate_sql)

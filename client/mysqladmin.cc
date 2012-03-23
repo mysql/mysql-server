@@ -307,6 +307,7 @@ int main(int argc,char *argv[])
 
   MY_INIT(argv[0]);
   mysql_init(&mysql);
+  sf_leaking_memory=1; /* don't report memory leaks on early exits */
   if ((error= load_defaults("my",load_default_groups,&argc,&argv)))
     goto err1;
   save_argv = argv;				/* Save for free_defaults */
@@ -328,6 +329,8 @@ int main(int argc,char *argv[])
 
   (void) signal(SIGINT,endprog);			/* Here if abort */
   (void) signal(SIGTERM,endprog);		/* Here if abort */
+
+  sf_leaking_memory=0; /* from now on we cleanup properly */
 
   if (opt_compress)
     mysql_options(&mysql,MYSQL_OPT_COMPRESS,NullS);

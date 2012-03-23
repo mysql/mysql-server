@@ -613,6 +613,7 @@ int main(int argc, char **argv)
 {
   int error=0;
   MY_INIT(argv[0]);
+  sf_leaking_memory=1; /* don't report memory leaks on early exits */
 
   if (load_defaults("my",load_default_groups,&argc,&argv))
     return 1;
@@ -623,6 +624,7 @@ int main(int argc, char **argv)
     free_defaults(argv_to_free);
     return(1);
   }
+  sf_leaking_memory=0; /* from now on we cleanup properly */
 
 #ifdef HAVE_LIBPTHREAD
   if (opt_use_threads && !lock_tables)
