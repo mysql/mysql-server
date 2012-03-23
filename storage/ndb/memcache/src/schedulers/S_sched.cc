@@ -538,7 +538,7 @@ S::WorkerConnection::WorkerConnection(SchedulerGlobal *global,
 
   /* Build the freelist */
   freelist = 0;
-  int my_ndb_inst = conn->nInst / global->options.n_worker_threads;
+  int my_ndb_inst = conn->nInst / conn->n_workers;
   for(int j = 0 ; j < my_ndb_inst ; j++ ) {
     NdbInstance *inst = new NdbInstance(conn->conn, 2);
     inst->id = ((id.thd + 1) * 10000) + j + 1; 

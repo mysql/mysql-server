@@ -15580,7 +15580,9 @@ HA_ALTER_FLAGS supported_alter_operations()
     HA_COLUMN_FORMAT |
     HA_ADD_PARTITION |
     HA_ALTER_TABLE_REORG |
-    HA_CHANGE_AUTOINCREMENT_VALUE;
+    HA_CHANGE_AUTOINCREMENT_VALUE | 
+    HA_ALTER_MAX_ROWS
+;
 }
 
 int ha_ndbcluster::check_if_supported_alter(TABLE *altered_table,
@@ -15651,7 +15653,8 @@ int ha_ndbcluster::check_if_supported_alter(TABLE *altered_table,
 
   if (alter_flags->is_set(HA_ADD_COLUMN) ||
       alter_flags->is_set(HA_ADD_PARTITION) ||
-      alter_flags->is_set(HA_ALTER_TABLE_REORG))
+      alter_flags->is_set(HA_ALTER_TABLE_REORG) ||
+      alter_flags->is_set(HA_ALTER_MAX_ROWS))
   {
      Ndb *ndb= get_ndb(thd);
      NDBDICT *dict= ndb->getDictionary();
@@ -15711,6 +15714,19 @@ int ha_ndbcluster::check_if_supported_alter(TABLE *altered_table,
 
      if (alter_flags->is_set(HA_ALTER_TABLE_REORG))
      {
+       /* 
+          Refuse if Max_rows has been used before...
+          Workaround is to use ALTER ONLINE TABLE <t> MAX_ROWS=<bigger>;
+       */
+       if (old_tab->getMaxRows() != 0)
+       {
+         push_warning(current_thd,
+                      MYSQL_ERROR::WARN_LEVEL_WARN, ER_UNKNOWN_ERROR,
+                      "Cannot online REORGANIZE a table with Max_Rows set.  "
+                      "Use ALTER TABLE ... MAX_ROWS=<new_val> or offline REORGANIZE "
+                      "to redistribute this table.");
+         DBUG_RETURN(HA_ALTER_NOT_SUPPORTED);
+       }
        new_tab.setFragmentCount(0);
        new_tab.setFragmentData(0, 0);
      }
@@ -15718,6 +15734,27 @@ int ha_ndbcluster::check_if_supported_alter(TABLE *altered_table,
      {
        DBUG_PRINT("info", ("Adding partition (%u)", part_info->num_parts));
        new_tab.setFragmentCount(part_info->num_parts);
+     }
+     if (alter_flags->is_set(HA_ALTER_MAX_ROWS))
+     {
+       ulonglong rows= create_info->max_rows;
+       uint no_fragments= get_no_fragments(rows);
+       uint reported_frags= no_fragments;
+       if (adjusted_frag_count(ndb, no_fragments, reported_frags))
+       {
+         push_warning(current_thd,
+                      MYSQL_ERROR::WARN_LEVEL_WARN, ER_UNKNOWN_ERROR,
+                      "Ndb might have problems storing the max amount "
+                      "of rows specified");
+       }
+       if (reported_frags < old_tab->getFragmentCount())
+       {
+         DBUG_PRINT("info", ("Online reduction in number of fragments not supported"));
+         DBUG_RETURN(HA_ALTER_NOT_SUPPORTED);
+       }
+       new_tab.setFragmentCount(reported_frags);
+       new_tab.setDefaultNoPartitionsFlag(false);
+       new_tab.setFragmentData(0, 0);
      }
 
      NDB_Modifiers table_modifiers(ndb_table_modifiers);
@@ -16037,7 +16074,9 @@ int ha_ndbcluster::alter_table_phase1(THD *thd,
      }
   }
 
-  if (alter_flags->is_set(HA_ALTER_TABLE_REORG) || alter_flags->is_set(HA_ADD_PARTITION))
+  if (alter_flags->is_set(HA_ALTER_TABLE_REORG) || 
+      alter_flags->is_set(HA_ADD_PARTITION) ||
+      alter_flags->is_set(HA_ALTER_MAX_ROWS))
   {
     if (alter_flags->is_set(HA_ALTER_TABLE_REORG))
     {
@@ -16049,7 +16088,29 @@ int ha_ndbcluster::alter_table_phase1(THD *thd,
       partition_info *part_info= altered_table->part_info;
       new_tab->setFragmentCount(part_info->num_parts);
     }
-
+    else if (alter_flags->is_set(HA_ALTER_MAX_ROWS))
+    {
+      ulonglong rows= create_info->max_rows;
+      uint no_fragments= get_no_fragments(rows);
+      uint reported_frags= no_fragments;
+      if (adjusted_frag_count(ndb, no_fragments, reported_frags))
+      {
+        DBUG_ASSERT(false); /* Checked above */
+      }
+      if (reported_frags < old_tab->getFragmentCount())
+      {
+        DBUG_ASSERT(false);
+        DBUG_RETURN(HA_ALTER_NOT_SUPPORTED);
+      }
+      /* Note we don't set the ndb table's max_rows param, as that 
+       * is considered a 'real' change
+       */
+      //new_tab->setMaxRows(create_info->max_rows);
+      new_tab->setFragmentCount(reported_frags);
+      new_tab->setDefaultNoPartitionsFlag(false);
+      new_tab->setFragmentData(0, 0);
+    }
+    
     int res= dict->prepareHashMap(*old_tab, *new_tab);
     if (res == -1)
     {
