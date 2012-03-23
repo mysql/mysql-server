@@ -36,6 +36,11 @@
 /* A static global variable */
 extern EXTENSION_LOGGER_DESCRIPTOR *logger;
 
+/* From ndb_pipeline */
+extern int workitem_class_id;
+extern int workitem_actual_inline_buffer_size;
+
+
 /* An external Function */
 extern "C" {
   void cache_set_initial_cas_id(uint64_t cas);    /* In cache-src/items.c */
@@ -158,10 +163,13 @@ void disconnect_all() {
 
 /* This function has C linkage */
 void print_debug_startup_info() {
-  int sz[4];
-  DEBUG_PRINT("  sizeof Ndb           : %lu", sz[0]=sizeof(Ndb));
-  DEBUG_PRINT("  sizeof NdbInstance   : %lu", sz[1]=sizeof(NdbInstance));
-  DEBUG_PRINT("  sizeof workitem      : %lu", sizeof(workitem));
+  size_t wi1 = 1 << workitem_class_id; 
+  size_t wi2 = sizeof(workitem) - WORKITEM_MIN_INLINE_BUF;
+  size_t wi3 = workitem_actual_inline_buffer_size;
+  
+  DEBUG_PRINT("  sizeof Ndb           : %lu", sizeof(Ndb));
+  DEBUG_PRINT("  sizeof NdbInstance   : %lu", sizeof(NdbInstance));
+  DEBUG_PRINT("  sizeof workitem      : %lu (%lu + buffer: %lu)", wi1, wi2, wi3);
   DEBUG_PRINT("  sizeof ExternalValue : %lu", sizeof(ExternalValue));
 }
 
