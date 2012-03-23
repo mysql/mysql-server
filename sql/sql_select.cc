@@ -7498,7 +7498,7 @@ static bool create_ref_for_key(JOIN *join, JOIN_TAB *j,
       if (keyuse->null_rejecting) 
         j->ref.null_rejecting |= 1 << i;
       keyuse_uses_no_tables= keyuse_uses_no_tables && !keyuse->used_tables;
-      if (!keyuse->used_tables && !thd->lex->describe)
+      if (!keyuse->val->used_tables() && !thd->lex->describe)
       {					// Compare against constant
 	store_key_item tmp(thd, 
                            keyinfo->key_part[i].field,
