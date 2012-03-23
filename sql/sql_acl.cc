@@ -2554,7 +2554,8 @@ update_user_table(THD *thd, TABLE *table,
   
   table->field[(int) password_field]->store(new_password, new_password_len,
                                            system_charset_info);
-  if (new_password_len == SCRAMBLED_PASSWORD_CHAR_LENGTH_323)
+  if (new_password_len == SCRAMBLED_PASSWORD_CHAR_LENGTH_323 &&
+      password_field == MYSQL_USER_FIELD_PASSWORD)
     WARN_DEPRECATED_41_PWD_HASH(thd);
 
   if ((error=table->file->ha_update_row(table->record[1],table->record[0])) &&
@@ -2659,8 +2660,6 @@ static int replace_user_table(THD *thd, TABLE *table, LEX_USER *combo,
 
   mysql_mutex_assert_owner(&acl_cache->lock);
  
-  if (combo->password.length == SCRAMBLED_PASSWORD_CHAR_LENGTH_323)
-    WARN_DEPRECATED_41_PWD_HASH(thd);
   table->use_all_columns();
   DBUG_ASSERT(combo->host.str != '\0');
   table->field[MYSQL_USER_FIELD_HOST]->store(combo->host.str,combo->host.length,
@@ -2766,6 +2765,8 @@ static int replace_user_table(THD *thd, TABLE *table, LEX_USER *combo,
 #endif
     {
       /* Use the legacy Password field */
+      if (combo->password.length == SCRAMBLED_PASSWORD_CHAR_LENGTH_323)
+        WARN_DEPRECATED_41_PWD_HASH(thd);
       table->field[MYSQL_USER_FIELD_PASSWORD]->store(password, password_len,
                                                      system_charset_info);
       table->field[MYSQL_USER_FIELD_AUTHENTICATION_STRING]->store("\0", 0,
@@ -2867,6 +2868,8 @@ static int replace_user_table(THD *thd, TABLE *table, LEX_USER *combo,
 #endif
       {
         /* The legacy Password field is used */
+        if (combo->password.length == SCRAMBLED_PASSWORD_CHAR_LENGTH_323)
+          WARN_DEPRECATED_41_PWD_HASH(thd);
         table->field[MYSQL_USER_FIELD_PASSWORD]->
           store(password, password_len, system_charset_info);
         table->field[MYSQL_USER_FIELD_AUTHENTICATION_STRING]->
@@ -8725,7 +8728,7 @@ void init_default_auth_plugin()
 
 int set_default_auth_plugin(char *plugin_name, int plugin_name_length)
 {
-  // TODO verify that the auth plugin is present
+#if defined(HAVE_OPENSSL)
   default_auth_plugin_name.str= plugin_name;
   default_auth_plugin_name.length= plugin_name_length;
   
@@ -8740,6 +8743,7 @@ int set_default_auth_plugin(char *plugin_name, int plugin_name_length)
     */
     global_system_variables.old_passwords= 2;
   }
+#endif
 #endif
   return 0;
 }
@@ -11135,8 +11139,7 @@ mysql_declare_plugin(mysql_password)
   NULL,                                         /* config options   */
   0,                                            /* flags            */
 }
-#ifdef HAVE_OPENSSL
-#ifndef HAVE_YASSL
+#if defined(HAVE_OPENSSL) && !defined(HAVE_YASSL)
 ,
 {
   MYSQL_AUTHENTICATION_PLUGIN,                  /* type constant    */
@@ -11153,7 +11156,6 @@ mysql_declare_plugin(mysql_password)
   NULL,                                         /* config options   */
   0                                             /* flags            */
 }
-#endif
 #endif
 mysql_declare_plugin_end;
 

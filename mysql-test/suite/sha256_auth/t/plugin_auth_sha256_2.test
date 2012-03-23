@@ -1,3 +1,5 @@
+--source include/have_openssl.inc
+--source include/have_plugin_auth_sha256.inc
 --source include/not_embedded.inc
 --source include/mysql_upgrade_preparation.inc
 
