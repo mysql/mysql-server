@@ -47,7 +47,7 @@ function get_latest_svn_revision() {
     local revision=0
     local svntarget=$svnserver/$*
     local latest=$(retry svn info $svntarget)
-    if [[ $latest =~ "Last Changed Rev: ([0-9]+)" ]] ; then
+    if [[ $latest =~ Last\ Changed\ Rev:\ ([0-9]+) ]] ; then
         revision=${BASH_REMATCH[1]}
     fi
     echo $revision
@@ -75,7 +75,7 @@ function runcmd() {
 	$cmd
 	exitcode=$?
 	local dir=$makedir
-	if [[ $dir =~ "$HOME/svn.build/(.*)" ]] ; then
+	if [[ $dir =~ $HOME/svn.build/(.*) ]] ; then
 	    dir=${BASH_REMATCH[1]}
 	fi
 	result="$(mydate) $dir $cmd"
@@ -108,7 +108,7 @@ function build() {
 
     # setup build environment
     export BDBVERSION=$1
-    if [[ $BDBVERSION =~ "(.*)\.(.*)" ]] ;then
+    if [[ $BDBVERSION =~ ([0-9]+)\.([0-9]+) ]] ;then
         export BDBMAJOR=${BASH_REMATCH[1]}
         export BDBMINOR=${BASH_REMATCH[2]}
     else
