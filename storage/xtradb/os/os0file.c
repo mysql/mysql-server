@@ -2904,7 +2904,7 @@ retry:
 			"InnoDB: Check also that the disk is not full"
 			" or a disk quota exceeded.\n",
 			name, (ulong) offset_high, (ulong) offset,
-			(ulong) n, (ulong) len, (ulong) err);
+			(ulong) n, ret ? len : 0, (ulong) err);
 
 		if (strerror((int)err) != NULL) {
 			fprintf(stderr,

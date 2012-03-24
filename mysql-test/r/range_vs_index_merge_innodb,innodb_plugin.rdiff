@@ -1,5 +1,5 @@
---- r/range_vs_index_merge_innodb.result	2012-02-23 15:57:49.000000000 +0100
-+++ r/range_vs_index_merge_innodb,innodb_plugin.reject	2012-02-23 19:46:02.000000000 +0100
+--- r/range_vs_index_merge_innodb.result	2012-03-24 17:12:02.124422000 +0100
++++ r/range_vs_index_merge_innodb,innodb_plugin.reject	2012-03-24 18:00:13.647902620 +0100
 @@ -50,14 +50,14 @@
  WHERE (Population >= 100000 OR Name LIKE 'P%') AND Country='CAN' OR
  (Population < 100000 OR Name Like 'T%') AND Country='ARG';
@@ -251,3 +251,21 @@
  SELECT * FROM City USE INDEX ()
  WHERE ((Population > 101000 AND Population < 11000) OR
  ID BETWEEN 3500 AND 3800) AND Country='USA'
+@@ -1077,7 +1077,7 @@
+ (Name='Samara' AND Country='RUS') OR  
+ (Name='Seattle' AND Country='USA');
+ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+-1	SIMPLE	City	range	Country,CountryPopulation,CountryName,CityName	CountryName	38	NULL	27	Using index condition; Using where
++1	SIMPLE	City	range	Country,CountryPopulation,CountryName,CityName	CountryName	38	NULL	27	Using where
+ SELECT Name, Country, Population FROM City WHERE
+ (Name='Manila' AND Country='PHL') OR
+ (Name='Addis Abeba' AND Country='ETH') OR          
+@@ -1164,7 +1164,7 @@
+ (Name='Samara' AND Country='RUS') OR  
+ (Name='Seattle' AND Country='USA');
+ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+-1	SIMPLE	City	range	Country,CountryPopulation,CountryName,CityName	CountryName	38	NULL	27	Using index condition; Using where
++1	SIMPLE	City	range	Country,CountryPopulation,CountryName,CityName	CountryName	38	NULL	27	Using where
+ SELECT Name, Country, Population FROM City WHERE
+ (Name='Manila' AND Country='PHL') OR
+ (Name='Addis Abeba' AND Country='ETH') OR          

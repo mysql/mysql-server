@@ -6367,8 +6367,7 @@ int update_virtual_fields(THD *thd, TABLE *table, bool for_write)
   DBUG_ENTER("update_virtual_fields");
   Field **vfield_ptr, *vfield;
   int error __attribute__ ((unused))= 0;
-  if (!table || !table->vfield)
-    DBUG_RETURN(0);
+  DBUG_ASSERT(table && table->vfield);
 
   thd->reset_arena_for_cached_items(table->expr_arena);
   /* Iterate over virtual fields in the table */

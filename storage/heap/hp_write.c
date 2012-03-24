@@ -152,6 +152,13 @@ static uchar *next_free_record_pos(HP_SHARE *info)
     if ((info->records > info->max_records && info->max_records) ||
         (info->data_length + info->index_length >= info->max_table_size))
     {
+      DBUG_PRINT("error",
+                 ("record file full. records: %u  max_records: %lu  "
+                  "data_length: %llu  index_length: %llu  "
+                  "max_table_size: %llu",
+                  info->records, info->max_records,
+                  info->data_length, info->index_length,
+                  info->max_table_size));
       my_errno=HA_ERR_RECORD_FILE_FULL;
       DBUG_RETURN(NULL);
     }
@@ -198,6 +205,7 @@ int hp_write_key(HP_INFO *info, HP_KEYDEF *keyinfo,
   HP_SHARE *share = info->s;
   int flag;
   ulong halfbuff,hashnr,first_index;
+  ulong UNINIT_VAR(hash_of_key), UNINIT_VAR(hash_of_key2);
   uchar *UNINIT_VAR(ptr_to_rec),*UNINIT_VAR(ptr_to_rec2);
   HASH_INFO *empty,*UNINIT_VAR(gpos),*UNINIT_VAR(gpos2),*pos;
   DBUG_ENTER("hp_write_key");
@@ -228,7 +236,7 @@ int hp_write_key(HP_INFO *info, HP_KEYDEF *keyinfo,
   {
     do
     {
-      hashnr = hp_rec_hashnr(keyinfo, pos->ptr_to_rec);
+      hashnr = pos->hash_of_key;
       if (flag == 0)
       {
         /* 
@@ -260,7 +268,6 @@ int hp_write_key(HP_INFO *info, HP_KEYDEF *keyinfo,
 	    flag=LOWFIND | HIGHFIND;
 	    /* key shall be moved to the current empty position */
 	    gpos=empty;
-	    ptr_to_rec=pos->ptr_to_rec;
 	    empty=pos;				/* This place is now free */
 	  }
 	  else
@@ -271,7 +278,6 @@ int hp_write_key(HP_INFO *info, HP_KEYDEF *keyinfo,
             */
 	    flag=LOWFIND | LOWUSED;
 	    gpos=pos;
-	    ptr_to_rec=pos->ptr_to_rec;
 	  }
 	}
 	else
@@ -280,13 +286,15 @@ int hp_write_key(HP_INFO *info, HP_KEYDEF *keyinfo,
 	  if (!(flag & LOWUSED))
 	  {
 	    /* Change link of previous lower-list key */
-	    gpos->ptr_to_rec=ptr_to_rec;
-	    gpos->next_key=pos;
+	    gpos->ptr_to_rec=  ptr_to_rec;
+	    gpos->next_key=    pos;
+            gpos->hash_of_key= hash_of_key;
 	    flag= (flag & HIGHFIND) | (LOWFIND | LOWUSED);
 	  }
 	  gpos=pos;
-	  ptr_to_rec=pos->ptr_to_rec;
 	}
+        ptr_to_rec=  pos->ptr_to_rec;
+        hash_of_key= pos->hash_of_key;
       }
       else
       {
@@ -297,20 +305,21 @@ int hp_write_key(HP_INFO *info, HP_KEYDEF *keyinfo,
 	  /* key shall be moved to the last (empty) position */
 	  gpos2= empty;
           empty= pos;
-	  ptr_to_rec2=pos->ptr_to_rec;
 	}
 	else
 	{
 	  if (!(flag & HIGHUSED))
 	  {
 	    /* Change link of previous upper-list key and save */
-	    gpos2->ptr_to_rec=ptr_to_rec2;
-	    gpos2->next_key=pos;
+	    gpos2->ptr_to_rec=  ptr_to_rec2;
+	    gpos2->next_key=    pos;
+            gpos2->hash_of_key= hash_of_key2;
 	    flag= (flag & LOWFIND) | (HIGHFIND | HIGHUSED);
 	  }
 	  gpos2=pos;
-	  ptr_to_rec2=pos->ptr_to_rec;
 	}
+        ptr_to_rec2=  pos->ptr_to_rec;
+        hash_of_key2= pos->hash_of_key;
       }
     }
     while ((pos=pos->next_key));
@@ -326,23 +335,27 @@ int hp_write_key(HP_INFO *info, HP_KEYDEF *keyinfo,
 
     if ((flag & (LOWFIND | LOWUSED)) == LOWFIND)
     {
-      gpos->ptr_to_rec=ptr_to_rec;
-      gpos->next_key=0;
+      gpos->ptr_to_rec=  ptr_to_rec;
+      gpos->hash_of_key= hash_of_key;
+      gpos->next_key=    0;
     }
     if ((flag & (HIGHFIND | HIGHUSED)) == HIGHFIND)
     {
-      gpos2->ptr_to_rec=ptr_to_rec2;
-      gpos2->next_key=0;
+      gpos2->ptr_to_rec=  ptr_to_rec2;
+      gpos2->hash_of_key= hash_of_key2;
+      gpos2->next_key=    0;
     }
   }
   /* Check if we are at the empty position */
 
-  pos=hp_find_hash(&keyinfo->block, hp_mask(hp_rec_hashnr(keyinfo, record),
-					 share->blength, share->records + 1));
+  hash_of_key= hp_rec_hashnr(keyinfo, record);
+  pos=hp_find_hash(&keyinfo->block,
+                   hp_mask(hash_of_key, share->blength, share->records + 1));
   if (pos == empty)
   {
-    pos->ptr_to_rec=recpos;
-    pos->next_key=0;
+    pos->ptr_to_rec=  recpos;
+    pos->hash_of_key= hash_of_key;
+    pos->next_key=    0;
     keyinfo->hash_buckets++;
   }
   else
@@ -350,18 +363,17 @@ int hp_write_key(HP_INFO *info, HP_KEYDEF *keyinfo,
     /* Check if more records in same hash-nr family */
     empty[0]=pos[0];
     gpos=hp_find_hash(&keyinfo->block,
-		      hp_mask(hp_rec_hashnr(keyinfo, pos->ptr_to_rec),
+		      hp_mask(pos->hash_of_key,
 			      share->blength, share->records + 1));
+
+    pos->ptr_to_rec=  recpos;
+    pos->hash_of_key= hash_of_key;
     if (pos == gpos)
-    {
-      pos->ptr_to_rec=recpos;
       pos->next_key=empty;
-    }
     else
     {
       keyinfo->hash_buckets++;
-      pos->ptr_to_rec=recpos;
-      pos->next_key=0;
+      pos->next_key= 0;
       hp_movelink(pos, gpos, empty);
     }
 

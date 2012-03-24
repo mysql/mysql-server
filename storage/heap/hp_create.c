@@ -250,12 +250,20 @@ static void init_block(HP_BLOCK *block, uint reclength, ulong min_records,
     max_records= 1000;			/* As good as quess as anything */
   recbuffer= (uint) (reclength + sizeof(uchar**) - 1) & ~(sizeof(uchar**) - 1);
   records_in_block= max_records / 10;
-  if (records_in_block < 10 && max_records)
+
+  /*
+    We don't want too few records_in_block as otherwise the overhead of
+    of the HP_PTRS block will be too notable
+  */
+  records_in_block= min(1000, max_records);
+  if (records_in_block < 10)
     records_in_block= 10;
-  if (!records_in_block || records_in_block*recbuffer >
+
+  /* The + 1 is there to ensure that we get at least 1 row per level */
+  if (records_in_block*recbuffer >
       (my_default_record_cache_size-sizeof(HP_PTRS)*HP_MAX_LEVELS))
     records_in_block= (my_default_record_cache_size - sizeof(HP_PTRS) *
-		      HP_MAX_LEVELS) / recbuffer + 1;
+                       HP_MAX_LEVELS) / recbuffer + 1;
   block->records_in_block= records_in_block;
   block->recbuffer= recbuffer;
   block->last_allocated= 0L;

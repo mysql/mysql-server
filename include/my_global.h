@@ -446,6 +446,10 @@ extern "C" int madvise(void *addr, size_t len, int behav);
 #define SIGNAL_HANDLER_RESET_ON_DELIVERY
 #endif
 
+#ifndef STDERR_FILENO
+#define STDERR_FILENO 2
+#endif
+
 /*
   Deprecated workaround for false-positive uninitialized variables
   warnings. Those should be silenced using tool-specific heuristics.

@@ -1045,6 +1045,182 @@ ID	Name	Country	Population
 4030	Sandy	USA	101853
 4031	Athens-Clarke County	USA	101489
 4032	Cambridge	USA	101355
+set @save_optimizer_switch=@@optimizer_switch;
+CREATE INDEX CityName on City(Name);
+EXPLAIN SELECT Name, Country, Population FROM City WHERE
+(Name='Manila' AND Country='PHL') OR
+(Name='Addis Abeba' AND Country='ETH') OR          
+(Name='Jakarta' AND Country='IDN') OR  
+(Name='Bangalore' AND Country='IND') OR
+(Name='Teheran' AND Country='IRN') OR          
+(Name='Roma' AND Country='ITA') OR  
+(Name='Delhi' AND Country='IND') OR  
+(Name='Venezia' AND Country='ITA') OR  
+(Name='Tokyo' AND Country='JPN') OR
+(Name='Toronto' AND Country='CAN') OR  
+(Name='Peking' AND Country='CHN') OR  
+(Name='Lagos' AND Country='NGA') OR  
+(Name='Tijuana' AND Country='MEX') OR
+(Name='Rabat' AND Country='MAR') OR          
+(Name='Seoul' AND Country='KOR') OR  
+(Name='Vancouver' AND Country='CAN') OR  
+(Name='Kaunas' AND Country='LTU') OR  
+(Name='Paris' AND Country='FRA') OR
+(Name='Dakar' AND Country='SEN') OR          
+(Name='Basel' AND Country='CHE') OR  
+(Name='Praha' AND Country='CZE') OR  
+(Name='Ankara' AND Country='TUR') OR  
+(Name='Dresden' AND Country='DEU') OR
+(Name='Lugansk' AND Country='UKR') OR          
+(Name='Caracas' AND Country='VEN') OR  
+(Name='Samara' AND Country='RUS') OR  
+(Name='Seattle' AND Country='USA');
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	City	index_merge	Country,CountryPopulation,CountryName,CityName	CountryName,CityName	38,35	NULL	28	Using sort_union(CountryName,CityName); Using where
+SELECT Name, Country, Population FROM City WHERE
+(Name='Manila' AND Country='PHL') OR
+(Name='Addis Abeba' AND Country='ETH') OR          
+(Name='Jakarta' AND Country='IDN') OR  
+(Name='Bangalore' AND Country='IND') OR
+(Name='Teheran' AND Country='IRN') OR          
+(Name='Roma' AND Country='ITA') OR  
+(Name='Delhi' AND Country='IND') OR  
+(Name='Venezia' AND Country='ITA') OR  
+(Name='Tokyo' AND Country='JPN') OR
+(Name='Toronto' AND Country='CAN') OR  
+(Name='Peking' AND Country='CHN') OR  
+(Name='Lagos' AND Country='NGA') OR  
+(Name='Tijuana' AND Country='MEX') OR
+(Name='Rabat' AND Country='MAR') OR          
+(Name='Seoul' AND Country='KOR') OR  
+(Name='Vancouver' AND Country='CAN') OR  
+(Name='Kaunas' AND Country='LTU') OR  
+(Name='Paris' AND Country='FRA') OR
+(Name='Dakar' AND Country='SEN') OR          
+(Name='Basel' AND Country='CHE') OR  
+(Name='Praha' AND Country='CZE') OR  
+(Name='Ankara' AND Country='TUR') OR  
+(Name='Dresden' AND Country='DEU') OR
+(Name='Lugansk' AND Country='UKR') OR          
+(Name='Caracas' AND Country='VEN') OR  
+(Name='Samara' AND Country='RUS') OR  
+(Name='Seattle' AND Country='USA');
+Name	Country	Population
+Addis Abeba	ETH	2495000
+Manila	PHL	1581082
+Jakarta	IDN	9604900
+Delhi	IND	7206704
+Bangalore	IND	2660088
+Teheran	IRN	6758845
+Roma	ITA	2643581
+Venezia	ITA	277305
+Tokyo	JPN	7980230
+Toronto	CAN	688275
+Vancouver	CAN	514008
+Peking	CHN	7472000
+Seoul	KOR	9981619
+Kaunas	LTU	412639
+Rabat	MAR	623457
+Tijuana	MEX	1212232
+Lagos	NGA	1518000
+Paris	FRA	2125246
+Dresden	DEU	476668
+Dakar	SEN	785071
+Basel	CHE	166700
+Praha	CZE	1181126
+Ankara	TUR	3038159
+Lugansk	UKR	469000
+Caracas	VEN	1975294
+Samara	RUS	1156100
+Seattle	USA	563374
+set optimizer_switch='index_merge=off';
+EXPLAIN SELECT Name, Country, Population FROM City WHERE
+(Name='Manila' AND Country='PHL') OR
+(Name='Addis Abeba' AND Country='ETH') OR          
+(Name='Jakarta' AND Country='IDN') OR  
+(Name='Bangalore' AND Country='IND') OR
+(Name='Teheran' AND Country='IRN') OR          
+(Name='Roma' AND Country='ITA') OR  
+(Name='Delhi' AND Country='IND') OR  
+(Name='Venezia' AND Country='ITA') OR  
+(Name='Tokyo' AND Country='JPN') OR
+(Name='Toronto' AND Country='CAN') OR  
+(Name='Peking' AND Country='CHN') OR  
+(Name='Lagos' AND Country='NGA') OR  
+(Name='Tijuana' AND Country='MEX') OR
+(Name='Rabat' AND Country='MAR') OR          
+(Name='Seoul' AND Country='KOR') OR  
+(Name='Vancouver' AND Country='CAN') OR  
+(Name='Kaunas' AND Country='LTU') OR  
+(Name='Paris' AND Country='FRA') OR
+(Name='Dakar' AND Country='SEN') OR          
+(Name='Basel' AND Country='CHE') OR  
+(Name='Praha' AND Country='CZE') OR  
+(Name='Ankara' AND Country='TUR') OR  
+(Name='Dresden' AND Country='DEU') OR
+(Name='Lugansk' AND Country='UKR') OR          
+(Name='Caracas' AND Country='VEN') OR  
+(Name='Samara' AND Country='RUS') OR  
+(Name='Seattle' AND Country='USA');
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	City	range	Country,CountryPopulation,CountryName,CityName	CountryName	38	NULL	29	Using index condition; Using where
+SELECT Name, Country, Population FROM City WHERE
+(Name='Manila' AND Country='PHL') OR
+(Name='Addis Abeba' AND Country='ETH') OR          
+(Name='Jakarta' AND Country='IDN') OR  
+(Name='Bangalore' AND Country='IND') OR
+(Name='Teheran' AND Country='IRN') OR          
+(Name='Roma' AND Country='ITA') OR  
+(Name='Delhi' AND Country='IND') OR  
+(Name='Venezia' AND Country='ITA') OR  
+(Name='Tokyo' AND Country='JPN') OR
+(Name='Toronto' AND Country='CAN') OR  
+(Name='Peking' AND Country='CHN') OR  
+(Name='Lagos' AND Country='NGA') OR  
+(Name='Tijuana' AND Country='MEX') OR
+(Name='Rabat' AND Country='MAR') OR          
+(Name='Seoul' AND Country='KOR') OR  
+(Name='Vancouver' AND Country='CAN') OR  
+(Name='Kaunas' AND Country='LTU') OR  
+(Name='Paris' AND Country='FRA') OR
+(Name='Dakar' AND Country='SEN') OR          
+(Name='Basel' AND Country='CHE') OR  
+(Name='Praha' AND Country='CZE') OR  
+(Name='Ankara' AND Country='TUR') OR  
+(Name='Dresden' AND Country='DEU') OR
+(Name='Lugansk' AND Country='UKR') OR          
+(Name='Caracas' AND Country='VEN') OR  
+(Name='Samara' AND Country='RUS') OR  
+(Name='Seattle' AND Country='USA');
+Name	Country	Population
+Toronto	CAN	688275
+Vancouver	CAN	514008
+Basel	CHE	166700
+Peking	CHN	7472000
+Praha	CZE	1181126
+Dresden	DEU	476668
+Addis Abeba	ETH	2495000
+Paris	FRA	2125246
+Jakarta	IDN	9604900
+Bangalore	IND	2660088
+Delhi	IND	7206704
+Teheran	IRN	6758845
+Roma	ITA	2643581
+Venezia	ITA	277305
+Tokyo	JPN	7980230
+Seoul	KOR	9981619
+Kaunas	LTU	412639
+Rabat	MAR	623457
+Tijuana	MEX	1212232
+Lagos	NGA	1518000
+Manila	PHL	1581082
+Samara	RUS	1156100
+Dakar	SEN	785071
+Ankara	TUR	3038159
+Lugansk	UKR	469000
+Seattle	USA	563374
+Caracas	VEN	1975294
+set optimizer_switch=@save_optimizer_switch;
 DROP DATABASE world;
 use test;
 CREATE TABLE t1 (

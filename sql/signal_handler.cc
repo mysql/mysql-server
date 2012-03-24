@@ -77,7 +77,7 @@ extern "C" sig_handler handle_fatal_signal(int sig)
   curr_time= my_time(0);
   localtime_r(&curr_time, &tm);
 
-  fprintf(stderr, "%02d%02d%02d %2d:%02d:%02d ",
+  my_safe_printf_stderr("%02d%02d%02d %2d:%02d:%02d ",
                         tm.tm_year % 100, tm.tm_mon+1, tm.tm_mday,
                         tm.tm_hour, tm.tm_min, tm.tm_sec);
   if (opt_expect_abort

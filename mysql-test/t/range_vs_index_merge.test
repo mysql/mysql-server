@@ -621,6 +621,62 @@ SELECT * FROM City
         (Population BETWEEN 101000 AND 102000 OR Name LIKE 'Pa%');
 
 
+#
+# LP bug #954262: index merge oover long disjunction in WHERE    
+#  
+
+set @save_optimizer_switch=@@optimizer_switch;
+
+CREATE INDEX CityName on City(Name);  
+
+let $cond =
+(Name='Manila' AND Country='PHL') OR
+(Name='Addis Abeba' AND Country='ETH') OR          
+(Name='Jakarta' AND Country='IDN') OR  
+(Name='Bangalore' AND Country='IND') OR
+(Name='Teheran' AND Country='IRN') OR          
+(Name='Roma' AND Country='ITA') OR  
+(Name='Delhi' AND Country='IND') OR  
+(Name='Venezia' AND Country='ITA') OR  
+(Name='Tokyo' AND Country='JPN') OR
+(Name='Toronto' AND Country='CAN') OR  
+(Name='Peking' AND Country='CHN') OR  
+(Name='Lagos' AND Country='NGA') OR  
+(Name='Tijuana' AND Country='MEX') OR
+(Name='Rabat' AND Country='MAR') OR          
+(Name='Seoul' AND Country='KOR') OR  
+(Name='Vancouver' AND Country='CAN') OR  
+(Name='Kaunas' AND Country='LTU') OR  
+(Name='Paris' AND Country='FRA') OR
+(Name='Dakar' AND Country='SEN') OR          
+(Name='Basel' AND Country='CHE') OR  
+(Name='Praha' AND Country='CZE') OR  
+(Name='Ankara' AND Country='TUR') OR  
+(Name='Dresden' AND Country='DEU') OR
+(Name='Lugansk' AND Country='UKR') OR          
+(Name='Caracas' AND Country='VEN') OR  
+(Name='Samara' AND Country='RUS') OR  
+(Name='Seattle' AND Country='USA'); 
+
+eval
+EXPLAIN SELECT Name, Country, Population FROM City WHERE
+$cond;
+eval 
+SELECT Name, Country, Population FROM City WHERE
+$cond;
+
+set optimizer_switch='index_merge=off';
+
+eval
+EXPLAIN SELECT Name, Country, Population FROM City WHERE
+$cond;
+eval
+SELECT Name, Country, Population FROM City WHERE
+$cond;
+
+set optimizer_switch=@save_optimizer_switch;
+          
+
 DROP DATABASE world;
 
 use test;
