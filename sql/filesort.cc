@@ -41,12 +41,11 @@ if (my_b_write((file),(uchar*) (from),param->ref_length)) \
 
 	/* functions defined in this file */
 
-static char **make_char_array(char **old_pos, register uint fields,
-                              uint length, myf my_flag);
 static uchar *read_buffpek_from_file(IO_CACHE *buffer_file, uint count,
                                      uchar *buf);
 static ha_rows find_all_keys(SORTPARAM *param,SQL_SELECT *select,
-			     uchar * *sort_keys, IO_CACHE *buffer_file,
+			     uchar * *sort_keys, uchar *sort_keys_buf,
+                             IO_CACHE *buffer_file,
 			     IO_CACHE *tempfile,IO_CACHE *indexfile);
 static int write_keys(SORTPARAM *param,uchar * *sort_keys,
 		      uint count, IO_CACHE *buffer_file, IO_CACHE *tempfile);
@@ -211,20 +210,26 @@ ha_rows filesort(THD *thd, TABLE *table, SORT_FIELD *sortorder, uint s_length,
 
   memavl= thd->variables.sortbuff_size;
   min_sort_memory= max(MIN_SORT_MEMORY, param.sort_length*MERGEBUFF2);
-  while (memavl >= min_sort_memory)
+  if (!table_sort.sort_keys)
   {
-    ulong old_memavl;
-    ulong keys= memavl/(param.rec_length+sizeof(char*));
-    param.keys=(uint) min(records+1, keys);
-    if ((table_sort.sort_keys=
-	 (uchar **) make_char_array((char **) table_sort.sort_keys,
-                                    param.keys, param.rec_length, MYF(0))))
-      break;
-    old_memavl=memavl;
-    if ((memavl=memavl/4*3) < min_sort_memory && old_memavl > min_sort_memory)
-      memavl= min_sort_memory;
+    while (memavl >= min_sort_memory)
+    {
+      ulong old_memavl;
+      ulong keys= memavl/(param.rec_length+sizeof(char*));
+      table_sort.keys= (uint) min(records+1, keys);
+      if ((table_sort.sort_keys=
+           (uchar**) my_malloc(table_sort.keys*(param.rec_length+sizeof(char*)),
+                               MYF(0))))
+        break;
+      old_memavl=memavl;
+      if ((memavl=memavl/4*3) < min_sort_memory &&
+          old_memavl > min_sort_memory)
+        memavl= min_sort_memory;
+    }
   }
+
   sort_keys= table_sort.sort_keys;
+  param.keys= table_sort.keys - 1;      /* TODO: check why we do this " - 1" */
   if (memavl < min_sort_memory)
   {
     my_error(ER_OUT_OF_SORTMEMORY,MYF(ME_ERROR+ME_WAITTANG));
@@ -234,10 +239,10 @@ ha_rows filesort(THD *thd, TABLE *table, SORT_FIELD *sortorder, uint s_length,
 		       DISK_BUFFER_SIZE, MYF(ME_ERROR | MY_WME)))
     goto err;
 
-  param.keys--;  			/* TODO: check why we do this */
   param.sort_form= table;
   param.end=(param.local_sortorder=sortorder)+s_length;
-  if ((records=find_all_keys(&param,select,sort_keys, &buffpek_pointers,
+  if ((records=find_all_keys(&param,select,sort_keys,
+                             (uchar *)(sort_keys+param.keys), &buffpek_pointers,
 			     &tempfile, selected_records_file)) ==
       HA_POS_ERROR)
     goto err;
@@ -364,26 +369,6 @@ void filesort_free_buffers(TABLE *table, bool full)
   }
 }
 
-/** Make a array of string pointers. */
-
-static char **make_char_array(char **old_pos, register uint fields,
-                              uint length, myf my_flag)
-{
-  register char **pos;
-  char *char_pos;
-  DBUG_ENTER("make_char_array");
-
-  if (old_pos ||
-      (old_pos= (char**) my_malloc((uint) fields*(length+sizeof(char*)),
-				   my_flag)))
-  {
-    pos=old_pos; char_pos=((char*) (pos+fields)) -length;
-    while (fields--) *(pos++) = (char_pos+= length);
-  }
-
-  DBUG_RETURN(old_pos);
-} /* make_char_array */
-
 
 /** Read 'count' number of buffer pointers into memory. */
 
@@ -498,7 +483,7 @@ static void dbug_print_record(TABLE *table, bool print_rowid)
 */
 
 static ha_rows find_all_keys(SORTPARAM *param, SQL_SELECT *select,
-			     uchar **sort_keys,
+			     uchar **sort_keys, uchar *sort_keys_buf,
 			     IO_CACHE *buffpek_pointers,
 			     IO_CACHE *tempfile, IO_CACHE *indexfile)
 {
@@ -511,6 +496,7 @@ static ha_rows find_all_keys(SORTPARAM *param, SQL_SELECT *select,
   volatile killed_state *killed= &thd->killed;
   handler *file;
   MY_BITMAP *save_read_set, *save_write_set, *save_vcol_set;
+  uchar *next_sort_key= sort_keys_buf;
   DBUG_ENTER("find_all_keys");
   DBUG_PRINT("info",("using: %s",
                      (select ? select->quick ? "ranges" : "where":
@@ -652,9 +638,12 @@ static ha_rows find_all_keys(SORTPARAM *param, SQL_SELECT *select,
 	if (write_keys(param,sort_keys,idx,buffpek_pointers,tempfile))
 	  DBUG_RETURN(HA_POS_ERROR);
 	idx=0;
+        next_sort_key= sort_keys_buf;
 	indexpos++;
       }
-      make_sortkey(param,sort_keys[idx++],ref_pos);
+      sort_keys[idx++]= next_sort_key;
+      make_sortkey(param, next_sort_key, ref_pos);
+      next_sort_key+= param->rec_length;
     }
     else
       file->unlock_row();
