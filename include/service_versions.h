@@ -24,4 +24,3 @@
 #define VERSION_thd_wait        0x0100
 #define VERSION_my_thread_scheduler 0x0100
 #define VERSION_progress_report 0x0100
-#define VERSION_logger          0x0100

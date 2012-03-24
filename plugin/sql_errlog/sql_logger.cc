@@ -16,10 +16,15 @@
 
 #include "my_global.h"
 #include <my_sys.h>
-#include <mysql/service_logger.h>
+#include "service_logger.h"
+#include <my_pthread.h>
 
-extern char *mysql_data_home;
-extern PSI_mutex_key key_LOCK_logger_service;
+extern MYSQL_PLUGIN_IMPORT char  *mysql_data_home;
+
+/* These belong to the service initialization */
+static PSI_mutex_key key_LOCK_logger_service;
+static PSI_mutex_info mutex_list[]=
+{{ &key_LOCK_logger_service, "logger_service_file_st::lock", PSI_FLAG_GLOBAL}};
 
 typedef struct logger_handle_st {
   File file;
@@ -179,5 +184,11 @@ int logger_printf(LOGGER_HANDLE *log, const char *fmt, ...)
   result= logger_vprintf(log, fmt, args);
   va_end(args);
   return result;
+}
+
+void init_logger_mutexes()
+{
+  if (PSI_server)
+    PSI_server->register_mutex("sql_logger", mutex_list, 1);
 }
 

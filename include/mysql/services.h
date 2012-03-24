@@ -23,7 +23,6 @@ extern "C" {
 #include <mysql/service_thd_wait.h>
 #include <mysql/service_thread_scheduler.h>
 #include <mysql/service_progress_report.h>
-#include <mysql/service_logger.h>
 
 
 #ifdef __cplusplus

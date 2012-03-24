@@ -13,4 +13,4 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
 
-MYSQL_ADD_PLUGIN(sql_errlog sql_errlog.c MODULE_ONLY)
+MYSQL_ADD_PLUGIN(sql_errlog sql_errlog.c sql_logger.cc service_logger.h MODULE_ONLY)

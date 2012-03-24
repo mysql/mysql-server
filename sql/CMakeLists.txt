@@ -85,7 +85,6 @@ SET (SQL_SOURCE
                gcalc_slicescan.cc gcalc_tools.cc
 			   threadpool_common.cc 
 			   ../sql-common/mysql_async.c
-                           sql_logger.cc
                ${GEN_SOURCES}
                ${MYSYS_LIBWRAP_SOURCE}
 			   )

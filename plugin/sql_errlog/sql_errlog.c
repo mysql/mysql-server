@@ -16,6 +16,7 @@
 #include <mysql/plugin_audit.h>
 #include <stdio.h>
 #include <time.h>
+#include "service_logger.h"
 
 /*
  Disable __attribute__() on non-gcc compilers.
@@ -31,6 +32,7 @@
 /*
   rate 0 means the logging was disabled.
 */
+
 
 static char *filename;
 static unsigned int rate;
@@ -50,7 +52,7 @@ static MYSQL_SYSVAR_UINT(rate, rate, PLUGIN_VAR_RQCMDARG,
 
 static MYSQL_SYSVAR_ULONGLONG(size_limit, size_limit,
        PLUGIN_VAR_READONLY, "Log file size limit", NULL, NULL,
-       1000000, 100, 0, 1);
+       1000000, 100, ((long long) 0x7FFFFFFFFFFFFFFFLL), 1);
 
 static MYSQL_SYSVAR_UINT(rotations, rotations,
        PLUGIN_VAR_READONLY, "Number of rotations before log is removed.",
@@ -104,6 +106,8 @@ static void log_sql_errors(MYSQL_THD thd __attribute__((unused)),
 
 static int sql_error_log_init(void *p __attribute__((unused)))
 {
+  init_logger_mutexes();
+
   logfile= logger_open(filename, size_limit, rotations);
   if (logfile == NULL) {
     fprintf(stderr, "Could not create file '%s'\n",
@@ -117,7 +121,8 @@ static int sql_error_log_init(void *p __attribute__((unused)))
 
 static int sql_error_log_deinit(void *p __attribute__((unused)))
 {
-  logger_close(logfile);
+  if (logfile)
+    logger_close(logfile);
   return 0;
 }
 
@@ -138,6 +143,24 @@ static struct st_mysql_audit descriptor =
   log_sql_errors,
   { MYSQL_AUDIT_GENERAL_CLASSMASK }
 };
+
+mysql_declare_plugin(sql_errlog)
+{
+  MYSQL_AUDIT_PLUGIN,
+  &descriptor,
+  "SQL_ERROR_LOG",
+  "Alexey Botchkov",
+  "Log SQL level errors to a file with rotation",
+  PLUGIN_LICENSE_GPL,
+  sql_error_log_init,
+  sql_error_log_deinit,
+  0x0100,
+  NULL,
+  vars,
+  NULL,
+  0
+}
+mysql_declare_plugin_end;
 
 maria_declare_plugin(sql_errlog)
 {

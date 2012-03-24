@@ -54,14 +54,6 @@ static struct progress_report_service_st progress_report_handler= {
   set_thd_proc_info
 };
 
-static struct logger_service_st logger_handler= {
-  logger_open,
-  logger_close,
-  logger_vprintf,
-  logger_printf,
-  logger_rotate
-};
-
 static struct st_service_ref list_of_services[]=
 {
   { "my_snprintf_service", VERSION_my_snprintf, &my_snprintf_handler },
@@ -69,6 +61,5 @@ static struct st_service_ref list_of_services[]=
   { "thd_wait_service",    VERSION_thd_wait,    &thd_wait_handler },
   { "my_thread_scheduler_service", VERSION_my_thread_scheduler, &my_thread_scheduler_handler },
   { "progress_report_service", VERSION_progress_report, &progress_report_handler },
-  { "logger_service",   VERSION_logger,   &logger_handler },
 };
 

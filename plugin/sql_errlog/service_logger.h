@@ -69,7 +69,7 @@ extern struct logger_service_st {
   int (*rotate)(LOGGER_HANDLE *log);
 } *logger_service;
 
-#ifdef MYSQL_DYNAMIC_PLUGIN
+#if 0 /*MYSQL_DYNAMIC_PLUGIN*/
 
 #define logger_open(path, size_limit, rotations) \
   (logger_service->open(path, size_limit, rotations))
@@ -87,6 +87,8 @@ extern struct logger_service_st {
   int logger_vprintf(LOGGER_HANDLE *log, const char *fmt, va_list argptr);
   int logger_rotate(LOGGER_HANDLE *log); 
   int logger_printf(LOGGER_HANDLE *log, const char *fmt, ...);
+
+  void init_logger_mutexes();
 #endif
 
 
