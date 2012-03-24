@@ -125,7 +125,7 @@ run_test() {
         rm -f $tmplog
         t1="$(date)"
         if LD_LIBRARY_PATH=../../../lib:$LD_LIBRARY_PATH \
-            ../$exec -v --only_stress --num_seconds 600 --envdir "$envdir" \
+            ../$exec -v --only_stress --num_seconds 600 --no-crash_on_update_failure --envdir "$envdir" \
             --num_elements $table_size \
             --cachetable_size $cachetable_size \
             --num_ptquery_threads $num_ptquery \
@@ -194,7 +194,7 @@ run_recover_test() {
     envdir="../${exec}-${table_size}-${cachetable_size}-${num_ptquery}-${num_update}-$$.dir"
     cd $rundir
     if ! LD_LIBRARY_PATH=../../../lib:$LD_LIBRARY_PATH \
-        ../$exec -v --test --num_seconds 600 --envdir "$envdir" \
+        ../$exec -v --test --num_seconds 600 --no-crash_on_update_failure --envdir "$envdir" \
         --num_elements $table_size \
         --cachetable_size $cachetable_size \
         --num_ptquery_threads $num_ptquery \
