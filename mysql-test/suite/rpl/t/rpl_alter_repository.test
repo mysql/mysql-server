@@ -7,6 +7,8 @@
 --source include/master-slave.inc
 --source include/have_innodb.inc
 --source include/not_mts_slave_parallel_workers.inc
+--source include/not_relay_log_info_table.inc
+--source include/not_master_info_table.inc
 --connection slave
 --source include/stop_slave.inc
 SHOW CREATE TABLE mysql.slave_relay_log_info;
