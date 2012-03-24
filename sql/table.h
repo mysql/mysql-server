@@ -303,6 +303,7 @@ typedef struct st_filesort_info
 {
   IO_CACHE *io_cache;           /* If sorted through filesort */
   uchar     **sort_keys;        /* Buffer for sorting keys */
+  uint      keys;               /* Number of key pointers in buffer */
   uchar     *buffpek;           /* Buffer for buffpek structures */
   uint      buffpek_len;        /* Max number of buffpeks in the buffer */
   uchar     *addon_buf;         /* Pointer to a buffer if sorted with fields */

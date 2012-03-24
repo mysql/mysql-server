@@ -2606,17 +2606,20 @@ void Item_field::fix_after_pullout(st_select_lex *new_parent, Item **ref)
 {
   if (new_parent == get_depended_from())
     depended_from= NULL;
-  Name_resolution_context *ctx= new Name_resolution_context();
-  ctx->outer_context= NULL; // We don't build a complete name resolver
-  ctx->table_list= NULL;    // We rely on first_name_resolution_table instead
-  ctx->select_lex= new_parent;
-  ctx->first_name_resolution_table= context->first_name_resolution_table;
-  ctx->last_name_resolution_table=  context->last_name_resolution_table;
-  ctx->error_processor=             context->error_processor;
-  ctx->error_processor_data=        context->error_processor_data;
-  ctx->resolve_in_select_list=      context->resolve_in_select_list;
-  ctx->security_ctx=                context->security_ctx;
-  this->context=ctx;
+  if (context)
+  {
+    Name_resolution_context *ctx= new Name_resolution_context();
+    ctx->outer_context= NULL; // We don't build a complete name resolver
+    ctx->table_list= NULL;    // We rely on first_name_resolution_table instead
+    ctx->select_lex= new_parent;
+    ctx->first_name_resolution_table= context->first_name_resolution_table;
+    ctx->last_name_resolution_table=  context->last_name_resolution_table;
+    ctx->error_processor=             context->error_processor;
+    ctx->error_processor_data=        context->error_processor_data;
+    ctx->resolve_in_select_list=      context->resolve_in_select_list;
+    ctx->security_ctx=                context->security_ctx;
+    this->context=ctx;
+  }
 }
 
 

@@ -4,7 +4,7 @@ SET @old_debug= @@session.debug;
 #
 CREATE TABLE t1(f0 int auto_increment primary key, f1 int);
 INSERT INTO t1(f1) VALUES (0),(1),(2),(3),(4),(5);
-SET session debug_dbug= '+d,make_char_array_fail';
+SET session debug_dbug= '+d,make_sort_keys_alloc_fail';
 CALL mtr.add_suppression("Out of sort memory");
 SELECT * FROM t1 ORDER BY f1 ASC, f0;
 ERROR HY001: Out of sort memory, consider increasing server sort buffer size

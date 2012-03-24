@@ -148,8 +148,8 @@ uchar *hp_search(HP_INFO *info, HP_KEYDEF *keyinfo, const uchar *key,
       {
 	flag=0;					/* Reset flag */
 	if (hp_find_hash(&keyinfo->block,
-			 hp_mask(hp_rec_hashnr(keyinfo, pos->ptr_to_rec),
-				  share->blength, share->records)) != pos)
+			 hp_mask(pos->hash_of_key,
+                                 share->blength, share->records)) != pos)
 	  break;				/* Wrong link */
       }
     }
@@ -299,7 +299,9 @@ ulong hp_hashnr(register HP_KEYDEF *keydef, register const uchar *key)
       }
     }
   }
+#ifdef ONLY_FOR_HASH_DEBUGGING
   DBUG_PRINT("exit", ("hash: 0x%lx", nr));
+#endif
   return((ulong) nr);
 }
 
@@ -366,7 +368,9 @@ ulong hp_rec_hashnr(register HP_KEYDEF *keydef, register const uchar *rec)
       }
     }
   }
+#ifdef ONLY_FOR_HASH_DEBUGGING
   DBUG_PRINT("exit", ("hash: 0x%lx", nr));
+#endif
   return(nr);
 }
 
@@ -437,7 +441,9 @@ ulong hp_hashnr(register HP_KEYDEF *keydef, register const uchar *key)
       }
     }
   }
+#ifdef ONLY_FOR_HASH_DEBUGGING
   DBUG_PRINT("exit", ("hash: 0x%lx", nr));
+#endif
   return(nr);
 }
 
@@ -490,7 +496,9 @@ ulong hp_rec_hashnr(register HP_KEYDEF *keydef, register const uchar *rec)
       }
     }
   }
+#ifdef ONLY_FOR_HASH_DEBUGGING
   DBUG_PRINT("exit", ("hash: 0x%lx", nr));
+#endif
   return(nr);
 }
 

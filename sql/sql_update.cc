@@ -559,7 +559,8 @@ int mysql_update(THD *thd,
 
       while (!(error=info.read_record(&info)) && !thd->killed)
       {
-        update_virtual_fields(thd, table);
+        if (table->vfield)
+          update_virtual_fields(thd, table);
         thd->examined_row_count++;
 	if (!select || (error= select->skip_record(thd)) > 0)
 	{
@@ -674,7 +675,8 @@ int mysql_update(THD *thd,
 
   while (!(error=info.read_record(&info)) && !thd->killed)
   {
-    update_virtual_fields(thd, table);
+    if (table->vfield)
+      update_virtual_fields(thd, table);
     thd->examined_row_count++;
     if (!select || select->skip_record(thd) > 0)
     {

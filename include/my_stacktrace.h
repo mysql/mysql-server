@@ -82,50 +82,6 @@ const char *my_addr_resolve_init();
 void my_write_core(int sig);
 #endif
 
-
-
-/**
-  Async-signal-safe utility functions used by signal handler routines.
-  Declared here in order to unit-test them.
-  These are not general-purpose, but tailored to the signal handling routines.
-*/
-/**
-  Converts a longlong value to string.
-  @param   base 10 for decimal, 16 for hex values (0..9a..f)
-  @param   val  The value to convert
-  @param   buf  Assumed to point to the *end* of the buffer.
-  @returns Pointer to the first character of the converted string.
-           Negative values:
-           for base-10 the return string will be prepended with '-'
-           for base-16 the return string will contain 16 characters
-  Implemented with simplicity, and async-signal-safety in mind.
-*/
-char *my_safe_itoa(int base, longlong val, char *buf);
-
-/**
-  Converts a ulonglong value to string.
-  @param   base 10 for decimal, 16 for hex values (0..9a..f)
-  @param   val  The value to convert
-  @param   buf  Assumed to point to the *end* of the buffer.
-  @returns Pointer to the first character of the converted string.
-  Implemented with simplicity, and async-signal-safety in mind.
-*/
-char *my_safe_utoa(int base, ulonglong val, char *buf);
-
-/**
-  A (very) limited version of snprintf.
-  @param   to   Destination buffer.
-  @param   n    Size of destination buffer.
-  @param   fmt  printf() style format string.
-  @returns Number of bytes written, including terminating '\0'
-  Supports 'd' 'i' 'u' 'x' 'p' 's' conversion.
-  Supports 'l' and 'll' modifiers for integral types.
-  Does not support any width/precision.
-  Implemented with simplicity, and async-signal-safety in mind.
-*/
-size_t my_safe_snprintf(char* to, size_t n, const char* fmt, ...)
-  ATTRIBUTE_FORMAT(printf, 3, 4);
-
 /**
   A (very) limited version of snprintf, which writes the result to STDERR.
   @sa my_safe_snprintf

@@ -520,7 +520,7 @@ static void table_def_use_table(THD *thd, TABLE *table)
 
 static void table_def_unuse_table(TABLE *table)
 {
-  THD *thd= table->in_use;
+  THD *thd __attribute__((unused))= table->in_use;
   DBUG_ASSERT(table->in_use);
 
   /* We shouldn't put the table to 'unused' list if the share is old. */
@@ -8803,14 +8803,9 @@ fill_record(THD * thd, List<Item> &fields, List<Item> &values,
   }
   /* Update virtual fields*/
   thd->abort_on_warning= FALSE;
-  if (vcol_table)
-  {
-    if (vcol_table->vfield)
-    {
-      if (update_virtual_fields(thd, vcol_table, TRUE))
-        goto err;
-    }
-  }
+  if (vcol_table && vcol_table->vfield &&
+      update_virtual_fields(thd, vcol_table, TRUE))
+    goto err;
   thd->abort_on_warning= save_abort_on_warning;
   thd->no_errors=        save_no_errors;
   DBUG_RETURN(thd->is_error());
