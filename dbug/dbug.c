@@ -1624,7 +1624,7 @@ static void FreeState(CODE_STATE *cs, int free_state)
  */
 void _db_end_()
 {
-  CODE_STATE *cs;
+  CODE_STATE *cs, dummy_cs;
   /*
     Set _dbug_on_ to be able to do full reset even when DEBUGGER_OFF was
     called after dbug was initialized
@@ -1633,8 +1633,18 @@ void _db_end_()
   cs= code_state();
 
   if (cs)
+  {
     while (cs->stack && cs->stack != &init_settings)
       FreeState(cs, 1);
+  }
+  else
+  {
+    cs= &dummy_cs;
+    bzero(cs, sizeof(*cs));
+  }
+
+  cs->stack= &init_settings;
+  FreeState(cs, 0);
 }
 
 
