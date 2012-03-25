@@ -3083,7 +3083,22 @@ void fix_semijoin_strategies_for_picked_join_order(JOIN *join)
                             record_count, join->best_positions + idx,
                             &loose_scan_pos);
            if (idx==first)
+           {
              join->best_positions[idx]= loose_scan_pos;
+             /*
+               If LooseScan is based on ref access (including the "degenerate"
+               one with 0 key parts), we should use full index scan.
+
+               Unfortunately, lots of code assumes that if tab->type==JT_ALL && 
+               tab->quick!=NULL, then quick select should be used. The only
+               simple way to fix this is to remove the quick select:
+             */
+             if (join->best_positions[idx].key)
+             {
+               delete join->best_positions[idx].table->quick;
+               join->best_positions[idx].table->quick= NULL;
+             }
+           }
         }
         rem_tables &= ~join->best_positions[idx].table->table->map;
         record_count *= join->best_positions[idx].records_read;

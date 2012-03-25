@@ -1090,5 +1090,43 @@ SELECT * FROM t1, t2 WHERE c IN (SELECT c FROM t1, t2 WHERE a = b);
 
 DROP TABLE t1,t2;
 
+--echo # 
+--echo # BUG#962667: Assertion `0' failed in QUICK_INDEX_SORT_SELECT::need_sorted_output() 
+--echo #   with index_merge+index_merge_sort_union+loosescan+semijoin
+--echo #
+CREATE TABLE t1 (
+  a INT, b VARCHAR(1), c INT,
+  KEY(a), KEY(b)
+) ENGINE=InnoDB;
+
+INSERT INTO t1 VALUES
+(1,'v',9),(2,'v',8),(3,'c',7),(4,'m',6),(5,'x',5),
+(6,'i',4),(7,'e',3),(8,'p',2),(9,'s',1),(10,'j',9),
+(11,'z',8),(12,'c',7),(13,'a',6),(14,'q',5),(15,'y',4),
+(16,'n',3),(17,'r',2),(18,'v',1),(19,'p',0);
+
+CREATE TABLE t2 (
+  pk INT, d VARCHAR(1), e INT,
+  PRIMARY KEY(pk), KEY(d,e)
+) ENGINE=InnoDB;
+
+INSERT INTO t2 VALUES
+(1,'x',1),(2,'d',2),(3,'r',3),(4,'f',4),(5,'y',5),
+(6,'u',6),(7,'m',7),(8,'k',8),(9,'o',9),(10,'w',1),
+(11,'m',2),(12,'q',3),(13,'m',4),(14,'d',5),
+(15,'g',6),(16,'x',7),(17,'f',8);
+
+explain
+SELECT * FROM t1 WHERE b IN (
+  SELECT d FROM t2, t1
+  WHERE a = d AND ( pk < 2 OR d = 'z' )
+);
+SELECT * FROM t1 WHERE b IN (
+  SELECT d FROM t2, t1
+  WHERE a = d AND ( pk < 2 OR d = 'z' )
+);
+
+DROP TABLE t1, t2;
+
 --echo # This must be the last in the file:
 set optimizer_switch=@subselect_sj2_tmp;
