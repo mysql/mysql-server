@@ -41,7 +41,6 @@
 // These should be in the cachetable object, but we make them file-wide so that gdb can get them easily.
 // They were left here after engine status cleanup (#2949, rather than moved into the status struct)
 // so they are still easily available to the debugger and to save lots of typing.
-static u_int64_t cachetable_hit;
 static u_int64_t cachetable_miss;
 static u_int64_t cachetable_misstime;     // time spent waiting for disk read
 static u_int64_t cachetable_waittime;     // time spent waiting for another thread to release lock (e.g. prefetch, writing)
@@ -72,7 +71,6 @@ status_init(void) {
     // Note, this function initializes the keyname, type, and legend fields.
     // Value fields are initialized to zero by compiler.
 
-    STATUS_INIT(CT_HIT,                    UINT64, "hit");
     STATUS_INIT(CT_MISS,                   UINT64, "miss");
     STATUS_INIT(CT_MISSTIME,               UINT64, "miss time");
     STATUS_INIT(CT_WAITTIME,               UINT64, "wait time");
@@ -274,7 +272,6 @@ toku_cachetable_get_status(CACHETABLE ct, CACHETABLE_STATUS statp) {
     if (!ct_status.initialized)
 	status_init();
 
-    STATUS_VALUE(CT_HIT)                    = cachetable_hit;
     STATUS_VALUE(CT_MISS)                   = cachetable_miss;
     STATUS_VALUE(CT_MISSTIME)               = cachetable_misstime;
     STATUS_VALUE(CT_WAITTIME)               = cachetable_waittime;
@@ -1805,25 +1802,6 @@ static PAIR cachetable_insert_at(CACHETABLE ct,
     return p;
 }
 
-/*
-enum { hash_histogram_max = 100 };
-static unsigned long long hash_histogram[hash_histogram_max];
-void toku_cachetable_print_hash_histogram (void) {
-    int i;
-    for (i=0; i<hash_histogram_max; i++)
-	if (hash_histogram[i]) printf("%d:%llu ", i, hash_histogram[i]);
-    printf("\n");
-    printf("miss=%"PRIu64" hit=%"PRIu64" wait_reading=%"PRIu64" wait=%"PRIu64"\n", 
-           cachetable_miss, cachetable_hit, cachetable_wait_reading, cachetable_wait_writing);
-}
-
-static void
-note_hash_count (int count) {
-    if (count>=hash_histogram_max) count=hash_histogram_max-1;
-    hash_histogram[count]++;
-}
-*/
-
 // has ct locked on entry
 // This function MUST NOT release and reacquire the cachetable lock
 // Its callers (toku_cachetable_put_with_dep_pairs) depend on this behavior.
@@ -1873,7 +1851,6 @@ static int cachetable_put_internal(
         );
     assert(p);
     nb_mutex_write_lock(&p->value_nb_mutex, ct->mutex);
-    //note_hash_count(count);
     return 0;
 }
 
@@ -1892,7 +1869,6 @@ static int cachetable_get_pair (CACHEFILE cachefile, CACHEKEY key, u_int32_t ful
             break;
         }
     }
-    //note_hash_count(count);
     return r;
 }
 
@@ -2492,7 +2468,6 @@ int toku_cachetable_get_and_pin_with_dep_pairs (
     for (p=ct->table[fullhash&(ct->table_size-1)]; p; p=p->hash_chain) {
         count++;
         if (p->key.b==key.b && p->cachefile==cachefile) {
-            //note_hash_count(count);
             // still have the cachetable lock
             //
             // at this point, we know the node is at least partially in memory,
@@ -2544,7 +2519,6 @@ int toku_cachetable_get_and_pin_with_dep_pairs (
 
                 do_partial_fetch(ct, cachefile, p, pf_callback, read_extraargs, TRUE);
             }
-            //cachetable_hit++;
             WHEN_TRACE_CT(printf("%s:%d cachtable_get_and_pin(%lld)--> %p\n", __FILE__, __LINE__, key, *value));
             goto got_value;
         }
@@ -2631,7 +2605,6 @@ int toku_cachetable_maybe_get_and_pin (CACHEFILE cachefile, CACHEKEY key, u_int3
             break;
 	}
     }
-    //note_hash_count(count);
     cachetable_unlock(ct);
     return r;
 }
@@ -2662,7 +2635,6 @@ int toku_cachetable_maybe_get_and_pin_clean (CACHEFILE cachefile, CACHEKEY key, 
             break;
 	}
     }
-    //note_hash_count(count);
     cachetable_unlock(ct);
     return r;
 }
@@ -2709,7 +2681,6 @@ cachetable_unpin_internal(CACHEFILE cachefile, CACHEKEY key, u_int32_t fullhash,
             break;
 	}
     }
-    //note_hash_count(count);
     if (!have_ct_lock) cachetable_unlock(ct);
     return r;
 }
@@ -2766,7 +2737,6 @@ int toku_cachetable_get_and_pin_nonblocking (
     for (p = ct->table[fullhash&(ct->table_size-1)]; p; p = p->hash_chain) {
 	count++;
 	if (p->key.b==key.b && p->cachefile==cf) {
-	    //note_hash_count(count);
 
             //
             // In Doofenshmirts, we keep the root to leaf path pinned
@@ -2783,7 +2753,6 @@ int toku_cachetable_get_and_pin_nonblocking (
             if (!nb_mutex_writers(&p->value_nb_mutex) && 
                 (!may_modify_value || resolve_checkpointing_fast(p))) 
             {
-                //cachetable_hit++;
                 nb_mutex_write_lock(&p->value_nb_mutex, ct->mutex);
                 if (may_modify_value && p->checkpoint_pending) {
                     write_locked_pair_for_checkpoint(ct, p);
@@ -3026,7 +2995,6 @@ int toku_cachetable_rename (CACHEFILE cachefile, CACHEKEY oldkey, CACHEKEY newke
          ptr_to_p = &p->hash_chain,                p = *ptr_to_p) {
         count++;
         if (p->key.b==oldkey.b && p->cachefile==cachefile) {
-            //note_hash_count(count);
             *ptr_to_p = p->hash_chain;
             p->key = newkey;
             u_int32_t new_fullhash = toku_cachetable_hash(cachefile, newkey);
@@ -3038,7 +3006,6 @@ int toku_cachetable_rename (CACHEFILE cachefile, CACHEKEY oldkey, CACHEKEY newke
             return 0;
         }
     }
-    //note_hash_count(count);
     cachetable_unlock(ct);
     return -1;
 }
@@ -3536,7 +3503,6 @@ int toku_cachetable_unpin_and_remove (
         }
     }
  done:
-    //note_hash_count(count);
     cachetable_unlock(ct);
     return r;
 }
@@ -4029,7 +3995,6 @@ int toku_cachetable_get_key_state (CACHETABLE ct, CACHEKEY key, CACHEFILE cf, vo
     for (p = ct->table[fullhash&(ct->table_size-1)]; p; p = p->hash_chain) {
 	count++;
         if (p->key.b == key.b && p->cachefile == cf) {
-	    //note_hash_count(count);
             if (value_ptr)
                 *value_ptr = p->value_data;
             if (dirty_ptr)
@@ -4042,7 +4007,6 @@ int toku_cachetable_get_key_state (CACHETABLE ct, CACHEKEY key, CACHEFILE cf, vo
             break;
         }
     }
-    //note_hash_count(count);
     cachetable_unlock(ct);
     return r;
 }
@@ -4309,7 +4273,6 @@ toku_cleaner_thread (void *cachetable_v)
 void __attribute__((__constructor__)) toku_cachetable_helgrind_ignore(void);
 void
 toku_cachetable_helgrind_ignore(void) {
-    VALGRIND_HG_DISABLE_CHECKING(&cachetable_hit, sizeof cachetable_hit);
     VALGRIND_HG_DISABLE_CHECKING(&cachetable_miss, sizeof cachetable_miss);
     VALGRIND_HG_DISABLE_CHECKING(&cachetable_misstime, sizeof cachetable_misstime);
     VALGRIND_HG_DISABLE_CHECKING(&cachetable_waittime, sizeof cachetable_waittime);
