@@ -954,6 +954,109 @@ WHERE a = d AND ( pk < 2 OR d = 'z' )
 );
 a	b	c
 DROP TABLE t1, t2;
+#
+# BUG#951937: Wrong result (missing rows) with semijoin+materialization, IN subquery, InnoDB, TEMPTABLE view
+#
+CREATE TABLE t1 (
+a VARCHAR(1),
+b VARCHAR(1) NOT NULL,
+KEY(a)
+) ENGINE=InnoDB;
+INSERT INTO t1 VALUES
+('j','j'),('v','v'),('c','c'),('m','m'),('d','d'),
+('y','y'),('t','t'),('d','d'),('s','s'),('r','r'),
+('m','m'),('b','b'),('x','x'),('g','g'),('p','p'),
+('q','q'),('w','w'),('d','d'),('e','e');
+CREATE ALGORITHM=TEMPTABLE VIEW v1 AS SELECT * FROM t1;
+# This query returned 6 rows instead of 19
+SELECT * FROM v1
+WHERE ( a, a ) IN (
+SELECT alias2.b, alias2.a
+FROM t1 AS alias1, t1 AS alias2
+WHERE alias2.b = alias1.a
+AND ( alias1.b >= alias1.a OR alias2.b = 'z' )
+);
+a	b
+j	j
+v	v
+c	c
+m	m
+m	m
+d	d
+d	d
+d	d
+y	y
+t	t
+s	s
+r	r
+b	b
+x	x
+g	g
+p	p
+q	q
+w	w
+e	e
+# Another testcase, without the VIEW:
+CREATE TABLE t2 (a VARCHAR(1), b VARCHAR(1) NOT NULL, KEY(a)) ENGINE=InnoDB;
+INSERT INTO t2 SELECT * FROM t1;
+INSERT INTO t2 SELECT * FROM t1;
+EXPLAIN 
+SELECT * FROM t2 
+WHERE (a, a) IN (SELECT alias2.b, alias2.a FROM t1 AS alias1, t1 AS alias2 
+WHERE 
+alias2.b = alias1.a AND 
+(alias1.b >= alias1.a OR alias2.b = 'z'));
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	<subquery2>	ALL	distinct_key	NULL	NULL	NULL	19	
+1	PRIMARY	t2	ref	a	a	4	test.alias1.a	1	Using join buffer (flat, BKA join); Key-ordered Rowid-ordered scan
+2	MATERIALIZED	alias1	ALL	a	NULL	NULL	NULL	19	Using where
+2	MATERIALIZED	alias2	ref	a	a	4	test.alias1.a	1	Using where; Using join buffer (flat, BKA join); Key-ordered Rowid-ordered scan
+SELECT * FROM t2 
+WHERE (a, a) IN (SELECT alias2.b, alias2.a FROM t1 AS alias1, t1 AS alias2 
+WHERE 
+alias2.b = alias1.a AND 
+(alias1.b >= alias1.a OR alias2.b = 'z'));
+a	b
+j	j
+v	v
+c	c
+m	m
+d	d
+t	t
+d	d
+s	s
+r	r
+m	m
+b	b
+g	g
+p	p
+q	q
+w	w
+d	d
+e	e
+j	j
+v	v
+c	c
+m	m
+d	d
+t	t
+d	d
+s	s
+r	r
+m	m
+b	b
+g	g
+p	p
+q	q
+d	d
+e	e
+y	y
+x	x
+y	y
+x	x
+w	w
+DROP VIEW v1;
+DROP TABLE t1, t2;
 # This must be the last in the file:
 set optimizer_switch=@subselect_sj2_tmp;
 #

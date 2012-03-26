@@ -5388,7 +5388,7 @@ Item *Item_bool_rowready_func2::negated_item()
 */
 
 Item_equal::Item_equal(Item *f1, Item *f2, bool with_const_item)
-  : Item_bool_func(), eval_item(0), cond_false(0)
+  : Item_bool_func(), eval_item(0), cond_false(0), context_field(NULL)
 {
   const_item_cache= 0;
   with_const= with_const_item;
@@ -5411,7 +5411,7 @@ Item_equal::Item_equal(Item *f1, Item *f2, bool with_const_item)
 */
 
 Item_equal::Item_equal(Item_equal *item_equal)
-  : Item_bool_func(), eval_item(0), cond_false(0)
+  : Item_bool_func(), eval_item(0), cond_false(0), context_field(NULL)
 {
   const_item_cache= 0;
   List_iterator_fast<Item> li(item_equal->equal_items);
