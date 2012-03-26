@@ -30,6 +30,7 @@ Created 1/8/1996 Heikki Tuuri
 #include "dict0types.h"
 #include "data0type.h"
 #include "mem0mem.h"
+#include "row0types.h"
 #include "rem0types.h"
 #include "btr0types.h"
 #ifndef UNIV_HOTBACKUP
@@ -475,17 +476,24 @@ struct dict_index_struct{
 	unsigned	n_nullable:10;/*!< number of nullable fields */
 	unsigned	cached:1;/*!< TRUE if the index object is in the
 				dictionary cache */
-	unsigned	to_be_dropped:1;
-				/*!< TRUE if this index is marked to be
-				dropped in ha_innobase::prepare_drop_index(),
-				otherwise FALSE. Protected by
-				dict_sys->mutex, dict_operation_lock and
-				index->lock.*/
+	unsigned	online_status:2;
+				/*!< enum online_index_status */
 	dict_field_t*	fields;	/*!< array of field descriptions */
 #ifndef UNIV_HOTBACKUP
 	UT_LIST_NODE_T(dict_index_t)
 			indexes;/*!< list of indexes of the table */
-	btr_search_t*	search_info; /*!< info used in optimistic searches */
+	union {
+		btr_search_t*	search; /*!< info used in optimistic searches;
+					valid when online_status is one of
+					ONLINE_INDEX_COMPLETE,
+					ONLINE_INDEX_ABORTED,
+					ONLINE_INDEX_ABORTED_DROPPED */
+		row_log_t*	online_log;
+					/*!< the log of modifications
+					during online index creation;
+					valid when online_status is
+					ONLINE_INDEX_CREATION */
+	} info;
 	/*----------------------*/
 	/** Statistics for query optimization */
 	/* @{ */
@@ -532,6 +540,23 @@ struct dict_index_struct{
 /** Value of dict_index_struct::magic_n */
 # define DICT_INDEX_MAGIC_N	76789786
 #endif
+};
+
+/** The status of online index creation */
+enum online_index_status {
+	/** the index is complete and ready for access */
+	ONLINE_INDEX_COMPLETE = 0,
+	/** the index is being created, online
+	(allowing concurrent modifications) */
+	ONLINE_INDEX_CREATION,
+	/** the online index creation was aborted and the index
+	should be dropped as soon as index->table->n_ref_count reaches 0 */
+	ONLINE_INDEX_ABORTED,
+	/** the online index creation was aborted, the index was
+	dropped from the data dictionary and the tablespace, and it
+	should be dropped from the data dictionary cache as soon as
+	index->table->n_ref_count reaches 0. */
+	ONLINE_INDEX_ABORTED_DROPPED
 };
 
 /** Data structure for a foreign key constraint; an example:
@@ -619,6 +644,10 @@ struct dict_table_struct{
 				or a table that has no FK relationships */
 	unsigned	corrupted:1;
 				/*!< TRUE if table is corrupted */
+	unsigned	drop_aborted:1;
+				/*!< TRUE if some indexes should be dropped
+				after ONLINE_INDEX_ABORTED
+				or ONLINE_INDEX_ABORTED_DROPPED */
 	dict_col_t*	cols;	/*!< array of column descriptions */
 	const char*	col_names;
 				/*!< Column names packed in a character string

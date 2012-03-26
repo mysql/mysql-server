@@ -396,7 +396,7 @@ private:
 
 		btr_cur_pessimistic_delete(
 			&err, FALSE, btr_pcur_get_btr_cur(&m_pcur),
-			RB_NONE, &m_mtr);
+			0, RB_NONE, &m_mtr);
 
 		ut_a(err == DB_SUCCESS);
 
@@ -447,7 +447,7 @@ private:
 
 		if (rec_offs_any_extern(offsets)
 		    || !btr_cur_optimistic_delete(
-			    btr_pcur_get_btr_cur(&m_pcur), &m_mtr)) {
+			    btr_pcur_get_btr_cur(&m_pcur), 0, &m_mtr)) {
 
 			purge_pessimistic_delete();
 		} else {
@@ -2145,6 +2145,8 @@ row_import_for_mysql(
 
 		if (err == DB_SUCCESS) {
 			n_rows_in_table = importer.get_n_recs();
+		} else {
+			n_rows_in_table = ULINT_UNDEFINED;
 		}
 
 		trx->op_info = "";

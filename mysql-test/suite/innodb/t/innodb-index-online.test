@@ -1,0 +1,275 @@
+--source include/have_innodb.inc
+--source include/have_debug_sync.inc
+# Temporarily prohibit Valgrind runs until Bug#13875241 is resolved
+--source include/not_valgrind.inc
+
+SET GLOBAL DEBUG='d,query,debug_sync_exec:i:A,ds.trace';
+SET DEBUG='d,query,debug_sync_exec,debug_sync_abort_on_timeout:i:A,ds.trace';
+
+call mtr.add_suppression("InnoDB: Warning: Small buffer pool size");
+# These will be triggered by INSERT INTO t1 VALUES(6,3,1);
+call mtr.add_suppression("Cannot find index .*c2 in InnoDB index translation table");
+call mtr.add_suppression("Find index .*c2 in InnoDB index list but not its MySQL index number");
+
+# Save the initial number of concurrent sessions.
+--source include/count_sessions.inc
+
+CREATE TABLE t1 (c1 INT PRIMARY KEY, c2 INT, c3 INT) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1,1,0),(2,2,0),(3,3,0),(4,4,0),(5,5,0);
+
+SET GLOBAL innodb_monitor_enable=module_ddl;
+SELECT name,count FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE subsystem='ddl';
+
+SET DEBUG_SYNC='RESET';
+SET DEBUG_SYNC='write_row_noreplace SIGNAL have_handle WAIT_FOR go_ahead';
+-- send
+INSERT INTO t1 VALUES(1,2,3);
+
+connect (con1,localhost,root,,);
+connection con1;
+SET DEBUG='d,query,debug_sync_exec,debug_sync_abort_on_timeout:i:A,ds.trace';
+
+# This should block at the end because of the INSERT in connection default
+# is holding a metadata lock.
+SET DEBUG_SYNC='now WAIT_FOR have_handle';
+SET lock_wait_timeout=1;
+--error ER_LOCK_WAIT_TIMEOUT
+ALTER TABLE t1 ADD UNIQUE INDEX(c2);
+SET DEBUG_SYNC='now SIGNAL go_ahead';
+
+connection default;
+--error ER_DUP_ENTRY
+reap;
+SELECT name,count FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE subsystem='ddl';
+
+connection con1;
+SET SESSION DEBUG='+d,innodb_OOM_prepare_inplace_alter';
+--error ER_OUT_OF_RESOURCES
+ALTER TABLE t1 ADD UNIQUE INDEX(c2);
+SET SESSION DEBUG='-d,innodb_OOM_prepare_inplace_alter';
+SET SESSION DEBUG='+d,innodb_OOM_inplace_alter';
+--error ER_OUT_OF_RESOURCES
+CREATE UNIQUE INDEX c2 ON t1(c2);
+SET SESSION DEBUG='-d,innodb_OOM_inplace_alter';
+CREATE UNIQUE INDEX c2 ON t1(c2);
+DROP INDEX c2 ON t1;
+
+connection default;
+SHOW CREATE TABLE t1;
+# Insert a duplicate entry (4) for the upcoming UNIQUE INDEX(c2).
+BEGIN;
+INSERT INTO t1 VALUES(7,4,2);
+
+connection con1;
+# This DEBUG_SYNC should not kick in yet, because the duplicate key will be
+# detected before we get a chance to apply the online log.
+SET DEBUG_SYNC='row_log_apply_before SIGNAL scanned WAIT_FOR rollback_done';
+# This will be a lock wait timeout on the meta-data lock,
+# because the transaction inserting (7,4,2) is still active.
+--error ER_LOCK_WAIT_TIMEOUT
+ALTER TABLE t1 ADD UNIQUE INDEX(c2);
+connection default;
+COMMIT;
+connection con1;
+--error ER_DUP_ENTRY
+ALTER TABLE t1 ADD UNIQUE INDEX(c2);
+connection default;
+DELETE FROM t1 WHERE c1=7;
+connection con1;
+# Now the previous DEBUG_SYNC should kick in.
+--send
+ALTER TABLE t1 ADD UNIQUE INDEX(c2);
+connection default;
+SET DEBUG_SYNC='now WAIT_FOR scanned';
+SELECT name,count FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE subsystem='ddl';
+
+# Insert a duplicate entry (4) for the already started UNIQUE INDEX(c2).
+BEGIN;
+INSERT INTO t1 VALUES(7,4,2);
+ROLLBACK;
+SET DEBUG_SYNC='now SIGNAL rollback_done';
+
+connection con1;
+# Because the modification log will be applied in order, there will be
+# a duplicate key error on the (7,4,2) even though we roll it back.
+--error ER_DUP_ENTRY
+reap;
+# Now, create the index without any concurrent DML, while no duplicate exists.
+SET DEBUG_SYNC='row_log_apply_after SIGNAL created WAIT_FOR dml_done';
+--send
+ALTER TABLE t1 ADD UNIQUE INDEX(c2);
+connection default;
+SET DEBUG_SYNC='now WAIT_FOR created';
+# At this point, the index has been created inside InnoDB but not yet
+# in the MySQL data dictionary.
+SELECT name,count FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE subsystem='ddl';
+# A duplicate key error should now be triggered by InnoDB.
+--error ER_DUP_KEY
+INSERT INTO t1 VALUES(6,3,1);
+SET DEBUG_SYNC='now SIGNAL dml_done';
+connection con1;
+reap;
+SELECT name,count FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE subsystem='ddl';
+
+connection default;
+--error ER_DUP_ENTRY
+INSERT INTO t1 VALUES(6,3,1);
+--error ER_DUP_ENTRY
+INSERT INTO t1 VALUES(7,4,2);
+SET SESSION innodb_analyze_is_persistent=1;
+ANALYZE TABLE t1;
+--replace_column 4 LAST_UPDATE
+SELECT * FROM mysql.innodb_index_stats;
+CREATE TABLE t1_c2_stats SELECT * FROM mysql.innodb_index_stats
+WHERE database_name='test' AND table_name='t1' and index_name='c2';
+DROP INDEX c2 ON t1;
+--replace_column 4 LAST_UPDATE
+SELECT * FROM mysql.innodb_index_stats;
+
+connection con1;
+LET $ID=`SELECT @id:=CONNECTION_ID()`;
+--error ER_QUERY_INTERRUPTED
+KILL QUERY @id;
+
+SET DEBUG_SYNC='row_log_apply_before SIGNAL c2d_created WAIT_FOR kill_done';
+--send
+CREATE INDEX c2d ON t1(c2);
+
+connection default;
+SET DEBUG_SYNC='now WAIT_FOR c2d_created';
+SELECT name,count FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE subsystem='ddl';
+let $ignore=`SELECT @id:=$ID`;
+KILL QUERY @id;
+SET DEBUG_SYNC='now SIGNAL kill_done';
+
+connection con1;
+--error ER_QUERY_INTERRUPTED
+reap;
+SELECT name,count FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE subsystem='ddl';
+
+connection default;
+CHECK TABLE t1;
+INSERT INTO t1 SELECT 5+c1,c2,c3 FROM t1;
+INSERT INTO t1 SELECT 10+c1,c2,c3 FROM t1;
+INSERT INTO t1 SELECT 20+c1,c2,c3 FROM t1;
+INSERT INTO t1 SELECT 40+c1,c2,c3 FROM t1;
+EXPLAIN SELECT COUNT(*) FROM t1 WHERE c2>3;
+ANALYZE TABLE t1;
+
+connection con1;
+# Forge some statistics for c2d, and see that they will be used
+UPDATE t1_c2_stats SET index_name='c2d';
+# Fake the statistics. The cardinality should be 5,80.
+UPDATE t1_c2_stats SET stat_value=2 WHERE stat_name='n_diff_pfx01';
+INSERT INTO t1_c2_stats
+SELECT database_name,table_name,index_name,last_update,'n_diff_pfx02',80,
+sample_size,'c2,c1' FROM t1_c2_stats
+WHERE stat_name='n_diff_pfx01' AND stat_description='c2';
+INSERT INTO mysql.innodb_index_stats SELECT * FROM t1_c2_stats;
+DROP TABLE t1_c2_stats;
+
+CREATE INDEX c2d ON t1(c2);
+# This should reflect the cardinality that was faked above.
+# It is not an exact match because of the rec_per_key translation and tweaks.
+SHOW INDEX FROM t1;
+EXPLAIN SELECT COUNT(*) FROM t1 WHERE c2>3;
+
+SHOW CREATE TABLE t1;
+
+# Exceed the configured innodb_online_alter_log_max_size.
+# The actual limit is a multiple of innodb_sort_buf_size,
+# because that is the size of the in-memory log buffers.
+SET DEBUG_SYNC='row_log_apply_before SIGNAL c2e_created WAIT_FOR dml2_done';
+--send
+ALTER TABLE t1 DROP INDEX c2d, ADD INDEX c2e(c2);
+
+# Generate some log (delete-mark, delete-unmark, insert etc.)
+# while the index creation is blocked. Some of this may run
+# in parallel with the clustered index scan.
+connection default;
+INSERT INTO t1 SELECT 80+c1,c2,c3 FROM t1;
+INSERT INTO t1 SELECT 160+c1,c2,c3 FROM t1;
+UPDATE t1 SET c2=c2+1;
+SET DEBUG_SYNC='now WAIT_FOR c2e_created';
+# At this point, the clustered index scan must have completed,
+# but the modification log keeps accumulating due to the DEBUG_SYNC.
+SELECT name,count FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE subsystem='ddl';
+let $c=2;
+while ($c)
+{
+  BEGIN;
+  DELETE FROM t1;
+  ROLLBACK;
+  UPDATE t1 SET c2=c2+1;
+  BEGIN;
+  UPDATE t1 SET c2=c2+1;
+  DELETE FROM t1;
+  ROLLBACK;
+  dec $c;
+}
+SELECT name,count FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE subsystem='ddl';
+# Release con1.
+SET DEBUG_SYNC='now SIGNAL dml2_done';
+
+connection con1;
+# If the following fails with the wrong error, it probably means that
+# you should rerun with a larger mtr --debug-sync-timeout.
+--error ER_INNODB_ONLINE_LOG_TOO_BIG
+reap;
+SELECT name,count FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE subsystem='ddl';
+
+connection default;
+
+ALTER TABLE t1 COMMENT 'testing if c2e will be dropped';
+
+# Check that the 'zombie' index c2e was dropped.
+SELECT name,count FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE subsystem='ddl';
+SET GLOBAL innodb_monitor_disable=module_ddl;
+
+connection con1;
+# Accumulate and apply some modification log.
+SET DEBUG_SYNC='row_log_apply_before SIGNAL c2f_created WAIT_FOR dml3_done';
+--send
+ALTER TABLE t1 ADD INDEX c2f(c2);
+
+connection default;
+SET DEBUG_SYNC='now WAIT_FOR c2f_created';
+# Generate some log (delete-mark, delete-unmark, insert etc.)
+SELECT name,count FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE subsystem='ddl';
+BEGIN;
+INSERT INTO t1 SELECT 320+c1,c2,c3 FROM t1 WHERE c1>160;
+DELETE FROM t1 WHERE c1>320;
+ROLLBACK;
+BEGIN;
+UPDATE t1 SET c2=c2+1;
+DELETE FROM t1;
+ROLLBACK;
+SELECT name,count FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE subsystem='ddl';
+# Release con1.
+SET DEBUG_SYNC='now SIGNAL dml3_done';
+
+connection con1;
+reap;
+SELECT name,count FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE subsystem='ddl';
+SELECT COUNT(c2) FROM t1;
+CHECK TABLE t1;
+
+disconnect con1;
+
+connection default;
+
+SET DEBUG_SYNC='RESET';
+SET DEBUG='';
+SET GLOBAL innodb_monitor_disable=module_ddl;
+
+DROP TABLE t1;
+
+# Check that all connections opened by test cases in this file are really
+# gone so execution of other tests won't be affected by their presence.
+--source include/wait_until_count_sessions.inc
+
+SET GLOBAL DEBUG='';
+-- disable_warnings
+SET GLOBAL innodb_monitor_enable=default;
+SET GLOBAL innodb_monitor_disable=default;
+-- enable_warnings

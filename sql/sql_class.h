@@ -79,7 +79,6 @@ class Sroutine_hash_entry;
 class User_level_lock;
 class user_var_entry;
 
-enum enum_enable_or_disable { LEAVE_AS_IS, ENABLE, DISABLE };
 enum enum_ha_read_modes { RFIRST, RNEXT, RPREV, RLAST, RKEY, RNEXT_SAME };
 enum enum_duplicates { DUP_ERROR, DUP_REPLACE, DUP_UPDATE };
 enum enum_delay_key_write { DELAY_KEY_WRITE_NONE, DELAY_KEY_WRITE_ON,
@@ -3485,7 +3484,15 @@ public:
     {
       if ((err == KILL_CONNECTION) && !shutdown_in_progress)
         err = KILL_QUERY;
-      my_message(err, ER(err), MYF(0));
+      /*
+        KILL is fatal because:
+        - if a condition handler was allowed to trap and ignore a KILL, one
+        could create routines which the DBA could not kill
+        - INSERT/UPDATE IGNORE should fail: if KILL arrives during
+        JOIN::optimize(), statement cannot possibly run as its caller expected
+        => "OK" would be misleading the caller.
+      */
+      my_message(err, ER(err), MYF(ME_FATALERROR));
     }
   }
   /* return TRUE if we will abort query if we make a warning now */

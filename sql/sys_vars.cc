@@ -1939,7 +1939,7 @@ static Sys_var_flagset Sys_optimizer_switch(
 static Sys_var_mybool Sys_var_end_markers_in_json(
        "end_markers_in_json",
        "In JSON output (\"EXPLAIN FORMAT=JSON\" and optimizer trace), "
-       "end_marker=on repeats the structure's key (if it has one) "
+       "if variable is set to 1, repeats the structure's key (if it has one) "
        "near the closing bracket",
        SESSION_VAR(end_markers_in_json), CMD_LINE(OPT_ARG),
        DEFAULT(FALSE));

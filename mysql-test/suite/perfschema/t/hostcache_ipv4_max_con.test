@@ -14,13 +14,8 @@
 
 # Enforce a clean state
 --source ../include/wait_for_pfs_thread_count.inc
+--source ../include/hostcache_set_state.inc
 
-flush status;
-flush hosts;
-flush user_resources;
-select @@global.debug;
-select @@global.max_user_connections;
-select @@global.max_connections;
 select @@global.max_connections into @saved_max_connections;
 
 create user 'quota'@'santa.claus.ipv4.example.com';

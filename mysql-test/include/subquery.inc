@@ -5988,3 +5988,82 @@ eval explain extended $query;
 eval $query;
 
 DROP TABLE t0, t1, t2;
+
+--echo #
+--echo # Bug#13731417 WRONG RESULT WITH NOT IN (SUBQUERY) AND
+--echo # COMPOSITE INDEX ON SUBQUERY'S TABLE
+--echo #
+
+CREATE TABLE t1 (a int, b int);
+CREATE TABLE t2 (a int, b int, KEY a_b (a,b));
+CREATE TABLE t4 (a int);
+INSERT INTO t1 VALUES(0,1);
+INSERT INTO t2 VALUES(NULL,1),(NULL,1);
+INSERT INTO t4 VALUES(1);
+
+SELECT ((0,1) NOT IN (SELECT NULL,1)) IS NULL;
+
+let $query=SELECT * FROM t1
+WHERE ((a,b) NOT IN (SELECT t2.a,t2.b FROM
+        t4 STRAIGHT_JOIN t2 WHERE t4.a=t2.b)) IS NULL;
+
+eval EXPLAIN EXTENDED $query;
+eval $query;
+
+ALTER TABLE t2 DROP INDEX a_b;
+
+EVAL EXPLAIN EXTENDED $query;
+eval $query;
+
+DROP TABLE t1,t2,t4;
+
+--echo #
+--echo # Bug#13725821 ASSERT NULL_REF_KEY == __NULL FAILED IN
+--echo # CREATE_REF_FOR_KEY() IN SQL_SELECT.CC
+--echo #
+
+CREATE TABLE t1 (
+  pk INT NOT NULL,
+  col_int_nokey INT,
+  col_int_key INT,
+  col_varchar_key VARCHAR(1),
+  col_varchar_nokey VARCHAR(1),
+  PRIMARY KEY (pk),
+  KEY col_int_key (col_int_key),
+  KEY col_varchar_key (col_varchar_key,col_int_key)
+) ENGINE=MyISAM;
+
+INSERT INTO t1 VALUES (17,NULL,9,NULL,NULL),
+(18,2,2,'o','o'),(19,NULL,9,'w','w'),(20,6,2,'m','m'),(21,7,4,'q','q'),
+(22,2,0,NULL,NULL),(23,5,4,'d','d'),(24,7,8,'g','g'),(25,6,NULL,'x','x'),
+(26,6,NULL,'f','f'),(27,2,0,'p','p'),(28,9,NULL,'j','j'),(29,6,8,'c','c');
+
+ALTER TABLE t1 DISABLE KEYS;
+ALTER TABLE t1 ENABLE KEYS;
+
+let $query=
+SELECT table1.col_varchar_key AS field1,
+       table1.col_int_nokey AS field2,
+       table2.col_varchar_key AS field3,
+       table1.col_int_nokey AS field4,
+       table2.col_int_nokey AS field5,
+       table1.col_varchar_nokey AS field6
+FROM ( t1 AS table1
+  INNER JOIN t1 AS table2
+  ON (( table2.col_int_nokey = table1.col_int_key )
+    AND ( table2.col_int_key = table1.col_int_key )
+  ) )
+WHERE ( table1.col_varchar_key = table2.col_varchar_key OR table1.pk = 154 )
+  OR table1.pk != 201
+  AND ( table1.col_varchar_key LIKE '%a%' OR table1.col_varchar_key LIKE
+'%b%')
+;
+
+eval CREATE TABLE t2 $query ;
+
+eval SELECT *
+     FROM t2
+     WHERE (field1, field2, field3, field4, field5, field6) NOT IN ( $query
+);
+
+DROP TABLE t2,t1;

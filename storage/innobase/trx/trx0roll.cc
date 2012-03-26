@@ -627,7 +627,8 @@ trx_rollback_active(
 		we drop the relevant table only if it is not flagged
 		as DISCARDED. If it still exists. */
 
-		table = dict_table_open_on_id(trx->table_id, dictionary_locked);
+		table = dict_table_open_on_id(
+			trx->table_id, dictionary_locked, FALSE);
 
 		if (table && !dict_table_is_discarded(table)) {
 			ulint	err;
@@ -639,7 +640,7 @@ trx_rollback_active(
 				dict_table_move_from_lru_to_non_lru(table);
 			}
 
-			dict_table_close(table, dictionary_locked);
+			dict_table_close(table, dictionary_locked, FALSE);
 
 			ib_logf(IB_LOG_LEVEL_WARN,
 				"Dropping table '%s', with id " UINT64PF " "

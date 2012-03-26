@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2010, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2012, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -79,6 +79,7 @@ row_undo_ins_remove_clust_rec(
 	ut_a(success);
 
 	if (node->table->id == DICT_INDEXES_ID) {
+		ut_ad(node->trx->dict_operation_lock_mode == RW_X_LATCH);
 
 		/* Drop the index tree associated with the row in
 		SYS_INDEXES table: */
@@ -96,7 +97,7 @@ row_undo_ins_remove_clust_rec(
 
 	btr_cur = btr_pcur_get_btr_cur(&(node->pcur));
 
-	if (btr_cur_optimistic_delete(btr_cur, &mtr)) {
+	if (btr_cur_optimistic_delete(btr_cur, 0, &mtr)) {
 		err = DB_SUCCESS;
 		goto func_exit;
 	}
@@ -110,7 +111,7 @@ retry:
 					    &(node->pcur), &mtr);
 	ut_a(success);
 
-	btr_cur_pessimistic_delete(&err, FALSE, btr_cur,
+	btr_cur_pessimistic_delete(&err, FALSE, btr_cur, 0,
 				   trx_is_recv(node->trx)
 				   ? RB_RECOVERY
 				   : RB_NORMAL, &mtr);
@@ -181,7 +182,7 @@ row_undo_ins_remove_sec_low(
 	}
 
 	if (mode == BTR_MODIFY_LEAF) {
-		err = btr_cur_optimistic_delete(btr_cur, &mtr)
+		err = btr_cur_optimistic_delete(btr_cur, 0, &mtr)
 			? DB_SUCCESS : DB_FAIL;
 	} else {
 		ut_ad(mode == BTR_MODIFY_TREE);
@@ -192,7 +193,7 @@ row_undo_ins_remove_sec_low(
 		deleting a record that contains externally stored
 		columns. */
 		ut_ad(!dict_index_is_clust(index));
-		btr_cur_pessimistic_delete(&err, FALSE, btr_cur,
+		btr_cur_pessimistic_delete(&err, FALSE, btr_cur, 0,
 					   RB_NORMAL, &mtr);
 	}
 func_exit:
@@ -270,12 +271,12 @@ row_undo_ins_parse_undo_rec(
 	node->rec_type = type;
 
 	node->update = NULL;
-	node->table = dict_table_open_on_id(table_id, dict_locked);
+	node->table = dict_table_open_on_id(table_id, dict_locked, FALSE);
 
 	/* Skip the UNDO if we can't find the table or the .ibd file. */
 	if (UNIV_UNLIKELY(node->table == NULL)) {
 	} else if (UNIV_UNLIKELY(node->table->ibd_file_missing)) {
-		dict_table_close(node->table, dict_locked);
+		dict_table_close(node->table, dict_locked, FALSE);
 		node->table = NULL;
 	} else {
 		clust_index = dict_table_get_first_index(node->table);
@@ -286,7 +287,8 @@ row_undo_ins_parse_undo_rec(
 
 			if (!row_undo_search_clust_to_pcur(node)) {
 
-				dict_table_close(node->table, dict_locked);
+				dict_table_close(
+					node->table, dict_locked, FALSE);
 
 				node->table = NULL;
 			}
@@ -299,7 +301,7 @@ row_undo_ins_parse_undo_rec(
 			fprintf(stderr, " has no indexes, "
 				"ignoring the table\n");
 
-			dict_table_close(node->table, dict_locked);
+			dict_table_close(node->table, dict_locked, FALSE);
 
 			node->table = NULL;
 		}
@@ -316,20 +318,25 @@ row_undo_ins_remove_sec_rec(
 	undo_node_t*	node)	/*!< in/out: row undo node */
 {
 	ulint		err	= DB_SUCCESS;
+	dict_index_t*	index	= node->index;
 	mem_heap_t*	heap;
 
 	heap = mem_heap_create(1024);
 
-	while (node->index != NULL) {
+	while (index != NULL) {
 		dtuple_t*	entry;
 
-		if (node->index->type & DICT_FTS) {
-			dict_table_next_uncorrupted_index(node->index);
+		if (index->type & DICT_FTS) {
+			dict_table_next_uncorrupted_index(index);
 			continue;
 		}
 
-		entry = row_build_index_entry(node->row, node->ext,
-					      node->index, heap);
+		/* An insert undo record TRX_UNDO_INSERT_REC will
+		always contain all fields of the index. It does not
+		matter if any indexes were created afterwards; all
+		index entries can be reconstructed from the row. */
+		entry = row_build_index_entry(
+			node->row, node->ext, index, heap);
 		if (UNIV_UNLIKELY(!entry)) {
 			/* The database must have crashed after
 			inserting a clustered index record but before
@@ -341,10 +348,15 @@ row_undo_ins_remove_sec_rec(
 			only occur during the rollback of incomplete
 			transactions. */
 			ut_a(trx_is_recv(node->trx));
+		} else if (dict_index_online_trylog(
+				   index, entry, node->trx->id,
+				   ROW_OP_DELETE_PURGE)) {
+			/* The index is being created, and we
+			successfully buffered the purge operation. */
 		} else {
 			log_free_check();
 
-			err = row_undo_ins_remove_sec(node->index, entry);
+			err = row_undo_ins_remove_sec(index, entry);
 
 			if (UNIV_UNLIKELY(err != DB_SUCCESS)) {
 				goto func_exit;
@@ -352,10 +364,11 @@ row_undo_ins_remove_sec_rec(
 		}
 
 		mem_heap_empty(heap);
-		dict_table_next_uncorrupted_index(node->index);
+		dict_table_next_uncorrupted_index(index);
 	}
 
 func_exit:
+	node->index = index;
 	mem_heap_free(heap);
 	return(err);
 }
@@ -376,7 +389,6 @@ row_undo_ins(
 	ulint		err;
 	ibool		dict_locked;
 
-	ut_ad(node);
 	ut_ad(node->state == UNDO_NODE_INSERT);
 
 	dict_locked = node->trx->dict_operation_lock_mode == RW_X_LATCH;
@@ -421,7 +433,7 @@ row_undo_ins(
 		}
 	}
 
-	dict_table_close(node->table, dict_locked);
+	dict_table_close(node->table, dict_locked, FALSE);
 
 	node->table = NULL;
 

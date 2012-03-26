@@ -7992,6 +7992,68 @@ DEALLOCATE PREPARE stmt;
 DROP VIEW v1;
 DROP TABLE t1;
 # End of test for bug#13773979.
+#
+# BUG#13685026 ASSERTION CUR_SJ_INNER_TABLES == 0 IN
+# --OPTIMIZE_TABLE_ORDER::CHOOSE_TABLE_ORDER
+#
+CREATE TABLE t1 (
+col_int_key INT(11) NOT NULL,
+col_datetime_key DATETIME NOT NULL,
+col_varchar_key VARCHAR(1) NOT NULL,
+col_varchar_nokey VARCHAR(1) NOT NULL,
+KEY col_int_key (col_int_key),
+KEY col_datetime_key (col_datetime_key),
+KEY col_varchar_key (col_varchar_key,col_int_key)
+);
+INSERT INTO t1 VALUES (0,'2002-02-13 17:30:06','j','j');
+INSERT INTO t1 VALUES (8,'2008-09-27 00:34:58','v','v');
+CREATE TABLE t2 (
+col_int_key INT(11) NOT NULL,
+col_datetime_key DATETIME NOT NULL,
+col_varchar_key VARCHAR(1) NOT NULL,
+col_varchar_nokey VARCHAR(1) NOT NULL,
+KEY col_int_key (col_int_key),
+KEY col_datetime_key (col_datetime_key),
+KEY col_varchar_key (col_varchar_key,col_int_key)
+);
+INSERT INTO t2 VALUES (7,'2003-08-21 00:00:00','b','b');
+SET @old_depth=@@optimizer_search_depth;
+SET optimizer_search_depth=4;
+EXPLAIN SELECT col_datetime_key
+FROM t1 as outr
+WHERE col_datetime_key IN (
+SELECT alias1.col_datetime_key
+FROM t1 AS alias1
+LEFT JOIN t1 as alias3
+STRAIGHT_JOIN ( t2 AS alias4
+JOIN t1 AS alias5
+ON alias5.col_varchar_key <= alias4.col_varchar_nokey )
+ON alias5.col_int_key < alias4.col_int_key
+ON alias5.col_varchar_key = alias4.col_varchar_key
+);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	alias1	index	NULL	col_datetime_key	5	NULL	2	Using where; Using index; Start temporary
+1	SIMPLE	alias4	ALL	col_int_key,col_varchar_key	NULL	NULL	NULL	1	NULL
+1	SIMPLE	alias5	ref	col_int_key,col_varchar_key	col_varchar_key	3	test.alias4.col_varchar_key	1	Using where; Using index
+1	SIMPLE	alias3	index	NULL	col_int_key	4	NULL	2	Using index
+1	SIMPLE	outr	ref	col_datetime_key	col_datetime_key	5	test.alias1.col_datetime_key	2	Using index; End temporary
+SELECT col_datetime_key
+FROM t1 as outr
+WHERE col_datetime_key IN (
+SELECT alias1.col_datetime_key
+FROM t1 AS alias1
+LEFT JOIN t1 as alias3
+STRAIGHT_JOIN ( t2 AS alias4
+JOIN t1 AS alias5
+ON alias5.col_varchar_key <= alias4.col_varchar_nokey )
+ON alias5.col_int_key < alias4.col_int_key
+ON alias5.col_varchar_key = alias4.col_varchar_key
+);
+col_datetime_key
+2002-02-13 17:30:06
+2008-09-27 00:34:58
+DROP TABLE t1,t2;
+SET @@optimizer_search_depth=@old_depth;
 # End of 5.6 tests
 set optimizer_switch=default;
 set optimizer_switch=default;
