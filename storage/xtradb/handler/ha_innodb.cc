@@ -1367,7 +1367,8 @@ innobase_next_autoinc(
 	ulonglong	current,	/*!< in: Current value */
 	ulonglong	increment,	/*!< in: increment current by */
 	ulonglong	offset,		/*!< in: AUTOINC offset */
-	ulonglong	max_value)	/*!< in: max value for type */
+	ulonglong	max_value,	/*!< in: max value for type */
+	ulonglong	reserve)	/*!< in: how many values to reserve */
 {
 	ulonglong	next_value;
 
@@ -1376,51 +1377,16 @@ innobase_next_autoinc(
 
 	/* According to MySQL documentation, if the offset is greater than
 	the increment then the offset is ignored. */
-	if (offset > increment) {
+	if (offset >= increment)
 		offset = 0;
-	}
 
-	if (max_value <= current) {
-		next_value = max_value;
-	} else if (offset <= 1) {
-		/* Offset 0 and 1 are the same, because there must be at
-		least one node in the system. */
-		if (max_value - current <= increment) {
-			next_value = max_value;
-		} else {
-			next_value = current + increment;
-		}
-	} else if (max_value > current) {
-		if (current > offset) {
-			next_value = ((current - offset) / increment) + 1;
-		} else {
-			next_value = ((offset - current) / increment) + 1;
-		}
-
-		ut_a(increment > 0);
-		ut_a(next_value > 0);
-
-		/* Check for multiplication overflow. */
-		if (increment > (max_value / next_value)) {
-
-			next_value = max_value;
-		} else {
-			next_value *= increment;
-
-			ut_a(max_value >= next_value);
-
-			/* Check for overflow. */
-			if (max_value - next_value <= offset) {
-				next_value = max_value;
-			} else {
-				next_value += offset;
-			}
-		}
-	} else {
-		next_value = max_value;
-	}
-
-	ut_a(next_value <= max_value);
+	if (max_value <= current)
+                return max_value;
+	next_value = (current / increment) + reserve;
+	next_value = next_value * increment + offset;
+        /* Check for overflow. */
+        if (next_value < current || next_value > max_value)
+                next_value = max_value;
 
 	return(next_value);
 }
@@ -3853,8 +3819,7 @@ ha_innobase::innobase_initialize_autoinc()
 			nor the offset, so use a default increment of 1. */
 
 			auto_inc = innobase_next_autoinc(
-				read_auto_inc, 1, 1, col_max_value);
-
+				read_auto_inc, 1, 1, col_max_value, 1);
 			break;
 		}
 		case DB_RECORD_NOT_FOUND:
@@ -5537,7 +5502,7 @@ set_max_autoinc:
 
 					auto_inc = innobase_next_autoinc(
 						auto_inc,
-						need, offset, col_max_value);
+						need, offset, col_max_value, 1);
 
 					err = innobase_set_max_autoinc(
 						auto_inc);
@@ -5809,7 +5774,7 @@ ha_innobase::update_row(
 			need = prebuilt->autoinc_increment;
 
 			auto_inc = innobase_next_autoinc(
-				auto_inc, need, offset, col_max_value);
+				auto_inc, need, offset, col_max_value, 1);
 
 			error = innobase_set_max_autoinc(auto_inc);
 		}
@@ -10455,16 +10420,14 @@ ha_innobase::get_auto_increment(
 	/* With old style AUTOINC locking we only update the table's
 	AUTOINC counter after attempting to insert the row. */
 	if (innobase_autoinc_lock_mode != AUTOINC_OLD_STYLE_LOCKING) {
-		ulonglong	need;
 		ulonglong	current;
 		ulonglong	next_value;
 
 		current = *first_value > col_max_value ? autoinc : *first_value;
-		need = *nb_reserved_values * increment;
-
+	
 		/* Compute the last value in the interval */
 		next_value = innobase_next_autoinc(
-			current, need, offset, col_max_value);
+			current, increment, offset, col_max_value, *nb_reserved_values);
 
 		prebuilt->autoinc_last_value = next_value;
 
