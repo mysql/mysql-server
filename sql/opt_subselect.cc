@@ -2902,6 +2902,8 @@ bool Firstmatch_picker::check_qep(JOIN *join,
       }
     }
   }
+  else
+    invalidate_firstmatch_prefix();
   return FALSE;
 }
 
