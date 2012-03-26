@@ -41,13 +41,4 @@ rpl.rpl_mixed_mts_crash_safe @solaris              # Bug#12902514 2011-08-19 and
 
 # All memcached tests are failing. This could be setup issues on PB2
 # Making experimental until the problems are resolved
-memcached.memc216_5_utf8
-memcached.memc212_2_cols
-memcached.memc213_2_intcols
-memcached.memc217_add
-memcached.memc218_decr
-memcached.memc214_5_cols
-memcached.memc219_delete
-memcached.memc215_50_cols
-memcached.memc220_fkey_1
-memcached.memc221_get
+memcached.*
