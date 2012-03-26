@@ -677,7 +677,9 @@ innobase_create_index_def(
 		index->ind_type |= DICT_CLUSTERED;
 	} else if (key->flags & HA_FULLTEXT) {
 		DBUG_ASSERT(!(key->flags & HA_KEYFLAG_MASK
-			      & ~(HA_FULLTEXT | HA_BINARY_PACK_KEY)));
+			      & ~(HA_FULLTEXT
+				  | HA_PACK_KEY
+				  | HA_BINARY_PACK_KEY)));
 		DBUG_ASSERT(!(key->flags & HA_NOSAME));
 		DBUG_ASSERT(!index->ind_type);
 		index->ind_type |= DICT_FTS;
@@ -1873,7 +1875,9 @@ err_exit_no_heap:
 			fulltext indexes are not supported. */
 			DBUG_ASSERT(!(key->flags & HA_NOSAME));
 			DBUG_ASSERT(!(key->flags & HA_KEYFLAG_MASK
-				      & ~(HA_FULLTEXT | HA_BINARY_PACK_KEY)));
+				      & ~(HA_FULLTEXT
+					  | HA_PACK_KEY
+					  | HA_BINARY_PACK_KEY)));
 			continue;
 		}
 
@@ -2014,7 +2018,9 @@ func_exit:
 
 		if (key->flags & HA_FULLTEXT) {
 			DBUG_ASSERT(!(key->flags & HA_KEYFLAG_MASK
-				      & ~(HA_FULLTEXT | HA_BINARY_PACK_KEY)));
+				      & ~(HA_FULLTEXT
+					  | HA_PACK_KEY
+					  | HA_BINARY_PACK_KEY)));
 			num_fts_index++;
 		}
 	}
