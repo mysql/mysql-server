@@ -601,6 +601,7 @@ scan_again:
 	     bpage != NULL;
 	     /* No op */) {
 
+		rw_lock_t*      hash_lock;
 		buf_page_t*	prev_bpage;
 		mutex_t*	block_mutex = NULL;
 
@@ -625,6 +626,13 @@ scan_again:
 			all_freed = FALSE;
 			goto next_page;
 		} else {
+
+			ulint	fold = buf_page_address_fold(
+				bpage->space, bpage->offset);
+
+			hash_lock = buf_page_hash_lock_get(buf_pool, fold);
+
+			rw_lock_x_lock(hash_lock);
 
 			block_mutex = buf_page_get_mutex(bpage);
 			mutex_enter(block_mutex);
@@ -666,6 +674,8 @@ scan_again:
 			zip_size = buf_page_get_zip_size(bpage);
 			page_no = buf_page_get_page_no(bpage);
 
+			rw_lock_x_unlock(hash_lock);
+
 			mutex_exit(block_mutex);
 
 			/* Note that the following call will acquire
@@ -689,7 +699,6 @@ scan_again:
 		    != BUF_BLOCK_ZIP_FREE) {
 
 			buf_LRU_block_free_hashed_page((buf_block_t*) bpage);
-			mutex_exit(block_mutex);
 
 		} else {
 			/* The block_mutex should have been released
@@ -699,6 +708,12 @@ scan_again:
 		}
 
 		ut_ad(!mutex_own(block_mutex));
+
+#ifdef UNIV_SYNC_DEBUG
+                /* buf_LRU_block_remove_hashed_page() releases the hash_lock */
+                ut_ad(!rw_lock_own(hash_lock, RW_LOCK_EX));
+                ut_ad(!rw_lock_own(hash_lock, RW_LOCK_SHARED));
+#endif /* UNIV_SYNC_DEBUG */
 
 next_page:
 		bpage = prev_bpage;
