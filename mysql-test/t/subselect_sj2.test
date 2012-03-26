@@ -1145,6 +1145,7 @@ INSERT INTO t1 VALUES
 CREATE ALGORITHM=TEMPTABLE VIEW v1 AS SELECT * FROM t1;
 
 --echo # This query returned 6 rows instead of 19
+--sorted_result
 SELECT * FROM v1
 WHERE ( a, a ) IN (
   SELECT alias2.b, alias2.a
@@ -1164,6 +1165,7 @@ SELECT * FROM t2
                     alias2.b = alias1.a AND 
                     (alias1.b >= alias1.a OR alias2.b = 'z'));
 
+--sorted_result
 SELECT * FROM t2 
  WHERE (a, a) IN (SELECT alias2.b, alias2.a FROM t1 AS alias1, t1 AS alias2 
                   WHERE 

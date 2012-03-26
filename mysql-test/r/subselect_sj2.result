@@ -963,25 +963,25 @@ WHERE alias2.b = alias1.a
 AND ( alias1.b >= alias1.a OR alias2.b = 'z' )
 );
 a	b
-j	j
-v	v
-c	c
-m	m
-m	m
-d	d
-d	d
-d	d
-y	y
-t	t
-s	s
-r	r
 b	b
-x	x
+c	c
+d	d
+d	d
+d	d
+e	e
 g	g
+j	j
+m	m
+m	m
 p	p
 q	q
+r	r
+s	s
+t	t
+v	v
 w	w
-e	e
+x	x
+y	y
 # Another testcase, without the VIEW:
 CREATE TABLE t2 (a VARCHAR(1), b VARCHAR(1) NOT NULL, KEY(a)) ENGINE=InnoDB;
 INSERT INTO t2 SELECT * FROM t1;
@@ -1003,44 +1003,44 @@ WHERE
 alias2.b = alias1.a AND 
 (alias1.b >= alias1.a OR alias2.b = 'z'));
 a	b
-j	j
-j	j
-v	v
-v	v
-c	c
-c	c
-m	m
-m	m
-m	m
-m	m
-d	d
-d	d
-d	d
-d	d
-d	d
-d	d
-y	y
-y	y
-t	t
-t	t
-s	s
-s	s
-r	r
-r	r
 b	b
 b	b
-x	x
-x	x
+c	c
+c	c
+d	d
+d	d
+d	d
+d	d
+d	d
+d	d
+e	e
+e	e
 g	g
 g	g
+j	j
+j	j
+m	m
+m	m
+m	m
+m	m
 p	p
 p	p
 q	q
 q	q
+r	r
+r	r
+s	s
+s	s
+t	t
+t	t
+v	v
+v	v
 w	w
 w	w
-e	e
-e	e
+x	x
+x	x
+y	y
+y	y
 DROP VIEW v1;
 DROP TABLE t1, t2;
 # This must be the last in the file:
