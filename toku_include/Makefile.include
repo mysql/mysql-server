@@ -139,6 +139,8 @@ else ifeq ($(GCCVERSION),4.4.0)
  GCC_VERSION_SPECIFIC = -Wno-deprecated
 else ifeq ($(GCCVERSION),4.6.2)
  COMBINE := 0
+else ifeq ($(GCCVERSION),4.6.3)
+ COMBINE := 0
 endif
 
 WALL      = $(GCC_VERSION_SPECIFIC) -Wall -Wextra -Wcast-align -Wbad-function-cast -Wno-missing-noreturn -Wstrict-prototypes -Wmissing-prototypes -Wmissing-declarations \
@@ -165,12 +167,14 @@ else ifeq ($(GCCVERSION),4.4.1)
 else ifeq ($(GCCVERSION),4.4.0)
  CFLAGS += -Wno-strict-aliasing 
 else ifeq ($(GCCVERSION),4.6.2)
+ CFLAGS += -Wno-error=deprecated-declarations
  # Valgrind 3.6.1 annotations have unused but set variables.  Valgrind 3.7.0 fixed this problem.
- CFLAGS += \
-   -Wno-error=deprecated-declarations \
-   -Wno-unused-but-set-variable
-   #empty line
+ CFLAGS += -Wno-unused-but-set-variable
+else ifeq ($(GCCVERSION),4.6.3)
+ # Valgrind 3.6.1 annotations have unused but set variables.  Valgrind 3.7.0 fixed this problem.
+ CFLAGS +=    -Wno-unused-but-set-variable
 endif
+
 LIBTOKUDB=tokudb
 LIBTOKUPORTABILITY=tokuportability
 LIBPORTABILITY_SO=$(TOKUROOT)lib/lib$(LIBTOKUPORTABILITY).$(SOEXT)
