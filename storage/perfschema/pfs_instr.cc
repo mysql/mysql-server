@@ -1142,8 +1142,8 @@ find_or_create_file(PFS_thread *thread, PFS_file_class *klass,
   /* Append the unresolved file name to the resolved path */
   char *ptr= buffer + strlen(buffer);
   char *buf_end= &buffer[sizeof(buffer)-1];
-  if (buf_end > ptr)
-    *ptr++= FN_LIBCHAR;
+  if (buf_end > ptr && *(ptr-1) != FN_LIBCHAR)
+      *ptr++= FN_LIBCHAR;
   if (buf_end > ptr)
     strncpy(ptr, safe_filename + dirlen, buf_end - ptr);
   *buf_end= '\0';
