@@ -1700,9 +1700,16 @@ class Item_equal: public Item_bool_func
     as datetimes. The comparator is used only if compare_as_dates=TRUE
   */
   Arg_comparator cmp;
+ 
+  /*
+    For Item_equal objects inside an OR clause: one of the fields that were
+    used in the original equality.
+  */
+  Item_field *context_field;
 public:
   inline Item_equal()
-    : Item_bool_func(), with_const(FALSE), eval_item(0), cond_false(0)
+    : Item_bool_func(), with_const(FALSE), eval_item(0), cond_false(0),
+      context_field(NULL)
   { const_item_cache=0 ;}
   Item_equal(Item *f1, Item *f2, bool with_const_item);
   Item_equal(Item_equal *item_equal);
@@ -1729,6 +1736,8 @@ public:
   Item *transform(Item_transformer transformer, uchar *arg);
   virtual void print(String *str, enum_query_type query_type);
   CHARSET_INFO *compare_collation();
+
+  void set_context_field(Item_field *ctx_field) { context_field= ctx_field; }
   friend class Item_equal_fields_iterator;
   friend Item *eliminate_item_equal(COND *cond, COND_EQUAL *upper_levels,
                            Item_equal *item_equal);

@@ -1128,5 +1128,49 @@ SELECT * FROM t1 WHERE b IN (
 
 DROP TABLE t1, t2;
 
+--echo #
+--echo # BUG#951937: Wrong result (missing rows) with semijoin+materialization, IN subquery, InnoDB, TEMPTABLE view
+--echo #
+CREATE TABLE t1 (
+  a VARCHAR(1),
+  b VARCHAR(1) NOT NULL,
+  KEY(a)
+) ENGINE=InnoDB;
+INSERT INTO t1 VALUES
+('j','j'),('v','v'),('c','c'),('m','m'),('d','d'),
+('y','y'),('t','t'),('d','d'),('s','s'),('r','r'),
+('m','m'),('b','b'),('x','x'),('g','g'),('p','p'),
+('q','q'),('w','w'),('d','d'),('e','e');
+
+CREATE ALGORITHM=TEMPTABLE VIEW v1 AS SELECT * FROM t1;
+
+--echo # This query returned 6 rows instead of 19
+SELECT * FROM v1
+WHERE ( a, a ) IN (
+  SELECT alias2.b, alias2.a
+  FROM t1 AS alias1, t1 AS alias2
+  WHERE alias2.b = alias1.a
+    AND ( alias1.b >= alias1.a OR alias2.b = 'z' )
+);
+
+--echo # Another testcase, without the VIEW:
+CREATE TABLE t2 (a VARCHAR(1), b VARCHAR(1) NOT NULL, KEY(a)) ENGINE=InnoDB;
+INSERT INTO t2 SELECT * FROM t1;
+INSERT INTO t2 SELECT * FROM t1;
+EXPLAIN 
+SELECT * FROM t2 
+ WHERE (a, a) IN (SELECT alias2.b, alias2.a FROM t1 AS alias1, t1 AS alias2 
+                  WHERE 
+                    alias2.b = alias1.a AND 
+                    (alias1.b >= alias1.a OR alias2.b = 'z'));
+
+SELECT * FROM t2 
+ WHERE (a, a) IN (SELECT alias2.b, alias2.a FROM t1 AS alias1, t1 AS alias2 
+                  WHERE 
+                    alias2.b = alias1.a AND 
+                    (alias1.b >= alias1.a OR alias2.b = 'z'));
+
+DROP VIEW v1;
+DROP TABLE t1, t2;
 --echo # This must be the last in the file:
 set optimizer_switch=@subselect_sj2_tmp;
