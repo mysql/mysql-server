@@ -63,8 +63,9 @@ using std::min;
 using std::max;
 
 bool mysql_user_table_is_in_short_password_format= false;
-inline bool auth_plugin_is_built_in(const char *plugin_name);
+bool auth_plugin_is_built_in(const char *plugin_name);
 void optimize_plugin_compare_by_pointer(LEX_STRING *plugin_name);
+
 
 static const
 TABLE_FIELD_TYPE mysql_db_table_fields[MYSQL_DB_FIELD_COUNT] = {
@@ -2601,7 +2602,7 @@ static bool test_if_create_new_users(THD *thd)
   return create_new_users;
 }
 
-inline bool auth_plugin_is_built_in(const char *plugin_name)
+bool auth_plugin_is_built_in(const char *plugin_name)
 {
  return (plugin_name == native_password_plugin_name.str ||
 #if defined(HAVE_OPENSSL) && !defined(HAVE_YASSL)
