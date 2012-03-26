@@ -494,12 +494,13 @@ row_import_free(
 			continue;
 		}
 
-		ulint	n_fields = cfg->indexes[i].n_user_defined_cols;
+		dict_field_t*	fields = cfg->indexes[i].fields;
+		ulint		n_fields = cfg->indexes[i].n_fields;
 
 		for (ulint j = 0; j < n_fields; ++j) {
-			if (cfg->indexes[i].fields[j].name != 0) {
-				delete [] cfg->indexes[i].fields[j].name;
-				cfg->indexes[i].fields[j].name = 0;
+			if (fields[j].name != 0) {
+				delete [] fields[j].name;
+				fields[j].name = 0;
 			}
 		}
 
@@ -527,6 +528,11 @@ row_import_free(
 	if (cfg->col_names != 0) {
 		delete [] cfg->col_names;
 		cfg->col_names = 0;
+	}
+
+	if (cfg->table_name) {
+		delete [] cfg->table_name;
+		cfg->table_name = 0;
 	}
 
 	delete cfg;
@@ -872,7 +878,7 @@ row_import_cfg_read_index_fields(
 
 	dict_field_t*	field = index->fields;
 
-	memset(field, 0x0, sizeof(dict_field_t) * n_fields);
+	memset(field, 0x0, sizeof(*field) * n_fields);
 
 	for (ulint i = 0; i < n_fields; ++i, ++field) {
 		byte*		ptr = row;
