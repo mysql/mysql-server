@@ -11807,21 +11807,9 @@ Rows_query_log_event::print(FILE *file,
   {
     IO_CACHE *const head= &print_event_info->head_cache;
     IO_CACHE *const body= &print_event_info->body_cache;
-    uint m_rows_query_len= strlen(m_rows_query);
-    char rows_query_copy[m_rows_query_len + 1];
-    char *token= NULL, *saveptr= NULL;
-
     print_header(head, print_event_info, FALSE);
     my_b_printf(head, "\tRows_query\n");
-    /*
-      Prefix every line of a multi-line query with '#' to prevent the
-      statement from being executed when binary log will be processed
-      using 'mysqlbinlog --verbose --verbose'.
-    */
-    strmake(rows_query_copy, m_rows_query, m_rows_query_len);
-    for (token= strtok_r(rows_query_copy, "\n", &saveptr); token;
-         token= strtok_r(NULL, "\n", &saveptr))
-      my_b_printf(head, "# %s\n", token);
+    my_b_printf(head, "# %s\n", m_rows_query);
     print_base64(body, print_event_info, true);
   }
 }
