@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2000, 2010, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2000, 2012, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -361,12 +361,14 @@ output by the master thread. If the table name ends in "innodb_mem_validate",
 InnoDB will try to invoke mem_validate().
 @return	error code or DB_SUCCESS */
 UNIV_INTERN
-int
+enum db_err
 row_create_table_for_mysql(
 /*=======================*/
-	dict_table_t*	table,		/*!< in, own: table definition
-					(will be freed) */
-	trx_t*		trx);		/*!< in: transaction handle */
+	dict_table_t*	table,	/*!< in, own: table definition
+				(will be freed, or on DB_SUCCESS
+				added to the data dictionary cache) */
+	trx_t*		trx)	/*!< in/out: transaction */
+	__attribute__((nonnull, warn_unused_result));
 /*********************************************************************//**
 Does an index creation operation for MySQL. TODO: currently failure
 to create an index results in dropping the whole table! This is no problem
@@ -838,6 +840,10 @@ struct row_prebuilt_struct {
 	/*----------------------*/
 	ulint		magic_n2;	/*!< this should be the same as
 					magic_n */
+	/*----------------------*/
+	unsigned	innodb_api:1;	/*!< whether this is a InnoDB API 
+					query */
+	const rec_t*	innodb_api_rec;	/*!< InnoDB API search result */
 };
 
 /** Callback for row_mysql_sys_index_iterate() */

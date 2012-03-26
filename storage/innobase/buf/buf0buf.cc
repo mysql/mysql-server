@@ -2683,7 +2683,7 @@ wait_until_unfixed:
 
 		block->page.buf_fix_count = 1;
 		buf_block_set_io_fix(block, BUF_IO_READ);
-		rw_lock_x_lock_func(&block->lock, 0, file, line);
+		rw_lock_x_lock_inline(&block->lock, 0, file, line);
 
 		UNIV_MEM_INVALID(bpage, sizeof *bpage);
 
@@ -2859,14 +2859,14 @@ wait_until_unfixed:
 		break;
 
 	case RW_S_LATCH:
-		rw_lock_s_lock_func(&(block->lock), 0, file, line);
+		rw_lock_s_lock_inline(&(block->lock), 0, file, line);
 
 		fix_type = MTR_MEMO_PAGE_S_FIX;
 		break;
 
 	default:
 		ut_ad(rw_latch == RW_X_LATCH);
-		rw_lock_x_lock_func(&(block->lock), 0, file, line);
+		rw_lock_x_lock_inline(&(block->lock), 0, file, line);
 
 		fix_type = MTR_MEMO_PAGE_X_FIX;
 		break;
@@ -2949,8 +2949,8 @@ buf_page_optimistic_get(
 						file, line);
 		fix_type = MTR_MEMO_PAGE_S_FIX;
 	} else {
-		success = rw_lock_x_lock_func_nowait(&(block->lock),
-						     file, line);
+		success = rw_lock_x_lock_func_nowait_inline(&(block->lock),
+							    file, line);
 		fix_type = MTR_MEMO_PAGE_X_FIX;
 	}
 
@@ -3082,8 +3082,8 @@ buf_page_get_known_nowait(
 						file, line);
 		fix_type = MTR_MEMO_PAGE_S_FIX;
 	} else {
-		success = rw_lock_x_lock_func_nowait(&(block->lock),
-						     file, line);
+		success = rw_lock_x_lock_func_nowait_inline(&(block->lock),
+							    file, line);
 		fix_type = MTR_MEMO_PAGE_X_FIX;
 	}
 
@@ -3184,8 +3184,8 @@ buf_page_try_get_func(
 		S-latch. */
 
 		fix_type = MTR_MEMO_PAGE_X_FIX;
-		success = rw_lock_x_lock_func_nowait(&block->lock,
-						     file, line);
+		success = rw_lock_x_lock_func_nowait_inline(&block->lock,
+							    file, line);
 	}
 
 	if (!success) {

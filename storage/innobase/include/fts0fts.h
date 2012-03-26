@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2011, 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2011, 2012, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -532,8 +532,9 @@ UNIV_INTERN
 void
 fts_add_doc_id_column(
 /*==================*/
-	dict_table_t*	table);			/*!< in/out: Table with
-						FTS index */
+	dict_table_t*	table,	/*!< in/out: Table with FTS index */
+	mem_heap_t*	heap)	/*!< in: temporary memory heap, or NULL */
+	__attribute__((nonnull(1)));
 
 /*********************************************************************//**
 Drops the ancillary tables needed for supporting an FTS index on the

@@ -267,7 +267,7 @@ CREATE INDEX t1d ON t1 (d(767));
 UPDATE t1 SET d=@e;
 ERROR HY000: Undo log record is too big.
 CREATE INDEX t1e ON t1 (e(767));
-ERROR HY000: Too big row
+ERROR 42000: Row size too large. The maximum row size for the used table type, not counting BLOBs, is 1982. This includes storage overhead, check the manual. You have to change some columns to TEXT or BLOBs
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (

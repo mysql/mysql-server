@@ -126,4 +126,12 @@ void mysql_ha_rm_tables(THD *thd, TABLE_LIST *tables);
 void mysql_ha_cleanup(THD *thd);
 void mysql_ha_set_explicit_lock_duration(THD *thd);
 
+typedef bool Log_func(THD*, TABLE*, bool,
+                      const uchar*, const uchar*);
+
+int  binlog_log_row(TABLE* table,
+                          const uchar *before_record,
+                          const uchar *after_record,
+                          Log_func *log_func);
+
 #endif /* SQL_HANDLER_INCLUDED */

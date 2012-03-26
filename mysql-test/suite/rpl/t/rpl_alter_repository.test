@@ -7,6 +7,8 @@
 --source include/master-slave.inc
 --source include/have_innodb.inc
 --source include/not_mts_slave_parallel_workers.inc
+--source include/not_relay_log_info_table.inc
+--source include/not_master_info_table.inc
 --connection slave
 --source include/stop_slave.inc
 SHOW CREATE TABLE mysql.slave_relay_log_info;
@@ -53,7 +55,7 @@ call mtr.add_suppression(" Error while checking replication metadata.");
 --connection master
 INSERT INTO t_innodb VALUES (1), (2), (3);
 --sync_slave_with_master
-ALTER TABLE mysql.slave_relay_log_info DROP COLUMN Sql_delay;
+ALTER TABLE mysql.slave_relay_log_info DROP COLUMN Number_of_workers;
 --connection master
 INSERT INTO t_innodb VALUES (1), (2), (3);
 --connection slave
@@ -70,7 +72,8 @@ INSERT INTO t_innodb VALUES (1), (2), (3);
 --let $rpl_server_parameters= --relay-log-info-repository=FILE --skip-slave-start
 --source include/rpl_restart_server.inc
 --connection slave
-ALTER TABLE mysql.slave_relay_log_info ADD COLUMN (Sql_delay INTEGER NOT NULL COMMENT 'The number of seconds that the slave must lag behind the master.');
+ALTER TABLE mysql.slave_relay_log_info ADD COLUMN (Number_of_workers INTEGER UNSIGNED NOT NULL);
+UPDATE mysql.slave_relay_log_info SET Number_of_workers= 0;
 
 #
 #  3 - After fixing the problem the server is restared with the correct
@@ -89,7 +92,7 @@ ALTER TABLE mysql.slave_relay_log_info ADD COLUMN (Sql_delay INTEGER NOT NULL CO
 --connection master
 INSERT INTO t_innodb VALUES (1), (2), (3);
 --sync_slave_with_master
-ALTER TABLE mysql.slave_relay_log_info DROP COLUMN Sql_delay;
+ALTER TABLE mysql.slave_relay_log_info DROP COLUMN Number_of_workers;
 --connection master
 INSERT INTO t_innodb VALUES (1), (2), (3);
 --connection slave
@@ -110,7 +113,8 @@ RESET SLAVE ALL;
 --replace_result $_slave_master_host MASTER_HOST $_slave_master_user MASTER_USER $_slave_master_port MASTER_PORT $_slave_master_log_file MASTER_LOG_FILE $_slave_master_log_pos MASTER_LOG_POS
 --error ER_COL_COUNT_DOESNT_MATCH_CORRUPTED_V2
 --eval CHANGE MASTER TO MASTER_HOST= '$_slave_master_host', MASTER_USER= '$_slave_master_user', MASTER_PORT= $_slave_master_port, MASTER_LOG_FILE= '$_slave_master_log_file', MASTER_LOG_POS= $_slave_master_log_pos
-ALTER TABLE mysql.slave_relay_log_info ADD COLUMN (Sql_delay INTEGER NOT NULL COMMENT 'The number of seconds that the slave must lag behind the master.');
+ALTER TABLE mysql.slave_relay_log_info ADD COLUMN (Number_of_workers INTEGER UNSIGNED NOT NULL);
+UPDATE mysql.slave_relay_log_info SET Number_of_workers= 0;
 RESET SLAVE ALL;
 --replace_result $_slave_master_host MASTER_HOST $_slave_master_user MASTER_USER $_slave_master_port MASTER_PORT $_slave_master_log_file MASTER_LOG_FILE $_slave_master_log_pos MASTER_LOG_POS
 --eval CHANGE MASTER TO MASTER_HOST= '$_slave_master_host', MASTER_USER= '$_slave_master_user', MASTER_PORT= $_slave_master_port, MASTER_LOG_FILE= '$_slave_master_log_file', MASTER_LOG_POS= $_slave_master_log_pos
@@ -137,7 +141,7 @@ RESET SLAVE ALL;
 #  1 - Changes mysql.slave_relay_log_info and SQL Thread stops gracefully.
 #
 --connection slave
-ALTER TABLE mysql.slave_master_info DROP COLUMN Retry_count;
+ALTER TABLE mysql.slave_master_info DROP COLUMN Enabled_auto_position;
 --connection master
 INSERT INTO t_innodb VALUES (1), (2), (3);
 --connection slave
@@ -154,7 +158,8 @@ INSERT INTO t_innodb VALUES (1), (2), (3);
 --let $rpl_server_parameters= --master-info-repository=FILE --skip-slave-start
 --source include/rpl_restart_server.inc
 --connection slave
-ALTER TABLE mysql.slave_master_info ADD COLUMN (Retry_count BIGINT UNSIGNED NOT NULL COMMENT 'Number of reconnect attempts, to the master, before giving up.');
+ALTER TABLE mysql.slave_master_info ADD COLUMN (Enabled_auto_position BOOLEAN NOT NULL COMMENT 'Indicates whether GTIDs will be used to retrieve events from the master.');
+UPDATE mysql.slave_master_info SET Enabled_auto_position= 0;
 
 #
 #  3 - After fixing the problem the server is restared with the correct
@@ -171,7 +176,7 @@ ALTER TABLE mysql.slave_master_info ADD COLUMN (Retry_count BIGINT UNSIGNED NOT 
 #      replication.
 #
 --connection slave
-ALTER TABLE mysql.slave_master_info DROP COLUMN Retry_count;
+ALTER TABLE mysql.slave_master_info DROP COLUMN Enabled_auto_position;
 --connection master
 INSERT INTO t_innodb VALUES (1), (2), (3);
 --connection slave
@@ -192,7 +197,8 @@ RESET SLAVE ALL;
 --replace_result $_slave_master_host MASTER_HOST $_slave_master_user MASTER_USER $_slave_master_port MASTER_PORT $_slave_master_log_file MASTER_LOG_FILE $_slave_master_log_pos MASTER_LOG_POS
 --error ER_COL_COUNT_DOESNT_MATCH_CORRUPTED_V2
 --eval CHANGE MASTER TO MASTER_HOST= '$_slave_master_host', MASTER_USER= '$_slave_master_user', MASTER_PORT= $_slave_master_port, MASTER_LOG_FILE= '$_slave_master_log_file', MASTER_LOG_POS= $_slave_master_log_pos
-ALTER TABLE mysql.slave_master_info ADD COLUMN (Retry_count BIGINT UNSIGNED NOT NULL COMMENT 'Number of reconnect attempts, to the master, before giving up.');
+ALTER TABLE mysql.slave_master_info ADD COLUMN (Enabled_auto_position BOOLEAN NOT NULL COMMENT 'Indicates whether GTIDs will be used to retrieve events from the master.');
+UPDATE mysql.slave_master_info SET Enabled_auto_position= 0;
 RESET SLAVE ALL;
 --replace_result $_slave_master_host MASTER_HOST $_slave_master_user MASTER_USER $_slave_master_port MASTER_PORT $_slave_master_log_file MASTER_LOG_FILE $_slave_master_log_pos MASTER_LOG_POS
 --eval CHANGE MASTER TO MASTER_HOST= '$_slave_master_host', MASTER_USER= '$_slave_master_user', MASTER_PORT= $_slave_master_port, MASTER_LOG_FILE= '$_slave_master_log_file', MASTER_LOG_POS= $_slave_master_log_pos
@@ -254,5 +260,15 @@ DROP TABLE t_innodb;
 --eval SET @@global.master_info_repository="$saved_master_repo"
 --eval SET @@global.sync_master_info=$saved_sync_master
 --enable_query_log
+
+--query_vertical SELECT * FROM mysql.slave_master_info
+--query_vertical SELECT * FROM mysql.slave_relay_log_info
+
+--let $rpl_server_number= 2
+--let $rpl_server_parameters=
+--source include/rpl_restart_server.inc
+
+--connection slave
 --source include/start_slave.inc
+
 --source include/rpl_end.inc

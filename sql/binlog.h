@@ -386,6 +386,7 @@ bool show_binlog_events(THD *thd, MYSQL_BIN_LOG *binary_log);
 bool mysql_show_binlog_events(THD* thd);
 void check_binlog_cache_size(THD *thd);
 void check_binlog_stmt_cache_size(THD *thd);
+bool binlog_enabled();
 void register_binlog_handler(THD *thd, bool trx);
 int gtid_empty_group_log_and_cleanup(THD *thd);
 

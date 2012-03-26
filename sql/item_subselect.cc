@@ -3586,8 +3586,10 @@ err:
     if (mat_table_has_nulls == NEX_UNKNOWN)   // We do not know yet
     {
       // Search for NULL inside tmp table, and remember the outcome.
-      DBUG_ASSERT(table->file->inited);
       *tab->ref.null_ref_key= 1;
+      if (!table->file->inited &&
+          table->file->ha_index_init(tab->ref.key, false /* sorted */))
+        DBUG_RETURN(true);
       if (safe_index_read(tab) == 1)
         DBUG_RETURN(true);
       *tab->ref.null_ref_key= 0; // prepare for next searches of non-NULL

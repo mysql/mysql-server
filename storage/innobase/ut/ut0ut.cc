@@ -749,6 +749,15 @@ ut_strerr(
 		return("End of index");
 	case DB_IO_ERROR:
 		return("I/O error");
+	case DB_DATA_MISMATCH:
+		return("data mismatch");
+	case DB_SCHEMA_NOT_LOCKED:
+		return("schema not locked");
+	case DB_NOT_FOUND:
+		return("not found");
+	case DB_ONLINE_LOG_TOO_BIG:
+		return("Log size exceeded during online index creation");
+
 	/* do not add default: in order to produce a warning if new code
 	is added to the enum but not added here */
 	}

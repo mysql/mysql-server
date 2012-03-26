@@ -2324,6 +2324,7 @@ evaluate_join_record(JOIN *join, JOIN_TAB *join_tab,
     DBUG_RETURN(NESTED_LOOP_ERROR);
   if (error < 0)
     DBUG_RETURN(NESTED_LOOP_NO_MORE_ROWS);
+  DBUG_EXECUTE_IF("bug13822652_1", join->thd->killed= THD::KILL_QUERY;);
   if (join->thd->killed)			// Aborted by user
   {
     join->thd->send_kill_message();

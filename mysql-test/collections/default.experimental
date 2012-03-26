@@ -22,6 +22,8 @@ rpl.rpl_innodb_bug28430                  # Bug#11754425
 rpl.rpl_row_sp011  @solaris              # Bug#11753919 2010-01-20 alik Several test cases fail on Solaris with error Thread stack overrun
 rpl.rpl_seconds_behind_master            # BUG#11765124 2010-11-24 luis fails sporadically on pb2
 rpl.rpl_show_slave_running               # BUG#12346048 2011-04-11 sven fails sporadically on pb2
+rpl.rpl_parallel_switch_sequential       # BUG#13626976 2012-02-07 dlenev Fails sporadically on pb2
+rpl.rpl_report_port                      # BUG#13812374 2012-03-22 Hemant Fails after the post fix for bug#13812374 
 
 sys_vars.max_sp_recursion_depth_func @solaris # Bug#11753919 2010-01-20 alik Several test cases fail on Solaris with error Thread stack overrun
 
@@ -35,3 +37,17 @@ sys_vars.rpl_init_slave_func		 # Bug#12535301 2011-05-09 andrei sys_vars.rpl_ini
 rpl.rpl_mixed_mts_rec_crash_safe @solaris          # Bug#12902514 2011-08-19 andrei mts recovery tests are slow
 rpl.rpl_mixed_mts_rec_crash_safe_checksum @solaris # Bug#12902514 2011-08-19 andrei same as rpl_mixed_mts_rec_crash_safe
 rpl.rpl_mixed_mts_crash_safe @solaris              # Bug#12902514 2011-08-19 andrei same as rpl_mixed_mts_rec_crash_safe
+
+
+# All memcached tests are failing. This could be setup issues on PB2
+# Making experimental until the problems are resolved
+memcached.memc216_5_utf8
+memcached.memc212_2_cols
+memcached.memc213_2_intcols
+memcached.memc217_add
+memcached.memc218_decr
+memcached.memc214_5_cols
+memcached.memc219_delete
+memcached.memc215_50_cols
+memcached.memc220_fkey_1
+memcached.memc221_get

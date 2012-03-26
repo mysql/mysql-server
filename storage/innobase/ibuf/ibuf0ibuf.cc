@@ -2626,7 +2626,7 @@ ibuf_get_table(
 {
 	rw_lock_s_lock_func(&dict_operation_lock, 0, __FILE__, __LINE__);
 
-	dict_table_t*	table = dict_table_open_on_id(table_id, FALSE);
+	dict_table_t*	table = dict_table_open_on_id(table_id, FALSE, FALSE);
 
 	rw_lock_s_unlock_gen(&dict_operation_lock, 0);
 
@@ -2750,7 +2750,7 @@ ibuf_merge(
 
 	ulint	volume = ibuf_merge_space(table->space, n_pages);
 
-	dict_table_close(table, FALSE);
+	dict_table_close(table, FALSE, FALSE);
 
 	return(volume);
 }
@@ -4035,12 +4035,16 @@ dump:
 		row_ins_sec_index_entry_by_modify(BTR_MODIFY_LEAF). */
 		ut_ad(rec_get_deleted_flag(rec, page_is_comp(page)));
 
-		heap = mem_heap_create(1024);
+		heap = mem_heap_create(
+			sizeof(upd_t)
+			+ REC_OFFS_HEADER_SIZE * sizeof(*offsets)
+			+ dtuple_get_n_fields(entry)
+			* (sizeof(upd_field_t) + sizeof *offsets));
 
 		offsets = rec_get_offsets(rec, index, NULL, ULINT_UNDEFINED,
 					  &heap);
 		update = row_upd_build_sec_rec_difference_binary(
-			index, entry, rec, NULL, heap);
+			rec, index, offsets, entry, heap);
 
 		page_zip = buf_block_get_page_zip(block);
 
@@ -4355,7 +4359,8 @@ ibuf_delete_rec(
 	ut_ad(ibuf_rec_get_page_no(mtr, btr_pcur_get_rec(pcur)) == page_no);
 	ut_ad(ibuf_rec_get_space(mtr, btr_pcur_get_rec(pcur)) == space);
 
-	success = btr_cur_optimistic_delete(btr_pcur_get_btr_cur(pcur), mtr);
+	success = btr_cur_optimistic_delete(btr_pcur_get_btr_cur(pcur),
+					    0, mtr);
 
 	if (success) {
 		if (UNIV_UNLIKELY(!page_get_n_recs(btr_pcur_get_page(pcur)))) {
@@ -4407,7 +4412,7 @@ ibuf_delete_rec(
 
 	root = ibuf_tree_root_get(mtr);
 
-	btr_cur_pessimistic_delete(&err, TRUE, btr_pcur_get_btr_cur(pcur),
+	btr_cur_pessimistic_delete(&err, TRUE, btr_pcur_get_btr_cur(pcur), 0,
 				   RB_NONE, mtr);
 	ut_a(err == DB_SUCCESS);
 

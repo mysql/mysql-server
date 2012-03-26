@@ -695,13 +695,15 @@ btr_root_fseg_validate(
 #endif /* UNIV_BTR_DEBUG */
 
 /**************************************************************//**
-Gets the root node of a tree and x-latches it.
-@return	root page, x-latched */
+Gets the root node of a tree and x- or s-latches it.
+@return	root page, x- or s-latched */
 static
 buf_block_t*
 btr_root_block_get(
 /*===============*/
 	const dict_index_t*	index,	/*!< in: index tree */
+	ulint			mode,	/*!< in: either RW_S_LATCH
+					or RW_X_LATCH */
 	mtr_t*			mtr)	/*!< in: mtr */
 {
 	ulint		space;
@@ -713,8 +715,7 @@ btr_root_block_get(
 	zip_size = dict_table_zip_size(index->table);
 	root_page_no = dict_index_get_page(index);
 
-	block = btr_block_get(space, zip_size, root_page_no, RW_X_LATCH,
-			      index, mtr);
+	block = btr_block_get(space, zip_size, root_page_no, mode, index, mtr);
 	btr_assert_not_corrupted(block, index);
 #ifdef UNIV_BTR_DEBUG
 	if (!dict_index_is_ibuf(index)) {
@@ -740,7 +741,42 @@ btr_root_get(
 	const dict_index_t*	index,	/*!< in: index tree */
 	mtr_t*			mtr)	/*!< in: mtr */
 {
-	return(buf_block_get_frame(btr_root_block_get(index, mtr)));
+	return(buf_block_get_frame(btr_root_block_get(index, RW_X_LATCH,
+						      mtr)));
+}
+
+/**************************************************************//**
+Gets the height of the B-tree (the level of the root, when the leaf
+level is assumed to be 0). The caller must hold an S or X latch on
+the index.
+@return	tree height (level of the root) */
+UNIV_INTERN
+ulint
+btr_height_get(
+/*===========*/
+	dict_index_t*	index,	/*!< in: index tree */
+	mtr_t*		mtr)	/*!< in/out: mini-transaction */
+{
+	ulint		height;
+	buf_block_t*	root_block;
+
+	ut_ad(mtr_memo_contains(mtr, dict_index_get_lock(index),
+				MTR_MEMO_S_LOCK)
+	      || mtr_memo_contains(mtr, dict_index_get_lock(index),
+				MTR_MEMO_X_LOCK));
+
+        /* S latches the page */
+        root_block = btr_root_block_get(index, RW_S_LATCH, mtr);
+
+        height = btr_page_get_level(buf_block_get_frame(root_block), mtr);
+
+        /* Release the S latch on the root page. */
+        mtr_memo_release(mtr, root_block, MTR_MEMO_PAGE_S_FIX);
+#ifdef UNIV_SYNC_DEBUG
+        sync_thread_reset_level(&root_block->lock);
+#endif /* UNIV_SYNC_DEBUG */
+
+	return(height);
 }
 
 /**************************************************************//**
@@ -1143,8 +1179,7 @@ btr_get_size(
 	ut_ad(mtr_memo_contains(mtr, dict_index_get_lock(index),
 				MTR_MEMO_S_LOCK));
 
-	if (index->page == FIL_NULL
-	    || index->to_be_dropped
+	if (index->page == FIL_NULL || dict_index_is_online_ddl(index)
 	    || *index->name == TEMP_INDEX_PREFIX) {
 		return(ULINT_UNDEFINED);
 	}
@@ -1937,6 +1972,7 @@ UNIV_INTERN
 rec_t*
 btr_root_raise_and_insert(
 /*======================*/
+	ulint		flags,	/*!< in: undo logging and locking flags */
 	btr_cur_t*	cursor,	/*!< in: cursor at which to insert: must be
 				on the root page; when the function returns,
 				the cursor is positioned on the predecessor
@@ -2094,7 +2130,7 @@ btr_root_raise_and_insert(
 			PAGE_CUR_LE, page_cursor);
 
 	/* Split the child and insert tuple */
-	return(btr_page_split_and_insert(cursor, tuple, n_ext, mtr));
+	return(btr_page_split_and_insert(flags, cursor, tuple, n_ext, mtr));
 }
 
 /*************************************************************//**
@@ -2423,6 +2459,7 @@ UNIV_INTERN
 void
 btr_insert_on_non_leaf_level_func(
 /*==============================*/
+	ulint		flags,	/*!< in: undo logging and locking flags */
 	dict_index_t*	index,	/*!< in: index */
 	ulint		level,	/*!< in: level, must be > 0 */
 	dtuple_t*	tuple,	/*!< in: the record to be inserted */
@@ -2441,7 +2478,8 @@ btr_insert_on_non_leaf_level_func(
 				    BTR_CONT_MODIFY_TREE,
 				    &cursor, 0, file, line, mtr);
 
-	err = btr_cur_pessimistic_insert(BTR_NO_LOCKING_FLAG
+	err = btr_cur_pessimistic_insert(flags
+					 | BTR_NO_LOCKING_FLAG
 					 | BTR_KEEP_SYS_FLAG
 					 | BTR_NO_UNDO_LOG_FLAG,
 					 &cursor, tuple, &rec,
@@ -2456,6 +2494,8 @@ static
 void
 btr_attach_half_pages(
 /*==================*/
+	ulint		flags,		/*!< in: undo logging and
+					locking flags */
 	dict_index_t*	index,		/*!< in: the index tree */
 	buf_block_t*	block,		/*!< in/out: page to be split */
 	const rec_t*	split_rec,	/*!< in: first record on upper
@@ -2533,7 +2573,8 @@ btr_attach_half_pages(
 	/* Insert it next to the pointer to the lower half. Note that this
 	may generate recursion leading to a split on the higher level. */
 
-	btr_insert_on_non_leaf_level(index, level + 1, node_ptr_upper, mtr);
+	btr_insert_on_non_leaf_level(flags, index, level + 1,
+				     node_ptr_upper, mtr);
 
 	/* Free the memory heap */
 	mem_heap_free(heap);
@@ -2626,6 +2667,7 @@ UNIV_INTERN
 rec_t*
 btr_page_split_and_insert(
 /*======================*/
+	ulint		flags,	/*!< in: undo logging and locking flags */
 	btr_cur_t*	cursor,	/*!< in: cursor at which to insert; when the
 				function returns, the cursor is positioned
 				on the predecessor of the inserted record */
@@ -2766,7 +2808,7 @@ insert_empty:
 
 	/* 4. Do first the modifications in the tree structure */
 
-	btr_attach_half_pages(cursor->index, block,
+	btr_attach_half_pages(flags, cursor->index, block,
 			      first_rec, new_block, direction, mtr);
 
 	/* If the split is made on the leaf level and the insert will fit
@@ -3165,8 +3207,8 @@ btr_node_ptr_delete(
 	/* Delete node pointer on father page */
 	btr_page_get_father(index, block, mtr, &cursor);
 
-	compressed = btr_cur_pessimistic_delete(&err, TRUE, &cursor, RB_NONE,
-						mtr);
+	compressed = btr_cur_pessimistic_delete(&err, TRUE, &cursor,
+						BTR_CREATE_FLAG, RB_NONE, mtr);
 	ut_a(err == DB_SUCCESS);
 
 	if (!compressed) {
@@ -3917,7 +3959,7 @@ btr_print_index(
 
 	mtr_start(&mtr);
 
-	root = btr_root_block_get(index, &mtr);
+	root = btr_root_block_get(index, RW_X_LATCH, &mtr);
 
 	btr_print_recursive(index, root, width, &heap, &offsets, &mtr);
 	if (heap) {
@@ -4218,7 +4260,7 @@ btr_validate_level(
 
 	mtr_x_lock(dict_index_get_lock(index), &mtr);
 
-	block = btr_root_block_get(index, &mtr);
+	block = btr_root_block_get(index, RW_X_LATCH, &mtr);
 	page = buf_block_get_frame(block);
 	seg = page + PAGE_HEADER + PAGE_BTR_SEG_TOP;
 
@@ -4634,8 +4676,8 @@ btr_validate_index(
 
 	/* Full Text index are implemented by auxiliary tables,
 	not the B-tree */
-	if (index->type & DICT_FTS) {
-		return(true);
+	if (dict_index_is_online_ddl(index) || (index->type & DICT_FTS)) {
+		return(TRUE);
 	}
 
 	mtr_start(&mtr);

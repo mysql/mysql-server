@@ -239,7 +239,8 @@ int table_events_waits_common::make_table_object_columns(volatile PFS_events_wai
 
     /* INDEX NAME */
     safe_index= wait->m_index;
-    if (safe_index < MAX_KEY && safe_index < safe_table_share->m_key_count)
+    uint safe_key_count= sanitize_index_count(safe_table_share->m_key_count);
+    if (safe_index < safe_key_count)
     {
       PFS_table_key *key= & safe_table_share->m_keys[safe_index];
       m_row.m_index_name_length= key->m_name_length;
