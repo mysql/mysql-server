@@ -312,7 +312,7 @@ int mysql_lock_tables(THD *thd, MYSQL_LOCK *sql_lock,
       including) one that caused error. Lock type for other tables
       preserved.
     */
-    reset_lock_data(sql_lock, 0);
+    reset_lock_data(sql_lock, 1);
 
     if (rc > 1)
     {

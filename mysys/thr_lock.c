@@ -1110,6 +1110,9 @@ thr_multi_lock(THR_LOCK_DATA **data, uint count, THR_LOCK_OWNER *owner)
     if (result != THR_LOCK_SUCCESS)
     {						/* Aborted */
       thr_multi_unlock(data,(uint) (pos-data), 0);
+      /* Mark all requested locks as TL_UNLOCK (to simplify lock checking) */
+      for ( ; pos < end ; pos++)
+        (*pos)->type= TL_UNLOCK;
       DBUG_RETURN(result);
     }
 #ifdef MAIN
