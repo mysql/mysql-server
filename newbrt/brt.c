@@ -158,9 +158,6 @@ status_init(void)
     STATUS_INIT(BRT_UPDATES,                                UINT64, "dictionary updates");
     STATUS_INIT(BRT_UPDATES_BROADCAST,                      UINT64, "dictionary broadcast updates");
     STATUS_INIT(BRT_DESCRIPTOR_SET,                         UINT64, "descriptor set");
-    STATUS_INIT(BRT_PARTIAL_FETCH_HIT,                      UINT64, "partial fetch hit, node partition is present");
-    STATUS_INIT(BRT_PARTIAL_FETCH_MISS,                     UINT64, "partial fetch miss, node present but partition absent");
-    STATUS_INIT(BRT_PARTIAL_FETCH_COMPRESSED,               UINT64, "partial fetch, node partition is present but compressed");
     STATUS_INIT(BRT_PARTIAL_EVICTIONS_NONLEAF,              UINT64, "nonleaf node partial evictions");
     STATUS_INIT(BRT_PARTIAL_EVICTIONS_LEAF,                 UINT64, "leaf node partial evictions");
     STATUS_INIT(BRT_MSN_DISCARDS,                           UINT64, "messages ignored by leaf due to msn");
@@ -952,24 +949,6 @@ exit:
     return 0;
 }
 
-static inline void
-brt_status_update_partial_fetch(u_int8_t UU(state))
-{
-#if 0
-    if (state == PT_AVAIL) {
-        STATUS_VALUE(BRT_PARTIAL_FETCH_HIT)++;
-    }
-    else if (state == PT_COMPRESSED) {
-        STATUS_VALUE(BRT_PARTIAL_FETCH_COMPRESSED)++;
-    }
-    else if (state == PT_ON_DISK){
-        STATUS_VALUE(BRT_PARTIAL_FETCH_MISS)++;
-    }
-    else {
-        invariant(FALSE);
-    }
-#endif
-}
 
 // Callback that states if a partial fetch of the node is necessary
 // Currently, this function is responsible for the following things:
@@ -1006,7 +985,6 @@ BOOL toku_brtnode_pf_req_callback(void* brtnode_pv, void* read_extraargs) {
             if (BP_STATE(node,i) != PT_AVAIL) {
                 retval = TRUE;
             }
-            brt_status_update_partial_fetch(BP_STATE(node, i));
         }
     }
     else if (bfe->type == brtnode_fetch_subset) {
@@ -1026,7 +1004,6 @@ BOOL toku_brtnode_pf_req_callback(void* brtnode_pv, void* read_extraargs) {
         BP_TOUCH_CLOCK(node,bfe->child_to_read);
         // child we want to read is not available, must set retval to TRUE
         retval = (BP_STATE(node, bfe->child_to_read) != PT_AVAIL);
-        brt_status_update_partial_fetch(BP_STATE(node, bfe->child_to_read));
     }
     else if (bfe->type == brtnode_fetch_prefetch) {
         // makes no sense to have prefetching disabled
@@ -1038,7 +1015,6 @@ BOOL toku_brtnode_pf_req_callback(void* brtnode_pv, void* read_extraargs) {
             if (BP_STATE(node, i) != PT_AVAIL) {
                 retval = TRUE;
             }
-            brt_status_update_partial_fetch(BP_STATE(node, i));
         }
     }
     else {

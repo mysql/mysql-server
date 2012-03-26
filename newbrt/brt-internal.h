@@ -859,9 +859,6 @@ typedef enum {
     BRT_UPDATES = 0,
     BRT_UPDATES_BROADCAST,
     BRT_DESCRIPTOR_SET,
-    BRT_PARTIAL_FETCH_HIT,                      // node partition is present
-    BRT_PARTIAL_FETCH_MISS,                     // node is present but partition is absent
-    BRT_PARTIAL_FETCH_COMPRESSED,               // node partition is present but compressed
     BRT_PARTIAL_EVICTIONS_NONLEAF,              // number of nonleaf node partial evictions
     BRT_PARTIAL_EVICTIONS_LEAF,                 // number of leaf node partial evictions
     BRT_MSN_DISCARDS,                           // how many messages were ignored by leaf because of msn
