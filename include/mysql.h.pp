@@ -66,9 +66,7 @@ enum mysql_enum_shutdown_level {
   SHUTDOWN_WAIT_TRANSACTIONS= (unsigned char)(1 << 1),
   SHUTDOWN_WAIT_UPDATES= (unsigned char)(1 << 3),
   SHUTDOWN_WAIT_ALL_BUFFERS= ((unsigned char)(1 << 3) << 1),
-  SHUTDOWN_WAIT_CRITICAL_BUFFERS= ((unsigned char)(1 << 3) << 1) + 1,
-  SHUTDOWN_KILL_QUERY= 254,
-  SHUTDOWN_KILL_CONNECTION= 255
+  SHUTDOWN_WAIT_CRITICAL_BUFFERS= ((unsigned char)(1 << 3) << 1) + 1
 };
 enum enum_cursor_type
 {

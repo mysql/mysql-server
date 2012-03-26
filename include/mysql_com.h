@@ -435,10 +435,7 @@ enum mysql_enum_shutdown_level {
   /* flush InnoDB buffers and other storage engines' buffers*/
   SHUTDOWN_WAIT_ALL_BUFFERS= (MYSQL_SHUTDOWN_KILLABLE_UPDATE << 1),
   /* don't flush InnoDB buffers, flush other storage engines' buffers*/
-  SHUTDOWN_WAIT_CRITICAL_BUFFERS= (MYSQL_SHUTDOWN_KILLABLE_UPDATE << 1) + 1,
-  /* Now the 2 levels of the KILL command */
-  SHUTDOWN_KILL_QUERY= 254,
-  SHUTDOWN_KILL_CONNECTION= 255
+  SHUTDOWN_WAIT_CRITICAL_BUFFERS= (MYSQL_SHUTDOWN_KILLABLE_UPDATE << 1) + 1
 };
 
 /* Compatibility */

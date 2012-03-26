@@ -643,7 +643,7 @@ JOIN::prepare(Item ***rref_pointer_array,
   */
   if (select_lex->master_unit()->item &&                               // 1)
       select_lex->first_cond_optimization &&                           // 2)
-      !(thd->lex->context_analysis_only & CONTEXT_ANALYSIS_ONLY_VIEW)) // 3)
+      !thd->lex->is_view_context_analysis())                           // 3)
   {
     remove_redundant_subquery_clauses(select_lex);
   }

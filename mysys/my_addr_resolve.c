@@ -140,7 +140,7 @@ int my_addr_resolve(void *ptr, my_addr_loc *loc)
   char output[1024];
   size_t len;
 
-  len= snprintf(input, sizeof(input), "0x%p\n", ptr);
+  len= my_snprintf(input, sizeof(input), "%p\n", ptr);
   if (write(in[1], input, len) <= 0)
     return 1;
   if (read(out[0], output, sizeof(output)) <= 0)

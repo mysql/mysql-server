@@ -346,8 +346,8 @@ int check_and_do_in_subquery_rewrites(JOIN *join)
     TODO: for PS, make the whole block execute only on the first execution
   */
   Item_subselect *subselect;
-  if (!(thd->lex->context_analysis_only & CONTEXT_ANALYSIS_ONLY_VIEW) && // (1)
-      (subselect= parent_unit->item))                                    // (2)
+  if (!thd->lex->is_view_context_analysis() &&          // (1)
+      (subselect= parent_unit->item))                   // (2)
   {
     Item_in_subselect *in_subs= NULL;
     Item_allany_subselect *allany_subs= NULL;

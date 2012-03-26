@@ -2508,7 +2508,7 @@ bool Item_in_subselect::fix_fields(THD *thd_arg, Item **ref)
     }
   }
 
-  if ((thd_arg->lex->context_analysis_only & CONTEXT_ANALYSIS_ONLY_VIEW) &&
+  if (thd_arg->lex->is_view_context_analysis() &&
       left_expr && !left_expr->fixed &&
       left_expr->fix_fields(thd_arg, &left_expr))
     return TRUE;
