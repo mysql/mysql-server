@@ -49,15 +49,14 @@ These are low-level functions
 #define BUF_LRU_OLD_MIN_LEN	512	/* 8 megabytes of 16k pages */
 
 /******************************************************************//**
-Invalidates all pages belonging to a given tablespace when we are deleting
-the data file(s) of that tablespace. A PROBLEM: if readahead is being started,
-what guarantees that it will not try to read in pages after this operation has
-completed? */
+Removes all pages belonging to a given tablespace. */
 UNIV_INTERN
 void
-buf_LRU_invalidate_tablespace(
+buf_LRU_flush_or_remove_pages(
 /*==========================*/
-	ulint	id);	/*!< in: space id */
+	ulint			id,	/*!< in: space id */
+	enum buf_remove_t	buf_remove);/*!< in: remove or flush
+					strategy */
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
 /********************************************************************//**
 Insert a compressed block into buf_pool->zip_clean in the LRU order. */

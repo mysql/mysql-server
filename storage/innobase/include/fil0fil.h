@@ -408,7 +408,9 @@ UNIV_INTERN
 ibool
 fil_delete_tablespace(
 /*==================*/
-	ulint	id);	/*!< in: space id */
+	ulint	id,		/*!< in: space id */
+	ibool	evict_all);	/*!< in: TRUE if we want all pages
+				evicted from LRU. */
 #ifndef UNIV_HOTBACKUP
 /*******************************************************************//**
 Discards a single-table tablespace. The tablespace must be cached in the
