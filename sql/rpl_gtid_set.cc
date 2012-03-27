@@ -1087,6 +1087,49 @@ bool Gtid_set::is_subset(const Gtid_set *super) const
 }
 
 
+bool Gtid_set::is_intersection(const Gtid_set *other) const
+{
+  DBUG_ENTER("Gtid_set::is_intersection(Gtid_set *)");
+  if (sid_lock != NULL)
+    sid_lock->assert_some_wrlock();
+  Gtid_iterator git(this);
+  Gtid g= git.get();
+  while (g.sidno != 0)
+  {
+    if (other->contains_gtid(g.sidno, g.gno))
+      DBUG_RETURN(true);
+    git.next();
+    g= git.get();
+  }
+  DBUG_RETURN(false);
+}
+
+
+enum_return_status
+Gtid_set::intersection(const Gtid_set *other, Gtid_set *result)
+{
+  DBUG_ENTER("Gtid_set::intersection(Gtid_set *, Gtid_set *)");
+  if (sid_lock != NULL)
+    sid_lock->assert_some_wrlock();
+  DBUG_ASSERT(result != NULL);
+  result->clear();
+  Gtid_iterator git(this);
+  Gtid g= git.get();
+  while (g.sidno != 0)
+  {
+    if (other->contains_gtid(g.sidno, g.gno))
+    {
+      if (result->ensure_sidno(g.sidno) ||
+          result->_add_gtid(g.sidno, g.gno))
+        RETURN_REPORTED_ERROR;
+    }
+    git.next();
+    g= git.get();
+  }
+  RETURN_OK;
+}
+
+
 void Gtid_set::encode(uchar *buf) const
 {
   DBUG_ENTER("Gtid_set::encode(uchar *)");
