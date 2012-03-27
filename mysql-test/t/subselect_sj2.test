@@ -1175,6 +1175,16 @@ SELECT * FROM t2
 DROP VIEW v1;
 DROP TABLE t1, t2;
 
+--echo # 
+--echo # BUG#965872: Server crashes in embedding_sjm on a simple 1-table select with AND and OR  
+--echo #  (this is a regression caused by the fix for BUG#951937)
+CREATE TABLE t1 ( a INT, b INT, c INT, d INT );
+INSERT INTO t1 VALUES (4,2,8,9),(4,2,7,8);
+
+SELECT * FROM t1
+WHERE a = d AND ( b = 50 AND b = d OR a = c );
+DROP TABLE t1;
+
 --echo #
 --echo # BUG#951283: Wrong result (missing rows) with semijoin+firstmatch, IN/ANY subquery
 --echo #

@@ -10788,6 +10788,7 @@ static bool check_simple_equality(Item *left_item, Item *right_item,
         Item_equal *item_equal= new Item_equal(orig_left_item,
                                                orig_right_item,
                                                FALSE);
+        item_equal->set_context_field((Item_field*)left_item);
         cond_equal->current_level.push_back(item_equal);
       }
     }
@@ -10858,6 +10859,7 @@ static bool check_simple_equality(Item *left_item, Item *right_item,
       else
       {
         item_equal= new Item_equal(const_item, orig_field_item, TRUE);
+        item_equal->set_context_field(field_item);
         cond_equal->current_level.push_back(item_equal);
       }
       return TRUE;
