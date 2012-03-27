@@ -159,3 +159,9 @@ stmt
 ### WHERE
 ###   @1=2
 drop table raw_binlog_rows;
+SET @@SESSION.BINLOG_ROWS_QUERY_LOG_EVENTS = 1;
+CREATE TABLE t1 (a VARCHAR(50));
+INSERT INTO t1 VALUES ("
+  GRANT ALL ON *.* TO 'batman'/*!*/;
+  ")|
+DROP TABLE t1;

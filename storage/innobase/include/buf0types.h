@@ -91,7 +91,6 @@ enum srv_checksum_algorithm_enum {
 	SRV_CHECKSUM_ALGORITHM_STRICT_NONE	/*!< Write none, allow none
 						when reading */
 };
-
 typedef enum srv_checksum_algorithm_enum	srv_checksum_algorithm_t;
 
 /** Parameters of binary buddy system for compressed pages (buf0buddy.h) */
