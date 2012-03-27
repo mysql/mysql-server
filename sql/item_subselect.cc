@@ -1030,7 +1030,13 @@ Item_in_subselect::single_value_transformer(JOIN *join,
                    print_where(item, "rewrite with MIN/MAX", QT_ORDINARY););
       if (thd->variables.sql_mode & MODE_ONLY_FULL_GROUP_BY)
       {
-        DBUG_ASSERT(select_lex->non_agg_field_used());
+        /*
+          If the argument is a field, we assume that fix_fields() has
+          tagged the select_lex with non_agg_field_used.
+          We reverse that decision after this rewrite with MIN/MAX.
+         */
+        if (item->get_arg(0)->type() == Item::FIELD_ITEM)
+          DBUG_ASSERT(select_lex->non_agg_field_used());
         select_lex->set_non_agg_field_used(false);
       }
 
