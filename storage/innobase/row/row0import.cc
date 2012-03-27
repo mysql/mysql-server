@@ -951,12 +951,16 @@ row_import_read_index_data(
 	cfg_index = cfg->indexes;
 
 	for (ulint i = 0; i < cfg->n_indexes; ++i, ++cfg_index) {
-
 		/* Read the index data. */
-		if (fread(row, 1, sizeof(row), file) != sizeof(row)) {
+		size_t	n_bytes = fread(row, 1, sizeof(row), file);
+
+		if (n_bytes != sizeof(row)) {
 			ib_pushf(thd, IB_LOG_LEVEL_ERROR, ER_IO_READ_ERROR,
 				"I/O error (%lu) while reading index "
-				"meta-data", (ulint) errno);
+				"meta-data, expected to read %lu bytes but "
+				"read only %lu bytes : %s",
+				(ulint) errno, (ulong) sizeof(row),
+				(ulong) n_bytes, strerror(errno));
 
 			return(DB_IO_ERROR);
 		}
