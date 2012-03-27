@@ -162,11 +162,8 @@ status_init(void)
     STATUS_INIT(BRT_PARTIAL_EVICTIONS_LEAF,                 UINT64, "leaf node partial evictions");
     STATUS_INIT(BRT_MSN_DISCARDS,                           UINT64, "messages ignored by leaf due to msn");
     STATUS_INIT(BRT_MAX_WORKDONE,                           UINT64, "max workdone over all buffers");
-    STATUS_INIT(BRT_TOTAL_SEARCHES,                         UINT64, "total searches");
     STATUS_INIT(BRT_TOTAL_RETRIES,                          UINT64, "total search retries due to TRY_AGAIN");
     STATUS_INIT(BRT_MAX_SEARCH_EXCESS_RETRIES,              UINT64, "max excess search retries (retries - tree height) due to TRY_AGAIN");
-    STATUS_INIT(BRT_MAX_SEARCH_ROOT_TRIES,                  UINT64, "max times root fetched in a single search");
-    STATUS_INIT(BRT_SEARCH_ROOT_RETRIES,                    UINT64, "searches requiring root to be fetched more than once");
     STATUS_INIT(BRT_SEARCH_TRIES_GT_HEIGHT,                 UINT64, "searches requiring more tries than the height of the tree");
     STATUS_INIT(BRT_SEARCH_TRIES_GT_HEIGHTPLUS3,            UINT64, "searches requiring more tries than the height of the tree plus three");
     STATUS_INIT(BRT_DISK_FLUSH_LEAF,                        UINT64, "leaf nodes flushed to disk (not for checkpoint)");
@@ -5682,7 +5679,6 @@ toku_brt_search (BRT brt, brt_search_t *search, BRT_GET_CALLBACK_FUNCTION getf, 
 {
     int r;
     uint trycount = 0;     // How many tries did it take to get the result?
-    //uint root_tries = 0;   // How many times did we fetch the root node from disk?
 
 try_again:
     
@@ -5744,7 +5740,7 @@ try_again:
         toku_brtheader_release_treelock(brt->h);
     }
 
-    //uint tree_height = node->height + 1;  // How high is the tree?  This is the height of the root node plus one (leaf is at height 0).
+    uint tree_height = node->height + 1;  // How high is the tree?  This is the height of the root node plus one (leaf is at height 0).
 
 
     struct unlock_brtnode_extra unlock_extra   = {brt,node,FALSE};
@@ -5793,16 +5789,9 @@ try_again:
         int r2 = getf(0,NULL, 0,NULL, getf_v, false);
         if (r2!=0) r = r2;
     }
-#if 0
     {   // accounting (to detect and measure thrashing)
         uint retrycount = trycount - 1;         // how many retries were needed?
-        STATUS_VALUE(BRT_TOTAL_SEARCHES)++;
         if (retrycount) STATUS_VALUE(BRT_TOTAL_RETRIES) += retrycount;
-        if (root_tries > 1) {                   // if root was read from disk more than once
-            STATUS_VALUE(BRT_SEARCH_ROOT_RETRIES)++;
-            if (root_tries > STATUS_VALUE(BRT_MAX_SEARCH_ROOT_TRIES))
-                STATUS_VALUE(BRT_MAX_SEARCH_ROOT_TRIES) = root_tries; 
-        }
         if (retrycount > tree_height) {         // if at least one node was read from disk more than once
             STATUS_VALUE(BRT_SEARCH_TRIES_GT_HEIGHT)++;
             uint excess_tries = retrycount - tree_height;  
@@ -5812,7 +5801,6 @@ try_again:
                 STATUS_VALUE(BRT_SEARCH_TRIES_GT_HEIGHTPLUS3)++;
         }
     }
-#endif
     return r;
 }
 
