@@ -3735,6 +3735,9 @@ void THD::restore_backup_open_tables_state(Open_tables_backup *backup)
 
 extern "C" int thd_killed(const MYSQL_THD thd)
 {
+  if (!thd)
+    thd= current_thd;
+
   if (!(thd->killed & KILL_HARD_BIT))
     return 0;
   return thd->killed;
