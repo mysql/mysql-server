@@ -426,6 +426,15 @@ ConfigManager::init(void)
       /* Use the fetched config for now */
       set_config(conf);
 
+      if (!m_opts.config_cache)
+      {
+        assert(!m_configdir); // Running without configdir
+        g_eventLogger->info("Fetched configuration, " \
+                            "generation: %d, name: '%s'. ",
+                            m_config->getGeneration(), m_config->getName());
+        DBUG_RETURN(true);
+      }
+
       if (m_config->getGeneration() == 0)
       {
         g_eventLogger->info("Fetched initial configuration, " \
@@ -2103,9 +2112,14 @@ ConfigManager::delete_saved_configs(void) const
 {
   NdbDir::Iterator iter;
 
-  if (!m_configdir ||
-      iter.open(m_configdir) != 0)
-    return 0;
+  if (!m_configdir)
+  {
+    // No configdir -> no files to delete
+    return true;
+  }
+
+  if (iter.open(m_configdir) != 0)
+    return false;
 
   bool result = true;
   const char* name;
