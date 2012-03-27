@@ -146,7 +146,10 @@ extern ulonglong relay_log_space_limit;
 
 int init_slave();
 int init_recovery(Master_info* mi, const char** errmsg);
-void init_slave_skip_errors(const char* arg);
+#ifndef MCP_BUG54854
+void add_slave_skip_errors(const char* arg);
+void set_slave_skip_errors(char** slave_skip_errors_ptr);
+#endif // MCP_BUG54854
 bool flush_relay_log_info(Relay_log_info* rli);
 int register_slave_on_master(MYSQL* mysql);
 int terminate_slave_threads(Master_info* mi, int thread_mask,

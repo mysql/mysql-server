@@ -4466,6 +4466,12 @@ int mysqld_main(int argc, char **argv)
     opt_skip_slave_start= 1;
 
   binlog_unsafe_map_init();
+
+#ifndef MCP_BUG54854
+  // Make @@slave_skip_errors show the nice human-readable value.
+  set_slave_skip_errors(&opt_slave_skip_errors);
+#endif // MCP_BUG54854
+
   /*
     init_slave() must be called after the thread keys are created.
     Some parts of the code (e.g. SHOW STATUS LIKE 'slave_running' and other
@@ -7286,8 +7292,10 @@ static int get_options(int *argc_ptr, char ***argv_ptr)
     flush_time= 0;
 
 #ifdef HAVE_REPLICATION
+#ifndef MCP_BUG54854
   if (opt_slave_skip_errors)
-    init_slave_skip_errors(opt_slave_skip_errors);
+    add_slave_skip_errors(opt_slave_skip_errors);
+#endif // MCP_BUG54854
 #endif
 
   if (global_system_variables.max_join_size == HA_POS_ERROR)
