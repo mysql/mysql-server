@@ -327,6 +327,10 @@ SELECT c1, c2 FROM test_wl5522.t1;
 SELECT COUNT(*) FROM test_wl5522.t1;
 SELECT SUM(c2) FROM test_wl5522.t1;
 
+SELECT name
+  FROM information_schema.innodb_metrics
+  WHERE name = 'ibuf_page_merges' AND count > 0;
+
 FLUSH TABLES test_wl5522.t1 WITH READ LOCK;
 
 perl;
@@ -335,6 +339,13 @@ ib_backup_tablespaces("test_wl5522", "t1");
 EOF
 
 UNLOCK TABLES;
+
+SELECT name
+  FROM information_schema.innodb_metrics
+  WHERE name = 'ibuf_page_merges' AND count > 0;
+
+SET SESSION debug="-d,ib_buf_force_flush";
+SET SESSION debug="-d,ib_ibuf_disable_background_merge";
 
 # Enable normal operation
 SET GLOBAL INNODB_PURGE_RUN_NOW=ON;
@@ -371,13 +382,6 @@ SHOW CREATE TABLE test_wl5522.t1;
 DROP TABLE test_wl5522.t1;
 
 DROP DATABASE test_wl5522;
-
-SELECT name
-  FROM information_schema.innodb_metrics
-  WHERE name = 'ibuf_page_merges' AND count > 0;
-
-SET SESSION debug="-d,ib_buf_force_flush";
-SET SESSION debug="-d,ib_ibuf_disable_background_merge";
 
 --disable_query_log
 
