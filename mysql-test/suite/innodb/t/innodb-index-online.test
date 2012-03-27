@@ -3,9 +3,6 @@
 # Temporarily prohibit Valgrind runs until Bug#13875241 is resolved
 --source include/not_valgrind.inc
 
-SET GLOBAL DEBUG='d,query,debug_sync_exec:i:t:A,ds.trace';
-SET DEBUG='d,query,debug_sync_exec,debug_sync_abort_on_timeout:i:t:A,ds.trace';
-
 call mtr.add_suppression("InnoDB: Warning: Small buffer pool size");
 # These will be triggered by INSERT INTO t1 VALUES(6,3,1);
 call mtr.add_suppression("Cannot find index .*c2 in InnoDB index translation table");
@@ -27,7 +24,6 @@ INSERT INTO t1 VALUES(1,2,3);
 
 connect (con1,localhost,root,,);
 connection con1;
-SET DEBUG='d,query,debug_sync_exec,debug_sync_abort_on_timeout:i:t:A,ds.trace';
 
 # This should block at the end because of the INSERT in connection default
 # is holding a metadata lock.
@@ -180,6 +176,8 @@ SHOW CREATE TABLE t1;
 # The actual limit is a multiple of innodb_sort_buf_size,
 # because that is the size of the in-memory log buffers.
 SET DEBUG_SYNC='row_log_apply_before SIGNAL c2e_created WAIT_FOR dml2_done';
+# Ensure that the ALTER TABLE will be executed even with some concurrent DML.
+SET lock_wait_timeout=10;
 --send
 ALTER TABLE t1 DROP INDEX c2d, ADD INDEX c2e(c2);
 
@@ -259,7 +257,6 @@ disconnect con1;
 connection default;
 
 SET DEBUG_SYNC='RESET';
-SET DEBUG='';
 SET GLOBAL innodb_monitor_disable=module_ddl;
 
 DROP TABLE t1;
@@ -268,7 +265,6 @@ DROP TABLE t1;
 # gone so execution of other tests won't be affected by their presence.
 --source include/wait_until_count_sessions.inc
 
-SET GLOBAL DEBUG='';
 -- disable_warnings
 SET GLOBAL innodb_monitor_enable=default;
 SET GLOBAL innodb_monitor_disable=default;
