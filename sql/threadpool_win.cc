@@ -419,8 +419,10 @@ void set_wait_timeout(connection_t *connection, ulonglong old_timeout)
 
 
 /* Connection destructor */
-void destroy_connection(connection_t *connection)
+void destroy_connection(connection_t *connection, PTP_CALLBACK_INSTANCE instance)
 {
+  if (instance)
+    DisassociateCurrentThreadFromCallback(instance);
   if (connection->io)
   {
      WaitForThreadpoolIoCallbacks(connection->io, TRUE); 
@@ -583,10 +585,8 @@ static VOID CALLBACK io_completion_callback(PTP_CALLBACK_INSTANCE instance,
 
 error:
   /* Some error has occured. */
-  if (instance)
-    DisassociateCurrentThreadFromCallback(instance);
 
-  destroy_connection(connection);
+  destroy_connection(connection, instance);
   free(connection);
 }
 
@@ -603,7 +603,7 @@ static void CALLBACK login_callback(PTP_CALLBACK_INSTANCE instance,
   connection_t *connection =(connection_t *)context;
   if (login(connection, instance) != 0)
   {
-    destroy_connection(connection);
+    destroy_connection(connection, instance);
     free(connection);
   }
 }
