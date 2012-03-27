@@ -18,8 +18,10 @@ use DBI;
 use Getopt::Long;
 use Socket;
 use List::Util qw(min max);
+use File::Basename;
 
 $main::VERSION = "1.9a";
+my $path_for_script= dirname($0);
 
 $|=1;
 $0 = 'mytop';
@@ -95,7 +97,8 @@ my %config = (
     slow	  => 10,	# slow query time
     socket        => '',
     sort          => 0,         # default or reverse sort ("s")
-    user          => 'root'
+    user          => 'root',
+    fullqueries   => 0
 );
 
 my %qcache = ();    ## The query cache--used for full query info support.
@@ -111,6 +114,17 @@ my $CLEAR = $WIN ? '': `clear`;
 
 my $RM_RESET   = 0;
 my $RM_NOBLKRD = 3; ## using 4 traps Ctrl-C :-(
+
+# Add options from .my.cnf first
+
+my $my_print_defaults;
+if (!defined($my_print_defaults=my_which("my_print_defaults")))
+{
+  print "Warning: Can't find my_print_defaults. Please add it to your PATH!\n";
+  exit(1);
+}
+
+unshift @ARGV, split "\n", `$my_print_defaults client mytop`;
 
 ## Read the user's config file, if it exists.
 
@@ -160,7 +174,8 @@ GetOptions(
     "long_nums!"          => \$config{long_nums},
     "mode|m=s"            => \$config{mode},
     "slow=i"		  => \$config{slow},
-    "sort=s"              => \$config{sort}
+    "sort=s"              => \$config{sort},
+    "fullqueries|L!"      => \$config{fullqueries}
 );
 
 ## User may have put the port with the host.
@@ -744,6 +759,25 @@ while (1)
     {
         $config{mode} = 'status';
     }
+
+   ## L - full queries toggle
+
+    if ($key eq 'L')
+    {
+        if ($config{fullqueries})
+        {
+            $config{fullqueries} = 0;
+            print RED(), "-- full queries OFF --", RESET();
+            sleep 1;
+        }
+        else
+        {
+            $config{fullqueries} = 1;
+            print RED(), "-- full queries ON --", RESET();
+            sleep 1;
+        }
+    }
+
 }
 
 ReadMode($RM_RESET) unless $config{batchmode};
@@ -1115,7 +1149,13 @@ sub GetData()
     my $state= $width <= 80 ? 6 : int(min(6+($width-80)/3, 15));
     my $free = $width - $used - ($state - 6);
     my $format= "%9s %8s %15s %9s %6s %5s %6s %${state}s %-.${free}s\n";
-    my $format2= "%9d %8.8s %15.15s %9.9s %6d %5.1f %6.6s %${state}.${state}s %-${free}.${free}s\n";
+    my $format2;
+    if ($config{fullqueries})
+    {
+         $format2 = "%9d %8.8s %15.15s %9.9s %6d %5.1f %6.6s %${state}.${state}s %-${free}s\n";
+    } else {
+         $format2 = "%9d %8.8s %15.15s %9.9s %6d %5.1f %6.6s %${state}.${state}s %-${free}.${free}s\n";
+    }
     print BOLD() if ($HAS_COLOR);
 
     printf $format,
@@ -1244,7 +1284,12 @@ sub GetData()
 
         if ($thread->{Info})
         {
-            $smInfo = substr $thread->{Info}, 0, $free;
+            if ($config{fullqueries})
+            {
+                $smInfo = $thread->{Info};
+            } else {
+                $smInfo = substr $thread->{Info}, 0, $free;
+            }
         }
 #        if ($thread->{State})
 #        {
@@ -1690,6 +1735,7 @@ Origional work by Jeremy D. Zawodny <${YELLOW}Jeremy\@Zawodny.com${RESET}>
   u - show only a specific user
   V - show variablesi
   : - enter a command (not yet implemented)
+  L - show full queries (do not strip to terminal width)
 
 Base version from ${GREEN}http://www.mysqlfanboy.com/mytop${RESET}
 This version comes as part of the ${GREEN}MariaDB${RESET} distribution.
@@ -1787,6 +1833,35 @@ sub FindProg($)
         }
     }
     return $found;
+}
+
+####
+#### my_which is used, because we can't assume that every system has the
+#### which -command. my_which can take only one argument at a time.
+#### Return values: requested system command with the first found path,
+#### or undefined, if not found.
+####
+
+sub my_which
+{
+  my ($command) = @_;
+  my (@paths, $path);
+
+  return $command if (-f $command && -x $command);
+
+  # Check first if this is a source distribution, then if this binary
+  # distribution and last in the path
+
+  push @paths, "./extra";
+  push @paths, $path_for_script;
+  push @paths, split(':', $ENV{'PATH'});
+
+  foreach $path (@paths)
+  {
+    $path .= "/$command";
+    return $path if (-f $path && -x $path);
+  }
+  return undef();
 }
 
 =pod
@@ -2056,10 +2131,14 @@ command-line arguments are applied.
 =head2 Config File
 
 Instead of always using bulky command-line parameters, you can also
-use a config file in your home directory (C<~/.mytop>). If present,
-B<mytop> will read it automatically. It is read I<before> any of your
+use a config files for the default value of your options.
+
+mytop will first read the [client] and [mytop] sections from your
+my.cnf files. After that it will read the (C<~/.mytop>) file from your
+home directory (if present). These are read I<before> any of your
 command-line arguments are processed, so your command-line arguments
 will override directives in the config file.
+
 
 Here is a sample config file C<~/.mytop> which implements the defaults
 described above.
@@ -2274,6 +2353,10 @@ Fix a bug. Add a feature. See your name here!
 Many thanks go to these fine folks:
 
 =over
+
+=Item Jean Weisbuch
+
+Added --fullqueries and reading of .my.cnf
 
 =item Sami Ahlroos (sami@avis-net.de)
 
