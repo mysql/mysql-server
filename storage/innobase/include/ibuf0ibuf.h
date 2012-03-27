@@ -376,18 +376,6 @@ will be merged from ibuf trees to the pages read, 0 if ibuf is
 empty */
 UNIV_INTERN
 ulint
-ibuf_contract(
-/*==========*/
-	ibool	sync);	/*!< in: TRUE if the caller wants to wait for the
-			issued read with the highest tablespace address
-			to complete */
-/*********************************************************************//**
-Contracts insert buffer trees by reading pages to the buffer pool.
-@return a lower limit for the combined size in bytes of entries which
-will be merged from ibuf trees to the pages read, 0 if ibuf is
-empty */
-UNIV_INTERN
-ulint
 ibuf_contract_in_background(
 /*========================*/
 	table_id_t	table_id,	/*!< in: if merge should be done only
