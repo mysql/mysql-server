@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -131,7 +131,6 @@ static bool wait_for_relay_log_space(Relay_log_info* rli);
 static inline bool io_slave_killed(THD* thd,Master_info* mi);
 static inline bool sql_slave_killed(THD* thd,Relay_log_info* rli);
 static int init_slave_thread(THD* thd, SLAVE_THD_TYPE thd_type);
-static void print_slave_skip_errors(void);
 static int safe_connect(THD* thd, MYSQL* mysql, Master_info* mi);
 static int safe_reconnect(THD* thd, MYSQL* mysql, Master_info* mi,
                           bool suppress_warnings);
@@ -236,15 +235,6 @@ int init_slave()
   active_mi= new Master_info;
 
   /*
-    If --slave-skip-errors=... was not used, the string value for the
-    system variable has not been set up yet. Do it now.
-  */
-  if (!use_slave_mask)
-  {
-    print_slave_skip_errors();
-  }
-
-  /*
     If master_host is not specified, try to read it from the master_info file.
     If master_host is specified, create the master_info file if it doesn't
     exists.
@@ -293,7 +283,9 @@ err:
   Convert slave skip errors bitmap into a printable string.
 */
 
-static void print_slave_skip_errors(void)
+#ifndef MCP_BUG54854
+void print_slave_skip_errors()
+#endif // MCP_BUG54854
 {
   /*
     To be safe, we want 10 characters of room in the buffer for a number
@@ -347,21 +339,14 @@ static void print_slave_skip_errors(void)
   DBUG_VOID_RETURN;
 }
 
-/*
+#ifndef MCP_BUG54854
+/**
   Init function to set up array for errors that should be skipped for slave
-
-  SYNOPSIS
-    init_slave_skip_errors()
-    arg         List of errors numbers to skip, separated with ','
-
-  NOTES
-    Called from get_options() in mysqld.cc on start-up
 */
-
-void init_slave_skip_errors(const char* arg)
+static void init_slave_skip_errors()
 {
-  const char *p;
   DBUG_ENTER("init_slave_skip_errors");
+  DBUG_ASSERT(!use_slave_mask); // not already initialized
 
   if (bitmap_init(&slave_error_mask,0,MAX_SLAVE_ERROR,0))
   {
@@ -369,13 +354,89 @@ void init_slave_skip_errors(const char* arg)
     exit(1);
   }
   use_slave_mask = 1;
-  for (;my_isspace(system_charset_info,*arg);++arg)
+  DBUG_VOID_RETURN;
+}
+#endif // MCP_BUG54854
+
+#ifndef MCP_BUG54854
+static void add_slave_skip_errors(const uint* errors, uint n_errors)
+{
+  DBUG_ENTER("add_slave_skip_errors");
+  DBUG_ASSERT(errors);
+  DBUG_ASSERT(use_slave_mask);
+
+  for (uint i = 0; i < n_errors; i++)
+  {
+    const uint err_code = errors[i];
+    if (err_code < MAX_SLAVE_ERROR)
+       bitmap_set_bit(&slave_error_mask, err_code);
+  }
+  DBUG_VOID_RETURN;
+}
+#endif // MCP_BUG54854
+
+#ifndef MCP_BUG54854
+/*
+  Add errors that should be skipped for slave
+
+  SYNOPSIS
+    add_slave_skip_errors()
+    arg         List of errors numbers to be added to skip, separated with ','
+
+  NOTES
+    Called from get_options() in mysqld.cc on start-up
+*/
+
+void add_slave_skip_errors(const char* arg)
+{
+  const char *p= NULL;
+  /*
+    ALL is only valid when nothing else is provided.
+  */
+  const uchar SKIP_ALL[]= "all";
+  size_t SIZE_SKIP_ALL= strlen((const char *) SKIP_ALL) + 1;
+  /*
+    IGNORE_DDL_ERRORS can be combined with other parameters
+    but must be the first one provided.
+  */
+  const uchar SKIP_DDL_ERRORS[]= "ddl_exist_errors";
+  size_t SIZE_SKIP_DDL_ERRORS= strlen((const char *) SKIP_DDL_ERRORS);
+  DBUG_ENTER("add_slave_skip_errors");
+
+  // initialize mask if not done yet
+  if (!use_slave_mask)
+    init_slave_skip_errors();
+
+  for (; my_isspace(system_charset_info,*arg); ++arg)
     /* empty */;
-  if (!my_strnncoll(system_charset_info,(uchar*)arg,4,(const uchar*)"all",4))
+  if (!my_strnncoll(system_charset_info, (uchar*)arg, SIZE_SKIP_ALL,
+                    SKIP_ALL, SIZE_SKIP_ALL))
   {
     bitmap_set_all(&slave_error_mask);
-    print_slave_skip_errors();
     DBUG_VOID_RETURN;
+  }
+  if (!my_strnncoll(system_charset_info, (uchar*)arg, SIZE_SKIP_DDL_ERRORS,
+                    SKIP_DDL_ERRORS, SIZE_SKIP_DDL_ERRORS))
+  {
+    // DDL errors to be skipped for relaxed 'exist' handling
+    const uint ddl_errors[] = {
+      // error codes with create/add <schema object>
+      ER_DB_CREATE_EXISTS, ER_TABLE_EXISTS_ERROR, ER_DUP_KEYNAME,
+      ER_MULTIPLE_PRI_KEY,
+      // error codes with change/rename <schema object>
+      ER_BAD_FIELD_ERROR, ER_NO_SUCH_TABLE, ER_DUP_FIELDNAME,
+      // error codes with drop <schema object>
+      ER_DB_DROP_EXISTS, ER_BAD_TABLE_ERROR, ER_CANT_DROP_FIELD_OR_KEY
+    };
+
+    add_slave_skip_errors(ddl_errors,
+                          sizeof(ddl_errors)/sizeof(ddl_errors[0]));
+    /*
+      After processing the SKIP_DDL_ERRORS, the pointer is
+      increased to the position after the comma.
+    */
+    if (strlen(arg) > SIZE_SKIP_DDL_ERRORS + 1)
+      arg+= SIZE_SKIP_DDL_ERRORS + 1;
   }
   for (p= arg ; *p; )
   {
@@ -387,10 +448,9 @@ void init_slave_skip_errors(const char* arg)
     while (!my_isdigit(system_charset_info,*p) && *p)
       p++;
   }
-  /* Convert slave skip errors bitmap into a printable string. */
-  print_slave_skip_errors();
   DBUG_VOID_RETURN;
 }
+#endif // MCP_BUG54854
 
 static void set_thd_in_use_temporary_tables(Relay_log_info *rli)
 {

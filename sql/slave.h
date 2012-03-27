@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -149,7 +149,10 @@ extern ulonglong relay_log_space_limit;
 #define SLAVE_FORCE_ALL 4
 
 int init_slave();
-void init_slave_skip_errors(const char* arg);
+#ifndef MCP_BUG54854
+void add_slave_skip_errors(const char* arg);
+void print_slave_skip_errors();
+#endif // MCP_BUG54854
 bool flush_relay_log_info(Relay_log_info* rli);
 int register_slave_on_master(MYSQL* mysql);
 int terminate_slave_threads(Master_info* mi, int thread_mask,
