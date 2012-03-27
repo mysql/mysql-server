@@ -1,0 +1,107 @@
+# BUG#13810456: GTID: UNTIL_SQL_BEFORE_GTID DOES NOT WORK
+#
+# This test performs multiple invocations of
+# START SLAVE UNTIL SQL_BEFORE_GTIDS and START SLAVE UNTIL SQL_AFTER_GTIDS
+# to demonstrate its correct operation.
+#
+# Create a set of transactions on the master and applied them individually
+# by using START SLAVE UNTIL SQL_BEFORE_GTIDS and
+# START SLAVE UNTIL SQL_AFTER_GTIDS with different sets of missing and/or
+# already applied GTIDs.
+#
+--source include/master-slave.inc
+--source include/rpl_set_gtid_mode.inc
+
+--connection master
+--let $master_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
+CREATE TABLE t1(c1 INTEGER) ENGINE= Innodb;
+--sync_slave_with_master
+--echo [connection slave]
+--source include/stop_slave.inc
+
+# Generate a set of transactions on the master.
+# INSERT value is the equal to sequence number.
+--echo [connection master]
+--connection master
+--let $i=2
+while ($i != 11)
+{
+  --eval INSERT INTO t1 VALUES($i)
+  --inc $i
+}
+
+--connection slave
+--echo [connection slave]
+--echo SQL thread must stop *before* INSERT 4
+--disable_query_log
+--replace_result $master_uuid MASTER_UUID
+--enable_query_log
+--eval START SLAVE UNTIL SQL_BEFORE_GTIDS= "$master_uuid:4-5"
+--source include/wait_for_slave_sql_to_stop.inc
+SELECT * FROM t1;
+
+--echo SQL thread must stop *after* INSERT 5
+--disable_query_log
+--replace_result $master_uuid MASTER_UUID
+--enable_query_log
+--eval START SLAVE UNTIL SQL_AFTER_GTIDS= "$master_uuid:4-5"
+--source include/wait_for_slave_sql_to_stop.inc
+SELECT * FROM t1;
+
+--echo SQL thread must stop *before* INSERT 6
+--disable_query_log
+--replace_result $master_uuid MASTER_UUID
+--enable_query_log
+--eval START SLAVE UNTIL SQL_BEFORE_GTIDS= "$master_uuid:2-7"
+--source include/wait_for_slave_sql_to_stop.inc
+SELECT * FROM t1;
+
+--echo SQL thread must stop *after* INSERT 5
+--echo 1-5 are already applied so it will stop immediately
+--disable_query_log
+--replace_result $master_uuid MASTER_UUID
+--enable_query_log
+--eval START SLAVE UNTIL SQL_AFTER_GTIDS= "$master_uuid:1-5"
+--source include/wait_for_slave_sql_to_stop.inc
+SELECT * FROM t1;
+
+--echo SQL thread must stop *before* INSERT 10
+--disable_query_log
+--replace_result $master_uuid MASTER_UUID
+--enable_query_log
+--eval START SLAVE UNTIL SQL_BEFORE_GTIDS= "$master_uuid:10"
+--source include/wait_for_slave_sql_to_stop.inc
+SELECT * FROM t1;
+
+--echo SQL thread must stop *before* INSERT 3-6
+--echo 3-6 is already applied so it will stop immediately
+--disable_query_log
+--replace_result $master_uuid MASTER_UUID
+--enable_query_log
+--eval START SLAVE UNTIL SQL_BEFORE_GTIDS= "$master_uuid:3-6"
+--source include/wait_for_slave_sql_to_stop.inc
+SELECT * FROM t1;
+
+--echo SQL thread must stop *before* INSERT 9
+--echo 9 is already applied so it will stop immediately
+--disable_query_log
+--replace_result $master_uuid MASTER_UUID
+--enable_query_log
+--eval START SLAVE UNTIL SQL_BEFORE_GTIDS= "$master_uuid:9"
+--source include/wait_for_slave_sql_to_stop.inc
+SELECT * FROM t1;
+
+--echo Sync slave with master
+--source include/start_slave_sql.inc
+--disable_query_log
+--replace_result $master_uuid MASTER_UUID
+--enable_query_log
+--disable_result_log
+--eval SELECT SQL_THREAD_WAIT_AFTER_GTIDS('$master_uuid:10', 300)
+--enable_result_log
+SELECT * FROM t1;
+
+# Cleanup
+--connection master
+DROP TABLE t1;
+--source include/rpl_end.inc
