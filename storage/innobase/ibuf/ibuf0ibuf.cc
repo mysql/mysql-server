@@ -2760,7 +2760,7 @@ Contracts insert buffer trees by reading pages to the buffer pool.
 @return a lower limit for the combined size in bytes of entries which
 will be merged from ibuf trees to the pages read, 0 if ibuf is
 empty */
-UNIV_INTERN
+static
 ulint
 ibuf_contract(
 /*==========*/
