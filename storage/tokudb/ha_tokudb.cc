@@ -7761,7 +7761,9 @@ void ha_tokudb::print_error(int error, myf errflag) {
 #if MYSQL_VERSION_ID < 50500
     if ((tokudb_debug & TOKUDB_DEBUG_HIDE_DDL_LOCK_ERRORS) == 0) {
         THD* thd = ha_thd();
-        sql_print_error("query \"%s\" returned handler error %d", thd->query_string.str, error);
+        if (get_log_client_errors(thd)) {
+            sql_print_error("query \"%s\" returned handler error %d", thd->query_string.str, error);
+        }
     }
 #endif
     handler::print_error(error, errflag);

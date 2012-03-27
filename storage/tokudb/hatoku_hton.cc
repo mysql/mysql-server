@@ -107,6 +107,13 @@ static MYSQL_THDVAR_BOOL(prelock_empty,
   NULL, 
   TRUE
   );
+static MYSQL_THDVAR_BOOL(log_client_errors,
+  0,
+  "Tokudb Log Client Errors",
+  NULL, 
+  NULL, 
+  FALSE
+  );
 static MYSQL_THDVAR_UINT(block_size,
   0,
   "fractal tree block size",
@@ -664,6 +671,10 @@ bool get_disable_prefetching(THD* thd) {
 
 bool get_prelock_empty(THD* thd) {
     return (THDVAR(thd, prelock_empty) != 0);
+}
+
+bool get_log_client_errors(THD* thd) {
+    return (THDVAR(thd, log_client_errors) != 0);
 }
 
 uint get_tokudb_block_size(THD* thd) {
@@ -1458,6 +1469,7 @@ static struct st_mysql_sys_var *tokudb_system_variables[] = {
     MYSQL_SYSVAR(init_flags),
     MYSQL_SYSVAR(checkpointing_period),
     MYSQL_SYSVAR(prelock_empty),
+    MYSQL_SYSVAR(log_client_errors),
     MYSQL_SYSVAR(checkpoint_lock),
     MYSQL_SYSVAR(write_status_frequency),
     MYSQL_SYSVAR(read_status_frequency),
