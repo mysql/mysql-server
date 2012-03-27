@@ -268,9 +268,20 @@ COUNT(*)
 SELECT SUM(c2) FROM test_wl5522.t1;
 SUM(c2)
 145278
+SELECT name
+FROM information_schema.innodb_metrics
+WHERE name = 'ibuf_page_merges' AND count > 0;
+name
 FLUSH TABLES test_wl5522.t1 WITH READ LOCK;
 backup: t1
 UNLOCK TABLES;
+SELECT name
+FROM information_schema.innodb_metrics
+WHERE name = 'ibuf_page_merges' AND count > 0;
+name
+ibuf_page_merges
+SET SESSION debug="-d,ib_buf_force_flush";
+SET SESSION debug="-d,ib_ibuf_disable_background_merge";
 SET GLOBAL INNODB_PURGE_RUN_NOW=ON;
 DROP TABLE test_wl5522.t1;
 CREATE TABLE test_wl5522.t1 (
@@ -407,10 +418,3 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=InnoDB AUTO_INCREMENT=185 DEFAULT CHARSET=latin1
 DROP TABLE test_wl5522.t1;
 DROP DATABASE test_wl5522;
-SELECT name
-FROM information_schema.innodb_metrics
-WHERE name = 'ibuf_page_merges' AND count > 0;
-name
-ibuf_page_merges
-SET SESSION debug="-d,ib_buf_force_flush";
-SET SESSION debug="-d,ib_ibuf_disable_background_merge";
