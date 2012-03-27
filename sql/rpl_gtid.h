@@ -1003,6 +1003,11 @@ public:
   enum_return_status ensure_sidno(rpl_sidno sidno);
   /// Returns true if this Gtid_set is a subset of the other Gtid_set.
   bool is_subset(const Gtid_set *super) const;
+  /// Returns true if there is a least one element of this Gtid_set in
+  /// the other Gtid_set.
+  bool is_intersection(const Gtid_set *other) const;
+  /// Result is the intersection of this Gtid_set and the other Gtid_set.
+  enum_return_status intersection(const Gtid_set *other, Gtid_set *result);
   /// Returns true if this Gtid_set is empty.
   bool is_empty() const
   {

@@ -309,29 +309,29 @@ public:
      thread is running).
    */
   enum {UNTIL_NONE= 0, UNTIL_MASTER_POS, UNTIL_RELAY_POS,
-        UNTIL_SQL_BEFORE_GTIDS} until_condition;
+        UNTIL_SQL_BEFORE_GTIDS, UNTIL_SQL_AFTER_GTIDS} until_condition;
   char until_log_name[FN_REFLEN];
   ulonglong until_log_pos;
   /* extension extracted from log_name and converted to int */
   ulong until_log_name_extension;
   /**
-    The START SLAVE UNTIL SQL_BEFORE_GTIDS initializes both
-    the until_gtids_obj and request_gtids_obj. Each time a
-    gtid is about to be processed, it is removed from the
-    until_gtids_obj and when until_gtids_obj becomes empty,
-    the SQL Thread is stopped and a message saying that 
-    the condition was reached, i.e. request_gtids_obj, is
-    printed out.
-
-    This is used by the START SLAVE UNTIL SQL_BEFORE_GTIDS.
-    is issued.
+    The START SLAVE UNTIL SQL_*_GTIDS initializes until_sql_gtids.
+    Each time a gtid is about to be processed, we check if it is in the
+    set. Depending on until_condition, SQL thread is stopped before or
+    after applying the gtid.
   */
-  Gtid_set until_gtids_obj;
-  /**
-    This is used when the START SLAVE UNTIL SQL_BEFORE_GTIDS
-    is issued.
+  Gtid_set until_sql_gtids;
+  /*
+    On START SLAVE UNTIL SQL_AFTER_GTIDS this set contains the
+    intersection between logged gtids set and gtids scheduled on MTS
+    worker queues.
   */
-  Gtid_set request_gtids_obj;
+  Gtid_set until_sql_gtids_seen;
+  /*
+    True if the current event is the first gtid event to be processed
+    after executing START SLAVE UNTIL SQL_*_GTIDS.
+  */
+  bool until_sql_gtids_first_event;
   /* 
      Cached result of comparison of until_log_name and current log name
      -2 means unitialised, -1,0,1 are comarison results 
