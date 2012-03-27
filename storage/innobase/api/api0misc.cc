@@ -20,8 +20,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 @file api/api0misc.cc
 InnoDB Native API
 
+2008-08-01 Created by Sunny Bains
 3/20/2011 Jimmy Yang extracted from Embedded InnoDB
-2008 Created by Sunny Bains
 *******************************************************/
 
 #include <errno.h>
