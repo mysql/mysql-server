@@ -1357,7 +1357,7 @@ row_import_read_cfg(
 
 	if (file == NULL) {
 		ib_pushf(thd, IB_LOG_LEVEL_ERROR, ER_INDEX_CORRUPT,
-			 "Error opening: '%s'", name);
+			 "Error opening: '%s' : %s", name, strerror(errno));
 		err = DB_IO_ERROR;
 	} else {
 		err = row_import_read_meta_data(table, file, thd, cfg);
