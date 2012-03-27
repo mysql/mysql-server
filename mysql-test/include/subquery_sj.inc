@@ -4916,4 +4916,39 @@ eval $query;
 DROP TABLE t1,t2;
 SET @@optimizer_search_depth=@old_depth;
 
+--echo #
+--echo # BUG#13848789: SEGFAULT IN JOIN_READ_NEXT_SAME AT 
+--echo #               SQL/SQL_EXECUTOR.CC ON HAVING...IN...JOIN
+--echo #
+
+CREATE TABLE t1 (
+  col_int_key INT,
+  col_varchar_key VARCHAR(1),
+  KEY col_int_key (col_int_key),
+  KEY col_varchar_key (col_varchar_key)
+);
+
+INSERT INTO t1 VALUES (8,'x');
+
+CREATE TABLE t2 (
+  col_varchar_key VARCHAR(1),
+  KEY col_varchar_key (col_varchar_key)
+);
+
+INSERT INTO t2 VALUES ('x'), ('y');
+
+let $query= SELECT MIN(col_int_key)
+FROM t1 as t1_outer
+HAVING (1, 2) IN (
+  SELECT t1_inner.col_int_key, MAX(t1_inner.col_int_key)
+  FROM t1 as t1_inner JOIN t2
+    ON t2.col_varchar_key = t1_inner.col_varchar_key
+);
+
+
+--eval explain $query
+--eval $query
+
+DROP TABLE t1,t2;
+
 --echo # End of 5.6 tests
