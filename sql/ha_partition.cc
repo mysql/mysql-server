@@ -3670,13 +3670,13 @@ int ha_partition::truncate_partition(Alter_info *alter_info, bool *binlog_stmt)
   uint num_parts= m_part_info->num_parts;
   uint num_subparts= m_part_info->num_subparts;
   uint i= 0;
-  uint num_parts_set= alter_info->partition_names.elements;
-  uint num_parts_found= set_part_state(alter_info, m_part_info,
-                                        PART_ADMIN);
   DBUG_ENTER("ha_partition::truncate_partition");
 
   /* Only binlog when it starts any call to the partitions handlers */
   *binlog_stmt= false;
+
+  if (set_part_state(alter_info, m_part_info, PART_ADMIN))
+    DBUG_RETURN(HA_ERR_NO_PARTITION_FOUND);
 
   /*
     TRUNCATE also means resetting auto_increment. Hence, reset
@@ -3686,10 +3686,6 @@ int ha_partition::truncate_partition(Alter_info *alter_info, bool *binlog_stmt)
   table_share->ha_part_data->next_auto_inc_val= 0;
   table_share->ha_part_data->auto_inc_initialized= FALSE;
   unlock_auto_increment();
-
-  if (num_parts_set != num_parts_found &&
-      (!(alter_info->flags & ALTER_ALL_PARTITION)))
-    DBUG_RETURN(HA_ERR_NO_PARTITION_FOUND);
 
   *binlog_stmt= true;
 
@@ -6099,7 +6095,7 @@ int ha_partition::extra(enum ha_extra_function operation)
     0                    Success
 
   DESCRIPTION
-    Called at end of each statement to reste buffers
+    Called at end of each statement to reset buffers
 */
 
 int ha_partition::reset(void)

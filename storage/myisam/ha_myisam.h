@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2011, Oracle and/or its affiliates
+   Copyright (c) 2000, 2012, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -36,7 +36,6 @@ typedef struct st_ha_create_information HA_CREATE_INFO;
 #define HA_RECOVER_FULL_BACKUP 16       /* Make a copy of index file too */
 #define HA_RECOVER_OFF         32	/* No automatic recover */
 
-extern ulong myisam_sort_buffer_size;
 extern TYPELIB myisam_recover_typelib;
 extern const char *myisam_recover_names[];
 extern ulonglong myisam_recover_options;

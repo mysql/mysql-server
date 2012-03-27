@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2011, Oracle and/or its affiliates.
+   Copyright (c) 2000, 2012, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -421,7 +421,7 @@ int flush_pending_blocks(MI_SORT_PARAM *param);
 int sort_ft_buf_flush(MI_SORT_PARAM *sort_param);
 int thr_write_keys(MI_SORT_PARAM *sort_param);
 int sort_write_record(MI_SORT_PARAM *sort_param);
-int _create_index_by_sort(MI_SORT_PARAM *info,my_bool no_messages, ulong);
+int _create_index_by_sort(MI_SORT_PARAM *info,my_bool no_messages, ulonglong);
 
 #ifdef	__cplusplus
 }

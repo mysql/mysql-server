@@ -1,3 +1,120 @@
+*** Note, Please read ***
+
+yaSSL takes a different approach to certificate verification than OpenSSL does.
+The default policy for the client is to verify the server, this means that if
+you don't load CAs to verify the server you'll get a connect error, unable to 
+verify.  It you want to mimic OpenSSL behavior of not verifying the server and
+reducing security you can do this by calling:
+
+SSL_CTX_set_verify(ctx, SSL_VERIFY_NONE, 0);
+
+before calling SSL_new();
+
+*** end Note ***
+
+yaSSL Release notes, version 2.1.2 (9/2/2011)
+
+    This release of yaSSL contains bug fixes, better non-blocking support with
+    SSL_write, and OpenSSL RSA public key format support.
+
+See normal  build instructions below under 1.0.6.
+See libcurl build instructions below under 1.3.0 and note in 1.5.8.
+
+
+*****************yaSSL Release notes, version 2.0.0 (7/6/2010)
+
+    This release of yaSSL contains bug fixes, new testing certs,
+    and a security patch for a potential heap overflow on forged application
+    data processing.  Vulnerability discovered by Matthieu Bonetti from VUPEN
+    Security http://www.vupen.com.
+
+See normal  build instructions below under 1.0.6.
+See libcurl build instructions below under 1.3.0 and note in 1.5.8.
+
+
+*****************yaSSL Release notes, version 1.9.9 (1/26/2010)
+
+    This release of yaSSL contains bug fixes, the removal of assert() s and
+    a security patch for a buffer overflow possibility in certificate name
+    processing. 
+
+See normal  build instructions below under 1.0.6.
+See libcurl build instructions below under 1.3.0 and note in 1.5.8.
+
+
+*****************yaSSL Release notes, version 1.9.8 (10/14/09)
+
+    This release of yaSSL contains bug fixes and adds new stream ciphers
+    Rabbit and HC-128
+
+See normal  build instructions below under 1.0.6.
+See libcurl build instructions below under 1.3.0 and note in 1.5.8.
+
+
+*****************yaSSL Release notes, version 1.9.6 (11/13/08)
+
+    This release of yaSSL contains bug fixes, adds autconf shared library
+    support and has better server suite detection based on certficate and
+    private key.
+
+See normal  build instructions below under 1.0.6.
+See libcurl build instructions below under 1.3.0 and note in 1.5.8.
+
+
+*****************yaSSL Release notes, version 1.9.2 (9/24/08)
+
+    This release of yaSSL contains bug fixes and improved certificate verify
+    callback support. 
+
+See normal  build instructions below under 1.0.6.
+See libcurl build instructions below under 1.3.0 and note in 1.5.8.
+
+
+*****************yaSSL Release notes, version 1.8.8 (5/7/08)
+
+    This release of yaSSL contains bug fixes, and better socket handling. 
+
+See normal  build instructions below under 1.0.6.
+See libcurl build instructions below under 1.3.0 and note in 1.5.8.
+
+
+*****************yaSSL Release notes, version 1.8.6 (1/31/08)
+
+    This release of yaSSL contains bug fixes, and fixes security problems
+    associated with using SSL 2.0 client hellos and improper input handling.
+    Please upgrade to this version if you are using a previous one. 
+
+See normal  build instructions below under 1.0.6.
+See libcurl build instructions below under 1.3.0 and note in 1.5.8.
+
+
+*****************yaSSL Release notes, version 1.7.5 (10/15/07)
+
+    This release of yaSSL contains bug fixes, adds MSVC 2005 project support,
+    GCC 4.2 support, IPV6 support and test, and new test certificates. 
+
+See normal  build instructions below under 1.0.6.
+See libcurl build instructions below under 1.3.0 and note in 1.5.8.
+
+
+*****************yaSSL Release notes, version 1.7.2 (8/20/07)
+
+    This release of yaSSL contains bug fixes and adds initial OpenVPN support.
+    Just configure at this point and beginning of build. 
+
+See normal  build instructions below under 1.0.6.
+See libcurl build instructions below under 1.3.0 and note in 1.5.8.
+
+
+*****************yaSSL Release notes, version 1.6.8 (4/16/07)
+
+    This release of yaSSL contains bug fixes and adds SHA-256, SHA-512, SHA-224,
+    and SHA-384.
+
+See normal  build instructions below under 1.0.6.
+See libcurl build instructions below under 1.3.0 and note in 1.5.8.
+
+
 *****************yaSSL Release notes, version 1.6.0 (2/22/07)
 
     This release of yaSSL contains bug fixes, portability enhancements, and
@@ -13,7 +130,7 @@ See libcurl build instructions below under 1.3.0 and note in 1.5.8.
 
 
 
-    Since yaSSL now supports zlib, as does libcur, the libcurl build test can
+    Since yaSSL now supports zlib, as does libcurl, the libcurl build test can
     fail if yaSSL is built with zlib support since the zlib library isn't 
     passed.  You can do two things to fix this: 
 
@@ -518,7 +635,7 @@ in the source and include files.
 *********************
 
 Contact: please send comments or questions to Todd A Ouska at todd@yassl.com
-and/or Larry Stefonic at larry@yassl.com or 425-741-6858.
+and/or Larry Stefonic at larry@yassl.com.
 
 
 

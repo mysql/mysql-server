@@ -1,6 +1,5 @@
-/*
-   Copyright (c) 2000, 2011, Oracle and/or its affiliates.
-   Copyright (c) 2008-2011 Monty Program Ab
+/* Copyright (c) 2000, 2012, Oracle and/or its affiliates.
+   Copyright (c) 2008, 2011, Monty Program Ab
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -625,7 +624,6 @@ void mysql_binlog_send(THD* thd, char* log_ident, my_off_t pos,
   String* const packet = &thd->packet;
   int error;
   const char *errmsg = "Unknown error", *tmp_msg;
-  char llbuff0[22], llbuff1[22], llbuff2[22];
   char error_text[MAX_SLAVE_ERRMSG]; // to be send to slave via my_message()
   NET* net = &thd->net;
   mysql_mutex_t *log_lock;
@@ -1181,12 +1179,14 @@ err:
        detailing the fatal error message with coordinates 
        of the last position read.
     */
-    const char *fmt= "%s; the start event position from '%s' at %s, the last event was read from '%s' at %s, the last byte read was read from '%s' at %s.";
-    my_snprintf(error_text, sizeof(error_text), fmt, errmsg,
-                my_basename(p_start_coord->file_name),
-                (llstr(p_start_coord->pos, llbuff0), llbuff0),
-                my_basename(p_coord->file_name), (llstr(p_coord->pos, llbuff1), llbuff1),
-                my_basename(log_file_name),    (llstr(my_b_tell(&log), llbuff2), llbuff2));
+    my_snprintf(error_text, sizeof(error_text),
+                "%s; the first event '%s' at %lld, "
+                "the last event read from '%s' at %lld, "
+                "the last byte read from '%s' at %lld.",
+                errmsg,
+                my_basename(p_start_coord->file_name), p_start_coord->pos,
+                my_basename(p_coord->file_name), p_coord->pos,
+                my_basename(log_file_name), my_b_tell(&log));
   }
   else
     strcpy(error_text, errmsg);

@@ -1,5 +1,5 @@
 /*
-   Copyright (C) 2000-2007 MySQL AB
+   Copyright (C) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -39,25 +39,32 @@ public:
     explicit Source(word32 sz = 0) : buffer_(sz), current_(0) {}
     Source(const byte* b, word32 sz) : buffer_(b, sz), current_(0) {}
 
+    word32 remaining()         { if (GetError().What()) return 0;
+                                 else return buffer_.size() - current_; } 
     word32 size() const        { return buffer_.size(); }
     void   grow(word32 sz)     { buffer_.CleanGrow(sz); }
+
+    bool IsLeft(word32 sz) { if (remaining() >= sz) return true;
+                             else { SetError(CONTENT_E); return false; } }
    
     const byte*  get_buffer()  const { return buffer_.get_buffer(); }
     const byte*  get_current() const { return &buffer_[current_]; }
     word32       get_index()   const { return current_; }
-    void         set_index(word32 i) { current_ = i; }
+    void         set_index(word32 i) { if (i < size()) current_ = i; }
 
     byte operator[] (word32 i) { current_ = i; return next(); }
-    byte next() { return buffer_[current_++]; }
-    byte prev() { return buffer_[--current_]; }
+    byte next() { if (IsLeft(1)) return buffer_[current_++]; else return 0; }
+    byte prev() { if (current_)  return buffer_[--current_]; else return 0; }
 
     void add(const byte* data, word32 len)
     {
-        memcpy(buffer_.get_buffer() + current_, data, len);
-        current_ += len;
+        if (IsLeft(len)) {
+            memcpy(buffer_.get_buffer() + current_, data, len);
+            current_ += len;
+        }
     }
 
-    void advance(word32 i) { current_ += i; }
+    void advance(word32 i) { if (IsLeft(i)) current_ += i; }
     void reset(ByteBlock&);
 
     Error  GetError()              { return error_; }

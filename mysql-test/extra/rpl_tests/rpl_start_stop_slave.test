@@ -182,7 +182,8 @@ DROP TABLE t1;
 sync_slave_with_master;
 
 #
-# bug#3593869-64035 uninitialized event_coordinates instance crashes server
+# bug#3593869-64035 attempt to read a member of event_coordinates
+# referenced by NULL pointer crashes server.
 # Testing how out of valid range position value is handled with an error.
 #
 

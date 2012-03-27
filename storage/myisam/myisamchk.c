@@ -1,5 +1,4 @@
-/*
-   Copyright (c) 2000, 2011, Oracle and/or its affiliates
+/* Copyright (c) 2000, 2012, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -297,9 +296,9 @@ static struct my_option my_long_options[] =
     INT_MAX32, (long) MALLOC_OVERHEAD, (long) 1L, 0},
   { "sort_buffer_size", OPT_SORT_BUFFER_SIZE, "",
     &check_param.sort_buffer_length,
-    &check_param.sort_buffer_length, 0, GET_ULONG, REQUIRED_ARG,
+    &check_param.sort_buffer_length, 0, GET_ULL, REQUIRED_ARG,
     (long) SORT_BUFFER_INIT, (long) (MIN_SORT_BUFFER + MALLOC_OVERHEAD),
-    ULONG_MAX, (long) MALLOC_OVERHEAD, (long) 1L, 0},
+    SIZE_T_MAX, (long) MALLOC_OVERHEAD, (long) 1L, 0},
   { "sort_key_blocks", OPT_SORT_KEY_BLOCKS, "",
     &check_param.sort_key_blocks,
     &check_param.sort_key_blocks, 0, GET_ULONG, REQUIRED_ARG,

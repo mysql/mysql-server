@@ -755,7 +755,7 @@ size_t my_safe_printf_stderr(const char* fmt, ...)
   size_t result;
   va_list args;
   va_start(args,fmt);
-  result= vsnprintf(to, sizeof(to), fmt, args);
+  result= my_vsnprintf(to, sizeof(to), fmt, args);
   va_end(args);
   my_write_stderr(to, result);
   return result;
