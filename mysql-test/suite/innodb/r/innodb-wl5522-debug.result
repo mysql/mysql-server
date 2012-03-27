@@ -21,7 +21,7 @@ SELECT COUNT(*) FROM test_wl5522.t1;
 ERROR HY000: Got error -1 from storage engine
 SET SESSION debug="+d,ib_import_reset_space_and_lsn_failure";
 ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
-ERROR HY000: InnoDB: Error opening: 't1.cfg'
+ERROR HY000: InnoDB: Error opening: 't1.cfg' : No such file or directory
 restore: t1
 SET SESSION debug="-d,ib_import_reset_space_and_lsn_failure";
 SET SESSION debug="+d,ib_import_open_tablespace_failure";
@@ -122,7 +122,7 @@ INDEX idx1(c2),
 INDEX idx2(c3(512)),
 INDEX idx3(c4(512))) Engine=InnoDB;
 SET SESSION debug="+d,ib_buf_force_flush";
-SET SESSION debug="+d,ib_ibuf_background_disable";
+SET SESSION debug="+d,ib_ibuf_disable_background_merge";
 INSERT INTO test_wl5522.t1(c2, c3, c4) VALUES
 (1, REPEAT('a', 2048), REPEAT('a', 2048)),
 (2, REPEAT('b', 2048), REPEAT('b', 2048)),

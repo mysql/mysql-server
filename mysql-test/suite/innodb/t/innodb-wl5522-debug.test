@@ -284,7 +284,7 @@ CREATE TABLE test_wl5522.t1 (
 	INDEX idx3(c4(512))) Engine=InnoDB;
 
 SET SESSION debug="+d,ib_buf_force_flush";
-SET SESSION debug="+d,ib_ibuf_background_disable";
+SET SESSION debug="+d,ib_ibuf_disable_background_merge";
 
 INSERT INTO test_wl5522.t1(c2, c3, c4) VALUES
 	(1, REPEAT('a', 2048), REPEAT('a', 2048)),
