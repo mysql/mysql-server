@@ -1,0 +1,28 @@
+--source include/have_debug.inc
+--source include/master-slave.inc
+--source include/have_log_bin.inc
+
+file_exists $MYSQLTEST_VARDIR/tmp/slave_log.err;
+
+connection master;
+--sync_slave_with_master
+
+--source include/stop_slave.inc
+
+--let $out_file= $MYSQLTEST_VARDIR/tmp/slave_log.err
+--let OUTF= $out_file
+
+--echo # Search for occurrences of ERROR [Error reading packet from server: Lost connection to MySQL server during query]
+
+perl;
+  use strict;
+  my $outf= $ENV{'OUTF'} or die "OUTF not set";
+  open(FILE, "$outf") or die("Unable to open $outf: $!\n");
+  my $count_error = grep(/Lost connection to MySQL server during query/gi,<FILE>);
+  print "Occurrences : $count_error\n";
+  close(FILE);
+EOF
+
+--source include/start_slave.inc
+--source include/rpl_end.inc
+
