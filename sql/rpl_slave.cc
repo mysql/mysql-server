@@ -3032,8 +3032,13 @@ static ulong read_event(MYSQL* mysql, Master_info *mi, bool* suppress_warnings)
       *suppress_warnings= TRUE;
     }
     else
-      sql_print_error("Error reading packet from server: %s ( server_errno=%d)",
-                      mysql_error(mysql), mysql_errno(mysql));
+    {
+      if (!mi->rli->abort_slave) 
+      {
+        sql_print_error("Error reading packet from server: %s (server_errno=%d)",
+                        mysql_error(mysql), mysql_errno(mysql));
+      }
+    }
     DBUG_RETURN(packet_error);
   }
 
