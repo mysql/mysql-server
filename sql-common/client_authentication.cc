@@ -46,22 +46,33 @@ RSA *rsa_init(MYSQL *mysql)
   pthread_mutex_lock(&g_public_key_mutex);
   key= g_public_key;
   pthread_mutex_unlock(&g_public_key_mutex);
-  
+
   if (key != NULL)
     return key;
 
-  FILE *pub_key_file;  
-  if (mysql->options.extension != NULL)
+  FILE *pub_key_file= NULL;
+
+  if (mysql->options.extension != NULL &&
+      mysql->options.extension->server_public_key_path != NULL &&
+      mysql->options.extension->server_public_key_path != '\0')
+  {
     pub_key_file= fopen(mysql->options.extension->server_public_key_path,
-                         "r");
+                        "r");
+  }
+  /* No public key is used; return 0 without errors to indicate this. */
   else
-    pub_key_file= NULL;
-                      
+    return 0;
+
   if (pub_key_file == NULL)
   {
-      fprintf(stderr,"Can't locate server public key '%s'\n",
+    /*
+      If a key path was submitted but no key located then we print an error
+      message. Else we just report that there is no public key.
+    */
+    fprintf(stderr,"Can't locate server public key '%s'\n",
               mysql->options.extension->server_public_key_path);
-      return 0;
+
+    return 0;
   }
   
   pthread_mutex_lock(&g_public_key_mutex);

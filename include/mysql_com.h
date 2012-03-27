@@ -172,7 +172,7 @@ enum enum_server_command
 
 #define CLIENT_PLUGIN_AUTH  (1UL << 19) /* Client supports plugin authentication */
 
-/* Initial password field is length encoded string */
+/* Enable authentication response packet to be larger than 255 bytes. */
 #define CLIENT_PLUGIN_AUTH_LENENC_CLIENT_DATA (1UL << 20)
 
 #define CLIENT_SSL_VERIFY_SERVER_CERT (1UL << 30)
