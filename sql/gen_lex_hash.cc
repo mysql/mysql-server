@@ -377,7 +377,7 @@ int main(int argc,char **argv)
   printf("/*\n\n  Do " "not " "edit " "this " "file " "directly!\n\n*/\n");
 
   puts("/*");
-  puts(ORACLE_WELCOME_COPYRIGHT_NOTICE("2000, 2011"));
+  puts(ORACLE_WELCOME_COPYRIGHT_NOTICE("2000, 2012"));
   puts("*/");
 
   /* Broken up to indicate that it's not advice to you, gentle reader. */
