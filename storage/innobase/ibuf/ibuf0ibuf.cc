@@ -2797,7 +2797,10 @@ ibuf_contract_in_background(
 	ulint	n_pages;
 
 	DBUG_EXECUTE_IF("ib_ibuf_disable_background_merge",
-			if (table_id == 0) return(0););
+			if (table_id == 0) {
+				ib_logf(IB_LOG_LEVEL_INFO, " ibuf disabled\n");
+				return(0);
+			});
 
 	if (full) {
 		/* Caller has requested a full batch */

@@ -25,12 +25,17 @@ INSERT INTO t1(c2) SELECT c2 FROM t1;
 INSERT INTO t1(c2) SELECT c2 FROM t1;
 INSERT INTO t1(c2) SELECT c2 FROM t1;
 
+--list_files $MYSQLD_DATADIR/test
+
 FLUSH TABLES t1 WITH READ LOCK;
 SELECT COUNT(*) FROM t1;
 perl;
 do 'include/innodb-util.inc';
 ib_backup_tablespaces("test", "t1");
 EOF
+
+--list_files $MYSQLD_DATADIR/test
+
 UNLOCK TABLES;
 
 DROP TABLE t1;
@@ -48,6 +53,8 @@ do 'include/innodb-util.inc';
 ib_discard_tablespaces("test", "t1");
 ib_restore_tablespaces("test", "t1");
 EOF
+
+--list_files $MYSQLD_DATADIR/test
 
 ALTER TABLE t1 IMPORT TABLESPACE;
 CHECK TABLE t1;
@@ -69,13 +76,17 @@ INSERT INTO t1(c2) SELECT c2 FROM t1;
 INSERT INTO t1(c2) SELECT c2 FROM t1;
 INSERT INTO t1(c2) SELECT c2 FROM t1;
 
+--list_files $MYSQLD_DATADIR/test
 FLUSH TABLES t1 WITH READ LOCK;
 SELECT COUNT(*) FROM t1;
 perl;
 do 'include/innodb-util.inc';
 ib_backup_tablespaces("test", "t1");
 EOF
+--list_files $MYSQLD_DATADIR/test
 UNLOCK TABLES;
+
+--list_files $MYSQLD_DATADIR/test
 
 # Move the LSN forward
 INSERT INTO t1(c2) SELECT c2 FROM t1;
@@ -96,6 +107,8 @@ do 'include/innodb-util.inc';
 ib_discard_tablespaces("test", "t1");
 ib_restore_tablespaces("test", "t1");
 EOF
+
+--list_files $MYSQLD_DATADIR/test
 
 ALTER TABLE t1 IMPORT TABLESPACE;
 
@@ -122,6 +135,7 @@ perl;
 do 'include/innodb-util.inc';
 ib_backup_tablespaces("test", "t1");
 EOF
+--list_files $MYSQLD_DATADIR/test
 UNLOCK TABLES;
 
 # Move the LSN forward
@@ -815,7 +829,7 @@ SELECT * FROM t1 ORDER BY b,a DESC LIMIT 3;
 SELECT * FROM t1 ORDER BY a DESC LIMIT 3;
 --list_files $MYSQLD_DATADIR/test
 --echo # Restarting server
---source include/restart_mysqld.inc
+-- source include/restart_mysqld.inc
 --echo # Done restarting server
 FLUSH TABLE t1 WITH READ LOCK;
 --echo # List before copying files
@@ -828,7 +842,7 @@ SELECT COUNT(*) FROM t1;
 SELECT * FROM t1 ORDER BY b,a DESC LIMIT 3;
 SELECT * FROM t1 ORDER BY a DESC LIMIT 3;
 --echo # Restarting server
---source include/restart_mysqld.inc
+-- source include/restart_mysqld.inc
 --echo # Done restarting server
 --echo # List before t1 DISCARD
 --list_files $MYSQLD_DATADIR/test
