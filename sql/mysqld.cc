@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -4454,6 +4454,14 @@ we force server id to 2, but this MySQL server will not act as a slave.");
   init_status_vars();
   if (opt_bootstrap) /* If running with bootstrap, do not start replication. */
     opt_skip_slave_start= 1;
+
+#ifndef MCP_BUG54854
+#ifdef HAVE_REPLICATION
+  // Make @@slave_skip_errors show the nice human-readable value.
+  print_slave_skip_errors();
+#endif // HAVE_REPLICATION
+#endif // MCP_BUG54854
+
   /*
     init_slave() must be called after the thread keys are created.
     Some parts of the code (e.g. SHOW STATUS LIKE 'slave_running' and other
@@ -8038,7 +8046,9 @@ mysqld_get_one_option(int optid,
     break;
 #ifdef HAVE_REPLICATION
   case OPT_SLAVE_SKIP_ERRORS:
-    init_slave_skip_errors(argument);
+#ifndef MCP_BUG54854
+    add_slave_skip_errors(argument);
+#endif // MCP_BUG54854
     break;
   case OPT_SLAVE_EXEC_MODE:
     slave_exec_mode_options= find_bit_type_or_exit(argument,
