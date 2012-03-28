@@ -692,12 +692,8 @@ Log_event::Log_event(THD* thd_arg, uint16 flags_arg,
   crc(0), thd(thd_arg), checksum_alg(BINLOG_CHECKSUM_ALG_UNDEF)
 {
   server_id= thd->server_id;
-  when= thd->start_time;
-
-#ifndef MCP_BUG52305
   unmasked_server_id= server_id;
-#endif
- 
+  when= thd->start_time;
 }
 
 /**
@@ -714,6 +710,7 @@ Log_event::Log_event(enum_event_cache_type cache_type_arg,
   checksum_alg(BINLOG_CHECKSUM_ALG_UNDEF)
 {
   server_id=	::server_id;
+  unmasked_server_id= server_id;
   /*
     We can't call my_time() here as this would cause a call before
     my_init() is called
@@ -721,10 +718,6 @@ Log_event::Log_event(enum_event_cache_type cache_type_arg,
   when.tv_sec=  0;
   when.tv_usec= 0;
   log_pos=	0;
-
-#ifndef MCP_BUG52305
-  unmasked_server_id= server_id;
-#endif
 }
 #endif /* !MYSQL_CLIENT */
 
@@ -746,7 +739,6 @@ Log_event::Log_event(const char* buf,
   when.tv_sec= uint4korr(buf);
   when.tv_usec= 0;
   server_id = uint4korr(buf + SERVER_ID_OFFSET);
-#ifndef MCP_BUG52305
   unmasked_server_id = server_id;
   /*
      Mask out any irrelevant parts of the server_id
@@ -755,7 +747,6 @@ Log_event::Log_event(const char* buf,
   server_id = unmasked_server_id & opt_server_id_mask;
 #else
   server_id = unmasked_server_id;
-#endif
 #endif
   data_written= uint4korr(buf + EVENT_LEN_OFFSET);
   if (description_event->binlog_version==1)
@@ -9260,7 +9251,7 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
         thd->variables.option_bits|= OPTION_RELAXED_UNIQUE_CHECKS;
     else
         thd->variables.option_bits&= ~OPTION_RELAXED_UNIQUE_CHECKS;
-#ifndef MCP_WL3733
+
     /*
       Note that unlike the other thd options set here, this one
       comes from a global, and not from the incoming event.
@@ -9269,7 +9260,6 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
       thd->variables.option_bits|= OPTION_ALLOW_BATCH;
     else
       thd->variables.option_bits&= ~OPTION_ALLOW_BATCH;
-#endif
 
 #ifndef MCP_WL5353
     if (m_extra_row_data)
@@ -9567,10 +9557,8 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
     }
   } // if (table)
 
-#ifndef MCP_WL3733
   /* reset OPTION_ALLOW_BATCH as not affect later events */
   thd->variables.option_bits&= ~OPTION_ALLOW_BATCH;
-#endif
 
   if (error)
   {
@@ -11370,7 +11358,6 @@ int Rows_log_event::find_row(const Relay_log_info *rli)
   if ((table->file->ha_table_flags() & HA_PRIMARY_KEY_REQUIRED_FOR_POSITION))
   {
 
-#ifndef MCP_SLAVE_RBWR_OPTIMIZATION
     if ((table->file->ha_table_flags() & HA_READ_BEFORE_WRITE_REMOVAL))
     {
       /*
@@ -11386,7 +11373,6 @@ int Rows_log_event::find_row(const Relay_log_info *rli)
       table->file->extra(HA_EXTRA_IGNORE_NO_KEY);
       DBUG_RETURN(0);
     }
-#endif
 
     /*
       Use a more efficient method to fetch the record given by

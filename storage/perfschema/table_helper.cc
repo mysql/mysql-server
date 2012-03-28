@@ -199,7 +199,7 @@ int PFS_index_row::make_row(PFS_table_share *pfs, uint table_index)
   if (m_object_row.make_row(pfs))
     return 1;
 
-  if (table_index < MAX_KEY)
+  if (table_index < MAX_INDEXES)
   {
     PFS_table_key *key= &pfs->m_keys[table_index];
     m_index_name_length= key->m_name_length;

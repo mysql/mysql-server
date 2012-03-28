@@ -82,7 +82,7 @@ load data infile '../../std_data/rpl_loaddata2.dat' into table t2 fields
 terminated by ',' optionally enclosed by '%' escaped by '@' lines terminated by
 '\n##\n' starting by '>' ignore 1 lines;
 ERROR 23000: Duplicate entry '2003-03-22' for key 'day'
-include/wait_for_slave_sql_error.inc [errno=0,1742]
+include/wait_for_slave_sql_error.inc [errno=0,1753]
 drop table t1, t2;
 drop table t1, t2;
 CREATE TABLE t1 (word CHAR(20) NOT NULL PRIMARY KEY) ENGINE=INNODB;

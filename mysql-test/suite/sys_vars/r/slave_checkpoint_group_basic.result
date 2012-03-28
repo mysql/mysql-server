@@ -39,7 +39,7 @@ Warnings:
 Warning	1292	Truncated incorrect slave_checkpoint_group value: '18446744073709551615'
 select @@global.slave_checkpoint_group as "truncated to the maximum" ;
 truncated to the maximum
-524287
+524280
 SET @@global.slave_checkpoint_group = @start_global_value;
 SELECT @@global.slave_checkpoint_group;
 @@global.slave_checkpoint_group

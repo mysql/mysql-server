@@ -57,7 +57,7 @@ ALTER TABLE mysql.slave_relay_log_info DROP COLUMN Sql_delay;
 --connection master
 INSERT INTO t_innodb VALUES (1), (2), (3);
 --connection slave
---let $slave_sql_errno= 1701
+--let $slave_sql_errno= 1724
 --let $show_slave_sql_error= 1
 --source include/wait_for_slave_sql_error.inc
 --source include/stop_slave_io.inc
@@ -93,7 +93,7 @@ ALTER TABLE mysql.slave_relay_log_info DROP COLUMN Sql_delay;
 --connection master
 INSERT INTO t_innodb VALUES (1), (2), (3);
 --connection slave
---let $slave_sql_errno= 1701
+--let $slave_sql_errno= 1724
 --let $show_slave_sql_error= 1
 --source include/wait_for_slave_sql_error.inc
 --source include/stop_slave_io.inc

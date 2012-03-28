@@ -1230,6 +1230,16 @@ trx_undo_report_row_operation(
 	      || (clust_entry && !update && !rec));
 
 	trx = thr_get_trx(thr);
+
+	/* This table is visible only to the session that created it. */
+	if (trx->read_only) {
+		/* MySQL should block writes to non-temporary tables. */
+		ut_a(index->table->flags2 & DICT_TF2_TEMPORARY);
+		if (trx->rseg == 0) {
+			trx_assign_rseg(trx);
+		}
+	}
+
 	rseg = trx->rseg;
 
 	mtr_start(&mtr);

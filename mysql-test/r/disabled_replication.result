@@ -1,0 +1,41 @@
+SHOW SLAVE STATUS;
+Slave_IO_State	Master_Host	Master_User	Master_Port	Connect_Retry	Master_Log_File	Read_Master_Log_Pos	Relay_Log_File	Relay_Log_Pos	Relay_Master_Log_File	Slave_IO_Running	Slave_SQL_Running	Replicate_Do_DB	Replicate_Ignore_DB	Replicate_Do_Table	Replicate_Ignore_Table	Replicate_Wild_Do_Table	Replicate_Wild_Ignore_Table	Last_Errno	Last_Error	Skip_Counter	Exec_Master_Log_Pos	Relay_Log_Space	Until_Condition	Until_Log_File	Until_Log_Pos	Master_SSL_Allowed	Master_SSL_CA_File	Master_SSL_CA_Path	Master_SSL_Cert	Master_SSL_Cipher	Master_SSL_Key	Seconds_Behind_Master	Master_SSL_Verify_Server_Cert	Last_IO_Errno	Last_IO_Error	Last_SQL_Errno	Last_SQL_Error	Replicate_Ignore_Server_Ids	Master_Server_Id	Master_UUID	Master_Info_File	SQL_Delay	SQL_Remaining_Delay	Slave_SQL_Running_State	Master_Retry_Count	Master_Bind	Last_IO_Error_Timestamp	Last_SQL_Error_Timestamp	Master_SSL_Crl	Master_SSL_Crlpath	Retrieved_Gtid_Set	Executed_Gtid_Set
+RESET SLAVE;
+ERROR HY000: Slave is not configured or failed to initialize properly. You must at least set --server-id to enable either a master or a slave. Additional error messages can be found in the MySQL error log.
+SHOW RELAYLOG EVENTS;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+STOP SLAVE;
+ERROR HY000: Slave is not configured or failed to initialize properly. You must at least set --server-id to enable either a master or a slave. Additional error messages can be found in the MySQL error log.
+START SLAVE;
+ERROR HY000: Slave is not configured or failed to initialize properly. You must at least set --server-id to enable either a master or a slave. Additional error messages can be found in the MySQL error log.
+SELECT MASTER_POS_WAIT('non-existent', 0);
+MASTER_POS_WAIT('non-existent', 0)
+NULL
+CHANGE MASTER TO MASTER_CONNECT_RETRY = 1, MASTER_HEARTBEAT_PERIOD = 1.01;
+ERROR HY000: Slave is not configured or failed to initialize properly. You must at least set --server-id to enable either a master or a slave. Additional error messages can be found in the MySQL error log.
+FLUSH LOGS;
+FLUSH RELAY LOGS;
+SET @@GLOBAL.master_info_repository= "TABLE";
+SET @@GLOBAL.relay_log_info_repository= "TABLE";
+SET @@GLOBAL.max_relay_log_size= 536870912;
+SET @@GLOBAL.max_relay_log_size= 0;
+SET @@GLOBAL.slave_net_timeout= 10;
+SET @@GLOBAL.slave_net_timeout= 120;
+SET @@GLOBAL.sql_slave_skip_counter= 10;
+SET @@GLOBAL.sql_slave_skip_counter= 0;
+SET @@SESSION.sql_log_bin= 0;
+SET @@SESSION.sql_log_bin= 1;
+SHOW MASTER LOGS;
+ERROR HY000: You are not using binary logging
+SHOW MASTER STATUS;
+File	Position	Binlog_Do_DB	Binlog_Ignore_DB	Executed_Gtid_Set
+SHOW SLAVE HOSTS;
+Server_id	Host	Port	Master_id	Slave_UUID
+RESET MASTER;
+ERROR HY000: Binlog closed, cannot RESET MASTER
+SHOW BINLOG EVENTS;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+FLUSH LOGS;
+FLUSH BINARY LOGS;
+SET @@GLOBAL.max_binlog_size= 536870912;
+SET @@GLOBAL.max_binlog_size= 1073741824;
