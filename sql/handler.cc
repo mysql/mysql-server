@@ -4385,7 +4385,11 @@ int ha_make_pushed_joins(THD *thd, AQP::Join_plan* plan, uint* pushed)
 #endif
 
 
+/*
+  MCP_GLOBAL_SCHEMA_LOCK uses hton_list_st, make it visible
+  independent on HAVE_NDB_BINLOG
 #ifdef HAVE_NDB_BINLOG
+*/
 /*
   TODO: change this into a dynamic struct
   List<handlerton> does not work as
@@ -4399,6 +4403,7 @@ struct hton_list_st
   uint sz;
 };
 
+#ifdef HAVE_NDB_BINLOG // MCP_GLOBAL_SCHEMA_LOCK
 struct binlog_func_st
 {
   enum_binlog_func fn;
