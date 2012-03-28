@@ -180,9 +180,7 @@ extern ulong slow_launch_threads, slow_launch_time;
 extern ulong table_cache_size, table_def_size;
 extern MYSQL_PLUGIN_IMPORT ulong max_connections;
 extern ulong max_connect_errors, connect_timeout;
-#ifndef MCP_WL3733
 extern my_bool opt_slave_allow_batching;
-#endif
 extern my_bool allow_slave_start;
 extern LEX_CSTRING reason_slave_blocked;
 extern ulong slave_trans_retries;
@@ -243,11 +241,10 @@ extern const char *opt_date_time_formats[];
 extern handlerton *partition_hton;
 extern handlerton *myisam_hton;
 extern handlerton *heap_hton;
-#ifndef MCP_BUG53205
 extern uint opt_server_id_bits;
 extern ulong opt_server_id_mask;
-#endif
-#ifndef MCP_BUG46955
+#ifdef WITH_NDBCLUSTER_STORAGE_ENGINE
+/* engine specific hook, to be made generic */
 extern int(*ndb_wait_setup_func)(ulong);
 extern ulong opt_ndb_wait_setup;
 #endif

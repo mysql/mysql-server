@@ -7,7 +7,7 @@ SET @@global.max_allowed_packet = DEFAULT;
 SET @@global.max_allowed_packet = 1000;
 Warnings:
 Warning	1292	Truncated incorrect max_allowed_packet value: '1000'
-Warning	1731	The value of 'max_allowed_packet' should be no less than the value of 'net_buffer_length'
+Warning	1708	The value of 'max_allowed_packet' should be no less than the value of 'net_buffer_length'
 SET @@global.max_allowed_packet = DEFAULT;
 SELECT @@global.max_allowed_packet;
 @@global.max_allowed_packet
@@ -27,14 +27,14 @@ SELECT @@global.max_allowed_packet = 1048576;
 '#--------------------FN_DYNVARS_070_03-------------------------#'
 SET @@global.max_allowed_packet = 1024;
 Warnings:
-Warning	1731	The value of 'max_allowed_packet' should be no less than the value of 'net_buffer_length'
+Warning	1708	The value of 'max_allowed_packet' should be no less than the value of 'net_buffer_length'
 SELECT @@global.max_allowed_packet;
 @@global.max_allowed_packet
 1024
 SET @@global.max_allowed_packet = 1025;
 Warnings:
 Warning	1292	Truncated incorrect max_allowed_packet value: '1025'
-Warning	1731	The value of 'max_allowed_packet' should be no less than the value of 'net_buffer_length'
+Warning	1708	The value of 'max_allowed_packet' should be no less than the value of 'net_buffer_length'
 SELECT @@global.max_allowed_packet;
 @@global.max_allowed_packet
 1024
@@ -78,21 +78,21 @@ SELECT @@session.max_allowed_packet;
 SET @@global.max_allowed_packet = 0;
 Warnings:
 Warning	1292	Truncated incorrect max_allowed_packet value: '0'
-Warning	1731	The value of 'max_allowed_packet' should be no less than the value of 'net_buffer_length'
+Warning	1708	The value of 'max_allowed_packet' should be no less than the value of 'net_buffer_length'
 SELECT @@global.max_allowed_packet;
 @@global.max_allowed_packet
 1024
 SET @@global.max_allowed_packet = -1024;
 Warnings:
 Warning	1292	Truncated incorrect max_allowed_packet value: '-1024'
-Warning	1731	The value of 'max_allowed_packet' should be no less than the value of 'net_buffer_length'
+Warning	1708	The value of 'max_allowed_packet' should be no less than the value of 'net_buffer_length'
 SELECT @@global.max_allowed_packet;
 @@global.max_allowed_packet
 1024
 SET @@global.max_allowed_packet = 1023;
 Warnings:
 Warning	1292	Truncated incorrect max_allowed_packet value: '1023'
-Warning	1731	The value of 'max_allowed_packet' should be no less than the value of 'net_buffer_length'
+Warning	1708	The value of 'max_allowed_packet' should be no less than the value of 'net_buffer_length'
 SELECT @@global.max_allowed_packet;
 @@global.max_allowed_packet
 1024
@@ -155,21 +155,21 @@ WHERE VARIABLE_NAME='max_allowed_packet';
 SET @@global.max_allowed_packet = TRUE;
 Warnings:
 Warning	1292	Truncated incorrect max_allowed_packet value: '1'
-Warning	1731	The value of 'max_allowed_packet' should be no less than the value of 'net_buffer_length'
+Warning	1708	The value of 'max_allowed_packet' should be no less than the value of 'net_buffer_length'
 SELECT @@global.max_allowed_packet;
 @@global.max_allowed_packet
 1024
 SET @@global.max_allowed_packet = FALSE;
 Warnings:
 Warning	1292	Truncated incorrect max_allowed_packet value: '0'
-Warning	1731	The value of 'max_allowed_packet' should be no less than the value of 'net_buffer_length'
+Warning	1708	The value of 'max_allowed_packet' should be no less than the value of 'net_buffer_length'
 SELECT @@global.max_allowed_packet;
 @@global.max_allowed_packet
 1024
 '#---------------------FN_DYNVARS_070_09----------------------#'
 SET @@global.max_allowed_packet = 2048;
 Warnings:
-Warning	1731	The value of 'max_allowed_packet' should be no less than the value of 'net_buffer_length'
+Warning	1708	The value of 'max_allowed_packet' should be no less than the value of 'net_buffer_length'
 SELECT @@max_allowed_packet = @@global.max_allowed_packet;
 @@max_allowed_packet = @@global.max_allowed_packet
 0

@@ -809,7 +809,7 @@ THD::THD(bool enable_plugins)
    in_lock_tables(0),
    bootstrap(0),
    derived_tables_processing(FALSE),
-   spcont(NULL),
+   sp_runtime_ctx(NULL),
    m_parser_state(NULL),
 #if defined(ENABLED_DEBUG_SYNC)
    debug_sync_control(0),
@@ -891,9 +891,7 @@ THD::THD(bool enable_plugins)
   proc_info="login";
   where= THD::DEFAULT_WHERE;
   server_id = ::server_id;
-#ifndef MCP_BUG52305
   unmasked_server_id = server_id;
-#endif
   slave_net = 0;
   set_command(COM_CONNECT);
   *scramble= '\0';
@@ -935,6 +933,9 @@ THD::THD(bool enable_plugins)
   m_binlog_invoker= FALSE;
   memset(&invoker_user, 0, sizeof(invoker_user));
   memset(&invoker_host, 0, sizeof(invoker_host));
+
+  binlog_next_event_pos.file_name= NULL;
+  binlog_next_event_pos.pos= 0;
 }
 
 
@@ -1425,6 +1426,8 @@ THD::~THD()
   mysql_audit_release(this);
   if (m_enable_plugins)
     plugin_thdvar_cleanup(this);
+
+  clear_next_event_pos();
 
   DBUG_PRINT("info", ("freeing security context"));
   main_security_ctx.destroy();
@@ -2239,7 +2242,7 @@ void select_send::abort_result_set()
 {
   DBUG_ENTER("select_send::abort_result_set");
 
-  if (is_result_set_started && thd->spcont)
+  if (is_result_set_started && thd->sp_runtime_ctx)
   {
     /*
       We're executing a stored procedure, have an open result
@@ -2250,7 +2253,7 @@ void select_send::abort_result_set()
       otherwise the client will hang due to the violation of the
       client/server protocol.
     */
-    thd->spcont->end_partial_result_set= TRUE;
+    thd->sp_runtime_ctx->end_partial_result_set= TRUE;
   }
   DBUG_VOID_RETURN;
 }
@@ -3363,7 +3366,7 @@ bool select_dumpvar::send_data(List<Item> &items)
   {
     if (mv->local)
     {
-      if (thd->spcont->set_variable(thd, mv->offset, &item))
+      if (thd->sp_runtime_ctx->set_variable(thd, mv->offset, &item))
 	    DBUG_RETURN(1);
     }
     else
@@ -4582,3 +4585,30 @@ THD::binlog_row_event_extra_data_eq(const uchar* a,
 }
 
 #endif  // #ifndef MCP_WL5353
+
+void THD::set_next_event_pos(const char* _filename, ulonglong _pos)
+{
+  char*& filename= binlog_next_event_pos.file_name;
+  if (filename == NULL)
+  {
+    /* First time, allocate maximal buffer */
+    filename= (char*) my_malloc(FN_REFLEN+1, MYF(MY_WME));
+    if (filename == NULL) return;
+  }
+
+  assert(strlen(_filename) <= FN_REFLEN);
+  strcpy(filename, _filename);
+  filename[ FN_REFLEN ]= 0;
+
+  binlog_next_event_pos.pos= _pos;
+};
+
+void THD::clear_next_event_pos()
+{
+  if (binlog_next_event_pos.file_name != NULL)
+  {
+    my_free(binlog_next_event_pos.file_name);
+  }
+  binlog_next_event_pos.file_name= NULL;
+  binlog_next_event_pos.pos= 0;
+};

@@ -740,7 +740,7 @@ inline_mysql_socket_send
                                         PSI_SOCKET_SEND, n, src_file, src_line);
 
     /* Instrumented code */
-    result= send(mysql_socket.fd, buf, n, flags);
+    result= send(mysql_socket.fd, buf, IF_WIN((int),) n, flags);
 
     /* Instrumentation end */
     if (locker != NULL)
@@ -755,7 +755,7 @@ inline_mysql_socket_send
 #endif
 
   /* Non instrumented code */
-  result= send(mysql_socket.fd, buf, n, flags);
+  result= send(mysql_socket.fd, buf, IF_WIN((int),) n, flags);
 
   return result;
 }
@@ -782,7 +782,7 @@ inline_mysql_socket_recv
                                         PSI_SOCKET_RECV, (size_t)0, src_file, src_line);
 
     /* Instrumented code */
-    result= recv(mysql_socket.fd, buf, n, flags);
+    result= recv(mysql_socket.fd, buf, IF_WIN((int),) n, flags);
 
     /* Instrumentation end */
     if (locker != NULL)
@@ -797,7 +797,7 @@ inline_mysql_socket_recv
 #endif
 
   /* Non instrumented code */
-  result= recv(mysql_socket.fd, buf, n, flags);
+  result= recv(mysql_socket.fd, buf, IF_WIN((int),) n, flags);
 
   return result;
 }
@@ -824,7 +824,7 @@ inline_mysql_socket_sendto
                                         PSI_SOCKET_SEND, n, src_file, src_line);
 
     /* Instrumented code */
-    result= sendto(mysql_socket.fd, buf, n, flags, addr, addr_len);
+    result= sendto(mysql_socket.fd, buf, IF_WIN((int),) n, flags, addr, addr_len);
 
     /* Instrumentation end */
     if (locker != NULL)
@@ -839,7 +839,7 @@ inline_mysql_socket_sendto
 #endif
 
   /* Non instrumented code */
-  result= sendto(mysql_socket.fd, buf, n, flags, addr, addr_len);
+  result= sendto(mysql_socket.fd, buf, IF_WIN((int),) n, flags, addr, addr_len);
 
   return result;
 }
@@ -867,7 +867,7 @@ inline_mysql_socket_recvfrom
                                         PSI_SOCKET_RECV, (size_t)0, src_file, src_line);
 
     /* Instrumented code */
-    result= recvfrom(mysql_socket.fd, buf, n, flags, addr, addr_len);
+    result= recvfrom(mysql_socket.fd, buf, IF_WIN((int),) n, flags, addr, addr_len);
 
     /* Instrumentation end */
     if (locker != NULL)
@@ -882,7 +882,7 @@ inline_mysql_socket_recvfrom
 #endif
 
   /* Non instrumented code */
-  result= recvfrom(mysql_socket.fd, buf, n, flags, addr, addr_len);
+  result= recvfrom(mysql_socket.fd, buf, IF_WIN((int),) n, flags, addr, addr_len);
 
   return result;
 }

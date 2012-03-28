@@ -7,7 +7,7 @@ show global status like "connection_errors_%";
 Variable_name	Value
 Connection_errors_accept	0
 Connection_errors_internal	0
-Connection_errors_max_connection	0
+Connection_errors_max_connections	0
 Connection_errors_peer_address	0
 Connection_errors_select	0
 Connection_errors_tcpwrap	0
@@ -23,7 +23,7 @@ show global status like "connection_errors_%";
 Variable_name	Value
 Connection_errors_accept	0
 Connection_errors_internal	0
-Connection_errors_max_connection	0
+Connection_errors_max_connections	0
 Connection_errors_peer_address	1
 Connection_errors_select	0
 Connection_errors_tcpwrap	0
@@ -33,7 +33,7 @@ show global status like "connection_errors_%";
 Variable_name	Value
 Connection_errors_accept	0
 Connection_errors_internal	0
-Connection_errors_max_connection	0
+Connection_errors_max_connections	0
 Connection_errors_peer_address	2
 Connection_errors_select	0
 Connection_errors_tcpwrap	0
@@ -44,7 +44,7 @@ show global status like "connection_errors_%";
 Variable_name	Value
 Connection_errors_accept	0
 Connection_errors_internal	0
-Connection_errors_max_connection	0
+Connection_errors_max_connections	0
 Connection_errors_peer_address	0
 Connection_errors_select	0
 Connection_errors_tcpwrap	0

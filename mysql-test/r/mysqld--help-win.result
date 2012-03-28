@@ -744,6 +744,7 @@ The following options may be given as the first argument:
  files within specified directory
  --server-id=#       Uniquely identifies the server instance in the community
  of replication partners
+ --server-id-bits=#  Set number of significant bits in server-id
  --shared-memory     Enable the shared memory
  --shared-memory-base-name=name 
  Base name of shared memory
@@ -1133,6 +1134,7 @@ safe-user-create FALSE
 secure-auth TRUE
 secure-file-priv (No default value)
 server-id 0
+server-id-bits 32
 shared-memory FALSE
 shared-memory-base-name MYSQL
 show-slave-auth-info FALSE

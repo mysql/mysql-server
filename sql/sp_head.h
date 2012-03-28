@@ -179,6 +179,15 @@ public:
   LEX_STRING m_definer_host;
 
   /**
+    List of all items (Item_trigger_field objects) representing fields in
+    old/new version of row in trigger. We use this list for checking whenever
+    all such fields are valid at trigger creation time and for binding these
+    fields to TABLE object at table open (altough for latter pointer to table
+    being opened is probably enough).
+  */
+  SQL_I_List<Item_trigger_field> m_trg_table_fields;
+
+  /**
     Is this routine being executed?
   */
   bool is_invoked() const { return m_flags & IS_INVOKED; }
@@ -475,14 +484,16 @@ public:
     DBUG_VOID_RETURN;
   }
 
-  sp_pcontext *get_parse_context() { return m_pcont; }
+  sp_pcontext *get_root_parsing_context() { return m_root_parsing_ctx; }
 
 private:
 
   MEM_ROOT *m_thd_root;		///< Temp. store for thd's mem_root
   THD *m_thd;			///< Set if we have reset mem_root
 
-  sp_pcontext *m_pcont;		///< Parse context
+  /// Root parsing context (topmost BEGIN..END block) of this SP.
+  sp_pcontext *m_root_parsing_ctx;
+
   List<LEX> m_lex;		///< Temp. store for the other lex
   DYNAMIC_ARRAY m_instr;	///< The "instructions"
   typedef struct
@@ -679,9 +690,6 @@ public:
 
   uint sql_command() const
   { return (uint)m_lex->sql_command; }
-
-  void disable_query_cache()
-  { m_lex->safe_to_cache_query= 0; }
 
 private:
   LEX *m_lex;
@@ -1120,7 +1128,12 @@ public:
 
   sp_instr_cpush(uint ip, sp_pcontext *ctx, LEX *lex, uint offset)
     : sp_instr(ip, ctx), m_lex_keeper(lex, TRUE), m_cursor(offset)
-  {}
+  {
+    // Cursor can't be stored in QC, so we should prevent opening QC for
+    // try to write results which are absent.
+
+    lex->safe_to_cache_query= false;
+  }
 
   virtual ~sp_instr_cpush()
   {}

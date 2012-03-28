@@ -1196,19 +1196,23 @@ public:
       if (this->*some_analyzer(...))
       {
         compile children if any;
-        this->*some_transformer(...);
+        return this->*some_transformer(...);
       }
+      else
+        return this;
     }
 
     i.e. analysis is performed top-down while transformation is done
-    bottom-up.      
+    bottom-up. If no transformation is applied, the item is returned unchanged.
+    A transformation error is indicated by returning a NULL pointer. Notice
+    that the analyzer function should never cause an error.
   */
   virtual Item* compile(Item_analyzer analyzer, uchar **arg_p,
                         Item_transformer transformer, uchar *arg_t)
   {
     if ((this->*analyzer) (arg_p))
       return ((this->*transformer) (arg_t));
-    return 0;
+    return this;
   }
 
    virtual void traverse_cond(Cond_traverser traverser,
@@ -3898,6 +3902,7 @@ public:
   { return test(example && example->basic_const_item());}
   bool walk (Item_processor processor, bool walk_subquery, uchar *argument);
   virtual void clear() { null_value= TRUE; value_cached= FALSE; }
+  bool is_null() { return value_cached ? null_value : example->is_null(); }
   Item_result result_type() const
   {
     if (!example)

@@ -154,10 +154,10 @@ ERROR HY000: Variable 'slave_skip_errors' is a read only variable
 CREATE TABLE t1 (a MEDIUMTEXT);
 SET GLOBAL max_allowed_packet=2048;
 Warnings:
-Warning	1731	The value of 'max_allowed_packet' should be no less than the value of 'net_buffer_length'
+Warning	1708	The value of 'max_allowed_packet' should be no less than the value of 'net_buffer_length'
 SET GLOBAL net_buffer_length=4096;
 Warnings:
-Warning	1731	The value of 'max_allowed_packet' should be no less than the value of 'net_buffer_length'
+Warning	1708	The value of 'max_allowed_packet' should be no less than the value of 'net_buffer_length'
 SHOW SESSION VARIABLES LIKE 'max_allowed_packet';
 Variable_name	Value
 max_allowed_packet	2048

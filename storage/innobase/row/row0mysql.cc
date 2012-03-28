@@ -1980,7 +1980,7 @@ row_mysql_freeze_data_dictionary_func(
 {
 	ut_a(trx->dict_operation_lock_mode == 0);
 
-	rw_lock_s_lock_func(&dict_operation_lock, 0, file, line);
+	rw_lock_s_lock_inline(&dict_operation_lock, 0, file, line);
 
 	trx->dict_operation_lock_mode = RW_S_LATCH;
 }
@@ -2017,7 +2017,7 @@ row_mysql_lock_data_dictionary_func(
 	/* Serialize data dictionary operations with dictionary mutex:
 	no deadlocks or lock waits can occur then in these operations */
 
-	rw_lock_x_lock_func(&dict_operation_lock, 0, file, line);
+	rw_lock_x_lock_inline(&dict_operation_lock, 0, file, line);
 	trx->dict_operation_lock_mode = RW_X_LATCH;
 
 	mutex_enter(&(dict_sys->mutex));

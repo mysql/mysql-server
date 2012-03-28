@@ -21,16 +21,10 @@ source include/master-slave.inc;
 
 connection master;
 
---echo [The default value shown for the slave's port number is the actual port number of the slave]
-source include/show_slave_hosts.inc;
-
-# SLAVE_PORT is the value of the port we should get.
-
-let $show_statement= SHOW SLAVE HOSTS;
-let $field= Port;
-let $condition= 'SLAVE_PORT';
-source include/wait_show_condition.inc; 
---echo [The default value shown for the slave's port number is the actual port number of the slave]
+--let $report_port= query_get_value(SHOW SLAVE HOSTS, Port, 1)
+--let assert_text= The default value shown for the slave's port number is the actual port number of the slave.
+--let assert_cond= $report_port = "$SLAVE_MYPORT"
+--source include/assert.inc
 
 # Start the server with some value being passed to the report_port= <option>
 # this will be used incase we have to mask the value of the slave's port
@@ -39,21 +33,17 @@ source include/wait_show_condition.inc;
 --let $rpl_server_number= 2
 --let $rpl_server_parameters= --report-port=9000
 --source include/rpl_restart_server.inc
-    
+
 connection slave;
 --source include/start_slave.inc
 
 --echo [Slave restarted with the report-port set to some value]
 connection master;
 
---echo [The value shown for the slave's port number is 9000 which is the value set for report-port]
---source include/show_slave_hosts.inc
-
 # 9000 is the value of the port we should get.
-
-let $show_statement= SHOW SLAVE HOSTS;
-let $field= Port;
-let $condition= '9000';
-source include/wait_show_condition.inc;
+--let $report_port= query_get_value(SHOW SLAVE HOSTS, Port, 1)
+--let assert_text= The value shown for the slave's port number is 9000 which is the value set for report-port.
+--let assert_cond= $report_port = "9000"
+--source include/assert.inc
 
 --source include/rpl_end.inc
