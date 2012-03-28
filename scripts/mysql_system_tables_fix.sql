@@ -677,3 +677,11 @@ ALTER TABLE ndb_binlog_index
 # changes was correct
 
 flush privileges;
+
+#
+# ndb_binlog_index table
+#
+ALTER TABLE ndb_binlog_index
+  ADD COLUMN next_position BIGINT UNSIGNED NOT NULL;
+ALTER TABLE ndb_binlog_index
+  ADD COLUMN next_file VARCHAR(255) NOT NULL;
