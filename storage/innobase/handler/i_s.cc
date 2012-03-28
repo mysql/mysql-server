@@ -2608,7 +2608,7 @@ i_s_fts_deleted_generic_fill(
 	deleted = fts_doc_ids_create();
 
 	user_table = dict_table_open_on_name_no_stats(
-			fts_internal_tbl_name, FALSE, DICT_ERR_IGNORE_NONE);
+		fts_internal_tbl_name, FALSE, FALSE, DICT_ERR_IGNORE_NONE);
 
 	if (!user_table) {
 		DBUG_RETURN(0);
@@ -2639,7 +2639,7 @@ i_s_fts_deleted_generic_fill(
 
 	fts_doc_ids_free(deleted);
 
-	dict_table_close(user_table, FALSE);
+	dict_table_close(user_table, FALSE, FALSE);
 
 	DBUG_RETURN(0);
 }
@@ -2848,7 +2848,7 @@ i_s_fts_inserted_fill(
 	}
 
 	user_table = dict_table_open_on_name_no_stats(
-			fts_internal_tbl_name, FALSE, DICT_ERR_IGNORE_NONE);
+		fts_internal_tbl_name, FALSE, FALSE, DICT_ERR_IGNORE_NONE);
 
 	if (!user_table) {
 		DBUG_RETURN(0);
@@ -2879,7 +2879,7 @@ i_s_fts_inserted_fill(
 
 	fts_doc_ids_free(inserted);
 
-	dict_table_close(user_table, FALSE);
+	dict_table_close(user_table, FALSE, FALSE);
 
 	DBUG_RETURN(0);
 }
@@ -3127,7 +3127,7 @@ i_s_fts_index_cache_fill(
 	}
 
 	user_table = dict_table_open_on_name_no_stats(
-			fts_internal_tbl_name, FALSE, DICT_ERR_IGNORE_NONE);
+		fts_internal_tbl_name, FALSE, FALSE, DICT_ERR_IGNORE_NONE);
 
 	if (!user_table) {
 		DBUG_RETURN(0);
@@ -3146,7 +3146,7 @@ i_s_fts_index_cache_fill(
 		i_s_fts_index_cache_fill_one_index(index_cache, thd, tables);
 	}
 
-	dict_table_close(user_table, FALSE);
+	dict_table_close(user_table, FALSE, FALSE);
 
 	DBUG_RETURN(0);
 }
@@ -3328,6 +3328,7 @@ i_s_fts_index_table_fill_one_index(
 	ulint			num_row_fill;
 
 	DBUG_ENTER("i_s_fts_index_cache_fill_one_index");
+	DBUG_ASSERT(!dict_index_is_online_ddl(index));
 
 	heap = mem_heap_create(1024);
 
@@ -3437,7 +3438,7 @@ i_s_fts_index_table_fill(
 	}
 
 	user_table = dict_table_open_on_name_no_stats(
-			fts_internal_tbl_name, FALSE, DICT_ERR_IGNORE_NONE);
+		fts_internal_tbl_name, FALSE, FALSE, DICT_ERR_IGNORE_NONE);
 
 	if (!user_table) {
 		DBUG_RETURN(0);
@@ -3450,7 +3451,7 @@ i_s_fts_index_table_fill(
 		}
 	}
 
-	dict_table_close(user_table, FALSE);
+	dict_table_close(user_table, FALSE, FALSE);
 
 	DBUG_RETURN(0);
 }
@@ -3598,7 +3599,7 @@ i_s_fts_config_fill(
 	fields = table->field;
 
 	user_table = dict_table_open_on_name_no_stats(
-			fts_internal_tbl_name, FALSE, DICT_ERR_IGNORE_NONE);
+		fts_internal_tbl_name, FALSE, FALSE, DICT_ERR_IGNORE_NONE);
 
 	if (!user_table) {
 		DBUG_RETURN(0);
@@ -3612,6 +3613,7 @@ i_s_fts_config_fill(
 	if (!ib_vector_is_empty(user_table->fts->indexes)) {
 		index = (dict_index_t*) ib_vector_getp_const(
 				user_table->fts->indexes, 0);
+		DBUG_ASSERT(!dict_index_is_online_ddl(index));
 	}
 
 	while (fts_config_key[i]) {
@@ -3623,10 +3625,10 @@ i_s_fts_config_fill(
 
 		value.f_str = str;
 
-		if (strcmp(fts_config_key[i], FTS_TOTAL_WORD_COUNT) == 0
-		    && index) {
+		if (index
+		    && strcmp(fts_config_key[i], FTS_TOTAL_WORD_COUNT) == 0) {
 			key_name = fts_config_create_index_param_name(
-					fts_config_key[i], index);
+				fts_config_key[i], index);
 			allocated = TRUE;
 		} else {
 			key_name = (char*) fts_config_key[i];
@@ -3653,7 +3655,7 @@ i_s_fts_config_fill(
 
 	trx_free_for_background(trx);
 
-	dict_table_close(user_table, FALSE);
+	dict_table_close(user_table, FALSE, FALSE);
 
 	DBUG_RETURN(0);
 }
@@ -4657,7 +4659,7 @@ i_s_innodb_set_page_type(
 		/* Encountered an unknown page type */
 		page_info->page_type = I_S_PAGE_TYPE_UNKNOWN;
 	} else {
-		/* Make sure we get the righ index into the
+		/* Make sure we get the right index into the
 		i_s_page_type[] array */
 		ut_a(page_type == i_s_page_type[page_type].type_value);
 

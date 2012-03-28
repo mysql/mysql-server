@@ -11,7 +11,7 @@ HANDLER t1 OPEN;
 #
 # connection default
 LOCK TABLE t1 WRITE;
-SET DEBUG_SYNC='mdl_upgrade_shared_lock_to_exclusive SIGNAL waiting';
+SET DEBUG_SYNC='mdl_upgrade_lock SIGNAL waiting';
 TRUNCATE TABLE t1;
 #
 # connection con2
@@ -37,7 +37,7 @@ HANDLER t1 OPEN;
 #
 # connection default
 LOCK TABLE t1 WRITE;
-SET DEBUG_SYNC='mdl_upgrade_shared_lock_to_exclusive SIGNAL waiting';
+SET DEBUG_SYNC='mdl_upgrade_lock SIGNAL waiting';
 TRUNCATE TABLE t1;
 #
 # connection con2

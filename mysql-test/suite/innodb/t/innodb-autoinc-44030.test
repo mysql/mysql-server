@@ -27,8 +27,14 @@ SELECT * FROM t1;
 # to be enabled. Also, see http://bugs.mysql.com/bug.php?id=47621.
 #-- error ER_AUTOINC_READ_FAILED,1467
 INSERT INTO t1 VALUES(null);
+# Before WL#5534, the following statement would copy the table,
+# and effectively set AUTO_INCREMENT to 4, because while copying
+# it would write values 1,2,3 to the column.
+# WL#5534 makes this an in-place ALTER, setting AUTO_INCREMENT=3 for real.
 ALTER TABLE t1 AUTO_INCREMENT = 3;
 SHOW CREATE TABLE t1;
+-- error ER_DUP_ENTRY
+INSERT INTO t1 VALUES(null);
 INSERT INTO t1 VALUES(null);
 SELECT * FROM t1;
 DROP TABLE t1;

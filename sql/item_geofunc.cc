@@ -781,7 +781,7 @@ mem_error:
 int Item_func_spatial_rel::func_touches()
 {
   double x1, x2, y1, y2, ex, ey;
-  double distance, area;
+  double distance= GIS_ZERO;
   int result= 0;
   int cur_func= 0;
 
@@ -852,7 +852,7 @@ int Item_func_spatial_rel::func_touches()
       }
       if (cur_func)
       {
-        area= scan_it.get_h() *
+        double area= scan_it.get_h() *
               ((ti.rb()->x - ti.lb()->x) + (ti.rt()->x - ti.lt()->x));
         if (area > GIS_ZERO)
         {

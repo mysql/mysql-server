@@ -480,7 +480,6 @@ ulint
 rec_offs_any_extern(
 /*================*/
 	const ulint*	offsets);/*!< in: array returned by rec_get_offsets() */
-#if defined UNIV_DEBUG || defined UNIV_BLOB_LIGHT_DEBUG
 /******************************************************//**
 Determine if the offsets are for a record containing null BLOB pointers.
 @return	first field containing a null BLOB pointer, or NULL if none found */
@@ -491,7 +490,6 @@ rec_offs_any_null_extern(
 	const rec_t*	rec,		/*!< in: record */
 	const ulint*	offsets)	/*!< in: rec_get_offsets(rec) */
 	__attribute__((nonnull, warn_unused_result));
-#endif /* UNIV_DEBUG || UNIV_BLOB_LIGHT_DEBUG */
 /******************************************************//**
 Returns nonzero if the extern bit is set in nth field of rec.
 @return	nonzero if externally stored */

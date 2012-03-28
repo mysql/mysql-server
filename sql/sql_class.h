@@ -79,7 +79,6 @@ class Sroutine_hash_entry;
 class User_level_lock;
 class user_var_entry;
 
-enum enum_enable_or_disable { LEAVE_AS_IS, ENABLE, DISABLE };
 enum enum_ha_read_modes { RFIRST, RNEXT, RPREV, RLAST, RKEY, RNEXT_SAME };
 enum enum_duplicates { DUP_ERROR, DUP_REPLACE, DUP_UPDATE };
 enum enum_delay_key_write { DELAY_KEY_WRITE_NONE, DELAY_KEY_WRITE_ON,
@@ -161,7 +160,7 @@ public:
   }
 
   inline char *str() const { return string.str; }
-  inline uint32 length() const { return string.length; }
+  inline size_t length() const { return string.length; }
   const CHARSET_INFO *charset() const { return cs; }
 
   friend LEX_STRING * thd_query_string (MYSQL_THD thd);
@@ -2962,7 +2961,8 @@ public:
   bool       derived_tables_processing;
   my_bool    tablespace_op;	/* This is TRUE in DISCARD/IMPORT TABLESPACE */
 
-  sp_rcontext *spcont;		// SP runtime context
+  /** Current SP-runtime context. */
+  sp_rcontext *sp_runtime_ctx;
   sp_cache   *sp_proc_cache;
   sp_cache   *sp_func_cache;
 
@@ -3170,6 +3170,11 @@ public:
   {
     return variables.sql_mode &
       (MODE_NO_ZERO_IN_DATE | MODE_NO_ZERO_DATE | MODE_INVALID_DATES);
+  }
+  inline bool is_strict_mode() const
+  {
+    return test(variables.sql_mode & (MODE_STRICT_TRANS_TABLES |
+                                      MODE_STRICT_ALL_TABLES));
   }
   inline Time_zone *time_zone()
   {
@@ -3479,7 +3484,15 @@ public:
     {
       if ((err == KILL_CONNECTION) && !shutdown_in_progress)
         err = KILL_QUERY;
-      my_message(err, ER(err), MYF(0));
+      /*
+        KILL is fatal because:
+        - if a condition handler was allowed to trap and ignore a KILL, one
+        could create routines which the DBA could not kill
+        - INSERT/UPDATE IGNORE should fail: if KILL arrives during
+        JOIN::optimize(), statement cannot possibly run as its caller expected
+        => "OK" would be misleading the caller.
+      */
+      my_message(err, ER(err), MYF(ME_FATALERROR));
     }
   }
   /* return TRUE if we will abort query if we make a warning now */
@@ -3657,7 +3670,7 @@ public:
     result= new_db && !db;
 #ifdef HAVE_PSI_THREAD_INTERFACE
     if (result)
-      PSI_CALL(set_thread_db)(new_db, new_db_len);
+      PSI_CALL(set_thread_db)(new_db, static_cast<int>(new_db_len));
 #endif
     return result;
   }
@@ -3678,7 +3691,7 @@ public:
     db= new_db;
     db_length= new_db_len;
 #ifdef HAVE_PSI_THREAD_INTERFACE
-    PSI_CALL(set_thread_db)(new_db, new_db_len);
+    PSI_CALL(set_thread_db)(new_db, static_cast<int>(new_db_len));
 #endif
   }
   /*

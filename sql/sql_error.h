@@ -573,7 +573,7 @@ public:
  
   ~ErrConvString() { };
   char *ptr() { return err_buffer; }
-  uint length() const { return buf_length; }
+  size_t length() const { return buf_length; }
 };
 
 ///////////////////////////////////////////////////////////////////////////

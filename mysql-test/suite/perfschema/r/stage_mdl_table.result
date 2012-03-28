@@ -34,4 +34,7 @@ user2	stage/sql/checking permissions	STATEMENT
 user2	stage/sql/checking permissions	STATEMENT
 user2	stage/sql/init	STATEMENT
 user2	stage/sql/Opening tables	STATEMENT
+user2	stage/sql/setup	STATEMENT
+user2	stage/sql/creating table	STATEMENT
+user2	stage/sql/After create	STATEMENT
 commit;

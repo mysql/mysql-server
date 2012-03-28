@@ -11,6 +11,8 @@ INSERT INTO articles (title,body) VALUES
 ('MySQL vs. YourSQL','In the following database comparison ...'),
 ('MySQL Security','When configured properly, MySQL ...');
 CREATE FULLTEXT INDEX idx on articles (title, body);
+Warnings:
+Warning	124	InnoDB rebuilding table to add column FTS_DOC_ID
 SELECT * FROM articles WHERE MATCH (title, body)
 AGAINST ('Tutorial' IN NATURAL LANGUAGE MODE);
 id	title	body
@@ -98,6 +100,8 @@ INSERT INTO articles (title,body) VALUES
 ('MySQL vs. YourSQL','In the following database comparison ...'),
 ('MySQL Security','When configured properly, MySQL ...');
 CREATE FULLTEXT INDEX idx on articles (title);
+Warnings:
+Warning	124	InnoDB rebuilding table to add column FTS_DOC_ID
 CREATE FULLTEXT INDEX idx2 on articles (body);
 SELECT * FROM articles WHERE MATCH (title, body)
 AGAINST ('Tutorial' IN NATURAL LANGUAGE MODE);
@@ -154,7 +158,7 @@ UPDATE articles set body = 'bbbb', FTS_DOC_ID=11  WHERE MATCH(body) AGAINST ('da
 drop table articles;
 create table `articles`(`a` varchar(2) not null)engine=innodb;
 create fulltext index `FTS_DOC_ID_INDEX` on `articles`(`a`);
-ERROR 42000: Table 'articles' uses an extension that doesn't exist in this MySQL version
+ERROR HY000: Index 'FTS_DOC_ID_INDEX' is of wrong type for an InnoDB FULLTEXT index
 create unique index `a` on `articles`(`a`);
 drop table articles;
 CREATE TABLE wp(
@@ -165,7 +169,7 @@ INSERT INTO wp (FTS_DOC_ID, title, text) VALUES
 (1, 'MySQL Tutorial','DBMS stands for DataBase ...'),
 (2, 'How To Use MySQL Well','After you went through a ...');
 CREATE FULLTEXT INDEX idx ON wp(title, text);
-ERROR 42000: Table 'wp' uses an extension that doesn't exist in this MySQL version
+ERROR HY000: Column 'FTS_DOC_ID' is of wrong type for an InnoDB FULLTEXT index
 DROP TABLE wp;
 CREATE TABLE wp(
 FTS_DOC_ID bigint unsigned PRIMARY KEY,

@@ -174,6 +174,7 @@ void table_os_global_by_type::make_row(PFS_table_share *share)
 {
   pfs_lock lock;
   PFS_single_stat cumulated_stat;
+  uint safe_key_count;
 
   m_row_exists= false;
 
@@ -184,7 +185,11 @@ void table_os_global_by_type::make_row(PFS_table_share *share)
   m_row.m_schema_name_length= share->m_schema_name_length;
   memcpy(m_row.m_object_name, share->m_table_name, share->m_table_name_length);
   m_row.m_object_name_length= share->m_table_name_length;
-  share->m_table_stat.sum(& cumulated_stat);
+
+  /* This is a dirty read, some thread can write data while we are reading it */
+  safe_key_count= sanitize_index_count(share->m_key_count);
+
+  share->m_table_stat.sum(& cumulated_stat, safe_key_count);
 
   if (! share->m_lock.end_optimistic_lock(&lock))
     return;
@@ -204,7 +209,7 @@ void table_os_global_by_type::make_row(PFS_table_share *share)
           If the opened table handle is for this table share,
           aggregate the table handle statistics.
         */
-        table->m_table_stat.sum(& cumulated_stat);
+        table->m_table_stat.sum(& cumulated_stat, safe_key_count);
       }
     }
   }

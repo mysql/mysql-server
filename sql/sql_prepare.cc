@@ -3059,7 +3059,7 @@ Execute_sql_statement::execute_server_code(THD *thd)
   thd->m_statement_psi= parent_locker;
 
   /* report error issued during command execution */
-  if (error == 0 && thd->spcont == NULL)
+  if (error == 0 && thd->sp_runtime_ctx == NULL)
     general_log_write(thd, COM_STMT_EXECUTE,
                       thd->query(), thd->query_length());
 
@@ -3366,7 +3366,7 @@ bool Prepared_statement::prepare(const char *packet, uint packet_len)
       sub-statements inside stored procedures are not logged into
       the general log.
     */
-    if (thd->spcont == NULL)
+    if (thd->sp_runtime_ctx == NULL)
       general_log_write(thd, COM_STMT_PREPARE, query(), query_length());
   }
   DBUG_RETURN(error);
@@ -3894,7 +3894,7 @@ bool Prepared_statement::execute(String *expanded_query, bool open_cursor)
     sub-statements inside stored procedures are not logged into
     the general log.
   */
-  if (error == 0 && thd->spcont == NULL)
+  if (error == 0 && thd->sp_runtime_ctx == NULL)
     general_log_write(thd, COM_STMT_EXECUTE, thd->query(), thd->query_length());
 
 error:

@@ -151,7 +151,8 @@ JOIN::optimize()
     Run optimize phase for all derived tables/views used in this SELECT,
     including those in semi-joins.
   */
-  select_lex->handle_derived(thd->lex, &mysql_derived_optimize);
+  if (select_lex->handle_derived(thd->lex, &mysql_derived_optimize))
+    DBUG_RETURN(1);
 
   /* dump_TABLE_LIST_graph(select_lex, select_lex->leaf_tables); */
 
@@ -768,7 +769,8 @@ JOIN::optimize()
   }
 
   /* Cache constant expressions in WHERE, HAVING, ON clauses. */
-  cache_const_exprs();
+  if (cache_const_exprs())
+    DBUG_RETURN(1);
 
   /*
     is this simple IN subquery?
@@ -3410,8 +3412,12 @@ const_table_extraction_done:
   if (optimize_semijoin_nests_for_materialization(join))
     DBUG_RETURN(true);
 
-  if (Optimize_table_order(thd, join, NULL).choose_table_order() || thd->killed)
-      DBUG_RETURN(true);
+  if (Optimize_table_order(thd, join, NULL).choose_table_order())
+    DBUG_RETURN(true);
+
+  DBUG_EXECUTE_IF("bug13820776_1", thd->killed= THD::KILL_QUERY;);
+  if (thd->killed)
+    DBUG_RETURN(true);
 
   /* Generate an execution plan from the found optimal join order. */
   if (join->get_best_combination())
@@ -6407,6 +6413,12 @@ static bool convert_subquery_to_semijoin(JOIN *parent_join,
   /* Unlink the child select_lex: */
   subq_lex->master_unit()->exclude_level();
   /*
+    Update the resolver context - needed for Item_field objects that have been
+    replaced in the item tree for this execution, but are still needed for
+    subsequent executions.
+  */
+  subq_lex->context.select_lex= parent_lex;
+  /*
     Walk through sj nest's WHERE and ON expressions and call
     item->fix_table_changes() for all items.
   */
@@ -6823,36 +6835,48 @@ void JOIN::drop_unused_derived_keys()
 
 /**
   Cache constant expressions in WHERE, HAVING, ON conditions.
+
+  @return False if success, True if error
+
+  @note This function is run after conditions have been pushed down to
+        individual tables, so transformation is applied to JOIN_TAB::condition
+        and not to the WHERE condition.
 */
 
-void JOIN::cache_const_exprs()
+bool JOIN::cache_const_exprs()
 {
-  bool cache_flag= FALSE;
-  bool *analyzer_arg= &cache_flag;
-
   /* No need in cache if all tables are constant. */
   if (const_tables == tables)
-    return;
+    return false;
 
-  if (conds)
-    conds->compile(&Item::cache_const_expr_analyzer, (uchar **)&analyzer_arg,
-                  &Item::cache_const_expr_transformer, (uchar *)&cache_flag);
-  cache_flag= FALSE;
-  if (having)
-    having->compile(&Item::cache_const_expr_analyzer, (uchar **)&analyzer_arg,
-                    &Item::cache_const_expr_transformer, (uchar *)&cache_flag);
-
-  for (JOIN_TAB *tab= join_tab + const_tables; tab < join_tab + tables ; tab++)
+  for (uint i= const_tables; i < tables; i++)
   {
-    if (*tab->on_expr_ref)
-    {
-      cache_flag= FALSE;
-      (*tab->on_expr_ref)->compile(&Item::cache_const_expr_analyzer,
-                                 (uchar **)&analyzer_arg,
-                                 &Item::cache_const_expr_transformer,
-                                 (uchar *)&cache_flag);
-    }
+    Item *condition= join_tab[i].condition();
+    if (condition == NULL)
+      continue;
+    Item *cache_item= NULL;
+    Item **analyzer_arg= &cache_item;
+    condition=
+      condition->compile(&Item::cache_const_expr_analyzer,
+                         (uchar **)&analyzer_arg,
+                         &Item::cache_const_expr_transformer,
+                         (uchar *)&cache_item);
+    if (condition == NULL)
+      return true;
+    if (condition != join_tab[i].condition())
+      join_tab[i].set_condition(condition, __LINE__);
   }
+  if (having)
+  {
+    Item *cache_item= NULL;
+    Item **analyzer_arg= &cache_item;
+    having=
+      having->compile(&Item::cache_const_expr_analyzer, (uchar **)&analyzer_arg,
+                      &Item::cache_const_expr_transformer,(uchar *)&cache_item);
+    if (having == NULL)
+      return true;
+  }
+  return false;
 }
 
 

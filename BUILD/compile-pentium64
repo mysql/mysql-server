@@ -1,6 +1,6 @@
 #! /bin/sh
 
-# Copyright (C) 2006, 2007 MySQL AB
+# Copyright (c) 2002, 2012, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or
 # modify it under the terms of the GNU Library General Public
@@ -18,11 +18,5 @@
 # MA 02111-1307, USA
 
 path=`dirname $0`
-. "$path/SETUP.sh"
-
-extra_flags="$pentium64_cflags $fast_cflags"
-extra_configs="$pentium_configs $static_link"
-CC="$CC --pipe"
-strip=yes
-
-. "$path/FINISH.sh"
+cmake $path/.. -DCMAKE_CXX_FLAGS=-m64 -DCMAKE_C_FLAGS=-m64 
+make

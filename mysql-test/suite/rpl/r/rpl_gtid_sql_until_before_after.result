@@ -1,0 +1,112 @@
+include/master-slave.inc
+Warnings:
+Note	1756	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1757	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
+[connection master]
+include/rpl_set_gtid_mode.inc
+CREATE TABLE t1(c1 INTEGER) ENGINE= Innodb;
+[connection slave]
+include/stop_slave.inc
+[connection master]
+INSERT INTO t1 VALUES(2);
+INSERT INTO t1 VALUES(3);
+INSERT INTO t1 VALUES(4);
+INSERT INTO t1 VALUES(5);
+INSERT INTO t1 VALUES(6);
+INSERT INTO t1 VALUES(7);
+INSERT INTO t1 VALUES(8);
+INSERT INTO t1 VALUES(9);
+INSERT INTO t1 VALUES(10);
+[connection slave]
+SQL thread must stop *before* INSERT 4
+START SLAVE UNTIL SQL_BEFORE_GTIDS= "MASTER_UUID:4-5";
+include/wait_for_slave_sql_to_stop.inc
+SELECT * FROM t1;
+c1
+2
+3
+SQL thread must stop *after* INSERT 5
+START SLAVE UNTIL SQL_AFTER_GTIDS= "MASTER_UUID:4-5";
+include/wait_for_slave_sql_to_stop.inc
+SELECT * FROM t1;
+c1
+2
+3
+4
+5
+SQL thread must stop *before* INSERT 6
+START SLAVE UNTIL SQL_BEFORE_GTIDS= "MASTER_UUID:2-7";
+include/wait_for_slave_sql_to_stop.inc
+SELECT * FROM t1;
+c1
+2
+3
+4
+5
+SQL thread must stop *after* INSERT 5
+1-5 are already applied so it will stop immediately
+START SLAVE UNTIL SQL_AFTER_GTIDS= "MASTER_UUID:1-5";
+include/wait_for_slave_sql_to_stop.inc
+SELECT * FROM t1;
+c1
+2
+3
+4
+5
+SQL thread must stop *before* INSERT 10
+START SLAVE UNTIL SQL_BEFORE_GTIDS= "MASTER_UUID:10";
+include/wait_for_slave_sql_to_stop.inc
+SELECT * FROM t1;
+c1
+2
+3
+4
+5
+6
+7
+8
+9
+SQL thread must stop *before* INSERT 3-6
+3-6 is already applied so it will stop immediately
+START SLAVE UNTIL SQL_BEFORE_GTIDS= "MASTER_UUID:3-6";
+include/wait_for_slave_sql_to_stop.inc
+SELECT * FROM t1;
+c1
+2
+3
+4
+5
+6
+7
+8
+9
+SQL thread must stop *before* INSERT 9
+9 is already applied so it will stop immediately
+START SLAVE UNTIL SQL_BEFORE_GTIDS= "MASTER_UUID:9";
+include/wait_for_slave_sql_to_stop.inc
+SELECT * FROM t1;
+c1
+2
+3
+4
+5
+6
+7
+8
+9
+Sync slave with master
+include/start_slave_sql.inc
+SELECT SQL_THREAD_WAIT_AFTER_GTIDS('MASTER_UUID:10', 300);
+SELECT * FROM t1;
+c1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+DROP TABLE t1;
+include/rpl_end.inc
