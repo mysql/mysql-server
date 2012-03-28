@@ -1,6 +1,10 @@
 --source include/have_ndb.inc
 --source include/have_log_bin.inc
 
+--disable_query_log
+reset master;
+--enable_query_log
+
 --echo -------------------------------------------------
 --echo First run using ndb_binlog_index table containing
 --echo  epoch end position information
