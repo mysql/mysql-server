@@ -1033,13 +1033,6 @@ NdbQueryBuilder::scanIndex(const NdbDictionary::Index* index,
     returnErrIf(!m_impl.m_operations[0]->isScanOperation(),
                 QRY_WRONG_OPERATION_TYPE);
 
-    // If the root is a sorted scan, we should not add another scan.
-    const NdbQueryOptions::ScanOrdering rootOrder =
-      m_impl.m_operations[0]->getOrdering();
-    returnErrIf(rootOrder == NdbQueryOptions::ScanOrdering_ascending ||
-                rootOrder == NdbQueryOptions::ScanOrdering_descending,
-                QRY_MULTIPLE_SCAN_SORTED);
-
     if (options != NULL)
     {
       // A child scan should not be sorted.

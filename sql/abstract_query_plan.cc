@@ -63,6 +63,10 @@ namespace AQP
     return m_join_tabs + join_tab_no;
   }
 
+  /**
+   * Check if either a GROUP BY or ORDER BY could be 
+   * executed without sorting by reading an ordered index.
+   */ 
   void
   Join_plan::find_skippabable_group_or_order() const
   {
@@ -544,28 +548,6 @@ namespace AQP
      m_other_access_reason(NULL),
      m_index_no(-1)
   {}
-
-  /**
-    @return True iff ordered index access is *required* from this operation. 
-  */
-  bool Table_access::is_fixed_ordered_index() const
-  {
-    const JOIN_TAB* const join_tab= get_join_tab();
-
-    /* For the QUICK_SELECT_I classes we can disable ordered index usage by
-     * setting 'QUICK_SELECT_I::sorted = false'.
-     * However, QUICK_SELECT_I::QS_TYPE_RANGE_DESC is special as its 
-     * internal implementation requires its 'multi-ranges' to be retrieved
-     * in (descending) sorted order from the underlying table.
-     */
-    if (join_tab->select != NULL &&
-        join_tab->select->quick != NULL)
-    {
-      QUICK_SELECT_I *quick= join_tab->select->quick;
-      return (quick->get_type() == QUICK_SELECT_I::QS_TYPE_RANGE_DESC);
-    }
-    return false;
-  }
 
   /**
     Check if the results from this operation will joined with results 
