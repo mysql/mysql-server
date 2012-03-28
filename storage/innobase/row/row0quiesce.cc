@@ -334,8 +334,20 @@ row_quiesce_write_header(
 		return(DB_IO_ERROR);
 	}
 
-	byte			row[sizeof(ib_uint32_t) * 3];
-	byte*			ptr = row;
+	byte		row[sizeof(ib_uint32_t) * 3];
+
+	/* Write the next autoinc value. */
+	mach_write_to_8(row, table->autoinc);
+
+	if (fwrite(row, 1,  sizeof(ib_uint64_t), file) != sizeof(ib_uint64_t)) {
+		ib_pushf(thd, IB_LOG_LEVEL_ERROR, ER_IO_WRITE_ERROR,
+			"I/O error (%lu), while writing table autoinc value",
+			(ulint) errno);
+
+		return(DB_IO_ERROR);
+	}
+
+	byte*		ptr = row;
 
 	/* Write the system page size. */
 	mach_write_to_4(ptr, UNIV_PAGE_SIZE);

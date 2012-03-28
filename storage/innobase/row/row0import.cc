@@ -77,6 +77,9 @@ struct row_import_t {
 						tablespace was exported */
 	byte*		table_name;		/*!< Exporting instance table
 						name */
+
+	ib_uint64_t	autoinc;		/*!< Next autoinc value */
+
 	ulint		page_size;		/*!< Tablespace page size */
 
 	ulint		flags;			/*!< Table flags */
@@ -1064,6 +1067,8 @@ row_import_read_indexes(
 			 "Number of indexes in meta-data file is too high: %lu",
 			 (ulong) cfg->n_indexes);
 
+		cfg->n_indexes = 0;
+
 		return(DB_CORRUPTION);
 	}
 
@@ -1249,6 +1254,17 @@ row_import_read_v1(
 
 	byte		row[sizeof(ib_uint32_t) * 3];
 
+	/* Read the autoinc value. */
+	if (fread(row, 1, sizeof(ib_uint64_t), file) != sizeof(ib_uint64_t)) {
+		ib_pushf(thd, IB_LOG_LEVEL_ERROR, ER_IO_READ_ERROR,
+			 "I/O error (%lu) while reading autoinc value.",
+			 (ulint) errno);
+
+		return(DB_IO_ERROR);
+	}
+
+	cfg->autoinc = mach_read_from_8(row);
+
 	/* Read the tablespace page size. */
 	if (fread(row, 1, sizeof(row), file) != sizeof(row)) {
 		ib_pushf(thd, IB_LOG_LEVEL_ERROR, ER_IO_READ_ERROR,
@@ -1280,10 +1296,17 @@ row_import_read_v1(
 	cfg->n_cols = mach_read_from_4(ptr);
 
 	if (!dict_tf_valid(cfg->flags)) {
+
 		return(DB_CORRUPTION);
-	} if ((err = row_import_read_columns(file, thd, cfg)) != DB_SUCCESS) {
+
+	} else if ((err = row_import_read_columns(file, thd, cfg))
+		   != DB_SUCCESS) {
+
 		return(err);
-	} if ((err = row_import_read_indexes(file, thd, cfg)) != DB_SUCCESS) {
+
+	} else  if ((err = row_import_read_indexes(file, thd, cfg))
+		   != DB_SUCCESS) {
+
 		return(err);
 	}
 
@@ -1967,6 +1990,7 @@ row_import_for_mysql(
 {
 	db_err		err;
 	trx_t*		trx;
+	ib_uint64_t	autoinc = 0;
 	lsn_t		current_lsn;
 	ulint		n_rows_in_table;
 	char		table_name[MAX_FULL_NAME_LEN + 1];
@@ -2040,6 +2064,8 @@ row_import_for_mysql(
 
 		if (err == DB_SUCCESS) {
 			err = row_import_index_set_root(trx->mysql_thd, cfg);
+
+			autoinc = cfg->autoinc;
 		}
 
 		if (cfg != 0) {
@@ -2206,6 +2232,16 @@ row_import_for_mysql(
 
 	table->ibd_file_missing = false;
 	table->flags2 &= ~DICT_TF2_DISCARDED;
+
+	if (autoinc != 0) {
+
+		ib_logf(IB_LOG_LEVEL_INFO, "%s autoinc value set to " IB_ID_FMT,
+			table->name, autoinc);
+
+		dict_table_autoinc_lock(table);
+		dict_table_autoinc_initialize(table, autoinc);
+		dict_table_autoinc_unlock(table);
+	}
 
 	mutex_exit(&dict_sys->mutex);
 
