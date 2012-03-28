@@ -1833,7 +1833,7 @@ public:
   virtual bool low_byte_first() const { return 1; }
   virtual uint checksum() const { return 0; }
   virtual bool is_crashed() const  { return 0; }
-  virtual bool auto_repair() const { return 0; }
+  virtual bool auto_repair(int error) const { return 0; }
 
   void update_global_table_stats();
   void update_global_index_stats();
