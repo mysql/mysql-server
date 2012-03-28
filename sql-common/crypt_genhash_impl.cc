@@ -1,19 +1,33 @@
 #ifdef HAVE_OPENSSL
+/* Pre VS2010 compilers doesn't support stdint.h */
+#ifdef HAVE_STDINT_H
+#include <stdint.h>
+#else
+#ifndef uint32_t
+typedef unsigned long uint32_t;
+#endif
+#ifndef uint8_t
+typedef unsigned char uint8_t;
+#endif
+#endif // !HAVE_STDINT_H
 #include <stdlib.h>
 #include <stdio.h>
-#include <stdint.h>
 #include <errno.h>
 #include <string.h>
 #include <time.h>
 #include <limits.h>
+
 #ifdef HAVE_YASSL
 #include <sha.hpp>
-#include <openssl/ssl.h>
+/* #include <openssl/ssl.h>*/
 #else
-#include <sys/types.h>
+/* #include <sys/types.h> */
 #include <openssl/sha.h>
 #include <openssl/rand.h>
 #endif
+
+
+
 
 #include "crypt_genhash_impl.h"
 
