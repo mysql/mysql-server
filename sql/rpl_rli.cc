@@ -77,6 +77,7 @@ Relay_log_info::Relay_log_info(bool is_slave_recovery
    group_master_log_pos(0),
    gtid_set(&global_sid_map, &global_sid_lock),
    log_space_total(0), ignore_log_space_limit(0),
+   sql_force_rotate_relay(false),
    last_master_timestamp(0), slave_skip_counter(0),
    abort_pos_wait(0), until_condition(UNTIL_NONE),
    until_log_pos(0),
@@ -505,7 +506,9 @@ err:
     silently discard it
   */
   if (!relay_log_purge)
-    log_space_limit= 0;
+  {
+    log_space_limit= 0; // todo: consider to throw a warning at least
+  }
   mysql_cond_broadcast(&data_cond);
 
   mysql_mutex_unlock(log_lock);
