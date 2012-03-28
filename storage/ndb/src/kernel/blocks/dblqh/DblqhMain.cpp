@@ -10341,6 +10341,14 @@ void Dblqh::execSCAN_FRAGREQ(Signal* signal)
     goto error_handler_early_1;
   }
   
+  if (table_version_major(scanFragReq->schemaVersion) !=
+      table_version_major(tabptr.p->schemaVersion))
+  {
+    errorCode = ZINVALID_SCHEMA_VERSION;
+    senderData = scanFragReq->senderData;
+    goto error_handler_early;
+  }
+
   if (cfirstfreeTcConrec != RNIL && !ERROR_INSERTED_CLEAR(5055)) {
     seizeTcrec();
     tcConnectptr.p->clientConnectrec = scanFragReq->senderData;
