@@ -682,6 +682,9 @@ env_update_multiple(DB_ENV *env, DB *src_db, DB_TXN *txn,
             }
             toku_dbt_cmp cmpfun = toku_db_get_compare_fun(db);
             BOOL key_eq = cmpfun(db, &curr_old_key, &curr_new_key) == 0;
+            BOOL key_bytes_eq = (curr_old_key.size == curr_new_key.size && 
+                                 (memcmp(curr_old_key.data, curr_new_key.data, curr_old_key.size) == 0)
+                                 );
             if (!key_eq) {
                 //Check overwrite constraints only in the case where 
                 // the keys are not equal.
@@ -711,7 +714,7 @@ env_update_multiple(DB_ENV *env, DB *src_db, DB_TXN *txn,
             // we take a shortcut and avoid generating the old val
             // we assume that any new vals with size > 0 are different than the old val
             // if (!key_eq || !(dbt_cmp(&vals[which_db], &vals[which_db + num_dbs]) == 0)) {
-            if (!key_eq || curr_new_val.size > 0) {
+            if (!key_bytes_eq || curr_new_val.size > 0) {
                 r = db_put_check_size_constraints(db, &curr_new_key, &curr_new_val);
                 if (r != 0) goto cleanup;
 
