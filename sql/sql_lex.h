@@ -213,6 +213,7 @@ typedef struct st_lex_master_info
   ulonglong pos;
   ulong server_id, retry_count;
   char *gtid;
+  enum {UNTIL_SQL_BEFORE_GTIDS= 0, UNTIL_SQL_AFTER_GTIDS} gtid_until_condition;
 
   /*
     Enum is used for making it possible to detect if the user
