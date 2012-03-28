@@ -77,6 +77,7 @@ Relay_log_info::Relay_log_info(bool is_slave_recovery
    group_master_log_pos(0),
    gtid_set(&global_sid_map, &global_sid_lock),
    log_space_total(0), ignore_log_space_limit(0),
+   sql_force_rotate_relay(false),
    last_master_timestamp(0), slave_skip_counter(0),
    abort_pos_wait(0), until_condition(UNTIL_NONE),
    until_log_pos(0),
@@ -197,8 +198,10 @@ void Relay_log_info::reset_notified_relay_log_change()
                  checkpoint change.
    @param new_ts new seconds_behind_master timestamp value unless zero.
                  Zero could be due to FD event.
+   @param locked true if caller has locked @c data_lock
 */
-void Relay_log_info::reset_notified_checkpoint(ulong shift, time_t new_ts= 0)
+void Relay_log_info::reset_notified_checkpoint(ulong shift, time_t new_ts,
+                                               bool locked)
 {
   /*
     If this is not a parallel execution we return immediately.
@@ -238,9 +241,11 @@ void Relay_log_info::reset_notified_checkpoint(ulong shift, time_t new_ts= 0)
 
   if (new_ts)
   {
-    mysql_mutex_lock(&data_lock);
+    if (!locked)
+      mysql_mutex_lock(&data_lock);
     last_master_timestamp= new_ts;
-    mysql_mutex_unlock(&data_lock);
+    if (!locked)
+      mysql_mutex_unlock(&data_lock);
   }
 }
 
@@ -505,7 +510,9 @@ err:
     silently discard it
   */
   if (!relay_log_purge)
-    log_space_limit= 0;
+  {
+    log_space_limit= 0; // todo: consider to throw a warning at least
+  }
   mysql_cond_broadcast(&data_cond);
 
   mysql_mutex_unlock(log_lock);
@@ -1745,7 +1752,8 @@ a file name for --relay-log-index option.", opt_relaylog_index_name);
 
 err:
   inited= 0;
-  sql_print_error("%s.", msg);
+  if (msg)
+    sql_print_error("%s.", msg);
   relay_log.close(LOG_CLOSE_INDEX | LOG_CLOSE_STOP_EVENT);
   DBUG_RETURN(error);
 }

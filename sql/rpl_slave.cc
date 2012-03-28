@@ -399,6 +399,15 @@ int init_recovery(Master_info* mi, const char** errmsg)
       We need to improve this. /Alfranio.
     */
     error= mts_recovery_groups(rli, &rli->recovery_groups);
+    if (rli->mts_recovery_group_cnt)
+    {
+      error= 1;
+      sql_print_error("--relay-log-recovery cannot be executed when the slave "
+                        "was stopped with an error or killed in MTS mode; "
+                        "consider using RESET SLAVE or restart the server "
+                        "with --relay-log-recovery = 0 followed by "
+                        "START SLAVE");
+    }
   }
 
   group_master_log_name= const_cast<char *>(rli->get_group_master_log_name());
@@ -4737,7 +4746,7 @@ bool mts_checkpoint_routine(Relay_log_info *rli, ulonglong period,
     cnt is zero. This value means that the checkpoint information
     will be completely reset.
   */
-  rli->reset_notified_checkpoint(cnt, rli->gaq->lwm.ts);
+  rli->reset_notified_checkpoint(cnt, rli->gaq->lwm.ts, locked);
 
   /* end-of "Coordinator::"commit_positions" */
 
@@ -7673,7 +7682,8 @@ err:
 }
 
 /**
-  Execute a CHANGE MASTER statement.
+  Execute a CHANGE MASTER statement. MTS workers info tables data are removed
+  in the successful branch (i.e. there are no gaps in the execution history).
 
   @param thd Pointer to THD object for the client thread executing the
   statement.
@@ -7690,11 +7700,13 @@ bool change_master(THD* thd, Master_info* mi)
   const char* errmsg= 0;
   bool need_relay_log_purge= 1;
   char *var_master_log_name= NULL, *var_group_master_log_name= NULL;
-  bool ret= FALSE;
+  bool ret= false;
   char saved_host[HOSTNAME_LENGTH + 1], saved_bind_addr[HOSTNAME_LENGTH + 1];
   uint saved_port= 0;
   char saved_log_name[FN_REFLEN];
   my_off_t saved_log_pos= 0;
+  my_bool save_relay_log_purge= relay_log_purge;
+  bool mts_remove_workers= false;
 
   DBUG_ENTER("change_master");
 
@@ -7729,7 +7741,28 @@ bool change_master(THD* thd, Master_info* mi)
     ret= true;
     goto err;
   }
+  if (mi->rli->mts_recovery_group_cnt)
+  {
+    /*
+      Change-Master can't be done if there is a mts group gap.
+      That requires mts-recovery which START SLAVE provides.
+    */
+    DBUG_ASSERT(mi->rli->recovery_parallel_workers);
 
+    my_message(ER_MTS_CHANGE_MASTER_CANT_RUN_WITH_GAPS,
+               ER(ER_MTS_CHANGE_MASTER_CANT_RUN_WITH_GAPS), MYF(0));
+    ret= true;
+    goto err;
+  }
+  else
+  {
+    /*
+      Lack of mts group gaps makes Workers info stale
+      regardless of need_relay_log_purge computation.
+    */
+    if (mi->rli->recovery_parallel_workers)
+      mts_remove_workers= true;
+  }
   /*
     We cannot specify auto position and set either the coordinates
     on master or slave. If we try to do so, an error message is
@@ -7982,8 +8015,7 @@ bool change_master(THD* thd, Master_info* mi)
     THD_STAGE_INFO(thd, stage_purging_old_relay_logs);
     if (mi->rli->purge_relay_logs(thd,
                                   0 /* not only reset, but also reinit */,
-                                  &errmsg) ||
-        remove_workers(mi->rli))
+                                  &errmsg))
     {
       my_error(ER_RELAY_LOG_FAIL, MYF(0), errmsg);
       ret= TRUE;
@@ -8005,6 +8037,7 @@ bool change_master(THD* thd, Master_info* mi)
       goto err;
     }
   }
+  relay_log_purge= save_relay_log_purge;
 
   /*
     Coordinates in rli were spoilt by the 'if (need_relay_log_purge)' block,
@@ -8016,10 +8049,12 @@ bool change_master(THD* thd, Master_info* mi)
     ''/0: we have lost all copies of the original good coordinates.
     That's why we always save good coords in rli.
   */
-  mi->rli->set_group_master_log_pos(mi->get_master_log_pos());
-  DBUG_PRINT("info", ("master_log_pos: %lu", (ulong) mi->get_master_log_pos()));
-  mi->rli->set_group_master_log_name(mi->get_master_log_name());
-
+  if (need_relay_log_purge)
+  {
+    mi->rli->set_group_master_log_pos(mi->get_master_log_pos());
+    DBUG_PRINT("info", ("master_log_pos: %lu", (ulong) mi->get_master_log_pos()));
+    mi->rli->set_group_master_log_name(mi->get_master_log_name());
+  }
   var_group_master_log_name=  const_cast<char *>(mi->rli->get_group_master_log_name());
   if (!var_group_master_log_name[0]) // uninitialized case
     mi->rli->set_group_master_log_pos(0);
@@ -8057,7 +8092,11 @@ bool change_master(THD* thd, Master_info* mi)
 err:
   unlock_slave_threads(mi);
   if (ret == FALSE)
+  {
+    if (mts_remove_workers)
+      remove_workers(mi->rli);
     my_ok(thd);
+  }
   DBUG_RETURN(ret);
 }
 /**

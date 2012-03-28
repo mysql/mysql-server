@@ -621,7 +621,7 @@ public:
      Coordinator notifies Workers about this event. Coordinator and Workers
      maintain a bitmap of executed group that is reset with a new checkpoint. 
   */
-  void reset_notified_checkpoint(ulong, time_t);
+  void reset_notified_checkpoint(ulong, time_t, bool);
 
   /*
    * End of MTS section ******************************************************/

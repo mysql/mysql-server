@@ -6741,6 +6741,9 @@ ER_UNKNOWN_ALTER_ALGORITHM
 ER_UNKNOWN_ALTER_LOCK
   eng "Unknown LOCK type '%s'"
 
+ER_MTS_CHANGE_MASTER_CANT_RUN_WITH_GAPS
+  eng "CHANGE MASTER cannot be executed when the slave was stopped with an error or killed in MTS mode. Consider using RESET SLAVE or START SLAVE UNTIL."
+
 ER_TABLE_SCHEMA_MISMATCH
   eng "Table schema doesn't match."
 
@@ -6764,6 +6767,7 @@ ER_TABLESPACE_DISCARDED
 
 ER_INTERNAL_ERROR
   eng "Internal error"
+
 #
 #  End of 5.6 error messages.
 #
