@@ -133,8 +133,6 @@ BEGIN
 SELECT "PROCEDURE testp_bug11763507";
 END
 $
-CREATE EVENT teste_bug11763507 ON SCHEDULE AT CURRENT_TIMESTAMP + INTERVAL 1 HOUR 
-DO SELECT 1 $
 SELECT testf_bug11763507();
 testf_bug11763507()
 0
@@ -149,6 +147,7 @@ Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client
 test	testf_bug11763507	FUNCTION	root@localhost	#	#	DEFINER		latin1	latin1_swedish_ci	latin1_swedish_ci
 SHOW FUNCTION STATUS LIKE  'TESTF_bug11763507';
 Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	testf_bug11763507	FUNCTION	root@localhost	#	#	DEFINER		latin1	latin1_swedish_ci	latin1_swedish_ci
 SHOW FUNCTION STATUS WHERE NAME='TESTF_bug11763507';
 Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
 test	testf_bug11763507	FUNCTION	root@localhost	#	#	DEFINER		latin1	latin1_swedish_ci	latin1_swedish_ci
@@ -164,12 +163,6 @@ testf_bug11763507		CREATE DEFINER=`root`@`localhost` FUNCTION `testf_bug11763507
 BEGIN
 RETURN 0;
 END	latin1	latin1_swedish_ci	latin1_swedish_ci
-SHOW FUNCTION CODE testf_bug11763507;
-Pos	Instruction
-0	freturn 3 0
-SHOW FUNCTION CODE TESTF_bug11763507;
-Pos	Instruction
-0	freturn 3 0
 CALL testp_bug11763507();
 PROCEDURE testp_bug11763507
 PROCEDURE testp_bug11763507
@@ -184,6 +177,7 @@ Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client
 test	testp_bug11763507	PROCEDURE	root@localhost	#	#	DEFINER		latin1	latin1_swedish_ci	latin1_swedish_ci
 SHOW PROCEDURE STATUS LIKE  'TESTP_bug11763507';
 Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	testp_bug11763507	PROCEDURE	root@localhost	#	#	DEFINER		latin1	latin1_swedish_ci	latin1_swedish_ci
 SHOW PROCEDURE STATUS WHERE NAME='TESTP_bug11763507';
 Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
 test	testp_bug11763507	PROCEDURE	root@localhost	#	#	DEFINER		latin1	latin1_swedish_ci	latin1_swedish_ci
@@ -199,23 +193,6 @@ testp_bug11763507		CREATE DEFINER=`root`@`localhost` PROCEDURE `testp_bug1176350
 BEGIN
 SELECT "PROCEDURE testp_bug11763507";
 END	latin1	latin1_swedish_ci	latin1_swedish_ci
-SHOW PROCEDURE CODE testp_bug11763507;
-Pos	Instruction
-0	stmt 0 "SELECT "PROCEDURE testp_bug11763507""
-SHOW PROCEDURE CODE TESTP_bug11763507;
-Pos	Instruction
-0	stmt 0 "SELECT "PROCEDURE testp_bug11763507""
-SHOW EVENTS LIKE 'teste_bug11763507';
-Db	Name	Definer	Time zone	Type	Execute at	Interval value	Interval field	Starts	Ends	Status	Originator	character_set_client	collation_connection	Database Collation
-test	teste_bug11763507	root@localhost	SYSTEM	ONE TIME	#	#	#	#	NULL	ENABLED	1	latin1	latin1_swedish_ci	latin1_swedish_ci
-SHOW EVENTS LIKE 'TESTE_bug11763507';
-Db	Name	Definer	Time zone	Type	Execute at	Interval value	Interval field	Starts	Ends	Status	Originator	character_set_client	collation_connection	Database Collation
-SHOW CREATE EVENT teste_bug11763507;
-Event	sql_mode	time_zone	Create Event	character_set_client	collation_connection	Database Collation
-teste_bug11763507		SYSTEM	#	latin1	latin1_swedish_ci	latin1_swedish_ci
-SHOW CREATE EVENT TESTE_bug11763507;
-Event	sql_mode	time_zone	Create Event	character_set_client	collation_connection	Database Collation
-teste_bug11763507		SYSTEM	#	latin1	latin1_swedish_ci	latin1_swedish_ci
 SELECT specific_name FROM INFORMATION_SCHEMA.ROUTINES WHERE specific_name LIKE 'testf_bug11763507';
 specific_name
 testf_bug11763507
@@ -228,7 +205,6 @@ testf_bug11763507
 SELECT specific_name FROM INFORMATION_SCHEMA.ROUTINES WHERE specific_name='TESTF_bug11763507';
 specific_name
 testf_bug11763507
-DROP EVENT teste_bug11763507;
 DROP PROCEDURE testp_bug11763507;
 DROP FUNCTION testf_bug11763507;
 #END OF BUG#11763507 test.

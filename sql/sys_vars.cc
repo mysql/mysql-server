@@ -3650,7 +3650,7 @@ static Sys_var_mybool Sys_relay_log_recovery(
        "right after the database startup, which means that the IO Thread "
        "starts re-fetching from the master right after the last transaction "
        "processed",
-       GLOBAL_VAR(relay_log_recovery), CMD_LINE(OPT_ARG), DEFAULT(FALSE));
+        READ_ONLY GLOBAL_VAR(relay_log_recovery), CMD_LINE(OPT_ARG), DEFAULT(FALSE));
 
 static Sys_var_mybool Sys_slave_allow_batching(
        "slave_allow_batching", "Allow slave to batch requests",
