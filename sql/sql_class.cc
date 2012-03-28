@@ -748,6 +748,11 @@ THD::THD()
   m_binlog_invoker= FALSE;
   memset(&invoker_user, 0, sizeof(invoker_user));
   memset(&invoker_host, 0, sizeof(invoker_host));
+
+#ifndef MCP_BUG54854
+  binlog_next_event_pos.file_name= NULL;
+  binlog_next_event_pos.pos= 0;
+#endif
 }
 
 
@@ -1040,6 +1045,10 @@ THD::~THD()
     teardown();
 
   plugin_thdvar_cleanup(this);
+
+#ifndef MCP_BUG54854
+  clear_next_event_pos();
+#endif
 
   DBUG_PRINT("info", ("freeing security context"));
   main_security_ctx.destroy();
@@ -4170,6 +4179,35 @@ THD::binlog_row_event_extra_data_eq(const uchar* a,
            (memcmp(a, b,
                    a[EXTRA_ROW_INFO_LEN_OFFSET]) == 0)));
 }
+#endif
+
+#ifndef MCP_BUG54854
+void THD::set_next_event_pos(const char* _filename, ulonglong _pos)
+{
+  char*& filename= binlog_next_event_pos.file_name;
+  if (filename == NULL)
+  {
+    /* First time, allocate maximal buffer */
+    filename= (char*) my_malloc(FN_REFLEN+1, MYF(MY_WME));
+    if (filename == NULL) return;
+  }
+
+  assert(strlen(_filename) <= FN_REFLEN);
+  strcpy(filename, _filename);
+  filename[ FN_REFLEN ]= 0;
+
+  binlog_next_event_pos.pos= _pos;
+};
+
+void THD::clear_next_event_pos()
+{
+  if (binlog_next_event_pos.file_name != NULL)
+  {
+    my_free(binlog_next_event_pos.file_name, MYF(MY_WME));
+  }
+  binlog_next_event_pos.file_name= NULL;
+  binlog_next_event_pos.pos= 0;
+};
 #endif
 
 bool Discrete_intervals_list::append(ulonglong start, ulonglong val,
