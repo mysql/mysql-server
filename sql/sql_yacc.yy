@@ -1510,7 +1510,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  SQLEXCEPTION_SYM              /* SQL-2003-R */
 %token  SQLSTATE_SYM                  /* SQL-2003-R */
 %token  SQLWARNING_SYM                /* SQL-2003-R */
-%token  SQL_AFTER_GTIDS               /* MYSQL, FUTURE-USE */
+%token  SQL_AFTER_GTIDS               /* MYSQL */
 %token  SQL_BEFORE_GTIDS              /* MYSQL */
 %token  SQL_BIG_RESULT
 %token  SQL_BUFFER_RESULT
@@ -7700,6 +7700,12 @@ slave_until_opts:
         | SQL_BEFORE_GTIDS EQ TEXT_STRING_sys
           {
             Lex->mi.gtid= $3.str;
+            Lex->mi.gtid_until_condition= LEX_MASTER_INFO::UNTIL_SQL_BEFORE_GTIDS;
+          }
+        | SQL_AFTER_GTIDS EQ TEXT_STRING_sys
+          {
+            Lex->mi.gtid= $3.str;
+            Lex->mi.gtid_until_condition= LEX_MASTER_INFO::UNTIL_SQL_AFTER_GTIDS;
           }
         ;
 
