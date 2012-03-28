@@ -306,10 +306,11 @@ SET GLOBAL event_scheduler = OFF;
 --echo #Expect 1
 SELECT @@global.secure_auth;
 
-SET old_passwords=true;
+SET old_passwords=1;
 
 --echo #Expect deprecation warning
-CREATE USER old_pwd@localhost IDENTIFIED BY 'aha';
+CREATE USER old_pwd@localhost IDENTIFIED WITH 'mysql_old_password';
+SET PASSWORD FOR old_pwd@localhost= OLD_PASSWORD('aha');
 
 --echo #Expect deprecation warning
 SET PASSWORD FOR old_pwd@localhost = OLD_PASSWORD('aha2');

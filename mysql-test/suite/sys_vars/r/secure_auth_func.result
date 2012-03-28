@@ -18,6 +18,8 @@ ERROR HY000: Password hash should be a 41-digit hexadecimal number
 DROP USER 'testUser'@'localhost';
 CREATE USER 'testUser'@'localhost' identified with 'mysql_old_password';
 SET PASSWORD FOR 'testUser'@'localhost'= OLD_PASSWORD('newpass');
+Warnings:
+Warning	1287	'pre-4.1 password hash' is deprecated and will be removed in a future release. Please use post-4.1 password hash instead
 ** Connecting con_user2 using testUser **
 ** Connection default**
 '#--------------------FN_DYNVARS_144_03-------------------------#'
