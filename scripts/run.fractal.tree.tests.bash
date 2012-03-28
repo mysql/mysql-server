@@ -157,6 +157,8 @@ function build() {
     uname -a >$tracefile 2>&1
     ulimit -a >>$tracefile 2>&1
     $ftcc -v >>$tracefile 2>&1
+    valgrind --version >>$tracefile 2>&1
+    cat /etc/issue >>$tracefile 2>&1
     cat /proc/version >>$tracefile 2>&1
     cat /proc/cpuinfo >>$tracefile 2>&1
     env >>$tracefile 2>&1
