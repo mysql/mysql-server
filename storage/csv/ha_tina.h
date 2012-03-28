@@ -151,6 +151,8 @@ public:
   int rnd_end();
   int repair(THD* thd, HA_CHECK_OPT* check_opt);
   /* This is required for SQL layer to know that we support autorepair */
+  bool auto_repair(int error) const
+  { return error == HA_ERR_CRASHED_ON_USAGE; }
   bool auto_repair() const { return 1; }
   void position(const uchar *record);
   int info(uint);

@@ -1223,7 +1223,7 @@ bool ha_partition::check_and_repair(THD *thd)
   @retval FALSE Cannot be auto repaired
 */
 
-bool ha_partition::auto_repair() const
+bool ha_partition::auto_repair(int error) const
 {
   DBUG_ENTER("ha_partition::auto_repair");
 
@@ -1231,7 +1231,7 @@ bool ha_partition::auto_repair() const
     As long as we only support one storage engine per table,
     we can use the first partition for this function.
   */
-  DBUG_RETURN(m_file[0]->auto_repair());
+  DBUG_RETURN(m_file[0]->auto_repair(error));
 }
 
 

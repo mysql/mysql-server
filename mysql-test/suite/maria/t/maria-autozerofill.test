@@ -22,9 +22,17 @@ connection default;
 use mysqltest;
 --enable_reconnect
 
+# Create some tables for future tests
 create table t1(a int) engine=maria;
 insert into t1 values(1);
-flush table t1;
+create table t2 (a int) engine=maria;
+INSERT INTO t2 VALUES (1),(2);
+create table t3 (a int) engine=maria;
+INSERT INTO t3 VALUES (1),(2);
+create table t4 (a int) engine=maria;
+INSERT INTO t4 VALUES (1),(2);
+flush tables;
+
 # Check that table is not zerofilled, not movable
 let $MYSQLD_DATADIR= `select @@datadir`;
 --exec $MARIA_CHK -dv $MYSQLD_DATADIR/mysqltest/t1 >$MYSQLTEST_VARDIR/tmp/mariachk.txt
@@ -79,5 +87,15 @@ perl;
     print "create_rename_lsn has non-magic value\n" if grep(/create_rename \([0-9]+/, @content);
     close FILE;
 EOF
+
+#
+# BUG#44422 "mysql_upgrade destroys Maria tables?"
+# Check repair and optimize of moved table
+#
+check table t2;
+check table t2;
+repair table t2;
+optimize table t3;
+analyze table t4;
 
 drop database mysqltest;

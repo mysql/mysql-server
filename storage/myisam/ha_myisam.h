@@ -128,7 +128,11 @@ class ha_myisam: public handler
   int repair(THD* thd, HA_CHECK_OPT* check_opt);
   bool check_and_repair(THD *thd);
   bool is_crashed() const;
-  bool auto_repair() const { return myisam_recover_options != 0; }
+  bool auto_repair(int error) const
+  {
+    return (myisam_recover_options != 0 &&
+            error == HA_ERR_CRASHED_ON_USAGE);
+  }
   int optimize(THD* thd, HA_CHECK_OPT* check_opt);
   int restore(THD* thd, HA_CHECK_OPT* check_opt);
   int backup(THD* thd, HA_CHECK_OPT* check_opt);

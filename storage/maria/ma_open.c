@@ -968,8 +968,6 @@ err:
     tmp_name.length= strlen(name);
     _ma_report_error(save_errno, &tmp_name);
   }
-  if (save_errno == HA_ERR_OLD_FILE) /* uuid is different ? */
-    save_errno= HA_ERR_CRASHED_ON_USAGE; /* the code to trigger auto-repair */
   switch (errpos) {
   case 5:
     if (data_file >= 0)

@@ -1105,7 +1105,7 @@ public:
     virtual int check(THD* thd, HA_CHECK_OPT *check_opt);
     virtual int repair(THD* thd, HA_CHECK_OPT *check_opt);
     virtual bool check_and_repair(THD *thd);
-    virtual bool auto_repair() const;
+    virtual bool auto_repair(int error) const;
     virtual bool is_crashed() const;
 
     private:

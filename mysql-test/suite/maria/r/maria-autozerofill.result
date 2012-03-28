@@ -4,18 +4,43 @@ create database mysqltest;
 use mysqltest;
 create table t1(a int) engine=maria;
 insert into t1 values(1);
-flush table t1;
+create table t2 (a int) engine=maria;
+INSERT INTO t2 VALUES (1),(2);
+create table t3 (a int) engine=maria;
+INSERT INTO t3 VALUES (1),(2);
+create table t4 (a int) engine=maria;
+INSERT INTO t4 VALUES (1),(2);
+flush tables;
 create_rename_lsn has non-magic value
 * shut down mysqld, removed logs, restarted it
 select * from t1;
 a
 1
 Warnings:
-Error	1194	t1' is marked as crashed and should be repaired
+Note	1194	Zerofilling moved table ./mysqltest/t1
 flush table t1;
 Status:              changed,sorted index pages,zerofilled,movable
 create_rename_lsn has magic value
 insert into t1 values(2);
 flush table t1;
 create_rename_lsn has non-magic value
+check table t2;
+Table	Op	Msg_type	Msg_text
+mysqltest.t2	check	error	Table is from another system and must be zerofilled or repaired to be usable on this system
+mysqltest.t2	check	error	Corrupt
+check table t2;
+Table	Op	Msg_type	Msg_text
+mysqltest.t2	check	error	Table is from another system and must be zerofilled or repaired to be usable on this system
+mysqltest.t2	check	error	Corrupt
+repair table t2;
+Table	Op	Msg_type	Msg_text
+mysqltest.t2	repair	status	OK
+optimize table t3;
+Table	Op	Msg_type	Msg_text
+mysqltest.t3	optimize	Note	Zerofilling moved table ./mysqltest/t3
+mysqltest.t3	optimize	status	OK
+analyze table t4;
+Table	Op	Msg_type	Msg_text
+mysqltest.t4	analyze	Note	Zerofilling moved table ./mysqltest/t4
+mysqltest.t4	analyze	status	OK
 drop database mysqltest;

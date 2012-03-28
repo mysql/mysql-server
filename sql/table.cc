@@ -1929,8 +1929,7 @@ partititon_err:
                            HA_OPEN_IGNORE_IF_LOCKED) | ha_open_flags))))
     {
       /* Set a flag if the table is crashed and it can be auto. repaired */
-      share->crashed= ((ha_err == HA_ERR_CRASHED_ON_USAGE) &&
-                       outparam->file->auto_repair() &&
+      share->crashed= (outparam->file->auto_repair(ha_err) &&
                        !(ha_open_flags & HA_OPEN_FOR_REPAIR));
 
       switch (ha_err)
