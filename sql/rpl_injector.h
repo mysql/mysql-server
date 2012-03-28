@@ -236,16 +236,36 @@ public:
       int rollback();
 #endif
 
+#ifndef MCP_BUG54854
       /*
         Get the position for the start of the transaction.
 
-        Returns the position in the binary log of the first event in this
-        transaction. If no event is yet written, the position where the event
-        *will* be written is returned. This position is known, since a
-        new_transaction() will lock the binary log and prevent any other
-        writes to the binary log.
+        This is the current 'tail of Binlog' at the time the transaction
+        was started.  The first event recorded by the transaction may
+        be at this, or some subsequent position.  The first event recorded
+        by the transaction will not be before this position.
       */
+#endif
       binlog_pos start_pos() const;
+
+#ifndef MCP_BUG54854
+      /*
+        Get the next position after the end of the transaction
+
+        This call is only valid after a transaction has been committed.
+        It returns the next Binlog position after the committed transaction.
+        It is guaranteed that no other events will be recorded between the
+        COMMIT event of the Binlog transaction, and this position.
+        Note that this position may be in a different log file to the COMMIT
+        event.
+
+        If the commit had an error, or the transaction was empty and nothing
+        was binlogged then the next_pos will have a NULL file_name(), and
+        0 file_pos().
+
+      */
+      binlog_pos next_pos() const;
+#endif
 
     private:
       /* Only the injector may construct these object */
@@ -258,6 +278,15 @@ public:
           m_start_pos= o.m_start_pos;
           o.m_start_pos= tmp;
         }
+
+#ifndef MCP_BUG54854
+        /* std::swap(m_end_pos, o.m_end_pos); */
+        {
+          binlog_pos const tmp= m_next_pos;
+          m_next_pos= o.m_next_pos;
+          o.m_next_pos= tmp;
+        }
+#endif
 
         /* std::swap(m_thd, o.m_thd); */
         {
@@ -331,6 +360,9 @@ public:
 
 
       binlog_pos m_start_pos;
+#ifndef MCP_BUG54854
+      binlog_pos m_next_pos;
+#endif
       THD *m_thd;
     };
 

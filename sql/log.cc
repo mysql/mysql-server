@@ -4832,6 +4832,21 @@ MYSQL_BIN_LOG::remove_pending_rows_event(THD *thd, bool is_transactional)
   DBUG_RETURN(0);
 }
 
+#ifndef MCP_BUG54854
+/*
+  Updates thd's position-of-next-event variables
+  after a *real* write a file.
+ */
+void MYSQL_BIN_LOG::update_thd_next_event_pos(THD* thd)
+{
+  if (likely(thd != NULL))
+  {
+    thd->set_next_event_pos(log_file_name,
+                            my_b_tell(&log_file));
+  }
+}
+#endif
+
 /*
   Moves the last bunch of rows from the pending Rows event to a cache (either
   transactional cache if is_transaction is @c true, or the non-transactional
@@ -4879,6 +4894,9 @@ MYSQL_BIN_LOG::flush_and_set_pending_rows_event(THD *thd,
     }
 
     delete pending;
+#ifndef MCP_BUG54854
+      update_thd_next_event_pos(thd);
+#endif
   }
 
   thd->binlog_set_pending_rows_event(event, is_transactional);
@@ -5067,6 +5085,10 @@ err:
           mysql_mutex_unlock(&LOCK_log);
           if (!error && check_purge)
             purge();
+
+#ifndef MCP_BUG54854
+          update_thd_next_event_pos(thd);
+#endif
         }
       }
       else
@@ -5460,6 +5482,10 @@ bool MYSQL_BIN_LOG::write_incident(THD *thd, bool lock)
     {
       mysql_mutex_unlock(&LOCK_log);
     }
+#ifndef MCP_BUG54854
+    update_thd_next_event_pos(thd);
+#endif
+
   }
   DBUG_RETURN(error);
 }
@@ -5572,6 +5598,10 @@ bool MYSQL_BIN_LOG::write(THD *thd, IO_CACHE *cache, Log_event *commit_event,
     {
       if (rotate(false, &check_purge))
         goto err;
+
+#ifndef MCP_BUG54854
+      update_thd_next_event_pos(thd);
+#endif
       mysql_mutex_unlock(&LOCK_log);
       if (check_purge) 
         purge();
