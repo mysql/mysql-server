@@ -1599,6 +1599,17 @@ public:
                                              const uchar* b);
 #endif
 
+#ifndef MCP_BUG54854
+  /*
+    Position of first event in Binlog
+    *after* last event written by this
+    thread.
+  */
+  event_coordinates binlog_next_event_pos;
+  void set_next_event_pos(const char* _filename, ulonglong _pos);
+  void clear_next_event_pos();
+#endif
+
 #ifndef MYSQL_CLIENT
   int binlog_setup_trx_data();
 
