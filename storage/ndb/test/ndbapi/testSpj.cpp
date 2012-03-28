@@ -31,7 +31,7 @@ static int faultToInject = 0;
 
 enum faultsToInject {
   FI_START = 17001,
-  FI_END = 17063
+  FI_END = 17093
 };
 
 int
@@ -120,7 +120,9 @@ runLookupJoinError(NDBT_Context* ctx, NDBT_Step* step){
       17030, 17031, 17032, // LQHKEYREQ reply is LQHKEYREF('Invalid..')
       17040, 17041, 17042, // lookup_parent_row -> OutOfQueryMemory
       17050, 17051, 17052, 17053, // parseDA -> outOfSectionMem
-      17060, 17061, 17062, 17063 // scanIndex_parent_row -> outOfSectionMem
+      17060, 17061, 17062, 17063, // scanIndex_parent_row -> outOfSectionMem
+      17070, 17071, 17072, // lookup_send.dupsec -> outOfSectionMem
+      17080, 17081, 17082 // lookup_parent_row -> OutOfQueryMemory
   }; 
   loops =  faultToInject ? 1 : sizeof(lookupFaults)/sizeof(int);
 
@@ -206,7 +208,10 @@ runScanJoinError(NDBT_Context* ctx, NDBT_Step* step){
       17030, 17031, 17032, // LQHKEYREQ reply is LQHKEYREF('Invalid..')
       17040, 17041, 17042, // lookup_parent_row -> OutOfQueryMemory
       17050, 17051, 17052, 17053, // parseDA -> outOfSectionMem
-      17060, 17061, 17062, 17063 // scanIndex_parent_row -> outOfSectionMem
+      17060, 17061, 17062, 17063, // scanIndex_parent_row -> outOfSectionMem
+      17070, 17071, 17072, // lookup_send.dupsec -> outOfSectionMem
+      17080, 17081, 17082, // lookup_parent_row -> OutOfQueryMemory
+      17090, 17091, 17092, 17093 // scanIndex_send -> OutOfQueryMemory
   }; 
   loops =  faultToInject ? 1 : sizeof(scanFaults)/sizeof(int);
 
@@ -918,32 +923,6 @@ NegativeTest::runGraphTest() const
         builder->getNdbError().code != QRY_MULTIPLE_SCAN_SORTED)
     {
       g_err << "Query with sorted child scan gave unexpected result.";
-      builder->destroy();
-      return NDBT_FAILED;
-    }
-    builder->destroy();
-  }
-
-  // Try adding a child scan to a sorted query.
-  {
-    NdbQueryBuilder* const builder = NdbQueryBuilder::create();
-
-    NdbQueryOptions parentOptions;
-    parentOptions.setOrdering(NdbQueryOptions::ScanOrdering_ascending);
-
-    const NdbQueryIndexScanOperationDef* parentOperation
-      = builder->scanIndex(m_nt1OrdIdx, m_nt1Tab, NULL, &parentOptions);
-    ASSERT_ALWAYS(parentOperation != NULL);
-
-    const NdbQueryOperand* const childOperands[] =
-      {builder->linkedValue(parentOperation, "ui1"),
-      NULL};
-    const NdbQueryIndexBound bound(childOperands);
-
-    if (builder->scanIndex(m_nt1OrdIdx, m_nt1Tab, &bound) != NULL ||
-        builder->getNdbError().code != QRY_MULTIPLE_SCAN_SORTED)
-    {
-      g_err << "Sorted query with scan child scan gave unexpected result.";
       builder->destroy();
       return NDBT_FAILED;
     }

@@ -4023,8 +4023,7 @@ int ha_ndbcluster::ordered_index_scan(const key_range *start_key,
   }
 
 #ifndef NDB_WITHOUT_JOIN_PUSHDOWN
-  if (check_if_pushable(NdbQueryOperationDef::OrderedIndexScan, active_index,
-                        sorted))
+  if (check_if_pushable(NdbQueryOperationDef::OrderedIndexScan, active_index))
   {
     const int error= create_pushed_join();
     if (unlikely(error))
@@ -13919,8 +13918,7 @@ ha_ndbcluster::read_multi_range_first(KEY_MULTI_RANGE **found_range_p,
 #ifndef NDB_WITHOUT_JOIN_PUSHDOWN
       /* Create the scan operation for the first scan range. */
       if (check_if_pushable(NdbQueryOperationDef::OrderedIndexScan, 
-                            active_index,
-                            !m_active_query && sorted))
+                            active_index))
       {
         if (!m_active_query)
         {
@@ -14578,8 +14576,7 @@ ha_ndbcluster::maybe_pushable_join(const char*& reason) const
 #ifndef NDB_WITHOUT_JOIN_PUSHDOWN
 bool 
 ha_ndbcluster::check_if_pushable(int type,  //NdbQueryOperationDef::Type, 
-                                 uint idx,  
-                                 bool needSorted) const
+                                 uint idx) const
 {
   if (m_disable_pushed_join)
   {
@@ -14590,8 +14587,7 @@ ha_ndbcluster::check_if_pushable(int type,  //NdbQueryOperationDef::Type,
         && m_pushed_join_member    != NULL
         && m_pushed_join_member->match_definition(
                         type,
-                        (idx<MAX_KEY) ? &m_index[idx] : NULL,
-                        needSorted);
+                        (idx<MAX_KEY) ? &m_index[idx] : NULL);
 }
 
 int
@@ -14727,46 +14723,6 @@ ha_ndbcluster::test_push_flag(enum ha_push_flag flag) const
       DBUG_RETURN(true);
     }
     DBUG_RETURN(false);
-
-  case HA_PUSH_NO_ORDERED_INDEX:
-  {
-    if (m_pushed_join_operation != PUSHED_ROOT)
-    {
-      DBUG_RETURN(true);
-    }
-    const NdbQueryDef& query_def = m_pushed_join_member->get_query_def();
-    const NdbQueryOperationDef::Type root_type=
-      query_def.getQueryOperation((uint)PUSHED_ROOT)->getType();
-
-    /**
-     * Primary key/ unique key lookup is always 'ordered' wrt. itself.
-     */
-    if (root_type == NdbQueryOperationDef::PrimaryKeyAccess  ||
-        root_type == NdbQueryOperationDef::UniqueIndexAccess)
-    {
-      DBUG_RETURN(false);
-    }
-
-    /**
-     * Ordered index scan can be provided as an ordered resultset iff
-     * it has no child scans.
-     */
-    if (root_type == NdbQueryOperationDef::OrderedIndexScan)
-    {
-      for (uint i= 1; i < query_def.getNoOfOperations(); i++)
-      {
-        const NdbQueryOperationDef::Type child_type=
-          query_def.getQueryOperation(i)->getType();
-        if (child_type == NdbQueryOperationDef::TableScan ||
-            child_type == NdbQueryOperationDef::OrderedIndexScan)
-        {
-          DBUG_RETURN(true);
-        }
-      }
-      DBUG_RETURN(false);
-    }
-    DBUG_RETURN(true);
-  }
 
   default:
     DBUG_ASSERT(0);

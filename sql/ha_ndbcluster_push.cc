@@ -153,8 +153,7 @@ ndb_pushed_join::~ndb_pushed_join()
 
 bool ndb_pushed_join::match_definition(
                       int type, //NdbQueryOperationDef::Type, 
-                      const NDB_INDEX_DATA* idx,
-                      bool needSorted) const
+                      const NDB_INDEX_DATA* idx) const
 {
   const NdbQueryOperationDef* const root_operation= 
     m_query_def->getQueryOperation((uint)0);
@@ -195,13 +194,6 @@ bool ndb_pushed_join::match_definition(
 
   case NdbQueryOperationDef::TableScan:
     DBUG_ASSERT (idx==NULL && expected_index==NULL);
-    if (needSorted)
-    {
-      DBUG_PRINT("info", 
-                 ("TableScan access can not be provied as sorted result. " 
-                  "Therefore, join cannot be pushed."));
-      return FALSE;
-    }
     break;
 
   case NdbQueryOperationDef::OrderedIndexScan:
@@ -213,13 +205,6 @@ bool ndb_pushed_join::match_definition(
                           "Therefore, join cannot be pushed.", 
                           idx->index->getName(),
                           expected_index->getName()));
-      return FALSE;
-    }
-    if (needSorted && m_query_def->getQueryType() == NdbQueryDef::MultiScanQuery)
-    {
-      DBUG_PRINT("info", 
-                 ("OrderedIndexScan with scan siblings " 
-                  "can not execute as pushed join."));
       return FALSE;
     }
     break;
@@ -619,16 +604,6 @@ ndb_pushed_builder_ctx::is_pushable_as_child(
                      table->get_table()->alias,
                      m_join_root->get_table()->alias);
     // 'table' may still be PUSHABLE_AS_CHILD with another parent
-    DBUG_RETURN(false);
-  }
-
-  if (access_type==AQP::AT_ORDERED_INDEX_SCAN && m_join_root->is_fixed_ordered_index())  
-  {
-    // root must be an ordered index scan - Thus it cannot have other scan descendant.
-    EXPLAIN_NO_PUSH("Push of table '%s' as scan-child "
-                    "with ordered indexscan-root '%s' not implemented",
-                     table->get_table()->alias,
-                     m_join_root->get_table()->alias);
     DBUG_RETURN(false);
   }
 

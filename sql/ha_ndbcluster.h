@@ -445,8 +445,7 @@ private:
   bool check_index_fields_not_null(KEY *key_info) const;
 
   bool check_if_pushable(int type, //NdbQueryOperationDef::Type,
-                         uint idx= MAX_KEY,
-                         bool rootSorted= false) const;
+                         uint idx= MAX_KEY) const;
   bool check_is_pushed() const;
   int create_pushed_join(const NdbQueryParamValue* keyFieldParams=NULL,
                          uint paramCnt= 0);
