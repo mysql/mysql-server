@@ -61,5 +61,6 @@ static struct st_service_ref list_of_services[]=
   { "thd_wait_service",    VERSION_thd_wait,    &thd_wait_handler },
   { "my_thread_scheduler_service", VERSION_my_thread_scheduler, &my_thread_scheduler_handler },
   { "progress_report_service", VERSION_progress_report, &progress_report_handler },
+  { "debug_sync_service", VERSION_debug_sync, 0 } // updated in plugin_init()
 };
 

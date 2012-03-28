@@ -2934,7 +2934,7 @@ end_with_restore_list:
                       const char act2[]=
                         "now "
                         "signal signal.continued";
-                      DBUG_ASSERT(opt_debug_sync_timeout > 0);
+                      DBUG_ASSERT(debug_sync_service);
                       DBUG_ASSERT(!debug_sync_set_action(thd,
                                                          STRING_WITH_LEN(act1)));
                       DBUG_ASSERT(!debug_sync_set_action(thd,

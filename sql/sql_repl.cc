@@ -904,7 +904,7 @@ impossible position";
                           const char act[]=
                             "now "
                             "wait_for signal.continue";
-                          DBUG_ASSERT(opt_debug_sync_timeout > 0);
+                          DBUG_ASSERT(debug_sync_service);
                           DBUG_ASSERT(!debug_sync_set_action(thd,
                                                              STRING_WITH_LEN(act)));
                           const char act2[]=

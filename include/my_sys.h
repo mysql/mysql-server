@@ -157,16 +157,6 @@ extern char *my_strndup(const char *from, size_t length, myf MyFlags);
 
 extern int sf_leaking_memory; /* set to 1 to disable memleak detection */
 
-#if defined(ENABLED_DEBUG_SYNC)
-extern void (*debug_sync_C_callback_ptr)(const char *, size_t);
-#define DEBUG_SYNC_C(_sync_point_name_) do {                            \
-    if (debug_sync_C_callback_ptr != NULL)                              \
-      (*debug_sync_C_callback_ptr)(STRING_WITH_LEN(_sync_point_name_)); } \
-  while(0)
-#else
-#define DEBUG_SYNC_C(_sync_point_name_)
-#endif /* defined(ENABLED_DEBUG_SYNC) */
-
 #ifdef HAVE_LARGE_PAGES
 extern uint my_get_large_page_size(void);
 extern uchar * my_large_malloc(size_t size, myf my_flags);

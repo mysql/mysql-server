@@ -72,7 +72,7 @@ typedef struct st_mysql_xid MYSQL_XID;
 #define MYSQL_PLUGIN_INTERFACE_VERSION 0x0103
 
 /* MariaDB plugin interface version */
-#define MARIA_PLUGIN_INTERFACE_VERSION 0x0102
+#define MARIA_PLUGIN_INTERFACE_VERSION 0x0103
 
 /*
   The allowable types of plugins
