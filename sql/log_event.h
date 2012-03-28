@@ -754,6 +754,7 @@ typedef struct st_print_event_info
 } PRINT_EVENT_INFO;
 #endif
 
+#ifdef MCP_BUG54854
 /**
   the struct aggregates two paramenters that identify an event
   uniquely in scope of communication of a particular master and slave couple.
@@ -768,6 +769,7 @@ struct event_coordinates
   char * file_name; // binlog file name (directories stripped)
   my_off_t  pos;       // event's position in the binlog file
 };
+#endif
 
 /**
   @class Log_event

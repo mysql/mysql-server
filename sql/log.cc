@@ -4278,6 +4278,21 @@ MYSQL_BIN_LOG::remove_pending_rows_event(THD *thd)
   DBUG_RETURN(0);
 }
 
+#ifndef MCP_BUG54854
+/*
+  Updates thd's position-of-next-event variables
+  after a *real* write a file.
+ */
+void MYSQL_BIN_LOG::update_thd_next_event_pos(THD* thd)
+{
+  if (likely(thd != NULL))
+  {
+    thd->set_next_event_pos(log_file_name,
+                            my_b_tell(&log_file));
+  }
+}
+#endif
+
 /*
   Moves the last bunch of rows from the pending Rows event to the binlog
   (either cached binlog if transaction, or disk binlog). Sets a new pending
@@ -4337,6 +4352,9 @@ MYSQL_BIN_LOG::flush_and_set_pending_rows_event(THD *thd,
         signal_update();
         error= rotate_and_purge(RP_LOCK_LOG_IS_ALREADY_LOCKED);
       }
+#ifndef MCP_BUG54854
+      update_thd_next_event_pos(thd);
+#endif
     }
 
     pthread_mutex_unlock(&LOCK_log);
@@ -4535,6 +4553,9 @@ bool MYSQL_BIN_LOG::write(Log_event *event_info)
       if ((error= rotate_and_purge(RP_LOCK_LOG_IS_ALREADY_LOCKED)))
         goto err;
       
+#ifndef MCP_BUG54854
+      update_thd_next_event_pos(thd);
+#endif
     }
     error=0;
 
@@ -4874,6 +4895,10 @@ bool MYSQL_BIN_LOG::write_incident(THD *thd, bool lock)
       signal_update();
       error= rotate_and_purge(RP_LOCK_LOG_IS_ALREADY_LOCKED);
     }
+#ifndef MCP_BUG54854
+    update_thd_next_event_pos(thd);
+#endif
+
     pthread_mutex_unlock(&LOCK_log);
   }
   DBUG_RETURN(error);
@@ -4986,6 +5011,10 @@ bool MYSQL_BIN_LOG::write(THD *thd, IO_CACHE *cache, Log_event *commit_event,
     else
       if (rotate_and_purge(RP_LOCK_LOG_IS_ALREADY_LOCKED))
         goto err;
+
+#ifndef MCP_BUG54854
+    update_thd_next_event_pos(thd);
+#endif
   }
   VOID(pthread_mutex_unlock(&LOCK_log));
 
