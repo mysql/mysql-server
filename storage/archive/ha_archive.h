@@ -125,7 +125,9 @@ public:
   int free_share();
   int init_archive_writer();
   int init_archive_reader();
-  bool auto_repair() const { return 1; } // For the moment we just do this
+  // Always try auto_repair in case of HA_ERR_CRASHED_ON_USAGE
+  bool auto_repair(int error) const
+  { return error == HA_ERR_CRASHED_ON_USAGE; }
   int read_data_header(azio_stream *file_to_read);
   void position(const uchar *record);
   int info(uint);
