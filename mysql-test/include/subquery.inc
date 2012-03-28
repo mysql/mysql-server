@@ -5890,3 +5890,180 @@ WHERE d LIKE '_'
 ORDER BY d;
 
 DROP TABLE t1, t2;
+
+--echo #
+--echo # Bug#13468414 Query shows different results when literals are selected
+--echo #              from separate table
+--echo #
+
+CREATE TABLE t1 (
+  col_varchar_key varchar(1) NOT NULL,
+  col_varchar_nokey varchar(1) NOT NULL,
+  KEY col_varchar_key (col_varchar_key)
+) ENGINE=InnoDB;
+
+INSERT INTO t1 VALUES
+ ('v','v'), ('s','s'), ('l','l'), ('y','y'), ('c','c'),
+ ('i','i'), ('h','h'), ('q','q'), ('a','a'), ('v','v'),
+ ('u','u'), ('s','s'), ('y','y'), ('z','z'), ('h','h'),
+ ('p','p'), ('e','e'), ('i','i'), ('y','y'), ('w','w');
+
+CREATE TABLE t2 (
+  col_int_nokey INT NOT NULL,
+  col_varchar_nokey varchar(1) NOT NULL
+) ENGINE=InnoDB;
+
+INSERT INTO t2 VALUES
+ (4,'j'), (6,'v'), (3,'c'), (5,'m'), (3,'d'), (246,'d'), (2,'y'), (9,'t'),
+ (3,'d'), (8,'s'), (1,'r'), (8,'m'), (8,'b'), (5,'x'), (7,'g'), (5,'p'),
+ (1,'q'), (6,'w'), (2,'d'), (9,'e');
+
+CREATE TABLE t0 (
+ i1 INTEGER NOT NULL PRIMARY KEY
+);
+INSERT INTO t0 VALUES (7);
+
+SELECT col_varchar_nokey
+FROM t1
+WHERE (7) NOT IN
+ (SELECT it2.col_int_nokey
+  FROM t2 AS it2 LEFT JOIN t1 AS it1
+       ON it2.col_varchar_nokey = it1.col_varchar_key
+ );
+
+let $query=
+SELECT col_varchar_nokey
+FROM t1
+WHERE (SELECT i1 FROM t0 WHERE i1 = 7) NOT IN
+ (SELECT it2.col_int_nokey
+  FROM t2 AS it2 LEFT JOIN t1 AS it1
+       ON it2.col_varchar_nokey = it1.col_varchar_key
+ );
+
+eval $query;
+eval explain extended $query;
+
+DROP TABLE t0, t1, t2;
+
+--echo #
+--echo # Bug#13735704 Memory engine + NOT IN + subquery produces different
+--echo # result set
+--echo #
+
+CREATE TABLE t1(
+ col_varchar_key varchar(1),
+ KEY col_varchar_key(col_varchar_key)
+) engine=MEMORY;
+INSERT INTO t1 VALUES
+ ('v'), ('s'), ('y'), ('z'), ('h'), ('p');
+
+CREATE TABLE t2(
+ col_int_nokey int,
+ col_int_key int,
+ KEY col_int_key(col_int_key)
+) engine=MEMORY;
+INSERT INTO t2 VALUES
+ (4,4), (2,7), (2,5), (2,3), (197,188), (4,4), (6,2), (1,4),
+ (156,231), (2,1), (1,2), (80,194), (3,2), (8,3), (91,98), (6,3),
+ (7,1), (3,0), (161,189), (7,8), (7,3), (213,120), (248,25), (1,1),
+ (6,3), (6,1), (3,3), (140,153), (0,5), (7,9), (6,1), (1,2),
+ (1,7), (9,2), (0,1), (6,5);
+
+CREATE TABLE t0(i1 INTEGER NOT NULL PRIMARY KEY);
+INSERT INTO t0 VALUES(7),(2);
+
+SELECT col_varchar_key
+FROM t1
+WHERE (7,2) NOT IN
+   (SELECT col_int_key,col_int_nokey FROM t2);
+
+let $query=
+SELECT col_varchar_key
+FROM t1
+WHERE ((SELECT i1 FROM t0 WHERE i1 = 7),
+       (SELECT i1 FROM t0 WHERE i1 = 2)) NOT IN
+    (SELECT col_int_key,col_int_nokey FROM t2);
+
+eval explain extended $query;
+eval $query;
+
+DROP TABLE t0, t1, t2;
+
+--echo #
+--echo # Bug#13731417 WRONG RESULT WITH NOT IN (SUBQUERY) AND
+--echo # COMPOSITE INDEX ON SUBQUERY'S TABLE
+--echo #
+
+CREATE TABLE t1 (a int, b int);
+CREATE TABLE t2 (a int, b int, KEY a_b (a,b));
+CREATE TABLE t4 (a int);
+INSERT INTO t1 VALUES(0,1);
+INSERT INTO t2 VALUES(NULL,1),(NULL,1);
+INSERT INTO t4 VALUES(1);
+
+SELECT ((0,1) NOT IN (SELECT NULL,1)) IS NULL;
+
+let $query=SELECT * FROM t1
+WHERE ((a,b) NOT IN (SELECT t2.a,t2.b FROM
+        t4 STRAIGHT_JOIN t2 WHERE t4.a=t2.b)) IS NULL;
+
+eval EXPLAIN EXTENDED $query;
+eval $query;
+
+ALTER TABLE t2 DROP INDEX a_b;
+
+EVAL EXPLAIN EXTENDED $query;
+eval $query;
+
+DROP TABLE t1,t2,t4;
+
+--echo #
+--echo # Bug#13725821 ASSERT NULL_REF_KEY == __NULL FAILED IN
+--echo # CREATE_REF_FOR_KEY() IN SQL_SELECT.CC
+--echo #
+
+CREATE TABLE t1 (
+  pk INT NOT NULL,
+  col_int_nokey INT,
+  col_int_key INT,
+  col_varchar_key VARCHAR(1),
+  col_varchar_nokey VARCHAR(1),
+  PRIMARY KEY (pk),
+  KEY col_int_key (col_int_key),
+  KEY col_varchar_key (col_varchar_key,col_int_key)
+) ENGINE=MyISAM;
+
+INSERT INTO t1 VALUES (17,NULL,9,NULL,NULL),
+(18,2,2,'o','o'),(19,NULL,9,'w','w'),(20,6,2,'m','m'),(21,7,4,'q','q'),
+(22,2,0,NULL,NULL),(23,5,4,'d','d'),(24,7,8,'g','g'),(25,6,NULL,'x','x'),
+(26,6,NULL,'f','f'),(27,2,0,'p','p'),(28,9,NULL,'j','j'),(29,6,8,'c','c');
+
+ALTER TABLE t1 DISABLE KEYS;
+ALTER TABLE t1 ENABLE KEYS;
+
+let $query=
+SELECT table1.col_varchar_key AS field1,
+       table1.col_int_nokey AS field2,
+       table2.col_varchar_key AS field3,
+       table1.col_int_nokey AS field4,
+       table2.col_int_nokey AS field5,
+       table1.col_varchar_nokey AS field6
+FROM ( t1 AS table1
+  INNER JOIN t1 AS table2
+  ON (( table2.col_int_nokey = table1.col_int_key )
+    AND ( table2.col_int_key = table1.col_int_key )
+  ) )
+WHERE ( table1.col_varchar_key = table2.col_varchar_key OR table1.pk = 154 )
+  OR table1.pk != 201
+  AND ( table1.col_varchar_key LIKE '%a%' OR table1.col_varchar_key LIKE
+'%b%')
+;
+
+eval CREATE TABLE t2 $query ;
+
+eval SELECT *
+     FROM t2
+     WHERE (field1, field2, field3, field4, field5, field6) NOT IN ( $query
+);
+
+DROP TABLE t2,t1;

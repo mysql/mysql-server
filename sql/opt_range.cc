@@ -884,11 +884,11 @@ static void trace_range_all_keyparts(Opt_trace_array &trace_range,
                                      const String *range_so_far,
                                      SEL_ARG *keypart_root,
                                      const KEY_PART_INFO *key_parts);
-static void append_range(String *out,
-                         const KEY_PART_INFO *key_parts,
-                         const uchar *min_key, const uchar *max_key,
-                         const uint flag);
 #endif
+void append_range(String *out,
+                  const KEY_PART_INFO *key_parts,
+                  const uchar *min_key, const uchar *max_key,
+                  const uint flag);
 
 static SEL_TREE *tree_and(RANGE_OPT_PARAM *param,SEL_TREE *tree1,SEL_TREE *tree2);
 static SEL_TREE *tree_or(RANGE_OPT_PARAM *param,SEL_TREE *tree1,SEL_TREE *tree2);
@@ -5977,7 +5977,8 @@ static SEL_TREE *get_func_mm_tree(RANGE_OPT_PARAM *param, Item_func *cond_func,
       param       PARAM from SQL_SELECT::test_quick_select
       cond_func   item for the predicate
       field_item  field in the predicate
-      value       constant in the predicate
+      value       constant in the predicate (or a field already read from 
+                  a table in the case of dynamic range access)
                   (for BETWEEN it contains the number of the field argument,
                    for IN it's always 0) 
       inv         TRUE <> NOT cond_func is considered
@@ -6253,21 +6254,37 @@ static SEL_TREE *get_mm_tree(RANGE_OPT_PARAM *param,Item *cond)
     DBUG_RETURN(ftree);
   }
   default:
+
+    DBUG_ASSERT (!ftree);
     if (cond_func->arguments()[0]->real_item()->type() == Item::FIELD_ITEM)
     {
       field_item= (Item_field*) (cond_func->arguments()[0]->real_item());
-      value= cond_func->arg_count > 1 ? cond_func->arguments()[1] : 0;
+      value= cond_func->arg_count > 1 ? cond_func->arguments()[1] : NULL;
+      ftree= get_full_func_mm_tree(param, cond_func, field_item, value, inv);
     }
-    else if (cond_func->have_rev_func() &&
-             cond_func->arguments()[1]->real_item()->type() ==
-                                                            Item::FIELD_ITEM)
+    /*
+      Even if get_full_func_mm_tree() was executed above and did not
+      return a range predicate it may still be possible to create one
+      by reversing the order of the operands. Note that this only
+      applies to predicates where both operands are fields. Example: A
+      query of the form
+
+         WHERE t1.a OP t2.b
+
+      In this case, arguments()[0] == t1.a and arguments()[1] == t2.b.
+      When creating range predicates for t2, get_full_func_mm_tree()
+      above will return NULL because 'field' belongs to t1 and only
+      predicates that applies to t2 are of interest. In this case a
+      call to get_full_func_mm_tree() with reversed operands (see
+      below) may succeed.
+     */
+    if (!ftree && cond_func->have_rev_func() &&
+        cond_func->arguments()[1]->real_item()->type() == Item::FIELD_ITEM)
     {
       field_item= (Item_field*) (cond_func->arguments()[1]->real_item());
       value= cond_func->arguments()[0];
+      ftree= get_full_func_mm_tree(param, cond_func, field_item, value, inv);
     }
-    else
-      DBUG_RETURN(0);
-    ftree= get_full_func_mm_tree(param, cond_func, field_item, value, inv);
   }
 
   DBUG_RETURN(ftree);
@@ -13050,8 +13067,6 @@ static void print_ror_scans_arr(TABLE *table, const char *msg,
 
 #endif /* !DBUG_OFF */
 
-#ifdef OPTIMIZER_TRACE
-
 /**
   Print a key to a string
 
@@ -13110,10 +13125,10 @@ restore_col_map:
   @param[in]     flag         Key range flags defining what min_key
                               and max_key represent @see my_base.h
  */
-static void append_range(String *out,
-                         const KEY_PART_INFO *key_part,
-                         const uchar *min_key, const uchar *max_key,
-                         const uint flag)
+void append_range(String *out,
+                  const KEY_PART_INFO *key_part,
+                  const uchar *min_key, const uchar *max_key,
+                  const uint flag)
 {
   if (out->length() > 0)
     out->append(STRING_WITH_LEN(" AND "));
@@ -13138,6 +13153,9 @@ static void append_range(String *out,
     print_key_value(out, key_part, max_key);
   }
 }
+
+
+#ifdef OPTIMIZER_TRACE
 
 /**
   Traverse an R-B tree of range conditions and append all ranges for this

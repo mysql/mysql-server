@@ -1771,6 +1771,7 @@ SELECT * FROM t1;
 # Test check table after upgrade
 CHECK TABLE t1;
 DROP TABLE t1;
+remove_file $MYSQLD_DATADIR/test/t1.ARM;
 
 --echo #
 --echo # BUG 11757503 - 49556: ERROR 1005 (HY000): CAN'T CREATE TABLE '#SQL-B7C_3' (ERRNO: -1)

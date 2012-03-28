@@ -128,6 +128,10 @@ UNIV_INTERN ulint	srv_max_file_format_at_startup = UNIV_FORMAT_MAX;
 /** Place locks to records only i.e. do not use next-key locking except
 on duplicate key checking and foreign key checking */
 UNIV_INTERN ibool	srv_locks_unsafe_for_binlog = FALSE;
+/** Sort buffer size in index creation */
+UNIV_INTERN ulong	srv_sort_buf_size = 1048576;
+/** Maximum modification log file size for online index creation */
+UNIV_INTERN unsigned long long	srv_online_max_size;
 
 /* If this flag is TRUE, then we will use the native aio of the
 OS (provided we compiled Innobase with it in), otherwise we will
@@ -1066,6 +1070,7 @@ srv_boot(void)
 	/* Initialize this module */
 
 	srv_init();
+	srv_mon_create();
 
 	return(DB_SUCCESS);
 }
@@ -1720,6 +1725,7 @@ srv_get_active_thread_type(void)
 	/* Check only on shutdown. */
 	if (ret == SRV_NONE
 	    && srv_shutdown_state != SRV_SHUTDOWN_NONE
+	    && trx_purge_state() != PURGE_STATE_DISABLED
 	    && trx_purge_state() != PURGE_STATE_EXIT) {
 
 		ret = SRV_PURGE;

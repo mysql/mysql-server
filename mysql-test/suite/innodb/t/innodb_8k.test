@@ -37,7 +37,10 @@ SELECT variable_value FROM information_schema.global_status
 --disable_query_log
 --let table_stats_id = `SELECT table_id FROM information_schema.innodb_sys_tables WHERE name = 'mysql/innodb_table_stats'`
 --let index_stats_id = `SELECT table_id FROM information_schema.innodb_sys_tables WHERE name = 'mysql/innodb_index_stats'`
---eval SELECT * FROM INFORMATION_SCHEMA.INNODB_SYS_INDEXES WHERE table_id NOT IN ($table_stats_id, $index_stats_id)
+--let $rep_table_1 = `SELECT table_id FROM information_schema.innodb_sys_tables WHERE name = 'mysql/slave_master_info'`
+--let $rep_table_2 = `SELECT table_id FROM information_schema.innodb_sys_tables WHERE name = 'mysql/slave_relay_log_info'`
+--let $rep_table_3 = `SELECT table_id FROM information_schema.innodb_sys_tables WHERE name = 'mysql/slave_worker_info'`
+--eval SELECT * FROM INFORMATION_SCHEMA.INNODB_SYS_INDEXES WHERE table_id NOT IN ($table_stats_id, $index_stats_id, $rep_table_1, $rep_table_2, $rep_table_3)
 --enable_query_log
 
 --echo # Test 4) The maximum row size is dependent upon the page size.
@@ -301,7 +304,7 @@ UPDATE t1 SET i=@e;
 
 # The function dict_index_too_big_for_undo() prevents us from adding
 # one more index that is 767 bytes long.
---error 139
+-- error ER_TOO_BIG_ROWSIZE
 CREATE INDEX t1j ON t1 (j(767));
 
 # But it does allow a 500 byte index.  And with this, we cannot

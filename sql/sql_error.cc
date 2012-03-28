@@ -475,7 +475,7 @@ Diagnostics_area::set_eof_status(THD *thd)
     number of warnings, since they are not available to the client
     anyway.
   */
-  m_statement_warn_count= (thd->spcont ?
+  m_statement_warn_count= (thd->sp_runtime_ctx ?
                            0 :
                            current_statement_warn_count());
 

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -310,15 +310,6 @@ int init_slave()
   }
 
   /*
-    If --slave-skip-errors=... was not used, the string value for the
-    system variable has not been set up yet. Do it now.
-  */
-  if (!use_slave_mask)
-  {
-    print_slave_skip_errors();
-  }
-
-  /*
     This is the startup routine and as such we try to
     configure both the SLAVE_SQL and SLAVE_IO.
   */
@@ -611,9 +602,6 @@ static void print_slave_skip_errors(void)
   DBUG_ASSERT(sizeof(slave_skip_error_names) > MIN_ROOM);
   DBUG_ASSERT(MAX_SLAVE_ERROR <= 999999); // 6 digits
 
-  /* Make @@slave_skip_errors show the nice human-readable value.  */
-  opt_slave_skip_errors= slave_skip_error_names;
-
   if (!use_slave_mask || bitmap_is_clear_all(&slave_error_mask))
   {
     /* purecov: begin tested */
@@ -655,21 +643,26 @@ static void print_slave_skip_errors(void)
   DBUG_VOID_RETURN;
 }
 
-/*
-  Init function to set up array for errors that should be skipped for slave
-
-  SYNOPSIS
-    init_slave_skip_errors()
-    arg         List of errors numbers to skip, separated with ','
-
-  NOTES
-    Called from get_options() in mysqld.cc on start-up
+/**
+ Change arg to the string with the nice, human-readable skip error values.
+   @param slave_skip_errors_ptr
+          The pointer to be changed
 */
-
-void init_slave_skip_errors(const char* arg)
+void set_slave_skip_errors(char** slave_skip_errors_ptr)
 {
-  const char *p;
+  DBUG_ENTER("set_slave_skip_errors");
+  print_slave_skip_errors();
+  *slave_skip_errors_ptr= slave_skip_error_names;
+  DBUG_VOID_RETURN;
+}
+
+/**
+  Init function to set up array for errors that should be skipped for slave
+*/
+static void init_slave_skip_errors()
+{
   DBUG_ENTER("init_slave_skip_errors");
+  DBUG_ASSERT(!use_slave_mask); // not already initialized
 
   if (bitmap_init(&slave_error_mask,0,MAX_SLAVE_ERROR,0))
   {
@@ -677,13 +670,85 @@ void init_slave_skip_errors(const char* arg)
     exit(1);
   }
   use_slave_mask = 1;
-  for (;my_isspace(system_charset_info,*arg);++arg)
+  DBUG_VOID_RETURN;
+}
+
+static void add_slave_skip_errors(const uint* errors, uint n_errors)
+{
+  DBUG_ENTER("add_slave_skip_errors");
+  DBUG_ASSERT(errors);
+  DBUG_ASSERT(use_slave_mask);
+
+  for (uint i = 0; i < n_errors; i++)
+  {
+    const uint err_code = errors[i];
+    if (err_code < MAX_SLAVE_ERROR)
+       bitmap_set_bit(&slave_error_mask, err_code);
+  }
+  DBUG_VOID_RETURN;
+}
+
+/*
+  Add errors that should be skipped for slave
+
+  SYNOPSIS
+    add_slave_skip_errors()
+    arg         List of errors numbers to be added to skip, separated with ','
+
+  NOTES
+    Called from get_options() in mysqld.cc on start-up
+*/
+
+void add_slave_skip_errors(const char* arg)
+{
+  const char *p= NULL;
+  /*
+    ALL is only valid when nothing else is provided.
+  */
+  const uchar SKIP_ALL[]= "all";
+  size_t SIZE_SKIP_ALL= strlen((const char *) SKIP_ALL) + 1;
+  /*
+    IGNORE_DDL_ERRORS can be combined with other parameters
+    but must be the first one provided.
+  */
+  const uchar SKIP_DDL_ERRORS[]= "ddl_exist_errors";
+  size_t SIZE_SKIP_DDL_ERRORS= strlen((const char *) SKIP_DDL_ERRORS);
+  DBUG_ENTER("add_slave_skip_errors");
+
+  // initialize mask if not done yet
+  if (!use_slave_mask)
+    init_slave_skip_errors();
+
+  for (; my_isspace(system_charset_info,*arg); ++arg)
     /* empty */;
-  if (!my_strnncoll(system_charset_info,(uchar*)arg,4,(const uchar*)"all",4))
+  if (!my_strnncoll(system_charset_info, (uchar*)arg, SIZE_SKIP_ALL,
+                    SKIP_ALL, SIZE_SKIP_ALL))
   {
     bitmap_set_all(&slave_error_mask);
-    print_slave_skip_errors();
     DBUG_VOID_RETURN;
+  }
+  if (!my_strnncoll(system_charset_info, (uchar*)arg, SIZE_SKIP_DDL_ERRORS,
+                    SKIP_DDL_ERRORS, SIZE_SKIP_DDL_ERRORS))
+  {
+    // DDL errors to be skipped for relaxed 'exist' handling
+    const uint ddl_errors[] = {
+      // error codes with create/add <schema object>
+      ER_DB_CREATE_EXISTS, ER_TABLE_EXISTS_ERROR, ER_DUP_KEYNAME,
+      ER_MULTIPLE_PRI_KEY,
+      // error codes with change/rename <schema object>
+      ER_BAD_FIELD_ERROR, ER_NO_SUCH_TABLE, ER_DUP_FIELDNAME,
+      // error codes with drop <schema object>
+      ER_DB_DROP_EXISTS, ER_BAD_TABLE_ERROR, ER_CANT_DROP_FIELD_OR_KEY
+    };
+
+    add_slave_skip_errors(ddl_errors,
+                          sizeof(ddl_errors)/sizeof(ddl_errors[0]));
+    /*
+      After processing the SKIP_DDL_ERRORS, the pointer is
+      increased to the position after the comma.
+    */
+    if (strlen(arg) > SIZE_SKIP_DDL_ERRORS + 1)
+      arg+= SIZE_SKIP_DDL_ERRORS + 1;
   }
   for (p= arg ; *p; )
   {
@@ -695,8 +760,6 @@ void init_slave_skip_errors(const char* arg)
     while (!my_isdigit(system_charset_info,*p) && *p)
       p++;
   }
-  /* Convert slave skip errors bitmap into a printable string. */
-  print_slave_skip_errors();
   DBUG_VOID_RETURN;
 }
 
@@ -2324,7 +2387,7 @@ int register_slave_on_master(MYSQL* mysql, Master_info *mi,
   @retval FALSE success
   @retval TRUE failure
 */
-bool show_master_info(THD* thd, Master_info* mi)
+bool show_slave_status(THD* thd, Master_info* mi)
 {
   // TODO: fix this for multi-master
   List<Item> field_list;
@@ -2332,28 +2395,31 @@ bool show_master_info(THD* thd, Master_info* mi)
   char *slave_sql_running_state= NULL;
   char *sql_gtid_set_buffer= NULL, *io_gtid_set_buffer= NULL;
   int sql_gtid_set_size= 0, io_gtid_set_size= 0;
-  DBUG_ENTER("show_master_info");
-  
-  global_sid_lock.wrlock();
-  const Gtid_set* sql_gtid_set= gtid_state.get_logged_gtids();
-  const Gtid_set* io_gtid_set= mi->rli->get_gtid_set();
-  if ((sql_gtid_set_size= sql_gtid_set->to_string(&sql_gtid_set_buffer)) < 0 ||
-      (io_gtid_set_size= io_gtid_set->to_string(&io_gtid_set_buffer)) < 0)
-  {
-    my_eof(thd);
-    my_free(sql_gtid_set_buffer);
-    my_free(io_gtid_set_buffer);
+  DBUG_ENTER("show_slave_status");
+ 
+  if (mi != NULL)
+  { 
+    global_sid_lock.wrlock();
+    const Gtid_set* sql_gtid_set= gtid_state.get_logged_gtids();
+    const Gtid_set* io_gtid_set= mi->rli->get_gtid_set();
+    if ((sql_gtid_set_size= sql_gtid_set->to_string(&sql_gtid_set_buffer)) < 0 ||
+        (io_gtid_set_size= io_gtid_set->to_string(&io_gtid_set_buffer)) < 0)
+    {
+      my_eof(thd);
+      my_free(sql_gtid_set_buffer);
+      my_free(io_gtid_set_buffer);
+      global_sid_lock.unlock();
+      DBUG_RETURN(true);
+    }
     global_sid_lock.unlock();
-    DBUG_RETURN(true);
   }
-  global_sid_lock.unlock();
 
   field_list.push_back(new Item_empty_string("Slave_IO_State",
                                                      14));
-  field_list.push_back(new Item_empty_string("Master_Host",
-                                                     sizeof(mi->host)));
-  field_list.push_back(new Item_empty_string("Master_User",
-                                                     mi->get_user_size()));
+  field_list.push_back(new Item_empty_string("Master_Host", mi != NULL ?
+                                                     sizeof(mi->host) : 0));
+  field_list.push_back(new Item_empty_string("Master_User", mi != NULL ?
+                                                     mi->get_user_size() : 0));
   field_list.push_back(new Item_return_int("Master_Port", 7,
                                            MYSQL_TYPE_LONG));
   field_list.push_back(new Item_return_int("Connect_Retry", 10,
@@ -2390,16 +2456,16 @@ bool show_master_info(THD* thd, Master_info* mi)
   field_list.push_back(new Item_return_int("Until_Log_Pos", 10,
                                            MYSQL_TYPE_LONGLONG));
   field_list.push_back(new Item_empty_string("Master_SSL_Allowed", 7));
-  field_list.push_back(new Item_empty_string("Master_SSL_CA_File",
-                                             sizeof(mi->ssl_ca)));
-  field_list.push_back(new Item_empty_string("Master_SSL_CA_Path",
-                                             sizeof(mi->ssl_capath)));
-  field_list.push_back(new Item_empty_string("Master_SSL_Cert",
-                                             sizeof(mi->ssl_cert)));
-  field_list.push_back(new Item_empty_string("Master_SSL_Cipher",
-                                             sizeof(mi->ssl_cipher)));
-  field_list.push_back(new Item_empty_string("Master_SSL_Key",
-                                             sizeof(mi->ssl_key)));
+  field_list.push_back(new Item_empty_string("Master_SSL_CA_File", mi != NULL ?
+                                             sizeof(mi->ssl_ca) : 0));
+  field_list.push_back(new Item_empty_string("Master_SSL_CA_Path", mi != NULL ?
+                                             sizeof(mi->ssl_capath) : 0));
+  field_list.push_back(new Item_empty_string("Master_SSL_Cert", mi != NULL ?
+                                             sizeof(mi->ssl_cert) : 0));
+  field_list.push_back(new Item_empty_string("Master_SSL_Cipher", mi != NULL ?
+                                             sizeof(mi->ssl_cipher) : 0));
+  field_list.push_back(new Item_empty_string("Master_SSL_Key", mi != NULL ?
+                                             sizeof(mi->ssl_key) : 0));
   field_list.push_back(new Item_return_int("Seconds_Behind_Master", 10,
                                            MYSQL_TYPE_LONGLONG));
   field_list.push_back(new Item_empty_string("Master_SSL_Verify_Server_Cert",
@@ -2420,14 +2486,14 @@ bool show_master_info(THD* thd, Master_info* mi)
   field_list.push_back(new Item_empty_string("Slave_SQL_Running_State", 20));
   field_list.push_back(new Item_return_int("Master_Retry_Count", 10,
                                            MYSQL_TYPE_LONGLONG));
-  field_list.push_back(new Item_empty_string("Master_Bind",
-                                             sizeof(mi->bind_addr)));
+  field_list.push_back(new Item_empty_string("Master_Bind", mi != NULL ?
+                                             sizeof(mi->bind_addr) : 0));
   field_list.push_back(new Item_empty_string("Last_IO_Error_Timestamp", 20));
   field_list.push_back(new Item_empty_string("Last_SQL_Error_Timestamp", 20));
-  field_list.push_back(new Item_empty_string("Master_SSL_Crl",
-                                             sizeof(mi->ssl_crl)));
-  field_list.push_back(new Item_empty_string("Master_SSL_Crlpath",
-                                             sizeof(mi->ssl_crlpath)));
+  field_list.push_back(new Item_empty_string("Master_SSL_Crl", mi != NULL ?
+                                             sizeof(mi->ssl_crl) : 0));
+  field_list.push_back(new Item_empty_string("Master_SSL_Crlpath", mi != NULL ?
+                                             sizeof(mi->ssl_crlpath) : 0));
   field_list.push_back(new Item_empty_string("Retrieved_Gtid_Set",
                                              io_gtid_set_size));
   field_list.push_back(new Item_empty_string("Executed_Gtid_Set",
@@ -2441,7 +2507,7 @@ bool show_master_info(THD* thd, Master_info* mi)
     DBUG_RETURN(true);
   }
 
-  if (mi->host[0])
+  if (mi != NULL && mi->host[0])
   {
     DBUG_PRINT("info",("host is set: '%s'", mi->host));
     String *packet= &thd->packet;
@@ -3453,23 +3519,6 @@ static int exec_relay_log_event(THD* thd, Relay_log_info* rli)
     if (rli->until_condition != Relay_log_info::UNTIL_NONE &&
         rli->is_until_satisfied(thd, ev))
     {
-      char buf[22];
-      if (rli->until_condition == Relay_log_info::UNTIL_MASTER_POS ||
-          rli->until_condition == Relay_log_info::UNTIL_RELAY_POS)
-        sql_print_information("Slave SQL thread stopped because it reached its"
-                              " UNTIL position %s", llstr(rli->until_pos(), buf));
-      else
-      {
-        char *buffer;
-        global_sid_lock.wrlock();
-        if ((buffer= (char *) my_malloc(rli->request_gtids_obj.get_string_length() + 1,
-                                        MYF(MY_WME))))
-          rli->request_gtids_obj.to_string(buffer);
-        global_sid_lock.unlock();
-        sql_print_information("Slave SQL thread stopped because it reached its"
-                              " UNTIL SQL_BEFORE_GTIDS %s", buffer);
-        my_free(buffer);
-      }
       /*
         Setting abort_slave flag because we do not want additional message about
         error in query execution to be printed.
@@ -5191,23 +5240,6 @@ log '%s' at position %s, relay log '%s' position: %s", rli->get_rpl_log_name(),
   if (rli->until_condition != Relay_log_info::UNTIL_NONE &&
       rli->is_until_satisfied(thd, NULL))
   {
-    char buf[22];
-    if (rli->until_condition == Relay_log_info::UNTIL_MASTER_POS ||
-        rli->until_condition == Relay_log_info::UNTIL_RELAY_POS)
-      sql_print_information("Slave SQL thread stopped because it reached its"
-                            " UNTIL position %s", llstr(rli->until_pos(), buf));
-    else
-    {
-      char* buffer= NULL;
-      global_sid_lock.rdlock();
-      if ((buffer= (char *) my_malloc(rli->request_gtids_obj.get_string_length() + 1,
-                                      MYF(MY_WME))))
-        rli->request_gtids_obj.to_string(buffer);
-      global_sid_lock.unlock();
-      sql_print_information("Slave SQL thread stopped because it reached its"
-                            " UNTIL SQL_BEFORE_GTIDS %s", buffer);
-      my_free(buffer);
-    }
     mysql_mutex_unlock(&rli->data_lock);
     goto err;
   }
@@ -6848,7 +6880,22 @@ static Log_event* next_event(Relay_log_info* rli)
             rli->log_space_limit < rli->log_space_total)
         {
           /* force rotation if not in an unfinished group */
-          rli->sql_force_rotate_relay= !rli->is_in_group();
+          if (!rli->is_parallel_exec())
+          {
+            rli->sql_force_rotate_relay= !rli->is_in_group();
+          }
+          else
+          {
+            if (rli->mts_group_status != Relay_log_info::MTS_IN_GROUP)
+            {
+              /*
+                Before to let the current relay log be purged Workers
+                have to finish off their current assignments.
+              */
+              (void) wait_for_workers_to_finish(rli);
+              rli->sql_force_rotate_relay= true;
+            }
+          }
 
           /* ask for one more event */
           rli->ignore_log_space_limit= true;
@@ -7257,7 +7304,7 @@ bool rpl_master_has_bug(const Relay_log_info *rli, uint bug_id, bool report,
  */
 bool rpl_master_erroneous_autoinc(THD *thd)
 {
-  if (active_mi && active_mi->rli->info_thd == thd)
+  if (active_mi != NULL && active_mi->rli->info_thd == thd)
   {
     Relay_log_info *rli= active_mi->rli;
     DBUG_EXECUTE_IF("simulate_bug33029", return TRUE;);
@@ -7394,15 +7441,15 @@ int start_slave(THD* thd , Master_info* mi,  bool net_report)
         {
           global_sid_lock.wrlock();
           mi->rli->clear_until_condition();
-          if (mi->rli->until_gtids_obj.add_gtid_text(thd->lex->mi.gtid)
-              != RETURN_STATUS_OK ||
-              mi->rli->request_gtids_obj.add_gtid_text(thd->lex->mi.gtid)
+          if (mi->rli->until_sql_gtids.add_gtid_text(thd->lex->mi.gtid)
               != RETURN_STATUS_OK)
             slave_errno= ER_BAD_SLAVE_UNTIL_COND;
-          if (mi->rli->until_gtids_obj.remove_gtid_set(gtid_state.get_logged_gtids()) 
-              != RETURN_STATUS_OK)
-            slave_errno= ER_BAD_SLAVE_UNTIL_COND;
-          mi->rli->until_condition= Relay_log_info::UNTIL_SQL_BEFORE_GTIDS;
+          else {
+            mi->rli->until_condition=
+              LEX_MASTER_INFO::UNTIL_SQL_BEFORE_GTIDS == thd->lex->mi.gtid_until_condition
+              ? Relay_log_info::UNTIL_SQL_BEFORE_GTIDS
+              : Relay_log_info::UNTIL_SQL_AFTER_GTIDS;
+          }
           global_sid_lock.unlock();
         }
         else

@@ -13,8 +13,8 @@ select name, status from information_schema.innodb_metrics;
 # Turn on all monitor counters
 set global innodb_monitor_enable = all;
 
-# status should all change to "started"
-select name, status from information_schema.innodb_metrics;
+# status should all change to "enabled"
+select name from information_schema.innodb_metrics where status!='enabled';
 
 # Test wrong argument to the global configure option
 --error ER_WRONG_VALUE_FOR_VAR
@@ -31,21 +31,21 @@ set global innodb_monitor_enable = aaa;
 # insensitive
 set global innodb_monitor_disable = All;
 
-# status should all change to "stopped"
-select name, status from information_schema.innodb_metrics;
+# status should all change to "disabled"
+select name from information_schema.innodb_metrics where status!='disabled';
 
 # Reset all counter values
 set global innodb_monitor_reset_all = all;
 
 # count should all change to 0
-select name, count, status from information_schema.innodb_metrics;
+select name from information_schema.innodb_metrics where count!=0;
 
 # Test wildcard match, turn on all counters contain string "lock"
 set  global innodb_monitor_enable = "%lock%";
 
 # All lock related counter should be enabled
-select name, status from information_schema.innodb_metrics
-where name like "%lock%";
+select name from information_schema.innodb_metrics
+where status != IF(name like "%lock%", 'enabled', 'disabled');
 
 # Disable them
 set  global innodb_monitor_disable = "%lock%";
@@ -61,28 +61,29 @@ set global innodb_monitor_enable = "%lock*";
 # All counters will be turned on with wildcard match string with all "%"
 set global innodb_monitor_enable="%%%%%%%%%%%%%%%%%%%%%%%%%%%";
 
-select name, status from information_schema.innodb_metrics;
+select name from information_schema.innodb_metrics where status!='enabled';
 
 # Turn off all counters
 set global innodb_monitor_disable="%%%%%";
 
-select name, status from information_schema.innodb_metrics;
+select name from information_schema.innodb_metrics where status!='disabled';
 
 # One more round testing. All counters will be turned on with
 # single wildcard character "%"
 set global innodb_monitor_enable="%";
 
-select name, status from information_schema.innodb_metrics;
+select name from information_schema.innodb_metrics where status!='enabled';
 
 # Turn off all the counters with "%_%"
 set global innodb_monitor_disable="%_%";
 
-select name, status from information_schema.innodb_metrics;
+select name from information_schema.innodb_metrics where status!='disabled';
 
 # Turn on all counters start with "log"
 set global innodb_monitor_enable="log%%%%";
 
-select name, status from information_schema.innodb_metrics;
+select name from information_schema.innodb_metrics
+where status != IF(name like "log%", 'enabled', 'disabled');
 
 # Turn on counters "os_data_fsync" with wildcard match "os_%a_fs_ncs", "_"
 # is single character wildcard match word
@@ -157,7 +158,7 @@ where name = "metadata_table_handles_opened";
 # Turn off the counter "metadata_table_handles_opened"
 set global innodb_monitor_disable = metadata_table_handles_opened;
 
-# Reset the counter value while counter is off (stopped)
+# Reset the counter value while counter is off (disabled)
 set global innodb_monitor_reset = metadata_table_handles_opened;
 
 select name, max_count, min_count, count,

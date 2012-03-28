@@ -1720,6 +1720,8 @@ bool Explain_format_JSON::end_context(Explain_context_enum ctx)
   bool ret= false;
   if (current_context->parent == NULL)
   {
+    Item* item;
+#ifdef OPTIMIZER_TRACE
     Opt_trace_context json; 
     const size_t max_size= ULONG_MAX;
     if (json.start(true,           // support_I_S (enable JSON generation)
@@ -1730,9 +1732,7 @@ bool Explain_format_JSON::end_context(Explain_context_enum ctx)
                    1,              // limit
                    max_size,       // max_mem_size
                    Opt_trace_context::MISC))
-    {
-    //  return true;
-    }
+      return true;
 
     {
       Opt_trace_object braces(&json);
@@ -1740,20 +1740,25 @@ bool Explain_format_JSON::end_context(Explain_context_enum ctx)
       if (current_context->format(&json))
         return true;
     }
+    json.end();
 
-    const char *str= json.get_tail(max_size);
-    Item* item;
-    if (str)
-      item= new Item_string(str, strlen(str), system_charset_info);
+    Opt_trace_iterator it(&json);
+    if (!it.at_end())
+    {
+      Opt_trace_info info;
+      it.get_value(&info);
+      item= new Item_string(info.trace_ptr,
+                            static_cast<uint>(info.trace_length),
+                            system_charset_info);
+    }
     else
+#endif
       item= new Item_null();
 
     List<Item> field_list;
     ret= (item == NULL ||
           field_list.push_back(item) ||
           output->send_data(field_list));
-
-    json.end();
   }
   else if (ctx == CTX_DERIVED)
   {

@@ -12,11 +12,7 @@
 
 # Enforce a clean state
 --source ../include/wait_for_pfs_thread_count.inc
-
-flush status;
-flush hosts;
-flush user_resources;
-select @@global.debug;
+--source ../include/hostcache_set_state.inc
 
 create user 'user_without'@'santa.claus.ipv6.example.com';
 create user 'user_with'@'santa.claus.ipv6.example.com'

@@ -196,11 +196,24 @@ public:
   */
   void aggregate(void)
   {
-    if (likely((m_thread_owner != NULL) && (m_has_io_stats || m_has_lock_stats)))
+    if (likely(m_thread_owner != NULL))
     {
-      safe_aggregate(& m_table_stat, m_share, m_thread_owner);
-      m_has_io_stats= false;
-      m_has_lock_stats= false;
+      if (m_has_io_stats && m_has_lock_stats)
+      {
+        safe_aggregate(& m_table_stat, m_share, m_thread_owner);
+        m_has_io_stats= false;
+        m_has_lock_stats= false;
+      }
+      else if (m_has_io_stats)
+      {
+        safe_aggregate_io(& m_table_stat, m_share, m_thread_owner);
+        m_has_io_stats= false;
+      }
+      else if (m_has_lock_stats)
+      {
+        safe_aggregate_lock(& m_table_stat, m_share, m_thread_owner);
+        m_has_lock_stats= false;
+      }
     }
   }
 

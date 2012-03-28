@@ -23,7 +23,7 @@ SET GTID_NEXT = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1';
 ERROR HY000: GTID_NEXT cannot be set to UUID:NUMBER when GTID_MODE = OFF.
 ---- CHANGE MASTER TO MASTER_AUTO_POSITION not supported ----
 CHANGE MASTER TO MASTER_AUTO_POSITION = 1;
-ERROR HY000: CHANGE MASTER TO AUTO_POSITION = 1 can only be executed when GTID_MODE = ON.
+ERROR HY000: CHANGE MASTER TO MASTER_AUTO_POSITION = 1 can only be executed when GTID_MODE = ON.
 CHANGE MASTER TO MASTER_AUTO_POSITION = 0;
 ---- No GTIDs in binlog ----
 include/start_slave.inc

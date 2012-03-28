@@ -386,14 +386,16 @@ public:
   // CASE expressions.
   /////////////////////////////////////////////////////////////////////////
 
-  int register_case_expr()
-  { return m_num_case_exprs++; }
-
   int get_num_case_exprs() const
   { return m_num_case_exprs; }
 
-  bool push_case_expr_id(int case_expr_id)
-  { return m_case_expr_ids.append(case_expr_id); }
+  int push_case_expr_id()
+  {
+    if (m_case_expr_ids.append(m_num_case_exprs))
+      return -1;
+
+    return m_num_case_exprs++;
+  }
 
   void pop_case_expr_id()
   { m_case_expr_ids.pop(); }

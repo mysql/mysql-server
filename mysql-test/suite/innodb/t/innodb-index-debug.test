@@ -23,6 +23,28 @@ SET SESSION DEBUG=DEFAULT;
 SHOW CREATE TABLE t1;
 DROP TABLE t1;
 
+#
+# Test for Bug#13861218 Records are not fully sorted during index creation
+#
+CREATE TABLE bug13861218 (c1 INT NOT NULL, c2 INT NOT NULL, INDEX(c2))
+ENGINE=InnoDB;
+INSERT INTO bug13861218 VALUES (8, 0), (4, 0), (0, 0);
+SET DEBUG='+d,ib_row_merge_buf_add_two';
+# Force creation of a PRIMARY KEY on c1 to see what happens on the index(c2).
+# No crash here, because n_uniq for c2 includes the clustered index fields
+CREATE UNIQUE INDEX ui ON bug13861218(c1);
+SET DEBUG='-d,ib_row_merge_buf_add_two';
+DROP TABLE bug13861218;
+
+CREATE TABLE bug13861218 (c1 INT NOT NULL, c2 INT UNIQUE) ENGINE=InnoDB;
+INSERT INTO bug13861218 VALUES (8, NULL), (4, NULL), (0, NULL);
+SET DEBUG='+d,ib_row_merge_buf_add_two';
+# Force creation of a PRIMARY KEY on c1 to see what happens on the index(c2).
+# assertion failure: ut_ad(cmp_dtuple_rec(dtuple, rec, rec_offsets) > 0)
+CREATE UNIQUE INDEX ui ON bug13861218(c1);
+SET DEBUG='-d,ib_row_merge_buf_add_two';
+DROP TABLE bug13861218;
+
 eval set global innodb_file_per_table=$per_table;
 eval set global innodb_file_format=$format;
 eval set global innodb_file_format_max=$format;

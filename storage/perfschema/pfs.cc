@@ -3682,23 +3682,27 @@ static void end_table_io_wait_v1(PSI_table_locker* locker)
   DBUG_ASSERT(table != NULL);
 
   PFS_single_stat *stat;
+  PFS_table_io_stat *table_io_stat;
 
   DBUG_ASSERT((state->m_index < table->m_share->m_key_count) ||
-              (state->m_index == MAX_KEY));
+              (state->m_index == MAX_INDEXES));
+
+  table_io_stat= & table->m_table_stat.m_index_stat[state->m_index];
+  table_io_stat->m_has_data= true;
 
   switch (state->m_io_operation)
   {
   case PSI_TABLE_FETCH_ROW:
-    stat= & table->m_table_stat.m_index_stat[state->m_index].m_fetch;
+    stat= & table_io_stat->m_fetch;
     break;
   case PSI_TABLE_WRITE_ROW:
-    stat= & table->m_table_stat.m_index_stat[state->m_index].m_insert;
+    stat= & table_io_stat->m_insert;
     break;
   case PSI_TABLE_UPDATE_ROW:
-    stat= & table->m_table_stat.m_index_stat[state->m_index].m_update;
+    stat= & table_io_stat->m_update;
     break;
   case PSI_TABLE_DELETE_ROW:
-    stat= & table->m_table_stat.m_index_stat[state->m_index].m_delete;
+    stat= & table_io_stat->m_delete;
     break;
   default:
     DBUG_ASSERT(false);

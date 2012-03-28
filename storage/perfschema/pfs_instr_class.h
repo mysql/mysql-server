@@ -316,12 +316,19 @@ public:
   /** Table statistics. */
   PFS_table_stat m_table_stat;
   /** Index names. */
-  PFS_table_key m_keys[MAX_KEY];
+  PFS_table_key m_keys[MAX_INDEXES];
 
 private:
   /** Number of opened table handles. */
   int m_refcount;
 };
+
+inline uint sanitize_index_count(uint count)
+{
+  if (likely(count <= MAX_INDEXES))
+    return count;
+  return 0;
+}
 
 /**
   Instrument controlling all table io.

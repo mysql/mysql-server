@@ -455,6 +455,8 @@ bool mysql_create_view(THD *thd, TABLE_LIST *views,
     goto err;
   }
 
+  view= lex->unlink_first_table(&link_to_local);
+
   /*
     Checking the existence of the database in which the view is to be created
   */
@@ -464,8 +466,6 @@ bool mysql_create_view(THD *thd, TABLE_LIST *views,
     res= TRUE;
     goto err;
   }
-
-  view= lex->unlink_first_table(&link_to_local);
 
   if (mode == VIEW_ALTER && fill_defined_view_parts(thd, view))
   {
@@ -1099,12 +1099,12 @@ err:
 bool mysql_make_view(THD *thd, File_parser *parser, TABLE_LIST *table,
                      uint flags)
 {
-  SELECT_LEX *end, *view_select;
+  SELECT_LEX *end, *view_select= NULL;
   LEX *old_lex, *lex;
   Query_arena *arena, backup;
   TABLE_LIST *top_view= table->top_table();
-  bool parse_status;
-  bool result, view_is_mergeable;
+  bool parse_status= true;
+  bool result= true, view_is_mergeable;
   TABLE_LIST *UNINIT_VAR(view_main_select_tables);
 
   DBUG_ENTER("mysql_make_view");

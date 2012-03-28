@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2011, 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2011, 2012, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -5039,11 +5039,11 @@ UNIV_INTERN
 void
 fts_add_doc_id_column(
 /*==================*/
-	dict_table_t*	table)		/*!< in/out: Table with FTS index */
+	dict_table_t*	table,	/*!< in/out: Table with FTS index */
+	mem_heap_t*	heap)	/*!< in: temporary memory heap, or NULL */
 {
 	dict_mem_table_add_col(
-		table,
-		table->heap,
+		table, heap,
 		FTS_DOC_ID_COL_NAME,
 		DATA_INT,
 		dtype_form_prtype(
@@ -5308,7 +5308,6 @@ fts_savepoint_release(
 	const char*	name)		/*!< in: savepoint name */
 {
 	ulint			i;
-	fts_savepoint_t*	prev;
 	ib_vector_t*		savepoints;
 	ulint			top_of_stack = 0;
 
@@ -5317,9 +5316,6 @@ fts_savepoint_release(
 	savepoints = trx->fts_trx->savepoints;
 
 	ut_a(ib_vector_size(savepoints) > 0);
-
-	prev = static_cast<fts_savepoint_t*>(
-		ib_vector_get(savepoints, top_of_stack));
 
 	/* Skip the implied savepoint (first element). */
 	for (i = 1; i < ib_vector_size(savepoints); ++i) {
@@ -5334,17 +5330,6 @@ fts_savepoint_release(
 		we have to skip deleted/released entries. */
 		if (savepoint->name != NULL
 		    && strcmp(name, savepoint->name) == 0) {
-
-			fts_savepoint_t*	last;
-			fts_savepoint_t		temp;
-
-			last = static_cast<fts_savepoint_t*>(
-				ib_vector_last(savepoints));
-
-			/* Swap the entries. */
-			memcpy(&temp, last, sizeof(temp));
-			memcpy(last, prev, sizeof(*last));
-			memcpy(prev, &temp, sizeof(prev));
 			break;
 
 		/* Track the previous savepoint instance that will
@@ -5353,8 +5338,6 @@ fts_savepoint_release(
 			/* We need to delete all entries
 			greater than this element. */
 			top_of_stack = i;
-
-			prev = savepoint;
 		}
 	}
 
@@ -5763,7 +5746,8 @@ fts_check_and_drop_orphaned_tables(
 		sys_table = static_cast<fts_sys_table_t*>(
 			ib_vector_get(tables, i));
 
-		table = dict_table_open_on_id(sys_table->parent_id, FALSE);
+		table = dict_table_open_on_id(
+			sys_table->parent_id, FALSE, FALSE);
 
 		if (table == NULL || table->fts == NULL) {
 
@@ -5794,7 +5778,7 @@ fts_check_and_drop_orphaned_tables(
 		}
 
 		if (table) {
-			dict_table_close(table, FALSE);
+			dict_table_close(table, FALSE, FALSE);
 		}
 
 		if (drop) {

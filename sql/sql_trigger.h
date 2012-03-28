@@ -208,7 +208,7 @@ public:
                                             TABLE_LIST *table_list);
 
 private:
-  bool prepare_record1_accessors(TABLE *table);
+  bool prepare_record1_accessors();
   LEX_STRING* change_table_name_in_trignames(const char *old_db_name,
                                              const char *new_db_name,
                                              LEX_STRING *new_table_name,

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -178,7 +178,8 @@ int init_info(Master_info* mi, bool ignore_if_no_info, int thread_mask);
 void end_info(Master_info* mi);
 int remove_info(Master_info* mi);
 int flush_master_info(Master_info* mi, bool force);
-void init_slave_skip_errors(const char* arg);
+void add_slave_skip_errors(const char* arg);
+void set_slave_skip_errors(char** slave_skip_errors_ptr);
 int register_slave_on_master(MYSQL* mysql);
 int terminate_slave_threads(Master_info* mi, int thread_mask,
 			     bool skip_lock = 0);
@@ -206,7 +207,7 @@ int start_slave_thread(
 int fetch_master_table(THD* thd, const char* db_name, const char* table_name,
 		       Master_info* mi, MYSQL* mysql, bool overwrite);
 
-bool show_master_info(THD* thd, Master_info* mi);
+bool show_slave_status(THD* thd, Master_info* mi);
 bool rpl_master_has_bug(const Relay_log_info *rli, uint bug_id, bool report,
                         bool (*pred)(const void *), const void *param);
 bool rpl_master_erroneous_autoinc(THD* thd);

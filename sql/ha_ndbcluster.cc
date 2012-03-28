@@ -353,22 +353,10 @@ static uint
 ndbcluster_alter_table_flags(uint flags)
 {
   const uint f=
-    HA_INPLACE_ADD_INDEX_NO_READ_WRITE |
-    HA_INPLACE_DROP_INDEX_NO_READ_WRITE |
-    HA_INPLACE_ADD_UNIQUE_INDEX_NO_READ_WRITE |
-    HA_INPLACE_DROP_UNIQUE_INDEX_NO_READ_WRITE |
-    HA_INPLACE_ADD_PK_INDEX_NO_READ_WRITE |
-    HA_INPLACE_DROP_PK_INDEX_NO_READ_WRITE |
-    HA_INPLACE_ADD_INDEX_NO_WRITE |
-    HA_INPLACE_DROP_INDEX_NO_WRITE |
-    HA_INPLACE_ADD_UNIQUE_INDEX_NO_WRITE |
-    HA_INPLACE_DROP_UNIQUE_INDEX_NO_WRITE |
-    HA_INPLACE_ADD_PK_INDEX_NO_WRITE |
-    HA_INPLACE_DROP_PK_INDEX_NO_WRITE |
     HA_PARTITION_FUNCTION_SUPPORTED |
     0;
 
-  if (flags & ALTER_DROP_PARTITION)
+  if (flags & Alter_info::ALTER_DROP_PARTITION)
     return 0;
 
   return f;
@@ -9926,31 +9914,6 @@ int ha_ndbcluster::create_ndb_index(THD *thd, const char *name,
   DBUG_RETURN(0);  
 }
 
-/*
- Prepare for an on-line alter table
-*/ 
-void ha_ndbcluster::prepare_for_alter()
-{
-  /* ndb_share reference schema */
-  ndbcluster_get_share(m_share); // Increase ref_count
-  DBUG_PRINT("NDB_SHARE", ("%s binlog schema  use_count: %u",
-                           m_share->key, m_share->use_count));
-  set_ndb_share_state(m_share, NSS_ALTERED);
-}
-
-/*
-  Add an index on-line to a table
-*/
-int ha_ndbcluster::add_index(TABLE *table_arg, 
-                             KEY *key_info, uint num_of_keys,
-                             handler_add_index **add)
-{
-  // TODO: As we don't yet implement ::final_add_index(),
-  // we don't need a handler_add_index object either..?
-  *add= NULL; // new handler_add_index(table_arg, key_info, num_of_keys);
-  return add_index_impl(current_thd, table_arg, key_info, num_of_keys);
-}
-
 int ha_ndbcluster::add_index_impl(THD *thd, TABLE *table_arg, 
                                   KEY *key_info, uint num_of_keys)
 {
@@ -9976,46 +9939,6 @@ int ha_ndbcluster::add_index_impl(THD *thd, TABLE *table_arg,
       break;
   }
   DBUG_RETURN(error);  
-}
-
-/*
-  Mark one or several indexes for deletion. and
-  renumber the remaining indexes
-*/
-int ha_ndbcluster::prepare_drop_index(TABLE *table_arg, 
-                                      uint *key_num, uint num_of_keys)
-{
-  DBUG_ENTER("ha_ndbcluster::prepare_drop_index");
-  DBUG_ASSERT(m_share->state == NSS_ALTERED);
-  // Mark indexes for deletion
-  uint idx;
-  for (idx= 0; idx < num_of_keys; idx++)
-  {
-    DBUG_PRINT("info", ("ha_ndbcluster::prepare_drop_index %u", *key_num));
-    m_index[*key_num++].status= TO_BE_DROPPED;
-  }
-  // Renumber indexes
-  THD *thd= current_thd;
-  Thd_ndb *thd_ndb= get_thd_ndb(thd);
-  Ndb *ndb= thd_ndb->ndb;
-  renumber_indexes(ndb, table_arg);
-  DBUG_RETURN(0);
-}
- 
-/*
-  Really drop all indexes marked for deletion
-*/
-int ha_ndbcluster::final_drop_index(TABLE *table_arg)
-{
-  int error;
-  DBUG_ENTER("ha_ndbcluster::final_drop_index");
-  DBUG_PRINT("info", ("ha_ndbcluster::final_drop_index"));
-  // Really drop indexes
-  THD *thd= current_thd;
-  Thd_ndb *thd_ndb= get_thd_ndb(thd);
-  Ndb *ndb= thd_ndb->ndb;
-  error= drop_indexes(ndb, table_arg);
-  DBUG_RETURN(error);
 }
 
 /**

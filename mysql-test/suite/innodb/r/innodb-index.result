@@ -119,8 +119,8 @@ t1	CREATE TABLE `t1` (
   PRIMARY KEY (`a`),
   UNIQUE KEY `c` (`c`),
   KEY `d2` (`d`),
-  KEY `d` (`d`),
-  KEY `b` (`b`)
+  KEY `b` (`b`),
+  KEY `d` (`d`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 insert into t1 values(6,1,'ggg','ggg');
 select * from t1;
@@ -170,8 +170,8 @@ t1	CREATE TABLE `t1` (
   PRIMARY KEY (`a`),
   UNIQUE KEY `c` (`c`),
   KEY `d2` (`d`),
-  KEY `d` (`d`),
-  KEY `b` (`b`)
+  KEY `b` (`b`),
+  KEY `d` (`d`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 drop table t1;
 create table t1(a int not null, b int, c char(10), d varchar(20), primary key (a)) engine = innodb;
