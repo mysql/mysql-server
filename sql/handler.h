@@ -1293,16 +1293,6 @@ public:
   virtual ~handler_add_index() {}
 };
 
-
-/** Base class to be used by handlers different shares */
-class Handler_share
-{
-public:
-  Handler_share() {}
-  virtual ~Handler_share() {}
-};
-
-
 /**
   The handler class is the interface for dynamically loadable
   storage engines. Do not add ifdefs and take care when adding or
@@ -1474,11 +1464,6 @@ private:
     object. This cloned handler object needs to know about the lock_type used.
   */
   int m_lock_type;
-  /**
-    Pointer where to store/retrieve the Handler_share pointer.
-    For non partitioned handlers this is &TABLE_SHARE::ha_share.
-  */
-  Handler_share **ha_share;
 
 public:
   handler(handlerton *ht_arg, TABLE_SHARE *share_arg)
@@ -1492,11 +1477,11 @@ public:
     pushed_cond(0), pushed_idx_cond(NULL), pushed_idx_cond_keyno(MAX_KEY),
     next_insert_id(0), insert_id_for_cur_row(0),
     auto_inc_intervals_count(0),
-    m_psi(NULL), m_lock_type(F_UNLCK), ha_share(NULL)
+    m_psi(NULL), m_lock_type(F_UNLCK)
     {
       DBUG_PRINT("info",
                  ("handler created F_UNLCK %d F_RDLCK %d F_WRLCK %d",
-                  F_UNLCK, F_RDLCK, F_WRLCK));
+                  F_UNLCK, F_RDLCK, F_UNLCK));
     }
   virtual ~handler(void)
   {
@@ -2493,20 +2478,6 @@ public:
   { return HA_ERR_WRONG_COMMAND; }
   virtual int rename_partitions(const char *path)
   { return HA_ERR_WRONG_COMMAND; }
-  virtual bool set_ha_share_ref(Handler_share **arg_ha_share)
-  {
-    DBUG_ASSERT(!ha_share);
-    DBUG_ASSERT(arg_ha_share);
-    if (ha_share || !arg_ha_share)
-      return true;
-    ha_share= arg_ha_share;
-    return false;
-  }
-protected:
-  Handler_share *get_ha_share_ptr();
-  void set_ha_share_ptr(Handler_share *arg_ha_share);
-  void lock_shared_ha_data();
-  void unlock_shared_ha_data();
 };
 
 
