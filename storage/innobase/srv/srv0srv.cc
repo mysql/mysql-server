@@ -379,6 +379,10 @@ UNIV_INTERN ibool	srv_print_log_io		= FALSE;
 UNIV_INTERN ibool	srv_print_latch_waits		= FALSE;
 #endif /* UNIV_DEBUG */
 
+#if defined UNIV_DEBUG || defined UNIV_IBUF_DEBUG
+UNIV_INTERN my_bool	srv_ibuf_disable_background_merge;
+#endif /* UNIV_DEBUG || UNIV_IBUF_DEBUG */
+
 UNIV_INTERN ulint	srv_n_rows_inserted		= 0;
 UNIV_INTERN ulint	srv_n_rows_updated		= 0;
 UNIV_INTERN ulint	srv_n_rows_deleted		= 0;
