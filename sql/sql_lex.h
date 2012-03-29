@@ -46,6 +46,7 @@ class sys_var;
 class Item_func_match;
 class File_parser;
 class Key_part_spec;
+class MDL_savepoint;
 
 #ifdef MYSQL_SERVER
 /*
@@ -1067,6 +1068,51 @@ public:
   Sroutine_hash_entry **sroutines_list_own_last;
   uint sroutines_list_own_elements;
 
+  /**
+    Enum to track the state of the tables used by the query.
+  */
+  enum enum_tables_state {
+    /** The tables is not yet opened. */
+    TABLES_STATE_NONE = 0,
+    /**
+      The tables are already opened and locked in thd->open_tables,
+      but not marked as used.
+    */
+    TABLES_STATE_REUSABLE,
+    /** Base tables are opened. */
+    TABLES_STATE_OPENED,
+    /** Derived tables are prepared. */
+    TABLES_STATE_DERIVED_PREPARED,
+    /** Base tables are locked. */
+    TABLES_STATE_LOCKED,
+    /** Derived tables are optimized. */
+    TABLES_STATE_DERIVED_OPTIMIZED,
+    /** Derived tables are created for materialization. */
+    TABLES_STATE_DERIVED_CREATED,
+    /** Derived tables are materialized. */
+    TABLES_STATE_DERIVED_MATERIALIZED,
+    /** Base tables are unlocked. */
+    TABLES_STATE_UNLOCKED,
+    /** Base tables are closed or marked for reuse. */
+    TABLES_STATE_CLOSED
+  };
+  enum_tables_state tables_state;
+  bool is_query_tables_opened()
+  {
+    if (tables_state >= TABLES_STATE_OPENED &&
+        tables_state < TABLES_STATE_CLOSED)
+      return true;
+    return false;
+  }
+  bool is_query_tables_locked()
+  {
+    if (tables_state >= TABLES_STATE_LOCKED &&
+        tables_state < TABLES_STATE_UNLOCKED)
+      return true;
+    return false;
+  }
+  uint tables_lock_count;
+  MDL_savepoint mdl_open_savepoint;
   /*
     These constructor and destructor serve for creation/destruction
     of Query_tables_list instances which are used as backup storage.
@@ -1103,7 +1149,26 @@ public:
   /* Return pointer to first not-own table in query-tables or 0 */
   TABLE_LIST* first_not_own_table()
   {
-    return ( query_tables_own_last ? *query_tables_own_last : 0);
+    /*
+      Note: query_tables_own_last may be set to &first_table->next_global
+      which might be removed by unlink_first_table.
+      So if query_tables_own_last is set, but *query_tables_own_last is NULL,
+      Then it might be not own tables left any way.
+      This can be checked by comparing query_tables_own_last with
+      query_tables_last and if they is not the same, then
+      first_not_own_table is query_tables.
+    */
+    if (query_tables_own_last)
+    {
+      if (*query_tables_own_last)
+        return *query_tables_own_last;
+      else
+      {
+        if (query_tables_own_last != query_tables_last)
+          return query_tables;
+      }
+    }
+    return NULL;
   }
   void chop_off_not_own_tables()
   {
@@ -2211,12 +2276,6 @@ struct LEX: public Query_tables_list
   enum Foreign_key::fk_option fk_delete_opt;
   uint slave_thd_opt, start_transaction_opt;
   int nest_level;
-  /*
-    In LEX representing update which were transformed to multi-update
-    stores total number of tables. For LEX representing multi-delete
-    holds number of tables from which we will delete records.
-  */
-  uint table_count;
   uint8 describe;
   /*
     A flag that indicates what kinds of derived tables are present in the
