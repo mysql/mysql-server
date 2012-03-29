@@ -1,7 +1,5 @@
 --source include/have_innodb.inc
 --source include/have_debug_sync.inc
-# Temporarily prohibit Valgrind runs until Bug#13875241 is resolved
---source include/not_valgrind.inc
 
 call mtr.add_suppression("InnoDB: Warning: Small buffer pool size");
 # These will be triggered by INSERT INTO t1 VALUES(6,3,1);
