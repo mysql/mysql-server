@@ -583,7 +583,7 @@ row_merge_buf_write(
 						   REC_STATUS_ORDINARY,
 						   entry, n_fields,
 						   &extra_size);
-		ut_ad(size > extra_size);
+		ut_ad(size >= extra_size);
 		ut_ad(extra_size >= REC_N_NEW_EXTRA_BYTES);
 		extra_size -= REC_N_NEW_EXTRA_BYTES;
 		size -= REC_N_NEW_EXTRA_BYTES;

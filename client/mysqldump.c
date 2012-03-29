@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2011, Oracle and/or its affiliates.
+   Copyright (c) 2000, 2012, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -2367,10 +2367,10 @@ static uint dump_routines_for_db(char *db)
           {
             if (opt_xml)
             {
-              if (i)                            // Procedures.
+              if (i)                            /* Procedures. */
                 print_xml_row(sql_file, "routine", routine_res, &row,
                               "Create Procedure");
-              else                              // Functions.
+              else                              /* Functions. */
                 print_xml_row(sql_file, "routine", routine_res, &row,
                               "Create Function");
               continue;

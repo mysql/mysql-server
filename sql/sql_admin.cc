@@ -442,12 +442,7 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
             my_error(ER_PARTITION_MGMT_ON_NONPARTITIONED, MYF(0));
             DBUG_RETURN(TRUE);
           }
-          uint num_parts_found;
-          uint num_parts_opt= alter_info->partition_names.elements;
-          num_parts_found= set_part_state(alter_info, table->table->part_info,
-                                          PART_ADMIN);
-          if (num_parts_found != num_parts_opt &&
-              (!(alter_info->flags & ALTER_ALL_PARTITION)))
+          if (set_part_state(alter_info, table->table->part_info, PART_ADMIN))
           {
             char buff[FN_REFLEN + MYSQL_ERRMSG_SIZE];
             size_t length;
@@ -896,6 +891,9 @@ send_result_message:
   DBUG_RETURN(FALSE);
 
 err:
+  /* Make sure this table instance is not reused after the failure. */
+  if (table && table->table)
+    table->table->m_needs_reopen= true;
   trans_rollback_stmt(thd);
   trans_rollback(thd);
   close_thread_tables(thd);			// Shouldn't be needed

@@ -10859,6 +10859,9 @@ finish:
     acceptable, as this happens rarely. The implementation without
     copying would be much more complicated.
 
+    For description of how equality propagation works with SJM nests, grep 
+    for EqualityPropagationAndSjmNests.
+
   @param left_item   left term of the quality to be checked
   @param right_item  right term of the equality to be checked
   @param item        equality item if the equality originates from a condition
@@ -10932,12 +10935,14 @@ static bool check_simple_equality(Item *left_item, Item *right_item,
     {
       /* left_item_equal of an upper level contains left_item */
       left_item_equal= new Item_equal(left_item_equal);
+      left_item_equal->set_context_field(((Item_field*) left_item));
       cond_equal->current_level.push_back(left_item_equal);
     }
     if (right_copyfl)
     {
       /* right_item_equal of an upper level contains right_item */
       right_item_equal= new Item_equal(right_item_equal);
+      right_item_equal->set_context_field(((Item_field*) right_item));
       cond_equal->current_level.push_back(right_item_equal);
     }
 
@@ -10967,6 +10972,7 @@ static bool check_simple_equality(Item *left_item, Item *right_item,
         Item_equal *item_equal= new Item_equal(orig_left_item,
                                                orig_right_item,
                                                FALSE);
+        item_equal->set_context_field((Item_field*)left_item);
         cond_equal->current_level.push_back(item_equal);
       }
     }
@@ -11023,6 +11029,7 @@ static bool check_simple_equality(Item *left_item, Item *right_item,
       {
         item_equal= new Item_equal(item_equal);
         cond_equal->current_level.push_back(item_equal);
+        item_equal->set_context_field(field_item);
       }
       if (item_equal)
       {
@@ -11036,6 +11043,7 @@ static bool check_simple_equality(Item *left_item, Item *right_item,
       else
       {
         item_equal= new Item_equal(const_item, orig_field_item, TRUE);
+        item_equal->set_context_field(field_item);
         cond_equal->current_level.push_back(item_equal);
       }
       return TRUE;
@@ -11672,6 +11680,8 @@ static TABLE_LIST* embedding_sjm(Item *item)
         Item_equal::get_first() also takes similar measures for dealing with
         equality substitution in presense of SJM nests.
 
+    Grep for EqualityPropagationAndSjmNests for a more verbose description.
+
   @return
     - The condition with generated simple equalities or
     a pointer to the simple generated equality, if success.
@@ -11735,9 +11745,13 @@ Item *eliminate_item_equal(COND *cond, COND_EQUAL *upper_levels,
       on upper AND-levels.
     */
     if (upper)
-    { 
+    {
+      TABLE_LIST *native_sjm= embedding_sjm(item_equal->context_field);
       if (item_const && upper->get_const())
+      {
+        /* Upper item also has "field_item=const". Don't produce equality here */
         item= 0;
+      }
       else
       {
         Item_equal_fields_iterator li(*item_equal);
@@ -11748,6 +11762,8 @@ Item *eliminate_item_equal(COND *cond, COND_EQUAL *upper_levels,
             break;
         }
       }
+      if (embedding_sjm(field_item) != native_sjm)
+        item= NULL; /* Don't produce equality */
     }
     
     bool produce_equality= test(item == field_item);
@@ -12443,11 +12459,9 @@ simplify_joins(JOIN *join, List<TABLE_LIST> *join_list, COND *conds, bool top,
     Flatten nested joins that can be flattened.
     no ON expression and not a semi-join => can be flattened.
   */
-  TABLE_LIST *right_neighbor= NULL;
   li.rewind();
   while ((table= li++))
   {
-    bool fix_name_res= FALSE;
     nested_join= table->nested_join;
     if (table->sj_on_expr && !in_sj)
     {
@@ -12484,15 +12498,7 @@ simplify_joins(JOIN *join, List<TABLE_LIST> *join_list, COND *conds, bool top,
         tbl->dep_tables|= table->dep_tables;
       }
       li.replace(repl_list);
-      /* Need to update the name resolution table chain when flattening joins */
-      fix_name_res= TRUE;
-      table= *li.ref();
     }
-    if (fix_name_res)
-      table->next_name_resolution_table= right_neighbor ?
-        right_neighbor->first_leaf_for_name_resolution() :
-        NULL;
-    right_neighbor= table;
   }
   DBUG_RETURN(conds); 
 }

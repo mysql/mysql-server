@@ -34,19 +34,19 @@ into a service "foo" you need to
   #endif
 
   extern struct foo_service_st {
-    int (*foo_func1_type)(...);  /* fix the prototype as appropriate */
-    void (*foo_func2_type)(...); /* fix the prototype as appropriate */
+    int (*foo_func1_ptr)(...);  /* fix the prototype as appropriate */
+    void (*foo_func2_ptr)(...); /* fix the prototype as appropriate */
   } *foo_service;
 
   #ifdef MYSQL_DYNAMIC_PLUGIN
 
-  #define foo_func1(...) foo_service->foo_func1_type(...)
-  #define foo_func2(...) foo_service->foo_func2_type(...)
+  #define foo_func1(...) foo_service->foo_func1_ptr(...)
+  #define foo_func2(...) foo_service->foo_func2_ptr(...)
 
   #else
 
-  int foo_func1_type(...);  /* fix the prototype as appropriate */
-  void foo_func2_type(...); /* fix the prototype as appropriate */
+  int foo_func1(...);  /* fix the prototype as appropriate */
+  void foo_func2(...); /* fix the prototype as appropriate */
 
   #endif
 
@@ -64,27 +64,26 @@ include them in it, e.g. if you use size_t - #include <stdlib.h>
 it should also declare all the accompanying data structures, as necessary
 (e.g. thd_alloc_service declares MYSQL_LEX_STRING).
 
-3. add the new file to include/Makefile.am (pkginclude_HEADERS)
-4. add the new file to include/mysql/services.h
-5. increase the minor plugin ABI version in include/mysql/plugin.h
-   (MYSQL_PLUGIN_INTERFACE_VERSION = MYSQL_PLUGIN_INTERFACE_VERSION+1)
-6. add the version of your service to include/service_versions.h:
+3. add the new file to include/mysql/services.h
+4. increase the minor plugin ABI version in include/mysql/plugin.h
+   (MARIA_PLUGIN_INTERFACE_VERSION = MARIA_PLUGIN_INTERFACE_VERSION+1)
+5. add the version of your service to include/service_versions.h:
 ==================================================================
     #define VERSION_foo 0x0100
 ==================================================================
 
-7. create a new file libservices/foo_service.h using the following template:
+6. create a new file libservices/foo_service.h using the following template:
 ==================================================================
   /* GPL header */
   #include <service_versions.h>
   SERVICE_VERSION *foo_service= (void*)VERSION_foo;
 ==================================================================
 
-8. add the new file to libservices/CMakeLists.txt (MYSQLSERVICES_SOURCES)
-9. add the new file to libservices/Makefile.am (libmysqlservices_a_SOURCES)
-10. and finally, register your service for dynamic linking in
-    sql/sql_plugin_services.h
-10.1 fill in the service structure:
+7. add the new file to libservices/CMakeLists.txt (MYSQLSERVICES_SOURCES)
+8. Add all new files to repository (bzr add)
+9. and finally, register your service for dynamic linking in
+    sql/sql_plugin_services.h as follows:
+9.1 fill in the service structure:
 ==================================================================
   static struct foo_service_st foo_handler = {
     foo_func1,
@@ -92,7 +91,7 @@ it should also declare all the accompanying data structures, as necessary
   }
 ==================================================================
 
-10.2 and add it to the list of services
+9.2 and add it to the list of services
 
 ==================================================================
     { "foo_service", VERSION_foo, &foo_handler }

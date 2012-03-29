@@ -52,9 +52,10 @@ SET GLOBAL event_scheduler = ON;
 replace_result $engine_type ENGINE_TYPE;
 eval CREATE TABLE t1 (i INT NOT NULL AUTO_INCREMENT PRIMARY KEY, f varchar(8)) ENGINE=$engine_type;
 INSERT INTO t1 (f) VALUES ('a'),('a'),('a'),('a'),('a');
+--disable_warnings
 INSERT INTO t1 SELECT i+5, f FROM t1;
 INSERT INTO t1 SELECT i+10, f FROM t1;
-
+--enable_warnings
 CREATE EVENT ev1 ON SCHEDULE EVERY 1 SECOND
 DO INSERT INTO t1 VALUES (SLEEP(5),CONCAT('ev1_',CONNECTION_ID()));
 CREATE EVENT ev2 ON SCHEDULE EVERY 1 SECOND

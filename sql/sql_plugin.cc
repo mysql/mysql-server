@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2011, Oracle and/or its affiliates.
+   Copyright (c) 2005, 2012, Oracle and/or its affiliates.
    Copyright (c) 2010, 2011, Monty Program Ab
 
    This program is free software; you can redistribute it and/or modify
@@ -1519,6 +1519,10 @@ int plugin_init(int *argc, char **argv, int flags)
                      get_plugin_hash_key, NULL, HASH_UNIQUE))
       goto err;
   }
+
+  /* prepare debug_sync service */
+  DBUG_ASSERT(strcmp(list_of_services[5].name, "debug_sync_service") == 0);
+  list_of_services[5].service= *(void**)&debug_sync_C_callback_ptr;
 
   mysql_mutex_lock(&LOCK_plugin);
 

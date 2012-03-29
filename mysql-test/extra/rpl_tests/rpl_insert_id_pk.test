@@ -10,6 +10,8 @@
 # We also check how the foreign_key_check variable is replicated
 
 -- source include/master-slave.inc
+call mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT.");
+
 #should work for both SBR and RBR
 
 create table t1(a int auto_increment, primary key(a));
@@ -50,6 +52,7 @@ create table t2(b int auto_increment, c int, primary key(b));
 insert into t1 values (10);
 insert into t1 values (null),(null),(null);
 insert into t2 values (5,0);
+--disable_warnings ONCE
 insert into t2 (c) select * from t1 ORDER BY a;
 select * from t2 ORDER BY b;
 sync_slave_with_master;

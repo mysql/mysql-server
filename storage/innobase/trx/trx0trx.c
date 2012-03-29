@@ -1065,6 +1065,8 @@ trx_commit_off_kernel(
 	ut_ad(UT_LIST_GET_LEN(trx->trx_locks) == 0);
 
 	UT_LIST_REMOVE(trx_list, trx_sys->trx_list, trx);
+
+	trx->error_state = DB_SUCCESS;
 }
 
 /****************************************************************//**

@@ -626,7 +626,7 @@ int ReplSemiSyncMaster::commitTrx(const char* trx_wait_binlog_name,
                             (int)is_on());
     }
 
-    while (is_on())
+    while (is_on() && !thd_killed(NULL))
     {
       if (reply_file_name_inited_)
       {
@@ -743,7 +743,8 @@ int ReplSemiSyncMaster::commitTrx(const char* trx_wait_binlog_name,
       At this point, the binlog file and position of this transaction
       must have been removed from ActiveTranx.
     */
-    assert(!active_tranxs_->is_tranx_end_pos(trx_wait_binlog_name,
+    assert(thd_killed(NULL) ||
+           !active_tranxs_->is_tranx_end_pos(trx_wait_binlog_name,
                                              trx_wait_binlog_pos));
     
     /* Update the status counter. */

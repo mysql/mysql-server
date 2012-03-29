@@ -80,6 +80,8 @@ void thd_progress_next_stage(void* thd);
 void thd_progress_end(void* thd);
 const char *set_thd_proc_info(void*, const char * info, const char *func,
                               const char *file, unsigned int line);
+#include <mysql/service_debug_sync.h>
+extern void (*debug_sync_C_callback_ptr)(void*, const char *, size_t);
 struct st_mysql_xid {
   long formatID;
   long gtrid_length;

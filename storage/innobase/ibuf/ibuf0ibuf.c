@@ -11,8 +11,8 @@ ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License along with
-this program; if not, write to the Free Software Foundation, Inc., 59 Temple
-Place, Suite 330, Boston, MA 02111-1307 USA
+this program; if not, write to the Free Software Foundation, Inc.,
+51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
 
 *****************************************************************************/
 
@@ -2180,14 +2180,14 @@ ibool
 ibuf_add_free_page(void)
 /*====================*/
 {
-	mtr_t	mtr;
-	page_t*	header_page;
-	ulint	flags;
-	ulint	zip_size;
-	ulint	page_no;
-	page_t*	page;
-	page_t*	root;
-	page_t*	bitmap_page;
+	mtr_t		mtr;
+	page_t*		header_page;
+	ulint		flags;
+	ulint		zip_size;
+	buf_block_t*	block;
+	page_t*		page;
+	page_t*		root;
+	page_t*		bitmap_page;
 
 	mtr_start(&mtr);
 
@@ -2208,28 +2208,23 @@ ibuf_add_free_page(void)
 	of a deadlock. This is the reason why we created a special ibuf
 	header page apart from the ibuf tree. */
 
-	page_no = fseg_alloc_free_page(
+	block = fseg_alloc_free_page(
 		header_page + IBUF_HEADER + IBUF_TREE_SEG_HEADER, 0, FSP_UP,
 		&mtr);
 
-	if (UNIV_UNLIKELY(page_no == FIL_NULL)) {
+	if (block == NULL) {
 		mtr_commit(&mtr);
 
 		return(FALSE);
-	} else {
-		buf_block_t*	block = buf_page_get(
-			IBUF_SPACE_ID, 0, page_no, RW_X_LATCH, &mtr);
-
-		ibuf_enter(&mtr);
-
-		mutex_enter(&ibuf_mutex);
-
-		root = ibuf_tree_root_get(&mtr);
-
-		buf_block_dbg_add_level(block, SYNC_IBUF_TREE_NODE_NEW);
-
-		page = buf_block_get_frame(block);
 	}
+
+	ut_ad(rw_lock_get_x_lock_count(&block->lock) == 1);
+	ibuf_enter(&mtr);
+	mutex_enter(&ibuf_mutex);
+	root = ibuf_tree_root_get(&mtr);
+
+	buf_block_dbg_add_level(block, SYNC_IBUF_TREE_NODE_NEW);
+	page = buf_block_get_frame(block);
 
 	/* Add the page to the free list and update the ibuf size data */
 
@@ -2246,12 +2241,13 @@ ibuf_add_free_page(void)
 	(level 2 page) */
 
 	bitmap_page = ibuf_bitmap_get_map_page(
-		IBUF_SPACE_ID, page_no, zip_size, &mtr);
+		IBUF_SPACE_ID, buf_block_get_page_no(block), zip_size, &mtr);
 
 	mutex_exit(&ibuf_mutex);
 
 	ibuf_bitmap_page_set_bits(
-		bitmap_page, page_no, zip_size, IBUF_BITMAP_IBUF, TRUE, &mtr);
+		bitmap_page, buf_block_get_page_no(block), zip_size,
+		IBUF_BITMAP_IBUF, TRUE, &mtr);
 
 	ibuf_mtr_commit(&mtr);
 
@@ -3931,9 +3927,10 @@ ibuf_insert_to_index_page(
 		      "InnoDB: but the number of fields does not match!\n",
 		      stderr);
 dump:
-		buf_page_print(page, 0);
+		buf_page_print(page, 0, BUF_PAGE_PRINT_NO_CRASH);
 
 		dtuple_print(stderr, entry);
+		ut_ad(0);
 
 		fputs("InnoDB: The table where where"
 		      " this index record belongs\n"
@@ -4506,12 +4503,14 @@ ibuf_merge_or_delete_for_page(
 
 			bitmap_page = ibuf_bitmap_get_map_page(space, page_no,
 							       zip_size, &mtr);
-			buf_page_print(bitmap_page, 0);
+			buf_page_print(bitmap_page, 0,
+				       BUF_PAGE_PRINT_NO_CRASH);
 			ibuf_mtr_commit(&mtr);
 
 			fputs("\nInnoDB: Dump of the page:\n", stderr);
 
-			buf_page_print(block->frame, 0);
+			buf_page_print(block->frame, 0,
+				       BUF_PAGE_PRINT_NO_CRASH);
 
 			fprintf(stderr,
 				"InnoDB: Error: corruption in the tablespace."
@@ -4531,6 +4530,7 @@ ibuf_merge_or_delete_for_page(
 				(ulong) page_no,
 				(ulong)
 				fil_page_get_type(block->frame));
+			ut_ad(0);
 		}
 	}
 

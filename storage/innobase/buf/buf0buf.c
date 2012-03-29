@@ -605,8 +605,12 @@ void
 buf_page_print(
 /*===========*/
 	const byte*	read_buf,	/*!< in: a database page */
-	ulint		zip_size)	/*!< in: compressed page size, or
-				0 for uncompressed pages */
+	ulint		zip_size,	/*!< in: compressed page size, or
+					0 for uncompressed pages */
+	ulint		flags)		/*!< in: 0 or
+					BUF_PAGE_PRINT_NO_CRASH or
+					BUF_PAGE_PRINT_NO_FULL */
+
 {
 #ifndef UNIV_HOTBACKUP
 	dict_index_t*	index;
@@ -615,17 +619,18 @@ buf_page_print(
 	ulint		old_checksum;
 	ulint		size	= zip_size;
 
-	ut_ad(0);
-
 	if (!size) {
 		size = UNIV_PAGE_SIZE;
 	}
 
-	ut_print_timestamp(stderr);
-	fprintf(stderr, "  InnoDB: Page dump in ascii and hex (%lu bytes):\n",
-		(ulong) size);
-	ut_print_buf(stderr, read_buf, size);
-	fputs("\nInnoDB: End of page dump\n", stderr);
+	if (!(flags & BUF_PAGE_PRINT_NO_FULL)) {
+		ut_print_timestamp(stderr);
+		fprintf(stderr,
+			"  InnoDB: Page dump in ascii and hex (%lu bytes):\n",
+			(ulong) size);
+		ut_print_buf(stderr, read_buf, size);
+		fputs("\nInnoDB: End of page dump\n", stderr);
+	}
 
 	if (zip_size) {
 		/* Print compressed page. */
@@ -797,6 +802,8 @@ buf_page_print(
 		      stderr);
 		break;
 	}
+
+	ut_ad(flags & BUF_PAGE_PRINT_NO_CRASH);
 }
 
 #ifndef UNIV_HOTBACKUP
@@ -3557,7 +3564,8 @@ corrupt:
 				"InnoDB: You may have to recover"
 				" from a backup.\n",
 				(ulong) bpage->offset);
-			buf_page_print(frame, buf_page_get_zip_size(bpage));
+			buf_page_print(frame, buf_page_get_zip_size(bpage),
+				       BUF_PAGE_PRINT_NO_CRASH);
 			fprintf(stderr,
 				"InnoDB: Database page corruption on disk"
 				" or a failed\n"

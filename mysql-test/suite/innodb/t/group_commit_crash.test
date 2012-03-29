@@ -14,7 +14,7 @@ CREATE TABLE t1(a CHAR(255),
                 b CHAR(255),
                 c CHAR(255),
                 d CHAR(255),
-                id INT AUTO_INCREMENT,
+                id INT,
                 PRIMARY KEY(id)) ENGINE=InnoDB;
 create table t2 like t1;
 delimiter //;
@@ -39,7 +39,7 @@ let $numinserts = 10;
 while ($numinserts)
 {
   dec $numinserts;
-  INSERT INTO t2(a, b, c, d) VALUES ('a', 'b', 'c', 'd');
+  eval INSERT INTO t2(a, b, c, d, id) VALUES ('a', 'b', 'c', 'd', $numinserts+1);
 }
 
 --enable_reconnect

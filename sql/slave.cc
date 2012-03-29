@@ -1,5 +1,5 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates.
-   Copyright (c) 2008-2011 Monty Program Ab
+/* Copyright (c) 2000, 2012, Oracle and/or its affiliates.
+   Copyright (c) 2008, 2011, Monty Program Ab
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1339,7 +1339,7 @@ static int get_master_version_and_clock(MYSQL* mysql, Master_info* mi)
                     const char act[]=
                       "now "
                       "wait_for signal.get_unix_timestamp";
-                    DBUG_ASSERT(opt_debug_sync_timeout > 0);
+                    DBUG_ASSERT(debug_sync_service);
                     DBUG_ASSERT(!debug_sync_set_action(current_thd,
                                                        STRING_WITH_LEN(act)));
                   };);
@@ -1389,7 +1389,7 @@ static int get_master_version_and_clock(MYSQL* mysql, Master_info* mi)
                     const char act[]=
                       "now "
                       "wait_for signal.get_server_id";
-                    DBUG_ASSERT(opt_debug_sync_timeout > 0);
+                    DBUG_ASSERT(debug_sync_service);
                     DBUG_ASSERT(!debug_sync_set_action(current_thd, 
                                                        STRING_WITH_LEN(act)));
                   };);
@@ -3034,7 +3034,7 @@ connected:
                       const char act[]=
                         "now "
                         "wait_for signal.io_thread_let_running";
-                      DBUG_ASSERT(opt_debug_sync_timeout > 0);
+                      DBUG_ASSERT(debug_sync_service);
                       DBUG_ASSERT(!debug_sync_set_action(thd, 
                                                          STRING_WITH_LEN(act)));
                     };);

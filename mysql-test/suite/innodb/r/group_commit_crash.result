@@ -2,7 +2,7 @@ CREATE TABLE t1(a CHAR(255),
 b CHAR(255),
 c CHAR(255),
 d CHAR(255),
-id INT AUTO_INCREMENT,
+id INT,
 PRIMARY KEY(id)) ENGINE=InnoDB;
 create table t2 like t1;
 create procedure setcrash(IN i INT)
@@ -17,16 +17,16 @@ ELSE BEGIN END;
 END CASE;
 end //
 FLUSH TABLES;
-INSERT INTO t2(a, b, c, d) VALUES ('a', 'b', 'c', 'd');
-INSERT INTO t2(a, b, c, d) VALUES ('a', 'b', 'c', 'd');
-INSERT INTO t2(a, b, c, d) VALUES ('a', 'b', 'c', 'd');
-INSERT INTO t2(a, b, c, d) VALUES ('a', 'b', 'c', 'd');
-INSERT INTO t2(a, b, c, d) VALUES ('a', 'b', 'c', 'd');
-INSERT INTO t2(a, b, c, d) VALUES ('a', 'b', 'c', 'd');
-INSERT INTO t2(a, b, c, d) VALUES ('a', 'b', 'c', 'd');
-INSERT INTO t2(a, b, c, d) VALUES ('a', 'b', 'c', 'd');
-INSERT INTO t2(a, b, c, d) VALUES ('a', 'b', 'c', 'd');
-INSERT INTO t2(a, b, c, d) VALUES ('a', 'b', 'c', 'd');
+INSERT INTO t2(a, b, c, d, id) VALUES ('a', 'b', 'c', 'd', 9+1);
+INSERT INTO t2(a, b, c, d, id) VALUES ('a', 'b', 'c', 'd', 8+1);
+INSERT INTO t2(a, b, c, d, id) VALUES ('a', 'b', 'c', 'd', 7+1);
+INSERT INTO t2(a, b, c, d, id) VALUES ('a', 'b', 'c', 'd', 6+1);
+INSERT INTO t2(a, b, c, d, id) VALUES ('a', 'b', 'c', 'd', 5+1);
+INSERT INTO t2(a, b, c, d, id) VALUES ('a', 'b', 'c', 'd', 4+1);
+INSERT INTO t2(a, b, c, d, id) VALUES ('a', 'b', 'c', 'd', 3+1);
+INSERT INTO t2(a, b, c, d, id) VALUES ('a', 'b', 'c', 'd', 2+1);
+INSERT INTO t2(a, b, c, d, id) VALUES ('a', 'b', 'c', 'd', 1+1);
+INSERT INTO t2(a, b, c, d, id) VALUES ('a', 'b', 'c', 'd', 0+1);
 SET binlog_format= mixed;
 RESET MASTER;
 START TRANSACTION;

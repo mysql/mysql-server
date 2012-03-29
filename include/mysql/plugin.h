@@ -1,5 +1,5 @@
-/* Copyright (c) 2005, 2010, Oracle and/or its affiliates
-   Copyright (C) 2009-2011 Monty Program Ab
+/* Copyright (c) 2005, 2011, Oracle and/or its affiliates
+   Copyright (C) 2009, 2011, Monty Program Ab
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -72,7 +72,7 @@ typedef struct st_mysql_xid MYSQL_XID;
 #define MYSQL_PLUGIN_INTERFACE_VERSION 0x0103
 
 /* MariaDB plugin interface version */
-#define MARIA_PLUGIN_INTERFACE_VERSION 0x0102
+#define MARIA_PLUGIN_INTERFACE_VERSION 0x0103
 
 /*
   The allowable types of plugins
