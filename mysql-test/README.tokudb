@@ -1,4 +1,5 @@
-The MySQL tests for TokuDB consists of two sets of tests.  
+The MySQL tests for TokuDB are divided into common tests and tests specific to a
+particular MySQL distribution.
 
 The tests that are common for all MySQL distributions can be found in the
 svn:tokudb/mysql/tests/mysql-test directory.
