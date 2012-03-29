@@ -24,6 +24,7 @@ Smart ALTER TABLE
 #include <unireg.h>
 #include <mysqld_error.h>
 #include <log.h>
+#include <debug_sync.h>
 #include <mysql/innodb_priv.h>
 
 #include "dict0stats.h"
@@ -2156,6 +2157,7 @@ oom:
 		happens to be executing on this very table. */
 		DBUG_ASSERT(ctx->indexed_table == prebuilt->table
 			    || prebuilt->table->n_ref_count - 1 <= 1);
+		DEBUG_SYNC(user_thd, "innodb_after_inplace_alter_table");
 		DBUG_RETURN(false);
 	case DB_DUPLICATE_KEY:
 		if (prebuilt->trx->error_key_num == ULINT_UNDEFINED) {
