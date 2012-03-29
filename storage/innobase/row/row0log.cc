@@ -137,9 +137,9 @@ op_ok:
 	row_merge_buf_encode(), because here we do not encode
 	extra_size+1 (and reserve 0 as the end-of-chunk marker). */
 
-	size = rec_get_converted_size_comp(
-		index, REC_STATUS_ORDINARY,
-		tuple->fields, tuple->n_fields, &extra_size);
+	size = rec_get_converted_size_comp_prefix(
+		index, tuple->fields, tuple->n_fields,
+		index->n_nullable, &extra_size);
 	ut_ad(size >= extra_size);
 	ut_ad(extra_size >= REC_N_NEW_EXTRA_BYTES);
 	extra_size -= REC_N_NEW_EXTRA_BYTES;
@@ -170,7 +170,8 @@ op_ok:
 
 	rec_convert_dtuple_to_rec_comp(
 		b + extra_size, 0, index,
-		REC_STATUS_ORDINARY, tuple->fields, tuple->n_fields);
+		REC_STATUS_ORDINARY, tuple->fields, tuple->n_fields,
+		index->n_nullable);
 	b += size;
 
 	if (mrec_size >= avail_size) {
@@ -679,7 +680,8 @@ corrupted:
 		return(NULL);
 	}
 
-	rec_init_offsets_comp_ordinary(mrec, 0, index, offsets);
+	rec_init_offsets_comp_ordinary(
+		mrec, 0, index, index->n_nullable, offsets);
 
 	if (rec_offs_any_extern(offsets)) {
 		/* There should never be any externally stored fields

@@ -17,4 +17,4 @@
 
 path=`dirname $0`
 cmake $path/.. -DWITH_DEBUG=1 -DENABLE_GCOV=ON 
-gmake -j 4
+make

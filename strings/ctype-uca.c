@@ -20903,7 +20903,7 @@ static int
 my_coll_rule_expand(my_wc_t *wc, size_t limit, my_wc_t code)
 {
   size_t i;
-  for (i= 0; i <= limit; i++)
+  for (i= 0; i < limit; i++)
   {
     if (wc[i] == 0)
     {

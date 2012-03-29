@@ -1939,7 +1939,7 @@ static Sys_var_flagset Sys_optimizer_switch(
 static Sys_var_mybool Sys_var_end_markers_in_json(
        "end_markers_in_json",
        "In JSON output (\"EXPLAIN FORMAT=JSON\" and optimizer trace), "
-       "end_marker=on repeats the structure's key (if it has one) "
+       "if variable is set to 1, repeats the structure's key (if it has one) "
        "near the closing bracket",
        SESSION_VAR(end_markers_in_json), CMD_LINE(OPT_ARG),
        DEFAULT(FALSE));
@@ -3650,7 +3650,7 @@ static Sys_var_mybool Sys_relay_log_recovery(
        "right after the database startup, which means that the IO Thread "
        "starts re-fetching from the master right after the last transaction "
        "processed",
-       GLOBAL_VAR(relay_log_recovery), CMD_LINE(OPT_ARG), DEFAULT(FALSE));
+        READ_ONLY GLOBAL_VAR(relay_log_recovery), CMD_LINE(OPT_ARG), DEFAULT(FALSE));
 
 static Sys_var_mybool Sys_slave_allow_batching(
        "slave_allow_batching", "Allow slave to batch requests",

@@ -151,7 +151,8 @@ JOIN::optimize()
     Run optimize phase for all derived tables/views used in this SELECT,
     including those in semi-joins.
   */
-  select_lex->handle_derived(thd->lex, &mysql_derived_optimize);
+  if (select_lex->handle_derived(thd->lex, &mysql_derived_optimize))
+    DBUG_RETURN(1);
 
   /* dump_TABLE_LIST_graph(select_lex, select_lex->leaf_tables); */
 
@@ -3406,8 +3407,12 @@ const_table_extraction_done:
   if (optimize_semijoin_nests_for_materialization(join))
     DBUG_RETURN(true);
 
-  if (Optimize_table_order(thd, join, NULL).choose_table_order() || thd->killed)
-      DBUG_RETURN(true);
+  if (Optimize_table_order(thd, join, NULL).choose_table_order())
+    DBUG_RETURN(true);
+
+  DBUG_EXECUTE_IF("bug13820776_1", thd->killed= THD::KILL_QUERY;);
+  if (thd->killed)
+    DBUG_RETURN(true);
 
   /* Generate an execution plan from the found optimal join order. */
   if (join->get_best_combination())
@@ -7847,7 +7852,8 @@ remove_const(JOIN *join,ORDER *first_order, Item *cond,
     String str;
     st_select_lex::print_order(&str, first_order,
                                enum_query_type(QT_TO_SYSTEM_CHARSET |
-                                               QT_SHOW_SELECT_NUMBER));
+                                               QT_SHOW_SELECT_NUMBER |
+                                               QT_NO_DEFAULT_DB));
     trace_simpl.add_utf8("original_clause", str.ptr(), str.length());
   }
   Opt_trace_array trace_each_item(trace, "items");
@@ -7947,7 +7953,8 @@ remove_const(JOIN *join,ORDER *first_order, Item *cond,
     String str;
     st_select_lex::print_order(&str, first_order,
                                enum_query_type(QT_TO_SYSTEM_CHARSET |
-                                               QT_SHOW_SELECT_NUMBER));
+                                               QT_SHOW_SELECT_NUMBER |
+                                               QT_NO_DEFAULT_DB));
     trace_simpl.add_utf8("resulting_clause", str.ptr(), str.length());
   }
 

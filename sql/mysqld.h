@@ -609,7 +609,11 @@ enum enum_query_type
   /// Without character set introducers.
   QT_WITHOUT_INTRODUCERS= (1 << 1),
   /// When printing a SELECT, add its number (select_lex->number)
-  QT_SHOW_SELECT_NUMBER= (1 << 2)
+  QT_SHOW_SELECT_NUMBER= (1 << 2),
+  /// Don't print a database if it's equal to the connection's database
+  QT_NO_DEFAULT_DB= (1 << 3),
+  /// When printing a derived table, don't print its expression, only alias
+  QT_DERIVED_TABLE_ONLY_ALIAS= (1 << 4)
 };
 
 /* query_id */

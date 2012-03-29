@@ -107,6 +107,8 @@ static const char *plugin_declarations_sym= "_mysql_plugin_declarations_";
 static int min_plugin_interface_version= MYSQL_PLUGIN_INTERFACE_VERSION & ~0xFF;
 #endif
 
+static void*	innodb_callback_data;
+
 /* Note that 'int version' must be the first field of every plugin
    sub-structure (plugin->info).
 */
@@ -1101,7 +1103,6 @@ void plugin_unlock_list(THD *thd, plugin_ref *list, uint count)
   DBUG_VOID_RETURN;
 }
 
-
 static int plugin_initialize(struct st_plugin_int *plugin)
 {
   int ret= 1;
@@ -1120,9 +1121,19 @@ static int plugin_initialize(struct st_plugin_int *plugin)
                       plugin->name.str, plugin_type_names[plugin->plugin->type].str);
       goto err;
     }
+
+    /* FIXME: Need better solution to transfer the callback function
+    array to memcached */
+    if (strcmp(plugin->name.str, "InnoDB") == 0) {
+      innodb_callback_data = ((handlerton*)plugin->data)->data;
+    }
   }
   else if (plugin->plugin->init)
   {
+    if (strcmp(plugin->name.str, "daemon_memcached") == 0) {
+       plugin->data = (void*)innodb_callback_data;
+    }
+
     if (plugin->plugin->init(plugin))
     {
       sql_print_error("Plugin '%s' init function returned error.",
@@ -1637,6 +1648,8 @@ void plugin_shutdown(void)
   uint i, count= plugin_array.elements;
   struct st_plugin_int **plugins, *plugin;
   struct st_plugin_dl **dl;
+  bool skip_binlog = true;
+
   DBUG_ENTER("plugin_shutdown");
 
   if (initialized)
@@ -1658,7 +1671,13 @@ void plugin_shutdown(void)
       for (i= 0; i < count; i++)
       {
         plugin= *dynamic_element(&plugin_array, i, struct st_plugin_int **);
-        if (plugin->state == PLUGIN_IS_READY)
+
+	if (plugin->state == PLUGIN_IS_READY
+	    && strcmp(plugin->name.str, "binlog") == 0 && skip_binlog)
+	{
+		skip_binlog = false;
+
+	} else if (plugin->state == PLUGIN_IS_READY)
         {
           plugin->state= PLUGIN_IS_DELETED;
           reap_needed= true;
@@ -2735,7 +2754,7 @@ void plugin_thdvar_cleanup(THD *thd)
     list= ((plugin_ref*) thd->lex->plugins.buffer) + idx - 1;
     DBUG_PRINT("info",("unlocking %d plugins", idx));
     while ((uchar*) list >= thd->lex->plugins.buffer)
-      intern_plugin_unlock(NULL, *list--);
+      intern_plugin_unlock(thd->lex, *list--);
   }
 
   reap_plugins();

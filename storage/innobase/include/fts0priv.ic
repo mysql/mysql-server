@@ -31,7 +31,7 @@ UNIV_INLINE
 int
 fts_write_object_id(
 /*================*/
-	ib_id_t         id,		/* in: a table/index id */
+	ib_id_t		id,		/* in: a table/index id */
 	char*		str)		/* in: buffer to write the id to */
 {
 #ifdef __WIN__

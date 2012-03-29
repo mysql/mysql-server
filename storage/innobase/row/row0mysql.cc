@@ -30,6 +30,8 @@ Created 9/17/2000 Heikki Tuuri
 #include "row0mysql.ic"
 #endif
 
+#include <debug_sync.h>
+
 #include "row0ins.h"
 #include "row0merge.h"
 #include "row0sel.h"
@@ -1686,6 +1688,10 @@ run_again:
 		}
 
 		thr->lock_state= QUE_THR_LOCK_ROW;
+
+		DEBUG_SYNC(static_cast<THD*>(trx->mysql_thd),
+			   "row_update_for_mysql_error");
+
 		was_lock_wait = row_mysql_handle_errors(&err, trx, thr,
 							&savept);
 		thr->lock_state= QUE_THR_LOCK_NOLOCK;
@@ -2209,7 +2215,8 @@ err_exit:
 	case DB_TOO_MANY_CONCURRENT_TRXS:
 		/* We already have .ibd file here. it should be deleted. */
 
-		if (table->space && !fil_delete_tablespace(table->space)) {
+		if (table->space && !fil_delete_tablespace(table->space,
+							   FALSE)) {
 			ut_print_timestamp(stderr);
 			fprintf(stderr,
 				"  InnoDB: Error: not able to"
@@ -3855,7 +3862,7 @@ check_next_foreign:
 					"InnoDB: of table ");
 				ut_print_name(stderr, trx, TRUE, name);
 				fprintf(stderr, ".\n");
-			} else if (!fil_delete_tablespace(space_id)) {
+			} else if (!fil_delete_tablespace(space_id, FALSE)) {
 				fprintf(stderr,
 					"InnoDB: We removed now the InnoDB"
 					" internal data dictionary entry\n"
