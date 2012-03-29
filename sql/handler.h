@@ -177,10 +177,6 @@ enum enum_alter_inplace_result {
   will report ER_TABLE_NEEDS_UPGRADE, otherwise ER_TABLE_NEED_REBUILD.
 */
 #define HA_CAN_REPAIR                    (LL(1) << 37)
-/*
-  Engine supports extended fulltext API
- */
-#define HA_CAN_FULLTEXT_EXT              (LL(1) << 38)
 
 /*
   Set of all binlog flags. Currently only contain the capabilities
@@ -192,6 +188,11 @@ enum enum_alter_inplace_result {
   The handler supports read before write removal optimization
 */
 #define HA_READ_BEFORE_WRITE_REMOVAL  (LL(1) << 38)
+
+/*
+  Engine supports extended fulltext API
+ */
+#define HA_CAN_FULLTEXT_EXT              (LL(1) << 39)
 
 /* bits in index_flags(index_number) for what you can do with index */
 #define HA_READ_NEXT            1       /* TODO really use this flag */
