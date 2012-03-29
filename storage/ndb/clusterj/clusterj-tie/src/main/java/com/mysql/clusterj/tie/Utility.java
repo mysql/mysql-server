@@ -975,37 +975,26 @@ public class Utility {
      */
     public static void convertValue(ByteBuffer buffer, Column storeColumn, byte[] value) {
         int dataLength = value.length;
+        int maximumLength = storeColumn.getLength();
+        if (dataLength > maximumLength) {
+            throw new ClusterJUserException(
+                    local.message("ERR_Data_Too_Long",
+                    storeColumn.getName(), maximumLength, dataLength));
+        }
         int prefixLength = storeColumn.getPrefixLength();
         switch (prefixLength) {
             case 0:
-                int requiredLength = storeColumn.getColumnSpace();
-                if (dataLength > requiredLength) {
-                    throw new ClusterJFatalInternalException(
-                            local.message("ERR_Data_Too_Long",
-                            storeColumn.getName(), requiredLength, dataLength));
-                } else {
-                    buffer.put(value);
-                    if (dataLength < requiredLength) {
-                        // pad with 0x00 on right
-                        buffer.put(ZERO_PAD, 0, requiredLength - dataLength);
-                    }
+                buffer.put(value);
+                if (dataLength < maximumLength) {
+                    // pad with 0x00 on right
+                    buffer.put(ZERO_PAD, 0, maximumLength - dataLength);
                 }
                 break;
             case 1:
-                if (dataLength > 255) {
-                    throw new ClusterJFatalInternalException(
-                            local.message("ERR_Data_Too_Long",
-                            storeColumn.getName(), "255", dataLength));
-                }
                 buffer.put((byte)dataLength);
                 buffer.put(value);
                 break;
             case 2:
-                if (dataLength > 8000) {
-                    throw new ClusterJFatalInternalException(
-                            local.message("ERR_Data_Too_Long",
-                            storeColumn.getName(), "8000", dataLength));
-                }
                 buffer.put((byte)(dataLength%256));
                 buffer.put((byte)(dataLength/256));
                 buffer.put(value);
@@ -1240,17 +1229,9 @@ public class Utility {
             case 0:
                 break;
             case 1:
-                if (length > 255) {
-                    throw new ClusterJUserException(local.message("ERR_Varchar_Too_Big",
-                            length, columnName));
-                }
                 byteBuffer.put((byte)(length % 256));
                 break;
             case 2:
-                if (length > 65535) {
-                    throw new ClusterJUserException(local.message("ERR_Varchar_Too_Big",
-                            length, columnName));
-                }
                 byteBuffer.put((byte)(length % 256));
                 byteBuffer.put((byte)(length / 256));
                 break;
