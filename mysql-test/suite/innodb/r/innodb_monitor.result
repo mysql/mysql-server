@@ -175,7 +175,6 @@ ibuf_merges_discard_delete_mark	disabled
 ibuf_merges_discard_delete	disabled
 ibuf_merges	disabled
 ibuf_size	disabled
-ibuf_page_merges	disabled
 innodb_master_thread_sleeps	disabled
 innodb_activity_count	disabled
 innodb_master_active_loops	disabled
