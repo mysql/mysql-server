@@ -130,6 +130,7 @@ INDEX idx3(c4(512))) Engine=InnoDB;
 SET GLOBAL INNODB_PURGE_STOP_NOW=ON;
 SET GLOBAL innodb_disable_background_merge=ON;
 SET GLOBAL innodb_monitor_reset = ibuf_merges;
+SET GLOBAL innodb_monitor_reset = ibuf_merges_insert;
 INSERT INTO test_wl5522.t1(c2, c3, c4) VALUES
 (1, REPEAT('a', 2048), REPEAT('a', 2048)),
 (2, REPEAT('b', 2048), REPEAT('b', 2048)),
@@ -276,7 +277,7 @@ SUM(c2)
 145278
 SELECT name
 FROM information_schema.innodb_metrics
-WHERE name = 'ibuf_merges' AND count = 0;
+WHERE name = 'ibuf_merges_insert' AND count = 0;
 name
 FLUSH TABLES test_wl5522.t1 WITH READ LOCK;
 backup: t1
@@ -286,6 +287,10 @@ FROM information_schema.innodb_metrics
 WHERE name = 'ibuf_merges' AND count > 0;
 name
 ibuf_merges
+SELECT name
+FROM information_schema.innodb_metrics
+WHERE name = 'ibuf_merges_inserts' AND count > 0;
+name
 SET GLOBAL innodb_disable_background_merge=OFF;
 SET GLOBAL INNODB_PURGE_RUN_NOW=ON;
 DROP TABLE test_wl5522.t1;
