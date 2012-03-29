@@ -2622,8 +2622,6 @@ finalize_file_removal(DICTIONARY_ID dict_id, void * extra) {
     }
 }
 
-//static int toku_db_pre_acquire_table_lock(DB *db, DB_TXN *txn);
-
 int
 toku_env_dbremove(DB_ENV * env, DB_TXN *txn, const char *fname, const char *dbname, u_int32_t flags) {
     int r;

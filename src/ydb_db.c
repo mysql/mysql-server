@@ -964,7 +964,7 @@ toku_db_verify_with_progress(DB *db, int (*progress_callback)(void *extra, float
 
 static int 
 db_pre_acquire_table_lock(DB *db, DB_TXN *txn) {
-    return toku_db_pre_acquire_table_lock(db, txn, FALSE);
+    return toku_db_pre_acquire_table_lock(db, txn, TRUE);
 }
 
 int 
