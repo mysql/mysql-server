@@ -4048,12 +4048,7 @@ int ha_tokudb::update_row(const uchar * old_row, uchar * new_row) {
     } 
     else {
         create_dbt_key_from_table(&prim_key, primary_key, key_buff, new_row, &has_null);
-        if (key_changed(primary_key, old_row, new_row)) {
-            create_dbt_key_from_table(&old_prim_key, primary_key, primary_key_buff, old_row, &has_null);
-        }
-        else {
-            old_prim_key = prim_key;
-        }
+        create_dbt_key_from_table(&old_prim_key, primary_key, primary_key_buff, old_row, &has_null);
     }
 
     //
