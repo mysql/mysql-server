@@ -90,7 +90,7 @@ When one supplies long data for a placeholder:
 #include "set_var.h"
 #include "sql_prepare.h"
 #include "sql_parse.h" // insert_precheck, update_precheck, delete_precheck
-#include "sql_base.h"  // open_normal_and_derived_tables
+#include "sql_base.h"  // open_query_tables
 #include "sql_cache.h"                          // query_cache_*
 #include "sql_view.h"                          // create_view_precheck
 #include "sql_delete.h"                        // mysql_prepare_delete
@@ -99,8 +99,6 @@ When one supplies long data for a placeholder:
 #include "sql_update.h" // mysql_prepare_update
 #include "sql_db.h"     // mysql_opt_change_db, mysql_change_db
 #include "sql_acl.h"    // *_ACL
-#include "sql_derived.h" // mysql_derived_prepare,
-                         // mysql_handle_derived
 #include "sql_cursor.h"
 #include "sp_head.h"
 #include "sp.h"
@@ -1247,6 +1245,7 @@ static bool mysql_test_insert(Prepared_statement *stmt,
   List_iterator_fast<List_item> its(values_list);
   List_item *values;
   DBUG_ENTER("mysql_test_insert");
+  DBUG_ASSERT(stmt->is_stmt_prepare());
 
   /*
     Since INSERT DELAYED doesn't support temporary tables, we could
@@ -1270,8 +1269,7 @@ static bool mysql_test_insert(Prepared_statement *stmt,
     If we would use locks, then we have to ensure we are not using
     TL_WRITE_DELAYED as having two such locks can cause table corruption.
   */
-  if (open_normal_and_derived_tables(thd, table_list,
-                                     MYSQL_OPEN_FORCE_SHARED_MDL))
+  if (open_query_tables(thd))
     goto error;
 
   if ((values= its++))
@@ -1344,7 +1342,6 @@ static int mysql_test_update(Prepared_statement *stmt,
 {
   int res;
   THD *thd= stmt->thd;
-  uint table_count= 0;
   SELECT_LEX *select= &stmt->lex->select_lex;
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   uint          want_privilege;
@@ -1352,25 +1349,16 @@ static int mysql_test_update(Prepared_statement *stmt,
   DBUG_ENTER("mysql_test_update");
 
   if (update_precheck(thd, table_list) ||
-      open_tables(thd, &table_list, &table_count, MYSQL_OPEN_FORCE_SHARED_MDL))
+      open_query_tables(thd))
     goto error;
 
   if (table_list->multitable_view)
   {
     DBUG_ASSERT(table_list->view != 0);
     DBUG_PRINT("info", ("Switch to multi-update"));
-    /* pass counter value */
-    thd->lex->table_count= table_count;
     /* convert to multiupdate */
     DBUG_RETURN(2);
   }
-
-  /*
-    thd->fill_derived_tables() is false here for sure (because it is
-    preparation of PS, so we even do not check it).
-  */
-  if (mysql_handle_derived(thd->lex, &mysql_derived_prepare))
-    goto error;
 
   if (!table_list->updatable)
   {
@@ -1435,10 +1423,10 @@ static bool mysql_test_delete(Prepared_statement *stmt,
   THD *thd= stmt->thd;
   LEX *lex= stmt->lex;
   DBUG_ENTER("mysql_test_delete");
+  DBUG_ASSERT(stmt->is_stmt_prepare());
 
   if (delete_precheck(thd, table_list) ||
-      open_normal_and_derived_tables(thd, table_list,
-                                     MYSQL_OPEN_FORCE_SHARED_MDL))
+      open_query_tables(thd))
     goto error;
 
   if (!table_list->table)
@@ -1490,7 +1478,7 @@ static int mysql_test_select(Prepared_statement *stmt,
     goto error;
   }
 
-  if (open_normal_and_derived_tables(thd, tables, MYSQL_OPEN_FORCE_SHARED_MDL))
+  if (open_query_tables(thd))
     goto error;
 
   thd->lex->used_tables= 0;                        // Updated by setup_fields
@@ -1547,11 +1535,12 @@ static bool mysql_test_do_fields(Prepared_statement *stmt,
   THD *thd= stmt->thd;
 
   DBUG_ENTER("mysql_test_do_fields");
+  DBUG_ASSERT(stmt->is_stmt_prepare());
   if (tables && check_table_access(thd, SELECT_ACL, tables, FALSE,
                                    UINT_MAX, FALSE))
     DBUG_RETURN(TRUE);
 
-  if (open_normal_and_derived_tables(thd, tables, MYSQL_OPEN_FORCE_SHARED_MDL))
+  if (open_query_tables(thd))
     DBUG_RETURN(TRUE);
   DBUG_RETURN(setup_fields(thd, Ref_ptr_array(),
                            *values, MARK_COLUMNS_NONE, 0, 0));
@@ -1575,14 +1564,15 @@ static bool mysql_test_set_fields(Prepared_statement *stmt,
                                   TABLE_LIST *tables,
                                   List<set_var_base> *var_list)
 {
-  DBUG_ENTER("mysql_test_set_fields");
   List_iterator_fast<set_var_base> it(*var_list);
   THD *thd= stmt->thd;
   set_var_base *var;
+  DBUG_ENTER("mysql_test_set_fields");
+  DBUG_ASSERT(stmt->is_stmt_prepare());
 
   if ((tables && check_table_access(thd, SELECT_ACL, tables, FALSE,
                                     UINT_MAX, FALSE)) ||
-      open_normal_and_derived_tables(thd, tables, MYSQL_OPEN_FORCE_SHARED_MDL))
+      open_query_tables(thd))
     goto error;
 
   while ((var= it++))
@@ -1611,15 +1601,15 @@ static bool mysql_test_call_fields(Prepared_statement *stmt,
                                    TABLE_LIST *tables,
                                    List<Item> *value_list)
 {
-  DBUG_ENTER("mysql_test_call_fields");
-
   List_iterator<Item> it(*value_list);
   THD *thd= stmt->thd;
   Item *item;
+  DBUG_ENTER("mysql_test_call_fields");
+  DBUG_ASSERT(stmt->is_stmt_prepare());
 
   if ((tables && check_table_access(thd, SELECT_ACL, tables, FALSE,
                                     UINT_MAX, FALSE)) ||
-      open_normal_and_derived_tables(thd, tables, MYSQL_OPEN_FORCE_SHARED_MDL))
+      open_query_tables(thd))
     goto err;
 
   while ((item= it++))
@@ -1695,15 +1685,15 @@ select_like_stmt_test_with_open(Prepared_statement *stmt,
                                 ulong setup_tables_done_option)
 {
   DBUG_ENTER("select_like_stmt_test_with_open");
+  DBUG_ASSERT(stmt->is_stmt_prepare());
 
   /*
     We should not call LEX::unit.cleanup() after this
-    open_normal_and_derived_tables() call because we don't allow
+    open_query_tables() call because we don't allow
     prepared EXPLAIN yet so derived tables will clean up after
     themself.
   */
-  if (open_normal_and_derived_tables(stmt->thd, tables,
-                                     MYSQL_OPEN_FORCE_SHARED_MDL))
+  if (open_query_tables(stmt->thd))
     DBUG_RETURN(TRUE);
 
   DBUG_RETURN(select_like_stmt_test(stmt, specific_prepare,
@@ -1725,7 +1715,6 @@ select_like_stmt_test_with_open(Prepared_statement *stmt,
 
 static bool mysql_test_create_table(Prepared_statement *stmt)
 {
-  DBUG_ENTER("mysql_test_create_table");
   THD *thd= stmt->thd;
   LEX *lex= stmt->lex;
   SELECT_LEX *select_lex= &lex->select_lex;
@@ -1733,6 +1722,8 @@ static bool mysql_test_create_table(Prepared_statement *stmt)
   bool link_to_local;
   TABLE_LIST *create_table= lex->query_tables;
   TABLE_LIST *tables= lex->create_last_non_select_table->next_global;
+  DBUG_ENTER("mysql_test_create_table");
+  DBUG_ASSERT(stmt->is_stmt_prepare());
 
   if (create_table_precheck(thd, tables, create_table))
     DBUG_RETURN(TRUE);
@@ -1743,8 +1734,7 @@ static bool mysql_test_create_table(Prepared_statement *stmt)
     if (!(lex->create_info.options & HA_LEX_CREATE_TMP_TABLE))
       create_table->open_type= OT_BASE_ONLY;
 
-    if (open_normal_and_derived_tables(stmt->thd, lex->query_tables,
-                                       MYSQL_OPEN_FORCE_SHARED_MDL))
+    if (open_query_tables(stmt->thd))
       DBUG_RETURN(TRUE);
 
     select_lex->context.resolve_in_select_list= TRUE;
@@ -1763,8 +1753,7 @@ static bool mysql_test_create_table(Prepared_statement *stmt)
       we validate metadata of all CREATE TABLE statements,
       which keeps metadata validation code simple.
     */
-    if (open_normal_and_derived_tables(stmt->thd, lex->query_tables,
-                                       MYSQL_OPEN_FORCE_SHARED_MDL))
+    if (open_query_tables(stmt->thd))
       DBUG_RETURN(TRUE);
   }
 
@@ -1785,7 +1774,6 @@ static bool mysql_test_create_table(Prepared_statement *stmt)
 
 static bool mysql_test_create_view(Prepared_statement *stmt)
 {
-  DBUG_ENTER("mysql_test_create_view");
   THD *thd= stmt->thd;
   LEX *lex= stmt->lex;
   bool res= TRUE;
@@ -1793,6 +1781,8 @@ static bool mysql_test_create_view(Prepared_statement *stmt)
   bool link_to_local;
   TABLE_LIST *view= lex->unlink_first_table(&link_to_local);
   TABLE_LIST *tables= lex->query_tables;
+  DBUG_ENTER("mysql_test_create_view");
+  DBUG_ASSERT(stmt->is_stmt_prepare());
 
   if (create_view_precheck(thd, tables, view, lex->create_view_mode))
     goto err;
@@ -1804,7 +1794,7 @@ static bool mysql_test_create_view(Prepared_statement *stmt)
   if (open_temporary_tables(thd, tables))
     goto err;
 
-  if (open_normal_and_derived_tables(thd, tables, MYSQL_OPEN_FORCE_SHARED_MDL))
+  if (open_query_tables(thd))
     goto err;
 
   lex->context_analysis_only|=  CONTEXT_ANALYSIS_ONLY_VIEW;
@@ -1884,13 +1874,13 @@ error:
 
 /**
   Wrapper for mysql_insert_select_prepare, to make change of local tables
-  after open_normal_and_derived_tables() call.
+  after open_query_tables() call.
 
   @param thd                thread handle
 
   @note
     We need to remove the first local table after
-    open_normal_and_derived_tables(), because mysql_handle_derived
+    open_query_tables(), because mysql_handle_derived
     uses local tables lists.
 */
 

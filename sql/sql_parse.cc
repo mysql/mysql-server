@@ -2461,7 +2461,8 @@ case SQLCOM_PREPARE:
   }
   case SQLCOM_DO:
     if (check_table_access(thd, SELECT_ACL, all_tables, FALSE, UINT_MAX, FALSE)
-        || open_and_lock_tables(thd, all_tables, TRUE, 0))
+        || open_query_tables(thd)
+        || lock_query_tables(thd))
       goto error;
 
     res= mysql_do(thd, *lex->insert_list);
@@ -2776,7 +2777,7 @@ case SQLCOM_PREPARE:
         goto end_with_restore_list;
       }
 
-      if (!(res= open_and_lock_tables(thd, lex->query_tables, TRUE, 0)))
+      if (!(res= open_query_tables(thd)))
       {
         /* The table already exists */
         if (create_table->table || create_table->view)
@@ -2831,7 +2832,7 @@ case SQLCOM_PREPARE:
             CREATE from SELECT give its SELECT_LEX for SELECT,
             and item_list belong to SELECT
           */
-          res= handle_select(thd, lex, result, 0);
+          res= handle_select(thd, result, 0);
           delete result;
         }
 
@@ -3290,7 +3291,7 @@ end_with_restore_list:
 
     unit->set_limit(select_lex);
 
-    if (!(res= open_and_lock_tables(thd, all_tables, TRUE, 0)))
+    if (!(res= open_query_tables(thd)))
     {
       MYSQL_INSERT_SELECT_START(thd->query());
       /* Skip first table, which is the table we are inserting in */
@@ -3312,7 +3313,7 @@ end_with_restore_list:
           res= explain_multi_table_modification(thd, sel_result);
         else
         {
-          res= handle_select(thd, lex, sel_result, OPTION_SETUP_TABLES_DONE);
+          res= handle_select(thd, sel_result, OPTION_SETUP_TABLES_DONE);
           /*
             Invalidate the table in the query cache if something changed
             after unlocking when changes become visible.
@@ -3378,7 +3379,7 @@ end_with_restore_list:
       goto error;
 
     THD_STAGE_INFO(thd, stage_init);
-    if ((res= open_and_lock_tables(thd, all_tables, TRUE, 0)))
+    if ((res= open_query_tables(thd)))
       break;
 
     MYSQL_MULTI_DELETE_START(thd->query());
@@ -3389,7 +3390,7 @@ end_with_restore_list:
     }
 
     if (!thd->is_fatal_error &&
-        (del_result= new multi_delete(aux_tables, lex->table_count)))
+        (del_result= new multi_delete(aux_tables, lex->tables_lock_count)))
     {
       if (lex->describe)
         res= explain_multi_table_modification(thd, del_result);
@@ -3400,8 +3401,8 @@ end_with_restore_list:
                           select_lex->with_wild,
                           select_lex->item_list,
                           select_lex->where,
-                          0, (ORDER *)NULL, (ORDER *)NULL, (Item *)NULL,
-                          (ORDER *)NULL,
+                          (SQL_I_List<ORDER> *)NULL, (SQL_I_List<ORDER> *)NULL,
+                          (Item *)NULL, (ORDER *)NULL,
                           (select_lex->options | thd->variables.option_bits |
                           SELECT_NO_JOIN_CACHE | SELECT_NO_UNLOCK |
                           OPTION_SETUP_TABLES_DONE) & ~OPTION_BUFFER_RESULT,
@@ -3505,8 +3506,9 @@ end_with_restore_list:
   {
     List<set_var_base> *lex_var_list= &lex->var_list;
 
-    if ((check_table_access(thd, SELECT_ACL, all_tables, FALSE, UINT_MAX, FALSE)
-         || open_and_lock_tables(thd, all_tables, TRUE, 0)))
+    if (check_table_access(thd, SELECT_ACL, all_tables, FALSE, UINT_MAX, FALSE)
+        || open_query_tables(thd)
+        || lock_query_tables(thd))
       goto error;
     if (!(res= sql_set_variables(thd, lex_var_list)))
     {
@@ -4291,7 +4293,8 @@ create_sp_error:
       */
       if (check_table_access(thd, SELECT_ACL, all_tables, FALSE,
                              UINT_MAX, FALSE) ||
-          open_and_lock_tables(thd, all_tables, TRUE, 0))
+          open_query_tables(thd) ||
+          lock_query_tables(thd))
        goto error;
 
       /*
@@ -4862,7 +4865,7 @@ static bool execute_sqlcom_select(THD *thd, TABLE_LIST *all_tables)
       param->select_limit=
         new Item_int((ulonglong) thd->variables.select_limit);
   }
-  if (!(res= open_and_lock_tables(thd, all_tables, TRUE, 0)))
+  if (!(res= open_query_tables(thd)))
   {
     if (lex->describe)
     {
@@ -4881,8 +4884,7 @@ static bool execute_sqlcom_select(THD *thd, TABLE_LIST *all_tables)
     {
       if (!result && !(result= new select_send()))
         return 1;                               /* purecov: inspected */
-      query_cache_store_query(thd, all_tables);
-      res= handle_select(thd, lex, result, 0);
+      res= handle_select(thd, result, 0);
       if (result != lex->result)
         delete result;
     }
@@ -7266,12 +7268,9 @@ bool multi_delete_set_locks_and_link_aux_tables(LEX *lex)
   TABLE_LIST *target_tbl;
   DBUG_ENTER("multi_delete_set_locks_and_link_aux_tables");
 
-  lex->table_count= 0;
-
   for (target_tbl= lex->auxiliary_table_list.first;
        target_tbl; target_tbl= target_tbl->next_local)
   {
-    lex->table_count++;
     /* All tables in aux_tables must be found in FROM PART */
     TABLE_LIST *walk= multi_delete_table_match(lex, target_tbl, tables);
     if (!walk)
