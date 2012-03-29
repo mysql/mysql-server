@@ -21,3 +21,6 @@ directory.  This version replaces the common test since it has the same test nam
 
 It is easy to disable a test.  Just add the test name to the "disabled.def" file in the
 test directory.
+
+We use the run.mysql.tests.bash script from the mysql/scripts directory to run the tests.
+
