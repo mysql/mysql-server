@@ -199,6 +199,8 @@ namespace AQP
 
     bool uses_join_cache() const;
 
+    bool filesort_before_join() const;
+
   private:
 
     /** Backref. to the Join_plan which this Table_access is part of */

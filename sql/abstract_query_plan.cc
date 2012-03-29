@@ -482,5 +482,46 @@ namespace AQP
     return get_join_tab()->next_select == sub_select_cache;
   }
 
+  /**
+   Check if this table will be presorted to an intermediate record storage
+   before it is joined with its siblings.
+  */
+  bool Table_access::filesort_before_join() const
+  {
+    if (m_access_type == AT_PRIMARY_KEY ||
+        m_access_type == AT_UNIQUE_KEY)
+    {
+      return false;
+    }
+
+    const JOIN_TAB* const join_tab= get_join_tab();
+    JOIN* const join= join_tab->join;
+
+    /**
+     Table will be presorted before joining with child tables, if:
+      1) This is the first non-const table
+      2) There are more tables to be joined
+      3) It is not already decide to write entire join result to temp.
+      4a) The GROUP BY is 'simple' and does not match an orderd index
+      4b) The ORDER BY is 'simple' and does not match an orderd index
+
+     A 'simple' order/group by contain only column references to
+     the first non-const table
+    */
+    if (join_tab == join->join_tab+join->const_tables &&  // First non-const table
+        join->const_tables < join->tables)                // There are more tables
+    {
+      if (join->need_tmp)
+        return false;
+      else if (join->group_list && join->simple_group)
+        return (join->ordered_index_usage!=JOIN::ordered_index_group_by);
+      else if (join->order && join->simple_order)
+        return (join->ordered_index_usage!=JOIN::ordered_index_order_by);
+      else
+        return false;
+    }
+    return false;
+  }
+
 };
 // namespace AQP

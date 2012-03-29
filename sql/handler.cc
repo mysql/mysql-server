@@ -4348,7 +4348,6 @@ int ha_table_exists_in_engine(THD* thd, const char* db, const char* name)
 struct st_make_pushed_join_args
 {
   const AQP::Join_plan* plan; // Query plan provided by optimizer
-  uint pushed;                // #operations which was pushed.
   int err;                    // Error code to return.
 };
 
@@ -4360,26 +4359,23 @@ static my_bool make_pushed_join_handlerton(THD *thd, plugin_ref plugin,
 
   if (hton && hton->make_pushed_join)
   {
-    uint pushed= 0;
-    const int error= hton->make_pushed_join(hton, thd, vargs->plan, &pushed);
+    const int error= hton->make_pushed_join(hton, thd, vargs->plan);
     if (unlikely(error))
     {
       vargs->err = error;
       return TRUE;
     }
-    vargs->pushed+= pushed;
   }
   return FALSE;
 }
 
-int ha_make_pushed_joins(THD *thd, const AQP::Join_plan* plan, uint* pushed)
+int ha_make_pushed_joins(THD *thd, const AQP::Join_plan* plan)
 {
   DBUG_ENTER("ha_make_pushed_joins");
-  st_make_pushed_join_args args= {plan, 0, 0};
+  st_make_pushed_join_args args= {plan, 0};
   plugin_foreach(thd, make_pushed_join_handlerton,
                  MYSQL_STORAGE_ENGINE_PLUGIN, &args);
-  *pushed = args.pushed;
-  DBUG_PRINT("exit", ("pushed cnt: %d, error: %d", args.pushed, args.err));
+  DBUG_PRINT("exit", ("error: %d", args.err));
   DBUG_RETURN(args.err);
 }
 #endif

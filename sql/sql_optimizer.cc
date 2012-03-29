@@ -107,11 +107,6 @@ only_eq_ref_tables(JOIN *join, ORDER *order, table_map tables,
                    table_map *cached_eq_ref_tables, table_map
                    *eq_ref_tables);
 
-#ifndef MCP_WL4784
-static int  make_pushed_join(THD *thd, JOIN *join);
-#endif
-
-
 
 /**
   global select optimisation.
@@ -948,18 +943,29 @@ JOIN::optimize()
   }
 
 #ifndef MCP_WL4784
-  if (make_pushed_join(thd, this))
-    DBUG_RETURN(1);
-
+  /**
+   * Push joins to handler(s) whenever possible.
+   * The handlers will inspect the QEP through the
+   * AQP (Abstract Query Plan), and extract from it
+   * whatewer it might implement of pushed execution.
+   * It is the responsibility if the handler to store any
+   * information it need for later execution of pushed queries.
+   *
+   * Currently this is only supported by NDB.
+   */
   {
-    int active_pushed_joins= 0;
-    for (uint i= this->const_tables; i < this->tables; i++)
-    {
-      JOIN_TAB *const tab= this->join_tab+i;
-      pick_table_access_method (tab, &active_pushed_joins);
-    }
-    /* Ensure all (if any) pushed joins were processed. */
-    DBUG_ASSERT(!active_pushed_joins);
+    const AQP::Join_plan plan(this);
+    if (ha_make_pushed_joins(thd, &plan))
+      DBUG_RETURN(1);
+  }
+
+  /**
+   * Set up access functions for the tables as
+   * required by the selected access type.
+   */
+  for (uint i= const_tables; i < tables; i++)
+  {
+    pick_table_access_method (&join_tab[i]);
   }
 #endif
 
@@ -993,56 +999,6 @@ setup_subq_exit:
   error= 0;
   DBUG_RETURN(0);
 }
-
-#ifndef MCP_WL4784
-/**
-  Push join to handler, if possible. Currently this is only supported by
-  NDB.
-
-  @note If it happens so that handler can't do ordering this function
-  will force tmp table creation and resolving ORDER/GROUP BY by filesort.
-
-  @returns
-    0      ok, join isn't pushed or pushed without errors.
-    error  handler's error otherwise
-*/
-static int
-make_pushed_join(THD *thd, JOIN *join)
-{
-  // Let handler extract whatever it might implement of pushed joins
-  AQP::Join_plan plan(join);
-  uint pushed;
-
-  const int error= ha_make_pushed_joins(thd, &plan, &pushed);
-  if (unlikely(error))
-    return error;
-  if (pushed==0)
-    return 0;          // Didn't push anything
-
-  /* If we just pushed a join containing an ORDER BY and/or a GROUP BY clause,
-   * we have to ensure that we either can skip the sort by scanning an ordered index,
-   * or write to a temp. table later being filesorted.
-   */
-  if (join->const_tables < join->tables &&
-      join->join_tab[join->const_tables].table->file->number_of_pushed_joins() > 0)
-  {
-    if (join->group_list && join->simple_group && 
-        join->ordered_index_usage!=JOIN::ordered_index_group_by)
-    {
-      join->need_tmp= 1;
-      join->simple_order= join->simple_group= 0;
-    }
-    else if (join->order && join->simple_order && 
-             join->ordered_index_usage!=JOIN::ordered_index_order_by)
-    {
-      join->need_tmp= 1;
-      join->simple_order= join->simple_group= 0;
-    }
-  }
-
-  return 0;
-}
-#endif // MCP_WL4784
 
 /**
   Set NESTED_JOIN::counter=0 in all nested joins in passed list.
