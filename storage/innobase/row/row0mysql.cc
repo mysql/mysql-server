@@ -30,6 +30,8 @@ Created 9/17/2000 Heikki Tuuri
 #include "row0mysql.ic"
 #endif
 
+#include <debug_sync.h>
+
 #include "row0ins.h"
 #include "row0merge.h"
 #include "row0sel.h"
@@ -1686,6 +1688,10 @@ run_again:
 		}
 
 		thr->lock_state= QUE_THR_LOCK_ROW;
+
+		DEBUG_SYNC(static_cast<THD*>(trx->mysql_thd),
+			   "row_update_for_mysql_error");
+
 		was_lock_wait = row_mysql_handle_errors(&err, trx, thr,
 							&savept);
 		thr->lock_state= QUE_THR_LOCK_NOLOCK;
