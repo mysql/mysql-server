@@ -787,16 +787,24 @@ explain extended
     y.a=x.d and y.b=x.b;
 
 # Test ORDER BY expressions
-# Filesort on pushed joins are not possible as the
+# If it is a 'simple' order, i.e all order by's are plain column refs
+# to the first non-const table, the optimizer will (by heuristic) 
+# make the first table 'ordered' beforing joining in the siblings.
+# This may involve presorting of the first table into intermediate storage.
+#
+# This will make this (parent-) table  non-pushable as 
 # read of rows to be filesorted will also prefetch rows from pushed child
 # operands. These are not cached by the filesort buffer mechanisnm and are
 # effectively lost.
-# With pushed joins we either has to:
+#
+# Non simple ordering will always writte entire resultset to temp.
+# table and filesort that -> No extra push restrictions on these.
+#
+# Integrating pushed joins we either has to:
 #  1)  find a suitable ordered index which we can create an ordered indexscan on 
 #  (-> joinType() -> JT_NEXT, or type: 'index' w/ explain)
 #  or:
-# 2) Use a temporary result file for the result, which is then filesort'ed
-#  (-> 'Using temporary; Using filesort')
+# 2) Reject pushing of the this parent table.
 #
 # Comment1: As 'order by' correctness is part of what we want to test,
 #           '--sorted_result' is *not* specified. Instead we aim at
@@ -806,7 +814,7 @@ explain extended
 #           to get a deterministic sorting order wo/ '--sorted_result'
 #           
 
-## pushed join w/ 'simple order' on non_PK - Need temp table + filesort
+## Non-pushed join w/ 'simple order' on non_PK - Presorts parent table.
 explain extended
 select *
 from t1
@@ -882,7 +890,7 @@ join t1 as t2 on t2.a = t1.b and t2.b = t1.c
 join t1 as t3 on t3.a = t2.a and t3.b = t2.b
 order by t1.a desc,t1.b desc;
 
-## PK column in incorrect order, -> filesort to tempfile
+## Simple-PK column in incorrect order, -> Presort parent table, (no-push)
 explain extended
 select *
 from t1
@@ -906,7 +914,7 @@ join t1 as t2 on t2.a = t1.b and t2.b = t1.c
 join t1 as t3 on t3.a = t2.a and t3.b = t2.b
 order by t1.a;
 
-# PK columns not including first part -> filesort to tempfile
+# PK columns not including first part -> Presort parent table, (no-push)
 explain extended
 select *
 from t1
@@ -3498,7 +3506,10 @@ connection ddl;
 drop table t1;
 
 ###
-# Test that sorted scan with sub scan is *not* pushed.
+# Sorted scan with sub scan used to not being pushable.
+# However since v7.2.6(?) we support this by enforcing 
+# batchRowSize=1 for the parent table in the scan-scan.
+# (At the cost of more roundrtrips)
 ###
 connection ddl;
 create table t1 (pk int primary key, a int, b int) engine=ndb;
@@ -3517,7 +3528,7 @@ insert into t1 values (8,10,20);
 insert into t1 values (9,10,10);
 
 
-# Results would be sorted wrongly if pushed.
+# This sorted scan-scan is pushed since V7.2.6
 explain extended select x1.pk,x1.a,x1.b from t1 as x1 
    join t1 as x2 on x1.a=x2.b 
    join t1 as x3 on x2.a=x3.b 
@@ -3591,6 +3602,8 @@ drop table t;
 # bug#57601 'Optimizer is overly eager to request ordered access.'
 # When we turned of 'sorted' for 'descending', we broke QUICK_SELECT_DESC
 # which required result to be read as an ordered index access
+# Note: Before V7.2.6, and as a result of WL5558, such 'turn of sorting'
+# is not expected to happen any more.
 #######
 connection ddl;
 create table t (pk1 int, pk2 int, primary key(pk1,pk2)) engine = ndb;

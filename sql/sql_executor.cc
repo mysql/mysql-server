@@ -3386,10 +3386,11 @@ join_read_next_same_or_null(READ_RECORD *info)
   @param      tab               Table reference to put access method
 */
 
-#ifndef MCP_WL4784
 void
-pick_table_access_method(JOIN_TAB *tab, int *active_pushed_joins)
+pick_table_access_method(JOIN_TAB *tab)
 {
+
+#ifndef MCP_WL4784
   uint pushed_joins= tab->table->file->number_of_pushed_joins();
 
   /**
@@ -3397,17 +3398,14 @@ pick_table_access_method(JOIN_TAB *tab, int *active_pushed_joins)
   */
   if (pushed_joins > 0)
   {
-    active_pushed_joins--;
-    if (tab->table->file->root_of_pushed_join() == tab->table)
+    if (tab->table->file->root_of_pushed_join() != tab->table)
     {
-      *active_pushed_joins += pushed_joins;
-    }
-    else  
-    {
-      // Is child of a pushed join operation:
-      // Replace 'read_key' access with its linked counterpart 
-      // ... Which is effectively a NOOP as the row is read 
-      //    as part of the linked operation
+      /*
+        Is child of a pushed join operation:
+        Replace access functions with its linked counterpart.
+        ... Which is effectively a NOOP as the row is already fetched 
+        together with the root of the linked operation.
+      */
       DBUG_ASSERT(tab->type != JT_REF_OR_NULL);
       tab->read_first_record= join_read_linked_first;
       tab->read_record.read_record= join_read_linked_next;
@@ -3416,15 +3414,15 @@ pick_table_access_method(JOIN_TAB *tab, int *active_pushed_joins)
     }
   }
 
-  // Already set to some non-default value in sql_select.cc
-  // TODO: Move these settings into pick_table_access_method() also 
+  /*
+    Already set to some non-default value in sql_select.cc
+    TODO: Move these settings into pick_table_access_method() also
+  */
   else if (tab->read_first_record != NULL)
     return;  
-#else
 
-void
-pick_table_access_method(JOIN_TAB *tab)
-{
+  // Fall through to set default access functions:
+
 #endif // MCP_WL4784
 
   switch (tab->type) 
