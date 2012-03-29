@@ -107,6 +107,7 @@ extern bool opt_ignore_builtin_innodb;
 extern my_bool opt_character_set_client_handshake;
 extern bool volatile abort_loop;
 extern bool in_bootstrap;
+extern my_bool opt_bootstrap;
 extern uint volatile thread_count;
 extern uint connection_count;
 extern my_bool opt_safe_user_create;

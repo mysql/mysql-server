@@ -398,6 +398,8 @@ ulong slow_start_timeout;
   SQL commands in the init file and in --bootstrap mode.
 */
 bool in_bootstrap= FALSE;
+my_bool opt_bootstrap;
+
 /**
    @brief 'grant_option' is used to indicate if privileges needs
    to be checked, in which case the lock, LOCK_grant, is used
@@ -686,7 +688,7 @@ char *opt_logname, *opt_slow_logname, *opt_bin_logname;
 static volatile sig_atomic_t kill_in_progress;
 
 
-static my_bool opt_bootstrap, opt_myisam_log;
+static my_bool opt_myisam_log;
 static int cleanup_done;
 static ulong opt_specialflag;
 static char *opt_update_logname;
