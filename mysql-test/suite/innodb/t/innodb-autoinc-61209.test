@@ -29,7 +29,7 @@ INSERT INTO bug_61209 VALUES (), ();
 --connection con1
 SET SESSION auto_increment_increment=3;
 SET SESSION auto_increment_offset=2;
-send SELECT GET_LOCK('a', 10);
+SELECT GET_LOCK('a', 9);
 
 --echo
 --echo # Connection con2
@@ -41,18 +41,12 @@ send INSERT INTO bug_61209 (a) VALUES (NULL), (NULL), (NULL + GET_LOCK('a', 10))
 --echo
 --echo # Connection con1 reap
 --connection con1
-reap;
 INSERT INTO bug_61209 (a) VALUES (NULL), (NULL), (NULL);
-send SELECT RELEASE_LOCK('a');
+SELECT RELEASE_LOCK('a');
 
 --echo
 --echo # Connection con2 reap
 --connection con2
-reap;
-
---echo
---echo # Connection con1 reap
---connection con1
 reap;
 
 #

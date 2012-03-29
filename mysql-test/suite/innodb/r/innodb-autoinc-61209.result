@@ -9,7 +9,9 @@ INSERT INTO bug_61209 VALUES (), ();
 # Connection con1
 SET SESSION auto_increment_increment=3;
 SET SESSION auto_increment_offset=2;
-SELECT GET_LOCK('a', 10);
+SELECT GET_LOCK('a', 9);
+GET_LOCK('a', 9)
+1
 
 # Connection con2
 SET SESSION auto_increment_increment=3;
@@ -17,16 +19,12 @@ SET SESSION auto_increment_offset=2;
 INSERT INTO bug_61209 (a) VALUES (NULL), (NULL), (NULL + GET_LOCK('a', 10));
 
 # Connection con1 reap
-GET_LOCK('a', 10)
-1
 INSERT INTO bug_61209 (a) VALUES (NULL), (NULL), (NULL);
 SELECT RELEASE_LOCK('a');
+RELEASE_LOCK('a')
+1
 
 # Connection con2 reap
 Warnings:
 Warning	1265	Data truncated for column 'a' at row 3
-
-# Connection con1 reap
-RELEASE_LOCK('a')
-1
 DROP TABLE bug_61209;
