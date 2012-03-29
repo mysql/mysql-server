@@ -311,6 +311,10 @@ extern	ibool	srv_print_latch_waits;
 # define srv_print_latch_waits		FALSE
 #endif /* UNIV_DEBUG */
 
+#if defined UNIV_DEBUG || defined UNIV_IBUF_DEBUG
+extern my_bool	srv_ibuf_disable_background_merge;
+#endif /* UNIV_DEBUG || UNIV_IBUF_DEBUG */
+
 extern ulint	srv_fatal_semaphore_wait_threshold;
 extern ulint	srv_dml_needed_delay;
 

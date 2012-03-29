@@ -92,6 +92,9 @@ COUNT(*)
 ALTER TABLE test_wl5522.t1 DISCARD TABLESPACE;
 restore: t1
 ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
+CHECK TABLE test_wl5522.t1;
+Table	Op	Msg_type	Msg_text
+test_wl5522.t1	check	status	OK
 SELECT COUNT(*) FROM test_wl5522.t1;
 COUNT(*)
 3
@@ -100,6 +103,9 @@ restore: t1
 SELECT COUNT(*) FROM test_wl5522.t1;
 ERROR HY000: Got error -1 from storage engine
 ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
+CHECK TABLE test_wl5522.t1;
+Table	Op	Msg_type	Msg_text
+test_wl5522.t1	check	status	OK
 SELECT COUNT(*) FROM test_wl5522.t1;
 COUNT(*)
 3
@@ -121,7 +127,8 @@ c4 VARCHAR(2048),
 INDEX idx1(c2),
 INDEX idx2(c3(512)),
 INDEX idx3(c4(512))) Engine=InnoDB;
-SET SESSION debug="+d,ib_ibuf_disable_background_merge";
+SET GLOBAL innodb_disable_background_merge=ON;
+SET GLOBAL innodb_monitor_reset = ibuf_page_merges;
 INSERT INTO test_wl5522.t1(c2, c3, c4) VALUES
 (1, REPEAT('a', 2048), REPEAT('a', 2048)),
 (2, REPEAT('b', 2048), REPEAT('b', 2048)),
@@ -269,8 +276,9 @@ SUM(c2)
 145278
 SELECT name
 FROM information_schema.innodb_metrics
-WHERE name = 'ibuf_page_merges' AND count > 0;
+WHERE name = 'ibuf_page_merges' AND count = 0;
 name
+ibuf_page_merges
 FLUSH TABLES test_wl5522.t1 WITH READ LOCK;
 backup: t1
 UNLOCK TABLES;
@@ -279,7 +287,7 @@ FROM information_schema.innodb_metrics
 WHERE name = 'ibuf_page_merges' AND count > 0;
 name
 ibuf_page_merges
-SET SESSION debug="-d,ib_buf_force_flush, ib_ibuf_disable_background_merge";
+SET GLOBAL innodb_disable_background_merge=OFF;
 SET GLOBAL INNODB_PURGE_RUN_NOW=ON;
 DROP TABLE test_wl5522.t1;
 CREATE TABLE test_wl5522.t1 (

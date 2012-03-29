@@ -2796,11 +2796,11 @@ ibuf_contract_in_background(
 	ulint	n_pag2;
 	ulint	n_pages;
 
-	DBUG_EXECUTE_IF("ib_ibuf_disable_background_merge",
-			if (table_id == 0) {
-				ib_logf(IB_LOG_LEVEL_INFO, "ibuf disabled");
-				return(0);
-			});
+#if defined UNIV_DEBUG || defined UNIV_IBUF_DEBUG
+	if (srv_ibuf_disable_background_merge && table_id == 0) {
+		return(0);
+	}
+#endif /* UNIV_DEBUG || UNIV_IBUF_DEBUG */
 
 	if (full) {
 		/* Caller has requested a full batch */

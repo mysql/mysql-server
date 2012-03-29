@@ -239,6 +239,7 @@ ib_restore_tablespaces("test_wl5522", "t1");
 EOF
 
 ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
+CHECK TABLE test_wl5522.t1;
 
 SELECT COUNT(*) FROM test_wl5522.t1;
 
@@ -254,6 +255,7 @@ EOF
 SELECT COUNT(*) FROM test_wl5522.t1;
 
 ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
+CHECK TABLE test_wl5522.t1;
 
 SELECT COUNT(*) FROM test_wl5522.t1;
 
@@ -283,7 +285,10 @@ CREATE TABLE test_wl5522.t1 (
 	INDEX idx2(c3(512)),
 	INDEX idx3(c4(512))) Engine=InnoDB;
 
-SET SESSION debug="+d,ib_ibuf_disable_background_merge";
+# Disable change buffer merge from the master thread, additionally
+# enable aggressive flushing so that more changes are buffered.
+SET GLOBAL innodb_disable_background_merge=ON;
+SET GLOBAL innodb_monitor_reset = ibuf_page_merges;
 
 INSERT INTO test_wl5522.t1(c2, c3, c4) VALUES
 	(1, REPEAT('a', 2048), REPEAT('a', 2048)),
@@ -328,7 +333,7 @@ SELECT SUM(c2) FROM test_wl5522.t1;
 
 SELECT name
   FROM information_schema.innodb_metrics
-  WHERE name = 'ibuf_page_merges' AND count > 0;
+  WHERE name = 'ibuf_page_merges' AND count = 0;
 
 FLUSH TABLES test_wl5522.t1 WITH READ LOCK;
 
@@ -343,7 +348,7 @@ SELECT name
   FROM information_schema.innodb_metrics
   WHERE name = 'ibuf_page_merges' AND count > 0;
 
-SET SESSION debug="-d, ib_ibuf_disable_background_merge";
+SET GLOBAL innodb_disable_background_merge=OFF;
 
 # Enable normal operation
 SET GLOBAL INNODB_PURGE_RUN_NOW=ON;

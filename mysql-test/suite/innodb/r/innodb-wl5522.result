@@ -80,6 +80,9 @@ t1.cfg
 t1.frm
 t1.ibd
 ALTER TABLE t1 IMPORT TABLESPACE;
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
 SELECT COUNT(*) FROM t1;
 COUNT(*)
 16
