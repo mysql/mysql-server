@@ -2386,6 +2386,11 @@ buf_debug_execute_is_force_flush()
 {
 	DBUG_EXECUTE_IF("ib_buf_force_flush", return(true); );
 
+	/* This is used during queisce testing, we want to ensure maximum
+	buffering by the change buffer. */
+
+	DBUG_EXECUTE_IF("ib_ibuf_disable_background_merge", return(true); );
+
 	return(false);
 }
 
