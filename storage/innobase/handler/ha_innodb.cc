@@ -77,6 +77,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "ibuf0ibuf.h"
 #include "dict0dict.h"
 #include "srv0mon.h"
+#include "api0api.h"
+#include "api0misc.h"
 #include "pars0pars.h"
 #include "fts0fts.h"
 #include "fts0types.h"
@@ -169,7 +171,6 @@ static my_bool	innobase_create_status_file		= FALSE;
 static my_bool	innobase_stats_on_metadata		= TRUE;
 static my_bool	innobase_large_prefix			= FALSE;
 static my_bool	innodb_optimize_fulltext_only		= FALSE;
-
 
 static char*	internal_innobase_data_file_path	= NULL;
 
@@ -390,6 +391,57 @@ static PSI_file_info	all_innodb_files[] = {
 # endif /* UNIV_PFS_IO */
 #endif /* HAVE_PSI_INTERFACE */
 
+/** Set up InnoDB API callback function array */
+ib_cb_t innodb_api_cb[] = {
+	(ib_cb_t) ib_cursor_open_table,
+	(ib_cb_t) ib_cursor_read_row,
+	(ib_cb_t) ib_cursor_insert_row,
+	(ib_cb_t) ib_cursor_delete_row,
+	(ib_cb_t) ib_cursor_update_row,
+	(ib_cb_t) ib_cursor_moveto,
+	(ib_cb_t) ib_cursor_first,
+	(ib_cb_t) ib_cursor_last,
+	(ib_cb_t) ib_cursor_set_match_mode,
+	(ib_cb_t) ib_sec_search_tuple_create,
+	(ib_cb_t) ib_clust_read_tuple_create,
+	(ib_cb_t) ib_tuple_delete,
+	(ib_cb_t) ib_tuple_copy,
+	(ib_cb_t) ib_tuple_read_u32,
+	(ib_cb_t) ib_tuple_write_u32,
+	(ib_cb_t) ib_tuple_read_u64,
+	(ib_cb_t) ib_tuple_write_u64,
+	(ib_cb_t) ib_tuple_read_i32,
+	(ib_cb_t) ib_tuple_write_i32,
+	(ib_cb_t) ib_tuple_read_i64,
+	(ib_cb_t) ib_tuple_write_i64,
+	(ib_cb_t) ib_tuple_get_n_cols,
+	(ib_cb_t) ib_col_set_value,
+	(ib_cb_t) ib_col_get_value,
+	(ib_cb_t) ib_col_get_meta,
+	(ib_cb_t) ib_trx_begin,
+	(ib_cb_t) ib_trx_commit,
+	(ib_cb_t) ib_trx_rollback,
+	(ib_cb_t) ib_trx_start,
+	(ib_cb_t) ib_trx_release,
+	(ib_cb_t) ib_trx_state,
+	(ib_cb_t) ib_cursor_lock,
+	(ib_cb_t) ib_cursor_close,
+	(ib_cb_t) ib_cursor_new_trx,
+	(ib_cb_t) ib_cursor_reset,
+	(ib_cb_t) ib_open_table_by_name,
+	(ib_cb_t) ib_col_get_name,
+	(ib_cb_t) ib_table_truncate,
+	(ib_cb_t) ib_cursor_open_index_using_name,
+	(ib_cb_t) ib_close_thd,
+	(ib_cb_t) ib_cfg_get_cfg,
+	(ib_cb_t) ib_cursor_set_cluster_access,
+	(ib_cb_t) ib_cursor_commit_trx,
+	(ib_cb_t) ib_cfg_trx_level,
+	(ib_cb_t) ib_tuple_get_n_user_cols,
+	(ib_cb_t) ib_cursor_set_lock_mode,
+	(ib_cb_t) ib_cursor_clear_trx
+};
+
 /*************************************************************//**
 Check whether valid argument given to innodb_ft_*_stopword_table.
 This function is registered as a callback with MySQL.
@@ -419,6 +471,7 @@ innodb_session_stopword_update(
 						formal string goes */
 	const void*			save);	/*!< in: immediate result
 						from check function */
+
 /** "GEN_CLUST_INDEX" is the name reserved for InnoDB default
 system clustered index when there is no primary key. */
 const char innobase_index_reserve_name[] = "GEN_CLUST_INDEX";
@@ -2620,6 +2673,8 @@ innobase_init(
 	innobase_hton->release_temporary_latches =
 		innobase_release_temporary_latches;
 
+	innobase_hton->data = &innodb_api_cb;
+
 	ut_a(DATA_MYSQL_TRUE_VARCHAR == (ulint)MYSQL_TYPE_VARCHAR);
 
 #ifndef DBUG_OFF
@@ -3556,6 +3611,25 @@ innobase_close_connection(
 	trx_free_for_mysql(trx);
 
 	DBUG_RETURN(0);
+}
+
+/*****************************************************************//**
+Frees a possible InnoDB trx object associated with the current THD.
+@return	0 or error number */
+UNIV_INTERN
+int
+innobase_close_thd(
+/*===============*/
+	void*		thd)	/*!< in: handle to the MySQL thread of the user
+				whose resources should be free'd */
+{
+	trx_t*	trx = thd_to_trx((THD*) thd);
+
+	if (!trx) {
+		return(0);
+	}
+
+	return(innobase_close_connection(innodb_hton_ptr, (THD*) thd));
 }
 
 /*************************************************************************//**
@@ -14660,6 +14734,29 @@ static MYSQL_SYSVAR_BOOL(use_native_aio, srv_use_native_aio,
   "Use native AIO if supported on this platform.",
   NULL, NULL, TRUE);
 
+static MYSQL_SYSVAR_BOOL(api_enable_binlog, ib_binlog_enabled,
+  PLUGIN_VAR_NOCMDARG | PLUGIN_VAR_READONLY,
+  "Enable binlog for applications direct access InnoDB through InnoDB APIs",
+  NULL, NULL, FALSE);
+
+static MYSQL_SYSVAR_BOOL(api_enable_mdl, ib_mdl_enabled,
+  PLUGIN_VAR_NOCMDARG | PLUGIN_VAR_READONLY,
+  "Enable MDL for applications direct access InnoDB through InnoDB APIs",
+  NULL, NULL, FALSE);
+
+static MYSQL_SYSVAR_BOOL(api_disable_rowlock, ib_disable_row_lock,
+  PLUGIN_VAR_NOCMDARG | PLUGIN_VAR_READONLY,
+  "Disable row lock when direct access InnoDB through InnoDB APIs",
+  NULL, NULL, FALSE);
+
+static MYSQL_SYSVAR_ULONG(api_trx_level, ib_trx_level_setting,
+  PLUGIN_VAR_OPCMDARG,
+  "Number of undo logs to use.",
+  NULL, NULL,
+  0,		/* Default setting */
+  0,		/* Minimum value */
+  3, 0);	/* Maximum value */
+
 static MYSQL_SYSVAR_STR(change_buffering, innobase_change_buffering,
   PLUGIN_VAR_RQCMDARG,
   "Buffer changes to reduce random access: "
@@ -14738,6 +14835,7 @@ static MYSQL_SYSVAR_UINT(trx_rseg_n_slots_debug, trx_rseg_n_slots_debug,
 
 static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(additional_mem_pool_size),
+  MYSQL_SYSVAR(api_trx_level),
   MYSQL_SYSVAR(autoextend_increment),
   MYSQL_SYSVAR(buffer_pool_size),
   MYSQL_SYSVAR(buffer_pool_instances),
@@ -14756,6 +14854,9 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(data_file_path),
   MYSQL_SYSVAR(data_home_dir),
   MYSQL_SYSVAR(doublewrite),
+  MYSQL_SYSVAR(api_enable_binlog),
+  MYSQL_SYSVAR(api_enable_mdl),
+  MYSQL_SYSVAR(api_disable_rowlock),
   MYSQL_SYSVAR(fast_shutdown),
   MYSQL_SYSVAR(file_io_threads),
   MYSQL_SYSVAR(read_io_threads),

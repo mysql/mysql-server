@@ -23,7 +23,6 @@
   to make available YaSSL's MD5 implementation.
 */
 
-#include <my_global.h>
 #include <my_md5.h>
 
 #ifdef HAVE_YASSL

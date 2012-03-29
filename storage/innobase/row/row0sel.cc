@@ -3222,7 +3222,10 @@ row_sel_get_clust_rec_for_mysql(
 func_exit:
 	*out_rec = clust_rec;
 
-	if (prebuilt->select_lock_type != LOCK_NONE) {
+	/* Store the current position if select_lock_type is not
+	LOCK_NONE or if we are scanning using InnoDB APIs */
+	if (prebuilt->select_lock_type != LOCK_NONE
+	    || prebuilt->innodb_api) {
 		/* We may use the cursor in update or in unlock_row():
 		store its position */
 
@@ -3671,7 +3674,7 @@ row_search_for_mysql(
 	dict_index_t*	clust_index;
 	que_thr_t*	thr;
 	const rec_t*	rec;
-	const rec_t*	result_rec;
+	const rec_t*	result_rec = NULL;
 	const rec_t*	clust_rec;
 	ulint		err				= DB_SUCCESS;
 	ibool		unique_search			= FALSE;
@@ -3918,7 +3921,8 @@ row_search_for_mysql(
 	    && dict_index_is_clust(index)
 	    && !prebuilt->templ_contains_blob
 	    && !prebuilt->used_in_HANDLER
-	    && (prebuilt->mysql_row_len < UNIV_PAGE_SIZE / 8)) {
+	    && (prebuilt->mysql_row_len < UNIV_PAGE_SIZE / 8)
+	    && !prebuilt->innodb_api) {
 
 		mode = PAGE_CUR_GE;
 
@@ -4812,6 +4816,7 @@ requires_clust_rec:
 	    && !prebuilt->templ_contains_blob
 	    && !prebuilt->clust_index_was_generated
 	    && !prebuilt->used_in_HANDLER
+	    && !prebuilt->innodb_api
 	    && prebuilt->template_type
 	    != ROW_MYSQL_DUMMY_TEMPLATE
 	    && !prebuilt->result) {
@@ -4873,7 +4878,7 @@ requires_clust_rec:
 			       rec_offs_size(offsets));
 			mach_write_to_4(buf,
 					rec_offs_extra_size(offsets) + 4);
-		} else if (!prebuilt->idx_cond) {
+		} else if (!prebuilt->idx_cond && !prebuilt->innodb_api) {
 			/* The record was not yet converted to MySQL format. */
 			if (!row_sel_store_mysql_rec(
 				    buf, prebuilt, result_rec,
@@ -4916,11 +4921,16 @@ idx_cond_failed:
 	    || !dict_index_is_clust(index)
 	    || direction != 0
 	    || prebuilt->select_lock_type != LOCK_NONE
-	    || prebuilt->used_in_HANDLER) {
+	    || prebuilt->used_in_HANDLER
+	    || prebuilt->innodb_api) {
 
 		/* Inside an update always store the cursor position */
 
 		btr_pcur_store_position(pcur, &mtr);
+
+		if (prebuilt->innodb_api) {
+			prebuilt->innodb_api_rec = result_rec;
+		}
 	}
 
 	goto normal_return;

@@ -2616,8 +2616,13 @@ void Item_ident::print(String *str, enum_query_type query_type)
     if (!(cached_table && cached_table->belong_to_view &&
           cached_table->belong_to_view->compact_view_format))
     {
-      append_identifier(thd, str, d_name, (uint)strlen(d_name));
-      str->append('.');
+      const size_t d_name_len= strlen(d_name);
+      if (!((query_type & QT_NO_DEFAULT_DB) &&
+            db_is_default_db(d_name, d_name_len, thd)))
+      {
+        append_identifier(thd, str, d_name, (uint)d_name_len);
+        str->append('.');
+      }
     }
     append_identifier(thd, str, t_name, (uint)strlen(t_name));
     str->append('.');

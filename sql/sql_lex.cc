@@ -2419,6 +2419,16 @@ static void print_join(THD *thd,
 
 
 /**
+  @returns whether a database is equal to the connection's default database
+*/
+bool db_is_default_db(const char *db, size_t db_len, const THD *thd)
+{
+  return thd != NULL && thd->db != NULL &&
+    thd->db_length == db_len && !memcmp(db, thd->db, db_len);
+}
+
+
+/**
   Print table as it should be in join list.
 
   @param str   string where table should be printed
@@ -2439,7 +2449,9 @@ void TABLE_LIST::print(THD *thd, String *str, enum_query_type query_type)
     {
       // A view
       if (!(belong_to_view &&
-            belong_to_view->compact_view_format))
+            belong_to_view->compact_view_format) &&
+          !((query_type & QT_NO_DEFAULT_DB) &&
+            db_is_default_db(view_db.str, view_db.length, thd)))
       {
         append_identifier(thd, str, view_db.str, view_db.length);
         str->append('.');
@@ -2450,9 +2462,12 @@ void TABLE_LIST::print(THD *thd, String *str, enum_query_type query_type)
     else if (derived)
     {
       // A derived table
-      str->append('(');
-      derived->print(str, query_type);
-      str->append(')');
+      if (!(query_type & QT_DERIVED_TABLE_ONLY_ALIAS))
+      {
+        str->append('(');
+        derived->print(str, query_type);
+        str->append(')');
+      }
       cmp_name= "";                               // Force printing of alias
     }
     else
@@ -2460,7 +2475,9 @@ void TABLE_LIST::print(THD *thd, String *str, enum_query_type query_type)
       // A normal table
 
       if (!(belong_to_view &&
-            belong_to_view->compact_view_format))
+            belong_to_view->compact_view_format) &&
+          !((query_type & QT_NO_DEFAULT_DB) &&
+            db_is_default_db(db, db_length, thd)))
       {
         append_identifier(thd, str, db, db_length);
         str->append('.');

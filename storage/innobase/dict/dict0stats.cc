@@ -408,14 +408,14 @@ dict_stats_analyze_index_level(
 					distinct keys for all prefixes */
 	ib_uint64_t*	total_recs,	/*!< out: total number of records */
 	ib_uint64_t*	total_pages,	/*!< out: total number of pages */
-	dyn_array_t*	n_diff_boundaries)/*!< out: boundaries of the groups
+	dyn_array_t*	n_diff_boundaries,/*!< out: boundaries of the groups
 					of distinct keys */
+	mtr_t*		mtr)		/*!< in/out: mini-transaction */
 {
 	ulint		n_uniq;
 	mem_heap_t*	heap;
 	dtuple_t*	dtuple;
 	btr_pcur_t	pcur;
-	mtr_t		mtr;
 	const page_t*	page;
 	const rec_t*	rec;
 	const rec_t*	prev_rec;
@@ -425,6 +425,9 @@ dict_stats_analyze_index_level(
 
 	DEBUG_PRINTF("    %s(table=%s, index=%s, level=%lu)\n", __func__,
 		     index->table->name, index->name, level);
+
+	ut_ad(mtr_memo_contains(mtr, dict_index_get_lock(index),
+				MTR_MEMO_S_LOCK));
 
 	n_uniq = dict_index_get_n_unique(index);
 
@@ -451,18 +454,17 @@ dict_stats_analyze_index_level(
 	dict_table_copy_types(dtuple, index->table);
 	dtuple_set_info_bits(dtuple, REC_INFO_MIN_REC_FLAG);
 
-	mtr_start(&mtr);
-
-	btr_pcur_open_low(index, level, dtuple, PAGE_CUR_LE, BTR_SEARCH_LEAF,
-			  &pcur, __FILE__, __LINE__, &mtr);
+	btr_pcur_open_low(index, level, dtuple, PAGE_CUR_LE,
+			  BTR_SEARCH_LEAF | BTR_ALREADY_S_LATCHED,
+			  &pcur, __FILE__, __LINE__, mtr);
 
 	page = btr_pcur_get_page(&pcur);
 
 	/* check that we are indeed on the desired level */
-	ut_a(btr_page_get_level(page, &mtr) == level);
+	ut_a(btr_page_get_level(page, mtr) == level);
 
 	/* there should not be any pages on the left */
-	ut_a(btr_page_get_prev(page, &mtr) == FIL_NULL);
+	ut_a(btr_page_get_prev(page, mtr) == FIL_NULL);
 
 	/* check whether the first record on the leftmost page is marked
 	as such, if we are on a non-leaf level */
@@ -491,7 +493,7 @@ dict_stats_analyze_index_level(
 	X and the fist on page X+1 */
 	for (;
 	     btr_pcur_is_on_user_rec(&pcur);
-	     btr_pcur_move_to_next_user_rec(&pcur, &mtr)) {
+	     btr_pcur_move_to_next_user_rec(&pcur, mtr)) {
 
 		ulint	matched_fields = 0;
 		ulint	matched_bytes = 0;
@@ -506,13 +508,6 @@ dict_stats_analyze_index_level(
 		if (page_rec_is_supremum(page_rec_get_next_const(rec))) {
 
 			(*total_pages)++;
-		}
-
-		/* skip delete-marked records */
-		if (rec_get_deleted_flag(rec, page_is_comp(
-				btr_pcur_get_page(&pcur)))) {
-
-			continue;
 		}
 
 		offsets_rec = rec_get_offsets(rec, index, offsets_rec_onstack,
@@ -572,7 +567,7 @@ dict_stats_analyze_index_level(
 				n_diff[i]++;
 			}
 		} else {
-			/* this is the first non-delete marked record */
+			/* this is the first record */
 			for (i = 1; i <= n_uniq; i++) {
 				n_diff[i] = 1;
 			}
@@ -670,8 +665,6 @@ dict_stats_analyze_index_level(
 #endif /* UNIV_STATS_DEBUG */
 
 	btr_pcur_close(&pcur);
-
-	mtr_commit(&mtr);
 
 	if (prev_rec_buf != NULL) {
 
@@ -965,7 +958,7 @@ dict_stats_analyze_index_for_n_prefix(
 						records on the given level,
 						when looking at the first
 						n_prefix columns */
-	dyn_array_t*	boundaries)		/*!< in: array that contains
+	dyn_array_t*	boundaries,		/*!< in: array that contains
 						n_diff_for_this_prefix
 						integers each of which
 						represents the index (on the
@@ -974,11 +967,11 @@ dict_stats_analyze_index_for_n_prefix(
 						from 0) of the last record
 						from each group of distinct
 						keys */
+	mtr_t*		mtr)			/*!< in/out: mini-transaction */
 {
 	mem_heap_t*	heap;
 	dtuple_t*	dtuple;
 	btr_pcur_t	pcur;
-	mtr_t		mtr;
 	const page_t*	page;
 	ib_uint64_t	rec_idx;
 	ib_uint64_t	last_idx_on_level;
@@ -992,6 +985,9 @@ dict_stats_analyze_index_for_n_prefix(
 		     __func__, index->table->name, index->name, level,
 		     n_prefix, n_diff_for_this_prefix);
 #endif
+
+	ut_ad(mtr_memo_contains(mtr, dict_index_get_lock(index),
+				MTR_MEMO_S_LOCK));
 
 	/* if some of those is 0 then this means that there is exactly one
 	page in the B-tree and it is empty and we should have done full scan
@@ -1011,18 +1007,17 @@ dict_stats_analyze_index_for_n_prefix(
 	dict_table_copy_types(dtuple, index->table);
 	dtuple_set_info_bits(dtuple, REC_INFO_MIN_REC_FLAG);
 
-	mtr_start(&mtr);
-
-	btr_pcur_open_low(index, level, dtuple, PAGE_CUR_LE, BTR_SEARCH_LEAF,
-			  &pcur, __FILE__, __LINE__, &mtr);
+	btr_pcur_open_low(index, level, dtuple, PAGE_CUR_LE,
+			  BTR_SEARCH_LEAF | BTR_ALREADY_S_LATCHED,
+			  &pcur, __FILE__, __LINE__, mtr);
 
 	page = btr_pcur_get_page(&pcur);
 
 	/* check that we are indeed on the desired level */
-	ut_a(btr_page_get_level(page, &mtr) == level);
+	ut_a(btr_page_get_level(page, mtr) == level);
 
 	/* there should not be any pages on the left */
-	ut_a(btr_page_get_prev(page, &mtr) == FIL_NULL);
+	ut_a(btr_page_get_prev(page, mtr) == FIL_NULL);
 
 	/* check whether the first record on the leftmost page is marked
 	as such, if we are on a non-leaf level */
@@ -1108,7 +1103,7 @@ dict_stats_analyze_index_for_n_prefix(
 		while (rec_idx < dive_below_idx
 		       && btr_pcur_is_on_user_rec(&pcur)) {
 
-			btr_pcur_move_to_next_user_rec(&pcur, &mtr);
+			btr_pcur_move_to_next_user_rec(&pcur, mtr);
 			rec_idx++;
 		}
 
@@ -1127,7 +1122,7 @@ dict_stats_analyze_index_for_n_prefix(
 		ib_uint64_t	n_diff_on_leaf_page;
 
 		n_diff_on_leaf_page = dict_stats_analyze_index_below_cur(
-			btr_pcur_get_btr_cur(&pcur), n_prefix, &mtr);
+			btr_pcur_get_btr_cur(&pcur), n_prefix, mtr);
 
 		/* We adjust n_diff_on_leaf_page here to avoid counting
 		one record twice - once as the last on some page and once
@@ -1178,8 +1173,6 @@ dict_stats_analyze_index_for_n_prefix(
 
 	btr_pcur_close(&pcur);
 
-	mtr_commit(&mtr);
-
 	mem_heap_free(heap);
 }
 /* @} */
@@ -1221,9 +1214,11 @@ dict_stats_analyze_index(
 		size = btr_get_size(index, BTR_N_LEAF_PAGES, &mtr);
 	}
 
+	/* Release the X locks on the root page taken by btr_get_size() */
+	mtr_commit(&mtr);
+
 	switch (size) {
 	case ULINT_UNDEFINED:
-		mtr_commit(&mtr);
 		/* Fake some statistics. */
 		index->stat_index_size = index->stat_n_leaf_pages = 1;
 
@@ -1242,9 +1237,11 @@ dict_stats_analyze_index(
 
 	index->stat_n_leaf_pages = size;
 
-	root_level = btr_page_get_level(btr_root_get(index, &mtr), &mtr);
+	mtr_start(&mtr);
 
-	mtr_commit(&mtr);
+	mtr_s_lock(dict_index_get_lock(index), &mtr);
+
+	root_level = btr_height_get(index, &mtr);
 
 	n_uniq = dict_index_get_n_unique(index);
 
@@ -1276,11 +1273,14 @@ dict_stats_analyze_index(
 					       index->stat_n_diff_key_vals,
 					       &total_recs,
 					       &total_pages,
-					       NULL /*boundaries not needed*/);
+					       NULL /*boundaries not needed*/,
+					       &mtr);
 
 		for (i = 1; i <= n_uniq; i++) {
 			index->stat_n_sample_sizes[i] = total_pages;
 		}
+
+		mtr_commit(&mtr);
 
 		return;
 	}
@@ -1322,6 +1322,23 @@ dict_stats_analyze_index(
 			     "distinct records, n_prefix=%lu\n",
 			     __func__, N_DIFF_REQUIRED, n_prefix);
 
+		/* Commit the mtr to release the tree S lock to allow
+		other threads to do some work too. */
+		mtr_commit(&mtr);
+		mtr_start(&mtr);
+		mtr_s_lock(dict_index_get_lock(index), &mtr);
+		if (root_level != btr_height_get(index, &mtr)) {
+			/* Just quit if the tree has changed beyond
+			recognition here. The old stats from previous
+			runs will remain in the values that we have
+			not calculated yet. Initially when the index
+			object is created the stats members are given
+			some sensible values so leaving them untouched
+			here even the first time will not cause us to
+			read uninitialized memory later. */
+			break;
+		}
+
 		/* check whether we should pick the current level;
 		we pick level 1 even if it does not have enough
 		distinct records because we do not want to scan the
@@ -1346,6 +1363,7 @@ dict_stats_analyze_index(
 			level_is_analyzed = FALSE;
 		}
 
+		/* descend into the tree, searching for "good enough" level */
 		for (;;) {
 
 			/* make sure we do not scan the leaf level
@@ -1385,7 +1403,8 @@ dict_stats_analyze_index(
 						       n_diff_on_level,
 						       &total_recs,
 						       &total_pages,
-						       n_diff_boundaries);
+						       n_diff_boundaries,
+						       &mtr);
 
 			level_is_analyzed = TRUE;
 
@@ -1422,8 +1441,10 @@ found_level:
 		dict_stats_analyze_index_for_n_prefix(
 			index, level, total_recs, n_prefix,
 			n_diff_on_level[n_prefix],
-			&n_diff_boundaries[n_prefix]);
+			&n_diff_boundaries[n_prefix], &mtr);
 	}
+
+	mtr_commit(&mtr);
 
 	for (i = 1; i <= n_uniq; i++) {
 		dyn_array_free(&n_diff_boundaries[i]);

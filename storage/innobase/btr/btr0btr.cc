@@ -695,13 +695,14 @@ btr_root_fseg_validate(
 #endif /* UNIV_BTR_DEBUG */
 
 /**************************************************************//**
-Gets the root node of a tree and x-latches it.
-@return	root page, x-latched */
+Gets the root node of a tree and x- or s-latches it.
+@return	root page, x- or s-latched */
 static
 buf_block_t*
 btr_root_block_get(
 /*===============*/
 	dict_index_t*	index,	/*!< in: index tree */
+	ulint		mode,	/*!< in: either RW_S_LATCH or RW_X_LATCH */
 	mtr_t*		mtr)	/*!< in: mtr */
 {
 	ulint		space;
@@ -713,8 +714,7 @@ btr_root_block_get(
 	zip_size = dict_table_zip_size(index->table);
 	root_page_no = dict_index_get_page(index);
 
-	block = btr_block_get(space, zip_size, root_page_no, RW_X_LATCH,
-			      index, mtr);
+	block = btr_block_get(space, zip_size, root_page_no, mode, index, mtr);
 	btr_assert_not_corrupted(block, index);
 #ifdef UNIV_BTR_DEBUG
 	if (!dict_index_is_ibuf(index)) {
@@ -740,7 +740,42 @@ btr_root_get(
 	dict_index_t*	index,	/*!< in: index tree */
 	mtr_t*		mtr)	/*!< in: mtr */
 {
-	return(buf_block_get_frame(btr_root_block_get(index, mtr)));
+	return(buf_block_get_frame(btr_root_block_get(index, RW_X_LATCH,
+						      mtr)));
+}
+
+/**************************************************************//**
+Gets the height of the B-tree (the level of the root, when the leaf
+level is assumed to be 0). The caller must hold an S or X latch on
+the index.
+@return	tree height (level of the root) */
+UNIV_INTERN
+ulint
+btr_height_get(
+/*===========*/
+	dict_index_t*	index,	/*!< in: index tree */
+	mtr_t*		mtr)	/*!< in/out: mini-transaction */
+{
+	ulint		height;
+	buf_block_t*	root_block;
+
+	ut_ad(mtr_memo_contains(mtr, dict_index_get_lock(index),
+				MTR_MEMO_S_LOCK)
+	      || mtr_memo_contains(mtr, dict_index_get_lock(index),
+				MTR_MEMO_X_LOCK));
+
+        /* S latches the page */
+        root_block = btr_root_block_get(index, RW_S_LATCH, mtr);
+
+        height = btr_page_get_level(buf_block_get_frame(root_block), mtr);
+
+        /* Release the S latch on the root page. */
+        mtr_memo_release(mtr, root_block, MTR_MEMO_PAGE_S_FIX);
+#ifdef UNIV_SYNC_DEBUG
+        sync_thread_reset_level(&root_block->lock);
+#endif /* UNIV_SYNC_DEBUG */
+
+	return(height);
 }
 
 /*************************************************************//**
@@ -3811,7 +3846,7 @@ btr_print_index(
 
 	mtr_start(&mtr);
 
-	root = btr_root_block_get(index, &mtr);
+	root = btr_root_block_get(index, RW_X_LATCH, &mtr);
 
 	btr_print_recursive(index, root, width, &heap, &offsets, &mtr);
 	if (heap) {
@@ -4105,7 +4140,7 @@ btr_validate_level(
 
 	mtr_x_lock(dict_index_get_lock(index), &mtr);
 
-	block = btr_root_block_get(index, &mtr);
+	block = btr_root_block_get(index, RW_X_LATCH, &mtr);
 	page = buf_block_get_frame(block);
 
 	space = dict_index_get_space(index);
