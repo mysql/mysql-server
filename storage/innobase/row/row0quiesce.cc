@@ -441,7 +441,15 @@ row_quiesce_table_start(
 
 	ut_a(table->id > 0);
 
-	ibuf_contract_in_background(table->id, TRUE);
+	ulint	count = 0;
+
+	while (ibuf_contract_in_background(table->id, TRUE) != 0) {
+		if (!(++count % 20)) {
+			ib_logf(IB_LOG_LEVEL_INFO,
+				"Merging change buffer entries for '%s'",
+				table->name);
+		}
+	}
 
 	if (!trx_is_interrupted(trx)) {
 		buf_LRU_flush_or_remove_pages(

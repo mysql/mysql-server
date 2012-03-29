@@ -127,6 +127,7 @@ c4 VARCHAR(2048),
 INDEX idx1(c2),
 INDEX idx2(c3(512)),
 INDEX idx3(c4(512))) Engine=InnoDB;
+SET GLOBAL INNODB_PURGE_STOP_NOW=ON;
 SET GLOBAL innodb_disable_background_merge=ON;
 SET GLOBAL innodb_monitor_reset = ibuf_page_merges;
 INSERT INTO test_wl5522.t1(c2, c3, c4) VALUES
@@ -139,7 +140,6 @@ INSERT INTO test_wl5522.t1(c2, c3, c4) SELECT c2, c3, c4 FROM test_wl5522.t1;
 INSERT INTO test_wl5522.t1(c2, c3, c4) SELECT c2, c3, c4 FROM test_wl5522.t1;
 INSERT INTO test_wl5522.t1(c2, c3, c4) SELECT c2, c3, c4 FROM test_wl5522.t1;
 INSERT INTO test_wl5522.t1(c2, c3, c4) SELECT c2, c3, c4 FROM test_wl5522.t1;
-SET GLOBAL INNODB_PURGE_STOP_NOW=ON;
 DELETE FROM test_wl5522.t1 WHERE c2 = 1;
 UPDATE test_wl5522.t1 SET c2 = c2 + c1;
 UPDATE test_wl5522.t1 SET c2 = c2 + c1;
