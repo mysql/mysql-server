@@ -2706,8 +2706,6 @@ ibuf_merge_space(
 
 		buf_read_ibuf_merge_pages(
 			TRUE, spaces, versions, pages, *n_pages);
-
-		MONITOR_INC_VALUE(MONITOR_IBUF_PAGE_MERGES, *n_pages);
 	}
 
 	return(sum_sizes);
