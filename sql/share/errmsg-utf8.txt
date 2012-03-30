@@ -6494,6 +6494,9 @@ ER_BINLOG_UNSAFE_WRITE_AUTOINC_SELECT
 ER_BINLOG_UNSAFE_CREATE_SELECT_AUTOINC
   eng "CREATE TABLE... SELECT...  on a table with an auto-increment column is unsafe because the order in which rows are retrieved by the SELECT determines which (if any) rows are inserted. This order cannot be predicted and may differ on master and the slave."
 
+ER_BINLOG_UNSAFE_INSERT_TWO_KEYS
+  eng "INSERT... ON DUPLICATE KEY UPDATE  on a table with more than one UNIQUE KEY is unsafe"
+
 #
 #  End of 5.5 error messages.
 #

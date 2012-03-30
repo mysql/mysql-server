@@ -1323,6 +1323,12 @@ public:
     */
     BINLOG_STMT_UNSAFE_UPDATE_IGNORE,
 
+    /**
+      INSERT... ON DUPLICATE KEY UPDATE on a table with more than one
+      UNIQUE KEYS  is unsafe.
+    */
+    BINLOG_STMT_UNSAFE_INSERT_TWO_KEYS,
+
     /* The last element of this enumeration type. */
     BINLOG_STMT_UNSAFE_COUNT
   };
