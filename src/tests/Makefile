@@ -981,12 +981,20 @@ loader-dup-test4.tdbrun: loader-dup-test.tdb$(BINSUF)
 loader-dup-test5.tdbrun: loader-dup-test.tdb$(BINSUF)
 	$(VGRIND) ./loader-dup-test.tdb -d 1 -s -r 1000 -E -e dir.$@ $(SUMMARIZE_CMD)
 
-loader-cleanup-test.loader: $(patsubst %,loader-cleanup-test%.tdbrun, 0 1)
+# as part of #4503, we took out test 1 and 3
+# loader-cleanup-test.loader: $(patsubst %,loader-cleanup-test%.tdbrun, 0 1 2 3)
+loader-cleanup-test.loader: $(patsubst %,loader-cleanup-test%.tdbrun, 0 2)
 	true
+# this one uses valgrind and uses relatively few rows
 loader-cleanup-test0.tdbrun: loader-cleanup-test.tdb$(BINSUF)
-	$(VGRIND) ./$< -s -r 8000 -e dir.$@ $(SUMMARIZE_CMD)
+	$(VGRIND) ./$< -s -r 800 -e dir.$@ $(SUMMARIZE_CMD)
 loader-cleanup-test1.tdbrun: loader-cleanup-test.tdb$(BINSUF)
-	$(VGRIND) ./$< -s -r 8000 -p -e dir.$@ $(SUMMARIZE_CMD)
+	$(VGRIND) ./$< -s -r 800 -p -e dir.$@ $(SUMMARIZE_CMD)
+# This one is like test0 except without valgrind
+loader-cleanup-test2.tdbrun: loader-cleanup-test.tdb$(BINSUF)
+	./$< -s -r 8000 -e dir.$@ $(SUMMARIZE_CMD)
+loader-cleanup-test3.tdbrun: loader-cleanup-test.tdb$(BINSUF)
+	./$< -s -r 8000 -p -e dir.$@ $(SUMMARIZE_CMD)
 
 loader-tests: $(LOADER_TESTS)
 	echo $(LOADER_TESTS)
