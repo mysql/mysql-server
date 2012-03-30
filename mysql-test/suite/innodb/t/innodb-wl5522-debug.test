@@ -170,6 +170,8 @@ ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
 SET SESSION debug="-d,ib_import_before_commit_crash";
 #### Before commit crash
 
+# Check that the DD is consistent after recovery
+
 ##### Before checkpoint crash
 SET SESSION debug="+d,ib_import_before_checkpoint_crash";
 
@@ -190,15 +192,20 @@ ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
 SET SESSION debug="-d,ib_import_before_checkpoint_crash";
 #### Before checkpoint crash
 
-# No need to restore files, the IMPORT should have been successful
+# After the above test the results are non-deterministic, recreate the table
+# and do a proper import.
+
+perl;
+do 'include/innodb-util.inc';
+ib_unlink_tablespace("test_wl5522", "t1");
+EOF
+
+DROP TABLE test_wl5522.t1;
 
 SET GLOBAL innodb_file_per_table = 1;
 SELECT @@innodb_file_per_table;
 
-SET GLOBAL innodb_file_per_table = 1;
-SELECT @@innodb_file_per_table;
-
-SELECT COUNT(*) FROM test_wl5522.t1;
+CREATE TABLE test_wl5522.t1 (c1 INT) ENGINE = Innodb;
 
 ALTER TABLE test_wl5522.t1 DISCARD TABLESPACE;
 
@@ -207,22 +214,6 @@ do 'include/innodb-util.inc';
 ib_discard_tablespaces("test_wl5522", "t1");
 ib_restore_tablespaces("test_wl5522", "t1");
 EOF
-
-ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
-CHECK TABLE test_wl5522.t1;
-
-SELECT COUNT(*) FROM test_wl5522.t1;
-
-ALTER TABLE test_wl5522.t1 DISCARD TABLESPACE;
-
-perl;
-do 'include/innodb-util.inc';
-ib_discard_tablespaces("test_wl5522", "t1");
-ib_restore_tablespaces("test_wl5522", "t1");
-EOF
-
---error ER_GET_ERRNO
-SELECT COUNT(*) FROM test_wl5522.t1;
 
 ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
 CHECK TABLE test_wl5522.t1;
