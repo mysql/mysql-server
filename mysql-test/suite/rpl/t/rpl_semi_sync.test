@@ -459,6 +459,7 @@ connection slave;
 echo [ on slave ];
 grant replication slave on *.* to rpl@127.0.0.1 identified by 'rpl';
 flush privileges;
+--replace_column 2 ####
 change master to master_user='rpl',master_password='rpl';
 source include/start_slave.inc;
 show status like 'Rpl_semi_sync_slave_status';
@@ -599,6 +600,7 @@ UNINSTALL PLUGIN rpl_semi_sync_master;
 enable_warnings;
 
 connection slave;
+--replace_column 2 ####
 change master to master_user='root',master_password='';
 source include/start_slave.inc;
 
