@@ -2,7 +2,7 @@
 #define LOG_INTERNAL_H
 
 #ident "$Id$"
-#ident "Copyright (c) 2007-2010 Tokutek Inc.  All rights reserved."
+#ident "Copyright (c) 2007-2011 Tokutek Inc.  All rights reserved."
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
 
 #include "brt-internal.h"
@@ -116,6 +116,8 @@ struct tokulogger {
     void (*remove_finalize_callback) (DICTIONARY_ID, void*);  // ydb-level callback to be called when a transaction that ...
     void * remove_finalize_callback_extra;                    // ... deletes a file is committed or when one that creates a file is aborted.
     CACHEFILE rollback_cachefile;
+    struct toku_list prepared_txns; // transactions that have been prepared and are unresolved, but have not been returned through txn_recover.
+    struct toku_list prepared_and_returned_txns; // transactions that have been prepared and unresolved, and have been returned through txn_recover.  We need this list so that we can restart the recovery.
 };
 
 int toku_logger_find_next_unused_log_file(const char *directory, long long *result);
@@ -159,6 +161,8 @@ struct tokutxn {
     TOKUTXN_STATE state;
     LSN        do_fsync_lsn;
     BOOL       do_fsync;
+    GID        gid; // for prepared transactions
+    struct toku_list prepared_txns_link; // list of prepared transactions
 };
 
 struct txninfo {
@@ -202,6 +206,10 @@ static inline int toku_logsizeof_BLOCKNUM (BLOCKNUM v __attribute__((__unused__)
 
 static inline int toku_logsizeof_TXNID (TXNID txnid __attribute__((__unused__))) {
     return 8;
+}
+
+static inline int toku_logsizeof_GID (GID gid __attribute__((__unused__))) {
+    return DB_GID_SIZE;
 }
 
 static inline int toku_logsizeof_FILENUMS (FILENUMS fs) {

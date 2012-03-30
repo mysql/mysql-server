@@ -241,7 +241,6 @@ struct cachetable {
     toku_pthread_mutex_t openfd_mutex;  // make toku_cachetable_openfd() single-threaded
     OMT reserved_filenums;
     char *env_dir;
-    BOOL set_env_dir; //Can only set env_dir once
 
     // For releasing locks during I/O.  These are named "ydb_lock_callback" but it could be viewed more generally as being used to release and reacquire locks while I/O is takign place.
     void (*ydb_lock_callback)(void);
@@ -563,10 +562,8 @@ void toku_cachetable_release_reserved_memory(CACHETABLE ct, uint64_t reserved_me
 
 void
 toku_cachetable_set_env_dir(CACHETABLE ct, const char *env_dir) {
-    assert(!ct->set_env_dir);
     toku_free(ct->env_dir);
     ct->env_dir = toku_xstrdup(env_dir);
-    ct->set_env_dir = TRUE;
 }
 
 void
@@ -3529,19 +3526,47 @@ log_open_txn (OMTVALUE txnv, u_int32_t UU(index), void *UU(extra)) {
         int r = toku_omt_iterate(txn->open_brts, set_filenum_in_array, array);
         assert(r==0);
     }
-    int r = toku_log_xstillopen(logger, NULL, 0,
-                                toku_txn_get_txnid(txn),
-                                toku_txn_get_txnid(toku_logger_txn_parent(txn)),
-                                txn->rollentry_raw_count,
-                                open_filenums,
-                                txn->force_fsync_on_commit,
-                                txn->num_rollback_nodes,
-                                txn->num_rollentries,
-                                txn->spilled_rollback_head,
-                                txn->spilled_rollback_tail,
-                                txn->current_rollback);
-    assert(r==0);
-    return 0;
+    switch (toku_txn_get_state(txn)) {
+    case TOKUTXN_LIVE:
+    case TOKUTXN_COMMITTING:
+    case TOKUTXN_ABORTING: {
+	int r = toku_log_xstillopen(logger, NULL, 0,
+				    toku_txn_get_txnid(txn),
+				    toku_txn_get_txnid(toku_logger_txn_parent(txn)),
+				    txn->rollentry_raw_count,
+				    open_filenums,
+				    txn->force_fsync_on_commit,
+				    txn->num_rollback_nodes,
+				    txn->num_rollentries,
+				    txn->spilled_rollback_head,
+				    txn->spilled_rollback_tail,
+				    txn->current_rollback);
+	assert(r==0);
+	return 0;
+    }
+    case TOKUTXN_PREPARING: {
+	GID gid;
+	toku_txn_get_prepared_gid(txn, &gid);
+	int r = toku_log_xstillopenprepared(logger, NULL, 0,
+					    toku_txn_get_txnid(txn),
+					    gid,
+					    txn->rollentry_raw_count,
+					    open_filenums,
+					    txn->force_fsync_on_commit,
+					    txn->num_rollback_nodes,
+					    txn->num_rollentries,
+					    txn->spilled_rollback_head,
+					    txn->spilled_rollback_tail,
+					    txn->current_rollback);
+	assert(r==0);
+	toku_free(gid.gid);
+	return 0;
+    }
+    case TOKUTXN_RETIRED:
+	return 0;
+    }
+    // default is an error
+    assert(0);
 }
 
 static int

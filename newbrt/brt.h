@@ -151,8 +151,12 @@ int toku_brt_send_insert(BRT brt, DBT *key, DBT *val, XIDS xids, enum brt_msg_ty
 int toku_brt_send_delete(BRT brt, DBT *key, XIDS xids) __attribute__ ((warn_unused_result));
 int toku_brt_send_commit_any(BRT brt, DBT *key, XIDS xids) __attribute__ ((warn_unused_result));
 
-int toku_brt_db_delay_closed (BRT brt, DB* db, int (*close_db)(DB*, u_int32_t), u_int32_t close_flags)  __attribute__ ((warn_unused_result));
-int toku_close_brt (BRT, char **error_string)  __attribute__ ((warn_unused_result));
+int toku_brt_db_delay_closed (BRT brt, DB* db, int (*close_db)(DB*, u_int32_t, bool oplsn_valid, LSN oplsn), u_int32_t close_flags, bool oplsn_valid, LSN oplsn)  __attribute__ ((warn_unused_result));
+// Effect: Arrange to really (eventually) close a zombie DB.  When it is closed the CLOSE_DB function will be alled.
+// Requires: close_db needs to call toku_close_brt to delete the final reference.
+
+
+int toku_close_brt_nolsn (BRT, char **error_string)  __attribute__ ((warn_unused_result));
 int toku_close_brt_lsn (BRT brt, char **error_string, BOOL oplsn_valid, LSN oplsn)  __attribute__ ((warn_unused_result));
 
 int toku_brt_set_panic(BRT brt, int panic, char *panic_string)  __attribute__ ((warn_unused_result));

@@ -28,7 +28,7 @@ static void test1 (void) {
 	assert(r==0);
 	assert(pair.call_count==1);
     }
-    r = toku_close_brt(t, 0);              assert(r==0);
+    r = toku_close_brt_nolsn(t, 0);              assert(r==0);
     r = toku_cachetable_close(&ct);     assert(r==0);
     
     if (verbose) printf("test1 ok\n");

@@ -19,6 +19,7 @@ int toku_txn_begin_txn (
     );
 
 DB_TXN * toku_txn_get_container_db_txn (TOKUTXN tokutxn);
+void toku_txn_set_container_db_txn (TOKUTXN, DB_TXN*);
 
 // toku_txn_begin_with_xid is called from recovery and has no containing DB_TXN 
 int toku_txn_begin_with_xid (
@@ -52,6 +53,12 @@ int toku_txn_abort_txn(TOKUTXN txn, YIELDF yield, void *yieldv,
 int toku_txn_abort_with_lsn(TOKUTXN txn, YIELDF yield, void *yieldv, LSN oplsn,
                             TXN_PROGRESS_POLL_FUNCTION poll, void *poll_extra,
 			    bool release_multi_operation_client_lock);
+
+int toku_txn_prepare_txn (TOKUTXN txn, GID gid) __attribute__((warn_unused_result));
+// Effect: Do the internal work of preparing a transaction (does not log the prepare record).
+
+void toku_txn_get_prepared_gid (TOKUTXN, GID *);
+// Effect: Return a pointer to the GID.  The value is allocated, so you must free it.
 
 int toku_txn_maybe_fsync_log(TOKULOGGER logger, LSN do_fsync_lsn, BOOL do_fsync, YIELDF yield, void *yieldv);
 
@@ -122,6 +129,7 @@ int  toku_txn_ignore_contains(TOKUTXN txn, FILENUM filenum);
 
 enum tokutxn_state {
     TOKUTXN_LIVE,         // initial txn state
+    TOKUTXN_PREPARING,    // txn is preparing (or prepared)
     TOKUTXN_COMMITTING,   // txn in the process of committing
     TOKUTXN_ABORTING,     // txn in the process of aborting
     TOKUTXN_RETIRED,      // txn no longer exists
@@ -129,6 +137,8 @@ enum tokutxn_state {
 typedef enum tokutxn_state TOKUTXN_STATE;
 
 TOKUTXN_STATE toku_txn_get_state(TOKUTXN txn);
+
+int toku_logger_recover_txn (TOKULOGGER logger, DB_PREPLIST preplist[/*count*/], long count, /*out*/ long *retp, u_int32_t flags);
 
 #if defined(__cplusplus) || defined(__cilkplusplus)
 }

@@ -29,7 +29,7 @@ static void setup (void) {
 
 
 static void finish (void) {
-    { int r = toku_close_brt(t, 0);                                                                       assert(r==0); };
+    { int r = toku_close_brt_nolsn(t, 0);                                                                       assert(r==0); };
     { int r = toku_cachetable_close(&ct);                                                    assert(r == 0 && ct == 0); }
 }
 

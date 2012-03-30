@@ -276,7 +276,7 @@ doit (void) {
     assert(r==0);
 
 
-    r = toku_close_brt(brt, 0);    assert(r==0);
+    r = toku_close_brt_nolsn(brt, 0);    assert(r==0);
     r = toku_cachetable_close(&ct); assert(r==0);
 
     toku_free(pivots[0]);

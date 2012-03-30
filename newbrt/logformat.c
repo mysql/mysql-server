@@ -1,6 +1,6 @@
 /* -*- mode: C; c-basic-offset: 4 -*- */
 #ident "$Id$"
-#ident "Copyright (c) 2007-2010 Tokutek Inc.  All rights reserved."
+#ident "Copyright (c) 2007-2011 Tokutek Inc.  All rights reserved."
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
 
 /* This file defines the logformat in an executable fashion.
@@ -115,12 +115,25 @@ const struct logtype logtypes[] = {
                            {"BLOCKNUM",  "spilled_rollback_tail", 0}, 
                            {"BLOCKNUM",  "current_rollback", 0}, 
                            NULLFIELD}}, // record all transactions
+    // prepared txns need a gid
+    {"xstillopenprepared", 'p', FA{{"TXNID", "xid", 0},
+				   {"GID",   "gid", 0}, // prepared transactions need a gid, and have no parentxid.
+				   {"u_int64_t", "rollentry_raw_count", 0}, 
+				   {"FILENUMS",  "open_filenums", 0},
+				   {"u_int8_t",  "force_fsync_on_commit", 0}, 
+				   {"u_int64_t", "num_rollback_nodes", 0}, 
+				   {"u_int64_t", "num_rollentries", 0}, 
+				   {"BLOCKNUM",  "spilled_rollback_head", 0}, 
+				   {"BLOCKNUM",  "spilled_rollback_tail", 0}, 
+				   {"BLOCKNUM",  "current_rollback", 0}, 
+				   NULLFIELD}}, // record all transactions
     {"suppress_rollback", 'S', FA{{"FILENUM",    "filenum", 0},
                                   {"TXNID",      "xid", 0},
                                   NULLFIELD}},
     // Records produced by transactions
     {"xbegin", 'b', FA{{"TXNID", "parentxid", 0},NULLFIELD}},
     {"xcommit",'C', FA{{"TXNID", "xid", 0},NULLFIELD}},
+    {"xprepare",'P', FA{{"TXNID", "xid", 0}, {"GID", "gid", 0},NULLFIELD}},
     {"xabort", 'q', FA{{"TXNID", "xid", 0},NULLFIELD}},
     //TODO: #2037 Add dname
     {"fcreate", 'F', FA{{"TXNID",      "xid", 0},

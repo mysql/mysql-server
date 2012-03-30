@@ -298,7 +298,7 @@ doit (void) {
     flush_some_child(t->h, node, &fa);
     assert(num_flushes_called == 2);
     
-    r = toku_close_brt(t, 0);    assert(r==0);
+    r = toku_close_brt_nolsn(t, 0);    assert(r==0);
     r = toku_cachetable_close(&ct); assert(r==0);
 
     toku_free(pivots[0]);

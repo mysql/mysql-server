@@ -1,6 +1,6 @@
 /* -*- mode: C; c-basic-offset: 4; indent-tabs-mode: nil -*- */
 #ident "$Id$"
-#ident "Copyright (c) 2007-2010 Tokutek Inc.  All rights reserved."
+#ident "Copyright (c) 2007-2011 Tokutek Inc.  All rights reserved."
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
 
 #include "includes.h"
@@ -91,6 +91,8 @@ int toku_logger_create (TOKULOGGER *resultp) {
     result->swap_ctr = 0;
     result->rollback_cachefile = NULL;
     result->output_is_available = TRUE;
+    toku_list_init(&result->prepared_txns);
+    toku_list_init(&result->prepared_and_returned_txns);
     return 0;
 
  panic:
@@ -156,6 +158,10 @@ int toku_logger_open (const char *directory, TOKULOGGER logger) {
 
     logger->is_open = TRUE;
     return 0;
+}
+
+bool toku_logger_rollback_is_open (TOKULOGGER logger) {
+    return logger->rollback_cachefile != NULL;
 }
 
 int
@@ -224,7 +230,7 @@ toku_logger_close_rollback(TOKULOGGER logger, BOOL recovery_failed) {
         }
 
         char *error_string_ignore = NULL;
-        r = toku_close_brt(brt_to_close, &error_string_ignore);
+        r = toku_close_brt_nolsn(brt_to_close, &error_string_ignore);
         //Set as dealt with already.
         logger->rollback_cachefile = NULL;
     }
@@ -727,16 +733,14 @@ int toku_logger_maybe_trim_log(TOKULOGGER logger, LSN trim_lsn)
 }
 
 void toku_logger_write_log_files (TOKULOGGER logger, BOOL write_log_files)
-// Called only during initialization, so no locks are needed.
+// Called only during initialization (or just after recovery), so no locks are needed.
 {
-    assert(!logger->is_open);
     logger->write_log_files = write_log_files;
 }
 
 void toku_logger_trim_log_files (TOKULOGGER logger, BOOL trim_log_files)
 // Called only during initialization, so no locks are needed.
 {
-    assert(logger);
     logger->trim_log_files = trim_log_files;
 }
 
@@ -953,6 +957,15 @@ int toku_fread_TXNID   (FILE *f, TXNID *txnid, struct x1764 *checksum, u_int32_t
     return toku_fread_u_int64_t (f, txnid, checksum, len);
 }
 
+int toku_fread_GID     (FILE *f, GID *gid, struct x1764 *checksum, u_int32_t *len) {
+    gid->gid = toku_xmalloc(DB_GID_SIZE);
+    for (int i=0; i<DB_GID_SIZE; i++) {
+	int r = toku_fread_u_int8_t(f, &gid->gid[i], checksum, len);
+	if (r!=0) return r;
+    }
+    return 0;
+}
+
 // fills in the bs with malloced data.
 int toku_fread_BYTESTRING (FILE *f, BYTESTRING *bs, struct x1764 *checksum, u_int32_t *len) {
     int r=toku_fread_u_int32_t(f, (u_int32_t*)&bs->len, checksum, len);
@@ -1000,6 +1013,17 @@ int toku_logprint_TXNID (FILE *outf, FILE *inf, const char *fieldname, struct x1
     int r = toku_fread_TXNID(inf, &v, checksum, len);
     if (r!=0) return r;
     fprintf(outf, " %s=%" PRIu64, fieldname, v);
+    return 0;
+}
+
+int toku_logprint_GID (FILE *outf, FILE *inf, const char *fieldname, struct x1764 *checksum, u_int32_t *len, const char *format __attribute__((__unused__))) {
+    GID v;
+    int r = toku_fread_GID(inf, &v, checksum, len);
+    if (r!=0) return r;
+    fprintf(outf, "%s=0x", fieldname);
+    for (int i=0; i<DB_GID_SIZE; i++) printf("%02x", v.gid[i]);
+    toku_free(v.gid);
+    v.gid=NULL;
     return 0;
 }
 

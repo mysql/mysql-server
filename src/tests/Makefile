@@ -909,6 +909,11 @@ test-recover1.tdbrun: VGRIND=
 test-recover2.tdbrun: VGRIND=
 test-recover3.tdbrun: VGRIND=
 
+# test-prepare cannot handle valgrind since the environment doesn't close properly.
+test-prepare.tdbrun: VGRIND=
+test-prepare2.tdbrun: VGRIND=
+test-prepare3.tdbrun: VGRIND=
+
 # filesize is too slow with vgrind.
 filesize.tdbrun: VGRIND=
 
@@ -1092,3 +1097,14 @@ clean:
 	rm -f *.bdb *.tdb
 	rm -f *.fastlog
 	rm -rf rundir.* recover-test_stress*.dir
+
+# Tests which fail whenever I muck with recovery or XA -Bradley
+rtests: \
+ recover-upgrade-db-descriptor.abortrecover \
+ recovery_fileops_unit.tdbrun \
+ recover-tablelock.abortrecover \
+ hotindexer-insert-committed-optimized.tdbrun \
+ test-prepare.tdbrun \
+ test-prepare2.tdbrun \
+ test-prepare3.tdbrun \
+ #Blank

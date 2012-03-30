@@ -2,7 +2,7 @@
 #define BRTTYPES_H
 
 #ident "$Id$"
-#ident "Copyright (c) 2007-2010 Tokutek Inc.  All rights reserved."
+#ident "Copyright (c) 2007-2011 Tokutek Inc.  All rights reserved."
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
 
 #include <sys/types.h>
@@ -48,6 +48,7 @@ typedef u_int64_t TXNID;
 #define TXNID_NONE        ((TXNID)0)
 
 typedef struct blocknum_s { int64_t b; } BLOCKNUM; // make a struct so that we will notice type problems.
+typedef struct gid_s { uint8_t *gid; } GID; // the gid is of size [DB_GID_SIZE]
 #define ROLLBACK_NONE     ((BLOCKNUM){0})
 
 static inline BLOCKNUM make_blocknum(int64_t b) { BLOCKNUM result={b}; return result; }

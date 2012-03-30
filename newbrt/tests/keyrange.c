@@ -18,7 +18,7 @@ static BRT t;
 
 static void close_brt_and_ct (void) {
     int r;
-    r = toku_close_brt(t, 0);          assert(r==0);
+    r = toku_close_brt_nolsn(t, 0);          assert(r==0);
     r = toku_cachetable_close(&ct);    assert(r==0);
 }
 
