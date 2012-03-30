@@ -4617,14 +4617,12 @@ bool check_grant(THD *thd, ulong want_access, TABLE_LIST *tables,
       {
       case ACL_INTERNAL_ACCESS_GRANTED:
         /*
-          Currently,
-          -  the information_schema does not subclass ACL_internal_table_access,
-          there are no per table privilege checks for I_S,
-          - the performance schema does use per tables checks, but at most
-          returns 'CHECK_GRANT', and never 'ACCESS_GRANTED'.
-          so this branch is not used.
+           Grant all access to the table to skip column checks.
+           Depend on the controls in the P_S table itself.
         */
-        DBUG_ASSERT(0);
+        tl->grant.privilege|= TMP_TABLE_ACLS;
+        tl->grant.want_privilege= 0;
+        continue;
       case ACL_INTERNAL_ACCESS_DENIED:
         goto err;
       case ACL_INTERNAL_ACCESS_CHECK_GRANT:
@@ -8398,6 +8396,33 @@ static bool find_mpvio_user(MPVIO_EXT *mpvio)
                       mpvio->acl_user->plugin.str));
   DBUG_RETURN(0);
 }
+
+
+static bool
+read_client_connect_attrs(char **ptr, size_t *max_bytes_available,
+                          const CHARSET_INFO *from_cs)
+{
+  uint length;
+  /* not enough bytes to hold the length */
+  if (*max_bytes_available < 2)
+    return true;
+
+  /* read the length */
+  length= uint2korr(*ptr);
+  *ptr+= 2;
+  *max_bytes_available-= 2;
+
+  /* length says there're more data than can fit into the packet */
+  if (length > *max_bytes_available)
+    return true;
+
+  if (PSI_CALL(thread_set_connect_attrs)(*ptr, length, from_cs) && log_warnings)
+    sql_print_warning("Connection attributes of length %u were truncated",
+                      length);
+  return false;
+}
+
+
 #endif
 
 /* the packet format is described in send_change_user_packet() */
@@ -8505,7 +8530,11 @@ static bool parse_com_change_user_packet(MPVIO_EXT *mpvio, uint packet_length)
   else
   {
     if (mpvio->client_capabilities & CLIENT_SECURE_CONNECTION)
+    {
       client_plugin= native_password_plugin_name.str;
+      uint plugin_len= strlen(client_plugin);
+      ptr= client_plugin + plugin_len + 1;
+    }
     else
     {
       client_plugin=  old_password_plugin_name.str;
@@ -8519,6 +8548,14 @@ static bool parse_com_change_user_packet(MPVIO_EXT *mpvio, uint packet_length)
         mpvio->acl_user_plugin= old_password_plugin_name;
     }
   }
+
+  size_t bytes_remaining_in_packet= end - ptr;
+
+  if ((mpvio->client_capabilities & CLIENT_CONNECT_ATTRS) &&
+      ptr  + 2 < end &&
+      read_client_connect_attrs(&ptr, &bytes_remaining_in_packet,
+                                mpvio->charset_adapter->charset()))
+    return packet_error;
 
   DBUG_PRINT("info", ("client_plugin=%s, restart", client_plugin));
   /* 
@@ -8904,6 +8941,11 @@ skip_to_ssl:
                                   &client_plugin_len);
   if (client_plugin == NULL)
     client_plugin= &empty_c_string[0];
+
+  if ((mpvio->client_capabilities & CLIENT_CONNECT_ATTRS) &&
+      read_client_connect_attrs(&end, &bytes_remaining_in_packet,
+                                mpvio->charset_adapter->charset()))
+    return packet_error;
 
   char db_buff[NAME_LEN + 1];           // buffer to store db in utf8
   char user_buff[USERNAME_LENGTH + 1];	// buffer to store user in utf8

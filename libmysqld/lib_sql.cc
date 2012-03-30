@@ -728,12 +728,36 @@ err:
 }
 
 
+static void
+emb_transfer_connect_attrs(MYSQL *mysql)
+{
+  if (mysql->options.extension &&
+      mysql->options.extension->connection_attributes_length)
+  {
+    uchar *buf;
+    THD *thd= (THD*)mysql->thd;
+    size_t length= mysql->options.extension->connection_attributes_length;
+
+    buf= (uchar *) my_alloca(length + 2);
+    send_client_connect_attrs(mysql, buf);
+    PSI_CALL(thread_set_connect_attrs)((char *) (buf + 2), length,
+                                       thd->charset());
+
+    my_afree(buf);
+  }
+}
+
+
 #ifdef NO_EMBEDDED_ACCESS_CHECKS
 int check_embedded_connection(MYSQL *mysql, const char *db)
 {
   int result;
   LEX_STRING db_str = { (char*)db, db ? strlen(db) : 0 };
   THD *thd= (THD*)mysql->thd;
+
+  /* the server does the same as the client */
+  mysql->server_capabilities= mysql->client_flag;
+
   thd_init_client_charset(thd, mysql->charset->number);
   thd->update_charset();
   Security_context *sctx= thd->security_ctx;
@@ -743,6 +767,7 @@ int check_embedded_connection(MYSQL *mysql, const char *db)
   sctx->user= my_strdup(mysql->user, MYF(0));
   sctx->proxy_user[0]= 0;
   sctx->master_access= GLOBAL_ACLS;       // Full rights
+  emb_transfer_connect_attrs(mysql);
   /* Change database if necessary */
   if (!(result= (db && db[0] && mysql_change_db(thd, &db_str, FALSE))))
     my_ok(thd);
@@ -758,11 +783,17 @@ int check_embedded_connection(MYSQL *mysql, const char *db)
     we emulate a COM_CHANGE_USER user here,
     it's easier than to emulate the complete 3-way handshake
   */
-  char buf[USERNAME_LENGTH + SCRAMBLE_LENGTH + 1 + 2*NAME_LEN + 2], *end;
+  char *buf, *end;
   NET *net= &mysql->net;
   THD *thd= (THD*)mysql->thd;
   Security_context *sctx= thd->security_ctx;
+  size_t connect_attrs_len=
+    (mysql->server_capabilities & CLIENT_CONNECT_ATTRS &&
+     mysql->options.extension) ?
+    mysql->options.extension->connection_attributes_length : 0;
 
+  buf= my_alloca(USERNAME_LENGTH + SCRAMBLE_LENGTH + 1 + 2*NAME_LEN + 2 +
+                 connect_attrs_len + 2);
   if (mysql->options.client_ip)
   {
     sctx->host= my_strdup(mysql->options.client_ip, MYF(0));
@@ -795,6 +826,13 @@ int check_embedded_connection(MYSQL *mysql, const char *db)
   int2store(end, (ushort) mysql->charset->number);
   end+= 2;
 
+  end= strmake(end, "mysql_native_password", NAME_LEN) + 1;
+
+  /* the server does the same as the client */
+  mysql->server_capabilities= mysql->client_flag;
+
+  end= (char *) send_client_connect_attrs(mysql, (uchar *) end);
+
   /* acl_authenticate() takes the data from thd->net->read_pos */
   thd->net.read_pos= (uchar*)buf;
 
@@ -803,12 +841,14 @@ int check_embedded_connection(MYSQL *mysql, const char *db)
     x_free(thd->security_ctx->user);
     goto err;
   }
+  my_afree(buf);
   return 0;
 err:
   strmake(net->last_error, thd->main_da.message(), sizeof(net->last_error)-1);
   memcpy(net->sqlstate,
          mysql_errno_to_sqlstate(thd->main_da.sql_errno()),
          sizeof(net->sqlstate)-1);
+  my_afree(buf);
   return 1;
 }
 #endif

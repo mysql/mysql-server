@@ -517,6 +517,13 @@ struct PFS_thread : PFS_connection_slice
   PFS_host *m_host;
   PFS_user *m_user;
   PFS_account *m_account;
+
+  /** a buffer for the connection attributes */
+  char m_connect_attrs[8196];
+  /** length used by @c m_connect_attrs */
+  uint m_connect_attrs_length;
+  /** character set in which @c m_connect_attrs are encoded */
+  const CHARSET_INFO *m_connect_attrs_cs;
 };
 
 extern PFS_single_stat *global_instr_class_waits_array;
