@@ -4034,6 +4034,7 @@ row_mysql_drop_temp_tables(void)
 	mem_heap_t*	heap;
 
 	trx = trx_allocate_for_background();
+	trx->is_recovery = true;
 	trx->op_info = "dropping temporary tables";
 	row_mysql_lock_data_dictionary(trx);
 

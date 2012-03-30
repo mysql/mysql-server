@@ -2726,6 +2726,7 @@ row_merge_drop_temp_indexes(void)
 	indexes, so that the data dictionary information can be checked
 	when accessing the tablename.ibd files. */
 	trx = trx_allocate_for_background();
+	trx->is_recovery = true;
 	trx->op_info = "dropping partially created indexes";
 	row_mysql_lock_data_dictionary(trx);
 	/* Ensure that this transaction will be rolled back and locks

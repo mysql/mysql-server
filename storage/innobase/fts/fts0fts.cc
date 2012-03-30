@@ -5818,6 +5818,7 @@ fts_drop_orphaned_tables(void)
 	tables = ib_vector_create(heap_alloc, sizeof(fts_sys_table_t), 128);
 
 	trx = trx_allocate_for_background();
+	trx->is_recovery = true;
 	trx->op_info = "dropping orphaned FTS tables";
 	row_mysql_lock_data_dictionary(trx);
 

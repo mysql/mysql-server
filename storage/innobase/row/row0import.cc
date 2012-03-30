@@ -195,6 +195,8 @@ private:
 	{
 		mtr_start(&m_mtr);
 
+		mtr_set_log_mode(&m_mtr, MTR_LOG_NO_REDO);
+
 		btr_pcur_open_at_index_side(
 			TRUE, m_index, BTR_MODIFY_LEAF, &m_pcur, TRUE, &m_mtr);
 	}
@@ -252,6 +254,8 @@ private:
 		mtr_commit(&m_mtr);
 
 		mtr_start(&m_mtr);
+
+		mtr_set_log_mode(&m_mtr, MTR_LOG_NO_REDO);
 
 		btr_pcur_restore_position(BTR_MODIFY_LEAF, &m_pcur, &m_mtr);
 
@@ -459,6 +463,8 @@ private:
 
 		mtr_start(&m_mtr);
 
+		mtr_set_log_mode(&m_mtr, MTR_LOG_NO_REDO);
+
 		btr_pcur_restore_position(BTR_MODIFY_LEAF, &m_pcur, &m_mtr);
 	}
 
@@ -542,6 +548,54 @@ row_import_free(
 }
 
 /*****************************************************************//**
+Cleanup after import tablespace failure */
+static	__attribute__((nonnull))
+void
+row_import_discard_changes(
+/*=======================*/
+	row_prebuilt_t*	prebuilt,	/*!< in/out: prebuilt from handler */
+	trx_t*		trx,		/*!< in/out: transaction for import */
+	db_err		err)		/*!< in: error code */
+{
+	dict_table_t*	table = prebuilt->table;
+
+	ut_a(err != DB_SUCCESS);
+
+	prebuilt->trx->error_info = NULL;
+
+	char	table_name[MAX_FULL_NAME_LEN + 1];
+
+	innobase_format_name(
+		table_name, sizeof(table_name),
+		prebuilt->table->name, FALSE);
+
+	ib_logf(IB_LOG_LEVEL_INFO,
+		"Discarding tablespace of table %s: %s",
+		table_name, ut_strerr(err));
+
+	row_mysql_lock_data_dictionary(trx);
+
+	/* Since we update the index root page numbers on disk after
+	we've done a successful import. The table will not be loadable.
+	However, we need to ensure that the in memory root page numbers
+	are reset to "NULL". */
+
+	for (dict_index_t* index = UT_LIST_GET_FIRST(table->indexes);
+		index != 0;
+		index = UT_LIST_GET_NEXT(indexes, index)) {
+
+		index->page = FIL_NULL;
+		index->space = FIL_NULL;
+	}
+
+	table->ibd_file_missing = TRUE;
+
+	row_mysql_unlock_data_dictionary(trx);
+
+	fil_close_tablespace(trx, table->space);
+}
+
+/*****************************************************************//**
 Cleanup after import tablespace. */
 static	__attribute__((nonnull, warn_unused_result))
 db_err
@@ -554,54 +608,33 @@ row_import_cleanup(
 	ut_a(prebuilt->trx != trx);
 
 	if (err != DB_SUCCESS) {
-		dict_table_t*	table = prebuilt->table;
+		row_import_discard_changes(prebuilt, trx, err);
+	} else {
+		/* Ensure that all pages dirtied during the IMPORT
+		make it to disk. */
 
-		prebuilt->trx->error_info = NULL;
+		buf_LRU_flush_or_remove_pages(
+			prebuilt->table->space, BUF_REMOVE_FLUSH_WRITE, trx);
 
-		char	table_name[MAX_FULL_NAME_LEN + 1];
+		if (trx_is_interrupted(trx)) {
+			ib_logf(IB_LOG_LEVEL_WARN, "IMPORT interrupted!");
 
-		innobase_format_name(
-			table_name, sizeof(table_name),
-			prebuilt->table->name, FALSE);
+			row_import_discard_changes(prebuilt, trx, err);
 
-		ib_logf(IB_LOG_LEVEL_INFO,
-			"Discarding tablespace of table %s: %s",
-			table_name, ut_strerr(err));
-
-		row_mysql_lock_data_dictionary(trx);
-
-		/* Since we update the index root page numbers on disk after
-		we've done a successful import. The table will not be loadable.
-		However, we need to ensure that the in memory root page numbers
-		are reset to "NULL". */
-
-		for (dict_index_t* index = UT_LIST_GET_FIRST(table->indexes);
-		     index != 0;
-		     index = UT_LIST_GET_NEXT(indexes, index)) {
-
-			index->page = FIL_NULL;
-			index->space = FIL_NULL;
+			err = DB_INTERRUPTED;
 		}
-
-		table->ibd_file_missing = TRUE;
-
-		row_mysql_unlock_data_dictionary(trx);
-
-		fil_close_tablespace(trx, table->space);
 	}
 
 	DBUG_EXECUTE_IF("ib_import_before_commit_crash", DBUG_SUICIDE(););
 
 	trx_commit_for_mysql(trx);
 	trx_free_for_mysql(trx);
+
 	prebuilt->trx->op_info = "";
 
-	DBUG_EXECUTE_IF("ib_import_after_commit_crash", DBUG_SUICIDE(););
+	DBUG_EXECUTE_IF("ib_import_before_checkpoint_crash", DBUG_SUICIDE(););
 
-	/* Flush dirty blocks to the file. */
 	log_make_checkpoint_at(IB_ULONGLONG_MAX, TRUE);
-
-	DBUG_EXECUTE_IF("ib_import_after_checkpoint_crash", DBUG_SUICIDE(););
 
 	return(err);
 }
@@ -738,6 +771,8 @@ row_import_set_sys_max_row_id(
 	ut_a(dict_index_is_clust(index));
 
 	mtr_start(&mtr);
+
+	mtr_set_log_mode(&mtr, MTR_LOG_NO_REDO);
 
 	btr_pcur_open_at_index_side(
 		FALSE,		// High end
@@ -1991,7 +2026,6 @@ row_import_for_mysql(
 	db_err		err;
 	trx_t*		trx;
 	ib_uint64_t	autoinc = 0;
-	lsn_t		current_lsn;
 	ulint		n_rows_in_table;
 	char		table_name[MAX_FULL_NAME_LEN + 1];
 
@@ -2084,20 +2118,14 @@ row_import_for_mysql(
 
 	prebuilt->trx->op_info = "importing tablespace";
 
-	current_lsn = log_get_lsn();
-
-	/* Ensure that trx_lists_init_at_db_start() will find the
-	transaction, so that trx_rollback_active() will be able to
-	drop the half-imported table. */
-
-	log_make_checkpoint_at(current_lsn, TRUE);
-
 	/* It is possible that the lsn's in the tablespace to be
 	imported are above the current system lsn or the space id in
 	the tablespace files differs from the table->space.  If that
 	is the case, reset space_id and page lsn in the file.  We
 	assume that mysqld stamped the latest lsn to the
 	FIL_PAGE_FILE_FLUSH_LSN in the first page of the .ibd file. */
+
+	lsn_t	current_lsn = log_get_lsn();
 
 	err = fil_reset_space_and_lsn(table, current_lsn);
 
