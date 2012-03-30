@@ -149,7 +149,7 @@ static bool check_fields(THD *thd, List<Item> &items)
     if (!(field= item->filed_for_view_update()))
     {
       /* item has name, because it comes from VIEW SELECT list */
-      my_error(ER_NONUPDATEABLE_COLUMN, MYF(0), item->name);
+      my_error(ER_NONUPDATEABLE_COLUMN, MYF(0), item->item_name.ptr());
       return TRUE;
     }
     /*

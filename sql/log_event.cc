@@ -5763,9 +5763,9 @@ Load_log_event::Load_log_event(THD *thd_arg, sql_exchange *ex,
   while ((item = li++))
   {
     num_fields++;
-    uchar len = (uchar) strlen(item->name);
+    uchar len= (uchar) item->item_name.length();
     field_block_len += len + 1;
-    fields_buf.append(item->name, len + 1);
+    fields_buf.append(item->item_name.ptr(), len + 1);
     field_lens_buf.append((char*)&len, 1);
   }
 
