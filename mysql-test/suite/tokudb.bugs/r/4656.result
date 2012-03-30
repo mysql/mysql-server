@@ -1,3 +1,4 @@
+set storage_engine='tokudb';
 CREATE TABLE `t2` (
 `c1` int(11) NOT NULL,
 `c2` int(10) unsigned DEFAULT NULL,
@@ -21,7 +22,7 @@ INSERT INTO t2 (c1,c2,c3) VALUES
 (-2147483648,	0,	13),
 (2147483647,	4294967295,	14),
 (0,	2147483648,	15),
-(2147483647,	2147483647,	16);
+(2147483647,	2147483647, 16);
 SELECT * FROM t2;
 c1	c2	c3
 -12	12	12
