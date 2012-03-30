@@ -10,6 +10,8 @@ create table t3 (a int) engine=maria;
 INSERT INTO t3 VALUES (1),(2);
 create table t4 (a int) engine=maria;
 INSERT INTO t4 VALUES (1),(2);
+create table t5 (a int) engine=maria;
+INSERT INTO t5 VALUES (1),(2);
 flush tables;
 create_rename_lsn has non-magic value
 * shut down mysqld, removed logs, restarted it
@@ -35,6 +37,9 @@ mysqltest.t2	check	error	Corrupt
 repair table t2;
 Table	Op	Msg_type	Msg_text
 mysqltest.t2	repair	status	OK
+check table t2;
+Table	Op	Msg_type	Msg_text
+mysqltest.t2	check	status	OK
 optimize table t3;
 Table	Op	Msg_type	Msg_text
 mysqltest.t3	optimize	Note	Zerofilling moved table ./mysqltest/t3
@@ -43,4 +48,16 @@ analyze table t4;
 Table	Op	Msg_type	Msg_text
 mysqltest.t4	analyze	Note	Zerofilling moved table ./mysqltest/t4
 mysqltest.t4	analyze	status	OK
+repair table t5;
+Table	Op	Msg_type	Msg_text
+mysqltest.t5	repair	status	OK
+check table t5;
+Table	Op	Msg_type	Msg_text
+mysqltest.t5	check	status	OK
+repair table t5;
+Table	Op	Msg_type	Msg_text
+mysqltest.t5	repair	status	OK
+check table t5;
+Table	Op	Msg_type	Msg_text
+mysqltest.t5	check	status	OK
 drop database mysqltest;

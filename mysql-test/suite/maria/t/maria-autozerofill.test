@@ -31,6 +31,8 @@ create table t3 (a int) engine=maria;
 INSERT INTO t3 VALUES (1),(2);
 create table t4 (a int) engine=maria;
 INSERT INTO t4 VALUES (1),(2);
+create table t5 (a int) engine=maria;
+INSERT INTO t5 VALUES (1),(2);
 flush tables;
 
 # Check that table is not zerofilled, not movable
@@ -96,9 +98,14 @@ EOF
 check table t2;
 check table t2;
 repair table t2;
+check table t2;
 replace_result \\ /;
 optimize table t3;
 replace_result \\ /;
 analyze table t4;
+repair table t5;
+check table t5;
+repair table t5;
+check table t5;
 
 drop database mysqltest;

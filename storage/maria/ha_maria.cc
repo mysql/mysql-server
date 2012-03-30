@@ -1562,7 +1562,7 @@ int ha_maria::repair(THD *thd, HA_CHECK *param, bool do_optimize)
     {
       DBUG_PRINT("info", ("Reseting crashed state"));
       share->state.changed&= ~(STATE_CHANGED | STATE_CRASHED_FLAGS |
-                               STATE_IN_REPAIR);
+                               STATE_IN_REPAIR | STATE_MOVED);
       file->update |= HA_STATE_CHANGED | HA_STATE_ROW_CHANGED;
     }
     /*
