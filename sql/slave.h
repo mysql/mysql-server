@@ -152,6 +152,8 @@ int init_slave();
 #ifndef MCP_BUG54854
 void add_slave_skip_errors(const char* arg);
 void print_slave_skip_errors();
+#else
+void init_slave_skip_errors(const char* arg);
 #endif // MCP_BUG54854
 bool flush_relay_log_info(Relay_log_info* rli);
 int register_slave_on_master(MYSQL* mysql);
