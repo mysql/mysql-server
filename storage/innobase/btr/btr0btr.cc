@@ -833,6 +833,8 @@ btr_root_adjust_on_import(
 
 	mtr_start(&mtr);
 
+	mtr_set_log_mode(&mtr, MTR_LOG_NO_REDO);
+
 	block = btr_block_get(
 		space_id, zip_size, root_page_no, RW_X_LATCH, index, &mtr);
 
@@ -4251,12 +4253,16 @@ btr_validate_level(
 	ulint*		offsets	= NULL;
 	ulint*		offsets2= NULL;
 	page_zip_des_t*	page_zip;
-	ulint		n_pages_updated = 0;
 
 	ut_ad(index);
 	ut_ad(!init_id || trx);
 
 	mtr_start(&mtr);
+
+	/* If it is an IMPORT then no point in logging changes. */
+	if (init_id) {
+		mtr_set_log_mode(&mtr, MTR_LOG_NO_REDO);
+	}
 
 	mtr_x_lock(dict_index_get_lock(index), &mtr);
 
@@ -4309,13 +4315,6 @@ btr_validate_level(
 					  ULINT_UNDEFINED, &heap);
 		block = btr_node_ptr_get_child(node_ptr, index, offsets, &mtr);
 		page = buf_block_get_frame(block);
-
-		if (init_id && !(++n_pages_updated % 100)) {
-			/* Avoid flooding the buffer pool with pages that
-			can't be flushed to disk. */
-			mtr_commit(&mtr);
-			mtr_start(&mtr);
-		}
 	}
 
 	/* Now we are on the desired level. Loop through the pages on that
@@ -4343,13 +4342,6 @@ loop:
 #endif /* UNIV_ZIP_DEBUG */
 
 	ut_a(block->page.space == space);
-
-	if (init_id && !(++n_pages_updated % 100)) {
-		/* Avoid flooding the buffer pool with pages that
-		can't be flushed to disk. */
-		mtr_commit(&mtr);
-		mtr_start(&mtr);
-	}
 
 	if (fseg_page_is_free(seg, block->page.space, block->page.offset)) {
 
@@ -4644,6 +4636,10 @@ node_ptr_fails:
 	if (right_page_no != FIL_NULL) {
 		mtr_start(&mtr);
 
+		if (init_id) {
+			mtr_set_log_mode(&mtr, MTR_LOG_NO_REDO);
+		}
+
 		block = btr_block_get(space, zip_size, right_page_no,
 				      RW_X_LATCH, index, &mtr);
 		page = buf_block_get_frame(block);
@@ -4681,6 +4677,12 @@ btr_validate_index(
 	}
 
 	mtr_start(&mtr);
+
+	/* If we are doing an IMPORT then no point in generating REDO. */
+	if (init_id) {
+		mtr_set_log_mode(&mtr, MTR_LOG_NO_REDO);
+	}
+
 	mtr_x_lock(dict_index_get_lock(index), &mtr);
 
 	root = btr_root_get(index, &mtr);

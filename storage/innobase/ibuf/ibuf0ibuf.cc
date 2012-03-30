@@ -5047,6 +5047,9 @@ ibuf_check_bitmap_on_import(
 		}
 
 		mtr_start(&mtr);
+
+		mtr_set_log_mode(&mtr, MTR_LOG_NO_REDO);
+
 		ibuf_enter(&mtr);
 
 		bitmap_page = ibuf_bitmap_get_map_page(
