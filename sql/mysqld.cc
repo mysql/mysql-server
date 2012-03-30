@@ -8048,6 +8048,8 @@ mysqld_get_one_option(int optid,
   case OPT_SLAVE_SKIP_ERRORS:
 #ifndef MCP_BUG54854
     add_slave_skip_errors(argument);
+#else
+    init_slave_skip_errors(argument);
 #endif // MCP_BUG54854
     break;
   case OPT_SLAVE_EXEC_MODE:
