@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -463,18 +463,22 @@ static st_plugin_dl *plugin_dl_add(const LEX_STRING *dl, int report)
   dlpathlen=
     strxnmov(dlpath, sizeof(dlpath) - 1, opt_plugin_dir, "/", dl->str, NullS) -
     dlpath;
+  (void) unpack_filename(dlpath, dlpath);
   plugin_dl.ref_count= 1;
   /* Open new dll handle */
   if (!(plugin_dl.handle= dlopen(dlpath, RTLD_NOW)))
   {
-    const char *errmsg=dlerror();
+    const char *errmsg;
+    int error_number= dlopen_errno;
+    DLERROR_GENERATE(errmsg, error_number);
+
     if (!strncmp(dlpath, errmsg, dlpathlen))
     { // if errmsg starts from dlpath, trim this prefix.
       errmsg+=dlpathlen;
       if (*errmsg == ':') errmsg++;
       if (*errmsg == ' ') errmsg++;
     }
-    report_error(report, ER_CANT_OPEN_LIBRARY, dlpath, errno, errmsg);
+    report_error(report, ER_CANT_OPEN_LIBRARY, dlpath, error_number, errmsg);
     DBUG_RETURN(0);
   }
   /* Determine interface version */

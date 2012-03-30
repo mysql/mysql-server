@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -149,6 +149,8 @@ int init_recovery(Master_info* mi, const char** errmsg);
 #ifndef MCP_BUG54854
 void add_slave_skip_errors(const char* arg);
 void set_slave_skip_errors(char** slave_skip_errors_ptr);
+#else
+void init_slave_skip_errors(const char* arg);
 #endif // MCP_BUG54854
 bool flush_relay_log_info(Relay_log_info* rli);
 int register_slave_on_master(MYSQL* mysql);

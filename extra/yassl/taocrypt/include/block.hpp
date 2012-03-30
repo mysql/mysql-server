@@ -60,10 +60,6 @@ public:
     void          destroy(pointer p) {p->~T();}
     size_type     max_size() const {return ~size_type(0)/sizeof(T);}
 protected:
-    static void CheckSize(size_t n)
-    {
-        assert(n <= ~size_t(0) / sizeof(T));
-    }
 };
 
 
@@ -100,7 +96,8 @@ public:
 
     pointer allocate(size_type n, const void* = 0)
     {
-        this->CheckSize(n);
+        if (n > this->max_size())
+            return 0;
         if (n == 0)
             return 0;
         return NEW_TC T[n];
@@ -143,9 +140,8 @@ public:
         return *this;
     }
 
-    T& operator[] (word32 i) { assert(i < sz_); return buffer_[i]; }
-    const T& operator[] (word32 i) const 
-        { assert(i < sz_); return buffer_[i]; }
+    T& operator[] (word32 i) { return buffer_[i]; }
+    const T& operator[] (word32 i) const { return buffer_[i]; }
 
     T* operator+ (word32 i) { return buffer_ + i; }
     const T* operator+ (word32 i) const { return buffer_ + i; }

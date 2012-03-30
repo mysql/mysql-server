@@ -1,5 +1,7 @@
 source include/master-slave.inc;
 
+call mtr.add_suppression('Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT.');
+
 eval CREATE TABLE t1 (
  a int unsigned not null auto_increment primary key,
  b int unsigned
@@ -11,6 +13,7 @@ eval CREATE TABLE t2 (
 ) ENGINE=$engine_type;
 
 INSERT INTO t1 VALUES (NULL, 0);
+--disable_warnings ONCE
 INSERT INTO t1 SELECT NULL, 0 FROM t1;
 
 INSERT INTO t2 VALUES (NULL, 0), (NULL,1);
@@ -18,6 +21,7 @@ INSERT INTO t2 VALUES (NULL, 0), (NULL,1);
 SELECT * FROM t1 ORDER BY a;
 SELECT * FROM t2 ORDER BY a;
 
+--disable_warnings ONCE
 UPDATE t1, t2 SET t1.b = t2.b WHERE t1.a = t2.a;
 sync_slave_with_master;
 

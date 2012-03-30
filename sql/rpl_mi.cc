@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -49,9 +49,11 @@ Master_info::Master_info(bool is_slave_recovery)
   bzero((char*) &file, sizeof(file));
   mysql_mutex_init(key_master_info_run_lock, &run_lock, MY_MUTEX_INIT_FAST);
   mysql_mutex_init(key_master_info_data_lock, &data_lock, MY_MUTEX_INIT_FAST);
+  mysql_mutex_init(key_master_info_sleep_lock, &sleep_lock, MY_MUTEX_INIT_FAST);
   mysql_cond_init(key_master_info_data_cond, &data_cond, NULL);
   mysql_cond_init(key_master_info_start_cond, &start_cond, NULL);
   mysql_cond_init(key_master_info_stop_cond, &stop_cond, NULL);
+  mysql_cond_init(key_master_info_sleep_cond, &sleep_cond, NULL);
 
 #ifndef MCP_WL3127
   bind_addr[0] = 0;
@@ -63,9 +65,11 @@ Master_info::~Master_info()
   delete_dynamic(&ignore_server_ids);
   mysql_mutex_destroy(&run_lock);
   mysql_mutex_destroy(&data_lock);
+  mysql_mutex_destroy(&sleep_lock);
   mysql_cond_destroy(&data_cond);
   mysql_cond_destroy(&start_cond);
   mysql_cond_destroy(&stop_cond);
+  mysql_cond_destroy(&sleep_cond);
 }
 
 /**

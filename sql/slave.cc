@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -67,8 +67,6 @@
 bool use_slave_mask = 0;
 MY_BITMAP slave_error_mask;
 char slave_skip_error_names[SHOW_VAR_FUNC_BUFF_SIZE];
-
-typedef bool (*CHECK_KILLED_FUNC)(THD*,void*);
 
 char* slave_load_tmpdir = 0;
 Master_info *active_mi= 0;
@@ -152,9 +150,6 @@ static int safe_reconnect(THD* thd, MYSQL* mysql, Master_info* mi,
                           bool suppress_warnings);
 static int connect_to_master(THD* thd, MYSQL* mysql, Master_info* mi,
                              bool reconnect, bool suppress_warnings);
-static int safe_sleep(THD* thd, int sec, CHECK_KILLED_FUNC thread_killed,
-                      void* thread_killed_arg);
-static int get_master_version_and_clock(MYSQL* mysql, Master_info* mi);
 static Log_event* next_event(Relay_log_info* rli);
 static int queue_event(Master_info* mi,const char* buf,ulong event_len);
 static int terminate_slave_thread(THD *thd,
@@ -276,6 +271,18 @@ int init_slave()
   if (pthread_key_create(&RPL_MASTER_INFO, NULL))
     goto err;
 
+#ifndef MCP_BUG54854
+#else
+  /*
+    If --slave-skip-errors=... was not used, the string value for the
+    system variable has not been set up yet. Do it now.
+  */
+  if (!use_slave_mask)
+  {
+    print_slave_skip_errors();
+  }
+#endif // MCP_BUG54854
+
   /*
     If master_host is not specified, try to read it from the master_info file.
     If master_host is specified, create the master_info file if it doesn't
@@ -388,6 +395,12 @@ static void print_slave_skip_errors(void)
   DBUG_ASSERT(sizeof(slave_skip_error_names) > MIN_ROOM);
   DBUG_ASSERT(MAX_SLAVE_ERROR <= 999999); // 6 digits
 
+#ifndef MCP_BUG54854
+#else
+  /* Make @@slave_skip_errors show the nice human-readable value.  */
+  opt_slave_skip_errors= slave_skip_error_names;
+#endif // MCP_BUG54854
+
   if (!use_slave_mask || bitmap_is_clear_all(&slave_error_mask))
   {
     /* purecov: begin tested */
@@ -442,9 +455,7 @@ void set_slave_skip_errors(char** slave_skip_errors_ptr)
   *slave_skip_errors_ptr= slave_skip_error_names;
   DBUG_VOID_RETURN;
 }
-#endif // MCP_BUG54854
 
-#ifndef MCP_BUG54854
 /**
   Init function to set up array for errors that should be skipped for slave
 */
@@ -461,9 +472,7 @@ static void init_slave_skip_errors()
   use_slave_mask = 1;
   DBUG_VOID_RETURN;
 }
-#endif // MCP_BUG54854
 
-#ifndef MCP_BUG54854
 static void add_slave_skip_errors(const uint* errors, uint n_errors)
 {
   DBUG_ENTER("add_slave_skip_errors");
@@ -478,9 +487,7 @@ static void add_slave_skip_errors(const uint* errors, uint n_errors)
   }
   DBUG_VOID_RETURN;
 }
-#endif // MCP_BUG54854
 
-#ifndef MCP_BUG54854
 /*
   Add errors that should be skipped for slave
 
@@ -491,7 +498,6 @@ static void add_slave_skip_errors(const uint* errors, uint n_errors)
   NOTES
     Called from get_options() in mysqld.cc on start-up
 */
-
 void add_slave_skip_errors(const char* arg)
 {
   const char *p= NULL;
@@ -553,6 +559,51 @@ void add_slave_skip_errors(const char* arg)
     while (!my_isdigit(system_charset_info,*p) && *p)
       p++;
   }
+  DBUG_VOID_RETURN;
+}
+#else
+/*
+  Init function to set up array for errors that should be skipped for slave
+
+  SYNOPSIS
+    init_slave_skip_errors()
+    arg         List of errors numbers to skip, separated with ','
+
+  NOTES
+    Called from get_options() in mysqld.cc on start-up
+*/
+
+void init_slave_skip_errors(const char* arg)
+{
+  const char *p;
+  DBUG_ENTER("init_slave_skip_errors");
+
+  if (bitmap_init(&slave_error_mask,0,MAX_SLAVE_ERROR,0))
+  {
+    fprintf(stderr, "Badly out of memory, please check your system status\n");
+    exit(1);
+  }
+  use_slave_mask = 1;
+  for (;my_isspace(system_charset_info,*arg);++arg)
+    /* empty */;
+  if (!my_strnncoll(system_charset_info,(uchar*)arg,4,(const uchar*)"all",4))
+  {
+    bitmap_set_all(&slave_error_mask);
+    print_slave_skip_errors();
+    DBUG_VOID_RETURN;
+  }
+  for (p= arg ; *p; )
+  {
+    long err_code;
+    if (!(p= str2int(p, 10, 0, LONG_MAX, &err_code)))
+      break;
+    if (err_code < MAX_SLAVE_ERROR)
+       bitmap_set_bit(&slave_error_mask,(uint)err_code);
+    while (!my_isdigit(system_charset_info,*p) && *p)
+      p++;
+  }
+  /* Convert slave skip errors bitmap into a printable string. */
+  print_slave_skip_errors();
   DBUG_VOID_RETURN;
 }
 #endif // MCP_BUG54854
@@ -2147,35 +2198,42 @@ static int init_slave_thread(THD* thd, SLAVE_THD_TYPE thd_type)
   DBUG_RETURN(0);
 }
 
+/*
+  Sleep for a given amount of time or until killed.
 
-static int safe_sleep(THD* thd, int sec, CHECK_KILLED_FUNC thread_killed,
-                      void* thread_killed_arg)
+  @param thd        Thread context of the current thread.
+  @param seconds    The number of seconds to sleep.
+  @param func       Function object to check if the thread has been killed.
+  @param info       The Rpl_info object associated with this sleep.
+
+  @retval True if the thread has been killed, false otherwise.
+*/
+template <typename killed_func, typename rpl_info>
+static inline bool slave_sleep(THD *thd, time_t seconds,
+                               killed_func func, rpl_info info)
 {
-  int nap_time;
-  thr_alarm_t alarmed;
-  DBUG_ENTER("safe_sleep");
 
-  thr_alarm_init(&alarmed);
-  time_t start_time= my_time(0);
-  time_t end_time= start_time+sec;
+  bool ret;
+  struct timespec abstime;
+  const char *old_proc_info;
 
-  while ((nap_time= (int) (end_time - start_time)) > 0)
+  mysql_mutex_t *lock= &info->sleep_lock;
+  mysql_cond_t *cond= &info->sleep_cond;
+
+  /* Absolute system time at which the sleep time expires. */
+  set_timespec(abstime, seconds);
+  mysql_mutex_lock(lock);
+  old_proc_info= thd->enter_cond(cond, lock, thd->proc_info);
+
+  while (! (ret= func(thd, info)))
   {
-    ALARM alarm_buff;
-    /*
-      The only reason we are asking for alarm is so that
-      we will be woken up in case of murder, so if we do not get killed,
-      set the alarm so it goes off after we wake up naturally
-    */
-    thr_alarm(&alarmed, 2 * nap_time, &alarm_buff);
-    sleep(nap_time);
-    thr_end_alarm(&alarmed);
-
-    if ((*thread_killed)(thd,thread_killed_arg))
-      DBUG_RETURN(1);
-    start_time= my_time(0);
+    int error= mysql_cond_timedwait(cond, lock, &abstime);
+    if (error == ETIMEDOUT || error == ETIME)
+      break;
   }
-  DBUG_RETURN(0);
+  /* Implicitly unlocks the mutex. */
+  thd->exit_cond(old_proc_info);
+  return ret;
 }
 
 
@@ -2639,8 +2697,8 @@ static int exec_relay_log_event(THD* thd, Relay_log_info* rli)
             exec_res= 0;
             rli->cleanup_context(thd, 1);
             /* chance for concurrent connection to get more locks */
-            safe_sleep(thd, min(rli->trans_retries, MAX_SLAVE_RETRY_PAUSE),
-                       (CHECK_KILLED_FUNC)sql_slave_killed, (void*)rli);
+            slave_sleep(thd, min(rli->trans_retries, MAX_SLAVE_RETRY_PAUSE),
+                       sql_slave_killed, rli);
             mysql_mutex_lock(&rli->data_lock); // because of SHOW STATUS
             rli->trans_retries++;
             rli->retried_trans++;
@@ -2738,8 +2796,7 @@ static int try_to_reconnect(THD *thd, MYSQL *mysql, Master_info *mi,
   {
     if (*retry_count > master_retry_count)
       return 1;                             // Don't retry forever
-    safe_sleep(thd, mi->connect_retry, (CHECK_KILLED_FUNC) io_slave_killed,
-               (void *) mi);
+    slave_sleep(thd, mi->connect_retry, io_slave_killed, mi);
   }
   if (check_io_slave_killed(thd, mi, messages[SLAVE_RECON_MSG_KILLED_WAITING]))
     return 1;
@@ -4359,8 +4416,7 @@ static int connect_to_master(THD* thd, MYSQL* mysql, Master_info* mi,
         change_rpl_status(RPL_ACTIVE_SLAVE,RPL_LOST_SOLDIER);
       break;
     }
-    safe_sleep(thd,mi->connect_retry,(CHECK_KILLED_FUNC)io_slave_killed,
-               (void*)mi);
+    slave_sleep(thd,mi->connect_retry,io_slave_killed, mi);
   }
 
   if (!slave_was_killed)

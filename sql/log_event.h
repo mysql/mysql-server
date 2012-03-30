@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -766,11 +766,11 @@ typedef struct st_print_event_info
   Such identifier is not yet unique generally as the event originating master
   is resetable. Also the crashed master can be replaced with some other.
 */
-struct event_coordinates
+typedef struct event_coordinates
 {
   char * file_name; // binlog file name (directories stripped)
   my_off_t  pos;       // event's position in the binlog file
-};
+} LOG_POS_COORD;
 #endif
 
 /**

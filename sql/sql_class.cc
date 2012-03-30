@@ -138,9 +138,9 @@ Key::Key(const Key &rhs, MEM_ROOT *mem_root)
 */
 
 Foreign_key::Foreign_key(const Foreign_key &rhs, MEM_ROOT *mem_root)
-  :Key(rhs),
+  :Key(rhs,mem_root),
   ref_table(rhs.ref_table),
-  ref_columns(rhs.ref_columns),
+  ref_columns(rhs.ref_columns,mem_root),
   delete_opt(rhs.delete_opt),
   update_opt(rhs.update_opt),
   match_opt(rhs.match_opt)

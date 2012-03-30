@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -5639,6 +5639,8 @@ void mysql_parse(THD *thd, char *rawbuf, uint length,
       query_cache_abort(&thd->query_cache_tls);
     }
     thd_proc_info(thd, "freeing items");
+    sp_cache_enforce_limit(thd->sp_proc_cache, stored_program_cache_size);
+    sp_cache_enforce_limit(thd->sp_func_cache, stored_program_cache_size);
     thd->end_statement();
     thd->cleanup_after_query();
     DBUG_ASSERT(thd->change_list.is_empty());

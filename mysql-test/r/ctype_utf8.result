@@ -1928,6 +1928,30 @@ D120
 SELECT HEX(INSERT(_utf8 0xD18FD18E, 2, 1, 0x20));
 HEX(INSERT(_utf8 0xD18FD18E, 2, 1, 0x20))
 D120D18E
+#
+# Bug#11752408 - 43593: DUMP/BACKUP/RESTORE/UPGRADE TOOLS FAILS BECAUSE OF UTF8_GENERAL_CI
+#
+CREATE TABLE t1 (a VARCHAR(10) CHARACTER SET utf8 COLLATE utf8_general_mysql500_ci);
+INSERT INTO t1 VALUES ('a'),('r'),('s'),(_latin1 0xDF),(_latin1 0xF7),('t'),('z');
+SELECT * FROM t1 ORDER BY a;
+a
+a
+r
+s
+t
+z
+ß
+÷
+SELECT a, COUNT(*) FROM t1 GROUP BY a;
+a	COUNT(*)
+a	1
+r	1
+s	1
+t	1
+z	1
+ß	1
+÷	1
+DROP TABLE t1;
 End of 5.1 tests
 Start of 5.4 tests
 SET NAMES utf8mb3;
