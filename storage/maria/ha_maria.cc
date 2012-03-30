@@ -1187,7 +1187,7 @@ int ha_maria::check(THD * thd, HA_CHECK_OPT * check_opt)
   if ((file->s->state.changed & (STATE_CRASHED_FLAGS | STATE_MOVED)) ==
       STATE_MOVED)
   {
-    _ma_check_print_error(&param, zerofill_error_msg);
+    _ma_check_print_error(&param, "%s", zerofill_error_msg);
     return HA_ADMIN_CORRUPT;
   }
 

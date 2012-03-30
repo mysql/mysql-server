@@ -54,6 +54,7 @@ EOF
 
 disable_ps_protocol; # see aria-recover.test
 replace_regex /Table.*t1/t1/ ;
+replace_result \\ /;
 select * from t1;
 enable_ps_protocol;
 flush table t1;
@@ -95,7 +96,9 @@ EOF
 check table t2;
 check table t2;
 repair table t2;
+replace_result \\ /;
 optimize table t3;
+replace_result \\ /;
 analyze table t4;
 
 drop database mysqltest;
