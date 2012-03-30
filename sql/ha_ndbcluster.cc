@@ -14675,7 +14675,7 @@ ha_ndbcluster::parent_of_pushed_join() const
     uint parent_ix= m_pushed_join_member
                     ->get_query_def().getQueryOperation(m_pushed_join_operation)
                     ->getParentOperation(0)
-                    ->getQueryOperationIx();
+                    ->getOpNo();
     return m_pushed_join_member->get_table(parent_ix);
   }
   return NULL;
@@ -15701,14 +15701,30 @@ int ha_ndbcluster::check_if_supported_alter(TABLE *altered_table,
          DBUG_PRINT("info", ("storage_type %i, column_format %i",
                              (uint) field->field_storage_type(),
                              (uint) field->column_format()));
+         if (!(field->flags & NO_DEFAULT_VALUE_FLAG))
+         {
+           my_ptrdiff_t src_offset= field->table->s->default_values 
+             - field->table->record[0];
+           if ((! field->is_null_in_record_with_offset(src_offset)) ||
+               ((field->flags & NOT_NULL_FLAG)))
+           {
+             DBUG_PRINT("info",("Adding column with non-null default value is not supported on-line"));
+             DBUG_RETURN(HA_ALTER_NOT_SUPPORTED);
+           }
+         }
          /* Create new field to check if it can be added */
-         if ((my_errno= create_ndb_column(0, col, field, create_info,
+         if ((my_errno= create_ndb_column(thd, col, field, create_info,
                                           COLUMN_FORMAT_TYPE_DYNAMIC)))
          {
            DBUG_PRINT("info", ("create_ndb_column returned %u", my_errno));
            DBUG_RETURN(my_errno);
          }
-         new_tab.addColumn(col);
+         if (new_tab.addColumn(col))
+         {
+           my_errno= errno;
+           DBUG_PRINT("info", ("NdbDictionary::Table::addColumn returned %u", my_errno));
+           DBUG_RETURN(my_errno);
+         }
        }
      }
 
@@ -17357,7 +17373,7 @@ static MYSQL_SYSVAR_UINT(
 
 static
 void
-dbug_check_shares(THD*, st_mysql_sys_var*, void*, const void*)
+dbg_check_shares_update(THD*, st_mysql_sys_var*, void*, const void*)
 {
   sql_print_information("dbug_check_shares open:");
   for (uint i= 0; i < ndbcluster_open_tables.records; i++)
@@ -17403,11 +17419,11 @@ dbug_check_shares(THD*, st_mysql_sys_var*, void*, const void*)
 }
 
 static MYSQL_THDVAR_UINT(
-  check_shares,              /* name */
+  dbg_check_shares,                  /* name */
   PLUGIN_VAR_RQCMDARG,
   "Debug, only...check that no shares are lingering...",
   NULL,                              /* check func */
-  dbug_check_shares,                 /* update func */
+  dbg_check_shares_update,           /* update func */
   0,                                 /* default */
   0,                                 /* min */
   1,                                 /* max */
@@ -17455,7 +17471,7 @@ static struct st_mysql_sys_var* system_variables[]= {
   MYSQL_SYSVAR(deferred_constraints),
   MYSQL_SYSVAR(join_pushdown),
 #ifndef DBUG_OFF
-  MYSQL_SYSVAR(check_shares),
+  MYSQL_SYSVAR(dbg_check_shares),
 #endif
   NULL
 };

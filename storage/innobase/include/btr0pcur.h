@@ -53,6 +53,16 @@ UNIV_INTERN
 btr_pcur_t*
 btr_pcur_create_for_mysql(void);
 /*============================*/
+
+/**************************************************************//**
+Resets a persistent cursor object, freeing ::old_rec_buf if it is
+allocated and resetting the other members to their initial values. */
+UNIV_INTERN
+void
+btr_pcur_reset(
+/*===========*/
+	btr_pcur_t*	cursor);/*!< in, out: persistent cursor */
+
 /**************************************************************//**
 Frees the memory for a persistent cursor object. */
 UNIV_INTERN

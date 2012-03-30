@@ -1,0 +1,59 @@
+# Saving initial value of stored_program_cache in a temporary variable
+SET @start_value = @@global.stored_program_cache;
+SELECT @start_value;
+@start_value
+256
+# Display the DEFAULT value of stored_program_cache
+SET @@global.stored_program_cache  = DEFAULT;
+SELECT @@global.stored_program_cache;
+@@global.stored_program_cache
+256
+# Verify default value of variable
+SELECT @@global.stored_program_cache  = 256;
+@@global.stored_program_cache  = 256
+1
+# Change the value of stored_program_cache to a valid value
+SET @@global.stored_program_cache  = 512;
+SELECT @@global.stored_program_cache;
+@@global.stored_program_cache
+512
+# Change the value of stored_program_cache to invalid value
+SET @@global.stored_program_cache  = -1;
+Warnings:
+Warning	1292	Truncated incorrect stored_program_cache value: '-1'
+SELECT @@global.stored_program_cache;
+@@global.stored_program_cache
+256
+SET @@global.stored_program_cache =100000000000;
+Warnings:
+Warning	1292	Truncated incorrect stored_program_cache value: '100000000000'
+SELECT @@global.stored_program_cache;
+@@global.stored_program_cache
+524288
+SET @@global.stored_program_cache = 0;
+Warnings:
+Warning	1292	Truncated incorrect stored_program_cache value: '0'
+SELECT @@global.stored_program_cache;
+@@global.stored_program_cache
+256
+SET @@global.stored_program_cache = 10000.01;
+ERROR 42000: Incorrect argument type to variable 'stored_program_cache'
+SET @@global.stored_program_cache = ON;
+ERROR 42000: Incorrect argument type to variable 'stored_program_cache'
+SET @@global.stored_program_cache= 'test';
+ERROR 42000: Incorrect argument type to variable 'stored_program_cache'
+SET @@global.stored_program_cache = '';
+ERROR 42000: Incorrect argument type to variable 'stored_program_cache'
+# Test if accessing session stored_program_cache gives error
+SET @@session.stored_program_cache = 0;
+ERROR HY000: Variable 'stored_program_cache' is a GLOBAL variable and should be set with SET GLOBAL
+# Check if accessing variable without SCOPE points to same global variable
+SET @@global.stored_program_cache = 512;
+SELECT @@stored_program_cache = @@global.stored_program_cache;
+@@stored_program_cache = @@global.stored_program_cache
+1
+# Restore initial value
+SET @@global.stored_program_cache = @start_value;
+SELECT @@global.stored_program_cache;
+@@global.stored_program_cache
+256

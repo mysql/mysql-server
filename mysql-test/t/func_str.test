@@ -1459,6 +1459,45 @@ SELECT stddev_samp(rpad(1.0,2048,1));
 SELECT ((127.1) not in ((rpad(1.0,2048,1)),(''),(-1.1)));
 SELECT ((0xf3) * (rpad(1.0,2048,1)) << (0xcc));
 
+--echo #
+--echo # Bug#13359121 LARGE NUMBERS, /STRINGS/DTOA.C:662:
+--echo #              BALLOC: ASSERTION `K <= 15' FAILED.
+--echo # Bug#12985021 SIMPLE QUERY WITH DECIMAL NUMBERS TAKE AN 
+--echo #              EXTRAORDINARY LONG TIME TO EXECUTE
+
+SELECT @tmp_max:= @@global.max_allowed_packet;
+SET @@global.max_allowed_packet=1024*1024*1024;
+# switching connection to allow the new max_allowed_packet take effect
+--connect (newconn, localhost, root,,)
+
+SELECT @@global.max_allowed_packet;
+
+do
+format(rpad('111111111.1',
+             1111111,
+             '999999999999999999999999999999999999999999'),0,'be_BY')
+;
+
+DO
+round(
+  concat( (
+    coalesce( (
+      linefromwkb('2147483648',
+                  -b'1111111111111111111111111111111111111111111')),
+      ( convert('[.DC2.]',decimal(30,30)) ),
+      bit_count('')
+    ) ),
+    ( lpad( ( elt('01','}:K5')),
+              sha1('P'),
+              ( ( select '-9223372036854775808.1' > all (select '')))
+          )
+    )
+  )
+);
+
+--connection default
+SET @@global.max_allowed_packet:= @tmp_max;
+--disconnect newconn
 
 --echo #
 --echo # End of 5.5 tests

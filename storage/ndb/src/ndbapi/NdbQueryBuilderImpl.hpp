@@ -423,17 +423,17 @@ protected:
   explicit NdbQueryOperationDefImpl (const NdbTableImpl& table,
                                      const NdbQueryOptionsImpl& options,
                                      const char* ident,
-                                     Uint32 ix,
-                                     Uint32 id,
+                                     Uint32 opNo,
+                                     Uint32 internalOpNo,
                                      int& error);
 public:
   // Get the ordinal position of this operation within the query def.
-  Uint32 getQueryOperationIx() const
-  { return m_ix; }
+  Uint32 getOpNo() const
+  { return m_opNo; }
 
   // Get id of node as known inside queryTree
-  Uint32 getQueryOperationId() const
-  { return m_id; }
+  Uint32 getInternalOpNo() const
+  { return m_internalOpNo; }
 
   // Get type of query operation
   virtual NdbQueryOperationDef::Type getType() const = 0;
@@ -487,9 +487,9 @@ private:
 private:
   const NdbTableImpl& m_table;
   const char* const m_ident; // Optional name specified by aplication
-  const Uint32 m_ix;         // Index of this operation within operation array
-  const Uint32 m_id;         // Operation id when materialized into queryTree.
-                             // If op has index, index id is 'm_id-1'.
+  const Uint32 m_opNo;       // Index of this operation within operation array
+  const Uint32 m_internalOpNo;// Operation id when materialized into queryTree.
+                          // If op has index, index opNo is 'm_internalOpNo-1'.
 
   // Optional (or default) options specified when building query:
   // - Scan order which may specify ascending or descending scan order
@@ -517,8 +517,8 @@ public:
                            const NdbTableImpl& table,
                            const NdbQueryOptionsImpl& options,
                            const char* ident,
-                           Uint32      ix,
-                           Uint32      id,
+                           Uint32      opNo,
+                           Uint32      internalOpNo,
                            int& error);
 
   virtual bool isScanOperation() const
@@ -581,8 +581,8 @@ private:
                            const NdbQueryIndexBound* bound,
                            const NdbQueryOptionsImpl& options,
                            const char* ident,
-                           Uint32      ix,
-                           Uint32      id,
+                           Uint32      opNo,
+                           Uint32      internalOpNo,
                            int& error);
 
   // Append pattern for creating a single bound value to serialized code 
@@ -693,10 +693,10 @@ private:
   bool contains(const NdbQueryOperationDefImpl*);
 
   // Get interal operation number of the next operation.
-  Uint32 getNextId() const
+  Uint32 getNextInternalOpNo() const
   { 
     return m_operations.size() == 0 ? 0 :
-      m_operations[m_operations.size()-1]->getQueryOperationId()+1; 
+      m_operations[m_operations.size()-1]->getInternalOpNo()+1;
   }
 
   NdbQueryBuilder m_interface;
