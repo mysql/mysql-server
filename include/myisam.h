@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -401,14 +401,14 @@ typedef struct st_mi_check_param
   ulonglong max_data_file_length;
   ulonglong keys_in_use;
   ulonglong max_record_length;
+  ulonglong sort_buffer_length;
   my_off_t search_after_block;
   my_off_t new_file_pos,key_file_blocks;
   my_off_t keydata,totaldata,key_blocks,start_check_pos;
   ha_rows total_records,total_deleted;
   ha_checksum record_checksum,glob_crc;
   ulonglong use_buffers;
-  ulong read_buffer_length,write_buffer_length,
-	sort_buffer_length,sort_key_blocks;
+  ulong read_buffer_length, write_buffer_length, sort_key_blocks;
   uint out_flag,warning_printed,error_printed,verbose;
   uint opt_sort_key,total_files,max_level;
   uint testflag, key_cache_block_size;

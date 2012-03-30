@@ -177,3 +177,37 @@ UNLOCK TABLES;
 --connection master
 DROP TABLE t1;
 sync_slave_with_master;
+
+#
+# bug#3593869-64035 attempt to read a member of event_coordinates
+# referenced by NULL pointer crashes server.
+# Testing how out of valid range position value is handled with an error.
+#
+
+--connection master
+RESET MASTER;
+let $master_pos= query_get_value(SHOW MASTER STATUS, Position, 1);
+let $master_pos= `SELECT $master_pos + 1`;
+
+--connection slave
+--source include/stop_slave.inc
+--replace_regex /[0-9]+/MASTER_POS/
+eval CHANGE MASTER TO master_log_pos=$master_pos;
+
+START SLAVE;
+# ER_MASTER_FATAL_ERROR_READING_BINLOG 1236
+--let $slave_param=Last_IO_Errno
+--let $slave_param_value=1236
+--source include/wait_for_slave_param.inc
+
+--let $slave_field_result_replace= / at [0-9]*/ at XXX/
+--let $status_items= Last_IO_Errno, Last_IO_Error
+--source include/show_slave_status.inc
+
+--source include/stop_slave.inc
+RESET SLAVE;
+
+--connection master
+RESET MASTER;
+
+# Slave is stopped by bug#3593869-64035 tests.

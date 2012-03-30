@@ -21,7 +21,7 @@ Stream Ciphers: ARC4
 Public Key Crypto: RSA, DSA, Diffie-Hellman
 Password based key derivation: PBKDF2 from PKCS #5
 Pseudo Random Number Generators
-Lare Integer Support
+Large Integer Support
 Base 16/64 encoding/decoding
 DER encoding/decoding
 X.509 processing

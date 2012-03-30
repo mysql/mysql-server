@@ -1,0 +1,103 @@
+# Test for bug #12400341: INNODB CAN LEAVE ORPHAN IBD FILES AROUND
+
+-- source include/have_innodb.inc
+
+if (`select count(*)=0 from information_schema.global_variables where variable_name = 'INNODB_TRX_RSEG_N_SLOTS_DEBUG'`)
+{
+  --skip Test requires InnoDB built with UNIV_DEBUG definition.
+}
+
+call mtr.add_suppression("InnoDB: Warning: cannot find a free slot for an undo log. Do you have too");
+
+--disable_query_log
+set @old_innodb_trx_rseg_n_slots_debug = @@innodb_trx_rseg_n_slots_debug;
+set global innodb_trx_rseg_n_slots_debug = 32;
+--enable_query_log
+
+show variables like "max_connections";
+show variables like "innodb_thread_concurrency";
+show variables like "innodb_file_per_table";
+
+--disable_warnings
+drop database if exists mysqltest;
+--enable_warnings
+
+create database mysqltest;
+CREATE TABLE mysqltest.transtable (id int unsigned NOT NULL PRIMARY KEY, val int DEFAULT 0) ENGINE=InnoDB;
+
+--disable_query_log
+#
+# Insert in 1 transaction which needs over 1 page undo record to avoid the insert_undo cached,
+# because the cached insert_undo can be reused at "CREATE TABLE" statement later.
+#
+START TRANSACTION;
+let $c = 1024;
+while ($c)
+{
+  eval INSERT INTO mysqltest.transtable (id) VALUES ($c);
+  dec $c;
+}
+COMMIT;
+
+let $c = 32;
+while ($c)
+{
+  # if failed at here, it might be shortage of file descriptors limit.
+  connect (con$c,localhost,root,,);
+  dec $c;
+}
+--enable_query_log
+
+select count(*) from information_schema.processlist;
+
+#
+# fill the all undo slots
+#
+--disable_query_log
+let $c = 32;
+while ($c)
+{
+  connection con$c;
+  START TRANSACTION;
+  eval UPDATE mysqltest.transtable SET val = 1 WHERE id = 33 - $c;
+  dec $c;
+}
+--enable_query_log
+
+connection default;
+
+--error ER_CANT_CREATE_TABLE
+CREATE TABLE mysqltest.testtable (id int unsigned not null primary key) ENGINE=InnoDB;
+
+select count(*) from information_schema.processlist;
+
+--disable_query_log
+let $c = 32;
+while ($c)
+{
+  connection con$c;
+  ROLLBACK;
+  dec $c;
+}
+--enable_query_log
+
+connection default;
+select count(*) from information_schema.processlist;
+
+--disable_query_log
+let $c = 32;
+while ($c)
+{
+  disconnect con$c;
+  dec $c;
+}
+--enable_query_log
+
+#
+# If the isolated .ibd file remained, the drop database should fail.
+#
+drop database mysqltest;
+
+--disable_query_log
+set global innodb_trx_rseg_n_slots_debug = @old_innodb_trx_rseg_n_slots_debug;
+--enable_query_log

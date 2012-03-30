@@ -166,6 +166,7 @@ public:
     void Decode(RSA_PublicKey&);
 private:
     void ReadHeader();
+    void ReadHeaderOpenSSL();
 };
 
 
