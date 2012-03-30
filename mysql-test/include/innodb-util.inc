@@ -39,7 +39,7 @@ sub ib_cleanup {
     print "unlink: $cfg_file\n";
 
     unlink(File::Spec->catfile("$datadir", "$db", "$cfg_file")) == 1
-	or die "unlnk $datadir/$db/$cfg_file failed: $!";
+	or die "unlink $datadir/$db/$cfg_file failed: $!";
 
     # This may or may not exist
     unlink("$datadir/$db/$ibt_file");
@@ -52,7 +52,7 @@ sub ib_unlink_tablespace {
 
     print "unlink: $ibd_file\n";
     unlink(File::Spec->catfile("$datadir", "$db", "$ibd_file")) == 1
-	or die "unlnk $datadir/$db/$ibd_file failed: $!";
+	or die "unlink $datadir/$db/$ibd_file failed: $!";
 
     ib_cleanup($db, $table);
 }
