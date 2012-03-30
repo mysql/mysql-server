@@ -4327,20 +4327,6 @@ btr_validate_level(
 	}
 
 loop:
-
-	if (init_id && !(n_pages++ % 256)) {
-
-		mtr_commit(&mtr);
-
-		buf_LRU_flush_or_remove_pages(
-			index->table->space, BUF_REMOVE_FLUSH_WRITE, trx);
-
-		mtr_start(&mtr);
-
-		/* If it is an IMPORT then no point in logging changes. */
-		mtr_set_log_mode(&mtr, MTR_LOG_NO_REDO);
-	}
-
 	if (trx_is_interrupted(trx)) {
 		mtr_commit(&mtr);
 		mem_heap_free(heap);
