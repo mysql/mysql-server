@@ -4537,7 +4537,7 @@ setup_copy_fields(THD *thd, TMP_TABLE_PARAM *param,
         Item_ref *ref= (Item_ref *) pos;
         item->db_name= ref->db_name;
         item->table_name= ref->table_name;
-        item->name= ref->name;
+        item->item_name= ref->item_name;
       }
       pos= item;
       if (item->field->flags & BLOB_FLAG)
@@ -4737,7 +4737,7 @@ change_to_use_tmp_fields(THD *thd, Ref_ptr_array ref_pointer_array,
 
       if (item->real_item()->type() != Item::FIELD_ITEM)
         field->orig_table= 0;
-      item_field->name= item->name;
+      item_field->item_name= item->item_name;
       if (item->type() == Item::REF_ITEM)
       {
         Item_field *ifield= (Item_field *) item_field;
@@ -4746,13 +4746,13 @@ change_to_use_tmp_fields(THD *thd, Ref_ptr_array ref_pointer_array,
         ifield->db_name= iref->db_name;
       }
 #ifndef DBUG_OFF
-      if (!item_field->name)
+      if (!item_field->item_name.ptr())
       {
         char buff[256];
         String str(buff,sizeof(buff),&my_charset_bin);
         str.length(0);
         item->print(&str, QT_ORDINARY);
-        item_field->name= sql_strmake(str.ptr(),str.length());
+        item_field->item_name.copy(str.ptr(), str.length());
       }
 #endif
     }

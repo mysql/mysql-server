@@ -503,14 +503,14 @@ Field *Item_func::tmp_table_field(TABLE *table)
   switch (result_type()) {
   case INT_RESULT:
     if (max_char_length() > MY_INT32_NUM_DECIMAL_DIGITS)
-      field= new Field_longlong(max_char_length(), maybe_null, name,
+      field= new Field_longlong(max_char_length(), maybe_null, item_name.ptr(),
                                 unsigned_flag);
     else
-      field= new Field_long(max_char_length(), maybe_null, name,
+      field= new Field_long(max_char_length(), maybe_null, item_name.ptr(),
                             unsigned_flag);
     break;
   case REAL_RESULT:
-    field= new Field_double(max_char_length(), maybe_null, name, decimals);
+    field= new Field_double(max_char_length(), maybe_null, item_name.ptr(), decimals);
     break;
   case STRING_RESULT:
     return make_string_field(table);
@@ -1271,7 +1271,7 @@ err:
   push_warning_printf(current_thd, Sql_condition::WARN_LEVEL_WARN,
                       ER_WARN_DATA_OUT_OF_RANGE,
                       ER(ER_WARN_DATA_OUT_OF_RANGE),
-                      name, 1L);
+                      item_name.ptr(), 1L);
   return dec;
 }
 
@@ -3581,8 +3581,8 @@ udf_handler::fix_fields(THD *thd, Item_result_field *func,
 
       f_args.lengths[i]= arguments[i]->max_length;
       f_args.maybe_null[i]= (char) arguments[i]->maybe_null;
-      f_args.attributes[i]= arguments[i]->name;
-      f_args.attribute_lengths[i]= arguments[i]->name_length;
+      f_args.attributes[i]= arguments[i]->item_name.ptr();
+      f_args.attribute_lengths[i]= arguments[i]->item_name.length();
 
       if (arguments[i]->const_item())
       {
@@ -5192,8 +5192,8 @@ void Item_func_set_user_var::make_field(Send_field *tmp_field)
   {
     result_field->make_field(tmp_field);
     DBUG_ASSERT(tmp_field->table_name != 0);
-    if (Item::name)
-      tmp_field->col_name=Item::name;               // Use user supplied name
+    if (Item::item_name.ptr())
+      tmp_field->col_name=Item::item_name.ptr();    // Use user supplied name
   }
   else
     Item::make_field(tmp_field);
@@ -5654,8 +5654,8 @@ Item_func_get_system_var(sys_var *var_arg, enum_var_type var_type_arg,
   :var(var_arg), var_type(var_type_arg), orig_var_type(var_type_arg),
   component(*component_arg), cache_present(0)
 {
-  /* set_name() will allocate the name */
-  set_name(name_arg, (uint) name_len_arg, system_charset_info);
+  /* copy() will allocate the name */
+  item_name.copy(name_arg, (uint) name_len_arg);
 }
 
 
@@ -5760,7 +5760,7 @@ void Item_func_get_system_var::fix_length_and_dec()
 
 void Item_func_get_system_var::print(String *str, enum_query_type query_type)
 {
-  str->append(name, name_length);
+  str->append(item_name.ptr(), item_name.length());
 }
 
 
@@ -6633,7 +6633,7 @@ Item_func_sp::init_result_field(THD *thd)
   share->table_cache_key = empty_name;
   share->table_name = empty_name;
 
-  if (!(sp_result_field= m_sp->create_result_field(max_length, name,
+  if (!(sp_result_field= m_sp->create_result_field(max_length, item_name.ptr(),
                                                    dummy_table)))
   {
    DBUG_RETURN(TRUE);
@@ -6801,8 +6801,8 @@ Item_func_sp::make_field(Send_field *tmp_field)
   DBUG_ENTER("Item_func_sp::make_field");
   DBUG_ASSERT(sp_result_field);
   sp_result_field->make_field(tmp_field);
-  if (name)
-    tmp_field->col_name= name;
+  if (item_name.ptr())
+    tmp_field->col_name= item_name.ptr();
   DBUG_VOID_RETURN;
 }
 

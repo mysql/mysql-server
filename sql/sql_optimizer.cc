@@ -767,7 +767,7 @@ JOIN::optimize()
     {
       Item *where= conds;
       if (join_tab[0].type == JT_EQ_REF &&
-	  join_tab[0].ref.items[0]->name == in_left_expr_name)
+	  join_tab[0].ref.items[0]->item_name.ptr() == in_left_expr_name)
       {
         remove_subq_pushed_predicates(&where);
         save_index_subquery_explain_info(join_tab, where);
@@ -780,7 +780,7 @@ JOIN::optimize()
                                                    true /* unique */);
       }
       else if (join_tab[0].type == JT_REF &&
-	       join_tab[0].ref.items[0]->name == in_left_expr_name)
+	       join_tab[0].ref.items[0]->item_name.ptr() == in_left_expr_name)
       {
 	remove_subq_pushed_predicates(&where);
         save_index_subquery_explain_info(join_tab, where);
@@ -791,8 +791,8 @@ JOIN::optimize()
                                                    where, NULL, false, false);
       }
     } else if (join_tab[0].type == JT_REF_OR_NULL &&
-	       join_tab[0].ref.items[0]->name == in_left_expr_name &&
-               having->name == in_having_cond)
+	       join_tab[0].ref.items[0]->item_name.ptr() == in_left_expr_name &&
+               having->item_name.ptr() == in_having_cond)
     {
       join_tab[0].type= JT_INDEX_SUBQUERY;
       error= 0;
@@ -8646,7 +8646,7 @@ static bool add_ref_to_table_cond(THD *thd, JOIN_TAB *join_tab)
 
 static Item *remove_additional_cond(Item* conds)
 {
-  if (conds->name == in_additional_cond)
+  if (conds->item_name.ptr() == in_additional_cond)
     return 0;
   if (conds->type() == Item::COND_ITEM)
   {
@@ -8655,7 +8655,7 @@ static Item *remove_additional_cond(Item* conds)
     Item *item;
     while ((item= li++))
     {
-      if (item->name == in_additional_cond)
+      if (item->item_name.ptr() == in_additional_cond)
       {
 	li.remove();
 	if (cnd->argument_list()->elements == 1)

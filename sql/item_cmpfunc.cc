@@ -894,7 +894,7 @@ Arg_comparator::can_compare_as_dates(Item *a, Item *b, ulonglong *const_value)
       str_val= str_arg->val_str(&tmp);
       if (str_arg->null_value)
         return CMP_DATE_DFLT;
-      value= get_date_from_str(thd, str_val, t_type, date_arg->name, &error);
+      value= get_date_from_str(thd, str_val, t_type, date_arg->item_name.ptr(), &error);
       if (error)
         return CMP_DATE_DFLT;
       if (const_value)
@@ -1222,7 +1222,7 @@ get_datetime_value(THD *thd, Item ***item_arg, Item **cache_arg,
     enum_field_types f_type= warn_item->field_type();
     timestamp_type t_type= f_type ==
       MYSQL_TYPE_DATE ? MYSQL_TIMESTAMP_DATE : MYSQL_TIMESTAMP_DATETIME;
-    value= (longlong) get_date_from_str(thd, str, t_type, warn_item->name, &error);
+    value= (longlong) get_date_from_str(thd, str, t_type, warn_item->item_name.ptr(), &error);
     /*
       If str did not contain a valid date according to the current
       SQL_MODE, get_date_from_str() has already thrown a warning,

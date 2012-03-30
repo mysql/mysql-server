@@ -1498,7 +1498,7 @@ static bool change_group_ref(THD *thd, Item_func *expr, ORDER *group_list,
           {
             Item *new_item;
             if (!(new_item= new Item_ref(context, group_tmp->item, 0,
-                                        item->name)))
+                                        item->item_name.ptr())))
               return 1;                                 // fatal_error is set
             thd->change_item_tree(arg, new_item);
             arg_changed= TRUE;
