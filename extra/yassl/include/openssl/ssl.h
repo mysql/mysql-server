@@ -1,5 +1,6 @@
 /*
-   Copyright (C) 2000-2007 MySQL AB
+   Copyright (c) 2005, 2012, Oracle and/or its affiliates. All rights reserved.
+   Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -29,12 +30,12 @@
 #include "prefix_ssl.h"
 #endif
 
-#include <stdio.h>   /* ERR_print fp */
+#include <stdio.h>    /* ERR_print fp */
 #include "opensslv.h" /* for version number */
 #include "rsa.h"
 
 
-#define YASSL_VERSION "1.7.2"
+#define YASSL_VERSION "2.2.0"
 
 
 #if defined(__cplusplus)
@@ -42,9 +43,9 @@ extern "C" {
 #endif
 
  void yaSSL_CleanUp();   /* call once at end of application use to
-                                      free static singleton memory holders,
-                                      not a leak per se, but helpful when 
-                                      looking for them                      */
+                            free static singleton memory holders,
+                            not a leak per se, but helpful when
+                            looking for them                      */
 
 #if defined(__cplusplus)
 } // extern
@@ -69,11 +70,11 @@ extern "C" {
     class X509;
     class X509_NAME;
 #else
-    typedef struct SSL         SSL;          
+    typedef struct SSL          SSL;          
     typedef struct SSL_SESSION  SSL_SESSION;
-    typedef struct SSL_METHOD  SSL_METHOD;
-    typedef struct SSL_CTX     SSL_CTX;
-    typedef struct SSL_CIPHER  SSL_CIPHER;
+    typedef struct SSL_METHOD   SSL_METHOD;
+    typedef struct SSL_CTX      SSL_CTX;
+    typedef struct SSL_CIPHER   SSL_CIPHER;
 
     typedef struct RSA RSA;
 
@@ -106,6 +107,15 @@ RSA* RSA_generate_key(int, unsigned long, void(*)(int, int, void*), void*);
 
 /* X509 stuff, different file? */
 
+/* because mySQL dereferences to use error and current_cert, even after calling
+ * get functions for local references */
+typedef struct X509_STORE_CTX {
+    int   error;
+    int   error_depth;
+    X509* current_cert;
+} X509_STORE_CTX;
+
+
 typedef struct X509_STORE         X509_STORE;
 typedef struct X509_LOOKUP        X509_LOOKUP;
 typedef struct X509_OBJECT { char c; } X509_OBJECT;
@@ -121,16 +131,6 @@ void X509_free(X509*);
 typedef struct BIO BIO;
 
 /* ASN stuff */
-
-
-
-/* because mySQL dereferences to use error and current_cert, even after calling
- * get functions for local references */
-typedef struct X509_STORE_CTX {
-    int   error;
-    int   error_depth;
-    X509* current_cert;
-} X509_STORE_CTX;
 
 
 
@@ -204,7 +204,7 @@ SSL* SSL_new(SSL_CTX*);
 int  SSL_set_fd (SSL*, YASSL_SOCKET_T);
 YASSL_SOCKET_T SSL_get_fd(const SSL*);
 int  SSL_connect(SSL*);                    /* if you get an error from connect
-                                              see note at top of REAMDE */
+                                              see note at top of README       */
 int  SSL_write(SSL*, const void*, int);
 int  SSL_read(SSL*, void*, int);
 int  SSL_accept(SSL*);
@@ -350,11 +350,11 @@ enum { /* ssl Constants */
     SSL_ERROR_ZERO_RETURN      = 84,
     SSL_ERROR_SSL              = 85,
 
-    SSL_SENT_SHUTDOWN     = 90,
-    SSL_RECEIVED_SHUTDOWN = 91,
+    SSL_ST_CONNECT        = 90,
+    SSL_ST_ACCEPT         = 91,
     SSL_CB_LOOP           = 92,
-    SSL_ST_CONNECT        = 93,
-    SSL_ST_ACCEPT         = 94,
+    SSL_SENT_SHUTDOWN     = 93,
+    SSL_RECEIVED_SHUTDOWN = 94,
     SSL_CB_ALERT          = 95,
     SSL_CB_READ           = 96,
     SSL_CB_HANDSHAKE_DONE = 97
@@ -365,7 +365,7 @@ enum { /* ssl Constants */
 SSL_METHOD *SSLv3_method(void);
 SSL_METHOD *SSLv3_server_method(void);
 SSL_METHOD *SSLv3_client_method(void);
-SSL_METHOD *TLSv1_server_method(void);  
+SSL_METHOD *TLSv1_server_method(void);
 SSL_METHOD *TLSv1_client_method(void);
 SSL_METHOD *TLSv1_1_server_method(void);
 SSL_METHOD *TLSv1_1_client_method(void);

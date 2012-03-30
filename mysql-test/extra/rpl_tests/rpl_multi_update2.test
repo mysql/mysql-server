@@ -17,6 +17,8 @@ eval CREATE TABLE t2 (
 ) ENGINE=$engine_type;
 
 INSERT INTO t1 VALUES (NULL, 0);
+
+--disable_warnings ONCE
 INSERT INTO t1 SELECT NULL, 0 FROM t1;
 
 INSERT INTO t2 VALUES (NULL, 0), (NULL,1);
@@ -24,6 +26,7 @@ INSERT INTO t2 VALUES (NULL, 0), (NULL,1);
 SELECT * FROM t1 ORDER BY a;
 SELECT * FROM t2 ORDER BY a;
 
+--disable_warnings ONCE
 UPDATE t1, t2 SET t1.b = (t2.b+4) WHERE t1.a = t2.a;
 SELECT * FROM t1 ORDER BY a;
 SELECT * FROM t2 ORDER BY a;

@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -854,6 +854,7 @@ static Sys_var_charptr Sys_ft_stopword_file(
 
 static Sys_var_mybool Sys_ignore_builtin_innodb(
        "ignore_builtin_innodb",
+       "DEPRECATED. This option will be removed in future releases. "
        "Disable initialization of builtin InnoDB plugin",
        READ_ONLY GLOBAL_VAR(opt_ignore_builtin_innodb),
        CMD_LINE(OPT_ARG), DEFAULT(FALSE));
@@ -3276,6 +3277,13 @@ static Sys_var_tz Sys_time_zone(
        "time_zone", "time_zone",
        SESSION_VAR(time_zone), NO_CMD_LINE,
        DEFAULT(&default_tz), NO_MUTEX_GUARD, IN_BINLOG);
+
+static Sys_var_ulong Sys_sp_cache_size(
+       "stored_program_cache",
+       "The soft upper limit for number of cached stored routines for "
+       "one connection.",
+       GLOBAL_VAR(stored_program_cache_size), CMD_LINE(REQUIRED_ARG),
+       VALID_RANGE(256, 512 * 1024), DEFAULT(256), BLOCK_SIZE(1));
 
 
 /****************************************************************************

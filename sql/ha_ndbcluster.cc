@@ -17417,7 +17417,7 @@ static MYSQL_SYSVAR_UINT(
 
 static
 void
-dbug_check_shares(THD*, st_mysql_sys_var*, void*, const void*)
+dbg_check_shares_update(THD*, st_mysql_sys_var*, void*, const void*)
 {
   sql_print_information("dbug_check_shares open:");
   for (uint i= 0; i < ndbcluster_open_tables.records; i++)
@@ -17463,11 +17463,11 @@ dbug_check_shares(THD*, st_mysql_sys_var*, void*, const void*)
 }
 
 static MYSQL_THDVAR_UINT(
-  check_shares,              /* name */
+  dbg_check_shares,                  /* name */
   PLUGIN_VAR_RQCMDARG,
   "Debug, only...check that no shares are lingering...",
   NULL,                              /* check func */
-  dbug_check_shares,                 /* update func */
+  dbg_check_shares_update,           /* update func */
   0,                                 /* default */
   0,                                 /* min */
   1,                                 /* max */
@@ -17515,7 +17515,7 @@ static struct st_mysql_sys_var* system_variables[]= {
   MYSQL_SYSVAR(deferred_constraints),
   MYSQL_SYSVAR(join_pushdown),
 #ifndef DBUG_OFF
-  MYSQL_SYSVAR(check_shares),
+  MYSQL_SYSVAR(dbg_check_shares),
 #endif
   NULL
 };

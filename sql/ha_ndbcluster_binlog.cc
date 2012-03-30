@@ -71,6 +71,25 @@ void ndb_index_stat_restart();
 */
 static const int DEFAULT_SYNC_TIMEOUT= 120;
 
+/* Column numbers in the ndb_binlog_index table */
+enum Ndb_binlog_index_cols
+{
+  NBICOL_START_POS                 = 0
+  ,NBICOL_START_FILE               = 1
+  ,NBICOL_EPOCH                    = 2
+  ,NBICOL_NUM_INSERTS              = 3
+  ,NBICOL_NUM_UPDATES              = 4
+  ,NBICOL_NUM_DELETES              = 5
+  ,NBICOL_NUM_SCHEMAOPS            = 6
+  /* Following colums in schema 'v2' */
+  ,NBICOL_ORIG_SERVERID            = 7
+  ,NBICOL_ORIG_EPOCH               = 8
+  ,NBICOL_GCI                      = 9
+  /* Following columns in schema 'v3' */
+  ,NBICOL_NEXT_POS                 = 10
+  ,NBICOL_NEXT_FILE                = 11
+};
+
 /*
   Flag showing if the ndb injector thread is running, if so == 1
   -1 if it was started but later stopped for some reason
@@ -3625,8 +3644,8 @@ public:
 */
 struct ndb_binlog_index_row {
   ulonglong epoch;
-  const char *master_log_file;
-  ulonglong master_log_pos;
+  const char *start_master_log_file;
+  ulonglong start_master_log_pos;
   ulong n_inserts;
   ulong n_updates;
   ulong n_deletes;
@@ -3636,6 +3655,9 @@ struct ndb_binlog_index_row {
   ulonglong orig_epoch;
 
   ulong gci;
+
+  const char *next_master_log_file;
+  ulonglong next_master_log_pos;
 
   struct ndb_binlog_index_row *next;
 };
@@ -3725,24 +3747,53 @@ ndb_binlog_index_table__write_rows(THD *thd,
     // Intialize ndb_binlog_index->record[0]
     empty_record(ndb_binlog_index);
 
-    ndb_binlog_index->field[0]->store(first->master_log_pos, true);
-    ndb_binlog_index->field[1]->store(first->master_log_file,
-                                      (uint)strlen(first->master_log_file),
-                                      &my_charset_bin);
-    ndb_binlog_index->field[2]->store(epoch= first->epoch, true);
-    if (ndb_binlog_index->s->fields > 7)
+    ndb_binlog_index->field[NBICOL_START_POS]
+      ->store(first->start_master_log_pos, true);
+    ndb_binlog_index->field[NBICOL_START_FILE]
+      ->store(first->start_master_log_file,
+              (uint)strlen(first->start_master_log_file),
+              &my_charset_bin);
+    ndb_binlog_index->field[NBICOL_EPOCH]
+      ->store(epoch= first->epoch, true);
+    if (ndb_binlog_index->s->fields > NBICOL_ORIG_SERVERID)
     {
-      ndb_binlog_index->field[3]->store(row->n_inserts, true);
-      ndb_binlog_index->field[4]->store(row->n_updates, true);
-      ndb_binlog_index->field[5]->store(row->n_deletes, true);
-      ndb_binlog_index->field[6]->store(row->n_schemaops, true);
-      ndb_binlog_index->field[7]->store(orig_server_id= row->orig_server_id, true);
-      ndb_binlog_index->field[8]->store(orig_epoch= row->orig_epoch, true);
-      ndb_binlog_index->field[9]->store(first->gci, true);
+      /* Table has ORIG_SERVERID / ORIG_EPOCH columns.
+       * Write rows with different ORIG_SERVERID / ORIG_EPOCH
+       * separately
+       */
+      ndb_binlog_index->field[NBICOL_NUM_INSERTS]
+        ->store(row->n_inserts, true);
+      ndb_binlog_index->field[NBICOL_NUM_UPDATES]
+        ->store(row->n_updates, true);
+      ndb_binlog_index->field[NBICOL_NUM_DELETES]
+        ->store(row->n_deletes, true);
+      ndb_binlog_index->field[NBICOL_NUM_SCHEMAOPS]
+        ->store(row->n_schemaops, true);
+      ndb_binlog_index->field[NBICOL_ORIG_SERVERID]
+        ->store(orig_server_id= row->orig_server_id, true);
+      ndb_binlog_index->field[NBICOL_ORIG_EPOCH]
+        ->store(orig_epoch= row->orig_epoch, true);
+      ndb_binlog_index->field[NBICOL_GCI]
+        ->store(first->gci, true);
+
+      if (ndb_binlog_index->s->fields > NBICOL_NEXT_POS)
+      {
+        /* Table has next log pos fields, fill them in */
+        ndb_binlog_index->field[NBICOL_NEXT_POS]
+          ->store(first->next_master_log_pos, true);
+        ndb_binlog_index->field[NBICOL_NEXT_FILE]
+          ->store(first->next_master_log_file,
+                  (uint)strlen(first->next_master_log_file),
+                  &my_charset_bin);
+      }
       row= row->next;
     }
     else
     {
+      /* Old schema : Table has no separate
+       * ORIG_SERVERID / ORIG_EPOCH columns.
+       * Merge operation counts and write one row
+       */
       while ((row= row->next))
       {
         first->n_inserts+= row->n_inserts;
@@ -3750,16 +3801,20 @@ ndb_binlog_index_table__write_rows(THD *thd,
         first->n_deletes+= row->n_deletes;
         first->n_schemaops+= row->n_schemaops;
       }
-      ndb_binlog_index->field[3]->store((ulonglong)first->n_inserts, true);
-      ndb_binlog_index->field[4]->store((ulonglong)first->n_updates, true);
-      ndb_binlog_index->field[5]->store((ulonglong)first->n_deletes, true);
-      ndb_binlog_index->field[6]->store((ulonglong)first->n_schemaops, true);
+      ndb_binlog_index->field[NBICOL_NUM_INSERTS]
+        ->store((ulonglong)first->n_inserts, true);
+      ndb_binlog_index->field[NBICOL_NUM_UPDATES]
+        ->store((ulonglong)first->n_updates, true);
+      ndb_binlog_index->field[NBICOL_NUM_DELETES]
+        ->store((ulonglong)first->n_deletes, true);
+      ndb_binlog_index->field[NBICOL_NUM_SCHEMAOPS]
+        ->store((ulonglong)first->n_schemaops, true);
     }
 
     if ((error= ndb_binlog_index->file->ha_write_row(ndb_binlog_index->record[0])))
     {
       char tmp[128];
-      if (ndb_binlog_index->s->fields > 7)
+      if (ndb_binlog_index->s->fields > NBICOL_ORIG_SERVERID)
         my_snprintf(tmp, sizeof(tmp), "%u/%u,%u,%u/%u",
                     uint(epoch >> 32), uint(epoch),
                     orig_server_id,
@@ -7197,7 +7252,6 @@ restart_cluster_failure:
           }
       commit_to_binlog:
           thd->proc_info= "Committing events to binlog";
-          injector::transaction::binlog_pos start= trans.start_pos();
           if (int r= trans.commit())
           {
             sql_print_error("NDB Binlog: "
@@ -7205,10 +7259,26 @@ restart_cluster_failure:
                             r);
             /* TODO: Further handling? */
           }
+          injector::transaction::binlog_pos start= trans.start_pos();
+          injector::transaction::binlog_pos next = trans.next_pos();
           rows->gci= (Uint32)(gci >> 32); // Expose gci hi/lo
           rows->epoch= gci;
-          rows->master_log_file= start.file_name();
-          rows->master_log_pos= start.file_pos();
+          rows->start_master_log_file= start.file_name();
+          rows->start_master_log_pos= start.file_pos();
+          if ((next.file_pos() == 0) &&
+              ndb_log_empty_epochs())
+          {
+            /* Empty transaction 'committed' due to log_empty_epochs
+             * therefore no next position
+             */
+            rows->next_master_log_file= start.file_name();
+            rows->next_master_log_pos= start.file_pos();
+          }
+          else
+          {
+            rows->next_master_log_file= next.file_name();
+            rows->next_master_log_pos= next.file_pos();
+          }
 
           DBUG_PRINT("info", ("COMMIT gci: %lu", (ulong) gci));
           if (opt_ndb_log_binlog_index)

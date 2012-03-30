@@ -1,0 +1,10 @@
+include/master-slave.inc
+[connection master]
+set @time_before_kill := (select CURRENT_TIMESTAMP);
+[Time before the query]
+[Connection ID of the slave I/O thread found]
+kill <connection_id>;
+set @time_after_kill := (select CURRENT_TIMESTAMP);
+[Time after the query]
+[Killing of the slave IO thread was successful]
+include/rpl_end.inc

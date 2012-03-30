@@ -1,0 +1,44 @@
+#
+#BUG#11752315 : STOP SLAVE UNABLE TO COMPLETE WHEN SLAVE THREAD IS TRYING 
+#               TO RECONNECT TO 
+#
+# ==== Purpose ====
+#
+#Tests that the slave does not go to a sleep for a long duration after the 
+#master is killed and we do a START_SLAVE and STOP_SLAVE.
+#
+# ==== Method ====
+#
+#This is a new functionality of having an interruptable sleep of the slave.
+#We find the thread id for the slave thread. On finding the thread ID of the 
+#slave thread we kill the slave thread. A successful kill in less than 60 sec 
+#should serve the purpose of checking the functionality.
+#
+
+--source include/have_log_bin.inc
+--source include/master-slave.inc
+
+connection slave;
+--let $connection_id=`SELECT id FROM information_schema.processlist where state LIKE 'Waiting for master to send event'`
+
+set @time_before_kill := (select CURRENT_TIMESTAMP);
+
+--echo [Time before the query]
+--echo [Connection ID of the slave I/O thread found]
+
+--replace_regex /kill [0-9]*/kill <connection_id>/
+--eval kill $connection_id
+
+set @time_after_kill := (select CURRENT_TIMESTAMP);
+
+--echo [Time after the query]
+
+if(`select TIMESTAMPDIFF(SECOND,@time_after_kill, @time_before_kill) > 60`)
+{
+--echo # assert : The difference between the timestamps 'time_after_kill' and 'time_before_kill' should be less than 60sec.
+--die
+}
+
+--echo [Killing of the slave IO thread was successful]
+# End of test
+--source include/rpl_end.inc
