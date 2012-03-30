@@ -4253,6 +4253,7 @@ btr_validate_level(
 	ulint*		offsets	= NULL;
 	ulint*		offsets2= NULL;
 	page_zip_des_t*	page_zip;
+	ulint		n_pages = 0;
 
 	ut_ad(index);
 	ut_ad(!init_id || trx);
@@ -4326,6 +4327,20 @@ btr_validate_level(
 	}
 
 loop:
+
+	if (init_id && !(n_pages++ % 256)) {
+
+		mtr_commit(&mtr);
+
+		buf_LRU_flush_or_remove_pages(
+			index->table->space, BUF_REMOVE_FLUSH_WRITE, trx);
+
+		mtr_start(&mtr);
+
+		/* If it is an IMPORT then no point in logging changes. */
+		mtr_set_log_mode(&mtr, MTR_LOG_NO_REDO);
+	}
+
 	if (trx_is_interrupted(trx)) {
 		mtr_commit(&mtr);
 		mem_heap_free(heap);
@@ -4633,6 +4648,11 @@ node_ptr_fails:
 	on the next loop.  The page has already been checked. */
 	mtr_commit(&mtr);
 
+	if (init_id && !(n_pages++ % 256)) {
+		buf_LRU_flush_or_remove_pages(
+			index->table->space, BUF_REMOVE_FLUSH_WRITE, trx);
+	}
+
 	if (right_page_no != FIL_NULL) {
 		mtr_start(&mtr);
 
@@ -4665,16 +4685,13 @@ btr_validate_index(
 				 equals index->id; TRUE=assign PAGE_INDEX_ID
 				 and PAGE_MAX_TRX_ID = trx->id  */
 {
-	mtr_t	mtr;
-	page_t*	root;
-	ulint	i;
-	ulint	n;
-
 	/* Full Text index are implemented by auxiliary tables,
 	not the B-tree */
 	if (dict_index_is_online_ddl(index) || (index->type & DICT_FTS)) {
 		return(TRUE);
 	}
+
+	mtr_t		mtr;
 
 	mtr_start(&mtr);
 
@@ -4685,20 +4702,26 @@ btr_validate_index(
 
 	mtr_x_lock(dict_index_get_lock(index), &mtr);
 
-	root = btr_root_get(index, &mtr);
-	n = btr_page_get_level(root, &mtr);
+	bool	ok = true;
+	page_t*	root = btr_root_get(index, &mtr);
+	ulint	n = btr_page_get_level(root, &mtr);
 
-	for (i = 0; i <= n && !trx_is_interrupted(trx); i++) {
+	if (init_id) {
+		mtr_commit(&mtr);
+	}
+
+	for (ulint i = 0; i <= n && !trx_is_interrupted(trx); i++) {
+
 		if (!btr_validate_level(index, trx, n - i, init_id)) {
-
-			mtr_commit(&mtr);
-
-			return(false);
+			ok = false;
+			break;
 		}
 	}
 
-	mtr_commit(&mtr);
+	if (!init_id) {
+		mtr_commit(&mtr);
+	}
 
-	return(true);
+	return(ok);
 }
 #endif /* !UNIV_HOTBACKUP */
