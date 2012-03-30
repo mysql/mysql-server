@@ -33,6 +33,4 @@ const word32 AES::rcon_[] = {
 };
 
 
-
-
 } // namespace

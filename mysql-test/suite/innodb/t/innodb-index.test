@@ -119,6 +119,11 @@ show create table t12963823;
 # this file complete before dropping the table.  By then, the purge thread
 # will have delt with the updates above.
 
+# Bug#13654923 BOGUS DEBUG ASSERTION IN INDEX CREATION FOR ZERO-LENGTH RECORD
+create table t1(a varchar(2) primary key) engine=innodb;
+insert into t1 values('');
+create index t1a1 on t1(a(1));
+drop table t1;
 
 eval set global innodb_file_per_table=$per_table;
 eval set global innodb_file_format=$format;

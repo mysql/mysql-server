@@ -114,7 +114,7 @@ ut_rnd_interval(
 
 	rnd = ut_rnd_gen_ulint();
 
-	return(low + (rnd % (high - low + 1)));
+	return(low + (rnd % (high - low)));
 }
 
 /*********************************************************//**

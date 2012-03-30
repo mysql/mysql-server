@@ -1857,7 +1857,7 @@ pars_sql(
 
 	ut_ad(str);
 
-	heap = mem_heap_create(256);
+	heap = mem_heap_create(16000);
 
 	/* Currently, the parser is not reentrant: */
 	ut_ad(mutex_own(&(dict_sys->mutex)));
