@@ -41,11 +41,11 @@ bool stmt_has_updated_non_trans_table(const THD* thd);
   Such identifier is not yet unique generally as the event originating master
   is resetable. Also the crashed master can be replaced with some other.
 */
-struct event_coordinates
+typedef struct event_coordinates
 {
   char * file_name; // binlog file name (directories stripped)
   my_off_t  pos;       // event's position in the binlog file
-};
+} LOG_POS_COORD;
 #endif
 
 /*

@@ -62,7 +62,7 @@ typedef unsigned int   word32;
 // compilers we've found 64-bit multiply insructions for
 #if defined(__GNUC__) || defined(_MSC_VER) || defined(__DECCXX)
     #if !(defined(__ICC) || defined(__INTEL_COMPILER))
-    #define HAVE_64_MULTIPLY
+        #define HAVE_64_MULTIPLY
     #endif
 #endif
 

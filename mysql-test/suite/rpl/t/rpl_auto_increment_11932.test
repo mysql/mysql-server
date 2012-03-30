@@ -8,6 +8,7 @@
 # Test supplied by Are Casilla
 
 source include/master-slave.inc;
+call mtr.add_suppression('Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT.');
 --disable_warnings
 connection master;
 drop database if exists test1;
@@ -42,12 +43,16 @@ CREATE PROCEDURE simpleproc3 ()
     $
 DELIMITER ;$
 
+--disable_warnings
 CALL simpleproc3();
+--enable_warnings
 
 select * from t2;
 
 TRUNCATE TABLE `t1`;
+--disable_warnings
 CALL simpleproc3();
+--enable_warnings
 
 select * from t1;
 

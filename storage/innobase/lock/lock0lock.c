@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2010, Innobase Oy. All Rights Reserved.
+Copyright (c) 1996, 2012, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -38,6 +38,7 @@ Created 5/7/1996 Heikki Tuuri
 #include "trx0purge.h"
 #include "dict0mem.h"
 #include "trx0sys.h"
+#include "btr0btr.h"
 
 /* Restricts the length of search we will do in the waits-for
 graph of transactions */
@@ -1614,7 +1615,7 @@ lock_sec_rec_some_has_impl_off_kernel(
 
 	if (!lock_check_trx_id_sanity(page_get_max_trx_id(page),
 				      rec, index, offsets, TRUE)) {
-		buf_page_print(page, 0);
+		buf_page_print(page, 0, 0);
 
 		/* The page is corrupt: try to avoid a crash by returning
 		NULL */
@@ -1690,7 +1691,7 @@ lock_rec_create(
 	page_no	= buf_block_get_page_no(block);
 	page = block->frame;
 
-	ut_ad(!!page_is_comp(page) == dict_table_is_comp(index->table));
+	btr_assert_not_corrupted(block, index);
 
 	/* If rec is the supremum record, then we reset the gap and
 	LOCK_REC_NOT_GAP bits, as all locks on the supremum are
@@ -1795,6 +1796,7 @@ lock_rec_enqueue_waiting(
 		      "InnoDB: Submit a detailed bug report"
 		      " to http://bugs.mysql.com\n",
 		      stderr);
+		ut_ad(0);
 	}
 
 	/* Enqueue the lock request that will wait to be granted */
@@ -3795,6 +3797,7 @@ lock_table_enqueue_waiting(
 		      "InnoDB: Submit a detailed bug report"
 		      " to http://bugs.mysql.com\n",
 		      stderr);
+		ut_ad(0);
 	}
 
 	/* Enqueue the lock request that will wait to be granted */

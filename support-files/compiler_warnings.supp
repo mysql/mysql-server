@@ -144,6 +144,7 @@ mytap/tap.c : C4028: formal parameter .* different from declaration
 .*/ha_archive.cc          : .*C4244.* conversion .* possible loss of data
 .*/client.c               : .*C4244.* conversion .* possible loss of data
 .*/sql_update.cc          : .*C4244.* conversion .* possible loss of data
+.*/sort.c                 : .*C4244.* conversion .* possible loss of data
 
 # const qualifiers
 replace/replace.c                     : .*C4090.*

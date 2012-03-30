@@ -270,6 +270,7 @@ Heartbeat event received
 include/rpl_reset.inc
 include/stop_slave.inc
 include/rpl_change_topology.inc [new topology=1->2->1]
+CHANGE MASTER TO MASTER_HEARTBEAT_PERIOD=1;
 include/start_slave.inc
 CREATE TABLE t1 (a INT PRIMARY KEY, b VARCHAR(10));
 INSERT INTO t1 VALUES(1, 'on master');

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -221,10 +221,15 @@ void udf_init()
       char dlpath[FN_REFLEN];
       strxnmov(dlpath, sizeof(dlpath) - 1, opt_plugin_dir, "/", tmp->dl,
                NullS);
+      (void) unpack_filename(dlpath, dlpath);
       if (!(dl= dlopen(dlpath, RTLD_NOW)))
       {
+	const char *errmsg;
+	int error_number= dlopen_errno;
+	DLERROR_GENERATE(errmsg, error_number);
+
 	/* Print warning to log */
-        sql_print_error(ER(ER_CANT_OPEN_LIBRARY), tmp->dl, errno, dlerror());
+        sql_print_error(ER(ER_CANT_OPEN_LIBRARY), tmp->dl, error_number, errmsg);
 	/* Keep the udf in the hash so that we can remove it later */
 	continue;
       }
@@ -469,12 +474,18 @@ int mysql_create_function(THD *thd,udf_func *udf)
   {
     char dlpath[FN_REFLEN];
     strxnmov(dlpath, sizeof(dlpath) - 1, opt_plugin_dir, "/", udf->dl, NullS);
+    (void) unpack_filename(dlpath, dlpath);
+
     if (!(dl = dlopen(dlpath, RTLD_NOW)))
     {
+      const char *errmsg;
+      int error_number= dlopen_errno;
+      DLERROR_GENERATE(errmsg, error_number);
+
       DBUG_PRINT("error",("dlopen of %s failed, error: %d (%s)",
-                          udf->dl, errno, dlerror()));
+                          udf->dl, error_number, errmsg));
       my_error(ER_CANT_OPEN_LIBRARY, MYF(0),
-               udf->dl, errno, dlerror());
+               udf->dl, error_number, errmsg);
       goto err;
     }
     new_dl=1;
