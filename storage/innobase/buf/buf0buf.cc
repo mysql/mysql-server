@@ -2376,6 +2376,7 @@ buf_block_is_uncompressed(
 	return(buf_pointer_is_block_field_instance(buf_pool, (void*) block));
 }
 
+#if defined UNIV_DEBUG || defined UNIV_IBUF_DEBUG
 /********************************************************************//**
 Return true if probe is enabled.
 @return true if probe enabled. */
@@ -2389,14 +2390,13 @@ buf_debug_execute_is_force_flush()
 	/* This is used during queisce testing, we want to ensure maximum
 	buffering by the change buffer. */
 
-#if defined UNIV_DEBUG || defined UNIV_IBUF_DEBUG
 	if (srv_ibuf_disable_background_merge) {
 		return(true);
 	}
-#endif /* UNIV_DEBUG || UNIV_IBUF_DEBUG */
 
 	return(false);
 }
+#endif /* UNIV_DEBUG || UNIV_IBUF_DEBUG */
 
 /********************************************************************//**
 This is the general function used to get access to a database page.

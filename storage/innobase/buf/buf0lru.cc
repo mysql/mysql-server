@@ -584,9 +584,8 @@ buf_flush_or_remove_pages(
 
 #ifdef DBUG_OFF
 		if (flush) {
-			static ulint	n_pages;
-
 			DBUG_EXECUTE_IF("ib_export_flush_crash",
+					static ulint	n_pages;
 					if (++n_pages == 4) {DBUG_SUICIDE();});
 		}
 #endif /* DBUG_OFF */
