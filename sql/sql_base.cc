@@ -5691,6 +5691,30 @@ bool lock_tables(THD *thd, TABLE_LIST *tables, uint count,
         has_write_table_with_auto_increment_and_select(tables))
       thd->lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_WRITE_AUTOINC_SELECT);
 
+    /* 
+     INSERT...ON DUPLICATE KEY UPDATE on a table with more than one unique keys
+     can be unsafe.
+     */
+    uint unique_keys= 0;
+    for (TABLE_LIST *query_table= tables; query_table && unique_keys <= 1;
+         query_table= query_table->next_global)
+      if(query_table->table)
+      {
+        uint keys= query_table->table->s->keys, i= 0;
+        unique_keys= 0;
+        for (KEY* keyinfo= query_table->table->s->key_info;
+             i < keys && unique_keys <= 1; i++, keyinfo++)
+        {
+          if (keyinfo->flags & HA_NOSAME)
+            unique_keys++;
+        }
+        if (!query_table->placeholder() &&
+            query_table->lock_type >= TL_WRITE_ALLOW_WRITE &&
+            unique_keys > 1 && thd->lex->sql_command == SQLCOM_INSERT &&
+            thd->lex->duplicates == DUP_UPDATE)
+          thd->lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_INSERT_TWO_KEYS);
+      }
+ 
     /* We have to emulate LOCK TABLES if we are statement needs prelocking. */
     if (thd->lex->requires_prelocking())
     {
