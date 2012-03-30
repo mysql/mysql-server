@@ -3626,7 +3626,7 @@ bool TABLE_LIST::setup_underlying(THD *thd)
 
     while ((item= it++))
     {
-      transl[field_count].name= item->name;
+      transl[field_count].name= item->item_name.ptr();
       transl[field_count++].item= item;
     }
     field_translation= transl;
