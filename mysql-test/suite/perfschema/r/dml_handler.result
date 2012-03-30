@@ -9,45 +9,51 @@ SELECT COUNT(*) FROM table_list INTO @table_count;
 # For each table in the performance schema, attempt HANDLER...OPEN,
 # which should fail with an error 1031, ER_ILLEGAL_HA.
 
-SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=50;
+SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=52;
 HANDLER performance_schema.users OPEN;
 ERROR HY000: Table storage engine for 'users' doesn't have this option
-SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=49;
+SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=51;
 HANDLER performance_schema.threads OPEN;
 ERROR HY000: Table storage engine for 'threads' doesn't have this option
-SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=48;
+SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=50;
 HANDLER performance_schema.table_lock_waits_summary_by_table OPEN;
 ERROR HY000: Table storage engine for 'table_lock_waits_summary_by_table' doesn't have this option
-SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=47;
+SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=49;
 HANDLER performance_schema.table_io_waits_summary_by_table OPEN;
 ERROR HY000: Table storage engine for 'table_io_waits_summary_by_table' doesn't have this option
-SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=46;
+SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=48;
 HANDLER performance_schema.table_io_waits_summary_by_index_usage OPEN;
 ERROR HY000: Table storage engine for 'table_io_waits_summary_by_index_usage' doesn't have this option
-SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=45;
+SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=47;
 HANDLER performance_schema.socket_summary_by_instance OPEN;
 ERROR HY000: Table storage engine for 'socket_summary_by_instance' doesn't have this option
-SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=44;
+SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=46;
 HANDLER performance_schema.socket_summary_by_event_name OPEN;
 ERROR HY000: Table storage engine for 'socket_summary_by_event_name' doesn't have this option
-SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=43;
+SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=45;
 HANDLER performance_schema.socket_instances OPEN;
 ERROR HY000: Table storage engine for 'socket_instances' doesn't have this option
-SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=42;
+SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=44;
 HANDLER performance_schema.setup_timers OPEN;
 ERROR HY000: Table storage engine for 'setup_timers' doesn't have this option
-SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=41;
+SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=43;
 HANDLER performance_schema.setup_objects OPEN;
 ERROR HY000: Table storage engine for 'setup_objects' doesn't have this option
-SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=40;
+SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=42;
 HANDLER performance_schema.setup_instruments OPEN;
 ERROR HY000: Table storage engine for 'setup_instruments' doesn't have this option
-SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=39;
+SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=41;
 HANDLER performance_schema.setup_consumers OPEN;
 ERROR HY000: Table storage engine for 'setup_consumers' doesn't have this option
-SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=38;
+SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=40;
 HANDLER performance_schema.setup_actors OPEN;
 ERROR HY000: Table storage engine for 'setup_actors' doesn't have this option
+SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=39;
+HANDLER performance_schema.session_connect_attrs OPEN;
+ERROR HY000: Table storage engine for 'session_connect_attrs' doesn't have this option
+SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=38;
+HANDLER performance_schema.session_account_connect_attrs OPEN;
+ERROR HY000: Table storage engine for 'session_account_connect_attrs' doesn't have this option
 SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=37;
 HANDLER performance_schema.rwlock_instances OPEN;
 ERROR HY000: Table storage engine for 'rwlock_instances' doesn't have this option

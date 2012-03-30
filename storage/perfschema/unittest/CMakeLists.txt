@@ -43,3 +43,8 @@ SET(tests
 FOREACH(testname ${tests})
   PFS_ADD_TEST(${testname})
 ENDFOREACH()
+
+# we need the server libs to test the blob parser
+ADD_EXECUTABLE(pfs_connect_attr-t pfs_connect_attr-t.cc)
+TARGET_LINK_LIBRARIES(pfs_connect_attr-t mytap perfschema sql binlog rpl master slave sql mysys ${SSL_LIBRARIES})
+ADD_TEST(pfs_connect_attr pfs_connect_attr-t)

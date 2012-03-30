@@ -1871,6 +1871,19 @@ typedef struct PSI_digest_locker* (*digest_add_token_v1_t)
   (struct PSI_digest_locker *locker, uint token, struct OPAQUE_LEX_YYSTYPE *yylval);
 
 /**
+  Stores an array of connection attributes
+  @param buffer         char array of length encoded connection attributes
+                        in network format
+  @param length         legnth of the data in buffer
+  @param from_cs        charset in which @buffer is encodded
+  @return state
+    @retval  non-0    attributes truncated
+    @retval  0        stored the attribute
+*/
+typedef int (*thread_set_connect_attrs_v1_t)(const char *buffer, uint length,
+                                             const void *from_cs);
+
+/**
   Performance Schema Interface, version 1.
   @since PSI_VERSION_1
 */
@@ -2065,6 +2078,8 @@ struct PSI_v1
   digest_start_v1_t digest_start;
   /** @sa digest_add_token_v1_t. */
   digest_add_token_v1_t digest_add_token;
+  /** @sa thread_set_connect_attrs_v1_t. */
+  thread_set_connect_attrs_v1_t thread_set_connect_attrs;
 };
 
 /** @} (end of group Group_PSI_v1) */

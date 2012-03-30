@@ -1657,6 +1657,34 @@ PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;
 
+--
+-- TABLE SESSION_CONNECT_ATTRS
+--
+
+SET @cmd="CREATE TABLE performance_schema.session_connect_attrs("
+  "PROCESS_ID INT NOT NULL,"
+  "ATTR_NAME VARCHAR(32) NOT NULL,"
+  "ATTR_VALUE VARCHAR(1024),"
+  "ORDINAL_POSITION INT"
+  ")ENGINE=PERFORMANCE_SCHEMA CHARACTER SET utf8 COLLATE utf8_bin;";
+
+SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+--
+-- TABLE SESSION_ACCOUNT_CONNECT_ATTRS
+--
+
+SET @cmd="CREATE TABLE performance_schema.session_account_connect_attrs "
+         " LIKE performance_schema.session_connect_attrs;";
+
+SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
 CREATE TABLE IF NOT EXISTS proxies_priv (Host char(60) binary DEFAULT '' NOT NULL, User char(16) binary DEFAULT '' NOT NULL, Proxied_host char(60) binary DEFAULT '' NOT NULL, Proxied_user char(16) binary DEFAULT '' NOT NULL, With_grant BOOL DEFAULT 0 NOT NULL, Grantor char(77) DEFAULT '' NOT NULL, Timestamp timestamp, PRIMARY KEY Host (Host,User,Proxied_host,Proxied_user), KEY Grantor (Grantor) ) engine=MyISAM CHARACTER SET utf8 COLLATE utf8_bin comment='User proxy privileges';
 
 -- Remember for later if proxies_priv table already existed
