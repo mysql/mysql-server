@@ -28,6 +28,7 @@ GRANT REPLICATION SLAVE ON *.* TO rpl@127.0.0.1 IDENTIFIED BY 'rpl';
 --echo [on slave]
 sync_slave_with_master;
 source include/stop_slave.inc;
+--replace_column 2 ####
 CHANGE MASTER TO master_user='rpl', master_password='rpl';
 source include/start_slave.inc;
 
@@ -65,6 +66,7 @@ source include/wait_for_slave_io_to_stop.inc;
 
 # cleanup: slave io thread has is stopped so we reset replication
 --source include/stop_slave_sql.inc
+--replace_column 2 ####
 CHANGE MASTER TO MASTER_USER = 'root', MASTER_PASSWORD = '';
 # clear Slave_IO_Errno
 --let $rpl_only_running_threads= 1
