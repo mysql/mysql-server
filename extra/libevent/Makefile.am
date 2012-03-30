@@ -18,7 +18,7 @@ libevent_a_SOURCES = event.c buffer.c evbuffer.c log.c evutil.c \
         select.c poll.c epoll.c epoll_sub.c devpoll.c kqueue.c \
 	evport.c signal.c
 
-include_HEADERS = event.h evutil.h event-config.h
+noinst_HEADERS = event.h evutil.h event-config.h
 
 BUILT_SOURCES = event-config.h
 
