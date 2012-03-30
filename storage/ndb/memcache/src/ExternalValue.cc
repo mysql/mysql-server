@@ -41,6 +41,7 @@ extern void worker_set_cas(ndb_pipeline *p, uint64_t *cas);
 extern ndb_async_callback callback_main;
 extern ndb_async_callback callback_close;
 extern worker_step worker_finalize_write;
+extern worker_step worker_commit;
 extern worker_step worker_close;
 extern worker_step worker_append;
 
@@ -356,7 +357,7 @@ void ExternalValue::insert_after_header_read() {
   else {
     DEBUG_PRINT("%s", tx->getNdbError().message);
     wqitem->status = & status_block_misc_error;
-    worker_close(tx, wqitem);
+    worker_commit(tx, wqitem);
   }
 }
 
@@ -374,7 +375,7 @@ void ExternalValue::update_after_header_read() {
     DEBUG_PRINT("CAS Mismatch: IN:%llu  STORED:%llu", * wqitem->cas, stored_cas);
     * wqitem->cas = 0ULL;  // set cas=0 in the response
     wqitem->status = & status_block_cas_mismatch;
-    return worker_close(tx, wqitem);    
+    return worker_commit(tx, wqitem);    
   }
 
   /* Set up the new value */
@@ -886,7 +887,7 @@ void callback_ext_parts_read(int, NdbTransaction *tx, void *itemptr) {
   }
 
   wqitem->status = & status_block_misc_error;  
-  worker_close(tx, wqitem);
+  worker_commit(tx, wqitem);
 }
  
  

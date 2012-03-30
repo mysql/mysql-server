@@ -1,0 +1,59 @@
+# Variable Name: stored_program_cache
+# Scope: GLOBAL
+# Access Type: Dynamic
+# Data Type: numeric
+# Default Value: 256
+# Range: 256-524288
+
+--source include/load_sysvars.inc
+
+--echo # Saving initial value of stored_program_cache in a temporary variable
+SET @start_value = @@global.stored_program_cache;
+SELECT @start_value;
+
+--echo # Display the DEFAULT value of stored_program_cache
+SET @@global.stored_program_cache  = DEFAULT;
+SELECT @@global.stored_program_cache;
+
+--echo # Verify default value of variable
+SELECT @@global.stored_program_cache  = 256;
+
+--echo # Change the value of stored_program_cache to a valid value
+SET @@global.stored_program_cache  = 512;
+SELECT @@global.stored_program_cache;
+
+--echo # Change the value of stored_program_cache to invalid value
+SET @@global.stored_program_cache  = -1;
+SELECT @@global.stored_program_cache;
+
+SET @@global.stored_program_cache =100000000000;
+SELECT @@global.stored_program_cache;
+
+SET @@global.stored_program_cache = 0;
+SELECT @@global.stored_program_cache;
+
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.stored_program_cache = 10000.01;
+
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.stored_program_cache = ON;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.stored_program_cache= 'test';
+
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.stored_program_cache = '';
+
+--echo # Test if accessing session stored_program_cache gives error
+
+--Error ER_GLOBAL_VARIABLE
+SET @@session.stored_program_cache = 0;
+
+--echo # Check if accessing variable without SCOPE points to same global variable
+
+SET @@global.stored_program_cache = 512;
+SELECT @@stored_program_cache = @@global.stored_program_cache;
+
+--echo # Restore initial value
+
+SET @@global.stored_program_cache = @start_value;
+SELECT @@global.stored_program_cache;

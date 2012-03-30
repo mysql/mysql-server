@@ -53,7 +53,6 @@ class Scheduler;
 #define WORKITEM_MIN_INLINE_BUF 40 
 
 /* Forward declarations */
-struct requeset_pipeline;
 struct workitem;
 
 struct allocation_reference;  /* An opaque type */ 

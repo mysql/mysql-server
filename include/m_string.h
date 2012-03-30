@@ -60,7 +60,9 @@
 # define bfill(A,B,C)           memset((A),(C),(B))
 #endif
 
-#if !defined(bzero) && !defined(HAVE_BZERO)
+#if !defined(bzero) && (!defined(HAVE_BZERO) || !HAVE_DECL_BZERO || defined(_AIX))
+/* See autoconf doku: "HAVE_DECL_symbol" will be defined after configure, to 0 or 1 */
+/* AIX has bzero() as a function, but the declaration prototype is strangely hidden */
 # define bzero(A,B)             memset((A),0,(B))
 #endif
 

@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -138,15 +138,13 @@ public:
     standard lock acquisition order to avoid deadlocks:
     run_lock, data_lock, relay_log.LOCK_log, relay_log.LOCK_index
   */
-  mysql_mutex_t data_lock, run_lock;
-
+  mysql_mutex_t data_lock, run_lock, sleep_lock;
   /*
     start_cond is broadcast when SQL thread is started
     stop_cond - when stopped
     data_cond - when data protected by data_lock changes
   */
-  mysql_cond_t start_cond, stop_cond, data_cond;
-
+  mysql_cond_t start_cond, stop_cond, data_cond, sleep_cond;
   /* parent Master_info structure */
   Master_info *mi;
 

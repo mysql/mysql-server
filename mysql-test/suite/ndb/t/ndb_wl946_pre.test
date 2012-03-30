@@ -1,0 +1,84 @@
+--source include/have_ndb.inc
+--source include/not_embedded.inc
+
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+
+# runs before and after wl#946 / wl#6231
+# result file is same (avoid ndb_desc if new types are possible)
+# also creates a backup used in ndb_wl946_post.test
+
+select @@session.time_zone;
+set time_zone = '+00:00';
+select @@session.time_zone;
+
+--echo # create table
+--let $prec=
+--let $frac=
+--source ndb_wl946_create.inc
+show create table t1;
+
+--echo # test defaults
+insert into t1 (a) values (0);
+select * from t1;
+delete from t1;
+
+--echo # load data
+load data local infile 'suite/ndb/data/wl946_pre.dat'
+  into table t1 fields terminated by ',' lines terminated by '\n';
+
+--echo # check contents
+select count(*), sum(crc32(concat(a,b,c,d,e,f))) from t1;
+
+--echo # run backup
+--source include/ndb_backup.inc
+
+--echo # index queries
+--source ndb_wl946_pre_query.inc
+
+--echo # check results via myisam
+alter table t1 engine=myisam;
+show create table t1;
+select count(*), sum(crc32(concat(a,b,c,d,e,f))) from t1;
+--source ndb_wl946_pre_query.inc
+
+--echo # drop table
+drop table t1;
+
+--echo # restore meta from backup
+--exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 1 -m --print-meta $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+show create table t1;
+
+--echo # restore data from backup
+--exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 1 -r $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 2 -r $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+
+--echo # check contents
+select count(*), sum(crc32(concat(a,b,c,d,e,f))) from t1;
+
+--echo # drop table
+drop table t1;
+
+--echo # restore meta from wl946_pre
+--exec $NDB_RESTORE --no-defaults -b 1 -n 1 -m --print-meta $MYSQL_TEST_DIR/suite/ndb/backups/wl946_pre >> $NDB_TOOLS_OUTPUT
+# datetime,timestamp default wrong on solaris (probably bug#53818)
+# show create table t1;
+# ndb_restore creates old types
+--source show_attributes.inc
+--source show_indexes.inc
+
+--echo # restore data from wl946_pre
+--exec $NDB_RESTORE --no-defaults -b 1 -n 1 -r $MYSQL_TEST_DIR/suite/ndb/backups/wl946_pre >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE --no-defaults -b 1 -n 2 -r $MYSQL_TEST_DIR/suite/ndb/backups/wl946_pre >> $NDB_TOOLS_OUTPUT
+
+--echo # check contents
+select count(*), sum(crc32(concat(a,b,c,d,e,f))) from t1;
+
+--echo # index queries
+--source ndb_wl946_pre_query.inc
+
+set time_zone = default;
+select @@session.time_zone;
+
+drop table t1;

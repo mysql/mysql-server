@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -66,6 +66,8 @@ typedef struct unicase_info_st
 
 extern MY_UNICASE_INFO *my_unicase_default[256];
 extern MY_UNICASE_INFO *my_unicase_turkish[256];
+extern MY_UNICASE_INFO *my_unicase_mysql500[256];
+
 
 typedef struct uni_ctype_st
 {
@@ -337,6 +339,7 @@ extern CHARSET_INFO my_charset_tis620_bin;
 extern CHARSET_INFO my_charset_ucs2_general_ci;
 extern CHARSET_INFO my_charset_ucs2_bin;
 extern CHARSET_INFO my_charset_ucs2_unicode_ci;
+extern CHARSET_INFO my_charset_ucs2_general_mysql500_ci;
 extern CHARSET_INFO my_charset_ujis_japanese_ci;
 extern CHARSET_INFO my_charset_ujis_bin;
 extern CHARSET_INFO my_charset_utf16_bin;
@@ -349,6 +352,7 @@ extern CHARSET_INFO my_charset_utf32_unicode_ci;
 extern MYSQL_PLUGIN_IMPORT CHARSET_INFO my_charset_utf8_general_ci;
 extern CHARSET_INFO my_charset_utf8_unicode_ci;
 extern CHARSET_INFO my_charset_utf8_bin;
+extern CHARSET_INFO my_charset_utf8_general_mysql500_ci;
 extern CHARSET_INFO my_charset_utf8mb4_bin;
 extern CHARSET_INFO my_charset_utf8mb4_general_ci;
 extern CHARSET_INFO my_charset_utf8mb4_unicode_ci;

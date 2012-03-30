@@ -6,6 +6,7 @@
 #######################################################
 --source include/not_ndb_default.inc
 --source include/master-slave.inc
+call mtr.add_suppression('Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT.');
 let $engine_type=MyISAM;
 -- source extra/rpl_tests/rpl_multi_update3.test
 --source include/rpl_end.inc

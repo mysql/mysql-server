@@ -6316,13 +6316,13 @@ Java_com_mysql_ndbjtie_ndbapi_NdbIndexScanOperation_setBound__Lcom_mysql_ndbjtie
 /*
  * Class:     com_mysql_ndbjtie_ndbapi_NdbIndexScanOperation_IndexBound
  * Method:    low_key
- * Signature: ()Ljava/lang/String;
+ * Signature: ()Ljava/nio/ByteBuffer;
  */
-JNIEXPORT jstring JNICALL
+JNIEXPORT jobject JNICALL
 Java_com_mysql_ndbjtie_ndbapi_NdbIndexScanOperation_00024IndexBound_low_1key__(JNIEnv * env, jobject obj)
 {
-    TRACE("jstring Java_com_mysql_ndbjtie_ndbapi_NdbIndexScanOperation_00024IndexBound_low_1key__(JNIEnv *, jobject)");
-    return gget< ttrait_c_m_n_n_NdbIndexScanOperation_IndexBound_t, ttrait_char_cp_jutf8null, &NdbIndexScanOperation::IndexBound::low_key >(env, obj);
+    TRACE("jobject Java_com_mysql_ndbjtie_ndbapi_NdbIndexScanOperation_00024IndexBound_low_1key__(JNIEnv *, jobject)");
+    return gget< ttrait_c_m_n_n_NdbIndexScanOperation_IndexBound_t, ttrait_char_0cp_bb, &NdbIndexScanOperation::IndexBound::low_key >(env, obj);
 }
 
 /*
@@ -6352,13 +6352,13 @@ Java_com_mysql_ndbjtie_ndbapi_NdbIndexScanOperation_00024IndexBound_low_1inclusi
 /*
  * Class:     com_mysql_ndbjtie_ndbapi_NdbIndexScanOperation_IndexBound
  * Method:    high_key
- * Signature: ()Ljava/lang/String;
+ * Signature: ()Ljava/nio/ByteBuffer;
  */
-JNIEXPORT jstring JNICALL
+JNIEXPORT jobject JNICALL
 Java_com_mysql_ndbjtie_ndbapi_NdbIndexScanOperation_00024IndexBound_high_1key__(JNIEnv * env, jobject obj)
 {
-    TRACE("jstring Java_com_mysql_ndbjtie_ndbapi_NdbIndexScanOperation_00024IndexBound_high_1key__(JNIEnv *, jobject)");
-    return gget< ttrait_c_m_n_n_NdbIndexScanOperation_IndexBound_t, ttrait_char_cp_jutf8null, &NdbIndexScanOperation::IndexBound::high_key >(env, obj);
+    TRACE("jobject Java_com_mysql_ndbjtie_ndbapi_NdbIndexScanOperation_00024IndexBound_high_1key__(JNIEnv *, jobject)");
+    return gget< ttrait_c_m_n_n_NdbIndexScanOperation_IndexBound_t, ttrait_char_0cp_bb, &NdbIndexScanOperation::IndexBound::high_key >(env, obj);
 }
 
 /*
@@ -6400,13 +6400,13 @@ Java_com_mysql_ndbjtie_ndbapi_NdbIndexScanOperation_00024IndexBound_range_1no__(
 /*
  * Class:     com_mysql_ndbjtie_ndbapi_NdbIndexScanOperation_IndexBound
  * Method:    low_key
- * Signature: (Ljava/lang/String;)V
+ * Signature: (Ljava/nio/ByteBuffer;)V
  */
 JNIEXPORT void JNICALL
-Java_com_mysql_ndbjtie_ndbapi_NdbIndexScanOperation_00024IndexBound_low_1key__Ljava_lang_String_2(JNIEnv * env, jobject obj, jstring p0)
+Java_com_mysql_ndbjtie_ndbapi_NdbIndexScanOperation_00024IndexBound_low_1key__Ljava_nio_ByteBuffer_2(JNIEnv * env, jobject obj, jobject p0)
 {
-    TRACE("void Java_com_mysql_ndbjtie_ndbapi_NdbIndexScanOperation_00024IndexBound_low_1key__Ljava_lang_String_2(JNIEnv *, jobject, jstring)");
-    gset< ttrait_c_m_n_n_NdbIndexScanOperation_IndexBound_t, ttrait_char_cp_jutf8null, &NdbIndexScanOperation::IndexBound::low_key >(env, obj, p0);
+    TRACE("void Java_com_mysql_ndbjtie_ndbapi_NdbIndexScanOperation_00024IndexBound_low_1key__Ljava_nio_ByteBuffer_2(JNIEnv *, jobject, jobject)");
+    gset< ttrait_c_m_n_n_NdbIndexScanOperation_IndexBound_t, ttrait_char_0cp_bb, &NdbIndexScanOperation::IndexBound::low_key >(env, obj, p0);
 }
 
 /*
@@ -6436,13 +6436,13 @@ Java_com_mysql_ndbjtie_ndbapi_NdbIndexScanOperation_00024IndexBound_low_1inclusi
 /*
  * Class:     com_mysql_ndbjtie_ndbapi_NdbIndexScanOperation_IndexBound
  * Method:    high_key
- * Signature: (Ljava/lang/String;)V
+ * Signature: (Ljava/nio/ByteBuffer;)V
  */
 JNIEXPORT void JNICALL
-Java_com_mysql_ndbjtie_ndbapi_NdbIndexScanOperation_00024IndexBound_high_1key__Ljava_lang_String_2(JNIEnv * env, jobject obj, jstring p0)
+Java_com_mysql_ndbjtie_ndbapi_NdbIndexScanOperation_00024IndexBound_high_1key__Ljava_nio_ByteBuffer_2(JNIEnv * env, jobject obj, jobject p0)
 {
-    TRACE("void Java_com_mysql_ndbjtie_ndbapi_NdbIndexScanOperation_00024IndexBound_high_1key__Ljava_lang_String_2(JNIEnv *, jobject, jstring)");
-    gset< ttrait_c_m_n_n_NdbIndexScanOperation_IndexBound_t, ttrait_char_cp_jutf8null, &NdbIndexScanOperation::IndexBound::high_key >(env, obj, p0);
+    TRACE("void Java_com_mysql_ndbjtie_ndbapi_NdbIndexScanOperation_00024IndexBound_high_1key__Ljava_nio_ByteBuffer_2(JNIEnv *, jobject, jobject)");
+    gset< ttrait_c_m_n_n_NdbIndexScanOperation_IndexBound_t, ttrait_char_0cp_bb, &NdbIndexScanOperation::IndexBound::high_key >(env, obj, p0);
 }
 
 /*

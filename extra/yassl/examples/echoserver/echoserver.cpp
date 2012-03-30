@@ -93,11 +93,11 @@ THREAD_RETURN YASSL_API echoserver_test(void* args)
 #endif
 
     while (!shutdown) {
-        sockaddr_in client;
+        SOCKADDR_IN_T client;
         socklen_t   client_len = sizeof(client);
         SOCKET_T    clientfd   = accept(sockfd, (sockaddr*)&client,
                                       (ACCEPT_THIRD_T)&client_len);
-        if (clientfd == -1) {
+        if (clientfd == (SOCKET_T) -1) {
             SSL_CTX_free(ctx);
             tcp_close(sockfd);
             err_sys("tcp accept failed");
@@ -111,11 +111,11 @@ THREAD_RETURN YASSL_API echoserver_test(void* args)
             tcp_close(clientfd);
             continue; 
         }
-
+       
         char command[1024];
         int echoSz(0);
         while ( (echoSz = SSL_read(ssl, command, sizeof(command))) > 0) {
-           
+
             if ( strncmp(command, "quit", 4) == 0) {
                 printf("client sent quit command: shutting down!\n");
                 shutdown = true;
@@ -127,7 +127,7 @@ THREAD_RETURN YASSL_API echoserver_test(void* args)
                 char header[] = "<html><body BGCOLOR=\"#ffffff\">\n<pre>\n";
                 char body[]   = "greetings from yaSSL\n";
                 char footer[] = "</body></html>\r\n\r\n";
-            
+
                 strncpy(command, type, sizeof(type));
                 echoSz = sizeof(type) - 1;
 
@@ -140,7 +140,7 @@ THREAD_RETURN YASSL_API echoserver_test(void* args)
 
                 if (SSL_write(ssl, command, echoSz) != echoSz)
                     EchoError(ctx, ssl, sockfd, clientfd, "SSL_write failed");
-
+               
                 break;
             }
             command[echoSz] = 0;

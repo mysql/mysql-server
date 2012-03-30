@@ -1,0 +1,79 @@
+--source include/have_ndb.inc
+--source include/have_log_bin.inc
+
+--disable_query_log
+reset master;
+--enable_query_log
+
+--echo -------------------------------------------------
+--echo First run using ndb_binlog_index table containing
+--echo  epoch end position information
+--echo -------------------------------------------------
+show create table mysql.ndb_binlog_index;
+
+--source suite/ndb_binlog/t/ndb_binlog_index_test_schema_independent.inc
+
+--echo ------------------------------------------------
+--echo Second run using ndb_binlog_index table without
+--echo  epoch end position information
+--echo ------------------------------------------------
+
+alter table mysql.ndb_binlog_index drop column next_file;
+alter table mysql.ndb_binlog_index drop column next_position;
+reset master;
+show create table mysql.ndb_binlog_index;
+
+--source suite/ndb_binlog/t/ndb_binlog_index_test_schema_independent.inc
+
+--echo Now restore original schema
+reset master;
+
+alter table mysql.ndb_binlog_index add column next_position bigint unsigned not null;
+alter table mysql.ndb_binlog_index add column next_file varchar(255) not null;
+
+reset master;
+
+--echo --------------------------------------
+--echo Quick test of ndb-log-empty-epochs = 1
+--echo --------------------------------------
+
+select * from mysql.ndb_binlog_index order by epoch;
+
+--source include/show_binlog_events.inc
+show variables like 'ndb_log_empty_epochs';
+
+set global ndb_log_empty_epochs=1;
+show variables like 'ndb_log_empty_epochs';
+
+--echo Allow some empty epochs to pass...
+
+let $got_some_epochs=0;
+
+while(!$got_some_epochs)
+{
+  let $got_some_epochs=query_get_value(select (count(1) > 10) as num from mysql.ndb_binlog_index, num, 1);
+  --sleep 1
+}
+
+--echo Show that we have entries in ndb_binlog_index
+select count(1) > 0 from mysql.ndb_binlog_index;
+
+--echo Show that all ndb_binlog_index entries have the same file + position
+select bi1.epoch, bi1.Position, bi1.File, bi1.next_position, bi1.next_file,
+       bi2.epoch, bi2.Position, bi2.File, bi2.next_position, bi2.next_file
+from mysql.ndb_binlog_index as bi1,
+     mysql.ndb_binlog_index as bi2
+where
+     # Start and Next not same
+     bi1.Position != bi1.next_position OR
+     bi1.File != bi1.next_file OR
+     # All epochs not the same
+     bi1.Position != bi2.Position OR
+     bi1.File != bi2.File;
+
+--echo Show that we have no epochs in the Binlog
+--source include/show_binlog_events.inc
+
+--echo Disable
+set global ndb_log_empty_epochs=0;
+

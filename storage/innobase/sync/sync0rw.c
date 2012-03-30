@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2012, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -18,8 +18,8 @@ ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License along with
-this program; if not, write to the Free Software Foundation, Inc., 59 Temple
-Place, Suite 330, Boston, MA 02111-1307 USA
+this program; if not, write to the Free Software Foundation, Inc.,
+51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
 
 *****************************************************************************/
 
@@ -785,7 +785,9 @@ rw_lock_add_debug_info(
 	rw_lock_debug_mutex_exit();
 
 	if ((pass == 0) && (lock_type != RW_LOCK_WAIT_EX)) {
-		sync_thread_add_level(lock, lock->level);
+		sync_thread_add_level(lock, lock->level,
+				      lock_type == RW_LOCK_EX
+				      && lock->lock_word < 0);
 	}
 }
 

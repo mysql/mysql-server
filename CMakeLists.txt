@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2011, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2012, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -79,8 +79,19 @@ ELSEIF(NOT HAVE_CMAKE_BUILD_TYPE OR OLD_WITH_DEBUG)
   SET(OLD_WITH_DEBUG 0 CACHE INTERNAL "" FORCE)
 ENDIF()
 
+# Optionally set project name, e.g.
+# foo.xcodeproj (mac) or foo.sln (windows)
+SET(MYSQL_PROJECT_NAME_DOCSTRING "MySQL project name")
+IF(DEFINED MYSQL_PROJECT_NAME)
+  SET(MYSQL_PROJECT_NAME ${MYSQL_PROJECT_NAME} CACHE STRING
+      ${MYSQL_PROJECT_NAME_DOCSTRING} FORCE)
+ELSE()
+  SET(MYSQL_PROJECT_NAME "MySQL" CACHE STRING
+      ${MYSQL_PROJECT_NAME_DOCSTRING} FORCE)
+  MARK_AS_ADVANCED(MYSQL_PROJECT_NAME)
+ENDIF()
+PROJECT(${MYSQL_PROJECT_NAME})
 
-PROJECT(MySQL)
 IF(BUILD_CONFIG)
   INCLUDE(
   ${CMAKE_SOURCE_DIR}/cmake/build_configurations/${BUILD_CONFIG}.cmake)

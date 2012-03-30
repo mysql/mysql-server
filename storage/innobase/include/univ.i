@@ -154,14 +154,6 @@ resolved */
 /*			DEBUG VERSION CONTROL
 			===================== */
 
-/* The following flag will make InnoDB to initialize
-all memory it allocates to zero. It hides Purify
-warnings about reading unallocated memory unless
-memory is read outside the allocated blocks. */
-/*
-#define UNIV_INIT_MEM_TO_ZERO
-*/
-
 /* When this macro is defined then additional test functions will be
 compiled. These functions live at the end of each relevant source file
 and have "test_" prefix. These functions are not called from anywhere in
@@ -230,15 +222,6 @@ operations (very slow); also UNIV_DEBUG must be defined */
 
 #define UNIV_BTR_DEBUG				/* check B-tree links */
 #define UNIV_LIGHT_MEM_DEBUG			/* light memory debugging */
-
-#ifdef HAVE_purify
-/* The following sets all new allocated memory to zero before use:
-this can be used to eliminate unnecessary Purify warnings, but note that
-it also masks many bugs Purify could detect. For detailed Purify analysis it
-is best to remove the define below and look through the warnings one
-by one. */
-#define UNIV_SET_MEM_TO_ZERO
-#endif
 
 /*
 #define UNIV_SQL_DEBUG
