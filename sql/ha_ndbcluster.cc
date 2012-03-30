@@ -14527,7 +14527,7 @@ ha_ndbcluster::assign_pushed_join(const ndb_pushed_join* pushed_join)
 bool
 ha_ndbcluster::maybe_pushable_join(const char*& reason) const
 {
-  reason= "";
+  reason= NULL;
   if (uses_blob_value(table->read_set))
   {
     reason= "select list can't contain BLOB columns";

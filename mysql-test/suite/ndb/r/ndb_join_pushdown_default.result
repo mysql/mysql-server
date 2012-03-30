@@ -905,7 +905,6 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	eq_ref	PRIMARY	PRIMARY	8	const,const	1	100.00	Parent of 2 pushed join@1
 1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	8	const,test.t2.b	1	100.00	Child of 't2' in pushed join@1; Using where
 Warnings:
-Note	9999	Table 't1' not in ndb engine, not pushable
 Note	1003	select '2' AS `a`,'2' AS `b`,'1' AS `c`,'1' AS `d`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c`,`test`.`t2`.`d` AS `d`,`test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b`,`test`.`t3`.`c` AS `c`,`test`.`t3`.`d` AS `d` from `test`.`t1_myisam` `t1` join `test`.`t1` `t2` join `test`.`t1` `t3` where ((`test`.`t2`.`b` = '1') and (`test`.`t3`.`b` = '1') and (`test`.`t2`.`a` = '1') and (`test`.`t3`.`a` = '1'))
 select *
 from t1_myisam as t1
@@ -3260,7 +3259,6 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	ALL	PRIMARY	NULL	NULL	NULL	4	75.00	Using where; Using join buffer
 1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	4	test.t2.b	1	100.00	
 Warnings:
-Note	9999	Table 't2' not in ndb engine, not pushable
 Note	9999	Cannot push table 't3' as child of table 't1'. Doing so would prevent using join buffer for table 't2'.
 Note	1003	select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b` from `test`.`t1` join `test`.`t2` join `test`.`t1` `t3` where ((`test`.`t3`.`a` = `test`.`t2`.`b`) and (`test`.`t2`.`a` = `test`.`t1`.`b`))
 select * from t1, t2, t1 as t3
