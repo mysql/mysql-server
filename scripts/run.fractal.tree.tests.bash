@@ -328,7 +328,9 @@ date=$(date +%Y%m%d)
 branch=.
 tokudb=tokudb
 bdb=5.3
-makejobs=$(get_ncpus)
+ncpus=$(get_ncpus)
+toku_ncpus=8
+makejobs=$ncpus
 revision=0
 VALGRIND=tokugrind
 commit=1
@@ -375,6 +377,9 @@ if [ $parallel -ne 0 ] ; then BG="&"; fi
 # setup GCCVERSION
 export GCCVERSION=$($ftcc --version|head -1|cut -f3 -d" ")
 export VALGRIND=$VALGRIND
+
+# setup TOKU_NCPUS
+if [ -z "$TOKU_NCPUS" -a $toku_ncpus -le $ncpus ] ; then export TOKU_NCPUS=$toku_ncpus; fi
 
 # limit execution time to 3 hours
 let t=3*3600
