@@ -7292,9 +7292,11 @@ static int get_options(int *argc_ptr, char ***argv_ptr)
     flush_time= 0;
 
 #ifdef HAVE_REPLICATION
-#ifndef MCP_BUG54854
   if (opt_slave_skip_errors)
+#ifndef MCP_BUG54854
     add_slave_skip_errors(opt_slave_skip_errors);
+#else
+    init_slave_skip_errors(opt_slave_skip_errors);
 #endif // MCP_BUG54854
 #endif
 
