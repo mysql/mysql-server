@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -276,6 +276,18 @@ int init_slave()
   if (pthread_key_create(&RPL_MASTER_INFO, NULL))
     goto err;
 
+#ifndef MCP_BUG54854
+#else
+  /*
+    If --slave-skip-errors=... was not used, the string value for the
+    system variable has not been set up yet. Do it now.
+  */
+  if (!use_slave_mask)
+  {
+    print_slave_skip_errors();
+  }
+#endif // MCP_BUG54854
+
   /*
     If master_host is not specified, try to read it from the master_info file.
     If master_host is specified, create the master_info file if it doesn't
@@ -388,6 +400,12 @@ static void print_slave_skip_errors(void)
   DBUG_ASSERT(sizeof(slave_skip_error_names) > MIN_ROOM);
   DBUG_ASSERT(MAX_SLAVE_ERROR <= 999999); // 6 digits
 
+#ifndef MCP_BUG54854
+#else
+  /* Make @@slave_skip_errors show the nice human-readable value.  */
+  opt_slave_skip_errors= slave_skip_error_names;
+#endif // MCP_BUG54854
+
   if (!use_slave_mask || bitmap_is_clear_all(&slave_error_mask))
   {
     /* purecov: begin tested */
@@ -442,9 +460,7 @@ void set_slave_skip_errors(char** slave_skip_errors_ptr)
   *slave_skip_errors_ptr= slave_skip_error_names;
   DBUG_VOID_RETURN;
 }
-#endif // MCP_BUG54854
 
-#ifndef MCP_BUG54854
 /**
   Init function to set up array for errors that should be skipped for slave
 */
@@ -461,9 +477,7 @@ static void init_slave_skip_errors()
   use_slave_mask = 1;
   DBUG_VOID_RETURN;
 }
-#endif // MCP_BUG54854
 
-#ifndef MCP_BUG54854
 static void add_slave_skip_errors(const uint* errors, uint n_errors)
 {
   DBUG_ENTER("add_slave_skip_errors");
@@ -478,9 +492,7 @@ static void add_slave_skip_errors(const uint* errors, uint n_errors)
   }
   DBUG_VOID_RETURN;
 }
-#endif // MCP_BUG54854
 
-#ifndef MCP_BUG54854
 /*
   Add errors that should be skipped for slave
 
@@ -491,7 +503,6 @@ static void add_slave_skip_errors(const uint* errors, uint n_errors)
   NOTES
     Called from get_options() in mysqld.cc on start-up
 */
-
 void add_slave_skip_errors(const char* arg)
 {
   const char *p= NULL;
@@ -553,6 +564,51 @@ void add_slave_skip_errors(const char* arg)
     while (!my_isdigit(system_charset_info,*p) && *p)
       p++;
   }
+  DBUG_VOID_RETURN;
+}
+#else
+/*
+  Init function to set up array for errors that should be skipped for slave
+
+  SYNOPSIS
+    init_slave_skip_errors()
+    arg         List of errors numbers to skip, separated with ','
+
+  NOTES
+    Called from get_options() in mysqld.cc on start-up
+*/
+
+void init_slave_skip_errors(const char* arg)
+{
+  const char *p;
+  DBUG_ENTER("init_slave_skip_errors");
+
+  if (bitmap_init(&slave_error_mask,0,MAX_SLAVE_ERROR,0))
+  {
+    fprintf(stderr, "Badly out of memory, please check your system status\n");
+    exit(1);
+  }
+  use_slave_mask = 1;
+  for (;my_isspace(system_charset_info,*arg);++arg)
+    /* empty */;
+  if (!my_strnncoll(system_charset_info,(uchar*)arg,4,(const uchar*)"all",4))
+  {
+    bitmap_set_all(&slave_error_mask);
+    print_slave_skip_errors();
+    DBUG_VOID_RETURN;
+  }
+  for (p= arg ; *p; )
+  {
+    long err_code;
+    if (!(p= str2int(p, 10, 0, LONG_MAX, &err_code)))
+      break;
+    if (err_code < MAX_SLAVE_ERROR)
+       bitmap_set_bit(&slave_error_mask,(uint)err_code);
+    while (!my_isdigit(system_charset_info,*p) && *p)
+      p++;
+  }
+  /* Convert slave skip errors bitmap into a printable string. */
+  print_slave_skip_errors();
   DBUG_VOID_RETURN;
 }
 #endif // MCP_BUG54854
