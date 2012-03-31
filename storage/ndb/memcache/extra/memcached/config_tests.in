@@ -24,6 +24,7 @@
 #cmakedefine HAVE_SYS_UIO_H
 #cmakedefine HAVE_NETINET_TCP_H
 #cmakedefine HAVE_SIGIGNORE
+#cmakedefine HAVE_HTONLL
 
 #include "my_config.h"
 #include "config_static.h"
