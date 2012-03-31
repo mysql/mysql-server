@@ -981,6 +981,13 @@ loader-dup-test4.tdbrun: loader-dup-test.tdb$(BINSUF)
 loader-dup-test5.tdbrun: loader-dup-test.tdb$(BINSUF)
 	$(VGRIND) ./loader-dup-test.tdb -d 1 -s -r 1000 -E -e dir.$@ $(SUMMARIZE_CMD)
 
+test_abort4.tdbrun: $(foreach x, 19 18 17 16 15 14 13 12 11 10 9 8 7 6 5 4 3 2 1 0 -1, test_abort4_$x_0.tdbrun test_abort4_$x_1.tdbrun )
+	true $(SUMMARIZE_CMD)
+test_abort4_%_0.tdbrun: test_abort4.tdb
+	$(VGRIND) ./test_abort4.tdb -q -e dir.$@ -c 0 -l $(patsubst test_abort4_%_0.tdbrun,%,$@) $(SUMMARIZE_CMD)
+test_abort4_%_1.tdbrun: test_abort4.tdb
+	$(VGRIND) ./test_abort4.tdb -q -e dir.$@ -c 1 -l $(patsubst test_abort4_%_1.tdbrun,%,$@) $(SUMMARIZE_CMD)
+
 # as part of #4503, we took out test 1 and 3
 # loader-cleanup-test.loader: $(patsubst %,loader-cleanup-test%.tdbrun, 0 1 2 3)
 loader-cleanup-test.loader: $(patsubst %,loader-cleanup-test%.tdbrun, 0 2)
