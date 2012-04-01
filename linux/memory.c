@@ -7,6 +7,7 @@
 #include <stdlib.h>
 #include <malloc.h>
 #include <dlfcn.h>
+#include <valgrind/helgrind.h>
 #include "memory.h"
 #include "toku_assert.h"
 
@@ -108,6 +109,7 @@ void *
 toku_malloc(size_t size) {
     void *p = t_malloc ? t_malloc(size) : os_malloc(size);
     if (p) {
+	ANNOTATE_NEW_MEMORY(p, size);
         if (toku_memory_do_stats) {
             size_t used = my_malloc_usable_size(p);
             __sync_add_and_fetch(&status.malloc_count, 1);
@@ -118,7 +120,7 @@ toku_malloc(size_t size) {
     } else {
         __sync_add_and_fetch(&status.malloc_fail, 1);
     }
-    return p;
+  return p;
 }
 
 void *
@@ -185,6 +187,7 @@ toku_xmalloc(size_t size) {
     void *p = t_xmalloc ? t_xmalloc(size) : os_malloc(size);
     if (p == NULL)  // avoid function call in common case
         resource_assert(p);
+    ANNOTATE_NEW_MEMORY(p, size);
     if (toku_memory_do_stats) {
         size_t used = my_malloc_usable_size(p);
         __sync_add_and_fetch(&status.malloc_count, 1);
