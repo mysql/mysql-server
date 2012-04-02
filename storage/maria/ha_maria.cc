@@ -58,6 +58,9 @@ C_MODE_END
 
 ulong pagecache_division_limit, pagecache_age_threshold;
 ulonglong pagecache_buffer_size;
+const char *zerofill_error_msg=
+  "Table is from another system and must be zerofilled or repaired to be "
+  "usable on this system";
 
 /**
    As the auto-repair is initiated when opened from the SQL layer
@@ -1152,7 +1155,15 @@ int ha_maria::open(const char *name, int mode, uint test_if_locked)
   }
 
   if (!(file= maria_open(name, mode, test_if_locked | HA_OPEN_FROM_SQL_LAYER)))
+  {
+    if (my_errno == HA_ERR_OLD_FILE)
+    {
+      push_warning(current_thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
+                   ER_CRASHED_ON_USAGE,
+                   zerofill_error_msg);
+    }
     return (my_errno ? my_errno : -1);
+  }
 
   file->s->chst_invalidator= query_cache_invalidate_by_MyISAM_filename_ref;
   /* Set external_ref, mainly for temporary tables */
@@ -1266,6 +1277,14 @@ int ha_maria::check(THD * thd, HA_CHECK_OPT * check_opt)
     return HA_ADMIN_ALREADY_DONE;
 
   maria_chk_init_for_check(&param, file);
+
+  if ((file->s->state.changed & (STATE_CRASHED_FLAGS | STATE_MOVED)) ==
+      STATE_MOVED)
+  {
+    _ma_check_print_error(&param, "%s", zerofill_error_msg);
+    return HA_ADMIN_CORRUPT;
+  }
+
   old_proc_info= thd_proc_info(thd, "Checking status");
   thd_progress_init(thd, 3);
   (void) maria_chk_status(&param, file);                // Not fatal
@@ -1633,7 +1652,7 @@ int ha_maria::repair(THD *thd, HA_CHECK *param, bool do_optimize)
     {
       DBUG_PRINT("info", ("Reseting crashed state"));
       share->state.changed&= ~(STATE_CHANGED | STATE_CRASHED_FLAGS |
-                               STATE_IN_REPAIR);
+                               STATE_IN_REPAIR | STATE_MOVED);
       file->update |= HA_STATE_CHANGED | HA_STATE_ROW_CHANGED;
     }
     /*
@@ -2135,6 +2154,11 @@ bool ha_maria::check_and_repair(THD *thd)
   if ((file->s->state.changed & (STATE_CRASHED_FLAGS | STATE_MOVED)) ==
       STATE_MOVED)
   {
+    /* Remove error about crashed table */
+    thd->warning_info->clear_warning_info(thd->query_id);
+    push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
+                        ER_CRASHED_ON_USAGE,
+                        "Zerofilling moved table %s", table->s->path.str);
     sql_print_information("Zerofilling moved table:  '%s'",
                           table->s->path.str);
     if (!(error= zerofill(thd, &check_opt)))

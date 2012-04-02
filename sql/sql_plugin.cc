@@ -2385,11 +2385,11 @@ static int check_func_bool(THD *thd, struct st_mysql_sys_var *var,
   {
     if (value->val_int(value, &tmp) < 0)
       goto err;
-    if (tmp > 1)
+    if (tmp != 0 && tmp != 1)
       goto err;
     result= (int) tmp;
   }
-  *(my_bool *) save= -result;
+  *(my_bool *) save= result ? 1 : 0;
   return 0;
 err:
   return 1;
@@ -2579,7 +2579,7 @@ err:
 static void update_func_bool(THD *thd, struct st_mysql_sys_var *var,
                              void *tgt, const void *save)
 {
-  *(my_bool *) tgt= *(my_bool *) save ? TRUE : FALSE;
+  *(my_bool *) tgt= *(my_bool *) save ? 1 : 0;
 }
 
 

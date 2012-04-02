@@ -64,7 +64,7 @@ static char sccsid[] = "@(#)unvis.c	8.1 (Berkeley) 6/4/93";
 #include "np/vis.h"
 
 #ifdef __weak_alias
-__weak_alias(strnunvisx,_strnunvisx)
+__weak_alias(strnunvisx,_strnunvisx);
 #endif
 
 #if !HAVE_VIS

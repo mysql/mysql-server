@@ -73,6 +73,7 @@ SELECT @@session.innodb_support_xa;
 SET @@session.innodb_support_xa = ÓFF;
 ERROR 42000: Variable 'innodb_support_xa' can't be set to the value of 'ÓFF'
 SET @@global.innodb_support_xa = -1;
+ERROR 42000: Variable 'innodb_support_xa' can't be set to the value of '-1'
 SELECT @@global.innodb_support_xa;
 @@global.innodb_support_xa
 1

@@ -9,6 +9,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <syslog.h>
+#include <unistd.h>
 
 #include "fatal.hpp"
 

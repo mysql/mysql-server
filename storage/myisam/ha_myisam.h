@@ -140,7 +140,11 @@ class ha_myisam: public handler
   int repair(THD* thd, HA_CHECK_OPT* check_opt);
   bool check_and_repair(THD *thd);
   bool is_crashed() const;
-  bool auto_repair() const { return myisam_recover_options != HA_RECOVER_OFF; }
+  bool auto_repair(int error) const
+  {
+    return (myisam_recover_options != HA_RECOVER_OFF &&
+            error == HA_ERR_CRASHED_ON_USAGE);
+  }
   int optimize(THD* thd, HA_CHECK_OPT* check_opt);
   int assign_to_keycache(THD* thd, HA_CHECK_OPT* check_opt);
   int preload_keys(THD* thd, HA_CHECK_OPT* check_opt);

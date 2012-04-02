@@ -73,8 +73,8 @@ set global innodb_adaptive_flushing=1e1;
 ERROR 42000: Incorrect argument type to variable 'innodb_adaptive_flushing'
 set global innodb_adaptive_flushing=2;
 ERROR 42000: Variable 'innodb_adaptive_flushing' can't be set to the value of '2'
-NOTE: The following should fail with ER_WRONG_VALUE_FOR_VAR (BUG#50643)
 set global innodb_adaptive_flushing=-3;
+ERROR 42000: Variable 'innodb_adaptive_flushing' can't be set to the value of '-3'
 select @@global.innodb_adaptive_flushing;
 @@global.innodb_adaptive_flushing
 1
