@@ -42,12 +42,17 @@ clusterj_tie_java= \
   $(clusterj_tie_src)/com/mysql/clusterj/tie/NdbRecordBlobImpl.java \
   $(clusterj_tie_src)/com/mysql/clusterj/tie/NdbRecordDeleteOperationImpl.java \
   $(clusterj_tie_src)/com/mysql/clusterj/tie/NdbRecordImpl.java \
+  $(clusterj_tie_src)/com/mysql/clusterj/tie/NdbRecordIndexScanOperationImpl.java \
   $(clusterj_tie_src)/com/mysql/clusterj/tie/NdbRecordInsertOperationImpl.java \
   $(clusterj_tie_src)/com/mysql/clusterj/tie/NdbRecordKeyOperationImpl.java \
   $(clusterj_tie_src)/com/mysql/clusterj/tie/NdbRecordOperationImpl.java \
   $(clusterj_tie_src)/com/mysql/clusterj/tie/NdbRecordResultDataImpl.java \
+  $(clusterj_tie_src)/com/mysql/clusterj/tie/NdbRecordScanOperationImpl.java \
+  $(clusterj_tie_src)/com/mysql/clusterj/tie/NdbRecordScanResultDataImpl.java \
   $(clusterj_tie_src)/com/mysql/clusterj/tie/NdbRecordSmartValueHandlerFactoryImpl.java \
   $(clusterj_tie_src)/com/mysql/clusterj/tie/NdbRecordSmartValueHandlerImpl.java \
+  $(clusterj_tie_src)/com/mysql/clusterj/tie/NdbRecordTableScanOperationImpl.java \
+  $(clusterj_tie_src)/com/mysql/clusterj/tie/NdbRecordUniqueKeyOperationImpl.java \
   $(clusterj_tie_src)/com/mysql/clusterj/tie/OperationImpl.java \
   $(clusterj_tie_src)/com/mysql/clusterj/tie/ResultDataImpl.java \
   $(clusterj_tie_src)/com/mysql/clusterj/tie/ScanFilterImpl.java \

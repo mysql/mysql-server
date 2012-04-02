@@ -26,12 +26,12 @@ import java.nio.ByteOrder;
 import java.util.ArrayList;
 import java.util.List;
 
-import com.mysql.clusterj.ClusterJDatastoreException;
 import com.mysql.clusterj.ClusterJFatalInternalException;
 import com.mysql.clusterj.ClusterJFatalUserException;
 import com.mysql.clusterj.ClusterJUserException;
 
 import com.mysql.clusterj.core.store.Column;
+import com.mysql.clusterj.core.store.Index;
 import com.mysql.clusterj.core.store.Table;
 
 import com.mysql.clusterj.core.util.I18NHelper;
@@ -44,15 +44,23 @@ import com.mysql.ndbjtie.ndbapi.NdbRecord;
 import com.mysql.ndbjtie.ndbapi.NdbRecordConst;
 import com.mysql.ndbjtie.ndbapi.NdbDictionary.ColumnConst;
 import com.mysql.ndbjtie.ndbapi.NdbDictionary.Dictionary;
+import com.mysql.ndbjtie.ndbapi.NdbDictionary.IndexConst;
 import com.mysql.ndbjtie.ndbapi.NdbDictionary.RecordSpecification;
 import com.mysql.ndbjtie.ndbapi.NdbDictionary.RecordSpecificationArray;
 import com.mysql.ndbjtie.ndbapi.NdbDictionary.TableConst;
 
 /**
- * Wrapper around an NdbRecord. The default implementation can be used for create, read, update, or delete
- * using an NdbRecord that defines every column in the table. After construction, the instance is
+ * Wrapper around an NdbRecord. Operations may use one or two instances.
+ * <ul><li>The table implementation can be used for create, read, update, or delete
+ * using an NdbRecord that defines every column in the table.
+ * </li><li>The index implementation for unique indexes can be used with a unique lookup operation.
+ * </li><li>The index implementation for ordered (non-unique) indexes can be used with an index scan operation.
+ * </li></ul>
+ * After construction, the instance is
  * read-only and can be shared among all threads that use the same cluster connection; and the size of the
- * buffer required for operations is available. The NdbRecord instance is released when the cluster
+ * buffer required for operations is available. 
+ * Methods on the instance generally require a buffer to be passed, which is modified by the method.
+ * The NdbRecord instance is released when the cluster
  * connection is closed or when schema change invalidates it. Column values can be set using a provided
  * buffer and buffer manager.
  */
@@ -79,12 +87,15 @@ public class NdbRecordImpl {
     private RecordSpecificationArray recordSpecificationArray;
 
     /** The NdbTable */
-    TableConst tableConst;
+    TableConst tableConst = null;
 
-    /** The size of the receive buffer for this operation */
+    /** The NdbIndex, which will be null for complete-table instances */
+    IndexConst indexConst = null;
+
+    /** The size of the buffer for this NdbRecord */
     protected int bufferSize;
 
-    /** The maximum column id for this operation */
+    /** The maximum column id for this NdbRecord */
     protected int maximumColumnId;
 
     /** The offsets into the buffer for each column */
@@ -115,14 +126,16 @@ public class NdbRecordImpl {
     private Dictionary ndbDictionary;
 
     /** Number of columns for this NdbRecord */
-    private int numberOfColumns;
+    private int numberOfTableColumns;
 
     /** These fields are only used during construction of the RecordSpecificationArray */
     int offset = 0;
     int nullablePosition = 0;
     byte[] defaultValues;
 
-    /** Constructor used for insert operations that do not need to read data.
+    private int[] recordSpecificationIndexes = null;
+
+    /** Constructor for table operations.
      * 
      * @param storeTable the store table
      * @param ndbDictionary the ndb dictionary
@@ -130,14 +143,41 @@ public class NdbRecordImpl {
     protected NdbRecordImpl(Table storeTable, Dictionary ndbDictionary) {
         this.ndbDictionary = ndbDictionary;
         this.tableConst = getNdbTable(storeTable.getName());
-        this.numberOfColumns = tableConst.getNoOfColumns();
-        this.recordSpecificationArray = RecordSpecificationArray.create(numberOfColumns);
-        this.offsets = new int[numberOfColumns];
-        this.lengths = new int[numberOfColumns];
-        this.nullbitBitInByte = new int[numberOfColumns];
-        this.nullbitByteOffset = new int[numberOfColumns];
-        this.storeColumns = new Column[numberOfColumns];
+        this.numberOfTableColumns = tableConst.getNoOfColumns();
+        this.recordSpecificationArray = RecordSpecificationArray.create(numberOfTableColumns);
+        recordSpecificationIndexes = new int[numberOfTableColumns];
+        this.offsets = new int[numberOfTableColumns];
+        this.lengths = new int[numberOfTableColumns];
+        this.nullbitBitInByte = new int[numberOfTableColumns];
+        this.nullbitByteOffset = new int[numberOfTableColumns];
+        this.storeColumns = new Column[numberOfTableColumns];
         this.ndbRecord = createNdbRecord(storeTable, ndbDictionary);
+        if (logger.isDetailEnabled()) logger.detail(storeTable.getName() + " " + dumpDefinition());
+        initializeDefaultBuffer();
+    }
+
+    /** Constructor for index operations. The NdbRecord has columns just for
+     * the columns in the index. 
+     * 
+     * @param storeIndex the store index
+     * @param storeTable the store table
+     * @param ndbDictionary the ndb dictionary
+     */
+    protected NdbRecordImpl(Index storeIndex, Table storeTable, Dictionary ndbDictionary) {
+        this.ndbDictionary = ndbDictionary;
+        this.tableConst = getNdbTable(storeTable.getName());
+        this.indexConst = getNdbIndex(storeIndex.getInternalName(), tableConst.getName());
+        this.numberOfTableColumns = tableConst.getNoOfColumns();
+        int numberOfIndexColumns = this.indexConst.getNoOfColumns();
+        this.recordSpecificationArray = RecordSpecificationArray.create(numberOfIndexColumns);
+        recordSpecificationIndexes = new int[numberOfTableColumns];
+        this.offsets = new int[numberOfTableColumns];
+        this.lengths = new int[numberOfTableColumns];
+        this.nullbitBitInByte = new int[numberOfTableColumns];
+        this.nullbitByteOffset = new int[numberOfTableColumns];
+        this.storeColumns = new Column[numberOfTableColumns];
+        this.ndbRecord = createNdbRecord(storeIndex, storeTable, ndbDictionary);
+        if (logger.isDetailEnabled()) logger.detail(storeIndex.getInternalName() + " " + dumpDefinition());
         initializeDefaultBuffer();
     }
 
@@ -152,9 +192,10 @@ public class NdbRecordImpl {
         zeros.order(ByteOrder.nativeOrder());
         // just to be sure, initialize with zeros
         zeros.put(defaultValues);
+        // not all columns are set at this point, so only check for those that are set
         for (Column storeColumn: storeColumns) {
             // nullable columns get the null bit set
-            if (storeColumn.getNullable()) {
+            if (storeColumn != null && storeColumn.getNullable()) {
                 setNull(zeros, storeColumn);
             }
         }
@@ -232,8 +273,13 @@ public class NdbRecordImpl {
         resetNull(buffer, storeColumn);
         int columnId = storeColumn.getColumnId();
         int offset = offsets[columnId];
-        int length = storeColumn.getLength() + storeColumn.getPrefixLength();
-        buffer.limit(offset + length);
+        int length = storeColumn.getLength();
+        int prefixLength = storeColumn.getPrefixLength();
+        if (length < value.length) {
+            throw new ClusterJUserException(local.message("ERR_Data_Too_Long",
+                    storeColumn.getName(), length, value.length));
+        }
+        buffer.limit(offset + prefixLength + length);
         buffer.position(offset);
         Utility.convertValue(buffer, storeColumn, value);
         buffer.limit(bufferSize);
@@ -298,15 +344,16 @@ public class NdbRecordImpl {
         resetNull(buffer, storeColumn);
         int columnId = storeColumn.getColumnId();
         int offset = offsets[columnId];
-        int length = storeColumn.getLength() + storeColumn.getPrefixLength();
+        int prefixLength = storeColumn.getPrefixLength();
+        int length = storeColumn.getLength() + prefixLength;
         buffer.limit(offset + length);
         buffer.position(offset);
         // TODO provide the buffer to Utility.encode to avoid copying
         // for now, use the encode method to encode the value then copy it
         ByteBuffer converted = Utility.encode(value, storeColumn, bufferManager);
         if (length < converted.remaining()) {
-            throw new ClusterJUserException(local.message("ERR_Data_Too_Large",
-                    storeColumn.getName(), length, converted.remaining()));
+            throw new ClusterJUserException(local.message("ERR_Data_Too_Long",
+                    storeColumn.getName(), length - prefixLength, converted.remaining() - prefixLength));
         }
         buffer.put(converted);
         buffer.limit(bufferSize);
@@ -599,8 +646,35 @@ public class NdbRecordImpl {
         }
     }
 
+    protected NdbRecord createNdbRecord(Index storeIndex, Table storeTable, Dictionary ndbDictionary) {
+        String[] columnNames = storeIndex.getColumnNames();
+        // analyze columns; sort into alignment buckets, allocate space in the buffer
+        // and build the record specification array
+        analyzeColumns(storeTable, columnNames);
+        // create the NdbRecord
+        NdbRecord result = ndbDictionary.createRecord(indexConst, tableConst, recordSpecificationArray,
+                columnNames.length, SIZEOF_RECORD_SPECIFICATION, 0);
+        // delete the RecordSpecificationArray since it is no longer needed
+        RecordSpecificationArray.delete(recordSpecificationArray);
+        handleError(result, ndbDictionary);
+        return result;
+    }
+
     protected NdbRecord createNdbRecord(Table storeTable, Dictionary ndbDictionary) {
         String[] columnNames = storeTable.getColumnNames();
+        // analyze columns; sort into alignment buckets, allocate space in the buffer,
+        // and build the record specification array
+        analyzeColumns(storeTable, columnNames);
+        // create the NdbRecord
+        NdbRecord result = ndbDictionary.createRecord(tableConst, recordSpecificationArray,
+                columnNames.length, SIZEOF_RECORD_SPECIFICATION, 0);
+        // delete the RecordSpecificationArray since it is no longer needed
+        RecordSpecificationArray.delete(recordSpecificationArray);
+        handleError(result, ndbDictionary);
+        return result;
+    }
+
+    private void analyzeColumns(Table storeTable, String[] columnNames) {
         List<Column> align8 = new ArrayList<Column>();
         List<Column> align4 = new ArrayList<Column>();
         List<Column> align2 = new ArrayList<Column>();
@@ -609,6 +683,8 @@ public class NdbRecordImpl {
         int i = 0;
         for (String columnName: columnNames) {
             Column storeColumn = storeTable.getColumn(columnName);
+            int columnId = storeColumn.getColumnId();
+            recordSpecificationIndexes[columnId] = i;
             if (logger.isDetailEnabled()) logger.detail("storeColumn: " + storeColumn.getName() + " id: " + storeColumn.getColumnId() + " index: " + i);
             lengths[i] = storeColumn.getLength();
             storeColumns[i++] = storeColumn;
@@ -671,28 +747,20 @@ public class NdbRecordImpl {
         offset = (7 + offset) / 8 * 8;
         nullIndicatorSize = offset;
         for (Column storeColumn: align8) {
-            handleColumn(8, storeColumn);
+            analyzeColumn(8, storeColumn);
         }
         for (Column storeColumn: align4) {
-            handleColumn(4, storeColumn);
+            analyzeColumn(4, storeColumn);
         }
         for (Column storeColumn: align2) {
-            handleColumn(2, storeColumn);
+            analyzeColumn(2, storeColumn);
         }
         for (Column storeColumn: align1) {
-            handleColumn(1, storeColumn);
+            analyzeColumn(1, storeColumn);
         }
         bufferSize = offset;
 
         if (logger.isDebugEnabled()) logger.debug(dumpDefinition());
-
-        // now create an NdbRecord
-        NdbRecord result = ndbDictionary.createRecord(tableConst, recordSpecificationArray,
-                numberOfColumns, SIZEOF_RECORD_SPECIFICATION, 0);
-        // delete the RecordSpecificationArray since it is no longer needed
-        RecordSpecificationArray.delete(recordSpecificationArray);
-        handleError(result, ndbDictionary);
-        return result;
     }
 
     /** Create a record specification for a column. Keep track of the offset into the buffer
@@ -701,9 +769,10 @@ public class NdbRecordImpl {
      * @param alignment the alignment for this column in the buffer
      * @param storeColumn the column
      */
-    private void handleColumn(int alignment, Column storeColumn) {
+    private void analyzeColumn(int alignment, Column storeColumn) {
         int columnId = storeColumn.getColumnId();
-        RecordSpecification recordSpecification = recordSpecificationArray.at(columnId);
+        int recordSpecificationIndex = recordSpecificationIndexes[columnId];
+        RecordSpecification recordSpecification = recordSpecificationArray.at(recordSpecificationIndex);
         ColumnConst columnConst = tableConst.getColumn(columnId);
         recordSpecification.column(columnConst);
         recordSpecification.offset(offset);
@@ -727,21 +796,23 @@ public class NdbRecordImpl {
     private String dumpDefinition() {
         StringBuilder builder = new StringBuilder(tableConst.getName());
         builder.append(" numberOfColumns: ");
-        builder.append(numberOfColumns);
+        builder.append(numberOfTableColumns);
         builder.append('\n');
-        for (int columnId = 0; columnId < numberOfColumns; ++columnId) {
+        for (int columnId = 0; columnId < numberOfTableColumns; ++columnId) {
             Column storeColumn = storeColumns[columnId];
-            builder.append(" column: ");
-            builder.append(storeColumn.getName());
-            builder.append(" offset: ");
-            builder.append(offsets[columnId]);
-            builder.append(" length: ");
-            builder.append(lengths[columnId]);
-            builder.append(" nullbitBitInByte: ");
-            builder.append(nullbitBitInByte[columnId]);
-            builder.append(" nullbitByteOffset: ");
-            builder.append(nullbitByteOffset[columnId]);
-            builder.append('\n');
+            if (storeColumn != null) {
+                builder.append(" column: ");
+                builder.append(storeColumn.getName());
+                builder.append(" offset: ");
+                builder.append(offsets[columnId]);
+                builder.append(" length: ");
+                builder.append(lengths[columnId]);
+                builder.append(" nullbitBitInByte: ");
+                builder.append(nullbitBitInByte[columnId]);
+                builder.append(" nullbitByteOffset: ");
+                builder.append(nullbitByteOffset[columnId]);
+                builder.append('\n');
+            }
         }
         return builder.toString();
     }
@@ -749,37 +820,39 @@ public class NdbRecordImpl {
     public String dumpValues(ByteBuffer data, byte[] mask) {
         StringBuilder builder = new StringBuilder(tableConst.getName());
         builder.append(" numberOfColumns: ");
-        builder.append(numberOfColumns);
+        builder.append(numberOfTableColumns);
         builder.append('\n');
-        for (int columnId = 0; columnId < numberOfColumns; ++columnId) {
+        for (int columnId = 0; columnId < numberOfTableColumns; ++columnId) {
             Column storeColumn = storeColumns[columnId];
-            builder.append(" column: ");
-            builder.append(storeColumn.getName());
-            builder.append(" offset: ");
-            builder.append(offsets[columnId]);
-            builder.append(" length: ");
-            builder.append(lengths[columnId]);
-            builder.append(" nullbitBitInByte: ");
-            int nullBitInByte = nullbitBitInByte[columnId];
-            builder.append(nullBitInByte);
-            builder.append(" nullbitByteOffset: ");
-            int nullByteOffset = nullbitByteOffset[columnId];
-            builder.append(nullByteOffset);
-            builder.append(" data: ");
-            int size = storeColumn.getColumnSpace() != 0 ? storeColumn.getColumnSpace():storeColumn.getSize();
-            int offset = offsets[columnId];
-            data.limit(bufferSize);
-            data.position(0);
-            for (int index = offset; index < offset + size; ++index) {
-                builder.append(String.format("%2x ", data.get(index)));
+            if (storeColumn != null) {
+                builder.append(" column: ");
+                builder.append(storeColumn.getName());
+                builder.append(" offset: ");
+                builder.append(offsets[columnId]);
+                builder.append(" length: ");
+                builder.append(lengths[columnId]);
+                builder.append(" nullbitBitInByte: ");
+                int nullBitInByte = nullbitBitInByte[columnId];
+                builder.append(nullBitInByte);
+                builder.append(" nullbitByteOffset: ");
+                int nullByteOffset = nullbitByteOffset[columnId];
+                builder.append(nullByteOffset);
+                builder.append(" data: ");
+                int size = storeColumn.getColumnSpace() != 0 ? storeColumn.getColumnSpace():storeColumn.getSize();
+                int offset = offsets[columnId];
+                data.limit(bufferSize);
+                data.position(0);
+                for (int index = offset; index < offset + size; ++index) {
+                    builder.append(String.format("%2x ", data.get(index)));
+                }
+                builder.append(" null: ");
+                builder.append(isNull(data, columnId));
+                if (mask != null) {
+                    builder.append(" present: ");
+                    builder.append(isPresent(mask, columnId));
+                }
+                builder.append('\n');
             }
-            builder.append(" null: ");
-            builder.append(isNull(data, columnId));
-            builder.append(" present: ");
-            if (mask != null) {
-                builder.append(isPresent(mask, columnId));
-            }
-            builder.append('\n');
         }
         data.position(0);
         return builder.toString();
@@ -791,7 +864,26 @@ public class NdbRecordImpl {
             // try the lower case table name
             ndbTable = ndbDictionary.getTable(tableName.toLowerCase());
         }
+        if (ndbTable == null) {
+            Utility.throwError(ndbTable, ndbDictionary.getNdbError(), tableName);
+        }
         return ndbTable;
+    }
+
+    TableConst getNdbTable() {
+        return tableConst;
+    }
+
+    IndexConst getNdbIndex(String indexName, String tableName) {
+        IndexConst ndbIndex = ndbDictionary.getIndex(indexName, tableName);
+        if (ndbIndex == null) {
+            Utility.throwError(ndbIndex, ndbDictionary.getNdbError(),  tableName+ "+" + indexName);
+        }
+        return ndbIndex;
+    }
+
+    IndexConst getNdbIndex() {
+        return indexConst;
     }
 
     public int getBufferSize() {
@@ -803,7 +895,7 @@ public class NdbRecordImpl {
     }
 
     public int getNumberOfColumns() {
-        return numberOfColumns;
+        return numberOfTableColumns;
     }
 
     protected void releaseNdbRecord() {

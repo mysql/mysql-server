@@ -31,7 +31,7 @@ import com.mysql.clusterj.core.util.Logger;
 import com.mysql.clusterj.core.util.LoggerFactoryService;
 
 /**
- *
+ * Handle the results of an operation using NdbRecord. 
  */
 class NdbRecordResultDataImpl implements ResultData {
 
@@ -43,28 +43,21 @@ class NdbRecordResultDataImpl implements ResultData {
     static final Logger logger = LoggerFactoryService.getFactory()
             .getInstance(NdbRecordResultDataImpl.class);
 
-    /** Flags for iterating a scan */
-    protected final int RESULT_READY = 0;
-    protected final int SCAN_FINISHED = 1;
-    protected final int CACHE_EMPTY = 2;
-
     /** The NdbOperation that defines the result */
-    private NdbRecordOperationImpl operation = null;
+    protected NdbRecordOperationImpl operation = null;
 
     /** The flag indicating that there are no more results */
     private boolean nextDone;
 
-    /** Construct the ResultDataImpl based on an NdbRecordOperationImpl, and the 
-     * buffer manager to help with string columns.
+    /** Construct the ResultDataImpl based on an NdbRecordOperationImpl.
      * @param operation the NdbRecordOperationImpl
-     * @param bufferManager the buffer manager
      */
     public NdbRecordResultDataImpl(NdbRecordOperationImpl operation) {
         this.operation = operation;
     }
 
     public boolean next() {
-        // NdbOperation has exactly zero or one result. ScanResultDataImpl handles scans...
+        // NdbOperation has exactly zero or one result. NdbRecordScanResultDataImpl handles scans...
         // if the ndbOperation reports an error there is no result
         int errorCode = operation.errorCode();
         if (errorCode != 0) {
@@ -262,6 +255,14 @@ class NdbRecordResultDataImpl implements ResultData {
 
     public Column[] getColumns() {
         return null;
+    }
+
+    /** Return an operation that can be used by SmartValueHandler.
+     * The operation contains the buffer with the row data from the operation.
+     * @return the operation
+     */
+    public NdbRecordOperationImpl transformOperation() {
+        return operation.transformNdbRecordOperationImpl();
     }
 
 }

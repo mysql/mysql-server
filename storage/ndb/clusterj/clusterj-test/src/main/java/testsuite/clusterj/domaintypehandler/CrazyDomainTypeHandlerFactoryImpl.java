@@ -110,7 +110,7 @@ public class CrazyDomainTypeHandlerFactoryImpl implements DomainTypeHandlerFacto
                     throw new UnsupportedOperationException("Not supported yet.");
                 }
 
-                public T newInstance(ValueHandler valueHandler, Db db) {
+                public T newInstance(ValueHandler valueHandler) {
                     throw new UnsupportedOperationException("Not supported yet.");
                 }
 
@@ -207,6 +207,10 @@ public class CrazyDomainTypeHandlerFactoryImpl implements DomainTypeHandlerFacto
                 public void setUnsupported(String reason) {
                     throw new UnsupportedOperationException("Not supported yet.");
                }
+
+                public T newInstance(ResultData resultData, Db db) {
+                    throw new UnsupportedOperationException("Not supported yet.");
+                }
 
             };
         } else {

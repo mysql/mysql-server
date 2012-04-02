@@ -18,6 +18,7 @@
 package com.mysql.clusterj.tie;
 
 import java.util.IdentityHashMap;
+import java.util.Iterator;
 import java.util.Map;
 
 import java.util.concurrent.ConcurrentHashMap;
@@ -33,6 +34,7 @@ import com.mysql.clusterj.ClusterJHelper;
 
 import com.mysql.clusterj.core.spi.ValueHandlerFactory;
 import com.mysql.clusterj.core.store.Db;
+import com.mysql.clusterj.core.store.Index;
 import com.mysql.clusterj.core.store.Table;
 
 import com.mysql.clusterj.core.util.I18NHelper;
@@ -50,7 +52,7 @@ public class ClusterConnectionImpl
 
     /** My logger */
     static final Logger logger = LoggerFactoryService.getFactory()
-            .getInstance(com.mysql.clusterj.core.store.ClusterConnection.class);
+            .getInstance(ClusterConnectionImpl.class);
 
     /** Ndb_cluster_connection is wrapped by ClusterConnection */
     protected Ndb_cluster_connection clusterConnection;
@@ -195,7 +197,9 @@ public class ClusterConnectionImpl
     }
 
     /** 
-     * Get the cached NdbRecord implementation for this cluster connection.
+     * Get the cached NdbRecord implementation for the table
+     * used with this cluster connection. All columns are included
+     * in the NdbRecord.
      * Use a ConcurrentHashMap for best multithread performance.
      * There are three possibilities:
      * <ul><li>Case 1: return the already-cached NdbRecord
@@ -203,8 +207,7 @@ public class ClusterConnectionImpl
      * </li><li>Case 3: return the winner of a race with another thread
      * </li></ul>
      * @param storeTable the store table
-     * @param ndbDictionary the ndb dictionary
-     * @return the NdbRecordImpl
+     * @return the NdbRecordImpl for the table
      */
     protected NdbRecordImpl getCachedNdbRecordImpl(Table storeTable) {
         String tableName = storeTable.getName();
@@ -239,17 +242,81 @@ public class ClusterConnectionImpl
         }
     }
 
-    /** Remove the cached NdbRecord associated with this table. This allows schema change to work.
+    /** 
+     * Get the cached NdbRecord implementation for the index and table
+     * used with this cluster connection.
+     * The NdbRecordImpl is cached under the name tableName+indexName.
+     * Only the key columns are included in the NdbRecord.
+     * Use a ConcurrentHashMap for best multithread performance.
+     * There are three possibilities:
+     * <ul><li>Case 1: return the already-cached NdbRecord
+     * </li><li>Case 2: return a new instance created by this method
+     * </li><li>Case 3: return the winner of a race with another thread
+     * </li></ul>
+     * @param storeTable the store table
+     * @param storeIndex the store index
+     * @return the NdbRecordImpl for the index
+     */
+    protected NdbRecordImpl getCachedNdbRecordImpl(Index storeIndex, Table storeTable) {
+        String recordName = storeTable.getName() + "+" + storeIndex.getInternalName();
+        // find the NdbRecordImpl in the global cache
+        NdbRecordImpl result = ndbRecordImplMap.get(recordName);
+        if (result != null) {
+            // case 1
+            if (logger.isDebugEnabled())logger.debug("NdbRecordImpl found for " + recordName);
+            return result;
+        } else {
+            // dictionary is single thread
+            NdbRecordImpl newNdbRecordImpl;
+            synchronized (dictionaryForNdbRecord) {
+                // try again; another thread might have beat us
+                result = ndbRecordImplMap.get(recordName);
+                if (result != null) {
+                    return result;
+                }
+                newNdbRecordImpl = new NdbRecordImpl(storeIndex, storeTable, dictionaryForNdbRecord);   
+            }
+            NdbRecordImpl winner = ndbRecordImplMap.putIfAbsent(recordName, newNdbRecordImpl);
+            if (winner == null) {
+                // case 2: the previous value was null, so return the new (winning) value
+                if (logger.isDebugEnabled())logger.debug("NdbRecordImpl created for " + recordName);
+                return newNdbRecordImpl;
+            } else {
+                // case 3: another thread beat us, so return the winner and garbage collect ours
+                if (logger.isDebugEnabled())logger.debug("NdbRecordImpl lost race for " + recordName);
+                newNdbRecordImpl.releaseNdbRecord();
+                return winner;
+            }
+        }
+    }
+
+    /** Remove the cached NdbRecord(s) associated with this table. This allows schema change to work.
+     * All NdbRecords including any index NdbRecords will be removed. Index NdbRecords are named
+     * tableName+indexName.
      * @param tableName the name of the table
      */
     public void unloadSchema(String tableName) {
-        if (logger.isDebugEnabled())logger.debug("Removing cached NdbRecord for " + tableName);
-        NdbRecordImpl ndbRecordImpl = ndbRecordImplMap.remove(tableName);
-        if (ndbRecordImpl != null) {
-            ndbRecordImpl.releaseNdbRecord();
+        // synchronize to avoid multiple threads unloading schema simultaneously
+        // it is possible although unlikely that another thread is adding an entry while 
+        // we are removing entries; if this occurs an error will be signaled here
+        synchronized(ndbRecordImplMap) {
+            Iterator<Map.Entry<String, NdbRecordImpl>> iterator = ndbRecordImplMap.entrySet().iterator();
+            while (iterator.hasNext()) {
+                Map.Entry<String, NdbRecordImpl> entry = iterator.next();
+                String key = entry.getKey();
+                if (key.startsWith(tableName)) {
+                    // remove all records whose key begins with the table name; this will remove index records also
+                    if (logger.isDebugEnabled())logger.debug("Removing cached NdbRecord for " + key);
+                    NdbRecordImpl record = entry.getValue();
+                    iterator.remove();
+                    if (record != null) {
+                        record.releaseNdbRecord();
+                    }
+                }
+            }
+            if (logger.isDebugEnabled())logger.debug("Removing dictionary entry for cached table " + tableName);
+            dictionaryForNdbRecord.removeCachedTable(tableName);
         }
-        if (logger.isDebugEnabled())logger.debug("Removing dictionary entry for cached table " + tableName);
-        dictionaryForNdbRecord.removeCachedTable(tableName);
     }
 
     public ValueHandlerFactory getSmartValueHandlerFactory() {
