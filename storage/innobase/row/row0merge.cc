@@ -2462,6 +2462,7 @@ row_merge_drop_indexes_dict(
 		"    DELETE FROM SYS_INDEXES WHERE CURRENT OF index_cur;\n"
 		"  END IF;\n"
 		"END LOOP;\n"
+		"CLOSE index_cur;\n"
 
 		"END;\n";
 	db_err		error;
@@ -2662,6 +2663,7 @@ row_merge_drop_temp_indexes(void)
 		"    DELETE FROM SYS_INDEXES WHERE CURRENT OF index_cur;\n"
 		"  END IF;\n"
 		"END LOOP;\n"
+		"CLOSE index_cur;\n"
 		"END;\n";
 	trx_t*	trx;
 	db_err	error;
