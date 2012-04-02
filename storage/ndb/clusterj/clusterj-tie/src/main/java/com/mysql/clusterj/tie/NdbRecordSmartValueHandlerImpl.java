@@ -38,12 +38,11 @@ import com.mysql.clusterj.core.metadata.InvocationHandlerImpl;
 import com.mysql.clusterj.core.spi.DomainFieldHandler;
 import com.mysql.clusterj.core.spi.DomainTypeHandler;
 import com.mysql.clusterj.core.spi.SmartValueHandler;
-import com.mysql.clusterj.core.spi.ValueHandler;
 
 import com.mysql.clusterj.core.store.ClusterTransaction;
 import com.mysql.clusterj.core.store.Db;
 import com.mysql.clusterj.core.store.Operation;
-import com.mysql.clusterj.core.store.Table;
+import com.mysql.clusterj.core.store.ResultData;
 
 import com.mysql.clusterj.core.util.I18NHelper;
 import com.mysql.clusterj.core.util.Logger;
@@ -94,19 +93,25 @@ public class NdbRecordSmartValueHandlerImpl implements SmartValueHandler {
 
     private Object proxy;
 
-    public NdbRecordSmartValueHandlerImpl(DomainTypeHandlerImpl<?> domainTypeHandler, Db db) {
+    public NdbRecordSmartValueHandlerImpl(DomainTypeHandlerImpl<?> domainTypeHandler) {
         this.domainTypeHandler = domainTypeHandler;
         this.domainFieldHandlers = domainTypeHandler.getFieldHandlers();
         fieldNumberToColumnNumberMap = domainTypeHandler.getFieldNumberToColumnNumberMap();
-
-        Table storeTable = domainTypeHandler.getStoreTable();
-        this.operation = ((DbImpl)db).newNdbRecordOperationImpl(storeTable);
-
         numberOfTransientFields = domainTypeHandler.getNumberOfTransientFields();
         transientModified = new boolean[numberOfTransientFields];
         if (numberOfTransientFields != 0) {
             transientValues = this.domainTypeHandler.newTransientValues();
         }
+    }
+
+    public NdbRecordSmartValueHandlerImpl(DomainTypeHandlerImpl<?> domainTypeHandler, Db db) {
+        this(domainTypeHandler);
+        this.operation = ((DbImpl)db).newNdbRecordOperationImpl(domainTypeHandler.getStoreTable());
+    }
+
+    public NdbRecordSmartValueHandlerImpl(DomainTypeHandlerImpl<?> domainTypeHandler, Db db, ResultData resultData) {
+        this(domainTypeHandler);
+        this.operation = ((NdbRecordResultDataImpl)resultData).transformOperation();
     }
 
     public Operation insert(ClusterTransaction clusterTransaction) {
@@ -199,8 +204,8 @@ public class NdbRecordSmartValueHandlerImpl implements SmartValueHandler {
     }
 
     public boolean[] getBooleans(int fieldNumber) {
-        // TODO Auto-generated method stub
-        return null;
+        throw new ClusterJFatalInternalException(local.message("ERR_Method_Not_Implemented",
+                "NdbRecordSmartValueHandler.getBooleans(int)"));
     }
 
     public byte getByte(int fieldNumber) {
@@ -445,8 +450,8 @@ public class NdbRecordSmartValueHandlerImpl implements SmartValueHandler {
     }
 
     public void setBooleans(int fieldNumber, boolean[] b) {
-        // TODO Auto-generated method stub
-        
+        throw new ClusterJFatalInternalException(local.message("ERR_Method_Not_Implemented",
+                "NdbRecordSmartValueHandler.setBooleans(int, boolean[])"));
     }
 
     public void setByte(int fieldNumber, byte value) {
