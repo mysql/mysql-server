@@ -795,8 +795,7 @@ bool Sql_cmd_alter_table_truncate_partition::execute(THD *thd)
   if (! error)
     my_ok(thd);
 
-  // For query cache
-  first_table->table= NULL;
+  // Invalidate query cache
   DBUG_ASSERT(!first_table->next_local);
   query_cache_invalidate3(thd, first_table, FALSE);
 
