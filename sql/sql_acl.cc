@@ -1652,6 +1652,8 @@ bool change_password(THD *thd, const char *host, const char *user,
   {
     acl_user->auth_string.str= strmake_root(&mem, new_password, new_password_len);
     acl_user->auth_string.length= new_password_len;
+    acl_user->plugin=  new_password_len == SCRAMBLED_PASSWORD_CHAR_LENGTH_323 ?
+      old_password_plugin_name : native_password_plugin_name;
     set_user_salt(acl_user, new_password, new_password_len);
   }
 
