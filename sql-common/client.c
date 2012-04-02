@@ -3673,6 +3673,8 @@ my_bool mysql_reconnect(MYSQL *mysql)
 			  mysql->db, mysql->port, mysql->unix_socket,
 			  mysql->client_flag | CLIENT_REMEMBER_OPTIONS))
   {
+    memset(&tmp_mysql.options, 0, sizeof(tmp_mysql.options));
+    mysql_close(&tmp_mysql);
     mysql->net.last_errno= tmp_mysql.net.last_errno;
     strmov(mysql->net.last_error, tmp_mysql.net.last_error);
     strmov(mysql->net.sqlstate, tmp_mysql.net.sqlstate);
@@ -4293,12 +4295,13 @@ mysql_options(MYSQL *mysql,enum mysql_option option, const void *arg)
           LEX_STRING *attr= (LEX_STRING *) elt;
           LEX_STRING *key= attr, *value= attr + 1;
 
-          my_hash_delete(&mysql->options.extension->connection_attributes,
-                         elt);
-
           mysql->options.extension->connection_attributes_length-=
             get_length_store_length(key->length) + key->length +
             get_length_store_length(value->length) + value->length;
+
+          my_hash_delete(&mysql->options.extension->connection_attributes,
+                         elt);
+
         }
       }
     }

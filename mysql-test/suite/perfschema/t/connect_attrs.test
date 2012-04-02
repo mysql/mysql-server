@@ -1,4 +1,5 @@
 # Session connect attributes test
+--source include/have_perfschema.inc
 
 # although the connection attributes transfer code works
 # with embedded P_S is not active, so the test won't run.
@@ -9,12 +10,12 @@
 let $count_sessions= 1;
 --source include/wait_until_count_sessions.inc
 
-# basic PERFORMANCE_SCHEMA.session_connect_attrs tests
+# basic performance_schema.session_connect_attrs tests
 
 # check the presense of the pre-defined attributes
 --echo # must return 0, 6
 SELECT SUM(ISNULL(ATTR_VALUE)), COUNT(*)
-  FROM PERFORMANCE_SCHEMA.session_connect_attrs
+  FROM performance_schema.session_connect_attrs
   WHERE ATTR_NAME IN ('_os', '_client_name', '_pid',
                       '_client_version', '_platform', 'program_name')
     AND PROCESS_ID = CONNECTION_ID();
@@ -22,15 +23,15 @@ SELECT SUM(ISNULL(ATTR_VALUE)), COUNT(*)
 # check the presense of the pre-defined attributes
 --echo # must return 1
 SELECT COUNT(DISTINCT PROCESS_ID)
-  FROM PERFORMANCE_SCHEMA.session_connect_attrs;
+  FROM performance_schema.session_connect_attrs;
 
 
-# basic PERFORMANCE_SCHEMA.session_account_connect_attrs tests
+# basic performance_schema.session_account_connect_attrs tests
 
 # check the presense of the pre-defined attributes
 --echo # must return 0, 6
 SELECT SUM(ISNULL(ATTR_VALUE)), COUNT(*)
-  FROM PERFORMANCE_SCHEMA.session_account_connect_attrs
+  FROM performance_schema.session_account_connect_attrs
   WHERE ATTR_NAME IN ('_os', '_client_name', '_pid',
                       '_client_version', '_platform', 'program_name')
     AND PROCESS_ID = CONNECTION_ID();
@@ -38,7 +39,7 @@ SELECT SUM(ISNULL(ATTR_VALUE)), COUNT(*)
 # check the presense of the pre-defined attributes
 --echo # must return 1
 SELECT COUNT(DISTINCT PROCESS_ID)
-  FROM PERFORMANCE_SCHEMA.session_account_connect_attrs;
+  FROM performance_schema.session_account_connect_attrs;
 
 
 
@@ -49,20 +50,20 @@ connection default;
 
 --echo # must return 1
 SELECT COUNT(DISTINCT PROCESS_ID)
-  FROM PERFORMANCE_SCHEMA.session_account_connect_attrs;
+  FROM performance_schema.session_account_connect_attrs;
 
 --echo # must return 2
 SELECT COUNT(DISTINCT PROCESS_ID)
-  FROM PERFORMANCE_SCHEMA.session_connect_attrs;
+  FROM performance_schema.session_connect_attrs;
 
 connection non_privileged_user;
 --echo # must return 1
 SELECT COUNT(DISTINCT PROCESS_ID)
-  FROM PERFORMANCE_SCHEMA.session_account_connect_attrs;
+  FROM performance_schema.session_account_connect_attrs;
 
 --error ER_TABLEACCESS_DENIED_ERROR
 SELECT COUNT(DISTINCT PROCESS_ID)
-  FROM PERFORMANCE_SCHEMA.session_connect_attrs;
+  FROM performance_schema.session_connect_attrs;
 
 connection default;
 disconnect non_privileged_user;
