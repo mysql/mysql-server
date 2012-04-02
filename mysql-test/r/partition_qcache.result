@@ -1,4 +1,5 @@
-set GLOBAL query_cache_size=1355776;
+SET @old_query_cache_size = @@global.query_cache_size;
+SET GLOBAL query_cache_size=1355776;
 CREATE TABLE t1
 (`NUM` varchar(4) NOT NULL,
 `UPDATE_TIME` datetime NOT NULL,
@@ -13,7 +14,7 @@ SELECT * FROM t1 WHERE MONTH(update_time)=3;
 NUM	UPDATE_TIME
 AAA	2010-03-11 00:00:00
 ALTER TABLE t1 TRUNCATE PARTITION p3;
-commit;
+COMMIT;
 SELECT * FROM t1 WHERE MONTH(update_time)=3;
 NUM	UPDATE_TIME
 SELECT SQL_NO_CACHE * FROM t1 WHERE MONTH(update_time)=3;
@@ -22,4 +23,4 @@ ALTER TABLE t1 DROP PARTITION p3;
 SELECT * FROM t1 WHERE MONTH(update_time)=3;
 NUM	UPDATE_TIME
 DROP TABLE t1;
-SET GLOBAL query_cache_size= 0;
+SET @@global.query_cache_size = @old_query_cache_size;
