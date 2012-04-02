@@ -39,8 +39,7 @@
 */
 static int check_event_type(int type, Relay_log_info *rli)
 {
-  Format_description_log_event *fd_event=
-    rli->relay_log.description_event_for_exec;
+  Format_description_log_event *fd_event= rli->get_rli_description_event();
 
   /*
     Convert event type id of certain old versions (see comment in
@@ -66,12 +65,7 @@ static int check_event_type(int type, Relay_log_info *rli)
       if we don't already have one.
     */
     if (!fd_event)
-      if (!(rli->relay_log.description_event_for_exec=
-            new Format_description_log_event(4)))
-      {
-        my_error(ER_OUTOFMEMORY, MYF(0), 1);
-        return 1;
-      }
+      rli->set_rli_description_event(new Format_description_log_event(4));
 
     /* It is always allowed to execute FD events. */
     return 0;
@@ -120,7 +114,7 @@ static int check_event_type(int type, Relay_log_info *rli)
   BINLOG statement seen must be a base64 encoding of the
   Format_description_log_event, as outputted by mysqlbinlog.  This
   Format_description_log_event is cached in
-  rli->description_event_for_exec.
+  rli->rli_description_event.
 
   @param thd Pointer to THD object for the client thread executing the
   statement.
@@ -256,7 +250,7 @@ void mysql_client_binlog_statement(THD* thd)
         goto end;
 
       ev= Log_event::read_log_event(bufptr, event_len, &error,
-                                    rli->relay_log.description_event_for_exec,
+                                    rli->get_rli_description_event(),
                                     0);
 
       DBUG_PRINT("info",("binlog base64 err=%s", error));

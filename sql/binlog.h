@@ -155,8 +155,7 @@ public:
     the case of a master which has been upgraded from 5.0 to 5.1 without doing
     RESET MASTER, or from 4.x to 5.0).
   */
-  Format_description_log_event *description_event_for_exec,
-    *description_event_for_queue;
+  Format_description_log_event *description_event_for_queue;
 
   MYSQL_BIN_LOG(uint *sync_period);
   /*
