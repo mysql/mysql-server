@@ -283,13 +283,14 @@ void Master_info::set_relay_log_info(Relay_log_info* info)
   rli= info;
 }
 
-int Master_info::init_info()
+
+/**
+  Creates or reads information from the repository, initializing the
+  Master_info.
+*/
+int Master_info::mi_init_info()
 {
-  /*
-    The init_info() is used to either create or read information
-    from the repository, in order to initialize the Master_info.
-  */
-  DBUG_ENTER("Master_info::init_info");
+  DBUG_ENTER("Master_info::mi_init_info");
   enum_return_check check_return= ERROR_CHECKING_REPOSITORY;
 
   if (inited)

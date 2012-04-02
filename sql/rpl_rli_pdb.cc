@@ -119,7 +119,7 @@ int Slave_worker::init_worker(Relay_log_info * rli, ulong i)
   Slave_job_item empty= {NULL};
 
   c_rli= rli;
-  if (init_info() || 
+  if (rli_init_info() ||
       DBUG_EVALUATE_IF("inject_init_worker_init_info_fault", true, false))
     DBUG_RETURN(1);
 
@@ -153,11 +153,11 @@ int Slave_worker::init_worker(Relay_log_info * rli, ulong i)
   DBUG_RETURN(0);
 }
 
-int Slave_worker::init_info()
+int Slave_worker::rli_init_info()
 {
   enum_return_check return_check= ERROR_CHECKING_REPOSITORY;
 
-  DBUG_ENTER("Slave_worker::init_info");
+  DBUG_ENTER("Slave_worker::rli_init_info");
 
   if (inited)
     DBUG_RETURN(0);
