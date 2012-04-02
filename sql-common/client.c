@@ -2992,7 +2992,7 @@ set_connect_attributes(MYSQL *mysql, char *buff, size_t buf_len)
   rc+= mysql_options4(mysql, MYSQL_OPT_CONNECT_ATTR_ADD,
                       "_platform", MACHINE_TYPE);
 #ifdef __WIN__
-  snprintf(buff, buf_len, "%lu", (ulong) GetCurrentProcessId(void));
+  snprintf(buff, buf_len, "%lu", (ulong) GetCurrentProcessId());
 #else
   snprintf(buff, buf_len, "%lu", (ulong) getpid());
 #endif
@@ -3002,7 +3002,7 @@ set_connect_attributes(MYSQL *mysql, char *buff, size_t buf_len)
   rc+= mysql_options4(mysql, MYSQL_OPT_CONNECT_ATTR_ADD,
                       "_command_line", GetCommandLine());
 
-  snprintf(buff, buf_len, "%lu", (ulong) GetCurrentThreadId(void));
+  snprintf(buff, buf_len, "%lu", (ulong) GetCurrentThreadId());
   rc+= mysql_options4(mysql, MYSQL_OPT_CONNECT_ATTR_ADD, "_thread", buff);
 #endif
 
