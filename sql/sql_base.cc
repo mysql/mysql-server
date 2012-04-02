@@ -5711,6 +5711,8 @@ bool lock_tables(THD *thd, TABLE_LIST *tables, uint count,
         if (!query_table->placeholder() &&
             query_table->lock_type >= TL_WRITE_ALLOW_WRITE &&
             unique_keys > 1 && thd->lex->sql_command == SQLCOM_INSERT &&
+            /* Duplicate key update is not supported by INSERT DELAYED */
+            thd->command != COM_DELAYED_INSERT &&
             thd->lex->duplicates == DUP_UPDATE)
           thd->lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_INSERT_TWO_KEYS);
       }
