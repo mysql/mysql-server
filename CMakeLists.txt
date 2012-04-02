@@ -320,6 +320,9 @@ MYSQL_CHECK_LIBEVENT()
 # not run with the warning options as to not perturb fragile checks
 # (i.e. do not make warnings into errors).
 #
+# Why doesn't these flags affect the entire build?
+# Because things may already have been included with ADD_SUBDIRECTORY
+#
 IF(MYSQL_MAINTAINER_MODE)
   # Set compiler flags required under maintainer mode.
   MESSAGE(STATUS "C warning options: ${MY_MAINTAINER_C_WARNINGS}")
