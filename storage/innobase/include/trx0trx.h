@@ -700,9 +700,7 @@ struct trx_struct{
 					locks and state. Protected by
 					trx->mutex or lock_sys->mutex
 					or both */
-	bool		is_recovery;	/*!< true if it is a data dictionary
-					recovery transaction. */
-	ibool		is_recovered;	/*!< 0=normal transaction,
+	ulint		is_recovered;	/*!< 0=normal transaction,
 					1=recovered, must be rolled back,
 					protected by trx_sys->mutex when
 					trx->in_rw_trx_list holds */

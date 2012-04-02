@@ -2091,11 +2091,9 @@ lock_rec_lock_fast(
 	enum lock_rec_req_status status = LOCK_REC_SUCCESS;
 
 	ut_ad(lock_mutex_own());
-	ut_ad((thr_get_trx(thr)->is_recovery
-	       || LOCK_MODE_MASK & mode) != LOCK_S
+	ut_ad((LOCK_MODE_MASK & mode) != LOCK_S
 	      || lock_table_has(thr_get_trx(thr), index->table, LOCK_IS));
-	ut_ad(thr_get_trx(thr)->is_recovery
-	      || (LOCK_MODE_MASK & mode) != LOCK_X
+	ut_ad((LOCK_MODE_MASK & mode) != LOCK_X
 	      || lock_table_has(thr_get_trx(thr), index->table, LOCK_IX));
 	ut_ad((LOCK_MODE_MASK & mode) == LOCK_S
 	      || (LOCK_MODE_MASK & mode) == LOCK_X);
@@ -2169,11 +2167,9 @@ lock_rec_lock_slow(
 	enum db_err		err = DB_SUCCESS;
 
 	ut_ad(lock_mutex_own());
-	ut_ad(thr_get_trx(thr)->is_recovery
-	      || (LOCK_MODE_MASK & mode) != LOCK_S
+	ut_ad((LOCK_MODE_MASK & mode) != LOCK_S
 	      || lock_table_has(thr_get_trx(thr), index->table, LOCK_IS));
-	ut_ad(thr_get_trx(thr)->is_recovery
-	      || (LOCK_MODE_MASK & mode) != LOCK_X
+	ut_ad((LOCK_MODE_MASK & mode) != LOCK_X
 	      || lock_table_has(thr_get_trx(thr), index->table, LOCK_IX));
 	ut_ad((LOCK_MODE_MASK & mode) == LOCK_S
 	      || (LOCK_MODE_MASK & mode) == LOCK_X);
@@ -2243,11 +2239,9 @@ lock_rec_lock(
 	que_thr_t*		thr)	/*!< in: query thread */
 {
 	ut_ad(lock_mutex_own());
-	ut_ad(thr_get_trx(thr)->is_recovery
-	      || (LOCK_MODE_MASK & mode) != LOCK_S
+	ut_ad((LOCK_MODE_MASK & mode) != LOCK_S
 	      || lock_table_has(thr_get_trx(thr), index->table, LOCK_IS));
-	ut_ad(thr_get_trx(thr)->is_recovery
-	      || (LOCK_MODE_MASK & mode) != LOCK_X
+	ut_ad((LOCK_MODE_MASK & mode) != LOCK_X
 	      || lock_table_has(thr_get_trx(thr), index->table, LOCK_IX));
 	ut_ad((LOCK_MODE_MASK & mode) == LOCK_S
 	      || (LOCK_MODE_MASK & mode) == LOCK_X);
@@ -2255,11 +2249,6 @@ lock_rec_lock(
 	      || mode - (LOCK_MODE_MASK & mode) == LOCK_REC_NOT_GAP
 	      || mode - (LOCK_MODE_MASK & mode) == 0);
 	ut_ad(!dict_index_is_online_ddl(index));
-
-	/* Don't acquire any locks for transactions doing DD recovery. */
-	if (thr_get_trx(thr)->is_recovery) {
-		return(DB_SUCCESS);
-	}
 
 	/* We try a simplified and faster subroutine for the most
 	common cases */
@@ -4364,21 +4353,20 @@ lock_table(
 	ut_ad(table && thr);
 
 	if (flags & BTR_NO_LOCKING_FLAG) {
+
 		return(DB_SUCCESS);
 	}
 
 	ut_a(flags == 0);
+
+	trx = thr_get_trx(thr);
 
 	/* Look for equal or stronger locks the same trx already
 	has on the table. No need to acquire the lock mutex here
 	because only this transacton can add/access table locks
 	to/from trx_t::table_locks. */
 
-	trx = thr_get_trx(thr);
-
-	/* Don't acquire any locks for transactions doing DD recovery. */
-	if (thr_get_trx(thr)->is_recovery
-	    || lock_table_has(trx, table, mode)) {
+	if (lock_table_has(trx, table, mode)) {
 
 		return(DB_SUCCESS);
 	}
@@ -5832,8 +5820,7 @@ lock_rec_insert_check_and_lock(
 	/* When inserting a record into an index, the table must be at
 	least IX-locked. When we are building an index, we would pass
 	BTR_NO_LOCKING_FLAG and skip the locking altogether. */
-	ut_ad(thr_get_trx(thr)->is_recovery
-	      || lock_table_has(trx, index->table, LOCK_IX));
+	ut_ad(lock_table_has(trx, index->table, LOCK_IX));
 
 	lock = lock_rec_get_first(block, next_rec_heap_no);
 
@@ -6025,8 +6012,7 @@ lock_clust_rec_modify_check_and_lock(
 
 	lock_mutex_enter();
 
-	ut_ad(thr_get_trx(thr)->is_recovery
-	      || lock_table_has(thr_get_trx(thr), index->table, LOCK_IX));
+	ut_ad(lock_table_has(thr_get_trx(thr), index->table, LOCK_IX));
 
 	err = lock_rec_lock(TRUE, LOCK_X | LOCK_REC_NOT_GAP,
 			    block, heap_no, index, thr);
@@ -6086,8 +6072,7 @@ lock_sec_rec_modify_check_and_lock(
 
 	lock_mutex_enter();
 
-	ut_ad(thr_get_trx(thr)->is_recovery
-	      || lock_table_has(thr_get_trx(thr), index->table, LOCK_IX));
+	ut_ad(lock_table_has(thr_get_trx(thr), index->table, LOCK_IX));
 
 	err = lock_rec_lock(TRUE, LOCK_X | LOCK_REC_NOT_GAP,
 			    block, heap_no, index, thr);
@@ -6186,11 +6171,9 @@ lock_sec_rec_read_check_and_lock(
 
 	lock_mutex_enter();
 
-	ut_ad(thr_get_trx(thr)->is_recovery
-	      || mode != LOCK_X
+	ut_ad(mode != LOCK_X
 	      || lock_table_has(thr_get_trx(thr), index->table, LOCK_IX));
-	ut_ad(thr_get_trx(thr)->is_recovery
-	      || mode != LOCK_S
+	ut_ad(mode != LOCK_S
 	      || lock_table_has(thr_get_trx(thr), index->table, LOCK_IS));
 
 	err = lock_rec_lock(FALSE, mode | gap_mode,
@@ -6261,11 +6244,9 @@ lock_clust_rec_read_check_and_lock(
 
 	lock_mutex_enter();
 
-	ut_ad(thr_get_trx(thr)->is_recovery
-	      || mode != LOCK_X
+	ut_ad(mode != LOCK_X
 	      || lock_table_has(thr_get_trx(thr), index->table, LOCK_IX));
-	ut_ad(thr_get_trx(thr)->is_recovery
-	      || mode != LOCK_S
+	ut_ad(mode != LOCK_S
 	      || lock_table_has(thr_get_trx(thr), index->table, LOCK_IS));
 
 	err = lock_rec_lock(FALSE, mode | gap_mode, block, heap_no, index, thr);
@@ -6278,7 +6259,6 @@ lock_clust_rec_read_check_and_lock(
 
 	return(err);
 }
-
 /*********************************************************************//**
 Checks if locks of other transactions prevent an immediate read, or passing
 over by a read cursor, of a clustered index record. If they do, first tests
