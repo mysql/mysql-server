@@ -5294,10 +5294,10 @@ bool mysql_show_grants(THD *thd,LEX_USER *lex_user)
 
   Item_string *field=new Item_string("",0,&my_charset_latin1);
   List<Item> field_list;
-  field->name=buff;
   field->max_length=1024;
   strxmov(buff,"Grants for ",lex_user->user.str,"@",
 	  lex_user->host.str,NullS);
+  field->item_name.set(buff);
   field_list.push_back(field);
   if (protocol->send_result_set_metadata(&field_list,
                             Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
