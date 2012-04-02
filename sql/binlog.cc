@@ -2280,7 +2280,6 @@ end:
 */
 
 bool MYSQL_BIN_LOG::open_binlog(const char *log_name,
-                                enum_log_type log_type_arg,
                                 const char *new_name,
                                 enum cache_type io_cache_type_arg,
                                 ulong max_size_arg,
@@ -2293,12 +2292,10 @@ bool MYSQL_BIN_LOG::open_binlog(const char *log_name,
 
   // lock_index must be acquired *before* sid_lock.
   DBUG_ASSERT(need_sid_lock || !need_lock_index);
-  // @todo log_type_arg is redundant, always LOG_BIN and should be removed /sven
-  DBUG_ASSERT(log_type_arg == LOG_BIN);
-  DBUG_ENTER("MYSQL_BIN_LOG::open_binlog(const char *, enum_log_type, ...)");
-  DBUG_PRINT("enter",("log_type: %d name: %s",(int) log_type_arg, log_name));
+  DBUG_ENTER("MYSQL_BIN_LOG::open_binlog(const char *, ...)");
+  DBUG_PRINT("enter",("name: %s", log_name));
 
-  if (init_and_set_log_file_name(log_name, new_name, log_type_arg,
+  if (init_and_set_log_file_name(log_name, new_name, LOG_BIN,
                                  io_cache_type_arg))
   {
     sql_print_error("MYSQL_BIN_LOG::open failed to generate new file name.");
@@ -2341,7 +2338,7 @@ bool MYSQL_BIN_LOG::open_binlog(const char *log_name,
 #ifdef HAVE_PSI_INTERFACE
                       m_key_file_log,
 #endif
-                      log_name, log_type_arg, new_name, io_cache_type_arg))
+                      log_name, LOG_BIN, new_name, io_cache_type_arg))
   {
 #ifdef HAVE_REPLICATION
     close_purge_index_file();
@@ -3007,7 +3004,7 @@ bool MYSQL_BIN_LOG::reset_logs(THD* thd)
 #endif
 
   if (!open_index_file(index_file_name, 0, FALSE))
-    if ((error= open_binlog(save_name, log_type, 0, io_cache_type,
+    if ((error= open_binlog(save_name, 0, io_cache_type,
                             max_size, 0,
                             false/*need mutex*/, false/*need sid_lock*/,
                             NULL)))
@@ -3983,7 +3980,7 @@ int MYSQL_BIN_LOG::new_file_impl(bool need_lock_log, Format_description_log_even
   {
     /* reopen the binary log file. */
     file_to_open= new_name_ptr;
-    error= open_binlog(old_name, log_type, new_name_ptr, io_cache_type,
+    error= open_binlog(old_name, new_name_ptr, io_cache_type,
                        max_size, 1,
                        false/*need_lock_index=false*/,
                        true/*need_sid_lock=true*/,
@@ -5224,7 +5221,7 @@ int MYSQL_BIN_LOG::open_binlog(const char *opt_name)
   if (using_heuristic_recover())
   {
     /* generate a new binlog to mask a corrupted one */
-    open_binlog(opt_name, LOG_BIN, 0, WRITE_CACHE, max_binlog_size, 0,
+    open_binlog(opt_name, 0, WRITE_CACHE, max_binlog_size, 0,
                 true/*need mutex*/, true/*need sid_lock*/, NULL);
     cleanup();
     return 1;
