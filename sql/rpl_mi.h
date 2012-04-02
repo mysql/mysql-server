@@ -325,6 +325,37 @@ public:
   }
 
 private:
+  /**
+    Format_description_log_event for events received from the master
+    by the IO thread and written to the tail of the relay log.
+
+    Use patterns:
+     - Created when the IO thread starts and destroyed when the IO
+       thread stops.
+     - Updated when the IO thread receives a
+       Format_description_log_event.
+     - Accessed by the IO thread when it de-serializes events (e.g.,
+       rotate events, Gtid events).
+     - Written by the IO thread to the new relay log on every rotation.
+     - Written by a client that executes FLUSH LOGS to the new relay
+       log on every rotation.
+
+    Locks:
+    All access is protected by Master_info::data_lock.
+  */
+  Format_description_log_event *mi_description_event;
+public:
+  Format_description_log_event *get_mi_description_event()
+  {
+    return mi_description_event;
+  }
+  void set_mi_description_event(Format_description_log_event *fdle)
+  {
+    delete mi_description_event;
+    mi_description_event= fdle;
+  }
+
+private:
   void init_master_log_pos();
 
   bool read_info(Rpl_info_handler *from);

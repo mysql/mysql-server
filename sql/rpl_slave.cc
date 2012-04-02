@@ -1605,11 +1605,10 @@ static int get_master_version_and_clock(MYSQL* mysql, Master_info* mi)
   DBUG_ENTER("get_master_version_and_clock");
 
   /*
-    Free old description_event_for_queue (that is needed if we are in
+    Free old mi_description_event (that is needed if we are in
     a reconnection).
   */
-  delete mi->rli->relay_log.description_event_for_queue;
-  mi->rli->relay_log.description_event_for_queue= 0;
+  mi->set_mi_description_event(NULL);
 
   if (!my_isdigit(&my_charset_bin,*mysql->server_version))
   {
@@ -1632,12 +1631,12 @@ static int get_master_version_and_clock(MYSQL* mysql, Master_info* mi)
       sprintf(err_buff, ER(err_code), errmsg);
       break;
     case '3':
-      mi->rli->relay_log.description_event_for_queue= new
-        Format_description_log_event(1, mysql->server_version);
+      mi->set_mi_description_event(new
+        Format_description_log_event(1, mysql->server_version));
       break;
     case '4':
-      mi->rli->relay_log.description_event_for_queue= new
-        Format_description_log_event(3, mysql->server_version);
+      mi->set_mi_description_event(new
+        Format_description_log_event(3, mysql->server_version));
       break;
     default:
       /*
@@ -1648,8 +1647,8 @@ static int get_master_version_and_clock(MYSQL* mysql, Master_info* mi)
         (it has the format of the *slave*); it's only good to help know if the
         master is 3.23, 4.0, etc.
       */
-      mi->rli->relay_log.description_event_for_queue= new
-        Format_description_log_event(4, mysql->server_version);
+      mi->set_mi_description_event(new
+        Format_description_log_event(4, mysql->server_version));
       break;
     }
   }
@@ -1665,7 +1664,7 @@ static int get_master_version_and_clock(MYSQL* mysql, Master_info* mi)
     goto err;
 
   /* as we are here, we tried to allocate the event */
-  if (!mi->rli->relay_log.description_event_for_queue)
+  if (mi->get_mi_description_event() == NULL)
   {
     errmsg= "default Format_description_log_event";
     err_code= ER_SLAVE_CREATE_EVENT_FAILURE;
@@ -1708,10 +1707,10 @@ static int get_master_version_and_clock(MYSQL* mysql, Master_info* mi)
 
     until it has received a new FD_m.
   */
-  mi->rli->relay_log.description_event_for_queue->checksum_alg=
+  mi->get_mi_description_event()->checksum_alg=
     mi->rli->relay_log.relay_log_checksum_alg;
 
-  DBUG_ASSERT(mi->rli->relay_log.description_event_for_queue->checksum_alg !=
+  DBUG_ASSERT(mi->get_mi_description_event()->checksum_alg !=
               BINLOG_CHECKSUM_ALG_UNDEF);
   DBUG_ASSERT(mi->rli->relay_log.relay_log_checksum_alg !=
               BINLOG_CHECKSUM_ALG_UNDEF); 
@@ -2271,9 +2270,8 @@ static int write_ignored_events_info_to_relay_log(THD *thd, Master_info *mi)
     Rotate_log_event *ev= new Rotate_log_event(rli->ign_master_log_name_end,
                                                0, rli->ign_master_log_pos_end,
                                                Rotate_log_event::DUP_NAME);
-    if (rli->relay_log.description_event_for_queue)
-      ev->checksum_alg=
-        rli->relay_log.description_event_for_queue->checksum_alg;
+    if (mi->get_mi_description_event() != NULL)
+      ev->checksum_alg= mi->get_mi_description_event()->checksum_alg;
     
     rli->ign_master_log_name_end[0]= 0;
     /* can unlock before writing as slave SQL thd will soon see our Rotate */
@@ -3917,7 +3915,7 @@ connected:
     goto connected;
   } 
 
-  if (mi->rli->relay_log.description_event_for_queue->binlog_version > 1)
+  if (mi->get_mi_description_event()->binlog_version > 1)
   {
     /*
       Register ourselves with the master.
@@ -4145,8 +4143,7 @@ err:
   */
   mi->reset_start_info();
   /* Forget the relay log's format */
-  delete mi->rli->relay_log.description_event_for_queue;
-  mi->rli->relay_log.description_event_for_queue= 0;
+  mi->set_mi_description_event(NULL);
   DBUG_ASSERT(thd->net.buff != 0);
   net_end(&thd->net); // destructor will not free it, because net.vio is 0
   mysql_mutex_lock(&LOCK_thread_count);
@@ -5588,23 +5585,21 @@ static int process_io_rotate(Master_info *mi, Rotate_log_event *rev)
 #endif
 
   /*
-    If description_event_for_queue is format <4, there is conversion in the
+    If mi_description_event is format <4, there is conversion in the
     relay log to the slave's format (4). And Rotate can mean upgrade or
     nothing. If upgrade, it's to 5.0 or newer, so we will get a Format_desc, so
-    no need to reset description_event_for_queue now. And if it's nothing (same
+    no need to reset mi_description_event now. And if it's nothing (same
     master version as before), no need (still using the slave's format).
   */
-  if (mi->rli->relay_log.description_event_for_queue->binlog_version >= 4)
+  Format_description_log_event *old_fdle= mi->get_mi_description_event();
+  if (old_fdle->binlog_version >= 4)
   {
-    DBUG_ASSERT(mi->rli->relay_log.description_event_for_queue->checksum_alg ==
+    DBUG_ASSERT(old_fdle->checksum_alg ==
                 mi->rli->relay_log.relay_log_checksum_alg);
-    
-    delete mi->rli->relay_log.description_event_for_queue;
-    /* start from format 3 (MySQL 4.0) again */
-    mi->rli->relay_log.description_event_for_queue= new
+    Format_description_log_event *new_fdle= new
       Format_description_log_event(3);
-    mi->rli->relay_log.description_event_for_queue->checksum_alg=
-      mi->rli->relay_log.relay_log_checksum_alg;    
+    new_fdle->checksum_alg= mi->rli->relay_log.relay_log_checksum_alg;
+    mi->set_mi_description_event(new_fdle);
   }
   /*
     Rotate the relay log makes binlog format detection easier (at next slave
@@ -5659,7 +5654,7 @@ static int queue_binlog_ver_1_event(Master_info *mi, const char *buf,
   */
   Log_event *ev=
     Log_event::read_log_event(buf, event_len, &errmsg,
-                              mi->rli->relay_log.description_event_for_queue, 0);
+                              mi->get_mi_description_event(), 0);
   if (unlikely(!ev))
   {
     sql_print_error("Read invalid event from master: '%s',\
@@ -5748,7 +5743,7 @@ static int queue_binlog_ver_3_event(Master_info *mi, const char *buf,
   /* read_log_event() will adjust log_pos to be end_log_pos */
   Log_event *ev=
     Log_event::read_log_event(buf, event_len, &errmsg,
-                              mi->rli->relay_log.description_event_for_queue, 0);
+                              mi->get_mi_description_event(), 0);
   if (unlikely(!ev))
   {
     sql_print_error("Read invalid event from master: '%s',\
@@ -5807,7 +5802,7 @@ static int queue_old_event(Master_info *mi, const char *buf,
 {
   DBUG_ENTER("queue_old_event");
 
-  switch (mi->rli->relay_log.description_event_for_queue->binlog_version)
+  switch (mi->get_mi_description_event()->binlog_version)
   {
   case 1:
       DBUG_RETURN(queue_binlog_ver_1_event(mi,buf,event_len));
@@ -5815,7 +5810,7 @@ static int queue_old_event(Master_info *mi, const char *buf,
       DBUG_RETURN(queue_binlog_ver_3_event(mi,buf,event_len));
   default: /* unsupported format; eg version 2 */
     DBUG_PRINT("info",("unsupported binlog format %d in queue_old_event()",
-                       mi->rli->relay_log.description_event_for_queue->binlog_version));
+                       mi->get_mi_description_event()->binlog_version));
     DBUG_RETURN(1);
   }
 }
@@ -5871,7 +5866,7 @@ static int queue_event(Master_info* mi,const char* buf, ulong event_len)
   {
     // checksum behaviour is similar to the pre-checksum FD handling
     mi->checksum_alg_before_fd= BINLOG_CHECKSUM_ALG_UNDEF;
-    mi->rli->relay_log.description_event_for_queue->checksum_alg=
+    mi->get_mi_description_event()->checksum_alg=
       mi->rli->relay_log.relay_log_checksum_alg= checksum_alg=
       BINLOG_CHECKSUM_ALG_OFF;
   }
@@ -5905,7 +5900,7 @@ static int queue_event(Master_info* mi,const char* buf, ulong event_len)
 
   LINT_INIT(inc_pos);
 
-  if (mi->rli->relay_log.description_event_for_queue->binlog_version<4 &&
+  if (mi->get_mi_description_event()->binlog_version < 4 &&
       event_type != FORMAT_DESCRIPTION_EVENT /* a way to escape */)
     DBUG_RETURN(queue_old_event(mi,buf,event_len));
 
@@ -5931,7 +5926,7 @@ static int queue_event(Master_info* mi,const char* buf, ulong event_len)
   {
     Rotate_log_event rev(buf, checksum_alg != BINLOG_CHECKSUM_ALG_OFF ?
                          event_len - BINLOG_CHECKSUM_LEN : event_len,
-                         mi->rli->relay_log.description_event_for_queue);
+                         mi->get_mi_description_event());
 
     if (unlikely(process_io_rotate(mi, &rev)))
     {
@@ -5963,7 +5958,7 @@ static int queue_event(Master_info* mi,const char* buf, ulong event_len)
                            event_len - BINLOG_CHECKSUM_LEN);
       int4store(&rot_buf[event_len - BINLOG_CHECKSUM_LEN], rot_crc);
       DBUG_ASSERT(event_len == uint4korr(&rot_buf[EVENT_LEN_OFFSET]));
-      DBUG_ASSERT(mi->rli->relay_log.description_event_for_queue->checksum_alg ==
+      DBUG_ASSERT(mi->get_mi_description_event()->checksum_alg ==
                   mi->rli->relay_log.relay_log_checksum_alg);
       /* the first one */
       DBUG_ASSERT(mi->checksum_alg_before_fd != BINLOG_CHECKSUM_ALG_UNDEF);
@@ -5983,7 +5978,7 @@ static int queue_event(Master_info* mi,const char* buf, ulong event_len)
         int4store(&rot_buf[EVENT_LEN_OFFSET],
                   uint4korr(rot_buf + EVENT_LEN_OFFSET) - BINLOG_CHECKSUM_LEN);
         DBUG_ASSERT(event_len == uint4korr(&rot_buf[EVENT_LEN_OFFSET]));
-        DBUG_ASSERT(mi->rli->relay_log.description_event_for_queue->checksum_alg ==
+        DBUG_ASSERT(mi->get_mi_description_event()->checksum_alg ==
                     mi->rli->relay_log.relay_log_checksum_alg);
         /* the first one */
         DBUG_ASSERT(mi->checksum_alg_before_fd != BINLOG_CHECKSUM_ALG_UNDEF);
@@ -6004,29 +5999,28 @@ static int queue_event(Master_info* mi,const char* buf, ulong event_len)
       to write this event again).
     */
     /*
-      We are the only thread which reads/writes description_event_for_queue.
+      We are the only thread which reads/writes mi_description_event.
       The relay_log struct does not move (though some members of it can
       change), so we needn't any lock (no rli->data_lock, no log lock).
     */
-    Format_description_log_event* tmp;
     const char* errmsg;
     // mark it as undefined that is irrelevant anymore
     mi->checksum_alg_before_fd= BINLOG_CHECKSUM_ALG_UNDEF;
-    if (!(tmp= (Format_description_log_event*)
-          Log_event::read_log_event(buf, event_len, &errmsg,
-                                    mi->rli->relay_log.description_event_for_queue,
-                                    1)))
+    Format_description_log_event *new_fdle=
+      (Format_description_log_event*)
+      Log_event::read_log_event(buf, event_len, &errmsg,
+                                mi->get_mi_description_event(), 1);
+    if (new_fdle == NULL)
     {
       error= ER_SLAVE_RELAY_LOG_WRITE_FAILURE;
       goto err;
     }
-    delete mi->rli->relay_log.description_event_for_queue;
-    mi->rli->relay_log.description_event_for_queue= tmp;
-    if (tmp->checksum_alg == BINLOG_CHECKSUM_ALG_UNDEF)
-      tmp->checksum_alg= BINLOG_CHECKSUM_ALG_OFF;
+    if (new_fdle->checksum_alg == BINLOG_CHECKSUM_ALG_UNDEF)
+      new_fdle->checksum_alg= BINLOG_CHECKSUM_ALG_OFF;
+    mi->set_mi_description_event(new_fdle);
 
     /* installing new value of checksum Alg for relay log */
-    mi->rli->relay_log.relay_log_checksum_alg= tmp->checksum_alg;
+    mi->rli->relay_log.relay_log_checksum_alg= new_fdle->checksum_alg;
 
     /*
        Though this does some conversion to the slave's format, this will
@@ -6038,7 +6032,7 @@ static int queue_event(Master_info* mi,const char* buf, ulong event_len)
     */
     inc_pos= uint4korr(buf+LOG_POS_OFFSET) ? event_len : 0;
     DBUG_PRINT("info",("binlog format is now %d",
-                       mi->rli->relay_log.description_event_for_queue->binlog_version));
+                       mi->get_mi_description_event()->binlog_version));
 
   }
   break;
@@ -6053,7 +6047,7 @@ static int queue_event(Master_info* mi,const char* buf, ulong event_len)
                            mi->rli->relay_log.relay_log_checksum_alg
                            != BINLOG_CHECKSUM_ALG_OFF ?
                            event_len - BINLOG_CHECKSUM_LEN : event_len,
-                           mi->rli->relay_log.description_event_for_queue);
+                           mi->get_mi_description_event());
     if (!hb.is_valid())
     {
       error= ER_SLAVE_HEARTBEAT_FAILURE;
@@ -6141,7 +6135,7 @@ static int queue_event(Master_info* mi,const char* buf, ulong event_len)
     global_sid_lock.rdlock();
     Gtid_log_event gtid_ev(buf, checksum_alg != BINLOG_CHECKSUM_ALG_OFF ?
                            event_len - BINLOG_CHECKSUM_LEN : event_len,
-                           rli->relay_log.description_event_for_queue);
+                           mi->get_mi_description_event());
     gtid.sidno= gtid_ev.get_sidno(false);
     global_sid_lock.unlock();
     if (gtid.sidno < 0)
@@ -7205,7 +7199,7 @@ int rotate_relay_log(Master_info* mi)
   }
 
   /* If the relay log is closed, new_file() will do nothing. */
-  if ((error= rli->relay_log.new_file()))
+  if ((error= rli->relay_log.new_file(mi->get_mi_description_event())))
     goto end;
 
   /*
