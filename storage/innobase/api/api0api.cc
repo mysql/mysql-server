@@ -24,6 +24,8 @@ InnoDB Native API
 3/20/2011 Jimmy Yang extracted from Embedded InnoDB
 *******************************************************/
 
+#include "univ.i"
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -32,7 +34,6 @@ InnoDB Native API
 #include <unistd.h>
 #endif
 
-#include "univ.i"
 #include "api0api.h"
 #include "api0misc.h"
 #include "srv0start.h"
