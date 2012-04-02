@@ -89,10 +89,23 @@ static int daemon_memcached_plugin_deinit(void *p)
 {
 	struct st_plugin_int*		plugin = (struct st_plugin_int *)p;
 	struct mysql_memcached_context*	con = NULL;
+	int				loop_count = 0;
 
-	shutdown_server();
 
-	sleep(2);
+	if (!shutdown_complete()) {
+		shutdown_server();
+	}
+
+	while (!shutdown_complete() && loop_count < 25) {
+		sleep(2);
+		loop_count++;
+	}
+
+	if(!shutdown_complete()) {
+		fprintf(stderr," InnoDB_Memcached: Waited for 50 seconds"
+			" for memcached thread to exit. Now force terminating"
+			" the thread\n");
+	}
 
 	con = (struct mysql_memcached_context*) (plugin->data);
 
