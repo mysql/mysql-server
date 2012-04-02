@@ -1215,7 +1215,7 @@ tty_stty(EditLine *el, int argc __attribute__((__unused__)), const Char **argv)
 		default:
 			(void) fprintf(el->el_errfile,
 			    "%s: Unknown switch `%c'.\n",
-			    name, argv[0][1]);
+                                       name, (int) argv[0][1]);
 			return -1;
 		}
 

@@ -1685,9 +1685,22 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 }
 
 
-void log_slow_statement(THD *thd)
+/**
+  Check whether we need to write the current statement (or its rewritten
+  version if it exists) to the slow query log.
+  As a side-effect, a digest of suppressed statements may be written.
+
+  @param thd          thread handle
+
+  @retval
+    true              statement needs to be logged
+  @retval
+    false             statement does not need to be logged
+*/
+
+bool log_slow_applicable(THD *thd)
 {
-  DBUG_ENTER("log_slow_statement");
+  DBUG_ENTER("log_slow_applicable");
 
   /*
     The following should never be true with our current code base,
@@ -1695,7 +1708,7 @@ void log_slow_statement(THD *thd)
     statement in a trigger or stored function
   */
   if (unlikely(thd->in_sub_stmt))
-    DBUG_VOID_RETURN;                           // Don't set time for sub stmt
+    DBUG_RETURN(false);                         // Don't set time for sub stmt
 
   /*
     Do not log administrative statements unless the appropriate option is
@@ -1716,18 +1729,57 @@ void log_slow_statement(THD *thd)
     bool suppress_logging= log_throttle_qni.log(thd, warn_no_index);
 
     if (!suppress_logging && log_this_query)
-    {
-      THD_STAGE_INFO(thd, stage_logging_slow_query);
-      thd->status_var.long_query_count++;
-
-      if (thd->rewritten_query.length())
-        slow_log_print(thd,
-                       thd->rewritten_query.c_ptr_safe(),
-                       thd->rewritten_query.length());
-      else
-        slow_log_print(thd, thd->query(), thd->query_length());
-    }
+      DBUG_RETURN(true);
   }
+  DBUG_RETURN(false);
+}
+
+
+/**
+  Unconditionally the current statement (or its rewritten version if it
+  exists) to the slow query log.
+
+  @param thd              thread handle
+*/
+
+void log_slow_do(THD *thd)
+{
+  DBUG_ENTER("log_slow_do");
+
+  THD_STAGE_INFO(thd, stage_logging_slow_query);
+  thd->status_var.long_query_count++;
+
+  if (thd->rewritten_query.length())
+    slow_log_print(thd,
+                   thd->rewritten_query.c_ptr_safe(),
+                   thd->rewritten_query.length());
+  else
+    slow_log_print(thd, thd->query(), thd->query_length());
+
+  DBUG_VOID_RETURN;
+}
+
+
+/**
+  Check whether we need to write the current statement to the slow query
+  log. If so, do so. This is a wrapper for the two functions above;
+  most callers should use this wrapper.  Only use the above functions
+  directly if you have expensive rewriting that you only need to do if
+  the query actually needs to be logged (e.g. SP variables / NAME_CONST
+  substitution when executing a PROCEDURE).
+  A digest of suppressed statements may be logged instead of the current
+  statement.
+
+  @param thd              thread handle
+*/
+
+void log_slow_statement(THD *thd)
+{
+  DBUG_ENTER("log_slow_statement");
+
+  if (log_slow_applicable(thd))
+    log_slow_do(thd);
+
   DBUG_VOID_RETURN;
 }
 
