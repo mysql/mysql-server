@@ -2040,6 +2040,9 @@ row_import_for_mysql(
 
 	trx = trx_allocate_for_mysql();
 
+	/* So that the table is not DROPped during recovery. */
+	trx_set_dict_operation(trx, TRX_DICT_OP_INDEX);
+
 	++trx->will_lock;
 
 	/* So that we can send error messages to the user. */

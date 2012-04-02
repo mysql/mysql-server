@@ -1182,7 +1182,6 @@ trx_commit(
 	trx->will_lock = 0;
 	trx->read_only = FALSE;
 	trx->auto_commit = FALSE;
-	trx->is_recovery = false;
 
         if (trx->fts_trx) {
                 trx_finalize_for_fts(trx, doing_fts_commit);
@@ -1192,6 +1191,7 @@ trx_commit(
 	ut_ad(UT_LIST_GET_LEN(trx->lock.trx_locks) == 0);
 	ut_ad(!trx->in_ro_trx_list);
 	ut_ad(!trx->in_rw_trx_list);
+
 	trx->error_state = DB_SUCCESS;
 
 	/* trx->in_mysql_trx_list would hold between
