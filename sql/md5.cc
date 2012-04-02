@@ -27,6 +27,7 @@
 
 #ifdef HAVE_YASSL
 
+#include "my_config.h"
 #include "md5.hpp"
 
 /**
