@@ -1342,6 +1342,8 @@ struct TABLE_LIST
   /* If this is a non-jtbm semi-join nest: corresponding subselect predicate */
   Item_in_subselect  *sj_subq_pred;
 
+  table_map     original_subq_pred_used_tables;
+
   /* If this is a jtbm semi-join object: corresponding subselect predicate */
   Item_in_subselect  *jtbm_subselect;
   /* TODO: check if this can be joined with tablenr_exec */
