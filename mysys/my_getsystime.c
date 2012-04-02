@@ -124,7 +124,7 @@ void my_time_init()
 
 ulonglong my_getcputime()
 {
-#ifdef HAVE_CLOCK_GETTIME
+#ifdef CLOCK_THREAD_CPUTIME_ID
   struct timespec tp;
   if (clock_gettime(CLOCK_THREAD_CPUTIME_ID, &tp))
     return 0;

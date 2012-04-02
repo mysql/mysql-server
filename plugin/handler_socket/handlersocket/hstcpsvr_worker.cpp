@@ -7,6 +7,7 @@
  */
 
 #include <my_config.h>
+#include <sys/types.h>
 #include <netinet/in.h>
 #include <errno.h>
 #include <poll.h>

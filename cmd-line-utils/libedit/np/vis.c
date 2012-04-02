@@ -77,7 +77,7 @@
 #include <stdlib.h>
 
 #ifdef __weak_alias
-__weak_alias(strvisx,_strvisx)
+__weak_alias(strvisx,_strvisx);
 #endif
 
 #if !HAVE_VIS || !HAVE_SVIS
