@@ -3371,8 +3371,6 @@ next_rec:
 	pars_info_add_ull_literal(info, "old_id", table->id);
 	pars_info_add_ull_literal(info, "new_id", new_id);
 
-	trx_set_dict_operation(trx, TRX_DICT_OP_INDEX);
-
 	err = que_eval_sql(info,
 			   "PROCEDURE RENUMBER_TABLESPACE_PROC () IS\n"
 			   "BEGIN\n"
