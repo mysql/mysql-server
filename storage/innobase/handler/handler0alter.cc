@@ -25,6 +25,7 @@ Smart ALTER TABLE
 #include <mysqld_error.h>
 #include <log.h>
 #include <mysql/innodb_priv.h>
+#include <sql_alter.h>
 
 #include "dict0stats.h"
 #include "log0log.h"
@@ -58,7 +59,8 @@ static const Alter_inplace_info::HA_ALTER_FLAGS INNOBASE_ONLINE_OPERATIONS
 	| Alter_inplace_info::DROP_INDEX
 	| Alter_inplace_info::ADD_UNIQUE_INDEX
 	| Alter_inplace_info::DROP_UNIQUE_INDEX
-	| Alter_inplace_info::DROP_INDEX;
+	| Alter_inplace_info::DROP_INDEX
+	| Alter_inplace_info::ALTER_COLUMN_NAME;
 
 /* Report an InnoDB error to the client by invoking my_error(). */
 static UNIV_COLD __attribute__((nonnull))
@@ -2269,6 +2271,227 @@ func_exit:
 	DBUG_RETURN(fail);
 }
 
+/** Rename a column.
+@param prebuilt		the prebuilt struct
+@param trx		data dictionary transaction
+@param from		old column name
+@param to		new column name
+@retval true		Failure
+@retval false		Success */
+static __attribute__((nonnull, warn_unused_result))
+bool
+innobase_rename_column(
+/*===================*/
+	row_prebuilt_t*	prebuilt,
+	trx_t*		trx,
+	const char*	from,
+	const char*	to)
+{
+	DBUG_ENTER("innobase_rename_column");
+
+	DBUG_ASSERT(trx_get_dict_operation(trx) == TRX_DICT_OP_INDEX);
+	ut_ad(trx->dict_operation_lock_mode == RW_X_LATCH);
+	ut_ad(mutex_own(&dict_sys->mutex));
+#ifdef UNIV_SYNC_DEBUG
+	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_EX));
+#endif /* UNIV_SYNC_DEBUG */
+
+	/* Rename the column in the data dictionary. */
+	static const char sql[] =
+		"PROCEDURE RENAME_COLUMN_PROC () IS\n"
+		"fid CHAR;\n"
+		"found INT;\n"
+
+		"DECLARE CURSOR index_cur IS\n"
+		" SELECT ID FROM SYS_INDEXES\n"
+		" WHERE TABLE_ID=:tableid;\n"
+
+		"DECLARE CURSOR for_cur IS\n"
+		" SELECT ID FROM SYS_FOREIGN\n"
+		" WHERE FOR_NAME=:table;\n"
+
+		"DECLARE CURSOR ref_cur IS\n"
+		" SELECT ID FROM SYS_FOREIGN\n"
+		" WHERE REF_NAME=:table;\n"
+
+		"BEGIN\n"
+		"found := 1;\n"
+		"OPEN index_cur;\n"
+		"WHILE found = 1 LOOP\n"
+		"  FETCH index_cur INTO fid;\n"
+		"  IF (SQL % NOTFOUND) THEN\n"
+		"    found := 0;\n"
+		"  ELSE\n"
+		"    UPDATE SYS_FIELDS SET COL_NAME=:new\n"
+		"    WHERE INDEX_ID=fid AND COL_NAME=:old;\n"
+		"  END IF;\n"
+		"END LOOP;\n"
+		"CLOSE index_cur;\n"
+
+		"UPDATE SYS_COLUMNS SET NAME=:new\n"
+		"WHERE TABLE_ID=:tableid AND NAME=:old;\n"
+
+		"found := 1;\n"
+		"OPEN for_cur;\n"
+		"WHILE found = 1 LOOP\n"
+		"  FETCH for_cur INTO fid;\n"
+		"  IF (SQL % NOTFOUND) THEN\n"
+		"    found := 0;\n"
+		"  ELSE\n"
+		"    UPDATE SYS_FOREIGN_COLS SET FOR_COL_NAME=:new\n"
+		"    WHERE ID=fid AND FOR_COL_NAME=:old;\n"
+		"  END IF;\n"
+		"END LOOP;\n"
+		"CLOSE for_cur;\n"
+
+		"found := 1;\n"
+		"OPEN ref_cur;\n"
+		"WHILE found = 1 LOOP\n"
+		"  FETCH ref_cur INTO fid;\n"
+		"  IF (SQL % NOTFOUND) THEN\n"
+		"    found := 0;\n"
+		"  ELSE\n"
+		"    UPDATE SYS_FOREIGN_COLS SET REF_COL_NAME=:new\n"
+		"    WHERE ID=fid AND REF_COL_NAME=:old;\n"
+		"  END IF;\n"
+		"END LOOP;\n"
+		"CLOSE ref_cur;\n"
+
+		"END;\n";
+	pars_info_t*	info	= pars_info_create();
+	db_err		error;
+
+	pars_info_add_ull_literal(info, "tableid", prebuilt->table->id);
+	pars_info_add_str_literal(info, "table", prebuilt->table->name);
+	pars_info_add_str_literal(info, "old", from);
+	pars_info_add_str_literal(info, "new", to);
+
+	trx->op_info = "renaming column";
+
+	error = que_eval_sql(info, sql, FALSE, trx);
+	trx->op_info = "";
+
+	if (error != DB_SUCCESS) {
+		my_error_innodb(error, prebuilt->table->name, 0);
+		trx->error_state = DB_SUCCESS;
+		DBUG_RETURN(true);
+	}
+
+	/* Rename the column in the data dictionary cache. */
+	const char*	s = prebuilt->table->col_names;
+
+	if (!s) {
+not_found:
+		DBUG_ASSERT(0);
+		my_error(ER_NOT_KEYFILE, MYF(0), prebuilt->table->name);
+		DBUG_RETURN(true);
+	}
+
+	unsigned i;
+
+	for (i = 0; i < prebuilt->table->n_def; i++) {
+		if (!strcmp(from, s)) {
+			goto found_name;
+		}
+
+		s += strlen(s) + 1;
+	}
+
+	goto not_found;
+
+found_name:
+	size_t from_len = strlen(from), to_len = strlen(to);
+
+	if (from_len == to_len) {
+		/* The easy case: simply replace the column name in
+		prebuilt->table->col_names. */
+		strcpy(const_cast<char*>(s), to);
+	} else {
+		/* We need to adjust all affected index->field
+		pointers, as in dict_index_add_col(). First, copy
+		prebuilt->table->col_names. */
+		ulint	prefix_len	= s - prebuilt->table->col_names;
+
+		for (; i < prebuilt->table->n_def; i++) {
+			s += strlen(s) + 1;
+		}
+
+		ulint	full_len	= s - prebuilt->table->col_names;
+		char*	col_names;
+
+		if (to_len > from_len) {
+			col_names = static_cast<char*>(
+				mem_heap_alloc(
+					prebuilt->table->heap,
+					full_len + to_len - from_len));
+
+			memcpy(col_names, prebuilt->table->col_names,
+			       prefix_len);
+		} else {
+			col_names = const_cast<char*>(
+				prebuilt->table->col_names);
+		}
+
+		memcpy(col_names + prefix_len, to, to_len);
+		memmove(col_names + prefix_len + to_len,
+			prebuilt->table->col_names + (prefix_len + from_len),
+			full_len - (prefix_len + from_len));
+
+		/* Replace the field names in every index. */
+		for (dict_index_t* index = dict_table_get_first_index(
+			     prebuilt->table);
+		     index != NULL;
+		     index = dict_table_get_next_index(index)) {
+			ulint	n_fields = dict_index_get_n_fields(index);
+
+			for (ulint i = 0; i < n_fields; i++) {
+				dict_field_t*	field
+					= dict_index_get_nth_field(
+						index, i);
+				ulint		name_ofs
+					= field->name
+					- prebuilt->table->col_names;
+				if (name_ofs <= prefix_len) {
+					field->name = col_names + name_ofs;
+				} else {
+					ut_a(name_ofs < full_len);
+					field->name = col_names
+						+ name_ofs + to_len - from_len;
+				}
+			}
+		}
+
+		prebuilt->table->col_names = col_names;
+	}
+
+	/* Replace the field names in every foreign key constraint. */
+	for (dict_foreign_t* foreign = UT_LIST_GET_FIRST(
+		     prebuilt->table->foreign_list);
+	     foreign != NULL;
+	     foreign = UT_LIST_GET_NEXT(foreign_list, foreign)) {
+		for (unsigned f = 0; f < foreign->n_fields; f++) {
+			foreign->foreign_col_names[f]
+				= dict_index_get_nth_field(
+					foreign->foreign_index, f)
+				->name;
+		}
+	}
+
+	for (dict_foreign_t* foreign = UT_LIST_GET_FIRST(
+		     prebuilt->table->referenced_list);
+	     foreign != NULL;
+	     foreign = UT_LIST_GET_NEXT(referenced_list, foreign)) {
+		for (unsigned f = 0; f < foreign->n_fields; f++) {
+			foreign->referenced_col_names[f]
+				= dict_index_get_nth_field(
+					foreign->referenced_index, f)
+				->name;
+		}
+	}
+
+	DBUG_RETURN(false);
+}
+
 /** Commit or rollback the changes made during
 prepare_inplace_alter_table() and inplace_alter_table() inside
 the storage engine. Note that the allowed level of concurrency
@@ -2439,9 +2662,39 @@ ha_innobase::commit_inplace_alter_table(
 	DBUG_ASSERT(!(ha_alter_info->handler_flags
 		      & Alter_inplace_info::DROP_FOREIGN_KEY));
 
+	if (err == 0
+	    && (ha_alter_info->handler_flags
+		& Alter_inplace_info::ALTER_COLUMN_NAME)) {
+		List_iterator_fast<Create_field> cf_it;
+
+		for (Field** fp = table->field; err == 0 && *fp; fp++) {
+			if ((*fp)->flags & FIELD_IS_RENAMED) {
+				cf_it.init(ha_alter_info->alter_info
+					   ->create_list);
+				while (Create_field* cf = cf_it++) {
+					if (cf->field == *fp) {
+						if (innobase_rename_column(
+							    prebuilt,
+							    trx,
+							    cf->field
+							    ->field_name,
+							    cf->field_name)) {
+							err = -1;
+						}
+						goto processed_field;
+					}
+				}
+
+				ut_error;
+			}
+processed_field:
+			continue;
+		}
+	}
+
 	trx_commit_for_mysql(trx);
 
-	if (err == 0) {
+	if (err == 0 && ctx) {
 		/* The changes were successfully performed. */
 		bool	add_fts	= false;
 
