@@ -1,4 +1,5 @@
 set storage_engine='tokudb';
+DROP TABLE IF EXISTS t2;
 CREATE TABLE `t2` (
 `c1` int(11) NOT NULL,
 `c2` int(10) unsigned DEFAULT NULL,
