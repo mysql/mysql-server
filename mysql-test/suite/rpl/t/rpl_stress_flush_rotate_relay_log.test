@@ -1,0 +1,148 @@
+# ==== Purpose ====
+#
+# Check that FLUSH RELAY LOGS can run in parallel with the IO thread
+# while the IO thread rotates the relay log.
+#
+# There used to be several races in this area, causing the server to
+# crash.  We check this by creating high concurrency between FLUSH
+# RELAY LOGS and rotation, by making the slave rotate after every
+# event and at the same time throwing many FLUSH RELAY LOGS on it.
+#
+# ==== Implementation ====
+#
+# 1. Stop the slave.
+# 2. Create a table on the master.
+# 3. Insert many rows in the table.
+# 4. Start the slave.
+# 5. Until the slave has caught up with the master, repeatedly execute
+#    FLUSH RELAY LOGS in five concurrent connections.
+#
+# ==== References ====
+#
+# BUG#13779291: Race condition around rotate relay logs & flush logs
+
+--source include/have_innodb.inc
+--source include/have_debug.inc
+
+--echo ==== Configure ====
+
+# The master will repeatedly insert one row in the table, for at most
+# $max_seconds and at most $max_iterations iterations.
+
+# The slave will run FLUSH RELAY LOGS in $n_concurrent_flush_logs
+# concurrent connections, for at most $max_seconds and at most
+# $max_iterations iterations.
+
+--let $max_iterations= 1000
+--let $max_seconds= 60
+--let $n_concurrent_flush_logs= 5
+
+--echo ==== Initialize ====
+
+--let $rpl_extra_connections_per_server= $n_concurrent_flush_logs
+--source include/master-slave.inc
+
+CREATE TABLE t1 (a VARCHAR(600)) ENGINE = InnoDB;
+CREATE TABLE t2 (a INT) ENGINE = InnoDB;
+
+# Make the slave rotate the relay log when it is longer than 500
+# bytes, i.e., after every event.
+--sync_slave_with_master
+--let $old_debug= `SELECT @@GLOBAL.DEBUG`
+SET @@GLOBAL.DEBUG='d,rotate_slave_debug_group';
+--source include/stop_slave.inc
+
+--echo ==== Generate load on master ====
+
+--disable_query_log
+
+# Create a load on the master.
+--connection master
+--let $long_text= `SELECT REPEAT('a', 500)`
+--let $iteration= 1
+--let $start_time= `SELECT UNIX_TIMESTAMP()`
+--let $done= 0
+while (!$done)
+{
+  # Insert one row.
+  eval INSERT INTO t1 VALUES ('$iteration-$long_text');
+
+  # Check if this is the last iteration.
+  --inc $iteration
+  --let $elapsed_time= `SELECT UNIX_TIMESTAMP() - $start_time`
+  if ($iteration > $max_iterations)
+  {
+    --let $done= 1
+  }
+  if ($elapsed_time > $max_seconds)
+  {
+    --let $done= 1
+  }
+}
+INSERT INTO t2 VALUES (1);
+--save_master_pos
+
+--echo ==== Process load and execute FLUSH RELAY LOGS on slave ====
+
+--connection slave
+START SLAVE;
+
+--let $done= 0
+--let $start_time= `SELECT UNIX_TIMESTAMP()`
+--let $iteration= 1
+while (!$done)
+{
+  # Check if this is the last iteration.
+  --let $elapsed_time= `SELECT UNIX_TIMESTAMP() - $start_time`
+  if ($elapsed_time > $max_seconds)
+  {
+    --let $done= 1
+  }
+  if ($iteration >= $max_iterations)
+  {
+    --let $done= 1
+  }
+
+  # For each of the connections on the slave, reap the previous query
+  # (if any), then send a new one (unless this is the last iteration).
+  --let $connection= 1
+  while ($connection <= $n_concurrent_flush_logs)
+  {
+    --connection server_2_$connection
+    if ($iteration > 1)
+    {
+      reap;
+    }
+    if (!$done)
+    {
+      send FLUSH RELAY LOGS;
+    }
+    --inc $connection
+  }
+  --connection slave
+
+  --inc $iteration
+}
+
+# No point to keep rotating the log when we don't execute any more
+# FLUSH RELAY LOG.  So we turn off rotation just so that the rest of
+# the test will run fast.
+
+eval SET @@GLOBAL.DEBUG= '$old_debug';
+--enable_query_log
+
+--source include/stop_slave.inc
+--source include/start_slave.inc
+
+--sync_with_master
+
+--echo ==== Sanity check ====
+
+--let $diff_tables= master:t1, slave:t1
+--source include/diff_tables.inc
+
+--echo ==== Clean up ====
+
+--connection master
+DROP TABLE t1, t2;
+--source include/rpl_end.inc
