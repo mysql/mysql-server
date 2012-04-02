@@ -20254,7 +20254,7 @@ static void test_wl5924()
 
   rc= mysql_query(l_mysql,
                   "SELECT ATTR_NAME, ATTR_VALUE "
-                  " FROM PERFORMANCE_SCHEMA.session_account_connect_attrs"
+                  " FROM performance_schema.session_account_connect_attrs"
                   " WHERE ATTR_NAME IN ('key1','key2','key3','key4',"
                   "  '\xc3\xe5\xee\xf0\xe3\xe8') AND"
                   "  PROCESS_ID = CONNECTION_ID() ORDER BY ATTR_NAME");
@@ -20278,6 +20278,11 @@ static void test_wl5924()
   DIE_UNLESS(0 == strcmp(row[1], "\xca\xee\xe4\xe8\xed\xee\xe2"));
 
   mysql_free_result(res);
+
+  l_mysql->reconnect= 1;
+  rc= mysql_reconnect(l_mysql);
+  myquery2(l_mysql,rc);
+
   mysql_close(l_mysql);
 }
 
