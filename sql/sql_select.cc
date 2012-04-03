@@ -2691,6 +2691,11 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables_arg, COND *conds,
     table_vector[i]=s->table=table=tables->table;
     table->pos_in_table_list= tables;
     error= table->file->info(HA_STATUS_VARIABLE | HA_STATUS_NO_LOCK);
+#ifdef WITH_PARTITION_STORAGE_ENGINE
+    const bool no_partitions_used= table->no_partitions_used;
+#else
+    const bool no_partitions_used= FALSE;
+#endif
 
     DBUG_EXECUTE_IF("bug11747970_raise_error",
                     {
@@ -2724,11 +2729,9 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables_arg, COND *conds,
     if (*s->on_expr_ref)
     {
       /* s is the only inner table of an outer join */
-#ifdef WITH_PARTITION_STORAGE_ENGINE
-      if ((!table->file->stats.records || table->no_partitions_used) && !embedding)
-#else
-      if (!table->file->stats.records && !embedding)
-#endif
+      if (((!table->file->stats.records &&
+            (table->file->ha_table_flags() & HA_STATS_RECORDS_IS_EXACT)) ||
+           no_partitions_used) && !embedding)
       {						// Empty table
         s->dependent= 0;                        // Ignore LEFT JOIN depend.
         no_rows_const_tables |= table->map;
@@ -2756,15 +2759,11 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables_arg, COND *conds,
       while (embedding);
       continue;
     }
-#ifdef WITH_PARTITION_STORAGE_ENGINE
-    const bool no_partitions_used= table->no_partitions_used;
-#else
-    const bool no_partitions_used= FALSE;
-#endif
-    if ((table->s->system || table->file->stats.records <= 1 ||
+    if ((table->s->system ||
+         (table->file->stats.records <= 1 &&
+          (table->file->ha_table_flags() & HA_STATS_RECORDS_IS_EXACT)) ||
          no_partitions_used) &&
 	!s->dependent &&
-	(table->file->ha_table_flags() & HA_STATS_RECORDS_IS_EXACT) &&
         !table->fulltext_searched && !join->no_const_tables)
     {
       set_position(join,const_count++,s,(KEYUSE*) 0);
