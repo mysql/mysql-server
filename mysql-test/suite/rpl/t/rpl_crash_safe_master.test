@@ -49,6 +49,7 @@ call mtr.add_suppression("allocated tablespace *., old maximum was 0");
 call mtr.add_suppression("Error in Log_event::read_log_event()");
 call mtr.add_suppression("Buffered warning: Performance schema disabled");
 
+-- let $old_debug = `select @@global.debug`
 -- let $binlog_start= query_get_value(SHOW MASTER STATUS, Position, 1)
 -- let $binlog_file= query_get_value(SHOW MASTER STATUS, File, 1)
 CREATE TABLE t1(a LONGBLOB) ENGINE=INNODB;
@@ -72,7 +73,9 @@ WHILE($rows)
 }
 # Write file to make mysql-test-run.pl expect crash and restart
 -- exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
-SET SESSION debug="d,crash_commit_after_prepare";
+--disable_query_log
+eval SET SESSION debug=CONCAT(IF(LENGTH('$old_debug') > 0, "$old_debug:", ""), "d,debug,info,enter,return,crash_commit_after_prepare");
+--enable_query_log
 # Run the crashing query
 -- error 2013
 COMMIT;
@@ -125,7 +128,9 @@ WHILE($rows)
 }
 # Write file to make mysql-test-run.pl expect crash and restart
 -- exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
-SET SESSION debug="d,crash_commit_after_log";
+--disable_query_log
+eval SET SESSION debug=CONCAT(IF(LENGTH('$old_debug') > 0, "$old_debug:", ""), "d,debug,info,enter,return,crash_commit_after_log");
+--enable_query_log
 # Run the crashing query
 -- error 2013
 COMMIT;
@@ -177,7 +182,9 @@ WHILE($rows)
 }
 # Write file to make mysql-test-run.pl expect crash and restart
 -- exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
-SET SESSION debug="d,half_binlogged_transaction";
+--disable_query_log
+eval SET SESSION debug=CONCAT(IF(LENGTH('$old_debug') > 0, "$old_debug:", ""), "d,debug,info,enter,return,half_binlogged_transaction");
+--enable_query_log
 # Run the crashing query
 -- error 2013
 COMMIT;
@@ -204,7 +211,9 @@ SELECT COUNT(*) FROM t1;
 CREATE TABLE t2(a LONGBLOB) ENGINE=MYISAM;
 # Write file to make mysql-test-run.pl expect crash and restart
 -- exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
-SET SESSION debug="d,half_binlogged_transaction";
+--disable_query_log
+eval SET SESSION debug=CONCAT(IF(LENGTH('$old_debug') > 0, "$old_debug:", ""), "d,debug,info,enter,return,half_binlogged_transaction");
+--enable_query_log
 -- error 2013
 INSERT INTO t2 (a) VALUES (REPEAT('a',16384));
 

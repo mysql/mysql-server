@@ -71,6 +71,9 @@ class MYSQL_BIN_LOG: public TC_LOG, private MYSQL_LOG
   */
   ulong max_size;
   long prepared_xids; /* for tc log - number of xids to remember */
+  void inc_prepared_xids();
+  void dec_prepared_xids();
+
   // current file sequence number for load data infile binary logging
   uint file_id;
   uint open_count;				// For replication
@@ -206,10 +209,10 @@ private:
 public:
   int open_binlog(const char *opt_name);
   void close();
-  int log_xid(THD *thd, my_xid xid);
+  int commit(THD *thd, bool all);
+  int rollback(THD *thd, bool all);
   int recover(IO_CACHE *log, Format_description_log_event *fdle,
               my_off_t *valid_pos);
-  int unlog(ulong cookie, my_xid xid);
   int recover(IO_CACHE *log, Format_description_log_event *fdle);
 #if !defined(MYSQL_CLIENT)
 
