@@ -958,8 +958,8 @@ struct PSI_digest_storage
 {
   my_bool m_full;
   int m_byte_count;
-  /** Character set identifier. */
-  uint m_csid;
+  /** Character set. */
+  const void *m_charset;
   unsigned char m_token_array[PSI_MAX_DIGEST_STORAGE_SIZE];
 };
 typedef struct PSI_digest_storage PSI_digest_storage;
@@ -1634,12 +1634,12 @@ typedef void (*end_stage_v1_t) (void);
   Get a statement instrumentation locker.
   @param state data storage for the locker
   @param key the statement instrumentation key
-  @param csid client character set id
+  @param charset client character set
   @return a statement locker, or NULL
 */
 typedef struct PSI_statement_locker* (*get_thread_statement_locker_v1_t)
   (struct PSI_statement_locker_state_v1 *state,
-   PSI_statement_key key, uint csid);
+   PSI_statement_key key, const void *charset);
 
 /**
   Refine a statement locker to a more specific key.

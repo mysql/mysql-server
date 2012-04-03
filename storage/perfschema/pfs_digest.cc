@@ -359,17 +359,23 @@ void get_digest_text(char* digest_text, PSI_digest_storage* digest_storage)
   int bytes_available= COL_DIGEST_TEXT_SIZE - 4;
   
   /* Convert text to utf8 */
-  uint csid= digest_storage->m_csid;
-  const CHARSET_INFO *from_cs= get_charset(csid, 0);
+  const CHARSET_INFO *from_cs= (CHARSET_INFO *)digest_storage->m_charset;
   const CHARSET_INFO *to_cs= &my_charset_utf8_bin;
-  /* Max size is number of chars * max multibyte len of target character set */
-  const uint max_converted_size= PSI_MAX_DIGEST_STORAGE_SIZE * 3;
-  char id_string[max_converted_size];
+  DBUG_ASSERT(from_cs != NULL && to_cs != NULL);
+  /*
+     Max converted size is number of characters * max multibyte length of the
+     target charset, which is 4 for UTF8.
+   */
+  const uint max_converted_size= PSI_MAX_DIGEST_STORAGE_SIZE * 4;
+  char id_buffer[max_converted_size];
+  char *id_string;
+  int  id_length;
+  bool convert_text= !my_charset_same(from_cs, to_cs);
 
   DBUG_ASSERT(byte_count <= PSI_MAX_DIGEST_STORAGE_SIZE);
 
-  while (current_byte < byte_count &&
-         bytes_available > 0 &&
+  while ((current_byte < byte_count) &&
+         (bytes_available > 0) &&
          !truncated)
   {
     current_byte= read_token(digest_storage, current_byte, &tok);
@@ -383,20 +389,30 @@ void get_digest_text(char* digest_text, PSI_digest_storage* digest_storage)
       {
         char *id_ptr;
         int id_len;
-        uint err_cs;
+        uint err_cs= 0;
 
         /* Get the next identifier from the storage buffer. */
         current_byte= read_identifier(digest_storage, current_byte,
                                       &id_ptr, &id_len);
-        /* Verify that the converted text will fit. */
-        if (to_cs->mbmaxlen*id_len > max_converted_size)
+        if (convert_text)
         {
-          truncated= true;
-          break;
+          /* Verify that the converted text will fit. */
+          if (to_cs->mbmaxlen*id_len > max_converted_size)
+          {
+            truncated= true;
+            break;
+          }
+          /* Convert identifier string into the storage character set. */
+          id_length= my_convert(id_buffer, max_converted_size, to_cs,
+                                id_ptr, id_len, from_cs, &err_cs);
+          id_string= id_buffer;
         }
-        /* Convert identifier string into the storage character set. */
-        int id_length= my_convert(id_string, max_converted_size, to_cs, id_ptr,
-                                  id_len, from_cs, &err_cs);
+        else
+        {
+          id_string= id_ptr;
+          id_length= id_len;
+        }
+
         if (id_length == 0 || err_cs != 0)
         {
           truncated= true;
