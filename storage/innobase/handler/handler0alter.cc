@@ -26,6 +26,7 @@ Smart ALTER TABLE
 #include <log.h>
 #include <mysql/innodb_priv.h>
 #include <sql_alter.h>
+#include <sql_class.h>
 
 #include "dict0stats.h"
 #include "log0log.h"
@@ -60,6 +61,7 @@ static const Alter_inplace_info::HA_ALTER_FLAGS INNOBASE_ONLINE_OPERATIONS
 	| Alter_inplace_info::ADD_UNIQUE_INDEX
 	| Alter_inplace_info::DROP_UNIQUE_INDEX
 	| Alter_inplace_info::DROP_INDEX
+	| Alter_inplace_info::DROP_FOREIGN_KEY
 	| Alter_inplace_info::ALTER_COLUMN_NAME;
 
 /* Report an InnoDB error to the client by invoking my_error(). */
@@ -1101,6 +1103,10 @@ public:
 	dict_index_t**	drop;
 	/** number of InnoDB indexes being dropped */
 	const ulint	num_to_drop;
+	/** InnoDB foreign key constraints being dropped */
+	dict_foreign_t** drop_fk;
+	/** number of InnoDB foreign key constraints being dropped */
+	const ulint	num_to_drop_fk;
 	/** whether to create the indexes online */
 	bool		online;
 	/** memory heap */
@@ -1114,6 +1120,8 @@ public:
 				ulint num_to_add_arg,
 				dict_index_t** drop_arg,
 				ulint num_to_drop_arg,
+				dict_foreign_t** drop_fk_arg,
+				ulint num_to_drop_fk_arg,
 				bool online_arg,
 				mem_heap_t* heap_arg,
 				trx_t* trx_arg,
@@ -1122,6 +1130,7 @@ public:
 		add (add_arg), add_key_numbers (add_key_numbers_arg),
 		num_to_add (num_to_add_arg),
 		drop (drop_arg), num_to_drop (num_to_drop_arg),
+		drop_fk (drop_fk_arg), num_to_drop_fk (num_to_drop_fk_arg),
 		online (online_arg), heap (heap_arg), trx (trx_arg),
 		indexed_table (indexed_table_arg) {}
 	~ha_innobase_inplace_ctx() {
@@ -1314,6 +1323,8 @@ while preparing ALTER TABLE.
 @param heap		Memory heap, or NULL
 @param drop_index	Indexes to be dropped, or NULL
 @param n_drop_index	Number of indexes to drop
+@param drop_foreign	Foreign key constraints to be dropped, or NULL
+@param n_drop_foreign	Number of foreign key constraints to drop
 @param num_fts_index	Number of full-text indexes to create
 @param add_fts_doc_id	Flag: add column FTS_DOC_ID?
 @param add_fts_doc_id_idx Flag: add index (FTS_DOC_ID)?
@@ -1333,6 +1344,8 @@ prepare_inplace_alter_table_dict(
 	mem_heap_t*		heap,
 	dict_index_t**		drop_index,
 	ulint			n_drop_index,
+	dict_foreign_t**	drop_foreign,
+	ulint			n_drop_foreign,
 	unsigned		num_fts_index,
 	bool			add_fts_doc_id,
 	bool			add_fts_doc_id_idx)
@@ -1352,6 +1365,7 @@ prepare_inplace_alter_table_dict(
 
 	DBUG_ENTER("prepare_inplace_alter_table_dict");
 	DBUG_ASSERT(!n_drop_index == !drop_index);
+	DBUG_ASSERT(!n_drop_foreign == !drop_foreign);
 	DBUG_ASSERT(num_fts_index <= 1);
 	DBUG_ASSERT(!add_fts_doc_id || add_fts_doc_id_idx);
 
@@ -1740,6 +1754,7 @@ error_handling:
 		ha_alter_info->handler_ctx = new ha_innobase_inplace_ctx(
 			add_index, add_key_nums, n_add_index,
 			drop_index, n_drop_index,
+			drop_foreign, n_drop_foreign,
 			!new_clustered && !num_fts_index,
 			heap, trx, indexed_table);
 		DBUG_RETURN(false);
@@ -1792,6 +1807,28 @@ error_handling:
 	DBUG_RETURN(true);
 }
 
+/** Determines if InnoDB is dropping a foreign key constraint.
+@param foreign		the constraint
+@param drop_fk		constraints being dropped
+@param n_drop_fk	number of constraints that are being dropped
+@return whether the constraint is being dropped */
+inline __attribute__((pure, nonnull, warn_unused_result))
+bool
+innobase_dropping_foreign(
+/*======================*/
+	const dict_foreign_t*	foreign,
+	dict_foreign_t**	drop_fk,
+	ulint			n_drop_fk)
+{
+	while (n_drop_fk--) {
+		if (*drop_fk++ == foreign) {
+			return(true);
+		}
+	}
+
+	return(false);
+}
+
 /** Allows InnoDB to update internal structures with concurrent
 writes blocked. Invoked before inplace_alter_table().
 
@@ -1811,6 +1848,8 @@ ha_innobase::prepare_inplace_alter_table(
 {
 	dict_index_t**	drop_index;	/*!< Index to be dropped */
 	ulint		n_drop_index;	/*!< Number of indexes to drop */
+	dict_foreign_t**drop_fk;	/*!< Foreign key constraints to drop */
+	ulint		n_drop_fk;	/*!< Number of foreign keys to drop */
 	dict_table_t*	indexed_table;	/*!< Table where indexes are created */
 	mem_heap_t*     heap;
 	int		error;
@@ -1891,6 +1930,63 @@ err_exit_no_heap:
 		}
 	}
 
+	n_drop_fk = 0;
+
+	if (ha_alter_info->handler_flags
+	    & Alter_inplace_info::DROP_FOREIGN_KEY) {
+		DBUG_ASSERT(ha_alter_info->alter_info->drop_list.elements > 0);
+
+		heap = mem_heap_create(1024);
+
+		drop_fk = static_cast<dict_foreign_t**>(
+			mem_heap_alloc(
+				heap,
+				ha_alter_info->alter_info->drop_list.elements
+				* sizeof(dict_foreign_t*)));
+
+		List_iterator<Alter_drop> drop_it(
+			ha_alter_info->alter_info->drop_list);
+		drop_it.rewind();
+		while (Alter_drop* drop = drop_it++) {
+			if (drop->type != Alter_drop::FOREIGN_KEY) {
+				continue;
+			}
+
+			for (dict_foreign_t* foreign = UT_LIST_GET_FIRST(
+				     prebuilt->table->foreign_list);
+			     foreign != NULL;
+			     foreign = UT_LIST_GET_NEXT(
+				     foreign_list, foreign)) {
+				const char* fid = strchr(foreign->id, '/');
+
+				DBUG_ASSERT(fid);
+				/* If no database/ prefix was present in
+				the FOREIGN KEY constraint name, compare
+				to the full constraint name. */
+				fid = fid ? fid + 1 : foreign->id;
+
+				if (!my_strcasecmp(system_charset_info,
+						   fid, drop->name)) {
+					drop_fk[n_drop_fk++] = foreign;
+					goto found_fk;
+				}
+			}
+
+			my_error(ER_CANT_DROP_FIELD_OR_KEY, MYF(0),
+				 drop->name);
+			goto err_exit;
+found_fk:
+			continue;
+		}
+
+		DBUG_ASSERT(n_drop_fk > 0);
+		DBUG_ASSERT(n_drop_fk
+			    == ha_alter_info->alter_info->drop_list.elements);
+	} else {
+		drop_fk = NULL;
+		heap = NULL;
+	}
+
 	n_drop_index = 0;
 
 	if (ha_alter_info->index_drop_count) {
@@ -1898,7 +1994,9 @@ err_exit_no_heap:
 			    & (Alter_inplace_info::DROP_INDEX
 			       | Alter_inplace_info::DROP_UNIQUE_INDEX));
 		/* check which indexes to drop */
-		heap = mem_heap_create(1024);
+		if (!heap) {
+			heap = mem_heap_create(1024);
+		}
 		drop_index = (dict_index_t**) mem_heap_alloc(
 			heap, ha_alter_info->index_drop_count
 			* sizeof *drop_index);
@@ -1930,9 +2028,6 @@ err_exit_no_heap:
 			for (uint i = 0; i < n_drop_index; i++) {
 				dict_index_t*	index = drop_index[i];
 				dict_foreign_t*	foreign;
-
-				/* TODO: skip foreign keys that are to
-				be dropped */
 
 				/* Check if the index is referenced. */
 				foreign = dict_table_get_referenced_constraint(
@@ -1973,6 +2068,8 @@ index_needed:
 				      == foreign->foreign_table);
 
 				if (foreign
+				    && !innobase_dropping_foreign(
+					    foreign, drop_fk, n_drop_fk)
 #if 1 /* TODO: enable this in WL#6049 (MDL for FK lookups) */
 				    && !dict_foreign_find_index(
 					    indexed_table,
@@ -1994,7 +2091,6 @@ index_needed:
 		}
 	} else {
 		drop_index = NULL;
-		heap = NULL;
 	}
 
 	if (!(ha_alter_info->handler_flags & INNOBASE_INPLACE_CREATE)) {
@@ -2002,7 +2098,8 @@ index_needed:
 			ha_alter_info->handler_ctx
 				= new ha_innobase_inplace_ctx(
 					NULL, NULL, 0,
-					drop_index, n_drop_index, true,
+					drop_index, n_drop_index,
+					drop_fk, n_drop_fk, true,
 					heap, NULL, indexed_table);
 		}
 
@@ -2085,7 +2182,8 @@ err_exit:
 	DBUG_RETURN(prepare_inplace_alter_table_dict(
 			    ha_alter_info, altered_table, prebuilt->table,
 			    prebuilt->trx, table_share->table_name.str,
-			    heap, drop_index, n_drop_index, num_fts_index,
+			    heap, drop_index, n_drop_index,
+			    drop_fk, n_drop_fk, num_fts_index,
 			    add_fts_doc_id, add_fts_doc_id_idx));
 }
 
@@ -2269,6 +2367,56 @@ func_exit:
 	srv_active_wake_master_thread();
 	MONITOR_ATOMIC_DEC(MONITOR_PENDING_ALTER_TABLE);
 	DBUG_RETURN(fail);
+}
+
+/** Drop a FOREIGN KEY constraint.
+@param trx		data dictionary transaction
+@param foreign		the foreign key constraint, will be freed
+@retval true		Failure
+@retval false		Success */
+static __attribute__((nonnull, warn_unused_result))
+bool
+innobase_drop_foreign(
+/*==================*/
+	trx_t*		trx,
+	dict_foreign_t*	foreign)
+{
+	DBUG_ENTER("innobase_drop_foreign");
+
+	DBUG_ASSERT(trx_get_dict_operation(trx) == TRX_DICT_OP_INDEX);
+	ut_ad(trx->dict_operation_lock_mode == RW_X_LATCH);
+	ut_ad(mutex_own(&dict_sys->mutex));
+#ifdef UNIV_SYNC_DEBUG
+	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_EX));
+#endif /* UNIV_SYNC_DEBUG */
+
+	/* Drop the constraint from the data dictionary. */
+	static const char sql[] =
+		"PROCEDURE DROP_FOREIGN_PROC () IS\n"
+		"BEGIN\n"
+		"DELETE FROM SYS_FOREIGN WHERE ID=:id;\n"
+		"DELETE FROM SYS_FOREIGN_COLS WHERE ID=:id;\n"
+		"END;\n";
+
+	db_err		error;
+	pars_info_t*	info;
+
+	info = pars_info_create();
+	pars_info_add_str_literal(info, "id", foreign->id);
+
+	trx->op_info = "dropping foreign key constraint from dictionary";
+	error = que_eval_sql(info, sql, FALSE, trx);
+	trx->op_info = "";
+
+	if (error != DB_SUCCESS) {
+		my_error_innodb(error, foreign->foreign_table->name, 0);
+		trx->error_state = DB_SUCCESS;
+		DBUG_RETURN(true);
+	}
+
+	/* Drop the foreign key constraint from the data dictionary cache. */
+	dict_foreign_remove_from_cache(foreign);
+	DBUG_RETURN(false);
 }
 
 /** Rename a column.
@@ -2672,9 +2820,21 @@ ha_innobase::commit_inplace_alter_table(
 		}
 	}
 
-	/* TODO: implement this */
-	DBUG_ASSERT(!(ha_alter_info->handler_flags
-		      & Alter_inplace_info::DROP_FOREIGN_KEY));
+	if (err == 0
+	    && (ha_alter_info->handler_flags
+		& Alter_inplace_info::DROP_FOREIGN_KEY)) {
+		DBUG_ASSERT(ctx->num_to_drop_fk > 0);
+		DBUG_ASSERT(ctx->num_to_drop_fk
+			    == ha_alter_info->alter_info->drop_list.elements);
+		for (ulint i = 0; i < ctx->num_to_drop_fk; i++) {
+			DBUG_ASSERT(prebuilt->table
+				    == ctx->drop_fk[i]->foreign_table);
+
+			if (innobase_drop_foreign(trx, ctx->drop_fk[i])) {
+				err = -1;
+			}
+		}
+	}
 
 	if (err == 0
 	    && (ha_alter_info->handler_flags

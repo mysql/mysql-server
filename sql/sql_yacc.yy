@@ -7333,8 +7333,12 @@ alter_list_item:
           }
         | DROP FOREIGN KEY_SYM opt_ident
           {
-            Lex->alter_info.flags|= Alter_info::ALTER_DROP_INDEX |
-                                    Alter_info::DROP_FOREIGN_KEY;
+            LEX *lex=Lex;
+            Alter_drop *ad= new Alter_drop(Alter_drop::FOREIGN_KEY, $4.str);
+            if (ad == NULL)
+              MYSQL_YYABORT;
+            lex->alter_info.drop_list.push_back(ad);
+            lex->alter_info.flags|= Alter_info::DROP_FOREIGN_KEY;
           }
         | DROP PRIMARY_SYM KEY_SYM
           {

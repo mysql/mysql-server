@@ -146,11 +146,7 @@ show create table t2;
 delete from t1;
 --error ER_CANT_DROP_FIELD_OR_KEY
 drop index dc on t4;
-# there is no foreign key dc on t3
---replace_regex /'[^']*test\/#sql2-[0-9a-f-]*'/'#sql2-temporary'/
-# Embedded server doesn't chdir to data directory
---replace_result $MYSQLD_DATADIR ./ master-data/ ''
---error ER_ERROR_ON_RENAME
+--error ER_CANT_DROP_FIELD_OR_KEY
 alter table t3 drop foreign key dc;
 alter table t4 drop foreign key dc;
 select * from t2;

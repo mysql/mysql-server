@@ -2,7 +2,8 @@
 
 SET NAMES utf8;
 
-CREATE TABLE t1 (c1 INT PRIMARY KEY, c2 INT DEFAULT 1, INDEX(c2)) ENGINE=InnoDB;
+CREATE TABLE t1 (c1 INT PRIMARY KEY, c2 INT DEFAULT 1, INDEX(c2))
+ENGINE=InnoDB;
 
 INSERT INTO t1 SET c1=1;
 
@@ -11,7 +12,11 @@ WHERE NAME LIKE 'test/t%';
 CREATE TABLE sys_indexes SELECT i.* FROM INFORMATION_SCHEMA.INNODB_SYS_INDEXES i
 INNER JOIN sys_tables st ON i.TABLE_ID=st.TABLE_ID;
 
-CREATE TABLE t1c (c2 INT PRIMARY KEY, FOREIGN KEY (c2) REFERENCES t1(c2))
+CREATE TABLE t1p LIKE t1;
+
+CREATE TABLE t1c (c1 INT PRIMARY KEY, c2 INT, c3 INT, INDEX(c2), INDEX(c3),
+                  CONSTRAINT t1c2 FOREIGN KEY (c2) REFERENCES t1(c2),
+		  CONSTRAINT t1c3 FOREIGN KEY (c3) REFERENCES t1p(c2))
 ENGINE=InnoDB;
 
 CREATE TABLE sys_foreign SELECT i.*
@@ -78,11 +83,64 @@ ON i.TABLE_ID=st.TABLE_ID;
 
 -- source suite/innodb/include/innodb_dict.inc
 
+--error ER_DROP_INDEX_FK
+ALTER TABLE t1 DROP INDEX c2;
+
+--error ER_CANT_DROP_FIELD_OR_KEY
+ALTER TABLE t1 DROP INDEX c4;
+
+--error ER_CANT_DROP_FIELD_OR_KEY
+ALTER TABLE t1c DROP FOREIGN KEY c2;
+
+--error ER_CANT_DROP_FIELD_OR_KEY
+ALTER TABLE t1c DROP FOREIGN KEY t1c2, DROP FOREIGN KEY c2;
+
+--error ER_CANT_DROP_FIELD_OR_KEY
+ALTER TABLE t1c DROP FOREIGN KEY t1c2, DROP FOREIGN KEY c2, DROP INDEX c2;
+
+--error ER_DROP_INDEX_FK
+ALTER TABLE t1c DROP INDEX c2;
+
+--error ER_CANT_DROP_FIELD_OR_KEY
+ALTER TABLE t1c DROP FOREIGN KEY ẗ1C2;
+
+SHOW CREATE TABLE t1c;
+
 SET foreign_key_checks=0;
-DROP TABLE t1;
+DROP TABLE t1p;
+SET foreign_key_checks=1;
 
 SHOW CREATE TABLE t1c;
 
 -- source suite/innodb/include/innodb_dict.inc
 
-DROP TABLE t1c, sys_tables, sys_indexes, sys_foreign;
+CREATE TABLE t1p (c1 INT PRIMARY KEY, c2 INT, INDEX(c2)) ENGINE=InnoDB;
+
+--error ER_DROP_INDEX_FK
+ALTER TABLE t1c DROP INDEX C2, DROP INDEX C3;
+--error ER_DROP_INDEX_FK
+ALTER TABLE t1c DROP INDEX C3;
+
+SET foreign_key_checks=0;
+ALTER TABLE t1c DROP INDEX C3;
+SET foreign_key_checks=1;
+
+SHOW CREATE TABLE t1c;
+-- source suite/innodb/include/innodb_dict.inc
+
+ALTER TABLE t1c DROP FOREIGN KEY t1C3;
+
+SHOW CREATE TABLE t1c;
+-- source suite/innodb/include/innodb_dict.inc
+
+ALTER TABLE t1c DROP INDEX c2, DROP FOREIGN KEY t1C2;
+
+SHOW CREATE TABLE t1c;
+
+-- source suite/innodb/include/innodb_dict.inc
+
+ALTER TABLE t1 DROP INDEX c2;
+
+-- source suite/innodb/include/innodb_dict.inc
+
+DROP TABLE t1c, t1, t1p, sys_tables, sys_indexes, sys_foreign;
