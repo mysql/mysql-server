@@ -26,14 +26,13 @@
 
 #include "workqueue.h"
 #include "ndb_engine.h"
+#include "Scheduler.h"
 
 /* This structure is used in both C and C++ code, requiring a small hack: */
 #ifdef __cplusplus
-/* forward declaration: */
-class Scheduler;
-#define C_OR_CPP_SCHEDULER Scheduler
+#define CPP_SCHEDULER Scheduler
 #else 
-#define C_OR_CPP_SCHEDULER void
+#define CPP_SCHEDULER void
 #endif
 
 /* In each pipeline there lives an allocator, which is used for workitems, 
@@ -84,9 +83,9 @@ typedef struct request_pipeline {
   unsigned int id;              /*! each pipeline has an id */
   unsigned int nworkitems;      /*! counter used to give each workitem an id */
   struct ndb_engine *engine;    
-  pthread_t engine_thread_id;   
+  pthread_t worker_thread_id;   
   allocator_slab_class alligator[ALLIGATOR_ARRAY_SIZE];  /*! an allocator */
-  C_OR_CPP_SCHEDULER *scheduler;
+  CPP_SCHEDULER *scheduler;
   memory_pool *pool;            /*! has the whole lifetime of the pipeline */
 } ndb_pipeline;
 
@@ -100,7 +99,7 @@ DECLARE_FUNCTIONS_WITH_C_LINKAGE
 ndb_pipeline * ndb_pipeline_initialize(struct ndb_engine *);
 
 /** create a generic request pipeline */
-ndb_pipeline * get_request_pipeline(int thd_id);
+ndb_pipeline * get_request_pipeline(int thd_id, struct ndb_engine *);
 
 /** call into a pipeline for its own statistics */
 void pipeline_add_stats(ndb_pipeline *, const char *key, ADD_STAT, const void *);
@@ -112,7 +111,7 @@ ENGINE_ERROR_CODE pipeline_flush_all(ndb_pipeline *);
 /***** SCHEDULER APIS *****/
 
 /** Global initialization of scheduler, at startup time */
-void * scheduler_initialize(const char *name, int nthreads, int threadnum);
+void * scheduler_initialize(ndb_pipeline *, scheduler_options *);
 
 /** shutdown a scheduler */
 void scheduler_shutdown(ndb_pipeline *);

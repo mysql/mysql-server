@@ -44,7 +44,7 @@ class Scheduler_stockholm : public Scheduler {
 public:
   Scheduler_stockholm() {};
   ~Scheduler_stockholm() {};
-  void init(int threadnum, int nthreads, const char *config_string);
+  void init(int threadnum, const scheduler_options *options);
   void attach_thread(thread_identifier *);
   ENGINE_ERROR_CODE schedule(workitem *);
   void yield(workitem *) const;                                       // inlined
@@ -56,6 +56,7 @@ public:
   bool global_reconfigure(Configuration *) { return false; } ;
 
 private:  
+  ndb_pipeline *pipeline;
   struct {
     struct workqueue *queue; 
     struct sched_stats_stockholm { 

@@ -61,7 +61,7 @@ class S::SchedulerGlobal {
 public:
   SchedulerGlobal(Configuration *);
   ~SchedulerGlobal() {};
-  void init(int threads, const char *config_string);
+  void init(const scheduler_options *options);
   void add_stats(const char *, ADD_STAT, const void *);
   void reconfigure(Configuration *);
   void shutdown();
@@ -99,7 +99,7 @@ class S::SchedulerWorker : public Scheduler {
 public:  
   SchedulerWorker() {};
   ~SchedulerWorker() {};
-  void init(int threadnum, int nthreads, const char *config_string);
+  void init(int threadnum, const scheduler_options * sched_opts);
   void attach_thread(thread_identifier *);
   ENGINE_ERROR_CODE schedule(workitem *);
   void yield(workitem *) const {};
@@ -111,6 +111,7 @@ public:
   
 private:
   int id;
+  ndb_pipeline *pipeline;
   SchedulerGlobal * m_global;
 };
 
