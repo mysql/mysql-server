@@ -58,8 +58,6 @@ const char field_separator=',';
 #define BLOB_PACK_LENGTH_TO_MAX_LENGH(arg) \
 ((ulong) ((LL(1) << MY_MIN(arg, 4) * 8) - LL(1)))
 
-#define FLAGSTR(S,F) ((S) & (F) ? #F " " : "")
-
 /*
   Rules for merging different types of fields in UNION
 

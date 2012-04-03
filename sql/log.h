@@ -34,9 +34,16 @@ typedef struct event_coordinates
   my_off_t  pos;       // event's position in the binlog file
 } LOG_POS_COORD;
 
-/*
-  Transaction Coordinator log - a base abstract class
-  for two different implementations
+/**
+  Transaction Coordinator Log.
+
+  A base abstract class for three different implementations of the
+  transaction coordinator.
+
+  The server uses the transaction coordinator to order transactions
+  correctly and there are three different implementations: one using
+  an in-memory structure, one dummy that does not do anything, and one
+  using the binary log for transaction coordination.
 */
 class TC_LOG
 {
@@ -47,9 +54,39 @@ class TC_LOG
 
   virtual int open(const char *opt_name)=0;
   virtual void close()=0;
-  virtual int log_xid(THD *thd, my_xid xid)=0;
-  virtual int unlog(ulong cookie, my_xid xid)=0;
+
+  /**
+     Log a commit record of the transaction to the transaction
+     coordinator log.
+
+     When the function returns, the transaction commit is properly
+     logged to the transaction coordinator log and can be committed in
+     the storage engines.
+
+     @param thd Session to log transaction for.
+     @param all @c True if this is a "real" commit, @c false if it is a "statement" commit.
+
+     @return Error code on failure, zero on success.
+   */
+  virtual int commit(THD *thd, bool all) = 0;
+
+  /**
+     Log a rollback record of the transaction to the transaction
+     coordinator log.
+
+     When the function returns, the transaction have been aborted in
+     the transaction coordinator log.
+
+     @param thd Session to log transaction record for.
+
+     @param all @c true if an explicit commit or an implicit commit
+     for a statement, @c false if an internal commit of the statement.
+
+     @return Error code on failure, zero on success.
+   */
+  virtual int rollback(THD *thd, bool all) = 0;
 };
+
 
 class TC_LOG_DUMMY: public TC_LOG // use it to disable the logging
 {
@@ -57,8 +94,8 @@ public:
   TC_LOG_DUMMY() {}
   int open(const char *opt_name)        { return 0; }
   void close()                          { }
-  int log_xid(THD *thd, my_xid xid)         { return 1; }
-  int unlog(ulong cookie, my_xid xid)  { return 0; }
+  int commit(THD *thd, bool all)        { return ha_commit_low(thd, all); }
+  int rollback(THD *thd, bool all)      { return ha_rollback_low(thd, all); }
 };
 
 #ifdef HAVE_MMAP
@@ -102,11 +139,13 @@ class TC_LOG_MMAP: public TC_LOG
   TC_LOG_MMAP(): inited(0) {}
   int open(const char *opt_name);
   void close();
-  int log_xid(THD *thd, my_xid xid);
-  int unlog(ulong cookie, my_xid xid);
+  int commit(THD *thd, bool all);
+  int rollback(THD *thd, bool all)      { return ha_rollback_low(thd, all); }
   int recover();
 
-  private:
+private:
+  int log_xid(THD *thd, my_xid xid);
+  int unlog(ulong cookie, my_xid xid);
   void get_active_from_pool();
   int sync();
   int overflow();
