@@ -8043,7 +8043,8 @@ cleanup:
 int ha_tokudb::truncate_dictionary( uint keynr, DB_TXN* txn ) {
     int error;
     bool is_pk = (keynr == primary_key);
-    
+
+    enum row_type type = get_row_type();
     error = share->key_file[keynr]->close(share->key_file[keynr], 0);
     assert(error == 0);
 
@@ -8072,6 +8073,8 @@ int ha_tokudb::truncate_dictionary( uint keynr, DB_TXN* txn ) {
             );
         if (error) { goto cleanup; }
     }
+
+    table->s->row_type = type; // ensure newly created dictionary has the original compression type
 
     if (is_pk) {
         error = create_main_dictionary(share->table_name, table, txn, &share->kc_info);
