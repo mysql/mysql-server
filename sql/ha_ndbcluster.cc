@@ -8753,7 +8753,8 @@ static int create_ndb_column(THD *thd,
     if (likely( nativeDefaults ))
     {
       /* Ndb does not support auto-set Timestamp default values natively */
-      bool isTimeStampWithAutoValue = ((mysql_type == MYSQL_TYPE_TIMESTAMP) &&
+      bool isTimeStampWithAutoValue = ((mysql_type == MYSQL_TYPE_TIMESTAMP ||
+                                        mysql_type == MYSQL_TYPE_TIMESTAMP2) &&
                                        (field->table->get_timestamp_field() == field));
 
       if ((!(field->flags & PRI_KEY_FLAG) ) &&
@@ -8868,9 +8869,17 @@ static int create_ndb_column(THD *thd,
     break;
   // Date types
   case MYSQL_TYPE_DATETIME:    
-//case MYSQL_TYPE_DATETIME2:    
     col.setType(NDBCOL::Datetime);
     col.setLength(1);
+    break;
+  case MYSQL_TYPE_DATETIME2:    
+    {
+      Field_datetimef *f= (Field_datetimef*)field;
+      uint prec= f->decimals();
+      col.setType(NDBCOL::Datetime2);
+      col.setLength(1);
+      col.setPrecision(prec);
+    }
     break;
   case MYSQL_TYPE_DATE: // ?
     col.setType(NDBCOL::Char);
@@ -8881,18 +8890,34 @@ static int create_ndb_column(THD *thd,
     col.setLength(1);
     break;
   case MYSQL_TYPE_TIME:        
-//case MYSQL_TYPE_TIME2:        
     col.setType(NDBCOL::Time);
     col.setLength(1);
+    break;
+  case MYSQL_TYPE_TIME2:        
+    {
+      Field_timef *f= (Field_timef*)field;
+      uint prec= f->decimals();
+      col.setType(NDBCOL::Time2);
+      col.setLength(1);
+      col.setPrecision(prec);
+    }
     break;
   case MYSQL_TYPE_YEAR:
     col.setType(NDBCOL::Year);
     col.setLength(1);
     break;
   case MYSQL_TYPE_TIMESTAMP:
-//case MYSQL_TYPE_TIMESTAMP2:
     col.setType(NDBCOL::Timestamp);
     col.setLength(1);
+    break;
+  case MYSQL_TYPE_TIMESTAMP2:
+    {
+      Field_timestampf *f= (Field_timestampf*)field;
+      uint prec= f->decimals();
+      col.setType(NDBCOL::Timestamp2);
+      col.setLength(1);
+      col.setPrecision(prec);
+    }
     break;
   // Char types
   case MYSQL_TYPE_STRING:      
