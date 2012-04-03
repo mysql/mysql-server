@@ -6140,12 +6140,64 @@ int toku_dbt_up(DB*,
     return 0;
 }
 
+static inline enum row_type
+compression_method_to_row_type(enum toku_compression_method method)
+{
+    switch (method) {
+    case TOKU_NO_COMPRESSION:
+        return ROW_TYPE_TOKU_UNCOMPRESSED;
+    case TOKU_ZLIB_METHOD:
+        return ROW_TYPE_TOKU_ZLIB;
+    case TOKU_QUICKLZ_METHOD:
+        return ROW_TYPE_TOKU_QUICKLZ;
+    case TOKU_LZMA_METHOD:
+        return ROW_TYPE_TOKU_LZMA;
+    case TOKU_FAST_COMPRESSION_METHOD:
+        return ROW_TYPE_TOKU_FAST;
+    case TOKU_SMALL_COMPRESSION_METHOD:
+        return ROW_TYPE_TOKU_SMALL;
+    default:
+        assert(false);
+    }
+}
+
+enum row_type
+ha_tokudb::get_row_type(void)
+{
+    enum toku_compression_method method;
+    int r = share->file->get_compression_method(share->file, &method);
+    assert(r == 0);
+    return compression_method_to_row_type(method);
+}
+
+static inline enum toku_compression_method
+row_type_to_compression_method(enum row_type type)
+{
+    switch (type) {
+    case ROW_TYPE_TOKU_UNCOMPRESSED:
+        return TOKU_NO_COMPRESSION;
+    case ROW_TYPE_TOKU_ZLIB:
+        return TOKU_ZLIB_METHOD;
+    case ROW_TYPE_TOKU_QUICKLZ:
+        return TOKU_QUICKLZ_METHOD;
+    case ROW_TYPE_TOKU_LZMA:
+        return TOKU_LZMA_METHOD;
+    case ROW_TYPE_TOKU_FAST:
+        return TOKU_FAST_COMPRESSION_METHOD;
+    case ROW_TYPE_TOKU_SMALL:
+        return TOKU_SMALL_COMPRESSION_METHOD;
+    default:
+        assert(false);
+    }
+}
+
 static int create_sub_table(
     const char *table_name, 
     DBT* row_descriptor, 
     DB_TXN* txn, 
     uint32_t block_size, 
-    uint32_t read_block_size, 
+    uint32_t read_block_size,
+    enum row_type row_type,
     bool is_hot_index
     ) 
 {
@@ -6184,6 +6236,15 @@ static int create_sub_table(
         DBUG_PRINT("error", ("Got error: %d when opening table '%s'", error, table_name));
         goto exit;
     } 
+
+    {
+        enum toku_compression_method method = row_type_to_compression_method(row_type);
+        error = file->set_compression_method(file, method);
+        if (error != 0) {
+            DBUG_PRINT("error", ("Got error: %d when setting compression type %u for table '%s'", error, method, table_name));
+            goto exit;
+        }
+    }
 
     error = file->change_descriptor(file, txn, row_descriptor, (is_hot_index ? DB_IS_HOT_INDEX : 0));
     if (error) {
@@ -6407,7 +6468,7 @@ int ha_tokudb::create_secondary_dictionary(
     }
     read_block_size = get_tokudb_read_block_size(thd);
 
-    error = create_sub_table(newname, &row_descriptor, txn, block_size, read_block_size, is_hot_index);
+    error = create_sub_table(newname, &row_descriptor, txn, block_size, read_block_size, form->s->row_type, is_hot_index);
 cleanup:    
     my_free(newname, MYF(MY_ALLOW_ZERO_PTR));
     my_free(row_desc_buff, MYF(MY_ALLOW_ZERO_PTR));
@@ -6503,11 +6564,32 @@ int ha_tokudb::create_main_dictionary(const char* name, TABLE* form, DB_TXN* txn
     read_block_size = get_tokudb_read_block_size(thd);
 
     /* Create the main table that will hold the real rows */
-    error = create_sub_table(newname, &row_descriptor, txn, block_size, read_block_size, false);
+    error = create_sub_table(newname, &row_descriptor, txn, block_size, read_block_size, form->s->row_type, false);
 cleanup:    
     my_free(newname, MYF(MY_ALLOW_ZERO_PTR));
     my_free(row_desc_buff, MYF(MY_ALLOW_ZERO_PTR));
     return error;
+}
+
+static inline enum row_type
+row_format_to_row_type(srv_row_format_t row_format)
+{
+    switch (row_format) {
+    case SRV_ROW_FORMAT_UNCOMPRESSED:
+        return ROW_TYPE_TOKU_UNCOMPRESSED;
+    case SRV_ROW_FORMAT_ZLIB:
+        return ROW_TYPE_TOKU_ZLIB;
+    case SRV_ROW_FORMAT_QUICKLZ:
+        return ROW_TYPE_TOKU_QUICKLZ;
+    case SRV_ROW_FORMAT_LZMA:
+        return ROW_TYPE_TOKU_LZMA;
+    case SRV_ROW_FORMAT_FAST:
+        return ROW_TYPE_TOKU_FAST;
+    case SRV_ROW_FORMAT_SMALL:
+        return ROW_TYPE_TOKU_SMALL;
+    default:
+        assert(false);
+    }
 }
 
 //
@@ -6544,7 +6626,12 @@ int ha_tokudb::create(const char *name, TABLE * form, HA_CREATE_INFO * create_in
         error = 0;
         goto cleanup;
     }
-    
+
+    if (create_info->used_fields & HA_CREATE_USED_ROW_FORMAT) {
+        form->s->row_type = create_info->row_type;
+    } else {
+        form->s->row_type = row_format_to_row_type(get_row_format(thd));
+    }
 
     newname = (char *)my_malloc(get_max_dict_name_path_length(name),MYF(MY_WME));
     if (newname == NULL){ error = ENOMEM; goto cleanup;}

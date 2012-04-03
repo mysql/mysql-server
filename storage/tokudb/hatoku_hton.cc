@@ -174,6 +174,34 @@ static MYSQL_THDVAR_BOOL(checkpoint_lock,
   FALSE
   );
 
+static const char *tokudb_row_format_names[] = {
+    "tokudb_uncompressed",
+    "tokudb_zlib",
+    "tokudb_quicklz",
+    "tokudb_lzma",
+    "tokudb_fast",
+    "tokudb_small",
+    NullS
+};
+
+static TYPELIB tokudb_row_format_typelib = {
+    array_elements(tokudb_row_format_names) - 1,
+    "tokudb_row_format_typelib",
+    tokudb_row_format_names,
+    NULL
+};
+
+static MYSQL_THDVAR_ENUM(row_format, PLUGIN_VAR_NOCMDARG,
+                         "Specifies the compression method for a table during this session. "
+                         "Possible values are TOKUDB_UNCOMPRESSED, TOKUDB_ZLIB, TOKUDB_QUICKLZ, "
+                         "TOKUDB_LZMA, TOKUDB_FAST (default), and TOKUDB_SMALL",
+                         NULL, NULL, SRV_ROW_FORMAT_FAST, &tokudb_row_format_typelib);
+
+srv_row_format_t get_row_format(THD *thd)
+{
+    return (srv_row_format_t) THDVAR(thd, row_format);
+}
+
 static void tokudb_print_error(const DB_ENV * db_env, const char *db_errpfx, const char *buffer);
 static void tokudb_cleanup_log_files(void);
 static int tokudb_end(handlerton * hton, ha_panic_function type);
@@ -1487,6 +1515,7 @@ static struct st_mysql_sys_var *tokudb_system_variables[] = {
     MYSQL_SYSVAR(block_size),
     MYSQL_SYSVAR(read_block_size),
     MYSQL_SYSVAR(read_buf_size),
+    MYSQL_SYSVAR(row_format),
     NULL
 };
 

@@ -656,6 +656,8 @@ public:
         THD* thd
         );
 
+    enum row_type get_row_type();
+
 private:
     int read_full_row(uchar * buf);
     int __close(int mutex_is_locked);
