@@ -2604,6 +2604,34 @@ int TC_LOG_MMAP::overflow()
 }
 
 /**
+  Commit the transaction.
+
+  @note When the TC_LOG inteface was changed, this function was added
+  and uses the functions that were there with the old interface to
+  implement the logic.
+ */
+int TC_LOG_MMAP::commit(THD *thd, bool all)
+{
+  DBUG_ENTER("TC_LOG_MMAP::commit");
+  unsigned long cookie= 0;
+  my_xid xid= thd->transaction.xid_state.xid.get_my_xid();
+
+  if (all && xid)
+    if ((cookie= log_xid(thd, xid)))
+      DBUG_RETURN(1);                 // Failed to log the transaction
+
+  if (ha_commit_low(thd, all))
+    DBUG_RETURN(2);           // Transaction logged, but not committed
+
+  /* If cookie is non-zero, something was logged */
+  if (cookie)
+    if (unlog(cookie, xid))
+      DBUG_RETURN(2); // Transaction logged, committed, but not unlogged.
+  DBUG_RETURN(0);
+}
+
+
+/**
   Record that transaction XID is committed on the persistent storage.
 
     This function is called in the middle of two-phase commit:
