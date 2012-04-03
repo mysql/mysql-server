@@ -115,7 +115,7 @@ SET(INSTALL_SCRIPTDIR_STANDALONE        "scripts")
 SET(INSTALL_LIBDIR_STANDALONE           "lib")
 SET(INSTALL_PLUGINDIR_STANDALONE        "lib/plugin")
 #
-SET(INSTALL_INCLUDEDIR_STANDALONE       "include")
+SET(INSTALL_INCLUDEDIR_STANDALONE       "include/mysql")
 #
 SET(INSTALL_DOCDIR_STANDALONE           "docs")
 SET(INSTALL_DOCREADMEDIR_STANDALONE     ".")
@@ -198,7 +198,7 @@ SET(INSTALL_SCRIPTDIR_SVR4              "scripts")
 SET(INSTALL_LIBDIR_SVR4                 "lib")
 SET(INSTALL_PLUGINDIR_SVR4              "lib/plugin")
 #
-SET(INSTALL_INCLUDEDIR_SVR4             "include")
+SET(INSTALL_INCLUDEDIR_SVR4             "include/mysql")
 #
 SET(INSTALL_DOCDIR_SVR4                 "docs")
 SET(INSTALL_DOCREADMEDIR_SVR4           ".")

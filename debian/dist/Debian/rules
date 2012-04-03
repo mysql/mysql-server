@@ -169,8 +169,6 @@ install: build
 	# libmysqlclient-dev: forgotten header file since 3.23.25?
 	cp $(BUILDDIR)/include/my_config.h $(TMP)/usr/include/mysql/
 	cp include/my_dir.h $(TMP)/usr/include/mysql/
-	mv $(TMP)/usr/include/mysql/mysql/*.h $(TMP)/usr/include/mysql/
-	mv $(TMP)/usr/include/mysql/mysql/psi $(TMP)/usr/include/mysql/
 
 	# mysql-common: We provide our own version of this package for
 	# completeness, but we can use an existing version; mariadb-specic

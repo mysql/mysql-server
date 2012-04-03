@@ -20,22 +20,14 @@ ${CMAKE_CURRENT_BINARY_DIR}/mysqld_ername.h
 ${CMAKE_CURRENT_BINARY_DIR}/mysqld_error.h
 ${CMAKE_CURRENT_BINARY_DIR}/sql_state.h
 )
-SET(HEADERS_ABI 
+
+SET(HEADERS 
   mysql.h 
   mysql_com.h
   mysql_time.h 
   my_list.h
   my_alloc.h
   typelib.h 
-  mysql/plugin.h
-  mysql/plugin_audit.h
-  mysql/plugin_ftparser.h
-  mysql/plugin_auth.h
-  mysql/client_plugin.h
-)
-
-SET(HEADERS 
-  ${HEADERS_ABI} 
   my_dbug.h 
   m_string.h
   my_sys.h 
@@ -61,4 +53,4 @@ SET(HEADERS
 )
 
 INSTALL(FILES ${HEADERS} DESTINATION ${INSTALL_INCLUDEDIR} COMPONENT Development)
-INSTALL(DIRECTORY mysql/ DESTINATION ${INSTALL_INCLUDEDIR}/mysql COMPONENT Development FILES_MATCHING PATTERN "*.h")
+INSTALL(DIRECTORY mysql/ DESTINATION ${INSTALL_INCLUDEDIR} COMPONENT Development FILES_MATCHING PATTERN "*.h")
