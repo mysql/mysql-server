@@ -27,6 +27,7 @@
 #include "block_table.h"
 #include "c_dialects.h"
 #include "mempool.h"
+#include "compress.h"
 
 // Uncomment the following to use quicklz
 
@@ -411,6 +412,7 @@ struct brt_header {
     uint32_t count_of_optimize_in_progress;   // the number of hot optimize operations currently in progress on this tree
     uint32_t count_of_optimize_in_progress_read_from_disk;   // the number of hot optimize operations in progress on this tree at the time of the last crash  (this field is in-memory only)
     MSN      msn_at_start_of_last_completed_optimize;   // all messages before this msn have been applied to leaf nodes
+    enum toku_compression_method compression_method;
 };
 
 struct brt {

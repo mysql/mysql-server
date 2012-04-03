@@ -14,6 +14,7 @@
 #include "log.h"
 #include "brt-search.h"
 #include "c_dialects.h"
+#include "compress.h"
 
 C_BEGIN
 
@@ -49,6 +50,8 @@ int toku_brt_get_nodesize(BRT, unsigned int *nodesize) __attribute__ ((warn_unus
 void toku_brt_get_maximum_advised_key_value_lengths(unsigned int *klimit, unsigned int *vlimit);
 int toku_brt_set_basementnodesize(BRT, unsigned int basementnodesize)  __attribute__ ((warn_unused_result));
 int toku_brt_get_basementnodesize(BRT, unsigned int *basementnodesize) __attribute__ ((warn_unused_result));
+int toku_brt_set_compression_method(BRT, enum toku_compression_method) __attribute__ ((warn_unused_result));
+int toku_brt_get_compression_method(BRT, enum toku_compression_method *) __attribute__((warn_unused_result));
 
 int toku_brt_set_bt_compare(BRT, brt_compare_func)  __attribute__ ((warn_unused_result));
 brt_compare_func toku_brt_get_bt_compare (BRT brt);

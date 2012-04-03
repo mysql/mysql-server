@@ -5,16 +5,11 @@
 #ident "$Id$"
 
 #include <zlib.h>
+#include <db.h>
 
-// The following provides an abstraction of quicklz and zlib. 
-// We offer two compression methods: ZLIB and QUICKLZ.
-// The resulting byte string includes enough information for us to decompress it.  That is, we can tell whether it's z-compressed or qz-compressed.
-
-enum toku_compression_method {
-    TOKU_NO_COMPRESSION = 0, // "identity" compression
-    TOKU_ZLIB_METHOD    = 8, // RFC 1950 says use 8 for zlib.  It reserves 15 to allow more bytes.  
-    TOKU_QUICKLZ_METHOD = 9  // We use 9 for QUICKLZ with compression level = 3.  I couldn't find any standard for any other numbers, so I just use 9. -Bradley
-};
+// The following provides an abstraction of quicklz and zlib.
+// We offer three compression methods: ZLIB, QUICKLZ, and LZMA, as well as a "no compression" option.  These options are declared in make_tdb.c.
+// The resulting byte string includes enough information for us to decompress it.  That is, we can tell whether it's z-compressed or qz-compressed or xz-compressed.
 
 size_t toku_compress_bound (enum toku_compression_method a, size_t size);
 // Effect:  Return the number of bytes needed to compress a buffer of size SIZE using compression method A.

@@ -43,6 +43,15 @@ typedef struct __toku_db_btree_stat64 {
   u_int64_t bt_modify_time_sec; /* Time of last serialization, in seconds */
   u_int64_t bt_verify_time_sec; /* Time of last verification, in seconds */
 } DB_BTREE_STAT64;
+typedef enum toku_compression_method {
+    TOKU_NO_COMPRESSION = 0,
+    TOKU_ZLIB_METHOD    = 8,
+    TOKU_QUICKLZ_METHOD = 9,
+    TOKU_LZMA_METHOD    = 10,
+    TOKU_FAST_COMPRESSION_METHOD = 1,
+    TOKU_SMALL_COMPRESSION_METHOD = 2,
+    TOKU_DEFAULT_COMPRESSION_METHOD = TOKU_FAST_COMPRESSION_METHOD,
+} TOKU_COMPRESSION_METHOD;
 typedef struct __toku_loader DB_LOADER;
 struct __toku_loader_internal;
 struct __toku_loader {
@@ -301,6 +310,8 @@ struct __toku_db {
   int (*get_fragmentation)(DB*,TOKU_DB_FRAGMENTATION);
   int (*get_readpagesize)(DB*,u_int32_t*);
   int (*set_readpagesize)(DB*,u_int32_t);
+  int (*get_compression_method)(DB*,TOKU_COMPRESSION_METHOD*);
+  int (*set_compression_method)(DB*,TOKU_COMPRESSION_METHOD);
   int (*set_indexer)(DB*, DB_INDEXER*);
   void (*get_indexer)(DB*, DB_INDEXER**);
   int (*verify_with_progress)(DB *, int (*progress_callback)(void *progress_extra, float progress), void *progress_extra, int verbose, int keep_going);

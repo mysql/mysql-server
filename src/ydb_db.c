@@ -580,6 +580,20 @@ toku_db_get_readpagesize(DB *db, u_int32_t *readpagesize_ptr) {
 }
 
 static int 
+toku_db_set_compression_method(DB *db, enum toku_compression_method compression_method) {
+    HANDLE_PANICKED_DB(db);
+    int r = toku_brt_set_compression_method(db->i->brt, compression_method);
+    return r;
+}
+
+static int 
+toku_db_get_compression_method(DB *db, enum toku_compression_method *compression_method_ptr) {
+    HANDLE_PANICKED_DB(db);
+    int r = toku_brt_get_compression_method(db->i->brt, compression_method_ptr);
+    return r;
+}
+
+static int 
 toku_db_stat64(DB * db, DB_TXN *txn, DB_BTREE_STAT64 *s) {
     HANDLE_PANICKED_DB(db);
     HANDLE_DB_ILLEGAL_WORKING_PARENT_TXN(db, txn);
@@ -834,6 +848,16 @@ locked_db_get_readpagesize(DB *db, u_int32_t *readpagesize_ptr) {
     toku_ydb_lock(); int r = toku_db_get_readpagesize(db, readpagesize_ptr); toku_ydb_unlock(); return r;
 }
 
+static int 
+locked_db_set_compression_method(DB *db, enum toku_compression_method compression_method) {
+    toku_ydb_lock(); int r = toku_db_set_compression_method(db, compression_method); toku_ydb_unlock(); return r;
+}
+
+static int 
+locked_db_get_compression_method(DB *db, enum toku_compression_method *compression_method_ptr) {
+    toku_ydb_lock(); int r = toku_db_get_compression_method(db, compression_method_ptr); toku_ydb_unlock(); return r;
+}
+
 // TODO 2216 delete this
 static int 
 locked_db_fd(DB * UU(db), int * UU(fdp)) {
@@ -1033,6 +1057,8 @@ toku_db_create(DB ** db, DB_ENV * env, u_int32_t flags) {
     SDB(get_pagesize);
     SDB(set_readpagesize);
     SDB(get_readpagesize);
+    SDB(set_compression_method);
+    SDB(get_compression_method);
     SDB(set_flags);
     SDB(get_flags);
     SDB(fd);

@@ -348,9 +348,9 @@ serialize_brtnode_partition(BRTNODE node, int i, struct sub_block *sb) {
 // into a newly allocated buffer sb->compressed_ptr
 // 
 static void
-compress_brtnode_sub_block(struct sub_block *sb) {
+compress_brtnode_sub_block(struct sub_block *sb, enum toku_compression_method method) {
     assert(sb->compressed_ptr == NULL);
-    set_compressed_size_bound(sb);
+    set_compressed_size_bound(sb, method);
     // add 8 extra bytes, 4 for compressed size,  4 for decompressed size
     sb->compressed_ptr = toku_xmalloc(sb->compressed_size_bound + 8);
     //
@@ -371,7 +371,8 @@ compress_brtnode_sub_block(struct sub_block *sb) {
     sb->compressed_size = compress_nocrc_sub_block(
         sb,
         (char *)sb->compressed_ptr + 8,
-        sb->compressed_size_bound
+        sb->compressed_size_bound,
+        method
         );
 
     u_int32_t* extra = (u_int32_t *)(sb->compressed_ptr);
@@ -691,13 +692,13 @@ static void
 serialize_and_compress_partition(BRTNODE node, int childnum, SUB_BLOCK sb)
 {
     serialize_brtnode_partition(node, childnum, sb);
-    compress_brtnode_sub_block(sb);
+    compress_brtnode_sub_block(sb, node->h->compression_method);
 }
 
 void
 toku_create_compressed_partition_from_available(
-    BRTNODE node, 
-    int childnum, 
+    BRTNODE node,
+    int childnum,
     SUB_BLOCK sb
     )
 {
@@ -773,7 +774,7 @@ toku_serialize_brtnode_to_memory (BRTNODE node,
     // This does NOT include the header
     //
     serialize_brtnode_info(node, &sb_node_info);
-    compress_brtnode_sub_block(&sb_node_info);
+    compress_brtnode_sub_block(&sb_node_info, node->h->compression_method);
 
     // now we have compressed each of our pieces into individual sub_blocks,
     // we can put the header and all the subblocks into a single buffer
@@ -1838,6 +1839,8 @@ serialize_brt_header_min_size (u_int32_t version) {
 
 
     switch(version) {
+    case BRT_LAYOUT_VERSION_19:
+        size += 1; // compression method
         case BRT_LAYOUT_VERSION_18:
 	    size += sizeof(uint64_t);  // time_of_last_optimize_begin
 	    size += sizeof(uint64_t);  // time_of_last_optimize_end
@@ -1923,6 +1926,7 @@ int toku_serialize_brt_header_to_wbuf (struct wbuf *wbuf, struct brt_header *h, 
     wbuf_ulonglong(wbuf, h->time_of_last_optimize_end);
     wbuf_int(wbuf, h->count_of_optimize_in_progress);
     wbuf_MSN(wbuf, h->msn_at_start_of_last_completed_optimize);
+    wbuf_char(wbuf, (unsigned char) h->compression_method);
     u_int32_t checksum = x1764_finish(&wbuf->checksum);
     wbuf_int(wbuf, checksum);
     lazy_assert(wbuf->ndone == wbuf->size);
@@ -2204,6 +2208,17 @@ deserialize_brtheader (int fd, struct rbuf *rb, struct brt_header **brth) {
 	h->count_of_optimize_in_progress_read_from_disk = h->count_of_optimize_in_progress;
 	h->msn_at_start_of_last_completed_optimize = rbuf_msn(&rc);
     }
+    if (h->layout_version >= BRT_LAYOUT_VERSION_19) {
+        unsigned char method = rbuf_char(&rc);
+        h->compression_method = (enum toku_compression_method) method;
+    } else {
+        // we hard coded zlib until 5.2, then quicklz in 5.2
+        if (h->layout_version < BRT_LAYOUT_VERSION_18) {
+            h->compression_method = TOKU_ZLIB_METHOD;
+        } else {
+            h->compression_method = TOKU_QUICKLZ_METHOD;
+        }
+    }
 
     (void)rbuf_int(&rc); //Read in checksum and ignore (already verified).
     if (rc.ndone!=rc.size) {ret = EINVAL; goto died1;}
@@ -2257,6 +2272,7 @@ deserialize_brtheader_versioned (int fd, struct rbuf *rb, struct brt_header **br
             case BRT_LAYOUT_VERSION_14:
                 h->basementnodesize = 128*1024;  // basement nodes added in v15
                 //fall through on purpose
+        case BRT_LAYOUT_VERSION_19:
             case BRT_LAYOUT_VERSION_18:
             case BRT_LAYOUT_VERSION_17: // version 17 never released to customers
             case BRT_LAYOUT_VERSION_16: // version 16 never released to customers
@@ -2527,10 +2543,11 @@ static int
 serialize_uncompressed_block_to_memory(char * uncompressed_buf,
                                        int n_sub_blocks,
                                        struct sub_block sub_block[/*n_sub_blocks*/],
+                                       enum toku_compression_method method,
                                /*out*/ size_t *n_bytes_to_write,
                                /*out*/ char  **bytes_to_write) {
     // allocate space for the compressed uncompressed_buf
-    size_t compressed_len = get_sum_compressed_size_bound(n_sub_blocks, sub_block);
+    size_t compressed_len = get_sum_compressed_size_bound(n_sub_blocks, sub_block, method);
     size_t sub_block_header_len = sub_block_header_size(n_sub_blocks);
     size_t header_len = node_header_overhead + sub_block_header_len + sizeof (uint32_t); // node + sub_block + checksum
     char *XMALLOC_N(header_len + compressed_len, compressed_buf);
@@ -2546,7 +2563,7 @@ serialize_uncompressed_block_to_memory(char * uncompressed_buf,
     // compress all of the sub blocks
     char *uncompressed_ptr = uncompressed_buf + node_header_overhead;
     char *compressed_ptr = compressed_buf + header_len;
-    compressed_len = compress_all_sub_blocks(n_sub_blocks, sub_block, uncompressed_ptr, compressed_ptr, num_cores, brt_pool);
+    compressed_len = compress_all_sub_blocks(n_sub_blocks, sub_block, uncompressed_ptr, compressed_ptr, num_cores, brt_pool, method);
 
     //if (0) printf("Block %" PRId64 " Size before compressing %u, after compression %"PRIu64"\n", blocknum.b, calculated_size-node_header_overhead, (uint64_t) compressed_len);
 
@@ -2576,6 +2593,7 @@ serialize_uncompressed_block_to_memory(char * uncompressed_buf,
 static int
 toku_serialize_rollback_log_to_memory (ROLLBACK_LOG_NODE log,
                                        int UU(n_workitems), int UU(n_threads),
+                                       enum toku_compression_method method,
                                /*out*/ size_t *n_bytes_to_write,
                                /*out*/ char  **bytes_to_write) {
     // get the size of the serialized node
@@ -2600,7 +2618,7 @@ toku_serialize_rollback_log_to_memory (ROLLBACK_LOG_NODE log,
     serialize_rollback_log_node_to_buf(log, buf, calculated_size, n_sub_blocks, sub_block);
 
     //Compress and malloc buffer to write
-    int result = serialize_uncompressed_block_to_memory(buf, n_sub_blocks, sub_block,
+    int result = serialize_uncompressed_block_to_memory(buf, n_sub_blocks, sub_block, method,
                                                         n_bytes_to_write, bytes_to_write);
     toku_free(buf);
     return result;
@@ -2613,7 +2631,7 @@ toku_serialize_rollback_log_to (int fd, BLOCKNUM blocknum, ROLLBACK_LOG_NODE log
     size_t n_to_write;
     char *compressed_buf;
     {
-        int r = toku_serialize_rollback_log_to_memory(log, n_workitems, n_threads, &n_to_write, &compressed_buf);
+        int r = toku_serialize_rollback_log_to_memory(log, n_workitems, n_threads, h->compression_method, &n_to_write, &compressed_buf);
 	if (r!=0) return r;
     }
 

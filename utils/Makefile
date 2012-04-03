@@ -47,9 +47,7 @@ YDB_OBJS=$(wildcard ../src/*.$(OEXT))
 $(STATIC_UTILS) $(UTILS): LINK_FILES=$(YDB_OBJS) $(TOKUROOT)lib/libtokudb.$(AEXT) $(LOCKTREE) $(RANGETREE) $(TOKUROOT)lib/libnewbrt.$(AEXT) $(LIBPORTABILITY_A)
  else
 $(UTILS): DLINK_FILES=$(TOKUROOT)lib/libtokudb.$(SOEXT) $(TOKUROOT)lib/libtokuportability.$(SOEXT)
-NEWBRT_OBJS=$(patsubst %,../%,$(shell cat $(TOKUROOT)lib/newbrt.olist))
-TOKUPORTABILITY_OBJS=$(patsubst %,../%,$(shell cat $(TOKUROOT)lib/tokuportability.olist))
-$(STATIC_UTILS): LINK_FILES+= $(NEWBRT_OBJS) $(TOKUPORTABILITY_OBJS) $(YDB_OBJS) ../src/lock_tree/locktree.a ../src/range_tree/rangetree.a
+$(STATIC_UTILS): LINK_FILES+= $(YDB_OBJS) ../src/lock_tree/locktree.a ../src/range_tree/rangetree.a ../lib/libnewbrt.a ../lib/libtokuportability.a $(LZMA_A)
  endif
 
 ifeq ($(BRTLOADER),cilk)
