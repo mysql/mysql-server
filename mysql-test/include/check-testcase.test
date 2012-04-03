@@ -8,9 +8,6 @@
 
 --disable_query_log
 
-#select * from performance_schema.events_statements_summary_by_digest
-#  where digest like 'XXYYZZ%' limit 1;
-
 # We want to ensure all slave configuration is restored.  But SHOW
 # SLAVE STATUS returns nothing for servers not configured as slaves,
 # and (after BUG#28796 was fixed) there is no way to de-configure a
