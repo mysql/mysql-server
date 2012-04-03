@@ -4260,8 +4260,18 @@ toku_brtheader_checkpoint (CACHEFILE cf, int fd, void *header_v) {
         r = toku_serialize_brt_header_to(fd, ch);
         if (r!=0) goto handle_error;
 	ch->dirty = 0;		      // this is only place this bit is cleared (in checkpoint_header)
-    } else 
+	
+        // fsync the cachefile
+        r = toku_cachefile_fsync(cf);
+        if (r!=0) {
+            goto handle_error;
+        }
+        h->checkpoint_count++;        // checkpoint succeeded, next checkpoint will save to alternate header location
+        h->checkpoint_lsn = ch->checkpoint_lsn;  //Header updated.
+    } 
+    else {
         toku_block_translation_note_skipped_checkpoint(ch->blocktable);
+    }
     if (0) {
 handle_error:
 	if (h->panic) r = h->panic;
@@ -4277,26 +4287,15 @@ handle_error:
 
 }
 
-// Really write everything to disk (fsync dictionary), then free unused disk space 
+// free unused disk space 
 // (i.e. tell BlockAllocator to liberate blocks used by previous checkpoint).
 // Must have access to fd (protected)
 int
-toku_brtheader_end_checkpoint (CACHEFILE cachefile, int fd, void *header_v) {
+toku_brtheader_end_checkpoint (CACHEFILE UU(cachefile), int fd, void *header_v) {
     struct brt_header *h = header_v;
     int r = h->panic;
     if (r==0) {
 	assert(h->type == BRTHEADER_CURRENT);
-	struct brt_header *ch = h->checkpoint_header;
-	BOOL checkpoint_success_so_far = (BOOL)(ch->checkpoint_count==h->checkpoint_count+1 && ch->dirty==0);
-	if (checkpoint_success_so_far) {
-	    r = toku_cachefile_fsync(cachefile);
-	    if (r!=0) 
-		toku_block_translation_note_failed_checkpoint(h->blocktable);
-	    else {
-		h->checkpoint_count++;	      // checkpoint succeeded, next checkpoint will save to alternate header location
-		h->checkpoint_lsn = ch->checkpoint_lsn;	 //Header updated.
-	    }
-	}
 	toku_block_translation_note_end_checkpoint(h->blocktable, fd, h);
     }
     if (h->checkpoint_header) {	 // could be NULL only if panic was true at begin_checkpoint
