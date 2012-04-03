@@ -830,9 +830,7 @@ char *opt_logname, *opt_slow_logname;
 /* Static variables */
 
 static volatile sig_atomic_t kill_in_progress;
-#ifdef HAVE_STACKTRACE
 my_bool opt_stack_trace;
-#endif /* HAVE_STACKTRACE */
 my_bool opt_expect_abort= 0;
 static my_bool opt_bootstrap, opt_myisam_log;
 static int cleanup_done;
@@ -2678,7 +2676,6 @@ static void init_signals(void)
 
   my_sigset(THR_SERVER_ALARM,print_signal_warning); // Should never be called!
 
-#ifdef HAVE_STACKTRACE
   if (opt_stack_trace || (test_flags & TEST_CORE_ON_SIGNAL))
   {
     sa.sa_flags = SA_RESETHAND | SA_NODEFER;
@@ -2701,7 +2698,6 @@ static void init_signals(void)
     sigaction(SIGILL, &sa, NULL);
     sigaction(SIGFPE, &sa, NULL);
   }
-#endif
 
 #ifdef HAVE_GETRLIMIT
   if (test_flags & TEST_CORE_ON_SIGNAL)
