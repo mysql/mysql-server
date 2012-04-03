@@ -4170,7 +4170,7 @@ static void end_stage_v1()
 static PSI_statement_locker*
 get_thread_statement_locker_v1(PSI_statement_locker_state *state,
                                PSI_statement_key key,
-                               uint csid)
+                               const void *charset)
 {
   DBUG_ASSERT(state != NULL);
   if (! flag_global_instrumentation)
@@ -4270,7 +4270,7 @@ get_thread_statement_locker_v1(PSI_statement_locker_state *state,
     flags|= STATE_FLAG_DIGEST;
     state->m_digest_state.m_last_id_index= 0;
     digest_reset(& state->m_digest_state.m_digest_storage);
-    state->m_digest_state.m_digest_storage.m_csid= csid;
+    state->m_digest_state.m_digest_storage.m_charset= charset;
   }
 
   state->m_discarded= false;

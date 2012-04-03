@@ -243,7 +243,7 @@ struct PSI_digest_storage
 {
   my_bool m_full;
   int m_byte_count;
-  uint m_csid;
+  const void *m_charset;
   unsigned char m_token_array[1024];
 };
 typedef struct PSI_digest_storage PSI_digest_storage;
@@ -436,7 +436,7 @@ typedef void (*start_stage_v1_t)
 typedef void (*end_stage_v1_t) (void);
 typedef struct PSI_statement_locker* (*get_thread_statement_locker_v1_t)
   (struct PSI_statement_locker_state_v1 *state,
-   PSI_statement_key key, uint csid);
+   PSI_statement_key key, const void *charset);
 typedef struct PSI_statement_locker* (*refine_statement_v1_t)
   (struct PSI_statement_locker *locker,
    PSI_statement_key key);

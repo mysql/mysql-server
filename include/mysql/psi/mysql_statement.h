@@ -152,11 +152,12 @@ inline_mysql_add_token(PSI_digest_locker *locker, uint token,
 static inline struct PSI_statement_locker *
 inline_mysql_start_statement(PSI_statement_locker_state *state,
                              PSI_statement_key key,
-                             const char *db, uint db_len, uint csid,
+                             const char *db, uint db_len,
+                             const CHARSET_INFO *charset,
                              const char *src_file, int src_line)
 {
   PSI_statement_locker *locker;
-  locker= PSI_CALL(get_thread_statement_locker)(state, key, csid);
+  locker= PSI_CALL(get_thread_statement_locker)(state, key, charset);
   if (likely(locker != NULL))
     PSI_CALL(start_statement)(locker, db, db_len, src_file, src_line);
   return locker;
