@@ -3937,7 +3937,7 @@ public:
     Note that this member function should only be called for the
     following events:
     - Delete_rows_log_event
-    - Wrirte_rows_log_event
+    - Write_rows_log_event
     - Update_rows_log_event
 
     @param[IN] table The table to compare this events bitmaps 
@@ -4059,7 +4059,10 @@ protected:
   const uchar *m_curr_row;     /* Start of the row being processed */
   const uchar *m_curr_row_end; /* One-after the end of the current row */
   uchar    *m_key;      /* Buffer to keep key value during searches */
+  uchar    *last_hashed_key;
   uint     m_key_index;
+  List<uchar> m_distinct_key_list;
+  List_iterator_fast<uchar> m_itr;
 
   int find_row(const Relay_log_info *const);
 
@@ -4191,6 +4194,7 @@ private:
   int open_record_scan();
   int close_record_scan();
   int next_record_scan(bool first_read);
+  int add_distinct_keys();
 #endif /* defined(MYSQL_SERVER) && defined(HAVE_REPLICATION) */
 
   friend class Old_rows_log_event;

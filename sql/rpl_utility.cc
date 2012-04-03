@@ -1360,17 +1360,19 @@ Hash_slave_rows::put(TABLE *table,
                      MY_BITMAP *cols,
                      HASH_ROW_POS_ENTRY* entry)
 {
+
   DBUG_ENTER("Hash_slave_rows::put");
 
   HASH_ROW_POS_PREAMBLE* preamble= get_preamble(entry);
 
   /**
-     Skip blobs from key calculation.
+     Skip blobs and BIT fields from key calculation.
      Handle X bits.
      Handle nulled fields.
      Handled fields not signaled.
   */  
   preamble->hash_value= make_hash_key(table, cols);
+  
   my_hash_insert(&m_hash, (uchar *) preamble);
   DBUG_PRINT("debug", ("Added record to hash with key=%u", preamble->hash_value));
   DBUG_RETURN(false);
@@ -1515,7 +1517,7 @@ Hash_slave_rows::make_hash_key(TABLE *table, MY_BITMAP *cols)
   {
     Field *f= (*ptr);
 
-    /* field is set in the read_set and is not a blob */
+    /* field is set in the read_set and is not a blob or a BIT */
     if (bitmap_is_set(cols, f->field_index) && 
         (f->type() != MYSQL_TYPE_BLOB) && (f->type() != MYSQL_TYPE_BIT))
       crc= my_checksum(crc, f->ptr, f->data_length());

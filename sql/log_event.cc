@@ -8576,7 +8576,7 @@ Rows_log_event::Rows_log_event(THD *thd_arg, TABLE *tbl_arg, ulong tid,
     m_width(tbl_arg ? tbl_arg->s->fields : 1),
     m_rows_buf(0), m_rows_cur(0), m_rows_end(0), m_flags(0) 
 #ifdef HAVE_REPLICATION
-    , m_curr_row(NULL), m_curr_row_end(NULL), m_key(NULL)
+    , m_curr_row(NULL), m_curr_row_end(NULL), m_key(NULL), last_hashed_key(NULL)
 #endif
 {
   /*
@@ -8624,7 +8624,7 @@ Rows_log_event::Rows_log_event(const char *buf, uint event_len,
 #endif
     m_table_id(0), m_rows_buf(0), m_rows_cur(0), m_rows_end(0)
 #if !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION)
-    , m_curr_row(NULL), m_curr_row_end(NULL), m_key(NULL)
+    , m_curr_row(NULL), m_curr_row_end(NULL), m_key(NULL), last_hashed_key(NULL)
 #endif
 {
   DBUG_ENTER("Rows_log_event::Rows_log_event(const char*,...)");
@@ -9333,19 +9333,48 @@ int Rows_log_event::do_apply_row(Relay_log_info const *rli)
   DBUG_RETURN(error);
 }
 
+/**
+   Does the cleanup 
+     -  deallocates all the elements in m_distinct_key_list if any
+     -  closes the index if opened by open_record_scan
+     -  closes the table if opened for scanning.
+*/
 int
 Rows_log_event::close_record_scan()
 {
   DBUG_ENTER("Rows_log_event::close_record_scan");
   int error= 0;
-  if (m_key_index != MAX_KEY)
+  if (m_key_index < MAX_KEY)
+  {
     error= m_table->file->ha_index_end();
+
+    if(m_rows_lookup_algorithm == ROW_LOOKUP_HASH_SCAN)
+    {
+      uchar *key_val;
+      /* free the allocated memory for each key values */
+      List_iterator_fast<uchar> it(m_distinct_key_list);
+      while((key_val= it++) && (key_val))
+        my_free(key_val);
+    }
+  }
   else
     error= m_table->file->ha_rnd_end();
 
   DBUG_RETURN(error);
 }
 
+/**
+  Fetches next row. If it is a HASH_SCAN over an index, it populates
+  table->record[0] with the next row corresponding to the index. If
+  the indexes are in non-contigous ranges it fetches record corresponding
+  to the key value in the next range.
+
+  @parms: bool first_read : signifying if this is the first time we are reading a row
+          over an index.
+  @return_value: -  error code when there are no more reeords to be fetched or some other
+                    error occured,
+                 -  0 otherwise.
+*/
 int
 Rows_log_event::next_record_scan(bool first_read)
 {
@@ -9358,6 +9387,7 @@ Rows_log_event::next_record_scan(bool first_read)
     error= table->file->ha_rnd_next(table->record[0]);
   else
   {
+    KEY *keyinfo= m_table->key_info + m_key_index;
     /*
       We need to set the null bytes to ensure that the filler bit are
       all set when returning.  There are storage engines that just set
@@ -9368,8 +9398,29 @@ Rows_log_event::next_record_scan(bool first_read)
       table->record[0][table->s->null_bytes - 1]|=
         256U - (1U << table->s->last_null_bit_pos);
 
-    if (first_read)
+    if (!first_read)
     {
+      /* 
+        if we fail to fetch next record corresponding to an index value, we
+        move to the next key value. If we are out of key values as well an error
+        will be returned.
+       */
+      if(m_rows_lookup_algorithm == ROW_LOOKUP_HASH_SCAN)  
+      {
+        if ((error= table->file->ha_index_next(table->record[0])))
+        {
+          m_key= m_itr++;
+          first_read= true;
+        }
+        else 
+          if (key_cmp(keyinfo->key_part, m_key, keyinfo->key_length) != 0)
+            m_key= m_itr++;
+         
+          
+      }
+    }
+
+    if (first_read)
       if ((error= table->file->ha_index_read_map(table->record[0], m_key,
                                                  HA_WHOLE_KEY,
                                                  HA_READ_KEY_EXACT)))
@@ -9378,30 +9429,41 @@ Rows_log_event::next_record_scan(bool first_read)
         if (error == HA_ERR_RECORD_DELETED)
           error= HA_ERR_KEY_NOT_FOUND;
       }
-    }
-    else
-      error= table->file->ha_index_next(table->record[0]);
   }
 
   DBUG_RETURN(error);
 }
 
-
+/**
+  Initializes scanning of rows. Opens an index and initailizes an iterator
+  over a list of distinct keys (m_distinct_key_list) if it is a HASH_SCAN
+  over an index or the table if its a HASH_SCAN over the table. 
+*/
 int 
 Rows_log_event::open_record_scan()
 {
-  DBUG_ENTER("Rows_log_event::open_record_scan");
   int error= 0;
   TABLE *table= m_table;
+  DBUG_ENTER("Rows_log_event::open_record_scan");
 
-  if (m_key_index != MAX_KEY)
+  if (m_key_index < MAX_KEY )
   {
-    /* we will be using the KEY in m_key_index */
-    KEY *keyinfo= table->key_info + m_key_index;
+    if(m_rows_lookup_algorithm == ROW_LOOKUP_HASH_SCAN)
+    {
+      /* initialize the iterator over the list of distinct keys that we have */
+      m_itr.init(m_distinct_key_list);
 
-    /* Fill key data for the row */
-    DBUG_ASSERT(m_key);
-    key_copy(m_key, table->record[0], keyinfo, 0);
+      /* get the first element from the list of keys and increment the
+         iterator
+       */
+      m_key= m_itr++;
+    }
+    else {
+      /* this is an INDEX_SCAN we need to store the key in m_key */
+      DBUG_ASSERT((m_rows_lookup_algorithm == ROW_LOOKUP_INDEX_SCAN) && m_key);
+      KEY *keyinfo= m_table->key_info + m_key_index;
+      key_copy(m_key, m_table->record[0], keyinfo, 0);
+    }
 
     /*
       Save copy of the record in table->record[1]. It might be needed
@@ -9440,6 +9502,45 @@ end:
   DBUG_RETURN(error);
 }
 
+/**
+  Populates the m_distinct_key_list with unique keys to be modified
+  during HASH_SCAN over keys.
+  @return_value -0 success
+                -Err_code
+*/
+int
+Rows_log_event::add_distinct_keys()
+{
+  int error= 0;
+  uint distinct= 0;
+  DBUG_ENTER("Rows_log_event::add_distinct_keys");
+  DBUG_ASSERT(m_key_index < MAX_KEY);
+  KEY *cur_key_info= m_table->key_info + m_key_index;
+  if ((last_hashed_key))
+    distinct= key_cmp(cur_key_info->key_part, last_hashed_key,
+                      cur_key_info->key_length);
+    else //first row
+      distinct= 1;
+
+  if (distinct != 0)
+  {
+    uchar *cur_key= (uchar *)my_malloc(cur_key_info->key_length,
+                                       MYF(MY_WME));
+    if (!cur_key )
+    {
+      error= HA_ERR_OUT_OF_MEM;
+      goto err;
+    }
+    m_distinct_key_list.push_back(cur_key);
+    last_hashed_key= cur_key;
+    key_copy(cur_key, m_table->record[0], cur_key_info, 0);
+  }
+
+err:
+  DBUG_RETURN(error);
+}
+
+
 int Rows_log_event::do_index_scan_and_update(Relay_log_info const *rli)
 {
   DBUG_ENTER("Rows_log_event::do_index_scan_and_update");
@@ -9454,7 +9555,7 @@ int Rows_log_event::do_index_scan_and_update(Relay_log_info const *rli)
     rpl_row_tabledefs.test specifies that
     if the extra field on the slave does not have a default value
     and this is okay with Delete or Update events.
-    Todo: fix wl3228 hld that requires defauls for all types of events
+    Todo: fix wl3228 hld that requires defaults for all types of events
   */
 
   prepare_record(table, &m_cols, FALSE);
@@ -9491,8 +9592,6 @@ int Rows_log_event::do_index_scan_and_update(Relay_log_info const *rli)
 
   if ((table->file->ha_table_flags() & HA_PRIMARY_KEY_REQUIRED_FOR_POSITION))
   {
-    DBUG_ASSERT(table->file->ha_table_flags() & HA_PRIMARY_KEY_REQUIRED_FOR_POSITION);
-
     /*
       Use a more efficient method to fetch the record given by
       table->record[0] if the engine allows it.  We first compute a
@@ -9536,6 +9635,7 @@ int Rows_log_event::do_index_scan_and_update(Relay_log_info const *rli)
 
 INDEX_SCAN:
 
+  /* Use the m_key_index'th key */
   keyinfo= table->key_info + m_key_index;
 
   if ((error= open_record_scan()))
@@ -9656,6 +9756,7 @@ int Rows_log_event::do_hash_scan_and_update(Relay_log_info const *rli)
   const uchar *ai_start= NULL;
   const uchar *ai_ends= NULL;
   HASH_ROW_POS_ENTRY* entry;
+  int idempotent_errors= 0;
 
   DBUG_ENTER("Rows_log_event::do_hash_scan_and_update");
 
@@ -9691,7 +9792,9 @@ int Rows_log_event::do_hash_scan_and_update(Relay_log_info const *rli)
 
   /* add it to the hash table */
   m_hash.put(m_table, &m_cols, entry);
-            
+  if (m_key_index < MAX_KEY)
+    add_distinct_keys();  
+              
   /**
     Last row hashed. We are handling the last (pair of) row(s).  So
     now we do the table scan and match against the entries in the hash
@@ -9711,11 +9814,11 @@ int Rows_log_event::do_hash_scan_and_update(Relay_log_info const *rli)
        Scan the table only once and compare against entries in hash.
        When a match is found, apply the changes.
      */
-    int i=0;
+    int i= 0;
     do
     {
       /* get the next record from the table */
-      error= next_record_scan(i==0);
+      error= next_record_scan(i == 0);
       i++;
 
       if(error)
@@ -9787,6 +9890,13 @@ int Rows_log_event::do_hash_scan_and_update(Relay_log_info const *rli)
           // get next
           continue;
 
+        case HA_ERR_KEY_NOT_FOUND:
+          /* If the slave exec mode is idempotent don't break */ 
+          if (handle_idempotent_errors(rli, &error))
+            goto close_table;
+          idempotent_errors++;
+          continue;
+
         case HA_ERR_END_OF_FILE:
         default:
           // exception (hash is not empty and we have reached EOF or
@@ -9794,8 +9904,12 @@ int Rows_log_event::do_hash_scan_and_update(Relay_log_info const *rli)
           goto close_table;
       }
     }
-
-    while ((!m_hash.is_empty()) && 
+   /**
+     if the slave_exec_mode is set to Idempotent, we cannot expect the hash to
+     be empty. In such cases we count the number of idempotent errors and check
+     if it is equal to or greater than the number of rows left in the hash.
+    */
+    while (((idempotent_errors < m_hash.size()) && !m_hash.is_empty()) && 
            (!error || (error == HA_ERR_RECORD_DELETED)));
 
 close_table:
@@ -9813,12 +9927,13 @@ close_table:
       error= 0;
 
     DBUG_ASSERT((m_hash.is_empty() && !error) || 
-                (!m_hash.is_empty() && error));
+                (!m_hash.is_empty() &&
+                 ((error) || (idempotent_errors >= m_hash.size()))));
   }
 
 err:
 
-  if (m_hash.is_empty() && !error)
+  if ((m_hash.is_empty() && !error) || (idempotent_errors >= m_hash.size()))
   {
     /**
        Reset the last positions, because the positions are lost while
@@ -10236,7 +10351,7 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
     }
 
     do {
-      
+
       error= (this->*do_apply_row_ptr)(rli);
       
       if (handle_idempotent_errors(rli, &error)) 
@@ -11642,10 +11757,12 @@ Delete_rows_log_event::do_before_row_operations(const Slave_reporting_capability
 
   if (m_rows_lookup_algorithm == ROW_LOOKUP_HASH_SCAN)
   {
-      if(m_hash.init())
-        return HA_ERR_OUT_OF_MEM;
+    if (m_hash.init())
+      return HA_ERR_OUT_OF_MEM;
   }
-  if (m_key_index < MAX_KEY)
+
+  if ((m_rows_lookup_algorithm == ROW_LOOKUP_INDEX_SCAN) &&
+      (m_key_index < MAX_KEY))
   {
     // Allocate buffer for key searches
     m_key= (uchar*)my_malloc(MAX_KEY_LENGTH, MYF(MY_WME));
@@ -11775,8 +11892,8 @@ Update_rows_log_event::do_before_row_operations(const Slave_reporting_capability
       return HA_ERR_OUT_OF_MEM;
   }
 
-  /* check if we have a suitable key and if so allocate space */
-  if (m_key_index < MAX_KEY)
+  if ((m_rows_lookup_algorithm == ROW_LOOKUP_INDEX_SCAN) &&
+      (m_key_index < MAX_KEY))
   {
     // Allocate buffer for key searches
     m_key= (uchar*)my_malloc(MAX_KEY_LENGTH, MYF(MY_WME));
