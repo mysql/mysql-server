@@ -330,6 +330,14 @@ dict_table_change_id_in_cache(
 	dict_table_t*	table,	/*!< in/out: table object already in cache */
 	table_id_t	new_id);/*!< in: new id to set */
 /**********************************************************************//**
+Removes a foreign constraint struct from the dictionary cache. */
+UNIV_INTERN
+void
+dict_foreign_remove_from_cache(
+/*===========================*/
+	dict_foreign_t*	foreign)	/*!< in, own: foreign constraint */
+	__attribute__((nonnull));
+/**********************************************************************//**
 Adds a foreign key constraint object to the dictionary cache. May free
 the object if there already is an object with the same identifier in.
 At least one of foreign table or referenced table must already be in
@@ -340,8 +348,9 @@ ulint
 dict_foreign_add_to_cache(
 /*======================*/
 	dict_foreign_t*	foreign,	/*!< in, own: foreign key constraint */
-	ibool		check_charsets);/*!< in: TRUE=check charset
+	ibool		check_charsets)	/*!< in: TRUE=check charset
 					compatibility */
+	__attribute__((nonnull, warn_unused_result));
 /*********************************************************************//**
 Check if the index is referenced by a foreign key, if TRUE return the
 matching instance NULL otherwise.

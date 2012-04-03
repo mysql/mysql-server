@@ -158,13 +158,6 @@ dict_index_build_internal_fts(
 	dict_table_t*	table,	/*!< in: table */
 	dict_index_t*	index);	/*!< in: user representation of an FTS index */
 /**********************************************************************//**
-Removes a foreign constraint struct from the dictionary cache. */
-static
-void
-dict_foreign_remove_from_cache(
-/*===========================*/
-	dict_foreign_t*	foreign);	/*!< in, own: foreign constraint */
-/**********************************************************************//**
 Prints a column data. */
 static
 void
@@ -3029,7 +3022,7 @@ dict_foreign_free(
 
 /**********************************************************************//**
 Removes a foreign constraint struct from the dictionary cache. */
-static
+UNIV_INTERN
 void
 dict_foreign_remove_from_cache(
 /*===========================*/
