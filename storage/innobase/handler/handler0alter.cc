@@ -2470,6 +2470,10 @@ found_name:
 	     foreign != NULL;
 	     foreign = UT_LIST_GET_NEXT(foreign_list, foreign)) {
 		for (unsigned f = 0; f < foreign->n_fields; f++) {
+			/* These can point straight to
+			table->col_names, because the foreign key
+			constraints will be freed at the same time
+			when the table object is freed. */
 			foreign->foreign_col_names[f]
 				= dict_index_get_nth_field(
 					foreign->foreign_index, f)
@@ -2482,10 +2486,20 @@ found_name:
 	     foreign != NULL;
 	     foreign = UT_LIST_GET_NEXT(referenced_list, foreign)) {
 		for (unsigned f = 0; f < foreign->n_fields; f++) {
-			foreign->referenced_col_names[f]
-				= dict_index_get_nth_field(
-					foreign->referenced_index, f)
-				->name;
+			/* foreign->referenced_col_names[] need to be
+			copies, because the constraint may become
+			orphan when foreign_key_checks=0 and the
+			parent table is dropped. */
+
+			const char* col_name = dict_index_get_nth_field(
+				foreign->referenced_index, f)->name;
+
+			if (strcmp(foreign->referenced_col_names[f],
+				   col_name)) {
+				foreign->referenced_col_names[f]
+					= mem_heap_strdup(
+						foreign->heap, col_name);
+			}
 		}
 	}
 
