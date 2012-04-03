@@ -2270,7 +2270,8 @@ static int toku_loader_write_brt_from_q (BRTLOADER bl,
 					 uint64_t total_disksize_estimate,
                                          int which_db,
                                          uint32_t target_nodesize,
-                                         uint32_t target_basementnodesize)
+                                         uint32_t target_basementnodesize,
+                                         enum toku_compression_method target_compression_method)
 // Effect: Consume a sequence of rowsets work from a queue, creating a fractal tree.  Closes fd.
 {
     // set the number of fractal tree writer threads so that we can partition memory in the merger
@@ -2298,7 +2299,7 @@ static int toku_loader_write_brt_from_q (BRTLOADER bl,
         root_xid_that_created = bl->root_xids_that_created[which_db];
 
     struct brt_header h; 
-    toku_brt_header_init(&h, (BLOCKNUM){0}, bl->load_lsn, root_xid_that_created, target_nodesize, target_basementnodesize);
+    toku_brt_header_init(&h, (BLOCKNUM){0}, bl->load_lsn, root_xid_that_created, target_nodesize, target_basementnodesize, target_compression_method);
 
     struct dbout out;
     dbout_init(&out, &h);
@@ -2539,15 +2540,16 @@ int toku_loader_write_brt_from_q_in_C (BRTLOADER                bl,
 				       uint64_t                 total_disksize_estimate,
                                        int                      which_db,
                                        uint32_t                 target_nodesize,
-                                       uint32_t                 target_basementnodesize)
+                                       uint32_t                 target_basementnodesize,
+                                       enum toku_compression_method target_compression_method)
 // This is probably only for testing.
 {
     target_nodesize = target_nodesize == 0 ? default_loader_nodesize : target_nodesize;
     target_basementnodesize = target_basementnodesize == 0 ? default_loader_basementnodesize : target_basementnodesize;
 #if defined(__cilkplusplus)
-    return cilk::run(toku_loader_write_brt_from_q, bl, descriptor, fd, progress_allocation, q, total_disksize_estimate, which_db, target_nodesize, target_basementnodesize);
+    return cilk::run(toku_loader_write_brt_from_q, bl, descriptor, fd, progress_allocation, q, total_disksize_estimate, which_db, target_nodesize, target_basementnodesize, target_compression_method);
 #else
-    return           toku_loader_write_brt_from_q (bl, descriptor, fd, progress_allocation, q, total_disksize_estimate, which_db, target_nodesize, target_basementnodesize);
+    return           toku_loader_write_brt_from_q (bl, descriptor, fd, progress_allocation, q, total_disksize_estimate, which_db, target_nodesize, target_basementnodesize, target_compression_method);
 #endif
 }
 
@@ -2556,9 +2558,9 @@ static void* fractal_thread (void *ftav) {
     BL_TRACE(blt_start_fractal_thread);
     struct fractal_thread_args *fta = (struct fractal_thread_args *)ftav;
 #if defined(__cilkplusplus)
-    int r = cilk::run(toku_loader_write_brt_from_q, fta->bl, fta->descriptor, fta->fd, fta->progress_allocation, fta->q, fta->total_disksize_estimate, fta->which_db, fta->target_nodesize, fta->target_basementnodesize);
+    int r = cilk::run(toku_loader_write_brt_from_q, fta->bl, fta->descriptor, fta->fd, fta->progress_allocation, fta->q, fta->total_disksize_estimate, fta->which_db, fta->target_nodesize, fta->target_basementnodesize, fta->target_compression_method);
 #else
-    int r =           toku_loader_write_brt_from_q (fta->bl, fta->descriptor, fta->fd, fta->progress_allocation, fta->q, fta->total_disksize_estimate, fta->which_db, fta->target_nodesize, fta->target_basementnodesize);
+    int r =           toku_loader_write_brt_from_q (fta->bl, fta->descriptor, fta->fd, fta->progress_allocation, fta->q, fta->total_disksize_estimate, fta->which_db, fta->target_nodesize, fta->target_basementnodesize, fta->target_compression_method);
 #endif
     fta->errno_result = r;
     return NULL;
@@ -2596,9 +2598,12 @@ static int loader_do_i (BRTLOADER bl,
         }
 
         uint32_t target_nodesize, target_basementnodesize;
+        enum toku_compression_method target_compression_method;
         r = dest_db->get_pagesize(dest_db, &target_nodesize);
         invariant_zero(r);
         r = dest_db->get_readpagesize(dest_db, &target_basementnodesize);
+        invariant_zero(r);
+        r = dest_db->get_compression_method(dest_db, &target_compression_method);
         invariant_zero(r);
 
 	// This structure must stay live until the join below.
@@ -2612,6 +2617,7 @@ static int loader_do_i (BRTLOADER bl,
                                            which_db,
                                            target_nodesize,
                                            target_basementnodesize,
+                                           target_compression_method,
         };
 
 	r = toku_pthread_create(bl->fractal_threads+which_db, NULL, fractal_thread, (void*)&fta);
@@ -2998,7 +3004,7 @@ static void write_nonleaf_node (BRTLOADER bl, struct dbout *out, int64_t blocknu
 
     BRTNODE XMALLOC(node);
     toku_initialize_empty_brtnode(node, make_blocknum(blocknum_of_new_node), height, n_children, 
-				  BRT_LAYOUT_VERSION, target_nodesize, 0, NULL);
+				  BRT_LAYOUT_VERSION, target_nodesize, 0, out->h);
     for (int i=0; i<n_children-1; i++)
         node->childkeys[i] = NULL;
     unsigned int totalchildkeylens = 0;
