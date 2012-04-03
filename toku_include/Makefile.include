@@ -398,7 +398,11 @@ endif
 
 LZMA_H = $(TOKUROOT)include/lzma.h
 ifeq ($(CC),icc)
- LZMA_A = $(TOKUROOT)lib/liblzma_icc_opt.$(AEXT)
+ ifeq ($(DEBUG),1)
+  LZMA_A = $(TOKUROOT)lib/liblzma_icc_dbg.$(AEXT)
+ else
+  LZMA_A = $(TOKUROOT)lib/liblzma_icc_opt.$(AEXT)
+ endif
 else
  ifeq ($(DEBUG),1)
   LZMA_A = $(TOKUROOT)lib/liblzma_gcc_dbg.$(AEXT)
