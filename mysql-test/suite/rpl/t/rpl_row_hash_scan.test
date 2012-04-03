@@ -36,7 +36,7 @@ SET @saved_slave_rows_search_algorithms= @@global.slave_rows_search_algorithms;
 SET GLOBAL slave_rows_search_algorithms= 'INDEX_SCAN,HASH_SCAN';
 
 #
-# CASE #1: entries that generating the same key for the slave internal
+# CASE #1: entries that generate the same key for the slave internal
 #          hash table.
 #
 # ASSERTS that no updates are lost due to having multiple entries for
@@ -187,7 +187,7 @@ DROP TABLE  t1;
 -- source include/rpl_reset.inc
 
 #
-# CASE #5: covers the case on which the table has only blobs in it.
+# CASE #5: covers the case in which the table has only blobs in it.
 #
 # ASSERTS that there are no issues even if blobs are skipped from the
 #         hashing. Tables on master and slave will not go out-of-sync.

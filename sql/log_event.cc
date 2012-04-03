@@ -8830,8 +8830,6 @@ int Rows_log_event::do_add_row_data(uchar *row_data, size_t length)
 
 #if !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION)
 
-
-
 /**
   Checks if any of the columns in the given table is
   signaled in the bitmap.
@@ -8846,7 +8844,7 @@ int Rows_log_event::do_add_row_data(uchar *row_data, size_t length)
 
   MASTER> SET @@binlog_row_image='MINIMAL';
   MASTER> CREATE TABLE t1 (a int, b int, c int, primary key(c));
-  SLAVE> CREATE TABLE t1 (a int, b int);
+  SLAVE>  CREATE TABLE t1 (a int, b int);
   MASTER> INSERT INTO t1 VALUES (1,2,3);
   MASTER> UPDATE t1 SET a=2 WHERE b=2;
 
@@ -8868,7 +8866,7 @@ my_bool is_any_column_signaled_for_table(TABLE *table, MY_BITMAP *cols)
 {
   DBUG_ENTER("is_any_column_signaled_for_table");
 
-  for (Field **ptr=table->field ;
+  for (Field **ptr= table->field ;
        *ptr && ((*ptr)->field_index < cols->n_bits);
        ptr++)
   {
@@ -9212,7 +9210,7 @@ static bool record_compare(TABLE *table, MY_BITMAP *cols)
   }
 
   /* Compare updated fields */
-  for (Field **ptr=table->field ;
+  for (Field **ptr= table->field ;
        *ptr && ((*ptr)->field_index < cols->n_bits);
        ptr++)
   {
@@ -9257,10 +9255,10 @@ void Rows_log_event::do_post_row_operations(Relay_log_info const *rli, int error
     (i.e., error==0 at this point) we must call unpack_current_row() to set
     m_curr_row_end.
   */
-  
+
   DBUG_PRINT("info", ("curr_row: 0x%lu; curr_row_end: 0x%lu; rows_end: 0x%lu",
                       (ulong) m_curr_row, (ulong) m_curr_row_end, (ulong) m_rows_end));
-  
+
   if (!m_curr_row_end && !error)
   {
     error= unpack_current_row(rli, &m_cols);
@@ -9270,15 +9268,14 @@ void Rows_log_event::do_post_row_operations(Relay_log_info const *rli, int error
   DBUG_ASSERT(error || m_curr_row_end != NULL);
   DBUG_ASSERT(error || m_curr_row <= m_curr_row_end);
   DBUG_ASSERT(error || m_curr_row_end <= m_rows_end);
-  
+
   m_curr_row= m_curr_row_end;
-  
+
   if (error == 0 && !m_table->file->has_transactions())
   {
     thd->transaction.all.set_unsafe_rollback_flags(TRUE);
     thd->transaction.stmt.set_unsafe_rollback_flags(TRUE);
   }
-  
 }
 
 int Rows_log_event::handle_idempotent_errors(Relay_log_info const *rli, int *err)
@@ -9596,11 +9593,11 @@ int Rows_log_event::do_index_scan_and_update(Relay_log_info const *rli)
       Use a more efficient method to fetch the record given by
       table->record[0] if the engine allows it.  We first compute a
       row reference using the position() member function (it will be
-      stored in table->file->ref) and the use rnd_pos() to position
+      stored in table->file->ref) and then use rnd_pos() to position
       the "cursor" (i.e., record[0] in this case) at the correct row.
 
-      TODO: Add a check that the correct record has been fetched by
-      comparing with the original record. Take into account that the
+      TODO: Check that the correct record has been fetched by
+      comparing it with the original record. Take into account that the
       record on the master and slave can be of different
       length. Something along these lines should work:
 
@@ -9737,7 +9734,6 @@ end:
     m_curr_row= m_curr_row_end;
     unpack_current_row(rli, &m_cols);
   }
-
   table->default_column_bitmaps();
   DBUG_RETURN(error);
 
@@ -9775,7 +9771,7 @@ int Rows_log_event::do_hash_scan_and_update(Relay_log_info const *rli)
       ===|=== before image ====|=== after image ===|===
          ^                     ^
          m_curr_row            m_curr_row_end
-      
+
       We need to skip the AI as well, before moving on to the
       next row.
     */
@@ -9793,9 +9789,9 @@ int Rows_log_event::do_hash_scan_and_update(Relay_log_info const *rli)
   /* add it to the hash table */
   m_hash.put(m_table, &m_cols, entry);
   if (m_key_index < MAX_KEY)
-    add_distinct_keys();  
-              
-  /**
+    add_distinct_keys();
+
+  /*
     Last row hashed. We are handling the last (pair of) row(s).  So
     now we do the table scan and match against the entries in the hash
     table.
@@ -9810,7 +9806,7 @@ int Rows_log_event::do_hash_scan_and_update(Relay_log_info const *rli)
     if ((error= open_record_scan()))
       goto err;
 
-    /* 
+    /*
        Scan the table only once and compare against entries in hash.
        When a match is found, apply the changes.
      */
@@ -9842,7 +9838,7 @@ int Rows_log_event::do_hash_scan_and_update(Relay_log_info const *rli)
 
             if ((error= unpack_current_row(rli, &m_cols)))
               goto close_table;
-            
+
             if (record_compare(m_table, &m_cols))
               m_hash.next(&entry);
             else
@@ -10292,43 +10288,16 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
 
     // row processing loop
 
-    /* 
+    /*
       set the initial time of this ROWS statement if it was not done
-      before in some other ROWS event. 
+      before in some other ROWS event.
      */
     const_cast<Relay_log_info*>(rli)->set_row_stmt_start_timestamp();
 
     const uchar *saved_m_curr_row= m_curr_row;
 
     int (Rows_log_event::*do_apply_row_ptr)(Relay_log_info const *)= NULL;
-    switch (m_rows_lookup_algorithm)
-    {
-      case ROW_LOOKUP_HASH_SCAN:
-        do_apply_row_ptr= &Rows_log_event::do_hash_scan_and_update;
-        break;
 
-      case ROW_LOOKUP_INDEX_SCAN:
-        do_apply_row_ptr= &Rows_log_event::do_index_scan_and_update;
-        break;
-
-      case ROW_LOOKUP_TABLE_SCAN:
-        do_apply_row_ptr= &Rows_log_event::do_table_scan_and_update;
-        break;
-      
-      case ROW_LOOKUP_NOT_NEEDED:
-        DBUG_ASSERT(get_type_code() == WRITE_ROWS_EVENT);
-      
-        /* No need to scan for rows, just apply it */
-        do_apply_row_ptr= &Rows_log_event::do_apply_row;
-        break;
-
-      default:
-        DBUG_ASSERT(0);
-        error= 1;
-        goto AFTER_MAIN_EXEC_ROW_LOOP;
-        break;
-    }
-    
     /**
        Skip update rows events that don't have data for this slave's
        table.
@@ -10343,20 +10312,48 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
        in the binarr log. Thence, we immediatly raise an error:
        HA_ERR_END_OF_FILE.
      */
+
     if ((m_rows_lookup_algorithm != ROW_LOOKUP_NOT_NEEDED) && 
         !is_any_column_signaled_for_table(table, &m_cols))
     {
       error= HA_ERR_END_OF_FILE;
       goto AFTER_MAIN_EXEC_ROW_LOOP;
     }
+    switch (m_rows_lookup_algorithm)
+    {
+      case ROW_LOOKUP_HASH_SCAN:
+        do_apply_row_ptr= &Rows_log_event::do_hash_scan_and_update;
+        break;
+
+      case ROW_LOOKUP_INDEX_SCAN:
+        do_apply_row_ptr= &Rows_log_event::do_index_scan_and_update;
+        break;
+
+      case ROW_LOOKUP_TABLE_SCAN:
+        do_apply_row_ptr= &Rows_log_event::do_table_scan_and_update;
+        break;
+
+      case ROW_LOOKUP_NOT_NEEDED:
+        DBUG_ASSERT(get_type_code() == WRITE_ROWS_EVENT);
+
+        /* No need to scan for rows, just apply it */
+        do_apply_row_ptr= &Rows_log_event::do_apply_row;
+        break;
+
+      default:
+        DBUG_ASSERT(0);
+        error= 1;
+        goto AFTER_MAIN_EXEC_ROW_LOOP;
+        break;
+    }
 
     do {
 
       error= (this->*do_apply_row_ptr)(rli);
-      
+
       if (handle_idempotent_errors(rli, &error)) 
         break;
-      
+
       /* this advances m_curr_row */
       do_post_row_operations(rli, error);
       
