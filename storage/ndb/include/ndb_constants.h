@@ -68,8 +68,11 @@
 #define NDB_TYPE_OLDDECIMALUNSIGNED     28
 #define NDB_TYPE_DECIMAL                29
 #define NDB_TYPE_DECIMALUNSIGNED        30
+#define NDB_TYPE_TIME2                  31
+#define NDB_TYPE_DATETIME2              32
+#define NDB_TYPE_TIMESTAMP2             33
 
-#define NDB_TYPE_MAX                    31
+#define NDB_TYPE_MAX                    34
 
 
 /*

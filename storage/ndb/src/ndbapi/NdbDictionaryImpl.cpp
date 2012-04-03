@@ -265,6 +265,15 @@ NdbColumnImpl::init(Type t)
     m_cs = NULL;
     m_arrayType = NDB_ARRAYTYPE_MEDIUM_VAR;
     break;
+  case Time2:
+  case Datetime2:
+  case Timestamp2:
+    m_precision = 0;
+    m_scale = 0;
+    m_length = 1;
+    m_cs = NULL;
+    m_arrayType = NDB_ARRAYTYPE_FIXED;
+    break;
   default:
   case Undefined:
     assert(false);

@@ -259,7 +259,17 @@ public:
       Longvarbinary = NDB_TYPE_LONGVARBINARY, ///< Length bytes: 2, little-endian
       Time = NDB_TYPE_TIME,        ///< Time without date
       Year = NDB_TYPE_YEAR,   ///< Year 1901-2155 (1 byte)
-      Timestamp = NDB_TYPE_TIMESTAMP  ///< Unix time
+      Timestamp = NDB_TYPE_TIMESTAMP, ///< Unix time
+      /**
+       * Time types in MySQL 5.6 add microsecond fraction.
+       * One should use setPrecision(x) to set number of fractional
+       * digits (x = 0-6, default 0).  Data formats are as in MySQL
+       * and must use correct byte length.  NDB does not check data
+       * itself since any values can be compared as binary strings.
+       */
+      Time2 = NDB_TYPE_TIME2, ///< 3 bytes + 0-3 fraction
+      Datetime2 = NDB_TYPE_DATETIME2, ///< 5 bytes plus 0-3 fraction
+      Timestamp2 = NDB_TYPE_TIMESTAMP2 ///< 4 bytes + 0-3 fraction
     };
 
     /*
@@ -343,6 +353,7 @@ public:
     /**
      * Get precision of column.
      * @note Only applicable for decimal types
+     * @note Also applicable for Time2 etc in mysql 5.6
      */
     int getPrecision() const;
 
@@ -484,6 +495,7 @@ public:
     /**
      * Set precision of column.
      * @note Only applicable for decimal types
+     * @note Also applicable for Time2 etc in mysql 5.6
      */
     void setPrecision(int);
 

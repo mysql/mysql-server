@@ -3100,86 +3100,41 @@ NdbDictionary::printFormattedValue(NdbOut& out,
       
       break;
     }
-      // for dates cut-and-paste from field.cc
     case NdbDictionary::Column::Datetime:
     {
-      ulonglong tmp;
-      memcpy(&tmp, val, 8);
-
-      long part1,part2,part3;
-      part1=(long) (tmp/LL(1000000));
-      part2=(long) (tmp - (ulonglong) part1*LL(1000000));
-      char buf[40];
-      char* pos=(char*) buf+19;
-      *pos--=0;
-      *pos--= (char) ('0'+(char) (part2%10)); part2/=10; 
-      *pos--= (char) ('0'+(char) (part2%10)); part3= (int) (part2 / 10);
-      *pos--= ':';
-      *pos--= (char) ('0'+(char) (part3%10)); part3/=10;
-      *pos--= (char) ('0'+(char) (part3%10)); part3/=10;
-      *pos--= ':';
-      *pos--= (char) ('0'+(char) (part3%10)); part3/=10;
-      *pos--= (char) ('0'+(char) part3);
-      *pos--= '/';
-      *pos--= (char) ('0'+(char) (part1%10)); part1/=10;
-      *pos--= (char) ('0'+(char) (part1%10)); part1/=10;
-      *pos--= '-';
-      *pos--= (char) ('0'+(char) (part1%10)); part1/=10;
-      *pos--= (char) ('0'+(char) (part1%10)); part3= (int) (part1/10);
-      *pos--= '-';
-      *pos--= (char) ('0'+(char) (part3%10)); part3/=10;
-      *pos--= (char) ('0'+(char) (part3%10)); part3/=10;
-      *pos--= (char) ('0'+(char) (part3%10)); part3/=10;
-      *pos=(char) ('0'+(char) part3);
-      out << buf;
+      NdbSqlUtil::Datetime s;
+      NdbSqlUtil::unpack_datetime(s, val_p);
+      out.print("%04d-%02d-%02d", s.year, s.month, s.day);
+      out.print("/%02d:%02d:%02d", s.hour, s.minute, s.second);
     }
     break;
     case NdbDictionary::Column::Date:
     {
-      uint32 tmp=(uint32) uint3korr(val_p);
-      int part;
-      char buf[40];
-      char *pos=(char*) buf+10;
-      *pos--=0;
-      part=(int) (tmp & 31);
-      *pos--= (char) ('0'+part%10);
-      *pos--= (char) ('0'+part/10);
-      *pos--= '-';
-      part=(int) (tmp >> 5 & 15);
-      *pos--= (char) ('0'+part%10);
-      *pos--= (char) ('0'+part/10);
-      *pos--= '-';
-      part=(int) (tmp >> 9);
-      *pos--= (char) ('0'+part%10); part/=10;
-      *pos--= (char) ('0'+part%10); part/=10;
-      *pos--= (char) ('0'+part%10); part/=10;
-      *pos=   (char) ('0'+part);
-      out << buf;
+      NdbSqlUtil::Date s;
+      NdbSqlUtil::unpack_date(s, val_p);
+      out.print("%04d-%02d-%02d", s.year, s.month, s.day);
     }
     break;
     case NdbDictionary::Column::Time:
     {
-      long tmp=(long) sint3korr(val_p);
-      int hour=(uint) (tmp/10000);
-      int minute=(uint) (tmp/100 % 100);
-      int second=(uint) (tmp % 100);
-      char buf[40];
-      sprintf(buf, "%02d:%02d:%02d", hour, minute, second);
-      out << buf;
+      NdbSqlUtil::Time s;
+      NdbSqlUtil::unpack_time(s, val_p);
+      const char* sign = (s.sign ? "" : "-");
+      out.print("%s%02u:%02u:%02u", sign, s.hour, s.minute, s.second);
     }
     break;
     case NdbDictionary::Column::Year:
     {
-      uint year = 1900 + *((const Uint8*) val);
-      char buf[40];
-      sprintf(buf, "%04d", year);
-      out << buf;
+      NdbSqlUtil::Year s;
+      NdbSqlUtil::unpack_year(s, val_p);
+      out.print("%04d", s.year);
     }
     break;
     case NdbDictionary::Column::Timestamp:
     {
-      time_t time = *(const Uint32*) val;
-      out << (uint)time;
+      NdbSqlUtil::Timestamp s;
+      NdbSqlUtil::unpack_timestamp(s, val_p);
+      out.print("%u", s.second);
     }
     break;
     case NdbDictionary::Column::Blob:
@@ -3223,6 +3178,42 @@ NdbDictionary::printFormattedValue(NdbOut& out,
       j = length;
       if (!format.hex_format)
         out << fields_optionally_enclosed_by;
+    }
+    break;
+    // fractional time types, see wl#946
+    case NdbDictionary::Column::Time2:
+    {
+      uint prec = c->getPrecision();
+      assert(prec <= 6);
+      NdbSqlUtil::Time2 s;
+      NdbSqlUtil::unpack_time2(s, val_p, prec);
+      const char* sign = (s.sign ? "" : "-");
+      out.print("%s%02d:%02d:%02d", sign, s.hour, s.minute, s.second);
+      if (prec != 0)
+        out.print(".%0*d", prec, s.fraction);
+    }
+    break;
+    case NdbDictionary::Column::Datetime2:
+    {
+      uint prec = c->getPrecision();
+      assert(prec <= 6);
+      NdbSqlUtil::Datetime2 s;
+      NdbSqlUtil::unpack_datetime2(s, val_p, prec);
+      out.print("%04d-%02d-%02d", s.year, s.month, s.day);
+      out.print("/%02d:%02d:%02d", s.hour, s.minute, s.second);
+      if (prec != 0)
+        out.print(".%0*d", prec, s.fraction);
+    }
+    break;
+    case NdbDictionary::Column::Timestamp2:
+    {
+      uint prec = c->getPrecision();
+      assert(prec <= 6);
+      NdbSqlUtil::Timestamp2 s;
+      NdbSqlUtil::unpack_timestamp2(s, val_p, prec);
+      out.print("%u", s.second);
+      if (prec != 0)
+        out.print(".%0*d", prec, s.fraction);
     }
     break;
 
@@ -3356,6 +3347,15 @@ operator<<(NdbOut& out, const NdbDictionary::Column& col)
     break;
   case NdbDictionary::Column::Longvarbinary:
     out << "Longvarbinary(" << col.getLength() << ")";
+    break;
+  case NdbDictionary::Column::Datetime2:
+    out << "Datetime2(" << col.getPrecision() << ")";
+    break;
+  case NdbDictionary::Column::Time2:
+    out << "Time2(" << col.getPrecision() << ")";
+    break;
+  case NdbDictionary::Column::Timestamp2:
+    out << "Timestamp2(" << col.getPrecision() << ")";
     break;
   default:
     out << "Type" << (Uint32)col.getType();

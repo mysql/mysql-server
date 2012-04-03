@@ -102,3 +102,8 @@ ADD_EXECUTABLE(LinkedStack-t LinkedStack.cpp)
 SET_TARGET_PROPERTIES(LinkedStack-t
                       PROPERTIES COMPILE_FLAGS "-DTEST_LINKEDSTACK")
 TARGET_LINK_LIBRARIES(LinkedStack-t ndbgeneral)
+
+ADD_EXECUTABLE(NdbSqlUtil-t NdbSqlUtil.cpp)
+SET_TARGET_PROPERTIES(NdbSqlUtil-t
+                      PROPERTIES COMPILE_FLAGS "-DTEST_NDB_SQL_UTIL")
+TARGET_LINK_LIBRARIES(NdbSqlUtil-t ndbgeneral ndbportlib)
