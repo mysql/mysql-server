@@ -324,7 +324,7 @@ void do_all_tests()
 
 int main(int, char **)
 {
-  MY_INIT("pfs-t");
+  MY_INIT("pfs_connect_attr-t");
 
   cs_cp1251= get_charset_by_csname("cp1251", MY_CS_PRIMARY, MYF(0));
   if (!cs_cp1251)
