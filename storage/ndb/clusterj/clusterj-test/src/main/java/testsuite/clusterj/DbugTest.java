@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2011, Oracle and/or its affiliates. All rights reserved.
+ *  Copyright (c) 2011, 2012, Oracle and/or its affiliates. All rights reserved.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -25,7 +25,7 @@ import com.mysql.clusterj.Dbug;
  */
 public class DbugTest extends AbstractClusterJTest{
 
-    static String tmpFileName = System.getProperty("MYSQL_TMP_DIR", "/tmp") + "/clusterj-test-dbug";
+    static String tmpFileName = System.getProperty("java.io.tmpdir") + "/clusterj-test-dbug";
 
     public boolean getDebug() {
         return false;
