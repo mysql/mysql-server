@@ -549,7 +549,7 @@ toku_bfe_leftmost_child_wanted(struct brtnode_fetch_extra *bfe, BRTNODE node)
     } else if (bfe->range_lock_left_key == NULL) {
         return -1;
     } else {
-        return toku_brtnode_which_child(node, bfe->range_lock_left_key, &bfe->h->descriptor, bfe->h->compare_fun);
+        return toku_brtnode_which_child(node, bfe->range_lock_left_key, &bfe->h->cmp_descriptor, bfe->h->compare_fun);
     }
 }
 
@@ -562,7 +562,7 @@ toku_bfe_rightmost_child_wanted(struct brtnode_fetch_extra *bfe, BRTNODE node)
     } else if (bfe->range_lock_right_key == NULL) {
         return -1;
     } else {
-        return toku_brtnode_which_child(node, bfe->range_lock_right_key, &bfe->h->descriptor, bfe->h->compare_fun);
+        return toku_brtnode_which_child(node, bfe->range_lock_right_key, &bfe->h->cmp_descriptor, bfe->h->compare_fun);
     }
 }
 
@@ -574,7 +574,7 @@ brt_cursor_rightmost_child_wanted(BRT_CURSOR cursor, BRT brt, BRTNODE node)
     } else if (cursor->range_lock_right_key.data == NULL) {
         return -1;
     } else {
-        return toku_brtnode_which_child(node, &cursor->range_lock_right_key, &brt->h->descriptor, brt->h->compare_fun);
+        return toku_brtnode_which_child(node, &cursor->range_lock_right_key, &brt->h->cmp_descriptor, brt->h->compare_fun);
     }
 }
 
@@ -993,7 +993,7 @@ BOOL toku_brtnode_pf_req_callback(void* brtnode_pv, void* read_extraargs) {
         assert(bfe->h->compare_fun);
         assert(bfe->search);
         bfe->child_to_read = toku_brt_search_which_child(
-            &bfe->h->descriptor,
+            &bfe->h->cmp_descriptor,
             bfe->h->compare_fun,
             node,
             bfe->search
@@ -1191,7 +1191,7 @@ int toku_brtnode_pf_callback(void* brtnode_pv, void* disk_data, void* read_extra
         if ((lc <= i && i <= rc) || toku_bfe_wants_child_available(bfe, i)) {
             brt_status_update_partial_fetch_reason(bfe, i, BP_STATE(node, i), (node->height == 0));
             if (BP_STATE(node,i) == PT_COMPRESSED) {
-                cilk_spawn toku_deserialize_bp_from_compressed(node, i, &bfe->h->descriptor, bfe->h->compare_fun);
+                cilk_spawn toku_deserialize_bp_from_compressed(node, i, &bfe->h->cmp_descriptor, bfe->h->compare_fun);
             }
             else if (BP_STATE(node,i) == PT_ON_DISK) {
                 cilk_spawn toku_deserialize_bp_from_disk(node, ndd, i, fd, bfe);
@@ -1211,23 +1211,19 @@ int toku_brtnode_pf_callback(void* brtnode_pv, void* disk_data, void* read_extra
 // In combination with the annotation in toku_update_descriptor, this seems to be enough to convince test_4015 that all is well.
 // Otherwise, drd complains that the newly malloc'd descriptor string is touched later by some comparison operation.
 static const struct __toku_db zero_db; // it's static, so it's all zeros.  icc needs this to be a global
-static inline void setup_fake_db (DB *fake_db, DESCRIPTOR fake_desc, DESCRIPTOR orig_desc) {
+static inline void setup_fake_db (DB *fake_db, DESCRIPTOR orig_desc) {
     *fake_db = zero_db;
-    if (orig_desc) {
-	fake_db->descriptor = fake_desc;
-	*fake_desc = *orig_desc;
-	ANNOTATE_HAPPENS_AFTER(&orig_desc->dbt.data);
-    }
+    fake_db->cmp_descriptor = orig_desc;
 }
 
-#define FAKE_DB(db, desc_var, desc) DESCRIPTOR_S desc_var; struct __toku_db db; setup_fake_db(&db, &desc_var, (desc))
+#define FAKE_DB(db, desc) struct __toku_db db; setup_fake_db(&db, (desc))
 
 static int
 leafval_heaviside_le (u_int32_t klen, void *kval,
 		      struct cmd_leafval_heaviside_extra *be) {
     DBT dbt;
     DBT const * const key = be->key;
-    FAKE_DB(db, tmp_desc, be->desc);
+    FAKE_DB(db, be->desc);
     return be->compare_fun(&db,
 			   toku_fill_dbt(&dbt, kval, klen),
 			   key);
@@ -1250,7 +1246,7 @@ brt_compare_pivot(DESCRIPTOR desc, brt_compare_func cmp, const DBT *key, bytevec
     int r;
     DBT mydbt;
     struct kv_pair *kv = (struct kv_pair *) ck;
-    FAKE_DB(db, tmp_desc, desc);
+    FAKE_DB(db, desc);
     r = cmp(&db, key, toku_fill_dbt(&mydbt, kv_pair_key(kv), kv_pair_keylen(kv)));
     return r;
 }
@@ -1323,11 +1319,8 @@ brtheader_destroy(struct brt_header *h) {
 	assert(h->type == BRTHEADER_CURRENT);
 	toku_blocktable_destroy(&h->blocktable);
 	if (h->descriptor.dbt.data) toku_free(h->descriptor.dbt.data);
-	for (int i=0; i<h->free_me_count; i++) {
-	    toku_free(h->free_me[i]);
-	}
+	if (h->cmp_descriptor.dbt.data) toku_free(h->cmp_descriptor.dbt.data);
         toku_brtheader_destroy_treelock(h);
-	toku_free(h->free_me);
     }
 }
 
@@ -1720,7 +1713,7 @@ static int do_update(brt_update_func update_fun, DESCRIPTOR desc, BRTNODE leafno
     struct setval_extra_s setval_extra = {setval_tag, FALSE, 0, leafnode, bn, cmd->msn, cmd->xids,
                                           keyp, idx, le_for_update, snapshot_txnids, live_list_reverse, 0, workdone};
     // call handlerton's brt->update_fun(), which passes setval_extra to setval_fun()
-    FAKE_DB(db, tmp_desc, desc);
+    FAKE_DB(db, desc);
     int r = update_fun(
         &db,
         keyp,
@@ -1848,7 +1841,7 @@ brt_leaf_put_cmd (
 		DBT adbt;
 		u_int32_t keylen;
 		void *keyp = le_key_and_len(storeddata, &keylen);
-		FAKE_DB(db, tmp_desc, desc);
+		FAKE_DB(db, desc);
 		if (compare_fun(&db,
 				toku_fill_dbt(&adbt, keyp, keylen),
 				cmd->u.id.key) != 0)
@@ -1959,7 +1952,7 @@ static inline int
 key_msn_cmp(const DBT *a, const DBT *b, const MSN amsn, const MSN bmsn,
             DESCRIPTOR descriptor, brt_compare_func key_cmp)
 {
-    FAKE_DB(db, tmpdesc, descriptor);
+    FAKE_DB(db, descriptor);
     int r = key_cmp(&db, a, b);
     if (r == 0) {
         if (amsn.msn > bmsn.msn) {
@@ -2613,7 +2606,7 @@ static void push_something_at_root (BRT brt, BRTNODE *nodep, BRT_MSG cmd)
     brtnode_put_cmd(
         brt->compare_fun,
         brt->update_fun,
-        &brt->h->descriptor,
+        &brt->h->cmp_descriptor,
         node,
         cmd,
         true,
@@ -3386,6 +3379,7 @@ brt_alloc_init_header(BRT t, TOKUTXN txn) {
     t->h->time_of_last_verification = 0;
 
     memset(&t->h->descriptor, 0, sizeof(t->h->descriptor));
+    memset(&t->h->cmp_descriptor, 0, sizeof(t->h->cmp_descriptor));
 
     r = brt_init_header(t, txn);
     if (r != 0) goto died2;
@@ -3491,17 +3485,6 @@ int toku_update_descriptor(struct brt_header * h, DESCRIPTOR d, int fd)
 // Effect: Change the descriptor in a tree (log the change, make sure it makes it to disk eventually).
 //  Updates to the descriptor must be performed while holding some sort of lock.  (In the ydb layer
 //  there is a row lock on the directory that provides exclusion.)
-// However, reads can occur concurrently.
-// So the trickyness here is to update the size and data with atomic instructions.
-// DRD ought to recognize if we do
-//    x = malloc();
-//    fill(x);
-//    atomic_set(y, x);
-// and then another thread looks at
-//    *y
-// then there's no race.
-// So we tell drd that the newly mallocated memory was filled in before the assignment into dbt.data with a ANNOTATE_HAPPENS_BEFORE.
-// The other half (the reads) are hacked in the FAKE_DB macro.
 {
     int r = 0;
     DISKOFF offset;
@@ -3509,34 +3492,28 @@ int toku_update_descriptor(struct brt_header * h, DESCRIPTOR d, int fd)
     toku_realloc_descriptor_on_disk(h->blocktable, toku_serialize_descriptor_size(d)+4, &offset, h);
     r = toku_serialize_descriptor_contents_to_fd(fd, d, offset);
     if (r) {
-	goto cleanup;
+        goto cleanup;
     }
-    u_int32_t old_size   = h->descriptor.dbt.size;
-    void *old_descriptor = h->descriptor.dbt.data;
-    void *new_descriptor = toku_memdup(d->dbt.data, d->dbt.size);
-    ANNOTATE_HAPPENS_BEFORE(&h->descriptor.dbt.data);
-    bool ok1 = __sync_bool_compare_and_swap(&h->descriptor.dbt.size, old_size,       d->dbt.size);
-    bool ok2 = __sync_bool_compare_and_swap(&h->descriptor.dbt.data, old_descriptor, new_descriptor);
-    if (!ok1 || !ok2) {
-	// Don't quite raise an assert here, but if something goes wrong, I'd like to know.
-	static bool ever_wrote = false;
-	if (!ever_wrote) {
-	    fprintf(stderr, "%s:%d compare_and_swap saw different values (%d %d)\n", __FILE__, __LINE__, ok1, ok2);
-	    ever_wrote = true;
-	}
+    if (h->descriptor.dbt.data) {
+        toku_free(h->descriptor.dbt.data);
     }
-
-    if (old_descriptor) {
-	// I don't need a lock here, since updates to the descriptor hold a lock.
-	h->free_me_count++;
-	XREALLOC_N(h->free_me_count, h->free_me);
-	h->free_me[h->free_me_count-1] = old_descriptor;
-    }
+    h->descriptor.dbt.size = d->dbt.size;
+    h->descriptor.dbt.data = toku_memdup(d->dbt.data, d->dbt.size);
 
     r = 0;
 cleanup:
     return r;
 }
+
+void 
+toku_brt_update_cmp_descriptor(BRT t) {
+    t->h->cmp_descriptor.dbt.size = t->h->descriptor.dbt.size;
+    t->h->cmp_descriptor.dbt.data = toku_xmemdup(
+        t->h->descriptor.dbt.data, 
+        t->h->descriptor.dbt.size
+        );
+}
+
 
 int
 toku_brt_change_descriptor(
@@ -3724,6 +3701,7 @@ brt_open(BRT t, const char *fname_in_env, int is_create, int only_create, CACHET
     r = brtheader_note_brt_open(t);
     if (r!=0) goto died_after_read_and_pin;
     if (t->db) t->db->descriptor = &t->h->descriptor;
+    if (t->db) t->db->cmp_descriptor = &t->h->cmp_descriptor;
     if (txn_created) {
 	assert(txn);
 	toku_brt_header_suppress_rollbacks(t->h, txn);
@@ -3900,6 +3878,7 @@ dictionary_redirect_internal(const char *dst_fname_in_env, struct brt_header *sr
 	//Do not need to swap descriptors pointers.
 	//Done by brt_open_for_redirect
 	assert(dst_brt->db->descriptor == &dst_brt->h->descriptor);
+	assert(dst_brt->db->cmp_descriptor == &dst_brt->h->cmp_descriptor);
 
 	//Set db->i->brt to new brt
 	brt_redirect_db(dst_brt, src_brt);
@@ -4720,7 +4699,7 @@ static BOOL search_pivot_is_bounded (brt_search_t *search, DESCRIPTOR desc, brt_
 //  If searching from right to left, if we have already searched all the vlaues greater than pivot, we don't want to search again.
 {
     if (!search->have_pivot_bound) return TRUE; // isn't bounded.
-    FAKE_DB(db, tmpdesc, desc);
+    FAKE_DB(db, desc);
     int comp = cmp(&db, pivot, &search->pivot_bound);
     if (search->direction == BRT_SEARCH_LEFT) {
 	// searching from left to right.  If the comparison function says the pivot is <= something we already compared, don't do it again.
@@ -4744,7 +4723,7 @@ copy_to_stale(OMTVALUE v, u_int32_t UU(idx), void *extrap)
     entry->is_fresh = false;
     DBT keydbt;
     DBT *key = fill_dbt_for_fifo_entry(&keydbt, entry);
-    struct toku_fifo_entry_key_msn_heaviside_extra heaviside_extra = { .desc = &extra->brt->h->descriptor, .cmp = extra->brt->compare_fun, .fifo = extra->bnc->buffer, .key = key->data, .keylen = key->size, .msn = entry->msn };
+    struct toku_fifo_entry_key_msn_heaviside_extra heaviside_extra = { .desc = &extra->brt->h->cmp_descriptor, .cmp = extra->brt->compare_fun, .fifo = extra->bnc->buffer, .key = key->data, .keylen = key->size, .msn = entry->msn };
     int r = toku_omt_insert(extra->bnc->stale_message_tree, (OMTVALUE) offset, toku_fifo_entry_key_msn_heaviside, &heaviside_extra, NULL);
     assert_zero(r);
     return r;
@@ -4813,7 +4792,7 @@ do_brt_leaf_put_cmd(BRT t, BRTNODE leafnode, BASEMENTNODE bn, BRTNODE ancestor, 
         DBT hv;
         BRT_MSG_S brtcmd = { type, msn, xids, .u.id = { &hk, toku_fill_dbt(&hv, val, vallen) } };
         bool made_change;
-        brt_leaf_put_cmd(t->compare_fun, t->update_fun, &t->h->descriptor, leafnode, bn, &brtcmd, &made_change, &BP_WORKDONE(ancestor, childnum), NULL, NULL);  // pass NULL omts (snapshot_txnids and live_list_reverse) to prevent GC from running on message application for a query
+        brt_leaf_put_cmd(t->compare_fun, t->update_fun, &t->h->cmp_descriptor, leafnode, bn, &brtcmd, &made_change, &BP_WORKDONE(ancestor, childnum), NULL, NULL);  // pass NULL omts (snapshot_txnids and live_list_reverse) to prevent GC from running on message application for a query
     } else {
         STATUS_VALUE(BRT_MSN_DISCARDS)++;
     }
@@ -4897,7 +4876,7 @@ find_bounds_within_message_tree(
             const long offset = (long) found_lb;
             DBT found_lbidbt;
             fill_dbt_for_fifo_entry(&found_lbidbt, toku_fifo_get_entry(buffer, offset));
-            FAKE_DB(db, tmpdesc, desc);
+            FAKE_DB(db, desc);
             int c = cmp(&db, &found_lbidbt, &ubidbt_tmp);
             // These DBTs really are both inclusive bounds, so we need
             // strict inequality in order to determine that there's
@@ -4966,13 +4945,13 @@ bnc_apply_messages_to_basement_node(
     // apply messages from this buffer
     u_int32_t stale_lbi, stale_ube;
     if (!bn->stale_ancestor_messages_applied) {
-        find_bounds_within_message_tree(&t->h->descriptor, t->compare_fun, bnc->stale_message_tree, bnc->buffer, bounds, &stale_lbi, &stale_ube);
+        find_bounds_within_message_tree(&t->h->cmp_descriptor, t->compare_fun, bnc->stale_message_tree, bnc->buffer, bounds, &stale_lbi, &stale_ube);
     } else {
         stale_lbi = 0;
         stale_ube = 0;
     }
     u_int32_t fresh_lbi, fresh_ube;
-    find_bounds_within_message_tree(&t->h->descriptor, t->compare_fun, bnc->fresh_message_tree, bnc->buffer, bounds, &fresh_lbi, &fresh_ube);
+    find_bounds_within_message_tree(&t->h->cmp_descriptor, t->compare_fun, bnc->fresh_message_tree, bnc->buffer, bounds, &fresh_lbi, &fresh_ube);
 
     // We now know where all the messages we must apply are, so one of the
     // following 4 cases will do the application, depending on which of
@@ -5043,7 +5022,7 @@ bnc_apply_messages_to_basement_node(
         assert_zero(r);
 
         // This comparison extra struct won't change during iteration.
-        struct toku_fifo_entry_key_msn_cmp_extra extra = { .desc= &t->h->descriptor, .cmp = t->compare_fun, .fifo = bnc->buffer };
+        struct toku_fifo_entry_key_msn_cmp_extra extra = { .desc= &t->h->cmp_descriptor, .cmp = t->compare_fun, .fifo = bnc->buffer };
 
         // Iterate over both lists, applying the smaller (in (key, msn)
         // order) message at each step
@@ -5519,7 +5498,7 @@ toku_brt_search_which_child(
     // ready to return something, if the pivot is bounded, we have to move
     // over a bit to get away from what we've already searched
     if (search->have_pivot_bound) {
-        FAKE_DB(db, tmpdesc, desc);
+        FAKE_DB(db, desc);
         if (search->direction == BRT_SEARCH_LEFT) {
             while (lo < node->n_children - 1 &&
                    search_which_child_cmp_with_bound(&db, cmp, node, lo, search, &pivotkey) <= 0) {
@@ -5835,7 +5814,7 @@ brt_cursor_search(BRT_CURSOR cursor, brt_search_t *search, BRT_GET_CALLBACK_FUNC
 }
 
 static inline int compare_k_x(BRT brt, const DBT *k, const DBT *x) {
-    FAKE_DB(db, tmpdesc, &brt->h->descriptor);
+    FAKE_DB(db, &brt->h->cmp_descriptor);
     return brt->compare_fun(&db, k, x);
 }
 
@@ -6239,7 +6218,7 @@ toku_brt_keyrange_internal (BRT brt, BRTNODE node,
 {
     int r = 0;
     // if KEY is NULL then use the leftmost key.
-    int child_number = key ? toku_brtnode_which_child (node, key, &brt->h->descriptor, brt->compare_fun) : 0;
+    int child_number = key ? toku_brtnode_which_child (node, key, &brt->h->cmp_descriptor, brt->compare_fun) : 0;
     uint64_t rows_per_child = estimated_num_rows / node->n_children;
     if (node->height == 0) {
 

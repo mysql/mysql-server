@@ -122,7 +122,7 @@ hot_just_pick_child(struct brt_header *h,
         // Find the pivot boundary.
         childnum = toku_brtnode_hot_next_child(parent,
                                                &flusher->highest_pivot_key,
-                                               &h->descriptor,
+                                               &h->cmp_descriptor,
                                                h->compare_fun);
     }
 

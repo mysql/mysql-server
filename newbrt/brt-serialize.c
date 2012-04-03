@@ -1265,7 +1265,7 @@ static void setup_brtnode_partitions(BRTNODE node, struct brtnode_fetch_extra* b
         // and check if it is available
         assert(bfe->search);
         bfe->child_to_read = toku_brt_search_which_child(
-            &bfe->h->descriptor,
+            &bfe->h->cmp_descriptor,
             bfe->h->compare_fun,
             node,
             bfe->search
@@ -1636,7 +1636,7 @@ deserialize_brtnode_from_rbuf(
 	switch (BP_STATE(node,i)) {
 	case PT_AVAIL:
 	    //  case where we read and decompress the partition
-            decompress_and_deserialize_worker(curr_rbuf, curr_sb, node, i, &bfe->h->descriptor, bfe->h->compare_fun);
+            decompress_and_deserialize_worker(curr_rbuf, curr_sb, node, i, &bfe->h->cmp_descriptor, bfe->h->compare_fun);
 	    continue;
 	case PT_COMPRESSED:
 	    // case where we leave the partition in the compressed state
@@ -1698,7 +1698,7 @@ toku_deserialize_bp_from_disk(BRTNODE node, BRTNODE_DISK_DATA ndd, int childnum,
 
     read_and_decompress_sub_block(&rb, &curr_sb);
     // at this point, sb->uncompressed_ptr stores the serialized node partition
-    deserialize_brtnode_partition(&curr_sb, node, childnum, &bfe->h->descriptor, bfe->h->compare_fun);
+    deserialize_brtnode_partition(&curr_sb, node, childnum, &bfe->h->cmp_descriptor, bfe->h->compare_fun);
     toku_free(raw_block);
 }
 
@@ -2253,6 +2253,8 @@ deserialize_brtheader_versioned (int fd, struct rbuf *rb, struct brt_header **br
         invariant(h);
         invariant((uint32_t) h->layout_version == version);
         deserialize_descriptor_from(fd, h->blocktable, &(h->descriptor), version);
+        h->cmp_descriptor.dbt.size = h->descriptor.dbt.size;
+        h->cmp_descriptor.dbt.data = toku_xmemdup(h->descriptor.dbt.data, h->descriptor.dbt.size);
         switch (version) {
             case BRT_LAYOUT_VERSION_13:
                 invariant(h->layout_version == BRT_LAYOUT_VERSION_13);

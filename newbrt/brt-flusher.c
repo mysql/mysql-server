@@ -311,7 +311,7 @@ ctm_pick_child(struct brt_header *h,
         childnum = toku_brtnode_which_child(
             parent,
             &ctme->target_key,
-            &h->descriptor,
+            &h->cmp_descriptor,
             h->compare_fun);
     }
     return childnum;
@@ -1074,7 +1074,7 @@ flush_this_child(
     set_BNC(node, childnum, toku_create_empty_nl());
 
     // now we have a bnc to flush to the child
-    r = toku_bnc_flush_to_child(h->compare_fun, h->update_fun, &h->descriptor, h->cf, bnc, child); assert_zero(r);
+    r = toku_bnc_flush_to_child(h->compare_fun, h->update_fun, &h->cmp_descriptor, h->cf, bnc, child); assert_zero(r);
     destroy_nonleaf_childinfo(bnc);
 }
 
@@ -1567,7 +1567,7 @@ flush_some_child(
         r = toku_bnc_flush_to_child(
             h->compare_fun,
             h->update_fun,
-            &h->descriptor,
+            &h->cmp_descriptor,
             h->cf,
             bnc,
             child
@@ -1729,7 +1729,7 @@ static void flush_node_fun(void *fe_v)
         r = toku_bnc_flush_to_child(
             fe->h->compare_fun,
             fe->h->update_fun,
-            &fe->h->descriptor,
+            &fe->h->cmp_descriptor,
             fe->h->cf,
             fe->bnc,
             fe->node

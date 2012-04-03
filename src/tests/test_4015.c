@@ -8,9 +8,9 @@
 
 static int my_compare (DB *db, const DBT *a, const DBT *b) {
     assert(db);
-    assert(db->descriptor);
-    assert(db->descriptor->dbt.size >= 3);
-    char *data = db->descriptor->dbt.data;
+    assert(db->cmp_descriptor);
+    assert(db->cmp_descriptor->dbt.size >= 3);
+    char *data = db->cmp_descriptor->dbt.data;
     assert(data[0]=='f');
     assert(data[1]=='o');
     assert(data[2]=='o');
@@ -117,7 +117,7 @@ int test_main(int argc, char * const argv[]) {
     dbt_init(&desc, "foo", sizeof("foo"));
     IN_TXN_COMMIT(env, NULL, txn, 0,
 		  CHK(db->change_descriptor(db, txn, &desc, 0)));
-    
+    CHK(db->update_cmp_descriptor(db));
     pthread_t thd;
     CHK(toku_pthread_create(&thd, NULL, startA, NULL));
 
