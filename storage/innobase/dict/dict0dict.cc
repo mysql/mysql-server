@@ -5734,7 +5734,7 @@ dict_foreign_replace_index(
 			/* There must exist an alternative index,
 			since this must have been checked earlier. */
 			ut_a(new_index || !trx->check_foreigns);
-			ut_ad(new_index->table == index->table);
+			ut_ad(!new_index || new_index->table == index->table);
 
 			foreign->foreign_index = new_index;
 		}
@@ -5750,7 +5750,7 @@ dict_foreign_replace_index(
 			/* There must exist an alternative index,
 			since this must have been checked earlier. */
 			ut_a(new_index || !trx->check_foreigns);
-			ut_ad(new_index->table == index->table);
+			ut_ad(!new_index || new_index->table == index->table);
 
 			foreign->referenced_index = new_index;
 		}
