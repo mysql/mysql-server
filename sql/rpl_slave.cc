@@ -2240,7 +2240,9 @@ static bool wait_for_relay_log_space(Relay_log_info* rli)
 #endif
     if (rli->sql_force_rotate_relay)
     {
-      rotate_relay_log(rli->mi);
+      mysql_mutex_lock(&mi->data_lock);
+      rotate_relay_log(mi);
+      mysql_mutex_unlock(&mi->data_lock);
       rli->sql_force_rotate_relay= false;
     }
 

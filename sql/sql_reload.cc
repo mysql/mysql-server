@@ -159,10 +159,13 @@ bool reload_acl_and_cache(THD *thd, unsigned long options,
   {
 #ifdef HAVE_REPLICATION
     mysql_mutex_lock(&LOCK_active_mi);
-    mysql_mutex_lock(&active_mi->data_lock);
-    if (rotate_relay_log(active_mi))
-      *write_to_binlog= -1;
-    mysql_mutex_unlock(&active_mi->data_lock);
+    if (active_mi != NULL)
+    {
+      mysql_mutex_lock(&active_mi->data_lock);
+      if (rotate_relay_log(active_mi))
+        *write_to_binlog= -1;
+      mysql_mutex_unlock(&active_mi->data_lock);
+    }
     mysql_mutex_unlock(&LOCK_active_mi);
 #endif
   }

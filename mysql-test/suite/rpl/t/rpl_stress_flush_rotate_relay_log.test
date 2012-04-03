@@ -48,9 +48,9 @@ CREATE TABLE t2 (a INT) ENGINE = InnoDB;
 # Make the slave rotate the relay log when it is longer than 500
 # bytes, i.e., after every event.
 --sync_slave_with_master
+--source include/stop_slave.inc
 --let $old_debug= `SELECT @@GLOBAL.DEBUG`
 SET @@GLOBAL.DEBUG='d,rotate_slave_debug_group';
---source include/stop_slave.inc
 
 --echo ==== Generate load on master ====
 
@@ -124,14 +124,15 @@ while (!$done)
   --inc $iteration
 }
 
-# No point to keep rotating the log when we don't execute any more
-# FLUSH RELAY LOG.  So we turn off rotation just so that the rest of
-# the test will run fast.
-
-eval SET @@GLOBAL.DEBUG= '$old_debug';
 --enable_query_log
 
 --source include/stop_slave.inc
+--disable_query_log
+# No point to keep rotating the log when we don't execute any more
+# FLUSH RELAY LOG.  So we turn off rotation just so that the rest of
+# the test will run fast.
+eval SET @@GLOBAL.DEBUG= '$old_debug';
+--enable_query_log
 --source include/start_slave.inc
 
 --sync_with_master
