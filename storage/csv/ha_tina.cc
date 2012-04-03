@@ -854,6 +854,7 @@ int ha_tina::open(const char *name, int mode, uint open_options)
   */
   thr_lock_data_init(&share->lock, &lock, (void*) this);
   ref_length= sizeof(my_off_t);
+  init_alloc_root(&blobroot, BLOB_MEMROOT_ALLOC_SIZE, 0);
 
   share->lock.get_status= tina_get_status;
   share->lock.update_status= tina_update_status;
@@ -871,6 +872,7 @@ int ha_tina::close(void)
 {
   int rc= 0;
   DBUG_ENTER("ha_tina::close");
+  free_root(&blobroot, MYF(0));
   rc= my_close(data_file, MYF(0));
   DBUG_RETURN(free_share(share) || rc);
 }
@@ -1086,10 +1088,8 @@ int ha_tina::rnd_init(bool scan)
 
   current_position= next_position= 0;
   stats.records= 0;
-  records_is_known= 0;
+  records_is_known= found_end_of_file= 0;
   chain_ptr= chain;
-
-  init_alloc_root(&blobroot, BLOB_MEMROOT_ALLOC_SIZE, 0);
 
   DBUG_RETURN(0);
 }
@@ -1122,10 +1122,16 @@ int ha_tina::rnd_next(uchar *buf)
 
   /* don't scan an empty file */
   if (!local_saved_data_file_length)
+  {
+    found_end_of_file= 1;
     DBUG_RETURN(HA_ERR_END_OF_FILE);
-
+  }
   if ((rc= find_current_row(buf)))
+  {
+    DBUG_PRINT("warning", ("got error %d while reading file", rc));
+    found_end_of_file= (rc == HA_ERR_END_OF_FILE);
     DBUG_RETURN(rc);
+  }
 
   stats.records++;
   DBUG_RETURN(0);
@@ -1220,8 +1226,7 @@ int ha_tina::rnd_end()
   my_off_t file_buffer_start= 0;
   DBUG_ENTER("ha_tina::rnd_end");
 
-  free_root(&blobroot, MYF(0));
-  records_is_known= 1;
+  records_is_known= found_end_of_file;
 
   if ((chain_ptr - chain)  > 0)
   {
@@ -1393,8 +1398,6 @@ int ha_tina::repair(THD* thd, HA_CHECK_OPT* check_opt)
   local_saved_data_file_length= share->saved_data_file_length;
   /* set current position to the beginning of the file */
   current_position= next_position= 0;
-
-  init_alloc_root(&blobroot, BLOB_MEMROOT_ALLOC_SIZE, 0);
 
   /* Read the file row-by-row. If everything is ok, repair is not needed. */
   while (!(rc= find_current_row(buf)))
@@ -1603,8 +1606,6 @@ int ha_tina::check(THD* thd, HA_CHECK_OPT* check_opt)
   /* set current position to the beginning of the file */
   current_position= next_position= 0;
 
-  init_alloc_root(&blobroot, BLOB_MEMROOT_ALLOC_SIZE, 0);
-
   /* Read the file row-by-row. If everything is ok, repair is not needed. */
   while (!(rc= find_current_row(buf)))
   {
@@ -1625,6 +1626,13 @@ int ha_tina::check(THD* thd, HA_CHECK_OPT* check_opt)
   }
 
   DBUG_RETURN(HA_ADMIN_OK);
+}
+
+
+int ha_tina::reset(void)
+{
+  free_root(&blobroot, MYF(0));
+  return 0;
 }
 
 

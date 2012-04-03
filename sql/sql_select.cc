@@ -3091,6 +3091,13 @@ make_join_statistics(JOIN *join, List<TABLE_LIST> &tables_list,
     table_vector[i]=s->table=table=tables->table;
     table->pos_in_table_list= tables;
     error= tables->fetch_number_of_rows();
+
+#ifdef WITH_PARTITION_STORAGE_ENGINE
+    const bool no_partitions_used= table->no_partitions_used;
+#else
+    const bool no_partitions_used= FALSE;
+#endif
+
     DBUG_EXECUTE_IF("bug11747970_raise_error",
                     {
                       if (!error)
@@ -3122,13 +3129,10 @@ make_join_statistics(JOIN *join, List<TABLE_LIST> &tables_list,
     if (*s->on_expr_ref)
     {
       /* s is the only inner table of an outer join */
-#ifdef WITH_PARTITION_STORAGE_ENGINE
       if (!table->is_filled_at_execution() &&
-           (!table->file->stats.records || table->no_partitions_used) && !embedding)
-#else
-      if (!table->is_filled_at_execution() &&
-          !table->file->stats.records && !embedding)
-#endif
+          ((!table->file->stats.records &&
+            (table->file->ha_table_flags() & HA_STATS_RECORDS_IS_EXACT)) ||
+           no_partitions_used) && !embedding)
       {						// Empty table
         s->dependent= 0;                        // Ignore LEFT JOIN depend.
         no_rows_const_tables |= table->map;
@@ -3168,16 +3172,12 @@ make_join_statistics(JOIN *join, List<TABLE_LIST> &tables_list,
       if (inside_an_outer_join)
         continue;
     }
-#ifdef WITH_PARTITION_STORAGE_ENGINE
-    const bool no_partitions_used= table->no_partitions_used;
-#else
-    const bool no_partitions_used= FALSE;
-#endif
-    if (!table->is_filled_at_execution() && 
-        (table->s->system || table->file->stats.records <= 1 ||
+    if (!table->is_filled_at_execution() &&
+        (table->s->system ||
+         (table->file->stats.records <= 1 &&
+          (table->file->ha_table_flags() & HA_STATS_RECORDS_IS_EXACT)) ||
          no_partitions_used) &&
 	!s->dependent &&
-	(table->file->ha_table_flags() & HA_STATS_RECORDS_IS_EXACT) &&
         !table->fulltext_searched && !join->no_const_tables)
     {
       set_position(join,const_count++,s,(KEYUSE*) 0);
