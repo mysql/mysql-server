@@ -9022,6 +9022,160 @@ runIndexStatCreate(NDBT_Context* ctx, NDBT_Step* step)
   return NDBT_OK;
 }
 
+int
+runWL946(NDBT_Context* ctx, NDBT_Step* step)
+{
+  Ndb* pNdb = GETNDB(step);
+  NdbDictionary::Dictionary* pDic = pNdb->getDictionary();
+  const int loops = ctx->getNumLoops();
+  const int records = ctx->getNumRecords();
+  bool keep_table = false; // keep table and data
+#ifdef VM_TRACE
+  {
+    const char* p = NdbEnv_GetEnv("KEEP_TABLE_WL946", (char*)0, 0);
+    if (p != 0 && strchr("1Y", p[0]) != 0)
+      keep_table = true;
+  }
+#endif
+  int result = NDBT_OK;
+
+  const char* tabname = "T_WL946";
+  (void)pDic->dropTable(tabname);
+
+  for (int loop = 0; loop < loops; loop++)
+  {
+    g_info << "loop " << loop << "(" << loops << ")" << endl;
+
+    NdbDictionary::Table tab;
+    tab.setName(tabname);
+
+    struct Coldef {
+      const char* name;
+      NdbDictionary::Column::Type type;
+      int prec; // fractional precision 0-6
+      int flag; // 1-pk 2-nullable 4-fractional 8-create index
+      const char* indname;
+    } coldef[] = {
+      // primary key
+      { "pk", NdbDictionary::Column::Unsigned, 0, 1, 0 },
+      // deprecated
+      { "a0", NdbDictionary::Column::Time, 0, 2|8, "x0" },
+      { "a1", NdbDictionary::Column::Datetime, 0, 2|8, "x1" },
+      { "a2", NdbDictionary::Column::Timestamp, 0, 2|8, "x2" },
+      // fractional
+      { "b0", NdbDictionary::Column::Time2, 0, 2|4|8, "y0" },
+      { "b1", NdbDictionary::Column::Datetime2, 0, 2|4|8, "y1" },
+      { "b2", NdbDictionary::Column::Timestamp2, 0, 2|4|8, "y2" },
+      // update key
+      { "uk", NdbDictionary::Column::Unsigned, 0, 0, 0 }
+    };
+    const int Colcnt = sizeof(coldef)/sizeof(coldef[0]);
+
+    NdbDictionary::Column col[Colcnt];
+    for (int i = 0; i < Colcnt; i++)
+    {
+      Coldef& d = coldef[i];
+      NdbDictionary::Column& c = col[i];
+      c.setName(d.name);
+      c.setType(d.type);
+      if (d.flag & 4)
+      {
+        d.prec = myRandom48(7);
+        assert(d.prec >= 0 && d.prec <= 6);
+        c.setPrecision(d.prec);
+      }
+      c.setPrimaryKey(d.flag & 1);
+      c.setNullable(d.flag & 2);
+      tab.addColumn(c);
+    }
+
+    g_info << "create table " << tabname << endl;
+    const NdbDictionary::Table* pTab = 0;
+    CHK2(pDic->createTable(tab) == 0, pDic->getNdbError());
+    CHK2((pTab = pDic->getTable(tabname)) != 0, pDic->getNdbError());
+
+    const NdbDictionary::Column* pCol[Colcnt];
+    for (int i = 0; i < Colcnt; i++)
+    {
+      const Coldef& d = coldef[i];
+      const NdbDictionary::Column* pc = 0;
+      CHK2((pc = tab.getColumn(i)) != 0, pDic->getNdbError());
+      CHK2(strcmp(pc->getName(), d.name) == 0, "name");
+      CHK2(pc->getType() == d.type, "type");
+      CHK2(pc->getPrecision() == d.prec, "prec");
+      pCol[i] = pc;
+    }
+    CHK2(result == NDBT_OK, "verify columns");
+
+    g_info << "create indexes" << endl;
+    NdbDictionary::Index ind[Colcnt];
+    const NdbDictionary::Index* pInd[Colcnt];
+    for (int i = 0; i < Colcnt; i++)
+    {
+      Coldef& d = coldef[i];
+      pInd[i] = 0;
+      if (d.flag & 8)
+      {
+        NdbDictionary::Index& x = ind[i];
+        x.setName(d.indname);
+        x.setTable(tabname);
+        x.setType(NdbDictionary::Index::OrderedIndex);
+        x.setLogging(false);
+        x.addColumn(d.name);
+        const NdbDictionary::Index* px = 0;
+        CHK2(pDic->createIndex(x) == 0, pDic->getNdbError());
+        CHK2((px = pDic->getIndex(d.indname, tabname)) != 0, pDic->getNdbError());
+        pInd[i] = px;
+      }
+    }
+    CHK2(result == NDBT_OK, "create indexes");
+
+    HugoTransactions trans(*pTab);
+
+    g_info << "load records" << endl;
+    CHK2(trans.loadTable(pNdb, records) == 0, trans.getNdbError());
+
+    const int scanloops = 5;
+    for (int j = 0; j < scanloops; j++)
+    {
+      g_info << "scan table " << j << "(" << scanloops << ")" << endl;
+      CHK2(trans.scanReadRecords(pNdb, records) == 0, trans.getNdbError());
+
+      for (int i = 0; i < Colcnt; i++)
+      {
+        Coldef& d = coldef[i];
+        if (d.flag & 8)
+        {
+          g_info << "scan index " << d.indname << endl;
+          const NdbDictionary::Index* px = pInd[i];
+          CHK2(trans.scanReadRecords(pNdb, px, records) == 0, trans.getNdbError());
+        }
+      }
+      CHK2(result == NDBT_OK, "index scan");
+
+      g_info << "update records" << endl;
+      CHK2(trans.scanUpdateRecords(pNdb, records) == 0, trans.getNdbError());
+    }
+    CHK2(result == NDBT_OK, "scans");
+
+    if (loop + 1 < loops || !keep_table)
+    {
+      g_info << "delete records" << endl;
+      CHK2(trans.clearTable(pNdb) == 0, trans.getNdbError());
+
+      g_info << "drop table" << endl;
+      CHK2(pDic->dropTable(tabname) == 0, pDic->getNdbError());
+    }
+  }
+
+  if (result != NDBT_OK && !keep_table)
+  {
+    g_info << "drop table after error" << endl;
+    (void)pDic->dropTable(tabname);
+  }
+  return result;
+}
+
 NDBT_TESTSUITE(testDict);
 TESTCASE("testDropDDObjects",
          "* 1. start cluster\n"
@@ -9332,6 +9486,11 @@ TESTCASE("Bug13416603", "")
 TESTCASE("IndexStatCreate", "")
 {
   STEPS(runIndexStatCreate, 10);
+}
+TESTCASE("WL946",
+         "Time types with fractional seconds.\n"
+         "Give any tablename as argument (T1)"){
+  INITIALIZER(runWL946);
 }
 NDBT_TESTSUITE_END(testDict);
 

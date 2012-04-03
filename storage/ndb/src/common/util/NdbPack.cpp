@@ -109,7 +109,14 @@ g_ndb_pack_type_info[] = {
   { 1, 4, 0, 0, 0 }, // NDB_TYPE_TIMESTAMP
   { 1, 0, 0, 0, 0 }, // NDB_TYPE_OLDDECIMALUNSIGNED
   { 1, 0, 0, 0, 0 }, // NDB_TYPE_DECIMAL
-  { 1, 0, 0, 0, 0 }  // NDB_TYPE_DECIMALUNSIGNED
+  { 1, 0, 0, 0, 0 }, // NDB_TYPE_DECIMALUNSIGNED
+  /*
+   * Fractional time types are varsized.
+   * There is no size validation yet.
+   */
+  { 1, 0, 0, 0, 0 }, // NDB_TYPE_TIME2      (3+(0-3) bytes)
+  { 1, 0, 0, 0, 0 }, // NDB_TYPE_DATETIME2  (5+(0-3) bytes)
+  { 1, 0, 0, 0, 0 }  // NDB_TYPE_TIMESTAMP2 (4+(0-3) bytes)
 };
 
 static const int g_ndb_pack_type_info_cnt =
