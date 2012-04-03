@@ -2334,10 +2334,6 @@ static void network_init(void)
 }
 
 
-#endif /*!EMBEDDED_LIBRARY*/
-
-
-#ifndef EMBEDDED_LIBRARY
 /**
   Close a connection.
 
@@ -2764,13 +2760,84 @@ extern "C" char *my_demangle(const char *mangled_name, int *status)
 }
 #endif
 
+
+/*
+  pthread_attr_setstacksize() without so much platform-dependency
+
+  Return: The actual stack size if possible.
+*/
+
+#ifndef EMBEDDED_LIBRARY
+static size_t my_setstacksize(pthread_attr_t *attr, size_t stacksize)
+{
+  size_t guard_size __attribute__((unused))= 0;
+
+#if defined(__ia64__) || defined(__ia64)
+  /*
+    On IA64, half of the requested stack size is used for "normal stack"
+    and half for "register stack".  The space measured by check_stack_overrun
+    is the "normal stack", so double the request to make sure we have the
+    caller-expected amount of normal stack.
+
+    NOTE: there is no guarantee that the register stack can't grow faster
+    than normal stack, so it's very unclear that we won't dump core due to
+    stack overrun despite check_stack_overrun's efforts.  Experimentation
+    shows that in the execution_constants test, the register stack grows
+    less than half as fast as normal stack, but perhaps other scenarios are
+    less forgiving.  If it turns out that more space is needed for the
+    register stack, that could be forced (rather inefficiently) by using a
+    multiplier higher than 2 here.
+  */
+  stacksize *= 2;
+#endif
+
+  /*
+    On many machines, the "guard space" is subtracted from the requested
+    stack size, and that space is quite large on some platforms.  So add
+    it to our request, if we can find out what it is.
+  */
+#ifdef HAVE_PTHREAD_ATTR_GETGUARDSIZE
+  if (pthread_attr_getguardsize(attr, &guard_size))
+    guard_size = 0;		/* if can't find it out, treat as 0 */
+#endif
+
+  pthread_attr_setstacksize(attr, stacksize + guard_size);
+
+  /* Retrieve actual stack size if possible */
+#ifdef HAVE_PTHREAD_ATTR_GETSTACKSIZE
+  {
+    size_t real_stack_size= 0;
+    /* We must ignore real_stack_size = 0 as Solaris 2.9 can return 0 here */
+    if (pthread_attr_getstacksize(attr, &real_stack_size) == 0 &&
+	real_stack_size > guard_size)
+    {
+      real_stack_size -= guard_size;
+      if (real_stack_size < stacksize)
+      {
+	if (global_system_variables.log_warnings)
+          sql_print_warning("Asked for %zu thread stack, but got %zu",
+                            stacksize, real_stack_size);
+	stacksize= real_stack_size;
+      }
+    }
+  }
+#endif /* !EMBEDDED_LIBRARY */
+
+#if defined(__ia64__) || defined(__ia64)
+  stacksize /= 2;
+#endif
+  return stacksize;
+}
+#endif
+
+
 #if !defined(__WIN__)
 #ifndef SA_RESETHAND
 #define SA_RESETHAND 0
-#endif
+#endif /* SA_RESETHAND */
 #ifndef SA_NODEFER
 #define SA_NODEFER 0
-#endif
+#endif /* SA_NODEFER */
 
 #ifndef EMBEDDED_LIBRARY
 
@@ -2782,16 +2849,13 @@ static void init_signals(void)
 
   my_sigset(THR_SERVER_ALARM,print_signal_warning); // Should never be called!
 
-#ifdef HAVE_STACKTRACE
   if (opt_stack_trace || (test_flags & TEST_CORE_ON_SIGNAL))
   {
     sa.sa_flags = SA_RESETHAND | SA_NODEFER;
     sigemptyset(&sa.sa_mask);
     sigprocmask(SIG_SETMASK,&sa.sa_mask,NULL);
 
-#ifdef HAVE_STACKTRACE
     my_init_stacktrace();
-#endif
 #if defined(__amiga__)
     sa.sa_handler=(void(*)())handle_fatal_signal;
 #else
@@ -2805,7 +2869,6 @@ static void init_signals(void)
     sigaction(SIGILL, &sa, NULL);
     sigaction(SIGFPE, &sa, NULL);
   }
-#endif
 
 #ifdef HAVE_GETRLIMIT
   if (test_flags & TEST_CORE_ON_SIGNAL)
@@ -2851,70 +2914,6 @@ static void init_signals(void)
   sigprocmask(SIG_SETMASK,&set,NULL);
   pthread_sigmask(SIG_SETMASK,&set,NULL);
   DBUG_VOID_RETURN;
-}
-
-
-/* pthread_attr_setstacksize without so much platform-dependency */
-/* returns the actual stack size if possible */
-static size_t my_setstacksize(pthread_attr_t *attr, size_t stacksize)
-{
-  size_t guard_size = 0;
-
-#if defined(__ia64__) || defined(__ia64)
-  /*
-    On IA64, half of the requested stack size is used for "normal stack"
-    and half for "register stack".  The space measured by check_stack_overrun
-    is the "normal stack", so double the request to make sure we have the
-    caller-expected amount of normal stack.
-
-    NOTE: there is no guarantee that the register stack can't grow faster
-    than normal stack, so it's very unclear that we won't dump core due to
-    stack overrun despite check_stack_overrun's efforts.  Experimentation
-    shows that in the execution_constants test, the register stack grows
-    less than half as fast as normal stack, but perhaps other scenarios are
-    less forgiving.  If it turns out that more space is needed for the
-    register stack, that could be forced (rather inefficiently) by using a
-    multiplier higher than 2 here.
-  */
-  stacksize *= 2;
-#endif
-
-  /*
-    On many machines, the "guard space" is subtracted from the requested
-    stack size, and that space is quite large on some platforms.  So add
-    it to our request, if we can find out what it is.
-
-    FIXME: autoconfiscate use of pthread_attr_getguardsize
-  */
-  if (pthread_attr_getguardsize(attr, &guard_size))
-    guard_size = 0;		/* if can't find it out, treat as 0 */
-
-  pthread_attr_setstacksize(attr, stacksize + guard_size);
-
-  /* Retrieve actual stack size if possible */
-#ifdef HAVE_PTHREAD_ATTR_GETSTACKSIZE
-  {
-    size_t real_stack_size= 0;
-    /* We must ignore real_stack_size = 0 as Solaris 2.9 can return 0 here */
-    if (pthread_attr_getstacksize(attr, &real_stack_size) == 0 &&
-	real_stack_size > guard_size)
-    {
-      real_stack_size -= guard_size;
-      if (real_stack_size < stacksize)
-      {
-	if (global_system_variables.log_warnings)
-          sql_print_warning("Asked for %zu thread stack, but got %zu",
-                            stacksize, real_stack_size);
-	stacksize= real_stack_size;
-      }
-    }
-  }
-#endif
-
-#if defined(__ia64__) || defined(__ia64)
-  stacksize /= 2;
-#endif
-  return stacksize;
 }
 
 

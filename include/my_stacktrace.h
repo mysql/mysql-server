@@ -50,11 +50,13 @@ void my_safe_print_str(const char* val, int max_len);
 void my_write_core(int sig);
 #if BACKTRACE_DEMANGLE
 char *my_demangle(const char *mangled_name, int *status);
-#endif
+#endif /* BACKTRACE_DEMANGLE */
 #ifdef __WIN__
 void my_set_exception_pointers(EXCEPTION_POINTERS *ep);
-#endif
-#endif
+#endif /* __WIN__ */
+#else
+#define my_init_stacktrace() do { } while(0)
+#endif /* ! (defined(HAVE_STACKTRACE) || defined(HAVE_BACKTRACE)) */
 
 #ifndef _WIN32
 #define MY_ADDR_RESOLVE_FORK
