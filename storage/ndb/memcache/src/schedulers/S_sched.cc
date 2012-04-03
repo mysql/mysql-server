@@ -64,12 +64,12 @@ S::SchedulerGlobal::SchedulerGlobal(Configuration *cf) :
 }
 
 
-void S::SchedulerGlobal::init(int _nthreads, const char *_config_string) {
+void S::SchedulerGlobal::init(const scheduler_options *sched_opts) {
   DEBUG_ENTER_METHOD("S::SchedulerGlobal::init");
 
   /* Set member variables */
-  nthreads = _nthreads;
-  config_string = _config_string;
+  nthreads = sched_opts->nthreads;
+  config_string = sched_opts->config_string;
   parse_config_string(nthreads, config_string);
 
   /* Fetch or initialize clusters */
@@ -249,15 +249,14 @@ void S::SchedulerGlobal::add_stats(const char *stat_key,
 /* SchedulerWorker methods */
 
 void S::SchedulerWorker::init(int my_thread, 
-                              int nthreads, 
-                              const char * config_string) {
+                              const scheduler_options * options) {
   /* On the first call in, initialize the SchedulerGlobal.
    * This will start the send & poll threads for each connection.
    */
   if(my_thread == 0) {
     sched_generation_number = 1;
     s_global = new SchedulerGlobal(& get_Configuration());
-    s_global->init(nthreads, config_string);
+    s_global->init(options);
   }
   
   /* Initialize member variables */
