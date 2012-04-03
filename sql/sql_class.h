@@ -42,6 +42,8 @@
 #include <mysql/psi/mysql_idle.h>
 #include <mysql_com_server.h>
 
+#define FLAGSTR(V,F) ((V)&(F)?#F" ":"")
+
 /**
   The meat of thd_proc_info(THD*, char*), a macro that packs the last
   three calling-info parameters.
@@ -1233,6 +1235,7 @@ struct THD_TRANS
 {
   /* true is not all entries in the ht[] support 2pc */
   bool        no_2pc;
+  int         rw_ha_count;
   /* storage engines that registered in this transaction */
   Ha_trx_info *ha_list;
 
@@ -1285,6 +1288,17 @@ private:
   static unsigned int const DROPPED_TEMP_TABLE= 0x04;
 
 public:
+#ifndef DBUG_OFF
+  void dbug_unsafe_rollback_flags(const char* msg) const
+  {
+    DBUG_PRINT("debug", ("%s.unsafe_rollback_flags: %s%s%s",
+                         msg,
+                         FLAGSTR(m_unsafe_rollback_flags, MODIFIED_NON_TRANS_TABLE),
+                         FLAGSTR(m_unsafe_rollback_flags, CREATED_TEMP_TABLE),
+                         FLAGSTR(m_unsafe_rollback_flags, DROPPED_TEMP_TABLE)));
+  }
+#endif
+
   bool cannot_safely_rollback() const
   {
     return m_unsafe_rollback_flags > 0;
@@ -1295,18 +1309,22 @@ public:
   }
   void set_unsafe_rollback_flags(unsigned int flags)
   {
+    DBUG_PRINT("debug", ("set_unsafe_rollback_flags: %d", flags));
     m_unsafe_rollback_flags= flags;
   }
   void add_unsafe_rollback_flags(unsigned int flags)
   {
+    DBUG_PRINT("debug", ("add_unsafe_rollback_flags: %d", flags));
     m_unsafe_rollback_flags|= flags;
   }
   void reset_unsafe_rollback_flags()
   {
+    DBUG_PRINT("debug", ("reset_unsafe_rollback_flags"));
     m_unsafe_rollback_flags= 0;
   }
   void mark_modified_non_trans_table()
   {
+    DBUG_PRINT("debug", ("mark_modified_non_trans_table"));
     m_unsafe_rollback_flags|= MODIFIED_NON_TRANS_TABLE;
   }
   bool has_modified_non_trans_table() const
@@ -1315,6 +1333,7 @@ public:
   }
   void mark_created_temp_table()
   {
+    DBUG_PRINT("debug", ("mark_created_temp_table"));
     m_unsafe_rollback_flags|= CREATED_TEMP_TABLE;
   }
   bool has_created_temp_table() const
@@ -1323,6 +1342,7 @@ public:
   }
   void mark_dropped_temp_table()
   {
+    DBUG_PRINT("debug", ("mark_dropped_temp_table"));
     m_unsafe_rollback_flags|= DROPPED_TEMP_TABLE;
   }
   bool has_dropped_temp_table() const
@@ -1330,7 +1350,12 @@ public:
     return m_unsafe_rollback_flags & DROPPED_TEMP_TABLE;
   }
 
-  void reset() { no_2pc= FALSE; reset_unsafe_rollback_flags(); }
+  void reset()
+  {
+    no_2pc= FALSE;
+    rw_ha_count= 0;
+    reset_unsafe_rollback_flags();
+  }
   bool is_empty() const { return ha_list == NULL; }
 };
 
@@ -1353,6 +1378,24 @@ public:
 
 class Ha_trx_info
 {
+#ifndef DBUG_OFF
+  friend const char *
+    ha_list_names(Ha_trx_info *ha_list, char *const buf_arg)
+  {
+    char *buf = buf_arg;
+    while (ha_list)
+    {
+      buf += sprintf(buf, "%s", ha_legacy_type_name(ha_list->m_ht->db_type));
+      ha_list = ha_list->m_next;
+      if (ha_list)
+        buf += sprintf(buf, ", ");
+    }
+    if (buf == buf_arg)
+      sprintf(buf, "<NONE>");
+    return buf_arg;
+  }
+#endif
+
 public:
   /** Register this storage engine in the given transaction context. */
   void register_ha(THD_TRANS *trans, handlerton *ht_arg)
@@ -2383,14 +2426,12 @@ public:
                                       bool is_transactional,
 				      RowsEventT* hint);
   Rows_log_event* binlog_get_pending_rows_event(bool is_transactional) const;
-  void binlog_set_pending_rows_event(Rows_log_event* ev, bool is_transactional);
   inline int binlog_flush_pending_rows_event(bool stmt_end)
   {
     return (binlog_flush_pending_rows_event(stmt_end, FALSE) || 
             binlog_flush_pending_rows_event(stmt_end, TRUE));
   }
   int binlog_flush_pending_rows_event(bool stmt_end, bool is_transactional);
-  int binlog_remove_pending_rows_event(bool clear_maps, bool is_transactional);
 
   /**
     Determine the binlog format of the current statement.
@@ -2490,6 +2531,7 @@ public:
     MEM_ROOT mem_root; // Transaction-life memory allocation pool
     void cleanup()
     {
+      DBUG_ENTER("THD::st_transaction::cleanup");
       changed_tables= 0;
       savepoints= 0;
       /*
@@ -2501,6 +2543,7 @@ public:
       if (!xid_state.rm_error)
         xid_state.xid.null();
       free_root(&mem_root,MYF(MY_KEEP_PREALLOC));
+      DBUG_VOID_RETURN;
     }
     my_bool is_active()
     {
