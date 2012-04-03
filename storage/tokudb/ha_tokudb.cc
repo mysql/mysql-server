@@ -6182,12 +6182,12 @@ row_type_to_compression_method(enum row_type type)
         return TOKU_QUICKLZ_METHOD;
     case ROW_TYPE_TOKU_LZMA:
         return TOKU_LZMA_METHOD;
-    case ROW_TYPE_TOKU_FAST:
-        return TOKU_FAST_COMPRESSION_METHOD;
     case ROW_TYPE_TOKU_SMALL:
         return TOKU_SMALL_COMPRESSION_METHOD;
     default:
-        assert(false);
+        DBUG_PRINT("info", ("Ignoring ROW_FORMAT not used by TokuDB, using TOKUDB_FAST by default instead"));
+    case ROW_TYPE_TOKU_FAST:
+        return TOKU_FAST_COMPRESSION_METHOD;
     }
 }
 
@@ -6583,12 +6583,11 @@ row_format_to_row_type(srv_row_format_t row_format)
         return ROW_TYPE_TOKU_QUICKLZ;
     case SRV_ROW_FORMAT_LZMA:
         return ROW_TYPE_TOKU_LZMA;
-    case SRV_ROW_FORMAT_FAST:
-        return ROW_TYPE_TOKU_FAST;
     case SRV_ROW_FORMAT_SMALL:
         return ROW_TYPE_TOKU_SMALL;
     default:
-        assert(false);
+    case SRV_ROW_FORMAT_FAST:
+        return ROW_TYPE_TOKU_FAST;
     }
 }
 
