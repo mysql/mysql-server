@@ -246,6 +246,8 @@ ha_innobase::check_if_supported_inplace_alter(
 		}
 	}
 
+	prebuilt->trx->will_lock++;
+
 	/* TODO: Reject if creating a fulltext index and there is an
 	incompatible FTS_DOC_ID or FTS_DOC_ID_INDEX, either in the table
 	or in the ha_alter_info. We can and should reject this before
@@ -1271,6 +1273,7 @@ online_retry_drop_indexes(
 	if (table->drop_aborted) {
 		trx_t*	trx	= innobase_trx_allocate(user_thd);
 		trx_start_if_not_started(trx);
+		trx->will_lock = 1;
 
 		row_mysql_lock_data_dictionary(trx);
 		/* Flag this transaction as a dictionary operation, so that
@@ -1313,6 +1316,7 @@ online_retry_drop_indexes_with_trx(
 		trx->dict_operation = TRX_DICT_OP_INDEX;
 		trx->table_id = 0;
 		trx_start_if_not_started(trx);
+		trx->will_lock = 1;
 		online_retry_drop_indexes_low(table, trx);
 		trx_commit_for_mysql(trx);
 	}
@@ -1381,6 +1385,7 @@ prepare_inplace_alter_table_dict(
 	the data dictionary tables. */
 	trx = innobase_trx_allocate(user_thd);
 	trx_start_if_not_started(trx);
+	trx->will_lock = 1;
 	if (!heap) {
 		heap = mem_heap_create(1024);
 	}
@@ -2716,6 +2721,7 @@ ha_innobase::commit_inplace_alter_table(
 		the data dictionary tables. */
 		trx = innobase_trx_allocate(user_thd);
 		trx_start_if_not_started(trx);
+		trx->will_lock = 1;
 		/* Flag this transaction as a dictionary operation, so that
 		the data dictionary will be locked in crash recovery. */
 		trx_set_dict_operation(trx, TRX_DICT_OP_INDEX);
@@ -2910,6 +2916,7 @@ processed_field:
 			trx_start_if_not_started(trx);
 			DBUG_ASSERT(trx_get_dict_operation(trx)
 				    == TRX_DICT_OP_INDEX);
+			trx->will_lock = 1;
 
 			for (ulint i = 0; i < ctx->num_to_drop; i++) {
 				dict_index_t*	index = ctx->drop[i];
@@ -2963,6 +2970,7 @@ processed_field:
 			user transaction already, so that we were able to
 			drop the old table. */
 			update_thd();
+			prebuilt->trx->will_lock++;
 			trx_start_if_not_started_xa(prebuilt->trx);
 		}
 	}
