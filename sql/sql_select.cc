@@ -5635,6 +5635,15 @@ best_access_path(JOIN      *join,
 }
 
 
+/*
+  Find JOIN_TAB's embedding (i.e, parent) subquery.
+  - For merged semi-joins, tables inside the semi-join nest have their
+    semi-join nest as parent.  We intentionally ignore results of table 
+    pullout action here.
+  - For non-merged semi-joins (JTBM tabs), the embedding subquery is the 
+    JTBM join tab itself.
+*/
+
 static TABLE_LIST* get_emb_subq(JOIN_TAB *tab)
 {
   TABLE_LIST *tlist= tab->table->pos_in_table_list;
@@ -5648,8 +5657,21 @@ static TABLE_LIST* get_emb_subq(JOIN_TAB *tab)
 
 
 /*
+  Choose initial table order that "helps" semi-join optimizations.
+
+  The idea is that we should start with the order that is the same as the one
+  we would have had if we had semijoin=off:
+  - Top-level tables go first
+  - subquery tables are grouped together by the subquery they are in,
+  - subquery tables are attached where the subquery predicate would have been
+    attached if we had semi-join off.
+  
+  This function relies on join_tab_cmp()/join_tab_cmp_straight() to produce
+  certain pre-liminary ordering, see compare_embedding_subqueries() for its
+  description.
 */
-static void pre_sort_tables(JOIN *join)
+
+static void choose_initial_table_order(JOIN *join)
 {
   TABLE_LIST *emb_subq;
   JOIN_TAB **tab= join->best_ref + join->const_tables;
@@ -5660,10 +5682,12 @@ static void pre_sort_tables(JOIN *join)
     if ((emb_subq= get_emb_subq(*tab)))
       break;
   }
-  /* Copy the subquery JOIN_TABs to a separate array */
   uint n_subquery_tabs= tabs_end - tab;
+
   if (!n_subquery_tabs)
     return;
+
+  /* Copy the subquery JOIN_TABs to a separate array */
   JOIN_TAB *subquery_tabs[MAX_TABLES];
   memcpy(subquery_tabs, tab, sizeof(JOIN_TAB*) * n_subquery_tabs);
   
@@ -5787,7 +5811,7 @@ choose_plan(JOIN *join, table_map join_tables)
 
   if (!join->emb_sjm_nest)
   {
-    pre_sort_tables(join);
+    choose_initial_table_order(join);
   }
   join->cur_sj_inner_tables= 0;
 
@@ -5828,6 +5852,18 @@ choose_plan(JOIN *join, table_map join_tables)
 }
 
 
+/*
+  Compare two join tabs based on the subqueries they are from.
+   - top-level join tabs go first
+   - then subqueries are ordered by their select_id (we're using this 
+     criteria because we need a cross-platform, deterministic ordering)
+
+  @return 
+     0   -  equal
+     -1  -  jt1 < jt2
+     1   -  jt1 > jt2
+*/
+
 static int compare_embedding_subqueries(JOIN_TAB *jt1, JOIN_TAB *jt2)
 {
   /* Determine if the first table is originally from a subquery */
@@ -5865,7 +5901,8 @@ static int compare_embedding_subqueries(JOIN_TAB *jt1, JOIN_TAB *jt2)
   /* 
     Put top-level tables in front. Tables from within subqueries must follow,
     grouped by their owner subquery. We don't care about the order that
-    subquery groups are in, because pre_sort_tables() will move the groups.
+    subquery groups are in, because choose_initial_table_order() will re-order
+    the groups.
   */
   if (tbl1_select_no != tbl2_select_no)
     return tbl1_select_no > tbl2_select_no ? 1 : -1;
@@ -5889,6 +5926,9 @@ static int compare_embedding_subqueries(JOIN_TAB *jt1, JOIN_TAB *jt2)
       a: dependent = 0x0 table->map = 0x1 found_records = 3 ptr = 0x907e6b0
       b: dependent = 0x0 table->map = 0x2 found_records = 3 ptr = 0x907e838
       c: dependent = 0x6 table->map = 0x10 found_records = 2 ptr = 0x907ecd0
+
+   As for subuqueries, this function must produce order that can be fed to 
+   choose_initial_table_order().
      
   @retval
     1  if first is bigger
