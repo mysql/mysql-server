@@ -141,6 +141,7 @@ by ALTER TABLE and holding data used during in-place alter.
 
 @retval HA_ALTER_INPLACE_NOT_SUPPORTED	Not supported
 @retval HA_ALTER_INPLACE_EXCLUSIVE_LOCK	Supported, but requires X-lock
+@retval HA_ALTER_INPLACE_NO_LOCK Supported
 @retval HA_ALTER_INPLACE_NO_LOCK_AFTER_PREPARE	Supported, prepare phase
 (any transactions that have modified the table must commit or roll back
 first, and no transactions can start modifying the table while
@@ -177,6 +178,10 @@ ha_innobase::check_if_supported_inplace_alter(
 		if (create_info->used_fields & HA_CREATE_USED_KEY_BLOCK_SIZE) {
 			DBUG_RETURN(HA_ALTER_INPLACE_NOT_SUPPORTED);
 		}
+	}
+
+	if (!(ha_alter_info->handler_flags & ~INNOBASE_INPLACE_IGNORE)) {
+		DBUG_RETURN(HA_ALTER_INPLACE_NO_LOCK);
 	}
 
 	/* InnoDB cannot IGNORE when creating unique indexes. IGNORE
