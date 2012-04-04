@@ -9402,9 +9402,10 @@ Rows_log_event::next_record_scan(bool first_read)
         move to the next key value. If we are out of key values as well an error
         will be returned.
        */
+      error= table->file->ha_index_next(table->record[0]);
       if(m_rows_lookup_algorithm == ROW_LOOKUP_HASH_SCAN)
       {
-        if ((error= table->file->ha_index_next(table->record[0])))
+        if ((error))
         {
           m_key= m_itr++;
           first_read= true;
