@@ -9420,20 +9420,21 @@ innobase_drop_database(
 }
 /*********************************************************************//**
 Renames an InnoDB table.
-@return	0 or error code */
-static
-int
+@return DB_SUCCESS or error code */
+static __attribute__((nonnull, warn_unused_result))
+db_err
 innobase_rename_table(
 /*==================*/
 	trx_t*		trx,	/*!< in: transaction */
 	const char*	from,	/*!< in: old name of the table */
-	const char*	to,	/*!< in: new name of the table */
-	ibool		lock_and_commit)
-				/*!< in: TRUE=lock data dictionary and commit */
+	const char*	to)	/*!< in: new name of the table */
 {
-	int	error;
+	db_err	error;
 	char*	norm_to;
 	char*	norm_from;
+
+	DBUG_ENTER("innobase_rename_table");
+	DBUG_ASSERT(trx_get_dict_operation(trx) == TRX_DICT_OP_INDEX);
 
 	// Magic number 64 arbitrary
 	norm_to = (char*) my_malloc(strlen(to) + 64, MYF(0));
@@ -9445,17 +9446,15 @@ innobase_rename_table(
 	/* Serialize data dictionary operations with dictionary mutex:
 	no deadlocks can occur then in these operations */
 
-	if (lock_and_commit) {
-		row_mysql_lock_data_dictionary(trx);
-	}
+	row_mysql_lock_data_dictionary(trx);
 
 	/* Transaction must be flagged as a locking transaction or it hasn't
 	been started yet. */
 
 	ut_a(trx->will_lock > 0);
 
-	error = row_rename_table_for_mysql(
-		norm_from, norm_to, trx, lock_and_commit);
+	error = (db_err) row_rename_table_for_mysql(
+		norm_from, norm_to, trx, TRUE);
 
 	if (error != DB_SUCCESS) {
 		if (error == DB_TABLE_NOT_FOUND
@@ -9486,9 +9485,8 @@ innobase_rename_table(
 				normalize_table_name_low(par_case_name,
 							 from, FALSE);
 #endif
-				error = row_rename_table_for_mysql(
-					par_case_name, norm_to, trx,
-					lock_and_commit);
+				error = (db_err) row_rename_table_for_mysql(
+					par_case_name, norm_to, trx, TRUE);
 
 			}
 		}
@@ -9521,20 +9519,18 @@ innobase_rename_table(
 		}
 	}
 
-	if (lock_and_commit) {
-		row_mysql_unlock_data_dictionary(trx);
+	row_mysql_unlock_data_dictionary(trx);
 
-		/* Flush the log to reduce probability that the .frm
-		files and the InnoDB data dictionary get out-of-sync
-		if the user runs with innodb_flush_log_at_trx_commit = 0 */
+	/* Flush the log to reduce probability that the .frm
+	files and the InnoDB data dictionary get out-of-sync
+	if the user runs with innodb_flush_log_at_trx_commit = 0 */
 
-		log_buffer_flush_to_disk();
-	}
+	log_buffer_flush_to_disk();
 
 	my_free(norm_to);
 	my_free(norm_from);
 
-	return(error);
+	DBUG_RETURN(error);
 }
 
 /*********************************************************************//**
@@ -9548,7 +9544,7 @@ ha_innobase::rename_table(
 	const char*	to)	/*!< in: new name of the table */
 {
 	trx_t*	trx;
-	int	error;
+	db_err	error;
 	trx_t*	parent_trx;
 	THD*	thd		= ha_thd();
 
@@ -9566,15 +9562,11 @@ ha_innobase::rename_table(
 
 	trx = innobase_trx_allocate(thd);
 
-	/* Either the transaction is already flagged as a locking transaction
-	or it hasn't been started yet. */
-
-	ut_a(!trx_is_started(trx) || trx->will_lock > 0);
-
 	/* We are doing a DDL operation. */
 	++trx->will_lock;
+	trx_set_dict_operation(trx, TRX_DICT_OP_INDEX);
 
-	error = innobase_rename_table(trx, from, to, TRUE);
+	error = innobase_rename_table(trx, from, to);
 
 	DEBUG_SYNC(thd, "after_innobase_rename_table");
 
@@ -9598,15 +9590,13 @@ ha_innobase::rename_table(
 	the dup key error here is due to an existing table whose name
 	is the one we are trying to rename to) and return the generic
 	error code. */
-	if (error == (int) DB_DUPLICATE_KEY) {
+	if (error == DB_DUPLICATE_KEY) {
 		my_error(ER_TABLE_EXISTS_ERROR, MYF(0), to);
 
 		error = DB_ERROR;
 	}
 
-	error = convert_error_code_to_mysql(error, 0, NULL);
-
-	DBUG_RETURN(error);
+	DBUG_RETURN(convert_error_code_to_mysql(error, 0, NULL));
 }
 
 /*********************************************************************//**
