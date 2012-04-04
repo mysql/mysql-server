@@ -7066,7 +7066,7 @@ set res@1 NULL	{
   "steps": [
   ] /* steps */
 }	0	0
-select d into res from t6 where d in (select f1() from t2 where s= NAME_CONST('arg',_latin1'c' COLLATE 'latin1_swedish_ci'))	{
+select d into res from t6 where d in (select f1() from t2 where s=arg)	{
   "steps": [
     {
       "join_preparation": {
@@ -7841,7 +7841,7 @@ freturn 3 ret@0	{
   "steps": [
   ] /* steps */
 }	0	0
-select d+1 into res from t6 where d= NAME_CONST('res',NULL)+1	{
+select d+1 into res from t6 where d=res+1	{
   "steps": [
     {
       "join_preparation": {
@@ -8789,7 +8789,7 @@ Warnings:
 Warning	1329	No data - zero rows fetched, selected, or processed
 select * from optt|
 QUERY	TRACE	MISSING_BYTES_BEYOND_MAX_MEM_SIZE	INSUFFICIENT_PRIVILEGES
-select d into res from t6 where d in (select f1() from t2 where s= NAME_CONST('arg',_latin1'c' COLLATE 'latin1_swedish_ci'))	{
+select d into res from t6 where d in (select f1() from t2 where s=arg)	{
   "steps": [
     {
       "join_preparation": {
