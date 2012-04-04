@@ -580,10 +580,8 @@ generate_rollbacks (void) {
 
 		    fprintf(hf, ");\n");
 		    fprintf(cf, ") {\n");
-                    fprintf(cf, "  int r;\n");
                     fprintf(cf, "  ROLLBACK_LOG_NODE log;\n");
-                    fprintf(cf, "  r = toku_get_and_pin_rollback_log_for_new_entry(txn, &log);\n");
-                    fprintf(cf, "  assert(r==0);\n");
+                    fprintf(cf, "  toku_get_and_pin_rollback_log_for_new_entry(txn, &log);\n");
 		    // 'memdup' all BYTESTRINGS here
 		    DO_FIELDS(ft, lt, {
                         if ( strcmp(ft->type, "BYTESTRING") == 0 ) {
@@ -620,7 +618,10 @@ generate_rollbacks (void) {
 		    fprintf(cf, "  txn->rollentry_raw_count          += rollback_fsize;\n");
                     fprintf(cf, "  txn->num_rollentries++;\n");
                     fprintf(cf, "  log->dirty = TRUE;\n");
-		    fprintf(cf, "  return toku_maybe_spill_rollbacks(txn, log);\n}\n");
+		    fprintf(cf, "  // spill and unpin assert success internally\n");
+		    fprintf(cf, "  toku_maybe_spill_rollbacks(txn, log);\n");
+		    fprintf(cf, "  toku_rollback_log_unpin(txn, log);\n");
+		    fprintf(cf, "  return 0;\n}\n");
 	    });
 
     DO_ROLLBACKS(lt, {

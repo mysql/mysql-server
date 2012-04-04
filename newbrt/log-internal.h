@@ -145,17 +145,37 @@ struct tokutxn {
     BOOL       force_fsync_on_commit;  //This transaction NEEDS an fsync once (if) it commits.  (commit means root txn)
     TXN_PROGRESS_POLL_FUNCTION progress_poll_fun;
     void *                     progress_poll_fun_extra;
+
+    // these are number of rollback nodes and rollback entries for this txn.
+    //
+    // the current rollback node below has sequence number num_rollback_nodes - 1
+    // (because they are numbered 0...num-1). often, the current rollback is
+    // already set to this block num, which means it exists and is available to
+    // log some entries. if the current rollback is NONE and the number of
+    // rollback nodes for this transaction is non-zero, then we will use
+    // the number of rollback nodes to know which sequence number to assign
+    // to a new one we create
     uint64_t   num_rollback_nodes;
     uint64_t   num_rollentries;
     uint64_t   num_rollentries_processed;
+
+    // spilled rollback nodes are rollback nodes that were gorged by this
+    // transaction, retired, and saved in a list.
+
+    // the spilled rollback head is the block number of the first rollback node
+    // that makes up the rollback log chain
     BLOCKNUM   spilled_rollback_head;
     uint32_t   spilled_rollback_head_hash;
+    // the spilled rollback is the block number of the last rollback node that
+    // makes up the rollback log chain. 
     BLOCKNUM   spilled_rollback_tail;
     uint32_t   spilled_rollback_tail_hash;
-    BLOCKNUM   current_rollback;
+    // the current rollback node block number we may use. if this is ROLLBACK_NONE,
+    // then we need to create one and set it here before using it.
+    BLOCKNUM   current_rollback; 
     uint32_t   current_rollback_hash;
+
     BOOL       recovered_from_checkpoint;
-    ROLLBACK_LOG_NODE pinned_inprogress_rollback_log;
     struct toku_list checkpoint_before_commit;
     TXN_IGNORE_S ignore_errors; // 2954
     TOKUTXN_STATE state;

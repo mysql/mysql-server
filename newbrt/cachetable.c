@@ -3571,17 +3571,6 @@ log_open_txn (OMTVALUE txnv, u_int32_t UU(index), void *UU(extra)) {
     assert(0);
 }
 
-static int
-unpin_rollback_log_for_checkpoint (OMTVALUE txnv, u_int32_t UU(index), void *UU(extra)) {
-    int r = 0;
-    TOKUTXN    txn    = txnv;
-    if (txn->pinned_inprogress_rollback_log) {
-        r = toku_rollback_log_unpin(txn, txn->pinned_inprogress_rollback_log);
-        assert(r==0);
-    }
-    return r;
-}
-
 // TODO: #1510 locking of cachetable is suspect
 //             verify correct algorithm overall
 
@@ -3596,12 +3585,6 @@ toku_cachetable_begin_checkpoint (CACHETABLE ct, TOKULOGGER logger) {
     {
         brt_begin_checkpoint();
         unsigned i;
-	if (logger) { // Unpin all 'inprogress rollback log nodes' pinned by transactions
-            int r = toku_omt_iterate(logger->live_txns,
-                                     unpin_rollback_log_for_checkpoint,
-                                     NULL);
-            assert(r==0);
-        }
 	cachetable_lock(ct);
 	//Initialize accountability counters
 	ct->checkpoint_num_files = 0;

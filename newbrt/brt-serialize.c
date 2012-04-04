@@ -2046,7 +2046,7 @@ toku_serialize_descriptor_contents_to_fd(int fd, const DESCRIPTOR desc, DISKOFF 
 static void
 deserialize_descriptor_from_rbuf(struct rbuf *rb, DESCRIPTOR desc, int layout_version) {
     if (layout_version == BRT_LAYOUT_VERSION_13) {
-	// in older versions of TokuDB the Descriptor had a 4 byte version, which we must skip over
+	// in previous versions of TokuDB the Descriptor had a 4 byte version, which we must skip over
 	u_int32_t dummy_version __attribute__((__unused__)) = rbuf_int(rb);
     }
     u_int32_t size;
@@ -2501,8 +2501,8 @@ serialize_rollback_log_size(ROLLBACK_LOG_NODE log) {
     size_t size = node_header_overhead //8 "tokuroll", 4 version, 4 version_original, 4 build_id
                  +8 //TXNID
                  +8 //sequence
-                 +8 //thislogname
-                 +8 //older (blocknum)
+                 +8 //blocknum
+                 +8 //previous (blocknum)
                  +8 //resident_bytecount
                  +8 //memarena_size_needed_to_load
                  +log->rollentry_resident_bytecount;
@@ -2521,8 +2521,8 @@ serialize_rollback_log_node_to_buf(ROLLBACK_LOG_NODE log, char *buf, size_t calc
         wbuf_nocrc_uint(&wb, BUILD_ID);
         wbuf_nocrc_TXNID(&wb, log->txnid);
         wbuf_nocrc_ulonglong(&wb, log->sequence);
-        wbuf_nocrc_BLOCKNUM(&wb, log->thislogname);
-        wbuf_nocrc_BLOCKNUM(&wb, log->older);
+        wbuf_nocrc_BLOCKNUM(&wb, log->blocknum);
+        wbuf_nocrc_BLOCKNUM(&wb, log->previous);
         wbuf_nocrc_ulonglong(&wb, log->rollentry_resident_bytecount);
         //Write down memarena size needed to restore
         wbuf_nocrc_ulonglong(&wb, memarena_total_size_in_use(log->rollentry_arena));
@@ -2677,18 +2677,18 @@ deserialize_rollback_log_from_rbuf (BLOCKNUM blocknum, u_int32_t fullhash, ROLLB
     //TODO: This is hard.. everything is shared in a single dictionary.
     rbuf_TXNID(rb, &result->txnid);
     result->sequence = rbuf_ulonglong(rb);
-    result->thislogname = rbuf_blocknum(rb);
-    if (result->thislogname.b != blocknum.b) {
+    result->blocknum = rbuf_blocknum(rb);
+    if (result->blocknum.b != blocknum.b) {
         r = toku_db_badformat();
         goto died0;
     }
-    result->thishash    = toku_cachetable_hash(h->cf, result->thislogname);
-    if (result->thishash != fullhash) {
+    result->hash    = toku_cachetable_hash(h->cf, result->blocknum);
+    if (result->hash != fullhash) {
         r = toku_db_badformat();
         goto died0;
     }
-    result->older       = rbuf_blocknum(rb);
-    result->older_hash  = toku_cachetable_hash(h->cf, result->older);
+    result->previous       = rbuf_blocknum(rb);
+    result->previous_hash  = toku_cachetable_hash(h->cf, result->previous);
     result->rollentry_resident_bytecount = rbuf_ulonglong(rb);
 
     size_t arena_initial_size = rbuf_ulonglong(rb);

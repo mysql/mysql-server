@@ -285,26 +285,12 @@ static int
 locked_txn_commit_with_progress(DB_TXN *txn, u_int32_t flags,
                                 TXN_PROGRESS_POLL_FUNCTION poll, void* poll_extra) {
     TOKUTXN ttxn = db_txn_struct_i(txn)->tokutxn;
-    //
-    // We must unpin rollback log, otherwise, another thread that tries to checkpoint during commit
-    // will grab the multi operation lock, and then not be able to complete the checkpoint because
-    // this thread has its rollback log pinned and is trying to grab the multi operation lock.
-    //
-    // We grab the ydb lock because the checkpoint thread also unpins inprogress rollback logs,
-    // so the ydb lock protects a race of both this thread and the checkpoint thread unpinning the
-    // inprogress rollback log. If we want, we can probably have the checkpoint thread to not
-    // unpin inprogress rollback logs, making this ydb lock grab unnecessary.
-    //
-    toku_ydb_lock();
-    int r = toku_unpin_inprogress_rollback_log(ttxn);
-    toku_ydb_unlock();
-    assert_zero(r);
     if (toku_txn_requires_checkpoint(ttxn)) {
         toku_checkpoint(txn->mgrp->i->cachetable, txn->mgrp->i->logger, NULL, NULL, NULL, NULL, TXN_COMMIT_CHECKPOINT);
     }
     toku_multi_operation_client_lock(); //Cannot checkpoint during a commit.
     toku_ydb_lock();
-    r = toku_txn_commit_only(txn, flags, poll, poll_extra, true); // the final 'true' says to release the multi_operation_client_lock
+    int r = toku_txn_commit_only(txn, flags, poll, poll_extra, true); // the final 'true' says to release the multi_operation_client_lock
     toku_ydb_unlock();
     toku_txn_destroy(txn);
     return r;
