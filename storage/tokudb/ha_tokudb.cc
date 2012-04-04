@@ -6171,7 +6171,11 @@ get_row_type_for_key(DB *file)
 }
 
 enum row_type
+#if MYSQL_VERSION_ID >= 50521
+ha_tokudb::get_row_type(void) const
+#else
 ha_tokudb::get_row_type(void)
+#endif
 {
     return get_row_type_for_key(share->file);
 }
@@ -8108,8 +8112,7 @@ volatile int ha_tokudb_truncate_wait = 0; // debug
 int ha_tokudb::truncate() {
     TOKUDB_DBUG_ENTER("truncate");
     while (ha_tokudb_truncate_wait) sleep(1); // debug
-
-    int error = delete_all_rows();
+    int error = delete_all_rows_internal();
     TOKUDB_DBUG_RETURN(error);
 }
 
@@ -8122,9 +8125,20 @@ int ha_tokudb::truncate() {
 // locks:  if we have an exclusive table write lock, all of the concurrency
 // issues go away.
 // returns: 0 if success
-
 int ha_tokudb::delete_all_rows() {
     TOKUDB_DBUG_ENTER("delete_all_rows");
+    int error = 0;
+    if (thd_sql_command(ha_thd()) != SQLCOM_TRUNCATE) {
+        share->try_table_lock = true;
+        error = HA_ERR_WRONG_COMMAND;
+    }
+    if (error == 0)
+        error = delete_all_rows_internal();
+    TOKUDB_DBUG_RETURN(error);
+}
+
+int ha_tokudb::delete_all_rows_internal() {
+    TOKUDB_DBUG_ENTER("delete_all_rows_internal");
     int error = 0;
     uint curr_num_DBs = 0;
     DB_TXN* txn = NULL;
@@ -8134,12 +8148,6 @@ int ha_tokudb::delete_all_rows() {
 
     error = db_env->txn_begin(db_env, 0, &txn, 0);
     if (error) { goto cleanup; }
-
-    if (thd_sql_command(ha_thd()) != SQLCOM_TRUNCATE) {
-        share->try_table_lock = true;
-        error = HA_ERR_WRONG_COMMAND;
-        goto cleanup;
-    }
 
     curr_num_DBs = table->s->keys + test(hidden_primary_key);
     for (uint i = 0; i < curr_num_DBs; i++) {
