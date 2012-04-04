@@ -407,6 +407,11 @@ row_quiesce_write_cfg(
 			err = row_quiesce_write_indexes(table, file, thd);
 		}
 
+		if (fflush(file) != 0) {
+			ib_logf(IB_LOG_LEVEL_ERROR, "fflush(%s) failed: %s",
+				name, strerror(errno));
+		}
+
 		fclose(file);
 	}
 
