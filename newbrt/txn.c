@@ -503,11 +503,12 @@ int toku_txn_abort_with_lsn(TOKUTXN txn, YIELDF yield, void *yieldv, LSN oplsn,
 
 int toku_txn_prepare_txn (TOKUTXN txn, GID gid) {
     assert(txn->state==TOKUTXN_LIVE);
-    txn->state = TOKUTXN_PREPARING;
+    txn->state = TOKUTXN_PREPARING; // This state transition must be protected against begin_checkpoint.  Right now it uses the ydb lock.
     if (txn->parent) return 0; // nothing to do if there's a parent.
     // Do we need to do an fsync?
     txn->do_fsync = (txn->force_fsync_on_commit || txn->num_rollentries>0);
     txn->gid.gid = toku_memdup(gid.gid, DB_GID_SIZE);
+    // This list will go away with #4683, so we wn't need the ydb lock for this anymore.
     toku_list_push(&txn->logger->prepared_txns, &txn->prepared_txns_link);
     return toku_log_xprepare(txn->logger, &txn->do_fsync_lsn, 0, txn->txnid64, gid);
 }
