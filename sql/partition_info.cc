@@ -1822,7 +1822,7 @@ void partition_info::report_part_expr_error(bool use_subpart_expr)
         !(type == HASH_PARTITION && list_of_fields))
     {
       my_error(ER_FIELD_TYPE_NOT_ALLOWED_AS_PARTITION_FIELD, MYF(0),
-               item_field->name);
+               item_field->item_name.ptr());
       DBUG_VOID_RETURN;
     }
   }

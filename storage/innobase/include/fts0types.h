@@ -62,6 +62,7 @@ struct fts_get_doc_struct {
 
 					/*!< Parsed sql statement */
 	que_t*		get_document_graph;
+	fts_cache_t*	cache;		/*!< The parent cache */
 };
 
 /** Since we can have multiple FTS indexes on a table, we keep a

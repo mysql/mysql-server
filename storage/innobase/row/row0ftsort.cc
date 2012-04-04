@@ -35,7 +35,7 @@ Created 10/13/2010 Jimmy Yang
 #define ROW_MERGE_READ_GET_NEXT(N)					\
 	do {								\
 		b[N] = row_merge_read_rec(				\
-			block[N], buf[N], b[N], index,			\
+			block[N], buf[N], b[N], index, n_null,		\
 			fd[N], &foffs[N], &mrec[N], offsets[N]);	\
 		if (UNIV_UNLIKELY(!b[N])) {				\
 			if (mrec[N]) {					\
@@ -430,12 +430,12 @@ row_merge_fts_doc_tokenize(
 		ut_a(t_ctx->buf_used < FTS_NUM_AUX_INDEX);
 		idx = t_ctx->buf_used;
 
-		buf->tuples[buf->n_tuples + n_tuple[idx]] = field =
-			static_cast<dfield_t*>(mem_heap_alloc(
-				buf->heap,
-				FTS_NUM_FIELDS_SORT * sizeof *field));
+		mtuple_t* mtuple = &buf->tuples[buf->n_tuples + n_tuple[idx]];
 
-		ut_a(field);
+		mtuple->del_mark = false;
+		field = mtuple->fields = static_cast<dfield_t*>(
+			mem_heap_alloc(buf->heap,
+				       FTS_NUM_FIELDS_SORT * sizeof *field));
 
 		/* The first field is the tokenized word */
 		dfield_set_data(field, t_str.f_str, t_str.f_len);
@@ -519,6 +519,10 @@ row_merge_fts_doc_tokenize(
 	/* Update the data length and the number of new word tuples
 	added in this round of tokenization */
 	for (i = 0; i <  FTS_NUM_AUX_INDEX; i++) {
+		/* The computation of total_size below assumes that no
+		delete-mark flags will be stored and that all fields
+		are NOT NULL and fixed-length. */
+
 		sort_buf[i]->total_size += data_size[i];
 
 		sort_buf[i]->n_tuples += n_tuple[i];
@@ -1335,6 +1339,8 @@ row_fts_merge_insert(
 	ins_ctx.fts_table.table_id = table->id;
 	ins_ctx.fts_table.parent = index->table->name;
 	ins_ctx.fts_table.table = NULL;
+
+	const ulint	n_null = index->n_nullable;
 
 	for (i = 0; i < fts_sort_pll_degree; i++) {
 		if (psort_info[i].merge_file[id]->n_rec == 0) {

@@ -7821,7 +7821,11 @@ next_record:
 					 result->current));
 
 			if (!result->current) {
-				error = HA_ERR_KEY_NOT_FOUND;
+				/* exhaust the result set, should return
+				HA_ERR_END_OF_FILE just like
+				ha_innobase::general_fetch() and/or
+				ha_innobase::index_first() etc. */
+				error = HA_ERR_END_OF_FILE;
 				table->status = STATUS_NOT_FOUND;
 			} else {
 				goto next_record;
@@ -7829,7 +7833,7 @@ next_record:
 
 		} else if (ret == DB_END_OF_INDEX) {
 
-			error = HA_ERR_KEY_NOT_FOUND;
+			error = HA_ERR_END_OF_FILE;
 			table->status = STATUS_NOT_FOUND;
 		} else {
 

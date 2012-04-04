@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2012, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -31,6 +31,7 @@
 #include "my_md5.h"
 #include "sql_lex.h"
 #include "sql_get_diagnostics.h"
+#include "sql_string.h"
 #include <string.h>
 
 /* Generated code */
@@ -58,7 +59,6 @@
 
 ulong digest_max= 0;
 ulong digest_lost= 0;
-
 
 /** EVENTS_STATEMENTS_HISTORY_LONG circular buffer. */
 PFS_statements_digest_stat *statements_digest_stat_array= NULL;
@@ -168,8 +168,8 @@ static LF_PINS* get_digest_hash_pins(PFS_thread *thread)
 }
 
 PFS_statement_stat*
-find_or_create_digest(PFS_thread* thread,
-                      PSI_digest_storage* digest_storage)
+find_or_create_digest(PFS_thread *thread,
+                      PSI_digest_storage *digest_storage)
 {
   if (statements_digest_stat_array == NULL)
     return NULL;
@@ -348,98 +348,120 @@ void reset_esms_by_digest()
 */
 void get_digest_text(char* digest_text, PSI_digest_storage* digest_storage)
 {
+  DBUG_ASSERT(digest_storage != NULL);
   bool truncated= false;
   int byte_count= digest_storage->m_byte_count;
-  int need_bytes;
+  int bytes_needed= 0;
   uint tok= 0;
-  char *id_string;
-  int id_length;
   int current_byte= 0;
   lex_token_string *tok_data;
   /* -4 is to make sure extra space for '...' and a '\0' at the end. */
-  int available_bytes_to_write= COL_DIGEST_TEXT_SIZE - 4;
+  int bytes_available= COL_DIGEST_TEXT_SIZE - 4;
+  
+  /* Convert text to utf8 */
+  const CHARSET_INFO *from_cs= (CHARSET_INFO *)digest_storage->m_charset;
+  const CHARSET_INFO *to_cs= &my_charset_utf8_bin;
+  DBUG_ASSERT(from_cs != NULL && to_cs != NULL);
+  /*
+     Max converted size is number of characters * max multibyte length of the
+     target charset, which is 4 for UTF8.
+   */
+  const uint max_converted_size= PSI_MAX_DIGEST_STORAGE_SIZE * 4;
+  char id_buffer[max_converted_size];
+  char *id_string;
+  int  id_length;
+  bool convert_text= !my_charset_same(from_cs, to_cs);
 
   DBUG_ASSERT(byte_count <= PSI_MAX_DIGEST_STORAGE_SIZE);
 
   while ((current_byte < byte_count) &&
-         (available_bytes_to_write > 0) &&
-         (! truncated))
+         (bytes_available > 0) &&
+         !truncated)
   {
     current_byte= read_token(digest_storage, current_byte, &tok);
-    tok_data= & lex_token_array[tok];
+    tok_data= &lex_token_array[tok];
     
     switch (tok)
     {
     /* All identifiers are printed with their name. */
     case IDENT:
-      current_byte= read_identifier(digest_storage, current_byte,
-                                    & id_string, & id_length);
-      need_bytes= id_length + 1; /* <id> space */
-      if (need_bytes <= available_bytes_to_write)
-      {
-        if (id_length > 0)
-        {
-          strncpy(digest_text, id_string, id_length);
-          digest_text+= id_length;
-        }
-        *digest_text= ' ';
-        digest_text++;
-        available_bytes_to_write-= need_bytes;
-      }
-      else
-      {
-        truncated= true;
-      }
-      break;
     case IDENT_QUOTED:
-      current_byte= read_identifier(digest_storage, current_byte,
-                                    & id_string, & id_length);
-      need_bytes= id_length + 3; /* quote <id> quote space  */
-      if (need_bytes <= available_bytes_to_write)
       {
-        *digest_text= '`';
-        digest_text++;
-        if (id_length > 0)
+        char *id_ptr;
+        int id_len;
+        uint err_cs= 0;
+
+        /* Get the next identifier from the storage buffer. */
+        current_byte= read_identifier(digest_storage, current_byte,
+                                      &id_ptr, &id_len);
+        if (convert_text)
         {
-          strncpy(digest_text, id_string, id_length);
-          digest_text+= id_length;
+          /* Verify that the converted text will fit. */
+          if (to_cs->mbmaxlen*id_len > max_converted_size)
+          {
+            truncated= true;
+            break;
+          }
+          /* Convert identifier string into the storage character set. */
+          id_length= my_convert(id_buffer, max_converted_size, to_cs,
+                                id_ptr, id_len, from_cs, &err_cs);
+          id_string= id_buffer;
         }
-        *digest_text= '`';
-        digest_text++;
-        *digest_text= ' ';
-        digest_text++;
-        available_bytes_to_write-= need_bytes;
-      }
-      else
-      {
-        truncated= true;
+        else
+        {
+          id_string= id_ptr;
+          id_length= id_len;
+        }
+
+        if (id_length == 0 || err_cs != 0)
+        {
+          truncated= true;
+          break;
+        }
+        /* Copy the converted identifier into the digest string. */
+        bytes_needed= id_length + (tok == IDENT ? 1 : 3); 
+        if (bytes_needed <= bytes_available)
+        {
+          if (tok == IDENT_QUOTED)
+            *digest_text++= '`';
+          if (id_length > 0)
+          {
+            memcpy(digest_text, id_string, id_length);
+            digest_text+= id_length;
+          }
+          if (tok == IDENT_QUOTED)
+            *digest_text++= '`';
+          *digest_text++= ' ';
+          bytes_available-= bytes_needed;
+        }
+        else
+        {
+          truncated= true;
+        }
       }
       break;
 
     /* Everything else is printed as is. */
     default:
       /* 
-        Make sure not to overflow digest_text buffer while writing
-        this token string.
+        Make sure not to overflow digest_text buffer.
         +1 is to make sure extra space for ' '.
       */
       int tok_length= tok_data->m_token_length;
-      need_bytes= tok_length + 1;
+      bytes_needed= tok_length + 1;
 
-      if (need_bytes <= available_bytes_to_write)
+      if (bytes_needed <= bytes_available)
       {
-        strncpy(digest_text,
-                tok_data->m_token_string,
-                tok_length);
+        strncpy(digest_text, tok_data->m_token_string, tok_length);
         digest_text+= tok_length;
-        *digest_text= ' ';
-        digest_text++;
-        available_bytes_to_write-= need_bytes;
+        *digest_text++= ' ';
+        bytes_available-= bytes_needed;
       }
       else
       {
         truncated= true;
       }
+      break;
     }
   }
 

@@ -1003,7 +1003,8 @@ static void reap_plugins(void)
   list= reap;
   while ((plugin= *(--list)))
   {
-    sql_print_information("Shutting down plugin '%s'", plugin->name.str);
+    if (!opt_bootstrap)
+      sql_print_information("Shutting down plugin '%s'", plugin->name.str);
     plugin_deinitialize(plugin, true);
   }
 
