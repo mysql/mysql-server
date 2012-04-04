@@ -1,6 +1,7 @@
 ################################################################################
 # Check file extra/rpl_tests/rpl_implicit_commit_binlog.test
 ################################################################################
+--source include/have_udf.inc
 --source include/have_binlog_format_mixed.inc
 --source include/master-slave.inc
 --source include/have_innodb.inc
