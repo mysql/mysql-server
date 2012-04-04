@@ -5415,4 +5415,17 @@ foo
 
 
 DROP TABLE t1;
+CREATE TABLE t1 ( b TEXT NOT NULL ) ENGINE=MYISAM;
+INSERT INTO t1 VALUES ('x'),('y');
+CREATE TABLE t2 ( a VARCHAR(1) NOT NULL ) ENGINE=CSV;
+INSERT INTO t2 VALUES ('r'),('t');
+SELECT * FROM t2 ORDER BY a;
+a
+r
+t
+SELECT * FROM t1 LEFT JOIN t2 ON ( b = a );
+b	a
+x	NULL
+y	NULL
+drop table t1,t2;
 End of 5.1 tests
