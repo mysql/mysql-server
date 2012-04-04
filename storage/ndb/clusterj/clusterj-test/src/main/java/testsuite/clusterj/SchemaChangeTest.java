@@ -44,6 +44,7 @@ public class SchemaChangeTest extends AbstractClusterJModelTest {
     }
 
     public void testFind() {
+        logger.info("PLEASE IGNORE THE FOLLOWING EXPECTED SEVERE ERROR.");
         // change the schema (drop a column)
         executeSQL(modifyTableStatement);
         try {
@@ -80,6 +81,7 @@ public class SchemaChangeTest extends AbstractClusterJModelTest {
                 session.find(StringTypes.class, 0);
             }
         }
+        logger.info("PLEASE IGNORE THE PRECEDING EXPECTED SEVERE ERROR.\n");
         failOnError();
     }
 
