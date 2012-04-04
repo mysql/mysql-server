@@ -14,9 +14,9 @@ char *nameb="b.db";
 
 static int my_compare(DB *UU(db), const DBT *a, const DBT *b) {
     assert(db);
-    assert(db->descriptor);
-    assert(db->descriptor->dbt.size == sizeof(descriptor_contents));
-    assert(memcmp(db->descriptor->dbt.data, descriptor_contents, sizeof(descriptor_contents)) == 0);
+    assert(db->cmp_descriptor);
+    assert(db->cmp_descriptor->dbt.size == sizeof(descriptor_contents));
+    assert(memcmp(db->cmp_descriptor->dbt.data, descriptor_contents, sizeof(descriptor_contents)) == 0);
 
     assert(a->size == b->size);
     return memcmp(a->data, b->data, a->size);
@@ -52,10 +52,12 @@ do_x1_shutdown (BOOL do_commit, BOOL do_abort) {
     r = db_create(&dba, env, 0);                                                        CKERR(r);
     r = dba->open(dba, NULL, namea, NULL, DB_BTREE, DB_AUTO_COMMIT|DB_CREATE, 0666);    CKERR(r);
     change_descriptor(env, dba);
+    dba->update_cmp_descriptor(dba);
     r = db_create(&dbb, env, 0);                                                        CKERR(r);
     r = dbb->open(dbb, NULL, nameb, NULL, DB_BTREE, DB_AUTO_COMMIT|DB_CREATE, 0666);    CKERR(r);
     DB_TXN *txn;
     change_descriptor(env, dbb);
+    dbb->update_cmp_descriptor(dbb);
     r = env->txn_begin(env, NULL, &txn, 0);                                             CKERR(r);
     {
 	DBT a={.data="a", .size=2};
