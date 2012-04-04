@@ -1,4 +1,4 @@
-/* -*- mode: C; c-basic-offset: 4 -*- */
+/* -*- mode: C; c-basic-offset: 4; indent-tabs-mode: nil -*- */
 #ident "$Id$"
 #ident "Copyright (c) 2007, 2008 Tokutek Inc.  All rights reserved."
 
@@ -67,7 +67,6 @@ test_serialize_leaf(int valsize, int nelts, double entropy) {
     sn.layout_version = BRT_LAYOUT_VERSION;
     sn.layout_version_original = BRT_LAYOUT_VERSION;
     sn.height = 0;
-    sn.optimized_for_upgrade = 1234;
     sn.n_children = 8;
     sn.dirty = 1;
     MALLOC_N(sn.n_children, sn.bp);
@@ -194,7 +193,6 @@ test_serialize_nonleaf(int valsize, int nelts, double entropy) {
     sn.layout_version = BRT_LAYOUT_VERSION;
     sn.layout_version_original = BRT_LAYOUT_VERSION;
     sn.height = 1;
-    sn.optimized_for_upgrade = 1234;
     sn.n_children = 8;
     sn.dirty = 1;
     MALLOC_N(sn.n_children, sn.bp);
@@ -321,6 +319,7 @@ test_main (int argc __attribute__((__unused__)), const char *argv[] __attribute_
     valsize = strtol(argv[1], NULL, 0);
     nelts = strtol(argv[2], NULL, 0);
 
+    initialize_dummymsn();
     test_serialize_leaf(valsize, nelts, entropy);
     test_serialize_nonleaf(valsize, nelts, entropy);
 

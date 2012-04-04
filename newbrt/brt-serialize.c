@@ -1,4 +1,4 @@
-/* -*- mode: C; c-basic-offset: 4 -*- */
+/* -*- mode: C; c-basic-offset: 4; indent-tabs-mode: nil -*- */
 #ident "$Id$"
 #ident "Copyright (c) 2007-2010 Tokutek Inc.  All rights reserved."
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
@@ -34,10 +34,6 @@ status_init(void)
     // Note, this function initializes the keyname, type, and legend fields.
     // Value fields are initialized to zero by compiler.
     UPGRADE_STATUS_INIT(BRT_UPGRADE_FOOTPRINT,             UINT64, "footprint");
-    UPGRADE_STATUS_INIT(BRT_UPGRADE_HEADER_13,             UINT64, "V13 headers");
-    UPGRADE_STATUS_INIT(BRT_UPGRADE_NONLEAF_13,            UINT64, "V13 nonleaf nodes");
-    UPGRADE_STATUS_INIT(BRT_UPGRADE_LEAF_13,               UINT64, "V13 leaf nodes");
-    UPGRADE_STATUS_INIT(BRT_UPGRADE_OPTIMIZED_FOR_UPGRADE, UINT64, "optimized for upgrade");
     brt_upgrade_status.initialized = true;
 }
 #undef UPGRADE_STATUS_INIT
@@ -409,7 +405,6 @@ serialize_brtnode_info_size(BRTNODE node)
     retval += 4; // nodesize
     retval += 4; // flags
     retval += 4; // height;
-    retval += 4; // optimized_for_upgrade
     retval += node->totalchildkeylens; // total length of pivots
     retval += (node->n_children-1)*4; // encode length of each pivot
     if (node->height > 0) {
@@ -434,7 +429,6 @@ static void serialize_brtnode_info(BRTNODE node,
     wbuf_nocrc_uint(&wb, node->nodesize);
     wbuf_nocrc_uint(&wb, node->flags);
     wbuf_nocrc_int (&wb, node->height);    
-    wbuf_nocrc_int (&wb, node->optimized_for_upgrade);    
     // pivot information
     for (int i = 0; i < node->n_children-1; i++) {
         wbuf_nocrc_bytes(&wb, kv_pair_key(node->childkeys[i]), toku_brt_pivot_key_len(node->childkeys[i]));
@@ -554,7 +548,7 @@ rebalance_brtnode_leaf(BRTNODE node, unsigned int basementnodesize)
     bn_sizes[0] = 0;
 
     // TODO 4050: All these arrays should be combined into a single array of some bn_info struct (pivot, msize, num_les).
-    // Each entry is the number of leafentries in this basement.  (Again, num_le is overkill upper bound.)
+    // Each entry is the number of leafentries in this basement.  (Again, num_le is overkill upper baound.)
     uint32_t *XMALLOC_N(num_alloc, num_les_this_bn);
     num_les_this_bn[0] = 0;
     
@@ -740,7 +734,7 @@ serialize_and_compress(BRTNODE node, int npartitions, struct sub_block sb[]) {
 //
 int
 toku_serialize_brtnode_to_memory (BRTNODE node,
-                                         BRTNODE_DISK_DATA* ndd,
+                                  BRTNODE_DISK_DATA* ndd,
                                   unsigned int basementnodesize,
                                   BOOL do_rebalancing,
                           /*out*/ size_t *n_bytes_to_write,
@@ -1195,7 +1189,9 @@ deserialize_brtnode_info(
     node->nodesize = rbuf_int(&rb);
     node->flags = rbuf_int(&rb);
     node->height = rbuf_int(&rb);
-    node->optimized_for_upgrade = rbuf_int(&rb);
+    if (node->layout_version_read_from_disk < BRT_LAYOUT_VERSION_19) {
+        (void) rbuf_int(&rb); // optimized_for_upgrade
+    }
 
     // now create the basement nodes or childinfos, depending on whether this is a
     // leaf node or internal node    
@@ -1249,13 +1245,11 @@ setup_available_brtnode_partition(BRTNODE node, int i) {
     }
 }
 
-static void setup_brtnode_partitions(BRTNODE node, struct brtnode_fetch_extra* bfe, bool data_in_memory)
-// Effect: Used when reading a brtnode into main memory, this sets up the partitions.
-//   We set bfe->child_to_read as well as the BP_STATE and the data pointers (e.g., with set_BSB or set_BNULL or other set_ operations).
-// Arguments:  Node: the node to set up.
-//             bfe:  Describes the key range needed.
-//             data_in_memory: true if we have all the data (in which case we set the BP_STATE to be either PT_AVAIL or PT_COMPRESSED depending on the bfe.
-//                             false if we don't have the partitions in main memory (in which case we set the state to PT_ON_DISK.
+
+// Assign the child_to_read member of the bfe from the given brt node
+// that has been brought into memory.
+static void
+update_bfe_using_brtnode(BRTNODE node, struct brtnode_fetch_extra *bfe)
 {
     if (bfe->type == brtnode_fetch_subset && bfe->search != NULL) {
         // we do not take into account prefetching yet
@@ -1271,6 +1265,17 @@ static void setup_brtnode_partitions(BRTNODE node, struct brtnode_fetch_extra* b
             bfe->search
             );
     }
+}
+
+
+// Using the search parameters in the bfe, this function will
+// initialize all of the given brt node's partitions.
+static void
+setup_partitions_using_bfe(BRTNODE node,
+                           struct brtnode_fetch_extra *bfe,
+                           bool data_in_memory)
+{
+    // Leftmost and Rightmost Child bounds.
     int lc, rc;
     if (bfe->type == brtnode_fetch_subset || bfe->type == brtnode_fetch_prefetch) {
         lc = toku_bfe_leftmost_child_wanted(bfe, node);
@@ -1279,6 +1284,7 @@ static void setup_brtnode_partitions(BRTNODE node, struct brtnode_fetch_extra* b
         lc = -1;
         rc = -1;
     }
+
     //
     // setup memory needed for the node
     //
@@ -1310,6 +1316,23 @@ static void setup_brtnode_partitions(BRTNODE node, struct brtnode_fetch_extra* b
         assert(FALSE);
     }
 }
+
+
+static void setup_brtnode_partitions(BRTNODE node, struct brtnode_fetch_extra* bfe, bool data_in_memory)
+// Effect: Used when reading a brtnode into main memory, this sets up the partitions.
+//   We set bfe->child_to_read as well as the BP_STATE and the data pointers (e.g., with set_BSB or set_BNULL or other set_ operations).
+// Arguments:  Node: the node to set up.
+//             bfe:  Describes the key range needed.
+//             data_in_memory: true if we have all the data (in which case we set the BP_STATE to be either PT_AVAIL or PT_COMPRESSED depending on the bfe.
+//                             false if we don't have the partitions in main memory (in which case we set the state to PT_ON_DISK.
+{
+    // Set bfe->child_to_read.
+    update_bfe_using_brtnode(node, bfe);
+
+    // Setup the partitions.
+    setup_partitions_using_bfe(node, bfe, data_in_memory);
+}
+
 
 /* deserialize the partition from the sub-block's uncompressed buffer
  * and destroy the uncompressed buffer
@@ -1430,7 +1453,16 @@ static int deserialize_brtnode_header_from_rbuf_if_small_enough (BRTNODE *brtnod
         goto cleanup;
     }
 
-    node->layout_version = node->layout_version_read_from_disk;
+    // Upgrade from 18 to 19.
+    if (node->layout_version_read_from_disk == BRT_LAYOUT_VERSION_18) {
+        node->layout_version = BRT_LAYOUT_VERSION;
+    } else {
+        // If the version is greater than the first version with
+        // basement nodes, but not version 18, then just use the old
+        // behavior.
+        node->layout_version = node->layout_version_read_from_disk;
+    }
+
     node->layout_version_original = rbuf_int(rb);
     node->build_id = rbuf_int(rb);
     node->n_children = rbuf_int(rb);
@@ -1531,6 +1563,473 @@ static int deserialize_brtnode_header_from_rbuf_if_small_enough (BRTNODE *brtnod
     return r;
 }
 
+// This function takes a deserialized version 13 or 14 buffer and
+// constructs the associated internal, non-leaf brtnode object.  It
+// also creates MSN's for older messages created in older versions
+// that did not generate MSN's for messages.  These new MSN's are
+// generated from the root downwards, counting backwards from MIN_MSN
+// and persisted in the brt header.
+static int
+deserialize_and_upgrade_internal_node(BRTNODE node,
+                                      struct rbuf *rb,
+                                      struct brtnode_fetch_extra* bfe)
+{
+    int r = 0;
+    int version = node->layout_version_read_from_disk;
+
+    if(version == BRT_LAST_LAYOUT_VERSION_WITH_FINGERPRINT) {
+        (void) rbuf_int(rb);  // 6. fingerprint
+    }
+
+    node->n_children = rbuf_int(rb); // 7. n_children
+
+    // Sub-tree esitmates...
+    for (int i = 0; i < node->n_children; ++i) {
+        if (version == BRT_LAST_LAYOUT_VERSION_WITH_FINGERPRINT) {
+            (void) rbuf_int(rb);  // 8. fingerprint
+        }
+        (void) rbuf_ulonglong(rb);  // 9. nkeys (ulonglong)
+        (void) rbuf_ulonglong(rb);  // 10. ndata (ulonglong)
+        (void) rbuf_ulonglong(rb);  // 11. dsize (ulonglong)
+        (void) rbuf_char(rb);       // 12. exact (char)
+    }
+
+    node->childkeys = NULL;
+    node->totalchildkeylens = 0;
+    // I. Allocate keys based on number of children.
+    XMALLOC_N(node->n_children - 1, node->childkeys);
+    // II. Copy keys from buffer to allocated keys in brtnode.
+    for (int i = 0; i < node->n_children - 1; ++i) {
+        // 13. child key pointers and offsets
+        bytevec childkeyptr;
+        unsigned int cklen;
+        rbuf_bytes(rb, &childkeyptr, &cklen);
+        node->childkeys[i] = kv_pair_malloc((void*)childkeyptr,
+                                            cklen,
+                                            0,
+                                            0);
+        node->totalchildkeylens += toku_brt_pivot_key_len(node->childkeys[i]);
+    }
+
+    // Create space for the child node buffers (a.k.a. partitions).
+    XMALLOC_N(node->n_children, node->bp);
+
+    // Set the child blocknums.
+    for (int i = 0; i < node->n_children; ++i) {
+        // 14. blocknums
+        BP_BLOCKNUM(node, i) = rbuf_blocknum(rb);
+        BP_WORKDONE(node, i) = 0;
+    }
+
+    // Read in the child buffer maps.
+    struct sub_block_map child_buffer_map[node->n_children];
+    for (int i = 0; i < node->n_children; ++i) {
+        // The following fields are read in the
+        // sub_block_map_deserialize() call:
+        // 15. index 16. offset 17. size
+        sub_block_map_deserialize(&child_buffer_map[i], rb);
+    }
+
+    // We need to setup this node's partitions, but we can't call the
+    // existing call (setup_brtnode_paritions.) because there are
+    // existing optimizations that would prevent us from bringing all
+    // of this node's partitions into memory.  Instead, We use the
+    // existing bfe and node to set the bfe's child_to_search member.
+    // Then we create a temporary bfe that needs all the nodes to make
+    // sure we properly intitialize our partitions before filling them
+    // in from our soon-to-be-upgraded node.
+    update_bfe_using_brtnode(node, bfe);
+    struct brtnode_fetch_extra temp_bfe;
+    temp_bfe.type = brtnode_fetch_all;
+    setup_partitions_using_bfe(node, &temp_bfe, true);
+
+    // Cache the highest MSN generated for the message buffers.  This
+    // will be set in the brtnode.
+    //
+    // The way we choose MSNs for upgraded messages is delicate.  The
+    // field `highest_unused_msn_for_upgrade' in the header is always an
+    // MSN that no message has yet.  So when we have N messages that need
+    // MSNs, we decrement it by N, and then use it and the N-1 MSNs less
+    // than it, but we do not use the value we decremented it to.
+    //
+    // In the code below, we initialize `lowest' with the value of
+    // `highest_unused_msn_for_upgrade' after it is decremented, so we
+    // need to be sure to increment it once before we enqueue our first
+    // message.
+    MSN highest_msn;
+    highest_msn.msn = 0;
+
+    // Deserialize de-compressed buffers.
+    for (int i = 0; i < node->n_children; ++i) {
+        NONLEAF_CHILDINFO bnc = BNC(node, i);
+        int n_bytes_in_buffer = 0;
+        int n_in_this_buffer = rbuf_int(rb);
+
+        void **fresh_offsets;
+        void **broadcast_offsets;
+        int nfresh = 0;
+        int nbroadcast_offsets = 0;
+
+        if (bfe->h->compare_fun) {
+            XMALLOC_N(n_in_this_buffer, fresh_offsets);
+            // We skip 'stale' offsets for upgraded nodes.
+            XMALLOC_N(n_in_this_buffer, broadcast_offsets);
+        }
+
+        // Atomically decrement the header's MSN count by the number
+        // of messages in the buffer.
+        MSN lowest;
+        u_int64_t amount = n_in_this_buffer;
+        lowest.msn = __sync_sub_and_fetch(&bfe->h->highest_unused_msn_for_upgrade.msn, amount);
+        if (highest_msn.msn == 0) {
+            highest_msn.msn = lowest.msn + n_in_this_buffer;
+        }
+
+        // Create the FIFO entires from the deserialized buffer.
+        for (int j = 0; j < n_in_this_buffer; ++j) {
+            bytevec key; ITEMLEN keylen;
+            bytevec val; ITEMLEN vallen;
+            unsigned char ctype = rbuf_char(rb);
+            enum brt_msg_type type = (enum brt_msg_type) ctype;
+            XIDS xids;
+            xids_create_from_buffer(rb, &xids);
+            rbuf_bytes(rb, &key, &keylen);
+            rbuf_bytes(rb, &val, &vallen);
+
+            // <CER> can we factor this out?
+            long *dest;
+            if (bfe->h->compare_fun) {
+                if (brt_msg_type_applies_once(type)) {
+                    dest = (long *) &fresh_offsets[nfresh];
+                    nfresh++;
+                } else if (brt_msg_type_applies_all(type) || brt_msg_type_does_nothing(type)) {
+                    dest = (long *) &broadcast_offsets[nbroadcast_offsets];
+                    nbroadcast_offsets++;
+                } else {
+                    assert(false);
+                }
+            } else {
+                dest = NULL;
+            }
+
+            // Increment our MSN, the last message should have the
+            // newest/highest MSN.  See above for a full explanation.
+            lowest.msn++;
+            r = toku_fifo_enq(bnc->buffer,
+                              key,
+                              keylen,
+                              val,
+                              vallen,
+                              type,
+                              lowest,
+                              xids,
+                              true,
+                              dest);
+            lazy_assert_zero(r);
+            n_bytes_in_buffer += keylen + vallen + KEY_VALUE_OVERHEAD + xids_get_serialize_size(xids);
+            xids_destroy(&xids);
+        }
+
+        if (bfe->h->compare_fun) {
+            struct toku_fifo_entry_key_msn_cmp_extra extra = { .desc = &bfe->h->cmp_descriptor,
+                                                               .cmp = bfe->h->compare_fun,
+                                                               .fifo = bnc->buffer };
+            r = mergesort_r(fresh_offsets,
+                            nfresh,
+                            sizeof fresh_offsets[0],
+                            &extra,
+                            toku_fifo_entry_key_msn_cmp);
+            assert_zero(r);
+            toku_omt_destroy(&bnc->fresh_message_tree);
+            r = toku_omt_create_steal_sorted_array(&bnc->fresh_message_tree,
+                                                   &fresh_offsets,
+                                                   nfresh,
+                                                   n_in_this_buffer);
+            assert_zero(r);
+            toku_omt_destroy(&bnc->broadcast_list);
+            r = toku_omt_create_steal_sorted_array(&bnc->broadcast_list,
+                                                   &broadcast_offsets,
+                                                   nbroadcast_offsets,
+                                                   n_in_this_buffer);
+            assert_zero(r);
+        }
+
+        bnc->n_bytes_in_buffer = n_bytes_in_buffer;
+    }
+
+    // Assign the highest msn from our upgrade message FIFO queues.
+    node->max_msn_applied_to_node_on_disk = highest_msn;
+    // Since we assigned MSNs to this node's messages, we need to dirty it.
+    node->dirty = 1;
+
+    // Must compute the checksum now (rather than at the end, while we
+    // still have the pointer to the buffer).
+    if (version >= BRT_FIRST_LAYOUT_VERSION_WITH_END_TO_END_CHECKSUM) {
+        u_int32_t expected_xsum = toku_dtoh32(*(u_int32_t*)(rb->buf+rb->size-4));
+        u_int32_t actual_xsum   = x1764_memory(rb->buf, rb->size-4);
+        if (expected_xsum != actual_xsum) {
+            fprintf(stderr, "%s:%d: Bad checksum: expected = %"PRIx32", actual= %"PRIx32"\n",
+                    __FUNCTION__,
+                    __LINE__,
+                    expected_xsum,
+                    actual_xsum);
+            fflush(stderr);
+            return toku_db_badformat();
+        }
+    }
+
+    return r;
+}
+
+// This function takes a deserialized version 13 or 14 buffer and
+// constructs the associated leaf brtnode object.
+static int
+deserialize_and_upgrade_leaf_node(BRTNODE node,
+                                  struct rbuf *rb,
+                                  struct brtnode_fetch_extra* bfe)
+{
+    int r = 0;
+    int version = node->layout_version_read_from_disk;
+
+    // This is a leaf node, so the offsets in the buffer will be
+    // different from the internal node offsets above.
+    (void) rbuf_ulonglong(rb);  // 6. nkeys
+    (void) rbuf_ulonglong(rb);  // 7. ndata
+    (void) rbuf_ulonglong(rb);  // 8. dsize
+
+    if (version == BRT_LAYOUT_VERSION_14) {
+        (void) rbuf_int(rb);  // 9. optimized_for_upgrade
+    }
+
+    // 10. npartitions - This is really the number of leaf entries in
+    // our single basement node.  There should only be 1 (ONE)
+    // partition, so there shouldn't be any pivot key stored.  This
+    // means the loop will not iterate.  We could remove the loop and
+    // assert that the value is indeed 1.
+    int npartitions = rbuf_int(rb);
+    assert(npartitions == 1);
+
+    // Set number of children to 1, since we will only have one
+    // basement node.
+    node->n_children = 1;
+    XMALLOC_N(node->n_children, node->bp);
+    // This is a malloc(0), but we need to do it in order to get a pointer
+    // we can free() later.
+    XMALLOC_N(node->n_children - 1, node->childkeys);
+    node->totalchildkeylens = 0;
+
+    // Create one basement node to contain all the leaf entries by
+    // setting up the single partition and updating the bfe.
+    update_bfe_using_brtnode(node, bfe);
+    struct brtnode_fetch_extra temp_bfe;
+    fill_bfe_for_full_read(&temp_bfe, bfe->h);
+    setup_partitions_using_bfe(node, &temp_bfe, true);
+
+    // 11. Deserialize the partition maps, though they are not used in the
+    // newer versions of brt nodes.
+    struct sub_block_map part_map[npartitions];
+    for (int i = 0; i < npartitions; ++i) {
+        sub_block_map_deserialize(&part_map[i], rb);
+    }
+
+    // Copy all of the leaf entries into the single basement node.
+
+    // 12. The number of leaf entries in buffer.
+    int n_in_buf = rbuf_int(rb);
+    BLB_NBYTESINBUF(node,0) = 0;
+    BLB_SEQINSERT(node,0) = 0;
+    BASEMENTNODE bn = BLB(node, 0);
+
+    // The current end of the buffer, read from disk and decompressed,
+    // is the start of the leaf entries.
+    u_int32_t start_of_data = rb->ndone;
+
+    // 13. Read the leaf entries from the buffer, advancing the buffer
+    // as we go.
+    if (version <= BRT_LAYOUT_VERSION_13) {
+        // Create our mempool.
+        toku_mempool_construct(&bn->buffer_mempool, 0);
+        OMT omt = BLB_BUFFER(node, 0);
+        struct mempool *mp = &BLB_BUFFER_MEMPOOL(node, 0);
+        // Loop through
+        for (int i = 0; i < n_in_buf; ++i) {
+            LEAFENTRY_13 le = (LEAFENTRY_13)(&rb->buf[rb->ndone]);
+            u_int32_t disksize = leafentry_disksize_13(le);
+            rb->ndone += disksize;
+            invariant(rb->ndone<=rb->size);
+            LEAFENTRY new_le;
+            size_t new_le_size;
+            r = toku_le_upgrade_13_14(le,
+                                      &new_le_size,
+                                      &new_le,
+                                      omt,
+                                      mp);
+            assert_zero(r);
+            // Copy the pointer value straight into the OMT
+            r = toku_omt_insert_at(omt, (OMTVALUE) new_le, i);
+            assert_zero(r);
+            bn->n_bytes_in_buffer += new_le_size;
+        }
+    } else {
+        u_int32_t end_of_data;
+        u_int32_t data_size;
+
+        // Leaf Entry creation for version 14 and above:
+        // Allocate space for our leaf entry pointers.
+        OMTVALUE *XMALLOC_N(n_in_buf, array);
+
+        // Iterate over leaf entries copying their addresses into our
+        // temporary array.
+        for (int i = 0; i < n_in_buf; ++i) {
+            LEAFENTRY le = (LEAFENTRY)(&rb->buf[rb->ndone]);
+            u_int32_t disksize = leafentry_disksize(le);
+            rb->ndone += disksize;
+            invariant(rb->ndone <= rb->size);
+            array[i] = (OMTVALUE) le;
+        }
+
+        end_of_data = rb->ndone;
+        data_size = end_of_data - start_of_data;
+
+        // Now we must create the OMT and it's associated mempool.
+
+        // Allocate mempool in basement node and memcpy from start of
+        // input/deserialized buffer.
+        toku_mempool_copy_construct(&bn->buffer_mempool,
+                                    &rb->buf[start_of_data],
+                                    data_size);
+
+        // Adjust the array of OMT values to point to the correct
+        // position in the mempool.  The mempool should have all the
+        // data at this point.
+        for (int i = 0; i < n_in_buf; ++i) {
+            int offset = (unsigned char *) array[i] - &rb->buf[start_of_data];
+            unsigned char *mp_base = toku_mempool_get_base(&bn->buffer_mempool);
+            array[i] = &mp_base[offset];
+        }
+
+        BLB_NBYTESINBUF(node, 0) = data_size;
+
+        toku_omt_destroy(&BLB_BUFFER(node, 0));
+        // Construct the omt.
+        r = toku_omt_create_steal_sorted_array(&BLB_BUFFER(node, 0),
+                                               &array,
+                                               n_in_buf,
+                                               n_in_buf);
+        invariant_zero(r);
+    }
+
+    // Whatever this is must be less than the MSNs of every message above
+    // it, so it's ok to take it here.
+    bn->max_msn_applied = bfe->h->highest_unused_msn_for_upgrade;
+    bn->stale_ancestor_messages_applied = false;
+    node->max_msn_applied_to_node_on_disk = bn->max_msn_applied;
+
+    // 14. Checksum (end to end) is only on version 14
+    if (version >= BRT_FIRST_LAYOUT_VERSION_WITH_END_TO_END_CHECKSUM) {
+        u_int32_t expected_xsum = rbuf_int(rb);
+        u_int32_t actual_xsum = x1764_memory(rb->buf, rb->size - 4);
+        if (expected_xsum != actual_xsum) {
+            // TODO: Error handling.
+            return 1;
+        }
+    }
+
+    // We should have read the whole block by this point.
+    if (rb->ndone != rb->size) {
+        // TODO: Error handling.
+        return 1;
+    }
+
+    return r;
+}
+
+static int
+read_and_decompress_block_from_fd_into_rbuf(int fd, BLOCKNUM blocknum,
+                                            struct brt_header *h,
+                                            struct rbuf *rb,
+                                            /* out */ int *layout_version_p);
+
+// This function upgrades a version 14 brtnode to the current
+// verison. NOTE: This code assumes the first field of the rbuf has
+// already been read from the buffer (namely the layout_version of the
+// brtnode.)
+static int
+deserialize_and_upgrade_brtnode(BRTNODE node,
+                                BRTNODE_DISK_DATA* ndd,
+                                BLOCKNUM blocknum,
+                                struct brtnode_fetch_extra* bfe,
+                                int fd)
+{
+    int r = 0;
+    int version;
+
+    // I. First we need to de-compress the entire node, only then can
+    // we read the different sub-sections.
+    struct rbuf rb;
+    read_and_decompress_block_from_fd_into_rbuf(fd,
+                                                blocknum,
+                                                bfe->h,
+                                                &rb,
+                                                &version);
+
+    // Re-read the magic field from the previous call, since we are
+    // restarting with a fresh rbuf.
+    {
+        bytevec magic;
+        rbuf_literal_bytes(&rb, &magic, 8);
+    }
+
+    // II. Start reading brtnode fields out of the decompressed buffer.
+
+    // Copy over old version info.
+    node->layout_version_read_from_disk = rbuf_int(&rb);
+    version = node->layout_version_read_from_disk;
+    assert(version <= BRT_LAYOUT_VERSION_14);
+    // Upgrade the current version number to the current version.
+    node->layout_version = BRT_LAYOUT_VERSION;
+
+    node->layout_version_original = rbuf_int(&rb);
+    node->build_id = rbuf_int(&rb);
+
+    // The remaining offsets into the rbuf do not map to the current
+    // version, so we need to fill in the blanks and ignore older
+    // fields.
+    node->nodesize = rbuf_int(&rb); // 1. nodesize
+    node->flags = rbuf_int(&rb);    // 2. flags
+    node->height = rbuf_int(&rb);   // 3. height
+
+    // If the version is less than 14, there are two extra ints here.
+    // we would need to ignore them if they are there.
+    if (version == BRT_LAYOUT_VERSION_13) {
+        (void) rbuf_int(&rb);       // 4. rand4
+        (void) rbuf_int(&rb);       // 5. local
+    }
+
+    // The next offsets are dependent on whether this is a leaf node
+    // or not.
+
+    // III. Read in Leaf and Internal Node specific data.
+
+    // Check height to determine whether this is a leaf node or not.
+    if (node->height > 0) {
+        r = deserialize_and_upgrade_internal_node(node, &rb, bfe);
+    } else {
+        r = deserialize_and_upgrade_leaf_node(node, &rb, bfe);
+    }
+
+    *ndd = toku_xmalloc(node->n_children*sizeof(**ndd));
+    // Initialize the partition locations to zero, becuse version 14
+    // and below have no notion of partitions on disk.
+    for (int i=0; i<node->n_children; i++) {
+        BP_START(*ndd,i) = 0;
+        BP_SIZE (*ndd,i) = 0;
+    }
+
+    toku_free(rb.buf);
+    return r;
+}
+
 static int
 deserialize_brtnode_from_rbuf(
     BRTNODE *brtnode,
@@ -1538,14 +2037,14 @@ deserialize_brtnode_from_rbuf(
     BLOCKNUM blocknum,
     u_int32_t fullhash,
     struct brtnode_fetch_extra* bfe,
-    struct rbuf *rb
+    struct rbuf *rb,
+    int fd
     )
 // Effect: deserializes a brtnode that is in rb (with pointer of rb just past the magic) into a BRTNODE.
 {
     int r = 0;
     BRTNODE node = toku_xmalloc(sizeof(*node));
     struct sub_block sb_node_info;
-
     // fill in values that are known and not stored in rb
     node->fullhash = fullhash;
     node->thisnodename = blocknum;
@@ -1563,9 +2062,37 @@ deserialize_brtnode_from_rbuf(
     }
 
     node->layout_version_read_from_disk = rbuf_int(rb);
+    int version = node->layout_version_read_from_disk;
+    assert(version >= BRT_LAYOUT_MIN_SUPPORTED_VERSION);
+
+    // Check if we are reading in an older node version.
+    if (version <= BRT_LAYOUT_VERSION_14) {
+        // Perform the upgrade.
+        r = deserialize_and_upgrade_brtnode(node, ndd, blocknum, bfe, fd);
+        if (r != 0) {
+            goto cleanup;
+        }
+
+        if (version <= BRT_LAYOUT_VERSION_13) {
+            // deprecate 'TOKU_DB_VALCMP_BUILTIN'. just remove the flag
+            node->flags &= ~TOKU_DB_VALCMP_BUILTIN_13;
+        }
+
+        // If everything is ok, just re-assign the brtnode and retrn.
+        *brtnode = node;
+        r = 0;
+        goto cleanup;
+    } else if (version == BRT_LAYOUT_VERSION_18) {
+        // Upgrade version 18 to version 19.  This upgrade is trivial,
+        // it removes the optimized for upgrade field, which has
+        // already been removed in the deserialization code (see
+        // deserialize_brtnode_info()).
+        version = BRT_LAYOUT_VERSION;
+    }
+
     // TODO 4053
-    invariant(node->layout_version_read_from_disk == BRT_LAYOUT_VERSION);
-    node->layout_version = node->layout_version_read_from_disk;
+    invariant(version == BRT_LAYOUT_VERSION);
+    node->layout_version = version;
     node->layout_version_original = rbuf_int(rb);
     node->build_id = rbuf_int(rb);
     node->n_children = rbuf_int(rb);
@@ -1751,7 +2278,7 @@ int toku_deserialize_brtnode_from (int fd,
 	r = read_block_from_fd_into_rbuf(fd, blocknum, bfe->h, &rb);
 	if (r != 0) { goto cleanup; } // if we were successful, then we are done.
 
-	r = deserialize_brtnode_from_rbuf(brtnode, ndd, blocknum, fullhash, bfe, &rb);
+	r = deserialize_brtnode_from_rbuf(brtnode, ndd, blocknum, fullhash, bfe, &rb, fd);
 	if (r!=0) {
 	    dump_bad_block(rb.buf,rb.size);
 	}
@@ -1765,59 +2292,8 @@ cleanup:
     return r;
 }
 
-
-int
-toku_maybe_upgrade_brt(BRT t) {	// possibly do some work to complete the version upgrade of brt
-    // If someday we need to inject a message to upgrade the brt, this is where 
-    // it should be done.  Whenever an upgrade is done, all nodes will be marked
-    // as dirty, so it makes sense here to always inject an OPTIMIZE message.
-    // (Note, if someday the version number is stored in the translation instead
-    // of in each node, then the upgrade would not necessarily dirty each node.)
-    int r = 0;
-
-    int version = t->h->layout_version_read_from_disk;
-
-    int upgrade = 0;
-    if (!t->h->upgrade_brt_performed) { // upgrade may be necessary
-	switch (version) {
-            case BRT_LAYOUT_VERSION_13:
-                r = 0;
-                upgrade++;
-                //Fall through on purpose.
-            case BRT_LAYOUT_VERSION:
-                if (r == 0 && upgrade) {
-                    r = toku_brt_optimize_for_upgrade(t);
-		    if (r==0)
-			__sync_fetch_and_add(&UPGRADE_STATUS_VALUE(BRT_UPGRADE_OPTIMIZED_FOR_UPGRADE), 1);
-                }
-                if (r == 0) {
-                    t->h->upgrade_brt_performed = TRUE;  // no further upgrade necessary
-                }
-                break;
-            default:
-                invariant(FALSE);
-	}
-    }
-    if (r) {
-	if (t->h->panic==0) {
-	    char *e = strerror(r);
-	    int   l = 200 + strlen(e);
-	    char s[l];
-	    t->h->panic=r;
-	    snprintf(s, l-1, "While upgrading brt version, error %d (%s)", r, e);
-	    t->h->panic_string = toku_strdup(s);
-	}
-    }
-    return r;
-}
-
-
-// ################
-
-
 void
-toku_verify_or_set_counts (BRTNODE node) {
-    node = node;
+toku_verify_or_set_counts(BRTNODE node) {
     if (node->height==0) {
         for (int i=0; i<node->n_children; i++) {
             lazy_assert(BLB_BUFFER(node, i));
@@ -1841,11 +2317,14 @@ serialize_brt_header_min_size (u_int32_t version) {
     switch(version) {
     case BRT_LAYOUT_VERSION_19:
         size += 1; // compression method
+	    size += sizeof(uint64_t);  // highest_unused_msn_for_upgrade
         case BRT_LAYOUT_VERSION_18:
 	    size += sizeof(uint64_t);  // time_of_last_optimize_begin
 	    size += sizeof(uint64_t);  // time_of_last_optimize_end
 	    size += sizeof(uint32_t);  // count_of_optimize_in_progress
 	    size += sizeof(MSN);       // msn_at_start_of_last_completed_optimize
+            size -= 8;                 // removed num_blocks_to_upgrade_14
+            size -= 8;                 // removed num_blocks_to_upgrade_13
         case BRT_LAYOUT_VERSION_17:
 	    size += 16;
 	    invariant(sizeof(STAT64INFO_S) == 16);
@@ -1896,11 +2375,10 @@ int toku_serialize_brt_header_size (struct brt_header *h) {
 
 
 int toku_serialize_brt_header_to_wbuf (struct wbuf *wbuf, struct brt_header *h, DISKOFF translation_location_on_disk, DISKOFF translation_size_on_disk) {
-    unsigned int size = toku_serialize_brt_header_size (h); // !!! seems silly to recompute the size when the caller knew it.  Do we really need the size?
     wbuf_literal_bytes(wbuf, "tokudata", 8);
     wbuf_network_int  (wbuf, h->layout_version); //MUST be in network order regardless of disk order
     wbuf_network_int  (wbuf, BUILD_ID); //MUST be in network order regardless of disk order
-    wbuf_network_int  (wbuf, size); //MUST be in network order regardless of disk order
+    wbuf_network_int  (wbuf, wbuf->size); //MUST be in network order regardless of disk order
     wbuf_literal_bytes(wbuf, &toku_byte_order_host, 8); //Must not translate byte order
     wbuf_ulonglong(wbuf, h->checkpoint_count);
     wbuf_LSN    (wbuf, h->checkpoint_lsn);
@@ -1915,8 +2393,6 @@ int toku_serialize_brt_header_to_wbuf (struct wbuf *wbuf, struct brt_header *h, 
     wbuf_int(wbuf, h->build_id_original);
     wbuf_ulonglong(wbuf, h->time_of_creation);
     wbuf_ulonglong(wbuf, h->time_of_last_modification);
-    wbuf_ulonglong(wbuf, h->num_blocks_to_upgrade_13);
-    wbuf_ulonglong(wbuf, h->num_blocks_to_upgrade_14);
     wbuf_TXNID(wbuf, h->root_xid_that_created);
     wbuf_int(wbuf, h->basementnodesize);
     wbuf_ulonglong(wbuf, h->time_of_last_verification);
@@ -1927,6 +2403,7 @@ int toku_serialize_brt_header_to_wbuf (struct wbuf *wbuf, struct brt_header *h, 
     wbuf_int(wbuf, h->count_of_optimize_in_progress);
     wbuf_MSN(wbuf, h->msn_at_start_of_last_completed_optimize);
     wbuf_char(wbuf, (unsigned char) h->compression_method);
+    wbuf_MSN(wbuf, h->highest_unused_msn_for_upgrade);
     u_int32_t checksum = x1764_finish(&wbuf->checksum);
     wbuf_int(wbuf, checksum);
     lazy_assert(wbuf->ndone == wbuf->size);
@@ -2045,35 +2522,38 @@ toku_serialize_descriptor_contents_to_fd(int fd, const DESCRIPTOR desc, DISKOFF 
 
 static void
 deserialize_descriptor_from_rbuf(struct rbuf *rb, DESCRIPTOR desc, int layout_version) {
-    if (layout_version == BRT_LAYOUT_VERSION_13) {
-	// in previous versions of TokuDB the Descriptor had a 4 byte version, which we must skip over
-	u_int32_t dummy_version __attribute__((__unused__)) = rbuf_int(rb);
+    if (layout_version <= BRT_LAYOUT_VERSION_13) {
+        // in older versions of TokuDB the Descriptor had a 4 byte
+        // version, which we skip over
+        (void) rbuf_int(rb);
     }
+
     u_int32_t size;
-    bytevec   data;
+    bytevec data;
     rbuf_bytes(rb, &data, &size);
-    bytevec   data_copy = data;;
-    if (size>0) {
-	data_copy = toku_memdup(data, size); //Cannot keep the reference from rbuf. Must copy.
-	lazy_assert(data_copy);
-    }
-    else {
+    bytevec data_copy = data;
+    if (size > 0) {
+        data_copy = toku_memdup(data, size); //Cannot keep the reference from rbuf. Must copy.
+        lazy_assert(data_copy);
+    } else {
         lazy_assert(size==0);
         data_copy = NULL;
     }
     toku_fill_dbt(&desc->dbt, data_copy, size);
 }
 
-static void
+static enum deserialize_error_code
 deserialize_descriptor_from(int fd, BLOCK_TABLE bt, DESCRIPTOR desc, int layout_version) {
+    enum deserialize_error_code e;
     DISKOFF offset;
     DISKOFF size;
+    unsigned char *dbuf = NULL;
     toku_get_descriptor_offset_size(bt, &offset, &size);
     memset(desc, 0, sizeof(*desc));
     if (size > 0) {
         lazy_assert(size>=4); //4 for checksum
         {
-            unsigned char *XMALLOC_N(size, dbuf);
+            XMALLOC_N(size, dbuf);
             {
                 lock_for_pwrite();
                 ssize_t r = toku_os_pread(fd, dbuf, size, offset);
@@ -2085,7 +2565,12 @@ deserialize_descriptor_from(int fd, BLOCK_TABLE bt, DESCRIPTOR desc, int layout_
                 u_int32_t x1764 = x1764_memory(dbuf, size-4);
                 //printf("%s:%d read from %ld (x1764 offset=%ld) size=%ld\n", __FILE__, __LINE__, block_translation_address_on_disk, offset, block_translation_size_on_disk);
                 u_int32_t stored_x1764 = toku_dtoh32(*(int*)(dbuf + size-4));
-                lazy_assert(x1764 == stored_x1764);
+                if (x1764 != stored_x1764) {
+                    fprintf(stderr, "Descriptor checksum failure: calc=0x%08x read=0x%08x\n", x1764, stored_x1764);
+                    e = DS_XSUM_FAIL;
+                    toku_free(dbuf);
+                    goto exit;
+                }
             }
             {
                 struct rbuf rb = {.buf = dbuf, .size = size, .ndone = 0};
@@ -2096,36 +2581,149 @@ deserialize_descriptor_from(int fd, BLOCK_TABLE bt, DESCRIPTOR desc, int layout_
             toku_free(dbuf);
         }
     }
+    e = DS_OK;
+exit:
+    return e;
 }
 
+static void
+upgrade_subtree_estimates_to_stat64info(int UU(fd), struct brt_header *h)
+{
+    int r;
+    // 15 was the last version with subtree estimates
+    invariant(h->layout_version_read_from_disk <= BRT_LAYOUT_VERSION_15);
+    BLOCKNUM b = h->root_blocknum;
+    struct rbuf rb_s;
+    struct rbuf *rb = &rb_s;
+    rbuf_init(rb, NULL, 0);
+    DISKOFF offset, size;
+    toku_translate_blocknum_to_offset_size(h->blocktable, b, &offset, &size);
+    {
+        u_int8_t *XMALLOC_N(size, raw_block);
+        {
+            ssize_t rlen = pread(fd, raw_block, size, offset);
+            lazy_assert((DISKOFF)rlen == size);
+        }
+        {
+            // root node must be a leaf or nonleaf node
+            u_int8_t *magic = raw_block + uncompressed_magic_offset;
+            invariant(memcmp(magic, "tokuleaf", 8) == 0 || memcmp(magic, "tokunode", 8) == 0);
+            // root node cannot have a different version from the header, if
+            // the header needs to read its subtree estimates
+            u_int8_t *version = raw_block + uncompressed_version_offset;
+            int layout_version = toku_dtoh32(*(uint32_t*)version);
+            invariant(layout_version == h->layout_version_read_from_disk);
+        }
+        {
+            int n_sub_blocks = toku_dtoh32(*(u_int32_t*)&raw_block[node_header_overhead]);
+            invariant(0 <= n_sub_blocks && n_sub_blocks <= max_sub_blocks);
+            {
+                u_int32_t header_length = node_header_overhead + sub_block_header_size(n_sub_blocks);
+                invariant(header_length <= size);
+                u_int32_t xsum = x1764_memory(raw_block, header_length);
+                u_int32_t stored_xsum = toku_dtoh32(*(u_int32_t *)(raw_block + header_length));
+                invariant(xsum == stored_xsum);
+            }
+            struct sub_block sub_block[n_sub_blocks];
+            u_int32_t *sub_block_header = (u_int32_t *) &raw_block[node_header_overhead + 4];
+            size_t uncompressed_size = 0;
+            for (int i = 0; i < n_sub_blocks; ++i) {
+                sub_block_init(&sub_block[i]);
+                int64_t csize = toku_dtoh32(sub_block_header[0]);
+                int64_t usize = toku_dtoh32(sub_block_header[1]);
+                invariant(0 <= csize && csize < (1<<30));
+                invariant(0 <= usize && usize < (1<<30));
+                sub_block[i].compressed_size = csize;
+                sub_block[i].uncompressed_size = usize;
+                sub_block[i].xsum = toku_dtoh32(sub_block_header[2]);
+                uncompressed_size += sub_block[i].uncompressed_size;
+                sub_block_header += 3;
+            }
+            unsigned char *buf = toku_xmalloc(node_header_overhead + uncompressed_size);
+            resource_assert(buf);
+            rbuf_init(rb, buf, node_header_overhead + uncompressed_size);
+            memcpy(rb->buf, raw_block, node_header_overhead);
+            unsigned char *compressed_data = raw_block + node_header_overhead + sub_block_header_size(n_sub_blocks) + sizeof(u_int32_t);
+            unsigned char *uncompressed_data = rb->buf + node_header_overhead;
+            r = decompress_all_sub_blocks(n_sub_blocks, sub_block, compressed_data, uncompressed_data, num_cores, brt_pool);
+            if (r != 0) {
+                fprintf(stderr, "%s:%d block %"PRId64" failed %d at %p size %zu\n", __FUNCTION__, __LINE__, b.b, r, raw_block, size);
+                dump_bad_block(raw_block, size);
+            }
+            lazy_assert_zero(r);
+            rb->ndone = 0;
+        }
+        toku_free(raw_block);
+    }
+    resource_assert(rb->buf);
+    bytevec magic;
+    rbuf_literal_bytes(rb, &magic, 8);
+    int node_version = rbuf_int(rb);
+    invariant(node_version == h->layout_version_read_from_disk);
+    (void) rbuf_int(rb); // layout_version_original
+    (void) rbuf_int(rb); // build_id
+    (void) rbuf_int(rb); // nodesize
+    (void) rbuf_int(rb); // flags
+    int height = rbuf_int(rb);
+    if (node_version <= BRT_LAST_LAYOUT_VERSION_WITH_FINGERPRINT) {
+        (void) rbuf_int(rb); // rand4fingerprint
+        (void) rbuf_int(rb); // localfingerprint
+        (void) rbuf_int(rb); // another fingerprint (according to deserialize_brtnode_nonleaf_from_rbuf in 5.0.8)
+    }
+    h->on_disk_stats = ZEROSTATS;
+    if (height > 0) {
+        invariant(memcmp(magic, "tokunode", 8) == 0);
+        int n_children = rbuf_int(rb);
+        for (int i = 0; i < n_children; ++i) {
+            if (node_version <= BRT_LAST_LAYOUT_VERSION_WITH_FINGERPRINT) {
+                (void) rbuf_int(rb); // child fingerprint
+            }
+            u_int64_t nkeys = rbuf_ulonglong(rb);
+            u_int64_t ndata = rbuf_ulonglong(rb);
+            invariant(nkeys == ndata);
+            h->on_disk_stats.numrows += nkeys;
+            h->on_disk_stats.numbytes += rbuf_ulonglong(rb);
+            (void) rbuf_char(rb); // exact
+        }
+    } else {
+        invariant(memcmp(magic, "tokuleaf", 8) == 0);
+        u_int64_t nkeys = rbuf_ulonglong(rb);
+        u_int64_t ndata = rbuf_ulonglong(rb);
+        invariant(nkeys == ndata);
+        h->on_disk_stats.numrows += nkeys;
+        h->on_disk_stats.numbytes += rbuf_ulonglong(rb);
+    }
+
+    // done, discard the rest
+    toku_free(rb->buf);
+}
 
 // We only deserialize brt header once and then share everything with all the brts.
-static int
-deserialize_brtheader (int fd, struct rbuf *rb, struct brt_header **brth) {
+static enum deserialize_error_code
+deserialize_brtheader_versioned(int fd, struct rbuf *rb, struct brt_header **brth, uint32_t version)
+{
+    enum deserialize_error_code e = DS_OK;
+    struct brt_header *h = NULL;
+    invariant(version >= BRT_LAYOUT_MIN_SUPPORTED_VERSION);
+    invariant(version <= BRT_LAYOUT_VERSION);
     // We already know:
     //  we have an rbuf representing the header.
     //  The checksum has been validated
 
-    //Steal rbuf (used to simplify merge, reduce diff size, and keep old code)
-    struct rbuf rc = *rb;
-    memset(rb, 0, sizeof(*rb));
-
     //Verification of initial elements.
-    {
-        //Check magic number
-        bytevec magic;
-        rbuf_literal_bytes(&rc, &magic, 8);
-        lazy_assert(memcmp(magic,"tokudata",8)==0);
-    }
- 
+    //Check magic number
+    bytevec magic;
+    rbuf_literal_bytes(rb, &magic, 8);
+    lazy_assert(memcmp(magic,"tokudata",8)==0);
 
-    struct brt_header *CALLOC(h);
-    if (h==0) return errno;
-    int ret=-1;
-    if (0) { died1: toku_free(h); return ret; }
+    CALLOC(h);
+    if (!h) {
+        e = DS_ERRNO;
+        goto exit;
+    }
     h->type = BRTHEADER_CURRENT;
     h->checkpoint_header = NULL;
-    h->dirty=0;
+    h->dirty = 0;
     h->panic = 0;
     h->panic_string = 0;
     toku_list_init(&h->live_brts);
@@ -2133,181 +2731,175 @@ deserialize_brtheader (int fd, struct rbuf *rb, struct brt_header **brth) {
     toku_list_init(&h->checkpoint_before_commit_link);
 
     //version MUST be in network order on disk regardless of disk order
-    h->layout_version = rbuf_network_int(&rc);
-    //TODO: #1924
-    invariant(h->layout_version >= BRT_LAYOUT_MIN_SUPPORTED_VERSION);
-    invariant(h->layout_version <= BRT_LAYOUT_VERSION);
-    h->layout_version_read_from_disk = h->layout_version;
+    h->layout_version_read_from_disk = rbuf_network_int(rb);
+    invariant(h->layout_version_read_from_disk >= BRT_LAYOUT_MIN_SUPPORTED_VERSION);
+    invariant(h->layout_version_read_from_disk <= BRT_LAYOUT_VERSION);
+    h->layout_version = BRT_LAYOUT_VERSION;
 
     //build_id MUST be in network order on disk regardless of disk order
-    h->build_id = rbuf_network_int(&rc);
+    h->build_id = rbuf_network_int(rb);
 
     //Size MUST be in network order regardless of disk order.
-    u_int32_t size = rbuf_network_int(&rc);
-    lazy_assert(size==rc.size);
+    u_int32_t size = rbuf_network_int(rb);
+    lazy_assert(size == rb->size);
 
     bytevec tmp_byte_order_check;
-    rbuf_literal_bytes(&rc, &tmp_byte_order_check, 8); //Must not translate byte order
+    lazy_assert((sizeof tmp_byte_order_check) >= 8);
+    rbuf_literal_bytes(rb, &tmp_byte_order_check, 8); //Must not translate byte order
     int64_t byte_order_stored = *(int64_t*)tmp_byte_order_check;
     lazy_assert(byte_order_stored == toku_byte_order_host);
 
-    h->checkpoint_count = rbuf_ulonglong(&rc);
-    h->checkpoint_lsn   = rbuf_lsn(&rc);
-    h->nodesize      = rbuf_int(&rc);
-    DISKOFF translation_address_on_disk = rbuf_diskoff(&rc);
-    DISKOFF translation_size_on_disk    = rbuf_diskoff(&rc);
-    lazy_assert(translation_address_on_disk>0);
-    lazy_assert(translation_size_on_disk>0);
+    h->checkpoint_count = rbuf_ulonglong(rb);
+    h->checkpoint_lsn = rbuf_lsn(rb);
+    h->nodesize = rbuf_int(rb);
+    DISKOFF translation_address_on_disk = rbuf_diskoff(rb);
+    DISKOFF translation_size_on_disk = rbuf_diskoff(rb);
+    lazy_assert(translation_address_on_disk > 0);
+    lazy_assert(translation_size_on_disk > 0);
 
     // initialize the tree lock
     toku_brtheader_init_treelock(h);
-    // printf("%s:%d translated_blocknum_limit=%ld, block_translation_address_on_disk=%ld\n", __FILE__, __LINE__, h->translated_blocknum_limit, h->block_translation_address_on_disk);
+
     //Load translation table
     {
         lock_for_pwrite();
         unsigned char *XMALLOC_N(translation_size_on_disk, tbuf);
         {
-            // This cast is messed up in 32-bits if the block translation table is ever more than 4GB.  But in that case, the translation table itself won't fit in main memory.
-            ssize_t r = toku_os_pread(fd, tbuf, translation_size_on_disk, translation_address_on_disk);
-            lazy_assert(r==translation_size_on_disk);
+            // This cast is messed up in 32-bits if the block translation
+            // table is ever more than 4GB.  But in that case, the
+            // translation table itself won't fit in main memory.
+            ssize_t readsz = toku_os_pread(fd, tbuf, translation_size_on_disk,
+                                           translation_address_on_disk);
+            lazy_assert(readsz == translation_size_on_disk);
         }
         unlock_for_pwrite();
         // Create table and read in data.
-        toku_blocktable_create_from_buffer(&h->blocktable,
-                                           translation_address_on_disk,
-                                           translation_size_on_disk,
-                                           tbuf);
+        e = toku_blocktable_create_from_buffer(&h->blocktable,
+                                               translation_address_on_disk,
+                                               translation_size_on_disk,
+                                               tbuf);
         toku_free(tbuf);
+        if (e != DS_OK) {
+            goto exit;
+        }
     }
 
-    h->root_blocknum = rbuf_blocknum(&rc);
-    h->flags = rbuf_int(&rc);
-    h->layout_version_original = rbuf_int(&rc);    
-    h->build_id_original = rbuf_int(&rc);
-    h->time_of_creation  = rbuf_ulonglong(&rc);
-    h->time_of_last_modification = rbuf_ulonglong(&rc);
+    h->root_blocknum = rbuf_blocknum(rb);
+    h->flags = rbuf_int(rb);
+    if (h->layout_version_read_from_disk <= BRT_LAYOUT_VERSION_13) {
+        // deprecate 'TOKU_DB_VALCMP_BUILTIN'. just remove the flag
+        h->flags &= ~TOKU_DB_VALCMP_BUILTIN_13;
+    }
+    h->layout_version_original = rbuf_int(rb);
+    h->build_id_original = rbuf_int(rb);
+    h->time_of_creation  = rbuf_ulonglong(rb);
+    h->time_of_last_modification = rbuf_ulonglong(rb);
     h->time_of_last_verification = 0;
-    h->num_blocks_to_upgrade_13  = rbuf_ulonglong(&rc);
-    h->num_blocks_to_upgrade_14  = rbuf_ulonglong(&rc);
+    if (h->layout_version_read_from_disk <= BRT_LAYOUT_VERSION_18) {
+        // 17 was the last version with these fields, we no longer store
+        // them, so read and discard them
+        (void) rbuf_ulonglong(rb);  // num_blocks_to_upgrade_13
+        if (h->layout_version_read_from_disk >= BRT_LAYOUT_VERSION_15) {
+            (void) rbuf_ulonglong(rb);  // num_blocks_to_upgrade_14
+        }
+    }
 
-    if (h->layout_version >= BRT_LAYOUT_VERSION_14) { 
-        // at this layer, this new field is the only difference between versions 13 and 14
-        rbuf_TXNID(&rc, &h->root_xid_that_created);
+    if (h->layout_version_read_from_disk >= BRT_LAYOUT_VERSION_14) {
+        rbuf_TXNID(rb, &h->root_xid_that_created);
+    } else {
+        // fake creation during the last checkpoint
+        h->root_xid_that_created = h->checkpoint_lsn.lsn;
     }
-    if (h->layout_version >= BRT_LAYOUT_VERSION_15) {
-        h->basementnodesize = rbuf_int(&rc);
-        h->time_of_last_verification = rbuf_ulonglong(&rc);
+
+    if (h->layout_version_read_from_disk >= BRT_LAYOUT_VERSION_15) {
+        h->basementnodesize = rbuf_int(rb);
+        h->time_of_last_verification = rbuf_ulonglong(rb);
+    } else {
+        h->basementnodesize = BRT_DEFAULT_BASEMENT_NODE_SIZE;
+        h->time_of_last_verification = 0;
     }
-    if (h->layout_version >= BRT_LAYOUT_VERSION_18) {
-	h->on_disk_stats.numrows = rbuf_ulonglong(&rc);
-	h->on_disk_stats.numbytes = rbuf_ulonglong(&rc);
-	h->in_memory_stats = h->on_disk_stats;
-	h->time_of_last_optimize_begin = rbuf_ulonglong(&rc);
-	h->time_of_last_optimize_end   = rbuf_ulonglong(&rc);
-	h->count_of_optimize_in_progress = rbuf_int(&rc);
-	h->count_of_optimize_in_progress_read_from_disk = h->count_of_optimize_in_progress;
-	h->msn_at_start_of_last_completed_optimize = rbuf_msn(&rc);
+
+    if (h->layout_version_read_from_disk >= BRT_LAYOUT_VERSION_18) {
+        h->on_disk_stats.numrows = rbuf_ulonglong(rb);
+        h->on_disk_stats.numbytes = rbuf_ulonglong(rb);
+        h->in_memory_stats = h->on_disk_stats;
+        h->time_of_last_optimize_begin = rbuf_ulonglong(rb);
+        h->time_of_last_optimize_end = rbuf_ulonglong(rb);
+        h->count_of_optimize_in_progress = rbuf_int(rb);
+        h->count_of_optimize_in_progress_read_from_disk = h->count_of_optimize_in_progress;
+        h->msn_at_start_of_last_completed_optimize = rbuf_msn(rb);
+    } else {
+        upgrade_subtree_estimates_to_stat64info(fd, h);
+        h->time_of_last_optimize_begin = 0;
+        h->time_of_last_optimize_end = 0;
+        h->count_of_optimize_in_progress = 0;
+        h->count_of_optimize_in_progress_read_from_disk = 0;
+        h->msn_at_start_of_last_completed_optimize = ZERO_MSN;
     }
-    if (h->layout_version >= BRT_LAYOUT_VERSION_19) {
-        unsigned char method = rbuf_char(&rc);
+    if (h->layout_version_read_from_disk >= BRT_LAYOUT_VERSION_19) {
+        unsigned char method = rbuf_char(rb);
         h->compression_method = (enum toku_compression_method) method;
+        h->highest_unused_msn_for_upgrade = rbuf_msn(rb);
     } else {
         // we hard coded zlib until 5.2, then quicklz in 5.2
-        if (h->layout_version < BRT_LAYOUT_VERSION_18) {
+        if (h->layout_version_read_from_disk < BRT_LAYOUT_VERSION_18) {
             h->compression_method = TOKU_ZLIB_METHOD;
         } else {
             h->compression_method = TOKU_QUICKLZ_METHOD;
         }
+        h->highest_unused_msn_for_upgrade.msn = MIN_MSN.msn - 1;
     }
 
-    (void)rbuf_int(&rc); //Read in checksum and ignore (already verified).
-    if (rc.ndone!=rc.size) {ret = EINVAL; goto died1;}
-    toku_free(rc.buf);
-    rc.buf = NULL;
+    (void) rbuf_int(rb); //Read in checksum and ignore (already verified).
+    if (rb->ndone != rb->size) {
+        fprintf(stderr, "Header size did not match contents.\n");
+        errno = EINVAL;
+        e = DS_ERRNO;
+        goto exit;
+    }
+
+    invariant(h);
+    invariant((uint32_t) h->layout_version_read_from_disk == version);
+    e = deserialize_descriptor_from(fd, h->blocktable, &h->descriptor, version);
+    if (e != DS_OK) {
+        goto exit;
+    }
+    // copy descriptor to cmp_descriptor for #4541
+    h->cmp_descriptor.dbt.size = h->descriptor.dbt.size;
+    h->cmp_descriptor.dbt.data = toku_xmemdup(h->descriptor.dbt.data, h->descriptor.dbt.size);
+    // Version 13 descriptors had an extra 4 bytes that we don't read
+    // anymore.  Since the header is going to think it's the current
+    // version if it gets written out, we need to write the descriptor in
+    // the new format (without those bytes) before that happens.
+    int r = toku_update_descriptor(h, &h->cmp_descriptor, fd);
+    if (r != 0) {
+        errno = r;
+        e = DS_ERRNO;
+        goto exit;
+    }
+exit:
+    if (e != DS_OK && h != NULL) {
+        toku_free(h);
+        h = NULL;
+    }
     *brth = h;
-    return 0;
+    return e;
 }
 
-
-
-static int 
-write_descriptor_to_disk_unlocked(struct brt_header * h, DESCRIPTOR d, int fd) {
-    int r = 0;
-    DISKOFF offset;
-    //4 for checksum
-    toku_realloc_descriptor_on_disk_unlocked(h->blocktable, toku_serialize_descriptor_size(d)+4, &offset, h);
-    r = toku_serialize_descriptor_contents_to_fd(fd, d, offset);
-    return r;
-}
-
-
-//TODO: When version 15 exists, add case for version 14 that looks like today's version 13 case,
+// Simply reading the raw bytes of the header into an rbuf is insensitive
+// to disk format version.  If that ever changes, then modify this.
+//
+// TOKUDB_DICTIONARY_NO_HEADER means we can overwrite everything in the
+// file AND the header is useless
 static int
-deserialize_brtheader_versioned (int fd, struct rbuf *rb, struct brt_header **brth, u_int32_t version) {
-    int rval;
-    int upgrade = 0;
-
-    struct brt_header *h = NULL;
-    rval = deserialize_brtheader (fd, rb, &h); //deserialize from rbuf and fd into header
-    if (rval == 0) {
-        invariant(h);
-        invariant((uint32_t) h->layout_version == version);
-        deserialize_descriptor_from(fd, h->blocktable, &(h->descriptor), version);
-        h->cmp_descriptor.dbt.size = h->descriptor.dbt.size;
-        h->cmp_descriptor.dbt.data = toku_xmemdup(h->descriptor.dbt.data, h->descriptor.dbt.size);
-        switch (version) {
-            case BRT_LAYOUT_VERSION_13:
-                invariant(h->layout_version == BRT_LAYOUT_VERSION_13);
-                {
-                    //Upgrade root_xid_that_created
-                    //Fake creation during the last checkpoint.
-                    h->root_xid_that_created = h->checkpoint_lsn.lsn;
-                }
-                {
-                    //Deprecate 'TOKU_DB_VALCMP_BUILTIN'.  Just remove the flag
-                    h->flags &= ~TOKU_DB_VALCMP_BUILTIN_13;
-                }
-                h->layout_version++;
-		__sync_fetch_and_add(&UPGRADE_STATUS_VALUE(BRT_UPGRADE_HEADER_13), 1);  // how many header nodes upgraded from v13
-                upgrade++;
-                //Fall through on purpose
-            case BRT_LAYOUT_VERSION_14:
-                h->basementnodesize = 128*1024;  // basement nodes added in v15
-                //fall through on purpose
-        case BRT_LAYOUT_VERSION_19:
-            case BRT_LAYOUT_VERSION_18:
-            case BRT_LAYOUT_VERSION_17: // version 17 never released to customers
-            case BRT_LAYOUT_VERSION_16: // version 16 never released to customers
-            case BRT_LAYOUT_VERSION_15: // this will not properly support version 15, we'll fix that on upgrade.
-                invariant(h->layout_version == BRT_LAYOUT_VERSION);
-                h->upgrade_brt_performed = FALSE;
-                if (upgrade) {
-                    toku_brtheader_lock(h);
-                    h->num_blocks_to_upgrade_13 = toku_block_get_blocks_in_use_unlocked(h->blocktable); //Total number of blocks
-		    if (version == BRT_LAYOUT_VERSION_13) {
-			// write upgraded descriptor to disk if descriptor upgraded from version 13
-			rval = write_descriptor_to_disk_unlocked(h, &(h->descriptor), fd);
-		    }
-                    h->dirty = 1;
-                    toku_brtheader_unlock(h);
-                }
-                *brth = h;
-                break;    // this is the only break
-            default:
-                invariant(FALSE);
-        }
-    }
-    return rval;
-}
-
-
-
-// Simply reading the raw bytes of the header into an rbuf is insensitive to disk format version.  
-// If that ever changes, then modify this.
-//TOKUDB_DICTIONARY_NO_HEADER means we can overwrite everything in the file AND the header is useless
-static int
-deserialize_brtheader_from_fd_into_rbuf(int fd, toku_off_t offset_of_header, struct rbuf *rb, 
-					u_int64_t *checkpoint_count, LSN *checkpoint_lsn, u_int32_t * version_p) {
+deserialize_brtheader_from_fd_into_rbuf(int fd,
+                                        toku_off_t offset_of_header,
+                                        struct rbuf *rb,
+                                        u_int64_t *checkpoint_count,
+                                        LSN *checkpoint_lsn,
+                                        u_int32_t * version_p,
+                                        enum deserialize_error_code *e)
+{
     int r = 0;
     const int64_t prefix_size = 8 + // magic ("tokudata")
                                 4 + // version
@@ -2316,96 +2908,120 @@ deserialize_brtheader_from_fd_into_rbuf(int fd, toku_off_t offset_of_header, str
     unsigned char prefix[prefix_size];
     rb->buf = NULL;
     int64_t n = toku_os_pread(fd, prefix, prefix_size, offset_of_header);
-    if (n==0) r = TOKUDB_DICTIONARY_NO_HEADER;
-    else if (n<0) {r = errno; lazy_assert(r!=0);}
-    else if (n!=prefix_size) r = EINVAL;
-    else {
-        rb->size  = prefix_size;
-        rb->ndone = 0;
-        rb->buf   = prefix;
-        {
-            //Check magic number
-            bytevec magic;
-            rbuf_literal_bytes(rb, &magic, 8);
-            if (memcmp(magic,"tokudata",8)!=0) {
-                if ((*(u_int64_t*)magic) == 0) r = TOKUDB_DICTIONARY_NO_HEADER;
-                else r = EINVAL; //Not a tokudb file! Do not use.
-            }
+    if (n != prefix_size) {
+        if (n==0) {
+            r = TOKUDB_DICTIONARY_NO_HEADER;
+        } else if (n<0) {
+            r = errno;
+            lazy_assert(r!=0);
+        } else {
+            r = EINVAL;
         }
-        u_int32_t version = 0;
-        if (r==0) {
-            //Version MUST be in network order regardless of disk order.
-            version = rbuf_network_int(rb);
-	    *version_p = version;
-            if (version < BRT_LAYOUT_MIN_SUPPORTED_VERSION) r = TOKUDB_DICTIONARY_TOO_OLD; //Cannot use
-            if (version > BRT_LAYOUT_VERSION) r = TOKUDB_DICTIONARY_TOO_NEW; //Cannot use
-            //build_id MUST be in network order regardless of disk order.
-	    u_int32_t build_id __attribute__((__unused__)) = rbuf_network_int(rb);
-        }
-        u_int32_t size;
-        if (r==0) {
-            const int64_t max_header_size = BLOCK_ALLOCATOR_HEADER_RESERVE;
-            int64_t min_header_size = serialize_brt_header_min_size(version);
-            //Size MUST be in network order regardless of disk order.
-            size = rbuf_network_int(rb);
-            //If too big, it is corrupt.  We would probably notice during checksum
-            //but may have to do a multi-gigabyte malloc+read to find out.
-            //If its too small reading rbuf would crash, so verify.
-            if (size > max_header_size || size < min_header_size) r = TOKUDB_DICTIONARY_NO_HEADER;
-        }
-        if (r!=0) {
-            rb->buf = NULL; //Prevent freeing of 'prefix'
-        }
-        if (r==0) {
-            lazy_assert(rb->ndone==prefix_size);
-            rb->size = size;
-            rb->buf  = toku_xmalloc(rb->size);
-        }
-        if (r==0) {
-            n = toku_os_pread(fd, rb->buf, rb->size, offset_of_header);
-            if (n==-1) {
-                r = errno;
-                lazy_assert(r!=0);
-            }
-            else if (n!=(int64_t)rb->size) r = EINVAL; //Header might be useless (wrong size) or could be a disk read error.
-        }
-        //It's version 10 or later.  Magic looks OK.
-        //We have an rbuf that represents the header.
-        //Size is within acceptable bounds.
-        if (r==0) {
-            //Verify checksum (BRT_LAYOUT_VERSION_13 or later, when checksum function changed)
-            u_int32_t calculated_x1764 = x1764_memory(rb->buf, rb->size-4);
-            u_int32_t stored_x1764     = toku_dtoh32(*(int*)(rb->buf+rb->size-4));
-            if (calculated_x1764!=stored_x1764) r = TOKUDB_DICTIONARY_NO_HEADER; //Header useless
-        }
-        if (r==0) {
-            //Verify byte order
-            bytevec tmp_byte_order_check;
-            rbuf_literal_bytes(rb, &tmp_byte_order_check, 8); //Must not translate byte order
-            int64_t byte_order_stored = *(int64_t*)tmp_byte_order_check;
-            if (byte_order_stored != toku_byte_order_host) r = TOKUDB_DICTIONARY_NO_HEADER; //Cannot use dictionary
-        }
-        if (r==0) {
-            //Load checkpoint count
-            *checkpoint_count = rbuf_ulonglong(rb);
-	    *checkpoint_lsn   = rbuf_lsn(rb);
-            //Restart at beginning during regular deserialization
-            rb->ndone = 0;
-        }
+        goto exit;
     }
-    if (r!=0 && rb->buf) {
-        toku_free(rb->buf);
+
+    rbuf_init(rb, prefix, prefix_size);
+
+    //Check magic number
+    bytevec magic;
+    rbuf_literal_bytes(rb, &magic, 8);
+    if (memcmp(magic,"tokudata",8)!=0) {
+        if ((*(u_int64_t*)magic) == 0) {
+            r = TOKUDB_DICTIONARY_NO_HEADER;
+        } else {
+            r = EINVAL; //Not a tokudb file! Do not use.
+        }
+        goto exit;
+    }
+
+    //Version MUST be in network order regardless of disk order.
+    u_int32_t version = rbuf_network_int(rb);
+    *version_p = version;
+    if (version < BRT_LAYOUT_MIN_SUPPORTED_VERSION) {
+        r = TOKUDB_DICTIONARY_TOO_OLD; //Cannot use
+        goto exit;
+    } else if (version > BRT_LAYOUT_VERSION) {
+        r = TOKUDB_DICTIONARY_TOO_NEW; //Cannot use
+        goto exit;
+    }
+
+    //build_id MUST be in network order regardless of disk order.
+    u_int32_t build_id __attribute__((__unused__)) = rbuf_network_int(rb);
+    const int64_t max_header_size = BLOCK_ALLOCATOR_HEADER_RESERVE;
+    int64_t min_header_size = serialize_brt_header_min_size(version);
+
+    //Size MUST be in network order regardless of disk order.
+    u_int32_t size = rbuf_network_int(rb);
+    //If too big, it is corrupt.  We would probably notice during checksum
+    //but may have to do a multi-gigabyte malloc+read to find out.
+    //If its too small reading rbuf would crash, so verify.
+    if (size > max_header_size || size < min_header_size) {
+        r = TOKUDB_DICTIONARY_NO_HEADER;
+        goto exit;
+    }
+
+    lazy_assert(rb->ndone==prefix_size);
+    rb->size = size;
+    rb->buf = toku_xmalloc(rb->size);
+
+    n = toku_os_pread(fd, rb->buf, rb->size, offset_of_header);
+    if (n != rb->size) {
+        if (n < 0) {
+            r = errno;
+            lazy_assert(r!=0);
+        } else {
+            r = EINVAL; //Header might be useless (wrong size) or could be a disk read error.
+        }
+        goto exit;
+    }
+    //It's version 14 or later.  Magic looks OK.
+    //We have an rbuf that represents the header.
+    //Size is within acceptable bounds.
+
+    //Verify checksum (BRT_LAYOUT_VERSION_13 or later, when checksum function changed)
+    u_int32_t calculated_x1764 = x1764_memory(rb->buf, rb->size-4);
+    u_int32_t stored_x1764 = toku_dtoh32(*(int*)(rb->buf+rb->size-4));
+    if (calculated_x1764 != stored_x1764) {
+        r = TOKUDB_DICTIONARY_NO_HEADER; //Header useless
+        fprintf(stderr, "Header checksum failure: calc=0x%08x read=0x%08x\n", calculated_x1764, stored_x1764);
+        *e = DS_XSUM_FAIL;
+        goto exit;
+    }
+
+    //Verify byte order
+    bytevec tmp_byte_order_check;
+    lazy_assert((sizeof toku_byte_order_host) == 8);
+    rbuf_literal_bytes(rb, &tmp_byte_order_check, 8); //Must not translate byte order
+    int64_t byte_order_stored = *(int64_t*)tmp_byte_order_check;
+    if (byte_order_stored != toku_byte_order_host) {
+        r = TOKUDB_DICTIONARY_NO_HEADER; //Cannot use dictionary
+        goto exit;
+    }
+
+    //Load checkpoint count
+    *checkpoint_count = rbuf_ulonglong(rb);
+    *checkpoint_lsn = rbuf_lsn(rb);
+    //Restart at beginning during regular deserialization
+    rb->ndone = 0;
+
+exit:
+    if (r != 0 && rb->buf != NULL) {
+        if (rb->buf != prefix) { // don't free prefix, it's stack alloc'd
+            toku_free(rb->buf);
+        }
         rb->buf = NULL;
     }
     return r;
 }
 
-
 // Read brtheader from file into struct.  Read both headers and use one.
 // We want the latest acceptable header whose checkpoint_lsn is no later
 // than max_acceptable_lsn.
-int 
-toku_deserialize_brtheader_from (int fd, LSN max_acceptable_lsn, struct brt_header **brth) {
+enum deserialize_error_code
+toku_deserialize_brtheader_from(int fd,
+                                LSN max_acceptable_lsn,
+                                struct brt_header **brth)
+{
     struct rbuf rb_0;
     struct rbuf rb_1;
     u_int64_t checkpoint_count_0;
@@ -2417,73 +3033,93 @@ toku_deserialize_brtheader_from (int fd, LSN max_acceptable_lsn, struct brt_head
     BOOL h1_acceptable = FALSE;
     struct rbuf *rb = NULL;
     int r0, r1, r;
+    enum deserialize_error_code e0, e1, e;
 
-    {
-        toku_off_t header_0_off = 0;
-        r0 = deserialize_brtheader_from_fd_into_rbuf(fd, header_0_off, &rb_0, &checkpoint_count_0, &checkpoint_lsn_0, &version_0);
-	if ( (r0==0) && (checkpoint_lsn_0.lsn <= max_acceptable_lsn.lsn) )
-	    h0_acceptable = TRUE;
+    toku_off_t header_0_off = 0;
+    e0 = DS_OK;
+    r0 = deserialize_brtheader_from_fd_into_rbuf(fd, header_0_off, &rb_0, &checkpoint_count_0, &checkpoint_lsn_0, &version_0, &e0);
+    if (r0 == 0 && checkpoint_lsn_0.lsn <= max_acceptable_lsn.lsn) {
+        h0_acceptable = TRUE;
     }
-    {
-        toku_off_t header_1_off = BLOCK_ALLOCATOR_HEADER_RESERVE;
-        r1 = deserialize_brtheader_from_fd_into_rbuf(fd, header_1_off, &rb_1, &checkpoint_count_1, &checkpoint_lsn_1, &version_1);
-	if ( (r1==0) && (checkpoint_lsn_1.lsn <= max_acceptable_lsn.lsn) )
-	    h1_acceptable = TRUE;
+
+    toku_off_t header_1_off = BLOCK_ALLOCATOR_HEADER_RESERVE;
+    e1 = DS_OK;
+    r1 = deserialize_brtheader_from_fd_into_rbuf(fd, header_1_off, &rb_1, &checkpoint_count_1, &checkpoint_lsn_1, &version_1, &e1);
+    if (r1 == 0 && checkpoint_lsn_1.lsn <= max_acceptable_lsn.lsn) {
+        h1_acceptable = TRUE;
     }
 
     // if either header is too new, the dictionary is unreadable
-    if (r0!=TOKUDB_DICTIONARY_TOO_NEW && r1!=TOKUDB_DICTIONARY_TOO_NEW) {
-	if (h0_acceptable && h1_acceptable) {
-	    if (checkpoint_count_0 > checkpoint_count_1) {
-		invariant(checkpoint_count_0 == checkpoint_count_1 + 1);
-		invariant(version_0 >= version_1);
-		rb = &rb_0;
-		version = version_0;
-		r = 0;
-	    }
-	    else {
-		invariant(checkpoint_count_1 == checkpoint_count_0 + 1);
-		invariant(version_1 >= version_0);
-		rb = &rb_1;
-		version = version_1;
-		r = 0;
-	    }
-	}
-	else if (h0_acceptable) {
-	    rb = &rb_0;
-	    version = version_0;
-	    r = 0;
-	}
-	else if (h1_acceptable) {
-	    rb = &rb_1;
-	    version = version_1;
-	    r = 0;
-	}
-    }
-
-    if (rb==NULL) {
-        // We were unable to read either header or at least one is too new.
-        // Certain errors are higher priority than others. Order of these if/else if is important.
-        if (r0==TOKUDB_DICTIONARY_TOO_NEW || r1==TOKUDB_DICTIONARY_TOO_NEW)
+    if (r0 == TOKUDB_DICTIONARY_TOO_NEW || r1 == TOKUDB_DICTIONARY_TOO_NEW ||
+        !(h0_acceptable || h1_acceptable)) {
+        // We were unable to read either header or at least one is too
+        // new.  Certain errors are higher priority than others. Order of
+        // these if/else if is important.
+        if (r0 == TOKUDB_DICTIONARY_TOO_NEW || r1 == TOKUDB_DICTIONARY_TOO_NEW) {
             r = TOKUDB_DICTIONARY_TOO_NEW;
-        else if (r0==TOKUDB_DICTIONARY_TOO_OLD || r1==TOKUDB_DICTIONARY_TOO_OLD) {
+        } else if (r0 == TOKUDB_DICTIONARY_TOO_OLD || r1 == TOKUDB_DICTIONARY_TOO_OLD) {
             r = TOKUDB_DICTIONARY_TOO_OLD;
-        }
-        else if (r0==TOKUDB_DICTIONARY_NO_HEADER || r1==TOKUDB_DICTIONARY_NO_HEADER) {
+        } else if (r0 == TOKUDB_DICTIONARY_NO_HEADER || r1 == TOKUDB_DICTIONARY_NO_HEADER) {
             r = TOKUDB_DICTIONARY_NO_HEADER;
+        } else {
+            r = r0 ? r0 : r1; //Arbitrarily report the error from the
+                              //first header, unless it's readable
         }
-        else r = r0 ? r0 : r1; //Arbitrarily report the error from the first header, unless it's readable
 
-	// it should not be possible for both headers to be later than the max_acceptable_lsn
-	invariant(!( (r0==0 && checkpoint_lsn_0.lsn > max_acceptable_lsn.lsn) &&
-		     (r1==0 && checkpoint_lsn_1.lsn > max_acceptable_lsn.lsn) ));
+        // it should not be possible for both headers to be later than the max_acceptable_lsn
+        invariant(!((r0==0 && checkpoint_lsn_0.lsn > max_acceptable_lsn.lsn) &&
+                    (r1==0 && checkpoint_lsn_1.lsn > max_acceptable_lsn.lsn)));
         invariant(r!=0);
+        if (e0 == DS_XSUM_FAIL && e1 == DS_XSUM_FAIL) {
+            fprintf(stderr, "Both header checksums failed.\n");
+            e = DS_XSUM_FAIL;
+        } else {
+            errno = r;
+            e = DS_ERRNO;
+        }
+        goto exit;
     }
 
-    if (r==0) r = deserialize_brtheader_versioned(fd, rb, brth, version);
-    if (rb_0.buf) toku_free(rb_0.buf);
-    if (rb_1.buf) toku_free(rb_1.buf);
-    return r;
+    if (h0_acceptable && h1_acceptable) {
+        if (checkpoint_count_0 > checkpoint_count_1) {
+            invariant(checkpoint_count_0 == checkpoint_count_1 + 1);
+            invariant(version_0 >= version_1);
+            rb = &rb_0;
+            version = version_0;
+        }
+        else {
+            invariant(checkpoint_count_1 == checkpoint_count_0 + 1);
+            invariant(version_1 >= version_0);
+            rb = &rb_1;
+            version = version_1;
+        }
+    } else if (h0_acceptable) {
+        if (e1 == DS_XSUM_FAIL) {
+            // print something reassuring
+            fprintf(stderr, "Header 2 checksum failed, but header 1 ok.  Proceeding.\n");
+        }
+        rb = &rb_0;
+        version = version_0;
+    } else if (h1_acceptable) {
+        if (e0 == DS_XSUM_FAIL) {
+            // print something reassuring
+            fprintf(stderr, "Header 1 checksum failed, but header 2 ok.  Proceeding.\n");
+        }
+        rb = &rb_1;
+        version = version_1;
+    }
+
+    invariant(rb);
+    e = deserialize_brtheader_versioned(fd, rb, brth, version);
+
+exit:
+    if (rb_0.buf) {
+        toku_free(rb_0.buf);
+    }
+    if (rb_1.buf) {
+        toku_free(rb_1.buf);
+    }
+    return e;
 }
 
 unsigned int 

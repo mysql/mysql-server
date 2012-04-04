@@ -1,4 +1,4 @@
-/* -*- mode: C; c-basic-offset: 4 -*- */
+/* -*- mode: C; c-basic-offset: 4; indent-tabs-mode: nil -*- */
 #ident "$Id$"
 #ident "Copyright (c) 2011 Tokutek Inc.  All rights reserved."
 
@@ -46,9 +46,8 @@ append_leaf(BRT brt, BRTNODE leafnode, void *key, size_t keylen, void *val, size
     MSN msn = next_dummymsn();
     BRT_MSG_S cmd = { BRT_INSERT, msn, xids_get_root_xids(), .u.id = { &thekey, &theval } };
 
-    bool made_change;
     u_int64_t workdone=0;
-    toku_apply_cmd_to_leaf(brt->compare_fun, brt->update_fun, &brt->h->cmp_descriptor, leafnode, &cmd, &made_change, &workdone, NULL, NULL);
+    toku_apply_cmd_to_leaf(brt->compare_fun, brt->update_fun, &brt->h->cmp_descriptor, leafnode, &cmd, &workdone, NULL, NULL);
     {
 	int r = toku_brt_lookup(brt, &thekey, lookup_checkf, &pair);
 	assert(r==0);
@@ -56,7 +55,7 @@ append_leaf(BRT brt, BRTNODE leafnode, void *key, size_t keylen, void *val, size
     }
 
     BRT_MSG_S badcmd = { BRT_INSERT, msn, xids_get_root_xids(), .u.id = { &thekey, &badval } };
-    toku_apply_cmd_to_leaf(brt->compare_fun, brt->update_fun, &brt->h->cmp_descriptor, leafnode, &badcmd, &made_change, &workdone, NULL, NULL);
+    toku_apply_cmd_to_leaf(brt->compare_fun, brt->update_fun, &brt->h->cmp_descriptor, leafnode, &badcmd, &workdone, NULL, NULL);
 
     
     // message should be rejected for duplicate msn, row should still have original val
@@ -69,7 +68,7 @@ append_leaf(BRT brt, BRTNODE leafnode, void *key, size_t keylen, void *val, size
     // now verify that message with proper msn gets through
     msn = next_dummymsn();
     BRT_MSG_S cmd2 = { BRT_INSERT, msn, xids_get_root_xids(), .u.id = { &thekey, &val2 } };
-    toku_apply_cmd_to_leaf(brt->compare_fun, brt->update_fun, &brt->h->cmp_descriptor, leafnode, &cmd2, &made_change, &workdone, NULL, NULL);
+    toku_apply_cmd_to_leaf(brt->compare_fun, brt->update_fun, &brt->h->cmp_descriptor, leafnode, &cmd2, &workdone, NULL, NULL);
     
     // message should be accepted, val should have new value
     {
@@ -81,7 +80,7 @@ append_leaf(BRT brt, BRTNODE leafnode, void *key, size_t keylen, void *val, size
     // now verify that message with lesser (older) msn is rejected
     msn.msn = msn.msn - 10;
     BRT_MSG_S cmd3 = { BRT_INSERT, msn, xids_get_root_xids(), .u.id = { &thekey, &badval } };
-    toku_apply_cmd_to_leaf(brt->compare_fun, brt->update_fun, &brt->h->cmp_descriptor, leafnode, &cmd3, &made_change, &workdone, NULL, NULL);
+    toku_apply_cmd_to_leaf(brt->compare_fun, brt->update_fun, &brt->h->cmp_descriptor, leafnode, &cmd3, &workdone, NULL, NULL);
     
     // message should be rejected, val should still have value in pair2
     {
@@ -165,6 +164,7 @@ usage(void) {
 int
 test_main (int argc , const char *argv[]) {
     int do_verify = 1;
+    initialize_dummymsn();
     for (int i = 1; i < argc; i++) {
         const char *arg = argv[i];
         if (strcmp(arg, "-v") == 0) {

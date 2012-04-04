@@ -85,6 +85,21 @@ pkey_for_val(int key, int i) {
 }
 
 
+static int __attribute__((unused))
+dummy_progress(void *UU(extra), float UU(progress))
+{
+    return 0;
+}
+
+static void __attribute__((unused))
+do_hot_optimize_on_dbs(DB_ENV *UU(env), DB **dbs, int num_dbs)
+{
+    for (int i = 0; i < num_dbs; ++i) {
+        int r = dbs[i]->hot_optimize(dbs[i], dummy_progress, NULL);
+        CKERR(r);
+    }
+}
+
   // don't check first n rows (expect to have been deleted)
 static void UU()
 check_results_after_row_n(DB_ENV *env, DB **dbs, const int num_dbs, const int num_rows, const int first_row_to_check) {

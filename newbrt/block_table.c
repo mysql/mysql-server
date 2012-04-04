@@ -755,11 +755,12 @@ translation_default(struct translation *t) {  // destination into which to creat
 }
 
 
-static void
+static enum deserialize_error_code
 translation_deserialize_from_buffer(struct translation *t,    // destination into which to deserialize
                                     DISKOFF location_on_disk, //Location of translation_buffer
                                     u_int64_t size_on_disk,
                                     unsigned char * translation_buffer) {   // buffer with serialized translation
+    enum deserialize_error_code e;
     assert(location_on_disk!=0);
     t->type = TRANSLATION_CHECKPOINTED;
     {
@@ -768,7 +769,11 @@ translation_deserialize_from_buffer(struct translation *t,    // destination int
         u_int64_t offset = size_on_disk - 4;
         //printf("%s:%d read from %ld (x1764 offset=%ld) size=%ld\n", __FILE__, __LINE__, block_translation_address_on_disk, offset, block_translation_size_on_disk);
         u_int32_t stored_x1764 = toku_dtoh32(*(int*)(translation_buffer + offset));
-        assert(x1764 == stored_x1764);
+        if (x1764 != stored_x1764) {
+            fprintf(stderr, "Translation table checksum failure: calc=0x%08x read=0x%08x\n", x1764, stored_x1764);
+            e = DS_XSUM_FAIL;
+            goto exit;
+        }
     }
     struct rbuf rt;
     rt.buf = translation_buffer;
@@ -789,6 +794,9 @@ PRNTF("ReadIn", i, t->block_translation[i].size, t->block_translation[i].u.disko
     assert(calculate_size_on_disk(t)                                     == (int64_t)size_on_disk);
     assert(t->block_translation[RESERVED_BLOCKNUM_TRANSLATION].size      == (int64_t)size_on_disk);
     assert(t->block_translation[RESERVED_BLOCKNUM_TRANSLATION].u.diskoff == location_on_disk);
+    e = DS_OK;
+exit:
+    return e;
 }
 
 // We just initialized a translation, inform block allocator to reserve space for each blocknum in use.
@@ -817,17 +825,22 @@ blocktable_note_translation (BLOCK_ALLOCATOR allocator, struct translation *t) {
 // The one read from disk is the last known checkpointed one, so we are keeping it in 
 // place and then setting current (which is never stored on disk) for current use.
 // The translation_buffer has translation only, we create the rest of the block_table.
-void
+enum deserialize_error_code
 toku_blocktable_create_from_buffer(BLOCK_TABLE *btp,
                                    DISKOFF location_on_disk, //Location of translation_buffer
                                    DISKOFF size_on_disk,
                                    unsigned char *translation_buffer) {
     BLOCK_TABLE bt = blocktable_create_internal();
-    translation_deserialize_from_buffer(&bt->checkpointed, location_on_disk, size_on_disk, translation_buffer);
+    enum deserialize_error_code e = translation_deserialize_from_buffer(&bt->checkpointed, location_on_disk, size_on_disk, translation_buffer);
+    if (e != DS_OK) {
+        goto exit;
+    }
     blocktable_note_translation(bt->block_allocator, &bt->checkpointed);
     // we just filled in checkpointed, now copy it to current.  
     copy_translation(&bt->current, &bt->checkpointed, TRANSLATION_CURRENT);
     *btp = bt;
+exit:
+    return e;
 }
 
 

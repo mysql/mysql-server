@@ -1,4 +1,4 @@
-/* -*- mode: C; c-basic-offset: 4 -*- */
+/* -*- mode: C; c-basic-offset: 4; indent-tabs-mode: nil -*- */
 #ident "$Id$"
 #ident "Copyright (c) 2011 Tokutek Inc.  All rights reserved."
 
@@ -174,6 +174,7 @@ usage(void) {
 
 int
 test_main (int argc , const char *argv[]) {
+    initialize_dummymsn();
     int height = 1;
     int fanout = 2;
     int nperleaf = 8;

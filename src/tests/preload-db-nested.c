@@ -54,6 +54,7 @@ enum {ROWS_PER_TRANSACTION=10000};
 uint NUM_DBS=1;
 uint NUM_ROWS=100000;
 int CHECK_RESULTS=0;
+int optimize=0;
 int littlenode = 0;
 enum { old_default_cachesize=1024 }; // MB
 int CACHESIZE=old_default_cachesize;
@@ -134,6 +135,11 @@ static void preload_dbs(DB **dbs)
     for(row = 0; row <= NUM_ROWS; row++) {
 	uint generated_value = generate_val(row, 0);
 	nested_insert(dbs, 0, NULL, row, generated_value);
+    }
+
+    if (optimize) {
+        if (verbose) { printf("\noptimizing");fflush(stdout);}
+        do_hot_optimize_on_dbs(env, dbs, 1);
     }
 
     if ( CHECK_RESULTS) {
@@ -288,6 +294,8 @@ static void do_args(int argc, char * const argv[]) {
             CHECK_RESULTS = 1;
         } else if (strcmp(argv[0], "-n")==0) {
             littlenode = 1;
+        } else if (strcmp(argv[0], "-o")==0) {
+            optimize = 1;
 	} else {
 	    fprintf(stderr, "Unknown arg: %s\n", argv[0]);
 	    resultcode=1;

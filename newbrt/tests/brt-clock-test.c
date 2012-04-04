@@ -1,4 +1,4 @@
-/* -*- mode: C; c-basic-offset: 4 -*- */
+/* -*- mode: C; c-basic-offset: 4; indent-tabs-mode: nil -*- */
 #ident "$Id$"
 #ident "Copyright (c) 2007, 2008 Tokutek Inc.  All rights reserved."
 
@@ -243,7 +243,6 @@ test_serialize_nonleaf(void) {
     sn.layout_version = BRT_LAYOUT_VERSION;
     sn.layout_version_original = BRT_LAYOUT_VERSION;
     sn.height = 1;
-    sn.optimized_for_upgrade = 1234;
     sn.n_children = 2;
     sn.dirty = 1;
     hello_string = toku_strdup("hello");
@@ -344,7 +343,6 @@ test_serialize_leaf(void) {
     sn.layout_version = BRT_LAYOUT_VERSION;
     sn.layout_version_original = BRT_LAYOUT_VERSION;
     sn.height = 0;
-    sn.optimized_for_upgrade = 1234;
     sn.n_children = 2;
     sn.dirty = 1;
     LEAFENTRY elts[3];
@@ -424,6 +422,7 @@ test_serialize_leaf(void) {
 
 int
 test_main (int argc __attribute__((__unused__)), const char *argv[] __attribute__((__unused__))) {
+    initialize_dummymsn();
     test_serialize_nonleaf();
     test_serialize_leaf();
 

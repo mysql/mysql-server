@@ -251,7 +251,6 @@ struct brtnode {
     int    height; /* height is always >= 0.  0 for leaf, >0 for nonleaf. */
     int    dirty;
     u_int32_t fullhash;
-    uint32_t optimized_for_upgrade;   // version number to which this leaf has been optimized, zero if never optimized for upgrade
     int n_children; //for internal nodes, if n_children==TREE_FANOUT+1 then the tree needs to be rebalanced.
                     // for leaf nodes, represents number of basement nodes
     unsigned int    totalchildkeylens;
@@ -377,9 +376,6 @@ struct brt_header {
     uint64_t time_of_creation;          // time this tree was created
     uint64_t time_of_last_modification; // last time this header was serialized to disk (read from disk, overwritten when written to disk)
     uint64_t time_of_last_verification; // last time that this tree was verified
-    BOOL upgrade_brt_performed;         // initially FALSE, set TRUE when brt has been fully updated (even though nodes may not have been)
-    int64_t num_blocks_to_upgrade_13;   // Number of v13 blocks still not newest version. 
-    int64_t num_blocks_to_upgrade_14;   // Number of v14 blocks still not newest version. 
     unsigned int nodesize;
     unsigned int basementnodesize;
     // this field is protected by tree_lock, see comment for tree_lock
@@ -411,6 +407,10 @@ struct brt_header {
     uint32_t count_of_optimize_in_progress_read_from_disk;   // the number of hot optimize operations in progress on this tree at the time of the last crash  (this field is in-memory only)
     MSN      msn_at_start_of_last_completed_optimize;   // all messages before this msn have been applied to leaf nodes
     enum toku_compression_method compression_method;
+    // Current Minimum MSN to be used when upgrading pre-MSN BRT's.
+    // This is decremented from our currnt MIN_MSN so as not to clash
+    // with any existing 'normal' MSN's.
+    MSN      highest_unused_msn_for_upgrade;
 };
 
 struct brt {
@@ -479,7 +479,7 @@ toku_brt_header_init(struct brt_header *h,
 int toku_serialize_brt_header_size (struct brt_header *h);
 int toku_serialize_brt_header_to (int fd, struct brt_header *h);
 int toku_serialize_brt_header_to_wbuf (struct wbuf *, struct brt_header *h, int64_t address_translation, int64_t size_translation);
-int toku_deserialize_brtheader_from (int fd, LSN max_acceptable_lsn, struct brt_header **brth);
+enum deserialize_error_code toku_deserialize_brtheader_from (int fd, LSN max_acceptable_lsn, struct brt_header **brth);
 int toku_serialize_descriptor_contents_to_fd(int fd, const DESCRIPTOR desc, DISKOFF offset);
 void toku_serialize_descriptor_contents_to_wbuf(struct wbuf *wb, const DESCRIPTOR desc);
 BASEMENTNODE toku_create_empty_bn(void);
@@ -818,7 +818,6 @@ int toku_brtheader_close (CACHEFILE cachefile, int fd, void *header_v, char **er
 int toku_brtheader_begin_checkpoint (LSN checkpoint_lsn, void *header_v) __attribute__((__warn_unused_result__));
 int toku_brtheader_checkpoint (CACHEFILE cachefile, int fd, void *header_v) __attribute__((__warn_unused_result__));
 int toku_brtheader_end_checkpoint (CACHEFILE cachefile, int fd, void *header_v) __attribute__((__warn_unused_result__));
-int toku_maybe_upgrade_brt(BRT t) __attribute__((__warn_unused_result__));
 int toku_db_badformat(void) __attribute__((__warn_unused_result__));
 
 int toku_brt_remove_on_commit(TOKUTXN child, DBT* iname_dbt_p) __attribute__((__warn_unused_result__));
@@ -826,10 +825,6 @@ int toku_brt_remove_now(CACHETABLE ct, DBT* iname_dbt_p) __attribute__((__warn_u
 
 typedef enum {
     BRT_UPGRADE_FOOTPRINT = 0,
-    BRT_UPGRADE_HEADER_13,    // how many headers were upgraded from version 13
-    BRT_UPGRADE_NONLEAF_13,
-    BRT_UPGRADE_LEAF_13, 
-    BRT_UPGRADE_OPTIMIZED_FOR_UPGRADE, // how many optimize_for_upgrade messages were sent
     BRT_UPGRADE_STATUS_NUM_ROWS
 } brt_upgrade_status_entry;
 
@@ -937,7 +932,6 @@ brt_leaf_put_cmd (
     BRTNODE leafnode,
     BASEMENTNODE bn, 
     BRT_MSG cmd, 
-    bool* made_change,
     uint64_t *workdone,
     OMT snapshot_txnids,
     OMT live_list_reverse
@@ -949,7 +943,6 @@ void toku_apply_cmd_to_leaf(
     DESCRIPTOR desc, 
     BRTNODE node, 
     BRT_MSG cmd, 
-    bool *made_change, 
     uint64_t *workdone,
     OMT snapshot_txnids,
     OMT live_list_reverse

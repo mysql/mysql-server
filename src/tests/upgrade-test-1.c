@@ -31,6 +31,16 @@ char *db_v4_dir        = OLDDATADIR "env_preload.4.2.0.cleanshutdown";
 char *db_v4_dir_node4k = OLDDATADIR "env_preload.4.2.0.node4k.cleanshutdown";
 char *db_v4_dir_flat   = OLDDATADIR "env_preload.4.2.0.flat.cleanshutdown";
 
+// HACK: Newer versions of the database/brt to use with this old
+// upgrade test code.
+char *db_v6_dir        = OLDDATADIR "env_preload.5.0.8.cleanshutdown";
+char *db_v6_dir_node4k = OLDDATADIR "env_preload.5.0.8.node4k.cleanshutdown";
+char *db_v6_dir_flat   = OLDDATADIR "env_preload.5.0.8.flat.cleanshutdown";
+ 
+char *db_v7_dir        = OLDDATADIR "env_preload.5.2.7.cleanshutdown";
+char *db_v7_dir_node4k = OLDDATADIR "env_preload.5.2.7.node4k.cleanshutdown";
+char *db_v7_dir_flat   = OLDDATADIR "env_preload.5.2.7.flat.cleanshutdown";
+
 
 // should put this in test.h:
 static __attribute__((__unused__)) int
@@ -97,6 +107,24 @@ static void setup(void) {
     }
     else if ( SRC_VERSION == 5 ) {
         src_db_dir = db_v5_dir;
+    }
+    else if (SRC_VERSION == 6) {
+	if (flat) {
+	    src_db_dir = db_v6_dir_flat;
+	} else if (littlenode) {
+	    src_db_dir = db_v6_dir_node4k;
+	} else {
+	    src_db_dir = db_v6_dir;
+	}
+    }
+    else if (SRC_VERSION == 7) {
+	if (flat) {
+	    src_db_dir = db_v7_dir_flat;
+	} else if (littlenode) {
+	    src_db_dir = db_v7_dir_node4k;
+	} else {
+	    src_db_dir = db_v7_dir;
+	}
     }
     else {
         fprintf(stderr, "unsupported TokuDB version %d to upgrade\n", SRC_VERSION);

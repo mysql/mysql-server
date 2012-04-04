@@ -20,6 +20,7 @@ enum {ROWS_PER_TRANSACTION=10000};
 int NUM_DBS=5;
 int NUM_ROWS=100000;
 int CHECK_RESULTS=0;
+int optimize=0;
 int littlenode = 0;
 enum { old_default_cachesize=1024 }; // MB
 int CACHESIZE=old_default_cachesize;
@@ -70,6 +71,11 @@ static void preload_dbs(DB **dbs)
     }
     if ( key.flags ) { toku_free(key.data); key.data = NULL; }
     if ( val.flags ) { toku_free(val.data); key.data = NULL; }
+
+    if (optimize) {
+        if (verbose) { printf("\noptimizing");fflush(stdout);}
+        do_hot_optimize_on_dbs(env, dbs, NUM_DBS);
+    }
 
     if ( CHECK_RESULTS) {
         if ( verbose ) {printf("\nchecking");fflush(stdout);}
@@ -193,6 +199,8 @@ static void do_args(int argc, char * const argv[]) {
             CHECK_RESULTS = 1;
         } else if (strcmp(argv[0], "-n")==0) {
             littlenode = 1;
+        } else if (strcmp(argv[0], "-o")==0) {
+            optimize = 1;
 	} else {
 	    fprintf(stderr, "Unknown arg: %s\n", argv[0]);
 	    resultcode=1;

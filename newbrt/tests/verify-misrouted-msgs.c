@@ -1,4 +1,4 @@
-/* -*- mode: C; c-basic-offset: 4 -*- */
+/* -*- mode: C; c-basic-offset: 4; indent-tabs-mode: nil -*- */
 #ident "$Id$"
 #ident "Copyright (c) 2011 Tokutek Inc.  All rights reserved."
 
@@ -160,6 +160,7 @@ test_main (int argc , const char *argv[]) {
     int fanout = 2;
     int nperleaf = 8;
     int do_verify = 1;
+    initialize_dummymsn();
     for (int i = 1; i < argc; i++) {
         const char *arg = argv[i];
         if (strcmp(arg, "-v") == 0) {
