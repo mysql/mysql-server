@@ -5202,8 +5202,8 @@ WHERE (ot1.a,ot4.a) IN (SELECT it2.a,it3.a
 FROM it2,it3);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	ot1	ALL	NULL	NULL	NULL	NULL	2	
-1	PRIMARY	<subquery2>	ALL	distinct_key	NULL	NULL	NULL	24	Using where
-1	PRIMARY	ot4	ALL	NULL	NULL	NULL	NULL	8	Using where; Using join buffer (flat, BNL join)
+1	PRIMARY	ot4	ALL	NULL	NULL	NULL	NULL	8	Using join buffer (flat, BNL join)
+1	PRIMARY	<subquery2>	eq_ref	distinct_key	distinct_key	8	func,func	1	
 2	MATERIALIZED	it2	ALL	NULL	NULL	NULL	NULL	4	
 2	MATERIALIZED	it3	ALL	NULL	NULL	NULL	NULL	6	Using join buffer (flat, BNL join)
 DROP TABLE IF EXISTS ot1, ot4, it2, it3;

@@ -1458,6 +1458,8 @@ static bool convert_subq_to_sj(JOIN *parent_join, Item_in_subselect *subq_pred)
   sj_nest->embedding= emb_tbl_nest;
   sj_nest->alias= (char*) "(sj-nest)";
   sj_nest->sj_subq_pred= subq_pred;
+  sj_nest->original_subq_pred_used_tables= subq_pred->used_tables() |
+                                           subq_pred->left_expr->used_tables();
   /* Nests do not participate in those 'chains', so: */
   /* sj_nest->next_leaf= sj_nest->next_local= sj_nest->next_global == NULL*/
   emb_join_list->push_back(sj_nest);
