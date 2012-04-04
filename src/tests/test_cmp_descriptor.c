@@ -157,10 +157,8 @@ static void run_test(void) {
             CHK(db->open(db, txn_create, "foo.db", NULL, DB_BTREE, DB_CREATE, 0666));
             assert(db->descriptor->dbt.size == 0);
             assert(db->cmp_descriptor->dbt.size == 0);
-            CHK(db->change_descriptor(db, txn_create, &orig_desc, 0));
+            CHK(db->change_descriptor(db, txn_create, &orig_desc, DB_UPDATE_CMP_DESCRIPTOR));
             assert_desc_four(db);
-            assert(db->cmp_descriptor->dbt.size == 0);
-            CHK(db->update_cmp_descriptor(db));
             assert_cmp_desc_valid(db);
             r = env->create_loader(env, txn_create, &loader, db, 1, &db, NULL, NULL, 0); 
             CKERR(r);

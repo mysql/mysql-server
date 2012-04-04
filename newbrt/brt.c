@@ -3504,8 +3504,8 @@ cleanup:
     return r;
 }
 
-void 
-toku_brt_update_cmp_descriptor(BRT t) {
+static void 
+brt_update_cmp_descriptor(BRT t) {
     t->h->cmp_descriptor.dbt.size = t->h->descriptor.dbt.size;
     t->h->cmp_descriptor.dbt.data = toku_xmemdup(
         t->h->descriptor.dbt.data, 
@@ -3520,7 +3520,8 @@ toku_brt_change_descriptor(
     const DBT* old_descriptor, 
     const DBT* new_descriptor, 
     BOOL do_log, 
-    TOKUTXN txn
+    TOKUTXN txn,
+    BOOL update_cmp_descriptor
     ) 
 {
     int r = 0;
@@ -3543,27 +3544,33 @@ toku_brt_change_descriptor(
     if (r != 0) { goto cleanup; }
 
     if (do_log) {
-	TOKULOGGER logger = toku_txn_logger(txn);
-	TXNID xid = toku_txn_get_txnid(txn);
-	r = toku_log_change_fdescriptor(
-	    logger, NULL, 0, 
-	    toku_cachefile_filenum(t->cf),
-	    xid,
-	    old_desc_bs,
-	    new_desc_bs
-	    );
-	if (r != 0) { goto cleanup; }
+        TOKULOGGER logger = toku_txn_logger(txn);
+        TXNID xid = toku_txn_get_txnid(txn);
+        r = toku_log_change_fdescriptor(
+            logger, NULL, 0, 
+            toku_cachefile_filenum(t->cf),
+            xid,
+            old_desc_bs,
+            new_desc_bs,
+            update_cmp_descriptor
+            );
+        if (r != 0) { goto cleanup; }
     }
 
     // write new_descriptor to header
     new_d.dbt = *new_descriptor;
     fd = toku_cachefile_get_and_pin_fd (t->cf);
     r = toku_update_descriptor(t->h, &new_d, fd);
-    if (r == 0)	 // very infrequent operation, worth precise threadsafe count
-	STATUS_VALUE(BRT_DESCRIPTOR_SET)++;
+    // very infrequent operation, worth precise threadsafe count
+    if (r == 0) {
+        STATUS_VALUE(BRT_DESCRIPTOR_SET)++;
+    }
     toku_cachefile_unpin_fd(t->cf);
     if (r!=0) goto cleanup;
 
+    if (update_cmp_descriptor) {
+        brt_update_cmp_descriptor(t);
+    }
 cleanup:
     return r;
 }
