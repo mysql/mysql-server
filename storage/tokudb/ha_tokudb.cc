@@ -6249,12 +6249,11 @@ static int create_sub_table(
         goto exit;
     }
 
-    error = file->change_descriptor(file, txn, row_descriptor, (is_hot_index ? DB_IS_HOT_INDEX : 0));
+    error = file->change_descriptor(file, txn, row_descriptor, (is_hot_index ? DB_IS_HOT_INDEX | DB_UPDATE_CMP_DESCRIPTOR : DB_UPDATE_CMP_DESCRIPTOR));
     if (error) {
         DBUG_PRINT("error", ("Got error: %d when setting row descriptor for table '%s'", error, table_name));
         goto exit;
     }
-    file->update_cmp_descriptor(file);
 
     error = 0;
 exit:
