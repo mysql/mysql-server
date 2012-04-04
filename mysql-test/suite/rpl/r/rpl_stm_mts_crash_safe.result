@@ -71,6 +71,17 @@ INSERT INTO nt_5(trans_id, stmt_id) VALUES (p_trans_id, in_stmt_id);
 INSERT INTO nt_5(trans_id, stmt_id) VALUES (p_trans_id, in_stmt_id + 1);
 RETURN "fc_i_nt_5_suc";
 END|
+CREATE FUNCTION fc_i_nt_3_tt_3_suc (p_trans_id INTEGER, p_stmt_id INTEGER) RETURNS VARCHAR(64)
+BEGIN
+DECLARE in_stmt_id INTEGER;
+SELECT max(stmt_id) INTO in_stmt_id FROM nt_3 WHERE trans_id= p_trans_id;
+SELECT COALESCE(greatest(in_stmt_id + 1, p_stmt_id), 1) INTO in_stmt_id;
+INSERT INTO nt_3(trans_id, stmt_id) VALUES (p_trans_id, in_stmt_id);
+SELECT max(stmt_id) INTO in_stmt_id FROM tt_3 WHERE trans_id= p_trans_id;
+SELECT COALESCE(greatest(in_stmt_id + 1, p_stmt_id), 1) INTO in_stmt_id;
+INSERT INTO tt_3(trans_id, stmt_id) VALUES (p_trans_id, in_stmt_id);
+RETURN "fc_i_nt_3_tt_3_suc";
+END|
 CREATE TRIGGER tr_i_tt_3_to_nt_3 AFTER INSERT ON tt_3 FOR EACH ROW
 BEGIN
 DECLARE in_stmt_id INTEGER;
@@ -164,6 +175,17 @@ INSERT INTO nt_5(trans_id, stmt_id) VALUES (p_trans_id, in_stmt_id);
 INSERT INTO nt_5(trans_id, stmt_id) VALUES (p_trans_id, in_stmt_id + 1);
 RETURN "fc_i_nt_5_suc";
 END|
+CREATE FUNCTION fc_i_nt_3_tt_3_suc (p_trans_id INTEGER, p_stmt_id INTEGER) RETURNS VARCHAR(64)
+BEGIN
+DECLARE in_stmt_id INTEGER;
+SELECT max(stmt_id) INTO in_stmt_id FROM nt_3 WHERE trans_id= p_trans_id;
+SELECT COALESCE(greatest(in_stmt_id + 1, p_stmt_id), 1) INTO in_stmt_id;
+INSERT INTO nt_3(trans_id, stmt_id) VALUES (p_trans_id, in_stmt_id);
+SELECT max(stmt_id) INTO in_stmt_id FROM tt_3 WHERE trans_id= p_trans_id;
+SELECT COALESCE(greatest(in_stmt_id + 1, p_stmt_id), 1) INTO in_stmt_id;
+INSERT INTO tt_3(trans_id, stmt_id) VALUES (p_trans_id, in_stmt_id);
+RETURN "fc_i_nt_3_tt_3_suc";
+END|
 CREATE TRIGGER tr_i_tt_3_to_nt_3 AFTER INSERT ON tt_3 FOR EACH ROW
 BEGIN
 DECLARE in_stmt_id INTEGER;
@@ -256,6 +278,17 @@ SELECT COALESCE(greatest(in_stmt_id + 1, p_stmt_id), 1) INTO in_stmt_id;
 INSERT INTO nt_5(trans_id, stmt_id) VALUES (p_trans_id, in_stmt_id);
 INSERT INTO nt_5(trans_id, stmt_id) VALUES (p_trans_id, in_stmt_id + 1);
 RETURN "fc_i_nt_5_suc";
+END|
+CREATE FUNCTION fc_i_nt_3_tt_3_suc (p_trans_id INTEGER, p_stmt_id INTEGER) RETURNS VARCHAR(64)
+BEGIN
+DECLARE in_stmt_id INTEGER;
+SELECT max(stmt_id) INTO in_stmt_id FROM nt_3 WHERE trans_id= p_trans_id;
+SELECT COALESCE(greatest(in_stmt_id + 1, p_stmt_id), 1) INTO in_stmt_id;
+INSERT INTO nt_3(trans_id, stmt_id) VALUES (p_trans_id, in_stmt_id);
+SELECT max(stmt_id) INTO in_stmt_id FROM tt_3 WHERE trans_id= p_trans_id;
+SELECT COALESCE(greatest(in_stmt_id + 1, p_stmt_id), 1) INTO in_stmt_id;
+INSERT INTO tt_3(trans_id, stmt_id) VALUES (p_trans_id, in_stmt_id);
+RETURN "fc_i_nt_3_tt_3_suc";
 END|
 CREATE TRIGGER tr_i_tt_3_to_nt_3 AFTER INSERT ON tt_3 FOR EACH ROW
 BEGIN
@@ -5000,6 +5033,7 @@ DROP PROCEDURE pc_i_tt_5_suc;
 DROP PROCEDURE pc_i_nt_5_suc;
 DROP FUNCTION fc_i_tt_5_suc;
 DROP FUNCTION fc_i_nt_5_suc;
+DROP FUNCTION fc_i_nt_3_tt_3_suc;
 ---- end clean database test_1 ----
 ---- begin clean database test_2 ----
 rpl_mixing_engines.inc [commands=clean]
@@ -5019,6 +5053,7 @@ DROP PROCEDURE pc_i_tt_5_suc;
 DROP PROCEDURE pc_i_nt_5_suc;
 DROP FUNCTION fc_i_tt_5_suc;
 DROP FUNCTION fc_i_nt_5_suc;
+DROP FUNCTION fc_i_nt_3_tt_3_suc;
 ---- end clean database test_2 ----
 ---- begin clean database test_3 ----
 rpl_mixing_engines.inc [commands=clean]
@@ -5038,6 +5073,7 @@ DROP PROCEDURE pc_i_tt_5_suc;
 DROP PROCEDURE pc_i_nt_5_suc;
 DROP FUNCTION fc_i_tt_5_suc;
 DROP FUNCTION fc_i_nt_5_suc;
+DROP FUNCTION fc_i_nt_3_tt_3_suc;
 ---- end clean database test_3 ----
 ==== end rpl_mts_crash_safe.inc:clean ====
 include/rpl_end.inc

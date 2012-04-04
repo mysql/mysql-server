@@ -5,20 +5,10 @@ SET NAMES cp1251;
 TRUNCATE TABLE performance_schema.events_statements_summary_by_digest;
 CREATE TABLE долен_регистър_1251a (s1 INT);
 CREATE TABLE ДоЛеН_регистър_1251b (s1 INT, s2 INT);
-SHOW TABLES;
-Tables_in_pfs_charset_test
-ДоЛеН_регистър_1251b
-долен_регистър_1251a
 SET NAMES utf8;
 CREATE TABLE Р”РћР›Р•Рќ_СЂРµРіРёСЃС‚СЉСЂ_СѓС‚С„8 (s1 INT);
 SET NAMES latin1;
-SELECT digest, digest_text FROM performance_schema.events_statements_summary_by_digest;
-digest	digest_text
-dee8f4f04e57a5e456c31892855e6835	TRUNCATE TABLE performance_schema . events_statements_summary_by_digest  
-cabc7ac4e258034ced3df98f1c66bb5c	CREATE TABLE `?????_????????_1251a` ( s1 INTEGER )  
-4801c71a0daae0cc6498f10160a11d83	CREATE TABLE `?????_????????_1251b` ( s1 INTEGER , s2 INTEGER )  
-8df5d894abe8f15b8cc3296cff7ac54f	SHOW TABLES  
-e8d4b0aa80e636e7844de8e2415c829a	SET NAMES utf8  
-300bd614d676b57ce98eb26b3fb1a9ac	CREATE TABLE `?????_????????_???8` ( `s1` INTEGER )  
-7e60a7e578a7b0048e04aa615a1420f3	SET NAMES `latin1`  
+SELECT * FROM performance_schema.events_statements_summary_by_digest
+WHERE digest_text LIKE 'XXXYYY%' LIMIT 1;
+DIGEST	DIGEST_TEXT	COUNT_STAR	SUM_TIMER_WAIT	MIN_TIMER_WAIT	AVG_TIMER_WAIT	MAX_TIMER_WAIT	SUM_LOCK_TIME	SUM_ERRORS	SUM_WARNINGS	SUM_ROWS_AFFECTED	SUM_ROWS_SENT	SUM_ROWS_EXAMINED	SUM_CREATED_TMP_DISK_TABLES	SUM_CREATED_TMP_TABLES	SUM_SELECT_FULL_JOIN	SUM_SELECT_FULL_RANGE_JOIN	SUM_SELECT_RANGE	SUM_SELECT_RANGE_CHECK	SUM_SELECT_SCAN	SUM_SORT_MERGE_PASSES	SUM_SORT_RANGE	SUM_SORT_ROWS	SUM_SORT_SCAN	SUM_NO_INDEX_USED	SUM_NO_GOOD_INDEX_USED	FIRST_SEEN	LAST_SEEN
 DROP DATABASE pfs_charset_test;
