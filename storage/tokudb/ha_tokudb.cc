@@ -6624,15 +6624,15 @@ int ha_tokudb::create(const char *name, TABLE * form, HA_CREATE_INFO * create_in
 
     trx = (tokudb_trx_data *) thd_data_get(ha_thd(), tokudb_hton->slot);
 
+    const enum row_type row_type = ((create_info->used_fields & HA_CREATE_USED_ROW_FORMAT)
+                                    ? create_info->row_type
+                                    : row_format_to_row_type(get_row_format(thd)));
+
     if (create_from_engine) {
         // table already exists, nothing to do
         error = 0;
         goto cleanup;
     }
-
-    const enum row_type row_type = ((create_info->used_fields & HA_CREATE_USED_ROW_FORMAT)
-                                    ? create_info->row_type
-                                    : row_format_to_row_type(get_row_format(thd)));
 
     newname = (char *)my_malloc(get_max_dict_name_path_length(name),MYF(MY_WME));
     if (newname == NULL){ error = ENOMEM; goto cleanup;}
@@ -7344,7 +7344,7 @@ int ha_tokudb::tokudb_add_index(
     //
     // get the row type to use for the indexes we're adding
     //
-    const enum row_type row_type = get_row_type_for_key(table_arg->s->file);
+    const enum row_type row_type = get_row_type_for_key(share->file);
 
     //
     // status message to be shown in "show process list"
