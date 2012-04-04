@@ -6000,3 +6000,34 @@ eval explain extended $query;
 eval $query;
 
 DROP TABLE t0, t1, t2;
+
+
+--echo #
+--echo # Bug #13639204 64111: CRASH ON SELECT SUBQUERY WITH NON UNIQUE
+--echo # INDEX
+--echo #
+CREATE TABLE t1 (
+id int
+) ENGINE=InnoDB;
+INSERT INTO t1 (id) VALUES (11);
+
+CREATE TABLE t2 (
+t1_id int,
+position int,
+KEY t1_id (t1_id),
+KEY t1_id_position (t1_id,position)
+) ENGINE=InnoDB;
+
+let $query=SELECT
+(SELECT position FROM t2
+WHERE t2.t1_id = t1.id
+ORDER BY t2.t1_id , t2.position
+LIMIT 10,1
+) AS maxkey
+FROM t1
+LIMIT 1;
+
+eval EXPLAIN $query;
+eval $query;
+
+DROP TABLE t1,t2;

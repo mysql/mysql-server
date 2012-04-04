@@ -51,9 +51,7 @@ public:
     thd(thd), join(join),
     cur_embedding_map(0), cur_sj_inner_tables(0), emb_sjm_nest(sjm_nest),
     excluded_tables(sjm_nest ?
-                    (join->all_table_map & ~sjm_nest->sj_inner_tables) |
-                    OUTER_REF_TABLE_BIT :
-                    0)
+                    (join->all_table_map & ~sjm_nest->sj_inner_tables) : 0)
   {}
   ~Optimize_table_order()
   {}
