@@ -106,6 +106,10 @@
 #include <poll.h>
 #endif
 
+#ifdef HAVE_FESETROUND
+#include <fenv.h>
+#endif
+
 using std::min;
 using std::max;
 using std::vector;
