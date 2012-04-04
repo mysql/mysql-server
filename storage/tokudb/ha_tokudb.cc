@@ -6254,6 +6254,7 @@ static int create_sub_table(
         DBUG_PRINT("error", ("Got error: %d when setting row descriptor for table '%s'", error, table_name));
         goto exit;
     }
+    file->update_cmp_descriptor(file);
 
     error = 0;
 exit:
