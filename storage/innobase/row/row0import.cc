@@ -1000,6 +1000,10 @@ row_import_read_index_data(
 				(ulint) errno, (ulong) sizeof(row),
 				(ulong) n_bytes, strerror(errno));
 
+			ib_logf(IB_LOG_LEVEL_ERROR,
+				"OS error during file I/O: %lu",
+				os_file_get_last_error(FALSE));
+
 			return(DB_IO_ERROR);
 		}
 
