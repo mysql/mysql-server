@@ -9051,7 +9051,7 @@ Rows_log_event::decide_row_lookup_algorithm_and_key()
   if (event_type == WRITE_ROWS_EVENT)  // Not needed
     DBUG_VOID_RETURN;
 
-  /* 
+  /*
     Decision table:
     - I  --> Index scan / search
     - T  --> Table scan
@@ -9064,7 +9064,7 @@ Rows_log_event::decide_row_lookup_algorithm_and_key()
     | PK / UK      | I         | I    | I    | Hi   |
     | K            | Hi        | I    | Hi   | Hi   |
     | No Index     | Ht        | T    | Ht   | Ht   |
-    |--------------+-----------+------+------+------| 
+    |--------------+-----------+------+------+------|
 
   */
 
@@ -9080,7 +9080,7 @@ Rows_log_event::decide_row_lookup_algorithm_and_key()
     goto end;
   }
 
-TABLE_OR_INDEX_HASH_SCAN: 
+TABLE_OR_INDEX_HASH_SCAN:
 
   /*
      NOTE: Blackhole engine cannot use HASH_SCAN, because
@@ -9122,7 +9122,7 @@ TABLE_OR_INDEX_FULL_SCAN:
 end:
 #ifndef DBUG_OFF
   const char* s= ((m_rows_lookup_algorithm == Rows_log_event::ROW_LOOKUP_TABLE_SCAN) ? "TABLE_SCAN" :
-                  ((m_rows_lookup_algorithm == Rows_log_event::ROW_LOOKUP_HASH_SCAN) ? "HASH_SCAN" : 
+                  ((m_rows_lookup_algorithm == Rows_log_event::ROW_LOOKUP_HASH_SCAN) ? "HASH_SCAN" :
                    "INDEX_SCAN"));
 
   // only for testing purposes
@@ -9248,7 +9248,7 @@ record_compare_exit:
 
 void Rows_log_event::do_post_row_operations(Relay_log_info const *rli, int error)
 {
-        
+
   /*
     If m_curr_row_end  was not set during event execution (e.g., because
     of errors) we can't proceed to the next row. If the error is transient
@@ -9311,27 +9311,27 @@ int Rows_log_event::do_apply_row(Relay_log_info const *rli)
   DBUG_ENTER("Rows_log_event::do_apply_row");
 
   int error= 0;
-  
+
   /* in_use can have been set to NULL in close_tables_for_reopen */
   THD* old_thd= m_table->in_use;
   if (!m_table->in_use)
     m_table->in_use= thd;
-  
+
   error= do_exec_row(rli);
-  
+
   if(error)
   {
     DBUG_PRINT("info", ("error: %s", HA_ERR(error)));
     DBUG_ASSERT(error != HA_ERR_RECORD_DELETED);
   }
-  
+
   m_table->in_use = old_thd;
 
   DBUG_RETURN(error);
 }
 
 /**
-   Does the cleanup 
+   Does the cleanup
      -  deallocates all the elements in m_distinct_key_list if any
      -  closes the index if opened by open_record_scan
      -  closes the table if opened for scanning.
@@ -9397,23 +9397,21 @@ Rows_log_event::next_record_scan(bool first_read)
 
     if (!first_read)
     {
-      /* 
+      /*
         if we fail to fetch next record corresponding to an index value, we
         move to the next key value. If we are out of key values as well an error
         will be returned.
        */
-      if(m_rows_lookup_algorithm == ROW_LOOKUP_HASH_SCAN)  
+      if(m_rows_lookup_algorithm == ROW_LOOKUP_HASH_SCAN)
       {
         if ((error= table->file->ha_index_next(table->record[0])))
         {
           m_key= m_itr++;
           first_read= true;
         }
-        else 
+        else
           if (key_cmp(keyinfo->key_part, m_key, keyinfo->key_length) != 0)
             m_key= m_itr++;
-         
-          
       }
     }
 
@@ -9434,9 +9432,9 @@ Rows_log_event::next_record_scan(bool first_read)
 /**
   Initializes scanning of rows. Opens an index and initailizes an iterator
   over a list of distinct keys (m_distinct_key_list) if it is a HASH_SCAN
-  over an index or the table if its a HASH_SCAN over the table. 
+  over an index or the table if its a HASH_SCAN over the table.
 */
-int 
+int
 Rows_log_event::open_record_scan()
 {
   int error= 0;
@@ -9445,6 +9443,7 @@ Rows_log_event::open_record_scan()
 
   if (m_key_index < MAX_KEY )
   {
+    KEY *keyinfo= m_table->key_info + m_key_index;
     if(m_rows_lookup_algorithm == ROW_LOOKUP_HASH_SCAN)
     {
       /* initialize the iterator over the list of distinct keys that we have */
@@ -9458,7 +9457,6 @@ Rows_log_event::open_record_scan()
     else {
       /* this is an INDEX_SCAN we need to store the key in m_key */
       DBUG_ASSERT((m_rows_lookup_algorithm == ROW_LOOKUP_INDEX_SCAN) && m_key);
-      KEY *keyinfo= m_table->key_info + m_key_index;
       key_copy(m_key, m_table->record[0], keyinfo, 0);
     }
 
@@ -9564,8 +9562,8 @@ int Rows_log_event::do_index_scan_and_update(Relay_log_info const *rli)
   // Temporary fix to find out why it fails [/Matz]
   memcpy(m_table->read_set->bitmap, m_cols.bitmap, (m_table->read_set->n_bits + 7) / 8);
 
-  /* 
-    Trying to do an index scan without a usable key 
+  /*
+    Trying to do an index scan without a usable key
     This is a valid state because we allow the user
     to set Slave_rows_search_algorithm= 'INDEX_SCAN'.
 
@@ -9624,7 +9622,7 @@ int Rows_log_event::do_index_scan_and_update(Relay_log_info const *rli)
       if (error == HA_ERR_RECORD_DELETED)
         error= HA_ERR_KEY_NOT_FOUND;
     }
-    
+
     goto end;
   }
 
@@ -9727,8 +9725,8 @@ end:
   if (table->file->inited)
     close_record_scan();
 
-  if ((get_type_code() == UPDATE_ROWS_EVENT) && 
-      (saved_m_curr_row == m_curr_row)) 
+  if ((get_type_code() == UPDATE_ROWS_EVENT) &&
+      (saved_m_curr_row == m_curr_row))
   {
     /* we need to unpack the AI so that positions get updated */
     m_curr_row= m_curr_row_end;
@@ -9767,7 +9765,7 @@ int Rows_log_event::do_hash_scan_and_update(Relay_log_info const *rli)
   {
     /*
       This is the situation after hashing the BI:
-      
+
       ===|=== before image ====|=== after image ===|===
          ^                     ^
          m_curr_row            m_curr_row_end
@@ -9857,7 +9855,7 @@ int Rows_log_event::do_hash_scan_and_update(Relay_log_info const *rli)
                At this point, both table->record[0] and
                table->record[1] have the SE row that matched the one
                in the hash table.
-               
+
                Thence if this is a DELETE we wouldn't need to mess
                around with positions anymore, but since this can be an
                update, we need to provide positions so that AI is
@@ -9870,7 +9868,7 @@ int Rows_log_event::do_hash_scan_and_update(Relay_log_info const *rli)
             /* we don't need this entry anymore, just delete it */
             if ((error= m_hash.del(entry)))
               goto err;
-            
+
             if ((error= do_apply_row(rli)))
             {
               if (handle_idempotent_errors(rli, &error))
@@ -9887,7 +9885,7 @@ int Rows_log_event::do_hash_scan_and_update(Relay_log_info const *rli)
           continue;
 
         case HA_ERR_KEY_NOT_FOUND:
-          /* If the slave exec mode is idempotent don't break */ 
+          /* If the slave exec mode is idempotent don't break */
           if (handle_idempotent_errors(rli, &error))
             goto close_table;
           idempotent_errors++;
@@ -9918,11 +9916,11 @@ close_table:
 
     if (m_table->file->inited)
       close_record_scan();
-  
+
     if (error == HA_ERR_RECORD_DELETED)
       error= 0;
 
-    DBUG_ASSERT((m_hash.is_empty() && !error) || 
+    DBUG_ASSERT((m_hash.is_empty() && !error) ||
                 (!m_hash.is_empty() &&
                  ((error) || (idempotent_errors >= m_hash.size()))));
   }
@@ -9939,7 +9937,7 @@ err:
     m_curr_row_end= m_rows_end;
   }
 
-  DBUG_RETURN(error);  
+  DBUG_RETURN(error);
 }
 
 int Rows_log_event::do_table_scan_and_update(Relay_log_info const *rli)
@@ -9965,19 +9963,19 @@ int Rows_log_event::do_table_scan_and_update(Relay_log_info const *rli)
     store_record(m_table, record[1]);
 
     int restart_count= 0; // Number of times scanning has restarted from top
-    
+
     if ((error= m_table->file->ha_rnd_init(1)))
     {
       DBUG_PRINT("info",("error initializing table scan"
                          " (ha_rnd_init returns %d)",error));
       goto end;
     }
-    
+
     /* Continue until we find the right record or have made a full loop */
     do
     {
       error= m_table->file->ha_rnd_next(m_table->record[0]);
-      if (error) 
+      if (error)
         DBUG_PRINT("info", ("error: %s", HA_ERR(error)));
       switch (error) {
       case HA_ERR_END_OF_FILE:
@@ -10005,7 +10003,7 @@ int Rows_log_event::do_table_scan_and_update(Relay_log_info const *rli)
 end:
 
   DBUG_ASSERT(error != HA_ERR_RECORD_DELETED);
-  
+
   /* either we report error or apply the changes */
   if (error && error != HA_ERR_RECORD_DELETED)
   {
@@ -10013,14 +10011,14 @@ end:
                         " (ha_rnd_next returns %d)",error));
     m_table->file->print_error(error, MYF(0));
   }
-  else 
+  else
     error= do_apply_row(rli);
 
   /* close the index */
   if (table->file->inited)
     table->file->ha_rnd_end();
 
-  if ((get_type_code() == UPDATE_ROWS_EVENT) && 
+  if ((get_type_code() == UPDATE_ROWS_EVENT) &&
       (saved_m_curr_row == m_curr_row)) // we need to unpack the AI
   {
     m_curr_row= m_curr_row_end;
@@ -10275,7 +10273,7 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
 
     this->slave_exec_mode= slave_exec_mode_options; // fix the mode
 
-    // Do event specific preparations 
+    // Do event specific preparations
     error= do_before_row_operations(rli);
 
     /*
@@ -10313,7 +10311,7 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
        HA_ERR_END_OF_FILE.
      */
 
-    if ((m_rows_lookup_algorithm != ROW_LOOKUP_NOT_NEEDED) && 
+    if ((m_rows_lookup_algorithm != ROW_LOOKUP_NOT_NEEDED) &&
         !is_any_column_signaled_for_table(table, &m_cols))
     {
       error= HA_ERR_END_OF_FILE;
@@ -10351,12 +10349,12 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
 
       error= (this->*do_apply_row_ptr)(rli);
 
-      if (handle_idempotent_errors(rli, &error)) 
+      if (handle_idempotent_errors(rli, &error))
         break;
 
       /* this advances m_curr_row */
       do_post_row_operations(rli, error);
-      
+
     } while (!error && (m_curr_row != m_rows_end));
 
 AFTER_MAIN_EXEC_ROW_LOOP:
@@ -10387,10 +10385,10 @@ AFTER_MAIN_EXEC_ROW_LOOP:
     */
     thd->variables.sql_mode= saved_sql_mode;
 
-    {/**
-         The following failure injecion works in cooperation with tests 
+    {/*
+         The following failure injecion works in cooperation with tests
          setting @@global.debug= 'd,stop_slave_middle_group'.
-         The sql thread receives the killed status and will proceed 
+         The sql thread receives the killed status and will proceed
          to shutdown trying to finish incomplete events group.
      */
       DBUG_EXECUTE_IF("stop_slave_middle_group",
@@ -10412,7 +10410,7 @@ AFTER_MAIN_EXEC_ROW_LOOP:
     }
   } // if (table)
 
-  
+
   if (error)
   {
     slave_rows_error_report(ERROR_LEVEL, error, rli, thd, table,
@@ -10461,7 +10459,7 @@ Rows_log_event::do_shall_skip(Relay_log_info *rli)
    Query_log_event::do_apply_event() of the COMMIT.
    The function commits the last statement for engines, binlog and
    releases resources have been allocated for the statement.
-  
+
    @retval  0         Ok.
    @retval  non-zero  Error at the commit.
  */
@@ -10527,7 +10525,7 @@ static int rows_event_stmt_cleanup(Relay_log_info const *rli, THD * thd)
 
 /**
    The method either increments the relay log position or
-   commits the current statement and increments the master group 
+   commits the current statement and increments the master group
    possition if the event is STMT_END_F flagged and
    the statement corresponds to the autocommit query (i.e replicated
    without wrapping in BEGIN/COMMIT)
