@@ -103,7 +103,7 @@ create table longintstringix (
     }
 
     public void testPrettyBigIn() {
-        int arraySize = 4096;
+        int arraySize = 20;
         Integer[] keys = new Integer[arraySize];
         for (int i = 0; i < arraySize; ++i) {
             keys[i] = i;
