@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2011, Oracle and/or its affiliates
+   Copyright (c) 2004, 2012, Oracle and/or its affiliates
 
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License
@@ -1322,6 +1322,7 @@ int ha_archive::optimize(THD* thd, HA_CHECK_OPT* check_opt)
   char* frm_string;
   DBUG_ENTER("ha_archive::optimize");
 
+  pthread_mutex_lock(&share->mutex);
   if (init_archive_reader())
     DBUG_RETURN(errno);
 
@@ -1344,6 +1345,7 @@ int ha_archive::optimize(THD* thd, HA_CHECK_OPT* check_opt)
   if (!(azopen(&writer, writer_filename, O_CREAT|O_RDWR|O_BINARY)))
   {
     my_free(frm_string, MYF(0));
+    pthread_mutex_unlock(&share->mutex);
     DBUG_RETURN(HA_ERR_CRASHED_ON_USAGE);
   }
 
@@ -1431,10 +1433,12 @@ int ha_archive::optimize(THD* thd, HA_CHECK_OPT* check_opt)
   // make the file we just wrote be our data file
   rc = my_rename(writer_filename,share->data_file_name,MYF(0));
 
+  pthread_mutex_unlock(&share->mutex);
   DBUG_RETURN(rc);
 error:
   DBUG_PRINT("ha_archive", ("Failed to recover, error was %d", rc));
   azclose(&writer);
+  pthread_mutex_unlock(&share->mutex);
 
   DBUG_RETURN(rc); 
 }

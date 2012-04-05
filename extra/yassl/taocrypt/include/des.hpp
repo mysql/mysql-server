@@ -84,7 +84,7 @@ private:
 // DES_EDE3
 class DES_EDE3 : public Mode_BASE {
 public:
-    DES_EDE3(CipherDir DIR, Mode MODE) 
+    DES_EDE3(CipherDir DIR, Mode MODE)
         : Mode_BASE(DES_BLOCK_SIZE, DIR, MODE) {}
 
     void SetKey(const byte*, word32, CipherDir dir);
