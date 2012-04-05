@@ -1419,7 +1419,7 @@ row_import_read_cfg(
 
 	srv_get_meta_data_filename(table, name, sizeof(name));
 
-	FILE*	file = fopen(name, "r");
+	FILE*	file = fopen(name, "rb");
 
 	if (file == NULL) {
 		ib_pushf(thd, IB_LOG_LEVEL_ERROR, ER_INDEX_CORRUPT,
