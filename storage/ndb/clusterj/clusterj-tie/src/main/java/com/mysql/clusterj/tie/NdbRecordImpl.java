@@ -211,11 +211,20 @@ public class NdbRecordImpl {
      */
     protected ByteBuffer newBuffer() {
         ByteBuffer result = ByteBuffer.allocateDirect(bufferSize);
-        result.order(ByteOrder.nativeOrder());
-        result.put(defaultValues);
-        result.limit(bufferSize);
-        result.position(0);
+        initializeBuffer(result);
         return result;
+    }
+
+    /** Initialize an already-allocated buffer with default values for all columns.
+     * 
+     * @param buffer
+     */
+    protected void initializeBuffer(ByteBuffer buffer) {
+        buffer.order(ByteOrder.nativeOrder());
+        buffer.limit(bufferSize);
+        buffer.position(0);
+        buffer.put(defaultValues);
+        buffer.position(0);
     }
 
     public int setNull(ByteBuffer buffer, Column storeColumn) {
@@ -370,7 +379,7 @@ public class NdbRecordImpl {
         Column storeColumn = storeColumns[columnId];
         if (storeColumn.getLength() == 4) {
             // the byte was stored in a BIT column as four bytes
-            return (byte)buffer.get(offsets[columnId]);
+            return (byte)(buffer.getInt(offsets[columnId]));
         } else {
             // the byte was stored as a byte
             return buffer.get(offsets[columnId]);

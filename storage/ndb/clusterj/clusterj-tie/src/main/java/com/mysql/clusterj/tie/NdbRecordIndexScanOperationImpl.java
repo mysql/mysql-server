@@ -84,6 +84,9 @@ public class NdbRecordIndexScanOperationImpl extends NdbRecordScanOperationImpl 
     /** Is the high bound strict? */
     private boolean indexBoundHighStrict = false;
 
+    /** Is this an equal scan? */
+    private boolean equalScan = true;
+
     /** The list of index bounds already defined; null for a single range */
     List<NdbIndexScanOperation.IndexBound> ndbIndexBoundList = null;
 
@@ -274,16 +277,20 @@ public class NdbRecordIndexScanOperationImpl extends NdbRecordScanOperationImpl 
                 indexBoundLowCount++;
                 return null;
             case BoundGE:
+                equalScan = false;
                 indexBoundHighCount++;
                 return indexBoundHighBuffer;
             case BoundGT:
+                equalScan = false;
                 indexBoundHighStrict = true;
                 indexBoundHighCount++;
                 return indexBoundHighBuffer;
             case BoundLE:
+                equalScan = false;
                 indexBoundLowCount++;
                 return indexBoundLowBuffer;
             case BoundLT:
+                equalScan = false;
                 indexBoundLowStrict = true;
                 indexBoundLowCount++;
                 return indexBoundLowBuffer;
@@ -296,6 +303,7 @@ public class NdbRecordIndexScanOperationImpl extends NdbRecordScanOperationImpl 
      * 
      */
     private NdbIndexScanOperation.IndexBound getNdbIndexBound() {
+        ByteBuffer reclaimed = null;
         if (indexBoundLowCount + indexBoundHighCount > 0) {
             if (indexBoundLowCount == 0) {
                 indexBoundLowBuffer =  null;
@@ -308,6 +316,10 @@ public class NdbRecordIndexScanOperationImpl extends NdbRecordScanOperationImpl 
             } else {
                 indexBoundHighBuffer.limit(keyBufferSize);
                 indexBoundHighBuffer.position(0);
+            }
+            if (equalScan) {
+                reclaimed = indexBoundLowBuffer;
+                indexBoundLowBuffer = indexBoundHighBuffer;
             }
             // set the index bound
             NdbIndexScanOperation.IndexBound ndbindexBound = NdbIndexScanOperation.IndexBound.create();
@@ -324,13 +336,20 @@ public class NdbRecordIndexScanOperationImpl extends NdbRecordScanOperationImpl 
                     " range: " + indexBoundRange
                     );
             // reset the index bound for the next range
-            indexBoundLowBuffer = ndbRecordKeys.newBuffer();
+            // if equal bound, initialize and reuse previous buffer
+            if (reclaimed != null) {
+                indexBoundLowBuffer = reclaimed;
+                ndbRecordKeys.initializeBuffer(reclaimed);
+            } else {
+                indexBoundLowBuffer = ndbRecordKeys.newBuffer();
+            }
             indexBoundHighBuffer = ndbRecordKeys.newBuffer();
             indexBoundLowCount = 0;
             indexBoundHighCount = 0;
             indexBoundLowStrict = false;
             indexBoundHighStrict = false;
             indexBoundRange = 0;
+            equalScan = true;
             return ndbindexBound;
         } else {
             return null;
