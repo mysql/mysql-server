@@ -1602,7 +1602,13 @@ struct TABLE_LIST
   /* TRUE <=> don't prepare this derived table/view as it should be merged.*/
   bool          skip_prepare_derived;
 
+  /*
+    Items created by create_view_field and collected to change them in case
+    of materialization of the view/derived table
+  */
   List<Item>    used_items;
+  /* Sublist (tail) of persistent used_items */
+  List<Item>    persistent_used_items;
   Item          **materialized_items;
 
   /* View creation context. */
