@@ -299,7 +299,7 @@ ENGINE_ERROR_CODE S::SchedulerWorker::schedule(workitem *item) {
     pthread_rwlock_unlock(& reconf_lock);
   }
   else {
-    log_app_error(& AppError9001_ReconfLock);
+    log_app_error(& AppError29001_ReconfLock);
     return ENGINE_TMPFAIL;
   }
   /* READ LOCK RELEASED */
@@ -320,14 +320,14 @@ ENGINE_ERROR_CODE S::SchedulerWorker::schedule(workitem *item) {
     else {                           /* Try to make an NdbInstance on the fly */
       inst = wc->newNdbInstance();
       if(inst) {
-        log_app_error(& AppError9004_autogrow);
+        log_app_error(& AppError29024_autogrow);
       }
       else {
         /* We have hit a hard maximum.  Eventually Scheduler::io_completed() 
            will run _in this thread_ and return an NDB to the freelist.  
            But no other thread can free one, so here we return an error. 
          */
-        log_app_error(& AppError9002_NoNDBs);
+        log_app_error(& AppError29002_NoNDBs);
         return ENGINE_TMPFAIL;
       }
     }
