@@ -389,7 +389,7 @@ row_quiesce_write_cfg(
 
 	ib_logf(IB_LOG_LEVEL_INFO, "Writing table metadata to '%s'", name);
 
-	FILE*	file = fopen(name, "w+");
+	FILE*	file = fopen(name, "w+b");
 
 	if (file == NULL) {
 		ib_pushf(thd, IB_LOG_LEVEL_ERROR, ER_CANT_CREATE_FILE,
