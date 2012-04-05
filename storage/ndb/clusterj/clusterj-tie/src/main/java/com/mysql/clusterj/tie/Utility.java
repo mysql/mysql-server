@@ -685,9 +685,21 @@ public class Utility {
                 case Timestamp:
                     return value * 1000L;
                 case Date:
-                    return unpackDate((int)value);
+                    // the three high order bytes are the little endian representation
+                    // the original is zzyyxx0000000000 and the result is 0000000000xxyyzz
+                    long packedDate = 0L;
+                    packedDate |= (value & ffoooooooooooooo) >>> 56;
+                    packedDate |= (value & ooffoooooooooooo) >>> 40;
+                    packedDate |= (value & ooooffoooooooooo) >>> 24;
+                    return unpackDate((int)packedDate);
                 case Time:
-                    return unpackTime((int)value);
+                    // the three high order bytes are the little endian representation
+                    // the original is zzyyxx0000000000 and the result is 0000000000xxyyzz
+                    long packedTime = 0L;
+                    packedTime |= (value & ffoooooooooooooo) >>> 56;
+                    packedTime |= (value & ooffoooooooooooo) >>> 40;
+                    packedTime |= (value & ooooffoooooooooo) >>> 24;
+                    return unpackTime((int)packedTime);
                 default:
                     throw new ClusterJUserException(
                             local.message("ERR_Unsupported_Mapping", storeColumn.getType(), "long"));
@@ -2020,10 +2032,12 @@ public class Utility {
      * @param ndbRecAttr the NdbRecAttr
      * @return the long
      */
-    public static long getLong(Column storeColumn, NdbRecAttr ndbRecAttr) {
-        return endianManager.getLong(storeColumn, ndbRecAttr);
-    }
 
+    /** Convert a long value from storage.
+     * The value stored in the database might be a time, timestamp, date, bit array,
+     * or simply a long value. The converted value can be converted into a 
+     * time, timestamp, date, bit array, or long value.
+     */
     public static long getLong(Column storeColumn, long value) {
         return endianManager.getLong(storeColumn, value);
     }

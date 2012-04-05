@@ -641,10 +641,6 @@ public class NdbRecordOperationImpl implements Operation {
         return ndbRecordValues.getLong(valueBuffer, columnId);
     }
 
-    public long getLong(Column storeColumn) {
-        return getLong(storeColumn.getColumnId());
-     }
-
     public float getFloat(int columnId) {
         return ndbRecordValues.getFloat(valueBuffer, columnId);
     }
