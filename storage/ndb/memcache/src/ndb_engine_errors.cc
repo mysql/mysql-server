@@ -34,3 +34,8 @@ ndberror_struct AppError9003_SyncClose =
   { ndberror_st_temporary , ndberror_cl_application , 9003, -1,
     "Waited for synchronous close of NDB transaction", 0 
   };
+
+ndberror_struct AppError9004_autogrow = 
+  { ndberror_st_temporary , ndberror_cl_application , 9004, -1,
+    "Out of Ndb instances, growing freelist", 0 
+  };

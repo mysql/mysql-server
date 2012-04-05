@@ -61,7 +61,7 @@ class S::SchedulerGlobal {
 public:
   SchedulerGlobal(Configuration *);
   ~SchedulerGlobal() {};
-  void init(int threads, const char *config_string);
+  void init(const scheduler_options *options);
   void add_stats(const char *, ADD_STAT, const void *);
   void reconfigure(Configuration *);
   void shutdown();
@@ -82,6 +82,7 @@ public:
     int n_connections;     /** preferred number of NDB cluster connections */
     int force_send;        /** how to use NDB force-send */
     int send_timer;        /** milliseconds to set for adaptive send timer */
+    int max_clients;       /** memcached max allowed connections */
   } options;
 
 private:
@@ -99,7 +100,7 @@ class S::SchedulerWorker : public Scheduler {
 public:  
   SchedulerWorker() {};
   ~SchedulerWorker() {};
-  void init(int threadnum, int nthreads, const char *config_string);
+  void init(int threadnum, const scheduler_options * sched_opts);
   void attach_thread(thread_identifier *);
   ENGINE_ERROR_CODE schedule(workitem *);
   void yield(workitem *) const {};
@@ -111,6 +112,7 @@ public:
   
 private:
   int id;
+  ndb_pipeline *pipeline;
   SchedulerGlobal * m_global;
 };
 
@@ -159,9 +161,12 @@ private:
   Queue<NdbInstance> * reschedulequeue;
   int id;
   int node_id;
-  int nInst;
-  int n_total_workers;
-  int n_workers;
+  int n_total_workers;   /* same as SchedulerGlobal::options.n_worker_threads */
+  int n_workers;         /* number of workers for this connection */
+  struct {
+    int initial;         /* start with this many NDB instances */
+    int max;             /* scale up to this many */
+  } instances; 
   pthread_t send_thread_id;
   pthread_t poll_thread_id;  
   struct {
@@ -187,6 +192,7 @@ public:
   ~WorkerConnection();
   void shutdown();
   void reconfigure(Configuration *);
+  NdbInstance * newNdbInstance();
 
   struct { 
     int thd           : 8;
@@ -194,6 +200,11 @@ public:
     int conn          : 8;
     unsigned int node : 8;
   } id;
+  struct {
+    int initial;
+    int current;
+    int max;
+  } instances;
   S::Connection *conn;
   ConnQueryPlanSet *plan_set, *old_plan_set;
   NdbInstance *freelist;
