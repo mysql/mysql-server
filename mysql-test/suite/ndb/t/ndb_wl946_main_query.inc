@@ -505,4 +505,4 @@ insert into t1sum select 499, count(*), sum(crc32(concat(a,b,c,d,e,f))) from t1 
 
 --enable_query_log
 
-select sum(cnt), crc32(concat(cnt,crc)) from t1sum;
+select sum(cnt), sum(crc32(concat(cnt,crc))) from t1sum;
