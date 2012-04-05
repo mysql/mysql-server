@@ -30,3 +30,7 @@ ndberror_struct AppError9002_NoNDBs =
     "No Ndb Instances in freelist", 0
   };
 
+ndberror_struct AppError9004_autogrow = 
+  { ndberror_st_temporary , ndberror_cl_application , 9004, -1,
+    "Out of Ndb instances, growing freelist", 0 
+  };
