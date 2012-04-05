@@ -15,6 +15,7 @@ normalize_compression_method(enum toku_compression_method method)
 // Effect: resolve "friendly" names like "fast" and "small" into their real values.
 {
     switch (method) {
+    case TOKU_DEFAULT_COMPRESSION_METHOD:
     case TOKU_FAST_COMPRESSION_METHOD:
         return TOKU_QUICKLZ_METHOD;
     case TOKU_SMALL_COMPRESSION_METHOD:
