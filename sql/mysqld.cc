@@ -7937,6 +7937,14 @@ static int get_options(int *argc_ptr, char ***argv_ptr)
   one_thread_scheduler(thread_scheduler);
   one_thread_scheduler(extra_thread_scheduler);
 #else
+
+#ifdef _WIN32
+  /* workaround: disable thread pool on XP */
+  if (GetProcAddress(GetModuleHandle("kernel32"),"CreateThreadpool") == 0 &&
+      thread_handling > SCHEDULER_NO_THREADS)
+    thread_handling = SCHEDULER_ONE_THREAD_PER_CONNECTION;
+#endif
+
   if (thread_handling <= SCHEDULER_ONE_THREAD_PER_CONNECTION)
     one_thread_per_connection_scheduler(thread_scheduler, &max_connections,
                                         &connection_count);

@@ -144,6 +144,9 @@ WEAK_SYMBOL(VOID, SubmitThreadpoolWork,PTP_WORK pwk);
 WEAK_SYMBOL(VOID, CloseThreadpoolWork, PTP_WORK pwk);
 #define CloseThreadpoolWork my_CloseThreadpoolWork 
 
+WEAK_SYMBOL(BOOL, CallbackMayRunLong, PTP_CALLBACK_INSTANCE pci);
+#define CallbackMayRunLong my_CallbackMayRunLong
+
 #if _MSC_VER >= 1600
 /* Stack size manipulation available only on Win7+ /declarations in VS10 */
 WEAK_SYMBOL(BOOL, SetThreadpoolStackInformation, PTP_POOL, 
