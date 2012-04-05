@@ -24,6 +24,6 @@
 
 extern ndberror_struct AppError9001_ReconfLock;
 extern ndberror_struct AppError9002_NoNDBs;
-
+extern ndberror_struct AppError9004_autogrow;
 
 #endif
