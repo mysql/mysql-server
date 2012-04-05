@@ -5,6 +5,7 @@
 tests=""
 verbose=0
 valgrind=""
+exitcode=0
 
 for arg in $* ; do 
     if [[ $arg =~ --(.*)=(.*) ]] ; then

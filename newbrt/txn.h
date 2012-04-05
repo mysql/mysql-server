@@ -127,14 +127,7 @@ int  toku_txn_ignore_add(TOKUTXN txn, FILENUM filenum);
 int  toku_txn_ignore_remove(TOKUTXN txn, FILENUM filenum);
 int  toku_txn_ignore_contains(TOKUTXN txn, FILENUM filenum);
 
-enum tokutxn_state {
-    TOKUTXN_LIVE,         // initial txn state
-    TOKUTXN_PREPARING,    // txn is preparing (or prepared)
-    TOKUTXN_COMMITTING,   // txn in the process of committing
-    TOKUTXN_ABORTING,     // txn in the process of aborting
-    TOKUTXN_RETIRED,      // txn no longer exists
-};
-typedef enum tokutxn_state TOKUTXN_STATE;
+#include "txn_state.h"
 
 TOKUTXN_STATE toku_txn_get_state(TOKUTXN txn);
 

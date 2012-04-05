@@ -10,6 +10,8 @@
 #ifndef TOKU_INDEXER_INTERNAL_H
 #define TOKU_INDEXER_INTERNAL_H
 
+#include "txn_state.h"
+
 // the indexer_commit_keys is an ordered set of keys described by a DBT in the keys array.
 // the array is a resizeable array with max size "max_keys" and current size "current_keys".
 // the ordered set is used by the hotindex undo function to collect the commit keys.
@@ -42,7 +44,7 @@ struct __toku_indexer_internal {
 
     // test functions
     int (*undo_do)(DB_INDEXER *indexer, DB *hotdb, ULEHANDLE ule);
-    int (*test_xid_state)(DB_INDEXER *indexer, TXNID xid);
+    TOKUTXN_STATE (*test_xid_state)(DB_INDEXER *indexer, TXNID xid);
     int (*test_lock_key)(DB_INDEXER *indexer, TXNID xid, DB *hotdb, DBT *key);
     int (*test_delete_provisional)(DB_INDEXER *indexer, DB *hotdb, DBT *hotkey, XIDS xids);
     int (*test_delete_committed)(DB_INDEXER *indexer, DB *hotdb, DBT *hotkey, XIDS xids);

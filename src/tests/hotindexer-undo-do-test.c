@@ -1,3 +1,13 @@
+/* -*- mode: C; c-basic-offset: 4 -*- */
+/*
+ * Copyright (c) 2010-2012 Tokutek Inc.  All rights reserved.
+ * The technology is licensed by the Massachusetts Institute of Technology, 
+ * Rutgers State University of New Jersey, and the Research Foundation of 
+ * State University of New York at Stony Brook under United States of America 
+ * Serial No. 11/760379 and to the patents and/or patent applications resulting from it.
+ */
+#ident "$Id$"
+
 // test the hotindexer undo do function
 // read a description of the live transactions and a leafentry from a test file, run the undo do function,
 // and print out the actions taken by the undo do function while processing the leafentry
@@ -14,10 +24,6 @@
 #include "le-cursor.h"
 #include "indexer-internal.h"
 #include "xids-internal.h"
-
-typedef enum {
-    TOKUTXN_LIVE, TOKUTXN_COMMITTING, TOKUTXN_ABORTING, TOKUTXN_RETIRED,
-} TOKUTXN_STATE; // see txn.h
 
 struct txn {
     TXNID xid;
@@ -53,7 +59,7 @@ live_add(struct live *live, TXNID xid, TOKUTXN_STATE state) {
 }
 
 static int
-txn_state(struct live *live, TXNID xid) {
+lookup_txn_state(struct live *live, TXNID xid) {
     int r = TOKUTXN_RETIRED;
     for (int i = 0; i < live->o; i++) {
         if (live->txns[i].xid == xid) {
@@ -196,10 +202,10 @@ put_callback(DB *dest_db, DB *src_db, DBT *dest_key, DBT *dest_data, const DBT *
 static DB_INDEXER *test_indexer = NULL;
 static DB *test_hotdb = NULL;
 
-static int
+static TOKUTXN_STATE
 test_xid_state(DB_INDEXER *indexer, TXNID xid) {
     invariant(indexer == test_indexer);
-    int r = txn_state(&live_xids, xid);
+    TOKUTXN_STATE r = lookup_txn_state(&live_xids, xid);
     return r;
 }
 
@@ -207,7 +213,8 @@ static int
 test_lock_key(DB_INDEXER *indexer, TXNID xid, DB *hotdb, DBT *key) {
     invariant(indexer == test_indexer);
     invariant(hotdb == test_hotdb);
-    invariant(test_xid_state(indexer, xid) == TOKUTXN_LIVE);
+    TOKUTXN_STATE txn_state = test_xid_state(indexer, xid);
+    invariant(txn_state == TOKUTXN_LIVE || txn_state == TOKUTXN_PREPARING);
     printf("lock [%lu] ", xid);
     print_dbt(key);
     printf("\n");
@@ -342,6 +349,8 @@ read_test(char *testname, ULE ule) {
                 TOKUTXN_STATE state = TOKUTXN_RETIRED;
                 if (strcmp(fields[2], "live") == 0)
                     state = TOKUTXN_LIVE;
+                else if (strcmp(fields[2], "preparing") == 0)
+                    state = TOKUTXN_PREPARING;
                 else if (strcmp(fields[2], "committing") == 0)
                     state = TOKUTXN_COMMITTING;
                 else if (strcmp(fields[2], "aborting") == 0)
