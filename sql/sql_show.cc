@@ -1,5 +1,5 @@
 /* Copyright (c) 2000, 2011, Oracle and/or its affiliates.
-   2009-2011 Monty Program Ab
+   Copyright (c) 2009, 2011, Monty Program Ab
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1234,7 +1234,9 @@ int store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
   handler *file= table->file;
   TABLE_SHARE *share= table->s;
   HA_CREATE_INFO create_info;
-  bool show_table_options __attribute__ ((unused))= FALSE;
+#ifdef WITH_PARTITION_STORAGE_ENGINE
+  bool show_table_options= FALSE;
+#endif /* WITH_PARTITION_STORAGE_ENGINE */
   bool foreign_db_mode=  (thd->variables.sql_mode & (MODE_POSTGRESQL |
                                                      MODE_ORACLE |
                                                      MODE_MSSQL |
@@ -1453,7 +1455,7 @@ int store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
   {
 #ifdef WITH_PARTITION_STORAGE_ENGINE
     show_table_options= TRUE;
-#endif
+#endif /* WITH_PARTITION_STORAGE_ENGINE */
     /*
       Get possible table space definitions and append them
       to the CREATE TABLE statement

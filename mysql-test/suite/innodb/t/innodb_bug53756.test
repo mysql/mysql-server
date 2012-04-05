@@ -139,6 +139,9 @@ INSERT INTO bug_53756 VALUES (666,666);
 # Request a crash on next execution of commit.
 SET SESSION debug="+d,crash_commit_before";
 #
+# Write file to make mysql-test-run.pl start up the server again
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+#
 # Execute the statement that causes the crash.
 --error 2013
 COMMIT;
@@ -153,9 +156,6 @@ COMMIT;
 --disconnect con6
 --echo #
 --echo # Restart server.
-#
-# Write file to make mysql-test-run.pl start up the server again
---exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 #
 # Turn on reconnect
 --enable_reconnect

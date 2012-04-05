@@ -1,5 +1,5 @@
 /*
-   Copyright (C) 2000-2007 MySQL AB
+   Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -37,7 +37,7 @@
     #include <fcntl.h>
 #endif // _WIN32
 
-#if defined(__sun) || defined(__SCO_VERSION__) || defined(__NETWARE__)
+#if defined(__sun) || defined(__SCO_VERSION__)
     #include <sys/filio.h>
 #endif
 
@@ -109,19 +109,28 @@ uint Socket::get_ready() const
 }
 
 
-uint Socket::send(const byte* buf, unsigned int sz, int flags) const
+uint Socket::send(const byte* buf, unsigned int sz, unsigned int& written,
+                  int flags)
 {
     const byte* pos = buf;
     const byte* end = pos + sz;
 
+    wouldBlock_ = false;
+
     while (pos != end) {
         int sent = ::send(socket_, reinterpret_cast<const char *>(pos),
                           static_cast<int>(end - pos), flags);
-
-    if (sent == -1)
-        return 0;
-
+        if (sent == -1) {
+            if (get_lastError() == SOCKET_EWOULDBLOCK || 
+                get_lastError() == SOCKET_EAGAIN) {
+                wouldBlock_  = true; // would have blocked this time only
+                nonBlocking_ = true; // nonblocking, win32 only way to tell 
+                return 0;
+            }
+            return static_cast<uint>(-1);
+        }
         pos += sent;
+        written += sent;
     }
 
     return sz;
@@ -140,8 +149,8 @@ uint Socket::receive(byte* buf, unsigned int sz, int flags)
             get_lastError() == SOCKET_EAGAIN) {
             wouldBlock_  = true; // would have blocked this time only
             nonBlocking_ = true; // socket nonblocking, win32 only way to tell
-        return 0;
-    }
+            return 0;
+        }
     }
     else if (recvd == 0)
         return static_cast<uint>(-1);

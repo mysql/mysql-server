@@ -6,6 +6,9 @@ Insert into a table
 Created 4/20/1996 Heikki Tuuri
 *******************************************************/
 
+#include "my_global.h" /* HAVE_* */
+#include "m_string.h" /* for my_sys.h */
+#include "my_sys.h" /* DEBUG_SYNC_C */
 #include "row0ins.h"
 
 #ifdef UNIV_NONINL
@@ -2121,16 +2124,24 @@ function_exit:
 
 	if (big_rec) {
 		rec_t*		rec;
+
+		DBUG_EXECUTE_IF(
+			"row_ins_extern_checkpoint",
+			log_make_checkpoint_at(ut_dulint_max, TRUE););
+
 		mtr_start(&mtr);
 
+		DEBUG_SYNC_C("before_row_ins_extern_latch");
 		btr_cur_search_to_nth_level(index, 0, entry, PAGE_CUR_LE,
 					    BTR_MODIFY_TREE, &cursor, 0, &mtr);
 		rec = btr_cur_get_rec(&cursor);
 		offsets = rec_get_offsets(rec, index, offsets,
 					  ULINT_UNDEFINED, &heap);
 
+		DEBUG_SYNC_C("before_row_ins_upd_extern");
 		err = btr_store_big_rec_extern_fields(index, rec,
 						      offsets, big_rec, &mtr);
+		DEBUG_SYNC_C("after_row_ins_upd_extern");
 
 		if (modify) {
 			dtuple_big_rec_free(big_rec);

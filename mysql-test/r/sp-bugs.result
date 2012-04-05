@@ -109,4 +109,23 @@ DROP FUNCTION db1.f1;
 DROP TABLE db1.t1;
 DROP DATABASE db1;
 DROP DATABASE db2;
+#
+# Bug#13105873:valgrind warning:possible crash in foreign 
+# key handling on subsequent create table if not exists 
+#
+DROP DATABASE IF EXISTS testdb;
+CREATE DATABASE testdb;
+USE testdb;
+CREATE TABLE t1 (id1 INT PRIMARY KEY);
+CREATE PROCEDURE `p1`()
+BEGIN
+CREATE TABLE IF NOT EXISTS t2(id INT PRIMARY KEY,
+CONSTRAINT FK FOREIGN KEY (id) REFERENCES t1( id1 ));
+END$
+CALL p1();
+# below stmt should not return valgrind warnings
+CALL p1();
+Warnings:
+Note	1050	Table 't2' already exists
+DROP DATABASE testdb;
 End of 5.1 tests
