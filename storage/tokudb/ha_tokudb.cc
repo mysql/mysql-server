@@ -6273,6 +6273,9 @@ void ha_tokudb::update_create_info(HA_CREATE_INFO* create_info) {
         info(HA_STATUS_AUTO);
         create_info->auto_increment_value = stats.auto_increment_value;
     }
+    // show create table asks us to update this create_info, this makes it
+    // so we'll always show what compression type we're using
+    create_info->row_type = get_row_type();
 }
 
 //
