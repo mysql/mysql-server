@@ -1640,8 +1640,8 @@ Validate the table flags.
 @return	true if valid. */
 UNIV_INLINE
 bool
-dict_tf_valid(
-/*==========*/
+dict_tf_is_valid(
+/*=============*/
 	ulint		flags)		/*!< in: table flags */
 	__attribute__((warn_unused_result));
 

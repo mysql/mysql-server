@@ -657,7 +657,7 @@ have a file format number plus the DICT_TF_COMPACT bit set.
 @return	true if check ok */
 UNIV_INLINE
 bool
-fsp_flags_validate(
+fsp_flags_is_valid(
 /*===============*/
 	ulint	flags)		/*!< in: tablespace flags */
 	__attribute__((warn_unused_result, const));

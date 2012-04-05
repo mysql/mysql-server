@@ -1334,7 +1334,7 @@ row_import_read_v1(
 
 	cfg->n_cols = mach_read_from_4(ptr);
 
-	if (!dict_tf_valid(cfg->flags)) {
+	if (!dict_tf_is_valid(cfg->flags)) {
 
 		return(DB_CORRUPTION);
 
