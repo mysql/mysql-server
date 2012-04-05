@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2011, Oracle and/or its affiliates.
+   Copyright (c) 2000, 2012, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -3030,7 +3030,7 @@ null_date:
 
 bool Item_func_last_day::get_date(MYSQL_TIME *ltime, uint fuzzy_date)
 {
-  if (get_arg0_date(ltime, fuzzy_date & ~TIME_FUZZY_DATE) ||
+  if (get_arg0_date(ltime, fuzzy_date) ||
       (ltime->month == 0))
   {
     null_value= 1;

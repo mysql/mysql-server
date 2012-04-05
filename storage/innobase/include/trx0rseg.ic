@@ -8,6 +8,7 @@ Created 3/26/1996 Heikki Tuuri
 
 #include "srv0srv.h"
 #include "mtr0log.h"
+#include "trx0sys.h"
 
 /**********************************************************************
 Gets a rollback segment header. */
@@ -113,7 +114,13 @@ trx_rsegf_undo_find_free(
 	ulint		i;
 	ulint		page_no;
 
-	for (i = 0; i < TRX_RSEG_N_SLOTS; i++) {
+	for (i = 0;
+#ifndef UNIV_DEBUG
+	     i < TRX_RSEG_N_SLOTS;
+#else
+	     i < (trx_rseg_n_slots_debug ? trx_rseg_n_slots_debug : TRX_RSEG_N_SLOTS);
+#endif
+	     i++) {
 
 		page_no = trx_rsegf_get_nth_undo(rsegf, i, mtr);
 

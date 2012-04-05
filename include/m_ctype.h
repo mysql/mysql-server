@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2010, Oracle and/or its affiliates.
+   Copyright (c) 2000, 2012, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -57,6 +57,7 @@ struct unicase_info_st
 
 extern MY_UNICASE_INFO *const my_unicase_default[256];
 extern MY_UNICASE_INFO *const my_unicase_turkish[256];
+extern MY_UNICASE_INFO *const my_unicase_mysql500[256];
 
 #define MY_UCA_MAX_CONTRACTION 4
 #define MY_UCA_MAX_WEIGHT_SIZE 8
@@ -339,11 +340,13 @@ extern struct charset_info_st my_charset_tis620_bin;
 extern struct charset_info_st my_charset_ucs2_general_ci;
 extern struct charset_info_st my_charset_ucs2_bin;
 extern struct charset_info_st my_charset_ucs2_unicode_ci;
+extern struct charset_info_st my_charset_ucs2_general_mysql500_ci;
 extern struct charset_info_st my_charset_ujis_japanese_ci;
 extern struct charset_info_st my_charset_ujis_bin;
 extern struct charset_info_st my_charset_utf8_general_ci;
 extern struct charset_info_st my_charset_utf8_unicode_ci;
 extern struct charset_info_st my_charset_utf8_bin;
+extern struct charset_info_st my_charset_utf8_general_mysql500_ci;
 extern struct charset_info_st my_charset_cp1250_czech_ci;
 
 /* declarations for simple charsets */

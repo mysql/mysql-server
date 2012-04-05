@@ -103,7 +103,7 @@ void bench_des()
 
     double persec = 1 / total * megs;
 
-    printf("3DES     %d megs took %5.3f seconds, %5.2f MB/s\n", megs, total,
+    printf("3DES     %d megs took %5.3f seconds, %6.2f MB/s\n", megs, total,
                                                              persec);
 }
 
@@ -123,7 +123,7 @@ void bench_aes(bool show)
     double persec = 1 / total * megs;
 
     if (show)
-        printf("AES      %d megs took %5.3f seconds, %5.2f MB/s\n", megs, total,
+        printf("AES      %d megs took %5.3f seconds, %6.2f MB/s\n", megs, total,
                                                                  persec);
 }
 
@@ -142,7 +142,7 @@ void bench_twofish()
 
     double persec = 1 / total * megs;
 
-    printf("Twofish  %d megs took %5.3f seconds, %5.2f MB/s\n", megs, total,
+    printf("Twofish  %d megs took %5.3f seconds, %6.2f MB/s\n", megs, total,
                                                             persec);
 
 }
@@ -162,7 +162,7 @@ void bench_blowfish()
 
     double persec = 1 / total * megs;
 
-    printf("Blowfish %d megs took %5.3f seconds, %5.2f MB/s\n", megs, total,
+    printf("Blowfish %d megs took %5.3f seconds, %6.2f MB/s\n", megs, total,
                                                              persec);
 }
 
@@ -181,7 +181,7 @@ void bench_arc4()
 
     double persec = 1 / total * megs;
 
-    printf("ARC4     %d megs took %5.3f seconds, %5.2f MB/s\n", megs, total,
+    printf("ARC4     %d megs took %5.3f seconds, %6.2f MB/s\n", megs, total,
                                                              persec);
 }
 
@@ -203,7 +203,7 @@ void bench_md5()
 
     double persec = 1 / total * megs;
 
-    printf("MD5      %d megs took %5.3f seconds, %5.2f MB/s\n", megs, total,
+    printf("MD5      %d megs took %5.3f seconds, %6.2f MB/s\n", megs, total,
                                                              persec);
 }
 
@@ -231,7 +231,7 @@ void bench_sha()
 
     double persec = 1 / total * megs;
 
-    printf("SHA      %d megs took %5.3f seconds, %5.2f MB/s\n", megs, total,
+    printf("SHA      %d megs took %5.3f seconds, %6.2f MB/s\n", megs, total,
                                                              persec);
 }
 
@@ -253,7 +253,7 @@ void bench_ripemd()
 
     double persec = 1 / total * megs;
 
-    printf("RIPEMD   %d megs took %5.3f seconds, %5.2f MB/s\n", megs, total,
+    printf("RIPEMD   %d megs took %5.3f seconds, %6.2f MB/s\n", megs, total,
                                                              persec);
 }
 
@@ -276,7 +276,7 @@ void bench_rsa()
     byte      message[] = "Everyone gets Friday off.";
     byte      cipher[128];  // for 1024 bit
     byte      plain[128];   // for 1024 bit
-    const int len = strlen((char*)message);
+    const int len = (word32)strlen((char*)message);
     
     int i;    
     double start = current_time();
