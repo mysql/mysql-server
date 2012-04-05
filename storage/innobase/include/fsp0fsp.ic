@@ -46,62 +46,6 @@ fsp_descr_page(
 }
 
 /********************************************************************//**
-Validate the tablespace flags, which are stored in the tablespace
-header at offset FSP_SPACE_FLAGS.  They should be 0 for
-ROW_FORMAT=COMPACT and ROW_FORMAT=REDUNDANT. The newer row formats,
-COMPRESSED and DYNAMIC, use a file format > Antelope so they should
-have a file format number plus the DICT_TF_COMPACT bit set.
-@return true if valid, false if not */
-UNIV_INLINE
-bool
-fsp_flags_valid(
-/*============*/
-	ulint	flags)		/*!< in: tablespace flags */
-{
-	ulint	post_antelope = FSP_FLAGS_GET_POST_ANTELOPE(flags);
-	ulint	zip_ssize = FSP_FLAGS_GET_ZIP_SSIZE(flags);
-	ulint	atomic_blobs = FSP_FLAGS_HAS_ATOMIC_BLOBS(flags);
-	ulint	unused = FSP_FLAGS_GET_UNUSED(flags);
-
-	/* Make sure there are no bits that we do not know about. */
-	if (unused != 0) {
-
-		return(false);
-
-	} else if (!post_antelope && atomic_blobs) {
-
-		/* The Antelope row formats REDUNDANT and COMPACT did
-		not use tablespace flags, so this flag and the entire
-		4-byte field is zero for Antelope row formats. */
-
-		return(false);
-
-	} else if (!atomic_blobs) {
-
-		/* Barracuda row formats COMPRESSED and DYNAMIC build on
-		the page structure introduced for the COMPACT row format
-		by allowing long fields to be broken into prefix and
-		externally stored parts. */
-
-		if (post_antelope || zip_ssize) {
-			return(false);
-		}
-
-	} else if (!post_antelope || zip_ssize > PAGE_ZIP_SSIZE_MAX) {
-
-		/* Validate the zip shift size is within allowed range. */
-
-		return(false);
-	}
-
-#if UNIV_FORMAT_MAX != UNIV_FORMAT_B
-# error "UNIV_FORMAT_MAX != UNIV_FORMAT_B, Add more validations."
-#endif
-
-	return(true);
-}
-
-/********************************************************************//**
 Validate and return the tablespace flags, which are stored in the
 tablespace header at offset FSP_SPACE_FLAGS.  They should be 0 for
 ROW_FORMAT=COMPACT and ROW_FORMAT=REDUNDANT. The newer row formats,
