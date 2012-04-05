@@ -191,7 +191,7 @@ static TYPELIB tokudb_row_format_typelib = {
     NULL
 };
 
-static MYSQL_THDVAR_ENUM(row_format, PLUGIN_VAR_NOCMDARG,
+static MYSQL_THDVAR_ENUM(row_format, PLUGIN_VAR_OPCMDARG,
                          "Specifies the compression method for a table during this session. "
                          "Possible values are TOKUDB_UNCOMPRESSED, TOKUDB_ZLIB, TOKUDB_QUICKLZ, "
                          "TOKUDB_LZMA, TOKUDB_FAST (default), and TOKUDB_SMALL",
