@@ -462,8 +462,8 @@ Validate the table flags.
 @return	true if valid. */
 UNIV_INLINE
 bool
-dict_tf_valid(
-/*==========*/
+dict_tf_is_valid(
+/*=============*/
 	ulint	flags)		/*!< in: table flags */
 {
 	ulint	compact = DICT_TF_GET_COMPACT(flags);
@@ -592,7 +592,7 @@ dict_tf_get_rec_format(
 /*===================*/
 	ulint		flags)	/*!< in: dict_table_t::flags */
 {
-	ut_a(dict_tf_valid(flags));
+	ut_a(dict_tf_is_valid(flags));
 
 	if (!DICT_TF_GET_COMPACT(flags)) {
 		return(REC_FORMAT_REDUNDANT);
@@ -695,7 +695,7 @@ dict_tf_to_fsp_flags(
 	/* In addition, tablespace flags also contain the page size. */
 	flags = fsp_flags_set_page_size(flags, UNIV_PAGE_SIZE);
 
-	ut_a(fsp_flags_validate(flags));
+	ut_a(fsp_flags_is_valid(flags));
 
 	return(flags);
 }
@@ -722,7 +722,7 @@ dict_tf_to_sys_tables_type(
 		return(SYS_TABLE_TYPE_ANTELOPE);
 	}
 
-	ut_a(dict_tf_valid(flags));
+	ut_a(dict_tf_is_valid(flags));
 	return(flags);
 }
 

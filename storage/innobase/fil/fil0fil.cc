@@ -1214,7 +1214,7 @@ fil_space_create(
 	fil_space_t*	space;
 
 	ut_a(fil_system);
-	ut_a(fsp_flags_validate(flags));
+	ut_a(fsp_flags_is_valid(flags));
 
 	/* Look for a matching tablespace and if found free it. */
 	do {
@@ -2968,7 +2968,7 @@ fil_create_new_single_table_tablespace(
 	ut_a(space_id > 0);
 	ut_a(space_id < SRV_LOG_SPACE_FIRST_ID);
 	ut_a(size >= FIL_IBD_FILE_INITIAL_SIZE);
-	ut_a(fsp_flags_validate(flags));
+	ut_a(fsp_flags_is_valid(flags));
 
 	path = fil_make_ibd_name(tablename, is_temp);
 
@@ -3426,7 +3426,7 @@ fil_reset_space_and_lsn(
 		/* Validate the space flags */
 		ulint	space_flags = fsp_header_get_flags(page);
 
-		if (!fsp_flags_validate(space_flags)) {
+		if (!fsp_flags_is_valid(space_flags)) {
 
 			ib_logf(IB_LOG_LEVEL_ERROR,
 				"Unsupported tablespace format %lu",
@@ -3509,7 +3509,7 @@ fil_open_single_table_tablespace(
 
 	filepath = fil_make_ibd_name(name, FALSE);
 
-	if (!fsp_flags_validate(flags)) {
+	if (!fsp_flags_is_valid(flags)) {
 		return(DB_CORRUPTION);
 	} else if (table != 0) {
 		space_flags = dict_tf_to_fsp_flags(table->flags);

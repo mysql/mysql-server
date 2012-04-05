@@ -54,7 +54,7 @@ have a file format number plus the DICT_TF_COMPACT bit set.
 @return	true if check ok */
 UNIV_INLINE
 bool
-fsp_flags_validate(
+fsp_flags_is_valid(
 /*===============*/
 	ulint	flags)		/*!< in: tablespace flags */
 {
@@ -212,7 +212,7 @@ fsp_flags_set_page_size(
 
 	flags = FSP_FLAGS_SET_PAGE_SSIZE(flags, ssize);
 
-	ut_ad(fsp_flags_validate(flags));
+	ut_ad(fsp_flags_is_valid(flags));
 
 	return(flags);
 }
