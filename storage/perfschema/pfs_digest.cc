@@ -578,19 +578,23 @@ PSI_digest_locker* pfs_digest_add_token_v1(PSI_digest_locker *locker,
         TOK_PFS_GENERIC_VALUE := BIN_NUM | DECIMAL_NUM | ... | ULONGLONG_NUM
       */
       token= TOK_PFS_GENERIC_VALUE;
-
+    }
+    /* fall through */
+    case NULL_SYM:
+    {
       if ((last_token2 == TOK_PFS_GENERIC_VALUE ||
-           last_token2 == TOK_PFS_GENERIC_VALUE_LIST) &&
+           last_token2 == TOK_PFS_GENERIC_VALUE_LIST ||
+           last_token2 == NULL_SYM) &&
           (last_token == ','))
       {
         /*
           REDUCE:
           TOK_PFS_GENERIC_VALUE_LIST :=
-            TOK_PFS_GENERIC_VALUE ',' TOK_PFS_GENERIC_VALUE
+            (TOK_PFS_GENERIC_VALUE|NULL_SYM) ',' (TOK_PFS_GENERIC_VALUE|NULL_SYM)
           
           REDUCE:
           TOK_PFS_GENERIC_VALUE_LIST :=
-            TOK_PFS_GENERIC_VALUE_LIST ',' TOK_PFS_GENERIC_VALUE
+            TOK_PFS_GENERIC_VALUE_LIST ',' (TOK_PFS_GENERIC_VALUE|NULL_SYM)
         */
         digest_storage->m_byte_count-= 2*PFS_SIZE_OF_A_TOKEN;
         token= TOK_PFS_GENERIC_VALUE_LIST;
