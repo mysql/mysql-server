@@ -106,7 +106,7 @@ int hp_rb_write_key(HP_INFO *info, HP_KEYDEF *keyinfo, const uchar *record,
 		    uchar *recpos)
 {
   heap_rb_param custom_arg;
-  uint old_allocated;
+  size_t old_allocated;
 
   custom_arg.keyseg= keyinfo->seg;
   custom_arg.key_length= hp_rb_make_key(keyinfo, info->recbuf, record, recpos);
