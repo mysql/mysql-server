@@ -7712,11 +7712,11 @@ int ha_tokudb::add_index(TABLE *table_arg, KEY *key_info, uint num_of_keys, hand
     TOKUDB_DBUG_ENTER("ha_tokudb::add_index");
     while (ha_tokudb_add_index_wait) sleep(1); // debug
 
-    DB_TXN* txn = NULL;
     int error;
     bool incremented_numDBs = false;
     bool modified_DBs = false;
-    
+
+    DB_TXN* txn = NULL;
     error = db_env->txn_begin(db_env, 0, &txn, 0);
     if (error) { goto cleanup; }
 
@@ -7764,41 +7764,6 @@ int ha_tokudb::final_add_index(handler_add_index *add_arg, bool commit) {
     } else {
         restore_add_index(table, num_of_keys, incremented_numDBs, modified_DBs);
         abort_txn(txn);
-    }
-    TOKUDB_DBUG_RETURN(error);
-}
-
-#else
-
-int ha_tokudb::add_index(TABLE *table_arg, KEY *key_info, uint num_of_keys) {
-    TOKUDB_DBUG_ENTER("ha_tokudb::add_index");
-    DB_TXN* txn = NULL;
-    int error;
-    bool incremented_numDBs = false;
-    bool modified_DBs = false;
-    
-    error = db_env->txn_begin(db_env, 0, &txn, 0);
-    if (error) { goto cleanup; }
-
-    error = tokudb_add_index(
-        table_arg,
-        key_info,
-        num_of_keys,
-        txn,
-        &incremented_numDBs,
-        &modified_DBs
-        );
-    if (error) { goto cleanup; }
-    
-cleanup:
-    if (error) {
-        if (txn) {
-            restore_add_index(table_arg, num_of_keys, incremented_numDBs, modified_DBs);
-            abort_txn(txn);
-        }
-    }
-    else {
-      commit_txn(txn, 0);
     }
     TOKUDB_DBUG_RETURN(error);
 }
@@ -7902,6 +7867,14 @@ int ha_tokudb::prepare_drop_index(TABLE *table_arg, uint *key_num, uint num_of_k
     TOKUDB_DBUG_ENTER("ha_tokudb::prepare_drop_index");
     while (ha_tokudb_prepare_drop_index_wait) sleep(1); // debug
 
+#if MYSQL_VERSION_ID >= 50521
+
+    DB_TXN *txn = transaction;
+    assert(txn);
+    int error = drop_indexes(table_arg, key_num, num_of_keys, txn);
+
+#else
+
     int error;
     DB_TXN* txn = NULL;
 
@@ -7921,6 +7894,8 @@ cleanup:
             commit_txn(txn,0);
         }
     }
+#endif
+
     TOKUDB_DBUG_RETURN(error);
 }
 
@@ -10099,6 +10074,7 @@ ha_tokudb::is_alter_table_hot() {
     TOKUDB_DBUG_RETURN(is_hot);
 }
 
+// write the new frm data to the status dictionary using the alter table transaction
 int 
 ha_tokudb::new_alter_table_frm_data(const uchar *frm_data, size_t frm_len) {
     TOKUDB_DBUG_ENTER("new_alter_table_path");
@@ -10106,7 +10082,8 @@ ha_tokudb::new_alter_table_frm_data(const uchar *frm_data, size_t frm_len) {
     int error = 0;
     if (table->part_info == NULL) {
         // write frmdata to status
-        DB_TXN *txn = NULL; // TODO use transaction (creatged in prepare_for_alter)
+        DB_TXN *txn = transaction; // use alter table transaction
+        assert(txn);
         error = write_to_status(share->status_block, hatoku_frm_data, (void *)frm_data, (uint)frm_len, txn);
     }
    
@@ -10117,10 +10094,19 @@ void
 ha_tokudb::prepare_for_alter() {
     TOKUDB_DBUG_ENTER("prepare_for_alter");
 
-    // create a transaction used to add indexes, drop indexes, and write the new frm data
-    // this transaction will be retired by mysql alter table
-    DB_TXN *txn = NULL; 
-    txn = txn; // TODO create a new transaction
+    // this is here because mysql commits the transaction before prepare_for_alter is called.
+    // we need a transaction to add indexes, drop indexes, and write the new frm data, so we
+    // create one.  this transaction will be retired by mysql alter table when it commits
+    //
+    // if we remove the commit before prepare_for_alter, then this is not needed.
+    transaction = NULL;
+    THD *thd = ha_thd();
+    tokudb_trx_data *trx = (tokudb_trx_data *) thd_data_get(thd, tokudb_hton->slot);
+    assert(trx);
+    int error = create_txn(thd, trx);
+    assert(error == 0);
+    assert(thd->in_sub_stmt == 0);
+    transaction = trx->sub_sp_level;
 
     DBUG_VOID_RETURN;
 }
