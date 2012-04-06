@@ -162,6 +162,13 @@
 #define HA_CAN_REPAIR                    (LL(1) << 37)
 
 /*
+ Engine does not store actual rows. Used by replication slave to check if it is
+ possible to retrieve rows from the table when deciding whether to do a full
+ table scan, index scan or hash scan while applying a row event.
+*/
+#define HA_STORES_NO_ROWS                (LL(1) << 38)
+
+/*
   Set of all binlog flags. Currently only contain the capabilities
   flags.
  */
