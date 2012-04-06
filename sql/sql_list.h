@@ -258,25 +258,6 @@ public:
     return tmp->info;
   }
 
-  /**
-    Cut the list with leaving not more then n elements
-  */
-  inline uint cut(uint n)
-  {
-    list_node *element= first;
-    uint i= 0;
-    for (;
-         i < n && element != &end_of_list;
-         element= element->next, i++);
-    if (element != &end_of_list)
-    {
-      elements= i + 1;
-      last= &element->next;
-      element->next= &end_of_list;
-    }
-    return i + 1;
-  }
-
   /*
     Remove from this list elements that are contained in the passed list. 
     We assume that the passed list is a tail of this list (that is, the whole 
