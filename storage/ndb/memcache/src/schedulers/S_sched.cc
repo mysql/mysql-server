@@ -105,8 +105,9 @@ void S::SchedulerGlobal::init(const scheduler_options *sched_opts) {
   
   /* Log message for startup */
   logger->log(LOG_WARNING, 0, "Scheduler: starting for %d cluster%s; "
-              "c%d,f%d,t%d", nclusters, nclusters == 1 ? "" : "s",
-              options.n_connections, options.force_send, options.send_timer);
+              "c%d,f%d,g%d,t%d", nclusters, nclusters == 1 ? "" : "s",
+              options.n_connections, options.force_send, 
+              options.auto_grow, options.send_timer);
 
   /* Now Running */
   running = true;
@@ -172,6 +173,7 @@ void S::SchedulerGlobal::parse_config_string(int nthreads, const char *str) {
   options.n_connections = 0;   // 0 = n_connections based on db-stored config
   options.force_send = 0;      // 0 = force send always off
   options.send_timer = 1;      // 1 = 1 ms. timer in send thread
+  options.auto_grow = 1;       // 1 = allow NDB instance pool to grow on demand
 
   if(str) {
     const char *s = str;
@@ -188,6 +190,9 @@ void S::SchedulerGlobal::parse_config_string(int nthreads, const char *str) {
           break;
         case 'f':
           options.force_send = value;
+          break;
+        case 'g':
+          options.auto_grow = value;
           break;
         case 't':
           options.send_timer = value;
@@ -214,6 +219,10 @@ void S::SchedulerGlobal::parse_config_string(int nthreads, const char *str) {
   if(options.send_timer < 1 || options.send_timer > 10) {
     logger->log(LOG_WARNING, 0, "Invalid scheduler configuration.\n");
     assert(options.send_timer >= 1 && options.send_timer <= 10);
+  }
+  if(options.auto_grow < 0 || options.auto_grow > 1) {
+    logger->log(LOG_WARNING, 0, "Invalid scheduler configuration.\n");
+    assert(options.auto_grow == 0 || options.auto_grow == 1);
   }
 }
 
@@ -680,13 +689,16 @@ S::Connection::Connection(S::Cluster & _cl, int _id) :
    * the sentqueue, and the reschedulequeue -- and it will not be 
    * possible to increase those limits during online reconfig. 
    */
-  instances.max = instances.initial * 2;
-  if(instances.max > (global->options.max_clients / cluster.nconnections)) {
+  instances.max = instances.initial;
+  // allow the pool to grow on demand? 
+  if(global->options.auto_grow)
+    instances.max *= 1.6;
+  // max_clients imposes a hard upper limit
+  if(instances.max > (global->options.max_clients / cluster.nconnections))
     instances.max = global->options.max_clients / cluster.nconnections;
-    if(instances.initial > instances.max) 
-      instances.initial = instances.max;
-  }
-     
+  // instances.initial might also be subject to the max_clients limit
+  if(instances.initial > instances.max) 
+    instances.initial = instances.max;
   
   /* Get a multi-wait Poll Group */
   pollgroup = conn->create_ndb_wait_group(instances.max);

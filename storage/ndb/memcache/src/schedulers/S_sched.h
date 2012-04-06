@@ -82,6 +82,7 @@ public:
     int n_connections;     /** preferred number of NDB cluster connections */
     int force_send;        /** how to use NDB force-send */
     int send_timer;        /** milliseconds to set for adaptive send timer */
+    int auto_grow;         /** whether to allow NDB instance pool to grow */
     int max_clients;       /** memcached max allowed connections */
   } options;
 
