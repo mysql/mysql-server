@@ -4365,6 +4365,35 @@ SELECT * FROM t1 RIGHT JOIN v2 ON ( v2.a = t1.a ) WHERE v2.b IN ( SELECT b FROM 
 DROP VIEW v2;
 DROP TABLE t1, t2, t3;
 
+--echo #
+--echo # BUG#915222: Valgrind complains or crashes with INSERT SELECT
+--echo #              within a trigger that uses a view
+--echo #
+
+CREATE TABLE t1 (a char(1));
+
+CREATE TABLE t2 (d int, e char(1));
+
+INSERT INTO t2 VALUES (13,'z');
+
+CREATE TRIGGER tr AFTER UPDATE ON t2
+  FOR EACH ROW
+  REPLACE INTO t3
+  SELECT f, a AS alias FROM t3, v;
+
+CREATE TABLE t3 (f int, g char(8));
+
+CREATE VIEW v AS SELECT a, e FROM t2, t1;
+
+UPDATE t2 SET d=7;
+UPDATE t2 SET d=7;
+UPDATE t2 SET d=7;
+UPDATE t2 SET d=7;
+
+DROP TRIGGER tr;
+DROP VIEW v;
+DROP TABLE t1,t2,t3;
+
 --echo # -----------------------------------------------------------------
 --echo # -- End of 5.3 tests.
 --echo # -----------------------------------------------------------------

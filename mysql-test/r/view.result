@@ -4433,6 +4433,26 @@ NULL	NULL	1	0
 NULL	NULL	1	0
 DROP VIEW v2;
 DROP TABLE t1, t2, t3;
+#
+# BUG#915222: Valgrind complains or crashes with INSERT SELECT
+#              within a trigger that uses a view
+#
+CREATE TABLE t1 (a char(1));
+CREATE TABLE t2 (d int, e char(1));
+INSERT INTO t2 VALUES (13,'z');
+CREATE TRIGGER tr AFTER UPDATE ON t2
+FOR EACH ROW
+REPLACE INTO t3
+SELECT f, a AS alias FROM t3, v;
+CREATE TABLE t3 (f int, g char(8));
+CREATE VIEW v AS SELECT a, e FROM t2, t1;
+UPDATE t2 SET d=7;
+UPDATE t2 SET d=7;
+UPDATE t2 SET d=7;
+UPDATE t2 SET d=7;
+DROP TRIGGER tr;
+DROP VIEW v;
+DROP TABLE t1,t2,t3;
 # -----------------------------------------------------------------
 # -- End of 5.3 tests.
 # -----------------------------------------------------------------

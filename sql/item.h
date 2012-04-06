@@ -620,6 +620,8 @@ public:
 #endif
   }		/*lint -e1509 */
   void set_name(const char *str, uint length, CHARSET_INFO *cs);
+  void set_name_for_rollback(THD *thd, const char *str, uint length,
+                             CHARSET_INFO *cs);
   void rename(char *new_name);
   void init_make_field(Send_field *tmp_field,enum enum_field_types type);
   virtual void cleanup();
