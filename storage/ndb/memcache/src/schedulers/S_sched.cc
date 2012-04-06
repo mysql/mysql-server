@@ -692,7 +692,7 @@ S::Connection::Connection(S::Cluster & _cl, int _id) :
   instances.max = instances.initial;
   // allow the pool to grow on demand? 
   if(global->options.auto_grow)
-    instances.max *= 1.6;
+    instances.max = (int) (instances.max * 1.6);
   // max_clients imposes a hard upper limit
   if(instances.max > (global->options.max_clients / cluster.nconnections))
     instances.max = global->options.max_clients / cluster.nconnections;
