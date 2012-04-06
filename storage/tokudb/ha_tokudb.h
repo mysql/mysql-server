@@ -574,9 +574,10 @@ public:
 
 #if MYSQL_VERSION_ID >= 50521
     bool is_alter_table_hot();
+    void prepare_for_alter();
+    int new_alter_table_frm_data(const uchar *frm_data, size_t frm_len);
 #endif
 
-    void prepare_for_alter();
 
 #if defined(HA_GENERAL_ONLINE)
     void print_alter_info(
