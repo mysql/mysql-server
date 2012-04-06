@@ -37,6 +37,8 @@ load data local infile 'suite/ndb/data/wl946_main3.dat'
 
 --echo # check contents
 select count(*), sum(crc32(concat(a,b,c,d,e,f))) from t1;
+--echo # verify ndb_select_all
+--source ndb_wl946_select_all.inc
 
 --echo # index queries
 select * from t1 where b = '2011';
@@ -79,6 +81,8 @@ load data local infile 'suite/ndb/data/wl946_main6.dat'
 
 --echo # check contents
 select count(*), sum(crc32(concat(a,b,c,d,e,f))) from t1;
+--echo # verify ndb_select_all
+--source ndb_wl946_select_all.inc
 
 --echo # index queries
 select * from t1 where b = '1984';
@@ -183,7 +187,7 @@ if (!$works)
 --disable_warnings
 drop table if exists t1tmp;
 --enable_warnings
-create table t1tmp (
+create temporary table t1tmp (
   x char(255)
 ) engine=myisam;
 insert into t1tmp select concat(a,b,c,left(d,length(d)-3),left(e,length(e)-3),left(f,length(f)-3)) from t1;
