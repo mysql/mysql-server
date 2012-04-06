@@ -531,7 +531,7 @@ check_scramble(const uchar *scramble_arg, const char *message,
   mysql_sha1_reset(&sha1_context);
   mysql_sha1_input(&sha1_context, buf, SHA1_HASH_SIZE);
   mysql_sha1_result(&sha1_context, hash_stage2_reassured);
-  return memcmp(hash_stage2, hash_stage2_reassured, SHA1_HASH_SIZE);
+  return test(memcmp(hash_stage2, hash_stage2_reassured, SHA1_HASH_SIZE));
 }
 
 
