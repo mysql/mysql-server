@@ -660,7 +660,7 @@ static int toku_recover_xstillopenprepared (struct logtype_xstillopenprepared *l
 					 l->len,
 					 renv);
     if (r==0)
-	return toku_txn_prepare_txn(txn, l->gid);
+	return toku_txn_prepare_txn(txn, l->xa_xid);
     else
 	return r;
 }
@@ -743,7 +743,7 @@ static int toku_recover_xprepare (struct logtype_xprepare *l, RECOVER_ENV renv) 
     assert(txn!=NULL);
 
     // Save the transaction
-    r = toku_txn_prepare_txn(txn, l->gid);
+    r = toku_txn_prepare_txn(txn, l->xa_xid);
     assert(r == 0);
 
     return 0;

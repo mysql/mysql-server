@@ -8,7 +8,7 @@
 #include "txn.h"
 #include "checkpoint.h"
 #include "ule.h"
-
+#include <valgrind/helgrind.h>
 
 BOOL garbage_collection_debug = FALSE;
 
@@ -187,6 +187,11 @@ live_list_reverse_note_txn_start(TOKUTXN txn) {
     return r;
 }
 
+static void invalidate_xa_xid (XID *xid) {
+    ANNOTATE_NEW_MEMORY(xid, sizeof(*xid)); // consider it to be all invalid for valgrind
+    xid->formatID = -1; // According to the XA spec, -1 means "invalid data"
+}
+
 int 
 toku_txn_create_txn (
     TOKUTXN *tokutxn, 
@@ -232,7 +237,7 @@ toku_txn_create_txn (
     result->recovered_from_checkpoint = FALSE;
     toku_list_init(&result->checkpoint_before_commit);
     result->state = TOKUTXN_LIVE;
-    result->gid.gid  = NULL;
+    invalidate_xa_xid(&result->xa_xid);
     result->do_fsync = FALSE;
 
     toku_txn_ignore_init(result); // 2954
@@ -422,8 +427,7 @@ int toku_txn_commit_with_lsn(TOKUTXN txn, int nosync, YIELDF yield, void *yieldv
 {
     if (txn->state==TOKUTXN_PREPARING) {
         txn->state=TOKUTXN_LIVE;
-        toku_free(txn->gid.gid);
-        txn->gid.gid=NULL;
+        invalidate_xa_xid(&txn->xa_xid);
         toku_list_remove(&txn->prepared_txns_link);
     }
     txn->state = TOKUTXN_COMMITTING;
@@ -473,8 +477,7 @@ int toku_txn_abort_with_lsn(TOKUTXN txn, YIELDF yield, void *yieldv, LSN oplsn,
 {
     if (txn->state==TOKUTXN_PREPARING) {
         txn->state=TOKUTXN_LIVE;
-        toku_free(txn->gid.gid);
-        txn->gid.gid=NULL;
+        invalidate_xa_xid(&txn->xa_xid);
         toku_list_remove(&txn->prepared_txns_link);
     }
     txn->state = TOKUTXN_ABORTING;
@@ -500,23 +503,51 @@ int toku_txn_abort_with_lsn(TOKUTXN txn, YIELDF yield, void *yieldv, LSN oplsn,
     return r;
 }
 
-int toku_txn_prepare_txn (TOKUTXN txn, GID gid) {
+static void copy_xid (XID *dest, XID *source) {
+    ANNOTATE_NEW_MEMORY(dest, sizeof(*dest));
+    dest->formatID     = source->formatID;
+    dest->gtrid_length = source->gtrid_length;
+    dest->bqual_length = source->bqual_length;
+    memcpy(dest->data, source->data, source->gtrid_length+source->bqual_length);
+}
+
+int toku_txn_prepare_txn (TOKUTXN txn, XID *xa_xid) {
     assert(txn->state==TOKUTXN_LIVE);
     txn->state = TOKUTXN_PREPARING; // This state transition must be protected against begin_checkpoint.  Right now it uses the ydb lock.
     if (txn->parent) return 0; // nothing to do if there's a parent.
     // Do we need to do an fsync?
     txn->do_fsync = (txn->force_fsync_on_commit || txn->num_rollentries>0);
-    txn->gid.gid = toku_memdup(gid.gid, DB_GID_SIZE);
+    copy_xid(&txn->xa_xid, xa_xid);
     // This list will go away with #4683, so we wn't need the ydb lock for this anymore.
     toku_list_push(&txn->logger->prepared_txns, &txn->prepared_txns_link);
-    return toku_log_xprepare(txn->logger, &txn->do_fsync_lsn, 0, txn->txnid64, gid);
+    return toku_log_xprepare(txn->logger, &txn->do_fsync_lsn, 0, txn->txnid64, xa_xid);
 }
 
-void toku_txn_get_prepared_gid (TOKUTXN txn, GID *gidp) {
-    gidp->gid = toku_memdup(txn->gid.gid, DB_GID_SIZE);
+void toku_txn_get_prepared_xa_xid (TOKUTXN txn, XID *xid) {
+    copy_xid(xid, &txn->xa_xid);
 }
 
-int toku_logger_recover_txn (TOKULOGGER logger, DB_PREPLIST preplist[/*count*/], long count, /*out*/ long *retp, u_int32_t flags) {
+int toku_logger_get_txn_from_xid (TOKULOGGER logger, XID *xid, DB_TXN **txnp) {
+    int num_live_txns = toku_omt_size(logger->live_txns);
+    for (int i = 0; i < num_live_txns; i++) {
+        OMTVALUE v;
+        {
+            int r = toku_omt_fetch(logger->live_txns, i, &v);
+            assert_zero(r);
+        }
+        TOKUTXN txn = v;
+        if (txn->xa_xid.formatID     == xid->formatID
+            && txn->xa_xid.gtrid_length == xid->gtrid_length
+            && txn->xa_xid.bqual_length == xid->bqual_length
+            && 0==memcmp(txn->xa_xid.data, xid->data, xid->gtrid_length + xid->bqual_length)) {
+            *txnp = txn->container_db_txn;
+            return 0;
+        }
+    }
+    return DB_NOTFOUND;
+}
+
+int toku_logger_recover_txn (TOKULOGGER logger, struct tokulogger_preplist preplist[/*count*/], long count, /*out*/ long *retp, u_int32_t flags) {
     if (flags==DB_FIRST) {
 	// Anything in the returned list goes back on the prepared list.
 	while (!toku_list_empty(&logger->prepared_and_returned_txns)) {
@@ -536,7 +567,7 @@ int toku_logger_recover_txn (TOKULOGGER logger, DB_PREPLIST preplist[/*count*/],
 	    TOKUTXN txn = toku_list_struct(h, struct tokutxn, prepared_txns_link);
 	    assert(txn->container_db_txn);
 	    preplist[i].txn = txn->container_db_txn;
-	    memcpy(preplist[i].gid, txn->gid.gid, DB_GID_SIZE);
+            preplist[i].xid = txn->xa_xid;
 	} else {
 	    break;
 	}
@@ -587,7 +618,6 @@ void toku_txn_destroy_txn(TOKUTXN txn) {
     if (txn->open_brts)
         toku_omt_destroy(&txn->open_brts);
     xids_destroy(&txn->xids);
-    if (txn->gid.gid) toku_free(txn->gid.gid);
     toku_txn_ignore_free(txn); // 2954
     toku_free(txn);
 

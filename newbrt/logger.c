@@ -14,6 +14,22 @@ static int delete_logfile(TOKULOGGER logger, long long index, uint32_t version);
 static void grab_output(TOKULOGGER logger, LSN *fsynced_lsn);
 static void release_output(TOKULOGGER logger, LSN fsynced_lsn);
 
+static void toku_print_bytes (FILE *outf, u_int32_t len, char *data) {
+    fprintf(outf, "\"");
+    u_int32_t i;
+    for (i=0; i<len; i++) {
+	switch (data[i]) {
+	case '"':  fprintf(outf, "\\\""); break;
+	case '\\': fprintf(outf, "\\\\"); break;
+	case '\n': fprintf(outf, "\\n");  break;
+	default:
+	    if (isprint(data[i])) fprintf(outf, "%c", data[i]);
+	    else fprintf(outf, "\\%03o", (unsigned char)(data[i]));
+	}
+    }
+    fprintf(outf, "\"");
+}
+
 static BOOL is_a_logfile_any_version (const char *name, uint64_t *number_result, uint32_t *version_of_log) {
     BOOL rval = TRUE;
     uint64_t result;
@@ -957,12 +973,31 @@ int toku_fread_TXNID   (FILE *f, TXNID *txnid, struct x1764 *checksum, u_int32_t
     return toku_fread_u_int64_t (f, txnid, checksum, len);
 }
 
-int toku_fread_GID     (FILE *f, GID *gid, struct x1764 *checksum, u_int32_t *len) {
-    gid->gid = toku_xmalloc(DB_GID_SIZE);
-    for (int i=0; i<DB_GID_SIZE; i++) {
-	int r = toku_fread_u_int8_t(f, &gid->gid[i], checksum, len);
+int toku_fread_XIDP    (FILE *f, XIDP *xidp, struct x1764 *checksum, u_int32_t *len) {
+    // These reads are verbose because XA defined the fields as "long", but we use 4 bytes, 1 byte and 1 byte respectively.
+    XID *XMALLOC(xid);
+    {
+        u_int32_t formatID;
+        toku_fread_u_int32_t(f, &formatID,     checksum, len);
+        xid->formatID = formatID;
+    }
+    {
+        u_int8_t gtrid_length;
+        toku_fread_u_int8_t (f, &gtrid_length, checksum, len);
+        xid->gtrid_length = gtrid_length;
+    }
+    {
+        u_int8_t bqual_length;
+        toku_fread_u_int8_t (f, &bqual_length, checksum, len);
+        xid->bqual_length = bqual_length;
+    }
+    for (int i=0; i< xid->gtrid_length + xid->bqual_length; i++) {
+        u_int8_t byte;
+	int r = toku_fread_u_int8_t(f, &byte, checksum, len);
+        xid->data[i] = byte;
 	if (r!=0) return r;
     }
+    *xidp = xid;
     return 0;
 }
 
@@ -1016,14 +1051,14 @@ int toku_logprint_TXNID (FILE *outf, FILE *inf, const char *fieldname, struct x1
     return 0;
 }
 
-int toku_logprint_GID (FILE *outf, FILE *inf, const char *fieldname, struct x1764 *checksum, u_int32_t *len, const char *format __attribute__((__unused__))) {
-    GID v;
-    int r = toku_fread_GID(inf, &v, checksum, len);
+int toku_logprint_XIDP (FILE *outf, FILE *inf, const char *fieldname, struct x1764 *checksum, u_int32_t *len, const char *format __attribute__((__unused__))) {
+    XIDP vp;
+    int r = toku_fread_XIDP(inf, &vp, checksum, len);
     if (r!=0) return r;
-    fprintf(outf, "%s=0x", fieldname);
-    for (int i=0; i<DB_GID_SIZE; i++) printf("%02x", v.gid[i]);
-    toku_free(v.gid);
-    v.gid=NULL;
+    fprintf(outf, "%s={formatID=0x%lx gtrid_length=%ld bqual_length=%ld data=", fieldname, vp->formatID, vp->gtrid_length, vp->bqual_length);
+    toku_print_bytes(outf, vp->gtrid_length + vp->bqual_length, vp->data);
+    fprintf(outf, "}");
+    toku_free(vp);
     return 0;
 }
 
@@ -1067,19 +1102,9 @@ int toku_logprint_BOOL (FILE *outf, FILE *inf, const char *fieldname, struct x17
 }
 
 void toku_print_BYTESTRING (FILE *outf, u_int32_t len, char *data) {
-    fprintf(outf, "{len=%u data=\"", len);
-    u_int32_t i;
-    for (i=0; i<len; i++) {
-	switch (data[i]) {
-	case '"':  fprintf(outf, "\\\""); break;
-	case '\\': fprintf(outf, "\\\\"); break;
-	case '\n': fprintf(outf, "\\n");  break;
-	default:
-	    if (isprint(data[i])) fprintf(outf, "%c", data[i]);
-	    else fprintf(outf, "\\%03o", (unsigned char)(data[i]));
-	}
-    }
-    fprintf(outf, "\"}");
+    fprintf(outf, "{len=%u data=", len);
+    toku_print_bytes(outf, len, data);
+    fprintf(outf, "}");
 
 }
 

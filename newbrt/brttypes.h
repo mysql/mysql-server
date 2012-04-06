@@ -49,6 +49,7 @@ typedef u_int64_t TXNID;
 
 typedef struct blocknum_s { int64_t b; } BLOCKNUM; // make a struct so that we will notice type problems.
 typedef struct gid_s { uint8_t *gid; } GID; // the gid is of size [DB_GID_SIZE]
+typedef XID *XIDP; // this is the type that's passed to the logger code (so that we don't have to copy all 152 bytes when only a subset are even valid.)
 #define ROLLBACK_NONE     ((BLOCKNUM){0})
 
 static inline BLOCKNUM make_blocknum(int64_t b) { BLOCKNUM result={b}; return result; }

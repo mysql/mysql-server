@@ -7,6 +7,7 @@
 #include "x1764.h"
 #include "memory.h"
 #include "toku_assert.h"
+#include "db.h"
 #include <errno.h>
 #include <string.h>
 
@@ -190,8 +191,11 @@ static inline void wbuf_TXNID (struct wbuf *w, TXNID tid) {
     wbuf_ulonglong(w, tid);
 }
 
-static inline void wbuf_nocrc_GID (struct wbuf *w, GID gid) {
-    wbuf_nocrc_literal_bytes(w, gid.gid, DB_GID_SIZE);
+static inline void wbuf_nocrc_XIDP (struct wbuf *w, XIDP xid) {
+    wbuf_nocrc_u_int32_t(w, xid->formatID);
+    wbuf_nocrc_u_int8_t(w, xid->gtrid_length);
+    wbuf_nocrc_u_int8_t(w, xid->bqual_length);
+    wbuf_nocrc_literal_bytes(w, xid->data, xid->gtrid_length+xid->bqual_length);
 }
 
 static inline void wbuf_nocrc_LSN (struct wbuf *w, LSN lsn) {

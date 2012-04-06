@@ -20,6 +20,8 @@ static void setup_env (DB_ENV **envp, const char *envdir) {
     CHK((*envp)->open(*envp, envdir, DB_INIT_LOCK|DB_INIT_LOG|DB_INIT_MPOOL|DB_INIT_TXN|DB_CREATE|DB_PRIVATE|DB_RECOVER, S_IRWXU+S_IRWXG+S_IRWXO));
 }
 
+const unsigned int myformatid = 0x74736554;
+
 static void setup_env_and_prepare (DB_ENV **envp, const char *envdir, bool commit) {
     DB *db;
     DB_TXN *txn;
@@ -31,10 +33,11 @@ static void setup_env_and_prepare (DB_ENV **envp, const char *envdir, bool commi
     DBT key={.size=4, .data="foo"};
     CKERR(db->put(db, txn, &key, &key, 0));
     CHK(db->close(db, 0));
-    u_int8_t gid[DB_GID_SIZE];
-    memset(gid, 0, DB_GID_SIZE);
-    gid[0]=42;
-    CKERR(txn->prepare(txn, gid));
+    XID x = {.formatID = myformatid,
+	     .gtrid_length = 8,
+	     .bqual_length = 9};
+    for (int i=0; i<8+9; i++) x.data[i] = 42+i;
+    CKERR(txn->xa_prepare(txn, &x));
     if (commit)
 	CKERR(txn->commit(txn, 0));
 }
@@ -46,12 +49,17 @@ static void test1 (void) {
 	DB_ENV *env;
 	setup_env_and_prepare(&env, ENVDIR, false);
 	{
-	    DB_PREPLIST l[1];
+	    XID l[1];
 	    long count=-1;
-	    CKERR(env->txn_recover(env, l, 1, &count, DB_FIRST));
+	    CKERR(env->txn_xa_recover(env, l, 1, &count, DB_FIRST));
 	    printf("%s:%d count=%ld\n", __FILE__, __LINE__, count);
 	    assert(count==1);
-	    assert(l[0].gid[0]==42);
+	    assert(myformatid==l[0].formatID);
+	    assert( 8==l[0].gtrid_length);
+	    assert( 9==l[0].bqual_length);
+	    for (int i=0; i<8+9; i++) {
+		assert(l[0].data[i]==42+i);
+	    }
 	}
 	exit(0);
     }
@@ -70,16 +78,26 @@ static void test1 (void) {
     setup_env(&env, ENVDIR);
 
     {
-	DB_PREPLIST l[1];
+	XID l[1];
 	long count=-1;
-	int r = env->txn_recover(env, l, 1, &count, DB_FIRST);
-	printf("r=%d count=%ld\n", r, count);
-	assert(count==1);
-	assert(l[0].gid[0]==42);
-	for (int i=1; i<DB_GID_SIZE; i++) {
-	    assert(l[0].gid[i]==0);
+	{
+	    int r = env->txn_xa_recover(env, l, 1, &count, DB_FIRST);
+	    printf("r=%d count=%ld\n", r, count);
 	}
-	CHK(l->txn->commit(l->txn, 0));
+	assert(count==1);
+	assert(l[0].data[0]==42);
+	assert(myformatid==l[0].formatID);
+	assert( 8        ==l[0].gtrid_length);
+	assert( 9        ==l[0].bqual_length);
+	for (int i=0; i<8+9; i++) {
+	    assert(l[0].data[i]==42+i);
+	}
+	{
+	    DB_TXN *txn;
+	    int r = env->get_txn_from_xid(env, &l[0], &txn);
+	    assert(r==0);
+	    CHK(txn->commit(txn, 0));
+	}
     }
     CHK(env2->close(env2, 0));
     CHK(env ->close(env,  0));
