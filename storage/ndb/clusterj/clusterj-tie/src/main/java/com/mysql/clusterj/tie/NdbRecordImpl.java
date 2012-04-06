@@ -447,7 +447,7 @@ public class NdbRecordImpl {
         Column storeColumn = storeColumns[columnId];
         if (storeColumn.getLength() == 4) {
             // the short was stored in a BIT column as four bytes
-            return (short)buffer.get(offsets[columnId]);
+            return (short)buffer.getInt(offsets[columnId]);
         } else {
             // the short was stored as a short
             return buffer.getShort(offsets[columnId]);
