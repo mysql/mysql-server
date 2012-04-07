@@ -1428,6 +1428,9 @@ prepare_inplace_alter_table_dict(
 	the data dictionary will be locked in crash recovery. */
 	trx_set_dict_operation(trx, TRX_DICT_OP_INDEX);
 
+	const bool exclusive = ha_alter_info->alter_info->requested_lock
+		== Alter_info::ALTER_TABLE_LOCK_EXCLUSIVE;
+
 	/* Acquire a lock on the table before creating any indexes. */
 	if (new_clustered) {
 		error = row_merge_lock_table(
@@ -1653,7 +1656,7 @@ col_fail:
 		requested, allocate a modification log. If the table
 		will be exclusively locked anyway, the modification
 		log is unnecessary. */
-		if (!num_fts_index
+		if (!exclusive && !num_fts_index
 		    && !(ha_alter_info->handler_flags
 			 & ~INNOBASE_ONLINE_OPERATIONS)) {
 			DBUG_EXECUTE_IF("innodb_OOM_prepare_inplace_alter",
@@ -1767,7 +1770,7 @@ error_handling:
 			add_index, add_key_nums, n_add_index,
 			drop_index, n_drop_index,
 			drop_foreign, n_drop_foreign,
-			!new_clustered && !num_fts_index,
+			!exclusive && !new_clustered && !num_fts_index,
 			heap, trx, indexed_table);
 		DBUG_RETURN(false);
 	case DB_TABLESPACE_ALREADY_EXISTS:
@@ -2107,11 +2110,14 @@ index_needed:
 
 	if (!(ha_alter_info->handler_flags & INNOBASE_INPLACE_CREATE)) {
 		if (heap) {
+			const bool exclusive
+				= ha_alter_info->alter_info->requested_lock
+				== Alter_info::ALTER_TABLE_LOCK_EXCLUSIVE;
 			ha_alter_info->handler_ctx
 				= new ha_innobase_inplace_ctx(
 					NULL, NULL, 0,
 					drop_index, n_drop_index,
-					drop_fk, n_drop_fk, true,
+					drop_fk, n_drop_fk, !exclusive,
 					heap, NULL, indexed_table);
 		}
 
