@@ -288,7 +288,7 @@ int mysql_update(THD *thd,
 
   DBUG_ENTER("mysql_update");
 
-  if (open_query_tables(thd))
+  if (open_normal_and_derived_tables(thd, table_list, 0))
     DBUG_RETURN(1);
 
   if (table_list->multitable_view)
@@ -438,7 +438,7 @@ int mysql_update(THD *thd,
       bitmap_copy(&table->part_info->lock_partitions, &lock_partitions);
   }
 #endif
-  if (lock_query_tables(thd))
+  if (lock_tables(thd, table_list, thd->lex->table_count, 0))
     DBUG_RETURN(1);
 
   /* Update the table->file->stats.records number */
@@ -1294,7 +1294,10 @@ int mysql_multi_update_prepare(THD *thd)
     keep prepare of multi-UPDATE compatible with concurrent LOCK TABLES WRITE
     and global read lock.
   */
-  if (original_multiupdate && open_query_tables(thd))
+  if (original_multiupdate &&
+      open_normal_and_derived_tables(thd, table_list,
+                                     (thd->stmt_arena->is_stmt_prepare() ?
+                                      MYSQL_OPEN_FORCE_SHARED_MDL : 0)))
     DBUG_RETURN(TRUE);
   /*
     setup_tables() need for VIEWs. JOIN::prepare() will call setup_tables()

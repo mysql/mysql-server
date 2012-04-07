@@ -1166,16 +1166,12 @@ mysql_select(THD *thd,
              SELECT_LEX *select_lex)
 {
   bool free_join= 1;
-  bool store_in_query_cache= false;
   uint og_num= 0;
   ORDER *first_order= NULL;
   ORDER *first_group= NULL;
   JOIN *join= NULL;
   DBUG_ENTER("mysql_select");
 
-  if (open_query_tables(thd))
-    DBUG_RETURN(true);
-  
   if (order)
   {
     og_num= order->elements;
@@ -1186,10 +1182,6 @@ mysql_select(THD *thd,
     og_num+= group->elements;
     first_group= group->first;
   }
-
-  /* Only register the query if it was opened above. */
-  if (thd->lex->tables_state < Query_tables_list::TABLES_STATE_LOCKED)
-    store_in_query_cache= true;
 
   if (mysql_prepare_select(thd, tables, wild_num, fields,
                            conds, og_num, first_order, first_group, having,
@@ -1204,23 +1196,36 @@ mysql_select(THD *thd,
     DBUG_RETURN(true);
   }
 
-  if (lock_query_tables(thd))
+  if (! thd->lex->is_query_tables_locked())
   {
-    if (free_join)
+    /*
+      If tables are not locked at this point, it means that we have delayed
+      this step until after prepare stage (i.e. this moment). This allows to
+      do better partition pruning and avoid locking unused partitions.
+      As a consequence, in such a case, prepare stage can rely only on
+      metadata about tables used and not data from them.
+      We need to lock tables now in order to proceed with the remaning
+      stages of query optimization and execution.
+    */
+    if (lock_tables(thd, thd->lex->query_tables, thd->lex->table_count, 0))
     {
-      thd_proc_info(thd, "end");
-      (void) select_lex->cleanup();
+      if (free_join)
+      {
+        thd_proc_info(thd, "end");
+        (void) select_lex->cleanup();
+      }
+      DBUG_RETURN(true);
     }
-    DBUG_RETURN(true);
-  }
 
-  /*
-    Tables must be locked before storing the query in the query cache.
-    Transactional engines must been signalled that the statement started,
-    which external_lock signals.
-  */
-  if (store_in_query_cache)
+    /*
+      Only register query in cache if it tables were locked above.
+
+      Tables must be locked before storing the query in the query cache.
+      Transactional engines must been signalled that the statement started,
+      which external_lock signals.
+    */
     query_cache_store_query(thd, thd->lex->query_tables);
+  }
 
   if (mysql_execute_select(thd, select_lex, free_join, join))
     DBUG_RETURN(true);

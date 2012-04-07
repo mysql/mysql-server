@@ -1567,8 +1567,13 @@ void close_thread_tables(THD *thd)
     /* Ensure we are calling ha_reset() for all used tables */
     mark_used_tables_as_free_for_reuse(thd, thd->open_tables);
 
-    /* Set the tables_state to be able to reopen/reuse the tables */
-    thd->lex->tables_state= Query_tables_list::TABLES_STATE_REUSABLE;
+    /*
+      Mark this statement as one that has "unlocked" its tables.
+      For purposes of Query_tables_list::lock_tables_state we treat
+      any statement which passed through close_thread_tables() as
+      such.
+    */
+    thd->lex->lock_tables_state= Query_tables_list::LTS_NOT_LOCKED;
 
     /*
       We are under simple LOCK TABLES or we're inside a sub-statement
@@ -1611,17 +1616,17 @@ void close_thread_tables(THD *thd)
      */
     (void)thd->binlog_flush_pending_rows_event(TRUE);
     mysql_unlock_tables(thd, thd->lock);
-    thd->lex->tables_state= Query_tables_list::TABLES_STATE_UNLOCKED;
     thd->lock=0;
   }
+
+  thd->lex->lock_tables_state= Query_tables_list::LTS_NOT_LOCKED;
+
   /*
     Closing a MERGE child before the parent would be fatal if the
     other thread tries to abort the MERGE lock in between.
   */
   if (thd->open_tables)
     close_open_tables(thd);
-
-  thd->lex->tables_state= Query_tables_list::TABLES_STATE_CLOSED;
 
   DBUG_VOID_RETURN;
 }
@@ -5662,101 +5667,6 @@ void open_and_lock_tables_cleanup(THD *thd,
 
 
 /**
-  Cleanup failed open or lock tables.
-
-  @param thd            Thread context.
-  @param mdl_savepoint  Savepoint for rollback.
-*/
-
-void open_and_lock_query_tables_cleanup(THD *thd)
-{
-  if (thd->lex->is_query_tables_opened())
-    open_and_lock_tables_cleanup(thd, thd->lex->mdl_open_savepoint);
-  thd->lex->tables_state= Query_tables_list::TABLES_STATE_CLOSED;
-}
-
-
-/**
-  Open query tables, open derived tables and prepares them.
-
-  @param         thd            Thread context.
-
-  @return Operation status
-    @retval false  OK
-    @retval true   Error
-*/
-
-bool open_query_tables(THD *thd)
-{
-  DBUG_ENTER("open_query_tables");
-
-  if (thd->lex->is_query_tables_opened())
-  {
-    DBUG_PRINT("info", ("Query tables already opened"));
-    DBUG_RETURN(false);
-  }
-
- 
-  thd->lex->mdl_open_savepoint= thd->mdl_context.mdl_savepoint();
-  
-  /* if prepare, then we must use shared mdl. */
-  if (open_tables(thd,
-                  &thd->lex->query_tables,
-                  &thd->lex->tables_lock_count,
-                  (thd->stmt_arena->is_stmt_prepare()
-                   ? MYSQL_OPEN_FORCE_SHARED_MDL : 0)))
-    DBUG_RETURN(true);
-
-  thd->lex->tables_state= Query_tables_list::TABLES_STATE_OPENED;
-
-  if (mysql_handle_derived(thd->lex, &mysql_derived_prepare))
-  {
-    open_and_lock_query_tables_cleanup(thd);
-    DBUG_RETURN(true);
-  }
-  
-  thd->lex->tables_state= Query_tables_list::TABLES_STATE_DERIVED_PREPARED;
-
-  DBUG_RETURN(false);
-}
-
-
-/**
-  Lock query tables.
-
-  @param         thd            Thread context.
-
-  @return Operation status
-    @retval false  OK
-    @retval true   Error
-*/
-
-bool lock_query_tables(THD *thd)
-{
-  DBUG_ENTER("lock_query_tables");
-
-  if (thd->lex->is_query_tables_locked())
-  {
-    DBUG_PRINT("info", ("Query tables already locked"));
-    DBUG_RETURN(false);
-  }
-
-  DBUG_ASSERT(thd->lex->tables_state >=
-              Query_tables_list::TABLES_STATE_OPENED);
-
-  if (lock_tables(thd,
-                  thd->lex->query_tables,
-                  thd->lex->tables_lock_count, 0))
-  {
-    open_and_lock_query_tables_cleanup(thd);
-    DBUG_RETURN(true);
-  }
-  thd->lex->tables_state= Query_tables_list::TABLES_STATE_LOCKED;
-  DBUG_RETURN(false);
-}
-
-
-/**
   Open all tables in list, locks them and optionally process derived tables.
 
   @param thd		      Thread context.
@@ -5808,34 +5718,33 @@ err:
 }
 
 
-/*
+/**
   Open all tables in list and process derived tables
 
-  SYNOPSIS
-    open_normal_and_derived_tables
-    thd		- thread handler
-    tables	- list of tables for open
-    flags       - bitmap of flags to modify how the tables will be open:
-                  MYSQL_LOCK_IGNORE_FLUSH - open table even if someone has
-                  done a flush on it.
+  @param       thd      thread handler
+  @param       tables   list of tables for open
+  @param       flags    bitmap of flags to modify how the tables will be open:
+                        MYSQL_LOCK_IGNORE_FLUSH - open table even if someone has
+                        done a flush on it.
 
-  RETURN
-    FALSE - ok
-    TRUE  - error
+  @retval FALSE - ok
+  @retval TRUE  - error
 
-  NOTE 
+  @note
     This is to be used on prepare stage when you don't read any
     data from the tables.
+
+  @note
+    Updates Query_tables_list::table_count as side-effect.
 */
 
 bool open_normal_and_derived_tables(THD *thd, TABLE_LIST *tables, uint flags)
 {
   DML_prelocking_strategy prelocking_strategy;
-  uint counter;
   MDL_savepoint mdl_savepoint= thd->mdl_context.mdl_savepoint();
   DBUG_ENTER("open_normal_and_derived_tables");
-  DBUG_ASSERT(!thd->fill_derived_tables());
-  if (open_tables(thd, &tables, &counter, flags, &prelocking_strategy) ||
+  if (open_tables(thd, &tables, &thd->lex->table_count, flags,
+                  &prelocking_strategy) ||
       mysql_handle_derived(thd->lex, &mysql_derived_prepare))
     goto end;
 
@@ -5925,8 +5834,23 @@ bool lock_tables(THD *thd, TABLE_LIST *tables, uint count,
   DBUG_ASSERT(thd->locked_tables_mode <= LTM_LOCK_TABLES ||
               !thd->lex->requires_prelocking());
 
+  /*
+    lock_tables() should not be called if this statement has
+    already locked its tables.
+  */
+  DBUG_ASSERT(thd->lex->lock_tables_state == Query_tables_list::LTS_NOT_LOCKED);
+
   if (!tables && !thd->lex->requires_prelocking())
+  {
+    /*
+      Even though we are not really locking any tables mark this
+      statement as one that has locked its tables, so we won't
+      call this function second time for the same execution of
+      the same statement.
+    */
+    thd->lex->lock_tables_state= Query_tables_list::LTS_LOCKED;
     DBUG_RETURN(thd->decide_logging_format(tables));
+  }
 
   /*
     Check for thd->locked_tables_mode to avoid a redundant
@@ -6078,6 +6002,13 @@ bool lock_tables(THD *thd, TABLE_LIST *tables, uint count,
       thd->locked_tables_mode= LTM_PRELOCKED_UNDER_LOCK_TABLES;
     }
   }
+
+  /*
+    Mark the statement as having tables locked. For purposes
+    of Query_tables_list::lock_tables_state we treat any
+    statement which passes through lock_tables() as such.
+  */
+  thd->lex->lock_tables_state= Query_tables_list::LTS_LOCKED;
 
   DBUG_RETURN(thd->decide_logging_format(tables));
 }
@@ -9568,7 +9499,6 @@ open_system_tables_for_read(THD *thd, TABLE_LIST *table_list,
     we also have to backup and reset/and then restore part of LEX
     which is accessed by open_tables() in order to determine if
     prelocking is needed and what tables should be added for it.
-    close_system_tables() doesn't require such treatment.
   */
   lex->reset_n_backup_query_tables_list(&query_tables_list_backup);
   thd->reset_n_backup_open_tables_state(backup);
@@ -9607,7 +9537,16 @@ open_system_tables_for_read(THD *thd, TABLE_LIST *table_list,
 void
 close_system_tables(THD *thd, Open_tables_backup *backup)
 {
+  Query_tables_list query_tables_list_backup;
+
+  /*
+    In order not affect execution of current statement we have to
+    backup/reset/restore Query_tables_list part of LEX, which is
+    accessed and updated in the process of closing tables.
+  */
+  thd->lex->reset_n_backup_query_tables_list(&query_tables_list_backup);
   close_thread_tables(thd);
+  thd->lex->restore_backup_query_tables_list(&query_tables_list_backup);
   thd->restore_backup_open_tables_state(backup);
 }
 

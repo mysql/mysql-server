@@ -2778,8 +2778,8 @@ void Query_tables_list::reset_query_tables_list(bool init)
   sroutines_list_own_elements= 0;
   binlog_stmt_flags= 0;
   stmt_accessed_table_flag= 0;
-  tables_state= TABLES_STATE_NONE;
-  tables_lock_count= 0;
+  lock_tables_state= LTS_NOT_LOCKED;
+  table_count= 0;
 }
 
 

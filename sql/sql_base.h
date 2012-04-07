@@ -244,8 +244,6 @@ bool open_tables(THD *thd, TABLE_LIST **tables, uint *counter, uint flags,
                  Prelocking_strategy *prelocking_strategy);
 void open_and_lock_tables_cleanup(THD *thd,
                                   const MDL_savepoint &mdl_savepoint);
-void open_and_lock_query_tables_cleanup(THD *thd);
-bool open_query_tables(THD *thd);
 /* open_and_lock_tables with optional derived handling */
 bool open_and_lock_tables(THD *thd, TABLE_LIST *tables,
                           bool derived, uint flags,
@@ -256,7 +254,6 @@ TABLE *open_n_lock_single_table(THD *thd, TABLE_LIST *table_l,
                                 Prelocking_strategy *prelocking_strategy);
 bool open_normal_and_derived_tables(THD *thd, TABLE_LIST *tables, uint flags);
 bool lock_tables(THD *thd, TABLE_LIST *tables, uint counter, uint flags);
-bool lock_query_tables(THD *thd);
 void free_io_cache(TABLE *entry);
 void intern_close_table(TABLE *entry);
 bool close_thread_table(THD *thd, TABLE **table_ptr);

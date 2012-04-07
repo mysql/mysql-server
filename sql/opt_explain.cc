@@ -21,7 +21,7 @@
 #include "sql_partition.h" // for make_used_partitions_str()
 #include "sql_join_buffer.h" // JOIN_CACHE
 #include "opt_explain_format.h"
-#include "sql_base.h"      // open_query_tables, lock_query_tables
+#include "sql_base.h"      // lock_tables
 
 typedef qep_row::extra extra;
 
@@ -1963,17 +1963,23 @@ bool mysql_explain_unit(THD *thd, SELECT_LEX_UNIT *unit, select_result *result)
     unit->fake_select_lex->select_number= UINT_MAX; // just for initialization
     unit->fake_select_lex->options|= SELECT_DESCRIBE;
 
-    if (open_query_tables(thd))
-      DBUG_RETURN(true);
-
     res= unit->prepare(thd, result, SELECT_NO_UNLOCK | SELECT_DESCRIBE);
 
     if (res)
       DBUG_RETURN(res);
 
-    if (lock_query_tables(thd))
+    /*
+      If tables are not locked at this point, it means that we have delayed
+      this step until after prepare stage (now), in order to do better
+      partition pruning.
+
+      We need to lock tables now in order to proceed with the remaning
+      stages of query optimization.
+    */
+    if (! thd->lex->is_query_tables_locked() &&
+        lock_tables(thd, thd->lex->query_tables, thd->lex->table_count, 0))
       DBUG_RETURN(true);
-    
+
     res= unit->optimize();
 
     if (!res)

@@ -90,7 +90,7 @@ When one supplies long data for a placeholder:
 #include "set_var.h"
 #include "sql_prepare.h"
 #include "sql_parse.h" // insert_precheck, update_precheck, delete_precheck
-#include "sql_base.h"  // open_query_tables
+#include "sql_base.h"  // open_normal_and_derived_tables
 #include "sql_cache.h"                          // query_cache_*
 #include "sql_view.h"                          // create_view_precheck
 #include "sql_delete.h"                        // mysql_prepare_delete
@@ -1269,7 +1269,8 @@ static bool mysql_test_insert(Prepared_statement *stmt,
     If we would use locks, then we have to ensure we are not using
     TL_WRITE_DELAYED as having two such locks can cause table corruption.
   */
-  if (open_query_tables(thd))
+  if (open_normal_and_derived_tables(thd, table_list,
+                                     MYSQL_OPEN_FORCE_SHARED_MDL))
     goto error;
 
   if ((values= its++))
@@ -1349,7 +1350,8 @@ static int mysql_test_update(Prepared_statement *stmt,
   DBUG_ENTER("mysql_test_update");
 
   if (update_precheck(thd, table_list) ||
-      open_query_tables(thd))
+      open_normal_and_derived_tables(thd, table_list,
+                                     MYSQL_OPEN_FORCE_SHARED_MDL))
     goto error;
 
   if (table_list->multitable_view)
@@ -1426,7 +1428,8 @@ static bool mysql_test_delete(Prepared_statement *stmt,
   DBUG_ASSERT(stmt->is_stmt_prepare());
 
   if (delete_precheck(thd, table_list) ||
-      open_query_tables(thd))
+      open_normal_and_derived_tables(thd, table_list,
+                                     MYSQL_OPEN_FORCE_SHARED_MDL))
     goto error;
 
   if (!table_list->table)
@@ -1478,7 +1481,7 @@ static int mysql_test_select(Prepared_statement *stmt,
     goto error;
   }
 
-  if (open_query_tables(thd))
+  if (open_normal_and_derived_tables(thd, tables, MYSQL_OPEN_FORCE_SHARED_MDL))
     goto error;
 
   thd->lex->used_tables= 0;                        // Updated by setup_fields
@@ -1540,7 +1543,7 @@ static bool mysql_test_do_fields(Prepared_statement *stmt,
                                    UINT_MAX, FALSE))
     DBUG_RETURN(TRUE);
 
-  if (open_query_tables(thd))
+  if (open_normal_and_derived_tables(thd, tables, MYSQL_OPEN_FORCE_SHARED_MDL))
     DBUG_RETURN(TRUE);
   DBUG_RETURN(setup_fields(thd, Ref_ptr_array(),
                            *values, MARK_COLUMNS_NONE, 0, 0));
@@ -1572,7 +1575,7 @@ static bool mysql_test_set_fields(Prepared_statement *stmt,
 
   if ((tables && check_table_access(thd, SELECT_ACL, tables, FALSE,
                                     UINT_MAX, FALSE)) ||
-      open_query_tables(thd))
+      open_normal_and_derived_tables(thd, tables, MYSQL_OPEN_FORCE_SHARED_MDL))
     goto error;
 
   while ((var= it++))
@@ -1609,7 +1612,7 @@ static bool mysql_test_call_fields(Prepared_statement *stmt,
 
   if ((tables && check_table_access(thd, SELECT_ACL, tables, FALSE,
                                     UINT_MAX, FALSE)) ||
-      open_query_tables(thd))
+      open_normal_and_derived_tables(thd, tables, MYSQL_OPEN_FORCE_SHARED_MDL))
     goto err;
 
   while ((item= it++))
@@ -1689,11 +1692,12 @@ select_like_stmt_test_with_open(Prepared_statement *stmt,
 
   /*
     We should not call LEX::unit.cleanup() after this
-    open_query_tables() call because we don't allow
+    open_normal_and_derived_tables() call because we don't allow
     prepared EXPLAIN yet so derived tables will clean up after
     themself.
   */
-  if (open_query_tables(stmt->thd))
+  if (open_normal_and_derived_tables(stmt->thd, tables,
+                                     MYSQL_OPEN_FORCE_SHARED_MDL))
     DBUG_RETURN(TRUE);
 
   DBUG_RETURN(select_like_stmt_test(stmt, specific_prepare,
@@ -1734,7 +1738,8 @@ static bool mysql_test_create_table(Prepared_statement *stmt)
     if (!(lex->create_info.options & HA_LEX_CREATE_TMP_TABLE))
       create_table->open_type= OT_BASE_ONLY;
 
-    if (open_query_tables(stmt->thd))
+    if (open_normal_and_derived_tables(stmt->thd, lex->query_tables,
+                                       MYSQL_OPEN_FORCE_SHARED_MDL))
       DBUG_RETURN(TRUE);
 
     select_lex->context.resolve_in_select_list= TRUE;
@@ -1753,7 +1758,8 @@ static bool mysql_test_create_table(Prepared_statement *stmt)
       we validate metadata of all CREATE TABLE statements,
       which keeps metadata validation code simple.
     */
-    if (open_query_tables(stmt->thd))
+    if (open_normal_and_derived_tables(stmt->thd, lex->query_tables,
+                                       MYSQL_OPEN_FORCE_SHARED_MDL))
       DBUG_RETURN(TRUE);
   }
 
@@ -1794,7 +1800,7 @@ static bool mysql_test_create_view(Prepared_statement *stmt)
   if (open_temporary_tables(thd, tables))
     goto err;
 
-  if (open_query_tables(thd))
+  if (open_normal_and_derived_tables(thd, tables, MYSQL_OPEN_FORCE_SHARED_MDL))
     goto err;
 
   lex->context_analysis_only|=  CONTEXT_ANALYSIS_ONLY_VIEW;
@@ -1834,6 +1840,18 @@ static bool mysql_test_multiupdate(Prepared_statement *stmt,
 
 
 /**
+  Wrapper for mysql_multi_delete_prepare() function which makes
+  it compatible with select_like_stmt_test_with_open().
+*/
+
+static int mysql_multi_delete_prepare_tester(THD *thd)
+{
+  uint table_count;
+  return mysql_multi_delete_prepare(thd, &table_count);
+}
+
+
+/**
   Validate and prepare for execution a multi delete statement.
 
   @param stmt               prepared statement
@@ -1857,7 +1875,7 @@ static bool mysql_test_multidelete(Prepared_statement *stmt,
 
   if (multi_delete_precheck(stmt->thd, tables) ||
       select_like_stmt_test_with_open(stmt, tables,
-                                      &mysql_multi_delete_prepare,
+                                      &mysql_multi_delete_prepare_tester,
                                       OPTION_SETUP_TABLES_DONE))
     goto error;
   if (!tables->table)
@@ -1874,13 +1892,13 @@ error:
 
 /**
   Wrapper for mysql_insert_select_prepare, to make change of local tables
-  after open_query_tables() call.
+  after open_normal_and_derived_tables() call.
 
   @param thd                thread handle
 
   @note
     We need to remove the first local table after
-    open_query_tables(), because mysql_handle_derived
+    open_normal_and_derived_tables(), because mysql_handle_derived
     uses local tables lists.
 */
 
