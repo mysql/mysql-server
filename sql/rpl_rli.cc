@@ -97,6 +97,7 @@ Relay_log_info::Relay_log_info(bool is_slave_recovery
 
 #ifdef HAVE_PSI_INTERFACE
   relay_log.set_psi_keys(key_RELAYLOG_LOCK_index,
+                         key_RELAYLOG_LOCK_queue,
                          key_RELAYLOG_update_cond,
                          key_file_relaylog,
                          key_file_relaylog_index);

@@ -24,12 +24,120 @@ class Relay_log_info;
 
 class Format_description_log_event;
 
+/**
+  Class for maintaining the thread queue.
+
+  The queue is designed so that it should be fast to enqueue new items
+  and fast to empty and grab the entire queue.
+
+  Currently the implementation is using locks, but if it turns out to
+  be a problem, it can be upgraded to be lock-free.
+ */
+class Thread_queue {
+public:
+  Thread_queue()
+    : m_first(NULL), m_last(&m_first)
+  {
+  }
+
+  ~Thread_queue()
+  {
+  }
+
+  void init(PSI_mutex_key key_LOCK_queue)
+  {
+    mysql_mutex_init(key_LOCK_queue, &m_lock, MY_MUTEX_INIT_FAST);
+  }
+
+  void deinit(PSI_mutex_key key_LOCK_queue)
+  {
+    mysql_mutex_destroy(&m_lock);
+  }
+
+  /**
+    Queue thread.
+
+    This will queue the session thread for writing and flushing.
+
+    @param thd Session to queue
+   */
+  void enqueue(THD *thd, bool all)
+  {
+    mysql_mutex_lock(&m_lock);
+    /*
+      These values are used while flushing a transaction, so clear
+      everything.
+
+      Note: It would be good if we could keep transaction coordinator
+      log-specific data out of the THD structure, but that is not the
+      case right now.
+
+      Note: Everything in the transaction structure is reset when
+      calling ha_commit_low since that calls st_transaction::cleanup.
+     */
+    thd->transaction.flags.real_commit= all;
+    thd->transaction.flags.pending= true;
+    thd->transaction.flags.commit_low= true;
+    thd->commit_error= 0;
+    thd->next_to_commit= NULL;
+
+    /* Queue the thread */
+    *m_last= thd;
+    m_last= &thd->next_to_commit;
+    mysql_mutex_unlock(&m_lock);
+  }
+
+  /**
+    Fetch the entire queue.
+
+    This will fetch the entire queue in one go and return a pointer to
+    the first thread.
+
+    @post Queue is empty.
+
+    @return Pointer to first thread in the queue, or NULL if the queue
+    is empty.
+   */
+  THD *fetch_queue()
+  {
+    mysql_mutex_lock(&m_lock);
+    THD *result= m_first;
+    m_last= &m_first;
+    m_first= NULL;
+    mysql_mutex_unlock(&m_lock);
+    return result;
+  }
+
+private:
+  /**
+    Pointer to the first thread in the queue, or NULL if the queue is
+    empty.
+   */
+  THD *m_first;
+
+  /**
+   Pointer to the location holding the end of the queue.
+
+   This is either @c &first, or a pointer to the @c next_to_commit of
+   the last thread that is enqueued.
+  */
+  THD **m_last;
+
+  /**
+    Lock for protecting the queue.
+   */
+  mysql_mutex_t m_lock;
+};
+
+
 class MYSQL_BIN_LOG: public TC_LOG, private MYSQL_LOG
 {
  private:
 #ifdef HAVE_PSI_INTERFACE
   /** The instrumentation key to use for @ LOCK_index. */
   PSI_mutex_key m_key_LOCK_index;
+  /** The instrumentation key to use for @ LOCK_queue. */
+  PSI_mutex_key m_key_LOCK_queue;
   /** The instrumentation key to use for @ update_cond. */
   PSI_cond_key m_key_update_cond;
   /** The instrumentation key to use for opening the log file. */
@@ -39,8 +147,6 @@ class MYSQL_BIN_LOG: public TC_LOG, private MYSQL_LOG
 #endif
   /* LOCK_log and LOCK_index are inited by init_pthread_objects() */
   mysql_mutex_t LOCK_index;
-  mysql_mutex_t LOCK_prep_xids;
-  mysql_cond_t  COND_prep_xids;
   mysql_cond_t update_cond;
   ulonglong bytes_written;
   IO_CACHE index_file;
@@ -70,9 +176,6 @@ class MYSQL_BIN_LOG: public TC_LOG, private MYSQL_LOG
      fix_max_relay_log_size).
   */
   ulong max_size;
-  long prepared_xids; /* for tc log - number of xids to remember */
-  void inc_prepared_xids();
-  void dec_prepared_xids();
 
   // current file sequence number for load data infile binary logging
   uint file_id;
@@ -107,6 +210,12 @@ class MYSQL_BIN_LOG: public TC_LOG, private MYSQL_LOG
   */
   int new_file_without_locking();
   int new_file_impl(bool need_lock);
+
+  /**
+    Queue of threads waiting to be flushed to binary log.
+   */
+  Thread_queue flush_queue;
+  void do_flush(THD *thd);
 
 public:
   using MYSQL_LOG::generate_name;
@@ -170,11 +279,13 @@ public:
 
 #ifdef HAVE_PSI_INTERFACE
   void set_psi_keys(PSI_mutex_key key_LOCK_index,
+                    PSI_mutex_key key_LOCK_queue,
                     PSI_cond_key key_update_cond,
                     PSI_file_key key_file_log,
                     PSI_file_key key_file_log_index)
   {
     m_key_LOCK_index= key_LOCK_index;
+    m_key_LOCK_queue= key_LOCK_queue;
     m_key_update_cond= key_update_cond;
     m_key_file_log= key_file_log;
     m_key_file_log_index= key_file_log_index;
@@ -206,6 +317,7 @@ private:
   Gtid_set* previous_gtid_set;
 
   int open(const char *opt_name) { return open_binlog(opt_name); }
+  int ordered_commit(THD *thd, bool all, bool skip_commit = false);
 public:
   int open_binlog(const char *opt_name);
   void close();
@@ -283,9 +395,8 @@ public:
   int new_file();
 
   bool write_event(Log_event* event_info);
-  bool write_cache(THD *thd, class binlog_cache_data *binlog_cache_data,
-                   bool prepared);
-  int  do_write_cache(IO_CACHE *cache, bool lock_log, bool flush_and_sync);
+  bool write_cache(THD *thd, class binlog_cache_data *binlog_cache_data);
+  int  do_write_cache(IO_CACHE *cache, bool lock_log, bool sync_log);
 
   void set_write_error(THD *thd, bool is_transactional);
   bool check_write_error(THD *thd);

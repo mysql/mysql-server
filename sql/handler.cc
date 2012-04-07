@@ -1360,7 +1360,6 @@ int ha_commit_trans(THD *thd, bool all)
     goto end;
   }
   DBUG_EXECUTE_IF("crash_commit_after", DBUG_SUICIDE(););
-  (void) RUN_HOOK(transaction, after_commit, (thd, FALSE));
 end:
   if (release_mdl && mdl_request.ticket)
   {
@@ -1523,7 +1522,6 @@ int ha_rollback_trans(THD *thd, bool all)
       thd->transaction.all.cannot_safely_rollback() &&
       !thd->slave_thread && thd->killed != THD::KILL_CONNECTION)
     thd->transaction.push_unsafe_rollback_warnings(thd);
-  (void) RUN_HOOK(transaction, after_rollback, (thd, FALSE));
   DBUG_RETURN(error);
 }
 
@@ -4346,7 +4344,7 @@ int ha_enable_transaction(THD *thd, bool on)
   DBUG_ENTER("ha_enable_transaction");
   DBUG_PRINT("enter", ("on: %d", (int) on));
 
-  if ((thd->transaction.on= on))
+  if ((thd->transaction.flags.enabled= on))
   {
     /*
       Now all storage engines should have transaction handling enabled.
