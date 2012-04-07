@@ -269,9 +269,9 @@ public class NdbRecordImpl {
         int columnId = storeColumn.getColumnId();
         if (storeColumn.getLength() == 4) {
             // the byte is stored as a BIT array of four bytes
-            buffer.putInt(offsets[columnId], value);
+            buffer.putInt(offsets[columnId], value & 0xff);
         } else {
-            buffer.put(offsets[columnId], (byte)value);
+            buffer.put(offsets[columnId], value);
         }
         buffer.limit(bufferSize);
         buffer.position(0);
@@ -342,7 +342,7 @@ public class NdbRecordImpl {
         int columnId = storeColumn.getColumnId();
         if (storeColumn.getLength() == 4) {
             // the short is stored as a BIT array of four bytes
-            buffer.putInt(offsets[columnId], value);
+            buffer.putInt(offsets[columnId], value & 0xffff);
         } else {
             buffer.putShort(offsets[columnId], (short)value);
         }
