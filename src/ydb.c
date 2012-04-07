@@ -1499,7 +1499,7 @@ locked_env_close(DB_ENV * env, u_int32_t flags) {
 }
 
 static int
-toku_env_txn_xa_recover (DB_ENV *env, XID xids[/*count*/], long count, /*out*/ long *retp, u_int32_t flags) {
+toku_env_txn_xa_recover (DB_ENV *env, TOKU_XA_XID xids[/*count*/], long count, /*out*/ long *retp, u_int32_t flags) {
     struct tokulogger_preplist *MALLOC_N(count,preps);
     int r = toku_logger_recover_txn(env->i->logger, preps, count, retp, flags);
     if (r==0) {
@@ -1536,7 +1536,7 @@ locked_env_txn_recover (DB_ENV *env, DB_PREPLIST preplist[/*count*/], long count
     return r;
 }
 static int
-locked_env_txn_xa_recover (DB_ENV *env, XID xids[/*count*/], long count, /*out*/ long *retp, u_int32_t flags) {
+locked_env_txn_xa_recover (DB_ENV *env, TOKU_XA_XID xids[/*count*/], long count, /*out*/ long *retp, u_int32_t flags) {
     toku_ydb_lock();
     int r = toku_env_txn_xa_recover(env, xids, count, retp, flags);
     toku_ydb_unlock();
@@ -1544,12 +1544,12 @@ locked_env_txn_xa_recover (DB_ENV *env, XID xids[/*count*/], long count, /*out*/
 }
 
 static int
-toku_env_get_txn_from_xid (DB_ENV *env, /*in*/XID *xid, /*out*/ DB_TXN **txnp) {
+toku_env_get_txn_from_xid (DB_ENV *env, /*in*/ TOKU_XA_XID *xid, /*out*/ DB_TXN **txnp) {
     return toku_logger_get_txn_from_xid(env->i->logger, xid, txnp);
 }
 
 static int
-locked_env_get_txn_from_xid (DB_ENV *env, /*in*/XID *xid, /*out*/ DB_TXN **txnp) {
+locked_env_get_txn_from_xid (DB_ENV *env, /*in*/ TOKU_XA_XID *xid, /*out*/ DB_TXN **txnp) {
     toku_ydb_lock();
     int r = toku_env_get_txn_from_xid(env, xid, txnp);
     toku_ydb_unlock();

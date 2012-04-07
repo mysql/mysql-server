@@ -17,12 +17,12 @@ extern "C" {
 #define DB_VERSION_PATCH 119
 #define DB_VERSION_STRING "Tokutek: TokuDB 4.6.119"
 #define DB_GID_SIZE 128
-typedef struct xid_t { /* This struct is intended to be binary compatible with the XID in the XA architecture.  See source:/import/opengroup.org/C193.pdf */
+typedef struct toku_xa_xid_s { /* This struct is intended to be binary compatible with the XID in the XA architecture.  See source:/import/opengroup.org/C193.pdf */
     long formatID;                  /* format identifier */
     long gtrid_length;              /* value from 1 through 64 */
     long bqual_length;              /* value from 1 through 64 */
     char data[DB_GID_SIZE];
-} XID;
+} TOKU_XA_XID;
 #ifndef TOKU_OFF_T_DEFINED
 #define TOKU_OFF_T_DEFINED
 typedef int64_t toku_off_t;
@@ -240,8 +240,8 @@ struct __toku_db_env {
   void (*set_update)                          (DB_ENV *env, int (*update_function)(DB *, const DBT *key, const DBT *old_val, const DBT *extra, void (*set_val)(const DBT *new_val, void *set_extra), void *set_extra));
   int (*set_lock_timeout)                     (DB_ENV *env, uint64_t lock_wait_time_msec);
   int (*get_lock_timeout)                     (DB_ENV *env, uint64_t *lock_wait_time_msec);
-  int (*txn_xa_recover)                       (DB_ENV*, XID list[/*count*/], long count, /*out*/ long *retp, u_int32_t flags);
-  int (*get_txn_from_xid)                 (DB_ENV*, /*in*/ XID *, /*out*/ DB_TXN **);
+  int (*txn_xa_recover)                       (DB_ENV*, TOKU_XA_XID list[/*count*/], long count, /*out*/ long *retp, u_int32_t flags);
+  int (*get_txn_from_xid)                 (DB_ENV*, /*in*/ TOKU_XA_XID *, /*out*/ DB_TXN **);
   void *app_private;
   void *api1_internal;
   int  (*close) (DB_ENV *, u_int32_t);
@@ -368,7 +368,7 @@ struct __toku_db_txn {
   struct toku_list open_txns;
   int (*commit_with_progress)(DB_TXN*, uint32_t, TXN_PROGRESS_POLL_FUNCTION, void*);
   int (*abort_with_progress)(DB_TXN*, TXN_PROGRESS_POLL_FUNCTION, void*);
-  int (*xa_prepare) (DB_TXN*, XID *);
+  int (*xa_prepare) (DB_TXN*, TOKU_XA_XID *);
   DB_ENV *mgrp /*In TokuDB, mgrp is a DB_ENV not a DB_TXNMGR*/;
   DB_TXN *parent;
   void *api_internal;

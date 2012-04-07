@@ -217,7 +217,7 @@ toku_txn_abort_only(DB_TXN * txn,
 }
 
 static int
-toku_txn_xa_prepare (DB_TXN *txn, XID *xid) {
+toku_txn_xa_prepare (DB_TXN *txn, TOKU_XA_XID *xid) {
     if (!txn) return EINVAL;
     if (txn->parent) return EINVAL;
     HANDLE_PANICKED_ENV(txn->mgrp);
@@ -244,7 +244,7 @@ toku_txn_xa_prepare (DB_TXN *txn, XID *xid) {
 
 static int
 toku_txn_prepare (DB_TXN *txn, u_int8_t gid[DB_GID_SIZE]) {
-    XID xid;
+    TOKU_XA_XID xid;
     ANNOTATE_NEW_MEMORY(&xid, sizeof(xid));
     xid.formatID=0x756b6f54; // "Toku"
     xid.gtrid_length=DB_GID_SIZE/2;  // The maximum allowed gtrid length is 64.  See the XA spec in source:/import/opengroup.org/C193.pdf page 20.
@@ -336,7 +336,7 @@ locked_txn_prepare (DB_TXN *txn, u_int8_t gid[DB_GID_SIZE]) {
 }
 
 static int
-locked_txn_xa_prepare (DB_TXN *txn, XID *xid) {
+locked_txn_xa_prepare (DB_TXN *txn, TOKU_XA_XID *xid) {
     toku_ydb_lock(); int r = toku_txn_xa_prepare (txn, xid); toku_ydb_unlock(); return r;
 }
 

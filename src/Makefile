@@ -79,7 +79,7 @@ export.def: export.map Makefile
 
 buildlocktrees: $(LOCKTREE) $(RANGETREE) ;
 
-$(LIBRARY):  $(OBJS) $(LOCKTREE) $(RANGETREE) $(NEWBRT) $(DEPEND_COMPILE) $(DEPEND_LINK) 
+$(LIBRARY):  $(OBJS) $(LOCKTREE) $(RANGETREE) ../lib/libnewbrt.a $(DEPEND_COMPILE) $(DEPEND_LINK) 
 $(LIBRARY): LINK_FILES=$(OBJS) $(LOCKTREE) $(RANGETREE) ../lib/libnewbrt.a $(LZMA_A)
 ifeq ($(CC),icc)
  ifeq ($(HAVE_CILK),1)

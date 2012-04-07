@@ -3548,7 +3548,7 @@ log_open_txn (OMTVALUE txnv, u_int32_t UU(index), void *UU(extra)) {
 	return 0;
     }
     case TOKUTXN_PREPARING: {
-	XID xa_xid;
+	TOKU_XA_XID xa_xid;
 	toku_txn_get_prepared_xa_xid(txn, &xa_xid);
 	int r = toku_log_xstillopenprepared(logger, NULL, 0,
 					    toku_txn_get_txnid(txn),
