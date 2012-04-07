@@ -91,6 +91,7 @@ public:
 
   inline bool is_empty()
   {
+    DBUG_PRINT("debug", ("is_empty: %d", observer_info_list.is_empty()));
     return observer_info_list.is_empty();
   }
 
