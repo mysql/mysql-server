@@ -15116,6 +15116,7 @@ free_tmp_table(THD *thd, TABLE *entry)
     else
       entry->file->ha_delete_table(entry->s->table_name.str);
     delete entry->file;
+    entry->file= 0;
   }
 
   /* free blobs */
