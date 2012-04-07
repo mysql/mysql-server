@@ -71,7 +71,7 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, Item *conds,
   THD::enum_binlog_query_type query_type= THD::ROW_QUERY_TYPE;
   DBUG_ENTER("mysql_delete");
 
-  if (open_query_tables(thd))
+  if (open_normal_and_derived_tables(thd, table_list, 0))
     DBUG_RETURN(TRUE);
 
   if (!(table= table_list->table))
@@ -118,7 +118,7 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, Item *conds,
     goto exit_all_parts_pruned_away;
 #endif
 
-  if (lock_query_tables(thd))
+  if (lock_tables(thd, table_list, thd->lex->table_count, 0))
     DBUG_RETURN(true);
 
   const_cond= (!conds || conds->const_item());
@@ -556,19 +556,17 @@ extern "C" int refpos_order_cmp(const void* arg, const void *a,const void *b)
   return file->cmp_ref((const uchar*)a, (const uchar*)b);
 }
 
-/*
-  make delete specific preparation and checks after opening tables
+/**
+  Make delete specific preparation and checks after opening tables.
 
-  SYNOPSIS
-    mysql_multi_delete_prepare()
-    thd         thread handler
+  @param      thd          Thread context.
+  @param[out] table_count  Number of tables to be deleted from.
 
-  RETURN
-    FALSE OK
-    TRUE  Error
+  @retval FALST - success.
+  @retval TRUE  - error.
 */
 
-int mysql_multi_delete_prepare(THD *thd)
+int mysql_multi_delete_prepare(THD *thd, uint *table_count)
 {
   LEX *lex= thd->lex;
   TABLE_LIST *aux_tables= lex->auxiliary_table_list.first;
@@ -588,6 +586,7 @@ int mysql_multi_delete_prepare(THD *thd)
                                     DELETE_ACL, SELECT_ACL))
     DBUG_RETURN(TRUE);
 
+  *table_count= 0;
 
   /*
     Multi-delete can't be constructed over-union => we always have
@@ -599,6 +598,8 @@ int mysql_multi_delete_prepare(THD *thd)
        target_tbl;
        target_tbl= target_tbl->next_local)
   {
+    ++(*table_count);
+
     if (!(target_tbl->table= target_tbl->correspondent_table->table))
     {
       DBUG_ASSERT(target_tbl->correspondent_table->view &&

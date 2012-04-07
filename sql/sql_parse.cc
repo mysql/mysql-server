@@ -2461,8 +2461,7 @@ case SQLCOM_PREPARE:
   }
   case SQLCOM_DO:
     if (check_table_access(thd, SELECT_ACL, all_tables, FALSE, UINT_MAX, FALSE)
-        || open_query_tables(thd)
-        || lock_query_tables(thd))
+        || open_and_lock_tables(thd, all_tables, TRUE, 0))
       goto error;
 
     res= mysql_do(thd, *lex->insert_list);
@@ -2777,7 +2776,7 @@ case SQLCOM_PREPARE:
         goto end_with_restore_list;
       }
 
-      if (!(res= open_query_tables(thd)))
+      if (!(res= open_normal_and_derived_tables(thd, all_tables, 0)))
       {
         /* The table already exists */
         if (create_table->table || create_table->view)
@@ -3291,7 +3290,7 @@ end_with_restore_list:
 
     unit->set_limit(select_lex);
 
-    if (!(res= open_query_tables(thd)))
+    if (!(res= open_normal_and_derived_tables(thd, all_tables, 0)))
     {
       MYSQL_INSERT_SELECT_START(thd->query());
       /* Skip first table, which is the table we are inserting in */
@@ -3367,6 +3366,7 @@ end_with_restore_list:
   {
     DBUG_ASSERT(first_table == all_tables && first_table != 0);
     TABLE_LIST *aux_tables= thd->lex->auxiliary_table_list.first;
+    uint del_table_count;
     multi_delete *del_result;
 
     if ((res= multi_delete_precheck(thd, all_tables)))
@@ -3379,18 +3379,18 @@ end_with_restore_list:
       goto error;
 
     THD_STAGE_INFO(thd, stage_init);
-    if ((res= open_query_tables(thd)))
+    if ((res= open_normal_and_derived_tables(thd, all_tables, 0)))
       break;
 
     MYSQL_MULTI_DELETE_START(thd->query());
-    if ((res= mysql_multi_delete_prepare(thd)))
+    if ((res= mysql_multi_delete_prepare(thd, &del_table_count)))
     {
       MYSQL_MULTI_DELETE_DONE(1, 0);
       goto error;
     }
 
     if (!thd->is_fatal_error &&
-        (del_result= new multi_delete(aux_tables, lex->tables_lock_count)))
+        (del_result= new multi_delete(aux_tables, del_table_count)))
     {
       if (lex->describe)
         res= explain_multi_table_modification(thd, del_result);
@@ -3506,9 +3506,8 @@ end_with_restore_list:
   {
     List<set_var_base> *lex_var_list= &lex->var_list;
 
-    if (check_table_access(thd, SELECT_ACL, all_tables, FALSE, UINT_MAX, FALSE)
-        || open_query_tables(thd)
-        || lock_query_tables(thd))
+    if ((check_table_access(thd, SELECT_ACL, all_tables, FALSE, UINT_MAX, FALSE)
+         || open_and_lock_tables(thd, all_tables, TRUE, 0)))
       goto error;
     if (!(res= sql_set_variables(thd, lex_var_list)))
     {
@@ -4293,8 +4292,7 @@ create_sp_error:
       */
       if (check_table_access(thd, SELECT_ACL, all_tables, FALSE,
                              UINT_MAX, FALSE) ||
-          open_query_tables(thd) ||
-          lock_query_tables(thd))
+          open_and_lock_tables(thd, all_tables, TRUE, 0))
        goto error;
 
       /*
@@ -4865,7 +4863,7 @@ static bool execute_sqlcom_select(THD *thd, TABLE_LIST *all_tables)
       param->select_limit=
         new Item_int((ulonglong) thd->variables.select_limit);
   }
-  if (!(res= open_query_tables(thd)))
+  if (!(res= open_normal_and_derived_tables(thd, all_tables, 0)))
   {
     if (lex->describe)
     {

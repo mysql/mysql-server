@@ -743,7 +743,7 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
   }
   else
   {
-    if (open_query_tables(thd))
+    if (open_normal_and_derived_tables(thd, table_list, 0))
       DBUG_RETURN(true);
   }
 
@@ -912,7 +912,7 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
 
   /* Lock the tables now if not delayed/already locked. */
   if (!is_locked &&
-      lock_query_tables(thd))
+      lock_tables(thd, table_list, thd->lex->table_count, 0))
     DBUG_RETURN(true);
  
   /*

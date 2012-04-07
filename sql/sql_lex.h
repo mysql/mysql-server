@@ -46,7 +46,6 @@ class sys_var;
 class Item_func_match;
 class File_parser;
 class Key_part_spec;
-class MDL_savepoint;
 
 #ifdef MYSQL_SERVER
 /*
@@ -1069,50 +1068,36 @@ public:
   uint sroutines_list_own_elements;
 
   /**
-    Enum to track the state of the tables used by the query.
+    Locking state of tables in this particular statement.
+
+    If we under LOCK TABLES or in prelocked mode we consider tables
+    for the statement to be "locked" if there was a call to lock_tables()
+    (which called handler::start_stmt()) for tables of this statement
+    and there was no matching close_thread_tables() call.
+
+    As result this state may differ significantly from one represented
+    by Open_tables_state::lock/locked_tables_mode more, which are always
+    "on" under LOCK TABLES or in prelocked mode.
   */
-  enum enum_tables_state {
-    /** The tables is not yet opened. */
-    TABLES_STATE_NONE = 0,
-    /**
-      The tables are already opened and locked in thd->open_tables,
-      but not marked as used.
-    */
-    TABLES_STATE_REUSABLE,
-    /** Base tables are opened. */
-    TABLES_STATE_OPENED,
-    /** Derived tables are prepared. */
-    TABLES_STATE_DERIVED_PREPARED,
-    /** Base tables are locked. */
-    TABLES_STATE_LOCKED,
-    /** Derived tables are optimized. */
-    TABLES_STATE_DERIVED_OPTIMIZED,
-    /** Derived tables are created for materialization. */
-    TABLES_STATE_DERIVED_CREATED,
-    /** Derived tables are materialized. */
-    TABLES_STATE_DERIVED_MATERIALIZED,
-    /** Base tables are unlocked. */
-    TABLES_STATE_UNLOCKED,
-    /** Base tables are closed or marked for reuse. */
-    TABLES_STATE_CLOSED
+  enum enum_lock_tables_state {
+    LTS_NOT_LOCKED = 0,
+    LTS_LOCKED
   };
-  enum_tables_state tables_state;
-  bool is_query_tables_opened()
-  {
-    if (tables_state >= TABLES_STATE_OPENED &&
-        tables_state < TABLES_STATE_CLOSED)
-      return true;
-    return false;
-  }
+  enum_lock_tables_state lock_tables_state;
   bool is_query_tables_locked()
   {
-    if (tables_state >= TABLES_STATE_LOCKED &&
-        tables_state < TABLES_STATE_UNLOCKED)
-      return true;
-    return false;
+    return (lock_tables_state == LTS_LOCKED);
   }
-  uint tables_lock_count;
-  MDL_savepoint mdl_open_savepoint;
+
+  /**
+    Number of tables which were open by open_tables() and to be locked
+    by lock_tables().
+    Note that we set this member only in some cases, when this value
+    needs to be passed from open_tables() to lock_tables() which are
+    separated by some amount of code.
+  */
+  uint table_count;
+
   /*
     These constructor and destructor serve for creation/destruction
     of Query_tables_list instances which are used as backup storage.
