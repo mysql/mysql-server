@@ -2435,7 +2435,7 @@ bool Item_time_typecast::get_date(MYSQL_TIME *ltime, ulonglong fuzzy_date)
 
 bool Item_date_typecast::get_date(MYSQL_TIME *ltime, ulonglong fuzzy_date)
 {
-  if (get_arg0_date(ltime, TIME_FUZZY_DATE))
+  if (get_arg0_date(ltime, fuzzy_date & ~TIME_TIME_ONLY))
     return 1;
 
   ltime->hour= ltime->minute= ltime->second= ltime->second_part= 0;
@@ -3145,7 +3145,7 @@ bool Item_func_str_to_date::get_date(MYSQL_TIME *ltime, ulonglong fuzzy_date)
 
 bool Item_func_last_day::get_date(MYSQL_TIME *ltime, ulonglong fuzzy_date)
 {
-  if (get_arg0_date(ltime, fuzzy_date & ~TIME_FUZZY_DATE) ||
+  if (get_arg0_date(ltime, fuzzy_date) ||
       (ltime->month == 0))
     return (null_value=1);
   uint month_idx= ltime->month-1;

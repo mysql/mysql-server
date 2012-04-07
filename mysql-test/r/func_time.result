@@ -885,18 +885,12 @@ DROP TABLE t1;
 select last_day('2005-00-00');
 last_day('2005-00-00')
 NULL
-Warnings:
-Warning	1292	Incorrect datetime value: '2005-00-00'
 select last_day('2005-00-01');
 last_day('2005-00-01')
 NULL
-Warnings:
-Warning	1292	Incorrect datetime value: '2005-00-01'
 select last_day('2005-01-00');
 last_day('2005-01-00')
-NULL
-Warnings:
-Warning	1292	Incorrect datetime value: '2005-01-00'
+2005-01-31
 select monthname(str_to_date(null, '%m')), monthname(str_to_date(null, '%m')),
 monthname(str_to_date(1, '%m')), monthname(str_to_date(0, '%m'));
 monthname(str_to_date(null, '%m'))	monthname(str_to_date(null, '%m'))	monthname(str_to_date(1, '%m'))	monthname(str_to_date(0, '%m'))
@@ -1435,7 +1429,7 @@ NULL
 #
 DO WEEK((DATE_ADD((CAST(0 AS DATE)), INTERVAL 1 YEAR_MONTH)), 5);
 Warnings:
-Warning	1292	Truncated incorrect date value: '0000-00-00'
+Warning	1292	Incorrect datetime value: '0'
 #
 # BUG#13458237 INCONSISTENT HANDLING OF INVALIDE DATES WITH ZERO DAY
 # SIMILAR TO '2009-10-00' 
@@ -1469,9 +1463,9 @@ TO_DAYs(DATE'2009-10-00'),
 TO_DAYs(STR_TO_DATE('200910','%Y%m'));
 DATE('20091000')	2009-10-00
 STR_TO_DATE('200910','%Y%m')	2009-10-00
-LAST_DAY('2009-10-00')	NULL
-LAST_DAY(DATE('2009-10-00'))	NULL
-LAST_DAY(DATE'2009-10-00')	NULL
+LAST_DAY('2009-10-00')	2009-10-31
+LAST_DAY(DATE('2009-10-00'))	2009-10-31
+LAST_DAY(DATE'2009-10-00')	2009-10-31
 LAST_DAY(STR_TO_DATE('200910','%Y%m'))	2009-10-31
 WEEK('2009-10-00')	NULL
 WEEK(DATE('2009-10-00'))	NULL
@@ -1499,16 +1493,7 @@ Code	1292
 Message	Incorrect datetime value: '2009-10-00'
 Level	Warning
 Code	1292
-Message	Truncated incorrect date value: '2009-10-00'
-Level	Warning
-Code	1292
 Message	Incorrect datetime value: '2009-10-00'
-Level	Warning
-Code	1292
-Message	Incorrect datetime value: '2009-10-00'
-Level	Warning
-Code	1292
-Message	Truncated incorrect date value: '2009-10-00'
 Level	Warning
 Code	1292
 Message	Incorrect datetime value: '2009-10-00'
@@ -1520,7 +1505,7 @@ Code	1292
 Message	Incorrect datetime value: '2009-10-00'
 Level	Warning
 Code	1292
-Message	Truncated incorrect date value: '2009-10-00'
+Message	Incorrect datetime value: '2009-10-00'
 Level	Warning
 Code	1292
 Message	Incorrect datetime value: '2009-10-00'
@@ -1532,7 +1517,7 @@ Code	1292
 Message	Incorrect datetime value: '2009-10-00'
 Level	Warning
 Code	1292
-Message	Truncated incorrect date value: '2009-10-00'
+Message	Incorrect datetime value: '2009-10-00'
 Level	Warning
 Code	1292
 Message	Incorrect datetime value: '2009-10-00'
@@ -1544,7 +1529,7 @@ Code	1292
 Message	Incorrect datetime value: '2009-10-00'
 Level	Warning
 Code	1292
-Message	Truncated incorrect date value: '2009-10-00'
+Message	Incorrect datetime value: '2009-10-00'
 Level	Warning
 Code	1292
 Message	Incorrect datetime value: '2009-10-00'
@@ -1556,7 +1541,7 @@ Code	1292
 Message	Incorrect datetime value: '2009-10-00'
 Level	Warning
 Code	1292
-Message	Truncated incorrect date value: '2009-10-00'
+Message	Incorrect datetime value: '2009-10-00'
 Level	Warning
 Code	1292
 Message	Incorrect datetime value: '2009-10-00'
@@ -1592,9 +1577,9 @@ TO_DAYs(DATE'0000-01-00'),
 TO_DAYs(STR_TO_DATE('000001','%Y%m'));
 DATE('00000100')	0000-01-00
 STR_TO_DATE('000001','%Y%m')	0000-01-00
-LAST_DAY('0000-01-00')	NULL
-LAST_DAY(DATE('0000-01-00'))	NULL
-LAST_DAY(DATE'0000-01-00')	NULL
+LAST_DAY('0000-01-00')	0000-01-31
+LAST_DAY(DATE('0000-01-00'))	0000-01-31
+LAST_DAY(DATE'0000-01-00')	0000-01-31
 LAST_DAY(STR_TO_DATE('000001','%Y%m'))	0000-01-31
 WEEK('0000-01-00')	NULL
 WEEK(DATE('0000-01-00'))	NULL
@@ -1622,16 +1607,7 @@ Code	1292
 Message	Incorrect datetime value: '0000-01-00'
 Level	Warning
 Code	1292
-Message	Truncated incorrect date value: '0000-01-00'
-Level	Warning
-Code	1292
 Message	Incorrect datetime value: '0000-01-00'
-Level	Warning
-Code	1292
-Message	Incorrect datetime value: '0000-01-00'
-Level	Warning
-Code	1292
-Message	Truncated incorrect date value: '0000-01-00'
 Level	Warning
 Code	1292
 Message	Incorrect datetime value: '0000-01-00'
@@ -1643,7 +1619,7 @@ Code	1292
 Message	Incorrect datetime value: '0000-01-00'
 Level	Warning
 Code	1292
-Message	Truncated incorrect date value: '0000-01-00'
+Message	Incorrect datetime value: '0000-01-00'
 Level	Warning
 Code	1292
 Message	Incorrect datetime value: '0000-01-00'
@@ -1655,7 +1631,7 @@ Code	1292
 Message	Incorrect datetime value: '0000-01-00'
 Level	Warning
 Code	1292
-Message	Truncated incorrect date value: '0000-01-00'
+Message	Incorrect datetime value: '0000-01-00'
 Level	Warning
 Code	1292
 Message	Incorrect datetime value: '0000-01-00'
@@ -1667,7 +1643,7 @@ Code	1292
 Message	Incorrect datetime value: '0000-01-00'
 Level	Warning
 Code	1292
-Message	Truncated incorrect date value: '0000-01-00'
+Message	Incorrect datetime value: '0000-01-00'
 Level	Warning
 Code	1292
 Message	Incorrect datetime value: '0000-01-00'
@@ -1679,7 +1655,7 @@ Code	1292
 Message	Incorrect datetime value: '0000-01-00'
 Level	Warning
 Code	1292
-Message	Truncated incorrect date value: '0000-01-00'
+Message	Incorrect datetime value: '0000-01-00'
 Level	Warning
 Code	1292
 Message	Incorrect datetime value: '0000-01-00'
@@ -1912,7 +1888,7 @@ select timestampadd(week, 1, date("0000-00-00"));
 timestampadd(week, 1, date("0000-00-00"))
 NULL
 Warnings:
-Warning	1292	Truncated incorrect date value: '0000-00-00'
+Warning	1292	Incorrect datetime value: '0000-00-00'
 drop table t1;
 create table t1 (f2 time not null, f3 datetime, f4 int not null, f5 timestamp);
 insert ignore t1 values ('04:38:11','0000-00-00 00:00:00',0,'0000-00-00 00:00:00');

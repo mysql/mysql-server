@@ -3131,6 +3131,12 @@ make_join_statistics(JOIN *join, List<TABLE_LIST> &tables_list,
     table->pos_in_table_list= tables;
     error= tables->fetch_number_of_rows();
 
+#ifdef WITH_PARTITION_STORAGE_ENGINE
+    const bool no_partitions_used= table->no_partitions_used;
+#else
+    const bool no_partitions_used= FALSE;
+#endif
+
     DBUG_EXECUTE_IF("bug11747970_raise_error",
                     {
                       if (!error)
@@ -3162,13 +3168,10 @@ make_join_statistics(JOIN *join, List<TABLE_LIST> &tables_list,
     if (*s->on_expr_ref)
     {
       /* s is the only inner table of an outer join */
-#ifdef WITH_PARTITION_STORAGE_ENGINE
       if (!table->is_filled_at_execution() &&
-           (!table->file->stats.records || table->no_partitions_used) && !embedding)
-#else
-      if (!table->is_filled_at_execution() &&
-          !table->file->stats.records && !embedding)
-#endif
+          ((!table->file->stats.records &&
+            (table->file->ha_table_flags() & HA_STATS_RECORDS_IS_EXACT)) ||
+           no_partitions_used) && !embedding)
       {						// Empty table
         s->dependent= 0;                        // Ignore LEFT JOIN depend.
         no_rows_const_tables |= table->map;
@@ -3208,16 +3211,12 @@ make_join_statistics(JOIN *join, List<TABLE_LIST> &tables_list,
       if (inside_an_outer_join)
         continue;
     }
-#ifdef WITH_PARTITION_STORAGE_ENGINE
-    const bool no_partitions_used= table->no_partitions_used;
-#else
-    const bool no_partitions_used= FALSE;
-#endif
-    if (!table->is_filled_at_execution() && 
-        (table->s->system || table->file->stats.records <= 1 ||
+    if (!table->is_filled_at_execution() &&
+        (table->s->system ||
+         (table->file->stats.records <= 1 &&
+          (table->file->ha_table_flags() & HA_STATS_RECORDS_IS_EXACT)) ||
          no_partitions_used) &&
 	!s->dependent &&
-	(table->file->ha_table_flags() & HA_STATS_RECORDS_IS_EXACT) &&
         !table->fulltext_searched && !join->no_const_tables)
     {
       set_position(join,const_count++,s,(KEYUSE*) 0);
@@ -5766,6 +5765,114 @@ best_access_path(JOIN      *join,
 }
 
 
+/*
+  Find JOIN_TAB's embedding (i.e, parent) subquery.
+  - For merged semi-joins, tables inside the semi-join nest have their
+    semi-join nest as parent.  We intentionally ignore results of table 
+    pullout action here.
+  - For non-merged semi-joins (JTBM tabs), the embedding subquery is the 
+    JTBM join tab itself.
+*/
+
+static TABLE_LIST* get_emb_subq(JOIN_TAB *tab)
+{
+  TABLE_LIST *tlist= tab->table->pos_in_table_list;
+  if (tlist->jtbm_subselect)
+    return tlist;
+  TABLE_LIST *embedding= tlist->embedding;
+  if (!embedding || !embedding->sj_subq_pred)
+    return NULL;
+  return embedding;
+}
+
+
+/*
+  Choose initial table order that "helps" semi-join optimizations.
+
+  The idea is that we should start with the order that is the same as the one
+  we would have had if we had semijoin=off:
+  - Top-level tables go first
+  - subquery tables are grouped together by the subquery they are in,
+  - subquery tables are attached where the subquery predicate would have been
+    attached if we had semi-join off.
+  
+  This function relies on join_tab_cmp()/join_tab_cmp_straight() to produce
+  certain pre-liminary ordering, see compare_embedding_subqueries() for its
+  description.
+*/
+
+static void choose_initial_table_order(JOIN *join)
+{
+  TABLE_LIST *emb_subq;
+  JOIN_TAB **tab= join->best_ref + join->const_tables;
+  JOIN_TAB **tabs_end= tab + join->table_count - join->const_tables;
+  /* Find where the top-level JOIN_TABs end and subquery JOIN_TABs start */
+  for (; tab != tabs_end; tab++)
+  {
+    if ((emb_subq= get_emb_subq(*tab)))
+      break;
+  }
+  uint n_subquery_tabs= tabs_end - tab;
+
+  if (!n_subquery_tabs)
+    return;
+
+  /* Copy the subquery JOIN_TABs to a separate array */
+  JOIN_TAB *subquery_tabs[MAX_TABLES];
+  memcpy(subquery_tabs, tab, sizeof(JOIN_TAB*) * n_subquery_tabs);
+  
+  JOIN_TAB **last_top_level_tab= tab;
+  JOIN_TAB **subq_tab= subquery_tabs;
+  JOIN_TAB **subq_tabs_end= subquery_tabs + n_subquery_tabs;
+  TABLE_LIST *cur_subq_nest= NULL;
+  for (; subq_tab < subq_tabs_end; subq_tab++)
+  {
+    if (get_emb_subq(*subq_tab)!= cur_subq_nest)
+    {
+      /*
+        Reached the part of subquery_tabs that covers tables in some subquery.
+      */
+      cur_subq_nest= get_emb_subq(*subq_tab);
+
+      /* Determine how many tables the subquery has */
+      JOIN_TAB **last_tab_for_subq;
+      for (last_tab_for_subq= subq_tab;
+           last_tab_for_subq < subq_tabs_end && 
+           get_emb_subq(*last_tab_for_subq) == cur_subq_nest;
+           last_tab_for_subq++) {}
+      uint n_subquery_tables= last_tab_for_subq - subq_tab;
+
+      /* 
+        Walk the original array and find where this subquery would have been
+        attached to
+      */
+      table_map need_tables= cur_subq_nest->original_subq_pred_used_tables;
+      need_tables &= ~(join->const_table_map | PSEUDO_TABLE_BITS);
+      for (JOIN_TAB **top_level_tab= join->best_ref + join->const_tables;
+           top_level_tab < last_top_level_tab;
+           //top_level_tab < join->best_ref + join->table_count;
+           top_level_tab++)
+      {
+        need_tables &= ~(*top_level_tab)->table->map;
+        /* Check if this is the place where subquery should be attached */
+        if (!need_tables)
+        {
+          /* Move away the top-level tables that are after top_level_tab */
+          uint top_tail_len= last_top_level_tab - top_level_tab - 1;
+          memmove(top_level_tab + 1 + n_subquery_tables, top_level_tab + 1,
+                  sizeof(JOIN_TAB*)*top_tail_len);
+          last_top_level_tab += n_subquery_tables;
+          memcpy(top_level_tab + 1, subq_tab, sizeof(JOIN_TAB*)*n_subquery_tables);
+          break;
+        }
+      }
+      DBUG_ASSERT(!need_tables);
+      subq_tab += n_subquery_tables - 1;
+    }
+  }
+}
+
+
 /**
   Selects and invokes a search strategy for an optimal query plan.
 
@@ -5821,9 +5928,21 @@ choose_plan(JOIN *join, table_map join_tables)
     */
     jtab_sort_func= straight_join ? join_tab_cmp_straight : join_tab_cmp;
   }
+
+  /*
+    psergey-todo: if we're not optimizing an SJM nest, 
+     - sort that outer tables are first, and each sjm nest follows
+     - then, put each [sjm_table1, ... sjm_tableN] sub-array right where 
+       WHERE clause pushdown would have put it.
+  */
   my_qsort2(join->best_ref + join->const_tables,
             join->table_count - join->const_tables, sizeof(JOIN_TAB*),
             jtab_sort_func, (void*)join->emb_sjm_nest);
+
+  if (!join->emb_sjm_nest)
+  {
+    choose_initial_table_order(join);
+  }
   join->cur_sj_inner_tables= 0;
 
   if (straight_join)
@@ -5863,6 +5982,64 @@ choose_plan(JOIN *join, table_map join_tables)
 }
 
 
+/*
+  Compare two join tabs based on the subqueries they are from.
+   - top-level join tabs go first
+   - then subqueries are ordered by their select_id (we're using this 
+     criteria because we need a cross-platform, deterministic ordering)
+
+  @return 
+     0   -  equal
+     -1  -  jt1 < jt2
+     1   -  jt1 > jt2
+*/
+
+static int compare_embedding_subqueries(JOIN_TAB *jt1, JOIN_TAB *jt2)
+{
+  /* Determine if the first table is originally from a subquery */
+  TABLE_LIST *tbl1= jt1->table->pos_in_table_list;
+  uint tbl1_select_no;
+  if (tbl1->jtbm_subselect)
+  {
+    tbl1_select_no= 
+      tbl1->jtbm_subselect->unit->first_select()->select_number;
+  }
+  else if (tbl1->embedding && tbl1->embedding->sj_subq_pred)
+  {
+    tbl1_select_no= 
+      tbl1->embedding->sj_subq_pred->unit->first_select()->select_number;
+  }
+  else
+    tbl1_select_no= 1; /* Top-level */
+
+  /* Same for the second table */
+  TABLE_LIST *tbl2= jt2->table->pos_in_table_list;
+  uint tbl2_select_no;
+  if (tbl2->jtbm_subselect)
+  {
+    tbl2_select_no= 
+      tbl2->jtbm_subselect->unit->first_select()->select_number;
+  }
+  else if (tbl2->embedding && tbl2->embedding->sj_subq_pred)
+  {
+    tbl2_select_no= 
+      tbl2->embedding->sj_subq_pred->unit->first_select()->select_number;
+  }
+  else
+    tbl2_select_no= 1; /* Top-level */
+
+  /* 
+    Put top-level tables in front. Tables from within subqueries must follow,
+    grouped by their owner subquery. We don't care about the order that
+    subquery groups are in, because choose_initial_table_order() will re-order
+    the groups.
+  */
+  if (tbl1_select_no != tbl2_select_no)
+    return tbl1_select_no > tbl2_select_no ? 1 : -1;
+  return 0;
+}
+
+
 /**
   Compare two JOIN_TAB objects based on the number of accessed records.
 
@@ -5879,6 +6056,9 @@ choose_plan(JOIN *join, table_map join_tables)
       a: dependent = 0x0 table->map = 0x1 found_records = 3 ptr = 0x907e6b0
       b: dependent = 0x0 table->map = 0x2 found_records = 3 ptr = 0x907e838
       c: dependent = 0x6 table->map = 0x10 found_records = 2 ptr = 0x907ecd0
+
+   As for subuqueries, this function must produce order that can be fed to 
+   choose_initial_table_order().
      
   @retval
     1  if first is bigger
@@ -5893,7 +6073,15 @@ join_tab_cmp(const void *dummy, const void* ptr1, const void* ptr2)
 {
   JOIN_TAB *jt1= *(JOIN_TAB**) ptr1;
   JOIN_TAB *jt2= *(JOIN_TAB**) ptr2;
+  int cmp;
 
+  if ((cmp= compare_embedding_subqueries(jt1, jt2)) != 0)
+    return cmp;
+  /*
+    After that,
+    take care about ordering imposed by LEFT JOIN constraints,
+    possible [eq]ref accesses, and numbers of matching records in the table.
+  */
   if (jt1->dependent & jt2->table->map)
     return 1;
   if (jt2->dependent & jt1->table->map)
@@ -5923,6 +6111,10 @@ join_tab_cmp_straight(const void *dummy, const void* ptr1, const void* ptr2)
   */
   DBUG_ASSERT(!jt1->emb_sj_nest);
   DBUG_ASSERT(!jt2->emb_sj_nest);
+
+  int cmp;
+  if ((cmp= compare_embedding_subqueries(jt1, jt2)) != 0)
+    return cmp;
 
   if (jt1->dependent & jt2->table->map)
     return 1;
@@ -15230,6 +15422,7 @@ free_tmp_table(THD *thd, TABLE *entry)
     else
       entry->file->ha_delete_table(entry->s->table_name.str);
     delete entry->file;
+    entry->file= 0;
   }
 
   /* free blobs */

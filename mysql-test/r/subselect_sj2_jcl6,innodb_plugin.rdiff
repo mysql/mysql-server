@@ -1,29 +1,8 @@
---- r/subselect_sj2_jcl6.result	2012-03-28 20:10:41.000000000 +0200
-+++ r/subselect_sj2_jcl6,innodb_plugin.reject	2012-03-28 20:21:14.000000000 +0200
-@@ -81,7 +81,7 @@
- explain select * from t3 where b in (select a from t1);
- id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
- 1	PRIMARY	<subquery2>	ALL	distinct_key	NULL	NULL	NULL	3	
--1	PRIMARY	t3	ref	b	b	5	test.t1.a	1	Using join buffer (flat, BKA join); Key-ordered Rowid-ordered scan
-+1	PRIMARY	t3	ref	b	b	5	test.t1.a	1	
- 2	MATERIALIZED	t1	ALL	NULL	NULL	NULL	NULL	3	Using where
- select * from t3 where b in (select a from t1);
- a	b	pk1	pk2	pk3
-@@ -107,7 +107,7 @@
- explain select * from t3 where b in (select a from t0);
- id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
- 1	PRIMARY	<subquery2>	ALL	distinct_key	NULL	NULL	NULL	10	
--1	PRIMARY	t3	ref	b	b	5	test.t0.a	1	Using join buffer (flat, BKA join); Key-ordered Rowid-ordered scan
-+1	PRIMARY	t3	ref	b	b	5	test.t0.a	1	
- 2	MATERIALIZED	t0	ALL	NULL	NULL	NULL	NULL	10	Using where
- select * from t3 where b in (select A.a+B.a from t0 A, t0 B where B.a<5);
- a	b	pk1	pk2
-@@ -1006,9 +1006,9 @@
- (alias1.b >= alias1.a OR alias2.b = 'z'));
- id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
- 1	PRIMARY	<subquery2>	ALL	distinct_key	NULL	NULL	NULL	19	
--1	PRIMARY	t2	ref	a	a	4	test.alias1.a	1	Using join buffer (flat, BKA join); Key-ordered Rowid-ordered scan
-+1	PRIMARY	t2	ref	a	a	4	test.alias1.a	1	
+--- r/subselect_sj2_jcl6.result	2012-04-07 12:45:03.000000000 +0200
++++ r/subselect_sj2_jcl6,innodb_plugin.reject	2012-04-07 13:10:38.000000000 +0200
+@@ -1009,7 +1009,7 @@
+ 1	PRIMARY	t2	ALL	a	NULL	NULL	NULL	38	
+ 1	PRIMARY	<subquery2>	eq_ref	distinct_key	distinct_key	8	func,func	1	
  2	MATERIALIZED	alias1	ALL	a	NULL	NULL	NULL	19	Using where
 -2	MATERIALIZED	alias2	ref	a	a	4	test.alias1.a	1	Using where; Using join buffer (flat, BKA join); Key-ordered Rowid-ordered scan
 +2	MATERIALIZED	alias2	ref	a	a	4	test.alias1.a	1	Using where

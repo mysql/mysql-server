@@ -1678,7 +1678,7 @@ MY_UNICASE_INFO *const my_unicase_default[256]={
 /*
   Reproduce old utf8_general_ci behaviour before we fixed Bug#27877.
 */
-MY_UNICASE_INFO *my_unicase_mysql500[256]={
+MY_UNICASE_INFO *const my_unicase_mysql500[256]={
  plane00_mysql500,
           plane01, plane02, plane03, plane04, plane05,    NULL,    NULL,
     NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,

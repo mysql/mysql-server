@@ -4043,7 +4043,21 @@ bool TABLE_LIST::create_field_translation(THD *thd)
   Query_arena *arena= thd->stmt_arena, backup;
   bool res= FALSE;
 
-  used_items.empty();
+  if (thd->stmt_arena->is_conventional() ||
+      thd->stmt_arena->is_stmt_prepare_or_first_sp_execute())
+  {
+    /* initialize lists */
+    used_items.empty();
+    persistent_used_items.empty();
+  }
+  else
+  {
+    /*
+      Copy the list created by natural join procedure because the procedure
+      will not be repeated.
+    */
+    used_items= persistent_used_items;
+  }
 
   if (field_translation)
   {
@@ -5107,7 +5121,7 @@ Item *create_view_field(THD *thd, TABLE_LIST *view, Item **field_ref,
   if (view->table && view->table->maybe_null)
     item->maybe_null= TRUE;
   /* Save item in case we will need to fall back to materialization. */
-  view->used_items.push_back(item);
+  view->used_items.push_front(item);
   DBUG_RETURN(item);
 }
 
@@ -6678,7 +6692,11 @@ bool TABLE_LIST::change_refs_to_fields()
       if (!materialized_items[idx])
         return TRUE;
     }
-    ref->ref= materialized_items + idx;
+    /*
+      We need to restore the pointers after the execution of the
+      prepared statement.
+    */
+    thd->change_item_tree((Item **)&ref->ref, (Item*)materialized_items + idx);
   }
 
   return FALSE;

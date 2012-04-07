@@ -2007,5 +2007,44 @@ a	b	gc
 SET SESSION optimizer_switch= @save_optimizer_switch;
 DROP VIEW v;
 DROP TABLE t1,t2;
+#
+# LP BUG#968720 crash due to converting to materialized and
+# natural join made only once
+#
+SET @save968720_optimizer_switch=@@optimizer_switch;
+SET optimizer_switch = 'derived_merge=on';
+CREATE TABLE t1 (a int, INDEX(a));
+INSERT INTO t1 VALUES (1);
+CREATE TABLE t2 (a int, INDEX(a));
+INSERT INTO t2 VALUES (1), (2);
+INSERT INTO t1 SELECT a FROM (SELECT a FROM test.t1) AS s1 NATURAL JOIN
+t2 AS s2;
+SELECT * FROM t1;
+a
+1
+1
+DELETE FROM t1;
+INSERT INTO t1 VALUES (1);
+PREPARE stmt FROM "
+INSERT INTO t1 SELECT a FROM (SELECT a FROM test.t1) AS s1 NATURAL JOIN
+t2 AS s2;
+";
+EXECUTE stmt;
+SELECT * FROM t1;
+a
+1
+1
+EXECUTE stmt;
+SELECT * FROM t1;
+a
+1
+1
+1
+1
+drop table t1,t2;
+set optimizer_switch=@save968720_optimizer_switch;
+#
+# end of 5.3 tests
+#
 set optimizer_switch=@exit_optimizer_switch;
 set join_cache_level=@exit_join_cache_level;

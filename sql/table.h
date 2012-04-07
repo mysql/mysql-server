@@ -1574,6 +1574,8 @@ struct TABLE_LIST
   /* If this is a non-jtbm semi-join nest: corresponding subselect predicate */
   Item_in_subselect  *sj_subq_pred;
 
+  table_map     original_subq_pred_used_tables;
+
   /* If this is a jtbm semi-join object: corresponding subselect predicate */
   Item_in_subselect  *jtbm_subselect;
   /* TODO: check if this can be joined with tablenr_exec */
@@ -1853,7 +1855,13 @@ struct TABLE_LIST
   /* TRUE <=> don't prepare this derived table/view as it should be merged.*/
   bool          skip_prepare_derived;
 
+  /*
+    Items created by create_view_field and collected to change them in case
+    of materialization of the view/derived table
+  */
   List<Item>    used_items;
+  /* Sublist (tail) of persistent used_items */
+  List<Item>    persistent_used_items;
   Item          **materialized_items;
 
   /* View creation context. */

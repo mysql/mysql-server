@@ -141,7 +141,7 @@ perl;
   use strict;
   use Cwd;
   my $log_error= $ENV{'LOG_ERROR'} or die "LOG_ERROR not set";
-  open(FILE, "$log_error") or die("Unable to open '$log_error' from directory " . cwd() . "\n");
+  open(FILE, "$log_error") or die("Unable to open '$log_error' from directory " . cwd() . " :$! \n");
   my $binlog_counter= $ENV{'BINLOG_COUNTER1'} or die "BINLOG_COUNTER1 not set";
   my $count = () = grep(/$binlog_counter/g,<FILE>); 
   # Grep the timestamp value from the error file.

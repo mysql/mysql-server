@@ -4628,6 +4628,45 @@ NULL	NULL	1	0
 NULL	NULL	1	0
 DROP VIEW v2;
 DROP TABLE t1, t2, t3;
+#
+# BUG#915222: Valgrind complains or crashes with INSERT SELECT
+#              within a trigger that uses a view
+#
+CREATE TABLE t1 (a char(1));
+CREATE TABLE t2 (d int, e char(1));
+INSERT INTO t2 VALUES (13,'z');
+CREATE TRIGGER tr AFTER UPDATE ON t2
+FOR EACH ROW
+REPLACE INTO t3
+SELECT f, a AS alias FROM t3, v;
+CREATE TABLE t3 (f int, g char(8));
+CREATE VIEW v AS SELECT a, e FROM t2, t1;
+UPDATE t2 SET d=7;
+UPDATE t2 SET d=7;
+UPDATE t2 SET d=7;
+UPDATE t2 SET d=7;
+DROP TRIGGER tr;
+DROP VIEW v;
+DROP TABLE t1,t2,t3;
+#
+# BUG#972943: Assertion failure with INSERT SELECT within a trigger 
+#             that uses derived table and materialized view
+#
+CREATE TABLE t1 (a int, b int);
+INSERT INTO t1 VALUES (1,0), (2,8);
+CREATE ALGORITHM=TEMPTABLE VIEW v1
+AS SELECT * FROM t1;
+CREATE TABLE t2 (c int);
+CREATE TABLE t3 (d int, e int);
+CREATE TRIGGER tr BEFORE INSERT ON t2 FOR EACH ROW
+INSERT INTO t3
+SELECT t1.*
+FROM (SELECT * FROM t1 WHERE b IN (SELECT b FROM v1)) AS alias1, t1
+WHERE t1.a = 3 OR t1.a > 5;
+INSERT INTO t2 VALUES (1);
+DROP TRIGGER tr;
+DROP VIEW v1;
+DROP TABLE t1,t2,t3;
 # -----------------------------------------------------------------
 # -- End of 5.3 tests.
 # -----------------------------------------------------------------

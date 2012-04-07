@@ -260,6 +260,7 @@ public:
       last= &first;
     return tmp->info;
   }
+
   /*
     Remove from this list elements that are contained in the passed list. 
     We assume that the passed list is a tail of this list (that is, the whole 
