@@ -29,6 +29,7 @@ import java.util.List;
 import com.mysql.clusterj.ClusterJFatalInternalException;
 import com.mysql.clusterj.ClusterJFatalUserException;
 import com.mysql.clusterj.ClusterJUserException;
+import com.mysql.clusterj.ColumnType;
 
 import com.mysql.clusterj.core.store.Column;
 import com.mysql.clusterj.core.store.Index;
@@ -267,7 +268,7 @@ public class NdbRecordImpl {
     public int setByte(ByteBuffer buffer, Column storeColumn, byte value) {
         resetNull(buffer, storeColumn);
         int columnId = storeColumn.getColumnId();
-        if (storeColumn.getLength() == 4) {
+        if (storeColumn.getType() == ColumnType.Bit) {
             // the byte is stored as a BIT array of four bytes
             buffer.putInt(offsets[columnId], value & 0xff);
         } else {
@@ -377,7 +378,7 @@ public class NdbRecordImpl {
 
     public byte getByte(ByteBuffer buffer, int columnId) {
         Column storeColumn = storeColumns[columnId];
-        if (storeColumn.getLength() == 4) {
+        if (storeColumn.getType() == ColumnType.Bit) {
             // the byte was stored in a BIT column as four bytes
             return (byte)(buffer.getInt(offsets[columnId]));
         } else {
