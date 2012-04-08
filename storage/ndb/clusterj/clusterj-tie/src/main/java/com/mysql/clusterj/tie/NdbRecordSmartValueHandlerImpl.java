@@ -691,8 +691,10 @@ public class NdbRecordSmartValueHandlerImpl implements SmartValueHandler {
         int columnId = fieldNumberToColumnNumberMap[fieldNumber];
         if (columnId < 0) {
             transientValues[-1 - columnId] = value;
+            transientModified[-1 - columnId] = true;
+        } else {
+            domainFieldHandlers[fieldNumber].objectSetValue(value, this);
         }
-        domainFieldHandlers[fieldNumber].objectSetValue(value, this);
     }
 
     public Object invoke(Object proxy, Method method, Object[] args)
