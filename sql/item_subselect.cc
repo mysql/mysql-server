@@ -2726,9 +2726,6 @@ bool subselect_union_engine::no_rows()
 void subselect_uniquesubquery_engine::cleanup()
 {
   DBUG_ENTER("subselect_uniquesubquery_engine::cleanup");
-  /* Tell handler we don't need the index anymore */
-  if (tab->table->file && tab->table->file->inited)
-    tab->table->file->ha_index_end();
   DBUG_VOID_RETURN;
 }
 
