@@ -231,7 +231,10 @@ dict_stats_update_transient(
 
 	index = dict_table_get_first_index(table);
 
-	if (index == NULL) {
+	if (dict_table_is_discarded(table)) {
+		/* Nothing to do. */
+		return;
+	} else if (index == NULL) {
 		/* Table definition is corrupt */
 		ut_print_timestamp(stderr);
 		fprintf(stderr, " InnoDB: table %s has no indexes. "
