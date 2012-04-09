@@ -726,6 +726,7 @@ stress-test.tdbrun: VGRIND=
 stress-test.bdbrun: VGRIND=
 hot-optimize-table-tests.tdbrun: VGRIND=
 test4573-logtrim.tdbrun: VGRIND=
+test-xa-prepare.tdbrun: VGRIND=
 
 libs:
 	cd ..;$(MAKE)
