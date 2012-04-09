@@ -1,0 +1,132 @@
+-- source include/have_ndb.inc
+-- source include/have_binlog_format_mixed_or_row.inc
+
+# Directory containing the saved backup files
+let $backup_data_dir=$MYSQL_TEST_DIR/suite/ndb/backups;
+
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+
+--echo #
+--echo # create a table with some data with and without binlogging
+--echo #
+create table t1 (a int key, b int) engine ndb;
+insert into t1 values (1,1);
+
+# backup and drop data
+--disable_query_log
+--source include/ndb_backup.inc
+--enable_query_log
+
+--echo #
+--echo # reset and restore schema
+drop table t1;
+reset master;
+--exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 1 -m --print --print_meta $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+show tables;
+
+--echo #
+--echo # restore and _no_ binlog
+--exec $NDB_RESTORE --no-defaults --no-binlog -b $the_backup_id -n 1 -r --print --print_meta $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE --no-defaults --no-binlog -b $the_backup_id -n 2 -r --print --print_meta $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+
+--echo #
+--echo # check the binlog, should be empty apart from our marker
+--echo # create dummy table to wait for to ensure Binlog contains any previous events
+
+create table binlogmarker (a int) engine=ndb;
+let $wait_binlog_event= binlogmarker;
+--source include/wait_for_binlog_event.inc
+
+--source include/show_binlog_events2.inc
+
+--echo #
+--echo # reset and restore schema again
+drop table binlogmarker;
+drop table t1;
+reset master;
+--exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 1 -m --print --print_meta $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+show tables;
+
+--echo #
+--echo # restore and  binlog should now happen as well as the marker
+--exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 1 -r --print --print_meta $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 2 -r --print --print_meta $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+
+--echo #
+--echo # check the binlog, should contain data
+--echo # create dummy table to wait for to ensure Binlog contains any previous events
+
+create table binlogmarker (a int) engine=ndb;
+let $wait_binlog_event= binlogmarker;
+--source include/wait_for_binlog_event.inc
+
+--source include/show_binlog_events2.inc
+
+drop table binlogmarker, t1;
+
+
+
+--echo #
+--echo # Now more complex using "BANK schema" including restore of log
+--echo #
+--disable_warnings
+CREATE DATABASE IF NOT EXISTS BANK;
+DROP DATABASE BANK;
+--enable_warnings
+CREATE DATABASE BANK default charset=latin1 default collate=latin1_bin;
+
+#
+# These tables should correspond to the table definitions in
+# storage/ndb/test/src/NDBT_Tables.cpp
+#
+USE BANK;
+CREATE TABLE GL ( TIME BIGINT UNSIGNED NOT NULL,
+                  ACCOUNT_TYPE INT UNSIGNED NOT NULL,
+                  BALANCE INT UNSIGNED NOT NULL,
+                  DEPOSIT_COUNT INT UNSIGNED NOT NULL,
+                  DEPOSIT_SUM INT UNSIGNED NOT NULL,
+                  WITHDRAWAL_COUNT INT UNSIGNED NOT NULL,
+                  WITHDRAWAL_SUM INT UNSIGNED NOT NULL,
+                  PURGED INT UNSIGNED NOT NULL,
+                  PRIMARY KEY USING HASH (TIME,ACCOUNT_TYPE))
+   ENGINE = NDB;
+
+CREATE TABLE ACCOUNT ( ACCOUNT_ID INT UNSIGNED NOT NULL,
+                       OWNER INT UNSIGNED NOT NULL,
+                       BALANCE INT UNSIGNED NOT NULL,
+                       ACCOUNT_TYPE INT UNSIGNED NOT NULL,
+                       PRIMARY KEY USING HASH (ACCOUNT_ID))
+   ENGINE = NDB;
+
+CREATE TABLE TRANSACTION ( TRANSACTION_ID BIGINT UNSIGNED NOT NULL,
+                           ACCOUNT INT UNSIGNED NOT NULL,
+                           ACCOUNT_TYPE INT UNSIGNED NOT NULL,
+                           OTHER_ACCOUNT INT UNSIGNED NOT NULL,
+                           TRANSACTION_TYPE INT UNSIGNED NOT NULL,
+                           TIME BIGINT UNSIGNED NOT NULL,
+                           AMOUNT INT UNSIGNED NOT NULL,
+                           PRIMARY KEY USING HASH (TRANSACTION_ID,ACCOUNT))
+   ENGINE = NDB;
+
+CREATE TABLE SYSTEM_VALUES ( SYSTEM_VALUES_ID INT UNSIGNED NOT NULL,
+                             VALUE BIGINT UNSIGNED NOT NULL,
+                             PRIMARY KEY USING HASH (SYSTEM_VALUES_ID))
+   ENGINE = NDB;
+
+CREATE TABLE ACCOUNT_TYPE ( ACCOUNT_TYPE_ID INT UNSIGNED NOT NULL,
+                            DESCRIPTION CHAR(64) NOT NULL,
+                            PRIMARY KEY USING HASH (ACCOUNT_TYPE_ID))
+   ENGINE = NDB;
+
+--echo #
+--echo # reset, restore and  binlog should _not_ happen
+reset master;
+--exec $NDB_RESTORE --no-defaults --no-binlog -b 1 -n 1 -p 1 -r $backup_data_dir/51 >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE --no-defaults --no-binlog -b 1 -n 2 -p 1 -r $backup_data_dir/51 >> $NDB_TOOLS_OUTPUT
+
+select count(*) from TRANSACTION;
+--source include/show_binlog_events2.inc
+
+DROP DATABASE BANK;

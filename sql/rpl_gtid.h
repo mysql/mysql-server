@@ -1003,6 +1003,11 @@ public:
   enum_return_status ensure_sidno(rpl_sidno sidno);
   /// Returns true if this Gtid_set is a subset of the other Gtid_set.
   bool is_subset(const Gtid_set *super) const;
+  /// Returns true if there is a least one element of this Gtid_set in
+  /// the other Gtid_set.
+  bool is_intersection(const Gtid_set *other) const;
+  /// Result is the intersection of this Gtid_set and the other Gtid_set.
+  enum_return_status intersection(const Gtid_set *other, Gtid_set *result);
   /// Returns true if this Gtid_set is empty.
   bool is_empty() const
   {
@@ -1173,11 +1178,11 @@ public:
     @param n_intervals The number of intervals to add.
     @param intervals Array of n_intervals intervals.
   */
-  void add_interval_memory(int n_intervals, Interval *intervals)
+  void add_interval_memory(int n_intervals, Interval *intervals_param)
   {
     if (sid_lock != NULL)
       mysql_mutex_lock(&free_intervals_mutex);
-    add_interval_memory_lock_taken(n_intervals, intervals);
+    add_interval_memory_lock_taken(n_intervals, intervals_param);
     if (sid_lock != NULL)
       mysql_mutex_unlock(&free_intervals_mutex);
   }

@@ -1,4 +1,5 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +12,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 
 
@@ -30,6 +32,9 @@ void Ndbcntr::initData()
   cnoWaitrep = 0;
   // Records with constant sizes
   ndbBlocksRec = new NdbBlocksRec[ZSIZE_NDB_BLOCKS_REC];
+  // schema trans
+  c_schemaTransId = 0;
+  c_schemaTransKey = 0;
 }//Ndbcntr::initData()
 
 void Ndbcntr::initRecords() 
@@ -60,6 +65,7 @@ Ndbcntr::Ndbcntr(Block_context& ctx):
   addRecSignal(GSN_API_START_REP, &Ndbcntr::execAPI_START_REP, true);
   addRecSignal(GSN_NODE_FAILREP, &Ndbcntr::execNODE_FAILREP);
   addRecSignal(GSN_SYSTEM_ERROR , &Ndbcntr::execSYSTEM_ERROR);
+  addRecSignal(GSN_START_PERMREP, &Ndbcntr::execSTART_PERMREP);
   
   // Received signals
   addRecSignal(GSN_DUMP_STATE_ORD, &Ndbcntr::execDUMP_STATE_ORD);
@@ -75,8 +81,18 @@ Ndbcntr::Ndbcntr(Block_context& ctx):
   addRecSignal(GSN_GETGCICONF, &Ndbcntr::execGETGCICONF);
   addRecSignal(GSN_DIH_RESTARTCONF, &Ndbcntr::execDIH_RESTARTCONF);
   addRecSignal(GSN_DIH_RESTARTREF, &Ndbcntr::execDIH_RESTARTREF);
+  addRecSignal(GSN_SCHEMA_TRANS_BEGIN_CONF, &Ndbcntr::execSCHEMA_TRANS_BEGIN_CONF);
+  addRecSignal(GSN_SCHEMA_TRANS_BEGIN_REF, &Ndbcntr::execSCHEMA_TRANS_BEGIN_REF);
+  addRecSignal(GSN_SCHEMA_TRANS_END_CONF, &Ndbcntr::execSCHEMA_TRANS_END_CONF);
+  addRecSignal(GSN_SCHEMA_TRANS_END_REF, &Ndbcntr::execSCHEMA_TRANS_END_REF);
   addRecSignal(GSN_CREATE_TABLE_REF, &Ndbcntr::execCREATE_TABLE_REF);
   addRecSignal(GSN_CREATE_TABLE_CONF, &Ndbcntr::execCREATE_TABLE_CONF);
+  addRecSignal(GSN_CREATE_HASH_MAP_REF, &Ndbcntr::execCREATE_HASH_MAP_REF);
+  addRecSignal(GSN_CREATE_HASH_MAP_CONF, &Ndbcntr::execCREATE_HASH_MAP_CONF);
+  addRecSignal(GSN_CREATE_FILEGROUP_REF, &Ndbcntr::execCREATE_FILEGROUP_REF);
+  addRecSignal(GSN_CREATE_FILEGROUP_CONF, &Ndbcntr::execCREATE_FILEGROUP_CONF);
+  addRecSignal(GSN_CREATE_FILE_REF, &Ndbcntr::execCREATE_FILE_REF);
+  addRecSignal(GSN_CREATE_FILE_CONF, &Ndbcntr::execCREATE_FILE_CONF);
   addRecSignal(GSN_NDB_STTORRY, &Ndbcntr::execNDB_STTORRY);
   addRecSignal(GSN_NDB_STARTCONF, &Ndbcntr::execNDB_STARTCONF);
   addRecSignal(GSN_READ_NODESREQ, &Ndbcntr::execREAD_NODESREQ);
@@ -105,10 +121,17 @@ Ndbcntr::Ndbcntr(Block_context& ctx):
   addRecSignal(GSN_READ_CONFIG_CONF, &Ndbcntr::execREAD_CONFIG_CONF);
 
   addRecSignal(GSN_FSREMOVECONF, &Ndbcntr::execFSREMOVECONF);
+
+  addRecSignal(GSN_START_COPYREF, &Ndbcntr::execSTART_COPYREF);
+  addRecSignal(GSN_START_COPYCONF, &Ndbcntr::execSTART_COPYCONF);
+
+  addRecSignal(GSN_CREATE_NODEGROUP_IMPL_REQ, &Ndbcntr::execCREATE_NODEGROUP_IMPL_REQ);
+  addRecSignal(GSN_DROP_NODEGROUP_IMPL_REQ, &Ndbcntr::execDROP_NODEGROUP_IMPL_REQ);
   
   initData();
   ctypeOfStart = NodeState::ST_ILLEGAL_TYPE;
   c_start.m_startTime = NdbTick_CurrentMillisecond();
+  m_cntr_start_conf = false;
 }//Ndbcntr::Ndbcntr()
 
 Ndbcntr::~Ndbcntr() 

@@ -1,7 +1,7 @@
 include/master-slave.inc
 Warnings:
-Note	1756	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	1757	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
 [connection master]
 call mtr.add_suppression('Attempting backtrace');
 call mtr.add_suppression("Recovery from master pos .* and file master-bin.000001");
@@ -24,7 +24,7 @@ slave_relay_log_info	CREATE TABLE `slave_relay_log_info` (
   `Sql_delay` int(11) NOT NULL COMMENT 'The number of seconds that the slave must lag behind the master.',
   `Number_of_workers` int(10) unsigned NOT NULL,
   PRIMARY KEY (`Master_id`)
-) ENGINE=MyISAM DEFAULT CHARSET=utf8 COMMENT='Relay Log Information'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT='Relay Log Information'
 SHOW CREATE TABLE mysql.slave_worker_info;
 Table	Create Table
 slave_worker_info	CREATE TABLE `slave_worker_info` (
@@ -42,7 +42,7 @@ slave_worker_info	CREATE TABLE `slave_worker_info` (
   `Checkpoint_group_size` int(10) unsigned NOT NULL,
   `Checkpoint_group_bitmap` blob NOT NULL,
   PRIMARY KEY (`Master_id`,`Worker_id`)
-) ENGINE=MyISAM DEFAULT CHARSET=utf8 COMMENT='Worker Information'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT='Worker Information'
 ALTER TABLE mysql.slave_relay_log_info ENGINE= Innodb;
 ALTER TABLE mysql.slave_worker_info ENGINE= Innodb;
 SHOW CREATE TABLE mysql.slave_relay_log_info;
@@ -135,6 +135,17 @@ SELECT COALESCE(greatest(in_stmt_id + 1, p_stmt_id), 1) INTO in_stmt_id;
 INSERT INTO nt_5(trans_id, stmt_id) VALUES (p_trans_id, in_stmt_id);
 INSERT INTO nt_5(trans_id, stmt_id) VALUES (p_trans_id, in_stmt_id + 1);
 RETURN "fc_i_nt_5_suc";
+END|
+CREATE FUNCTION fc_i_nt_3_tt_3_suc (p_trans_id INTEGER, p_stmt_id INTEGER) RETURNS VARCHAR(64)
+BEGIN
+DECLARE in_stmt_id INTEGER;
+SELECT max(stmt_id) INTO in_stmt_id FROM nt_3 WHERE trans_id= p_trans_id;
+SELECT COALESCE(greatest(in_stmt_id + 1, p_stmt_id), 1) INTO in_stmt_id;
+INSERT INTO nt_3(trans_id, stmt_id) VALUES (p_trans_id, in_stmt_id);
+SELECT max(stmt_id) INTO in_stmt_id FROM tt_3 WHERE trans_id= p_trans_id;
+SELECT COALESCE(greatest(in_stmt_id + 1, p_stmt_id), 1) INTO in_stmt_id;
+INSERT INTO tt_3(trans_id, stmt_id) VALUES (p_trans_id, in_stmt_id);
+RETURN "fc_i_nt_3_tt_3_suc";
 END|
 CREATE TRIGGER tr_i_tt_3_to_nt_3 AFTER INSERT ON tt_3 FOR EACH ROW
 BEGIN
@@ -1390,4 +1401,5 @@ DROP PROCEDURE pc_i_tt_5_suc;
 DROP PROCEDURE pc_i_nt_5_suc;
 DROP FUNCTION fc_i_tt_5_suc;
 DROP FUNCTION fc_i_nt_5_suc;
+DROP FUNCTION fc_i_nt_3_tt_3_suc;
 include/rpl_end.inc

@@ -1,0 +1,40 @@
+!include ../my.cnf
+
+# 2 clusters, each with 2 MySQLDs
+# All MySQLDs log-slave-updates
+# All MySQLDs log-apply-status
+# Infinite loops broken in the test using Ignore_server_ids mechanism
+
+[mysqld.1.1]
+server-id= 1
+log-bin
+ndb_connectstring=	@mysql_cluster.1.ndb_connectstring
+log-slave-updates
+skip-slave-start
+
+[mysqld.2.1]
+server-id= 3
+log-bin
+ndb_connectstring=	@mysql_cluster.1.ndb_connectstring
+log-slave-updates
+skip-slave-start
+
+[mysqld.1.slave]
+server-id= 2
+log-bin
+ndb_connectstring=	@mysql_cluster.slave.ndb_connectstring
+log-slave-updates
+skip-slave-start
+
+[mysqld.2.slave]
+server-id= 4
+log-bin
+ndb_connectstring=	@mysql_cluster.slave.ndb_connectstring
+log-slave-updates
+skip-slave-start
+
+[ENV]
+SERVER_MYPORT_1=        @mysqld.1.1.port
+SERVER_MYPORT_2=        @mysqld.1.slave.port
+SERVER_MYPORT_3=        @mysqld.2.1.port
+SERVER_MYPORT_4=        @mysqld.2.slave.port

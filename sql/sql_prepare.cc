@@ -891,7 +891,7 @@ static bool insert_params_with_log(Prepared_statement *stmt, uchar *null_array,
     */
     else if (! is_param_long_data_type(param))
       DBUG_RETURN(1);
-    res= param->query_val_str(&str);
+    res= param->query_val_str(thd, &str);
     if (param->convert_str_value(thd))
       DBUG_RETURN(1);                           /* out of memory */
 
@@ -1065,7 +1065,7 @@ static bool emb_insert_params_with_log(Prepared_statement *stmt,
           DBUG_RETURN(1);
       }
     }
-    res= param->query_val_str(&str);
+    res= param->query_val_str(thd, &str);
     if (param->convert_str_value(thd))
       DBUG_RETURN(1);                           /* out of memory */
 
@@ -1211,7 +1211,7 @@ static bool insert_params_from_vars_with_log(Prepared_statement *stmt,
     setup_one_conversion_function(thd, param, param->param_type);
     if (param->set_from_user_var(thd, entry))
       DBUG_RETURN(1);
-    val= param->query_val_str(&buf);
+    val= param->query_val_str(thd, &buf);
 
     if (param->convert_str_value(thd))
       DBUG_RETURN(1);                           /* out of memory */
@@ -2446,7 +2446,7 @@ void reinit_stmt_before_use(THD *thd, LEX *lex)
   {
     if (!sl->first_execution)
     {
-      /* remove option which was put by mysql_explain_union() */
+      /* remove option which was put by mysql_explain_unit() */
       sl->options&= ~SELECT_DESCRIBE;
 
       /* see unique_table() */
@@ -3059,7 +3059,7 @@ Execute_sql_statement::execute_server_code(THD *thd)
   thd->m_statement_psi= parent_locker;
 
   /* report error issued during command execution */
-  if (error == 0 && thd->spcont == NULL)
+  if (error == 0 && thd->sp_runtime_ctx == NULL)
     general_log_write(thd, COM_STMT_EXECUTE,
                       thd->query(), thd->query_length());
 
@@ -3366,7 +3366,7 @@ bool Prepared_statement::prepare(const char *packet, uint packet_len)
       sub-statements inside stored procedures are not logged into
       the general log.
     */
-    if (thd->spcont == NULL)
+    if (thd->sp_runtime_ctx == NULL)
       general_log_write(thd, COM_STMT_PREPARE, query(), query_length());
   }
   DBUG_RETURN(error);
@@ -3894,7 +3894,7 @@ bool Prepared_statement::execute(String *expanded_query, bool open_cursor)
     sub-statements inside stored procedures are not logged into
     the general log.
   */
-  if (error == 0 && thd->spcont == NULL)
+  if (error == 0 && thd->sp_runtime_ctx == NULL)
     general_log_write(thd, COM_STMT_EXECUTE, thd->query(), thd->query_length());
 
 error:

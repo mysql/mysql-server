@@ -15,6 +15,7 @@ connect (slave2,127.0.0.1,root,,test,$SLAVE_MYPORT2,);
 connection slave2;
 RESET SLAVE;
 --replace_result $MASTER_MYPORT MASTER_PORT
+--replace_column 2 ####
 --eval CHANGE MASTER TO master_host='127.0.0.1',master_port=$MASTER_MYPORT,master_user='root'
 START SLAVE IO_THREAD;
 source include/wait_for_slave_io_to_start.inc;
@@ -25,6 +26,8 @@ let $field= Server_id;
 # 3 is server_id of slave2.
 let $condition= ='3';
 source include/wait_show_condition.inc;
+--replace_column 3 'SLAVE_PORT'
+--replace_result $SLAVE_MYPORT SLAVE_PORT $DEFAULT_MASTER_PORT DEFAULT_PORT
 source include/show_slave_hosts.inc;
 
 connection slave2;

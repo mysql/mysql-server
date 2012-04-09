@@ -1,0 +1,81 @@
+-- source include/have_ndb.inc
+-- source include/have_binlog_format_mixed_or_row.inc
+
+--disable_warnings
+drop table if exists t1, t2;
+drop database if exists mysqltest;
+create database mysqltest;
+use mysqltest;
+drop database mysqltest;
+use test;
+--enable_warnings
+
+#
+# basic insert, update, delete test, alter, rename, drop
+# check that ndb_binlog_index gets the right info
+#
+reset master;
+
+create table t1 (a int primary key) engine=ndb;
+insert into t1 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
+save_master_pos;
+--replace_column 1 #
+select @max_epoch:=max(epoch)-1 from mysql.ndb_binlog_index;
+
+delete from t1;
+alter table t1 add (b int);
+insert into t1 values (3,3),(4,4);
+alter table t1 rename t2;
+
+# get all in one epoch
+begin;
+insert into t2 values (1,1),(2,2);
+update t2 set b=1 where a=3;
+delete from t2 where a=4;
+commit;
+drop table t2;
+
+# check that above is ok
+# (save_master_pos waits for last gcp to complete, ensuring that we have
+#  the expected data in the binlog)
+save_master_pos;
+select inserts from mysql.ndb_binlog_index where epoch > @max_epoch and inserts > 5;
+select deletes from mysql.ndb_binlog_index where epoch > @max_epoch and deletes > 5;
+select inserts,updates,deletes from 
+  mysql.ndb_binlog_index where epoch > @max_epoch and updates > 0;
+
+#
+# check that purge clears the ndb_binlog_index
+#
+# TODO: make this deterministic
+# This test is disabled until we can make this determistic under load.
+# The problem is that in some cases, the binlog writing thread gets
+# scheduled after the purge, writes pending things, then the select
+# gets scheduled
+#
+flush logs;
+--sleep 1
+purge master logs before now();
+--disable_parsing
+select count(*) from mysql.ndb_binlog_index;
+--enable_parsing
+
+#
+# several tables in different databases
+# check that same table name in different databases don't mix up
+#
+create table t1 (a int primary key, b int) engine=ndb;
+create database mysqltest;
+use mysqltest;
+create table t1 (c int, d int primary key) engine=ndb;
+use test;
+
+insert into mysqltest.t1 values (2,1),(2,2);
+save_master_pos;
+--replace_column 1 #
+select @max_epoch:=max(epoch)-1 from mysql.ndb_binlog_index;
+
+drop table t1;
+drop database mysqltest;
+select inserts,updates,deletes from 
+  mysql.ndb_binlog_index where epoch > @max_epoch and inserts > 0;

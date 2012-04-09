@@ -20132,6 +20132,39 @@ static void test_bug13001491()
 }
 
 
+/*
+  WL#5968: Implement START TRANSACTION READ (WRITE|ONLY);
+  Check that the SERVER_STATUS_IN_TRANS_READONLY flag is set properly.
+*/
+static void test_wl5968()
+{
+  int rc;
+
+  myheader("test_wl5968");
+
+  rc= mysql_query(mysql, "START TRANSACTION");
+  myquery(rc);
+  DIE_UNLESS(mysql->server_status & SERVER_STATUS_IN_TRANS);
+  DIE_UNLESS(!(mysql->server_status & SERVER_STATUS_IN_TRANS_READONLY));
+  rc= mysql_query(mysql, "COMMIT");
+  myquery(rc);
+  rc= mysql_query(mysql, "START TRANSACTION READ ONLY");
+  myquery(rc);
+  DIE_UNLESS(mysql->server_status & SERVER_STATUS_IN_TRANS);
+  DIE_UNLESS(mysql->server_status & SERVER_STATUS_IN_TRANS_READONLY);
+  rc= mysql_query(mysql, "COMMIT");
+  myquery(rc);
+  DIE_UNLESS(!(mysql->server_status & SERVER_STATUS_IN_TRANS));
+  DIE_UNLESS(!(mysql->server_status & SERVER_STATUS_IN_TRANS_READONLY));
+  rc= mysql_query(mysql, "START TRANSACTION");
+  myquery(rc);
+  DIE_UNLESS(mysql->server_status & SERVER_STATUS_IN_TRANS);
+  DIE_UNLESS(!(mysql->server_status & SERVER_STATUS_IN_TRANS_READONLY));
+  rc= mysql_query(mysql, "COMMIT");
+  myquery(rc);
+}
+
+
 static struct my_option client_test_long_options[] =
 {
   {"basedir", 'b', "Basedir for tests.", &opt_basedir,
@@ -20478,6 +20511,7 @@ static struct my_tests_st my_tests[]= {
   { "test_bug12337762", test_bug12337762 },
   { "test_bug11754979", test_bug11754979 },
   { "test_bug13001491", test_bug13001491 },
+  { "test_wl5968", test_wl5968 },
   { 0, 0 }
 };
 

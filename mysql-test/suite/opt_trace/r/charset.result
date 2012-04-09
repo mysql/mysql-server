@@ -1,10 +1,11 @@
-set @@session.optimizer_trace="enabled=on,end_marker=on";
+set @@session.end_markers_in_json=on;
+set @@session.optimizer_trace="enabled=on";
 create table t1(a int);
 insert into t1 values(1);
 set names latin1;
 explain extended select '�����', _latin1'�����' from t1 limit 1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	system	NULL	NULL	NULL	NULL	1	100.00	
+1	SIMPLE	t1	system	NULL	NULL	NULL	NULL	1	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select '�����' AS `�����`,_latin1'\xC1\xC2\xC3\xC4\xC5' AS `�����` from dual limit 1
 select (@query:=QUERY)+NULL, (@trace:=TRACE)+NULL from information_schema.OPTIMIZER_TRACE;
@@ -19,7 +20,7 @@ explain extended select '�����', _latin1'�����' from t1 limit 1	{
         "select#": 1,
         "steps": [
           {
-            "expanded_query": "/* select#1 */ select '�����' AS `�����`,_latin1'\\xC1\\xC2\\xC3\\xC4\\xC5' AS `�����` from `test`.`t1` limit 1"
+            "expanded_query": "/* select#1 */ select '�����' AS `�����`,_latin1'\\xC1\\xC2\\xC3\\xC4\\xC5' AS `�����` from `t1` limit 1"
           }
         ] /* steps */
       } /* join_preparation */
@@ -31,8 +32,7 @@ explain extended select '�����', _latin1'�����' from t1 limit 1	{
           {
             "table_dependencies": [
               {
-                "database": "test",
-                "table": "t1",
+                "table": "`t1`",
                 "row_may_be_null": false,
                 "map_bit": 0,
                 "depends_on_map_bits": [
@@ -43,8 +43,7 @@ explain extended select '�����', _latin1'�����' from t1 limit 1	{
           {
             "rows_estimation": [
               {
-                "database": "test",
-                "table": "t1",
+                "table": "`t1`",
                 "rows": 1,
                 "cost": 1,
                 "table_type": "system",
@@ -87,7 +86,7 @@ explain extended select 'ÁÂÃÄÅ', _latin1'ÁÂÃÄÅ' from t1 limit 1	{
         "select#": 1,
         "steps": [
           {
-            "expanded_query": "/* select#1 */ select 'ÁÂÃÄÅ' AS `ÁÂÃÄÅ`,_latin1'\\xC1\\xC2\\xC3\\xC4\\xC5' AS `ÁÂÃÄÅ` from `test`.`t1` limit 1"
+            "expanded_query": "/* select#1 */ select 'ÁÂÃÄÅ' AS `ÁÂÃÄÅ`,_latin1'\\xC1\\xC2\\xC3\\xC4\\xC5' AS `ÁÂÃÄÅ` from `t1` limit 1"
           }
         ] /* steps */
       } /* join_preparation */
@@ -99,8 +98,7 @@ explain extended select 'ÁÂÃÄÅ', _latin1'ÁÂÃÄÅ' from t1 limit 1	{
           {
             "table_dependencies": [
               {
-                "database": "test",
-                "table": "t1",
+                "table": "`t1`",
                 "row_may_be_null": false,
                 "map_bit": 0,
                 "depends_on_map_bits": [
@@ -111,8 +109,7 @@ explain extended select 'ÁÂÃÄÅ', _latin1'ÁÂÃÄÅ' from t1 limit 1	{
           {
             "rows_estimation": [
               {
-                "database": "test",
-                "table": "t1",
+                "table": "`t1`",
                 "rows": 1,
                 "cost": 1,
                 "table_type": "system",
@@ -172,7 +169,7 @@ select * from v1 where v1.col = 'ÁÂÃÄÅ'	{
         "select#": 2,
         "steps": [
           {
-            "expanded_query": "/* select#2 */ select 'ÁÂÃÄÅ' AS `col` from `test`.`t1` limit 1"
+            "expanded_query": "/* select#2 */ select 'ÁÂÃÄÅ' AS `col` from `t1` limit 1"
           }
         ] /* steps */
       } /* join_preparation */
@@ -182,7 +179,7 @@ select * from v1 where v1.col = 'ÁÂÃÄÅ'	{
         "select#": 1,
         "steps": [
           {
-            "expanded_query": "/* select#1 */ select `v1`.`col` AS `col` from `test`.`v1` where (`v1`.`col` = 'ÁÂÃÄÅ')"
+            "expanded_query": "/* select#1 */ select `v1`.`col` AS `col` from `v1` where (`v1`.`col` = 'ÁÂÃÄÅ')"
           }
         ] /* steps */
       } /* join_preparation */
@@ -198,8 +195,7 @@ select * from v1 where v1.col = 'ÁÂÃÄÅ'	{
                 {
                   "table_dependencies": [
                     {
-                      "database": "test",
-                      "table": "t1",
+                      "table": "`t1`",
                       "row_may_be_null": false,
                       "map_bit": 0,
                       "depends_on_map_bits": [
@@ -210,8 +206,7 @@ select * from v1 where v1.col = 'ÁÂÃÄÅ'	{
                 {
                   "rows_estimation": [
                     {
-                      "database": "test",
-                      "table": "t1",
+                      "table": "`t1`",
                       "rows": 1,
                       "cost": 1,
                       "table_type": "system",
@@ -238,8 +233,7 @@ select * from v1 where v1.col = 'ÁÂÃÄÅ'	{
           {
             "creating_tmp_table": {
               "tmp_table_info": {
-                "database": "",
-                "table": "v1",
+                "table": "`v1`",
                 "row_length": 7,
                 "key_length": 0,
                 "unique_constraint": false,
@@ -278,8 +272,7 @@ select * from v1 where v1.col = 'ÁÂÃÄÅ'	{
           {
             "table_dependencies": [
               {
-                "database": "",
-                "table": "v1",
+                "table": "`v1`",
                 "row_may_be_null": false,
                 "map_bit": 0,
                 "depends_on_map_bits": [
@@ -294,8 +287,7 @@ select * from v1 where v1.col = 'ÁÂÃÄÅ'	{
           {
             "rows_estimation": [
               {
-                "database": "",
-                "table": "v1",
+                "table": "`v1`",
                 "rows": 1,
                 "cost": 1,
                 "table_type": "system",
@@ -354,7 +346,7 @@ select * from t1 where c < 'ÁÂÃÄÅ'	{
         "select#": 1,
         "steps": [
           {
-            "expanded_query": "/* select#1 */ select `test`.`t1`.`c` AS `c` from `test`.`t1` where (`test`.`t1`.`c` < 'ÁÂÃÄÅ')"
+            "expanded_query": "/* select#1 */ select `t1`.`c` AS `c` from `t1` where (`t1`.`c` < 'ÁÂÃÄÅ')"
           }
         ] /* steps */
       } /* join_preparation */
@@ -366,19 +358,19 @@ select * from t1 where c < 'ÁÂÃÄÅ'	{
           {
             "condition_processing": {
               "condition": "WHERE",
-              "original_condition": "(`test`.`t1`.`c` < 'ÁÂÃÄÅ')",
+              "original_condition": "(`t1`.`c` < 'ÁÂÃÄÅ')",
               "steps": [
                 {
                   "transformation": "equality_propagation",
-                  "resulting_condition": "(`test`.`t1`.`c` < 'ÁÂÃÄÅ')"
+                  "resulting_condition": "(`t1`.`c` < 'ÁÂÃÄÅ')"
                 },
                 {
                   "transformation": "constant_propagation",
-                  "resulting_condition": "(`test`.`t1`.`c` < 'ÁÂÃÄÅ')"
+                  "resulting_condition": "(`t1`.`c` < 'ÁÂÃÄÅ')"
                 },
                 {
                   "transformation": "trivial_condition_removal",
-                  "resulting_condition": "(`test`.`t1`.`c` < 'ÁÂÃÄÅ')"
+                  "resulting_condition": "(`t1`.`c` < 'ÁÂÃÄÅ')"
                 }
               ] /* steps */
             } /* condition_processing */
@@ -386,8 +378,7 @@ select * from t1 where c < 'ÁÂÃÄÅ'	{
           {
             "table_dependencies": [
               {
-                "database": "test",
-                "table": "t1",
+                "table": "`t1`",
                 "row_may_be_null": false,
                 "map_bit": 0,
                 "depends_on_map_bits": [
@@ -402,8 +393,7 @@ select * from t1 where c < 'ÁÂÃÄÅ'	{
           {
             "rows_estimation": [
               {
-                "database": "test",
-                "table": "t1",
+                "table": "`t1`",
                 "range_analysis": {
                   "table_scan": {
                     "rows": 2,
@@ -457,8 +447,9 @@ select * from t1 where c < 'ÁÂÃÄÅ'	{
           {
             "considered_execution_plans": [
               {
-                "database": "test",
-                "table": "t1",
+                "plan_prefix": [
+                ] /* plan_prefix */,
+                "table": "`t1`",
                 "best_access_path": {
                   "considered_access_paths": [
                     {
@@ -477,14 +468,13 @@ select * from t1 where c < 'ÁÂÃÄÅ'	{
           },
           {
             "attaching_conditions_to_tables": {
-              "original_condition": "(`test`.`t1`.`c` < 'ÁÂÃÄÅ')",
+              "original_condition": "(`t1`.`c` < 'ÁÂÃÄÅ')",
               "attached_conditions_computation": [
               ] /* attached_conditions_computation */,
               "attached_conditions_summary": [
                 {
-                  "database": "test",
-                  "table": "t1",
-                  "attached": "(`test`.`t1`.`c` < 'ÁÂÃÄÅ')"
+                  "table": "`t1`",
+                  "attached": "(`t1`.`c` < 'ÁÂÃÄÅ')"
                 }
               ] /* attached_conditions_summary */
             } /* attaching_conditions_to_tables */
@@ -492,8 +482,7 @@ select * from t1 where c < 'ÁÂÃÄÅ'	{
           {
             "refine_plan": [
               {
-                "database": "test",
-                "table": "t1",
+                "table": "`t1`",
                 "access_type": "index_scan"
               }
             ] /* refine_plan */
@@ -550,7 +539,7 @@ select `col
         "select#": 1,
         "steps": [
           {
-            "expanded_query": "/* select#1 */ select `test`.`t\n1\ta`.`col\n1\ta` AS `col\n1\ta` from (`test`.`t\n1\ta`) where (`test`.`t\n1\ta`.`col\n1\ta` < 6)"
+            "expanded_query": "/* select#1 */ select `t\n1\ta`.`col\n1\ta` AS `col\n1\ta` from (`t\n1\ta`) where (`t\n1\ta`.`col\n1\ta` < 6)"
           }
         ] /* steps */
       } /* join_preparation */
@@ -564,25 +553,25 @@ select `col
               "transformations": [
                 "parenthesis_removal"
               ] /* transformations */,
-              "expanded_query": "/* select#1 */ select `test`.`t\n1\ta`.`col\n1\ta` AS `col\n1\ta` from `test`.`t\n1\ta` where (`test`.`t\n1\ta`.`col\n1\ta` < 6)"
+              "expanded_query": "/* select#1 */ select `t\n1\ta`.`col\n1\ta` AS `col\n1\ta` from `t\n1\ta` where (`t\n1\ta`.`col\n1\ta` < 6)"
             } /* transformations_to_nested_joins */
           },
           {
             "condition_processing": {
               "condition": "WHERE",
-              "original_condition": "(`test`.`t\n1\ta`.`col\n1\ta` < 6)",
+              "original_condition": "(`t\n1\ta`.`col\n1\ta` < 6)",
               "steps": [
                 {
                   "transformation": "equality_propagation",
-                  "resulting_condition": "(`test`.`t\n1\ta`.`col\n1\ta` < 6)"
+                  "resulting_condition": "(`t\n1\ta`.`col\n1\ta` < 6)"
                 },
                 {
                   "transformation": "constant_propagation",
-                  "resulting_condition": "(`test`.`t\n1\ta`.`col\n1\ta` < 6)"
+                  "resulting_condition": "(`t\n1\ta`.`col\n1\ta` < 6)"
                 },
                 {
                   "transformation": "trivial_condition_removal",
-                  "resulting_condition": "(`test`.`t\n1\ta`.`col\n1\ta` < 6)"
+                  "resulting_condition": "(`t\n1\ta`.`col\n1\ta` < 6)"
                 }
               ] /* steps */
             } /* condition_processing */
@@ -590,8 +579,7 @@ select `col
           {
             "table_dependencies": [
               {
-                "database": "test",
-                "table": "t\n1\ta",
+                "table": "`t\n1\ta`",
                 "row_may_be_null": false,
                 "map_bit": 0,
                 "depends_on_map_bits": [
@@ -606,8 +594,7 @@ select `col
           {
             "rows_estimation": [
               {
-                "database": "test",
-                "table": "t\n1\ta",
+                "table": "`t\n1\ta`",
                 "range_analysis": {
                   "table_scan": {
                     "rows": 2,
@@ -661,8 +648,9 @@ select `col
           {
             "considered_execution_plans": [
               {
-                "database": "test",
-                "table": "t\n1\ta",
+                "plan_prefix": [
+                ] /* plan_prefix */,
+                "table": "`t\n1\ta`",
                 "best_access_path": {
                   "considered_access_paths": [
                     {
@@ -681,14 +669,13 @@ select `col
           },
           {
             "attaching_conditions_to_tables": {
-              "original_condition": "(`test`.`t\n1\ta`.`col\n1\ta` < 6)",
+              "original_condition": "(`t\n1\ta`.`col\n1\ta` < 6)",
               "attached_conditions_computation": [
               ] /* attached_conditions_computation */,
               "attached_conditions_summary": [
                 {
-                  "database": "test",
-                  "table": "t\n1\ta",
-                  "attached": "(`test`.`t\n1\ta`.`col\n1\ta` < 6)"
+                  "table": "`t\n1\ta`",
+                  "attached": "(`t\n1\ta`.`col\n1\ta` < 6)"
                 }
               ] /* attached_conditions_summary */
             } /* attaching_conditions_to_tables */
@@ -696,8 +683,7 @@ select `col
           {
             "refine_plan": [
               {
-                "database": "test",
-                "table": "t\n1\ta",
+                "table": "`t\n1\ta`",
                 "access_type": "index_scan"
               }
             ] /* refine_plan */

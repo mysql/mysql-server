@@ -121,10 +121,10 @@ extern	mysql_pfs_key_t	checkpoint_lock_key;
 extern	mysql_pfs_key_t	fil_space_latch_key;
 extern	mysql_pfs_key_t	fts_cache_rw_lock_key;
 extern	mysql_pfs_key_t	fts_cache_init_rw_lock_key;
-extern	mysql_pfs_key_t	index_tree_rw_lock_key;
 extern	mysql_pfs_key_t	trx_i_s_cache_lock_key;
 extern	mysql_pfs_key_t	trx_purge_latch_key;
 extern	mysql_pfs_key_t	index_tree_rw_lock_key;
+extern	mysql_pfs_key_t	index_online_log_key;
 extern	mysql_pfs_key_t	dict_table_stats_latch_key;
 extern  mysql_pfs_key_t trx_sys_rw_lock_key;
 extern  mysql_pfs_key_t hash_table_rw_lock_key;
@@ -159,6 +159,9 @@ unlocking, not the corresponding function. */
 # define rw_lock_s_lock(M)					\
 	rw_lock_s_lock_func((M), 0, __FILE__, __LINE__)
 
+# define rw_lock_s_lock_inline(M, P, F, L)			\
+	rw_lock_s_lock_func((M), (P), (F), (L))
+
 # define rw_lock_s_lock_gen(M, P)				\
 	rw_lock_s_lock_func((M), (P), __FILE__, __LINE__)
 
@@ -175,11 +178,17 @@ unlocking, not the corresponding function. */
 # define rw_lock_x_lock(M)					\
 	rw_lock_x_lock_func((M), 0, __FILE__, __LINE__)
 
+# define rw_lock_x_lock_inline(M, P, F, L)			\
+	rw_lock_x_lock_func((M), (P), (F), (L))
+
 # define rw_lock_x_lock_gen(M, P)				\
 	rw_lock_x_lock_func((M), (P), __FILE__, __LINE__)
 
 # define rw_lock_x_lock_nowait(M)				\
 	rw_lock_x_lock_func_nowait((M), __FILE__, __LINE__)
+
+# define rw_lock_x_lock_func_nowait_inline(M, F, L)		\
+	rw_lock_x_lock_func_nowait((M), (F), (L))
 
 # ifdef UNIV_SYNC_DEBUG
 #  define rw_lock_x_unlock_gen(L, P)	rw_lock_x_unlock_func(P, L)
@@ -212,6 +221,9 @@ unlocking, not the corresponding function. */
 # define rw_lock_s_lock(M)					\
 	pfs_rw_lock_s_lock_func((M), 0, __FILE__, __LINE__)
 
+# define rw_lock_s_lock_inline(M, P, F, L)			\
+	pfs_rw_lock_s_lock_func((M), (P), (F), (L))
+
 # define rw_lock_s_lock_gen(M, P)				\
 	pfs_rw_lock_s_lock_func((M), (P), __FILE__, __LINE__)
 
@@ -227,11 +239,17 @@ unlocking, not the corresponding function. */
 # define rw_lock_x_lock(M)					\
 	pfs_rw_lock_x_lock_func((M), 0, __FILE__, __LINE__)
 
+# define rw_lock_x_lock_inline(M, P, F, L)			\
+	pfs_rw_lock_x_lock_func((M), (P), (F), (L))
+
 # define rw_lock_x_lock_gen(M, P)				\
 	pfs_rw_lock_x_lock_func((M), (P), __FILE__, __LINE__)
 
 # define rw_lock_x_lock_nowait(M)				\
 	pfs_rw_lock_x_lock_func_nowait((M), __FILE__, __LINE__)
+
+# define rw_lock_x_lock_func_nowait_inline(M, F, L)		\
+	pfs_rw_lock_x_lock_func_nowait((M), (F), (L))
 
 # ifdef UNIV_SYNC_DEBUG
 #  define rw_lock_x_unlock_gen(L, P)	pfs_rw_lock_x_unlock_func(P, L)

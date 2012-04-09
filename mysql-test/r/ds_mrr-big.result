@@ -1,0 +1,78 @@
+#
+# Bug 12365385 STRAIGHT_JOIN QUERY QUICKLY EXHAUSTS SYSTEM+VIRT. 
+#              MEMORY LEADING TO SYSTEM CRASH
+#
+CREATE TABLE ten (a INTEGER);
+INSERT INTO ten VALUES (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
+CREATE TABLE hundred (a INTEGER);
+INSERT INTO hundred
+SELECT a1.a + 10 * a2.a FROM ten a1, ten a2;
+CREATE TABLE thousand (a INTEGER);
+INSERT INTO thousand
+SELECT a1.a + 10 * a2.a + 100 * a3.a FROM ten a1, ten a2, ten a3;
+CREATE TABLE t1 (
+pk INTEGER NOT NULL,
+i1 INTEGER NOT NULL,
+c1 VARCHAR(10) NOT NULL,
+PRIMARY KEY (pk)
+);
+INSERT INTO t1
+SELECT a, 1, 'MySQL' FROM thousand;
+CREATE TABLE t2 (
+pk INTEGER NOT NULL,
+c1 VARCHAR(10) NOT NULL,
+c2 varchar(10) NOT NULL,
+PRIMARY KEY (pk)
+);
+INSERT INTO t2
+SELECT a, 'MySQL', 'MySQL' FROM ten;
+CREATE TABLE t3 (
+pk INTEGER NOT NULL,
+c1 VARCHAR(10) NOT NULL,
+PRIMARY KEY (pk)
+);
+INSERT INTO t3
+SELECT a, 'MySQL' FROM hundred;
+CREATE TABLE t4 (
+pk int(11) NOT NULL,
+c1_key varchar(10) CHARACTER SET utf8 NOT NULL,
+c2 varchar(10) NOT NULL,
+c3 varchar(10) NOT NULL,
+PRIMARY KEY (pk),
+KEY k1 (c1_key)
+);
+CREATE TABLE t5 (
+pk INTEGER NOT NULL,
+c1 VARCHAR(10) NOT NULL,
+PRIMARY KEY (pk)
+);
+INSERT INTO t5
+SELECT a, 'MySQL' FROM ten;
+set optimizer_switch=`mrr=on,mrr_cost_based=off`;
+EXPLAIN SELECT STRAIGHT_JOIN *
+FROM 
+(t1 LEFT JOIN 
+(t2 LEFT JOIN
+(t3 LEFT OUTER JOIN t4 ON t3.c1 <= t4.c1_key)
+ON t2.c1 = t4.c3) 
+ON t1.c1 = t4.c2)
+RIGHT OUTER JOIN t5 ON t2.c2 <= t5.c1
+WHERE t1.i1 = 1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t5	ALL	NULL	NULL	NULL	NULL	10	NULL
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	1000	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	10	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	t3	ALL	NULL	NULL	NULL	NULL	100	Using join buffer (Block Nested Loop)
+1	SIMPLE	t4	ALL	k1	NULL	NULL	NULL	0	Range checked for each record (index map: 0x2)
+SELECT STRAIGHT_JOIN *
+FROM 
+(t1 LEFT JOIN 
+(t2 LEFT JOIN
+(t3 LEFT OUTER JOIN t4 ON t3.c1 <= t4.c1_key)
+ON t2.c1 = t4.c3) 
+ON t1.c1 = t4.c2)
+RIGHT OUTER JOIN t5 ON t2.c2 <= t5.c1
+WHERE t1.i1 = 1;
+pk	i1	c1	pk	c1	c2	pk	c1	pk	c1_key	c2	c3	pk	c1
+DROP TABLE ten, hundred, thousand;
+DROP TABLE t1, t2, t3, t4, t5;

@@ -388,6 +388,7 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
     if (thd->slave_thread)
     {
 #if defined(HAVE_REPLICATION) && !defined(MYSQL_CLIENT)
+      DBUG_ASSERT(active_mi != NULL);
       if (strncmp(active_mi->rli->slave_patternload_file, name,
                   active_mi->rli->slave_patternload_file_size))
       {
@@ -489,10 +490,7 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
       table->file->ha_start_bulk_insert((ha_rows) 0);
     table->copy_blobs=1;
 
-    thd->abort_on_warning= (!ignore &&
-                            (thd->variables.sql_mode &
-                             (MODE_STRICT_TRANS_TABLES |
-                              MODE_STRICT_ALL_TABLES)));
+    thd->abort_on_warning= (!ignore && thd->is_strict_mode());
 
     if (ex->filetype == FILETYPE_XML) /* load xml */
       error= read_xml_field(thd, info, table_list, fields_vars,
@@ -732,7 +730,7 @@ static bool write_execute_load_query_log_event(THD *thd, sql_exchange* ex,
       if (item->type() == Item::FIELD_ITEM)
       {
         pfields.append("`");
-        pfields.append(item->name);
+        pfields.append(item->item_name.ptr());
         pfields.append("`");
       }
       else
@@ -755,9 +753,9 @@ static bool write_execute_load_query_log_event(THD *thd, sql_exchange* ex,
       if (n++)
         pfields.append(", ");
       pfields.append("`");
-      pfields.append(item->name);
+      pfields.append(item->item_name.ptr());
       pfields.append("`");
-      pfields.append(val->name);
+      pfields.append(val->item_name.ptr());
     }
   }
 
@@ -1185,7 +1183,7 @@ read_xml_field(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
       xmlit.rewind();
       tag= xmlit++;
       
-      while(tag && strcmp(tag->field.c_ptr(), item->name) != 0)
+      while(tag && strcmp(tag->field.c_ptr(), item->item_name.ptr()) != 0)
         tag= xmlit++;
       
       if (!tag) // found null

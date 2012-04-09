@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2012, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -308,7 +308,8 @@ lock_clust_rec_modify_check_and_lock(
 					modified */
 	dict_index_t*		index,	/*!< in: clustered index */
 	const ulint*		offsets,/*!< in: rec_get_offsets(rec, index) */
-	que_thr_t*		thr);	/*!< in: query thread */
+	que_thr_t*		thr)	/*!< in: query thread */
+	__attribute__((warn_unused_result, nonnull));
 /*********************************************************************//**
 Checks if locks of other transactions prevent an immediate modify
 (delete mark or delete unmark) of a secondary index record.
@@ -326,8 +327,10 @@ lock_sec_rec_modify_check_and_lock(
 				clustered index record first: see the
 				comment below */
 	dict_index_t*	index,	/*!< in: secondary index */
-	que_thr_t*	thr,	/*!< in: query thread */
-	mtr_t*		mtr);	/*!< in/out: mini-transaction */
+	que_thr_t*	thr,	/*!< in: query thread
+				(can be NULL if BTR_NO_LOCKING_FLAG) */
+	mtr_t*		mtr)	/*!< in/out: mini-transaction */
+	__attribute__((warn_unused_result, nonnull(2,3,4,6)));
 /*********************************************************************//**
 Like lock_clust_rec_read_check_and_lock(), but reads a
 secondary index record.

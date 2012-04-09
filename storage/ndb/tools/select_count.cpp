@@ -1,4 +1,5 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +12,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 
 #include <ndb_global.h>
@@ -28,10 +30,8 @@
 static int 
 select_count(Ndb* pNdb, const NdbDictionary::Table* pTab,
 	     int parallelism,
-	     int* count_rows,
+	     Uint64* count_rows,
 	     NdbOperation::LockMode lock);
-
-NDB_STD_OPTS_VARS;
 
 static const char* _dbname = "TEST_DB";
 static int _parallelism = 240;
@@ -41,34 +41,32 @@ const char *load_default_groups[]= { "mysql_cluster",0 };
 
 static struct my_option my_long_options[] =
 {
-  NDB_STD_OPTS("ndb_desc"),
+  NDB_STD_OPTS("ndb_select_count"),
   { "database", 'd', "Name of database table is in",
-    &_dbname, &_dbname, 0,
+    (uchar**) &_dbname, (uchar**) &_dbname, 0,
     GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
   { "parallelism", 'p', "parallelism",
-    &_parallelism, &_parallelism, 0,
+    (uchar**) &_parallelism, (uchar**) &_parallelism, 0,
     GET_INT, REQUIRED_ARG, 240, 0, 0, 0, 0, 0 }, 
   { "lock", 'l', "Read(0), Read-hold(1), Exclusive(2)",
-    &_lock, &_lock, 0,
+    (uchar**) &_lock, (uchar**) &_lock, 0,
     GET_INT, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 }, 
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
+
+static void short_usage_sub(void)
+{
+  ndb_short_usage_sub(NULL);
+}
+
 static void usage()
 {
-#ifdef NOT_USED
-  char desc[] = 
-    "tabname1 ... tabnameN\n"\
-    "This program will count the number of records in tables\n";
-#endif
-  ndb_std_print_version();
-  print_defaults(MYSQL_CONFIG_NAME,load_default_groups);
-  puts("");
-  my_print_help(my_long_options);
-  my_print_variables(my_long_options);
+  ndb_usage(short_usage_sub, load_default_groups, my_long_options);
 }
 
 int main(int argc, char** argv){
   NDB_INIT(argv[0]);
+  ndb_opt_set_usage_funcs(short_usage_sub, usage);
   load_defaults("my",load_default_groups,&argc,&argv);
   int ho_error;
 #ifndef DBUG_OFF
@@ -82,7 +80,7 @@ int main(int argc, char** argv){
     return NDBT_ProgramExit(NDBT_WRONGARGS);
   }
 
-  Ndb_cluster_connection con(opt_connect_str);
+  Ndb_cluster_connection con(opt_ndb_connectstring, opt_ndb_nodeid);
   con.set_name("ndb_select_count");
   if(con.connect(12, 5, 1) != 0)
   {
@@ -109,7 +107,7 @@ int main(int argc, char** argv){
       continue;
     }
 
-    int rows = 0;
+    Uint64 rows = 0;
     if (select_count(&MyNdb, pTab, _parallelism, &rows, 
 		     (NdbOperation::LockMode)_lock) != 0){
       return NDBT_ProgramExit(NDBT_FAILED);
@@ -123,7 +121,7 @@ int main(int argc, char** argv){
 int 
 select_count(Ndb* pNdb, const NdbDictionary::Table* pTab,
 	     int parallelism,
-	     int* count_rows,
+	     Uint64* count_rows,
 	     NdbOperation::LockMode lock){
   
   int                  retryAttempt = 0;
@@ -131,6 +129,17 @@ select_count(Ndb* pNdb, const NdbDictionary::Table* pTab,
   int                  check;
   NdbTransaction       *pTrans;
   NdbScanOperation	       *pOp;
+  const Uint32 codeWords= 1;
+  Uint32 codeSpace[ codeWords ];
+  NdbInterpretedCode code(NULL, // Table is irrelevant
+                          &codeSpace[0],
+                          codeWords);
+  if ((code.interpret_exit_last_row() != 0) ||
+      (code.finalise() != 0))
+  {
+    ERR(code.getNdbError());
+    return NDBT_FAILED;
+  }
 
   while (true){
 
@@ -166,7 +175,7 @@ select_count(Ndb* pNdb, const NdbDictionary::Table* pTab,
     }
 
 
-    check = pOp->interpret_exit_last_row();
+    check = pOp->setInterpretedCode(&code);
     if( check == -1 ) {
       ERR(pTrans->getNdbError());
       pNdb->closeTransaction(pTrans);

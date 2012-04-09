@@ -588,6 +588,7 @@ trx_undo_page_report_modify(
 	/* Store first some general parameters to the undo log */
 
 	if (!update) {
+		ut_ad(!rec_get_deleted_flag(rec, dict_table_is_comp(table)));
 		type_cmpl = TRX_UNDO_DEL_MARK_REC;
 	} else if (rec_get_deleted_flag(rec, dict_table_is_comp(table))) {
 		type_cmpl = TRX_UNDO_UPD_DEL_REC;
@@ -1040,8 +1041,9 @@ trx_undo_update_rec_get_update(
 }
 
 /*******************************************************************//**
-Builds a partial row from an update undo log record. It contains the
-columns which occur as ordering in any index of the table.
+Builds a partial row from an update undo log record, for purge.
+It contains the columns which occur as ordering in any index of the table.
+Any missing columns are indicated by col->mtype == DATA_MISSING.
 @return	pointer to remaining part of undo record */
 UNIV_INTERN
 byte*
@@ -1075,7 +1077,12 @@ trx_undo_rec_get_partial_row(
 
 	*row = dtuple_create(heap, row_len);
 
-	dict_table_copy_types(*row, index->table);
+	/* Mark all columns in the row uninitialized, so that
+	we can distinguish missing fields from fields that are SQL NULL. */
+	for (ulint i = 0; i < row_len; i++) {
+		dfield_get_type(dtuple_get_nth_field(*row, i))
+			->mtype = DATA_MISSING;
+	}
 
 	end_ptr = ptr + mach_read_from_2(ptr);
 	ptr += 2;
@@ -1097,7 +1104,9 @@ trx_undo_rec_get_partial_row(
 		ptr = trx_undo_rec_get_col_val(ptr, &field, &len, &orig_len);
 
 		dfield = dtuple_get_nth_field(*row, col_no);
-
+		dict_col_copy_type(
+			dict_table_get_nth_col(index->table, col_no),
+			dfield_get_type(dfield));
 		dfield_set_data(dfield, field, len);
 
 		if (len != UNIV_SQL_NULL
@@ -1230,6 +1239,16 @@ trx_undo_report_row_operation(
 	      || (clust_entry && !update && !rec));
 
 	trx = thr_get_trx(thr);
+
+	/* This table is visible only to the session that created it. */
+	if (trx->read_only) {
+		/* MySQL should block writes to non-temporary tables. */
+		ut_a(index->table->flags2 & DICT_TF2_TEMPORARY);
+		if (trx->rseg == 0) {
+			trx_assign_rseg(trx);
+		}
+	}
+
 	rseg = trx->rseg;
 
 	mtr_start(&mtr);
@@ -1547,6 +1566,7 @@ trx_undo_prev_version_build(
 
 	ptr = trx_undo_rec_get_pars(undo_rec, &type, &cmpl_info,
 				    &dummy_extern, &undo_no, &table_id);
+	ut_a(table_id == index->table->id);
 
 	ptr = trx_undo_update_rec_get_sys_cols(ptr, &trx_id, &roll_ptr,
 					       &info_bits);
@@ -1578,7 +1598,6 @@ trx_undo_prev_version_build(
 	ptr = trx_undo_update_rec_get_update(ptr, index, type, trx_id,
 					     roll_ptr, info_bits,
 					     NULL, heap, &update);
-	ut_a(table_id == index->table->id);
 	ut_a(ptr);
 
 # if defined UNIV_DEBUG || defined UNIV_BLOB_LIGHT_DEBUG

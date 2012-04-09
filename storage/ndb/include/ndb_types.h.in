@@ -1,4 +1,5 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +12,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 /**
  * @file ndb_types.h
@@ -20,22 +22,18 @@
 #ifndef NDB_TYPES_H
 #define NDB_TYPES_H
 
-#if defined(_WIN32) || defined(__WIN32__) || defined(WIN32) || defined(_WIN64)
-#define NDB_SIZEOF_CHARP SIZEOF_CHARP
-#define NDB_SIZEOF_CHAR SIZEOF_CHAR
-#define NDB_SIZEOF_SHORT 2
-#define NDB_SIZEOF_INT SIZEOF_INT
-#define NDB_SIZEOF_LONG SIZEOF_LONG
-#define NDB_SIZEOF_LONG_LONG SIZEOF_LONG_LONG
-typedef unsigned __int64 Uint64;
-typedef   signed __int64 Int64;
-#else
 #define NDB_SIZEOF_CHARP @NDB_SIZEOF_CHARP@
 #define NDB_SIZEOF_CHAR @NDB_SIZEOF_CHAR@
 #define NDB_SIZEOF_INT @NDB_SIZEOF_INT@
 #define NDB_SIZEOF_SHORT @NDB_SIZEOF_SHORT@
 #define NDB_SIZEOF_LONG @NDB_SIZEOF_LONG@
 #define NDB_SIZEOF_LONG_LONG @NDB_SIZEOF_LONG_LONG@
+
+#if defined(_WIN32) || defined(__WIN32__) || defined(WIN32) || defined(_WIN64)
+typedef unsigned __int64 Uint64;
+typedef   signed __int64 Int64;
+#define ssize_t SSIZE_T
+#else
 typedef unsigned long long Uint64;
 typedef   signed long long Int64;
 #endif
@@ -46,6 +44,18 @@ typedef   signed short Int16;
 typedef unsigned short Uint16;
 typedef   signed int   Int32;
 typedef unsigned int   Uint32;
+
+#ifndef INT_MIN64
+#define INT_MIN64       (~0x7FFFFFFFFFFFFFFFLL)
+#endif /* !INT_MIN64 */
+
+#ifndef INT_MAX64
+#define INT_MAX64       0x7FFFFFFFFFFFFFFFLL
+#endif /* !INT_MAX64 */
+
+#ifndef UINT_MAX64
+#define UINT_MAX64      0xFFFFFFFFFFFFFFFFLL
+#endif /* !UINT_MAX64 */
 
 typedef unsigned int UintR;
 

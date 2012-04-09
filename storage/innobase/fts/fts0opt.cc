@@ -1037,6 +1037,8 @@ fts_bsearch(
 	int		upper,	/*!< in: the array upper bound */
 	doc_id_t	doc_id)	/*!< in: the doc id to search for */
 {
+	int	orig_size = upper;
+
 	if (upper == 0) {
 		/* Nothing to search */
 		return(-1);
@@ -1051,6 +1053,14 @@ fts_bsearch(
 			} else {
 				return(i); /* Found. */
 			}
+		}
+	}
+
+	if (lower == upper && lower < orig_size) {
+		if (doc_id == array[lower].doc_id) {
+			return(lower);
+		} else if (lower == 0) {
+			return(-1);
 		}
 	}
 
@@ -3003,7 +3013,7 @@ fts_optimize_thread(
 				dict_table_t*	table;
 
 			        table = dict_table_open_on_name_no_stats(
-					slot->table->name, FALSE,
+					slot->table->name, FALSE, FALSE,
 					DICT_ERR_IGNORE_INDEX_ROOT);
 
 				if (table) {
@@ -3013,7 +3023,7 @@ fts_optimize_thread(
 					}
 
 					fts_free(table);
-					dict_table_close(table, FALSE);
+					dict_table_close(table, FALSE, FALSE);
 				}
 			}
 		}

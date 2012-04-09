@@ -5,7 +5,8 @@
 let $DEFAULT_TRACE_MEM_SIZE=1048576; # 1MB
 eval set optimizer_trace_max_mem_size=$DEFAULT_TRACE_MEM_SIZE;
 
-SET optimizer_trace="enabled=on,end_marker=on,one_line=off";
+SET end_markers_in_json=on;
+SET optimizer_trace="enabled=on,one_line=off";
 
 --echo #
 --echo # BUG#12430646 - SEL_ARG::LEFT AND RIGHT POINTERS INCORRECTLY 

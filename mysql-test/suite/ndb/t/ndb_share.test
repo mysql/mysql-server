@@ -1,0 +1,386 @@
+-- source include/not_embedded.inc
+-- source include/have_ndb.inc
+-- source include/have_log_bin.inc
+
+-- disable_query_log
+call mtr.add_suppression('.*You need to use --log-bin to make --binlog-format work.*');
+-- enable_query_log
+
+connect (server1,127.0.0.1,root,,test,$MYSQLD1_PORT,);
+connect (server2,127.0.0.1,root,,test,$MYSQLD2_PORT,);
+connect (server3,127.0.0.1,root,,test,$MYSQLD3_PORT,);
+connect (server4,127.0.0.1,root,,test,$MYSQLD4_PORT,);
+
+connection server1;
+show variables like 'log_bin';
+connection server2;
+show variables like 'log_bin';
+connection server3;
+show variables like 'log_bin';
+connection server4;
+show variables like 'log_bin';
+
+#
+# Basic create+drop (from with and without log-bin)
+#   no share should be present
+#
+connection server1;
+create table t1 (a int) engine=ndbcluster;
+drop table t1;
+--source suite/ndb/include/ndb_share_check_shares.inc
+
+connection server3;
+create table t1 (a int) engine=ndbcluster;
+drop table t1;
+--source suite/ndb/include/ndb_share_check_shares.inc
+
+#
+# Basic create+rename+drop (from with and without log-bin)
+#   no share should be present
+#
+connection server1;
+create table t1 (a int) engine=ndbcluster;
+rename table t1 to t2;
+drop table t2;
+--source suite/ndb/include/ndb_share_check_shares.inc
+
+connection server2;
+create table t1 (a int) engine=ndbcluster;
+rename table t1 to t2;
+drop table t2;
+--source suite/ndb/include/ndb_share_check_shares.inc
+
+#
+# Basic create+offline-alter+drop (from with and without log-bin)
+#   no share should be present
+#
+connection server1;
+create table t1 (a int) engine=ndbcluster;
+alter offline table t1 add column b int default 77;
+drop table t1;
+--source suite/ndb/include/ndb_share_check_shares.inc
+
+connection server2;
+create table t1 (a int) engine=ndbcluster;
+alter offline table t1 add column b int default 77;
+drop table t1;
+--source suite/ndb/include/ndb_share_check_shares.inc
+
+#
+# Basic create+offline-alter-partitions+drop (from with and without log-bin)
+#   no share should be present
+#
+connection server1;
+create table t1 (a int primary key) engine=ndbcluster
+partition by list(a) (partition p0 values in (0));
+alter offline table t1 add partition (partition p1 values in (1));
+drop table t1;
+--source suite/ndb/include/ndb_share_check_shares.inc
+
+connection server2;
+create table t1 (a int primary key) engine=ndbcluster
+partition by list(a) (partition p0 values in (0));
+alter offline table t1 add partition (partition p1 values in (1));
+drop table t1;
+--source suite/ndb/include/ndb_share_check_shares.inc
+
+#
+# Basic create+online-alter+drop (from with and without log-bin)
+#   no share should be present
+#
+connection server1;
+create table t1 (a int primary key) engine=ndbcluster;
+alter online table t1 add column b int column_format dynamic;
+drop table t1;
+--source suite/ndb/include/ndb_share_check_shares.inc
+
+connection server2;
+create table t1 (a int primary key) engine=ndbcluster;
+alter offline table t1 add column b int column_format dynamic;
+drop table t1;
+--source suite/ndb/include/ndb_share_check_shares.inc
+
+#
+# Basic create+multi-rename+drop (from with and without log-bin)
+#   no share should be present
+#
+connection server1;
+create table t1 (a int) engine=ndbcluster;
+create table t2 (a int) engine=ndbcluster;
+rename table t1 to tmp, t2 to t1, tmp to t2;
+drop table t1, t2;
+--source suite/ndb/include/ndb_share_check_shares.inc
+
+connection server2;
+create table t1 (a int) engine=ndbcluster;
+create table t2 (a int) engine=ndbcluster;
+rename table t1 to tmp, t2 to t1, tmp to t2;
+drop table t1, t2;
+--source suite/ndb/include/ndb_share_check_shares.inc
+
+#
+# Now...lets get nastier 1
+#   create myisam tables on other servers...and then create ndb table
+#
+connection server2;
+create table t1 (a int) engine=myisam;
+connection server4;
+create table t1 (a int) engine=myisam;
+
+connection server1;
+create table t1 (a int) engine = ndb;
+drop table t1;
+--source suite/ndb/include/ndb_share_check_shares.inc
+
+connection server3;
+create table t1 (a int) engine = ndb;
+drop table t1;
+--source suite/ndb/include/ndb_share_check_shares.inc
+
+connection server1;
+create table t1 (a int) engine = ndb;
+
+connection server2;
+drop table t1;
+desc t1; # force discovery
+
+connection server4;
+drop table t1;
+desc t1; # force discovery
+
+connection server1;
+drop table t1;
+--source suite/ndb/include/ndb_share_check_shares.inc
+
+#
+# Now...lets get nastier 2
+#   create myisam tables on other servers...and then create ndb table
+#   and off-line alter them
+connection server2;
+create table t1 (a int) engine=myisam;
+connection server4;
+create table t1 (a int) engine=myisam;
+
+connection server1;
+create table t1 (a int) engine = ndb;
+alter offline table t1 add column b int column_format dynamic;
+
+connection server2;
+drop table t1;
+desc t1; # force discovery
+
+connection server4;
+drop table t1;
+desc t1; # force discovery
+
+connection server1;
+drop table t1;
+--source suite/ndb/include/ndb_share_check_shares.inc
+
+#
+# Now...lets get nastier 3
+#   create myisam tables on other servers...and then create ndb table
+#   and online alter them
+connection server2;
+create table t1 (a int) engine=myisam;
+connection server4;
+create table t1 (a int) engine=myisam;
+
+connection server1;
+create table t1 (a int primary key) engine = ndb;
+alter online table t1 add column b int column_format dynamic;
+
+connection server2;
+drop table t1;
+desc t1; # force discovery
+
+connection server4;
+drop table t1;
+desc t1; # force discovery
+
+connection server1;
+drop table t1;
+--source suite/ndb/include/ndb_share_check_shares.inc
+
+#
+# Now...lets get nastier 4
+#   create myisam tables on other servers...and then create ndb table
+#   and rename them
+connection server2;
+create table t1 (a int) engine=myisam;
+connection server4;
+create table t1 (a int) engine=myisam;
+
+connection server1;
+create table t1 (a int) engine = ndb;
+rename table t1 to t2;
+
+connection server2;
+desc t2; # force discovery
+
+connection server4;
+desc t2; # force discovery
+
+connection server1;
+drop table t2;
+--source suite/ndb/include/ndb_share_check_shares.inc
+
+connection server2;
+drop table t1;
+
+connection server4;
+drop table t1;
+--source suite/ndb/include/ndb_share_check_shares.inc
+
+#
+# Now...create table if not exists
+#
+--disable_warnings
+let $1=5;
+while ($1)
+{
+  dec $1;
+  connection server1;
+  --send create table if not exists t1 (a int) engine=ndbcluster
+  connection server2;
+  --send create table if not exists t1 (a int) engine=ndbcluster
+  connection server3;
+  --send create table if not exists t1 (a int) engine=ndbcluster
+  connection server4;
+  --send create table if not exists t1 (a int) engine=ndbcluster
+  connection server1;
+  --reap
+  connection server2;
+  --reap
+  connection server3;
+  --reap
+  connection server4;
+  --reap
+  connection server1;
+  drop table t1;
+  --source suite/ndb/include/ndb_share_check_shares.inc
+}
+--enable_warnings
+
+#
+# Now...drop table if exists
+#
+--disable_warnings
+let $1=5;
+while ($1)
+{
+  dec $1;
+  connection server1;
+  create table t1 (a int) engine=ndbcluster;
+
+  connection server1;
+  --send drop table if exists t1
+  connection server2;
+  --send drop table if exists t1
+  connection server3;
+  --send drop table if exists t1
+  connection server4;
+  --send drop table if exists t1
+  connection server1;
+  --reap
+  connection server2;
+  --reap
+  connection server3;
+  --reap
+  connection server4;
+  --reap
+  --source suite/ndb/include/ndb_share_check_shares.inc
+}
+--enable_warnings
+
+#
+# Now...restart
+#
+connection server1;
+create table t1 (a int) engine=ndbcluster;
+
+connection server3;
+create table t2 (a int) engine=ndbcluster;
+
+--exec $NDB_MGM --no-defaults -e "all restart -n" >> $NDB_TOOLS_OUTPUT
+--exec $NDB_WAITER --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" --not-started >> $NDB_TOOLS_OUTPUT
+--exec $NDB_MGM --no-defaults -e "all start" >> $NDB_TOOLS_OUTPUT
+--exec $NDB_WAITER --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" >> $NDB_TOOLS_OUTPUT
+
+# Wait for mysqld to reconnect and exit from readonly mode
+--disable_query_log
+connection server1;
+--source include/ndb_not_readonly.inc
+connection server2;
+--source include/ndb_not_readonly.inc
+connection server3;
+--source include/ndb_not_readonly.inc
+connection server4;
+--source include/ndb_not_readonly.inc
+--enable_query_log
+
+connection server1;
+desc t1;
+desc t2;
+connection server2;
+desc t1;
+desc t2;
+connection server3;
+desc t1;
+desc t2;
+connection server4;
+desc t1;
+desc t2;
+
+connection server1;
+drop table t1, t2;
+--source suite/ndb/include/ndb_share_check_shares.inc
+
+#
+# Now...restart -i
+#
+connection server1;
+create table t1 (a int) engine=ndbcluster;
+
+connection server3;
+create table t2 (a int) engine=ndbcluster;
+
+--exec $NDB_MGM --no-defaults -e "all restart -i -n" >> $NDB_TOOLS_OUTPUT
+--exec $NDB_WAITER --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" --not-started >> $NDB_TOOLS_OUTPUT
+--exec $NDB_MGM --no-defaults -e "all start" >> $NDB_TOOLS_OUTPUT
+--exec $NDB_WAITER --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" >> $NDB_TOOLS_OUTPUT
+
+# Wait for mysqld to reconnect and exit from readonly mode
+--disable_query_log
+connection server1;
+--source include/ndb_not_readonly.inc
+connection server2;
+--source include/ndb_not_readonly.inc
+connection server3;
+--source include/ndb_not_readonly.inc
+connection server4;
+--source include/ndb_not_readonly.inc
+--enable_query_log
+
+connection server1;
+--error 1146
+desc t1;
+--error 1146
+desc t2;
+connection server2;
+--error 1146
+desc t1;
+--error 1146
+desc t2;
+connection server3;
+--error 1146
+desc t1;
+--error 1146
+desc t2;
+connection server4;
+--error 1146
+desc t1;
+--error 1146
+desc t2;
+
+--source suite/ndb/include/ndb_share_check_shares.inc

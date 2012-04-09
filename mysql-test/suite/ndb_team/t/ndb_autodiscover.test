@@ -1,0 +1,555 @@
+-- source include/have_ndb.inc
+-- source include/not_embedded.inc
+
+# Bug#41308: Test main.ndb_autodiscover.test doesn't work on Windows due
+#            to 'grep' calls
+# Test is currently disabled on Windows via the next line until this bug
+# can be resolved.
+--source include/not_windows.inc
+
+--disable_warnings
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9,t10;
+--enable_warnings
+
+################################################
+# Test that a table that does not exist as a 
+# frm file on disk can be "discovered" from a 
+# connected NDB Cluster
+#
+
+flush status;
+
+#
+# Test discover + SELECT
+#
+
+create table t1(
+  id int not null primary key,
+  name char(20)
+) engine=ndb;
+
+insert into t1 values(1, "Autodiscover");
+flush tables;
+--remove_file $MYSQLTEST_VARDIR/master-data/test/t1.frm
+select * from t1;
+show status like 'handler_discover%';
+
+#
+# Test discover + INSERT
+#
+
+flush tables;
+--remove_file $MYSQLTEST_VARDIR/master-data/test/t1.frm
+insert into t1 values (2, "Auto 2");
+show status like 'handler_discover%';
+insert into t1 values (3, "Discover 3");
+show status like 'handler_discover%';
+flush tables;
+--remove_file $MYSQLTEST_VARDIR/master-data/test/t1.frm
+select * from t1 order by id;
+show status like 'handler_discover%';
+
+#
+# Test discover + UPDATE
+#
+
+flush tables;
+--remove_file $MYSQLTEST_VARDIR/master-data/test/t1.frm
+update t1 set name="Autodiscover" where id = 2;
+show status like 'handler_discover%';
+select * from t1 order by id;
+show status like 'handler_discover%';
+
+#
+# Test discover + DELETE
+#
+
+flush tables;
+--remove_file $MYSQLTEST_VARDIR/master-data/test/t1.frm
+delete from  t1 where id = 3;
+select * from t1 order by id;
+show status like 'handler_discover%';
+
+drop table t1;
+
+
+
+######################################################
+# Test that a table that is outdated on disk
+# can be "discovered" from a connected NDB Cluster
+#
+
+flush status;
+
+create table t2(
+  id int not null primary key,
+  name char(22)
+) engine=ndb;
+insert into t2 values (1, "Discoverer");
+select * from t2;
+show status like 'handler_discover%';
+flush tables;
+
+# Modify the frm file on disk
+system echo "blaj" >> $MYSQLTEST_VARDIR/master-data/test/t2.frm ;
+select * from t2;
+
+show status like 'handler_discover%';
+
+drop table t2;
+
+
+##################################################
+# Test that a table that already exists in NDB 
+# is only discovered if CREATE TABLE IF NOT EXISTS 
+# is used
+#
+
+flush status;
+
+create table t3(
+  id int not null primary key,
+  name char(255)
+) engine=ndb;
+insert into t3 values (1, "Explorer");
+select * from t3;
+show status like 'handler_discover%';
+flush tables;
+
+# Remove the frm file from disk
+--remove_file $MYSQLTEST_VARDIR/master-data/test/t3.frm
+
+--error ER_TABLE_EXISTS_ERROR
+create table t3(
+  id int not null primary key,
+  name char(20), a int, b float, c char(24)
+) engine=ndb;
+
+# The table shall not have been discovered since
+# IF NOT EXISTS wasn't specified
+
+show status like 'handler_discover%';
+
+# now it should be discovered
+create table IF NOT EXISTS t3(
+  id int not null primary key,
+  id2 int not null,
+  name char(20)
+) engine=ndb;
+
+# NOTE! the table called t3 have now been updated to 
+# use the same frm as in NDB, thus it's not certain that 
+# the table schema is the same as was stated in the 
+# CREATE TABLE statement above
+
+show status like 'handler_discover%';
+
+SHOW CREATE TABLE t3;
+
+select * from t3;
+show status like 'handler_discover%';
+
+drop table t3;
+
+##################################################
+# Test that a table that already exists in NDB 
+# is discovered when SHOW TABLES
+# is used
+#
+
+flush status;
+
+create table t7(
+  id int not null primary key,
+  name char(255)
+) engine=ndb;
+create table t6(
+  id int not null primary key,
+  name char(255)
+) engine=MyISAM;
+insert into t7 values (1, "Explorer");
+insert into t6 values (2, "MyISAM table");
+select * from t7;
+show status like 'handler_discover%';
+
+# Remove the frm file from disk
+flush tables;
+--remove_file $MYSQLTEST_VARDIR/master-data/test/t7.frm
+
+show tables from test;
+show status like 'handler_discover%';
+
+# Remove the frm file from disk again
+flush tables;
+--remove_file $MYSQLTEST_VARDIR/master-data/test/t7.frm
+
+--replace_column 6 # 7 # 8 # 9 # 12 # 13 # 15 # 18 #
+show table status;
+show status like 'handler_discover%';
+
+drop table t6, t7;
+
+
+#######################################################
+# Test that a table that has been dropped from NDB
+# but still exists on disk, get a consistent error message
+# saying "No such table existed"
+#
+
+flush status;
+
+create table t4(
+  id int not null primary key,
+  name char(27)
+) engine=ndb;
+insert into t4 values (1, "Automatic");
+select * from t4;
+
+# Remove the table from NDB
+system exec $NDB_DROP_TABLE --no-defaults -d test t4 >> $NDB_TOOLS_OUTPUT ; 
+
+#
+# Test that correct error is returned
+--error ER_NO_SUCH_TABLE
+select * from t4;
+--error ER_NO_SUCH_TABLE
+select * from t4;
+
+show status like 'handler_discover%';
+--error ER_BAD_TABLE_ERROR
+drop table t4;
+
+create table t4(
+  id int not null primary key,
+  name char(27)
+) engine=ndb;
+insert into t4 values (1, "Automatic");
+select * from t4;
+
+# Remove the table from NDB
+system exec $NDB_DROP_TABLE --no-defaults -d test t4 >> $NDB_TOOLS_OUTPUT ; 
+
+--error ER_NO_SUCH_TABLE
+select * from t4;
+
+drop table if exists t4;
+
+# Test that dropping a table that does not exists
+# on  disk or in NDB gives same result as above
+--error ER_BAD_TABLE_ERROR
+drop table t5;
+drop table if exists t5;
+
+
+#######################################################
+# Test that a table that has been dropped from NDB
+# but still exists on disk is deleted from disk 
+# when SHOW TABLES is called
+#
+
+flush status;
+
+create table t4(
+  id int not null primary key,
+  id2 int,
+  name char(27)
+) engine=ndb;
+insert into t4 values (1, 76, "Automatic2");
+select * from t4;
+flush tables;
+
+# Remove the table from NDB
+system exec $NDB_DROP_TABLE --no-defaults -d test t4 >> $NDB_TOOLS_OUTPUT ;
+
+SHOW TABLES;
+
+--error ER_NO_SUCH_TABLE
+select * from t4;
+
+#######################################################
+# Test SHOW TABLES ability to detect new and delete old
+# tables. Test all at once using many tables
+#
+
+flush status;
+
+# Create tables
+create table t1(id int) engine=ndbcluster;
+create table t2(id int, b char(255)) engine=myisam;
+create table t3(id int, c char(255)) engine=ndbcluster;
+create table t4(id int) engine=myisam;
+create table t5(id int, d char(56)) engine=ndbcluster;
+create table t6(id int) engine=ndbcluster;
+create table t7(id int) engine=ndbcluster;
+create table t8(id int, e char(34)) engine=myisam;
+create table t9(id int) engine=myisam;
+
+# Populate tables
+insert into t2 values (2, "myisam table 2");
+insert into t3 values (3, "ndb table 3");
+insert into t5 values (5, "ndb table 5");
+insert into t6 values (6);
+insert into t8 values (8, "myisam table 8");
+insert into t9 values (9);
+
+# Remove t3, t5 from NDB
+system exec $NDB_DROP_TABLE --no-defaults -d test t3 >> $NDB_TOOLS_OUTPUT ;
+system exec $NDB_DROP_TABLE --no-defaults -d test t5 >> $NDB_TOOLS_OUTPUT ;
+# Remove t6, t7 from disk
+--remove_file $MYSQLTEST_VARDIR/master-data/test/t6.frm
+--remove_file $MYSQLTEST_VARDIR/master-data/test/t7.frm
+
+SHOW TABLES;
+
+select * from t6;
+select * from t7;
+
+show status like 'handler_discover%';
+
+drop table t1, t2, t4, t6, t7, t8, t9;
+
+#######################################################
+# Test SHOW TABLES LIKE ability to detect new and delete old
+# tables. Test all at once using many tables.
+#
+
+flush status;
+
+# Create tables
+create table t1(id int) engine=ndbcluster;
+create table t2(id int, b char(255)) engine=myisam;
+create table t3(id int, c char(255)) engine=ndbcluster;
+create table t4(id int) engine=myisam;
+create table t5(id int, d char(56)) engine=ndbcluster;
+create table t6(id int) engine=ndbcluster;
+create table t7(id int) engine=ndbcluster;
+create table t8(id int, e char(34)) engine=myisam;
+create table t9(id int) engine=myisam;
+
+# Populate tables
+insert into t2 values (2, "myisam table 2");
+insert into t3 values (3, "ndb table 3");
+insert into t5 values (5, "ndb table 5");
+insert into t6 values (6);
+insert into t8 values (8, "myisam table 8");
+insert into t9 values (9);
+
+# Remove t3, t5 from NDB
+system exec $NDB_DROP_TABLE --no-defaults -d test t3 > /dev/null  ;
+system exec $NDB_DROP_TABLE --no-defaults -d test t5 > /dev/null  ;
+# Remove t6, t7 from disk
+--remove_file $MYSQLTEST_VARDIR/master-data/test/t6.frm
+--remove_file $MYSQLTEST_VARDIR/master-data/test/t7.frm
+
+
+SHOW TABLES LIKE 't6';
+
+show status like 'handler_discover%';
+
+# Check that t3 or t5 can't be created
+# frm files for these tables is stilll on disk
+--error ER_TABLE_EXISTS_ERROR
+create table t3(a int);
+--error ER_TABLE_EXISTS_ERROR
+create table t5(a int);
+
+SHOW TABLES LIKE 't%';
+
+show status like 'handler_discover%';
+
+drop table t1, t2, t4, t6, t7, t8, t9;
+
+
+
+######################################################
+# Test that several tables can be discovered when 
+# one statement access several table at once.
+#
+
+flush status;
+
+# Create tables
+create table t1(id int) engine=ndbcluster;
+create table t2(id int, b char(255)) engine=ndbcluster;
+create table t3(id int, c char(255)) engine=ndbcluster;
+create table t4(id int) engine=myisam;
+
+# Populate tables
+insert into t1 values (1);
+insert into t2 values (2, "table 2");
+insert into t3 values (3, "ndb table 3");
+insert into t4 values (4);
+
+# Remove t1, t2, t3 from disk
+--remove_file $MYSQLTEST_VARDIR/master-data/test/t1.frm
+--remove_file $MYSQLTEST_VARDIR/master-data/test/t2.frm
+--remove_file $MYSQLTEST_VARDIR/master-data/test/t3.frm
+flush tables;
+
+# Select from the table which only exists in NDB.
+select * from t1, t2, t3, t4;
+
+# 3 table should have been discovered
+show status like 'handler_discover%';
+
+drop table t1, t2, t3, t4;
+
+
+#########################################################
+# Test that a table that has been changed in NDB 
+# since it's been opened will be refreshed and discovered
+# again
+#
+
+flush status;
+
+show status like 'handler_discover%';
+
+create table t5(
+  id int not null primary key,
+  name char(200)
+) engine=ndb;
+insert into t5 values (1, "Magnus");
+select * from t5;
+
+ALTER TABLE t5 ADD COLUMN adress char(255) FIRST;
+
+select * from t5;
+
+insert into t5 values 
+ ("Adress for record 2", 2, "Carl-Gustav"), 
+ ("Adress for record 3", 3, "Karl-Emil");
+update t5 set name="Bertil" where id = 2;
+select * from t5 order by id;
+
+show status like 'handler_discover%';
+
+drop table t5;
+
+
+################################################################
+# Test that a table that has been changed with ALTER TABLE
+# can be used from the same thread
+#
+
+flush status;
+
+show status like 'handler_discover%';
+
+create table t6(
+  id int not null primary key,
+  name char(20)
+) engine=ndb;
+insert into t6 values (1, "Magnus");
+select * from t6;
+
+ALTER TABLE t6 ADD COLUMN adress char(255) FIRST;
+
+select * from t6;
+insert into t6 values 
+ ("Adress for record 2", 2, "Carl-Gustav"), 
+ ("Adress for record 3", 3, "Karl-Emil");
+update t6 set name="Bertil" where id = 2;
+select * from t6 order by id;
+
+show status like 'handler_discover%';
+
+drop table t6;
+
+#####################################################
+# Test that only tables in the current database shows 
+# up in SHOW TABLES
+#
+
+show tables;
+
+create table t1 (a int,b longblob) engine=ndb;
+show tables;
+create database test2;
+use test2;
+show tables;
+--error ER_NO_SUCH_TABLE
+select * from t1;
+create table t2 (b int,c longblob) engine=ndb;
+use test;
+select * from t1;
+show tables;
+drop table t1;
+use test2;
+drop table t2;
+drop database test2;
+use test;
+
+#########################################################
+# Bug#8035
+# mysqld would segfault on second select * before bug was fixed
+#
+--disable_warnings
+drop database if exists test_only_ndb_tables;
+--enable_warnings
+create database test_only_ndb_tables;
+use test_only_ndb_tables;
+create table t1 (a int primary key) engine=ndb;
+select * from t1;
+--exec $NDB_MGM --no-defaults -e "all restart -n" > /dev/null
+--exec $NDB_WAITER --no-defaults --not-started > /dev/null
+--error ER_CANT_LOCK
+select * from t1;
+--exec $NDB_MGM --no-defaults -e "all start" > /dev/null
+--exec $NDB_WAITER --no-defaults > /dev/null
+--source include/ndb_wait_connected.inc
+use test;
+drop database test_only_ndb_tables;
+
+#####################################################
+# Test that it's not possible to create tables
+# with same name as NDB internal tables
+# This will also test that it's not possible to create
+# a table with tha same name as a table that can't be
+# discovered( for example a table created via NDBAPI)
+
+# Test disabled since it doesn't work on case insensitive systems
+#--error ER_TABLE_EXISTS_ERROR
+#CREATE TABLE sys.SYSTAB_0 (a int);
+#--error ER_UNKNOWN_ERROR
+#select * from sys.SYSTAB_0;
+
+#CREATE TABLE IF NOT EXISTS sys.SYSTAB_0 (a int);
+#show warnings;
+#--error ER_UNKNOWN_ERROR
+#select * from sys.SYSTAB_0;
+
+#--error ER_BAD_TABLE_ERROR
+#drop table sys.SYSTAB_0;
+#drop table IF EXISTS sys.SYSTAB_0;
+
+######################################################
+# Note! This should always be the last step in this 
+# file, the table t9 will be used and dropped 
+# by ndb_autodiscover2
+#
+
+CREATE TABLE t9 (
+  a int NOT NULL PRIMARY KEY,
+  b int
+) engine=ndb;
+
+insert t9 values(1, 2), (2,3), (3, 4), (4, 5);
+
+#Don't drop the table, instead remove the frm file
+--remove_file $MYSQLTEST_VARDIR/master-data/test/t9.frm
+
+# Now leave test case, when ndb_autodiscover2 will  run, this 
+# MySQL Server will have been restarted because it has a 
+# ndb_autodiscover2-master.opt file.
+
+create table t10 (
+  a int not null primary key,
+  b blob
+) engine=ndb;
+
+insert into t10 values (1, 'kalle');
+
+--exec $NDB_DROP_TABLE --no-defaults -d test `$NDB_SHOW_TABLES --no-defaults | grep BLOB | while read a b c d e f g; do echo $g; done` >> $NDB_TOOLS_OUTPUT 2>&1 || true
+
+# End of 4.1 tests

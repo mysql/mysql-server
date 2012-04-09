@@ -1,4 +1,5 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +12,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #ifndef DIH_CONTINUEB_H
 #define DIH_CONTINUEB_H
@@ -54,8 +56,6 @@ private:
     ZCHECK_GCP_STOP         = 26,
     ZREMOVE_NODE_FROM_TABLE      = 27,
     ZCOPY_NODE                   = 28,
-    ZSTART_TAKE_OVER             = 29,
-    ZCHECK_START_TAKE_OVER       = 30,
     ZTO_START_COPY_FRAG          = 31,
     ZINITIALISE_RECORDS          = 33,    
     ZINVALIDATE_NODE_LCP         = 34,
@@ -63,13 +63,18 @@ private:
     SwitchReplica                = 36,
     ZSEND_START_TO               = 37,
     ZSEND_ADD_FRAG               = 38,
-    ZSEND_CREATE_FRAG            = 39,
     ZSEND_UPDATE_TO              = 40,
-    ZSEND_END_TO                 = 41,
 
     WAIT_DROP_TAB_WRITING_TO_FILE = 42,
-    CHECK_WAIT_DROP_TAB_FAILED_LQH = 43,
+    //CHECK_WAIT_DROP_TAB_FAILED_LQH = 43,
     ZTO_START_FRAGMENTS = 44
+    ,ZCOPY_NODE_WAIT_CREATE_FRAG = 45
+    ,ZWAIT_OLD_SCAN = 46
+    ,ZLCP_TRY_LOCK = 47
+    ,ZDELAY_RELEASE_FRAGMENT_INFO_MUTEX = 48
+    ,ZTO_START_LOGGING = 49
+    ,ZGET_TABINFO = 50
+    ,ZGET_TABINFO_SEND = 51
   };
 };
 

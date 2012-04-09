@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2010, 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2010, 2012, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -35,7 +35,7 @@ Created 10/13/2010 Jimmy Yang
 #define ROW_MERGE_READ_GET_NEXT(N)					\
 	do {								\
 		b[N] = row_merge_read_rec(				\
-			block[N], buf[N], b[N], index,			\
+			block[N], buf[N], b[N], index, n_null,		\
 			fd[N], &foffs[N], &mrec[N], offsets[N]);	\
 		if (UNIV_UNLIKELY(!b[N])) {				\
 			if (mrec[N]) {					\
@@ -46,9 +46,6 @@ Created 10/13/2010 Jimmy Yang
 
 /** Parallel sort degree */
 UNIV_INTERN ulong	fts_sort_pll_degree	= 2;
-
-/** Parallel sort buffer size */
-UNIV_INTERN ulong	srv_sort_buf_size 	= 1048576;
 
 /*********************************************************************//**
 Create a temporary "fts sort index" used to merge sort the
@@ -433,12 +430,12 @@ row_merge_fts_doc_tokenize(
 		ut_a(t_ctx->buf_used < FTS_NUM_AUX_INDEX);
 		idx = t_ctx->buf_used;
 
-		buf->tuples[buf->n_tuples + n_tuple[idx]] = field =
-			static_cast<dfield_t*>(mem_heap_alloc(
-				buf->heap,
-				FTS_NUM_FIELDS_SORT * sizeof *field));
+		mtuple_t* mtuple = &buf->tuples[buf->n_tuples + n_tuple[idx]];
 
-		ut_a(field);
+		mtuple->del_mark = false;
+		field = mtuple->fields = static_cast<dfield_t*>(
+			mem_heap_alloc(buf->heap,
+				       FTS_NUM_FIELDS_SORT * sizeof *field));
 
 		/* The first field is the tokenized word */
 		dfield_set_data(field, t_str.f_str, t_str.f_len);
@@ -522,6 +519,10 @@ row_merge_fts_doc_tokenize(
 	/* Update the data length and the number of new word tuples
 	added in this round of tokenization */
 	for (i = 0; i <  FTS_NUM_AUX_INDEX; i++) {
+		/* The computation of total_size below assumes that no
+		delete-mark flags will be stored and that all fields
+		are NOT NULL and fixed-length. */
+
 		sort_buf[i]->total_size += data_size[i];
 
 		sort_buf[i]->n_tuples += n_tuple[i];
@@ -1064,7 +1065,6 @@ row_fts_sel_tree_propagate(
 	int	child_left;
 	int	child_right;
 	int	selected;
-	ibool	null_eq = FALSE;
 
 	/* Find which parent this value will be propagated to */
 	parent = (propogated - 1) / 2;
@@ -1083,10 +1083,10 @@ row_fts_sel_tree_propagate(
 	} else if (child_right == -1
 		   || mrec[child_right] == NULL) {
 		selected = child_left;
-	} else if (row_merge_cmp(mrec[child_left], mrec[child_right],
-				 offsets[child_left],
-				 offsets[child_right],
-				 index, &null_eq) < 0) {
+	} else if (cmp_rec_rec_simple(mrec[child_left], mrec[child_right],
+				      offsets[child_left],
+				      offsets[child_right],
+				      index, NULL) < 0) {
 		selected = child_left;
 	} else {
 		selected = child_right;
@@ -1143,8 +1143,6 @@ row_fts_build_sel_tree_level(
 	num_item = (1 << level);
 
 	for (i = 0; i < num_item;  i++) {
-		ibool	null_eq = FALSE;
-
 		child_left = sel_tree[(start + i) * 2 + 1];
 		child_right = sel_tree[(start + i) * 2 + 2];
 
@@ -1174,14 +1172,12 @@ row_fts_build_sel_tree_level(
 		}
 
 		/* Select the smaller one to set parent pointer */
-		if (row_merge_cmp(mrec[child_left], mrec[child_right],
-				  offsets[child_left],
-				  offsets[child_right],
-				  index, &null_eq) < 0) {
-			sel_tree[start + i] = child_left;
-		} else {
-			sel_tree[start + i] = child_right;
-		}
+		int cmp = cmp_rec_rec_simple(
+			mrec[child_left], mrec[child_right],
+			offsets[child_left], offsets[child_right],
+			index, NULL);
+
+		sel_tree[start + i] = cmp < 0 ? child_left : child_right;
 	}
 }
 
@@ -1344,6 +1340,8 @@ row_fts_merge_insert(
 	ins_ctx.fts_table.parent = index->table->name;
 	ins_ctx.fts_table.table = NULL;
 
+	const ulint	n_null = index->n_nullable;
+
 	for (i = 0; i < fts_sort_pll_degree; i++) {
 		if (psort_info[i].merge_file[id]->n_rec == 0) {
 			/* No Rows to read */
@@ -1386,14 +1384,14 @@ row_fts_merge_insert(
 			}
 
 			for (i = min_rec + 1; i < fts_sort_pll_degree; i++) {
-				ibool           null_eq = FALSE;
 				if (!mrec[i]) {
 					continue;
 				}
 
-				if (row_merge_cmp(mrec[i], mrec[min_rec],
-						  offsets[i], offsets[min_rec],
-						  index, &null_eq) < 0) {
+				if (cmp_rec_rec_simple(
+					    mrec[i], mrec[min_rec],
+					    offsets[i], offsets[min_rec],
+					    index, NULL) < 0) {
 					min_rec = i;
 				}
 			}

@@ -1,4 +1,5 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +12,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 
 #include <ndb_global.h>
@@ -35,8 +37,6 @@ int scanReadRecords(Ndb*,
 		    bool orderby,
                     bool descending);
 
-NDB_STD_OPTS_VARS;
-
 static const char* _dbname = "TEST_DB";
 static const char* _delimiter = "\t";
 static int _header, _parallelism, _useHexFormat, _lock,
@@ -49,71 +49,74 @@ static int _dumpDisk = 0;
 static int use_rowid = 0;
 static int nodata = 0;
 static int use_gci = 0;
+static int use_gci64 = 0;
+static int use_author = 0;
 
 static struct my_option my_long_options[] =
 {
-  NDB_STD_OPTS("ndb_desc"),
+  NDB_STD_OPTS("ndb_select_all"),
   { "database", 'd', "Name of database table is in",
-    &_dbname, &_dbname, 0,
+    (uchar**) &_dbname, (uchar**) &_dbname, 0,
     GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
   { "parallelism", 'p', "parallelism",
-    &_parallelism, &_parallelism, 0,
+    (uchar**) &_parallelism, (uchar**) &_parallelism, 0,
     GET_INT, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 }, 
   { "lock", 'l', "Read(0), Read-hold(1), Exclusive(2)",
-    &_lock, &_lock, 0,
+    (uchar**) &_lock, (uchar**) &_lock, 0,
     GET_INT, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 }, 
   { "order", 'o', "Sort resultset according to index",
-    &_order, &_order, 0,
+    (uchar**) &_order, (uchar**) &_order, 0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 }, 
   { "descending", 'z', "Sort descending (requires order flag)",
-    &_descending, &_descending, 0,
+    (uchar**) &_descending, (uchar**) &_descending, 0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 }, 
   { "header", 'h', "Print header",
-    &_header, &_header, 0,
+    (uchar**) &_header, (uchar**) &_header, 0,
     GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0 }, 
   { "useHexFormat", 'x', "Output numbers in hexadecimal format",
-    &_useHexFormat, &_useHexFormat, 0,
+    (uchar**) &_useHexFormat, (uchar**) &_useHexFormat, 0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 }, 
   { "delimiter", 'D', "Column delimiter",
-    &_delimiter, &_delimiter, 0,
+    (uchar**) &_delimiter, (uchar**) &_delimiter, 0,
     GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
-  { "disk", 256, "Dump disk ref",
-    &_dumpDisk, &_dumpDisk, 0,
+  { "disk", NDB_OPT_NOSHORT, "Dump disk ref",
+    (uchar**) &_dumpDisk, (uchar**) &_dumpDisk, 0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 }, 
-  { "rowid", 256, "Dump rowid",
-    &use_rowid, &use_rowid, 0,
+  { "rowid", NDB_OPT_NOSHORT, "Dump rowid",
+    (uchar**) &use_rowid, (uchar**) &use_rowid, 0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 }, 
-  { "gci", 256, "Dump gci",
-    &use_gci, &use_gci, 0,
+  { "gci", NDB_OPT_NOSHORT, "Dump gci",
+    (uchar**) &use_gci, (uchar**) &use_gci, 0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 }, 
+  { "gci64", NDB_OPT_NOSHORT, "Dump ROW$GCI64",
+    (uchar**) &use_gci64, (uchar**) &use_gci64, 0,
+    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
+  { "author", NDB_OPT_NOSHORT, "Dump ROW$AUTHOR",
+    (uchar**) &use_author, (uchar**) &use_author, 0,
+    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
   { "tupscan", 't', "Scan in tup order",
-    &_tup, &_tup, 0,
+    (uchar**) &_tup, (uchar**) &_tup, 0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 }, 
-  { "nodata", 256, "Dont print data",
-    &nodata, &nodata, 0,
+  { "nodata", NDB_OPT_NOSHORT, "Dont print data",
+    (uchar**) &nodata, (uchar**) &nodata, 0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 }, 
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
+
+
+static void short_usage_sub(void)
+{
+  ndb_short_usage_sub(NULL);
+}
+
 static void usage()
 {
-#ifdef NOT_USED
-  char desc[] = 
-    "tabname\n"\
-    "This program reads all records from one table in NDB Cluster\n"\
-    "and print them to stdout.  This is performed using a scan read.\n"\
-    "(It only print error messages if it encounters a permanent error.)\n"\
-    "It can also be used to dump the content of a table to file \n"\
-    "  ex: select_all --no-header --delimiter=';' T4 > T4.data\n";
-#endif
-  ndb_std_print_version();
-  print_defaults(MYSQL_CONFIG_NAME,load_default_groups);
-  puts("");
-  my_print_help(my_long_options);
-  my_print_variables(my_long_options);
+  ndb_usage(short_usage_sub, load_default_groups, my_long_options);
 }
 
 int main(int argc, char** argv){
   NDB_INIT(argv[0]);
+  ndb_opt_set_usage_funcs(short_usage_sub, usage);
   load_defaults("my",load_default_groups,&argc,&argv);
   const char* _tabname;
   int ho_error;
@@ -128,7 +131,7 @@ int main(int argc, char** argv){
     return NDBT_ProgramExit(NDBT_WRONGARGS);
   }
 
-  Ndb_cluster_connection con(opt_connect_str);
+  Ndb_cluster_connection con(opt_ndb_connectstring, opt_ndb_nodeid);
   con.set_name("ndb_select_all");
   if(con.connect(12, 5, 1) != 0)
   {
@@ -311,13 +314,6 @@ int scanReadRecords(Ndb* pNdb,
       sf.end();
       sf.end();
 #endif
-    } else {
-      check = pOp->interpret_exit_ok();
-      if( check == -1 ) {
-	ERR(pTrans->getNdbError());
-	pNdb->closeTransaction(pTrans);
-	return -1;
-      }
     }
     
     bool disk= false;
@@ -340,7 +336,7 @@ int scanReadRecords(Ndb* pNdb,
     if(_dumpDisk && disk)
       disk_ref = pOp->getValue(NdbDictionary::Column::DISK_REF);
 
-    NdbRecAttr * rowid= 0, *frag = 0, *gci = 0;
+    NdbRecAttr * rowid= 0, *frag = 0, *gci = 0, *gci64 = 0, *author = 0;
     if (use_rowid)
     {
       frag = pOp->getValue(NdbDictionary::Column::FRAGMENT);
@@ -351,7 +347,17 @@ int scanReadRecords(Ndb* pNdb,
     {
       gci = pOp->getValue(NdbDictionary::Column::ROW_GCI);
     }
+
+    if (use_gci64)
+    {
+      gci64 = pOp->getValue(NdbDictionary::Column::ROW_GCI64);
+    }
     
+    if (use_author)
+    {
+      author = pOp->getValue(NdbDictionary::Column::ROW_AUTHOR);
+    }
+
     check = pTrans->execute(NdbTransaction::NoCommit);   
     if( check == -1 ) {
       const NdbError err = pTrans->getNdbError();
@@ -367,20 +373,53 @@ int scanReadRecords(Ndb* pNdb,
       return -1;
     }
 
-    if (rowid)
-      ndbout << "ROWID\t";
-    
-    if (gci)
-      ndbout << "\tGCI";
-    
-    if (headers && !nodata)
-      row->header(ndbout);
-    
-    if (disk_ref)
-      ndbout << "\tDISK_REF";
+    bool do_delimiter= false;
+    char delimiter_string[2];
+    delimiter_string[0]= delimiter;
+    delimiter_string[1]= '\0';
+#define DELIMITER if (do_delimiter) ndbout << delimiter_string; else do_delimiter= true
+    if (headers)
+    {
+      if (rowid)
+      {
+        DELIMITER;
+        ndbout << "ROWID";
+      }
 
-    ndbout << endl;
-    
+      if (gci)
+      {
+        DELIMITER;
+        ndbout << "GCI";
+      }
+
+      if (!nodata)
+      {
+        DELIMITER;
+        row->header(ndbout);
+      }
+
+      if (disk_ref)
+      {
+        DELIMITER;
+        ndbout << "DISK_REF";
+      }
+
+      if (gci64)
+      {
+        DELIMITER;
+        ndbout << "ROW$GCI64";
+      }
+
+      if (author)
+      {
+        DELIMITER;
+        ndbout << "ROW$AUTHOR";
+      }
+
+      ndbout << endl;
+    }
+#undef DELIMITER
+
     int eof;
     int rows = 0;
     eof = pOp->nextResult();
@@ -417,8 +456,30 @@ int scanReadRecords(Ndb* pNdb,
 	       << " m_page: " << disk_ref->u_32_value() 
 	       << " m_page_idx: " << *(Uint16*)(disk_ref->aRef() + 4) << " ]";
       }
+
+      if (gci64)
+      {
+	if (gci64->isNULL())
+	  ndbout << "\tNULL";
+        else
+        {
+          Uint64 tmp = gci64->u_64_value();
+          ndbout << "\t" << Uint32(tmp >> 32) << "/" << Uint32(tmp);
+        }
+      }
+
+      if (author)
+      {
+	if (author->isNULL())
+	  ndbout << "\tNULL";
+        else
+        {
+          ndbout << "\t" << author->u_32_value();
+        }
+      }
+
       
-      if (rowid || disk_ref || gci || !nodata)
+      if (rowid || disk_ref || gci || !nodata || gci64 || author)
 	ndbout << endl;
       eof = pOp->nextResult();
     }

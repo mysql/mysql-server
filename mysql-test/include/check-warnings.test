@@ -17,6 +17,9 @@ set SQL_LOG_BIN=0;
 set debug="";
 
 use mtr;
+# Allow this session to read-write even if server is started
+# with --transaction-read-only
+set session transaction read write;
 
 create temporary table error_log (
   row int auto_increment primary key,

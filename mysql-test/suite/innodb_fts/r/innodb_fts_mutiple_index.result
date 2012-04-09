@@ -9,6 +9,8 @@ INSERT INTO t1 (a,b) VALUES
 ('How To Use MySQL Well','After you went through a ...'),
 ('Optimizing MySQL','In this tutorial we will show ...');
 ALTER TABLE t1 ADD FULLTEXT INDEX idx_1 (a);
+Warnings:
+Warning	124	InnoDB rebuilding table to add column FTS_DOC_ID
 ALTER TABLE t1 ADD FULLTEXT INDEX idx_2 (b);
 SHOW CREATE TABLE t1;
 Table	Create Table

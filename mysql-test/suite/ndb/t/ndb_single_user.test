@@ -1,0 +1,174 @@
+# test uses multiple mysqld by necessity, hence not in embedded
+-- source include/not_embedded.inc
+-- source include/have_multi_ndb.inc
+-- source include/ndb_default_cluster.inc
+
+--disable_warnings
+drop table if exists t1,t2;
+--enable_warnings
+
+# operations allowed while cluster is in single user mode
+
+--connection server1
+--let $node_id= `SHOW STATUS LIKE 'Ndb_cluster_node_id'`
+--disable_query_log
+--eval set @node_id= SUBSTRING('$node_id', 20)+0
+--enable_query_log
+--let $node_id= `SELECT @node_id`
+--exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "enter single user mode $node_id" >> $NDB_TOOLS_OUTPUT
+--exec $NDB_WAITER --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" --single-user >> $NDB_TOOLS_OUTPUT
+
+# verify that we are indeed in single user mode
+# and test that some operations give correct errors
+--connection server2
+--error 1005
+create table t1 (a int key, b int unique, c int) engine ndb;
+# Bug #27712 Single user mode. Creating logfile group and tablespace is allowed
+# - before bug fix these would succeed
+--error ER_CREATE_FILEGROUP_FAILED
+CREATE LOGFILE GROUP lg1
+ADD UNDOFILE 'undofile.dat'
+INITIAL_SIZE 16M
+UNDO_BUFFER_SIZE = 1M
+ENGINE=NDB;
+show warnings;
+
+# test some sql on first mysqld
+--connection server1
+create table t1 (a int key, b int unique, c int) engine ndb;
+# Check that we can create logfile group
+CREATE LOGFILE GROUP lg1
+ADD UNDOFILE 'undofile.dat'
+INITIAL_SIZE 16M
+UNDO_BUFFER_SIZE = 1M
+ENGINE=NDB;
+--connection server2
+--error ER_CREATE_FILEGROUP_FAILED
+CREATE TABLESPACE ts1
+ADD DATAFILE 'datafile.dat'
+USE LOGFILE GROUP lg1
+INITIAL_SIZE 12M
+ENGINE NDB;
+show warnings;
+--error ER_DROP_FILEGROUP_FAILED
+DROP LOGFILE GROUP lg1 
+ENGINE =NDB;
+show warnings;
+--connection server1
+CREATE TABLESPACE ts1
+ADD DATAFILE 'datafile.dat'
+USE LOGFILE GROUP lg1
+INITIAL_SIZE 12M
+ENGINE NDB;
+--connection server2
+--error ER_ALTER_FILEGROUP_FAILED
+ALTER TABLESPACE ts1
+DROP DATAFILE 'datafile.dat'
+ENGINE NDB;
+show warnings;
+--connection server1
+ALTER TABLESPACE ts1
+DROP DATAFILE 'datafile.dat'
+ENGINE NDB;
+--connection server2
+--error ER_DROP_FILEGROUP_FAILED
+DROP TABLESPACE ts1
+ENGINE NDB;
+show warnings;
+--connection server1
+DROP TABLESPACE ts1
+ENGINE NDB;
+DROP LOGFILE GROUP lg1 
+ENGINE =NDB;
+insert into t1 values (1,1,0),(2,2,0),(3,3,0),(4,4,0),(5,5,0),(6,6,0),(7,7,0),(8,8,0),(9,9,0),(10,10,0);
+create table t2 as select * from t1;
+# read with pk
+select * from t1 where a = 1;
+# read with unique index
+select * from t1 where b = 4;
+# read with ordered index
+select * from t1 where a > 4 order by a;
+# update with pk
+update t1 set b=102 where a = 2;
+# update with unique index
+update t1 set b=103 where b = 3;
+# update with full table scan
+update t1 set b=b+100;
+# update with ordered insex scan
+update t1 set b=b+100 where a > 7;
+# delete with full table scan
+delete from t1;
+insert into t1 select * from t2;
+# Bug #27710 Creating unique index fails during single user mode
+# - prior to bugfix this would fail
+create unique index new_index on t1 (b,c);
+
+drop table t2;
+
+# test some sql on other mysqld
+--connection server2
+--error 1051
+drop table t1;
+--error 1296
+create index new_index_fail on t1 (c);
+--error 1296
+insert into t1 values (21,21,0),(22,22,0),(23,23,0),(24,24,0),(25,25,0),(26,26,0),(27,27,0),(28,28,0),(29,29,0),(210,210,0);
+--error 1296
+select * from t1 where a = 1;
+--error 1296
+select * from t1 where b = 4;
+--error 1296
+update t1 set b=102 where a = 2;
+--error 1296
+update t1 set b=103 where b = 3;
+--error 1296
+update t1 set b=b+100;
+--error 1296
+update t1 set b=b+100 where a > 7;
+
+--exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "exit single user mode" >> $NDB_TOOLS_OUTPUT
+--exec $NDB_WAITER --no-defaults >> $NDB_TOOLS_OUTPUT
+
+#
+# we should be able to run transaction while in single user mode
+#
+--connection server1
+BEGIN;
+update t1 set b=b+100 where a=1;
+
+--connection server2
+BEGIN;
+update t1 set b=b+100 where a=2;
+
+# enter single user mode
+--exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "enter single user mode $node_id" >> $NDB_TOOLS_OUTPUT
+--exec $NDB_WAITER --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" --single-user >> $NDB_TOOLS_OUTPUT
+
+--connection server1
+update t1 set b=b+100 where a=3;
+COMMIT;
+
+# while on other mysqld it should be aborted
+--connection server2
+--error 1296
+update t1 set b=b+100 where a=4;
+ROLLBACK;
+
+# Bug #25275 SINGLE USER MODE prevents ALTER on non-ndb
+# tables for other mysqld nodes
+--connection server2
+create table t2 (a int) engine myisam;
+alter table t2 add column (b int);
+
+# exit single user mode
+--exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "exit single user mode" >> $NDB_TOOLS_OUTPUT
+--exec $NDB_WAITER --no-defaults >> $NDB_TOOLS_OUTPUT
+
+# cleanup
+--connection server2
+drop table t2;
+--connection server1
+drop table t1;
+
+# End of 5.0 tests
+

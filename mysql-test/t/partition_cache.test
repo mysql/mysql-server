@@ -1,0 +1,49 @@
+# Test of query cache for partitioned innodb tables
+# Note that partitioned tables does no longer support query caching
+# due to bug#11761296.
+
+--source include/have_query_cache.inc
+
+--source include/have_innodb.inc
+--source include/have_partition.inc
+let $engine_type= InnoDB;
+# Using SELECT to get a space as first character.
+let $partitions_a= `SELECT ' PARTITION BY KEY (a) PARTITIONS 3'`;
+let $partitions_id= `SELECT ' PARTITION BY HASH (id) PARTITIONS 3'`;
+let $partitions_s1= `SELECT ' PARTITION BY KEY (s1) PARTITIONS 3'`;
+# partitioning does not support FOREIGN KEYs
+let $test_foreign_keys= 0;
+
+--source include/query_cache.inc
+
+SET @old_query_cache_size = @@global.query_cache_size;
+SET GLOBAL query_cache_size=1355776;
+CREATE TABLE t1
+(`NUM` varchar(4) NOT NULL,
+ `UPDATE_TIME` datetime NOT NULL,
+ PRIMARY KEY (`NUM`,`UPDATE_TIME`))
+PARTITION BY RANGE (month(UPDATE_TIME))
+(PARTITION p2 VALUES LESS THAN (3) ENGINE = InnoDB,
+ PARTITION p3 VALUES LESS THAN (4) ENGINE = InnoDB);
+
+SELECT * FROM t1 WHERE MONTH(update_time)=3;
+
+INSERT INTO t1 VALUES ('AAA', '2010-03-11 00:00:00');
+
+SELECT * FROM t1 WHERE MONTH(update_time)=3;
+
+ALTER TABLE t1 TRUNCATE PARTITION p3;
+
+COMMIT;
+
+SELECT * FROM t1 WHERE MONTH(update_time)=3;
+
+SELECT SQL_NO_CACHE * FROM t1 WHERE MONTH(update_time)=3;
+
+ALTER TABLE t1 DROP PARTITION p3;
+
+SELECT * FROM t1 WHERE MONTH(update_time)=3;
+
+DROP TABLE t1;
+
+SET @@global.query_cache_size = @old_query_cache_size;

@@ -53,6 +53,7 @@
                      // mysql_user_table_is_in_short_password_format
 #include "derror.h"  // read_texts
 #include "sql_base.h"                           // close_cached_tables
+#include "hostname.h"                           // host_cache_size
 #include "sql_show.h"                           // opt_ignore_db_dirs
 
 #ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
@@ -243,6 +244,13 @@ static Sys_var_mybool Sys_pfs_consumer_thread_instrumentation(
        "performance_schema_consumer_thread_instrumentation",
        "Default startup value for the thread_instrumentation consumer.",
        READ_ONLY NOT_VISIBLE GLOBAL_VAR(pfs_param.m_consumer_thread_instrumentation_enabled),
+       CMD_LINE(OPT_ARG), DEFAULT(TRUE),
+       PFS_TRAILING_PROPERTIES);
+
+static Sys_var_mybool Sys_pfs_consumer_statement_digest(
+       "performance_schema_consumer_statements_digest",
+       "Default startup value for the statements_digest consumer.",
+       READ_ONLY NOT_VISIBLE GLOBAL_VAR(pfs_param.m_consumer_statement_digest_enabled),
        CMD_LINE(OPT_ARG), DEFAULT(TRUE),
        PFS_TRAILING_PROPERTIES);
 
@@ -477,6 +485,14 @@ static Sys_var_ulong Sys_pfs_events_statements_history_size(
        READ_ONLY GLOBAL_VAR(pfs_param.m_events_statements_history_sizing),
        CMD_LINE(REQUIRED_ARG), VALID_RANGE(0, 1024),
        DEFAULT(PFS_STATEMENTS_HISTORY_SIZE),
+       BLOCK_SIZE(1), PFS_TRAILING_PROPERTIES);
+
+static Sys_var_ulong Sys_pfs_digest_size(
+       "performance_schema_digests_size",
+       "Size of the statement digest.",
+       READ_ONLY GLOBAL_VAR(pfs_param.m_digest_sizing),
+       CMD_LINE(REQUIRED_ARG), VALID_RANGE(0, 1024 * 1024),
+       DEFAULT(PFS_DIGEST_SIZE),
        BLOCK_SIZE(1), PFS_TRAILING_PROPERTIES);
 
 #endif /* WITH_PERFSCHEMA_STORAGE_ENGINE */
@@ -744,7 +760,7 @@ static bool repository_check(sys_var *self, THD *thd, set_var *var, SLAVE_THD_TY
   int running= 0;
   const char *msg= NULL;
   mysql_mutex_lock(&LOCK_active_mi);
-  if (active_mi)
+  if (active_mi != NULL)
   {
     lock_slave_threads(active_mi);
     init_thread_mask(&running, active_mi, FALSE);
@@ -811,23 +827,23 @@ static const char *repository_names[]=
   0
 };
 
-ulong opt_mi_repository_id;
+ulong opt_mi_repository_id= INFO_REPOSITORY_FILE;
 static Sys_var_enum Sys_mi_repository(
        "master_info_repository",
        "Defines the type of the repository for the master information."
        ,GLOBAL_VAR(opt_mi_repository_id), CMD_LINE(REQUIRED_ARG),
-       repository_names, DEFAULT(0), NO_MUTEX_GUARD, NOT_IN_BINLOG,
-       ON_CHECK(master_info_repository_check),
+       repository_names, DEFAULT(INFO_REPOSITORY_FILE), NO_MUTEX_GUARD,
+       NOT_IN_BINLOG, ON_CHECK(master_info_repository_check),
        ON_UPDATE(0));
 
-ulong opt_rli_repository_id;
+ulong opt_rli_repository_id= INFO_REPOSITORY_FILE;
 static Sys_var_enum Sys_rli_repository(
        "relay_log_info_repository",
        "Defines the type of the repository for the relay log information "
        "and associated workers."
        ,GLOBAL_VAR(opt_rli_repository_id), CMD_LINE(REQUIRED_ARG),
-       repository_names, DEFAULT(0), NO_MUTEX_GUARD, NOT_IN_BINLOG,
-       ON_CHECK(relay_log_info_repository_check),
+       repository_names, DEFAULT(INFO_REPOSITORY_FILE), NO_MUTEX_GUARD,
+       NOT_IN_BINLOG, ON_CHECK(relay_log_info_repository_check),
        ON_UPDATE(0));
 
 static Sys_var_mybool Sys_binlog_rows_query(
@@ -1562,7 +1578,7 @@ static bool fix_max_binlog_size(sys_var *self, THD *thd, enum_var_type type)
 {
   mysql_bin_log.set_max_size(max_binlog_size);
 #ifdef HAVE_REPLICATION
-  if (!max_relay_log_size)
+  if (active_mi != NULL && !max_relay_log_size)
     active_mi->rli->relay_log.set_max_size(max_binlog_size);
 #endif
   return false;
@@ -1696,8 +1712,9 @@ static Sys_var_ulong Sys_max_prepared_stmt_count(
 static bool fix_max_relay_log_size(sys_var *self, THD *thd, enum_var_type type)
 {
 #ifdef HAVE_REPLICATION
-  active_mi->rli->relay_log.set_max_size(max_relay_log_size ?
-                                        max_relay_log_size: max_binlog_size);
+  if (active_mi != NULL)
+    active_mi->rli->relay_log.set_max_size(max_relay_log_size ?
+                                           max_relay_log_size: max_binlog_size);
 #endif
   return false;
 }
@@ -1919,14 +1936,22 @@ static Sys_var_flagset Sys_optimizer_switch(
        NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(NULL),
        ON_UPDATE(fix_optimizer_switch));
 
+static Sys_var_mybool Sys_var_end_markers_in_json(
+       "end_markers_in_json",
+       "In JSON output (\"EXPLAIN FORMAT=JSON\" and optimizer trace), "
+       "if variable is set to 1, repeats the structure's key (if it has one) "
+       "near the closing bracket",
+       SESSION_VAR(end_markers_in_json), CMD_LINE(OPT_ARG),
+       DEFAULT(FALSE));
+
 #ifdef OPTIMIZER_TRACE
 
 static Sys_var_flagset Sys_optimizer_trace(
        "optimizer_trace",
        "Controls tracing of the Optimizer:"
        " optimizer_trace=option=val[,option=val...], where option is one of"
-       " {enabled, end_marker, one_line}"
-       " and val is one of {on, off, default}",
+       " {enabled, one_line}"
+       " and val is one of {on, default}",
        SESSION_VAR(optimizer_trace), CMD_LINE(REQUIRED_ARG),
        Opt_trace_context::flag_names,
        DEFAULT(Opt_trace_context::FLAG_DEFAULT));
@@ -2136,7 +2161,8 @@ static Sys_var_uint Sys_eq_range_index_dive_limit(
        "eq_range_index_dive_limit",
        "The optimizer will use existing index statistics instead of "
        "doing index dives for equality ranges if the number of equality "
-       "ranges for the index is larger than or equal to this number.",
+       "ranges for the index is larger than or equal to this number. "
+       "If set to 0, index dives are always used.",
        SESSION_VAR(eq_range_index_dive_limit), CMD_LINE(REQUIRED_ARG),
        VALID_RANGE(0, UINT_MAX32), DEFAULT(10), BLOCK_SIZE(1));
 
@@ -2402,6 +2428,12 @@ static Sys_var_charptr Sys_server_uuid(
        "Uniquely identifies the server instance in the universe",
        READ_ONLY GLOBAL_VAR(server_uuid_ptr),
        NO_CMD_LINE, IN_FS_CHARSET, DEFAULT(server_uuid));
+
+static Sys_var_uint Sys_server_id_bits(
+       "server_id_bits",
+       "Set number of significant bits in server-id",
+       GLOBAL_VAR(opt_server_id_bits), CMD_LINE(REQUIRED_ARG),
+       VALID_RANGE(0, 32), DEFAULT(32), BLOCK_SIZE(1));
 
 static Sys_var_mybool Sys_slave_compressed_protocol(
        "slave_compressed_protocol",
@@ -2733,7 +2765,7 @@ static bool check_tx_isolation(sys_var *self, THD *thd, set_var *var)
   if (var->type == OPT_DEFAULT && thd->in_active_multi_stmt_transaction())
   {
     DBUG_ASSERT(thd->in_multi_stmt_transaction_mode());
-    my_error(ER_CANT_CHANGE_TX_ISOLATION, MYF(0));
+    my_error(ER_CANT_CHANGE_TX_CHARACTERISTICS, MYF(0));
     return TRUE;
   }
   return FALSE;
@@ -2771,6 +2803,42 @@ static Sys_var_tx_isolation Sys_tx_isolation(
        SESSION_VAR(tx_isolation), NO_CMD_LINE,
        tx_isolation_names, DEFAULT(ISO_REPEATABLE_READ),
        NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(check_tx_isolation));
+
+
+/**
+  Can't change the tx_read_only state if we are already in a
+  transaction.
+*/
+
+static bool check_tx_read_only(sys_var *self, THD *thd, set_var *var)
+{
+  if (var->type == OPT_DEFAULT && thd->in_active_multi_stmt_transaction())
+  {
+    DBUG_ASSERT(thd->in_multi_stmt_transaction_mode());
+    my_error(ER_CANT_CHANGE_TX_CHARACTERISTICS, MYF(0));
+    return true;
+  }
+  return false;
+}
+
+
+bool Sys_var_tx_read_only::session_update(THD *thd, set_var *var)
+{
+  if (var->type == OPT_SESSION && Sys_var_mybool::session_update(thd, var))
+    return true;
+  if (var->type == OPT_DEFAULT || !thd->in_active_multi_stmt_transaction())
+  {
+    // @see Sys_var_tx_isolation::session_update() above for the rules.
+    thd->tx_read_only= var->save_result.ulonglong_value;
+  }
+  return false;
+}
+
+
+static Sys_var_tx_read_only Sys_tx_read_only(
+       "tx_read_only", "Set default transaction access mode to read only.",
+       SESSION_VAR(tx_read_only), NO_CMD_LINE, DEFAULT(0),
+       NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(check_tx_read_only));
 
 static Sys_var_ulonglong Sys_tmp_table_size(
        "tmp_table_size",
@@ -3317,7 +3385,7 @@ static Sys_var_uint Sys_repl_report_port(
        "port or if you have a special tunnel from the master or other clients "
        "to the slave. If not sure, leave this option unset",
        READ_ONLY GLOBAL_VAR(report_port), CMD_LINE(REQUIRED_ARG),
-       VALID_RANGE(0, UINT_MAX), DEFAULT(MYSQL_PORT), BLOCK_SIZE(1));
+       VALID_RANGE(0, UINT_MAX), DEFAULT(0), BLOCK_SIZE(1));
 #endif
 
 static Sys_var_mybool Sys_keep_files_on_create(
@@ -3612,7 +3680,12 @@ static Sys_var_mybool Sys_relay_log_recovery(
        "right after the database startup, which means that the IO Thread "
        "starts re-fetching from the master right after the last transaction "
        "processed",
-       GLOBAL_VAR(relay_log_recovery), CMD_LINE(OPT_ARG), DEFAULT(FALSE));
+        READ_ONLY GLOBAL_VAR(relay_log_recovery), CMD_LINE(OPT_ARG), DEFAULT(FALSE));
+
+static Sys_var_mybool Sys_slave_allow_batching(
+       "slave_allow_batching", "Allow slave to batch requests",
+       GLOBAL_VAR(opt_slave_allow_batching),
+       CMD_LINE(OPT_ARG), DEFAULT(FALSE));
 
 static Sys_var_charptr Sys_slave_load_tmpdir(
        "slave_load_tmpdir", "The location where the slave should put "
@@ -3625,8 +3698,8 @@ static bool fix_slave_net_timeout(sys_var *self, THD *thd, enum_var_type type)
   mysql_mutex_lock(&LOCK_active_mi);
   DBUG_PRINT("info", ("slave_net_timeout=%u mi->heartbeat_period=%.3f",
                      slave_net_timeout,
-                     (active_mi? active_mi->heartbeat_period : 0.0)));
-  if (active_mi && slave_net_timeout < active_mi->heartbeat_period)
+                     (active_mi ? active_mi->heartbeat_period : 0.0)));
+  if (active_mi != NULL && slave_net_timeout < active_mi->heartbeat_period)
     push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
                         ER_SLAVE_HEARTBEAT_VALUE_OUT_OF_RANGE_MAX,
                         ER(ER_SLAVE_HEARTBEAT_VALUE_OUT_OF_RANGE_MAX));
@@ -3645,32 +3718,38 @@ static bool check_slave_skip_counter(sys_var *self, THD *thd, set_var *var)
 {
   bool result= false;
   mysql_mutex_lock(&LOCK_active_mi);
-  mysql_mutex_lock(&active_mi->rli->run_lock);
-  if (active_mi->rli->slave_running)
+  if (active_mi != NULL)
   {
-    my_message(ER_SLAVE_MUST_STOP, ER(ER_SLAVE_MUST_STOP), MYF(0));
-    result= true;
+    mysql_mutex_lock(&active_mi->rli->run_lock);
+    if (active_mi->rli->slave_running)
+    {
+      my_message(ER_SLAVE_MUST_STOP, ER(ER_SLAVE_MUST_STOP), MYF(0));
+      result= true;
+    }
+    mysql_mutex_unlock(&active_mi->rli->run_lock);
   }
-  mysql_mutex_unlock(&active_mi->rli->run_lock);
   mysql_mutex_unlock(&LOCK_active_mi);
   return result;
 }
 static bool fix_slave_skip_counter(sys_var *self, THD *thd, enum_var_type type)
 {
   mysql_mutex_lock(&LOCK_active_mi);
-  mysql_mutex_lock(&active_mi->rli->run_lock);
-  /*
-    The following test should normally never be true as we test this
-    in the check function;  To be safe against multiple
-    SQL_SLAVE_SKIP_COUNTER request, we do the check anyway
-  */
-  if (!active_mi->rli->slave_running)
+  if (active_mi != NULL)
   {
-    mysql_mutex_lock(&active_mi->rli->data_lock);
-    active_mi->rli->slave_skip_counter= sql_slave_skip_counter;
-    mysql_mutex_unlock(&active_mi->rli->data_lock);
+    mysql_mutex_lock(&active_mi->rli->run_lock);
+    /*
+      The following test should normally never be true as we test this
+      in the check function;  To be safe against multiple
+      SQL_SLAVE_SKIP_COUNTER request, we do the check anyway
+    */
+    if (!active_mi->rli->slave_running)
+    {
+      mysql_mutex_lock(&active_mi->rli->data_lock);
+      active_mi->rli->slave_skip_counter= sql_slave_skip_counter;
+      mysql_mutex_unlock(&active_mi->rli->data_lock);
+    }
+    mysql_mutex_unlock(&active_mi->rli->run_lock);
   }
-  mysql_mutex_unlock(&active_mi->rli->run_lock);
   mysql_mutex_unlock(&LOCK_active_mi);
   return 0;
 }
@@ -3833,6 +3912,22 @@ static Sys_var_tz Sys_time_zone(
        "time_zone", "time_zone",
        SESSION_VAR(time_zone), NO_CMD_LINE,
        DEFAULT(&default_tz), NO_MUTEX_GUARD, IN_BINLOG);
+
+static bool fix_host_cache_size(sys_var *, THD *, enum_var_type)
+{
+  hostname_cache_resize((uint) host_cache_size);
+  return false;
+}
+
+static Sys_var_ulong Sys_host_cache_size(
+       "host_cache_size",
+       "How many host names should be cached to avoid resolving.",
+       GLOBAL_VAR(host_cache_size),
+       CMD_LINE(REQUIRED_ARG), VALID_RANGE(0, 65536),
+       DEFAULT(HOST_CACHE_SIZE),
+       BLOCK_SIZE(1),
+       NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(NULL),
+       ON_UPDATE(fix_host_cache_size));
 
 static Sys_var_charptr Sys_ignore_db_dirs(
        "ignore_db_dirs",

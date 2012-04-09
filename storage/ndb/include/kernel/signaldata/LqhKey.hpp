@@ -1,4 +1,5 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,12 +12,14 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #ifndef LQH_KEY_H
 #define LQH_KEY_H
 
 #include "SignalData.hpp"
+#include <trigger_definitions.h>
 
 class LqhKeyReq {
   /**
@@ -27,6 +30,7 @@ class LqhKeyReq {
   /**
    * Sender(s)
    */
+  friend class Dbspj;
   friend class Dbtc;      
   friend class Restore;
   
@@ -37,6 +41,14 @@ class LqhKeyReq {
 
 public:
   STATIC_CONST( FixedSignalLength = 11 );
+  STATIC_CONST( MaxKeyInfo = 4 );
+  STATIC_CONST( MaxAttrInfo = 5);
+
+  /* Long LQHKEYREQ definitions */
+  STATIC_CONST( KeyInfoSectionNum = 0 );
+  STATIC_CONST( AttrInfoSectionNum = 1 );
+
+  STATIC_CONST( UnlockKeyLen = 2 );
 
 private:
 
@@ -75,6 +87,8 @@ private:
   static UintR getScanTakeOverFlag(const UintR & scanInfoAttrLen);
   static UintR getStoredProcFlag(const UintR & scanData);
   static UintR getDistributionKey(const UintR & scanData);
+  static UintR getReorgFlag(const UintR& scanData);
+  static void setReorgFlag(UintR& scanData, Uint32 val);
   
   static UintR getTableId(const UintR & tableSchemaVersion);
   static UintR getSchemaVersion(const UintR & tableSchemaVersion);
@@ -138,12 +152,34 @@ private:
 
   static UintR getNrCopyFlag(const UintR & requestInfo);
   static void setNrCopyFlag(UintR & requestInfo, UintR val);
+
+  static UintR getQueueOnRedoProblemFlag(const UintR & requestInfo);
+  static void setQueueOnRedoProblemFlag(UintR & requestInfo, UintR val);
+
+  /**
+   * Do normal protocol (LQHKEYCONF/REF) even if doing dirty read
+   */
+  static UintR getNormalProtocolFlag(const UintR & requestInfo);
+  static void setNormalProtocolFlag(UintR & requestInfo, UintR val);
+
+  /**
+   * Include corr factor
+   */
+  static UintR getCorrFactorFlag(const UintR & requestInfo);
+  static void setCorrFactorFlag(UintR & requestInfo, UintR val);
+
+  /**
+   * Include corr factor
+   */
+  static UintR getDeferredConstraints(const UintR & requestInfo);
+  static void setDeferredConstraints(UintR & requestInfo, UintR val);
 };
 
 /**
  * Request Info
  *
- * k = Key len                - 10 Bits (0-9) max 1023
+ * k = Key len                - (Short LQHKEYREQ only) 
+ *                              10 Bits (0-9) max 1023
  * l = Last Replica No        - 2  Bits -> Max 3 (10-11)
 
  IF version < NDBD_ROWID_VERSION
@@ -154,7 +190,8 @@ private:
  * s = Simple indicator       - 1  Bit (18)
  * o = Operation              - 3  Bits (19-21)
  * r = Sequence replica       - 2  Bits (22-23)
- * a = Attr Info in LQHKEYREQ - 3  Bits (24-26)
+ * a = Attr Info in LQHKEYREQ - (Short LQHKEYREQ only)
+                                3  Bits (24-26)
  * c = Same client and tc     - 1  Bit (27)
  * u = Read Len Return Ind    - 1  Bit (28)
  * m = Commit ack marker      - 1  Bit (29)
@@ -162,11 +199,22 @@ private:
  * z = Use rowid for insert   - 1  Bit (31)
  * g = gci flag               - 1  Bit (12)
  * n = NR copy                - 1  Bit (13)
+ * q = Queue on redo problem  - 1  Bit (14)
+ * A = CorrFactor flag        - 1  Bit (24)
+ * P = Do normal protocol even if dirty-read - 1 Bit (25)
+ * D = Deferred constraints   - 1  Bit (26)
 
+ * Short LQHKEYREQ :
  *             1111111111222222222233
  *   01234567890123456789012345678901
  *   kkkkkkkkkklltttpdisooorraaacumxz
  *   kkkkkkkkkkllgn pdisooorraaacumxz
+ *
+ * Long LQHKEYREQ :
+ *             1111111111222222222233
+ *   01234567890123456789012345678901
+ *             llgnqpdisooorrAPDcumxz
+ *
  */
 
 #define RI_KEYLEN_SHIFT      (0)
@@ -192,18 +240,25 @@ private:
 #define RI_ROWID_SHIFT       (31)
 #define RI_GCI_SHIFT         (12)
 #define RI_NR_COPY_SHIFT     (13)
+#define RI_QUEUE_REDO_SHIFT  (14)
+#define RI_CORR_FACTOR_VALUE (24)
+#define RI_NORMAL_DIRTY      (25)
+#define RI_DEFERRED_CONSTAINTS (26)
 
 /**
  * Scan Info
  *
- * a = Attr Len                 - 16 Bits -> max 65535 (0-15)
+ * a = Attr Len                 - (Short LQHKEYREQ only)
+ *                                 16 Bits -> max 65535 (0-15)
  * p = Stored Procedure Ind     -  1 Bit (16)
  * d = Distribution key         -  8 Bit  -> max 255 (17-24)
  * t = Scan take over indicator -  1 Bit (25)
+ * m = Reorg value              -  2 Bit (26-27)
  *
  *           1111111111222222222233
  * 01234567890123456789012345678901
- * aaaaaaaaaaaaaaaapddddddddt             
+ * aaaaaaaaaaaaaaaapddddddddtmm       (Short LQHKEYREQ)
+ *                 pddddddddtmm       (Long LQHKEYREQ)
  */
 
 #define SI_ATTR_LEN_MASK     (65535)
@@ -212,8 +267,8 @@ private:
 #define SI_DISTR_KEY_MASK    (255)
 #define SI_DISTR_KEY_SHIFT   (17)
 #define SI_SCAN_TO_SHIFT     (25)
-#define SI_SCAN_INFO_MASK    (63)
-#define SI_SCAN_INFO_SHIFT   (26)
+#define SI_REORG_SHIFT (26)
+#define SI_REORG_MASK  (3)
 
 inline 
 UintR
@@ -353,9 +408,9 @@ LqhKeyReq::setScanTakeOverFlag(UintR & scanInfoAttrLen, UintR val){
   ASSERT_BOOL(val, "LqhKeyReq::setScanTakeOverFlag");
   scanInfoAttrLen |= (val << SI_SCAN_TO_SHIFT);
 }
+
 inline
 void
-
 LqhKeyReq::setStoredProcFlag(UintR & scanData, UintR val){
   ASSERT_BOOL(val, "LqhKeyReq::setStoredProcFlag");
   scanData |= (val << SI_STORED_PROC_SHIFT);
@@ -363,10 +418,22 @@ LqhKeyReq::setStoredProcFlag(UintR & scanData, UintR val){
 
 inline
 void
-
 LqhKeyReq::setDistributionKey(UintR & scanData, UintR val){
   ASSERT_MAX(val, SI_DISTR_KEY_MASK, "LqhKeyReq::setDistributionKey");
   scanData |= (val << SI_DISTR_KEY_SHIFT);
+}
+
+inline
+Uint32
+LqhKeyReq::getReorgFlag(const UintR & scanData){
+  return (scanData >> SI_REORG_SHIFT) & SI_REORG_MASK;
+}
+
+inline
+void
+LqhKeyReq::setReorgFlag(UintR & scanData, UintR val){
+  ASSERT_MAX(val, SI_REORG_MASK, "LqhKeyReq::setMovingFlag");
+  scanData |= (val << SI_REORG_SHIFT);
 }
 
 #if 0  
@@ -540,12 +607,74 @@ LqhKeyReq::getNrCopyFlag(const UintR & requestInfo){
   return (requestInfo >> RI_NR_COPY_SHIFT) & 1;
 }
 
+inline
+void
+LqhKeyReq::setNormalProtocolFlag(UintR & requestInfo, UintR val){
+  ASSERT_BOOL(val, "LqhKeyReq::setNrCopyFlag");
+  requestInfo |= (val << RI_NORMAL_DIRTY);
+}
+
+inline
+UintR
+LqhKeyReq::getNormalProtocolFlag(const UintR & requestInfo){
+  return (requestInfo >> RI_NORMAL_DIRTY) & 1;
+}
+
+inline
+void
+LqhKeyReq::setCorrFactorFlag(UintR & requestInfo, UintR val){
+  ASSERT_BOOL(val, "LqhKeyReq::setCorrFactorFlag");
+  requestInfo |= (val << RI_CORR_FACTOR_VALUE);
+}
+
+inline
+UintR
+LqhKeyReq::getCorrFactorFlag(const UintR & requestInfo){
+  return (requestInfo >> RI_CORR_FACTOR_VALUE) & 1;
+}
+
+inline
+void
+LqhKeyReq::setDeferredConstraints(UintR & requestInfo, UintR val){
+  ASSERT_BOOL(val, "LqhKeyReq::setDeferredConstraints");
+  requestInfo |= (val << RI_DEFERRED_CONSTAINTS);
+}
+
+inline
+UintR
+LqhKeyReq::getDeferredConstraints(const UintR & requestInfo){
+  return (requestInfo >> RI_DEFERRED_CONSTAINTS) & 1;
+}
+
+inline
+Uint32
+table_version_major_lqhkeyreq(Uint32 x)
+{
+  // LQHKEYREQ only contains 16-bit schema version...
+  return x & 0xFFFF;
+}
+
+
+inline
+void
+LqhKeyReq::setQueueOnRedoProblemFlag(UintR & requestInfo, UintR val){
+  ASSERT_BOOL(val, "LqhKeyReq::setQueueOnRedoProblem");
+  requestInfo |= (val << RI_QUEUE_REDO_SHIFT);
+}
+
+inline
+UintR
+LqhKeyReq::getQueueOnRedoProblemFlag(const UintR & requestInfo){
+  return (requestInfo >> RI_QUEUE_REDO_SHIFT) & 1;
+}
+
 class LqhKeyConf {
   /**
    * Reciver(s)
    */
   friend class Dbtc;
   friend class Restore;
+  friend class Dbspj;
 
   /**
    * Sender(s)
@@ -571,10 +700,27 @@ private:
   Uint32 connectPtr;
   Uint32 opPtr;
   Uint32 userRef;
-  Uint32 readLen;
+  union {
+    /**
+     * For read operations this variable contains the number of bytes read
+     * For unlock operations this variable contains the unlocked op's TC REF
+     */
+    Uint32 readLen;
+    Uint32 unlockTcRef;
+  };
   Uint32 transId1;
   Uint32 transId2;
-  Uint32 noFiredTriggers;
+  Uint32 noFiredTriggers; // bit 31 defered trigger
+
+  static Uint32 getFiredCount(Uint32 v) {
+    return NoOfFiredTriggers::getFiredCount(v);
+  }
+  static Uint32 getDeferredBit(Uint32 v) {
+    return NoOfFiredTriggers::getDeferredBit(v);
+  }
+  static void setDeferredBit(Uint32 & v) {
+    NoOfFiredTriggers::setDeferredBit(v);
+  }
 };
 
 class LqhKeyRef {
@@ -582,6 +728,7 @@ class LqhKeyRef {
    * Reciver(s)
    */
   friend class Dbtc;      
+  friend class Dbspj;
   friend class Restore;
 
   /**

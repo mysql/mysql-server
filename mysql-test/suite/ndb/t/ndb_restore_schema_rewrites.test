@@ -1,0 +1,413 @@
+######################################################################
+# Test restoring backups into renamed databases
+######################################################################
+
+-- source include/have_ndb.inc
+
+# mysqld's configuration is not relevant to this test
+-- source include/not_embedded.inc
+
+--echo ************************************************************
+--echo * Creating multiple databases with identical tables
+--echo * (have blobs and indexes to cover the hidden tables)
+--echo ************************************************************
+
+CREATE DATABASE db0;
+CREATE DATABASE db1;
+CREATE DATABASE db2;
+
+USE db0;
+CREATE TABLE t0 (
+        id              INT             PRIMARY KEY,
+        cint            INT,
+        cvarchar        VARCHAR(5),
+        cblob           BLOB(1000004),
+        UNIQUE INDEX UNIQUE_t0_0 USING BTREE (cint ASC),
+        UNIQUE INDEX UNIQUE_t0_2 USING BTREE (cvarchar ASC)
+) ENGINE=NDB;
+
+USE db1;
+CREATE TABLE t0 (
+        id              INT             PRIMARY KEY,
+        cint            INT,
+        cvarchar        VARCHAR(5),
+        cblob           BLOB(1000004),
+        UNIQUE INDEX UNIQUE_t0_0 USING BTREE (cint ASC),
+        UNIQUE INDEX UNIQUE_t0_2 USING BTREE (cvarchar ASC)
+) ENGINE=NDB;
+
+USE db2;
+CREATE TABLE t0 (
+        id              INT             PRIMARY KEY,
+        cint            INT,
+        cvarchar        VARCHAR(5),
+        cblob           BLOB(1000004),
+        UNIQUE INDEX UNIQUE_t0_0 USING BTREE (cint ASC),
+        UNIQUE INDEX UNIQUE_t0_2 USING BTREE (cvarchar ASC)
+) ENGINE=NDB;
+
+
+--echo ************************************************************
+--echo * Inserting data
+--echo * (create disjunct sets of rows to merge without conflicts;
+--echo *  at this time, ndb_restore does not offer any detection
+--echo *  of data conflicts between databases in the backup or in
+--echo *  memory; databases are restored in an unspecified order)
+--echo * (make blob data long enough to be held in extra table)
+--echo ************************************************************
+
+USE db0;
+INSERT INTO t0 VALUES (0, 0, '00000', '123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890');
+INSERT INTO t0 VALUES (1, 1, '11111', '123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890');
+INSERT INTO t0 VALUES (2, 2, '22222', '123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890');
+
+USE db1;
+INSERT INTO t0 VALUES (3, 3, '33333', '123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890');
+INSERT INTO t0 VALUES (4, 4, '44444', '123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890');
+INSERT INTO t0 VALUES (5, 5, '55555', '123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890');
+
+USE db2;
+INSERT INTO t0 VALUES (6, 6, '66666', '123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890');
+INSERT INTO t0 VALUES (7, 7, '77777', '123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890');
+INSERT INTO t0 VALUES (8, 8, '88888', '123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890');
+
+--echo ************************************************************
+--echo * Creating in-memory copies of the NDB tables
+--echo ************************************************************
+
+CREATE TABLE db0.t0_data ENGINE=MYISAM AS SELECT * FROM db0.t0;
+CREATE TABLE db1.t0_data ENGINE=MYISAM AS SELECT * FROM db1.t0;
+CREATE TABLE db2.t0_data ENGINE=MYISAM AS SELECT * FROM db2.t0;
+
+--echo ************************************************************
+--echo * Backing up databases
+--echo ************************************************************
+
+--source include/ndb_backup.inc
+
+# command shortcuts, cover rebuilding of indexes
+--let $restore_cmd=$NDB_RESTORE --no-defaults
+--let $restore_cmd=$restore_cmd --disable-indexes --rebuild-indexes
+--let $restore_cmd=$restore_cmd -b $the_backup_id -r
+--let $restore_cmd=$restore_cmd --backup_path=$NDB_BACKUPS-$the_backup_id
+
+--echo ************************************************************
+--echo * Restoring databases with no rewrite (sanity check)
+--echo ************************************************************
+
+# create temporary tables against which to compare data
+CREATE TABLE db0.t0_temp ENGINE=MYISAM AS SELECT * FROM db0.t0_data;
+CREATE TABLE db1.t0_temp ENGINE=MYISAM AS SELECT * FROM db1.t0_data;
+CREATE TABLE db2.t0_temp ENGINE=MYISAM AS SELECT * FROM db2.t0_data;
+
+# restore NDB tables
+DELETE FROM db0.t0;
+DELETE FROM db1.t0;
+DELETE FROM db2.t0;
+--let $restore_opt=
+--exec $restore_cmd -n 1 $restore_opt --print > /dev/null
+--exec $restore_cmd -n 2 $restore_opt --print > /dev/null
+
+# summary-check ndb tables
+SELECT COUNT(*) FROM db0.t0;
+SELECT COUNT(*) FROM db1.t0;
+SELECT COUNT(*) FROM db2.t0;
+
+# verify ndb tables
+SELECT COUNT(*) FROM db0.t0 NATURAL JOIN db0.t0_temp;
+SELECT COUNT(*) FROM db1.t0 NATURAL JOIN db1.t0_temp;
+SELECT COUNT(*) FROM db2.t0 NATURAL JOIN db2.t0_temp;
+
+# delete temporary tables
+DROP TABLE db0.t0_temp;
+DROP TABLE db1.t0_temp;
+DROP TABLE db2.t0_temp;
+
+--echo ************************************************************
+--echo * Negative testing: check wrong usage of command-line option
+--echo * (expected exit code for usage errors: NDBT_WRONGARGS = 2)
+--echo ************************************************************
+
+# empty argument
+--let $restore_opt=--rewrite-database=
+--error 2
+--exec $restore_cmd -n 1 $restore_opt > /dev/null
+
+# missing separator
+--let $restore_opt=--rewrite-database=aaaa
+--error 2
+--exec $restore_cmd -n 1 $restore_opt > /dev/null
+
+# missing source and target
+--let $restore_opt=--rewrite-database=,
+--error 2
+--exec $restore_cmd -n 1 $restore_opt > /dev/null
+
+# missing source
+--let $restore_opt=--rewrite-database=,a
+--error 2
+--exec $restore_cmd -n 1 $restore_opt > /dev/null
+
+# missing target
+--let $restore_opt=--rewrite-database=a,
+--error 2
+--exec $restore_cmd -n 1 $restore_opt > /dev/null
+
+--echo ************************************************************
+--echo * Restoring databases with redundant/self-rewrite options
+--echo ************************************************************
+
+# create temporary tables against which to compare data
+CREATE TABLE db0.t0_temp ENGINE=MYISAM AS SELECT * FROM db0.t0_data;
+CREATE TABLE db1.t0_temp ENGINE=MYISAM AS SELECT * FROM db1.t0_data;
+CREATE TABLE db2.t0_temp ENGINE=MYISAM AS SELECT * FROM db2.t0_data;
+
+# restore NDB tables
+DELETE FROM db0.t0;
+DELETE FROM db1.t0;
+DELETE FROM db2.t0;
+--let $restore_opt=--rewrite-database=db0,db0 --rewrite-database=db1,db1
+--exec $restore_cmd -n 1 $restore_opt --print > /dev/null
+--exec $restore_cmd -n 2 $restore_opt --print > /dev/null
+
+# summary-check ndb tables
+SELECT COUNT(*) FROM db0.t0;
+SELECT COUNT(*) FROM db1.t0;
+SELECT COUNT(*) FROM db2.t0;
+
+# verify ndb tables
+SELECT COUNT(*) FROM db0.t0 NATURAL JOIN db0.t0_temp;
+SELECT COUNT(*) FROM db1.t0 NATURAL JOIN db1.t0_temp;
+SELECT COUNT(*) FROM db2.t0 NATURAL JOIN db2.t0_temp;
+
+# delete temporary tables
+DROP TABLE db0.t0_temp;
+DROP TABLE db1.t0_temp;
+DROP TABLE db2.t0_temp;
+
+--echo ************************************************************
+--echo * Restoring databases with overriding rewrite options
+--echo ************************************************************
+
+# create temporary tables against which to compare data
+CREATE TABLE db0.t0_temp ENGINE=MYISAM AS SELECT * FROM db0.t0_data;
+CREATE TABLE db1.t0_temp ENGINE=MYISAM AS SELECT * FROM db1.t0_data;
+CREATE TABLE db2.t0_temp ENGINE=MYISAM AS SELECT * FROM db2.t0_data;
+
+# restore NDB tables
+DELETE FROM db0.t0;
+DELETE FROM db1.t0;
+DELETE FROM db2.t0;
+# no rewrite, since the later option overrides the former
+--let $restore_opt=--rewrite-database=db0,db1 --rewrite-database=db0,db0
+--exec $restore_cmd -n 1 $restore_opt --print > /dev/null
+--exec $restore_cmd -n 2 $restore_opt --print > /dev/null
+
+# summary-check ndb tables
+SELECT COUNT(*) FROM db0.t0;
+SELECT COUNT(*) FROM db1.t0;
+SELECT COUNT(*) FROM db2.t0;
+
+# verify ndb tables
+SELECT COUNT(*) FROM db0.t0 NATURAL JOIN db0.t0_temp;
+SELECT COUNT(*) FROM db1.t0 NATURAL JOIN db1.t0_temp;
+SELECT COUNT(*) FROM db2.t0 NATURAL JOIN db2.t0_temp;
+
+# delete temporary tables
+DROP TABLE db0.t0_temp;
+DROP TABLE db1.t0_temp;
+DROP TABLE db2.t0_temp;
+
+--echo ************************************************************
+--echo * Restoring databases with a single rewrite
+--echo ************************************************************
+
+# create temporary tables against which to compare data
+CREATE TABLE db0.t0_temp LIKE db0.t0_data;
+CREATE TABLE db1.t0_temp LIKE db1.t0_data;
+CREATE TABLE db2.t0_temp LIKE db2.t0_data;
+
+# restore NDB tables
+DELETE FROM db0.t0;
+DELETE FROM db1.t0;
+DELETE FROM db2.t0;
+--let $restore_opt=--rewrite-database=db0,db1
+--exec $restore_cmd -n 1 $restore_opt --print > /dev/null
+--exec $restore_cmd -n 2 $restore_opt --print > /dev/null
+
+# summary-check ndb tables
+SELECT COUNT(*) FROM db0.t0;
+SELECT COUNT(*) FROM db1.t0;
+SELECT COUNT(*) FROM db2.t0;
+
+# fill temporary tables
+INSERT db1.t0_temp SELECT * FROM db0.t0_data;
+INSERT db1.t0_temp SELECT * FROM db1.t0_data;
+INSERT db2.t0_temp SELECT * FROM db2.t0_data;
+
+# verify ndb tables
+SELECT COUNT(*) FROM db0.t0 NATURAL JOIN db0.t0_temp;
+SELECT COUNT(*) FROM db1.t0 NATURAL JOIN db1.t0_temp;
+SELECT COUNT(*) FROM db2.t0 NATURAL JOIN db2.t0_temp;
+
+# delete temporary tables
+DROP TABLE db0.t0_temp;
+DROP TABLE db1.t0_temp;
+DROP TABLE db2.t0_temp;
+
+--echo ************************************************************
+--echo * Restoring databases with multiple rewrites
+--echo ************************************************************
+
+# create temporary tables against which to compare data
+CREATE TABLE db0.t0_temp LIKE db0.t0_data;
+CREATE TABLE db1.t0_temp LIKE db1.t0_data;
+CREATE TABLE db2.t0_temp LIKE db2.t0_data;
+
+# restore NDB tables
+DELETE FROM db0.t0;
+DELETE FROM db1.t0;
+DELETE FROM db2.t0;
+--let $restore_opt=--rewrite-database=db0,db1 --rewrite-database=db1,db2
+--exec $restore_cmd -n 1 $restore_opt --print > /dev/null
+--exec $restore_cmd -n 2 $restore_opt --print > /dev/null
+
+# summary-check ndb tables
+SELECT COUNT(*) FROM db0.t0;
+SELECT COUNT(*) FROM db1.t0;
+SELECT COUNT(*) FROM db2.t0;
+
+# fill temporary tables
+INSERT db1.t0_temp SELECT * FROM db0.t0_data;
+INSERT db2.t0_temp SELECT * FROM db1.t0_data;
+INSERT db2.t0_temp SELECT * FROM db2.t0_data;
+
+# verify ndb tables
+SELECT COUNT(*) FROM db0.t0 NATURAL JOIN db0.t0_temp;
+SELECT COUNT(*) FROM db1.t0 NATURAL JOIN db1.t0_temp;
+SELECT COUNT(*) FROM db2.t0 NATURAL JOIN db2.t0_temp;
+
+# delete temporary tables
+DROP TABLE db0.t0_temp;
+DROP TABLE db1.t0_temp;
+DROP TABLE db2.t0_temp;
+
+--echo ************************************************************
+--echo * Restoring databases with multiple rewrites into same target
+--echo ************************************************************
+
+# create temporary tables against which to compare data
+CREATE TABLE db0.t0_temp LIKE db0.t0_data;
+CREATE TABLE db1.t0_temp LIKE db1.t0_data;
+CREATE TABLE db2.t0_temp LIKE db2.t0_data;
+
+# restore NDB tables
+DELETE FROM db0.t0;
+DELETE FROM db1.t0;
+DELETE FROM db2.t0;
+--let $restore_opt=--rewrite-database=db0,db2 --rewrite-database=db1,db2
+--exec $restore_cmd -n 1 $restore_opt --print > /dev/null
+--exec $restore_cmd -n 2 $restore_opt --print > /dev/null
+
+# summary-check ndb tables
+SELECT COUNT(*) FROM db0.t0;
+SELECT COUNT(*) FROM db1.t0;
+SELECT COUNT(*) FROM db2.t0;
+
+# fill temporary tables
+INSERT db2.t0_temp SELECT * FROM db0.t0_data;
+INSERT db2.t0_temp SELECT * FROM db1.t0_data;
+INSERT db2.t0_temp SELECT * FROM db2.t0_data;
+
+# verify ndb tables
+SELECT COUNT(*) FROM db0.t0 NATURAL JOIN db0.t0_temp;
+SELECT COUNT(*) FROM db1.t0 NATURAL JOIN db1.t0_temp;
+SELECT COUNT(*) FROM db2.t0 NATURAL JOIN db2.t0_temp;
+
+# delete temporary tables
+DROP TABLE db0.t0_temp;
+DROP TABLE db1.t0_temp;
+DROP TABLE db2.t0_temp;
+
+--echo ************************************************************
+--echo * Restoring databases with swapping rewrites
+--echo ************************************************************
+
+# create temporary tables against which to compare data
+CREATE TABLE db0.t0_temp LIKE db0.t0_data;
+CREATE TABLE db1.t0_temp LIKE db1.t0_data;
+CREATE TABLE db2.t0_temp LIKE db2.t0_data;
+
+# restore NDB tables
+DELETE FROM db0.t0;
+DELETE FROM db1.t0;
+DELETE FROM db2.t0;
+--let $restore_opt=--rewrite-database=db0,db1 --rewrite-database=db1,db0
+--exec $restore_cmd -n 1 $restore_opt --print > /dev/null
+--exec $restore_cmd -n 2 $restore_opt --print > /dev/null
+
+# summary-check ndb tables
+SELECT COUNT(*) FROM db0.t0;
+SELECT COUNT(*) FROM db1.t0;
+SELECT COUNT(*) FROM db2.t0;
+
+# fill temporary tables
+INSERT db1.t0_temp SELECT * FROM db0.t0_data;
+INSERT db0.t0_temp SELECT * FROM db1.t0_data;
+INSERT db2.t0_temp SELECT * FROM db2.t0_data;
+
+# verify ndb tables
+SELECT COUNT(*) FROM db0.t0 NATURAL JOIN db0.t0_temp;
+SELECT COUNT(*) FROM db1.t0 NATURAL JOIN db1.t0_temp;
+SELECT COUNT(*) FROM db2.t0 NATURAL JOIN db2.t0_temp;
+
+# delete temporary tables
+DROP TABLE db0.t0_temp;
+DROP TABLE db1.t0_temp;
+DROP TABLE db2.t0_temp;
+
+--echo ************************************************************
+--echo * Restoring databases with permutating rewrites
+--echo ************************************************************
+
+# create temporary tables against which to compare data
+CREATE TABLE db0.t0_temp LIKE db0.t0_data;
+CREATE TABLE db1.t0_temp LIKE db1.t0_data;
+CREATE TABLE db2.t0_temp LIKE db2.t0_data;
+
+# restore NDB tables
+DELETE FROM db0.t0;
+DELETE FROM db1.t0;
+DELETE FROM db2.t0;
+--let $restore_opt=--rewrite-database=db0,db1 --rewrite-database=db1,db2
+--let $restore_opt=$restore_opt --rewrite-database=db2,db0
+--exec $restore_cmd -n 1 $restore_opt --print > /dev/null
+--exec $restore_cmd -n 2 $restore_opt --print > /dev/null
+
+# summary-check ndb tables
+SELECT COUNT(*) FROM db0.t0;
+SELECT COUNT(*) FROM db1.t0;
+SELECT COUNT(*) FROM db2.t0;
+
+# fill temporary tables
+INSERT db1.t0_temp SELECT * FROM db0.t0_data;
+INSERT db2.t0_temp SELECT * FROM db1.t0_data;
+INSERT db0.t0_temp SELECT * FROM db2.t0_data;
+
+# verify ndb tables
+SELECT COUNT(*) FROM db0.t0 NATURAL JOIN db0.t0_temp;
+SELECT COUNT(*) FROM db1.t0 NATURAL JOIN db1.t0_temp;
+SELECT COUNT(*) FROM db2.t0 NATURAL JOIN db2.t0_temp;
+
+# delete temporary tables
+DROP TABLE db0.t0_temp;
+DROP TABLE db1.t0_temp;
+DROP TABLE db2.t0_temp;
+
+--echo ************************************************************
+--echo * Deleting tables and databases
+--echo ************************************************************
+
+DROP DATABASE db0;
+DROP DATABASE db1;
+DROP DATABASE db2;

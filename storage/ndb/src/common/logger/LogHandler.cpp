@@ -1,4 +1,6 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (C) 2003-2006, 2008 MySQL AB
+    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +13,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #include "LogHandler.hpp"
 
@@ -45,7 +48,8 @@ LogHandler::append(const char* pCategory, Logger::LoggerLevel level,
   time_t now;
   now= ::time((time_t*)NULL);
 
-  if (level != m_last_level ||
+  if (m_max_repeat_frequency == 0 ||
+      level != m_last_level ||
       strcmp(pCategory, m_last_category) ||
       strcmp(pMsg, m_last_message))
   {
@@ -125,11 +129,7 @@ char*
 LogHandler::getTimeAsString(char* pStr) const 
 {
   struct tm* tm_now;
-#ifdef NDB_WIN32
-  tm_now = localtime(&m_now);
-#else
   tm_now = ::localtime(&m_now); //uses the "current" timezone
-#endif
 
   BaseString::snprintf(pStr, MAX_DATE_TIME_HEADER_LENGTH, 
 	     m_pDateTimeFormat, 
@@ -200,6 +200,11 @@ LogHandler::parseParams(const BaseString &_params) {
 bool
 LogHandler::checkParams() {
   return true;
+}
+
+void LogHandler::setRepeatFrequency(unsigned val)
+{
+  m_max_repeat_frequency= val;
 }
 
 //

@@ -502,10 +502,10 @@ Field *Item_sum::create_tmp_field(bool group, TABLE *table,
   Field *field;
   switch (result_type()) {
   case REAL_RESULT:
-    field= new Field_double(max_length, maybe_null, name, decimals, TRUE);
+    field= new Field_double(max_length, maybe_null, item_name.ptr(), decimals, TRUE);
     break;
   case INT_RESULT:
-    field= new Field_longlong(max_length, maybe_null, name, unsigned_flag);
+    field= new Field_longlong(max_length, maybe_null, item_name.ptr(), unsigned_flag);
     break;
   case STRING_RESULT:
     if (max_length/collation.collation->mbmaxlen <= 255 ||
@@ -513,7 +513,7 @@ Field *Item_sum::create_tmp_field(bool group, TABLE *table,
         !convert_blob_length)
       return make_string_field(table);
     field= new Field_varstring(convert_blob_length, maybe_null,
-                               name, table->s, collation.collation);
+                               item_name.ptr(), table->s, collation.collation);
     break;
   case DECIMAL_RESULT:
     field= Field_new_decimal::create_from_item(this);
@@ -1217,7 +1217,7 @@ Field *Item_sum_hybrid::create_tmp_field(bool group, TABLE *table,
   {
     field= ((Item_field*) args[0])->field;
     
-    if ((field= create_tmp_field_from_field(current_thd, field, name, table,
+    if ((field= create_tmp_field_from_field(current_thd, field, item_name.ptr(), table,
 					    NULL, convert_blob_length)))
       field->flags&= ~NOT_NULL_FLAG;
     return field;
@@ -1229,14 +1229,14 @@ Field *Item_sum_hybrid::create_tmp_field(bool group, TABLE *table,
   */
   switch (args[0]->field_type()) {
   case MYSQL_TYPE_DATE:
-    field= new Field_newdate(maybe_null, name);
+    field= new Field_newdate(maybe_null, item_name.ptr());
     break;
   case MYSQL_TYPE_TIME:
-    field= new Field_timef(maybe_null, name, decimals);
+    field= new Field_timef(maybe_null, item_name.ptr(), decimals);
     break;
   case MYSQL_TYPE_TIMESTAMP:
   case MYSQL_TYPE_DATETIME:
-    field= new Field_datetimef(maybe_null, name, decimals);
+    field= new Field_datetimef(maybe_null, item_name.ptr(), decimals);
     break;
   default:
     return Item_sum::create_tmp_field(group, table, convert_blob_length);
@@ -1566,12 +1566,12 @@ Field *Item_sum_avg::create_tmp_field(bool group, TABLE *table,
     */
     field= new Field_string(((hybrid_type == DECIMAL_RESULT) ?
                              dec_bin_size : sizeof(double)) + sizeof(longlong),
-                            0, name, &my_charset_bin);
+                            0, item_name.ptr(), &my_charset_bin);
   }
   else if (hybrid_type == DECIMAL_RESULT)
     field= Field_new_decimal::create_from_item(this);
   else
-    field= new Field_double(max_length, maybe_null, name, decimals, TRUE);
+    field= new Field_double(max_length, maybe_null, item_name.ptr(), decimals, TRUE);
   if (field)
     field->init(table);
   return field;
@@ -1782,10 +1782,10 @@ Field *Item_sum_variance::create_tmp_field(bool group, TABLE *table,
       The easiest way is to do this is to store both value in a string
       and unpack on access.
     */
-    field= new Field_string(sizeof(double)*2 + sizeof(longlong), 0, name, &my_charset_bin);
+    field= new Field_string(sizeof(double)*2 + sizeof(longlong), 0, item_name.ptr(), &my_charset_bin);
   }
   else
-    field= new Field_double(max_length, maybe_null, name, decimals, TRUE);
+    field= new Field_double(max_length, maybe_null, item_name.ptr(), decimals, TRUE);
 
   if (field != NULL)
     field->init(table);
@@ -2563,7 +2563,7 @@ void Item_sum_hybrid::min_max_update_decimal_field()
 
 Item_avg_field::Item_avg_field(Item_result res_type, Item_sum_avg *item)
 {
-  name=item->name;
+  item_name= item->item_name;
   decimals=item->decimals;
   max_length= item->max_length;
   unsigned_flag= item->unsigned_flag;
@@ -2669,7 +2669,7 @@ my_decimal *Item_std_field::val_decimal(my_decimal *dec_buf)
 
 Item_variance_field::Item_variance_field(Item_sum_variance *item)
 {
-  name=item->name;
+  item_name= item->item_name;
   decimals=item->decimals;
   max_length=item->max_length;
   unsigned_flag= item->unsigned_flag;
@@ -3225,10 +3225,10 @@ Field *Item_func_group_concat::make_string_field(TABLE *table)
   const uint32 max_characters= max_length / collation.collation->mbminlen;
   if (max_characters > CONVERT_IF_BIGGER_TO_BLOB)
     field= new Field_blob(max_characters * collation.collation->mbmaxlen,
-                          maybe_null, name, collation.collation, TRUE);
+                          maybe_null, item_name.ptr(), collation.collation, TRUE);
   else
     field= new Field_varstring(max_characters * collation.collation->mbmaxlen,
-                               maybe_null, name, table->s, collation.collation);
+                               maybe_null, item_name.ptr(), table->s, collation.collation);
 
   if (field)
     field->init(table);

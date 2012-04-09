@@ -16,9 +16,9 @@ select * from information_schema.session_variables where variable_name='optimize
 #
 # show that it's writable
 #
-set global optimizer_trace=10;
+set global optimizer_trace=1;
 select @@global.optimizer_trace;
-set session optimizer_trace=10;
+set session optimizer_trace=1;
 select @@session.optimizer_trace;
 set global optimizer_trace=0;
 select @@global.optimizer_trace;

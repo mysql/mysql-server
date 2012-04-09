@@ -1,0 +1,89 @@
+
+#
+# Tests for the performance_schema host_cache.
+#
+# Test authorization with auth plugins.
+# error reporting in:
+# - column COUNT_AUTH_PLUGIN_ERRORS
+# - column COUNT_PROXY_USER_ERRORS
+# - column COUNT_PROXY_USER_ACL_ERRORS
+
+--source include/not_embedded.inc
+--source include/have_debug.inc
+--source include/have_perfschema.inc
+--source include/have_plugin_auth.inc
+
+# Enforce a clean state
+--source ../include/wait_for_pfs_thread_count.inc
+--source ../include/hostcache_set_state.inc
+
+CREATE USER 'plug'@'santa.claus.ipv4.example.com'
+  IDENTIFIED WITH 'test_plugin_server' AS 'plug_dest';
+CREATE USER 'plug_dest'@'santa.claus.ipv4.example.com'
+  IDENTIFIED BY 'plug_test_passwd';
+GRANT SELECT ON test.* TO 'plug_dest'@'santa.claus.ipv4.example.com';
+
+connect (con1,"127.0.0.1",root,,test,$MASTER_MYPORT,);
+select "Con1 is alive";
+select current_user();
+disconnect con1;
+
+--connection default
+set global debug= "+d,vio_peer_addr_fake_ipv4,getnameinfo_fake_ipv4,getaddrinfo_fake_good_ipv4";
+uninstall plugin test_plugin_server;
+
+--disable_query_log
+--error ER_PLUGIN_IS_NOT_LOADED
+connect (con2,"127.0.0.1",plug,plug_dest,test,$MASTER_MYPORT,,,auth_test_plugin);
+--enable_query_log
+
+--connection default
+--source ../include/hostcache_dump.inc
+
+--disable_query_log
+--error ER_PLUGIN_IS_NOT_LOADED
+connect (con3,"127.0.0.1",plug,plug_dest,test,$MASTER_MYPORT,,,auth_test_plugin);
+--enable_query_log
+
+--connection default
+--source ../include/hostcache_dump.inc
+
+--replace_result $PLUGIN_AUTH PLUGIN_AUTH
+eval install plugin test_plugin_server soname '$PLUGIN_AUTH';
+
+--disable_query_log
+--error ER_ACCESS_DENIED_ERROR
+connect (con2,"127.0.0.1",plug,plug_dest,test,$MASTER_MYPORT,,,auth_test_plugin);
+--enable_query_log
+
+--connection default
+--source ../include/hostcache_dump.inc
+
+--disable_query_log
+--error ER_ACCESS_DENIED_ERROR
+connect (con3,"127.0.0.1",plug,plug_dest,test,$MASTER_MYPORT,,,auth_test_plugin);
+--enable_query_log
+
+--connection default
+--source ../include/hostcache_dump.inc
+
+GRANT PROXY ON 'plug_dest'@'santa.claus.ipv4.example.com'
+  TO 'plug'@'santa.claus.ipv4.example.com';
+
+connect (con4,"127.0.0.1",plug,plug_dest,test,$MASTER_MYPORT,,,auth_test_plugin);
+select "Con4 is alive";
+select user();
+select current_user();
+disconnect con4;
+
+--connection default
+--source ../include/hostcache_dump.inc
+
+REVOKE ALL PRIVILEGES ON *.* FROM 'plug_dest'@'santa.claus.ipv4.example.com';
+REVOKE PROXY ON 'plug_dest'@'santa.claus.ipv4.example.com'
+  FROM 'plug'@'santa.claus.ipv4.example.com';
+DROP USER 'plug'@'santa.claus.ipv4.example.com';
+DROP USER 'plug_dest'@'santa.claus.ipv4.example.com';
+
+set global debug= default;
+

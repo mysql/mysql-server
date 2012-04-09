@@ -1,0 +1,43 @@
+# Tests for PERFORMANCE_SCHEMA
+
+--source include/not_embedded.inc
+--source include/have_perfschema.inc
+
+--disable_result_log
+select * from performance_schema.host_cache
+  where IP like '%' limit 1;
+
+select * from performance_schema.host_cache
+  where IP='localhost';
+--enable_result_log
+
+--error ER_TABLEACCESS_DENIED_ERROR
+insert into performance_schema.host_cache
+  set IP='FOO', SUM_BLOCKING_ERRORS=1, COUNT_FCRDNS_ERRORS=2;
+
+--error ER_TABLEACCESS_DENIED_ERROR
+update performance_schema.host_cache
+  set COUNT_UNKNOWN_ERRORS=12;
+
+--error ER_TABLEACCESS_DENIED_ERROR
+update performance_schema.host_cache
+  set SUM_BLOCKING_ERRORS=12 where IP='127.0.0.1';
+
+select HOST from performance_schema.host_cache
+  where IP='::1';
+
+--error ER_TABLEACCESS_DENIED_ERROR
+delete from performance_schema.host_cache
+  where IP='::1';
+
+--error ER_TABLEACCESS_DENIED_ERROR
+delete from performance_schema.host_cache;
+
+--error ER_TABLEACCESS_DENIED_ERROR
+LOCK TABLES performance_schema.host_cache READ;
+UNLOCK TABLES;
+
+--error ER_TABLEACCESS_DENIED_ERROR
+LOCK TABLES performance_schema.host_cache WRITE;
+UNLOCK TABLES;
+

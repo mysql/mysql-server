@@ -433,7 +433,11 @@ private:
 };
 
 public:
-  sp_cursor(sp_lex_keeper *lex_keeper, sp_instr_cpush *i);
+  sp_cursor(sp_lex_keeper *lex_keeper, sp_instr_cpush *i)
+   :m_lex_keeper(lex_keeper),
+    server_side_cursor(NULL),
+    m_i(i)
+  { }
 
   virtual ~sp_cursor()
   { destroy(); }

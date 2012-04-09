@@ -21,6 +21,19 @@ t1	CREATE TABLE `t1` (
   PRIMARY KEY (`c1`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 DROP TABLE t1;
+CREATE TABLE bug13861218 (c1 INT NOT NULL, c2 INT NOT NULL, INDEX(c2))
+ENGINE=InnoDB;
+INSERT INTO bug13861218 VALUES (8, 0), (4, 0), (0, 0);
+SET DEBUG='+d,ib_row_merge_buf_add_two';
+CREATE UNIQUE INDEX ui ON bug13861218(c1);
+SET DEBUG='-d,ib_row_merge_buf_add_two';
+DROP TABLE bug13861218;
+CREATE TABLE bug13861218 (c1 INT NOT NULL, c2 INT UNIQUE) ENGINE=InnoDB;
+INSERT INTO bug13861218 VALUES (8, NULL), (4, NULL), (0, NULL);
+SET DEBUG='+d,ib_row_merge_buf_add_two';
+CREATE UNIQUE INDEX ui ON bug13861218(c1);
+SET DEBUG='-d,ib_row_merge_buf_add_two';
+DROP TABLE bug13861218;
 set global innodb_file_per_table=0;
 set global innodb_file_format=Antelope;
 set global innodb_file_format_max=Antelope;

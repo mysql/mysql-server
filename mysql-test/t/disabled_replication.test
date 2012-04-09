@@ -1,0 +1,77 @@
+#
+# Replication is disabled in embedded mode.
+#
+--source include/not_embedded.inc
+
+#
+# Checks how replication commands behave when replication if OFF
+# due to server-id = 0.
+#
+
+#
+# Commands associated with the SLAVE.
+#
+SHOW SLAVE STATUS;
+--error ER_SLAVE_CONFIGURATION
+RESET SLAVE;
+SHOW RELAYLOG EVENTS;
+--error ER_SLAVE_CONFIGURATION
+STOP SLAVE;
+--error ER_SLAVE_CONFIGURATION
+START SLAVE;
+SELECT MASTER_POS_WAIT('non-existent', 0);
+--error ER_SLAVE_CONFIGURATION
+CHANGE MASTER TO MASTER_CONNECT_RETRY = 1, MASTER_HEARTBEAT_PERIOD = 1.01;
+--error 2
+--exec $MYSQL_DUMP --compact --master-data=2 test
+FLUSH LOGS;
+FLUSH RELAY LOGS;
+
+#
+# Configuration options associated with the SLAVE.
+#
+--let $saved= `SELECT @@GLOBAL.master_info_repository`
+SET @@GLOBAL.master_info_repository= "TABLE";
+--disable_query_log
+--eval SET @@GLOBAL.master_info_repository= "$saved"
+--enable_query_log
+--let $saved= `SELECT @@GLOBAL.relay_log_info_repository`
+SET @@GLOBAL.relay_log_info_repository= "TABLE";
+--disable_query_log
+--eval SET @@GLOBAL.relay_log_info_repository= "$saved"
+--enable_query_log
+--let $saved= `SELECT @@GLOBAL.max_relay_log_size`
+SET @@GLOBAL.max_relay_log_size= 536870912;
+--eval SET @@GLOBAL.max_relay_log_size= $saved
+--let $saved= `SELECT @@GLOBAL.slave_net_timeout`
+SET @@GLOBAL.slave_net_timeout= 10;
+--eval SET @@GLOBAL.slave_net_timeout= $saved
+--let $saved= `SELECT @@GLOBAL.sql_slave_skip_counter`
+SET @@GLOBAL.sql_slave_skip_counter= 10;
+--eval SET @@GLOBAL.sql_slave_skip_counter= $saved
+--let $saved= `SELECT @@SESSION.sql_log_bin`
+SET @@SESSION.sql_log_bin= 0;
+--eval SET @@SESSION.sql_log_bin= $saved
+
+#
+# Commands associated with the MASTER.
+#
+--error ER_NO_BINARY_LOGGING
+SHOW MASTER LOGS;
+SHOW MASTER STATUS;
+SHOW SLAVE HOSTS;
+--error ER_FLUSH_MASTER_BINLOG_CLOSED
+RESET MASTER;
+SHOW BINLOG EVENTS;
+--error 2
+--exec $MYSQL_DUMP --compact --master-data=2 test
+FLUSH LOGS;
+FLUSH BINARY LOGS;
+
+
+#
+# Configuration options associated with the MASTER.
+#
+--let $saved= `SELECT @@GLOBAL.max_binlog_size`
+SET @@GLOBAL.max_binlog_size= 536870912;
+--eval SET @@GLOBAL.max_binlog_size= $saved

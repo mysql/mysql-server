@@ -1,0 +1,109 @@
+--source include/have_ndb.inc
+
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+
+# setup
+
+connect (con1,localhost,root,,test);
+connect (con2,localhost,root,,test);
+
+# unique index
+connection con1;
+create table t1(a int primary key, b int, c int, unique(b)) engine = ndb;
+insert into t1 values (2,2,2);
+insert into t1 values (3,3,3);
+insert into t1 values (4,4,4);
+
+begin;
+insert into t1 values (1,1,1);
+
+connection con2;
+begin;
+--error 1205
+update t1 set c = 2 where b = 1;
+rollback;
+
+connection con1;
+rollback;
+drop table t1;
+# ordered index
+
+connection con1;
+create table t1(a int primary key, b int, c int, key(b)) engine = ndb;
+insert into t1 values (2,2,2);
+insert into t1 values (3,3,3);
+insert into t1 values (4,4,4);
+
+begin;
+insert into t1 values (1,1,1);
+
+connection con2;
+begin;
+--error 1205
+update t1 set c = 2 where b = 1;
+rollback;
+
+connection con1;
+rollback;
+drop table t1;
+
+# multiple versions
+
+--echo --con1
+connection con1;
+create table t1(a int primary key, b int, c int, key(b)) engine = ndb;
+insert into t1 values (1,1,1);
+insert into t1 values (2,2,2);
+insert into t1 values (3,3,3);
+insert into t1 values (4,4,4);
+
+begin;
+update t1 set c = 10 where a = 1;
+update t1 set c = 20 where a = 1;
+update t1 set c = 30 where a = 1;
+
+--echo --con1 c=30
+select * from t1 where b >= 1 order by b;
+--echo --con2 c=1
+connection con2;
+select * from t1 where b >= 1 order by b;
+
+--echo --con1
+connection con1;
+delete from t1 where a = 1;
+
+--echo --con1 c=none
+select * from t1 where b >= 1 order by b;
+--echo --con2 c=1
+connection con2;
+select * from t1 where b >= 1 order by b;
+
+--echo --con1
+connection con1;
+commit;
+
+--echo --con1 c=none
+select * from t1 where b >= 1 order by b;
+--echo --con2 c=none
+connection con2;
+select * from t1 where b >= 1 order by b;
+
+--echo --con1
+connection con1;
+begin;
+insert into t1 values (1,1,1);
+update t1 set c = 10 where a = 1;
+update t1 set c = 20 where a = 1;
+update t1 set c = 30 where a = 1;
+
+--echo --con1 c=30
+select * from t1 where b >= 1 order by b;
+--echo --con2 c=none
+connection con2;
+select * from t1 where b >= 1 order by b;
+
+# this fails with "no such table" via con2 ???
+connection con1;
+drop table t1;

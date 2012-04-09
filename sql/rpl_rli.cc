@@ -77,11 +77,13 @@ Relay_log_info::Relay_log_info(bool is_slave_recovery
    group_master_log_pos(0),
    gtid_set(&global_sid_map, &global_sid_lock),
    log_space_total(0), ignore_log_space_limit(0),
+   sql_force_rotate_relay(false),
    last_master_timestamp(0), slave_skip_counter(0),
    abort_pos_wait(0), until_condition(UNTIL_NONE),
    until_log_pos(0),
-   until_gtids_obj(&global_sid_map),
-   request_gtids_obj(&global_sid_map),
+   until_sql_gtids(&global_sid_map),
+   until_sql_gtids_seen(&global_sid_map),
+   until_sql_gtids_first_event(true),
    retried_trans(0),
    tables_to_lock(0), tables_to_lock_count(0),
    rows_query_ev(NULL), last_event_start_time(0),
@@ -196,8 +198,10 @@ void Relay_log_info::reset_notified_relay_log_change()
                  checkpoint change.
    @param new_ts new seconds_behind_master timestamp value unless zero.
                  Zero could be due to FD event.
+   @param locked true if caller has locked @c data_lock
 */
-void Relay_log_info::reset_notified_checkpoint(ulong shift, time_t new_ts= 0)
+void Relay_log_info::reset_notified_checkpoint(ulong shift, time_t new_ts,
+                                               bool locked)
 {
   /*
     If this is not a parallel execution we return immediately.
@@ -237,9 +241,11 @@ void Relay_log_info::reset_notified_checkpoint(ulong shift, time_t new_ts= 0)
 
   if (new_ts)
   {
-    mysql_mutex_lock(&data_lock);
+    if (!locked)
+      mysql_mutex_lock(&data_lock);
     last_master_timestamp= new_ts;
-    mysql_mutex_unlock(&data_lock);
+    if (!locked)
+      mysql_mutex_unlock(&data_lock);
   }
 }
 
@@ -297,8 +303,9 @@ void Relay_log_info::clear_until_condition()
   until_condition= Relay_log_info::UNTIL_NONE;
   until_log_name[0]= 0;
   until_log_pos= 0;
-  request_gtids_obj.clear();
-  until_gtids_obj.clear();
+  until_sql_gtids.clear();
+  until_sql_gtids_seen.clear();
+  until_sql_gtids_first_event= true;
   DBUG_VOID_RETURN;
 }
 
@@ -503,7 +510,9 @@ err:
     silently discard it
   */
   if (!relay_log_purge)
-    log_space_limit= 0;
+  {
+    log_space_limit= 0; // todo: consider to throw a warning at least
+  }
   mysql_cond_broadcast(&data_cond);
 
   mysql_mutex_unlock(log_lock);
@@ -768,9 +777,9 @@ int Relay_log_info::wait_for_gtid_set(THD* thd, String* gtid,
      slave_running briefly switches between 1/0/1.
   */
   init_abort_pos_wait= abort_pos_wait;
-  Gtid_set gtid_set(&global_sid_map);
+  Gtid_set wait_gtid_set(&global_sid_map);
   global_sid_lock.rdlock();
-  if (gtid_set.add_gtid_text(gtid->c_ptr_safe()) != RETURN_STATUS_OK)
+  if (wait_gtid_set.add_gtid_text(gtid->c_ptr_safe()) != RETURN_STATUS_OK)
   { 
     global_sid_lock.unlock();
     goto err;
@@ -792,10 +801,10 @@ int Relay_log_info::wait_for_gtid_set(THD* thd, String* gtid,
     const Gtid_set* logged_gtids= gtid_state.get_logged_gtids();
 
     DBUG_PRINT("info", ("Waiting for '%s'. is_subset: %d",
-      gtid->c_ptr_safe(), gtid_set.is_subset(logged_gtids)));
+      gtid->c_ptr_safe(), wait_gtid_set.is_subset(logged_gtids)));
     logged_gtids->dbug_print("gtid_done:");
 
-    if (gtid_set.is_subset(logged_gtids))
+    if (wait_gtid_set.is_subset(logged_gtids))
     {
       global_sid_lock.unlock();
       break;
@@ -1087,9 +1096,10 @@ bool Relay_log_info::is_until_satisfied(THD *thd, Log_event *ev)
                     "condition is bad.";
   DBUG_ENTER("Relay_log_info::is_until_satisfied");
 
-  DBUG_ASSERT(until_condition != UNTIL_NONE);
-
-  if (until_condition == UNTIL_MASTER_POS || until_condition == UNTIL_RELAY_POS)
+  switch (until_condition)
+  {
+  case UNTIL_MASTER_POS:
+  case UNTIL_RELAY_POS:
   {
     const char *log_name= NULL;
     ulonglong log_pos= 0;
@@ -1097,7 +1107,7 @@ bool Relay_log_info::is_until_satisfied(THD *thd, Log_event *ev)
     if (until_condition == UNTIL_MASTER_POS)
     {
       if (ev && ev->server_id == (uint32) ::server_id && !replicate_same_server_id)
-        DBUG_RETURN(FALSE);
+        DBUG_RETURN(false);
       log_name= group_master_log_name;
       log_pos= (!ev)? group_master_log_pos :
         ((thd->variables.option_bits & OPTION_BEGIN || !ev->log_pos) ?
@@ -1154,48 +1164,99 @@ bool Relay_log_info::is_until_satisfied(THD *thd, Log_event *ev)
         }
         else
         {
-          /* Probably error so we aborting */
+          /* Base names do not match, so we abort */
           sql_print_error("%s", error_msg);
-          DBUG_RETURN(TRUE);
+          DBUG_RETURN(true);
         }
       }
       else
         DBUG_RETURN(until_log_pos == 0);
     }
 
-    DBUG_RETURN(((until_log_names_cmp_result == UNTIL_LOG_NAMES_CMP_EQUAL &&
-             log_pos >= until_log_pos) ||
-            until_log_names_cmp_result == UNTIL_LOG_NAMES_CMP_GREATER));
-  }
-  else if (ev != NULL && ev->get_type_code() == GTID_LOG_EVENT)
-  {
-    global_sid_lock.wrlock();
-    if (until_gtids_obj._remove_gtid(((Gtid_log_event *)(ev))->get_sidno(false),
-                                     ((Gtid_log_event *)(ev))->get_gno())
-        != RETURN_STATUS_OK || until_gtids_obj.is_empty())
+    if (((until_log_names_cmp_result == UNTIL_LOG_NAMES_CMP_EQUAL &&
+          log_pos >= until_log_pos) ||
+         until_log_names_cmp_result == UNTIL_LOG_NAMES_CMP_GREATER))
     {
-      global_sid_lock.unlock();
+      char buf[22];
+      sql_print_information("Slave SQL thread stopped because it reached its"
+                            " UNTIL position %s", llstr(until_pos(), buf));
       DBUG_RETURN(true);
     }
-
-#ifndef DBUG_OFF
-    char* buffer= NULL;
-    if (!(buffer= (char *) my_malloc(until_gtids_obj.get_string_length() + 1,
-                                     MYF(MY_WME))))
-    {
-      global_sid_lock.unlock();
-      DBUG_RETURN(true);
-    }
-    else
-    {
-      until_gtids_obj.to_string(buffer);
-      DBUG_PRINT("info", ("Waiting for %s to be processed.", buffer));
-      my_free(buffer);
-    }
-#endif
-    global_sid_lock.unlock();
+    DBUG_RETURN(false);
   }
 
+  case UNTIL_SQL_BEFORE_GTIDS:
+    if (ev != NULL && ev->get_type_code() == GTID_LOG_EVENT)
+    {
+      Gtid_log_event *gev= (Gtid_log_event *)ev;
+      global_sid_lock.rdlock();
+      if (until_sql_gtids.contains_gtid(gev->get_sidno(false), gev->get_gno()))
+      {
+        char *buffer= until_sql_gtids.to_string();
+        global_sid_lock.unlock();
+        sql_print_information("Slave SQL thread stopped because it reached "
+                              "UNTIL SQL_BEFORE_GTIDS %s", buffer);
+        my_free(buffer);
+        DBUG_RETURN(true);
+      }
+      global_sid_lock.unlock();
+      // We only need to check once if logged_gtids set contains any of the until_sql_gtids.
+      if (until_sql_gtids_first_event)
+      {
+        until_sql_gtids_first_event= false;
+        global_sid_lock.wrlock();
+        /* Check if until GTIDs were already applied. */
+        const Gtid_set* logged_gtids= gtid_state.get_logged_gtids();
+        if (until_sql_gtids.is_intersection(logged_gtids))
+        {
+          char *buffer= until_sql_gtids.to_string();
+          global_sid_lock.unlock();
+          sql_print_information("Slave SQL thread stopped because "
+                                "UNTIL SQL_BEFORE_GTIDS %s is already "
+                                "applied", buffer);
+          my_free(buffer);
+          DBUG_RETURN(true);
+        }
+        global_sid_lock.unlock();
+      }
+    }
+    DBUG_RETURN(false);
+    break;
+
+  case UNTIL_SQL_AFTER_GTIDS:
+    if (ev != NULL && ev->get_type_code() == GTID_LOG_EVENT)
+    {
+      global_sid_lock.wrlock();
+      // We only need to compute until_sql_gtids_seen once.
+      if (until_sql_gtids_first_event)
+      {
+        until_sql_gtids_first_event= false;
+        const Gtid_set* logged_gtids= gtid_state.get_logged_gtids();
+        until_sql_gtids.intersection(logged_gtids, &until_sql_gtids_seen);
+      }
+      if (until_sql_gtids.is_subset(const_cast<Gtid_set *>(&until_sql_gtids_seen)))
+      {
+        char *buffer= until_sql_gtids.to_string();
+        global_sid_lock.unlock();
+        sql_print_information("Slave SQL thread stopped because it reached "
+                              "UNTIL SQL_AFTER_GTIDS %s", buffer);
+        my_free(buffer);
+        DBUG_RETURN(true);
+      }
+      Gtid_log_event *gev= (Gtid_log_event *)ev;
+      until_sql_gtids_seen.ensure_sidno(gev->get_sidno(false));
+      until_sql_gtids_seen._add_gtid(gev->get_sidno(false), gev->get_gno());
+      global_sid_lock.unlock();
+    }
+    DBUG_RETURN(false);
+    break;
+
+  case UNTIL_NONE:
+    DBUG_ASSERT(0);
+    break;
+  }
+
+  DBUG_ASSERT(0);
   DBUG_RETURN(false);
 }
 
@@ -1414,8 +1475,11 @@ bool mysql_show_relaylog_events(THD* thd)
                             Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
     DBUG_RETURN(TRUE);
 
-  if (!active_mi)
-    DBUG_RETURN(TRUE);
+  if (active_mi == NULL)
+  {
+    my_eof(thd);
+    DBUG_RETURN(true);
+  }
   
   DBUG_RETURN(show_binlog_events(thd, &active_mi->rli->relay_log));
 }
@@ -1688,7 +1752,8 @@ a file name for --relay-log-index option.", opt_relaylog_index_name);
 
 err:
   inited= 0;
-  sql_print_error("%s.", msg);
+  if (msg)
+    sql_print_error("%s.", msg);
   relay_log.close(LOG_CLOSE_INDEX | LOG_CLOSE_STOP_EVENT);
   DBUG_RETURN(error);
 }

@@ -1,4 +1,5 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (c) 2005, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,44 +12,87 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #include "SignalSender.hpp"
+#include <kernel/GlobalSignalNumbers.h>
 #include <NdbSleep.h>
 #include <SignalLoggerManager.hpp>
 #include <signaldata/NFCompleteRep.hpp>
 #include <signaldata/NodeFailRep.hpp>
+#include <signaldata/TestOrd.hpp>
 
 
-SimpleSignal::SimpleSignal(bool dealloc){
-  memset(this, 0, sizeof(* this));
+SimpleSignal::SimpleSignal(bool dealloc)
+  : header((BlockReference)0)
+{
+  memset(ptr, 0, sizeof(ptr));
   deallocSections = dealloc;
+}
+
+SimpleSignal::SimpleSignal(const SimpleSignal& src)
+  : header(src.header)
+{
+  deallocSections = true;
+
+  for (Uint32 i = 0; i<NDB_ARRAY_SIZE(ptr); i++)
+  {
+    ptr[i].p = 0;
+    if (src.ptr[i].p != 0)
+    {
+      ptr[i].p = new Uint32[src.ptr[i].sz];
+      ptr[i].sz = src.ptr[i].sz;
+      memcpy(ptr[i].p, src.ptr[i].p, 4 * src.ptr[i].sz);
+    }
+  }
+}
+
+
+SimpleSignal&
+SimpleSignal::operator=(const SimpleSignal& src)
+{
+  deallocSections = true;
+  header = src.header;
+  for (Uint32 i = 0; i<NDB_ARRAY_SIZE(ptr); i++)
+  {
+    ptr[i].p = 0;
+    if (src.ptr[i].p != 0)
+    {
+      ptr[i].p = new Uint32[src.ptr[i].sz];
+      ptr[i].sz = src.ptr[i].sz;
+      memcpy(ptr[i].p, src.ptr[i].p, 4 * src.ptr[i].sz);
+    }
+  }
+  return * this;
 }
 
 SimpleSignal::~SimpleSignal(){
   if(!deallocSections)
     return;
-  if(ptr[0].p != 0) delete []ptr[0].p;
-  if(ptr[1].p != 0) delete []ptr[1].p;
-  if(ptr[2].p != 0) delete []ptr[2].p;
+
+  for (Uint32 i = 0; i<NDB_ARRAY_SIZE(ptr); i++)
+  {
+    if (ptr[i].p != 0)
+    {
+      delete [] ptr[i].p;
+    }
+  }
 }
 
 void 
 SimpleSignal::set(class SignalSender& ss,
-		  Uint8  trace, Uint16 recBlock, Uint16 gsn, Uint32 len){
-  
-  header.theTrace                = trace;
-  header.theReceiversBlockNumber = recBlock;
-  header.theVerId_signalNumber   = gsn;
-  header.theLength               = len;
+		  Uint8  trace, Uint16 recBlock, Uint16 gsn, Uint32 len)
+{
+  header.set(trace, recBlock, gsn, len);
   header.theSendersBlockRef      = refToBlock(ss.getOwnRef());
 }
 
 void
-SimpleSignal::print(FILE * out){
+SimpleSignal::print(FILE * out) const {
   fprintf(out, "---- Signal ----------------\n");
   SignalLoggerManager::printSignalHeader(out, header, 0, 0, false);
-  SignalLoggerManager::printSignalData(out, header, theData);
+  SignalLoggerManager::printSignalData(out, header, getDataPtr());
   for(Uint32 i = 0; i<header.m_noOfSections; i++){
     Uint32 len = ptr[i].sz;
     fprintf(out, " --- Section %d size=%d ---\n", i, len);
@@ -70,44 +114,44 @@ SimpleSignal::print(FILE * out){
   }
 }
 
-SignalSender::SignalSender(TransporterFacade *facade)
-  : m_lock(0)
+SignalSender::SignalSender(TransporterFacade *facade, int blockNo)
 {
-  m_cond = NdbCondition_Create();
   theFacade = facade;
-  lock();
-  m_blockNo = theFacade->open(this, execSignal, execNodeStatus);
-  unlock();
-  assert(m_blockNo > 0);
+  Uint32 res = open(theFacade, blockNo);
+  assert(res != 0);
+  m_blockNo = refToBlock(res);
+}
+
+SignalSender::SignalSender(Ndb_cluster_connection* connection)
+{
+  theFacade = connection->m_impl.m_transporter_facade;
+  Uint32 res = open(theFacade, -1);
+  assert(res != 0);
+  m_blockNo = refToBlock(res);
 }
 
 SignalSender::~SignalSender(){
   int i;
-  if (m_lock)
-    unlock();
-  theFacade->close(m_blockNo,0);
+  unlock();
+  close();
+
   // free these _after_ closing theFacade to ensure that
   // we delete all signals
   for (i= m_jobBuffer.size()-1; i>= 0; i--)
     delete m_jobBuffer[i];
   for (i= m_usedBuffer.size()-1; i>= 0; i--)
     delete m_usedBuffer[i];
-  NdbCondition_Destroy(m_cond);
 }
 
 int SignalSender::lock()
 {
-  if (NdbMutex_Lock(theFacade->theMutexPtr))
-    return -1;
-  m_lock= 1;
+  start_poll();
   return 0;
 }
 
 int SignalSender::unlock()
 {
-  if (NdbMutex_Unlock(theFacade->theMutexPtr))
-    return -1;
-  m_lock= 0;
+  complete_poll();
   return 0;
 }
 
@@ -116,19 +160,67 @@ SignalSender::getOwnRef() const {
   return numberToRef(m_blockNo, theFacade->ownId());
 }
 
-Uint32
-SignalSender::getAliveNode() const{
-  return theFacade->get_an_alive_node();
+NodeBitmask
+SignalSender::broadcastSignal(NodeBitmask mask,
+                              SimpleSignal& sig,
+                              Uint16 recBlock, Uint16 gsn,
+                              Uint32 len)
+{
+  sig.set(*this, TestOrd::TraceAPI, recBlock, gsn, len);
+
+  NodeBitmask result;
+  for(Uint32 i = 0; i < MAX_NODES; i++)
+  {
+    if(mask.get(i) && sendSignal(i, &sig) == SEND_OK)
+      result.set(i);
+  }
+  return result;
 }
 
-const ClusterMgr::Node & 
-SignalSender::getNodeInfo(Uint16 nodeId) const {
-  return theFacade->theClusterMgr->getNodeInfo(nodeId);
+
+SendStatus
+SignalSender::sendSignal(Uint16 nodeId,
+                         SimpleSignal& sig,
+                         Uint16 recBlock, Uint16 gsn,
+                         Uint32 len)
+{
+  sig.set(*this, TestOrd::TraceAPI, recBlock, gsn, len);
+  return sendSignal(nodeId, &sig);
 }
 
-Uint32
-SignalSender::getNoOfConnectedNodes() const {
-  return theFacade->theClusterMgr->getNoOfConnectedNodes();
+int
+SignalSender::sendFragmentedSignal(Uint16 nodeId,
+                                   SimpleSignal& sig,
+                                   Uint16 recBlock, Uint16 gsn,
+                                   Uint32 len)
+{
+  sig.set(*this, TestOrd::TraceAPI, recBlock, gsn, len);
+
+  int ret = raw_sendFragmentedSignal(&sig.header,
+                                     nodeId,
+                                     &sig.ptr[0],
+                                     sig.header.m_noOfSections);
+  if (ret == 0)
+  {
+    do_forceSend();
+    return SEND_OK;
+  }
+  return SEND_DISCONNECTED;
+}
+
+SendStatus
+SignalSender::sendSignal(Uint16 nodeId, const SimpleSignal * s)
+{
+  int ret = raw_sendSignal((NdbApiSignal*)&s->header,
+                           nodeId,
+                           s->ptr,
+                           s->header.m_noOfSections);
+  if (ret == 0)
+  {
+    do_forceSend();
+    return SEND_OK;
+  }
+  return SEND_DISCONNECTED;
 }
 
 template<class T>
@@ -141,17 +233,20 @@ SignalSender::waitFor(Uint32 timeOutMillis, T & t)
     {
       return 0;
     }
+    assert(s->header.theLength > 0);
     return s;
   }
-  
+
+  /* Remove old signals from usedBuffer */
+  for (unsigned i= 0; i < m_usedBuffer.size(); i++)
+    delete m_usedBuffer[i];
+  m_usedBuffer.clear();
+
   NDB_TICKS now = NdbTick_CurrentMillisecond();
   NDB_TICKS stop = now + timeOutMillis;
   Uint32 wait = (timeOutMillis == 0 ? 10 : timeOutMillis);
   do {
-    NdbCondition_WaitTimeout(m_cond,
-			     theFacade->theMutexPtr, 
-			     wait);
-    
+    do_poll(wait);
     
     SimpleSignal * s = t.check(m_jobBuffer);
     if(s != 0){
@@ -159,11 +254,12 @@ SignalSender::waitFor(Uint32 timeOutMillis, T & t)
       {
         return 0;
       }
+      assert(s->header.theLength > 0);
       return s;
     }
     
     now = NdbTick_CurrentMillisecond();
-    wait = (timeOutMillis == 0 ? 10 : stop - now);
+    wait = (Uint32)(timeOutMillis == 0 ? 10 : stop - now);
   } while(stop > now || timeOutMillis == 0);
   
   return 0;
@@ -189,94 +285,98 @@ SignalSender::waitFor(Uint32 timeOutMillis){
   return waitFor(timeOutMillis, w);
 }
 
-class WaitForNode {
-public:
-  WaitForNode() {}
-  Uint32 m_nodeId;
-  SimpleSignal * check(Vector<SimpleSignal*> & m_jobBuffer){
-    Uint32 len = m_jobBuffer.size();
-    for(Uint32 i = 0; i<len; i++){
-      if(refToNode(m_jobBuffer[i]->header.theSendersBlockRef) == m_nodeId){
-	SimpleSignal * s = m_jobBuffer[i];
-	m_jobBuffer.erase(i);
-	return s;
-      }
-    }
-    return 0;
-  }
-};
-
-SimpleSignal *
-SignalSender::waitFor(Uint16 nodeId, Uint32 timeOutMillis){
-  
-  WaitForNode w;
-  w.m_nodeId = nodeId;
-  return waitFor(timeOutMillis, w);
-}
-
 #include <NdbApiSignal.hpp>
 
 void
-SignalSender::execSignal(void* signalSender, 
-			 NdbApiSignal* signal, 
-			 class LinearSectionPtr ptr[3]){
+SignalSender::trp_deliver_signal(const NdbApiSignal* signal,
+                                 const struct LinearSectionPtr ptr[3])
+{
   SimpleSignal * s = new SimpleSignal(true);
   s->header = * signal;
-  memcpy(&s->theData[0], signal->getDataPtr(), 4 * s->header.theLength);
   for(Uint32 i = 0; i<s->header.m_noOfSections; i++){
     s->ptr[i].p = new Uint32[ptr[i].sz];
     s->ptr[i].sz = ptr[i].sz;
     memcpy(s->ptr[i].p, ptr[i].p, 4 * ptr[i].sz);
   }
-  SignalSender * ss = (SignalSender*)signalSender;
-  ss->m_jobBuffer.push_back(s);
-  NdbCondition_Signal(ss->m_cond);
+  m_jobBuffer.push_back(s);
+  wakeup();
 }
-  
-void 
-SignalSender::execNodeStatus(void* signalSender, 
-			     Uint32 nodeId, 
-			     bool alive, 
-			     bool nfCompleted){
-  if (alive) {
-    // node connected
-    return;
-  }
 
-  SimpleSignal * s = new SimpleSignal(true);
-  SignalSender * ss = (SignalSender*)signalSender;
+template<class T>
+NodeId
+SignalSender::find_node(const NodeBitmask& mask, T & t)
+{
+  unsigned n= 0;
+  do {
+     n= mask.find(n+1);
 
-  // node disconnected
-  if(nfCompleted)
-  {
-    // node shutdown complete
-    s->header.theVerId_signalNumber = GSN_NF_COMPLETEREP;
-    NFCompleteRep *rep = (NFCompleteRep *)s->getDataPtrSend();
-    rep->blockNo = 0;
-    rep->nodeId = 0;
-    rep->failedNodeId = nodeId;
-    rep->unused = 0;
-    rep->from = 0;
-  }
-  else
-  {
-    // node failure
-    s->header.theVerId_signalNumber = GSN_NODE_FAILREP;
-    NodeFailRep *rep = (NodeFailRep *)s->getDataPtrSend();
-    rep->failNo = 0;
-    rep->masterNodeId = 0;
-    rep->noOfNodes = 1;
-    NodeBitmask::clear(rep->theNodes);
-    NodeBitmask::set(rep->theNodes,nodeId);
-  }
+     if (n == NodeBitmask::NotFound)
+       return 0;
 
-  ss->m_jobBuffer.push_back(s);
-  NdbCondition_Signal(ss->m_cond);
+    assert(n < MAX_NODES);
+
+  } while (!t.found_ok(*this, getNodeInfo(n)));
+
+  return n;
 }
+
+
+class FindConfirmedNode {
+public:
+  bool found_ok(const SignalSender& ss, const trp_node & node){
+    return node.is_confirmed();
+  }
+};
+
+
+NodeId
+SignalSender::find_confirmed_node(const NodeBitmask& mask)
+{
+  FindConfirmedNode f;
+  return find_node(mask, f);
+}
+
+
+class FindConnectedNode {
+public:
+  bool found_ok(const SignalSender& ss, const trp_node & node){
+    return node.is_connected();
+  }
+};
+
+
+NodeId
+SignalSender::find_connected_node(const NodeBitmask& mask)
+{
+  FindConnectedNode f;
+  return find_node(mask, f);
+}
+
+
+class FindAliveNode {
+public:
+  bool found_ok(const SignalSender& ss, const trp_node & node){
+    return node.m_alive;
+  }
+};
+
+
+NodeId
+SignalSender::find_alive_node(const NodeBitmask& mask)
+{
+  FindAliveNode f;
+  return find_node(mask, f);
+}
+
 
 #if __SUNPRO_CC != 0x560
-template SimpleSignal* SignalSender::waitFor<WaitForNode>(unsigned, WaitForNode&);
 template SimpleSignal* SignalSender::waitFor<WaitForAny>(unsigned, WaitForAny&);
+template NodeId SignalSender::find_node<FindConfirmedNode>(const NodeBitmask&,
+                                                           FindConfirmedNode&);
+template NodeId SignalSender::find_node<FindAliveNode>(const NodeBitmask&,
+                                                       FindAliveNode&);
+template NodeId SignalSender::find_node<FindConnectedNode>(const NodeBitmask&,
+                                                           FindConnectedNode&);
 #endif
 template class Vector<SimpleSignal*>;
   

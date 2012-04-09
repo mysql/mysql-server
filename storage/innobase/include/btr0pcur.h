@@ -459,7 +459,7 @@ struct btr_pcur_struct{
 					BTR_MODIFY_TREE, or BTR_NO_LATCHES,
 					depending on the latching state of
 					the page and tree where the cursor is
-					positioned; the last value means that
+					positioned; BTR_NO_LATCHES means that
 					the cursor is not currently positioned:
 					we say then that the cursor is
 					detached; it can be restored to

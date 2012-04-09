@@ -1,4 +1,5 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +12,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 
 #include <ndb_global.h>
@@ -22,6 +24,10 @@
 #include <NdbMutex.h> 
 
 #include "common.hpp"
+#ifdef _WIN32
+#include <sys/types.h>
+#include <direct.h>
+#endif
 
 extern const ParserRow<CPCDAPISession> commands[];
 
@@ -49,8 +55,8 @@ CPCD::findUniqueId() {
   
   while(!ok) {
     ok = true;
-    id = random() % 8192; /* Don't want so big numbers */
-    
+    id = rand() % 8192; /* Don't want so big numbers */
+
     if(id == 0)
       ok = false;
 
@@ -90,7 +96,6 @@ CPCD::defineProcess(RequestStatus * rs, Process * arg){
   m_processes.push_back(arg, false);
 
   notifyChanges();
-  report(arg->m_id, CPCEvent::ET_PROC_USER_DEFINE);
 
   return true;
 }
@@ -126,8 +131,6 @@ CPCD::undefineProcess(CPCD::RequestStatus *rs, int id) {
   
   notifyChanges();
   
-  report(id, CPCEvent::ET_PROC_USER_UNDEFINE);
-
   return true;
 }
 
@@ -172,7 +175,6 @@ CPCD::startProcess(CPCD::RequestStatus *rs, int id) {
     
     notifyChanges();
   }
-  report(id, CPCEvent::ET_PROC_USER_START);
 
   return true;
 }
@@ -211,8 +213,6 @@ CPCD::stopProcess(CPCD::RequestStatus *rs, int id) {
   
   notifyChanges();
 
-  report(id, CPCEvent::ET_PROC_USER_START);
-  
   return true;
 }
 
@@ -226,6 +226,22 @@ CPCD::notifyChanges() {
 
   return ret;
 }
+
+
+#ifdef _WIN32
+static int link(const char* from_file, const char* to_file)
+{
+  BOOL fail_if_exists = TRUE;
+  if (CopyFile(from_file, to_file, fail_if_exists) == 0)
+  {
+    /* "On error, -1 is returned" */
+    return -1;
+  }
+  /* "On success, zero is returned" */
+  return 0;
+}
+#endif
+
 
 /* Must be called with m_processlist locked */
 bool
@@ -347,6 +363,7 @@ CPCD::loadProcessList(){
   }
 
   CPCDAPISession sess(f, *this);
+  fclose(f);
   sess.loadFile();
   loadingProcessList = false;
 
@@ -381,54 +398,3 @@ CPCD::RequestStatus::err(enum RequestStatusCode status, const char *msg) {
   m_status = status;
   BaseString::snprintf(m_errorstring, sizeof(m_errorstring), "%s", msg);
 }
-
-#if 0
-void
-CPCD::sigchild(int pid){
-  m_processes.lock(); 
-  for(size_t i = 0; i<m_processes.size(); i++){
-    if(m_processes[i].m_pid == pid){
-    }
-  }
-  wait(pid, 0, 0);
-}
-#endif
-
-  /** Register event subscriber */
-void
-CPCD::do_register(EventSubscriber * sub){
-  m_subscribers.lock();
-  m_subscribers.push_back(sub, false);
-  m_subscribers.unlock();  
-}
-
-EventSubscriber*
-CPCD::do_unregister(EventSubscriber * sub){
-  m_subscribers.lock();
-
-  for(size_t i = 0; i<m_subscribers.size(); i++){
-    if(m_subscribers[i] == sub){
-      m_subscribers.erase(i);
-      m_subscribers.unlock();  
-      return sub;
-    }
-  }
-
-  m_subscribers.unlock();  
-  return 0;
-}
-
-void
-CPCD::report(int id, CPCEvent::EventType t){
-  CPCEvent e;
-  e.m_time = time(0);
-  e.m_proc = id;
-  e.m_type = t;
-  m_subscribers.lock();
-  for(size_t i = 0; i<m_subscribers.size(); i++){
-    (* m_subscribers[i]).report(e);
-  }
-  m_subscribers.unlock();
-}
-
-template class MutexVector<EventSubscriber*>;

@@ -1,4 +1,5 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +12,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #include "Ndbcntr.hpp"
 
@@ -36,8 +38,8 @@ Ndbcntr::g_sysTable_SYSTAB_0 = {
   "sys/def/SYSTAB_0",
   arrayLength(column_SYSTAB_0), column_SYSTAB_0,
   DictTabInfo::SystemTable,
-  DictTabInfo::AllNodesSmallTable,
-  true, ~0
+  DictTabInfo::HashMapPartition,
+  true, ~0, ~0
 };
 
 // NDB$EVENTS_0
@@ -65,7 +67,7 @@ column_NDBEVENTS_0[] = {
     false, false
   },
   { 5, "ATTRIBUTE_MASK",
-    DictTabInfo::ExtUnsigned, MAXNROFATTRIBUTESINWORDS,
+    DictTabInfo::ExtUnsigned, MAXNROFATTRIBUTESINWORDS_OLD,
     false, false
   },
   { 6, "SUBID",
@@ -76,15 +78,19 @@ column_NDBEVENTS_0[] = {
     DictTabInfo::ExtUnsigned, 1,
     false, false
   },
+  { 8, "ATTRIBUTE_MASK2",
+    DictTabInfo::ExtLongvarbinary, MAX_ATTRIBUTES_IN_TABLE_NDB_EVENTS_0 / 8,
+    false, true
+  }
 };
 
-const Ndbcntr::SysTable
+Ndbcntr::SysTable
 Ndbcntr::g_sysTable_NDBEVENTS_0 = {
   "sys/def/NDB$EVENTS_0",
   arrayLength(column_NDBEVENTS_0), column_NDBEVENTS_0,
   DictTabInfo::SystemTable,
-  DictTabInfo::AllNodesSmallTable,
-  true, ~0
+  DictTabInfo::HashMapPartition,
+  true, ~0, ~0
 };
 
 // all

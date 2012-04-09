@@ -23,8 +23,9 @@
 #include "table_setup_consumers.h"
 #include "pfs_instr.h"
 #include "pfs_events_waits.h"
+#include "pfs_digest.h"
 
-#define COUNT_SETUP_CONSUMERS 11
+#define COUNT_SETUP_CONSUMERS 12
 static row_setup_consumers all_setup_consumers_data[COUNT_SETUP_CONSUMERS]=
 {
   {
@@ -80,6 +81,11 @@ static row_setup_consumers all_setup_consumers_data[COUNT_SETUP_CONSUMERS]=
   {
     { C_STRING_WITH_LEN("thread_instrumentation") },
     &flag_thread_instrumentation,
+    false
+  },
+  {
+    { C_STRING_WITH_LEN("statements_digest") },
+    &flag_statements_digest,
     false
   }
 };

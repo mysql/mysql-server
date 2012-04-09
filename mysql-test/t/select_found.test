@@ -65,8 +65,14 @@ while ($1)
 }
 enable_query_log;
 
-EXPLAIN SELECT SQL_CALC_FOUND_ROWS DISTINCT email FROM t2 LEFT JOIN t1  ON kid = t2.id WHERE t1.id IS NULL LIMIT 10;
-SELECT SQL_CALC_FOUND_ROWS DISTINCT email FROM t2 LEFT JOIN t1  ON kid = t2.id WHERE t1.id IS NULL LIMIT 10;
+--let $query=SELECT SQL_CALC_FOUND_ROWS DISTINCT email FROM t2 LEFT JOIN t1  ON kid = t2.id WHERE t1.id IS NULL LIMIT 10
+--eval EXPLAIN $query
+FLUSH STATUS;
+--disable_result_log
+--eval $query
+--enable_result_log
+SHOW SESSION STATUS LIKE 'Sort_scan%';
+--eval $query
 SELECT FOUND_ROWS();
 
 SELECT SQL_CALC_FOUND_ROWS DISTINCT email FROM t2 LEFT JOIN t1  ON kid = t2.id WHERE t1.id IS NULL order by email LIMIT 10;

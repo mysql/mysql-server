@@ -1,0 +1,82 @@
+-- source include/have_ndb.inc
+#--disable_abort_on_error
+#
+# Simple test for the partition storage engine
+# Focuses on range partitioning tests
+# 
+#-- source include/have_partition.inc
+
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+
+--disable_query_log
+set new=on;
+--enable_query_log
+#
+# Partition by range, generate node group error
+#
+--error 1005
+CREATE TABLE t1 (
+a int not null,
+b int not null,
+c int not null,
+primary key(a,b),
+index (a))
+engine = ndb
+partition by range (a)
+partitions 3
+(partition x1 values less than (5) nodegroup 12,
+ partition x2 values less than (10) nodegroup 13,
+ partition x3 values less than (20) nodegroup 14);
+show warnings;
+
+#
+# Partition by range, create normal valid table 
+#
+CREATE TABLE t1 (
+a int not null,
+b int not null,
+c int not null,
+primary key(a))
+engine = ndb
+partition by range (a)
+partitions 3
+(partition x1 values less than (5),
+ partition x2 values less than (10),
+ partition x3 values less than (20));
+
+drop table t1;
+
+#
+# Bug #17763 mysqld cores with list partitioning if update to missing partition
+#
+CREATE TABLE t1 (id INT PRIMARY KEY) ENGINE=NDB
+  PARTITION BY LIST(id)
+   (PARTITION p0 VALUES IN (2, 4),
+    PARTITION p1 VALUES IN (42, 142));
+INSERT INTO t1 VALUES (2);
+--error ER_NO_PARTITION_FOR_GIVEN_VALUE
+UPDATE t1 SET id=5 WHERE id=2;
+DROP TABLE t1;
+
+#
+# NULL for LIST partition
+#
+create table t1 (a int,b int, c int, primary key(a))
+engine = ndb
+partition by list(a)
+partitions 2
+(partition x123 values in (11, 12),
+ partition x234 values in (5, 1));
+--error ER_BAD_NULL_ERROR,ER_NO_PARTITION_FOR_GIVEN_VALUE
+insert into t1 values (NULL,1,1);
+drop table t1;
+
+#
+# test bug#53354 - crash when creating partitioned table with multiple columns in the partition key
+#
+
+--error ER_SAME_NAME_PARTITION_FIELD
+create table `t1` (`a` int, b int, primary key (a,b)) engine=ndb partition by key(`a`,`b`,`a`);
+

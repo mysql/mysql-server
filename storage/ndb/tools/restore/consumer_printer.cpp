@@ -1,4 +1,6 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (C) 2004-2007 MySQL AB, 2009 Sun Microsystems, Inc.
+    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,10 +13,12 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #include "consumer_printer.hpp"
 extern FilteredNdbOut info;
+extern bool ga_dont_ignore_systab_0;
 extern NdbRecordPrintFormat g_ndbrecord_print_format;
 extern const char *tab_path;
 
@@ -41,6 +45,9 @@ BackupPrinter::tuple(const TupleS & tup, Uint32 fragId)
       info.setLevel(254);
       info << tup.getTable()->getTableName() << "; ";
     }
+    const TableS * table = tup.getTable();
+    if ((!ga_dont_ignore_systab_0) &&  table->isSYSTAB_0())
+      return;
     m_ndbout << tup << g_ndbrecord_print_format.lines_terminated_by;  
   }
 }

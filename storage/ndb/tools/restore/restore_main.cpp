@@ -1,4 +1,5 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,11 +12,13 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #include <ndb_global.h>
 #include <ndb_opts.h>
 #include <Vector.hpp>
+#include <Properties.hpp>
 #include <ndb_limits.h>
 #include <NdbTCP.h>
 #include <NdbMem.h>
@@ -25,16 +28,20 @@
 
 #include "consumer_restore.hpp"
 #include "consumer_printer.hpp"
+#include "../src/ndbapi/NdbDictionaryImpl.hpp"
 
 extern FilteredNdbOut err;
 extern FilteredNdbOut info;
 extern FilteredNdbOut debug;
 
+static Uint32 g_tableCompabilityMask = 0;
 static int ga_nodeId = 0;
 static int ga_nParallelism = 128;
 static int ga_backupId = 0;
-static bool ga_dont_ignore_systab_0 = false;
+bool ga_dont_ignore_systab_0 = false;
 static bool ga_no_upgrade = false;
+static bool ga_promote_attributes = false;
+static bool ga_demote_attributes = false;
 static Vector<class BackupConsumer *> g_consumers;
 static BackupPrinter* g_printer = NULL;
 
@@ -50,11 +57,28 @@ const char *opt_ndb_database= NULL;
 const char *opt_ndb_table= NULL;
 unsigned int opt_verbose;
 unsigned int opt_hex_format;
+unsigned int opt_progress_frequency;
+NDB_TICKS g_report_next;
 Vector<BaseString> g_databases;
 Vector<BaseString> g_tables;
+Vector<BaseString> g_include_tables, g_exclude_tables;
+Vector<BaseString> g_include_databases, g_exclude_databases;
+Properties g_rewrite_databases;
 NdbRecordPrintFormat g_ndbrecord_print_format;
+unsigned int opt_no_binlog;
 
-NDB_STD_OPTS_VARS;
+class RestoreOption
+{
+public:
+  virtual ~RestoreOption() { }
+  int optid;
+  BaseString argument;
+};
+
+Vector<class RestoreOption *> g_include_exclude;
+static void save_include_exclude(int optid, char * argument);
+
+static inline void parse_rewrite_database(char * argument);
 
 /**
  * print and restore flags
@@ -63,6 +87,7 @@ static bool ga_restore_epoch = false;
 static bool ga_restore = false;
 static bool ga_print = false;
 static bool ga_skip_table_check = false;
+static bool ga_exclude_missing_columns = false;
 static int _print = 0;
 static int _print_meta = 0;
 static int _print_data = 0;
@@ -70,23 +95,22 @@ static int _print_log = 0;
 static int _restore_data = 0;
 static int _restore_meta = 0;
 static int _no_restore_disk = 0;
+static bool _preserve_trailing_spaces = false;
+static bool ga_disable_indexes = false;
+static bool ga_rebuild_indexes = false;
+bool ga_skip_unknown_objects = false;
+bool ga_skip_broken_objects = false;
 BaseString g_options("ndb_restore");
 
 const char *load_default_groups[]= { "mysql_cluster","ndb_restore",0 };
 
 enum ndb_restore_options {
-  OPT_PRINT= NDB_STD_OPTIONS_LAST,
-  OPT_PRINT_DATA,
-  OPT_PRINT_LOG,
-  OPT_PRINT_META,
-  OPT_BACKUP_PATH,
-  OPT_HEX_FORMAT,
-  OPT_FIELDS_ENCLOSED_BY,
-  OPT_FIELDS_TERMINATED_BY,
-  OPT_FIELDS_OPTIONALLY_ENCLOSED_BY,
-  OPT_LINES_TERMINATED_BY,
-  OPT_APPEND,
-  OPT_VERBOSE
+  OPT_VERBOSE = NDB_STD_OPTIONS_LAST,
+  OPT_INCLUDE_TABLES,
+  OPT_EXCLUDE_TABLES,
+  OPT_INCLUDE_DATABASES,
+  OPT_EXCLUDE_DATABASES,
+  OPT_REWRITE_DATABASE
 };
 static const char *opt_fields_enclosed_by= NULL;
 static const char *opt_fields_terminated_by= NULL;
@@ -95,105 +119,180 @@ static const char *opt_lines_terminated_by= NULL;
 
 static const char *tab_path= NULL;
 static int opt_append;
+static const char *opt_exclude_tables= NULL;
+static const char *opt_include_tables= NULL;
+static const char *opt_exclude_databases= NULL;
+static const char *opt_include_databases= NULL;
+static const char *opt_rewrite_database= NULL;
+static bool opt_restore_privilege_tables = false;
 
 static struct my_option my_long_options[] =
 {
   NDB_STD_OPTS("ndb_restore"),
   { "connect", 'c', "same as --connect-string",
-    &opt_connect_str, &opt_connect_str, 0,
+    (uchar**) &opt_ndb_connectstring, (uchar**) &opt_ndb_connectstring, 0,
     GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
   { "nodeid", 'n', "Backup files from node with id",
-    &ga_nodeId, &ga_nodeId, 0,
+    (uchar**) &ga_nodeId, (uchar**) &ga_nodeId, 0,
     GET_INT, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
   { "backupid", 'b', "Backup id",
-    &ga_backupId, &ga_backupId, 0,
+    (uchar**) &ga_backupId, (uchar**) &ga_backupId, 0,
     GET_INT, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
   { "restore_data", 'r', 
     "Restore table data/logs into NDB Cluster using NDBAPI", 
-    &_restore_data, &_restore_data,  0,
+    (uchar**) &_restore_data, (uchar**) &_restore_data,  0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
   { "restore_meta", 'm',
     "Restore meta data into NDB Cluster using NDBAPI",
-    &_restore_meta, &_restore_meta,  0,
+    (uchar**) &_restore_meta, (uchar**) &_restore_meta,  0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
   { "no-upgrade", 'u',
     "Don't upgrade array type for var attributes, which don't resize VAR data and don't change column attributes",
-    &ga_no_upgrade, &ga_no_upgrade, 0,
+    (uchar**) &ga_no_upgrade, (uchar**) &ga_no_upgrade, 0,
+    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
+  { "promote-attributes", 'A',
+    "Allow attributes to be promoted when restoring data from backup",
+    (uchar**) &ga_promote_attributes, (uchar**) &ga_promote_attributes, 0,
+    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
+  { "lossy-conversions", 'L',
+    "Allow lossy conversions for attributes (type demotions or integral"
+    " signed/unsigned type changes) when restoring data from backup",
+    (uchar**) &ga_demote_attributes, (uchar**) &ga_demote_attributes, 0,
+    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
+  { "preserve-trailing-spaces", 'P',
+    "Allow to preserve the tailing spaces (including paddings) When char->varchar or binary->varbinary is promoted",
+    (uchar**) &_preserve_trailing_spaces, (uchar**)_preserve_trailing_spaces , 0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
   { "no-restore-disk-objects", 'd',
     "Dont restore disk objects (tablespace/logfilegroups etc)",
-    &_no_restore_disk, &_no_restore_disk,  0,
+    (uchar**) &_no_restore_disk, (uchar**) &_no_restore_disk,  0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
   { "restore_epoch", 'e', 
     "Restore epoch info into the status table. Convenient on a MySQL Cluster "
     "replication slave, for starting replication. The row in "
     NDB_REP_DB "." NDB_APPLY_TABLE " with id 0 will be updated/inserted.", 
-    &ga_restore_epoch, &ga_restore_epoch,  0,
+    (uchar**) &ga_restore_epoch, (uchar**) &ga_restore_epoch,  0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
   { "skip-table-check", 's', "Skip table structure check during restore of data",
-   &ga_skip_table_check, &ga_skip_table_check, 0,
+   (uchar**) &ga_skip_table_check, (uchar**) &ga_skip_table_check, 0,
    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
   { "parallelism", 'p',
     "No of parallel transactions during restore of data."
     "(parallelism can be 1 to 1024)", 
-    &ga_nParallelism, &ga_nParallelism, 0,
+    (uchar**) &ga_nParallelism, (uchar**) &ga_nParallelism, 0,
     GET_INT, REQUIRED_ARG, 128, 1, 1024, 0, 1, 0 },
-  { "print", OPT_PRINT, "Print metadata, data and log to stdout",
-    &_print, &_print, 0,
+  { "print", NDB_OPT_NOSHORT, "Print metadata, data and log to stdout",
+    (uchar**) &_print, (uchar**) &_print, 0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
-  { "print_data", OPT_PRINT_DATA, "Print data to stdout", 
-    &_print_data, &_print_data, 0,
+  { "print_data", NDB_OPT_NOSHORT, "Print data to stdout",
+    (uchar**) &_print_data, (uchar**) &_print_data, 0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
-  { "print_meta", OPT_PRINT_META, "Print meta data to stdout",
-    &_print_meta, &_print_meta,  0,
+  { "print_meta", NDB_OPT_NOSHORT, "Print meta data to stdout",
+    (uchar**) &_print_meta, (uchar**) &_print_meta,  0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
-  { "print_log", OPT_PRINT_LOG, "Print log to stdout",
-    &_print_log, &_print_log,  0,
+  { "print_log", NDB_OPT_NOSHORT, "Print log to stdout",
+    (uchar**) &_print_log, (uchar**) &_print_log,  0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
-  { "backup_path", OPT_BACKUP_PATH, "Path to backup files",
-    &ga_backupPath, &ga_backupPath, 0,
+  { "backup_path", NDB_OPT_NOSHORT, "Path to backup files",
+    (uchar**) &ga_backupPath, (uchar**) &ga_backupPath, 0,
     GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
   { "dont_ignore_systab_0", 'f',
-    "Experimental. Do not ignore system table during restore.", 
-    &ga_dont_ignore_systab_0, &ga_dont_ignore_systab_0, 0,
+    "Do not ignore system table during --print-data.", 
+    (uchar**) &ga_dont_ignore_systab_0, (uchar**) &ga_dont_ignore_systab_0, 0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
   { "ndb-nodegroup-map", OPT_NDB_NODEGROUP_MAP,
     "Nodegroup map for ndbcluster. Syntax: list of (source_ng, dest_ng)",
-    &opt_nodegroup_map_str,
-    &opt_nodegroup_map_str,
+    (uchar**) &opt_nodegroup_map_str,
+    (uchar**) &opt_nodegroup_map_str,
     0,
     GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
-  { "fields-enclosed-by", OPT_FIELDS_ENCLOSED_BY,
+  { "fields-enclosed-by", NDB_OPT_NOSHORT,
     "Fields are enclosed by ...",
-    &opt_fields_enclosed_by, &opt_fields_enclosed_by, 0,
+    (uchar**) &opt_fields_enclosed_by, (uchar**) &opt_fields_enclosed_by, 0,
     GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
-  { "fields-terminated-by", OPT_FIELDS_TERMINATED_BY,
+  { "fields-terminated-by", NDB_OPT_NOSHORT,
     "Fields are terminated by ...",
-    &opt_fields_terminated_by,
-    &opt_fields_terminated_by, 0,
+    (uchar**) &opt_fields_terminated_by,
+    (uchar**) &opt_fields_terminated_by, 0,
     GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
-  { "fields-optionally-enclosed-by", OPT_FIELDS_OPTIONALLY_ENCLOSED_BY,
+  { "fields-optionally-enclosed-by", NDB_OPT_NOSHORT,
     "Fields are optionally enclosed by ...",
-    &opt_fields_optionally_enclosed_by,
-    &opt_fields_optionally_enclosed_by, 0,
+    (uchar**) &opt_fields_optionally_enclosed_by,
+    (uchar**) &opt_fields_optionally_enclosed_by, 0,
     GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
-  { "hex", OPT_HEX_FORMAT, "print binary types in hex format", 
-    &opt_hex_format, &opt_hex_format, 0,
+  { "hex", NDB_OPT_NOSHORT, "print binary types in hex format", 
+    (uchar**) &opt_hex_format, (uchar**) &opt_hex_format, 0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
   { "tab", 'T', "Creates tab separated textfile for each table to "
     "given path. (creates .txt files)",
-   &tab_path, &tab_path, 0,
+   (uchar**) &tab_path, (uchar**) &tab_path, 0,
     GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  { "append", OPT_APPEND, "for --tab append data to file", 
-    &opt_append, &opt_append, 0,
+  { "append", NDB_OPT_NOSHORT, "for --tab append data to file", 
+    (uchar**) &opt_append, (uchar**) &opt_append, 0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
-  { "lines-terminated-by", OPT_LINES_TERMINATED_BY, "",
-    &opt_lines_terminated_by, &opt_lines_terminated_by, 0,
+  { "lines-terminated-by", NDB_OPT_NOSHORT, "",
+    (uchar**) &opt_lines_terminated_by, (uchar**) &opt_lines_terminated_by, 0,
     GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
+  { "progress-frequency", NDB_OPT_NOSHORT,
+    "Print status uf restore periodically in given seconds", 
+    (uchar**) &opt_progress_frequency, (uchar**) &opt_progress_frequency, 0,
+    GET_INT, REQUIRED_ARG, 0, 0, 65535, 0, 0, 0 },
+  { "no-binlog", NDB_OPT_NOSHORT,
+    "If a mysqld is connected and has binary log, do not log the restored data", 
+    (uchar**) &opt_no_binlog, (uchar**) &opt_no_binlog, 0,
+    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
   { "verbose", OPT_VERBOSE,
     "verbosity", 
-    &opt_verbose, &opt_verbose, 0,
+    (uchar**) &opt_verbose, (uchar**) &opt_verbose, 0,
     GET_INT, REQUIRED_ARG, 1, 0, 255, 0, 0, 0 },
+  { "include-databases", OPT_INCLUDE_DATABASES,
+    "Comma separated list of databases to restore. Example: db1,db3",
+    (uchar**) &opt_include_databases, (uchar**) &opt_include_databases, 0,
+    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
+  { "exclude-databases", OPT_EXCLUDE_DATABASES,
+    "Comma separated list of databases to not restore. Example: db1,db3",
+    (uchar**) &opt_exclude_databases, (uchar**) &opt_exclude_databases, 0,
+    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
+  { "rewrite-database", OPT_REWRITE_DATABASE,
+    "A pair 'source,dest' of database names from/into which to restore. "
+    "Example: --rewrite-database=oldDb,newDb",
+    (uchar**) &opt_rewrite_database, (uchar**) &opt_rewrite_database, 0,
+    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
+  { "include-tables", OPT_INCLUDE_TABLES, "Comma separated list of tables to "
+    "restore. Table name should include database name. Example: db1.t1,db3.t1", 
+    (uchar**) &opt_include_tables, (uchar**) &opt_include_tables, 0,
+    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
+  { "exclude-tables", OPT_EXCLUDE_TABLES, "Comma separated list of tables to "
+    "not restore. Table name should include database name. "
+    "Example: db1.t1,db3.t1",
+    (uchar**) &opt_exclude_tables, (uchar**) &opt_exclude_tables, 0,
+    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
+  { "restore-privilege-tables", NDB_OPT_NOSHORT,
+    "Restore privilege tables (after they have been moved to ndb)",
+    (uchar**) &opt_restore_privilege_tables,
+    (uchar**) &opt_restore_privilege_tables, 0,
+    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
+  { "exclude-missing-columns", NDB_OPT_NOSHORT,
+    "Ignore columns present in backup but not in database",
+    (uchar**) &ga_exclude_missing_columns,
+    (uchar**) &ga_exclude_missing_columns, 0,
+    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
+  { "disable-indexes", NDB_OPT_NOSHORT,
+    "Disable indexes",
+    (uchar**) &ga_disable_indexes,
+    (uchar**) &ga_disable_indexes, 0,
+    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
+  { "rebuild-indexes", NDB_OPT_NOSHORT,
+    "Rebuild indexes",
+    (uchar**) &ga_rebuild_indexes,
+    (uchar**) &ga_rebuild_indexes, 0,
+    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
+  { "skip-unknown-objects", 256, "Skip unknown object when parsing backup",
+    (uchar**) &ga_skip_unknown_objects, (uchar**) &ga_skip_unknown_objects, 0,
+    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
+  { "skip-broken-objects", 256, "Skip broken object when parsing backup",
+    (uchar**) &ga_skip_broken_objects, (uchar**) &ga_skip_broken_objects, 0,
+    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 
@@ -234,7 +333,7 @@ static char* analyse_one_map(char *map_str, uint16 *source, uint16 *dest)
   map_str++;
 
   number= strtol(map_str, &end_ptr, 10);
-  if (!end_ptr || number < 0 || number >= UNDEF_NODEGROUP)
+  if (!end_ptr || number < 0 || number >= NDB_UNDEF_NODEGROUP)
   {
     DBUG_RETURN(NULL);
   }
@@ -274,7 +373,7 @@ static void init_nodegroup_map()
   {
     ng_map[i].no_maps= 0;
     for (j= 0; j < MAX_MAPS_PER_NODE_GROUP; j++)
-      ng_map[i].map_array[j]= UNDEF_NODEGROUP;
+      ng_map[i].map_array[j]= NDB_UNDEF_NODEGROUP;
   }
 }
 
@@ -308,17 +407,13 @@ static bool analyse_nodegroup_map(const char *ng_map_str,
 
 static void short_usage_sub(void)
 {
-  printf("Usage: %s [OPTIONS] [<path to backup files>]\n", my_progname);
+  ndb_short_usage_sub("[<path to backup files>]");
 }
 static void usage()
 {
-  short_usage_sub();
-  ndb_std_print_version();
-  print_defaults(MYSQL_CONFIG_NAME,load_default_groups);
-  puts("");
-  my_print_help(my_long_options);
-  my_print_variables(my_long_options);
+  ndb_usage(short_usage_sub, load_default_groups, my_long_options);
 }
+
 static my_bool
 get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
 	       char *argument)
@@ -364,19 +459,110 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
       exit(NDBT_ProgramExit(NDBT_WRONGARGS));
     }
     break;
+  case OPT_INCLUDE_DATABASES:
+  case OPT_EXCLUDE_DATABASES:
+  case OPT_INCLUDE_TABLES:
+  case OPT_EXCLUDE_TABLES:
+    save_include_exclude(optid, argument);
+    break;
+  case OPT_REWRITE_DATABASE:
+    parse_rewrite_database(argument);
+    break;
   }
   return 0;
 }
+
+static const char* SCHEMA_NAME="/def/";
+static const int SCHEMA_NAME_SIZE= 5;
+
+int
+makeInternalTableName(const BaseString &externalName, 
+                      BaseString& internalName)
+{
+  // Make dbname.table1 into dbname/def/table1
+  Vector<BaseString> parts;
+
+  // Must contain a dot
+  if (externalName.indexOf('.') == -1)
+    return -1;
+  externalName.split(parts,".");
+  // .. and only 1 dot
+  if (parts.size() != 2)
+    return -1;
+  internalName.clear();
+  internalName.append(parts[0]); // db name
+  internalName.append(SCHEMA_NAME); // /def/
+  internalName.append(parts[1]); // table name
+  return 0;
+}
+
+void
+processTableList(const char* str, Vector<BaseString> &lst)
+{
+  // Process tables list like db1.t1,db2.t1 and exits when
+  // it finds problems.
+  Vector<BaseString> tmp;
+  unsigned int i;
+  /* Split passed string on comma into 2 BaseStrings in the vector */
+  BaseString(str).split(tmp,",");
+  for (i=0; i < tmp.size(); i++)
+  {
+    BaseString internalName;
+    if (makeInternalTableName(tmp[i], internalName))
+    {
+      info << "`" << tmp[i] << "` is not a valid tablename!" << endl;
+      exit(NDBT_ProgramExit(NDBT_WRONGARGS));
+    }
+    lst.push_back(internalName);
+  }
+}
+
+BaseString
+makeExternalTableName(const BaseString &internalName)
+{
+   // Make dbname/def/table1 into dbname.table1
+  BaseString externalName;
+  
+  ssize_t idx = internalName.indexOf('/');
+  externalName = internalName.substr(0,idx);
+  externalName.append(".");
+  externalName.append(internalName.substr(idx + SCHEMA_NAME_SIZE,
+                                          internalName.length()));
+  return externalName;
+}
+
+#include "../../../../sql/ndb_dist_priv_util.h"
+
+// Exclude privilege tables unless explicitely included
+void
+exclude_privilege_tables()
+{
+  const char* table_name;
+  Ndb_dist_priv_util dist_priv;
+  while((table_name= dist_priv.iter_next_table()))
+  {
+    BaseString priv_tab;
+    priv_tab.assfmt("%s.%s", dist_priv.database(), table_name);
+    g_exclude_tables.push_back(priv_tab);
+    save_include_exclude(OPT_EXCLUDE_TABLES, (char *)priv_tab.c_str());
+  }
+}
+
+
 bool
 readArguments(int *pargc, char*** pargv) 
 {
   Uint32 i;
+  BaseString tmp;
   debug << "Load defaults" << endl;
   const char *load_default_groups[]= { "mysql_cluster","ndb_restore",0 };
 
   init_nodegroup_map();
   load_defaults("my",load_default_groups,pargc,pargv);
   debug << "handle_options" << endl;
+
+  ndb_opt_set_usage_funcs(short_usage_sub, usage);
+
   if (handle_options(pargc, pargv, my_long_options, get_one_option))
   {
     exit(NDBT_ProgramExit(NDBT_WRONGARGS));
@@ -416,7 +602,9 @@ o verify nodegroup mapping
   if (g_printer == NULL)
     return false;
 
-  BackupRestore* restore = new BackupRestore(opt_nodegroup_map,
+  BackupRestore* restore = new BackupRestore(opt_ndb_connectstring,
+                                             opt_ndb_nodeid,
+                                             opt_nodegroup_map,
                                              opt_nodegroup_map_len,
                                              ga_nParallelism);
   if (restore == NULL) 
@@ -470,9 +658,24 @@ o verify nodegroup mapping
      restore->m_no_upgrade = true;
   }
 
+  if (_preserve_trailing_spaces)
+  {
+     restore->m_preserve_trailing_spaces = true;
+  }
+
   if (ga_restore_epoch)
   {
     restore->m_restore_epoch = true;
+  }
+
+  if (ga_disable_indexes)
+  {
+    restore->m_disable_indexes = true;
+  }
+
+  if (ga_rebuild_indexes)
+  {
+    restore->m_rebuild_indexes = true;
   }
 
   {
@@ -506,9 +709,13 @@ o verify nodegroup mapping
   info << "backup path = " << ga_backupPath << endl;
   if (g_databases.size() > 0)
   {
+    info << "WARNING! Using deprecated syntax for selective object restoration." << endl;
+    info << "Please use --include-*/--exclude-* options in future." << endl;
     info << "Restoring only from database " << g_databases[0].c_str() << endl;
     if (g_tables.size() > 0)
-      info << "Restoring only tables:";
+    {
+        info << "Restoring tables:";
+    }
     for (unsigned i= 0; i < g_tables.size(); i++)
     {
       info << " " << g_tables[i].c_str();
@@ -516,6 +723,95 @@ o verify nodegroup mapping
     if (g_tables.size() > 0)
       info << endl;
   }
+
+  if (ga_restore)
+  {
+    // Exclude privilege tables unless explicitely included
+    if (!opt_restore_privilege_tables)
+      exclude_privilege_tables();
+
+    // Move over old style arguments to include/exclude lists
+    if (g_databases.size() > 0)
+    {
+      BaseString tab_prefix, tab;
+      tab_prefix.append(g_databases[0].c_str());
+      tab_prefix.append(".");
+      if (g_tables.size() == 0)
+      {
+        g_include_databases.push_back(g_databases[0]);
+        save_include_exclude(OPT_INCLUDE_DATABASES,
+                             (char *)g_databases[0].c_str());
+      }
+      for (unsigned i= 0; i < g_tables.size(); i++)
+      {
+        tab.assign(tab_prefix);
+        tab.append(g_tables[i]);
+        g_include_tables.push_back(tab);
+        save_include_exclude(OPT_INCLUDE_TABLES, (char *)tab.c_str());
+      }
+    }
+  }
+
+  if (opt_include_databases)
+  {
+    tmp = BaseString(opt_include_databases);
+    tmp.split(g_include_databases,",");
+    info << "Including Databases: ";
+    for (i= 0; i < g_include_databases.size(); i++)
+    {
+      info << g_include_databases[i] << " ";
+    }
+    info << endl;
+  }
+  
+  if (opt_exclude_databases)
+  {
+    tmp = BaseString(opt_exclude_databases);
+    tmp.split(g_exclude_databases,",");
+    info << "Excluding databases: ";
+    for (i= 0; i < g_exclude_databases.size(); i++)
+    {
+      info << g_exclude_databases[i] << " ";
+    }
+    info << endl;
+  }
+  
+  if (opt_rewrite_database)
+  {
+    info << "Rewriting databases:";
+    Properties::Iterator it(&g_rewrite_databases);
+    const char * src;
+    for (src = it.first(); src != NULL; src = it.next()) {
+      const char * dst = NULL;
+      bool r = g_rewrite_databases.get(src, &dst);
+      assert(r && (dst != NULL));
+      info << " (" << src << "->" << dst << ")";
+    }
+    info << endl;
+  }
+
+  if (opt_include_tables)
+  {
+    processTableList(opt_include_tables, g_include_tables);
+    info << "Including tables: ";
+    for (i= 0; i < g_include_tables.size(); i++)
+    {
+      info << makeExternalTableName(g_include_tables[i]).c_str() << " ";
+    }
+    info << endl;
+  }
+  
+  if (opt_exclude_tables)
+  {
+    processTableList(opt_exclude_tables, g_exclude_tables);
+    info << "Excluding tables: ";
+    for (i= 0; i < g_exclude_tables.size(); i++)
+    {
+      info << makeExternalTableName(g_exclude_tables[i]).c_str() << " ";
+    }
+    info << endl;
+  }
+
   /*
     the below formatting follows the formatting from mysqldump
     do not change unless to adopt to changes in mysqldump
@@ -534,6 +830,27 @@ o verify nodegroup mapping
     g_ndbrecord_print_format.null_string= "";
   g_ndbrecord_print_format.hex_prefix= "";
   g_ndbrecord_print_format.hex_format= opt_hex_format;
+
+  if (ga_skip_table_check)
+  {
+    g_tableCompabilityMask = ~(Uint32)0;
+    ga_skip_unknown_objects = true;
+  }
+
+  if (ga_promote_attributes)
+  {
+    g_tableCompabilityMask |= TCM_ATTRIBUTE_PROMOTION;
+  }
+
+  if (ga_demote_attributes)
+  {
+    g_tableCompabilityMask |= TCM_ATTRIBUTE_DEMOTION;
+  }
+
+  if (ga_exclude_missing_columns)
+  {
+    g_tableCompabilityMask |= TCM_EXCLUDE_MISSING_COLUMNS;
+  }
   return true;
 }
 
@@ -548,7 +865,7 @@ clearConsumers()
 static inline bool
 checkSysTable(const TableS* table)
 {
-  return ga_dont_ignore_systab_0 || ! table->getSysTable();
+  return ! table->getSysTable();
 }
 
 static inline bool
@@ -572,15 +889,25 @@ isIndex(const TableS* table)
 }
 
 static inline bool
-checkDbAndTableName(const TableS* table)
+isSYSTAB_0(const TableS* table)
 {
-  if (g_tables.size() == 0 &&
-      g_databases.size() == 0)
-    return true;
-  if (g_databases.size() == 0)
-    g_databases.push_back("TEST_DB");
+  return table->isSYSTAB_0();
+}
 
-  // Filter on the main table name for indexes and blobs
+static inline bool
+isInList(BaseString &needle, Vector<BaseString> &lst){
+  unsigned int i= 0;
+  for (i= 0; i < lst.size(); i++)
+  {
+    if (strcmp(needle.c_str(), lst[i].c_str()) == 0)
+      return true;
+  }
+  return false;
+}
+
+const char*
+getTableName(const TableS* table)
+{
   const char *table_name;
   if (isBlobTable(table))
     table_name= table->getMainTable()->getTableName();
@@ -589,6 +916,168 @@ checkDbAndTableName(const TableS* table)
       NdbTableImpl::getImpl(*table->m_dictTable).m_primaryTable.c_str();
   else
     table_name= table->getTableName();
+    
+  return table_name;
+}
+
+static void parse_rewrite_database(char * argument)
+{
+  const BaseString arg(argument);
+  Vector<BaseString> args;
+  unsigned int n = arg.split(args, ",");
+  if ((n == 2)
+      && (args[0].length() > 0)
+      && (args[1].length() > 0)) {
+    const BaseString src = args[0];
+    const BaseString dst = args[1];
+    const bool replace = true;
+    bool r = g_rewrite_databases.put(src.c_str(), dst.c_str(), replace);
+    assert(r);
+    return; // ok
+  }
+
+  info << "argument `" << arg.c_str()
+       << "` is not a pair 'a,b' of non-empty names." << endl;
+  exit(NDBT_ProgramExit(NDBT_WRONGARGS));
+}
+
+static void save_include_exclude(int optid, char * argument)
+{
+  BaseString arg = argument;
+  Vector<BaseString> args;
+  arg.split(args, ",");
+  for (uint i = 0; i < args.size(); i++)
+  {
+    RestoreOption * option = new RestoreOption();
+    BaseString arg;
+    
+    option->optid = optid;
+    switch (optid) {
+    case OPT_INCLUDE_TABLES:
+    case OPT_EXCLUDE_TABLES:
+      if (makeInternalTableName(args[i], arg))
+      {
+        info << "`" << args[i] << "` is not a valid tablename!" << endl;
+        exit(NDBT_ProgramExit(NDBT_WRONGARGS));
+      }
+      break;
+    default:
+      arg = args[i];
+      break;
+    }
+    option->argument = arg;
+    g_include_exclude.push_back(option);
+  }
+}
+static bool check_include_exclude(BaseString database, BaseString table)
+{
+  const char * db = database.c_str();
+  const char * tbl = table.c_str();
+  bool do_include = true;
+
+  if (g_include_databases.size() != 0 ||
+      g_include_tables.size() != 0)
+  {
+    /*
+      User has explicitly specified what databases
+      and/or tables should be restored. If no match is
+      found then DON'T restore table.
+     */
+    do_include = false;
+  }
+  if (do_include &&
+      (g_exclude_databases.size() != 0 ||
+       g_exclude_tables.size() != 0))
+  {
+    /*
+      User has not explicitly specified what databases
+      and/or tables should be restored.
+      User has explicitly specified what databases
+      and/or tables should NOT be restored. If no match is
+      found then DO restore table.
+     */
+    do_include = true;
+  }
+
+  if (g_include_exclude.size() != 0)
+  {
+    /*
+      Scan include exclude arguments in reverse.
+      First matching include causes table to be restored.
+      first matching exclude causes table NOT to be restored.      
+     */
+    for(uint i = g_include_exclude.size(); i > 0; i--)
+    {
+      RestoreOption *option = g_include_exclude[i-1];
+      switch (option->optid) {
+      case OPT_INCLUDE_TABLES:
+        if (strcmp(tbl, option->argument.c_str()) == 0)
+          return true; // do include
+        break;
+      case OPT_EXCLUDE_TABLES:
+        if (strcmp(tbl, option->argument.c_str()) == 0)
+          return false; // don't include
+        break;
+      case OPT_INCLUDE_DATABASES:
+        if (strcmp(db, option->argument.c_str()) == 0)
+          return true; // do include
+        break;
+      case OPT_EXCLUDE_DATABASES:
+        if (strcmp(db, option->argument.c_str()) == 0)
+          return false; // don't include
+        break;
+      default:
+        continue;
+      }
+    }
+  }
+
+  return do_include;
+}
+
+static inline bool
+checkDoRestore(const TableS* table)
+{
+  bool ret = true;
+  BaseString db, tbl;
+  
+  tbl.assign(getTableName(table));
+  ssize_t idx = tbl.indexOf('/');
+  db = tbl.substr(0, idx);
+  
+  /*
+    Include/exclude flags are evaluated right
+    to left, and first match overrides any other
+    matches. Non-overlapping arguments are accumulative.
+    If no include flags are specified this means all databases/tables
+    except any excluded are restored.
+    If include flags are specified than only those databases
+    or tables specified are restored.
+   */
+  ret = check_include_exclude(db, tbl);
+  return ret;
+}
+
+static inline bool
+checkDbAndTableName(const TableS* table)
+{
+  if (table->isBroken())
+    return false;
+
+  // If new options are given, ignore the old format
+  if (opt_include_tables || g_exclude_tables.size() > 0 ||
+      opt_include_databases || opt_exclude_databases ) {
+    return (checkDoRestore(table));
+  }
+  
+  if (g_tables.size() == 0 && g_databases.size() == 0)
+    return true;
+
+  if (g_databases.size() == 0)
+    g_databases.push_back("TEST_DB");
+
+  // Filter on the main table name for indexes and blobs
+  const char *table_name= getTableName(table);
 
   unsigned i;
   for (i= 0; i < g_databases.size(); i++)
@@ -611,13 +1100,11 @@ checkDbAndTableName(const TableS* table)
   while (*table_name != '/') table_name++;
   table_name++;
 
+  // Check if table should be restored
   for (i= 0; i < g_tables.size(); i++)
   {
     if (strcmp(table_name, g_tables[i].c_str()) == 0)
-    {
-      // we have a match
       return true;
-    }
   }
   return false;
 }
@@ -629,7 +1116,6 @@ free_data_callback()
     g_consumers[i]->tuple_free();
 }
 
-const char * g_connect_string = 0;
 static void exitHandler(int code)
 {
   NDBT_ProgramExit(code);
@@ -637,6 +1123,58 @@ static void exitHandler(int code)
     abort();
   else
     exit(code);
+}
+
+static void init_progress()
+{
+  Uint64 now = NdbTick_CurrentMillisecond() / 1000;
+  g_report_next = now + opt_progress_frequency;
+}
+
+static int check_progress()
+{
+  if (!opt_progress_frequency)
+    return 0;
+
+  NDB_TICKS now = NdbTick_CurrentMillisecond() / 1000;
+  
+  if (now  >= g_report_next)
+  {
+    g_report_next = now + opt_progress_frequency;
+    return 1;
+  }
+  return 0;
+}
+
+static void report_progress(const char *prefix, const BackupFile &f)
+{
+  info.setLevel(255);
+  if (f.get_file_size())
+    info << prefix << (f.get_file_pos() * 100 + f.get_file_size()-1) / f.get_file_size() 
+         << "%(" << f.get_file_pos() << " bytes)\n";
+  else
+    info << prefix << f.get_file_pos() << " bytes\n";
+}
+
+/**
+ * Reports, clears information on columns where data truncation was detected.
+ */
+static void
+check_data_truncations(const TableS * table)
+{
+  assert(table);
+  const char * tname = table->getTableName();
+  const int n = table->getNoOfAttributes();
+  for (int i = 0; i < n; i++) {
+    AttributeDesc * desc = table->getAttributeDesc(i);
+    if (desc->truncation_detected) {
+      const char * cname = desc->m_column->getName();
+      info.setLevel(254);
+      info << "Data truncation(s) detected for attribute: "
+           << tname << "." << cname << endl;
+      desc->truncation_detected = false;
+    }
+  }
 }
 
 int
@@ -650,12 +1188,18 @@ main(int argc, char** argv)
     exitHandler(NDBT_FAILED);
   }
 
-  g_options.appfmt(" -b %d", ga_backupId);
+  g_options.appfmt(" -b %u", ga_backupId);
   g_options.appfmt(" -n %d", ga_nodeId);
   if (_restore_meta)
     g_options.appfmt(" -m");
   if (ga_no_upgrade)
     g_options.appfmt(" -u");
+  if (ga_promote_attributes)
+    g_options.appfmt(" -A");
+  if (ga_demote_attributes)
+    g_options.appfmt(" -L");
+  if (_preserve_trailing_spaces)
+    g_options.appfmt(" -P");
   if (ga_skip_table_check)
     g_options.appfmt(" -s");
   if (_restore_data)
@@ -664,9 +1208,20 @@ main(int argc, char** argv)
     g_options.appfmt(" -e");
   if (_no_restore_disk)
     g_options.appfmt(" -d");
+  if (ga_exclude_missing_columns)
+    g_options.append(" --exclude-missing-columns");
+  if (ga_disable_indexes)
+    g_options.append(" --disable-indexes");
+  if (ga_rebuild_indexes)
+    g_options.append(" --rebuild-indexes");
   g_options.appfmt(" -p %d", ga_nParallelism);
+  if (ga_skip_unknown_objects)
+    g_options.append(" --skip-unknown-objects");
+  if (ga_skip_broken_objects)
+    g_options.append(" --skip-broken-objects");
 
-  g_connect_string = opt_connect_str;
+  init_progress();
+
   /**
    * we must always load meta data, even if we will only print it to stdout
    */
@@ -679,13 +1234,23 @@ main(int argc, char** argv)
   }
 
   const BackupFormat::FileHeader & tmp = metaData.getFileHeader();
-  const Uint32 version = tmp.NdbVersion;
+  const Uint32 version = tmp.BackupVersion;
   
   char buf[NDB_VERSION_STRING_BUF_SZ];
   info.setLevel(254);
-  info << "Ndb version in backup files: " 
-       <<  ndbGetVersionString(version, 0, buf, sizeof(buf)) << endl;
-  
+  info << "Backup version in files: " 
+       <<  ndbGetVersionString(version, 0, 
+                               isDrop6(version) ? "-drop6" : 0, 
+                               buf, sizeof(buf));
+  if (version >= NDBD_RAW_LCP)
+  {
+    info << " ndb version: "
+         << ndbGetVersionString(tmp.NdbVersion, tmp.MySQLVersion, 0, 
+                                buf, sizeof(buf));
+  }
+
+  info << endl;
+
   /**
    * check wheater we can restore the backup (right version).
    */
@@ -694,9 +1259,9 @@ main(int argc, char** argv)
   if (version >= MAKE_VERSION(5,1,3) && version <= MAKE_VERSION(5,1,9))
   {
     err << "Restore program incompatible with backup versions between "
-        << ndbGetVersionString(MAKE_VERSION(5,1,3), 0, buf, sizeof(buf))
+        << ndbGetVersionString(MAKE_VERSION(5,1,3), 0, 0, buf, sizeof(buf))
         << " and "
-        << ndbGetVersionString(MAKE_VERSION(5,1,9), 0, buf, sizeof(buf))
+        << ndbGetVersionString(MAKE_VERSION(5,1,9), 0, 0, buf, sizeof(buf))
         << endl;
     exitHandler(NDBT_FAILED);
   }
@@ -710,6 +1275,8 @@ main(int argc, char** argv)
 
   debug << "Load content" << endl;
   int res  = metaData.loadContent();
+
+  info << "Stop GCP of Backup: " << metaData.getStopGCP() << endl;
   
   if (res == 0)
   {
@@ -733,7 +1300,7 @@ main(int argc, char** argv)
   Uint32 i;
   for(i= 0; i < g_consumers.size(); i++)
   {
-    if (!g_consumers[i]->init())
+    if (!g_consumers[i]->init(g_tableCompabilityMask))
     {
       clearConsumers();
       err << "Failed to initialize consumers" << endl;
@@ -741,6 +1308,11 @@ main(int argc, char** argv)
     }
 
   }
+
+  /* report to clusterlog if applicable */
+  for (i = 0; i < g_consumers.size(); i++)
+    g_consumers[i]->report_started(ga_backupId, ga_nodeId);
+
   debug << "Restore objects (tablespaces, ..)" << endl;
   for(i = 0; i<metaData.getNoOfObjects(); i++)
   {
@@ -752,6 +1324,13 @@ main(int argc, char** argv)
         err << metaData[i]->getTableName() << " ... Exiting " << endl;
 	exitHandler(NDBT_FAILED);
       } 
+    if (check_progress())
+    {
+      info.setLevel(255);
+      info << "Object create progress: "
+           << i+1 << " objects out of "
+           << metaData.getNoOfObjects() << endl;
+    }
   }
 
   Vector<OutputStream *> table_output(metaData.getNoOfTables());
@@ -762,6 +1341,10 @@ main(int argc, char** argv)
     table_output.push_back(NULL);
     if (!checkDbAndTableName(table))
       continue;
+    if (isSYSTAB_0(table))
+    {
+      table_output[i]= ndbout.m_out;
+    }
     if (checkSysTable(table))
     {
       if (!tab_path || isBlobTable(table) || isIndex(table))
@@ -807,6 +1390,13 @@ main(int argc, char** argv)
           exitHandler(NDBT_FAILED);
         }
     }
+    if (check_progress())
+    {
+      info.setLevel(255);
+      info << "Table create progress: "
+           << i+1 << " tables out of "
+           << metaData.getNoOfTables() << endl;
+    }
   }
   debug << "Close tables" << endl; 
   for(i= 0; i < g_consumers.size(); i++)
@@ -815,23 +1405,30 @@ main(int argc, char** argv)
       err << "Restore: Failed while closing tables" << endl;
       exitHandler(NDBT_FAILED);
     } 
+  /* report to clusterlog if applicable */
+  for(i= 0; i < g_consumers.size(); i++)
+  {
+    g_consumers[i]->report_meta_data(ga_backupId, ga_nodeId);
+  }
   debug << "Iterate over data" << endl; 
   if (ga_restore || ga_print) 
   {
     if(_restore_data || _print_data)
     {
-      if (!ga_skip_table_check){
-        for(i=0; i < metaData.getNoOfTables(); i++){
-          if (checkSysTable(metaData, i))
+      // Check table compatibility
+      for (i=0; i < metaData.getNoOfTables(); i++){
+        if (checkSysTable(metaData, i) &&
+            checkDbAndTableName(metaData[i]))
+        {
+          for(Uint32 j= 0; j < g_consumers.size(); j++)
           {
-            for(Uint32 j= 0; j < g_consumers.size(); j++)
-              if (!g_consumers[j]->table_equal(* metaData[i]))
-              {
-                err << "Restore: Failed to restore data, ";
-                err << metaData[i]->getTableName() << " table structure doesn't match backup ... Exiting " << endl;
-                exitHandler(NDBT_FAILED);
-              }
-          }
+            if (!g_consumers[j]->table_compatible_check(*metaData[i]))
+            {
+              err << "Restore: Failed to restore data, ";
+              err << metaData[i]->getTableName() << " table structure incompatible with backup's ... Exiting " << endl;
+              exitHandler(NDBT_FAILED);
+            } 
+          } 
         }
       }
       RestoreDataIterator dataIter(metaData, &free_data_callback);
@@ -858,6 +1455,8 @@ main(int argc, char** argv)
           for(Uint32 j= 0; j < g_consumers.size(); j++) 
             g_consumers[j]->tuple(* tuple, fragmentId);
           ndbout.m_out =  tmp;
+          if (check_progress())
+            report_progress("Data file progress: ", dataIter);
 	} // while (tuple != NULL);
 	
 	if (res < 0)
@@ -885,6 +1484,12 @@ main(int argc, char** argv)
       
       for (i= 0; i < g_consumers.size(); i++)
 	g_consumers[i]->endOfTuples();
+
+      /* report to clusterlog if applicable */
+      for(i= 0; i < g_consumers.size(); i++)
+      {
+        g_consumers[i]->report_data(ga_backupId, ga_nodeId);
+      }
     }
 
     if(_restore_data || _print_log)
@@ -905,6 +1510,9 @@ main(int argc, char** argv)
           continue;
         for(Uint32 j= 0; j < g_consumers.size(); j++)
           g_consumers[j]->logEntry(* logEntry);
+
+        if (check_progress())
+          report_progress("Log file progress: ", logIter);
       }
       if (res < 0)
       {
@@ -915,13 +1523,20 @@ main(int argc, char** argv)
       logIter.validateFooter(); //not implemented
       for (i= 0; i < g_consumers.size(); i++)
 	g_consumers[i]->endOfLogEntrys();
+
+      /* report to clusterlog if applicable */
+      for(i= 0; i < g_consumers.size(); i++)
+      {
+        g_consumers[i]->report_log(ga_backupId, ga_nodeId);
+      }
     }
     
     if(_restore_data)
     {
-      for(i = 0; i<metaData.getNoOfTables(); i++)
+      for(i = 0; i < metaData.getNoOfTables(); i++)
       {
         const TableS* table = metaData[i];
+        check_data_truncations(table);
         OutputStream *output = table_output[table->getLocalId()];
         if (!output)
           continue;
@@ -945,7 +1560,8 @@ main(int argc, char** argv)
       }
   }
 
-  for(Uint32 j= 0; j < g_consumers.size(); j++) 
+  unsigned j;
+  for(j= 0; j < g_consumers.size(); j++) 
   {
     if (g_consumers[j]->has_temp_error())
     {
@@ -954,7 +1570,29 @@ main(int argc, char** argv)
                "please look at configuration.");
     }               
   }
-  
+
+  if (ga_rebuild_indexes)
+  {
+    debug << "Rebuilding indexes" << endl;
+    for(i = 0; i<metaData.getNoOfTables(); i++)
+    {
+      const TableS *table= metaData[i];
+      if (! (checkSysTable(table) && checkDbAndTableName(table)))
+        continue;
+      if (isBlobTable(table) || isIndex(table))
+        continue;
+      for(Uint32 j= 0; j < g_consumers.size(); j++)
+      {
+        if (!g_consumers[j]->rebuild_indexes(* table))
+          return -1;
+      }
+    }
+  }
+
+  /* report to clusterlog if applicable */
+  for (i = 0; i < g_consumers.size(); i++)
+    g_consumers[i]->report_completed(ga_backupId, ga_nodeId);
+
   clearConsumers();
 
   for(i = 0; i < metaData.getNoOfTables(); i++)
@@ -976,3 +1614,4 @@ main(int argc, char** argv)
 
 template class Vector<BackupConsumer*>;
 template class Vector<OutputStream*>;
+template class Vector<RestoreOption *>;

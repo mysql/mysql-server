@@ -23,10 +23,14 @@
 
 enum enum_info_repository
 {
-  INVALID_INFO_REPOSITORY= -1,
   INFO_REPOSITORY_FILE= 0,
-  INFO_REPOSITORY_TABLE= 1,
-  INFO_REPOSITORY_DUMMY
+  INFO_REPOSITORY_TABLE,
+  INFO_REPOSITORY_DUMMY,
+  /*
+    Add new types of repository before this
+    entry.
+  */
+  INVALID_INFO_REPOSITORY
 };
 
 class Rpl_info : public Slave_reporting_capability

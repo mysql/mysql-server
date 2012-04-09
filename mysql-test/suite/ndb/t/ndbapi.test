@@ -1,0 +1,47 @@
+-- source include/have_ndb.inc
+-- source include/have_ndbapi_examples.inc
+
+--disable_warnings
+DROP TABLE IF EXISTS t0;
+drop database if exists mysqltest;
+--enable_warnings
+--let MASTER_MYSOCK=`select @@socket`;
+
+--exec echo Running ndbapi_simple
+--exec $NDB_EXAMPLES_DIR/ndbapi_simple/ndbapi_simple $MASTER_MYSOCK "$NDB_CONNECTSTRING" >> $NDB_EXAMPLES_OUTPUT
+
+--exec echo Running ndbapi_simple_index
+--exec $NDB_EXAMPLES_DIR/ndbapi_simple_index/ndbapi_simple_index $MASTER_MYSOCK "$NDB_CONNECTSTRING" >> $NDB_EXAMPLES_OUTPUT
+
+--exec echo Running ndbapi_scan
+--exec $NDB_EXAMPLES_DIR/ndbapi_scan/ndbapi_scan $MASTER_MYSOCK "$NDB_CONNECTSTRING" >> $NDB_EXAMPLES_OUTPUT
+
+--exec echo Running ndbapi_retries
+--exec $NDB_EXAMPLES_DIR/ndbapi_retries/ndbapi_retries $MASTER_MYSOCK "$NDB_CONNECTSTRING" >> $NDB_EXAMPLES_OUTPUT
+
+--exec echo Running ndbapi_async
+--exec $NDB_EXAMPLES_DIR/ndbapi_async/ndbapi_async $MASTER_MYSOCK "$NDB_CONNECTSTRING" >> $NDB_EXAMPLES_OUTPUT
+
+--exec echo Running ndbapi_async1
+--exec $NDB_EXAMPLES_DIR/ndbapi_async1/ndbapi_async1 $MASTER_MYSOCK "$NDB_CONNECTSTRING" >> $NDB_EXAMPLES_OUTPUT
+
+use TEST_DB;
+create table t0(c0 int, c1 int, c2 char(4), c3 char(4), c4 text,
+                primary key(c0, c2)) engine ndb charset latin1;
+#--exec echo Running ndbapi_event
+#--exec $NDB_EXAMPLES_DIR/ndbapi_event/ndbapi_event "$NDB_CONNECTSTRING" 1 >> $NDB_EXAMPLES_OUTPUT
+insert into t0 values (1, 2, 'a', 'b', null);
+insert into t0 values (3, 4, 'c', 'd', null);
+update t0 set c3 = 'e' where c0 = 1 and c2 = 'a'; # use pk
+update t0 set c3 = 'f'; # use scan
+update t0 set c3 = 'F'; # use scan update to 'same'
+update t0 set c2 = 'g' where c0 = 1; # update pk part
+update t0 set c2 = 'G' where c0 = 1; # update pk part to 'same'
+update t0 set c0 = 5, c2 = 'H' where c0 = 3; # update full PK
+delete from t0;
+drop table t0;
+drop database TEST_DB;
+drop database TEST_DB_1;
+
+--exec echo Running mgmapi_logevent
+--exec $NDB_EXAMPLES_DIR/mgmapi_logevent/mgmapi_logevent "$NDB_CONNECTSTRING" 1 >> $NDB_EXAMPLES_OUTPUT

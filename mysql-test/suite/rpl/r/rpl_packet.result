@@ -1,7 +1,7 @@
 include/master-slave.inc
 Warnings:
-Note	1756	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	1757	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
 [connection master]
 call mtr.add_suppression("Slave I/O: Got a packet bigger than 'max_allowed_packet' bytes, Error_code: 1153");
 call mtr.add_suppression("Slave I/O: Got fatal error 1236 from master when reading data from binary log:");
@@ -77,7 +77,7 @@ WARNING: The range of printed events ends with a row event or a table map event 
 DROP TABLE t1;
 SET @@global.max_allowed_packet= 1024;
 Warnings:
-Warning	1731	The value of 'max_allowed_packet' should be no less than the value of 'net_buffer_length'
+Warning	1708	The value of 'max_allowed_packet' should be no less than the value of 'net_buffer_length'
 SET @@global.net_buffer_length= 1024;
 SET @@global.max_allowed_packet= 1024;
 DROP TABLE t1;

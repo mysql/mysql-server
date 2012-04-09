@@ -8,7 +8,8 @@ if (`SELECT $PS_PROTOCOL + $SP_PROTOCOL + $CURSOR_PROTOCOL
 }
 
 SET optimizer_trace_max_mem_size=1048576; # 1MB
-SET optimizer_trace="enabled=on,end_marker=off,one_line=off";
+SET end_markers_in_json=off;
+SET optimizer_trace="enabled=on,one_line=off";
 
 --echo #
 --echo # WL#1393 - Optimizing filesort with small limit

@@ -1,0 +1,118 @@
+drop table if exists t1,t2;
+create table t1 (a int key, b int unique, c int) engine ndb;
+ERROR HY000: Can't create table 'test.t1' (errno: 299)
+CREATE LOGFILE GROUP lg1
+ADD UNDOFILE 'undofile.dat'
+INITIAL_SIZE 16M
+UNDO_BUFFER_SIZE = 1M
+ENGINE=NDB;
+ERROR HY000: Failed to create LOGFILE GROUP
+show warnings;
+Level	Code	Message
+Warning	1296	Got error 299 'Operation not allowed or aborted due to single user mode' from NDB
+Error	1528	Failed to create LOGFILE GROUP
+create table t1 (a int key, b int unique, c int) engine ndb;
+CREATE LOGFILE GROUP lg1
+ADD UNDOFILE 'undofile.dat'
+INITIAL_SIZE 16M
+UNDO_BUFFER_SIZE = 1M
+ENGINE=NDB;
+CREATE TABLESPACE ts1
+ADD DATAFILE 'datafile.dat'
+USE LOGFILE GROUP lg1
+INITIAL_SIZE 12M
+ENGINE NDB;
+ERROR HY000: Failed to create TABLESPACE
+show warnings;
+Level	Code	Message
+Warning	1296	Got error 299 'Operation not allowed or aborted due to single user mode' from NDB
+Error	1528	Failed to create TABLESPACE
+DROP LOGFILE GROUP lg1 
+ENGINE =NDB;
+ERROR HY000: Failed to drop LOGFILE GROUP
+show warnings;
+Level	Code	Message
+Warning	1296	Got error 299 'Operation not allowed or aborted due to single user mode' from NDB
+Error	1529	Failed to drop LOGFILE GROUP
+CREATE TABLESPACE ts1
+ADD DATAFILE 'datafile.dat'
+USE LOGFILE GROUP lg1
+INITIAL_SIZE 12M
+ENGINE NDB;
+ALTER TABLESPACE ts1
+DROP DATAFILE 'datafile.dat'
+ENGINE NDB;
+ERROR HY000: Failed to alter:  DROP DATAFILE
+show warnings;
+Level	Code	Message
+Warning	1296	Got error 299 'Operation not allowed or aborted due to single user mode' from NDB
+Error	1533	Failed to alter:  DROP DATAFILE
+ALTER TABLESPACE ts1
+DROP DATAFILE 'datafile.dat'
+ENGINE NDB;
+DROP TABLESPACE ts1
+ENGINE NDB;
+ERROR HY000: Failed to drop TABLESPACE
+show warnings;
+Level	Code	Message
+Warning	1296	Got error 299 'Operation not allowed or aborted due to single user mode' from NDB
+Error	1529	Failed to drop TABLESPACE
+DROP TABLESPACE ts1
+ENGINE NDB;
+DROP LOGFILE GROUP lg1 
+ENGINE =NDB;
+insert into t1 values (1,1,0),(2,2,0),(3,3,0),(4,4,0),(5,5,0),(6,6,0),(7,7,0),(8,8,0),(9,9,0),(10,10,0);
+create table t2 as select * from t1;
+select * from t1 where a = 1;
+a	b	c
+1	1	0
+select * from t1 where b = 4;
+a	b	c
+4	4	0
+select * from t1 where a > 4 order by a;
+a	b	c
+5	5	0
+6	6	0
+7	7	0
+8	8	0
+9	9	0
+10	10	0
+update t1 set b=102 where a = 2;
+update t1 set b=103 where b = 3;
+update t1 set b=b+100;
+update t1 set b=b+100 where a > 7;
+delete from t1;
+insert into t1 select * from t2;
+create unique index new_index on t1 (b,c);
+drop table t2;
+drop table t1;
+ERROR 42S02: Unknown table 'test.t1'
+create index new_index_fail on t1 (c);
+ERROR HY000: Got error 299 'Operation not allowed or aborted due to single user mode' from NDBCLUSTER
+insert into t1 values (21,21,0),(22,22,0),(23,23,0),(24,24,0),(25,25,0),(26,26,0),(27,27,0),(28,28,0),(29,29,0),(210,210,0);
+ERROR HY000: Got error 299 'Operation not allowed or aborted due to single user mode' from NDBCLUSTER
+select * from t1 where a = 1;
+ERROR HY000: Got error 299 'Operation not allowed or aborted due to single user mode' from NDBCLUSTER
+select * from t1 where b = 4;
+ERROR HY000: Got error 299 'Operation not allowed or aborted due to single user mode' from NDBCLUSTER
+update t1 set b=102 where a = 2;
+ERROR HY000: Got error 299 'Operation not allowed or aborted due to single user mode' from NDBCLUSTER
+update t1 set b=103 where b = 3;
+ERROR HY000: Got error 299 'Operation not allowed or aborted due to single user mode' from NDBCLUSTER
+update t1 set b=b+100;
+ERROR HY000: Got error 299 'Operation not allowed or aborted due to single user mode' from NDBCLUSTER
+update t1 set b=b+100 where a > 7;
+ERROR HY000: Got error 299 'Operation not allowed or aborted due to single user mode' from NDBCLUSTER
+BEGIN;
+update t1 set b=b+100 where a=1;
+BEGIN;
+update t1 set b=b+100 where a=2;
+update t1 set b=b+100 where a=3;
+COMMIT;
+update t1 set b=b+100 where a=4;
+ERROR HY000: Got error 299 'Operation not allowed or aborted due to single user mode' from NDBCLUSTER
+ROLLBACK;
+create table t2 (a int) engine myisam;
+alter table t2 add column (b int);
+drop table t2;
+drop table t1;

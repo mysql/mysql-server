@@ -133,10 +133,13 @@ EOF
   return 1;
 }
 
+# The 'cdb debug' prints are added to pinpoint the location of a hang
+# which could not be reproduced manually. Will be removed later.
 
 # Check that Debugging tools for Windows are installed
 sub cdb_check {
    `cdb -? 2>&1`;
+  print localtime() . " cdb debug X\n";
   if ($? >> 8)
   {
     print "Cannot find cdb. Please Install Debugging tools for Windows\n";
@@ -155,6 +158,7 @@ sub cdb_check {
 
 sub _cdb {
   my ($core_name)= @_;
+  print localtime() . " cdb debug A\n";
   print "\nTrying 'cdb' to get a backtrace\n";
   return unless -f $core_name;
   
@@ -180,11 +184,14 @@ sub _cdb {
   # build symbol path (required by cdb if executable was built on 
   # different machine)
   my $tmp_name= $core_name.".cdb_lmv";
+  print localtime() . " cdb debug B\n";
   `cdb -z $core_name -c \"lmv;q\" > $tmp_name 2>&1`;
+  print localtime() . " cdb debug C\n";
   if ($? >> 8)
   {
     unlink($tmp_name);
     # check if cdb is installed and complain if not
+    print localtime() . " cdb debug D\n";
     cdb_check();
     return;
   }

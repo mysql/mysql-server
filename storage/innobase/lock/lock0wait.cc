@@ -218,6 +218,10 @@ lock_wait_suspend_thread(
 
 	trx = thr_get_trx(thr);
 
+	if (trx->mysql_thd != 0) {
+		DEBUG_SYNC_C("lock_wait_suspend_thread_enter");
+	}
+
 	/* InnoDB system transactions (such as the purge, and
 	incomplete transactions that are being rolled back after crash
 	recovery) will use the global value of

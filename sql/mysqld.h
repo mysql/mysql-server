@@ -107,6 +107,7 @@ extern bool opt_ignore_builtin_innodb;
 extern my_bool opt_character_set_client_handshake;
 extern bool volatile abort_loop;
 extern bool in_bootstrap;
+extern my_bool opt_bootstrap;
 extern uint connection_count;
 extern my_bool opt_safe_user_create;
 extern my_bool opt_safe_show_db, opt_local_infile, opt_myisam_use_mmap;
@@ -184,7 +185,7 @@ extern ulong slow_launch_threads, slow_launch_time;
 extern ulong table_cache_size, table_def_size;
 extern MYSQL_PLUGIN_IMPORT ulong max_connections;
 extern ulong max_connect_errors, connect_timeout;
-extern my_bool slave_allow_batching;
+extern my_bool opt_slave_allow_batching;
 extern my_bool allow_slave_start;
 extern LEX_CSTRING reason_slave_blocked;
 extern ulong slave_trans_retries;
@@ -242,6 +243,13 @@ extern const char *opt_date_time_formats[];
 extern handlerton *partition_hton;
 extern handlerton *myisam_hton;
 extern handlerton *heap_hton;
+extern uint opt_server_id_bits;
+extern ulong opt_server_id_mask;
+#ifdef WITH_NDBCLUSTER_STORAGE_ENGINE
+/* engine specific hook, to be made generic */
+extern int(*ndb_wait_setup_func)(ulong);
+extern ulong opt_ndb_wait_setup;
+#endif
 extern const char *load_default_groups[];
 extern struct my_option my_long_options[];
 extern int mysqld_server_started;
@@ -255,6 +263,12 @@ extern int bootstrap_error;
 extern char err_shared_dir[];
 extern TYPELIB thread_handling_typelib;
 extern my_decimal decimal_zero;
+extern ulong connection_errors_select;
+extern ulong connection_errors_accept;
+extern ulong connection_errors_tcpwrap;
+extern ulong connection_errors_internal;
+extern ulong connection_errors_max_connection;
+extern ulong connection_errors_peer_addr;
 extern ulong log_warnings;
 
 /*
@@ -600,7 +614,11 @@ enum enum_query_type
   /// Without character set introducers.
   QT_WITHOUT_INTRODUCERS= (1 << 1),
   /// When printing a SELECT, add its number (select_lex->number)
-  QT_SHOW_SELECT_NUMBER= (1 << 2)
+  QT_SHOW_SELECT_NUMBER= (1 << 2),
+  /// Don't print a database if it's equal to the connection's database
+  QT_NO_DEFAULT_DB= (1 << 3),
+  /// When printing a derived table, don't print its expression, only alias
+  QT_DERIVED_TABLE_ONLY_ALIAS= (1 << 4)
 };
 
 /* query_id */

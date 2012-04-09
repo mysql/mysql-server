@@ -405,8 +405,12 @@ Event_scheduler::start()
     We should run the event scheduler thread under the super-user privileges.
     In particular, this is needed to be able to lock the mysql.event table
     for writing when the server is running in the read-only mode.
+
+    Same goes for transaction access mode. Set it to read-write for this thd.
   */
   new_thd->security_ctx->master_access |= SUPER_ACL;
+  new_thd->variables.tx_read_only= false;
+  new_thd->tx_read_only= false;
 
   scheduler_param_value=
     (struct scheduler_param *)my_malloc(sizeof(struct scheduler_param), MYF(0));

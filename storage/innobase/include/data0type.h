@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2009, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2012, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -47,6 +47,7 @@ typedef enum ib_like_enum               ib_like_t;
 
 /*-------------------------------------------*/
 /* The 'MAIN TYPE' of a column */
+#define DATA_MISSING	0	/* missing column */
 #define	DATA_VARCHAR	1	/* character varying of the
 				latin1_swedish_ci charset-collation; note
 				that the MySQL format for this, DATA_BINARY,

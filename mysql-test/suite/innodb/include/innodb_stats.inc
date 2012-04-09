@@ -1,4 +1,4 @@
-DELETE FROM test_innodb_stats;
+TRUNCATE TABLE test_innodb_stats;
 
 -- eval $insert
 

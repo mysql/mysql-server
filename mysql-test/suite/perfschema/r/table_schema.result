@@ -82,34 +82,36 @@ def	performance_schema	events_statements_current	TIMER_END	7	NULL	YES	bigint	NUL
 def	performance_schema	events_statements_current	TIMER_WAIT	8	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
 def	performance_schema	events_statements_current	LOCK_TIME	9	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
 def	performance_schema	events_statements_current	SQL_TEXT	10	NULL	YES	longtext	4294967295	4294967295	NULL	NULL	NULL	utf8	utf8_general_ci	longtext			select,insert,update,references	
-def	performance_schema	events_statements_current	CURRENT_SCHEMA	11	NULL	YES	varchar	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select,insert,update,references	
-def	performance_schema	events_statements_current	OBJECT_TYPE	12	NULL	YES	varchar	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select,insert,update,references	
-def	performance_schema	events_statements_current	OBJECT_SCHEMA	13	NULL	YES	varchar	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select,insert,update,references	
-def	performance_schema	events_statements_current	OBJECT_NAME	14	NULL	YES	varchar	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select,insert,update,references	
-def	performance_schema	events_statements_current	OBJECT_INSTANCE_BEGIN	15	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
-def	performance_schema	events_statements_current	MYSQL_ERRNO	16	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)			select,insert,update,references	
-def	performance_schema	events_statements_current	RETURNED_SQLSTATE	17	NULL	YES	varchar	5	15	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(5)			select,insert,update,references	
-def	performance_schema	events_statements_current	MESSAGE_TEXT	18	NULL	YES	varchar	128	384	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(128)			select,insert,update,references	
-def	performance_schema	events_statements_current	ERRORS	19	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
-def	performance_schema	events_statements_current	WARNINGS	20	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
-def	performance_schema	events_statements_current	ROWS_AFFECTED	21	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
-def	performance_schema	events_statements_current	ROWS_SENT	22	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
-def	performance_schema	events_statements_current	ROWS_EXAMINED	23	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
-def	performance_schema	events_statements_current	CREATED_TMP_DISK_TABLES	24	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
-def	performance_schema	events_statements_current	CREATED_TMP_TABLES	25	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
-def	performance_schema	events_statements_current	SELECT_FULL_JOIN	26	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
-def	performance_schema	events_statements_current	SELECT_FULL_RANGE_JOIN	27	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
-def	performance_schema	events_statements_current	SELECT_RANGE	28	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
-def	performance_schema	events_statements_current	SELECT_RANGE_CHECK	29	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
-def	performance_schema	events_statements_current	SELECT_SCAN	30	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
-def	performance_schema	events_statements_current	SORT_MERGE_PASSES	31	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
-def	performance_schema	events_statements_current	SORT_RANGE	32	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
-def	performance_schema	events_statements_current	SORT_ROWS	33	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
-def	performance_schema	events_statements_current	SORT_SCAN	34	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
-def	performance_schema	events_statements_current	NO_INDEX_USED	35	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
-def	performance_schema	events_statements_current	NO_GOOD_INDEX_USED	36	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
-def	performance_schema	events_statements_current	NESTING_EVENT_ID	37	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
-def	performance_schema	events_statements_current	NESTING_EVENT_TYPE	38	NULL	YES	enum	9	27	NULL	NULL	NULL	utf8	utf8_general_ci	enum('STATEMENT','STAGE','WAIT')			select,insert,update,references	
+def	performance_schema	events_statements_current	DIGEST	11	NULL	YES	varchar	32	96	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(32)			select,insert,update,references	
+def	performance_schema	events_statements_current	DIGEST_TEXT	12	NULL	YES	longtext	4294967295	4294967295	NULL	NULL	NULL	utf8	utf8_general_ci	longtext			select,insert,update,references	
+def	performance_schema	events_statements_current	CURRENT_SCHEMA	13	NULL	YES	varchar	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select,insert,update,references	
+def	performance_schema	events_statements_current	OBJECT_TYPE	14	NULL	YES	varchar	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select,insert,update,references	
+def	performance_schema	events_statements_current	OBJECT_SCHEMA	15	NULL	YES	varchar	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select,insert,update,references	
+def	performance_schema	events_statements_current	OBJECT_NAME	16	NULL	YES	varchar	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select,insert,update,references	
+def	performance_schema	events_statements_current	OBJECT_INSTANCE_BEGIN	17	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
+def	performance_schema	events_statements_current	MYSQL_ERRNO	18	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)			select,insert,update,references	
+def	performance_schema	events_statements_current	RETURNED_SQLSTATE	19	NULL	YES	varchar	5	15	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(5)			select,insert,update,references	
+def	performance_schema	events_statements_current	MESSAGE_TEXT	20	NULL	YES	varchar	128	384	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(128)			select,insert,update,references	
+def	performance_schema	events_statements_current	ERRORS	21	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
+def	performance_schema	events_statements_current	WARNINGS	22	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
+def	performance_schema	events_statements_current	ROWS_AFFECTED	23	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
+def	performance_schema	events_statements_current	ROWS_SENT	24	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
+def	performance_schema	events_statements_current	ROWS_EXAMINED	25	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
+def	performance_schema	events_statements_current	CREATED_TMP_DISK_TABLES	26	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
+def	performance_schema	events_statements_current	CREATED_TMP_TABLES	27	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
+def	performance_schema	events_statements_current	SELECT_FULL_JOIN	28	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
+def	performance_schema	events_statements_current	SELECT_FULL_RANGE_JOIN	29	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
+def	performance_schema	events_statements_current	SELECT_RANGE	30	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
+def	performance_schema	events_statements_current	SELECT_RANGE_CHECK	31	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
+def	performance_schema	events_statements_current	SELECT_SCAN	32	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
+def	performance_schema	events_statements_current	SORT_MERGE_PASSES	33	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
+def	performance_schema	events_statements_current	SORT_RANGE	34	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
+def	performance_schema	events_statements_current	SORT_ROWS	35	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
+def	performance_schema	events_statements_current	SORT_SCAN	36	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
+def	performance_schema	events_statements_current	NO_INDEX_USED	37	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
+def	performance_schema	events_statements_current	NO_GOOD_INDEX_USED	38	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
+def	performance_schema	events_statements_current	NESTING_EVENT_ID	39	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
+def	performance_schema	events_statements_current	NESTING_EVENT_TYPE	40	NULL	YES	enum	9	27	NULL	NULL	NULL	utf8	utf8_general_ci	enum('STATEMENT','STAGE','WAIT')			select,insert,update,references	
 def	performance_schema	events_statements_history	THREAD_ID	1	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)			select,insert,update,references	
 def	performance_schema	events_statements_history	EVENT_ID	2	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
 def	performance_schema	events_statements_history	END_EVENT_ID	3	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
@@ -120,34 +122,36 @@ def	performance_schema	events_statements_history	TIMER_END	7	NULL	YES	bigint	NUL
 def	performance_schema	events_statements_history	TIMER_WAIT	8	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
 def	performance_schema	events_statements_history	LOCK_TIME	9	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
 def	performance_schema	events_statements_history	SQL_TEXT	10	NULL	YES	longtext	4294967295	4294967295	NULL	NULL	NULL	utf8	utf8_general_ci	longtext			select,insert,update,references	
-def	performance_schema	events_statements_history	CURRENT_SCHEMA	11	NULL	YES	varchar	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select,insert,update,references	
-def	performance_schema	events_statements_history	OBJECT_TYPE	12	NULL	YES	varchar	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select,insert,update,references	
-def	performance_schema	events_statements_history	OBJECT_SCHEMA	13	NULL	YES	varchar	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select,insert,update,references	
-def	performance_schema	events_statements_history	OBJECT_NAME	14	NULL	YES	varchar	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select,insert,update,references	
-def	performance_schema	events_statements_history	OBJECT_INSTANCE_BEGIN	15	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
-def	performance_schema	events_statements_history	MYSQL_ERRNO	16	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)			select,insert,update,references	
-def	performance_schema	events_statements_history	RETURNED_SQLSTATE	17	NULL	YES	varchar	5	15	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(5)			select,insert,update,references	
-def	performance_schema	events_statements_history	MESSAGE_TEXT	18	NULL	YES	varchar	128	384	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(128)			select,insert,update,references	
-def	performance_schema	events_statements_history	ERRORS	19	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
-def	performance_schema	events_statements_history	WARNINGS	20	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
-def	performance_schema	events_statements_history	ROWS_AFFECTED	21	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
-def	performance_schema	events_statements_history	ROWS_SENT	22	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
-def	performance_schema	events_statements_history	ROWS_EXAMINED	23	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
-def	performance_schema	events_statements_history	CREATED_TMP_DISK_TABLES	24	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
-def	performance_schema	events_statements_history	CREATED_TMP_TABLES	25	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
-def	performance_schema	events_statements_history	SELECT_FULL_JOIN	26	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
-def	performance_schema	events_statements_history	SELECT_FULL_RANGE_JOIN	27	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
-def	performance_schema	events_statements_history	SELECT_RANGE	28	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
-def	performance_schema	events_statements_history	SELECT_RANGE_CHECK	29	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
-def	performance_schema	events_statements_history	SELECT_SCAN	30	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
-def	performance_schema	events_statements_history	SORT_MERGE_PASSES	31	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
-def	performance_schema	events_statements_history	SORT_RANGE	32	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
-def	performance_schema	events_statements_history	SORT_ROWS	33	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
-def	performance_schema	events_statements_history	SORT_SCAN	34	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
-def	performance_schema	events_statements_history	NO_INDEX_USED	35	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
-def	performance_schema	events_statements_history	NO_GOOD_INDEX_USED	36	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
-def	performance_schema	events_statements_history	NESTING_EVENT_ID	37	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
-def	performance_schema	events_statements_history	NESTING_EVENT_TYPE	38	NULL	YES	enum	9	27	NULL	NULL	NULL	utf8	utf8_general_ci	enum('STATEMENT','STAGE','WAIT')			select,insert,update,references	
+def	performance_schema	events_statements_history	DIGEST	11	NULL	YES	varchar	32	96	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(32)			select,insert,update,references	
+def	performance_schema	events_statements_history	DIGEST_TEXT	12	NULL	YES	longtext	4294967295	4294967295	NULL	NULL	NULL	utf8	utf8_general_ci	longtext			select,insert,update,references	
+def	performance_schema	events_statements_history	CURRENT_SCHEMA	13	NULL	YES	varchar	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select,insert,update,references	
+def	performance_schema	events_statements_history	OBJECT_TYPE	14	NULL	YES	varchar	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select,insert,update,references	
+def	performance_schema	events_statements_history	OBJECT_SCHEMA	15	NULL	YES	varchar	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select,insert,update,references	
+def	performance_schema	events_statements_history	OBJECT_NAME	16	NULL	YES	varchar	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select,insert,update,references	
+def	performance_schema	events_statements_history	OBJECT_INSTANCE_BEGIN	17	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
+def	performance_schema	events_statements_history	MYSQL_ERRNO	18	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)			select,insert,update,references	
+def	performance_schema	events_statements_history	RETURNED_SQLSTATE	19	NULL	YES	varchar	5	15	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(5)			select,insert,update,references	
+def	performance_schema	events_statements_history	MESSAGE_TEXT	20	NULL	YES	varchar	128	384	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(128)			select,insert,update,references	
+def	performance_schema	events_statements_history	ERRORS	21	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
+def	performance_schema	events_statements_history	WARNINGS	22	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
+def	performance_schema	events_statements_history	ROWS_AFFECTED	23	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
+def	performance_schema	events_statements_history	ROWS_SENT	24	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
+def	performance_schema	events_statements_history	ROWS_EXAMINED	25	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
+def	performance_schema	events_statements_history	CREATED_TMP_DISK_TABLES	26	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
+def	performance_schema	events_statements_history	CREATED_TMP_TABLES	27	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
+def	performance_schema	events_statements_history	SELECT_FULL_JOIN	28	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
+def	performance_schema	events_statements_history	SELECT_FULL_RANGE_JOIN	29	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
+def	performance_schema	events_statements_history	SELECT_RANGE	30	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
+def	performance_schema	events_statements_history	SELECT_RANGE_CHECK	31	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
+def	performance_schema	events_statements_history	SELECT_SCAN	32	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
+def	performance_schema	events_statements_history	SORT_MERGE_PASSES	33	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
+def	performance_schema	events_statements_history	SORT_RANGE	34	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
+def	performance_schema	events_statements_history	SORT_ROWS	35	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
+def	performance_schema	events_statements_history	SORT_SCAN	36	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
+def	performance_schema	events_statements_history	NO_INDEX_USED	37	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
+def	performance_schema	events_statements_history	NO_GOOD_INDEX_USED	38	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
+def	performance_schema	events_statements_history	NESTING_EVENT_ID	39	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
+def	performance_schema	events_statements_history	NESTING_EVENT_TYPE	40	NULL	YES	enum	9	27	NULL	NULL	NULL	utf8	utf8_general_ci	enum('STATEMENT','STAGE','WAIT')			select,insert,update,references	
 def	performance_schema	events_statements_history_long	THREAD_ID	1	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)			select,insert,update,references	
 def	performance_schema	events_statements_history_long	EVENT_ID	2	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
 def	performance_schema	events_statements_history_long	END_EVENT_ID	3	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
@@ -158,34 +162,36 @@ def	performance_schema	events_statements_history_long	TIMER_END	7	NULL	YES	bigin
 def	performance_schema	events_statements_history_long	TIMER_WAIT	8	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
 def	performance_schema	events_statements_history_long	LOCK_TIME	9	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
 def	performance_schema	events_statements_history_long	SQL_TEXT	10	NULL	YES	longtext	4294967295	4294967295	NULL	NULL	NULL	utf8	utf8_general_ci	longtext			select,insert,update,references	
-def	performance_schema	events_statements_history_long	CURRENT_SCHEMA	11	NULL	YES	varchar	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select,insert,update,references	
-def	performance_schema	events_statements_history_long	OBJECT_TYPE	12	NULL	YES	varchar	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select,insert,update,references	
-def	performance_schema	events_statements_history_long	OBJECT_SCHEMA	13	NULL	YES	varchar	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select,insert,update,references	
-def	performance_schema	events_statements_history_long	OBJECT_NAME	14	NULL	YES	varchar	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select,insert,update,references	
-def	performance_schema	events_statements_history_long	OBJECT_INSTANCE_BEGIN	15	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
-def	performance_schema	events_statements_history_long	MYSQL_ERRNO	16	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)			select,insert,update,references	
-def	performance_schema	events_statements_history_long	RETURNED_SQLSTATE	17	NULL	YES	varchar	5	15	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(5)			select,insert,update,references	
-def	performance_schema	events_statements_history_long	MESSAGE_TEXT	18	NULL	YES	varchar	128	384	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(128)			select,insert,update,references	
-def	performance_schema	events_statements_history_long	ERRORS	19	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
-def	performance_schema	events_statements_history_long	WARNINGS	20	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
-def	performance_schema	events_statements_history_long	ROWS_AFFECTED	21	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
-def	performance_schema	events_statements_history_long	ROWS_SENT	22	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
-def	performance_schema	events_statements_history_long	ROWS_EXAMINED	23	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
-def	performance_schema	events_statements_history_long	CREATED_TMP_DISK_TABLES	24	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
-def	performance_schema	events_statements_history_long	CREATED_TMP_TABLES	25	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
-def	performance_schema	events_statements_history_long	SELECT_FULL_JOIN	26	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
-def	performance_schema	events_statements_history_long	SELECT_FULL_RANGE_JOIN	27	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
-def	performance_schema	events_statements_history_long	SELECT_RANGE	28	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
-def	performance_schema	events_statements_history_long	SELECT_RANGE_CHECK	29	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
-def	performance_schema	events_statements_history_long	SELECT_SCAN	30	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
-def	performance_schema	events_statements_history_long	SORT_MERGE_PASSES	31	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
-def	performance_schema	events_statements_history_long	SORT_RANGE	32	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
-def	performance_schema	events_statements_history_long	SORT_ROWS	33	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
-def	performance_schema	events_statements_history_long	SORT_SCAN	34	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
-def	performance_schema	events_statements_history_long	NO_INDEX_USED	35	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
-def	performance_schema	events_statements_history_long	NO_GOOD_INDEX_USED	36	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
-def	performance_schema	events_statements_history_long	NESTING_EVENT_ID	37	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
-def	performance_schema	events_statements_history_long	NESTING_EVENT_TYPE	38	NULL	YES	enum	9	27	NULL	NULL	NULL	utf8	utf8_general_ci	enum('STATEMENT','STAGE','WAIT')			select,insert,update,references	
+def	performance_schema	events_statements_history_long	DIGEST	11	NULL	YES	varchar	32	96	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(32)			select,insert,update,references	
+def	performance_schema	events_statements_history_long	DIGEST_TEXT	12	NULL	YES	longtext	4294967295	4294967295	NULL	NULL	NULL	utf8	utf8_general_ci	longtext			select,insert,update,references	
+def	performance_schema	events_statements_history_long	CURRENT_SCHEMA	13	NULL	YES	varchar	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select,insert,update,references	
+def	performance_schema	events_statements_history_long	OBJECT_TYPE	14	NULL	YES	varchar	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select,insert,update,references	
+def	performance_schema	events_statements_history_long	OBJECT_SCHEMA	15	NULL	YES	varchar	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select,insert,update,references	
+def	performance_schema	events_statements_history_long	OBJECT_NAME	16	NULL	YES	varchar	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select,insert,update,references	
+def	performance_schema	events_statements_history_long	OBJECT_INSTANCE_BEGIN	17	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
+def	performance_schema	events_statements_history_long	MYSQL_ERRNO	18	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)			select,insert,update,references	
+def	performance_schema	events_statements_history_long	RETURNED_SQLSTATE	19	NULL	YES	varchar	5	15	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(5)			select,insert,update,references	
+def	performance_schema	events_statements_history_long	MESSAGE_TEXT	20	NULL	YES	varchar	128	384	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(128)			select,insert,update,references	
+def	performance_schema	events_statements_history_long	ERRORS	21	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
+def	performance_schema	events_statements_history_long	WARNINGS	22	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
+def	performance_schema	events_statements_history_long	ROWS_AFFECTED	23	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
+def	performance_schema	events_statements_history_long	ROWS_SENT	24	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
+def	performance_schema	events_statements_history_long	ROWS_EXAMINED	25	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
+def	performance_schema	events_statements_history_long	CREATED_TMP_DISK_TABLES	26	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
+def	performance_schema	events_statements_history_long	CREATED_TMP_TABLES	27	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
+def	performance_schema	events_statements_history_long	SELECT_FULL_JOIN	28	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
+def	performance_schema	events_statements_history_long	SELECT_FULL_RANGE_JOIN	29	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
+def	performance_schema	events_statements_history_long	SELECT_RANGE	30	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
+def	performance_schema	events_statements_history_long	SELECT_RANGE_CHECK	31	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
+def	performance_schema	events_statements_history_long	SELECT_SCAN	32	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
+def	performance_schema	events_statements_history_long	SORT_MERGE_PASSES	33	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
+def	performance_schema	events_statements_history_long	SORT_RANGE	34	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
+def	performance_schema	events_statements_history_long	SORT_ROWS	35	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
+def	performance_schema	events_statements_history_long	SORT_SCAN	36	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
+def	performance_schema	events_statements_history_long	NO_INDEX_USED	37	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
+def	performance_schema	events_statements_history_long	NO_GOOD_INDEX_USED	38	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
+def	performance_schema	events_statements_history_long	NESTING_EVENT_ID	39	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
+def	performance_schema	events_statements_history_long	NESTING_EVENT_TYPE	40	NULL	YES	enum	9	27	NULL	NULL	NULL	utf8	utf8_general_ci	enum('STATEMENT','STAGE','WAIT')			select,insert,update,references	
 def	performance_schema	events_statements_summary_by_account_by_event_name	USER	1	NULL	YES	char	16	48	NULL	NULL	NULL	utf8	utf8_bin	char(16)			select,insert,update,references	
 def	performance_schema	events_statements_summary_by_account_by_event_name	HOST	2	NULL	YES	char	60	180	NULL	NULL	NULL	utf8	utf8_bin	char(60)			select,insert,update,references	
 def	performance_schema	events_statements_summary_by_account_by_event_name	EVENT_NAME	3	NULL	NO	varchar	128	384	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(128)			select,insert,update,references	
@@ -213,6 +219,34 @@ def	performance_schema	events_statements_summary_by_account_by_event_name	SUM_SO
 def	performance_schema	events_statements_summary_by_account_by_event_name	SUM_SORT_SCAN	25	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
 def	performance_schema	events_statements_summary_by_account_by_event_name	SUM_NO_INDEX_USED	26	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
 def	performance_schema	events_statements_summary_by_account_by_event_name	SUM_NO_GOOD_INDEX_USED	27	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
+def	performance_schema	events_statements_summary_by_digest	DIGEST	1	NULL	YES	varchar	32	96	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(32)			select,insert,update,references	
+def	performance_schema	events_statements_summary_by_digest	DIGEST_TEXT	2	NULL	YES	longtext	4294967295	4294967295	NULL	NULL	NULL	utf8	utf8_general_ci	longtext			select,insert,update,references	
+def	performance_schema	events_statements_summary_by_digest	COUNT_STAR	3	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
+def	performance_schema	events_statements_summary_by_digest	SUM_TIMER_WAIT	4	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
+def	performance_schema	events_statements_summary_by_digest	MIN_TIMER_WAIT	5	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
+def	performance_schema	events_statements_summary_by_digest	AVG_TIMER_WAIT	6	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
+def	performance_schema	events_statements_summary_by_digest	MAX_TIMER_WAIT	7	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
+def	performance_schema	events_statements_summary_by_digest	SUM_LOCK_TIME	8	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
+def	performance_schema	events_statements_summary_by_digest	SUM_ERRORS	9	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
+def	performance_schema	events_statements_summary_by_digest	SUM_WARNINGS	10	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
+def	performance_schema	events_statements_summary_by_digest	SUM_ROWS_AFFECTED	11	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
+def	performance_schema	events_statements_summary_by_digest	SUM_ROWS_SENT	12	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
+def	performance_schema	events_statements_summary_by_digest	SUM_ROWS_EXAMINED	13	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
+def	performance_schema	events_statements_summary_by_digest	SUM_CREATED_TMP_DISK_TABLES	14	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
+def	performance_schema	events_statements_summary_by_digest	SUM_CREATED_TMP_TABLES	15	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
+def	performance_schema	events_statements_summary_by_digest	SUM_SELECT_FULL_JOIN	16	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
+def	performance_schema	events_statements_summary_by_digest	SUM_SELECT_FULL_RANGE_JOIN	17	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
+def	performance_schema	events_statements_summary_by_digest	SUM_SELECT_RANGE	18	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
+def	performance_schema	events_statements_summary_by_digest	SUM_SELECT_RANGE_CHECK	19	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
+def	performance_schema	events_statements_summary_by_digest	SUM_SELECT_SCAN	20	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
+def	performance_schema	events_statements_summary_by_digest	SUM_SORT_MERGE_PASSES	21	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
+def	performance_schema	events_statements_summary_by_digest	SUM_SORT_RANGE	22	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
+def	performance_schema	events_statements_summary_by_digest	SUM_SORT_ROWS	23	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
+def	performance_schema	events_statements_summary_by_digest	SUM_SORT_SCAN	24	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
+def	performance_schema	events_statements_summary_by_digest	SUM_NO_INDEX_USED	25	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
+def	performance_schema	events_statements_summary_by_digest	SUM_NO_GOOD_INDEX_USED	26	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
+def	performance_schema	events_statements_summary_by_digest	FIRST_SEEN	27	0000-00-00 00:00:00	NO	timestamp	NULL	NULL	NULL	NULL	0	NULL	NULL	timestamp			select,insert,update,references	
+def	performance_schema	events_statements_summary_by_digest	LAST_SEEN	28	0000-00-00 00:00:00	NO	timestamp	NULL	NULL	NULL	NULL	0	NULL	NULL	timestamp			select,insert,update,references	
 def	performance_schema	events_statements_summary_by_host_by_event_name	HOST	1	NULL	YES	char	60	180	NULL	NULL	NULL	utf8	utf8_bin	char(60)			select,insert,update,references	
 def	performance_schema	events_statements_summary_by_host_by_event_name	EVENT_NAME	2	NULL	NO	varchar	128	384	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(128)			select,insert,update,references	
 def	performance_schema	events_statements_summary_by_host_by_event_name	COUNT_STAR	3	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
@@ -469,6 +503,35 @@ def	performance_schema	file_summary_by_instance	MAX_TIMER_MISC	25	NULL	NO	bigint
 def	performance_schema	hosts	HOST	1	NULL	YES	char	60	180	NULL	NULL	NULL	utf8	utf8_bin	char(60)			select,insert,update,references	
 def	performance_schema	hosts	CURRENT_CONNECTIONS	2	NULL	NO	bigint	NULL	NULL	19	0	NULL	NULL	NULL	bigint(20)			select,insert,update,references	
 def	performance_schema	hosts	TOTAL_CONNECTIONS	3	NULL	NO	bigint	NULL	NULL	19	0	NULL	NULL	NULL	bigint(20)			select,insert,update,references	
+def	performance_schema	host_cache	IP	1	NULL	NO	varchar	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select,insert,update,references	
+def	performance_schema	host_cache	HOST	2	NULL	YES	varchar	255	765	NULL	NULL	NULL	utf8	utf8_bin	varchar(255)			select,insert,update,references	
+def	performance_schema	host_cache	HOST_VALIDATED	3	NULL	NO	enum	3	9	NULL	NULL	NULL	utf8	utf8_general_ci	enum('YES','NO')			select,insert,update,references	
+def	performance_schema	host_cache	SUM_CONNECT_ERRORS	4	NULL	NO	bigint	NULL	NULL	19	0	NULL	NULL	NULL	bigint(20)			select,insert,update,references	
+def	performance_schema	host_cache	COUNT_HOST_BLOCKED_ERRORS	5	NULL	NO	bigint	NULL	NULL	19	0	NULL	NULL	NULL	bigint(20)			select,insert,update,references	
+def	performance_schema	host_cache	COUNT_NAMEINFO_TRANSIENT_ERRORS	6	NULL	NO	bigint	NULL	NULL	19	0	NULL	NULL	NULL	bigint(20)			select,insert,update,references	
+def	performance_schema	host_cache	COUNT_NAMEINFO_PERMANENT_ERRORS	7	NULL	NO	bigint	NULL	NULL	19	0	NULL	NULL	NULL	bigint(20)			select,insert,update,references	
+def	performance_schema	host_cache	COUNT_FORMAT_ERRORS	8	NULL	NO	bigint	NULL	NULL	19	0	NULL	NULL	NULL	bigint(20)			select,insert,update,references	
+def	performance_schema	host_cache	COUNT_ADDRINFO_TRANSIENT_ERRORS	9	NULL	NO	bigint	NULL	NULL	19	0	NULL	NULL	NULL	bigint(20)			select,insert,update,references	
+def	performance_schema	host_cache	COUNT_ADDRINFO_PERMANENT_ERRORS	10	NULL	NO	bigint	NULL	NULL	19	0	NULL	NULL	NULL	bigint(20)			select,insert,update,references	
+def	performance_schema	host_cache	COUNT_FCRDNS_ERRORS	11	NULL	NO	bigint	NULL	NULL	19	0	NULL	NULL	NULL	bigint(20)			select,insert,update,references	
+def	performance_schema	host_cache	COUNT_HOST_ACL_ERRORS	12	NULL	NO	bigint	NULL	NULL	19	0	NULL	NULL	NULL	bigint(20)			select,insert,update,references	
+def	performance_schema	host_cache	COUNT_NO_AUTH_PLUGIN_ERRORS	13	NULL	NO	bigint	NULL	NULL	19	0	NULL	NULL	NULL	bigint(20)			select,insert,update,references	
+def	performance_schema	host_cache	COUNT_AUTH_PLUGIN_ERRORS	14	NULL	NO	bigint	NULL	NULL	19	0	NULL	NULL	NULL	bigint(20)			select,insert,update,references	
+def	performance_schema	host_cache	COUNT_HANDSHAKE_ERRORS	15	NULL	NO	bigint	NULL	NULL	19	0	NULL	NULL	NULL	bigint(20)			select,insert,update,references	
+def	performance_schema	host_cache	COUNT_PROXY_USER_ERRORS	16	NULL	NO	bigint	NULL	NULL	19	0	NULL	NULL	NULL	bigint(20)			select,insert,update,references	
+def	performance_schema	host_cache	COUNT_PROXY_USER_ACL_ERRORS	17	NULL	NO	bigint	NULL	NULL	19	0	NULL	NULL	NULL	bigint(20)			select,insert,update,references	
+def	performance_schema	host_cache	COUNT_AUTHENTICATION_ERRORS	18	NULL	NO	bigint	NULL	NULL	19	0	NULL	NULL	NULL	bigint(20)			select,insert,update,references	
+def	performance_schema	host_cache	COUNT_SSL_ERRORS	19	NULL	NO	bigint	NULL	NULL	19	0	NULL	NULL	NULL	bigint(20)			select,insert,update,references	
+def	performance_schema	host_cache	COUNT_MAX_USER_CONNECTIONS_ERRORS	20	NULL	NO	bigint	NULL	NULL	19	0	NULL	NULL	NULL	bigint(20)			select,insert,update,references	
+def	performance_schema	host_cache	COUNT_MAX_USER_CONNECTIONS_PER_HOUR_ERRORS	21	NULL	NO	bigint	NULL	NULL	19	0	NULL	NULL	NULL	bigint(20)			select,insert,update,references	
+def	performance_schema	host_cache	COUNT_DEFAULT_DATABASE_ERRORS	22	NULL	NO	bigint	NULL	NULL	19	0	NULL	NULL	NULL	bigint(20)			select,insert,update,references	
+def	performance_schema	host_cache	COUNT_INIT_CONNECT_ERRORS	23	NULL	NO	bigint	NULL	NULL	19	0	NULL	NULL	NULL	bigint(20)			select,insert,update,references	
+def	performance_schema	host_cache	COUNT_LOCAL_ERRORS	24	NULL	NO	bigint	NULL	NULL	19	0	NULL	NULL	NULL	bigint(20)			select,insert,update,references	
+def	performance_schema	host_cache	COUNT_UNKNOWN_ERRORS	25	NULL	NO	bigint	NULL	NULL	19	0	NULL	NULL	NULL	bigint(20)			select,insert,update,references	
+def	performance_schema	host_cache	FIRST_SEEN	26	0000-00-00 00:00:00	NO	timestamp	NULL	NULL	NULL	NULL	0	NULL	NULL	timestamp			select,insert,update,references	
+def	performance_schema	host_cache	LAST_SEEN	27	0000-00-00 00:00:00	NO	timestamp	NULL	NULL	NULL	NULL	0	NULL	NULL	timestamp			select,insert,update,references	
+def	performance_schema	host_cache	FIRST_ERROR_SEEN	28	0000-00-00 00:00:00	YES	timestamp	NULL	NULL	NULL	NULL	0	NULL	NULL	timestamp			select,insert,update,references	
+def	performance_schema	host_cache	LAST_ERROR_SEEN	29	0000-00-00 00:00:00	YES	timestamp	NULL	NULL	NULL	NULL	0	NULL	NULL	timestamp			select,insert,update,references	
 def	performance_schema	mutex_instances	NAME	1	NULL	NO	varchar	128	384	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(128)			select,insert,update,references	
 def	performance_schema	mutex_instances	OBJECT_INSTANCE_BEGIN	2	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
 def	performance_schema	mutex_instances	LOCKED_BY_THREAD_ID	3	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)			select,insert,update,references	

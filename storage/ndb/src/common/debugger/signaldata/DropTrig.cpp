@@ -1,4 +1,6 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (C) 2003, 2005-2007 MySQL AB
+    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,78 +13,63 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #include <signaldata/DropTrig.hpp>
 
-bool printDROP_TRIG_REQ(FILE * output, const Uint32 * theData, Uint32 len, Uint16 receiverBlockNo)
+bool
+printDROP_TRIG_REQ(FILE* output, const Uint32* theData, Uint32 len, Uint16)
 {
-  const DropTrigReq * const sig = (DropTrigReq *) theData;
-
-  //char triggerName[MAX_TAB_NAME_SIZE];
-  //char triggerType[32];
-  //char triggerActionTime[32];
-  //char triggerEvent[32];
-
-  //sig->getTriggerName((char *) &triggerName);
-  //switch(sig->getTriggerType()) {
-  //case(TriggerType::SECONDARY_INDEX): 
-    //strcpy(triggerType, "SECONDARY_INDEX");
-    //break;
-  //case(TriggerType::SUBSCRIPTION):
-    //strcpy(triggerType, "SUBSCRIPTION");
-    //break;
-  //default:
-    //strcpy(triggerType, "UNSUPPORTED");
-  //}
-  //strcpy(triggerActionTime, 
-         //(sig->getTriggerActionTime() == TriggerActionTime::BEFORE)?
-         //"BEFORE":"AFTER");
-  //switch(sig->getTriggerEvent()) {
-  //case (TriggerEvent::TE_INSERT):
-    //strcpy(triggerEvent, "INSERT");
-    //break;
-  //case(TriggerEvent::TE_DELETE):
-    //strcpy(triggerEvent, "DELETE");
-    //break;
-  //case(TriggerEvent::TE_UPDATE):
-    //strcpy(triggerEvent, "UPDATE");
-    //break;
-  //}
-
-  fprintf(output, "User: %u, ", sig->getUserRef());
-  //fprintf(output, "Trigger name: \"%s\"\n", triggerName);
-  //fprintf(output, "Type: %s, ", triggerType);
-  //fprintf(output, "Action: %s, ", triggerActionTime);
-  //fprintf(output, "Event: %s, ", triggerEvent);
-  fprintf(output, "Trigger id: %u, ", sig->getTriggerId());
-  fprintf(output, "Table id: %u, ", sig->getTableId());
-  fprintf(output, "\n");  
-
-  return false;
+  const DropTrigReq* sig = (const DropTrigReq*)theData;
+  fprintf(output, " clientRef: 0x%x", sig->clientRef);
+  fprintf(output, " clientData: %u", sig->clientData);
+  fprintf(output, "\n");
+  fprintf(output, " transId: %u", sig->transId);
+  fprintf(output, " transKey: %u", sig->transKey);
+  fprintf(output, " requestInfo: 0x%x", sig->requestInfo);
+  fprintf(output, "\n");
+  fprintf(output, " tableId: %u", sig->tableId);
+  fprintf(output, " tableVersion: 0x%x", sig->tableVersion);
+  fprintf(output, " indexId: %u", sig->indexId);
+  fprintf(output, " indexVersion: 0x%x", sig->indexVersion);
+  fprintf(output, " triggerNo: %u", sig->triggerNo);
+  fprintf(output, "\n");
+  fprintf(output, " triggerId: %u", sig->triggerId);
+  fprintf(output, "\n");
+  return true;
 }
 
-bool printDROP_TRIG_CONF(FILE * output, const Uint32 * theData, Uint32 len, Uint16 receiverBlockNo)
+bool
+printDROP_TRIG_CONF(FILE* output, const Uint32* theData, Uint32 len, Uint16)
 {
-  const DropTrigConf * const sig = (DropTrigConf *) theData;
-
-  fprintf(output, "User: %u, ", sig->getUserRef());
-  fprintf(output, "Trigger id: %u, ", sig->getTriggerId());
-  fprintf(output, "Table id: %u, ", sig->getTableId());
-  fprintf(output, "\n");  
-
-  return false;
+  const DropTrigConf* sig = (const DropTrigConf*) theData;
+  fprintf(output, " senderRef: 0x%x", sig->senderRef);
+  fprintf(output, " clientData: %u", sig->clientData);
+  fprintf(output, "\n");
+  fprintf(output, " tableId: %u", sig->tableId);
+  fprintf(output, " indexId: %u", sig->indexId);
+  fprintf(output, " triggerId: %u", sig->triggerId);
+  fprintf(output, "\n");
+  return true;
 }
 
-bool printDROP_TRIG_REF(FILE * output, const Uint32 * theData, Uint32 len, Uint16 receiverBlockNo)
+bool
+printDROP_TRIG_REF(FILE* output, const Uint32* theData, Uint32 len, Uint16)
 {
-  const DropTrigRef * const sig = (DropTrigRef *) theData;
-
-  fprintf(output, "User: %u, ", sig->getUserRef());
-  fprintf(output, "Trigger id: %u, ", sig->getTriggerId());
-  fprintf(output, "Table id: %u, ", sig->getTableId());
-  fprintf(output, "Error code: %u, ", sig->getErrorCode());
-  fprintf(output, "\n");  
-  
-  return false;
+  const DropTrigRef * sig = (const DropTrigRef*) theData;
+  fprintf(output, " senderRef: 0x%x", sig->senderRef);
+  fprintf(output, " clientData: %u", sig->clientData);
+  fprintf(output, " transId: 0x%x", sig->transId);
+  fprintf(output, "\n");
+  fprintf(output, " tableId: %u", sig->tableId);
+  fprintf(output, " indexId: %u", sig->indexId);
+  fprintf(output, " triggerId: %u", sig->triggerId);
+  fprintf(output, "\n");
+  fprintf(output, " errorCode: %u", sig->errorCode);
+  fprintf(output, " errorLine: %u", sig->errorLine);
+  fprintf(output, " errorNodeId: %u", sig->errorNodeId);
+  fprintf(output, " masterNodeId: %u", sig->masterNodeId);
+  fprintf(output, "\n");
+  return true;
 }

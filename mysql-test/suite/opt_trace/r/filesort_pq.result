@@ -1,5 +1,6 @@
 SET optimizer_trace_max_mem_size=1048576;
-SET optimizer_trace="enabled=on,end_marker=off,one_line=off";
+SET end_markers_in_json=off;
+SET optimizer_trace="enabled=on,one_line=off";
 #
 # WL#1393 - Optimizing filesort with small limit
 # WL#5834 - Add optimizer traces for sorting
@@ -137,7 +138,7 @@ SELECT * FROM t1 ORDER BY f1 ASC, f0 LIMIT 100	{
         "select#": 1,
         "steps": [
           {
-            "expanded_query": "/* select#1 */ select `test`.`t1`.`f0` AS `f0`,`test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2` from `test`.`t1` order by `test`.`t1`.`f1`,`test`.`t1`.`f0` limit 100"
+            "expanded_query": "/* select#1 */ select `t1`.`f0` AS `f0`,`t1`.`f1` AS `f1`,`t1`.`f2` AS `f2` from `t1` order by `t1`.`f1`,`t1`.`f0` limit 100"
           }
         ]
       }
@@ -149,8 +150,7 @@ SELECT * FROM t1 ORDER BY f1 ASC, f0 LIMIT 100	{
           {
             "table_dependencies": [
               {
-                "database": "test",
-                "table": "t1",
+                "table": "`t1`",
                 "row_may_be_null": false,
                 "map_bit": 0,
                 "depends_on_map_bits": [
@@ -161,8 +161,7 @@ SELECT * FROM t1 ORDER BY f1 ASC, f0 LIMIT 100	{
           {
             "rows_estimation": [
               {
-                "database": "test",
-                "table": "t1",
+                "table": "`t1`",
                 "table_scan": {
                   "rows": 100,
                   "cost": 2
@@ -173,8 +172,9 @@ SELECT * FROM t1 ORDER BY f1 ASC, f0 LIMIT 100	{
           {
             "considered_execution_plans": [
               {
-                "database": "test",
-                "table": "t1",
+                "plan_prefix": [
+                ],
+                "table": "`t1`",
                 "best_access_path": {
                   "considered_access_paths": [
                     {
@@ -201,8 +201,7 @@ SELECT * FROM t1 ORDER BY f1 ASC, f0 LIMIT 100	{
               ],
               "attached_conditions_summary": [
                 {
-                  "database": "test",
-                  "table": "t1",
+                  "table": "`t1`",
                   "attached": null
                 }
               ]
@@ -211,24 +210,23 @@ SELECT * FROM t1 ORDER BY f1 ASC, f0 LIMIT 100	{
           {
             "clause_processing": {
               "clause": "ORDER BY",
-              "original_clause": "`test`.`t1`.`f1`,`test`.`t1`.`f0`",
+              "original_clause": "`t1`.`f1`,`t1`.`f0`",
               "items": [
                 {
-                  "item": "`test`.`t1`.`f1`"
+                  "item": "`t1`.`f1`"
                 },
                 {
-                  "item": "`test`.`t1`.`f0`"
+                  "item": "`t1`.`f0`"
                 }
               ],
               "resulting_clause_is_simple": true,
-              "resulting_clause": "`test`.`t1`.`f1`,`test`.`t1`.`f0`"
+              "resulting_clause": "`t1`.`f1`,`t1`.`f0`"
             }
           },
           {
             "refine_plan": [
               {
-                "database": "test",
-                "table": "t1",
+                "table": "`t1`",
                 "access_type": "table_scan"
               }
             ]
@@ -244,14 +242,12 @@ SELECT * FROM t1 ORDER BY f1 ASC, f0 LIMIT 100	{
             "filesort_information": [
               {
                 "direction": "asc",
-                "database": "test",
-                "table": "t1",
+                "table": "`t1`",
                 "field": "f1"
               },
               {
                 "direction": "asc",
-                "database": "test",
-                "table": "t1",
+                "table": "`t1`",
                 "field": "f0"
               }
             ],
@@ -319,7 +315,7 @@ SELECT * FROM t1 ORDER BY f1 ASC, f0 LIMIT 30	{
         "select#": 1,
         "steps": [
           {
-            "expanded_query": "/* select#1 */ select `test`.`t1`.`f0` AS `f0`,`test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2` from `test`.`t1` order by `test`.`t1`.`f1`,`test`.`t1`.`f0` limit 30"
+            "expanded_query": "/* select#1 */ select `t1`.`f0` AS `f0`,`t1`.`f1` AS `f1`,`t1`.`f2` AS `f2` from `t1` order by `t1`.`f1`,`t1`.`f0` limit 30"
           }
         ]
       }
@@ -331,8 +327,7 @@ SELECT * FROM t1 ORDER BY f1 ASC, f0 LIMIT 30	{
           {
             "table_dependencies": [
               {
-                "database": "test",
-                "table": "t1",
+                "table": "`t1`",
                 "row_may_be_null": false,
                 "map_bit": 0,
                 "depends_on_map_bits": [
@@ -343,8 +338,7 @@ SELECT * FROM t1 ORDER BY f1 ASC, f0 LIMIT 30	{
           {
             "rows_estimation": [
               {
-                "database": "test",
-                "table": "t1",
+                "table": "`t1`",
                 "table_scan": {
                   "rows": 100,
                   "cost": 2
@@ -355,8 +349,9 @@ SELECT * FROM t1 ORDER BY f1 ASC, f0 LIMIT 30	{
           {
             "considered_execution_plans": [
               {
-                "database": "test",
-                "table": "t1",
+                "plan_prefix": [
+                ],
+                "table": "`t1`",
                 "best_access_path": {
                   "considered_access_paths": [
                     {
@@ -380,8 +375,7 @@ SELECT * FROM t1 ORDER BY f1 ASC, f0 LIMIT 30	{
               ],
               "attached_conditions_summary": [
                 {
-                  "database": "test",
-                  "table": "t1",
+                  "table": "`t1`",
                   "attached": null
                 }
               ]
@@ -390,24 +384,23 @@ SELECT * FROM t1 ORDER BY f1 ASC, f0 LIMIT 30	{
           {
             "clause_processing": {
               "clause": "ORDER BY",
-              "original_clause": "`test`.`t1`.`f1`,`test`.`t1`.`f0`",
+              "original_clause": "`t1`.`f1`,`t1`.`f0`",
               "items": [
                 {
-                  "item": "`test`.`t1`.`f1`"
+                  "item": "`t1`.`f1`"
                 },
                 {
-                  "item": "`test`.`t1`.`f0`"
+                  "item": "`t1`.`f0`"
                 }
               ],
               "resulting_clause_is_simple": true,
-              "resulting_clause": "`test`.`t1`.`f1`,`test`.`t1`.`f0`"
+              "resulting_clause": "`t1`.`f1`,`t1`.`f0`"
             }
           },
           {
             "refine_plan": [
               {
-                "database": "test",
-                "table": "t1",
+                "table": "`t1`",
                 "access_type": "table_scan"
               }
             ]
@@ -423,14 +416,12 @@ SELECT * FROM t1 ORDER BY f1 ASC, f0 LIMIT 30	{
             "filesort_information": [
               {
                 "direction": "asc",
-                "database": "test",
-                "table": "t1",
+                "table": "`t1`",
                 "field": "f1"
               },
               {
                 "direction": "asc",
-                "database": "test",
-                "table": "t1",
+                "table": "`t1`",
                 "field": "f0"
               }
             ],
@@ -467,7 +458,7 @@ SELECT * FROM t1 ORDER BY f1 ASC, f0 LIMIT 0	{
         "select#": 1,
         "steps": [
           {
-            "expanded_query": "/* select#1 */ select `test`.`t1`.`f0` AS `f0`,`test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2` from `test`.`t1` order by `test`.`t1`.`f1`,`test`.`t1`.`f0` limit 0"
+            "expanded_query": "/* select#1 */ select `t1`.`f0` AS `f0`,`t1`.`f1` AS `f1`,`t1`.`f2` AS `f2` from `t1` order by `t1`.`f1`,`t1`.`f0` limit 0"
           }
         ]
       }
@@ -532,7 +523,7 @@ SELECT * FROM t1 ORDER BY f2 DESC, f0 LIMIT 30	{
         "select#": 1,
         "steps": [
           {
-            "expanded_query": "/* select#1 */ select `test`.`t1`.`f0` AS `f0`,`test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2` from `test`.`t1` order by `test`.`t1`.`f2` desc,`test`.`t1`.`f0` limit 30"
+            "expanded_query": "/* select#1 */ select `t1`.`f0` AS `f0`,`t1`.`f1` AS `f1`,`t1`.`f2` AS `f2` from `t1` order by `t1`.`f2` desc,`t1`.`f0` limit 30"
           }
         ]
       }
@@ -544,8 +535,7 @@ SELECT * FROM t1 ORDER BY f2 DESC, f0 LIMIT 30	{
           {
             "table_dependencies": [
               {
-                "database": "test",
-                "table": "t1",
+                "table": "`t1`",
                 "row_may_be_null": false,
                 "map_bit": 0,
                 "depends_on_map_bits": [
@@ -556,8 +546,7 @@ SELECT * FROM t1 ORDER BY f2 DESC, f0 LIMIT 30	{
           {
             "rows_estimation": [
               {
-                "database": "test",
-                "table": "t1",
+                "table": "`t1`",
                 "table_scan": {
                   "rows": 100,
                   "cost": 2
@@ -568,8 +557,9 @@ SELECT * FROM t1 ORDER BY f2 DESC, f0 LIMIT 30	{
           {
             "considered_execution_plans": [
               {
-                "database": "test",
-                "table": "t1",
+                "plan_prefix": [
+                ],
+                "table": "`t1`",
                 "best_access_path": {
                   "considered_access_paths": [
                     {
@@ -593,8 +583,7 @@ SELECT * FROM t1 ORDER BY f2 DESC, f0 LIMIT 30	{
               ],
               "attached_conditions_summary": [
                 {
-                  "database": "test",
-                  "table": "t1",
+                  "table": "`t1`",
                   "attached": null
                 }
               ]
@@ -603,24 +592,23 @@ SELECT * FROM t1 ORDER BY f2 DESC, f0 LIMIT 30	{
           {
             "clause_processing": {
               "clause": "ORDER BY",
-              "original_clause": "`test`.`t1`.`f2` desc,`test`.`t1`.`f0`",
+              "original_clause": "`t1`.`f2` desc,`t1`.`f0`",
               "items": [
                 {
-                  "item": "`test`.`t1`.`f2`"
+                  "item": "`t1`.`f2`"
                 },
                 {
-                  "item": "`test`.`t1`.`f0`"
+                  "item": "`t1`.`f0`"
                 }
               ],
               "resulting_clause_is_simple": true,
-              "resulting_clause": "`test`.`t1`.`f2` desc,`test`.`t1`.`f0`"
+              "resulting_clause": "`t1`.`f2` desc,`t1`.`f0`"
             }
           },
           {
             "refine_plan": [
               {
-                "database": "test",
-                "table": "t1",
+                "table": "`t1`",
                 "access_type": "table_scan"
               }
             ]
@@ -636,14 +624,12 @@ SELECT * FROM t1 ORDER BY f2 DESC, f0 LIMIT 30	{
             "filesort_information": [
               {
                 "direction": "desc",
-                "database": "test",
-                "table": "t1",
+                "table": "`t1`",
                 "field": "f2"
               },
               {
                 "direction": "asc",
-                "database": "test",
-                "table": "t1",
+                "table": "`t1`",
                 "field": "f0"
               }
             ],
@@ -680,7 +666,7 @@ SELECT * FROM t1 ORDER BY f2 DESC, f0 LIMIT 0	{
         "select#": 1,
         "steps": [
           {
-            "expanded_query": "/* select#1 */ select `test`.`t1`.`f0` AS `f0`,`test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2` from `test`.`t1` order by `test`.`t1`.`f2` desc,`test`.`t1`.`f0` limit 0"
+            "expanded_query": "/* select#1 */ select `t1`.`f0` AS `f0`,`t1`.`f1` AS `f1`,`t1`.`f2` AS `f2` from `t1` order by `t1`.`f2` desc,`t1`.`f0` limit 0"
           }
         ]
       }
@@ -735,7 +721,7 @@ SELECT * FROM t1 WHERE f1>10 ORDER BY f2, f0 LIMIT 20	{
         "select#": 1,
         "steps": [
           {
-            "expanded_query": "/* select#1 */ select `test`.`t1`.`f0` AS `f0`,`test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2` from `test`.`t1` where (`test`.`t1`.`f1` > 10) order by `test`.`t1`.`f2`,`test`.`t1`.`f0` limit 20"
+            "expanded_query": "/* select#1 */ select `t1`.`f0` AS `f0`,`t1`.`f1` AS `f1`,`t1`.`f2` AS `f2` from `t1` where (`t1`.`f1` > 10) order by `t1`.`f2`,`t1`.`f0` limit 20"
           }
         ]
       }
@@ -747,19 +733,19 @@ SELECT * FROM t1 WHERE f1>10 ORDER BY f2, f0 LIMIT 20	{
           {
             "condition_processing": {
               "condition": "WHERE",
-              "original_condition": "(`test`.`t1`.`f1` > 10)",
+              "original_condition": "(`t1`.`f1` > 10)",
               "steps": [
                 {
                   "transformation": "equality_propagation",
-                  "resulting_condition": "(`test`.`t1`.`f1` > 10)"
+                  "resulting_condition": "(`t1`.`f1` > 10)"
                 },
                 {
                   "transformation": "constant_propagation",
-                  "resulting_condition": "(`test`.`t1`.`f1` > 10)"
+                  "resulting_condition": "(`t1`.`f1` > 10)"
                 },
                 {
                   "transformation": "trivial_condition_removal",
-                  "resulting_condition": "(`test`.`t1`.`f1` > 10)"
+                  "resulting_condition": "(`t1`.`f1` > 10)"
                 }
               ]
             }
@@ -767,8 +753,7 @@ SELECT * FROM t1 WHERE f1>10 ORDER BY f2, f0 LIMIT 20	{
           {
             "table_dependencies": [
               {
-                "database": "test",
-                "table": "t1",
+                "table": "`t1`",
                 "row_may_be_null": false,
                 "map_bit": 0,
                 "depends_on_map_bits": [
@@ -783,8 +768,7 @@ SELECT * FROM t1 WHERE f1>10 ORDER BY f2, f0 LIMIT 20	{
           {
             "rows_estimation": [
               {
-                "database": "test",
-                "table": "t1",
+                "table": "`t1`",
                 "table_scan": {
                   "rows": 100,
                   "cost": 2
@@ -795,8 +779,9 @@ SELECT * FROM t1 WHERE f1>10 ORDER BY f2, f0 LIMIT 20	{
           {
             "considered_execution_plans": [
               {
-                "database": "test",
-                "table": "t1",
+                "plan_prefix": [
+                ],
+                "table": "`t1`",
                 "best_access_path": {
                   "considered_access_paths": [
                     {
@@ -815,14 +800,13 @@ SELECT * FROM t1 WHERE f1>10 ORDER BY f2, f0 LIMIT 20	{
           },
           {
             "attaching_conditions_to_tables": {
-              "original_condition": "(`test`.`t1`.`f1` > 10)",
+              "original_condition": "(`t1`.`f1` > 10)",
               "attached_conditions_computation": [
               ],
               "attached_conditions_summary": [
                 {
-                  "database": "test",
-                  "table": "t1",
-                  "attached": "(`test`.`t1`.`f1` > 10)"
+                  "table": "`t1`",
+                  "attached": "(`t1`.`f1` > 10)"
                 }
               ]
             }
@@ -830,24 +814,23 @@ SELECT * FROM t1 WHERE f1>10 ORDER BY f2, f0 LIMIT 20	{
           {
             "clause_processing": {
               "clause": "ORDER BY",
-              "original_clause": "`test`.`t1`.`f2`,`test`.`t1`.`f0`",
+              "original_clause": "`t1`.`f2`,`t1`.`f0`",
               "items": [
                 {
-                  "item": "`test`.`t1`.`f2`"
+                  "item": "`t1`.`f2`"
                 },
                 {
-                  "item": "`test`.`t1`.`f0`"
+                  "item": "`t1`.`f0`"
                 }
               ],
               "resulting_clause_is_simple": true,
-              "resulting_clause": "`test`.`t1`.`f2`,`test`.`t1`.`f0`"
+              "resulting_clause": "`t1`.`f2`,`t1`.`f0`"
             }
           },
           {
             "refine_plan": [
               {
-                "database": "test",
-                "table": "t1",
+                "table": "`t1`",
                 "access_type": "table_scan"
               }
             ]
@@ -863,14 +846,12 @@ SELECT * FROM t1 WHERE f1>10 ORDER BY f2, f0 LIMIT 20	{
             "filesort_information": [
               {
                 "direction": "asc",
-                "database": "test",
-                "table": "t1",
+                "table": "`t1`",
                 "field": "f2"
               },
               {
                 "direction": "asc",
-                "database": "test",
-                "table": "t1",
+                "table": "`t1`",
                 "field": "f0"
               }
             ],
@@ -907,7 +888,7 @@ SELECT * FROM t1 WHERE f1>10 ORDER BY f2, f0 LIMIT 0	{
         "select#": 1,
         "steps": [
           {
-            "expanded_query": "/* select#1 */ select `test`.`t1`.`f0` AS `f0`,`test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2` from `test`.`t1` where (`test`.`t1`.`f1` > 10) order by `test`.`t1`.`f2`,`test`.`t1`.`f0` limit 0"
+            "expanded_query": "/* select#1 */ select `t1`.`f0` AS `f0`,`t1`.`f1` AS `f1`,`t1`.`f2` AS `f2` from `t1` where (`t1`.`f1` > 10) order by `t1`.`f2`,`t1`.`f0` limit 0"
           }
         ]
       }
@@ -919,19 +900,19 @@ SELECT * FROM t1 WHERE f1>10 ORDER BY f2, f0 LIMIT 0	{
           {
             "condition_processing": {
               "condition": "WHERE",
-              "original_condition": "(`test`.`t1`.`f1` > 10)",
+              "original_condition": "(`t1`.`f1` > 10)",
               "steps": [
                 {
                   "transformation": "equality_propagation",
-                  "resulting_condition": "(`test`.`t1`.`f1` > 10)"
+                  "resulting_condition": "(`t1`.`f1` > 10)"
                 },
                 {
                   "transformation": "constant_propagation",
-                  "resulting_condition": "(`test`.`t1`.`f1` > 10)"
+                  "resulting_condition": "(`t1`.`f1` > 10)"
                 },
                 {
                   "transformation": "trivial_condition_removal",
-                  "resulting_condition": "(`test`.`t1`.`f1` > 10)"
+                  "resulting_condition": "(`t1`.`f1` > 10)"
                 }
               ]
             }
@@ -972,7 +953,7 @@ SELECT * FROM t1 WHERE f1>10 ORDER BY f2, f0 LIMIT 10 OFFSET 10	{
         "select#": 1,
         "steps": [
           {
-            "expanded_query": "/* select#1 */ select `test`.`t1`.`f0` AS `f0`,`test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2` from `test`.`t1` where (`test`.`t1`.`f1` > 10) order by `test`.`t1`.`f2`,`test`.`t1`.`f0` limit 10,10"
+            "expanded_query": "/* select#1 */ select `t1`.`f0` AS `f0`,`t1`.`f1` AS `f1`,`t1`.`f2` AS `f2` from `t1` where (`t1`.`f1` > 10) order by `t1`.`f2`,`t1`.`f0` limit 10,10"
           }
         ]
       }
@@ -984,19 +965,19 @@ SELECT * FROM t1 WHERE f1>10 ORDER BY f2, f0 LIMIT 10 OFFSET 10	{
           {
             "condition_processing": {
               "condition": "WHERE",
-              "original_condition": "(`test`.`t1`.`f1` > 10)",
+              "original_condition": "(`t1`.`f1` > 10)",
               "steps": [
                 {
                   "transformation": "equality_propagation",
-                  "resulting_condition": "(`test`.`t1`.`f1` > 10)"
+                  "resulting_condition": "(`t1`.`f1` > 10)"
                 },
                 {
                   "transformation": "constant_propagation",
-                  "resulting_condition": "(`test`.`t1`.`f1` > 10)"
+                  "resulting_condition": "(`t1`.`f1` > 10)"
                 },
                 {
                   "transformation": "trivial_condition_removal",
-                  "resulting_condition": "(`test`.`t1`.`f1` > 10)"
+                  "resulting_condition": "(`t1`.`f1` > 10)"
                 }
               ]
             }
@@ -1004,8 +985,7 @@ SELECT * FROM t1 WHERE f1>10 ORDER BY f2, f0 LIMIT 10 OFFSET 10	{
           {
             "table_dependencies": [
               {
-                "database": "test",
-                "table": "t1",
+                "table": "`t1`",
                 "row_may_be_null": false,
                 "map_bit": 0,
                 "depends_on_map_bits": [
@@ -1020,8 +1000,7 @@ SELECT * FROM t1 WHERE f1>10 ORDER BY f2, f0 LIMIT 10 OFFSET 10	{
           {
             "rows_estimation": [
               {
-                "database": "test",
-                "table": "t1",
+                "table": "`t1`",
                 "table_scan": {
                   "rows": 100,
                   "cost": 2
@@ -1032,8 +1011,9 @@ SELECT * FROM t1 WHERE f1>10 ORDER BY f2, f0 LIMIT 10 OFFSET 10	{
           {
             "considered_execution_plans": [
               {
-                "database": "test",
-                "table": "t1",
+                "plan_prefix": [
+                ],
+                "table": "`t1`",
                 "best_access_path": {
                   "considered_access_paths": [
                     {
@@ -1052,14 +1032,13 @@ SELECT * FROM t1 WHERE f1>10 ORDER BY f2, f0 LIMIT 10 OFFSET 10	{
           },
           {
             "attaching_conditions_to_tables": {
-              "original_condition": "(`test`.`t1`.`f1` > 10)",
+              "original_condition": "(`t1`.`f1` > 10)",
               "attached_conditions_computation": [
               ],
               "attached_conditions_summary": [
                 {
-                  "database": "test",
-                  "table": "t1",
-                  "attached": "(`test`.`t1`.`f1` > 10)"
+                  "table": "`t1`",
+                  "attached": "(`t1`.`f1` > 10)"
                 }
               ]
             }
@@ -1067,24 +1046,23 @@ SELECT * FROM t1 WHERE f1>10 ORDER BY f2, f0 LIMIT 10 OFFSET 10	{
           {
             "clause_processing": {
               "clause": "ORDER BY",
-              "original_clause": "`test`.`t1`.`f2`,`test`.`t1`.`f0`",
+              "original_clause": "`t1`.`f2`,`t1`.`f0`",
               "items": [
                 {
-                  "item": "`test`.`t1`.`f2`"
+                  "item": "`t1`.`f2`"
                 },
                 {
-                  "item": "`test`.`t1`.`f0`"
+                  "item": "`t1`.`f0`"
                 }
               ],
               "resulting_clause_is_simple": true,
-              "resulting_clause": "`test`.`t1`.`f2`,`test`.`t1`.`f0`"
+              "resulting_clause": "`t1`.`f2`,`t1`.`f0`"
             }
           },
           {
             "refine_plan": [
               {
-                "database": "test",
-                "table": "t1",
+                "table": "`t1`",
                 "access_type": "table_scan"
               }
             ]
@@ -1100,14 +1078,12 @@ SELECT * FROM t1 WHERE f1>10 ORDER BY f2, f0 LIMIT 10 OFFSET 10	{
             "filesort_information": [
               {
                 "direction": "asc",
-                "database": "test",
-                "table": "t1",
+                "table": "`t1`",
                 "field": "f2"
               },
               {
                 "direction": "asc",
-                "database": "test",
-                "table": "t1",
+                "table": "`t1`",
                 "field": "f0"
               }
             ],
@@ -1144,7 +1120,7 @@ SELECT * FROM t1 WHERE f1>10 ORDER BY f2, f0 LIMIT 0 OFFSET 10	{
         "select#": 1,
         "steps": [
           {
-            "expanded_query": "/* select#1 */ select `test`.`t1`.`f0` AS `f0`,`test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2` from `test`.`t1` where (`test`.`t1`.`f1` > 10) order by `test`.`t1`.`f2`,`test`.`t1`.`f0` limit 10,0"
+            "expanded_query": "/* select#1 */ select `t1`.`f0` AS `f0`,`t1`.`f1` AS `f1`,`t1`.`f2` AS `f2` from `t1` where (`t1`.`f1` > 10) order by `t1`.`f2`,`t1`.`f0` limit 10,0"
           }
         ]
       }
@@ -1156,19 +1132,19 @@ SELECT * FROM t1 WHERE f1>10 ORDER BY f2, f0 LIMIT 0 OFFSET 10	{
           {
             "condition_processing": {
               "condition": "WHERE",
-              "original_condition": "(`test`.`t1`.`f1` > 10)",
+              "original_condition": "(`t1`.`f1` > 10)",
               "steps": [
                 {
                   "transformation": "equality_propagation",
-                  "resulting_condition": "(`test`.`t1`.`f1` > 10)"
+                  "resulting_condition": "(`t1`.`f1` > 10)"
                 },
                 {
                   "transformation": "constant_propagation",
-                  "resulting_condition": "(`test`.`t1`.`f1` > 10)"
+                  "resulting_condition": "(`t1`.`f1` > 10)"
                 },
                 {
                   "transformation": "trivial_condition_removal",
-                  "resulting_condition": "(`test`.`t1`.`f1` > 10)"
+                  "resulting_condition": "(`t1`.`f1` > 10)"
                 }
               ]
             }
@@ -1176,8 +1152,7 @@ SELECT * FROM t1 WHERE f1>10 ORDER BY f2, f0 LIMIT 0 OFFSET 10	{
           {
             "table_dependencies": [
               {
-                "database": "test",
-                "table": "t1",
+                "table": "`t1`",
                 "row_may_be_null": false,
                 "map_bit": 0,
                 "depends_on_map_bits": [
@@ -1192,8 +1167,7 @@ SELECT * FROM t1 WHERE f1>10 ORDER BY f2, f0 LIMIT 0 OFFSET 10	{
           {
             "rows_estimation": [
               {
-                "database": "test",
-                "table": "t1",
+                "table": "`t1`",
                 "table_scan": {
                   "rows": 100,
                   "cost": 2
@@ -1204,8 +1178,9 @@ SELECT * FROM t1 WHERE f1>10 ORDER BY f2, f0 LIMIT 0 OFFSET 10	{
           {
             "considered_execution_plans": [
               {
-                "database": "test",
-                "table": "t1",
+                "plan_prefix": [
+                ],
+                "table": "`t1`",
                 "best_access_path": {
                   "considered_access_paths": [
                     {
@@ -1224,14 +1199,13 @@ SELECT * FROM t1 WHERE f1>10 ORDER BY f2, f0 LIMIT 0 OFFSET 10	{
           },
           {
             "attaching_conditions_to_tables": {
-              "original_condition": "(`test`.`t1`.`f1` > 10)",
+              "original_condition": "(`t1`.`f1` > 10)",
               "attached_conditions_computation": [
               ],
               "attached_conditions_summary": [
                 {
-                  "database": "test",
-                  "table": "t1",
-                  "attached": "(`test`.`t1`.`f1` > 10)"
+                  "table": "`t1`",
+                  "attached": "(`t1`.`f1` > 10)"
                 }
               ]
             }
@@ -1239,24 +1213,23 @@ SELECT * FROM t1 WHERE f1>10 ORDER BY f2, f0 LIMIT 0 OFFSET 10	{
           {
             "clause_processing": {
               "clause": "ORDER BY",
-              "original_clause": "`test`.`t1`.`f2`,`test`.`t1`.`f0`",
+              "original_clause": "`t1`.`f2`,`t1`.`f0`",
               "items": [
                 {
-                  "item": "`test`.`t1`.`f2`"
+                  "item": "`t1`.`f2`"
                 },
                 {
-                  "item": "`test`.`t1`.`f0`"
+                  "item": "`t1`.`f0`"
                 }
               ],
               "resulting_clause_is_simple": true,
-              "resulting_clause": "`test`.`t1`.`f2`,`test`.`t1`.`f0`"
+              "resulting_clause": "`t1`.`f2`,`t1`.`f0`"
             }
           },
           {
             "refine_plan": [
               {
-                "database": "test",
-                "table": "t1",
+                "table": "`t1`",
                 "access_type": "table_scan"
               }
             ]
@@ -1272,14 +1245,12 @@ SELECT * FROM t1 WHERE f1>10 ORDER BY f2, f0 LIMIT 0 OFFSET 10	{
             "filesort_information": [
               {
                 "direction": "asc",
-                "database": "test",
-                "table": "t1",
+                "table": "`t1`",
                 "field": "f2"
               },
               {
                 "direction": "asc",
-                "database": "test",
-                "table": "t1",
+                "table": "`t1`",
                 "field": "f0"
               }
             ],
@@ -1318,7 +1289,7 @@ SELECT CONCAT("hello ", f2) AS foo FROM t1 ORDER BY foo LIMIT 2	{
         "select#": 1,
         "steps": [
           {
-            "expanded_query": "/* select#1 */ select concat('hello ',`test`.`t1`.`f2`) AS `foo` from `test`.`t1` order by `foo` limit 2"
+            "expanded_query": "/* select#1 */ select concat('hello ',`t1`.`f2`) AS `foo` from `t1` order by `foo` limit 2"
           }
         ]
       }
@@ -1330,8 +1301,7 @@ SELECT CONCAT("hello ", f2) AS foo FROM t1 ORDER BY foo LIMIT 2	{
           {
             "table_dependencies": [
               {
-                "database": "test",
-                "table": "t1",
+                "table": "`t1`",
                 "row_may_be_null": false,
                 "map_bit": 0,
                 "depends_on_map_bits": [
@@ -1342,8 +1312,7 @@ SELECT CONCAT("hello ", f2) AS foo FROM t1 ORDER BY foo LIMIT 2	{
           {
             "rows_estimation": [
               {
-                "database": "test",
-                "table": "t1",
+                "table": "`t1`",
                 "table_scan": {
                   "rows": 100,
                   "cost": 2
@@ -1354,8 +1323,9 @@ SELECT CONCAT("hello ", f2) AS foo FROM t1 ORDER BY foo LIMIT 2	{
           {
             "considered_execution_plans": [
               {
-                "database": "test",
-                "table": "t1",
+                "plan_prefix": [
+                ],
+                "table": "`t1`",
                 "best_access_path": {
                   "considered_access_paths": [
                     {
@@ -1379,8 +1349,7 @@ SELECT CONCAT("hello ", f2) AS foo FROM t1 ORDER BY foo LIMIT 2	{
               ],
               "attached_conditions_summary": [
                 {
-                  "database": "test",
-                  "table": "t1",
+                  "table": "`t1`",
                   "attached": null
                 }
               ]
@@ -1392,7 +1361,7 @@ SELECT CONCAT("hello ", f2) AS foo FROM t1 ORDER BY foo LIMIT 2	{
               "original_clause": "`foo`",
               "items": [
                 {
-                  "item": "concat('hello ',`test`.`t1`.`f2`)"
+                  "item": "concat('hello ',`t1`.`f2`)"
                 }
               ],
               "resulting_clause_is_simple": true,
@@ -1402,8 +1371,7 @@ SELECT CONCAT("hello ", f2) AS foo FROM t1 ORDER BY foo LIMIT 2	{
           {
             "refine_plan": [
               {
-                "database": "test",
-                "table": "t1",
+                "table": "`t1`",
                 "access_type": "table_scan"
               }
             ]
@@ -1419,7 +1387,7 @@ SELECT CONCAT("hello ", f2) AS foo FROM t1 ORDER BY foo LIMIT 2	{
             "filesort_information": [
               {
                 "direction": "asc",
-                "expression": "concat('hello ',`test`.`t1`.`f2`)"
+                "expression": "concat('hello ',`t1`.`f2`)"
               }
             ],
             "filesort_priority_queue_optimization": {
@@ -1454,7 +1422,7 @@ SELECT * from t1 ORDER BY rand(2) LIMIT 2	{
         "select#": 1,
         "steps": [
           {
-            "expanded_query": "/* select#1 */ select `test`.`t1`.`f0` AS `f0`,`test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2` from `test`.`t1` order by rand(2) limit 2"
+            "expanded_query": "/* select#1 */ select `t1`.`f0` AS `f0`,`t1`.`f1` AS `f1`,`t1`.`f2` AS `f2` from `t1` order by rand(2) limit 2"
           }
         ]
       }
@@ -1466,8 +1434,7 @@ SELECT * from t1 ORDER BY rand(2) LIMIT 2	{
           {
             "table_dependencies": [
               {
-                "database": "test",
-                "table": "t1",
+                "table": "`t1`",
                 "row_may_be_null": false,
                 "map_bit": 0,
                 "depends_on_map_bits": [
@@ -1478,8 +1445,7 @@ SELECT * from t1 ORDER BY rand(2) LIMIT 2	{
           {
             "rows_estimation": [
               {
-                "database": "test",
-                "table": "t1",
+                "table": "`t1`",
                 "table_scan": {
                   "rows": 100,
                   "cost": 2
@@ -1490,8 +1456,9 @@ SELECT * from t1 ORDER BY rand(2) LIMIT 2	{
           {
             "considered_execution_plans": [
               {
-                "database": "test",
-                "table": "t1",
+                "plan_prefix": [
+                ],
+                "table": "`t1`",
                 "best_access_path": {
                   "considered_access_paths": [
                     {
@@ -1515,8 +1482,7 @@ SELECT * from t1 ORDER BY rand(2) LIMIT 2	{
               ],
               "attached_conditions_summary": [
                 {
-                  "database": "test",
-                  "table": "t1",
+                  "table": "`t1`",
                   "attached": null
                 }
               ]
@@ -1538,8 +1504,7 @@ SELECT * from t1 ORDER BY rand(2) LIMIT 2	{
           {
             "refine_plan": [
               {
-                "database": "test",
-                "table": "t1",
+                "table": "`t1`",
                 "access_type": "table_scan"
               }
             ]
@@ -1635,7 +1600,7 @@ SELECT * FROM t1 ORDER BY f1 ASC, f0 LIMIT 30	{
         "select#": 1,
         "steps": [
           {
-            "expanded_query": "/* select#1 */ select `test`.`t1`.`f0` AS `f0`,`test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2` from `test`.`t1` order by `test`.`t1`.`f1`,`test`.`t1`.`f0` limit 30"
+            "expanded_query": "/* select#1 */ select `t1`.`f0` AS `f0`,`t1`.`f1` AS `f1`,`t1`.`f2` AS `f2` from `t1` order by `t1`.`f1`,`t1`.`f0` limit 30"
           }
         ]
       }
@@ -1647,8 +1612,7 @@ SELECT * FROM t1 ORDER BY f1 ASC, f0 LIMIT 30	{
           {
             "table_dependencies": [
               {
-                "database": "test",
-                "table": "t1",
+                "table": "`t1`",
                 "row_may_be_null": false,
                 "map_bit": 0,
                 "depends_on_map_bits": [
@@ -1659,8 +1623,7 @@ SELECT * FROM t1 ORDER BY f1 ASC, f0 LIMIT 30	{
           {
             "rows_estimation": [
               {
-                "database": "test",
-                "table": "t1",
+                "table": "`t1`",
                 "table_scan": {
                   "rows": 100,
                   "cost": 2
@@ -1671,8 +1634,9 @@ SELECT * FROM t1 ORDER BY f1 ASC, f0 LIMIT 30	{
           {
             "considered_execution_plans": [
               {
-                "database": "test",
-                "table": "t1",
+                "plan_prefix": [
+                ],
+                "table": "`t1`",
                 "best_access_path": {
                   "considered_access_paths": [
                     {
@@ -1696,8 +1660,7 @@ SELECT * FROM t1 ORDER BY f1 ASC, f0 LIMIT 30	{
               ],
               "attached_conditions_summary": [
                 {
-                  "database": "test",
-                  "table": "t1",
+                  "table": "`t1`",
                   "attached": null
                 }
               ]
@@ -1706,24 +1669,23 @@ SELECT * FROM t1 ORDER BY f1 ASC, f0 LIMIT 30	{
           {
             "clause_processing": {
               "clause": "ORDER BY",
-              "original_clause": "`test`.`t1`.`f1`,`test`.`t1`.`f0`",
+              "original_clause": "`t1`.`f1`,`t1`.`f0`",
               "items": [
                 {
-                  "item": "`test`.`t1`.`f1`"
+                  "item": "`t1`.`f1`"
                 },
                 {
-                  "item": "`test`.`t1`.`f0`"
+                  "item": "`t1`.`f0`"
                 }
               ],
               "resulting_clause_is_simple": true,
-              "resulting_clause": "`test`.`t1`.`f1`,`test`.`t1`.`f0`"
+              "resulting_clause": "`t1`.`f1`,`t1`.`f0`"
             }
           },
           {
             "refine_plan": [
               {
-                "database": "test",
-                "table": "t1",
+                "table": "`t1`",
                 "access_type": "table_scan"
               }
             ]
@@ -1739,14 +1701,12 @@ SELECT * FROM t1 ORDER BY f1 ASC, f0 LIMIT 30	{
             "filesort_information": [
               {
                 "direction": "asc",
-                "database": "test",
-                "table": "t1",
+                "table": "`t1`",
                 "field": "f1"
               },
               {
                 "direction": "asc",
-                "database": "test",
-                "table": "t1",
+                "table": "`t1`",
                 "field": "f0"
               }
             ],
@@ -1783,7 +1743,7 @@ SELECT * FROM t1 ORDER BY f1 ASC, f0 LIMIT 0	{
         "select#": 1,
         "steps": [
           {
-            "expanded_query": "/* select#1 */ select `test`.`t1`.`f0` AS `f0`,`test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2` from `test`.`t1` order by `test`.`t1`.`f1`,`test`.`t1`.`f0` limit 0"
+            "expanded_query": "/* select#1 */ select `t1`.`f0` AS `f0`,`t1`.`f1` AS `f1`,`t1`.`f2` AS `f2` from `t1` order by `t1`.`f1`,`t1`.`f0` limit 0"
           }
         ]
       }
@@ -1848,7 +1808,7 @@ SELECT * FROM t1 ORDER BY f2 DESC, f0 LIMIT 30	{
         "select#": 1,
         "steps": [
           {
-            "expanded_query": "/* select#1 */ select `test`.`t1`.`f0` AS `f0`,`test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2` from `test`.`t1` order by `test`.`t1`.`f2` desc,`test`.`t1`.`f0` limit 30"
+            "expanded_query": "/* select#1 */ select `t1`.`f0` AS `f0`,`t1`.`f1` AS `f1`,`t1`.`f2` AS `f2` from `t1` order by `t1`.`f2` desc,`t1`.`f0` limit 30"
           }
         ]
       }
@@ -1860,8 +1820,7 @@ SELECT * FROM t1 ORDER BY f2 DESC, f0 LIMIT 30	{
           {
             "table_dependencies": [
               {
-                "database": "test",
-                "table": "t1",
+                "table": "`t1`",
                 "row_may_be_null": false,
                 "map_bit": 0,
                 "depends_on_map_bits": [
@@ -1872,8 +1831,7 @@ SELECT * FROM t1 ORDER BY f2 DESC, f0 LIMIT 30	{
           {
             "rows_estimation": [
               {
-                "database": "test",
-                "table": "t1",
+                "table": "`t1`",
                 "table_scan": {
                   "rows": 100,
                   "cost": 2
@@ -1884,8 +1842,9 @@ SELECT * FROM t1 ORDER BY f2 DESC, f0 LIMIT 30	{
           {
             "considered_execution_plans": [
               {
-                "database": "test",
-                "table": "t1",
+                "plan_prefix": [
+                ],
+                "table": "`t1`",
                 "best_access_path": {
                   "considered_access_paths": [
                     {
@@ -1909,8 +1868,7 @@ SELECT * FROM t1 ORDER BY f2 DESC, f0 LIMIT 30	{
               ],
               "attached_conditions_summary": [
                 {
-                  "database": "test",
-                  "table": "t1",
+                  "table": "`t1`",
                   "attached": null
                 }
               ]
@@ -1919,24 +1877,23 @@ SELECT * FROM t1 ORDER BY f2 DESC, f0 LIMIT 30	{
           {
             "clause_processing": {
               "clause": "ORDER BY",
-              "original_clause": "`test`.`t1`.`f2` desc,`test`.`t1`.`f0`",
+              "original_clause": "`t1`.`f2` desc,`t1`.`f0`",
               "items": [
                 {
-                  "item": "`test`.`t1`.`f2`"
+                  "item": "`t1`.`f2`"
                 },
                 {
-                  "item": "`test`.`t1`.`f0`"
+                  "item": "`t1`.`f0`"
                 }
               ],
               "resulting_clause_is_simple": true,
-              "resulting_clause": "`test`.`t1`.`f2` desc,`test`.`t1`.`f0`"
+              "resulting_clause": "`t1`.`f2` desc,`t1`.`f0`"
             }
           },
           {
             "refine_plan": [
               {
-                "database": "test",
-                "table": "t1",
+                "table": "`t1`",
                 "access_type": "table_scan"
               }
             ]
@@ -1952,14 +1909,12 @@ SELECT * FROM t1 ORDER BY f2 DESC, f0 LIMIT 30	{
             "filesort_information": [
               {
                 "direction": "desc",
-                "database": "test",
-                "table": "t1",
+                "table": "`t1`",
                 "field": "f2"
               },
               {
                 "direction": "asc",
-                "database": "test",
-                "table": "t1",
+                "table": "`t1`",
                 "field": "f0"
               }
             ],
@@ -1996,7 +1951,7 @@ SELECT * FROM t1 ORDER BY f2 DESC, f0 LIMIT 0	{
         "select#": 1,
         "steps": [
           {
-            "expanded_query": "/* select#1 */ select `test`.`t1`.`f0` AS `f0`,`test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2` from `test`.`t1` order by `test`.`t1`.`f2` desc,`test`.`t1`.`f0` limit 0"
+            "expanded_query": "/* select#1 */ select `t1`.`f0` AS `f0`,`t1`.`f1` AS `f1`,`t1`.`f2` AS `f2` from `t1` order by `t1`.`f2` desc,`t1`.`f0` limit 0"
           }
         ]
       }
@@ -2051,7 +2006,7 @@ SELECT * FROM t1 WHERE f1>10 ORDER BY f2, f0 LIMIT 20	{
         "select#": 1,
         "steps": [
           {
-            "expanded_query": "/* select#1 */ select `test`.`t1`.`f0` AS `f0`,`test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2` from `test`.`t1` where (`test`.`t1`.`f1` > 10) order by `test`.`t1`.`f2`,`test`.`t1`.`f0` limit 20"
+            "expanded_query": "/* select#1 */ select `t1`.`f0` AS `f0`,`t1`.`f1` AS `f1`,`t1`.`f2` AS `f2` from `t1` where (`t1`.`f1` > 10) order by `t1`.`f2`,`t1`.`f0` limit 20"
           }
         ]
       }
@@ -2063,19 +2018,19 @@ SELECT * FROM t1 WHERE f1>10 ORDER BY f2, f0 LIMIT 20	{
           {
             "condition_processing": {
               "condition": "WHERE",
-              "original_condition": "(`test`.`t1`.`f1` > 10)",
+              "original_condition": "(`t1`.`f1` > 10)",
               "steps": [
                 {
                   "transformation": "equality_propagation",
-                  "resulting_condition": "(`test`.`t1`.`f1` > 10)"
+                  "resulting_condition": "(`t1`.`f1` > 10)"
                 },
                 {
                   "transformation": "constant_propagation",
-                  "resulting_condition": "(`test`.`t1`.`f1` > 10)"
+                  "resulting_condition": "(`t1`.`f1` > 10)"
                 },
                 {
                   "transformation": "trivial_condition_removal",
-                  "resulting_condition": "(`test`.`t1`.`f1` > 10)"
+                  "resulting_condition": "(`t1`.`f1` > 10)"
                 }
               ]
             }
@@ -2083,8 +2038,7 @@ SELECT * FROM t1 WHERE f1>10 ORDER BY f2, f0 LIMIT 20	{
           {
             "table_dependencies": [
               {
-                "database": "test",
-                "table": "t1",
+                "table": "`t1`",
                 "row_may_be_null": false,
                 "map_bit": 0,
                 "depends_on_map_bits": [
@@ -2099,8 +2053,7 @@ SELECT * FROM t1 WHERE f1>10 ORDER BY f2, f0 LIMIT 20	{
           {
             "rows_estimation": [
               {
-                "database": "test",
-                "table": "t1",
+                "table": "`t1`",
                 "table_scan": {
                   "rows": 100,
                   "cost": 2
@@ -2111,8 +2064,9 @@ SELECT * FROM t1 WHERE f1>10 ORDER BY f2, f0 LIMIT 20	{
           {
             "considered_execution_plans": [
               {
-                "database": "test",
-                "table": "t1",
+                "plan_prefix": [
+                ],
+                "table": "`t1`",
                 "best_access_path": {
                   "considered_access_paths": [
                     {
@@ -2131,14 +2085,13 @@ SELECT * FROM t1 WHERE f1>10 ORDER BY f2, f0 LIMIT 20	{
           },
           {
             "attaching_conditions_to_tables": {
-              "original_condition": "(`test`.`t1`.`f1` > 10)",
+              "original_condition": "(`t1`.`f1` > 10)",
               "attached_conditions_computation": [
               ],
               "attached_conditions_summary": [
                 {
-                  "database": "test",
-                  "table": "t1",
-                  "attached": "(`test`.`t1`.`f1` > 10)"
+                  "table": "`t1`",
+                  "attached": "(`t1`.`f1` > 10)"
                 }
               ]
             }
@@ -2146,24 +2099,23 @@ SELECT * FROM t1 WHERE f1>10 ORDER BY f2, f0 LIMIT 20	{
           {
             "clause_processing": {
               "clause": "ORDER BY",
-              "original_clause": "`test`.`t1`.`f2`,`test`.`t1`.`f0`",
+              "original_clause": "`t1`.`f2`,`t1`.`f0`",
               "items": [
                 {
-                  "item": "`test`.`t1`.`f2`"
+                  "item": "`t1`.`f2`"
                 },
                 {
-                  "item": "`test`.`t1`.`f0`"
+                  "item": "`t1`.`f0`"
                 }
               ],
               "resulting_clause_is_simple": true,
-              "resulting_clause": "`test`.`t1`.`f2`,`test`.`t1`.`f0`"
+              "resulting_clause": "`t1`.`f2`,`t1`.`f0`"
             }
           },
           {
             "refine_plan": [
               {
-                "database": "test",
-                "table": "t1",
+                "table": "`t1`",
                 "access_type": "table_scan"
               }
             ]
@@ -2179,14 +2131,12 @@ SELECT * FROM t1 WHERE f1>10 ORDER BY f2, f0 LIMIT 20	{
             "filesort_information": [
               {
                 "direction": "asc",
-                "database": "test",
-                "table": "t1",
+                "table": "`t1`",
                 "field": "f2"
               },
               {
                 "direction": "asc",
-                "database": "test",
-                "table": "t1",
+                "table": "`t1`",
                 "field": "f0"
               }
             ],
@@ -2223,7 +2173,7 @@ SELECT * FROM t1 WHERE f1>10 ORDER BY f2, f0 LIMIT 0	{
         "select#": 1,
         "steps": [
           {
-            "expanded_query": "/* select#1 */ select `test`.`t1`.`f0` AS `f0`,`test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2` from `test`.`t1` where (`test`.`t1`.`f1` > 10) order by `test`.`t1`.`f2`,`test`.`t1`.`f0` limit 0"
+            "expanded_query": "/* select#1 */ select `t1`.`f0` AS `f0`,`t1`.`f1` AS `f1`,`t1`.`f2` AS `f2` from `t1` where (`t1`.`f1` > 10) order by `t1`.`f2`,`t1`.`f0` limit 0"
           }
         ]
       }
@@ -2235,19 +2185,19 @@ SELECT * FROM t1 WHERE f1>10 ORDER BY f2, f0 LIMIT 0	{
           {
             "condition_processing": {
               "condition": "WHERE",
-              "original_condition": "(`test`.`t1`.`f1` > 10)",
+              "original_condition": "(`t1`.`f1` > 10)",
               "steps": [
                 {
                   "transformation": "equality_propagation",
-                  "resulting_condition": "(`test`.`t1`.`f1` > 10)"
+                  "resulting_condition": "(`t1`.`f1` > 10)"
                 },
                 {
                   "transformation": "constant_propagation",
-                  "resulting_condition": "(`test`.`t1`.`f1` > 10)"
+                  "resulting_condition": "(`t1`.`f1` > 10)"
                 },
                 {
                   "transformation": "trivial_condition_removal",
-                  "resulting_condition": "(`test`.`t1`.`f1` > 10)"
+                  "resulting_condition": "(`t1`.`f1` > 10)"
                 }
               ]
             }
@@ -2288,7 +2238,7 @@ SELECT * FROM t1 WHERE f1>10 ORDER BY f2, f0 LIMIT 10 OFFSET 10	{
         "select#": 1,
         "steps": [
           {
-            "expanded_query": "/* select#1 */ select `test`.`t1`.`f0` AS `f0`,`test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2` from `test`.`t1` where (`test`.`t1`.`f1` > 10) order by `test`.`t1`.`f2`,`test`.`t1`.`f0` limit 10,10"
+            "expanded_query": "/* select#1 */ select `t1`.`f0` AS `f0`,`t1`.`f1` AS `f1`,`t1`.`f2` AS `f2` from `t1` where (`t1`.`f1` > 10) order by `t1`.`f2`,`t1`.`f0` limit 10,10"
           }
         ]
       }
@@ -2300,19 +2250,19 @@ SELECT * FROM t1 WHERE f1>10 ORDER BY f2, f0 LIMIT 10 OFFSET 10	{
           {
             "condition_processing": {
               "condition": "WHERE",
-              "original_condition": "(`test`.`t1`.`f1` > 10)",
+              "original_condition": "(`t1`.`f1` > 10)",
               "steps": [
                 {
                   "transformation": "equality_propagation",
-                  "resulting_condition": "(`test`.`t1`.`f1` > 10)"
+                  "resulting_condition": "(`t1`.`f1` > 10)"
                 },
                 {
                   "transformation": "constant_propagation",
-                  "resulting_condition": "(`test`.`t1`.`f1` > 10)"
+                  "resulting_condition": "(`t1`.`f1` > 10)"
                 },
                 {
                   "transformation": "trivial_condition_removal",
-                  "resulting_condition": "(`test`.`t1`.`f1` > 10)"
+                  "resulting_condition": "(`t1`.`f1` > 10)"
                 }
               ]
             }
@@ -2320,8 +2270,7 @@ SELECT * FROM t1 WHERE f1>10 ORDER BY f2, f0 LIMIT 10 OFFSET 10	{
           {
             "table_dependencies": [
               {
-                "database": "test",
-                "table": "t1",
+                "table": "`t1`",
                 "row_may_be_null": false,
                 "map_bit": 0,
                 "depends_on_map_bits": [
@@ -2336,8 +2285,7 @@ SELECT * FROM t1 WHERE f1>10 ORDER BY f2, f0 LIMIT 10 OFFSET 10	{
           {
             "rows_estimation": [
               {
-                "database": "test",
-                "table": "t1",
+                "table": "`t1`",
                 "table_scan": {
                   "rows": 100,
                   "cost": 2
@@ -2348,8 +2296,9 @@ SELECT * FROM t1 WHERE f1>10 ORDER BY f2, f0 LIMIT 10 OFFSET 10	{
           {
             "considered_execution_plans": [
               {
-                "database": "test",
-                "table": "t1",
+                "plan_prefix": [
+                ],
+                "table": "`t1`",
                 "best_access_path": {
                   "considered_access_paths": [
                     {
@@ -2368,14 +2317,13 @@ SELECT * FROM t1 WHERE f1>10 ORDER BY f2, f0 LIMIT 10 OFFSET 10	{
           },
           {
             "attaching_conditions_to_tables": {
-              "original_condition": "(`test`.`t1`.`f1` > 10)",
+              "original_condition": "(`t1`.`f1` > 10)",
               "attached_conditions_computation": [
               ],
               "attached_conditions_summary": [
                 {
-                  "database": "test",
-                  "table": "t1",
-                  "attached": "(`test`.`t1`.`f1` > 10)"
+                  "table": "`t1`",
+                  "attached": "(`t1`.`f1` > 10)"
                 }
               ]
             }
@@ -2383,24 +2331,23 @@ SELECT * FROM t1 WHERE f1>10 ORDER BY f2, f0 LIMIT 10 OFFSET 10	{
           {
             "clause_processing": {
               "clause": "ORDER BY",
-              "original_clause": "`test`.`t1`.`f2`,`test`.`t1`.`f0`",
+              "original_clause": "`t1`.`f2`,`t1`.`f0`",
               "items": [
                 {
-                  "item": "`test`.`t1`.`f2`"
+                  "item": "`t1`.`f2`"
                 },
                 {
-                  "item": "`test`.`t1`.`f0`"
+                  "item": "`t1`.`f0`"
                 }
               ],
               "resulting_clause_is_simple": true,
-              "resulting_clause": "`test`.`t1`.`f2`,`test`.`t1`.`f0`"
+              "resulting_clause": "`t1`.`f2`,`t1`.`f0`"
             }
           },
           {
             "refine_plan": [
               {
-                "database": "test",
-                "table": "t1",
+                "table": "`t1`",
                 "access_type": "table_scan"
               }
             ]
@@ -2416,14 +2363,12 @@ SELECT * FROM t1 WHERE f1>10 ORDER BY f2, f0 LIMIT 10 OFFSET 10	{
             "filesort_information": [
               {
                 "direction": "asc",
-                "database": "test",
-                "table": "t1",
+                "table": "`t1`",
                 "field": "f2"
               },
               {
                 "direction": "asc",
-                "database": "test",
-                "table": "t1",
+                "table": "`t1`",
                 "field": "f0"
               }
             ],
@@ -2460,7 +2405,7 @@ SELECT * FROM t1 WHERE f1>10 ORDER BY f2, f0 LIMIT 0 OFFSET 10	{
         "select#": 1,
         "steps": [
           {
-            "expanded_query": "/* select#1 */ select `test`.`t1`.`f0` AS `f0`,`test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2` from `test`.`t1` where (`test`.`t1`.`f1` > 10) order by `test`.`t1`.`f2`,`test`.`t1`.`f0` limit 10,0"
+            "expanded_query": "/* select#1 */ select `t1`.`f0` AS `f0`,`t1`.`f1` AS `f1`,`t1`.`f2` AS `f2` from `t1` where (`t1`.`f1` > 10) order by `t1`.`f2`,`t1`.`f0` limit 10,0"
           }
         ]
       }
@@ -2472,19 +2417,19 @@ SELECT * FROM t1 WHERE f1>10 ORDER BY f2, f0 LIMIT 0 OFFSET 10	{
           {
             "condition_processing": {
               "condition": "WHERE",
-              "original_condition": "(`test`.`t1`.`f1` > 10)",
+              "original_condition": "(`t1`.`f1` > 10)",
               "steps": [
                 {
                   "transformation": "equality_propagation",
-                  "resulting_condition": "(`test`.`t1`.`f1` > 10)"
+                  "resulting_condition": "(`t1`.`f1` > 10)"
                 },
                 {
                   "transformation": "constant_propagation",
-                  "resulting_condition": "(`test`.`t1`.`f1` > 10)"
+                  "resulting_condition": "(`t1`.`f1` > 10)"
                 },
                 {
                   "transformation": "trivial_condition_removal",
-                  "resulting_condition": "(`test`.`t1`.`f1` > 10)"
+                  "resulting_condition": "(`t1`.`f1` > 10)"
                 }
               ]
             }
@@ -2492,8 +2437,7 @@ SELECT * FROM t1 WHERE f1>10 ORDER BY f2, f0 LIMIT 0 OFFSET 10	{
           {
             "table_dependencies": [
               {
-                "database": "test",
-                "table": "t1",
+                "table": "`t1`",
                 "row_may_be_null": false,
                 "map_bit": 0,
                 "depends_on_map_bits": [
@@ -2508,8 +2452,7 @@ SELECT * FROM t1 WHERE f1>10 ORDER BY f2, f0 LIMIT 0 OFFSET 10	{
           {
             "rows_estimation": [
               {
-                "database": "test",
-                "table": "t1",
+                "table": "`t1`",
                 "table_scan": {
                   "rows": 100,
                   "cost": 2
@@ -2520,8 +2463,9 @@ SELECT * FROM t1 WHERE f1>10 ORDER BY f2, f0 LIMIT 0 OFFSET 10	{
           {
             "considered_execution_plans": [
               {
-                "database": "test",
-                "table": "t1",
+                "plan_prefix": [
+                ],
+                "table": "`t1`",
                 "best_access_path": {
                   "considered_access_paths": [
                     {
@@ -2540,14 +2484,13 @@ SELECT * FROM t1 WHERE f1>10 ORDER BY f2, f0 LIMIT 0 OFFSET 10	{
           },
           {
             "attaching_conditions_to_tables": {
-              "original_condition": "(`test`.`t1`.`f1` > 10)",
+              "original_condition": "(`t1`.`f1` > 10)",
               "attached_conditions_computation": [
               ],
               "attached_conditions_summary": [
                 {
-                  "database": "test",
-                  "table": "t1",
-                  "attached": "(`test`.`t1`.`f1` > 10)"
+                  "table": "`t1`",
+                  "attached": "(`t1`.`f1` > 10)"
                 }
               ]
             }
@@ -2555,24 +2498,23 @@ SELECT * FROM t1 WHERE f1>10 ORDER BY f2, f0 LIMIT 0 OFFSET 10	{
           {
             "clause_processing": {
               "clause": "ORDER BY",
-              "original_clause": "`test`.`t1`.`f2`,`test`.`t1`.`f0`",
+              "original_clause": "`t1`.`f2`,`t1`.`f0`",
               "items": [
                 {
-                  "item": "`test`.`t1`.`f2`"
+                  "item": "`t1`.`f2`"
                 },
                 {
-                  "item": "`test`.`t1`.`f0`"
+                  "item": "`t1`.`f0`"
                 }
               ],
               "resulting_clause_is_simple": true,
-              "resulting_clause": "`test`.`t1`.`f2`,`test`.`t1`.`f0`"
+              "resulting_clause": "`t1`.`f2`,`t1`.`f0`"
             }
           },
           {
             "refine_plan": [
               {
-                "database": "test",
-                "table": "t1",
+                "table": "`t1`",
                 "access_type": "table_scan"
               }
             ]
@@ -2588,14 +2530,12 @@ SELECT * FROM t1 WHERE f1>10 ORDER BY f2, f0 LIMIT 0 OFFSET 10	{
             "filesort_information": [
               {
                 "direction": "asc",
-                "database": "test",
-                "table": "t1",
+                "table": "`t1`",
                 "field": "f2"
               },
               {
                 "direction": "asc",
-                "database": "test",
-                "table": "t1",
+                "table": "`t1`",
                 "field": "f0"
               }
             ],
@@ -2670,7 +2610,7 @@ ORDER BY f1, f0 LIMIT 30	{
         "select#": 1,
         "steps": [
           {
-            "expanded_query": "/* select#1 */ select sql_calc_found_rows `test`.`t1`.`f0` AS `f0`,`test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2` from `test`.`t1` order by `test`.`t1`.`f1`,`test`.`t1`.`f0` limit 30"
+            "expanded_query": "/* select#1 */ select sql_calc_found_rows `t1`.`f0` AS `f0`,`t1`.`f1` AS `f1`,`t1`.`f2` AS `f2` from `t1` order by `t1`.`f1`,`t1`.`f0` limit 30"
           }
         ]
       }
@@ -2682,8 +2622,7 @@ ORDER BY f1, f0 LIMIT 30	{
           {
             "table_dependencies": [
               {
-                "database": "test",
-                "table": "t1",
+                "table": "`t1`",
                 "row_may_be_null": false,
                 "map_bit": 0,
                 "depends_on_map_bits": [
@@ -2694,8 +2633,7 @@ ORDER BY f1, f0 LIMIT 30	{
           {
             "rows_estimation": [
               {
-                "database": "test",
-                "table": "t1",
+                "table": "`t1`",
                 "table_scan": {
                   "rows": 100,
                   "cost": 2
@@ -2706,8 +2644,9 @@ ORDER BY f1, f0 LIMIT 30	{
           {
             "considered_execution_plans": [
               {
-                "database": "test",
-                "table": "t1",
+                "plan_prefix": [
+                ],
+                "table": "`t1`",
                 "best_access_path": {
                   "considered_access_paths": [
                     {
@@ -2731,8 +2670,7 @@ ORDER BY f1, f0 LIMIT 30	{
               ],
               "attached_conditions_summary": [
                 {
-                  "database": "test",
-                  "table": "t1",
+                  "table": "`t1`",
                   "attached": null
                 }
               ]
@@ -2741,24 +2679,23 @@ ORDER BY f1, f0 LIMIT 30	{
           {
             "clause_processing": {
               "clause": "ORDER BY",
-              "original_clause": "`test`.`t1`.`f1`,`test`.`t1`.`f0`",
+              "original_clause": "`t1`.`f1`,`t1`.`f0`",
               "items": [
                 {
-                  "item": "`test`.`t1`.`f1`"
+                  "item": "`t1`.`f1`"
                 },
                 {
-                  "item": "`test`.`t1`.`f0`"
+                  "item": "`t1`.`f0`"
                 }
               ],
               "resulting_clause_is_simple": true,
-              "resulting_clause": "`test`.`t1`.`f1`,`test`.`t1`.`f0`"
+              "resulting_clause": "`t1`.`f1`,`t1`.`f0`"
             }
           },
           {
             "refine_plan": [
               {
-                "database": "test",
-                "table": "t1",
+                "table": "`t1`",
                 "access_type": "table_scan"
               }
             ]
@@ -2774,14 +2711,12 @@ ORDER BY f1, f0 LIMIT 30	{
             "filesort_information": [
               {
                 "direction": "asc",
-                "database": "test",
-                "table": "t1",
+                "table": "`t1`",
                 "field": "f1"
               },
               {
                 "direction": "asc",
-                "database": "test",
-                "table": "t1",
+                "table": "`t1`",
                 "field": "f0"
               }
             ],
@@ -2823,7 +2758,7 @@ ORDER BY f1, f0 LIMIT 0	{
         "select#": 1,
         "steps": [
           {
-            "expanded_query": "/* select#1 */ select sql_calc_found_rows `test`.`t1`.`f0` AS `f0`,`test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2` from `test`.`t1` order by `test`.`t1`.`f1`,`test`.`t1`.`f0` limit 0"
+            "expanded_query": "/* select#1 */ select sql_calc_found_rows `t1`.`f0` AS `f0`,`t1`.`f1` AS `f1`,`t1`.`f2` AS `f2` from `t1` order by `t1`.`f1`,`t1`.`f0` limit 0"
           }
         ]
       }
@@ -2835,8 +2770,7 @@ ORDER BY f1, f0 LIMIT 0	{
           {
             "table_dependencies": [
               {
-                "database": "test",
-                "table": "t1",
+                "table": "`t1`",
                 "row_may_be_null": false,
                 "map_bit": 0,
                 "depends_on_map_bits": [
@@ -2847,8 +2781,7 @@ ORDER BY f1, f0 LIMIT 0	{
           {
             "rows_estimation": [
               {
-                "database": "test",
-                "table": "t1",
+                "table": "`t1`",
                 "table_scan": {
                   "rows": 100,
                   "cost": 2
@@ -2859,8 +2792,9 @@ ORDER BY f1, f0 LIMIT 0	{
           {
             "considered_execution_plans": [
               {
-                "database": "test",
-                "table": "t1",
+                "plan_prefix": [
+                ],
+                "table": "`t1`",
                 "best_access_path": {
                   "considered_access_paths": [
                     {
@@ -2884,8 +2818,7 @@ ORDER BY f1, f0 LIMIT 0	{
               ],
               "attached_conditions_summary": [
                 {
-                  "database": "test",
-                  "table": "t1",
+                  "table": "`t1`",
                   "attached": null
                 }
               ]
@@ -2894,24 +2827,23 @@ ORDER BY f1, f0 LIMIT 0	{
           {
             "clause_processing": {
               "clause": "ORDER BY",
-              "original_clause": "`test`.`t1`.`f1`,`test`.`t1`.`f0`",
+              "original_clause": "`t1`.`f1`,`t1`.`f0`",
               "items": [
                 {
-                  "item": "`test`.`t1`.`f1`"
+                  "item": "`t1`.`f1`"
                 },
                 {
-                  "item": "`test`.`t1`.`f0`"
+                  "item": "`t1`.`f0`"
                 }
               ],
               "resulting_clause_is_simple": true,
-              "resulting_clause": "`test`.`t1`.`f1`,`test`.`t1`.`f0`"
+              "resulting_clause": "`t1`.`f1`,`t1`.`f0`"
             }
           },
           {
             "refine_plan": [
               {
-                "database": "test",
-                "table": "t1",
+                "table": "`t1`",
                 "access_type": "table_scan"
               }
             ]
@@ -2927,14 +2859,12 @@ ORDER BY f1, f0 LIMIT 0	{
             "filesort_information": [
               {
                 "direction": "asc",
-                "database": "test",
-                "table": "t1",
+                "table": "`t1`",
                 "field": "f1"
               },
               {
                 "direction": "asc",
-                "database": "test",
-                "table": "t1",
+                "table": "`t1`",
                 "field": "f0"
               }
             ],
@@ -2996,7 +2926,7 @@ ORDER BY f2, f0 LIMIT 20	{
         "select#": 1,
         "steps": [
           {
-            "expanded_query": "/* select#1 */ select sql_calc_found_rows `test`.`t1`.`f0` AS `f0`,`test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2` from `test`.`t1` where (`test`.`t1`.`f1` > 10) order by `test`.`t1`.`f2`,`test`.`t1`.`f0` limit 20"
+            "expanded_query": "/* select#1 */ select sql_calc_found_rows `t1`.`f0` AS `f0`,`t1`.`f1` AS `f1`,`t1`.`f2` AS `f2` from `t1` where (`t1`.`f1` > 10) order by `t1`.`f2`,`t1`.`f0` limit 20"
           }
         ]
       }
@@ -3008,19 +2938,19 @@ ORDER BY f2, f0 LIMIT 20	{
           {
             "condition_processing": {
               "condition": "WHERE",
-              "original_condition": "(`test`.`t1`.`f1` > 10)",
+              "original_condition": "(`t1`.`f1` > 10)",
               "steps": [
                 {
                   "transformation": "equality_propagation",
-                  "resulting_condition": "(`test`.`t1`.`f1` > 10)"
+                  "resulting_condition": "(`t1`.`f1` > 10)"
                 },
                 {
                   "transformation": "constant_propagation",
-                  "resulting_condition": "(`test`.`t1`.`f1` > 10)"
+                  "resulting_condition": "(`t1`.`f1` > 10)"
                 },
                 {
                   "transformation": "trivial_condition_removal",
-                  "resulting_condition": "(`test`.`t1`.`f1` > 10)"
+                  "resulting_condition": "(`t1`.`f1` > 10)"
                 }
               ]
             }
@@ -3028,8 +2958,7 @@ ORDER BY f2, f0 LIMIT 20	{
           {
             "table_dependencies": [
               {
-                "database": "test",
-                "table": "t1",
+                "table": "`t1`",
                 "row_may_be_null": false,
                 "map_bit": 0,
                 "depends_on_map_bits": [
@@ -3044,8 +2973,7 @@ ORDER BY f2, f0 LIMIT 20	{
           {
             "rows_estimation": [
               {
-                "database": "test",
-                "table": "t1",
+                "table": "`t1`",
                 "table_scan": {
                   "rows": 100,
                   "cost": 2
@@ -3056,8 +2984,9 @@ ORDER BY f2, f0 LIMIT 20	{
           {
             "considered_execution_plans": [
               {
-                "database": "test",
-                "table": "t1",
+                "plan_prefix": [
+                ],
+                "table": "`t1`",
                 "best_access_path": {
                   "considered_access_paths": [
                     {
@@ -3076,14 +3005,13 @@ ORDER BY f2, f0 LIMIT 20	{
           },
           {
             "attaching_conditions_to_tables": {
-              "original_condition": "(`test`.`t1`.`f1` > 10)",
+              "original_condition": "(`t1`.`f1` > 10)",
               "attached_conditions_computation": [
               ],
               "attached_conditions_summary": [
                 {
-                  "database": "test",
-                  "table": "t1",
-                  "attached": "(`test`.`t1`.`f1` > 10)"
+                  "table": "`t1`",
+                  "attached": "(`t1`.`f1` > 10)"
                 }
               ]
             }
@@ -3091,24 +3019,23 @@ ORDER BY f2, f0 LIMIT 20	{
           {
             "clause_processing": {
               "clause": "ORDER BY",
-              "original_clause": "`test`.`t1`.`f2`,`test`.`t1`.`f0`",
+              "original_clause": "`t1`.`f2`,`t1`.`f0`",
               "items": [
                 {
-                  "item": "`test`.`t1`.`f2`"
+                  "item": "`t1`.`f2`"
                 },
                 {
-                  "item": "`test`.`t1`.`f0`"
+                  "item": "`t1`.`f0`"
                 }
               ],
               "resulting_clause_is_simple": true,
-              "resulting_clause": "`test`.`t1`.`f2`,`test`.`t1`.`f0`"
+              "resulting_clause": "`t1`.`f2`,`t1`.`f0`"
             }
           },
           {
             "refine_plan": [
               {
-                "database": "test",
-                "table": "t1",
+                "table": "`t1`",
                 "access_type": "table_scan"
               }
             ]
@@ -3124,14 +3051,12 @@ ORDER BY f2, f0 LIMIT 20	{
             "filesort_information": [
               {
                 "direction": "asc",
-                "database": "test",
-                "table": "t1",
+                "table": "`t1`",
                 "field": "f2"
               },
               {
                 "direction": "asc",
-                "database": "test",
-                "table": "t1",
+                "table": "`t1`",
                 "field": "f0"
               }
             ],
@@ -3173,7 +3098,7 @@ ORDER BY f2, f0 LIMIT 0	{
         "select#": 1,
         "steps": [
           {
-            "expanded_query": "/* select#1 */ select sql_calc_found_rows `test`.`t1`.`f0` AS `f0`,`test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2` from `test`.`t1` where (`test`.`t1`.`f1` > 10) order by `test`.`t1`.`f2`,`test`.`t1`.`f0` limit 0"
+            "expanded_query": "/* select#1 */ select sql_calc_found_rows `t1`.`f0` AS `f0`,`t1`.`f1` AS `f1`,`t1`.`f2` AS `f2` from `t1` where (`t1`.`f1` > 10) order by `t1`.`f2`,`t1`.`f0` limit 0"
           }
         ]
       }
@@ -3185,19 +3110,19 @@ ORDER BY f2, f0 LIMIT 0	{
           {
             "condition_processing": {
               "condition": "WHERE",
-              "original_condition": "(`test`.`t1`.`f1` > 10)",
+              "original_condition": "(`t1`.`f1` > 10)",
               "steps": [
                 {
                   "transformation": "equality_propagation",
-                  "resulting_condition": "(`test`.`t1`.`f1` > 10)"
+                  "resulting_condition": "(`t1`.`f1` > 10)"
                 },
                 {
                   "transformation": "constant_propagation",
-                  "resulting_condition": "(`test`.`t1`.`f1` > 10)"
+                  "resulting_condition": "(`t1`.`f1` > 10)"
                 },
                 {
                   "transformation": "trivial_condition_removal",
-                  "resulting_condition": "(`test`.`t1`.`f1` > 10)"
+                  "resulting_condition": "(`t1`.`f1` > 10)"
                 }
               ]
             }
@@ -3205,8 +3130,7 @@ ORDER BY f2, f0 LIMIT 0	{
           {
             "table_dependencies": [
               {
-                "database": "test",
-                "table": "t1",
+                "table": "`t1`",
                 "row_may_be_null": false,
                 "map_bit": 0,
                 "depends_on_map_bits": [
@@ -3221,8 +3145,7 @@ ORDER BY f2, f0 LIMIT 0	{
           {
             "rows_estimation": [
               {
-                "database": "test",
-                "table": "t1",
+                "table": "`t1`",
                 "table_scan": {
                   "rows": 100,
                   "cost": 2
@@ -3233,8 +3156,9 @@ ORDER BY f2, f0 LIMIT 0	{
           {
             "considered_execution_plans": [
               {
-                "database": "test",
-                "table": "t1",
+                "plan_prefix": [
+                ],
+                "table": "`t1`",
                 "best_access_path": {
                   "considered_access_paths": [
                     {
@@ -3253,14 +3177,13 @@ ORDER BY f2, f0 LIMIT 0	{
           },
           {
             "attaching_conditions_to_tables": {
-              "original_condition": "(`test`.`t1`.`f1` > 10)",
+              "original_condition": "(`t1`.`f1` > 10)",
               "attached_conditions_computation": [
               ],
               "attached_conditions_summary": [
                 {
-                  "database": "test",
-                  "table": "t1",
-                  "attached": "(`test`.`t1`.`f1` > 10)"
+                  "table": "`t1`",
+                  "attached": "(`t1`.`f1` > 10)"
                 }
               ]
             }
@@ -3268,24 +3191,23 @@ ORDER BY f2, f0 LIMIT 0	{
           {
             "clause_processing": {
               "clause": "ORDER BY",
-              "original_clause": "`test`.`t1`.`f2`,`test`.`t1`.`f0`",
+              "original_clause": "`t1`.`f2`,`t1`.`f0`",
               "items": [
                 {
-                  "item": "`test`.`t1`.`f2`"
+                  "item": "`t1`.`f2`"
                 },
                 {
-                  "item": "`test`.`t1`.`f0`"
+                  "item": "`t1`.`f0`"
                 }
               ],
               "resulting_clause_is_simple": true,
-              "resulting_clause": "`test`.`t1`.`f2`,`test`.`t1`.`f0`"
+              "resulting_clause": "`t1`.`f2`,`t1`.`f0`"
             }
           },
           {
             "refine_plan": [
               {
-                "database": "test",
-                "table": "t1",
+                "table": "`t1`",
                 "access_type": "table_scan"
               }
             ]
@@ -3301,14 +3223,12 @@ ORDER BY f2, f0 LIMIT 0	{
             "filesort_information": [
               {
                 "direction": "asc",
-                "database": "test",
-                "table": "t1",
+                "table": "`t1`",
                 "field": "f2"
               },
               {
                 "direction": "asc",
-                "database": "test",
-                "table": "t1",
+                "table": "`t1`",
                 "field": "f0"
               }
             ],
@@ -3360,7 +3280,7 @@ ORDER BY f2, f0 LIMIT 10 OFFSET 10	{
         "select#": 1,
         "steps": [
           {
-            "expanded_query": "/* select#1 */ select sql_calc_found_rows `test`.`t1`.`f0` AS `f0`,`test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2` from `test`.`t1` where (`test`.`t1`.`f1` > 10) order by `test`.`t1`.`f2`,`test`.`t1`.`f0` limit 10,10"
+            "expanded_query": "/* select#1 */ select sql_calc_found_rows `t1`.`f0` AS `f0`,`t1`.`f1` AS `f1`,`t1`.`f2` AS `f2` from `t1` where (`t1`.`f1` > 10) order by `t1`.`f2`,`t1`.`f0` limit 10,10"
           }
         ]
       }
@@ -3372,19 +3292,19 @@ ORDER BY f2, f0 LIMIT 10 OFFSET 10	{
           {
             "condition_processing": {
               "condition": "WHERE",
-              "original_condition": "(`test`.`t1`.`f1` > 10)",
+              "original_condition": "(`t1`.`f1` > 10)",
               "steps": [
                 {
                   "transformation": "equality_propagation",
-                  "resulting_condition": "(`test`.`t1`.`f1` > 10)"
+                  "resulting_condition": "(`t1`.`f1` > 10)"
                 },
                 {
                   "transformation": "constant_propagation",
-                  "resulting_condition": "(`test`.`t1`.`f1` > 10)"
+                  "resulting_condition": "(`t1`.`f1` > 10)"
                 },
                 {
                   "transformation": "trivial_condition_removal",
-                  "resulting_condition": "(`test`.`t1`.`f1` > 10)"
+                  "resulting_condition": "(`t1`.`f1` > 10)"
                 }
               ]
             }
@@ -3392,8 +3312,7 @@ ORDER BY f2, f0 LIMIT 10 OFFSET 10	{
           {
             "table_dependencies": [
               {
-                "database": "test",
-                "table": "t1",
+                "table": "`t1`",
                 "row_may_be_null": false,
                 "map_bit": 0,
                 "depends_on_map_bits": [
@@ -3408,8 +3327,7 @@ ORDER BY f2, f0 LIMIT 10 OFFSET 10	{
           {
             "rows_estimation": [
               {
-                "database": "test",
-                "table": "t1",
+                "table": "`t1`",
                 "table_scan": {
                   "rows": 100,
                   "cost": 2
@@ -3420,8 +3338,9 @@ ORDER BY f2, f0 LIMIT 10 OFFSET 10	{
           {
             "considered_execution_plans": [
               {
-                "database": "test",
-                "table": "t1",
+                "plan_prefix": [
+                ],
+                "table": "`t1`",
                 "best_access_path": {
                   "considered_access_paths": [
                     {
@@ -3440,14 +3359,13 @@ ORDER BY f2, f0 LIMIT 10 OFFSET 10	{
           },
           {
             "attaching_conditions_to_tables": {
-              "original_condition": "(`test`.`t1`.`f1` > 10)",
+              "original_condition": "(`t1`.`f1` > 10)",
               "attached_conditions_computation": [
               ],
               "attached_conditions_summary": [
                 {
-                  "database": "test",
-                  "table": "t1",
-                  "attached": "(`test`.`t1`.`f1` > 10)"
+                  "table": "`t1`",
+                  "attached": "(`t1`.`f1` > 10)"
                 }
               ]
             }
@@ -3455,24 +3373,23 @@ ORDER BY f2, f0 LIMIT 10 OFFSET 10	{
           {
             "clause_processing": {
               "clause": "ORDER BY",
-              "original_clause": "`test`.`t1`.`f2`,`test`.`t1`.`f0`",
+              "original_clause": "`t1`.`f2`,`t1`.`f0`",
               "items": [
                 {
-                  "item": "`test`.`t1`.`f2`"
+                  "item": "`t1`.`f2`"
                 },
                 {
-                  "item": "`test`.`t1`.`f0`"
+                  "item": "`t1`.`f0`"
                 }
               ],
               "resulting_clause_is_simple": true,
-              "resulting_clause": "`test`.`t1`.`f2`,`test`.`t1`.`f0`"
+              "resulting_clause": "`t1`.`f2`,`t1`.`f0`"
             }
           },
           {
             "refine_plan": [
               {
-                "database": "test",
-                "table": "t1",
+                "table": "`t1`",
                 "access_type": "table_scan"
               }
             ]
@@ -3488,14 +3405,12 @@ ORDER BY f2, f0 LIMIT 10 OFFSET 10	{
             "filesort_information": [
               {
                 "direction": "asc",
-                "database": "test",
-                "table": "t1",
+                "table": "`t1`",
                 "field": "f2"
               },
               {
                 "direction": "asc",
-                "database": "test",
-                "table": "t1",
+                "table": "`t1`",
                 "field": "f0"
               }
             ],
@@ -3537,7 +3452,7 @@ ORDER BY f2, f0 LIMIT 0 OFFSET 10	{
         "select#": 1,
         "steps": [
           {
-            "expanded_query": "/* select#1 */ select sql_calc_found_rows `test`.`t1`.`f0` AS `f0`,`test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2` from `test`.`t1` where (`test`.`t1`.`f1` > 10) order by `test`.`t1`.`f2`,`test`.`t1`.`f0` limit 10,0"
+            "expanded_query": "/* select#1 */ select sql_calc_found_rows `t1`.`f0` AS `f0`,`t1`.`f1` AS `f1`,`t1`.`f2` AS `f2` from `t1` where (`t1`.`f1` > 10) order by `t1`.`f2`,`t1`.`f0` limit 10,0"
           }
         ]
       }
@@ -3549,19 +3464,19 @@ ORDER BY f2, f0 LIMIT 0 OFFSET 10	{
           {
             "condition_processing": {
               "condition": "WHERE",
-              "original_condition": "(`test`.`t1`.`f1` > 10)",
+              "original_condition": "(`t1`.`f1` > 10)",
               "steps": [
                 {
                   "transformation": "equality_propagation",
-                  "resulting_condition": "(`test`.`t1`.`f1` > 10)"
+                  "resulting_condition": "(`t1`.`f1` > 10)"
                 },
                 {
                   "transformation": "constant_propagation",
-                  "resulting_condition": "(`test`.`t1`.`f1` > 10)"
+                  "resulting_condition": "(`t1`.`f1` > 10)"
                 },
                 {
                   "transformation": "trivial_condition_removal",
-                  "resulting_condition": "(`test`.`t1`.`f1` > 10)"
+                  "resulting_condition": "(`t1`.`f1` > 10)"
                 }
               ]
             }
@@ -3569,8 +3484,7 @@ ORDER BY f2, f0 LIMIT 0 OFFSET 10	{
           {
             "table_dependencies": [
               {
-                "database": "test",
-                "table": "t1",
+                "table": "`t1`",
                 "row_may_be_null": false,
                 "map_bit": 0,
                 "depends_on_map_bits": [
@@ -3585,8 +3499,7 @@ ORDER BY f2, f0 LIMIT 0 OFFSET 10	{
           {
             "rows_estimation": [
               {
-                "database": "test",
-                "table": "t1",
+                "table": "`t1`",
                 "table_scan": {
                   "rows": 100,
                   "cost": 2
@@ -3597,8 +3510,9 @@ ORDER BY f2, f0 LIMIT 0 OFFSET 10	{
           {
             "considered_execution_plans": [
               {
-                "database": "test",
-                "table": "t1",
+                "plan_prefix": [
+                ],
+                "table": "`t1`",
                 "best_access_path": {
                   "considered_access_paths": [
                     {
@@ -3617,14 +3531,13 @@ ORDER BY f2, f0 LIMIT 0 OFFSET 10	{
           },
           {
             "attaching_conditions_to_tables": {
-              "original_condition": "(`test`.`t1`.`f1` > 10)",
+              "original_condition": "(`t1`.`f1` > 10)",
               "attached_conditions_computation": [
               ],
               "attached_conditions_summary": [
                 {
-                  "database": "test",
-                  "table": "t1",
-                  "attached": "(`test`.`t1`.`f1` > 10)"
+                  "table": "`t1`",
+                  "attached": "(`t1`.`f1` > 10)"
                 }
               ]
             }
@@ -3632,24 +3545,23 @@ ORDER BY f2, f0 LIMIT 0 OFFSET 10	{
           {
             "clause_processing": {
               "clause": "ORDER BY",
-              "original_clause": "`test`.`t1`.`f2`,`test`.`t1`.`f0`",
+              "original_clause": "`t1`.`f2`,`t1`.`f0`",
               "items": [
                 {
-                  "item": "`test`.`t1`.`f2`"
+                  "item": "`t1`.`f2`"
                 },
                 {
-                  "item": "`test`.`t1`.`f0`"
+                  "item": "`t1`.`f0`"
                 }
               ],
               "resulting_clause_is_simple": true,
-              "resulting_clause": "`test`.`t1`.`f2`,`test`.`t1`.`f0`"
+              "resulting_clause": "`t1`.`f2`,`t1`.`f0`"
             }
           },
           {
             "refine_plan": [
               {
-                "database": "test",
-                "table": "t1",
+                "table": "`t1`",
                 "access_type": "table_scan"
               }
             ]
@@ -3665,14 +3577,12 @@ ORDER BY f2, f0 LIMIT 0 OFFSET 10	{
             "filesort_information": [
               {
                 "direction": "asc",
-                "database": "test",
-                "table": "t1",
+                "table": "`t1`",
                 "field": "f2"
               },
               {
                 "direction": "asc",
-                "database": "test",
-                "table": "t1",
+                "table": "`t1`",
                 "field": "f0"
               }
             ],
@@ -3749,7 +3659,7 @@ ORDER BY tmp.f1, f0 LIMIT 30	{
         "select#": 1,
         "steps": [
           {
-            "expanded_query": "/* select#1 */ select `test`.`t1`.`f0` AS `f0`,`test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2`,`test`.`tmp`.`f1` AS `f1`,`test`.`tmp`.`f2` AS `f2` from (`test`.`t1` join `test`.`tmp` on((`test`.`t1`.`f2` = `test`.`tmp`.`f2`))) order by `test`.`tmp`.`f1`,`test`.`t1`.`f0` limit 30"
+            "expanded_query": "/* select#1 */ select `t1`.`f0` AS `f0`,`t1`.`f1` AS `f1`,`t1`.`f2` AS `f2`,`tmp`.`f1` AS `f1`,`tmp`.`f2` AS `f2` from (`t1` join `tmp` on((`t1`.`f2` = `tmp`.`f2`))) order by `tmp`.`f1`,`t1`.`f0` limit 30"
           }
         ]
       }
@@ -3764,25 +3674,25 @@ ORDER BY tmp.f1, f0 LIMIT 30	{
                 "JOIN_condition_to_WHERE",
                 "parenthesis_removal"
               ],
-              "expanded_query": "/* select#1 */ select `test`.`t1`.`f0` AS `f0`,`test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2`,`test`.`tmp`.`f1` AS `f1`,`test`.`tmp`.`f2` AS `f2` from `test`.`t1` join `test`.`tmp` where (`test`.`t1`.`f2` = `test`.`tmp`.`f2`) order by `test`.`tmp`.`f1`,`test`.`t1`.`f0` limit 30"
+              "expanded_query": "/* select#1 */ select `t1`.`f0` AS `f0`,`t1`.`f1` AS `f1`,`t1`.`f2` AS `f2`,`tmp`.`f1` AS `f1`,`tmp`.`f2` AS `f2` from `t1` join `tmp` where (`t1`.`f2` = `tmp`.`f2`) order by `tmp`.`f1`,`t1`.`f0` limit 30"
             }
           },
           {
             "condition_processing": {
               "condition": "WHERE",
-              "original_condition": "(`test`.`t1`.`f2` = `test`.`tmp`.`f2`)",
+              "original_condition": "(`t1`.`f2` = `tmp`.`f2`)",
               "steps": [
                 {
                   "transformation": "equality_propagation",
-                  "resulting_condition": "(`test`.`t1`.`f2` = `test`.`tmp`.`f2`)"
+                  "resulting_condition": "(`t1`.`f2` = `tmp`.`f2`)"
                 },
                 {
                   "transformation": "constant_propagation",
-                  "resulting_condition": "(`test`.`t1`.`f2` = `test`.`tmp`.`f2`)"
+                  "resulting_condition": "(`t1`.`f2` = `tmp`.`f2`)"
                 },
                 {
                   "transformation": "trivial_condition_removal",
-                  "resulting_condition": "(`test`.`t1`.`f2` = `test`.`tmp`.`f2`)"
+                  "resulting_condition": "(`t1`.`f2` = `tmp`.`f2`)"
                 }
               ]
             }
@@ -3790,16 +3700,14 @@ ORDER BY tmp.f1, f0 LIMIT 30	{
           {
             "table_dependencies": [
               {
-                "database": "test",
-                "table": "t1",
+                "table": "`t1`",
                 "row_may_be_null": false,
                 "map_bit": 0,
                 "depends_on_map_bits": [
                 ]
               },
               {
-                "database": "test",
-                "table": "tmp",
+                "table": "`tmp`",
                 "row_may_be_null": false,
                 "map_bit": 1,
                 "depends_on_map_bits": [
@@ -3814,16 +3722,14 @@ ORDER BY tmp.f1, f0 LIMIT 30	{
           {
             "rows_estimation": [
               {
-                "database": "test",
-                "table": "t1",
+                "table": "`t1`",
                 "table_scan": {
                   "rows": 500,
                   "cost": 4
                 }
               },
               {
-                "database": "test",
-                "table": "tmp",
+                "table": "`tmp`",
                 "table_scan": {
                   "rows": 300,
                   "cost": 3
@@ -3834,8 +3740,9 @@ ORDER BY tmp.f1, f0 LIMIT 30	{
           {
             "considered_execution_plans": [
               {
-                "database": "test",
-                "table": "tmp",
+                "plan_prefix": [
+                ],
+                "table": "`tmp`",
                 "best_access_path": {
                   "considered_access_paths": [
                     {
@@ -3850,8 +3757,10 @@ ORDER BY tmp.f1, f0 LIMIT 30	{
                 "rows_for_plan": 300,
                 "rest_of_plan": [
                   {
-                    "database": "test",
-                    "table": "t1",
+                    "plan_prefix": [
+                      "`tmp`"
+                    ],
+                    "table": "`t1`",
                     "best_access_path": {
                       "considered_access_paths": [
                         {
@@ -3870,8 +3779,9 @@ ORDER BY tmp.f1, f0 LIMIT 30	{
                 ]
               },
               {
-                "database": "test",
-                "table": "t1",
+                "plan_prefix": [
+                ],
+                "table": "`t1`",
                 "best_access_path": {
                   "considered_access_paths": [
                     {
@@ -3890,19 +3800,17 @@ ORDER BY tmp.f1, f0 LIMIT 30	{
           },
           {
             "attaching_conditions_to_tables": {
-              "original_condition": "(`test`.`t1`.`f2` = `test`.`tmp`.`f2`)",
+              "original_condition": "(`t1`.`f2` = `tmp`.`f2`)",
               "attached_conditions_computation": [
               ],
               "attached_conditions_summary": [
                 {
-                  "database": "test",
-                  "table": "tmp",
+                  "table": "`tmp`",
                   "attached": null
                 },
                 {
-                  "database": "test",
-                  "table": "t1",
-                  "attached": "(`test`.`t1`.`f2` = `test`.`tmp`.`f2`)"
+                  "table": "`t1`",
+                  "attached": "(`t1`.`f2` = `tmp`.`f2`)"
                 }
               ]
             }
@@ -3910,29 +3818,27 @@ ORDER BY tmp.f1, f0 LIMIT 30	{
           {
             "clause_processing": {
               "clause": "ORDER BY",
-              "original_clause": "`test`.`tmp`.`f1`,`test`.`t1`.`f0`",
+              "original_clause": "`tmp`.`f1`,`t1`.`f0`",
               "items": [
                 {
-                  "item": "`test`.`tmp`.`f1`"
+                  "item": "`tmp`.`f1`"
                 },
                 {
-                  "item": "`test`.`t1`.`f0`"
+                  "item": "`t1`.`f0`"
                 }
               ],
               "resulting_clause_is_simple": false,
-              "resulting_clause": "`test`.`tmp`.`f1`,`test`.`t1`.`f0`"
+              "resulting_clause": "`tmp`.`f1`,`t1`.`f0`"
             }
           },
           {
             "refine_plan": [
               {
-                "database": "test",
-                "table": "tmp",
+                "table": "`tmp`",
                 "access_type": "table_scan"
               },
               {
-                "database": "test",
-                "table": "t1",
+                "table": "`t1`",
                 "access_type": "table_scan"
               }
             ]
@@ -4034,7 +3940,7 @@ ORDER BY tmp.f1, f0 LIMIT 30 OFFSET 30	{
         "select#": 1,
         "steps": [
           {
-            "expanded_query": "/* select#1 */ select `test`.`t1`.`f0` AS `f0`,`test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2`,`test`.`tmp`.`f1` AS `f1`,`test`.`tmp`.`f2` AS `f2` from (`test`.`t1` join `test`.`tmp` on((`test`.`t1`.`f2` = `test`.`tmp`.`f2`))) order by `test`.`tmp`.`f1`,`test`.`t1`.`f0` limit 30,30"
+            "expanded_query": "/* select#1 */ select `t1`.`f0` AS `f0`,`t1`.`f1` AS `f1`,`t1`.`f2` AS `f2`,`tmp`.`f1` AS `f1`,`tmp`.`f2` AS `f2` from (`t1` join `tmp` on((`t1`.`f2` = `tmp`.`f2`))) order by `tmp`.`f1`,`t1`.`f0` limit 30,30"
           }
         ]
       }
@@ -4049,25 +3955,25 @@ ORDER BY tmp.f1, f0 LIMIT 30 OFFSET 30	{
                 "JOIN_condition_to_WHERE",
                 "parenthesis_removal"
               ],
-              "expanded_query": "/* select#1 */ select `test`.`t1`.`f0` AS `f0`,`test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2`,`test`.`tmp`.`f1` AS `f1`,`test`.`tmp`.`f2` AS `f2` from `test`.`t1` join `test`.`tmp` where (`test`.`t1`.`f2` = `test`.`tmp`.`f2`) order by `test`.`tmp`.`f1`,`test`.`t1`.`f0` limit 30,30"
+              "expanded_query": "/* select#1 */ select `t1`.`f0` AS `f0`,`t1`.`f1` AS `f1`,`t1`.`f2` AS `f2`,`tmp`.`f1` AS `f1`,`tmp`.`f2` AS `f2` from `t1` join `tmp` where (`t1`.`f2` = `tmp`.`f2`) order by `tmp`.`f1`,`t1`.`f0` limit 30,30"
             }
           },
           {
             "condition_processing": {
               "condition": "WHERE",
-              "original_condition": "(`test`.`t1`.`f2` = `test`.`tmp`.`f2`)",
+              "original_condition": "(`t1`.`f2` = `tmp`.`f2`)",
               "steps": [
                 {
                   "transformation": "equality_propagation",
-                  "resulting_condition": "(`test`.`t1`.`f2` = `test`.`tmp`.`f2`)"
+                  "resulting_condition": "(`t1`.`f2` = `tmp`.`f2`)"
                 },
                 {
                   "transformation": "constant_propagation",
-                  "resulting_condition": "(`test`.`t1`.`f2` = `test`.`tmp`.`f2`)"
+                  "resulting_condition": "(`t1`.`f2` = `tmp`.`f2`)"
                 },
                 {
                   "transformation": "trivial_condition_removal",
-                  "resulting_condition": "(`test`.`t1`.`f2` = `test`.`tmp`.`f2`)"
+                  "resulting_condition": "(`t1`.`f2` = `tmp`.`f2`)"
                 }
               ]
             }
@@ -4075,16 +3981,14 @@ ORDER BY tmp.f1, f0 LIMIT 30 OFFSET 30	{
           {
             "table_dependencies": [
               {
-                "database": "test",
-                "table": "t1",
+                "table": "`t1`",
                 "row_may_be_null": false,
                 "map_bit": 0,
                 "depends_on_map_bits": [
                 ]
               },
               {
-                "database": "test",
-                "table": "tmp",
+                "table": "`tmp`",
                 "row_may_be_null": false,
                 "map_bit": 1,
                 "depends_on_map_bits": [
@@ -4099,16 +4003,14 @@ ORDER BY tmp.f1, f0 LIMIT 30 OFFSET 30	{
           {
             "rows_estimation": [
               {
-                "database": "test",
-                "table": "t1",
+                "table": "`t1`",
                 "table_scan": {
                   "rows": 500,
                   "cost": 4
                 }
               },
               {
-                "database": "test",
-                "table": "tmp",
+                "table": "`tmp`",
                 "table_scan": {
                   "rows": 300,
                   "cost": 3
@@ -4119,8 +4021,9 @@ ORDER BY tmp.f1, f0 LIMIT 30 OFFSET 30	{
           {
             "considered_execution_plans": [
               {
-                "database": "test",
-                "table": "tmp",
+                "plan_prefix": [
+                ],
+                "table": "`tmp`",
                 "best_access_path": {
                   "considered_access_paths": [
                     {
@@ -4135,8 +4038,10 @@ ORDER BY tmp.f1, f0 LIMIT 30 OFFSET 30	{
                 "rows_for_plan": 300,
                 "rest_of_plan": [
                   {
-                    "database": "test",
-                    "table": "t1",
+                    "plan_prefix": [
+                      "`tmp`"
+                    ],
+                    "table": "`t1`",
                     "best_access_path": {
                       "considered_access_paths": [
                         {
@@ -4155,8 +4060,9 @@ ORDER BY tmp.f1, f0 LIMIT 30 OFFSET 30	{
                 ]
               },
               {
-                "database": "test",
-                "table": "t1",
+                "plan_prefix": [
+                ],
+                "table": "`t1`",
                 "best_access_path": {
                   "considered_access_paths": [
                     {
@@ -4175,19 +4081,17 @@ ORDER BY tmp.f1, f0 LIMIT 30 OFFSET 30	{
           },
           {
             "attaching_conditions_to_tables": {
-              "original_condition": "(`test`.`t1`.`f2` = `test`.`tmp`.`f2`)",
+              "original_condition": "(`t1`.`f2` = `tmp`.`f2`)",
               "attached_conditions_computation": [
               ],
               "attached_conditions_summary": [
                 {
-                  "database": "test",
-                  "table": "tmp",
+                  "table": "`tmp`",
                   "attached": null
                 },
                 {
-                  "database": "test",
-                  "table": "t1",
-                  "attached": "(`test`.`t1`.`f2` = `test`.`tmp`.`f2`)"
+                  "table": "`t1`",
+                  "attached": "(`t1`.`f2` = `tmp`.`f2`)"
                 }
               ]
             }
@@ -4195,29 +4099,27 @@ ORDER BY tmp.f1, f0 LIMIT 30 OFFSET 30	{
           {
             "clause_processing": {
               "clause": "ORDER BY",
-              "original_clause": "`test`.`tmp`.`f1`,`test`.`t1`.`f0`",
+              "original_clause": "`tmp`.`f1`,`t1`.`f0`",
               "items": [
                 {
-                  "item": "`test`.`tmp`.`f1`"
+                  "item": "`tmp`.`f1`"
                 },
                 {
-                  "item": "`test`.`t1`.`f0`"
+                  "item": "`t1`.`f0`"
                 }
               ],
               "resulting_clause_is_simple": false,
-              "resulting_clause": "`test`.`tmp`.`f1`,`test`.`t1`.`f0`"
+              "resulting_clause": "`tmp`.`f1`,`t1`.`f0`"
             }
           },
           {
             "refine_plan": [
               {
-                "database": "test",
-                "table": "tmp",
+                "table": "`tmp`",
                 "access_type": "table_scan"
               },
               {
-                "database": "test",
-                "table": "t1",
+                "table": "`t1`",
                 "access_type": "table_scan"
               }
             ]
@@ -4324,7 +4226,7 @@ ORDER BY tmp.f1, f0 LIMIT 30 OFFSET 30	{
         "select#": 1,
         "steps": [
           {
-            "expanded_query": "/* select#1 */ select sql_calc_found_rows `test`.`t1`.`f0` AS `f0`,`test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2`,`test`.`tmp`.`f1` AS `f1`,`test`.`tmp`.`f2` AS `f2` from (`test`.`t1` join `test`.`tmp` on((`test`.`t1`.`f2` = `test`.`tmp`.`f2`))) order by `test`.`tmp`.`f1`,`test`.`t1`.`f0` limit 30,30"
+            "expanded_query": "/* select#1 */ select sql_calc_found_rows `t1`.`f0` AS `f0`,`t1`.`f1` AS `f1`,`t1`.`f2` AS `f2`,`tmp`.`f1` AS `f1`,`tmp`.`f2` AS `f2` from (`t1` join `tmp` on((`t1`.`f2` = `tmp`.`f2`))) order by `tmp`.`f1`,`t1`.`f0` limit 30,30"
           }
         ]
       }
@@ -4339,25 +4241,25 @@ ORDER BY tmp.f1, f0 LIMIT 30 OFFSET 30	{
                 "JOIN_condition_to_WHERE",
                 "parenthesis_removal"
               ],
-              "expanded_query": "/* select#1 */ select sql_calc_found_rows `test`.`t1`.`f0` AS `f0`,`test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2`,`test`.`tmp`.`f1` AS `f1`,`test`.`tmp`.`f2` AS `f2` from `test`.`t1` join `test`.`tmp` where (`test`.`t1`.`f2` = `test`.`tmp`.`f2`) order by `test`.`tmp`.`f1`,`test`.`t1`.`f0` limit 30,30"
+              "expanded_query": "/* select#1 */ select sql_calc_found_rows `t1`.`f0` AS `f0`,`t1`.`f1` AS `f1`,`t1`.`f2` AS `f2`,`tmp`.`f1` AS `f1`,`tmp`.`f2` AS `f2` from `t1` join `tmp` where (`t1`.`f2` = `tmp`.`f2`) order by `tmp`.`f1`,`t1`.`f0` limit 30,30"
             }
           },
           {
             "condition_processing": {
               "condition": "WHERE",
-              "original_condition": "(`test`.`t1`.`f2` = `test`.`tmp`.`f2`)",
+              "original_condition": "(`t1`.`f2` = `tmp`.`f2`)",
               "steps": [
                 {
                   "transformation": "equality_propagation",
-                  "resulting_condition": "(`test`.`t1`.`f2` = `test`.`tmp`.`f2`)"
+                  "resulting_condition": "(`t1`.`f2` = `tmp`.`f2`)"
                 },
                 {
                   "transformation": "constant_propagation",
-                  "resulting_condition": "(`test`.`t1`.`f2` = `test`.`tmp`.`f2`)"
+                  "resulting_condition": "(`t1`.`f2` = `tmp`.`f2`)"
                 },
                 {
                   "transformation": "trivial_condition_removal",
-                  "resulting_condition": "(`test`.`t1`.`f2` = `test`.`tmp`.`f2`)"
+                  "resulting_condition": "(`t1`.`f2` = `tmp`.`f2`)"
                 }
               ]
             }
@@ -4365,16 +4267,14 @@ ORDER BY tmp.f1, f0 LIMIT 30 OFFSET 30	{
           {
             "table_dependencies": [
               {
-                "database": "test",
-                "table": "t1",
+                "table": "`t1`",
                 "row_may_be_null": false,
                 "map_bit": 0,
                 "depends_on_map_bits": [
                 ]
               },
               {
-                "database": "test",
-                "table": "tmp",
+                "table": "`tmp`",
                 "row_may_be_null": false,
                 "map_bit": 1,
                 "depends_on_map_bits": [
@@ -4389,16 +4289,14 @@ ORDER BY tmp.f1, f0 LIMIT 30 OFFSET 30	{
           {
             "rows_estimation": [
               {
-                "database": "test",
-                "table": "t1",
+                "table": "`t1`",
                 "table_scan": {
                   "rows": 500,
                   "cost": 4
                 }
               },
               {
-                "database": "test",
-                "table": "tmp",
+                "table": "`tmp`",
                 "table_scan": {
                   "rows": 300,
                   "cost": 3
@@ -4409,8 +4307,9 @@ ORDER BY tmp.f1, f0 LIMIT 30 OFFSET 30	{
           {
             "considered_execution_plans": [
               {
-                "database": "test",
-                "table": "tmp",
+                "plan_prefix": [
+                ],
+                "table": "`tmp`",
                 "best_access_path": {
                   "considered_access_paths": [
                     {
@@ -4425,8 +4324,10 @@ ORDER BY tmp.f1, f0 LIMIT 30 OFFSET 30	{
                 "rows_for_plan": 300,
                 "rest_of_plan": [
                   {
-                    "database": "test",
-                    "table": "t1",
+                    "plan_prefix": [
+                      "`tmp`"
+                    ],
+                    "table": "`t1`",
                     "best_access_path": {
                       "considered_access_paths": [
                         {
@@ -4445,8 +4346,9 @@ ORDER BY tmp.f1, f0 LIMIT 30 OFFSET 30	{
                 ]
               },
               {
-                "database": "test",
-                "table": "t1",
+                "plan_prefix": [
+                ],
+                "table": "`t1`",
                 "best_access_path": {
                   "considered_access_paths": [
                     {
@@ -4465,19 +4367,17 @@ ORDER BY tmp.f1, f0 LIMIT 30 OFFSET 30	{
           },
           {
             "attaching_conditions_to_tables": {
-              "original_condition": "(`test`.`t1`.`f2` = `test`.`tmp`.`f2`)",
+              "original_condition": "(`t1`.`f2` = `tmp`.`f2`)",
               "attached_conditions_computation": [
               ],
               "attached_conditions_summary": [
                 {
-                  "database": "test",
-                  "table": "tmp",
+                  "table": "`tmp`",
                   "attached": null
                 },
                 {
-                  "database": "test",
-                  "table": "t1",
-                  "attached": "(`test`.`t1`.`f2` = `test`.`tmp`.`f2`)"
+                  "table": "`t1`",
+                  "attached": "(`t1`.`f2` = `tmp`.`f2`)"
                 }
               ]
             }
@@ -4485,29 +4385,27 @@ ORDER BY tmp.f1, f0 LIMIT 30 OFFSET 30	{
           {
             "clause_processing": {
               "clause": "ORDER BY",
-              "original_clause": "`test`.`tmp`.`f1`,`test`.`t1`.`f0`",
+              "original_clause": "`tmp`.`f1`,`t1`.`f0`",
               "items": [
                 {
-                  "item": "`test`.`tmp`.`f1`"
+                  "item": "`tmp`.`f1`"
                 },
                 {
-                  "item": "`test`.`t1`.`f0`"
+                  "item": "`t1`.`f0`"
                 }
               ],
               "resulting_clause_is_simple": false,
-              "resulting_clause": "`test`.`tmp`.`f1`,`test`.`t1`.`f0`"
+              "resulting_clause": "`tmp`.`f1`,`t1`.`f0`"
             }
           },
           {
             "refine_plan": [
               {
-                "database": "test",
-                "table": "tmp",
+                "table": "`tmp`",
                 "access_type": "table_scan"
               },
               {
-                "database": "test",
-                "table": "t1",
+                "table": "`t1`",
                 "access_type": "table_scan"
               }
             ]
@@ -4642,7 +4540,7 @@ ORDER BY tmp.f1, f0 LIMIT 30 OFFSET 30	{
         "select#": 1,
         "steps": [
           {
-            "expanded_query": "/* select#1 */ select sql_calc_found_rows `test`.`t1`.`f0` AS `f0`,`test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2`,`test`.`tmp`.`f1` AS `f1`,`test`.`tmp`.`f2` AS `f2` from (`test`.`t1` join `test`.`tmp` on((`test`.`t1`.`f2` = `test`.`tmp`.`f2`))) where (`test`.`t1`.`f2` > 20) order by `test`.`tmp`.`f1`,`test`.`t1`.`f0` limit 30,30"
+            "expanded_query": "/* select#1 */ select sql_calc_found_rows `t1`.`f0` AS `f0`,`t1`.`f1` AS `f1`,`t1`.`f2` AS `f2`,`tmp`.`f1` AS `f1`,`tmp`.`f2` AS `f2` from (`t1` join `tmp` on((`t1`.`f2` = `tmp`.`f2`))) where (`t1`.`f2` > 20) order by `tmp`.`f1`,`t1`.`f0` limit 30,30"
           }
         ]
       }
@@ -4657,25 +4555,25 @@ ORDER BY tmp.f1, f0 LIMIT 30 OFFSET 30	{
                 "JOIN_condition_to_WHERE",
                 "parenthesis_removal"
               ],
-              "expanded_query": "/* select#1 */ select sql_calc_found_rows `test`.`t1`.`f0` AS `f0`,`test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2`,`test`.`tmp`.`f1` AS `f1`,`test`.`tmp`.`f2` AS `f2` from `test`.`t1` join `test`.`tmp` where ((`test`.`t1`.`f2` > 20) and (`test`.`t1`.`f2` = `test`.`tmp`.`f2`)) order by `test`.`tmp`.`f1`,`test`.`t1`.`f0` limit 30,30"
+              "expanded_query": "/* select#1 */ select sql_calc_found_rows `t1`.`f0` AS `f0`,`t1`.`f1` AS `f1`,`t1`.`f2` AS `f2`,`tmp`.`f1` AS `f1`,`tmp`.`f2` AS `f2` from `t1` join `tmp` where ((`t1`.`f2` > 20) and (`t1`.`f2` = `tmp`.`f2`)) order by `tmp`.`f1`,`t1`.`f0` limit 30,30"
             }
           },
           {
             "condition_processing": {
               "condition": "WHERE",
-              "original_condition": "((`test`.`t1`.`f2` > 20) and (`test`.`t1`.`f2` = `test`.`tmp`.`f2`))",
+              "original_condition": "((`t1`.`f2` > 20) and (`t1`.`f2` = `tmp`.`f2`))",
               "steps": [
                 {
                   "transformation": "equality_propagation",
-                  "resulting_condition": "((`test`.`t1`.`f2` > 20) and (`test`.`t1`.`f2` = `test`.`tmp`.`f2`))"
+                  "resulting_condition": "((`t1`.`f2` > 20) and (`t1`.`f2` = `tmp`.`f2`))"
                 },
                 {
                   "transformation": "constant_propagation",
-                  "resulting_condition": "((`test`.`t1`.`f2` > 20) and (`test`.`t1`.`f2` = `test`.`tmp`.`f2`))"
+                  "resulting_condition": "((`t1`.`f2` > 20) and (`t1`.`f2` = `tmp`.`f2`))"
                 },
                 {
                   "transformation": "trivial_condition_removal",
-                  "resulting_condition": "((`test`.`t1`.`f2` > 20) and (`test`.`t1`.`f2` = `test`.`tmp`.`f2`))"
+                  "resulting_condition": "((`t1`.`f2` > 20) and (`t1`.`f2` = `tmp`.`f2`))"
                 }
               ]
             }
@@ -4683,16 +4581,14 @@ ORDER BY tmp.f1, f0 LIMIT 30 OFFSET 30	{
           {
             "table_dependencies": [
               {
-                "database": "test",
-                "table": "t1",
+                "table": "`t1`",
                 "row_may_be_null": false,
                 "map_bit": 0,
                 "depends_on_map_bits": [
                 ]
               },
               {
-                "database": "test",
-                "table": "tmp",
+                "table": "`tmp`",
                 "row_may_be_null": false,
                 "map_bit": 1,
                 "depends_on_map_bits": [
@@ -4707,16 +4603,14 @@ ORDER BY tmp.f1, f0 LIMIT 30 OFFSET 30	{
           {
             "rows_estimation": [
               {
-                "database": "test",
-                "table": "t1",
+                "table": "`t1`",
                 "table_scan": {
                   "rows": 500,
                   "cost": 4
                 }
               },
               {
-                "database": "test",
-                "table": "tmp",
+                "table": "`tmp`",
                 "table_scan": {
                   "rows": 300,
                   "cost": 3
@@ -4727,8 +4621,9 @@ ORDER BY tmp.f1, f0 LIMIT 30 OFFSET 30	{
           {
             "considered_execution_plans": [
               {
-                "database": "test",
-                "table": "tmp",
+                "plan_prefix": [
+                ],
+                "table": "`tmp`",
                 "best_access_path": {
                   "considered_access_paths": [
                     {
@@ -4743,8 +4638,10 @@ ORDER BY tmp.f1, f0 LIMIT 30 OFFSET 30	{
                 "rows_for_plan": 300,
                 "rest_of_plan": [
                   {
-                    "database": "test",
-                    "table": "t1",
+                    "plan_prefix": [
+                      "`tmp`"
+                    ],
+                    "table": "`t1`",
                     "best_access_path": {
                       "considered_access_paths": [
                         {
@@ -4763,8 +4660,9 @@ ORDER BY tmp.f1, f0 LIMIT 30 OFFSET 30	{
                 ]
               },
               {
-                "database": "test",
-                "table": "t1",
+                "plan_prefix": [
+                ],
+                "table": "`t1`",
                 "best_access_path": {
                   "considered_access_paths": [
                     {
@@ -4783,19 +4681,17 @@ ORDER BY tmp.f1, f0 LIMIT 30 OFFSET 30	{
           },
           {
             "attaching_conditions_to_tables": {
-              "original_condition": "((`test`.`t1`.`f2` > 20) and (`test`.`t1`.`f2` = `test`.`tmp`.`f2`))",
+              "original_condition": "((`t1`.`f2` > 20) and (`t1`.`f2` = `tmp`.`f2`))",
               "attached_conditions_computation": [
               ],
               "attached_conditions_summary": [
                 {
-                  "database": "test",
-                  "table": "tmp",
+                  "table": "`tmp`",
                   "attached": null
                 },
                 {
-                  "database": "test",
-                  "table": "t1",
-                  "attached": "((`test`.`t1`.`f2` > 20) and (`test`.`t1`.`f2` = `test`.`tmp`.`f2`))"
+                  "table": "`t1`",
+                  "attached": "((`t1`.`f2` > 20) and (`t1`.`f2` = `tmp`.`f2`))"
                 }
               ]
             }
@@ -4803,29 +4699,27 @@ ORDER BY tmp.f1, f0 LIMIT 30 OFFSET 30	{
           {
             "clause_processing": {
               "clause": "ORDER BY",
-              "original_clause": "`test`.`tmp`.`f1`,`test`.`t1`.`f0`",
+              "original_clause": "`tmp`.`f1`,`t1`.`f0`",
               "items": [
                 {
-                  "item": "`test`.`tmp`.`f1`"
+                  "item": "`tmp`.`f1`"
                 },
                 {
-                  "item": "`test`.`t1`.`f0`"
+                  "item": "`t1`.`f0`"
                 }
               ],
               "resulting_clause_is_simple": false,
-              "resulting_clause": "`test`.`tmp`.`f1`,`test`.`t1`.`f0`"
+              "resulting_clause": "`tmp`.`f1`,`t1`.`f0`"
             }
           },
           {
             "refine_plan": [
               {
-                "database": "test",
-                "table": "tmp",
+                "table": "`tmp`",
                 "access_type": "table_scan"
               },
               {
-                "database": "test",
-                "table": "t1",
+                "table": "`t1`",
                 "access_type": "table_scan"
               }
             ]
@@ -4966,7 +4860,7 @@ SELECT * FROM v1	{
         "select#": 2,
         "steps": [
           {
-            "expanded_query": "/* select#2 */ select `test`.`t1`.`f0` AS `f0`,`test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2` from `test`.`t1` order by `test`.`t1`.`f1`,`test`.`t1`.`f0` limit 30"
+            "expanded_query": "/* select#2 */ select `t1`.`f0` AS `f0`,`t1`.`f1` AS `f1`,`t1`.`f2` AS `f2` from `t1` order by `t1`.`f1`,`t1`.`f0` limit 30"
           }
         ]
       }
@@ -4976,7 +4870,7 @@ SELECT * FROM v1	{
         "select#": 1,
         "steps": [
           {
-            "expanded_query": "/* select#1 */ select `v1`.`f0` AS `f0`,`v1`.`f1` AS `f1`,`v1`.`f2` AS `f2` from `test`.`v1`"
+            "expanded_query": "/* select#1 */ select `v1`.`f0` AS `f0`,`v1`.`f1` AS `f1`,`v1`.`f2` AS `f2` from `v1`"
           }
         ]
       }
@@ -4992,8 +4886,7 @@ SELECT * FROM v1	{
                 {
                   "table_dependencies": [
                     {
-                      "database": "test",
-                      "table": "t1",
+                      "table": "`t1`",
                       "row_may_be_null": false,
                       "map_bit": 0,
                       "depends_on_map_bits": [
@@ -5004,8 +4897,7 @@ SELECT * FROM v1	{
                 {
                   "rows_estimation": [
                     {
-                      "database": "test",
-                      "table": "t1",
+                      "table": "`t1`",
                       "table_scan": {
                         "rows": 500,
                         "cost": 4
@@ -5016,8 +4908,9 @@ SELECT * FROM v1	{
                 {
                   "considered_execution_plans": [
                     {
-                      "database": "test",
-                      "table": "t1",
+                      "plan_prefix": [
+                      ],
+                      "table": "`t1`",
                       "best_access_path": {
                         "considered_access_paths": [
                           {
@@ -5041,8 +4934,7 @@ SELECT * FROM v1	{
                     ],
                     "attached_conditions_summary": [
                       {
-                        "database": "test",
-                        "table": "t1",
+                        "table": "`t1`",
                         "attached": null
                       }
                     ]
@@ -5051,24 +4943,23 @@ SELECT * FROM v1	{
                 {
                   "clause_processing": {
                     "clause": "ORDER BY",
-                    "original_clause": "`test`.`t1`.`f1`,`test`.`t1`.`f0`",
+                    "original_clause": "`t1`.`f1`,`t1`.`f0`",
                     "items": [
                       {
-                        "item": "`test`.`t1`.`f1`"
+                        "item": "`t1`.`f1`"
                       },
                       {
-                        "item": "`test`.`t1`.`f0`"
+                        "item": "`t1`.`f0`"
                       }
                     ],
                     "resulting_clause_is_simple": true,
-                    "resulting_clause": "`test`.`t1`.`f1`,`test`.`t1`.`f0`"
+                    "resulting_clause": "`t1`.`f1`,`t1`.`f0`"
                   }
                 },
                 {
                   "refine_plan": [
                     {
-                      "database": "test",
-                      "table": "t1",
+                      "table": "`t1`",
                       "access_type": "table_scan"
                     }
                   ]
@@ -5079,8 +4970,7 @@ SELECT * FROM v1	{
           {
             "table_dependencies": [
               {
-                "database": "",
-                "table": "v1",
+                "table": "`v1`",
                 "row_may_be_null": false,
                 "map_bit": 0,
                 "depends_on_map_bits": [
@@ -5091,8 +4981,7 @@ SELECT * FROM v1	{
           {
             "rows_estimation": [
               {
-                "database": "",
-                "table": "v1",
+                "table": "`v1`",
                 "table_scan": {
                   "rows": 30,
                   "cost": 11
@@ -5103,8 +4992,9 @@ SELECT * FROM v1	{
           {
             "considered_execution_plans": [
               {
-                "database": "",
-                "table": "v1",
+                "plan_prefix": [
+                ],
+                "table": "`v1`",
                 "best_access_path": {
                   "considered_access_paths": [
                     {
@@ -5128,8 +5018,7 @@ SELECT * FROM v1	{
               ],
               "attached_conditions_summary": [
                 {
-                  "database": "",
-                  "table": "v1",
+                  "table": "`v1`",
                   "attached": null
                 }
               ]
@@ -5138,8 +5027,7 @@ SELECT * FROM v1	{
           {
             "refine_plan": [
               {
-                "database": "",
-                "table": "v1",
+                "table": "`v1`",
                 "access_type": "table_scan"
               }
             ]
@@ -5154,8 +5042,7 @@ SELECT * FROM v1	{
           {
             "creating_tmp_table": {
               "tmp_table_info": {
-                "database": "",
-                "table": "v1",
+                "table": "`v1`",
                 "row_length": 210,
                 "key_length": 0,
                 "unique_constraint": false,
@@ -5172,14 +5059,12 @@ SELECT * FROM v1	{
                   "filesort_information": [
                     {
                       "direction": "asc",
-                      "database": "test",
-                      "table": "t1",
+                      "table": "`t1`",
                       "field": "f1"
                     },
                     {
                       "direction": "asc",
-                      "database": "test",
-                      "table": "t1",
+                      "table": "`t1`",
                       "field": "f0"
                     }
                   ],
@@ -5260,7 +5145,7 @@ SELECT * FROM v1 ORDER BY f2, f0 LIMIT 30	{
         "select#": 2,
         "steps": [
           {
-            "expanded_query": "/* select#2 */ select `test`.`t1`.`f0` AS `f0`,`test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2` from `test`.`t1` order by `test`.`t1`.`f1`,`test`.`t1`.`f0` limit 100"
+            "expanded_query": "/* select#2 */ select `t1`.`f0` AS `f0`,`t1`.`f1` AS `f1`,`t1`.`f2` AS `f2` from `t1` order by `t1`.`f1`,`t1`.`f0` limit 100"
           }
         ]
       }
@@ -5270,7 +5155,7 @@ SELECT * FROM v1 ORDER BY f2, f0 LIMIT 30	{
         "select#": 1,
         "steps": [
           {
-            "expanded_query": "/* select#1 */ select `v1`.`f0` AS `f0`,`v1`.`f1` AS `f1`,`v1`.`f2` AS `f2` from `test`.`v1` order by `v1`.`f2`,`v1`.`f0` limit 30"
+            "expanded_query": "/* select#1 */ select `v1`.`f0` AS `f0`,`v1`.`f1` AS `f1`,`v1`.`f2` AS `f2` from `v1` order by `v1`.`f2`,`v1`.`f0` limit 30"
           }
         ]
       }
@@ -5286,8 +5171,7 @@ SELECT * FROM v1 ORDER BY f2, f0 LIMIT 30	{
                 {
                   "table_dependencies": [
                     {
-                      "database": "test",
-                      "table": "t1",
+                      "table": "`t1`",
                       "row_may_be_null": false,
                       "map_bit": 0,
                       "depends_on_map_bits": [
@@ -5298,8 +5182,7 @@ SELECT * FROM v1 ORDER BY f2, f0 LIMIT 30	{
                 {
                   "rows_estimation": [
                     {
-                      "database": "test",
-                      "table": "t1",
+                      "table": "`t1`",
                       "table_scan": {
                         "rows": 500,
                         "cost": 4
@@ -5310,8 +5193,9 @@ SELECT * FROM v1 ORDER BY f2, f0 LIMIT 30	{
                 {
                   "considered_execution_plans": [
                     {
-                      "database": "test",
-                      "table": "t1",
+                      "plan_prefix": [
+                      ],
+                      "table": "`t1`",
                       "best_access_path": {
                         "considered_access_paths": [
                           {
@@ -5335,8 +5219,7 @@ SELECT * FROM v1 ORDER BY f2, f0 LIMIT 30	{
                     ],
                     "attached_conditions_summary": [
                       {
-                        "database": "test",
-                        "table": "t1",
+                        "table": "`t1`",
                         "attached": null
                       }
                     ]
@@ -5345,24 +5228,23 @@ SELECT * FROM v1 ORDER BY f2, f0 LIMIT 30	{
                 {
                   "clause_processing": {
                     "clause": "ORDER BY",
-                    "original_clause": "`test`.`t1`.`f1`,`test`.`t1`.`f0`",
+                    "original_clause": "`t1`.`f1`,`t1`.`f0`",
                     "items": [
                       {
-                        "item": "`test`.`t1`.`f1`"
+                        "item": "`t1`.`f1`"
                       },
                       {
-                        "item": "`test`.`t1`.`f0`"
+                        "item": "`t1`.`f0`"
                       }
                     ],
                     "resulting_clause_is_simple": true,
-                    "resulting_clause": "`test`.`t1`.`f1`,`test`.`t1`.`f0`"
+                    "resulting_clause": "`t1`.`f1`,`t1`.`f0`"
                   }
                 },
                 {
                   "refine_plan": [
                     {
-                      "database": "test",
-                      "table": "t1",
+                      "table": "`t1`",
                       "access_type": "table_scan"
                     }
                   ]
@@ -5373,8 +5255,7 @@ SELECT * FROM v1 ORDER BY f2, f0 LIMIT 30	{
           {
             "table_dependencies": [
               {
-                "database": "",
-                "table": "v1",
+                "table": "`v1`",
                 "row_may_be_null": false,
                 "map_bit": 0,
                 "depends_on_map_bits": [
@@ -5385,8 +5266,7 @@ SELECT * FROM v1 ORDER BY f2, f0 LIMIT 30	{
           {
             "rows_estimation": [
               {
-                "database": "",
-                "table": "v1",
+                "table": "`v1`",
                 "table_scan": {
                   "rows": 100,
                   "cost": 15
@@ -5397,8 +5277,9 @@ SELECT * FROM v1 ORDER BY f2, f0 LIMIT 30	{
           {
             "considered_execution_plans": [
               {
-                "database": "",
-                "table": "v1",
+                "plan_prefix": [
+                ],
+                "table": "`v1`",
                 "best_access_path": {
                   "considered_access_paths": [
                     {
@@ -5422,8 +5303,7 @@ SELECT * FROM v1 ORDER BY f2, f0 LIMIT 30	{
               ],
               "attached_conditions_summary": [
                 {
-                  "database": "",
-                  "table": "v1",
+                  "table": "`v1`",
                   "attached": null
                 }
               ]
@@ -5448,8 +5328,7 @@ SELECT * FROM v1 ORDER BY f2, f0 LIMIT 30	{
           {
             "refine_plan": [
               {
-                "database": "",
-                "table": "v1",
+                "table": "`v1`",
                 "access_type": "table_scan"
               }
             ]
@@ -5464,8 +5343,7 @@ SELECT * FROM v1 ORDER BY f2, f0 LIMIT 30	{
           {
             "creating_tmp_table": {
               "tmp_table_info": {
-                "database": "",
-                "table": "v1",
+                "table": "`v1`",
                 "row_length": 210,
                 "key_length": 0,
                 "unique_constraint": false,
@@ -5482,14 +5360,12 @@ SELECT * FROM v1 ORDER BY f2, f0 LIMIT 30	{
                   "filesort_information": [
                     {
                       "direction": "asc",
-                      "database": "test",
-                      "table": "t1",
+                      "table": "`t1`",
                       "field": "f1"
                     },
                     {
                       "direction": "asc",
-                      "database": "test",
-                      "table": "t1",
+                      "table": "`t1`",
                       "field": "f0"
                     }
                   ],
@@ -5517,14 +5393,12 @@ SELECT * FROM v1 ORDER BY f2, f0 LIMIT 30	{
             "filesort_information": [
               {
                 "direction": "asc",
-                "database": "",
-                "table": "v1",
+                "table": "`v1`",
                 "field": "f2"
               },
               {
                 "direction": "asc",
-                "database": "",
-                "table": "v1",
+                "table": "`v1`",
                 "field": "f0"
               }
             ],
@@ -5612,7 +5486,7 @@ LIMIT 30	{
         "select#": 2,
         "steps": [
           {
-            "expanded_query": "/* select#2 */ select `test`.`t1`.`f0` AS `f0`,`test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2` from `test`.`t1` order by `test`.`t1`.`f1`,`test`.`t1`.`f0` limit 100"
+            "expanded_query": "/* select#2 */ select `t1`.`f0` AS `f0`,`t1`.`f1` AS `f1`,`t1`.`f2` AS `f2` from `t1` order by `t1`.`f1`,`t1`.`f0` limit 100"
           }
         ]
       }
@@ -5622,7 +5496,7 @@ LIMIT 30	{
         "select#": 3,
         "steps": [
           {
-            "expanded_query": "/* select#3 */ select `test`.`t1`.`f0` AS `f0`,`test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2` from `test`.`t1` order by `test`.`t1`.`f2`,`test`.`t1`.`f0` limit 100"
+            "expanded_query": "/* select#3 */ select `t1`.`f0` AS `f0`,`t1`.`f1` AS `f1`,`t1`.`f2` AS `f2` from `t1` order by `t1`.`f2`,`t1`.`f0` limit 100"
           }
         ]
       }
@@ -5632,7 +5506,7 @@ LIMIT 30	{
         "select#": 1,
         "steps": [
           {
-            "expanded_query": "/* select#1 */ select `v1`.`f0` AS `f0`,`v1`.`f1` AS `f1`,`v1`.`f2` AS `f2`,`v2`.`f0` AS `f0`,`v2`.`f1` AS `f1`,`v2`.`f2` AS `f2` from (`test`.`v1` join `test`.`v2` on((`v1`.`f1` = `v2`.`f1`))) order by `v1`.`f2`,`v1`.`f0`,`v2`.`f0` limit 30"
+            "expanded_query": "/* select#1 */ select `v1`.`f0` AS `f0`,`v1`.`f1` AS `f1`,`v1`.`f2` AS `f2`,`v2`.`f0` AS `f0`,`v2`.`f1` AS `f1`,`v2`.`f2` AS `f2` from (`v1` join `v2` on((`v1`.`f1` = `v2`.`f1`))) order by `v1`.`f2`,`v1`.`f0`,`v2`.`f0` limit 30"
           }
         ]
       }
@@ -5648,8 +5522,7 @@ LIMIT 30	{
                 {
                   "table_dependencies": [
                     {
-                      "database": "test",
-                      "table": "t1",
+                      "table": "`t1`",
                       "row_may_be_null": false,
                       "map_bit": 0,
                       "depends_on_map_bits": [
@@ -5660,8 +5533,7 @@ LIMIT 30	{
                 {
                   "rows_estimation": [
                     {
-                      "database": "test",
-                      "table": "t1",
+                      "table": "`t1`",
                       "table_scan": {
                         "rows": 500,
                         "cost": 4
@@ -5672,8 +5544,9 @@ LIMIT 30	{
                 {
                   "considered_execution_plans": [
                     {
-                      "database": "test",
-                      "table": "t1",
+                      "plan_prefix": [
+                      ],
+                      "table": "`t1`",
                       "best_access_path": {
                         "considered_access_paths": [
                           {
@@ -5697,8 +5570,7 @@ LIMIT 30	{
                     ],
                     "attached_conditions_summary": [
                       {
-                        "database": "test",
-                        "table": "t1",
+                        "table": "`t1`",
                         "attached": null
                       }
                     ]
@@ -5707,24 +5579,23 @@ LIMIT 30	{
                 {
                   "clause_processing": {
                     "clause": "ORDER BY",
-                    "original_clause": "`test`.`t1`.`f1`,`test`.`t1`.`f0`",
+                    "original_clause": "`t1`.`f1`,`t1`.`f0`",
                     "items": [
                       {
-                        "item": "`test`.`t1`.`f1`"
+                        "item": "`t1`.`f1`"
                       },
                       {
-                        "item": "`test`.`t1`.`f0`"
+                        "item": "`t1`.`f0`"
                       }
                     ],
                     "resulting_clause_is_simple": true,
-                    "resulting_clause": "`test`.`t1`.`f1`,`test`.`t1`.`f0`"
+                    "resulting_clause": "`t1`.`f1`,`t1`.`f0`"
                   }
                 },
                 {
                   "refine_plan": [
                     {
-                      "database": "test",
-                      "table": "t1",
+                      "table": "`t1`",
                       "access_type": "table_scan"
                     }
                   ]
@@ -5739,8 +5610,7 @@ LIMIT 30	{
                 {
                   "table_dependencies": [
                     {
-                      "database": "test",
-                      "table": "t1",
+                      "table": "`t1`",
                       "row_may_be_null": false,
                       "map_bit": 0,
                       "depends_on_map_bits": [
@@ -5751,8 +5621,7 @@ LIMIT 30	{
                 {
                   "rows_estimation": [
                     {
-                      "database": "test",
-                      "table": "t1",
+                      "table": "`t1`",
                       "table_scan": {
                         "rows": 500,
                         "cost": 4
@@ -5763,8 +5632,9 @@ LIMIT 30	{
                 {
                   "considered_execution_plans": [
                     {
-                      "database": "test",
-                      "table": "t1",
+                      "plan_prefix": [
+                      ],
+                      "table": "`t1`",
                       "best_access_path": {
                         "considered_access_paths": [
                           {
@@ -5788,8 +5658,7 @@ LIMIT 30	{
                     ],
                     "attached_conditions_summary": [
                       {
-                        "database": "test",
-                        "table": "t1",
+                        "table": "`t1`",
                         "attached": null
                       }
                     ]
@@ -5798,24 +5667,23 @@ LIMIT 30	{
                 {
                   "clause_processing": {
                     "clause": "ORDER BY",
-                    "original_clause": "`test`.`t1`.`f2`,`test`.`t1`.`f0`",
+                    "original_clause": "`t1`.`f2`,`t1`.`f0`",
                     "items": [
                       {
-                        "item": "`test`.`t1`.`f2`"
+                        "item": "`t1`.`f2`"
                       },
                       {
-                        "item": "`test`.`t1`.`f0`"
+                        "item": "`t1`.`f0`"
                       }
                     ],
                     "resulting_clause_is_simple": true,
-                    "resulting_clause": "`test`.`t1`.`f2`,`test`.`t1`.`f0`"
+                    "resulting_clause": "`t1`.`f2`,`t1`.`f0`"
                   }
                 },
                 {
                   "refine_plan": [
                     {
-                      "database": "test",
-                      "table": "t1",
+                      "table": "`t1`",
                       "access_type": "table_scan"
                     }
                   ]
@@ -5829,7 +5697,7 @@ LIMIT 30	{
                 "JOIN_condition_to_WHERE",
                 "parenthesis_removal"
               ],
-              "expanded_query": "/* select#1 */ select `v1`.`f0` AS `f0`,`v1`.`f1` AS `f1`,`v1`.`f2` AS `f2`,`v2`.`f0` AS `f0`,`v2`.`f1` AS `f1`,`v2`.`f2` AS `f2` from `test`.`v1` join `test`.`v2` where (`v1`.`f1` = `v2`.`f1`) order by `v1`.`f2`,`v1`.`f0`,`v2`.`f0` limit 30"
+              "expanded_query": "/* select#1 */ select `v1`.`f0` AS `f0`,`v1`.`f1` AS `f1`,`v1`.`f2` AS `f2`,`v2`.`f0` AS `f0`,`v2`.`f1` AS `f1`,`v2`.`f2` AS `f2` from `v1` join `v2` where (`v1`.`f1` = `v2`.`f1`) order by `v1`.`f2`,`v1`.`f0`,`v2`.`f0` limit 30"
             }
           },
           {
@@ -5855,16 +5723,14 @@ LIMIT 30	{
           {
             "table_dependencies": [
               {
-                "database": "",
-                "table": "v1",
+                "table": "`v1`",
                 "row_may_be_null": false,
                 "map_bit": 0,
                 "depends_on_map_bits": [
                 ]
               },
               {
-                "database": "",
-                "table": "v2",
+                "table": "`v2`",
                 "row_may_be_null": false,
                 "map_bit": 1,
                 "depends_on_map_bits": [
@@ -5875,29 +5741,25 @@ LIMIT 30	{
           {
             "ref_optimizer_key_uses": [
               {
-                "database": "",
-                "table": "v1",
+                "table": "`v1`",
                 "field": "f1",
                 "equals": "`v2`.`f1`",
                 "null_rejecting": true
               },
               {
-                "database": "",
-                "table": "v1",
+                "table": "`v1`",
                 "field": "f1",
                 "equals": "`v2`.`f1`",
                 "null_rejecting": true
               },
               {
-                "database": "",
-                "table": "v2",
+                "table": "`v2`",
                 "field": "f1",
                 "equals": "`v1`.`f1`",
                 "null_rejecting": true
               },
               {
-                "database": "",
-                "table": "v2",
+                "table": "`v2`",
                 "field": "f1",
                 "equals": "`v1`.`f1`",
                 "null_rejecting": true
@@ -5907,16 +5769,14 @@ LIMIT 30	{
           {
             "rows_estimation": [
               {
-                "database": "",
-                "table": "v1",
+                "table": "`v1`",
                 "table_scan": {
                   "rows": 100,
                   "cost": 15
                 }
               },
               {
-                "database": "",
-                "table": "v2",
+                "table": "`v2`",
                 "table_scan": {
                   "rows": 100,
                   "cost": 15
@@ -5927,8 +5787,9 @@ LIMIT 30	{
           {
             "considered_execution_plans": [
               {
-                "database": "",
-                "table": "v1",
+                "plan_prefix": [
+                ],
+                "table": "`v1`",
                 "best_access_path": {
                   "considered_access_paths": [
                     {
@@ -5955,8 +5816,10 @@ LIMIT 30	{
                 "rows_for_plan": 100,
                 "rest_of_plan": [
                   {
-                    "database": "",
-                    "table": "v2",
+                    "plan_prefix": [
+                      "`v1`"
+                    ],
+                    "table": "`v2`",
                     "best_access_path": {
                       "considered_access_paths": [
                         {
@@ -5989,8 +5852,9 @@ LIMIT 30	{
                 ]
               },
               {
-                "database": "",
-                "table": "v2",
+                "plan_prefix": [
+                ],
+                "table": "`v2`",
                 "best_access_path": {
                   "considered_access_paths": [
                     {
@@ -6017,8 +5881,10 @@ LIMIT 30	{
                 "rows_for_plan": 100,
                 "rest_of_plan": [
                   {
-                    "database": "",
-                    "table": "v1",
+                    "plan_prefix": [
+                      "`v2`"
+                    ],
+                    "table": "`v1`",
                     "best_access_path": {
                       "considered_access_paths": [
                         {
@@ -6059,13 +5925,11 @@ LIMIT 30	{
               ],
               "attached_conditions_summary": [
                 {
-                  "database": "",
-                  "table": "v1",
+                  "table": "`v1`",
                   "attached": "(`v1`.`f1` is not null)"
                 },
                 {
-                  "database": "",
-                  "table": "v2",
+                  "table": "`v2`",
                   "attached": null
                 }
               ]
@@ -6093,13 +5957,11 @@ LIMIT 30	{
           {
             "refine_plan": [
               {
-                "database": "",
-                "table": "v1",
+                "table": "`v1`",
                 "access_type": "table_scan"
               },
               {
-                "database": "",
-                "table": "v2"
+                "table": "`v2`"
               }
             ]
           }
@@ -6113,8 +5975,7 @@ LIMIT 30	{
           {
             "creating_tmp_table": {
               "tmp_table_info": {
-                "database": "",
-                "table": "v1",
+                "table": "`v1`",
                 "row_length": 210,
                 "key_length": 0,
                 "unique_constraint": false,
@@ -6126,8 +5987,7 @@ LIMIT 30	{
           {
             "creating_tmp_table": {
               "tmp_table_info": {
-                "database": "",
-                "table": "v2",
+                "table": "`v2`",
                 "row_length": 210,
                 "key_length": 5,
                 "unique_constraint": false,
@@ -6156,14 +6016,12 @@ LIMIT 30	{
                   "filesort_information": [
                     {
                       "direction": "asc",
-                      "database": "test",
-                      "table": "t1",
+                      "table": "`t1`",
                       "field": "f1"
                     },
                     {
                       "direction": "asc",
-                      "database": "test",
-                      "table": "t1",
+                      "table": "`t1`",
                       "field": "f0"
                     }
                   ],
@@ -6195,14 +6053,12 @@ LIMIT 30	{
                   "filesort_information": [
                     {
                       "direction": "asc",
-                      "database": "test",
-                      "table": "t1",
+                      "table": "`t1`",
                       "field": "f2"
                     },
                     {
                       "direction": "asc",
-                      "database": "test",
-                      "table": "t1",
+                      "table": "`t1`",
                       "field": "f0"
                     }
                   ],
@@ -6284,7 +6140,7 @@ GROUP BY 1 ORDER BY 2,1 LIMIT 5	{
         "select#": 1,
         "steps": [
           {
-            "expanded_query": "/* select#1 */ select floor((`test`.`t1`.`f1` / 10)) AS `f3`,count(`test`.`t1`.`f2`) AS `count(f2)` from `test`.`t1` group by 1 order by 2,1 limit 5"
+            "expanded_query": "/* select#1 */ select floor((`t1`.`f1` / 10)) AS `f3`,count(`t1`.`f2`) AS `count(f2)` from `t1` group by 1 order by 2,1 limit 5"
           }
         ]
       }
@@ -6296,8 +6152,7 @@ GROUP BY 1 ORDER BY 2,1 LIMIT 5	{
           {
             "table_dependencies": [
               {
-                "database": "test",
-                "table": "t1",
+                "table": "`t1`",
                 "row_may_be_null": false,
                 "map_bit": 0,
                 "depends_on_map_bits": [
@@ -6308,8 +6163,7 @@ GROUP BY 1 ORDER BY 2,1 LIMIT 5	{
           {
             "rows_estimation": [
               {
-                "database": "test",
-                "table": "t1",
+                "table": "`t1`",
                 "table_scan": {
                   "rows": 500,
                   "cost": 4
@@ -6320,8 +6174,9 @@ GROUP BY 1 ORDER BY 2,1 LIMIT 5	{
           {
             "considered_execution_plans": [
               {
-                "database": "test",
-                "table": "t1",
+                "plan_prefix": [
+                ],
+                "table": "`t1`",
                 "best_access_path": {
                   "considered_access_paths": [
                     {
@@ -6345,8 +6200,7 @@ GROUP BY 1 ORDER BY 2,1 LIMIT 5	{
               ],
               "attached_conditions_summary": [
                 {
-                  "database": "test",
-                  "table": "t1",
+                  "table": "`t1`",
                   "attached": null
                 }
               ]
@@ -6358,10 +6212,10 @@ GROUP BY 1 ORDER BY 2,1 LIMIT 5	{
               "original_clause": "2,1",
               "items": [
                 {
-                  "item": "count(`test`.`t1`.`f2`)"
+                  "item": "count(`t1`.`f2`)"
                 },
                 {
-                  "item": "floor((`test`.`t1`.`f1` / 10))"
+                  "item": "floor((`t1`.`f1` / 10))"
                 }
               ],
               "resulting_clause_is_simple": false,
@@ -6374,7 +6228,7 @@ GROUP BY 1 ORDER BY 2,1 LIMIT 5	{
               "original_clause": "1",
               "items": [
                 {
-                  "item": "floor((`test`.`t1`.`f1` / 10))"
+                  "item": "floor((`t1`.`f1` / 10))"
                 }
               ],
               "resulting_clause_is_simple": true,
@@ -6384,8 +6238,7 @@ GROUP BY 1 ORDER BY 2,1 LIMIT 5	{
           {
             "refine_plan": [
               {
-                "database": "test",
-                "table": "t1",
+                "table": "`t1`",
                 "access_type": "table_scan"
               }
             ]
@@ -6457,7 +6310,7 @@ GROUP BY 1 ORDER BY 2,1 LIMIT 0	{
         "select#": 1,
         "steps": [
           {
-            "expanded_query": "/* select#1 */ select floor((`test`.`t1`.`f1` / 10)) AS `f3`,count(`test`.`t1`.`f2`) AS `count(f2)` from `test`.`t1` group by 1 order by 2,1 limit 0"
+            "expanded_query": "/* select#1 */ select floor((`t1`.`f1` / 10)) AS `f3`,count(`t1`.`f2`) AS `count(f2)` from `t1` group by 1 order by 2,1 limit 0"
           }
         ]
       }
@@ -6534,7 +6387,7 @@ SELECT * FROM t1 WHERE f1>10 ORDER BY f2, f0 LIMIT 30	{
         "select#": 1,
         "steps": [
           {
-            "expanded_query": "/* select#1 */ select `test`.`t1`.`f0` AS `f0`,`test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2` from `test`.`t1` where (`test`.`t1`.`f1` > 10) order by `test`.`t1`.`f2`,`test`.`t1`.`f0` limit 30"
+            "expanded_query": "/* select#1 */ select `t1`.`f0` AS `f0`,`t1`.`f1` AS `f1`,`t1`.`f2` AS `f2` from `t1` where (`t1`.`f1` > 10) order by `t1`.`f2`,`t1`.`f0` limit 30"
           }
         ]
       }
@@ -6546,19 +6399,19 @@ SELECT * FROM t1 WHERE f1>10 ORDER BY f2, f0 LIMIT 30	{
           {
             "condition_processing": {
               "condition": "WHERE",
-              "original_condition": "(`test`.`t1`.`f1` > 10)",
+              "original_condition": "(`t1`.`f1` > 10)",
               "steps": [
                 {
                   "transformation": "equality_propagation",
-                  "resulting_condition": "(`test`.`t1`.`f1` > 10)"
+                  "resulting_condition": "(`t1`.`f1` > 10)"
                 },
                 {
                   "transformation": "constant_propagation",
-                  "resulting_condition": "(`test`.`t1`.`f1` > 10)"
+                  "resulting_condition": "(`t1`.`f1` > 10)"
                 },
                 {
                   "transformation": "trivial_condition_removal",
-                  "resulting_condition": "(`test`.`t1`.`f1` > 10)"
+                  "resulting_condition": "(`t1`.`f1` > 10)"
                 }
               ]
             }
@@ -6566,8 +6419,7 @@ SELECT * FROM t1 WHERE f1>10 ORDER BY f2, f0 LIMIT 30	{
           {
             "table_dependencies": [
               {
-                "database": "test",
-                "table": "t1",
+                "table": "`t1`",
                 "row_may_be_null": false,
                 "map_bit": 0,
                 "depends_on_map_bits": [
@@ -6582,8 +6434,7 @@ SELECT * FROM t1 WHERE f1>10 ORDER BY f2, f0 LIMIT 30	{
           {
             "rows_estimation": [
               {
-                "database": "test",
-                "table": "t1",
+                "table": "`t1`",
                 "table_scan": {
                   "rows": 500,
                   "cost": 4
@@ -6594,8 +6445,9 @@ SELECT * FROM t1 WHERE f1>10 ORDER BY f2, f0 LIMIT 30	{
           {
             "considered_execution_plans": [
               {
-                "database": "test",
-                "table": "t1",
+                "plan_prefix": [
+                ],
+                "table": "`t1`",
                 "best_access_path": {
                   "considered_access_paths": [
                     {
@@ -6614,14 +6466,13 @@ SELECT * FROM t1 WHERE f1>10 ORDER BY f2, f0 LIMIT 30	{
           },
           {
             "attaching_conditions_to_tables": {
-              "original_condition": "(`test`.`t1`.`f1` > 10)",
+              "original_condition": "(`t1`.`f1` > 10)",
               "attached_conditions_computation": [
               ],
               "attached_conditions_summary": [
                 {
-                  "database": "test",
-                  "table": "t1",
-                  "attached": "(`test`.`t1`.`f1` > 10)"
+                  "table": "`t1`",
+                  "attached": "(`t1`.`f1` > 10)"
                 }
               ]
             }
@@ -6629,24 +6480,23 @@ SELECT * FROM t1 WHERE f1>10 ORDER BY f2, f0 LIMIT 30	{
           {
             "clause_processing": {
               "clause": "ORDER BY",
-              "original_clause": "`test`.`t1`.`f2`,`test`.`t1`.`f0`",
+              "original_clause": "`t1`.`f2`,`t1`.`f0`",
               "items": [
                 {
-                  "item": "`test`.`t1`.`f2`"
+                  "item": "`t1`.`f2`"
                 },
                 {
-                  "item": "`test`.`t1`.`f0`"
+                  "item": "`t1`.`f0`"
                 }
               ],
               "resulting_clause_is_simple": true,
-              "resulting_clause": "`test`.`t1`.`f2`,`test`.`t1`.`f0`"
+              "resulting_clause": "`t1`.`f2`,`t1`.`f0`"
             }
           },
           {
             "refine_plan": [
               {
-                "database": "test",
-                "table": "t1",
+                "table": "`t1`",
                 "access_type": "table_scan"
               }
             ]
@@ -6662,14 +6512,12 @@ SELECT * FROM t1 WHERE f1>10 ORDER BY f2, f0 LIMIT 30	{
             "filesort_information": [
               {
                 "direction": "asc",
-                "database": "test",
-                "table": "t1",
+                "table": "`t1`",
                 "field": "f2"
               },
               {
                 "direction": "asc",
-                "database": "test",
-                "table": "t1",
+                "table": "`t1`",
                 "field": "f0"
               }
             ],
@@ -6719,7 +6567,7 @@ SELECT * FROM t1 WHERE f1>10 ORDER BY f2, f0 LIMIT 15 OFFSET 15	{
         "select#": 1,
         "steps": [
           {
-            "expanded_query": "/* select#1 */ select `test`.`t1`.`f0` AS `f0`,`test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2` from `test`.`t1` where (`test`.`t1`.`f1` > 10) order by `test`.`t1`.`f2`,`test`.`t1`.`f0` limit 15,15"
+            "expanded_query": "/* select#1 */ select `t1`.`f0` AS `f0`,`t1`.`f1` AS `f1`,`t1`.`f2` AS `f2` from `t1` where (`t1`.`f1` > 10) order by `t1`.`f2`,`t1`.`f0` limit 15,15"
           }
         ]
       }
@@ -6731,19 +6579,19 @@ SELECT * FROM t1 WHERE f1>10 ORDER BY f2, f0 LIMIT 15 OFFSET 15	{
           {
             "condition_processing": {
               "condition": "WHERE",
-              "original_condition": "(`test`.`t1`.`f1` > 10)",
+              "original_condition": "(`t1`.`f1` > 10)",
               "steps": [
                 {
                   "transformation": "equality_propagation",
-                  "resulting_condition": "(`test`.`t1`.`f1` > 10)"
+                  "resulting_condition": "(`t1`.`f1` > 10)"
                 },
                 {
                   "transformation": "constant_propagation",
-                  "resulting_condition": "(`test`.`t1`.`f1` > 10)"
+                  "resulting_condition": "(`t1`.`f1` > 10)"
                 },
                 {
                   "transformation": "trivial_condition_removal",
-                  "resulting_condition": "(`test`.`t1`.`f1` > 10)"
+                  "resulting_condition": "(`t1`.`f1` > 10)"
                 }
               ]
             }
@@ -6751,8 +6599,7 @@ SELECT * FROM t1 WHERE f1>10 ORDER BY f2, f0 LIMIT 15 OFFSET 15	{
           {
             "table_dependencies": [
               {
-                "database": "test",
-                "table": "t1",
+                "table": "`t1`",
                 "row_may_be_null": false,
                 "map_bit": 0,
                 "depends_on_map_bits": [
@@ -6767,8 +6614,7 @@ SELECT * FROM t1 WHERE f1>10 ORDER BY f2, f0 LIMIT 15 OFFSET 15	{
           {
             "rows_estimation": [
               {
-                "database": "test",
-                "table": "t1",
+                "table": "`t1`",
                 "table_scan": {
                   "rows": 500,
                   "cost": 4
@@ -6779,8 +6625,9 @@ SELECT * FROM t1 WHERE f1>10 ORDER BY f2, f0 LIMIT 15 OFFSET 15	{
           {
             "considered_execution_plans": [
               {
-                "database": "test",
-                "table": "t1",
+                "plan_prefix": [
+                ],
+                "table": "`t1`",
                 "best_access_path": {
                   "considered_access_paths": [
                     {
@@ -6799,14 +6646,13 @@ SELECT * FROM t1 WHERE f1>10 ORDER BY f2, f0 LIMIT 15 OFFSET 15	{
           },
           {
             "attaching_conditions_to_tables": {
-              "original_condition": "(`test`.`t1`.`f1` > 10)",
+              "original_condition": "(`t1`.`f1` > 10)",
               "attached_conditions_computation": [
               ],
               "attached_conditions_summary": [
                 {
-                  "database": "test",
-                  "table": "t1",
-                  "attached": "(`test`.`t1`.`f1` > 10)"
+                  "table": "`t1`",
+                  "attached": "(`t1`.`f1` > 10)"
                 }
               ]
             }
@@ -6814,24 +6660,23 @@ SELECT * FROM t1 WHERE f1>10 ORDER BY f2, f0 LIMIT 15 OFFSET 15	{
           {
             "clause_processing": {
               "clause": "ORDER BY",
-              "original_clause": "`test`.`t1`.`f2`,`test`.`t1`.`f0`",
+              "original_clause": "`t1`.`f2`,`t1`.`f0`",
               "items": [
                 {
-                  "item": "`test`.`t1`.`f2`"
+                  "item": "`t1`.`f2`"
                 },
                 {
-                  "item": "`test`.`t1`.`f0`"
+                  "item": "`t1`.`f0`"
                 }
               ],
               "resulting_clause_is_simple": true,
-              "resulting_clause": "`test`.`t1`.`f2`,`test`.`t1`.`f0`"
+              "resulting_clause": "`t1`.`f2`,`t1`.`f0`"
             }
           },
           {
             "refine_plan": [
               {
-                "database": "test",
-                "table": "t1",
+                "table": "`t1`",
                 "access_type": "table_scan"
               }
             ]
@@ -6847,14 +6692,12 @@ SELECT * FROM t1 WHERE f1>10 ORDER BY f2, f0 LIMIT 15 OFFSET 15	{
             "filesort_information": [
               {
                 "direction": "asc",
-                "database": "test",
-                "table": "t1",
+                "table": "`t1`",
                 "field": "f2"
               },
               {
                 "direction": "asc",
-                "database": "test",
-                "table": "t1",
+                "table": "`t1`",
                 "field": "f0"
               }
             ],
@@ -6905,7 +6748,7 @@ ORDER BY f2, f0 LIMIT 15 OFFSET 15	{
         "select#": 1,
         "steps": [
           {
-            "expanded_query": "/* select#1 */ select sql_calc_found_rows `test`.`t1`.`f0` AS `f0`,`test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2` from `test`.`t1` where (`test`.`t1`.`f1` > 10) order by `test`.`t1`.`f2`,`test`.`t1`.`f0` limit 15,15"
+            "expanded_query": "/* select#1 */ select sql_calc_found_rows `t1`.`f0` AS `f0`,`t1`.`f1` AS `f1`,`t1`.`f2` AS `f2` from `t1` where (`t1`.`f1` > 10) order by `t1`.`f2`,`t1`.`f0` limit 15,15"
           }
         ]
       }
@@ -6917,19 +6760,19 @@ ORDER BY f2, f0 LIMIT 15 OFFSET 15	{
           {
             "condition_processing": {
               "condition": "WHERE",
-              "original_condition": "(`test`.`t1`.`f1` > 10)",
+              "original_condition": "(`t1`.`f1` > 10)",
               "steps": [
                 {
                   "transformation": "equality_propagation",
-                  "resulting_condition": "(`test`.`t1`.`f1` > 10)"
+                  "resulting_condition": "(`t1`.`f1` > 10)"
                 },
                 {
                   "transformation": "constant_propagation",
-                  "resulting_condition": "(`test`.`t1`.`f1` > 10)"
+                  "resulting_condition": "(`t1`.`f1` > 10)"
                 },
                 {
                   "transformation": "trivial_condition_removal",
-                  "resulting_condition": "(`test`.`t1`.`f1` > 10)"
+                  "resulting_condition": "(`t1`.`f1` > 10)"
                 }
               ]
             }
@@ -6937,8 +6780,7 @@ ORDER BY f2, f0 LIMIT 15 OFFSET 15	{
           {
             "table_dependencies": [
               {
-                "database": "test",
-                "table": "t1",
+                "table": "`t1`",
                 "row_may_be_null": false,
                 "map_bit": 0,
                 "depends_on_map_bits": [
@@ -6953,8 +6795,7 @@ ORDER BY f2, f0 LIMIT 15 OFFSET 15	{
           {
             "rows_estimation": [
               {
-                "database": "test",
-                "table": "t1",
+                "table": "`t1`",
                 "table_scan": {
                   "rows": 500,
                   "cost": 4
@@ -6965,8 +6806,9 @@ ORDER BY f2, f0 LIMIT 15 OFFSET 15	{
           {
             "considered_execution_plans": [
               {
-                "database": "test",
-                "table": "t1",
+                "plan_prefix": [
+                ],
+                "table": "`t1`",
                 "best_access_path": {
                   "considered_access_paths": [
                     {
@@ -6985,14 +6827,13 @@ ORDER BY f2, f0 LIMIT 15 OFFSET 15	{
           },
           {
             "attaching_conditions_to_tables": {
-              "original_condition": "(`test`.`t1`.`f1` > 10)",
+              "original_condition": "(`t1`.`f1` > 10)",
               "attached_conditions_computation": [
               ],
               "attached_conditions_summary": [
                 {
-                  "database": "test",
-                  "table": "t1",
-                  "attached": "(`test`.`t1`.`f1` > 10)"
+                  "table": "`t1`",
+                  "attached": "(`t1`.`f1` > 10)"
                 }
               ]
             }
@@ -7000,24 +6841,23 @@ ORDER BY f2, f0 LIMIT 15 OFFSET 15	{
           {
             "clause_processing": {
               "clause": "ORDER BY",
-              "original_clause": "`test`.`t1`.`f2`,`test`.`t1`.`f0`",
+              "original_clause": "`t1`.`f2`,`t1`.`f0`",
               "items": [
                 {
-                  "item": "`test`.`t1`.`f2`"
+                  "item": "`t1`.`f2`"
                 },
                 {
-                  "item": "`test`.`t1`.`f0`"
+                  "item": "`t1`.`f0`"
                 }
               ],
               "resulting_clause_is_simple": true,
-              "resulting_clause": "`test`.`t1`.`f2`,`test`.`t1`.`f0`"
+              "resulting_clause": "`t1`.`f2`,`t1`.`f0`"
             }
           },
           {
             "refine_plan": [
               {
-                "database": "test",
-                "table": "t1",
+                "table": "`t1`",
                 "access_type": "table_scan"
               }
             ]
@@ -7033,14 +6873,12 @@ ORDER BY f2, f0 LIMIT 15 OFFSET 15	{
             "filesort_information": [
               {
                 "direction": "asc",
-                "database": "test",
-                "table": "t1",
+                "table": "`t1`",
                 "field": "f2"
               },
               {
                 "direction": "asc",
-                "database": "test",
-                "table": "t1",
+                "table": "`t1`",
                 "field": "f0"
               }
             ],
@@ -7116,7 +6954,7 @@ SELECT * FROM v1 ORDER BY f2, f0 LIMIT 30	{
         "select#": 2,
         "steps": [
           {
-            "expanded_query": "/* select#2 */ select `test`.`t1`.`f0` AS `f0`,`test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2` from `test`.`t1` order by `test`.`t1`.`f1`,`test`.`t1`.`f0` limit 100"
+            "expanded_query": "/* select#2 */ select `t1`.`f0` AS `f0`,`t1`.`f1` AS `f1`,`t1`.`f2` AS `f2` from `t1` order by `t1`.`f1`,`t1`.`f0` limit 100"
           }
         ]
       }
@@ -7126,7 +6964,7 @@ SELECT * FROM v1 ORDER BY f2, f0 LIMIT 30	{
         "select#": 1,
         "steps": [
           {
-            "expanded_query": "/* select#1 */ select `v1`.`f0` AS `f0`,`v1`.`f1` AS `f1`,`v1`.`f2` AS `f2` from `test`.`v1` order by `v1`.`f2`,`v1`.`f0` limit 30"
+            "expanded_query": "/* select#1 */ select `v1`.`f0` AS `f0`,`v1`.`f1` AS `f1`,`v1`.`f2` AS `f2` from `v1` order by `v1`.`f2`,`v1`.`f0` limit 30"
           }
         ]
       }
@@ -7142,8 +6980,7 @@ SELECT * FROM v1 ORDER BY f2, f0 LIMIT 30	{
                 {
                   "table_dependencies": [
                     {
-                      "database": "test",
-                      "table": "t1",
+                      "table": "`t1`",
                       "row_may_be_null": false,
                       "map_bit": 0,
                       "depends_on_map_bits": [
@@ -7154,8 +6991,7 @@ SELECT * FROM v1 ORDER BY f2, f0 LIMIT 30	{
                 {
                   "rows_estimation": [
                     {
-                      "database": "test",
-                      "table": "t1",
+                      "table": "`t1`",
                       "table_scan": {
                         "rows": 500,
                         "cost": 4
@@ -7166,8 +7002,9 @@ SELECT * FROM v1 ORDER BY f2, f0 LIMIT 30	{
                 {
                   "considered_execution_plans": [
                     {
-                      "database": "test",
-                      "table": "t1",
+                      "plan_prefix": [
+                      ],
+                      "table": "`t1`",
                       "best_access_path": {
                         "considered_access_paths": [
                           {
@@ -7191,8 +7028,7 @@ SELECT * FROM v1 ORDER BY f2, f0 LIMIT 30	{
                     ],
                     "attached_conditions_summary": [
                       {
-                        "database": "test",
-                        "table": "t1",
+                        "table": "`t1`",
                         "attached": null
                       }
                     ]
@@ -7201,24 +7037,23 @@ SELECT * FROM v1 ORDER BY f2, f0 LIMIT 30	{
                 {
                   "clause_processing": {
                     "clause": "ORDER BY",
-                    "original_clause": "`test`.`t1`.`f1`,`test`.`t1`.`f0`",
+                    "original_clause": "`t1`.`f1`,`t1`.`f0`",
                     "items": [
                       {
-                        "item": "`test`.`t1`.`f1`"
+                        "item": "`t1`.`f1`"
                       },
                       {
-                        "item": "`test`.`t1`.`f0`"
+                        "item": "`t1`.`f0`"
                       }
                     ],
                     "resulting_clause_is_simple": true,
-                    "resulting_clause": "`test`.`t1`.`f1`,`test`.`t1`.`f0`"
+                    "resulting_clause": "`t1`.`f1`,`t1`.`f0`"
                   }
                 },
                 {
                   "refine_plan": [
                     {
-                      "database": "test",
-                      "table": "t1",
+                      "table": "`t1`",
                       "access_type": "table_scan"
                     }
                   ]
@@ -7229,8 +7064,7 @@ SELECT * FROM v1 ORDER BY f2, f0 LIMIT 30	{
           {
             "table_dependencies": [
               {
-                "database": "",
-                "table": "v1",
+                "table": "`v1`",
                 "row_may_be_null": false,
                 "map_bit": 0,
                 "depends_on_map_bits": [
@@ -7241,8 +7075,7 @@ SELECT * FROM v1 ORDER BY f2, f0 LIMIT 30	{
           {
             "rows_estimation": [
               {
-                "database": "",
-                "table": "v1",
+                "table": "`v1`",
                 "table_scan": {
                   "rows": 100,
                   "cost": 15
@@ -7253,8 +7086,9 @@ SELECT * FROM v1 ORDER BY f2, f0 LIMIT 30	{
           {
             "considered_execution_plans": [
               {
-                "database": "",
-                "table": "v1",
+                "plan_prefix": [
+                ],
+                "table": "`v1`",
                 "best_access_path": {
                   "considered_access_paths": [
                     {
@@ -7278,8 +7112,7 @@ SELECT * FROM v1 ORDER BY f2, f0 LIMIT 30	{
               ],
               "attached_conditions_summary": [
                 {
-                  "database": "",
-                  "table": "v1",
+                  "table": "`v1`",
                   "attached": null
                 }
               ]
@@ -7304,8 +7137,7 @@ SELECT * FROM v1 ORDER BY f2, f0 LIMIT 30	{
           {
             "refine_plan": [
               {
-                "database": "",
-                "table": "v1",
+                "table": "`v1`",
                 "access_type": "table_scan"
               }
             ]
@@ -7320,8 +7152,7 @@ SELECT * FROM v1 ORDER BY f2, f0 LIMIT 30	{
           {
             "creating_tmp_table": {
               "tmp_table_info": {
-                "database": "",
-                "table": "v1",
+                "table": "`v1`",
                 "row_length": 210,
                 "key_length": 0,
                 "unique_constraint": false,
@@ -7338,14 +7169,12 @@ SELECT * FROM v1 ORDER BY f2, f0 LIMIT 30	{
                   "filesort_information": [
                     {
                       "direction": "asc",
-                      "database": "test",
-                      "table": "t1",
+                      "table": "`t1`",
                       "field": "f1"
                     },
                     {
                       "direction": "asc",
-                      "database": "test",
-                      "table": "t1",
+                      "table": "`t1`",
                       "field": "f0"
                     }
                   ],
@@ -7373,14 +7202,12 @@ SELECT * FROM v1 ORDER BY f2, f0 LIMIT 30	{
             "filesort_information": [
               {
                 "direction": "asc",
-                "database": "",
-                "table": "v1",
+                "table": "`v1`",
                 "field": "f2"
               },
               {
                 "direction": "asc",
-                "database": "",
-                "table": "v1",
+                "table": "`v1`",
                 "field": "f0"
               }
             ],
@@ -7452,7 +7279,7 @@ ORDER BY d1.f2 DESC LIMIT 30	{
         "select#": 2,
         "steps": [
           {
-            "expanded_query": "/* select#2 */ select `test`.`t1`.`f0` AS `f0`,`test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2` from `test`.`t1` order by `test`.`t1`.`f1` limit 30"
+            "expanded_query": "/* select#2 */ select `t1`.`f0` AS `f0`,`t1`.`f1` AS `f1`,`t1`.`f2` AS `f2` from `t1` order by `t1`.`f1` limit 30"
           }
         ]
       }
@@ -7462,7 +7289,7 @@ ORDER BY d1.f2 DESC LIMIT 30	{
         "select#": 1,
         "steps": [
           {
-            "expanded_query": "/* select#1 */ select `d1`.`f1` AS `f1`,`d1`.`f2` AS `f2` from (`test`.`t1` left join (/* select#2 */ select `test`.`t1`.`f0` AS `f0`,`test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2` from `test`.`t1` order by `test`.`t1`.`f1` limit 30) `d1` on((`test`.`t1`.`f1` = `d1`.`f1`))) order by `d1`.`f2` desc limit 30"
+            "expanded_query": "/* select#1 */ select `d1`.`f1` AS `f1`,`d1`.`f2` AS `f2` from (`t1` left join (/* select#2 */ select `t1`.`f0` AS `f0`,`t1`.`f1` AS `f1`,`t1`.`f2` AS `f2` from `t1` order by `t1`.`f1` limit 30) `d1` on((`t1`.`f1` = `d1`.`f1`))) order by `d1`.`f2` desc limit 30"
           }
         ]
       }
@@ -7478,8 +7305,7 @@ ORDER BY d1.f2 DESC LIMIT 30	{
                 {
                   "table_dependencies": [
                     {
-                      "database": "test",
-                      "table": "t1",
+                      "table": "`t1`",
                       "row_may_be_null": false,
                       "map_bit": 0,
                       "depends_on_map_bits": [
@@ -7490,8 +7316,7 @@ ORDER BY d1.f2 DESC LIMIT 30	{
                 {
                   "rows_estimation": [
                     {
-                      "database": "test",
-                      "table": "t1",
+                      "table": "`t1`",
                       "table_scan": {
                         "rows": 500,
                         "cost": 4
@@ -7502,8 +7327,9 @@ ORDER BY d1.f2 DESC LIMIT 30	{
                 {
                   "considered_execution_plans": [
                     {
-                      "database": "test",
-                      "table": "t1",
+                      "plan_prefix": [
+                      ],
+                      "table": "`t1`",
                       "best_access_path": {
                         "considered_access_paths": [
                           {
@@ -7527,8 +7353,7 @@ ORDER BY d1.f2 DESC LIMIT 30	{
                     ],
                     "attached_conditions_summary": [
                       {
-                        "database": "test",
-                        "table": "t1",
+                        "table": "`t1`",
                         "attached": null
                       }
                     ]
@@ -7537,21 +7362,20 @@ ORDER BY d1.f2 DESC LIMIT 30	{
                 {
                   "clause_processing": {
                     "clause": "ORDER BY",
-                    "original_clause": "`test`.`t1`.`f1`",
+                    "original_clause": "`t1`.`f1`",
                     "items": [
                       {
-                        "item": "`test`.`t1`.`f1`"
+                        "item": "`t1`.`f1`"
                       }
                     ],
                     "resulting_clause_is_simple": true,
-                    "resulting_clause": "`test`.`t1`.`f1`"
+                    "resulting_clause": "`t1`.`f1`"
                   }
                 },
                 {
                   "refine_plan": [
                     {
-                      "database": "test",
-                      "table": "t1",
+                      "table": "`t1`",
                       "access_type": "table_scan"
                     }
                   ]
@@ -7564,22 +7388,20 @@ ORDER BY d1.f2 DESC LIMIT 30	{
               "transformations": [
                 "parenthesis_removal"
               ],
-              "expanded_query": "/* select#1 */ select `d1`.`f1` AS `f1`,`d1`.`f2` AS `f2` from `test`.`t1` left join (/* select#2 */ select `test`.`t1`.`f0` AS `f0`,`test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2` from `test`.`t1` order by `test`.`t1`.`f1` limit 30) `d1` on((`test`.`t1`.`f1` = `d1`.`f1`)) order by `d1`.`f2` desc limit 30"
+              "expanded_query": "/* select#1 */ select `d1`.`f1` AS `f1`,`d1`.`f2` AS `f2` from `t1` left join (/* select#2 */ select `t1`.`f0` AS `f0`,`t1`.`f1` AS `f1`,`t1`.`f2` AS `f2` from `t1` order by `t1`.`f1` limit 30) `d1` on((`t1`.`f1` = `d1`.`f1`)) order by `d1`.`f2` desc limit 30"
             }
           },
           {
             "table_dependencies": [
               {
-                "database": "test",
-                "table": "t1",
+                "table": "`t1`",
                 "row_may_be_null": false,
                 "map_bit": 0,
                 "depends_on_map_bits": [
                 ]
               },
               {
-                "database": "",
-                "table": "d1",
+                "table": " `d1`",
                 "row_may_be_null": true,
                 "map_bit": 1,
                 "depends_on_map_bits": [
@@ -7591,17 +7413,15 @@ ORDER BY d1.f2 DESC LIMIT 30	{
           {
             "ref_optimizer_key_uses": [
               {
-                "database": "",
-                "table": "d1",
+                "table": " `d1`",
                 "field": "f1",
-                "equals": "`test`.`t1`.`f1`",
+                "equals": "`t1`.`f1`",
                 "null_rejecting": true
               },
               {
-                "database": "",
-                "table": "d1",
+                "table": " `d1`",
                 "field": "f1",
-                "equals": "`test`.`t1`.`f1`",
+                "equals": "`t1`.`f1`",
                 "null_rejecting": true
               }
             ]
@@ -7609,16 +7429,14 @@ ORDER BY d1.f2 DESC LIMIT 30	{
           {
             "rows_estimation": [
               {
-                "database": "test",
-                "table": "t1",
+                "table": "`t1`",
                 "table_scan": {
                   "rows": 500,
                   "cost": 4
                 }
               },
               {
-                "database": "",
-                "table": "d1",
+                "table": " `d1`",
                 "table_scan": {
                   "rows": 30,
                   "cost": 11
@@ -7629,8 +7447,9 @@ ORDER BY d1.f2 DESC LIMIT 30	{
           {
             "considered_execution_plans": [
               {
-                "database": "test",
-                "table": "t1",
+                "plan_prefix": [
+                ],
+                "table": "`t1`",
                 "best_access_path": {
                   "considered_access_paths": [
                     {
@@ -7645,8 +7464,10 @@ ORDER BY d1.f2 DESC LIMIT 30	{
                 "rows_for_plan": 500,
                 "rest_of_plan": [
                   {
-                    "database": "",
-                    "table": "d1",
+                    "plan_prefix": [
+                      "`t1`"
+                    ],
+                    "table": " `d1`",
                     "best_access_path": {
                       "considered_access_paths": [
                         {
@@ -7693,14 +7514,12 @@ ORDER BY d1.f2 DESC LIMIT 30	{
               ],
               "attached_conditions_summary": [
                 {
-                  "database": "test",
-                  "table": "t1",
+                  "table": "`t1`",
                   "attached": null
                 },
                 {
-                  "database": "",
-                  "table": "d1",
-                  "attached": "trigcond_if(is_not_null_compl(d1), (`test`.`t1`.`f1` = `d1`.`f1`), true)"
+                  "table": " `d1`",
+                  "attached": "trigcond_if(is_not_null_compl(d1), (`t1`.`f1` = `d1`.`f1`), true)"
                 }
               ]
             }
@@ -7721,13 +7540,11 @@ ORDER BY d1.f2 DESC LIMIT 30	{
           {
             "refine_plan": [
               {
-                "database": "test",
-                "table": "t1",
+                "table": "`t1`",
                 "access_type": "table_scan"
               },
               {
-                "database": "",
-                "table": "d1",
+                "table": " `d1`",
                 "access_type": "table_scan"
               }
             ]
@@ -7742,8 +7559,7 @@ ORDER BY d1.f2 DESC LIMIT 30	{
           {
             "creating_tmp_table": {
               "tmp_table_info": {
-                "database": "",
-                "table": "d1",
+                "table": " `d1`",
                 "row_length": 210,
                 "key_length": 0,
                 "unique_constraint": false,
@@ -7772,8 +7588,7 @@ ORDER BY d1.f2 DESC LIMIT 30	{
                   "filesort_information": [
                     {
                       "direction": "asc",
-                      "database": "test",
-                      "table": "t1",
+                      "table": "`t1`",
                       "field": "f1"
                     }
                   ],
@@ -7847,13 +7662,13 @@ SELECT * FROM t1 WHERE f1 = (SELECT f1 FROM t1 ORDER BY 1 LIMIT 1)	{
               "select#": 2,
               "steps": [
                 {
-                  "expanded_query": "/* select#2 */ select `test`.`t1`.`f1` from `test`.`t1` order by 1 limit 1"
+                  "expanded_query": "/* select#2 */ select `t1`.`f1` from `t1` order by 1 limit 1"
                 }
               ]
             }
           },
           {
-            "expanded_query": "/* select#1 */ select `test`.`t1`.`f0` AS `f0`,`test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2` from `test`.`t1` where (`test`.`t1`.`f1` = (/* select#2 */ select `test`.`t1`.`f1` from `test`.`t1` order by 1 limit 1))"
+            "expanded_query": "/* select#1 */ select `t1`.`f0` AS `f0`,`t1`.`f1` AS `f1`,`t1`.`f2` AS `f2` from `t1` where (`t1`.`f1` = (/* select#2 */ select `t1`.`f1` from `t1` order by 1 limit 1))"
           }
         ]
       }
@@ -7865,21 +7680,21 @@ SELECT * FROM t1 WHERE f1 = (SELECT f1 FROM t1 ORDER BY 1 LIMIT 1)	{
           {
             "condition_processing": {
               "condition": "WHERE",
-              "original_condition": "(`test`.`t1`.`f1` = (/* select#2 */ select `test`.`t1`.`f1` from `test`.`t1` order by 1 limit 1))",
+              "original_condition": "(`t1`.`f1` = (/* select#2 */ select `t1`.`f1` from `t1` order by 1 limit 1))",
               "steps": [
                 {
                   "transformation": "equality_propagation",
                   "subselect_evaluation": [
                   ],
-                  "resulting_condition": "multiple equal((/* select#2 */ select `test`.`t1`.`f1` from `test`.`t1` order by 1 limit 1), `test`.`t1`.`f1`)"
+                  "resulting_condition": "multiple equal((/* select#2 */ select `t1`.`f1` from `t1` order by 1 limit 1), `t1`.`f1`)"
                 },
                 {
                   "transformation": "constant_propagation",
-                  "resulting_condition": "multiple equal((/* select#2 */ select `test`.`t1`.`f1` from `test`.`t1` order by 1 limit 1), `test`.`t1`.`f1`)"
+                  "resulting_condition": "multiple equal((/* select#2 */ select `t1`.`f1` from `t1` order by 1 limit 1), `t1`.`f1`)"
                 },
                 {
                   "transformation": "trivial_condition_removal",
-                  "resulting_condition": "multiple equal((/* select#2 */ select `test`.`t1`.`f1` from `test`.`t1` order by 1 limit 1), `test`.`t1`.`f1`)"
+                  "resulting_condition": "multiple equal((/* select#2 */ select `t1`.`f1` from `t1` order by 1 limit 1), `t1`.`f1`)"
                 }
               ]
             }
@@ -7887,8 +7702,7 @@ SELECT * FROM t1 WHERE f1 = (SELECT f1 FROM t1 ORDER BY 1 LIMIT 1)	{
           {
             "table_dependencies": [
               {
-                "database": "test",
-                "table": "t1",
+                "table": "`t1`",
                 "row_may_be_null": false,
                 "map_bit": 0,
                 "depends_on_map_bits": [
@@ -7903,8 +7717,7 @@ SELECT * FROM t1 WHERE f1 = (SELECT f1 FROM t1 ORDER BY 1 LIMIT 1)	{
           {
             "rows_estimation": [
               {
-                "database": "test",
-                "table": "t1",
+                "table": "`t1`",
                 "table_scan": {
                   "rows": 500,
                   "cost": 4
@@ -7915,8 +7728,9 @@ SELECT * FROM t1 WHERE f1 = (SELECT f1 FROM t1 ORDER BY 1 LIMIT 1)	{
           {
             "considered_execution_plans": [
               {
-                "database": "test",
-                "table": "t1",
+                "plan_prefix": [
+                ],
+                "table": "`t1`",
                 "best_access_path": {
                   "considered_access_paths": [
                     {
@@ -7935,14 +7749,13 @@ SELECT * FROM t1 WHERE f1 = (SELECT f1 FROM t1 ORDER BY 1 LIMIT 1)	{
           },
           {
             "attaching_conditions_to_tables": {
-              "original_condition": "(`test`.`t1`.`f1` = (/* select#2 */ select `test`.`t1`.`f1` from `test`.`t1` order by 1 limit 1))",
+              "original_condition": "(`t1`.`f1` = (/* select#2 */ select `t1`.`f1` from `t1` order by 1 limit 1))",
               "attached_conditions_computation": [
               ],
               "attached_conditions_summary": [
                 {
-                  "database": "test",
-                  "table": "t1",
-                  "attached": "(`test`.`t1`.`f1` = (/* select#2 */ select `test`.`t1`.`f1` from `test`.`t1` order by 1 limit 1))"
+                  "table": "`t1`",
+                  "attached": "(`t1`.`f1` = (/* select#2 */ select `t1`.`f1` from `t1` order by 1 limit 1))"
                 }
               ]
             }
@@ -7950,8 +7763,7 @@ SELECT * FROM t1 WHERE f1 = (SELECT f1 FROM t1 ORDER BY 1 LIMIT 1)	{
           {
             "refine_plan": [
               {
-                "database": "test",
-                "table": "t1",
+                "table": "`t1`",
                 "access_type": "table_scan"
               }
             ]
@@ -7974,8 +7786,7 @@ SELECT * FROM t1 WHERE f1 = (SELECT f1 FROM t1 ORDER BY 1 LIMIT 1)	{
                       {
                         "table_dependencies": [
                           {
-                            "database": "test",
-                            "table": "t1",
+                            "table": "`t1`",
                             "row_may_be_null": false,
                             "map_bit": 0,
                             "depends_on_map_bits": [
@@ -7986,8 +7797,7 @@ SELECT * FROM t1 WHERE f1 = (SELECT f1 FROM t1 ORDER BY 1 LIMIT 1)	{
                       {
                         "rows_estimation": [
                           {
-                            "database": "test",
-                            "table": "t1",
+                            "table": "`t1`",
                             "table_scan": {
                               "rows": 500,
                               "cost": 4
@@ -7998,8 +7808,9 @@ SELECT * FROM t1 WHERE f1 = (SELECT f1 FROM t1 ORDER BY 1 LIMIT 1)	{
                       {
                         "considered_execution_plans": [
                           {
-                            "database": "test",
-                            "table": "t1",
+                            "plan_prefix": [
+                            ],
+                            "table": "`t1`",
                             "best_access_path": {
                               "considered_access_paths": [
                                 {
@@ -8023,8 +7834,7 @@ SELECT * FROM t1 WHERE f1 = (SELECT f1 FROM t1 ORDER BY 1 LIMIT 1)	{
                           ],
                           "attached_conditions_summary": [
                             {
-                              "database": "test",
-                              "table": "t1",
+                              "table": "`t1`",
                               "attached": null
                             }
                           ]
@@ -8036,7 +7846,7 @@ SELECT * FROM t1 WHERE f1 = (SELECT f1 FROM t1 ORDER BY 1 LIMIT 1)	{
                           "original_clause": "1",
                           "items": [
                             {
-                              "item": "`test`.`t1`.`f1`"
+                              "item": "`t1`.`f1`"
                             }
                           ],
                           "resulting_clause_is_simple": true,
@@ -8046,8 +7856,7 @@ SELECT * FROM t1 WHERE f1 = (SELECT f1 FROM t1 ORDER BY 1 LIMIT 1)	{
                       {
                         "refine_plan": [
                           {
-                            "database": "test",
-                            "table": "t1",
+                            "table": "`t1`",
                             "access_type": "table_scan"
                           }
                         ]
@@ -8063,8 +7872,7 @@ SELECT * FROM t1 WHERE f1 = (SELECT f1 FROM t1 ORDER BY 1 LIMIT 1)	{
                         "filesort_information": [
                           {
                             "direction": "asc",
-                            "database": "test",
-                            "table": "t1",
+                            "table": "`t1`",
                             "field": "f1"
                           }
                         ],
@@ -11604,13 +11412,13 @@ SELECT * FROM t1 WHERE f1 = (SELECT f1 FROM t1 ORDER BY 1 LIMIT 2)	{
               "select#": 2,
               "steps": [
                 {
-                  "expanded_query": "/* select#2 */ select `test`.`t1`.`f1` from `test`.`t1` order by 1 limit 2"
+                  "expanded_query": "/* select#2 */ select `t1`.`f1` from `t1` order by 1 limit 2"
                 }
               ]
             }
           },
           {
-            "expanded_query": "/* select#1 */ select `test`.`t1`.`f0` AS `f0`,`test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2` from `test`.`t1` where (`test`.`t1`.`f1` = (/* select#2 */ select `test`.`t1`.`f1` from `test`.`t1` order by 1 limit 2))"
+            "expanded_query": "/* select#1 */ select `t1`.`f0` AS `f0`,`t1`.`f1` AS `f1`,`t1`.`f2` AS `f2` from `t1` where (`t1`.`f1` = (/* select#2 */ select `t1`.`f1` from `t1` order by 1 limit 2))"
           }
         ]
       }
@@ -11622,21 +11430,21 @@ SELECT * FROM t1 WHERE f1 = (SELECT f1 FROM t1 ORDER BY 1 LIMIT 2)	{
           {
             "condition_processing": {
               "condition": "WHERE",
-              "original_condition": "(`test`.`t1`.`f1` = (/* select#2 */ select `test`.`t1`.`f1` from `test`.`t1` order by 1 limit 2))",
+              "original_condition": "(`t1`.`f1` = (/* select#2 */ select `t1`.`f1` from `t1` order by 1 limit 2))",
               "steps": [
                 {
                   "transformation": "equality_propagation",
                   "subselect_evaluation": [
                   ],
-                  "resulting_condition": "multiple equal((/* select#2 */ select `test`.`t1`.`f1` from `test`.`t1` order by 1 limit 2), `test`.`t1`.`f1`)"
+                  "resulting_condition": "multiple equal((/* select#2 */ select `t1`.`f1` from `t1` order by 1 limit 2), `t1`.`f1`)"
                 },
                 {
                   "transformation": "constant_propagation",
-                  "resulting_condition": "multiple equal((/* select#2 */ select `test`.`t1`.`f1` from `test`.`t1` order by 1 limit 2), `test`.`t1`.`f1`)"
+                  "resulting_condition": "multiple equal((/* select#2 */ select `t1`.`f1` from `t1` order by 1 limit 2), `t1`.`f1`)"
                 },
                 {
                   "transformation": "trivial_condition_removal",
-                  "resulting_condition": "multiple equal((/* select#2 */ select `test`.`t1`.`f1` from `test`.`t1` order by 1 limit 2), `test`.`t1`.`f1`)"
+                  "resulting_condition": "multiple equal((/* select#2 */ select `t1`.`f1` from `t1` order by 1 limit 2), `t1`.`f1`)"
                 }
               ]
             }
@@ -11644,8 +11452,7 @@ SELECT * FROM t1 WHERE f1 = (SELECT f1 FROM t1 ORDER BY 1 LIMIT 2)	{
           {
             "table_dependencies": [
               {
-                "database": "test",
-                "table": "t1",
+                "table": "`t1`",
                 "row_may_be_null": false,
                 "map_bit": 0,
                 "depends_on_map_bits": [
@@ -11660,8 +11467,7 @@ SELECT * FROM t1 WHERE f1 = (SELECT f1 FROM t1 ORDER BY 1 LIMIT 2)	{
           {
             "rows_estimation": [
               {
-                "database": "test",
-                "table": "t1",
+                "table": "`t1`",
                 "table_scan": {
                   "rows": 500,
                   "cost": 4
@@ -11672,8 +11478,9 @@ SELECT * FROM t1 WHERE f1 = (SELECT f1 FROM t1 ORDER BY 1 LIMIT 2)	{
           {
             "considered_execution_plans": [
               {
-                "database": "test",
-                "table": "t1",
+                "plan_prefix": [
+                ],
+                "table": "`t1`",
                 "best_access_path": {
                   "considered_access_paths": [
                     {
@@ -11692,14 +11499,13 @@ SELECT * FROM t1 WHERE f1 = (SELECT f1 FROM t1 ORDER BY 1 LIMIT 2)	{
           },
           {
             "attaching_conditions_to_tables": {
-              "original_condition": "(`test`.`t1`.`f1` = (/* select#2 */ select `test`.`t1`.`f1` from `test`.`t1` order by 1 limit 2))",
+              "original_condition": "(`t1`.`f1` = (/* select#2 */ select `t1`.`f1` from `t1` order by 1 limit 2))",
               "attached_conditions_computation": [
               ],
               "attached_conditions_summary": [
                 {
-                  "database": "test",
-                  "table": "t1",
-                  "attached": "(`test`.`t1`.`f1` = (/* select#2 */ select `test`.`t1`.`f1` from `test`.`t1` order by 1 limit 2))"
+                  "table": "`t1`",
+                  "attached": "(`t1`.`f1` = (/* select#2 */ select `t1`.`f1` from `t1` order by 1 limit 2))"
                 }
               ]
             }
@@ -11707,8 +11513,7 @@ SELECT * FROM t1 WHERE f1 = (SELECT f1 FROM t1 ORDER BY 1 LIMIT 2)	{
           {
             "refine_plan": [
               {
-                "database": "test",
-                "table": "t1",
+                "table": "`t1`",
                 "access_type": "table_scan"
               }
             ]
@@ -11731,8 +11536,7 @@ SELECT * FROM t1 WHERE f1 = (SELECT f1 FROM t1 ORDER BY 1 LIMIT 2)	{
                       {
                         "table_dependencies": [
                           {
-                            "database": "test",
-                            "table": "t1",
+                            "table": "`t1`",
                             "row_may_be_null": false,
                             "map_bit": 0,
                             "depends_on_map_bits": [
@@ -11743,8 +11547,7 @@ SELECT * FROM t1 WHERE f1 = (SELECT f1 FROM t1 ORDER BY 1 LIMIT 2)	{
                       {
                         "rows_estimation": [
                           {
-                            "database": "test",
-                            "table": "t1",
+                            "table": "`t1`",
                             "table_scan": {
                               "rows": 500,
                               "cost": 4
@@ -11755,8 +11558,9 @@ SELECT * FROM t1 WHERE f1 = (SELECT f1 FROM t1 ORDER BY 1 LIMIT 2)	{
                       {
                         "considered_execution_plans": [
                           {
-                            "database": "test",
-                            "table": "t1",
+                            "plan_prefix": [
+                            ],
+                            "table": "`t1`",
                             "best_access_path": {
                               "considered_access_paths": [
                                 {
@@ -11780,8 +11584,7 @@ SELECT * FROM t1 WHERE f1 = (SELECT f1 FROM t1 ORDER BY 1 LIMIT 2)	{
                           ],
                           "attached_conditions_summary": [
                             {
-                              "database": "test",
-                              "table": "t1",
+                              "table": "`t1`",
                               "attached": null
                             }
                           ]
@@ -11793,7 +11596,7 @@ SELECT * FROM t1 WHERE f1 = (SELECT f1 FROM t1 ORDER BY 1 LIMIT 2)	{
                           "original_clause": "1",
                           "items": [
                             {
-                              "item": "`test`.`t1`.`f1`"
+                              "item": "`t1`.`f1`"
                             }
                           ],
                           "resulting_clause_is_simple": true,
@@ -11803,8 +11606,7 @@ SELECT * FROM t1 WHERE f1 = (SELECT f1 FROM t1 ORDER BY 1 LIMIT 2)	{
                       {
                         "refine_plan": [
                           {
-                            "database": "test",
-                            "table": "t1",
+                            "table": "`t1`",
                             "access_type": "table_scan"
                           }
                         ]
@@ -11820,8 +11622,7 @@ SELECT * FROM t1 WHERE f1 = (SELECT f1 FROM t1 ORDER BY 1 LIMIT 2)	{
                         "filesort_information": [
                           {
                             "direction": "asc",
-                            "database": "test",
-                            "table": "t1",
+                            "table": "`t1`",
                             "field": "f1"
                           }
                         ],
@@ -11981,7 +11782,7 @@ SELECT * FROM t1 ORDER BY f2 LIMIT 100	{
         "select#": 1,
         "steps": [
           {
-            "expanded_query": "/* select#1 */ select `test`.`t1`.`f0` AS `f0`,`test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2` from `test`.`t1` order by `test`.`t1`.`f2` limit 100"
+            "expanded_query": "/* select#1 */ select `t1`.`f0` AS `f0`,`t1`.`f1` AS `f1`,`t1`.`f2` AS `f2` from `t1` order by `t1`.`f2` limit 100"
           }
         ]
       }
@@ -11993,8 +11794,7 @@ SELECT * FROM t1 ORDER BY f2 LIMIT 100	{
           {
             "table_dependencies": [
               {
-                "database": "test",
-                "table": "t1",
+                "table": "`t1`",
                 "row_may_be_null": false,
                 "map_bit": 0,
                 "depends_on_map_bits": [
@@ -12005,8 +11805,7 @@ SELECT * FROM t1 ORDER BY f2 LIMIT 100	{
           {
             "rows_estimation": [
               {
-                "database": "test",
-                "table": "t1",
+                "table": "`t1`",
                 "table_scan": {
                   "rows": 438500,
                   "cost": 2143
@@ -12017,8 +11816,9 @@ SELECT * FROM t1 ORDER BY f2 LIMIT 100	{
           {
             "considered_execution_plans": [
               {
-                "database": "test",
-                "table": "t1",
+                "plan_prefix": [
+                ],
+                "table": "`t1`",
                 "best_access_path": {
                   "considered_access_paths": [
                     {
@@ -12042,8 +11842,7 @@ SELECT * FROM t1 ORDER BY f2 LIMIT 100	{
               ],
               "attached_conditions_summary": [
                 {
-                  "database": "test",
-                  "table": "t1",
+                  "table": "`t1`",
                   "attached": null
                 }
               ]
@@ -12052,21 +11851,20 @@ SELECT * FROM t1 ORDER BY f2 LIMIT 100	{
           {
             "clause_processing": {
               "clause": "ORDER BY",
-              "original_clause": "`test`.`t1`.`f2`",
+              "original_clause": "`t1`.`f2`",
               "items": [
                 {
-                  "item": "`test`.`t1`.`f2`"
+                  "item": "`t1`.`f2`"
                 }
               ],
               "resulting_clause_is_simple": true,
-              "resulting_clause": "`test`.`t1`.`f2`"
+              "resulting_clause": "`t1`.`f2`"
             }
           },
           {
             "refine_plan": [
               {
-                "database": "test",
-                "table": "t1",
+                "table": "`t1`",
                 "access_type": "table_scan"
               }
             ]
@@ -12082,8 +11880,7 @@ SELECT * FROM t1 ORDER BY f2 LIMIT 100	{
             "filesort_information": [
               {
                 "direction": "asc",
-                "database": "test",
-                "table": "t1",
+                "table": "`t1`",
                 "field": "f2"
               }
             ],

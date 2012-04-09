@@ -31,10 +31,10 @@ show warnings;
 
 # Start a few sessions to do selections on table being updated in default
 # session, so it would rebuild the previous version from undo log.
-# 1) Default session:	Initiate an update on the externally stored column
-# 2) Session con1:	Select from table with repeated read
-# 3) Session con2:	Select from table with read uncommitted
-# 4) Default session:	rollback updates
+# 1) Default session:   Initiate an update on the externally stored column
+# 2) Session con1:      Select from table with repeated read
+# 3) Session con2:      Select from table with read uncommitted
+# 4) Default session:   rollback updates
 
 begin;
 update worklog5743 set a = (repeat("x", 17000));
@@ -137,20 +137,20 @@ create table worklog5743_8(a1 int, a2 TEXT, a3 TEXT) KEY_BLOCK_SIZE=8;
 
 # Test edge cases for indexes using key_block_size=1
 set global innodb_large_prefix=0;
--- error 139
+-- error ER_TOO_BIG_ROWSIZE
 create index idx1 on worklog5743_1(a2(4000));
 show warnings;
 set global innodb_large_prefix=1;
--- error 139
+-- error ER_TOO_BIG_ROWSIZE
 create index idx2 on worklog5743_1(a2(4000));
 show warnings;
--- error 139
+-- error ER_TOO_BIG_ROWSIZE
 create index idx3 on worklog5743_1(a2(436));
 show warnings;
 # Bug#13391353 Limit is one byte less on on 32bit-Linux only
 create index idx4 on worklog5743_1(a2(434));
 show warnings;
--- error 139
+-- error ER_TOO_BIG_ROWSIZE
 create index idx5 on worklog5743_1(a1, a2(430));
 show warnings;
 # Bug#13391353 Limit is one byte less on on 32bit-Linux only
@@ -162,16 +162,16 @@ set global innodb_large_prefix=0;
 create index idx1 on worklog5743_2(a2(4000));
 show warnings;
 set global innodb_large_prefix=1;
--- error 139
+-- error ER_TOO_BIG_ROWSIZE
 create index idx2 on worklog5743_2(a2(4000));
 show warnings;
--- error 139
+-- error ER_TOO_BIG_ROWSIZE
 create index idx3 on worklog5743_2(a2(948));
 show warnings;
 # Bug#13391353 Limit is one byte less on on 32bit-Linux only
 create index idx4 on worklog5743_2(a2(946));
 show warnings;
--- error 139
+-- error ER_TOO_BIG_ROWSIZE
 create index idx5 on worklog5743_2(a1, a2(942));
 show warnings;
 # Bug#13391353 Limit is one byte less on on 32bit-Linux only
@@ -279,12 +279,12 @@ drop table worklog5743_8;
 # on update of the int field - Bug 12636590 - INNODB; UPDATE OF
 # LARGE RECORD CAUSES UNLIMITED PAGE SPLITS IN 8K PAGE SIZE
 #create table worklog5743(a1 int,
-#	a2 varchar(20000),
-#	a3 varchar(3073),
-#	a4 varchar(3072),
-#	a5 varchar(3069),
-#	a6 varchar(3068))
-#	ROW_FORMAT=DYNAMIC;
+#  a2 varchar(20000),
+#  a3 varchar(3073),
+#  a4 varchar(3072),
+#  a5 varchar(3069),
+#  a6 varchar(3068))
+#  ROW_FORMAT=DYNAMIC;
 #create index idx1 on worklog5743(a2);
 #create index idx2 on worklog5743(a3);
 #create index idx3 on worklog5743(a4);
@@ -300,9 +300,9 @@ drop table worklog5743_8;
 #show create table worklog5743;
 #
 #insert into worklog5743 values(9,
-#	repeat("a", 20000), repeat("a", 3073),
-#	repeat("a", 3072), repeat("a", 3069),
-#	repeat("a", 3068));
+#  repeat("a", 20000), repeat("a", 3073),
+#  repeat("a", 3072), repeat("a", 3069),
+#  repeat("a", 3068));
 #
 
 create table worklog5743(a1 int, a2 varchar(20000)) ROW_FORMAT=DYNAMIC;
@@ -420,3 +420,11 @@ drop table worklog5743;
 eval SET GLOBAL innodb_file_format=$innodb_file_format_orig;
 eval SET GLOBAL innodb_file_per_table=$innodb_file_per_table_orig;
 eval SET GLOBAL innodb_large_prefix=$innodb_large_prefix_orig;
+--connection con1
+--disconnect con1
+--source include/wait_until_disconnected.inc
+--connection con2
+--disconnect con2
+--source include/wait_until_disconnected.inc
+--connection default
+

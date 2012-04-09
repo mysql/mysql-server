@@ -1,4 +1,5 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (c) 2006, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +12,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 /* 
  *  ndbapi_simple_dual.cpp: Using synchronous transactions in NDB API
@@ -135,8 +137,8 @@ int main(int argc, char** argv)
       MYSQLERROR(mysql2);
     
     // run the application code
-    run_application(mysql1, cluster1_connection, "MYTABLENAME1", "TEST_DB_1");
-    run_application(mysql2, cluster2_connection, "MYTABLENAME2", "TEST_DB_2");
+    run_application(mysql1, cluster1_connection, "api_simple_dual_1", "ndb_examples");
+    run_application(mysql2, cluster2_connection, "api_simple_dual_2", "ndb_examples");
   }
   // Note: all connections must have been destroyed before calling ndb_end()
   ndb_end(0);
@@ -145,7 +147,6 @@ int main(int argc, char** argv)
 }
 
 static void create_table(MYSQL &, const char* table);
-static void drop_table(MYSQL &, const char* table);
 static void do_insert(Ndb &, const char* table);
 static void do_update(Ndb &, const char* table);
 static void do_delete(Ndb &, const char* table);
@@ -183,8 +184,6 @@ static void run_application(MYSQL &mysql,
   /*
    * Drop the table
    */
-  drop_table(mysql, table);
- sprintf(db_stmt, "DROP DATABASE %s\n", db);
   mysql_query(&mysql, db_stmt);
 }
 
@@ -203,17 +202,6 @@ static void create_table(MYSQL &mysql, const char* table)
     MYSQLERROR(mysql);
 }
 
-/*******************************
- * Drop a table named by table
- *******************************/
-static void drop_table(MYSQL &mysql, const char* table)
-{
-  char drop_stmt[256];
-
-  sprintf(drop_stmt, "DROP TABLE IF EXISTS %s", table);
-  if (mysql_query(&mysql, drop_stmt)) 
-    MYSQLERROR(mysql);
-}
 
 /**************************************************************************
  * Using 5 transactions, insert 10 tuples in table: (0,0),(1,1),...,(9,9) *

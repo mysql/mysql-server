@@ -1,0 +1,144 @@
+use test;
+drop table if exists t1,t2;
+set @s0 = 'rggurloniukyehuxdbfkkyzlceixzrehqhvxvxbpwizzvjzpucqmzrhzxzfau';
+set @s1 = 'ykyymbzqgqlcjhlhmyqelfoaaohvtbekvifukdtnvcrrjveevfakxarxexomz';
+set @s2 = 'dbnfqyzgtqxalcrwtfsqabknvtfcbpoonxsjiqvmhnfikxxhcgoexlkoezvah';
+set @v1 = repeat(@s0, 100);
+set @v2 = repeat(@s1, 200);
+set @v3 = repeat(@s2, 300);
+set @v4 = repeat(@s0, 400);
+set @v5 = repeat(@s1, 500);
+set @v6 = repeat(@s2, 600);
+create table t1 (
+a int auto_increment,
+b text,
+primary key (a)
+)
+engine ndbcluster;
+insert into t1(b) values(@v1);
+insert into t1(b) values(@v2);
+insert into t1(b) values(@v3);
+create table t2 (
+a text,
+b varchar(8),
+c mediumblob,
+d int,
+e tinyblob,
+f varchar(2),
+primary key (b, d, f)
+)
+engine ndbcluster;
+insert into t2 values(@v1, 'a', @v2, 1, 'xx1', 'u');
+insert into t2 values(@v3, 'a', @v4, 1, 'yy1', 'v');
+insert into t2 values(@v5, 'a', @v6, 2, 'zz1', 'v');
+insert into t2 values(@v1, 'abc', @v2, 1, 'xx2', 'u');
+insert into t2 values(@v3, 'abc', @v4, 1, 'yy2', 'v');
+insert into t2 values(@v5, 'abc', @v6, 2, 'zz2', 'v');
+insert into t2 values(@v1, 'abcdefgh', @v2, 1, 'xx3', 'u');
+insert into t2 values(@v3, 'abcdefgh', @v4, 1, 'yy3', 'v');
+insert into t2 values(@v5, 'abcdefgh', @v6, 2, 'zz3', 'v');
+select a, sha1(b) from t1 order by a;
+a	sha1(b)
+1	1d42dd9090cf78314a06665d4ea938c35cc760f4
+2	10d3c783026b310218d10b7188da96a2401648c6
+3	a33549d9844092289a58ac348dd59f09fc28406a
+select sha1(a), sha1(c), e from t2 order by b, d, f;
+sha1(a)	sha1(c)	e
+1d42dd9090cf78314a06665d4ea938c35cc760f4	10d3c783026b310218d10b7188da96a2401648c6	xx1
+a33549d9844092289a58ac348dd59f09fc28406a	daa61c6de36a0526f0d47dc29d6b9de7e6d2630c	yy1
+70fc9a7d08beebc522258bfb02000a30c77a8f1d	090565c580809efed3d369481a4bbb168b20713e	zz1
+1d42dd9090cf78314a06665d4ea938c35cc760f4	10d3c783026b310218d10b7188da96a2401648c6	xx2
+a33549d9844092289a58ac348dd59f09fc28406a	daa61c6de36a0526f0d47dc29d6b9de7e6d2630c	yy2
+70fc9a7d08beebc522258bfb02000a30c77a8f1d	090565c580809efed3d369481a4bbb168b20713e	zz2
+1d42dd9090cf78314a06665d4ea938c35cc760f4	10d3c783026b310218d10b7188da96a2401648c6	xx3
+a33549d9844092289a58ac348dd59f09fc28406a	daa61c6de36a0526f0d47dc29d6b9de7e6d2630c	yy3
+70fc9a7d08beebc522258bfb02000a30c77a8f1d	090565c580809efed3d369481a4bbb168b20713e	zz3
+drop table t1, t2;
+select a, sha1(b) from t1 order by a;
+a	sha1(b)
+1	1d42dd9090cf78314a06665d4ea938c35cc760f4
+2	10d3c783026b310218d10b7188da96a2401648c6
+3	a33549d9844092289a58ac348dd59f09fc28406a
+select sha1(a), sha1(c), e from t2 order by b, d, f;
+sha1(a)	sha1(c)	e
+1d42dd9090cf78314a06665d4ea938c35cc760f4	10d3c783026b310218d10b7188da96a2401648c6	xx1
+a33549d9844092289a58ac348dd59f09fc28406a	daa61c6de36a0526f0d47dc29d6b9de7e6d2630c	yy1
+70fc9a7d08beebc522258bfb02000a30c77a8f1d	090565c580809efed3d369481a4bbb168b20713e	zz1
+1d42dd9090cf78314a06665d4ea938c35cc760f4	10d3c783026b310218d10b7188da96a2401648c6	xx2
+a33549d9844092289a58ac348dd59f09fc28406a	daa61c6de36a0526f0d47dc29d6b9de7e6d2630c	yy2
+70fc9a7d08beebc522258bfb02000a30c77a8f1d	090565c580809efed3d369481a4bbb168b20713e	zz2
+1d42dd9090cf78314a06665d4ea938c35cc760f4	10d3c783026b310218d10b7188da96a2401648c6	xx3
+a33549d9844092289a58ac348dd59f09fc28406a	daa61c6de36a0526f0d47dc29d6b9de7e6d2630c	yy3
+70fc9a7d08beebc522258bfb02000a30c77a8f1d	090565c580809efed3d369481a4bbb168b20713e	zz3
+drop table t1,t2;
+create logfile group lg1 add undofile 'undofile.dat'
+  initial_size 16M undo_buffer_size 1M engine=ndb;
+create tablespace ts1 add datafile 'datafile.dat'
+  use logfile group lg1 initial_size 32M engine=ndb;
+create table t1 (
+a int,
+b text,
+primary key (a)
+)
+tablespace ts1 storage disk
+engine ndbcluster;
+insert into t1 values(1, @v1);
+insert into t1 values(2, @v2);
+insert into t1 values(3, @v3);
+create table t2 (
+a text,
+b varchar(8),
+c mediumblob,
+d int,
+e tinyblob,
+f varchar(2),
+primary key (b, d, f)
+)
+tablespace ts1 storage disk
+engine ndbcluster;
+insert into t2 values(@v1, 'a', @v2, 1, 'xx1', 'u');
+insert into t2 values(@v3, 'a', @v4, 1, 'yy1', 'v');
+insert into t2 values(@v5, 'a', @v6, 2, 'zz1', 'v');
+insert into t2 values(@v1, 'abc', @v2, 1, 'xx2', 'u');
+insert into t2 values(@v3, 'abc', @v4, 1, 'yy2', 'v');
+insert into t2 values(@v5, 'abc', @v6, 2, 'zz2', 'v');
+insert into t2 values(@v1, 'abcdefgh', @v2, 1, 'xx3', 'u');
+insert into t2 values(@v3, 'abcdefgh', @v4, 1, 'yy3', 'v');
+insert into t2 values(@v5, 'abcdefgh', @v6, 2, 'zz3', 'v');
+select a, sha1(b) from t1 order by a;
+a	sha1(b)
+1	1d42dd9090cf78314a06665d4ea938c35cc760f4
+2	10d3c783026b310218d10b7188da96a2401648c6
+3	a33549d9844092289a58ac348dd59f09fc28406a
+select sha1(a), sha1(c), e from t2 order by b, d, f;
+sha1(a)	sha1(c)	e
+1d42dd9090cf78314a06665d4ea938c35cc760f4	10d3c783026b310218d10b7188da96a2401648c6	xx1
+a33549d9844092289a58ac348dd59f09fc28406a	daa61c6de36a0526f0d47dc29d6b9de7e6d2630c	yy1
+70fc9a7d08beebc522258bfb02000a30c77a8f1d	090565c580809efed3d369481a4bbb168b20713e	zz1
+1d42dd9090cf78314a06665d4ea938c35cc760f4	10d3c783026b310218d10b7188da96a2401648c6	xx2
+a33549d9844092289a58ac348dd59f09fc28406a	daa61c6de36a0526f0d47dc29d6b9de7e6d2630c	yy2
+70fc9a7d08beebc522258bfb02000a30c77a8f1d	090565c580809efed3d369481a4bbb168b20713e	zz2
+1d42dd9090cf78314a06665d4ea938c35cc760f4	10d3c783026b310218d10b7188da96a2401648c6	xx3
+a33549d9844092289a58ac348dd59f09fc28406a	daa61c6de36a0526f0d47dc29d6b9de7e6d2630c	yy3
+70fc9a7d08beebc522258bfb02000a30c77a8f1d	090565c580809efed3d369481a4bbb168b20713e	zz3
+drop table t1, t2;
+select a, sha1(b) from t1 order by a;
+a	sha1(b)
+1	1d42dd9090cf78314a06665d4ea938c35cc760f4
+2	10d3c783026b310218d10b7188da96a2401648c6
+3	a33549d9844092289a58ac348dd59f09fc28406a
+select sha1(a), sha1(c), e from t2 order by b, d, f;
+sha1(a)	sha1(c)	e
+1d42dd9090cf78314a06665d4ea938c35cc760f4	10d3c783026b310218d10b7188da96a2401648c6	xx1
+a33549d9844092289a58ac348dd59f09fc28406a	daa61c6de36a0526f0d47dc29d6b9de7e6d2630c	yy1
+70fc9a7d08beebc522258bfb02000a30c77a8f1d	090565c580809efed3d369481a4bbb168b20713e	zz1
+1d42dd9090cf78314a06665d4ea938c35cc760f4	10d3c783026b310218d10b7188da96a2401648c6	xx2
+a33549d9844092289a58ac348dd59f09fc28406a	daa61c6de36a0526f0d47dc29d6b9de7e6d2630c	yy2
+70fc9a7d08beebc522258bfb02000a30c77a8f1d	090565c580809efed3d369481a4bbb168b20713e	zz2
+1d42dd9090cf78314a06665d4ea938c35cc760f4	10d3c783026b310218d10b7188da96a2401648c6	xx3
+a33549d9844092289a58ac348dd59f09fc28406a	daa61c6de36a0526f0d47dc29d6b9de7e6d2630c	yy3
+70fc9a7d08beebc522258bfb02000a30c77a8f1d	090565c580809efed3d369481a4bbb168b20713e	zz3
+drop table t1,t2;
+alter tablespace ts1 drop datafile 'datafile.dat' engine=ndb;
+drop tablespace ts1 engine=ndb;
+drop logfile group lg1 engine=ndb;

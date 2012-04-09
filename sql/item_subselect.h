@@ -161,6 +161,7 @@ public:
   enum_parsing_place place() { return parsing_place; }
   bool walk_body(Item_processor processor, bool walk_subquery, uchar *arg);
   bool walk(Item_processor processor, bool walk_subquery, uchar *arg);
+  virtual bool explain_subquery_checker(uchar **arg);
 
   /**
     Get the SELECT_LEX structure associated with this Item.
@@ -736,5 +737,7 @@ public:
     return materialize_engine->cols();
   }
   virtual enum_engine_type engine_type() const { return HASH_SJ_ENGINE; }
+  
+  const st_join_table *get_join_tab() const { return tab; }
 };
 #endif /* ITEM_SUBSELECT_INCLUDED */

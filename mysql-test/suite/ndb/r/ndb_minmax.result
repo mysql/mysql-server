@@ -1,0 +1,120 @@
+drop table if exists t1, t2;
+CREATE TABLE t1 (
+a int PRIMARY KEY
+) engine = ndb;
+INSERT INTO t1 VALUES (1);
+INSERT INTO t1 VALUES (2);
+INSERT INTO t1 VALUES (3);
+INSERT INTO t1 VALUES (4);
+INSERT INTO t1 VALUES (5);
+INSERT INTO t1 VALUES (6);
+select MAX(a) from t1;
+MAX(a)
+6
+select MAX(a) from t1;
+MAX(a)
+6
+select MAX(a) from t1;
+MAX(a)
+6
+select MAX(a) from t1;
+MAX(a)
+6
+select MIN(a) from t1;
+MIN(a)
+1
+select MIN(a) from t1;
+MIN(a)
+1
+select MIN(a) from t1;
+MIN(a)
+1
+select * from t1 order by a;
+a
+1
+2
+3
+4
+5
+6
+select MIN(a) from t1;
+MIN(a)
+1
+select MAX(a) from t1;
+MAX(a)
+6
+select MAX(a) from t1;
+MAX(a)
+6
+select * from t1 order by a;
+a
+1
+2
+3
+4
+5
+6
+drop table t1;
+CREATE TABLE t2 (
+a int PRIMARY KEY,
+b int not null,
+c int not null,
+KEY(b),
+UNIQUE(c)
+) engine = ndb;
+INSERT INTO t2 VALUES (1, 5, 1);
+INSERT INTO t2 VALUES (2, 2, 7);
+INSERT INTO t2 VALUES (3, 3, 3);
+INSERT INTO t2 VALUES (4, 4, 4);
+INSERT INTO t2 VALUES (5, 5, 5);
+INSERT INTO t2 VALUES (6, 6, 6);
+INSERT INTO t2 VALUES (7, 2, 10);
+INSERT INTO t2 VALUES (8, 10, 2);
+select MAX(a) from t2;
+MAX(a)
+8
+select MAX(b) from t2;
+MAX(b)
+10
+select MAX(c) from t2;
+MAX(c)
+10
+select MIN(a) from t2;
+MIN(a)
+1
+select MIN(b) from t2;
+MIN(b)
+2
+select MIN(c) from t2;
+MIN(c)
+1
+select * from t2 order by a;
+a	b	c
+1	5	1
+2	2	7
+3	3	3
+4	4	4
+5	5	5
+6	6	6
+7	2	10
+8	10	2
+select MIN(b) from t2;
+MIN(b)
+2
+select MAX(a) from t2;
+MAX(a)
+8
+select MAX(c) from t2;
+MAX(c)
+10
+select * from t2 order by a;
+a	b	c
+1	5	1
+2	2	7
+3	3	3
+4	4	4
+5	5	5
+6	6	6
+7	2	10
+8	10	2
+drop table t2;

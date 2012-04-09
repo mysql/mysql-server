@@ -1,4 +1,6 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (C) 2003, 2005-2007 MySQL AB
+    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +13,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #include <signaldata/PackedSignal.hpp>
 #include <signaldata/LqhKey.hpp>
@@ -29,7 +32,7 @@ printPACKED_SIGNAL(FILE * output, const Uint32 * theData, Uint32 len, Uint16 rec
   for (i = 0; i < len;) {
     switch (PackedSignal::getSignalType(theData[i])) {
     case ZCOMMIT: {
-      Uint32 signalLength = 4;
+      Uint32 signalLength = 5;
       fprintf(output, "--------------- Signal ----------------\n");
       fprintf(output, "r.bn: %u \"%s\", length: %u \"COMMIT\"\n", 
 	      receiverBlockNo, getBlockName(receiverBlockNo,""), signalLength);
@@ -92,6 +95,24 @@ printPACKED_SIGNAL(FILE * output, const Uint32 * theData, Uint32 len, Uint16 rec
       for(Uint32 j = 0; j < signalLength; j++)
 	fprintf(output, "H\'%.8x ", theData[i++]);
       fprintf(output,"\n");
+      break;
+    }
+    case ZFIRE_TRIG_REQ: {
+      Uint32 signalLength = 3;
+
+      fprintf(output, "--------------- Signal ----------------\n");
+      fprintf(output, "r.bn: %u \"%s\", length: %u \"FIRE_TRIG_REQ\"\n",
+	      receiverBlockNo, getBlockName(receiverBlockNo,""), signalLength);
+      i += signalLength;
+      break;
+    }
+    case ZFIRE_TRIG_CONF: {
+      Uint32 signalLength = 4;
+
+      fprintf(output, "--------------- Signal ----------------\n");
+      fprintf(output, "r.bn: %u \"%s\", length: %u \"FIRE_TRIG_CONF\"\n",
+	      receiverBlockNo, getBlockName(receiverBlockNo,""), signalLength);
+      i += signalLength;
       break;
     }
     default:

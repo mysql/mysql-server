@@ -29,11 +29,16 @@
 
 #if defined(HAVE_YASSL)
 
-C_MODE_START
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 void my_md5_hash(char *digest, const char *buf, int len);
 
-C_MODE_END
+#ifdef __cplusplus
+}
+#endif
+
 
 #else /* HAVE_YASSL */
 
@@ -57,6 +62,8 @@ do { \
    bits instead of 64 is not important; speed is considerably more
    important.  ANSI guarantees that "unsigned long" will be big enough,
    and always using it seems to have few disadvantages.  */
+
+#include "my_global.h"
 typedef uint32 cvs_uint32;
 
 typedef struct {
@@ -65,7 +72,9 @@ typedef struct {
   unsigned char in[64];
 } my_MD5Context;
 
-C_MODE_START
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 void my_MD5Init (my_MD5Context *context);
 void my_MD5Update (my_MD5Context *context,
@@ -73,7 +82,10 @@ void my_MD5Update (my_MD5Context *context,
 void my_MD5Final (unsigned char digest[16],
                   my_MD5Context *context);
 
-C_MODE_END
+#ifdef __cplusplus
+}
+#endif
+
 
 #define MY_MD5_HASH(digest,buf,len) \
 do { \
@@ -85,10 +97,14 @@ do { \
 
 #endif /* defined(HAVE_YASSL) || defined(HAVE_OPENSSL) */
 
-C_MODE_START
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 void compute_md5_hash(char *digest, const char *buf, int len);
 
-C_MODE_END
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* MY_MD5_INCLUDED */

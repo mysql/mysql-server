@@ -1,0 +1,38 @@
+
+*** check issues marked in ClusterjLoad against latest Cluster/J version
+    - leaking connections ?
+
+    + use blind update for setByPk, setB0ToA, nullB0ToA (can be batched)
+      and String updates
+
+    + getByPK_[batched] + string reads: define a multi-range index scan
+      use an 'in/or' query, then iterate result
+
+    + navA->B0: do not find the As
+
+*** Operations.cpp: remove #ifndef NDEBUG... to ensure consistent
+    result verifications across all operations and backends
+
+*** add configuration to run OpenJPA on Cluster/J
+
+*** integrate CRUND benchmark into ... suite
+
+*** add Blob/Text read/write operations to all *Load classes
+
+*** extend JdbcLoad, JpaLoad, ClusterjLoad for Varchar/Varbinary operations
+
+*** tune for OpenJPA performance:
+    http://openjpa.apache.org/builds/latest/docs/manual/manual.html#ref_guide_optimization
+
+*** Add/fix support for string length > 100 
+
+*** Review code/patterns/lock modes 
+
+*** Implement patterns: 
+    NdbRecord 
+    (Asynchronous)
+    Investigate NDBAPI anomalies 
+
+*** Fix navA->B0 (NdbApiLoad) ?
+
+

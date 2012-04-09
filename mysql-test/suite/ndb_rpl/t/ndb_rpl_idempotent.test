@@ -1,0 +1,113 @@
+--source include/have_ndb.inc
+--source include/have_binlog_format_mixed_or_row.inc
+--source suite/ndb_rpl/ndb_master-slave.inc
+
+#
+# Currently test only works with ndb since it retrieves "old"
+# binlog positions with mysql.ndb_binlog_index and ndb_apply_status;
+#
+
+# create a table with one row
+CREATE TABLE t1 (c1 CHAR(15), c2 CHAR(15), c3 INT, PRIMARY KEY (c3)) ENGINE = NDB ;
+INSERT INTO t1 VALUES ("row1","will go away",1);
+SELECT * FROM t1 ORDER BY c3;
+
+# sync slave and retrieve epoch
+sync_slave_with_master;
+--replace_column 1 <the_epoch>
+SELECT @the_epoch:=MAX(epoch) FROM mysql.ndb_apply_status;
+let $the_epoch= `select @the_epoch` ;
+SELECT * FROM t1 ORDER BY c3;
+
+# get the master binlog pos from the epoch
+connection master;
+--disable_query_log
+--disable_result_log
+eval SELECT @the_pos:=Position,
+   @the_file:=SUBSTRING_INDEX(REPLACE(FILE,'\\\\','/'), '/', -1)
+   FROM mysql.ndb_binlog_index WHERE epoch = $the_epoch ;
+let $the_pos= `SELECT @the_pos` ;
+let $the_file= `SELECT @the_file` ;
+let $the_epoch=`SELECT MAX(epoch) FROM mysql.ndb_apply_status`;
+--enable_result_log
+--enable_query_log
+
+# insert some more values
+INSERT INTO t1 VALUES ("row2","will go away",2),("row3","will change",3),("row4","D",4);
+DELETE FROM t1 WHERE c3 = 1;
+UPDATE t1 SET c2="should go away" WHERE c3 = 2;
+UPDATE t1 SET c2="C" WHERE c3 = 3;
+DELETE FROM t1 WHERE c3 = 2;
+
+SELECT * FROM t1 ORDER BY c3;
+
+# check that we have it on the slave
+--sync_slave_with_master
+SELECT * FROM t1 ORDER BY c3;
+
+source include/check_slave_is_running.inc;
+
+# stop slave and reset position to before the last changes
+STOP SLAVE;
+--replace_result $the_pos <the_pos>
+eval CHANGE MASTER TO
+  master_log_file = '$the_file',
+  master_log_pos = $the_pos ;
+
+source include/check_slave_no_error.inc;
+
+# start the slave again
+# -> same events should have been applied again
+# e.g. inserting rows that already there
+#      deleting a row which is not there
+#      updating a row which is not there
+START SLAVE;
+
+--connection master
+SELECT * FROM t1 ORDER BY c3;
+--sync_slave_with_master
+SELECT * FROM t1 ORDER BY c3;
+
+STOP SLAVE;
+
+#
+# cleanup
+#
+--connection master
+DROP TABLE t1;
+RESET master;
+--connection slave
+DROP TABLE t1;
+RESET slave;
+
+START SLAVE;
+
+#
+# Test that we can handle update of a row that does not exist on the slave
+# will trigger usage of AO_IgnoreError on slave side so that the INSERT
+# still succeeds even if the replication of the UPDATE generates an error.
+#
+--connection master
+CREATE TABLE t1 (c1 CHAR(15) NOT NULL, c2 CHAR(15) NOT NULL, c3 INT NOT NULL, PRIMARY KEY (c3)) ENGINE = NDB ;
+INSERT INTO t1 VALUES ("row1","remove on slave",1);
+
+--sync_slave_with_master
+--connection slave
+DELETE FROM t1;
+
+--connection master
+BEGIN;
+UPDATE t1 SET c2="does not exist" WHERE c3=1;
+INSERT INTO t1 VALUES ("row2","new on slave",2);
+COMMIT;
+
+--sync_slave_with_master
+--connection slave
+SELECT * FROM t1;
+source include/check_slave_is_running.inc;
+
+connection master;
+DROP TABLE IF EXISTS t1;
+
+# End of 5.1 Test
+--source include/rpl_end.inc

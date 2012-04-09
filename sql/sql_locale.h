@@ -66,7 +66,7 @@ public:
 
 extern MY_LOCALE my_locale_en_US;
 extern MY_LOCALE *my_locales[];
-extern MY_LOCALE *my_default_lc_messages;
+extern MYSQL_PLUGIN_IMPORT MY_LOCALE *my_default_lc_messages;
 extern MY_LOCALE *my_default_lc_time_names;
 
 /* Exported functions */

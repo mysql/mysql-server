@@ -1,4 +1,5 @@
-/* Copyright (C) 2007 MySQL AB
+/*
+   Copyright (c) 2007, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +12,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #include <NDBT.hpp>
 #include <NDBT_Test.hpp>
@@ -49,15 +51,7 @@ const char COL_LEN = 7;
 * there are six columns, 'i', 'j', 'k', 'l', 'm', 'n', and each on is equal to 1 or 1,
 * Since each tuple should be unique in this case, then TUPLE_NUM = 2 power 6 = 64 
 */
-#ifdef _AIX
-/*
-  IBM xlC_r breaks on the initialization with pow():
-  "The expression must be an integral constant expression."
-*/
-const int TUPLE_NUM = 64;
-#else
-const int TUPLE_NUM = (int)pow(2, COL_LEN-1);
-#endif
+const int TUPLE_NUM = 1 << (COL_LEN - 1);
 
 /*
 * the recursive level of random scan filter, can 
@@ -96,6 +90,49 @@ static
 const
 NDBT_Table MYTAB1(TABLE_NAME, sizeof(MYTAB1Attribs)/sizeof(NDBT_Attribute), MYTAB1Attribs);
 
+static
+const
+NDBT_Attribute MYTAB2Attribs[] = {
+  NDBT_Attribute("id",        NdbDictionary::Column::Unsigned, 1, true),
+  //                                                         _pk    _nullable
+  NDBT_Attribute("1bitnn",    NdbDictionary::Column::Bit, 1, false, false),
+  NDBT_Attribute("1bitnu",    NdbDictionary::Column::Bit, 1, false, true),
+  NDBT_Attribute("2bitnn",    NdbDictionary::Column::Bit, 2, false, false),
+  NDBT_Attribute("2bitnu",    NdbDictionary::Column::Bit, 2, false, true),
+  NDBT_Attribute("7bitnn",    NdbDictionary::Column::Bit, 7, false, false),
+  NDBT_Attribute("7bitnu",    NdbDictionary::Column::Bit, 7, false, true),
+  NDBT_Attribute("8bitnn",    NdbDictionary::Column::Bit, 8, false, false),
+  NDBT_Attribute("8bitnu",    NdbDictionary::Column::Bit, 8, false, true),
+  NDBT_Attribute("15bitnn",   NdbDictionary::Column::Bit, 15, false, false),
+  NDBT_Attribute("15bitnu",   NdbDictionary::Column::Bit, 15, false, true),
+  NDBT_Attribute("31bitnn",   NdbDictionary::Column::Bit, 31, false, false),
+  NDBT_Attribute("31bitnu",   NdbDictionary::Column::Bit, 31, false, true),
+  NDBT_Attribute("32bitnn",   NdbDictionary::Column::Bit, 32, false, false),
+  NDBT_Attribute("32bitnu",   NdbDictionary::Column::Bit, 32, false, true),
+  NDBT_Attribute("33bitnn",   NdbDictionary::Column::Bit, 33, false, false),
+  NDBT_Attribute("33bitnu",   NdbDictionary::Column::Bit, 33, false, true),
+  NDBT_Attribute("63bitnn",   NdbDictionary::Column::Bit, 63, false, false),
+  NDBT_Attribute("63bitnu",   NdbDictionary::Column::Bit, 63, false, true),
+  NDBT_Attribute("64bitnn",   NdbDictionary::Column::Bit, 64, false, false),
+  NDBT_Attribute("64bitnu",   NdbDictionary::Column::Bit, 64, false, true),
+  NDBT_Attribute("65bitnn",   NdbDictionary::Column::Bit, 65, false, false),
+  NDBT_Attribute("65bitnu",   NdbDictionary::Column::Bit, 65, false, true),
+  NDBT_Attribute("127bitnn",  NdbDictionary::Column::Bit, 127, false, false),
+  NDBT_Attribute("127bitnu",  NdbDictionary::Column::Bit, 127, false, true),
+  NDBT_Attribute("513bitnn",   NdbDictionary::Column::Bit, 513, false, false),
+  NDBT_Attribute("513bitnu",   NdbDictionary::Column::Bit, 513, false, true)
+};
+
+static const char* TABLE2_NAME= "MyTab2";
+
+static
+const
+NDBT_Table MYTAB2(TABLE2_NAME, sizeof(MYTAB2Attribs)/sizeof(NDBT_Attribute), MYTAB2Attribs);
+
+static const int NUM_COLS= sizeof(MYTAB2Attribs)/sizeof(NDBT_Attribute);
+static const int MAX_BIT_WIDTH= 513;
+/* One extra row for all bits == 0 */
+static const int TOTAL_ROWS= MAX_BIT_WIDTH + 1;
 
 int createTable(Ndb* pNdb, const NdbDictionary::Table* tab, bool _temp, 
 			 bool existsOk, NDBT_CreateTableHook f)
@@ -259,7 +296,7 @@ int get_rand_op_ch(char *ch)
   static unsigned int num = 0;
   if(++num == 0) 
     num = 1;
-  srand(num*time(NULL));
+  srand(num*(unsigned int)time(NULL));
   *ch = op_string[rand() % op_len];
   return 1;
 }
@@ -273,9 +310,9 @@ void change_col_order()
   char temp;
   for (int i = 0; i < 10; i++)  //exchange for 10 times
   {
-    srand(time(NULL)/(i+1));
+    srand((unsigned int)time(NULL)/(i+1));
     pos1 = rand() % col_len;
-    srand((i+1)*time(NULL));
+    srand((i+1)*(unsigned int)time(NULL));
     pos2 = rand() % col_len;
     if (pos1 == pos2)
       continue;
@@ -294,10 +331,10 @@ int get_rand_col_str(char *str)
   static unsigned int num = 0;
   if(++num == 0) 
     num = 1;
-  srand(num*time(NULL));
+  srand(num*(unsigned int)time(NULL));
   len = rand() % col_len + 1;
   change_col_order();
-  snprintf(str, len+1, "%s", col_string);  //len+1, including '\0'
+  BaseString::snprintf(str, len+1, "%s", col_string);  //len+1, including '\0'
   return len;
 }
 
@@ -313,7 +350,8 @@ int get_rand_op_str(char *str)
   len2 = get_rand_col_str(temp+len1);
   len = len1 + len2;
   temp[len] = 'x';
-  snprintf(str, len+1+1, "%s", temp);  //len+1, including '\0'
+  temp[len+1] = '\0'; // Add ending \0
+  BaseString::snprintf(str, len+1+1, "%s", temp);  //len+1, including '\0'
   return len+1;
 }
 
@@ -327,10 +365,10 @@ int get_rand_op_str(char *str)
 int replace_a_to_str(char *source, int pos, char *newstr)
 {
   char temp[MAX_STR_LEN];
-  snprintf(temp, pos+1, "%s", source);
-  snprintf(temp+pos, strlen(newstr)+1, "%s", newstr);
-  snprintf(temp+pos+strlen(newstr), strlen(source)-pos, "%s", source+pos+1);
-  snprintf(source, strlen(temp)+1, "%s", temp); 
+  BaseString::snprintf(temp, pos+1, "%s", source);
+  BaseString::snprintf(temp+pos, strlen(newstr)+1, "%s", newstr);
+  BaseString::snprintf(temp+pos+strlen(newstr), strlen(source)-pos, "%s", source+pos+1);
+  BaseString::snprintf(source, strlen(temp)+1, "%s", temp);
   return strlen(source);
 }
 
@@ -403,7 +441,7 @@ int get_rand_replace_pos(char *str, int len)
   }
   else
   {
-    srand(num*time(NULL));
+    srand(num*(unsigned int)time(NULL));
     pos_col = pos_op + rand() % span + 1;
   }
   return pos_col;
@@ -422,11 +460,11 @@ bool check_random_str(char *str)
   for(p = str; *p; p++)
   {
     bool tmp1 = false, tmp2 = false;
-    if(tmp1 = check_op(*p))
+    if ((tmp1 = check_op(*p)))
       op_num++;
-    if(tmp2 = check_end(*p))
+    if ((tmp2 = check_end(*p)))
       end_num++;
-    if(!(tmp1 || tmp2 || check_col(*p)))   //there are illegal letters
+    if (!(tmp1 || tmp2 || check_col(*p)))   //there are illegal letters
       return false;
   }
 
@@ -450,7 +488,7 @@ void get_rand_op_str_compound(char *str)
   if(++num == 0)
     num = 1;
 
-  srand(num*time(NULL));
+  srand(num*(unsigned int)time(NULL));
   level = 1 + rand() % RECURSIVE_LEVEL;
  
   get_rand_op_str(str);
@@ -487,7 +525,7 @@ int get_column_id(char ch)
 */
 bool check_col_equal_one(int tuple_no, int col_id)
 {
-  int i = (int)pow((double)2, (double)(6 - col_id));
+  int i = 1 << (6 - col_id);
   int j = tuple_no / i;
   if(j % 2)
     return true;
@@ -683,7 +721,11 @@ NdbScanFilter * call_ndbapi(char *str, NdbTransaction *transaction,
     if(check_end(*p))
     {
       if(scanfilter->end()) 
+      {
+        NdbError err= scanfilter->getNdbError();
+        printf("Problem closing ScanFilter= %d\n", err.code);
         ERR_EXIT(transaction, "filter end() failed");
+      }
     }
   }
   
@@ -705,13 +747,14 @@ void ndbapi_tuples(Ndb *ndb, char *str, bool *res)
     ERR_EXIT(dict, "Can't get table"TABLE_NAME);
 	
 	const NdbDictionary::Column *col[COL_LEN];
-  for(int i = 0; i < COL_LEN; i++)
+
+  for(int ii = 0; ii < COL_LEN; ii++)
   {
     char tmp[128];
-    col[i] = table->getColumn(COL_NAME[i]);
-	  if(!col[i]) 
+    col[ii] = table->getColumn(COL_NAME[ii]);
+	  if(!col[ii]) 
     {
-      snprintf(tmp, 128, "Can't get column %s", COL_NAME[i]);
+      BaseString::snprintf(tmp, 128, "Can't get column %s", COL_NAME[ii]);
       ERR_EXIT(dict, tmp);
     }
   }
@@ -732,13 +775,13 @@ void ndbapi_tuples(Ndb *ndb, char *str, bool *res)
     ERR_EXIT(scan, "Can't set up read");
   
   NdbRecAttr *rec[COL_LEN];
-  for(int i = 0; i < COL_LEN; i++)
+  for(int ii = 0; ii < COL_LEN; ii++)
   {
     char tmp[128];
-    rec[i] = scan->getValue(COL_NAME[i]);
-	  if(!rec[i]) 
+    rec[ii] = scan->getValue(COL_NAME[ii]);
+	  if(!rec[ii]) 
     {
-      snprintf(tmp, 128, "Can't get rec of %s", COL_NAME[i]);
+      BaseString::snprintf(tmp, 128, "Can't get rec of %s", COL_NAME[ii]);
       ERR_EXIT(scan, tmp);
     }
   }
@@ -820,7 +863,6 @@ int runScanRandomFilterTest(NDBT_Context* ctx, NDBT_Step* step)
 {
   char random_str[MAX_STR_LEN];
   Ndb *myNdb = GETNDB(step);
-  bool res = true;
 
   for(int i = 0; i < TEST_NUM; i++)
   {
@@ -832,6 +874,774 @@ int runScanRandomFilterTest(NDBT_Context* ctx, NDBT_Step* step)
   return NDBT_OK;
 }
 
+int runMaxScanFilterSize(NDBT_Context* ctx, NDBT_Step* step)
+{
+  /* This testcase uses the ScanFilter methods to build a large
+   * scanFilter, checking that ScanFilter building fails
+   * at the expected point, with the correct error message
+   */
+  const Uint32 MaxLength= NDB_MAX_SCANFILTER_SIZE_IN_WORDS;
+  
+  const Uint32 InstructionWordsPerEq= 3;
+
+  const Uint32 MaxEqsInScanFilter= MaxLength/InstructionWordsPerEq;
+
+  Ndb *myNdb = GETNDB(step);
+  const NdbDictionary::Dictionary* myDict= myNdb->getDictionary();
+  const NdbDictionary::Table *myTable= myDict->getTable(TABLE_NAME);
+  if(myTable == NULL) 
+    APIERROR(myDict->getNdbError());
+
+  NdbInterpretedCode ic(myTable);
+  
+  NdbScanFilter sf(&ic);
+
+  if (sf.begin()) // And group
+  {
+    ndbout << "Bad rc from begin\n";
+    ndbout << sf.getNdbError() << "\n";
+    return NDBT_FAILED;
+  }
+
+  Uint32 loop=0;
+
+  for (;loop < MaxEqsInScanFilter; loop++)
+  {
+    if (sf.eq(0u, 10u))
+    {
+      ndbout << "Bad rc from eq at loop " << loop << "\n";
+      ndbout << sf.getNdbError() << "\n";
+      return NDBT_FAILED;
+    }
+  }
+
+  if (! sf.eq(0u, 10u))
+  {
+    ndbout << "Expected ScanFilter instruction addition to fail after"
+           << MaxEqsInScanFilter << "iterations, but it didn't\n";
+    return NDBT_FAILED;
+  }
+
+  NdbError err=sf.getNdbError();
+
+  if (err.code != 4294)
+  {
+    ndbout << "Expected to get error code 4294, but instead got " << err.code << "\n";
+    return NDBT_FAILED;
+  }
+
+  return NDBT_OK;
+}
+
+
+int runScanFilterConstructorFail(NDBT_Context* ctx, NDBT_Step* step)
+{
+  /* We test that failures in the ScanFilter constructor can be
+   * detected by the various ScanFilter methods without
+   * issues
+   */
+  Ndb *myNdb = GETNDB(step);
+  const NdbDictionary::Dictionary* myDict= myNdb->getDictionary();
+  const NdbDictionary::Table *myTable= myDict->getTable(TABLE_NAME);
+  if(myTable == NULL) 
+    APIERROR(myDict->getNdbError());
+
+  NdbTransaction* trans=myNdb->startTransaction();
+  
+  if (trans == NULL)
+  {
+    APIERROR(trans->getNdbError());
+    return NDBT_FAILED;
+  }
+  
+  /* Create an NdbRecord scan operation */
+  const NdbScanOperation* tabScan=
+    trans->scanTable(myTable->getDefaultRecord());
+  
+  if (tabScan==NULL)
+  {
+    APIERROR(trans->getNdbError());
+    return NDBT_FAILED;
+  }
+
+  /* Now we hackily try to add a ScanFilter after the operation
+   * is defined.  This will cause a failure within the 
+   * constructor
+   */
+  NdbScanFilter brokenSf((NdbScanOperation*) tabScan);
+
+  /* Scan operation should have an error */
+  if (tabScan->getNdbError().code != 4536)
+  {
+    ndbout << "Expected error 4536, had error " << 
+      tabScan->getNdbError().code << " instead" << endl;
+    return NDBT_FAILED;
+  }
+
+  /* ScanFilter should have an error */
+  if (brokenSf.getNdbError().code != 4539)
+  {
+    ndbout  << "Expected error 4539, had error " << 
+      brokenSf.getNdbError().code << " instead" << endl;
+    return NDBT_FAILED;
+  }
+  
+  if (brokenSf.begin() != -1)
+  { ndbout << "Bad rc from begin" << endl; return NDBT_FAILED; }
+
+  if (brokenSf.istrue() != -1)
+  { ndbout << "Bad rc from istrue" << endl; return NDBT_FAILED; }
+
+  if (brokenSf.isfalse() != -1)
+  { ndbout << "Bad rc from isfalse" << endl; return NDBT_FAILED; }
+
+  if (brokenSf.isnull(0) != -1)
+  { ndbout << "Bad rc from isnull" << endl; return NDBT_FAILED; }
+
+  if (brokenSf.isnotnull(0) != -1)
+  { ndbout << "Bad rc from isnotnull" << endl; return NDBT_FAILED; }
+
+  if (brokenSf.cmp(NdbScanFilter::COND_EQ, 0, NULL, 0) != -1)
+  { ndbout << "Bad rc from cmp" << endl; return NDBT_FAILED; }
+
+  if (brokenSf.end() != -1)
+  { ndbout << "Bad rc from begin" << endl; return NDBT_FAILED; }
+
+  trans->close();
+
+  /* Now we check that we can define a ScanFilter before 
+   * calling readTuples() for a scan operation
+   */
+  trans= myNdb->startTransaction();
+  
+  if (trans == NULL)
+  {
+    APIERROR(trans->getNdbError());
+    return NDBT_FAILED;
+  }
+  
+  /* Get an old Api table scan operation */
+  NdbScanOperation* tabScanOp=
+    trans->getNdbScanOperation(myTable);
+
+  if (tabScanOp==NULL)
+  {
+    APIERROR(trans->getNdbError());
+    return NDBT_FAILED;
+  }
+
+  /* Attempt to define a ScanFilter before calling readTuples() */
+  NdbScanFilter sf(tabScanOp);
+
+  /* Should be no problem ... */
+  if (sf.getNdbError().code != 0) 
+  { APIERROR(sf.getNdbError()); return NDBT_FAILED; };
+  
+ 
+  /* Ok, now attempt to define a ScanFilter against a primary key op */
+  NdbOperation* pkOp= trans->getNdbOperation(myTable);
+
+  if (pkOp == NULL)
+  {
+    APIERROR(trans->getNdbError());
+    return NDBT_FAILED;
+  }
+
+  NdbScanFilter sf2(pkOp);
+  
+  if (sf2.getNdbError().code != 4539)
+  {
+    ndbout << "Error, expected 4539" << endl;
+    APIERROR(sf2.getNdbError());
+    return NDBT_FAILED;
+  }
+
+  return NDBT_OK;
+}
+
+bool getBit(const Uint32* bitMap,
+            int bitNum)
+{
+  return ((bitMap[ bitNum >> 5 ] & (1 << (bitNum & 31))) != 0);
+}
+
+void setBit(Uint32* bitMap, int bitMapByteSize,
+            int bitNum)
+{
+  assert(bitNum >= 0 && bitNum < (bitMapByteSize * 8));
+  bitMap[ bitNum >> 5 ] |= (1 << (bitNum & 31));
+}
+
+enum TestConditions {
+  COND_LE = 0,
+  COND_LT = 1,
+  COND_GE = 2,
+  COND_GT = 3,
+  COND_EQ = 4,
+  COND_NE = 5,
+  COND_NULL = 6,
+  COND_NOTNULL = 7,
+  COND_AND_EQ_MASK = 8,
+  COND_AND_NE_MASK = 9,
+  COND_AND_EQ_ZERO = 10,
+  COND_AND_NE_ZERO = 11
+};
+
+int getExpectedBitsSet(int rowId,
+                       int colBitWidth)
+{
+  /* returns value from -1 to colBitWidth -1
+   * -1 == no bits set
+   * 0 == bit 0 set
+   * 1 == bit 0 + bit 1 set
+   * ...
+   */
+  return (rowId % (colBitWidth + 1)) -1;
+}
+
+bool isNullValue(int rowId,
+                 int colBitWidth)
+{
+  /* Occasionally we'll have a Null column */
+  return (((rowId + colBitWidth) % 13) == 0);
+}
+
+void getBitfieldVariants(int bitNum, int& offset, bool& invert)
+{
+  offset= 0;
+  invert= false;
+  if ((bitNum % 5) == 3)
+  {
+    /* Invert the mask */
+    invert= true;
+  }
+  if ((bitNum % 7) == 6)
+  {
+    /* Shift the mask */
+    offset= (bitNum / 2);
+  }
+};
+  
+
+bool isRowExpected(int rowId, 
+                   TestConditions cond,
+                   int colBitWidth,
+                   int bitsSetInScanFilter,
+                   bool isNullable,
+                   const Uint32* maskBuff)
+{
+  if (isNullable && isNullValue(rowId, colBitWidth))
+  {
+    switch (cond) {
+    case COND_LE:
+      return true; // null < any value
+    case COND_LT:
+      return true; // null < any value
+    case COND_GE:
+      return false; // null < any value
+    case COND_GT:
+      return false; // null < any value
+    case COND_EQ:
+      return false; // null != any value 
+    case COND_NE:
+      return true; // null != any value
+    case COND_NULL:
+      return true; // null is null 
+    case COND_NOTNULL:
+      return false;
+    case COND_AND_EQ_MASK:
+      return false; // NULL AND MASK != MASK
+    case COND_AND_NE_MASK:
+      return true; // NULL AND MASK != MASK
+    case COND_AND_EQ_ZERO:
+      return false; // NULL AND MASK != 0
+    case COND_AND_NE_ZERO:
+      return true; // NULL AND MASK != 0
+    default:
+      printf("isRowExpected given bad condition : %u\n",
+             cond);
+      return false;
+    }    
+  }
+  else
+  {
+    /* Not a null value */
+    int expectedBitsSet= getExpectedBitsSet(rowId, colBitWidth);
+    
+    int offset= 0;
+    bool invert= false;
+
+    getBitfieldVariants(bitsSetInScanFilter + 1, offset, invert);
+
+    switch (cond) {
+    case COND_LE:
+      return expectedBitsSet <= bitsSetInScanFilter;
+    case COND_LT:
+      return expectedBitsSet <  bitsSetInScanFilter;
+    case COND_GE:
+      return expectedBitsSet >= bitsSetInScanFilter;
+    case COND_GT:
+      return expectedBitsSet >  bitsSetInScanFilter;
+    case COND_EQ:
+      return expectedBitsSet == bitsSetInScanFilter;
+    case COND_NE:
+      return expectedBitsSet != bitsSetInScanFilter;
+    case COND_NULL:
+      return false;
+    case COND_NOTNULL:
+      return true;
+    case COND_AND_EQ_MASK:
+    case COND_AND_NE_MASK:
+    {
+      bool result= true;
+      /* Compare data AND mask to the mask buff */
+      for (int idx=0; idx < colBitWidth; idx++)
+      {
+        bool bitVal= (expectedBitsSet >= 0)?
+          (expectedBitsSet >= idx): false;
+        bool maskVal= getBit(maskBuff, idx);
+        if ((bitVal & maskVal) != maskVal)
+        {
+          /* Difference to mask, know result */
+          result= false;
+          break;
+        }
+      }
+
+      /* Invert result for NE condition */
+      return (result ^ (cond == COND_AND_NE_MASK));
+    }
+    case COND_AND_EQ_ZERO:
+    case COND_AND_NE_ZERO:
+    {
+      bool result= true;
+      /* Compare data AND mask to zero */
+      for (int idx=0; idx < colBitWidth; idx++)
+      {
+        bool bitVal= (expectedBitsSet >= 0)?
+          (expectedBitsSet >= idx): false;
+        bool maskVal= getBit(maskBuff, idx);
+        if ((bitVal & maskVal) != 0)
+        {
+          /* Difference to 0, know result */
+          result= false;
+          break;
+        }
+      }
+      /* Invert result for NE condition */
+      return (result ^ (cond == COND_AND_NE_ZERO));
+    }
+    default:
+      printf("isRowExpected given bad condition : %u\n",
+             cond);
+      return false;
+    }
+  }
+}
+
+int insertBitRows(Ndb* pNdb)
+{
+  const NdbDictionary::Dictionary* myDict= pNdb->getDictionary();
+  const NdbDictionary::Table *myTable= myDict->getTable(TABLE2_NAME);
+  if(myTable == NULL) 
+    APIERROR(myDict->getNdbError());
+
+  for (int i=0; i< TOTAL_ROWS; i++)
+  {
+    NdbTransaction* myTrans = pNdb->startTransaction();
+    if (myTrans == NULL)
+      APIERROR(pNdb->getNdbError());
+
+    NdbOperation* insertOp= myTrans->getNdbOperation(myTable);
+    if (insertOp == NULL)
+      APIERROR(pNdb->getNdbError());
+    
+    const int buffSize= (MAX_BIT_WIDTH + 31) / 32;
+    Uint32 buff[ buffSize ];
+
+    if (insertOp->insertTuple() != 0)
+      APIERROR(insertOp->getNdbError());
+
+    if (insertOp->equal((Uint32)0, i) != 0) // Set id column
+      APIERROR(insertOp->getNdbError());
+
+    for (int col=1; col < myTable->getNoOfColumns(); col++)
+    {
+      const NdbDictionary::Column* c= myTable->getColumn(col);
+      int colBitWidth= c->getLength();
+      bool isNullable= c->getNullable();
+
+      if (isNullable &&
+          isNullValue(i, colBitWidth))
+      {
+        /* Set column value to NULL */
+        if (insertOp->setValue(col, (char*) NULL) != 0)
+          APIERROR(insertOp->getNdbError());
+      }
+      else
+      {
+        /* Set lowest bits in this column */
+        memset(buff, 0, (4 * buffSize));
+        
+        int bitsToSet= getExpectedBitsSet(i, colBitWidth);
+        
+        if (bitsToSet >= 0)
+        {
+          for (int idx=0; idx <= bitsToSet; idx++)
+            setBit(buff, sizeof(buff), idx);
+        }
+        
+        if (insertOp->setValue(col, (char *)buff) != 0)
+          APIERROR(insertOp->getNdbError());
+      }
+    }
+
+    if (myTrans->execute(NdbTransaction::Commit) != 0)
+    {
+      APIERROR(myTrans->getNdbError());
+    }
+    myTrans->close();
+  }
+
+  printf("Inserted %u rows\n", TOTAL_ROWS);
+
+  return NDBT_OK;
+}
+
+int verifyBitData(Ndb* pNdb)
+{
+  const NdbDictionary::Dictionary* myDict= pNdb->getDictionary();
+  const NdbDictionary::Table *myTable= myDict->getTable(TABLE2_NAME);
+  if(myTable == NULL) 
+    APIERROR(myDict->getNdbError());
+
+  NdbTransaction* myTrans= pNdb->startTransaction();
+  if (myTrans == NULL)
+    APIERROR(pNdb->getNdbError());
+  
+  NdbScanOperation* scanOp= myTrans->getNdbScanOperation(myTable);
+  if (scanOp == NULL)
+    APIERROR(pNdb->getNdbError());
+  
+  if (scanOp->readTuples() != 0)
+    APIERROR(scanOp->getNdbError());
+  
+  NdbRecAttr* results[ NUM_COLS ];
+  
+  for (int col=0; col< NUM_COLS; col++)
+  {
+    if ((results[col]= scanOp->getValue(col)) == NULL)
+      APIERROR(scanOp->getNdbError());
+  }
+  
+  if (myTrans->execute(NdbTransaction::NoCommit) != 0)
+    APIERROR(myTrans->getNdbError());
+  
+  for (int row=0; row < TOTAL_ROWS; row++)
+  {
+    if (scanOp->nextResult() != 0)
+      APIERROR(scanOp->getNdbError());
+    
+    int rowId= results[0]->int32_value();
+    
+    for (int col=1; col < NUM_COLS; col++)
+    {
+      const NdbDictionary::Column* c= myTable->getColumn(col);
+      bool isNullable= c->getNullable();
+      int colBitWidth= c->getLength();
+
+      if (isNullable &&
+          isNullValue(rowId, colBitWidth))
+      {
+        if (!results[ col ] ->isNULL())
+        {
+          printf("Mismatch at result %d row %d, column %d, expected NULL\n",
+                 row, rowId, col);
+          myTrans->close();
+          return NDBT_FAILED;
+        }
+      }
+      else
+      {
+        /* Non null value, check it */
+        int expectedSetBits= getExpectedBitsSet(rowId, colBitWidth);
+        
+        const Uint32* val= (const Uint32 *) results[ col ]->aRef();
+        
+        for (int bitNum=0; bitNum < colBitWidth; bitNum++)
+        {
+          bool expectClear= (bitNum > expectedSetBits);
+          bool isClear= ! getBit(val, bitNum);
+          if (expectClear != isClear)
+          {
+            printf("Mismatch at result %d row %d, column %d, bit %d"
+                   " expected %d \n",
+                   row, rowId, col, bitNum, (expectClear)?0:1);
+            myTrans->close();
+            return NDBT_FAILED;
+          }
+        }
+      }
+    }
+  }
+  
+  if (scanOp->nextResult() != 1)
+  {
+    printf("Too many rows returned\n");
+    return NDBT_FAILED;
+  }
+  
+  if (myTrans->execute(NdbTransaction::Commit) != 0)
+    APIERROR(myTrans->getNdbError());
+  
+  myTrans->close();
+
+  printf("Verified data for %u rows\n",
+         TOTAL_ROWS);
+  
+  return NDBT_OK;
+}
+
+int verifyBitScanFilter(Ndb* pNdb)
+{
+  const NdbDictionary::Dictionary* myDict= pNdb->getDictionary();
+  const NdbDictionary::Table *myTable= myDict->getTable(TABLE2_NAME);
+  if(myTable == NULL) 
+    APIERROR(myDict->getNdbError());
+  
+  /* Perform scan with scanfilter for :
+   *   - each column in the table
+   *   - each supported comparison type
+   *   - each potentially set bit in the column
+   */
+  int scanCount= 0;
+  for (int col=1; col < NUM_COLS; col++)
+  {
+    const NdbDictionary::Column* c= myTable->getColumn(col);
+    const int bitWidth= c->getLength();
+    printf("Testing %s column %u (width=%u bits) with %u scan filter variants\n",
+           (c->getNullable())?"Nullable":"Non-null",
+           col, bitWidth, ((bitWidth+1) * (COND_AND_NE_ZERO + 1)));
+    for (int comp=0; comp <= COND_AND_NE_ZERO; comp++)
+    {
+      for (int bitNum=0; bitNum <= bitWidth; bitNum++)
+      {
+        /* Define scan */
+        NdbTransaction* myTrans= pNdb->startTransaction();
+        if (myTrans == NULL)
+          APIERROR(pNdb->getNdbError());
+        
+        NdbScanOperation* scanOp= myTrans->getNdbScanOperation(myTable);
+        if (scanOp == NULL)
+          APIERROR(pNdb->getNdbError());
+        
+        if (scanOp->readTuples() != 0)
+          APIERROR(scanOp->getNdbError());
+        
+        NdbRecAttr* ra;
+        if ((ra= scanOp->getValue((Uint32)0)) == NULL)
+          APIERROR(scanOp->getNdbError());
+        
+        /* Define ScanFilter */
+        const int buffSize= (MAX_BIT_WIDTH + 31)/32;
+        Uint32 buff[ buffSize ];
+        memset(buff, 0, (4 * buffSize));
+        
+        /* Define constant value, with some variants for bitwise operators */
+        bool invert= false;
+        int offset= 0;
+
+        switch (comp) {
+        case COND_AND_EQ_MASK:
+        case COND_AND_NE_MASK:
+        case COND_AND_EQ_ZERO:
+        case COND_AND_NE_ZERO:
+          getBitfieldVariants(bitNum, offset, invert);
+        default:
+          ;
+        }        
+
+        /* Set lower bitNum -1 bits
+         * If bitNum == 0, set none
+         */
+        int bitsSetInFilter= bitNum-1;
+
+        if ((bitsSetInFilter >= 0) ||
+            invert)
+        {
+          for (int idx=0; idx < (32 * buffSize); idx++)
+          {
+            if ((idx >= offset) && 
+                (idx <= (offset + bitsSetInFilter)))
+            {
+              if (!invert)
+                setBit(buff, sizeof(buff), idx);
+            }
+            else
+            {
+              if (invert)
+                setBit(buff, sizeof(buff), idx);
+            }
+          }
+        }
+
+
+
+        NdbScanFilter sf(scanOp);
+        
+        if (sf.begin(NdbScanFilter::AND) != 0)
+          APIERROR(sf.getNdbError());
+        
+        if ((comp != COND_NULL) &&
+            (comp != COND_NOTNULL))
+        {
+          /* Operator with a constant */
+          if (sf.cmp((NdbScanFilter::BinaryCondition)comp, 
+                     col, 
+                     (char*)buff) != 0)
+            APIERROR(sf.getNdbError());
+        }
+        else
+        {
+          switch (comp) {
+          case COND_NULL:
+            if (sf.isnull(col) != 0)
+              APIERROR(sf.getNdbError());
+            break;
+          case COND_NOTNULL:
+            if (sf.isnotnull(col) != 0)
+              APIERROR(sf.getNdbError());
+            break;
+          default:
+            printf("Condition %u not supported\n", comp);
+            return NDBT_FAILED;
+          }
+        }
+        
+        if (sf.end() != 0)
+          APIERROR(sf.getNdbError());
+
+        /* Calculate expected number of rows in result */
+        const NdbDictionary::Column* c= myTable->getColumn(col);
+        int colBitWidth= c->getLength();
+        bool isNullable= c->getNullable();
+
+        // printf("Determining expected rows\n");
+        int expectedResultCount= 0;
+        for (int i=0; i< TOTAL_ROWS; i++)
+        {
+          if (isRowExpected(i, 
+                            (TestConditions)comp, 
+                            colBitWidth, 
+                            bitsSetInFilter,
+                            isNullable,
+                            buff))
+            expectedResultCount++;
+        }
+        
+        
+        /* Execute */
+        if (myTrans->execute(NdbTransaction::NoCommit) != 0)
+          APIERROR(myTrans->getNdbError());
+        
+
+        /* Process results to ensure we got the expected rows back */
+        int rc= 0;
+        int count= 0;
+        int matchCount= 0;
+        // printf("Checking rows returned\n");
+        while ((rc= scanOp->nextResult()) == 0)
+        {
+          int rowId= ra->int32_value();
+          count++;
+          /*
+           * Check that this row was expected
+           */
+          if (isRowExpected(rowId, 
+                            (TestConditions)comp, 
+                            colBitWidth, 
+                            bitsSetInFilter,
+                            isNullable,
+                            buff))
+          {
+            matchCount++;
+          }
+          else
+          {
+            printf("Col=%u Comp=%u BitNum=%u row=%u : "
+                   "Got row %u back which I did not expect\n",
+                   col, comp, bitNum, count, rowId);
+            myTrans->close();
+            return NDBT_FAILED;
+          }
+        }
+
+        if (rc != 1)
+        {
+          printf("Col=%u Comp=%u BitNum=%u :"
+                 "nextResult failure %d\n", col, comp, bitNum, rc);
+          APIERROR(myTrans->getNdbError());
+        }
+
+        //printf("Column %u, Comp=%u bitNum=%u num expectedResults=%u matchCount=%u\n",
+        //       col, comp, bitNum, expectedResultCount, matchCount);
+        
+        /* Check that we didn't miss any expected rows */
+        if (matchCount != expectedResultCount)
+        {
+          printf("Col=%u Comp=%u BitNum=%u :"
+                 "Mismatch between expected(%u) and received(%u) result counts\n",
+                 col, comp, bitNum, expectedResultCount, matchCount);
+          myTrans->close();
+          return NDBT_FAILED;
+        }
+        
+        if (myTrans->execute(NdbTransaction::Commit) != 0)
+          APIERROR(myTrans->getNdbError());
+        
+        myTrans->close();
+
+        scanCount++;
+        
+      } // for bitNum
+    } // for comparison
+  } // for column
+  
+  printf("Verified %u scans with bitfield ScanFilter conditions\n",
+         scanCount);
+
+  return NDBT_OK;
+}
+
+
+int runTestScanFilterBit(NDBT_Context* ctx, NDBT_Step* step)
+{
+  /* Create table */
+  Ndb *pNdb = GETNDB(step);
+  pNdb->getDictionary()->dropTable(MYTAB2.getName());
+  int ret = createTable(pNdb, &MYTAB2, false, true, 0); 
+  if(ret)
+    return ret;
+
+  /* Populate with data */
+  if (insertBitRows(pNdb) != NDBT_OK)
+    return NDBT_FAILED;
+  
+  /* Initial data check via scan */
+  if (verifyBitData(pNdb) != NDBT_OK)
+    return NDBT_FAILED;
+
+  /* Verify Bit ScanFilter correctness */
+  if (verifyBitScanFilter(pNdb) != NDBT_OK)
+    return NDBT_FAILED;
+
+  /* Drop table */
+  pNdb->getDictionary()->dropTable(MYTAB2.getName());
+  
+  return NDBT_OK;
+}
+
+
 NDBT_TESTSUITE(testScanFilter);
 TESTCASE(TEST_NAME, 
 	 "Scan table TABLE_NAME for the records which accord with \
@@ -840,7 +1650,15 @@ TESTCASE(TEST_NAME,
   INITIALIZER(runCreateTables);
   INITIALIZER(runPopulate);
   INITIALIZER(runScanRandomFilterTest);
+  INITIALIZER(runMaxScanFilterSize);
+  INITIALIZER(runScanFilterConstructorFail);
   FINALIZER(runDropTables);
+}
+
+TESTCASE("TestScanFilterBit",
+         "Test ScanFilter with bitfield columns")
+{
+  INITIALIZER(runTestScanFilterBit);
 }
 
 NDBT_TESTSUITE_END(testScanFilter);
@@ -855,6 +1673,7 @@ int main(int argc, const char** argv)
   {
     return NDBT_ProgramExit(NDBT_FAILED);
   }
-  
-  return testScanFilter.executeOneCtx(con, &MYTAB1, TEST_NAME);
+
+  NDBT_TESTSUITE_INSTANCE(testScanFilter);
+  return testScanFilter.execute(argc, argv);
 }

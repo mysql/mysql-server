@@ -1,0 +1,58 @@
+--source include/have_ndb.inc
+#
+# Simple test for the partition storage engine
+# Focuses on range partitioning tests
+# 
+#-- source include/have_partition.inc
+
+--disable_query_log
+set new=on;
+--enable_query_log
+
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+
+#
+# Partition by hash, basic
+#
+
+
+#
+# BUG37934:
+# Partition pruning is broken for DBT2 table
+# Testcase from Mikael Ronstrom.
+# Note that the testcase did not fail previously, but accessed
+# partitions unnecessarily
+# Testcase now checks that all scan accesses are pruned at
+# NDBAPI level
+#
+CREATE TABLE t1 (
+  ol_o_id int NOT NULL,
+  ol_d_id int NOT NULL,
+  ol_w_id int NOT NULL,
+  ol_number int NOT NULL,
+  ol_tmp int,
+  PRIMARY KEY (ol_w_id, ol_d_id, ol_o_id, ol_number)
+) ENGINE=NDB
+PARTITION BY HASH (ol_w_id);
+
+insert into t1 values (1,0,0,0,0),(1,0,0,1,0),(1,0,0,2,0),(1,1,0,0,0),(1,1,0,1,0);
+insert into t1 values (2,0,0,0,0),(4,0,0,0,0),(4,0,0,1,0);
+insert into t1 values (0,1,1,4,0),(0,1,1,5,0); # Only rows affected.
+
+--source suite/ndb/include/ndb_init_scan_counts.inc
+UPDATE t1 force index (primary) SET ol_tmp = 1
+WHERE ol_o_id = 0 AND ol_d_id = 1 AND ol_w_id = 1;
+--source suite/ndb/include/ndb_scan_counts.inc
+
+--source suite/ndb/include/ndb_init_scan_counts.inc
+SELECT * FROM t1 WHERE ol_w_id = 1 AND ol_d_id = 1 AND ol_o_id = 0;
+--source suite/ndb/include/ndb_scan_counts.inc
+
+--source suite/ndb/include/ndb_init_scan_counts.inc
+SELECT SUM(ol_number) FROM t1 WHERE ol_o_id = 0 AND ol_w_id = 1 AND ol_d_id = 1;
+--source suite/ndb/include/ndb_scan_counts.inc
+
+drop table t1;
+

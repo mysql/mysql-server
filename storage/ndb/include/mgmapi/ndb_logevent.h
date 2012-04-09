@@ -1,4 +1,5 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +12,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #ifndef NDB_LOGEVENT_H
 #define NDB_LOGEVENT_H
@@ -115,6 +117,12 @@ extern "C" {
     NDB_LE_LCP_TakeoverStarted = 33,
     /** NDB_MGM_EVENT_CATEGORY_NODE_RESTART */
     NDB_LE_LCP_TakeoverCompleted = 34,
+    /** NDB_MGM_EVENT_CATEGORY_NODE_RESTART */
+    NDB_LE_ConnectCheckStarted = 82,
+    /** NDB_MGM_EVENT_CATEGORY_NODE_RESTART */
+    NDB_LE_ConnectCheckCompleted = 83,
+    /** NDB_MGM_EVENT_CATEGORY_NODE_RESTART */
+    NDB_LE_NodeFailRejected = 84,
 
     /** NDB_MGM_EVENT_CATEGORY_STATISTIC */
     NDB_LE_TransReportCounters = 35,
@@ -132,6 +140,8 @@ extern "C" {
     NDB_LE_ReceiveBytesStatistic = 41,
     /** NDB_MGM_EVENT_CATEGORY_STATISTIC */
     NDB_LE_MemoryUsage = 50,
+    /** NDB_MGM_EVENT_CATEGORY_STATISTIC */
+    NDB_LE_ThreadConfigLoop = 68,
 
     /** NDB_MGM_EVENT_CATEGORY_ERROR */
     NDB_LE_TransporterError = 42,
@@ -163,9 +173,21 @@ extern "C" {
     /** NDB_MGM_EVENT_CATEGORY_BACKUP */
     NDB_LE_BackupFailedToStart = 55,
     /** NDB_MGM_EVENT_CATEGORY_BACKUP */
+    NDB_LE_BackupStatus = 62,
+    /** NDB_MGM_EVENT_CATEGORY_BACKUP */
     NDB_LE_BackupCompleted = 56,
     /** NDB_MGM_EVENT_CATEGORY_BACKUP */
     NDB_LE_BackupAborted = 57,
+    /** NDB_MGM_EVENT_CATEGORY_BACKUP */
+    NDB_LE_RestoreMetaData = 63,
+    /** NDB_MGM_EVENT_CATEGORY_BACKUP */
+    NDB_LE_RestoreData = 64,
+    /** NDB_MGM_EVENT_CATEGORY_BACKUP */
+    NDB_LE_RestoreLog = 65,
+    /** NDB_MGM_EVENT_CATEGORY_BACKUP */
+    NDB_LE_RestoreStarted = 66,
+    /** NDB_MGM_EVENT_CATEGORY_BACKUP */
+    NDB_LE_RestoreCompleted = 67,
 
     /** NDB_MGM_EVENT_CATEGORY_INFO */
     NDB_LE_EventBufferStatus = 58,
@@ -173,12 +195,29 @@ extern "C" {
     /* 59 used */
 
     /** NDB_MGM_EVENT_CATEGORY_STARTUP */
-    NDB_LE_StartReport = 60
+    NDB_LE_StartReport = 60,
 
-    /* 60 unused */
-    /* 61 unused */
-    /* 62 unused */
+    /* 61 (used in upcoming patch) */
+    /* 62-72 used */
+    /** NDB_MGM_EVENT_SEVERITY_WARNING */
+    NDB_LE_SubscriptionStatus = 69,
 
+    NDB_LE_MTSignalStatistics = 70,
+
+    /** NDB_MGM_EVENT_CATEGORY_FRAGLOGFILE */
+    NDB_LE_LogFileInitStatus = 71,
+    /** NDB_MGM_EVENT_CATEGORY_FRAGLOGFILE */
+    NDB_LE_LogFileInitCompStatus = 72
+
+    ,NDB_LE_RedoStatus = 73
+    ,NDB_LE_CreateSchemaObject = 74
+    ,NDB_LE_AlterSchemaObject = 75
+    ,NDB_LE_DropSchemaObject = 76
+    ,NDB_LE_StartReadLCP = 77
+    ,NDB_LE_ReadLCPComplete = 78
+    ,NDB_LE_RunRedo = 79
+    ,NDB_LE_RebuildIndex = 80
+    ,NDB_LE_SavedEvent = 81
   };
 
   /**
@@ -266,6 +305,9 @@ extern "C" {
      * Uncategorized log events (severity warning or higher)
      */
     NDB_MGM_EVENT_CATEGORY_ERROR = CFG_LOGLEVEL_ERROR,
+
+    NDB_MGM_EVENT_CATEGORY_SCHEMA = CFG_LOGLEVEL_SCHEMA,
+
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
     NDB_MGM_MIN_EVENT_CATEGORY = CFG_MIN_LOGLEVEL,
     NDB_MGM_MAX_EVENT_CATEGORY = CFG_MAX_LOGLEVEL
@@ -329,6 +371,7 @@ extern "C" {
     unsigned version;
   };
   struct ndb_logevent_STTORRYRecieved {
+    unsigned unused;
   };
   struct ndb_logevent_StartPhaseCompleted {
     unsigned phase;
@@ -365,6 +408,7 @@ extern "C" {
     unsigned extra;
   };
   struct ndb_logevent_NDBStopAborted {
+    unsigned _unused;
   };
   struct ndb_logevent_StartREDOLog {
     unsigned node;
@@ -394,8 +438,10 @@ extern "C" {
   
   /* NODERESTART */
   struct ndb_logevent_NR_CopyDict {
+    unsigned _unused;
   };
   struct ndb_logevent_NR_CopyDistr {
+    unsigned _unused;
   };
   struct ndb_logevent_NR_CopyFragsStarted {
     unsigned dest_node;
@@ -433,13 +479,31 @@ extern "C" {
     /* TODO */
   };
   struct ndb_logevent_GCP_TakeoverStarted {
+    unsigned _unused;
   };
   struct ndb_logevent_GCP_TakeoverCompleted {
+    unsigned _unused;
   };
   struct ndb_logevent_LCP_TakeoverStarted {
+    unsigned _unused;
   };
   struct ndb_logevent_LCP_TakeoverCompleted {
     unsigned state;
+  };
+  struct ndb_logevent_ConnectCheckStarted {
+    unsigned other_node_count;
+    unsigned reason;
+    unsigned causing_node;
+  };
+  struct ndb_logevent_ConnectCheckCompleted {
+    unsigned nodes_checked;
+    unsigned nodes_suspect;
+    unsigned nodes_failed;
+  };
+  struct ndb_logevent_NodeFailRejected {
+    unsigned reason;
+    unsigned failed_node;
+    unsigned source_node;
   };
 
   /* STATISTIC */
@@ -504,6 +568,7 @@ extern "C" {
   };
   struct ndb_logevent_WarningEvent {
     /* TODO */
+    unsigned _unused;
   };
 
   /* INFO */
@@ -515,6 +580,7 @@ extern "C" {
   };
   struct ndb_logevent_InfoEvent {
     /* TODO */
+    unsigned _unused;
   };
   struct ndb_logevent_EventBufferStatus {
     unsigned usage;
@@ -546,13 +612,71 @@ extern "C" {
     unsigned n_log_records;
     unsigned n_bytes;
     unsigned n_log_bytes;
+    unsigned n_records_hi;
+    unsigned n_log_records_hi;
+    unsigned n_bytes_hi;
+    unsigned n_log_bytes_hi;
   };
+  /** Log event data @ref NDB_LE_BackupStatus */
+  struct ndb_logevent_BackupStatus {
+    unsigned starting_node;
+    unsigned backup_id; 
+    unsigned n_records_lo; 
+    unsigned n_records_hi; 
+    unsigned n_log_records_lo;
+    unsigned n_log_records_hi;
+    unsigned n_bytes_lo;
+    unsigned n_bytes_hi;
+    unsigned n_log_bytes_lo;
+    unsigned n_log_bytes_hi;
+  };
+
   /** Log event data @ref NDB_LE_BackupAborted */
   struct ndb_logevent_BackupAborted {
     unsigned starting_node;
     unsigned backup_id;
     unsigned error;
   };
+
+  /** Log event data @ref NDB_LE_RestoreStarted */
+  struct ndb_logevent_RestoreStarted {
+    unsigned backup_id;
+    unsigned node_id;
+  };
+  /** Log event data @ref NDB_LE_RestoreMetaData */
+  struct ndb_logevent_RestoreMetaData {
+    unsigned backup_id;
+    unsigned node_id;
+    unsigned n_tables;
+    unsigned n_tablespaces;
+    unsigned n_logfilegroups;
+    unsigned n_datafiles;
+    unsigned n_undofiles;
+  };
+  /** Log event data @ref NDB_LE_RestoreData */
+  struct ndb_logevent_RestoreData {
+    unsigned backup_id;
+    unsigned node_id;
+    unsigned n_records_lo;
+    unsigned n_records_hi;
+    unsigned n_bytes_lo;
+    unsigned n_bytes_hi;
+  };
+  /** Log event data @ref NDB_LE_RestoreLog */
+  struct ndb_logevent_RestoreLog {
+    unsigned backup_id;
+    unsigned node_id;
+    unsigned n_records_lo;
+    unsigned n_records_hi;
+    unsigned n_bytes_lo;
+    unsigned n_bytes_hi;
+  };
+  /** Log event data @ref NDB_LE_RestoreCompleted */
+  struct ndb_logevent_RestoreCompleted {
+    unsigned backup_id;
+    unsigned node_id;
+  };
+
   /** Log event data @ref NDB_LE_SingleUser */
   struct ndb_logevent_SingleUser {
     unsigned type;
@@ -564,6 +688,102 @@ extern "C" {
     unsigned remaining_time;
     unsigned bitmask_size;
     unsigned bitmask_data[1];
+  };
+
+  /** Log event data @ref NDB_LE_SubscriptionStatus */
+  struct ndb_logevent_SubscriptionStatus {
+    unsigned report_type;
+    unsigned node_id;
+  };
+  
+  /** Log event data @ref NDB_LE_RedoStatus */
+  struct ndb_logevent_RedoStatus {
+    unsigned log_part;
+    unsigned head_file_no;
+    unsigned head_mbyte;
+    unsigned tail_file_no;
+    unsigned tail_mbyte;
+    unsigned total_hi;
+    unsigned total_lo;
+    unsigned free_hi;
+    unsigned free_lo;
+  };
+
+  /** Log event data @ref NDB_LE_LogFileInitStatus */
+  struct ndb_logevent_LogFileInitStatus {
+    unsigned node_id;
+    unsigned total_files;
+    unsigned file_done;
+    unsigned total_mbytes;
+    unsigned mbytes_done;
+  };
+
+  /** Log event data @ref NDB_LE_MTSignalStatistic */
+  struct ndb_logevent_MTSignalStatistics {
+    unsigned thr_no;
+    unsigned prioa_count;
+    unsigned prioa_size;
+    unsigned priob_count;
+    unsigned priob_size;
+  };
+
+  struct ndb_logevent_CreateSchemaObject {
+    unsigned objectid;
+    unsigned version;
+    unsigned type;
+    unsigned node; /* Node create object */
+  };
+
+  struct ndb_logevent_AlterSchemaObject {
+    unsigned objectid;
+    unsigned version;
+    unsigned type;
+    unsigned node; /* Node create object */
+  };
+
+  struct ndb_logevent_DropSchemaObject {
+    unsigned objectid;
+    unsigned version;
+    unsigned type;
+    unsigned node; /* Node create object */
+  };
+
+  struct ndb_logevent_StartReadLCP {
+    unsigned tableid;
+    unsigned fragmentid;
+  };
+
+  struct ndb_logevent_ReadLCPComplete {
+    unsigned tableid;
+    unsigned fragmentid;
+    unsigned rows_hi;
+    unsigned rows_lo;
+  };
+
+  struct ndb_logevent_RunRedo {
+    unsigned logpart;
+    unsigned phase;
+    unsigned startgci;
+    unsigned currgci;
+    unsigned stopgci;
+    unsigned startfile;
+    unsigned startmb;
+    unsigned currfile;
+    unsigned currmb;
+    unsigned stopfile;
+    unsigned stopmb;
+  };
+
+  struct ndb_logevent_RebuildIndex {
+    unsigned instance;
+    unsigned indexid;
+  };
+
+  struct ndb_logevent_SavedEvent {
+    unsigned len;
+    unsigned seq;
+    unsigned time;
+    unsigned data[1];
   };
 
   /**
@@ -629,14 +849,12 @@ extern "C" {
       struct ndb_logevent_StartREDOLog StartREDOLog;
       struct ndb_logevent_StartLog StartLog;
       struct ndb_logevent_UNDORecordsExecuted UNDORecordsExecuted;
-  
       /* NODERESTART */
       struct ndb_logevent_NR_CopyDict NR_CopyDict;
       struct ndb_logevent_NR_CopyDistr NR_CopyDistr;
       struct ndb_logevent_NR_CopyFragsStarted NR_CopyFragsStarted;
       struct ndb_logevent_NR_CopyFragDone NR_CopyFragDone;
       struct ndb_logevent_NR_CopyFragsCompleted NR_CopyFragsCompleted;
-
       struct ndb_logevent_NodeFailCompleted NodeFailCompleted;
       struct ndb_logevent_NODE_FAILREP NODE_FAILREP;
       struct ndb_logevent_ArbitState ArbitState;
@@ -645,6 +863,9 @@ extern "C" {
       struct ndb_logevent_GCP_TakeoverCompleted GCP_TakeoverCompleted;
       struct ndb_logevent_LCP_TakeoverStarted LCP_TakeoverStarted;
       struct ndb_logevent_LCP_TakeoverCompleted LCP_TakeoverCompleted;
+      struct ndb_logevent_ConnectCheckStarted ConnectCheckStarted;
+      struct ndb_logevent_ConnectCheckCompleted ConnectCheckCompleted;
+      struct ndb_logevent_NodeFailRejected NodeFailRejected;
 
       /* STATISTIC */
       struct ndb_logevent_TransReportCounters TransReportCounters;
@@ -667,6 +888,7 @@ extern "C" {
       struct ndb_logevent_CreateLogBytes CreateLogBytes;
       struct ndb_logevent_InfoEvent InfoEvent;
       struct ndb_logevent_EventBufferStatus EventBufferStatus;
+      struct ndb_logevent_SavedEvent SavedEvent;
 
       /** Log event data for @ref NDB_LE_BackupStarted */
       struct ndb_logevent_BackupStarted BackupStarted;
@@ -674,12 +896,43 @@ extern "C" {
       struct ndb_logevent_BackupFailedToStart BackupFailedToStart;
       /** Log event data @ref NDB_LE_BackupCompleted */
       struct ndb_logevent_BackupCompleted BackupCompleted;
+      /** Log event data @ref NDB_LE_BackupStatus */
+      struct ndb_logevent_BackupStatus BackupStatus;
       /** Log event data @ref NDB_LE_BackupAborted */
       struct ndb_logevent_BackupAborted BackupAborted;
+      /** Log event data @ref NDB_LE_RestoreStarted */
+      struct ndb_logevent_RestoreStarted RestoreStarted;
+      /** Log event data @ref NDB_LE_RestoreMetaData */
+      struct ndb_logevent_RestoreMetaData RestoreMetaData;
+      /** Log event data @ref NDB_LE_RestoreData */
+      struct ndb_logevent_RestoreData RestoreData;
+      /** Log event data @ref NDB_LE_RestoreLog */
+      struct ndb_logevent_RestoreLog RestoreLog;
+      /** Log event data @ref NDB_LE_RestoreCompleted */
+      struct ndb_logevent_RestoreCompleted RestoreCompleted;
+      /** Log event data @ref NDB_LE_LogFileInitStatus */
+      struct ndb_logevent_LogFileInitStatus LogFileInitStatus;
       /** Log event data @ref NDB_LE_SingleUser */
       struct ndb_logevent_SingleUser SingleUser;
-      /** Log even data @ref NDB_LE_StartReport */
+      /** Log event data @ref NDB_LE_MTSignalStatistic */
+      struct ndb_logevent_MTSignalStatistics MTSignalStatistics;
+      /** Log event data @ref NDB_LE_StartReport */
       struct ndb_logevent_StartReport StartReport;
+      /** Log event data @ref NDB_LE_SubscriptionStatus */
+      struct ndb_logevent_SubscriptionStatus SubscriptionStatus;
+      /** Log event data @ref NDB_LE_RedoStatus */
+      struct ndb_logevent_RedoStatus RedoStatus;
+
+      struct ndb_logevent_CreateSchemaObject CreateSchemaObject;
+      struct ndb_logevent_AlterSchemaObject AlterSchemaObject;
+      struct ndb_logevent_DropSchemaObject DropSchemaObject;
+      struct ndb_logevent_StartReadLCP StartReadLCP;
+      struct ndb_logevent_ReadLCPComplete ReadLCPComplete;
+      struct ndb_logevent_RunRedo RunRedo;
+      struct ndb_logevent_RebuildIndex RebuildIndex;
+
+      /** Raw data */
+      unsigned Data[29];
 #ifndef DOXYGEN_FIX
     };
 #else

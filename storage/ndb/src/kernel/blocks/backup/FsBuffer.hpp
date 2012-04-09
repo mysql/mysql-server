@@ -1,4 +1,5 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +12,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #ifndef FS_BUFFER_HPP
 #define FS_BUFFER_HPP
@@ -183,7 +185,8 @@ FsBuffer::setup(Uint32 * Buffer,
   m_start = align(Buffer, Block*4, false);
   Uint32 * stop = align(Buffer + Size - MaxWrite, Block*4, true);
   if(stop > m_start){
-    m_size = stop - m_start;
+    assert(((Uint64(stop) - Uint64(m_start)) >> 32) == 0);
+    m_size = Uint32(stop - m_start);
   } else {
     m_size = 0;
   }

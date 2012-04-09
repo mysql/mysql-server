@@ -1,4 +1,5 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (c) 2007, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +12,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #ifndef MGMAPI_ERROR_H
 #define MGMAPI_ERROR_H
@@ -72,48 +74,31 @@ extern "C" {
     /** Unable to exit single user mode */
     NDB_MGM_COULD_NOT_EXIT_SINGLE_USER_MODE = 4002,
 
+    /* Service errors - Configuration change */
+    /** Unable to start config change */
+    NDB_MGM_CONFIG_CHANGE_FAILED = 4011,
+    /** Unable to get configuration */
+    NDB_MGM_GET_CONFIG_FAILED = 4012,
+
     /* Usage errors */
     /** Usage error */
     NDB_MGM_USAGE_ERROR = 5001
   };
+#ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
   struct Ndb_Mgm_Error_Msg {
     enum ndb_mgm_error  code;
     const char *        msg;
   };
-  const struct Ndb_Mgm_Error_Msg ndb_mgm_error_msgs[] = {
-    { NDB_MGM_NO_ERROR, "No error" },
 
-    /* Request for service errors */
-    { NDB_MGM_ILLEGAL_CONNECT_STRING, "Illegal connect string" },
-    { NDB_MGM_ILLEGAL_SERVER_HANDLE, "Illegal server handle" },
-    { NDB_MGM_ILLEGAL_SERVER_REPLY, "Illegal reply from server" },
-    { NDB_MGM_ILLEGAL_NUMBER_OF_NODES, "Illegal number of nodes" },
-    { NDB_MGM_ILLEGAL_NODE_STATUS, "Illegal node status" },
-    { NDB_MGM_OUT_OF_MEMORY, "Out of memory" },
-    { NDB_MGM_SERVER_NOT_CONNECTED, "Management server not connected" },
-    { NDB_MGM_COULD_NOT_CONNECT_TO_SOCKET, "Could not connect to socket" },
+  extern const struct Ndb_Mgm_Error_Msg ndb_mgm_error_msgs[];
+  extern const int ndb_mgm_noOfErrorMsgs;
+#endif
 
-    /* Service errors - Start/Stop Node or System */
-    { NDB_MGM_START_FAILED, "Start failed" },
-    { NDB_MGM_STOP_FAILED, "Stop failed" },
-    { NDB_MGM_RESTART_FAILED, "Restart failed" },
+/* Include error messages when sourced from perror(or special define set) */
+#if defined PERROR_VERSION || defined MGMAPI_ERROR_INCLUDE_MESSAGES
+#include "../../src/mgmapi/mgmapi_error.c"
+#endif
 
-    /* Service errors - Backup */
-    { NDB_MGM_COULD_NOT_START_BACKUP, "Could not start backup" },
-    { NDB_MGM_COULD_NOT_ABORT_BACKUP, "Could not abort backup" },
-
-    /* Service errors - Single User Mode */
-    { NDB_MGM_COULD_NOT_ENTER_SINGLE_USER_MODE,
-      "Could not enter single user mode" },
-    { NDB_MGM_COULD_NOT_EXIT_SINGLE_USER_MODE,
-      "Could not exit single user mode" },
-
-    /* Usage errors */
-    { NDB_MGM_USAGE_ERROR,
-      "Usage error" }
-  };
-  const int ndb_mgm_noOfErrorMsgs =
-  sizeof(ndb_mgm_error_msgs)/sizeof(struct Ndb_Mgm_Error_Msg);
 #ifdef __cplusplus
 }
 #endif

@@ -1,0 +1,51 @@
+#ifndef SASL_DEFS_H
+#define SASL_DEFS_H 1
+
+// Longest one I could find was ``9798-U-RSA-SHA1-ENC''
+#define MAX_SASL_MECH_LEN 32
+
+#if defined(ENABLE_MEMCACHED_SASL)
+#define ENABLE_SASL 1
+#define SASL_ENABLED 1
+# if defined(ENABLE_MEMCACHED_SASL_PWDB)
+# define ENABLE_SASL_PWDB
+# endif /* ENABLE_MEMCACHED_SASL_PWDB */
+#endif /* ENABLE_MEMCACHED_SASL */
+
+
+#if defined(HAVE_SASL_SASL_H) || defined(ENABLE_ISASL)
+#define HAVE_SASL_HDR 1
+#else
+#define HAVE_SASL_HDR 0
+#endif /* have some kind of sasl header */
+
+#if defined(HAVE_SASL_SASL_H) && defined(ENABLE_SASL)
+
+#include <sasl/sasl.h>
+void init_sasl(void);
+#define shutdown_sasl()
+
+#elif defined(ENABLE_ISASL)
+
+#include "isasl.h"
+void init_sasl(void);
+void shutdown_sasl(void);
+#else /* End of SASL support */
+
+typedef void* sasl_conn_t;
+
+#define shutdown_sasl()
+#define init_sasl() {}
+#define sasl_dispose(x) {}
+#define sasl_server_new(a, b, c, d, e, f, g, h) 1
+#define sasl_listmech(a, b, c, d, e, f, g, h) 1
+#define sasl_server_start(a, b, c, d, e, f) 1
+#define sasl_server_step(a, b, c, d, e) 1
+#define sasl_getprop(a, b, c) {}
+
+#define SASL_OK 0
+#define SASL_CONTINUE -1
+
+#endif /* sasl compat */
+
+#endif /* SASL_DEFS_H */

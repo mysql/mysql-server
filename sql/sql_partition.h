@@ -20,6 +20,7 @@
 #include "table.h"                              /* TABLE_LIST */
 
 class Alter_info;
+class Alter_table_ctx;
 class Field;
 class String;
 class handler;
@@ -111,7 +112,8 @@ bool mysql_unpack_partition(THD *thd, char *part_buf,
                             TABLE *table, bool is_create_table_ind,
                             handlerton *default_db_type,
                             bool *work_part_info_used);
-void make_used_partitions_str(partition_info *part_info, String *parts_str);
+bool make_used_partitions_str(partition_info *part_info,
+                              List<const char> *parts);
 uint32 get_list_array_idx_for_endpoint(partition_info *part_info,
                                        bool left_endpoint,
                                        bool include_endpoint);
@@ -252,11 +254,8 @@ bool set_part_state(Alter_info *alter_info, partition_info *tab_part_info,
                     enum partition_state part_state);
 uint prep_alter_part_table(THD *thd, TABLE *table, Alter_info *alter_info,
                            HA_CREATE_INFO *create_info,
-                           handlerton *old_db_type,
+                           Alter_table_ctx *alter_ctx,
                            bool *partition_changed,
-                           char *db,
-                           const char *table_name,
-                           const char *path,
                            bool *fast_alter_table);
 char *generate_partition_syntax(partition_info *part_info,
                                 uint *buf_length, bool use_sql_alloc,

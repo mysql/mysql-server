@@ -1,0 +1,40 @@
+cmd: testUpgrade
+args: -n Upgrade_NR1 T1
+max-time: 600
+
+cmd: testUpgrade
+args: -n Upgrade_NR2 T1
+max-time: 600
+
+cmd: testUpgrade
+args: -n Upgrade_NR3 T1
+max-time: 600
+
+cmd: testUpgrade
+args: -n Upgrade_FS T1
+max-time: 600
+
+cmd: testUpgrade
+args: -n Upgrade_Traffic T1
+max-time: 1200
+
+cmd: testUpgrade
+args: -n Upgrade_Traffic_FS T1
+max-time: 1200
+
+cmd: testUpgrade
+args: -n Upgrade_Api_Only T1
+max-time: 1200
+
+cmd: testUpgrade
+args: -n Upgrade_Api_Before_NR1 T2
+max-time: 1200
+
+cmd: testUpgrade
+args: -n Upgrade_Api_NDBD_MGMD T1
+max-time: 1200
+
+cmd: testUpgrade
+args: -n Upgrade_Mixed_MGMD_API_NDBD T2
+max-time: 1200
+

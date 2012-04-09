@@ -439,14 +439,15 @@ static void start_stage_noop(PSI_stage_key key NNN,
   return;
 }
 
-static void end_stage_noop()
+static void end_stage_noop(void)
 {
   return;
 }
 
 static PSI_statement_locker*
 get_thread_statement_locker_noop(PSI_statement_locker_state *state NNN,
-                                 PSI_statement_key key NNN)
+                                 PSI_statement_key key NNN,
+                                 const void *charset NNN)
 {
   return NULL;
 }
@@ -607,6 +608,20 @@ static void set_socket_thread_owner_noop(PSI_socket *socket NNN)
   return;
 }
 
+static struct PSI_digest_locker*
+digest_start_noop(PSI_statement_locker *locker NNN)
+{
+  return NULL;
+}
+
+static PSI_digest_locker*
+digest_add_token_noop(PSI_digest_locker *locker NNN,
+                      uint token NNN,
+                      struct OPAQUE_LEX_YYSTYPE *yylval NNN)
+{
+  return NULL;
+}
+
 static PSI PSI_noop=
 {
   register_mutex_noop,
@@ -700,7 +715,9 @@ static PSI PSI_noop=
   end_socket_wait_noop,
   set_socket_state_noop,
   set_socket_info_noop,
-  set_socket_thread_owner_noop
+  set_socket_thread_owner_noop,
+  digest_start_noop,
+  digest_add_token_noop
 };
 
 /**

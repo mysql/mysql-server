@@ -1,4 +1,5 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +12,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #include <ndb_global.h>
 #include <ndb_opts.h>
@@ -19,8 +21,6 @@
 #include <NdbOut.hpp>
 #include <NdbApi.hpp>
 #include <NDBT.hpp>
-
-NDB_STD_OPTS_VARS;
 
 static const char* _dbname = "TEST_DB";
 
@@ -30,26 +30,24 @@ static struct my_option my_long_options[] =
 {
   NDB_STD_OPTS("ndb_desc"),
   { "database", 'd', "Name of database table is in",
-    &_dbname, &_dbname, 0,
+    (uchar**) &_dbname, (uchar**) &_dbname, 0,
     GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
+
+static void short_usage_sub(void)
+{
+  ndb_short_usage_sub(NULL);
+}
+
 static void usage()
 {
-#ifdef NOT_USED
-  char desc[] = 
-    "[<table> <index>]+\n"\
-    "This program will drop index(es) in Ndb\n";
-#endif
-  ndb_std_print_version();
-  print_defaults(MYSQL_CONFIG_NAME,load_default_groups);
-  puts("");
-  my_print_help(my_long_options);
-  my_print_variables(my_long_options);
+  ndb_usage(short_usage_sub, load_default_groups, my_long_options);
 }
 
 int main(int argc, char** argv){
   NDB_INIT(argv[0]);
+  ndb_opt_set_usage_funcs(short_usage_sub, usage);
   load_defaults("my",load_default_groups,&argc,&argv);
   int ho_error;
   if ((ho_error=handle_options(&argc, &argv, my_long_options,
@@ -60,7 +58,7 @@ int main(int argc, char** argv){
     return NDBT_ProgramExit(NDBT_WRONGARGS);
   }
   
-  Ndb_cluster_connection con(opt_connect_str);
+  Ndb_cluster_connection con(opt_ndb_connectstring, opt_ndb_nodeid);
   con.set_name("ndb_drop_index");
   if(con.connect(12, 5, 1) != 0)
   {

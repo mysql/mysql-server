@@ -444,19 +444,11 @@ INSERT INTO t1 ( sca_code, cat_code, sca_desc, lan_code, sca_pic, sca_sdesc, sca
 select count(*) from t1 where sca_code = 'PD';
 select count(*) from t1 where sca_code <= 'PD';
 select count(*) from t1 where sca_pic is null;
-# this should be fixed by MySQL (see Bug #51451)
-# now that http://bugs.mysql.com/49838 is fixed the following ALTER does
-# copy the table instead of failing
-# --error ER_WRONG_NAME_FOR_INDEX
 alter table t1 drop index sca_pic, add index sca_pic (cat_code, sca_pic);
-alter table t1 drop index sca_pic;
-alter table t1 add index sca_pic (cat_code, sca_pic);
 select count(*) from t1 where sca_code='PD' and sca_pic is null;
 select count(*) from t1 where cat_code='E';
 
 alter table t1 drop index sca_pic, add index (sca_pic, cat_code);
-alter table t1 drop index sca_pic;
-alter table t1 add index (sca_pic, cat_code);
 select count(*) from t1 where sca_code='PD' and sca_pic is null;
 select count(*) from t1 where sca_pic >= 'n';
 select sca_pic from t1 where sca_pic is null;
@@ -2576,6 +2568,76 @@ select f1 from t1;
 show status like "handler_read_key";
 drop table t1;
 
+#
+# Test handling of writes to TEMPORARY tables for read-only transactions
+#
+CREATE TABLE t1 (c1 INT) ENGINE=InnoDB;
+CREATE TEMPORARY TABLE t2 (c1 INT) ENGINE=InnoDB;
+
+# Check that the rollback works
+START TRANSACTION READ ONLY;
+INSERT INTO t2 VALUES(0);
+--error ER_CANT_EXECUTE_IN_READ_ONLY_TRANSACTION
+INSERT INTO t1 VALUES(0);
+ROLLBACK;
+
+SELECT * FROM t1;
+SELECT * FROM t2;
+
+START TRANSACTION READ ONLY;
+--error ER_CANT_EXECUTE_IN_READ_ONLY_TRANSACTION
+INSERT INTO t1 VALUES(0);
+INSERT INTO t2 VALUES(1);
+COMMIT;
+
+SET TRANSACTION READ ONLY;
+START TRANSACTION;
+INSERT INTO t2 VALUES(3);
+--error ER_CANT_EXECUTE_IN_READ_ONLY_TRANSACTION
+INSERT INTO t1 VALUES(0);
+COMMIT;
+
+SELECT * FROM t1;
+SELECT * FROM t2;
+
+DROP TABLE t2;
+
+# This time with some indexes
+CREATE TEMPORARY TABLE t2 (
+	c1 INT AUTO_INCREMENT PRIMARY KEY,
+	c2 INT, INDEX idx(c2)) ENGINE=InnoDB;
+
+SHOW CREATE TABLE t2;
+
+# Check that the rollback works
+START TRANSACTION READ ONLY;
+INSERT INTO t2 VALUES(NULL,1),(NULL,2),(NULL,3);
+--error ER_CANT_EXECUTE_IN_READ_ONLY_TRANSACTION
+INSERT INTO t1 VALUES(0);
+ROLLBACK;
+
+SELECT * FROM t1;
+SELECT * FROM t2;
+
+START TRANSACTION READ ONLY;
+--error ER_CANT_EXECUTE_IN_READ_ONLY_TRANSACTION
+INSERT INTO t1 VALUES(0);
+INSERT INTO t2 VALUES(NULL,1),(NULL,2),(NULL,3);
+COMMIT;
+
+SET TRANSACTION READ ONLY;
+START TRANSACTION;
+INSERT INTO t2 VALUES(NULL,1),(NULL,2),(NULL,3);
+--error ER_CANT_EXECUTE_IN_READ_ONLY_TRANSACTION
+INSERT INTO t1 VALUES(0);
+COMMIT;
+
+SHOW CREATE TABLE t2;
+SELECT * FROM t1;
+SELECT * FROM t2;
+
+DROP TABLE t1;
+DROP TABLE t2;
 #######################################################################
 #                                                                     #
 # Please, DO NOT TOUCH this file as well as the innodb.result file.   #

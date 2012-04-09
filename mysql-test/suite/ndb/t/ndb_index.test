@@ -1,0 +1,265 @@
+-- source include/have_ndb.inc
+
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+
+CREATE TABLE t1 (
+  PORT varchar(16) NOT NULL,
+  ACCESSNODE varchar(16) NOT NULL,
+  POP varchar(48) NOT NULL,
+  ACCESSTYPE int unsigned NOT NULL,
+  CUSTOMER_ID varchar(20) collate latin1_bin NOT NULL,
+  PROVIDER varchar(16),
+  TEXPIRE int unsigned,
+  NUM_IP int unsigned,
+  LEASED_NUM_IP int unsigned,
+  LOCKED_IP int unsigned,
+  STATIC_DNS int unsigned,
+  SUSPENDED_SERVICE int unsigned,
+  SUSPENDED_REASON int unsigned,
+  BGP_COMMUNITY int unsigned,
+  INDEX CUSTOMER_ID_INDEX(CUSTOMER_ID),
+  INDEX FQPN_INDEX(POP,ACCESSNODE,PORT),
+  PRIMARY KEY(POP,ACCESSNODE,PORT,ACCESSTYPE)
+) engine=ndbcluster;
+
+INSERT INTO t1 VALUES ('port67', 'node78', 'pop98', 1, 'kllopmn', 'pr_43', 121212, 1, 2, 3, 8, NULL, NULL, NULL);
+INSERT INTO t1 VALUES ('port67', 'node78', 'pop99', 2, 'klkighh', 'pr_44', 121213, 3, 3, 6, 7, NULL, NULL, NULL);
+INSERT INTO t1 VALUES ('port79', 'node79', 'pop79', 2, 'kpongfaa', 'pr_44', 981213, 2, 4, 10, 11, 2, 99, 1278);
+  
+
+# Test select using port
+select port, accessnode, pop, accesstype  from t1 where port='port67' order by accesstype;
+select port, accessnode, pop, accesstype  from t1 where port='foo';
+
+# Test select using accessnode
+select port, accessnode, pop, accesstype  from t1 where accessnode='node78' order by accesstype;
+select port, accessnode, pop, accesstype  from t1 where accessnode='foo';
+
+# Test select using pop
+select port, accessnode, pop, accesstype  from t1 where pop='pop98';
+select port, accessnode, pop, accesstype  from t1 where pop='pop98';
+select port, accessnode, pop, accesstype  from t1 where pop='pop98';
+select port, accessnode, pop, accesstype  from t1 where pop='pop98' order by accesstype;
+# The following two querys will not return any rows since 
+# the index used for access is case sensitive
+# They are thus disabled for now
+#select port, accessnode, pop, accesstype  from t1 where pop='POP98';
+#select port, accessnode, pop, accesstype  from t1 where pop='POP98' order by accesstype;
+select port, accessnode, pop, accesstype  from t1 where pop='foo';
+
+# Test select using accesstype
+select port, accessnode, pop, accesstype  from t1 where accesstype=1;
+select port, accessnode, pop, accesstype  from t1 where accesstype=2 order by port;
+select port, accessnode, pop, accesstype  from t1 where accesstype=98 order by port;
+
+# Test select using customer_id
+# NOTE! customer_id has a INDEX (ordered index in NDB), it's case sensitive!
+select port, accessnode, pop, accesstype  from t1 where customer_id='kllopmn';
+select port, accessnode, pop, accesstype  from t1 where customer_id='KLLOPMN';
+select port, accessnode, pop, accesstype  from t1 where customer_id='kLLoPMn';
+select port, accessnode, pop, accesstype  from t1 where customer_id='foo';
+
+# Test select using provider
+select port, accessnode, pop, accesstype  from t1 where provider='pr_43';
+select port, accessnode, pop, accesstype  from t1 where provider='foo';
+
+# Test select using texpire
+select port, accessnode from t1 where texpire=121212;
+select port, accessnode from t1 where texpire=2323;
+
+# Test select using num_ip
+select port, accessnode, pop, accesstype  from t1 where num_ip=1;
+select port, accessnode, pop, accesstype  from t1 where num_ip=89;
+
+# Test select using leased_num_ip
+select port, accessnode, pop, accesstype  from t1 where leased_num_ip=2;
+select port, accessnode, pop, accesstype  from t1 where leased_num_ip=89;
+
+# Test select using locked_ip
+select port, accessnode, pop, accesstype  from t1 where locked_ip=3;
+select port, accessnode, pop, accesstype  from t1 where locked_ip=89;
+
+# Test select using static_dns
+select port, accessnode, pop, accesstype  from t1 where static_dns=8;
+select port, accessnode, pop, accesstype  from t1 where static_dns=89;
+
+# Test select using suspended_service
+select port, accessnode, pop, accesstype  from t1 where suspended_service=8;
+select port, accessnode, pop, accesstype  from t1 where suspended_service=89;
+
+# Test select using suspended_reason
+select port, accessnode, pop, accesstype  from t1 where suspended_reason=NULL;
+select port, accessnode, pop, accesstype  from t1 where suspended_reason=89;
+select port, accessnode, pop, accesstype  from t1 where suspended_reason=0;
+
+# Test select using bgp_community
+select port, accessnode, pop, accesstype  from t1 where bgp_community=NULL;
+select port, accessnode, pop, accesstype  from t1 where bgp_community=89;
+select port, accessnode, pop, accesstype  from t1 where bgp_community=0;
+
+# Test select using full primary key
+select port, accessnode, pop, accesstype from t1 where port='port67' and accessnode='node78' and pop='pop98' and accesstype=1;
+select port, accessnode, pop, accesstype from t1 where port='port67' and accesstype=1 and accessnode='node78' and pop='pop98';
+select port, accessnode, pop, accesstype from t1 where pop='pop98' and port='port67' and accesstype=1 and accessnode='node78';
+select port, accessnode from t1 where port='foo' and accessnode='foo' and pop='foo' and accesstype=99;
+
+# Test select using partial primary key
+select port, accessnode, pop, accesstype from t1 where port='port67' and pop='pop98' and accesstype=1;
+select port, accessnode, pop, accesstype from t1 where accesstype=1 and accessnode='node78' and pop='pop98';
+select port, accessnode, pop, accesstype from t1 where  port='port67' and accesstype=1 and accessnode='node78';
+select port, accessnode from t1 where port='foo' and accessnode='foo' and pop='foo';
+
+# Test select using CUSTOMER_ID_INDEX
+select port, accessnode, pop, accesstype  from t1 where customer_id='kllopmn';
+select port, accessnode, pop, accesstype  from t1 where customer_id='kllopmn' and accesstype=1;
+select port, accessnode, pop, accesstype  from t1 where customer_id='kllopmn' and accesstype=2;
+select port, accessnode, pop, accesstype  from t1 where accesstype=2 and customer_id='kllopmn';
+
+# Test select using FQPN_INDEX
+select port, accessnode, pop, accesstype  from t1 where pop='pop98' and accessnode='node78' and port='port67';
+#select port, accessnode, pop, accesstype  from t1 where pop='pop98' and accessnode='node78' and port='port67' order by accesstype;
+#select port, accessnode, pop, accesstype  from t1 where  accessnode='node78' and port='port67' and pop='pop98' order by accesstype;
+#select port, accessnode, pop, accesstype  from t1 where port='port67' and pop='pop98' and accessnode='node78' order by accesstype;
+select port, accessnode, pop, accesstype  from t1 where pop='pop98' and accessnode='node78' and port='port67' and customer_id='kllopmn';
+select port, accessnode, pop, accesstype  from t1 where pop='pop98' and accessnode='node78' and port='port67' and customer_id='foo';
+
+drop table t1;
+
+# End of 4.1 tests
+
+# bug#45525
+create table t1 (
+a int not null primary key,
+c00 int not null, c01 int not null, c02 int not null, c03 int not null, c04 int not null, c05 int not null, c06 int not null, c07 int not null,
+c10 int not null, c11 int not null, c12 int not null, c13 int not null, c14 int not null, c15 int not null, c16 int not null, c17 int not null,
+c20 int not null, c21 int not null, c22 int not null, c23 int not null, c24 int not null, c25 int not null, c26 int not null, c27 int not null,
+c30 int not null, c31 int not null, c32 int not null, c33 int not null, c34 int not null, c35 int not null, c36 int not null, c37 int not null,
+c40 int not null, c41 int not null, c42 int not null, c43 int not null, c44 int not null, c45 int not null, c46 int not null, c47 int not null,
+c50 int not null, c51 int not null, c52 int not null, c53 int not null, c54 int not null, c55 int not null, c56 int not null, c57 int not null,
+c60 int not null, c61 int not null, c62 int not null, c63 int not null, c64 int not null, c65 int not null, c66 int not null, c67 int not null,
+c70 int not null, c71 int not null, c72 int not null, c73 int not null, c74 int not null, c75 int not null, c76 int not null, c77 int not null,
+unique (c00), unique (c01), unique (c02), unique (c03), unique (c04), unique (c05), unique (c06), unique (c07),
+unique (c10), unique (c11), unique (c12), unique (c13), unique (c14), unique (c15), unique (c16), unique (c17),
+unique (c20), unique (c21), unique (c22), unique (c23), unique (c24), unique (c25), unique (c26), unique (c27),
+unique (c30), unique (c31), unique (c32), unique (c33), unique (c34), unique (c35), unique (c36), unique (c37),
+unique (c40), unique (c41), unique (c42), unique (c43), unique (c44), unique (c45), unique (c46), unique (c47),
+unique (c50), unique (c51), unique (c52), unique (c53), unique (c54), unique (c55), unique (c56), unique (c57),
+unique (c60), unique (c61), unique (c62), unique (c63), unique (c64), unique (c65), unique (c66), unique (c67),
+unique (c60), unique (c71), unique (c72), unique (c73), unique (c74), unique (c75), unique (c76)) engine = ndb;
+
+drop table t1;
+
+CREATE TABLE t1 (
+a INT NOT NULL AUTO_INCREMENT ,
+b INT NOT NULL ,
+c VARCHAR ( 11 ) NOT NULL ,
+PRIMARY KEY ( a ) ,
+INDEX ( b )
+) ENGINE = NDB;
+ 
+INSERT INTO t1 (a ,b ,c) VALUES 
+(NULL , '1', 'test'), (NULL , '2', 'test'), (NULL , '1', 'test'), 
+(NULL , '2', 'test'), (NULL , '3', 'test'), (NULL , '4', 'test'), 
+(NULL , '5', 'test'), (NULL , '6', 'test'), (NULL , '1', 'test'),
+(NULL , '1', 'test');
+
+explain select count(a) from t1 group by a;
+explain select count(a) from t1 FORCE INDEX FOR GROUP BY (PRIMARY) group by a;
+explain select count(b) from t1 group by b;
+explain select count(b) from t1 FORCE INDEX FOR GROUP BY (b) group by b;
+explain select distinct a from t1;
+explain select distinct a from t1 group by a;
+explain select distinct b from t1;
+explain select distinct b from t1 group by b;
+
+--sorted_result
+select count(a) from t1 group by a;
+--sorted_result
+select count(a) from t1 FORCE INDEX FOR GROUP BY (PRIMARY) group by a;
+--sorted_result
+select count(b) from t1 group by b;
+--sorted_result
+select count(b) from t1 FORCE INDEX FOR GROUP BY (b) group by b;
+--sorted_result
+select distinct a from t1;
+--sorted_result
+select distinct a from t1 group by a;
+--sorted_result
+select distinct b from t1;
+--sorted_result
+select distinct b from t1 group by b;
+
+drop table t1;
+
+# bug#58280
+create table t1(vc varchar(16), i int, vc2 varchar(1024)
+  , PRIMARY KEY(vc,vc2) USING HASH
+  , KEY i1(i)
+  , KEY i2(vc)
+ )  ENGINE=ndbcluster;
+
+insert into t1 values
+('1',1,'1'), ('2',2,'2'), ('3',3,'3'), ('4',1,'4'), ('5',2,'5'),
+('6',3,'6'), ('7',1,'7'), ('8',2,'8'), ('9',3,'9'), ('10',1,'10'), 
+('11',2,'11'), ('12',3,'12'), ('13',1,'13'), ('14',2,'14'), ('15',3,'15'),
+('16',1,'16'), ('17',2,'17'), ('x',3,'x'), ('y',1,'y'), ('z',2,'z'),
+('1000',3,'1000'), ('2000',3,'2000'), ('10000',3,'10000');
+
+analyze table t1;
+explain
+select i,vc from t1
+  where i>=1 or vc > '0';
+
+--sorted_result
+select i,vc from t1
+  where i>=1 or vc > '0';
+
+# also test with hidden primary key
+create table t2(vc varchar(16), i int, vc2 varchar(1024)
+  , KEY i1(i)
+  , KEY i2(vc)
+ )  ENGINE=ndbcluster;
+
+insert into t2 values
+('1',1,'1'), ('2',2,'2'), ('3',3,'3'), ('4',1,'4'), ('5',2,'5'),
+('6',3,'6'), ('7',1,'7'), ('8',2,'8'), ('9',3,'9'), ('10',1,'10'), 
+('11',2,'11'), ('12',3,'12'), ('13',1,'13'), ('14',2,'14'), ('15',3,'15'),
+('16',1,'16'), ('17',2,'17'), ('x',3,'x'), ('y',1,'y'), ('z',2,'z'),
+('1000',3,'1000'), ('2000',3,'2000'), ('10000',3,'10000');
+
+analyze table t2;
+explain
+select i,vc from t2
+  where i>=1 or vc > '0';
+
+--sorted_result
+select i,vc from t2
+  where i>=1 or vc > '0';
+
+drop table t1, t2;
+
+# Bug#38914 permanent table crash after truncate table with slash in keyname
+CREATE TABLE inleveroverzicht (
+  id int(11) NOT NULL auto_increment,
+  klantid int(11) NOT NULL default '0',
+  productcode varchar(255) NOT NULL default '0',
+  aantal int(11) NOT NULL default '0',
+  PRIMARY KEY  (id),
+  KEY klantid (klantid),
+  KEY `klantid/productcode` (klantid,productcode)
+) ENGINE=NDBCLUSTER DEFAULT CHARSET=latin1 AUTO_INCREMENT=34 ;
+
+INSERT INTO inleveroverzicht (id, klantid, productcode, aantal) VALUES 
+(33, 31, '15674', 11),
+(32, 31, '0001256', 1);
+
+SELECT * from inleveroverzicht ORDER BY id;
+
+TRUNCATE TABLE inleveroverzicht;
+
+SELECT * from inleveroverzicht  ORDER BY id;
+
+DROP TABLE inleveroverzicht;
+

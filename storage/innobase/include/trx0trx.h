@@ -405,6 +405,15 @@ trx_get_que_state_str(
 /*==================*/
 	const trx_t*	trx);	/*!< in: transaction */
 
+/****************************************************************//**
+Assign a read-only transaction a rollback-segment, if it is attempting
+to write to a TEMPORARY table. */
+UNIV_INTERN
+void
+trx_assign_rseg(
+/*============*/
+	trx_t*		trx);		/*!< A read-only transaction that
+					needs to be assigned a RBS. */
 /*******************************************************************//**
 Transactions that aren't started by the MySQL server don't set
 the trx_t::mysql_thd field. For such transactions we set the lock
@@ -793,7 +802,7 @@ struct trx_struct{
 					transaction branch */
 	lsn_t		commit_lsn;	/*!< lsn at the time of the commit */
 	table_id_t	table_id;	/*!< Table to drop iff dict_operation
-					is TRUE, or 0. */
+					== TRX_DICT_OP_TABLE, or 0. */
 	/*------------------------------*/
 	void*		mysql_thd;	/*!< MySQL thread handle corresponding
 					to this trx, or NULL */

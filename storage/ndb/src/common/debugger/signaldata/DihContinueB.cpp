@@ -1,4 +1,6 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (C) 2003-2008 MySQL AB, 2009 Sun Microsystems, Inc.
+    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +13,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 
 #include <signaldata/DihContinueB.hpp>
@@ -148,15 +151,6 @@ printCONTINUEB_DBDIH(FILE * output, const Uint32 * theData,
     fprintf(output, " Copy Node: Table: %d\n", theData[1]);
     return true;
     break;
-  case DihContinueB::ZSTART_TAKE_OVER:
-    fprintf(output, " Start Take Over: TakeOverPtr: %d, startNode: %d, toNode: %d\n",
-            theData[1], theData[2], theData[3]);
-    return true;
-    break;
-  case DihContinueB::ZCHECK_START_TAKE_OVER:
-    fprintf(output, " Check Start Take Over\n");
-    return true;
-    break;
   case DihContinueB::ZTO_START_COPY_FRAG:
     fprintf(output, " To Start Copy Frag: TakeOverPtr: %d\n", theData[1]);
     return true;
@@ -189,28 +183,22 @@ printCONTINUEB_DBDIH(FILE * output, const Uint32 * theData,
             theData[1], theData[2], theData[3]);
      return true;
      break;
-  case DihContinueB::ZSEND_END_TO:
-     fprintf(output, " Send End Take Over: TakeOverPtr: %d, startNode: %d, toNode: %d\n",
-            theData[1], theData[2], theData[3]);
-     return true;
-     break;
   case DihContinueB::ZSEND_ADD_FRAG:
      fprintf(output, " Send Add Fragment: TakeOverPtr: %d, startNode: %d, toNode: %d\n",
             theData[1], theData[2], theData[3]);
      return true;
      break;
-  case DihContinueB::ZSEND_CREATE_FRAG:
-     fprintf(output, " Send Create Fragment: TakeOverPtr: %d, storedType: %d, start Gci: %d, startNode: %d, toNode: %d\n",
-            theData[1], theData[2], theData[3], theData[4], theData[5]);
-     return true;
-     break;
   case DihContinueB::WAIT_DROP_TAB_WRITING_TO_FILE:
     fprintf(output, " Wait drop tab writing to file TableId: %d\n", theData[1]);
     return true;
-  case DihContinueB::CHECK_WAIT_DROP_TAB_FAILED_LQH:
-    fprintf(output, " Wait drop tab FailedNodeId: %d TableId: %d\n", 
-	    theData[1], theData[2]);
-    return true;
+  case DihContinueB::ZLCP_TRY_LOCK:
+    fprintf(output, " Lcp trylock: attempt %u\n",
+            theData[1]);
+    break;
+  case DihContinueB::ZDELAY_RELEASE_FRAGMENT_INFO_MUTEX:
+    fprintf(output, " Delay release fragment-info mutex (handle: 0x%x)",
+            theData[1]);
+    break;
   default:
     fprintf(output, " Default system error lab...\n");
     break;

@@ -1,4 +1,5 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +12,10 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
+
+// Restore
 
 #ifndef RESTORE_H
 #define RESTORE_H
@@ -19,23 +23,43 @@
 #include <ndb_global.h>
 #include <NdbOut.hpp>
 #include "../src/kernel/blocks/backup/BackupFormat.hpp"
-#include "../src/ndbapi/NdbDictionaryImpl.hpp"
 #include <NdbApi.hpp>
+#include <util/ndbzio.h>
+#include <util/UtilBuffer.hpp>
 
 #include <ndb_version.h>
 #include <version.h>
 
-const int FileNameLenC = 256;
-const int TableNameLenC = 256;
-const int AttrNameLenC = 256;
-const Uint32 timeToWaitForNdbC = 10000;
-const Uint32 opsDefaultC = 1000;
+enum TableChangesMask
+{
+  /**
+   * Allow attribute type promotion
+   */
+  TCM_ATTRIBUTE_PROMOTION = 0x1,
 
-// Forward declarations
-//class AttributeDesc;
-struct AttributeDesc;
-struct AttributeData;
-struct AttributeS;
+  /**
+   * Allow missing columns
+   */
+  TCM_EXCLUDE_MISSING_COLUMNS = 0x2,
+
+  /**
+   * Allow attribute type demotion and integral signed/unsigned type changes.
+   */
+  TCM_ATTRIBUTE_DEMOTION = 0x4
+};
+
+inline
+bool
+isDrop6(Uint32 version)
+{
+  return (getMajor(version) == 5 && getMinor(version) == 2);
+}
+
+typedef NdbDictionary::Table NDBTAB;
+typedef NdbDictionary::Column NDBCOL;
+typedef  void* (*AttrConvertFunc)(const void *old_data, 
+                                  void *parameter,
+                                  bool &truncated);
 
 struct AttributeData {
   bool null;
@@ -65,23 +89,33 @@ struct AttributeDesc {
   friend class TableS;
   friend class RestoreDataIterator;
   friend class RestoreMetaData;
-  friend struct AttributeS;
+  friend class AttributeS;
   Uint32 size; // bits       
   Uint32 arraySize;
   Uint32 attrId;
   NdbDictionary::Column *m_column;
 
+  bool m_exclude;
   Uint32 m_nullBitIndex;
+  AttrConvertFunc convertFunc;
+  void *parameter;
+  bool truncation_detected;
+
 public:
   
   AttributeDesc(NdbDictionary::Column *column);
   AttributeDesc();
 
   Uint32 getSizeInWords() const { return (size * arraySize + 31)/ 32;}
+  Uint32 getSizeInBytes() const {
+    assert(size >= 8);
+    return (size / 8) * arraySize;
+  }
 }; // AttributeDesc
 
-struct AttributeS {
-  const AttributeDesc * Desc;
+class AttributeS {
+public:
+  AttributeDesc * Desc;
   AttributeData Data;
 };
 
@@ -107,7 +141,7 @@ public:
   TupleS & operator=(const TupleS& tuple);
   int getNoOfAttributes() const;
   TableS * getTable() const;
-  const AttributeDesc * getDesc(int i) const;
+  AttributeDesc * getDesc(int i) const;
   AttributeData * getData(int i) const;
 }; // class TupleS
 
@@ -136,11 +170,15 @@ class TableS {
   Uint32 m_noOfNullable;
   Uint32 m_nullBitmaskSize;
 
-  Uint32 m_auto_val_id;
+  AttributeDesc * m_auto_val_attrib;
   Uint64 m_max_auto_val;
 
-  bool isSysTable;
+  bool m_isSysTable;
+  bool m_isSYSTAB_0;
+  bool m_broken;
+
   TableS *m_main_table;
+  Uint32 m_main_column_id;
   Uint32 m_local_id;
 
   Uint64 m_noOfRecords;
@@ -159,7 +197,7 @@ public:
   Uint32 getLocalId() const { 
     return m_local_id; 
   }
-  Uint32 getNoOfRecords() const { 
+  Uint64 getNoOfRecords() const { 
     return m_noOfRecords; 
   }
   /*
@@ -191,11 +229,11 @@ public:
   };
   
   bool have_auto_inc() const {
-    return m_auto_val_id != ~(Uint32)0;
+    return m_auto_val_attrib != 0;
   };
 
   bool have_auto_inc(Uint32 id) const {
-    return m_auto_val_id == id;
+    return (m_auto_val_attrib ? m_auto_val_attrib->attrId == id : false);
   };
 
   Uint64 get_max_auto_val() const {
@@ -234,6 +272,9 @@ public:
     if(v > m_max_auto_val)
       m_max_auto_val= v;
   };
+
+  bool get_auto_data(const TupleS & tuple, Uint32 * syskey, Uint64 * nextid) const;
+
   /**
    * Get attribute descriptor
    */
@@ -241,22 +282,36 @@ public:
     return allAttributesDesc[attributeId]; 
   }
 
+  AttributeDesc *getAttributeDesc(int attributeId) const {
+    return allAttributesDesc[attributeId];
+  }
+
   bool getSysTable() const {
-    return isSysTable;
+    return m_isSysTable;
   }
 
   const TableS *getMainTable() const {
     return m_main_table;
   }
 
-  TableS& operator=(TableS& org) ; 
+  TableS& operator=(TableS& org) ;
+
+  bool isSYSTAB_0() const {
+    return m_isSYSTAB_0;
+  } 
+
+  inline
+  bool isBroken() const {
+    return m_broken || (m_main_table && m_main_table->isBroken());
+  }
+  
 }; // TableS;
 
 class RestoreLogIterator;
 
 class BackupFile {
 protected:
-  FILE * m_file;
+  ndbzio_stream m_file;
   char m_path[PATH_MAX];
   char m_fileName[PATH_MAX];
   bool m_hostByteOrder;
@@ -269,7 +324,16 @@ protected:
   void * m_buffer_ptr;
   Uint32 m_buffer_sz;
   Uint32 m_buffer_data_left;
+
+  Uint64 m_file_size;
+  Uint64 m_file_pos;
+  
+  UtilBuffer m_twiddle_buffer;
+
+  bool  m_is_undolog;
+
   void (* free_data_callback)();
+  virtual void reset_buffers() {}
 
   bool openFile();
   void setCtlFile(Uint32 nodeId, Uint32 backupId, const char * path);
@@ -284,7 +348,8 @@ protected:
   void setName(const char * path, const char * name);
 
   BackupFile(void (* free_data_callback)() = 0);
-  ~BackupFile();
+  virtual ~BackupFile();
+
 public:
   bool readHeader();
   bool validateFooter();
@@ -293,7 +358,16 @@ public:
   const char * getFilename() const { return m_fileName;}
   Uint32 getNodeId() const { return m_nodeId;}
   const BackupFormat::FileHeader & getFileHeader() const { return m_fileHeader;}
-  bool Twiddle(const AttributeDesc *  attr_desc, AttributeData * attr_data, Uint32 arraySize = 0);
+  bool Twiddle(const AttributeDesc * const attr_desc,
+               AttributeData * attr_data);
+
+  Uint64 get_file_size() const { return m_file_size; }
+  Uint64 get_file_pos() const { return m_file_pos; }
+
+private:
+  void
+  twiddle_atribute(const AttributeDesc * const attr_desc,
+                   AttributeData* attr_data);
 };
 
 struct DictObject {
@@ -307,6 +381,7 @@ class RestoreMetaData : public BackupFile {
   bool readMetaFileHeader();
   bool readMetaTableDesc();
   bool markSysTables();
+  bool fixBlobs();
 		
   bool readGCPEntry();
   bool readFragmentInfo();
@@ -335,6 +410,7 @@ public:
   void* getObjPtr(Uint32 i) const { return m_objects[i].m_objPtr; }
   
   Uint32 getStopGCP() const;
+  Uint32 getNdbVersion() const { return m_fileHeader.NdbVersion; };
 }; // RestoreMetaData
 
 
@@ -347,18 +423,37 @@ class RestoreDataIterator : public BackupFile {
 public:
 
   // Constructor
-  RestoreDataIterator(const RestoreMetaData &, void (* free_data_callback)());
-  ~RestoreDataIterator() {};
+  RestoreDataIterator(const RestoreMetaData &,
+                      void (* free_data_callback)());
+  virtual ~RestoreDataIterator();
   
   // Read data file fragment header
   bool readFragmentHeader(int & res, Uint32 *fragmentId);
   bool validateFragmentFooter();
 
   const TupleS *getNextTuple(int & res);
+  TableS *getCurrentTable();
 
 private:
+  void init_bitfield_storage(const NdbDictionary::Table*);
+  void free_bitfield_storage();
+  void reset_bitfield_storage();
+  Uint32* get_bitfield_storage(Uint32 len);
+  Uint32 get_free_bitfield_storage() const;
 
-  int readTupleData(Uint32 *buf_ptr, Uint32 *ptr, Uint32 dataLength);
+  Uint32 m_row_bitfield_len; // in words
+  Uint32* m_bitfield_storage_ptr;
+  Uint32* m_bitfield_storage_curr_ptr;
+  Uint32 m_bitfield_storage_len; // In words
+
+protected:
+  virtual void reset_buffers() { reset_bitfield_storage();}
+
+  int readTupleData_old(Uint32 *buf_ptr, Uint32 dataLength);
+  int readTupleData_packed(Uint32 *buf_ptr, Uint32 dataLength);
+
+  int readVarData(Uint32 *buf_ptr, Uint32 *ptr, Uint32 dataLength);
+  int readVarData_drop6(Uint32 *buf_ptr, Uint32 *ptr, Uint32 dataLength);
 };
 
 class LogEntry {
@@ -422,6 +517,8 @@ NdbOut& operator<<(NdbOut& ndbout, const TableS&);
 NdbOut& operator<<(NdbOut& ndbout, const TupleS&);
 NdbOut& operator<<(NdbOut& ndbout, const LogEntry&);
 NdbOut& operator<<(NdbOut& ndbout, const RestoreMetaData&);
+
+bool readSYSTAB_0(const TupleS & tup, Uint32 * syskey, Uint64 * nextid);
 
 #endif
 

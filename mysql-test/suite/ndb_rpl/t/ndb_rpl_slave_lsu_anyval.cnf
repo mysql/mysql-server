@@ -1,0 +1,8 @@
+!include suite/ndb_rpl/t/ndb_rpl_multi_binlog_update.cnf
+
+[mysqld]
+# Low ServerId bits and NDB_TEST_ANYVALUE_USERDATA below
+server-id-bits=7
+
+[ENV]
+NDB_TEST_ANYVALUE_USERDATA=Y

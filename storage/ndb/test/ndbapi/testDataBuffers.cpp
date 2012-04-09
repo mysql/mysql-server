@@ -1,4 +1,5 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +12,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 /*
  * testDataBuffers
@@ -84,7 +86,6 @@ static NdbSchemaOp* top = 0;
 static NdbConnection* con = 0;
 static NdbOperation* op = 0;
 static NdbScanOperation* sop = 0;
-static NdbResultSet* rs = 0;
 
 static int
 ndberror(char const* fmt, ...)
@@ -130,7 +131,7 @@ static bool isAligned(char* p)
 {
     return isAligned(UintPtr(p));
 }
-static unsigned toAligned(UintPtr x)
+static unsigned toAligned(unsigned x)
 {
     while (! isAligned(x))
 	x++;
@@ -426,10 +427,16 @@ testcase(Ndb_cluster_connection&cc, int flag)
       ndbout << "- scan" << endl;
     char found[MaxOper];
     int k;
+    NdbDictionary::Dictionary * dict = ndb->getDictionary();
+    const NdbDictionary::Table * table = dict->getTable(tab);
+
     for (k = 0; k < opercnt; k++)
 	found[k] = 0;
     for (key = 0; key < opercnt; key++) {
 	int off = makeOff(key);
+        NdbInterpretedCode codeObj(table);
+        NdbInterpretedCode *code= &codeObj;
+
 	if (xverbose)
 	  ndbout << "-- key " << key << " off=" << off << endl;
 	int newkey = 0;
@@ -441,18 +448,23 @@ testcase(Ndb_cluster_connection&cc, int flag)
 	  return ndberror("openScanRead key=%d", key);
 	{
 	    col& c = ccol[0];
-	    if (op->load_const_u32(1, key) < 0)
+            Uint32 colNum= table->getColumn(c.aAttrName)->getAttrId();
+	    if (code->load_const_u32(1, key) < 0)
 		return ndberror("load_const_u32");
-	    if (op->read_attr(c.aAttrName, 2) < 0)
+	    if (code->read_attr(2, colNum) < 0)
 		return ndberror("read_attr");
-	    if (op->branch_eq(1, 2, 0) < 0)
+	    if (code->branch_eq(1, 2, 0) < 0)
 		return ndberror("branch_eq");
-	    if (op->interpret_exit_nok() < 0)
+	    if (code->interpret_exit_nok() < 0)
 		return ndberror("interpret_exit_nok");
-	    if (op->def_label(0) < 0)
+	    if (code->def_label(0) < 0)
 		return ndberror("def_label");
-	    if (op->interpret_exit_ok() < 0)
+	    if (code->interpret_exit_ok() < 0)
 		return ndberror("interpret_exit_ok");
+            if (code->finalise() != 0)
+                return ndberror("finalise");
+            if (sop->setInterpretedCode(code) != 0)
+                return ndberror("setInterpretedCode");
 	}
 	for (i = 0; i < attrcnt; i++) {
 	    col& c = ccol[i];

@@ -1,0 +1,553 @@
+-- source include/have_ndb.inc
+
+--disable_warnings
+drop table if exists t1, t2, t3, t4, t5, t6, t7, t8;
+--enable_warnings
+
+#
+# Simple test to show use of UNIQUE indexes 
+#
+
+CREATE TABLE t1 (
+  a int NOT NULL PRIMARY KEY,
+  b int not null,
+  c int,
+  UNIQUE ib(b)
+) engine=ndbcluster;
+
+insert t1 values(1, 2, 3), (2, 3, 5), (3, 4, 6), (4, 5, 8), (5,6, 2), (6,7, 2);
+select * from t1 order by b;
+select * from t1 where b = 4 order by b;
+insert into t1 values(7,8,3);
+select * from t1 where b = 4 order by a;
+
+-- error ER_DUP_ENTRY
+insert into t1 values(8, 2, 3);
+select * from t1 order by a;
+delete from t1 where a = 1;
+insert into t1 values(8, 2, 3);
+select * from t1 order by a;
+
+alter table t1 drop index ib;
+insert into t1 values(1, 2, 3);
+# Bug# #18129
+--error 1169
+create unique index ib on t1(b);
+
+drop table t1;
+
+#
+# Indexing NULL values
+#
+
+CREATE TABLE t1 (
+  a int unsigned NOT NULL PRIMARY KEY,
+  b int unsigned,
+  c int unsigned,
+  UNIQUE bc(b,c)
+) engine = ndb;
+
+insert into t1 values(1,1,1),(2,NULL,2),(3,NULL,NULL),(4,4,NULL);
+select * from t1 use index (bc) where b IS NULL order by a;
+
+select * from t1 use index (bc)order by a;
+select * from t1 use index (bc) order by a;
+select * from t1 use index (PRIMARY) where b IS NULL order by a;
+select * from t1 use index (bc) where b IS NULL order by a;
+select * from t1 use index (bc) where b IS NULL and c IS NULL order by a;
+select * from t1 use index (bc) where b IS NULL and c = 2 order by a;
+select * from t1 use index (bc) where b < 4 order by a;
+select * from t1 use index (bc) where b IS NOT NULL order by a;
+-- error ER_DUP_ENTRY
+insert into t1 values(5,1,1);
+drop table t1;
+
+
+#
+# Show use of UNIQUE USING HASH indexes 
+#
+
+CREATE TABLE t2 (
+  a int unsigned NOT NULL PRIMARY KEY,
+  b int unsigned not null,
+  c int unsigned not null,
+  UNIQUE (b, c) USING HASH	
+) engine=ndbcluster;
+
+insert t2 values(1, 2, 3), (2, 3, 5), (3, 4, 6), (4, 5, 8), (5,6, 2), (6,7, 2);
+select * from t2 where a = 3;
+select * from t2 where b = 4;
+select * from t2 where c = 6;
+insert into t2 values(7,8,3);
+select * from t2 where b = 4 order by a;
+
+-- error ER_DUP_ENTRY
+insert into t2 values(8, 2, 3);
+select * from t2 order by a;
+delete from t2 where a = 1;
+insert into t2 values(8, 2, 3);
+select * from t2 order by a;
+
+# Bug #24818 CREATE UNIQUE INDEX (...) USING HASH on a NDB table crashes mysqld
+create unique index bi using hash on t2(b);
+-- error ER_DUP_ENTRY
+insert into t2 values(9, 3, 1);
+alter table t2 drop index bi;
+insert into t2 values(9, 3, 1);
+select * from t2 order by a;
+
+drop table t2;
+
+CREATE TABLE t2 (
+  a int unsigned NOT NULL PRIMARY KEY,
+  b int unsigned not null,
+  c int unsigned,
+  UNIQUE (b, c) USING HASH	
+) engine=ndbcluster;
+
+
+insert t2 values(1,1,NULL),(2,2,2),(3,3,NULL),(4,4,4),(5,5,NULL),(6,6,6),(7,7,NULL),(8,3,NULL),(9,3,NULL);
+
+select * from t2 where c IS NULL order by a;
+select * from t2 where b = 3 AND c IS NULL order by a;
+select * from t2 where (b = 3 OR b = 5) AND c IS NULL order by a;
+set @old_os = @@session.optimizer_switch;
+set optimizer_switch = 'engine_condition_pushdown=on';
+explain select * from t2 where (b = 3 OR b = 5) AND c IS NULL AND a < 9 order by a;
+select * from t2 where (b = 3 OR b = 5) AND c IS NULL AND a < 9 order by a;
+set optimizer_switch = @old_os;
+
+drop table t2;
+
+#
+# Show use of PRIMARY KEY USING HASH indexes 
+#
+
+CREATE TABLE t3 (
+  a int unsigned NOT NULL,
+  b int unsigned not null,
+  c int unsigned,
+  PRIMARY KEY (a, b) USING HASH         
+) engine=ndbcluster;
+
+insert t3 values(1, 2, 3), (2, 3, 5), (3, 4, 6), (4, 5, 8), (5,6, 2), (6,7, 2);
+select * from t3 where a = 3;
+select * from t3 where b = 4;
+select * from t3 where c = 6;
+insert into t3 values(7,8,3);
+select * from t3 where b = 4 order by a;
+
+drop table t3;
+
+#
+# Indexes on NULL-able columns 
+#
+
+CREATE TABLE t1 (
+  pk int NOT NULL PRIMARY KEY,
+  a int unsigned,
+  UNIQUE KEY (a)
+) engine=ndbcluster;
+		 
+insert into t1 values (-1,NULL), (0,0), (1,NULL),(2,2),(3,NULL),(4,4);
+
+select * from t1 order by pk;
+
+--error ER_DUP_ENTRY
+insert into t1 values (5,0);
+select * from t1 order by pk;
+delete from t1 where a = 0;
+insert into t1 values (5,0);
+select * from t1 order by pk;
+
+CREATE TABLE t2 (
+  pk int NOT NULL PRIMARY KEY,
+  a int unsigned,
+  b tinyint NOT NULL,
+  c VARCHAR(10),
+  UNIQUE KEY si(a, c)
+) engine=ndbcluster;
+
+insert into t2 values (-1,1,17,NULL),(0,NULL,18,NULL),(1,3,19,'abc');
+
+select * from t2 order by pk;
+
+--error ER_DUP_ENTRY
+insert into t2 values(2,3,19,'abc');
+select * from t2 order by pk;
+delete from t2 where c IS NOT NULL;
+insert into t2 values(2,3,19,'abc');
+select * from t2 order by pk;
+		 
+drop table t1, t2;
+
+#
+# More complex tables
+#
+
+CREATE TABLE t1 (
+  cid smallint(5) unsigned NOT NULL default '0',
+  cv varchar(250) NOT NULL default '',
+  PRIMARY KEY  (cid),
+  UNIQUE KEY cv (cv)
+) engine=ndbcluster;
+INSERT INTO t1 VALUES (8,'dummy');
+CREATE TABLE t2 (
+  cid bigint(20) unsigned NOT NULL auto_increment,
+  cap varchar(255) NOT NULL default '',
+  PRIMARY KEY  (cid),
+  UNIQUE KEY (cid, cap)
+) engine=ndbcluster;
+INSERT INTO t2 VALUES (NULL,'another dummy');
+CREATE TABLE t3 (
+  gid bigint(20) unsigned NOT NULL auto_increment,
+  gn varchar(255) NOT NULL default '',
+  must tinyint(4) default NULL,
+  PRIMARY KEY  (gid)
+) engine=ndbcluster;
+INSERT INTO t3 VALUES (1,'V1',NULL);
+CREATE TABLE t4 (
+  uid bigint(20) unsigned NOT NULL default '0',
+  gid bigint(20) unsigned NOT NULL,
+  rid bigint(20) unsigned NOT NULL,
+  cid bigint(20) unsigned NOT NULL,
+  UNIQUE KEY m (uid,gid,rid,cid)
+) engine=ndbcluster;
+INSERT INTO t4 VALUES (1,1,2,4);
+INSERT INTO t4 VALUES (1,1,2,3);
+INSERT INTO t4 VALUES (1,1,5,7);
+INSERT INTO t4 VALUES (1,1,10,8);
+CREATE TABLE t5 (
+  rid bigint(20) unsigned NOT NULL auto_increment,
+  rl varchar(255) NOT NULL default '',
+  PRIMARY KEY  (rid)
+) engine=ndbcluster;
+CREATE TABLE t6 (
+  uid bigint(20) unsigned NOT NULL auto_increment,
+  un varchar(250) NOT NULL default '',
+  uc smallint(5) unsigned NOT NULL default '0',
+  PRIMARY KEY  (uid),
+  UNIQUE KEY nc (un,uc)
+) engine=ndbcluster;
+INSERT INTO t6 VALUES (1,'test',8);
+INSERT INTO t6 VALUES (2,'test2',9);
+INSERT INTO t6 VALUES (3,'tre',3);
+CREATE TABLE t7 (
+  mid bigint(20) unsigned NOT NULL PRIMARY KEY,
+  uid bigint(20) unsigned NOT NULL default '0',
+  gid bigint(20) unsigned NOT NULL,
+  rid bigint(20) unsigned NOT NULL,
+  cid bigint(20) unsigned NOT NULL,
+  UNIQUE KEY m (uid,gid,rid,cid)
+) engine=ndbcluster;
+INSERT INTO t7 VALUES(1, 1, 1, 1, 1);
+INSERT INTO t7 VALUES(2, 2, 1, 1, 1);
+INSERT INTO t7 VALUES(3, 3, 1, 1, 1);
+INSERT INTO t7 VALUES(4, 4, 1, 1, 1);
+INSERT INTO t7 VALUES(5, 5, 1, 1, 1);
+INSERT INTO t7 VALUES(6, 1, 1, 1, 6);
+INSERT INTO t7 VALUES(7, 2, 1, 1, 7);
+INSERT INTO t7 VALUES(8, 3, 1, 1, 8);
+INSERT INTO t7 VALUES(9, 4, 1, 1, 9);
+INSERT INTO t7 VALUES(10, 5, 1, 1, 10);
+
+select * from t1 where cv = 'dummy';
+select * from t1 where cv = 'test';
+select * from t2 where cap = 'another dummy';
+select * from t4 where uid = 1 and gid=1 and rid=2 and cid=4;
+select * from t4 where uid = 1 and gid=1 and rid=1 and cid=4;
+select * from t4 where uid = 1 order by cid;
+select * from t4 where rid = 2 order by cid;
+select * from t6 where un='test' and uc=8;
+select * from t6 where un='test' and uc=7;
+select * from t6 where un='test';
+select * from t7 where mid = 8; 
+select * from t7 where uid = 8; 
+select * from t7 where uid = 1 order by mid; 
+select * from t7 where uid = 4 order by mid; 
+select * from t7 where gid = 4; 
+select * from t7 where gid = 1 order by mid; 
+select * from t7 where cid = 4; 
+select * from t7 where cid = 8; 
+
+#
+# insert more records into t4
+#
+let $1=100;
+disable_query_log;
+while ($1)
+{
+ eval insert into t4 values(1, $1, 5, 12);
+ eval insert into t4 values($1, 3, 9, 11);
+ dec $1;
+}
+enable_query_log;
+
+select * from t4 where uid = 1 and gid=1 and rid=2 and cid=4;
+select * from t4 where uid = 1 and gid=1 and rid=1 and cid=4;
+select * from t4 where uid = 1 order by gid,cid;
+select * from t4 where uid = 1 order by gid,cid;
+select * from t4 where rid = 2 order by cid;
+
+
+drop table t1,t2,t3,t4,t5,t6,t7;
+
+# test null in indexes
+CREATE TABLE t1 (   
+   a int unsigned NOT NULL PRIMARY KEY,
+   b int unsigned,   
+   c int unsigned, 
+   UNIQUE bc(b,c) ) engine = ndb;
+ 
+insert into t1 values(1,1,1),(2,NULL,2),(3,NULL,NULL),(4,4,NULL);
+select * from t1 where b=1 and c=1;
+select * from t1 where b is null and c is null;
+select * from t1 where b is null and c = 2;
+select * from t1 where b = 4 and c is null;
+create table t8 as 
+select * from t1 where (b = 1 and c = 1)
+                    or (b is null and c is null) 
+                    or (b is null and c = 2)
+                    or (b = 4 and c is null);
+select * from t8 order by a;
+select * from t1 order by a;
+drop table t1, t8;
+
+###############################
+# Bug 8101
+#
+# Unique index not specified in the same order as in table
+#
+
+create table t1(
+        id integer not null auto_increment,
+        month integer not null,
+        year integer not null,
+        code varchar( 2) not null,
+        primary key ( id),
+	unique idx_t1( month, code, year)
+) engine=ndb;
+
+INSERT INTO t1 (month, year, code) VALUES (4,2004,'12');
+INSERT INTO t1 (month, year, code) VALUES (5,2004,'12');
+
+select * from t1 where code = '12' and month = 4 and year = 2004 ;
+
+drop table t1;
+
+# bug#15918 Unique Key Limit in NDB Engine
+
+create table t1 (a int primary key, b varchar(1000) not null, unique key (b))
+engine=ndb charset=utf8;
+
+insert into t1 values (1, repeat(_utf8 0xe288ab6474, 200));
+--error ER_DUP_ENTRY
+insert into t1 values (2, repeat(_utf8 0xe288ab6474, 200));
+select a, sha1(b) from t1;
+
+# perl -e 'print pack("H2000","e288ab6474"x200)' | sha1sum
+
+drop table t1;
+
+# bug#21873 MySQLD Crash on ALTER...ADD..UNIQUE..USING HASH statement for NDB backed table
+
+create table t1(id int not null) engine = NDB;
+
+alter table t1 add constraint uk_test unique (id) using hash;
+
+drop table t1;
+
+# End of 4.1 tests
+
+# bug#44132
+
+CREATE TABLE t1 (
+  pk0 INT,
+  pk1 VARCHAR(100),
+  col0 INT NOT NULL,
+  PRIMARY KEY(pk0, pk1),
+  UNIQUE (col0) USING HASH
+) engine = ndb;
+
+CREATE TABLE t2 (
+  pk0 VARCHAR(100),
+  pk1 INT,
+  col0 INT NOT NULL,
+  PRIMARY KEY(pk0, pk1),
+  UNIQUE (col0) USING HASH
+) engine = ndb;
+
+let $1=100 ;
+disable_query_log;
+while ($1)
+{
+ eval insert into t1 values($1, 'a', $1);
+ eval insert into t2 values('a', $1, $1);
+ dec $1;
+}
+enable_query_log;
+
+drop table t1, t2;
+
+# bug#57827 : Don't load dd columns when building unique index
+# Build a unique index in a table with DD columns to give
+# some coverage of the scenario
+#
+
+CREATE LOGFILE GROUP lg1
+ADD UNDOFILE 'undofile.dat'
+INITIAL_SIZE 8M
+UNDO_BUFFER_SIZE = 1M engine=ndb;
+
+CREATE TABLESPACE ts1
+ADD DATAFILE 'datafile.dat'
+USE LOGFILE GROUP lg1
+INITIAL_SIZE 32M
+ENGINE NDB;
+
+use test;
+
+create table t1 (pk int primary key, un int, data varchar(500) storage disk) tablespace ts1 engine=ndb;
+
+insert into t1 values 
+        (1,1,repeat('B', 500)),
+        (2,2,repeat('B', 500)),
+        (3,3,repeat('B', 500)),
+        (4,4,repeat('B', 500)),
+        (5,5,repeat('B', 500)),
+        (6,6,repeat('B', 500)),
+        (7,7,repeat('B', 500)),
+        (8,8,repeat('B', 500)),
+        (9,9,repeat('B', 500)),
+        (10,10,repeat('B', 500)),
+        (11,11,repeat('B', 500)),
+        (12,12,repeat('B', 500)),
+        (13,13,repeat('B', 500)),
+        (14,14,repeat('B', 500)),
+        (15,15,repeat('B', 500));
+
+alter table t1 add unique(un);
+
+drop table t1;
+alter tablespace ts1 drop datafile 'datafile.dat' engine=ndb;
+drop tablespace ts1 engine=ndb;
+drop logfile group lg1 engine=ndb;
+
+# bug#57032 'NOT NULL' evaluation is incorrect when using an 'unique index
+
+--echo # bug#57032
+
+create table t1 (
+  a int not null,
+  b int,
+  primary key using hash (a),
+  unique key using hash (b)
+)
+engine ndb;
+
+insert into t1 values
+  (0,0),(1,1),(2,2),(3,3),(4,4),
+  (5,null),(6,null),(7,null),(8,null),(9,null);
+
+
+set optimizer_switch = 'engine_condition_pushdown=off';
+# failed, empty result
+select a from t1 where b is not null order by a;
+# worked
+select a from t1 where b is null order by a;
+
+set optimizer_switch = 'engine_condition_pushdown=on';
+# failed, empty result
+select a from t1 where b is not null order by a;
+# worked
+select a from t1 where b is null order by a;
+
+set optimizer_switch = @old_os;
+
+drop table t1;
+
+create table t1 (
+  a int not null,
+  b int,
+  c int,
+  primary key using hash (a),
+  unique key using hash (b,c)
+)
+engine ndb;
+
+insert into t1 values
+  (0,0,0),(1,1,1),(2,2,1),(3,3,1),(4,4,2),
+  (5,null,0),(6,null,1),(7,null,1),(8,null,1),(9,null,2),
+  (10,0,null),(11,1,null),(12,1,null),(13,1,null),(14,2,null),
+  (15,null,null),(16,null,null),(17,null,null),(18,null,null),(19,null,null);
+
+
+set optimizer_switch = 'engine_condition_pushdown=off';
+# worked
+select a from t1 where b is not null and c = 1 order by a;
+# failed, empty result
+select a from t1 where b is null and c = 1 order by a;
+# failed, empty result
+select a from t1 where b = 1 and c is null order by a;
+# worked
+select a from t1 where b is null and c is null order by a;
+select a from t1 where b is not null and c is null order by a;
+select a from t1 where b is null and c is not null order by a;
+select a from t1 where b is not null and c is not null order by a;
+
+set optimizer_switch = 'engine_condition_pushdown=on';
+# worked
+select a from t1 where b is not null and c = 1 order by a;
+# failed, empty result
+select a from t1 where b is null and c = 1 order by a;
+# failed, empty result
+select a from t1 where b = 1 and c is null order by a;
+# worked
+select a from t1 where b is null and c is null order by a;
+select a from t1 where b is not null and c is null order by a;
+select a from t1 where b is null and c is not null order by a;
+select a from t1 where b is not null and c is not null order by a;
+
+set optimizer_switch = @old_os;
+
+drop table t1;
+
+#
+# Bug#58750: 'out of connection objects' due to missing close()
+# of prev. full_table_scan()
+#
+create table t1 (pk int primary key, a int) engine=ndb;
+create table t2 (pk int primary key, uq int, a int, 
+   unique key ix(uq,a) USING HASH) engine=ndb;
+
+insert into t2 values
+   (0,0,0), (1,1,0), (2,2,0), (3,3,0), (4,4,0),
+   (5,5,1), (6,6,1), (7,7,1), (8,8,1), (9,9,1);
+
+##
+# 10^4 cross product on t2 creates 10.000 rows:
+##
+insert into t1
+ select
+   t1.pk + t2.pk*10 + t3.pk*100 + t4.pk*1000, t1.a
+from
+  t2 as t1, t2 as t2, t2 as t3, t2 as t4;
+
+# Execute a 'scan(t1) join REF(t2) using ix'
+#  - Where condition 't2.uq IS NULL' in combination with 
+#    join cond. 't2.a=t1.a' will create the REF keys (NULL,t1.a).
+#    This will initiate a ::full_table_scan() which fails to
+#    close any open table scans.
+#  - Table scan(t1) will 'drive' the case above and eventually
+#    cause all ScanOperations / hupp'ed transactions to have been 
+#    consumed
+
+explain
+SELECT STRAIGHT_JOIN count(*) FROM 
+   t1 JOIN t2 ON t2.a=t1.a where t2.uq IS NULL;
+SELECT STRAIGHT_JOIN count(*) FROM 
+   t1 JOIN t2 ON t2.a=t1.a where t2.uq IS NULL;
+
+drop table t1,t2;
+
+# end of tests

@@ -1,4 +1,6 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (C) 2005, 2006, 2008 MySQL AB, 2008, 2009 Sun Microsystems, Inc.
+    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +13,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #ifndef TESTDATA_H
 #define TESTDATA_H
@@ -72,7 +75,7 @@ typedef struct {
   inline void stopLatency(){
     if((latencyCounter & 127) == 127){
       const NDB_TICKS tmp = NdbTick_CurrentMillisecond() - startTime;
-      latency.addObservation(tmp);
+      latency.addObservation((double)tmp);
     }
     latencyCounter++;
   }
@@ -121,6 +124,18 @@ typedef struct {
 } TransactionData ;
 
 typedef struct {
+  const class NdbRecord* subscriberTableNdbRecord;
+  const class NdbRecord* groupTableAllowReadNdbRecord;
+  const class NdbRecord* groupTableAllowInsertNdbRecord;
+  const class NdbRecord* groupTableAllowDeleteNdbRecord;
+  const class NdbRecord* sessionTableNdbRecord;
+  const class NdbInterpretedCode* incrServerReadsProg;
+  const class NdbInterpretedCode* incrServerInsertsProg;
+  const class NdbInterpretedCode* incrServerDeletesProg;
+  const class NdbRecord* serverTableNdbRecord;
+} NdbRecordSharedData ;
+
+typedef struct {
   struct NdbThread* pThread;
 
   unsigned long randomSeed;
@@ -135,10 +150,12 @@ typedef struct {
   /**
    * For async execution
    */
-  RunState          runState;
-  double            startTime;
-  TransactionData   transactionData;
-  struct Ndb      * pNDB;
+  RunState              runState;
+  double                startTime;
+  TransactionData       transactionData;
+  class Ndb           * pNDB;
+  NdbRecordSharedData*  ndbRecordSharedData;
+  bool                  useCombinedUpdate;
 } ThreadData;
 
 /***************************************************************

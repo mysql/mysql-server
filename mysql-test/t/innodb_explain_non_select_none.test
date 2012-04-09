@@ -26,6 +26,8 @@ if (`select locate('mrr', @@optimizer_switch) > 0`)
 set @save_storage_engine= @@session.default_storage_engine;
 set session default_storage_engine = InnoDB;
 --let $innodb = 1
+--let $json = 0
+--let $validation = 0
 --source include/explain_non_select.inc
 set default_storage_engine= @save_storage_engine;
 

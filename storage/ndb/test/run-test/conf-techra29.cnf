@@ -1,0 +1,41 @@
+[atrt]
+basedir = CHOOSE_dir
+baseport = 14000
+clusters = .2node
+
+[ndb_mgmd]
+
+[mysqld]
+skip-innodb
+skip-bdb
+
+[cluster_config.2node]
+ndb_mgmd = CHOOSE_host1
+ndbd = CHOOSE_host2,CHOOSE_host3
+ndbapi= CHOOSE_host1,CHOOSE_host1,CHOOSE_host1
+
+NoOfReplicas = 2
+IndexMemory = 100M 
+DataMemory = 300M
+BackupMemory = 64M
+MaxNoOfConcurrentScans = 100
+MaxNoOfSavedMessages= 5
+SendBufferMemory = 2M
+RedoBuffer = 32M
+
+NoOfFragmentLogFiles = 6
+FragmentLogFileSize = 128M
+loose-CompressedLCP=1
+loose-CompressedBackup=1
+loose-ODirect=1
+loose-ServerPort=14001
+
+SharedGlobalMemory=256M
+InitialLogfileGroup=undo_buffer_size=64M;undofile01.dat:256M;undofile02.dat:256M
+InitialTablespace=datafile01.dat:256M;datafile02.dat:256M
+
+[cluster_config.ndbd.1.2node]
+FileSystemPath= /export/home/tmp/ndb
+
+[cluster_config.ndbd.2.2node]
+FileSystemPath= /export/home/tmp/ndb

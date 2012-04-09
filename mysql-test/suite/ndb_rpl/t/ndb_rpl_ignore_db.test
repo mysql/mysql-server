@@ -1,0 +1,47 @@
+--source include/have_ndb.inc
+--source include/have_binlog_format_mixed_or_row.inc
+--source suite/ndb_rpl/ndb_master-slave.inc
+
+# We are not binlogging changes to the mysql db.  Check
+# that changes to tables in the mysql db are not replicated
+# but ndb_apply_status events are
+
+--connection slave
+delete from mysql.ndb_apply_status;
+
+--connection master
+use mysql;
+create table t1 (a int primary key, b int) engine=myisam;
+create table t2 (a int primary key, b int) engine=ndb;
+
+insert into t1 values (1,1), (2,2);
+insert into t2 values (1,1), (2,2);
+
+delete from t1;
+delete from t2;
+
+use test;
+create table t3 (a int primary key, b int) engine=ndb;
+insert into t3 values (1,1), (2,2);
+
+--sync_slave_with_master slave
+--connection slave
+
+select count(1) from information_schema.tables where table_schema="mysql" and (table_name = "t1" or table_name="t2"); 
+
+use test;
+select * from t3 order by a;
+
+select count(1) from mysql.ndb_apply_status;
+
+--connection master
+use mysql;
+drop table t1;
+drop table t2;
+
+use test;
+drop table t3;
+
+--sync_slave_with_master slave
+
+--source include/rpl_end.inc

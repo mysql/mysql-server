@@ -56,8 +56,6 @@ Warning	1264	Out of range value for column 'c2' at row 3
 SELECT COUNT(*) FROM t1 WHERE c1=4294967296 AND c2=2147483648 /* no rows */;
 COUNT(*)
 0
-Warnings:
-Warning	1264	Out of range value for column 'c2' at row 1
 SELECT * FROM t1 WHERE c1=4294967295 AND c2=2147483647;
 c1	c2	c3
 4294967295	2147483647	10
@@ -1152,8 +1150,6 @@ Warning	1264	Out of range value for column 'c2' at row 3
 SELECT COUNT(*) FROM t1 WHERE c1=256 AND c2=128 /* no rows */;
 COUNT(*)
 0
-Warnings:
-Warning	1264	Out of range value for column 'c2' at row 1
 SELECT * FROM t1 WHERE c1=255 AND c2=127;
 c1	c2	c3
 255	127	10
@@ -1926,8 +1922,6 @@ Warning	1264	Out of range value for column 'c2' at row 3
 SELECT COUNT(*) FROM t1 WHERE c1=65536 AND c2=32768 /* no rows */;
 COUNT(*)
 0
-Warnings:
-Warning	1264	Out of range value for column 'c2' at row 1
 SELECT * FROM t1 WHERE c1=65535 AND c2=32767;
 c1	c2	c3
 65535	32767	10
@@ -2675,8 +2669,6 @@ Warning	1264	Out of range value for column 'c2' at row 3
 SELECT COUNT(*) FROM t1 WHERE c1=16777216 AND c2=8388608 /* no rows */;
 COUNT(*)
 0
-Warnings:
-Warning	1264	Out of range value for column 'c2' at row 1
 SELECT * FROM t1 WHERE c1=16777215 AND c2=8388607;
 c1	c2	c3
 16777215	8388607	10
@@ -3424,8 +3416,6 @@ Warning	1264	Out of range value for column 'c2' at row 3
 SELECT COUNT(*) FROM t1 WHERE c1=18446744073709551616 AND c2=9223372036854775808 /* no rows */;
 COUNT(*)
 0
-Warnings:
-Warning	1264	Out of range value for column 'c2' at row 1
 SELECT * FROM t1 WHERE c1=18446744073709551615 AND c2=9223372036854775807;
 c1	c2	c3
 18446744073709551615	9223372036854775807	10

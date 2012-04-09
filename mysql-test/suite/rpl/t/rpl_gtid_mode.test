@@ -134,13 +134,16 @@ INSERT INTO t1 VALUES (1);
 --echo ==== Checks performed at server start when GTID_MODE = ON ====
 
 --connection master
-
+--let $saved_innodb_page_size_server1=`SELECT @@innodb_page_size`
+--connection slave
+--let $saved_innodb_page_size_server2=`SELECT @@innodb_page_size`
+--connection master
 --let $rpl_server_number= 2
 --source include/rpl_stop_server.inc
 
---let $server1_cmd= $MYSQLD --defaults-group-suffix=.1 --defaults-file=$MYSQLTEST_VARDIR/my.cnf --log-output=file --default-storage-engine=InnoDB --default-tmp-storage-engine=InnoDB
+--let $server1_cmd= $MYSQLD --defaults-group-suffix=.1 --defaults-file=$MYSQLTEST_VARDIR/my.cnf --log-output=file --default-storage-engine=InnoDB --default-tmp-storage-engine=InnoDB --innodb-page-size=$saved_innodb_page_size_server1
 
---let $server2_cmd= $MYSQLD --defaults-group-suffix=.2 --defaults-file=$MYSQLTEST_VARDIR/my.cnf --log-output=file --default-storage-engine=InnoDB --default-tmp-storage-engine=InnoDB
+--let $server2_cmd= $MYSQLD --defaults-group-suffix=.2 --defaults-file=$MYSQLTEST_VARDIR/my.cnf --log-output=file --default-storage-engine=InnoDB --default-tmp-storage-engine=InnoDB --innodb-page-size=$saved_innodb_page_size_server2
 
 --let $assert_status= 1
 
@@ -305,6 +308,7 @@ RESET MASTER;
 --let $pos= query_get_value(SHOW MASTER STATUS, Position, 1)
 --connection slave
 --replace_result $SERVER_MYPORT_1 PORT $file FILE $pos POS
+--replace_column 2 ####
 eval CHANGE MASTER TO MASTER_HOST = '127.0.0.1', MASTER_PORT = $SERVER_MYPORT_1, MASTER_USER = 'root', MASTER_LOG_FILE = '$file', MASTER_LOG_POS = $pos, MASTER_CONNECT_RETRY = 1;
 
 --echo ---- Slave can't connect ----

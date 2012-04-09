@@ -32,6 +32,7 @@
 
 #include "mem_root_array.h"
 #include "sql_executor.h"
+#include "opt_explain_format.h" // for Extra_tag
 
 #include <functional>
 /**
@@ -360,7 +361,7 @@ public:
   Item          *pre_idx_push_cond;
   
   /* Special content for EXPLAIN 'Extra' column or NULL if none */
-  const char	*info;
+  Extra_tag     info;
   /* 
     Bitmap of TAB_INFO_* bits that encodes special line for EXPLAIN 'Extra'
     column, or 0 if there is no info.
@@ -589,7 +590,7 @@ st_join_table::st_join_table()
     first_upper(NULL),
     first_unmatched(NULL),
     pre_idx_push_cond(NULL),
-    info(NULL),
+    info(ET_none),
     packed_info(0),
     materialize_table(NULL),
     read_first_record(NULL),
@@ -809,6 +810,9 @@ public:
      expensive to re-caclulate for every join prefix we consider, so we
      maintain current state in join->positions[#tables_in_prefix]. See
      advance_sj_state() for details.
+
+  This class has to stay a POD, because it is memcpy'd in many places. It
+  however has a no-argument constructor which must be used.
 */
 
 typedef struct st_position : public Sql_alloc
@@ -924,6 +928,8 @@ typedef struct st_position : public Sql_alloc
     semi-join's ON expression so we can correctly account for fanout.
   */
   table_map sjm_scan_need_tables;
+
+  st_position() : sj_strategy(SJ_OPT_NONE), dups_producing_tables(0) {}
 } POSITION;
 
 
@@ -934,7 +940,6 @@ typedef struct st_select_check {
 } SELECT_CHECK;
 
 /* Extern functions in sql_select.cc */
-bool store_val_in_field(Field *field, Item *val, enum_check_fields check_flag);
 void count_field_types(SELECT_LEX *select_lex, TMP_TABLE_PARAM *param, 
                        List<Item> &fields, bool reset_with_sum_func);
 uint find_shortest_key(TABLE *table, const key_map *usable_keys);
@@ -1142,20 +1147,6 @@ bool and_conditions(Item **e1, Item *e2);
 static inline Item * and_items(Item* cond, Item *item)
 {
   return (cond? (new Item_cond_and(cond, item)) : item);
-}
-
-/**
-  Printing the transformed query in EXPLAIN EXTENDED or optimizer trace
-  requires non-destroyed JOINs for subquery engines. So items must be
-  preserved until end of mysql_execute_command().
-*/
-static inline bool preserve_items_for_printing(const THD *thd)
-{
-  return (thd->lex->describe
-#ifdef OPTIMIZER_TRACE
-          || thd->opt_trace.support_I_S()
-#endif
-          );
 }
 
 #endif /* SQL_SELECT_INCLUDED */

@@ -94,7 +94,10 @@ public:
 
   /// What is the <num_records, record_length> for the buffer?
   std::pair<uint, uint> sort_buffer_properties() const
-  { return std::make_pair(m_idx_array.size(), m_record_length); }
+  {
+    return std::make_pair(static_cast<uint>(m_idx_array.size()),
+                          m_record_length);
+  }
 
   /// Frees the buffer.
   void free_sort_buffer();

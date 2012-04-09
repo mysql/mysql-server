@@ -126,7 +126,7 @@ struct fts_query_struct {
 					position info for each matched word
 					in the word list */
 
-	ulint		total_docs;	/*!< The total number of documents */
+	ib_int64_t	total_docs;	/*!< The total number of documents */
 
 	ulint		total_words;	/*!< The total number of words */
 
@@ -2907,7 +2907,7 @@ fts_query_calculate_idf(
 			}
 		}
 
-		fprintf(stderr,"'%s' -> %lu/%lu %6.5lf\n",
+		fprintf(stderr,"'%s' -> " INT64PF "/%lu %6.5lf\n",
 		       word_freq->word,
 		       query->total_docs, word_freq->doc_count,
 		       word_freq->idf);
@@ -3248,7 +3248,7 @@ fts_query(
 	}
 
 #ifdef	FTS_INTERNAL_DIAG_PRINT
-	fprintf(stderr, "Total docs: %lu Total words: %lu\n",
+	fprintf(stderr, "Total docs: " INT64PF " Total words: %lu\n",
 		query.total_docs, query.total_words);
 #endif
 

@@ -1,0 +1,31 @@
+include/master-slave.inc
+[connection master]
+CREATE TABLE t1 (
+id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+c1 VARCHAR(30),
+PRIMARY KEY (id)
+) ENGINE=ndb;
+BEGIN;
+INSERT INTO t1 (c1) VALUES ('aaa'),('bbb'),('ccc');
+DELETE FROM t1 WHERE id IN (1,2,3);
+COMMIT;
+SELECT COUNT(epoch) > 0 FROM mysql.ndb_binlog_index;
+COUNT(epoch) > 0
+0
+CREATE TABLE t2 (
+id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+c1 VARCHAR(30),
+PRIMARY KEY (id)
+) ENGINE=ndb;
+set @old_ndb_log_empty_epochs = @@global.ndb_log_empty_epochs;
+set global ndb_log_empty_epochs = on;
+BEGIN;
+INSERT INTO t2 (c1) VALUES ('aaa'),('bbb'),('ccc');
+DELETE FROM t2 WHERE id IN (1,2,3);
+COMMIT;
+SELECT COUNT(epoch) > 0 FROM mysql.ndb_binlog_index;
+COUNT(epoch) > 0
+1
+set global ndb_log_empty_epochs = @old_ndb_log_empty_epochs;
+DROP TABLE IF EXISTS t1,t2;
+include/rpl_end.inc

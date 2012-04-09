@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -31,6 +31,7 @@
 #include "sql_show.h"                  // append_identifier
 #include "sql_select.h"                // JOIN
 #include "sql_optimizer.h"             // JOIN
+#include <mysql/psi/mysql_statement.h>
 
 static int lex_one_token(void *arg, void *yythd);
 
@@ -70,7 +71,8 @@ Query_tables_list::binlog_stmt_unsafe_errcode[BINLOG_STMT_UNSAFE_COUNT] =
   ER_BINLOG_UNSAFE_CREATE_IGNORE_SELECT,
   ER_BINLOG_UNSAFE_CREATE_REPLACE_SELECT,
   ER_BINLOG_UNSAFE_CREATE_SELECT_AUTOINC,
-  ER_BINLOG_UNSAFE_UPDATE_IGNORE
+  ER_BINLOG_UNSAFE_UPDATE_IGNORE,
+  ER_BINLOG_UNSAFE_INSERT_TWO_KEYS
 };
 
 
@@ -114,6 +116,22 @@ const char * index_hint_type_name[] =
   "USE INDEX", 
   "FORCE INDEX"
 };
+
+
+/**
+  @note The order of the elements of this array must correspond to
+  the order of elements in type_enum
+*/
+const char *st_select_lex::type_str[SLT_total]=
+{ "NONE",
+  "PRIMARY",
+  "SIMPLE",
+  "DERIVED",
+  "SUBQUERY",
+  "UNION",
+  "UNION RESULT"
+};
+
 
 inline int lex_casecmp(const char *s, const char *t, uint len)
 {
@@ -414,7 +432,7 @@ void lex_start(THD *thd)
   lex->ignore= 0;
   lex->spname= NULL;
   lex->sphead= NULL;
-  lex->spcont= NULL;
+  lex->set_sp_current_parsing_ctx(NULL);
   lex->m_sql_cmd= NULL;
   lex->proc_list.first= 0;
   lex->escape_used= FALSE;
@@ -445,7 +463,7 @@ void lex_start(THD *thd)
   lex->server_options.socket= 0;
   lex->server_options.owner= 0;
   lex->server_options.port= -1;
-
+  lex->explain_format= NULL;
   lex->is_lex_started= TRUE;
   lex->used_tables= 0;
   lex->reset_slave_info.all= false;
@@ -884,6 +902,7 @@ int MYSQLlex(void *arg, void *yythd)
     lip->lookahead_token= -1;
     *yylval= *(lip->lookahead_yylval);
     lip->lookahead_yylval= NULL;
+    lip->m_digest_psi= MYSQL_ADD_TOKEN(lip->m_digest_psi, token, yylval);
     return token;
   }
 
@@ -901,8 +920,12 @@ int MYSQLlex(void *arg, void *yythd)
     token= lex_one_token(arg, yythd);
     switch(token) {
     case CUBE_SYM:
+      lip->m_digest_psi= MYSQL_ADD_TOKEN(lip->m_digest_psi, WITH_CUBE_SYM,
+                                         yylval);
       return WITH_CUBE_SYM;
     case ROLLUP_SYM:
+      lip->m_digest_psi= MYSQL_ADD_TOKEN(lip->m_digest_psi, WITH_ROLLUP_SYM,
+                                         yylval);
       return WITH_ROLLUP_SYM;
     default:
       /*
@@ -911,6 +934,7 @@ int MYSQLlex(void *arg, void *yythd)
       lip->lookahead_yylval= lip->yylval;
       lip->yylval= NULL;
       lip->lookahead_token= token;
+      lip->m_digest_psi= MYSQL_ADD_TOKEN(lip->m_digest_psi, WITH, yylval);
       return WITH;
     }
     break;
@@ -918,6 +942,7 @@ int MYSQLlex(void *arg, void *yythd)
     break;
   }
 
+  lip->m_digest_psi= MYSQL_ADD_TOKEN(lip->m_digest_psi, token, yylval);
   return token;
 }
 
@@ -1645,50 +1670,6 @@ int lex_one_token(void *arg, void *yythd)
 }
 
 
-/**
-  Construct a copy of this object to be used for mysql_alter_table
-  and mysql_create_table.
-
-  Historically, these two functions modify their Alter_info
-  arguments. This behaviour breaks re-execution of prepared
-  statements and stored procedures and is compensated by always
-  supplying a copy of Alter_info to these functions.
-
-  @return You need to use check the error in THD for out
-  of memory condition after calling this function.
-*/
-
-Alter_info::Alter_info(const Alter_info &rhs, MEM_ROOT *mem_root)
-  :drop_list(rhs.drop_list, mem_root),
-  alter_list(rhs.alter_list, mem_root),
-  key_list(rhs.key_list, mem_root),
-  create_list(rhs.create_list, mem_root),
-  flags(rhs.flags),
-  keys_onoff(rhs.keys_onoff),
-  tablespace_op(rhs.tablespace_op),
-  partition_names(rhs.partition_names, mem_root),
-  num_parts(rhs.num_parts),
-  change_level(rhs.change_level),
-  datetime_field(rhs.datetime_field),
-  error_if_not_empty(rhs.error_if_not_empty)
-{
-  /*
-    Make deep copies of used objects.
-    This is not a fully deep copy - clone() implementations
-    of Alter_drop, Alter_column, Key, foreign_key, Key_part_spec
-    do not copy string constants. At the same length the only
-    reason we make a copy currently is that ALTER/CREATE TABLE
-    code changes input Alter_info definitions, but string
-    constants never change.
-  */
-  list_copy_and_replace_each_value(drop_list, mem_root);
-  list_copy_and_replace_each_value(alter_list, mem_root);
-  list_copy_and_replace_each_value(key_list, mem_root);
-  list_copy_and_replace_each_value(create_list, mem_root);
-  /* partition_names are not deeply copied currently */
-}
-
-
 void trim_whitespace(const CHARSET_INFO *cs, LEX_STRING *str)
 {
   /*
@@ -1804,7 +1785,7 @@ void st_select_lex::init_select()
   group_list.empty();
   if (group_list_ptrs)
     group_list_ptrs->clear();
-  type= db= 0;
+  db= 0;
   having= 0;
   table_join_options= 0;
   in_sum_expr= with_wild= 0;
@@ -2439,6 +2420,16 @@ static void print_join(THD *thd,
 
 
 /**
+  @returns whether a database is equal to the connection's default database
+*/
+bool db_is_default_db(const char *db, size_t db_len, const THD *thd)
+{
+  return thd != NULL && thd->db != NULL &&
+    thd->db_length == db_len && !memcmp(db, thd->db, db_len);
+}
+
+
+/**
   Print table as it should be in join list.
 
   @param str   string where table should be printed
@@ -2459,7 +2450,9 @@ void TABLE_LIST::print(THD *thd, String *str, enum_query_type query_type)
     {
       // A view
       if (!(belong_to_view &&
-            belong_to_view->compact_view_format))
+            belong_to_view->compact_view_format) &&
+          !((query_type & QT_NO_DEFAULT_DB) &&
+            db_is_default_db(view_db.str, view_db.length, thd)))
       {
         append_identifier(thd, str, view_db.str, view_db.length);
         str->append('.');
@@ -2470,9 +2463,12 @@ void TABLE_LIST::print(THD *thd, String *str, enum_query_type query_type)
     else if (derived)
     {
       // A derived table
-      str->append('(');
-      derived->print(str, query_type);
-      str->append(')');
+      if (!(query_type & QT_DERIVED_TABLE_ONLY_ALIAS))
+      {
+        str->append('(');
+        derived->print(str, query_type);
+        str->append(')');
+      }
       cmp_name= "";                               // Force printing of alias
     }
     else
@@ -2480,7 +2476,9 @@ void TABLE_LIST::print(THD *thd, String *str, enum_query_type query_type)
       // A normal table
 
       if (!(belong_to_view &&
-            belong_to_view->compact_view_format))
+            belong_to_view->compact_view_format) &&
+          !((query_type & QT_NO_DEFAULT_DB) &&
+            db_is_default_db(db, db_length, thd)))
       {
         append_identifier(thd, str, db, db_length);
         str->append('.');
@@ -2606,7 +2604,7 @@ void st_select_lex::print(THD *thd, String *str, enum_query_type query_type)
     else
       str->append(',');
 
-    if (master_unit()->item && item->is_autogenerated_name)
+    if (master_unit()->item && item->item_name.is_autogenerated())
     {
       /*
         Do not print auto-generated aliases in subqueries. It has no purpose
@@ -3713,6 +3711,29 @@ bool st_select_lex::handle_derived(LEX *lex,
 }
 
 
+st_select_lex::type_enum st_select_lex::type(const THD *thd)
+{
+  if (master_unit()->fake_select_lex == this)
+    return SLT_UNION_RESULT;
+  else if (&thd->lex->select_lex == this) 
+  {
+    if (first_inner_unit() || next_select())
+      return SLT_PRIMARY;
+    else
+      return SLT_SIMPLE;
+  }
+  else if (this == master_unit()->first_select())
+  {
+    if (linkage == DERIVED_TABLE_TYPE) 
+      return SLT_DERIVED;
+    else
+      return SLT_SUBQUERY;
+  }
+  else
+    return SLT_UNION;
+}
+
+
 /**
   A routine used by the parser to decide whether we are specifying a full
   partitioning or if only partitions to add or to split.
@@ -3727,8 +3748,8 @@ bool st_select_lex::handle_derived(LEX *lex,
 bool LEX::is_partition_management() const
 {
   return (sql_command == SQLCOM_ALTER_TABLE &&
-          (alter_info.flags == ALTER_ADD_PARTITION ||
-           alter_info.flags == ALTER_REORGANIZE_PARTITION));
+          (alter_info.flags == Alter_info::ALTER_ADD_PARTITION ||
+           alter_info.flags == Alter_info::ALTER_REORGANIZE_PARTITION));
 }
 
 

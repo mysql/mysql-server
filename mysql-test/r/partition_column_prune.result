@@ -5,7 +5,7 @@ partition by range columns(a,b,c)
 insert into t1 values ('a', NULL, 'd');
 explain partitions select * from t1 where a = 'a' AND c = 'd';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p0	system	NULL	NULL	NULL	NULL	1	
+1	SIMPLE	t1	p0	system	NULL	NULL	NULL	NULL	1	NULL
 select * from t1 where a = 'a' AND c = 'd';
 a	b	c
 a	NULL	d

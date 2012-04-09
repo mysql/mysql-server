@@ -1,4 +1,6 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (C) 2005-2008 MySQL AB, 2009 Sun Microsystems, Inc.
+    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +13,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #include <NDBT.hpp>
 #include <NDBT_Test.hpp>
@@ -78,7 +81,7 @@ int runBankTransactions(NDBT_Context* ctx, NDBT_Step* step){
     Bank bank(ctx->m_cluster_connection);
     while(!ctx->isTestStopped() && 
           ctx->getProperty(NMR_SR) <= NdbMixRestarter::SR_STOPPING)
-      if(bank.performTransactions(0, 1) == NDBT_FAILED)
+      if(bank.performTransactions(wait, yield) == NDBT_FAILED)
 	break;
     
     ndbout_c("runBankTransactions is stopped");
@@ -91,7 +94,7 @@ int runBankTransactions(NDBT_Context* ctx, NDBT_Step* step){
 
 int runBankGL(NDBT_Context* ctx, NDBT_Step* step){
   int yield = 1; // Loops before bank returns 
-  int result = NDBT_OK;
+  //int result = NDBT_OK;
   
   ctx->incProperty(NMR_SR_THREADS);
   while (ctx->isTestStopped() == false) 
@@ -101,9 +104,10 @@ int runBankGL(NDBT_Context* ctx, NDBT_Step* step){
           ctx->getProperty(NMR_SR) <= NdbMixRestarter::SR_STOPPING)
       if (bank.performMakeGLs(yield) != NDBT_OK)
       {
-	if(ctx->getProperty(NMR_SR) != NdbMixRestarter::SR_RUNNING)
+        Uint32 state = ctx->getProperty(NMR_SR);
+	if(state != NdbMixRestarter::SR_RUNNING)
 	  break;
-	ndbout << "bank.performMakeGLs FAILED" << endl;
+	ndbout << "bank.performMakeGLs FAILED: " << state << endl;
         abort();
 	return NDBT_FAILED;
       }
@@ -175,7 +179,7 @@ int runBankSum(NDBT_Context* ctx, NDBT_Step* step){
 int
 runMixRestart(NDBT_Context* ctx, NDBT_Step* step)
 {
-  int result = NDBT_OK;
+  //int result = NDBT_OK;
   NdbMixRestarter res;
   int runtime = ctx->getNumLoops();
   int sleeptime = ctx->getNumRecords();
@@ -212,19 +216,11 @@ TESTCASE("SR",
   TC_PROPERTY("Type", NdbMixRestarter::RTM_SR);
   INITIALIZER(runCreateBank);
   STEP(runBankTimer);
-  STEP(runBankTransactions);
-  STEP(runBankTransactions);
-  STEP(runBankTransactions);
-  STEP(runBankTransactions);
-  STEP(runBankTransactions);
-  STEP(runBankTransactions);
-  STEP(runBankTransactions);
-  STEP(runBankTransactions);
-  STEP(runBankTransactions);
-  STEP(runBankTransactions);
+  STEPS(runBankTransactions, 10);
   STEP(runBankGL);
   STEP(runBankSrValidator);
   STEP(runMixRestart);
+  FINALIZER(runDropBank);
 }
 TESTCASE("NR", 
 	 " Test that a consistent bank is restored after graceful shutdown\n"
@@ -236,16 +232,7 @@ TESTCASE("NR",
   TC_PROPERTY("Type", NdbMixRestarter::RTM_NR);
   INITIALIZER(runCreateBank);
   STEP(runBankTimer);
-  STEP(runBankTransactions);
-  STEP(runBankTransactions);
-  STEP(runBankTransactions);
-  STEP(runBankTransactions);
-  STEP(runBankTransactions);
-  STEP(runBankTransactions);
-  STEP(runBankTransactions);
-  STEP(runBankTransactions);
-  STEP(runBankTransactions);
-  STEP(runBankTransactions);
+  STEPS(runBankTransactions, 10);
   STEP(runBankGL);
   STEP(runMixRestart);
   FINALIZER(runDropBank);
@@ -260,16 +247,7 @@ TESTCASE("Mix",
   TC_PROPERTY("Type", NdbMixRestarter::RTM_ALL);
   INITIALIZER(runCreateBank);
   STEP(runBankTimer);
-  STEP(runBankTransactions);
-  STEP(runBankTransactions);
-  STEP(runBankTransactions);
-  STEP(runBankTransactions);
-  STEP(runBankTransactions);
-  STEP(runBankTransactions);
-  STEP(runBankTransactions);
-  STEP(runBankTransactions);
-  STEP(runBankTransactions);
-  STEP(runBankTransactions);
+  STEPS(runBankTransactions, 10);
   STEP(runBankGL);
   STEP(runMixRestart);
   STEP(runBankSrValidator);
@@ -291,7 +269,7 @@ main(int argc, const char** argv){
       break;
     }
   } 
+  NDBT_TESTSUITE_INSTANCE(testSRBank);
   return testSRBank.execute(argc, argv);
 }
 
-template class Vector<ndb_mgm_node_state*>;

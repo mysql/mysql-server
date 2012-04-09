@@ -195,7 +195,7 @@ Opt_trace_start::Opt_trace_start(THD *thd, TABLE_LIST *tbl,
   }
 
   error= ctx->start(support_I_S, support_dbug_or_missing_priv,
-                    (var & Opt_trace_context::FLAG_END_MARKER),
+                    thd->variables.end_markers_in_json,
                     (var & Opt_trace_context::FLAG_ONE_LINE),
                     thd->variables.optimizer_trace_offset,
                     thd->variables.optimizer_trace_limit,
@@ -258,7 +258,8 @@ void opt_trace_print_expanded_query(THD *thd, st_select_lex *select_lex,
     inexact parts are irrelevant for the optimizer).
   */
   select_lex->print(thd, &str, enum_query_type(QT_TO_SYSTEM_CHARSET |
-                                               QT_SHOW_SELECT_NUMBER));
+                                               QT_SHOW_SELECT_NUMBER |
+                                               QT_NO_DEFAULT_DB));
   trace_object->add_utf8("expanded_query", str.ptr(), str.length());
 }
 

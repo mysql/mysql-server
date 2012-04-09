@@ -1,4 +1,5 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (c) 2003, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +12,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #ifndef TransporterFacade_H
 #define TransporterFacade_H
@@ -27,24 +29,19 @@
 
 class ClusterMgr;
 class ArbitMgr;
-class IPCConfig;
 struct ndb_mgm_configuration;
-class ConfigRetriever;
 
 class Ndb;
 class NdbApiSignal;
 class NdbWaiter;
-
-typedef void (* ExecuteFunction)(void *, NdbApiSignal *, LinearSectionPtr ptr[3]);
-typedef void (* NodeStatusFunction)(void *, Uint32, bool nodeAlive, bool nfComplete);
+class trp_client;
 
 extern "C" {
   void* runSendRequest_C(void*);
   void* runReceiveResponse_C(void*);
-  void atexit_stop_instance();
 }
 
-class TransporterFacade
+class TransporterFacade : public TransporterCallback
 {
 public:
   /**
@@ -52,40 +49,58 @@ public:
    * (Ndb objects should not be shared by different threads.)
    */
   STATIC_CONST( MAX_NO_THREADS = 4711 );
-  TransporterFacade();
+  TransporterFacade(GlobalDictCache *cache);
   virtual ~TransporterFacade();
-  bool init(Uint32, const ndb_mgm_configuration *);
 
-  int start_instance(int, const ndb_mgm_configuration*);
+  int start_instance(NodeId, const ndb_mgm_configuration*);
   void stop_instance();
-  
+
+  /*
+    (Re)configure the TransporterFacade
+    to a specific configuration
+  */
+  bool configure(NodeId, const ndb_mgm_configuration *);
+
   /**
    * Register this block for sending/receiving signals
+   * @blockNo block number to use, -1 => any blockNumber
    * @return BlockNumber or -1 for failure
    */
-  int open(void* objRef, ExecuteFunction, NodeStatusFunction);
-  
-  // Close this block number
-  int close(BlockNumber blockNumber, Uint64 trans_id);
+  Uint32 open_clnt(trp_client*, int blockNo = -1);
+  int close_clnt(trp_client*);
+
   Uint32 get_active_ndb_objects() const;
 
   // Only sends to nodes which are alive
-  int sendSignal(NdbApiSignal * signal, NodeId nodeId);
-  int sendSignal(NdbApiSignal*, NodeId, 
-		 LinearSectionPtr ptr[3], Uint32 secs);
-  int sendFragmentedSignal(NdbApiSignal*, NodeId, 
-			   LinearSectionPtr ptr[3], Uint32 secs);
+private:
+  int sendSignal(const NdbApiSignal * signal, NodeId nodeId);
+  int sendSignal(const NdbApiSignal*, NodeId,
+                 const LinearSectionPtr ptr[3], Uint32 secs);
+  int sendSignal(const NdbApiSignal*, NodeId,
+                 const GenericSectionPtr ptr[3], Uint32 secs);
+  int sendFragmentedSignal(const NdbApiSignal*, NodeId,
+                           const LinearSectionPtr ptr[3], Uint32 secs);
+  int sendFragmentedSignal(const NdbApiSignal*, NodeId,
+                           const GenericSectionPtr ptr[3], Uint32 secs);
+public:
+
+  /**
+   * These are functions used by ndb_mgmd
+   */
+  void ext_set_max_api_reg_req_interval(Uint32 ms);
+  void ext_update_connections();
+  struct in_addr ext_get_connect_address(Uint32 nodeId);
+  void ext_forceHB();
+  bool ext_isConnected(NodeId aNodeId);
+  void ext_doConnect(int aNodeId);
 
   // Is node available for running transactions
+private:
   bool   get_node_alive(NodeId nodeId) const;
-  bool   get_node_stopping(NodeId nodeId) const;
-  bool   getIsDbNode(NodeId nodeId) const;
   bool   getIsNodeSendable(NodeId nodeId) const;
-  Uint32 getNodeGrp(NodeId nodeId) const;
-  Uint32 getNodeSequence(NodeId nodeId) const;
 
-  // Is there space in sendBuffer to send messages
-  bool   check_send_size(Uint32 node_id, Uint32 send_size);
+public:
+  Uint32 getMinDbNodeVersion() const;
 
   // My own processor id
   NodeId ownId() const;
@@ -98,14 +113,13 @@ public:
   void reportDisconnected(int NodeId);
 
   NodeId get_an_alive_node();
-  void ReportNodeAlive(NodeId nodeId);
-  void ReportNodeDead(NodeId nodeId);
-  void ReportNodeFailureComplete(NodeId nodeId);
+  void trp_node_status(NodeId, Uint32 event);
 
   /**
    * Send signal to each registered object
    */
-  void for_each(NdbApiSignal* aSignal, LinearSectionPtr ptr[3]);
+  void for_each(trp_client* clnt,
+                const NdbApiSignal* aSignal, const LinearSectionPtr ptr[3]);
   
   void lock_mutex();
   void unlock_mutex();
@@ -113,15 +127,6 @@ public:
   // Improving the API performance
   void forceSend(Uint32 block_number);
   void checkForceSend(Uint32 block_number);
-
-  // Close this block number
-  int close_local(BlockNumber blockNumber);
-
-  // Scan batch configuration parameters
-  Uint32 get_scan_batch_size();
-  Uint32 get_batch_byte_size();
-  Uint32 get_batch_size();
-  Uint32 m_waitfor_timeout; // in milli seconds...
 
   TransporterRegistry* get_registry() { return theTransporterRegistry;};
 
@@ -141,43 +146,65 @@ public:
   as seldom as possible we always pick the last thread which is likely to
   be the last to complete its reception.
 */
+  void start_poll(trp_client*);
+  void do_poll(trp_client* clnt, Uint32 wait_time);
+  void complete_poll(trp_client*);
+  void wakeup(trp_client*);
+
   void external_poll(Uint32 wait_time);
-  NdbWaiter* get_poll_owner(void) const { return poll_owner; }
-  void set_poll_owner(NdbWaiter* new_owner) { poll_owner= new_owner; }
-  Uint32 put_in_cond_wait_queue(NdbWaiter *aWaiter);
-  void remove_from_cond_wait_queue(NdbWaiter *aWaiter);
-  NdbWaiter* rem_last_from_cond_wait_queue();
+
+  trp_client* get_poll_owner(bool) const { return m_poll_owner;}
+  trp_client* remove_last_from_poll_queue();
+  void add_to_poll_queue(trp_client* clnt);
+  void remove_from_poll_queue(trp_client* clnt);
+
+  trp_client * m_poll_owner;
+  trp_client * m_poll_queue_head; // First in queue
+  trp_client * m_poll_queue_tail; // Last in queue
+  /* End poll owner stuff */
+
   // heart beat received from a node (e.g. a signal came)
   void hb_received(NodeId n);
+  void set_auto_reconnect(int val);
+  int get_auto_reconnect() const;
+
+  /* TransporterCallback interface. */
+  void deliver_signal(SignalHeader * const header,
+                      Uint8 prio,
+                      Uint32 * const signalData,
+                      LinearSectionPtr ptr[3]);
+  int checkJobBuffer();
+  void reportSendLen(NodeId nodeId, Uint32 count, Uint64 bytes);
+  void reportReceiveLen(NodeId nodeId, Uint32 count, Uint64 bytes);
+  void reportConnect(NodeId nodeId);
+  void reportDisconnect(NodeId nodeId, Uint32 errNo);
+  void reportError(NodeId nodeId, TransporterError errorCode,
+                   const char *info = 0);
+  void transporter_recv_from(NodeId node);
+  Uint32 get_bytes_to_send_iovec(NodeId node, struct iovec *dst, Uint32 max)
+  {
+    return theTransporterRegistry->get_bytes_to_send_iovec(node, dst, max);
+  }
+  Uint32 bytes_sent(NodeId node, Uint32 bytes)
+  {
+    return theTransporterRegistry->bytes_sent(node, bytes);
+  }
+  bool has_data_to_send(NodeId node)
+  {
+    return theTransporterRegistry->has_data_to_send(node);
+  }
+  void reset_send_buffer(NodeId node, bool should_be_empty)
+  {
+    theTransporterRegistry->reset_send_buffer(node, should_be_empty);
+  }
 
 private:
-  void init_cond_wait_queue();
-  struct CondWaitQueueElement {
-    NdbWaiter *cond_wait_object;
-    Uint32 next_cond_wait;
-    Uint32 prev_cond_wait;
-  };
-  NdbWaiter *poll_owner;
-  CondWaitQueueElement cond_wait_array[MAX_NO_THREADS];
-  Uint32 first_in_cond_wait;
-  Uint32 first_free_cond_wait;
-  Uint32 last_in_cond_wait;
-  /* End poll owner stuff */
-  /**
-   * Send a signal unconditional of node status (used by ClusterMgr)
-   */
+
+  friend class trp_client;
   friend class ClusterMgr;
   friend class ArbitMgr;
-  friend class MgmtSrvr;
-  friend class SignalSender;
-  friend class GrepPS;
-  friend class ExtSender; ///< @todo Hack to be able to sendSignalUnCond
-  friend class GrepSS;
-  friend class Ndb;
+  friend class Ndb_cluster_connection;
   friend class Ndb_cluster_connection_impl;
-  friend class NdbTransaction;
-  
-  int sendSignalUnCond(NdbApiSignal *, NodeId nodeId);
 
   bool isConnected(NodeId aNodeId);
   void doStop();
@@ -185,23 +212,16 @@ private:
   TransporterRegistry* theTransporterRegistry;
   SocketServer m_socket_server;
   int sendPerformedLastInterval;
-  int theOwnId;
-
+  NodeId theOwnId;
   NodeId theStartNodeId;
 
   ClusterMgr* theClusterMgr;
-  ArbitMgr* theArbitMgr;
   
   // Improving the API response time
   int checkCounter;
   Uint32 currentSendLimit;
   
   void calculateSendLimit();
-
-  // Scan batch configuration parameters
-  Uint32 m_scan_batch_size;
-  Uint32 m_batch_byte_size;
-  Uint32 m_batch_size;
 
   // Declarations for the receive and send thread
   int  theStopReceive;
@@ -213,7 +233,8 @@ private:
 
   friend void* runSendRequest_C(void*);
   friend void* runReceiveResponse_C(void*);
-  friend void atexit_stop_instance();
+
+  bool do_connect_mgm(NodeId, const ndb_mgm_configuration*);
 
   /**
    * Block number handling
@@ -227,81 +248,34 @@ private:
     
     ThreadData(Uint32 initialSize = 32);
     
-    /**
-     * Split "object" into 3 list
-     *   This to improve locality
-     *   when iterating over lists
-     */
-    struct Object_Execute {
-      void * m_object;
-      ExecuteFunction m_executeFunction;
-    };
-    struct NodeStatus_NextFree {
-      NodeStatusFunction m_statusFunction;
-    };
-
     Uint32 m_use_cnt;
     Uint32 m_firstFree;
     Vector<Uint32> m_statusNext;
-    Vector<Object_Execute> m_objectExecute;
-    Vector<NodeStatusFunction> m_statusFunction;
+    Vector<trp_client*> m_objectExecute;
     
-    int open(void* objRef, ExecuteFunction, NodeStatusFunction);
+    int open(trp_client*);
     int close(int number);
     void expand(Uint32 size);
 
-    inline Object_Execute get(Uint16 blockNo) const {
+    inline trp_client* get(Uint16 blockNo) const {
       blockNo -= MIN_API_BLOCK_NO;
-      if(likely (blockNo < m_objectExecute.size())){
-	return m_objectExecute[blockNo];
+      if(likely (blockNo < m_objectExecute.size()))
+      {
+        return m_objectExecute.getBase()[blockNo];
       }
-      Object_Execute oe = { 0, 0 };
-      return oe;
-    }
-
-    /**
-     * Is the block number used currently
-     */
-    inline bool getInUse(Uint16 index) const {
-      return (m_statusNext[index] & (1 << 16)) != 0;
+      return 0;
     }
   } m_threads;
-  
-  Uint32 m_max_trans_id;
+
+  Uint32 m_fixed2dynamic[NO_API_FIXED_BLOCKS];
   Uint32 m_fragmented_signal_id;
 
-  /**
-   * execute function
-   */
-  friend void execute(void * callbackObj, SignalHeader * const header, 
-                      Uint8 prio, 
-                      Uint32 * const theData, LinearSectionPtr ptr[3]);
-  
 public:
   NdbMutex* theMutexPtr;
 
 public:
-  GlobalDictCache m_globalDictCache;
+  GlobalDictCache *m_globalDictCache;
 };
-
-class PollGuard
-{
-  public:
-  PollGuard(TransporterFacade *tp, NdbWaiter *aWaiter, Uint32 block_no);
-  ~PollGuard() { unlock_and_signal(); }
-  int wait_n_unlock(int wait_time, NodeId nodeId, Uint32 state,
-                    bool forceSend= false);
-  int wait_for_input_in_loop(int wait_time, bool forceSend);
-  void wait_for_input(int wait_time);
-  int wait_scan(int wait_time, NodeId nodeId, bool forceSend);
-  void unlock_and_signal();
-  private:
-  TransporterFacade *m_tp;
-  NdbWaiter *m_waiter;
-  Uint32 m_block_no;
-  bool m_locked;
-};
-
 
 inline
 void 
@@ -318,41 +292,30 @@ TransporterFacade::unlock_mutex()
 }
 
 #include "ClusterMgr.hpp"
+#include "ndb_cluster_connection_impl.hpp"
 
 inline
 unsigned Ndb_cluster_connection_impl::get_connect_count() const
 {
-  return m_transporter_facade->theClusterMgr->m_connect_count;
+  if (m_transporter_facade->theClusterMgr)
+    return m_transporter_facade->theClusterMgr->m_connect_count;
+  return 0;
 }
 
 inline
-bool
-TransporterFacade::check_send_size(Uint32 node_id, Uint32 send_size)
+unsigned Ndb_cluster_connection_impl::get_min_db_version() const
 {
-  return true;
+  return m_transporter_facade->getMinDbNodeVersion();
 }
-
-inline
-bool
-TransporterFacade::getIsDbNode(NodeId n) const {
-  return 
-    theClusterMgr->getNodeInfo(n).defined && 
-    theClusterMgr->getNodeInfo(n).m_info.m_type == NodeInfo::DB;
-}
-
-inline
-Uint32
-TransporterFacade::getNodeGrp(NodeId n) const {
-  return theClusterMgr->getNodeInfo(n).m_state.nodeGroup;
-}
-
 
 inline
 bool
 TransporterFacade::get_node_alive(NodeId n) const {
-
-  const ClusterMgr::Node & node = theClusterMgr->getNodeInfo(n);
-  return node.m_alive;
+  if (theClusterMgr)
+  {
+    return theClusterMgr->getNodeInfo(n).m_alive;
+  }
+  return 0;
 }
 
 inline
@@ -362,57 +325,152 @@ TransporterFacade::hb_received(NodeId n) {
 }
 
 inline
-bool
-TransporterFacade::get_node_stopping(NodeId n) const {
-  const ClusterMgr::Node & node = theClusterMgr->getNodeInfo(n);
-  return (!node.m_state.getSingleUserMode() &&
-          ((node.m_state.startLevel == NodeState::SL_STOPPING_1) ||
-           (node.m_state.startLevel == NodeState::SL_STOPPING_2)));
+Uint32
+TransporterFacade::getMinDbNodeVersion() const
+{
+  if (theClusterMgr)
+    return theClusterMgr->minDbVersion;
+  else
+    return 0;
 }
 
 inline
-bool
-TransporterFacade::getIsNodeSendable(NodeId n) const {
-  const ClusterMgr::Node & node = theClusterMgr->getNodeInfo(n);
-  const Uint32 startLevel = node.m_state.startLevel;
+const trp_node &
+trp_client::getNodeInfo(Uint32 nodeId) const
+{
+  return m_facade->theClusterMgr->getNodeInfo(nodeId);
+}
 
-  if (node.m_info.m_type == NodeInfo::DB) {
-    return node.compatible && (startLevel == NodeState::SL_STARTED ||
-                               startLevel == NodeState::SL_STOPPING_1 ||
-                               node.m_state.getSingleUserMode());
-  } else {
-    ndbout_c("TransporterFacade::getIsNodeSendable: Illegal node type: "
-             "%d of node: %d", 
-             node.m_info.m_type, n);
-    abort();
-    return false; // to remove compiler warning
+/** 
+ * LinearSectionIterator
+ *
+ * This is an implementation of GenericSectionIterator 
+ * that iterates over one linear section of memory.
+ * The iterator is used by the transporter at signal
+ * send time to obtain all of the relevant words for the
+ * signal section
+ */
+class LinearSectionIterator: public GenericSectionIterator
+{
+private :
+  const Uint32* data;
+  Uint32 len;
+  bool read;
+public :
+  LinearSectionIterator(const Uint32* _data, Uint32 _len)
+  {
+    data= (_len == 0)? NULL:_data;
+    len= _len;
+    read= false;
   }
-}
 
-inline
-Uint32
-TransporterFacade::getNodeSequence(NodeId n) const {
-  return theClusterMgr->getNodeInfo(n).m_info.m_connectCount;
-}
+  ~LinearSectionIterator()
+  {};
+  
+  void reset()
+  {
+    /* Reset iterator */
+    read= false;
+  }
 
-inline
-Uint32
-TransporterFacade::get_scan_batch_size() {
-  return m_scan_batch_size;
-}
+  const Uint32* getNextWords(Uint32& sz)
+  {
+    if (likely(!read))
+    {
+      read= true;
+      sz= len;
+      return data;
+    }
+    sz= 0;
+    return NULL;
+  }
+};
 
-inline
-Uint32
-TransporterFacade::get_batch_byte_size() {
-  return m_batch_byte_size;
-}
 
-inline
-Uint32
-TransporterFacade::get_batch_size() {
-  return m_batch_size;
-}
+/** 
+ * SignalSectionIterator
+ *
+ * This is an implementation of GenericSectionIterator 
+ * that uses chained NdbApiSignal objects to store a 
+ * signal section.
+ * The iterator is used by the transporter at signal
+ * send time to obtain all of the relevant words for the
+ * signal section
+ */
+class SignalSectionIterator: public GenericSectionIterator
+{
+private :
+  NdbApiSignal* firstSignal;
+  NdbApiSignal* currentSignal;
+public :
+  SignalSectionIterator(NdbApiSignal* signal)
+  {
+    firstSignal= currentSignal= signal;
+  }
 
+  ~SignalSectionIterator()
+  {};
+  
+  void reset()
+  {
+    /* Reset iterator */
+    currentSignal= firstSignal;
+  }
+
+  const Uint32* getNextWords(Uint32& sz);
+};
+
+/*
+ * GenericSectionIteratorReader
+ * Helper class to simplify reading data from 
+ * GenericSectionIterator implementations
+ */
+
+class GSIReader
+{
+private :
+  GenericSectionIterator* gsi;
+  const Uint32* chunkPtr;
+  Uint32 chunkRemain;
+public :
+  GSIReader(GenericSectionIterator* _gsi)
+  {
+    gsi = _gsi;
+    chunkPtr = NULL;
+    chunkRemain = 0;
+  }
+
+  void copyNWords(Uint32* dest, Uint32 n)
+  {
+    while (n)
+    {
+      if (chunkRemain == 0)
+      {
+        /* Get next contiguous stretch of words from
+         * the iterator
+         */
+        chunkPtr = gsi->getNextWords(chunkRemain);
+        if (!chunkRemain)
+          abort(); // Must have the words the caller asks for
+      }
+      else
+      {
+        /* Have some words from the iterator, copy some/
+         * all of them
+         */
+        Uint32 wordsToCopy = MIN(chunkRemain, n);
+        memcpy(dest, chunkPtr, wordsToCopy << 2);
+        chunkPtr += wordsToCopy;
+        chunkRemain -= wordsToCopy;
+
+        dest += wordsToCopy;
+        n -= wordsToCopy;
+      }
+    }
+  }
+};
+
+  
 
 
 #endif // TransporterFacade_H

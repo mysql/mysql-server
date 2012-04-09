@@ -213,6 +213,7 @@ public:
   int recover(IO_CACHE *log, Format_description_log_event *fdle);
 #if !defined(MYSQL_CLIENT)
 
+  void update_thd_next_event_pos(THD *thd);
   int flush_and_set_pending_rows_event(THD *thd, Rows_log_event* event,
                                        bool is_transactional);
   int remove_pending_rows_event(THD *thd, bool is_transactional);
@@ -385,6 +386,7 @@ bool show_binlog_events(THD *thd, MYSQL_BIN_LOG *binary_log);
 bool mysql_show_binlog_events(THD* thd);
 void check_binlog_cache_size(THD *thd);
 void check_binlog_stmt_cache_size(THD *thd);
+bool binlog_enabled();
 void register_binlog_handler(THD *thd, bool trx);
 int gtid_empty_group_log_and_cleanup(THD *thd);
 

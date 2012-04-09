@@ -1,6 +1,7 @@
 #include "mysql/psi/psi.h"
 C_MODE_START
 struct TABLE_SHARE;
+struct OPAQUE_LEX_YYSTYPE;
 struct PSI_mutex;
 typedef struct PSI_mutex PSI_mutex;
 struct PSI_rwlock;
@@ -23,6 +24,8 @@ struct PSI_statement_locker;
 typedef struct PSI_statement_locker PSI_statement_locker;
 struct PSI_idle_locker;
 typedef struct PSI_idle_locker PSI_idle_locker;
+struct PSI_digest_locker;
+typedef struct PSI_digest_locker PSI_digest_locker;
 struct PSI_bootstrap
 {
   void* (*get_interface)(int version);
@@ -236,6 +239,20 @@ struct PSI_table_locker_state_v1
   void *m_wait;
   uint m_index;
 };
+struct PSI_digest_storage
+{
+  my_bool m_full;
+  int m_byte_count;
+  const void *m_charset;
+  unsigned char m_token_array[1024];
+};
+typedef struct PSI_digest_storage PSI_digest_storage;
+struct PSI_digest_locker_state
+{
+  int m_last_id_index;
+  PSI_digest_storage m_digest_storage;
+};
+typedef struct PSI_digest_locker_state PSI_digest_locker_state;
 struct PSI_statement_locker_state_v1
 {
   my_bool m_discarded;
@@ -261,6 +278,7 @@ struct PSI_statement_locker_state_v1
   ulong m_sort_range;
   ulong m_sort_rows;
   ulong m_sort_scan;
+  PSI_digest_locker_state m_digest_state;
 };
 struct PSI_socket_locker_state_v1
 {
@@ -418,7 +436,7 @@ typedef void (*start_stage_v1_t)
 typedef void (*end_stage_v1_t) (void);
 typedef struct PSI_statement_locker* (*get_thread_statement_locker_v1_t)
   (struct PSI_statement_locker_state_v1 *state,
-   PSI_statement_key key);
+   PSI_statement_key key, const void *charset);
 typedef struct PSI_statement_locker* (*refine_statement_v1_t)
   (struct PSI_statement_locker *locker,
    PSI_statement_key key);
@@ -478,6 +496,10 @@ typedef void (*set_socket_info_v1_t)(struct PSI_socket *socket,
                                      const struct sockaddr *addr,
                                      socklen_t addr_len);
 typedef void (*set_socket_thread_owner_v1_t)(struct PSI_socket *socket);
+typedef struct PSI_digest_locker * (*digest_start_v1_t)
+  (struct PSI_statement_locker *locker);
+typedef struct PSI_digest_locker* (*digest_add_token_v1_t)
+  (struct PSI_digest_locker *locker, uint token, struct OPAQUE_LEX_YYSTYPE *yylval);
 struct PSI_v1
 {
   register_mutex_v1_t register_mutex;
@@ -573,6 +595,8 @@ struct PSI_v1
   set_socket_state_v1_t set_socket_state;
   set_socket_info_v1_t set_socket_info;
   set_socket_thread_owner_v1_t set_socket_thread_owner;
+  digest_start_v1_t digest_start;
+  digest_add_token_v1_t digest_add_token;
 };
 typedef struct PSI_v1 PSI;
 typedef struct PSI_mutex_info_v1 PSI_mutex_info;

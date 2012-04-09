@@ -1,3 +1,4 @@
+--source include/big_test.inc
 --source include/master-slave.inc
 --source include/have_binlog_format_mixed.inc
 --source include/have_innodb.inc

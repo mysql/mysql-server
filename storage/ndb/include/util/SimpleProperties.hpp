@@ -1,4 +1,6 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (C) 2003-2008 MySQL AB, 2008 Sun Microsystems, Inc.
+    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +13,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #ifndef SIMPLE_PROPERTIES_HPP
 #define SIMPLE_PROPERTIES_HPP
@@ -276,12 +279,13 @@ Uint32 SimplePropertiesSectionReader::getSize() const
  */
 class SimplePropertiesSectionWriter : public SimpleProperties::Writer {
 public:
-  SimplePropertiesSectionWriter(class SectionSegmentPool &);
-  virtual ~SimplePropertiesSectionWriter() {}
+  SimplePropertiesSectionWriter(class SimulatedBlock & block);
+  virtual ~SimplePropertiesSectionWriter();
 
   virtual bool reset();
   virtual bool putWord(Uint32 val);
   virtual bool putWords(const Uint32 * src, Uint32 len);
+  Uint32 getWordsUsed() const;
 
   /**
    * This "unlinks" the writer from the memory
@@ -289,9 +293,13 @@ public:
   void getPtr(struct SegmentedSectionPtr & dst);
   
 private:
+  void release();
+
   Int32 m_pos;
   Uint32 m_sz;
+
   class SectionSegmentPool & m_pool;
+  class SimulatedBlock & m_block;
   struct SectionSegment * m_head;
   Uint32 m_prevPtrI; // Prev to m_currentSegment
   struct SectionSegment * m_currentSegment;

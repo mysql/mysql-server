@@ -118,16 +118,6 @@ MACRO (FIND_CURSES)
  ENDIF()
 ENDMACRO()
 
-MACRO (MYSQL_USE_BUNDLED_READLINE)
-  SET(USE_NEW_READLINE_INTERFACE 1)
-  SET(HAVE_HIST_ENTRY)
-  SET(USE_LIBEDIT_INTERFACE)
-  SET(READLINE_INCLUDE_DIR ${CMAKE_SOURCE_DIR}/cmd-line-utils)
-  SET(READLINE_LIBRARY readline)
-  FIND_CURSES()
-  ADD_SUBDIRECTORY(${CMAKE_SOURCE_DIR}/cmd-line-utils/readline)
-ENDMACRO()
-
 MACRO (MYSQL_USE_BUNDLED_LIBEDIT)
   SET(USE_LIBEDIT_INTERFACE 1)
   SET(HAVE_HIST_ENTRY 1)
@@ -137,10 +127,9 @@ MACRO (MYSQL_USE_BUNDLED_LIBEDIT)
   ADD_SUBDIRECTORY(${CMAKE_SOURCE_DIR}/cmd-line-utils/libedit)
 ENDMACRO()
 
-
-MACRO (MYSQL_FIND_SYSTEM_READLINE name)
+MACRO (FIND_SYSTEM_LIBEDIT name)
   
-  FIND_PATH(${name}_INCLUDE_DIR readline/readline.h )
+  FIND_PATH(${name}_INCLUDE_DIR readline/readline.h ) 
   FIND_LIBRARY(${name}_LIBRARY NAMES ${name})
   MARK_AS_ADVANCED(${name}_INCLUDE_DIR  ${name}_LIBRARY)
 
@@ -152,7 +141,7 @@ MACRO (MYSQL_FIND_SYSTEM_READLINE name)
     SET(CMAKE_REQUIRED_LIBRARIES ${${name}_LIBRARY})
     CHECK_CXX_SOURCE_COMPILES("
     #include <stdio.h>
-    #include <readline/readline.h>
+    #include <readline/readline.h> 
     int main(int argc, char **argv)
     {
        HIST_ENTRY entry;
@@ -170,7 +159,6 @@ MACRO (MYSQL_FIND_SYSTEM_READLINE name)
     }"
     ${name}_USE_LIBEDIT_INTERFACE)
 
-
     CHECK_CXX_SOURCE_COMPILES("
     #include <stdio.h>
     #include <readline/readline.h>
@@ -180,13 +168,13 @@ MACRO (MYSQL_FIND_SYSTEM_READLINE name)
       rl_compentry_func_t *func2= (rl_compentry_func_t*)0;
     }"
     ${name}_USE_NEW_READLINE_INTERFACE)
-    
+  
     IF(${name}_USE_LIBEDIT_INTERFACE  OR ${name}_USE_NEW_READLINE_INTERFACE)
       SET(READLINE_LIBRARY ${${name}_LIBRARY})
       SET(READLINE_INCLUDE_DIR ${${name}_INCLUDE_DIR})
       SET(HAVE_HIST_ENTRY ${${name}_HAVE_HIST_ENTRY})
       SET(USE_LIBEDIT_INTERFACE ${${name}_USE_LIBEDIT_INTERFACE})
-      SET(USE_NEW_READLINE_INTERFACE ${${name}_USE_NEW_READLINE_INTERFACE})
+      SET(USE_NEW_READLINE_INTERFACE ${${name}_USE_NEW_READLINE_INTERFACE}) 
       SET(READLINE_FOUND 1)
     ENDIF()
   ENDIF()
@@ -198,40 +186,15 @@ MACRO (MYSQL_CHECK_READLINE)
     MYSQL_CHECK_MULTIBYTE()
     IF(NOT CYGWIN)	
       SET(WITH_LIBEDIT  ON CACHE BOOL  "Use bundled libedit")
-      SET(WITH_READLINE OFF CACHE BOOL "Use bundled readline")
-    ELSE()
       # Bundled libedit does not compile on cygwin, only readline
-      SET(WITH_READLINE OFF CACHE BOOL "Use bundled readline")
     ENDIF()
 
-    # Handle mutual exclusion of WITH_READLINE/WITH_LIBEDIT variables
-    # We save current setting to recognize when user switched between
-    # WITH_READLINE and WITH_LIBEDIT 
-    IF(WITH_READLINE)
-      IF(NOT SAVE_READLINE_SETTING OR SAVE_READLINE_SETTING MATCHES 
-         "WITH_LIBEDIT")
-        SET(WITH_LIBEDIT OFF CACHE BOOL "Use bundled libedit" FORCE)
-      ENDIF()
-    ELSEIF(WITH_LIBEDIT) 
-      IF(NOT SAVE_READLINE_SETTING OR SAVE_READLINE_SETTING MATCHES 
-         "WITH_READLINE")
-        SET(WITH_READLINE OFF CACHE BOOL "Use bundled readline" FORCE)
-      ENDIF()
-    ENDIF()
-
-    IF(WITH_READLINE)
-     MYSQL_USE_BUNDLED_READLINE()
-     SET(SAVE_READLINE_SETTING WITH_READLINE CACHE INTERNAL "" FORCE)
-    ELSEIF(WITH_LIBEDIT)
+    IF(WITH_LIBEDIT) 
      MYSQL_USE_BUNDLED_LIBEDIT()
-     SET(SAVE_READLINE_SETTING WITH_LIBEDIT CACHE INTERNAL "" FORCE)
     ELSE()
-      MYSQL_FIND_SYSTEM_READLINE(readline)
-      IF(NOT READLINE_FOUND)
-        MYSQL_FIND_SYSTEM_READLINE(edit)
-        IF(NOT READLINE_FOUND)
-          MESSAGE(FATAL_ERROR "Cannot find system readline or libedit libraries.Use WITH_READLINE or WITH_LIBEDIT")
-        ENDIF()
+      FIND_SYSTEM_LIBEDIT(edit)
+      IF(NOT_LIBEDIT_FOUND)
+        MESSAGE(FATAL_ERROR "Cannot find system libedit libraries.Use WITH_LIBEDIT") 
       ENDIF()
     ENDIF()
   ENDIF(NOT WIN32)

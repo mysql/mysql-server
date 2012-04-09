@@ -1,0 +1,3 @@
+--max_relay_log_size=16384
+--loose-innodb
+--log-warnings

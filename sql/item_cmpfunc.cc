@@ -894,7 +894,7 @@ Arg_comparator::can_compare_as_dates(Item *a, Item *b, ulonglong *const_value)
       str_val= str_arg->val_str(&tmp);
       if (str_arg->null_value)
         return CMP_DATE_DFLT;
-      value= get_date_from_str(thd, str_val, t_type, date_arg->name, &error);
+      value= get_date_from_str(thd, str_val, t_type, date_arg->item_name.ptr(), &error);
       if (error)
         return CMP_DATE_DFLT;
       if (const_value)
@@ -1222,7 +1222,7 @@ get_datetime_value(THD *thd, Item ***item_arg, Item **cache_arg,
     enum_field_types f_type= warn_item->field_type();
     timestamp_type t_type= f_type ==
       MYSQL_TYPE_DATE ? MYSQL_TIMESTAMP_DATE : MYSQL_TIMESTAMP_DATETIME;
-    value= (longlong) get_date_from_str(thd, str, t_type, warn_item->name, &error);
+    value= (longlong) get_date_from_str(thd, str, t_type, warn_item->item_name.ptr(), &error);
     /*
       If str did not contain a valid date according to the current
       SQL_MODE, get_date_from_str() has already thrown a warning,
@@ -4802,9 +4802,6 @@ Item_cond::fix_fields(THD *thd, Item **ref)
     used_tables_cache|= item->used_tables();
     const_item_cache&=  item->const_item();
 
-    // Old code assumed that not_null_tables() was 0 when const_item() was true
-    DBUG_ASSERT(!item->const_item() || !item->not_null_tables());
-
     if (functype() == COND_AND_FUNC && abort_on_null)
       not_null_tables_cache|= item->not_null_tables();
     else
@@ -4925,15 +4922,16 @@ Item *Item_cond::transform(Item_transformer transformer, uchar *arg)
                        nodes of the tree of the object
   @param arg_t         parameter to be passed to the transformer
 
-  @return
-    Item returned as the result of transformation of the root node 
+  @return              Item returned as result of transformation of the node,
+                       the same item if no transformation applied, or NULL if
+                       transformation caused an error.
 */
 
 Item *Item_cond::compile(Item_analyzer analyzer, uchar **arg_p,
                          Item_transformer transformer, uchar *arg_t)
 {
   if (!(this->*analyzer)(arg_p))
-    return 0;
+    return this;
   
   List_iterator<Item> li(list);
   Item *item;
@@ -4945,7 +4943,9 @@ Item *Item_cond::compile(Item_analyzer analyzer, uchar **arg_p,
     */   
     uchar *arg_v= *arg_p;
     Item *new_item= item->compile(analyzer, &arg_v, transformer, arg_t);
-    if (new_item && new_item != item)
+    if (new_item == NULL)
+      return NULL;
+    if (new_item != item)
       current_thd->change_item_tree(li.ref(), new_item);
   }
   return Item_func::transform(transformer, arg_t);

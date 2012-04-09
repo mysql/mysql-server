@@ -609,7 +609,8 @@ net_write_packet(NET *net, const uchar *packet, size_t length)
   net->reading_or_writing= 2;
 
 #ifdef HAVE_COMPRESS
-  if (net->compress)
+  const bool do_compress= net->compress;
+  if (do_compress)
   {
     if ((packet= compress_packet(net, packet, &length)) == NULL)
     {
@@ -629,7 +630,7 @@ net_write_packet(NET *net, const uchar *packet, size_t length)
   res= net_write_raw_loop(net, packet, length);
 
 #ifdef HAVE_COMPRESS
-  if (net->compress)
+  if (do_compress)
     my_free((void *) packet);
 #endif
 

@@ -79,7 +79,6 @@ class Sroutine_hash_entry;
 class User_level_lock;
 class user_var_entry;
 
-enum enum_enable_or_disable { LEAVE_AS_IS, ENABLE, DISABLE };
 enum enum_ha_read_modes { RFIRST, RNEXT, RPREV, RLAST, RKEY, RNEXT_SAME };
 enum enum_duplicates { DUP_ERROR, DUP_REPLACE, DUP_UPDATE };
 enum enum_delay_key_write { DELAY_KEY_WRITE_NONE, DELAY_KEY_WRITE_ON,
@@ -165,7 +164,7 @@ public:
   }
 
   inline char *str() const { return string.str; }
-  inline uint32 length() const { return string.length; }
+  inline size_t length() const { return string.length; }
   const CHARSET_INFO *charset() const { return cs; }
 
   friend LEX_STRING * thd_query_string (MYSQL_THD thd);
@@ -728,6 +727,7 @@ typedef struct system_variables
   ulonglong max_heap_table_size;
   ulonglong tmp_table_size;
   ulonglong long_query_time;
+  my_bool end_markers_in_json;
   /* A bitmap for switching optimizations on/off */
   ulonglong optimizer_switch;
   ulonglong optimizer_trace; ///< bitmap to tune optimizer tracing
@@ -793,7 +793,10 @@ typedef struct system_variables
     thread the query is being run to replicate temp tables properly
   */
   my_thread_id pseudo_thread_id;
-
+  /**
+    Default transaction access mode. READ ONLY (true) or READ WRITE (false).
+  */
+  my_bool tx_read_only;
   my_bool low_priority_updates;
   my_bool new_mode;
   my_bool query_cache_wlock_invalidate;
@@ -845,7 +848,6 @@ typedef struct system_status_var
 {
   ulonglong created_tmp_disk_tables;
   ulonglong created_tmp_tables;
-  ulonglong opt_partial_plans;
   ulonglong ha_commit_count;
   ulonglong ha_delete_count;
   ulonglong ha_read_first_count;
@@ -907,6 +909,7 @@ typedef struct system_status_var
     automatically by add_to_status()/add_diff_to_status().
   */
   double last_query_cost;
+  ulonglong last_query_partial_plans;
 } STATUS_VAR;
 
 /*
@@ -2328,6 +2331,7 @@ private:
   enum enum_server_command m_command;
 
 public:
+  uint32     unmasked_server_id;
   uint32     server_id;
   uint32     file_id;			// for LOAD DATA INFILE
   /* remote (peer) port */
@@ -2346,6 +2350,15 @@ public:
 
   /* container for handler's private per-connection data */
   Ha_data ha_data[MAX_HA];
+
+  /*
+    Position of first event in Binlog
+    *after* last event written by this
+    thread.
+  */
+  event_coordinates binlog_next_event_pos;
+  void set_next_event_pos(const char* _filename, ulonglong _pos);
+  void clear_next_event_pos();
 
 #ifndef MYSQL_CLIENT
   int binlog_setup_trx_data();
@@ -2864,6 +2877,11 @@ public:
     above.
   */
   enum_tx_isolation tx_isolation;
+  /*
+    Current or next transaction access mode.
+    See comment above regarding tx_isolation.
+  */
+  bool              tx_read_only;
   enum_check_fields count_cuted_fields;
 
   DYNAMIC_ARRAY user_var_events;        /* For user variables replication */
@@ -2947,7 +2965,8 @@ public:
   bool       derived_tables_processing;
   my_bool    tablespace_op;	/* This is TRUE in DISCARD/IMPORT TABLESPACE */
 
-  sp_rcontext *spcont;		// SP runtime context
+  /** Current SP-runtime context. */
+  sp_rcontext *sp_runtime_ctx;
   sp_cache   *sp_proc_cache;
   sp_cache   *sp_func_cache;
 
@@ -3155,6 +3174,11 @@ public:
   {
     return variables.sql_mode &
       (MODE_NO_ZERO_IN_DATE | MODE_NO_ZERO_DATE | MODE_INVALID_DATES);
+  }
+  inline bool is_strict_mode() const
+  {
+    return test(variables.sql_mode & (MODE_STRICT_TRANS_TABLES |
+                                      MODE_STRICT_ALL_TABLES));
   }
   inline Time_zone *time_zone()
   {
@@ -3464,7 +3488,15 @@ public:
     {
       if ((err == KILL_CONNECTION) && !shutdown_in_progress)
         err = KILL_QUERY;
-      my_message(err, ER(err), MYF(0));
+      /*
+        KILL is fatal because:
+        - if a condition handler was allowed to trap and ignore a KILL, one
+        could create routines which the DBA could not kill
+        - INSERT/UPDATE IGNORE should fail: if KILL arrives during
+        JOIN::optimize(), statement cannot possibly run as its caller expected
+        => "OK" would be misleading the caller.
+      */
+      my_message(err, ER(err), MYF(ME_FATALERROR));
     }
   }
   /* return TRUE if we will abort query if we make a warning now */
@@ -3642,7 +3674,7 @@ public:
     result= new_db && !db;
 #ifdef HAVE_PSI_THREAD_INTERFACE
     if (result)
-      PSI_CALL(set_thread_db)(new_db, new_db_len);
+      PSI_CALL(set_thread_db)(new_db, static_cast<int>(new_db_len));
 #endif
     return result;
   }
@@ -3663,7 +3695,7 @@ public:
     db= new_db;
     db_length= new_db_len;
 #ifdef HAVE_PSI_THREAD_INTERFACE
-    PSI_CALL(set_thread_db)(new_db, new_db_len);
+    PSI_CALL(set_thread_db)(new_db, static_cast<int>(new_db_len));
 #endif
   }
   /*
@@ -4882,6 +4914,12 @@ public:
 
 /** Identifies statements which may generate an optimizer trace */
 #define CF_OPTIMIZER_TRACE        (1U << 14)
+
+/**
+   Identifies statements that should always be disallowed in
+   read only transactions.
+*/
+#define CF_DISALLOW_IN_RO_TRANS   (1U << 15)
 
 /* Bits in server_command_flags */
 
