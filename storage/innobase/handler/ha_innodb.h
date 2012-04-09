@@ -193,6 +193,7 @@ class ha_innobase: public handler
 	void update_create_info(HA_CREATE_INFO* create_info);
 	int parse_table_name(const char*name,
 			     HA_CREATE_INFO*create_info,
+			     bool use_tablespace,
 			     char** norm_name,
 			     char** temp_path);
 	int create(const char *name, register TABLE *form,
