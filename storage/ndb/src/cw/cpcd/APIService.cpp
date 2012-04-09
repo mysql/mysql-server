@@ -1,4 +1,6 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (C) 2003-2008 MySQL AB, 2008-2010 Sun Microsystems, Inc.
+    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +13,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 
 #include <Parser.hpp>
@@ -151,16 +154,19 @@ CPCDAPISession::CPCDAPISession(NDB_SOCKET_TYPE sock,
 }
 
 CPCDAPISession::CPCDAPISession(FILE * f, CPCD & cpcd)
-  : SocketServer::Session(1)
+  : SocketServer::Session(my_socket_create_invalid())
   , m_cpcd(cpcd)
 {
   m_input = new FileInputStream(f);
   m_parser = new Parser<CPCDAPISession>(commands, *m_input, true, true, true);
+  m_output = 0;
 }
   
 CPCDAPISession::~CPCDAPISession() {
   delete m_input;
   delete m_parser;
+  if (m_output)
+    delete m_output;
 }
 
 void
@@ -170,6 +176,9 @@ CPCDAPISession::runSession(){
     m_parser->run(ctx, * this); 
     if(ctx.m_currentToken == 0)
       break;
+
+    m_input->reset_timeout();
+    m_output->reset_timeout();
 
     switch(ctx.m_status){
     case Parser_t::Ok:
@@ -219,8 +228,6 @@ CPCDAPISession::loadFile(){
   }
 }
 
-static const int g_TimeOut = 1000;
-
 void
 CPCDAPISession::defineProcess(Parser_t::Context & /* unused */, 
 			      const class Properties & args){
@@ -241,7 +248,7 @@ CPCDAPISession::defineProcess(Parser_t::Context & /* unused */,
     } else {
       m_output->println("errormessage: %s", rs.getErrMsg());
     }
-    m_output->println("");
+    m_output->println("%s", "");
   }
 }
 
@@ -260,7 +267,7 @@ CPCDAPISession::undefineProcess(Parser_t::Context & /* unused */,
   if(!ret)
     m_output->println("errormessage: %s", rs.getErrMsg());
 
-  m_output->println("");
+  m_output->println("%s", "");
 }
 
 void
@@ -278,7 +285,7 @@ CPCDAPISession::startProcess(Parser_t::Context & /* unused */,
     m_output->println("status: %d", rs.getStatus());
     if(!ret)
       m_output->println("errormessage: %s", rs.getErrMsg());
-    m_output->println("");
+    m_output->println("%s", "");
   }
 }
 
@@ -297,7 +304,7 @@ CPCDAPISession::stopProcess(Parser_t::Context & /* unused */,
   if(!ret)
     m_output->println("errormessage: %s", rs.getErrMsg());
   
-  m_output->println("");
+  m_output->println("%s", "");
 }
 
 static const char *
@@ -338,7 +345,7 @@ CPCDAPISession::listProcesses(Parser_t::Context & /* unused */,
   MutexVector<CPCD::Process *> *proclist = m_cpcd.getProcessList();
 
   m_output->println("start processes");
-  m_output->println("");
+  m_output->println("%s", "");
   
 
   for(size_t i = 0; i < proclist->size(); i++) {
@@ -376,12 +383,12 @@ CPCDAPISession::listProcesses(Parser_t::Context & /* unused */,
       break;
     }
     
-    m_output->println("");
+    m_output->println("%s", "");
     
   }
 
   m_output->println("end processes");
-  m_output->println("");
+  m_output->println("%s", "");
 
   m_cpcd.m_processes.unlock();
 }
@@ -394,7 +401,7 @@ CPCDAPISession::showVersion(Parser_t::Context & /* unused */,
   m_output->println("show version");
   m_output->println("compile time: %s %s", __DATE__, __TIME__);
 
-  m_output->println("");
+  m_output->println("%s", "");
 }
 
 template class Vector<ParserRow<CPCDAPISession> const*>;

@@ -1,0 +1,54 @@
+== 1 ==
+ndb_mgmd,3,localhost mysqld,49,localhost mysqld,16,localhost mysqld,32,localhost mysqld,48,localhost mysqld,63,localhost mysqld,127,localhost mysqld,192,localhost mysqld,228,localhost mysqld,229,localhost mysqld,230,localhost mysqld,231,localhost mysqld,232,localhost mysqld,233,localhost mysqld,255,localhost ndbd,1,localhost ndbd,2,localhost
+== 2 ==
+1,localhost,20971520,3145728 2,localhost,20971520,3145728
+== 3 ==
+1 localhost 20971520 3145728
+2 localhost 20971520 3145728
+== 4 ==
+1 2
+== 5 ==
+ndb_mgmd,3,localhost mysqld,4, mysqld,5, mysqld,6, mysqld,7, mysqld,8, mysqld,9, mysqld,10, mysqld,63, mysqld,127, mysqld,192, mysqld,228, mysqld,255, ndbd,1,localhost ndbd,2,localhost
+== 6 ==
+ndb_mgmd,5,localhost,, mysqld,6,localhost,, ndbd,1,localhost,52428800,26214400 ndbd,2,localhost,52428800,36700160 ndbd,3,localhost,52428800,52428800 ndbd,4,localhost,52428800,52428800
+== 7 ==
+ndb_mgmd,5,localhost mysqld,6, mysqld,7, mysqld,8, mysqld,9, mysqld,10, ndbd,1,localhost ndbd,2,localhost ndbd,3,localhost ndbd,4,localhost
+== 8 ==
+ndb_mgmd,6,localhost mysqld,1, mysqld,7, mysqld,8, mysqld,9, mysqld,10, ndbd,2,localhost ndbd,3,localhost ndbd,4,localhost ndbd,5,localhost
+== 9 ==
+ndb_mgmd,1,localhost ndb_mgmd,2,localhost mysqld,11, mysqld,12, mysqld,13, mysqld,14, mysqld,15, ndbd,3,localhost ndbd,4,localhost ndbd,5,localhost ndbd,6,localhost
+== 10 ==
+tcp,3,4,55,3 tcp,3,5,55,3 tcp,3,6,55,3 tcp,4,5,55,4 tcp,4,6,55,4 tcp,5,6,55,5 tcp,11,3,55,3 tcp,11,4,55,4 tcp,11,5,55,5 tcp,11,6,55,6 tcp,12,3,55,3 tcp,12,4,55,4 tcp,12,5,55,5 tcp,12,6,55,6 tcp,13,3,55,3 tcp,13,4,55,4 tcp,13,5,55,5 tcp,13,6,55,6 tcp,14,3,55,3 tcp,14,4,55,4 tcp,14,5,55,5 tcp,14,6,55,6 tcp,15,3,55,3 tcp,15,4,55,4 tcp,15,5,55,5 tcp,15,6,55,6 tcp,1,3,55,1 tcp,1,4,55,1 tcp,1,5,55,1 tcp,1,6,55,1 tcp,2,3,55,2 tcp,2,4,55,2 tcp,2,5,55,2 tcp,2,6,55,2 tcp,1,2,55,2
+== 11 ==
+3 1 2
+== 12 ==
+
+== 13 ==
+3 1 2
+== 14 == ndb_config --configinfo
+== 15 == ndb_config --configinfo --xml
+== 16 == bug44689
+192.168.0.1 192.168.0.1 192.168.0.1 192.168.0.2 192.168.0.3 192.168.0.4
+== 17 == bug49400
+ WARNING  -- at line 5: [MGM] Id is deprecated, use NodeId instead
+ WARNING  -- at line 9: [DB] Id is deprecated, use NodeId instead
+ ERROR    -- at line 25: TCP connection is a duplicate of the existing TCP link from line 14
+ ERROR    -- at line 25: Could not store section of configuration file.
+== 18 == bug56185
+0,0-65535
+2,37-48 1,1-2
+== 19 == bug12712109
+10485760 10485760 10485760 10485760 10485760
+1
+1
+== 21 == ThreadConfig
+ WARNING  -- at line 12: WARNING: Too few CPU's specified with LockExecuteThreadToCPU. Only 4 specified  but 7 was needed, this may cause contention.
+Assigning LQH threads round robin to CPU(s) and other threads will share CPU 0
+
+ WARNING  -- at line 17: Assigning each thread its own CPU
+
+ WARNING  -- at line 22: ThreadConfig overrides MaxNoOfExecutionThreads
+ WARNING  -- at line 27: WARNING: Too few CPU's specified with LockExecuteThreadToCPU. Only 4 specified  but 7 was needed, this may cause contention.
+Assigning LQH threads round robin to CPU(s) and other threads will share CPU 0
+
+6,, 7,, 1,0-3,ldm={count=4} 2,4-8,ldm={count=4,cpubind=0-3} 3,,ldm={count=4} 4,0-3,main={cpubind=0},ldm={cpubind=1},ldm={cpubind=2},ldm={cpubind=3},ldm={cpubind=1},recv={cpubind=0},rep={cpubind=0} 5,,ldm,ldm

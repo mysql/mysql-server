@@ -1,4 +1,6 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (C) 2005, 2006, 2008 MySQL AB, 2008 Sun Microsystems, Inc.
+    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +13,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #include <ndb_global.h>
 #include <ndb_opts.h>
@@ -32,10 +35,6 @@ int useTableLogging;
 #endif
 
 
-static void usage()
-{
-}
-
 static 
 void usage(const char *prog)
 {
@@ -47,8 +46,6 @@ void usage(const char *prog)
   
   exit(1);
 }
-
-NDB_STD_OPTS_VARS;
 
 NDB_COMMAND(DbCreate, "DbCreate", "DbCreate", "DbCreate", 16384)
 {

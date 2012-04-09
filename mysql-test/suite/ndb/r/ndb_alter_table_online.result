@@ -1,0 +1,643 @@
+DROP TABLE IF EXISTS t1;
+CREATE TEMPORARY TABLE IF NOT EXISTS ndb_show_tables_results (
+id INT,
+type VARCHAR(20),
+state VARCHAR(20),
+logging VARCHAR(20),
+_database VARCHAR(255),
+_schema VARCHAR(20),
+name VARCHAR(255)
+);
+*******************************
+* basic online alter tests
+*******************************
+CREATE TABLE t1 (a INT UNSIGNED KEY, b INT UNSIGNED) ROW_FORMAT=DYNAMIC ENGINE NDB;
+INSERT INTO t1 values (1,1);
+
+ndb_show_tables completed.....
+
+set @t1_id = (select id from ndb_show_tables_results where name like '%t1%' and type like '%UserTable%');
+*******************************
+* Alter Table online add column
+*******************************
+* Add column c as CHAR
+*******************************
+ALTER TABLE t1 ADD c CHAR(19);
+
+ndb_show_tables completed.....
+
+select name from ndb_show_tables_results where id = @t1_id and name like '%t1%' and type like '%UserTable%';
+name
+'t1'
+INSERT INTO t1 values (2,1,"a");
+SELECT * FROM t1 ORDER BY a;
+a	b	c
+1	1	NULL
+2	1	a
+UPDATE t1 SET c='b' where a = 2;
+SELECT * FROM t1 ORDER BY a;
+a	b	c
+1	1	NULL
+2	1	b
+DROP TABLE t1;
+*******************************
+* Alter Table online add column
+*******************************
+* Add column c as nullable INT
+*******************************
+CREATE TABLE t1 (a INT UNSIGNED KEY, b VARCHAR(19)) ENGINE NDB;
+INSERT INTO t1 values (1,"a");
+
+ndb_show_tables completed.....
+
+set @t1_id = (select id from ndb_show_tables_results where name like '%t1%' and type like '%UserTable%');
+ALTER TABLE t1 ADD c INT;
+Warnings:
+Warning	1478	Converted FIXED field to DYNAMIC to enable on-line ADD COLUMN
+
+ndb_show_tables completed.....
+
+select name from ndb_show_tables_results where id = @t1_id and name like '%t1%' and type like '%UserTable%';
+name
+'t1'
+INSERT INTO t1 values (2,"a",1);
+SELECT * FROM t1 ORDER BY a;
+a	b	c
+1	a	NULL
+2	a	1
+UPDATE t1 SET c = 2 where a = 2;
+SELECT * FROM t1 ORDER BY a;
+a	b	c
+1	a	NULL
+2	a	2
+DROP TABLE t1;
+*******************************
+* Alter Table online add column
+*******************************
+* Add column c as nullable INT
+*******************************
+CREATE TABLE t1 (a INT UNSIGNED KEY, b INT COLUMN_FORMAT DYNAMIC) ENGINE NDB;
+INSERT INTO t1 values (1,1);
+
+ndb_show_tables completed.....
+
+set @t1_id = (select id from ndb_show_tables_results where name like '%t1%' and type like '%UserTable%');
+ALTER TABLE t1 ADD c INT;
+Warnings:
+Warning	1478	Converted FIXED field to DYNAMIC to enable on-line ADD COLUMN
+
+ndb_show_tables completed.....
+
+select name from ndb_show_tables_results where id = @t1_id and name like '%t1%' and type like '%UserTable%';
+name
+'t1'
+INSERT INTO t1 values (2,1,1);
+SELECT * FROM t1 ORDER BY a;
+a	b	c
+1	1	NULL
+2	1	1
+UPDATE t1 SET c = 2 where a = 2;
+SELECT * FROM t1 ORDER BY a;
+a	b	c
+1	1	NULL
+2	1	2
+*******************************
+* Create online Index ci
+*******************************
+CREATE ONLINE INDEX ci on t1(c);
+
+ndb_show_tables completed.....
+
+select name from ndb_show_tables_results where id = @t1_id and name like '%t1%' and type like '%UserTable%';
+name
+'t1'
+*******************************
+* Create offline Index ci2
+*******************************
+CREATE OFFLINE INDEX ci2 on t1(c);
+
+ndb_show_tables completed.....
+
+select name from ndb_show_tables_results where id = @t1_id and name like '%t1%' and type like '%UserTable%';
+name
+set @t1_id = (select id from ndb_show_tables_results where name like '%t1%' and type like '%UserTable%');
+*******************************
+* Drop online Index ci
+*******************************
+DROP ONLINE INDEX ci on t1;
+
+ndb_show_tables completed.....
+
+select name from ndb_show_tables_results where id = @t1_id and name like '%t1%' and type like '%UserTable%';
+name
+'t1'
+*******************************
+* Drop offline Index ci2
+*******************************
+DROP OFFLINE INDEX ci2 on t1;
+
+ndb_show_tables completed.....
+
+select name from ndb_show_tables_results where id = @t1_id and name like '%t1%' and type like '%UserTable%';
+name
+DROP TABLE t1;
+*******************************
+* The following ALTER operations are not supported on-line
+*******************************
+* Not supported Test#1
+*******************************
+CREATE TABLE t1 (a INT UNSIGNED KEY, b INT UNSIGNED) ROW_FORMAT=FIXED ENGINE NDB;
+INSERT INTO t1 values (1,1);
+
+ndb_show_tables completed.....
+
+set @t1_id = (select id from ndb_show_tables_results where name like '%t1%' and type like '%UserTable%');
+ALTER ONLINE TABLE t1 ADD c CHAR(19);
+ERROR 42000: This version of MySQL doesn't yet support 'ALTER ONLINE TABLE t1 ADD c CHAR(19)'
+
+ndb_show_tables completed.....
+
+select name from ndb_show_tables_results where id = @t1_id and name like '%t1%' and type like '%UserTable%';
+name
+'t1'
+ALTER TABLE t1 ADD c CHAR(19);
+INSERT INTO t1 values (2,1,"a");
+SELECT * FROM t1 ORDER BY a;
+a	b	c
+1	1	NULL
+2	1	a
+UPDATE t1 SET c = 'b' where a = 2;
+SELECT * FROM t1 ORDER BY a;
+a	b	c
+1	1	NULL
+2	1	b
+DROP TABLE t1;
+*******************************
+* Not supported Test#2
+*******************************
+CREATE TABLE t1 (a INT UNSIGNED KEY, b INT UNSIGNED) ROW_FORMAT=DYNAMIC ENGINE NDB;
+INSERT INTO t1 values (1,1);
+
+ndb_show_tables completed.....
+
+set @t1_id = (select id from ndb_show_tables_results where name like '%t1%' and type like '%UserTable%');
+ALTER ONLINE TABLE t1 ADD c CHAR(19) DEFAULT 17;
+ERROR 42000: This version of MySQL doesn't yet support 'ALTER ONLINE TABLE t1 ADD c CHAR(19) DEFAULT 17'
+
+ndb_show_tables completed.....
+
+select name from ndb_show_tables_results where id = @t1_id and name like '%t1%' and type like '%UserTable%';
+name
+'t1'
+ALTER TABLE t1 ADD c CHAR(19) DEFAULT 17;
+INSERT INTO t1 values (2,1,"a");
+SELECT * FROM t1 ORDER BY a;
+a	b	c
+1	1	17
+2	1	a
+UPDATE t1 SET c = 'b' where a = 2;
+SELECT * FROM t1 ORDER BY a;
+a	b	c
+1	1	17
+2	1	b
+*******************************
+* Not supported Test#3
+*******************************
+
+ndb_show_tables completed.....
+
+set @t1_id = (select id from ndb_show_tables_results where name like '%t1%' and type like '%UserTable%');
+ALTER ONLINE TABLE t1 ADD d INT AFTER b;
+ERROR 42000: This version of MySQL doesn't yet support 'ALTER ONLINE TABLE t1 ADD d INT AFTER b'
+
+ndb_show_tables completed.....
+
+select name from ndb_show_tables_results where id = @t1_id and name like '%t1%' and type like '%UserTable%';
+name
+'t1'
+ALTER TABLE t1 ADD d INT AFTER b;
+
+ndb_show_tables completed.....
+
+select name from ndb_show_tables_results where id = @t1_id and name like '%t1%' and type like '%UserTable%';
+name
+INSERT INTO t1 VALUES(3,1,1,'b');
+SELECT * FROM t1 ORDER BY a;
+a	b	d	c
+1	1	NULL	17
+2	1	NULL	b
+3	1	1	b
+UPDATE t1 SET d = 2 where a = 3;
+SELECT * FROM t1 ORDER BY a;
+a	b	d	c
+1	1	NULL	17
+2	1	NULL	b
+3	1	2	b
+*******************************
+* Not supported Test#4
+*******************************
+
+ndb_show_tables completed.....
+
+set @t1_id = (select id from ndb_show_tables_results where name like '%t1%' and type like '%UserTable%');
+ALTER ONLINE TABLE t1 ENGINE MYISAM;
+ERROR 42000: This version of MySQL doesn't yet support 'ALTER ONLINE TABLE t1 ENGINE MYISAM'
+
+ndb_show_tables completed.....
+
+select name from ndb_show_tables_results where id = @t1_id and name like '%t1%' and type like '%UserTable%';
+name
+'t1'
+DROP TABLE t1;
+*******************************
+* Not supported Test#5
+*******************************
+CREATE TABLE t1 (a INT UNSIGNED KEY, b INT UNSIGNED) ROW_FORMAT=DYNAMIC ENGINE NDB;
+INSERT INTO t1 values (1,1);
+
+ndb_show_tables completed.....
+
+set @t1_id = (select id from ndb_show_tables_results where name like '%t1%' and type like '%UserTable%');
+ALTER ONLINE TABLE t1 ADD c TIMESTAMP;
+ERROR 42000: This version of MySQL doesn't yet support 'ALTER ONLINE TABLE t1 ADD c TIMESTAMP'
+
+ndb_show_tables completed.....
+
+select name from ndb_show_tables_results where id = @t1_id and name like '%t1%' and type like '%UserTable%';
+name
+'t1'
+ALTER TABLE t1 ADD c TIMESTAMP;
+INSERT INTO t1 values (2,2,'2007-09-19 18:46:02');
+SELECT * FROM t1 ORDER BY a;
+a	b	c
+1	1	0000-00-00 00:00:00
+2	2	2007-09-19 18:46:02
+UPDATE t1 SET c = '2007-10-22 16:35:06' where a = 2;
+SELECT * FROM t1 ORDER BY a;
+a	b	c
+1	1	0000-00-00 00:00:00
+2	2	2007-10-22 16:35:06
+DROP TABLE t1;
+*******************************
+* Not supported Test#6
+*******************************
+CREATE TABLE t1 (a INT UNSIGNED KEY, b INT UNSIGNED) ROW_FORMAT=DYNAMIC ENGINE NDB;
+INSERT INTO t1 values (1,1);
+
+ndb_show_tables completed.....
+
+set @t1_id = (select id from ndb_show_tables_results where name like '%t1%' and type like '%UserTable%');
+ALTER ONLINE TABLE t1 ADD c CHAR(19) NOT NULL;
+ERROR 42000: This version of MySQL doesn't yet support 'ALTER ONLINE TABLE t1 ADD c CHAR(19) NOT NULL'
+
+ndb_show_tables completed.....
+
+select name from ndb_show_tables_results where id = @t1_id and name like '%t1%' and type like '%UserTable%';
+name
+'t1'
+ALTER TABLE t1 ADD c CHAR(19) NOT NULL;
+INSERT INTO t1 values (2,1,"a");
+SELECT * FROM t1 ORDER BY a;
+a	b	c
+1	1	
+2	1	a
+UPDATE t1 SET c = 'b' where a = 2;
+SELECT * FROM t1 ORDER BY a;
+a	b	c
+1	1	
+2	1	b
+DROP TABLE t1;
+*******************************
+* Not supported Test#7
+*******************************
+CREATE TABLE t1 (a INT UNSIGNED KEY, b INT UNSIGNED) ROW_FORMAT=DYNAMIC ENGINE NDB;
+INSERT INTO t1 values (1,1);
+
+ndb_show_tables completed.....
+
+set @t1_id = (select id from ndb_show_tables_results where name like '%t1%' and type like '%UserTable%');
+ALTER ONLINE TABLE t1 ADD c CHAR(19) COLUMN_FORMAT FIXED;
+ERROR 42000: This version of MySQL doesn't yet support 'ALTER ONLINE TABLE t1 ADD c CHAR(19) COLUMN_FORMAT FIXED'
+
+ndb_show_tables completed.....
+
+select name from ndb_show_tables_results where id = @t1_id and name like '%t1%' and type like '%UserTable%';
+name
+'t1'
+ALTER TABLE t1 ADD c CHAR(19) COLUMN_FORMAT FIXED;
+INSERT INTO t1 values (2,1,"a");
+SELECT * FROM t1 ORDER BY a;
+a	b	c
+1	1	NULL
+2	1	a
+UPDATE t1 SET c = 'b' WHERE a = 2;
+SELECT * FROM t1 ORDER BY a;
+a	b	c
+1	1	NULL
+2	1	b
+DROP TABLE t1;
+*******************************
+* Not supported Test#8
+* Ndb doesn't support renaming attributes on-line
+*******************************
+CREATE TABLE t1 (
+auto int(5) unsigned NOT NULL auto_increment,
+string char(10),
+vstring varchar(10),
+bin binary(2),
+vbin varbinary(7),
+tiny tinyint(4) DEFAULT '0' NOT NULL ,
+short smallint(6) DEFAULT '1' NOT NULL ,
+medium mediumint(8) DEFAULT '0' NOT NULL,
+long_int int(11) DEFAULT '0' NOT NULL,
+longlong bigint(13) DEFAULT '0' NOT NULL,
+real_float float(13,1) DEFAULT 0.0 NOT NULL,
+real_double double(16,4),
+real_decimal decimal(16,4),
+utiny tinyint(3) unsigned DEFAULT '0' NOT NULL,
+ushort smallint(5) unsigned zerofill DEFAULT '00000' NOT NULL,
+umedium mediumint(8) unsigned DEFAULT '0' NOT NULL,
+ulong int(11) unsigned DEFAULT '0' NOT NULL,
+ulonglong bigint(13) unsigned DEFAULT '0' NOT NULL,
+bits bit(3),
+options enum('zero','one','two','three','four') not null,
+flags set('zero','one','two','three','four') not null,
+date_field date,
+year_field year,
+time_field time,
+date_time datetime,
+time_stamp timestamp,
+PRIMARY KEY (auto)
+) engine=ndb;
+
+ndb_show_tables completed.....
+
+set @t1_id = (select id from ndb_show_tables_results where name like '%t1%' and type like '%UserTable%');
+alter online table t1 change tiny new_tiny tinyint(4) DEFAULT '0' NOT NULL;
+ERROR 42000: This version of MySQL doesn't yet support 'alter online table t1 change tiny new_tiny tinyint(4) DEFAULT '0' NOT NULL'
+
+ndb_show_tables completed.....
+
+select name from ndb_show_tables_results where id = @t1_id and name like '%t1%' and type like '%UserTable%';
+name
+'t1'
+alter table t1 change tiny new_tiny tinyint(4) DEFAULT '0' NOT NULL;
+create index i1 on t1(medium);
+alter table t1 add index i2(new_tiny);
+drop index i1 on t1;
+
+ndb_show_tables completed.....
+
+select name from ndb_show_tables_results where id = @t1_id and name like '%t1%' and type like '%UserTable%';
+name
+DROP TABLE t1;
+****************************************
+* Adding dropping primary key
+****************************************
+CREATE TABLE t1 (a INT UNSIGNED NOT NULL) ENGINE NDB;
+Primary keys:
+$PK Bigunsigned PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY AUTO_INCR
+PRIMARY KEY($PK) - UniqueHashIndex
+ALTER ONLINE TABLE t1 ADD PRIMARY KEY (a);
+ERROR 42000: This version of MySQL doesn't yet support 'ALTER ONLINE TABLE t1 ADD PRIMARY KEY (a)'
+ALTER OFFLINE TABLE t1 ADD PRIMARY KEY (a);
+Primary keys:
+a Unsigned PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+PRIMARY KEY(a) - UniqueHashIndex
+PRIMARY(a) - OrderedIndex
+ALTER ONLINE TABLE t1 DROP PRIMARY KEY;
+ERROR 42000: This version of MySQL doesn't yet support 'ALTER ONLINE TABLE t1 DROP PRIMARY KEY'
+ALTER OFFLINE TABLE t1 DROP PRIMARY KEY;
+Primary keys:
+$PK Bigunsigned PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY AUTO_INCR
+PRIMARY KEY($PK) - UniqueHashIndex
+CREATE ONLINE UNIQUE INDEX pk ON t1(a);
+ERROR 42000: This version of MySQL doesn't yet support 'CREATE ONLINE UNIQUE INDEX pk ON t1(a)'
+CREATE OFFLINE UNIQUE INDEX pk ON t1(a);
+Primary keys:
+a Unsigned PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+PRIMARY KEY(a) - UniqueHashIndex
+ALTER ONLINE TABLE t1 DROP INDEX PK;
+ERROR 42000: This version of MySQL doesn't yet support 'ALTER ONLINE TABLE t1 DROP INDEX PK'
+ALTER OFFLINE TABLE t1 DROP INDEX PK;
+Primary keys:
+$PK Bigunsigned PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY AUTO_INCR
+PRIMARY KEY($PK) - UniqueHashIndex
+DROP TABLE t1;
+CREATE TABLE t1 (a INT UNSIGNED) ENGINE NDB;
+ALTER ONLINE TABLE t1 ADD b INT UNIQUE;
+ERROR 42000: This version of MySQL doesn't yet support 'ALTER ONLINE TABLE t1 ADD b INT UNIQUE'
+ALTER OFFLINE TABLE t1 ADD b INT UNIQUE;
+Primary keys:
+$PK Bigunsigned PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY AUTO_INCR
+PRIMARY KEY($PK) - UniqueHashIndex
+ALTER ONLINE TABLE t1 ADD c INT NOT NULL UNIQUE;
+ERROR 42000: This version of MySQL doesn't yet support 'ALTER ONLINE TABLE t1 ADD c INT NOT NULL UNIQUE'
+ALTER OFFLINE TABLE t1 ADD c INT NOT NULL UNIQUE;
+Primary keys:
+c Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+PRIMARY KEY(c) - UniqueHashIndex
+DROP TABLE t1;
+****************************************
+* Add column c as nullable TEXT and BLOB
+****************************************
+CREATE TABLE t1 (a INT UNSIGNED  AUTO_INCREMENT KEY, b INT DEFAULT 2 COLUMN_FORMAT DYNAMIC) ENGINE NDB;
+
+ndb_show_tables completed.....
+
+set @t1_id = (select id from ndb_show_tables_results where name like '%t1%' and type like '%UserTable%');
+ALTER ONLINE TABLE t1 ADD c TEXT;
+ERROR 42000: This version of MySQL doesn't yet support 'ALTER ONLINE TABLE t1 ADD c TEXT'
+
+ndb_show_tables completed.....
+
+select name from ndb_show_tables_results where id = @t1_id and name like '%t1%' and type like '%UserTable%';
+name
+'t1'
+ALTER ONLINE TABLE t1 ADD d BLOB;
+ERROR 42000: This version of MySQL doesn't yet support 'ALTER ONLINE TABLE t1 ADD d BLOB'
+
+ndb_show_tables completed.....
+
+select name from ndb_show_tables_results where id = @t1_id and name like '%t1%' and type like '%UserTable%';
+name
+'t1'
+DROP TABLE t1;
+CREATE TABLE t1 (a INT UNSIGNED AUTO_INCREMENT KEY, b INT COLUMN_FORMAT DYNAMIC) ENGINE NDB;
+
+ndb_show_tables completed.....
+
+set @t1_id = (select id from ndb_show_tables_results where name like '%t1%' and type like '%UserTable%');
+*******************************
+* Add column c as nullable FLOAT
+*******************************
+ALTER ONLINE TABLE t1 ADD c FLOAT;
+Warnings:
+Warning	1478	Converted FIXED field to DYNAMIC to enable on-line ADD COLUMN
+*******************************
+* Add column d as nullable DOUBLE
+*******************************
+ALTER ONLINE TABLE t1 ADD d DOUBLE UNSIGNED;
+Warnings:
+Warning	1478	Converted FIXED field to DYNAMIC to enable on-line ADD COLUMN
+*******************************
+* Add column e as nullable DECIMAL
+*******************************
+ALTER ONLINE TABLE t1 ADD e DECIMAL(5,2);
+Warnings:
+Warning	1478	Converted FIXED field to DYNAMIC to enable on-line ADD COLUMN
+*******************************
+* Add column f as nullable DATETIME
+*******************************
+ALTER ONLINE TABLE t1 ADD f DATETIME;
+Warnings:
+Warning	1478	Converted FIXED field to DYNAMIC to enable on-line ADD COLUMN
+*******************************
+* Add column g as nullable BINARY
+*******************************
+ALTER TABLE t1 ADD g BINARY(4);
+Warnings:
+Warning	1478	Converted FIXED field to DYNAMIC to enable on-line ADD COLUMN
+
+ndb_show_tables completed.....
+
+select name from ndb_show_tables_results where id = @t1_id and name like '%t1%' and type like '%UserTable%';
+name
+'t1'
+SELECT COUNT(*) FROM t1 WHERE c IS NULL;
+COUNT(*)
+5
+SELECT COUNT(*) FROM t1 WHERE d IS NULL;
+COUNT(*)
+10
+SELECT COUNT(*) FROM t1 WHERE e IS NULL;
+COUNT(*)
+15
+SELECT COUNT(*) FROM t1 WHERE f IS NULL;
+COUNT(*)
+20
+SELECT COUNT(*) FROM t1 WHERE g IS NULL;
+COUNT(*)
+25
+UPDATE t1 SET c = 3.402823466E+38, d = 1.2686868689898E+308, e = 666.66, f = '2007-10-23 23:23:23', g = '1111' WHERE a = 1;
+SELECT * FROM t1 WHERE a = 1 or a = 10 or a = 20 or a = 30 ORDER BY a;
+a	b	c	d	e	f	g
+1	5	3.40282e38	1.2686868689898e308	666.66	2007-10-23 23:23:23	1111
+10	1	-3.40282e38	NULL	NULL	NULL	NULL
+20	1	-3.40282e38	1.7976931348623e308	345.21	NULL	NULL
+30	1	-3.40282e38	1.7976931348623e308	345.21	1000-01-01 00:00:00	0101
+*********************************
+* Backup and restore tables w/ new column
+*********************************
+DROP TABLE t1;
+ForceVarPart: 1
+DROP TABLE t1;
+*********************************
+* Disk Data error testing
+*********************************
+set default_storage_engine=ndb;
+CREATE LOGFILE GROUP lg1
+ADD UNDOFILE 'undofile.dat'
+INITIAL_SIZE 16M
+UNDO_BUFFER_SIZE = 1M;
+CREATE TABLESPACE ts1
+ADD DATAFILE 'datafile.dat'
+USE LOGFILE GROUP lg1
+INITIAL_SIZE 12M
+ENGINE NDB;
+CREATE TABLE t1
+(pk1 INT NOT NULL PRIMARY KEY, b INT COLUMN_FORMAT DYNAMIC)
+TABLESPACE ts1 STORAGE DISK
+ENGINE=NDB;
+Warnings:
+Warning	1478	DYNAMIC column b with STORAGE DISK is not supported, column will become FIXED
+ALTER ONLINE TABLE t1 CHANGE b b_1 INT COLUMN_FORMAT DYNAMIC;
+ERROR 42000: This version of MySQL doesn't yet support 'ALTER ONLINE TABLE t1 CHANGE b b_1 INT COLUMN_FORMAT DYNAMIC'
+ALTER ONLINE TABLE t1 ADD COLUMN c INT COLUMN_FORMAT DYNAMIC;
+ERROR 42000: This version of MySQL doesn't yet support 'ALTER ONLINE TABLE t1 ADD COLUMN c INT COLUMN_FORMAT DYNAMIC'
+ALTER ONLINE TABLE t1 ADD COLUMN d FLOAT COLUMN_FORMAT DYNAMIC;
+ERROR 42000: This version of MySQL doesn't yet support 'ALTER ONLINE TABLE t1 ADD COLUMN d FLOAT COLUMN_FORMAT DYNAMIC'
+ALTER ONLINE TABLE t1 ADD COLUMN  e DOUBLE COLUMN_FORMAT DYNAMIC;
+ERROR 42000: This version of MySQL doesn't yet support 'ALTER ONLINE TABLE t1 ADD COLUMN  e DOUBLE COLUMN_FORMAT DYNAMIC'
+ALTER ONLINE TABLE t1 ADD COLUMN f DATETIME COLUMN_FORMAT DYNAMIC;
+ERROR 42000: This version of MySQL doesn't yet support 'ALTER ONLINE TABLE t1 ADD COLUMN f DATETIME COLUMN_FORMAT DYNAMIC'
+ALTER ONLINE TABLE t1 ADD COLUMN g DECIMAL(5,2) COLUMN_FORMAT DYNAMIC;
+ERROR 42000: This version of MySQL doesn't yet support 'ALTER ONLINE TABLE t1 ADD COLUMN g DECIMAL(5,2) COLUMN_FORMAT DYNAMIC'
+ALTER ONLINE TABLE t1 ADD COLUMN h CHAR(20) COLUMN_FORMAT DYNAMIC;
+ERROR 42000: This version of MySQL doesn't yet support 'ALTER ONLINE TABLE t1 ADD COLUMN h CHAR(20) COLUMN_FORMAT DYNAMIC'
+ALTER ONLINE TABLE t1 ADD COLUMN h VARCHAR(20) COLUMN_FORMAT DYNAMIC;
+ERROR 42000: This version of MySQL doesn't yet support 'ALTER ONLINE TABLE t1 ADD COLUMN h VARCHAR(20) COLUMN_FORMAT DYNAMIC'
+ALTER ONLINE TABLE t1 ADD COLUMN h BINARY(20) COLUMN_FORMAT DYNAMIC;
+ERROR 42000: This version of MySQL doesn't yet support 'ALTER ONLINE TABLE t1 ADD COLUMN h BINARY(20) COLUMN_FORMAT DYNAMIC'
+ALTER ONLINE TABLE t1 ADD COLUMN h VARBINARY(20) COLUMN_FORMAT DYNAMIC;
+ERROR 42000: This version of MySQL doesn't yet support 'ALTER ONLINE TABLE t1 ADD COLUMN h VARBINARY(20) COLUMN_FORMAT DYNAMIC'
+DROP TABLE t1;
+create table t1 (a int primary key, b int) storage disk tablespace ts1 engine = ndb;
+alter online table t1 add column c0 int null column_format DYNAMIC;
+ERROR 42000: This version of MySQL doesn't yet support 'alter online table t1 add column c0 int null column_format DYNAMIC'
+alter online table t1 add column c1 int null column_format DYNAMIC storage memory;
+drop table t1;
+create table t1 (a int primary key, b int storage disk) tablespace ts1 engine = ndb;
+alter online table t1 add column c0 int null column_format DYNAMIC;
+alter online table t1 add column c1 int null column_format DYNAMIC storage memory;
+drop table t1;
+ALTER TABLESPACE ts1
+DROP DATAFILE 'datafile.dat'
+ENGINE = NDB;
+DROP TABLESPACE ts1
+ENGINE = NDB;
+DROP LOGFILE GROUP lg1
+ENGINE =NDB;
+********************
+* ROW_FORMAT testing
+********************
+CREATE TABLE t1
+(pk1 INT NOT NULL PRIMARY KEY, b INT COLUMN_FORMAT DYNAMIC)ROW_FORMAT=FIXED
+ENGINE=NDB;
+Warnings:
+Warning	1478	Row format FIXED incompatible with dynamic attribute b
+Attributes:
+pk1 Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+b Int NULL AT=FIXED ST=MEMORY DYNAMIC
+DROP TABLE t1;
+CREATE TABLE t1
+(pk1 INT NOT NULL COLUMN_FORMAT FIXED PRIMARY KEY, 
+b INT COLUMN_FORMAT FIXED)ROW_FORMAT=DYNAMIC ENGINE=NDB;
+Attributes:
+pk1 Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+b Int NULL AT=FIXED ST=MEMORY
+DROP TABLE t1;
+********************
+* bug#44695 ALTER TABLE during START BACKUP crashes mysqld     
+********************
+CREATE TABLE t1(k INT NOT NULL PRIMARY KEY AUTO_INCREMENT) ROW_FORMAT=DYNAMIC ENGINE=NDB;
+INSERT INTO t1 VALUES (NULL);
+INSERT INTO t1 SELECT NULL FROM t1;
+INSERT INTO t1 SELECT NULL FROM t1;
+INSERT INTO t1 SELECT NULL FROM t1;
+INSERT INTO t1 SELECT NULL FROM t1;
+INSERT INTO t1 SELECT NULL FROM t1;
+INSERT INTO t1 SELECT NULL FROM t1;
+INSERT INTO t1 SELECT NULL FROM t1;
+INSERT INTO t1 SELECT NULL FROM t1;
+INSERT INTO t1 SELECT NULL FROM t1;
+INSERT INTO t1 SELECT NULL FROM t1;
+INSERT INTO t1 SELECT NULL FROM t1;
+INSERT INTO t1 SELECT NULL FROM t1;
+INSERT INTO t1 SELECT NULL FROM t1;
+INSERT INTO t1 SELECT NULL FROM t1;
+SELECT COUNT(*) FROM t1;
+COUNT(*)
+16384
+ALTER ONLINE TABLE t1 ADD b INT;
+DROP TABLE t1, ndb_show_tables_results;
+create table t1 ( c499 int, c498 int, c497 int, c496 int, c495 int, c494 int, c493 int, c492 int, c491 int, c490 int, c489 int, c488 int, c487 int, c486 int, c485 int, c484 int, c483 int, c482 int, c481 int, c480 int, c479 int, c478 int, c477 int, c476 int, c475 int, c474 int, c473 int, c472 int, c471 int, c470 int, c469 int, c468 int, c467 int, c466 int, c465 int, c464 int, c463 int, c462 int, c461 int, c460 int, c459 int, c458 int, c457 int, c456 int, c455 int, c454 int, c453 int, c452 int, c451 int, c450 int, c449 int, c448 int, c447 int, c446 int, c445 int, c444 int, c443 int, c442 int, c441 int, c440 int, c439 int, c438 int, c437 int, c436 int, c435 int, c434 int, c433 int, c432 int, c431 int, c430 int, c429 int, c428 int, c427 int, c426 int, c425 int, c424 int, c423 int, c422 int, c421 int, c420 int, c419 int, c418 int, c417 int, c416 int, c415 int, c414 int, c413 int, c412 int, c411 int, c410 int, c409 int, c408 int, c407 int, c406 int, c405 int, c404 int, c403 int, c402 int, c401 int, c400 int, c399 int, c398 int, c397 int, c396 int, c395 int, c394 int, c393 int, c392 int, c391 int, c390 int, c389 int, c388 int, c387 int, c386 int, c385 int, c384 int, c383 int, c382 int, c381 int, c380 int, c379 int, c378 int, c377 int, c376 int, c375 int, c374 int, c373 int, c372 int, c371 int, c370 int, c369 int, c368 int, c367 int, c366 int, c365 int, c364 int, c363 int, c362 int, c361 int, c360 int, c359 int, c358 int, c357 int, c356 int, c355 int, c354 int, c353 int, c352 int, c351 int, c350 int, c349 int, c348 int, c347 int, c346 int, c345 int, c344 int, c343 int, c342 int, c341 int, c340 int, c339 int, c338 int, c337 int, c336 int, c335 int, c334 int, c333 int, c332 int, c331 int, c330 int, c329 int, c328 int, c327 int, c326 int, c325 int, c324 int, c323 int, c322 int, c321 int, c320 int, c319 int, c318 int, c317 int, c316 int, c315 int, c314 int, c313 int, c312 int, c311 int, c310 int, c309 int, c308 int, c307 int, c306 int, c305 int, c304 int, c303 int, c302 int, c301 int, c300 int, c299 int, c298 int, c297 int, c296 int, c295 int, c294 int, c293 int, c292 int, c291 int, c290 int, c289 int, c288 int, c287 int, c286 int, c285 int, c284 int, c283 int, c282 int, c281 int, c280 int, c279 int, c278 int, c277 int, c276 int, c275 int, c274 int, c273 int, c272 int, c271 int, c270 int, c269 int, c268 int, c267 int, c266 int, c265 int, c264 int, c263 int, c262 int, c261 int, c260 int, c259 int, c258 int, c257 int, c256 int, c255 int, c254 int, c253 int, c252 int, c251 int, c250 int, c249 int, c248 int, c247 int, c246 int, c245 int, c244 int, c243 int, c242 int, c241 int, c240 int, c239 int, c238 int, c237 int, c236 int, c235 int, c234 int, c233 int, c232 int, c231 int, c230 int, c229 int, c228 int, c227 int, c226 int, c225 int, c224 int, c223 int, c222 int, c221 int, c220 int, c219 int, c218 int, c217 int, c216 int, c215 int, c214 int, c213 int, c212 int, c211 int, c210 int, c209 int, c208 int, c207 int, c206 int, c205 int, c204 int, c203 int, c202 int, c201 int, c200 int, c199 int, c198 int, c197 int, c196 int, c195 int, c194 int, c193 int, c192 int, c191 int, c190 int, c189 int, c188 int, c187 int, c186 int, c185 int, c184 int, c183 int, c182 int, c181 int, c180 int, c179 int, c178 int, c177 int, c176 int, c175 int, c174 int, c173 int, c172 int, c171 int, c170 int, c169 int, c168 int, c167 int, c166 int, c165 int, c164 int, c163 int, c162 int, c161 int, c160 int, c159 int, c158 int, c157 int, c156 int, c155 int, c154 int, c153 int, c152 int, c151 int, c150 int, c149 int, c148 int, c147 int, c146 int, c145 int, c144 int, c143 int, c142 int, c141 int, c140 int, c139 int, c138 int, c137 int, c136 int, c135 int, c134 int, c133 int, c132 int, c131 int, c130 int, c129 int, c128 int, c127 int, c126 int, c125 int, c124 int, c123 int, c122 int, c121 int, c120 int, c119 int, c118 int, c117 int, c116 int, c115 int, c114 int, c113 int, c112 int, c111 int, c110 int, c109 int, c108 int, c107 int, c106 int, c105 int, c104 int, c103 int, c102 int, c101 int, c100 int, c99 int, c98 int, c97 int, c96 int, c95 int, c94 int, c93 int, c92 int, c91 int, c90 int, c89 int, c88 int, c87 int, c86 int, c85 int, c84 int, c83 int, c82 int, c81 int, c80 int, c79 int, c78 int, c77 int, c76 int, c75 int, c74 int, c73 int, c72 int, c71 int, c70 int, c69 int, c68 int, c67 int, c66 int, c65 int, c64 int, c63 int, c62 int, c61 int, c60 int, c59 int, c58 int, c57 int, c56 int, c55 int, c54 int, c53 int, c52 int, c51 int, c50 int, c49 int, c48 int, c47 int, c46 int, c45 int, c44 int, c43 int, c42 int, c41 int, c40 int, c39 int, c38 int, c37 int, c36 int, c35 int, c34 int, c33 int, c32 int, c31 int, c30 int, c29 int, c28 int, c27 int, c26 int, c25 int, c24 int, c23 int, c22 int, c21 int, c20 int, c19 int, c18 int, c17 int, c16 int, c15 int, c14 int, c13 int, c12 int, c11 int, c10 int, c9 int, c8 int, c7 int, c6 int, c5 int, c4 int, c3 int, c2 int, c1 int, c501 varchar(10000), primary key using hash(c1)) engine=ndb;
+insert into t1 (c1) values (1), (2), (3);
+alter offline table t1 modify c1 int auto_increment;
+alter online table t1 add column c500 bit(1) column_format DYNAMIC;
+alter offline table t1 add column c502 varchar(2000);
+ERROR 42000: Row size too large. The maximum row size for the used table type, not counting BLOBs, is 14000. You have to change some columns to TEXT or BLOBs
+alter online table t1 add column c502 varchar(2000);
+ERROR 42000: Row size too large. The maximum row size for the used table type, not counting BLOBs, is 14000. You have to change some columns to TEXT or BLOBs
+delete from t1;
+drop table t1;

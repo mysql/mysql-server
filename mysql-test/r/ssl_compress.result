@@ -608,15 +608,15 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 explain select * from t3 as t1,t3 where t1.period=t3.period order by t3.period;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ALL	period	NULL	NULL	NULL	41810	Using temporary; Using filesort
-1	SIMPLE	t3	ref	period	period	4	test.t1.period	4181	
+1	SIMPLE	t3	ref	period	period	4	test.t1.period	4181	NULL
 explain select * from t3 as t1,t3 where t1.period=t3.period order by t3.period limit 10;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t3	index	period	period	4	NULL	1	
-1	SIMPLE	t1	ref	period	period	4	test.t3.period	4181	
+1	SIMPLE	t3	index	period	period	4	NULL	1	NULL
+1	SIMPLE	t1	ref	period	period	4	test.t3.period	4181	NULL
 explain select * from t3 as t1,t3 where t1.period=t3.period order by t1.period limit 10;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	index	period	period	4	NULL	1	
-1	SIMPLE	t3	ref	period	period	4	test.t1.period	4181	
+1	SIMPLE	t1	index	period	period	4	NULL	1	NULL
+1	SIMPLE	t3	ref	period	period	4	test.t1.period	4181	NULL
 select period from t1;
 period
 9410
@@ -630,8 +630,8 @@ fld3	period
 breaking	1001
 explain select fld3,period from t2,t3 where t2.fld1 = 011401 and t3.t2nr=t2.fld1 and 1001 = t3.period;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	const	fld1	fld1	4	const	1	
-1	SIMPLE	t3	const	PRIMARY,period	PRIMARY	4	const	1	
+1	SIMPLE	t2	const	fld1	fld1	4	const	1	NULL
+1	SIMPLE	t3	const	PRIMARY,period	PRIMARY	4	const	1	NULL
 select fld3,period from t2,t1 where companynr*10 = 37*10;
 fld3	period
 breaking	9410
@@ -1362,11 +1362,11 @@ count(*)
 1199
 explain select t2.companynr,companyname from t2 left join t4 using (companynr) where t4.companynr is null;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	1200	
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	1200	NULL
 1	SIMPLE	t4	eq_ref	PRIMARY	PRIMARY	1	test.t2.companynr	1	Using where; Not exists
 explain select t2.companynr,companyname from t4 left join t2 using (companynr) where t2.companynr is null;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t4	ALL	NULL	NULL	NULL	NULL	12	
+1	SIMPLE	t4	ALL	NULL	NULL	NULL	NULL	12	NULL
 1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	1200	Using where; Not exists; Using join buffer (Block Nested Loop)
 select companynr,companyname from t2 left join t4 using (companynr) where companynr is null;
 companynr	companyname
@@ -1383,15 +1383,15 @@ delete from t2 where fld1=999999;
 explain select t2.companynr,companyname from t4 left join t2 using (companynr) where t2.companynr > 0;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	1199	Using where
-1	SIMPLE	t4	eq_ref	PRIMARY	PRIMARY	1	test.t2.companynr	1	
+1	SIMPLE	t4	eq_ref	PRIMARY	PRIMARY	1	test.t2.companynr	1	NULL
 explain select t2.companynr,companyname from t4 left join t2 using (companynr) where t2.companynr > 0 or t2.companynr < 0;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	1199	Using where
-1	SIMPLE	t4	eq_ref	PRIMARY	PRIMARY	1	test.t2.companynr	1	
+1	SIMPLE	t4	eq_ref	PRIMARY	PRIMARY	1	test.t2.companynr	1	NULL
 explain select t2.companynr,companyname from t4 left join t2 using (companynr) where t2.companynr > 0 and t4.companynr > 0;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	1199	Using where
-1	SIMPLE	t4	eq_ref	PRIMARY	PRIMARY	1	test.t2.companynr	1	
+1	SIMPLE	t4	eq_ref	PRIMARY	PRIMARY	1	test.t2.companynr	1	NULL
 explain select companynr,companyname from t4 left join t2 using (companynr) where companynr > 0;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t4	ALL	PRIMARY	NULL	NULL	NULL	12	Using where
@@ -1406,15 +1406,15 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	1199	Using where; Using join buffer (Block Nested Loop)
 explain select t2.companynr,companyname from t4 left join t2 using (companynr) where t2.companynr > 0 or t2.companynr is null;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t4	ALL	NULL	NULL	NULL	NULL	12	
+1	SIMPLE	t4	ALL	NULL	NULL	NULL	NULL	12	NULL
 1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	1199	Using where; Using join buffer (Block Nested Loop)
 explain select t2.companynr,companyname from t4 left join t2 using (companynr) where t2.companynr > 0 or t2.companynr < 0 or t4.companynr > 0;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t4	ALL	PRIMARY	NULL	NULL	NULL	12	
+1	SIMPLE	t4	ALL	PRIMARY	NULL	NULL	NULL	12	NULL
 1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	1199	Using where; Using join buffer (Block Nested Loop)
 explain select t2.companynr,companyname from t4 left join t2 using (companynr) where ifnull(t2.companynr,1)>0;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t4	ALL	NULL	NULL	NULL	NULL	12	
+1	SIMPLE	t4	ALL	NULL	NULL	NULL	NULL	12	NULL
 1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	1199	Using where; Using join buffer (Block Nested Loop)
 explain select companynr,companyname from t4 left join t2 using (companynr) where companynr > 0 or companynr is null;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
@@ -1953,7 +1953,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
 explain select fld3 from t2 where fld1=fld1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	1199	
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	1199	NULL
 select companynr,fld1 from t2 HAVING fld1=250501 or fld1=250502;
 companynr	fld1
 34	250501

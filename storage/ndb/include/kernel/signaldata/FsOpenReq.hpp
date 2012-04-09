@@ -1,4 +1,6 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (C) 2003-2008 MySQL AB, 2008, 2009 Sun Microsystems, Inc.
+    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +13,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #ifndef FS_OPEN_REQ_H
 #define FS_OPEN_REQ_H
@@ -29,8 +32,11 @@ class FsOpenReq {
    */
   friend class Ndbfs;         // Reciver
   friend class AsyncFile;     // Uses FsOpenReq to decode file open flags
+  friend class PosixAsyncFile; // FIXME
+  friend class Win32AsyncFile; // FIXME
   friend class Filename;
   friend class VoidFs;
+  friend class AsyncIoThread;
 
   /**
    * Sender(s)
@@ -87,6 +93,9 @@ private:
   STATIC_CONST( OM_INIT           = 0x1000 ); // 
   STATIC_CONST( OM_CHECK_SIZE     = 0x2000 );
   STATIC_CONST( OM_DIRECT         = 0x4000 );
+  STATIC_CONST( OM_GZ             = 0x8000 );
+  STATIC_CONST( OM_THREAD_POOL    = 0x10000 );
+  STATIC_CONST( OM_WRITE_BUFFER   = 0x20000 );
   
   enum Suffixes {
     S_DATA = 0,
@@ -98,6 +107,15 @@ private:
     S_SYSFILE = 6,
     S_LOG = 7,
     S_CTL = 8
+  };
+
+  enum BasePathSpec
+  {
+    BP_FS = 0,     // FileSystemPath
+    BP_BACKUP = 1, // BackupDataDir
+    BP_DD_DF = 2,  // FileSystemPathDataFiles
+    BP_DD_UF = 3,  // FileSystemPathUndoFiles
+    BP_MAX = 4
   };
   
   static Uint32 getVersion(const Uint32 fileNumber[]);
@@ -133,7 +151,17 @@ private:
   static void v2_setCount(Uint32 fileNumber[], Uint32 no);
 
   /**
-   * V4 - LCP
+   * V4 - Specified filename
+   */
+  static Uint32 v4_getBasePath(const Uint32 fileNumber[]) {
+    return v5_getLcpNo(fileNumber);
+  }
+  static void v4_setBasePath(Uint32 fileNumber[], Uint32 no) {
+    v5_setLcpNo(fileNumber, no);
+  }
+
+  /**
+   * V5 - LCP
    */
   static Uint32 v5_getLcpNo(const Uint32 fileNumber[]);
   static Uint32 v5_getTableId(const Uint32 fileNumber[]);

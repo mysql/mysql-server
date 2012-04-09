@@ -1,0 +1,44 @@
+drop table if exists t1;
+create table t1 (
+a int not null primary key,
+b int not null
+) engine=ndb;
+insert into t1 values (1,10), (2,20), (3,100), (4, 100);
+create procedure test_proc1 (in var_in int)
+begin
+select * from t1 where a = var_in;
+end;
+create procedure test_proc2 (out var_out int)
+begin
+select b from t1 where a = 1 into var_out;
+end;
+create procedure test_proc3 (inout var_inout int)
+begin
+select b from t1 where a = var_inout into var_inout;
+end;
+//
+call test_proc1(1);
+a	b
+1	10
+call test_proc2(@test_var);
+select @test_var;
+@test_var
+10
+set @test_var = 1;
+call test_proc3(@test_var);
+select @test_var;
+@test_var
+10
+alter procedure test_proc1 comment 'new comment';
+show create procedure test_proc1;
+Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
+test_proc1		CREATE DEFINER=`root`@`localhost` PROCEDURE `test_proc1`(in var_in int)
+    COMMENT 'new comment'
+begin
+select * from t1 where a = var_in;
+end	latin1	latin1_swedish_ci	latin1_swedish_ci
+drop procedure test_proc1;
+drop procedure test_proc2;
+drop procedure test_proc3;
+drop table t1;
+End of 5.1 tests

@@ -158,7 +158,7 @@ bool reload_acl_and_cache(THD *thd, unsigned long options,
   {
 #ifdef HAVE_REPLICATION
     mysql_mutex_lock(&LOCK_active_mi);
-    if (rotate_relay_log(active_mi))
+    if (active_mi != NULL && rotate_relay_log(active_mi))
       *write_to_binlog= -1;
     mysql_mutex_unlock(&LOCK_active_mi);
 #endif
@@ -314,10 +314,15 @@ bool reload_acl_and_cache(THD *thd, unsigned long options,
  {
    tmp_write_to_binlog= 0;
    mysql_mutex_lock(&LOCK_active_mi);
-   if (reset_slave(thd, active_mi))
+   if (active_mi != NULL && reset_slave(thd, active_mi))
    {
      /* NOTE: my_error() has been already called by reset_slave(). */
      result= 1;
+   }
+   else if (active_mi == NULL)
+   {
+     result= 1;
+     my_error(ER_SLAVE_CONFIGURATION, MYF(0));
    }
    mysql_mutex_unlock(&LOCK_active_mi);
  }

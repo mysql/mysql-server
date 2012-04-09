@@ -1,4 +1,5 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +12,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #include <ndb_global.h>
 
@@ -22,13 +24,12 @@
 #include <FileLogHandler.hpp>
 #include "LogHandlerList.hpp"
 
-#if !defined NDB_WIN32
+#ifdef _WIN32
+#include "EventLogHandler.hpp"
+#else
 #include <SysLogHandler.hpp>
 #endif
 
-//
-// PUBLIC
-//
 const char* Logger::LoggerLevelNames[] = { "ON      ", 
 					   "DEBUG   ",
 					   "INFO    ",
@@ -68,23 +69,25 @@ Logger::setCategory(const char* pCategory)
 }
 
 bool
-Logger::createConsoleHandler()
+Logger::createConsoleHandler(NdbOut &out)
 {
   Guard g(m_handler_mutex);
-  bool rc = true;
 
-  if (m_pConsoleHandler == NULL)
+  if (m_pConsoleHandler)
+    return true; // Ok, already exist
+
+  LogHandler* log_handler = new ConsoleLogHandler(out);
+  if (!log_handler)
+    return false;
+
+  if (!addHandler(log_handler))
   {
-    m_pConsoleHandler = new ConsoleLogHandler(); 
-    if (!addHandler(m_pConsoleHandler)) // TODO: check error code
-    {
-      rc = false;
-      delete m_pConsoleHandler;
-      m_pConsoleHandler = NULL;
-    }
+    delete log_handler;
+    return false;
   }
 
-  return rc;
+  m_pConsoleHandler = log_handler;
+  return true;
 }
 
 void 
@@ -98,22 +101,48 @@ Logger::removeConsoleHandler()
 }
 
 bool
-Logger::createFileHandler()
+Logger::createEventLogHandler(const char* source_name)
 {
+#ifdef _WIN32
   Guard g(m_handler_mutex);
-  bool rc = true;
-  if (m_pFileHandler == NULL)
+
+  LogHandler* log_handler = new EventLogHandler(source_name);
+  if (!log_handler)
+    return false;
+
+  if (!addHandler(log_handler))
   {
-    m_pFileHandler = new FileLogHandler(); 
-    if (!addHandler(m_pFileHandler)) // TODO: check error code
-    {
-      rc = false;
-      delete m_pFileHandler;
-      m_pFileHandler = NULL;
-    }
+    delete log_handler;
+    return false;
   }
 
-  return rc;
+  return true;
+#else
+  return false;
+#endif
+}
+
+bool
+Logger::createFileHandler(char*filename)
+{
+  Guard g(m_handler_mutex);
+
+  if (m_pFileHandler)
+    return true; // Ok, already exist
+
+  LogHandler* log_handler = filename ? new FileLogHandler(filename)
+                                     : new FileLogHandler();
+  if (!log_handler)
+    return false;
+
+  if (!addHandler(log_handler))
+  {
+    delete log_handler;
+    return false;
+  }
+
+  m_pFileHandler = log_handler;
+  return true;
 }
 
 void 
@@ -129,24 +158,27 @@ Logger::removeFileHandler()
 bool
 Logger::createSyslogHandler()
 {
-  Guard g(m_handler_mutex);
-  bool rc = true;
-  if (m_pSyslogHandler == NULL)
-  {
-#if defined NDB_WIN32
-    m_pSyslogHandler = new ConsoleLogHandler(); 
+#ifdef _WIN32
+  return false;
 #else
-    m_pSyslogHandler = new SysLogHandler(); 
-#endif
-    if (!addHandler(m_pSyslogHandler)) // TODO: check error code
-    {
-      rc = false;
-      delete m_pSyslogHandler;
-      m_pSyslogHandler = NULL;
-    }
+  Guard g(m_handler_mutex);
+
+  if (m_pSyslogHandler)
+    return true; // Ok, already exist
+
+  LogHandler* log_handler = new SysLogHandler();
+  if (!log_handler)
+    return false;
+
+  if (!addHandler(log_handler))
+  {
+    delete log_handler;
+    return false;
   }
 
-  return rc;
+  m_pSyslogHandler = log_handler;
+  return true;
+#endif
 }
 
 void 
@@ -165,24 +197,23 @@ Logger::addHandler(LogHandler* pHandler)
   Guard g(m_mutex);
   assert(pHandler != NULL);
 
-  bool rc = pHandler->open();	
-  if (rc)
+  if (!pHandler->is_open() &&
+      !pHandler->open())
   {
-    m_pHandlerList->add(pHandler);
+    // Failed to open
+    return false;
   }
-  else
-  {
-    delete pHandler;
-  }	
 
-  return rc;
+  if (!m_pHandlerList->add(pHandler))
+    return false;
+
+  return true;
 }
 
 bool
 Logger::addHandler(const BaseString &logstring, int *err, int len, char* errStr) {
   size_t i;
   Vector<BaseString> logdest;
-  Vector<LogHandler *>loghandlers;
   DBUG_ENTER("Logger::addHandler");
 
   logstring.split(logdest, ";");
@@ -200,7 +231,7 @@ Logger::addHandler(const BaseString &logstring, int *err, int len, char* errStr)
 
     LogHandler *handler = NULL;
 
-#ifndef NDB_WIN32
+#ifndef _WIN32
     if(type == "SYSLOG")
     {
       handler = new SysLogHandler();
@@ -213,24 +244,30 @@ Logger::addHandler(const BaseString &logstring, int *err, int len, char* errStr)
     
     if(handler == NULL)
     {
-      snprintf(errStr,len,"Could not create log destination: %s",
-               logdest[i].c_str());
+      BaseString::snprintf(errStr,len,"Could not create log destination: %s",
+                           logdest[i].c_str());
       DBUG_RETURN(false);
     }
+
     if(!handler->parseParams(params))
     {
       *err= handler->getErrorCode();
       if(handler->getErrorStr())
         strncpy(errStr, handler->getErrorStr(), len);
+      delete handler;
       DBUG_RETURN(false);
     }
-    loghandlers.push_back(handler);
+
+    if (!addHandler(handler))
+    {
+      BaseString::snprintf(errStr,len,"Could not add log destination: %s",
+                           logdest[i].c_str());
+      delete handler;
+      DBUG_RETURN(false);
+    }
   }
-  
-  for(i = 0; i < loghandlers.size(); i++)
-    addHandler(loghandlers[i]);
-  
-  DBUG_RETURN(true); /* @todo handle errors */
+
+  DBUG_RETURN(true);
 }
 
 bool
@@ -240,6 +277,13 @@ Logger::removeHandler(LogHandler* pHandler)
   int rc = false;
   if (pHandler != NULL)
   {
+    if (pHandler == m_pConsoleHandler)
+      m_pConsoleHandler= NULL;
+    if (pHandler == m_pFileHandler)
+      m_pFileHandler= NULL;
+    if (pHandler == m_pSyslogHandler)
+      m_pSyslogHandler= NULL;
+
     rc = m_pHandlerList->remove(pHandler);
   }
 
@@ -251,6 +295,10 @@ Logger::removeAllHandlers()
 {
   Guard g(m_mutex);
   m_pHandlerList->removeAll();
+
+  m_pConsoleHandler= NULL;
+  m_pFileHandler= NULL;
+  m_pSyslogHandler= NULL;
 }
 
 bool
@@ -370,10 +418,6 @@ Logger::debug(const char* pMsg, ...) const
   va_end(ap);
 }
 
-//
-// PROTECTED
-//
-
 void 
 Logger::log(LoggerLevel logLevel, const char* pMsg, va_list ap) const
 {
@@ -390,8 +434,11 @@ Logger::log(LoggerLevel logLevel, const char* pMsg, va_list ap) const
   }
 }
 
-//
-// PRIVATE
-//
-
-template class Vector<LogHandler*>;
+void Logger::setRepeatFrequency(unsigned val)
+{
+  LogHandler* pHandler;
+  while ((pHandler = m_pHandlerList->next()) != NULL)
+  {
+    pHandler->setRepeatFrequency(val);
+  }
+}

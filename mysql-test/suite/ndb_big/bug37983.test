@@ -1,0 +1,56 @@
+source suite.inc;
+source include/have_ndb.inc;
+result_format 2;
+
+select version();
+
+CREATE TABLE `t1` (
+  `c1` int(11) NOT NULL,
+  `c3` text,
+  PRIMARY KEY (`c1`) USING BTREE
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8;
+
+## Load table...
+disable_query_log;
+let $i=1000;
+while ($i)
+{
+  let $batch = 400; # Number of values to INSERT per batch
+  let $separator = ;
+  let $sql = INSERT t1 (c1, c3) VALUES;
+  while($batch)
+  {
+    let $sql=$sql$separator($i*1000+$batch, REPEAT('ks87', 512*RAND()));
+    dec $batch;
+    let $separator = ,;
+  }
+
+  source run_query_with_retry.inc;
+
+  dec $i;
+}
+enable_query_log;
+
+## Check number of records in table..
+let $count = `select count(*) from t1`;
+if (!`select $count = 400000`)
+{
+  echo got: $count, expected: 400000;
+  die  Wrong number of records loaded into table;
+}
+echo Table has $count number of records;
+
+# Measure the time to run the query three times
+source start_timer.inc;
+# This is currently a very bad query for MySQL Cluster since
+# each record has to be fetched into the mysql in order
+# to see if it fulfills the where clause
+select count(*) from t1 where length(c3) < 256;
+select count(*) from t1 where length(c3) < 256;
+select count(*) from t1 where length(c3) < 256;
+source end_timer.inc;
+
+drop table t1;
+
+## Test suceeded
+exit;

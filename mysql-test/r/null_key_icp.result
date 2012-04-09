@@ -202,7 +202,7 @@ a	a	b
 8	8	NULL
 explain select * from t2,t1 where (t1.a=t2.a or t1.a is null) and b= 7;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	2	
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	2	NULL
 1	SIMPLE	t1	ref_or_null	a	a	10	test.t2.a,const	4	Using where; Using index
 select * from t2,t1 where (t1.a=t2.a or t1.a is null) and b= 7;
 a	a	b
@@ -212,7 +212,7 @@ a	a	b
 8	NULL	7
 explain select * from t2,t1 where (t1.a=t2.a or t1.a is null) and (b= 7 or b is null);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	2	
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	2	NULL
 1	SIMPLE	t1	ref_or_null	a	a	5	test.t2.a	4	Using where; Using index
 select * from t2,t1 where (t1.a=t2.a or t1.a is null) and (b= 7 or b is null);
 a	a	b
@@ -226,11 +226,11 @@ insert into t2 values (null),(6);
 delete from t1 where a=8;
 explain select * from t2,t1 where t1.a=t2.a or t1.a is null;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	4	
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	4	NULL
 1	SIMPLE	t1	ref_or_null	a	a	5	test.t2.a	4	Using where; Using index
 explain select * from t2,t1 where t1.a<=>t2.a or (t1.a is null and t1.b <> 9);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	4	
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	4	NULL
 1	SIMPLE	t1	ref_or_null	a	a	5	test.t2.a	4	Using where; Using index
 select * from t2,t1 where t1.a<=>t2.a or (t1.a is null and t1.b <> 9);
 a	a	b
@@ -262,7 +262,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ref	idx1	idx1	5	const	5	Using index condition
 explain select id from t1 where uniq_id =1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	const	idx1	idx1	5	const	1	
+1	SIMPLE	t1	const	idx1	idx1	5	const	1	NULL
 UPDATE t1 SET id=id+100 where uniq_id is null;
 UPDATE t2 SET id=id+100 where uniq_id is null;
 select id from t1 where uniq_id is null;
@@ -407,7 +407,7 @@ COUNT(*)
 EXPLAIN SELECT SQL_CALC_FOUND_ROWS * FROM t1 LEFT JOIN t2 ON t1.a=t2.a
 LEFT JOIN t3 ON t2.b=t3.b;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	4	
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	4	NULL
 1	SIMPLE	t2	ALL	idx	NULL	NULL	NULL	2	Using where; Using join buffer (Block Nested Loop)
 1	SIMPLE	t3	ref	idx	idx	5	test.t2.b	1	Using index
 FLUSH STATUS ;

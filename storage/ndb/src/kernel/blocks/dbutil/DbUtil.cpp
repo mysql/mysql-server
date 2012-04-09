@@ -1,4 +1,5 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +12,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #include <ndb_global.h>
 
@@ -26,6 +28,7 @@
 #include <signaldata/TcKeyFailConf.hpp>
 #include <signaldata/GetTabInfo.hpp>
 #include <signaldata/DictTabInfo.hpp>
+#include <signaldata/NodeFailRep.hpp>
 
 #include <signaldata/UtilSequence.hpp>
 #include <signaldata/UtilPrepare.hpp>
@@ -39,6 +42,8 @@
 
 #include <NdbTick.h>
 
+#include <signaldata/DbinfoScan.hpp>
+#include <signaldata/TransIdAI.hpp>
 
 /**************************************************************************
  * ------------------------------------------------------------------------
@@ -62,7 +67,9 @@ DbUtil::DbUtil(Block_context& ctx) :
   addRecSignal(GSN_STTOR, &DbUtil::execSTTOR);
   addRecSignal(GSN_NDB_STTOR, &DbUtil::execNDB_STTOR);
   addRecSignal(GSN_DUMP_STATE_ORD, &DbUtil::execDUMP_STATE_ORD);
+  addRecSignal(GSN_DBINFO_SCANREQ, &DbUtil::execDBINFO_SCANREQ);
   addRecSignal(GSN_CONTINUEB, &DbUtil::execCONTINUEB);
+  addRecSignal(GSN_NODE_FAILREP, &DbUtil::execNODE_FAILREP);
   
   //addRecSignal(GSN_TCSEIZEREF, &DbUtil::execTCSEIZEREF);
   addRecSignal(GSN_TCSEIZECONF, &DbUtil::execTCSEIZECONF);
@@ -171,7 +178,7 @@ DbUtil::execREAD_CONFIG_REQ(Signal* signal)
 
   c_pagePool.setSize(10);
   c_preparePool.setSize(1);            // one parallel prepare at a time
-  c_preparedOperationPool.setSize(5);  // three hardcoded, two for test
+  c_preparedOperationPool.setSize(6);  // three hardcoded, one for setval, two for test
   c_operationPool.setSize(64);         // 64 parallel operations
   c_transactionPool.setSize(32);       // 16 parallel transactions
   c_attrMappingPool.setSize(100);
@@ -207,7 +214,7 @@ DbUtil::execREAD_CONFIG_REQ(Signal* signal)
   }
 
   c_lockQueuePool.setSize(5);
-  c_lockElementPool.setSize(5);
+  c_lockElementPool.setSize(4*MAX_NDB_NODES);
   c_lockQueues.setSize(8);
 
   ReadConfigConf * conf = (ReadConfigConf*)signal->getDataPtrSend();
@@ -229,9 +236,24 @@ DbUtil::execSTTOR(Signal* signal)
     c_transId[1] = 0;
   }
   
-  if(startphase == 6){
-    hardcodedPrepare();
-    connectTc(signal);
+  if(startphase == 6)
+  {
+    jam();
+
+    /**
+     * 1) get systab_0 table-id
+     * 2) run hardcodedPrepare (for sequences)
+     * 3) connectTc()
+     * 4) STTORRY
+     */
+
+    /**
+     * We need to find table-id of SYSTAB_0, as it can be after upgrade
+     *   we don't know what it will be...
+     */
+    get_systab_tableid(signal);
+
+    return;
   }
   
   signal->theData[0] = 0;
@@ -241,6 +263,35 @@ DbUtil::execSTTOR(Signal* signal)
   sendSignal(NDBCNTR_REF, GSN_STTORRY, signal, 6, JBB);
 
   return;
+}
+
+void
+DbUtil::get_systab_tableid(Signal* signal)
+{
+  static char NAME[] = "sys/def/SYSTAB_0";
+
+  GetTabInfoReq * req = (GetTabInfoReq *)signal->getDataPtrSend();
+  req->senderRef = reference();
+  req->senderData = RNIL;
+  req->schemaTransId = 0;
+  req->requestType = GetTabInfoReq::RequestByName |
+    GetTabInfoReq::LongSignalConf;
+
+  req->tableNameLen = sizeof(NAME);
+
+  /********************************************
+   * Code signal data and send signals to DICT
+   ********************************************/
+
+  Uint32 buf[(sizeof(NAME)+3)/4];
+  ndbrequire(sizeof(buf) >= sizeof(NAME));
+  memcpy(buf, NAME, sizeof(NAME));
+
+  LinearSectionPtr ptr[1];
+  ptr[0].p = buf;
+  ptr[0].sz = sizeof(NAME);
+  sendSignal(DBDICT_REF, GSN_GET_TABINFOREQ, signal,
+             GetTabInfoReq::SignalLength, JBB, ptr,1);
 }
 
 void
@@ -276,8 +327,19 @@ DbUtil::execTCSEIZECONF(Signal* signal){
   ptr.i = signal->theData[0] >> 1;
   c_seizingTransactions.getPtr(ptr, signal->theData[0] >> 1);
   ptr.p->connectPtr = signal->theData[1];
-  
+  ptr.p->connectRef = signal->theData[2];
+
   c_seizingTransactions.release(ptr);
+
+  if (c_seizingTransactions.isEmpty())
+  {
+    jam();
+    signal->theData[0] = 0;
+    signal->theData[3] = 1;
+    signal->theData[4] = 6;
+    signal->theData[5] = 255;
+    sendSignal(NDBCNTR_REF, GSN_STTORRY, signal, 6, JBB);
+  }
 }
 
 
@@ -292,12 +354,28 @@ DbUtil::execTCSEIZECONF(Signal* signal){
 void
 DbUtil::execCONTINUEB(Signal* signal){
   jamEntry();
-  const Uint32 Tdata0 = signal->theData[0];
-  
-  switch(Tdata0){
-  default:
-    ndbrequire(0);
-  }
+  //const Uint32 Tdata0 = signal->theData[0];
+
+  ndbrequire(0);
+}
+
+void
+DbUtil::execNODE_FAILREP(Signal* signal){
+  jamEntry();
+  const NodeFailRep * rep = (NodeFailRep*)signal->getDataPtr();
+  NdbNodeBitmask failed; 
+  failed.assign(NdbNodeBitmask::Size, rep->theNodes);
+
+  /* Block level cleanup */
+  for(unsigned i = 1; i < MAX_NDB_NODES; i++) {
+    jam();
+    if(failed.get(i)) {
+      jam();
+      Uint32 elementsCleaned = simBlockNodeFailure(signal, i); // No callback
+      ndbassert(elementsCleaned == 0); // No distributed fragmented signals
+      (void) elementsCleaned; // Remove compiler warning
+    }//if
+  }//for
 }
 
 void
@@ -313,7 +391,7 @@ DbUtil::execDUMP_STATE_ORD(Signal* signal){
    */
   const Uint32 tCase = signal->theData[0];
   if(tCase == 200){
-    jam()
+    jam();
     ndbout << "--------------------------------------------------" << endl;
     UtilSequenceReq * req = (UtilSequenceReq*)signal->getDataPtrSend();
     Uint32 seqId = 1;
@@ -622,7 +700,7 @@ DbUtil::execDUMP_STATE_ORD(Signal* signal){
     ptr.p->m_mutexId = signal->theData[1];
     Callback c = { safe_cast(&DbUtil::mutex_locked), ptr.i };
     ptr.p->m_callback = c;
-    c_mutexMgr.lock(signal, ptr);
+    c_mutexMgr.lock(signal, ptr, true);
     ndbout_c("c_mutexMgr.lock ptrI=%d mutexId=%d", ptr.i, ptr.p->m_mutexId);
   }
 
@@ -640,13 +718,137 @@ DbUtil::execDUMP_STATE_ORD(Signal* signal){
     MutexManager::ActiveMutexPtr ptr;
     ndbrequire(c_mutexMgr.seize(ptr));
     ptr.p->m_mutexId = signal->theData[1];
-    ptr.p->m_mutexKey = signal->theData[2];
     Callback c = { safe_cast(&DbUtil::mutex_destroyed), ptr.i };
     ptr.p->m_callback = c;
     c_mutexMgr.destroy(signal, ptr);
-    ndbout_c("c_mutexMgr.destroy ptrI=%d mutexId=%d key=%d", 
-	     ptr.i, ptr.p->m_mutexId, ptr.p->m_mutexKey);
+    ndbout_c("c_mutexMgr.destroy ptrI=%d mutexId=%d", 
+	     ptr.i, ptr.p->m_mutexId);
   }
+
+  if (tCase == 244)
+  {
+    jam();
+    DLHashTable<LockQueueInstance>::Iterator iter;
+    Uint32 bucket = signal->theData[1];
+    if (signal->getLength() == 1)
+    {
+      bucket = 0;
+      infoEvent("Starting dumping of DbUtil::Locks");
+    }
+    c_lockQueues.next(bucket, iter);
+
+    for (Uint32 i = 0; i<32 || iter.bucket == bucket; i++)
+    {
+      if (iter.curr.isNull())
+      {
+        infoEvent("Dumping of DbUtil::Locks - done");
+        return;
+      }
+      
+      infoEvent("LockQueue %u", iter.curr.p->m_lockId);
+      iter.curr.p->m_queue.dump_queue(c_lockElementPool, this);
+      c_lockQueues.next(iter);
+    }
+    signal->theData[0] = 244;
+    signal->theData[1] = iter.bucket;
+    sendSignal(reference(),  GSN_DUMP_STATE_ORD, signal, 2, JBB);
+    return;
+  }
+}
+
+void DbUtil::execDBINFO_SCANREQ(Signal *signal)
+{
+  DbinfoScanReq req= *(DbinfoScanReq*)signal->theData;
+  const Ndbinfo::ScanCursor* cursor =
+    CAST_CONSTPTR(Ndbinfo::ScanCursor, DbinfoScan::getCursorPtr(&req));
+  Ndbinfo::Ratelimit rl;
+
+  jamEntry();
+
+  switch(req.tableId){
+  case Ndbinfo::POOLS_TABLEID:
+  {
+    Ndbinfo::pool_entry pools[] =
+    {
+      { "Page",
+        c_pagePool.getUsed(),
+        c_pagePool.getSize(),
+        c_pagePool.getEntrySize(),
+        c_pagePool.getUsedHi(),
+        { 0,0,0,0 }},
+      { "Prepare",
+        c_preparePool.getUsed(),
+        c_preparePool.getSize(),
+        c_preparePool.getEntrySize(),
+        c_preparePool.getUsedHi(),
+        { 0,0,0,0 }},
+      { "Prepared Operation",
+        c_preparedOperationPool.getUsed(),
+        c_preparedOperationPool.getSize(),
+        c_preparedOperationPool.getEntrySize(),
+        c_preparedOperationPool.getUsedHi(),
+        { 0,0,0,0 }},
+      { "Operation",
+        c_operationPool.getUsed(),
+        c_operationPool.getSize(),
+        c_operationPool.getEntrySize(),
+        c_operationPool.getUsedHi(),
+        { 0,0,0,0 }},
+      { "Transaction",
+        c_transactionPool.getUsed(),
+        c_transactionPool.getSize(),
+        c_transactionPool.getEntrySize(),
+        c_transactionPool.getUsedHi(),
+        { 0,0,0,0 }},
+      { "Attribute Mapping",
+        c_attrMappingPool.getUsed(),
+        c_attrMappingPool.getSize(),
+        c_attrMappingPool.getEntrySize(),
+        c_attrMappingPool.getUsedHi(),
+        { 0,0,0,0 }},
+      { "Data Buffer",
+        c_dataBufPool.getUsed(),
+        c_dataBufPool.getSize(),
+        c_dataBufPool.getEntrySize(),
+        c_dataBufPool.getUsedHi(),
+        { 0,0,0,0 }},
+      { NULL, 0,0,0,0, { 0,0,0,0 }}
+    };
+
+    const size_t num_config_params =
+      sizeof(pools[0].config_params) / sizeof(pools[0].config_params[0]);
+    Uint32 pool = cursor->data[0];
+    BlockNumber bn = blockToMain(number());
+    while(pools[pool].poolname)
+    {
+      jam();
+      Ndbinfo::Row row(signal, req);
+      row.write_uint32(getOwnNodeId());
+      row.write_uint32(bn);           // block number
+      row.write_uint32(instance());   // block instance
+      row.write_string(pools[pool].poolname);
+      row.write_uint64(pools[pool].used);
+      row.write_uint64(pools[pool].total);
+      row.write_uint64(pools[pool].used_hi);
+      row.write_uint64(pools[pool].entry_size);
+      for (size_t i = 0; i < num_config_params; i++)
+        row.write_uint32(pools[pool].config_params[i]);
+      ndbinfo_send_row(signal, req, row, rl);
+      pool++;
+      if (rl.need_break(req))
+      {
+        jam();
+        ndbinfo_send_scan_break(signal, req, rl, pool);
+        return;
+      }
+    }
+    break;
+  }
+  default:
+    break;
+  }
+
+  ndbinfo_send_scan_conf(signal, req, rl);
 }
 
 void
@@ -671,8 +873,8 @@ void
 DbUtil::mutex_locked(Signal* signal, Uint32 ptrI, Uint32 retVal){
   MutexManager::ActiveMutexPtr ptr; ptr.i = ptrI;
   c_mutexMgr.getPtr(ptr);
-  ndbout_c("mutex_locked - mutexId=%d, retVal=%d key=%d ptrI=%d", 
-	   ptr.p->m_mutexId, retVal, ptr.p->m_mutexKey, ptrI);
+  ndbout_c("mutex_locked - mutexId=%d, retVal=%d ptrI=%d", 
+	   ptr.p->m_mutexId, retVal, ptrI);
   if(retVal)
     c_mutexMgr.release(ptrI);
 }
@@ -745,10 +947,12 @@ DbUtil::execUTIL_RELEASE_REF(Signal* signal) {
 
 void
 DbUtil::sendUtilPrepareRef(Signal* signal, UtilPrepareRef::ErrorCode error, 
-			   Uint32 recipient, Uint32 senderData){
+			   Uint32 recipient, Uint32 senderData,
+                           Uint32 errCode2){
   UtilPrepareRef * ref = (UtilPrepareRef *)signal->getDataPtrSend();
   ref->errorCode = error;
   ref->senderData = senderData;
+  ref->dictErrCode = errCode2;
 
   sendSignal(recipient, GSN_UTIL_PREPARE_REF, signal, 
 	     UtilPrepareRef::SignalLength, JBB);
@@ -787,11 +991,11 @@ DbUtil::execUTIL_PREPARE_REQ(Signal* signal)
   UtilPrepareReq * req = (UtilPrepareReq *)signal->getDataPtr();
   const Uint32 senderRef    = req->senderRef;
   const Uint32 senderData   = req->senderData;
+  const Uint32 schemaTransId= req->schemaTransId;
 
   if(signal->getNoOfSections() == 0) {
     // Missing prepare data
     jam();
-    releaseSections(signal);
     sendUtilPrepareRef(signal, UtilPrepareRef::MISSING_PROPERTIES_SECTION,
 		       senderRef, senderData);
     return;
@@ -799,21 +1003,22 @@ DbUtil::execUTIL_PREPARE_REQ(Signal* signal)
 
   PreparePtr prepPtr;
   SegmentedSectionPtr ptr;
+  SectionHandle handle(this, signal);
   
   jam();
   if(!c_runningPrepares.seize(prepPtr)) {
     jam();
-    releaseSections(signal);
+    releaseSections(handle);
     sendUtilPrepareRef(signal, UtilPrepareRef::PREPARE_SEIZE_ERROR,
 		       senderRef, senderData);
     return;
   };
-  signal->getSection(ptr, UtilPrepareReq::PROPERTIES_SECTION);
+  handle.getSection(ptr, UtilPrepareReq::PROPERTIES_SECTION);
   const Uint32 noPages  = (ptr.sz + sizeof(Page32)) / sizeof(Page32);
   ndbassert(noPages > 0);
   if (!prepPtr.p->preparePages.seize(noPages)) {
     jam();
-    releaseSections(signal);
+    releaseSections(handle);
     sendUtilPrepareRef(signal, UtilPrepareRef::PREPARE_PAGES_SEIZE_ERROR,
 		       senderRef, senderData);
     c_preparePool.release(prepPtr);
@@ -824,19 +1029,19 @@ DbUtil::execUTIL_PREPARE_REQ(Signal* signal)
   copy(target, ptr);
   prepPtr.p->prepDataLen = ptr.sz;
   // Release long signal sections
-  releaseSections(signal);
+  releaseSections(handle);
   // Check table properties with DICT
   SimplePropertiesSectionReader reader(ptr, getSectionSegmentPool());
   prepPtr.p->clientRef = senderRef;
   prepPtr.p->clientData = senderData;
+  prepPtr.p->schemaTransId = schemaTransId;
   // Release long signal sections
-  releaseSections(signal);
-  readPrepareProps(signal, &reader, prepPtr.i);
+  readPrepareProps(signal, &reader, prepPtr);
 }
 
 void DbUtil::readPrepareProps(Signal* signal,
 			      SimpleProperties::Reader* reader, 
-			      Uint32 senderData)
+			      PreparePtr prepPtr)
 {
   jam();
 #if 0
@@ -853,6 +1058,17 @@ void DbUtil::readPrepareProps(Signal* signal,
   ndbrequire(reader->next());
   UtilPrepareReq::KeyValue tableKey = 
     (UtilPrepareReq::KeyValue) reader->getKey();
+  if (tableKey == UtilPrepareReq::ScanTakeOverInd)
+  {
+    reader->next();
+    tableKey = (UtilPrepareReq::KeyValue) reader->getKey();
+  }
+  if (tableKey == UtilPrepareReq::ReorgInd)
+  {
+    reader->next();
+    tableKey = (UtilPrepareReq::KeyValue) reader->getKey();
+  }
+
   ndbrequire((tableKey == UtilPrepareReq::TableName) ||
 	     (tableKey == UtilPrepareReq::TableId));
 
@@ -862,7 +1078,8 @@ void DbUtil::readPrepareProps(Signal* signal,
   {
     GetTabInfoReq * req = (GetTabInfoReq *)signal->getDataPtrSend();
     req->senderRef = reference();
-    req->senderData = senderData;           
+    req->senderData = prepPtr.i;
+    req->schemaTransId = prepPtr.p->schemaTransId;
     if (tableKey == UtilPrepareReq::TableName) {
       jam();
       char tableName[MAX_TAB_NAME_SIZE];
@@ -917,13 +1134,28 @@ DbUtil::execGET_TABINFO_CONF(Signal* signal){
   const Uint32  prepI    = conf->senderData;
   const Uint32  totalLen = conf->totalLen;
   
+  SectionHandle handle(this, signal);
   SegmentedSectionPtr dictTabInfoPtr;
-  signal->getSection(dictTabInfoPtr, GetTabInfoConf::DICT_TAB_INFO);
+  handle.getSection(dictTabInfoPtr, GetTabInfoConf::DICT_TAB_INFO);
   ndbrequire(dictTabInfoPtr.sz == totalLen);
   
-  PreparePtr prepPtr;
-  c_runningPrepares.getPtr(prepPtr, prepI);
-  prepareOperation(signal, prepPtr);
+  if (prepI != RNIL)
+  {
+    jam();
+    PreparePtr prepPtr;
+    c_runningPrepares.getPtr(prepPtr, prepI);
+    prepareOperation(signal, prepPtr, dictTabInfoPtr);
+    releaseSections(handle);
+    return;
+  }
+  else
+  {
+    jam();
+    // get_systab_tableid
+    releaseSections(handle);
+    hardcodedPrepare(signal, conf->tableId);
+    return;
+  }
 }
 
 void
@@ -957,7 +1189,8 @@ DbUtil::execGET_TABINFOREF(Signal* signal){
   c_runningPrepares.getPtr(prepPtr, prepI);
 
   sendUtilPrepareRef(signal, UtilPrepareRef::DICT_TAB_INFO_ERROR,
-		     prepPtr.p->clientRef, prepPtr.p->clientData);
+		     prepPtr.p->clientRef, prepPtr.p->clientData,
+                     ref->errorCode);
 
   releasePrepare(prepPtr);
 }
@@ -980,7 +1213,9 @@ DbUtil::execGET_TABINFOREF(Signal* signal){
  *    - if (isPK) then assign offset
  ******************************************************************************/
 void
-DbUtil::prepareOperation(Signal* signal, PreparePtr prepPtr) 
+DbUtil::prepareOperation(Signal* signal,
+			 PreparePtr prepPtr,
+			 SegmentedSectionPtr ptr)
 {
   jam();
   
@@ -990,7 +1225,6 @@ DbUtil::prepareOperation(Signal* signal, PreparePtr prepPtr)
   PreparedOperationPtr prepOpPtr;  
   if(!c_preparedOperationPool.seize(prepOpPtr)) {
     jam();
-    releaseSections(signal);
     sendUtilPrepareRef(signal, UtilPrepareRef::PREPARED_OPERATION_SEIZE_ERROR,
 		       prepPtr.p->clientRef, prepPtr.p->clientData);
     releasePrepare(prepPtr);
@@ -1019,6 +1253,23 @@ DbUtil::prepareOperation(Signal* signal, PreparePtr prepPtr)
   Uint32 tableId;
   UtilPrepareReq::KeyValue tableKey = 
     (UtilPrepareReq::KeyValue) prepPagesReader.getKey();
+
+  bool scanTakeOver = false;
+  bool reorg = false;
+  if (tableKey == UtilPrepareReq::ScanTakeOverInd)
+  {
+    scanTakeOver = true;
+    prepPagesReader.next();
+    tableKey = (UtilPrepareReq::KeyValue) prepPagesReader.getKey();
+  }
+
+  if (tableKey == UtilPrepareReq::ReorgInd)
+  {
+    reorg = true;
+    prepPagesReader.next();
+    tableKey = (UtilPrepareReq::KeyValue) prepPagesReader.getKey();
+  }
+
   if (tableKey == UtilPrepareReq::TableId) {
     jam();
     tableId = prepPagesReader.getUint32();
@@ -1054,6 +1305,12 @@ DbUtil::prepareOperation(Signal* signal, PreparePtr prepPtr)
   ndbrequire(prepPagesReader.first() && prepPagesReader.next() && 
 	     prepPagesReader.next());
   
+  if (scanTakeOver)
+    prepPagesReader.next();
+
+  if (reorg)
+    prepPagesReader.next();
+
   DictTabInfo::Table tableDesc; tableDesc.init();
   AttrMappingBuffer::DataBufferIterator attrMappingIt;
   ndbrequire(prepPtr.p->prepOpPtr.p->attrMapping.first(attrMappingIt));
@@ -1066,14 +1323,13 @@ DbUtil::prepareOperation(Signal* signal, PreparePtr prepPtr)
   Uint32 noOfPKAttribsStored = 0;
   Uint32 noOfNonPKAttribsStored = 0;
   Uint32 attrLength = 0;
-  Uint32 pkAttrLength = 0;
   char attrNameRequested[MAX_ATTR_NAME_SIZE];
   Uint32 attrIdRequested;
 
   while(prepPagesReader.next()) {
     UtilPrepareReq::KeyValue attributeKey = 
       (UtilPrepareReq::KeyValue) prepPagesReader.getKey();    
-    
+
     ndbrequire((attributeKey == UtilPrepareReq::AttributeName) ||
 	       (attributeKey == UtilPrepareReq::AttributeId));
     if (attributeKey == UtilPrepareReq::AttributeName) {
@@ -1090,10 +1346,7 @@ DbUtil::prepareOperation(Signal* signal, PreparePtr prepPtr)
      * Copy DictTabInfo into tableDesc struct
      *****************************************/
       
-    SegmentedSectionPtr ptr;
-    signal->getSection(ptr, GetTabInfoConf::DICT_TAB_INFO);
     SimplePropertiesSectionReader dictInfoReader(ptr, getSectionSegmentPool());
-
     SimpleProperties::UnpackStatus unpackStatus;
     unpackStatus = SimpleProperties::unpack(dictInfoReader, &tableDesc, 
 					    DictTabInfo::TableMapping, 
@@ -1155,7 +1408,6 @@ DbUtil::prepareOperation(Signal* signal, PreparePtr prepPtr)
      **********************/
     if (!attributeFound) {
       jam(); 
-      releaseSections(signal);
       sendUtilPrepareRef(signal, 
 			 UtilPrepareRef::DICT_TAB_INFO_ERROR,
 			 prepPtr.p->clientRef, prepPtr.p->clientData);
@@ -1186,7 +1438,6 @@ DbUtil::prepareOperation(Signal* signal, PreparePtr prepPtr)
        ***********************************************************/
       if (noOfPKAttribsStored != tableDesc.NoOfKeyAttr) {
 	jam(); 
-	releaseSections(signal);
 	sendUtilPrepareRef(signal, 
 			   UtilPrepareRef::DICT_TAB_INFO_ERROR,
 			   prepPtr.p->clientRef, prepPtr.p->clientData);
@@ -1222,8 +1473,6 @@ DbUtil::prepareOperation(Signal* signal, PreparePtr prepPtr)
 	break;
       }
       attrLength += len;
-      if (attrDesc.AttributeKeyFlag)
-	pkAttrLength += len;
 
       if (operationType == UtilPrepareReq::Read) {
 	AttributeHeader::init(rsInfoIt.data, 
@@ -1247,7 +1496,6 @@ DbUtil::prepareOperation(Signal* signal, PreparePtr prepPtr)
    ***************************/
   if (noOfPKAttribsStored != tableDesc.NoOfKeyAttr) {
     jam(); 
-    releaseSections(signal);
     sendUtilPrepareRef(signal, 
 		       UtilPrepareRef::DICT_TAB_INFO_ERROR,
 		       prepPtr.p->clientRef, prepPtr.p->clientData);
@@ -1271,20 +1519,22 @@ DbUtil::prepareOperation(Signal* signal, PreparePtr prepPtr)
    * Preparing of PreparedOperation signal train 
    **********************************************/
   Uint32 static_len = TcKeyReq::StaticLength;
+  Uint32 requestInfo = 0;
+  if (scanTakeOver)
+  {
+    static_len ++;
+    TcKeyReq::setScanIndFlag(requestInfo, 1);
+  }
+  if (reorg)
+  {
+    TcKeyReq::setReorgFlag(requestInfo, 1);
+  }
   prepOpPtr.p->tckey.tableId = tableDesc.TableId;
   prepOpPtr.p->tckey.tableSchemaVersion = tableDesc.TableVersion;
   prepOpPtr.p->noOfKeyAttr = tableDesc.NoOfKeyAttr;
-  prepOpPtr.p->keyLen = tableDesc.KeyLength; // Total no of words in PK
-  if (prepOpPtr.p->keyLen > TcKeyReq::MaxKeyInfo) {
-    jam();
-    prepOpPtr.p->tckeyLenInBytes = (static_len + TcKeyReq::MaxKeyInfo) * 4;
-  } else {
-    jam();
-    prepOpPtr.p->tckeyLenInBytes = (static_len + prepOpPtr.p->keyLen) * 4;
-  }
+  prepOpPtr.p->tckeyLen = static_len;
   prepOpPtr.p->keyDataPos = static_len;  // Start of keyInfo[] in tckeyreq
   
-  Uint32 requestInfo = 0;
   TcKeyReq::setAbortOption(requestInfo, TcKeyReq::AbortOnError);
   TcKeyReq::setKeyLength(requestInfo, tableDesc.KeyLength);  
   switch(operationType) {
@@ -1334,7 +1584,6 @@ DbUtil::prepareOperation(Signal* signal, PreparePtr prepPtr)
   conf->senderData = prepPtr.p->clientData;
   conf->prepareId = prepPtr.p->prepOpPtr.i;
 
-  releaseSections(signal);
   sendSignal(prepPtr.p->clientRef, GSN_UTIL_PREPARE_CONF, signal, 
 	     UtilPrepareConf::SignalLength, JBB);
 
@@ -1385,22 +1634,21 @@ DbUtil::execUTIL_RELEASE_REQ(Signal* signal){
  *
  *  A service with a stored incrementable number
  **************************************************************************/
-
 void
-DbUtil::hardcodedPrepare() {
+DbUtil::hardcodedPrepare(Signal* signal, Uint32 SYSTAB_0)
+{
   /**
    * Prepare SequenceCurrVal (READ)
    */
+  Uint32 keyLen = 1;
   {
     PreparedOperationPtr ptr;
     ndbrequire(c_preparedOperationPool.seizeId(ptr, 0));
-    ptr.p->keyLen = 1;
     ptr.p->tckey.attrLen = 1;
     ptr.p->rsLen = 3;
-    ptr.p->tckeyLenInBytes = (TcKeyReq::StaticLength +
-                              ptr.p->keyLen + ptr.p->tckey.attrLen) * 4;
+    ptr.p->tckeyLen = TcKeyReq::StaticLength + keyLen + ptr.p->tckey.attrLen;
     ptr.p->keyDataPos = TcKeyReq::StaticLength; 
-    ptr.p->tckey.tableId = 0;
+    ptr.p->tckey.tableId = SYSTAB_0;
     Uint32 requestInfo = 0;
     TcKeyReq::setAbortOption(requestInfo, TcKeyReq::CommitIfFailFree);
     TcKeyReq::setOperationType(requestInfo, ZREAD);
@@ -1424,12 +1672,11 @@ DbUtil::hardcodedPrepare() {
   {
     PreparedOperationPtr ptr;
     ndbrequire(c_preparedOperationPool.seizeId(ptr, 1));
-    ptr.p->keyLen = 1;
     ptr.p->rsLen = 3;
-    ptr.p->tckeyLenInBytes = (TcKeyReq::StaticLength + ptr.p->keyLen + 5) * 4;
+    ptr.p->tckeyLen = TcKeyReq::StaticLength + keyLen + 5;
     ptr.p->keyDataPos = TcKeyReq::StaticLength; 
     ptr.p->tckey.attrLen = 11;
-    ptr.p->tckey.tableId = 0;
+    ptr.p->tckey.tableId = SYSTAB_0;
     Uint32 requestInfo = 0;
     TcKeyReq::setAbortOption(requestInfo, TcKeyReq::CommitIfFailFree);
     TcKeyReq::setOperationType(requestInfo, ZUPDATE);
@@ -1480,13 +1727,11 @@ DbUtil::hardcodedPrepare() {
   {
     PreparedOperationPtr ptr;
     ndbrequire(c_preparedOperationPool.seizeId(ptr, 2));
-    ptr.p->keyLen = 1;
     ptr.p->tckey.attrLen = 5;
     ptr.p->rsLen = 0;
-    ptr.p->tckeyLenInBytes = (TcKeyReq::StaticLength +
-                              ptr.p->keyLen + ptr.p->tckey.attrLen) * 4;
+    ptr.p->tckeyLen = TcKeyReq::StaticLength + keyLen + ptr.p->tckey.attrLen;
     ptr.p->keyDataPos = TcKeyReq::StaticLength;
-    ptr.p->tckey.tableId = 0;
+    ptr.p->tckey.tableId = SYSTAB_0;
     Uint32 requestInfo = 0;
     TcKeyReq::setAbortOption(requestInfo, TcKeyReq::CommitIfFailFree);
     TcKeyReq::setOperationType(requestInfo, ZINSERT);
@@ -1495,6 +1740,36 @@ DbUtil::hardcodedPrepare() {
     ptr.p->tckey.requestInfo = requestInfo;
     ptr.p->tckey.tableSchemaVersion = 1;
   }
+
+  /**
+   * Prepare SetSequence (UPDATE)
+   */
+  {
+    PreparedOperationPtr ptr;
+    ndbrequire(c_preparedOperationPool.seizeId(ptr, 3));
+    ptr.p->rsLen = 0;
+    ptr.p->tckeyLen = TcKeyReq::StaticLength + keyLen + 5;
+    ptr.p->keyDataPos = TcKeyReq::StaticLength;
+    ptr.p->tckey.attrLen = 9;
+    ptr.p->tckey.tableId = SYSTAB_0;
+    Uint32 requestInfo = 0;
+    TcKeyReq::setAbortOption(requestInfo, TcKeyReq::CommitIfFailFree);
+    TcKeyReq::setOperationType(requestInfo, ZUPDATE);
+    TcKeyReq::setKeyLength(requestInfo, 1);
+    TcKeyReq::setAIInTcKeyReq(requestInfo, 5);
+    TcKeyReq::setInterpretedFlag(requestInfo, 1);
+    ptr.p->tckey.requestInfo = requestInfo;
+    ptr.p->tckey.tableSchemaVersion = 1;
+
+    Uint32 * attrInfo = &ptr.p->tckey.distrGroupHashValue;
+    attrInfo[0] = 0; // IntialReadSize
+    attrInfo[1] = 4; // InterpretedSize
+    attrInfo[2] = 0; // FinalUpdateSize
+    attrInfo[3] = 0; // FinalReadSize
+    attrInfo[4] = 0; // SubroutineSize
+  }
+
+  connectTc(signal);
 }
 
 void
@@ -1515,6 +1790,10 @@ DbUtil::execUTIL_SEQUENCE_REQ(Signal* signal){
   case UtilSequenceReq::Create:
     prepOp = c_preparedOperationPool.getPtr(2); //c_CreateSequence
     break;
+  case UtilSequenceReq::SetVal:{
+    prepOp = c_preparedOperationPool.getPtr(3);
+    break;
+  }
   default:
     ndbrequire(false);
     prepOp = 0; // remove warning
@@ -1529,9 +1808,10 @@ DbUtil::execUTIL_SEQUENCE_REQ(Signal* signal){
   OperationPtr opPtr;
   ndbrequire(transPtr.p->operations.seize(opPtr));
   
-  ndbrequire(opPtr.p->rs.seize(prepOp->rsLen));
-  ndbrequire(opPtr.p->keyInfo.seize(prepOp->keyLen));
+  ndbrequire(opPtr.p->keyInfo.seize(1));
 
+  transPtr.p->gci_hi = 0;
+  transPtr.p->gci_lo = 0;
   transPtr.p->gsn = GSN_UTIL_SEQUENCE_REQ;
   transPtr.p->clientRef = signal->senderBlockRef();
   transPtr.p->clientData = req->senderData;
@@ -1565,6 +1845,21 @@ DbUtil::execUTIL_SEQUENCE_REQ(Signal* signal){
     * it.data = 0;
   }
   
+  if(req->requestType == UtilSequenceReq::SetVal)
+  { // AttrInfo
+    ndbrequire(opPtr.p->attrInfo.seize(4));
+    AttrInfoBuffer::DataBufferIterator it;
+    opPtr.p->attrInfo.first(it);
+    * it.data = Interpreter::LoadConst32(7);
+    ndbrequire(opPtr.p->attrInfo.next(it));
+    * it.data = req->value;
+    ndbrequire(opPtr.p->attrInfo.next(it));
+    * it.data = Interpreter::Write(1, 7);
+    ndbrequire(opPtr.p->attrInfo.next(it))
+    * it.data = Interpreter::ExitOK();
+  }
+ 
+  transPtr.p->noOfRetries = 3;
   runTransaction(signal, transPtr);
 }
 
@@ -1586,7 +1881,7 @@ DbUtil::getResultSet(Signal* signal, const Transaction * transP,
   // extract headers
   for(rs.first(it); it.curr.i != RNIL; ) {
     *tmpBuf++ = it.data[0];
-    rs.next(it, ((AttributeHeader*)&it.data[0])->getDataSize() + 1);
+    rs.next(it, AttributeHeader::getDataSize(it.data[0]) + 1);
     noAttr++;
   }
 
@@ -1596,10 +1891,13 @@ DbUtil::getResultSet(Signal* signal, const Transaction * transP,
   const Uint32* dataBuffer = tmpBuf;
 
   // extract data
-  for(rs.first(it); it.curr.i != RNIL; ) {
-    int sz = ((AttributeHeader*)&it.data[0])->getDataSize();
+  for(rs.first(it); it.curr.i != RNIL; )
+  {
+    jam();
+    int sz = AttributeHeader::getDataSize(it.data[0]);
     rs.next(it,1);
-    for (int i = 0; i < sz; i++) {
+    for (int i = 0; i < sz; i++)
+    {
       *tmpBuf++ = *it.data;
       rs.next(it,1);
       dataSz++;
@@ -1642,6 +1940,8 @@ DbUtil::reportSequence(Signal* signal, const Transaction * transP){
       ret->sequenceValue[1] = rsit.data[2];
       break;
     }
+    case UtilSequenceReq::SetVal:
+      ok = true;
     case UtilSequenceReq::Create:
       ok = true;
       ret->sequenceValue[0] = 0;
@@ -1658,6 +1958,7 @@ DbUtil::reportSequence(Signal* signal, const Transaction * transP){
 
   switch(transP->sequence.requestType)
     {
+    case UtilSequenceReq::SetVal:
     case UtilSequenceReq::CurrVal:
     case UtilSequenceReq::NextVal:{
       if (transP->errorCode == 626)
@@ -1673,6 +1974,7 @@ DbUtil::reportSequence(Signal* signal, const Transaction * transP){
   ret->sequenceId = transP->sequence.sequenceId;
   ret->requestType = transP->sequence.requestType;
   ret->errorCode = (Uint32)errCode;
+  ret->TCErrorCode = transP->errorCode;
   sendSignal(transP->clientRef, GSN_UTIL_SEQUENCE_REF, signal, 
 	     UtilSequenceRef::SignalLength, JBB);
 }
@@ -1724,11 +2026,11 @@ DbUtil::execUTIL_EXECUTE_REQ(Signal* signal)
   const Uint32  clientData     = req->senderData;
   const Uint32  prepareId      = req->getPrepareId();
   const bool    releaseFlag    = req->getReleaseFlag();
+  const Uint32  scanTakeOver   = req->scanTakeOver;
 
   if(signal->getNoOfSections() == 0) {
     // Missing prepare data
     jam();
-    releaseSections(signal);
     sendUtilExecuteRef(signal, UtilExecuteRef::MissingDataSection, 
 		       0, clientRef, clientData);
     return;
@@ -1743,11 +2045,12 @@ DbUtil::execUTIL_EXECUTE_REQ(Signal* signal)
 
   TransactionPtr  transPtr;
   OperationPtr    opPtr;
+  SectionHandle handle(this, signal);
   SegmentedSectionPtr headerPtr, dataPtr;
 
-  signal->getSection(headerPtr, UtilExecuteReq::HEADER_SECTION);
+  handle.getSection(headerPtr, UtilExecuteReq::HEADER_SECTION);
   SectionReader headerReader(headerPtr, getSectionSegmentPool());
-  signal->getSection(dataPtr, UtilExecuteReq::DATA_SECTION);
+  handle.getSection(dataPtr, UtilExecuteReq::DATA_SECTION);
   SectionReader dataReader(dataPtr, getSectionSegmentPool());
 
 #if 0 //def EVENT_DEBUG
@@ -1771,18 +2074,16 @@ DbUtil::execUTIL_EXECUTE_REQ(Signal* signal)
    * Seize Transaction record
    ************************************************************/
   ndbrequire(c_runningTransactions.seize(transPtr));
+  transPtr.p->gci_hi = 0;
+  transPtr.p->gci_lo = 0;
   transPtr.p->gsn        = GSN_UTIL_EXECUTE_REQ;
   transPtr.p->clientRef  = clientRef;
   transPtr.p->clientData = clientData;
   ndbrequire(transPtr.p->operations.seize(opPtr));
   opPtr.p->prepOp   = prepOpPtr.p;
   opPtr.p->prepOp_i = prepOpPtr.i;
-  
-#if 0 //def EVENT_DEBUG
-  printf("opPtr.p->rs.seize( %u )\n", prepOpPtr.p->rsLen);
-#endif
-  ndbrequire(opPtr.p->rs.seize(prepOpPtr.p->rsLen));
-  
+  opPtr.p->m_scanTakeOver = scanTakeOver;
+
  /***********************************************************
    * Store signal data on linear memory in Transaction record 
    ***********************************************************/
@@ -1835,7 +2136,7 @@ DbUtil::execUTIL_EXECUTE_REQ(Signal* signal)
     if (!res) {
       // Failed to allocate buffer data
       jam();
-      releaseSections(signal);
+      releaseSections(handle);
       sendUtilExecuteRef(signal, UtilExecuteRef::AllocationError, 
 			 0, clientRef, clientData);
       releaseTransaction(transPtr);    
@@ -1845,18 +2146,11 @@ DbUtil::execUTIL_EXECUTE_REQ(Signal* signal)
   if (!dataComplete) {
     // Missing data in data section
     jam();
-    releaseSections(signal);
+    releaseSections(handle);
     sendUtilExecuteRef(signal, UtilExecuteRef::MissingData, 
 		       0, clientRef, clientData);
     releaseTransaction(transPtr);    
     return;
-  }
-
-  // quick hack for hash index build
-  if (TcKeyReq::getOperationType(prepOpPtr.p->tckey.requestInfo) != ZREAD){
-    prepOpPtr.p->tckey.attrLen =
-      prepOpPtr.p->attrInfo.getSize() + opPtr.p->attrInfo.getSize();
-    TcKeyReq::setKeyLength(prepOpPtr.p->tckey.requestInfo, keyInfo->getSize());
   }
 
 #if 0
@@ -1871,7 +2165,7 @@ DbUtil::execUTIL_EXECUTE_REQ(Signal* signal)
   }
 #endif
 
-  releaseSections(signal);
+  releaseSections(handle);
   transPtr.p->noOfRetries = 3;
   runTransaction(signal, transPtr);
 }
@@ -1890,7 +2184,7 @@ DbUtil::runTransaction(Signal* signal, TransactionPtr transPtr){
   transPtr.p->recv = 0;
   transPtr.p->errorCode = 0;
   getTransId(transPtr.p);
-  
+
   OperationPtr opPtr;
   ndbrequire(transPtr.p->operations.first(opPtr));
   
@@ -1931,8 +2225,6 @@ DbUtil::runOperation(Signal* signal, TransactionPtr & transPtr,
   /**
    * Init operation w.r.t result set
    */
-  initResultSet(op->rs, pop->rsInfo);
-  op->rs.first(op->rsIterator);
   op->rsRecv = 0;
 #if 0 //def EVENT_DEBUG
   printf("pop->rsLen %u\n", pop->rsLen);
@@ -1942,7 +2234,7 @@ DbUtil::runOperation(Signal* signal, TransactionPtr & transPtr,
   
   TcKeyReq * tcKey = (TcKeyReq*)signal->getDataPtrSend();
   //ndbout << "*** 6 ***"<< endl; pop->print();
-  memcpy(tcKey, &pop->tckey, pop->tckeyLenInBytes);
+  memcpy(tcKey, &pop->tckey, 4*pop->tckeyLen);
   //ndbout << "*** 6b ***"<< endl; 
   //printTCKEYREQ(stdout, signal->getDataPtrSend(), 
   //              pop->tckeyLenInBytes >> 2, 0);
@@ -1951,6 +2243,11 @@ DbUtil::runOperation(Signal* signal, TransactionPtr & transPtr,
   tcKey->transId1 = transPtr.p->transId[0];
   tcKey->transId2 = transPtr.p->transId[1];
   tcKey->requestInfo |= start;
+
+  if (TcKeyReq::getScanIndFlag(tcKey->requestInfo))
+  {
+    tcKey->scanInfo = op->m_scanTakeOver;
+  }
   
 #if 0 //def EVENT_DEBUG
   // Debugging
@@ -1959,7 +2256,12 @@ DbUtil::runOperation(Signal* signal, TransactionPtr & transPtr,
   printf("DbUtil::runOperation: ATTRINFO\n");
   op->attrInfo.print(stdout);
 #endif
-
+  
+  Uint32 attrLen = pop->attrInfo.getSize() + op->attrInfo.getSize();
+  Uint32 keyLen = op->keyInfo.getSize();
+  tcKey->attrLen = attrLen + TcKeyReq::getAIInTcKeyReq(tcKey->requestInfo);
+  TcKeyReq::setKeyLength(tcKey->requestInfo, keyLen);
+  
   /**
    * Key Info
    */
@@ -1973,12 +2275,13 @@ DbUtil::runOperation(Signal* signal, TransactionPtr & transPtr,
   //ndbout << "*** 7 ***" << endl;
   //printTCKEYREQ(stdout, signal->getDataPtrSend(), 
   //		pop->tckeyLenInBytes >> 2, 0);
-
+  
 #if 0 //def EVENT_DEBUG
-    printf("DbUtil::runOperation: sendSignal(DBTC_REF, GSN_TCKEYREQ, signal, %d , JBB)\n",  pop->tckeyLenInBytes >> 2);
-    printTCKEYREQ(stdout, signal->getDataPtr(), pop->tckeyLenInBytes >> 2,0);
+  printf("DbUtil::runOperation: sendSignal(DBTC_REF, GSN_TCKEYREQ, signal, %d , JBB)\n",  pop->tckeyLenInBytes >> 2);
+  printTCKEYREQ(stdout, signal->getDataPtr(), pop->tckeyLenInBytes >> 2,0);
 #endif
-  sendSignal(DBTC_REF, GSN_TCKEYREQ, signal, pop->tckeyLenInBytes >> 2, JBB);
+  Uint32 sigLen = pop->tckeyLen + (keyLen > 8 ? 8 : keyLen);
+  sendSignal(transPtr.p->connectRef, GSN_TCKEYREQ, signal, sigLen, JBB);
   
   /**
    * More the 8 words of key info not implemented
@@ -1992,7 +2295,8 @@ DbUtil::runOperation(Signal* signal, TransactionPtr & transPtr,
   keyInfo->connectPtr = transPtr.p->connectPtr;
   keyInfo->transId[0] = transPtr.p->transId[0];
   keyInfo->transId[1] = transPtr.p->transId[1];
-  sendKeyInfo(signal, keyInfo, op->keyInfo, kit);
+  sendKeyInfo(signal, transPtr.p->connectRef,
+              keyInfo, op->keyInfo, kit);
 
   /**
    * AttrInfo
@@ -2004,14 +2308,17 @@ DbUtil::runOperation(Signal* signal, TransactionPtr & transPtr,
 
   AttrInfoIterator ait;
   pop->attrInfo.first(ait);
-  sendAttrInfo(signal, attrInfo, pop->attrInfo, ait);
+  sendAttrInfo(signal, transPtr.p->connectRef,
+               attrInfo, pop->attrInfo, ait);
   
   op->attrInfo.first(ait);
-  sendAttrInfo(signal, attrInfo, op->attrInfo, ait);
+  sendAttrInfo(signal, transPtr.p->connectRef,
+               attrInfo, op->attrInfo, ait);
 }
 
 void
 DbUtil::sendKeyInfo(Signal* signal, 
+                    Uint32 tcRef,
 		    KeyInfo* keyInfo,
 		    const KeyInfoBuffer & keyBuf,
 		    KeyInfoIterator & kit)
@@ -2027,13 +2334,14 @@ DbUtil::sendKeyInfo(Signal* signal,
 #if 0 //def EVENT_DEBUG
     printf("DbUtil::sendKeyInfo: sendSignal(DBTC_REF, GSN_KEYINFO, signal, %d , JBB)\n", KeyInfo::HeaderLength + keyDataLen);
 #endif
-    sendSignal(DBTC_REF, GSN_KEYINFO, signal, 
+    sendSignal(tcRef, GSN_KEYINFO, signal,
 	       KeyInfo::HeaderLength + keyDataLen, JBB);
   }
 }
 
 void
 DbUtil::sendAttrInfo(Signal* signal, 
+                     Uint32 tcRef,
 		     AttrInfo* attrInfo, 
 		     const AttrInfoBuffer & attrBuf,
 		     AttrInfoIterator & ait)
@@ -2048,29 +2356,8 @@ DbUtil::sendAttrInfo(Signal* signal,
 #if 0 //def EVENT_DEBUG
     printf("DbUtil::sendAttrInfo: sendSignal(DBTC_REF, GSN_ATTRINFO, signal, %d , JBB)\n", AttrInfo::HeaderLength + i);
 #endif
-    sendSignal(DBTC_REF, GSN_ATTRINFO, signal, 
+    sendSignal(tcRef, GSN_ATTRINFO, signal,
 	       AttrInfo::HeaderLength + i, JBB);
-  }
-}
-
-void
-DbUtil::initResultSet(ResultSetBuffer & rs, 
-		      const ResultSetInfoBuffer & rsi){
-  
-  ResultSetBuffer::DataBufferIterator rsit;
-  rs.first(rsit);
-  
-  ResultSetInfoBuffer::ConstDataBufferIterator rsiit;
-  for(rsi.first(rsiit); rsiit.curr.i != RNIL; rsi.next(rsiit)){
-    ndbrequire(rsit.curr.i != RNIL);
-    
-    rsit.data[0] = rsiit.data[0];
-#if 0 //def EVENT_DEBUG
-    printf("Init resultset %u, sz %d\n",
-	   rsit.curr.i,
-	   ((AttributeHeader*)&rsit.data[0])->getDataSize() + 1);
-#endif
-    rs.next(rsit, ((AttributeHeader*)&rsit.data[0])->getDataSize() + 1);
   }
 }
 
@@ -2115,7 +2402,20 @@ DbUtil::execTRANSID_AI(Signal* signal){
   const Uint32 opI      = signal->theData[0];
   const Uint32 transId1 = signal->theData[1];
   const Uint32 transId2 = signal->theData[2];
-  const Uint32 dataLen  = signal->length() - 3;
+  SectionHandle handle(this, signal);
+  SegmentedSectionPtr dataPtr;
+  bool longSignal = (handle.m_cnt == 1);
+  Uint32 dataLen;
+
+  if (longSignal)
+  {
+    ndbrequire(handle.getSection(dataPtr, 0));
+    dataLen = dataPtr.sz;
+  }
+  else
+  {
+    dataLen = signal->length() - 3;
+  }
 
   Operation * opP = c_operationPool.getPtr(opI);
   TransactionPtr transPtr;
@@ -2128,12 +2428,24 @@ DbUtil::execTRANSID_AI(Signal* signal){
   /**
    * Save result
    */
-  const Uint32 *src = &signal->theData[3];
-  ResultSetBuffer::DataBufferIterator rs = opP->rsIterator;
+  if (longSignal)
+  {
+    SectionSegment * ptrP = dataPtr.p;
+    while (dataLen > NDB_SECTION_SEGMENT_SZ)
+    {
+      ndbrequire(opP->rs.append(ptrP->theData, NDB_SECTION_SEGMENT_SZ));
+      dataLen -= NDB_SECTION_SEGMENT_SZ;
+      ptrP = g_sectionSegmentPool.getPtr(ptrP->m_nextSegment);
+    }
+    ndbrequire(opP->rs.append(ptrP->theData, dataLen));
 
-  ndbrequire(opP->rs.import(rs,src,dataLen));
-  opP->rs.next(rs, dataLen);
-  opP->rsIterator = rs;
+    releaseSections(handle);
+  }
+  else
+  {
+    const Uint32 *src = &signal->theData[3];
+    ndbrequire(opP->rs.append(src, dataLen));
+  }
 
   if(!opP->complete()){
    jam();
@@ -2158,7 +2470,8 @@ DbUtil::execTCKEYCONF(Signal* signal){
   
   TcKeyConf * keyConf = (TcKeyConf*)signal->getDataPtr();
 
-  //const Uint32 gci      = keyConf->gci;
+  Uint32 gci_lo = 0;
+  const Uint32 gci_hi   = keyConf->gci_hi;
   const Uint32 transI   = keyConf->apiConnectPtr >> 1;
   const Uint32 confInfo = keyConf->confInfo;
   const Uint32 transId1 = keyConf->transId1;
@@ -2177,20 +2490,36 @@ DbUtil::execTCKEYCONF(Signal* signal){
     }
   }	
 
-  /**
-   * Check commit ack marker flag
-   */
-  if (TcKeyConf::getMarkerFlag(confInfo)){
-    signal->theData[0] = transId1;
-    signal->theData[1] = transId2;
-    sendSignal(DBTC_REF, GSN_TC_COMMIT_ACK, signal, 2, JBB);    
-  }//if
+  if (TcKeyConf::getCommitFlag(confInfo))
+  {
+    jam();
+    gci_lo = keyConf->operations[ops].apiOperationPtr;
+  }
 
   TransactionPtr transPtr;
   c_runningTransactions.getPtr(transPtr, transI);
+
+  /**
+   * Check commit ack marker flag
+   */
+  if (TcKeyConf::getMarkerFlag(confInfo))
+  {
+    jam();
+    signal->theData[0] = transId1;
+    signal->theData[1] = transId2;
+    sendSignal(transPtr.p->connectRef, GSN_TC_COMMIT_ACK, signal, 2, JBB);    
+  }//if
+
   ndbrequire(transId1 == transPtr.p->transId[0] && 
 	     transId2 == transPtr.p->transId[1]);
-  
+
+  if (TcKeyConf::getCommitFlag(confInfo))
+  {
+    jam();
+    transPtr.p->gci_hi = gci_hi;
+    transPtr.p->gci_lo = gci_lo;
+  }
+
   transPtr.p->recv += recv;
   if(!transPtr.p->complete()){
     jam();
@@ -2308,6 +2637,8 @@ DbUtil::finishTransaction(Signal* signal, TransactionPtr transPtr){
       struct LinearSectionPtr sectionsPtr[UtilExecuteReq::NoOfSections];
       UtilExecuteConf * ret = (UtilExecuteConf *)signal->getDataPtrSend();
       ret->senderData = transPtr.p->clientData;
+      ret->gci_hi = transPtr.p->gci_hi;
+      ret->gci_lo = transPtr.p->gci_lo;
       if (getResultSet(signal, transPtr.p, sectionsPtr)) {
 #if 0 //def EVENT_DEBUG
 	for (int j = 0; j < 2; j++) {
@@ -2335,120 +2666,153 @@ DbUtil::finishTransaction(Signal* signal, TransactionPtr transPtr){
 void
 DbUtil::execUTIL_LOCK_REQ(Signal * signal){
   jamEntry();
-  UtilLockReq * req = (UtilLockReq*)signal->getDataPtr();
-  const Uint32 lockId = req->lockId;
+
+  UtilLockReq req = *(UtilLockReq*)signal->getDataPtr();
 
   LockQueuePtr lockQPtr;
-  if(!c_lockQueues.find(lockQPtr, lockId)){
+  if(!c_lockQueues.find(lockQPtr, req.lockId))
+  {
     jam();
-    sendLOCK_REF(signal, req, UtilLockRef::NoSuchLock);
+    sendLOCK_REF(signal, &req, UtilLockRef::NoSuchLock);
     return;
   }
 
-//  const Uint32 requestInfo = req->requestInfo;
-  const Uint32 senderNode = refToNode(req->senderRef);
-  if(senderNode != getOwnNodeId() && senderNode != 0){
+  const Uint32 senderNode = refToNode(req.senderRef);
+  if(senderNode != getOwnNodeId() && senderNode != 0)
+  {
     jam();
-    sendLOCK_REF(signal, req, UtilLockRef::DistributedLockNotSupported);    
-    return;
-  }
-
-  LocalDLFifoList<LockQueueElement> queue(c_lockElementPool,
-					  lockQPtr.p->m_queue);
-  if(req->requestInfo & UtilLockReq::TryLock && !queue.isEmpty()){
-    jam();
-    sendLOCK_REF(signal, req, UtilLockRef::LockAlreadyHeld);
+    sendLOCK_REF(signal, &req, UtilLockRef::DistributedLockNotSupported);    
     return;
   }
   
-  LockQueueElementPtr lockEPtr;
-  if(!c_lockElementPool.seize(lockEPtr)){
+  Uint32 res = lockQPtr.p->m_queue.lock(this, c_lockElementPool, &req);
+  switch(res){
+  case UtilLockRef::OK:
     jam();
-    sendLOCK_REF(signal, req, UtilLockRef::OutOfLockRecords);
+    sendLOCK_CONF(signal, &req);
+    return;
+  case UtilLockRef::OutOfLockRecords:
+    jam();
+    sendLOCK_REF(signal, &req, UtilLockRef::OutOfLockRecords);
+    return;
+  case UtilLockRef::InLockQueue:
+    jam();
+    if (req.requestInfo & UtilLockReq::Notify)
+    {
+      jam();
+      sendLOCK_REF(signal, &req, UtilLockRef::InLockQueue);
+    }
+    return;
+  case UtilLockRef::LockAlreadyHeld:
+    jam();
+    ndbassert(req.requestInfo & UtilLockReq::TryLock);
+    sendLOCK_REF(signal, &req, UtilLockRef::LockAlreadyHeld);
+    return;
+  default:
+    jam();
+    ndbassert(false);
+    sendLOCK_REF(signal, &req, (UtilLockRef::ErrorCode)res);
     return;
   }
-  
-  lockEPtr.p->m_senderRef = req->senderRef;
-  lockEPtr.p->m_senderData = req->senderData;
-  
-  if(queue.isEmpty()){
-    jam();
-    sendLOCK_CONF(signal, lockQPtr.p, lockEPtr.p);
-  }
-  
-  queue.add(lockEPtr);
 }
 
 void
-DbUtil::execUTIL_UNLOCK_REQ(Signal* signal){
+DbUtil::execUTIL_UNLOCK_REQ(Signal* signal)
+{
   jamEntry();
   
-  UtilUnlockReq * req = (UtilUnlockReq*)signal->getDataPtr();
-  const Uint32 lockId = req->lockId;
+  UtilUnlockReq req = *(UtilUnlockReq*)signal->getDataPtr();
   
   LockQueuePtr lockQPtr;
-  if(!c_lockQueues.find(lockQPtr, lockId)){
+  if(!c_lockQueues.find(lockQPtr, req.lockId))
+  {
     jam();
-    sendUNLOCK_REF(signal, req, UtilUnlockRef::NoSuchLock);
+    sendUNLOCK_REF(signal, &req, UtilUnlockRef::NoSuchLock);
     return;
   }
 
-  LocalDLFifoList<LockQueueElement> queue(c_lockElementPool, 
-					  lockQPtr.p->m_queue);
-  LockQueueElementPtr lockEPtr;
-  if(!queue.first(lockEPtr)){
+  Uint32 res = lockQPtr.p->m_queue.unlock(this, c_lockElementPool, &req);
+  switch(res){
+  case UtilUnlockRef::OK:
     jam();
-    sendUNLOCK_REF(signal, req, UtilUnlockRef::NotLockOwner);
-    return;
-  }
-
-  if(lockQPtr.p->m_lockKey != req->lockKey){
+  case UtilUnlockRef::NotLockOwner: {
     jam();
-    sendUNLOCK_REF(signal, req, UtilUnlockRef::NotLockOwner);
-    return;
+    UtilUnlockConf * conf = (UtilUnlockConf*)signal->getDataPtrSend();
+    conf->senderData = req.senderData;
+    conf->senderRef = reference();
+    conf->lockId = req.lockId;
+    sendSignal(req.senderRef, GSN_UTIL_UNLOCK_CONF, signal,
+               UtilUnlockConf::SignalLength, JBB);
+    break;
   }
-
-  sendUNLOCK_CONF(signal, lockQPtr.p, lockEPtr.p);
-  queue.release(lockEPtr);
+  case UtilUnlockRef::NotInLockQueue:
+    jam();
+  default:
+    jam();
+    ndbassert(false);
+    sendUNLOCK_REF(signal, &req, (UtilUnlockRef::ErrorCode)res);
+    break;
+  }
   
-  if(queue.first(lockEPtr)){
-    jam();
-    sendLOCK_CONF(signal, lockQPtr.p, lockEPtr.p);
-    return;
+  /**
+   * Unlock can make other(s) acquie lock
+   */
+  UtilLockReq lockReq;
+  LockQueue::Iterator iter;
+  if (lockQPtr.p->m_queue.first(this, c_lockElementPool, iter))
+  {
+    int res;
+    while ((res = lockQPtr.p->m_queue.checkLockGrant(iter, &lockReq)) > 0)
+    {
+      jam();
+      /**
+       *
+       */
+      if (res == 2)
+      {
+        jam();
+        sendLOCK_CONF(signal, &lockReq);
+      }        
+      
+      if (!lockQPtr.p->m_queue.next(iter))
+        break;
+    }
   }
 }
 
 void
 DbUtil::sendLOCK_REF(Signal* signal, 
-		     const UtilLockReq * req, UtilLockRef::ErrorCode err){
+                     const UtilLockReq * req, UtilLockRef::ErrorCode err)
+{
   const Uint32 senderData = req->senderData;
   const Uint32 senderRef = req->senderRef;
   const Uint32 lockId = req->lockId;
+  const Uint32 extra = req->extra;
 
   UtilLockRef * ref = (UtilLockRef*)signal->getDataPtrSend();
   ref->senderData = senderData;
   ref->senderRef = reference();
   ref->lockId = lockId;
   ref->errorCode = err;
+  ref->extra = extra;
   sendSignal(senderRef, GSN_UTIL_LOCK_REF, signal, 
 	     UtilLockRef::SignalLength, JBB);
 }
 
 void
-DbUtil::sendLOCK_CONF(Signal* signal, 
-		      LockQueue * lockQP, 
-		      LockQueueElement * lockEP){
-  const Uint32 senderData = lockEP->m_senderData;
-  const Uint32 senderRef = lockEP->m_senderRef;
-  const Uint32 lockId = lockQP->m_lockId;
-  const Uint32 lockKey = ++lockQP->m_lockKey;
+DbUtil::sendLOCK_CONF(Signal* signal, const UtilLockReq * req)
+{
+  const Uint32 senderData = req->senderData;
+  const Uint32 senderRef = req->senderRef;
+  const Uint32 lockId = req->lockId;
+  const Uint32 extra = req->extra;
 
   UtilLockConf * conf = (UtilLockConf*)signal->getDataPtrSend();
   conf->senderData = senderData;
   conf->senderRef = reference();
   conf->lockId = lockId;
-  conf->lockKey = lockKey;
-  sendSignal(senderRef, GSN_UTIL_LOCK_CONF, signal,
+  conf->extra = extra;
+  sendSignal(senderRef, GSN_UTIL_LOCK_CONF, signal, 
 	     UtilLockConf::SignalLength, JBB);
 }
 
@@ -2467,23 +2831,6 @@ DbUtil::sendUNLOCK_REF(Signal* signal,
   ref->errorCode = err;
   sendSignal(senderRef, GSN_UTIL_UNLOCK_REF, signal, 
 	     UtilUnlockRef::SignalLength, JBB);
-}
-
-void 
-DbUtil::sendUNLOCK_CONF(Signal* signal, 
-			LockQueue * lockQP, 
-			LockQueueElement * lockEP){
-  const Uint32 senderData = lockEP->m_senderData;
-  const Uint32 senderRef = lockEP->m_senderRef;
-  const Uint32 lockId = lockQP->m_lockId;
-  ++lockQP->m_lockKey;
-  
-  UtilUnlockConf * conf = (UtilUnlockConf*)signal->getDataPtrSend();
-  conf->senderData = senderData;
-  conf->senderRef = reference();
-  conf->lockId = lockId;
-  sendSignal(senderRef, GSN_UTIL_UNLOCK_CONF, signal,
-	     UtilUnlockConf::SignalLength, JBB);
 }
 
 void
@@ -2513,7 +2860,7 @@ DbUtil::execUTIL_CREATE_LOCK_REQ(Signal* signal){
       break;
     }      
 
-    new (lockQPtr.p) LockQueue(req.lockId);
+    new (lockQPtr.p) LockQueueInstance(req.lockId);
     c_lockQueues.add(lockQPtr);
 
     UtilCreateLockConf * conf = (UtilCreateLockConf*)signal->getDataPtrSend();
@@ -2544,22 +2891,26 @@ DbUtil::execUTIL_DESTORY_LOCK_REQ(Signal* signal){
   UtilDestroyLockRef::ErrorCode err = UtilDestroyLockRef::OK;
   do {
     LockQueuePtr lockQPtr;
-    if(!c_lockQueues.find(lockQPtr, req.lockId)){
+    if(!c_lockQueues.find(lockQPtr, req.lockId))
+    {
       jam();
       err = UtilDestroyLockRef::NoSuchLock;
       break;
     }
     
-    LocalDLFifoList<LockQueueElement> queue(c_lockElementPool, 
-					    lockQPtr.p->m_queue);
-    LockQueueElementPtr lockEPtr;
-    if(!queue.first(lockEPtr)){
+    LockQueue::Iterator iter;
+    if (lockQPtr.p->m_queue.first(this, c_lockElementPool, iter) == false)
+    {
       jam();
       err = UtilDestroyLockRef::NotLockOwner;
       break;
     }
     
-    if(lockQPtr.p->m_lockKey != req.lockKey){
+    if (! (iter.m_curr.p->m_req.senderData == req.senderData &&
+           iter.m_curr.p->m_req.senderRef == req.senderRef &&
+           (! (iter.m_curr.p->m_req.requestInfo & UtilLockReq::SharedLock)) &&
+           iter.m_curr.p->m_req.requestInfo & UtilLockReq::Granted))
+    {
       jam();
       err = UtilDestroyLockRef::NotLockOwner;
       break;
@@ -2568,21 +2919,14 @@ DbUtil::execUTIL_DESTORY_LOCK_REQ(Signal* signal){
     /**
      * OK
      */
-    
-    // Inform all in lock queue that queue has been destroyed
-    UtilLockRef * ref = (UtilLockRef*)signal->getDataPtrSend();
-    ref->lockId = req.lockId;
-    ref->errorCode = UtilLockRef::NoSuchLock;
-    ref->senderRef = reference();
-    LockQueueElementPtr loopPtr = lockEPtr;      
-    for(queue.next(loopPtr); !loopPtr.isNull(); queue.next(loopPtr)){
+
+    while (lockQPtr.p->m_queue.next(iter))
+    {
       jam();
-      ref->senderData = loopPtr.p->m_senderData;
-      const Uint32 senderRef = loopPtr.p->m_senderRef;
-      sendSignal(senderRef, GSN_UTIL_LOCK_REF, signal, 
-		 UtilLockRef::SignalLength, JBB);
+      sendLOCK_REF(signal, &iter.m_curr.p->m_req, UtilLockRef::NoSuchLock);
     }
-    queue.release();
+
+    lockQPtr.p->m_queue.clear(c_lockElementPool);
     c_lockQueues.release(lockQPtr);
     
     // Send Destroy conf
@@ -2594,7 +2938,7 @@ DbUtil::execUTIL_DESTORY_LOCK_REQ(Signal* signal){
 	       UtilDestroyLockConf::SignalLength, JBB);
     return;
   } while(false);
-
+  
   UtilDestroyLockRef * ref = (UtilDestroyLockRef*)signal->getDataPtrSend();
   ref->senderData = req.senderData;
   ref->senderRef = reference();

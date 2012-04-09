@@ -1,4 +1,5 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,109 +12,111 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #include <signaldata/CreateTrig.hpp>
+#include <signaldata/DictSignal.hpp>
+#include <trigger_definitions.h>
 
-bool printCREATE_TRIG_REQ(FILE * output, const Uint32 * theData, Uint32 len, Uint16 receiverBlockNo)
+bool
+printCREATE_TRIG_REQ(FILE* output, const Uint32* theData, Uint32 len, Uint16)
 {
-  const CreateTrigReq * const sig = (CreateTrigReq *) theData;
-
-  //char triggerName[MAX_TAB_NAME_SIZE];
-  char triggerType[32];
-  char triggerActionTime[32];
-  char triggerEvent[32];
-
-  //sig->getTriggerName((char *) &triggerName);
-  switch (sig->getTriggerType()) {
-  case(TriggerType::SECONDARY_INDEX): 
-    BaseString::snprintf(triggerType, sizeof(triggerType), "SECONDARY_INDEX");
-    break;
-  case(TriggerType::SUBSCRIPTION):
-    BaseString::snprintf(triggerType, sizeof(triggerType), "SUBSCRIPTION");
-    break;
-  case(TriggerType::ORDERED_INDEX): 
-    BaseString::snprintf(triggerType, sizeof(triggerType), "ORDERED_INDEX");
-    break;
-  default:
-    BaseString::snprintf(triggerType, sizeof(triggerType), "UNKNOWN [%d]", (int)sig->getTriggerType());
-    break;
-  }
-  switch (sig->getTriggerActionTime()) {
-  case (TriggerActionTime::TA_BEFORE):
-    BaseString::snprintf(triggerActionTime, sizeof(triggerActionTime), "BEFORE");
-    break;
-  case(TriggerActionTime::TA_AFTER):
-    BaseString::snprintf(triggerActionTime, sizeof(triggerActionTime), "AFTER");
-    break;
-  case (TriggerActionTime::TA_DEFERRED):
-    BaseString::snprintf(triggerActionTime, sizeof(triggerActionTime), "DEFERRED");
-    break;
-  case (TriggerActionTime::TA_DETACHED):
-    BaseString::snprintf(triggerActionTime, sizeof(triggerActionTime), "DETACHED");
-    break;
-  default:
-    BaseString::snprintf(triggerActionTime, sizeof(triggerActionTime),
-	     "UNKNOWN [%d]", (int)sig->getTriggerActionTime());
-    break;
-  }
-  switch (sig->getTriggerEvent()) {
-  case (TriggerEvent::TE_INSERT):
-    BaseString::snprintf(triggerEvent, sizeof(triggerEvent), "INSERT");
-    break;
-  case(TriggerEvent::TE_DELETE):
-    BaseString::snprintf(triggerEvent, sizeof(triggerEvent), "DELETE");
-    break;
-  case(TriggerEvent::TE_UPDATE):
-    BaseString::snprintf(triggerEvent, sizeof(triggerEvent), "UPDATE");
-    break;
-  case(TriggerEvent::TE_CUSTOM):
-    BaseString::snprintf(triggerEvent, sizeof(triggerEvent), "CUSTOM");
-    break;
-  default:
-    BaseString::snprintf(triggerEvent, sizeof(triggerEvent), "UNKNOWN [%d]", (int)sig->getTriggerEvent());
-    break;
-  }
-  
-  fprintf(output, "User: %u, ", sig->getUserRef());
-  //fprintf(output, "Trigger name: \"%s\"\n", triggerName);
-  fprintf(output, "Type: %s, ", triggerType);
-  fprintf(output, "Action: %s, ", triggerActionTime);
-  fprintf(output, "Event: %s, ", triggerEvent);
-  fprintf(output, "Trigger id: %u, ", sig->getTriggerId());
-  fprintf(output, "Table id: %u, ", sig->getTableId());
-  fprintf(output, "Monitor replicas: %s ", (sig->getMonitorReplicas())?"true":"false");
-  fprintf(output, "Monitor all attributes: %s ", (sig->getMonitorAllAttributes())?"true":"false");
-  const AttributeMask& attributeMask = sig->getAttributeMask();
-
-  char buf[MAXNROFATTRIBUTESINWORDS * 8 + 1];
-  fprintf(output, "Attribute mask: %s", attributeMask.getText(buf));
-  fprintf(output, "\n");  
-
-  return false;
+  const CreateTrigReq* sig = (const CreateTrigReq*)theData;
+  const Uint32 triggerType =
+    TriggerInfo::getTriggerType(sig->triggerInfo);
+  const Uint32 triggerActionTime =
+    TriggerInfo::getTriggerActionTime(sig->triggerInfo);
+  const Uint32 triggerEvent =
+    TriggerInfo::getTriggerEvent(sig->triggerInfo);
+  const Uint32 monitorReplicas =
+    TriggerInfo::getMonitorReplicas(sig->triggerInfo);
+  const Uint32 monitorAllAttributes =
+    TriggerInfo::getMonitorAllAttributes(sig->triggerInfo);
+  const Uint32 reportAllMonitoredAttributes =
+    TriggerInfo::getReportAllMonitoredAttributes(sig->triggerInfo);
+  fprintf(output, " clientRef: 0x%x", sig->clientRef);
+  fprintf(output, " clientData: %u", sig->clientData);
+  fprintf(output, "\n");
+  fprintf(output, " transId: 0x%x", sig->transId);
+  fprintf(output, " transKey: %u", sig->transKey);
+  fprintf(output, "\n");
+  fprintf(output, " requestInfo: type: %u extra: %u flags: [%s]",
+                  DictSignal::getRequestType(sig->requestInfo),
+                  DictSignal::getRequestExtra(sig->requestInfo),
+                  DictSignal::getRequestFlagsText(sig->requestInfo));
+  fprintf(output, "\n");
+  fprintf(output, " tableId: %u", sig->tableId);
+  fprintf(output, " tableVersion: 0x%x", sig->tableVersion);
+  fprintf(output, " indexId: %u", sig->indexId);
+  fprintf(output, " indexVersion: 0x%x", sig->indexVersion);
+  fprintf(output, " triggerNo: %u", sig->triggerNo);
+  fprintf(output, "\n");
+  if (sig->forceTriggerId == RNIL)
+    fprintf(output, " forceTriggerId: RNIL");
+  else
+    fprintf(output, " forceTriggerId: %u", sig->forceTriggerId);
+  fprintf(output, "\n");
+  fprintf(output, " triggerInfo: 0x%x", sig->triggerInfo);
+  fprintf(output, "\n");
+  fprintf(output, "   triggerType: %u [%s]",
+                  triggerType,
+                  TriggerInfo::triggerTypeName(triggerType));
+  fprintf(output, "\n");
+  fprintf(output, "   triggerActionTime: %u [%s]",
+                  triggerActionTime,
+                  TriggerInfo::triggerActionTimeName(triggerActionTime));
+  fprintf(output, "\n");
+  fprintf(output, "   triggerEvent: %u [%s]",
+                  triggerEvent,
+                  TriggerInfo::triggerEventName(triggerEvent));
+  fprintf(output, "\n");
+  fprintf(output, "   monitorReplicas: %u",
+                  monitorReplicas);
+  fprintf(output, "\n");
+  fprintf(output, "   monitorAllAttributes: %u",
+                  monitorAllAttributes);
+  fprintf(output, "\n");
+  fprintf(output, "   reportAllMonitoredAttributes: %u",
+                  reportAllMonitoredAttributes);
+  fprintf(output, "\n");
+  fprintf(output, " receiverRef: 0x%x", sig->receiverRef);
+  fprintf(output, "\n");
+  return true;
 }
 
-bool printCREATE_TRIG_CONF(FILE * output, const Uint32 * theData, Uint32 len, Uint16 receiverBlockNo)
+bool
+printCREATE_TRIG_CONF(FILE* output, const Uint32* theData, Uint32 len, Uint16)
 {
-  const CreateTrigConf * const sig = (CreateTrigConf *) theData;
-  
-  fprintf(output, "User: %u, ", sig->getUserRef());
-  fprintf(output, "Trigger id: %u, ", sig->getTriggerId());
-  fprintf(output, "Table id: %u, ", sig->getTableId());
+  const CreateTrigConf* sig = (const CreateTrigConf*)theData;
+  fprintf(output, " senderRef: 0x%x", sig->senderRef);
+  fprintf(output, " clientData: %x", sig->clientData);
+  fprintf(output, " transId: 0x%x", sig->transId);
   fprintf(output, "\n");  
-
-  return false;
+  fprintf(output, " tableId: %u", sig->tableId);
+  fprintf(output, " indexId: %u", sig->indexId);
+  fprintf(output, " triggerId: %u", sig->triggerId);
+  fprintf(output, " triggerInfo: 0x%x", sig->triggerInfo);
+  fprintf(output, "\n");  
+  return true;
 }
 
-bool printCREATE_TRIG_REF(FILE * output, const Uint32 * theData, Uint32 len, Uint16 receiverBlockNo)
+bool
+printCREATE_TRIG_REF(FILE* output, const Uint32* theData, Uint32 len, Uint16)
 {
-  const CreateTrigRef * const sig = (CreateTrigRef *) theData;
-
-  fprintf(output, "User: %u, ", sig->getUserRef());
-  fprintf(output, "Trigger id: %u, ", sig->getTriggerId());
-  fprintf(output, "Table id: %u, ", sig->getTableId());
-  fprintf(output, "Error code: %u, ", sig->getErrorCode());
+  const CreateTrigRef* sig = (CreateTrigRef*)theData;
+  fprintf(output, " senderRef: 0x%x", sig->senderRef);
+  fprintf(output, " clientData: %u", sig->clientData);
+  fprintf(output, " transId: 0x%x", sig->transId);
   fprintf(output, "\n");  
-  
-  return false;
+  fprintf(output, " tableId: %u", sig->tableId);
+  fprintf(output, " indexId: %u", sig->indexId);
+  fprintf(output, " triggerInfo: 0x%x", sig->triggerInfo);
+  fprintf(output, "\n");  
+  fprintf(output, " errorCode: %u", sig->errorCode);
+  fprintf(output, " errorLine: %u", sig->errorLine);
+  fprintf(output, " errorNodeId: %u", sig->errorNodeId);
+  fprintf(output, " masterNodeId: %u", sig->masterNodeId);
+  fprintf(output, "\n");  
+  return true;
 }

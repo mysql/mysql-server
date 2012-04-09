@@ -1,4 +1,6 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (C) 2003-2006, 2008 MySQL AB, 2008 Sun Microsystems, Inc.
+    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +13,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #ifndef SHM_Transporter_H
 #define SHM_Transporter_H
@@ -49,25 +52,12 @@ public:
    */
   virtual ~SHM_Transporter();
   
+  virtual bool configure_derived(const TransporterConfiguration* conf);
+
   /**
    * Do initialization
    */
   bool initTransporter();
-  
-  Uint32 * getWritePtr(Uint32 lenBytes, Uint32 prio)
-  {
-    return (Uint32 *)writer->getWritePtr(lenBytes);
-  }
-  
-  void updateWritePtr(Uint32 lenBytes, Uint32 prio)
-  {
-    writer->updateWritePtr(lenBytes);
-    m_last_signal += lenBytes;
-    if(m_last_signal >= m_signal_threshold)
-    {
-      doSend();
-    }
-  }
   
   void getReceivePtr(Uint32 ** ptr, Uint32 ** eod){
     reader->getReadPtr(* ptr, * eod);
@@ -134,13 +124,10 @@ protected:
   /**
    * doSend (i.e signal receiver)
    */
-  void doSend();
+  int doSend();
   int m_remote_pid;
-  Uint32 m_last_signal;
   Uint32 m_signal_threshold;
 
-  virtual Uint32 get_free_buffer() const;
-  
 private:
   bool _shmSegCreated;
   bool _attached;
@@ -171,6 +158,12 @@ private:
   }
 
   void make_error_info(char info[], int sz);
+
+  bool send_limit_reached(int bufsize)
+  {
+    return ((Uint32)bufsize >= m_signal_threshold);
+  }
+  bool send_is_possible(int timeout_millisec) const { return 1; }
 };
 
 #endif

@@ -452,3 +452,77 @@ DROP TABLE t1;
 
 set @@read_rnd_buffer_size= @read_rnd_buffer_size_save;
 select @@read_rnd_buffer_size;
+
+--echo #
+--echo # Bug 12365385 STRAIGHT_JOIN QUERY QUICKLY EXHAUSTS SYSTEM+VIRT. 
+--echo #              MEMORY LEADING TO SYSTEM CRASH
+--echo #
+
+CREATE TABLE ten (a INTEGER);
+INSERT INTO ten VALUES (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
+
+CREATE TABLE t1 (
+  pk INTEGER NOT NULL,
+  i1 INTEGER NOT NULL,
+  c1 VARCHAR(10) NOT NULL,
+  PRIMARY KEY (pk)
+);
+
+INSERT INTO t1
+  SELECT a, 1, 'MySQL' FROM ten;
+
+CREATE TABLE t2 (
+  pk INTEGER NOT NULL,
+  c1 VARCHAR(10) NOT NULL,
+  c2 varchar(10) NOT NULL,
+  PRIMARY KEY (pk)
+);
+
+INSERT INTO t2
+  SELECT a, 'MySQL', 'MySQL' FROM ten;
+
+CREATE TABLE t3 (
+  pk INTEGER NOT NULL,
+  c1 VARCHAR(10) NOT NULL,
+  PRIMARY KEY (pk)
+);
+
+INSERT INTO t3
+  SELECT a, 'MySQL' FROM ten;
+
+CREATE TABLE t4 (
+  pk int(11) NOT NULL,
+  c1_key varchar(10) CHARACTER SET utf8 NOT NULL,
+  c2 varchar(10) NOT NULL,
+  c3 varchar(10) NOT NULL,
+  PRIMARY KEY (pk),
+  KEY k1 (c1_key)
+);
+
+# t4 is empty
+
+CREATE TABLE t5 (
+  pk INTEGER NOT NULL,
+  c1 VARCHAR(10) NOT NULL,
+  PRIMARY KEY (pk)
+);
+
+INSERT INTO t5
+  SELECT a, 'MySQL' FROM ten;
+
+let query=
+SELECT STRAIGHT_JOIN *
+FROM 
+  (t1 LEFT JOIN 
+     (t2 LEFT JOIN
+       (t3 LEFT OUTER JOIN t4 ON t3.c1 <= t4.c1_key)
+      ON t2.c1 = t4.c3) 
+   ON t1.c1 = t4.c2)
+  RIGHT OUTER JOIN t5 ON t2.c2 <= t5.c1
+WHERE t1.i1 = 1;
+
+eval EXPLAIN $query;
+eval $query;
+
+DROP TABLE ten, t1, t2, t3, t4, t5;
+

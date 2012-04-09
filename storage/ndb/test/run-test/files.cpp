@@ -1,6 +1,5 @@
 /*
-   Copyright (c) 2007 MySQL AB
-   Use is subject to license terms.
+   Copyright (c) 2007, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,8 +16,8 @@
 */
 
 #include "atrt.hpp"
-#include <sys/types.h>
-#include <dirent.h>
+#include <portlib/NdbDir.hpp>
+#include <portlib/NdbSleep.h>
 
 static bool create_directory(const char * path);
 
@@ -133,24 +132,30 @@ setup_files(atrt_config& config, int setup, int sshx)
    */
   BaseString mycnf;
   mycnf.assfmt("%s/my.cnf", g_basedir);
-  
+
+  if (!create_directory(g_basedir))
+  {
+    return false;
+  }
+
   if (mycnf != g_my_cnf)
   {
     struct stat sbuf;
-    int ret = lstat(mycnf.c_str(), &sbuf);
+    int ret = lstat(to_native(mycnf).c_str(), &sbuf);
     
     if (ret == 0)
     {
-      if (unlink(mycnf.c_str()) != 0)
+      if (unlink(to_native(mycnf).c_str()) != 0)
       {
 	g_logger.error("Failed to remove %s", mycnf.c_str());
 	return false;
       }
     }
     
-    BaseString cp = "cp ";
-    cp.appfmt("%s %s", g_my_cnf, mycnf.c_str());
-    if (system(cp.c_str()) != 0)
+    BaseString cp;
+    cp.assfmt("cp %s %s", g_my_cnf, mycnf.c_str());
+    to_fwd_slashes(cp);
+    if (sh(cp.c_str()) != 0)
     {
       g_logger.error("Failed to '%s'", cp.c_str());
       return false;
@@ -169,15 +174,18 @@ setup_files(atrt_config& config, int setup, int sshx)
       {
 	atrt_process& proc = *cluster.m_processes[j];
 	if (proc.m_type == atrt_process::AP_MYSQLD)
+#ifndef _WIN32
 	{
 	  const char * val;
 	  require(proc.m_options.m_loaded.get("--datadir=", &val));
 	  BaseString tmp;
-	  tmp.assfmt("%s/bin/mysql_install_db --defaults-file=%s/my.cnf --datadir=%s > /dev/null 2>&1",
-		     g_prefix, g_basedir, val);
-	  if (system(tmp.c_str()) != 0)
+	  tmp.assfmt("%s/bin/mysql_install_db --defaults-file=%s/my.cnf --datadir=%s > %s/mysql_install_db.log 2>&1",
+		     g_prefix, g_basedir, val, proc.m_proc.m_cwd.c_str());
+
+          to_fwd_slashes(tmp);
+	  if (sh(tmp.c_str()) != 0)
 	  {
-	    g_logger.error("Failed to mysql_install_db for %s, cmd: >%s<",
+	    g_logger.error("Failed to mysql_install_db for %s, cmd: '%s'",
 			   proc.m_proc.m_cwd.c_str(),
 			   tmp.c_str());
 	  }
@@ -186,12 +194,19 @@ setup_files(atrt_config& config, int setup, int sshx)
 	    g_logger.info("mysql_install_db for %s",
 			  proc.m_proc.m_cwd.c_str());
 	  }
-	}
+        }
+#else
+        {
+          g_logger.info("not running mysql_install_db for %s",
+                         proc.m_proc.m_cwd.c_str());
+        }
+#endif
       }
     }
   }
   
   FILE * out = NULL;
+  bool retval = true;
   if (config.m_generated == false)
   {
     g_logger.info("Nothing configured...");
@@ -259,26 +274,38 @@ setup_files(atrt_config& config, int setup, int sshx)
        */
       BaseString tmp;
       tmp.assfmt("%s/env.sh", proc.m_proc.m_cwd.c_str());
+      to_native(tmp);
       char **env = BaseString::argify(0, proc.m_proc.m_env.c_str());
-      if (env[0])
+      if (env[0] || proc.m_proc.m_path.length())
       {
 	Vector<BaseString> keys;
 	FILE *fenv = fopen(tmp.c_str(), "w+");
 	if (fenv == 0)
 	{
 	  g_logger.error("Failed to open %s for writing", tmp.c_str());
-	  return false;
+	  retval = false;
+          goto end;
 	}
 	for (size_t k = 0; env[k]; k++)
 	{
 	  tmp = env[k];
-	  int pos = tmp.indexOf('=');
+	  ssize_t pos = tmp.indexOf('=');
 	  require(pos > 0);
 	  env[k][pos] = 0;
 	  fprintf(fenv, "%s=\"%s\"\n", env[k], env[k]+pos+1);
 	  keys.push_back(env[k]);
 	  free(env[k]);
 	}
+	if (proc.m_proc.m_path.length())
+	{
+	  fprintf(fenv, "CMD=\"%s", proc.m_proc.m_path.c_str());
+	  if (proc.m_proc.m_args.length())
+	  {
+	    fprintf(fenv, " %s", proc.m_proc.m_args.c_str());
+	  }
+	  fprintf(fenv, "\"\nexport CMD\n");
+	}
+	
 	fprintf(fenv, "PATH=%s/bin:%s/libexec:$PATH\n", g_prefix, g_prefix);
 	keys.push_back("PATH");
 	for (size_t k = 0; k<keys.size(); k++)
@@ -288,59 +315,68 @@ setup_files(atrt_config& config, int setup, int sshx)
       }
       free(env);
       
-      tmp.assfmt("%s/ssh-login.sh", proc.m_proc.m_cwd.c_str());
-      FILE* fenv = fopen(tmp.c_str(), "w+");
-      if (fenv == 0)
       {
-	g_logger.error("Failed to open %s for writing", tmp.c_str());
-	return false;
+        tmp.assfmt("%s/ssh-login.sh", proc.m_proc.m_cwd.c_str());
+        FILE* fenv = fopen(tmp.c_str(), "w+");
+        if (fenv == 0)
+        {
+          g_logger.error("Failed to open %s for writing", tmp.c_str());
+          retval = false;
+          goto end;
+        }
+        fprintf(fenv, "#!/bin/sh\n");
+        fprintf(fenv, "cd %s\n", proc.m_proc.m_cwd.c_str());
+        fprintf(fenv, "[ -f /etc/profile ] && . /etc/profile\n");
+        fprintf(fenv, ". ./env.sh\n");
+        fprintf(fenv, "ulimit -Sc unlimited\n");
+        fprintf(fenv, "bash -i");
+        fflush(fenv);
+        fclose(fenv);
       }
-      fprintf(fenv, "#!/bin/sh\n");
-      fprintf(fenv, "cd %s\n", proc.m_proc.m_cwd.c_str());
-      fprintf(fenv, "[ -f /etc/profile ] && . /etc/profile\n");
-      fprintf(fenv, ". env.sh\n");
-      fprintf(fenv, "ulimit -Sc unlimited\n");
-      fprintf(fenv, "bash -i");
-      fflush(fenv);
-      fclose(fenv);
     }
   }
-  
+
+end:
   if (out)
   {
-    fflush(out);
     fclose(out);
   }
 
-  return true;
+  return retval;
 }
+
 
 static
 bool
 create_directory(const char * path)
 {
+  BaseString native(path);
+  to_native(native);
   BaseString tmp(path);
   Vector<BaseString> list;
+
   if (tmp.split(list, "/") == 0)
   {
     g_logger.error("Failed to create directory: %s", tmp.c_str());
     return false;
   }
   
-  BaseString cwd = "/";
+  BaseString cwd = IF_WIN("","/");
   for (size_t i = 0; i < list.size(); i++) 
   {
     cwd.append(list[i].c_str());
     cwd.append("/");
-    mkdir(cwd.c_str(), S_IRUSR | S_IWUSR | S_IXUSR | S_IXGRP | S_IRGRP);
+    NdbDir::create(cwd.c_str(),
+                   NdbDir::u_rwx() | NdbDir::g_r() | NdbDir::g_x(),
+                   true);
   }
 
   struct stat sbuf;
-  if (lstat(path, &sbuf) != 0 ||
+  if (lstat(native.c_str(), &sbuf) != 0 ||
       !S_ISDIR(sbuf.st_mode))
   {
     g_logger.error("Failed to create directory: %s (%s)", 
-		   tmp.c_str(), 
+		   native.c_str(),
 		   cwd.c_str());
     return false;
   }
@@ -351,52 +387,30 @@ create_directory(const char * path)
 bool
 remove_dir(const char * path, bool inclusive)
 {
-  DIR* dirp = opendir(path);
-
-  if (dirp == 0)
-  {
-    if(errno != ENOENT) 
-    {
-      g_logger.error("Failed to remove >%s< errno: %d %s", 
-		     path, errno, strerror(errno));
-      return false;
-    }
+  if (access(path, 0))
     return true;
-  }
-  
-  struct dirent * dp;
-  BaseString name = path;
-  name.append("/");
-  while ((dp = readdir(dirp)) != NULL)
-  {
-    if ((strcmp(".", dp->d_name) != 0) && (strcmp("..", dp->d_name) != 0)) 
-    {
-      BaseString tmp = name;
-      tmp.append(dp->d_name);
 
-      if (remove(tmp.c_str()) == 0)
-      {
-	continue;
-      }
-      
-      if (!remove_dir(tmp.c_str()))
-      {
-	closedir(dirp);
-	return false;
-      }
-    }
-  }
+  const int max_retries = 20;
+  int attempt = 0;
 
-  closedir(dirp);
-  if (inclusive)
+  while(true)
   {
-    if (rmdir(path) != 0)
+    if (NdbDir::remove_recursive(path, !inclusive))
+      return true;
+
+    attempt++;
+    if (attempt > max_retries)
     {
-      g_logger.error("Failed to remove >%s< errno: %d %s", 
-		     path, errno, strerror(errno));
+      g_logger.error("Failed to remove directory '%s'!", path);
       return false;
     }
-  }
-  return true;
-}
 
+    g_logger.warning(" - attempt %d to remove directory '%s' failed "
+                     ", retrying...", attempt, path);
+
+    NdbSleep_MilliSleep(100);
+  }
+
+  abort(); // Never reached
+  return false;
+}

@@ -66,7 +66,7 @@ SET SESSION debug = '+d,only_one_Unique_may_be_created';
 EXPLAIN
 SELECT * FROM t1 LEFT JOIN t2 ON ( t2.a < 10 OR t2.b < 10 );
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-x	x	x	x	x	x	x	x	x	
+x	x	x	x	x	x	x	x	x	NULL
 x	x	x	x	x	x	x	x	x	Using sort_union(a,b); Using where; Using join buffer (Block Nested Loop)
 SELECT * FROM t1 LEFT JOIN t2 ON ( t2.a < 10 OR t2.b < 10 );
 a	a	b	filler

@@ -41,6 +41,28 @@ injector::transaction::transaction(MYSQL_BIN_LOG *log, THD *thd)
   m_start_pos.m_file_name= my_strdup(log_info.log_file_name, MYF(0));
   m_start_pos.m_file_pos= log_info.pos;
 
+  if (unlikely(m_start_pos.m_file_name == NULL))
+  {
+    m_thd= NULL;
+    return;
+  }
+
+  /*
+     Next pos is unknown until after commit of the Binlog transaction
+  */
+  m_next_pos.m_file_name= 0;
+  m_next_pos.m_file_pos= 0;
+
+  /*
+    Ensure we don't pick up this thd's last written Binlog pos in
+    empty-transaction-commit cases.
+    This is not ideal, as it zaps this information for any other
+    usage (e.g. WL4047)
+    Potential improvement : save the 'old' next pos prior to
+    commit, and restore on error.
+  */
+  m_thd->clear_next_event_pos();
+
   trans_begin(m_thd);
 }
 
@@ -50,16 +72,18 @@ injector::transaction::~transaction()
     return;
 
   /* Needed since my_free expects a 'char*' (instead of 'void*'). */
-  char* const the_memory= const_cast<char*>(m_start_pos.m_file_name);
+  char* const start_pos_memory= const_cast<char*>(m_start_pos.m_file_name);
 
-  /*
-    We set the first character to null just to give all the copies of the
-    start position a (minimal) chance of seening that the memory is lost.
-    All assuming the my_free does not step over the memory, of course.
-  */
-  *the_memory= '\0';
+  if (start_pos_memory)
+  {
+    my_free(start_pos_memory);
+  }
 
-  my_free(the_memory);
+  char* const next_pos_memory= const_cast<char*>(m_next_pos.m_file_name);
+  if (next_pos_memory)
+  {
+    my_free(next_pos_memory);
+  }
 }
 
 /**
@@ -95,6 +119,22 @@ int injector::transaction::commit()
      close_thread_tables(m_thd);
      m_thd->mdl_context.release_transactional_locks();
    }
+
+   /* Copy next position out into our next pos member */
+   if ((error == 0) &&
+       (m_thd->binlog_next_event_pos.file_name != NULL) &&
+       ((m_next_pos.m_file_name=
+         my_strdup(m_thd->binlog_next_event_pos.file_name, MYF(0))) != NULL))
+   {
+     m_next_pos.m_file_pos= m_thd->binlog_next_event_pos.pos;
+   }
+   else
+   {
+     /* Error, problem copying etc. */
+     m_next_pos.m_file_name= NULL;
+     m_next_pos.m_file_pos= 0;
+   }
+
    DBUG_RETURN(error);
 }
 
@@ -199,6 +239,10 @@ injector::transaction::binlog_pos injector::transaction::start_pos() const
    return m_start_pos;			
 }
 
+injector::transaction::binlog_pos injector::transaction::next_pos() const
+{
+   return m_next_pos;
+}
 
 /*
   injector - member definitions

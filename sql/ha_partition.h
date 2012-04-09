@@ -265,6 +265,12 @@ private:
   Partition_share *part_share;
   /** Temporary storage for new partitions Handler_shares during ALTER */
   List<Parts_share_refs> m_new_partitions_share_refs;
+  /** Sorted array of partition ids in descending order of number of rows. */
+  uint32 *m_part_ids_sorted_by_num_of_records;
+  /* Compare function for my_qsort2, for reversed order. */
+  static int compare_number_of_records(ha_partition *me,
+                                       const uint32 *a,
+                                       const uint32 *b);
 public:
   Partition_share *get_part_share() { return part_share; }
   handler *clone(const char *name, MEM_ROOT *mem_root);
@@ -637,6 +643,20 @@ public:
   virtual int extra(enum ha_extra_function operation);
   virtual int extra_opt(enum ha_extra_function operation, ulong cachesize);
   virtual int reset(void);
+  /*
+    Do not allow caching of partitioned tables, since we cannot return
+    a callback or engine_data that would work for a generic engine.
+  */
+  virtual my_bool register_query_cache_table(THD *thd, char *table_key,
+                                             uint key_length,
+                                             qc_engine_callback
+                                               *engine_callback,
+                                             ulonglong *engine_data)
+  {
+    *engine_callback= NULL;
+    *engine_data= 0;
+    return FALSE;
+  }
 
 private:
   static const uint NO_CURRENT_PART_ID;
@@ -667,15 +687,9 @@ public:
   */
 
 private:
-  /*
-    Helper function to get the minimum number of partitions to use for
-    the optimizer hints/cost calls.
-  */
-  void partitions_optimizer_call_preparations(uint *num_used_parts,
-                                              uint *check_min_num,
-                                              uint *first);
-  ha_rows estimate_rows(bool is_records_in_range, uint inx,
-                        key_range *min_key, key_range *max_key);
+  /* Helper functions for optimizer hints. */
+  ha_rows min_rows_for_estimate();
+  uint get_biggest_used_partition(uint *part_index);
 public:
 
   /*
@@ -1141,18 +1155,23 @@ public:
 
   /*
     -------------------------------------------------------------------------
-    MODULE on-line ALTER TABLE
+    MODULE in-place ALTER TABLE
     -------------------------------------------------------------------------
     These methods are in the handler interface. (used by innodb-plugin)
-    They are used for on-line/fast alter table add/drop index:
+    They are used for in-place alter table:
     -------------------------------------------------------------------------
   */
-  virtual int add_index(TABLE *table_arg, KEY *key_info, uint num_of_keys,
-                        handler_add_index **add);
-  virtual int final_add_index(handler_add_index *add, bool commit);
-  virtual int prepare_drop_index(TABLE *table_arg, uint *key_num,
-                                 uint num_of_keys);
-  virtual int final_drop_index(TABLE *table_arg);
+    virtual enum_alter_inplace_result
+      check_if_supported_inplace_alter(TABLE *altered_table,
+                                       Alter_inplace_info *ha_alter_info);
+    virtual bool prepare_inplace_alter_table(TABLE *altered_table,
+                                             Alter_inplace_info *ha_alter_info);
+    virtual bool inplace_alter_table(TABLE *altered_table,
+                                     Alter_inplace_info *ha_alter_info);
+    virtual bool commit_inplace_alter_table(TABLE *altered_table,
+                                            Alter_inplace_info *ha_alter_info,
+                                            bool commit);
+    virtual void notify_table_changed();
 
   /*
     -------------------------------------------------------------------------

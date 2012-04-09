@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2011, 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2011, 2012, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -242,7 +242,7 @@ static const char* fts_config_table_insert_values_sql =
 		FTS_OPTIMIZE_LIMIT_IN_SECS  "', '180');\n"
 	""
 	"INSERT INTO %s VALUES ('"
-		FTS_SYNCED_DOC_ID "', '1');\n"
+		FTS_SYNCED_DOC_ID "', '0');\n"
 	""
 	"INSERT INTO %s VALUES ('"
 		FTS_TOTAL_DELETED_COUNT "', '0');\n"
@@ -2381,14 +2381,14 @@ fts_get_max_cache_size(
 Get the total number of documents in the FTS.
 @return estimated number of rows in the table */
 UNIV_INTERN
-ulint
+ib_int64_t
 fts_get_total_document_count(
 /*=========================*/
 	dict_table_t*   table)		/*!< in: table instance */
 {
 	ut_ad(table->stat_initialized);
 
-	return((ulint) table->stat_n_rows);
+	return(table->stat_n_rows);
 }
 
 /*********************************************************************//**
@@ -2554,8 +2554,6 @@ retry:
 	if (error != DB_SUCCESS) {
 		goto func_exit;
 	}
-
-	ut_a(*doc_id > 0);
 
 	if (read_only) {
 		goto func_exit;
@@ -4469,6 +4467,7 @@ fts_get_docs_create(
 		memset(get_doc, 0x0, sizeof(*get_doc));
 
 		get_doc->index_cache = fts_get_index_cache(cache, *index);
+		get_doc->cache = cache;
 
 		/* Must find the index cache. */
 		ut_a(get_doc->index_cache != NULL);
@@ -5039,11 +5038,11 @@ UNIV_INTERN
 void
 fts_add_doc_id_column(
 /*==================*/
-	dict_table_t*	table)		/*!< in/out: Table with FTS index */
+	dict_table_t*	table,	/*!< in/out: Table with FTS index */
+	mem_heap_t*	heap)	/*!< in: temporary memory heap, or NULL */
 {
 	dict_mem_table_add_col(
-		table,
-		table->heap,
+		table, heap,
 		FTS_DOC_ID_COL_NAME,
 		DATA_INT,
 		dtype_form_prtype(
@@ -5308,7 +5307,6 @@ fts_savepoint_release(
 	const char*	name)		/*!< in: savepoint name */
 {
 	ulint			i;
-	fts_savepoint_t*	prev;
 	ib_vector_t*		savepoints;
 	ulint			top_of_stack = 0;
 
@@ -5317,9 +5315,6 @@ fts_savepoint_release(
 	savepoints = trx->fts_trx->savepoints;
 
 	ut_a(ib_vector_size(savepoints) > 0);
-
-	prev = static_cast<fts_savepoint_t*>(
-		ib_vector_get(savepoints, top_of_stack));
 
 	/* Skip the implied savepoint (first element). */
 	for (i = 1; i < ib_vector_size(savepoints); ++i) {
@@ -5334,17 +5329,6 @@ fts_savepoint_release(
 		we have to skip deleted/released entries. */
 		if (savepoint->name != NULL
 		    && strcmp(name, savepoint->name) == 0) {
-
-			fts_savepoint_t*	last;
-			fts_savepoint_t		temp;
-
-			last = static_cast<fts_savepoint_t*>(
-				ib_vector_last(savepoints));
-
-			/* Swap the entries. */
-			memcpy(&temp, last, sizeof(temp));
-			memcpy(last, prev, sizeof(*last));
-			memcpy(prev, &temp, sizeof(prev));
 			break;
 
 		/* Track the previous savepoint instance that will
@@ -5353,8 +5337,6 @@ fts_savepoint_release(
 			/* We need to delete all entries
 			greater than this element. */
 			top_of_stack = i;
-
-			prev = savepoint;
 		}
 	}
 
@@ -5763,7 +5745,8 @@ fts_check_and_drop_orphaned_tables(
 		sys_table = static_cast<fts_sys_table_t*>(
 			ib_vector_get(tables, i));
 
-		table = dict_table_open_on_id(sys_table->parent_id, FALSE);
+		table = dict_table_open_on_id(
+			sys_table->parent_id, FALSE, FALSE);
 
 		if (table == NULL || table->fts == NULL) {
 
@@ -5794,7 +5777,7 @@ fts_check_and_drop_orphaned_tables(
 		}
 
 		if (table) {
-			dict_table_close(table, FALSE);
+			dict_table_close(table, FALSE, FALSE);
 		}
 
 		if (drop) {
@@ -6082,6 +6065,43 @@ cleanup:
 
 /**********************************************************************//**
 Callback function when we initialize the FTS at the start up
+time. It recovers the maximum Doc IDs presented in the current table.
+@return: always returns TRUE */
+static
+ibool
+fts_init_get_doc_id(
+/*================*/
+	void*	row,			/*!< in: sel_node_t* */
+	void*	user_arg)		/*!< in: fts cache */
+{
+	doc_id_t	doc_id = FTS_NULL_DOC_ID;
+	sel_node_t*	node = static_cast<sel_node_t*>(row);
+	que_node_t*	exp = node->select_list;
+	fts_cache_t*    cache = static_cast<fts_cache_t*>(user_arg);
+
+	ut_ad(ib_vector_is_empty(cache->get_docs));
+
+	/* Copy each indexed column content into doc->text.f_str */
+	if (exp) {
+		dfield_t*	dfield = que_node_get_val(exp);
+		dtype_t*        type = dfield_get_type(dfield);
+		void*           data = dfield_get_data(dfield);
+
+		ut_a(dtype_get_mtype(type) == DATA_INT);
+
+		doc_id = static_cast<doc_id_t>(mach_read_from_8(
+			static_cast<const byte*>(data)));
+
+		if (doc_id >= cache->next_doc_id) {
+			cache->next_doc_id = doc_id + 1;
+		}
+	}
+
+	return(TRUE);
+}
+
+/**********************************************************************//**
+Callback function when we initialize the FTS at the start up
 time. It recovers Doc IDs that have not sync-ed to the auxiliary
 table, and require to bring them back into FTS index.
 @return: always returns TRUE */
@@ -6096,22 +6116,16 @@ fts_init_recover_doc(
 	fts_doc_t       doc;
 	ulint		doc_len = 0;
 	ulint		field_no = 0;
-	ibool		has_fts = TRUE;
-	fts_get_doc_t*  get_doc = NULL;
+	fts_get_doc_t*  get_doc = static_cast<fts_get_doc_t*>(user_arg);
 	doc_id_t	doc_id = FTS_NULL_DOC_ID;
 	sel_node_t*	node = static_cast<sel_node_t*>(row);
 	que_node_t*	exp = node->select_list;
-	fts_cache_t*    cache = static_cast<fts_cache_t*>(user_arg);
+	fts_cache_t*	cache = get_doc->cache;
 
-	if (ib_vector_is_empty(cache->get_docs)) {
-		has_fts = FALSE;
-	} else {
-		get_doc = static_cast<fts_get_doc_t*>(
-			ib_vector_get(cache->get_docs, 0));
+	fts_doc_init(&doc);
+	doc.found = TRUE;
 
-		fts_doc_init(&doc);
-		doc.found = TRUE;
-	}
+	ut_ad(cache);
 
 	/* Copy each indexed column content into doc->text.f_str */
 	while (exp) {
@@ -6127,17 +6141,10 @@ fts_init_recover_doc(
 			doc_id = static_cast<doc_id_t>(mach_read_from_8(
 				static_cast<const byte*>(data)));
 
-			/* Just need to fetch the Doc ID */
-			if (!has_fts) {
-				goto func_exit;
-			}
-
 			field_no++;
 			exp = que_node_get_next(exp);
 			continue;
 		}
-
-		ut_a(has_fts);
 
 		if (len == UNIV_SQL_NULL) {
 			exp = que_node_get_next(exp);
@@ -6192,7 +6199,6 @@ fts_init_recover_doc(
 
 	cache->added++;
 
-func_exit:
 	if (doc_id >= cache->next_doc_id) {
 		cache->next_doc_id = doc_id + 1;
 	}
@@ -6248,17 +6254,21 @@ fts_init_index(
 	if (ib_vector_is_empty(cache->get_docs)) {
 		index = dict_table_get_first_index(table);
 		has_fts = FALSE;
+		fts_doc_fetch_by_doc_id(NULL, start_doc, index,
+					FTS_FETCH_DOC_BY_ID_LARGE,
+					fts_init_get_doc_id, cache);
 	} else {
-		/* We only have one FTS index per table */
-		get_doc = static_cast<fts_get_doc_t*>(
-			ib_vector_get(cache->get_docs, 0));
+		for (ulint i = 0; i < ib_vector_size(cache->get_docs); ++i) {
+			get_doc = static_cast<fts_get_doc_t*>(
+				ib_vector_get(cache->get_docs, i));
 
-		index = get_doc->index_cache->index;
+			index = get_doc->index_cache->index;
+
+			fts_doc_fetch_by_doc_id(NULL, start_doc, index,
+						FTS_FETCH_DOC_BY_ID_LARGE,
+						fts_init_recover_doc, get_doc);
+		}
 	}
-
-	fts_doc_fetch_by_doc_id(NULL, start_doc, index,
-				FTS_FETCH_DOC_BY_ID_LARGE,
-				fts_init_recover_doc, cache);
 
 	if (has_fts) {
 		if (table->fts->cache->stopword_info.status

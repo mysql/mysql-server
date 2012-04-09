@@ -1,0 +1,69 @@
+--source include/have_ndb.inc
+# Test case currently fails for statement-based replication, as BUG#22045 is
+# not fixed in the replication slave thread.
+--source include/have_binlog_format_mixed_or_row.inc
+--source suite/ndb_rpl/ndb_master-slave.inc
+
+# BUG#22045: Got error 839 'Illegal null attribute' from NDBCLUSTER when 'Replace Into'.
+# Check that REPLACE INTO replicates correctly with partial value list and with/without blobs.
+connection master;
+create table t1 (a int primary key,
+                 b varchar(100) default 'b',
+                 c varchar(100)) engine=ndbcluster;
+insert into t1 values (1, 'b1', 'c1');
+insert into t1 (a) values (2);
+insert into t1 (a, b) values (3, 'b3');
+replace into t1 values (5, 'b5', 'c5');
+replace into t1 (a) values (6);
+replace into t1 (a, c) values (7, 'c7');
+select * from t1 order by a;
+
+--sync_slave_with_master
+select * from t1 order by a;
+
+connection master;
+replace into t1 (a) values (1);
+replace into t1 (a, b) values (2, 'b2x');
+replace into t1 (a, c) values (3, 'c3x');
+replace into t1 (a, b, c) values (5, 'b5x', 'c5x');
+replace into t1 (a) values (6);
+replace into t1 (a) values (7);
+select * from t1 order by a;
+
+--sync_slave_with_master
+select * from t1 order by a;
+
+--connection master
+drop table t1;
+create table t1 (a int primary key,
+                 b varchar(100) default 'b',
+                 c varchar(100),
+                 d text,
+                 e text) engine=ndbcluster;
+insert into t1 values (1, 'b1', 'c1', 'd1', 'e1');
+insert into t1 (a) values (2);
+insert into t1 (a, b, d) values (3, 'b3', 'd3');
+replace into t1 values (5, 'b5', 'c5', 'd5', 'e5');
+replace into t1 (a) values (6);
+replace into t1 (a, c, e) values (7, 'c7', 'e7');
+select * from t1 order by a;
+
+--sync_slave_with_master
+select * from t1 order by a;
+
+connection master;
+replace into t1 (a) values (1);
+replace into t1 (a, b, d) values (2, 'b2x', 'd2x');
+replace into t1 (a, c, e) values (3, 'c3x', 'e3x');
+replace into t1 (a, b, c, d, e) values (5, 'b5x', 'c5x', 'd5x', 'e5x');
+replace into t1 (a) values (6);
+replace into t1 (a, e) values (7, 'e7x');
+select * from t1 order by a;
+
+--sync_slave_with_master
+select * from t1 order by a;
+
+--connection master
+drop table t1;
+
+-- source include/rpl_end.inc

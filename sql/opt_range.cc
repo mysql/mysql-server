@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -884,11 +884,11 @@ static void trace_range_all_keyparts(Opt_trace_array &trace_range,
                                      const String *range_so_far,
                                      SEL_ARG *keypart_root,
                                      const KEY_PART_INFO *key_parts);
-static void append_range(String *out,
-                         const KEY_PART_INFO *key_parts,
-                         const uchar *min_key, const uchar *max_key,
-                         const uint flag);
 #endif
+void append_range(String *out,
+                  const KEY_PART_INFO *key_parts,
+                  const uchar *min_key, const uchar *max_key,
+                  const uint flag);
 
 static SEL_TREE *tree_and(RANGE_OPT_PARAM *param,SEL_TREE *tree1,SEL_TREE *tree2);
 static SEL_TREE *tree_or(RANGE_OPT_PARAM *param,SEL_TREE *tree1,SEL_TREE *tree2);
@@ -2831,8 +2831,9 @@ int SQL_SELECT::test_quick_select(THD *thd, key_map keys_to_use,
     }
 
 free_mem:
-    if (unlikely(quick && trace->is_started()))
+    if (unlikely(quick && trace->is_started() && best_trp))
     {
+      // best_trp cannot be NULL if quick is set, done to keep fortify happy
       Opt_trace_object trace_range_summary(trace,
                                            "chosen_range_access_summary");
       {
@@ -4825,8 +4826,7 @@ static double ror_scan_selectivity(const ROR_INTERSECT_INFO *info,
                      rec_per_key[tuple_arg->part]))    // (3)
       {
         DBUG_EXECUTE_IF("crash_records_in_range", DBUG_SUICIDE(););
-        // Fails - reintroduce when fixed
-        // DBUG_ASSERT(min_range.length > 0);
+        DBUG_ASSERT(min_range.length > 0);
         records= (table->file->
                   records_in_range(scan->keynr, &min_range, &max_range));
       }
@@ -5667,6 +5667,33 @@ QUICK_SELECT_I *TRP_ROR_UNION::make_quick(PARAM *param,
 }
 
 
+/**
+   If EXPLAIN EXTENDED, add a warning that the index cannot be
+   used for range access due to either type conversion or different
+   collations on the field used for comparison
+
+   @param param              PARAM from SQL_SELECT::test_quick_select
+   @param key_num            Key number
+   @param field              Field in the predicate
+ */
+static void 
+if_extended_explain_warn_index_not_applicable(const RANGE_OPT_PARAM *param,
+                                              const uint key_num,
+                                              const Field *field)
+{
+  if (param->using_real_indexes &&
+      param->thd->lex->describe & DESCRIBE_EXTENDED)
+    push_warning_printf(
+            param->thd,
+            Sql_condition::WARN_LEVEL_WARN, 
+            ER_WARN_INDEX_NOT_APPLICABLE,
+            ER(ER_WARN_INDEX_NOT_APPLICABLE),
+            "range",
+            field->table->key_info[param->real_keynr[key_num]].name,
+            field->field_name);
+}
+
+
 /*
   Build a SEL_TREE for <> or NOT BETWEEN predicate
  
@@ -5683,7 +5710,6 @@ QUICK_SELECT_I *TRP_ROR_UNION::make_quick(PARAM *param,
     #  Pointer to tree built tree
     0  on error
 */
-
 static SEL_TREE *get_ne_mm_tree(RANGE_OPT_PARAM *param, Item_func *cond_func, 
                                 Field *field,
                                 Item *lt_value, Item *gt_value,
@@ -5951,7 +5977,8 @@ static SEL_TREE *get_func_mm_tree(RANGE_OPT_PARAM *param, Item_func *cond_func,
       param       PARAM from SQL_SELECT::test_quick_select
       cond_func   item for the predicate
       field_item  field in the predicate
-      value       constant in the predicate
+      value       constant in the predicate (or a field already read from 
+                  a table in the case of dynamic range access)
                   (for BETWEEN it contains the number of the field argument,
                    for IN it's always 0) 
       inv         TRUE <> NOT cond_func is considered
@@ -6227,21 +6254,37 @@ static SEL_TREE *get_mm_tree(RANGE_OPT_PARAM *param,Item *cond)
     DBUG_RETURN(ftree);
   }
   default:
+
+    DBUG_ASSERT (!ftree);
     if (cond_func->arguments()[0]->real_item()->type() == Item::FIELD_ITEM)
     {
       field_item= (Item_field*) (cond_func->arguments()[0]->real_item());
-      value= cond_func->arg_count > 1 ? cond_func->arguments()[1] : 0;
+      value= cond_func->arg_count > 1 ? cond_func->arguments()[1] : NULL;
+      ftree= get_full_func_mm_tree(param, cond_func, field_item, value, inv);
     }
-    else if (cond_func->have_rev_func() &&
-             cond_func->arguments()[1]->real_item()->type() ==
-                                                            Item::FIELD_ITEM)
+    /*
+      Even if get_full_func_mm_tree() was executed above and did not
+      return a range predicate it may still be possible to create one
+      by reversing the order of the operands. Note that this only
+      applies to predicates where both operands are fields. Example: A
+      query of the form
+
+         WHERE t1.a OP t2.b
+
+      In this case, arguments()[0] == t1.a and arguments()[1] == t2.b.
+      When creating range predicates for t2, get_full_func_mm_tree()
+      above will return NULL because 'field' belongs to t1 and only
+      predicates that applies to t2 are of interest. In this case a
+      call to get_full_func_mm_tree() with reversed operands (see
+      below) may succeed.
+     */
+    if (!ftree && cond_func->have_rev_func() &&
+        cond_func->arguments()[1]->real_item()->type() == Item::FIELD_ITEM)
     {
       field_item= (Item_field*) (cond_func->arguments()[1]->real_item());
       value= cond_func->arguments()[0];
+      ftree= get_full_func_mm_tree(param, cond_func, field_item, value, inv);
     }
-    else
-      DBUG_RETURN(0);
-    ftree= get_full_func_mm_tree(param, cond_func, field_item, value, inv);
   }
 
   DBUG_RETURN(ftree);
@@ -6353,10 +6396,6 @@ get_mm_leaf(RANGE_OPT_PARAM *param, Item *conf_func, Field *field,
        WHERE latin1_swedish_ci_column = 'a' COLLATE lati1_bin;
 
        WHERE latin1_swedish_ci_colimn = BINARY 'a '
-
-    3. Grep for IndexedTimeComparedToDate. If 'value' is a DATETIME part,
-       using the index on the TIME column would retain only the TIME part of
-       'value', giving false comparison results.
   */
   if ((field->result_type() == STRING_RESULT &&
        field->match_collation_to_optimize_range() &&
@@ -6364,19 +6403,39 @@ get_mm_leaf(RANGE_OPT_PARAM *param, Item *conf_func, Field *field,
        key_part->image_type == Field::itRAW &&
        field->charset() != conf_func->compare_collation() &&
        !(conf_func->compare_collation()->state & MY_CS_BINSORT &&
-         (type == Item_func::EQUAL_FUNC || type == Item_func::EQ_FUNC))) ||
-      field_time_cmp_date(field, value))
+         (type == Item_func::EQUAL_FUNC || type == Item_func::EQ_FUNC))))
   {
-    if (param->using_real_indexes &&
-        param->thd->lex->describe & DESCRIBE_EXTENDED)
-      push_warning_printf(
-              param->thd,
-              Sql_condition::WARN_LEVEL_WARN, 
-              ER_WARN_INDEX_NOT_APPLICABLE,
-              ER(ER_WARN_INDEX_NOT_APPLICABLE),
-              "range",
-              field->table->key_info[param->real_keynr[key_part->key]].name,
-              field->field_name);
+    if_extended_explain_warn_index_not_applicable(param, key_part->key, field);
+    goto end;
+  }
+
+  /*
+    Temporal values: Cannot use range access if:
+      1) 'temporal_value = indexed_varchar_column' because there are
+         many ways to represent the same date as a string. A few
+         examples: "01-01-2001", "1-1-2001", "2001-01-01",
+         "2001#01#01". The same problem applies to time. Thus, we
+         cannot create a usefull range predicate for temporal values
+         into VARCHAR column indexes. @see add_key_field()
+      2) 'temporal_value_with_date_part = indexed_time' because: 
+         - without index, a TIME column with value '48:00:00' is 
+           equal to a DATETIME column with value 
+           'CURDATE() + 2 days' 
+         - with range access into the TIME column, CURDATE() + 2 
+           days becomes "00:00:00" (Field_timef::store_internal() 
+           simply extracts the time part from the datetime) which 
+           is a lookup key which does not match "48:00:00"; so 
+           ref access is not be able to give the same result as 
+           On the other hand, we can do ref access for
+           IndexedDatetimeComparedToTime because
+           Field_temporal_with_date::store_time() will convert
+           48:00:00 to CURDATE() + 2 days which is the correct
+           lookup key.
+   */
+  if ((!field->is_temporal() && value->is_temporal()) ||   // 1)
+      field_time_cmp_date(field, value))                   // 2)
+  {
+    if_extended_explain_warn_index_not_applicable(param, key_part->key, field);
     goto end;
   }
 
@@ -6500,18 +6559,10 @@ get_mm_leaf(RANGE_OPT_PARAM *param, Item *conf_func, Field *field,
       value->result_type() != STRING_RESULT &&
       field->cmp_type() != value->result_type())
   {
-    if (param->using_real_indexes &&
-        param->thd->lex->describe & DESCRIBE_EXTENDED)
-      push_warning_printf(
-              param->thd,
-              Sql_condition::WARN_LEVEL_WARN, 
-              ER_WARN_INDEX_NOT_APPLICABLE,
-              ER(ER_WARN_INDEX_NOT_APPLICABLE),
-              "range",
-              field->table->key_info[param->real_keynr[key_part->key]].name,
-              field->field_name);
+    if_extended_explain_warn_index_not_applicable(param, key_part->key, field);
     goto end;
   }
+
   /* For comparison purposes allow invalid dates like 2000-01-32 */
   orig_sql_mode= field->table->in_use->variables.sql_mode;
   if (value->real_item()->type() == Item::STRING_ITEM &&
@@ -7649,11 +7700,15 @@ key_or(RANGE_OPT_PARAM *param, SEL_ARG *key1, SEL_ARG *key2)
         cur_key1= last;
 
         /*
-          We need the minimum endpoint of first so we can compare it
-          with the minimum endpoint of the enclosing cur_key2 range.
+          Extend last to cover the entire range of
+          [min(first.min_value,cur_key2.min_value)...last.max_value].
+          If this forms a full range (the range covers all possible
+          values) we return no SEL_ARG RB-tree.
         */
-        last->copy_min(first);
-        bool full_range= last->copy_min(cur_key2);
+        bool full_range= last->copy_min(first);
+        if (!full_range)
+          full_range= last->copy_min(cur_key2);
+
         if (!full_range)
         {
           if (last->next && cur_key2->cmp_max_to_min(last->next) >= 0)
@@ -12898,18 +12953,26 @@ void QUICK_GROUP_MIN_MAX_SELECT::add_keys_and_lengths(String *key_names,
   @param count[in,out]  The number of equality ranges found so far
   @param limit          The number of ranges 
 
-  @retval true if 'limit' or more equality ranges have been found in the 
-          range R-B trees
+  @retval true if limit > 0 and 'limit' or more equality ranges have been 
+          found in the range R-B trees
   @retval false otherwise         
 
 */
 static bool eq_ranges_exceeds_limit(SEL_ARG *keypart_root, uint* count, uint limit)
 {
-  if (limit == UINT_MAX32)
-    return false;
+  // "Statistics instead of index dives" feature is turned off
   if (limit == 0)
-    return true;
+    return false;
   
+  /*
+    Optimization: if there is at least one equality range, index
+    statistics will be used when limit is 1. It's safe to return true
+    even without checking that there is an equality range because if
+    there are none, index statistics will not be used anyway.
+  */
+  if (limit == 1)
+    return true;
+
   for(SEL_ARG *keypart_range= keypart_root->first(); 
       keypart_range; keypart_range= keypart_range->next)
   {
@@ -13004,8 +13067,6 @@ static void print_ror_scans_arr(TABLE *table, const char *msg,
 
 #endif /* !DBUG_OFF */
 
-#ifdef OPTIMIZER_TRACE
-
 /**
   Print a key to a string
 
@@ -13064,10 +13125,10 @@ restore_col_map:
   @param[in]     flag         Key range flags defining what min_key
                               and max_key represent @see my_base.h
  */
-static void append_range(String *out,
-                         const KEY_PART_INFO *key_part,
-                         const uchar *min_key, const uchar *max_key,
-                         const uint flag)
+void append_range(String *out,
+                  const KEY_PART_INFO *key_part,
+                  const uchar *min_key, const uchar *max_key,
+                  const uint flag)
 {
   if (out->length() > 0)
     out->append(STRING_WITH_LEN(" AND "));
@@ -13092,6 +13153,9 @@ static void append_range(String *out,
     print_key_value(out, key_part, max_key);
   }
 }
+
+
+#ifdef OPTIMIZER_TRACE
 
 /**
   Traverse an R-B tree of range conditions and append all ranges for this

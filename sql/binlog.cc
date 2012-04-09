@@ -446,6 +446,14 @@ void check_binlog_stmt_cache_size(THD *thd)
   }
 }
 
+/**
+ Check whether binlog_hton has valid slot and enabled
+*/
+bool binlog_enabled()
+{
+	return(binlog_hton && binlog_hton->slot != HA_SLOT_UNDEF);
+}
+
  /*
   Save position of binary log transaction cache.
 
@@ -3217,8 +3225,6 @@ int MYSQL_BIN_LOG::purge_first_log(Relay_log_info* rli, bool included)
   mysql_mutex_lock(&rli->log_space_lock);
   rli->relay_log.purge_logs(to_purge_if_included, included,
                             0, 0, &rli->log_space_total);
-  // Tell the I/O thread to take the relay_log_space_limit into account
-  rli->ignore_log_space_limit= 0;
   mysql_mutex_unlock(&rli->log_space_lock);
 
   /*
@@ -4160,6 +4166,19 @@ MYSQL_BIN_LOG::remove_pending_rows_event(THD *thd, bool is_transactional)
 }
 
 /*
+  Updates thd's position-of-next-event variables
+  after a *real* write a file.
+ */
+void MYSQL_BIN_LOG::update_thd_next_event_pos(THD* thd)
+{
+  if (likely(thd != NULL))
+  {
+    thd->set_next_event_pos(log_file_name,
+                            my_b_tell(&log_file));
+  }
+}
+
+/*
   Moves the last bunch of rows from the pending Rows event to a cache (either
   transactional cache if is_transaction is @c true, or the non-transactional
   cache otherwise. Sets a new pending event.
@@ -4924,12 +4943,14 @@ bool MYSQL_BIN_LOG::write_cache(THD *thd, binlog_cache_data *cache_data,
       mysql_mutex_lock(&LOCK_prep_xids);
       prepared_xids++;
       mysql_mutex_unlock(&LOCK_prep_xids);
+      update_thd_next_event_pos(thd);
       mysql_mutex_unlock(&LOCK_log);
     }
     else
     {
       if (rotate(false, &check_purge))
         goto err;
+      update_thd_next_event_pos(thd);
       mysql_mutex_unlock(&LOCK_log);
       if (check_purge) 
         purge();
@@ -5364,7 +5385,11 @@ int MYSQL_BIN_LOG::recover(IO_CACHE *log, Format_description_log_event *fdle,
     }
     else if (ev->get_type_code() == XID_EVENT)
     {
-      DBUG_ASSERT(in_transaction == TRUE);
+      /* MEMCACHED_RESOLVE: currently binlog from memcached,
+	might not have MySQL transaction marks, so quote this assert
+	out first. Will reinstate later.
+	DBUG_ASSERT(in_transaction == TRUE);
+      */
       in_transaction= FALSE;
       Xid_log_event *xev=(Xid_log_event *)ev;
       uchar *x= (uchar *) memdup_root(&mem_root, (uchar*) &xev->xid,
@@ -6856,7 +6881,7 @@ int THD::binlog_query(THD::enum_binlog_query_type qtype, char const *query_arg,
     the variables.option_bits & OPTION_BIN_LOG is false.
   */
   if ((variables.option_bits & OPTION_BIN_LOG) &&
-      spcont == NULL && !binlog_evt_union.do_union)
+      sp_runtime_ctx == NULL && !binlog_evt_union.do_union)
     issue_unsafe_warnings();
 
   switch (qtype) {

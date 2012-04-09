@@ -1,0 +1,23 @@
+DROP TABLE IF EXISTS t1, t2;
+CREATE TABLE t1 (
+a bigint unsigned NOT NULL AUTO_INCREMENT PRIMARY KEY,
+b int unsigned not null,
+c int unsigned
+) engine=ndbcluster;
+select count(*) from t1;
+count(*)
+5000
+select * from t1 order by a limit 2;
+a	b	c
+1	509	2500
+2	510	7
+truncate table t1;
+select count(*) from t1;
+count(*)
+0
+insert into t1 values(NULL,1,1),(NULL,2,2);
+select * from t1 order by a;
+a	b	c
+1	1	1
+2	2	2
+drop table t1;

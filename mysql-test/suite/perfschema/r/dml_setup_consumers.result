@@ -11,6 +11,7 @@ events_waits_history	YES
 events_waits_history_long	YES
 global_instrumentation	YES
 thread_instrumentation	YES
+statements_digest	YES
 select * from performance_schema.setup_consumers
 where name='events_waits_current';
 NAME	ENABLED
@@ -29,6 +30,7 @@ events_waits_history	YES
 events_waits_history_long	YES
 global_instrumentation	YES
 thread_instrumentation	YES
+statements_digest	YES
 select * from performance_schema.setup_consumers
 where enabled='NO';
 NAME	ENABLED

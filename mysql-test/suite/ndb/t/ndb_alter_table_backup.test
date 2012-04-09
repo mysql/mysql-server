@@ -1,0 +1,44 @@
+#############################################################
+# Author: Guangbao
+# Date: 2007-10-31
+# Purpose: mix backup/restore test for basic online alter table
+##############################################################
+
+--source include/have_ndb.inc
+
+# Directory containing the saved backup files
+let $backup_data_dir=$MYSQL_TEST_DIR/suite/ndb/backups;
+
+##############################
+# mix endian restore section #
+##############################
+#
+# Restore backup files (from little endian)
+#
+--disable_warnings
+USE test;
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+--echo *********************************
+--echo * restore tables w/ new column from little endian
+--echo *********************************
+--exec $NDB_RESTORE --no-defaults -b 1 -n 1 -m -r $backup_data_dir/51_d2_le >> $NDB_TOOLS_OUTPUT 2>&1
+--exec $NDB_RESTORE --no-defaults -b 1 -n 2 -r $backup_data_dir/51_d2_le >> $NDB_TOOLS_OUTPUT 2>&1
+SHOW TABLES;
+SHOW CREATE TABLE t1;
+SELECT * FROM t1 WHERE a = 1 or a = 10 or a = 20 or a = 30 ORDER BY a;
+DROP TABLE t1;
+
+#
+# Restore backup files (from big endian)
+#
+--echo *********************************
+--echo * restore tables w/ new column from big endian
+--echo *********************************
+--exec $NDB_RESTORE --no-defaults -b 1 -n 1 -m -r $backup_data_dir/51_d2_be >> $NDB_TOOLS_OUTPUT 2>&1
+--exec $NDB_RESTORE --no-defaults -b 1 -n 2 -r $backup_data_dir/51_d2_be >> $NDB_TOOLS_OUTPUT 2>&1
+SHOW TABLES;
+SHOW CREATE TABLE t1;
+SELECT * FROM t1 WHERE a = 1 or a = 10 or a = 20 or a = 30 ORDER BY a;
+DROP TABLE t1;
+# End of 5.1 Test Case

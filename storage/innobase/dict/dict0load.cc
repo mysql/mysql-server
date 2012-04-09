@@ -46,7 +46,8 @@ Created 4/24/1996 Heikki Tuuri
 #include "fts0priv.h"
 
 
-/** Following are six InnoDB system tables */
+/** Following are the InnoDB system tables.  The positions in
+this array are referenced by enum dict_system_table_id. */
 static const char* SYSTEM_TABLE_NAME[] = {
 	"SYS_TABLES",
 	"SYS_INDEXES",
@@ -1004,6 +1005,11 @@ dict_load_columns(
 		err_msg = dict_load_column_low(table, heap, NULL, NULL,
 					       &name, rec);
 
+		if (err_msg) {
+			fprintf(stderr, "InnoDB: %s\n", err_msg);
+			ut_error;
+		}
+
 		/* Note: Currently we have one DOC_ID column that is
 		shared by all FTS indexes on a table. */
 		if (innobase_strcasecmp(name,
@@ -1036,11 +1042,6 @@ dict_load_columns(
 			}
 
 			table->fts->doc_col = i;
-		}
-
-		if (err_msg) {
-			fprintf(stderr, "InnoDB: %s\n", err_msg);
-			ut_error;
 		}
 
 		btr_pcur_move_to_next_user_rec(&pcur, &mtr);

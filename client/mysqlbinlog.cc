@@ -150,6 +150,8 @@ static ulonglong rec_count= 0;
 static ushort binlog_flags = 0; 
 static MYSQL* mysql = NULL;
 static char* dirname_for_local_load= 0;
+static uint opt_server_id_bits = 0;
+static ulong opt_server_id_mask = 0;
 
 /**
   Pointer to the Format_description_log_event of the currently active binlog.
@@ -1266,6 +1268,11 @@ static struct my_option my_long_options[] =
    "Extract only binlog entries created by the server having the given id.",
    &server_id, &server_id, 0, GET_ULONG,
    REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"server-id-bits", 0,
+   "Set number of significant bits in server-id",
+   &opt_server_id_bits, &opt_server_id_bits,
+   /* Default + Max 32 bits, minimum 7 bits */
+   0, GET_UINT, REQUIRED_ARG, 32, 7, 32, 0, 0, 0},
   {"set-charset", OPT_SET_CHARSET,
    "Add 'SET NAMES character_set' to the output.", &charset,
    &charset, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
@@ -2574,6 +2581,9 @@ int main(int argc, char** argv)
 
   if (opt_base64_output_mode == BASE64_OUTPUT_UNSPEC)
     opt_base64_output_mode= BASE64_OUTPUT_AUTO;
+
+  opt_server_id_mask = (opt_server_id_bits == 32)?
+    ~ ulong(0) : (1 << opt_server_id_bits) -1;
 
   my_set_max_open_files(open_files_limit);
 

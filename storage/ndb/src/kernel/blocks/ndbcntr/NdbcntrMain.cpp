@@ -1,4 +1,5 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +12,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #define NDBCNTR_C
 #include "Ndbcntr.hpp"
@@ -20,7 +22,9 @@
 #include <ndb_version.h>
 #include <SimpleProperties.hpp>
 #include <signaldata/DictTabInfo.hpp>
+#include <signaldata/SchemaTrans.hpp>
 #include <signaldata/CreateTable.hpp>
+#include <signaldata/CreateHashMap.hpp>
 #include <signaldata/ReadNodesConf.hpp>
 #include <signaldata/NodeFailRep.hpp>
 #include <signaldata/TcKeyReq.hpp>
@@ -46,9 +50,19 @@
 #include <AttributeHeader.hpp>
 #include <Configuration.hpp>
 #include <DebuggerNames.hpp>
+#include <signaldata/DihRestart.hpp>
 
 #include <NdbOut.hpp>
 #include <NdbTick.h>
+
+#include <signaldata/TakeOver.hpp>
+#include <signaldata/CreateNodegroupImpl.hpp>
+#include <signaldata/DropNodegroupImpl.hpp>
+#include <signaldata/CreateFilegroup.hpp>
+
+#include <EventLogger.hpp>
+
+extern EventLogger * g_eventLogger;
 
 // used during shutdown for reporting current startphase
 // accessed from Emulator.cpp, NdbShutdown()
@@ -86,12 +100,16 @@ static BlockInfo ALL_BLOCKS[] = {
   ,{ LGMAN_REF,  1 ,     0,     0 }
   ,{ PGMAN_REF,  1 ,     0,     0 }
   ,{ RESTORE_REF,1 ,     0,     0 }
+  ,{ DBINFO_REF,1 ,     0,     0 }
+  ,{ DBSPJ_REF,1 ,     0,     0 }
 };
 
 static const Uint32 ALL_BLOCKS_SZ = sizeof(ALL_BLOCKS)/sizeof(BlockInfo);
 
 static BlockReference readConfigOrder[ALL_BLOCKS_SZ] = {
   CMVMI_REF,
+  NDBFS_REF,
+  DBINFO_REF,
   DBTUP_REF,
   DBACC_REF,
   DBTC_REF,
@@ -99,7 +117,6 @@ static BlockReference readConfigOrder[ALL_BLOCKS_SZ] = {
   DBTUX_REF,
   DBDICT_REF,
   DBDIH_REF,
-  NDBFS_REF,
   NDBCNTR_REF,
   QMGR_REF,
   TRIX_REF,
@@ -109,7 +126,8 @@ static BlockReference readConfigOrder[ALL_BLOCKS_SZ] = {
   TSMAN_REF,
   LGMAN_REF,
   PGMAN_REF,
-  RESTORE_REF
+  RESTORE_REF,
+  DBSPJ_REF
 };
 
 /*******************************/
@@ -159,6 +177,18 @@ void Ndbcntr::execCONTINUEB(Signal* signal)
     jam();
     c_stopRec.checkTimeout(signal);
     break;
+  case ZBLOCK_STTOR:
+    if (ERROR_INSERTED(1002))
+    {
+      signal->theData[0] = ZBLOCK_STTOR;
+      sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 100, 1);
+      return;
+    }
+    else
+    {
+      c_missra.sendNextSTTOR(signal);
+    }
+    return;
   default:
     jam();
     systemErrorLab(signal, __LINE__);
@@ -185,17 +215,28 @@ void Ndbcntr::execSYSTEM_ERROR(Signal* signal)
   const SystemError * const sysErr = (SystemError *)signal->getDataPtr();
   char buf[100];
   int killingNode = refToNode(sysErr->errorRef);
-  Uint32 data1 = sysErr->data1;
+  Uint32 data1 = sysErr->data[0];
   
   jamEntry();
   switch (sysErr->errorCode){
   case SystemError::GCPStopDetected:
+  {
     BaseString::snprintf(buf, sizeof(buf), 
 	     "Node %d killed this node because "
 	     "GCP stop was detected",     
 	     killingNode);
-    break;
+    signal->theData[0] = 7025;
+    EXECUTE_DIRECT(DBDIH, GSN_DUMP_STATE_ORD, signal, 1);
+    jamEntry();
 
+    {
+      signal->theData[0] = 12002;
+      EXECUTE_DIRECT(LGMAN, GSN_DUMP_STATE_ORD, signal, 1, 0);
+    }
+
+    jamEntry();
+    break;
+  }
   case SystemError::CopyFragRefError:
     CRASH_INSERTION(1000);
     BaseString::snprintf(buf, sizeof(buf), 
@@ -236,6 +277,137 @@ void Ndbcntr::execSYSTEM_ERROR(Signal* signal)
   return;
 }//Ndbcntr::execSYSTEM_ERROR()
 
+
+struct ddentry
+{
+  Uint32 type;
+  const char * name;
+  Uint64 size;
+};
+
+/**
+ * f_dd[] = {
+ * { DictTabInfo::LogfileGroup, "DEFAULT-LG", 32*1024*1024 },
+ * { DictTabInfo::Undofile, "undofile.dat", 64*1024*1024 },
+ * { DictTabInfo::Tablespace, "DEFAULT-TS", 1024*1024 },
+ * { DictTabInfo::Datafile, "datafile.dat", 64*1024*1024 },
+ * { ~0, 0, 0 }
+ * };
+ */
+Vector<ddentry> f_dd;
+
+Uint64
+parse_size(const char * src)
+{
+  Uint64 num = 0;
+  char * endptr = 0;
+  num = strtoll(src, &endptr, 10);
+
+  if (endptr)
+  {
+    switch(* endptr){
+    case 'k':
+    case 'K':
+      num *= 1024;
+      break;
+    case 'm':
+    case 'M':
+      num *= 1024;
+      num *= 1024;
+      break;
+    case 'g':
+    case 'G':
+      num *= 1024;
+      num *= 1024;
+      num *= 1024;
+      break;
+    }
+  }
+  return num;
+}
+
+static
+int
+parse_spec(Vector<ddentry> & dst,
+           const char * src,
+           Uint32 type)
+{
+  const char * key;
+  Uint32 filetype;
+
+  struct ddentry group;
+  if (type == DictTabInfo::LogfileGroup)
+  {
+    key = "undo_buffer_size=";
+    group.size = 64*1024*1024;
+    group.name = "DEFAULT-LG";
+    group.type = type;
+    filetype = DictTabInfo::Undofile;
+  }
+  else
+  {
+    key = "extent_size=";
+    group.size = 1024*1024;
+    group.name = "DEFAULT-TS";
+    group.type = type;
+    filetype = DictTabInfo::Datafile;
+  }
+  size_t keylen = strlen(key);
+
+  BaseString arg(src);
+  Vector<BaseString> list;
+  arg.split(list, ";");
+
+  bool first = true;
+  for (Uint32 i = 0; i<list.size(); i++)
+  {
+    list[i].trim();
+    if (strncasecmp(list[i].c_str(), "name=", sizeof("name=")-1) == 0)
+    {
+      group.name= strdup(list[i].c_str() + sizeof("name=")-1);
+    }
+    else if (strncasecmp(list[i].c_str(), key, keylen) == 0)
+    {
+      group.size = parse_size(list[i].c_str() + keylen);
+    }
+    else if (strlen(list[i].c_str()) == 0 && (i + 1) == list.size())
+    {
+      /**
+       * ignore stray ";"
+       */
+    }
+    else
+    {
+      /**
+       * interpret as filespec
+       */
+      struct ddentry entry;
+      const char * path = list[i].c_str();
+      char * sizeptr = const_cast<char*>(strchr(path, ':'));
+      if (sizeptr == 0)
+      {
+        return -1;
+      }
+      * sizeptr = 0;
+
+      entry.name = strdup(path);
+      entry.size = parse_size(sizeptr + 1);
+      entry.type = filetype;
+
+      if (first)
+      {
+        /**
+         * push group aswell
+         */
+        first = false;
+        dst.push_back(group);
+      }
+      dst.push_back(entry);
+    }
+  }
+  return 0;
+}
+
 void 
 Ndbcntr::execREAD_CONFIG_REQ(Signal* signal)
 {
@@ -249,6 +421,57 @@ Ndbcntr::execREAD_CONFIG_REQ(Signal* signal)
   const ndb_mgm_configuration_iterator * p = 
     m_ctx.m_config.getOwnConfigIterator();
   ndbrequire(p != 0);
+
+  Uint32 dl = 0;
+  ndb_mgm_get_int_parameter(p, CFG_DB_DISCLESS, &dl);
+  if (dl == 0)
+  {
+    const char * lgspec = 0;
+    char buf[1024];
+    if (!ndb_mgm_get_string_parameter(p, CFG_DB_DD_LOGFILEGROUP_SPEC, &lgspec))
+    {
+      jam();
+
+      if (parse_spec(f_dd, lgspec, DictTabInfo::LogfileGroup))
+      {
+        BaseString::snprintf(buf, sizeof(buf),
+                             "Unable to parse InitialLogfileGroup: %s", lgspec);
+        progError(__LINE__, NDBD_EXIT_INVALID_CONFIG, buf);
+      }
+    }
+
+    const char * tsspec = 0;
+    if (!ndb_mgm_get_string_parameter(p, CFG_DB_DD_TABLEPACE_SPEC, &tsspec))
+    {
+      if (f_dd.size() == 0)
+      {
+        warningEvent("InitialTablespace specified, "
+                     "but InitialLogfileGroup is not!");
+        warningEvent("Ignoring InitialTablespace: %s",
+                     tsspec);
+      }
+      else
+      {
+        if (parse_spec(f_dd, tsspec, DictTabInfo::Tablespace))
+        {
+          BaseString::snprintf(buf, sizeof(buf),
+                               "Unable to parse InitialTablespace: %s", tsspec);
+          progError(__LINE__, NDBD_EXIT_INVALID_CONFIG, buf);
+        }
+      }
+    }
+  }
+
+  struct ddentry empty;
+  empty.type = ~0;
+  f_dd.push_back(empty);
+
+  if (true)
+  {
+    // TODO: add config parameter
+    // remove ATTRIBUTE_MASK2
+    g_sysTable_NDBEVENTS_0.columnCount--;
+  }
 
   ReadConfigConf * conf = (ReadConfigConf*)signal->getDataPtrSend();
   conf->senderRef = reference();
@@ -277,14 +500,6 @@ void Ndbcntr::execSTTOR(Signal* signal)
     break;
   case ZSTART_PHASE_1:
     jam();
-    {
-      Uint32 db_watchdog_interval = 0;
-      const ndb_mgm_configuration_iterator * p = 
-        m_ctx.m_config.getOwnConfigIterator();
-      ndb_mgm_get_int_parameter(p, CFG_DB_WATCHDOG_INTERVAL, &db_watchdog_interval);
-      ndbrequire(db_watchdog_interval);
-      update_watch_dog_timer(db_watchdog_interval);
-    }
     startPhase1Lab(signal);
     break;
   case ZSTART_PHASE_2:
@@ -306,7 +521,7 @@ void Ndbcntr::execSTTOR(Signal* signal)
   case 6:
     jam();
     getNodeGroup(signal);
-    // Fall through
+    sendSttorry(signal);
     break;
   case ZSTART_PHASE_8:
     jam();
@@ -332,7 +547,6 @@ Ndbcntr::getNodeGroup(Signal* signal){
 		 CheckNodeGroups::SignalLength);
   jamEntry();
   c_nodeGroup = sd->output;
-  sendSttorry(signal);
 }
 
 /*******************************/
@@ -446,9 +660,11 @@ void Ndbcntr::startPhase2Lab(Signal* signal)
 {
   c_start.m_lastGci = 0;
   c_start.m_lastGciNodeId = getOwnNodeId();
-  
-  signal->theData[0] = reference();
-  sendSignal(DBDIH_REF, GSN_DIH_RESTARTREQ, signal, 1, JBB);
+
+  DihRestartReq * req = CAST_PTR(DihRestartReq, signal->getDataPtrSend());
+  req->senderRef = reference();
+  sendSignal(DBDIH_REF, GSN_DIH_RESTARTREQ, signal,
+             DihRestartReq::SignalLength, JBB);
   return;
 }//Ndbcntr::startPhase2Lab()
 
@@ -458,9 +674,12 @@ void Ndbcntr::startPhase2Lab(Signal* signal)
 void Ndbcntr::execDIH_RESTARTCONF(Signal* signal) 
 {
   jamEntry();
-  //cmasterDihId = signal->theData[0];
-  c_start.m_lastGci = signal->theData[1];
+
+  const DihRestartConf * conf = CAST_CONSTPTR(DihRestartConf,
+                                              signal->getDataPtrSend());
+  c_start.m_lastGci = conf->latest_gci;
   ctypeOfStart = NodeState::ST_SYSTEM_RESTART;
+  cdihStartType = ctypeOfStart;
   ph2ALab(signal);
   return;
 }//Ndbcntr::execDIH_RESTARTCONF()
@@ -472,6 +691,7 @@ void Ndbcntr::execDIH_RESTARTREF(Signal* signal)
 {
   jamEntry();
   ctypeOfStart = NodeState::ST_INITIAL_START;
+  cdihStartType = ctypeOfStart;
   ph2ALab(signal);
   return;
 }//Ndbcntr::execDIH_RESTARTREF()
@@ -530,8 +750,6 @@ void Ndbcntr::execREAD_NODESCONF(Signal* signal)
   c_start.m_startPartitionedTimeout = setTimeout(c_start.m_startTime, to_2);
   c_start.m_startFailureTimeout = setTimeout(c_start.m_startTime, to_3);
   
-  UpgradeStartup::sendCmAppChg(* this, signal, 0); // ADD
-  
   sendCntrStartReq(signal);
 
   signal->theData[0] = ZSTARTUP;
@@ -582,12 +800,14 @@ Ndbcntr::StartRecord::reset(){
   m_waiting.clear();
   m_withLog.clear();
   m_withoutLog.clear();
+  m_waitTO.clear();
   m_lastGci = m_lastGciNodeId = 0;
   m_startPartialTimeout = ~0;
   m_startPartitionedTimeout = ~0;
   m_startFailureTimeout = ~0;
   
   m_logNodesCount = 0;
+  bzero(m_wait_sp, sizeof(m_wait_sp));
 }
 
 void
@@ -597,15 +817,15 @@ Ndbcntr::execCNTR_START_CONF(Signal * signal){
 
   cnoStartNodes = conf->noStartNodes;
   ctypeOfStart = (NodeState::StartType)conf->startType;
+  cdihStartType = ctypeOfStart;
   c_start.m_lastGci = conf->startGci;
   cmasterNodeId = conf->masterNodeId;
   NdbNodeBitmask tmp; 
   tmp.assign(NdbNodeBitmask::Size, conf->startedNodes);
   c_startedNodes.bitOR(tmp);
   c_start.m_starting.assign(NdbNodeBitmask::Size, conf->startingNodes);
+  m_cntr_start_conf = true;
   ph2GLab(signal);
-
-  UpgradeStartup::sendCmAppChg(* this, signal, 2); //START
 }
 
 /**
@@ -631,6 +851,7 @@ void
 Ndbcntr::execCNTR_START_REP(Signal* signal){
   jamEntry();
   Uint32 nodeId = signal->theData[0];
+
   c_startedNodes.set(nodeId);
   c_start.m_starting.clear(nodeId);
 
@@ -640,7 +861,18 @@ Ndbcntr::execCNTR_START_REP(Signal* signal){
   for(Uint32 i = 0; i<ALL_BLOCKS_SZ; i++){
     sendSignal(ALL_BLOCKS[i].Ref, GSN_NODE_START_REP, signal, 1, JBB);
   }
-  
+
+  signal->theData[0] = nodeId;
+  execSTART_PERMREP(signal);
+}
+
+void
+Ndbcntr::execSTART_PERMREP(Signal* signal)
+{
+  Uint32 nodeId = signal->theData[0];
+  c_startedNodes.set(nodeId);
+  c_start.m_starting.clear(nodeId);
+
   if(!c_start.m_starting.isclear()){
     jam();
     return;
@@ -764,12 +996,42 @@ void
 Ndbcntr::startWaitingNodes(Signal * signal){
 
 #if ! PARALLELL_NR
+  if (!c_start.m_waitTO.isclear())
+  {
+    jam();
+
+    {
+      char buf[100];
+      ndbout_c("starting (TO) %s", c_start.m_waitTO.getText(buf));
+    }
+
+    /**
+     * TO during SR
+     *   this can run in parallel (nowadays :-)
+     */
+    NodeReceiverGroup rg(NDBCNTR, c_start.m_waitTO);
+    c_start.m_starting.bitOR(c_start.m_waitTO);
+    c_start.m_waiting.bitANDC(c_start.m_waitTO);
+    c_start.m_waitTO.clear();
+
+    /**
+     * They are stuck in CntrWaitRep::ZWAITPOINT_4_1
+     *   have all meta data ok...but needs START_COPYREQ
+     */
+    CntrWaitRep* rep = (CntrWaitRep*)signal->getDataPtrSend();
+    rep->nodeId = getOwnNodeId();
+    rep->waitPoint = CntrWaitRep::ZWAITPOINT_4_2_TO;
+    sendSignal(rg, GSN_CNTR_WAITREP, signal, 2, JBB);
+    return;
+  }
+
   const Uint32 nodeId = c_start.m_waiting.find(0);
   const Uint32 Tref = calcNdbCntrBlockRef(nodeId);
   ndbrequire(nodeId != c_start.m_waiting.NotFound);
 
   NodeState::StartType nrType = NodeState::ST_NODE_RESTART;
-  if(c_start.m_withoutLog.get(nodeId)){
+  if(c_start.m_withoutLog.get(nodeId))
+  {
     jam();
     nrType = NodeState::ST_INITIAL_NODE_RESTART;
   }
@@ -1058,12 +1320,65 @@ void Ndbcntr::waitpoint41Lab(Signal* signal)
 /* RECEIVE A WAIT REPORT FROM THE MASTER*/
 /*--------------------------------------*/
     signal->theData[0] = getOwnNodeId();
-    signal->theData[1] = ZWAITPOINT_4_1;
+    signal->theData[1] = CntrWaitRep::ZWAITPOINT_4_1;
     sendSignal(calcNdbCntrBlockRef(cmasterNodeId), 
 	       GSN_CNTR_WAITREP, signal, 2, JBB);
   }//if
   return;
 }//Ndbcntr::waitpoint41Lab()
+
+void
+Ndbcntr::waitpoint42To(Signal* signal)
+{
+  jam();
+  
+  /**
+   * This is a ugly hack
+   * To "easy" enable TO during SR
+   *   a better solution would be to move "all" start handling 
+   *   from DIH to cntr...which knows what's going on
+   */
+  cdihStartType = NodeState::ST_SYSTEM_RESTART;
+  ctypeOfStart = NodeState::ST_NODE_RESTART;
+
+  /**
+   * This is immensely ugly...but makes TUX work (yuck)
+   */
+  {
+    NodeStateRep* rep = (NodeStateRep*)signal->getDataPtrSend();
+    rep->nodeState = getNodeState();
+    rep->nodeState.masterNodeId = cmasterNodeId;
+    rep->nodeState.setNodeGroup(c_nodeGroup);
+    rep->nodeState.starting.restartType = NodeState::ST_NODE_RESTART;
+
+    sendSignal(DBTUX_REF, GSN_NODE_STATE_REP, signal,
+               NodeStateRep::SignalLength, JBB);
+  }
+
+  /**
+   * We were forced to perform TO
+   */
+  StartCopyReq* req = (StartCopyReq*)signal->getDataPtrSend();
+  req->senderRef = reference();
+  req->senderData = RNIL;
+  req->flags = StartCopyReq::WAIT_LCP;
+  req->startingNodeId = getOwnNodeId();
+  sendSignal(DBDIH_REF, GSN_START_COPYREQ, signal, 
+             StartCopyReq::SignalLength, JBB);
+}
+
+void
+Ndbcntr::execSTART_COPYREF(Signal* signal)
+{
+
+}
+
+void
+Ndbcntr::execSTART_COPYCONF(Signal* signal)
+{
+  sendSttorry(signal);  
+}
+
 
 /*******************************/
 /*  NDB_STARTCONF              */
@@ -1072,10 +1387,38 @@ void Ndbcntr::execNDB_STARTCONF(Signal* signal)
 {
   jamEntry();
 
+  NdbNodeBitmask tmp;
+  if (signal->getLength() >= 1 + NdbNodeBitmask::Size)
+  {
+    jam();
+    tmp.assign(NdbNodeBitmask::Size, signal->theData+1);
+    if (!c_start.m_starting.equal(tmp))
+    {
+      /**
+       * Some nodes has been "excluded" from SR
+       */
+      char buf0[100], buf1[100];
+      ndbout_c("execNDB_STARTCONF: changing from %s to %s",
+               c_start.m_starting.getText(buf0),
+               tmp.getText(buf1));
+      
+      NdbNodeBitmask waiting = c_start.m_starting;
+      waiting.bitANDC(tmp);
+
+      c_start.m_waiting.bitOR(waiting);
+      c_start.m_waitTO.bitOR(waiting);
+      
+      c_start.m_starting.assign(tmp);
+      cnoStartNodes = c_start.m_starting.count();
+    }
+  }
+
   NodeReceiverGroup rg(NDBCNTR, c_start.m_starting);
   signal->theData[0] = getOwnNodeId();
-  signal->theData[1] = ZWAITPOINT_4_2;
-  sendSignal(rg, GSN_CNTR_WAITREP, signal, 2, JBB);
+  signal->theData[1] = CntrWaitRep::ZWAITPOINT_4_2;
+  c_start.m_starting.copyto(NdbNodeBitmask::Size, signal->theData+2);
+  sendSignal(rg, GSN_CNTR_WAITREP, signal, 2 + NdbNodeBitmask::Size, 
+             JBB);
   return;
 }//Ndbcntr::execNDB_STARTCONF()
 
@@ -1124,7 +1467,7 @@ void Ndbcntr::ph5ALab(Signal* signal)
       /* MASTER CNTR IS RESPONSIBLE FOR       */
       /* CREATING SYSTEM TABLES               */
       /*--------------------------------------*/
-      createSystableLab(signal, 0);
+      beginSchemaTransLab(signal);
       return;
     case NodeState::ST_SYSTEM_RESTART:
       jam();
@@ -1156,7 +1499,7 @@ void Ndbcntr::ph5ALab(Signal* signal)
     req->senderRef = reference();
     req->nodeId = getOwnNodeId();
     req->internalStartPhase = cinternalStartphase;
-    req->typeOfStart = ctypeOfStart;
+    req->typeOfStart = cdihStartType;
     req->masterNodeId = cmasterNodeId;
     
     //#define TRACE_STTOR
@@ -1178,7 +1521,7 @@ void Ndbcntr::ph5ALab(Signal* signal)
     /* WHEN THE MASTER HAS FINISHED HIS WORK*/
     /*--------------------------------------*/
     signal->theData[0] = getOwnNodeId();
-    signal->theData[1] = ZWAITPOINT_5_2;
+    signal->theData[1] = CntrWaitRep::ZWAITPOINT_5_2;
     sendSignal(calcNdbCntrBlockRef(cmasterNodeId), 
 	       GSN_CNTR_WAITREP, signal, 2, JBB);
     return;
@@ -1210,7 +1553,7 @@ void Ndbcntr::waitpoint52Lab(Signal* signal)
     req->senderRef = reference();
     req->nodeId = getOwnNodeId();
     req->internalStartPhase = cinternalStartphase;
-    req->typeOfStart = ctypeOfStart;
+    req->typeOfStart = cdihStartType;
     req->masterNodeId = cmasterNodeId;
 #ifdef TRACE_STTOR
     ndbout_c("sending NDB_STTOR(%d) to DIH", cinternalStartphase);
@@ -1236,7 +1579,7 @@ void Ndbcntr::ph6ALab(Signal* signal)
   NodeReceiverGroup rg(NDBCNTR, c_start.m_starting);
   rg.m_nodes.clear(getOwnNodeId());
   signal->theData[0] = getOwnNodeId();
-  signal->theData[1] = ZWAITPOINT_5_1;
+  signal->theData[1] = CntrWaitRep::ZWAITPOINT_5_1;
   sendSignal(rg, GSN_CNTR_WAITREP, signal, 2, JBB);
 
   waitpoint51Lab(signal);
@@ -1285,14 +1628,14 @@ void Ndbcntr::waitpoint61Lab(Signal* signal)
       NodeReceiverGroup rg(NDBCNTR, c_start.m_starting);
       rg.m_nodes.clear(getOwnNodeId());
       signal->theData[0] = getOwnNodeId();
-      signal->theData[1] = ZWAITPOINT_6_2;
+      signal->theData[1] = CntrWaitRep::ZWAITPOINT_6_2;
       sendSignal(rg, GSN_CNTR_WAITREP, signal, 2, JBB);
       sendSttorry(signal);
     }
   } else {
     jam();
     signal->theData[0] = getOwnNodeId();
-    signal->theData[1] = ZWAITPOINT_6_1;
+    signal->theData[1] = CntrWaitRep::ZWAITPOINT_6_1;
     sendSignal(calcNdbCntrBlockRef(cmasterNodeId), GSN_CNTR_WAITREP, signal, 2, JBB);
   }
 }
@@ -1331,14 +1674,14 @@ void Ndbcntr::waitpoint71Lab(Signal* signal)
       NodeReceiverGroup rg(NDBCNTR, c_start.m_starting);
       rg.m_nodes.clear(getOwnNodeId());
       signal->theData[0] = getOwnNodeId();
-      signal->theData[1] = ZWAITPOINT_7_2;
+      signal->theData[1] = CntrWaitRep::ZWAITPOINT_7_2;
       sendSignal(rg, GSN_CNTR_WAITREP, signal, 2, JBB);
       sendSttorry(signal);
     }
   } else {
     jam();
     signal->theData[0] = getOwnNodeId();
-    signal->theData[1] = ZWAITPOINT_7_1;
+    signal->theData[1] = CntrWaitRep::ZWAITPOINT_7_1;
     sendSignal(calcNdbCntrBlockRef(cmasterNodeId), GSN_CNTR_WAITREP, signal, 2, JBB);
   }
 }
@@ -1362,48 +1705,159 @@ void Ndbcntr::ph8ALab(Signal* signal)
   return;
 }//Ndbcntr::ph8BLab()
 
+bool
+Ndbcntr::wait_sp(Signal* signal, Uint32 sp)
+{
+  if (sp <= 2)
+    return false;
+
+  switch(ctypeOfStart){
+  case NodeState::ST_SYSTEM_RESTART:
+  case NodeState::ST_INITIAL_START:
+    /**
+     * synchronized...
+     */
+    break;
+  default:
+    return false;
+  }
+
+  if (!ndb_wait_sp(getNodeInfo(cmasterNodeId).m_version))
+    return false;
+
+  CntrWaitRep* rep = (CntrWaitRep*)signal->getDataPtrSend();
+  rep->nodeId = getOwnNodeId();
+  rep->waitPoint = RNIL;
+  rep->request = CntrWaitRep::WaitFor;
+  rep->sp = sp;
+
+  sendSignal(calcNdbCntrBlockRef(cmasterNodeId),
+             GSN_CNTR_WAITREP, signal, CntrWaitRep::SignalLength, JBB);
+
+  return true; // wait
+}
+
+void
+Ndbcntr::wait_sp_rep(Signal* signal)
+{
+  CntrWaitRep rep = *(CntrWaitRep*)signal->getDataPtrSend();
+  switch(rep.request){
+  case CntrWaitRep::WaitFor:
+    jam();
+    ndbrequire(cmasterNodeId == getOwnNodeId());
+    break;
+  case CntrWaitRep::Grant:
+    jam();
+    /**
+     * We're allowed to proceed
+     */
+    c_missra.sendNextSTTOR(signal);
+    return;
+  }
+
+  c_start.m_wait_sp[rep.nodeId] = rep.sp;
+
+  /**
+   * Check if we should allow someone to start...
+   */
+  Uint32 node = c_start.m_starting.find(0);
+  ndbrequire(node < NDB_ARRAY_SIZE(c_start.m_wait_sp));
+  Uint32 min = c_start.m_wait_sp[node];
+  for (; node != NdbNodeBitmask::NotFound;
+       node = c_start.m_starting.find(node + 1))
+  {
+    if (!ndb_wait_sp(getNodeInfo(node).m_version))
+      continue;
+
+    if (c_start.m_wait_sp[node] < min)
+    {
+      min = c_start.m_wait_sp[node];
+    }
+  }
+
+  if (min == 0)
+  {
+    /**
+     * wait for more
+     */
+    return;
+  }
+
+  NdbNodeBitmask grantnodes;
+  node = c_start.m_starting.find(0);
+  for (; node != NdbNodeBitmask::NotFound;
+       node = c_start.m_starting.find(node + 1))
+  {
+    if (!ndb_wait_sp(getNodeInfo(node).m_version))
+      continue;
+
+    if (c_start.m_wait_sp[node] == min)
+    {
+      grantnodes.set(node);
+      c_start.m_wait_sp[node] = 0;
+    }
+  }
+
+  NodeReceiverGroup rg(NDBCNTR, grantnodes);
+  CntrWaitRep * conf = (CntrWaitRep*)signal->getDataPtrSend();
+  conf->nodeId = getOwnNodeId();
+  conf->waitPoint = RNIL;
+  conf->request = CntrWaitRep::Grant;
+  conf->sp = min;
+  sendSignal(rg, GSN_CNTR_WAITREP, signal, CntrWaitRep::SignalLength, JBB);
+}
+
 /*******************************/
 /*  CNTR_WAITREP               */
 /*******************************/
 void Ndbcntr::execCNTR_WAITREP(Signal* signal) 
 {
-  Uint16 twaitPoint;
-
   jamEntry();
-  twaitPoint = signal->theData[1];
+  CntrWaitRep* rep = (CntrWaitRep*)signal->getDataPtr();
+
+  Uint32 twaitPoint = rep->waitPoint;
   switch (twaitPoint) {
-  case ZWAITPOINT_4_1:
+  case CntrWaitRep::ZWAITPOINT_4_1:
     jam();
     waitpoint41Lab(signal);
     break;
-  case ZWAITPOINT_4_2:
+  case CntrWaitRep::ZWAITPOINT_4_2:
     jam();
+    c_start.m_starting.assign(NdbNodeBitmask::Size, signal->theData + 2);
     sendSttorry(signal);
     break;
-  case ZWAITPOINT_5_1:
+  case CntrWaitRep::ZWAITPOINT_5_1:
     jam();
     waitpoint51Lab(signal);
     break;
-  case ZWAITPOINT_5_2:
+  case CntrWaitRep::ZWAITPOINT_5_2:
     jam();
     waitpoint52Lab(signal);
     break;
-  case ZWAITPOINT_6_1:
+  case CntrWaitRep::ZWAITPOINT_6_1:
     jam();
     waitpoint61Lab(signal);
     break;
-  case ZWAITPOINT_6_2:
+  case CntrWaitRep::ZWAITPOINT_6_2:
     jam();
     sendSttorry(signal);
     break;
-  case ZWAITPOINT_7_1:
+  case CntrWaitRep::ZWAITPOINT_7_1:
     jam();
     waitpoint71Lab(signal);
     break;
-  case ZWAITPOINT_7_2:
+  case CntrWaitRep::ZWAITPOINT_7_2:
     jam();
     sendSttorry(signal);
     break;
+  case CntrWaitRep::ZWAITPOINT_4_2_TO:
+    jam();
+    waitpoint42To(signal);
+    break;
+  case RNIL:
+    ndbrequire(signal->getLength() >= CntrWaitRep::SignalLength);
+    wait_sp_rep(signal);
+    return;
   default:
     jam();
     systemErrorLab(signal, __LINE__);
@@ -1456,6 +1910,7 @@ void Ndbcntr::execNODE_FAILREP(Signal* signal)
   c_start.m_waiting.bitANDC(allFailed);
   c_start.m_withLog.bitANDC(allFailed);
   c_start.m_withoutLog.bitANDC(allFailed);
+  c_start.m_waitTO.bitANDC(allFailed);
   c_clusterNodes.bitANDC(allFailed);
   c_startedNodes.bitANDC(allFailed);
 
@@ -1500,26 +1955,41 @@ void Ndbcntr::execNODE_FAILREP(Signal* signal)
   NodeFailRep * rep = (NodeFailRep *)&signal->theData[0];  
   rep->masterNodeId = cmasterNodeId;
 
-  sendSignal(DBTC_REF, GSN_NODE_FAILREP, signal, 
-	     NodeFailRep::SignalLength, JBB);
+  sendSignal(DBTC_REF, GSN_NODE_FAILREP, signal,
+             NodeFailRep::SignalLength, JBB);
   
-  sendSignal(DBLQH_REF, GSN_NODE_FAILREP, signal, 
-	     NodeFailRep::SignalLength, JBB);
+  sendSignal(DBLQH_REF, GSN_NODE_FAILREP, signal,
+             NodeFailRep::SignalLength, JBB);
   
-  sendSignal(DBDIH_REF, GSN_NODE_FAILREP, signal, 
-	     NodeFailRep::SignalLength, JBB);
+  sendSignal(DBDIH_REF, GSN_NODE_FAILREP, signal,
+             NodeFailRep::SignalLength, JBB);
   
-  sendSignal(DBDICT_REF, GSN_NODE_FAILREP, signal, 
-	     NodeFailRep::SignalLength, JBB);
+  sendSignal(DBDICT_REF, GSN_NODE_FAILREP, signal,
+             NodeFailRep::SignalLength, JBB);
   
   sendSignal(BACKUP_REF, GSN_NODE_FAILREP, signal,
-	     NodeFailRep::SignalLength, JBB);
+             NodeFailRep::SignalLength, JBB);
 
   sendSignal(SUMA_REF, GSN_NODE_FAILREP, signal,
-	     NodeFailRep::SignalLength, JBB);
+             NodeFailRep::SignalLength, JBB);
 
   sendSignal(QMGR_REF, GSN_NODE_FAILREP, signal,
-	     NodeFailRep::SignalLength, JBB);
+             NodeFailRep::SignalLength, JBB);
+
+  sendSignal(DBUTIL_REF, GSN_NODE_FAILREP, signal,
+             NodeFailRep::SignalLength, JBB);
+
+  sendSignal(DBTUP_REF, GSN_NODE_FAILREP, signal,
+             NodeFailRep::SignalLength, JBB);
+
+  sendSignal(TSMAN_REF, GSN_NODE_FAILREP, signal,
+             NodeFailRep::SignalLength, JBB);
+
+  sendSignal(LGMAN_REF, GSN_NODE_FAILREP, signal,
+             NodeFailRep::SignalLength, JBB);
+
+  sendSignal(DBSPJ_REF, GSN_NODE_FAILREP, signal,
+             NodeFailRep::SignalLength, JBB);
 
   if (c_stopRec.stopReq.senderRef)
   {
@@ -1643,7 +2113,8 @@ void Ndbcntr::execREAD_NODESREQ(Signal* signal)
   readNodes->noOfNodes = c_allDefinedNodes.count();
   readNodes->masterNodeId = cmasterNodeId;
   readNodes->ndynamicId = cdynamicNodeId;
-  if (cstartPhase > ZSTART_PHASE_2) {
+  if (m_cntr_start_conf)
+  {
     jam();
     sendSignal(TuserBlockref, GSN_READ_NODESCONF, signal, 
 	       ReadNodesConf::SignalLength, JBB);
@@ -1673,11 +2144,273 @@ void Ndbcntr::systemErrorLab(Signal* signal, int line)
 /*       |  :  |   :             |                   v                       */
 /*       | 2048|   0             |                   v                       */
 /*---------------------------------------------------------------------------*/
+void Ndbcntr::beginSchemaTransLab(Signal* signal)
+{
+  c_schemaTransId = reference();
+
+  SchemaTransBeginReq* req =
+    (SchemaTransBeginReq*)signal->getDataPtrSend();
+  req->clientRef = reference();
+  req->transId = c_schemaTransId;
+  req->requestInfo = 0;
+  sendSignal(DBDICT_REF, GSN_SCHEMA_TRANS_BEGIN_REQ, signal,
+      SchemaTransBeginReq::SignalLength, JBB);
+}
+
+void Ndbcntr::execSCHEMA_TRANS_BEGIN_CONF(Signal* signal)
+{
+  const SchemaTransBeginConf* conf =
+    (SchemaTransBeginConf*)signal->getDataPtr();
+  ndbrequire(conf->transId == c_schemaTransId);
+  c_schemaTransKey = conf->transKey;
+
+  createHashMap(signal, 0);
+}
+
+void Ndbcntr::execSCHEMA_TRANS_BEGIN_REF(Signal* signal)
+{
+  ndbrequire(false);
+}
+
+void
+Ndbcntr::createHashMap(Signal* signal, Uint32 idx)
+{
+  CreateHashMapReq* const req = (CreateHashMapReq*)signal->getDataPtrSend();
+  req->clientRef = reference();
+  req->clientData = idx;
+  req->requestInfo = 0;
+  req->transId = c_schemaTransId;
+  req->transKey = c_schemaTransKey;
+  req->buckets = 240;
+  req->fragments = 0;
+  sendSignal(DBDICT_REF, GSN_CREATE_HASH_MAP_REQ, signal,
+	     CreateHashMapReq::SignalLength, JBB);
+}
+
+void
+Ndbcntr::execCREATE_HASH_MAP_REF(Signal* signal)
+{
+  jamEntry();
+
+  ndbrequire(false);
+}
+
+void
+Ndbcntr::execCREATE_HASH_MAP_CONF(Signal* signal)
+{
+  jamEntry();
+  CreateHashMapConf* conf = (CreateHashMapConf*)signal->getDataPtrSend();
+
+  if (conf->senderData == 0)
+  {
+    jam();
+    c_hashMapId = conf->objectId;
+    c_hashMapVersion = conf->objectVersion;
+  }
+
+  createSystableLab(signal, 0);
+}
+
+void Ndbcntr::endSchemaTransLab(Signal* signal)
+{
+  SchemaTransEndReq* req =
+    (SchemaTransEndReq*)signal->getDataPtrSend();
+  req->clientRef = reference();
+  req->transId = c_schemaTransId;
+  req->requestInfo = 0;
+  req->transKey = c_schemaTransKey;
+  req->flags = 0;
+  sendSignal(DBDICT_REF, GSN_SCHEMA_TRANS_END_REQ, signal,
+      SchemaTransEndReq::SignalLength, JBB);
+}
+
+void Ndbcntr::execSCHEMA_TRANS_END_CONF(Signal* signal)
+{
+  c_schemaTransId = 0;
+  c_schemaTransKey = RNIL;
+  startInsertTransactions(signal);
+}
+
+void Ndbcntr::execSCHEMA_TRANS_END_REF(Signal* signal)
+{
+  jamEntry();
+  SchemaTransEndRef * ref = (SchemaTransEndRef*)signal->getDataPtr();
+  char buf[256];
+  BaseString::snprintf(buf, sizeof(buf), 
+                       "Failed to commit schema trans, err: %u",
+                       ref->errorCode);
+  progError(__LINE__, NDBD_EXIT_INVALID_CONFIG, buf);
+  ndbrequire(false);
+}
+
+void
+Ndbcntr::createDDObjects(Signal * signal, unsigned index)
+{
+  const ndb_mgm_configuration_iterator * p =
+    m_ctx.m_config.getOwnConfigIterator();
+  ndbrequire(p != 0);
+
+  Uint32 propPage[256];
+  LinearWriter w(propPage, 256);
+
+  const ddentry* entry = &f_dd[index];
+
+  switch(entry->type){
+  case DictTabInfo::LogfileGroup:
+  case DictTabInfo::Tablespace:
+  {
+    jam();
+
+    DictFilegroupInfo::Filegroup fg; fg.init();
+    BaseString::snprintf(fg.FilegroupName, sizeof(fg.FilegroupName),
+                         "%s", entry->name);
+    fg.FilegroupType = entry->type;
+    if (entry->type == DictTabInfo::LogfileGroup)
+    {
+      jam();
+      fg.LF_UndoBufferSize = Uint32(entry->size);
+    }
+    else
+    {
+      jam();
+      fg.TS_ExtentSize = Uint32(entry->size);
+      fg.TS_LogfileGroupId = RNIL;
+      fg.TS_LogfileGroupVersion = RNIL;
+    }
+
+    SimpleProperties::UnpackStatus s;
+    s = SimpleProperties::pack(w,
+                               &fg,
+                               DictFilegroupInfo::Mapping,
+                               DictFilegroupInfo::MappingSize, true);
+
+
+    Uint32 length = w.getWordsUsed();
+    LinearSectionPtr ptr[3];
+    ptr[0].p = &propPage[0];
+    ptr[0].sz = length;
+
+    CreateFilegroupReq * req = (CreateFilegroupReq*)signal->getDataPtrSend();
+    req->senderRef = reference();
+    req->senderData = index;
+    req->objType = entry->type;
+    req->transId = c_schemaTransId;
+    req->transKey = c_schemaTransKey;
+    req->requestInfo = 0;
+    sendSignal(DBDICT_REF, GSN_CREATE_FILEGROUP_REQ, signal,
+               CreateFilegroupReq::SignalLength, JBB, ptr, 1);
+    return;
+  }
+  case DictTabInfo::Undofile:
+  case DictTabInfo::Datafile:
+  {
+    jam();
+    Uint32 propPage[256];
+    LinearWriter w(propPage, 256);
+    DictFilegroupInfo::File f; f.init();
+    BaseString::snprintf(f.FileName, sizeof(f.FileName), "%s", entry->name);
+    f.FileType = entry->type;
+    f.FilegroupId = RNIL;
+    f.FilegroupVersion = RNIL;
+    f.FileSizeHi = Uint32(entry->size >> 32);
+    f.FileSizeLo = Uint32(entry->size);
+
+    SimpleProperties::UnpackStatus s;
+    s = SimpleProperties::pack(w,
+                               &f,
+                               DictFilegroupInfo::FileMapping,
+                               DictFilegroupInfo::FileMappingSize, true);
+
+    Uint32 length = w.getWordsUsed();
+    LinearSectionPtr ptr[3];
+    ptr[0].p = &propPage[0];
+    ptr[0].sz = length;
+
+    CreateFileReq * req = (CreateFileReq*)signal->getDataPtrSend();
+    req->senderRef = reference();
+    req->senderData = index;
+    req->objType = entry->type;
+    req->transId = c_schemaTransId;
+    req->transKey = c_schemaTransKey;
+    req->requestInfo = CreateFileReq::ForceCreateFile;
+    sendSignal(DBDICT_REF, GSN_CREATE_FILE_REQ, signal,
+               CreateFileReq::SignalLength, JBB, ptr, 1);
+    return;
+  }
+  default:
+    break;
+  }
+
+  endSchemaTransLab(signal);
+}
+
+void
+Ndbcntr::execCREATE_FILEGROUP_REF(Signal* signal)
+{
+  jamEntry();
+  CreateFilegroupRef* ref = (CreateFilegroupRef*)signal->getDataPtr();
+  char buf[1024];
+
+  const ddentry* entry = &f_dd[ref->senderData];
+
+  if (entry->type == DictTabInfo::LogfileGroup)
+  {
+    BaseString::snprintf(buf, sizeof(buf), "create logfilegroup err %u",
+                         ref->errorCode);
+  }
+  else if (entry->type == DictTabInfo::Tablespace)
+  {
+    BaseString::snprintf(buf, sizeof(buf), "create tablespace err %u",
+                         ref->errorCode);
+  }
+  progError(__LINE__, NDBD_EXIT_INVALID_CONFIG, buf);
+}
+
+void
+Ndbcntr::execCREATE_FILEGROUP_CONF(Signal* signal)
+{
+  jamEntry();
+  CreateFilegroupConf* conf = (CreateFilegroupConf*)signal->getDataPtr();
+  createDDObjects(signal, conf->senderData + 1);
+}
+
+void
+Ndbcntr::execCREATE_FILE_REF(Signal* signal)
+{
+  jamEntry();
+  CreateFileRef* ref = (CreateFileRef*)signal->getDataPtr();
+  char buf[1024];
+
+  const ddentry* entry = &f_dd[ref->senderData];
+
+  if (entry->type == DictTabInfo::Undofile)
+  {
+    BaseString::snprintf(buf, sizeof(buf), "create undofile %s err %u",
+                         entry->name,
+                         ref->errorCode);
+  }
+  else if (entry->type == DictTabInfo::Datafile)
+  {
+    BaseString::snprintf(buf, sizeof(buf), "create datafile %s err %u",
+                         entry->name,
+                         ref->errorCode);
+  }
+  progError(__LINE__, NDBD_EXIT_INVALID_CONFIG, buf);
+}
+
+void
+Ndbcntr::execCREATE_FILE_CONF(Signal* signal)
+{
+  jamEntry();
+  CreateFileConf* conf = (CreateFileConf*)signal->getDataPtr();
+  createDDObjects(signal, conf->senderData + 1);
+}
+
 void Ndbcntr::createSystableLab(Signal* signal, unsigned index)
 {
   if (index >= g_sysTableCount) {
     ndbassert(index == g_sysTableCount);
-    startInsertTransactions(signal);
+    createDDObjects(signal, 0);
     return;
   }
   const SysTable& table = *g_sysTableList[index];
@@ -1700,6 +2433,8 @@ void Ndbcntr::createSystableLab(Signal* signal, unsigned index)
   //w.add(DictTabInfo::KeyLength, 1);
   w.add(DictTabInfo::TableTypeVal, (Uint32)table.tableType);
   w.add(DictTabInfo::SingleUserMode, (Uint32)NDB_SUM_READ_WRITE);
+  w.add(DictTabInfo::HashMapObjectId, c_hashMapId);
+  w.add(DictTabInfo::HashMapVersion, c_hashMapVersion);
 
   for (unsigned i = 0; i < table.columnCount; i++) {
     const SysColumn& column = table.columnList[i];
@@ -1709,8 +2444,23 @@ void Ndbcntr::createSystableLab(Signal* signal, unsigned index)
     w.add(DictTabInfo::AttributeKeyFlag, (Uint32)column.keyFlag);
     w.add(DictTabInfo::AttributeStorageType, 
 	  (Uint32)NDB_STORAGETYPE_MEMORY);
-    w.add(DictTabInfo::AttributeArrayType, 
-	  (Uint32)NDB_ARRAYTYPE_FIXED);
+    switch(column.type){
+    case DictTabInfo::ExtVarbinary:
+      jam();
+      w.add(DictTabInfo::AttributeArrayType,
+            (Uint32)NDB_ARRAYTYPE_SHORT_VAR);
+      break;
+    case DictTabInfo::ExtLongvarbinary:
+      jam();
+      w.add(DictTabInfo::AttributeArrayType,
+            (Uint32)NDB_ARRAYTYPE_MEDIUM_VAR);
+      break;
+    default:
+      jam();
+      w.add(DictTabInfo::AttributeArrayType,
+            (Uint32)NDB_ARRAYTYPE_FIXED);
+      break;
+    }
     w.add(DictTabInfo::AttributeNullableFlag, (Uint32)column.nullable);
     w.add(DictTabInfo::AttributeExtType, (Uint32)column.type);
     w.add(DictTabInfo::AttributeExtLength, (Uint32)column.length);
@@ -1724,8 +2474,11 @@ void Ndbcntr::createSystableLab(Signal* signal, unsigned index)
   ptr[0].sz = length;
 
   CreateTableReq* const req = (CreateTableReq*)signal->getDataPtrSend();
-  req->senderData = index;
-  req->senderRef = reference();
+  req->clientRef = reference();
+  req->clientData = index;
+  req->requestInfo = 0;
+  req->transId = c_schemaTransId;
+  req->transKey = c_schemaTransKey;
   sendSignal(DBDICT_REF, GSN_CREATE_TABLE_REQ, signal,
 	     CreateTableReq::SignalLength, JBB, ptr, 1);
   return;
@@ -1741,11 +2494,13 @@ void Ndbcntr::execCREATE_TABLE_REF(Signal* signal)
 void Ndbcntr::execCREATE_TABLE_CONF(Signal* signal) 
 {
   jamEntry();
-  CreateTableConf * const conf = (CreateTableConf*)signal->getDataPtrSend();
+  const CreateTableConf* conf = (const CreateTableConf*)signal->getDataPtr();
   //csystabId = conf->tableId;
+  ndbrequire(conf->transId == c_schemaTransId);
   ndbrequire(conf->senderData < g_sysTableCount);
   const SysTable& table = *g_sysTableList[conf->senderData];
   table.tableId = conf->tableId;
+  table.tableVersion = conf->tableVersion;
   createSystableLab(signal, conf->senderData + 1);
   //startInsertTransactions(signal);
   return;
@@ -1773,6 +2528,7 @@ void Ndbcntr::execTCSEIZECONF(Signal* signal)
 {
   jamEntry();
   ctcConnectionP = signal->theData[1];
+  ctcReference = signal->theData[2];
   crSystab7Lab(signal);
   return;
 }//Ndbcntr::execTCSEIZECONF()
@@ -1818,7 +2574,7 @@ void Ndbcntr::crSystab7Lab(Signal* signal)
     tcKeyReq->attrLen            = 5;
     tcKeyReq->tableId            = g_sysTable_SYSTAB_0.tableId;
     tcKeyReq->requestInfo        = reqInfo;
-    tcKeyReq->tableSchemaVersion = ZSYSTAB_VERSION;
+    tcKeyReq->tableSchemaVersion = g_sysTable_SYSTAB_0.tableVersion;
     tcKeyReq->transId1           = 0;
     tcKeyReq->transId2           = ckey;
 
@@ -1836,7 +2592,7 @@ void Ndbcntr::crSystab7Lab(Signal* signal)
     AttributeHeader::init(&tAIDataPtr[2], 1, 2 << 2);
     tAIDataPtr[3]                = (tkey << 16);
     tAIDataPtr[4]                = 1;    
-    sendSignal(DBTC_REF, GSN_TCKEYREQ, signal, 
+    sendSignal(ctcReference, GSN_TCKEYREQ, signal,
 	       TcKeyReq::StaticLength + 6, JBB);
   }//for
   ckey = ckey + RowsPerCommit;
@@ -1851,7 +2607,7 @@ void Ndbcntr::execTCKEYCONF(Signal* signal)
   const TcKeyConf * const keyConf = (TcKeyConf *)&signal->theData[0];
   
   jamEntry();
-  cgciSystab = keyConf->gci;
+  cgciSystab = keyConf->gci_hi;
   UintR confInfo = keyConf->confInfo;
   
   if (TcKeyConf::getMarkerFlag(confInfo)){
@@ -1859,7 +2615,7 @@ void Ndbcntr::execTCKEYCONF(Signal* signal)
     Uint32 transId2 = keyConf->transId2;
     signal->theData[0] = transId1;
     signal->theData[1] = transId2;
-    sendSignal(DBTC_REF, GSN_TC_COMMIT_ACK, signal, 2, JBB);    
+    sendSignal(ctcReference, GSN_TC_COMMIT_ACK, signal, 2, JBB);
   }//if
   
   cresponses = cresponses + TcKeyConf::getNoOfOperations(confInfo);
@@ -1888,7 +2644,7 @@ void Ndbcntr::crSystab8Lab(Signal* signal)
   signal->theData[0] = ctcConnectionP;
   signal->theData[1] = reference();
   signal->theData[2] = 0;
-  sendSignal(DBTC_REF, GSN_TCRELEASEREQ, signal, 2, JBB);
+  sendSignal(ctcReference, GSN_TCRELEASEREQ, signal, 2, JBB);
   return;
 }//Ndbcntr::crSystab8Lab()
 
@@ -1904,8 +2660,10 @@ void Ndbcntr::execTCRELEASECONF(Signal* signal)
 
 void Ndbcntr::crSystab9Lab(Signal* signal) 
 {
+  signal->theData[0] = 0; // user ptr
   signal->theData[1] = reference();
-  sendSignalWithDelay(DBDIH_REF, GSN_GETGCIREQ, signal, 100, 2);
+  signal->theData[2] = 0;
+  sendSignalWithDelay(DBDIH_REF, GSN_GETGCIREQ, signal, 100, 3);
   return;
 }//Ndbcntr::crSystab9Lab()
 
@@ -2012,6 +2770,8 @@ void Ndbcntr::sendNdbSttor(Signal* signal)
 	   cinternalStartphase, 
 	   getBlockName( refToBlock(ndbBlocksPtr.p->blockref)));
 #endif
+  if (refToBlock(ndbBlocksPtr.p->blockref) == DBDIH)
+    req->typeOfStart = cdihStartType;
   sendSignal(ndbBlocksPtr.p->blockref, GSN_NDB_STTOR, signal, 22, JBB);
   cndbBlocksCount++;
 }//Ndbcntr::sendNdbSttor()
@@ -2080,6 +2840,21 @@ Ndbcntr::execDUMP_STATE_ORD(Signal* signal)
     sendSignal(reference(), GSN_STOP_REQ, signal,
 	       StopReq::SignalLength, JBB);
     return;
+  }
+
+  if (arg == 71)
+  {
+#ifdef ERROR_INSERT
+    if (signal->getLength() == 2)
+    {
+      c_error_insert_extra = signal->theData[1];
+      SET_ERROR_INSERT_VALUE(1002);
+    }
+    else if (ERROR_INSERTED(1002))
+    {
+      CLEAR_ERROR_INSERT_VALUE;
+    }
+#endif
   }
 
 }//Ndbcntr::execDUMP_STATE_ORD()
@@ -2311,7 +3086,7 @@ Ndbcntr::StopRecord::checkNodeFail(Signal* signal){
   /**
    * Check if I can survive me stopping
    */
-  NodeBitmask ndbMask; 
+  NdbNodeBitmask ndbMask; 
   ndbMask.assign(cntr.c_startedNodes);
 
   if (StopReq::getStopNodes(stopReq.requestInfo))
@@ -2537,18 +3312,25 @@ Ndbcntr::StopRecord::checkLqhTimeout_1(Signal* signal){
     req->nodeState = newState;
     req->senderRef = cntr.reference();
     req->senderData = 12;
-    cntr.sendSignal(DBLQH_REF, GSN_CHANGE_NODE_STATE_REQ, signal, 2, JBB);
+    cntr.sendSignal(DBLQH_REF, GSN_CHANGE_NODE_STATE_REQ, signal, 
+                    ChangeNodeStateReq::SignalLength, JBB);
     return;
   }
   signal->theData[0] = ZSHUTDOWN;
   cntr.sendSignalWithDelay(cntr.reference(), GSN_CONTINUEB, signal, 100, 1);
 }
 
-void Ndbcntr::execCHANGE_NODE_STATE_CONF(Signal* signal){
+void
+Ndbcntr::execCHANGE_NODE_STATE_CONF(Signal* signal)
+{
   jamEntry();
+
+  /**
+   * stop replication stream
+   */
   signal->theData[0] = reference();
   signal->theData[1] = 12;
-  sendSignal(DBDIH_REF, GSN_STOP_ME_REQ, signal, 2, JBB);
+  sendSignal(SUMA_REF, GSN_STOP_ME_REQ, signal, 2, JBB);
 }
 
 void Ndbcntr::execSTOP_ME_REF(Signal* signal){
@@ -2559,6 +3341,18 @@ void Ndbcntr::execSTOP_ME_REF(Signal* signal){
 
 void Ndbcntr::execSTOP_ME_CONF(Signal* signal){
   jamEntry();
+
+  const StopMeConf * conf = CAST_CONSTPTR(StopMeConf, signal->getDataPtr());
+  if (conf->senderData == 12)
+  {
+    /**
+     * Remove node from transactions
+     */
+    signal->theData[0] = reference();
+    signal->theData[1] = 13;
+    sendSignal(DBDIH_REF, GSN_STOP_ME_REQ, signal, 2, JBB);
+    return;
+  }
 
   NodeState newState(NodeState::SL_STOPPING_4, 
 		     StopReq::getSystemStop(c_stopRec.stopReq.requestInfo));
@@ -2721,6 +3515,7 @@ Ndbcntr::execSTOP_CONF(Signal* signal)
      */
     FailRep * const failRep = (FailRep *)&signal->theData[0];
     failRep->failCause = FailRep::ZMULTI_NODE_SHUTDOWN;
+    failRep->failSourceNodeId = getOwnNodeId();
     NodeReceiverGroup rg(QMGR, c_clusterNodes);
     Uint32 nodeId = 0;
     while ((nodeId = NdbNodeBitmask::find(c_stopRec.stopReq.nodes, nodeId+1))
@@ -2751,25 +3546,30 @@ void Ndbcntr::execSTART_ORD(Signal* signal){
 
 #define CLEAR_DX 13
 #define CLEAR_LCP 3
+#define CLEAR_DD 2
+// FileSystemPathDataFiles FileSystemPathUndoFiles
 
 void
 Ndbcntr::clearFilesystem(Signal* signal)
 {
-  const Uint32 lcp = c_fsRemoveCount >= CLEAR_DX;
-  
+  jam();
   FsRemoveReq * req  = (FsRemoveReq *)signal->getDataPtrSend();
   req->userReference = reference();
   req->userPointer   = 0;
   req->directory     = 1;
   req->ownDirectory  = 1;
 
-  if (lcp == 0)
+  const Uint32 DX = CLEAR_DX;
+  const Uint32 LCP = CLEAR_DX + CLEAR_LCP;
+  const Uint32 DD = CLEAR_DX + CLEAR_LCP + CLEAR_DD;
+
+  if (c_fsRemoveCount < DX)
   {
     FsOpenReq::setVersion(req->fileNumber, 3);
     FsOpenReq::setSuffix(req->fileNumber, FsOpenReq::S_CTL); // Can by any...
     FsOpenReq::v1_setDisk(req->fileNumber, c_fsRemoveCount);
   }
-  else
+  else if (c_fsRemoveCount < LCP)
   {
     FsOpenReq::setVersion(req->fileNumber, 5);
     FsOpenReq::setSuffix(req->fileNumber, FsOpenReq::S_DATA);
@@ -2777,6 +3577,19 @@ Ndbcntr::clearFilesystem(Signal* signal)
     FsOpenReq::v5_setTableId(req->fileNumber, 0);
     FsOpenReq::v5_setFragmentId(req->fileNumber, 0);
   }
+  else if (c_fsRemoveCount < DD)
+  {
+    req->ownDirectory  = 0;
+    FsOpenReq::setVersion(req->fileNumber, 6);
+    FsOpenReq::setSuffix(req->fileNumber, FsOpenReq::S_DATA);
+    FsOpenReq::v5_setLcpNo(req->fileNumber,
+                           FsOpenReq::BP_DD_DF + c_fsRemoveCount - LCP);
+  }
+  else
+  {
+    ndbrequire(false);
+  }
+
   sendSignal(NDBFS_REF, GSN_FSREMOVEREQ, signal, 
              FsRemoveReq::SignalLength, JBA);
   c_fsRemoveCount++;
@@ -2785,12 +3598,12 @@ Ndbcntr::clearFilesystem(Signal* signal)
 void
 Ndbcntr::execFSREMOVECONF(Signal* signal){
   jamEntry();
-  if(c_fsRemoveCount == CLEAR_DX + CLEAR_LCP){
+  if(c_fsRemoveCount == CLEAR_DX + CLEAR_LCP + CLEAR_DD){
     jam();
     sendSttorry(signal);
   } else {
     jam();
-    ndbrequire(c_fsRemoveCount < CLEAR_DX + CLEAR_LCP);
+    ndbrequire(c_fsRemoveCount < CLEAR_DX + CLEAR_LCP + CLEAR_DD);
     clearFilesystem(signal);
   }//if
 }
@@ -2798,7 +3611,8 @@ Ndbcntr::execFSREMOVECONF(Signal* signal){
 void Ndbcntr::Missra::execSTART_ORD(Signal* signal){
   signal->theData[0] = NDB_LE_NDBStartStarted;
   signal->theData[1] = NDB_VERSION;
-  cntr.sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 2, JBB);
+  signal->theData[2] = NDB_MYSQL_VERSION_D;
+  cntr.sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 3, JBB);
 
   currentBlockIndex = 0;
   sendNextREAD_CONFIG_REQ(signal);
@@ -2823,8 +3637,11 @@ void Ndbcntr::Missra::sendNextREAD_CONFIG_REQ(Signal* signal){
 	     currentBlockIndex);
 #endif
     
-    cntr.sendSignal(ref, GSN_READ_CONFIG_REQ, signal, 
-		    ReadConfigReq::SignalLength, JBB);
+    /**
+     * send delayed so that alloc gets "time-sliced"
+     */
+    cntr.sendSignalWithDelay(ref, GSN_READ_CONFIG_REQ, signal,
+                             1, ReadConfigReq::SignalLength);
     return;
   }
   
@@ -2877,17 +3694,18 @@ void Ndbcntr::Missra::sendNextSTTOR(Signal* signal){
   for(; currentStartPhase < 255 ;
       currentStartPhase++, g_currentStartPhase = currentStartPhase){
     jam();
+
+#ifdef ERROR_INSERT
+    if (cntr.cerrorInsert == 1002 &&
+        cntr.c_error_insert_extra == currentStartPhase)
+    {
+      signal->theData[0] = ZBLOCK_STTOR;
+      cntr.sendSignalWithDelay(cntr.reference(), GSN_CONTINUEB, signal, 100, 1);
+      return;
+    }
+#endif
     
     const Uint32 start = currentBlockIndex;
-
-    if (currentStartPhase == ZSTART_PHASE_6)
-    {
-      // Ndbd has passed the critical startphases.
-      // Change error handler from "startup" state
-      // to normal state.
-      ErrorReporter::setErrorHandlerShutdownType();
-    }
-
     for(; currentBlockIndex < ALL_BLOCKS_SZ; currentBlockIndex++){
       jam();
       if(ALL_BLOCKS[currentBlockIndex].NextSP == currentStartPhase){
@@ -2914,6 +3732,8 @@ void Ndbcntr::Missra::sendNextSTTOR(Signal* signal){
 		 ref,
 		 currentBlockIndex);
 #endif
+        if (refToBlock(ref) == DBDIH)
+          signal->theData[7] = cntr.cdihStartType;
 	
 	cntr.sendSignal(ref, GSN_STTOR, signal, 8, JBB);
 	
@@ -2926,168 +3746,110 @@ void Ndbcntr::Missra::sendNextSTTOR(Signal* signal){
     NodeState newState(NodeState::SL_STARTING, currentStartPhase, 
 		       (NodeState::StartType)cntr.ctypeOfStart);
     cntr.updateNodeState(signal, newState);
-    
-    if(start != 0){
+
+    if(start != 0)
+    {
       /**
-       * At least one wanted this start phase,  report it
+       * At least one wanted this start phase, record & report it
        */
       jam();
+      g_eventLogger->info("Start phase %u completed", currentStartPhase);
+
       signal->theData[0] = NDB_LE_StartPhaseCompleted;
       signal->theData[1] = currentStartPhase;
       signal->theData[2] = cntr.ctypeOfStart;    
       cntr.sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 3, JBB);
+
+      /**
+       * Check if we should wait before proceeding with
+       *   next startphase
+       *
+       * New code guarantees that before starting X
+       *   that all other nodes (in system restart/initial start)
+       *   want to start a startphase >= X
+       */
+      if (cntr.wait_sp(signal, currentStartPhase + 1))
+      {
+        jam();
+        currentStartPhase++;
+        g_currentStartPhase = currentStartPhase;
+        return;
+      }
     }
   }
 
+  g_eventLogger->info("Node started");
+
   signal->theData[0] = NDB_LE_NDBStartCompleted;
   signal->theData[1] = NDB_VERSION;
-  cntr.sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 2, JBB);
+  signal->theData[2] = NDB_MYSQL_VERSION_D;
+  cntr.sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 3, JBB);
   
   NodeState newState(NodeState::SL_STARTED);
   cntr.updateNodeState(signal, newState);
 
-  /**
-   * Backward
-   */
-  UpgradeStartup::sendCmAppChg(cntr, signal, 3); //RUN
-
-  NdbNodeBitmask nodes = cntr.c_clusterNodes;
-  Uint32 node = 0;
-  while((node = nodes.find(node+1)) != NdbNodeBitmask::NotFound){
-    if(cntr.getNodeInfo(node).m_version < MAKE_VERSION(3,5,0)){
-      nodes.clear(node);
-    }
-  }
-  
-  NodeReceiverGroup rg(NDBCNTR, nodes);
+  NodeReceiverGroup rg(NDBCNTR, cntr.c_clusterNodes);
   signal->theData[0] = cntr.getOwnNodeId();
   cntr.sendSignal(rg, GSN_CNTR_START_REP, signal, 1, JBB);
 }
 
-/**
- * Backward compatible code
- */
 void
-UpgradeStartup::sendCmAppChg(Ndbcntr& cntr, Signal* signal, Uint32 startLevel){
-  
-  if(cntr.getNodeInfo(cntr.cmasterNodeId).m_version >= MAKE_VERSION(3,5,0)){
+Ndbcntr::execCREATE_NODEGROUP_IMPL_REQ(Signal* signal)
+{
+  jamEntry();
+
+  CreateNodegroupImplReq reqCopy = *(CreateNodegroupImplReq*)signal->getDataPtr();
+  CreateNodegroupImplReq *req = &reqCopy;
+
+  if (req->requestType == CreateNodegroupImplReq::RT_COMMIT)
+  {
     jam();
-    return;
+    Uint32 save = c_nodeGroup;
+    getNodeGroup(signal);
+    if (save != c_nodeGroup)
+    {
+      jam();
+      updateNodeState(signal, getNodeState());
+    }
   }
 
-  /**
-   * Old NDB running
-   */
-  
-  signal->theData[0] = startLevel;
-  signal->theData[1] = cntr.getOwnNodeId();
-  signal->theData[2] = 3 | ('N' << 8);
-  signal->theData[3] = 'D' | ('B' << 8);
-  signal->theData[4] = 0;
-  signal->theData[5] = 0;
-  signal->theData[6] = 0;
-  signal->theData[7] = 0;
-  signal->theData[8] = 0;
-  signal->theData[9] = 0;
-  signal->theData[10] = 0;
-  signal->theData[11] = 0;
-  
-  NdbNodeBitmask nodes = cntr.c_clusterNodes;
-  nodes.clear(cntr.getOwnNodeId());
-  Uint32 node = 0;
-  while((node = nodes.find(node+1)) != NdbNodeBitmask::NotFound){
-    if(cntr.getNodeInfo(node).m_version < MAKE_VERSION(3,5,0)){
-      cntr.sendSignal(cntr.calcQmgrBlockRef(node),
-		      GSN_CM_APPCHG, signal, 12, JBB);
-    } else {
-      cntr.c_startedNodes.set(node); // Fake started
-    }
+  {
+    CreateNodegroupImplConf* conf = (CreateNodegroupImplConf*)signal->getDataPtrSend();
+    conf->senderRef = reference();
+    conf->senderData = req->senderData;
+    sendSignal(req->senderRef, GSN_CREATE_NODEGROUP_IMPL_CONF, signal,
+               CreateNodegroupImplConf::SignalLength, JBB);
   }
 }
 
 void
-UpgradeStartup::execCM_APPCHG(SimulatedBlock & block, Signal* signal){
-  Uint32 state = signal->theData[0];
-  Uint32 nodeId = signal->theData[1];
-  if(block.number() == QMGR){
-    Ndbcntr& cntr = * (Ndbcntr*)globalData.getBlock(CNTR);
-    switch(state){
-    case 0: // ZADD
-      break;
-    case 2: // ZSTART
-      break;
-    case 3: // ZRUN{
-      cntr.c_startedNodes.set(nodeId);
+Ndbcntr::execDROP_NODEGROUP_IMPL_REQ(Signal* signal)
+{
+  jamEntry();
 
-      Uint32 recv = cntr.c_startedNodes.count();
-      Uint32 cnt = cntr.c_clusterNodes.count();
-      if(recv + 1 == cnt){ //+1 == own node
-	/**
-	 * Check master
-	 */
-	sendCntrMasterReq(cntr, signal, 0);
-      }
-      return;
+  DropNodegroupImplReq reqCopy = *(DropNodegroupImplReq*)signal->getDataPtr();
+  DropNodegroupImplReq *req = &reqCopy;
+
+  if (req->requestType == DropNodegroupImplReq::RT_COMPLETE)
+  {
+    jam();
+    Uint32 save = c_nodeGroup;
+    getNodeGroup(signal);
+    
+    if (save != c_nodeGroup)
+    {
+      jam();
+      updateNodeState(signal, getNodeState());
     }
   }
-  block.progError(__LINE__,NDBD_EXIT_NDBREQUIRE,
-		  "UpgradeStartup::execCM_APPCHG");
+
+  {
+    DropNodegroupImplConf* conf = (DropNodegroupImplConf*)signal->getDataPtrSend();
+    conf->senderRef = reference();
+    conf->senderData = req->senderData;
+    sendSignal(req->senderRef, GSN_DROP_NODEGROUP_IMPL_CONF, signal,
+               DropNodegroupImplConf::SignalLength, JBB);
+  }
 }
 
-void
-UpgradeStartup::sendCntrMasterReq(Ndbcntr& cntr, Signal* signal, Uint32 n){
-  Uint32 node = cntr.c_startedNodes.find(n);
-  if(node != NdbNodeBitmask::NotFound && 
-     (node == cntr.getOwnNodeId() || 
-      cntr.getNodeInfo(node).m_version >= MAKE_VERSION(3,5,0))){
-    node = cntr.c_startedNodes.find(node+1);
-  }
-  
-  if(node == NdbNodeBitmask::NotFound){
-    cntr.progError(__LINE__,NDBD_EXIT_NDBREQUIRE,
-		   "UpgradeStartup::sendCntrMasterReq "
-		   "NdbNodeBitmask::NotFound");
-  }
-
-  CntrMasterReq * const cntrMasterReq = (CntrMasterReq*)&signal->theData[0];
-  cntr.c_clusterNodes.copyto(NdbNodeBitmask::Size, cntrMasterReq->theNodes);
-  NdbNodeBitmask::clear(cntrMasterReq->theNodes, cntr.getOwnNodeId());
-  cntrMasterReq->userBlockRef = 0;
-  cntrMasterReq->userNodeId = cntr.getOwnNodeId();
-  cntrMasterReq->typeOfStart = NodeState::ST_INITIAL_NODE_RESTART;
-  cntrMasterReq->noRestartNodes = cntr.c_clusterNodes.count() - 1;
-  cntr.sendSignal(cntr.calcNdbCntrBlockRef(node), GSN_CNTR_MASTERREQ,
-		  signal, CntrMasterReq::SignalLength, JBB);
-}
-
-void
-UpgradeStartup::execCNTR_MASTER_REPLY(SimulatedBlock & block, Signal* signal){
-  Uint32 gsn = signal->header.theVerId_signalNumber;
-  Uint32 node = refToNode(signal->getSendersBlockRef());
-  if(block.number() == CNTR){
-    Ndbcntr& cntr = (Ndbcntr&)block;
-    switch(gsn){
-    case GSN_CNTR_MASTERREF:
-      sendCntrMasterReq(cntr, signal, node + 1);
-      return;
-      break;
-    case GSN_CNTR_MASTERCONF:{
-      CntrStartConf* conf = (CntrStartConf*)signal->getDataPtrSend();
-      conf->startGci = 0;
-      conf->masterNodeId = node;
-      conf->noStartNodes = 1;
-      conf->startType = NodeState::ST_INITIAL_NODE_RESTART;
-      NodeBitmask mask;
-      mask.clear();
-      mask.copyto(NdbNodeBitmask::Size, conf->startedNodes);
-      mask.clear();
-      mask.set(cntr.getOwnNodeId());
-      mask.copyto(NdbNodeBitmask::Size, conf->startingNodes);
-      cntr.execCNTR_START_CONF(signal);
-      return;
-    }
-    }
-  }
-  block.progError(__LINE__,NDBD_EXIT_NDBREQUIRE,
-		  "UpgradeStartup::execCNTR_MASTER_REPLY");
-}
+template class Vector<ddentry>;

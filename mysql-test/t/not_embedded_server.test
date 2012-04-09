@@ -104,3 +104,110 @@ DROP USER nopriv_user@localhost;
 --echo #
 --echo # End Bug#54812
 --echo #
+
+
+--echo 
+--echo #
+--echo # Test for Bug#12601974 - STORED PROCEDURE SQL_MODE=NO_BACKSLASH_ESCAPES
+--echo # IGNORED AND BREAKS REPLICATION
+--echo #
+
+SET @org_mode=@@sql_mode;
+
+SET @@sql_mode='';
+
+--echo # USER NAME CONTAINING BACKSLASH IN CREATE USER OPERATION
+CREATE USER 'user\'s_12601974'@'localhost';
+--error ER_CANNOT_USER
+CREATE USER 'user\'s_12601974'@'localhost';
+DROP USER 'user\'s_12601974'@'localhost';
+
+CREATE USER 'user\"s_12601974'@'localhost';
+--error ER_CANNOT_USER
+CREATE USER 'user\"s_12601974'@'localhost';
+DROP USER 'user\"s_12601974'@'localhost';
+
+CREATE USER 'user\bs_12601974'@'localhost';
+--error ER_CANNOT_USER
+CREATE USER 'user\bs_12601974'@'localhost';
+DROP USER 'user\bs_12601974'@'localhost';
+
+CREATE USER 'user\ns_12601974'@'localhost';
+--error ER_CANNOT_USER
+CREATE USER 'user\ns_12601974'@'localhost';
+DROP USER 'user\ns_12601974'@'localhost';
+
+CREATE USER 'user\rs_12601974'@'localhost';
+--error ER_CANNOT_USER
+CREATE USER 'user\rs_12601974'@'localhost';
+DROP USER 'user\rs_12601974'@'localhost';
+
+CREATE USER 'user\ts_12601974'@'localhost';
+--error ER_CANNOT_USER
+CREATE USER 'user\ts_12601974'@'localhost';
+DROP USER 'user\ts_12601974'@'localhost';
+
+CREATE USER 'user\\s_12601974'@'localhost';
+--error ER_CANNOT_USER
+CREATE USER 'user\\s_12601974'@'localhost';
+DROP USER 'user\\s_12601974'@'localhost';
+
+CREATE USER 'user\%s_12601974'@'localhost';
+--error ER_CANNOT_USER
+CREATE USER 'user\%s_12601974'@'localhost';
+DROP USER 'user\%s_12601974'@'localhost';
+
+CREATE USER 'user\_s_12601974'@'localhost';
+--error ER_CANNOT_USER
+CREATE USER 'user\_s_12601974'@'localhost';
+DROP USER 'user\_s_12601974'@'localhost';
+--echo 
+--echo # END OF CASE - USER NAME CONTAINING BACKSLASH IN CREATE USER OPERATION
+
+SET @@sql_mode='NO_BACKSLASH_ESCAPES';
+--echo # USER NAME CONTAINING BACKSLASH IN DROP USER OPERATION
+CREATE USER 'user\"s_12601974'@'localhost';
+--error ER_CANNOT_USER
+CREATE USER 'user\"s_12601974'@'localhost';
+DROP USER 'user\"s_12601974'@'localhost';
+
+CREATE USER 'user\bs_12601974'@'localhost';
+--error ER_CANNOT_USER
+CREATE USER 'user\bs_12601974'@'localhost';
+DROP USER 'user\bs_12601974'@'localhost';
+
+CREATE USER 'user\ns_12601974'@'localhost';
+--error ER_CANNOT_USER
+CREATE USER 'user\ns_12601974'@'localhost';
+DROP USER 'user\ns_12601974'@'localhost';
+
+CREATE USER 'user\rs_12601974'@'localhost';
+--error ER_CANNOT_USER
+CREATE USER 'user\rs_12601974'@'localhost';
+DROP USER 'user\rs_12601974'@'localhost';
+
+CREATE USER 'user\ts_12601974'@'localhost';
+--error ER_CANNOT_USER
+CREATE USER 'user\ts_12601974'@'localhost';
+DROP USER 'user\ts_12601974'@'localhost';
+
+CREATE USER 'user\\s_12601974'@'localhost';
+--error ER_CANNOT_USER
+CREATE USER 'user\\s_12601974'@'localhost';
+DROP USER 'user\\s_12601974'@'localhost';
+
+CREATE USER 'user\%s_12601974'@'localhost';
+--error ER_CANNOT_USER
+CREATE USER 'user\%s_12601974'@'localhost';
+DROP USER 'user\%s_12601974'@'localhost';
+
+CREATE USER 'user\_s_12601974'@'localhost';
+--error ER_CANNOT_USER
+CREATE USER 'user\_s_12601974'@'localhost';
+DROP USER 'user\_s_12601974'@'localhost';
+--echo 
+--echo # END OF CASE - USER NAME CONTAINING BACKSLASH IN CREATE USER OPERATION
+SET @@sql_mode= @org_mode;
+
+--echo 
+--echo #End of Test for Bug#12601974 

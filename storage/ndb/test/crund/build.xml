@@ -1,0 +1,1282 @@
+<!--
+   Copyright (c) 2010, 2011, Oracle and/or its affiliates. All rights reserved.
+
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; version 2 of the License.
+
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
+
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+-->
+<project name="crund" default="help" basedir=".">
+
+  <target name="all" depends="build"/>
+
+  <!-- JVM execution options -->
+
+  <!--<property name="jvm-opt-args" value="-server"/>-->
+  <!--<property name="jvm-opt-args" value="-client"/>-->
+  <property name="jvm-opt-args" value="-server"/>
+
+  <!-- jvm mem/GC Options
+   -Xmx<value>
+    Overall maximum heap size.  Units: k, m and g.
+
+    -Xms<value>
+    Minimum heap size.  Units: k, m and g.
+
+    -Xmn<value>
+    Size of the young generation.  Units: k, m and g.
+
+    -XX:+UseParallelGC
+    "Throughput" collector: use a parallel young generation collector.
+    The old (tenured) generation is still cleaned with the default collector.
+    Default with -server. Cannot be used with -XX:+UseConcMarkSweepGC.
+
+    -XX:+UseParallelOldGC  (supported by: 1.5.0.6)
+    Use the parallel old generation collector (for certain phases).
+    Implies -XX:+UseParallelGC
+
+    -XX:ParallelGCThreads=<number>
+    Number of threads used in parallel garbage collection when
+    -XX:+UseParallelGC is set. Default: number of CPUs
+
+    -XX:+UseAdaptiveSizePolicy
+    Keep statistics and resize both the young and the old (tenured)
+    generation based on the collected data.
+    On by default with -XX:+UseParallelGC
+
+    -XX:+AggressiveHeap
+    Push memory use to the limit.  Set various parameters to be optimal
+    for long-running, memory allocation-intensive jobs.
+    Requires at least 256MB physical RAM.
+    Implies -XX:+UseParallelGC and -XX:+UseAdaptiveSizePolicy
+
+    -XX:+UseConcMarkSweepGC
+    "Low pause" collector: collects garbage in the old generation
+    concurrently to executing the application.
+    Cannot be used with -XX:+UseParallelGC but with -XX:+UseParNewGC
+
+    -XX:+UseParNewGC
+    Use a parallel collector for the young generation.
+    Should be used with -XX:+UseConcMarkSweepGC
+
+    -XX:+CMSParallelRemarkEnabled
+    Use with -XX:+UseParNewGC to further reduce remark pauses
+
+    -Xincgc
+    Activates the incremental (also called train) garbage collector.
+  -->
+
+  <!--<property name="jvm-mem-args" value="-Xms512m -Xmx512m -XX:+AggressiveHeap"/>-->
+  <property name="jvm-mem-args" value="-Xms256m -Xmx256m"/>
+
+  <!-- JVM logging options:
+    -verbose:jni
+      Prints linkage information on JNI calls.  Useful for debugging
+
+    -verbose:gc
+      Prints out information about garbage collections to standard out.
+    -Xloggc:<file>
+      Prints information about garbage collections to the specified file.
+    -XX:+PrintGCDetails
+      Prints more GC data, indicates impact on the different generations.
+      Useful for tuning generations' sizes.
+    -XX:+PrintGCApplicationStoppedTime
+      Prints out the length of actual collection pauses.
+      Useful when tuning concurrent collectors.
+    -XX:+PrintGCApplicationConcurrentTime
+      Prints the amount of time between collection pauses.
+      Useful when tuning concurrent collectors.
+    -XX:+PrintGCTimeStamps
+      Prints timestamps relative to the start of the application.
+    -XX:+PrintTenuringDistribution
+      Prints details about the tenuring distribution to standard out.
+      USeful for observing the lifetime distribution of an application.
+  -->
+  <!--<property name="jvm-log-args" value="-verbose:gc"/>-->
+  <!--<property name="jvm-log-args" value="-verbose:jni"/>-->
+  <!--<property name="jvm-log-args" value="-Xloggc:loggc.txt"/>-->
+  <property name="jvm-log-args" value=""/>
+
+  <property name="jvm-args" value="${jvm-opt-args} ${jvm-mem-args} ${jvm-log-args}"/>
+
+  <!-- compile options (overriden by antcall-targets) -->
+  <!--<property name="debug" value="on"/>-->
+  <!-- default value for <javac/javadoc>'s source attribute (since Ant 1.7)-->
+  <property name="ant.build.javac.source" value="1.5"/>
+  <!-- default value for <javac's> target attribute (since Ant 1.7)-->
+  <property name="ant.build.javac.target" value="1.5"/>
+
+  <!-- old: property to pass as javac attribute: source="${source}" -->
+  <!--<property name="source" value="1.5"/>-->
+  <!--<property name="source" value="1.6"/>-->
+
+  <!-- local directory settings for this build -->
+  <!--<property environment="env"/>-->
+  <property name="src.java" value="src"/>
+  <property name="src.crundndb" value="src/crundndb"/>
+  <property name="build" value="build"/>
+  <property name="lib" value="lib"/>
+  <property name="doc" value="javadoc"/>
+
+  <property file="env.properties"/>
+
+  <!-- sets the compile dependencies properties -->
+    <!-- feasible path elements:
+      <pathelement location="${build}"/>
+      <pathelement path="${java.class.path}/"/>
+      <path refid="classpath.base.compile"/>
+    -->
+
+  <target name="set.paths.base.compile">
+    <path id="classpath.base.compile">
+      <pathelement location="${build}"/>
+    </path>
+  </target>
+
+  <target name="set.paths.compile" depends="set.paths.base.compile,set.paths.ndbjtie.compile,set.paths.ndbj.compile,set.paths.clusterj.compile,set.paths.jdbc.compile,set.paths.jpa.compile">
+    <path id="classpath.all.compile">
+      <path refid="classpath.base.compile"/>
+      <path refid="classpath.ndbjtie.compile"/>
+      <path refid="classpath.ndbj.compile"/>
+      <path refid="classpath.clusterj.compile"/>
+      <path refid="classpath.jdbc.compile"/>
+      <path refid="classpath.jpa.compile"/>
+    </path>
+
+    <echo message="classpath.all.compile: ${toString:classpath.all.compile}" />
+  </target>
+
+  <!-- displays usage -->
+  <target name="help">
+    <echo message="target name scheme:"/>
+    <echo message="  xyz                run target XYZ with debug options"/>
+    <echo message="  xyz.opt            run target XYZ with optimize options"/>
+    <echo message=""/>
+    <echo message="targets acting on all benchmarks:"/>
+    <echo message="  build"/>
+    <echo message="  compile"/>
+    <echo message="  run"/>
+    <echo message=""/>
+    <echo message="benchmark compile targets:"/>
+    <echo message="  compile.ndbapi"/>
+    <echo message="  compile.ndbjtie"/>
+    <echo message="  compile.ndbj"/>
+    <echo message="  compile.clusterj"/>
+    <echo message="  compile.jdbc"/>
+    <echo message="  compile.jpa"/>
+    <echo message="  compile.mysql"/>
+    <echo message="  compile.derby"/>
+    <echo message="  compile.openjpa"/>
+    <echo message=""/>
+    <echo message="benchmark execution targets:"/>
+    <echo message="  run.ndbapi"/>
+    <echo message="  run.ndbjtie"/>
+    <echo message="  run.ndbj"/>
+    <echo message="  run.clusterj"/>
+    <echo message="  run.clusterjdbc"/>
+    <echo message="  run.mysql"/>
+    <echo message="  run.derby"/>
+    <echo message="  run.openjpa.clusterj"/>
+    <echo message="  run.openjpa.mysql"/>
+    <echo message="  run.openjpa.derby"/>
+  </target>
+
+  <!-- creates the build directories -->
+  <target name="init">
+    <tstamp/>
+    <mkdir dir="${build}"/>
+    <!--<mkdir dir="${build}/${os.arch}_${os.name}_${os.version}"/>-->
+    <mkdir dir="${doc}"/>
+  </target>
+
+  <!-- targets as called by make -->
+  <!-- for dependencies, javah-generate the .h file(s) and clean afterwards
+       the build directory in case we've compiled with the wrong flags -->
+  <target name="dep" depends="javah,clean"/>
+  <target name="dbg" depends="build"/>
+  <target name="opt" depends="build.opt"/>
+  <target name="prf" depends="build"/>
+
+  <!-- deletes most generated files -->
+  <target name="clean">
+    <delete dir="${build}"/>
+    <delete dir="${doc}"/>
+    <!-- this file is deleted by the local Makefile; otherwise, "javah"
+	 followed by "clean" will have no effect
+    <delete file="${src.crundndb}/com_mysql_cluster_crund_NdbApiLoad.h"/> -->
+  </target>
+
+  <!-- deletes also log files -->
+  <target name="clobber" depends="mostlyclean"/>
+  <target name="mostlyclean" depends="clean">
+    <delete includeEmptyDirs="true" quiet="true" >
+      <fileset dir="${basedir}" includes="log_*"/>
+    </delete>
+  </target>
+
+  <!-- deletes also database files -->
+  <target name="distclean" depends="mostlyclean">
+    <delete verbose="true">
+      <fileset dir="${src.java}" includes="**/*~" defaultexcludes="no"/>
+    </delete>
+    <delete dir="${derby_dbdir}"/>
+    <delete file="${derby_log}"/>
+  </target>
+
+  <!-- compiles the Java code -->
+  <target name="javac" depends="set.paths.compile,init">
+    <javac srcdir="${src.java}" destdir="${build}" debug="${debug}" >
+      <classpath refid="classpath.all.compile"/>
+      <!-- does not accept empty strings: <compilerarg value=""/> -->
+      <!--<compilerarg value="-Xlint"/>-->
+    </javac>
+  </target>
+
+  <!-- generates all JNI headers -->
+  <target name="javah" depends="com_mysql_cluster_crund_NdbApiLoad.h"/>
+
+  <!-- compiles all code -->
+  <!-- <target name="compile" depends="set.compile,init,javac,javah"/> -->
+  <target name="compile.all" depends="init,compile.ndbapi,compile.ndbjtie,compile.ndbj,compile.clusterj,compile.jdbc,compile.jpa,javah"/>
+
+  <!-- <target name="compile" depends="set.compile,init,javac,javah"/> -->
+  <target name="compile" depends="init,compile.driver,compile.ndbapi,compile.ndbjtie,compile.clusterj,compile.jdbc,compile.jpa,javah"/>
+
+  <!-- compiles all code with optimization -->
+  <target name="compile.opt" depends="set.compile.opt,compile"/>
+
+  <!-- sets to compile for debugging -->
+  <target name="set.compile">
+    <property name="debug" value="on"/>
+  </target>
+
+  <!-- sets to compile with optimizations -->
+  <target name="set.compile.opt">
+    <property name="debug" value="off"/>
+  </target>
+
+  <!-- generates the Java documentation -->
+  <target name="javadoc" depends="init,set.paths.compile">
+    <javadoc packagenames="com.mysql.cluster.crund"
+     sourcepath="${src.java}" destdir="${doc}"
+     windowtitle="MySQL NDB/Cluster Performance Benchmark"
+     author="true"
+     version="true"
+     use="true"
+     classpathref="classpath.all.compile"
+     noindex="false"/>
+  </target>
+
+  <!-- builds a distribution -->
+  <target name="build" depends="compile">
+    <!--<jar jarfile="${jar.file}" basedir="${build}" includes="**/*.class"/>-->
+  </target>
+
+  <!-- builds all code with optimization -->
+  <target name="build.opt" depends="set.compile.opt,build"/>
+
+  <!-- sets to run with optimizations -->
+  <target name="set.run">
+    <property name="jvmflags" value="-ea ${jvm-args}"/>
+    <java classname="dummy" fork="true" failonerror="true">
+      <jvmarg line="${jvmflags}"/>
+      <jvmarg line="-version"/>
+    </java>
+  </target>
+
+  <!-- sets to run with optimizations -->
+  <target name="set.run.opt">
+    <property name="jvmflags" value="-da ${jvm-args}"/>
+  </target>
+
+  <!-- runs all benchmarks -->
+  <target name="run" depends="set.run">
+    <property name="jvmflags" value="-ea ${jvm-args}"/>
+  </target>
+
+  <!-- #################################################################
+       # Driver
+       ################################################################# -->
+
+  <!-- compiles the benchmark drivers -->
+  <target name="compile.driver" depends="set.compile,init">
+    <javac srcdir="${src.java}" destdir="${build}" debug="${debug}"
+	   includes="com/mysql/cluster/crund/*Driver.java"/>
+    <javac srcdir="${src.java}" destdir="${build}" debug="${debug}"
+	   includes="com/mysql/cluster/crund/*Processor.java"/>
+  </target>
+
+  <!-- compiles the benchmark drivers with optimizations -->
+  <target name="compile.driver.opt" depends="set.compile.opt,compile.driver"/>
+
+  <!-- #################################################################
+       # NDBAPI
+       ################################################################# -->
+
+  <!-- sets the paths for compiling against NDBAPI -->
+  <target name="set.paths.ndbapi.compile" depends="set.paths.base.compile">
+    <path id="classpath.ndbapi.compile">
+      <path refid="classpath.base.compile"/>
+    </path>
+  </target>
+
+  <!-- sets the paths for running against NDBAPI -->
+  <target name="set.paths.ndbapi.run" depends="set.paths.ndbapi.compile">
+    <!-- check path to the NDBAPI dynamic library -->
+    <condition property="ndb.libdir" value="${NDB_LIBDIR}">
+      <not>
+	<equals arg1="${NDB_LIBDIR}" arg2="$${NDB_LIBDIR}"/>
+      </not>
+    </condition>
+    <fail message="property NDB_LIBDIR not set!" unless="ndb.libdir" />
+
+    <path id="classpath.ndbapi.run">
+      <path refid="classpath.ndbapi.compile"/>
+    </path>
+  </target>
+
+  <!-- compiles the benchmark against NDBAPI -->
+  <target name="compile.ndbapi" depends="set.compile,set.paths.ndbapi.compile,init">
+    <javac srcdir="${src.java}" destdir="${build}" debug="${debug}"
+	   classpathref="classpath.ndbapi.compile"
+	   includes="com/mysql/cluster/crund/NdbApiLoad.java"/>
+  </target>
+
+  <!-- compiles the benchmark against NDBAPI with optimizations -->
+  <target name="compile.ndbapi.opt" depends="set.compile.opt,compile.ndbapi"/>
+
+  <!-- generates the JNI header -->
+  <target name="com_mysql_cluster_crund_NdbApiLoad.h"
+	  depends="compile.ndbapi">
+    <exec executable="javah" dir="." failonerror="yes">
+      <!--<arg line="-verbose"/>-->
+      <arg line="-classpath"/>
+      <arg path="${build}"/>
+      <arg line="-d ${src.crundndb}"/>
+      <arg line="-jni"/>
+      <arg line="com.mysql.cluster.crund.NdbApiLoad"/>
+    </exec>
+  </target>
+
+  <!-- runs the benchmark against NDBAPI -->
+  <target name="run.ndbapi" depends="set.run,set.paths.ndbapi.run">
+    <echo message="using:" />
+    <echo message="  ndb.libdir: ${ndb.libdir}:./src/crundndb" />
+    <echo message="  classpath.ndbapi.run: ${toString:classpath.ndbapi.run}" />
+    <echo message="" />
+
+    <java classname="com.mysql.cluster.crund.NdbApiLoad"
+     fork="true" failonerror="true" classpathref="classpath.ndbapi.run">
+      <jvmarg line="${jvmflags}"/>
+      <!-- path to NDB client lib, native benchmark backend -->
+      <jvmarg line="-Djava.library.path='${ndb.libdir}:./src/crundndb'"/>
+      <arg line="-p crundRun.properties"/>
+      <arg line="-p crundNdbapi.properties"/>
+    </java>
+  </target>
+
+  <!-- runs the benchmark against NDBAPI with optimizations -->
+  <target name="run.ndbapi.opt" depends="set.compile.opt,set.run.opt,run.ndbapi"/>
+
+  <!-- #################################################################
+       # NDBJTIE
+       ################################################################# -->
+
+  <!-- sets the paths for compiling against NDBJTIE -->
+  <target name="set.paths.ndbjtie.compile" depends="set.paths.base.compile">
+    <!-- check path to the NDBJTIE jar -->
+    <condition property="ndbjtie.jar" value="${NDBJTIE_JAR}">
+      <not>
+	<equals arg1="${NDBJTIE_JAR}" arg2="$${NDBJTIE_JAR}"/>
+      </not>
+    </condition>
+    <echo message="  ndbjtie.jar: ${ndbjtie.jar}" />
+    <fail message="property NDBJTIE_JAR not set!" unless="ndbjtie.jar" />
+
+    <path id="classpath.ndbjtie.compile">
+      <path refid="classpath.base.compile"/>
+      <pathelement location="${ndbjtie.jar}"/>
+    </path>
+  </target>
+
+  <!-- sets the paths for running against NDBJTIE -->
+  <target name="set.paths.ndbjtie.run" depends="set.paths.ndbjtie.compile">
+    <!-- check path to the NDBJTIE dynamic library -->
+    <condition property="ndbjtie.libdir" value="${NDBJTIE_LIBDIR}">
+      <not>
+	<equals arg1="${NDBJTIE_LIBDIR}" arg2="$${NDBJTIE_LIBDIR}"/>
+      </not>
+    </condition>
+    <fail message="property NDBJTIE_LIBDIR not set!" unless="ndbjtie.libdir" />
+
+    <path id="classpath.ndbjtie.run">
+      <path refid="classpath.ndbjtie.compile"/>
+    </path>
+  </target>
+
+  <!-- compiles the benchmark against NDBJTIE -->
+  <target name="compile.ndbjtie" depends="set.compile,set.paths.ndbjtie.compile,init">
+    <javac srcdir="${src.java}" destdir="${build}" debug="${debug}"
+	   classpathref="classpath.ndbjtie.compile"
+	   includes="com/mysql/cluster/crund/NdbJTieLoad.java">
+      <compilerarg value="-Xlint"/>
+    </javac>
+  </target>
+
+  <!-- compiles the benchmark against NDBJTIE with optimizations -->
+  <target name="compile.ndbjtie.opt" depends="set.compile.opt,compile.ndbjtie"/>
+
+  <!-- runs the benchmark against NDBJTIE -->
+  <target name="run.ndbjtie" depends="set.run,set.paths.ndbjtie.run">
+    <echo message="using:" />
+    <echo message="  ndbjtie.libdir: ${ndbjtie.libdir}" />
+    <echo message="  classpath.ndbjtie.run: ${toString:classpath.ndbjtie.run}" />
+    <echo message="" />
+
+    <java classname="com.mysql.cluster.crund.NdbJTieLoad"
+     fork="true" failonerror="true" classpathref="classpath.ndbjtie.run">
+      <jvmarg line="${jvmflags}"/>
+      <jvmarg line="-Djava.library.path='${ndbjtie.libdir}'"/>
+      <arg line="-p crundRun.properties"/>
+      <arg line="-p crundNdbjtie.properties"/>
+    </java>
+  </target>
+
+  <!-- runs the benchmark against NDBJTIE with optimizations -->
+  <target name="run.ndbjtie.opt" depends="set.compile.opt,set.run.opt,run.ndbjtie"/>
+
+  <!-- #################################################################
+       # NDB/J (= ndb-bindings)
+       ################################################################# -->
+
+  <!-- sets the paths for compiling against NDB/J -->
+  <target name="set.paths.ndbj.compile" depends="set.paths.base.compile">
+    <!-- check path to the NDB/J jar -->
+    <condition property="ndbj.jar" value="${NDBJ_JAR}">
+      <not>
+	<equals arg1="${NDBJ_JAR}" arg2="$${NDBJ_JAR}"/>
+      </not>
+    </condition>
+    <fail message="property NDBJ_JAR not set!" unless="ndbj.jar" />
+
+    <!-- check path to JTA API jar (needed by NDB/J) -->
+    <condition property="jta.api.jar" value="${JTA_API_JAR}">
+      <not>
+	<equals arg1="${JTA_API_JAR}" arg2="$${JTA_API_JAR}"/>
+      </not>
+    </condition>
+    <fail message="property JTA_API_JAR not set!" unless="jta.api.jar" />
+
+    <path id="classpath.ndbj.compile">
+      <path refid="classpath.base.compile"/>
+      <pathelement location="${jta.api.jar}"/>
+      <pathelement location="${ndbj.jar}"/>
+    </path>
+  </target>
+
+  <!-- sets the paths for running against NDB/J -->
+  <target name="set.paths.ndbj.run" depends="set.paths.ndbj.compile">
+    <!-- check path to the NDB/J dynamic library -->
+    <condition property="ndbj.libdir" value="${NDBJ_LIBDIR}">
+      <not>
+	<equals arg1="${NDBJ_LIBDIR}" arg2="$${NDBJ_LIBDIR}"/>
+      </not>
+    </condition>
+    <fail message="property NDBJ_LIBDIR not set!" unless="ndbj.libdir" />
+
+    <path id="classpath.ndbj.run">
+      <path refid="classpath.ndbj.compile"/>
+    </path>
+  </target>
+
+  <!-- compiles the benchmark against NDB/J -->
+  <target name="compile.ndbj" depends="set.compile,set.paths.ndbj.compile,init">
+    <javac srcdir="${src.java}" destdir="${build}" debug="${debug}"
+	   classpathref="classpath.ndbj.compile"
+	   includes="com/mysql/cluster/crund/NdbjLoad.java">
+      <compilerarg value="-Xlint"/>
+    </javac>
+  </target>
+
+  <!-- compiles the benchmark against NDB/J with optimizations -->
+  <target name="compile.ndbj.opt" depends="set.compile.opt,compile.ndbj"/>
+
+  <!-- runs the benchmark against NDB/J -->
+  <target name="run.ndbj" depends="set.run,set.paths.ndbj.run">
+    <echo message="using:" />
+    <echo message="  ndbj.libdir: ${ndbj.libdir}" />
+    <echo message="  classpath.ndbj.run: ${toString:classpath.ndbj.run}" />
+    <echo message="" />
+
+    <java classname="com.mysql.cluster.crund.NdbjLoad"
+     fork="true" failonerror="true" classpathref="classpath.ndbj.run">
+      <jvmarg line="${jvmflags}"/>
+      <jvmarg line="-Djava.library.path='${ndbj.libdir}'"/>
+      <arg line="-p crundRun.properties"/>
+      <arg line="-p crundNdbj.properties"/>
+    </java>
+  </target>
+
+  <!-- runs the benchmark against NDB/J with optimizations -->
+  <target name="run.ndbj.opt" depends="set.compile.opt,set.run.opt,run.ndbj"/>
+
+  <!-- #################################################################
+       # Cluster/J
+       ################################################################# -->
+
+  <!-- sets the paths for compiling against Cluster/J -->
+  <target name="set.paths.clusterj.compile" depends="set.paths.base.compile">
+    <!-- check path to the Cluster/J API jar -->
+    <condition property="clusterj.api.jar" value="${CLUSTERJ_API_JAR}">
+      <not>
+	<equals arg1="${CLUSTERJ_API_JAR}" arg2="$${CLUSTERJ_API_JAR}"/>
+      </not>
+    </condition>
+    <fail message="property CLUSTERJ_API_JAR not set!" unless="clusterj.api.jar" />
+
+    <path id="classpath.clusterj.compile">
+      <path refid="classpath.base.compile"/>
+      <pathelement location="${clusterj.api.jar}"/>
+    </path>
+  </target>
+
+  <!-- compiles the benchmark against Cluster/J -->
+  <target name="compile.clusterj" depends="set.compile,set.paths.clusterj.compile,init">
+    <javac srcdir="${src.java}" destdir="${build}" debug="${debug}"
+	   classpathref="classpath.clusterj.compile"
+	   includes="com/mysql/cluster/crund/ClusterjLoad.java">
+      <compilerarg value="-Xlint"/>
+    </javac>
+  </target>
+
+  <!-- compiles the benchmark against Cluster/J with optimizations -->
+  <target name="compile.clusterj.opt" depends="set.compile.opt,compile.clusterj"/>
+
+  <!-- #################################################################
+       # Cluster/J over NDB/J
+       ################################################################# -->
+
+  <!-- sets the paths for running against Cluster/J -->
+  <target name="set.paths.clusterj.ndbj.run" depends="set.paths.ndbj.run,set.paths.clusterj.compile">
+    <!-- check path to the Cluster/J jar -->
+    <condition property="clusterj.jar" value="${CLUSTERJ_JAR}">
+      <not>
+	<equals arg1="${CLUSTERJ_JAR}" arg2="$${CLUSTERJ_JAR}"/>
+      </not>
+    </condition>
+    <fail message="property CLUSTERJ_JAR not set!" unless="clusterj.jar" />
+
+    <!-- check path to the Cluster/J Bindings jar -->
+    <condition property="clusterj.bindings.jar" value="${CLUSTERJ_BINDINGS_JAR}">
+      <not>
+	<equals arg1="${CLUSTERJ_BINDINGS_JAR}" arg2="$${CLUSTERJ_BINDINGS_JAR}"/>
+      </not>
+    </condition>
+    <fail message="property CLUSTERJ_BINDINGS_JAR not set!" unless="clusterj.bindings.jar" />
+
+    <path id="classpath.clusterj.ndbj.run">
+      <path refid="classpath.ndbj.run"/>
+      <path refid="classpath.clusterj.compile"/>
+      <pathelement location="${clusterj.jar}"/>
+      <pathelement location="${clusterj.bindings.jar}"/>
+    </path>
+  </target>
+
+  <!-- runs the benchmark against Cluster/J -->
+  <target name="run.clusterj.ndbj" depends="set.run,set.paths.clusterj.ndbj.run">
+    <echo message="using:" />
+    <echo message="  ndbj.libdir: ${ndbj.libdir}" />
+    <echo message="  classpath.clusterj.ndbj.run: ${toString:classpath.clusterj.ndbj.run}" />
+    <echo message="" />
+
+    <java classname="com.mysql.cluster.crund.ClusterjLoad"
+     fork="true" failonerror="true" classpathref="classpath.clusterj.ndbj.run">
+      <jvmarg line="${jvmflags}"/>
+      <jvmarg line="-Djava.library.path='${ndbj.libdir}'"/>
+      <arg line="-p crundRun.properties"/>
+      <arg line="-p crundClusterj.properties"/>
+    </java>
+  </target>
+
+  <!-- runs the benchmark against Cluster/J with optimizations -->
+  <target name="run.clusterj.ndbj.opt" depends="set.compile.opt,set.run.opt,run.clusterj.ndbj"/>
+
+  <!-- #################################################################
+       # Cluster/J over NDB JTie
+       ################################################################# -->
+
+  <!-- sets the paths for running against Cluster/J -->
+  <target name="set.paths.clusterj.run" depends="set.paths.ndbjtie.run,set.paths.clusterj.compile">
+    <!-- check path to the Cluster/J jar -->
+    <condition property="clusterj.jar" value="${CLUSTERJ_JAR}">
+      <not>
+	<equals arg1="${CLUSTERJ_JAR}" arg2="$${CLUSTERJ_JAR}"/>
+      </not>
+    </condition>
+    <fail message="property CLUSTERJ_JAR not set!" unless="clusterj.jar" />
+
+    <path id="classpath.clusterj.run">
+      <path refid="classpath.ndbjtie.run"/>
+      <path refid="classpath.clusterj.compile"/>
+      <pathelement location="${clusterj.jar}"/>
+    </path>
+  </target>
+
+  <!-- runs the benchmark against Cluster/J -->
+  <target name="run.clusterj" depends="set.run,compile.clusterj,set.paths.clusterj.run">
+    <echo message="using:" />
+    <echo message="  ndbjtie.libdir: ${ndbjtie.libdir}" />
+    <echo message="  classpath.clusterj.run: ${toString:classpath.clusterj.run}" />
+    <echo message="" />
+
+    <java classname="com.mysql.cluster.crund.ClusterjLoad"
+     fork="true" failonerror="true" classpathref="classpath.clusterj.run">
+      <jvmarg line="${jvmflags}"/>
+      <jvmarg line="-Djava.library.path='${ndbjtie.libdir}'"/>
+      <arg line="-p crundRun.properties"/>
+      <arg line="-p crundClusterj.properties"/>
+    </java>
+  </target>
+
+  <!-- runs the benchmark against Cluster/J with optimizations -->
+  <target name="run.clusterj.opt" depends="set.compile.opt,set.run.opt,run.clusterj"/>
+
+  <!-- #################################################################
+       # JDBC
+       ################################################################# -->
+
+  <target name="set.paths.jdbc.compile" depends="set.paths.base.compile">
+    <path id="classpath.jdbc.compile">
+      <path refid="classpath.base.compile"/>
+    </path>
+  </target>
+
+  <!-- compiles the benchmark against JDBC -->
+  <target name="compile.jdbc" depends="set.compile,set.paths.jdbc.compile,init">
+    <javac srcdir="${src.java}" destdir="${build}" debug="${debug}"
+	   classpathref="classpath.jdbc.compile"
+	   includes="com/mysql/cluster/crund/JdbcLoad.java">
+      <compilerarg value="-Xlint"/>
+    </javac>
+  </target>
+
+  <!-- compiles the benchmark against JDBC with optimizations -->
+  <target name="compile.jdbc.opt" depends="set.compile.opt,compile.jdbc"/>
+
+  <!-- #################################################################
+       # JPA
+       ################################################################# -->
+
+  <target name="set.paths.jpa.compile" depends="set.paths.base.compile">
+    <!-- check path to the JPA API jar -->
+    <condition property="jpa.api.jar" value="${JPA_API_JAR}">
+      <not>
+	<equals arg1="${JPA_API_JAR}" arg2="$${JPA_API_JAR}"/>
+      </not>
+    </condition>
+    <fail message="property JPA_API_JAR not set!" unless="jpa.api.jar" />
+
+    <!-- check path to OpenJPA API jar -->
+    <condition property="openjpa.jar" value="${OPENJPA_JAR}">
+      <not>
+	<equals arg1="${OPENJPA_JAR}" arg2="$${OPENJPA_JAR}"/>
+      </not>
+    </condition>
+    <fail message="property OPENJPA_JAR not set!" unless="openjpa.jar" />
+
+    <path id="classpath.jpa.compile">
+      <path refid="classpath.base.compile"/>
+      <pathelement location="${jpa.api.jar}"/>
+       <!-- needed for annotation -->
+      <pathelement location="${openjpa.jar}"/>
+    </path>
+  </target>
+
+  <!-- compiles the benchmark against JPA -->
+  <target name="compile.jpa" depends="set.compile,set.paths.jpa.compile,init">
+    <javac srcdir="${src.java}" destdir="${build}" debug="${debug}"
+	   classpathref="classpath.jpa.compile"
+	   includes="com/mysql/cluster/crund/JpaLoad.java">
+      <compilerarg value="-Xlint"/>
+    </javac>
+  </target>
+
+  <!-- compiles the benchmark against JPA with optimizations -->
+  <target name="compile.jpa.opt" depends="set.compile.opt,compile.jpa"/>
+
+  <!-- #################################################################
+       # MySQL JDBC
+       ################################################################# -->
+
+  <!-- sets the paths for running against MySQL JDBC -->
+  <target name="set.paths.mysql.run" depends="set.paths.jdbc.compile">
+    <path id="classpath.mysql.run">
+      <path refid="classpath.jdbc.compile"/>
+      <pathelement location="${MYSQL_JDBC_JAR}"/>
+    </path>
+  </target>
+
+  <!-- tests loading the MySQL JDBC driver -->
+  <target name="test.driver.mysql" depends="build,set.paths.mysql.run">
+    <echo message="using:" />
+    <echo message="  classpath.mysql.run: ${toString:classpath.mysql.run}" />
+    <echo message="" />
+
+    <property name="mysql.dbdriver" value="com.mysql.jdbc.Driver"/>
+    <property name="mysql.dburl" value="jdbc:mysql://localhost/crunddb"/>
+    <property name="mysql.dbuser" value="md"/>
+    <property name="mysql.dbpassword" value=""/>
+    <java classname="com.mysql.cluster.crund.JdbcDriverTest"
+     fork="true" failonerror="true" classpathref="classpath.mysql.run">
+      <jvmarg value="-ea"/>
+      <sysproperty key="jdbc.driver" value="${mysql.dbdriver}"/>
+      <sysproperty key="jdbc.url" value="${mysql.dburl}"/>
+      <sysproperty key="jdbc.user" value="${mysql.dbuser}"/>
+      <sysproperty key="jdbc.password" value="${mysql.dbpassword}"/>
+    </java>
+  </target>
+
+  <!-- compiles the benchmark against MySQL JDBC -->
+  <target name="compile.mysql" depends="compile.jdbc"/>
+
+  <!-- compiles the benchmark against MYSQL JDBC with optimizations -->
+  <target name="compile.mysql.opt" depends="set.compile.opt,compile.mysql"/>
+
+  <!-- runs the benchmark against MySQL JDBC -->
+  <target name="run.mysql" depends="compile.mysql,set.run,set.paths.mysql.run">
+    <echo message="using:" />
+    <echo message="  classpath.mysql.run: ${toString:classpath.mysql.run}" />
+    <echo message="" />
+
+    <java classname="com.mysql.cluster.crund.JdbcLoad"
+     fork="true" failonerror="true" classpathref="classpath.mysql.run">
+      <jvmarg line="${jvmflags}"/>
+      <arg line="-p crundRun.properties"/>
+      <arg line="-p crundMysql.properties"/>
+    </java>
+  </target>
+
+  <!-- runs the benchmark against MYSQL JDBC with optimizations -->
+  <target name="run.mysql.opt" depends="set.compile.opt,set.run.opt,run.mysql"/>
+
+  <!-- #################################################################
+       # CLUSTERJDBC
+       ################################################################# -->
+
+  <!-- sets the paths for running against CLUSTERJDBC -->
+  <target name="set.paths.clusterjdbc.run" depends="set.paths.jdbc.compile,set.paths.clusterj.run">
+    <!-- check path to the Clusterjdbc jar -->
+    <condition property="clusterjdbc.jar" value="${CLUSTERJDBC_JAR}">
+      <not>
+	<equals arg1="${CLUSTERJDBC_JAR}" arg2="$${CLUSTERJDBC_JAR}"/>
+      </not>
+    </condition>
+    <fail message="property CLUSTERJDBC_JAR not set!" unless="clusterjdbc.jar" />
+
+    <!-- check path to the antlr32 jar -->
+    <condition property="antlr32.jar" value="${ANTLR32_JAR}">
+      <not>
+	<equals arg1="${ANTLR32_JAR}" arg2="$${ANTLR32_JAR}"/>
+      </not>
+    </condition>
+    <fail message="property ANTLR32_JAR not set!" unless="antlr32.jar" />
+
+    <!-- check path to the antlrruntime jar -->
+    <condition property="antlrruntime.jar" value="${ANTLRRUNTIME_JAR}">
+      <not>
+	<equals arg1="${ANTLRRUNTIME_JAR}" arg2="$${ANTLRRUNTIME_JAR}"/>
+      </not>
+    </condition>
+    <fail message="property ANTLRRUNTIME_JAR not set!" unless="antlrruntime.jar" />
+
+    <path id="classpath.clusterjdbc.run">
+      <path refid="classpath.jdbc.compile"/>
+      <pathelement location="${MYSQL_JDBC_JAR}"/>
+      <pathelement location="${clusterj.jar}"/>
+      <pathelement location="${clusterjdbc.jar}"/>
+      <pathelement location="${antlr32.jar}"/>
+      <pathelement location="${antlrruntime.jar}"/>
+    </path>
+  </target>
+
+  <!-- runs the benchmark against MySQL CLUSTERJDBC -->
+  <target name="run.clusterjdbc" depends="compile.mysql,compile.clusterj,set.run,set.paths.clusterjdbc.run">
+    <echo message="using:" />
+    <echo message="  classpath.clusterjdbc.run: ${toString:classpath.clusterjdbc.run}" />
+    <echo message="" />
+
+    <java classname="com.mysql.cluster.crund.JdbcLoad"
+     fork="true" failonerror="true" classpathref="classpath.clusterjdbc.run">
+      <jvmarg line="${jvmflags}"/>
+      <arg line="-p crundRun.properties"/>
+      <arg line="-p crundClusterjdbc.properties"/>
+    </java>
+  </target>
+
+  <!-- #################################################################
+       # Derby JDBC
+       ################################################################# -->
+
+  <property name="derby_dbdir" value="crunddb"/>
+  <property name="derby_log" value="derby.log"/>
+
+  <!-- sets the paths for running against Derby JDBC -->
+  <target name="set.paths.derby.run" depends="set.paths.jdbc.compile">
+    <!-- check path to Derby jar -->
+    <condition property="derby.jar" value="${DERBY_JAR}">
+      <not>
+	<equals arg1="${DERBY_JAR}" arg2="$${DERBY_JAR}"/>
+      </not>
+    </condition>
+    <fail message="property DERBY_JAR not set!" unless="derby.jar" />
+
+    <path id="classpath.derby.run">
+      <path refid="classpath.jdbc.compile"/>
+      <pathelement location="${derby.jar}"/>
+    </path>
+  </target>
+
+  <!-- compiles the benchmark against Derby JDBC -->
+  <target name="compile.derby" depends="compile.jdbc"/>
+
+  <!-- compiles the benchmark against Derby JDBC with optimizations -->
+  <target name="compile.derby.opt" depends="set.compile.opt,compile.derby"/>
+
+  <!-- loads the schema into a Derby JDBC database -->
+  <target name="load.schema.derby" depends="set.paths.derby.run">
+    <!-- check path to Derby Tools jar -->
+    <condition property="derbytools.jar" value="${DERBYTOOLS_JAR}">
+      <not>
+	<equals arg1="${DERBYTOOLS_JAR}" arg2="$${DERBYTOOLS_JAR}"/>
+      </not>
+    </condition>
+    <fail message="property DERBYTOOLS_JAR not set!" unless="derbytools.jar" />
+
+    <path id="classpath.derby.ij">
+      <path refid="classpath.derby.run"/>
+      <pathelement location="${derbytools.jar}"/>
+    </path>
+
+    <echo message="using:" />
+    <echo message="  classpath.derby.ij: ${toString:classpath.derby.ij}" />
+    <echo message="" />
+
+    <java classname="org.apache.derby.tools.ij"
+     fork="true" classpathref="classpath.derby.ij">
+      <arg value="src/tables_derby.sql"/>
+    </java>
+  </target>
+
+  <!-- tests loading the Derby JDBC driver -->
+  <target name="test.driver.derby" depends="build,set.paths.derby.run">
+    <echo message="using:" />
+    <echo message="  classpath.derby.run: ${toString:classpath.derby.run}" />
+    <echo message="" />
+
+    <property name="derby.dbdriver" value="org.apache.derby.jdbc.EmbeddedDriver"/>
+    <property name="derby.dburl" value="jdbc:derby:crunddb"/>
+    <property name="derby.dbuser" value=""/>
+    <property name="derby.dbpassword" value=""/>
+
+    <java classname="com.mysql.cluster.crund.JdbcDriverTest"
+     fork="true" failonerror="true" classpathref="classpath.derby.run">
+      <jvmarg value="-ea"/>
+      <sysproperty key="jdbc.driver" value="${derby.dbdriver}"/>
+      <sysproperty key="jdbc.url" value="${derby.dburl}"/>
+      <sysproperty key="jdbc.user" value="${derby.dbuser}"/>
+      <sysproperty key="jdbc.password" value="${derby.dbpassword}"/>
+    </java>
+  </target>
+
+  <!-- runs the benchmark against Derby JDBC -->
+  <target name="run.derby" depends="set.run,set.paths.derby.run">
+    <echo message="using:" />
+    <echo message="  classpath.derby.run: ${toString:classpath.derby.run}" />
+    <echo message="" />
+
+    <java classname="com.mysql.cluster.crund.JdbcLoad"
+     fork="true" failonerror="true" classpathref="classpath.derby.run">
+      <jvmarg line="${jvmflags}"/>
+      <arg line="-p crundRun.properties"/>
+      <arg line="-p crundDerby.properties"/>
+    </java>
+  </target>
+
+  <!-- runs the benchmark against Derby JDBC with optimizations -->
+  <target name="run.derby.opt" depends="set.compile.opt,set.run.opt,run.derby"/>
+
+  <!-- #################################################################
+       # OpenJPA
+       ################################################################# -->
+
+  <!--
+  <path id="jpa.enhancement.classpath">
+    <pathelement location="bin"/>
+
+    <!- lib contains all of the jars that came with the OpenJPA
+         binary download ->
+    <fileset dir="lib">
+      <include name="**/*.jar"/>
+    </fileset>
+  </path>
+
+  <target name="enhance" depends="build">
+    <!- This is a bit of a hack, but I needed to copy the
+         persistence.xml file from my src dir
+         to the build dir when we run enhancement ->
+    <copy includeemptydirs="false" todir="bin">
+      <fileset dir="src" excludes="**/*.launch, **/*.java"/>
+    </copy>
+
+    <!- define the openjpac task ->
+    <taskdef name="openjpac"
+	     classname="org.apache.openjpa.ant.PCEnhancerTask">
+      <classpath refid="jpa.enhancement.classpath"/>
+    </taskdef>
+
+    <!- invoke enhancer the enhancer ->
+    <openjpac>
+      <classpath refid="jpa.enhancement.classpath"/>
+    </openjpac>
+    <echo message="Enhancing complete."/>
+  </target>
+
+  <target name="enhance">
+    <- define the openjpac task; this can be done at the top of the ->
+    <- build.xml file, so it will be available for all targets ->
+    <taskdef name="openjpac"
+    classname="org.apache.openjpa.ant.PCEnhancerTask"/>
+
+    <- invoke enhancer on all .java files below the current directory ->
+    <openjpac>
+      <fileset dir=".">
+        <include name="**/model/*.java" />
+      </fileset>
+    </openjpac>
+  </target>
+
+ The enhancer can be invoked at build time via the included openjpac script
+ or via its Java class, org.apache.openjpa.enhance.PCEnhancer.
+
+ The enhancer accepts the standard set of command-line arguments defined by
+ the configuration framework (see Section 3, “Command Line Configuration”),
+ along with the following flags:
+    * -directory/-d <output directory>: Path to the output directory. If
+      the directory does not match the enhanced class' package, the package
+      structure will be created beneath the directory. By default, the
+      enhancer overwrites the original .class file.
+    * -enforcePropertyRestrictions/-epr <true/t | false/f>: Whether to
+      throw an exception when it appears that a property access entity is
+      not obeying the restrictions placed on property access. Defaults to
+      false.
+    * -addDefaultConstructor/-adc <true/t | false/f>: The spec requires
+      that all persistent classes define a no-arg constructor. This flag
+      tells the enhancer whether to add a protected no-arg constructor to
+      any persistent classes that don't already have one. Defaults to true.
+    * -tmpClassLoader/-tcl <true/t | false/f>: Whether to load persistent
+      classes with a temporary class loader. This allows other code to then
+      load the enhanced version of the class within the same JVM. Defaults
+      to true. Try setting this flag to false as a debugging step if you
+      run into class loading problems when running the enhancer.
+
+Each additional argument to the enhancer must be one of the following:
+    * The full name of a class.
+    * The .java file for a class.
+    * The .class file of a class.
+
+If you do not supply any arguments to the enhancer, it will run on the -
+     - classes in your persistent class list (see Section 1, “Persistent
+     Class List”).
+
+You can run the enhancer over classes that have already been enhanced, in -
+     - which case it will not further modify the class. You can also run
+     it over classes that are not persistence-capable, in which case it
+     will treat the class as persistence-aware. Persistence-aware classes
+     can directly manipulate the persistent fields of persistence-capable
+     classes.
+
+Note that the enhancement process for subclasses introduces dependencies on -
+     - the persistent parent class being enhanced. This is normally not
+     problematic; however, when running the enhancer multiple times over a
+     subclass whose parent class is not yet enhanced, class loading errors
+     can occur. In the event of a class load error, simply re-compile and
+     re-enhance the offending classes.
+-->
+
+  <!-- sets the paths for running against OpenJPA -->
+  <target name="set.paths.openjpa.run" depends="set.paths.jpa.compile">
+    <!-- check path to OpenJPA API jar -->
+    <condition property="openjpa.jar" value="${OPENJPA_JAR}">
+      <not>
+	<equals arg1="${OPENJPA_JAR}" arg2="$${OPENJPA_JAR}"/>
+      </not>
+    </condition>
+    <fail message="property OPENJPA_JAR not set!" unless="openjpa.jar" />
+
+    <!-- check path to JTA API jar (needed by OpenJPA)-->
+    <condition property="jta.api.jar" value="${JTA_API_JAR}">
+      <not>
+	<equals arg1="${JTA_API_JAR}" arg2="$${JTA_API_JAR}"/>
+      </not>
+    </condition>
+    <fail message="property JTA_API_JAR not set!" unless="jta.api.jar" />
+
+    <!-- check path to Apache Commons Lang jar (needed by OpenJPA) -->
+    <condition property="commons.lang.jar" value="${COMMONS_LANG_JAR}">
+      <not>
+	<equals arg1="${COMMONS_LANG_JAR}" arg2="$${COMMONS_LANG_JAR}"/>
+      </not>
+    </condition>
+    <fail message="property COMMONS_LANG_JAR not set!" unless="commons.lang.jar" />
+
+    <!-- check path to Apache Commons Collections jar (needed by OpenJPA) -->
+    <condition property="commons.collections.jar" value="${COMMONS_COLLECTIONS_JAR}">
+      <not>
+	<equals arg1="${COMMONS_COLLECTIONS_JAR}" arg2="$${COMMONS_COLLECTIONS_JAR}"/>
+      </not>
+    </condition>
+    <fail message="property COMMONS_COLLECTIONS_JAR not set!" unless="commons.collections.jar" />
+
+    <!-- check path to Apache Commons Pool jar (not sure if needed!) -->
+    <condition property="commons.pool.jar" value="${COMMONS_POOL_JAR}">
+      <not>
+	<equals arg1="${COMMONS_POOL_JAR}" arg2="$${COMMONS_POOL_JAR}"/>
+      </not>
+    </condition>
+    <fail message="property COMMONS_POOL_JAR not set!" unless="commons.pool.jar" />
+
+    <!-- check path to Serp API jar (needed for byte code enhancement?) -->
+    <condition property="serp.jar" value="${SERP_JAR}">
+      <not>
+	<equals arg1="${SERP_JAR}" arg2="$${SERP_JAR}"/>
+      </not>
+    </condition>
+    <fail message="property SERP_JAR not set!" unless="serp.jar" />
+
+    <!-- Java agent for automatic class-enhancement -->
+    <path id="javaagent.openjpa" location="${openjpa.jar}"/>
+    <pathconvert property="javaagent.openjpa" refid="javaagent.openjpa"/>
+
+    <path id="classpath.openjpa.run">
+      <path refid="classpath.jpa.compile"/>
+      <pathelement location="${openjpa.jar}"/>
+      <pathelement location="${jta.api.jar}"/>
+      <pathelement location="${commons.lang.jar}"/>
+      <pathelement location="${commons.collections.jar}"/>
+      <pathelement location="${commons.pool.jar}"/>
+      <pathelement location="${serp.jar}"/>
+      <!-- location of persistence.xml: -->
+      <pathelement location="${src.java}"/>
+    </path>
+  </target>
+
+  <!-- sets the paths for enhancing classes for OpenJPA -->
+  <target name="set.paths.openjpa.enhance" depends="set.paths.jpa.compile">
+    <!-- check path to OpenJPA API jar -->
+    <condition property="openjpa.jar" value="${OPENJPA_JAR}">
+      <not>
+	<equals arg1="${OPENJPA_JAR}" arg2="$${OPENJPA_JAR}"/>
+      </not>
+    </condition>
+    <fail message="property OPENJPA_JAR not set!" unless="openjpa.jar" />
+
+    <!-- check path to JTA API jar (needed by OpenJPA)-->
+    <condition property="jta.api.jar" value="${JTA_API_JAR}">
+      <not>
+	<equals arg1="${JTA_API_JAR}" arg2="$${JTA_API_JAR}"/>
+      </not>
+    </condition>
+    <fail message="property JTA_API_JAR not set!" unless="jta.api.jar" />
+
+    <!-- check path to Apache Commons Lang jar (needed by OpenJPA) -->
+    <condition property="commons.lang.jar" value="${COMMONS_LANG_JAR}">
+      <not>
+	<equals arg1="${COMMONS_LANG_JAR}" arg2="$${COMMONS_LANG_JAR}"/>
+      </not>
+    </condition>
+    <fail message="property COMMONS_LANG_JAR not set!" unless="commons.lang.jar" />
+
+    <!-- check path to Apache Commons Collections jar (needed by OpenJPA) -->
+    <condition property="commons.collections.jar" value="${COMMONS_COLLECTIONS_JAR}">
+      <not>
+	<equals arg1="${COMMONS_COLLECTIONS_JAR}" arg2="$${COMMONS_COLLECTIONS_JAR}"/>
+      </not>
+    </condition>
+    <fail message="property COMMONS_COLLECTIONS_JAR not set!" unless="commons.collections.jar" />
+
+    <!-- check path to Apache Commons Pool jar (not sure if needed!) -->
+    <condition property="commons.pool.jar" value="${COMMONS_POOL_JAR}">
+      <not>
+	<equals arg1="${COMMONS_POOL_JAR}" arg2="$${COMMONS_POOL_JAR}"/>
+      </not>
+    </condition>
+    <fail message="property COMMONS_POOL_JAR not set!" unless="commons.pool.jar" />
+
+    <!-- check path to Serp API jar (needed for byte code enhancement?) -->
+    <condition property="serp.jar" value="${SERP_JAR}">
+      <not>
+	<equals arg1="${SERP_JAR}" arg2="$${SERP_JAR}"/>
+      </not>
+    </condition>
+    <fail message="property SERP_JAR not set!" unless="serp.jar" />
+
+    <path id="classpath.openjpa.enhance">
+      <path refid="classpath.jpa.compile"/>
+      <pathelement location="${openjpa.jar}"/>
+      <pathelement location="${jta.api.jar}"/>
+      <pathelement location="${commons.lang.jar}"/>
+      <pathelement location="${commons.collections.jar}"/>
+      <pathelement location="${commons.pool.jar}"/>
+      <pathelement location="${serp.jar}"/>
+      <!-- location of persistence.xml: -->
+      <pathelement location="${src.java}"/>
+    </path>
+  </target>
+
+  <!-- compiles the benchmark against OpenJPA -->
+  <target name="compile.openjpa" depends="compile.jpa"/>
+
+  <!-- compiles the benchmark against OpenJPA with optimizations -->
+  <target name="compile.openjpa.opt" depends="set.compile.opt,compile.openjpa"/>
+
+  <!-- enhances the benchmark for OpenJPA -->
+  <property name="openjpa.Log" value="DefaultLevel=TRACE, Enhance=TRACE"/>
+  <target name="enhance.openjpa" depends="compile.openjpa,set.paths.openjpa.enhance">
+
+    <!-- define the openjpac task -->
+    <taskdef name="openjpac" classname="org.apache.openjpa.ant.PCEnhancerTask">
+      <classpath refid="classpath.openjpa.enhance"/>
+    </taskdef>
+
+    <!-- invoke enhancer the enhancer -->
+    <echo message="using:" />
+    <echo message="  classpath.openjpa.enhance: ${toString:classpath.openjpa.enhance}" />
+
+    <openjpac>
+      <classpath refid="classpath.openjpa.enhance"/>
+      <fileset dir="build/com/mysql/cluster/crund">
+        <include name="A.class" />
+        <include name="B0.class" />
+      </fileset>
+    </openjpac>
+    <echo message="Enhancing complete."/>
+  </target>
+
+  <!-- #################################################################
+       # OpenJPA over MySQL JDBC
+       ################################################################# -->
+
+  <!-- sets the paths for running against OpenJPA over MySQL JDBC -->
+  <target name="set.paths.openjpa.mysql.run" depends="set.paths.openjpa.run,set.paths.mysql.run">
+    <path id="classpath.openjpa.mysql.run">
+      <path refid="classpath.openjpa.run"/>
+      <path refid="classpath.mysql.run"/>
+    </path>
+  </target>
+
+  <!-- runs the benchmark against OpenJPA over MySQL JDBC -->
+  <target name="run.openjpa.mysql" depends="set.run,set.paths.openjpa.mysql.run">
+    <echo message="using:" />
+    <echo message="  javaagent.openjpa: ${javaagent.openjpa}" />
+    <echo message="  classpath.openjpa.mysql.run: ${toString:classpath.openjpa.mysql.run}" />
+    <echo message="" />
+
+    <java classname="com.mysql.cluster.crund.JpaLoad"
+     fork="true" failonerror="true" classpathref="classpath.openjpa.mysql.run">
+      <jvmarg line="${jvmflags}"/>
+      <!-- javaagent argument for automatic class-enhancement -->
+      <jvmarg value="-javaagent:${javaagent.openjpa}"/>
+      <arg line="-p crundRun.properties"/>
+      <arg line="-p crundOpenjpaMysql.properties"/>
+    </java>
+  </target>
+
+  <!-- runs the benchmark against OpenJPA with optimizations -->
+  <target name="run.openjpa.mysql.opt" depends="set.compile.opt,set.run.opt,run.openjpa.mysql"/>
+
+  <!-- #################################################################
+       # OpenJPA over ClusterJ + MySQL JDBC
+       ################################################################# -->
+
+  <!-- sets the paths for running against OpenJPA over ClusterJ + MySQL JDBC -->
+  <target name="set.paths.openjpa.clusterj.run" depends="set.paths.openjpa.run,set.paths.clusterj.run,set.paths.mysql.run">
+
+    <!-- check path to the Cluster/JPA jar -->
+    <condition property="clusterjpa.jar" value="${CLUSTERJPA_JAR}">
+      <not>
+	<equals arg1="${CLUSTERJPA_JAR}" arg2="$${CLUSTERJPA_JAR}"/>
+      </not>
+    </condition>
+    <fail message="property CLUSTERJPA_JAR not set!" unless="clusterjpa.jar" />
+
+    <path id="classpath.openjpa.clusterj.run">
+      <pathelement location="${build}"/>
+      <pathelement location="${clusterjpa.jar}"/>
+      <path refid="classpath.openjpa.run"/>
+      <path refid="classpath.clusterj.run"/>
+      <path refid="classpath.mysql.run"/>
+    </path>
+  </target>
+
+  <!-- runs the benchmark against OpenJPA over ClusterJ + MySQL JDBC -->
+  <target name="run.openjpa.clusterj" depends="set.run,set.paths.openjpa.clusterj.run">
+    <echo message="using:" />
+    <!-- <echo message="  javaagent.openjpa: ${javaagent.openjpa}" /> -->
+    <echo message="  classpath.openjpa.clusterj.run: ${toString:classpath.openjpa.clusterj.run}" />
+    <echo message="" />
+
+    <java classname="com.mysql.cluster.crund.JpaLoad"
+     fork="true" failonerror="true" classpathref="classpath.openjpa.clusterj.run">
+      <jvmarg line="${jvmflags}"/>
+      <!-- javaagent argument for automatic class-enhancement -->
+      <jvmarg value="-javaagent:${javaagent.openjpa}"/>
+      <jvmarg line="-Djava.library.path='${ndbjtie.libdir}'"/>
+      <arg line="-p crundRun.properties"/>
+      <arg line="-p crundOpenjpaClusterj.properties"/>
+    </java>
+  </target>
+
+  <!-- runs the benchmark against OpenJPA with optimizations -->
+  <target name="run.openjpa.clusterj.opt" depends="set.compile.opt,set.run.opt,run.openjpa.clusterj"/>
+
+  <!-- #################################################################
+       # OpenJPA over Derby JDBC
+       ################################################################# -->
+
+  <!-- sets the paths for running against OpenJPA over Derby JDBC -->
+  <target name="set.paths.openjpa.derby.run" depends="set.paths.openjpa.run,set.paths.derby.run">
+    <path id="classpath.openjpa.derby.run">
+      <path refid="classpath.openjpa.run"/>
+      <path refid="classpath.derby.run"/>
+    </path>
+  </target>
+
+  <!-- runs the benchmark against OpenJPA over Derby JDBC -->
+  <target name="run.openjpa.derby" depends="set.run,set.paths.openjpa.derby.run">
+    <echo message="using:" />
+    <echo message="  javaagent.openjpa: ${javaagent.openjpa}" />
+    <echo message="  classpath.openjpa.derby.run: ${toString:classpath.openjpa.derby.run}" />
+    <echo message="" />
+
+    <java classname="com.mysql.cluster.crund.JpaLoad"
+     fork="true" failonerror="true" classpathref="classpath.openjpa.derby.run">
+      <jvmarg line="${jvmflags}"/>
+      <!-- javaagent argument for automatic class-enhancement -->
+      <jvmarg value="-javaagent:${javaagent.openjpa}"/>
+      <arg line="-p crundRun.properties"/>
+      <arg line="-p crundOpenjpaDerby.properties"/>
+    </java>
+  </target>
+
+  <!-- runs the benchmark against OpenJPA with optimizations -->
+  <target name="run.openjpa.derby.opt" depends="set.compile.opt,set.run.opt,run.openjpa.derby"/>
+
+</project>

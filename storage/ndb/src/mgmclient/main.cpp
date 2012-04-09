@@ -1,4 +1,5 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +12,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #include <ndb_global.h>
 #include <ndb_opts.h>
@@ -20,7 +22,7 @@
 extern "C" {
 #if defined( __WIN__)
 #include <conio.h>
-#else
+#elif !defined(__NETWARE__)
 #include <readline/readline.h>
 extern "C" int add_history(const char *command); /* From readline directory */
 extern "C" int read_history(const char *command);
@@ -30,7 +32,6 @@ extern "C" int write_history(const char *command);
 }
 
 #include <NdbMain.h>
-#include <NdbHost.h>
 #include <BaseString.hpp>
 #include <NdbOut.hpp>
 #include <mgmapi.h>
@@ -38,65 +39,47 @@ extern "C" int write_history(const char *command);
 
 #include "ndb_mgmclient.hpp"
 
-const char *progname = "ndb_mgm";
 const char *load_default_groups[]= { "mysql_cluster","ndb_mgm",0 };
 
 
 static Ndb_mgmclient* com;
 
-extern "C"
-void 
-handler(int sig)
-{
-  DBUG_ENTER("handler");
-  switch(sig){
-  case SIGPIPE:
-    /**
-     * Will happen when connection to mgmsrv is broken
-     * Reset connected flag
-     */
-    com->disconnect();    
-    break;
-  }
-  DBUG_VOID_RETURN;
-}
-
-NDB_STD_OPTS_VARS;
-
 static const char default_prompt[]= "ndb_mgm> ";
-static unsigned _try_reconnect;
+static unsigned opt_try_reconnect;
 static const char *prompt= default_prompt;
 static char *opt_execute_str= 0;
+static unsigned opt_verbose = 1;
 
 static struct my_option my_long_options[] =
 {
   NDB_STD_OPTS("ndb_mgm"),
   { "execute", 'e',
     "execute command and exit", 
-    &opt_execute_str, &opt_execute_str, 0,
+    (uchar**) &opt_execute_str, (uchar**) &opt_execute_str, 0,
     GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
   { "try-reconnect", 't',
     "Specify number of tries for connecting to ndb_mgmd (0 = infinite)", 
-    &_try_reconnect, &_try_reconnect, 0,
+    (uchar**) &opt_try_reconnect, (uchar**) &opt_try_reconnect, 0,
     GET_UINT, REQUIRED_ARG, 3, 0, 0, 0, 0, 0 },
+  { "verbose", 'v',
+    "Control the amount of printout",
+    (uchar**) &opt_verbose, (uchar**) &opt_verbose, 0,
+    GET_UINT, REQUIRED_ARG, 1, 0, 0, 0, 0, 0},
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
+
 static void short_usage_sub(void)
 {
-  printf("Usage: %s [OPTIONS] [hostname [port]]\n", my_progname);
-}
-static void usage()
-{
-  short_usage_sub();
-  ndb_std_print_version();
-  print_defaults(MYSQL_CONFIG_NAME,load_default_groups);
-  puts("");
-  my_print_help(my_long_options);
-  my_print_variables(my_long_options);
+  ndb_short_usage_sub("[hostname [port]]");
 }
 
-static int 
-read_and_execute(int _try_reconnect) 
+static void usage()
+{
+  ndb_usage(short_usage_sub, load_default_groups, my_long_options);
+}
+
+static bool
+read_and_execute(int try_reconnect)
 {
   static char *line_read = (char *)NULL;
 
@@ -125,12 +108,13 @@ read_and_execute(int _try_reconnect)
     line_read= strdup(linebuffer);
   }
 #endif
-  return com->execute(line_read, _try_reconnect, 1);
+  return com->execute(line_read, try_reconnect, 1);
 }
 
 int main(int argc, char** argv){
   NDB_INIT(argv[0]);
 
+  ndb_opt_set_usage_funcs(short_usage_sub, usage);
   load_defaults("my",load_default_groups,&argc,&argv);
   int ho_error;
 #ifndef DBUG_OFF
@@ -140,13 +124,11 @@ int main(int argc, char** argv){
 			       ndb_std_get_one_option)))
     exit(ho_error);
 
-  char buf[MAXHOSTNAMELEN+10];
+  BaseString connect_str(opt_ndb_connectstring);
   if(argc == 1) {
-    BaseString::snprintf(buf, sizeof(buf), "%s",  argv[0]);
-    opt_connect_str= buf;
+    connect_str.assfmt("%s", argv[0]);
   } else if (argc >= 2) {
-    BaseString::snprintf(buf, sizeof(buf), "%s:%s",  argv[0], argv[1]);
-    opt_connect_str= buf;
+    connect_str.assfmt("%s:%s", argv[0], argv[1]);
   }
 
   if (!isatty(0) || opt_execute_str)
@@ -154,8 +136,7 @@ int main(int argc, char** argv){
     prompt= 0;
   }
 
-  signal(SIGPIPE, handler);
-  com = new Ndb_mgmclient(opt_connect_str,1);
+  com = new Ndb_mgmclient(connect_str.c_str(), opt_verbose);
   int ret= 0;
   BaseString histfile;
   if (!opt_execute_str)
@@ -174,7 +155,8 @@ int main(int argc, char** argv){
 #endif
 
     ndbout << "-- NDB Cluster -- Management Client --" << endl;
-    while(read_and_execute(_try_reconnect));
+    while(read_and_execute(opt_try_reconnect))
+      ;
 
 #ifdef HAVE_READLINE
     if (histfile.length())
@@ -189,11 +171,15 @@ int main(int argc, char** argv){
   }
   else
   {
-    com->execute(opt_execute_str,_try_reconnect, 0, &ret);
+    com->execute(opt_execute_str, opt_try_reconnect, 0, &ret);
   }
   delete com;
 
-  ndb_end(opt_endinfo ? MY_CHECK_ERROR | MY_GIVE_INFO : 0);
+  ndb_end(opt_ndb_endinfo ? MY_CHECK_ERROR | MY_GIVE_INFO : 0);
+
+  // Don't allow negative return code
+  if (ret < 0)
+    ret = 255;
   return ret;
 }
 

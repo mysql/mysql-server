@@ -1,0 +1,37 @@
+###############################################
+#                                             #
+#   Prepared Statements test on NDB tables    #
+#                                             #
+###############################################
+
+#    
+# NOTE: PLEASE SEE ps_1general.test (bottom) 
+#       BEFORE ADDING NEW TEST CASES HERE !!!
+
+use test;
+
+--disable_query_log
+set @save_ndb_join_pushdown = @@session.ndb_join_pushdown;
+set ndb_join_pushdown = false;
+--enable_query_log
+
+# bug#36342
+-- source include/not_embedded.inc
+
+-- source include/have_ndb.inc
+let $type= 'NDB' ;
+-- source include/ps_create.inc
+-- source include/ps_renew.inc
+
+-- source include/ps_query.inc
+-- source include/ps_modify.inc
+-- source include/ps_modify1.inc
+-- source include/ps_conv.inc
+
+drop table t1, t9;
+
+--disable_query_log
+set ndb_join_pushdown = @save_ndb_join_pushdown;
+--enable_query_log
+
+# End of 4.1 tests

@@ -1,4 +1,6 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (C) 2003, 2005-2007 MySQL AB
+    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +13,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #ifndef COPY_FRAG_HPP
 #define COPY_FRAG_HPP
@@ -29,11 +32,23 @@ class CopyFragReq {
    */
   friend class Dblqh;
 public:
-  STATIC_CONST( SignalLength = 10 );
+  STATIC_CONST( SignalLength = 11 );
 
 private:
-  Uint32 userPtr;
-  Uint32 userRef;
+
+  enum
+  {
+    CFR_TRANSACTIONAL = 1,    // Copy rows >= gci in transactional fashion
+    CFR_NON_TRANSACTIONAL = 2 // Copy rows <= gci in non transactional fashion
+  };
+  union {
+    Uint32 userPtr;
+    Uint32 senderData;
+  };
+  union {
+    Uint32 userRef;
+    Uint32 senderRef;
+  };
   Uint32 tableId;
   Uint32 fragId;
   Uint32 nodeId;
@@ -43,6 +58,7 @@ private:
   Uint32 nodeCount;
   Uint32 nodeList[1];
   //Uint32 maxPage; is stored in nodeList[nodeCount]
+  //Uint32 requestInfo is stored after maxPage
 };
 
 class CopyFragConf {
@@ -56,14 +72,19 @@ class CopyFragConf {
    */
   friend class Dbdih;
 public:
-  STATIC_CONST( SignalLength = 5 );
+  STATIC_CONST( SignalLength = 7 );
 
 private:
-  Uint32 userPtr;
+  union {
+    Uint32 userPtr;
+    Uint32 senderData;
+  };
   Uint32 sendingNodeId;
   Uint32 startingNodeId;
   Uint32 tableId;
   Uint32 fragId;
+  Uint32 rows_lo;
+  Uint32 bytes_lo;
 };
 class CopyFragRef {
   /**

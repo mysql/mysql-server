@@ -1,4 +1,6 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (C) 2003-2007 MySQL AB, 2008, 2009 Sun Microsystems, Inc.
+    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +13,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #include "NDBT_Test.hpp"
 #include "NDBT_ReturnCodes.h"
@@ -58,6 +61,20 @@ OperationTestCase matrix[] = {
   { "FReadInsert",     false, "READ", 626, 0, "INSERT",    0, 1,   0, 1 },
   { "FReadUpdate",     false, "READ", 626, 0, "UPDATE",  626, 0, 626, 0 },
   { "FReadDelete",     false, "READ", 626, 0, "DELETE",  626, 0, 626, 0 },
+
+  { "FSimpleReadRead", false, "S-READ", 626, 0, "READ",    626, 0, 626, 0 },
+  { "FSimpleReadReadEx", 
+                       false, "S-READ", 626, 0, "READ-EX", 626, 0, 626, 0 },
+  { "FSimpleReadSimpleRead",
+                       false, "S-READ", 626, 0, "S-READ",  626, 0, 626, 0 },
+  { "FSimpleReadDirtyRead",
+                       false, "S-READ", 626, 0, "D-READ",  626, 0, 626, 0 },
+  { "FSimpleReadInsert",  
+                       false, "S-READ", 626, 0, "INSERT",    0, 1,   0, 1 },
+  { "FSimpleReadUpdate",
+                       false, "S-READ", 626, 0, "UPDATE",  626, 0, 626, 0 },
+  { "FSimpleReadDelete",
+                       false, "S-READ", 626, 0, "DELETE",  626, 0, 626, 0 },
 
   { "ReadExRead",       true, "READ-EX", 0, 0, "READ",      0, 0,   0, 0 },
   { "ReadExReadEx",     true, "READ-EX", 0, 0, "READ-EX",   0, 0,   0, 0 },
@@ -118,7 +135,7 @@ runOp(HugoOperations & hugoOps,
   } else if(strcmp(op, "READ-EX") == 0){
     C2(hugoOps.pkReadRecord(pNdb, 1, 1, NdbOperation::LM_Exclusive), 0);      
   } else if(strcmp(op, "S-READ") == 0){
-    C2(hugoOps.pkReadRecord(pNdb, 1, 1, NdbOperation::LM_Read), 0);
+    C2(hugoOps.pkReadRecord(pNdb, 1, 1, NdbOperation::LM_SimpleRead), 0);
   } else if(strcmp(op, "D-READ") == 0){
     C2(hugoOps.pkReadRecord(pNdb, 1, 1, NdbOperation::LM_CommittedRead), 0);
   } else if(strcmp(op, "INSERT") == 0){
@@ -266,6 +283,7 @@ valid(const Sequence& s)
   return true;
 }
 
+#if 0
 static
 NdbOut& operator<<(NdbOut& out, const Sequence& s)
 {
@@ -289,6 +307,7 @@ NdbOut& operator<<(NdbOut& out, const Sequence& s)
   out << "]";
   return out;
 }
+#endif
 
 static
 void
@@ -398,7 +417,7 @@ verify_savepoint(NDBT_Context* ctx,
     /**
      * Increase savepoint to <em>k</em>
      */
-    for(size_t l = 1; l<=seq; l++)
+    for(size_t l = 1; l<=(size_t)seq; l++)
     {
       C3(same.pkReadRecord(pNdb, DUMMY, 1, lm) == 0); // Read dummy row
       C3(same.execute_NoCommit(pNdb) == 0);
@@ -441,7 +460,6 @@ verify_savepoint(NDBT_Context* ctx,
 int 
 runOperations(NDBT_Context* ctx, NDBT_Step* step)
 {
-  int tmp; 
   Ndb* pNdb = GETNDB(step);
   
   Uint32 seqNo = ctx->getProperty("Sequence", (Uint32)0);

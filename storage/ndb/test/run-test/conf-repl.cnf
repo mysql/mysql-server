@@ -11,7 +11,7 @@ skip-innodb
 skip-bdb
 
 [cluster_config]
-MaxNoOfSavedMessages= 1000
+MaxNoOfSavedMessages= 5
 DataMemory = 100M
 
 [cluster_config.master]

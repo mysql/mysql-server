@@ -1,0 +1,15 @@
+#############################################################################
+# Original Author: JBM                                                      #
+# Original Date: 2006-02-14                                                 #
+#############################################################################
+# TEST: Use before insert triggers and has the second insert fail           #
+# Test is wrapped to save code and share between engines                    #
+#############################################################################
+
+# Includes
+-- source include/have_ndb.inc
+-- source include/master-slave.inc
+let $engine_type=NDB;
+-- source extra/rpl_tests/rpl_trig004.test
+
+--source include/rpl_end.inc

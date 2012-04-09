@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2012, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -836,6 +836,7 @@ PFS_thread* create_thread(PFS_thread_class *klass, const void *identity,
         pfs->m_user_hash_pins= NULL;
         pfs->m_account_hash_pins= NULL;
         pfs->m_host_hash_pins= NULL;
+        pfs->m_digest_hash_pins= NULL;
 
         pfs->m_username_length= 0;
         pfs->m_hostname_length= 0;
@@ -1025,6 +1026,11 @@ void destroy_thread(PFS_thread *pfs)
     lf_hash_put_pins(pfs->m_host_hash_pins);
     pfs->m_host_hash_pins= NULL;
   }
+  if (pfs->m_digest_hash_pins)
+  {
+    lf_hash_put_pins(pfs->m_digest_hash_pins);
+    pfs->m_digest_hash_pins= NULL;
+  }
   pfs->m_lock.allocated_to_free();
 }
 
@@ -1136,7 +1142,7 @@ find_or_create_file(PFS_thread *thread, PFS_file_class *klass,
   /* Append the unresolved file name to the resolved path */
   char *ptr= buffer + strlen(buffer);
   char *buf_end= &buffer[sizeof(buffer)-1];
-  if (buf_end > ptr)
+  if ((buf_end > ptr) && (*(ptr-1) != FN_LIBCHAR))
     *ptr++= FN_LIBCHAR;
   if (buf_end > ptr)
     strncpy(ptr, safe_filename + dirlen, buf_end - ptr);
@@ -1323,12 +1329,24 @@ void PFS_table::sanitized_aggregate(void)
   */
   PFS_table_share *safe_share= sanitize_table_share(m_share);
   PFS_thread *safe_thread= sanitize_thread(m_thread_owner);
-  if ((safe_share != NULL && safe_thread != NULL) &&
-      (m_has_io_stats || m_has_lock_stats))
+  if ((safe_share != NULL && safe_thread != NULL))
   {
-    safe_aggregate(& m_table_stat, safe_share, safe_thread);
-    m_has_io_stats= false;
-    m_has_lock_stats= false;
+    if (m_has_io_stats && m_has_lock_stats)
+    {
+      safe_aggregate(& m_table_stat, safe_share, safe_thread);
+      m_has_io_stats= false;
+      m_has_lock_stats= false;
+    }
+    else if (m_has_io_stats)
+    {
+      safe_aggregate_io(& m_table_stat, safe_share, safe_thread);
+      m_has_io_stats= false;
+    }
+    else if (m_has_lock_stats)
+    {
+      safe_aggregate_lock(& m_table_stat, safe_share, safe_thread);
+      m_has_lock_stats= false;
+    }
   }
 }
 
@@ -1362,6 +1380,8 @@ void PFS_table::safe_aggregate(PFS_table_stat *table_stat,
   DBUG_ASSERT(table_share != NULL);
   DBUG_ASSERT(thread != NULL);
 
+  uint key_count= sanitize_index_count(table_share->m_key_count);
+
   if (flag_thread_instrumentation && thread->m_enabled)
   {
     PFS_single_stat *event_name_array;
@@ -1373,7 +1393,7 @@ void PFS_table::safe_aggregate(PFS_table_stat *table_stat,
       (for wait/io/table/sql/handler)
     */
     index= global_table_io_class.m_event_name_index;
-    table_stat->sum_io(& event_name_array[index]);
+    table_stat->sum_io(& event_name_array[index], key_count);
 
     /*
       Aggregate to EVENTS_WAITS_SUMMARY_BY_THREAD_BY_EVENT_NAME
@@ -1384,7 +1404,7 @@ void PFS_table::safe_aggregate(PFS_table_stat *table_stat,
   }
 
   /* Aggregate to TABLE_IO_SUMMARY, TABLE_LOCK_SUMMARY */
-  table_share->m_table_stat.aggregate(table_stat);
+  table_share->m_table_stat.aggregate(table_stat, key_count);
   table_stat->fast_reset();
 }
 
@@ -1396,6 +1416,8 @@ void PFS_table::safe_aggregate_io(PFS_table_stat *table_stat,
   DBUG_ASSERT(table_share != NULL);
   DBUG_ASSERT(thread != NULL);
 
+  uint key_count= sanitize_index_count(table_share->m_key_count);
+
   if (flag_thread_instrumentation && thread->m_enabled)
   {
     PFS_single_stat *event_name_array;
@@ -1407,11 +1429,11 @@ void PFS_table::safe_aggregate_io(PFS_table_stat *table_stat,
       (for wait/io/table/sql/handler)
     */
     index= global_table_io_class.m_event_name_index;
-    table_stat->sum_io(& event_name_array[index]);
+    table_stat->sum_io(& event_name_array[index], key_count);
   }
 
   /* Aggregate to TABLE_IO_SUMMARY */
-  table_share->m_table_stat.aggregate_io(table_stat);
+  table_share->m_table_stat.aggregate_io(table_stat, key_count);
   table_stat->fast_reset_io();
 }
 

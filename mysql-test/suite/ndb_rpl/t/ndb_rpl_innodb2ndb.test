@@ -1,0 +1,16 @@
+#############################################################
+# Author: JBM
+# Date: 2006-02-24
+# Purpose: Trying to test ability to replicate from cluster
+# to innodb, or myisam, or replicate from innodb/myisam to
+# cluster slave. Due to limitations I have created wrappers
+# to be able to use the same code for all these different
+# test and to have control over the tests.
+##############################################################
+-- source include/have_innodb.inc
+-- source include/have_ndb.inc
+-- source include/have_binlog_format_mixed_or_row.inc
+-- source suite/ndb_rpl/ndb_master-slave.inc
+SET default_storage_engine=innodb;
+--source suite/ndb_rpl/t/ndb_rpl_2multi_eng.inc
+--source include/rpl_end.inc

@@ -456,7 +456,7 @@ DROP TABLE t1;
 #   DOESN'T ADHERE TO MAX_ALLOWED_PACKET
 SET @@GLOBAL.max_allowed_packet=2048;
 Warnings:
-Warning	1731	The value of 'max_allowed_packet' should be no less than the value of 'net_buffer_length'
+Warning	1708	The value of 'max_allowed_packet' should be no less than the value of 'net_buffer_length'
 SELECT CONVERT('a', BINARY(2049));
 CONVERT('a', BINARY(2049))
 NULL

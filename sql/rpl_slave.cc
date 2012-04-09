@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -310,15 +310,6 @@ int init_slave()
   }
 
   /*
-    If --slave-skip-errors=... was not used, the string value for the
-    system variable has not been set up yet. Do it now.
-  */
-  if (!use_slave_mask)
-  {
-    print_slave_skip_errors();
-  }
-
-  /*
     This is the startup routine and as such we try to
     configure both the SLAVE_SQL and SLAVE_IO.
   */
@@ -408,6 +399,15 @@ int init_recovery(Master_info* mi, const char** errmsg)
       We need to improve this. /Alfranio.
     */
     error= mts_recovery_groups(rli, &rli->recovery_groups);
+    if (rli->mts_recovery_group_cnt)
+    {
+      error= 1;
+      sql_print_error("--relay-log-recovery cannot be executed when the slave "
+                        "was stopped with an error or killed in MTS mode; "
+                        "consider using RESET SLAVE or restart the server "
+                        "with --relay-log-recovery = 0 followed by "
+                        "START SLAVE");
+    }
   }
 
   group_master_log_name= const_cast<char *>(rli->get_group_master_log_name());
@@ -611,9 +611,6 @@ static void print_slave_skip_errors(void)
   DBUG_ASSERT(sizeof(slave_skip_error_names) > MIN_ROOM);
   DBUG_ASSERT(MAX_SLAVE_ERROR <= 999999); // 6 digits
 
-  /* Make @@slave_skip_errors show the nice human-readable value.  */
-  opt_slave_skip_errors= slave_skip_error_names;
-
   if (!use_slave_mask || bitmap_is_clear_all(&slave_error_mask))
   {
     /* purecov: begin tested */
@@ -655,21 +652,26 @@ static void print_slave_skip_errors(void)
   DBUG_VOID_RETURN;
 }
 
-/*
-  Init function to set up array for errors that should be skipped for slave
-
-  SYNOPSIS
-    init_slave_skip_errors()
-    arg         List of errors numbers to skip, separated with ','
-
-  NOTES
-    Called from get_options() in mysqld.cc on start-up
+/**
+ Change arg to the string with the nice, human-readable skip error values.
+   @param slave_skip_errors_ptr
+          The pointer to be changed
 */
-
-void init_slave_skip_errors(const char* arg)
+void set_slave_skip_errors(char** slave_skip_errors_ptr)
 {
-  const char *p;
+  DBUG_ENTER("set_slave_skip_errors");
+  print_slave_skip_errors();
+  *slave_skip_errors_ptr= slave_skip_error_names;
+  DBUG_VOID_RETURN;
+}
+
+/**
+  Init function to set up array for errors that should be skipped for slave
+*/
+static void init_slave_skip_errors()
+{
   DBUG_ENTER("init_slave_skip_errors");
+  DBUG_ASSERT(!use_slave_mask); // not already initialized
 
   if (bitmap_init(&slave_error_mask,0,MAX_SLAVE_ERROR,0))
   {
@@ -677,13 +679,85 @@ void init_slave_skip_errors(const char* arg)
     exit(1);
   }
   use_slave_mask = 1;
-  for (;my_isspace(system_charset_info,*arg);++arg)
+  DBUG_VOID_RETURN;
+}
+
+static void add_slave_skip_errors(const uint* errors, uint n_errors)
+{
+  DBUG_ENTER("add_slave_skip_errors");
+  DBUG_ASSERT(errors);
+  DBUG_ASSERT(use_slave_mask);
+
+  for (uint i = 0; i < n_errors; i++)
+  {
+    const uint err_code = errors[i];
+    if (err_code < MAX_SLAVE_ERROR)
+       bitmap_set_bit(&slave_error_mask, err_code);
+  }
+  DBUG_VOID_RETURN;
+}
+
+/*
+  Add errors that should be skipped for slave
+
+  SYNOPSIS
+    add_slave_skip_errors()
+    arg         List of errors numbers to be added to skip, separated with ','
+
+  NOTES
+    Called from get_options() in mysqld.cc on start-up
+*/
+
+void add_slave_skip_errors(const char* arg)
+{
+  const char *p= NULL;
+  /*
+    ALL is only valid when nothing else is provided.
+  */
+  const uchar SKIP_ALL[]= "all";
+  size_t SIZE_SKIP_ALL= strlen((const char *) SKIP_ALL) + 1;
+  /*
+    IGNORE_DDL_ERRORS can be combined with other parameters
+    but must be the first one provided.
+  */
+  const uchar SKIP_DDL_ERRORS[]= "ddl_exist_errors";
+  size_t SIZE_SKIP_DDL_ERRORS= strlen((const char *) SKIP_DDL_ERRORS);
+  DBUG_ENTER("add_slave_skip_errors");
+
+  // initialize mask if not done yet
+  if (!use_slave_mask)
+    init_slave_skip_errors();
+
+  for (; my_isspace(system_charset_info,*arg); ++arg)
     /* empty */;
-  if (!my_strnncoll(system_charset_info,(uchar*)arg,4,(const uchar*)"all",4))
+  if (!my_strnncoll(system_charset_info, (uchar*)arg, SIZE_SKIP_ALL,
+                    SKIP_ALL, SIZE_SKIP_ALL))
   {
     bitmap_set_all(&slave_error_mask);
-    print_slave_skip_errors();
     DBUG_VOID_RETURN;
+  }
+  if (!my_strnncoll(system_charset_info, (uchar*)arg, SIZE_SKIP_DDL_ERRORS,
+                    SKIP_DDL_ERRORS, SIZE_SKIP_DDL_ERRORS))
+  {
+    // DDL errors to be skipped for relaxed 'exist' handling
+    const uint ddl_errors[] = {
+      // error codes with create/add <schema object>
+      ER_DB_CREATE_EXISTS, ER_TABLE_EXISTS_ERROR, ER_DUP_KEYNAME,
+      ER_MULTIPLE_PRI_KEY,
+      // error codes with change/rename <schema object>
+      ER_BAD_FIELD_ERROR, ER_NO_SUCH_TABLE, ER_DUP_FIELDNAME,
+      // error codes with drop <schema object>
+      ER_DB_DROP_EXISTS, ER_BAD_TABLE_ERROR, ER_CANT_DROP_FIELD_OR_KEY
+    };
+
+    add_slave_skip_errors(ddl_errors,
+                          sizeof(ddl_errors)/sizeof(ddl_errors[0]));
+    /*
+      After processing the SKIP_DDL_ERRORS, the pointer is
+      increased to the position after the comma.
+    */
+    if (strlen(arg) > SIZE_SKIP_DDL_ERRORS + 1)
+      arg+= SIZE_SKIP_DDL_ERRORS + 1;
   }
   for (p= arg ; *p; )
   {
@@ -695,8 +769,6 @@ void init_slave_skip_errors(const char* arg)
     while (!my_isdigit(system_charset_info,*p) && *p)
       p++;
   }
-  /* Convert slave skip errors bitmap into a printable string. */
-  print_slave_skip_errors();
   DBUG_VOID_RETURN;
 }
 
@@ -1951,6 +2023,7 @@ when it try to get the value of TIME_ZONE global variable from master.";
     rc= mysql_real_query(mysql, query, strlen(query));
     if (rc != 0)
     {
+      mi->checksum_alg_before_fd= BINLOG_CHECKSUM_ALG_OFF;
       if (check_io_slave_killed(mi->info_thd, mi, NULL))
         goto slave_killed_err;
 
@@ -1993,6 +2066,19 @@ when it try to get the value of TIME_ZONE global variable from master.";
       {
         mi->checksum_alg_before_fd= (uint8)
           find_type(master_row[0], &binlog_checksum_typelib, 1) - 1;
+        
+       DBUG_EXECUTE_IF("undefined_algorithm_on_slave",
+        mi->checksum_alg_before_fd = BINLOG_CHECKSUM_ALG_UNDEF;);
+       if(mi->checksum_alg_before_fd == BINLOG_CHECKSUM_ALG_UNDEF) 
+       {
+         errmsg= "The slave I/O thread was stopped because a fatal error is encountered "
+                 "The checksum algorithm used by master is unknown to slave.";
+         err_code= ER_SLAVE_FATAL_ERROR;
+         sprintf(err_buff, "%s Error: %s", errmsg, mysql_error(mysql));
+         mysql_free_result(mysql_store_result(mysql));
+         goto err;
+       }
+
         // valid outcome is either of
         DBUG_ASSERT(mi->checksum_alg_before_fd == BINLOG_CHECKSUM_ALG_OFF ||
                     mi->checksum_alg_before_fd == BINLOG_CHECKSUM_ALG_CRC32);
@@ -2109,6 +2195,54 @@ static bool wait_for_relay_log_space(Relay_log_info* rli)
          !(slave_killed=io_slave_killed(thd,mi)) &&
          !rli->ignore_log_space_limit)
     mysql_cond_wait(&rli->log_space_cond, &rli->log_space_lock);
+
+  /* 
+    Makes the IO thread read only one event at a time
+    until the SQL thread is able to purge the relay 
+    logs, freeing some space.
+
+    Therefore, once the SQL thread processes this next 
+    event, it goes to sleep (no more events in the queue),
+    sets ignore_log_space_limit=true and wakes the IO thread. 
+    However, this event may have been enough already for 
+    the SQL thread to purge some log files, freeing 
+    rli->log_space_total .
+
+    This guarantees that the SQL and IO thread move
+    forward only one event at a time (to avoid deadlocks), 
+    when the relay space limit is reached. It also 
+    guarantees that when the SQL thread is prepared to
+    rotate (to be able to purge some logs), the IO thread
+    will know about it and will rotate.
+
+    NOTE: The ignore_log_space_limit is only set when the SQL
+          thread sleeps waiting for events.
+
+   */
+  if (rli->ignore_log_space_limit)
+  {
+#ifndef DBUG_OFF
+    {
+      char llbuf1[22], llbuf2[22];
+      DBUG_PRINT("info", ("log_space_limit=%s "
+                          "log_space_total=%s "
+                          "ignore_log_space_limit=%d "
+                          "sql_force_rotate_relay=%d", 
+                        llstr(rli->log_space_limit,llbuf1),
+                        llstr(rli->log_space_total,llbuf2),
+                        (int) rli->ignore_log_space_limit,
+                        (int) rli->sql_force_rotate_relay));
+    }
+#endif
+    if (rli->sql_force_rotate_relay)
+    {
+      rotate_relay_log(rli->mi);
+      rli->sql_force_rotate_relay= false;
+    }
+
+    rli->ignore_log_space_limit= false;
+  }
+
   thd->EXIT_COND(&old_stage);
   DBUG_RETURN(slave_killed);
 }
@@ -2262,7 +2396,7 @@ int register_slave_on_master(MYSQL* mysql, Master_info *mi,
   @retval FALSE success
   @retval TRUE failure
 */
-bool show_master_info(THD* thd, Master_info* mi)
+bool show_slave_status(THD* thd, Master_info* mi)
 {
   // TODO: fix this for multi-master
   List<Item> field_list;
@@ -2270,28 +2404,31 @@ bool show_master_info(THD* thd, Master_info* mi)
   char *slave_sql_running_state= NULL;
   char *sql_gtid_set_buffer= NULL, *io_gtid_set_buffer= NULL;
   int sql_gtid_set_size= 0, io_gtid_set_size= 0;
-  DBUG_ENTER("show_master_info");
-  
-  global_sid_lock.wrlock();
-  const Gtid_set* sql_gtid_set= gtid_state.get_logged_gtids();
-  const Gtid_set* io_gtid_set= mi->rli->get_gtid_set();
-  if ((sql_gtid_set_size= sql_gtid_set->to_string(&sql_gtid_set_buffer)) < 0 ||
-      (io_gtid_set_size= io_gtid_set->to_string(&io_gtid_set_buffer)) < 0)
-  {
-    my_eof(thd);
-    my_free(sql_gtid_set_buffer);
-    my_free(io_gtid_set_buffer);
+  DBUG_ENTER("show_slave_status");
+ 
+  if (mi != NULL)
+  { 
+    global_sid_lock.wrlock();
+    const Gtid_set* sql_gtid_set= gtid_state.get_logged_gtids();
+    const Gtid_set* io_gtid_set= mi->rli->get_gtid_set();
+    if ((sql_gtid_set_size= sql_gtid_set->to_string(&sql_gtid_set_buffer)) < 0 ||
+        (io_gtid_set_size= io_gtid_set->to_string(&io_gtid_set_buffer)) < 0)
+    {
+      my_eof(thd);
+      my_free(sql_gtid_set_buffer);
+      my_free(io_gtid_set_buffer);
+      global_sid_lock.unlock();
+      DBUG_RETURN(true);
+    }
     global_sid_lock.unlock();
-    DBUG_RETURN(true);
   }
-  global_sid_lock.unlock();
 
   field_list.push_back(new Item_empty_string("Slave_IO_State",
                                                      14));
-  field_list.push_back(new Item_empty_string("Master_Host",
-                                                     sizeof(mi->host)));
-  field_list.push_back(new Item_empty_string("Master_User",
-                                                     mi->get_user_size()));
+  field_list.push_back(new Item_empty_string("Master_Host", mi != NULL ?
+                                                     sizeof(mi->host) : 0));
+  field_list.push_back(new Item_empty_string("Master_User", mi != NULL ?
+                                                     mi->get_user_size() : 0));
   field_list.push_back(new Item_return_int("Master_Port", 7,
                                            MYSQL_TYPE_LONG));
   field_list.push_back(new Item_return_int("Connect_Retry", 10,
@@ -2328,16 +2465,16 @@ bool show_master_info(THD* thd, Master_info* mi)
   field_list.push_back(new Item_return_int("Until_Log_Pos", 10,
                                            MYSQL_TYPE_LONGLONG));
   field_list.push_back(new Item_empty_string("Master_SSL_Allowed", 7));
-  field_list.push_back(new Item_empty_string("Master_SSL_CA_File",
-                                             sizeof(mi->ssl_ca)));
-  field_list.push_back(new Item_empty_string("Master_SSL_CA_Path",
-                                             sizeof(mi->ssl_capath)));
-  field_list.push_back(new Item_empty_string("Master_SSL_Cert",
-                                             sizeof(mi->ssl_cert)));
-  field_list.push_back(new Item_empty_string("Master_SSL_Cipher",
-                                             sizeof(mi->ssl_cipher)));
-  field_list.push_back(new Item_empty_string("Master_SSL_Key",
-                                             sizeof(mi->ssl_key)));
+  field_list.push_back(new Item_empty_string("Master_SSL_CA_File", mi != NULL ?
+                                             sizeof(mi->ssl_ca) : 0));
+  field_list.push_back(new Item_empty_string("Master_SSL_CA_Path", mi != NULL ?
+                                             sizeof(mi->ssl_capath) : 0));
+  field_list.push_back(new Item_empty_string("Master_SSL_Cert", mi != NULL ?
+                                             sizeof(mi->ssl_cert) : 0));
+  field_list.push_back(new Item_empty_string("Master_SSL_Cipher", mi != NULL ?
+                                             sizeof(mi->ssl_cipher) : 0));
+  field_list.push_back(new Item_empty_string("Master_SSL_Key", mi != NULL ?
+                                             sizeof(mi->ssl_key) : 0));
   field_list.push_back(new Item_return_int("Seconds_Behind_Master", 10,
                                            MYSQL_TYPE_LONGLONG));
   field_list.push_back(new Item_empty_string("Master_SSL_Verify_Server_Cert",
@@ -2358,14 +2495,14 @@ bool show_master_info(THD* thd, Master_info* mi)
   field_list.push_back(new Item_empty_string("Slave_SQL_Running_State", 20));
   field_list.push_back(new Item_return_int("Master_Retry_Count", 10,
                                            MYSQL_TYPE_LONGLONG));
-  field_list.push_back(new Item_empty_string("Master_Bind",
-                                             sizeof(mi->bind_addr)));
+  field_list.push_back(new Item_empty_string("Master_Bind", mi != NULL ?
+                                             sizeof(mi->bind_addr) : 0));
   field_list.push_back(new Item_empty_string("Last_IO_Error_Timestamp", 20));
   field_list.push_back(new Item_empty_string("Last_SQL_Error_Timestamp", 20));
-  field_list.push_back(new Item_empty_string("Master_SSL_Crl",
-                                             sizeof(mi->ssl_crl)));
-  field_list.push_back(new Item_empty_string("Master_SSL_Crlpath",
-                                             sizeof(mi->ssl_crlpath)));
+  field_list.push_back(new Item_empty_string("Master_SSL_Crl", mi != NULL ?
+                                             sizeof(mi->ssl_crl) : 0));
+  field_list.push_back(new Item_empty_string("Master_SSL_Crlpath", mi != NULL ?
+                                             sizeof(mi->ssl_crlpath) : 0));
   field_list.push_back(new Item_empty_string("Retrieved_Gtid_Set",
                                              io_gtid_set_size));
   field_list.push_back(new Item_empty_string("Executed_Gtid_Set",
@@ -2379,7 +2516,7 @@ bool show_master_info(THD* thd, Master_info* mi)
     DBUG_RETURN(true);
   }
 
-  if (mi->host[0])
+  if (mi != NULL && mi->host[0])
   {
     DBUG_PRINT("info",("host is set: '%s'", mi->host));
     String *packet= &thd->packet;
@@ -3084,8 +3221,11 @@ int apply_event_and_update_pos(Log_event** ptr_ev, THD* thd, Relay_log_info* rli
     log (remember that now the relay log starts with its Format_desc,
     has a Rotate etc).
   */
-
+  /*
+     Set the unmasked and actual server ids from the event
+   */
   thd->server_id = ev->server_id; // use the original server id for logging
+  thd->unmasked_server_id = ev->unmasked_server_id;
   thd->set_time();                            // time the query
   thd->lex->current_select= 0;
   if (!ev->when.tv_sec)
@@ -3388,23 +3528,6 @@ static int exec_relay_log_event(THD* thd, Relay_log_info* rli)
     if (rli->until_condition != Relay_log_info::UNTIL_NONE &&
         rli->is_until_satisfied(thd, ev))
     {
-      char buf[22];
-      if (rli->until_condition == Relay_log_info::UNTIL_MASTER_POS ||
-          rli->until_condition == Relay_log_info::UNTIL_RELAY_POS)
-        sql_print_information("Slave SQL thread stopped because it reached its"
-                              " UNTIL position %s", llstr(rli->until_pos(), buf));
-      else
-      {
-        char *buffer;
-        global_sid_lock.wrlock();
-        if ((buffer= (char *) my_malloc(rli->request_gtids_obj.get_string_length() + 1,
-                                        MYF(MY_WME))))
-          rli->request_gtids_obj.to_string(buffer);
-        global_sid_lock.unlock();
-        sql_print_information("Slave SQL thread stopped because it reached its"
-                              " UNTIL SQL_BEFORE_GTIDS %s", buffer);
-        my_free(buffer);
-      }
       /*
         Setting abort_slave flag because we do not want additional message about
         error in query execution to be printed.
@@ -4367,13 +4490,17 @@ bool mts_recovery_groups(Relay_log_info *rli, MY_BITMAP *groups)
       */
       if (!checksum_detected)
       {
-        for (int i=0; i < 4; i++)
+        int i= 0;
+        while (i < 4 && (ev= Log_event::read_log_event(&log,
+               (mysql_mutex_t*) 0, p_fdle, 0)))
         {
-          if ((ev= Log_event::read_log_event(&log,
-                                             (mysql_mutex_t*) 0, p_fdle, 0))
-              && ev->get_type_code() == FORMAT_DESCRIPTION_EVENT)
+          if (ev->get_type_code() == FORMAT_DESCRIPTION_EVENT)
+          {
             p_fdle->checksum_alg= ev->checksum_alg;
-          checksum_detected= TRUE;
+            checksum_detected= TRUE;
+          }
+          delete ev;
+          i++;
         }
         if (!checksum_detected)
         {
@@ -4619,7 +4746,7 @@ bool mts_checkpoint_routine(Relay_log_info *rli, ulonglong period,
     cnt is zero. This value means that the checkpoint information
     will be completely reset.
   */
-  rli->reset_notified_checkpoint(cnt, rli->gaq->lwm.ts);
+  rli->reset_notified_checkpoint(cnt, rli->gaq->lwm.ts, locked);
 
   /* end-of "Coordinator::"commit_positions" */
 
@@ -4683,7 +4810,8 @@ err:
   if (error && w)
   {
     w->end_info();
-    delete_dynamic(&w->jobs.Q);
+    if (w->jobs.inited_queue)
+      delete_dynamic(&(w->jobs.Q));
     delete w;
     /*
       Any failure after dynarray inserted must follow with deletion
@@ -4909,6 +5037,7 @@ end:
   *mts_inited= false;
 }
 
+
 /**
   Slave SQL thread entry point.
 
@@ -5065,6 +5194,16 @@ pthread_handler_t handle_slave_sql(void *arg)
 #endif
   DBUG_ASSERT(rli->info_thd == thd);
 
+#ifdef WITH_NDBCLUSTER_STORAGE_ENGINE
+  /* engine specific hook, to be made generic */
+  if (ndb_wait_setup_func && ndb_wait_setup_func(opt_ndb_wait_setup))
+  {
+    sql_print_warning("Slave SQL thread : NDB : Tables not available after %lu"
+                      " seconds.  Consider increasing --ndb-wait-setup value",
+                      opt_ndb_wait_setup);
+  }
+#endif
+
   DBUG_PRINT("master_info",("log_file_name: %s  position: %s",
                             rli->get_group_master_log_name(),
                             llstr(rli->get_group_master_log_pos(),llbuff)));
@@ -5110,23 +5249,6 @@ log '%s' at position %s, relay log '%s' position: %s", rli->get_rpl_log_name(),
   if (rli->until_condition != Relay_log_info::UNTIL_NONE &&
       rli->is_until_satisfied(thd, NULL))
   {
-    char buf[22];
-    if (rli->until_condition == Relay_log_info::UNTIL_MASTER_POS ||
-        rli->until_condition == Relay_log_info::UNTIL_RELAY_POS)
-      sql_print_information("Slave SQL thread stopped because it reached its"
-                            " UNTIL position %s", llstr(rli->until_pos(), buf));
-    else
-    {
-      char* buffer= NULL;
-      global_sid_lock.rdlock();
-      if ((buffer= (char *) my_malloc(rli->request_gtids_obj.get_string_length() + 1,
-                                      MYF(MY_WME))))
-        rli->request_gtids_obj.to_string(buffer);
-      global_sid_lock.unlock();
-      sql_print_information("Slave SQL thread stopped because it reached its"
-                            " UNTIL SQL_BEFORE_GTIDS %s", buffer);
-      my_free(buffer);
-    }
     mysql_mutex_unlock(&rli->data_lock);
     goto err;
   }
@@ -6046,6 +6168,14 @@ static int queue_event(Master_info* mi,const char* buf, ulong event_len)
 
   mysql_mutex_lock(log_lock);
   s_id= uint4korr(buf + SERVER_ID_OFFSET);
+
+  /*
+    If server_id_bits option is set we need to mask out irrelevant bits
+    when checking server_id, but we still put the full unmasked server_id
+    into the Relay log so that it can be accessed when applying the event
+  */
+  s_id&= opt_server_id_mask;
+
   if ((s_id == ::server_id && !mi->rli->replicate_same_server_id) ||
       /*
         the following conjunction deals with IGNORE_SERVER_IDS, if set
@@ -6726,19 +6856,60 @@ static Log_event* next_event(Relay_log_info* rli)
           constraint, because we do not want the I/O thread to block because of
           space (it's ok if it blocks for any other reason (e.g. because the
           master does not send anything). Then the I/O thread stops waiting
-          and reads more events.
-          The SQL thread decides when the I/O thread should take log_space_limit
-          into account again : ignore_log_space_limit is reset to 0
-          in purge_first_log (when the SQL thread purges the just-read relay
-          log), and also when the SQL thread starts. We should also reset
-          ignore_log_space_limit to 0 when the user does RESET SLAVE, but in
-          fact, no need as RESET SLAVE requires that the slave
+          and reads one more event and starts honoring log_space_limit again.
+
+          If the SQL thread needs more events to be able to rotate the log (it
+          might need to finish the current group first), then it can ask for one
+          more at a time. Thus we don't outgrow the relay log indefinitely,
+          but rather in a controlled manner, until the next rotate.
+
+          When the SQL thread starts it sets ignore_log_space_limit to false. 
+          We should also reset ignore_log_space_limit to 0 when the user does 
+          RESET SLAVE, but in fact, no need as RESET SLAVE requires that the slave
           be stopped, and the SQL thread sets ignore_log_space_limit to 0 when
           it stops.
         */
         mysql_mutex_lock(&rli->log_space_lock);
-        // prevent the I/O thread from blocking next times
-        rli->ignore_log_space_limit= 1;
+
+        /* 
+          If we have reached the limit of the relay space and we
+          are going to sleep, waiting for more events:
+
+          1. If outside a group, SQL thread asks the IO thread 
+             to force a rotation so that the SQL thread purges 
+             logs next time it processes an event (thus space is
+             freed).
+
+          2. If in a group, SQL thread asks the IO thread to 
+             ignore the limit and queues yet one more event 
+             so that the SQL thread finishes the group and 
+             is are able to rotate and purge sometime soon.
+         */
+        if (rli->log_space_limit && 
+            rli->log_space_limit < rli->log_space_total)
+        {
+          /* force rotation if not in an unfinished group */
+          if (!rli->is_parallel_exec())
+          {
+            rli->sql_force_rotate_relay= !rli->is_in_group();
+          }
+          else
+          {
+            if (rli->mts_group_status != Relay_log_info::MTS_IN_GROUP)
+            {
+              /*
+                Before to let the current relay log be purged Workers
+                have to finish off their current assignments.
+              */
+              (void) wait_for_workers_to_finish(rli);
+              rli->sql_force_rotate_relay= true;
+            }
+          }
+
+          /* ask for one more event */
+          rli->ignore_log_space_limit= true;
+        }
+
         /*
           If the I/O thread is blocked, unblock it.  Ok to broadcast
           after unlock, because the mutex is only destroyed in
@@ -7142,7 +7313,7 @@ bool rpl_master_has_bug(const Relay_log_info *rli, uint bug_id, bool report,
  */
 bool rpl_master_erroneous_autoinc(THD *thd)
 {
-  if (active_mi && active_mi->rli->info_thd == thd)
+  if (active_mi != NULL && active_mi->rli->info_thd == thd)
   {
     Relay_log_info *rli= active_mi->rli;
     DBUG_EXECUTE_IF("simulate_bug33029", return TRUE;);
@@ -7279,15 +7450,15 @@ int start_slave(THD* thd , Master_info* mi,  bool net_report)
         {
           global_sid_lock.wrlock();
           mi->rli->clear_until_condition();
-          if (mi->rli->until_gtids_obj.add_gtid_text(thd->lex->mi.gtid)
-              != RETURN_STATUS_OK ||
-              mi->rli->request_gtids_obj.add_gtid_text(thd->lex->mi.gtid)
+          if (mi->rli->until_sql_gtids.add_gtid_text(thd->lex->mi.gtid)
               != RETURN_STATUS_OK)
             slave_errno= ER_BAD_SLAVE_UNTIL_COND;
-          if (mi->rli->until_gtids_obj.remove_gtid_set(gtid_state.get_logged_gtids()) 
-              != RETURN_STATUS_OK)
-            slave_errno= ER_BAD_SLAVE_UNTIL_COND;
-          mi->rli->until_condition= Relay_log_info::UNTIL_SQL_BEFORE_GTIDS;
+          else {
+            mi->rli->until_condition=
+              LEX_MASTER_INFO::UNTIL_SQL_BEFORE_GTIDS == thd->lex->mi.gtid_until_condition
+              ? Relay_log_info::UNTIL_SQL_BEFORE_GTIDS
+              : Relay_log_info::UNTIL_SQL_AFTER_GTIDS;
+          }
           global_sid_lock.unlock();
         }
         else
@@ -7511,7 +7682,8 @@ err:
 }
 
 /**
-  Execute a CHANGE MASTER statement.
+  Execute a CHANGE MASTER statement. MTS workers info tables data are removed
+  in the successful branch (i.e. there are no gaps in the execution history).
 
   @param thd Pointer to THD object for the client thread executing the
   statement.
@@ -7528,11 +7700,13 @@ bool change_master(THD* thd, Master_info* mi)
   const char* errmsg= 0;
   bool need_relay_log_purge= 1;
   char *var_master_log_name= NULL, *var_group_master_log_name= NULL;
-  bool ret= FALSE;
+  bool ret= false;
   char saved_host[HOSTNAME_LENGTH + 1], saved_bind_addr[HOSTNAME_LENGTH + 1];
   uint saved_port= 0;
   char saved_log_name[FN_REFLEN];
   my_off_t saved_log_pos= 0;
+  my_bool save_relay_log_purge= relay_log_purge;
+  bool mts_remove_workers= false;
 
   DBUG_ENTER("change_master");
 
@@ -7567,7 +7741,28 @@ bool change_master(THD* thd, Master_info* mi)
     ret= true;
     goto err;
   }
+  if (mi->rli->mts_recovery_group_cnt)
+  {
+    /*
+      Change-Master can't be done if there is a mts group gap.
+      That requires mts-recovery which START SLAVE provides.
+    */
+    DBUG_ASSERT(mi->rli->recovery_parallel_workers);
 
+    my_message(ER_MTS_CHANGE_MASTER_CANT_RUN_WITH_GAPS,
+               ER(ER_MTS_CHANGE_MASTER_CANT_RUN_WITH_GAPS), MYF(0));
+    ret= true;
+    goto err;
+  }
+  else
+  {
+    /*
+      Lack of mts group gaps makes Workers info stale
+      regardless of need_relay_log_purge computation.
+    */
+    if (mi->rli->recovery_parallel_workers)
+      mts_remove_workers= true;
+  }
   /*
     We cannot specify auto position and set either the coordinates
     on master or slave. If we try to do so, an error message is
@@ -7820,8 +8015,7 @@ bool change_master(THD* thd, Master_info* mi)
     THD_STAGE_INFO(thd, stage_purging_old_relay_logs);
     if (mi->rli->purge_relay_logs(thd,
                                   0 /* not only reset, but also reinit */,
-                                  &errmsg) ||
-        remove_workers(mi->rli))
+                                  &errmsg))
     {
       my_error(ER_RELAY_LOG_FAIL, MYF(0), errmsg);
       ret= TRUE;
@@ -7843,6 +8037,7 @@ bool change_master(THD* thd, Master_info* mi)
       goto err;
     }
   }
+  relay_log_purge= save_relay_log_purge;
 
   /*
     Coordinates in rli were spoilt by the 'if (need_relay_log_purge)' block,
@@ -7854,10 +8049,12 @@ bool change_master(THD* thd, Master_info* mi)
     ''/0: we have lost all copies of the original good coordinates.
     That's why we always save good coords in rli.
   */
-  mi->rli->set_group_master_log_pos(mi->get_master_log_pos());
-  DBUG_PRINT("info", ("master_log_pos: %lu", (ulong) mi->get_master_log_pos()));
-  mi->rli->set_group_master_log_name(mi->get_master_log_name());
-
+  if (need_relay_log_purge)
+  {
+    mi->rli->set_group_master_log_pos(mi->get_master_log_pos());
+    DBUG_PRINT("info", ("master_log_pos: %lu", (ulong) mi->get_master_log_pos()));
+    mi->rli->set_group_master_log_name(mi->get_master_log_name());
+  }
   var_group_master_log_name=  const_cast<char *>(mi->rli->get_group_master_log_name());
   if (!var_group_master_log_name[0]) // uninitialized case
     mi->rli->set_group_master_log_pos(0);
@@ -7895,7 +8092,11 @@ bool change_master(THD* thd, Master_info* mi)
 err:
   unlock_slave_threads(mi);
   if (ret == FALSE)
+  {
+    if (mts_remove_workers)
+      remove_workers(mi->rli);
     my_ok(thd);
+  }
   DBUG_RETURN(ret);
 }
 /**

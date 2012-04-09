@@ -1,4 +1,5 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,13 +12,10 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
-#include <ndb_global.h>
-#include <NdbIndexOperation.hpp>
-#include <Ndb.hpp>
-#include <NdbTransaction.hpp>
-#include "NdbApiSignal.hpp"
+#include "API.hpp"
 #include <AttributeHeader.hpp>
 #include <signaldata/TcIndx.hpp>
 #include <signaldata/TcKeyReq.hpp>
@@ -35,7 +33,7 @@ NdbIndexOperation::NdbIndexOperation(Ndb* aNdb) :
   /**
    * Change receiver type
    */
-  theReceiver.init(NdbReceiver::NDB_INDEX_OPERATION, this);
+  theReceiver.init(NdbReceiver::NDB_INDEX_OPERATION, false, this);
 }
 
 NdbIndexOperation::~NdbIndexOperation()
@@ -52,9 +50,10 @@ NdbIndexOperation::~NdbIndexOperation()
 int
 NdbIndexOperation::indxInit(const NdbIndexImpl * anIndex,
 			    const NdbTableImpl * aTable, 
-			    NdbTransaction* myConnection)
+			    NdbTransaction* myConnection,
+                            bool useRec)
 {
-  NdbOperation::init(aTable, myConnection);
+  NdbOperation::init(aTable, myConnection, useRec);
 
   switch (anIndex->m_type) {
   case(NdbDictionary::Index::UniqueHashIndex):
@@ -184,7 +183,7 @@ Parameters:     aSignal: the signal object that contains the TCINDXREF signal fr
 Remark:         Handles the reception of the TCKEYREF signal.
 ***************************************************************************/
 int
-NdbIndexOperation::receiveTCINDXREF( NdbApiSignal* aSignal)
+NdbIndexOperation::receiveTCINDXREF(const NdbApiSignal* aSignal)
 {
   return receiveTCKEYREF(aSignal);
 }//NdbIndexOperation::receiveTCINDXREF()

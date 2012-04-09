@@ -1,0 +1,139 @@
+#
+# Test engine logging options for ndb
+#
+--source include/have_ndb.inc
+--source include/have_binlog_format_mixed_or_row.inc
+--source suite/ndb_rpl/ndb_master-slave.inc
+
+--disable_warnings
+--disable_query_log
+--connection master
+# default settings for the mysqld
+set global ndb_log_update_as_write=1;
+set global ndb_log_updated_only=1;
+# create the ndb_replication table
+drop table if exists mysql.ndb_replication;
+CREATE TABLE mysql.ndb_replication
+  (db VARBINARY(63),
+   table_name VARBINARY(63),
+   server_id INT UNSIGNED,
+   binlog_type INT UNSIGNED,
+   conflict_fn VARBINARY(128),
+   PRIMARY KEY USING HASH (db,table_name,server_id))
+  ENGINE=NDB PARTITION BY KEY(db,table_name);
+--enable_warnings
+--enable_query_log
+
+##
+# no logging option = 1
+#
+--echo **** Test 1 ****
+--connection master
+delete from mysql.ndb_replication;
+insert into mysql.ndb_replication values ("test", "t1", 0, 1, NULL);
+create table t1 (a int key, b varchar(32), c varchar(32)) engine ndb;
+create table t2 (a int key, b varchar(32), c varchar(32)) engine ndb;
+insert into t1 values (1,"t1.b from master", "t1.c from master");
+insert into t2 values (1,"t2.b from master", "t2.c from master");
+#
+# connect to slave and ensure data it there from t2 but not from t1
+#
+--sync_slave_with_master
+--connection slave
+select * from t1;
+select * from t2;
+--connection master
+drop table t1;
+drop table t2;
+
+##
+# updated logging option = 2
+#
+--echo **** Test 2 ****
+--connection master
+delete from mysql.ndb_replication;
+insert into mysql.ndb_replication values ("test", "t1", 0, 2, NULL);
+#
+# table t1 should get the opption from the table overriding the setting
+# in the server, t2 will get full row updates as it is the server setting
+#
+set global ndb_log_updated_only=0;
+create table t1 (a int key, b varchar(32), c varchar(32)) engine ndb;
+create table t2 (a int key, b varchar(32), c varchar(32)) engine ndb;
+insert into t1 values (1,"t1.b from master", "t1.c from master");
+insert into t2 values (1,"t2.b from master", "t2.c from master");
+#
+# connect to slave and ensure data it there
+#
+--sync_slave_with_master
+--connection slave
+select * from t1;
+select * from t2;
+#
+# now make an update on the slave
+#
+update t1 set c="t1.c from slave";
+update t2 set c="t2.c from slave";
+#
+# and back to the master to update difffrent columns there
+#
+--connection master
+update t1 set b="updated t1.b from master";
+update t2 set b="updated t2.b from master";
+#
+# connect to slave and ensure data it there, but a mix of slave/master
+# updates
+#
+--sync_slave_with_master
+--connection slave
+select * from t1;
+select * from t2;
+--connection master
+drop table t1;
+drop table t2;
+
+##
+# full logging option = 3
+#
+--echo **** Test 3 ****
+--connection master
+delete from mysql.ndb_replication;
+insert into mysql.ndb_replication values ("test", "t1", 0, 3, NULL);
+# back to default
+set global ndb_log_updated_only=1;
+create table t1 (a int key, b varchar(32), c varchar(32)) engine ndb;
+create table t2 (a int key, b varchar(32), c varchar(32)) engine ndb;
+insert into t1 values (1,"t1.b from master", "t1.c from master");
+insert into t2 values (1,"t2.b from master", "t2.c from master");
+#
+# connect to slave and ensure data it there
+#
+--sync_slave_with_master
+--connection slave
+select * from t1;
+select * from t2;
+#
+# now make an update on the slave
+#
+update t1 set c="t1.c from slave";
+update t2 set c="t2.c from slave";
+#
+# and back to the master to update difffrent columns there
+#
+--connection master
+update t1 set b="updated t1.b from master";
+update t2 set b="updated t2.b from master";
+#
+# connect to slave and ensure data it there, but a mix of slave/master
+# updates for t2 but not for t1
+#
+--sync_slave_with_master
+--connection slave
+select * from t1;
+select * from t2;
+--connection master
+drop table t1;
+drop table t2;
+drop table mysql.ndb_replication;
+
+--source include/rpl_end.inc

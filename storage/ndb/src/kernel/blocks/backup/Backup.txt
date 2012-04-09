@@ -23,14 +23,14 @@ BACKUP_REQ
                                                 --------------->
                                                 <---------------
                 <-------------------------------
-BACKUP_CONF
-<----------------
                  START_BACKUP
                  ------------------------------>
                                                 CREATE_TRIG
                                                 -------------->
                                                 <--------------
                  <------------------------------
+BACKUP_CONF
+<----------------
                  WAIT_GCP
                  -------------->
                  <--------------
@@ -67,19 +67,19 @@ USER				BACKUP-MASTER
 
 3)				Wait for conf
 
-4)	<-- BACKUP_CONF
-
-5)				For Each Table
+4)				For Each Table
 				    PREP_CREATE_TRIG_REQ
 				    Wait for Conf
 
-6)				To all slaves START_BACKUP_REQ
+5)				To all slaves START_BACKUP_REQ
 				    Include trigger ids
 				Wait for conf
 
-7)				For Each Table
+6)				For Each Table
 				    CREATE_TRIG_REQ
 				    Wait for conf
+
+7)	<-- BACKUP_CONF *
 
 8)				Wait for GCP
 
@@ -97,6 +97,10 @@ USER				BACKUP-MASTER
 
 13)	<-- BACKUP_COMPLETE_REP
 
+* The start is confired after the triggers are defined. 
+  Once the signal is received by client,
+  any further changes will not be included in
+  a 'start backup snapshotstart' backup.
 ----
 
 Slave: Master Died

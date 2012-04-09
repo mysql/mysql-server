@@ -153,6 +153,7 @@ const char *thd_proc_info(void* thd, const char *info);
 void **thd_ha_data(const void* thd, const struct handlerton *hton);
 void thd_storage_lock_wait(void* thd, long long value);
 int thd_tx_isolation(const void* thd);
+int thd_tx_is_read_only(const void* thd);
 char *thd_security_context(void* thd, char *buffer, unsigned int length,
                            unsigned int max_query_len);
 void thd_inc_row_count(void* thd);

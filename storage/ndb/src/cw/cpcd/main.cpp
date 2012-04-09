@@ -1,4 +1,5 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,9 +12,10 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
-#include <ndb_global.h>	/* Needed for mkdir(2) */
+#include <ndb_global.h>
 #include <my_sys.h>
 #include <my_getopt.h>
 #include <mysql_version.h>
@@ -23,6 +25,7 @@
 #include "APIService.hpp"
 #include <NdbMain.h>
 #include <NdbSleep.h>
+#include <portlib/NdbDir.hpp>
 #include <BaseString.hpp>
 #include <logger/Logger.hpp>
 #include <logger/FileLogHandler.hpp>
@@ -39,22 +42,22 @@ static const char *user = 0;
 static struct my_option my_long_options[] =
 {
   { "work-dir", 'w', "Work directory",
-    &work_dir, &work_dir,  0,
+    (uchar**) &work_dir, (uchar**) &work_dir,  0,
     GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
   { "port", 'p', "TCP port to listen on",
-    &port, &port, 0,
+    (uchar**) &port, (uchar**) &port, 0,
     GET_INT, REQUIRED_ARG, CPCD_DEFAULT_TCP_PORT, 0, 0, 0, 0, 0 }, 
   { "syslog", 'S', "Log events to syslog",
-    &use_syslog, &use_syslog, 0,
+    (uchar**) &use_syslog, (uchar**) &use_syslog, 0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
   { "logfile", 'L', "File to log events to",
-    &logfile, &logfile, 0,
+    (uchar**) &logfile, (uchar**) &logfile, 0,
     GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
   { "debug", 'D', "Enable debug mode",
-    &debug, &debug, 0,
+    (uchar**) &debug, (uchar**) &debug, 0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
   { "user", 'u', "Run as user",
-    &user, &user, 0,
+    (uchar**) &user, (uchar**) &user, 0,
     GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
@@ -67,15 +70,11 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
 }
 
 static CPCD * g_cpcd = 0;
-#if 0
-extern "C" static void sig_child(int signo, siginfo_t*, void*);
-#endif
 
-const char *progname = "ndb_cpcd";
 
 int main(int argc, char** argv){
   const char *load_default_groups[]= { "ndb_cpcd",0 };
-  MY_INIT(argv[0]);
+  NDB_INIT(argv[0]);
 
   load_defaults("ndb_cpcd",load_default_groups,&argc,&argv);
   if (handle_options(&argc, &argv, my_long_options, get_one_option)) {
@@ -86,16 +85,18 @@ int main(int argc, char** argv){
     exit(1);
   }
 
-  logger.setCategory(progname);
+  logger.setCategory("ndb_cpcd");
   logger.enable(Logger::LL_ALL);
 
   if(debug)
     logger.createConsoleHandler();
 
+#ifndef _WIN32
   if(user && runas(user) != 0){
     logger.critical("Unable to change user: %s", user);
     _exit(1);
   }
+#endif
 
   if(logfile != NULL){
     BaseString tmp;
@@ -105,30 +106,42 @@ int main(int argc, char** argv){
     logger.addHandler(new FileLogHandler(tmp.c_str()));
   }
   
+#ifndef _WIN32
   if(use_syslog)
     logger.addHandler(new SysLogHandler());
+#endif
 
   logger.info("Starting");
 
+#if defined SIGPIPE && !defined _WIN32
+  (void)signal(SIGPIPE, SIG_IGN);
+#endif
+#ifdef SIGCHLD
+  /* Only "poll" for child to be alive, never use 'wait' */
+  (void)signal(SIGCHLD, SIG_IGN);
+#endif
+
   CPCD cpcd;
   g_cpcd = &cpcd;
-  
-  /* XXX This will probably not work on !unix */
-  int err = mkdir(work_dir, S_IRWXU | S_IRGRP | S_IROTH);
-  if(err != 0) {
-    switch(errno) {
-    case EEXIST:
-      break;
-    default:
-      fprintf(stderr, "Cannot mkdir %s: %s\n", work_dir, strerror(errno));
+
+  /* Create working directory unless it already exists */
+  if (access(work_dir, F_OK))
+  {
+    logger.info("Working directory '%s' does not exist, trying "
+                "to create it", work_dir);
+    if (!NdbDir::create(work_dir,
+                        NdbDir::u_rwx() | NdbDir::g_r() | NdbDir::o_r()))
+    {
+      logger.error("Failed to create working directory, terminating!");
       exit(1);
     }
   }
 
   if(strlen(work_dir) > 0){
     logger.debug("Changing dir to '%s'", work_dir);
-    if((err = chdir(work_dir)) != 0){
-      fprintf(stderr, "Cannot chdir %s: %s\n", work_dir, strerror(errno));
+    if(NdbDir::chdir(work_dir) != 0){
+      logger.error("Cannot change directory to '%s', error: %d, terminating!",
+                   work_dir, errno);
       exit(1);
     }
   }
@@ -148,36 +161,10 @@ int main(int argc, char** argv){
 
   ss->startServer();
 
-  {  
-    signal(SIGPIPE, SIG_IGN);
-    signal(SIGCHLD, SIG_IGN);
-#if 0
-    struct sigaction act;
-    act.sa_handler = 0;
-    act.sa_sigaction = sig_child;
-    sigemptyset(&act.sa_mask);
-    act.sa_flags = SA_SIGINFO;
-    sigaction(SIGCHLD, &act, 0);
-#endif
-  }
-  
   logger.debug("Start completed");
-  while(true) NdbSleep_MilliSleep(1000);
-  
+  while(true)
+    NdbSleep_MilliSleep(1000);
+
   delete ss;
   return 0;
 }
-
-#if 0
-extern "C" 
-void 
-sig_child(int signo, siginfo_t* info, void*){
-  printf("signo: %d si_signo: %d si_errno: %d si_code: %d si_pid: %d\n",
-	 signo, 
-	 info->si_signo,
-	 info->si_errno,
-	 info->si_code,
-	 info->si_pid);
-  
-}
-#endif

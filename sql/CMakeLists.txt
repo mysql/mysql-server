@@ -36,6 +36,18 @@ IF(SSL_DEFINES)
  ADD_DEFINITIONS(${SSL_DEFINES})
 ENDIF()
 
+# We do RESTRICT_SYMBOL_EXPORTS(yassl) elsewhere.
+# In order to get correct symbol visibility, md5.cc and sha1.cc
+# must be compiled with "-fvisibility=hidden"
+IF(HAVE_VISIBILITY_HIDDEN)
+  SET_SOURCE_FILES_PROPERTIES(md5.cc
+    PROPERTIES COMPILE_FLAGS "-fvisibility=hidden")
+  SET_SOURCE_FILES_PROPERTIES(sha1.cc
+    PROPERTIES COMPILE_FLAGS "-fvisibility=hidden")
+  SET_SOURCE_FILES_PROPERTIES(sha2.cc
+    PROPERTIES COMPILE_FLAGS "-fvisibility=hidden")
+ENDIF()
+
 SET(SQL_SHARED_SOURCES
   datadict.cc
   debug_sync.cc
@@ -76,6 +88,8 @@ SET(SQL_SHARED_SOURCES
   my_rnd.cc
   net_serv.cc
   opt_explain.cc
+  opt_explain_traditional.cc
+  opt_explain_json.cc
   opt_range.cc
   opt_sum.cc 
   opt_trace.cc

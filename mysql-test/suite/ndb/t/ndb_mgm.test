@@ -1,0 +1,122 @@
+-- source include/have_ndb.inc
+
+# No need to run this test with embedded sinced
+# nothing (except .result output) differs
+-- source include/not_embedded.inc
+
+# Build the standard command used for running "ndb_mgm"
+let $mgm_cmd = $NDB_MGM;
+let $mgm_cmd = $mgm_cmd --no-defaults;
+let $mgm_cmd = $mgm_cmd --ndb-connectstring="$NDB_CONNECTSTRING";
+let $mgm_cmd = $mgm_cmd --verbose=0;
+
+#
+# Build strings for masking ndb_mgm output
+#
+
+#echo MYSQL_SERVER_VERSION: $MYSQL_SERVER_VERSION;
+
+# extract X.X.X for MySQL
+let $mysql_version=
+  `select SUBSTRING_INDEX('$MYSQL_SERVER_VERSION','-', 1)`;
+#echo mysql_version: $mysql_version;
+
+# extract ndb-X.X.X(if the server version string does not include NDB version
+# we should add a 'ndb_version' variable installed by ha_ndbcluster)
+let $ndb_version=
+  `select SUBSTRING_INDEX(REPLACE('$MYSQL_SERVER_VERSION',
+                                  '$mysql_version-', ''), '-', 2)`;
+#echo ndb_version: $ndb_version;
+
+let $mysql_version = mysql-$mysql_version;
+
+#
+# Test the SHOW command
+#
+--replace_result $mysql_version MYSQL_VERSION $ndb_version NDB_VERSION
+exec $mgm_cmd -e "show";
+
+#
+# Test the [ALL|<nodeid>] REPORT [MEMORYUSAGE|BACKUPSTATUS]
+#
+echo Missing report type specifier;
+--error 255
+exec $mgm_cmd -e "ALL REPORT  ";
+
+echo Unknown report type specifier;
+--error 255
+exec $mgm_cmd -e "ALL REPORT something";
+
+echo ALL REPORT MEMORYUSAGE;
+--replace_regex /[0-9]+\%\([0-9]+ [0-9]+K pages of total [0-9]+/X%(X XK pages of total X/
+exec $mgm_cmd -e "ALL REPORT MEMORYUSAGE";
+
+echo 1 REPORT MEMORYUSAGE;
+--replace_regex /[0-9]+\%\([0-9]+ [0-9]+K pages of total [0-9]+/X%(X XK pages of total X/
+exec $mgm_cmd -e "1 REPORT  MEMORYUSAGE";
+
+echo 2 REPORT MEMORYUSAGE;
+--replace_regex /[0-9]+\%\([0-9]+ [0-9]+K pages of total [0-9]+/X%(X XK pages of total X/
+exec $mgm_cmd -e "2  REPORT MEMORYUSAGE";
+
+echo Testing abbreviated form;
+--replace_regex /[0-9]+\%\([0-9]+ [0-9]+K pages of total [0-9]+/X%(X XK pages of total X/
+exec $mgm_cmd -e "2    REPORT Mem";
+
+echo Request memoryusage from non NDB node 3;
+--error 255
+exec $mgm_cmd -e "3 REPORT MEMORYUSAGE";
+
+echo Request memoryusage from non existing node 17;
+--error 255
+exec $mgm_cmd -e "17 REPORT MEMORYUSAGE";
+
+echo Request memoryusage from illegal nodeid 49;
+--error 255
+exec $mgm_cmd -e "49 REPORT MEMORYUSAGE";
+
+echo ALL REPORT BACKUPSTATUS;
+exec $mgm_cmd -e "ALL REPORT BACKUPSTATUS";
+
+echo 1 REPORT BACKUPSTATUS;
+exec $mgm_cmd -e "1 REPORT    BACKUPSTATUS";
+
+echo 2 REPORT BACKUPSTATUS;
+exec $mgm_cmd -e "2 REPORT BACKUPSTATUS";
+
+echo Testing HELP for REPORT;
+exec $mgm_cmd -e "HELP REPORT";
+
+#
+# Test <ALL|nodeid> DUMP <arg>[ <argN>]
+#
+echo Missing dump arg;
+--error 255
+exec $mgm_cmd -e "ALL DUMP  ";
+
+echo Illegal argument 4294967300;
+--error 255
+exec $mgm_cmd -e "1 DUMP 4294967300";
+
+echo Illegal argument -1;
+--error 255
+exec $mgm_cmd -e "1 DUMP -1";
+
+echo ALL DUMP 1;
+exec $mgm_cmd -e "ALL DUMP 1 ";
+
+echo 1 DUMP 1 2;
+exec $mgm_cmd -e "1 DUMP 1 2";
+
+echo max DUMP args;
+exec $mgm_cmd -e "1 DUMP 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25";
+
+echo more than max DUMP args;
+--error 255
+exec $mgm_cmd -e "1 DUMP 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26";
+
+--echo test all report eventlog
+--echo note: test within quotes...
+--exec $mgm_cmd -e "1 report eventlog" >> $NDB_TOOLS_OUTPUT
+--exec $mgm_cmd -e "2 report eventlog" >> $NDB_TOOLS_OUTPUT
+--exec $mgm_cmd -e "all report eventlog" >> $NDB_TOOLS_OUTPUT

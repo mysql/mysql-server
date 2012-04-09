@@ -19,7 +19,7 @@
 eval EXPLAIN $query;
 
 let $greedy_search_partial_plans=
-  query_get_value(SHOW STATUS LIKE 'Opt_partial_plans', Value, 1);
+  query_get_value(SHOW STATUS LIKE 'Last_query_partial_plans', Value, 1);
 
---echo ### Opt_partial_plans: $greedy_search_partial_plans
+--echo ### Partial_plans: $greedy_search_partial_plans
 FLUSH STATUS;

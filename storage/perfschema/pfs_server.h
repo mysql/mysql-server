@@ -105,6 +105,9 @@
 #ifndef PFS_STATEMENTS_STACK_SIZE
   #define PFS_STATEMENTS_STACK_SIZE 10
 #endif
+#ifndef PFS_DIGEST_SIZE
+  #define PFS_DIGEST_SIZE 200
+#endif
 
 /** Performance schema global sizing parameters. */
 struct PFS_global_param
@@ -123,6 +126,7 @@ struct PFS_global_param
   bool m_consumer_events_waits_history_long_enabled;
   bool m_consumer_global_instrumentation_enabled;
   bool m_consumer_thread_instrumentation_enabled;
+  bool m_consumer_statement_digest_enabled;
 
   /** Default instrument configuration option. */
   char *m_pfs_instrument;
@@ -234,6 +238,8 @@ struct PFS_global_param
   ulong m_events_statements_history_sizing;
   /** Maximum number of rows in table EVENTS_STATEMENTS_HISTORY_LONG. */
   ulong m_events_statements_history_long_sizing;
+  /** Maximum number of digests to be captured */
+  ulong m_digest_sizing;
 };
 
 /**

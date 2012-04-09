@@ -1,4 +1,5 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +12,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #ifndef BLOCK_NUMBERS_H
 #define BLOCK_NUMBERS_H
@@ -19,14 +21,22 @@
 #include <kernel_types.h>
 #include <RefConvert.hpp>
 
-/* 240 */
+/* 32768 */
 #define MIN_API_BLOCK_NO  0x8000
 
 /* 2047 */
 #define API_PACKED     0x07ff
 
+/* Fixed block numbers in API */
+#define NO_API_FIXED_BLOCKS    2
+
 /* 4002 */
 #define API_CLUSTERMGR 0x0FA2
+#define MGM_CONFIG_MAN 0x0FA3
+
+#define MIN_API_FIXED_BLOCK_NO (API_CLUSTERMGR)
+#define MAX_API_FIXED_BLOCK_NO (MIN_API_FIXED_BLOCK_NO + NO_API_FIXED_BLOCKS)
+
 
 #define BACKUP      0xF4
 #define DBTC        0xF5
@@ -48,6 +58,8 @@
 #define LGMAN      0x104
 #define PGMAN      0x105
 #define RESTORE    0x106
+#define DBINFO     0x107
+#define DBSPJ      0x108
 
 const BlockReference BACKUP_REF  = numberToRef(BACKUP, 0);
 const BlockReference DBTC_REF    = numberToRef(DBTC, 0);
@@ -68,9 +80,22 @@ const BlockReference TSMAN_REF   = numberToRef(TSMAN, 0);
 const BlockReference LGMAN_REF   = numberToRef(LGMAN, 0);
 const BlockReference PGMAN_REF   = numberToRef(PGMAN, 0);
 const BlockReference RESTORE_REF = numberToRef(RESTORE, 0);
+const BlockReference DBINFO_REF  = numberToRef(DBINFO, 0);
+const BlockReference DBSPJ_REF  = numberToRef(DBSPJ, 0);
+
+static inline void __hide_warnings_unused_ref_vars(void) {
+  // Hide annoying warnings about unused variables
+  (void)BACKUP_REF;  (void)DBTC_REF;    (void)DBDIH_REF;
+  (void)DBLQH_REF;   (void)DBACC_REF;   (void)DBTUP_REF;
+  (void)DBDICT_REF;  (void)NDBCNTR_REF; (void)QMGR_REF;
+  (void)NDBFS_REF;   (void)CMVMI_REF;   (void)TRIX_REF;
+  (void)DBUTIL_REF;  (void)SUMA_REF;    (void)DBTUX_REF;
+  (void)TSMAN_REF;   (void)LGMAN_REF;   (void)PGMAN_REF;
+  (void)RESTORE_REF; (void)DBINFO_REF;  (void)DBSPJ_REF;
+}
 
 const BlockNumber MIN_BLOCK_NO = BACKUP;
-const BlockNumber MAX_BLOCK_NO = RESTORE;
+const BlockNumber MAX_BLOCK_NO = DBSPJ;
 const BlockNumber NO_OF_BLOCKS = (MAX_BLOCK_NO - MIN_BLOCK_NO + 1);
 
 /**

@@ -1,0 +1,492 @@
+-- source include/have_ndb.inc
+
+--disable_warnings
+DROP TABLE IF EXISTS t1, t2, r1;
+--enable_warnings
+
+#
+# Basic test to see that batching is working
+#
+
+create table t1 (
+  a int primary key,
+  b int not null,
+  c int not null,
+  index(b), unique index using hash(c)
+) engine = ndb;
+--source suite/ndb/include/ndb_init_execute_count.inc
+insert into t1 values
+  (1,2,1),(2,3,2),(3,4,3),(4,5,4),
+  (5,2,12),(6,3,11),(7,4,10),(8,5,9),
+  (9,2,8),(10,3,7),(11,4,6),(12,5,5);
+--source suite/ndb/include/ndb_execute_count.inc
+
+##
+# In ps-protocol, server will adds calls to execute(Commit)
+#   (these are optimized away by ndbapi, since there is nothing to commit)
+#   and these generates a diff in execute-count
+# To not have to investigate problem futher, I simply set autocommit=off
+#   (and back further down where we don't track execute-count any longer)
+# It would probably be good to changes these tests to instead use frazers new
+#   ndbapi counters, and instead measure #round-trips
+set autocommit=off;
+
+# batch on primary key
+--source suite/ndb/include/ndb_init_execute_count.inc
+create table r1 as select * from t1 where a in (2,8,12);
+--source suite/ndb/include/ndb_execute_count.inc
+select * from r1 order by a;
+drop table r1;
+
+# batch on ordered index
+--source suite/ndb/include/ndb_init_execute_count.inc
+create table r1 as select * from t1 where b in (1,2,5);
+--source suite/ndb/include/ndb_execute_count.inc
+select * from r1 order by a;
+drop table r1;
+
+# batch on unique hash index
+--source suite/ndb/include/ndb_init_execute_count.inc
+create table r1 as select * from t1 where c in (2,8,12);
+--source suite/ndb/include/ndb_execute_count.inc
+select * from r1 order by a;
+drop table r1;
+
+# batch mixed
+--source suite/ndb/include/ndb_init_execute_count.inc
+create table r1 as select * from t1 where a in (2,8) or (a > 11) or (a <= 1);
+--source suite/ndb/include/ndb_execute_count.inc
+select * from r1 order by a;
+drop table r1;
+
+# batch on primary key, missing values
+--source suite/ndb/include/ndb_init_execute_count.inc
+create table r1 as select * from t1 where a in (33,8,12);
+--source suite/ndb/include/ndb_execute_count.inc
+select * from r1 order by a;
+drop table r1;
+--source suite/ndb/include/ndb_init_execute_count.inc
+create table r1 as select * from t1 where a in (2,33,8,12,34);
+--source suite/ndb/include/ndb_execute_count.inc
+select * from r1 order by a;
+drop table r1;
+
+# batch on ordered index, missing values
+--source suite/ndb/include/ndb_init_execute_count.inc
+create table r1 as select * from t1 where b in (1,33,5);
+--source suite/ndb/include/ndb_execute_count.inc
+select * from r1 order by a;
+drop table r1;
+--source suite/ndb/include/ndb_init_execute_count.inc
+select * from t1 force index(b) where b in (1,33,5) order by a;
+--source suite/ndb/include/ndb_execute_count.inc
+--source suite/ndb/include/ndb_init_execute_count.inc
+create table r1 as select * from t1 where b in (45,1,33,5,44);
+--source suite/ndb/include/ndb_execute_count.inc
+select * from r1 order by a;
+drop table r1;
+--source suite/ndb/include/ndb_init_execute_count.inc
+select * from t1 force index(b) where b in (45,22) order by a;
+--source suite/ndb/include/ndb_execute_count.inc
+
+# batch on unique hash index, missing values
+--source suite/ndb/include/ndb_init_execute_count.inc
+create table r1 as select * from t1 where c in (2,8,33);
+--source suite/ndb/include/ndb_execute_count.inc
+select * from r1 order by a;
+drop table r1;
+--source suite/ndb/include/ndb_init_execute_count.inc
+create table r1 as select * from t1 where c in (13,2,8,33,12);
+--source suite/ndb/include/ndb_execute_count.inc
+select * from r1 order by a;
+drop table r1;
+
+--source suite/ndb/include/ndb_init_execute_count.inc
+select * from t1 where a in (33,8,12) order by a;
+--source suite/ndb/include/ndb_execute_count.inc
+--source suite/ndb/include/ndb_init_execute_count.inc
+select * from t1 where a in (33,34,35) order by a;
+--source suite/ndb/include/ndb_execute_count.inc
+--source suite/ndb/include/ndb_init_execute_count.inc
+select * from t1 where a in (2,8) or (a > 11) or (a <= 1) order by a;
+--source suite/ndb/include/ndb_execute_count.inc
+--source suite/ndb/include/ndb_init_execute_count.inc
+select * from t1 where b in (6,7) or (b <= 5) or (b >= 10) order by b,a;
+--source suite/ndb/include/ndb_execute_count.inc
+--source suite/ndb/include/ndb_init_execute_count.inc
+select * from t1 where c in (13,2,8,33,12) order by c,a;
+--source suite/ndb/include/ndb_execute_count.inc
+drop table t1;
+
+set autocommit=on;
+
+#
+# Somewhat more complicated
+#
+
+create table t1 (
+  a int not null,
+  b int not null,
+  c int not null,
+  d int not null,
+  e int not null,
+  primary key (a,b,c,d), index (d)
+) engine = ndb;
+
+--source suite/ndb/include/ndb_init_execute_count.inc
+insert into t1 values
+  (1,2,1,1,1),(2,3,2,3,1),(3,4,3,1,1),(4,5,4,7,1),
+  (5,2,12,12,1),(6,3,11,1,1),(7,4,10,3,1),(8,5,9,5,1),
+  (9,2,8,6,1),(10,3,7,5,1),(11,4,6,3,1),(12,5,5,2,1),
+  (1,2,1,2,1),
+  (1,2,1,3,1),
+  (1,2,1,4,1),
+  (1,2,1,5,1);
+--source suite/ndb/include/ndb_execute_count.inc
+
+# batch on primary key
+--source suite/ndb/include/ndb_init_execute_count.inc
+create table r1 as select * from t1
+  where a=1 and b=2 and c=1 and d in (1,4,3,2);
+--source suite/ndb/include/ndb_execute_count.inc
+select * from r1 order by a,b,c,d;
+drop table r1;
+
+# batched update ordered index, one value for all
+update t1 set e = 100
+  where d in (12,6,7);
+select * from t1 where d in (12,6,7) order by a,b,c,d;
+select * from t1 where d not in (12,6,7) and e = 100;
+
+# batched update primary key, one value for all
+update t1 
+  set e = 101
+  where a=1 and 
+        b=2 and 
+        c=1 and 
+        d in (1,4,3,2);
+select * 
+  from t1
+  where a=1 and b=2 and c=1 and d in (1,4,3,2)
+  order by a,b,c,d;
+select * 
+  from t1 
+  where not (a=1 and b=2 and c=1 and d in (1,4,3,2))
+        and e=101;
+
+
+# batched update ordered index, different values
+update t1 
+  set e = 
+    (case d
+      when 12 then 112
+      when 6  then 106
+      when 7  then 107
+    end)
+  where d in (12,6,7);
+select * from t1 where d in (12,6,7) order by a,b,c,d;
+
+# batched update primary key, different values
+update t1 
+  set e = 
+    (case d
+      when 1 then 111
+      when 4 then 444
+      when 3 then 333
+      when 2 then 222
+    end)
+  where a=1 and 
+        b=2 and 
+        c=1 and 
+        d in (1,4,3,2);
+select * 
+  from t1
+  where a=1 and b=2 and c=1 and d in (1,4,3,2)
+  order by a,b,c,d;
+
+# batched delete
+delete from t1 where d in (12,6,7);
+select * from t1 where d in (12,6,7);
+
+drop table t1;
+
+# null handling
+create table t1 (
+  a int not null primary key,
+  b int,
+  c int,
+  d int,
+  unique index (b),
+  index(c)
+) engine = ndb;
+
+insert into t1 values
+  (1,null,1,1),
+  (2,2,2,2),
+  (3,null,null,3),
+  (4,4,null,4),
+  (5,null,5,null),
+  (6,6,6,null),
+  (7,null,null,null),
+  (8,8,null,null),
+  (9,null,9,9),
+  (10,10,10,10),
+  (11,null,null,11),
+  (12,12,null,12),
+  (13,null,13,null),
+  (14,14,14,null),
+  (15,null,null,null),
+  (16,16,null,null);
+
+create table t2 as select * from t1 where a in (5,6,7,8,9,10);
+select * from t2 order by a;
+drop table t2;
+
+create table t2 as select * from t1 where b in (5,6,7,8,9,10);
+select * from t2 order by a;
+drop table t2;
+
+create table t2 as select * from t1 where c in (5,6,7,8,9,10);
+select * from t2 order by a;
+drop table t2;
+
+drop table t1;
+
+# bug17729
+
+CREATE TABLE t1 (
+  a int(11) NOT NULL,
+  b int(11) NOT NULL,
+  c datetime default NULL,
+  PRIMARY KEY  (a),
+  KEY idx_bc (b,c)
+) ENGINE=ndbcluster;
+
+INSERT INTO t1 VALUES 
+(406989,67,'2006-02-23 17:08:46'), (150078,67,'2005-10-26 11:17:45'),
+(406993,67,'2006-02-27 11:20:57'), (245655,67,'2005-12-08 15:59:08'),
+(406994,67,'2006-02-27 11:26:46'), (256,67,NULL),
+(398341,67,'2006-02-20 04:48:44'), (254,67,NULL),(1120,67,NULL),
+(406988,67,'2006-02-23 17:07:22'), (255,67,NULL),
+(398340,67,'2006-02-20 04:38:53'),(406631,67,'2006-02-23 10:49:42'),
+(245653,67,'2005-12-08 15:59:07'),(406992,67,'2006-02-24 16:47:18'),
+(245654,67,'2005-12-08 15:59:08'),(406995,67,'2006-02-28 11:55:00'),
+(127261,67,'2005-10-13 12:17:58'),(406991,67,'2006-02-24 16:42:32'),
+(245652,67,'2005-12-08 15:58:27'),(398545,67,'2006-02-20 04:53:13'),
+(154504,67,'2005-10-28 11:53:01'),(9199,67,NULL),(1,67,'2006-02-23 15:01:35'),
+(223456,67,NULL),(4101,67,NULL),(1133,67,NULL),
+(406990,67,'2006-02-23 18:01:45'),(148815,67,'2005-10-25 15:34:17'),
+(148812,67,'2005-10-25 15:30:01'),(245651,67,'2005-12-08 15:58:27'),
+(154503,67,'2005-10-28 11:52:38');
+
+create table t11 engine = ndbcluster select * from t1 where b = 67 AND (c IS NULL OR c > NOW()) order by 3 asc;
+create table t12 engine = ndbcluster select * from t1 where b = 67 AND (c IS NULL OR c > NOW()) order by 3 desc;
+create table t21 select * from t1 where b = 67 AND (c IS NULL OR c > '2005-12-08') order by 3 asc;
+create table t22 engine = ndbcluster select * from t1 where b = 67 AND (c IS NULL OR c > '2005-12-08') order by 3 desc;
+
+select * from t11 order by 1,2,3;
+select * from t12 order by 1,2,3;
+select * from t21 order by 1,2,3;
+select * from t22 order by 1,2,3;
+
+# join tests
+select t12.a from t11, t12 where t11.a in(255,256) and t11.a = t12.a and t11.c is null order by t12.a;
+
+update t22 set c = '2005-12-08 15:58:27' where a = 255;
+select * from t22 order by 1,2,3;
+select t21.* from t21,t22 where t21.a = t22.a and 
+t22.a in (select t12.a from t11, t12 where t11.a in(255,256) and t11.a = t12.a and t11.c is null) and t22.c is null order by t21.a;
+
+delete from t22 where a > 245651;
+update t22 set b = a + 1;
+select * from t22 order by 1,2,3;
+select t21.c, count(*)
+from t21 
+inner join t22 using (a)
+where t22.b in (2,256,257,1121,1134,4102,9200,223457,245652)
+group by t21.c
+order by t21.c;
+
+DROP TABLE t1, t11, t12, t21, t22;
+
+# bug#19956
+CREATE TABLE t1 (id varchar(255) NOT NULL,
+		 tag int(11) NOT NULL,
+                 doc text NOT NULL,
+                 type varchar(150) NOT NULL,
+                 modified timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                 PRIMARY KEY (id)
+                ) ENGINE=ndbcluster;
+
+INSERT INTO t1 VALUES ('sakila',1,'Some text goes here','text',CURRENT_TIMESTAMP);
+SELECT id, tag, doc, type FROM t1 WHERE id IN ('flipper','orka');
+SELECT id, tag, doc, type FROM t1 WHERE id IN ('flipper','sakila');
+
+DROP TABLE t1;
+
+#bug#25522
+CREATE TABLE t1 (
+       var1 int(2) NOT NULL,
+       var2 int(2) NOT NULL,
+       PRIMARY KEY  (var1)
+     ) ENGINE=ndbcluster DEFAULT CHARSET=ascii CHECKSUM=1;
+
+
+CREATE TABLE t2 (
+       var1 int(2) NOT NULL,
+       var2 int(2) NOT NULL,
+       PRIMARY KEY  (var1)
+     ) ENGINE=ndbcluster DEFAULT CHARSET=ascii CHECKSUM=1;
+
+
+DELIMITER |;
+CREATE TRIGGER testtrigger
+     AFTER UPDATE ON t1 FOR EACH ROW BEGIN
+     REPLACE INTO t2 SELECT * FROM t1 WHERE t1.var1 = NEW.var1;END|
+DELIMITER ;|
+
+INSERT INTO t1 VALUES (1,1),(2,2),(3,3);
+
+UPDATE t1 SET var2 = 9 WHERE var1 IN(1,2,3);
+
+DROP TRIGGER testtrigger;
+
+DROP TABLE t1, t2;
+
+#bug#25821
+create table t1 (a int, b int, primary key (a), key ab (a,b)) engine=ndbcluster;
+
+insert into t1 values (1,1), (10,10);
+
+select * from t1 use index (ab) where a in(1,10) order by a;
+
+create table t2 (a int, b int, primary key (a,b)) engine=ndbcluster
+partition by key(a);
+
+insert into t2 values (1,1), (10,10);
+
+select * from t2 where a in (1,10) order by a;
+drop table t1, t2;
+
+#bug#30337
+
+create table t1 (id int primary key) engine ndb;
+insert into t1 values (1), (2), (3);
+
+create table t2 (id int primary key) engine ndb;
+insert into t2 select id from t1;
+
+delimiter |;
+create trigger kaboom after delete on t1
+for each row begin
+  delete from t2 where id=old.id;
+end|
+delimiter ;|
+
+select * from t1 order by id;
+delete from t1 where id in (1,2);
+select * from t2 order by id;
+
+drop trigger kaboom;
+drop table t1;
+
+#bug#31874
+
+create table t1 (
+  a int not null primary key,
+  b int
+) engine = ndb;
+insert into t1 values (7,2),(8,3),(10,4);
+
+update t1 set b = 5 where a in (7,8) or a >= 10;
+select * from t1 order by a;
+delete from t1 where a in (7,8) or a >= 10;
+select * from t1 order by a;
+
+drop table t1;
+
+#bug#35137 - self join + mrr
+
+create table t1 (a int primary key, b int, key b_idx (b)) engine ndb;
+insert into t1 values(1,1), (2,2), (3,3), (4,4), (5,5);
+
+select one.a 
+from t1 one left join t1 two 
+on (two.b = one.b) 
+where one.a in (3, 4) 
+order by a;
+
+drop table t1;
+
+create table t1 (a varchar(1536) not null,
+                 b varchar(1532) not null,
+                 c int, primary key (a,b)) engine=ndb;
+insert into t1 values ('a', 'a', 1), ('b', 'b', 2), ('c', 'c', 3),
+                      ('d', 'd', 4), ('e', 'e', 5), ('f', 'f', 6),
+                      ('g', 'g', 7), ('h', 'h', 8), ('i', 'i', 9),
+                      ('j', 'j', 10), ('k', 'k', 11), ('l', 'l', 12),
+                      ('m', 'm', 13), ('n', 'n', 14), ('o', 'o', 15),
+                      ('p', 'p', 16), ('q', 'q', 17), ('r', 'r', 18),
+                      ('s', 's', 19), ('t', 't', 20), ('u', 'u', 21),
+                      ('v', 'v', 22), ('w', 'w', 23), ('x', 'x', 24);
+select * from t1
+ where (a >= 'aa' and b >= 'x' and a <= 'c' and b <= 'c')
+    or (a = 'd')
+    or (a = 'e')
+    or (a = 'f')
+    or (a > 'g' and a < 'ii')
+    or (a >= 'j' and b >= 'x' and a <= 'k' and b <= 'k')
+    or (a = 'm' and b = 'm')
+    or (a = 'v')
+    order by a asc, b asc;
+drop table t1, t2;
+
+########################
+# Check propper reinit of a mrr executed multiple time as part of a join.
+# The mrr access is driven by a scan and executed as for every tuple 
+# in the scaned table.
+#
+# In certain queries the optimizer don't read the entire mrr result set
+# before it fetch the next tuple from the scanned table. 
+# The next mrr operation would then still have an open scan which wasn't
+# cleaned up as expected. This may cause all available NdbOperation,
+# NdbTransaction or lock objects to be consumed before the operation 
+# could finish.
+#####################
+
+create table t1 (pk int primary key, a int) engine=ndb;
+create table t2 (pk int primary key, a int) engine=ndb;
+
+insert into t2 values
+   (0,0), (1,1), (2,2), (3,3), (4,4),
+   (5,5), (6,6), (7,7), (8,8), (9,9);
+
+##
+# 10^4 cross product on t2 creates 10.000 rows:
+# Insert volume has been tunes to insert only 3.000
+# of these as this is sufficient to produce an 'out of connection objects'
+##
+insert into t1
+ select
+   t1.a + t2.a*10 + t3.a*100 + t4.a*1000, 
+   (t1.a + t2.a*10 + t3.a*100 + t4.a*1000) / 1000
+from
+  t2 as t1, t2 as t2, t2 as t3, t2 as t4
+where (t1.a + t2.a*10 + t3.a*100 + t4.a*1000) < 3000;
+
+
+# Execute a 'scan(t1) join mrr(t2)'
+#  - 'DISTINCT t1.pk' will cause optimizer to stop fetching mrr(t2) 
+#     when the first matching 't2.a = t1.a' is found.
+#  - 'LEFT JOIN' is to ensure that 'Using join buffer' is *not* used
+#
+explain
+SELECT DISTINCT STRAIGHT_JOIN t1.pk FROM 
+   t1 LEFT JOIN t2 ON t2.a = t1.a AND t2.pk != 6;
+
+--disable_result_log
+SELECT DISTINCT STRAIGHT_JOIN t1.pk FROM 
+   t1 LEFT JOIN t2 ON t2.a = t1.a AND t2.pk != 6;
+--enable_result_log
+
+drop table t1, t2;

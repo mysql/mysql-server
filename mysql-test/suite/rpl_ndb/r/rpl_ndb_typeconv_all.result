@@ -1,0 +1,45 @@
+include/master-slave.inc
+[connection master]
+set @saved_slave_type_conversions = @@global.slave_type_conversions;
+CREATE TABLE type_conversions (
+TestNo INT AUTO_INCREMENT PRIMARY KEY,
+Source TEXT,
+Target TEXT,
+Flags TEXT,
+On_Master TEXT,
+On_Slave TEXT,
+Expected TEXT,
+Compare INT,
+Error TEXT);
+SELECT @@global.slave_type_conversions;
+@@global.slave_type_conversions
+
+SET GLOBAL SLAVE_TYPE_CONVERSIONS='';
+SELECT @@global.slave_type_conversions;
+@@global.slave_type_conversions
+
+SET GLOBAL SLAVE_TYPE_CONVERSIONS='ALL_NON_LOSSY';
+SELECT @@global.slave_type_conversions;
+@@global.slave_type_conversions
+ALL_NON_LOSSY
+SET GLOBAL SLAVE_TYPE_CONVERSIONS='ALL_LOSSY';
+SELECT @@global.slave_type_conversions;
+@@global.slave_type_conversions
+ALL_LOSSY
+SET GLOBAL SLAVE_TYPE_CONVERSIONS='ALL_LOSSY,ALL_NON_LOSSY';
+SELECT @@global.slave_type_conversions;
+@@global.slave_type_conversions
+ALL_LOSSY,ALL_NON_LOSSY
+SET GLOBAL SLAVE_TYPE_CONVERSIONS='ALL_LOSSY,ALL_NON_LOSSY,NONEXISTING_BIT';
+ERROR 42000: Variable 'slave_type_conversions' can't be set to the value of 'NONEXISTING_BIT'
+SELECT @@global.slave_type_conversions;
+@@global.slave_type_conversions
+ALL_LOSSY,ALL_NON_LOSSY
+SET GLOBAL SLAVE_TYPE_CONVERSIONS='ALL_LOSSY,ALL_NON_LOSSY';
+**** Running tests with @@SLAVE_TYPE_CONVERSIONS = 'ALL_LOSSY,ALL_NON_LOSSY' ****
+include/rpl_reset.inc
+**** Checking result of conversions ****
+DROP TABLE type_conversions;
+DROP TABLE t1;
+set global slave_type_conversions = @saved_slave_type_conversions;
+include/rpl_end.inc

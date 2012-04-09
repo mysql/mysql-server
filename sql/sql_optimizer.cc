@@ -36,6 +36,7 @@
 #include "sql_parse.h"
 #include "my_bit.h"
 #include "lock.h"
+#include "opt_explain_format.h"  // Explain_format_flags
 
 #include <algorithm>
 using std::max;
@@ -150,7 +151,8 @@ JOIN::optimize()
     Run optimize phase for all derived tables/views used in this SELECT,
     including those in semi-joins.
   */
-  select_lex->handle_derived(thd->lex, &mysql_derived_optimize);
+  if (select_lex->handle_derived(thd->lex, &mysql_derived_optimize))
+    DBUG_RETURN(1);
 
   /* dump_TABLE_LIST_graph(select_lex, select_lex->leaf_tables); */
 
@@ -485,7 +487,7 @@ JOIN::optimize()
   /* Optimize distinct away if possible */
   {
     ORDER *org_order= order;
-    order= remove_const(this, order, conds, 1, &simple_order, "ORDER BY");
+    order= ORDER_with_src(remove_const(this, order, conds, 1, &simple_order, "ORDER BY"), order.src);;
     if (thd->is_error())
     {
       error= 1;
@@ -597,15 +599,17 @@ JOIN::optimize()
                                 true,           // no_changes
                                 &tab->table->keys_in_use_for_order_by);
     }
-    if ((group_list=create_distinct_group(thd, ref_ptrs,
-                                          order, fields_list, all_fields,
-				          &all_order_fields_used)))
+    ORDER *o;
+    if ((o= create_distinct_group(thd, ref_ptrs,
+                                  order, fields_list, all_fields,
+				  &all_order_fields_used)))
     {
+      group_list= ORDER_with_src(o, ESC_DISTINCT);
       const bool skip_group=
         skip_sort_order &&
         test_if_skip_sort_order(tab, group_list, m_select_limit,
-                                  true,         // no_changes
-                                  &tab->table->keys_in_use_for_group_by);
+                                true,         // no_changes
+                                &tab->table->keys_in_use_for_group_by);
       count_field_types(select_lex, &tmp_table_param, all_fields, 0);
       if ((skip_group && all_order_fields_used) ||
 	  m_select_limit == HA_POS_ERROR ||
@@ -636,10 +640,12 @@ JOIN::optimize()
   }
   simple_group= 0;
   {
-    ORDER *old_group_list;
-    group_list= remove_const(this, (old_group_list= group_list), conds,
-                             rollup.state == ROLLUP::STATE_NONE,
-                             &simple_group, "GROUP BY");
+    ORDER *old_group_list= group_list;
+    group_list= ORDER_with_src(remove_const(this, group_list, conds,
+                                            rollup.state == ROLLUP::STATE_NONE,
+                                            &simple_group, "GROUP BY"),
+                               group_list.src);
+
     if (thd->is_error())
     {
       error= 1;
@@ -659,10 +665,17 @@ JOIN::optimize()
 
   calc_group_buffer(this, group_list);
   send_group_parts= tmp_table_param.group_parts; /* Save org parts */
+
   if (procedure && procedure->group)
   {
-    group_list= procedure->group= remove_const(this, procedure->group, conds,
-                                               1, &simple_group, "PROCEDURE");
+    /*
+      Dead code since PROCEDURE ANALYSE() always has procedure->group == 0
+    */
+    DBUG_ASSERT(0);
+    procedure->group= group_list=
+      ORDER_with_src(remove_const(this, procedure->group, conds,
+                                  1, &simple_group, "PROCEDURE"),
+                     group_list.src); // should be procedure->group.src
     if (thd->is_error())
     {
       error= 1;
@@ -751,7 +764,8 @@ JOIN::optimize()
   }
 
   /* Cache constant expressions in WHERE, HAVING, ON clauses. */
-  cache_const_exprs();
+  if (cache_const_exprs())
+    DBUG_RETURN(1);
 
   /*
     is this simple IN subquery?
@@ -767,7 +781,7 @@ JOIN::optimize()
     {
       Item *where= conds;
       if (join_tab[0].type == JT_EQ_REF &&
-	  join_tab[0].ref.items[0]->name == in_left_expr_name)
+	  join_tab[0].ref.items[0]->item_name.ptr() == in_left_expr_name)
       {
         remove_subq_pushed_predicates(&where);
         save_index_subquery_explain_info(join_tab, where);
@@ -780,7 +794,7 @@ JOIN::optimize()
                                                    true /* unique */);
       }
       else if (join_tab[0].type == JT_REF &&
-	       join_tab[0].ref.items[0]->name == in_left_expr_name)
+	       join_tab[0].ref.items[0]->item_name.ptr() == in_left_expr_name)
       {
 	remove_subq_pushed_predicates(&where);
         save_index_subquery_explain_info(join_tab, where);
@@ -791,8 +805,8 @@ JOIN::optimize()
                                                    where, NULL, false, false);
       }
     } else if (join_tab[0].type == JT_REF_OR_NULL &&
-	       join_tab[0].ref.items[0]->name == in_left_expr_name &&
-               having->name == in_having_cond)
+	       join_tab[0].ref.items[0]->item_name.ptr() == in_left_expr_name &&
+               having->item_name.ptr() == in_having_cond)
     {
       join_tab[0].type= JT_INDEX_SUBQUERY;
       error= 0;
@@ -934,7 +948,9 @@ JOIN::optimize()
   {
     having= NULL;
   }
-   
+
+  init_tmp_tables_info();
+
   error= 0;
   DBUG_RETURN(0);
 
@@ -3330,7 +3346,7 @@ const_table_extraction_done:
           if (*s->on_expr_ref)
           {
             /* Generate empty row */
-            s->info= "Impossible ON condition";
+            s->info= ET_IMPOSSIBLE_ON_CONDITION;
             trace_table.add("returning_empty_null_row", true).
               add_alnum("cause", "impossible_on_condition");
             join->found_const_table_map|= s->table->map;
@@ -3391,8 +3407,12 @@ const_table_extraction_done:
   if (optimize_semijoin_nests_for_materialization(join))
     DBUG_RETURN(true);
 
-  if (Optimize_table_order(thd, join, NULL).choose_table_order() || thd->killed)
-      DBUG_RETURN(true);
+  if (Optimize_table_order(thd, join, NULL).choose_table_order())
+    DBUG_RETURN(true);
+
+  DBUG_EXECUTE_IF("bug13820776_1", thd->killed= THD::KILL_QUERY;);
+  if (thd->killed)
+    DBUG_RETURN(true);
 
   /* Generate an execution plan from the found optimal join order. */
   if (join->get_best_combination())
@@ -5924,7 +5944,7 @@ static bool test_if_ref(Item *root_cond,
 	    field->real_type() != MYSQL_TYPE_VARCHAR &&
 	    (field->type() != MYSQL_TYPE_FLOAT || field->decimals() == 0))
 	{
-	  return !store_val_in_field(field, right_item, CHECK_FIELD_WARN);
+	  return !right_item->save_in_field_no_warnings(field, true);
 	}
       }
     }
@@ -6388,6 +6408,12 @@ static bool convert_subquery_to_semijoin(JOIN *parent_join,
   /* Unlink the child select_lex: */
   subq_lex->master_unit()->exclude_level();
   /*
+    Update the resolver context - needed for Item_field objects that have been
+    replaced in the item tree for this execution, but are still needed for
+    subsequent executions.
+  */
+  subq_lex->context.select_lex= parent_lex;
+  /*
     Walk through sj nest's WHERE and ON expressions and call
     item->fix_table_changes() for all items.
   */
@@ -6804,36 +6830,48 @@ void JOIN::drop_unused_derived_keys()
 
 /**
   Cache constant expressions in WHERE, HAVING, ON conditions.
+
+  @return False if success, True if error
+
+  @note This function is run after conditions have been pushed down to
+        individual tables, so transformation is applied to JOIN_TAB::condition
+        and not to the WHERE condition.
 */
 
-void JOIN::cache_const_exprs()
+bool JOIN::cache_const_exprs()
 {
-  bool cache_flag= FALSE;
-  bool *analyzer_arg= &cache_flag;
-
   /* No need in cache if all tables are constant. */
   if (const_tables == tables)
-    return;
+    return false;
 
-  if (conds)
-    conds->compile(&Item::cache_const_expr_analyzer, (uchar **)&analyzer_arg,
-                  &Item::cache_const_expr_transformer, (uchar *)&cache_flag);
-  cache_flag= FALSE;
-  if (having)
-    having->compile(&Item::cache_const_expr_analyzer, (uchar **)&analyzer_arg,
-                    &Item::cache_const_expr_transformer, (uchar *)&cache_flag);
-
-  for (JOIN_TAB *tab= join_tab + const_tables; tab < join_tab + tables ; tab++)
+  for (uint i= const_tables; i < tables; i++)
   {
-    if (*tab->on_expr_ref)
-    {
-      cache_flag= FALSE;
-      (*tab->on_expr_ref)->compile(&Item::cache_const_expr_analyzer,
-                                 (uchar **)&analyzer_arg,
-                                 &Item::cache_const_expr_transformer,
-                                 (uchar *)&cache_flag);
-    }
+    Item *condition= join_tab[i].condition();
+    if (condition == NULL)
+      continue;
+    Item *cache_item= NULL;
+    Item **analyzer_arg= &cache_item;
+    condition=
+      condition->compile(&Item::cache_const_expr_analyzer,
+                         (uchar **)&analyzer_arg,
+                         &Item::cache_const_expr_transformer,
+                         (uchar *)&cache_item);
+    if (condition == NULL)
+      return true;
+    if (condition != join_tab[i].condition())
+      join_tab[i].set_condition(condition, __LINE__);
   }
+  if (having)
+  {
+    Item *cache_item= NULL;
+    Item **analyzer_arg= &cache_item;
+    having=
+      having->compile(&Item::cache_const_expr_analyzer, (uchar **)&analyzer_arg,
+                      &Item::cache_const_expr_transformer,(uchar *)&cache_item);
+    if (having == NULL)
+      return true;
+  }
+  return false;
 }
 
 
@@ -7814,7 +7852,8 @@ remove_const(JOIN *join,ORDER *first_order, Item *cond,
     String str;
     st_select_lex::print_order(&str, first_order,
                                enum_query_type(QT_TO_SYSTEM_CHARSET |
-                                               QT_SHOW_SELECT_NUMBER));
+                                               QT_SHOW_SELECT_NUMBER |
+                                               QT_NO_DEFAULT_DB));
     trace_simpl.add_utf8("original_clause", str.ptr(), str.length());
   }
   Opt_trace_array trace_each_item(trace, "items");
@@ -7914,7 +7953,8 @@ remove_const(JOIN *join,ORDER *first_order, Item *cond,
     String str;
     st_select_lex::print_order(&str, first_order,
                                enum_query_type(QT_TO_SYSTEM_CHARSET |
-                                               QT_SHOW_SELECT_NUMBER));
+                                               QT_SHOW_SELECT_NUMBER |
+                                               QT_NO_DEFAULT_DB));
     trace_simpl.add_utf8("resulting_clause", str.ptr(), str.length());
   }
 
@@ -8574,13 +8614,18 @@ static Item_cond_and *create_cond_for_const_ref(THD *thd, JOIN_TAB *join_tab)
     Field *field= table->field[table->key_info[join_tab->ref.key].key_part[i].
                                fieldnr-1];
     Item *value= join_tab->ref.items[i];
-    cond->add(new Item_func_equal(new Item_field(field), value));
+    Item *item= new Item_field(field);
+    if (!item)
+      DBUG_RETURN(NULL);
+    item= join_tab->ref.null_rejecting & (1 << i) ?
+            (Item *)new Item_func_eq(item, value) :
+            (Item *)new Item_func_equal(item, value);
+    if (!item)
+      DBUG_RETURN(NULL);
+    if (cond->add(item))
+      DBUG_RETURN(NULL);
   }
-  if (thd->is_fatal_error)
-    DBUG_RETURN(NULL);
-
-  if (!cond->fixed)
-    cond->fix_fields(thd, (Item**)&cond);
+  cond->fix_fields(thd, (Item**)&cond);
 
   DBUG_RETURN(cond);
 }
@@ -8646,7 +8691,7 @@ static bool add_ref_to_table_cond(THD *thd, JOIN_TAB *join_tab)
 
 static Item *remove_additional_cond(Item* conds)
 {
-  if (conds->name == in_additional_cond)
+  if (conds->item_name.ptr() == in_additional_cond)
     return 0;
   if (conds->type() == Item::COND_ITEM)
   {
@@ -8655,7 +8700,7 @@ static Item *remove_additional_cond(Item* conds)
     Item *item;
     while ((item= li++))
     {
-      if (item->name == in_additional_cond)
+      if (item->item_name.ptr() == in_additional_cond)
       {
 	li.remove();
 	if (cnd->argument_list()->elements == 1)

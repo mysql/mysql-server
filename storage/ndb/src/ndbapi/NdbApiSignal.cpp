@@ -1,4 +1,5 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +12,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 
 #include "API.hpp"
@@ -104,7 +106,7 @@ Parameters:     aNdbSignalType: Type of signal.
 Remark:         Set signal header and allocate 128 byte. 
 ******************************************************************************/
 int 
-NdbApiSignal::setSignal(int aNdbSignalType)
+NdbApiSignal::setSignal(int aNdbSignalType, Uint32 receiversBlockNo)
 { 	
   theSendersSignalId = 0;
   switch (aNdbSignalType)
@@ -123,14 +125,15 @@ NdbApiSignal::setSignal(int aNdbSignalType)
       theTrace                = TestOrd::TraceAPI;
       theReceiversBlockNumber = DBTC;
       theVerId_signalNumber   = GSN_TCSEIZEREQ;
-      theLength               = 2;
+      theLength               = 3;
     }
     break;
 
     case GSN_TCKEYREQ:
     {
+      assert(blockToMain(receiversBlockNo) == DBTC);
       theTrace                = TestOrd::TraceAPI;
-      theReceiversBlockNumber = DBTC;
+      theReceiversBlockNumber = receiversBlockNo;
       theVerId_signalNumber   = GSN_TCKEYREQ;
       theLength               = TcKeyReq::SignalLength;
     }
@@ -138,8 +141,9 @@ NdbApiSignal::setSignal(int aNdbSignalType)
 
     case GSN_TCRELEASEREQ:
     {
+      assert(blockToMain(receiversBlockNo) == DBTC);
       theTrace                = TestOrd::TraceAPI;
-      theReceiversBlockNumber = DBTC;
+      theReceiversBlockNumber = receiversBlockNo;
       theVerId_signalNumber   = GSN_TCRELEASEREQ;
       theLength               = 3;
     }
@@ -147,8 +151,9 @@ NdbApiSignal::setSignal(int aNdbSignalType)
 
     case GSN_ATTRINFO:
     {
+      assert(blockToMain(receiversBlockNo) == DBTC);
       theTrace                = TestOrd::TraceAPI;
-      theReceiversBlockNumber = DBTC;
+      theReceiversBlockNumber = receiversBlockNo;
       theVerId_signalNumber   = GSN_ATTRINFO;
       theLength               = AttrInfo::MaxSignalLength;
     }
@@ -156,8 +161,9 @@ NdbApiSignal::setSignal(int aNdbSignalType)
     
     case GSN_KEYINFO:
     {
+      assert(blockToMain(receiversBlockNo) == DBTC);
       theTrace                = TestOrd::TraceAPI;
-      theReceiversBlockNumber	= DBTC;
+      theReceiversBlockNumber	= receiversBlockNo;
       theVerId_signalNumber = GSN_KEYINFO;
       theLength               = KeyInfo::MaxSignalLength; 
     }
@@ -165,8 +171,9 @@ NdbApiSignal::setSignal(int aNdbSignalType)
 
     case GSN_TCROLLBACKREQ:
     {
+      assert(blockToMain(receiversBlockNo) == DBTC);
       theTrace                = TestOrd::TraceAPI;
-      theReceiversBlockNumber = DBTC;
+      theReceiversBlockNumber = receiversBlockNo;
       theVerId_signalNumber   = GSN_TCROLLBACKREQ;
       theLength               = 3;
     }
@@ -174,8 +181,9 @@ NdbApiSignal::setSignal(int aNdbSignalType)
 
     case GSN_TC_HBREP:
     {
+      assert(blockToMain(receiversBlockNo) == DBTC);
       theTrace                = TestOrd::TraceAPI;
-      theReceiversBlockNumber = DBTC;
+      theReceiversBlockNumber = receiversBlockNo;
       theVerId_signalNumber   = GSN_TC_HBREP;
       theLength               = TcHbRep::SignalLength;
     }
@@ -183,8 +191,9 @@ NdbApiSignal::setSignal(int aNdbSignalType)
 
     case GSN_TC_COMMITREQ:
     {
+      assert(blockToMain(receiversBlockNo) == DBTC);
       theTrace                = TestOrd::TraceAPI;
-      theReceiversBlockNumber = DBTC;
+      theReceiversBlockNumber = receiversBlockNo;
       theVerId_signalNumber   = GSN_TC_COMMITREQ;
       theLength               = 3;
     }
@@ -192,8 +201,9 @@ NdbApiSignal::setSignal(int aNdbSignalType)
 
     case GSN_SCAN_TABREQ:
     {
+      assert(blockToMain(receiversBlockNo) == DBTC);
       theTrace                = TestOrd::TraceAPI;
-      theReceiversBlockNumber = DBTC;
+      theReceiversBlockNumber = receiversBlockNo;
       theVerId_signalNumber   = GSN_SCAN_TABREQ;
       theLength               = ScanTabReq::StaticLength;      
     }
@@ -201,8 +211,9 @@ NdbApiSignal::setSignal(int aNdbSignalType)
 
     case GSN_SCAN_NEXTREQ:
     {
+      assert(blockToMain(receiversBlockNo) == DBTC);
       theTrace                = TestOrd::TraceAPI;
-      theReceiversBlockNumber = DBTC;
+      theReceiversBlockNumber = receiversBlockNo;
       theVerId_signalNumber   = GSN_SCAN_NEXTREQ;
       theLength               = ScanNextReq::SignalLength;
     }
@@ -228,8 +239,9 @@ NdbApiSignal::setSignal(int aNdbSignalType)
 
     case GSN_TCINDXREQ:
     {
+      assert(blockToMain(receiversBlockNo) == DBTC);
       theTrace                = TestOrd::TraceAPI;
-      theReceiversBlockNumber = DBTC;
+      theReceiversBlockNumber = receiversBlockNo;
       theVerId_signalNumber   = GSN_TCINDXREQ;
       theLength               = TcKeyReq::SignalLength;
     }
@@ -237,8 +249,9 @@ NdbApiSignal::setSignal(int aNdbSignalType)
 
     case GSN_INDXKEYINFO:
     {
+      assert(blockToMain(receiversBlockNo) == DBTC);
       theTrace                = TestOrd::TraceAPI;
-      theReceiversBlockNumber = DBTC;
+      theReceiversBlockNumber = receiversBlockNo;
       theVerId_signalNumber   = GSN_INDXKEYINFO;
       theLength               = IndxKeyInfo::MaxSignalLength; 
     }
@@ -246,8 +259,9 @@ NdbApiSignal::setSignal(int aNdbSignalType)
 
     case GSN_INDXATTRINFO:
     {
+      assert(blockToMain(receiversBlockNo) == DBTC);
       theTrace                = TestOrd::TraceAPI;
-      theReceiversBlockNumber = DBTC;
+      theReceiversBlockNumber = receiversBlockNo;
       theVerId_signalNumber   = GSN_INDXATTRINFO;
       theLength               = IndxAttrInfo::MaxSignalLength;
     }
@@ -275,11 +289,14 @@ NdbApiSignal::set(Uint8  trace,
 
 void
 NdbApiSignal::copyFrom(const NdbApiSignal * src){
+  theSignalId             = src->theSignalId;
   theVerId_signalNumber   = src->theVerId_signalNumber;
   theReceiversBlockNumber = src->theReceiversBlockNumber;
   theSendersBlockRef      = src->theSendersBlockRef;
   theLength               = src->theLength;
   theTrace                = src->theTrace;
+  m_noOfSections          = src->m_noOfSections;
+  m_fragmentInfo          = src->m_fragmentInfo;
   
   Uint32 * dstData = getDataPtrSend();
   const Uint32 * srcData = src->getDataPtr();
@@ -287,11 +304,4 @@ NdbApiSignal::copyFrom(const NdbApiSignal * src){
     dstData[i] = srcData[i];
 
   setDataPtr(dstData);
-  
-  /**
-   * NOTE that theSignalId is used as data ptr
-   *   and should not be copied
-   * NOTE that theSendersSignalId is used as next pointer
-   *   and should not be copied
-   */
 }

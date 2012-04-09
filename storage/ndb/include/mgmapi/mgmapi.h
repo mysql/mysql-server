@@ -1,4 +1,5 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +12,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #ifndef MGMAPI_H
 #define MGMAPI_H
@@ -204,11 +206,13 @@ extern "C" {
     NDB_MGM_NODE_STATUS_SINGLEUSER    = 7,
     /** Resume mode*/
     NDB_MGM_NODE_STATUS_RESUME        = 8,
+    /** Node is connected */
+    NDB_MGM_NODE_STATUS_CONNECTED     = 9,
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
     /** Min valid value*/
     NDB_MGM_NODE_STATUS_MIN           = 0,
     /** Max valid value*/
-    NDB_MGM_NODE_STATUS_MAX           = 8
+    NDB_MGM_NODE_STATUS_MAX           = 9
 #endif
   };
 
@@ -257,8 +261,11 @@ extern "C" {
 			 sizeof("000.000.000.000")+1
 #endif
     ];
-  };
 
+    /** MySQL version number */
+    int mysql_version;
+  };
+  
   /**
    *   State of all nodes in the cluster; returned from 
    *   ndb_mgm_get_status()
@@ -310,6 +317,17 @@ extern "C" {
     NDB_MGM_SIGNAL_LOG_MODE_OFF
   };
 #endif
+
+  struct ndb_mgm_severity {
+    enum ndb_mgm_event_severity category;
+    unsigned int value;
+  };
+
+  struct ndb_mgm_loglevel {
+    enum ndb_mgm_event_category category;
+    unsigned int value;
+  };
+
 
   /***************************************************************************/
   /**
@@ -391,6 +409,23 @@ extern "C" {
    */
   void ndb_mgm_set_name(NdbMgmHandle handle, const char *name);
 
+  /**
+   * Set 'ignore_sigpipe' behaviour
+   *
+   * The mgmapi will by default install a signal handler
+   * that ignores all SIGPIPE signals that might occur when
+   * writing to an already closed or reset socket. An application
+   * that wish to use its own handler for SIGPIPE should call this
+   * function after 'ndb_mgm_create_handle' and before
+   * 'ndb_mgm_connect'(where the signal handler is installed)
+   *
+   * @param   handle        Management handle
+   * @param   val           Value
+   *                        0 - Don't ignore SIGPIPE
+   *                        1 - Ignore SIGPIPE(default)
+   */
+  int ndb_mgm_set_ignore_sigpipe(NdbMgmHandle handle, int val);
+
   /** @} *********************************************************************/
   /**
    * @name Functions: Connect/Disconnect Management Server
@@ -430,10 +465,6 @@ extern "C" {
   int ndb_mgm_number_of_mgmd_in_connect_string(NdbMgmHandle handle);
 
   int ndb_mgm_set_configuration_nodeid(NdbMgmHandle handle, int nodeid);
-  int ndb_mgm_get_configuration_nodeid(NdbMgmHandle handle);
-  int ndb_mgm_get_connected_port(NdbMgmHandle handle);
-  const char *ndb_mgm_get_connected_host(NdbMgmHandle handle);
-  const char *ndb_mgm_get_connectstring(NdbMgmHandle handle, char *buf, int buf_sz);
 
   /**
    * Set local bindaddress
@@ -460,7 +491,7 @@ extern "C" {
   const char *ndb_mgm_get_connectstring(NdbMgmHandle handle, char *buf, int buf_sz);
 
   /**
-   * DEPRICATED: use ndb_mgm_set_timeout instead.
+   * DEPRECATED: use ndb_mgm_set_timeout instead.
    *
    * @param handle  NdbMgmHandle
    * @param seconds number of seconds
@@ -544,6 +575,34 @@ extern "C" {
    */
   const char *ndb_mgm_get_connected_host(NdbMgmHandle handle);
 
+  /**
+   * Gets connection bind address
+   *
+   * @param   handle         Management handle
+   *
+   * @return                 hostname
+   */
+  const char *ndb_mgm_get_connected_bind_address(NdbMgmHandle handle);
+
+  /**
+   * Get the version of the mgm server we're talking to.
+   *
+   * @param   handle         Management handle
+   * @param   major          Returns the major version number for NDB
+   * @param   minor          Returns the minor version number for NDB
+   * @param   build          Returns the build version number for NDB
+   * @param   len            Specifies the max size of the buffer
+   *                         available to return version string in
+   * @param   str            Pointer to buffer where to return the
+   *                         version string which is in the
+   *                         form "mysql-X.X.X ndb-Y.Y.Y-status"
+   *
+   * @return  0 for error and 1 for success
+   */
+  int ndb_mgm_get_version(NdbMgmHandle handle,
+                          int *major, int *minor, int* build,
+                          int len, char* str);
+
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
   /** @} *********************************************************************/
   /**
@@ -593,7 +652,7 @@ extern "C" {
   const char * ndb_mgm_get_node_status_string(enum ndb_mgm_node_status status);
 
   const char * ndb_mgm_get_event_severity_string(enum ndb_mgm_event_severity);
-  ndb_mgm_event_category ndb_mgm_match_event_category(const char *);
+  enum ndb_mgm_event_category ndb_mgm_match_event_category(const char *);
   const char * ndb_mgm_get_event_category_string(enum ndb_mgm_event_category);
 #endif
 
@@ -613,6 +672,55 @@ extern "C" {
    * @return                Cluster state (or <var>NULL</var> on error).
    */
   struct ndb_mgm_cluster_state * ndb_mgm_get_status(NdbMgmHandle handle);
+
+
+  /**
+   * Gets status of the nodes *of specified types* in an NDB Cluster
+   *
+   * @note The caller must free the pointer returned by this function.
+   * @note Passing a NULL pointer into types make this equivalent to
+   *       ndb_mgm_get_status
+   *
+   * @param   handle        Management handle.
+   * @param   types         Pointer to array of interesting node types.
+   *                        Array should be terminated 
+   *                        by *NDB_MGM_NODE_TYPE_UNKNOWN*.
+   *
+   * @return                Cluster state (or <var>NULL</var> on error).
+   */
+  struct ndb_mgm_cluster_state * 
+  ndb_mgm_get_status2(NdbMgmHandle handle,
+                      const enum ndb_mgm_node_type types[]);
+                      
+
+
+  /**
+   * Dump state
+   *
+   * @param handle the NDB management handle.
+   * @param nodeId the node id.
+   * @param args integer array
+   * @param number of args in int array
+   * @param reply the reply message.
+   * @return 0 if successful or an error code.
+   */
+  int ndb_mgm_dump_state(NdbMgmHandle handle,
+			 int nodeId,
+			 const int * args,
+			 int num_args,
+			 struct ndb_mgm_reply* reply);
+
+  /**
+   * Get the current configuration from a node.
+   *
+   * @param handle the NDB management handle.
+   * @param nodeId of the node for which the configuration is requested.
+   * @return the current configuration from the requested node.
+   */
+  struct ndb_mgm_configuration *
+  ndb_mgm_get_configuration_from_node(NdbMgmHandle handle,
+                                      int nodeid);
+
 
   /** @} *********************************************************************/
   /**
@@ -676,6 +784,29 @@ extern "C" {
   int ndb_mgm_stop3(NdbMgmHandle handle, int no_of_nodes,
 		    const int * node_list, int abort, int *disconnect);
 
+  /**
+   * Stops cluster nodes
+   *
+    * @param   handle        Management handle.
+   * @param   no_of_nodes   Number of database nodes to stop<br>
+   *                         -1: All database and management nodes<br>
+   *                          0: All database nodes in cluster<br>
+   *                          n: Stop the <var>n</var> node(s) specified in
+   *                            the array node_list
+   * @param   node_list     List of node IDs of database nodes to be stopped
+   * @param   abort         Don't perform graceful stop,
+   *                        but rather stop immediately
+   * @param   force         Force stop of nodes even if it means the
+   *                        whole cluster will be shutdown
+   * @param   disconnect    Returns true if you need to disconnect to apply
+   *                        the stop command (e.g. stopping the mgm server
+   *                        that handle is connected to)
+   *
+   * @return                Number of nodes stopped (-1 on error).
+   */
+   int ndb_mgm_stop4(NdbMgmHandle handle, int no_of_nodes,
+		    const int * node_list, int abort, int force,
+                    int *disconnect);
 
   /**
    * Restart database nodes
@@ -740,6 +871,33 @@ extern "C" {
   int ndb_mgm_restart3(NdbMgmHandle handle, int no_of_nodes,
 		       const int * node_list, int initial,
 		       int nostart, int abort, int *disconnect);
+
+  /**
+   * Restart nodes
+   *
+   * @param   handle        Management handle.
+   * @param   no_of_nodes   Number of database nodes to be restarted:<br>
+   *                          0: Restart all database nodes in the cluster<br>
+   *                          n: Restart the <var>n</var> node(s) specified
+   *                             in the array node_list
+   * @param   node_list     List of node IDs of database nodes to be restarted
+   * @param   initial       Remove filesystem from restarting node(s)
+   * @param   nostart       Don't actually start node(s) but leave them
+   *                        waiting for start command
+   * @param   abort         Don't perform graceful restart,
+   *                        but rather restart immediately
+   * @param   force         Force restart of nodes even if it means the
+   *                        whole cluster will be restarted
+   * @param   disconnect    Returns true if mgmapi client must disconnect from
+   *                        server to apply the requested operation. (e.g.
+   *                        restart the management server)
+   *
+   *
+   * @return                Number of nodes stopped (-1 on error).
+   */
+  int ndb_mgm_restart4(NdbMgmHandle handle, int no_of_nodes,
+		       const int * node_list, int initial,
+		       int nostart, int abort, int force, int *disconnect);
 
   /**
    * Start database nodes
@@ -887,7 +1045,11 @@ extern "C" {
    *
    * @return fd    filedescriptor to read events from
    */
+#ifdef NDB_WIN
+  SOCKET ndb_mgm_listen_event(NdbMgmHandle handle, const int filter[]);
+#else
   int ndb_mgm_listen_event(NdbMgmHandle handle, const int filter[]);
+#endif
 
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
   /**
@@ -933,7 +1095,11 @@ extern "C" {
    *
    * @return       filedescriptor, -1 on failure.
    */
+#ifdef NDB_WIN
+  SOCKET ndb_logevent_get_fd(const NdbLogEventHandle);
+#else
   int ndb_logevent_get_fd(const NdbLogEventHandle);
+#endif
 
   /**
    * Attempt to retrieve next log event and will fill in the supplied
@@ -987,6 +1153,46 @@ extern "C" {
   int ndb_mgm_start_backup(NdbMgmHandle handle, int wait_completed,
 			   unsigned int* backup_id,
 			   struct ndb_mgm_reply* reply);
+
+  /**
+   * Start backup
+   *
+   * @param   handle          NDB management handle.
+   * @param   wait_completed  0:  Don't wait for confirmation<br>
+   *                          1:  Wait for backup to be started<br>
+   *                          2:  Wait for backup to be completed
+   * @param   backup_id       Backup ID is returned from function.
+   * @param   reply           Reply message.
+   * @param   input_backupId  run as backupId and set next backup id to input_backupId+1.
+   * @return                  -1 on error.
+   * @note                    backup_id will not be returned if
+   *                          wait_completed == 0
+   */
+  int ndb_mgm_start_backup2(NdbMgmHandle handle, int wait_completed,
+			   unsigned int* backup_id,
+			   struct ndb_mgm_reply* reply,
+			   unsigned int input_backupId);
+
+  /**
+   * Start backup
+   *
+   * @param   handle          NDB management handle.
+   * @param   wait_completed  0:  Don't wait for confirmation<br>
+   *                          1:  Wait for backup to be started<br>
+   *                          2:  Wait for backup to be completed
+   * @param   backup_id       Backup ID is returned from function.
+   * @param   reply           Reply message.
+   * @param   input_backupId  run as backupId and set next backup id to input_backupId+1.
+   * @param   backuppoint     Backup happen at start time(1) or complete time(0).
+   * @return                  -1 on error.
+   * @note                    backup_id will not be returned if
+   *                          wait_completed == 0
+   */
+  int ndb_mgm_start_backup3(NdbMgmHandle handle, int wait_completed,
+			   unsigned int* backup_id,
+			   struct ndb_mgm_reply* reply,
+			   unsigned int input_backupId,
+			   unsigned int backuppoint);
 
   /**
    * Abort backup
@@ -1073,6 +1279,7 @@ extern "C" {
    * ndb_mgm_get_fd
    *
    * get the file descriptor of the handle.
+   * On Win32, returns SOCKET.
    * INTERNAL ONLY.
    * USE FOR TESTING. OTHER USES ARE NOT A GOOD IDEA.
    *
@@ -1080,22 +1287,16 @@ extern "C" {
    * @return handle->socket
    *
    */
+#ifdef NDB_WIN
+  SOCKET ndb_mgm_get_fd(NdbMgmHandle handle);
+#else
   int ndb_mgm_get_fd(NdbMgmHandle handle);
+#endif
 
   /**
    * Get the node id of the mgm server we're connected to
    */
   Uint32 ndb_mgm_get_mgmd_nodeid(NdbMgmHandle handle);
-
-  /**
-   * Get the version of the mgm server we're talking to.
-   * Designed to allow switching of protocol depending on version
-   * so that new clients can speak to old servers in a compat mode
-   */
-  int ndb_mgm_get_version(NdbMgmHandle handle,
-                          int *major, int *minor, int* build,
-                          int len, char* str);
-
 
   /**
    * Config iterator
@@ -1132,6 +1333,15 @@ extern "C" {
              size_t * size);
 #endif
 
+  int ndb_mgm_create_nodegroup(NdbMgmHandle handle,
+                               int * nodes,
+                               int * ng,
+                               struct ndb_mgm_reply* mgmreply);
+
+  int ndb_mgm_drop_nodegroup(NdbMgmHandle handle,
+                             int ng,
+                             struct ndb_mgm_reply* mgmreply);
+
 #ifndef DOXYGEN_SHOULD_SKIP_DEPRECATED
   enum ndb_mgm_clusterlog_level {
      NDB_MGM_ILLEGAL_CLUSTERLOG_LEVEL = -1,
@@ -1144,37 +1354,66 @@ extern "C" {
      NDB_MGM_CLUSTERLOG_ALERT = 6,
      NDB_MGM_CLUSTERLOG_ALL = 7
   };
-  inline
+  static inline
   int ndb_mgm_filter_clusterlog(NdbMgmHandle h,
 				enum ndb_mgm_clusterlog_level s,
 				int e, struct ndb_mgm_reply* r)
-  { return ndb_mgm_set_clusterlog_severity_filter(h,(ndb_mgm_event_severity)s,
+  { return ndb_mgm_set_clusterlog_severity_filter(h,(enum ndb_mgm_event_severity)s,
 						  e,r); }
-  struct ndb_mgm_severity {
-    enum ndb_mgm_event_severity category;
-    unsigned int value;
-  };
-  
-  inline
+  static inline
   const unsigned int * ndb_mgm_get_logfilter(NdbMgmHandle h)
   { return ndb_mgm_get_clusterlog_severity_filter_old(h); }
 
-  inline
+  static inline
   int ndb_mgm_set_loglevel_clusterlog(NdbMgmHandle h, int n,
 				      enum ndb_mgm_event_category c,
 				      int l, struct ndb_mgm_reply* r)
   { return ndb_mgm_set_clusterlog_loglevel(h,n,c,l,r); }
 
-  struct ndb_mgm_loglevel {
-    enum ndb_mgm_event_category category;
-    unsigned int value;
-  };
-
-  inline
+  static inline
   const unsigned int * ndb_mgm_get_loglevel_clusterlog(NdbMgmHandle h)
   { return ndb_mgm_get_clusterlog_loglevel_old(h); }
 
 #endif
+
+  /**
+   *   Struct containing array of ndb_logevents
+   *   of the requested type, describing for example
+   *   memoryusage or baclupstatus for the whole cluster,
+   *   returned from ndb_mgm_dump_events()
+   */
+  struct ndb_mgm_events {
+    /** Number of entries in the logevents array */
+    int no_of_events;
+    /** Array of ndb_logevents  */
+    struct ndb_logevent events [
+#ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
+                    1
+#endif
+    ];
+  };
+
+  /**
+   * Get an array of ndb_logevent of a specified type, describing
+   * for example memoryusage or backupstatus for the whole cluster
+   *
+   * @note The caller must free the pointer returned by this function.
+   *
+   * @param   handle        Management handle.
+   * @param   type          Which ndb_logevent to request
+   * @param   no_of_nodes   Number of database nodes to request info from<br>
+   *                          0: All database nodes in cluster<br>
+   *                          n: Only the <var>n</var> node(s) specified in<br>
+   *                             the array node_list
+   * @param   node_list     List of node IDs of database nodes to request<br>
+   *                        info from
+   *
+   * @return                struct with array of ndb_logevent's
+   *                        (or <var>NULL</var> on error).
+   */
+  struct ndb_mgm_events*
+  ndb_mgm_dump_events(NdbMgmHandle handle, enum Ndb_logevent_type type,
+                      int no_of_nodes, const int * node_list);
 
 #ifdef __cplusplus
 }
@@ -1183,3 +1422,4 @@ extern "C" {
 /** @} */
 
 #endif
+

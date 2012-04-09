@@ -1,4 +1,6 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (C) 2003-2008 MySQL AB
+    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,13 +13,15 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #ifndef NDB_TRIGGER_DEFINITIONS_H
 #define NDB_TRIGGER_DEFINITIONS_H
 
 #include <ndb_global.h>
 #include "ndb_limits.h"
+#include <Bitmask.hpp>
 #include <signaldata/DictTabInfo.hpp>
 
 #define ILLEGAL_TRIGGER_ID ((Uint32)(~0))
@@ -34,7 +38,8 @@ struct TriggerType {
     READ_ONLY_CONSTRAINT  = DictTabInfo::ReadOnlyConstraint,
     ORDERED_INDEX         = DictTabInfo::IndexTrigger,
     
-    SUBSCRIPTION_BEFORE   = 9 // Only used by TUP/SUMA, should be REMOVED!!
+    SUBSCRIPTION_BEFORE   = 9, // Only used by TUP/SUMA, should be REMOVED!!
+    REORG_TRIGGER         = DictTabInfo::ReorgTrigger
   };
 };
 
@@ -56,6 +61,154 @@ struct TriggerEvent {
     TE_UPDATE = 2,
     TE_CUSTOM = 3    /* Hardcoded per TriggerType */
   };
+};
+
+struct TriggerInfo {
+  TriggerType::Value triggerType;
+  TriggerActionTime::Value triggerActionTime;
+  TriggerEvent::Value triggerEvent;
+  bool monitorReplicas;
+  bool monitorAllAttributes;
+  bool reportAllMonitoredAttributes;
+
+  // static methods
+
+  // get/set bits in Uint32
+  static TriggerType::Value
+  getTriggerType(const Uint32& info) {
+    const Uint32 val = BitmaskImpl::getField(1, &info, 0, 8);
+    return (TriggerType::Value)val;
+  }
+  static void
+  setTriggerType(Uint32& info, TriggerType::Value val) {
+    BitmaskImpl::setField(1, &info, 0, 8, (Uint32)val);
+  }
+  static TriggerActionTime::Value
+  getTriggerActionTime(const Uint32& info) {
+    const Uint32 val = BitmaskImpl::getField(1, &info, 8, 8);
+    return (TriggerActionTime::Value)val;
+  }
+  static void
+  setTriggerActionTime(Uint32& info, TriggerActionTime::Value val) {
+    BitmaskImpl::setField(1, &info, 8, 8, (Uint32)val);
+  }
+  static TriggerEvent::Value
+  getTriggerEvent(const Uint32& info) {
+    const Uint32 val = BitmaskImpl::getField(1, &info, 16, 8);
+    return (TriggerEvent::Value)val;
+  }
+  static void
+  setTriggerEvent(Uint32& info, TriggerEvent::Value val) {
+    BitmaskImpl::setField(1, &info, 16, 8, (Uint32)val);
+  }
+  static bool
+  getMonitorReplicas(const Uint32& info) {
+    return BitmaskImpl::getField(1, &info, 24, 1);
+  }
+  static void
+  setMonitorReplicas(Uint32& info, bool val) {
+    BitmaskImpl::setField(1, &info, 24, 1, val);
+  }
+  static bool
+  getMonitorAllAttributes(const Uint32& info) {
+    return BitmaskImpl::getField(1, &info, 25, 1);
+  }
+  static void
+  setMonitorAllAttributes(Uint32& info, bool val) {
+    BitmaskImpl::setField(1, &info, 25, 1, val);
+  }
+  static bool
+  getReportAllMonitoredAttributes(const Uint32& info) {
+    return BitmaskImpl::getField(1, &info, 26, 1);
+  }
+  static void
+  setReportAllMonitoredAttributes(Uint32& info, bool val) {
+    BitmaskImpl::setField(1, &info, 26, 1, val);
+  }
+
+  // convert between Uint32 and struct
+  static void
+  packTriggerInfo(Uint32& val, const TriggerInfo& str) {
+    val = 0;
+    setTriggerType(val, str.triggerType);
+    setTriggerActionTime(val, str.triggerActionTime);
+    setTriggerEvent(val, str.triggerEvent);
+    setMonitorReplicas(val, str.monitorReplicas);
+    setMonitorAllAttributes(val, str.monitorAllAttributes);
+    setReportAllMonitoredAttributes(val, str.reportAllMonitoredAttributes);
+  }
+  static void
+  unpackTriggerInfo(const Uint32& val, TriggerInfo& str) {
+    str.triggerType = getTriggerType(val);
+    str.triggerActionTime = getTriggerActionTime(val);
+    str.triggerEvent = getTriggerEvent(val);
+    str.monitorReplicas = getMonitorReplicas(val);
+    str.monitorAllAttributes = getMonitorAllAttributes(val);
+    str.reportAllMonitoredAttributes = getReportAllMonitoredAttributes(val);
+  }
+
+  // for debug print
+  static const char*
+  triggerTypeName(Uint32 val) {
+    switch (val) {
+    case TriggerType::SECONDARY_INDEX:
+      return "SECONDARY_INDEX";
+    case TriggerType::SUBSCRIPTION:
+      return "SUBSCRIPTION";
+    case TriggerType::READ_ONLY_CONSTRAINT:
+      return "READ_ONLY_CONSTRAINT";
+    case TriggerType::ORDERED_INDEX:
+      return "ORDERED_INDEX";
+    case TriggerType::SUBSCRIPTION_BEFORE:
+      return "SUBSCRIPTION_BEFORE";
+    }
+    return "UNKNOWN";
+  }
+  static const char*
+  triggerActionTimeName(Uint32 val) {
+    switch (val) {
+    case TriggerActionTime::TA_BEFORE:
+      return "TA_BEFORE";
+    case TriggerActionTime::TA_AFTER:
+      return "TA_AFTER";
+    case TriggerActionTime::TA_DEFERRED:
+      return "TA_DEFERRED";
+    case TriggerActionTime::TA_DETACHED:
+      return "TA_DETACHED";
+    case TriggerActionTime::TA_CUSTOM:
+      return "TA_CUSTOM";
+    }
+    return "UNKNOWN";
+  }
+  static const char*
+  triggerEventName(Uint32 val) {
+    switch (val) {
+    case TriggerEvent::TE_INSERT:
+      return "TE_INSERT";
+    case TriggerEvent::TE_DELETE:
+      return "TE_DELETE";
+    case TriggerEvent::TE_UPDATE:
+      return "TE_UPDATE";
+    case TriggerEvent::TE_CUSTOM:
+      return "TE_CUSTOM";
+    }
+    return "UNKNOWN";
+  }
+};
+
+struct NoOfFiredTriggers
+{
+  STATIC_CONST( DeferredBit = (Uint32(1) << 31) );
+
+  static Uint32 getFiredCount(Uint32 v) {
+    return v & ~(Uint32(DeferredBit));
+  }
+  static Uint32 getDeferredBit(Uint32 v) {
+    return (v & Uint32(DeferredBit)) != 0;
+  }
+  static void setDeferredBit(Uint32 & v) {
+    v |= Uint32(DeferredBit);
+  }
 };
 
 #endif

@@ -43,3 +43,47 @@ SET DEBUG_SYNC='now SIGNAL filesort_killed';
 # connection default
 SET DEBUG_SYNC= "RESET";
 DROP TABLE t1;
+#
+# Bug#13832772 ASSERTION `THD->IS_ERROR() || KILL_ERRNO'
+#              FAILED IN FILESORT/MYSQL_DELETE
+#
+CREATE TABLE t1 (
+c1 BLOB,
+c2 TEXT,
+c3 TEXT,
+c4 TEXT,
+c5 TEXT,
+c6 TEXT,
+c7 TEXT,
+c8 BLOB,
+c9 TEXT,
+c19 TEXT,
+pk INT,
+c20 TEXT,
+c21 BLOB,
+c22 TEXT,
+c23 TEXT,
+c24 TEXT,
+c25 TEXT,
+c26 BLOB,
+c27 TEXT,
+c28 TEXT,
+primary key (pk)
+) ENGINE=InnoDB
+;
+CALL mtr.add_suppression("Out of sort memory");
+DELETE IGNORE FROM t1 ORDER BY c26,c7,c23,c4,c25,c5,c20,
+c19,c21,c8,c1,c27,c28,c3,c9,c22,c24,c6,c2,pk LIMIT 2;
+ERROR HY001: Out of sort memory, consider increasing server sort buffer size
+SHOW WARNINGS;
+Level	Code	Message
+Error	1038	Out of sort memory, consider increasing server sort buffer size
+Error	1028	Sort aborted: Out of sort memory, consider increasing server sort buffer size
+DELETE FROM t1 ORDER BY c26,c7,c23,c4,c25,c5,c20,
+c19,c21,c8,c1,c27,c28,c3,c9,c22,c24,c6,c2,pk LIMIT 2;
+ERROR HY001: Out of sort memory, consider increasing server sort buffer size
+SHOW WARNINGS;
+Level	Code	Message
+Error	1038	Out of sort memory, consider increasing server sort buffer size
+Error	1028	Sort aborted: Out of sort memory, consider increasing server sort buffer size
+DROP TABLE t1;

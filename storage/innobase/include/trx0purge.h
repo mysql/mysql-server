@@ -87,8 +87,9 @@ trx_purge(
 /*======*/
 	ulint	n_purge_threads,	/*!< in: number of purge tasks to
 					submit to task queue. */
-	ulint	limit);			/*!< in: the maximum number of
+	ulint	limit,			/*!< in: the maximum number of
 					records to purge in one batch */
+	bool	truncate);		/*!< in: truncate history if true */
 /*******************************************************************//**
 Stop purge and wait for it to stop, move to PURGE_STATE_STOP. */
 UNIV_INTERN
@@ -107,7 +108,8 @@ enum purge_state_t {
 	PURGE_STATE_INIT,		/*!< Purge instance created */
 	PURGE_STATE_RUN,		/*!< Purge should be running */
 	PURGE_STATE_STOP,		/*!< Purge should be stopped */
-	PURGE_STATE_EXIT		/*!< Purge has been shutdown */
+	PURGE_STATE_EXIT,		/*!< Purge has been shutdown */
+	PURGE_STATE_DISABLED		/*!< Purge was never started */
 };
 
 /*******************************************************************//**

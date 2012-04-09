@@ -1,0 +1,32 @@
+-- source include/have_ndb.inc
+
+# store start value
+SET @global_start_value = @@global.ndb_optimized_node_selection;
+SELECT @global_start_value;
+
+# max value
+set session ndb_optimized_node_selection=3;
+show variables like 'ndb_optimized_node_selection';
+
+# min value
+set session ndb_optimized_node_selection=0;
+show variables like 'ndb_optimized_node_selection';
+
+# out of range
+set session ndb_optimized_node_selection=4;
+show variables like 'ndb_optimized_node_selection';
+
+# global
+set global ndb_optimized_node_selection=1;
+show variables like 'ndb_optimized_node_selection';
+
+# check it
+--connect (another_con, localhost, root,,)
+--connection another_con
+show variables like 'ndb_optimized_node_selection';
+
+# reset
+set global ndb_optimized_node_selection=3;
+# does not work for some reason
+#SET @@global.ndb_optimized_node_selection = @global_start_value;
+SELECT @@global.ndb_optimized_node_selection;

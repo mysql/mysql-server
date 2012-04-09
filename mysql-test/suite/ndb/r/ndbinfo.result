@@ -1,0 +1,347 @@
+result_format: 2
+
+
+SELECT PLUGIN_NAME,PLUGIN_VERSION,PLUGIN_STATUS,PLUGIN_TYPE,
+       PLUGIN_LIBRARY,PLUGIN_LIBRARY_VERSION,PLUGIN_AUTHOR,PLUGIN_DESCRIPTION
+FROM information_schema.plugins WHERE PLUGIN_NAME = 'ndbinfo';
+PLUGIN_NAME	PLUGIN_VERSION	PLUGIN_STATUS	PLUGIN_TYPE	PLUGIN_LIBRARY	PLUGIN_LIBRARY_VERSION	PLUGIN_AUTHOR	PLUGIN_DESCRIPTION
+ndbinfo	0.1	ACTIVE	STORAGE ENGINE	NULL	NULL	Sun Microsystems Inc.	MySQL Cluster system information storage engine
+
+## Creation of temporary tables should not be supported by NDBINFO engine
+CREATE TEMPORARY TABLE `t1` (
+  `dummy` INT UNSIGNED
+) ENGINE=NDBINFO;
+ERROR HY000: Table storage engine 'ndbinfo' does not support the create option 'TEMPORARY'
+
+USE ndbinfo;
+
+SHOW CREATE TABLE ndb$tables;
+Table	Create Table
+ndb$tables	CREATE TABLE `ndb$tables` (
+  `table_id` int(10) unsigned DEFAULT NULL,
+  `table_name` varchar(512) DEFAULT NULL,
+  `comment` varchar(512) DEFAULT NULL
+) ENGINE=NDBINFO DEFAULT CHARSET=latin1 COMMENT='metadata for tables available through ndbinfo'
+
+SELECT * FROM ndb$tables;
+table_id	table_name	comment
+0	tables	metadata for tables available through ndbinfo
+1	columns	metadata for columns available through ndbinfo 
+2	test	for testing
+3	pools	pool usage
+4	transporters	transporter status
+5	logspaces	logspace usage
+6	logbuffers	logbuffer usage
+7	resources	resources usage (a.k.a superpool)
+8	counters	monotonic counters
+9	nodes	node status
+10	diskpagebuffer	disk page buffer info
+SELECT COUNT(*) FROM ndb$tables;
+COUNT(*)
+11
+SELECT * FROM ndb$tables WHERE table_id = 2;
+table_id	table_name	comment
+2	test	for testing
+SELECT * FROM ndb$tables WHERE table_id > 5;
+table_id	table_name	comment
+6	logbuffers	logbuffer usage
+7	resources	resources usage (a.k.a superpool)
+8	counters	monotonic counters
+9	nodes	node status
+10	diskpagebuffer	disk page buffer info
+SELECT * FROM ndb$tables WHERE table_name = 'LOGDESTINATION';
+table_id	table_name	comment
+SELECT COUNT(*) FROM ndb$tables t1, ndb$tables t2 WHERE t1.table_id = t1.table_id;
+COUNT(*)
+121
+
+SELECT table_id, table_name, comment from ndb$tables
+  WHERE table_id > 2 AND table_id <= 5 ORDER BY table_id;
+table_id	table_name	comment
+3	pools	pool usage
+4	transporters	transporter status
+5	logspaces	logspace usage
+SELECT table_id FROM ndb$tables  WHERE table_id = 2 ORDER BY table_name;
+table_id
+2
+SELECT table_id, table_name FROM ndb$tables ORDER BY table_name;
+table_id	table_name
+1	columns
+8	counters
+10	diskpagebuffer
+6	logbuffers
+5	logspaces
+9	nodes
+3	pools
+7	resources
+0	tables
+2	test
+4	transporters
+
+SELECT table_id, column_id, column_name FROM ndb$columns LIMIT 7;
+table_id	column_id	column_name
+0	0	table_id
+0	1	table_name
+0	2	comment
+1	0	table_id
+1	1	column_id
+1	2	column_name
+1	3	column_type
+
+UPDATE ndb$tables SET table_id=2 WHERE table_id=3;
+ERROR HY000: Table 'ndb$tables' is read only
+
+UPDATE ndb$tables SET table_id=9 WHERE 1=0;
+ERROR HY000: Table 'ndb$tables' is read only
+
+UPDATE ndb$tables SET table_id=9 WHERE table_id > 1;
+ERROR HY000: Table 'ndb$tables' is read only
+
+DELETE FROM ndb$tables WHERE table_id=3;
+ERROR HY000: Table 'ndb$tables' is read only
+
+DELETE FROM ndb$tables WHERE 1=0;
+ERROR HY000: Table 'ndb$tables' is read only
+
+DELETE FROM ndb$tables WHERE table_id > 1;
+ERROR HY000: Table 'ndb$tables' is read only
+
+ALTER TABLE ndb$test ADD COLUMN another_col varchar(255);
+ERROR HY000: Table storage engine for 'ndb$test' doesn't have this option
+
+FLUSH TABLES;
+SELECT table_id FROM ndb$tables;
+table_id
+0
+1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+
+TRUNCATE ndb$tables;
+ERROR HY000: Table 'ndb$tables' is read only
+
+## Variables and status
+SHOW GLOBAL STATUS LIKE 'ndbinfo\_%';
+Variable_name	Value
+SHOW GLOBAL VARIABLES LIKE 'ndbinfo\_%';
+Variable_name	Value
+ndbinfo_database	ndbinfo
+ndbinfo_max_bytes	0
+ndbinfo_max_rows	10
+ndbinfo_offline	OFF
+ndbinfo_show_hidden	OFF
+ndbinfo_table_prefix	ndb$
+ndbinfo_version	NDB_VERSION_D
+
+SELECT counter, HEX(counter2) FROM ndb$test LIMIT 10;
+counter	HEX(counter2)
+0	0
+1	100000000
+2	200000000
+3	300000000
+4	400000000
+5	500000000
+6	600000000
+7	700000000
+8	800000000
+9	900000000
+
+SHOW TABLES LIKE 'ndb$te%';
+Tables_in_ndbinfo (ndb$te%)
+set @@ndbinfo_show_hidden=TRUE;
+SHOW TABLES LIKE 'ndb$te%';
+Tables_in_ndbinfo (ndb$te%)
+ndb$test
+set @@ndbinfo_show_hidden=default;
+
+set @@ndbinfo_table_prefix="somethingelse";
+ERROR HY000: Variable 'ndbinfo_table_prefix' is a read only variable
+
+set @@ndbinfo_database="somethingelse";
+ERROR HY000: Variable 'ndbinfo_database' is a read only variable
+
+SELECT count(*) >= 20 FROM blocks;
+count(*) >= 20
+1
+
+## 1) More columns in NDB -> allowed, with warning
+DROP TABLE ndb$test;
+CREATE TABLE ndb$test (node_id int unsigned) ENGINE = ndbinfo;
+SELECT node_id != 0 FROM ndb$test LIMIT 1;
+node_id != 0
+1
+Warnings:
+Note	40001	Table 'ndb$test' is defined differently in NDB, there are more columns available. The SQL to regenerate is: 'CREATE TABLE `ndbinfo`.`ndb$test` (`node_id` INT UNSIGNED, `block_number` INT UNSIGNED, `block_instance` INT UNSIGNED, `counter` INT UNSIGNED, `counter2` BIGINT UNSIGNED) ENGINE=NDBINFO'
+DROP TABLE ndb$test;
+
+## 2) Column does not exist in NDB -> allowed, with warning, non existing
+##    column(s) return NULL
+## 2a) Extra column at end
+CREATE TABLE ndb$test (node_id int, non_existing int) ENGINE = ndbinfo;
+SELECT DISTINCT node_id, non_existing FROM ndb$test;
+node_id	non_existing
+1	NULL
+2	NULL
+Warnings:
+Warning	40001	Table 'ndb$test' is defined differently in NDB, column 'non_existing' does not exist. The SQL to regenerate is: 'CREATE TABLE `ndbinfo`.`ndb$test` (`node_id` INT UNSIGNED, `block_number` INT UNSIGNED, `block_instance` INT UNSIGNED, `counter` INT UNSIGNED, `counter2` BIGINT UNSIGNED) ENGINE=NDBINFO'
+Note	40001	Table 'ndb$test' is defined differently in NDB, there are more columns available. The SQL to regenerate is: 'CREATE TABLE `ndbinfo`.`ndb$test` (`node_id` INT UNSIGNED, `block_number` INT UNSIGNED, `block_instance` INT UNSIGNED, `counter` INT UNSIGNED, `counter2` BIGINT UNSIGNED) ENGINE=NDBINFO'
+DROP TABLE ndb$test;
+
+## 2b) Extra column(s) in middle
+CREATE TABLE ndb$test (
+  node_id int unsigned,
+  non_existing int unsigned,
+  block_number int unsigned,
+  block_instance int unsigned,
+  counter int unsigned,
+  counter2 bigint unsigned
+) ENGINE = ndbinfo;
+SELECT DISTINCT node_id, non_existing, block_number FROM ndb$test;
+node_id	non_existing	block_number
+1	NULL	249
+2	NULL	249
+Warnings:
+Warning	40001	Table 'ndb$test' is defined differently in NDB, column 'non_existing' does not exist. The SQL to regenerate is: 'CREATE TABLE `ndbinfo`.`ndb$test` (`node_id` INT UNSIGNED, `block_number` INT UNSIGNED, `block_instance` INT UNSIGNED, `counter` INT UNSIGNED, `counter2` BIGINT UNSIGNED) ENGINE=NDBINFO'
+DROP TABLE ndb$test;
+
+## 2c) Extra column first
+CREATE TABLE ndb$test (non_existing int, node_id int) ENGINE = ndbinfo;
+SELECT DISTINCT node_id, non_existing FROM ndb$test;
+node_id	non_existing
+1	NULL
+2	NULL
+Warnings:
+Warning	40001	Table 'ndb$test' is defined differently in NDB, column 'non_existing' does not exist. The SQL to regenerate is: 'CREATE TABLE `ndbinfo`.`ndb$test` (`node_id` INT UNSIGNED, `block_number` INT UNSIGNED, `block_instance` INT UNSIGNED, `counter` INT UNSIGNED, `counter2` BIGINT UNSIGNED) ENGINE=NDBINFO'
+Note	40001	Table 'ndb$test' is defined differently in NDB, there are more columns available. The SQL to regenerate is: 'CREATE TABLE `ndbinfo`.`ndb$test` (`node_id` INT UNSIGNED, `block_number` INT UNSIGNED, `block_instance` INT UNSIGNED, `counter` INT UNSIGNED, `counter2` BIGINT UNSIGNED) ENGINE=NDBINFO'
+SELECT DISTINCT non_existing, node_id FROM ndb$test;
+non_existing	node_id
+NULL	1
+NULL	2
+DROP TABLE ndb$test;
+
+## 3) Incompatible column type -> error, with warning
+## 3a) int instead of bigint
+CREATE TABLE ndb$test (counter2 int) ENGINE = ndbinfo;
+SELECT * FROM ndb$test;
+ERROR HY000: Got error 40001 'Incompatible table definitions' from NDBINFO
+SHOW WARNINGS;
+Level	Code	Message
+Warning	40001	Table 'ndb$test' is defined differently in NDB, column 'counter2' is not compatible. The SQL to regenerate is: 'CREATE TABLE `ndbinfo`.`ndb$test` (`node_id` INT UNSIGNED, `block_number` INT UNSIGNED, `block_instance` INT UNSIGNED, `counter` INT UNSIGNED, `counter2` BIGINT UNSIGNED) ENGINE=NDBINFO'
+Error	1296	Got error 40001 'Incompatible table definitions' from NDBINFO
+## 3b) bigint instead of int
+DROP TABLE ndb$test;
+CREATE TABLE ndb$test (node_id bigint) ENGINE = ndbinfo;
+SELECT * FROM ndb$test;
+ERROR HY000: Got error 40001 'Incompatible table definitions' from NDBINFO
+SHOW WARNINGS;
+Level	Code	Message
+Warning	40001	Table 'ndb$test' is defined differently in NDB, column 'node_id' is not compatible. The SQL to regenerate is: 'CREATE TABLE `ndbinfo`.`ndb$test` (`node_id` INT UNSIGNED, `block_number` INT UNSIGNED, `block_instance` INT UNSIGNED, `counter` INT UNSIGNED, `counter2` BIGINT UNSIGNED) ENGINE=NDBINFO'
+Error	1296	Got error 40001 'Incompatible table definitions' from NDBINFO
+## 3c) varchar instead of int
+DROP TABLE ndb$test;
+CREATE TABLE ndb$test (node_id varchar(255)) ENGINE = ndbinfo;
+SELECT * FROM ndb$test;
+ERROR HY000: Got error 40001 'Incompatible table definitions' from NDBINFO
+SHOW WARNINGS;
+Level	Code	Message
+Warning	40001	Table 'ndb$test' is defined differently in NDB, column 'node_id' is not compatible. The SQL to regenerate is: 'CREATE TABLE `ndbinfo`.`ndb$test` (`node_id` INT UNSIGNED, `block_number` INT UNSIGNED, `block_instance` INT UNSIGNED, `counter` INT UNSIGNED, `counter2` BIGINT UNSIGNED) ENGINE=NDBINFO'
+Error	1296	Got error 40001 'Incompatible table definitions' from NDBINFO
+DROP TABLE ndb$test;
+## 3d) column which is NOT NULL
+CREATE TABLE ndb$test (node_id int unsigned NOT NULL) ENGINE = ndbinfo;
+SELECT * FROM ndb$test;
+ERROR HY000: Got error 40001 'Incompatible table definitions' from NDBINFO
+SHOW WARNINGS;
+Level	Code	Message
+Warning	40001	Table 'ndb$test' is defined differently in NDB, column 'node_id' is NOT NULL. The SQL to regenerate is: 'CREATE TABLE `ndbinfo`.`ndb$test` (`node_id` INT UNSIGNED, `block_number` INT UNSIGNED, `block_instance` INT UNSIGNED, `counter` INT UNSIGNED, `counter2` BIGINT UNSIGNED) ENGINE=NDBINFO'
+Error	1296	Got error 40001 'Incompatible table definitions' from NDBINFO
+DROP TABLE ndb$test;
+## 3e) non existing column which is NOT NULL
+CREATE TABLE ndb$test (
+  block_number int unsigned,
+  non_existing int NOT NULL) ENGINE = ndbinfo;
+SELECT * FROM ndb$test;
+ERROR HY000: Got error 40001 'Incompatible table definitions' from NDBINFO
+SHOW WARNINGS;
+Level	Code	Message
+Warning	40001	Table 'ndb$test' is defined differently in NDB, column 'non_existing' is NOT NULL. The SQL to regenerate is: 'CREATE TABLE `ndbinfo`.`ndb$test` (`node_id` INT UNSIGNED, `block_number` INT UNSIGNED, `block_instance` INT UNSIGNED, `counter` INT UNSIGNED, `counter2` BIGINT UNSIGNED) ENGINE=NDBINFO'
+Error	1296	Got error 40001 'Incompatible table definitions' from NDBINFO
+DROP TABLE ndb$test;
+
+## 4) Table with primary key/indexes not supported
+CREATE TABLE ndb$test (node_id int, block_number int PRIMARY KEY) ENGINE = ndbinfo;
+ERROR 42000: Too many keys specified; max 0 keys allowed
+
+## 5) Table with blobs not supported
+CREATE TABLE ndb$test (node_id int, block_number blob) ENGINE = ndbinfo;
+ERROR 42000: The used table type doesn't support BLOB/TEXT columns
+
+## 6) Table with autoincrement not supported
+CREATE TABLE ndb$test (node_id int AUTO_INCREMENT) ENGINE = ndbinfo;
+ERROR 42000: The used table type doesn't support AUTO_INCREMENT columns
+
+select distinct node_id
+from ndbinfo.diskpagebuffer;
+node_id
+1
+2
+
+set @@ndbinfo_offline=1;
+ERROR HY000: Variable 'ndbinfo_offline' is a GLOBAL variable and should be set with SET GLOBAL
+
+SELECT DISTINCT(node_id) FROM ndbinfo.counters ORDER BY node_id;
+node_id
+1
+2
+
+set @@global.ndbinfo_offline=TRUE;
+select @@ndbinfo_offline;
+@@ndbinfo_offline
+1
+
+CREATE TABLE ndb$does_not_exist_in_ndb(
+  node_id int,
+  message varchar(255)
+) ENGINE = ndbinfo;
+
+CREATE VIEW view_on_table_which_does_not_exist_in_ndb AS
+  SELECT node_id, message
+  FROM ndbinfo.ndb$does_not_exist_in_ndb;
+
+SHOW CREATE TABLE ndb$does_not_exist_in_ndb;
+Table	Create Table
+ndb$does_not_exist_in_ndb	CREATE TABLE `ndb$does_not_exist_in_ndb` (
+  `node_id` int(11) DEFAULT NULL,
+  `message` varchar(255) DEFAULT NULL
+) ENGINE=NDBINFO DEFAULT CHARSET=latin1
+
+SELECT * FROM view_on_table_which_does_not_exist_in_ndb;
+node_id	message
+Warnings:
+Note	1	'NDBINFO' has been started in offline mode since the 'NDBCLUSTER' engine is disabled or @@global.ndbinfo_offline is turned on - no rows can be returned
+SELECT * FROM ndb$does_not_exist_in_ndb;
+node_id	message
+Warnings:
+Note	1	'NDBINFO' has been started in offline mode since the 'NDBCLUSTER' engine is disabled or @@global.ndbinfo_offline is turned on - no rows can be returned
+SELECT DISTINCT(node_id) FROM ndbinfo.counters ORDER BY node_id;
+node_id
+Warnings:
+Note	1	'NDBINFO' has been started in offline mode since the 'NDBCLUSTER' engine is disabled or @@global.ndbinfo_offline is turned on - no rows can be returned
+
+DROP VIEW view_on_table_which_does_not_exist_in_ndb;
+DROP TABLE ndb$does_not_exist_in_ndb;
+
+set @@global.ndbinfo_offline = FALSE;
+
+SELECT DISTINCT(node_id) FROM ndbinfo.counters ORDER BY node_id;
+node_id
+1
+2
+

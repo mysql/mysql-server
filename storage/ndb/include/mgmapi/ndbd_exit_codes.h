@@ -1,4 +1,5 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +12,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #ifndef NDBD_EXIT_CODES_H
 #define NDBD_EXIT_CODES_H
@@ -94,6 +96,7 @@ typedef ndbd_exit_classification_enum ndbd_exit_classification;
 #define NDBD_EXIT_NDBASSERT                   2343
 #define NDBD_EXIT_INVALID_CONFIG              2350
 #define NDBD_EXIT_OUT_OF_LONG_SIGNAL_MEMORY   2351
+#define NDBD_EXIT_NO_MORE_REDOLOG             2354
 
 /* Errorcodes for fatal resource errors */
 #define NDBD_EXIT_RESOURCE_ALLOC_ERROR        2500
@@ -117,6 +120,9 @@ typedef ndbd_exit_classification_enum ndbd_exit_classification;
 #define NDBD_EXIT_MASTER_FAILURE_DURING_NR    6301
 #define NDBD_EXIT_LOST_NODE_GROUP             6302
 #define NDBD_EXIT_NO_RESTORABLE_REPLICA       6303
+#define NDBD_EXIT_UNSUPPORTED_VERSION         6304
+
+#define NDBD_EXIT_GRACEFUL_SHUTDOWN_ERROR     6305
 
 /* ACC 6600-> */
 #define NDBD_EXIT_SR_OUT_OF_INDEXMEMORY       6600
@@ -148,6 +154,7 @@ typedef ndbd_exit_classification_enum ndbd_exit_classification;
 
 #define NDBD_EXIT_INVALID_LCP_FILE          2352
 #define NDBD_EXIT_INSUFFICENT_NODES         2353
+#define NDBD_EXIT_RESTORE_SCHEMA            2355
 
 const char *
 ndbd_exit_message(int faultId, ndbd_exit_classification *cl);

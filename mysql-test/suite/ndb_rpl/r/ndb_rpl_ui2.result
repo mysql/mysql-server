@@ -1,0 +1,22 @@
+include/master-slave.inc
+[connection master]
+CREATE TABLE t1 (pk int primary key, uk int not null, unique(uk)) engine=ndb;
+STOP SLAVE;
+insert into t1 values (1,1);
+insert into t1 values (2,2);
+begin;
+insert into t1 values (1,2);
+insert into t1 values (2,1);
+commit;
+delete from t1;
+begin;
+insert into t1 values (1,1);
+insert into t1 values (2,2);
+commit;
+start slave;
+select * from t1;
+pk	uk
+1	1
+2	2
+drop table t1;
+include/rpl_end.inc

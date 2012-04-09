@@ -1,4 +1,5 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +12,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #ifndef Cmvmi_H_
 #define Cmvmi_H_
@@ -50,7 +52,7 @@ private:
   void execREAD_CONFIG_REQ(Signal* signal);
   void execSTTOR(Signal* signal);
   void execCLOSE_COMREQ(Signal* signal);
-  void execENABLE_COMORD(Signal* signal);
+  void execENABLE_COMREQ(Signal* signal);
   void execOPEN_COMREQ(Signal* signal);
   void execSIZEALT_ACK(Signal* signal);
   void execTEST_ORD(Signal* signal);
@@ -66,7 +68,18 @@ private:
 
   void execTESTSIG(Signal* signal);
   void execNODE_START_REP(Signal* signal);
-  
+
+  void execCONTINUEB(Signal* signal);
+
+  void execROUTE_ORD(Signal* signal);
+
+  void execDBINFO_SCANREQ(Signal *signal);
+
+  void execALLOC_MEM_REF(Signal*);
+  void execALLOC_MEM_CONF(Signal*);
+
+  void execGET_CONFIG_REQ(Signal*);
+
   char theErrorMessage[256];
   void sendSTTORRY(Signal* signal);
 
@@ -111,7 +124,36 @@ private:
   Cmvmi(const Cmvmi &obj);
   void operator = (const Cmvmi &);
 
+  void startFragmentedSend(Signal* signal, Uint32 variant, Uint32 numSigs, NodeReceiverGroup rg);
+  void testNodeFailureCleanupCallback(Signal* signal, Uint32 variant, Uint32 elementsCleaned);
+  void testFragmentedCleanup(Signal* signal, SectionHandle* handle, Uint32 testType, Uint32 variant);
   void sendFragmentedComplete(Signal* signal, Uint32 data, Uint32 returnCode);
+
+  Uint32 c_memusage_report_frequency;
+  void reportDMUsage(Signal* signal, int incDec,
+                     BlockReference ref = CMVMI_REF);
+  void reportIMUsage(Signal* signal, int incDec,
+                     BlockReference ref = CMVMI_REF);
+
+  NDB_TICKS m_start_time;
+
+  struct SyncRecord
+  {
+    Uint32 m_senderRef;
+    Uint32 m_senderData;
+    Uint32 m_prio;
+    Uint32 m_cnt;
+    Uint32 m_error;
+    Uint32 nextPool;
+  };
+  ArrayPool<SyncRecord> c_syncReqPool;
+
+  void execSYNC_REQ(Signal*);
+  void execSYNC_REF(Signal*);
+  void execSYNC_CONF(Signal*);
+  void sendSYNC_REP(Signal * signal, Ptr<SyncRecord> ptr);
+
+  void init_global_page_pool();
 };
 
 #endif

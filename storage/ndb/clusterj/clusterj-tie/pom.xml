@@ -1,0 +1,174 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+   Copyright (c) 2010, 2011, Oracle and/or its affiliates. All rights reserved.
+
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; version 2 of the License.
+
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
+
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+-->
+
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+  <parent>
+    <groupId>com.mysql.clusterj</groupId>
+    <artifactId>clusterj-aggregate</artifactId>
+    <version>7.1.16-SNAPSHOT</version>
+  </parent>
+  <modelVersion>4.0.0</modelVersion>
+  <groupId>com.mysql.clusterj</groupId>
+  <artifactId>clusterj-tie</artifactId>
+  <packaging>bundle</packaging>
+  <version>7.1.16-SNAPSHOT</version>
+  <name>ClusterJ Tie</name>
+  <description>The ndbj-tie implementation of ClusterJ storage spi</description>
+  <build>
+  	<resources>
+  		<resource>
+  			<directory>src/main/resources</directory>
+  		</resource>
+  	</resources>
+    <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-compiler-plugin</artifactId>
+        <configuration>
+          <source>1.5</source>
+          <target>1.5</target>
+        </configuration>
+      </plugin>
+     <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-enforcer-plugin</artifactId>
+        <executions>
+          <execution>
+            <id>enforce-versions</id>
+            <goals>
+              <goal>enforce</goal>
+            </goals>
+            <configuration>
+              <rules>
+                <requireMavenVersion>
+                  <version>2.0.6</version>
+                </requireMavenVersion>
+                <requireJavaVersion>
+                  <version>1.6</version>
+                </requireJavaVersion>
+                <requireProperty>
+                  <property>ndbclient.lib</property>
+                  <message>You must define a ndbclient.lib in your ${user.home}/.m2/settings.xml file.</message>
+                </requireProperty>
+                <requireFilesExist>
+                  <files>
+                   <!-- we should test for 'libndbclient.*', not an OS-specific suffix (dylib); but use of a file pattern seems not supported here-->
+                   <file>${ndbclient.lib}/libndbclient.dylib</file>
+                  </files>
+                  <message>The directory ${ndbclient.lib} doesn't appear to contain the ndbclient jni library. Usually the library directory is lib/mysql in the the installed ndb project.</message>
+                </requireFilesExist>
+              </rules>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-surefire-plugin</artifactId>
+        <configuration>
+          <forkmode>once</forkmode>
+          <argLine>-Xshare:off -Djava.library.path=${ndbclient.lib}</argLine>
+<!-- The following line is for debugging
+          <argLine>-Djava.library.path=${ndbj.jnilib} -Xdebug -Xnoagent -Djava.compiler=NONE -Xrunjdwp:transport=dt_socket,server=y,suspend=y,address=8787</argLine>
+          -->
+          <systemProperties>
+            <property>
+              <name>java.util.logging.config.file</name>
+              <value>logging.properties</value>
+            </property>
+          </systemProperties>
+            <!-- The following doesn't work because system properties are set
+             ! only after the vm is forked, which is too late for the
+             ! property java.library.path.
+          <systemProperties>
+            <property>
+              <name>java.library.path</name>
+              <value>/Users/clr/ndb/clusterj/trunk/clusterj/target/classes/.libs</value>
+            </property>
+          </systemProperties>
+          !-->
+          <excludes>
+	    <!-- skip these failing tests -->
+            <exclude>**/TimestampAsSqlTimestampTypesTest.java</exclude>
+            <exclude>**/TimestampAsUtilDateTypesTest.java</exclude>
+          </excludes>
+        </configuration>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.felix</groupId>
+        <artifactId>maven-bundle-plugin</artifactId>
+        <version>1.4.0</version>
+        <extensions>true</extensions>
+        <configuration>
+          <instructions>
+            <Export-Package>com.mysql.clusterj.tie.*</Export-Package>
+            <Import-Package>com.mysql.clusterj,com.mysql.clusterj.core.store,com.mysql.clusterj.core.spi,com.mysql.clusterj.core.util,com.mysql.ndbjtie.mysql,com.mysql.ndbjtie.ndbapi</Import-Package>
+          </instructions>
+        </configuration>
+      </plugin>
+    </plugins>
+  </build>   
+  <dependencies>
+    <dependency>
+      <groupId>com.mysql.clusterj</groupId>
+      <artifactId>clusterj-api</artifactId>
+      <scope>compile</scope>
+    </dependency>
+    <dependency>
+      <groupId>com.mysql.clusterj</groupId>
+      <artifactId>clusterj-core</artifactId>
+      <scope>compile</scope>
+    </dependency>
+    <dependency>
+      <groupId>geronimo-spec</groupId>
+      <artifactId>geronimo-spec-jta</artifactId>
+      <version>1.0.1B-rc4</version>
+      <scope>compile</scope>
+    </dependency>
+    <dependency>
+      <groupId>junit</groupId>
+      <artifactId>junit</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>mysql</groupId>
+      <artifactId>mysql-connector-java</artifactId>
+      <scope>provided</scope>
+    </dependency>
+    <dependency>
+    	<groupId>com.mysql.clusterj</groupId>
+    	<artifactId>clusterj-test</artifactId>
+    	<scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>ndbjtie</groupId>
+      <artifactId>ndbjtie</artifactId>
+      <scope>compile</scope>
+    </dependency>
+  </dependencies>   
+  <properties>
+    <project.license>gpl</project.license>
+    <netbeans.hint.useExternalMaven>false</netbeans.hint.useExternalMaven>
+  </properties>
+  <licenses>
+    <license>
+      <name>GPLv2</name>
+      <url>http://www.gnu.org/licenses/gpl-2.0.txt</url>
+    </license>
+  </licenses>
+</project>

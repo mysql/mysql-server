@@ -1,4 +1,5 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +12,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #ifndef ARBIT_SIGNAL_DATA_H
 #define ARBIT_SIGNAL_DATA_H
@@ -31,7 +33,6 @@ private:
   Uint32 data[2];
 
 public:
-  ArbitTicket() {}
   STATIC_CONST( DataLength = 2 );
   STATIC_CONST( TextLength = DataLength * 8 );  // hex digits
 
@@ -44,7 +45,7 @@ public:
     Uint16 cnt = data[0] & 0xFFFF;              // previous count
     Uint16 pid = NdbHost_GetProcessId();
     data[0] = (pid << 16) | (cnt + 1);
-    data[1] = NdbTick_CurrentMillisecond();
+    data[1] = (Uint32)NdbTick_CurrentMillisecond();
   }
 
   inline bool match(ArbitTicket& aTicket) const {
@@ -102,6 +103,7 @@ public:
     LoseChoose = 47,            // negative reply
     LoseNorun = 48,             // arbitrator required but not running
     LoseNocfg = 49,             // arbitrator required but none configured
+    WinWaitExternal = 50,       // continue after external arbitration wait
 
     // general error codes
     ErrTicket = 91,             // invalid arbitrator-ticket
@@ -141,9 +143,8 @@ public:
   Uint32 code;                  // result code or other info
   Uint32 node;                  // arbitrator node id
   ArbitTicket ticket;           // ticket
-  NodeBitmask mask;             // set of nodes
+  NodeBitmaskPOD mask;          // set of nodes
 
-  ArbitSignalData() {}
   STATIC_CONST( SignalLength = 3 + ArbitTicket::DataLength + NodeBitmask::Size );
 
   inline bool match(ArbitSignalData& aData) const {

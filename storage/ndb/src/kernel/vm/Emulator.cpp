@@ -1,4 +1,5 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +12,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #include <ndb_global.h>
 
@@ -31,36 +33,28 @@
 
 #include <NdbMem.h>
 #include <NdbMutex.h>
-#include <NdbSleep.h>
 
 #include <EventLogger.hpp>
-
-void childExit(int code, Uint32 currentStartPhase);
-void childAbort(int code, Uint32 currentStartPhase);
-
-extern "C" {
-  extern void (* ndb_new_handler)();
-}
-extern EventLogger g_eventLogger;
-extern my_bool opt_core;
-// instantiated and updated in NdbcntrMain.cpp
-extern Uint32 g_currentStartPhase;
+extern EventLogger * g_eventLogger;
 
 /**
  * Declare the global variables 
  */
 
 #ifndef NO_EMULATED_JAM
-Uint8 theEmulatedJam[EMULATED_JAM_SIZE * 4];
-Uint32 theEmulatedJamIndex = 0;
-Uint32 theEmulatedJamBlockNumber = 0;
+/*
+  This is the jam buffer used for non-threaded ndbd (but present also
+  in threaded ndbd to allow sharing of object files among the two
+  binaries).
+ */
+EmulatedJamBuffer theEmulatedJamBuffer;
 #endif
 
    GlobalData globalData;
 
    TimeQueue globalTimeQueue;
    FastScheduler globalScheduler;
-   TransporterRegistry globalTransporterRegistry;
+   extern TransporterRegistry globalTransporterRegistry;
 
 #ifdef VM_TRACE
    SignalLoggerManager globalSignalLoggers;
@@ -68,7 +62,6 @@ Uint32 theEmulatedJamBlockNumber = 0;
 
 EmulatorData globalEmulatorData;
 NdbMutex * theShutdownMutex = 0;
-int simulate_error_during_shutdown= 0;
 
 EmulatorData::EmulatorData(){
   theConfiguration = 0;
@@ -81,12 +74,13 @@ EmulatorData::EmulatorData(){
 }
 
 void
-ndb_new_handler_impl(){
-  ERROR_SET(fatal, NDBD_EXIT_MEMALLOC, "New handler", "");
-}
-
-void
 EmulatorData::create(){
+  /*
+    Global jam() buffer, for non-multithreaded operation.
+    For multithreaded ndbd, each thread will set a local jam buffer later.
+  */
+  NdbThread_SetTlsKey(NDB_THREAD_TLS_JAM, (void *)&theEmulatedJamBuffer);
+
   NdbMem_Create();
 
   theConfiguration = new Configuration();
@@ -96,9 +90,22 @@ EmulatorData::create(){
   m_socket_server  = new SocketServer();
   m_mem_manager    = new Ndbd_mem_manager();
 
-  theShutdownMutex = NdbMutex_Create();
+  if (theConfiguration == NULL ||
+      theWatchDog == NULL ||
+      theThreadConfig == NULL ||
+      theSimBlockList == NULL ||
+      m_socket_server == NULL ||
+      m_mem_manager == NULL )
+  {
+    ERROR_SET(fatal, NDBD_EXIT_MEMALLOC,
+              "Failed to create EmulatorData", "");
+  }
 
-  ndb_new_handler = ndb_new_handler_impl;
+  if (!(theShutdownMutex = NdbMutex_Create()))
+  {
+    ERROR_SET(fatal, NDBD_EXIT_MEMALLOC,
+              "Failed to create shutdown mutex", "");
+  }
 }
 
 void
@@ -119,173 +126,3 @@ EmulatorData::destroy(){
   
   NdbMem_Destroy();
 }
-
-void
-NdbShutdown(NdbShutdownType type,
-	    NdbRestartType restartType)
-{
-  if(type == NST_ErrorInsert){
-    type = NST_Restart;
-    restartType = (NdbRestartType)
-      globalEmulatorData.theConfiguration->getRestartOnErrorInsert();
-    if(restartType == NRT_Default){
-      type = NST_ErrorHandler;
-      globalEmulatorData.theConfiguration->stopOnError(true);
-    }
-  }
-  
-  if((type == NST_ErrorHandlerSignal) || // Signal handler has already locked mutex
-     (NdbMutex_Trylock(theShutdownMutex) == 0)){
-    globalData.theRestartFlag = perform_stop;
-
-    bool restart = false;
-
-    if((type != NST_Normal && 
-	globalEmulatorData.theConfiguration->stopOnError() == false) ||
-       type == NST_Restart) {
-      
-      restart  = true;
-    }
-
-
-    const char * shutting = "shutting down";
-    if(restart){
-      shutting = "restarting";
-    }
-    
-    switch(type){
-    case NST_Normal:
-      g_eventLogger.info("Shutdown initiated");
-      break;
-    case NST_Watchdog:
-      g_eventLogger.info("Watchdog %s system", shutting);
-      break;
-    case NST_ErrorHandler:
-      g_eventLogger.info("Error handler %s system", shutting);
-      break;
-    case NST_ErrorHandlerSignal:
-      g_eventLogger.info("Error handler signal %s system", shutting);
-      break;
-    case NST_ErrorHandlerStartup:
-      g_eventLogger.info("Error handler startup %s system", shutting);
-      break;
-    case NST_Restart:
-      g_eventLogger.info("Restarting system");
-      break;
-    default:
-      g_eventLogger.info("Error handler %s system (unknown type: %u)",
-			 shutting, (unsigned)type);
-      type = NST_ErrorHandler;
-      break;
-    }
-    
-    const char * exitAbort = 0;
-    if (opt_core)
-      exitAbort = "aborting";
-    else
-      exitAbort = "exiting";
-    
-    if(type == NST_Watchdog){
-      /**
-       * Very serious, don't attempt to free, just die!!
-       */
-      g_eventLogger.info("Watchdog shutdown completed - %s", exitAbort);
-      if (opt_core)
-      {
-	childAbort(-1,g_currentStartPhase);
-      }
-      else
-      {
-	childExit(-1,g_currentStartPhase);
-      }
-    }
-
-#ifndef NDB_WIN32
-    if (simulate_error_during_shutdown) {
-      kill(getpid(), simulate_error_during_shutdown);
-      while(true)
-	NdbSleep_MilliSleep(10);
-    }
-#endif
-
-    globalEmulatorData.theWatchDog->doStop();
-    
-#ifdef VM_TRACE
-    FILE * outputStream = globalSignalLoggers.setOutputStream(0);
-    if(outputStream != 0)
-      fclose(outputStream);
-#endif
-    
-    /**
-     * Stop all transporter connection attempts and accepts
-     */
-    globalEmulatorData.m_socket_server->stopServer();
-    globalEmulatorData.m_socket_server->stopSessions();
-    globalTransporterRegistry.stop_clients();
-
-    /**
-     * Stop transporter communication with other nodes
-     */
-    globalTransporterRegistry.stopSending();
-    globalTransporterRegistry.stopReceiving();
-    
-    /**
-     * Remove all transporters
-     */
-    globalTransporterRegistry.removeAll();
-    
-#ifdef VM_TRACE
-#define UNLOAD (type != NST_ErrorHandler && type != NST_Watchdog)
-#else
-#define UNLOAD true
-#endif
-    if(UNLOAD){
-      globalEmulatorData.theSimBlockList->unload();    
-      globalEmulatorData.destroy();
-    }
-    
-    if(type != NST_Normal && type != NST_Restart){
-      // Signal parent that error occured during startup
-      if (type == NST_ErrorHandlerStartup)
-	kill(getppid(), SIGUSR1);
-      g_eventLogger.info("Error handler shutdown completed - %s", exitAbort);
-      if (opt_core)
-      {
-	childAbort(-1,g_currentStartPhase);
-      }
-      else
-      {
-	childExit(-1,g_currentStartPhase);
-      }
-    }
-    
-    /**
-     * This is a normal restart, depend on angel
-     */
-    if(type == NST_Restart){
-      childExit(restartType,g_currentStartPhase);
-    }
-    
-    g_eventLogger.info("Shutdown completed - exiting");
-  } else {
-    /**
-     * Shutdown is already in progress
-     */
-    
-    /** 
-     * If this is the watchdog, kill system the hard way
-     */
-    if (type== NST_Watchdog){
-      g_eventLogger.info("Watchdog is killing system the hard way");
-#if defined VM_TRACE
-      childAbort(-1,g_currentStartPhase);
-#else
-      childExit(-1,g_currentStartPhase);
-#endif
-    }
-    
-    while(true)
-      NdbSleep_MilliSleep(10);
-  }
-}
-

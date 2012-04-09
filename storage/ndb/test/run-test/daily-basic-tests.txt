@@ -1,17 +1,40 @@
-# Copyright (C) 2004-2008 MySQL AB
-# 
+# Copyright (c) 2004, 2011, Oracle and/or its affiliates. All rights reserved.
+#
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation; version 2 of the License.
-# 
+#
 # This program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
-# 
+#
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
-# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+max-time: 900
+cmd: testIndex
+args: -n DeferredError
+
+max-time: 900
+cmd: testIndex
+args: -n DeferredMixedLoad T1 T6 T13
+
+max-time: 1800
+cmd: testIndex
+args: -n DeferredMixedLoadError T1 T6 T13
+
+max-time: 900
+cmd: testIndex
+args: -n NF_DeferredMixed T1 T6 T13
+
+max-time: 900
+cmd: testIndex
+args: -n NF_Mixed T1 T6 T13
+
+max-time: 900
+cmd: testBasic
+args: -r 5000 -n 899 T15 D1 D2
 
 max-time: 600
 cmd: atrt-testBackup
@@ -63,11 +86,15 @@ args: -n PkRead T1
 
 max-time: 600
 cmd: atrt-testBackup
-args: -n BackupOne T1 T6 T3 I3
+args: -n BackupOne T1 T6 I3 D2
 
 max-time: 600
 cmd: atrt-testBackup
 args: -n BackupDDL T1
+
+max-time: 600
+cmd: atrt-testBackup
+args: -n Bug57650 T1
 
 # BASIC FUNCTIONALITY
 max-time: 500
@@ -103,6 +130,18 @@ cmd: testBasic
 args: -n DeleteRead
 
 max-time: 500
+cmd: testSpj
+args: -n LookupJoin
+
+max-time: 500
+cmd: testSpj
+args: -n ScanJoin
+
+max-time: 500
+cmd: testSpj
+args: -n MixedJoin
+
+max-time: 500
 cmd: testBasic
 args: -n PkReadAndLocker T6 D1 D2
 
@@ -120,7 +159,7 @@ args: -n ReadWithLocksAndInserts T6 D1 D2
 
 max-time: 500
 cmd: testBasic
-args: -n PkInsertTwice T1 T6 T10 D1 D2
+args: -n PkInsertTwice T1 T6 D1 D2
 
 max-time: 1500
 cmd: testBasic
@@ -133,10 +172,6 @@ args: -n Fill T6
 max-time: 500
 cmd: testBasic
 args: -n NoCommitSleep T6 D1 D2
-
-max-time: 500
-cmd: testBasic
-args: -n NoCommit626 T6 D1 D2
 
 max-time: 500
 cmd: testBasic
@@ -224,19 +259,19 @@ args: -n PkDeleteAsynch
 
 max-time: 1000
 cmd: testBasic
-args: -n MassiveRollback T1 T7 D1 D2
+args: -n MassiveRollback T1 T6 D1 D2
 
 max-time: 500
 cmd: testBasic
-args: -n MassiveRollback2 T1 T7 D1 D2
+args: -n MassiveRollback2 T1 T6 D1 D2
 
 max-time: 500
 cmd: testBasic
-args: -n MassiveRollback3 T1 T7 D1 D2
+args: -n MassiveRollback3 T1 T6 D1 D2
 
 max-time: 500
 cmd: testBasic
-args: -n MassiveRollback4 T1 T7 D1 D2
+args: -n MassiveRollback4 T1 T6 D1 D2
 
 max-time: 500
 cmd: testBasic
@@ -250,7 +285,7 @@ max-time: 500
 cmd: testBasic
 args: -n InsertError2 T1
 
-max-time: 500
+max-time: 600
 cmd: testTimeout
 args: T1 
 
@@ -271,9 +306,57 @@ cmd: testBasic
 args: -n Bug20535
 
 max-time: 500
-cmd: testIndex
-args: -n Bug25059 -r 3000 T1
+cmd: testBasic
+args: -n Bug54944 T1
 
+max-time: 600
+cmd: testBasic
+args: -r 10 -n Bug59496_case1 T2
+
+max-time: 600
+cmd: testBasic
+args: -r 10 -n Bug59496_case2 T2
+
+#
+# INDEX
+#
+max-time: 1500
+cmd: testIndex
+args: -n CreateAll T1 T13 T14
+
+max-time: 3600
+cmd: testIndex
+args: -n InsertDelete T1 
+
+max-time: 3600
+cmd: testIndex
+args: -n CreateLoadDrop T1 
+
+max-time: 500
+cmd: testIndex
+args: -n MixedTransaction T1 
+
+max-time: 2500
+cmd: testIndex
+args: -n BuildDuring T6 
+
+max-time: 2500
+cmd: testIndex
+args: -n BuildDuring_O T6 
+
+max-time: 600
+cmd: testIndex
+args: -n Bug46069 T1
+
+max-time: 600
+cmd: testIndex
+args: -n Bug50118 T1
+
+max-time: 300
+cmd: testIndex
+args: -n FireTrigOverload T1
+
+#
 # SCAN TESTS
 #
 max-time: 500
@@ -302,7 +385,7 @@ args: -n ScanDelete
 
 max-time: 500
 cmd: testScan
-args: -n ScanDelete2 T10 D1 D2
+args: -n ScanDelete2 D1 D2
 
 max-time: 500
 cmd: testScan
@@ -324,6 +407,10 @@ max-time: 500
 cmd: testScan
 args: -n ScanRead488O -l 10 T6 D1 D2 
 
+max-time: 500
+cmd: testScan
+args: -n Bug42559 T6 D1 D2 
+
 max-time: 1000
 cmd: testScan
 args: -n ScanRead488T -l 10 T6 D1 D2 
@@ -336,13 +423,17 @@ max-time: 500
 cmd: testScan
 args: -n ScanRead488Timeout -l 10 T6 D1 D2
 
-max-time: 600
+max-time: 1200
 cmd: testScan
-args: -n ScanRead40 -l 100 T2 D1 D2 
+args: -n ScanRead40 -l 100 T6 D1 D2 
 
 max-time: 1800
 cmd: testScan
 args: -n ScanRead100 -l 100 T1 D1 D2 
+
+max-time: 1800
+cmd: testScan
+args: -n TupScanRead100 -l 100 T1 D1 D2 
 
 max-time: 600
 cmd: testScan
@@ -351,10 +442,6 @@ args: -n ScanRead40 -l 100 T1 D1 D2
 max-time: 1800
 cmd: testScan
 args: -n ScanRead40RandomTable -l 100 T1 
-
-max-time: 3600
-cmd: testScan
-args: -n ScanRead40RandomTable -l 1000 T2 
 
 max-time: 500
 cmd: testScan
@@ -430,6 +517,10 @@ args: -n NoCloseTransaction T6 D1 D2
 
 max-time: 500
 cmd: testScan
+args: -n CloseRefresh T1
+
+max-time: 500
+cmd: testScan
 args: -n CheckInactivityTimeOut T6 D1 D2 
 
 max-time: 500
@@ -466,7 +557,15 @@ args: -n ScanReadError5030 T1 D1 D2
 
 max-time: 500
 cmd: testScan
+args: -n ScanReadError8081 T1 D1 D2
+
+max-time: 500
+cmd: testScan
 args: -n InsertDelete T1 T6 D1 D2 
+
+max-time: 500
+cmd: testScan
+args: -n Bug48700 T1
 
 max-time: 500
 cmd: testScan
@@ -482,11 +581,7 @@ args: -n ScanReadWhileNodeIsDown D1 D2
 
 max-time: 500
 cmd: testScan
-args: -n ScanRestart T1 D1 D2 
-
-max-time: 500
-cmd: testScan
-args: -l 100 -n Scan-bug8262 T7 D1 D2
+args: -l 100 -n Scan-bug8262 T6 D1 D2
 
 max-time: 500
 cmd: testScan
@@ -500,7 +595,19 @@ max-time: 1000
 cmd: testScan
 args: -n ScanVariants
 
-max-time: 1000
+max-time: 500
+cmd: testScan
+args: -n Bug36124 T1
+
+max-time: 500
+cmd: testScan
+args: -n Bug54945 T1
+
+max-time: 600
+cmd: testScan
+args: -n Bug12324191 T1 T6 T13
+
+max-time: 1800
 cmd: testNodeRestart
 args: -n Bug27003 T1
 
@@ -528,10 +635,6 @@ max-time: 500
 cmd: testNodeRestart
 args: -n Bug15685 T1
 
-max-time: 500
-cmd: testNodeRestart
-args: -n Bug16772 T1
-
 #max-time: 500
 #cmd: testSystemRestart
 #args: -n Bug18385 T1
@@ -540,10 +643,10 @@ max-time: 1000
 cmd: testNodeRestart
 args: -n Bug18414 T1
 
-max-time: 1000
-cmd: testNodeRestart
-args: -n Bug18612 T1
-
+#max-time: 1000
+#cmd: testNodeRestart
+#args: -n Bug18612 T1
+#
 max-time: 1000
 cmd: testNodeRestart
 args: -n Bug18612SR T1
@@ -572,10 +675,6 @@ max-time: 1000
 cmd: testNodeRestart
 args: -n Bug25554 T1
 
-max-time: 3000
-cmd: testNodeRestart
-args: -n Bug25984 T1
-
 max-time: 1000
 cmd: testNodeRestart
 args: -n Bug26457 T1
@@ -586,15 +685,39 @@ args: -n Bug26481 T1
 
 max-time: 1000
 cmd: testNodeRestart
-args: -n Bug28023 T7 D2
+args: -n Bug29364 T1
 
 max-time: 1000
 cmd: testNodeRestart
-args: -n Bug29364 T1
+args: -n Bug28023 T6 D2
+
+max-time: 3000
+cmd: testNodeRestart
+args: -n Bug25984 T1
 
 max-time: 300
 cmd: testNodeRestart
 args: -n Bug32160 T1
+
+max-time: 2500
+cmd: testNodeRestart
+args: -n MixedPkRead T6 T13 
+
+max-time: 2500
+cmd: testIndex
+args: -n NFNR1 T6 T13 
+
+max-time: 2500
+cmd: testIndex
+args: -n NFNR1_O T6 T13 
+
+max-time: 2500
+cmd: testIndex
+args: -n NFNR2_O T6 T13 
+
+max-time: 2500
+cmd: testSpj
+args: -n NF_Join T6 T13
 
 #
 # DICT TESTS
@@ -620,23 +743,19 @@ args: -n CreateAndDropAtRandom -l 200 T1
 
 max-time: 1500
 cmd: testDict
+args: -n CreateAndDropIndexes -l 200 T1
+
+max-time: 1500
+cmd: testDict
 args: -n CreateAndDropWithData 
 
 max-time: 1500
 cmd: testDict
-args: -n CreateAndDropDuring T6 T10 D1 D2
+args: -n CreateAndDropDuring T6 D1 D2
 
 max-time: 1500
 cmd: testDict
-args: -n CreateInvalidTables 
-
-max-time: 1500
-cmd: testDict
-args: -n CreateTableWhenDbIsFull T6 
-
-max-time: 1500
-cmd: testDict
-args: -n CreateMaxTables T6 
+args: -n CreateInvalidTables T1 
 
 max-time: 500
 cmd: testDict
@@ -644,15 +763,15 @@ args: -n FragmentTypeSingle T1
 
 max-time: 1500
 cmd: testDict
-args: -n FragmentTypeAllSmall T1 T6 T7 T8 
+args: -n FragmentTypeAllSmall T1 T6
 
 max-time: 1500
 cmd: testDict
-args: -n FragmentTypeAllLarge T1 T6 T7 T8 
+args: -n FragmentTypeAllLarge T1 T6
 
 max-time: 1500
 cmd: testDict
-args: -n TemporaryTables T1 T6 T7 T8 
+args: -n TemporaryTables T1 T6
 
 max-time: 1500
 cmd: testDict
@@ -664,11 +783,31 @@ args: -n Bug21755 T1
 
 max-time: 1500
 cmd: testDict
-args: -l 25 -n DictRestart T1
+args: -n TableAddAttrs
+
+max-time: 1500
+cmd: testDict
+args: -n TableAddAttrsDuring T1 T6
 
 max-time: 500
 cmd: testDict
 args: -n Bug24631 T1
+
+max-time: 600
+cmd: testDict
+args: -n Bug41905 T1
+
+max-time: 600
+cmd: testDict
+args: -n TableAddAttrsDuringError
+
+max-time: 1500
+cmd: testDict
+args: -l 25 -n DictRestart T1
+
+max-time: 500
+cmd: testDict
+args: -n Bug54651 T1
 
 #
 # TEST NDBAPI
@@ -685,15 +824,11 @@ args: -n MaxNdb T6
 
 max-time: 500
 cmd: testNdbApi
-args: -n MaxTransactions T1 T6 T7 T8 T13 
+args: -n MaxTransactions T1 T6 T13 
 
 max-time: 500
 cmd: testNdbApi
-args: -n MaxOperations T1 T6 T7 T8 T13 
-
-max-time: 500
-cmd: testNdbApi
-args: -n MaxGetValue T1 T6 T7 T8 T13 
+args: -n MaxGetValue T1 T6 T13 
 
 max-time: 500
 cmd: testNdbApi
@@ -705,7 +840,7 @@ args: -n DeleteNdb T1 T6
 
 max-time: 500
 cmd: testNdbApi
-args: -n WaitUntilReady T1 T6 T7 T8 T13 
+args: -n WaitUntilReady T1 T6 T13 
 
 max-time: 500
 cmd: testNdbApi
@@ -756,32 +891,80 @@ cmd: testNdbApi
 args: -n Bug28443
 
 max-time: 500
+cmd: testNdbApi
+args: -n BadColNameHandling T6
+
+max-time: 500
+cmd: testNdbApi
+args: -n SimpleReadAbortOnError T1 T6 T15
+
+max-time: 500
+cmd: testNdbApi
+args: -n NdbRecordPKAmbiguity T1 T6 T15
+
+max-time: 500
+cmd: testNdbApi
+args: -n NdbRecordPKUpdate T1 T6 T15
+
+max-time: 500
+cmd: testNdbApi
+args: -n NdbRecordCICharPKUpdate T1 
+
+max-time: 500
+cmd: testNdbApi
+args: -n NdbRecordRowLength
+
+max-time: 500
+cmd: testNdbApi
+args: -n Bug44065
+
+max-time: 500
+cmd: testNdbApi
+args: -n Bug44065_org
+
+max-time: 500
 cmd: testInterpreter
 args: T1 
 
-max-time: 150000
+max-time: 7200
 cmd: testOperations
 args:
 
-max-time: 15000
+max-time: 7200
 cmd: testTransactions
 args:
 
-max-time: 1500
+max-time: 3000
 cmd: testRestartGci
-args: T6 
+args: T6 D1
 
 max-time: 1500
 cmd: testBlobs
-args:
+args: -version 1 -rows 25
+
+max-time: 1500
+cmd: testBlobs
+args: -rows 25
 
 max-time: 600
 cmd: testBlobs
-args: -bug 27018
+args: -bug 27018 -skip p
 
 max-time: 600
 cmd: testBlobs
-args: -bug 27370
+args: -bug 27370 -skip p
+
+max-time: 600
+cmd: testBlobs
+args: -bug 36756 -skip p
+
+max-time: 300
+cmd: testBlobs
+args: -bug 45768 -skip p
+
+max-time: 300
+cmd: testBlobs
+args: -bug 48040 -skip p
 
 max-time: 5000
 cmd: testOIBasic
@@ -809,75 +992,64 @@ args:
 #
 max-time: 1500
 cmd: testSystemRestart
+args: -n basic T1 
+
+max-time: 5000
+cmd: testSystemRestart
 args: -n SR1 T1 
 
-max-time: 1500
+max-time: 5000
 cmd: testSystemRestart
 args: -n SR1 T6 
 
-max-time: 1500
-cmd: testSystemRestart
-args: -n SR1 T7 
-
-max-time: 1500
-cmd: testSystemRestart
-args: -n SR1 T8 
-
-max-time: 1500
+max-time: 5000
 cmd: testSystemRestart
 args: -n SR1 D1
 
-max-time: 1500
+max-time: 5000
 cmd: testSystemRestart
 args: -n SR1 D2 
 
-max-time: 1500
+max-time: 5000
 cmd: testSystemRestart
 args: -n SR2 T1 
 
-max-time: 1500
+max-time: 5000
 cmd: testSystemRestart
 args: -n SR2 T6 
 
-max-time: 1500
-cmd: testSystemRestart
-args: -n SR2 T7 
-
-max-time: 1500
+max-time: 5000
 cmd: testSystemRestart
 args: -n SR2 D1
 
-max-time: 1500
+max-time: 5000
 cmd: testSystemRestart
 args: -n SR2 D2 
 
-max-time: 1500
+max-time: 5000
 cmd: testSystemRestart
 args: -n SR_UNDO T1 
 
-max-time: 1500
+max-time: 5000
 cmd: testSystemRestart
 args: -n SR_UNDO T6 
 
-max-time: 1500
+#
+max-time: 5000
 cmd: testSystemRestart
-args: -n SR_UNDO T7 
+args: -l 1 -n SR6 T1 
 
-max-time: 1500
+max-time: 5000
 cmd: testSystemRestart
-args: -n SR_UNDO T8 
+args: -l 1 -n SR7 T1 
 
-max-time: 1000
-cmd: testSRBank
-args: -n SR -l 300 -r 15 T1
+max-time: 5000
+cmd: testSystemRestart
+args: -l 1 -n SR8 T1 
 
-max-time: 1000
-cmd: testSRBank
-args: -n NR -l 300 -r 15 T1
-
-max-time: 1000
-cmd: testSRBank
-args: -n Mix -l 300 -r 15 T1
+max-time: 5000
+cmd: testSystemRestart
+args: -l 1 -n SR9 T1 
 
 max-time: 300
 cmd: testNodeRestart
@@ -903,6 +1075,123 @@ max-time: 1000
 cmd: test_event
 args: -l 10 -n Bug27169 T1
 
+#
+max-time: 600
+cmd: test_event_merge
+args: --no-implicit-nulls --separate-events --blob-version 1
+
+#
+max-time: 600
+cmd: test_event_merge
+args: --no-implicit-nulls --separate-events
+
+#
+max-time: 600
+cmd: test_event_merge
+args: --no-implicit-nulls --no-multiops --blob-version 1
+
+#
+max-time: 600
+cmd: test_event_merge
+args: --no-implicit-nulls --no-multiops
+
+#
+max-time: 3600
+cmd: test_event
+args: -n EventOperationApplier -l 2
+
+#
+max-time: 3600
+cmd: test_event
+args: -n EventOperationApplier_NR -l 2
+
+#
+max-time: 600
+cmd: test_event
+args: -n EventOperationApplier_NS T1
+
+#
+max-time: 3600
+cmd: test_event
+args: -n MergeEventOperationApplier_NR -l 2
+
+#
+max-time: 2500
+cmd: test_event
+args: -n Multi
+
+#
+max-time: 3600
+cmd: test_event
+args: -n CreateDropNR T1
+
+max-time: 600
+cmd: testBasic
+args: -n PkRead T1
+
+max-time: 300
+cmd: testNodeRestart
+args: -n Bug31980 T1
+
+max-time: 2500
+cmd: testNodeRestart
+args: -n CommittedRead T1
+
+max-time: 2500
+cmd: testNodeRestart
+args: -n RestartRandomNode T6 T13 
+
+max-time: 2500
+cmd: testNodeRestart
+args: -n LateCommit T1
+
+max-time: 2500
+cmd: testNodeRestart
+args: -n RestartMasterNodeError T6 T13 
+
+max-time: 2500
+cmd: testNodeRestart
+args: -n RestartAllNodes T6 T13 
+
+max-time: 2500
+cmd: testNodeRestart
+args: -n RestartAllNodesAbort T6 T13 
+
+max-time: 2500
+cmd: testNodeRestart
+args: -n RestartAllNodesError9999 T6 T13 
+
+max-time: 2500
+cmd: testNodeRestart
+args: -n RestartRandomNodeInitial T6 T13 
+
+max-time: 2500
+cmd: testNodeRestart
+args: -n NoLoad T6
+
+max-time: 2500
+cmd: testNodeRestart
+args: -n TwoNodeFailure T6 T13 
+
+max-time: 2500
+cmd: testNodeRestart
+args: -n TwoMasterNodeFailure T6 T13 
+
+max-time: 2500
+cmd: testNodeRestart
+args: -n FiftyPercentFail T6 T13 
+
+max-time: 2500
+cmd: testNodeRestart
+args: -n RestartRandomNodeError T6 T13 
+
+#
+# MGMAPI AND MGSRV
+#
+max-time: 1800
+cmd: testSingleUserMode
+args: T1
+
 # OLD FLEX
 max-time: 500
 cmd: flexBench
@@ -911,6 +1200,10 @@ args: -c 25 -t 10
 max-time: 500
 cmd: flexHammer
 args: -r 5 -t 32 
+
+max-time: 2500
+cmd: testNodeRestart
+args: -n NF_Hammer -r 5 T1
 
 max-time: 300
 cmd: DbCreate
@@ -941,45 +1234,21 @@ cmd: DbAsyncGenerator
 args: -time 60 -p 1 -proc 25
 type: bench
 
-max-time: 120
-cmd: testMgm
-args: -n ApiSessionFailure T1
+max-time: 5000
+cmd: testNodeRestart
+args: -n GCP -l 1 T1
 
-max-time: 15
-cmd: testMgm
-args: -n ApiConnectTimeout T1
+max-time: 600
+cmd: testNodeRestart
+args: -n Bug57522 T1
 
-max-time: 120
-cmd: testMgm
-args: -n ApiTimeoutBasic T1
+max-time: 1200
+cmd: testNodeRestart
+args: -n Bug41469 T1
 
-max-time: 120
-cmd: testMgm
-args: -n ApiSessionFailure T1
-
-max-time: 120
-cmd: testMgm
-args: -n ApiGetStatusTimeout T1
-
-max-time: 120
-cmd: testMgm
-args: -n ApiGetConfigTimeout T1
-
-max-time: 120
-cmd: testMgm
-args: -n ApiMgmEventTimeout T1
-
-max-time: 120
-cmd: testMgm
-args: -n ApiMgmStructEventTimeout T1
-
-max-time: 180
-cmd: testIndex
-args: -n Bug28804 T1 T3
-
-max-time: 180
-cmd: testIndex
-args: -n Bug28804_ATTRINFO T1 T3
+max-time: 600
+cmd: testBasic
+args: -n Bug54986 D2
 
 max-time: 1500
 cmd: testSystemRestart
@@ -1045,17 +1314,81 @@ max-time: 1500
 cmd: testSystemRestart
 args: -n SR_DD_2b_LCP D2
 
+max-time: 1500
+cmd: testSystemRestart
+args: -n SR_DD_3 D1
+
+max-time: 1500
+cmd: testSystemRestart
+args: -n SR_DD_3b D1
+
+max-time: 1500
+cmd: testSystemRestart
+args: -n SR_DD_3 D2
+
+max-time: 1500
+cmd: testSystemRestart
+args: -n SR_DD_3b D2
+
+max-time: 1500
+cmd: testSystemRestart
+args: -n SR_DD_3_LCP D1
+
+max-time: 1500
+cmd: testSystemRestart
+args: -n SR_DD_3b_LCP D1
+
+max-time: 1500
+cmd: testSystemRestart
+args: -n SR_DD_3_LCP D2
+
+max-time: 1500
+cmd: testSystemRestart
+args: -n SR_DD_3b_LCP D2
+
+max-time: 1500
+cmd: testSystemRestart
+args: -n Bug41915 D2
+
+max-time: 3600
+cmd: testSystemRestart
+args: -n Bug48436 T1
+
 max-time: 600
-cmd: testNodeRestart
-args: -n Bug31525 T1
+cmd: testSystemRestart
+args: -n Bug54611 T1
 
 max-time: 300
 cmd: test_event
 args: -n Bug31701 T1
 
-max-time: 300
+max-time: 600
 cmd: testSystemRestart
 args: -n Bug22696 T1
+
+max-time: 600
+cmd: testNodeRestart
+args: -n pnr --nologging T1
+
+max-time: 600
+cmd: testNodeRestart
+args: -n pnr_lcp T1
+
+max-time: 600
+cmd: testSystemRestart
+args: -n to T1
+
+max-time: 600
+cmd: testSystemRestart
+args: -n to I3
+
+max-time: 600
+cmd: testSystemRestart
+args: -n to D2
+
+max-time: 300
+cmd: testNodeRestart
+args: -n Bug32922 T1
 
 max-time: 300
 cmd: test_event
@@ -1067,5 +1400,348 @@ args: -n Bug34216 -l 10 T1 I3 D2
 
 max-time: 1200
 cmd: testNodeRestart
-args: -n mixedmultiop -l 10 T1 I2 I3 D2
+args: -n mixedmultiop T1 I2 I3 D2
+
+max-time: 600
+cmd: testNodeRestart
+args: -n Bug34702 T1
+
+max-time: 600
+cmd: test_event
+args: -n Bug35208 T1
+
+max-time: 300
+cmd: test_event
+args: -n Bug37279 T1
+
+max-time: 300
+cmd: test_event
+args: -n Bug37338 T1
+
+max-time: 300
+cmd: test_event
+args: -n Bug37442 T1
+
+# 2008-04-22
+max-time: 1500
+cmd: testNodeRestart
+args: -n MNF -l 15 T1
+
+max-time: 300
+cmd: testNodeRestart
+args: -n Bug36199 T1
+
+max-time: 300
+cmd: testNodeRestart
+args: -n Bug36246 T1
+
+max-time: 300
+cmd: testNodeRestart
+args: -n Bug36247 T1
+
+max-time: 300
+cmd: testNodeRestart
+args: -n Bug36276 T1
+
+# 2008-04-25
+max-time: 300
+cmd: testNodeRestart
+args: -n Bug36245 T1
+
+max-time: 300
+cmd: testNodeRestart
+args: -n Bug58453 T1
+
+max-time: 300
+cmd: test_event
+args: -n Bug34853 T1
+
+# EOF 2008-04-25
+# 2008-05-29
+max-time: 1200
+cmd: testDict
+args: -l 1 -n FailAddFragment
+
+# EOF 2008-05-29
+# 2008-05-30
+max-time: 1200
+cmd: testDict
+args: -l 1 -n FailCreateHashmap T1
+
+# EOF 2008-05-30
+# 2008-06-03
+max-time: 1200
+cmd: testNdbApi
+args: -l 100 -n Bug37158
+
+# EOF 2008-06-03
+# 2008-06-05
+max-time: 1200
+cmd: testDict
+args: -n FailAddPartition T1 I3
+
+# EOF 2008-06-05
+# Test data buffering for TCKEYREQ
+max-time: 500
+cmd: testLimits
+args: -n ExhaustSegmentedSectionPk WIDE_2COL
+
+# Test data buffering for TCINDXREQ
+max-time: 500
+cmd: testLimits
+args: -n ExhaustSegmentedSectionIx WIDE_2COL_IX
+
+# Run some tests on max size / max num cols tables
+max-time: 500
+cmd: testBasic
+args: -n PkRead WIDE_MAXKEY_HUGO WIDE_MAXATTR_HUGO WIDE_MAXKEYMAXCOLS_HUGO WIDE_MINKEYMAXCOLS_HUGO
+
+max-time: 500
+cmd: testBasic
+args: -n PkUpdate WIDE_MAXKEY_HUGO WIDE_MAXATTR_HUGO WIDE_MAXKEYMAXCOLS_HUGO WIDE_MINKEYMAXCOLS_HUGO
+
+# EOF 2008-06-30
+max-time: 500
+cmd: test_event
+args: -n bug37672 T1
+
+#EOF 2008-07-04
+max-time: 500
+cmd: testScanFilter
+args: T1
+
+#EOF 2008-07-09
+max-time: 600
+cmd: test_event
+args: -r 5000 -n Bug30780 T1
+
+#EOF 2008-08-11
+# Test data buffering for SCANTABREQ
+max-time: 500
+cmd: testLimits
+args: -n ExhaustSegmentedSectionScan WIDE_2COL
+
+#EOF 2008-08-20
+max-time: 1200
+cmd: testNodeRestart
+args: -n Bug41295 T1
+
+max-time: 1200
+cmd: testNodeRestart
+args: -n Bug42422 -l 1 T1
+
+max-time: 500
+cmd: testLimits
+args: -n DropSignalFragments T1
+
+max-time: 300
+cmd: testMgm
+args:
+
+max-time: 300
+cmd: testScan
+args: -n Bug42545 -l 1 T1
+
+max-time: 600
+cmd: testNodeRestart
+args: -n -l 3 -n Bug43224 T1
+
+max-time: 1200
+cmd: testNodeRestart
+args: -n Bug43888 T1
+
+max-time: 600
+cmd: testNodeRestart
+args: -n Bug48474 T1
+
+max-time: 1200
+cmd: testNdbApi
+args: -n Bug44015 T1
+
+max-time: 1200
+cmd: test_event
+args: -n Bug44915 T1
+
+max-time: 1200
+cmd: test_event
+args: -n Bug56579 T1
+
+max-time: 1200
+cmd: test_event
+args: -n Bug57886 T1
+
+max-time: 3600
+cmd: testNodeRestart
+args: -n Bug44952 T1
+
+max-time: 600
+cmd: testNodeRestart
+args: -n Bug56044 T1
+
+max-time: 600
+cmd: testNodeRestart
+args: -n Bug57767 T2
+
+max-time: 300
+cmd: testSystemRestart
+args: -n Bug45154 D1
+
+max-time: 300
+cmd: testDict
+args: -n Bug36702 D1
+
+max-time: 300
+cmd: testDict
+args: -n Bug46552 T1
+
+max-time: 900
+cmd: testDict
+args: -n Bug46585 T1 I3 D1
+
+max-time: 300
+cmd: testSystemRestart
+args: -n Bug46651 T1
+
+max-time: 300
+cmd: testSystemRestart
+args: -n Bug46412 T1
+
+# Test clean ApiFailReq behaviour
+max-time: 300
+cmd: testNdbApi
+args: -n ApiFailReqBehaviour T1
+
+max-time: 300
+cmd: testNdbApi
+args: -n ReadColumnDuplicates
+
+max-time: 300
+cmd: testNdbApi
+args: -n Bug51775 T1
+
+max-time: 300
+cmd: testBasic
+args: -n DDInsertFailUpdateBatch
+
+max-time: 300
+cmd: testBlobs
+args: -skip hp -bug 28116
+
+max-time: 300
+cmd: testNdbApi
+args: -n FragmentedApiFailure T1
+
+# Series of short (signal train) request generation/handling tests
+# Start
+max-time: 500
+cmd: testBasic
+args: --forceshortreqs -n PkUpdate
+
+max-time: 300
+cmd: testIndex
+args: --forceshortreqs -n InsertDelete T2
+
+max-time: 2500
+cmd: testPartitioning
+args: --forceshortreqs
+
+# End of short (signal train) handling tests
+max-time: 300
+cmd: testIndex
+args: -n ConstraintDetails
+
+max-time: 900
+cmd: testNdbinfo
+args:
+
+# Unlock row tests as of 22/01/10
+max-time: 300
+cmd: testNdbApi
+args: -n UnlockBasic T1
+
+max-time: 300
+cmd: testNdbApi
+args: -n UnlockRepeat T2
+
+max-time: 300
+cmd: testNdbApi
+args: -n UnlockMulti T3
+
+max-time: 300
+cmd: testNdbApi
+args: -n UnlockScan T1
+
+max-time: 300
+cmd: testBasic
+args: -n UnlockBatch T6
+
+max-time: 300
+cmd: testBasic
+args: -n DoubleUnlock T1
+
+max-time: 300
+cmd: testBasic
+args: -n UnlockUpdateBatch T3
+
+max-time: 300
+cmd: testNodeRestart
+args: -n MixReadUnlockRestart T1
+
+max-time: 500
+cmd: testNativeDefault
+args: 
+
+max-time: 500
+cmd: testDict
+args: -n Bug53944 T1
+
+max-time: 300
+cmd: testIndex
+args: -n Bug56829 T1
+
+max-time: 300
+cmd: testIndex
+args: -n Bug12315582 T1
+
+max-time: 300
+cmd: testIndex
+args: -n Bug60851 T1
+
+max-time: 500
+cmd: testNodeRestart
+args: -n ForceStopAndRestart T1
+
+max-time: 300
+cmd: testDict
+args: -n Bug58277 T1
+
+max-time: 300
+cmd: testDict
+args: -n Bug57057 T1
+
+max-time: 600
+cmd: testNodeRestart
+args: -n ClusterSplitLatency T1
+
+# Refresh tuple
+max-time: 300
+cmd: testBasic
+args: -n RefreshTuple T6 D1
+
+max-time: 300
+cmd: testIndex
+args: -n RefreshWithOrderedIndex T2 D2
+
+max-time: 300
+cmd: testBasic
+args: -n RefreshLocking D1
+
+max-time: 300
+cmd: testIndexStat
+args:
+
+max-time: 300
+cmd: testBlobs
+args: -bug 62321 -skip p
+
 

@@ -1,0 +1,691 @@
+#############################################################
+# Author: Martin
+# Date: 2007-07
+# Purpose: basic online alter test
+##############################################################
+# Change Author: Jonathan
+# Date 2006-08-28
+# Purpose: Add more testing for online alter
+##############################################################
+--source include/ndb_have_online_alter.inc
+--source include/have_multi_ndb.inc
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+# Create utiltity table used to hold the output from ndb_show_table
+CREATE TEMPORARY TABLE IF NOT EXISTS ndb_show_tables_results (
+  id INT,
+  type VARCHAR(20),
+  state VARCHAR(20),
+  logging VARCHAR(20),
+  _database VARCHAR(255),
+  _schema VARCHAR(20),
+  name VARCHAR(255)
+);
+
+######################################
+# basic online alter tests
+######################################
+--echo *******************************
+--echo * basic online alter tests
+--echo *******************************
+
+CREATE TABLE t1 (a INT UNSIGNED KEY, b INT UNSIGNED) ROW_FORMAT=DYNAMIC ENGINE NDB;
+INSERT INTO t1 values (1,1);
+
+--source ndb_show_tables_result.inc
+set @t1_id = (select id from ndb_show_tables_results where name like '%t1%' and type like '%UserTable%');
+
+--echo *******************************
+--echo * Alter Table online add column
+--echo *******************************
+--echo * Add column c as CHAR
+--echo *******************************
+
+ALTER TABLE t1 ADD c CHAR(19);
+
+--source ndb_show_tables_result.inc
+select name from ndb_show_tables_results where id = @t1_id and name like '%t1%' and type like '%UserTable%';
+
+INSERT INTO t1 values (2,1,"a");
+SELECT * FROM t1 ORDER BY a;
+UPDATE t1 SET c='b' where a = 2;
+SELECT * FROM t1 ORDER BY a;
+DROP TABLE t1;
+
+--echo *******************************
+--echo * Alter Table online add column
+--echo *******************************
+--echo * Add column c as nullable INT
+--echo *******************************
+
+CREATE TABLE t1 (a INT UNSIGNED KEY, b VARCHAR(19)) ENGINE NDB;
+INSERT INTO t1 values (1,"a");
+
+--source ndb_show_tables_result.inc
+set @t1_id = (select id from ndb_show_tables_results where name like '%t1%' and type like '%UserTable%');
+
+ALTER TABLE t1 ADD c INT;
+
+--source ndb_show_tables_result.inc
+select name from ndb_show_tables_results where id = @t1_id and name like '%t1%' and type like '%UserTable%';
+
+INSERT INTO t1 values (2,"a",1);
+SELECT * FROM t1 ORDER BY a;
+UPDATE t1 SET c = 2 where a = 2;
+SELECT * FROM t1 ORDER BY a;
+DROP TABLE t1;
+
+--echo *******************************
+--echo * Alter Table online add column
+--echo *******************************
+--echo * Add column c as nullable INT
+--echo *******************************
+
+CREATE TABLE t1 (a INT UNSIGNED KEY, b INT COLUMN_FORMAT DYNAMIC) ENGINE NDB;
+INSERT INTO t1 values (1,1);
+
+--source ndb_show_tables_result.inc
+set @t1_id = (select id from ndb_show_tables_results where name like '%t1%' and type like '%UserTable%');
+
+ALTER TABLE t1 ADD c INT;
+
+--source ndb_show_tables_result.inc
+select name from ndb_show_tables_results where id = @t1_id and name like '%t1%' and type like '%UserTable%';
+
+INSERT INTO t1 values (2,1,1);
+SELECT * FROM t1 ORDER BY a;
+UPDATE t1 SET c = 2 where a = 2;
+SELECT * FROM t1 ORDER BY a;
+
+--echo *******************************
+--echo * Create online Index ci
+--echo *******************************
+
+CREATE ONLINE INDEX ci on t1(c);
+
+--source ndb_show_tables_result.inc
+select name from ndb_show_tables_results where id = @t1_id and name like '%t1%' and type like '%UserTable%';
+
+--echo *******************************
+--echo * Create offline Index ci2
+--echo *******************************
+ 
+CREATE OFFLINE INDEX ci2 on t1(c);
+
+--source ndb_show_tables_result.inc
+select name from ndb_show_tables_results where id = @t1_id and name like '%t1%' and type like '%UserTable%';
+set @t1_id = (select id from ndb_show_tables_results where name like '%t1%' and type like '%UserTable%');
+
+--echo *******************************
+--echo * Drop online Index ci
+--echo *******************************
+ 
+DROP ONLINE INDEX ci on t1;
+
+--source ndb_show_tables_result.inc
+select name from ndb_show_tables_results where id = @t1_id and name like '%t1%' and type like '%UserTable%';
+
+--echo *******************************
+--echo * Drop offline Index ci2
+--echo *******************************
+
+DROP OFFLINE INDEX ci2 on t1;
+
+--source ndb_show_tables_result.inc
+select name from ndb_show_tables_results where id = @t1_id and name like '%t1%' and type like '%UserTable%';
+
+DROP TABLE t1;
+
+--echo *******************************
+--echo * The following ALTER operations are not supported on-line
+--echo *******************************
+--echo * Not supported Test#1
+--echo *******************************
+
+CREATE TABLE t1 (a INT UNSIGNED KEY, b INT UNSIGNED) ROW_FORMAT=FIXED ENGINE NDB;
+INSERT INTO t1 values (1,1);
+
+--source ndb_show_tables_result.inc
+set @t1_id = (select id from ndb_show_tables_results where name like '%t1%' and type like '%UserTable%');
+
+--error ER_NOT_SUPPORTED_YET
+ALTER ONLINE TABLE t1 ADD c CHAR(19);
+--source ndb_show_tables_result.inc
+select name from ndb_show_tables_results where id = @t1_id and name like '%t1%' and type like '%UserTable%';
+
+ALTER TABLE t1 ADD c CHAR(19);
+
+INSERT INTO t1 values (2,1,"a");
+SELECT * FROM t1 ORDER BY a;
+UPDATE t1 SET c = 'b' where a = 2;
+SELECT * FROM t1 ORDER BY a;
+DROP TABLE t1;
+
+--echo *******************************
+--echo * Not supported Test#2
+--echo *******************************
+
+CREATE TABLE t1 (a INT UNSIGNED KEY, b INT UNSIGNED) ROW_FORMAT=DYNAMIC ENGINE NDB;
+INSERT INTO t1 values (1,1);
+
+--source ndb_show_tables_result.inc
+set @t1_id = (select id from ndb_show_tables_results where name like '%t1%' and type like '%UserTable%');
+
+--error ER_NOT_SUPPORTED_YET
+ALTER ONLINE TABLE t1 ADD c CHAR(19) DEFAULT 17;
+--source ndb_show_tables_result.inc
+select name from ndb_show_tables_results where id = @t1_id and name like '%t1%' and type like '%UserTable%';
+
+ALTER TABLE t1 ADD c CHAR(19) DEFAULT 17;
+
+INSERT INTO t1 values (2,1,"a");
+SELECT * FROM t1 ORDER BY a;
+UPDATE t1 SET c = 'b' where a = 2;
+SELECT * FROM t1 ORDER BY a;
+--echo *******************************
+--echo * Not supported Test#3
+--echo *******************************
+
+--source ndb_show_tables_result.inc
+set @t1_id = (select id from ndb_show_tables_results where name like '%t1%' and type like '%UserTable%');
+
+--error ER_NOT_SUPPORTED_YET
+ALTER ONLINE TABLE t1 ADD d INT AFTER b;
+--source ndb_show_tables_result.inc
+select name from ndb_show_tables_results where id = @t1_id and name like '%t1%' and type like '%UserTable%';
+
+ALTER TABLE t1 ADD d INT AFTER b;
+--source ndb_show_tables_result.inc
+select name from ndb_show_tables_results where id = @t1_id and name like '%t1%' and type like '%UserTable%';
+
+INSERT INTO t1 VALUES(3,1,1,'b');
+SELECT * FROM t1 ORDER BY a;
+UPDATE t1 SET d = 2 where a = 3;
+SELECT * FROM t1 ORDER BY a;
+
+--echo *******************************
+--echo * Not supported Test#4
+--echo *******************************
+
+--source ndb_show_tables_result.inc
+set @t1_id = (select id from ndb_show_tables_results where name like '%t1%' and type like '%UserTable%');
+
+--error ER_NOT_SUPPORTED_YET
+ALTER ONLINE TABLE t1 ENGINE MYISAM;
+--source ndb_show_tables_result.inc
+select name from ndb_show_tables_results where id = @t1_id and name like '%t1%' and type like '%UserTable%';
+
+DROP TABLE t1;
+
+--echo *******************************
+--echo * Not supported Test#5
+--echo *******************************
+
+CREATE TABLE t1 (a INT UNSIGNED KEY, b INT UNSIGNED) ROW_FORMAT=DYNAMIC ENGINE NDB;
+INSERT INTO t1 values (1,1);
+
+--source ndb_show_tables_result.inc
+set @t1_id = (select id from ndb_show_tables_results where name like '%t1%' and type like '%UserTable%');
+
+--error ER_NOT_SUPPORTED_YET
+ALTER ONLINE TABLE t1 ADD c TIMESTAMP;
+--source ndb_show_tables_result.inc
+select name from ndb_show_tables_results where id = @t1_id and name like '%t1%' and type like '%UserTable%';
+
+ALTER TABLE t1 ADD c TIMESTAMP;
+
+INSERT INTO t1 values (2,2,'2007-09-19 18:46:02');
+SELECT * FROM t1 ORDER BY a;
+UPDATE t1 SET c = '2007-10-22 16:35:06' where a = 2;
+SELECT * FROM t1 ORDER BY a;
+DROP TABLE t1;
+
+--echo *******************************
+--echo * Not supported Test#6
+--echo *******************************
+
+CREATE TABLE t1 (a INT UNSIGNED KEY, b INT UNSIGNED) ROW_FORMAT=DYNAMIC ENGINE NDB;
+INSERT INTO t1 values (1,1);
+
+--source ndb_show_tables_result.inc
+set @t1_id = (select id from ndb_show_tables_results where name like '%t1%' and type like '%UserTable%');
+
+--error ER_NOT_SUPPORTED_YET
+ALTER ONLINE TABLE t1 ADD c CHAR(19) NOT NULL;
+--source ndb_show_tables_result.inc
+select name from ndb_show_tables_results where id = @t1_id and name like '%t1%' and type like '%UserTable%';
+
+ALTER TABLE t1 ADD c CHAR(19) NOT NULL;
+
+INSERT INTO t1 values (2,1,"a");
+SELECT * FROM t1 ORDER BY a;
+UPDATE t1 SET c = 'b' where a = 2;
+SELECT * FROM t1 ORDER BY a;
+DROP TABLE t1;
+
+--echo *******************************
+--echo * Not supported Test#7
+--echo *******************************
+
+CREATE TABLE t1 (a INT UNSIGNED KEY, b INT UNSIGNED) ROW_FORMAT=DYNAMIC ENGINE NDB;
+INSERT INTO t1 values (1,1);
+
+--source ndb_show_tables_result.inc
+set @t1_id = (select id from ndb_show_tables_results where name like '%t1%' and type like '%UserTable%');
+
+--error ER_NOT_SUPPORTED_YET
+ALTER ONLINE TABLE t1 ADD c CHAR(19) COLUMN_FORMAT FIXED;
+--source ndb_show_tables_result.inc
+select name from ndb_show_tables_results where id = @t1_id and name like '%t1%' and type like '%UserTable%';
+
+ALTER TABLE t1 ADD c CHAR(19) COLUMN_FORMAT FIXED;
+
+INSERT INTO t1 values (2,1,"a");
+SELECT * FROM t1 ORDER BY a;
+UPDATE t1 SET c = 'b' WHERE a = 2;
+SELECT * FROM t1 ORDER BY a;
+DROP TABLE t1;
+
+--echo *******************************
+--echo * Not supported Test#8
+--echo * Ndb doesn't support renaming attributes on-line
+--echo *******************************
+
+CREATE TABLE t1 (
+  auto int(5) unsigned NOT NULL auto_increment,
+  string char(10),
+  vstring varchar(10),
+  bin binary(2),
+  vbin varbinary(7),
+  tiny tinyint(4) DEFAULT '0' NOT NULL ,
+  short smallint(6) DEFAULT '1' NOT NULL ,
+  medium mediumint(8) DEFAULT '0' NOT NULL,
+  long_int int(11) DEFAULT '0' NOT NULL,
+  longlong bigint(13) DEFAULT '0' NOT NULL,
+  real_float float(13,1) DEFAULT 0.0 NOT NULL,
+  real_double double(16,4),
+  real_decimal decimal(16,4),
+  utiny tinyint(3) unsigned DEFAULT '0' NOT NULL,
+  ushort smallint(5) unsigned zerofill DEFAULT '00000' NOT NULL,
+  umedium mediumint(8) unsigned DEFAULT '0' NOT NULL,
+  ulong int(11) unsigned DEFAULT '0' NOT NULL,
+  ulonglong bigint(13) unsigned DEFAULT '0' NOT NULL,
+  bits bit(3),
+  options enum('zero','one','two','three','four') not null,
+  flags set('zero','one','two','three','four') not null,
+  date_field date,
+  year_field year,
+  time_field time,
+  date_time datetime,
+  time_stamp timestamp,
+  PRIMARY KEY (auto)
+) engine=ndb;
+                                                                                                   
+--source ndb_show_tables_result.inc
+set @t1_id = (select id from ndb_show_tables_results where name like '%t1%' and type like '%UserTable%');
+
+--error ER_NOT_SUPPORTED_YET
+alter online table t1 change tiny new_tiny tinyint(4) DEFAULT '0' NOT NULL;
+--source ndb_show_tables_result.inc
+select name from ndb_show_tables_results where id = @t1_id and name like '%t1%' and type like '%UserTable%';
+
+alter table t1 change tiny new_tiny tinyint(4) DEFAULT '0' NOT NULL;
+
+create index i1 on t1(medium);
+alter table t1 add index i2(new_tiny);
+drop index i1 on t1;
+
+--source ndb_show_tables_result.inc
+select name from ndb_show_tables_results where id = @t1_id and name like '%t1%' and type like '%UserTable%';
+
+DROP TABLE t1;
+
+#####################################
+# Adding dropping primary key
+######################################
+# Bug:31233
+######################################
+--echo ****************************************
+--echo * Adding dropping primary key
+--echo ****************************************
+CREATE TABLE t1 (a INT UNSIGNED NOT NULL) ENGINE NDB;
+--source show_primary_keys.inc
+--error ER_NOT_SUPPORTED_YET
+ALTER ONLINE TABLE t1 ADD PRIMARY KEY (a);
+ALTER OFFLINE TABLE t1 ADD PRIMARY KEY (a);
+--source show_primary_keys.inc
+--error ER_NOT_SUPPORTED_YET
+ALTER ONLINE TABLE t1 DROP PRIMARY KEY;
+ALTER OFFLINE TABLE t1 DROP PRIMARY KEY;
+--source show_primary_keys.inc
+--error ER_NOT_SUPPORTED_YET
+CREATE ONLINE UNIQUE INDEX pk ON t1(a);
+CREATE OFFLINE UNIQUE INDEX pk ON t1(a);
+--source show_primary_keys.inc
+--error ER_NOT_SUPPORTED_YET
+ALTER ONLINE TABLE t1 DROP INDEX PK;
+ALTER OFFLINE TABLE t1 DROP INDEX PK;
+--source show_primary_keys.inc
+DROP TABLE t1;
+
+CREATE TABLE t1 (a INT UNSIGNED) ENGINE NDB;
+--error ER_NOT_SUPPORTED_YET
+ALTER ONLINE TABLE t1 ADD b INT UNIQUE;
+ALTER OFFLINE TABLE t1 ADD b INT UNIQUE;
+--source show_primary_keys.inc
+--error ER_NOT_SUPPORTED_YET
+ALTER ONLINE TABLE t1 ADD c INT NOT NULL UNIQUE;
+ALTER OFFLINE TABLE t1 ADD c INT NOT NULL UNIQUE;
+--source show_primary_keys.inc
+DROP TABLE t1;
+
+######################################
+# Alter dynmaic table, add TEXT column
+######################################
+# Bug:30205
+######################################
+--echo ****************************************
+--echo * Add column c as nullable TEXT and BLOB
+--echo ****************************************
+CREATE TABLE t1 (a INT UNSIGNED  AUTO_INCREMENT KEY, b INT DEFAULT 2 COLUMN_FORMAT DYNAMIC) ENGINE NDB;
+--source ndb_show_tables_result.inc
+set @t1_id = (select id from ndb_show_tables_results where name like '%t1%' and type like '%UserTable%');
+
+let $v=5;
+disable_query_log;
+while ($v)
+{
+  INSERT INTO t1 VALUES(NULL, DEFAULT); 
+  dec $v;
+}
+enable_query_log;
+--error ER_NOT_SUPPORTED_YET
+ALTER ONLINE TABLE t1 ADD c TEXT;
+--source ndb_show_tables_result.inc
+select name from ndb_show_tables_results where id = @t1_id and name like '%t1%' and type like '%UserTable%';
+
+--error ER_NOT_SUPPORTED_YET
+ALTER ONLINE TABLE t1 ADD d BLOB;
+--source ndb_show_tables_result.inc
+select name from ndb_show_tables_results where id = @t1_id and name like '%t1%' and type like '%UserTable%';
+
+DROP TABLE t1;
+
+######################################
+# Alter dynmaic table, add column
+######################################
+
+CREATE TABLE t1 (a INT UNSIGNED AUTO_INCREMENT KEY, b INT COLUMN_FORMAT DYNAMIC) ENGINE NDB;
+
+let $v=5;
+disable_query_log;
+while ($v)
+{
+  --eval INSERT INTO t1 VALUES(NULL, $v); 
+  dec $v;
+}
+enable_query_log;
+
+--source ndb_show_tables_result.inc
+set @t1_id = (select id from ndb_show_tables_results where name like '%t1%' and type like '%UserTable%');
+
+--echo *******************************
+--echo * Add column c as nullable FLOAT
+--echo *******************************
+ALTER ONLINE TABLE t1 ADD c FLOAT;
+
+let $v=5;
+disable_query_log;
+while ($v)
+{
+  --eval INSERT INTO t1 VALUES(NULL, $v, -3.402823466E+38); 
+  dec $v;
+}
+enable_query_log;
+
+--echo *******************************
+--echo * Add column d as nullable DOUBLE
+--echo *******************************
+ALTER ONLINE TABLE t1 ADD d DOUBLE UNSIGNED;
+
+let $v=5;
+disable_query_log;
+while ($v)
+{
+  --eval INSERT INTO t1 VALUES(NULL, $v, -3.402823466E+38, 1.7976931348623E+308); 
+  dec $v;
+}
+enable_query_log;
+
+--echo *******************************
+--echo * Add column e as nullable DECIMAL
+--echo *******************************
+ALTER ONLINE TABLE t1 ADD e DECIMAL(5,2);
+
+let $v=5;
+disable_query_log;
+while ($v)
+{
+  --eval INSERT INTO t1 VALUES(NULL, $v, -3.402823466E+38, 1.7976931348623E+308, 345.21); 
+  dec $v;
+}
+enable_query_log;
+
+--echo *******************************
+--echo * Add column f as nullable DATETIME
+--echo *******************************
+ALTER ONLINE TABLE t1 ADD f DATETIME;
+
+let $v=5;
+disable_query_log;
+while ($v)
+{
+  --eval INSERT INTO t1 VALUES(NULL, $v, -3.402823466E+38, 1.7976931348623E+308, 345.21, '1000-01-01 00:00:00'); 
+  dec $v;
+}
+enable_query_log;
+
+--echo *******************************
+--echo * Add column g as nullable BINARY
+--echo *******************************
+ALTER TABLE t1 ADD g BINARY(4);
+
+let $v=5;
+disable_query_log;
+while ($v)
+{
+  --eval INSERT INTO t1 VALUES(NULL, $v, -3.402823466E+38, 1.7976931348623E+308, 345.21, '1000-01-01 00:00:00', '0101');
+  dec $v;
+}
+enable_query_log;
+
+
+--source ndb_show_tables_result.inc
+select name from ndb_show_tables_results where id = @t1_id and name like '%t1%' and type like '%UserTable%';
+
+SELECT COUNT(*) FROM t1 WHERE c IS NULL;
+SELECT COUNT(*) FROM t1 WHERE d IS NULL;
+SELECT COUNT(*) FROM t1 WHERE e IS NULL;
+SELECT COUNT(*) FROM t1 WHERE f IS NULL;
+SELECT COUNT(*) FROM t1 WHERE g IS NULL;
+
+UPDATE t1 SET c = 3.402823466E+38, d = 1.2686868689898E+308, e = 666.66, f = '2007-10-23 23:23:23', g = '1111' WHERE a = 1;
+SELECT * FROM t1 WHERE a = 1 or a = 10 or a = 20 or a = 30 ORDER BY a;
+
+##############################
+# Backup and restore section #
+##############################
+--echo *********************************
+--echo * Backup and restore tables w/ new column
+--echo *********************************
+
+--source include/ndb_backup.inc
+
+DROP TABLE t1;
+
+--exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 1 -m -r --print --print_meta $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 2 -r --print --print_meta $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+
+source show_varpart.inc;
+
+DROP TABLE t1;
+
+###################################
+# Disk Data Error testing section #
+###################################
+--echo *********************************
+--echo * Disk Data error testing
+--echo *********************************
+
+set default_storage_engine=ndb;
+
+CREATE LOGFILE GROUP lg1
+ADD UNDOFILE 'undofile.dat'
+INITIAL_SIZE 16M
+UNDO_BUFFER_SIZE = 1M;
+
+CREATE TABLESPACE ts1
+ADD DATAFILE 'datafile.dat'
+USE LOGFILE GROUP lg1
+INITIAL_SIZE 12M
+ENGINE NDB;
+
+CREATE TABLE t1
+(pk1 INT NOT NULL PRIMARY KEY, b INT COLUMN_FORMAT DYNAMIC)
+TABLESPACE ts1 STORAGE DISK
+ENGINE=NDB;
+
+--error ER_NOT_SUPPORTED_YET
+ALTER ONLINE TABLE t1 CHANGE b b_1 INT COLUMN_FORMAT DYNAMIC;
+--error ER_NOT_SUPPORTED_YET
+ALTER ONLINE TABLE t1 ADD COLUMN c INT COLUMN_FORMAT DYNAMIC;
+--error ER_NOT_SUPPORTED_YET
+ALTER ONLINE TABLE t1 ADD COLUMN d FLOAT COLUMN_FORMAT DYNAMIC;
+--error ER_NOT_SUPPORTED_YET
+ALTER ONLINE TABLE t1 ADD COLUMN  e DOUBLE COLUMN_FORMAT DYNAMIC;
+--error ER_NOT_SUPPORTED_YET
+ALTER ONLINE TABLE t1 ADD COLUMN f DATETIME COLUMN_FORMAT DYNAMIC;
+--error ER_NOT_SUPPORTED_YET
+ALTER ONLINE TABLE t1 ADD COLUMN g DECIMAL(5,2) COLUMN_FORMAT DYNAMIC;
+--error ER_NOT_SUPPORTED_YET
+ALTER ONLINE TABLE t1 ADD COLUMN h CHAR(20) COLUMN_FORMAT DYNAMIC;
+--error ER_NOT_SUPPORTED_YET
+ALTER ONLINE TABLE t1 ADD COLUMN h VARCHAR(20) COLUMN_FORMAT DYNAMIC;
+--error ER_NOT_SUPPORTED_YET
+ALTER ONLINE TABLE t1 ADD COLUMN h BINARY(20) COLUMN_FORMAT DYNAMIC;
+--error ER_NOT_SUPPORTED_YET
+ALTER ONLINE TABLE t1 ADD COLUMN h VARBINARY(20) COLUMN_FORMAT DYNAMIC;
+DROP TABLE t1;
+
+#
+# bug#42549
+#
+create table t1 (a int primary key, b int) storage disk tablespace ts1 engine = ndb;
+--error ER_NOT_SUPPORTED_YET
+alter online table t1 add column c0 int null column_format DYNAMIC;
+alter online table t1 add column c1 int null column_format DYNAMIC storage memory;
+drop table t1;
+
+create table t1 (a int primary key, b int storage disk) tablespace ts1 engine = ndb;
+alter online table t1 add column c0 int null column_format DYNAMIC;
+alter online table t1 add column c1 int null column_format DYNAMIC storage memory;
+drop table t1;
+
+ALTER TABLESPACE ts1
+DROP DATAFILE 'datafile.dat'
+ENGINE = NDB;
+
+DROP TABLESPACE ts1
+ENGINE = NDB;
+
+DROP LOGFILE GROUP lg1
+ENGINE =NDB; 
+
+##############################
+# ROW_FORMAT testing section #
+##############################
+--echo ********************
+--echo * ROW_FORMAT testing
+--echo ********************
+
+# Bug:30276, should issue a warning 
+
+CREATE TABLE t1
+(pk1 INT NOT NULL PRIMARY KEY, b INT COLUMN_FORMAT DYNAMIC)ROW_FORMAT=FIXED
+ENGINE=NDB;
+
+source show_attributes.inc;
+
+DROP TABLE t1;
+
+CREATE TABLE t1
+(pk1 INT NOT NULL COLUMN_FORMAT FIXED PRIMARY KEY, 
+b INT COLUMN_FORMAT FIXED)ROW_FORMAT=DYNAMIC ENGINE=NDB;
+
+source show_attributes.inc;
+
+DROP TABLE t1;
+
+--echo ********************
+--echo * bug#44695 ALTER TABLE during START BACKUP crashes mysqld     
+--echo ********************
+# Testing failure of online alter during ongoing backup
+
+CREATE TABLE t1(k INT NOT NULL PRIMARY KEY AUTO_INCREMENT) ROW_FORMAT=DYNAMIC ENGINE=NDB;
+# create some data to slow down backup
+INSERT INTO t1 VALUES (NULL);
+INSERT INTO t1 SELECT NULL FROM t1;
+INSERT INTO t1 SELECT NULL FROM t1;
+INSERT INTO t1 SELECT NULL FROM t1;
+INSERT INTO t1 SELECT NULL FROM t1;
+INSERT INTO t1 SELECT NULL FROM t1;
+INSERT INTO t1 SELECT NULL FROM t1;
+INSERT INTO t1 SELECT NULL FROM t1;
+INSERT INTO t1 SELECT NULL FROM t1;
+INSERT INTO t1 SELECT NULL FROM t1;
+INSERT INTO t1 SELECT NULL FROM t1;
+INSERT INTO t1 SELECT NULL FROM t1;
+INSERT INTO t1 SELECT NULL FROM t1;
+INSERT INTO t1 SELECT NULL FROM t1;
+INSERT INTO t1 SELECT NULL FROM t1;
+SELECT COUNT(*) FROM t1;
+--exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "start backup nowait" >> $NDB_TOOLS_OUTPUT
+--disable_warnings
+--error 0,762,1296
+ALTER ONLINE TABLE t1 ADD b INT;
+# waut for backup to complete
+--sleep 10
+
+--enable_warnings
+
+DROP TABLE t1, ndb_show_tables_results;
+
+#
+# test alter of table with many attributes
+#
+let $i=499;
+let $separator=;
+let $sql=create table t1 (;
+while ($i)
+{
+  let $sql=$sql$separator c$i int;
+  let $separator=,;
+  dec $i;
+}
+let $sql=$sql, c501 varchar(10000);
+let $sql=$sql, primary key using hash(c1)) engine=ndb;
+eval $sql; # eval the sql and create the table
+
+insert into t1 (c1) values (1), (2), (3);
+alter offline table t1 modify c1 int auto_increment;
+alter online table t1 add column c500 bit(1) column_format DYNAMIC;
+--error ER_TOO_BIG_ROWSIZE
+alter offline table t1 add column c502 varchar(2000);
+--error ER_TOO_BIG_ROWSIZE
+alter online table t1 add column c502 varchar(2000);
+delete from t1;
+drop table t1;
+

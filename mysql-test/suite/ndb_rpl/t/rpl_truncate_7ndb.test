@@ -1,0 +1,66 @@
+
+--source include/have_ndb.inc
+--source suite/ndb_rpl/ndb_master-slave.inc
+--source include/have_binlog_format_mixed_or_row.inc
+
+--disable_query_log
+--disable_warnings
+connection slave;
+STOP SLAVE;
+connection master;
+DROP TABLE IF EXISTS t1;
+RESET MASTER;
+connection slave;
+DROP TABLE IF EXISTS t1;
+RESET SLAVE;
+START SLAVE;
+--enable_warnings
+--enable_query_log
+
+--echo **** On Master ****
+connection master;
+CREATE TABLE t1 (a INT PRIMARY KEY, b LONG) ENGINE=NDB;
+INSERT INTO t1 VALUES (1,1), (2,2);
+SELECT * FROM t1 ORDER BY a,b;
+--echo **** On Slave ****
+# This is silly, but NDB doesn't add to the binlog fast enough
+--real_sleep 10
+sync_slave_with_master;
+INSERT INTO t1 VALUE (3,3);
+SELECT * FROM t1 ORDER BY a,b;
+--echo **** On Master ****
+connection master;
+TRUNCATE TABLE t1;
+SELECT * FROM t1 ORDER BY a,b;
+--echo **** On Slave ****
+sync_slave_with_master;
+# Should be empty
+SELECT * FROM t1 ORDER BY a,b;
+--echo **** On Master ****
+connection master;
+DROP TABLE t1;
+source include/show_binlog_events.inc;
+
+--echo **** On Master ****
+connection master;
+CREATE TABLE t1 (a INT PRIMARY KEY, b LONG) ENGINE=NDB;
+INSERT INTO t1 VALUES (1,1), (2,2);
+SELECT * FROM t1 ORDER BY a,b;
+--echo **** On Slave ****
+sync_slave_with_master;
+INSERT INTO t1 VALUE (3,3);
+SELECT * FROM t1 ORDER BY a,b;
+--echo **** On Master ****
+connection master;
+DELETE FROM t1;
+SELECT * FROM t1 ORDER BY a,b;
+--echo **** On Slave ****
+sync_slave_with_master;
+# Should be empty
+SELECT * FROM t1 ORDER BY a,b;
+--echo **** On Master ****
+connection master;
+DROP TABLE t1;
+source include/show_binlog_events.inc;
+
+--source include/rpl_end.inc

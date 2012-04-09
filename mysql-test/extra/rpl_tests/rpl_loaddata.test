@@ -100,7 +100,9 @@ connection slave;
 
 # CHANGE MASTER and see if error is cleared in SHOW SLAVE STATUS.
 --source include/stop_slave_io.inc
+--replace_column 2 ####
 change master to master_user='test';
+--replace_column 2 ####
 change master to master_user='root';
 --source include/check_slave_no_error.inc
 
@@ -158,7 +160,7 @@ if (`SELECT @@global.binlog_format != 'ROW'`)
 {
   # Query causes error on master but not on slave. This causes the slave to
   # stop with error code 0 (which is wrong: see BUG#57287)
-  --let $slave_sql_errno= 0,1742
+  --let $slave_sql_errno= 0,1754
   --source include/wait_for_slave_sql_error.inc
   drop table t1, t2;
 }

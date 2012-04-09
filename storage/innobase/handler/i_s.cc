@@ -2608,7 +2608,7 @@ i_s_fts_deleted_generic_fill(
 	deleted = fts_doc_ids_create();
 
 	user_table = dict_table_open_on_name_no_stats(
-			fts_internal_tbl_name, FALSE, DICT_ERR_IGNORE_NONE);
+		fts_internal_tbl_name, FALSE, FALSE, DICT_ERR_IGNORE_NONE);
 
 	if (!user_table) {
 		DBUG_RETURN(0);
@@ -2639,7 +2639,7 @@ i_s_fts_deleted_generic_fill(
 
 	fts_doc_ids_free(deleted);
 
-	dict_table_close(user_table, FALSE);
+	dict_table_close(user_table, FALSE, FALSE);
 
 	DBUG_RETURN(0);
 }
@@ -2848,7 +2848,7 @@ i_s_fts_inserted_fill(
 	}
 
 	user_table = dict_table_open_on_name_no_stats(
-			fts_internal_tbl_name, FALSE, DICT_ERR_IGNORE_NONE);
+		fts_internal_tbl_name, FALSE, FALSE, DICT_ERR_IGNORE_NONE);
 
 	if (!user_table) {
 		DBUG_RETURN(0);
@@ -2879,7 +2879,7 @@ i_s_fts_inserted_fill(
 
 	fts_doc_ids_free(inserted);
 
-	dict_table_close(user_table, FALSE);
+	dict_table_close(user_table, FALSE, FALSE);
 
 	DBUG_RETURN(0);
 }
@@ -3127,7 +3127,7 @@ i_s_fts_index_cache_fill(
 	}
 
 	user_table = dict_table_open_on_name_no_stats(
-			fts_internal_tbl_name, FALSE, DICT_ERR_IGNORE_NONE);
+		fts_internal_tbl_name, FALSE, FALSE, DICT_ERR_IGNORE_NONE);
 
 	if (!user_table) {
 		DBUG_RETURN(0);
@@ -3146,7 +3146,7 @@ i_s_fts_index_cache_fill(
 		i_s_fts_index_cache_fill_one_index(index_cache, thd, tables);
 	}
 
-	dict_table_close(user_table, FALSE);
+	dict_table_close(user_table, FALSE, FALSE);
 
 	DBUG_RETURN(0);
 }
@@ -3328,6 +3328,7 @@ i_s_fts_index_table_fill_one_index(
 	ulint			num_row_fill;
 
 	DBUG_ENTER("i_s_fts_index_cache_fill_one_index");
+	DBUG_ASSERT(!dict_index_is_online_ddl(index));
 
 	heap = mem_heap_create(1024);
 
@@ -3437,7 +3438,7 @@ i_s_fts_index_table_fill(
 	}
 
 	user_table = dict_table_open_on_name_no_stats(
-			fts_internal_tbl_name, FALSE, DICT_ERR_IGNORE_NONE);
+		fts_internal_tbl_name, FALSE, FALSE, DICT_ERR_IGNORE_NONE);
 
 	if (!user_table) {
 		DBUG_RETURN(0);
@@ -3450,7 +3451,7 @@ i_s_fts_index_table_fill(
 		}
 	}
 
-	dict_table_close(user_table, FALSE);
+	dict_table_close(user_table, FALSE, FALSE);
 
 	DBUG_RETURN(0);
 }
@@ -3598,7 +3599,7 @@ i_s_fts_config_fill(
 	fields = table->field;
 
 	user_table = dict_table_open_on_name_no_stats(
-			fts_internal_tbl_name, FALSE, DICT_ERR_IGNORE_NONE);
+		fts_internal_tbl_name, FALSE, FALSE, DICT_ERR_IGNORE_NONE);
 
 	if (!user_table) {
 		DBUG_RETURN(0);
@@ -3612,6 +3613,7 @@ i_s_fts_config_fill(
 	if (!ib_vector_is_empty(user_table->fts->indexes)) {
 		index = (dict_index_t*) ib_vector_getp_const(
 				user_table->fts->indexes, 0);
+		DBUG_ASSERT(!dict_index_is_online_ddl(index));
 	}
 
 	while (fts_config_key[i]) {
@@ -3623,10 +3625,10 @@ i_s_fts_config_fill(
 
 		value.f_str = str;
 
-		if (strcmp(fts_config_key[i], FTS_TOTAL_WORD_COUNT) == 0
-		    && index) {
+		if (index
+		    && strcmp(fts_config_key[i], FTS_TOTAL_WORD_COUNT) == 0) {
 			key_name = fts_config_create_index_param_name(
-					fts_config_key[i], index);
+				fts_config_key[i], index);
 			allocated = TRUE;
 		} else {
 			key_name = (char*) fts_config_key[i];
@@ -3653,7 +3655,7 @@ i_s_fts_config_fill(
 
 	trx_free_for_background(trx);
 
-	dict_table_close(user_table, FALSE);
+	dict_table_close(user_table, FALSE, FALSE);
 
 	DBUG_RETURN(0);
 }
@@ -4657,7 +4659,7 @@ i_s_innodb_set_page_type(
 		/* Encountered an unknown page type */
 		page_info->page_type = I_S_PAGE_TYPE_UNKNOWN;
 	} else {
-		/* Make sure we get the righ index into the
+		/* Make sure we get the right index into the
 		i_s_page_type[] array */
 		ut_a(page_type == i_s_page_type[page_type].type_value);
 
@@ -5509,10 +5511,11 @@ i_s_common_deinit(
 	DBUG_RETURN(0);
 }
 
+/**  SYS_TABLES  ***************************************************/
 /* Fields of the dynamic table INFORMATION_SCHEMA.SYS_TABLES */
 static ST_FIELD_INFO	innodb_sys_tables_fields_info[] =
 {
-#define SYS_TABLE_ID		0
+#define SYS_TABLES_ID			0
 	{STRUCT_FLD(field_name,		"TABLE_ID"),
 	 STRUCT_FLD(field_length,	MY_INT64_NUM_DECIMAL_DIGITS),
 	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONGLONG),
@@ -5521,7 +5524,7 @@ static ST_FIELD_INFO	innodb_sys_tables_fields_info[] =
 	 STRUCT_FLD(old_name,		""),
 	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
 
-#define SYS_TABLE_NAME		1
+#define SYS_TABLES_NAME			1
 	{STRUCT_FLD(field_name,		"NAME"),
 	 STRUCT_FLD(field_length,	MAX_FULL_NAME_LEN + 1),
 	 STRUCT_FLD(field_type,		MYSQL_TYPE_STRING),
@@ -5530,7 +5533,7 @@ static ST_FIELD_INFO	innodb_sys_tables_fields_info[] =
 	 STRUCT_FLD(old_name,		""),
 	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
 
-#define SYS_TABLE_FLAG		2
+#define SYS_TABLES_FLAG			2
 	{STRUCT_FLD(field_name,		"FLAG"),
 	 STRUCT_FLD(field_length,	MY_INT32_NUM_DECIMAL_DIGITS),
 	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONG),
@@ -5539,7 +5542,7 @@ static ST_FIELD_INFO	innodb_sys_tables_fields_info[] =
 	 STRUCT_FLD(old_name,		""),
 	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
 
-#define SYS_TABLE_NUM_COLUMN	3
+#define SYS_TABLES_NUM_COLUMN		3
 	{STRUCT_FLD(field_name,		"N_COLS"),
 	 STRUCT_FLD(field_length,	MY_INT32_NUM_DECIMAL_DIGITS),
 	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONG),
@@ -5548,7 +5551,7 @@ static ST_FIELD_INFO	innodb_sys_tables_fields_info[] =
 	 STRUCT_FLD(old_name,		""),
 	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
 
-#define SYS_TABLE_SPACE		4
+#define SYS_TABLES_SPACE		4
 	{STRUCT_FLD(field_name,		"SPACE"),
 	 STRUCT_FLD(field_length,	MY_INT32_NUM_DECIMAL_DIGITS),
 	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONG),
@@ -5578,15 +5581,15 @@ i_s_dict_fill_sys_tables(
 
 	fields = table_to_fill->field;
 
-	OK(fields[SYS_TABLE_ID]->store(longlong(table->id), TRUE));
+	OK(fields[SYS_TABLES_ID]->store(longlong(table->id), TRUE));
 
-	OK(field_store_string(fields[SYS_TABLE_NAME], table->name));
+	OK(field_store_string(fields[SYS_TABLES_NAME], table->name));
 
-	OK(fields[SYS_TABLE_FLAG]->store(table->flags));
+	OK(fields[SYS_TABLES_FLAG]->store(table->flags));
 
-	OK(fields[SYS_TABLE_NUM_COLUMN]->store(table->n_cols));
+	OK(fields[SYS_TABLES_NUM_COLUMN]->store(table->n_cols));
 
-	OK(fields[SYS_TABLE_SPACE]->store(table->space));
+	OK(fields[SYS_TABLES_SPACE]->store(table->space));
 
 	OK(schema_table_store_record(thd, table_to_fill));
 
@@ -5739,6 +5742,7 @@ UNIV_INTERN struct st_mysql_plugin	i_s_innodb_sys_tables =
 	STRUCT_FLD(flags, 0UL),
 };
 
+/**  SYS_TABLESTATS  ***********************************************/
 /* Fields of the dynamic table INFORMATION_SCHEMA.SYS_TABLESTATS */
 static ST_FIELD_INFO	innodb_sys_tablestats_fields_info[] =
 {
@@ -6018,6 +6022,7 @@ UNIV_INTERN struct st_mysql_plugin	i_s_innodb_sys_tablestats =
 	STRUCT_FLD(flags, 0UL),
 };
 
+/**  SYS_INDEXES  **************************************************/
 /* Fields of the dynamic table INFORMATION_SCHEMA.SYS_INDEXES */
 static ST_FIELD_INFO	innodb_sysindex_fields_info[] =
 {
@@ -6277,7 +6282,8 @@ UNIV_INTERN struct st_mysql_plugin	i_s_innodb_sys_indexes =
 	STRUCT_FLD(flags, 0UL),
 };
 
-/* Fields of the dynamic table INFORMATION_SCHEMA.SYS_COLUMNS */
+/**  SYS_COLUMNS  **************************************************/
+/* Fields of the dynamic table INFORMATION_SCHEMA.INNODB_SYS_COLUMNS */
 static ST_FIELD_INFO	innodb_sys_columns_fields_info[] =
 {
 #define SYS_COLUMN_TABLE_ID		0
@@ -6515,7 +6521,9 @@ UNIV_INTERN struct st_mysql_plugin	i_s_innodb_sys_columns =
 	/* unsigned long */
 	STRUCT_FLD(flags, 0UL),
 };
-/* Fields of the dynamic table INFORMATION_SCHEMA.innodb_sys_fields */
+
+/**  SYS_FIELDS  ***************************************************/
+/* Fields of the dynamic table INFORMATION_SCHEMA.INNODB_SYS_FIELDS */
 static ST_FIELD_INFO	innodb_sys_fields_fields_info[] =
 {
 #define SYS_FIELD_INDEX_ID	0
@@ -6727,7 +6735,8 @@ UNIV_INTERN struct st_mysql_plugin	i_s_innodb_sys_fields =
 	STRUCT_FLD(flags, 0UL),
 };
 
-/* Fields of the dynamic table INFORMATION_SCHEMA.innodb_sys_foreign */
+/**  SYS_FOREIGN        ********************************************/
+/* Fields of the dynamic table INFORMATION_SCHEMA.INNODB_SYS_FOREIGN */
 static ST_FIELD_INFO	innodb_sys_foreign_fields_info[] =
 {
 #define SYS_FOREIGN_ID		0
@@ -6812,6 +6821,7 @@ i_s_dict_fill_sys_foreign(
 
 	DBUG_RETURN(0);
 }
+
 /*******************************************************************//**
 Function to populate INFORMATION_SCHEMA.innodb_sys_foreign table. Loop
 through each record in SYS_FOREIGN, and extract the foreign key
@@ -6878,6 +6888,7 @@ i_s_sys_foreign_fill_table(
 
 	DBUG_RETURN(0);
 }
+
 /*******************************************************************//**
 Bind the dynamic table INFORMATION_SCHEMA.innodb_sys_foreign
 @return 0 on success */
@@ -6951,7 +6962,9 @@ UNIV_INTERN struct st_mysql_plugin	i_s_innodb_sys_foreign =
 	/* unsigned long */
 	STRUCT_FLD(flags, 0UL),
 };
-/* Fields of the dynamic table INFORMATION_SCHEMA.innodb_sys_foreign_cols */
+
+/**  SYS_FOREIGN_COLS   ********************************************/
+/* Fields of the dynamic table INFORMATION_SCHEMA.INNODB_SYS_FOREIGN_COLS */
 static ST_FIELD_INFO	innodb_sys_foreign_cols_fields_info[] =
 {
 #define SYS_FOREIGN_COL_ID		0

@@ -149,7 +149,7 @@ static bool check_fields(THD *thd, List<Item> &items)
     if (!(field= item->filed_for_view_update()))
     {
       /* item has name, because it comes from VIEW SELECT list */
-      my_error(ER_NONUPDATEABLE_COLUMN, MYF(0), item->name);
+      my_error(ER_NONUPDATEABLE_COLUMN, MYF(0), item->item_name.ptr());
       return TRUE;
     }
     /*
@@ -483,7 +483,9 @@ int mysql_update(THD *thd,
                                 (used_key_is_modified || order);
     error= explain_single_table_modification(thd, table, select, used_index,
                                              limit, using_tmp_table,
-                                             using_filesort);
+                                             using_filesort,
+                                             true,
+                                             used_key_is_modified);
     goto exit_without_my_ok;
   }
 
@@ -494,14 +496,8 @@ int mysql_update(THD *thd,
       matching rows before updating the table!
     */
 
-    // Verify that table->restore_column_maps_after_mark_index() will work
-    DBUG_ASSERT(table->read_set == &table->def_read_set);
-    DBUG_ASSERT(table->write_set == &table->def_write_set);
-
     if (used_index < MAX_KEY && old_covering_keys.is_set(used_index))
-      table->add_read_columns_used_by_index(used_index);
-    else
-      table->use_all_columns();
+      table->set_keyread(true);
 
     /* note: We avoid sorting if we sort on the used index */
     if (using_filesort)
@@ -542,6 +538,7 @@ int mysql_update(THD *thd,
 	we go trough the matching rows, save a pointer to them and
 	update these in a separate loop based on the pointer.
       */
+      table->prepare_for_position();
 
       IO_CACHE tempfile;
       if (open_cached_file(&tempfile, mysql_tmpdir,TEMP_PREFIX,
@@ -631,11 +628,8 @@ int mysql_update(THD *thd,
       if (error >= 0)
         goto exit_without_my_ok;
     }
-    /*
-      This restore bitmaps, works for add_read_columns_used_by_index() and
-      use_all_columns():
-    */
-    table->restore_column_maps_after_mark_index();
+    if (used_index < MAX_KEY && old_covering_keys.is_set(used_index))
+      table->set_keyread(false);
   }
 
   if (ignore)
@@ -657,10 +651,8 @@ int mysql_update(THD *thd,
   THD_STAGE_INFO(thd, stage_updating);
 
   transactional_table= table->file->has_transactions();
-  thd->abort_on_warning= test(!ignore &&
-                              (thd->variables.sql_mode &
-                               (MODE_STRICT_TRANS_TABLES |
-                                MODE_STRICT_ALL_TABLES)));
+  thd->abort_on_warning= (!ignore && thd->is_strict_mode());
+
   if (table->triggers &&
       table->triggers->has_triggers(TRG_EVENT_UPDATE,
                                     TRG_ACTION_AFTER))
@@ -676,10 +668,7 @@ int mysql_update(THD *thd,
   else
     will_batch= !table->file->start_bulk_update();
 
-  /*
-    Assure that we can use position()
-    if we need to create an error message.
-  */
+  // For prepare_record_for_error_message():
   if (table->file->ha_table_flags() & HA_PARTIAL_COLUMN_READ)
     table->prepare_for_position();
 
@@ -1443,9 +1432,7 @@ bool mysql_multi_update(THD *thd,
     DBUG_RETURN(TRUE);
   }
 
-  thd->abort_on_warning= test(thd->variables.sql_mode &
-                              (MODE_STRICT_TRANS_TABLES |
-                               MODE_STRICT_ALL_TABLES));
+  thd->abort_on_warning= thd->is_strict_mode();
 
   if (thd->lex->describe)
     res= explain_multi_table_modification(thd, *result);

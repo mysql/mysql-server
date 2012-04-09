@@ -1,0 +1,13 @@
+select * from t9 order by a;
+a	b
+1	2
+2	3
+3	4
+4	5
+show status like 'handler_discover%';
+Variable_name	Value
+Handler_discover	0
+drop table t9;
+select * from t10;
+ERROR HY000: Got error 4263 'Invalid blob attributes or invalid blob parts table' from NDBCLUSTER
+drop table t10;

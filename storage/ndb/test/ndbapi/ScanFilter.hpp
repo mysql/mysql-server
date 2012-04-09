@@ -1,4 +1,6 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (C) 2003-2006, 2008 MySQL AB, 2009 Sun Microsystems, Inc.
+    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,10 +13,18 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #ifndef SCAN_FILTER_HPP
 #define SCAN_FILTER_HPP
+
+/* NOTE - This code is currently broken, as old-style interpreted
+ * code definition is no longer supported for Scans.
+ * Interpreted programs for scans must be defined using the
+ * NdbInterpretedCode class
+ * TODO : Fix or remove this code.
+ */
 
 class ScanFilter {
 public:
@@ -30,6 +40,7 @@ public:
 	     int val);
 #endif
   ScanFilter(int records = 1000){};
+  virtual ~ScanFilter() {}
   virtual int filterOp(NdbOperation*) = 0;
   virtual int verifyRecord(NDBT_ResultRow&) = 0;
 private:
@@ -40,6 +51,7 @@ private:
 class LessThanFilter : public ScanFilter {
 public:
   LessThanFilter(int records){ compare_value = records / 100; };
+  virtual ~LessThanFilter(){}
 private:
   Uint32 compare_value;
   int filterOp(NdbOperation* pOp);
@@ -47,12 +59,17 @@ private:
 };
 
 class EqualFilter : public ScanFilter {
+public:
+  virtual ~EqualFilter(){}
+
   static const Uint32 compare_value = 100;
   int filterOp(NdbOperation* pOp);
   int verifyRecord(NDBT_ResultRow&);
 };
 
 class NoFilter : public ScanFilter {
+public:
+  virtual ~NoFilter(){}
   int filterOp(NdbOperation* pOp);
   int verifyRecord(NDBT_ResultRow&);
 };

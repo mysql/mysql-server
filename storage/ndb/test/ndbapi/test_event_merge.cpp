@@ -1,4 +1,5 @@
-/* Copyright (C) 2005 MySQL AB
+/*
+   Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,14 +12,16 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #include <ndb_global.h>
 #include <ndb_opts.h>
 #include <NdbApi.hpp>
 #include <NdbTest.hpp>
-#include <my_sys.h>
 #include <ndb_version.h>
+
+#include <ndb_rand.h>
 
 // version >= 5.1 required
 
@@ -65,6 +68,7 @@
 
 struct Opts {
   my_bool abort_on_error;
+  int blob_version;
   int loglevel;
   uint loop;
   uint maxops;
@@ -104,7 +108,6 @@ static const char* g_csname = "latin1_swedish_ci";
 
 static uint g_blobinlinesize = 256;
 static uint g_blobpartsize = 2000;
-static uint g_blobstripesize = 2;
 static const uint g_maxblobsize = 100000;
 
 static NdbEventOperation* g_evt_op = 0;
@@ -113,7 +116,7 @@ static NdbBlob* g_bh = 0;
 static uint
 urandom()
 {
-  uint r = (uint)random();
+  uint r = (uint)ndb_rand();
   return r;
 }
 
@@ -208,6 +211,9 @@ struct Col {
   bool nullable;
   uint length;
   uint size;
+  uint inlinesize;
+  uint partsize;
+  uint stripesize;
   bool isblob() const {
     return
       type == NdbDictionary::Column::Text ||
@@ -215,14 +221,29 @@ struct Col {
   }
 };
 
+// put var* pk first
 static const Col g_col[] = {
-  { 0, "pk1", NdbDictionary::Column::Unsigned, true, false, 1, 4 },
-  { 1, "pk2", NdbDictionary::Column::Char, true, false,  g_charlen, g_charlen },
-  { 2, "seq", NdbDictionary::Column::Unsigned,  false, false, 1, 4 },
-  { 3, "cc1", NdbDictionary::Column::Char, false, true, g_charlen, g_charlen },
-  { 4, "tx1", NdbDictionary::Column::Text, false, true, 0, 0 },
-  { 5, "tx2", NdbDictionary::Column::Text, false, true, 0, 0 },
-  { 6, "bl1", NdbDictionary::Column::Blob, false, true, 0, 0 } // tinyblob
+  { 0, "pk2", NdbDictionary::Column::Varchar,
+       true, false,
+       g_charlen, 1 + g_charlen, 0, 0, 0  },
+  { 1, "seq", NdbDictionary::Column::Unsigned,
+       false, true,
+       1, 4, 0, 0, 0  },
+  { 2, "pk1", NdbDictionary::Column::Unsigned,
+       true, false,
+       1, 4, 0, 0, 0  },
+  { 3, "cc1", NdbDictionary::Column::Char,
+       false, true,
+       g_charlen, g_charlen, 0, 0, 0  },
+  { 4, "tx1", NdbDictionary::Column::Text,
+       false, true,
+       0, 0, g_blobinlinesize, g_blobpartsize, 0 }, // V2 distribution
+  { 5, "tx2", NdbDictionary::Column::Text,
+       false, true,
+       0, 0, g_blobinlinesize, g_blobpartsize, 4 },
+  { 6, "bl1", NdbDictionary::Column::Blob, // tinyblob
+       false, true,
+       0, 0, g_blobinlinesize, 0, 0 }
 };
 
 static const uint g_maxcol = sizeof(g_col)/sizeof(g_col[0]);
@@ -304,26 +325,27 @@ createtable(Tab& t)
     NdbDictionary::Column col(c.name);
     col.setType(c.type);
     col.setPrimaryKey(c.pk);
-    if (! c.pk)
-      col.setNullable(true);
-    col.setLength(c.length);
+    col.setNullable(c.nullable);
     switch (c.type) {
     case NdbDictionary::Column::Unsigned:
       break;
     case NdbDictionary::Column::Char:
+    case NdbDictionary::Column::Varchar:
       col.setLength(c.length);
       col.setCharset(cs);
       break;
     case NdbDictionary::Column::Text:
-      col.setInlineSize(g_blobinlinesize);
-      col.setPartSize(g_blobpartsize);
-      col.setStripeSize(g_blobstripesize);
+      col.setBlobVersion(g_opts.blob_version);
+      col.setInlineSize(c.inlinesize);
+      col.setPartSize(c.partsize);
+      col.setStripeSize(g_opts.blob_version == 1 ? 4 : c.stripesize);
       col.setCharset(cs);
       break;
     case NdbDictionary::Column::Blob:
-      col.setInlineSize(g_blobinlinesize);
-      col.setPartSize(0);
-      col.setStripeSize(0);
+      col.setBlobVersion(g_opts.blob_version);
+      col.setInlineSize(c.inlinesize);
+      col.setPartSize(c.partsize);
+      col.setStripeSize(g_opts.blob_version == 1 ? 4 : c.stripesize);
       break;
     default:
       assert(false);
@@ -345,9 +367,10 @@ createtable(Tab& t)
     chkdb((g_op = g_con->getNdbOperation(t.tabname)) != 0);
     chkdb(g_op->insertTuple() == 0);
     Uint32 pk1;
-    char pk2[g_charlen + 1];
+    char pk2[1 + g_charlen + 1];
     pk1 = g_maxpk;
-    sprintf(pk2, "%-*u", g_charlen, pk1);
+    sprintf(pk2 + 1, "%-u", pk1);
+    *(uchar*)pk2 = (uchar)(strlen(pk2 + 1));
     chkdb(g_op->equal("pk1", (char*)&pk1) == 0);
     chkdb(g_op->equal("pk2", (char*)&pk2[0]) == 0);
     chkdb(g_con->execute(Commit) == 0);
@@ -452,7 +475,7 @@ dropevents(bool force = false)
 
 struct Data {
   struct Txt { char* val; uint len; };
-  union Ptr { Uint32* u32; char* ch; Txt* txt; void* v; };
+  union Ptr { Uint32* u32; char* ch; uchar* uch; Txt* txt; void* v; };
   Uint32 pk1;
   char pk2[g_charlen + 1];
   Uint32 seq;
@@ -472,9 +495,9 @@ struct Data {
     memset(cc1, 0, sizeof(cc1));
     tx1.val = tx2.val = bl1.val = 0;
     tx1.len = tx2.len = bl1.len = 0;
-    ptr[0].u32 = &pk1;
-    ptr[1].ch = pk2;
-    ptr[2].u32 = &seq;
+    ptr[0].ch = pk2;
+    ptr[1].u32 = &seq;
+    ptr[2].u32 = &pk1;
     ptr[3].ch = cc1;
     ptr[4].txt = &tx1;
     ptr[5].txt = &tx2;
@@ -508,6 +531,16 @@ cmpcol(const Col& c, const Data& d1, const Data& d2)
     case NdbDictionary::Column::Char:
       if (memcmp(d1.ptr[i].ch, d2.ptr[i].ch, c.size) != 0)
         return 1;
+      break;
+    case NdbDictionary::Column::Varchar:
+      {
+        uint l1 = d1.ptr[i].uch[0];
+        uint l2 = d2.ptr[i].uch[0];
+        if (l1 != l2)
+          return 1;
+        if (memcmp(d1.ptr[i].ch, d2.ptr[i].ch, l1) != 0)
+          return 1;
+      }
       break;
     case NdbDictionary::Column::Text:
     case NdbDictionary::Column::Blob:
@@ -557,6 +590,16 @@ operator<<(NdbOut& out, const Data& d)
             break;
           n--;
         }
+        out << "'" << buf << "'";
+      }
+      break;
+    case NdbDictionary::Column::Varchar:
+      {
+        char buf[g_charlen + 1];
+        uint l = d.ptr[i].uch[0];
+        assert(l <= g_charlen);
+        memcpy(buf, &d.ptr[i].ch[1], l);
+        buf[l] = 0;
         out << "'" << buf << "'";
       }
       break;
@@ -617,7 +660,7 @@ struct Op { // single or composite
   uint num_com;
   Data data[2]; // 0-post 1-pre
   bool match; // matched to event
-  Uint32 gci; // defined for com op and event
+  Uint64 gci; // defined for com op and event
   void init(Kind a_kind, Type a_type = UNDEF) {
     kind = a_kind;
     assert(kind == OP || kind == EV);
@@ -756,20 +799,20 @@ struct Run : public Tab {
     skip = false;
     evt_op = 0;
     gcicnt = 0;
-    for (i = 0; i < g_maxgcis; i++) {
+    for (i = 0; i < (int)g_maxgcis; i++) {
       gcinum[i] = (Uint64)0;
       gcievtypes[i][0] = gcievtypes[i][1] = (Uint32)0;
     }
     tableops = 0;
     blobops = 0;
     gciops = 0;
-    for (i = 0; i < g_maxpk; i++) {
+    for (i = 0; i < (int)g_maxpk; i++) {
       pk_op[i] = 0;
       pk_ev[i] = 0;
       ev_pos[i] = 0;
     }
     for (j = 0; i < 2; j ++) {
-      for (i = 0; i < g_maxcol; i++) {
+      for (i = 0; i < (int)g_maxcol; i++) {
         ev_ra[j][i] = 0;
         ev_bh[j][i] = 0;
       }
@@ -959,11 +1002,11 @@ checkop(const Op* op, Uint32& pk1)
     if (c.pk) {
       chkrc(ind0 == 0); // always PK in post data
       if (optype == Op::INS)
-        chkrc(ind1 == -1);
-      if (optype == Op::DEL)
         chkrc(ind1 == -1); // no PK in pre data
+      if (optype == Op::DEL)
+        chkrc(ind1 == 0); // always PK in pre data (note change from 6.3.23)
       if (optype == Op::UPD)
-        chkrc(ind1 == 0);
+        chkrc(ind1 == 0); // always PK in pre data
     }
     if (! c.pk) {
       if (optype == Op::INS)
@@ -984,7 +1027,7 @@ checkop(const Op* op, Uint32& pk1)
         if (d.ind[i] == 0) {
           const Data::Txt& txt = *d.ptr[i].txt;
           int k;
-          for (k = 0; k < txt.len; k++) {
+          for (k = 0; k < (int)txt.len; k++) {
             chkrc(strchr(g_charval, txt.val[k]) != 0);
           }
         }
@@ -1028,7 +1071,7 @@ copydata(const Data& d1, Data& d3, bool pk, bool nonpk)
   uint i;
   for (i = 0; i < ncol(); i++) {
     const Col& c = g_col[i];
-    if (c.pk && pk || ! c.pk && nonpk)
+    if ((c.pk && pk) || (! c.pk && nonpk))
       copycol(c, d1, d3);
   }
 }
@@ -1039,7 +1082,7 @@ compdata(const Data& d1, const Data& d2, Data& d3, bool pk, bool nonpk)
   uint i;
   for (i = 0; i < ncol(); i++) {
     const Col& c = g_col[i];
-    if (c.pk && pk || ! c.pk && nonpk) {
+    if ((c.pk && pk) || (! c.pk && nonpk)) {
       const Data* d = 0;
       if (d1.ind[i] == -1 && d2.ind[i] == -1)
         d3.ind[i] = -1;
@@ -1091,14 +1134,14 @@ compop(const Op* op1, const Op* op2, Op* op3) // op1 o op2 = op3
   }
   if (res_op->type == Op::DEL) {
     // UPD o DEL
-    copydata(op2->data[0], res_op->data[0], true, false); // PK
-    copydata(op1->data[1], res_op->data[1], false, true); // non-PK
+    copydata(op2->data[0], res_op->data[0], true, false); // PK only
+    copydata(op1->data[1], res_op->data[1], true, true); // PK + non-PK
   } 
   if (res_op->type == Op::UPD && op1->type == Op::DEL) {
     // DEL o INS
     copydata(op2->data[0], res_op->data[0], true, true);
-    copydata(op1->data[0], res_op->data[1], true, false); // PK
-    copydata(op1->data[1], res_op->data[1], false, true); // non-PK
+    copydata(op1->data[0], res_op->data[1], true, false); // PK only
+    copydata(op1->data[1], res_op->data[1], true, true); // PK + non-PK
   }
   if (res_op->type == Op::UPD && op1->type == Op::UPD) {
     // UPD o UPD
@@ -1189,16 +1232,17 @@ static int
 waitgci(uint ngci)
 {
   ll1("waitgci " << ngci);
-  Uint32 gci[2];
+  Uint64 gci[2];
   uint i = 0;
   while (1) {
     chkdb((g_con = g_ndb->startTransaction()) != 0);
     { // forced to exec a dummy op
       Tab& t = tab(0); // use first table
       Uint32 pk1;
-      char pk2[g_charlen + 1];
+      char pk2[1 + g_charlen + 1];
       pk1 = g_maxpk;
-      sprintf(pk2, "%-*u", g_charlen, pk1);
+      sprintf(pk2 + 1, "%-u", pk1);
+      *(uchar*)pk2 = (uchar)(strlen(pk2 + 1));
       chkdb((g_op = g_con->getNdbOperation(t.tabname)) != 0);
       chkdb(g_op->readTuple() == 0);
       chkdb(g_op->equal("pk1", (char*)&pk1) == 0);
@@ -1206,7 +1250,7 @@ waitgci(uint ngci)
       chkdb(g_con->execute(Commit) == 0);
       g_op = 0;
     }
-    gci[i] = g_con->getGCI();
+    g_con->getGCI(&gci[i]);
     g_ndb->closeTransaction(g_con);
     g_con = 0;
     if (i == 1 && gci[0] + ngci <= gci[1]) {
@@ -1316,6 +1360,19 @@ makedata(const Col& c, Data& d, Uint32 pk1, Op::Type optype)
         sprintf(p, "%-*u", g_charlen, pk1);
       }
       break;
+    case NdbDictionary::Column::Varchar:
+      {
+        char* p = &d.ptr[i].ch[1];
+        sprintf(p, "%-u", pk1);
+        uint len = pk1 % g_charlen;
+        uint j = strlen(p);
+        while (j < len) {
+          p[j] = 'a' + j % 26;
+          j++;
+        }
+        d.ptr[i].uch[0] = len;
+      }
+      break;
     default:
       assert(false);
       break;
@@ -1411,10 +1468,7 @@ makeop(const Op* prev_op, Op* op, Uint32 pk1, Op::Type optype)
       d1.ind[i] = -1;
     } else if (optype == Op::DEL) {
       assert(dp.ind[i] >= 0);
-      if (c.pk)
-        d1.ind[i] = -1;
-      else
-        copycol(c, dp, d1);
+      copycol(c, dp, d1);
     } else if (optype == Op::UPD) {
       assert(dp.ind[i] >= 0);
       if (d0.ind[i] == -1) // not updating this col
@@ -1489,9 +1543,9 @@ makeops(Run& r)
           break;
         do {
           optype = (Op::Type)urandom(g_optypes);
-        } while (tot_op->type == Op::NUL &&
-                 (optype == Op::DEL || optype == Op::UPD) ||
-                 tot_op->type == Op::INS && optype == Op::INS);
+        } while ((tot_op->type == Op::NUL &&
+                  (optype == Op::DEL || optype == Op::UPD)) ||
+                 (tot_op->type == Op::INS && optype == Op::INS));
       } else {
         const char* str = g_opstringpart[g_loop % g_opstringparts];
         uint m = strlen(str);
@@ -1554,7 +1608,7 @@ selecttables()
       cnt++;
     }
   }
-  ll1("use " << cnt << "/" << maxrun() << " tables in this loop");
+  ll0("selecttables: use " << cnt << "/" << maxrun() << " in this loop");
 }
 
 static void
@@ -1564,7 +1618,7 @@ makeops()
   for (uint i = 0; i < maxrun(); i++)
     if (! run(i).skip)
       makeops(run(i));
-  ll1("makeops: used recs = " << g_usedops << " com recs = " << g_gciops);
+  ll0("makeops: used records = " << g_usedops);
 }
 
 static int
@@ -1628,9 +1682,9 @@ runops()
   ll1("runops");
   Op* gci_op[g_maxtab][g_maxpk];
   uint left = 0; // number of table pks with ops
-  int i;
   Uint32 pk1;
-  for (i = 0; i < maxrun(); i++) {
+  int i;
+  for (i = 0; i < (int)maxrun(); i++) {
     Run& r = run(i);
     for (pk1 = 0; pk1 < g_opts.maxpk; pk1++) {
       gci_op[i][pk1] = 0;
@@ -1648,8 +1702,9 @@ runops()
       left++;
     }
   }
+
   while (left != 0) {
-    i = urandom(maxrun());
+    unsigned int i = urandom(maxrun());
     pk1 = urandom(g_opts.maxpk);
     if (gci_op[i][pk1] == 0)
       continue;
@@ -1667,7 +1722,9 @@ runops()
       op = op->next_op;
     }
     chkdb(g_con->execute(Commit) == 0);
-    gci_op[i][pk1]->gci = com_op->gci = g_con->getGCI();
+    Uint64 val;
+    g_con->getGCI(&val);
+    gci_op[i][pk1]->gci = com_op->gci = val;
     ll2("commit: " << run(i).tabname << " gci=" << com_op->gci);
     g_ndb->closeTransaction(g_con);
     g_con = 0;
@@ -1748,8 +1805,8 @@ cmppostpre(Run& r)
         for (i = 0; i < ncol(); i++) {
           const Col& c = getcol(i);
           bool eq =
-            d[0].ind[i] == 1 && d[1].ind[i] == 1 ||
-            d[0].ind[i] == 0 && d[1].ind[i] == 0 && cmpcol(c, d[0], d[1]) == 0;
+            (d[0].ind[i] == 1 && d[1].ind[i] == 1) ||
+            (d[0].ind[i] == 0 && d[1].ind[i] == 0 && cmpcol(c, d[0], d[1])== 0);
           if (eq) {
             d[0].ppeq |= (1 << i);
             d[1].ppeq |= (1 << i);
@@ -1787,7 +1844,7 @@ geteventdata(Run& r)
   Data (&d)[2] = g_rec_ev->data;
   int i, j;
   for (j = 0; j < 2; j++) {
-    for (i = 0; i < ncol(); i++) {
+    for (i = 0; i < (int)ncol(); i++) {
       const Col& c = getcol(i);
       int ind, ret;
       if (! c.isblob()) {
@@ -2127,7 +2184,7 @@ setseed(int n)
   if (n == -1) {
     if (g_opts.seed == 0)
       return;
-    if (g_opts.seed != -1)
+    if (g_opts.seed != (uint)-1)
       seed = (uint)g_opts.seed;
     else
       seed = 1 + (ushort)getpid();
@@ -2137,7 +2194,7 @@ setseed(int n)
     seed = n;
   }
   ll0("seed=" << seed);
-  srandom(seed);
+  ndb_srand(seed);
 }
 
 static int
@@ -2177,75 +2234,71 @@ runtest()
   return 0;
 }
 
-NDB_STD_OPTS_VARS;
-
 static struct my_option
 my_long_options[] =
 {
   NDB_STD_OPTS("test_event_merge"),
-  { "abort-on-error", 1001, "Do abort() on any error",
-    &g_opts.abort_on_error, &g_opts.abort_on_error, 0,
+  { "abort-on-error", NDB_OPT_NOSHORT, "Do abort() on any error",
+    (uchar **)&g_opts.abort_on_error, (uchar **)&g_opts.abort_on_error, 0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
-  { "loglevel", 1002, "Logging level in this program 0-3 (default 0)",
-    &g_opts.loglevel, &g_opts.loglevel, 0,
+  { "loglevel", NDB_OPT_NOSHORT, "Logging level in this program 0-3 (default 0)",
+    (uchar **)&g_opts.loglevel, (uchar **)&g_opts.loglevel, 0,
     GET_INT, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
-  { "loop", 1003, "Number of test loops (default 5, 0=forever)",
-    &g_opts.loop, &g_opts.loop, 0,
+  { "loop", NDB_OPT_NOSHORT, "Number of test loops (default 5, 0=forever)",
+    (uchar **)&g_opts.loop, (uchar **)&g_opts.loop, 0,
     GET_INT, REQUIRED_ARG, 5, 0, 0, 0, 0, 0 },
-  { "maxops", 1004, "Approx number of PK operations per table (default 1000)",
-    &g_opts.maxops, &g_opts.maxops, 0,
+  { "maxops", NDB_OPT_NOSHORT, "Approx number of PK operations per table (default 1000)",
+    (uchar **)&g_opts.maxops, (uchar **)&g_opts.maxops, 0,
     GET_UINT, REQUIRED_ARG, 1000, 0, 0, 0, 0, 0 },
-  { "maxpk", 1005, "Number of different PK values (default 10, max 1000)",
-    &g_opts.maxpk, &g_opts.maxpk, 0,
+  { "maxpk", NDB_OPT_NOSHORT, "Number of different PK values (default 10, max 1000)",
+    (uchar **)&g_opts.maxpk, (uchar **)&g_opts.maxpk, 0,
     GET_UINT, REQUIRED_ARG, 10, 0, 0, 0, 0, 0 },
-  { "maxtab", 1006, "Number of tables (default 10, max 100)",
-    &g_opts.maxtab, &g_opts.maxtab, 0,
+  { "maxtab", NDB_OPT_NOSHORT, "Number of tables (default 10, max 100)",
+    (uchar **)&g_opts.maxtab, (uchar **)&g_opts.maxtab, 0,
     GET_INT, REQUIRED_ARG, 10, 0, 0, 0, 0, 0 },
-  { "no-blobs", 1007, "Omit blob attributes (5.0: true)",
-    &g_opts.no_blobs, &g_opts.no_blobs, 0,
+  { "no-blobs", NDB_OPT_NOSHORT, "Omit blob attributes (5.0: true)",
+    (uchar **)&g_opts.no_blobs, (uchar **)&g_opts.no_blobs, 0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
-  { "no-implicit-nulls", 1008, "Insert must include all attrs"
+  { "no-implicit-nulls", NDB_OPT_NOSHORT, "Insert must include all attrs"
                                " i.e. no implicit NULLs",
-    &g_opts.no_implicit_nulls, &g_opts.no_implicit_nulls, 0,
+    (uchar **)&g_opts.no_implicit_nulls, (uchar **)&g_opts.no_implicit_nulls, 0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
-  { "no-missing-update", 1009, "Update must include all non-PK attrs",
-    &g_opts.no_missing_update, &g_opts.no_missing_update, 0,
+  { "no-missing-update", NDB_OPT_NOSHORT, "Update must include all non-PK attrs",
+    (uchar **)&g_opts.no_missing_update, (uchar **)&g_opts.no_missing_update, 0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
-  { "no-multiops", 1010, "Allow only 1 operation per commit",
-    &g_opts.no_multiops, &g_opts.no_multiops, 0,
+  { "no-multiops", NDB_OPT_NOSHORT, "Allow only 1 operation per commit",
+    (uchar **)&g_opts.no_multiops, (uchar **)&g_opts.no_multiops, 0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
-  { "no-nulls", 1011, "Create no NULL values",
-    &g_opts.no_nulls, &g_opts.no_nulls, 0,
+  { "no-nulls", NDB_OPT_NOSHORT, "Create no NULL values",
+    (uchar **)&g_opts.no_nulls, (uchar **)&g_opts.no_nulls, 0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
-  { "one-blob", 1012, "Only one blob attribute (default 2)",
-    &g_opts.one_blob, &g_opts.one_blob, 0,
+  { "one-blob", NDB_OPT_NOSHORT, "Only one blob attribute (default 2)",
+    (uchar **)&g_opts.one_blob, (uchar **)&g_opts.one_blob, 0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
-  { "opstring", 1013, "Operations to run e.g. idiucdc (c is commit) or"
+  { "opstring", NDB_OPT_NOSHORT, "Operations to run e.g. idiucdc (c is commit) or"
                       " iuuc:uudc (the : separates loops)",
-    &g_opts.opstring, &g_opts.opstring, 0,
+    (uchar **)&g_opts.opstring, (uchar **)&g_opts.opstring, 0,
     GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
-  { "seed", 1014, "Random seed (0=loop number, default -1=random)",
-    &g_opts.seed, &g_opts.seed, 0,
+  { "seed", NDB_OPT_NOSHORT, "Random seed (0=loop number, default -1=random)",
+    (uchar **)&g_opts.seed, (uchar **)&g_opts.seed, 0,
     GET_INT, REQUIRED_ARG, -1, 0, 0, 0, 0, 0 },
-  { "separate-events", 1015, "Do not combine events per GCI (5.0: true)",
-    &g_opts.separate_events, &g_opts.separate_events, 0,
+  { "separate-events", NDB_OPT_NOSHORT, "Do not combine events per GCI (5.0: true)",
+    (uchar **)&g_opts.separate_events, (uchar **)&g_opts.separate_events, 0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
-  { "tweak", 1016, "Whatever the source says",
-    &g_opts.tweak, &g_opts.tweak, 0,
+  { "tweak", NDB_OPT_NOSHORT, "Whatever the source says",
+    (uchar **)&g_opts.tweak, (uchar **)&g_opts.tweak, 0,
     GET_UINT, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
-  { "use-table", 1017, "Use existing tables",
-    &g_opts.use_table, &g_opts.use_table, 0,
+  { "use-table", NDB_OPT_NOSHORT, "Use existing tables",
+    (uchar **)&g_opts.use_table, (uchar **)&g_opts.use_table, 0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
+  { "blob-version", NDB_OPT_NOSHORT, "Blob version 1 or 2 (default 2)",
+    (uchar**)&g_opts.blob_version, (uchar**)&g_opts.blob_version, 0,
+    GET_INT, REQUIRED_ARG, 2, 0, 0, 0, 0, 0 },
   { 0, 0, 0,
     0, 0, 0,
     GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0 }
 };
 
-static void
-usage()
-{
-  my_print_help(my_long_options);
-}
 
 static int
 checkopts()
@@ -2287,7 +2340,10 @@ checkopts()
     g_opts.no_implicit_nulls = true;
   }
   if (g_opts.maxpk > g_maxpk ||
-      g_opts.maxtab > g_maxtab) {
+      g_opts.maxtab > (int)g_maxtab) {
+    return -1;
+  }
+  if (g_opts.blob_version < 1 || g_opts.blob_version > 2) {
     return -1;
   }
   return 0;
@@ -2309,9 +2365,8 @@ main(int argc, char** argv)
   ndb_init();
   const char* progname =
     strchr(argv[0], '/') ? strrchr(argv[0], '/') + 1 : argv[0];
-  uint i;
   ndbout << progname;
-  for (i = 1; i < argc; i++)
+  for (int i = 1; i < argc; i++)
     ndbout << " " << argv[i];
   ndbout << endl;
   int ret;

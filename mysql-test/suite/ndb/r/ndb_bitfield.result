@@ -1,0 +1,252 @@
+drop table if exists t1;
+create table t1 (
+pk1 int not null primary key,
+b bit(64)
+) engine=ndbcluster;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `pk1` int(11) NOT NULL,
+  `b` bit(64) DEFAULT NULL,
+  PRIMARY KEY (`pk1`)
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+insert into t1 values 
+(0,b'1111111111111111111111111111111111111111111111111111111111111111'),
+(1,b'1000000000000000000000000000000000000000000000000000000000000000'),
+(2,b'0000000000000000000000000000000000000000000000000000000000000001'),
+(3,b'1010101010101010101010101010101010101010101010101010101010101010'),
+(4,b'0101010101010101010101010101010101010101010101010101010101010101');
+select hex(b) from t1 order by pk1;
+hex(b)
+FFFFFFFFFFFFFFFF
+8000000000000000
+1
+AAAAAAAAAAAAAAAA
+5555555555555555
+drop table t1;
+create table t1 (
+pk1 int not null primary key,
+b bit(9)
+) engine=ndbcluster;
+insert into t1 values 
+(0,b'000000000'),
+(1,b'000000001'),
+(2,b'000000010'),
+(3,b'000000011'),
+(4,b'000000100');
+select hex(b) from t1 order by pk1;
+hex(b)
+0
+1
+2
+3
+4
+update t1 set b = b + b'101010101';
+select hex(b) from t1 order by pk1;
+hex(b)
+155
+156
+157
+158
+159
+drop table t1;
+create table t1 (a bit(7), b bit(9)) engine = ndbcluster;
+insert into t1 values 
+(94, 46), (31, 438), (61, 152), (78, 123), (88, 411), (122, 118), (0, 177),    
+(75, 42), (108, 67), (79, 349), (59, 188), (68, 206), (49, 345), (118, 380),   
+(111, 368), (94, 468), (56, 379), (77, 133), (29, 399), (9, 363), (23, 36),    
+(116, 390), (119, 368), (87, 351), (123, 411), (24, 398), (34, 202), (28, 499),
+(30, 83), (5, 178), (60, 343), (4, 245), (104, 280), (106, 446), (127, 403),   
+(44, 307), (68, 454), (57, 135);
+select a+0 from t1 order by a;
+a+0
+0
+4
+5
+9
+23
+24
+28
+29
+30
+31
+34
+44
+49
+56
+57
+59
+60
+61
+68
+68
+75
+77
+78
+79
+87
+88
+94
+94
+104
+106
+108
+111
+116
+118
+119
+122
+123
+127
+select b+0 from t1 order by b;
+b+0
+36
+42
+46
+67
+83
+118
+123
+133
+135
+152
+177
+178
+188
+202
+206
+245
+280
+307
+343
+345
+349
+351
+363
+368
+368
+379
+380
+390
+398
+399
+403
+411
+411
+438
+446
+454
+468
+499
+drop table t1;
+create table t1 (
+dummyKey INTEGER NOT NULL,
+a001 TINYINT,
+a010 TINYINT,
+a012 TINYINT,
+a015 TINYINT,
+a016 TINYINT,
+a017 TINYINT,
+a019 TINYINT,
+a029 TINYINT,
+a030 TINYINT,
+a031 TINYINT,
+a032 TINYINT,
+a042 TINYINT,
+a043 TINYINT,
+a044 TINYINT,
+a3001 TINYINT,
+a3002 TINYINT,
+a3003 TINYINT,
+a3004 TINYINT,
+a3005 TINYINT,
+a3021 TINYINT,
+a3022 TINYINT,
+a BIT(6),
+b BIT(6),
+c BIT(6),
+d TINYINT,
+e TINYINT,
+f TINYINT,
+g TINYINT,
+h TINYINT,
+i TINYINT,
+j TINYINT,
+k TINYINT,
+l TINYINT,
+m TINYINT,
+n TINYINT,
+o TINYINT,
+a034 TINYINT,
+PRIMARY KEY USING HASH (dummyKey) ) engine=ndb;
+INSERT INTO `t1` VALUES
+(1,1,1,1,1,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,b'000001',b'111111',b'111110',4,5,5,5,5,5,5,5,5,5,3,2,1),
+(2,1,1,1,1,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,b'000010',b'000000',b'111101',4,5,5,5,5,5,5,5,5,5,3,2,1),
+(3,1,1,1,1,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,b'000100',b'001111',b'111011',4,5,5,5,5,5,5,5,5,5,3,2,1),
+(4,1,1,1,1,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,b'001000',b'110000',b'110111',4,5,5,5,5,5,5,5,5,5,3,2,1),
+(5,1,1,1,1,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,b'010000',b'100001',b'101111',4,5,5,5,5,5,5,5,5,5,3,2,1),
+(6,1,1,1,1,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,b'100000',b'010010',b'011111',4,5,5,5,5,5,5,5,5,5,3,2,1),
+(7,1,1,1,1,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,b'000000',b'001100',b'111111',4,5,5,5,5,5,5,5,5,5,3,2,1),
+(8,1,1,1,1,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,b'111111',b'000000',b'000000',4,5,5,5,5,5,5,5,5,5,3,2,1);
+INSERT INTO `t1` VALUES (1,1,1,1,1,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0x01,0x3F,0x3E,4,5,5,5,5,5,5,5,5,5,3,2,1);
+INSERT INTO `t1` VALUES (2,1,1,1,1,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0x02,0x00,0x3D,4,5,5,5,5,5,5,5,5,5,3,2,1);
+INSERT INTO `t1` VALUES (3,1,1,1,1,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0x04,0x0F,0x3B,4,5,5,5,5,5,5,5,5,5,3,2,1);
+INSERT INTO `t1` VALUES (4,1,1,1,1,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0x08,0x30,0x37,4,5,5,5,5,5,5,5,5,5,3,2,1);
+INSERT INTO `t1` VALUES (5,1,1,1,1,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0x10,0x21,0x2F,4,5,5,5,5,5,5,5,5,5,3,2,1);
+INSERT INTO `t1` VALUES (6,1,1,1,1,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0x20,0x12,0x1F,4,5,5,5,5,5,5,5,5,5,3,2,1);
+INSERT INTO `t1` VALUES (7,1,1,1,1,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0x00,0x0C,0x3F,4,5,5,5,5,5,5,5,5,5,3,2,1);
+INSERT INTO `t1` VALUES (8,1,1,1,1,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0x3F,0x00,0x00,4,5,5,5,5,5,5,5,5,5,3,2,1);
+select a001, a010, a012, a015, a016, a017, a019, a029
+a030, a031, a032, a042, a043, a044, a3001, a3002,
+a3003, a3004, a3005, a3021, a3022, hex(a), hex(b), hex(c),
+d, e, f, g, h, i, j, k, l, m, n, o, a034
+from t1
+order by dummyKey;
+a001	a010	a012	a015	a016	a017	a019	a030	a031	a032	a042	a043	a044	a3001	a3002	a3003	a3004	a3005	a3021	a3022	hex(a)	hex(b)	hex(c)	d	e	f	g	h	i	j	k	l	m	n	o	a034
+1	1	1	1	0	1	0	0	0	0	0	0	0	0	0	0	0	0	0	0	1	3F	3E	4	5	5	5	5	5	5	5	5	5	3	2	1
+1	1	1	1	0	1	0	0	0	0	0	0	0	0	0	0	0	0	0	0	2	0	3D	4	5	5	5	5	5	5	5	5	5	3	2	1
+1	1	1	1	0	1	0	0	0	0	0	0	0	0	0	0	0	0	0	0	4	F	3B	4	5	5	5	5	5	5	5	5	5	3	2	1
+1	1	1	1	0	1	0	0	0	0	0	0	0	0	0	0	0	0	0	0	8	30	37	4	5	5	5	5	5	5	5	5	5	3	2	1
+1	1	1	1	0	1	0	0	0	0	0	0	0	0	0	0	0	0	0	0	10	21	2F	4	5	5	5	5	5	5	5	5	5	3	2	1
+1	1	1	1	0	1	0	0	0	0	0	0	0	0	0	0	0	0	0	0	20	12	1F	4	5	5	5	5	5	5	5	5	5	3	2	1
+1	1	1	1	0	1	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	C	3F	4	5	5	5	5	5	5	5	5	5	3	2	1
+1	1	1	1	0	1	0	0	0	0	0	0	0	0	0	0	0	0	0	0	3F	0	0	4	5	5	5	5	5	5	5	5	5	3	2	1
+select a001, a010, a012, a015, a016, a017, a019, a029
+a030, a031, a032, a042, a043, a044, a3001, a3002,
+a3003, a3004, a3005, a3021, a3022, hex(a), hex(b), hex(c),
+d, e, f, g, h, i, j, k, l, m, n, o, a034
+from t1 where dummyKey = 1;
+a001	a010	a012	a015	a016	a017	a019	a030	a031	a032	a042	a043	a044	a3001	a3002	a3003	a3004	a3005	a3021	a3022	hex(a)	hex(b)	hex(c)	d	e	f	g	h	i	j	k	l	m	n	o	a034
+1	1	1	1	0	1	0	0	0	0	0	0	0	0	0	0	0	0	0	0	1	3F	3E	4	5	5	5	5	5	5	5	5	5	3	2	1
+drop table t1;
+create table t1 (
+pk1 bit(9) not null primary key,
+b int
+) engine=ndbcluster;
+ERROR HY000: Can't create table 'test.t1' (errno: 906)
+show warnings;
+Level	Code	Message
+Warning	1296	Got error 906 'Unsupported attribute type in index' from NDB
+Error	1005	Can't create table 'test.t1' (errno: 906)
+create table t1 (
+pk1 int not null primary key,
+b bit(9),
+key(b)
+) engine=ndbcluster;
+ERROR HY000: Can't create table 'test.t1' (errno: 906)
+show warnings;
+Level	Code	Message
+Warning	1296	Got error 906 'Unsupported attribute type in index' from NDB
+Error	1005	Can't create table 'test.t1' (errno: 906)
+create table t1 (
+pk1 int primary key,
+b bit(32) not null
+) engine=ndbcluster;
+insert into t1 values (1,1);
+drop table t1;
+create table bigbits ( k int unsigned primary key, c1 bit(64), c2 bit(64), c3 bit(64), c4 bit(64), c5 bit(64), c6 bit(64), c7 bit(64), c8 bit(64), c9 bit(64), c10 bit(64), c11 bit(64), c12 bit(64), c13 bit(64), c14 bit(64), c15 bit(64), c16 bit(64), c17 bit(64), c18 bit(64), c19 bit(64), c20 bit(64), c21 bit(64), c22 bit(64), c23 bit(64), c24 bit(64), c25 bit(64), c26 bit(64), c27 bit(64), c28 bit(64), c29 bit(64), c30 bit(64), c31 bit(64), c32 bit(64), c33 bit(64), c34 bit(64), c35 bit(64), c36 bit(64), c37 bit(64), c38 bit(64), c39 bit(64), c40 bit(64), c41 bit(64), c42 bit(64), c43 bit(64), c44 bit(64), c45 bit(64), c46 bit(64), c47 bit(64), c48 bit(64), c49 bit(64), c50 bit(64), c51 bit(64), c52 bit(64), c53 bit(64), c54 bit(64), c55 bit(64), c56 bit(64), c57 bit(64), c58 bit(64), c59 bit(64), c60 bit(64), c61 bit(64), c62 bit(64), c63 bit(64), c64 bit(64), c65 bit(64), c66 bit(64), c67 bit(64), c68 bit(64), c69 bit(64), c70 bit(64), c71 bit(64), c72 bit(64), c73 bit(64), c74 bit(64), c75 bit(64), c76 bit(64), c77 bit(64), c78 bit(64), c79 bit(64), c80 bit(64), c81 bit(64), c82 bit(64), c83 bit(64), c84 bit(64), c85 bit(64), c86 bit(64), c87 bit(64), c88 bit(64), c89 bit(64), c90 bit(64), c91 bit(64), c92 bit(64), c93 bit(64), c94 bit(64), c95 bit(64), c96 bit(64), c97 bit(64), c98 bit(64), c99 bit(64), c100 bit(64), c101 bit(64), c102 bit(64), c103 bit(64), c104 bit(64), c105 bit(64), c106 bit(64), c107 bit(64), c108 bit(64), c109 bit(64), c110 bit(64), c111 bit(64), c112 bit(64), c113 bit(64), c114 bit(64), c115 bit(64), c116 bit(64), c117 bit(64), c118 bit(64), c119 bit(64), c120 bit(64), c121 bit(64), c122 bit(64), c123 bit(64), c124 bit(64), c125 bit(64), c126 bit(64)) engine=ndb;
+ERROR HY000: Can't create table 'test.bigbits' (errno: 140)
+show warnings;
+Level	Code	Message
+Warning	1296	Got error 791 'Too many total bits in bitfields' from NDB
+Error	1005	Can't create table 'test.bigbits' (errno: 140)

@@ -1,4 +1,6 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (C) 2007, 2008 MySQL AB, 2008 Sun Microsystems, Inc.
+    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,17 +13,18 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #include "ObjectMap.hpp"
 
-NdbObjectIdMap::NdbObjectIdMap(NdbMutex* mutex, Uint32 sz, Uint32 eSz)
+NdbObjectIdMap::NdbObjectIdMap(Uint32 sz, Uint32 eSz):
+  m_expandSize(eSz),
+  m_size(0),
+  m_firstFree(InvalidId),
+  m_lastFree(InvalidId),
+  m_map(0)
 {
-  m_size = 0;
-  m_firstFree = InvalidId;
-  m_map = 0;
-  m_mutex = mutex;
-  m_expandSize = eSz;
   expand(sz);
 #ifdef DEBUG_OBJECTMAP
   ndbout_c("NdbObjectIdMap:::NdbObjectIdMap(%u)", sz);
@@ -30,12 +33,14 @@ NdbObjectIdMap::NdbObjectIdMap(NdbMutex* mutex, Uint32 sz, Uint32 eSz)
 
 NdbObjectIdMap::~NdbObjectIdMap()
 {
+  assert(checkConsistency());
   free(m_map);
+  m_map = NULL;
 }
 
 int NdbObjectIdMap::expand(Uint32 incSize)
 {
-  NdbMutex_Lock(m_mutex);
+  assert(checkConsistency());
   Uint32 newSize = m_size + incSize;
   MapEntry * tmp = (MapEntry*)realloc(m_map, newSize * sizeof(MapEntry));
 
@@ -43,20 +48,45 @@ int NdbObjectIdMap::expand(Uint32 incSize)
   {
     m_map = tmp;
     
-    for(Uint32 i = m_size; i < newSize; i++){
-      m_map[i].m_next = i + 1;
+    for(Uint32 i = m_size; i < newSize-1; i++)
+    {
+      m_map[i].setNext(i+1);
     }
     m_firstFree = m_size;
-    m_map[newSize-1].m_next = InvalidId;
+    m_lastFree = newSize - 1;
+    m_map[newSize-1].setNext(InvalidId);
     m_size = newSize;
+    assert(checkConsistency());
   }
   else
   {
-    NdbMutex_Unlock(m_mutex);
-    g_eventLogger.error("NdbObjectIdMap::expand: realloc(%u*%u) failed",
-                        newSize, sizeof(MapEntry));
+    g_eventLogger->error("NdbObjectIdMap::expand: realloc(%u*%lu) failed",
+                         newSize, sizeof(MapEntry));
     return -1;
   }
-  NdbMutex_Unlock(m_mutex);
   return 0;
+}
+
+bool NdbObjectIdMap::checkConsistency()
+{
+  if (m_firstFree == InvalidId)
+  {
+    for (Uint32 i = 0; i<m_size; i++)
+    {
+      if (m_map[i].isFree())
+      {
+        assert(false);
+        return false;
+      }
+    }
+    return true;
+  }
+
+  Uint32 i = m_firstFree;
+  while (m_map[i].getNext() != InvalidId)
+  {
+    i = m_map[i].getNext();
+  }
+  assert(i == m_lastFree);
+  return i == m_lastFree;
 }

@@ -1,0 +1,326 @@
+drop table if exists t1;
+CREATE LOGFILE GROUP lg1
+ADD UNDOFILE 'undofile.dat'
+INITIAL_SIZE 1M
+UNDO_BUFFER_SIZE = 1M
+ENGINE=NDB;
+CREATE TABLESPACE ts1
+ADD DATAFILE 'datafile.dat'
+USE LOGFILE GROUP lg1
+INITIAL_SIZE 6M
+ENGINE NDB;
+create table t1 (a int column_format DYNAMIC STORAGE DISK) TABLESPACE ts1 engine NDB;
+Warnings:
+Warning	1478	DYNAMIC column a with STORAGE DISK is not supported, column will become FIXED
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) /*!50120 STORAGE DISK */ /*!50120 COLUMN_FORMAT DYNAMIC */ DEFAULT NULL
+) /*!50100 TABLESPACE ts1 */ ENGINE=ndbcluster DEFAULT CHARSET=latin1
+Attributes:
+a Int NULL AT=FIXED ST=DISK
+$PK Bigunsigned PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY AUTO_INCR
+drop table t1;
+create table t1 (a int column_format DYNAMIC,
+a1 int column_format FIXED,
+b int NOT NULL column_format DYNAMIC,
+b1 int NOT NULL column_format FIXED storage DISK,
+c VARCHAR(100) column_format FIXED,
+c1 VARCHAR(100) column_format DYNAMIC storage memory,
+d VARCHAR(100) NOT NULL column_format FIXED,
+d1 VARCHAR(100) NOT NULL column_format DYNAMIC,
+e CHAR(100) column_format FIXED,
+e1 CHAR(100) column_format DYNAMIC,
+f CHAR(100) NOT NULL column_format FIXED,
+f1 char(100) NOT NULL column_format DYNAMIC storage DISK,
+index (b)) TABLESPACE ts1 engine NDB;
+Warnings:
+Warning	1478	DYNAMIC column f1 with STORAGE DISK is not supported, column will become FIXED
+insert into t1 (b, b1, d,d1,f,f1) values
+(1,1,"1","1","1","1"),
+(2,2,"2","2","2","2"),
+(3,3,"3","3","3","3");
+alter table t1 change column a a int column_format FIXED;
+Warnings:
+Warning	1478	DYNAMIC column f1 with STORAGE DISK is not supported, column will become FIXED
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) /*!50120 COLUMN_FORMAT FIXED */ DEFAULT NULL,
+  `a1` int(11) /*!50120 COLUMN_FORMAT FIXED */ DEFAULT NULL,
+  `b` int(11) NOT NULL /*!50120 COLUMN_FORMAT DYNAMIC */,
+  `b1` int(11) NOT NULL /*!50120 STORAGE DISK */ /*!50120 COLUMN_FORMAT FIXED */,
+  `c` varchar(100) /*!50120 COLUMN_FORMAT FIXED */ DEFAULT NULL,
+  `c1` varchar(100) /*!50120 STORAGE MEMORY */ /*!50120 COLUMN_FORMAT DYNAMIC */ DEFAULT NULL,
+  `d` varchar(100) NOT NULL /*!50120 COLUMN_FORMAT FIXED */,
+  `d1` varchar(100) NOT NULL /*!50120 COLUMN_FORMAT DYNAMIC */,
+  `e` char(100) /*!50120 COLUMN_FORMAT FIXED */ DEFAULT NULL,
+  `e1` char(100) /*!50120 COLUMN_FORMAT DYNAMIC */ DEFAULT NULL,
+  `f` char(100) NOT NULL /*!50120 COLUMN_FORMAT FIXED */,
+  `f1` char(100) NOT NULL /*!50120 STORAGE DISK */ /*!50120 COLUMN_FORMAT DYNAMIC */,
+  KEY `b` (`b`)
+) /*!50100 TABLESPACE ts1 */ ENGINE=ndbcluster DEFAULT CHARSET=latin1
+alter table t1 change column a a int storage disk;
+Warnings:
+Warning	1478	DYNAMIC column f1 with STORAGE DISK is not supported, column will become FIXED
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) /*!50120 STORAGE DISK */ DEFAULT NULL,
+  `a1` int(11) /*!50120 COLUMN_FORMAT FIXED */ DEFAULT NULL,
+  `b` int(11) NOT NULL /*!50120 COLUMN_FORMAT DYNAMIC */,
+  `b1` int(11) NOT NULL /*!50120 STORAGE DISK */ /*!50120 COLUMN_FORMAT FIXED */,
+  `c` varchar(100) /*!50120 COLUMN_FORMAT FIXED */ DEFAULT NULL,
+  `c1` varchar(100) /*!50120 STORAGE MEMORY */ /*!50120 COLUMN_FORMAT DYNAMIC */ DEFAULT NULL,
+  `d` varchar(100) NOT NULL /*!50120 COLUMN_FORMAT FIXED */,
+  `d1` varchar(100) NOT NULL /*!50120 COLUMN_FORMAT DYNAMIC */,
+  `e` char(100) /*!50120 COLUMN_FORMAT FIXED */ DEFAULT NULL,
+  `e1` char(100) /*!50120 COLUMN_FORMAT DYNAMIC */ DEFAULT NULL,
+  `f` char(100) NOT NULL /*!50120 COLUMN_FORMAT FIXED */,
+  `f1` char(100) NOT NULL /*!50120 STORAGE DISK */ /*!50120 COLUMN_FORMAT DYNAMIC */,
+  KEY `b` (`b`)
+) /*!50100 TABLESPACE ts1 */ ENGINE=ndbcluster DEFAULT CHARSET=latin1
+Attributes:
+a Int NULL AT=FIXED ST=DISK
+a1 Int NULL AT=FIXED ST=MEMORY
+b Int NOT NULL AT=FIXED ST=MEMORY DYNAMIC
+b1 Int NOT NULL AT=FIXED ST=DISK
+c Varchar(100;latin1_swedish_ci) NULL AT=SHORT_VAR ST=MEMORY
+c1 Varchar(100;latin1_swedish_ci) NULL AT=SHORT_VAR ST=MEMORY DYNAMIC
+d Varchar(100;latin1_swedish_ci) NOT NULL AT=SHORT_VAR ST=MEMORY
+d1 Varchar(100;latin1_swedish_ci) NOT NULL AT=SHORT_VAR ST=MEMORY DYNAMIC
+e Char(100;latin1_swedish_ci) NULL AT=FIXED ST=MEMORY
+e1 Char(100;latin1_swedish_ci) NULL AT=FIXED ST=MEMORY DYNAMIC
+f Char(100;latin1_swedish_ci) NOT NULL AT=FIXED ST=MEMORY
+f1 Char(100;latin1_swedish_ci) NOT NULL AT=FIXED ST=DISK
+$PK Bigunsigned PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY AUTO_INCR
+alter table t1 change column a a int storage memory;
+Warnings:
+Warning	1478	DYNAMIC column f1 with STORAGE DISK is not supported, column will become FIXED
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) /*!50120 STORAGE MEMORY */ DEFAULT NULL,
+  `a1` int(11) /*!50120 COLUMN_FORMAT FIXED */ DEFAULT NULL,
+  `b` int(11) NOT NULL /*!50120 COLUMN_FORMAT DYNAMIC */,
+  `b1` int(11) NOT NULL /*!50120 STORAGE DISK */ /*!50120 COLUMN_FORMAT FIXED */,
+  `c` varchar(100) /*!50120 COLUMN_FORMAT FIXED */ DEFAULT NULL,
+  `c1` varchar(100) /*!50120 STORAGE MEMORY */ /*!50120 COLUMN_FORMAT DYNAMIC */ DEFAULT NULL,
+  `d` varchar(100) NOT NULL /*!50120 COLUMN_FORMAT FIXED */,
+  `d1` varchar(100) NOT NULL /*!50120 COLUMN_FORMAT DYNAMIC */,
+  `e` char(100) /*!50120 COLUMN_FORMAT FIXED */ DEFAULT NULL,
+  `e1` char(100) /*!50120 COLUMN_FORMAT DYNAMIC */ DEFAULT NULL,
+  `f` char(100) NOT NULL /*!50120 COLUMN_FORMAT FIXED */,
+  `f1` char(100) NOT NULL /*!50120 STORAGE DISK */ /*!50120 COLUMN_FORMAT DYNAMIC */,
+  KEY `b` (`b`)
+) /*!50100 TABLESPACE ts1 */ ENGINE=ndbcluster DEFAULT CHARSET=latin1
+Attributes:
+a Int NULL AT=FIXED ST=MEMORY
+a1 Int NULL AT=FIXED ST=MEMORY
+b Int NOT NULL AT=FIXED ST=MEMORY DYNAMIC
+b1 Int NOT NULL AT=FIXED ST=DISK
+c Varchar(100;latin1_swedish_ci) NULL AT=SHORT_VAR ST=MEMORY
+c1 Varchar(100;latin1_swedish_ci) NULL AT=SHORT_VAR ST=MEMORY DYNAMIC
+d Varchar(100;latin1_swedish_ci) NOT NULL AT=SHORT_VAR ST=MEMORY
+d1 Varchar(100;latin1_swedish_ci) NOT NULL AT=SHORT_VAR ST=MEMORY DYNAMIC
+e Char(100;latin1_swedish_ci) NULL AT=FIXED ST=MEMORY
+e1 Char(100;latin1_swedish_ci) NULL AT=FIXED ST=MEMORY DYNAMIC
+f Char(100;latin1_swedish_ci) NOT NULL AT=FIXED ST=MEMORY
+f1 Char(100;latin1_swedish_ci) NOT NULL AT=FIXED ST=DISK
+$PK Bigunsigned PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY AUTO_INCR
+alter table t1 change column b b int NOT NULL storage memory;
+Warnings:
+Warning	1478	DYNAMIC column f1 with STORAGE DISK is not supported, column will become FIXED
+alter table t1 add column a2 int column_format FIXED;
+Warnings:
+Warning	1478	DYNAMIC column f1 with STORAGE DISK is not supported, column will become FIXED
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) /*!50120 STORAGE MEMORY */ DEFAULT NULL,
+  `a1` int(11) /*!50120 COLUMN_FORMAT FIXED */ DEFAULT NULL,
+  `b` int(11) NOT NULL /*!50120 STORAGE MEMORY */,
+  `b1` int(11) NOT NULL /*!50120 STORAGE DISK */ /*!50120 COLUMN_FORMAT FIXED */,
+  `c` varchar(100) /*!50120 COLUMN_FORMAT FIXED */ DEFAULT NULL,
+  `c1` varchar(100) /*!50120 STORAGE MEMORY */ /*!50120 COLUMN_FORMAT DYNAMIC */ DEFAULT NULL,
+  `d` varchar(100) NOT NULL /*!50120 COLUMN_FORMAT FIXED */,
+  `d1` varchar(100) NOT NULL /*!50120 COLUMN_FORMAT DYNAMIC */,
+  `e` char(100) /*!50120 COLUMN_FORMAT FIXED */ DEFAULT NULL,
+  `e1` char(100) /*!50120 COLUMN_FORMAT DYNAMIC */ DEFAULT NULL,
+  `f` char(100) NOT NULL /*!50120 COLUMN_FORMAT FIXED */,
+  `f1` char(100) NOT NULL /*!50120 STORAGE DISK */ /*!50120 COLUMN_FORMAT DYNAMIC */,
+  `a2` int(11) /*!50120 COLUMN_FORMAT FIXED */ DEFAULT NULL,
+  KEY `b` (`b`)
+) /*!50100 TABLESPACE ts1 */ ENGINE=ndbcluster DEFAULT CHARSET=latin1
+Attributes:
+a Int NULL AT=FIXED ST=MEMORY
+a1 Int NULL AT=FIXED ST=MEMORY
+b Int NOT NULL AT=FIXED ST=MEMORY
+b1 Int NOT NULL AT=FIXED ST=DISK
+c Varchar(100;latin1_swedish_ci) NULL AT=SHORT_VAR ST=MEMORY
+c1 Varchar(100;latin1_swedish_ci) NULL AT=SHORT_VAR ST=MEMORY DYNAMIC
+d Varchar(100;latin1_swedish_ci) NOT NULL AT=SHORT_VAR ST=MEMORY
+d1 Varchar(100;latin1_swedish_ci) NOT NULL AT=SHORT_VAR ST=MEMORY DYNAMIC
+e Char(100;latin1_swedish_ci) NULL AT=FIXED ST=MEMORY
+e1 Char(100;latin1_swedish_ci) NULL AT=FIXED ST=MEMORY DYNAMIC
+f Char(100;latin1_swedish_ci) NOT NULL AT=FIXED ST=MEMORY
+f1 Char(100;latin1_swedish_ci) NOT NULL AT=FIXED ST=DISK
+a2 Int NULL AT=FIXED ST=MEMORY
+$PK Bigunsigned PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY AUTO_INCR
+alter table t1 add column c2 VARCHAR(100) column_format DYNAMIC;
+Warnings:
+Warning	1478	DYNAMIC column f1 with STORAGE DISK is not supported, column will become FIXED
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) /*!50120 STORAGE MEMORY */ DEFAULT NULL,
+  `a1` int(11) /*!50120 COLUMN_FORMAT FIXED */ DEFAULT NULL,
+  `b` int(11) NOT NULL /*!50120 STORAGE MEMORY */,
+  `b1` int(11) NOT NULL /*!50120 STORAGE DISK */ /*!50120 COLUMN_FORMAT FIXED */,
+  `c` varchar(100) /*!50120 COLUMN_FORMAT FIXED */ DEFAULT NULL,
+  `c1` varchar(100) /*!50120 STORAGE MEMORY */ /*!50120 COLUMN_FORMAT DYNAMIC */ DEFAULT NULL,
+  `d` varchar(100) NOT NULL /*!50120 COLUMN_FORMAT FIXED */,
+  `d1` varchar(100) NOT NULL /*!50120 COLUMN_FORMAT DYNAMIC */,
+  `e` char(100) /*!50120 COLUMN_FORMAT FIXED */ DEFAULT NULL,
+  `e1` char(100) /*!50120 COLUMN_FORMAT DYNAMIC */ DEFAULT NULL,
+  `f` char(100) NOT NULL /*!50120 COLUMN_FORMAT FIXED */,
+  `f1` char(100) NOT NULL /*!50120 STORAGE DISK */ /*!50120 COLUMN_FORMAT DYNAMIC */,
+  `a2` int(11) /*!50120 COLUMN_FORMAT FIXED */ DEFAULT NULL,
+  `c2` varchar(100) /*!50120 COLUMN_FORMAT DYNAMIC */ DEFAULT NULL,
+  KEY `b` (`b`)
+) /*!50100 TABLESPACE ts1 */ ENGINE=ndbcluster DEFAULT CHARSET=latin1
+Attributes:
+a Int NULL AT=FIXED ST=MEMORY
+a1 Int NULL AT=FIXED ST=MEMORY
+b Int NOT NULL AT=FIXED ST=MEMORY
+b1 Int NOT NULL AT=FIXED ST=DISK
+c Varchar(100;latin1_swedish_ci) NULL AT=SHORT_VAR ST=MEMORY
+c1 Varchar(100;latin1_swedish_ci) NULL AT=SHORT_VAR ST=MEMORY DYNAMIC
+d Varchar(100;latin1_swedish_ci) NOT NULL AT=SHORT_VAR ST=MEMORY
+d1 Varchar(100;latin1_swedish_ci) NOT NULL AT=SHORT_VAR ST=MEMORY DYNAMIC
+e Char(100;latin1_swedish_ci) NULL AT=FIXED ST=MEMORY
+e1 Char(100;latin1_swedish_ci) NULL AT=FIXED ST=MEMORY DYNAMIC
+f Char(100;latin1_swedish_ci) NOT NULL AT=FIXED ST=MEMORY
+f1 Char(100;latin1_swedish_ci) NOT NULL AT=FIXED ST=DISK
+a2 Int NULL AT=FIXED ST=MEMORY
+c2 Varchar(100;latin1_swedish_ci) NULL AT=SHORT_VAR ST=MEMORY DYNAMIC
+$PK Bigunsigned PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY AUTO_INCR
+alter table t1 add column c3 VARCHAR(100) column_format FIXED;
+Warnings:
+Warning	1478	DYNAMIC column f1 with STORAGE DISK is not supported, column will become FIXED
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) /*!50120 STORAGE MEMORY */ DEFAULT NULL,
+  `a1` int(11) /*!50120 COLUMN_FORMAT FIXED */ DEFAULT NULL,
+  `b` int(11) NOT NULL /*!50120 STORAGE MEMORY */,
+  `b1` int(11) NOT NULL /*!50120 STORAGE DISK */ /*!50120 COLUMN_FORMAT FIXED */,
+  `c` varchar(100) /*!50120 COLUMN_FORMAT FIXED */ DEFAULT NULL,
+  `c1` varchar(100) /*!50120 STORAGE MEMORY */ /*!50120 COLUMN_FORMAT DYNAMIC */ DEFAULT NULL,
+  `d` varchar(100) NOT NULL /*!50120 COLUMN_FORMAT FIXED */,
+  `d1` varchar(100) NOT NULL /*!50120 COLUMN_FORMAT DYNAMIC */,
+  `e` char(100) /*!50120 COLUMN_FORMAT FIXED */ DEFAULT NULL,
+  `e1` char(100) /*!50120 COLUMN_FORMAT DYNAMIC */ DEFAULT NULL,
+  `f` char(100) NOT NULL /*!50120 COLUMN_FORMAT FIXED */,
+  `f1` char(100) NOT NULL /*!50120 STORAGE DISK */ /*!50120 COLUMN_FORMAT DYNAMIC */,
+  `a2` int(11) /*!50120 COLUMN_FORMAT FIXED */ DEFAULT NULL,
+  `c2` varchar(100) /*!50120 COLUMN_FORMAT DYNAMIC */ DEFAULT NULL,
+  `c3` varchar(100) /*!50120 COLUMN_FORMAT FIXED */ DEFAULT NULL,
+  KEY `b` (`b`)
+) /*!50100 TABLESPACE ts1 */ ENGINE=ndbcluster DEFAULT CHARSET=latin1
+Attributes:
+a Int NULL AT=FIXED ST=MEMORY
+a1 Int NULL AT=FIXED ST=MEMORY
+b Int NOT NULL AT=FIXED ST=MEMORY
+b1 Int NOT NULL AT=FIXED ST=DISK
+c Varchar(100;latin1_swedish_ci) NULL AT=SHORT_VAR ST=MEMORY
+c1 Varchar(100;latin1_swedish_ci) NULL AT=SHORT_VAR ST=MEMORY DYNAMIC
+d Varchar(100;latin1_swedish_ci) NOT NULL AT=SHORT_VAR ST=MEMORY
+d1 Varchar(100;latin1_swedish_ci) NOT NULL AT=SHORT_VAR ST=MEMORY DYNAMIC
+e Char(100;latin1_swedish_ci) NULL AT=FIXED ST=MEMORY
+e1 Char(100;latin1_swedish_ci) NULL AT=FIXED ST=MEMORY DYNAMIC
+f Char(100;latin1_swedish_ci) NOT NULL AT=FIXED ST=MEMORY
+f1 Char(100;latin1_swedish_ci) NOT NULL AT=FIXED ST=DISK
+a2 Int NULL AT=FIXED ST=MEMORY
+c2 Varchar(100;latin1_swedish_ci) NULL AT=SHORT_VAR ST=MEMORY DYNAMIC
+c3 Varchar(100;latin1_swedish_ci) NULL AT=SHORT_VAR ST=MEMORY
+$PK Bigunsigned PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY AUTO_INCR
+drop table t1;
+create table t1 (a int storage disk column_format FIXED) TABLESPACE ts1 engine NDB;
+alter table t1 change column a a int storage memory column_format DYNAMIC;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) /*!50120 STORAGE MEMORY */ /*!50120 COLUMN_FORMAT DYNAMIC */ DEFAULT NULL
+) /*!50100 TABLESPACE ts1 */ ENGINE=ndbcluster DEFAULT CHARSET=latin1
+Attributes:
+a Int NULL AT=FIXED ST=MEMORY DYNAMIC
+$PK Bigunsigned PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY AUTO_INCR
+drop table t1;
+create table t1 (column_format int storage disk column_format FIXED, storage int storage disk column_format FIXED) TABLESPACE ts1 engine NDB;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `column_format` int(11) /*!50120 STORAGE DISK */ /*!50120 COLUMN_FORMAT FIXED */ DEFAULT NULL,
+  `storage` int(11) /*!50120 STORAGE DISK */ /*!50120 COLUMN_FORMAT FIXED */ DEFAULT NULL
+) /*!50100 TABLESPACE ts1 */ ENGINE=ndbcluster DEFAULT CHARSET=latin1
+Attributes:
+column_format Int NULL AT=FIXED ST=DISK
+storage Int NULL AT=FIXED ST=DISK
+$PK Bigunsigned PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY AUTO_INCR
+drop table t1;
+ALTER TABLESPACE ts1
+DROP DATAFILE 'datafile.dat'
+ENGINE NDB;
+drop tablespace ts1
+engine ndb;
+drop logfile group lg1
+engine ndb;
+CREATE TABLE t1 (
+pk1 INT NOT NULL auto_increment,
+c00 int not null column_format dynamic,
+c01 int not null column_format dynamic,
+c02 int not null column_format dynamic,
+c03 int not null column_format dynamic,
+c04 int not null column_format dynamic,
+c05 int not null column_format dynamic,
+c06 int not null column_format dynamic,
+c07 int not null column_format dynamic,
+c08 int not null column_format dynamic,
+c09 int not null column_format dynamic,
+c10 int not null column_format dynamic,
+c11 int not null column_format dynamic,
+c12 int not null column_format dynamic,
+c13 int not null column_format dynamic,
+c14 int not null column_format dynamic,
+c15 int not null column_format dynamic,
+c16 int not null column_format dynamic,
+c17 int not null column_format dynamic,
+c18 int not null column_format dynamic,
+c19 int not null column_format dynamic,
+primary key(pk1)
+) ENGINE=ndbcluster;
+insert into t1 values(null,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21);
+insert into t1 values(null,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21);
+insert into t1 values(null,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21);
+insert into t1 values(null,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21);
+insert into t1 values(null,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21);
+insert into t1 values(null,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21);
+insert into t1 values(null,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21);
+insert into t1 values(null,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21);
+insert into t1 values(null,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21);
+insert into t1 values(null,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21);
+select * from t1 order by 1;
+pk1	c00	c01	c02	c03	c04	c05	c06	c07	c08	c09	c10	c11	c12	c13	c14	c15	c16	c17	c18	c19
+1	2	3	4	5	6	7	8	9	10	11	12	13	14	15	16	17	18	19	20	21
+2	2	3	4	5	6	7	8	9	10	11	12	13	14	15	16	17	18	19	20	21
+3	2	3	4	5	6	7	8	9	10	11	12	13	14	15	16	17	18	19	20	21
+4	2	3	4	5	6	7	8	9	10	11	12	13	14	15	16	17	18	19	20	21
+5	2	3	4	5	6	7	8	9	10	11	12	13	14	15	16	17	18	19	20	21
+6	2	3	4	5	6	7	8	9	10	11	12	13	14	15	16	17	18	19	20	21
+7	2	3	4	5	6	7	8	9	10	11	12	13	14	15	16	17	18	19	20	21
+8	2	3	4	5	6	7	8	9	10	11	12	13	14	15	16	17	18	19	20	21
+9	2	3	4	5	6	7	8	9	10	11	12	13	14	15	16	17	18	19	20	21
+10	2	3	4	5	6	7	8	9	10	11	12	13	14	15	16	17	18	19	20	21
+delete from t1;
+drop table t1;

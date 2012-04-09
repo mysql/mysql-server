@@ -1,4 +1,6 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (C) 2003-2008 MySQL AB, 2008 Sun Microsystems, Inc.
+    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +13,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 //****************************************************************************
 //
@@ -26,6 +29,7 @@
 #include <kernel_types.h>
 #include <BlockNumbers.h>
 #include <TransporterDefinitions.hpp>
+#include <RefConvert.hpp>
 
 class SignalLoggerManager
 {
@@ -56,6 +60,11 @@ public:
   /**
    * For input signals
    */
+  void executeSignal(const SignalHeader& sh, Uint8 prio,
+		     const Uint32 * theData, Uint32 node) {
+    executeSignal(sh, prio, theData, node, (LinearSectionPtr*)0, 0);
+  }
+
   void executeSignal(const SignalHeader&, Uint8 prio,
                      const Uint32 * theData, Uint32 node,
                      const SegmentedSectionPtr ptr[3], Uint32 secs);
@@ -67,26 +76,43 @@ public:
   /**
    * For output signals
    */
-  void sendSignal(const SignalHeader&, Uint8 prio, 
+  void sendSignal(const SignalHeader& sh, Uint8 prio,
+		  const Uint32 * theData, Uint32 node) {
+    sendSignal(sh, prio, theData, node, (LinearSectionPtr*)0, 0);
+  }
+
+  void sendSignal(const SignalHeader&, Uint8 prio,
 		  const Uint32 * theData, Uint32 node,
                   const SegmentedSectionPtr ptr[3], Uint32 secs);
 
   void sendSignal(const SignalHeader&, Uint8 prio, 
 		  const Uint32 * theData, Uint32 node,
                   const LinearSectionPtr ptr[3], Uint32 secs);
+
+  void sendSignal(const SignalHeader&, Uint8 prio,
+                  const Uint32 * theData, Uint32 node,
+                  const GenericSectionPtr ptr[3], Uint32 secs);
   
   /**
    * For output signals
    */
   void sendSignalWithDelay(Uint32 delayInMilliSeconds, 
-			   const SignalHeader&, 
+			   const SignalHeader& sh,
+			   Uint8 prio, const Uint32 * data, Uint32 node){
+    sendSignalWithDelay(delayInMilliSeconds, sh, prio, data, node,
+			(SegmentedSectionPtr*)0, 0);
+  }
+
+  void sendSignalWithDelay(Uint32 delayInMilliSeconds,
+			   const SignalHeader&,
 			   Uint8 prio, const Uint32 * data, Uint32 node,
                            const SegmentedSectionPtr ptr[3], Uint32 secs);
   
   /**
    * Generic messages in the signal log
    */
-  void log(BlockNumber bno, const char * msg, ...);
+  void log(BlockNumber bno, const char * msg, ...)
+    ATTRIBUTE_FORMAT(printf, 3, 4);
   
   /**
    * LogModes
@@ -144,6 +170,14 @@ public:
                                     unsigned i);
 
   /**
+   * Print generic section.
+   */
+  static void printGenericSection(FILE * output,
+                                  const SignalHeader & sh,
+                                  const GenericSectionPtr ptr[3],
+                                  unsigned i);
+
+  /**
    * Print data word in hex.  Adds line break before the word
    * when pos > 0 && pos % 7 == 0.  Increments pos.
    */
@@ -158,10 +192,18 @@ private:
   
   Uint32        traceId;
   Uint8         logModes[NO_OF_BLOCKS];
-  
+
+  NdbMutex* m_mutex;
+
+public:
+  void lock() { if (m_mutex != 0) NdbMutex_Lock(m_mutex); }
+  void unlock() { if (m_mutex != 0) NdbMutex_Unlock(m_mutex); }
+ 
   inline bool
   logMatch(BlockNumber bno, LogMode mask)
   {
+    // extract main block number
+    bno = blockToMain(bno);
     // avoid addressing outside logModes
     return
       bno < MIN_BLOCK_NO || bno > MAX_BLOCK_NO ||

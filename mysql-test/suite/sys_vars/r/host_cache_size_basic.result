@@ -1,0 +1,37 @@
+select @@global.host_cache_size;
+@@global.host_cache_size
+123
+select @@session.host_cache_size;
+ERROR HY000: Variable 'host_cache_size' is a GLOBAL variable
+show global variables like 'host_cache_size';
+Variable_name	Value
+host_cache_size	123
+show session variables like 'host_cache_size';
+Variable_name	Value
+host_cache_size	123
+select * from information_schema.global_variables
+where variable_name='host_cache_size';
+VARIABLE_NAME	VARIABLE_VALUE
+HOST_CACHE_SIZE	123
+select * from information_schema.session_variables
+where variable_name='host_cache_size';
+VARIABLE_NAME	VARIABLE_VALUE
+HOST_CACHE_SIZE	123
+set global host_cache_size=1;
+select @@global.host_cache_size;
+@@global.host_cache_size
+1
+set global host_cache_size=12;
+select @@global.host_cache_size;
+@@global.host_cache_size
+12
+set global host_cache_size=0;
+select @@global.host_cache_size;
+@@global.host_cache_size
+0
+set session host_cache_size=1;
+ERROR HY000: Variable 'host_cache_size' is a GLOBAL variable and should be set with SET GLOBAL
+set global host_cache_size=123;
+select @@global.host_cache_size;
+@@global.host_cache_size
+123

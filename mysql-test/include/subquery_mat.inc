@@ -481,9 +481,11 @@ SELECT * FROM t1 WHERE (a,b) = ANY (SELECT a, max(b) FROM t1 GROUP BY a);
 
 ALTER TABLE t1 ADD INDEX(a);
 
-SELECT * FROM t1 WHERE (a,b) = ANY (SELECT a, max(b) FROM t1 GROUP BY a);
-EXPLAIN
-SELECT * FROM t1 WHERE (a,b) = ANY (SELECT a, max(b) FROM t1 GROUP BY a);
+--let $query=SELECT * FROM t1 WHERE (a,b) = ANY (SELECT a, max(b) FROM t1 GROUP BY a)
+FLUSH STATUS;
+--eval $query
+SHOW SESSION STATUS LIKE 'Sort_scan%';
+--eval EXPLAIN $query
 
 DROP TABLE t1;
 
@@ -1015,7 +1017,9 @@ FROM t2 AS table1 LEFT JOIN t2 AS table2
          );
 
 eval explain $query;
+FLUSH STATUS;
 eval $query;
+SHOW SESSION STATUS LIKE 'Sort_scan%';
 
 DROP TABLE t1, t2;
 
@@ -1342,5 +1346,71 @@ eval $query;
 SHOW STATUS LIKE "HANDLER_READ%";
 
 DROP TABLE t1,t2,t3,t4;
+
+--echo #
+--echo # Bug#13727407: Assert !item->const_item() || !item->not_null_tables()
+--echo #
+
+CREATE TABLE t1 (
+  col_int_key INT,
+  KEY col_int_key (col_int_key)
+);
+
+INSERT INTO t1 VALUES (1);
+
+CREATE TABLE t2 (
+  col_int_key INT,
+  col_time_key TIME,
+  col_datetime_nokey DATETIME,
+  KEY col_int_key (col_int_key),
+  KEY col_time_key (col_time_key)
+);
+
+INSERT INTO t2 VALUES
+ (7,'14:03:03','2001-11-28 00:50:27'), (1,'01:46:09','2007-10-09 19:53:04');
+
+let $query=
+SELECT col_datetime_nokey AS x
+FROM t2 AS outr
+WHERE col_int_key IN (
+  SELECT STRAIGHT_JOIN col_int_key
+  FROM t1
+) AND outr.col_int_key = 0
+HAVING x = '2000-09-09'
+ORDER BY col_time_key;
+
+eval EXPLAIN $query;
+eval $query;
+
+DROP TABLE t1, t2;
+
+--echo #
+--echo # Bug#13838501 ASSERTION `TABLE->FILE->INITED' FAILED IN
+--echo # SUBSELECT_HASH_SJ_ENGINE::EXEC
+--echo #
+
+CREATE TABLE t1
+(c1 bigint,c2 char,pk INT,c3 char,c4 int,c5 INT,key (c5))
+ENGINE=InnoDB;
+INSERT INTO t1 VALUES (763078661862588416,0,1,'',1,'');
+CREATE TABLE t2 (c4k int,c4 int,cminnuk INT,key (cminnuk)) ENGINE=InnoDB;
+INSERT INTO t2 VALUES(0,'','');
+CREATE TABLE t3
+(c4 int,pk INT,c1 bigint,cyk year,cy year,key (cyk))
+ENGINE=InnoDB;
+INSERT INTO t3 VALUES(0,8,'',0,'');
+let $query=
+SELECT o.c2 AS x FROM t1 AS o
+WHERE o.c1 IN
+       (SELECT innr.c4 AS y
+        FROM t2 AS innr2 JOIN t3 AS innr
+             ON (innr2.c4k=innr.c4)
+        WHERE innr.c1=6 OR NOT innr.c1=innr.pk
+        ORDER BY innr.c4)
+      AND o.c4=7 XOR o.pk=3 ORDER BY o.pk;
+eval EXPLAIN $query;
+eval $query;
+
+DROP TABLE t1,t2,t3;
 
 --echo # End of 5.6 tests

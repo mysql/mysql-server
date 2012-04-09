@@ -80,7 +80,7 @@ reap;
 SET GLOBAL debug="d,corrupt_read_log_event";
 --connection slave
 START SLAVE IO_THREAD;
-let $slave_io_errno= 1236;
+let $slave_io_errno= 1236; # ER_MASTER_FATAL_ERROR_READING_BINLOG
 --source include/wait_for_slave_io_error.inc
 --connection master
 
@@ -91,7 +91,7 @@ SET GLOBAL master_verify_checksum=0;
 SET GLOBAL debug="d,corrupt_read_log_event";
 --connection slave
 START SLAVE IO_THREAD;
-let $slave_io_errno= 1595,1722;
+let $slave_io_errno= 1595,1741; # ER_SLAVE_RELAY_LOG_WRITE_FAILURE, ER_NETWORK_READ_EVENT_CHECKSUM_FAILURE
 --source include/wait_for_slave_io_error.inc
 --connection master
 SET GLOBAL debug="";
@@ -102,14 +102,14 @@ SET GLOBAL master_verify_checksum=1;
 --connection slave
 SET GLOBAL debug="d,corrupt_queue_event";
 START SLAVE IO_THREAD;
-let $slave_io_errno= 1595,1721;
+let $slave_io_errno= 1595,1741; # ER_SLAVE_RELAY_LOG_WRITE_FAILURE, ER_NETWORK_READ_EVENT_CHECKSUM_FAILURE
 --source include/wait_for_slave_io_error.inc
 
 # Emulate corruption in relay log
 --echo # 6. Slave. Corruption in relay log
 SET GLOBAL debug="d,corrupt_read_log_event_char";
 START SLAVE SQL_THREAD;
-let $slave_sql_errno= 1593;
+let $slave_sql_errno= 1593; # ER_SLAVE_FATAL_ERROR
 --source include/wait_for_slave_sql_error.inc
 
 # Start normal replication and compare same table on master

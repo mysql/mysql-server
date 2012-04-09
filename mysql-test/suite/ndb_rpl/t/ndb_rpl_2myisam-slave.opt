@@ -1,0 +1,1 @@
+--default-storage-engine=myisam --ndbcluster=0

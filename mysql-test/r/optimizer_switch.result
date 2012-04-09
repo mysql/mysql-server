@@ -341,9 +341,9 @@ WHERE tb.d IN (SELECT g FROM t4 as tc
 WHERE ta.a=tc.f
 ORDER BY tc.f));
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	tb	ALL	NULL	NULL	NULL	NULL	6	Start temporary
-1	PRIMARY	tc	ALL	NULL	NULL	NULL	NULL	6	Using where; Using join buffer (Block Nested Loop)
-1	PRIMARY	ta	ALL	NULL	NULL	NULL	NULL	7	Using where; End temporary; Using join buffer (Block Nested Loop)
+1	SIMPLE	tb	ALL	NULL	NULL	NULL	NULL	6	Start temporary
+1	SIMPLE	tc	ALL	NULL	NULL	NULL	NULL	6	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	ta	ALL	NULL	NULL	NULL	NULL	7	Using where; End temporary; Using join buffer (Block Nested Loop)
 SELECT * FROM t1 AS ta
 WHERE ta.a IN (SELECT c FROM t2 AS tb
 WHERE tb.d IN (SELECT g FROM t4 as tc

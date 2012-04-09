@@ -23,6 +23,7 @@
 
 #include "pfs_column_types.h"
 #include "pfs_events.h"
+#include "pfs_digest.h"
 
 struct PFS_thread;
 struct PFS_account;
@@ -43,7 +44,7 @@ struct PFS_events_statements : public PFS_events
 
   /** Locked time. */
   ulonglong m_lock_time;
-
+  
   /** Diagnostics area, message text. */
   char m_message_text[MYSQL_ERRMSG_SIZE+1];
   /** Diagnostics area, error number. */
@@ -87,6 +88,8 @@ struct PFS_events_statements : public PFS_events
   ulonglong m_no_index_used;
   /** Optimizer metric, number of 'no good index used'. */
   ulonglong m_no_good_index_used;
+  /** Statement digest. */
+  PSI_digest_storage m_digest_storage;
 };
 
 void insert_events_statements_history(PFS_thread *thread, PFS_events_statements *statement);

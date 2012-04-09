@@ -1016,6 +1016,8 @@ void trans_register_ha(THD *thd, bool all, handlerton *ht_arg)
   {
     trans= &thd->transaction.all;
     thd->server_status|= SERVER_STATUS_IN_TRANS;
+    if (thd->tx_read_only)
+      thd->server_status|= SERVER_STATUS_IN_TRANS_READONLY;
     DBUG_PRINT("info", ("setting SERVER_STATUS_IN_TRANS"));
   }
   else
@@ -2900,13 +2902,13 @@ void handler::ha_release_auto_increment()
 }
 
 
-void handler::print_keydup_error(uint key_nr, const char *msg)
+void handler::print_keydup_error(KEY *key, const char *msg)
 {
   /* Write the duplicated key in the error message */
-  char key[MAX_KEY_LENGTH];
-  String str(key,sizeof(key),system_charset_info);
+  char key_buff[MAX_KEY_LENGTH];
+  String str(key_buff,sizeof(key_buff),system_charset_info);
 
-  if (key_nr == MAX_KEY)
+  if (key == NULL)
   {
     /* Key is unknown */
     str.copy("", 0, system_charset_info);
@@ -2915,7 +2917,7 @@ void handler::print_keydup_error(uint key_nr, const char *msg)
   else
   {
     /* Table is opened and defined at this point */
-    key_unpack(&str,table,(uint) key_nr);
+    key_unpack(&str,table, key);
     uint max_length=MYSQL_ERRMSG_SIZE-(uint) strlen(msg);
     if (str.length() >= max_length)
     {
@@ -2923,8 +2925,14 @@ void handler::print_keydup_error(uint key_nr, const char *msg)
       str.append(STRING_WITH_LEN("..."));
     }
     my_printf_error(ER_DUP_ENTRY, msg,
-		    MYF(0), str.c_ptr_safe(), table->key_info[key_nr].name);
+		    MYF(0), str.c_ptr_safe(), key->name);
   }
+}
+
+
+void handler::print_keydup_error(KEY *key)
+{
+  print_keydup_error(key, ER(ER_DUP_ENTRY_WITH_KEY_NAME));
 }
 
 
@@ -2972,7 +2980,7 @@ void handler::print_error(int error, myf errflag)
     uint key_nr=get_dup_key(error);
     if ((int) key_nr >= 0)
     {
-      print_keydup_error(key_nr, ER(ER_DUP_ENTRY_WITH_KEY_NAME));
+      print_keydup_error(key_nr == MAX_KEY ? NULL : &table->key_info[key_nr]);
       DBUG_VOID_RETURN;
     }
     textno=ER_DUP_KEY;
@@ -2986,9 +2994,12 @@ void handler::print_error(int error, myf errflag)
     char rec_buf[MAX_KEY_LENGTH];
     String rec(rec_buf, sizeof(rec_buf), system_charset_info);
     /* Table is opened and defined at this point */
-    key_unpack(&rec, table, 0 /* just print the subset of fields that are
-                              part of the first index, printing the whole
-                              row from there is not easy */);
+
+    /*
+      Just print the subset of fields that are part of the first index,
+      printing the whole row from there is not easy.
+    */
+    key_unpack(&rec, table, &table->key_info[0]);
 
     char child_table_name[NAME_LEN + 1];
     char child_key_name[NAME_LEN + 1];
@@ -3675,22 +3686,96 @@ handler::ha_discard_or_import_tablespace(my_bool discard)
 }
 
 
-/**
-  Prepare for alter: public interface.
-
-  Called to prepare an *online* ALTER.
-
-  @sa handler::prepare_for_alter()
-*/
-
-void
-handler::ha_prepare_for_alter()
+bool handler::ha_prepare_inplace_alter_table(TABLE *altered_table,
+                                             Alter_inplace_info *ha_alter_info)
 {
   DBUG_ASSERT(table_share->tmp_table != NO_TMP_TABLE ||
               m_lock_type != F_UNLCK);
   mark_trx_read_write();
 
-  prepare_for_alter();
+  return prepare_inplace_alter_table(altered_table, ha_alter_info);
+}
+
+
+bool handler::ha_commit_inplace_alter_table(TABLE *altered_table,
+                                            Alter_inplace_info *ha_alter_info,
+                                            bool commit)
+{
+   /*
+     At this point we should have an exclusive metadata lock on the table.
+     The exception is if we're about to roll back changes (commit= false).
+     In this case, we might be rolling back after a failed lock upgrade,
+     so we could be holding the same lock level as for inplace_alter_table().
+   */
+   DBUG_ASSERT(ha_thd()->mdl_context.is_lock_owner(MDL_key::TABLE,
+                                                   table->s->db.str,
+                                                   table->s->table_name.str,
+                                                   MDL_EXCLUSIVE) ||
+               !commit);
+
+   return commit_inplace_alter_table(altered_table, ha_alter_info, commit);
+}
+
+
+/*
+   Default implementation to support in-place alter table
+   and old online add/drop index API
+*/
+
+enum_alter_inplace_result
+handler::check_if_supported_inplace_alter(TABLE *altered_table,
+                                          Alter_inplace_info *ha_alter_info)
+{
+  DBUG_ENTER("check_if_supported_alter");
+
+  HA_CREATE_INFO *create_info= ha_alter_info->create_info;
+
+  Alter_inplace_info::HA_ALTER_FLAGS inplace_offline_operations=
+    Alter_inplace_info::ALTER_COLUMN_EQUAL_PACK_LENGTH |
+    Alter_inplace_info::ALTER_COLUMN_NAME |
+    Alter_inplace_info::ALTER_COLUMN_DEFAULT |
+    Alter_inplace_info::CHANGE_CREATE_OPTION |
+    Alter_inplace_info::ALTER_RENAME;
+
+  /* Is there at least one operation that requires copy algorithm? */
+  if (ha_alter_info->handler_flags & ~inplace_offline_operations)
+    DBUG_RETURN(HA_ALTER_INPLACE_NOT_SUPPORTED);
+
+  /*
+    ALTER TABLE tbl_name CONVERT TO CHARACTER SET .. and
+    ALTER TABLE table_name DEFAULT CHARSET = .. most likely
+    change column charsets and so not supported in-place through
+    old API.
+
+    Changing of PACK_KEYS, MAX_ROWS and ROW_FORMAT options were
+    not supported as in-place operations in old API either.
+  */
+  if (create_info->used_fields & (HA_CREATE_USED_CHARSET |
+                                  HA_CREATE_USED_DEFAULT_CHARSET |
+                                  HA_CREATE_USED_PACK_KEYS |
+                                  HA_CREATE_USED_MAX_ROWS) ||
+      (table->s->row_type != create_info->row_type))
+    DBUG_RETURN(HA_ALTER_INPLACE_NOT_SUPPORTED);
+
+  uint table_changes= (ha_alter_info->handler_flags &
+                       Alter_inplace_info::ALTER_COLUMN_EQUAL_PACK_LENGTH) ?
+    IS_EQUAL_PACK_LENGTH : IS_EQUAL_YES;
+  if (table->file->check_if_incompatible_data(create_info, table_changes)
+      == COMPATIBLE_DATA_YES)
+    DBUG_RETURN(HA_ALTER_INPLACE_EXCLUSIVE_LOCK);
+
+  DBUG_RETURN(HA_ALTER_INPLACE_NOT_SUPPORTED);
+}
+
+
+/*
+   Default implementation to support in-place alter table
+   and old online add/drop index API
+*/
+
+void handler::notify_table_changed()
+{
+  ha_create_handler_files(table->s->path.str, NULL, CHF_INDEX_FLAG, NULL);
 }
 
 
@@ -4589,6 +4674,8 @@ handler::multi_range_read_info_const(uint keyno, RANGE_SEQ_IF *seq,
   /* Default MRR implementation doesn't need buffer */
   *bufsz= 0;
 
+  DBUG_EXECUTE_IF("bug13822652_2", thd->killed= THD::KILL_QUERY;);
+
   seq_it= seq->init(seq_init_param, n_ranges, *flags);
   while (!seq->next(seq_it, &range))
   {
@@ -4642,8 +4729,7 @@ handler::multi_range_read_info_const(uint keyno, RANGE_SEQ_IF *seq,
     else
     {
       DBUG_EXECUTE_IF("crash_records_in_range", DBUG_SUICIDE(););
-      // Fails - reintroduce when fixed
-      // DBUG_ASSERT(min_endp || max_endp);
+      DBUG_ASSERT(min_endp || max_endp);
       if (HA_POS_ERROR == (rows= this->records_in_range(keyno, min_endp, 
                                                         max_endp)))
       {
@@ -4858,8 +4944,27 @@ scan_it_again:
   Initialize and start the MRR scan. Depending on the mode parameter, this
   may use default or DS-MRR implementation.
 
-  @param h               Table handler to be used
-  @param key             Index to be used
+  The DS-MRR implementation will use a second handler object (h2) for
+  doing scan on the index:
+  - on the first call to this function the h2 handler will be created
+    and h2 will be opened using the same index as the main handler
+    is set to use. The index scan on the main index will be closed
+    and it will be re-opened to read records from the table using either 
+    no key or the primary key. The h2 handler will be deleted when
+    reset() is called (which should happen on the end of the statement).
+  - when dsmrr_close() is called the index scan on h2 is closed.
+  - on following calls to this function one of the following must be valid:
+    a. if dsmrr_close has been called:
+       the main handler (h) must be open on an index, h2 will be opened
+       using this index, and the index on h will be closed and 
+       h will be re-opened to read reads from the table using either
+       no key or the primary key.
+    b. dsmrr_close has not been called:
+       h2 will already be open, the main handler h must be set up
+       to read records from the table (handler->inited is RND) either
+       using the primary index or using no index at all.
+
+  @param h_arg           Table handler to be used
   @param seq_funcs       Interval sequence enumeration functions
   @param seq_init_param  Interval sequence enumeration parameter
   @param n_ranges        Number of ranges in the sequence.
@@ -4875,11 +4980,9 @@ int DsMrr_impl::dsmrr_init(handler *h_arg, RANGE_SEQ_IF *seq_funcs,
                            HANDLER_BUFFER *buf)
 {
   uint elem_size;
-  Item *pushed_cond= NULL;
-  handler *new_h2= 0;
   int retval= 0;
   DBUG_ENTER("DsMrr_impl::dsmrr_init");
-  THD *thd= current_thd;
+  THD *thd= h_arg->table->in_use;     // current THD
 
   /*
     index_merge may invoke a scan on an object for which dsmrr_info[_const]
@@ -4927,93 +5030,103 @@ int DsMrr_impl::dsmrr_init(handler *h_arg, RANGE_SEQ_IF *seq_funcs,
   rowids_buf_end= rowids_buf_last;
 
   /*
-    There can be two cases:
-    - This is the first call since index_init(), h2==NULL
-       Need to setup h2 then.
-    - This is not the first call, h2 is initalized and set up appropriately.
-       The caller might have called h->index_init(), need to switch h to
-       rnd_pos calls.
+    The DS-MRR scan uses a second handler object (h2) for doing the
+    index scan. Create this by cloning the primary handler
+    object. The h2 handler object is deleted when DsMrr_impl::reset()
+    is called.
   */
   if (!h2)
   {
-    /* Create a separate handler object to do rndpos() calls. */
+    handler *new_h2;
     /*
       ::clone() takes up a lot of stack, especially on 64 bit platforms.
       The constant 5 is an empiric result.
+      @todo Is this still the case? Leave it as it is for now but could
+            likely be removed?
     */
     if (check_stack_overrun(thd, 5*STACK_MIN_SIZE, (uchar*) &new_h2))
       DBUG_RETURN(1);
-    DBUG_ASSERT(h->active_index != MAX_KEY);
-    uint mrr_keyno= h->active_index;
 
-    if (!(new_h2= h->clone(h->table->s->normalized_path.str, thd->mem_root)) ||
-        new_h2->ha_external_lock(thd, h->m_lock_type))
-    {
-      delete new_h2;
+    if (!(new_h2= h->clone(h->table->s->normalized_path.str, thd->mem_root)))
       DBUG_RETURN(1);
-    }
-
-    if (mrr_keyno == h->pushed_idx_cond_keyno)
-      pushed_cond= h->pushed_idx_cond;
-
-    /*
-      Caution: this call will invoke this->dsmrr_close(). Do not put the
-      created secondary table handler into this->h2 or it will delete it.
-    */
-    if ((retval= h->ha_index_end()))
-    {
-      h2=new_h2;
-      goto error;
-    }
-
     h2= new_h2; /* Ok, now can put it into h2 */
     table->prepare_for_position();
-    h2->extra(HA_EXTRA_KEYREAD);
+  }
 
-    if ((retval= h2->ha_index_init(mrr_keyno, FALSE)))
+  /*
+    Open the index scan on h2 using the key from the primary handler.
+  */
+  if (h2->active_index == MAX_KEY)
+  {
+    DBUG_ASSERT(h->active_index != MAX_KEY);
+    const uint mrr_keyno= h->active_index;
+
+    if ((retval= h2->ha_external_lock(thd, h->m_lock_type)))
       goto error;
 
-    use_default_impl= FALSE;
-    if (pushed_cond)
-      h2->idx_cond_push(mrr_keyno, pushed_cond);
+    if ((retval= h2->extra(HA_EXTRA_KEYREAD)))
+      goto error;
+
+    if ((retval= h2->ha_index_init(mrr_keyno, false)))
+      goto error;
+
+    // Transfer ICP from h to h2
+    if (mrr_keyno == h->pushed_idx_cond_keyno)
+    {
+      if (h2->idx_cond_push(mrr_keyno, h->pushed_idx_cond))
+      {
+        retval= 1;
+        goto error;
+      }
+    }
+    else
+    {
+      // Cancel any potentially previously pushed index conditions
+      h2->cancel_pushed_idx_cond();
+    }
   }
   else
   {
     /*
-      We get here when the access alternates betwen MRR scan(s) and non-MRR
-      scans.
+      h2 has already an open index. This happens when the DS-MRR scan
+      is re-started without closing it first. In this case the primary
+      handler must be used for reading records from the table, ie. it
+      must not be opened for doing a new range scan. In this case
+      the active_index must either not be set or be the primary key.
     */
+    DBUG_ASSERT(h->inited == handler::RND);
+    DBUG_ASSERT(h->active_index == MAX_KEY || 
+                h->active_index == table->s->primary_key);
+  }
 
-    /* 
-      Verify consistency between the two handler objects:
-      1. The main handler should either use the primary key or not have an
-         active index at this point since the clone handler (h2) is used for
-         reading the index.
-      2. The index used for ICP should be the same for the two handlers or
-         it should not be set on the clone handler (h2).
-      3. The ICP function should be the same for the two handlers or it should
-         not be set for the clone handler (h2).
-    */
-    DBUG_ASSERT(h->active_index == table->s->primary_key ||
-                h->active_index == MAX_KEY);
-    DBUG_ASSERT(h->pushed_idx_cond_keyno == h2->pushed_idx_cond_keyno || 
-                h2->pushed_idx_cond_keyno == MAX_KEY);
-    DBUG_ASSERT(h->pushed_idx_cond == h2->pushed_idx_cond || 
-                h2->pushed_idx_cond == NULL);
-
+  /*
+    The index scan is now transferred to h2 and we can close the open
+    index scan on the primary handler.
+  */
+  if (h->inited == handler::INDEX)
+  {
     /*
-      Calling h->index_end() will invoke dsmrr_close() for this object,
-      which will delete h2. We need to keep it, so save put it away and dont
-      let it be deleted:
+      Calling h->ha_index_end() will invoke dsmrr_close() for this object,
+      which will close the index scan on h2. We need to keep it open, so 
+      temporarily move h2 out of the DsMrr object.
     */
     handler *save_h2= h2;
     h2= NULL;
-    int res= (h->inited == handler::INDEX && (retval= h->ha_index_end()));
+    retval= h->ha_index_end();
     h2= save_h2;
-    use_default_impl= FALSE;
-    if (res)
+    if (retval)
       goto error;
   }
+
+  /*
+    Verify consistency between h and h2.
+  */
+  DBUG_ASSERT(h->inited != handler::INDEX);
+  DBUG_ASSERT(h->active_index == MAX_KEY || 
+              h->active_index == table->s->primary_key);
+  DBUG_ASSERT(h2->inited == handler::INDEX);
+  DBUG_ASSERT(h2->active_index != MAX_KEY);
+  DBUG_ASSERT(h->m_lock_type == h2->m_lock_type);
 
   if ((retval= h2->handler::multi_range_read_init(seq_funcs, seq_init_param, 
                                                   n_ranges, mode, buf)))
@@ -5047,7 +5160,7 @@ int DsMrr_impl::dsmrr_init(handler *h_arg, RANGE_SEQ_IF *seq_funcs,
   DBUG_RETURN(0);
 error:
   h2->ha_index_or_rnd_end();
-  h2->ha_external_lock(current_thd, F_UNLCK);
+  h2->ha_external_lock(thd, F_UNLCK);
   h2->close();
   delete h2;
   h2= NULL;
@@ -5059,15 +5172,32 @@ error:
 void DsMrr_impl::dsmrr_close()
 {
   DBUG_ENTER("DsMrr_impl::dsmrr_close");
-  if (h2)
+
+  // If there is an open index on h2, then close it
+  if (h2 && h2->active_index != MAX_KEY)
   {
     h2->ha_index_or_rnd_end();
     h2->ha_external_lock(current_thd, F_UNLCK);
+  }
+  use_default_impl= true;
+  DBUG_VOID_RETURN;
+}
+
+
+void DsMrr_impl::reset()
+{
+  DBUG_ENTER("DsMrr_impl::reset");
+
+  if (h2)
+  {
+    // Close any ongoing DS-MRR scan 
+    dsmrr_close();
+
+    // Close and delete the h2 handler
     h2->close();
     delete h2;
     h2= NULL;
   }
-  use_default_impl= TRUE;
   DBUG_VOID_RETURN;
 }
 
@@ -5098,7 +5228,7 @@ static int rowid_cmp(void *h, uchar *a, uchar *b)
 int DsMrr_impl::dsmrr_fill_buffer()
 {
   char *range_info;
-  int res;
+  int res= 0;
   DBUG_ENTER("DsMrr_impl::dsmrr_fill_buffer");
 
   rowids_buf_cur= rowids_buf;
@@ -5939,7 +6069,7 @@ static int write_locked_table_maps(THD *thd)
 typedef bool Log_func(THD*, TABLE*, bool,
                       const uchar*, const uchar*);
 
-static int binlog_log_row(TABLE* table,
+int binlog_log_row(TABLE* table,
                           const uchar *before_record,
                           const uchar *after_record,
                           Log_func *log_func)

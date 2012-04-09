@@ -77,7 +77,7 @@ a
 2004-12-31
 explain partitions select * from t1 where a <= '2003-12-31';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p0	system	NULL	NULL	NULL	NULL	1	
+1	SIMPLE	t1	p0	system	NULL	NULL	NULL	NULL	1	NULL
 select * from t1 where a <= '2003-12-31';
 a
 2003-12-30
@@ -108,7 +108,7 @@ a
 2005-01-01 11:59:59
 explain partitions select * from t1 where a <= '2004-01-01 11:59.59';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p0	system	NULL	NULL	NULL	NULL	1	
+1	SIMPLE	t1	p0	system	NULL	NULL	NULL	NULL	1	NULL
 select * from t1 where a <= '2004-01-01 11:59:59';
 a
 2004-01-01 11:59:29
@@ -200,7 +200,7 @@ select * from t1 where a > 1;
 a
 explain partitions select * from t1 where a is null;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	pnull	system	NULL	NULL	NULL	NULL	1	
+1	SIMPLE	t1	pnull	system	NULL	NULL	NULL	NULL	1	NULL
 explain partitions select * from t1 where a >= 0;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	p0,p1	ALL	NULL	NULL	NULL	NULL	2	Using where

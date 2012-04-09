@@ -1,4 +1,6 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (C) 2005-2007 MySQL AB, 2010 Sun Microsystems, Inc.
+    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +13,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #include <ndb_global.h>
 #include "ndbd_malloc.hpp"
@@ -21,6 +24,25 @@
 #ifdef TRACE_MALLOC
 #include <stdio.h>
 #endif
+
+extern void do_refresh_watch_dog(Uint32 place);
+
+void
+ndbd_alloc_touch_mem(void *p, size_t sz, volatile Uint32 * watchCounter)
+{
+  Uint32 tmp = 0;
+  if (watchCounter == 0)
+    watchCounter = &tmp;
+
+  unsigned char * ptr = (unsigned char*)p;
+  while (sz >= 4096)
+  {
+    * ptr = 0;
+    ptr += 4096;
+    sz -= 4096;
+    * watchCounter = 9;
+  }
+}
 
 #ifdef TRACE_MALLOC
 static void xxx(size_t size, size_t *s_m, size_t *s_k, size_t *s_b)
@@ -38,6 +60,9 @@ void *ndbd_malloc(size_t size)
   if (p)
   {
     g_allocated_memory += size;
+
+    ndbd_alloc_touch_mem(p, size, 0);
+
 #ifdef TRACE_MALLOC
     {
       size_t s_m, s_k, s_b;

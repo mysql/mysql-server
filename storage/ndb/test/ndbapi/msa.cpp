@@ -1,4 +1,5 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +12,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #include <ndb_global.h>
 
@@ -22,6 +24,7 @@
 #include <NdbSleep.h>
 #include <NdbThread.h>
 #include <NdbTick.h>
+#include <NdbOut.hpp>
 
 const char* const c_szDatabaseName = "TEST_DB";
 
@@ -41,7 +44,6 @@ const char* g_szTableName = c_szTableNameStored;
 #ifdef NDB_WIN32
 HANDLE hShutdownEvent = 0;
 #else
-#include <signal.h>
 bool bShutdownEvent = false;
 #endif
 long g_nMaxContextIdPerThread = 5000;
@@ -52,6 +54,7 @@ bool g_bWriteTuple = false;
 bool g_bInsertInitial = false;
 bool g_bVerifyInitial = false;
 
+Ndb_cluster_connection* theConnection = 0;
 NdbMutex* g_pNdbMutexPrintf = 0;
 NdbMutex* g_pNdbMutexIncrement = 0;
 long g_nNumCallsProcessed = 0;
@@ -242,7 +245,8 @@ int QueryTransaction(Ndb* pNdb,
                      NdbError& err)
 {
     int iRes = -1;
-    NdbConnection* pNdbConnection = pNdb->startTransaction(0, (const char*)&iContextId, 4);
+    NdbConnection* pNdbConnection = pNdb->startTransaction();
+    //0, (const char*)&iContextId, 4);
     if(pNdbConnection)
     {
         NdbOperation* pNdbOperation = pNdbConnection->getNdbOperation(g_szTableName);
@@ -326,7 +330,8 @@ int RetryQueryTransaction(Ndb* pNdb,
 int DeleteTransaction(Ndb* pNdb, long iContextId, NdbError& err)
 {
     int iRes = -1;
-    NdbConnection* pNdbConnection = pNdb->startTransaction(0, (const char*)&iContextId, 4);
+    NdbConnection* pNdbConnection = pNdb->startTransaction();
+    //0, (const char*)&iContextId, 4);
     if(pNdbConnection)
     {
         NdbOperation* pNdbOperation = pNdbConnection->getNdbOperation(g_szTableName);
@@ -411,7 +416,8 @@ int InsertTransaction(Ndb* pNdb,
                       NdbError& err)
 {
     int iRes = -1;
-    NdbConnection* pNdbConnection = pNdb->startTransaction(0, (const char*)&iContextID, 4);
+    NdbConnection* pNdbConnection = pNdb->startTransaction();
+    //0, (const char*)&iContextID, 4);
     if(pNdbConnection)
     {
         NdbOperation* pNdbOperation = pNdbConnection->getNdbOperation(g_szTableName);
@@ -501,7 +507,8 @@ int RetryInsertTransaction(Ndb* pNdb,
 int UpdateTransaction(Ndb* pNdb, long iContextId, NdbError& err)
 {
     int iRes = -1;
-    NdbConnection* pNdbConnection = pNdb->startTransaction(0, (const char*)&iContextId, 4);
+    NdbConnection* pNdbConnection = pNdb->startTransaction();
+    //0, (const char*)&iContextId, 4);
     if(pNdbConnection)
     {
         NdbOperation* pNdbOperation = pNdbConnection->getNdbOperation(g_szTableName);
@@ -678,7 +685,7 @@ void* RuntimeCallContext(void* lpParam)
     long iLockTime;
     long iLockTimeUSec;
     
-    pNdb = new Ndb("TEST_DB");
+    pNdb = new Ndb(theConnection, "TEST_DB");
     if(!pNdb)
     {
         NdbMutex_Lock(g_pNdbMutexPrintf);
@@ -971,7 +978,6 @@ void ShowHelp(const char* szCmd)
 int main(int argc, char* argv[])
 {
     ndb_init();
-    int iRes = -1;
     g_nNumThreads = 0;
     g_nMaxCallsPerSecond = 0;
     long nSeed = 0;
@@ -998,7 +1004,7 @@ int main(int argc, char* argv[])
                 break;
             case 'm': 
                 g_nStatusDataSize = atol(argv[i]+2); 
-                if(g_nStatusDataSize>sizeof(STATUS_DATA))
+                if(g_nStatusDataSize> (int) sizeof(STATUS_DATA))
                 {
                     g_nStatusDataSize = sizeof(STATUS_DATA);
                 }
@@ -1093,7 +1099,19 @@ int main(int argc, char* argv[])
     hShutdownEvent = CreateEvent(NULL,TRUE,FALSE,NULL);
 #endif
     
-    Ndb* pNdb = new Ndb(c_szDatabaseName);
+    theConnection= new Ndb_cluster_connection();
+    if (theConnection->connect(12, 5, 1) != 0)
+    {
+      ndbout << "Unable to connect to managment server." << endl;
+      return -1;
+    }
+    if (theConnection->wait_until_ready(30,0) < 0)
+    {
+      ndbout << "Cluster nodes not ready in 30 seconds." << endl;
+      return -1;
+    }
+
+    Ndb* pNdb = new Ndb(theConnection, c_szDatabaseName);
     if(!pNdb)
     {
         printf("could not construct ndb\n");

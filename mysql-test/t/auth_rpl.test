@@ -27,6 +27,7 @@ FLUSH PRIVILEGES;
 --connection slave
 --echo [connection slave]
 --let $master_user= query_get_value(SHOW SLAVE STATUS, Master_User, 1)
+--replace_column 2 ####
 CHANGE MASTER TO 
   MASTER_USER=     'plug_user',
   MASTER_PASSWORD= 'plug_user',
@@ -56,6 +57,7 @@ SELECT user, plugin, authentication_string FROM mysql.user WHERE user LIKE 'plug
 #
 --echo # Cleanup (on slave).
 --source include/stop_slave.inc
+--replace_column 2 ####
 eval CHANGE MASTER TO MASTER_USER='$master_user';
 DROP USER 'plug_user';
 

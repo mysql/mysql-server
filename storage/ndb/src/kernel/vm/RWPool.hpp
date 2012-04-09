@@ -1,4 +1,5 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (c) 2006, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +12,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #ifndef RWPOOL_HPP
 #define RWPOOL_HPP
@@ -51,10 +53,13 @@ public:
   bool seize(Ptr<void>&);
   void release(Ptr<void>);
   void * getPtr(Uint32 i);
+  void * getPtr(const Record_info&ri, Uint32 i);
   
+  STATIC_CONST( WORDS_PER_PAGE = RWPage::RWPAGE_WORDS );
+
 private:  
-  void handle_invalid_release(Ptr<void>);
-  void handle_invalid_get_ptr(Uint32 i);
+  void handle_invalid_release(Ptr<void>) ATTRIBUTE_NORETURN;
+  void handle_invalid_get_ptr(Uint32 i) ATTRIBUTE_NORETURN;
 };
 
 inline
@@ -67,6 +72,23 @@ RWPool::getPtr(Uint32 i)
   Uint32 * record = page->m_data + page_idx;
   Uint32 magic_val = * (record + m_record_info.m_offset_magic);
   if (likely(magic_val == ~(Uint32)m_record_info.m_type_id))
+  {
+    return record;
+  }
+  handle_invalid_get_ptr(i);
+  return 0;                                     /* purify: deadcode */
+}
+
+inline
+void*
+RWPool::getPtr(const Record_info &ri, Uint32 i)
+{
+  Uint32 page_no = i >> POOL_RECORD_BITS;
+  Uint32 page_idx = i & POOL_RECORD_MASK;
+  RWPage * page = m_memroot + page_no;
+  Uint32 * record = page->m_data + page_idx;
+  Uint32 magic_val = * (record + ri.m_offset_magic);
+  if (likely(magic_val == ~(Uint32)ri.m_type_id))
   {
     return record;
   }

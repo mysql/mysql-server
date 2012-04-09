@@ -1,0 +1,598 @@
+######################################################################
+# Test various issues ndb_restore had at some time
+######################################################################
+
+-- source include/have_ndb.inc
+-- source include/ndb_default_cluster.inc
+
+# Directory containing the saved backup files
+let $backup_data_dir=$MYSQL_TEST_DIR/suite/ndb/backups;
+
+#
+# Bug #27775 - mediumint auto inc not restored correctly
+#            - check mediumint
+CREATE TABLE `t1_c` (
+  `capgoaledatta` mediumint(5) unsigned NOT NULL auto_increment,
+  `goaledatta` char(2) NOT NULL default '',
+  `maturegarbagefa` varchar(32) NOT NULL default '',
+  PRIMARY KEY  (`capgoaledatta`,`goaledatta`,`maturegarbagefa`)
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1;
+INSERT INTO `t1_c` VALUES (2,'3','q3plus.qt'),(400,'4','q3plus.qt'),(1,'3','q3.net'),(3,'4','q3.net'),(3000,'20','threetrees.qt');
+#
+# Bug #27758 Restoring NDB backups makes table usable in SQL nodes
+# - space in key made table unusable after restore
+#
+# Bug #27775 - mediumint auto inc not restored correctly
+#            - check smallint
+CREATE TABLE `t2_c` (
+  `capgotod` smallint(5) unsigned NOT NULL auto_increment,
+  `gotod` smallint(5) unsigned NOT NULL default '0',
+  `goaledatta` char(2) default NULL,
+  `maturegarbagefa` varchar(32) default NULL,
+  `descrpooppo` varchar(64) default NULL,
+  `svcutonsa` varchar(64) NOT NULL default '',
+  PRIMARY KEY  (`capgotod`),
+  KEY `i quadaddsvr` (`gotod`)
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1;
+INSERT INTO `t2_c` VALUES (500,4,'','q3.net','addavp:MK_CASELECTOR=1','postorod rattoaa'),(2,1,'4','','addavp:MK_BRANDTAD=345','REDS Brandtad'),(3,2,'4','q3.net','execorder','fixedRatediPO REDS'),(1,1,'3','','addavp:MK_BRANDTAD=123','TEST Brandtad'),(6,5,'','told.q3.net','addavp:MK_BRANDTAD=123','Brandtad Toldzone'),(4,3,'3','q3.net','addavp:MK_POOLHINT=2','ratedi PO TEST'),(5,0,'',NULL,NULL,'');
+
+# Added ROW_FORMAT=FIXED to use below to see that setting is preserved
+# by restore
+CREATE TABLE `t3_c` (
+  `CapGoaledatta` smallint(5) unsigned NOT NULL default '0',
+  `capgotod` smallint(5) unsigned NOT NULL default '0',
+  PRIMARY KEY  (`capgotod`,`CapGoaledatta`)
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1 ROW_FORMAT=FIXED;
+INSERT INTO `t3_c` VALUES (5,3),(2,4),(5,4),(1,3);
+
+# Bug #27775 - mediumint auto inc not restored correctly
+#            - check bigint
+CREATE TABLE `t4_c` (
+  `capfa` bigint(20) unsigned NOT NULL auto_increment,
+  `realm` varchar(32) NOT NULL default '',
+  `authpwchap` varchar(32) default NULL,
+  `fa` varchar(32) NOT NULL default '',
+  `payyingatta` tinyint(4) NOT NULL default '0',
+  `status` char(1) default NULL,
+  PRIMARY KEY  (`fa`,`realm`),
+  KEY `capfa` (`capfa`),
+  KEY `i_quadentity` (`fa`,`realm`)
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1;
+INSERT INTO `t4_c` VALUES (18,'john.smith','q3.net','dessjohn.smith',0,NULL),(21,'quad_katt_with_brandtad','q3.net','acne',0,NULL),(2200,'quad_katt_carattoaa','q3.net','acne',0,NULL),(26,'436462612809','sqasdt.q3.net','N/A',0,'6'),(19,'john','smith.qt','dessjohn',0,NULL),(33,'436643196120','sqasdt.q3.net','N/A',1,'6'),(28,'436642900019','sqasdt.q3.net','N/A',0,'6'),(30,'436462900209','sqasdt.q3.net','N/A',0,'6'),(16,'436640006666','sqasdt.q3.net','',0,NULL),(19,'dette','el-redun.com','dessdette',0,NULL),(12,'quad_kattPP','q3.net','acne',2,NULL),(14,'436640008888','sqasdt.q3.net','',0,NULL),(29,'463624900028','sqasdt.q3.net','N/A',0,'6'),(15,'436640099099','sqasdt.q3.net','',0,NULL),(13,'pap','q3plus.qt','acne',1,NULL),(19,'436642612091','sqasdt.q3.net','N/A',0,'6'),(12,'quad_katt','q3.net','acne',0,NULL),(11,'quad_kattVK','q3.net','acne',1,NULL),(32000,'463641969502','sqasdt.q3.net','N/A',1,'6'),(20,'joe','q3.net','joedesswd',0,NULL),(290000000,'436642900034','sqasdt.q3.net','N/A',0,'6'),(25,'contind','armerde.qt','acne',1,NULL);
+
+CREATE TABLE `t5_c` (
+  `capfa` bigint(20) unsigned NOT NULL default '0',
+  `gotod` smallint(5) unsigned NOT NULL default '0',
+  `orderutonsa` varchar(64) NOT NULL default '',
+  PRIMARY KEY  (`capfa`,`gotod`,`orderutonsa`)
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1;
+INSERT INTO `t5_c` VALUES (21,2,''),(21,1,''),(22,4,'');
+
+CREATE TABLE `t6_c` (
+  `capfa_parent` bigint(20) unsigned NOT NULL default '0',
+  `capfa_child` bigint(20) unsigned NOT NULL default '0',
+  `relatta` smallint(5) unsigned NOT NULL default '0',
+  PRIMARY KEY  (`capfa_child`,`capfa_parent`,`relatta`)
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1;
+INSERT INTO `t6_c` VALUES (15,16,0),(19,20,0),(18326932092909551615,30,0),(26,29,0),(18326932092909551615,29,0),(19,18,0),(26,28,0),(12,14,0);
+
+# Bug #27775 - mediumint auto inc not restored correctly
+#            - check tinyint
+CREATE TABLE `t7_c` (
+  `dardpo` char(15) NOT NULL default '',
+  `dardtestard` tinyint(3) unsigned NOT NULL auto_increment,
+  `FastFA` char(5) NOT NULL default '',
+  `FastCode` char(6) NOT NULL default '',
+  `Fastca` char(1) NOT NULL default '',
+  `Fastmag` char(1) NOT NULL default '',
+  `Beareratta` char(2) NOT NULL default '',
+  PRIMARY KEY  (`dardpo`,`dardtestard`)
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1;
+INSERT INTO `t7_c` VALUES ('2.6.2.4',24,'CECHP','54545','0','0','5'),('2.2.5.4',26,'CANFA','33223','1','1','4'),('4.3.2.4',28,'ITALD','54222','1','0','5'),('129..0.0.eins',28,'G','99999','1','1','5'),('1.1.1.1',24,'AUTPT','32323','0','1','3');
+
+CREATE TABLE `t8_c` (
+  `kattjame` varchar(32) NOT NULL default '',
+  `realm` varchar(32) NOT NULL default '',
+  `realm_entered` varchar(32) NOT NULL default '',
+  `maturegarbagefa` varchar(32) NOT NULL default '',
+  `hunderaaarbagefa_parent` varchar(32) NOT NULL default '',
+  `kattjame_entered` varchar(32) NOT NULL default '',
+  `hunderaaarbagefa` varchar(32) NOT NULL default '',
+  `gest` varchar(16) default NULL,
+  `hassetino` varchar(16) NOT NULL default '',
+  `aaaproxysessfa` varchar(255) default NULL,
+  `autologonallowed` char(1) default NULL,
+  `squardporoot` varchar(15) NOT NULL default '',
+  `naspo` varchar(15) default NULL,
+  `beareratta` char(2) default NULL,
+  `fastCode` varchar(6) default NULL,
+  `fastFA` varchar(5) default NULL,
+  `fastca` char(1) default NULL,
+  `fastmag` char(1) default NULL,
+  `lastupdate` datetime default NULL,
+  `hassetistart` datetime NOT NULL default '0000-00-00 00:00:00',
+  `accthassetitime` int(10) unsigned default NULL,
+  `acctoutputoctets` bigint(20) unsigned default NULL,
+  `acctinputoctets` bigint(20) unsigned default NULL,
+  PRIMARY KEY  (`kattjame`,`hunderaaarbagefa`,`hassetistart`,`hassetino`),
+  KEY `squardporoot` (`squardporoot`)
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1;
+INSERT INTO `t8_c` VALUES ('4tt45345235','pap','q3plus.qt','q3plus.qt','q3.net','436643196120','436643196929','8956234534568968','5524595699','uxasmt21.net.acne.qt/481889229462692422','','1.1.1.1','2.2.4.6','4','86989','34','x','x','2012-03-12 12:55:34','2012-12-05 11:20:04',3223433,3369,9565),('4545435545','john','q3.net','q3.net','acne.li','436643196120','436643196929','45345234568968','995696699','uxasmt21.net.acne.qt/481889229462692423','','1.1.1.1','2.2.9.8','2','86989','34','x','x','2012-03-12 11:35:03','2012-12-05 08:50:04',8821923,169,3565),('versteckter_q3net_katt','joe','q3.net','elredun.com','q3.net','436643196120','436643196939','91341234568968','695595699','uxasmt21.net.acne.qt/481889229462692421','','1.1.1.1','2.5.2.5','3','86989','34','x','x','2012-03-12 18:35:04','2012-12-05 12:35:04',1923123,9569,6565);
+
+CREATE TABLE `t9_c` (
+  `kattjame` varchar(32) NOT NULL default '',
+  `kattjame_entered` varchar(32) NOT NULL default '',
+  `realm` varchar(32) NOT NULL default '',
+  `realm_entered` varchar(32) NOT NULL default '',
+  `maturegarbagefa` varchar(32) NOT NULL default '',
+  `hunderaaarbagefa` varchar(32) NOT NULL default '',
+  `hunderaaarbagefa_parent` varchar(32) NOT NULL default '',
+  `gest` varchar(16) default NULL,
+  `hassetino` varchar(16) NOT NULL default '',
+  `squardporoot` varchar(15) NOT NULL default '',
+  `naspo` varchar(15) default NULL,
+  `beareratta` char(2) default NULL,
+  `fastCode` varchar(6) default NULL,
+  `fastFA` varchar(5) default NULL,
+  `fastca` char(1) default NULL,
+  `fastmag` char(1) default NULL,
+  `lastupdate` datetime default NULL,
+  `hassetistart` datetime NOT NULL default '0000-00-00 00:00:00',
+  `accthassetitime` int(10) unsigned default NULL,
+  `actcoutpuocttets` bigint(20) unsigned default NULL,
+  `actinputocctets` bigint(20) unsigned default NULL,
+  `terminateraste` tinyint(3) unsigned default NULL,
+  PRIMARY KEY  (`kattjame`,`hunderaaarbagefa`,`hassetistart`,`hassetino`)
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1;
+INSERT INTO `t9_c` VALUES ('3g4jh8gar2t','joe','q3.net','elredun.com','q3.net','436643316120','436643316939','91341234568968','695595699','1.1.1.1','2.2.6.2','3','86989','34','x','x','2012-03-12 18:35:04','2012-12-05 12:35:04',3123123,9569,6565,1),('4tt45345235','pap','q3plus.qt','q3plus.qt','q3.net','436643316120','436643316939','8956234534568968','5254595969','1.1.1.1','8.6.2.2','4','86989','34','x','x','2012-03-12 12:55:34','2012-12-05 11:20:04',3223433,3369,9565,2),('4545435545','john','q3.net','q3.net','acne.li','436643316120','436643316939','45345234568968','995696699','1.1.1.1','2.9.9.2','2','86998','34','x','x','2012-03-12 11:35:03','2012-12-05 08:50:04',8823123,169,3565,3);
+
+# Bug #20820
+# auto inc table not handled correctly when restored from cluster backup
+# - before fix ndb_restore would not set auto inc value correct,
+#   seen by select below
+CREATE TABLE t10_c (a INT AUTO_INCREMENT KEY) ENGINE=ndbcluster DEFAULT CHARSET=latin1;
+INSERT INTO t10_c VALUES (1),(2),(3);
+# Bug #27775 - mediumint auto inc not restored correctly
+#            - check int
+insert into t10_c values (10000),(2000),(3000);
+
+CREATE TABLE t11_c (a int, b00 int null, b01 int null,b02 int null,b03 int null,b04 int null,b05 int null,b06 int null,b07 int null,b08 int null,b90 int null,b10 int null,b11 int null,b12 int null,b13 int null,b14 int null,b15 int null,b16 int null,b17 int null,b18 int null,b19 int null,b20 int null,b21 int null,b22 int null,b23 int null,b24 int null,b25 int null,b26 int null,b27 int null,b28 int null,b29 int null,b30 int null,b31 int null,b32 int null) engine = ndb;
+insert into t11_c values (1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1);
+
+create table t1 engine=myisam as select * from t1_c;
+create table t2 engine=myisam as select * from t2_c;
+create table t3 engine=myisam as select * from t3_c;
+create table t4 engine=myisam as select * from t4_c;
+create table t5 engine=myisam as select * from t5_c;
+create table t6 engine=myisam as select * from t6_c;
+create table t7 engine=myisam as select * from t7_c;
+create table t8 engine=myisam as select * from t8_c;
+create table t9 engine=myisam as select * from t9_c;
+create table t10 engine=myisam as select * from t10_c;
+create table t11 engine=myisam as select * from t11_c;
+
+# check that force varpart is preserved by ndb_restore
+# t3_c has ROW_FORMAT=FIXED i.e. ForceVarPart=0
+let $show_varpart_table=t3_c;
+source show_varpart.inc;
+let $show_varpart_table=t2_c;
+source show_varpart.inc;
+
+--source include/ndb_backup.inc
+drop table t1_c,t2_c,t3_c,t4_c,t5_c,t6_c,t7_c,t8_c,t9_c,t10_c,t11_c;
+--exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 1 -m -r --print --print_meta $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 2 -r --print --print_meta $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+# check that force varpart is preserved by ndb_restore
+# t3_c has ROW_FORMAT=FIXED i.e. ForceVarPart=0
+let $show_varpart_table=t3_c;
+source show_varpart.inc;
+let $show_varpart_table=t2_c;
+source show_varpart.inc;
+
+# Bug #30667
+# ndb table discovery does not work correcly with information schema
+# - prior to bug fix this would yeild no output and a warning
+# (priviliges differ on embedded and server so replace)
+--replace_column 18 #
+select * from information_schema.columns where table_name = "t1_c";
+
+# random output order??
+#show tables;
+
+select count(*) from t1;
+select count(*) from t1_c;
+select count(*)
+  from (select * from t1 union 
+        select * from t1_c) a;
+
+select count(*) from t2;
+select count(*) from t2_c;
+select count(*)
+  from (select * from t2 union 
+        select * from t2_c) a;
+
+select count(*) from t3;
+select count(*) from t3_c;
+select count(*)
+  from (select * from t3 union 
+        select * from t3_c) a;
+
+select count(*) from t4;
+select count(*) from t4_c;
+select count(*)
+  from (select * from t4 union 
+        select * from t4_c) a;
+
+select count(*) from t5;
+select count(*) from t5_c;
+select count(*)
+  from (select * from t5 union 
+        select * from t5_c) a;
+
+select count(*) from t6;
+select count(*) from t6_c;
+select count(*)
+  from (select * from t6 union 
+        select * from t6_c) a;
+
+select count(*) from t7;
+select count(*) from t7_c;
+select count(*)
+  from (select * from t7 union 
+        select * from t7_c) a;
+
+select count(*) from t8;
+select count(*) from t8_c;
+select count(*)
+  from (select * from t8 union 
+        select * from t8_c) a;
+
+select count(*) from t9;
+select count(*) from t9_c;
+select count(*)
+  from (select * from t9 union 
+        select * from t9_c) a;
+
+select count(*) from t10;
+select count(*) from t10_c;
+select count(*)
+  from (select * from t10 union 
+        select * from t10_c) a;
+
+select count(*) from t11;
+select count(*) from t11_c;
+select count(*)
+  from (select * from t11 union 
+        select * from t11_c) a;
+
+# Bug #20820 cont'd
+select * from t10_c order by a;
+# Bug #27775 cont'd
+# - auto inc info should be correct
+select max(capgoaledatta) from t1_c;
+select auto_increment from information_schema.tables
+where table_name = 't1_c';
+select max(capgotod) from t2_c;
+select auto_increment from information_schema.tables
+where table_name = 't2_c';
+select max(capfa) from t4_c;
+select auto_increment from information_schema.tables
+where table_name = 't4_c';
+select max(dardtestard) from t7_c;
+select auto_increment from information_schema.tables
+where table_name = 't7_c';
+select max(a) from t10_c;
+select auto_increment from information_schema.tables
+where table_name = 't10_c';
+
+#
+# Try Partitioned tables as well
+#
+ALTER TABLE t7_c
+PARTITION BY LINEAR KEY (`dardtestard`);
+
+--source include/ndb_backup.inc
+drop table t1_c,t2_c,t3_c,t4_c,t5_c,t6_c,t7_c,t8_c,t9_c,t10_c,t11_c;
+--exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 1 -m -r --print --print_meta $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 2 -r --print --print_meta $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+
+select count(*) from t1;
+select count(*) from t1_c;
+select count(*)
+  from (select * from t1 union 
+        select * from t1_c) a;
+
+select count(*) from t2;
+select count(*) from t2_c;
+select count(*)
+  from (select * from t2 union 
+        select * from t2_c) a;
+
+select count(*) from t3;
+select count(*) from t3_c;
+select count(*)
+  from (select * from t3 union 
+        select * from t3_c) a;
+
+select count(*) from t4;
+select count(*) from t4_c;
+select count(*)
+  from (select * from t4 union 
+        select * from t4_c) a;
+
+select count(*) from t5;
+select count(*) from t5_c;
+select count(*)
+  from (select * from t5 union 
+        select * from t5_c) a;
+
+select count(*) from t6;
+select count(*) from t6_c;
+select count(*)
+  from (select * from t6 union 
+        select * from t6_c) a;
+
+select count(*) from t7;
+select count(*) from t7_c;
+select count(*)
+  from (select * from t7 union 
+        select * from t7_c) a;
+
+select count(*) from t8;
+select count(*) from t8_c;
+select count(*)
+  from (select * from t8 union 
+        select * from t8_c) a;
+
+select count(*) from t9;
+select count(*) from t9_c;
+select count(*)
+  from (select * from t9 union 
+        select * from t9_c) a;
+
+select count(*) from t10;
+select count(*) from t10_c;
+select count(*)
+  from (select * from t10 union 
+        select * from t10_c) a;
+
+select count(*) from t11;
+select count(*) from t11_c;
+select count(*)
+  from (select * from t11 union 
+        select * from t11_c) a;
+
+drop table t1_c,t2_c,t3_c,t4_c,t5_c,t6_c,t7_c,t8_c,t9_c,t10_c,t11_c;
+--exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 1 -m -r --ndb-nodegroup_map "(0,0)" --print --print_meta $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 2 -r --print --print_meta $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+
+select count(*) from t1;
+select count(*) from t1_c;
+select count(*)
+  from (select * from t1 union 
+        select * from t1_c) a;
+
+select count(*) from t2;
+select count(*) from t2_c;
+select count(*)
+  from (select * from t2 union 
+        select * from t2_c) a;
+
+select count(*) from t3;
+select count(*) from t3_c;
+select count(*)
+  from (select * from t3 union 
+        select * from t3_c) a;
+
+select count(*) from t4;
+select count(*) from t4_c;
+select count(*)
+  from (select * from t4 union 
+        select * from t4_c) a;
+
+select count(*) from t5;
+select count(*) from t5_c;
+select count(*)
+  from (select * from t5 union 
+        select * from t5_c) a;
+
+select count(*) from t6;
+select count(*) from t6_c;
+select count(*)
+  from (select * from t6 union 
+        select * from t6_c) a;
+
+select count(*) from t7;
+select count(*) from t7_c;
+select count(*)
+  from (select * from t7 union 
+        select * from t7_c) a;
+
+select count(*) from t8;
+select count(*) from t8_c;
+select count(*)
+  from (select * from t8 union 
+        select * from t8_c) a;
+
+select count(*) from t9;
+select count(*) from t9_c;
+select count(*)
+  from (select * from t9 union 
+        select * from t9_c) a;
+
+select count(*) from t10;
+select count(*) from t10_c;
+select count(*)
+  from (select * from t10 union 
+        select * from t10_c) a;
+
+select count(*) from t11;
+select count(*) from t11_c;
+select count(*)
+  from (select * from t11 union 
+        select * from t11_c) a;
+#
+# Drop all table except t2_c
+#   This to make sure that error returned from ndb_restore below is 
+#     guaranteed to be from t2_c, this since order of tables in backup
+#     is none deterministic
+# 
+drop table t1_c,t3_c,t4_c,t5_c,t6_c,t7_c,t8_c,t9_c,t10_c,t11_c;
+--source include/ndb_backup.inc
+
+# ndb_restore should now fail, table t2_c already exists
+--replace_regex /Backup Id = [0-9]+/Backup Id = the_backup_id/
+--error 1
+--exec $NDB_RESTORE --no-defaults --core=0 -b $the_backup_id -n 1 -m -r --ndb-nodegroup_map "(0,1)" --verbose=0 $NDB_BACKUPS-$the_backup_id 2>&1 
+
+CREATE TABLE t11_c (
+  c1 int primary key, c2 char(10), c3 varchar(10)
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1;
+
+CREATE TABLE t12_c (
+  c1 int primary key, c2 char(10), c3 varchar(10)
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1;
+
+INSERT INTO t11_c VALUES(1, "aaaaa", "bbbbb"), (2, "ccccc", "ddddd"), (3, "eeeee","fffff");
+INSERT INTO t12_c VALUES(4, "ggggg", "hhhhh"), (5, "iiiii", "jjjjj"), (6, "kkkkk","lllll");
+--source include/ndb_backup.inc
+drop table t2_c,t11_c,t12_c;
+# Only part of tables is restored, it should work
+--exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 1 -m -r --print --print_meta $NDB_BACKUPS-$the_backup_id test t11_c >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 2 -r --print --print_meta $NDB_BACKUPS-$the_backup_id test t11_c >> $NDB_TOOLS_OUTPUT
+#Should only t11_c is restored
+SELECT * FROM t11_c ORDER BY c1;
+
+#
+# Cleanup
+#
+
+drop table t1,t2,t3,t4,t5,t6,t7,t8,t9,t10,t11,t11_c;
+
+#
+# Test BUG#10287
+#
+
+--disable_query_log
+source include/ndb_backup_id.inc;
+--enable_query_log
+
+# End of 5.0 tests (4.1 test intermixed to save test time)
+
+#
+# Test restore of epoch number bug#
+#
+
+# ensure correct restore of epoch numbers in old versions
+--exec $NDB_RESTORE --no-defaults --core=0 -e -b 1 -n 1 $backup_data_dir/50 >> $NDB_TOOLS_OUTPUT
+select epoch from mysql.ndb_apply_status where server_id=0;
+--exec $NDB_RESTORE --no-defaults --core=0 -e -b 1 -n 1 $backup_data_dir/51 >> $NDB_TOOLS_OUTPUT
+select epoch from mysql.ndb_apply_status where server_id=0;
+# ensure correct restore of epoch numbers in current version
+# number hould be "big"
+--exec $NDB_RESTORE --no-defaults --core=0 -e -b $the_backup_id -n 1 $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+# should evaluate to true == 1
+select epoch > (1 << 32) from mysql.ndb_apply_status where server_id=0;
+
+#
+# Bug#40428 core dumped when restore backup log file(redo log)
+#
+--exec $NDB_RESTORE --print --print_meta -b 1 -n 1 $backup_data_dir/50 >> $NDB_TOOLS_OUTPUT
+
+#
+# Bug #33040 ndb_restore crashes with --print_log
+#
+--exec $NDB_RESTORE --print_log -b 1 -n 1 $backup_data_dir/50 >> $NDB_TOOLS_OUTPUT
+
+#
+# Bug#48005 ndb backup / restore does not restore the auto_increment
+#
+create table t1 (a int not null primary key auto_increment, b int) auto_increment=200
+engine=ndb;
+show create table t1;
+--source include/ndb_backup.inc
+drop table t1;
+--exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 1 -m -r --print_meta $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 2 -r --print_meta $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+show create table t1;
+drop table t1;
+
+#
+# mtoib
+#
+--exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 1 -m -r --print_meta --disable-indexes $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 2 -r --print_meta --disable-indexes $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 1 --rebuild-indexes $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+drop table t1;
+
+#
+# Bug#51374
+#
+create table t1 (a int, b int, c int not null, 
+primary key (a) using hash, unique(c) using hash)
+engine = ndb;
+insert into t1 values (1,1,1), (2,2,2), (3,3,3);
+--source include/ndb_backup.inc
+--exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 1 --disable-indexes --rebuild-indexes $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+select * from t1 order by 1;
+drop table t1;
+CREATE TEMPORARY TABLE IF NOT EXISTS ndb_show_tables_results (
+  id INT,
+  type VARCHAR(20),
+  state VARCHAR(20),
+  logging VARCHAR(20),
+  _database VARCHAR(255),
+  _schema VARCHAR(20),
+  name VARCHAR(255)
+);
+--source ndb_show_tables_result.inc
+# the db fields include single quotes...
+--disable_warnings
+select id into @tmp1 from ndb_show_tables_results
+where name like '%ndb_index_stat_sample_x1%';
+--enable_warnings
+select * from ndb_show_tables_results
+where type like '%Index%'
+and name not like '%ndb_index_stat_sample_x1%'
+and name not like concat('%NDB$INDEX_',@tmp1,'_CUSTOM%')
+order by 1,2,3,4,5,6,7;
+drop table ndb_show_tables_results;
+
+#
+# Bug#51432
+#
+--exec $NDB_RESTORE --no-defaults --core=0 -e -b 1 -n 2 -m $backup_data_dir/hashmap >> $NDB_TOOLS_OUTPUT
+
+#
+# Bug#56285
+#
+create table t1 (a int primary key) engine = ndb;
+--exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "abort backup 33" >> $NDB_TOOLS_OUTPUT
+--exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "abort backup 33" >> $NDB_TOOLS_OUTPUT
+drop table t1;
+
+#
+# test backup of table with many attributes
+#
+let $i=499;
+let $separator=;
+let $sql=create table t1 (;
+while ($i)
+{
+  let $sql=$sql$separator c$i int;
+  let $separator=,;
+  dec $i;
+}
+let $sql=$sql, c500 varchar(11000);
+let $sql=$sql, primary key using hash(c1)) engine=ndb;
+eval $sql; # eval the sql and create the table
+
+set @v10 = '0123456789';
+set @v100 = concat(@v10,@v10,@v10,@v10,@v10,@v10,@v10,@v10,@v10,@v10);
+set @v1000 =concat(@v100,@v100,@v100,@v100,@v100,@v100,@v100,@v100,@v100,@v100);
+set @v10000 = concat(@v1000,@v1000,@v1000,@v1000,@v1000,@v1000,@v1000,@v1000,@v1000,@v1000);
+set @v11000 = concat(@v10000, @v1000);
+
+insert into t1 (c1,c500) values (1,@v11000), (2,@v11000), (3,@v11000);
+--source include/ndb_backup.inc
+drop table t1;
