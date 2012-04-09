@@ -4327,12 +4327,6 @@ btr_validate_level(
 	}
 
 loop:
-	if (trx_is_interrupted(trx)) {
-		mtr_commit(&mtr);
-		mem_heap_free(heap);
-		/* Return FALSE if init_id was interrupted. */
-		return(ret && !init_id);
-	}
 	mem_heap_empty(heap);
 	offsets = offsets2 = NULL;
 	mtr_x_lock(dict_index_get_lock(index), &mtr);
@@ -4355,7 +4349,6 @@ loop:
 
 		btr_page_set_index_id(page, page_zip, index->id, &mtr);
 		page_set_max_trx_id(block, page_zip, trx->id, &mtr);
-
 
 	} else if (btr_page_get_index_id(page) != index->id) {
 
@@ -4633,6 +4626,13 @@ node_ptr_fails:
 	Re-acquire the latch on right_page, which will become 'page'
 	on the next loop.  The page has already been checked. */
 	mtr_commit(&mtr);
+
+	if (trx_is_interrupted(trx)) {
+		mem_heap_free(heap);
+
+		/* Return FALSE if init_id was interrupted. */
+		return(ret && !init_id);
+	}
 
 	if (init_id && !(n_pages++ % 256)) {
 		buf_LRU_flush_or_remove_pages(

@@ -38,6 +38,9 @@ Smart ALTER TABLE
 #include "handler0alter.h"
 #include "srv0mon.h"
 #include "fts0priv.h"
+#ifdef UNIV_DEBUG
+#include "btr0sea.h"
+#endif /* UNIV_DEBUG */
 
 #include "ha_innodb.h"
 
@@ -2115,19 +2118,34 @@ ha_innobase::inplace_alter_table(
 	ut_ad(!rw_lock_own(&dict_operation_lock, RW_LOCK_SHARED));
 #endif /* UNIV_SYNC_DEBUG */
 
-	if (!(ha_alter_info->handler_flags & INNOBASE_INPLACE_CREATE)) {
-		DBUG_RETURN(false);
-	}
-
-	update_thd();
-	trx_search_latch_release_if_reserved(prebuilt->trx);
-
 	class ha_innobase_inplace_ctx*	ctx
 		= static_cast<class ha_innobase_inplace_ctx*>
 		(ha_alter_info->handler_ctx);
 
-	DBUG_ASSERT(ctx);
-	DBUG_ASSERT(ctx->trx);
+	if (!(ha_alter_info->handler_flags & INNOBASE_INPLACE_CREATE)) {
+		DBUG_RETURN(false);
+	} else if (dict_table_is_discarded(prebuilt->table)) {
+
+		update_thd();
+
+		/* Nothing to do. */
+		for (uint i = 0; i < ctx->num_to_add; ++i) {
+			dict_index_t*	index = ctx->add[i];
+
+			error = row_log_apply(prebuilt->trx, index, table);
+			ut_a(error == DB_SUCCESS);
+#ifdef UNIV_DEBUG
+			ut_a(index->info.search->magic_n == BTR_SEARCH_MAGIC_N);
+#endif /* UNIV_DEBUG */
+			index->page = FIL_NULL;
+		}
+
+		DBUG_RETURN(false);
+	}
+
+	trx_search_latch_release_if_reserved(prebuilt->trx);
+
+	DBUG_ASSERT(ctx->trx != 0);
 
 	/* Read the clustered index of the table and build
 	indexes based on this information using temporary

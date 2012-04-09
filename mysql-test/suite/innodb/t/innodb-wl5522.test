@@ -212,37 +212,22 @@ ib_discard_tablespaces("test", "t1");
 ib_restore_tablespaces("test", "t1");
 EOF
 
-# This is really a name mismatch error, need better error codes, the problem
-# now is that we can't do an ALTER TABLE and drop the index :-(, so we have
-# to recreate the table.
+# This is really a name mismatch error, need better error codes.
 -- error ER_TABLE_SCHEMA_MISMATCH
 ALTER TABLE t1 IMPORT TABLESPACE;
 
-perl;
-do 'include/innodb-util.inc';
-ib_unlink_tablespace("test", "t1");
-EOF
-
-DROP TABLE t1;
-
-CREATE TABLE t1(
-	c1 INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
-	c2 INT, INDEX idx(c2)) ENGINE=InnoDB;
-
-ALTER TABLE t1 DISCARD TABLESPACE;
---error ER_GET_ERRNO
-SELECT * FROM t1;
+ALTER TABLE t1 DROP INDEX x;
+ALTER TABLE t1 ADD INDEX idx(c2);
 
 perl;
 do 'include/innodb-util.inc';
-ib_discard_tablespaces("test", "t1");
 ib_restore_tablespaces("test", "t1");
 EOF
 
 ALTER TABLE t1 IMPORT TABLESPACE;
 CHECK TABLE t1;
 
-SELECT COUNT(*) FROM t1 WHERE c2 = 1;
+SELECT * FROM t1;
 
 perl;
 do 'include/innodb-util.inc';
