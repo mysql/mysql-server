@@ -3979,6 +3979,7 @@ Item *Field_iterator_table::create_item(THD *thd)
   {
     select->non_agg_fields.push_back(item);
     item->marker= select->cur_pos_in_select_list;
+    select->set_non_agg_field_used(true);
   }
   return item;
 }
