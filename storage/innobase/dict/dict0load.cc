@@ -46,7 +46,8 @@ Created 4/24/1996 Heikki Tuuri
 #include "fts0priv.h"
 
 
-/** Following are six InnoDB system tables */
+/** Following are the InnoDB system tables.  The positions in
+this array are referenced by enum dict_system_table_id. */
 static const char* SYSTEM_TABLE_NAME[] = {
 	"SYS_TABLES",
 	"SYS_INDEXES",

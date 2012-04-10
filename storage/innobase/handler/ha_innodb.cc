@@ -2343,7 +2343,7 @@ innobase_invalidate_query_cache(
 
 	/* Argument TRUE below means we are using transactions */
 #ifdef HAVE_QUERY_CACHE
-	mysql_query_cache_invalidate4((THD*) trx->mysql_thd,
+	mysql_query_cache_invalidate4(static_cast<THD*>(trx->mysql_thd),
 				      full_name,
 				      (uint32) full_name_len,
 				      TRUE);
@@ -2527,7 +2527,8 @@ trx_is_interrupted(
 /*===============*/
 	trx_t*	trx)	/*!< in: transaction */
 {
-	return(trx && trx->mysql_thd && thd_killed((THD*) trx->mysql_thd));
+	return(trx && trx->mysql_thd
+	       && thd_killed(static_cast<THD*>(trx->mysql_thd)));
 }
 
 /**********************************************************************//**
@@ -2540,7 +2541,7 @@ trx_is_strict(
 	trx_t*	trx)	/*!< in: transaction */
 {
 	return(trx && trx->mysql_thd
-	       && THDVAR((THD*) trx->mysql_thd, strict_mode));
+	       && THDVAR(static_cast<THD*>(trx->mysql_thd), strict_mode));
 }
 
 /**************************************************************//**
@@ -3825,32 +3826,35 @@ ha_innobase::primary_key_is_clustered()
 
 /** Always normalize table name to lower case on Windows */
 #ifdef __WIN__
-#define normalize_table_name(norm_name, name)		\
-	normalize_table_name_low(norm_name, name, TRUE)
+#define normalize_table_name(name)		\
+	normalize_table_name_low(name, TRUE)
 #else
-#define normalize_table_name(norm_name, name)           \
-	normalize_table_name_low(norm_name, name, FALSE)
+#define normalize_table_name(name)           \
+	normalize_table_name_low(name, FALSE)
 #endif /* __WIN__ */
 
 /*****************************************************************//**
 Normalizes a table name string. A normalized name consists of the
-database name catenated to '/' and table name. An example:
-test/mytable. On Windows normalization puts both the database name and the
-table name always to lower case if "set_lower_case" is set to TRUE. */
+database name catenated to '/' and table name. An example: test/mytable.
+On Windows normalization puts both the database name and the
+table name always to lower case if "set_lower_case" is set to TRUE.
+Memory for norm_name is allocated here and must be freed by the caller.
+@return	normalized name as a null-terminated string*/
 static
-void
+char*
 normalize_table_name_low(
 /*=====================*/
-	char*		norm_name,	/*!< out: normalized name as a
-					null-terminated string */
 	const char*	name,		/*!< in: table name string */
 	ibool		set_lower_case)	/*!< in: TRUE if we want to set name
 					to lower case */
 {
+	char*	norm_name;
 	char*	name_ptr;
+	ulint	name_len;
 	char*	db_ptr;
 	ulint	db_len;
 	char*	ptr;
+	ulint	norm_len;
 
 	/* Scan name from the end */
 
@@ -3862,6 +3866,7 @@ normalize_table_name_low(
 	}
 
 	name_ptr = ptr + 1;
+	name_len = strlen(name_ptr);
 
 	/* skip any number of path separators */
 	while (ptr >= name && (*ptr == '\\' || *ptr == '/')) {
@@ -3880,15 +3885,21 @@ normalize_table_name_low(
 
 	db_ptr = ptr + 1;
 
+	norm_len = db_len + name_len + sizeof "/";
+	norm_name = static_cast<char*>(mem_alloc(norm_len));
+
 	memcpy(norm_name, db_ptr, db_len);
 
 	norm_name[db_len] = '/';
 
-	memcpy(norm_name + db_len + 1, name_ptr, strlen(name_ptr) + 1);
+	/* Copy the name and null-byte. */
+	memcpy(norm_name + db_len + 1, name_ptr, name_len + 1);
 
 	if (set_lower_case) {
 		innobase_casedn_str(norm_name);
 	}
+
+	return(norm_name);
 }
 
 #if !defined(DBUG_OFF)
@@ -3899,7 +3910,7 @@ void
 test_normalize_table_name_low()
 /*===========================*/
 {
-	char		norm_name[128];
+	char*		norm_name;
 	const char*	test_data[][2] = {
 		/* input, expected result */
 		{"./mysqltest/t1", "mysqltest/t1"},
@@ -3945,7 +3956,7 @@ test_normalize_table_name_low()
 		       "testing \"%s\", expected \"%s\"... ",
 		       test_data[i][0], test_data[i][1]);
 
-		normalize_table_name_low(norm_name, test_data[i][0], FALSE);
+		norm_name = normalize_table_name_low(test_data[i][0], FALSE);
 
 		if (strcmp(norm_name, test_data[i][1]) == 0) {
 			printf("ok\n");
@@ -3953,6 +3964,8 @@ test_normalize_table_name_low()
 			printf("got \"%s\"\n", norm_name);
 			ut_error;
 		}
+
+		mem_free(norm_name);
 	}
 }
 #endif /* !DBUG_OFF */
@@ -4354,12 +4367,11 @@ ha_innobase::open(
 	uint		test_if_locked)	/*!< in: not used */
 {
 	dict_table_t*	ib_table;
-	char		norm_name[1000];
+	char*		norm_name;
 	THD*		thd;
 	ulint		retries = 0;
 	char*		is_part = NULL;
-	ibool		par_case_name_set = FALSE;
-	char		par_case_name[MAX_FULL_NAME_LEN + 1];
+	char*		par_case_name = NULL;
 
 	DBUG_ENTER("ha_innobase::open");
 
@@ -4375,14 +4387,14 @@ ha_innobase::open(
 		innobase_release_temporary_latches(ht, thd);
 	}
 
-	normalize_table_name(norm_name, name);
-
 	user_thd = NULL;
 
 	if (!(share=get_share())) {
 
 		DBUG_RETURN(1);
 	}
+
+	norm_name = normalize_table_name(name);
 
 	/* Will be allocated if it is needed in ::update_row() */
 	upd_buf = NULL;
@@ -4424,24 +4436,22 @@ retry:
 			case them in the system table. */
 			if (innobase_get_lower_case_table_names() == 1) {
 
-				if (!par_case_name_set) {
+				if (par_case_name == NULL) {
 #ifndef __WIN__
 					/* Check for the table using lower
 					case name, including the partition
 					separator "P" */
-					memcpy(par_case_name, norm_name,
-					       strlen(norm_name));
-					par_case_name[strlen(norm_name)] = 0;
+					par_case_name = mem_strdup(norm_name);
 					innobase_casedn_str(par_case_name);
 #else
 					/* On Windows platfrom, check
 					whether there exists table name in
 					system table whose name is
 					not being normalized to lower case */
-					normalize_table_name_low(
-						par_case_name, name, FALSE);
+					par_case_name =
+						normalize_table_name_low(
+							name, FALSE);
 #endif
-					par_case_name_set = TRUE;
 				}
 
 				ib_table = dict_table_open_on_name(
@@ -4499,11 +4509,19 @@ retry:
 				"how you can resolve the problem.\n",
 				norm_name);
 		my_errno = ENOENT;
+		mem_free(norm_name);
+		if (par_case_name) {
+			mem_free(par_case_name);
+		}
 
 		DBUG_RETURN(HA_ERR_NO_SUCH_TABLE);
 	}
 
 table_opened:
+
+	if (par_case_name) {
+		mem_free(par_case_name);
+	}
 
 	MONITOR_INC(MONITOR_TABLE_OPEN);
 
@@ -4519,6 +4537,8 @@ table_opened:
 		my_errno = ENOENT;
 
 		dict_table_close(ib_table, FALSE, FALSE);
+		mem_free(norm_name);
+
 		DBUG_RETURN(HA_ERR_NO_SUCH_TABLE);
 	}
 
@@ -4682,6 +4702,8 @@ table_opened:
 	}
 
 	info(HA_STATUS_NO_LOCK | HA_STATUS_VARIABLE | HA_STATUS_CONST);
+
+	mem_free(norm_name);
 
 	DBUG_RETURN(0);
 }
@@ -7954,7 +7976,7 @@ create_table_check_doc_id_col(
 				*doc_id_col = i;
 			} else {
 				push_warning_printf(
-					(THD*) trx->mysql_thd,
+					static_cast<THD*>(trx->mysql_thd),
 					Sql_condition::WARN_LEVEL_WARN,
 					ER_ILLEGAL_HA_CREATE_OPTION,
 					"InnoDB: FTS_DOC_ID column must be "
@@ -7982,17 +8004,18 @@ create_table_def(
 	const TABLE*	form,		/*!< in: information on table
 					columns and indexes */
 	const char*	table_name,	/*!< in: table name */
-	const char*	path_of_temp_table,
-					/*!< in: if this is a table explicitly
+	const char*	temp_path,	/*!< in: if this is a table explicitly
 					created by the user with the
 					TEMPORARY keyword, then this
 					parameter is the dir path where the
 					table should be placed if we create
 					an .ibd file for it (no .ibd extension
-					in the path, though) */
+					in the path, though). Otherwise this
+					is NULL */
 	ulint		flags,		/*!< in: table flags */
 	ulint		flags2)		/*!< in: table flags2 */
 {
+	THD*		thd = static_cast<THD*>(trx->mysql_thd);
 	dict_table_t*	table;
 	ulint		n_cols;
 	int		error;
@@ -8011,13 +8034,13 @@ create_table_def(
 	DBUG_ENTER("create_table_def");
 	DBUG_PRINT("enter", ("table_name: %s", table_name));
 
-	DBUG_ASSERT(trx->mysql_thd != NULL);
+	DBUG_ASSERT(thd != NULL);
 
 	/* MySQL does the name length check. But we do additional check
 	on the name length here */
 	if (strlen(table_name) > MAX_FULL_NAME_LEN) {
 		push_warning_printf(
-			(THD*) trx->mysql_thd, Sql_condition::WARN_LEVEL_WARN,
+			thd, Sql_condition::WARN_LEVEL_WARN,
 			ER_TABLE_NAME,
 			"InnoDB: Table Name or Database Name is too long");
 
@@ -8029,7 +8052,7 @@ create_table_def(
 	if (strcmp(strchr(table_name, '/') + 1,
 		   "innodb_table_monitor") == 0) {
 		push_warning(
-			(THD*) trx->mysql_thd, Sql_condition::WARN_LEVEL_WARN,
+			thd, Sql_condition::WARN_LEVEL_WARN,
 			HA_ERR_WRONG_COMMAND,
 			DEPRECATED_MSG_INNODB_TABLE_MONITOR);
 	}
@@ -8071,9 +8094,9 @@ create_table_def(
 					      flags, flags2);
 	}
 
-	if (flags2 & DICT_TF2_TEMPORARY) {
+	if (temp_path) {
 		table->dir_path_of_temp_table =
-			mem_heap_strdup(table->heap, path_of_temp_table);
+			mem_heap_strdup(table->heap, temp_path);
 	}
 
 	heap = mem_heap_create(1000);
@@ -8086,8 +8109,7 @@ create_table_def(
 
 		if (!col_type) {
 			push_warning_printf(
-				(THD*) trx->mysql_thd,
-				Sql_condition::WARN_LEVEL_WARN,
+				thd, Sql_condition::WARN_LEVEL_WARN,
 				ER_CANT_CREATE_TABLE,
 				"Error creating table '%s' with "
 				"column '%s'. Please check its "
@@ -8111,8 +8133,7 @@ create_table_def(
 				/* in data0type.h we assume that the
 				number fits in one byte in prtype */
 				push_warning_printf(
-					(THD*) trx->mysql_thd,
-					Sql_condition::WARN_LEVEL_WARN,
+					thd, Sql_condition::WARN_LEVEL_WARN,
 					ER_CANT_CREATE_TABLE,
 					"In InnoDB, charset-collation codes"
 					" must be below 256."
@@ -8181,14 +8202,14 @@ err_col:
 		char buf[100];
 		char* buf_end = innobase_convert_identifier(
 			buf, sizeof buf - 1, table_name, strlen(table_name),
-			trx->mysql_thd, TRUE);
+			thd, TRUE);
 
 		*buf_end = '\0';
 		my_error(ER_TABLE_EXISTS_ERROR, MYF(0), buf);
 	}
 
 error_ret:
-	error = convert_error_code_to_mysql(error, flags, NULL);
+	error = convert_error_code_to_mysql(error, flags, thd);
 
 	DBUG_RETURN(error);
 }
@@ -8578,6 +8599,60 @@ innobase_fts_load_stopword(
 }
 
 /*****************************************************************//**
+Parses the table name into normal name and temp path if needed.
+The memory for these output strings is allocated here and the
+caller is responsible to free it.
+@return	0 if successful, otherwise, error number */
+UNIV_INTERN
+int
+ha_innobase::parse_table_name(
+/*==========================*/
+	const char*	name,		/*!< in/out: table name provided*/
+	HA_CREATE_INFO*	create_info,	/*!< in: more information of the
+					created table, contains also the
+					create statement string */
+	bool		use_tablespace,	/*!< in: srv_file_per_table */
+	char**		norm_name,	/*!< out: normalized table name */
+	char**		temp_path)	/*!< out: absolute path of table */
+{
+	DBUG_ENTER("ha_innobase::parse_table_name");
+
+#ifdef __WIN__
+	/* Names passed in from server are in two formats:
+	1. <database_name>/<table_name>: for normal table creation
+	2. full path: for temp table creation, or DATA DIRECTORY.
+
+	When srv_file_per_table is on and mysqld_embedded is off,
+	check for full path pattern, i.e.
+	X:\dir\...,		X is a driver letter, or
+	\\dir1\dir2\...,	UNC path
+	returns error if it is in full path format, but not creating a temp.
+	table. Currently InnoDB does not support symbolic link on Windows. */
+
+	if (use_tablespace
+	    && !mysqld_embedded
+	    && (!create_info->options & HA_LEX_CREATE_TMP_TABLE)) {
+
+		if ((name[1] == ':')
+		    || (name[0] == '\\' && name[1] == '\\')) {
+			sql_print_error("Cannot create table %s\n", name);
+			DBUG_RETURN(HA_ERR_GENERIC);
+		}
+	}
+#endif
+
+	*norm_name = normalize_table_name(name);
+	*temp_path = NULL;
+
+	/* A full path is used for TEMPORARY TABLE. */
+	if (create_info->options & HA_LEX_CREATE_TMP_TABLE) {
+		*temp_path = mem_strdup(name);
+	}
+
+	DBUG_RETURN(0);
+}
+
+/*****************************************************************//**
 Determines InnoDB table flags.
 @retval true if successful, false if error */
 UNIV_INTERN
@@ -8812,8 +8887,8 @@ ha_innobase::create(
 	trx_t*		trx;
 	int		primary_key_no;
 	uint		i;
-	char		name2[FN_REFLEN];
-	char		norm_name[FN_REFLEN];
+	char*		temp_path = NULL;	/* absolute path of temp frm */
+	char*		norm_name = NULL;	/* {database}/{tablename} */
 	THD*		thd = ha_thd();
 	ib_int64_t	auto_inc_value;
 
@@ -8838,40 +8913,12 @@ ha_innobase::create(
 	DBUG_ASSERT(thd != NULL);
 	DBUG_ASSERT(create_info != NULL);
 
-#ifdef __WIN__
-	/* Names passed in from server are in two formats:
-	1. <database_name>/<table_name>: for normal table creation
-	2. full path: for temp table creation, or sym link
-
-	When srv_file_per_table is on and mysqld_embedded is off,
-	check for full path pattern, i.e.
-	X:\dir\...,		X is a driver letter, or
-	\\dir1\dir2\...,	UNC path
-	returns error if it is in full path format, but not creating a temp.
-	table. Currently InnoDB does not support symbolic link on Windows. */
-
-	if (use_tablespace
-	    && !mysqld_embedded
-	    && (!create_info->options & HA_LEX_CREATE_TMP_TABLE)) {
-
-		if ((name[1] == ':')
-		    || (name[0] == '\\' && name[1] == '\\')) {
-			sql_print_error("Cannot create table %s\n", name);
-			DBUG_RETURN(HA_ERR_GENERIC);
-		}
-	}
-#endif
-
 	if (form->s->fields > 1000) {
 		/* The limit probably should be REC_MAX_N_FIELDS - 3 = 1020,
 		but we play safe here */
 
 		DBUG_RETURN(HA_ERR_TO_BIG_ROW);
 	}
-
-	strcpy(name2, name);
-
-	normalize_table_name(norm_name, name2);
 
 	/* Create the table definition in InnoDB */
 
@@ -8887,6 +8934,12 @@ ha_innobase::create(
 		DBUG_RETURN(-1);
 	}
 
+	error = parse_table_name(name, create_info, use_tablespace,
+				 &norm_name, &temp_path);
+	if (error) {
+		DBUG_RETURN(error);
+	}
+
 	/* Look for a primary key */
 	primary_key_no = (form->s->primary_key != MAX_KEY ?
 			  (int) form->s->primary_key :
@@ -8900,11 +8953,13 @@ ha_innobase::create(
 	any user indices to be created. */
 	if (innobase_index_name_is_reserved(thd, form->key_info,
 					    form->s->keys)) {
-		DBUG_RETURN(-1);
+		error = -1;
+		goto cleanup3;
 	}
 
 	if (IS_MAGIC_TABLE_AND_USER_DENIED_ACCESS(norm_name, thd)) {
-		DBUG_RETURN(HA_ERR_GENERIC);
+		error = HA_ERR_GENERIC;
+		goto cleanup3;
 	}
 
 	/* Get the transaction associated with the current thd, or create one
@@ -8925,7 +8980,8 @@ ha_innobase::create(
 
 	row_mysql_lock_data_dictionary(trx);
 
-	error = create_table_def(trx, form, norm_name, name2, flags, flags2);
+	error = create_table_def(trx, form, norm_name, temp_path,
+				 flags, flags2);
 
 	if (error) {
 		goto cleanup;
@@ -9096,8 +9152,8 @@ ha_innobase::create(
 		if (!innobase_fts_load_stopword(innobase_table, NULL, thd)) {
 			dict_table_close(innobase_table, FALSE, FALSE);
 			srv_active_wake_master_thread();
-			trx_free_for_mysql(trx);
-			DBUG_RETURN(-1);
+			error = -1;
+			goto cleanup2;
 		}
 	}
 
@@ -9138,16 +9194,22 @@ ha_innobase::create(
 
 	srv_active_wake_master_thread();
 
-	trx_free_for_mysql(trx);
-
-	DBUG_RETURN(0);
+	error = 0;
+	goto cleanup2;
 
 cleanup:
 	innobase_commit_low(trx);
 
 	row_mysql_unlock_data_dictionary(trx);
 
+cleanup2:
 	trx_free_for_mysql(trx);
+
+cleanup3:
+	if (temp_path) {
+		mem_free(temp_path);
+	}
+	mem_free(norm_name);
 
 	DBUG_RETURN(error);
 }
@@ -9233,7 +9295,7 @@ ha_innobase::delete_table(
 	trx_t*	parent_trx;
 	trx_t*	trx;
 	THD	*thd = ha_thd();
-	char	norm_name[1000];
+	char*	norm_name = NULL;
 	char	errstr[1024];
 
 	DBUG_ENTER("ha_innobase::delete_table");
@@ -9245,9 +9307,10 @@ ha_innobase::delete_table(
 
 	/* Strangely, MySQL passes the table name without the '.frm'
 	extension, in contrast to ::create */
-	normalize_table_name(norm_name, name);
+	norm_name = normalize_table_name(name);
 
 	if (IS_MAGIC_TABLE_AND_USER_DENIED_ACCESS(norm_name, thd)) {
+		mem_free(norm_name);
 		DBUG_RETURN(HA_ERR_GENERIC);
 	}
 
@@ -9302,25 +9365,26 @@ ha_innobase::delete_table(
 #endif /* __WIN__ */
 
 		if (is_part) {
-			char	par_case_name[MAX_FULL_NAME_LEN + 1];
+			char*	par_case_name;
 
 #ifndef __WIN__
 			/* Check for the table using lower
 			case name, including the partition
 			separator "P" */
-			memcpy(par_case_name, norm_name, strlen(norm_name));
-			par_case_name[strlen(norm_name)] = 0;
+			par_case_name = mem_strdup(norm_name);
 			innobase_casedn_str(par_case_name);
 #else
 			/* On Windows platfrom, check
 			whether there exists table name in
 			system table whose name is
 			not being normalized to lower case */
-			normalize_table_name_low(par_case_name, name, FALSE);
+			par_case_name = normalize_table_name_low(
+				name, FALSE);
 #endif
-			error = row_drop_table_for_mysql(par_case_name, trx,
-							 thd_sql_command(thd)
-							 == SQLCOM_DROP_DB);
+			error = row_drop_table_for_mysql(
+				par_case_name, trx,
+				thd_sql_command(thd) == SQLCOM_DROP_DB);
+			mem_free(par_case_name);
 		}
 	}
 
@@ -9341,6 +9405,7 @@ ha_innobase::delete_table(
 
 	error = convert_error_code_to_mysql(error, 0, NULL);
 
+	mem_free(norm_name);
 	DBUG_RETURN(error);
 }
 
@@ -9440,12 +9505,8 @@ innobase_rename_table(
 	DBUG_ENTER("innobase_rename_table");
 	DBUG_ASSERT(trx_get_dict_operation(trx) == TRX_DICT_OP_INDEX);
 
-	// Magic number 64 arbitrary
-	norm_to = (char*) my_malloc(strlen(to) + 64, MYF(0));
-	norm_from = (char*) my_malloc(strlen(from) + 64, MYF(0));
-
-	normalize_table_name(norm_to, to);
-	normalize_table_name(norm_from, from);
+	norm_to = normalize_table_name(to);
+	norm_from = normalize_table_name(from);
 
 	/* Serialize data dictionary operations with dictionary mutex:
 	no deadlocks can occur then in these operations */
@@ -9471,27 +9532,26 @@ innobase_rename_table(
 #endif /* __WIN__ */
 
 			if (is_part) {
-				char	par_case_name[MAX_FULL_NAME_LEN + 1];
+				char*	par_case_name;
 
 #ifndef __WIN__
 				/* Check for the table using lower
 				case name, including the partition
 				separator "P" */
-				memcpy(par_case_name, norm_from,
-				       strlen(norm_from));
-				par_case_name[strlen(norm_from)] = 0;
+				par_case_name = mem_strdup(norm_from);
 				innobase_casedn_str(par_case_name);
 #else
 				/* On Windows platfrom, check
 				whether there exists table name in
 				system table whose name is
 				not being normalized to lower case */
-				normalize_table_name_low(par_case_name,
-							 from, FALSE);
+				par_case_name = normalize_table_name_low(
+					from, FALSE);
 #endif
 				error = (db_err) row_rename_table_for_mysql(
 					par_case_name, norm_to, trx, TRUE);
 
+				mem_free(par_case_name);
 			}
 		}
 
@@ -9531,8 +9591,8 @@ innobase_rename_table(
 
 	log_buffer_flush_to_disk();
 
-	my_free(norm_to);
-	my_free(norm_from);
+	mem_free(norm_to);
+	mem_free(norm_from);
 
 	DBUG_RETURN(error);
 }
@@ -10160,8 +10220,8 @@ ha_innobase::info_low(
 					"space for table %s but its "
 					"tablespace has been discarded or "
 					"the .ibd file is missing. Setting "
-                                        "the free space to zero. "
-                                        "(errno: %d - %s)",
+					"the free space to zero. "
+					"(errno: %d - %s)",
 					ib_table->name, errno,
 					my_strerror(errbuf, sizeof(errbuf),
 						    errno));

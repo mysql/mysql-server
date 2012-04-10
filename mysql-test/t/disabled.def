@@ -15,3 +15,4 @@ sum_distinct-big         : Bug#11764126 2010-11-15 mattiasj was not tested
 archive-big              : Bug#11817185 2011-03-10 Anitha Disabled since this leads to timeout on Solaris Sparc
 log_tables-big           : Bug#11756699 2010-11-15 mattiasj report already exists
 ds_mrr-big @solaris      : Hemant disabled since this leads to timeout on Solaris on slow sparc servers
+partition_locking_4	 : Bug#13924750 2012-04-04 lost connection.
