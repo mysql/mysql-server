@@ -1400,6 +1400,10 @@ public:
   /** Register this storage engine in the given transaction context. */
   void register_ha(THD_TRANS *trans, handlerton *ht_arg)
   {
+    DBUG_ENTER("Ha_trx_info::register_ha");
+    DBUG_PRINT("enter", ("trans: 0x%llx, ht: 0x%llx (%s)",
+                         (ulonglong) trans, (ulonglong) ht_arg,
+                         ha_legacy_type_name(ht_arg->db_type)));
     DBUG_ASSERT(m_flags == 0);
     DBUG_ASSERT(m_ht == NULL);
     DBUG_ASSERT(m_next == NULL);
@@ -1409,14 +1413,17 @@ public:
 
     m_next= trans->ha_list;
     trans->ha_list= this;
+    DBUG_VOID_RETURN;
   }
 
   /** Clear, prepare for reuse. */
   void reset()
   {
+    DBUG_ENTER("Ha_trx_info::reset");
     m_next= NULL;
     m_ht= NULL;
     m_flags= 0;
+    DBUG_VOID_RETURN;
   }
 
   Ha_trx_info() { reset(); }
@@ -2483,6 +2490,21 @@ private:
   */
   List<char> *binlog_accessed_db_names;
 
+  /**
+    The binary log position of the transaction.
+
+    The file and position are zero if the current transaction has not
+    been written to the binary log.
+
+    @todo Similar information is kept in the patch for BUG#11762277
+    and by the master/slave heartbeat implementation.  We should merge
+    these positions instead of maintaining three different ones.
+   */
+  /**@{*/
+  const char *m_trans_log_file;
+  my_off_t m_trans_end_pos;
+  /**@}*/
+
 public:
   void issue_unsafe_warnings();
 
@@ -2518,7 +2540,6 @@ public:
     SAVEPOINT *savepoints;
     THD_TRANS all;			// Trans since BEGIN WORK
     THD_TRANS stmt;			// Trans for current statement
-    bool on;                            // see ha_enable_transaction()
     XID_STATE xid_state;
     Rows_log_event *m_pending_rows_event;
 
@@ -2529,11 +2550,24 @@ public:
     */
     CHANGED_TABLE_LIST* changed_tables;
     MEM_ROOT mem_root; // Transaction-life memory allocation pool
+
+    /*
+      (Mostly) binlog-specific fields use while flushing the caches
+      and committing transactions.
+    */
+    struct {
+      bool enabled:1;                   // see ha_enable_transaction()
+      bool pending:1;                   // Is the transaction commit pending?
+      bool real_commit:1;               // Is this a "real" commit?
+      bool commit_low:1;                // see MYSQL_BIN_LOG::ordered_commit
+    } flags;
+
     void cleanup()
     {
       DBUG_ENTER("THD::st_transaction::cleanup");
       changed_tables= 0;
       savepoints= 0;
+
       /*
         If rm_error is raised, it means that this piece of a distributed
         transaction has failed and must be rolled back. But the user must
@@ -2926,6 +2960,43 @@ public:
   DYNAMIC_ARRAY user_var_events;        /* For user variables replication */
   MEM_ROOT      *user_var_events_alloc; /* Allocate above array elements here */
 
+  /**
+    Used by MYSQL_BIN_LOG to maintain the commit queue for binary log
+    group commit.
+  */
+  THD *next_to_commit;
+
+  /**
+     Set transaction position.
+   */
+  void set_trans_pos(const char *file, my_off_t pos) {
+    DBUG_ENTER("THD::set_trans_pos");
+    DBUG_PRINT("enter", ("file: %s, pos: %llu", file, pos));
+    // Only the file name should be used, not the full path
+    m_trans_log_file= file + dirname_length(file);
+    m_trans_end_pos= pos;
+    DBUG_PRINT("return", ("m_trans_log_file: %s, m_trans_end_pos: %llu",
+                          m_trans_log_file, m_trans_end_pos));
+    DBUG_VOID_RETURN;
+  }
+
+  void get_trans_pos(const char **file_var, my_off_t *pos_var) {
+    DBUG_ENTER("THD::get_trans_pos");
+    if (file_var)
+      *file_var = m_trans_log_file;
+    if (pos_var)
+      *pos_var= m_trans_end_pos;
+    DBUG_PRINT("return", ("file: %s, pos: %llu",
+                          file_var ? *file_var : "<none>",
+                          pos_var ? *pos_var : 0));
+    DBUG_VOID_RETURN;
+  }
+
+  /*
+    Error code from committing or rolling back the transaction.
+  */
+  int commit_error;
+
   /*
     If checking this in conjunction with a wait condition, please
     include a check after enter_cond() if you want to avoid a race
@@ -3154,28 +3225,41 @@ public:
              const char *src_function, const char *src_file,
              int src_line)
   {
+    DBUG_ENTER("THD::enter_cond");
     mysql_mutex_assert_owner(mutex);
+    DBUG_PRINT("debug", ("thd: 0x%llx, mysys_var: 0x%llx, current_mutex: 0x%llx -> 0x%llx",
+                         (ulonglong) this,
+                         (ulonglong) mysys_var,
+                         (ulonglong) mysys_var->current_mutex,
+                         (ulonglong) mutex));
     mysys_var->current_mutex = mutex;
     mysys_var->current_cond = cond;
     enter_stage(stage, old_stage, src_function, src_file, src_line);
+    DBUG_VOID_RETURN;
   }
   inline void exit_cond(const PSI_stage_info *stage,
                         const char *src_function, const char *src_file,
                         int src_line)
   {
+    DBUG_ENTER("THD::exit_cond");
     /*
       Putting the mutex unlock in thd->exit_cond() ensures that
       mysys_var->current_mutex is always unlocked _before_ mysys_var->mutex is
       locked (if that would not be the case, you'll get a deadlock if someone
       does a THD::awake() on you).
     */
+    DBUG_PRINT("debug", ("thd: 0x%llx, mysys_var: 0x%llx, current_mutex: 0x%llx -> 0x%llx",
+                         (ulonglong) this,
+                         (ulonglong) mysys_var,
+                         (ulonglong) mysys_var->current_mutex,
+                         0ULL));
     mysql_mutex_unlock(mysys_var->current_mutex);
     mysql_mutex_lock(&mysys_var->mutex);
     mysys_var->current_mutex = 0;
     mysys_var->current_cond = 0;
     enter_stage(stage, NULL, src_function, src_file, src_line);
     mysql_mutex_unlock(&mysys_var->mutex);
-    return;
+    DBUG_VOID_RETURN;
   }
 
   virtual int is_killed() { return killed; }
