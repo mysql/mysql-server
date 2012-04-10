@@ -5340,7 +5340,14 @@ static bool fill_alter_inplace_info(THD *thd,
       /* Check that NULL behavior is same for old and new fields */
       if ((new_field->flags & NOT_NULL_FLAG) !=
           (uint) (field->flags & NOT_NULL_FLAG))
-        ha_alter_info->handler_flags|= Alter_inplace_info::ALTER_COLUMN_NULLABLE;
+      {
+        if (new_field->flags & NOT_NULL_FLAG)
+          ha_alter_info->handler_flags|=
+            Alter_inplace_info::ALTER_COLUMN_NOT_NULLABLE;
+        else
+          ha_alter_info->handler_flags|=
+            Alter_inplace_info::ALTER_COLUMN_NULLABLE;
+      }
 
       /*
         We do not detect changes to default values in this loop.
