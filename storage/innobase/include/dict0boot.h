@@ -95,7 +95,7 @@ void
 dict_boot(void);
 /*===========*/
 /*****************************************************************//**
-Creates and initializes the data dictionary at the database creation. */
+Creates and initializes the data dictionary at the server bootstrap. */
 UNIV_INTERN
 void
 dict_create(void);

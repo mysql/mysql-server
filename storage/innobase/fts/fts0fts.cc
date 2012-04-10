@@ -2381,14 +2381,14 @@ fts_get_max_cache_size(
 Get the total number of documents in the FTS.
 @return estimated number of rows in the table */
 UNIV_INTERN
-ulint
+ib_int64_t
 fts_get_total_document_count(
 /*=========================*/
 	dict_table_t*   table)		/*!< in: table instance */
 {
 	ut_ad(table->stat_initialized);
 
-	return((ulint) table->stat_n_rows);
+	return(table->stat_n_rows);
 }
 
 /*********************************************************************//**
