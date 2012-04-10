@@ -645,8 +645,7 @@ os_file_handle_error_cond_exit(
 
 			ut_print_timestamp(stderr);
 			fprintf(stderr, "  InnoDB: File operation call: "
-				"'%s' returned OS error " ULINTPF ".\n",
-				operation, err);
+				"'%s'.\n", operation);
 		}
 
 		if (should_exit) {

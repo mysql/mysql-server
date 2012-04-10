@@ -857,7 +857,7 @@ innobase_fts_check_doc_id_index_in_def(
 		}
 
 		return(FTS_EXIST_DOC_ID_INDEX);
-	}
+        }
 
 	return(FTS_NOT_EXIST_DOC_ID_INDEX);
 }
