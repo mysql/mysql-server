@@ -211,6 +211,13 @@ static bool tokudb_show_status(handlerton * hton, THD * thd, stat_print_fn * pri
 static int tokudb_close_connection(handlerton * hton, THD * thd);
 static int tokudb_commit(handlerton * hton, THD * thd, bool all);
 static int tokudb_rollback(handlerton * hton, THD * thd, bool all);
+#if MYSQL_VERSION_ID < 50521
+static int tokudb_xa_prepare(handlerton* hton, THD* thd, bool all);
+static int tokudb_xa_recover(handlerton* hton, XID*  xid_list, uint  len);
+static int tokudb_commit_by_xid(handlerton* hton, XID* xid);
+static int tokudb_rollback_by_xid(handlerton* hton, XID*  xid);
+#endif
+
 #if defined(HA_GENERAL_ONLINE) || defined(HA_INPLACE_ADD_INDEX_NO_READ_WRITE)
 static uint tokudb_alter_table_flags(uint flags);
 #endif
@@ -358,6 +365,13 @@ static int tokudb_init_func(void *p) {
     
     tokudb_hton->commit = tokudb_commit;
     tokudb_hton->rollback = tokudb_rollback;
+#if MYSQL_VERSION_ID < 50521
+    tokudb_hton->prepare=tokudb_xa_prepare;
+    tokudb_hton->recover=tokudb_xa_recover;
+    tokudb_hton->commit_by_xid=tokudb_commit_by_xid;
+    tokudb_hton->rollback_by_xid=tokudb_rollback_by_xid;
+#endif
+
     tokudb_hton->panic = tokudb_end;
     tokudb_hton->flush_logs = tokudb_flush_logs;
     tokudb_hton->show_status = tokudb_show_status;
@@ -842,6 +856,76 @@ static int tokudb_rollback(handlerton * hton, THD * thd, bool all) {
     TOKUDB_DBUG_RETURN(0);
 }
 
+#if MYSQL_VERSION_ID < 50521
+static int tokudb_xa_prepare(handlerton* hton, THD* thd, bool all) {
+    TOKUDB_DBUG_ENTER("tokudb_xa_prepare");
+    int r = 0;
+    DBUG_PRINT("trans", ("preparing transaction %s", all ? "all" : "stmt"));
+    tokudb_trx_data *trx = (tokudb_trx_data *) thd_data_get(thd, hton->slot);
+    DB_TXN* txn = all ? trx->all : trx->stmt;
+    if (txn) {
+        if (tokudb_debug & TOKUDB_DEBUG_TXN) {
+            TOKUDB_TRACE("doing txn prepare:%d:%p\n", all, txn);
+        }
+        // a TOKU_XA_XID is identical to a MYSQL_XID
+        TOKU_XA_XID thd_xid;
+        thd_get_xid(thd, (MYSQL_XID*) &thd_xid);
+        r = txn->xa_prepare(txn, &thd_xid);
+    } 
+    else if (tokudb_debug & TOKUDB_DEBUG_TXN) {
+        TOKUDB_TRACE("nothing to prepare %d\n", all);
+    }
+    TOKUDB_DBUG_RETURN(r);
+}
+static int tokudb_xa_recover(handlerton* hton, XID*  xid_list, uint  len) {
+    TOKUDB_DBUG_ENTER("tokudb_xa_recover");
+    int r = 0;
+    if (len == 0 || xid_list == NULL) {
+        return(0);
+    }
+    long num_returned = 0;
+    r = db_env->txn_xa_recover(
+        db_env,
+        (TOKU_XA_XID*)xid_list,
+        len,
+        &num_returned,
+        DB_NEXT
+        );
+    TOKUDB_DBUG_RETURN((int)num_returned);
+}
+static int tokudb_commit_by_xid(handlerton* hton, XID* xid) {
+    TOKUDB_DBUG_ENTER("tokudb_commit_by_xid");
+    int r = 0;
+    DB_TXN* txn = NULL;
+    TOKU_XA_XID* toku_xid = (TOKU_XA_XID*)xid;
+
+    r = db_env->get_txn_from_xid(db_env, toku_xid, &txn);
+    if (r) { goto cleanup; }
+
+    r = txn->commit(txn, 0);
+    if (r) { goto cleanup; }
+
+    r = 0;
+cleanup:
+    TOKUDB_DBUG_RETURN(r);
+}
+static int tokudb_rollback_by_xid(handlerton* hton, XID*  xid) {
+    TOKUDB_DBUG_ENTER("tokudb_rollback_by_xid");
+    int r = 0;
+    DB_TXN* txn = NULL;
+    TOKU_XA_XID* toku_xid = (TOKU_XA_XID*)xid;
+
+    r = db_env->get_txn_from_xid(db_env, toku_xid, &txn);
+    if (r) { goto cleanup; }
+
+    r = txn->abort(txn);
+    if (r) { goto cleanup; }
+
+    r = 0;
+cleanup:
+    TOKUDB_DBUG_RETURN(r);
+}
+#endif
 
 static int tokudb_savepoint(handlerton * hton, THD * thd, void *savepoint) {
     TOKUDB_DBUG_ENTER("tokudb_savepoint");
