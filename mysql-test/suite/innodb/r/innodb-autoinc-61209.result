@@ -1,6 +1,6 @@
 DROP TABLE IF EXISTS bug_61209;
 CREATE TABLE bug_61209 (a INT auto_increment, PRIMARY KEY(a)) ENGINE=InnoDB;
-INSERT INTO bug_61209 VALUES (), ();
+INSERT INTO bug_61209 VALUES (), (), (), ();
 
 # Connect con1
 
