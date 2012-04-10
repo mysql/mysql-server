@@ -1281,7 +1281,7 @@ dict_create_or_check_foreign_constraint_tables(void)
 	trx_t*		trx;
 	ulint		error;
 	ibool		success;
-	my_bool		srv_file_per_table_backup;
+	ibool		srv_file_per_table_backup;
 
 	ut_a(srv_get_active_thread_type() == SRV_NONE);
 
@@ -1327,7 +1327,7 @@ dict_create_or_check_foreign_constraint_tables(void)
 	VARBINARY, like in other InnoDB system tables, to get a clean
 	design. */
 
-	srv_file_per_table_backup = srv_file_per_table;
+	srv_file_per_table_backup = (ibool) srv_file_per_table;
 
 	/* We always want SYSTEM tables to be created inside the system
 	tablespace. */
@@ -1391,7 +1391,7 @@ dict_create_or_check_foreign_constraint_tables(void)
 	success = dict_check_sys_foreign_tables_exist();
 	ut_a(success);
 
-	srv_file_per_table = srv_file_per_table_backup;
+	srv_file_per_table = (my_bool) srv_file_per_table_backup;
 
 	return(error);
 }

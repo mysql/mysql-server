@@ -99,7 +99,7 @@ dict_drop_index_tree(
 	mtr_t*	mtr);	/*!< in: mtr having the latch on the record page */
 /****************************************************************//**
 Creates the foreign key constraints system tables inside InnoDB
-at server bootstrap or server start if they are not found or are
+at database creation or database start if they are not found or are
 not of the right form.
 @return	DB_SUCCESS or error code */
 UNIV_INTERN
