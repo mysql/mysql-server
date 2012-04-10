@@ -19,4 +19,4 @@
 
 path=`dirname $0`
 cmake $path/.. -DCMAKE_CXX_FLAGS=-m64 -DCMAKE_C_FLAGS=-m64 
-gmake -j 4
+make

@@ -3055,51 +3055,115 @@ int sp_instr::exec_core(THD *thd, uint *nextp)
 int
 sp_instr_stmt::execute(THD *thd, uint *nextp)
 {
-  int res;
+  int res= 0;
+  bool need_subst;
+
   DBUG_ENTER("sp_instr_stmt::execute");
   DBUG_PRINT("info", ("command: %d", m_lex_keeper.sql_command()));
 
   const CSET_STRING query_backup= thd->query_string;
+
 #if defined(ENABLED_PROFILING)
   /* This s-p instr is profilable and will be captured. */
   thd->profiling.set_query_source(m_query.str, m_query.length);
 #endif
-  if (!(res= alloc_query(thd, m_query.str, m_query.length)) &&
-      !(res=subst_spvars(thd, this, &m_query)))
+
+  /*
+    If we can't set thd->query_string at all, we give up on this statement.
+  */
+  if (alloc_query(thd, m_query.str, m_query.length))
+    DBUG_RETURN(TRUE);
+
+  /*
+    Check whether we actually need a substitution of SP variables with
+    NAME_CONST(...) (using subst_spvars()).
+    If both of the following apply, we won't need to substitute:
+
+    - general log is off
+
+    - binary logging is off, or not in statement mode
+
+    We don't have to substitute on behalf of the query cache as
+    queries with SP vars are not cached, anyway.
+
+    query_name_consts is used elsewhere in a special case concerning
+    CREATE TABLE, but we do not need to do anything about that here.
+
+    The slow query log is another special case: we won't know whether a
+    query qualifies for the slow query log until after it's been
+    executed. We assume that most queries are not slow, so we do not
+    pre-emptively substitute just for the slow query log. If a query
+    ends up being slow after all and we haven't done the substitution
+    already for any of the above (general log etc.), we'll do the
+    substitution immediately before writing to the log.
+  */
+
+  need_subst= ((thd->variables.option_bits & OPTION_LOG_OFF) &&
+               (!(thd->variables.option_bits & OPTION_BIN_LOG) ||
+                !mysql_bin_log.is_open() ||
+                thd->is_current_stmt_binlog_format_row())) ? FALSE : TRUE;
+
+  /*
+    If we need to do a substitution but can't (OOM), give up.
+  */
+
+  if (need_subst && subst_spvars(thd, this, &m_query))
+    DBUG_RETURN(TRUE);
+
+  /*
+    (the order of query cache and subst_spvars calls is irrelevant because
+    queries with SP vars can't be cached)
+  */
+  if (unlikely((thd->variables.option_bits & OPTION_LOG_OFF)==0))
+    general_log_write(thd, COM_QUERY, thd->query(), thd->query_length());
+
+  if (query_cache_send_result_to_client(thd, thd->query(),
+                                        thd->query_length()) <= 0)
   {
-    /*
-      (the order of query cache and subst_spvars calls is irrelevant because
-      queries with SP vars can't be cached)
-    */
-    if (unlikely((thd->variables.option_bits & OPTION_LOG_OFF)==0))
-      general_log_write(thd, COM_QUERY, thd->query(), thd->query_length());
+    res= m_lex_keeper.reset_lex_and_exec_core(thd, nextp, FALSE, this);
 
-    if (query_cache_send_result_to_client(thd, thd->query(),
-                                          thd->query_length()) <= 0)
+    if (thd->get_stmt_da()->is_eof())
     {
-      res= m_lex_keeper.reset_lex_and_exec_core(thd, nextp, FALSE, this);
+      /* Finalize server status flags after executing a statement. */
+      thd->update_server_status();
 
-      if (thd->get_stmt_da()->is_eof())
-      {
-        /* Finalize server status flags after executing a statement. */
-        thd->update_server_status();
-
-        thd->protocol->end_statement();
-      }
-
-      query_cache_end_of_result(thd);
-
-      if (!res && unlikely(thd->enable_slow_log))
-        log_slow_statement(thd);
+      thd->protocol->end_statement();
     }
-    else
-      *nextp= m_ip+1;
-    thd->set_query(query_backup);
-    thd->query_name_consts= 0;
 
-    if (!thd->is_error())
-      thd->get_stmt_da()->reset_diagnostics_area();
+    query_cache_end_of_result(thd);
+
+    if (!res && unlikely(log_slow_applicable(thd)))
+    {
+      /*
+        We actually need to write the slow log. Check whether we already
+        called subst_spvars() above, otherwise, do it now.  In the highly
+        unlikely event of subst_spvars() failing (OOM), we'll try to log
+        the unmodified statement instead.
+      */
+      if (!need_subst)
+        res= subst_spvars(thd, this, &m_query);
+      log_slow_do(thd);
+    }
+
+    /*
+      With the current setup, a subst_spvars() and a mysql_rewrite_query()
+      (rewriting passwords etc.) will not both happen to a query.
+      If this ever changes, we give the engineer pause here so they will
+      double-check whether the potential conflict they created is a
+      problem.
+    */
+    DBUG_ASSERT((thd->query_name_consts == 0) ||
+                (thd->rewritten_query.length() == 0));
   }
+  else
+    *nextp= m_ip+1;
+
+  thd->set_query(query_backup);
+  thd->query_name_consts= 0;
+
+  if (!thd->is_error())
+    thd->get_stmt_da()->reset_diagnostics_area();
+
   DBUG_RETURN(res || thd->is_error());
 }
 

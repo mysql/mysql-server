@@ -1,7 +1,7 @@
 include/master-slave.inc
 Warnings:
-Note	1756	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	1757	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
 [connection master]
 #########################################################################
 #                            CONFIGURATION
@@ -65,6 +65,17 @@ SELECT COALESCE(greatest(in_stmt_id + 1, p_stmt_id), 1) INTO in_stmt_id;
 INSERT INTO nt_5(trans_id, stmt_id) VALUES (p_trans_id, in_stmt_id);
 INSERT INTO nt_5(trans_id, stmt_id) VALUES (p_trans_id, in_stmt_id + 1);
 RETURN "fc_i_nt_5_suc";
+END|
+CREATE FUNCTION fc_i_nt_3_tt_3_suc (p_trans_id INTEGER, p_stmt_id INTEGER) RETURNS VARCHAR(64)
+BEGIN
+DECLARE in_stmt_id INTEGER;
+SELECT max(stmt_id) INTO in_stmt_id FROM nt_3 WHERE trans_id= p_trans_id;
+SELECT COALESCE(greatest(in_stmt_id + 1, p_stmt_id), 1) INTO in_stmt_id;
+INSERT INTO nt_3(trans_id, stmt_id) VALUES (p_trans_id, in_stmt_id);
+SELECT max(stmt_id) INTO in_stmt_id FROM tt_3 WHERE trans_id= p_trans_id;
+SELECT COALESCE(greatest(in_stmt_id + 1, p_stmt_id), 1) INTO in_stmt_id;
+INSERT INTO tt_3(trans_id, stmt_id) VALUES (p_trans_id, in_stmt_id);
+RETURN "fc_i_nt_3_tt_3_suc";
 END|
 CREATE TRIGGER tr_i_tt_3_to_nt_3 AFTER INSERT ON tt_3 FOR EACH ROW
 BEGIN
@@ -12164,6 +12175,330 @@ master-bin.000001	#	Query	#	#	use `test`; DROP TEMPORARY TABLE IF EXISTS `tt_xx_
 -e-e-e-e-e-e-e-e-e-e-e- >> drop-CT << -e-e-e-e-e-e-e-e-e-e-e-
 
 ###################################################################################
+#                            5 - SET WITH ROW CHANGES
+###################################################################################
+rpl_mixing_engines.inc [commands=set-T]
+-b-b-b-b-b-b-b-b-b-b-b- >> set-T << -b-b-b-b-b-b-b-b-b-b-b-
+SET @var= fc_i_tt_5_suc(363, 1);
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`fc_i_tt_5_suc`(363,1)
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+-e-e-e-e-e-e-e-e-e-e-e- >> set-T << -e-e-e-e-e-e-e-e-e-e-e-
+-b-b-b-b-b-b-b-b-b-b-b- >> set-T << -b-b-b-b-b-b-b-b-b-b-b-
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`fc_i_tt_5_suc`(363,1)
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+-e-e-e-e-e-e-e-e-e-e-e- >> set-T << -e-e-e-e-e-e-e-e-e-e-e-
+
+rpl_mixing_engines.inc [commands=set-N]
+-b-b-b-b-b-b-b-b-b-b-b- >> set-N << -b-b-b-b-b-b-b-b-b-b-b-
+SET @var= fc_i_nt_5_suc(364, 1);
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`fc_i_nt_5_suc`(364,1)
+master-bin.000001	#	Query	#	#	COMMIT
+-e-e-e-e-e-e-e-e-e-e-e- >> set-N << -e-e-e-e-e-e-e-e-e-e-e-
+-b-b-b-b-b-b-b-b-b-b-b- >> set-N << -b-b-b-b-b-b-b-b-b-b-b-
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`fc_i_nt_5_suc`(364,1)
+master-bin.000001	#	Query	#	#	COMMIT
+-e-e-e-e-e-e-e-e-e-e-e- >> set-N << -e-e-e-e-e-e-e-e-e-e-e-
+
+rpl_mixing_engines.inc [commands=set-NT]
+-b-b-b-b-b-b-b-b-b-b-b- >> set-NT << -b-b-b-b-b-b-b-b-b-b-b-
+SET @var= fc_i_nt_3_tt_3_suc(365, 1);
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`fc_i_nt_3_tt_3_suc`(365,1)
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+-e-e-e-e-e-e-e-e-e-e-e- >> set-NT << -e-e-e-e-e-e-e-e-e-e-e-
+-b-b-b-b-b-b-b-b-b-b-b- >> set-NT << -b-b-b-b-b-b-b-b-b-b-b-
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`fc_i_nt_3_tt_3_suc`(365,1)
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+-e-e-e-e-e-e-e-e-e-e-e- >> set-NT << -e-e-e-e-e-e-e-e-e-e-e-
+
+rpl_mixing_engines.inc [commands=B set-N set-T C]
+-b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
+BEGIN;
+include/show_binlog_events.inc
+-e-e-e-e-e-e-e-e-e-e-e- >> B << -e-e-e-e-e-e-e-e-e-e-e-
+-b-b-b-b-b-b-b-b-b-b-b- >> set-N << -b-b-b-b-b-b-b-b-b-b-b-
+SET @var= fc_i_nt_5_suc(366, 2);
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`fc_i_nt_5_suc`(366,2)
+master-bin.000001	#	Query	#	#	COMMIT
+-e-e-e-e-e-e-e-e-e-e-e- >> set-N << -e-e-e-e-e-e-e-e-e-e-e-
+-b-b-b-b-b-b-b-b-b-b-b- >> set-T << -b-b-b-b-b-b-b-b-b-b-b-
+SET @var= fc_i_tt_5_suc(366, 4);
+include/show_binlog_events.inc
+-e-e-e-e-e-e-e-e-e-e-e- >> set-T << -e-e-e-e-e-e-e-e-e-e-e-
+-b-b-b-b-b-b-b-b-b-b-b- >> C << -b-b-b-b-b-b-b-b-b-b-b-
+COMMIT;
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`fc_i_tt_5_suc`(366,4)
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+-e-e-e-e-e-e-e-e-e-e-e- >> C << -e-e-e-e-e-e-e-e-e-e-e-
+-b-b-b-b-b-b-b-b-b-b-b- >> B set-N set-T C << -b-b-b-b-b-b-b-b-b-b-b-
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`fc_i_nt_5_suc`(366,2)
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`fc_i_tt_5_suc`(366,4)
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+-e-e-e-e-e-e-e-e-e-e-e- >> B set-N set-T C << -e-e-e-e-e-e-e-e-e-e-e-
+
+rpl_mixing_engines.inc [commands=B set-T set-N C]
+-b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
+BEGIN;
+include/show_binlog_events.inc
+-e-e-e-e-e-e-e-e-e-e-e- >> B << -e-e-e-e-e-e-e-e-e-e-e-
+-b-b-b-b-b-b-b-b-b-b-b- >> set-T << -b-b-b-b-b-b-b-b-b-b-b-
+SET @var= fc_i_tt_5_suc(367, 2);
+include/show_binlog_events.inc
+-e-e-e-e-e-e-e-e-e-e-e- >> set-T << -e-e-e-e-e-e-e-e-e-e-e-
+-b-b-b-b-b-b-b-b-b-b-b- >> set-N << -b-b-b-b-b-b-b-b-b-b-b-
+SET @var= fc_i_nt_5_suc(367, 4);
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`fc_i_nt_5_suc`(367,4)
+master-bin.000001	#	Query	#	#	COMMIT
+-e-e-e-e-e-e-e-e-e-e-e- >> set-N << -e-e-e-e-e-e-e-e-e-e-e-
+-b-b-b-b-b-b-b-b-b-b-b- >> C << -b-b-b-b-b-b-b-b-b-b-b-
+COMMIT;
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`fc_i_tt_5_suc`(367,2)
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+-e-e-e-e-e-e-e-e-e-e-e- >> C << -e-e-e-e-e-e-e-e-e-e-e-
+-b-b-b-b-b-b-b-b-b-b-b- >> B set-T set-N C << -b-b-b-b-b-b-b-b-b-b-b-
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`fc_i_nt_5_suc`(367,4)
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`fc_i_tt_5_suc`(367,2)
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+-e-e-e-e-e-e-e-e-e-e-e- >> B set-T set-N C << -e-e-e-e-e-e-e-e-e-e-e-
+
+rpl_mixing_engines.inc [commands=B set-N set-T R]
+-b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
+BEGIN;
+include/show_binlog_events.inc
+-e-e-e-e-e-e-e-e-e-e-e- >> B << -e-e-e-e-e-e-e-e-e-e-e-
+-b-b-b-b-b-b-b-b-b-b-b- >> set-N << -b-b-b-b-b-b-b-b-b-b-b-
+SET @var= fc_i_nt_5_suc(368, 2);
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`fc_i_nt_5_suc`(368,2)
+master-bin.000001	#	Query	#	#	COMMIT
+-e-e-e-e-e-e-e-e-e-e-e- >> set-N << -e-e-e-e-e-e-e-e-e-e-e-
+-b-b-b-b-b-b-b-b-b-b-b- >> set-T << -b-b-b-b-b-b-b-b-b-b-b-
+SET @var= fc_i_tt_5_suc(368, 4);
+include/show_binlog_events.inc
+-e-e-e-e-e-e-e-e-e-e-e- >> set-T << -e-e-e-e-e-e-e-e-e-e-e-
+-b-b-b-b-b-b-b-b-b-b-b- >> R << -b-b-b-b-b-b-b-b-b-b-b-
+ROLLBACK;
+Warnings:
+Warning	#	Some non-transactional changed tables couldn't be rolled back
+include/show_binlog_events.inc
+-e-e-e-e-e-e-e-e-e-e-e- >> R << -e-e-e-e-e-e-e-e-e-e-e-
+-b-b-b-b-b-b-b-b-b-b-b- >> B set-N set-T R << -b-b-b-b-b-b-b-b-b-b-b-
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`fc_i_nt_5_suc`(368,2)
+master-bin.000001	#	Query	#	#	COMMIT
+-e-e-e-e-e-e-e-e-e-e-e- >> B set-N set-T R << -e-e-e-e-e-e-e-e-e-e-e-
+
+rpl_mixing_engines.inc [commands=B set-T set-N R]
+-b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
+BEGIN;
+include/show_binlog_events.inc
+-e-e-e-e-e-e-e-e-e-e-e- >> B << -e-e-e-e-e-e-e-e-e-e-e-
+-b-b-b-b-b-b-b-b-b-b-b- >> set-T << -b-b-b-b-b-b-b-b-b-b-b-
+SET @var= fc_i_tt_5_suc(369, 2);
+include/show_binlog_events.inc
+-e-e-e-e-e-e-e-e-e-e-e- >> set-T << -e-e-e-e-e-e-e-e-e-e-e-
+-b-b-b-b-b-b-b-b-b-b-b- >> set-N << -b-b-b-b-b-b-b-b-b-b-b-
+SET @var= fc_i_nt_5_suc(369, 4);
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`fc_i_nt_5_suc`(369,4)
+master-bin.000001	#	Query	#	#	COMMIT
+-e-e-e-e-e-e-e-e-e-e-e- >> set-N << -e-e-e-e-e-e-e-e-e-e-e-
+-b-b-b-b-b-b-b-b-b-b-b- >> R << -b-b-b-b-b-b-b-b-b-b-b-
+ROLLBACK;
+Warnings:
+Warning	#	Some non-transactional changed tables couldn't be rolled back
+include/show_binlog_events.inc
+-e-e-e-e-e-e-e-e-e-e-e- >> R << -e-e-e-e-e-e-e-e-e-e-e-
+-b-b-b-b-b-b-b-b-b-b-b- >> B set-T set-N R << -b-b-b-b-b-b-b-b-b-b-b-
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`fc_i_nt_5_suc`(369,4)
+master-bin.000001	#	Query	#	#	COMMIT
+-e-e-e-e-e-e-e-e-e-e-e- >> B set-T set-N R << -e-e-e-e-e-e-e-e-e-e-e-
+
+rpl_mixing_engines.inc [commands=B set-NT set-T C]
+-b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
+BEGIN;
+include/show_binlog_events.inc
+-e-e-e-e-e-e-e-e-e-e-e- >> B << -e-e-e-e-e-e-e-e-e-e-e-
+-b-b-b-b-b-b-b-b-b-b-b- >> set-NT << -b-b-b-b-b-b-b-b-b-b-b-
+SET @var= fc_i_nt_3_tt_3_suc(370, 2);
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement accesses nontransactional table as well as transactional or temporary table, and writes to any of them.
+include/show_binlog_events.inc
+-e-e-e-e-e-e-e-e-e-e-e- >> set-NT << -e-e-e-e-e-e-e-e-e-e-e-
+-b-b-b-b-b-b-b-b-b-b-b- >> set-T << -b-b-b-b-b-b-b-b-b-b-b-
+SET @var= fc_i_tt_5_suc(370, 4);
+include/show_binlog_events.inc
+-e-e-e-e-e-e-e-e-e-e-e- >> set-T << -e-e-e-e-e-e-e-e-e-e-e-
+-b-b-b-b-b-b-b-b-b-b-b- >> C << -b-b-b-b-b-b-b-b-b-b-b-
+COMMIT;
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`fc_i_nt_3_tt_3_suc`(370,2)
+master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`fc_i_tt_5_suc`(370,4)
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+-e-e-e-e-e-e-e-e-e-e-e- >> C << -e-e-e-e-e-e-e-e-e-e-e-
+-b-b-b-b-b-b-b-b-b-b-b- >> B set-NT set-T C << -b-b-b-b-b-b-b-b-b-b-b-
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`fc_i_nt_3_tt_3_suc`(370,2)
+master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`fc_i_tt_5_suc`(370,4)
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+-e-e-e-e-e-e-e-e-e-e-e- >> B set-NT set-T C << -e-e-e-e-e-e-e-e-e-e-e-
+
+rpl_mixing_engines.inc [commands=B set-T set-NT C]
+-b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
+BEGIN;
+include/show_binlog_events.inc
+-e-e-e-e-e-e-e-e-e-e-e- >> B << -e-e-e-e-e-e-e-e-e-e-e-
+-b-b-b-b-b-b-b-b-b-b-b- >> set-T << -b-b-b-b-b-b-b-b-b-b-b-
+SET @var= fc_i_tt_5_suc(371, 2);
+include/show_binlog_events.inc
+-e-e-e-e-e-e-e-e-e-e-e- >> set-T << -e-e-e-e-e-e-e-e-e-e-e-
+-b-b-b-b-b-b-b-b-b-b-b- >> set-NT << -b-b-b-b-b-b-b-b-b-b-b-
+SET @var= fc_i_nt_3_tt_3_suc(371, 4);
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement accesses nontransactional table as well as transactional or temporary table, and writes to any of them.
+include/show_binlog_events.inc
+-e-e-e-e-e-e-e-e-e-e-e- >> set-NT << -e-e-e-e-e-e-e-e-e-e-e-
+-b-b-b-b-b-b-b-b-b-b-b- >> C << -b-b-b-b-b-b-b-b-b-b-b-
+COMMIT;
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`fc_i_tt_5_suc`(371,2)
+master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`fc_i_nt_3_tt_3_suc`(371,4)
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+-e-e-e-e-e-e-e-e-e-e-e- >> C << -e-e-e-e-e-e-e-e-e-e-e-
+-b-b-b-b-b-b-b-b-b-b-b- >> B set-T set-NT C << -b-b-b-b-b-b-b-b-b-b-b-
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`fc_i_tt_5_suc`(371,2)
+master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`fc_i_nt_3_tt_3_suc`(371,4)
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+-e-e-e-e-e-e-e-e-e-e-e- >> B set-T set-NT C << -e-e-e-e-e-e-e-e-e-e-e-
+
+rpl_mixing_engines.inc [commands=B set-NT set-T R]
+-b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
+BEGIN;
+include/show_binlog_events.inc
+-e-e-e-e-e-e-e-e-e-e-e- >> B << -e-e-e-e-e-e-e-e-e-e-e-
+-b-b-b-b-b-b-b-b-b-b-b- >> set-NT << -b-b-b-b-b-b-b-b-b-b-b-
+SET @var= fc_i_nt_3_tt_3_suc(372, 2);
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement accesses nontransactional table as well as transactional or temporary table, and writes to any of them.
+include/show_binlog_events.inc
+-e-e-e-e-e-e-e-e-e-e-e- >> set-NT << -e-e-e-e-e-e-e-e-e-e-e-
+-b-b-b-b-b-b-b-b-b-b-b- >> set-T << -b-b-b-b-b-b-b-b-b-b-b-
+SET @var= fc_i_tt_5_suc(372, 4);
+include/show_binlog_events.inc
+-e-e-e-e-e-e-e-e-e-e-e- >> set-T << -e-e-e-e-e-e-e-e-e-e-e-
+-b-b-b-b-b-b-b-b-b-b-b- >> R << -b-b-b-b-b-b-b-b-b-b-b-
+ROLLBACK;
+Warnings:
+Warning	#	Some non-transactional changed tables couldn't be rolled back
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`fc_i_nt_3_tt_3_suc`(372,2)
+master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`fc_i_tt_5_suc`(372,4)
+master-bin.000001	#	Query	#	#	ROLLBACK
+-e-e-e-e-e-e-e-e-e-e-e- >> R << -e-e-e-e-e-e-e-e-e-e-e-
+-b-b-b-b-b-b-b-b-b-b-b- >> B set-NT set-T R << -b-b-b-b-b-b-b-b-b-b-b-
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`fc_i_nt_3_tt_3_suc`(372,2)
+master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`fc_i_tt_5_suc`(372,4)
+master-bin.000001	#	Query	#	#	ROLLBACK
+-e-e-e-e-e-e-e-e-e-e-e- >> B set-NT set-T R << -e-e-e-e-e-e-e-e-e-e-e-
+
+rpl_mixing_engines.inc [commands=B set-T set-NT R]
+-b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
+BEGIN;
+include/show_binlog_events.inc
+-e-e-e-e-e-e-e-e-e-e-e- >> B << -e-e-e-e-e-e-e-e-e-e-e-
+-b-b-b-b-b-b-b-b-b-b-b- >> set-T << -b-b-b-b-b-b-b-b-b-b-b-
+SET @var= fc_i_tt_5_suc(373, 2);
+include/show_binlog_events.inc
+-e-e-e-e-e-e-e-e-e-e-e- >> set-T << -e-e-e-e-e-e-e-e-e-e-e-
+-b-b-b-b-b-b-b-b-b-b-b- >> set-NT << -b-b-b-b-b-b-b-b-b-b-b-
+SET @var= fc_i_nt_3_tt_3_suc(373, 4);
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement accesses nontransactional table as well as transactional or temporary table, and writes to any of them.
+include/show_binlog_events.inc
+-e-e-e-e-e-e-e-e-e-e-e- >> set-NT << -e-e-e-e-e-e-e-e-e-e-e-
+-b-b-b-b-b-b-b-b-b-b-b- >> R << -b-b-b-b-b-b-b-b-b-b-b-
+ROLLBACK;
+Warnings:
+Warning	#	Some non-transactional changed tables couldn't be rolled back
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`fc_i_tt_5_suc`(373,2)
+master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`fc_i_nt_3_tt_3_suc`(373,4)
+master-bin.000001	#	Query	#	#	ROLLBACK
+-e-e-e-e-e-e-e-e-e-e-e- >> R << -e-e-e-e-e-e-e-e-e-e-e-
+-b-b-b-b-b-b-b-b-b-b-b- >> B set-T set-NT R << -b-b-b-b-b-b-b-b-b-b-b-
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`fc_i_tt_5_suc`(373,2)
+master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`fc_i_nt_3_tt_3_suc`(373,4)
+master-bin.000001	#	Query	#	#	ROLLBACK
+-e-e-e-e-e-e-e-e-e-e-e- >> B set-T set-NT R << -e-e-e-e-e-e-e-e-e-e-e-
+
+###################################################################################
 #                               CHECK CONSISTENCY 
 ###################################################################################
 ###################################################################################
@@ -12186,6 +12521,7 @@ DROP PROCEDURE pc_i_tt_5_suc;
 DROP PROCEDURE pc_i_nt_5_suc;
 DROP FUNCTION fc_i_tt_5_suc;
 DROP FUNCTION fc_i_nt_5_suc;
+DROP FUNCTION fc_i_nt_3_tt_3_suc;
 include/rpl_reset.inc
 CREATE TABLE `t1` ( 
 `c1` int(10) unsigned NOT NULL AUTO_INCREMENT, 

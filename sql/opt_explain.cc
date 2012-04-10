@@ -666,7 +666,7 @@ bool Explain::send()
   bool ret= shallow_explain() || explain_subqueries(result);
 
   if (!ret)
-    fmt->end_context(context_type);
+    ret= fmt->end_context(context_type);
 
   if (ret && join)
     join->error= 1; /* purecov: inspected */
@@ -1164,9 +1164,10 @@ bool Explain_join::shallow_explain()
         fmt->end_context(CTX_MATERIALIZATION))
       return true;
 
-    if (tab->check_weed_out_table)
-      fmt->end_context(CTX_DUPLICATES_WEEDOUT);
-    
+    if (tab->check_weed_out_table &&
+        fmt->end_context(CTX_DUPLICATES_WEEDOUT))
+      return true;
+
     used_tables|= table->map;
   }
 

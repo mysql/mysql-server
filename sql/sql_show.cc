@@ -5082,7 +5082,8 @@ bool store_schema_proc(THD *thd, TABLE *table, TABLE *proc_table,
       (sql_command_flags[lex->sql_command] & CF_STATUS_COMMAND) == 0)
   {
     restore_record(table, s->default_values);
-    if (!wild || !wild[0] || !wild_compare(sp_name.c_ptr_safe(), wild, 0))
+    if (!wild || !wild[0] || !wild_case_compare(system_charset_info,
+                                                sp_name.c_ptr_safe(), wild))
     {
       int enum_idx= (int) proc_table->field[MYSQL_PROC_FIELD_ACCESS]->val_int();
       table->field[IS_ROUTINES_ROUTINE_NAME]->store(sp_name.ptr(),
@@ -6239,7 +6240,7 @@ copy_event_to_schema_table(THD *thd, TABLE *sch_table, TABLE *event_table)
     DBUG_RETURN(1);
   }
 
-  if (!(!wild || !wild[0] || !wild_compare(et.name.str, wild, 0)))
+  if (!(!wild || !wild[0] || !wild_case_compare(scs, et.name.str, wild)))
     DBUG_RETURN(0);
 
   /*
@@ -6712,8 +6713,7 @@ TABLE *create_schema_table(THD *thd, TABLE_LIST *table_list)
         item->max_length+= 1;
       if (item->decimals > 0)
         item->max_length+= 1;
-      item->set_name(fields_info->field_name,
-                     strlen(fields_info->field_name), cs);
+      item->item_name.copy(fields_info->field_name);
       break;
     case MYSQL_TYPE_TINY_BLOB:
     case MYSQL_TYPE_MEDIUM_BLOB:
@@ -6733,8 +6733,7 @@ TABLE *create_schema_table(THD *thd, TABLE_LIST *table_list)
       {
         DBUG_RETURN(0);
       }
-      item->set_name(fields_info->field_name,
-                     strlen(fields_info->field_name), cs);
+      item->item_name.copy(fields_info->field_name);
       break;
     }
     field_list.push_back(item);
@@ -6792,9 +6791,7 @@ int make_old_format(THD *thd, ST_SCHEMA_TABLE *schema_table)
                                         NullS, NullS, field_info->field_name);
       if (field)
       {
-        field->set_name(field_info->old_name,
-                        strlen(field_info->old_name),
-                        system_charset_info);
+        field->item_name.copy(field_info->old_name);
         if (add_item_to_list(thd, field))
           return 1;
       }
@@ -6827,7 +6824,7 @@ int make_schemata_old_format(THD *thd, ST_SCHEMA_TABLE *schema_table)
       buffer.append(lex->wild->ptr());
       buffer.append(')');
     }
-    field->set_name(buffer.ptr(), buffer.length(), system_charset_info);
+    field->item_name.copy(buffer.ptr(), buffer.length(), system_charset_info);
   }
   return 0;
 }
@@ -6854,16 +6851,15 @@ int make_table_names_old_format(THD *thd, ST_SCHEMA_TABLE *schema_table)
                                     NullS, NullS, field_info->field_name);
   if (add_item_to_list(thd, field))
     return 1;
-  field->set_name(buffer.ptr(), buffer.length(), system_charset_info);
+  field->item_name.copy(buffer.ptr(), buffer.length(), system_charset_info);
   if (thd->lex->verbose)
   {
-    field->set_name(buffer.ptr(), buffer.length(), system_charset_info);
+    field->item_name.copy(buffer.ptr(), buffer.length(), system_charset_info);
     field_info= &schema_table->fields_info[3];
     field= new Item_field(context, NullS, NullS, field_info->field_name);
     if (add_item_to_list(thd, field))
       return 1;
-    field->set_name(field_info->old_name, strlen(field_info->old_name),
-                    system_charset_info);
+    field->item_name.copy(field_info->old_name);
   }
   return 0;
 }
@@ -6896,9 +6892,7 @@ int make_columns_old_format(THD *thd, ST_SCHEMA_TABLE *schema_table)
                                       NullS, NullS, field_info->field_name);
     if (field)
     {
-      field->set_name(field_info->old_name,
-                      strlen(field_info->old_name),
-                      system_charset_info);
+      field->item_name.copy(field_info->old_name);
       if (add_item_to_list(thd, field))
         return 1;
     }
@@ -6921,9 +6915,7 @@ int make_character_sets_old_format(THD *thd, ST_SCHEMA_TABLE *schema_table)
                                       NullS, NullS, field_info->field_name);
     if (field)
     {
-      field->set_name(field_info->old_name,
-                      strlen(field_info->old_name),
-                      system_charset_info);
+      field->item_name.copy(field_info->old_name);
       if (add_item_to_list(thd, field))
         return 1;
     }
@@ -6957,9 +6949,7 @@ int make_proc_old_format(THD *thd, ST_SCHEMA_TABLE *schema_table)
                                       NullS, NullS, field_info->field_name);
     if (field)
     {
-      field->set_name(field_info->old_name,
-                      strlen(field_info->old_name),
-                      system_charset_info);
+      field->item_name.copy(field_info->old_name);
       if (add_item_to_list(thd, field))
         return 1;
     }
@@ -7037,7 +7027,7 @@ int mysql_schema_table(THD *thd, LEX *lex, TABLE_LIST *table_list)
     for (org_transl= transl; (item= it++); transl++)
     {
       transl->item= item;
-      transl->name= item->name;
+      transl->name= item->item_name.ptr();
       if (!item->fixed && item->fix_fields(thd, &transl->item))
       {
         DBUG_RETURN(1);

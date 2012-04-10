@@ -7073,41 +7073,12 @@ bool ha_partition::get_error_message(int error, String *buf)
 */
 uint ha_partition::alter_table_flags(uint flags)
 {
-  uint flags_to_return, flags_to_check;
+  uint flags_to_return;
   DBUG_ENTER("ha_partition::alter_table_flags");
 
   flags_to_return= ht->alter_table_flags(flags);
-  flags_to_return|= m_file[0]->alter_table_flags(flags); 
+  flags_to_return|= m_file[0]->alter_table_flags(flags);
 
-  /*
-    If one partition fails we must be able to revert the change for the other,
-    already altered, partitions. So both ADD and DROP can only be supported in
-    pairs.
-  */
-  flags_to_check= HA_INPLACE_ADD_INDEX_NO_READ_WRITE;
-  flags_to_check|= HA_INPLACE_DROP_INDEX_NO_READ_WRITE;
-  if ((flags_to_return & flags_to_check) != flags_to_check)
-    flags_to_return&= ~flags_to_check;
-  flags_to_check= HA_INPLACE_ADD_UNIQUE_INDEX_NO_READ_WRITE;
-  flags_to_check|= HA_INPLACE_DROP_UNIQUE_INDEX_NO_READ_WRITE;
-  if ((flags_to_return & flags_to_check) != flags_to_check)
-    flags_to_return&= ~flags_to_check;
-  flags_to_check= HA_INPLACE_ADD_PK_INDEX_NO_READ_WRITE;
-  flags_to_check|= HA_INPLACE_DROP_PK_INDEX_NO_READ_WRITE;
-  if ((flags_to_return & flags_to_check) != flags_to_check)
-    flags_to_return&= ~flags_to_check;
-  flags_to_check= HA_INPLACE_ADD_INDEX_NO_WRITE;
-  flags_to_check|= HA_INPLACE_DROP_INDEX_NO_WRITE;
-  if ((flags_to_return & flags_to_check) != flags_to_check)
-    flags_to_return&= ~flags_to_check;
-  flags_to_check= HA_INPLACE_ADD_UNIQUE_INDEX_NO_WRITE;
-  flags_to_check|= HA_INPLACE_DROP_UNIQUE_INDEX_NO_WRITE;
-  if ((flags_to_return & flags_to_check) != flags_to_check)
-    flags_to_return&= ~flags_to_check;
-  flags_to_check= HA_INPLACE_ADD_PK_INDEX_NO_WRITE;
-  flags_to_check|= HA_INPLACE_DROP_PK_INDEX_NO_WRITE;
-  if ((flags_to_return & flags_to_check) != flags_to_check)
-    flags_to_return&= ~flags_to_check;
   DBUG_RETURN(flags_to_return);
 }
 

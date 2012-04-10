@@ -30,6 +30,8 @@ Created 9/17/2000 Heikki Tuuri
 #include "row0mysql.ic"
 #endif
 
+#include <debug_sync.h>
+
 #include "row0ins.h"
 #include "row0merge.h"
 #include "row0sel.h"
@@ -1531,16 +1533,18 @@ void
 init_fts_doc_id_for_ref(
 /*====================*/
 	dict_table_t*	table,		/*!< in: table */
-	ulint		depth)		/*!< in: recusive call depth */
+	ulint*		depth)		/*!< in: recusive call depth */
 {
 	dict_foreign_t* foreign;
 
 	foreign = UT_LIST_GET_FIRST(table->referenced_list);
 
-	depth++;
+	table->fk_max_recusive_level = 0;
+
+	(*depth)++;
 
 	/* Limit on tables involved in cascading delete/update */
-	if (depth > FK_MAX_CASCADE_DEL) {
+	if (*depth > FK_MAX_CASCADE_DEL) {
 		return;
 	}
 
@@ -1581,6 +1585,7 @@ row_update_for_mysql(
 	upd_node_t*	node;
 	dict_table_t*	table		= prebuilt->table;
 	trx_t*		trx		= prebuilt->trx;
+	ulint		fk_depth	= 0;
 
 	ut_ad(prebuilt && trx);
 	UT_NOT_USED(mysql_rec);
@@ -1633,7 +1638,7 @@ row_update_for_mysql(
 
 	row_mysql_delay_if_needed();
 
-	init_fts_doc_id_for_ref(table, 0);
+	init_fts_doc_id_for_ref(table, &fk_depth);
 
 	trx_start_if_not_started_xa(trx);
 
@@ -1690,6 +1695,10 @@ run_again:
 		}
 
 		thr->lock_state= QUE_THR_LOCK_ROW;
+
+		DEBUG_SYNC(static_cast<THD*>(trx->mysql_thd),
+			   "row_update_for_mysql_error");
+
 		was_lock_wait = row_mysql_handle_errors(&err, trx, thr,
 							&savept);
 		thr->lock_state= QUE_THR_LOCK_NOLOCK;
@@ -2213,7 +2222,8 @@ err_exit:
 	case DB_TOO_MANY_CONCURRENT_TRXS:
 		/* We already have .ibd file here. it should be deleted. */
 
-		if (table->space && !fil_delete_tablespace(table->space)) {
+		if (table->space && !fil_delete_tablespace(table->space,
+							   FALSE)) {
 			ut_print_timestamp(stderr);
 			fprintf(stderr,
 				"  InnoDB: Error: not able to"
@@ -3859,7 +3869,7 @@ check_next_foreign:
 					"InnoDB: of table ");
 				ut_print_name(stderr, trx, TRUE, name);
 				fprintf(stderr, ".\n");
-			} else if (!fil_delete_tablespace(space_id)) {
+			} else if (!fil_delete_tablespace(space_id, FALSE)) {
 				fprintf(stderr,
 					"InnoDB: We removed now the InnoDB"
 					" internal data dictionary entry\n"

@@ -5,6 +5,9 @@
 #               main testing code t/innodb_mysql.test -> include/mix1.inc
 #
 
+#Want to skip this test from daily Valgrind execution.
+--source include/no_valgrind_without_big.inc
+
 -- source include/have_innodb.inc
 let $engine_type= InnoDB;
 let $other_engine_type= MEMORY;
