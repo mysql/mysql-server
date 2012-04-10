@@ -8611,6 +8611,7 @@ ha_innobase::parse_table_name(
 	HA_CREATE_INFO*	create_info,	/*!< in: more information of the
 					created table, contains also the
 					create statement string */
+	bool		use_tablespace,	/*!< in: srv_file_per_table */
 	char**		norm_name,	/*!< out: normalized table name */
 	char**		temp_path)	/*!< out: absolute path of table */
 {
@@ -8933,7 +8934,7 @@ ha_innobase::create(
 		DBUG_RETURN(-1);
 	}
 
-	error = parse_table_name(name, create_info,
+	error = parse_table_name(name, create_info, use_tablespace,
 				 &norm_name, &temp_path);
 	if (error) {
 		DBUG_RETURN(error);

@@ -11766,24 +11766,6 @@ void Write_rows_log_event::print(FILE *file, PRINT_EVENT_INFO* print_event_info)
 	Delete_rows_log_event member functions
 **************************************************************************/
 
-
-    if ((table->file->ha_table_flags() & HA_READ_BEFORE_WRITE_REMOVAL))
-    {
-      /*
-        Read removal is possible since the engine supports write without
-        previous read using full primary key
-      */
-      DBUG_PRINT("info", ("using read before write removal"));
-
-      /*
-        Tell the handler to ignore if key exists or not, since it's
-        not yet known if the key does exist(when using rbwr)
-      */
-      table->file->extra(HA_EXTRA_IGNORE_NO_KEY);
-      DBUG_RETURN(0);
-    }
-
-
 /*
   Constructor used to build an event for writing to the binary log.
  */
