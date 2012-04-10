@@ -681,6 +681,9 @@ void toku_brtnode_clone_callback(
     //BRTNODE cloned_node = (BRTNODE)toku_xmalloc(sizeof(*BRTNODE));
     memset(cloned_node, 0, sizeof(*cloned_node));
     if (node->height == 0) {
+        // set header stats, must be done before rebalancing
+        brtnode_update_disk_stats(node, h, for_checkpoint);
+        // rebalance the leaf node
         rebalance_brtnode_leaf(node, h->basementnodesize);
     }
 
@@ -713,10 +716,6 @@ void toku_brtnode_clone_callback(
     // clone partition
     brtnode_clone_partitions(node, cloned_node);
 
-    // set header stats
-    if (node->height == 0) {
-        brtnode_update_disk_stats(node, h, for_checkpoint);
-    }
     // clear dirty bit
     node->dirty = 0;
     cloned_node->dirty = 0;
