@@ -1036,7 +1036,7 @@ replicate-events-marked-for-skip replicate
 replicate-same-server-id FALSE
 report-host (No default value)
 report-password (No default value)
-report-port 3306
+report-port 0
 report-user (No default value)
 rowid-merge-buff-size 8388608
 rpl-recovery-rank 0

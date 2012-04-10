@@ -6493,6 +6493,10 @@ ER_BINLOG_UNSAFE_CREATE_SELECT_AUTOINC
   eng "CREATE TABLE... SELECT...  on a table with an auto-increment column is unsafe because the order in which rows are retrieved by the SELECT determines which (if any) rows are inserted. This order cannot be predicted and may differ on master and the slave."
 
 #
+#  End of 5.5 error messages.
+#
+
+#
 # MariaDB error messages section starts here
 #
 
@@ -6569,4 +6573,3 @@ ER_STORED_FUNCTION_PREVENTS_SWITCH_SKIP_REPLICATION
         eng "Cannot modify @@session.skip_replication inside a stored function or trigger"
 ER_QUERY_EXCEEDED_ROWS_EXAMINED_LIMIT
         eng "Query execution was interrupted. The query examined at least %llu rows, which exceeds LIMIT ROWS EXAMINED (%llu). The query result may be incomplete."
-

@@ -471,6 +471,8 @@ void lex_start(THD *thd)
   lex->select_lex.sql_cache= SELECT_LEX::SQL_CACHE_UNSPECIFIED;
   lex->select_lex.init_order();
   lex->select_lex.group_list.empty();
+  if (lex->select_lex.group_list_ptrs)
+    lex->select_lex.group_list_ptrs->clear();
   lex->describe= 0;
   lex->subqueries= FALSE;
   lex->context_analysis_only= 0;
@@ -1881,6 +1883,8 @@ void st_select_lex::init_select()
   sj_nests.empty();
   sj_subselects.empty();
   group_list.empty();
+  if (group_list_ptrs)
+    group_list_ptrs->clear();
   type= db= 0;
   having= 0;
   table_join_options= 0;
@@ -3288,6 +3292,8 @@ static void fix_prepare_info_in_table_list(THD *thd, TABLE_LIST *tbl)
     The passed WHERE and HAVING are to be saved for the future executions.
     This function saves it, and returns a copy which can be thrashed during
     this execution of the statement. By saving/thrashing here we mean only
+    We also save the chain of ORDER::next in group_list, in case
+    the list is modified by remove_const().
     AND/OR trees.
     The function also calls fix_prepare_info_in_table_list that saves all
     ON expressions.    
@@ -3299,6 +3305,19 @@ void st_select_lex::fix_prepare_information(THD *thd, Item **conds,
   if (!thd->stmt_arena->is_conventional() && first_execution)
   {
     first_execution= 0;
+    if (group_list.first)
+    {
+      if (!group_list_ptrs)
+      {
+        void *mem= thd->stmt_arena->alloc(sizeof(Group_list_ptrs));
+        group_list_ptrs= new (mem) Group_list_ptrs(thd->stmt_arena->mem_root);
+      }
+      group_list_ptrs->reserve(group_list.elements);
+      for (ORDER *order= group_list.first; order; order= order->next)
+      {
+        group_list_ptrs->push_back(order);
+      }
+    }
     if (*conds)
     {
       thd->check_and_register_item_tree(&prep_where, conds);
@@ -4186,4 +4205,8 @@ void binlog_unsafe_map_init()
   UNSAFE(LEX::STMT_WRITES_TEMP_NON_TRANS_TABLE, LEX::STMT_READS_NON_TRANS_TABLE,
      BINLOG_DIRECT_OFF & TRX_CACHE_NOT_EMPTY);
 }
+#endif
+
+#ifdef HAVE_EXPLICIT_TEMPLATE_INSTANTIATION
+template class Mem_root_array<ORDER*, true>;
 #endif

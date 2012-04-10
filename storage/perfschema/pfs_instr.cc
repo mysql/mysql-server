@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2012, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -839,6 +839,22 @@ void destroy_thread(PFS_thread *pfs)
 }
 
 /**
+  Get the hash pins for @filename_hash.
+  @param thread The running thread.
+  @returns The LF_HASH pins for the thread.
+*/
+LF_PINS* get_filename_hash_pins(PFS_thread *thread)
+{
+  if (unlikely(thread->m_filename_hash_pins == NULL))
+  {
+    if (! filename_hash_inited)
+      return NULL;
+    thread->m_filename_hash_pins= lf_hash_get_pins(&filename_hash);
+  }
+  return thread->m_filename_hash_pins;
+}
+
+/**
   Find or create instrumentation for a file instance by file name.
   @param thread                       the executing instrumented thread
   @param klass                        the file class
@@ -854,21 +870,11 @@ find_or_create_file(PFS_thread *thread, PFS_file_class *klass,
   PFS_scan scan;
   DBUG_ENTER("find_or_create_file");
 
-  if (! filename_hash_inited)
+  LF_PINS *pins= get_filename_hash_pins(thread);
+  if (unlikely(pins == NULL))
   {
-    /* File instrumentation can be turned off. */
     file_lost++;
     DBUG_RETURN(NULL);
-  }
-
-  if (unlikely(thread->m_filename_hash_pins == NULL))
-  {
-    thread->m_filename_hash_pins= lf_hash_get_pins(&filename_hash);
-    if (unlikely(thread->m_filename_hash_pins == NULL))
-    {
-      file_lost++;
-      DBUG_RETURN(NULL);
-    }
   }
 
   char safe_buffer[FN_REFLEN];
@@ -942,7 +948,7 @@ find_or_create_file(PFS_thread *thread, PFS_file_class *klass,
   /* Append the unresolved file name to the resolved path */
   char *ptr= buffer + strlen(buffer);
   char *buf_end= &buffer[sizeof(buffer)-1];
-  if (buf_end > ptr)
+  if ((buf_end > ptr) && (*(ptr-1) != FN_LIBCHAR))
     *ptr++= FN_LIBCHAR;
   if (buf_end > ptr)
     strncpy(ptr, safe_filename + dirlen, buf_end - ptr);
@@ -956,15 +962,17 @@ find_or_create_file(PFS_thread *thread, PFS_file_class *klass,
   const uint retry_max= 3;
 search:
   entry= reinterpret_cast<PFS_file**>
-    (lf_hash_search(&filename_hash, thread->m_filename_hash_pins,
+    (lf_hash_search(&filename_hash, pins,
                     normalized_filename, normalized_length));
   if (entry && (entry != MY_ERRPTR))
   {
     pfs= *entry;
     pfs->m_file_stat.m_open_count++;
-    lf_hash_search_unpin(thread->m_filename_hash_pins);
+    lf_hash_search_unpin(pins);
     DBUG_RETURN(pfs);
   }
+
+  lf_hash_search_unpin(pins);
 
   /* filename is not constant, just using it for noise on create */
   uint random= randomized_index(filename, file_max);
@@ -992,7 +1000,7 @@ search:
           reset_single_stat_link(&pfs->m_wait_stat);
 
           int res;
-          res= lf_hash_insert(&filename_hash, thread->m_filename_hash_pins,
+          res= lf_hash_insert(&filename_hash, pins,
                               &pfs);
           if (likely(res == 0))
           {
@@ -1049,9 +1057,12 @@ void destroy_file(PFS_thread *thread, PFS_file *pfs)
   DBUG_ENTER("destroy_file");
 
   DBUG_ASSERT(thread != NULL);
-  DBUG_ASSERT(thread->m_filename_hash_pins != NULL);
   DBUG_ASSERT(pfs != NULL);
-  lf_hash_delete(&filename_hash, thread->m_filename_hash_pins,
+
+  LF_PINS *pins= get_filename_hash_pins(thread);
+  DBUG_ASSERT(pins != NULL);
+
+  lf_hash_delete(&filename_hash, pins,
                  pfs->m_filename, pfs->m_filename_length);
   pfs->m_lock.allocated_to_free();
   DBUG_VOID_RETURN;

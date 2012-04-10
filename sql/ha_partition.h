@@ -2,7 +2,7 @@
 #define HA_PARTITION_INCLUDED
 
 /*
-   Copyright (c) 2005, 2011, Oracle and/or its affiliates.
+   Copyright (c) 2005, 2012, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -176,6 +176,12 @@ private:
   ha_rows   m_bulk_inserted_rows;
   /** used for prediction of start_bulk_insert rows */
   enum_monotonicity_info m_part_func_monotonicity_info;
+  /** Sorted array of partition ids in descending order of number of rows. */
+  uint32 *m_part_ids_sorted_by_num_of_records;
+  /* Compare function for my_qsort2, for reversed order. */
+  static int compare_number_of_records(ha_partition *me,
+                                       const uint32 *a,
+                                       const uint32 *b);
 public:
   handler *clone(const char *name, MEM_ROOT *mem_root);
   virtual void set_part_info(partition_info *part_info)
@@ -538,6 +544,20 @@ public:
   virtual int extra(enum ha_extra_function operation);
   virtual int extra_opt(enum ha_extra_function operation, ulong cachesize);
   virtual int reset(void);
+  /*
+    Do not allow caching of partitioned tables, since we cannot return
+    a callback or engine_data that would work for a generic engine.
+  */
+  virtual my_bool register_query_cache_table(THD *thd, char *table_key,
+                                             uint key_length,
+                                             qc_engine_callback
+                                               *engine_callback,
+                                             ulonglong *engine_data)
+  {
+    *engine_callback= NULL;
+    *engine_data= 0;
+    return FALSE;
+  }
 
 private:
   static const uint NO_CURRENT_PART_ID;
@@ -567,15 +587,9 @@ public:
   */
 
 private:
-  /*
-    Helper function to get the minimum number of partitions to use for
-    the optimizer hints/cost calls.
-  */
-  void partitions_optimizer_call_preparations(uint *num_used_parts,
-                                              uint *check_min_num,
-                                              uint *first);
-  ha_rows estimate_rows(bool is_records_in_range, uint inx,
-                        key_range *min_key, key_range *max_key);
+  /* Helper functions for optimizer hints. */
+  ha_rows min_rows_for_estimate();
+  uint get_biggest_used_partition(uint *part_index);
 public:
 
   /*

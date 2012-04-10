@@ -1,0 +1,5 @@
+create table t1 (f1 char(255)) engine innodb;
+drop table t1;
+create table t1 (f1 char(255)) engine innodb;
+1
+drop table t1;
