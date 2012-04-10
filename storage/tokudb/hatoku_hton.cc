@@ -211,12 +211,10 @@ static bool tokudb_show_status(handlerton * hton, THD * thd, stat_print_fn * pri
 static int tokudb_close_connection(handlerton * hton, THD * thd);
 static int tokudb_commit(handlerton * hton, THD * thd, bool all);
 static int tokudb_rollback(handlerton * hton, THD * thd, bool all);
-#if MYSQL_VERSION_ID < 50521
 static int tokudb_xa_prepare(handlerton* hton, THD* thd, bool all);
 static int tokudb_xa_recover(handlerton* hton, XID*  xid_list, uint  len);
 static int tokudb_commit_by_xid(handlerton* hton, XID* xid);
 static int tokudb_rollback_by_xid(handlerton* hton, XID*  xid);
-#endif
 
 #if defined(HA_GENERAL_ONLINE) || defined(HA_INPLACE_ADD_INDEX_NO_READ_WRITE)
 static uint tokudb_alter_table_flags(uint flags);
@@ -365,12 +363,10 @@ static int tokudb_init_func(void *p) {
     
     tokudb_hton->commit = tokudb_commit;
     tokudb_hton->rollback = tokudb_rollback;
-#if MYSQL_VERSION_ID < 50521
     tokudb_hton->prepare=tokudb_xa_prepare;
     tokudb_hton->recover=tokudb_xa_recover;
     tokudb_hton->commit_by_xid=tokudb_commit_by_xid;
     tokudb_hton->rollback_by_xid=tokudb_rollback_by_xid;
-#endif
 
     tokudb_hton->panic = tokudb_end;
     tokudb_hton->flush_logs = tokudb_flush_logs;
@@ -856,7 +852,6 @@ static int tokudb_rollback(handlerton * hton, THD * thd, bool all) {
     TOKUDB_DBUG_RETURN(0);
 }
 
-#if MYSQL_VERSION_ID < 50521
 static int tokudb_xa_prepare(handlerton* hton, THD* thd, bool all) {
     TOKUDB_DBUG_ENTER("tokudb_xa_prepare");
     int r = 0;
@@ -925,7 +920,6 @@ static int tokudb_rollback_by_xid(handlerton* hton, XID*  xid) {
 cleanup:
     TOKUDB_DBUG_RETURN(r);
 }
-#endif
 
 static int tokudb_savepoint(handlerton * hton, THD * thd, void *savepoint) {
     TOKUDB_DBUG_ENTER("tokudb_savepoint");
