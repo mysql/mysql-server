@@ -208,36 +208,6 @@ enum enum_alter_inplace_result {
 /**
   bits in alter_table_flags:
 
-  @deprecated with WL#5534: Online ALTER TABLE.
-  @see check_if_supported_inplace_alter()
-*/
-/*
-  These bits are set if different kinds of indexes can be created or dropped
-  in-place without re-creating the table using a temporary table.
-  NO_READ_WRITE indicates that the handler needs concurrent reads and writes
-  of table data to be blocked.
-  Partitioning needs both ADD and DROP to be supported by its underlying
-  handlers, due to error handling, see bug#57778.
-*/
-#define HA_INPLACE_ADD_INDEX_NO_READ_WRITE         (1L << 0)
-#define HA_INPLACE_DROP_INDEX_NO_READ_WRITE        (1L << 1)
-#define HA_INPLACE_ADD_UNIQUE_INDEX_NO_READ_WRITE  (1L << 2)
-#define HA_INPLACE_DROP_UNIQUE_INDEX_NO_READ_WRITE (1L << 3)
-#define HA_INPLACE_ADD_PK_INDEX_NO_READ_WRITE      (1L << 4)
-#define HA_INPLACE_DROP_PK_INDEX_NO_READ_WRITE     (1L << 5)
-/*
-  These are set if different kinds of indexes can be created or dropped
-  in-place while still allowing concurrent reads (but not writes) of table
-  data. If a handler is capable of one or more of these, it should also set
-  the corresponding *_NO_READ_WRITE bit(s).
-*/
-#define HA_INPLACE_ADD_INDEX_NO_WRITE              (1L << 6)
-#define HA_INPLACE_DROP_INDEX_NO_WRITE             (1L << 7)
-#define HA_INPLACE_ADD_UNIQUE_INDEX_NO_WRITE       (1L << 8)
-#define HA_INPLACE_DROP_UNIQUE_INDEX_NO_WRITE      (1L << 9)
-#define HA_INPLACE_ADD_PK_INDEX_NO_WRITE           (1L << 10)
-#define HA_INPLACE_DROP_PK_INDEX_NO_WRITE          (1L << 11)
-/*
   HA_PARTITION_FUNCTION_SUPPORTED indicates that the function is
   supported at all.
   HA_FAST_CHANGE_PARTITION means that optimised variants of the changes
@@ -262,9 +232,9 @@ enum enum_alter_inplace_result {
   the storage engine. A typical engine to support this is NDB (through
   WL #2498).
 */
-#define HA_PARTITION_FUNCTION_SUPPORTED         (1L << 12)
-#define HA_FAST_CHANGE_PARTITION                (1L << 13)
-#define HA_PARTITION_ONE_PHASE                  (1L << 14)
+#define HA_PARTITION_FUNCTION_SUPPORTED         (1L << 0)
+#define HA_FAST_CHANGE_PARTITION                (1L << 1)
+#define HA_PARTITION_ONE_PHASE                  (1L << 2)
 
 /* operations for disable/enable indexes */
 #define HA_KEY_SWITCH_NONUNIQ      0
@@ -951,11 +921,8 @@ typedef struct st_ha_create_information
 class inplace_alter_handler_ctx : public Sql_alloc
 {
 public:
-  bool pending_add_index;
+  inplace_alter_handler_ctx() {}
 
-  inplace_alter_handler_ctx()
-    :pending_add_index(false)
-  {}
   virtual ~inplace_alter_handler_ctx() {}
 };
 
@@ -1029,23 +996,26 @@ public:
   // Reorder column
   static const HA_ALTER_FLAGS ALTER_COLUMN_ORDER         = 1L << 11;
 
-  // Change column from NULL to NOT NULL or vice versa
+  // Change column from NOT NULL to NULL
   static const HA_ALTER_FLAGS ALTER_COLUMN_NULLABLE      = 1L << 12;
 
+  // Change column from NULL to NOT NULL
+  static const HA_ALTER_FLAGS ALTER_COLUMN_NOT_NULLABLE  = 1L << 13;
+
   // Set or remove default column value
-  static const HA_ALTER_FLAGS ALTER_COLUMN_DEFAULT       = 1L << 13;
+  static const HA_ALTER_FLAGS ALTER_COLUMN_DEFAULT       = 1L << 14;
 
   // Add foreign key
-  static const HA_ALTER_FLAGS ADD_FOREIGN_KEY            = 1L << 14;
+  static const HA_ALTER_FLAGS ADD_FOREIGN_KEY            = 1L << 15;
 
   // Drop foreign key
-  static const HA_ALTER_FLAGS DROP_FOREIGN_KEY           = 1L << 15;
+  static const HA_ALTER_FLAGS DROP_FOREIGN_KEY           = 1L << 16;
 
   // table_options changed, see HA_CREATE_INFO::used_fields for details.
-  static const HA_ALTER_FLAGS CHANGE_CREATE_OPTION       = 1L << 16;
+  static const HA_ALTER_FLAGS CHANGE_CREATE_OPTION       = 1L << 17;
 
   // Table is renamed
-  static const HA_ALTER_FLAGS ALTER_RENAME               = 1L << 17;
+  static const HA_ALTER_FLAGS ALTER_RENAME               = 1L << 18;
 
   /**
     Create options (like MAX_ROWS) for the new version of table.
@@ -1081,8 +1051,8 @@ public:
           array.
 
     @todo This is mainly due to the fact that we need to keep compatibility
-          with deprecated handler::add_index() call. We plan to switch to
-          TABLE::key_info numbering once the deprecated API is removed.
+          with removed handler::add_index() call. We plan to switch to
+          TABLE::key_info numbering later.
 
     KEYs are sorted - see sort_keys().
   */
@@ -1505,29 +1475,6 @@ uint calculate_key_len(TABLE *, uint, const uchar *, key_part_map);
   (keypart_map for a key prefix of [0..N-1] keyparts)
 */
 #define make_prev_keypart_map(N) (((key_part_map)1 << (N)) - 1)
-
-
-/**
-  Index creation context.
-  Created by handler::add_index() and destroyed by handler::final_add_index().
-  And finally freed at the end of the statement.
-  (Sql_alloc does not free in delete).
-*/
-
-class handler_add_index : public Sql_alloc
-{
-public:
-  /* Table where the indexes are added */
-  TABLE* const table;
-  /* Indexes being created */
-  KEY* const key_info;
-  /* Size of key_info[] */
-  const uint num_of_keys;
-  handler_add_index(TABLE *table_arg, KEY *key_info_arg, uint num_of_keys_arg)
-    : table (table_arg), key_info (key_info_arg), num_of_keys (num_of_keys_arg)
-  {}
-  virtual ~handler_add_index() {}
-};
 
 
 /** Base class to be used by handlers different shares */
@@ -2287,47 +2234,6 @@ public:
 
   virtual ulong index_flags(uint idx, uint part, bool all_parts) const =0;
 
-  /**
-    First phase of in-place add index in old, deprecated in-place ALTER API.
-    Handlers are supposed to create new indexes here but not make them visible.
-
-    @param table_arg   Table to add index to
-    @param key_info    Information about new indexes
-    @param num_of_key  Number of new indexes
-    @param add[out]    Context of handler specific information needed
-                       for final_add_index().
-
-    @note This function can be called with less than exclusive metadata
-    lock depending on which flags are listed in alter_table_flags.
-  */
-  virtual int add_index(TABLE *table_arg, KEY *key_info, uint num_of_keys,
-                        inplace_alter_handler_ctx **add)
-  { return (HA_ERR_WRONG_COMMAND); }
-
-  /**
-    Second and last phase of in-place add index in old, deprecated in-place
-    ALTER API. Commit or rollback pending new indexes.
-
-    @param add     Context of handler specific information from add_index().
-    @param commit  If true, commit. If false, rollback index changes.
-
-    @note This function is called with exclusive metadata lock.
-  */
-  virtual int final_add_index(inplace_alter_handler_ctx *add, bool commit)
-  { return (HA_ERR_WRONG_COMMAND); }
-
-  /**
-    First phase of in-place drop index in old, deprecated in-place ALTER API.
-  */
-  virtual int prepare_drop_index(KEY **keys, uint num_of_keys)
-  { return (HA_ERR_WRONG_COMMAND); }
-  /**
-    Second and last phase of in-place drop index in old, deprecated in-place
-    ALTER API.
-  */
-  virtual int final_drop_index()
-  { return (HA_ERR_WRONG_COMMAND); }
-
   uint max_record_length() const
   {
     using std::min;
@@ -2724,7 +2630,8 @@ protected:
     @retval   false             Success
  */
  virtual bool inplace_alter_table(TABLE *altered_table,
-                                  Alter_inplace_info *ha_alter_info);
+                                  Alter_inplace_info *ha_alter_info)
+ { return false; }
 
 
  /**
@@ -2757,7 +2664,8 @@ protected:
  */
  virtual bool commit_inplace_alter_table(TABLE *altered_table,
                                          Alter_inplace_info *ha_alter_info,
-                                         bool commit);
+                                         bool commit)
+ { return false; }
 
 
  /**
@@ -2970,7 +2878,6 @@ public:
   virtual int enable_indexes(uint mode) { return HA_ERR_WRONG_COMMAND; }
   virtual int discard_or_import_tablespace(my_bool discard)
   { return (my_errno=HA_ERR_WRONG_COMMAND); }
-  virtual void prepare_for_alter() { return; }
   virtual void drop_table(const char *name);
   virtual int create(const char *name, TABLE *form, HA_CREATE_INFO *info)=0;
 

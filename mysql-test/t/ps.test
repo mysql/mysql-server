@@ -3305,6 +3305,94 @@ disconnect con1;
 SELECT *
 FROM (SELECT 1 UNION SELECT 2) t;
 
+--echo
+--echo # Bug#13805127: Stored program cache produces wrong result in same THD
+--echo
+
+PREPARE s1 FROM 
+"
+SELECT c1, t2.c2, count(c3)
+FROM
+  (
+  SELECT 3 as c2 FROM dual WHERE @x = 1
+  UNION
+  SELECT 2       FROM dual WHERE @x = 1 OR @x = 2
+  ) AS t1,
+  (
+  SELECT '2012-03-01 01:00:00' AS c1, 3 as c2, 1 as c3 FROM dual
+  UNION
+  SELECT '2012-03-01 02:00:00',       3,       2       FROM dual
+  UNION
+  SELECT '2012-03-01 01:00:00',       2,       1       FROM dual
+  ) AS t2
+WHERE t2.c2 = t1.c2
+GROUP BY c1, c2
+";
+
+--echo
+SET @x = 1;
+SELECT c1, t2.c2, count(c3)
+FROM
+  (
+  SELECT 3 as c2 FROM dual WHERE @x = 1
+  UNION
+  SELECT 2       FROM dual WHERE @x = 1 OR @x = 2
+  ) AS t1,
+  (
+  SELECT '2012-03-01 01:00:00' AS c1, 3 as c2, 1 as c3 FROM dual
+  UNION
+  SELECT '2012-03-01 02:00:00',       3,       2       FROM dual
+  UNION
+  SELECT '2012-03-01 01:00:00',       2,       1       FROM dual
+  ) AS t2
+WHERE t2.c2 = t1.c2
+GROUP BY c1, c2;
+--echo
+EXECUTE s1;
+
+--echo
+SET @x = 2;
+SELECT c1, t2.c2, count(c3)
+FROM
+  (
+  SELECT 3 as c2 FROM dual WHERE @x = 1
+  UNION
+  SELECT 2       FROM dual WHERE @x = 1 OR @x = 2
+  ) AS t1,
+  (
+  SELECT '2012-03-01 01:00:00' AS c1, 3 as c2, 1 as c3 FROM dual
+  UNION
+  SELECT '2012-03-01 02:00:00',       3,       2       FROM dual
+  UNION
+  SELECT '2012-03-01 01:00:00',       2,       1       FROM dual
+  ) AS t2
+WHERE t2.c2 = t1.c2
+GROUP BY c1, c2;
+--echo
+EXECUTE s1;
+
+--echo
+SET @x = 1;
+SELECT c1, t2.c2, count(c3)
+FROM
+  (
+  SELECT 3 as c2 FROM dual WHERE @x = 1
+  UNION
+  SELECT 2       FROM dual WHERE @x = 1 OR @x = 2
+  ) AS t1,
+  (
+  SELECT '2012-03-01 01:00:00' AS c1, 3 as c2, 1 as c3 FROM dual
+  UNION
+  SELECT '2012-03-01 02:00:00',       3,       2       FROM dual
+  UNION
+  SELECT '2012-03-01 01:00:00',       2,       1       FROM dual
+  ) AS t2
+WHERE t2.c2 = t1.c2
+GROUP BY c1, c2;
+--echo
+EXECUTE s1;
+
+DEALLOCATE PREPARE s1;
 
 --echo #
 --echo # End of 5.5 tests.

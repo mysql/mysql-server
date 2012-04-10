@@ -249,6 +249,8 @@ IF (MSVC AND CMAKE_SIZEOF_VOID_P EQUAL 8)
 ENDIF()
 
 SET(INNOBASE_SOURCES
+	api/api0api.cc
+	api/api0misc.cc
 	btr/btr0btr.cc
 	btr/btr0cur.cc
 	btr/btr0pcur.cc

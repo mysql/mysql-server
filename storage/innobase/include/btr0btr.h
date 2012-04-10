@@ -96,6 +96,10 @@ insert/delete buffer when the record is not in the buffer pool. */
 buffer when the record is not in the buffer pool. */
 #define BTR_DELETE		8192
 
+/** In the case of BTR_SEARCH_LEAF, the caller is already holding an S latch
+on the index tree */
+#define BTR_ALREADY_S_LATCHED	16384
+
 /**************************************************************//**
 Report that an index page is corrupted. */
 UNIV_INTERN
@@ -210,6 +214,18 @@ btr_root_get(
 /*=========*/
 	dict_index_t*	index,	/*!< in: index tree */
 	mtr_t*		mtr);	/*!< in: mtr */
+/**************************************************************//**
+Gets the height of the B-tree (the level of the root, when the leaf
+level is assumed to be 0). The caller must hold an S or X latch on
+the index.
+@return	tree height (level of the root) */
+UNIV_INTERN
+ulint
+btr_height_get(
+/*===========*/
+	dict_index_t*	index,	/*!< in: index tree */
+	mtr_t*		mtr)	/*!< in/out: mini-transaction */
+	__attribute__((nonnull, warn_unused_result));
 /**************************************************************//**
 Gets a buffer page and declares its latching order level. */
 UNIV_INLINE

@@ -6496,6 +6496,9 @@ ER_BINLOG_UNSAFE_WRITE_AUTOINC_SELECT
 ER_BINLOG_UNSAFE_CREATE_SELECT_AUTOINC
   eng "CREATE TABLE... SELECT...  on a table with an auto-increment column is unsafe because the order in which rows are retrieved by the SELECT determines which (if any) rows are inserted. This order cannot be predicted and may differ on master and the slave."
 
+ER_BINLOG_UNSAFE_INSERT_TWO_KEYS
+  eng "INSERT... ON DUPLICATE KEY UPDATE  on a table with more than one UNIQUE KEY is unsafe"
+
 ER_TABLE_IN_FK_CHECK
   eng "Table is being used in foreign key check."
 
@@ -6738,6 +6741,9 @@ ER_UNKNOWN_ALTER_ALGORITHM
   eng "Unknown ALGORITHM '%s'"
 ER_UNKNOWN_ALTER_LOCK
   eng "Unknown LOCK type '%s'"
+
+ER_MTS_CHANGE_MASTER_CANT_RUN_WITH_GAPS
+  eng "CHANGE MASTER cannot be executed when the slave was stopped with an error or killed in MTS mode. Consider using RESET SLAVE or START SLAVE UNTIL."
 
 ER_COL_COUNT_DOESNT_MATCH_CORRUPTED_V2
   eng "Column count of %s.%s is wrong. Expected %d, found %d. The table is probably corrupted"

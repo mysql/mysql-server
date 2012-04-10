@@ -23,10 +23,10 @@
  */
 
 
-#include <string.h>             // memcpy
 #include "runtime.hpp"
 #include "buffer.hpp"
 #include "yassl_types.hpp"
+#include <string.h>             // memcpy
 
 namespace yaSSL {
 

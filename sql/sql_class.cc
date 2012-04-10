@@ -2621,7 +2621,7 @@ bool select_export::send_data(List<Item> &items)
                             ER_TRUNCATED_WRONG_VALUE_FOR_FIELD,
                             ER(ER_TRUNCATED_WRONG_VALUE_FOR_FIELD),
                             "string", printable_buff,
-                            item->name, static_cast<long>(row_count));
+                            item->item_name.ptr(), static_cast<long>(row_count));
       }
       else if (from_end_pos < res->ptr() + res->length())
       { 

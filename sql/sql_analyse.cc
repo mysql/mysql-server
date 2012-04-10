@@ -70,7 +70,7 @@ Procedure *
 proc_analyse_init(THD *thd, ORDER *param, select_result *result,
 		  List<Item> &field_list)
 {
-  char *proc_name = (*param->item)->name;
+  char *proc_name = (*param->item)->item_name.ptr();
   analyse *pc = new analyse(result);
   field_info **f_info;
   DBUG_ENTER("proc_analyse_init");

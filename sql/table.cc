@@ -3626,7 +3626,7 @@ bool TABLE_LIST::setup_underlying(THD *thd)
 
     while ((item= it++))
     {
-      transl[field_count].name= item->name;
+      transl[field_count].name= item->item_name.ptr();
       transl[field_count++].item= item;
     }
     field_translation= transl;
@@ -4882,8 +4882,7 @@ void TABLE::prepare_for_position()
   NOTE:
     This changes the bitmap to use the tmp bitmap
     After this, you can't access any other columns in the table until
-    bitmaps are reset, for example with TABLE::clear_column_bitmaps()
-    or TABLE::restore_column_maps_after_mark_index()
+    bitmaps are reset, for example with TABLE::clear_column_bitmaps().
 */
 
 void TABLE::mark_columns_used_by_index(uint index)
@@ -4895,49 +4894,6 @@ void TABLE::mark_columns_used_by_index(uint index)
   bitmap_clear_all(bitmap);
   mark_columns_used_by_index_no_reset(index, bitmap);
   column_bitmaps_set(bitmap, bitmap);
-  DBUG_VOID_RETURN;
-}
-
-
-/*
-  Add fields used by a specified index to the table's read_set.
-
-  NOTE:
-    The original state can be restored with
-    restore_column_maps_after_mark_index().
-*/
-
-void TABLE::add_read_columns_used_by_index(uint index)
-{
-  MY_BITMAP *bitmap= &tmp_set;
-  DBUG_ENTER("TABLE::add_read_columns_used_by_index");
-
-  set_keyread(TRUE);
-  bitmap_copy(bitmap, read_set);
-  mark_columns_used_by_index_no_reset(index, bitmap);
-  column_bitmaps_set(bitmap, write_set);
-  DBUG_VOID_RETURN;
-}
-
-
-/*
-  Restore to use normal column maps after key read
-
-  NOTES
-    This reverse the change done by mark_columns_used_by_index
-
-  WARNING
-    For this to work, one must have the normal table maps in place
-    when calling mark_columns_used_by_index
-*/
-
-void TABLE::restore_column_maps_after_mark_index()
-{
-  DBUG_ENTER("TABLE::restore_column_maps_after_mark_index");
-
-  set_keyread(FALSE);
-  default_column_bitmaps();
-  file->column_bitmaps_signal();
   DBUG_VOID_RETURN;
 }
 
@@ -5408,6 +5364,23 @@ void TABLE_LIST::reinit_before_use(THD *thd)
     were closed in the end of previous prepare or execute call.
   */
   table= 0;
+
+ /*
+   Reset table_name and table_name_length,if it is a anonymous derived table
+   or schema table. They are not valid as TABLEs were closed in the end of
+   previous prepare or execute call.
+ */
+  if (derived)
+  {
+    table_name= NULL;
+    table_name_length= 0;
+  }
+  else if (schema_table_name)
+  {
+    table_name= schema_table_name;
+    table_name_length= strlen(schema_table_name);
+  }
+
   /* Reset is_schema_table_processed value(needed for I_S tables */
   schema_table_state= NOT_PROCESSED;
 

@@ -4934,6 +4934,7 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table, TABLE_LIST* src_table,
     the original table. This is documented behavior.
   */
   local_create_info.data_file_name= local_create_info.index_file_name= NULL;
+  local_create_info.alias= create_info->alias;
 
   if ((res= mysql_create_table_no_lock(thd, table->db, table->table_name,
                                        &local_create_info, &local_alter_info,
@@ -5339,7 +5340,14 @@ static bool fill_alter_inplace_info(THD *thd,
       /* Check that NULL behavior is same for old and new fields */
       if ((new_field->flags & NOT_NULL_FLAG) !=
           (uint) (field->flags & NOT_NULL_FLAG))
-        ha_alter_info->handler_flags|= Alter_inplace_info::ALTER_COLUMN_NULLABLE;
+      {
+        if (new_field->flags & NOT_NULL_FLAG)
+          ha_alter_info->handler_flags|=
+            Alter_inplace_info::ALTER_COLUMN_NOT_NULLABLE;
+        else
+          ha_alter_info->handler_flags|=
+            Alter_inplace_info::ALTER_COLUMN_NULLABLE;
+      }
 
       /*
         We do not detect changes to default values in this loop.

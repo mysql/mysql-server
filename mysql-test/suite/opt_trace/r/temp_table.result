@@ -26,7 +26,7 @@ SELECT uniq, col1 FROM t1 GROUP BY col2,uniq LIMIT 3	{
         "select#": 1,
         "steps": [
           {
-            "expanded_query": "/* select#1 */ select `test`.`t1`.`uniq` AS `uniq`,`test`.`t1`.`col1` AS `col1` from `test`.`t1` group by `test`.`t1`.`col2`,`test`.`t1`.`uniq` limit 3"
+            "expanded_query": "/* select#1 */ select `t1`.`uniq` AS `uniq`,`t1`.`col1` AS `col1` from `t1` group by `t1`.`col2`,`t1`.`uniq` limit 3"
           }
         ] /* steps */
       } /* join_preparation */
@@ -38,8 +38,7 @@ SELECT uniq, col1 FROM t1 GROUP BY col2,uniq LIMIT 3	{
           {
             "table_dependencies": [
               {
-                "database": "test",
-                "table": "t1",
+                "table": "`t1`",
                 "row_may_be_null": false,
                 "map_bit": 0,
                 "depends_on_map_bits": [
@@ -50,8 +49,7 @@ SELECT uniq, col1 FROM t1 GROUP BY col2,uniq LIMIT 3	{
           {
             "rows_estimation": [
               {
-                "database": "test",
-                "table": "t1",
+                "table": "`t1`",
                 "table_scan": {
                   "rows": 8,
                   "cost": 2
@@ -62,8 +60,9 @@ SELECT uniq, col1 FROM t1 GROUP BY col2,uniq LIMIT 3	{
           {
             "considered_execution_plans": [
               {
-                "database": "test",
-                "table": "t1",
+                "plan_prefix": [
+                ] /* plan_prefix */,
+                "table": "`t1`",
                 "best_access_path": {
                   "considered_access_paths": [
                     {
@@ -87,8 +86,7 @@ SELECT uniq, col1 FROM t1 GROUP BY col2,uniq LIMIT 3	{
               ] /* attached_conditions_computation */,
               "attached_conditions_summary": [
                 {
-                  "database": "test",
-                  "table": "t1",
+                  "table": "`t1`",
                   "attached": null
                 }
               ] /* attached_conditions_summary */
@@ -97,24 +95,23 @@ SELECT uniq, col1 FROM t1 GROUP BY col2,uniq LIMIT 3	{
           {
             "clause_processing": {
               "clause": "GROUP BY",
-              "original_clause": "`test`.`t1`.`col2`,`test`.`t1`.`uniq`",
+              "original_clause": "`t1`.`col2`,`t1`.`uniq`",
               "items": [
                 {
-                  "item": "`test`.`t1`.`col2`"
+                  "item": "`t1`.`col2`"
                 },
                 {
-                  "item": "`test`.`t1`.`uniq`"
+                  "item": "`t1`.`uniq`"
                 }
               ] /* items */,
               "resulting_clause_is_simple": true,
-              "resulting_clause": "`test`.`t1`.`col2`,`test`.`t1`.`uniq`"
+              "resulting_clause": "`t1`.`col2`,`t1`.`uniq`"
             } /* clause_processing */
           },
           {
             "refine_plan": [
               {
-                "database": "test",
-                "table": "t1",
+                "table": "`t1`",
                 "access_type": "table_scan"
               }
             ] /* refine_plan */
@@ -192,7 +189,7 @@ SELECT uniq, col1, col2 FROM t1 GROUP BY uniq	{
         "select#": 1,
         "steps": [
           {
-            "expanded_query": "/* select#1 */ select `test`.`t1`.`uniq` AS `uniq`,`test`.`t1`.`col1` AS `col1`,`test`.`t1`.`col2` AS `col2` from `test`.`t1` group by `test`.`t1`.`uniq`"
+            "expanded_query": "/* select#1 */ select `t1`.`uniq` AS `uniq`,`t1`.`col1` AS `col1`,`t1`.`col2` AS `col2` from `t1` group by `t1`.`uniq`"
           }
         ] /* steps */
       } /* join_preparation */
@@ -204,8 +201,7 @@ SELECT uniq, col1, col2 FROM t1 GROUP BY uniq	{
           {
             "table_dependencies": [
               {
-                "database": "test",
-                "table": "t1",
+                "table": "`t1`",
                 "row_may_be_null": false,
                 "map_bit": 0,
                 "depends_on_map_bits": [
@@ -216,8 +212,7 @@ SELECT uniq, col1, col2 FROM t1 GROUP BY uniq	{
           {
             "rows_estimation": [
               {
-                "database": "test",
-                "table": "t1",
+                "table": "`t1`",
                 "table_scan": {
                   "rows": 8,
                   "cost": 2
@@ -228,8 +223,9 @@ SELECT uniq, col1, col2 FROM t1 GROUP BY uniq	{
           {
             "considered_execution_plans": [
               {
-                "database": "test",
-                "table": "t1",
+                "plan_prefix": [
+                ] /* plan_prefix */,
+                "table": "`t1`",
                 "best_access_path": {
                   "considered_access_paths": [
                     {
@@ -256,8 +252,7 @@ SELECT uniq, col1, col2 FROM t1 GROUP BY uniq	{
               ] /* attached_conditions_computation */,
               "attached_conditions_summary": [
                 {
-                  "database": "test",
-                  "table": "t1",
+                  "table": "`t1`",
                   "attached": null
                 }
               ] /* attached_conditions_summary */
@@ -266,21 +261,20 @@ SELECT uniq, col1, col2 FROM t1 GROUP BY uniq	{
           {
             "clause_processing": {
               "clause": "GROUP BY",
-              "original_clause": "`test`.`t1`.`uniq`",
+              "original_clause": "`t1`.`uniq`",
               "items": [
                 {
-                  "item": "`test`.`t1`.`uniq`"
+                  "item": "`t1`.`uniq`"
                 }
               ] /* items */,
               "resulting_clause_is_simple": true,
-              "resulting_clause": "`test`.`t1`.`uniq`"
+              "resulting_clause": "`t1`.`uniq`"
             } /* clause_processing */
           },
           {
             "refine_plan": [
               {
-                "database": "test",
-                "table": "t1",
+                "table": "`t1`",
                 "access_type": "table_scan"
               }
             ] /* refine_plan */
@@ -364,7 +358,7 @@ SELECT uniq, col1, col2 FROM t1 GROUP BY uniq	{
         "select#": 1,
         "steps": [
           {
-            "expanded_query": "/* select#1 */ select `test`.`t1`.`uniq` AS `uniq`,`test`.`t1`.`col1` AS `col1`,`test`.`t1`.`col2` AS `col2` from `test`.`t1` group by `test`.`t1`.`uniq`"
+            "expanded_query": "/* select#1 */ select `t1`.`uniq` AS `uniq`,`t1`.`col1` AS `col1`,`t1`.`col2` AS `col2` from `t1` group by `t1`.`uniq`"
           }
         ] /* steps */
       } /* join_preparation */
@@ -376,8 +370,7 @@ SELECT uniq, col1, col2 FROM t1 GROUP BY uniq	{
           {
             "table_dependencies": [
               {
-                "database": "test",
-                "table": "t1",
+                "table": "`t1`",
                 "row_may_be_null": false,
                 "map_bit": 0,
                 "depends_on_map_bits": [
@@ -388,8 +381,7 @@ SELECT uniq, col1, col2 FROM t1 GROUP BY uniq	{
           {
             "rows_estimation": [
               {
-                "database": "test",
-                "table": "t1",
+                "table": "`t1`",
                 "table_scan": {
                   "rows": 16,
                   "cost": 2
@@ -400,8 +392,9 @@ SELECT uniq, col1, col2 FROM t1 GROUP BY uniq	{
           {
             "considered_execution_plans": [
               {
-                "database": "test",
-                "table": "t1",
+                "plan_prefix": [
+                ] /* plan_prefix */,
+                "table": "`t1`",
                 "best_access_path": {
                   "considered_access_paths": [
                     {
@@ -428,8 +421,7 @@ SELECT uniq, col1, col2 FROM t1 GROUP BY uniq	{
               ] /* attached_conditions_computation */,
               "attached_conditions_summary": [
                 {
-                  "database": "test",
-                  "table": "t1",
+                  "table": "`t1`",
                   "attached": null
                 }
               ] /* attached_conditions_summary */
@@ -438,21 +430,20 @@ SELECT uniq, col1, col2 FROM t1 GROUP BY uniq	{
           {
             "clause_processing": {
               "clause": "GROUP BY",
-              "original_clause": "`test`.`t1`.`uniq`",
+              "original_clause": "`t1`.`uniq`",
               "items": [
                 {
-                  "item": "`test`.`t1`.`uniq`"
+                  "item": "`t1`.`uniq`"
                 }
               ] /* items */,
               "resulting_clause_is_simple": true,
-              "resulting_clause": "`test`.`t1`.`uniq`"
+              "resulting_clause": "`t1`.`uniq`"
             } /* clause_processing */
           },
           {
             "refine_plan": [
               {
-                "database": "test",
-                "table": "t1",
+                "table": "`t1`",
                 "access_type": "table_scan"
               }
             ] /* refine_plan */
@@ -527,8 +518,6 @@ SELECT pool_id FROM information_schema.innodb_buffer_page LIMIT 1	{
     {
       "creating_tmp_table": {
         "tmp_table_info": {
-          "database": "information_schema",
-          "table": "innodb_buffer_page",
           "row_length": 6852,
           "key_length": 0,
           "unique_constraint": false,
@@ -554,8 +543,7 @@ SELECT pool_id FROM information_schema.innodb_buffer_page LIMIT 1	{
           {
             "table_dependencies": [
               {
-                "database": "information_schema",
-                "table": "innodb_buffer_page",
+                "table": "`information_schema`.`innodb_buffer_page`",
                 "row_may_be_null": false,
                 "map_bit": 0,
                 "depends_on_map_bits": [
@@ -566,8 +554,7 @@ SELECT pool_id FROM information_schema.innodb_buffer_page LIMIT 1	{
           {
             "rows_estimation": [
               {
-                "database": "information_schema",
-                "table": "innodb_buffer_page",
+                "table": "`information_schema`.`innodb_buffer_page`",
                 "table_scan": {
                   "rows": 2,
                   "cost": 10
@@ -578,8 +565,9 @@ SELECT pool_id FROM information_schema.innodb_buffer_page LIMIT 1	{
           {
             "considered_execution_plans": [
               {
-                "database": "information_schema",
-                "table": "innodb_buffer_page",
+                "plan_prefix": [
+                ] /* plan_prefix */,
+                "table": "`information_schema`.`innodb_buffer_page`",
                 "best_access_path": {
                   "considered_access_paths": [
                     {
@@ -603,8 +591,7 @@ SELECT pool_id FROM information_schema.innodb_buffer_page LIMIT 1	{
               ] /* attached_conditions_computation */,
               "attached_conditions_summary": [
                 {
-                  "database": "information_schema",
-                  "table": "innodb_buffer_page",
+                  "table": "`information_schema`.`innodb_buffer_page`",
                   "attached": null
                 }
               ] /* attached_conditions_summary */
@@ -613,8 +600,7 @@ SELECT pool_id FROM information_schema.innodb_buffer_page LIMIT 1	{
           {
             "refine_plan": [
               {
-                "database": "information_schema",
-                "table": "innodb_buffer_page",
+                "table": "`information_schema`.`innodb_buffer_page`",
                 "access_type": "table_scan"
               }
             ] /* refine_plan */
@@ -630,8 +616,7 @@ SELECT pool_id FROM information_schema.innodb_buffer_page LIMIT 1	{
             "converting_tmp_table_to_myisam": {
               "cause": "memory_table_size_exceeded",
               "tmp_table_info": {
-                "database": "information_schema",
-                "table": "innodb_buffer_page",
+                "table": "`information_schema`.`innodb_buffer_page`",
                 "row_length": 6852,
                 "key_length": 0,
                 "unique_constraint": false,

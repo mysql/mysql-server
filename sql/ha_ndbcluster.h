@@ -319,12 +319,6 @@ class ha_ndbcluster: public handler
   const char * table_type() const;
   const char ** bas_ext() const;
   ulonglong table_flags(void) const;
-  void prepare_for_alter();
-  int add_index(TABLE *table_arg, KEY *key_info, uint num_of_keys,
-                handler_add_index **add);
-//int final_add_index(handler_add_index *add, bool commit);  // TODO
-  int prepare_drop_index(TABLE *table_arg, uint *key_num, uint num_of_keys);
-  int final_drop_index(TABLE *table_arg);
   void set_part_info(partition_info *part_info, bool early);
   ulong index_flags(uint idx, uint part, bool all_parts) const;
   virtual const key_map *keys_to_use_for_scanning() { return &btree_keys; }

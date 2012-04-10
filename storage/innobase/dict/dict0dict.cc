@@ -632,33 +632,6 @@ dict_table_autoinc_unlock(
 {
 	mutex_exit(&table->autoinc_mutex);
 }
-
-/**********************************************************************//**
-Looks for an index with the given table and index id.
-Note: Does not reserve the dictionary mutex.
-@return	index or NULL if not found in cache */
-UNIV_INTERN
-dict_index_t*
-dict_index_get_on_id_low(
-/*=====================*/
-	dict_table_t*	table,	/*!< in: table */
-	index_id_t	id)	/*!< in: index id */
-{
-	dict_index_t*	index;
-
-	for (index = dict_table_get_first_index(table);
-	     index != NULL;
-	     index = dict_table_get_next_index(index)) {
-
-		if (id == index->id) {
-			/* Found */
-
-			return(index);
-		}
-	}
-
-	return(NULL);
-}
 #endif /* !UNIV_HOTBACKUP */
 
 /********************************************************************//**

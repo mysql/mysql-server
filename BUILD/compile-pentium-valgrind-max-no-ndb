@@ -18,7 +18,7 @@
 # MA 02111-1307, USA
 
 path=`dirname $0`
-cmake $path/.. -DWITH_DEBUG=1 \
-     -DWITH_VALGRIND=1 -DCMAKE_CXX_FLAGS=-DHAVE_purify \
-     -DWITH_NDBCLUSTER=0
-gmake -j 4
+cmake $path/.. -DWITH_DEBUG=1 -DWITH_VALGRIND=1 \
+    -DCMAKE_C_FLAGS=-DHAVE_purify -DCMAKE_CXX_FLAGS=-DHAVE_purify \
+    -DWITH_NDBCLUSTER=0
+make

@@ -476,7 +476,7 @@ dict_insert_initial_data(void)
 }
 
 /*****************************************************************//**
-Creates and initializes the data dictionary at the database creation. */
+Creates and initializes the data dictionary at the server bootstrap. */
 UNIV_INTERN
 void
 dict_create(void)
