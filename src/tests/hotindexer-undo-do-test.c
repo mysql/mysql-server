@@ -58,9 +58,9 @@ live_add(struct live *live, TXNID xid, TOKUTXN_STATE state) {
     live->txns[live->o++] = (struct txn ) { xid, state };
 }
 
-static int
+static TOKUTXN_STATE
 lookup_txn_state(struct live *live, TXNID xid) {
-    int r = TOKUTXN_RETIRED;
+    TOKUTXN_STATE r = TOKUTXN_RETIRED;
     for (int i = 0; i < live->o; i++) {
         if (live->txns[i].xid == xid) {
             r = live->txns[i].state;
