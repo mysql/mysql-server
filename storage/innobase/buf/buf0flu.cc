@@ -2523,6 +2523,42 @@ buf_flush_validate(
 
 #ifdef UNIV_DEBUG
 /******************************************************************//**
+Check if there are any dirty pages that belong to a space id in the flush
+list in a particular buffer pool.
+@return	number of dirty pages present in a single buffer pool */
+UNIV_INTERN
+ulint
+buf_pool_get_dirty_pages_count(
+/*===========================*/
+	buf_pool_t*	buf_pool,	/*!< in: buffer pool */
+	ulint		id)		/*!< in: space id to check */
+
+{
+	ulint		count = 0;
+
+	buf_flush_list_mutex_enter(buf_pool);
+
+	buf_page_t*	bpage;
+
+	for (bpage = UT_LIST_GET_FIRST(buf_pool->flush_list);
+	     bpage != 0;
+	     bpage = UT_LIST_GET_NEXT(list, bpage)) {
+
+		ut_ad(buf_page_in_file(bpage));
+		ut_ad(bpage->in_flush_list);
+		ut_ad(bpage->oldest_modification > 0);
+
+		if (buf_page_get_space(bpage) == id) {
+			++count;
+		}
+	}
+
+	buf_flush_list_mutex_exit(buf_pool);
+
+	return(count);
+}
+
+/******************************************************************//**
 Check if there are any dirty pages that belong to a space id in the flush list.
 @return	number of dirty pages present in all the buffer pools */
 UNIV_INTERN
@@ -2539,24 +2575,7 @@ buf_flush_get_dirty_pages_count(
 
 		buf_pool = buf_pool_from_array(i);
 
-		buf_flush_list_mutex_enter(buf_pool);
-
-		buf_page_t*	bpage;
-
-		for (bpage = UT_LIST_GET_FIRST(buf_pool->flush_list);
-		     bpage != 0;
-		     bpage = UT_LIST_GET_NEXT(list, bpage)) {
-
-			ut_ad(buf_page_in_file(bpage));
-			ut_ad(bpage->in_flush_list);
-			ut_ad(bpage->oldest_modification > 0);
-
-			if (buf_page_get_space(bpage) == id) {
-				++count;
-			}
-		}
-
-		buf_flush_list_mutex_exit(buf_pool);
+		count += buf_pool_get_dirty_pages_count(buf_pool, id);
 	}
 
 	return(count);

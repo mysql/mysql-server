@@ -817,14 +817,14 @@ buf_LRU_remove_pages(
 		ut_a(trx == 0);
 		buf_flush_dirty_pages(buf_pool, id, false, NULL);
 		ut_ad(trx_is_interrupted(trx)
-		      || buf_flush_get_dirty_pages_count(id) == 0);
+		      || buf_pool_get_dirty_pages_count(buf_pool, id) == 0);
 		break;
 
 	case BUF_REMOVE_FLUSH_WRITE:
 		ut_a(trx != 0);
 		buf_flush_dirty_pages(buf_pool, id, true, trx);
 		ut_ad(trx_is_interrupted(trx)
-		      || buf_flush_get_dirty_pages_count(id) == 0);
+		      || buf_pool_get_dirty_pages_count(buf_pool, id) == 0);
 		/* Ensure that all asynchronous IO is completed. */
 		os_aio_wait_until_no_pending_writes();
 		fil_flush(id);
@@ -873,6 +873,9 @@ buf_LRU_flush_or_remove_pages(
 
 		buf_LRU_remove_pages(buf_pool, id, buf_remove, trx);
 	}
+
+	ut_ad(trx_is_interrupted(trx)
+	      || buf_flush_get_dirty_pages_count(id) == 0);
 }
 
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
