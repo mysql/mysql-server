@@ -1024,9 +1024,10 @@ public:
       ((flags >> FIELD_FLAGS_STORAGE_MEDIA) & 3);
   }
 
-  void set_storage_type(ha_storage_media storage_type)
+  void set_storage_type(ha_storage_media storage_type_arg)
   {
-    flags |= (storage_type << FIELD_FLAGS_STORAGE_MEDIA);
+    DBUG_ASSERT(field_storage_type() == HA_SM_DEFAULT);
+    flags |= (storage_type_arg << FIELD_FLAGS_STORAGE_MEDIA);
   }
 
   column_format_type column_format() const
@@ -1035,9 +1036,10 @@ public:
       ((flags >> FIELD_FLAGS_COLUMN_FORMAT) & 3);
   }
 
-  void set_column_format(column_format_type column_format)
+  void set_column_format(column_format_type column_format_arg)
   {
-    flags |= (column_format << FIELD_FLAGS_COLUMN_FORMAT);
+    DBUG_ASSERT(column_format() == COLUMN_FORMAT_TYPE_DEFAULT);
+    flags |= (column_format_arg << FIELD_FLAGS_COLUMN_FORMAT);
   }
 
   /* Hash value */
