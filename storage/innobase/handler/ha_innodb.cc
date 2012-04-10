@@ -90,7 +90,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #  define MYSQL_PLUGIN_IMPORT /* nothing */
 # endif /* MYSQL_PLUGIN_IMPORT */
 /** to force correct commit order in binlog */
-static mysql_mutex_t prepare_commit_mutex;
 static ulong commit_threads = 0;
 static mysql_mutex_t commit_threads_m;
 static mysql_cond_t commit_cond;
@@ -246,7 +245,6 @@ const struct _ft_vft ft_vft_result = {NULL,
 #ifdef HAVE_PSI_INTERFACE
 /* Keys to register pthread mutexes/cond in the current file with
 performance schema */
-static mysql_pfs_key_t	prepare_commit_mutex_key;
 static mysql_pfs_key_t	commit_threads_m_key;
 static mysql_pfs_key_t	commit_cond_mutex_key;
 static mysql_pfs_key_t	commit_cond_key;
@@ -254,7 +252,6 @@ static mysql_pfs_key_t	commit_cond_key;
 static PSI_mutex_info	all_pthread_mutexes[] = {
 	{&commit_threads_m_key, "commit_threads_m", 0},
 	{&commit_cond_mutex_key, "commit_cond_mutex", 0},
-	{&prepare_commit_mutex_key, "prepare_commit_mutex", 0}
 };
 
 static PSI_cond_info	all_innodb_conds[] = {
@@ -2007,18 +2004,6 @@ trx_is_registered_for_2pc(
 }
 
 /*********************************************************************//**
-Note that a transaction owns the prepare_commit_mutex. */
-static inline
-void
-trx_owns_prepare_commit_mutex_set(
-/*==============================*/
-	trx_t*	trx)	/* in: transaction */
-{
-	ut_a(trx_is_registered_for_2pc(trx));
-	trx->owns_prepare_mutex = 1;
-}
-
-/*********************************************************************//**
 Note that a transaction has been registered with MySQL 2PC coordinator. */
 static inline
 void
@@ -2042,17 +2027,6 @@ trx_deregister_from_2pc(
 	trx->owns_prepare_mutex = 0;
 }
 
-/*********************************************************************//**
-Check whether atransaction owns the prepare_commit_mutex.
-@return true if transaction owns the prepare commit mutex */
-static inline
-bool
-trx_has_prepare_commit_mutex(
-/*=========================*/
-	const trx_t*	trx)	/* in: transaction */
-{
-	return(trx->owns_prepare_mutex == 1);
-}
 
 /*********************************************************************//**
 Check if transaction is started.
@@ -3061,8 +3035,6 @@ innobase_change_buffering_inited_ok:
 
 	ibuf_max_size_update(innobase_change_buffer_max_size);
 
-	mysql_mutex_init(prepare_commit_mutex_key,
-			 &prepare_commit_mutex, MY_MUTEX_INIT_FAST);
 	mysql_mutex_init(commit_threads_m_key,
 			 &commit_threads_m, MY_MUTEX_INIT_FAST);
 	mysql_mutex_init(commit_cond_mutex_key,
@@ -3126,7 +3098,6 @@ innobase_end(
 		}
 		srv_free_paths_and_sizes();
 		my_free(internal_innobase_data_file_path);
-		mysql_mutex_destroy(&prepare_commit_mutex);
 		mysql_mutex_destroy(&commit_threads_m);
 		mysql_mutex_destroy(&commit_cond_m);
 		mysql_cond_destroy(&commit_cond);
@@ -3264,9 +3235,7 @@ innobase_commit(
 		/* We were instructed to commit the whole transaction, or
 		this is an SQL statement end and autocommit is on */
 
-		/* We need current binlog position for ibbackup to work.
-		Note, the position is current because of
-		prepare_commit_mutex */
+		/* We need current binlog position for ibbackup to work. */
 retry:
 		if (innobase_commit_concurrency > 0) {
 			mysql_mutex_lock(&commit_cond_m);
@@ -3312,11 +3281,6 @@ retry:
 			commit_threads--;
 			mysql_cond_signal(&commit_cond);
 			mysql_mutex_unlock(&commit_cond_m);
-		}
-
-		if (trx_has_prepare_commit_mutex(trx)) {
-
-			mysql_mutex_unlock(&prepare_commit_mutex);
 		}
 
 		trx_deregister_from_2pc(trx);
@@ -12637,18 +12601,9 @@ innobase_xa_prepare(
 		  thread2> prepare; write to binlog; commit
 		  thread1>			     ... commit
 
-		To ensure this will not happen we're taking the mutex on
-		prepare, and releasing it on commit.
-
-		Note: only do it for normal commits, done via ha_commit_trans.
-		If 2pc protocol is executed by external transaction
-		coordinator, it will be just a regular MySQL client
-		executing XA PREPARE and XA COMMIT commands.
-		In this case we cannot know how many minutes or hours
-		will be between XA PREPARE and XA COMMIT, and we don't want
-		to block for undefined period of time. */
-		mysql_mutex_lock(&prepare_commit_mutex);
-		trx_owns_prepare_commit_mutex_set(trx);
+                The server guarantees that writes to the binary log
+                and commits are in the same order, so we do not have
+                to handle this case. */
 	}
 
 	return(error);

@@ -3313,6 +3313,7 @@ int init_common_variables()
     and can not be set in the MYSQL_BIN_LOG constructor (called before main()).
   */
   mysql_bin_log.set_psi_keys(key_BINLOG_LOCK_index,
+                             key_BINLOG_LOCK_queue,
                              key_BINLOG_update_cond,
                              key_file_binlog,
                              key_file_binlog_index);
@@ -8582,6 +8583,8 @@ PSI_mutex_key key_LOCK_des_key_file;
 #endif /* HAVE_OPENSSL */
 
 PSI_mutex_key key_BINLOG_LOCK_index, key_BINLOG_LOCK_prep_xids,
+  key_BINLOG_LOCK_queue;
+PSI_mutex_key
   key_delayed_insert_mutex, key_hash_filo_lock, key_LOCK_active_mi,
   key_LOCK_connection_count, key_LOCK_crypt, key_LOCK_delayed_create,
   key_LOCK_delayed_insert, key_LOCK_delayed_status, key_LOCK_error_log,
@@ -8602,6 +8605,7 @@ PSI_mutex_key key_BINLOG_LOCK_index, key_BINLOG_LOCK_prep_xids,
   key_LOCK_error_messages, key_LOG_INFO_lock, key_LOCK_thread_count,
   key_LOCK_log_throttle_qni;
 PSI_mutex_key key_RELAYLOG_LOCK_index;
+PSI_mutex_key key_RELAYLOG_LOCK_queue;
 
 static PSI_mutex_info all_server_mutexes[]=
 {
@@ -8617,8 +8621,10 @@ static PSI_mutex_info all_server_mutexes[]=
 #endif /* HAVE_OPENSSL */
 
   { &key_BINLOG_LOCK_index, "MYSQL_BIN_LOG::LOCK_index", 0},
+  { &key_BINLOG_LOCK_queue, "MYSQL_BIN_LOG::LOCK_queue", 0},
   { &key_BINLOG_LOCK_prep_xids, "MYSQL_BIN_LOG::LOCK_prep_xids", 0},
   { &key_RELAYLOG_LOCK_index, "MYSQL_RELAY_LOG::LOCK_index", 0},
+  { &key_RELAYLOG_LOCK_queue, "MYSQL_RELAY_LOG::LOCK_queue", 0},
   { &key_delayed_insert_mutex, "Delayed_insert::mutex", 0},
   { &key_hash_filo_lock, "hash_filo::lock", 0},
   { &key_LOCK_active_mi, "LOCK_active_mi", PSI_FLAG_GLOBAL},

@@ -788,6 +788,8 @@ THD::THD(bool enable_plugins)
    binlog_unsafe_warning_flags(0),
    binlog_table_maps(0),
    binlog_accessed_db_names(NULL),
+   m_trans_log_file(NULL),
+   m_trans_end_pos(0),
    table_map_for_update(0),
    arg_of_last_insert_id_function(FALSE),
    first_successful_insert_id_in_prev_stmt(0),
@@ -798,6 +800,7 @@ THD::THD(bool enable_plugins)
    m_statement_psi(NULL),
    m_idle_psi(NULL),
    m_server_idle(false),
+   next_to_commit(NULL),
    is_fatal_error(0),
    transaction_rollback_request(0),
    is_fatal_sub_stmt_error(0),
@@ -878,7 +881,7 @@ THD::THD(bool enable_plugins)
   cleanup_done= abort_on_warning= 0;
   peer_port= 0;					// For SHOW PROCESSLIST
   transaction.m_pending_rows_event= 0;
-  transaction.on= 1;
+  transaction.flags.enabled= true;
 #ifdef SIGNAL_WITH_VIO_CLOSE
   active_vio = 0;
 #endif
@@ -1388,6 +1391,14 @@ void THD::cleanup(void)
     ull= NULL;
   }
 
+  /*
+    Actions above might generate events for the binary log, so we
+    commit the current transaction coordinator after executing cleanup
+    actions.
+   */
+  if (tc_log)
+    tc_log->commit(this, true);
+
   cleanup_done=1;
   DBUG_VOID_RETURN;
 }
@@ -1399,7 +1410,6 @@ THD::~THD()
   DBUG_ENTER("~THD()");
   /* Ensure that no one is using THD */
   mysql_mutex_lock(&LOCK_thd_data);
-  mysys_var=0;					// Safety (shouldn't be needed)
   mysql_mutex_unlock(&LOCK_thd_data);
   add_to_status(&global_status_var, &status_var);
 
@@ -1727,6 +1737,7 @@ bool THD::store_globals()
     threads local storage with key THR_KEY_mysys. 
   */
   mysys_var=my_thread_var;
+  DBUG_PRINT("debug", ("mysys_var: 0x%llx", (ulonglong) mysys_var));
   /*
     Let mysqld define the thread id (not mysys)
     This allows us to move THD to different threads if needed.
