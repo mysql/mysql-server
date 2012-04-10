@@ -544,6 +544,11 @@ row_import_free(
 		cfg->table_name = 0;
 	}
 
+	if (cfg->hostname) {
+		delete [] cfg->hostname;
+		cfg->hostname = 0;
+	}
+
 	delete cfg;
 }
 
