@@ -33,7 +33,7 @@ Created 4/24/1996 Heikki Tuuri
 #include "mem0mem.h"
 #include "btr0types.h"
 
-/** enum that defines all system table IDs. @see SYSTEM_TABLE_NAME[] */
+/** enum that defines all 6 system table IDs */
 enum dict_system_table_id {
 	SYS_TABLES = 0,
 	SYS_INDEXES,
