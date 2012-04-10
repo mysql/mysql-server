@@ -1024,6 +1024,12 @@ public:
   // Table is renamed
   static const HA_ALTER_FLAGS ALTER_RENAME               = 1L << 18;
 
+  // Change the storage type of column 
+  static const HA_ALTER_FLAGS ALTER_COLUMN_STORAGE_TYPE = 1L << 19;
+
+  // Change the column format of column
+  static const HA_ALTER_FLAGS ALTER_COLUMN_COLUMN_FORMAT = 1L << 20;
+
   /**
     Create options (like MAX_ROWS) for the new version of table.
 
