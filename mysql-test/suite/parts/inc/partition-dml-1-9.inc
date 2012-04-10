@@ -16,11 +16,14 @@ let $TABLENAME= t2;
 GRANT ALL PRIVILEGES ON test.* TO test_user_1 IDENTIFIED BY 'testpw';
 
 connect (session1, localhost, test_user_1,'testpw',test);
---sorted_result
 CREATE VIEW v1 AS
 SELECT t1.a, t2.b FROM t1 PARTITION (`p0-29`), t2 
 WHERE t1.a = t2.a;
+--sorted_result
 SELECT * FROM v1;
+--sorted_result
+SELECT t1.a, t2.b FROM t1 PARTITION (`p0-29`), t2
+WHERE t1.a = t2.a;
 
 --sorted_result
 SELECT * FROM t1 PARTITION (`p0-29`);
