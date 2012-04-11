@@ -41,5 +41,6 @@
  
 #cmakedefine HAVE_FUNC_IN_CXX
 
+#cmakedefine HAVE_HTONLL
 
 #endif

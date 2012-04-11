@@ -3788,7 +3788,7 @@ NdbQueryOperationImpl::NdbQueryOperationImpl(
   m_queryImpl(queryImpl),
   m_operationDef(def),
   m_parent(NULL),
-  m_children(def.getNoOfChildOperations()),
+  m_children(0),
   m_maxBatchRows(0),   // >0: User specified prefered value, ==0: Use default CFG values
   m_params(),
   m_resultBuffer(NULL),
@@ -3805,9 +3805,9 @@ NdbQueryOperationImpl::NdbQueryOperationImpl(
                 ? Parallelism_max : Parallelism_adaptive),
   m_rowSize(0xffffffff)
 { 
-  if (errno == ENOMEM)
+  if (m_children.expand(def.getNoOfChildOperations()))
   {
-    // Memory allocation in Vector() (for m_children) assumed to have failed.
+    // Memory allocation during Vector::expand() failed.
     queryImpl.setErrorCode(Err_MemoryAlloc);
     return;
   }

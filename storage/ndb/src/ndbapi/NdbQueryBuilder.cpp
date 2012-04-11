@@ -702,24 +702,7 @@ NdbQueryOperationDef::getIndex() const
 NdbQueryBuilder* NdbQueryBuilder::create()
 {
   NdbQueryBuilderImpl* const impl = new NdbQueryBuilderImpl();
-  if (likely (impl != NULL))
-  {
-    if (likely(impl->getNdbError().code == 0))
-    {
-      return &impl->m_interface;
-    }
-    else
-    {
-      // Probably failed to create Vector instances.
-      assert(impl->getNdbError().code == Err_MemoryAlloc);
-      delete impl;
-      return NULL;
-    }
-  }
-  else
-  {
-    return NULL;
-  }
+  return (likely(impl!=NULL)) ? &impl->m_interface : NULL;
 }
 
 void NdbQueryBuilder::destroy()
@@ -1116,17 +1099,11 @@ NdbQueryBuilder::prepare()
 NdbQueryBuilderImpl::NdbQueryBuilderImpl()
 : m_interface(*this),
   m_error(),
-  m_operations(),
-  m_operands(),
+  m_operations(0),
+  m_operands(0),
   m_paramCnt(0),
   m_hasError(false)
-{
-  if (errno == ENOMEM)
-  {
-    // ENOMEM probably comes from Vector().
-    setErrorCode(Err_MemoryAlloc);
-  }
-}
+{}
 
 NdbQueryBuilderImpl::~NdbQueryBuilderImpl()
 {
@@ -1242,12 +1219,12 @@ NdbQueryDefImpl(const Vector<NdbQueryOperationDefImpl*>& operations,
                 const Vector<NdbQueryOperandImpl*>& operands,
                 int& error)
  : m_interface(*this), 
-   m_operations(operations),
-   m_operands(operands)
+   m_operations(0),
+   m_operands(0)
 {
-  if (errno == ENOMEM)
+  if (m_operations.assign(operations) || m_operands.assign(operands))
   {
-    // Failed to allocate memory for m_operations or m_operands.
+    // Failed to allocate memory in Vector::assign().
     error = Err_MemoryAlloc;
     return;
   }
@@ -1909,16 +1886,10 @@ NdbQueryOperationDefImpl::NdbQueryOperationDefImpl (
    m_opNo(opNo), m_internalOpNo(internalOpNo),
    m_options(options),
    m_parent(NULL), 
-   m_children(), 
-   m_params(),
-   m_spjProjection() 
+   m_children(0), 
+   m_params(0),
+   m_spjProjection(0) 
 {
-  if (unlikely(errno == ENOMEM))
-  {
-    // Heap allocation in Vector() must have failed.
-    error = Err_MemoryAlloc;
-    return;
-  }
   if (unlikely(m_internalOpNo >= NDB_SPJ_MAX_TREE_NODES))
   {
     error = QRY_DEFINITION_TOO_LARGE;
