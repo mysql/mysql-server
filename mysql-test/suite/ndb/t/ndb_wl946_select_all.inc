@@ -4,7 +4,7 @@
 # date/time uses "/" as separator instead of blank
 # timestamp is displayed as unix timestamp
 #
-# use mysql to grep out non-data lines (MTR grep is not real grep?)
+# use mysql to grep out non-data lines
 
 --let $dump_file1 = $MYSQLTEST_VARDIR/tmp/wl946_select_all1.txt
 --let $dump_file2 = $MYSQLTEST_VARDIR/tmp/wl946_select_all2.txt
