@@ -581,6 +581,7 @@ struct sql_ex_info
 */
 #define LOG_EVENT_MTS_ISOLATE_F 0x200
 
+
 /**
   @def OPTIONS_WRITTEN_TO_BIN_LOG
 
@@ -840,21 +841,6 @@ typedef struct st_print_event_info
 #endif
 
 /**
-  the struct aggregates two paramenters that identify an event
-  uniquely in scope of communication of a particular master and slave couple.
-  I.e there can not be 2 events from the same staying connected master which
-  have the same coordinates.
-  @note
-  Such identifier is not yet unique generally as the event originating master
-  is resetable. Also the crashed master can be replaced with some other.
-*/
-typedef struct event_coordinates
-{
-  char * file_name; // binlog file name (directories stripped)
-  my_off_t  pos;       // event's position in the binlog file
-} LOG_POS_COORD;
-
-/**
   @class Log_event
 
   This is the abstract base class for binary log events.
@@ -1103,14 +1089,12 @@ public:
   */
   uint32 server_id;
 
-#ifndef MCP_BUG52305
   /*
     The server id read from the Binlog.  server_id above has
     lowest bits of this only according to the value of
     opt_server_id_bits
   */
   uint32 unmasked_server_id;
-#endif
 
   /**
     Some 16 flags. See the definitions above for LOG_EVENT_TIME_F,

@@ -174,7 +174,6 @@ CREATE TABLE t1 (a INT) engine=InnoDB;
 XA START 'a';
 INSERT INTO t1 VALUES (1);
 SAVEPOINT savep;
-ERROR XAE07: XAER_RMFAIL: The command cannot be executed when global transaction is in the  ACTIVE state
 XA END 'a';
 SELECT * FROM t1;
 ERROR XAE07: XAER_RMFAIL: The command cannot be executed when global transaction is in the  IDLE state
@@ -215,7 +214,8 @@ XA START 'xid1';
 # Sending:
 INSERT INTO t2 SELECT a FROM t1;
 # Connection default
-# Waiting until INSERT ... is blocked
+# Waiting for until a transaction with 'INSERT SELECT'
+# will be locked inside innodb subsystem.
 DELETE FROM t1;
 # Connection con2
 # Reaping: INSERT INTO t2 SELECT a FROM t1

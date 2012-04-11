@@ -831,12 +831,7 @@ IF(NOT C_HAS_inline)
   static __inline int foo(){return 0;}
   int main(int argc, char *argv[]){return 0;}"
                             C_HAS___inline)
-  # MCP_BUG61708
-  IF (C_HAS___inline)
-    SET(C_INLINE __inline)
-  ELSE()
-    SET(C_INLINE)
-  ENDIF()
+  SET(C_INLINE __inline)
 ENDIF()
 
 IF(NOT C_HAS_inline AND NOT C_HAS___inline)

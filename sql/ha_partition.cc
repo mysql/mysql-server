@@ -340,6 +340,7 @@ void ha_partition::init_handler_variables()
   m_clone_mem_root= NULL;
   part_share= NULL;
   m_new_partitions_share_refs.empty();
+  m_part_ids_sorted_by_num_of_records= NULL;
 
 #ifdef DONT_HAVE_TO_BE_INITALIZED
   m_start_key.flag= 0;
@@ -377,6 +378,7 @@ ha_partition::~ha_partition()
       delete m_file[i];
   }
   my_free(m_ordered_rec_buffer);
+  my_free(m_part_ids_sorted_by_num_of_records);
 
   clear_handler_file();
   DBUG_VOID_RETURN;
@@ -2985,6 +2987,16 @@ int ha_partition::open(const char *name, int mode, uint test_if_locked)
       } while (++i < m_tot_parts);
       m_start_key.key= (const uchar*)ptr;
     }
+  }
+  if (!m_part_ids_sorted_by_num_of_records)
+  {
+    if (!(m_part_ids_sorted_by_num_of_records=
+            (uint32*) my_malloc(m_tot_parts * sizeof(uint32), MYF(MY_WME))))
+      DBUG_RETURN(error);
+    uint32 i;
+    /* Initialize it with all partition ids. */
+    for (i= 0; i < m_tot_parts; i++)
+      m_part_ids_sorted_by_num_of_records[i]= i;
   }
 
   /* Initialize the bitmap we use to minimize ha_start_bulk_insert calls */
@@ -5615,6 +5627,24 @@ int ha_partition::handle_ordered_prev(uchar *buf)
   and read_time calls
 */
 
+/**
+  Helper function for sorting according to number of rows in descending order.
+*/
+
+int ha_partition::compare_number_of_records(ha_partition *me,
+                                            const uint32 *a,
+                                            const uint32 *b)
+{
+  handler **file= me->m_file;
+  /* Note: sorting in descending order! */
+  if (file[*a]->stats.records > file[*b]->stats.records)
+    return -1;
+  if (file[*a]->stats.records < file[*b]->stats.records)
+    return 1;
+  return 0;
+}
+
+
 /*
   General method to gather info from handler
 
@@ -5868,6 +5898,15 @@ int ha_partition::info(uint flag)
       }
       i++;
     } while (*(++file_array));
+    /*
+      Sort the array of part_ids by number of records in
+      in descending order.
+    */
+    my_qsort2((void*) m_part_ids_sorted_by_num_of_records,
+              m_tot_parts,
+              sizeof(uint32),
+              (qsort2_cmp) compare_number_of_records,
+              this);
 
     file= m_file[handler_instance];
     file->info(HA_STATUS_CONST | no_lock_flag);
@@ -6638,22 +6677,73 @@ const key_map *ha_partition::keys_to_use_for_scanning()
   DBUG_RETURN(m_file[0]->keys_to_use_for_scanning());
 }
 
-#define MAX_PARTS_FOR_OPTIMIZER_CALLS 10U
-/*
-  Prepare start variables for estimating optimizer costs.
 
-  @param[out] num_used_parts  Number of partitions after pruning.
-  @param[out] check_min_num   Number of partitions to call.
-  @param[out] first           first used partition.
+/**
+  Minimum number of rows to base optimizer estimate on.
 */
-void ha_partition::partitions_optimizer_call_preparations(uint *first,
-                                                          uint *num_used_parts,
-                                                          uint *check_min_num)
+
+ha_rows ha_partition::min_rows_for_estimate()
 {
-  *first= bitmap_get_first_set(&(m_part_info->read_partitions));
-  *num_used_parts= bitmap_bits_set(&(m_part_info->read_partitions));
-  *check_min_num= min<uint>(MAX_PARTS_FOR_OPTIMIZER_CALLS,
-                            *num_used_parts);
+  uint i, max_used_partitions, tot_used_partitions;
+  DBUG_ENTER("ha_partition::min_rows_for_estimate");
+
+  tot_used_partitions= bitmap_bits_set(&m_part_info->read_partitions);
+  DBUG_ASSERT(tot_used_partitions);
+
+  /*
+    Allow O(log2(tot_partitions)) increase in number of used partitions.
+    This gives O(tot_rows/log2(tot_partitions)) rows to base the estimate on.
+    I.e when the total number of partitions doubles, allow one more
+    partition to be checked.
+  */
+  i= 2;
+  max_used_partitions= 1;
+  while (i < m_tot_parts)
+  {
+    max_used_partitions++;
+    i= i << 1;
+  }
+  if (max_used_partitions > tot_used_partitions)
+    max_used_partitions= tot_used_partitions;
+
+  /* stats.records is already updated by the info(HA_STATUS_VARIABLE) call. */
+  DBUG_PRINT("info", ("max_used_partitions: %u tot_rows: %lu",
+                      max_used_partitions,
+                      (ulong) stats.records));
+  DBUG_PRINT("info", ("tot_used_partitions: %u min_rows_to_check: %lu",
+                      tot_used_partitions,
+                      (ulong) stats.records * max_used_partitions
+                              / tot_used_partitions));
+  DBUG_RETURN(stats.records * max_used_partitions / tot_used_partitions);
+}
+
+
+/**
+  Get the biggest used partition.
+
+  Starting at the N:th biggest partition and skips all non used
+  partitions, returning the biggest used partition found
+
+  @param[in,out] part_index  Skip the *part_index biggest partitions
+
+  @return The biggest used partition with index not lower than *part_index.
+    @retval NO_CURRENT_PART_ID     No more partition used.
+    @retval != NO_CURRENT_PART_ID  partition id of biggest used partition with
+                                   index >= *part_index supplied. Note that
+                                   *part_index will be updated to the next
+                                   partition index to use.
+*/
+
+uint ha_partition::get_biggest_used_partition(uint *part_index)
+{
+  uint part_id;
+  while ((*part_index) < m_tot_parts)
+  {
+    part_id= m_part_ids_sorted_by_num_of_records[(*part_index)++];
+    if (bitmap_is_set(&m_part_info->read_partitions, part_id))
+      return part_id;
+  }
+  return NO_CURRENT_PART_ID;
 }
 
 
@@ -6669,116 +6759,107 @@ void ha_partition::partitions_optimizer_call_preparations(uint *first,
 
 double ha_partition::scan_time()
 {
-  double scan_time= 0.0;
-  uint first, part_id, num_used_parts, check_min_num, partitions_called= 0;
+  double scan_time= 0;
+  handler **file;
   DBUG_ENTER("ha_partition::scan_time");
 
-  partitions_optimizer_call_preparations(&first, &num_used_parts,
-                                         &check_min_num);
-  for (part_id= first; partitions_called < num_used_parts ; part_id++)
-  {
-    if (!bitmap_is_set(&(m_part_info->read_partitions), part_id))
-      continue;
-    scan_time+= m_file[part_id]->scan_time();
-    partitions_called++;
-    if (partitions_called >= check_min_num && scan_time != 0.0)
-    {
-      DBUG_RETURN(scan_time *
-                      (double) num_used_parts / (double) partitions_called);
-    }
-  }
+  for (file= m_file; *file; file++)
+    if (bitmap_is_set(&(m_part_info->read_partitions), (file - m_file)))
+      scan_time+= (*file)->scan_time();
   DBUG_RETURN(scan_time);
 }
 
 
-/*
-  Estimate rows for records_in_range or estimate_rows_upper_bound.
+/**
+  Find number of records in a range.
+  @param inx      Index number
+  @param min_key  Start of range
+  @param max_key  End of range
 
-  @param is_records_in_range  call records_in_range instead of
-                              estimate_rows_upper_bound.
-  @param inx                  (only for records_in_range) index to use.
-  @param min_key              (only for records_in_range) start of range.
-  @param max_key              (only for records_in_range) end of range.
+  @return Number of rows in range.
 
-  @return Number of rows or HA_POS_ERROR.
-*/
-ha_rows ha_partition::estimate_rows(bool is_records_in_range, uint inx,
-                                    key_range *min_key, key_range *max_key)
-{
-  ha_rows rows, estimated_rows= 0;
-  uint first, part_id, num_used_parts, check_min_num, partitions_called= 0;
-  DBUG_ENTER("ha_partition::estimate_rows");
-
-  partitions_optimizer_call_preparations(&first, &num_used_parts, &check_min_num);
-  for (part_id= first; partitions_called < num_used_parts ; part_id++)
-  {
-    if (!bitmap_is_set(&(m_part_info->read_partitions), part_id))
-      continue;
-    if (is_records_in_range)
-      rows= m_file[part_id]->records_in_range(inx, min_key, max_key);
-    else
-      rows= m_file[part_id]->estimate_rows_upper_bound();
-    if (rows == HA_POS_ERROR)
-      DBUG_RETURN(HA_POS_ERROR);
-    estimated_rows+= rows;
-    partitions_called++;
-    if (partitions_called >= check_min_num && estimated_rows)
-    {
-      DBUG_RETURN(estimated_rows * num_used_parts / partitions_called);
-    }
-  }
-  DBUG_RETURN(estimated_rows);
-}
-
-
-/*
-  Find number of records in a range
-
-  SYNOPSIS
-    records_in_range()
-    inx                  Index number
-    min_key              Start of range
-    max_key              End of range
-
-  RETURN VALUE
-    Number of rows in range
-
-  DESCRIPTION
-    Given a starting key, and an ending key estimate the number of rows that
-    will exist between the two. end_key may be empty which in case determine
-    if start_key matches any rows.
-
-    Called from opt_range.cc by check_quick_keys().
-
-    monty: MUST be called for each range and added.
-          Note that MySQL will assume that if this returns 0 there is no
-          matching rows for the range!
+  Given a starting key, and an ending key estimate the number of rows that
+  will exist between the two. max_key may be empty which in case determine
+  if start_key matches any rows.
 */
 
 ha_rows ha_partition::records_in_range(uint inx, key_range *min_key,
 				       key_range *max_key)
 {
+  ha_rows min_rows_to_check, rows, estimated_rows=0, checked_rows= 0;
+  uint partition_index= 0, part_id;
   DBUG_ENTER("ha_partition::records_in_range");
 
-  DBUG_RETURN(estimate_rows(TRUE, inx, min_key, max_key));
+  min_rows_to_check= min_rows_for_estimate();
+
+  while ((part_id= get_biggest_used_partition(&partition_index))
+         != NO_CURRENT_PART_ID)
+  {
+    rows= m_file[part_id]->records_in_range(inx, min_key, max_key);
+      
+    DBUG_PRINT("info", ("part %u match %lu rows of %lu", part_id, (ulong) rows,
+                        (ulong) m_file[part_id]->stats.records));
+
+    if (rows == HA_POS_ERROR)
+      DBUG_RETURN(HA_POS_ERROR);
+    estimated_rows+= rows;
+    checked_rows+= m_file[part_id]->stats.records;
+    /*
+      Returning 0 means no rows can be found, so we must continue
+      this loop as long as we have estimated_rows == 0.
+      Also many engines return 1 to indicate that there may exist
+      a matching row, we do not normalize this by dividing by number of
+      used partitions, but leave it to be returned as a sum, which will
+      reflect that we will need to scan each partition's index.
+
+      Note that this statistics may not always be correct, so we must
+      continue even if the current partition has 0 rows, since we might have
+      deleted rows from the current partition, or inserted to the next
+      partition.
+    */
+    if (estimated_rows && checked_rows &&
+        checked_rows >= min_rows_to_check)
+    {
+      DBUG_PRINT("info",
+                 ("records_in_range(inx %u): %lu (%lu * %lu / %lu)",
+                  inx,
+                  (ulong) (estimated_rows * stats.records / checked_rows),
+                  (ulong) estimated_rows,
+                  (ulong) stats.records,
+                  (ulong) checked_rows));
+      DBUG_RETURN(estimated_rows * stats.records / checked_rows);
+    }
+  }
+  DBUG_PRINT("info", ("records_in_range(inx %u): %lu",
+                      inx,
+                      (ulong) estimated_rows));
+  DBUG_RETURN(estimated_rows);
 }
 
 
-/*
-  Estimate upper bound of number of rows
+/**
+  Estimate upper bound of number of rows.
 
-  SYNOPSIS
-    estimate_rows_upper_bound()
-
-  RETURN VALUE
-    Number of rows
+  @return Number of rows.
 */
 
 ha_rows ha_partition::estimate_rows_upper_bound()
 {
+  ha_rows rows, tot_rows= 0;
+  handler **file= m_file;
   DBUG_ENTER("ha_partition::estimate_rows_upper_bound");
 
-  DBUG_RETURN(estimate_rows(FALSE, 0, NULL, NULL));
+  do
+  {
+    if (bitmap_is_set(&(m_part_info->read_partitions), (file - m_file)))
+    {
+      rows= (*file)->estimate_rows_upper_bound();
+      if (rows == HA_POS_ERROR)
+        DBUG_RETURN(HA_POS_ERROR);
+      tot_rows+= rows;
+    }
+  } while (*(++file));
+  DBUG_RETURN(tot_rows);
 }
 
 

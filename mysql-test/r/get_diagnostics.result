@@ -232,26 +232,26 @@ GET DIAGNOSTICS CONDITION "1" @var = CLASS_ORIGIN;
 SELECT COUNT(max_questions) INTO @var FROM mysql.user;
 GET DIAGNOSTICS CONDITION 9999 @var = CLASS_ORIGIN;
 Warnings:
-Error	1753	Invalid condition number
+Error	1755	Invalid condition number
 GET DIAGNOSTICS CONDITION NULL @var = CLASS_ORIGIN;
 Warnings:
-Error	1753	Invalid condition number
-Error	1753	Invalid condition number
+Error	1755	Invalid condition number
+Error	1755	Invalid condition number
 GET DIAGNOSTICS CONDITION a @var = CLASS_ORIGIN;
 Warnings:
-Error	1753	Invalid condition number
-Error	1753	Invalid condition number
+Error	1755	Invalid condition number
+Error	1755	Invalid condition number
 Error	1054	Unknown column 'a' in 'field list'
 SELECT COUNT(max_questions) INTO @var FROM mysql.user;
 SET @cond = 1;
 GET DIAGNOSTICS CONDITION @cond @var1 = CLASS_ORIGIN;
 Warnings:
-Error	1753	Invalid condition number
+Error	1755	Invalid condition number
 SET @cond = "invalid";
 GET DIAGNOSTICS CONDITION @cond @var1 = CLASS_ORIGIN;
 Warnings:
-Error	1753	Invalid condition number
-Error	1753	Invalid condition number
+Error	1755	Invalid condition number
+Error	1755	Invalid condition number
 SELECT COUNT(max_questions) INTO @var FROM mysql.user;
 CREATE PROCEDURE p1()
 BEGIN
@@ -301,11 +301,11 @@ Warning	1292	Truncated incorrect DECIMAL value: ''
 GET DIAGNOSTICS CONDITION 99999 @var = CLASS_ORIGIN;
 Warnings:
 Warning	1292	Truncated incorrect DECIMAL value: ''
-Error	1753	Invalid condition number
+Error	1755	Invalid condition number
 SHOW WARNINGS;
 Level	Code	Message
 Warning	1292	Truncated incorrect DECIMAL value: ''
-Error	1753	Invalid condition number
+Error	1755	Invalid condition number
 
 # Statement information runtime
 
@@ -488,14 +488,14 @@ CALL p1();
 CAST(-19999999999999999999 AS SIGNED)	-9223372036854775808
 errno1	1292
 msg1	Truncated incorrect DECIMAL value: ''
-errno2	1753
+errno2	1755
 msg2	Invalid condition number
 Warnings:
 Level	Warning
 Code	1292
 Message	Truncated incorrect DECIMAL value: ''
 Level	Error
-Code	1753
+Code	1755
 Message	Invalid condition number
 DROP PROCEDURE p1;
 

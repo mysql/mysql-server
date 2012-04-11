@@ -19,6 +19,61 @@
 # Avoid CrashReporter popup on Mac
 --source include/not_crashrep.inc
 
+##### Restart the server in force recovery mode
+--echo # Stop server
+
+# Write file to make mysql-test-run.pl wait for the server to stop
+-- exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+
+# Request shutdown
+-- send_shutdown
+
+# Call script that will poll the server waiting for it to disapear
+-- source include/wait_until_disconnected.inc
+
+--echo # Restart server.
+
+# Write file to make mysql-test-run.pl start up the server again, ensure
+# that no background threads are started, so that we can check that it
+# shuts down properly.
+--exec echo "restart:--innodb-force-recovery=2" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+
+# Turn on reconnect
+--enable_reconnect
+
+# Call script that will poll the server waiting for it to be back online again
+--source include/wait_until_connected_again.inc
+
+# Turn off reconnect again
+--disable_reconnect
+
+##### Restart the server in normal mode
+# Write file to make mysql-test-run.pl wait for the server to stop
+-- exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+
+# Send a shutdown request to the server
+-- send_shutdown
+
+# Call script that will poll the server waiting for it to disapear
+-- source include/wait_until_disconnected.inc
+
+--echo # Restart server.
+
+# Write file to make mysql-test-run.pl start up the server again, ensure
+# that no background threads are started, so that we can check that it
+# shuts down properly.
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+
+# Turn on reconnect
+--enable_reconnect
+
+# Call script that will poll the server waiting for it to be back online again
+--source include/wait_until_connected_again.inc
+
+# Turn off reconnect again
+--disable_reconnect
+
+
 #
 # Create test data.
 #
@@ -43,7 +98,7 @@ COMMIT;
 SELECT COUNT(*) IN (0,4) yes FROM t1;
 
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---shutdown_server
+--send_shutdown
 --source include/wait_until_disconnected.inc
 
 --exec echo "restart:--innodb-force-recovery=5" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
