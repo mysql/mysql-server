@@ -250,7 +250,7 @@ extern char *master_ssl_cipher, *master_ssl_key;
        
 extern I_List<THD> threads;
 
-bool mts_recovery_groups(Relay_log_info *rli, MY_BITMAP *groups);
+int mts_recovery_groups(Relay_log_info *rli);
 bool mts_checkpoint_routine(Relay_log_info *rli, ulonglong period,
                             bool force, bool locked);
 #endif /* HAVE_REPLICATION */

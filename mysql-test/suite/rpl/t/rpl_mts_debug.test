@@ -25,8 +25,8 @@ CREATE TABLE db_2.test_1 (id INTEGER) engine=Innodb;
 
 --connection slave
 --source include/stop_slave.inc
---let $save_slave_parallel_workers= `SELECT @@global.slave_parallel_workers`
---let $save_debug= `SELECT @@global.debug`
+set @save.slave_parallel_workers= @@global.slave_parallel_workers;
+set @save.debug= @@global.debug;
 SET @@global.slave_parallel_workers= 2;
 ALTER TABLE mysql.slave_relay_log_info ENGINE= Innodb;
 ALTER TABLE mysql.slave_worker_info ENGINE= Innodb;
@@ -44,9 +44,8 @@ DROP DATABASE db_2;
 --sync_slave_with_master
 
 --source include/stop_slave.inc
---replace_result $save_slave_parallel_workers save_slave_parallel_workers
---eval SET @@global.slave_parallel_workers= $save_slave_parallel_workers
---eval SET @@global.debug= "$save_debug"
+SET @@global.slave_parallel_workers= @save.slave_parallel_workers;
+SET @@global.debug= @save.debug;
 --source include/start_slave.inc
 
 #
@@ -106,11 +105,12 @@ source include/start_slave.inc;
 call mtr.add_suppression("option 'slave_checkpoint_group': unsigned value 524281 adjusted to 524280");
 call mtr.add_suppression("Failed during slave worker thread create");
 call mtr.add_suppression("Slave SQL: Failed during slave workers initialization, Error_code: 1593");
+call mtr.add_suppression("Mismatch between the number of bytes configured to store checkpoint information and the previously stored information");
 
---let $saved_slave_checkpoint_group= `SELECT @@global.slave_checkpoint_group`
---let $saved_slave_parallel_workers= `SELECT @@global.slave_parallel_workers`
-SET GLOBAL slave_parallel_workers= 2;
-SET GLOBAL slave_checkpoint_group=524281;
+set @save.slave_checkpoint_group= @@global.slave_checkpoint_group;
+set @save.slave_parallel_workers= @@global.slave_parallel_workers;
+SET @@global.slave_parallel_workers= 2;
+SET @@global.slave_checkpoint_group=524281;
 
 ## TEST #1 
 
@@ -133,15 +133,71 @@ SET GLOBAL slave_checkpoint_group=524281;
 
 --source include/stop_slave.inc
 --let $saved_debug=`SELECT @global.debug`
-SET GLOBAL debug= "d,inject_init_worker_init_info_fault";
+SET @@global.debug= "d,inject_init_worker_init_info_fault";
 START SLAVE SQL_THREAD;
 --let $slave_sql_errno=1593
 --source include/wait_for_slave_sql_error.inc
---eval SET GLOBAL debug="$saved_debug"
+SET @@global.debug= @save.debug;
 
-## clean up
---eval SET GLOBAL slave_checkpoint_group= $saved_slave_checkpoint_group
---eval SET GLOBAL slave_parallel_workers= $saved_slave_parallel_workers
+# cleanup
+
+set @@global.slave_checkpoint_group= @save.slave_checkpoint_group;
+set @@global.slave_parallel_workers= @save.slave_parallel_workers;
+
+#
+# BUG13893310 Checkpoint_group
+#
+# testing various error branches with simulating errors:
+#
+
+## Rpl_info_factory::reset_workers() error branch
+
+call mtr.add_suppression("Could not delete from Slave Workers info repository.");
+# restart slave with workers
+--source include/stop_slave.inc
+set @save.slave_parallel_workers= @@global.slave_parallel_workers;
+set @@global.slave_parallel_workers= 2;
+--source include/start_slave.inc
+--source include/stop_slave.inc
+
+set @@global.debug= "d,mts_debug_reset_workers_fails";
+
+let $relay_file = query_get_value( SHOW SLAVE STATUS, Relay_Log_File, 1 );
+let $relay_pos = query_get_value( SHOW SLAVE STATUS, Relay_Log_Pos, 1 );
+--replace_regex /RELAY_LOG_FILE=[^,]+/RELAY_LOG_FILE=FILE/ /RELAY_LOG_POS=[0-9]+/ RELAY_LOG_POS= POS/
+--error ER_MTS_RESET_WORKERS
+eval change master to relay_log_file='$relay_file', relay_log_pos=$relay_pos;
+
+## Relay_log_info::reset_workers_recovered() error branch
+
+set @@global.debug= "d,mts_debug_recovery_reset_fails";
+start slave sql_thread;
+# ER_SLAVE_FATAL_ERROR
+--let $slave_sql_errno=1593
+--source include/wait_for_slave_sql_error.inc
+
+#
+# mts_recovery_groups() error branche
+#
+
+set @@global.debug= @save.debug;
+
+set @@global.slave_parallel_workers= 2;
+--source include/start_slave.inc
+--source include/stop_slave.inc
+
+call mtr.add_suppression("Error creating relay log info: Failed to intialize the worker info structure.");
+
+set @@global.debug= "d,mts_slave_worker_init_at_gaps_fails";
+--error ER_MASTER_INFO
+start slave sql_thread;
+
+#
+# clean up
+#
+SET @@global.debug= "";
+set @@global.slave_parallel_workers= @save.slave_parallel_workers;
+
 --source include/start_slave.inc
 --source include/rpl_reset.inc
 
