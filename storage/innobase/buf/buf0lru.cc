@@ -874,8 +874,12 @@ buf_LRU_flush_or_remove_pages(
 		buf_LRU_remove_pages(buf_pool, id, buf_remove, trx);
 	}
 
-	ut_ad(trx_is_interrupted(trx)
-	      || buf_flush_get_dirty_pages_count(id) == 0);
+#ifdef UNIV_DEBUG
+	if (trx != 0 && id != 0) {
+		ut_ad(trx_is_interrupted(trx)
+		      || buf_flush_get_dirty_pages_count(id) == 0);
+	}
+#endif /* UNIV_DEBUG */
 }
 
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
