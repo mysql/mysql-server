@@ -264,8 +264,8 @@ UNIV_INTERN
 ulint
 buf_pool_get_dirty_pages_count(
 /*===========================*/
-	const buf_pool_t*	buf_pool,	/*!< in: buffer pool */
-	ulint			id);		/*!< in: space id to check */
+	buf_pool_t*	buf_pool,	/*!< in: buffer pool */
+	ulint		id);		/*!< in: space id to check */
 /******************************************************************//**
 Check if there are any dirty pages that belong to a space id in the flush list.
 @return	count of dirty pages present in all the buffer pools */
