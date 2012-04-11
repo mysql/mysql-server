@@ -95,7 +95,10 @@ class DbImpl implements com.mysql.clusterj.core.store.Db {
     }
 
     public void close() {
-        Ndb.delete(ndb);
+        if (ndb != null) {
+            Ndb.delete(ndb);
+            ndb = null;
+        }
         clusterConnection.close(this);
     }
 
@@ -142,7 +145,7 @@ class DbImpl implements com.mysql.clusterj.core.store.Db {
     /** Enlist an NdbTransaction using table and key data to specify 
      * the transaction coordinator.
      * 
-     * @param table the table
+     * @param tableName the name of the table
      * @param keyParts the list of partition key parts
      * @return the ndbTransaction
      */
@@ -199,8 +202,8 @@ class DbImpl implements com.mysql.clusterj.core.store.Db {
      * the transaction coordinator. This method is also used if
      * the key data is null.
      * 
-     * @param table the table
-     * @param keyParts the list of partition key parts
+     * @param tableName the name of the table
+     * @param partitionId the partition id
      * @return the ndbTransaction
      */
     public NdbTransaction enlist(String tableName, int partitionId) {
