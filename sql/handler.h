@@ -996,23 +996,26 @@ public:
   // Reorder column
   static const HA_ALTER_FLAGS ALTER_COLUMN_ORDER         = 1L << 11;
 
-  // Change column from NULL to NOT NULL or vice versa
+  // Change column from NOT NULL to NULL
   static const HA_ALTER_FLAGS ALTER_COLUMN_NULLABLE      = 1L << 12;
 
+  // Change column from NULL to NOT NULL
+  static const HA_ALTER_FLAGS ALTER_COLUMN_NOT_NULLABLE  = 1L << 13;
+
   // Set or remove default column value
-  static const HA_ALTER_FLAGS ALTER_COLUMN_DEFAULT       = 1L << 13;
+  static const HA_ALTER_FLAGS ALTER_COLUMN_DEFAULT       = 1L << 14;
 
   // Add foreign key
-  static const HA_ALTER_FLAGS ADD_FOREIGN_KEY            = 1L << 14;
+  static const HA_ALTER_FLAGS ADD_FOREIGN_KEY            = 1L << 15;
 
   // Drop foreign key
-  static const HA_ALTER_FLAGS DROP_FOREIGN_KEY           = 1L << 15;
+  static const HA_ALTER_FLAGS DROP_FOREIGN_KEY           = 1L << 16;
 
   // table_options changed, see HA_CREATE_INFO::used_fields for details.
-  static const HA_ALTER_FLAGS CHANGE_CREATE_OPTION       = 1L << 16;
+  static const HA_ALTER_FLAGS CHANGE_CREATE_OPTION       = 1L << 17;
 
   // Table is renamed
-  static const HA_ALTER_FLAGS ALTER_RENAME               = 1L << 17;
+  static const HA_ALTER_FLAGS ALTER_RENAME               = 1L << 18;
 
   /**
     Create options (like MAX_ROWS) for the new version of table.

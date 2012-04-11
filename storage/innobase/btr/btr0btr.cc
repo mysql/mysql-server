@@ -2356,7 +2356,7 @@ btr_insert_on_non_leaf_level_func(
 {
 	big_rec_t*	dummy_big_rec;
 	btr_cur_t	cursor;
-	ulint		err;
+	dberr_t		err;
 	rec_t*		rec;
 
 	ut_ad(level > 0);
@@ -3087,7 +3087,7 @@ btr_node_ptr_delete(
 {
 	btr_cur_t	cursor;
 	ibool		compressed;
-	ulint		err;
+	dberr_t		err;
 
 	ut_ad(mtr_memo_contains(mtr, block, MTR_MEMO_PAGE_X_FIX));
 
