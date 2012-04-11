@@ -12,6 +12,7 @@ ERROR HY000: Lost connection to MySQL server during query
 xa commit'a','ab';
 ERROR XAE04: XAER_NOTA: Unknown XID
 drop table t1;
+CALL mtr.add_suppression("Found 1 prepared XA transactions");
 CREATE TABLE t1 (a INT PRIMARY KEY) ENGINE=tokudb;
 xa begin 'a','ab';
 insert into t1 values (1);
@@ -20,7 +21,6 @@ a
 1
 xa end 'a','ab';
 SET SESSION debug="d,tokudb_crash_prepare_after";
-CALL mtr.add_suppression("Found 1 prepared XA transactions");
 xa prepare 'a','ab';
 ERROR HY000: Lost connection to MySQL server during query
 xa commit 'a','ab';
@@ -36,7 +36,6 @@ a
 1
 xa end 'a','ab';
 SET SESSION debug="d,tokudb_crash_prepare_after";
-CALL mtr.add_suppression("Found 1 prepared XA transactions");
 xa prepare 'a','ab';
 ERROR HY000: Lost connection to MySQL server during query
 xa rollback 'a','ab';
@@ -51,7 +50,6 @@ a
 1
 xa end 'a','ab';
 SET SESSION debug="d,tokudb_crash_commit_before";
-CALL mtr.add_suppression("Found 1 prepared XA transactions");
 xa prepare 'a','ab';
 xa commit 'a','ab';
 ERROR HY000: Lost connection to MySQL server during query
@@ -68,7 +66,6 @@ a
 1
 xa end 'a','ab';
 SET SESSION debug="d,tokudb_crash_commit_before";
-CALL mtr.add_suppression("Found 1 prepared XA transactions");
 xa prepare 'a','ab';
 xa commit 'a','ab';
 ERROR HY000: Lost connection to MySQL server during query
