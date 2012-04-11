@@ -382,6 +382,25 @@ enum enum_binlog_command {
 /** Unused. Reserved for future versions. */
 #define HA_CREATE_USED_PAGE_CHECKSUM    (1L << 21)
 
+
+/*
+  This is master database for most of system tables. However there
+  can be other databases which can hold system tables. Respective
+  storage engines define their own system database names.
+*/
+extern const char *mysqld_system_database;
+
+/*
+  Structure to hold list of system_database.system_table.
+  This is used at both mysqld and storage engine layer.
+*/
+struct st_system_tablename
+{
+  const char *db;
+  const char *tablename;
+};
+
+
 typedef ulonglong my_xid; // this line is the same as in log_event.h
 #define MYSQL_XID_PREFIX "MySQLXid"
 #define MYSQL_XID_PREFIX_LEN 8 // must be a multiple of 8
@@ -800,6 +819,39 @@ struct handlerton
                      const char *wild, bool dir, List<LEX_STRING> *files);
    int (*table_exists_in_engine)(handlerton *hton, THD* thd, const char *db,
                                  const char *name);
+
+  /**
+    List of all system tables specific to the SE.
+    Array element would look like below,
+     { "<database_name>", "<system table name>" },
+    The last element MUST be,
+     { (const char*)NULL, (const char*)NULL }
+
+    @see ha_example_system_tables in ha_example.cc
+
+    This interface is optional, so every SE need not implement it.
+  */
+  const char* (*system_database)();
+
+  /**
+    Check if the given db.tablename is a system table for this SE.
+
+    @param db                         Database name to check.
+    @param table_name                 table name to check.
+    @param is_sql_layer_system_table  if the supplied db.table_name is a SQL
+                                      layer system table.
+
+    @see example_is_supported_system_table in ha_example.cc
+
+    is_sql_layer_system_table is supplied to make more efficient
+    checks possible for SEs that support all SQL layer tables.
+
+    This interface is optional, so every SE need not implement it.
+  */
+  bool (*is_supported_system_table)(const char *db,
+                                    const char *table_name,
+                                    bool is_sql_layer_system_table);
+
    uint32 license; /* Flag for Engine License */
    void *data; /* Location for engines to keep personal structures */
 };
@@ -2238,6 +2290,8 @@ int ha_discover(THD* thd, const char* dbname, const char* name,
 int ha_find_files(THD *thd,const char *db,const char *path,
                   const char *wild, bool dir, List<LEX_STRING>* files);
 int ha_table_exists_in_engine(THD* thd, const char* db, const char* name);
+bool ha_check_if_supported_system_table(handlerton *hton, const char* db, 
+                                        const char* table_name);
 
 /* key cache */
 extern "C" int ha_init_key_cache(const char *name, KEY_CACHE *key_cache);

@@ -103,6 +103,12 @@ static handler *example_create_handler(handlerton *hton,
 
 handlerton *example_hton;
 
+/* Interface to mysqld, to check system tables supported by SE */
+static const char* example_system_database();
+static bool example_is_supported_system_table(const char *db,
+                                      const char *table_name,
+                                      bool is_sql_layer_system_table);
+
 /* Variables for example share methods */
 
 /* 
@@ -165,6 +171,8 @@ static int example_init_func(void *p)
   example_hton->state=   SHOW_OPTION_YES;
   example_hton->create=  example_create_handler;
   example_hton->flags=   HTON_CAN_RECREATE;
+  example_hton->system_database=   example_system_database;
+  example_hton->is_supported_system_table= example_is_supported_system_table;
 
   DBUG_RETURN(0);
 }
@@ -296,6 +304,65 @@ static const char *ha_example_exts[] = {
 const char **ha_example::bas_ext() const
 {
   return ha_example_exts;
+}
+
+/*
+  Following handler function provides access to
+  system database specific to SE. This interface
+  is optional, so every SE need not implement it.
+*/
+const char* ha_example_system_database= NULL;
+const char* example_system_database()
+{
+  return ha_example_system_database;
+}
+
+/*
+  List of all system tables specific to the SE.
+  Array element would look like below,
+     { "<database_name>", "<system table name>" },
+  The last element MUST be,
+     { (const char*)NULL, (const char*)NULL }
+
+  This array is optional, so every SE need not implement it.
+*/
+static st_system_tablename ha_example_system_tables[]= {
+  {(const char*)NULL, (const char*)NULL}
+};
+
+/**
+  @brief Check if the given db.tablename is a system table for this SE.
+
+  @param db                         Database name to check.
+  @param table_name                 table name to check.
+  @param is_sql_layer_system_table  if the supplied db.table_name is a SQL
+                                    layer system table.
+
+  @return
+    @retval TRUE   Given db.table_name is supported system table.
+    @retval FALSE  Given db.table_name is not a supported system table.
+*/
+static bool example_is_supported_system_table(const char *db,
+                                              const char *table_name,
+                                              bool is_sql_layer_system_table)
+{
+  st_system_tablename *systab;
+
+  // Does this SE support "ALL" SQL layer system tables ?
+  if (is_sql_layer_system_table)
+    return false;
+
+  // Check if this is SE layer system tables
+  systab= ha_example_system_tables;
+  while (systab && systab->db)
+  {
+    if (systab->db == db &&
+        strcmp(systab->tablename, table_name) == 0)
+      return true;
+    systab++;
+  }
+
+  return false;
 }
 
 
