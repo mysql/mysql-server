@@ -1,6 +1,8 @@
 -- source include/not_ndb_default.inc
 -- source include/have_innodb.inc
 -- source include/not_mts_slave_parallel_workers.inc
+-- source include/not_relay_log_info_table.inc
+-- source include/not_master_info_table.inc
 
 let $engine_type=innodb;
 -- source extra/rpl_tests/rpl_deadlock.test

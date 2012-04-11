@@ -92,8 +92,8 @@
 #define HA_CAN_INSERT_DELAYED  (1 << 14)
 /*
   If we get the primary key columns for free when we do an index read
-  It also implies that we have to retrive the primary key when using
-  position() and rnd_pos().
+  (usually, it also implies that HA_PRIMARY_KEY_REQUIRED_FOR_POSITION
+  flag is set).
 */
 #define HA_PRIMARY_KEY_IN_READ_INDEX (1 << 15)
 /*
@@ -167,12 +167,10 @@
  */
 #define HA_BINLOG_FLAGS (HA_BINLOG_ROW_CAPABLE | HA_BINLOG_STMT_CAPABLE)
 
-#ifndef MCP_WL5906
 /*
   The handler supports read before write removal optimization
 */
 #define HA_READ_BEFORE_WRITE_REMOVAL  (LL(1) << 38)
-#endif
 
 /* bits in index_flags(index_number) for what you can do with index */
 #define HA_READ_NEXT            1       /* TODO really use this flag */
@@ -2639,6 +2637,7 @@ public:
 
   DsMrr_impl()
     : h2(NULL) {};
+  ~DsMrr_impl() { DBUG_ASSERT(h2 == NULL); }
   
   /*
     The "owner" handler object (the one that calls dsmrr_XXX functions.
@@ -2671,6 +2670,18 @@ public:
   int dsmrr_init(handler *h, RANGE_SEQ_IF *seq_funcs, void *seq_init_param, 
                  uint n_ranges, uint mode, HANDLER_BUFFER *buf);
   void dsmrr_close();
+
+  /**
+    Resets the DS-MRR object to the state it had after being intialized.
+
+    If there is an open scan then this will be closed.
+    
+    This function should be called by handler::ha_reset() which is called
+    when a statement is completed in order to make the handler object ready
+    for re-use by a different statement.
+  */
+
+  void reset();
   int dsmrr_fill_buffer();
   int dsmrr_next(char **range_info);
 

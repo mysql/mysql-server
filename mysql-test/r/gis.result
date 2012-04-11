@@ -1089,7 +1089,9 @@ FORCE INDEX(i) WHERE a = date_sub(now(), interval 2808.4 year_month)
 ;
 1
 Warnings:
+Warning	1292	Truncated incorrect datetime value: '\x00\x00\x00\x00\x01\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\xF0?\x00\x00\x00\x00\x00\x00\xF0?'
 Warning	1441	Datetime function: datetime field overflow
+Warning	1292	Truncated incorrect datetime value: '\x00\x00\x00\x00\x01\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\xF0?\x00\x00\x00\x00\x00\x00\x00@'
 DROP TABLE g1;
 #
 # Bug#13013970 MORE CRASHES IN FIELD_BLOB::GET_KEY_IMAGE

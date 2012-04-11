@@ -750,7 +750,7 @@ EXPLAIN
                   "access_type": "ALL",
                   "rows": 2,
                   "filtered": 100,
-                  "attached_condition": "(`test`.`t1`.`b` and trigcond_if(outer_field_is_not_null, (<cache>((<cache>((select `test`.`t3`.`e` from `test`.`t3`)) < `test`.`t3`.`e`)) or isnull(`test`.`t3`.`e`)), true))"
+                  "attached_condition": "(`test`.`t1`.`b` and trigcond_if(outer_field_is_not_null, ((<cache>((select `test`.`t3`.`e` from `test`.`t3`)) < `test`.`t3`.`e`) or isnull(`test`.`t3`.`e`)), true))"
                 } /* table */
               } /* query_block */
             },
@@ -786,7 +786,7 @@ EXPLAIN
 }
 Warnings:
 Note	1276	Field or reference 'test.t1.b' of SELECT #4 was resolved in SELECT #1
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` semi join (`test`.`t2`) where ((`test`.`t2`.`c` = `test`.`t1`.`a`) and <nop>(<in_optimizer>((/* select#3 */ select `test`.`t3`.`e` from `test`.`t3`),<exists>(/* select#4 */ select 1 from `test`.`t3` where (`test`.`t1`.`b` and trigcond_if(outer_field_is_not_null, (<cache>((<cache>((/* select#3 */ select `test`.`t3`.`e` from `test`.`t3`)) < `test`.`t3`.`e`)) or isnull(`test`.`t3`.`e`)), true)) having trigcond_if(outer_field_is_not_null, <is_not_null_test>(`test`.`t3`.`e`), true)))))
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` semi join (`test`.`t2`) where ((`test`.`t2`.`c` = `test`.`t1`.`a`) and <nop>(<in_optimizer>((/* select#3 */ select `test`.`t3`.`e` from `test`.`t3`),<exists>(/* select#4 */ select 1 from `test`.`t3` where (`test`.`t1`.`b` and trigcond_if(outer_field_is_not_null, ((<cache>((/* select#3 */ select `test`.`t3`.`e` from `test`.`t3`)) < `test`.`t3`.`e`) or isnull(`test`.`t3`.`e`)), true)) having trigcond_if(outer_field_is_not_null, <is_not_null_test>(`test`.`t3`.`e`), true)))))
 DROP TABLE t1, t2, t3, t4;
 # semi-join materialization (if enabled)
 CREATE TABLE t1 (a INT);

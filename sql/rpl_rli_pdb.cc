@@ -114,12 +114,14 @@ Slave_worker::~Slave_worker()
 */
 int Slave_worker::init_worker(Relay_log_info * rli, ulong i)
 {
+  DBUG_ENTER("Slave_worker::init_worker");
   uint k;
   Slave_job_item empty= {NULL};
 
   c_rli= rli;
-  if (init_info())
-    return 1;
+  if (init_info() || 
+      DBUG_EVALUATE_IF("inject_init_worker_init_info_fault", true, false))
+    DBUG_RETURN(1);
 
   id= i;
   curr_group_exec_parts.elements= 0;
@@ -132,22 +134,23 @@ int Slave_worker::init_worker(Relay_log_info * rli, ulong i)
   end_group_sets_max_dbs= false;
   last_group_done_index= c_rli->gaq->size; // out of range
 
+  DBUG_ASSERT(!jobs.inited_queue);
   jobs.avail= 0;
   jobs.len= 0;
   jobs.overfill= FALSE;    //  todo: move into Slave_jobs_queue constructor
   jobs.waited_overfill= 0;
   jobs.entry= jobs.size= c_rli->mts_slave_worker_queue_len_max;
+  jobs.inited_queue= true;
   curr_group_seen_begin= curr_group_seen_gtid= false;
 
   my_init_dynamic_array(&jobs.Q, sizeof(Slave_job_item), jobs.size, 0);
   for (k= 0; k < jobs.size; k++)
     insert_dynamic(&jobs.Q, (uchar*) &empty);
-  
   DBUG_ASSERT(jobs.Q.elements == jobs.size);
   
   wq_overrun_set= FALSE;
 
-  return 0;
+  DBUG_RETURN(0);
 }
 
 int Slave_worker::init_info()

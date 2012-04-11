@@ -16,7 +16,7 @@ slave_relay_log_info	CREATE TABLE `slave_relay_log_info` (
   `Sql_delay` int(11) NOT NULL COMMENT 'The number of seconds that the slave must lag behind the master.',
   `Number_of_workers` int(10) unsigned NOT NULL,
   PRIMARY KEY (`Master_id`)
-) ENGINE=MyISAM DEFAULT CHARSET=utf8 COMMENT='Relay Log Information'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT='Relay Log Information'
 ALTER TABLE mysql.slave_relay_log_info ENGINE= Innodb;
 SHOW CREATE TABLE mysql.slave_relay_log_info;
 Table	Create Table
@@ -46,7 +46,7 @@ call mtr.add_suppression(" Error while checking replication metadata.");
 INSERT INTO t_innodb VALUES (1), (2), (3);
 ALTER TABLE mysql.slave_relay_log_info DROP COLUMN Sql_delay;
 INSERT INTO t_innodb VALUES (1), (2), (3);
-include/wait_for_slave_sql_error.inc [errno=1701]
+include/wait_for_slave_sql_error.inc [errno=1724]
 Last_SQL_Error = 'Column count of mysql.slave_relay_log_info is wrong. Expected 8, found 7. The table is probably corrupted'
 include/stop_slave_io.inc
 include/rpl_restart_server.inc [server_number=2 parameters: --relay-log-info-repository=FILE --skip-slave-start]
@@ -56,7 +56,7 @@ include/start_slave.inc
 INSERT INTO t_innodb VALUES (1), (2), (3);
 ALTER TABLE mysql.slave_relay_log_info DROP COLUMN Sql_delay;
 INSERT INTO t_innodb VALUES (1), (2), (3);
-include/wait_for_slave_sql_error.inc [errno=1701]
+include/wait_for_slave_sql_error.inc [errno=1724]
 Last_SQL_Error = 'Column count of mysql.slave_relay_log_info is wrong. Expected 8, found 7. The table is probably corrupted'
 include/stop_slave_io.inc
 START SLAVE SQL_THREAD;
@@ -109,12 +109,13 @@ mysql.slave_master_info	check	status	OK
 mysql.slave_relay_log_info	check	status	OK
 OPTIMIZE TABLE mysql.slave_master_info, mysql.slave_relay_log_info;
 Table	Op	Msg_type	Msg_text
+mysql.slave_master_info	optimize	note	Table does not support optimize, doing recreate + analyze instead
 mysql.slave_master_info	optimize	status	OK
 mysql.slave_relay_log_info	optimize	note	Table does not support optimize, doing recreate + analyze instead
 mysql.slave_relay_log_info	optimize	status	OK
 REPAIR TABLE mysql.slave_master_info, mysql.slave_relay_log_info EXTENDED;
 Table	Op	Msg_type	Msg_text
-mysql.slave_master_info	repair	status	OK
+mysql.slave_master_info	repair	note	The storage engine for the table doesn't support repair
 mysql.slave_relay_log_info	repair	note	The storage engine for the table doesn't support repair
 SHOW CREATE TABLE mysql.slave_master_info;
 Table	Create Table
@@ -144,7 +145,7 @@ slave_master_info	CREATE TABLE `slave_master_info` (
   `Enabled_auto_position` tinyint(1) NOT NULL COMMENT 'Indicates whether GTIDs will be used to retrieve events from the master.',
   `Retry_count` bigint(20) unsigned NOT NULL COMMENT 'Number of reconnect attempts, to the master, before giving up.',
   PRIMARY KEY (`Master_id`)
-) ENGINE=MyISAM DEFAULT CHARSET=utf8 COMMENT='Master Information'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT='Master Information'
 SHOW CREATE TABLE mysql.slave_relay_log_info;
 Table	Create Table
 slave_relay_log_info	CREATE TABLE `slave_relay_log_info` (

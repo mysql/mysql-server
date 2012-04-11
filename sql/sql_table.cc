@@ -2712,8 +2712,7 @@ bool check_duplicates_in_interval(const char *set_or_name,
     {
       THD *thd= current_thd;
       ErrConvString err(*cur_value, *cur_length, cs);
-      if ((current_thd->variables.sql_mode &
-         (MODE_STRICT_TRANS_TABLES | MODE_STRICT_ALL_TABLES)))
+      if (current_thd->is_strict_mode())
       {
         my_error(ER_DUPLICATED_VALUE_IN_TYPE, MYF(0),
                  name, err.ptr(), set_or_name);
@@ -3845,33 +3844,12 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
       my_error(ER_TOO_LONG_KEY,MYF(0),max_key_length);
       DBUG_RETURN(TRUE);
     }
-
-    uint tmp_len= system_charset_info->cset->charpos(system_charset_info,
-                                           key->key_create_info.comment.str,
-                                           key->key_create_info.comment.str +
-                                           key->key_create_info.comment.length,
-                                           INDEX_COMMENT_MAXLEN);
-
-    if (tmp_len < key->key_create_info.comment.length)
-    {
-      if ((thd->variables.sql_mode &
-           (MODE_STRICT_TRANS_TABLES | MODE_STRICT_ALL_TABLES)))
-      {
-        my_error(ER_TOO_LONG_INDEX_COMMENT, MYF(0),
-                 key_info->name, static_cast<ulong>(INDEX_COMMENT_MAXLEN));
-        DBUG_RETURN(-1);
-      }
-      char warn_buff[MYSQL_ERRMSG_SIZE];
-      my_snprintf(warn_buff, sizeof(warn_buff), ER(ER_TOO_LONG_INDEX_COMMENT),
-                  key_info->name, static_cast<ulong>(INDEX_COMMENT_MAXLEN));
-      /* do not push duplicate warnings */
-      if (!thd->get_stmt_da()->has_sql_condition(warn_buff, strlen(warn_buff)))
-        push_warning(thd, Sql_condition::WARN_LEVEL_WARN,
-                     ER_TOO_LONG_INDEX_COMMENT, warn_buff);
-
-      key->key_create_info.comment.length= tmp_len;
-    }
-
+    if (validate_comment_length(thd, key->key_create_info.comment.str,
+                                &key->key_create_info.comment.length,
+                                INDEX_COMMENT_MAXLEN,
+                                ER_TOO_LONG_INDEX_COMMENT,
+                                key_info->name))
+       DBUG_RETURN(true);
     key_info->comment.length= key->key_create_info.comment.length;
     if (key_info->comment.length > 0)
     {
@@ -3931,6 +3909,56 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
   DBUG_RETURN(FALSE);
 }
 
+/**
+  @brief check comment length of table, column, index and partition
+
+  @details If comment length is more than the standard length
+    truncate it and store the comment length upto the standard
+    comment length size
+
+  @param          thd             Thread handle
+  @param          comment_str     Comment string
+  @param[in,out]  comment_len     Comment length
+  @param          max_len         Maximum allowed comment length
+  @param          err_code        Error message
+  @param          comment_name    Type of comment
+
+  @return Operation status
+    @retval       true            Error found
+    @retval       false           On success
+*/
+
+bool validate_comment_length(THD *thd, const char *comment_str,
+                             size_t *comment_len, uint max_len,
+                             uint err_code, const char *comment_name)
+{
+  int length= 0;
+  DBUG_ENTER("validate_comment_length");
+  uint tmp_len= system_charset_info->cset->charpos(system_charset_info,
+                                                   comment_str,
+                                                   comment_str +
+                                                   *comment_len,
+                                                   max_len);
+  if (tmp_len < *comment_len)
+  {
+    if (thd->is_strict_mode())
+    {
+      my_error(err_code, MYF(0),
+               comment_name, static_cast<ulong>(max_len));
+      DBUG_RETURN(true);
+    }
+    char warn_buff[MYSQL_ERRMSG_SIZE];
+    length= my_snprintf(warn_buff, sizeof(warn_buff), ER(err_code),
+                        comment_name, static_cast<ulong>(max_len));
+    /* do not push duplicate warnings */
+    if (!thd->get_stmt_da()->has_sql_condition(warn_buff, length)) 
+      push_warning(thd, Sql_condition::WARN_LEVEL_WARN,
+                   err_code, warn_buff);
+    *comment_len= tmp_len;
+  }
+  DBUG_RETURN(false);
+}
+
 
 /*
   Set table default charset, if not set
@@ -3987,8 +4015,7 @@ static bool prepare_blob_field(THD *thd, Create_field *sql_field)
     /* Convert long VARCHAR columns to TEXT or BLOB */
     char warn_buff[MYSQL_ERRMSG_SIZE];
 
-    if (sql_field->def || (thd->variables.sql_mode & (MODE_STRICT_TRANS_TABLES |
-                                                      MODE_STRICT_ALL_TABLES)))
+    if (sql_field->def || thd->is_strict_mode())
     {
       my_error(ER_TOO_BIG_FIELDLENGTH, MYF(0), sql_field->field_name,
                static_cast<ulong>(MAX_FIELD_VARCHARLENGTH /
@@ -4229,6 +4256,42 @@ bool mysql_create_table_no_lock(THD *thd,
     char *part_syntax_buf;
     uint syntax_len;
     handlerton *engine_type;
+    List_iterator<partition_element> part_it(part_info->partitions);
+    partition_element *part_elem;
+
+    while ((part_elem= part_it++))
+    {
+      if (part_elem->part_comment)
+      {
+        size_t comment_len= strlen(part_elem->part_comment);
+        if (validate_comment_length(thd, part_elem->part_comment,
+                                     &comment_len,
+                                     TABLE_PARTITION_COMMENT_MAXLEN,
+                                     ER_TOO_LONG_TABLE_PARTITION_COMMENT,
+                                     part_elem->partition_name))
+          DBUG_RETURN(true);
+        part_elem->part_comment[comment_len]= '\0';
+      }
+      if (part_elem->subpartitions.elements)
+      {
+        List_iterator<partition_element> sub_it(part_elem->subpartitions);
+        partition_element *subpart_elem;
+        while ((subpart_elem= sub_it++))
+        {
+          if (subpart_elem->part_comment)
+          {
+            size_t comment_len= strlen(subpart_elem->part_comment);
+            if (validate_comment_length(thd, subpart_elem->part_comment,
+                                         &comment_len,
+                                         TABLE_PARTITION_COMMENT_MAXLEN,
+                                         ER_TOO_LONG_TABLE_PARTITION_COMMENT,
+                                         subpart_elem->partition_name))
+              DBUG_RETURN(true);
+            subpart_elem->part_comment[comment_len]= '\0';
+          }
+        }
+      }
+    } 
     if (create_info->options & HA_LEX_CREATE_TMP_TABLE)
     {
       my_error(ER_PARTITION_NO_TEMPORARY, MYF(0));
@@ -4614,6 +4677,9 @@ bool mysql_create_table(THD *thd, TABLE_LIST *create_table,
   /* Got lock. */
   DEBUG_SYNC(thd, "locked_table_name");
 
+  /* We can abort create table for any table type */
+  thd->abort_on_warning= thd->is_strict_mode();
+
   promote_first_timestamp_column(&alter_info->create_list);
 
   result= mysql_create_table_no_lock(thd, create_table->db,
@@ -4643,6 +4709,8 @@ bool mysql_create_table(THD *thd, TABLE_LIST *create_table,
       result= write_bin_log(thd, TRUE, thd->query(), thd->query_length(), is_trans);
     }
   }
+
+  thd->abort_on_warning= false;
 end:
   DBUG_RETURN(result);
 }
@@ -6823,6 +6891,8 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
   DEBUG_SYNC(thd, "alter_table_before_create_table_no_lock");
   DBUG_EXECUTE_IF("sleep_before_create_table_no_lock",
                   my_sleep(100000););
+  /* We can abort alter table for any table type */
+  thd->abort_on_warning= !ignore && thd->is_strict_mode();
 
   promote_first_timestamp_column(&alter_info->create_list);
 
@@ -6837,6 +6907,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
                                     alter_info,
                                     1, 0, NULL);
   reenable_binlog(thd);
+  thd->abort_on_warning= false;
   if (error)
     goto err;
 
@@ -7434,9 +7505,7 @@ copy_data_between_tables(TABLE *from,TABLE *to,
   alter_table_manage_keys(to, from->file->indexes_are_disabled(), keys_onoff);
 
   /* We can abort alter table for any table type */
-  thd->abort_on_warning= !ignore && test(thd->variables.sql_mode &
-                                         (MODE_STRICT_TRANS_TABLES |
-                                          MODE_STRICT_ALL_TABLES));
+  thd->abort_on_warning= !ignore && thd->is_strict_mode();
 
   from->file->info(HA_STATUS_VARIABLE);
   to->file->ha_start_bulk_insert(from->file->stats.records);

@@ -142,6 +142,13 @@ typedef struct PSI_statement_locker PSI_statement_locker;
 struct PSI_idle_locker;
 typedef struct PSI_idle_locker PSI_idle_locker;
 
+/**
+  Interface for an instrumented statement digest operation.
+  This is an opaque structure.
+*/
+struct PSI_digest_locker;
+typedef struct PSI_digest_locker PSI_digest_locker;
+
 /** Entry point for the performance schema interface. */
 struct PSI_bootstrap
 {
@@ -348,13 +355,6 @@ typedef struct PSI_file_locker PSI_file_locker;
 */
 struct PSI_socket_locker;
 typedef struct PSI_socket_locker PSI_socket_locker;
-
-/**
-  Interface for an instrumented statement digest operation.
-  This is an opaque structure.
-*/
-struct PSI_digest_locker;
-typedef struct PSI_digest_locker PSI_digest_locker;
 
 /** Operation performed on an instrumented mutex. */
 enum PSI_mutex_operation

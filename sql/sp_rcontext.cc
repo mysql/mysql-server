@@ -381,11 +381,12 @@ Item_cache *sp_rcontext::create_case_expr_holder(THD *thd,
   Item_cache *holder;
   Query_arena current_arena;
 
-  thd->set_n_backup_active_arena(thd->spcont->callers_arena, &current_arena);
+  thd->set_n_backup_active_arena(thd->sp_runtime_ctx->callers_arena,
+                                 &current_arena);
 
   holder= Item_cache::get_cache(item);
 
-  thd->restore_active_arena(thd->spcont->callers_arena, &current_arena);
+  thd->restore_active_arena(thd->sp_runtime_ctx->callers_arena, &current_arena);
 
   return holder;
 }
@@ -415,19 +416,6 @@ bool sp_rcontext::set_case_expr(THD *thd, int case_expr_id,
 ///////////////////////////////////////////////////////////////////////////
 // sp_cursor implementation.
 ///////////////////////////////////////////////////////////////////////////
-
-
-sp_cursor::sp_cursor(sp_lex_keeper *lex_keeper, sp_instr_cpush *i)
-  :m_lex_keeper(lex_keeper),
-   server_side_cursor(NULL),
-   m_i(i)
-{
-  /*
-    currsor can't be stored in QC, so we should prevent opening QC for
-    try to write results which are absent.
-  */
-  lex_keeper->disable_query_cache();
-}
 
 
 /*
@@ -547,7 +535,7 @@ bool sp_cursor::Select_fetch_into_spvars::send_data(List<Item> &items)
   */
   for (; spvar= spvar_iter++, item= item_iter++; )
   {
-    if (thd->spcont->set_variable(thd, spvar->offset, &item))
+    if (thd->sp_runtime_ctx->set_variable(thd, spvar->offset, &item))
       return true;
   }
   return false;

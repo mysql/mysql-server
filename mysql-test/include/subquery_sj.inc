@@ -4829,4 +4829,39 @@ DROP TABLE t1;
 
 --echo # End of test for bug#13726217.
 
+--echo # BUG#13773979: Missing rows on second execution of prepared statement
+
+CREATE TABLE t1 (
+  col_int_nokey INT,
+  col_int_key INT,
+  col_varchar_key VARCHAR(1)
+);
+
+INSERT INTO t1 VALUES
+ (1,7,'v'), (7,0,'s'), (4,9,'l'), (7,3,'y'),
+ (2,2,'i'), (9,5,'h'), (0,1,'a'), (9,3,'v');
+
+CREATE VIEW v1 AS SELECT * FROM t1;
+
+let $query=
+SELECT *
+FROM t1
+WHERE col_int_key IN (
+  SELECT alias1.col_int_nokey AS field1
+  FROM v1 AS alias1
+  WHERE alias1.col_varchar_key < 'v'
+);
+
+eval $query;
+eval prepare stmt FROM "$query";
+execute stmt;
+execute stmt;
+
+DEALLOCATE PREPARE stmt;
+
+DROP VIEW v1;
+DROP TABLE t1;
+
+--echo # End of test for bug#13773979.
+
 --echo # End of 5.6 tests
