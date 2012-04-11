@@ -7717,9 +7717,8 @@ int ha_tokudb::add_index(TABLE *table_arg, KEY *key_info, uint num_of_keys, hand
     bool incremented_numDBs = false;
     bool modified_DBs = false;
 
-    DB_TXN* txn = NULL;
-    error = db_env->txn_begin(db_env, 0, &txn, 0);
-    if (error) { goto cleanup; }
+    // transaction is created in prepare_for_alter
+    DB_TXN* txn = transaction;
 
     error = tokudb_add_index(
         table_arg,
@@ -7735,7 +7734,6 @@ cleanup:
     if (error) {
         if (txn) {
             restore_add_index(table_arg, num_of_keys, incremented_numDBs, modified_DBs);
-            abort_txn(txn);
         }
     } else {
         *add = new ha_tokudb_add_index(table_arg, key_info, num_of_keys, txn, incremented_numDBs, modified_DBs);
@@ -7750,7 +7748,7 @@ int ha_tokudb::final_add_index(handler_add_index *add_arg, bool commit) {
     while (ha_tokudb_final_add_index_wait) sleep(1); // debug
 
     // extract the saved state variables
-	ha_tokudb_add_index *add = static_cast<class ha_tokudb_add_index*>(add_arg);
+    ha_tokudb_add_index *add = static_cast<class ha_tokudb_add_index*>(add_arg);
     DB_TXN *txn = add->txn;
     bool incremented_numDBs = add->incremented_numDBs;
     bool modified_DBs = add->modified_DBs;
@@ -7760,12 +7758,12 @@ int ha_tokudb::final_add_index(handler_add_index *add_arg, bool commit) {
 
     int error = 0;
 
-    if (commit) {
-        commit_txn(txn, 0);
-    } else {
+    if (!commit) {
         restore_add_index(table, num_of_keys, incremented_numDBs, modified_DBs);
-        abort_txn(txn);
     }
+    // transaction does not need to be committed,
+    // we depend on MySQL to rollback the transaction
+    // by calling tokudb_rollback
     TOKUDB_DBUG_RETURN(error);
 }
 
