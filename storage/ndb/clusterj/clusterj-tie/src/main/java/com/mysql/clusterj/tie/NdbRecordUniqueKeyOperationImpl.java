@@ -17,21 +17,27 @@
 
 package com.mysql.clusterj.tie;
 
+import com.mysql.clusterj.core.store.Index;
+import com.mysql.clusterj.core.store.IndexOperation;
 import com.mysql.clusterj.core.store.Table;
 
-public class NdbRecordKeyOperationImpl extends NdbRecordOperationImpl {
+public class NdbRecordUniqueKeyOperationImpl extends NdbRecordOperationImpl implements IndexOperation {
 
-    public NdbRecordKeyOperationImpl(ClusterTransactionImpl clusterTransaction, Table storeTable) {
+    public NdbRecordUniqueKeyOperationImpl(ClusterTransactionImpl clusterTransaction, Index storeIndex, Table storeTable) {
         super(clusterTransaction, storeTable);
-        this.ndbRecordKeys = this.ndbRecordValues;
-        this.keyBufferSize = this.valueBufferSize;
-        this.keyBuffer = valueBuffer;
+        this.ndbRecordKeys = clusterTransaction.getCachedNdbRecordImpl(storeIndex, storeTable);
+        this.keyBufferSize = ndbRecordKeys.getBufferSize();
+        // allocate a buffer for the key data
+        keyBuffer = ndbRecordKeys.newBuffer();
     }
 
     public void endDefinition() {
+        // position the key buffer at the beginning for ndbjtie
+        keyBuffer.limit(keyBufferSize);
+        keyBuffer.position(0);
         // position the value buffer at the beginning for ndbjtie
-        valueBuffer.position(0);
         valueBuffer.limit(valueBufferSize);
+        valueBuffer.position(0);
         // create the key operation
         ndbOperation = clusterTransaction.readTuple(ndbRecordKeys.getNdbRecord(), keyBuffer,
                 ndbRecordValues.getNdbRecord(), valueBuffer, mask, null);
@@ -41,7 +47,7 @@ public class NdbRecordKeyOperationImpl extends NdbRecordOperationImpl {
 
     @Override
     public String toString() {
-        return " primary key " + tableName;
+        return " unique key " + tableName;
     }
 
 }

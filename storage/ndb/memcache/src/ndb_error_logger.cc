@@ -208,8 +208,10 @@ void ndb_error_logger_stats(ADD_STAT add_stat, const void *cookie) {
 
   for(i = 0 ; i < ERROR_HASH_TABLE_SIZE; i++) {
     for(sym = error_hash_table[i] ; sym != 0 ; sym = sym->next) { 
-      klen = sprintf(key, "NDB_Error_%d", sym->error_code);
-      vlen = sprintf(val, "%du", sym->count);
+      klen = sprintf(key, "%s_Error_%d", 
+                     (sym->error_code < 29000 ? "NDB" : "Engine"),
+                     sym->error_code);
+      vlen = sprintf(val, "%lu", (long unsigned int) sym->count);
       add_stat(key, klen, val, vlen, cookie);
     }
   }

@@ -255,7 +255,12 @@ public class NdbOpenJPADomainTypeHandlerImpl<T> implements DomainTypeHandler<T> 
                 local.message("ERR_Implementation_Should_Not_Occur"));
     }
 
-    public T newInstance(ValueHandler valueHandler, Db db) {
+    public T newInstance(ValueHandler valueHandler) {
+        throw new ClusterJFatalInternalException(
+                local.message("ERR_Implementation_Should_Not_Occur"));
+    }
+
+    public T newInstance(ResultData resultData,Db db) {
         throw new ClusterJFatalInternalException(
                 local.message("ERR_Implementation_Should_Not_Occur"));
     }
