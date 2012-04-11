@@ -684,7 +684,7 @@ row_purge_parse_undo_rec(
 	/* Prevent DROP TABLE etc. from running when we are doing the purge
 	for this row */
 
-	rw_lock_s_lock_func(&dict_operation_lock, 0, __FILE__, __LINE__);
+	rw_lock_s_lock_inline(&dict_operation_lock, 0, __FILE__, __LINE__);
 
 	node->table = dict_table_open_on_id(table_id, FALSE);
 

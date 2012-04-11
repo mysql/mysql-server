@@ -522,8 +522,8 @@ def	performance_schema	host_cache	COUNT_PROXY_USER_ERRORS	16	NULL	NO	bigint	NULL
 def	performance_schema	host_cache	COUNT_PROXY_USER_ACL_ERRORS	17	NULL	NO	bigint	NULL	NULL	19	0	NULL	NULL	NULL	bigint(20)			select,insert,update,references	
 def	performance_schema	host_cache	COUNT_AUTHENTICATION_ERRORS	18	NULL	NO	bigint	NULL	NULL	19	0	NULL	NULL	NULL	bigint(20)			select,insert,update,references	
 def	performance_schema	host_cache	COUNT_SSL_ERRORS	19	NULL	NO	bigint	NULL	NULL	19	0	NULL	NULL	NULL	bigint(20)			select,insert,update,references	
-def	performance_schema	host_cache	COUNT_MAX_USER_CONNECTION_ERRORS	20	NULL	NO	bigint	NULL	NULL	19	0	NULL	NULL	NULL	bigint(20)			select,insert,update,references	
-def	performance_schema	host_cache	COUNT_MAX_USER_CONNECTION_PER_HOUR_ERRORS	21	NULL	NO	bigint	NULL	NULL	19	0	NULL	NULL	NULL	bigint(20)			select,insert,update,references	
+def	performance_schema	host_cache	COUNT_MAX_USER_CONNECTIONS_ERRORS	20	NULL	NO	bigint	NULL	NULL	19	0	NULL	NULL	NULL	bigint(20)			select,insert,update,references	
+def	performance_schema	host_cache	COUNT_MAX_USER_CONNECTIONS_PER_HOUR_ERRORS	21	NULL	NO	bigint	NULL	NULL	19	0	NULL	NULL	NULL	bigint(20)			select,insert,update,references	
 def	performance_schema	host_cache	COUNT_DEFAULT_DATABASE_ERRORS	22	NULL	NO	bigint	NULL	NULL	19	0	NULL	NULL	NULL	bigint(20)			select,insert,update,references	
 def	performance_schema	host_cache	COUNT_INIT_CONNECT_ERRORS	23	NULL	NO	bigint	NULL	NULL	19	0	NULL	NULL	NULL	bigint(20)			select,insert,update,references	
 def	performance_schema	host_cache	COUNT_LOCAL_ERRORS	24	NULL	NO	bigint	NULL	NULL	19	0	NULL	NULL	NULL	bigint(20)			select,insert,update,references	

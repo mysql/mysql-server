@@ -3018,7 +3018,7 @@ sub ndb_mgmd_start ($$) {
   mtr_add_arg($args, "--defaults-group-suffix=%s", $cluster->suffix());
   mtr_add_arg($args, "--mycnf");
   mtr_add_arg($args, "--nodaemon");
-  mtr_add_arg($args, "--configdir=%s", "$dir"); # MCP_MTRPL
+  mtr_add_arg($args, "--configdir=%s", "$dir"); 
 
   my $path_ndb_mgmd_log= "$dir/ndb_mgmd.log";
 

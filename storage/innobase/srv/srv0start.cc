@@ -1302,6 +1302,44 @@ srv_undo_tablespaces_init(
 }
 
 /********************************************************************
+Wait for the purge thread(s) to start up. */
+static
+void
+srv_start_wait_for_purge_to_start()
+/*===============================*/
+{
+	/* Wait for the purge coordinator and master thread to startup. */
+
+	purge_state_t	state = trx_purge_state();
+
+	ut_a(state != PURGE_STATE_DISABLED);
+
+	while (srv_shutdown_state == SRV_SHUTDOWN_NONE
+	       && srv_force_recovery < SRV_FORCE_NO_BACKGROUND
+	       && state == PURGE_STATE_INIT) {
+
+		switch (state = trx_purge_state()) {
+		case PURGE_STATE_RUN:
+		case PURGE_STATE_STOP:
+			break;
+
+		case PURGE_STATE_INIT:
+			ut_print_timestamp(stderr);
+			fprintf(stderr, " InnoDB: "
+				"Waiting for the background threads to "
+				"start\n");
+
+			os_thread_sleep(50000);
+			break;
+
+		case PURGE_STATE_EXIT:
+		case PURGE_STATE_DISABLED:
+			ut_error;
+		}
+	}
+}
+
+/********************************************************************
 Starts InnoDB and creates a new database if database files
 are not found and the user wants.
 @return	DB_SUCCESS or error code */
@@ -2233,36 +2271,14 @@ innobase_start_or_create_for_mysql(void)
 				srv_worker_thread, NULL,
 				thread_ids + 5 + i + SRV_MAX_N_IO_THREADS);
 		}
+
+		srv_start_wait_for_purge_to_start();
+
+	} else {
+		purge_sys->state = PURGE_STATE_DISABLED;
 	}
 
 	os_thread_create(buf_flush_page_cleaner_thread, NULL, NULL);
-
-	/* Wait for the purge coordinator and master thread to startup. */
-
-	purge_state_t	state = trx_purge_state();
-
-	while (srv_shutdown_state == SRV_SHUTDOWN_NONE
-	       && srv_force_recovery < SRV_FORCE_NO_BACKGROUND
-	       && state == PURGE_STATE_INIT) {
-
-		switch (state = trx_purge_state()) {
-		case PURGE_STATE_RUN:
-		case PURGE_STATE_STOP:
-			break;
-
-		case PURGE_STATE_INIT:
-			ut_print_timestamp(stderr);
-			fprintf(stderr, " InnoDB: "
-				"Waiting for the background threads to "
-				"start\n");
-
-			os_thread_sleep(50000);
-			break;
-
-		case PURGE_STATE_EXIT:
-			ut_error;
-		}
-	}
 
 #ifdef UNIV_DEBUG
 	/* buf_debug_prints = TRUE; */

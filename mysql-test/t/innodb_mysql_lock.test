@@ -34,10 +34,12 @@ set @@autocommit=0;
 
 --echo # Connection 1
 connection con1;
+--echo # Waiting for until transaction will be locked inside innodb subsystem
 let $wait_condition=
-  SELECT COUNT(*) = 1 FROM information_schema.processlist
-  WHERE info = "INSERT INTO t1 VALUES (1)" and 
-  state = "update";
+  SELECT COUNT(*) = 1 FROM information_schema.innodb_trx
+  WHERE trx_query = 'INSERT INTO t1 VALUES (1)' AND
+  trx_operation_state = 'inserting' AND
+  trx_state = 'LOCK WAIT';
 --source include/wait_condition.inc
 let $wait_condition=
   SELECT COUNT(*) = 1 FROM information_schema.processlist

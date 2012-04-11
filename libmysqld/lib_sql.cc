@@ -636,16 +636,14 @@ int init_embedded_server(int argc, char **argv, char **groups)
 
   execute_ddl_log_recovery();
 
-#ifndef MCP_BUGXXX
   /* Signal successful initialization */
   mysql_mutex_lock(&LOCK_server_started);
   mysqld_server_started= 1;
   mysql_cond_signal(&COND_server_started);
   mysql_mutex_unlock(&LOCK_server_started);
-#endif
 
-#ifndef MCP_BUG46955
 #ifdef WITH_NDBCLUSTER_STORAGE_ENGINE
+  /* engine specific hook, to be made generic */
   if (ndb_wait_setup_func && ndb_wait_setup_func(opt_ndb_wait_setup))
   {
     sql_print_warning("NDB : Tables not available after %lu seconds."
@@ -653,7 +651,7 @@ int init_embedded_server(int argc, char **argv, char **groups)
                       opt_ndb_wait_setup);
   }
 #endif
-#endif
+
   return 0;
 }
 
@@ -919,7 +917,7 @@ write_eof_packet(THD *thd, uint server_status, uint statement_warn_count)
     is cleared between substatements, and mysqltest gets confused
   */
   thd->cur_data->embedded_info->warning_count=
-    (thd->spcont ? 0 : min(statement_warn_count, 65535U));
+    (thd->sp_runtime_ctx ? 0 : min(statement_warn_count, 65535U));
   return FALSE;
 }
 

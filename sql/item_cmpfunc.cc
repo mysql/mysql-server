@@ -4922,15 +4922,16 @@ Item *Item_cond::transform(Item_transformer transformer, uchar *arg)
                        nodes of the tree of the object
   @param arg_t         parameter to be passed to the transformer
 
-  @return
-    Item returned as the result of transformation of the root node 
+  @return              Item returned as result of transformation of the node,
+                       the same item if no transformation applied, or NULL if
+                       transformation caused an error.
 */
 
 Item *Item_cond::compile(Item_analyzer analyzer, uchar **arg_p,
                          Item_transformer transformer, uchar *arg_t)
 {
   if (!(this->*analyzer)(arg_p))
-    return 0;
+    return this;
   
   List_iterator<Item> li(list);
   Item *item;
@@ -4942,7 +4943,9 @@ Item *Item_cond::compile(Item_analyzer analyzer, uchar **arg_p,
     */   
     uchar *arg_v= *arg_p;
     Item *new_item= item->compile(analyzer, &arg_v, transformer, arg_t);
-    if (new_item && new_item != item)
+    if (new_item == NULL)
+      return NULL;
+    if (new_item != item)
       current_thd->change_item_tree(li.ref(), new_item);
   }
   return Item_func::transform(transformer, arg_t);

@@ -73,7 +73,7 @@ set @save.slave_parallel_workers= @@global.slave_parallel_workers;
 
 # The following assignment can work only with debug builds.
 # It sets opt_slave_checkpoint_group to one more to its VALID_RANGE() maximum.
-# set @@global.slave_checkpoint_group= 524287 + 1;
+# set @@global.slave_checkpoint_group= 524280 + 1;
 
 set @save.debug= @@global.debug;
 SET @@global.debug= "d,mts_worker_thread_fails";
@@ -89,5 +89,60 @@ set @@global.debug= @save.debug;
 
 source include/start_slave.inc;
 
+#
+# BUG#13681205 : REPLICATION FAILS DURING SLAVE WORKERS INITIALIZATION, 
+#                CRASHES SLAVE 
+#
+# This test checks that the slave starts correctly, even
+# if we set the maximum of slave_checkpoint_group higher
+# than the maximum (the server adjusts it to the proper
+# value).                    
+#
+--connection master
+--source include/rpl_reset.inc
+
+--connection slave
+--source include/stop_slave.inc
+call mtr.add_suppression("option 'slave_checkpoint_group': unsigned value 524281 adjusted to 524280");
+call mtr.add_suppression("Failed during slave worker thread create");
+call mtr.add_suppression("Slave SQL: Failed during slave workers initialization, Error_code: 1593");
+
+--let $saved_slave_checkpoint_group= `SELECT @@global.slave_checkpoint_group`
+--let $saved_slave_parallel_workers= `SELECT @@global.slave_parallel_workers`
+SET GLOBAL slave_parallel_workers= 2;
+SET GLOBAL slave_checkpoint_group=524281;
+
+## TEST #1 
+
+# check that slave will start with the slave_checkpoint_group
+# if include/start_slave.inc does not timeout then the slave was able to start correctly
+--source include/start_slave.inc
+
+--let $assert_cond= @@slave_checkpoint_group=524280
+--let $assert_text= Assert that slave_checkpoint_group was truncated to a valid value.
+--source include/assert.inc
+
+--source include/check_slave_is_running.inc
+
+--source include/rpl_reset.inc
+
+## TEST #2
+#
+# Check that even if the initialization of the info storage
+# fails the server won't crash.
+
+--source include/stop_slave.inc
+--let $saved_debug=`SELECT @global.debug`
+SET GLOBAL debug= "d,inject_init_worker_init_info_fault";
+START SLAVE SQL_THREAD;
+--let $slave_sql_errno=1593
+--source include/wait_for_slave_sql_error.inc
+--eval SET GLOBAL debug="$saved_debug"
+
+## clean up
+--eval SET GLOBAL slave_checkpoint_group= $saved_slave_checkpoint_group
+--eval SET GLOBAL slave_parallel_workers= $saved_slave_parallel_workers
+--source include/start_slave.inc
+--source include/rpl_reset.inc
 
 --source include/rpl_end.inc

@@ -42,7 +42,7 @@ bool Rpl_info_factory::create_coordinators(uint mi_option, Master_info **mi,
 
   if (!((*mi)= Rpl_info_factory::create_mi(mi_option)))
     DBUG_RETURN(TRUE);
-    
+
   if (!((*rli)= Rpl_info_factory::create_rli(rli_option, relay_log_recovery)))
   {
     delete *mi;

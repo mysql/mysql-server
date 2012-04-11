@@ -764,7 +764,8 @@ JOIN::optimize()
   }
 
   /* Cache constant expressions in WHERE, HAVING, ON clauses. */
-  cache_const_exprs();
+  if (cache_const_exprs())
+    DBUG_RETURN(1);
 
   /*
     is this simple IN subquery?
@@ -6445,6 +6446,12 @@ static bool convert_subquery_to_semijoin(JOIN *parent_join,
   /* Unlink the child select_lex: */
   subq_lex->master_unit()->exclude_level();
   /*
+    Update the resolver context - needed for Item_field objects that have been
+    replaced in the item tree for this execution, but are still needed for
+    subsequent executions.
+  */
+  subq_lex->context.select_lex= parent_lex;
+  /*
     Walk through sj nest's WHERE and ON expressions and call
     item->fix_table_changes() for all items.
   */
@@ -6861,36 +6868,48 @@ void JOIN::drop_unused_derived_keys()
 
 /**
   Cache constant expressions in WHERE, HAVING, ON conditions.
+
+  @return False if success, True if error
+
+  @note This function is run after conditions have been pushed down to
+        individual tables, so transformation is applied to JOIN_TAB::condition
+        and not to the WHERE condition.
 */
 
-void JOIN::cache_const_exprs()
+bool JOIN::cache_const_exprs()
 {
-  bool cache_flag= FALSE;
-  bool *analyzer_arg= &cache_flag;
-
   /* No need in cache if all tables are constant. */
   if (const_tables == tables)
-    return;
+    return false;
 
-  if (conds)
-    conds->compile(&Item::cache_const_expr_analyzer, (uchar **)&analyzer_arg,
-                  &Item::cache_const_expr_transformer, (uchar *)&cache_flag);
-  cache_flag= FALSE;
-  if (having)
-    having->compile(&Item::cache_const_expr_analyzer, (uchar **)&analyzer_arg,
-                    &Item::cache_const_expr_transformer, (uchar *)&cache_flag);
-
-  for (JOIN_TAB *tab= join_tab + const_tables; tab < join_tab + tables ; tab++)
+  for (uint i= const_tables; i < tables; i++)
   {
-    if (*tab->on_expr_ref)
-    {
-      cache_flag= FALSE;
-      (*tab->on_expr_ref)->compile(&Item::cache_const_expr_analyzer,
-                                 (uchar **)&analyzer_arg,
-                                 &Item::cache_const_expr_transformer,
-                                 (uchar *)&cache_flag);
-    }
+    Item *condition= join_tab[i].condition();
+    if (condition == NULL)
+      continue;
+    Item *cache_item= NULL;
+    Item **analyzer_arg= &cache_item;
+    condition=
+      condition->compile(&Item::cache_const_expr_analyzer,
+                         (uchar **)&analyzer_arg,
+                         &Item::cache_const_expr_transformer,
+                         (uchar *)&cache_item);
+    if (condition == NULL)
+      return true;
+    if (condition != join_tab[i].condition())
+      join_tab[i].set_condition(condition, __LINE__);
   }
+  if (having)
+  {
+    Item *cache_item= NULL;
+    Item **analyzer_arg= &cache_item;
+    having=
+      having->compile(&Item::cache_const_expr_analyzer, (uchar **)&analyzer_arg,
+                      &Item::cache_const_expr_transformer,(uchar *)&cache_item);
+    if (having == NULL)
+      return true;
+  }
+  return false;
 }
 
 
@@ -8631,13 +8650,18 @@ static Item_cond_and *create_cond_for_const_ref(THD *thd, JOIN_TAB *join_tab)
     Field *field= table->field[table->key_info[join_tab->ref.key].key_part[i].
                                fieldnr-1];
     Item *value= join_tab->ref.items[i];
-    cond->add(new Item_func_equal(new Item_field(field), value));
+    Item *item= new Item_field(field);
+    if (!item)
+      DBUG_RETURN(NULL);
+    item= join_tab->ref.null_rejecting & (1 << i) ?
+            (Item *)new Item_func_eq(item, value) :
+            (Item *)new Item_func_equal(item, value);
+    if (!item)
+      DBUG_RETURN(NULL);
+    if (cond->add(item))
+      DBUG_RETURN(NULL);
   }
-  if (thd->is_fatal_error)
-    DBUG_RETURN(NULL);
-
-  if (!cond->fixed)
-    cond->fix_fields(thd, (Item**)&cond);
+  cond->fix_fields(thd, (Item**)&cond);
 
   DBUG_RETURN(cond);
 }

@@ -24,7 +24,7 @@ slave_relay_log_info	CREATE TABLE `slave_relay_log_info` (
   `Sql_delay` int(11) NOT NULL COMMENT 'The number of seconds that the slave must lag behind the master.',
   `Number_of_workers` int(10) unsigned NOT NULL,
   PRIMARY KEY (`Master_id`)
-) ENGINE=MyISAM DEFAULT CHARSET=utf8 COMMENT='Relay Log Information'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT='Relay Log Information'
 SHOW CREATE TABLE mysql.slave_worker_info;
 Table	Create Table
 slave_worker_info	CREATE TABLE `slave_worker_info` (
@@ -42,7 +42,7 @@ slave_worker_info	CREATE TABLE `slave_worker_info` (
   `Checkpoint_group_size` int(10) unsigned NOT NULL,
   `Checkpoint_group_bitmap` blob NOT NULL,
   PRIMARY KEY (`Master_id`,`Worker_id`)
-) ENGINE=MyISAM DEFAULT CHARSET=utf8 COMMENT='Worker Information'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT='Worker Information'
 ALTER TABLE mysql.slave_relay_log_info ENGINE= Innodb;
 ALTER TABLE mysql.slave_worker_info ENGINE= Innodb;
 SHOW CREATE TABLE mysql.slave_relay_log_info;

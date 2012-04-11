@@ -563,7 +563,7 @@ public:
     return (unit == &thd->lex->unit && (unit->fake_select_lex == 0 ||
                                         select_lex == unit->fake_select_lex));
   }
-  void cache_const_exprs();
+  bool cache_const_exprs();
   bool generate_derived_keys();
   void drop_unused_derived_keys();
   bool get_best_combination();

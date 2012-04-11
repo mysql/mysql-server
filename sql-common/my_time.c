@@ -122,12 +122,16 @@ my_bool check_date(const MYSQL_TIME *ltime, my_bool not_zero_date,
 {
   if (not_zero_date)
   {
-    if ((((flags & TIME_NO_ZERO_IN_DATE) || !(flags & TIME_FUZZY_DATE)) &&
-         (ltime->month == 0 || ltime->day == 0)) ||
-        (!(flags & TIME_INVALID_DATES) &&
-         ltime->month && ltime->day > days_in_month[ltime->month-1] &&
-         (ltime->month != 2 || calc_days_in_year(ltime->year) != 366 ||
-          ltime->day != 29)))
+    if (((flags & TIME_NO_ZERO_IN_DATE) || !(flags & TIME_FUZZY_DATE)) &&
+        (ltime->month == 0 || ltime->day == 0))
+    {
+      *was_cut= MYSQL_TIME_WARN_ZERO_IN_DATE;
+      return TRUE;
+    }
+    else if ((!(flags & TIME_INVALID_DATES) &&
+              ltime->month && ltime->day > days_in_month[ltime->month-1] &&
+              (ltime->month != 2 || calc_days_in_year(ltime->year) != 366 ||
+               ltime->day != 29)))
     {
       *was_cut= MYSQL_TIME_WARN_OUT_OF_RANGE;
       return TRUE;
