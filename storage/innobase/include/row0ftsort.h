@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2010, 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2010, 2012, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -231,19 +231,6 @@ row_fts_start_parallel_merge(
 /*=========================*/
 	fts_psort_t*	merge_info);	/*!< in: parallel sort info */
 /********************************************************************//**
-Insert processed FTS data to the auxillary tables.
-@return DB_SUCCESS if insertion runs fine */
-UNIV_INTERN
-ulint
-row_merge_write_fts_word(
-/*=====================*/
-	trx_t*		trx,		/*!< in: transaction */
-	que_t**		ins_graph,	/*!< in: Insert query graphs */
-	fts_tokenizer_word_t*word,	/*!< in: sorted and tokenized
-					word */
-	fts_table_t*	fts_table,	/*!< in: fts aux table instance */
-	CHARSET_INFO*	charset);	/*!< in: charset */
-/********************************************************************//**
 Read sorted FTS data files and insert data tuples to auxillary tables.
 @return DB_SUCCESS or error number */
 UNIV_INTERN
@@ -275,13 +262,13 @@ Read sorted file containing index data tuples and insert these data
 tuples to the index
 @return DB_SUCCESS or error number */
 UNIV_INTERN
-ulint
+dberr_t
 row_fts_merge_insert(
 /*=================*/
 	dict_index_t*	index,		/*!< in: index */
 	dict_table_t*	table,		/*!< in: new table */
 	fts_psort_t*	psort_info,	/*!< parallel sort info */
-	ulint		id);		/* !< in: which auxiliary table's data
+	ulint		id)		/* !< in: which auxiliary table's data
 					to insert to */
-
+	__attribute__((nonnull));
 #endif /* row0ftsort_h */

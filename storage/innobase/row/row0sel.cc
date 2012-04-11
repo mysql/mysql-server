@@ -672,8 +672,8 @@ sel_enqueue_prefetched_row(
 /*********************************************************************//**
 Builds a previous version of a clustered index record for a consistent read
 @return	DB_SUCCESS or error code */
-static
-ulint
+static __attribute__((nonnull, warn_unused_result))
+dberr_t
 row_sel_build_prev_vers(
 /*====================*/
 	read_view_t*	read_view,	/*!< in: read view */
@@ -690,7 +690,7 @@ row_sel_build_prev_vers(
 					afterwards */
 	mtr_t*		mtr)		/*!< in: mtr */
 {
-	ulint	err;
+	dberr_t	err;
 
 	if (*old_vers_heap) {
 		mem_heap_empty(*old_vers_heap);
@@ -708,8 +708,8 @@ row_sel_build_prev_vers(
 Builds the last committed version of a clustered index record for a
 semi-consistent read.
 @return	DB_SUCCESS or error code */
-static
-ulint
+static __attribute__((nonnull, warn_unused_result))
+dberr_t
 row_sel_build_committed_vers_for_mysql(
 /*===================================*/
 	dict_index_t*	clust_index,	/*!< in: clustered index */
@@ -725,7 +725,7 @@ row_sel_build_committed_vers_for_mysql(
 					afterwards */
 	mtr_t*		mtr)		/*!< in: mtr */
 {
-	ulint	err;
+	dberr_t	err;
 
 	if (prebuilt->old_vers_heap) {
 		mem_heap_empty(prebuilt->old_vers_heap);
@@ -808,8 +808,8 @@ row_sel_test_other_conds(
 Retrieves the clustered index record corresponding to a record in a
 non-clustered index. Does the necessary locking.
 @return	DB_SUCCESS or error code */
-static
-ulint
+static __attribute__((nonnull, warn_unused_result))
+dberr_t
 row_sel_get_clust_rec(
 /*==================*/
 	sel_node_t*	node,	/*!< in: select_node */
@@ -827,7 +827,7 @@ row_sel_get_clust_rec(
 	dict_index_t*	index;
 	rec_t*		clust_rec;
 	rec_t*		old_vers;
-	ulint		err;
+	dberr_t		err;
 	mem_heap_t*	heap		= NULL;
 	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
 	ulint*		offsets		= offsets_;
@@ -981,7 +981,7 @@ err_exit:
 Sets a lock on a record.
 @return	DB_SUCCESS, DB_SUCCESS_LOCKED_REC, or error code */
 UNIV_INLINE
-enum db_err
+dberr_t
 sel_set_rec_lock(
 /*=============*/
 	const buf_block_t*	block,	/*!< in: buffer block of rec */
@@ -994,7 +994,7 @@ sel_set_rec_lock(
 	que_thr_t*		thr)	/*!< in: query thread */
 {
 	trx_t*		trx;
-	enum db_err	err;
+	dberr_t		err;
 
 	trx = thr_get_trx(thr);
 
@@ -1312,8 +1312,8 @@ func_exit:
 /*********************************************************************//**
 Performs a select step.
 @return	DB_SUCCESS or error code */
-static
-ulint
+static __attribute__((nonnull, warn_unused_result))
+dberr_t
 row_sel(
 /*====*/
 	sel_node_t*	node,	/*!< in: select node */
@@ -1346,7 +1346,7 @@ row_sel(
 	&mtr must be committed before we move
 	to the next non-clustered record */
 	ulint		found_flag;
-	ulint		err;
+	dberr_t		err;
 	mem_heap_t*	heap				= NULL;
 	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
 	ulint*		offsets				= offsets_;
@@ -2082,11 +2082,9 @@ row_sel_step(
 			     table_node = static_cast<sym_node_t*>(
 					que_node_get_next(table_node))) {
 
-				enum db_err	err;
-
-				err = static_cast<enum db_err>(lock_table(
+				dberr_t	err = lock_table(
 					0, table_node->table, i_lock_mode,
-					thr));
+					thr);
 
 				if (err != DB_SUCCESS) {
 					trx_t*	trx;
@@ -2119,7 +2117,7 @@ row_sel_step(
 		}
 	}
 
-	enum db_err err = static_cast<enum db_err>(row_sel(node, thr));
+	dberr_t	err = row_sel(node, thr);
 
 	/* NOTE! if queries are parallelized, the following assignment may
 	have problems; the assignment should be made only if thr is the
@@ -3004,8 +3002,8 @@ row_sel_store_mysql_rec(
 /*********************************************************************//**
 Builds a previous version of a clustered index record for a consistent read
 @return	DB_SUCCESS or error code */
-static
-ulint
+static __attribute__((nonnull, warn_unused_result))
+dberr_t
 row_sel_build_prev_vers_for_mysql(
 /*==============================*/
 	read_view_t*	read_view,	/*!< in: read view */
@@ -3022,7 +3020,7 @@ row_sel_build_prev_vers_for_mysql(
 					afterwards */
 	mtr_t*		mtr)		/*!< in: mtr */
 {
-	ulint	err;
+	dberr_t	err;
 
 	if (prebuilt->old_vers_heap) {
 		mem_heap_empty(prebuilt->old_vers_heap);
@@ -3041,8 +3039,8 @@ Retrieves the clustered index record corresponding to a record in a
 non-clustered index. Does the necessary locking. Used in the MySQL
 interface.
 @return	DB_SUCCESS, DB_SUCCESS_LOCKED_REC, or error code */
-static
-enum db_err
+static __attribute__((nonnull, warn_unused_result))
+dberr_t
 row_sel_get_clust_rec_for_mysql(
 /*============================*/
 	row_prebuilt_t*	prebuilt,/*!< in: prebuilt struct in the handle */
@@ -3069,7 +3067,7 @@ row_sel_get_clust_rec_for_mysql(
 	dict_index_t*	clust_index;
 	const rec_t*	clust_rec;
 	rec_t*		old_vers;
-	enum db_err	err;
+	dberr_t		err;
 	trx_t*		trx;
 
 	*out_rec = NULL;
@@ -3168,16 +3166,12 @@ row_sel_get_clust_rec_for_mysql(
 			    clust_rec, clust_index, *offsets,
 			    trx->read_view)) {
 
-			ulint	db_err;
-
 			/* The following call returns 'offsets' associated with
 			'old_vers' */
-			db_err = row_sel_build_prev_vers_for_mysql(
+			err = row_sel_build_prev_vers_for_mysql(
 				trx->read_view, clust_index, prebuilt,
 				clust_rec, offsets, offset_heap, &old_vers,
 				mtr);
-
-			err = static_cast<enum db_err>(db_err);
 
 			if (err != DB_SUCCESS || old_vers == NULL) {
 
@@ -3645,7 +3639,7 @@ position and fetch next or fetch prev must not be tried to the cursor!
 @return DB_SUCCESS, DB_RECORD_NOT_FOUND, DB_END_OF_INDEX, DB_DEADLOCK,
 DB_LOCK_TABLE_FULL, DB_CORRUPTION, or DB_TOO_BIG_RECORD */
 UNIV_INTERN
-ulint
+dberr_t
 row_search_for_mysql(
 /*=================*/
 	byte*		buf,		/*!< in/out: buffer for the fetched
@@ -3676,7 +3670,7 @@ row_search_for_mysql(
 	const rec_t*	rec;
 	const rec_t*	result_rec = NULL;
 	const rec_t*	clust_rec;
-	ulint		err				= DB_SUCCESS;
+	dberr_t		err				= DB_SUCCESS;
 	ibool		unique_search			= FALSE;
 	ibool		mtr_has_extra_clust_latch	= FALSE;
 	ibool		moves_up			= FALSE;
@@ -5023,7 +5017,7 @@ lock_table_wait:
 	mtr_commit(&mtr);
 	mtr_has_extra_clust_latch = FALSE;
 
-	trx->error_state = static_cast<enum db_err>(err);
+	trx->error_state = err;
 
 	/* The following is a patch for MySQL */
 
@@ -5273,7 +5267,7 @@ Read the max AUTOINC value from an index.
 @return DB_SUCCESS if all OK else error code, DB_RECORD_NOT_FOUND if
 column name can't be found in index */
 UNIV_INTERN
-ulint
+dberr_t
 row_search_max_autoinc(
 /*===================*/
 	dict_index_t*	index,		/*!< in: index to search */
@@ -5283,7 +5277,7 @@ row_search_max_autoinc(
 	ulint		i;
 	ulint		n_cols;
 	dict_field_t*	dfield = NULL;
-	ulint		error = DB_SUCCESS;
+	dberr_t		error = DB_SUCCESS;
 
 	n_cols = dict_index_get_n_ordering_defined_by_user(index);
 

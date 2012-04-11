@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2009, 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2009, 2012, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -69,7 +69,7 @@ Calculates new estimates for table and index statistics. The statistics
 are used in query optimization.
 @return DB_* error code or DB_SUCCESS */
 UNIV_INTERN
-enum db_err
+dberr_t
 dict_stats_update(
 /*==============*/
 	dict_table_t*		table,	/*!< in/out: table */
@@ -90,7 +90,7 @@ The transaction will be committed at the very end when dropping an
 index.
 @return DB_SUCCESS or error code */
 UNIV_INTERN
-enum db_err
+dberr_t
 dict_stats_delete_index_stats(
 /*==========================*/
 	const char*	tname,	/*!< in: table name */
@@ -106,7 +106,7 @@ persistent storage if it exists and if there is data stored for the table.
 This function creates its own transaction and commits it.
 @return DB_SUCCESS or error code */
 UNIV_INTERN
-enum db_err
+dberr_t
 dict_stats_delete_table_stats(
 /*==========================*/
 	const char*	table_name,	/*!< in: table name */
