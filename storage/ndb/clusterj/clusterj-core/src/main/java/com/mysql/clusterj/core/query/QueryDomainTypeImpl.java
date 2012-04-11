@@ -27,7 +27,6 @@ import com.mysql.clusterj.core.spi.DomainFieldHandler;
 import com.mysql.clusterj.core.spi.DomainTypeHandler;
 import com.mysql.clusterj.core.spi.QueryExecutionContext;
 import com.mysql.clusterj.core.spi.SessionSPI;
-import com.mysql.clusterj.core.spi.ValueHandler;
 import com.mysql.clusterj.core.spi.ValueHandlerBatching;
 
 import com.mysql.clusterj.core.store.Index;
@@ -163,10 +162,7 @@ public class QueryDomainTypeImpl<T> implements QueryDomainType<T> {
             ResultData resultData = getResultData(context);
             // put the result data into the result list
             while (resultData.next()) {
-                T row = (T) session.newInstance(cls);
-                ValueHandler handler =domainTypeHandler.getValueHandler(row);
-                // set values from result set into object
-                domainTypeHandler.objectSetValues(resultData, handler);
+                T row = session.newInstance(resultData, domainTypeHandler);
                 resultList.add(row);
             }
             session.endAutoTransaction();
@@ -206,6 +202,7 @@ public class QueryDomainTypeImpl<T> implements QueryDomainType<T> {
         switch (scanType) {
 
             case PRIMARY_KEY: {
+                if (logger.isDetailEnabled()) logger.detail("Using primary key find for query.");
                 // perform a select operation
                 Operation op = session.getSelectOperation(domainTypeHandler.getStoreTable());
                 op.beginDefinition();
@@ -221,7 +218,7 @@ public class QueryDomainTypeImpl<T> implements QueryDomainType<T> {
 
             case INDEX_SCAN: {
                 storeIndex = index.getStoreIndex();
-                if (logger.isDetailEnabled()) logger.detail("Using index scan with index " + index.getIndexName());
+                if (logger.isDetailEnabled()) logger.detail("Using index scan with ordered index " + index.getIndexName() + " for query.");
                 IndexScanOperation op;
                 // perform an index scan operation
                 if (index.isMultiRange()) {
@@ -231,27 +228,31 @@ public class QueryDomainTypeImpl<T> implements QueryDomainType<T> {
                     op = session.getIndexScanOperation(storeIndex, domainTypeHandler.getStoreTable());
                     
                 }
+                op.beginDefinition();
                 // set the expected columns into the operation
                 domainTypeHandler.operationGetValues(op);
                 // set the bounds into the operation
                 index.operationSetBounds(context, op);
                 // set additional filter conditions
                 where.filterCmpValue(context, op);
+                op.endDefinition();
                 // execute the scan and get results
                 result = op.resultData();
                 break;
             }
 
             case TABLE_SCAN: {
-                if (logger.isDetailEnabled()) logger.detail("Using table scan");
+                if (logger.isDetailEnabled()) logger.detail("Using table scan for query.");
                 // perform a table scan operation
                 ScanOperation op = session.getTableScanOperation(domainTypeHandler.getStoreTable());
+                op.beginDefinition();
                 // set the expected columns into the operation
                 domainTypeHandler.operationGetValues(op);
-                // set the bounds into the operation
+                // set filter conditions into the operation
                 if (where != null) {
                     where.filterCmpValue(context, op);
                 }
+                op.endDefinition();
                 // execute the scan and get results
                 result = op.resultData();
                 break;
@@ -259,14 +260,16 @@ public class QueryDomainTypeImpl<T> implements QueryDomainType<T> {
 
             case UNIQUE_KEY: {
                 storeIndex = index.getStoreIndex();
-                if (logger.isDetailEnabled()) logger.detail("Using unique lookup with index " + index.getIndexName());
+                if (logger.isDetailEnabled()) logger.detail("Using lookup with unique index " + index.getIndexName() + " for query.");
                 // perform a unique lookup operation
                 IndexOperation op = session.getUniqueIndexOperation(storeIndex, domainTypeHandler.getStoreTable());
+                op.beginDefinition();
                 // set the keys of the indexName into the operation
                 where.operationEqual(context, op);
                 // set the expected columns into the operation
                 //domainTypeHandler.operationGetValuesExcept(op, indexName);
                 domainTypeHandler.operationGetValues(op);
+                op.endDefinition();
                 // execute the select and get results
                 result = op.resultData();
                 break;

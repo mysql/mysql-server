@@ -202,7 +202,7 @@ public class SessionImpl implements SessionSPI, CacheManager, StoreManager {
                 }
                 if (smartValueHandler.found()) {
                     // create a new proxy (or dynamic instance) with the smart value handler
-                    return domainTypeHandler.newInstance(smartValueHandler, db);
+                    return domainTypeHandler.newInstance(smartValueHandler);
                 } else {
                     // not found
                     return null;
@@ -287,6 +287,16 @@ public class SessionImpl implements SessionSPI, CacheManager, StoreManager {
         T instance = factory.newInstance(cls, dictionary, db);
         domainTypeHandler.objectSetKeys(key, instance);
         return instance;
+    }
+
+    /** Create an instance from a result data row.
+     * @param resultData the result of a query
+     * @param domainTypeHandler the domain type handler
+     * @return the instance
+     */
+    public <T> T newInstance(ResultData resultData, DomainTypeHandler<T> domainTypeHandler) {
+        T result = domainTypeHandler.newInstance(resultData, db);
+        return result;
     }
 
     /** Load the instance from the database into memory. Loading
