@@ -6748,6 +6748,10 @@ ER_UNKNOWN_ALTER_LOCK
 
 ER_MTS_CHANGE_MASTER_CANT_RUN_WITH_GAPS
   eng "CHANGE MASTER cannot be executed when the slave was stopped with an error or killed in MTS mode. Consider using RESET SLAVE or START SLAVE UNTIL."
+ER_MTS_RECOVERY_FAILURE
+  eng "Cannot recover after SLAVE errored out in parallel execution mode. Additional error messages can be found in the MySQL error log."
+ER_MTS_RESET_WORKERS
+  eng "Cannot clean up worker info tables. Additional error messages can be found in the MySQL error log."
 #
 #  End of 5.6 error messages.
 #
