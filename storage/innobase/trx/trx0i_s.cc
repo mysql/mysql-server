@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2007, 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2007, 2012, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -505,8 +505,7 @@ fill_trx_row(
 		goto thd_done;
 	}
 
-	row->trx_mysql_thread_id = thd_get_thread_id(
-		static_cast<const THD*>(trx->mysql_thd));
+	row->trx_mysql_thread_id = thd_get_thread_id(trx->mysql_thd);
 
 	stmt = innobase_get_stmt(trx->mysql_thd, &stmt_len);
 

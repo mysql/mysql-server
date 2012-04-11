@@ -204,7 +204,7 @@ one record on the page, the insert will always succeed; this is to
 prevent trying to split a page with just one record.
 @return	DB_SUCCESS, DB_WAIT_LOCK, DB_FAIL, or error number */
 UNIV_INTERN
-ulint
+dberr_t
 btr_cur_optimistic_insert(
 /*======================*/
 	ulint		flags,	/*!< in: undo logging and locking flags: if not
@@ -232,7 +232,7 @@ made on the leaf level, to avoid deadlocks, mtr must also own x-latches
 to brothers of page, if those brothers exist.
 @return	DB_SUCCESS or error number */
 UNIV_INTERN
-ulint
+dberr_t
 btr_cur_pessimistic_insert(
 /*=======================*/
 	ulint		flags,	/*!< in: undo logging and locking flags: if not
@@ -272,7 +272,7 @@ btr_cur_update_alloc_zip(
 Updates a record when the update causes no size changes in its fields.
 @return	DB_SUCCESS or error number */
 UNIV_INTERN
-ulint
+dberr_t
 btr_cur_update_in_place(
 /*====================*/
 	ulint		flags,	/*!< in: undo logging and locking flags */
@@ -297,7 +297,7 @@ so that tree compression is recommended.
 DB_UNDERFLOW if the page would become too empty, or DB_ZIP_OVERFLOW if
 there is not enough space left on the compressed page */
 UNIV_INTERN
-ulint
+dberr_t
 btr_cur_optimistic_update(
 /*======================*/
 	ulint		flags,	/*!< in: undo logging and locking flags */
@@ -321,7 +321,7 @@ update is made on the leaf level, to avoid deadlocks, mtr must also
 own x-latches to brothers of page, if those brothers exist.
 @return	DB_SUCCESS or error code */
 UNIV_INTERN
-ulint
+dberr_t
 btr_cur_pessimistic_update(
 /*=======================*/
 	ulint		flags,	/*!< in: undo logging, locking, and rollback
@@ -350,7 +350,7 @@ of the deleting transaction, and in the roll ptr field pointer to the
 undo log record created.
 @return	DB_SUCCESS, DB_LOCK_WAIT, or error number */
 UNIV_INTERN
-ulint
+dberr_t
 btr_cur_del_mark_set_clust_rec(
 /*===========================*/
 	buf_block_t*	block,	/*!< in/out: buffer block of the record */
@@ -364,7 +364,7 @@ btr_cur_del_mark_set_clust_rec(
 Sets a secondary index record delete mark to TRUE or FALSE.
 @return	DB_SUCCESS, DB_LOCK_WAIT, or error number */
 UNIV_INTERN
-ulint
+dberr_t
 btr_cur_del_mark_set_sec_rec(
 /*=========================*/
 	ulint		flags,	/*!< in: locking flag */
@@ -430,7 +430,7 @@ UNIV_INTERN
 ibool
 btr_cur_pessimistic_delete(
 /*=======================*/
-	ulint*		err,	/*!< out: DB_SUCCESS or DB_OUT_OF_FILE_SPACE;
+	dberr_t*		err,	/*!< out: DB_SUCCESS or DB_OUT_OF_FILE_SPACE;
 				the latter may occur because we may have
 				to update node pointers on upper levels,
 				and in the case of variable length keys
@@ -556,7 +556,7 @@ The fields are stored on pages allocated from leaf node
 file segment of the index tree.
 @return	DB_SUCCESS or DB_OUT_OF_FILE_SPACE */
 UNIV_INTERN
-enum db_err
+dberr_t
 btr_store_big_rec_extern_fields(
 /*============================*/
 	dict_index_t*	index,		/*!< in: index of rec; the index tree

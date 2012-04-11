@@ -71,11 +71,11 @@ static UNIV_COLD __attribute__((nonnull))
 void
 my_error_innodb(
 /*============*/
-	int		error,	/*!< in: InnoDB error code */
+	dberr_t		error,	/*!< in: InnoDB error code */
 	const char*	table,	/*!< in: table name */
 	ulint		flags)	/*!< in: table flags */
 {
-	switch (static_cast<enum db_err>(error)) {
+	switch (error) {
 	case DB_MISSING_HISTORY:
 		my_error(ER_TABLE_DEF_CHANGED, MYF(0));
 		break;
@@ -869,7 +869,7 @@ innobase_fts_check_doc_id_index_in_def(
 		}
 
 		return(FTS_EXIST_DOC_ID_INDEX);
-	}
+        }
 
 	return(FTS_NOT_EXIST_DOC_ID_INDEX);
 }
@@ -1370,9 +1370,8 @@ prepare_inplace_alter_table_dict(
 	dict_index_t*		fts_index	= NULL;
 	dict_table_t*		indexed_table	= user_table;
 	ulint			new_clustered	= 0;
-	int			error;
-	THD*			user_thd	= static_cast<THD*>(
-		user_trx->mysql_thd);
+	dberr_t			error;
+	THD*			user_thd	= user_trx->mysql_thd;
 
 	DBUG_ENTER("prepare_inplace_alter_table_dict");
 	DBUG_ASSERT(!n_drop_index == !drop_index);
@@ -1467,7 +1466,7 @@ prepare_inplace_alter_table_dict(
 
 		if (!innobase_table_flags(table_name, altered_table,
 					  ha_alter_info->create_info,
-					  static_cast<THD*>(trx->mysql_thd),
+					  trx->mysql_thd,
 					  srv_file_per_table,
 					  &flags, &flags2)) {
 			goto new_clustered_failed;
@@ -1603,12 +1602,10 @@ col_fail:
 			innobase_convert_tablename(new_table_name);
 			my_error(HA_ERR_TABLE_EXIST, MYF(0),
 				 new_table_name);
-			error = HA_ERR_TABLE_EXIST;
 			goto new_clustered_failed;
 		default:
 			my_error_innodb(
 				trx->error_state, table_name, flags);
-			error = -1;
 		new_clustered_failed:
 			DBUG_ASSERT(trx != user_trx);
 			trx_rollback_to_savepoint(trx, NULL);
@@ -2224,7 +2221,7 @@ ha_innobase::inplace_alter_table(
 	TABLE*			altered_table,
 	Alter_inplace_info*	ha_alter_info)
 {
-	ulint	error;
+	dberr_t	error;
 
 	DBUG_ENTER("inplace_alter_table");
 #ifdef UNIV_SYNC_DEBUG
@@ -2417,7 +2414,7 @@ innobase_drop_foreign(
 		"DELETE FROM SYS_FOREIGN_COLS WHERE ID=:id;\n"
 		"END;\n";
 
-	db_err		error;
+	dberr_t		error;
 	pars_info_t*	info;
 
 	info = pars_info_create();
@@ -2526,7 +2523,7 @@ innobase_rename_column(
 
 		"END;\n";
 	pars_info_t*	info	= pars_info_create();
-	db_err		error;
+	dberr_t		error;
 
 	pars_info_add_ull_literal(info, "tableid", prebuilt->table->id);
 	pars_info_add_str_literal(info, "table", prebuilt->table->name);
@@ -2744,7 +2741,7 @@ ha_innobase::commit_inplace_alter_table(
 	row_mysql_lock_data_dictionary(trx);
 
 	if (new_clustered) {
-		ulint	error;
+		dberr_t	error;
 		char*	tmp_name;
 
 		/* We copied the table. Any indexes that were
@@ -2798,7 +2795,7 @@ ha_innobase::commit_inplace_alter_table(
 			row_merge_drop_table(trx, ctx->indexed_table);
 		}
 	} else if (ctx) {
-		ulint	error;
+		dberr_t	error;
 		/* We altered the table in place. */
 		ulint	i;
 		/* Lose the TEMP_INDEX_PREFIX. */
@@ -3004,7 +3001,7 @@ processed_field:
 		for (uint i = 0; i < ha_alter_info->index_drop_count; i++) {
 			const KEY*	key
 				= ha_alter_info->index_drop_buffer[i];
-			enum db_err	ret;
+			dberr_t		ret;
 			char		errstr[1024];
 
 			ret = dict_stats_delete_index_stats(
