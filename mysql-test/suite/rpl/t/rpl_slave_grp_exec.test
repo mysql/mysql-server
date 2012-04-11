@@ -169,6 +169,7 @@ TRUNCATE t3;
 ALTER TABLE t1 ENGINE=InnoDB;
 ALTER TABLE t2 ENGINE=InnoDB;
 ALTER TABLE t3 ENGINE=InnoDB;
+--sync_slave_with_master
 
 --connection slave
 RENAME TABLE t3 TO t3_bak;

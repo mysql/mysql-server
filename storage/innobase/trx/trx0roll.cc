@@ -631,7 +631,8 @@ trx_rollback_active(
 			" in recovery if it exists\n",
 			(ib_uint64_t) trx->table_id);
 
-		table = dict_table_open_on_id(trx->table_id, dictionary_locked);
+		table = dict_table_open_on_id(
+			trx->table_id, dictionary_locked, FALSE);
 
 		if (table) {
 			ulint	err;
@@ -643,7 +644,7 @@ trx_rollback_active(
 				dict_table_move_from_lru_to_non_lru(table);
 			}
 
-			dict_table_close(table, dictionary_locked);
+			dict_table_close(table, dictionary_locked, FALSE);
 
 			fputs("InnoDB: Table found: dropping table ", stderr);
 			ut_print_name(stderr, trx, TRUE, table->name);

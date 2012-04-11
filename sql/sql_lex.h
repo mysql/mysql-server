@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -26,6 +26,7 @@
 #include "thr_lock.h"                  /* thr_lock_type, TL_UNLOCK */
 #include "sql_array.h"
 #include "mem_root_array.h"
+#include "sql_alter.h"                // Alter_info
 
 /* YACC and LEX Definitions */
 
@@ -43,9 +44,6 @@ class Event_parse_data;
 class set_var_base;
 class sys_var;
 class Item_func_match;
-class Alter_drop;
-class Alter_column;
-class Key;
 class File_parser;
 class Key_part_spec;
 
@@ -215,6 +213,7 @@ typedef struct st_lex_master_info
   ulonglong pos;
   ulong server_id, retry_count;
   char *gtid;
+  enum {UNTIL_SQL_BEFORE_GTIDS= 0, UNTIL_SQL_AFTER_GTIDS} gtid_until_condition;
 
   /*
     Enum is used for making it possible to detect if the user
@@ -246,11 +245,6 @@ enum sub_select_type
 enum olap_type 
 {
   UNSPECIFIED_OLAP_TYPE, CUBE_TYPE, ROLLUP_TYPE
-};
-
-enum tablespace_op_type
-{
-  NO_TABLESPACE_OP, DISCARD_TABLESPACE, IMPORT_TABLESPACE
 };
 
 /* 
@@ -985,112 +979,6 @@ inline bool st_select_lex_unit::is_union ()
     first_select()->next_select()->linkage == UNION_TYPE;
 }
 
-#define ALTER_ADD_COLUMN	(1L << 0)
-#define ALTER_DROP_COLUMN	(1L << 1)
-#define ALTER_CHANGE_COLUMN	(1L << 2)
-#define ALTER_ADD_INDEX		(1L << 3)
-#define ALTER_DROP_INDEX	(1L << 4)
-#define ALTER_RENAME		(1L << 5)
-#define ALTER_ORDER		(1L << 6)
-#define ALTER_OPTIONS		(1L << 7)
-#define ALTER_CHANGE_COLUMN_DEFAULT (1L << 8)
-#define ALTER_KEYS_ONOFF        (1L << 9)
-#define ALTER_CONVERT           (1L << 10)
-#define ALTER_RECREATE          (1L << 11)
-#define ALTER_ADD_PARTITION     (1L << 12)
-#define ALTER_DROP_PARTITION    (1L << 13)
-#define ALTER_COALESCE_PARTITION (1L << 14)
-#define ALTER_REORGANIZE_PARTITION (1L << 15) 
-#define ALTER_PARTITION          (1L << 16)
-#define ALTER_ADMIN_PARTITION    (1L << 17)
-#define ALTER_TABLE_REORG        (1L << 18)
-#define ALTER_REBUILD_PARTITION  (1L << 19)
-#define ALTER_ALL_PARTITION      (1L << 20)
-#define ALTER_REMOVE_PARTITIONING (1L << 21)
-#define ALTER_FOREIGN_KEY        (1L << 22)
-#define ALTER_EXCHANGE_PARTITION (1L << 23)
-#define ALTER_TRUNCATE_PARTITION (1L << 24)
-
-enum enum_alter_table_change_level
-{
-  ALTER_TABLE_METADATA_ONLY= 0,
-  ALTER_TABLE_DATA_CHANGED= 1,
-  ALTER_TABLE_INDEX_CHANGED= 2
-};
-
-
-/**
-  Temporary hack to enable a class bound forward declaration
-  of the enum_alter_table_change_level enumeration. To be
-  removed once Alter_info is moved to the sql_alter.h
-  header.
-*/
-class Alter_table_change_level
-{
-private:
-  typedef enum enum_alter_table_change_level enum_type;
-  enum_type value;
-public:
-  void operator = (enum_type v) { value = v; }
-  operator enum_type () { return value; }
-};
-
-
-/**
-  @brief Parsing data for CREATE or ALTER TABLE.
-
-  This structure contains a list of columns or indexes to be created,
-  altered or dropped.
-*/
-
-class Alter_info
-{
-public:
-  List<Alter_drop>              drop_list;
-  List<Alter_column>            alter_list;
-  List<Key>                     key_list;
-  List<Create_field>            create_list;
-  uint                          flags;
-  enum enum_enable_or_disable   keys_onoff;
-  enum tablespace_op_type       tablespace_op;
-  List<char>                    partition_names;
-  uint                          num_parts;
-  enum_alter_table_change_level change_level;
-  Create_field                 *datetime_field;
-  bool                          error_if_not_empty;
-
-
-  Alter_info() :
-    flags(0),
-    keys_onoff(LEAVE_AS_IS),
-    tablespace_op(NO_TABLESPACE_OP),
-    num_parts(0),
-    change_level(ALTER_TABLE_METADATA_ONLY),
-    datetime_field(NULL),
-    error_if_not_empty(FALSE)
-  {}
-
-  void reset()
-  {
-    drop_list.empty();
-    alter_list.empty();
-    key_list.empty();
-    create_list.empty();
-    flags= 0;
-    keys_onoff= LEAVE_AS_IS;
-    tablespace_op= NO_TABLESPACE_OP;
-    num_parts= 0;
-    partition_names.empty();
-    change_level= ALTER_TABLE_METADATA_ONLY;
-    datetime_field= 0;
-    error_if_not_empty= FALSE;
-  }
-  Alter_info(const Alter_info &rhs, MEM_ROOT *mem_root);
-private:
-  Alter_info &operator=(const Alter_info &rhs); // not implemented
-  Alter_info(const Alter_info &rhs);            // not implemented
-};
-
 typedef struct struct_slave_connection
 {
   char *user;
@@ -1360,6 +1248,12 @@ public:
       on master and the slave.
     */
     BINLOG_STMT_UNSAFE_UPDATE_IGNORE,
+
+    /**
+      INSERT... ON DUPLICATE KEY UPDATE on a table with more than one
+      UNIQUE KEYS  is unsafe.
+    */
+    BINLOG_STMT_UNSAFE_INSERT_TWO_KEYS,
 
     /* The last element of this enumeration type. */
     BINLOG_STMT_UNSAFE_COUNT
@@ -2768,6 +2662,7 @@ extern bool is_lex_native_function(const LEX_STRING *name);
 
 void my_missing_function_error(const LEX_STRING &token, const char *name);
 bool is_keyword(const char *name, uint len);
+bool db_is_default_db(const char *db, size_t db_len, const THD *thd);
 
 #endif /* MYSQL_SERVER */
 #endif /* SQL_LEX_INCLUDED */

@@ -2902,13 +2902,13 @@ void handler::ha_release_auto_increment()
 }
 
 
-void handler::print_keydup_error(uint key_nr, const char *msg)
+void handler::print_keydup_error(KEY *key, const char *msg)
 {
   /* Write the duplicated key in the error message */
-  char key[MAX_KEY_LENGTH];
-  String str(key,sizeof(key),system_charset_info);
+  char key_buff[MAX_KEY_LENGTH];
+  String str(key_buff,sizeof(key_buff),system_charset_info);
 
-  if (key_nr == MAX_KEY)
+  if (key == NULL)
   {
     /* Key is unknown */
     str.copy("", 0, system_charset_info);
@@ -2917,7 +2917,7 @@ void handler::print_keydup_error(uint key_nr, const char *msg)
   else
   {
     /* Table is opened and defined at this point */
-    key_unpack(&str,table,(uint) key_nr);
+    key_unpack(&str,table, key);
     uint max_length=MYSQL_ERRMSG_SIZE-(uint) strlen(msg);
     if (str.length() >= max_length)
     {
@@ -2925,8 +2925,14 @@ void handler::print_keydup_error(uint key_nr, const char *msg)
       str.append(STRING_WITH_LEN("..."));
     }
     my_printf_error(ER_DUP_ENTRY, msg,
-		    MYF(0), str.c_ptr_safe(), table->key_info[key_nr].name);
+		    MYF(0), str.c_ptr_safe(), key->name);
   }
+}
+
+
+void handler::print_keydup_error(KEY *key)
+{
+  print_keydup_error(key, ER(ER_DUP_ENTRY_WITH_KEY_NAME));
 }
 
 
@@ -2974,7 +2980,7 @@ void handler::print_error(int error, myf errflag)
     uint key_nr=get_dup_key(error);
     if ((int) key_nr >= 0)
     {
-      print_keydup_error(key_nr, ER(ER_DUP_ENTRY_WITH_KEY_NAME));
+      print_keydup_error(key_nr == MAX_KEY ? NULL : &table->key_info[key_nr]);
       DBUG_VOID_RETURN;
     }
     textno=ER_DUP_KEY;
@@ -2988,9 +2994,12 @@ void handler::print_error(int error, myf errflag)
     char rec_buf[MAX_KEY_LENGTH];
     String rec(rec_buf, sizeof(rec_buf), system_charset_info);
     /* Table is opened and defined at this point */
-    key_unpack(&rec, table, 0 /* just print the subset of fields that are
-                              part of the first index, printing the whole
-                              row from there is not easy */);
+
+    /*
+      Just print the subset of fields that are part of the first index,
+      printing the whole row from there is not easy.
+    */
+    key_unpack(&rec, table, &table->key_info[0]);
 
     char child_table_name[NAME_LEN + 1];
     char child_key_name[NAME_LEN + 1];
@@ -3677,22 +3686,96 @@ handler::ha_discard_or_import_tablespace(my_bool discard)
 }
 
 
-/**
-  Prepare for alter: public interface.
-
-  Called to prepare an *online* ALTER.
-
-  @sa handler::prepare_for_alter()
-*/
-
-void
-handler::ha_prepare_for_alter()
+bool handler::ha_prepare_inplace_alter_table(TABLE *altered_table,
+                                             Alter_inplace_info *ha_alter_info)
 {
   DBUG_ASSERT(table_share->tmp_table != NO_TMP_TABLE ||
               m_lock_type != F_UNLCK);
   mark_trx_read_write();
 
-  prepare_for_alter();
+  return prepare_inplace_alter_table(altered_table, ha_alter_info);
+}
+
+
+bool handler::ha_commit_inplace_alter_table(TABLE *altered_table,
+                                            Alter_inplace_info *ha_alter_info,
+                                            bool commit)
+{
+   /*
+     At this point we should have an exclusive metadata lock on the table.
+     The exception is if we're about to roll back changes (commit= false).
+     In this case, we might be rolling back after a failed lock upgrade,
+     so we could be holding the same lock level as for inplace_alter_table().
+   */
+   DBUG_ASSERT(ha_thd()->mdl_context.is_lock_owner(MDL_key::TABLE,
+                                                   table->s->db.str,
+                                                   table->s->table_name.str,
+                                                   MDL_EXCLUSIVE) ||
+               !commit);
+
+   return commit_inplace_alter_table(altered_table, ha_alter_info, commit);
+}
+
+
+/*
+   Default implementation to support in-place alter table
+   and old online add/drop index API
+*/
+
+enum_alter_inplace_result
+handler::check_if_supported_inplace_alter(TABLE *altered_table,
+                                          Alter_inplace_info *ha_alter_info)
+{
+  DBUG_ENTER("check_if_supported_alter");
+
+  HA_CREATE_INFO *create_info= ha_alter_info->create_info;
+
+  Alter_inplace_info::HA_ALTER_FLAGS inplace_offline_operations=
+    Alter_inplace_info::ALTER_COLUMN_EQUAL_PACK_LENGTH |
+    Alter_inplace_info::ALTER_COLUMN_NAME |
+    Alter_inplace_info::ALTER_COLUMN_DEFAULT |
+    Alter_inplace_info::CHANGE_CREATE_OPTION |
+    Alter_inplace_info::ALTER_RENAME;
+
+  /* Is there at least one operation that requires copy algorithm? */
+  if (ha_alter_info->handler_flags & ~inplace_offline_operations)
+    DBUG_RETURN(HA_ALTER_INPLACE_NOT_SUPPORTED);
+
+  /*
+    ALTER TABLE tbl_name CONVERT TO CHARACTER SET .. and
+    ALTER TABLE table_name DEFAULT CHARSET = .. most likely
+    change column charsets and so not supported in-place through
+    old API.
+
+    Changing of PACK_KEYS, MAX_ROWS and ROW_FORMAT options were
+    not supported as in-place operations in old API either.
+  */
+  if (create_info->used_fields & (HA_CREATE_USED_CHARSET |
+                                  HA_CREATE_USED_DEFAULT_CHARSET |
+                                  HA_CREATE_USED_PACK_KEYS |
+                                  HA_CREATE_USED_MAX_ROWS) ||
+      (table->s->row_type != create_info->row_type))
+    DBUG_RETURN(HA_ALTER_INPLACE_NOT_SUPPORTED);
+
+  uint table_changes= (ha_alter_info->handler_flags &
+                       Alter_inplace_info::ALTER_COLUMN_EQUAL_PACK_LENGTH) ?
+    IS_EQUAL_PACK_LENGTH : IS_EQUAL_YES;
+  if (table->file->check_if_incompatible_data(create_info, table_changes)
+      == COMPATIBLE_DATA_YES)
+    DBUG_RETURN(HA_ALTER_INPLACE_EXCLUSIVE_LOCK);
+
+  DBUG_RETURN(HA_ALTER_INPLACE_NOT_SUPPORTED);
+}
+
+
+/*
+   Default implementation to support in-place alter table
+   and old online add/drop index API
+*/
+
+void handler::notify_table_changed()
+{
+  ha_create_handler_files(table->s->path.str, NULL, CHF_INDEX_FLAG, NULL);
 }
 
 
@@ -4721,6 +4804,8 @@ handler::multi_range_read_info_const(uint keyno, RANGE_SEQ_IF *seq,
   
   /* Default MRR implementation doesn't need buffer */
   *bufsz= 0;
+
+  DBUG_EXECUTE_IF("bug13822652_2", thd->killed= THD::KILL_QUERY;);
 
   seq_it= seq->init(seq_init_param, n_ranges, *flags);
   while (!seq->next(seq_it, &range))
@@ -6115,7 +6200,7 @@ static int write_locked_table_maps(THD *thd)
 typedef bool Log_func(THD*, TABLE*, bool,
                       const uchar*, const uchar*);
 
-static int binlog_log_row(TABLE* table,
+int binlog_log_row(TABLE* table,
                           const uchar *before_record,
                           const uchar *after_record,
                           Log_func *log_func)

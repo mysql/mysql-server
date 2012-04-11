@@ -20,6 +20,7 @@ let $master_binlog= query_get_value(SHOW MASTER STATUS, File, 1);
 RESET SLAVE;
 # Connect to master with SSL
 --replace_result $MASTER_MYPORT MASTER_PORT $MYSQL_TEST_DIR MYSQL_TEST_DIR $master_binlog MASTER_BINLOG
+--replace_column 2 ####
 eval CHANGE MASTER TO 
     MASTER_HOST='127.0.0.1',
     MASTER_PORT=$MASTER_MYPORT,
@@ -47,6 +48,7 @@ let $status_var_comparsion= >;
 #
 --echo *** Clean up ***
 --source include/stop_slave.inc
+--replace_column 2 ####
 CHANGE MASTER TO 
     MASTER_SSL=0,
     MASTER_SSL_CA='',

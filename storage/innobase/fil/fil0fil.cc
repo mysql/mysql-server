@@ -2195,7 +2195,7 @@ fil_op_log_parse_or_replay(
 	switch (type) {
 	case MLOG_FILE_DELETE:
 		if (fil_tablespace_exists_in_mem(space_id)) {
-			ut_a(fil_delete_tablespace(space_id));
+			ut_a(fil_delete_tablespace(space_id, TRUE));
 		}
 
 		break;
@@ -2266,7 +2266,9 @@ UNIV_INTERN
 ibool
 fil_delete_tablespace(
 /*==================*/
-	ulint	id)	/*!< in: space id */
+	ulint	id,		/*!< in: space id */
+	ibool	evict_all)	/*!< in: TRUE if we want all pages
+				evicted from LRU. */
 {
 	ibool		success;
 	fil_space_t*	space;
@@ -2393,7 +2395,10 @@ try_again:
 	completely and permanently. The flag is_being_deleted also prevents
 	fil_flush() from being applied to this tablespace. */
 
-	buf_LRU_invalidate_tablespace(id);
+	buf_LRU_flush_or_remove_pages(
+		id, evict_all
+		? BUF_REMOVE_ALL_NO_WRITE
+		: BUF_REMOVE_FLUSH_NO_WRITE);
 #endif
 	/* printf("Deleting tablespace %s id %lu\n", space->name, id); */
 
@@ -2481,7 +2486,7 @@ fil_discard_tablespace(
 {
 	ibool	success;
 
-	success = fil_delete_tablespace(id);
+	success = fil_delete_tablespace(id, TRUE);
 
 	if (!success) {
 		fprintf(stderr,

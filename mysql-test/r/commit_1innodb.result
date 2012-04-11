@@ -840,7 +840,7 @@ call p_verify_status_increment(2, 0, 2, 0);
 SUCCESS
 
 alter table t3 rename t4;
-call p_verify_status_increment(2, 0, 2, 0);
+call p_verify_status_increment(0, 0, 0, 0);
 SUCCESS
 
 rename table t4 to t3;

@@ -1009,8 +1009,7 @@ class Item_func_rollup_const :public Item_func
 public:
   Item_func_rollup_const(Item *a) :Item_func(a)
   {
-    name= a->name;
-    name_length= a->name_length;
+    item_name= a->item_name;
   }
   double val_real() { return args[0]->val_real(); }
   longlong val_int() { return args[0]->val_int(); }
@@ -1737,7 +1736,7 @@ class Item_user_var_as_out_param :public Item
   user_var_entry *entry;
 public:
   Item_user_var_as_out_param(LEX_STRING a) : name(a)
-  { set_name(a.str, 0, system_charset_info); }
+  { item_name.copy(a.str, 0); }
   /* We should return something different from FIELD_ITEM here */
   enum Type type() const { return STRING_ITEM;}
   double val_real();

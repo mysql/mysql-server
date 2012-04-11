@@ -84,7 +84,7 @@ sym_tab_free_private(
 
 		if (sym->token_type == SYM_TABLE_REF_COUNTED) {
 
-			dict_table_close(sym->table, TRUE);
+			dict_table_close(sym->table, TRUE, FALSE);
 
 			sym->table = NULL;
 			sym->resolved = FALSE;

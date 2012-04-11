@@ -1229,12 +1229,12 @@ err_with_reopen:
     */
     thd->locked_tables_list.reopen_tables(thd);
     /*
-      Since downgrade_exclusive_lock() won't do anything with shared
+      Since downgrade_lock() won't do anything with shared
       metadata lock it is much simpler to go through all open tables rather
       than picking only those tables that were flushed.
     */
     for (TABLE *tab= thd->open_tables; tab; tab= tab->next)
-      tab->mdl_ticket->downgrade_exclusive_lock(MDL_SHARED_NO_READ_WRITE);
+      tab->mdl_ticket->downgrade_lock(MDL_SHARED_NO_READ_WRITE);
   }
   DBUG_RETURN(result);
 }
@@ -2351,8 +2351,9 @@ bool wait_while_table_is_used(THD *thd, TABLE *table,
                        table->s->table_name.str, (ulong) table->s,
                        table->db_stat, table->s->version));
 
-  if (thd->mdl_context.upgrade_shared_lock_to_exclusive(
-             table->mdl_ticket, thd->variables.lock_wait_timeout))
+  if (thd->mdl_context.upgrade_shared_lock(
+             table->mdl_ticket, MDL_EXCLUSIVE,
+             thd->variables.lock_wait_timeout))
     DBUG_RETURN(TRUE);
 
   tdc_remove_table(thd, TDC_RT_REMOVE_NOT_OWN,
@@ -2401,7 +2402,7 @@ void drop_open_table(THD *thd, TABLE *table, const char *db_name,
     tdc_remove_table(thd, TDC_RT_REMOVE_ALL, db_name, table_name,
                      FALSE);
     /* Remove the table from the storage engine and rm the .frm. */
-    quick_rm_table(table_type, db_name, table_name, 0);
+    quick_rm_table(thd, table_type, db_name, table_name, 0);
   }
   DBUG_VOID_RETURN;
 }
@@ -3239,9 +3240,9 @@ TABLE *find_locked_table(TABLE *list, const char *db, const char *table_name)
          upgrade the lock and ER_TABLE_NOT_LOCKED_FOR_WRITE will be
          reported.
 
-   @return Pointer to TABLE instance with MDL_SHARED_NO_WRITE,
-           MDL_SHARED_NO_READ_WRITE, or MDL_EXCLUSIVE metadata
-           lock, NULL otherwise.
+   @return Pointer to TABLE instance with MDL_SHARED_UPGRADABLE
+           MDL_SHARED_NO_WRITE, MDL_SHARED_NO_READ_WRITE, or
+           MDL_EXCLUSIVE metadata lock, NULL otherwise.
 */
 
 TABLE *find_table_for_mdl_upgrade(THD *thd, const char *db,
@@ -4772,7 +4773,7 @@ lock_table_names(THD *thd,
   for (table= tables_start; table && table != tables_end;
        table= table->next_global)
   {
-    if (table->mdl_request.type < MDL_SHARED_NO_WRITE ||
+    if (table->mdl_request.type < MDL_SHARED_UPGRADABLE ||
         table->open_type == OT_TEMPORARY_ONLY ||
         (table->open_type == OT_TEMPORARY_OR_BASE && is_temporary_table(table)))
     {
@@ -4857,7 +4858,7 @@ open_tables_check_upgradable_mdl(THD *thd, TABLE_LIST *tables_start,
   for (table= tables_start; table && table != tables_end;
        table= table->next_global)
   {
-    if (table->mdl_request.type < MDL_SHARED_NO_WRITE ||
+    if (table->mdl_request.type < MDL_SHARED_UPGRADABLE ||
         table->open_type == OT_TEMPORARY_ONLY ||
         (table->open_type == OT_TEMPORARY_OR_BASE && is_temporary_table(table)))
     {
@@ -5057,7 +5058,7 @@ restart:
       for (table= *start; table && table != thd->lex->first_not_own_table();
            table= table->next_global)
       {
-        if (table->mdl_request.type >= MDL_SHARED_NO_WRITE)
+        if (table->mdl_request.type >= MDL_SHARED_UPGRADABLE)
           table->mdl_request.ticket= NULL;
       }
     }
@@ -5603,7 +5604,7 @@ TABLE *open_ltable(THD *thd, TABLE_LIST *table_list, thr_lock_type lock_type,
   table_list->required_type= FRMTYPE_TABLE;
 
   /* This function can't properly handle requests for such metadata locks. */
-  DBUG_ASSERT(table_list->mdl_request.type < MDL_SHARED_NO_WRITE);
+  DBUG_ASSERT(table_list->mdl_request.type < MDL_SHARED_UPGRADABLE);
 
   while ((error= open_table(thd, table_list, thd->mem_root, &ot_ctx)) &&
          ot_ctx.can_recover_from_failed_open())
@@ -5879,6 +5880,33 @@ bool lock_tables(THD *thd, TABLE_LIST *tables, uint count,
         has_write_table_with_auto_increment_and_select(tables))
       thd->lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_WRITE_AUTOINC_SELECT);
 
+    /* 
+     INSERT...ON DUPLICATE KEY UPDATE on a table with more than one unique keys
+     can be unsafe.
+     */
+    uint unique_keys= 0;
+    for (TABLE_LIST *query_table= tables; query_table && unique_keys <= 1;
+         query_table= query_table->next_global)
+      if(query_table->table)
+      {
+        uint keys= query_table->table->s->keys, i= 0;
+        unique_keys= 0;
+        for (KEY* keyinfo= query_table->table->s->key_info;
+             i < keys && unique_keys <= 1; i++, keyinfo++)
+        {
+          if (keyinfo->flags & HA_NOSAME)
+            unique_keys++;
+        }
+        if (!query_table->placeholder() &&
+            query_table->lock_type >= TL_WRITE_ALLOW_WRITE &&
+            unique_keys > 1 && thd->lex->sql_command == SQLCOM_INSERT &&
+            /* Duplicate key update is not supported by INSERT DELAYED */
+            thd->get_command() != COM_DELAYED_INSERT &&
+            thd->lex->duplicates == DUP_UPDATE)
+          thd->lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_INSERT_TWO_KEYS);
+      }
+ 
+ 
     /* We have to emulate LOCK TABLES if we are statement needs prelocking. */
     if (thd->lex->requires_prelocking())
     {
@@ -6068,6 +6096,9 @@ void close_tables_for_reopen(THD *thd, TABLE_LIST **tables,
   @param add_to_temporary_tables_list Specifies if the opened TABLE
                                       instance should be linked into
                                       THD::temporary_tables list.
+  @param open_in_engine               Indicates that we need to open table
+                                      in storage engine in addition to
+                                      constructing TABLE object for it.
 
   @note This function is used:
     - by alter_table() to open a temporary table;
@@ -6079,7 +6110,8 @@ void close_tables_for_reopen(THD *thd, TABLE_LIST **tables,
 
 TABLE *open_table_uncached(THD *thd, const char *path, const char *db,
                            const char *table_name,
-                           bool add_to_temporary_tables_list)
+                           bool add_to_temporary_tables_list,
+                           bool open_in_engine)
 {
   TABLE *tmp_table;
   TABLE_SHARE *share;
@@ -6130,8 +6162,9 @@ TABLE *open_table_uncached(THD *thd, const char *path, const char *db,
 #endif
 
   if (open_table_from_share(thd, share, table_name,
+                            open_in_engine ?
                             (uint) (HA_OPEN_KEYFILE | HA_OPEN_RNDFILE |
-                                    HA_GET_INDEX),
+                                    HA_GET_INDEX) : 0,
                             READ_KEYINFO | COMPUTE_TYPES | EXTRA_RECORD,
                             ha_open_options,
                             tmp_table, FALSE))
@@ -6165,17 +6198,27 @@ TABLE *open_table_uncached(THD *thd, const char *path, const char *db,
 }
 
 
-bool rm_temporary_table(handlerton *base, char *path)
+/**
+  Delete a temporary table.
+
+  @param base  Handlerton for table to be deleted.
+  @param path  Path to the table to be deleted (i.e. path
+               to its .frm without an extension).
+
+  @retval false - success.
+  @retval true  - failure.
+*/
+
+bool rm_temporary_table(handlerton *base, const char *path)
 {
   bool error=0;
   handler *file;
-  char *ext;
+  char frm_path[FN_REFLEN + 1];
   DBUG_ENTER("rm_temporary_table");
 
-  strmov(ext= strend(path), reg_ext);
-  if (mysql_file_delete(key_file_frm, path, MYF(0)))
+  strxnmov(frm_path, sizeof(frm_path) - 1, path, reg_ext, NullS);
+  if (mysql_file_delete(key_file_frm, frm_path, MYF(0)))
     error=1; /* purecov: inspected */
-  *ext= 0;				// remove extension
   file= get_new_handler((TABLE_SHARE*) 0, current_thd->mem_root, base);
   if (file && file->ha_delete_table(path))
   {
@@ -6443,13 +6486,10 @@ find_field_in_view(THD *thd, TABLE_LIST *table_list,
        the replacing item.
        We need to set alias on both ref itself and on ref real item.
       */
-      if (*ref && !(*ref)->is_autogenerated_name)
+      if (*ref && !(*ref)->item_name.is_autogenerated())
       {
-        item->is_autogenerated_name= false;
-        item->set_name((*ref)->name, (*ref)->name_length,
-                       system_charset_info);
-        item->real_item()->set_name((*ref)->name, (*ref)->name_length,
-                       system_charset_info);
+        item->item_name= (*ref)->item_name;
+        item->real_item()->item_name= (*ref)->item_name;
       }
       if (register_tree_change)
         thd->change_item_tree(ref, item);
@@ -6543,13 +6583,10 @@ find_field_in_natural_join(THD *thd, TABLE_LIST *table_ref, const char *name,
      the replacing item.
      We need to set alias on both ref itself and on ref real item.
      */
-    if (*ref && !(*ref)->is_autogenerated_name)
+    if (*ref && !(*ref)->item_name.is_autogenerated())
     {
-      item->is_autogenerated_name= false;
-      item->set_name((*ref)->name, (*ref)->name_length,
-                     system_charset_info);
-      item->real_item()->set_name((*ref)->name, (*ref)->name_length,
-                                  system_charset_info);
+      item->item_name= (*ref)->item_name;
+      item->real_item()->item_name= (*ref)->item_name;
     }
     if (register_tree_change && arena)
       thd->restore_active_arena(arena, &backup);
@@ -6586,7 +6623,7 @@ find_field_in_natural_join(THD *thd, TABLE_LIST *table_ref, const char *name,
         nj_col->table_field->fix_fields(thd, (Item **)&nj_col->table_field))
     {
       DBUG_PRINT("info", ("column '%s' was dropped by the concurrent connection",
-                          nj_col->table_field->name));
+                          nj_col->table_field->item_name.ptr()));
       DBUG_RETURN(NULL);
     }
     DBUG_ASSERT(nj_col->table_ref->table == nj_col->table_field->field->table);
@@ -7000,7 +7037,8 @@ find_field_in_tables(THD *thd, Item_ident *item,
 #endif
     }
     else
-      found= find_field_in_table_ref(thd, table_ref, name, length, item->name,
+      found= find_field_in_table_ref(thd, table_ref, name, length,
+                                     item->item_name.ptr(),
                                      NULL, NULL, ref, check_privileges,
                                      TRUE, &(item->cached_field_index),
                                      register_tree_change,
@@ -7049,7 +7087,7 @@ find_field_in_tables(THD *thd, Item_ident *item,
        cur_table= cur_table->next_name_resolution_table)
   {
     Field *cur_field= find_field_in_table_ref(thd, cur_table, name, length,
-                                              item->name, db, table_name, ref,
+                                              item->item_name.ptr(), db, table_name, ref,
                                               (thd->lex->sql_command ==
                                                SQLCOM_SHOW_FIELDS)
                                               ? false : check_privileges,
@@ -7066,7 +7104,7 @@ find_field_in_tables(THD *thd, Item_ident *item,
 
         thd->clear_error();
         cur_field= find_field_in_table_ref(thd, cur_table, name, length,
-                                           item->name, db, table_name, ref,
+                                           item->item_name.ptr(), db, table_name, ref,
                                            false,
                                            allow_rowid,
                                            &(item->cached_field_index),
@@ -7221,7 +7259,7 @@ find_item_in_list(Item *find, List<Item> &items, uint *counter,
 	(if this field created from expression argument of group_concat()),
 	=> we have to check presence of name before compare
       */ 
-      if (!item_field->name)
+      if (!item_field->item_name.ptr())
         continue;
 
       if (table_name)
@@ -7276,8 +7314,7 @@ find_item_in_list(Item *find, List<Item> &items, uint *counter,
         int fname_cmp= my_strcasecmp(system_charset_info,
                                      item_field->field_name,
                                      field_name);
-        if (!my_strcasecmp(system_charset_info,
-                           item_field->name,field_name))
+        if (item_field->item_name.eq(field_name))
         {
           /*
             If table name was not given we should scan through aliases
@@ -7321,8 +7358,7 @@ find_item_in_list(Item *find, List<Item> &items, uint *counter,
     }
     else if (!table_name)
     { 
-      if (is_ref_by_name && find->name && item->name &&
-	  !my_strcasecmp(system_charset_info,item->name,find->name))
+      if (is_ref_by_name && item->item_name.eq(&find->item_name))
       {
         found= li.ref();
         *counter= i;
@@ -7353,8 +7389,8 @@ find_item_in_list(Item *find, List<Item> &items, uint *counter,
         Item_field for tables.
       */
       Item_ident *item_ref= (Item_ident *) item;
-      if (item_ref->name && item_ref->table_name &&
-          !my_strcasecmp(system_charset_info, item_ref->name, field_name) &&
+      if (item_ref->item_name.eq(field_name) &&
+          item_ref->table_name &&
           !my_strcasecmp(table_alias_charset, item_ref->table_name,
                          table_name) &&
           (!db_name || (item_ref->db_name && 
@@ -8901,7 +8937,7 @@ fill_record(THD * thd, List<Item> &fields, List<Item> &values,
     fld= (Item_field*)f++;
     if (!(field= fld->filed_for_view_update()))
     {
-      my_error(ER_NONUPDATEABLE_COLUMN, MYF(0), fld->name);
+      my_error(ER_NONUPDATEABLE_COLUMN, MYF(0), fld->item_name.ptr());
       goto err;
     }
     table= field->field->table;
@@ -8912,7 +8948,7 @@ fill_record(THD * thd, List<Item> &fields, List<Item> &values,
   {
     if (!(field= fld->filed_for_view_update()))
     {
-      my_error(ER_NONUPDATEABLE_COLUMN, MYF(0), fld->name);
+      my_error(ER_NONUPDATEABLE_COLUMN, MYF(0), fld->item_name.ptr());
       goto err;
     }
     value=v++;

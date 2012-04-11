@@ -810,6 +810,9 @@ public:
      expensive to re-caclulate for every join prefix we consider, so we
      maintain current state in join->positions[#tables_in_prefix]. See
      advance_sj_state() for details.
+
+  This class has to stay a POD, because it is memcpy'd in many places. It
+  however has a no-argument constructor which must be used.
 */
 
 typedef struct st_position : public Sql_alloc
@@ -925,6 +928,8 @@ typedef struct st_position : public Sql_alloc
     semi-join's ON expression so we can correctly account for fanout.
   */
   table_map sjm_scan_need_tables;
+
+  st_position() : sj_strategy(SJ_OPT_NONE), dups_producing_tables(0) {}
 } POSITION;
 
 
@@ -1142,20 +1147,6 @@ bool and_conditions(Item **e1, Item *e2);
 static inline Item * and_items(Item* cond, Item *item)
 {
   return (cond? (new Item_cond_and(cond, item)) : item);
-}
-
-/**
-  Printing the transformed query in EXPLAIN EXTENDED or optimizer trace
-  requires non-destroyed JOINs for subquery engines. So items must be
-  preserved until end of mysql_execute_command().
-*/
-static inline bool preserve_items_for_printing(const THD *thd)
-{
-  return (thd->lex->describe
-#ifdef OPTIMIZER_TRACE
-          || thd->opt_trace.support_I_S()
-#endif
-          );
 }
 
 #endif /* SQL_SELECT_INCLUDED */
