@@ -41,6 +41,11 @@ SET(ARIA_SOURCES ma_init.c ma_open.c ma_extra.c ma_info.c ma_rkey.c
             ma_norec.c
 )
 
+IF(APPLE)
+  # Workaround linker bug on OSX 10.7
+  ADD_DEFINITIONS(-fno-common)
+ENDIF()
+
 MYSQL_ADD_PLUGIN(aria ${ARIA_SOURCES} 
   STORAGE_ENGINE STATIC_ONLY DEFAULT
   RECOMPILE_FOR_EMBEDDED)

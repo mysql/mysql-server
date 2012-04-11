@@ -27,7 +27,7 @@ TARGET_LINK_LIBRARIES(tests dbug)
 ADD_EXECUTABLE(factorial my_main.c factorial.c)
 TARGET_LINK_LIBRARIES(factorial dbug)
 
-IF(NOT WIN32)
+IF(NOT WIN32 AND NOT CMAKE_GENERATOR MATCHES Xcode)
   FIND_PROGRAM(GROFF groff)
   FIND_PROGRAM(NROFF nroff)
   SET(OUTPUT_INC output1.r output2.r output3.r output4.r output5.r)
@@ -63,5 +63,5 @@ IF(NOT WIN32)
     ADD_CUSTOM_TARGET(t ALL DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/user.t)
   ENDIF(NROFF)
 
-ENDIF(NOT WIN32)
+ENDIF()
 
