@@ -27,6 +27,10 @@ xa prepare 'a','ab';
 xa commit'a','ab';
 drop table t1;
 
+# this warning is expected, we want to test that
+# a prepared transaction is around after we come back up
+CALL mtr.add_suppression("Found 1 prepared XA transactions");
+
 CREATE TABLE t1 (a INT PRIMARY KEY) ENGINE=tokudb;
 xa begin 'a','ab';
 insert into t1 values (1);
@@ -35,9 +39,6 @@ xa end 'a','ab';
 SET SESSION debug="d,tokudb_crash_prepare_after";
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 
-# this warning is expected, we want to test that
-# a prepared transaction is around after we come back up
-CALL mtr.add_suppression("Found 1 prepared XA transactions");
 
 --error 2013
 xa prepare 'a','ab';
@@ -58,10 +59,6 @@ select * from t1;
 xa end 'a','ab';
 SET SESSION debug="d,tokudb_crash_prepare_after";
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
-
-# this warning is expected, we want to test that
-# a prepared transaction is around after we come back up
-CALL mtr.add_suppression("Found 1 prepared XA transactions");
 
 --error 2013
 xa prepare 'a','ab';
@@ -83,10 +80,6 @@ xa end 'a','ab';
 SET SESSION debug="d,tokudb_crash_commit_before";
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 
-# this warning is expected, we want to test that
-# a prepared transaction is around after we come back up
-CALL mtr.add_suppression("Found 1 prepared XA transactions");
-
 xa prepare 'a','ab';
 --error 2013
 xa commit 'a','ab';
@@ -107,9 +100,6 @@ xa end 'a','ab';
 SET SESSION debug="d,tokudb_crash_commit_before";
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 
-# this warning is expected, we want to test that
-# a prepared transaction is around after we come back up
-CALL mtr.add_suppression("Found 1 prepared XA transactions");
 
 xa prepare 'a','ab';
 --error 2013
