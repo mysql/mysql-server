@@ -533,8 +533,8 @@ ALTER TABLE tp EXCHANGE PARTITION p0 WITH TABLE t;
 ERROR HY000: Non matching attribute 'MAX_ROWS' between partition and table
 SHOW WARNINGS;
 Level	Code	Message
-Error	1705	Non matching attribute 'MAX_ROWS' between partition and table
-Error	1705	Non matching attribute 'MIN_ROWS' between partition and table
+Error	1728	Non matching attribute 'MAX_ROWS' between partition and table
+Error	1728	Non matching attribute 'MIN_ROWS' between partition and table
 DROP TABLE t;
 RENAME TABLE tmp2 TO t;
 ALTER TABLE t ADD KEY ba_key (b, a);

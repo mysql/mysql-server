@@ -359,8 +359,8 @@ ib_vector_remove(
 			}
 
 			next = ib_vector_get(vec, i + 1);
-			memcpy(current, next, vec->sizeof_value
-			       * (vec->used - i - 1));
+			memmove(current, next, vec->sizeof_value
+			        * (vec->used - i - 1));
 		}
 	}
 

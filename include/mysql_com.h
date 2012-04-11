@@ -39,6 +39,7 @@
 #define TABLE_COMMENT_MAXLEN 2048
 #define COLUMN_COMMENT_MAXLEN 1024
 #define INDEX_COMMENT_MAXLEN 1024
+#define TABLE_PARTITION_COMMENT_MAXLEN 1024
 
 /*
   USER_HOST_BUFF_SIZE -- length of string buffer, that is enough to contain

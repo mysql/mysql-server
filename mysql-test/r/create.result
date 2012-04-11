@@ -1824,7 +1824,9 @@ CREATE TABLE t1(c1 TIMESTAMP, c2 TIMESTAMP);
 SET sql_mode = NO_ZERO_DATE;
 
 CREATE TABLE t2(c1 TIMESTAMP, c2 TIMESTAMP DEFAULT 0);
-ERROR 42000: Invalid default value for 'c2'
+Warnings:
+Warning	1264	Out of range value for column 'c2' at row 1
+DROP TABLE t2;
 
 CREATE TABLE t2(c1 TIMESTAMP, c2 TIMESTAMP);
 ERROR 42000: Invalid default value for 'c2'
@@ -1834,7 +1836,8 @@ CREATE TABLE t2(c1 TIMESTAMP NULL);
 
 # -- Check ALTER TABLE.
 ALTER TABLE t1 ADD INDEX(c1);
-ERROR 42000: Invalid default value for 'c2'
+Warnings:
+Warning	1264	Out of range value for column 'c2' at row 1
 
 # -- Check DATETIME.
 SET sql_mode = '';

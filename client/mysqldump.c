@@ -4083,12 +4083,11 @@ static int dump_tablespaces(char* ts_where)
 }
 
 
-#ifndef MCP_BUG54316
 static int
 is_ndbinfo(MYSQL* mysql, const char* dbname)
 {
-  static int checked_ndbinfo = 0;
-  static int have_ndbinfo = 0;
+  static int checked_ndbinfo= 0;
+  static int have_ndbinfo= 0;
 
   if (!checked_ndbinfo)
   {
@@ -4100,19 +4099,18 @@ is_ndbinfo(MYSQL* mysql, const char* dbname)
                 "SHOW VARIABLES LIKE %s",
                 quote_for_like("ndbinfo_version", buf));
 
-    checked_ndbinfo = 1;
+    checked_ndbinfo= 1;
 
     if (mysql_query_with_error_report(mysql, &res, query))
       return 0;
 
     if (!(row= mysql_fetch_row(res)))
     {
-      verbose_msg("-- Doesn't have ndbinfo engine\n");
       mysql_free_result(res);
       return 0;
     }
 
-    have_ndbinfo = 1;
+    have_ndbinfo= 1;
     mysql_free_result(res);
   }
 
@@ -4124,7 +4122,6 @@ is_ndbinfo(MYSQL* mysql, const char* dbname)
 
   return 0;
 }
-#endif
 
 
 static int dump_all_databases()
@@ -4145,10 +4142,8 @@ static int dump_all_databases()
         !my_strcasecmp(&my_charset_latin1, row[0], PERFORMANCE_SCHEMA_DB_NAME))
       continue;
 
-#ifndef MCP_BUG54316
     if (is_ndbinfo(mysql, row[0]))
       continue;
-#endif
 
     if (dump_all_tables_in_db(row[0]))
       result=1;
@@ -4172,10 +4167,8 @@ static int dump_all_databases()
           !my_strcasecmp(&my_charset_latin1, row[0], PERFORMANCE_SCHEMA_DB_NAME))
         continue;
 
-#ifndef MCP_BUG54316
-    if (is_ndbinfo(mysql, row[0]))
-      continue;
-#endif
+      if (is_ndbinfo(mysql, row[0]))
+        continue;
 
       if (dump_all_views_in_db(row[0]))
         result=1;
@@ -4283,13 +4276,11 @@ int init_dumping_tables(char *qdatabase)
 
 static int init_dumping(char *database, int init_func(char*))
 {
-#ifndef MCP_BUG54316
   if (is_ndbinfo(mysql, database))
   {
     verbose_msg("-- Skipping dump of ndbinfo database\n");
     return 0;
   }
-#endif
 
   if (mysql_select_db(mysql, database))
   {

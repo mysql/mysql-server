@@ -491,7 +491,7 @@ static Sys_var_ulong Sys_pfs_digest_size(
        "performance_schema_digests_size",
        "Size of the statement digest.",
        READ_ONLY GLOBAL_VAR(pfs_param.m_digest_sizing),
-       CMD_LINE(REQUIRED_ARG), VALID_RANGE(0, 200),
+       CMD_LINE(REQUIRED_ARG), VALID_RANGE(0, 1024 * 1024),
        DEFAULT(PFS_DIGEST_SIZE),
        BLOCK_SIZE(1), PFS_TRAILING_PROPERTIES);
 
@@ -760,7 +760,7 @@ static bool repository_check(sys_var *self, THD *thd, set_var *var, SLAVE_THD_TY
   int running= 0;
   const char *msg= NULL;
   mysql_mutex_lock(&LOCK_active_mi);
-  if (active_mi)
+  if (active_mi != NULL)
   {
     lock_slave_threads(active_mi);
     init_thread_mask(&running, active_mi, FALSE);
@@ -827,23 +827,23 @@ static const char *repository_names[]=
   0
 };
 
-ulong opt_mi_repository_id;
+ulong opt_mi_repository_id= INFO_REPOSITORY_FILE;
 static Sys_var_enum Sys_mi_repository(
        "master_info_repository",
        "Defines the type of the repository for the master information."
        ,GLOBAL_VAR(opt_mi_repository_id), CMD_LINE(REQUIRED_ARG),
-       repository_names, DEFAULT(0), NO_MUTEX_GUARD, NOT_IN_BINLOG,
-       ON_CHECK(master_info_repository_check),
+       repository_names, DEFAULT(INFO_REPOSITORY_FILE), NO_MUTEX_GUARD,
+       NOT_IN_BINLOG, ON_CHECK(master_info_repository_check),
        ON_UPDATE(0));
 
-ulong opt_rli_repository_id;
+ulong opt_rli_repository_id= INFO_REPOSITORY_FILE;
 static Sys_var_enum Sys_rli_repository(
        "relay_log_info_repository",
        "Defines the type of the repository for the relay log information "
        "and associated workers."
        ,GLOBAL_VAR(opt_rli_repository_id), CMD_LINE(REQUIRED_ARG),
-       repository_names, DEFAULT(0), NO_MUTEX_GUARD, NOT_IN_BINLOG,
-       ON_CHECK(relay_log_info_repository_check),
+       repository_names, DEFAULT(INFO_REPOSITORY_FILE), NO_MUTEX_GUARD,
+       NOT_IN_BINLOG, ON_CHECK(relay_log_info_repository_check),
        ON_UPDATE(0));
 
 static Sys_var_mybool Sys_binlog_rows_query(
@@ -1586,7 +1586,7 @@ static bool fix_max_binlog_size(sys_var *self, THD *thd, enum_var_type type)
 {
   mysql_bin_log.set_max_size(max_binlog_size);
 #ifdef HAVE_REPLICATION
-  if (!max_relay_log_size)
+  if (active_mi != NULL && !max_relay_log_size)
     active_mi->rli->relay_log.set_max_size(max_binlog_size);
 #endif
   return false;
@@ -1720,8 +1720,9 @@ static Sys_var_ulong Sys_max_prepared_stmt_count(
 static bool fix_max_relay_log_size(sys_var *self, THD *thd, enum_var_type type)
 {
 #ifdef HAVE_REPLICATION
-  active_mi->rli->relay_log.set_max_size(max_relay_log_size ?
-                                        max_relay_log_size: max_binlog_size);
+  if (active_mi != NULL)
+    active_mi->rli->relay_log.set_max_size(max_relay_log_size ?
+                                           max_relay_log_size: max_binlog_size);
 #endif
   return false;
 }
@@ -2436,13 +2437,11 @@ static Sys_var_charptr Sys_server_uuid(
        READ_ONLY GLOBAL_VAR(server_uuid_ptr),
        NO_CMD_LINE, IN_FS_CHARSET, DEFAULT(server_uuid));
 
-#ifndef MCP_BUG53205
 static Sys_var_uint Sys_server_id_bits(
        "server_id_bits",
        "Set number of significant bits in server-id",
        GLOBAL_VAR(opt_server_id_bits), CMD_LINE(REQUIRED_ARG),
        VALID_RANGE(0, 32), DEFAULT(32), BLOCK_SIZE(1));
-#endif
 
 static Sys_var_mybool Sys_slave_compressed_protocol(
        "slave_compressed_protocol",
@@ -3661,13 +3660,10 @@ static Sys_var_mybool Sys_relay_log_recovery(
        "processed",
        GLOBAL_VAR(relay_log_recovery), CMD_LINE(OPT_ARG), DEFAULT(FALSE));
 
-#ifndef MCP_WL3733
-my_bool opt_slave_allow_batching;
 static Sys_var_mybool Sys_slave_allow_batching(
        "slave_allow_batching", "Allow slave to batch requests",
        GLOBAL_VAR(opt_slave_allow_batching),
        CMD_LINE(OPT_ARG), DEFAULT(FALSE));
-#endif
 
 static Sys_var_charptr Sys_slave_load_tmpdir(
        "slave_load_tmpdir", "The location where the slave should put "
@@ -3680,8 +3676,8 @@ static bool fix_slave_net_timeout(sys_var *self, THD *thd, enum_var_type type)
   mysql_mutex_lock(&LOCK_active_mi);
   DBUG_PRINT("info", ("slave_net_timeout=%u mi->heartbeat_period=%.3f",
                      slave_net_timeout,
-                     (active_mi? active_mi->heartbeat_period : 0.0)));
-  if (active_mi && slave_net_timeout < active_mi->heartbeat_period)
+                     (active_mi ? active_mi->heartbeat_period : 0.0)));
+  if (active_mi != NULL && slave_net_timeout < active_mi->heartbeat_period)
     push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
                         ER_SLAVE_HEARTBEAT_VALUE_OUT_OF_RANGE_MAX,
                         ER(ER_SLAVE_HEARTBEAT_VALUE_OUT_OF_RANGE_MAX));
@@ -3700,32 +3696,38 @@ static bool check_slave_skip_counter(sys_var *self, THD *thd, set_var *var)
 {
   bool result= false;
   mysql_mutex_lock(&LOCK_active_mi);
-  mysql_mutex_lock(&active_mi->rli->run_lock);
-  if (active_mi->rli->slave_running)
+  if (active_mi != NULL)
   {
-    my_message(ER_SLAVE_MUST_STOP, ER(ER_SLAVE_MUST_STOP), MYF(0));
-    result= true;
+    mysql_mutex_lock(&active_mi->rli->run_lock);
+    if (active_mi->rli->slave_running)
+    {
+      my_message(ER_SLAVE_MUST_STOP, ER(ER_SLAVE_MUST_STOP), MYF(0));
+      result= true;
+    }
+    mysql_mutex_unlock(&active_mi->rli->run_lock);
   }
-  mysql_mutex_unlock(&active_mi->rli->run_lock);
   mysql_mutex_unlock(&LOCK_active_mi);
   return result;
 }
 static bool fix_slave_skip_counter(sys_var *self, THD *thd, enum_var_type type)
 {
   mysql_mutex_lock(&LOCK_active_mi);
-  mysql_mutex_lock(&active_mi->rli->run_lock);
-  /*
-    The following test should normally never be true as we test this
-    in the check function;  To be safe against multiple
-    SQL_SLAVE_SKIP_COUNTER request, we do the check anyway
-  */
-  if (!active_mi->rli->slave_running)
+  if (active_mi != NULL)
   {
-    mysql_mutex_lock(&active_mi->rli->data_lock);
-    active_mi->rli->slave_skip_counter= sql_slave_skip_counter;
-    mysql_mutex_unlock(&active_mi->rli->data_lock);
+    mysql_mutex_lock(&active_mi->rli->run_lock);
+    /*
+      The following test should normally never be true as we test this
+      in the check function;  To be safe against multiple
+      SQL_SLAVE_SKIP_COUNTER request, we do the check anyway
+    */
+    if (!active_mi->rli->slave_running)
+    {
+      mysql_mutex_lock(&active_mi->rli->data_lock);
+      active_mi->rli->slave_skip_counter= sql_slave_skip_counter;
+      mysql_mutex_unlock(&active_mi->rli->data_lock);
+    }
+    mysql_mutex_unlock(&active_mi->rli->run_lock);
   }
-  mysql_mutex_unlock(&active_mi->rli->run_lock);
   mysql_mutex_unlock(&LOCK_active_mi);
   return 0;
 }

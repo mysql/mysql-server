@@ -36,4 +36,26 @@ set @@global.slave_checkpoint_group= @save.slave_checkpoint_group;
 set @@global.slave_parallel_workers= @save.slave_parallel_workers;
 set @@global.debug= @save.debug;
 include/start_slave.inc
+include/rpl_reset.inc
+include/stop_slave.inc
+call mtr.add_suppression("option 'slave_checkpoint_group': unsigned value 524281 adjusted to 524280");
+call mtr.add_suppression("Failed during slave worker thread create");
+call mtr.add_suppression("Slave SQL: Failed during slave workers initialization, Error_code: 1593");
+SET GLOBAL slave_parallel_workers= 2;
+SET GLOBAL slave_checkpoint_group=524281;
+Warnings:
+Warning	1292	Truncated incorrect slave_checkpoint_group value: '524281'
+include/start_slave.inc
+include/assert.inc [Assert that slave_checkpoint_group was truncated to a valid value.]
+include/check_slave_is_running.inc
+include/rpl_reset.inc
+include/stop_slave.inc
+SET GLOBAL debug= "d,inject_init_worker_init_info_fault";
+START SLAVE SQL_THREAD;
+include/wait_for_slave_sql_error.inc [errno=1593]
+SET GLOBAL debug="";
+SET GLOBAL slave_checkpoint_group= 512;
+SET GLOBAL slave_parallel_workers= 0;
+include/start_slave.inc
+include/rpl_reset.inc
 include/rpl_end.inc

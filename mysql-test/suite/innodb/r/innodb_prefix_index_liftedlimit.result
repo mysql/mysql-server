@@ -584,7 +584,7 @@ WHERE col_1_varbinary = REPEAT("a", 4000) AND col_2_varchar = REPEAT("o", 4000);
 ERROR HY000: Undo log record is too big.
 SHOW WARNINGS;
 Level	Code	Message
-Error	1743	Undo log record is too big.
+Error	1713	Undo log record is too big.
 DROP TABLE worklog5743;
 CREATE TABLE worklog5743 (
 col_1_varbinary VARBINARY (4000) , col_2_varchar VARCHAR (4000) ,
@@ -628,7 +628,7 @@ AND col_2_varchar = REPEAT("o", 4000);
 ERROR HY000: Undo log record is too big.
 SHOW WARNINGS;
 Level	Code	Message
-Error	1743	Undo log record is too big.
+Error	1713	Undo log record is too big.
 SELECT col_1_varbinary = REPEAT("c", 4000) FROM worklog5743
 WHERE col_1_varbinary = REPEAT("c", 4000) AND col_2_varchar = REPEAT("o", 4000);
 col_1_varbinary = REPEAT("c", 4000)

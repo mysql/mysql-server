@@ -303,7 +303,6 @@ CREATE TABLE t1 (a INT) engine=InnoDB;
 XA START 'a';
 INSERT INTO t1 VALUES (1);
 
---error ER_XAER_RMFAIL
 SAVEPOINT savep;
 
 XA END 'a';
@@ -357,12 +356,16 @@ XA START 'xid1';
 
 --echo # Connection default
 --connection default
+--echo # Waiting for until a transaction with 'INSERT SELECT'
+--echo # will be locked inside innodb subsystem.
+
 let $wait_condition=
-  SELECT COUNT(*) = 1 FROM information_schema.processlist
-  WHERE state = "Sending data"
-  AND info = "INSERT INTO t2 SELECT a FROM t1";
---echo # Waiting until INSERT ... is blocked
+  SELECT COUNT(*) = 1 FROM information_schema.innodb_trx
+  WHERE trx_query = 'INSERT INTO t2 SELECT a FROM t1' AND
+  trx_operation_state = 'starting index read' AND
+  trx_state = 'LOCK WAIT';
 --source include/wait_condition.inc
+
 DELETE FROM t1;
 
 --echo # Connection con2

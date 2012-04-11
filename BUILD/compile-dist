@@ -77,7 +77,6 @@ fi
 # Remember that configure restricts the man pages to the configured features !
 ./configure \
   --with-embedded-server \
-  --with-perfschema \
-  --with-ndbcluster
+  --with-perfschema 
 $gmake
 

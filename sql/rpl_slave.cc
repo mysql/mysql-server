@@ -1951,6 +1951,7 @@ when it try to get the value of TIME_ZONE global variable from master.";
     rc= mysql_real_query(mysql, query, strlen(query));
     if (rc != 0)
     {
+      mi->checksum_alg_before_fd= BINLOG_CHECKSUM_ALG_OFF;
       if (check_io_slave_killed(mi->info_thd, mi, NULL))
         goto slave_killed_err;
 
@@ -1993,6 +1994,19 @@ when it try to get the value of TIME_ZONE global variable from master.";
       {
         mi->checksum_alg_before_fd= (uint8)
           find_type(master_row[0], &binlog_checksum_typelib, 1) - 1;
+        
+       DBUG_EXECUTE_IF("undefined_algorithm_on_slave",
+        mi->checksum_alg_before_fd = BINLOG_CHECKSUM_ALG_UNDEF;);
+       if(mi->checksum_alg_before_fd == BINLOG_CHECKSUM_ALG_UNDEF) 
+       {
+         errmsg= "The slave I/O thread was stopped because a fatal error is encountered "
+                 "The checksum algorithm used by master is unknown to slave.";
+         err_code= ER_SLAVE_FATAL_ERROR;
+         sprintf(err_buff, "%s Error: %s", errmsg, mysql_error(mysql));
+         mysql_free_result(mysql_store_result(mysql));
+         goto err;
+       }
+
         // valid outcome is either of
         DBUG_ASSERT(mi->checksum_alg_before_fd == BINLOG_CHECKSUM_ALG_OFF ||
                     mi->checksum_alg_before_fd == BINLOG_CHECKSUM_ALG_CRC32);
@@ -2109,6 +2123,54 @@ static bool wait_for_relay_log_space(Relay_log_info* rli)
          !(slave_killed=io_slave_killed(thd,mi)) &&
          !rli->ignore_log_space_limit)
     mysql_cond_wait(&rli->log_space_cond, &rli->log_space_lock);
+
+  /* 
+    Makes the IO thread read only one event at a time
+    until the SQL thread is able to purge the relay 
+    logs, freeing some space.
+
+    Therefore, once the SQL thread processes this next 
+    event, it goes to sleep (no more events in the queue),
+    sets ignore_log_space_limit=true and wakes the IO thread. 
+    However, this event may have been enough already for 
+    the SQL thread to purge some log files, freeing 
+    rli->log_space_total .
+
+    This guarantees that the SQL and IO thread move
+    forward only one event at a time (to avoid deadlocks), 
+    when the relay space limit is reached. It also 
+    guarantees that when the SQL thread is prepared to
+    rotate (to be able to purge some logs), the IO thread
+    will know about it and will rotate.
+
+    NOTE: The ignore_log_space_limit is only set when the SQL
+          thread sleeps waiting for events.
+
+   */
+  if (rli->ignore_log_space_limit)
+  {
+#ifndef DBUG_OFF
+    {
+      char llbuf1[22], llbuf2[22];
+      DBUG_PRINT("info", ("log_space_limit=%s "
+                          "log_space_total=%s "
+                          "ignore_log_space_limit=%d "
+                          "sql_force_rotate_relay=%d", 
+                        llstr(rli->log_space_limit,llbuf1),
+                        llstr(rli->log_space_total,llbuf2),
+                        (int) rli->ignore_log_space_limit,
+                        (int) rli->sql_force_rotate_relay));
+    }
+#endif
+    if (rli->sql_force_rotate_relay)
+    {
+      rotate_relay_log(rli->mi);
+      rli->sql_force_rotate_relay= false;
+    }
+
+    rli->ignore_log_space_limit= false;
+  }
+
   thd->EXIT_COND(&old_stage);
   DBUG_RETURN(slave_killed);
 }
@@ -2262,7 +2324,7 @@ int register_slave_on_master(MYSQL* mysql, Master_info *mi,
   @retval FALSE success
   @retval TRUE failure
 */
-bool show_master_info(THD* thd, Master_info* mi)
+bool show_slave_status(THD* thd, Master_info* mi)
 {
   // TODO: fix this for multi-master
   List<Item> field_list;
@@ -2270,28 +2332,31 @@ bool show_master_info(THD* thd, Master_info* mi)
   char *slave_sql_running_state= NULL;
   char *sql_gtid_set_buffer= NULL, *io_gtid_set_buffer= NULL;
   int sql_gtid_set_size= 0, io_gtid_set_size= 0;
-  DBUG_ENTER("show_master_info");
-  
-  global_sid_lock.wrlock();
-  const Gtid_set* sql_gtid_set= gtid_state.get_logged_gtids();
-  const Gtid_set* io_gtid_set= mi->rli->get_gtid_set();
-  if ((sql_gtid_set_size= sql_gtid_set->to_string(&sql_gtid_set_buffer)) < 0 ||
-      (io_gtid_set_size= io_gtid_set->to_string(&io_gtid_set_buffer)) < 0)
-  {
-    my_eof(thd);
-    my_free(sql_gtid_set_buffer);
-    my_free(io_gtid_set_buffer);
+  DBUG_ENTER("show_slave_status");
+ 
+  if (mi != NULL)
+  { 
+    global_sid_lock.wrlock();
+    const Gtid_set* sql_gtid_set= gtid_state.get_logged_gtids();
+    const Gtid_set* io_gtid_set= mi->rli->get_gtid_set();
+    if ((sql_gtid_set_size= sql_gtid_set->to_string(&sql_gtid_set_buffer)) < 0 ||
+        (io_gtid_set_size= io_gtid_set->to_string(&io_gtid_set_buffer)) < 0)
+    {
+      my_eof(thd);
+      my_free(sql_gtid_set_buffer);
+      my_free(io_gtid_set_buffer);
+      global_sid_lock.unlock();
+      DBUG_RETURN(true);
+    }
     global_sid_lock.unlock();
-    DBUG_RETURN(true);
   }
-  global_sid_lock.unlock();
 
   field_list.push_back(new Item_empty_string("Slave_IO_State",
                                                      14));
-  field_list.push_back(new Item_empty_string("Master_Host",
-                                                     sizeof(mi->host)));
-  field_list.push_back(new Item_empty_string("Master_User",
-                                                     mi->get_user_size()));
+  field_list.push_back(new Item_empty_string("Master_Host", mi != NULL ?
+                                                     sizeof(mi->host) : 0));
+  field_list.push_back(new Item_empty_string("Master_User", mi != NULL ?
+                                                     mi->get_user_size() : 0));
   field_list.push_back(new Item_return_int("Master_Port", 7,
                                            MYSQL_TYPE_LONG));
   field_list.push_back(new Item_return_int("Connect_Retry", 10,
@@ -2328,16 +2393,16 @@ bool show_master_info(THD* thd, Master_info* mi)
   field_list.push_back(new Item_return_int("Until_Log_Pos", 10,
                                            MYSQL_TYPE_LONGLONG));
   field_list.push_back(new Item_empty_string("Master_SSL_Allowed", 7));
-  field_list.push_back(new Item_empty_string("Master_SSL_CA_File",
-                                             sizeof(mi->ssl_ca)));
-  field_list.push_back(new Item_empty_string("Master_SSL_CA_Path",
-                                             sizeof(mi->ssl_capath)));
-  field_list.push_back(new Item_empty_string("Master_SSL_Cert",
-                                             sizeof(mi->ssl_cert)));
-  field_list.push_back(new Item_empty_string("Master_SSL_Cipher",
-                                             sizeof(mi->ssl_cipher)));
-  field_list.push_back(new Item_empty_string("Master_SSL_Key",
-                                             sizeof(mi->ssl_key)));
+  field_list.push_back(new Item_empty_string("Master_SSL_CA_File", mi != NULL ?
+                                             sizeof(mi->ssl_ca) : 0));
+  field_list.push_back(new Item_empty_string("Master_SSL_CA_Path", mi != NULL ?
+                                             sizeof(mi->ssl_capath) : 0));
+  field_list.push_back(new Item_empty_string("Master_SSL_Cert", mi != NULL ?
+                                             sizeof(mi->ssl_cert) : 0));
+  field_list.push_back(new Item_empty_string("Master_SSL_Cipher", mi != NULL ?
+                                             sizeof(mi->ssl_cipher) : 0));
+  field_list.push_back(new Item_empty_string("Master_SSL_Key", mi != NULL ?
+                                             sizeof(mi->ssl_key) : 0));
   field_list.push_back(new Item_return_int("Seconds_Behind_Master", 10,
                                            MYSQL_TYPE_LONGLONG));
   field_list.push_back(new Item_empty_string("Master_SSL_Verify_Server_Cert",
@@ -2358,14 +2423,14 @@ bool show_master_info(THD* thd, Master_info* mi)
   field_list.push_back(new Item_empty_string("Slave_SQL_Running_State", 20));
   field_list.push_back(new Item_return_int("Master_Retry_Count", 10,
                                            MYSQL_TYPE_LONGLONG));
-  field_list.push_back(new Item_empty_string("Master_Bind",
-                                             sizeof(mi->bind_addr)));
+  field_list.push_back(new Item_empty_string("Master_Bind", mi != NULL ?
+                                             sizeof(mi->bind_addr) : 0));
   field_list.push_back(new Item_empty_string("Last_IO_Error_Timestamp", 20));
   field_list.push_back(new Item_empty_string("Last_SQL_Error_Timestamp", 20));
-  field_list.push_back(new Item_empty_string("Master_SSL_Crl",
-                                             sizeof(mi->ssl_crl)));
-  field_list.push_back(new Item_empty_string("Master_SSL_Crlpath",
-                                             sizeof(mi->ssl_crlpath)));
+  field_list.push_back(new Item_empty_string("Master_SSL_Crl", mi != NULL ?
+                                             sizeof(mi->ssl_crl) : 0));
+  field_list.push_back(new Item_empty_string("Master_SSL_Crlpath", mi != NULL ?
+                                             sizeof(mi->ssl_crlpath) : 0));
   field_list.push_back(new Item_empty_string("Retrieved_Gtid_Set",
                                              io_gtid_set_size));
   field_list.push_back(new Item_empty_string("Executed_Gtid_Set",
@@ -2379,7 +2444,7 @@ bool show_master_info(THD* thd, Master_info* mi)
     DBUG_RETURN(true);
   }
 
-  if (mi->host[0])
+  if (mi != NULL && mi->host[0])
   {
     DBUG_PRINT("info",("host is set: '%s'", mi->host));
     String *packet= &thd->packet;
@@ -3084,13 +3149,11 @@ int apply_event_and_update_pos(Log_event** ptr_ev, THD* thd, Relay_log_info* rli
     log (remember that now the relay log starts with its Format_desc,
     has a Rotate etc).
   */
-#ifndef MCP_BUG52305
   /*
      Set the unmasked and actual server ids from the event
    */
-  thd->unmasked_server_id = ev->unmasked_server_id;
-#endif
   thd->server_id = ev->server_id; // use the original server id for logging
+  thd->unmasked_server_id = ev->unmasked_server_id;
   thd->set_time();                            // time the query
   thd->lex->current_select= 0;
   if (!ev->when.tv_sec)
@@ -4372,13 +4435,17 @@ bool mts_recovery_groups(Relay_log_info *rli, MY_BITMAP *groups)
       */
       if (!checksum_detected)
       {
-        for (int i=0; i < 4; i++)
+        int i= 0;
+        while (i < 4 && (ev= Log_event::read_log_event(&log,
+               (mysql_mutex_t*) 0, p_fdle, 0)))
         {
-          if ((ev= Log_event::read_log_event(&log,
-                                             (mysql_mutex_t*) 0, p_fdle, 0))
-              && ev->get_type_code() == FORMAT_DESCRIPTION_EVENT)
+          if (ev->get_type_code() == FORMAT_DESCRIPTION_EVENT)
+          {
             p_fdle->checksum_alg= ev->checksum_alg;
-          checksum_detected= TRUE;
+            checksum_detected= TRUE;
+          }
+          delete ev;
+          i++;
         }
         if (!checksum_detected)
         {
@@ -4688,7 +4755,8 @@ err:
   if (error && w)
   {
     w->end_info();
-    delete_dynamic(&w->jobs.Q);
+    if (w->jobs.inited_queue)
+      delete_dynamic(&(w->jobs.Q));
     delete w;
     /*
       Any failure after dynarray inserted must follow with deletion
@@ -5071,15 +5139,14 @@ pthread_handler_t handle_slave_sql(void *arg)
 #endif
   DBUG_ASSERT(rli->info_thd == thd);
 
-#ifndef MCP_BUG46955
 #ifdef WITH_NDBCLUSTER_STORAGE_ENGINE
+  /* engine specific hook, to be made generic */
   if (ndb_wait_setup_func && ndb_wait_setup_func(opt_ndb_wait_setup))
   {
     sql_print_warning("Slave SQL thread : NDB : Tables not available after %lu"
                       " seconds.  Consider increasing --ndb-wait-setup value",
                       opt_ndb_wait_setup);
   }
-#endif
 #endif
 
   DBUG_PRINT("master_info",("log_file_name: %s  position: %s",
@@ -6063,14 +6130,14 @@ static int queue_event(Master_info* mi,const char* buf, ulong event_len)
 
   mysql_mutex_lock(log_lock);
   s_id= uint4korr(buf + SERVER_ID_OFFSET);
-#ifndef MCP_BUG52305
+
   /*
     If server_id_bits option is set we need to mask out irrelevant bits
     when checking server_id, but we still put the full unmasked server_id
     into the Relay log so that it can be accessed when applying the event
   */
   s_id&= opt_server_id_mask;
-#endif
+
   if ((s_id == ::server_id && !mi->rli->replicate_same_server_id) ||
       /*
         the following conjunction deals with IGNORE_SERVER_IDS, if set
@@ -6751,19 +6818,60 @@ static Log_event* next_event(Relay_log_info* rli)
           constraint, because we do not want the I/O thread to block because of
           space (it's ok if it blocks for any other reason (e.g. because the
           master does not send anything). Then the I/O thread stops waiting
-          and reads more events.
-          The SQL thread decides when the I/O thread should take log_space_limit
-          into account again : ignore_log_space_limit is reset to 0
-          in purge_first_log (when the SQL thread purges the just-read relay
-          log), and also when the SQL thread starts. We should also reset
-          ignore_log_space_limit to 0 when the user does RESET SLAVE, but in
-          fact, no need as RESET SLAVE requires that the slave
+          and reads one more event and starts honoring log_space_limit again.
+
+          If the SQL thread needs more events to be able to rotate the log (it
+          might need to finish the current group first), then it can ask for one
+          more at a time. Thus we don't outgrow the relay log indefinitely,
+          but rather in a controlled manner, until the next rotate.
+
+          When the SQL thread starts it sets ignore_log_space_limit to false. 
+          We should also reset ignore_log_space_limit to 0 when the user does 
+          RESET SLAVE, but in fact, no need as RESET SLAVE requires that the slave
           be stopped, and the SQL thread sets ignore_log_space_limit to 0 when
           it stops.
         */
         mysql_mutex_lock(&rli->log_space_lock);
-        // prevent the I/O thread from blocking next times
-        rli->ignore_log_space_limit= 1;
+
+        /* 
+          If we have reached the limit of the relay space and we
+          are going to sleep, waiting for more events:
+
+          1. If outside a group, SQL thread asks the IO thread 
+             to force a rotation so that the SQL thread purges 
+             logs next time it processes an event (thus space is
+             freed).
+
+          2. If in a group, SQL thread asks the IO thread to 
+             ignore the limit and queues yet one more event 
+             so that the SQL thread finishes the group and 
+             is are able to rotate and purge sometime soon.
+         */
+        if (rli->log_space_limit && 
+            rli->log_space_limit < rli->log_space_total)
+        {
+          /* force rotation if not in an unfinished group */
+          if (!rli->is_parallel_exec())
+          {
+            rli->sql_force_rotate_relay= !rli->is_in_group();
+          }
+          else
+          {
+            if (rli->mts_group_status != Relay_log_info::MTS_IN_GROUP)
+            {
+              /*
+                Before to let the current relay log be purged Workers
+                have to finish off their current assignments.
+              */
+              (void) wait_for_workers_to_finish(rli);
+              rli->sql_force_rotate_relay= true;
+            }
+          }
+
+          /* ask for one more event */
+          rli->ignore_log_space_limit= true;
+        }
+
         /*
           If the I/O thread is blocked, unblock it.  Ok to broadcast
           after unlock, because the mutex is only destroyed in
@@ -7167,7 +7275,7 @@ bool rpl_master_has_bug(const Relay_log_info *rli, uint bug_id, bool report,
  */
 bool rpl_master_erroneous_autoinc(THD *thd)
 {
-  if (active_mi && active_mi->rli->info_thd == thd)
+  if (active_mi != NULL && active_mi->rli->info_thd == thd)
   {
     Relay_log_info *rli= active_mi->rli;
     DBUG_EXECUTE_IF("simulate_bug33029", return TRUE;);
