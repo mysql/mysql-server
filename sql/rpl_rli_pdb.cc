@@ -305,12 +305,11 @@ bool Slave_worker::read_info(Rpl_info_handler *from)
       from->get_info((ulong *) &temp_checkpoint_seqno,
                      (ulong) 0) ||
       from->get_info(&nbytes, (ulong) 0) ||
-
-      (DBUG_ASSERT(nbytes <= no_bytes_in_map(&group_executed)), 0) ||
-
       from->get_info(buffer, (size_t) nbytes,
                      (uchar *) 0))
     DBUG_RETURN(TRUE);
+
+  DBUG_ASSERT(nbytes <= no_bytes_in_map(&group_executed));
 
   group_relay_log_pos=  temp_group_relay_log_pos;
   group_master_log_pos= temp_group_master_log_pos;
