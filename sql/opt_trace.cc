@@ -368,7 +368,8 @@ Opt_trace_struct& Opt_trace_struct::do_add(const char *key, Item *item)
   {
     // QT_TO_SYSTEM_CHARSET because trace must be in UTF8
     item->print(&str, enum_query_type(QT_TO_SYSTEM_CHARSET |
-                                      QT_SHOW_SELECT_NUMBER));
+                                      QT_SHOW_SELECT_NUMBER |
+                                      QT_NO_DEFAULT_DB));
     /* needs escaping */
     return do_add(key, str.ptr(), str.length(), true);
   }
@@ -400,9 +401,17 @@ Opt_trace_struct& Opt_trace_struct::do_add_hex(const char *key, uint64 val)
 
 Opt_trace_struct& Opt_trace_struct::do_add_utf8_table(const TABLE *tab)
 {
-  return
-    do_add("database", tab->s->db.str, tab->s->db.length, true).
-    do_add("table", tab->alias, strlen(tab->alias), true);
+  TABLE_LIST * const tl= tab->pos_in_table_list;
+  if (tl != NULL)
+  {
+    StringBuffer<32> str;
+    tl->print(tab->in_use, &str, enum_query_type(QT_TO_SYSTEM_CHARSET |
+                                                 QT_SHOW_SELECT_NUMBER |
+                                                 QT_NO_DEFAULT_DB |
+                                                 QT_DERIVED_TABLE_ONLY_ALIAS));
+    return do_add("table", str.ptr(), str.length(), true);
+  }
+  return *this;
 }
 
 
@@ -910,6 +919,24 @@ Opt_trace_context::~Opt_trace_context()
 }
 
 
+template<class T> T * new_nothrow_w_my_error()
+{
+  T * const t= new (std::nothrow) T();
+  if (unlikely(t == NULL))
+    my_error(ER_OUTOFMEMORY, MYF(ME_FATALERROR),
+             static_cast<int>(sizeof(T)));
+  return t;
+}
+template<class T, class Arg> T * new_nothrow_w_my_error(Arg a)
+{
+  T * const t= new (std::nothrow) T(a);
+  if (unlikely(t == NULL))
+    my_error(ER_OUTOFMEMORY, MYF(ME_FATALERROR),
+             static_cast<int>(sizeof(T)));
+  return t;
+}
+
+
 bool Opt_trace_context::start(bool support_I_S_arg,
                               bool support_dbug_or_missing_priv,
                               bool end_marker_arg, bool one_line_arg,
@@ -959,8 +986,9 @@ bool Opt_trace_context::start(bool support_I_S_arg,
 
   DBUG_EXECUTE_IF("no_new_opt_trace_stmt", DBUG_ASSERT(0););
 
-  if (pimpl == NULL)
-    pimpl= new (std::nothrow) Opt_trace_context_impl();
+  if (pimpl == NULL &&
+      ((pimpl= new_nothrow_w_my_error<Opt_trace_context_impl>()) == NULL))
+    DBUG_RETURN(true);
 
   /*
     If tracing is disabled by some caller, then don't change settings (offset
@@ -1006,11 +1034,12 @@ bool Opt_trace_context::start(bool support_I_S_arg,
       We don't allocate it in THD's MEM_ROOT as it must survive until a next
       statement (SELECT) reads the trace.
     */
-    Opt_trace_stmt *stmt= new (std::nothrow) Opt_trace_stmt(this);
+    Opt_trace_stmt *stmt= new_nothrow_w_my_error<Opt_trace_stmt>(this);
 
     DBUG_PRINT("opt",("new stmt %p support_I_S %d", stmt, support_I_S_arg));
 
-    if (unlikely(pimpl->stack_of_current_stmts
+    if (unlikely(stmt == NULL ||
+                 pimpl->stack_of_current_stmts
                  .append(pimpl->current_stmt_in_gen)))
       goto err;                            // append() above called my_error()
 
@@ -1224,13 +1253,6 @@ void Opt_trace_context::set_query(const char *query, size_t length,
                                   const CHARSET_INFO *charset)
 {
   pimpl->current_stmt_in_gen->set_query(query, length, charset);
-}
-
-
-const char *Opt_trace_context::get_tail(size_t size)
-{
-  return (pimpl == NULL) ? "" :
-    pimpl->current_stmt_in_gen->trace_buffer_tail(size);
 }
 
 

@@ -2609,6 +2609,7 @@ innobase_shutdown_for_mysql(void)
 	os_aio_free();
 	que_close();
 	row_mysql_close();
+	srv_mon_free();
 	sync_close();
 	srv_free();
 	fil_close();

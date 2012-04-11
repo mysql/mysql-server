@@ -1238,6 +1238,27 @@ WHERE TABLE1.pk IS NULL;
 
 DROP TABLE h,m,k;
 
+--echo #
+--echo # Bug #11765810	58813: SERVER THREAD HANGS WHEN JOIN + WHERE + GROUP BY
+--echo # IS EXECUTED TWICE FROM P
+--echo #
+CREATE TABLE t1 ( a INT ) ENGINE = MYISAM;
+INSERT INTO t1 VALUES (1);
+PREPARE prep_stmt FROM '
+ SELECT 1 AS f FROM t1
+ LEFT JOIN t1 t2
+  RIGHT JOIN t1 t3
+    JOIN t1 t4
+   ON 1
+  ON 1
+ ON 1
+ GROUP BY f';
+EXECUTE prep_stmt;
+EXECUTE prep_stmt;
+
+DROP TABLE t1;
+
+
 --echo End of 5.1 tests
 
 --echo #

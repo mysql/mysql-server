@@ -1,4 +1,4 @@
-/* Copyright (c) 2007, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2007, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -316,7 +316,7 @@ Deadlock_detection_visitor::opt_change_victim_to(MDL_context *new_victim)
 class MDL_lock
 {
 public:
-  typedef uchar bitmap_t;
+  typedef unsigned short bitmap_t;
 
   class Ticket_list
   {
@@ -548,7 +548,7 @@ public:
   }
   virtual bool needs_notification(const MDL_ticket *ticket) const
   {
-    return ticket->is_upgradable_or_exclusive();
+    return (ticket->get_type() >= MDL_SHARED_NO_WRITE);
   }
   virtual void notify_conflicting_locks(MDL_context *ctx);
 
@@ -1077,7 +1077,7 @@ void MDL_ticket::destroy(MDL_ticket *ticket)
 uint MDL_ticket::get_deadlock_weight() const
 {
   return (m_lock->key.mdl_namespace() == MDL_key::GLOBAL ||
-          m_type >= MDL_SHARED_NO_WRITE ?
+          m_type >= MDL_SHARED_UPGRADABLE ?
           DEADLOCK_WEIGHT_DDL : DEADLOCK_WEIGHT_DML);
 }
 
@@ -1340,22 +1340,12 @@ void MDL_lock::reschedule_waiters()
   lock. Arrays of bitmaps which elements specify which granted/waiting locks
   are incompatible with type of lock being requested.
 
-  Here is how types of individual locks are translated to type of scoped lock:
-
-    ----------------+-------------+
-    Type of request | Correspond. |
-    for indiv. lock | scoped lock |
-    ----------------+-------------+
-    S, SH, SR, SW   |   IS        |
-    SNW, SNRW, X    |   IX        |
-    SNW, SNRW -> X  |   IX (*)    |
-
   The first array specifies if particular type of request can be satisfied
   if there is granted scoped lock of certain type.
 
              | Type of active   |
      Request |   scoped lock    |
-      type   | IS(**) IX   S  X |
+      type   | IS(*)  IX   S  X |
     ---------+------------------+
     IS       |  +      +   +  + |
     IX       |  +      +   -  - |
@@ -1368,7 +1358,7 @@ void MDL_lock::reschedule_waiters()
 
              |    Pending      |
      Request |  scoped lock    |
-      type   | IS(**) IX  S  X |
+      type   | IS(*)  IX  S  X |
     ---------+-----------------+
     IS       |  +      +  +  + |
     IX       |  +      +  -  - |
@@ -1378,24 +1368,33 @@ void MDL_lock::reschedule_waiters()
   Here: "+" -- means that request can be satisfied
         "-" -- means that request can't be satisfied and should wait
 
-  (*)   Since for upgradable locks we always take intention exclusive scoped
-        lock at the same time when obtaining the shared lock, there is no
-        need to obtain such lock during the upgrade itself.
-  (**)  Since intention shared scoped locks are compatible with all other
-        type of locks we don't even have any accounting for them.
+  (*)  Since intention shared scoped locks are compatible with all other
+       type of locks we don't even have any accounting for them.
+
+  Note that relation between scoped locks and objects locks requested
+  by statement is not straightforward and is therefore fully defined
+  by SQL-layer.
+  For example, in order to support global read lock implementation
+  SQL-layer acquires IX lock in GLOBAL namespace for each statement
+  that can modify metadata or data (i.e. for each statement that
+  needs SW, SU, SNW, SNRW or X object locks). OTOH, to ensure that
+  DROP DATABASE works correctly with concurrent DDL, IX metadata locks
+  in SCHEMA namespace are acquired for DDL statements which can update
+  metadata in the schema (i.e. which acquire SU, SNW, SNRW and X locks
+  on schema objects) and aren't acquired for DML.
 */
 
 const MDL_lock::bitmap_t MDL_scoped_lock::m_granted_incompatible[MDL_TYPE_END] =
 {
   MDL_BIT(MDL_EXCLUSIVE) | MDL_BIT(MDL_SHARED),
-  MDL_BIT(MDL_EXCLUSIVE) | MDL_BIT(MDL_INTENTION_EXCLUSIVE), 0, 0, 0, 0, 0,
+  MDL_BIT(MDL_EXCLUSIVE) | MDL_BIT(MDL_INTENTION_EXCLUSIVE), 0, 0, 0, 0, 0, 0,
   MDL_BIT(MDL_EXCLUSIVE) | MDL_BIT(MDL_SHARED) | MDL_BIT(MDL_INTENTION_EXCLUSIVE)
 };
 
 const MDL_lock::bitmap_t MDL_scoped_lock::m_waiting_incompatible[MDL_TYPE_END] =
 {
   MDL_BIT(MDL_EXCLUSIVE) | MDL_BIT(MDL_SHARED),
-  MDL_BIT(MDL_EXCLUSIVE), 0, 0, 0, 0, 0, 0
+  MDL_BIT(MDL_EXCLUSIVE), 0, 0, 0, 0, 0, 0, 0
 };
 
 
@@ -1407,35 +1406,39 @@ const MDL_lock::bitmap_t MDL_scoped_lock::m_waiting_incompatible[MDL_TYPE_END] =
   The first array specifies if particular type of request can be satisfied
   if there is granted lock of certain type.
 
-     Request  |  Granted requests for lock   |
-      type    | S  SH  SR  SW  SNW  SNRW  X  |
-    ----------+------------------------------+
-    S         | +   +   +   +   +    +    -  |
-    SH        | +   +   +   +   +    +    -  |
-    SR        | +   +   +   +   +    -    -  |
-    SW        | +   +   +   +   -    -    -  |
-    SNW       | +   +   +   -   -    -    -  |
-    SNRW      | +   +   -   -   -    -    -  |
-    X         | -   -   -   -   -    -    -  |
-    SNW -> X  | -   -   -   0   0    0    0  |
-    SNRW -> X | -   -   0   0   0    0    0  |
+     Request  |  Granted requests for lock       |
+      type    | S  SH  SR  SW  SU  SNW  SNRW  X  |
+    ----------+----------------------------------+
+    S         | +   +   +   +   +   +    +    -  |
+    SH        | +   +   +   +   +   +    +    -  |
+    SR        | +   +   +   +   +   +    -    -  |
+    SW        | +   +   +   +   +   -    -    -  |
+    SU        | +   +   +   +   -   -    -    -  |
+    SNW       | +   +   +   -   -   -    -    -  |
+    SNRW      | +   +   -   -   -   -    -    -  |
+    X         | -   -   -   -   -   -    -    -  |
+    SU -> X   | -   -   -   -   0   0    0    0  |
+    SNW -> X  | -   -   -   0   0   0    0    0  |
+    SNRW -> X | -   -   0   0   0   0    0    0  |
 
   The second array specifies if particular type of request can be satisfied
   if there is waiting request for the same lock of certain type. In other
   words it specifies what is the priority of different lock types.
 
-     Request  |  Pending requests for lock  |
-      type    | S  SH  SR  SW  SNW  SNRW  X |
-    ----------+-----------------------------+
-    S         | +   +   +   +   +     +   - |
-    SH        | +   +   +   +   +     +   + |
-    SR        | +   +   +   +   +     -   - |
-    SW        | +   +   +   +   -     -   - |
-    SNW       | +   +   +   +   +     +   - |
-    SNRW      | +   +   +   +   +     +   - |
-    X         | +   +   +   +   +     +   + |
-    SNW -> X  | +   +   +   +   +     +   + |
-    SNRW -> X | +   +   +   +   +     +   + |
+     Request  |  Pending requests for lock      |
+      type    | S  SH  SR  SW  SU  SNW  SNRW  X |
+    ----------+---------------------------------+
+    S         | +   +   +   +   +   +     +   - |
+    SH        | +   +   +   +   +   +     +   + |
+    SR        | +   +   +   +   +   +     -   - |
+    SW        | +   +   +   +   +   -     -   - |
+    SU        | +   +   +   +   +   +     +   - |
+    SNW       | +   +   +   +   +   +     +   - |
+    SNRW      | +   +   +   +   +   +     +   - |
+    X         | +   +   +   +   +   +     +   + |
+    SU -> X   | +   +   +   +   +   +     +   + |
+    SNW -> X  | +   +   +   +   +   +     +   + |
+    SNRW -> X | +   +   +   +   +   +     +   + |
 
   Here: "+" -- means that request can be satisfied
         "-" -- means that request can't be satisfied and should wait
@@ -1444,6 +1447,9 @@ const MDL_lock::bitmap_t MDL_scoped_lock::m_waiting_incompatible[MDL_TYPE_END] =
   @note In cases then current context already has "stronger" type
         of lock on the object it will be automatically granted
         thanks to usage of the MDL_context::find_ticket() method.
+
+  @note IX locks are excluded since they are not used for per-object
+        metadata locks.
 */
 
 const MDL_lock::bitmap_t
@@ -1456,14 +1462,17 @@ MDL_object_lock::m_granted_incompatible[MDL_TYPE_END] =
   MDL_BIT(MDL_EXCLUSIVE) | MDL_BIT(MDL_SHARED_NO_READ_WRITE) |
     MDL_BIT(MDL_SHARED_NO_WRITE),
   MDL_BIT(MDL_EXCLUSIVE) | MDL_BIT(MDL_SHARED_NO_READ_WRITE) |
-    MDL_BIT(MDL_SHARED_NO_WRITE) | MDL_BIT(MDL_SHARED_WRITE),
+    MDL_BIT(MDL_SHARED_NO_WRITE) | MDL_BIT(MDL_SHARED_UPGRADABLE),
   MDL_BIT(MDL_EXCLUSIVE) | MDL_BIT(MDL_SHARED_NO_READ_WRITE) |
-    MDL_BIT(MDL_SHARED_NO_WRITE) | MDL_BIT(MDL_SHARED_WRITE) |
-    MDL_BIT(MDL_SHARED_READ),
+    MDL_BIT(MDL_SHARED_NO_WRITE) | MDL_BIT(MDL_SHARED_UPGRADABLE) |
+    MDL_BIT(MDL_SHARED_WRITE),
   MDL_BIT(MDL_EXCLUSIVE) | MDL_BIT(MDL_SHARED_NO_READ_WRITE) |
-    MDL_BIT(MDL_SHARED_NO_WRITE) | MDL_BIT(MDL_SHARED_WRITE) |
-    MDL_BIT(MDL_SHARED_READ) | MDL_BIT(MDL_SHARED_HIGH_PRIO) |
-    MDL_BIT(MDL_SHARED)
+    MDL_BIT(MDL_SHARED_NO_WRITE) | MDL_BIT(MDL_SHARED_UPGRADABLE) |
+    MDL_BIT(MDL_SHARED_WRITE) | MDL_BIT(MDL_SHARED_READ),
+  MDL_BIT(MDL_EXCLUSIVE) | MDL_BIT(MDL_SHARED_NO_READ_WRITE) |
+    MDL_BIT(MDL_SHARED_NO_WRITE) | MDL_BIT(MDL_SHARED_UPGRADABLE) |
+    MDL_BIT(MDL_SHARED_WRITE) | MDL_BIT(MDL_SHARED_READ) |
+    MDL_BIT(MDL_SHARED_HIGH_PRIO) | MDL_BIT(MDL_SHARED)
 };
 
 
@@ -1476,6 +1485,7 @@ MDL_object_lock::m_waiting_incompatible[MDL_TYPE_END] =
   MDL_BIT(MDL_EXCLUSIVE) | MDL_BIT(MDL_SHARED_NO_READ_WRITE),
   MDL_BIT(MDL_EXCLUSIVE) | MDL_BIT(MDL_SHARED_NO_READ_WRITE) |
     MDL_BIT(MDL_SHARED_NO_WRITE),
+  MDL_BIT(MDL_EXCLUSIVE),
   MDL_BIT(MDL_EXCLUSIVE),
   MDL_BIT(MDL_EXCLUSIVE),
   0
@@ -1887,7 +1897,7 @@ void MDL_object_lock::notify_conflicting_locks(MDL_context *ctx)
   {
     /* Only try to abort locks on which we back off. */
     if (conflicting_ticket->get_ctx() != ctx &&
-        conflicting_ticket->get_type() < MDL_SHARED_NO_WRITE)
+        conflicting_ticket->get_type() < MDL_SHARED_UPGRADABLE)
 
     {
       MDL_context *conflicting_ctx= conflicting_ticket->get_ctx();
@@ -2147,11 +2157,12 @@ err:
 
 
 /**
-  Upgrade a shared metadata lock to exclusive.
+  Upgrade a shared metadata lock.
 
-  Used in ALTER TABLE, when a copy of the table with the
-  new definition has been constructed.
+  Used in ALTER TABLE.
 
+  @param mdl_ticket         Lock to upgrade.
+  @param new_type           Lock type to upgrade to.
   @param lock_wait_timeout  Seconds to wait before timeout.
 
   @note In case of failure to upgrade lock (e.g. because upgrader
@@ -2159,7 +2170,7 @@ err:
         shared mode).
 
   @note There can be only one upgrader for a lock or we will have deadlock.
-        This invariant is ensured by the fact that upgradeable locks SNW
+        This invariant is ensured by the fact that upgradeable locks SU, SNW
         and SNRW are not compatible with each other and themselves.
 
   @retval FALSE  Success
@@ -2167,28 +2178,30 @@ err:
 */
 
 bool
-MDL_context::upgrade_shared_lock_to_exclusive(MDL_ticket *mdl_ticket,
-                                              ulong lock_wait_timeout)
+MDL_context::upgrade_shared_lock(MDL_ticket *mdl_ticket,
+                                 enum_mdl_type new_type,
+                                 ulong lock_wait_timeout)
 {
   MDL_request mdl_xlock_request;
   MDL_savepoint mdl_svp= mdl_savepoint();
   bool is_new_ticket;
 
-  DBUG_ENTER("MDL_ticket::upgrade_shared_lock_to_exclusive");
-  DEBUG_SYNC(get_thd(), "mdl_upgrade_shared_lock_to_exclusive");
+  DBUG_ENTER("MDL_context::upgrade_shared_lock");
+  DEBUG_SYNC(get_thd(), "mdl_upgrade_lock");
 
   /*
     Do nothing if already upgraded. Used when we FLUSH TABLE under
     LOCK TABLES and a table is listed twice in LOCK TABLES list.
   */
-  if (mdl_ticket->m_type == MDL_EXCLUSIVE)
+  if (mdl_ticket->has_stronger_or_equal_type(new_type))
     DBUG_RETURN(FALSE);
 
-  /* Only allow upgrades from MDL_SHARED_NO_WRITE/NO_READ_WRITE */
-  DBUG_ASSERT(mdl_ticket->m_type == MDL_SHARED_NO_WRITE ||
+  /* Only allow upgrades from SHARED_UPGRADABLE/NO_WRITE/NO_READ_WRITE */
+  DBUG_ASSERT(mdl_ticket->m_type == MDL_SHARED_UPGRADABLE ||
+              mdl_ticket->m_type == MDL_SHARED_NO_WRITE ||
               mdl_ticket->m_type == MDL_SHARED_NO_READ_WRITE);
 
-  mdl_xlock_request.init(&mdl_ticket->m_lock->key, MDL_EXCLUSIVE,
+  mdl_xlock_request.init(&mdl_ticket->m_lock->key, new_type,
                          MDL_TRANSACTION);
 
   if (acquire_lock(&mdl_xlock_request, lock_wait_timeout))
@@ -2206,7 +2219,7 @@ MDL_context::upgrade_shared_lock_to_exclusive(MDL_ticket *mdl_ticket,
     ticket from the granted queue and then include it back.
   */
   mdl_ticket->m_lock->m_granted.remove_ticket(mdl_ticket);
-  mdl_ticket->m_type= MDL_EXCLUSIVE;
+  mdl_ticket->m_type= new_type;
   mdl_ticket->m_lock->m_granted.add_ticket(mdl_ticket);
 
   mysql_prlock_unlock(&mdl_ticket->m_lock->m_rwlock);
@@ -2573,21 +2586,28 @@ void MDL_context::release_all_locks_for_name(MDL_ticket *name)
 
 
 /**
-  Downgrade an exclusive lock to shared metadata lock.
+  Downgrade an EXCLUSIVE or SHARED_NO_WRITE lock to shared metadata lock.
 
   @param type  Type of lock to which exclusive lock should be downgraded.
 */
 
-void MDL_ticket::downgrade_exclusive_lock(enum_mdl_type type)
+void MDL_ticket::downgrade_lock(enum_mdl_type type)
 {
   mysql_mutex_assert_not_owner(&LOCK_open);
 
   /*
     Do nothing if already downgraded. Used when we FLUSH TABLE under
     LOCK TABLES and a table is listed twice in LOCK TABLES list.
+    Note that this code might even try to "downgrade" a weak lock
+    (e.g. SW) to a stronger one (e.g SNRW). So we can't even assert
+    here that target lock is weaker than existing lock.
   */
-  if (m_type != MDL_EXCLUSIVE)
+  if (m_type == type || !has_stronger_or_equal_type(type))
     return;
+
+  /* Only allow downgrade from EXCLUSIVE and SHARED_NO_WRITE. */
+  DBUG_ASSERT(m_type == MDL_EXCLUSIVE ||
+              m_type == MDL_SHARED_NO_WRITE);
 
   mysql_prlock_wrlock(&m_lock->m_rwlock);
   /*

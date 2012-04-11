@@ -38,7 +38,7 @@ lock tables t2 read;
 
 connection con1;
 --echo connection: con1
-set debug_sync='mdl_upgrade_shared_lock_to_exclusive SIGNAL parked WAIT_FOR go';
+set debug_sync='mdl_upgrade_lock SIGNAL parked WAIT_FOR go';
 --send alter table t1 rename t3
 
 connection default;
@@ -110,8 +110,13 @@ select column_name from information_schema.columns where
   table_schema='test' and table_name='t1';
 select count(*) from t1;
 insert into t1 values (1), (1);
+--echo # Check that SU lock is compatible with it. To do this use ALTER TABLE
+--echo # which will fail when constructing .frm and thus obtaining SU metadata
+--echo # lock.
+--error ER_KEY_COLUMN_DOES_NOT_EXITS
+alter table t1 add index (not_exist);
 --echo # Check that SNW lock is compatible with it. To do this use ALTER TABLE
---echo # which will fail after opening the table and thus obtaining SNW metadata
+--echo # which will fail during copying the table and thus obtaining SNW metadata
 --echo # lock.
 --error ER_DUP_ENTRY
 alter table t1 add primary key (c1);
@@ -230,8 +235,13 @@ select column_name from information_schema.columns where
   table_schema='test' and table_name='t1';
 select count(*) from t1;
 insert into t1 values (1);
+--echo # Check that SU lock is compatible with it. To do this use ALTER TABLE
+--echo # which will fail when constructing .frm and thus obtaining SU metadata
+--echo # lock.
+--error ER_KEY_COLUMN_DOES_NOT_EXITS
+alter table t1 add index (not_exist);
 --echo # Check that SNW lock is compatible with it. To do this use ALTER TABLE
---echo # which will fail after opening the table and thus obtaining SNW metadata
+--echo # which will fail during copying the table and thus obtaining SNW metadata
 --echo # lock.
 --error ER_DUP_ENTRY
 alter table t1 add primary key (c1);
@@ -359,8 +369,13 @@ select column_name from information_schema.columns where
   table_schema='test' and table_name='t1';
 select count(*) from t1;
 insert into t1 values (1);
+--echo # Check that SU lock is compatible with it. To do this use ALTER TABLE
+--echo # which will fail when constructing .frm and thus obtaining SU metadata
+--echo # lock.
+--error ER_KEY_COLUMN_DOES_NOT_EXITS
+alter table t1 add index (not_exist);
 --echo # Check that SNW lock is compatible with it. To do this use ALTER TABLE
---echo # which will fail after opening the table and thus obtaining SNW metadata
+--echo # which will fail during copying the table and thus obtaining SNW metadata
 --echo # lock.
 --error ER_DUP_ENTRY
 alter table t1 add primary key (c1);
@@ -477,8 +492,13 @@ select column_name from information_schema.columns where
 select * from t1;
 --enable_result_log
 insert into t1 values (1);
+--echo # Check that SU lock is compatible with it. To do this use ALTER TABLE
+--echo # which will fail when constructing .frm and thus obtaining SU metadata
+--echo # lock.
+--error ER_KEY_COLUMN_DOES_NOT_EXITS
+alter table t1 add index (not_exist);
 --echo # Check that SNW lock is not compatible with SW lock.
---echo # Again we use ALTER TABLE which fails after opening
+--echo # Again we use ALTER TABLE which fails during copying
 --echo # the table to avoid upgrade of SNW -> X.
 --echo # Sending:
 --send alter table t1 add primary key (c1);
@@ -570,12 +590,140 @@ rename table t2 to t1;
 connection default;
 --echo #
 --echo #
---echo # 5) Acquire SNW lock on the table. We have to use DEBUG_SYNC for
---echo #    this, to prevent SNW from being immediately upgraded to X.
+--echo # 5) Acquire SU lock on the table. We have to use DEBUG_SYNC for
+--echo #    this, to prevent SU from being immediately upgraded to X.
 --echo #
-set debug_sync= 'after_open_table_mdl_shared SIGNAL locked WAIT_FOR finish';
+set debug_sync= 'alter_opened_table SIGNAL locked WAIT_FOR finish';
 --echo # Sending:
 --send alter table t1 add primary key (c1);
+--echo # 
+--echo # Switching to connection 'mdl_con1'.
+connection mdl_con1;
+set debug_sync= 'now WAIT_FOR locked';
+--echo # Check that S, SH, SR and SW locks are compatible with it.
+handler t1 open;
+handler t1 close;
+select column_name from information_schema.columns where
+  table_schema='test' and table_name='t1';
+select count(*) from t1;
+delete from t1 limit 1;
+--echo # Check that SU lock is incompatible with SU lock.
+--echo # Sending:
+--send alter table t1 add primary key (c1);
+--echo # 
+--echo # Switching to connection 'mdl_con2'.
+connection mdl_con2;
+--echo # Check that the above ALTER is blocked because of SU lock.
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Waiting for table metadata lock" and
+        info = "alter table t1 add primary key (c1)";
+--source include/wait_condition.inc
+--echo # Unblock ALTERs.
+set debug_sync= 'now SIGNAL finish';
+--echo # 
+--echo # Switching to connection 'default'.
+connection default;
+--echo # Reaping first ALTER TABLE.
+--error ER_DUP_ENTRY
+--reap
+--echo # 
+--echo # Switching to connection 'mdl_con1'.
+connection mdl_con1;
+--echo # Reaping another ALTER TABLE.
+--error ER_DUP_ENTRY
+--reap
+--echo # 
+--echo # Switching to connection 'default'.
+connection default;
+set debug_sync= 'alter_opened_table SIGNAL locked WAIT_FOR finish';
+--echo # Sending:
+--send alter table t1 add primary key (c1);
+--echo # 
+--echo # Switching to connection 'mdl_con1'.
+connection mdl_con1;
+set debug_sync= 'now WAIT_FOR locked';
+--echo # Check that SNRW lock is incompatible with SU lock.
+--echo # Sending:
+--send lock table t1 write;
+--echo # 
+--echo # Switching to connection 'mdl_con2'.
+connection mdl_con2;
+--echo # Check that the above LOCK TABLES is blocked because of SU lock.
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Waiting for table metadata lock" and
+        info = "lock table t1 write";
+--source include/wait_condition.inc
+--echo # Unblock ALTER and thus LOCK TABLES.
+set debug_sync= 'now SIGNAL finish';
+--echo # 
+--echo # Switching to connection 'default'.
+connection default;
+--echo # Reaping ALTER TABLE.
+--error ER_DUP_ENTRY
+--reap
+--echo # 
+--echo # Switching to connection 'mdl_con1'.
+connection mdl_con1;
+--echo # Reaping LOCK TABLES
+--reap
+insert into t1 values (1);
+unlock tables;
+--echo # 
+--echo # Switching to connection 'default'.
+connection default;
+set debug_sync= 'alter_opened_table SIGNAL locked WAIT_FOR finish';
+--echo # Sending:
+--send alter table t1 add primary key (c1);
+--echo # 
+--echo # Switching to connection 'mdl_con1'.
+connection mdl_con1;
+set debug_sync= 'now WAIT_FOR locked';
+--echo # Check that X lock is incompatible with SU lock.
+--echo # Sending:
+--send rename table t1 to t2;
+--echo # 
+--echo # Switching to connection 'mdl_con2'.
+connection mdl_con2;
+--echo # Check that the above RENAME is blocked because of SU lock.
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Waiting for table metadata lock" and
+        info = "rename table t1 to t2";
+--source include/wait_condition.inc
+--echo # Unblock ALTER and thus RENAME TABLE.
+set debug_sync= 'now SIGNAL finish';
+--echo # 
+--echo # Switching to connection 'default'.
+connection default;
+--echo # Now we have ALTER TABLE with SU->SNW and RENAME TABLE with pending
+--echo # X-lock. In this case ALTER TABLE should be chosen as victim.
+--echo # Reaping ALTER TABLE.
+--error ER_LOCK_DEADLOCK
+--reap
+--echo # 
+--echo # Switching to connection 'mdl_con1'.
+connection mdl_con1;
+--echo # Reaping RENAME TABLE
+--reap
+--echo # Revert back to original state of things.
+rename table t2 to t1;
+--echo #
+--echo # There is no need to check that upgrade from SNW/SNRW to X is
+--echo # blocked by presence of another SU lock because SNW/SNRW is
+--echo # incompatible with SU anyway.
+--echo # 
+--echo # Switching to connection 'default'.
+connection default;
+--echo #
+--echo #
+--echo # 6) Acquire SNW lock on the table. We have to use DEBUG_SYNC for
+--echo #    this, to prevent SNW from being immediately upgraded to X.
+--echo #
+set debug_sync= 'alter_table_copy_after_lock_upgrade SIGNAL locked WAIT_FOR finish';
+--echo # Sending:
+--send alter table t1 add primary key (c1), lock=shared, algorithm=copy;
 --echo # 
 --echo # Switching to connection 'mdl_con1'.
 connection mdl_con1;
@@ -614,14 +762,14 @@ connection mdl_con1;
 --echo # 
 --echo # Switching to connection 'default'.
 connection default;
-set debug_sync= 'after_open_table_mdl_shared SIGNAL locked WAIT_FOR finish';
+set debug_sync= 'alter_table_copy_after_lock_upgrade SIGNAL locked WAIT_FOR finish';
 --echo # Sending:
---send alter table t1 add primary key (c1);
+--send alter table t1 add primary key (c1), lock=shared, algorithm=copy;
 --echo # 
 --echo # Switching to connection 'mdl_con1'.
 connection mdl_con1;
 set debug_sync= 'now WAIT_FOR locked';
---echo # Check that SNW lock is incompatible with SNW lock.
+--echo # Check that SU lock is incompatible with SNW lock.
 --echo # Sending:
 --send alter table t1 add primary key (c1);
 --echo # 
@@ -648,11 +796,15 @@ connection mdl_con1;
 --error ER_DUP_ENTRY
 --reap
 --echo # 
+--echo # Note that we can't easily check SNW vs SNW locks since
+--echo # SNW is only used by ALTER TABLE after upgrading from SU
+--echo # and SU is also incompatible with SNW.
+--echo #
 --echo # Switching to connection 'default'.
 connection default;
-set debug_sync= 'after_open_table_mdl_shared SIGNAL locked WAIT_FOR finish';
+set debug_sync= 'alter_table_copy_after_lock_upgrade SIGNAL locked WAIT_FOR finish';
 --echo # Sending:
---send alter table t1 add primary key (c1);
+--send alter table t1 add primary key (c1), lock=shared, algorithm=copy;
 --echo # 
 --echo # Switching to connection 'mdl_con1'.
 connection mdl_con1;
@@ -687,9 +839,9 @@ unlock tables;
 --echo # 
 --echo # Switching to connection 'default'.
 connection default;
-set debug_sync= 'after_open_table_mdl_shared SIGNAL locked WAIT_FOR finish';
+set debug_sync= 'alter_table_copy_after_lock_upgrade SIGNAL locked WAIT_FOR finish';
 --echo # Sending:
---send alter table t1 add primary key (c1);
+--send alter table t1 add primary key (c1), algorithm=copy, lock=shared;
 --echo # 
 --echo # Switching to connection 'mdl_con1'.
 connection mdl_con1;
@@ -730,7 +882,7 @@ rename table t2 to t1;
 connection default;
 --echo #
 --echo #
---echo # 6) Acquire SNRW lock on the table. 
+--echo # 7) Acquire SNRW lock on the table. 
 --echo #
 --echo #
 lock table t1 write;
@@ -794,13 +946,13 @@ lock table t1 write;
 --echo # 
 --echo # Switching to connection 'mdl_con1'.
 connection mdl_con1;
---echo # Check that SNW lock is incompatible with SNRW lock.
+--echo # Check that SU lock is incompatible with SNRW lock.
 --echo # Sending:
 --send alter table t1 add primary key (c1);
 --echo # 
 --echo # Switching to connection 'default'.
 connection default;
---echo # Check that the above ALTER is blocked because of UNWR lock.
+--echo # Check that the above ALTER is blocked because of SNRW lock.
 let $wait_condition=
   select count(*) = 1 from information_schema.processlist
   where state = "Waiting for table metadata lock" and
@@ -815,6 +967,10 @@ connection mdl_con1;
 --error ER_DUP_ENTRY
 --reap
 --echo # 
+--echo # Note that we can't easily check SNW vs SNRW locks since
+--echo # SNW is only used by ALTER TABLE after upgrading from SU
+--echo # and SU is also incompatible with SNRW.
+--echo #
 --echo # Switching to connection 'default'.
 connection default;
 lock table t1 write;
@@ -879,7 +1035,7 @@ rename table t2 to t1;
 connection default;
 --echo #
 --echo #
---echo # 7) Now do the same round of tests for X lock. We use additional
+--echo # 8) Now do the same round of tests for X lock. We use additional
 --echo #    table to get long-lived lock of this type.
 --echo #
 create table t2 (c1 int);
@@ -1083,7 +1239,7 @@ select count(*) = 1 from information_schema.processlist
 where state = "Waiting for table metadata lock" and
       info = "rename table t1 to t2";
 --source include/wait_condition.inc
---echo # Check that SNW lock is incompatible with X lock.
+--echo # Check that SU lock is incompatible with X lock.
 --echo # Sending:
 --send alter table t1 add primary key (c1);
 --echo # 
@@ -1110,7 +1266,11 @@ connection mdl_con1;
 --echo # Reaping ALTER.
 --error ER_DUP_ENTRY
 --reap
---echo # 
+--echo #
+--echo # Note that we can't easily check SNW vs X locks since
+--echo # SNW is only used by ALTER TABLE after upgrading from SU
+--echo # and SU is also incompatible with X.
+--echo #
 --echo # Switching to connection 'mdl_con2'.
 connection mdl_con2;
 --echo # Prepare for blocking RENAME TABLE.
@@ -1207,6 +1367,9 @@ rename table t3 to t1;
 --echo # B) Now let us test compatibility in cases when both locks
 --echo #    are pending. I.e. let us test rules for priorities between
 --echo #    different types of metadata locks.
+--echo #
+--echo #    Note: No tests for pending SU lock as this lock requires
+--echo #          even stronger active or pending lock.
 --echo #
 
 --echo # 
@@ -1657,6 +1820,9 @@ connection default;
 --echo #    transactional context. Obviously we are mostly interested
 --echo #    in conflicting types of locks.
 --echo #
+--echo #    Note: No tests for active/pending SU lock since
+--echo #          ALTER TABLE is in its own transaction.
+--echo #
 
 --echo #
 --echo # 1) Let us check how various locks used within transactional
@@ -1673,9 +1839,9 @@ connection mdl_con1;
 --echo # We have to use DEBUG_SYNC facility as otherwise SNW lock
 --echo # will be immediately released (or upgraded to X lock).
 insert into t2 values (1), (1);
-set debug_sync= 'after_open_table_mdl_shared SIGNAL locked WAIT_FOR finish';
+set debug_sync= 'alter_table_copy_after_lock_upgrade SIGNAL locked WAIT_FOR finish';
 --echo # Sending:
---send alter table t2 add primary key (c1);
+--send alter table t2 add primary key (c1), algorithm=copy, lock=shared;
 --echo # 
 --echo # Switching to connection 'default'.
 connection default;
@@ -1724,9 +1890,9 @@ select count(*) from t1;
 --echo # Switching to connection 'mdl_con1'.
 connection mdl_con1;
 --echo # Create an active SNW lock on t1.
-set debug_sync= 'after_open_table_mdl_shared SIGNAL locked WAIT_FOR finish';
+set debug_sync= 'alter_table_copy_after_lock_upgrade SIGNAL locked WAIT_FOR finish';
 --echo # Sending:
---send alter table t1 add primary key (c1);
+--send alter table t1 add primary key (c1), algorithm=copy, lock=shared;
 --echo # 
 --echo # Switching to connection 'default'.
 connection default;
@@ -2845,7 +3011,7 @@ drop tables t1, t2;
 create table t1 (i int);
 
 --echo # Ensure that ALTER waits once it has acquired SNW lock.
-set debug_sync='after_open_table_mdl_shared SIGNAL parked1 WAIT_FOR go1';
+set debug_sync='alter_table_copy_after_lock_upgrade SIGNAL parked1 WAIT_FOR go1';
 --echo # Sending:
 --send alter table t1 add column j int
 
@@ -3634,7 +3800,7 @@ select * from t1 where c2 = 3;
 --echo #
 --echo # Switching to connection 'con46273'.
 connection con46273;
-set debug_sync='after_lock_tables_takes_lock SIGNAL alter_table_locked WAIT_FOR alter_go';
+set debug_sync='alter_table_copy_after_lock_upgrade SIGNAL alter_table_locked WAIT_FOR alter_go';
 --send alter table t1 add column e int, rename to t2;
 
 --echo #
@@ -3897,7 +4063,7 @@ create table t1 (i int) engine=InnoDB;
 
 --echo # Switching to connection 'con50913_1'.
 connection con50913_1;
-set debug_sync= 'thr_multi_lock_after_thr_lock SIGNAL parked WAIT_FOR go';
+set debug_sync= 'alter_table_copy_after_lock_upgrade SIGNAL parked WAIT_FOR go';
 --echo # Sending:
 --send alter table t1 add column j int
 
@@ -3968,7 +4134,7 @@ select * from t1;
 connection default;
 --echo # Start ALTER TABLE which will acquire SNW lock and
 --echo # table lock and get blocked on sync point.
-set debug_sync= 'thr_multi_lock_after_thr_lock SIGNAL parked WAIT_FOR go';
+set debug_sync= 'alter_table_copy_after_lock_upgrade SIGNAL parked WAIT_FOR go';
 --echo # Sending:
 --send alter table t1 add column j int
 
@@ -4633,13 +4799,17 @@ connect(con2, localhost, root);
 
 --echo # Connection con1
 connection con1;
-SET DEBUG_SYNC= 'mdl_upgrade_shared_lock_to_exclusive SIGNAL upgrade WAIT_FOR continue';
+--echo # We need EXECUTE 2 since ALTER TABLE does SU => SNW => X and we want
+--echo # to stop at the second upgrade.
+SET DEBUG_SYNC= 'mdl_upgrade_lock SIGNAL upgrade WAIT_FOR continue EXECUTE 2';
 --echo # Sending:
 --send ALTER TABLE m1 engine=MERGE UNION=(t2, t1)
 
 --echo # Connection con2
 connection con2;
 --echo # Waiting for ALTER TABLE to try lock upgrade
+SET DEBUG_SYNC= 'now WAIT_FOR upgrade';
+SET DEBUG_SYNC= 'now SIGNAL continue';
 SET DEBUG_SYNC= 'now WAIT_FOR upgrade';
 --echo # Sending:
 --send DELETE FROM t2 WHERE a = 3

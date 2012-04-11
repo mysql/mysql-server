@@ -149,15 +149,13 @@ JOIN::exec()
       We have to test for 'conds' here as the WHERE may not be constant
       even if we don't have any tables for prepared statements or if
       conds uses something like 'rand()'.
-      If the HAVING clause is either impossible or always true, then
-      JOIN::having is set to NULL by optimize_cond.
-      In this case JOIN::exec must check for JOIN::having_value, in the
-      same way it checks for JOIN::cond_value.
+
+      Don't evaluate the having clause here. return_zero_rows() should
+      be called only for cases where there are no matching rows after
+      evaluating all conditions except the HAVING clause.
     */
     if (select_lex->cond_value != Item::COND_FALSE &&
-        select_lex->having_value != Item::COND_FALSE &&
-        (!conds || conds->val_int()) &&
-        (!having || having->val_int()))
+        (!conds || conds->val_int()))
     {
       if (result->send_result_set_metadata(*columns_list,
                                            Protocol::SEND_NUM_ROWS |
@@ -165,7 +163,16 @@ JOIN::exec()
       {
         DBUG_VOID_RETURN;
       }
-      if (do_send_rows &&
+
+      /*
+        If the HAVING clause is either impossible or always true, then
+        JOIN::having is set to NULL by optimize_cond.
+        In this case JOIN::exec must check for JOIN::having_value, in the
+        same way it checks for JOIN::cond_value.
+      */
+      if (((select_lex->having_value != Item::COND_FALSE) &&
+           (!having || having->val_int())) 
+          && do_send_rows &&
           (procedure ? (procedure->send_row(procedure_fields_list) ||
            procedure->end_of_records()) : result->send_data(fields_list)))
         error= 1;
@@ -1426,12 +1433,16 @@ static void update_const_equal_items(Item *cond, JOIN_TAB *tab)
 }
 
 /**
-  For some reason (impossible WHERE clause etc), the tables cannot
+  For some reason, e.g. due to an impossible WHERE clause, the tables cannot
   possibly contain any rows that will be in the result. This function
   is used to return with a result based on no matching rows (i.e., an
   empty result or one row with aggregates calculated without using
   rows in the case of implicit grouping) before the execution of
   nested loop join.
+
+  This function may evaluate the HAVING clause and is only meant for
+  result sets that are empty due to an impossible HAVING clause. Do
+  not use it if HAVING has already been evaluated.
 
   @param join    The join that does not produce a row
   @param fields  Fields in result
@@ -2328,6 +2339,7 @@ evaluate_join_record(JOIN *join, JOIN_TAB *join_tab,
     DBUG_RETURN(NESTED_LOOP_ERROR);
   if (error < 0)
     DBUG_RETURN(NESTED_LOOP_NO_MORE_ROWS);
+  DBUG_EXECUTE_IF("bug13822652_1", join->thd->killed= THD::KILL_QUERY;);
   if (join->thd->killed)			// Aborted by user
   {
     join->thd->send_kill_message();
@@ -4744,7 +4756,7 @@ setup_copy_fields(THD *thd, TMP_TABLE_PARAM *param,
         Item_ref *ref= (Item_ref *) pos;
         item->db_name= ref->db_name;
         item->table_name= ref->table_name;
-        item->name= ref->name;
+        item->item_name= ref->item_name;
       }
       pos= item;
       if (item->field->flags & BLOB_FLAG)
@@ -4944,7 +4956,7 @@ change_to_use_tmp_fields(THD *thd, Ref_ptr_array ref_pointer_array,
 
       if (item->real_item()->type() != Item::FIELD_ITEM)
         field->orig_table= 0;
-      item_field->name= item->name;
+      item_field->item_name= item->item_name;
       if (item->type() == Item::REF_ITEM)
       {
         Item_field *ifield= (Item_field *) item_field;
@@ -4953,13 +4965,13 @@ change_to_use_tmp_fields(THD *thd, Ref_ptr_array ref_pointer_array,
         ifield->db_name= iref->db_name;
       }
 #ifndef DBUG_OFF
-      if (!item_field->name)
+      if (!item_field->item_name.ptr())
       {
         char buff[256];
         String str(buff,sizeof(buff),&my_charset_bin);
         str.length(0);
         item->print(&str, QT_ORDINARY);
-        item_field->name= sql_strmake(str.ptr(),str.length());
+        item_field->item_name.copy(str.ptr(), str.length());
       }
 #endif
     }

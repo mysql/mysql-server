@@ -3013,7 +3013,7 @@ fts_optimize_thread(
 				dict_table_t*	table;
 
 			        table = dict_table_open_on_name_no_stats(
-					slot->table->name, FALSE,
+					slot->table->name, FALSE, FALSE,
 					DICT_ERR_IGNORE_INDEX_ROOT);
 
 				if (table) {
@@ -3023,7 +3023,7 @@ fts_optimize_thread(
 					}
 
 					fts_free(table);
-					dict_table_close(table, FALSE);
+					dict_table_close(table, FALSE, FALSE);
 				}
 			}
 		}

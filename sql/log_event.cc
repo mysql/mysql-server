@@ -499,10 +499,15 @@ static void cleanup_load_tmpdir()
 
 
 /*
-  write_str()
+  Stores string to IO_CACHE file.
+
+  Writes str to file in the following format:
+   1. Stores length using only one byte (255 maximum value);
+   2. Stores complete str.
 */
 
-static bool write_str(IO_CACHE *file, const char *str, uint length)
+static bool write_str_at_most_255_bytes(IO_CACHE *file, const char *str,
+                                        uint length)
 {
   uchar tmp[1];
   tmp[0]= (uchar) length;
@@ -512,11 +517,20 @@ static bool write_str(IO_CACHE *file, const char *str, uint length)
 
 
 /*
-  read_str()
+  Reads string from buf.
+
+  Reads str from buf in the following format:
+   1. Read length stored on buf first index, as it only has 1 byte values
+      bigger than 255 where lost.
+   2. Set str pointer to buf second index.
+  Despite str contains the complete stored string, when it is read until
+  len its value will be truncated if original length was bigger than 255.
 */
 
-static inline int read_str(const char **buf, const char *buf_end,
-                           const char **str, uint8 *len)
+static inline int read_str_at_most_255_bytes(const char **buf,
+                                             const char *buf_end,
+                                             const char **str,
+                                             uint8 *len)
 {
   if (*buf + ((uint) (uchar) **buf) >= buf_end)
     return 1;
@@ -3585,8 +3599,7 @@ Query_log_event::Query_log_event(THD* thd_arg, const char* query_arg,
         have the flag is_trans set because there is no updated engine but
         must be written to the trx-cache.
 
-      . SET does not have the flag is_trans set but, if auto-commit is off,
-        must be written to the trx-cache.
+      . SET If auto-commit is on, it must not go through a cache.
 
       . CREATE TABLE is classfied as non-row producer but CREATE TEMPORARY
         must be handled as row producer.
@@ -3636,8 +3649,10 @@ Query_log_event::Query_log_event(THD* thd_arg, const char* query_arg,
             thd->in_multi_stmt_transaction_mode()) || cmd_must_go_to_trx_cache;
         break;
       case SQLCOM_SET_OPTION:
-        cmd_can_generate_row_events= cmd_must_go_to_trx_cache=
-          (lex->autocommit ? FALSE : TRUE);
+        if (lex->autocommit)
+          cmd_can_generate_row_events= cmd_must_go_to_trx_cache= FALSE;
+        else
+          cmd_can_generate_row_events= TRUE;
         break;
       case SQLCOM_RELEASE_SAVEPOINT:
       case SQLCOM_ROLLBACK_TO_SAVEPOINT:
@@ -5924,9 +5939,9 @@ Load_log_event::Load_log_event(THD *thd_arg, sql_exchange *ex,
   while ((item = li++))
   {
     num_fields++;
-    uchar len = (uchar) strlen(item->name);
+    uchar len= (uchar) item->item_name.length();
     field_block_len += len + 1;
-    fields_buf.append(item->name, len + 1);
+    fields_buf.append(item->item_name.ptr(), len + 1);
     field_lens_buf.append((char*)&len, 1);
   }
 
@@ -6648,7 +6663,7 @@ int Rotate_log_event::do_update_pos(Relay_log_info *rli)
                         (ulong) rli->get_group_master_log_pos()));
     mysql_mutex_unlock(&rli->data_lock);
     if (rli->is_parallel_exec())
-      rli->reset_notified_checkpoint(0, when.tv_sec + (time_t) exec_time);
+      rli->reset_notified_checkpoint(0, when.tv_sec + (time_t) exec_time, false);
 
     /*
       Reset thd->variables.option_bits and sql_mode etc, because this could be the signal of
@@ -8643,11 +8658,11 @@ bool sql_ex_info::write_data(IO_CACHE* file)
 {
   if (new_format())
   {
-    return (write_str(file, field_term, (uint) field_term_len) ||
-	    write_str(file, enclosed,   (uint) enclosed_len) ||
-	    write_str(file, line_term,  (uint) line_term_len) ||
-	    write_str(file, line_start, (uint) line_start_len) ||
-	    write_str(file, escaped,    (uint) escaped_len) ||
+    return (write_str_at_most_255_bytes(file, field_term, (uint) field_term_len) ||
+	    write_str_at_most_255_bytes(file, enclosed,   (uint) enclosed_len) ||
+	    write_str_at_most_255_bytes(file, line_term,  (uint) line_term_len) ||
+	    write_str_at_most_255_bytes(file, line_start, (uint) line_start_len) ||
+	    write_str_at_most_255_bytes(file, escaped,    (uint) escaped_len) ||
 	    my_b_safe_write(file,(uchar*) &opt_flags,1));
   }
   else
@@ -8687,11 +8702,11 @@ const char *sql_ex_info::init(const char *buf, const char *buf_end,
       the case when we have old format because we will be reusing net buffer
       to read the actual file before we write out the Create_file event.
     */
-    if (read_str(&buf, buf_end, &field_term, &field_term_len) ||
-        read_str(&buf, buf_end, &enclosed,   &enclosed_len) ||
-        read_str(&buf, buf_end, &line_term,  &line_term_len) ||
-        read_str(&buf, buf_end, &line_start, &line_start_len) ||
-        read_str(&buf, buf_end, &escaped,    &escaped_len))
+    if (read_str_at_most_255_bytes(&buf, buf_end, &field_term, &field_term_len) ||
+        read_str_at_most_255_bytes(&buf, buf_end, &enclosed,   &enclosed_len) ||
+        read_str_at_most_255_bytes(&buf, buf_end, &line_term,  &line_term_len) ||
+        read_str_at_most_255_bytes(&buf, buf_end, &line_start, &line_start_len) ||
+        read_str_at_most_255_bytes(&buf, buf_end, &escaped,    &escaped_len))
       return 0;
     opt_flags = *buf++;
   }
@@ -12016,7 +12031,7 @@ Incident_log_event::Incident_log_event(const char *buf, uint event_len,
   char const *const str_end= buf + event_len;
   uint8 len= 0;                   // Assignment to keep compiler happy
   const char *str= NULL;          // Assignment to keep compiler happy
-  read_str(&ptr, str_end, &str, &len);
+  read_str_at_most_255_bytes(&ptr, str_end, &str, &len);
   if (!(m_message.str= (char*) my_malloc(len+1, MYF(MY_WME))))
   {
     /* Mark this event invalid */
@@ -12129,7 +12144,7 @@ Incident_log_event::write_data_body(IO_CACHE *file)
     crc= my_checksum(crc, (uchar*) m_message.str, m_message.length);
     // todo: report a bug on write_str accepts uint but treats it as uchar
   }
-  DBUG_RETURN(write_str(file, m_message.str, (uint) m_message.length));
+  DBUG_RETURN(write_str_at_most_255_bytes(file, m_message.str, (uint) m_message.length));
 }
 
 
@@ -12187,14 +12202,15 @@ Rows_query_log_event::Rows_query_log_event(const char *buf, uint event_len,
   DBUG_PRINT("info",("event_len: %u; common_header_len: %d; post_header_len: %d",
                      event_len, common_header_len, post_header_len));
 
-  char const *ptr= buf + common_header_len + post_header_len;
-  char const *const str_end= buf + event_len;
-  uint8 len= 0;                   // Assignment to keep compiler happy
-  const char *str= NULL;          // Assignment to keep compiler happy
-  read_str(&ptr, str_end, &str, &len);
+  /*
+   m_rows_query length is stored using only one byte, but that length is
+   ignored and the complete query is read.
+  */
+  int offset= common_header_len + post_header_len + 1;
+  int len= event_len - offset;
   if (!(m_rows_query= (char*) my_malloc(len+1, MYF(MY_WME))))
     return;
-  strmake(m_rows_query, str, len);
+  strmake(m_rows_query, buf + offset, len);
   DBUG_PRINT("info", ("m_rows_query: %s", m_rows_query));
   DBUG_VOID_RETURN;
 }
@@ -12228,9 +12244,22 @@ Rows_query_log_event::print(FILE *file,
   {
     IO_CACHE *const head= &print_event_info->head_cache;
     IO_CACHE *const body= &print_event_info->body_cache;
+    char *token= NULL, *saveptr= NULL;
+    char *rows_query_copy= NULL;
+    if (!(rows_query_copy= my_strdup(m_rows_query, MYF(MY_WME))))
+      return;
+
     print_header(head, print_event_info, FALSE);
     my_b_printf(head, "\tRows_query\n");
-    my_b_printf(head, "# %s\n", m_rows_query);
+    /*
+      Prefix every line of a multi-line query with '#' to prevent the
+      statement from being executed when binary log will be processed
+      using 'mysqlbinlog --verbose --verbose'.
+    */
+    for (token= strtok_r(rows_query_copy, "\n", &saveptr); token;
+         token= strtok_r(NULL, "\n", &saveptr))
+      my_b_printf(head, "# %s\n", token);
+    my_free(rows_query_copy);
     print_base64(body, print_event_info, true);
   }
 }
@@ -12240,7 +12269,12 @@ bool
 Rows_query_log_event::write_data_body(IO_CACHE *file)
 {
   DBUG_ENTER("Rows_query_log_event::write_data_body");
-  DBUG_RETURN(write_str(file, m_rows_query, (uint) strlen(m_rows_query)));
+  /*
+   m_rows_query length will be stored using only one byte, but on read
+   that length will be ignored and the complete query will be read.
+  */
+  DBUG_RETURN(write_str_at_most_255_bytes(file, m_rows_query,
+              (uint) strlen(m_rows_query)));
 }
 
 #if defined(MYSQL_SERVER) && defined(HAVE_REPLICATION)

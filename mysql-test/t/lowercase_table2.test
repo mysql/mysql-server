@@ -257,3 +257,13 @@ create table t_bug44738_UPPERCASE (i int);
 flush tables;
 create table t_bug44738_UPPERCASE (i int);
 drop table t_bug44738_UPPERCASE;
+
+--echo # BUG#13702397 - 64211: 'CREATE TABLE ... LIKE ...'
+--echo #                       FAILS TO KEEP CASE
+--echo #
+
+CREATE TABLE TestTable1 (a int);
+SHOW TABLES;
+CREATE TABLE TestTable2 LIKE TestTable1;
+SHOW TABLES;
+DROP TABLE TestTable1, TestTable2;

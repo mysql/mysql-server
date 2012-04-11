@@ -595,7 +595,10 @@ dict_build_index_def_step(
 		return(DB_TABLE_NOT_FOUND);
 	}
 
-	trx->table_id = table->id;
+	if (!trx->table_id) {
+		/* Record only the first table id. */
+		trx->table_id = table->id;
+	}
 
 	node->table = table;
 

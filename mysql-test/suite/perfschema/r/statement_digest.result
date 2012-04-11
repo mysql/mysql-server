@@ -8,6 +8,7 @@ CREATE TABLE t2(a int);
 CREATE TABLE t3(a int, b int);
 CREATE TABLE t4(a int, b int);
 CREATE TABLE t5(a int, b int, c int);
+CREATE TABLE t6(a int, b int, c int, d int);
 TRUNCATE TABLE performance_schema.events_statements_summary_by_digest;
 ####################################
 # EXECUTION
@@ -35,6 +36,15 @@ INSERT INTO t1 VALUES (1), (2), (3);
 INSERT INTO t1 VALUES (1), (2), (3), (4);
 INSERT INTO t3 VALUES (1, 2), (3, 4), (5, 6);
 INSERT INTO t5 VALUES (1, 2, 3), (4, 5, 6), (7, 8, 9);
+INSERT INTO t1 VALUES (NULL);
+INSERT INTO t3 VALUES (NULL,NULL);
+INSERT INTO t3 VALUES (1,NULL);
+INSERT INTO t3 VALUES (NULL,1);
+INSERT INTO t6 VALUES (NULL, NULL, NULL, NULL);
+INSERT INTO t6 VALUES (1, NULL, NULL, NULL);
+INSERT INTO t6 VALUES (NULL, 2, NULL, NULL);
+INSERT INTO t6 VALUES (1, 2, 3, NULL);
+INSERT INTO t6 VALUES (1, 2, NULL, 4);
 SELECT                                          1           +        1;
 1           +        1
 2
@@ -83,12 +93,14 @@ b71eb7d7c299dfc30efdd68528f59a76	SELECT ? FROM t2  	1	0	0	0
 ceee8936a87a0f5175734f5f10e7057c	SELECT ?, ... FROM t2  	2	0	0	0
 8706d275b70cc0e0be3278bcfd11425b	INSERT INTO t1 VALUES (?)  	1	1	0	0
 078618f67231c7030acb33e57a83cfd8	INSERT INTO t2 VALUES (?)  	1	1	0	0
-8ad1b5c85b289e58d0f7b427da91a6ce	INSERT INTO t3 VALUES (...)  	1	1	0	0
+8ad1b5c85b289e58d0f7b427da91a6ce	INSERT INTO t3 VALUES (...)  	4	4	0	0
 d66ea0477cde3db52d29b929fb1d2aca	INSERT INTO t4 VALUES (...)  	1	1	0	0
 dbe42331568bef0faca4a83edb21e87b	INSERT INTO t5 VALUES (...)  	1	1	0	0
 a9ae07204bf4a980fdb9e735c8b5efaa	INSERT INTO t1 VALUES (?) /* , ... */  	2	7	0	0
 15bad11ceed55668da6a92334afc07e9	INSERT INTO t3 VALUES (...) /* , ... */  	1	3	0	0
 56b93d153e0ee2c70de8306ef1fb8d18	INSERT INTO t5 VALUES (...) /* , ... */  	1	3	0	0
+9517ed3fd8d1d4201eae52f4baa4212b	INSERT INTO t1 VALUES ( NULL )  	1	1	0	0
+9c759641f43efd1e0b193d5357cb74b4	INSERT INTO t6 VALUES (...)  	5	5	0	0
 9dc07462e059ac4602d4c14545dc0fe8	SELECT ? + ?  	3	0	0	0
 52d466db2e44df4a904d2800fc3af99e	SELECT ?  	1	0	0	0
 fb40aece1f68b5c3fbaf220bc21ad353	CREATE SCHEMA statements_digest_temp  	2	2	0	0
@@ -105,4 +117,5 @@ DROP TABLE IF EXISTS t2;
 DROP TABLE IF EXISTS t3;
 DROP TABLE IF EXISTS t4;
 DROP TABLE IF EXISTS t5;
+DROP TABLE IF EXISTS t6;
 DROP DATABASE IF EXISTS statements_digest;

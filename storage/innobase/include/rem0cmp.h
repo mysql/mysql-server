@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2012, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -196,7 +196,9 @@ cmp_dtuple_is_prefix_of_rec(
 /*************************************************************//**
 Compare two physical records that contain the same number of columns,
 none of which are stored externally.
-@return	1, 0, -1 if rec1 is greater, equal, less, respectively, than rec2 */
+@retval 1 if rec1 (including non-ordering columns) is greater than rec2
+@retval -1 if rec1 (including non-ordering columns) is less than rec2
+@retval 0 if rec1 is a duplicate of rec2 */
 UNIV_INTERN
 int
 cmp_rec_rec_simple(
@@ -206,8 +208,10 @@ cmp_rec_rec_simple(
 	const ulint*		offsets1,/*!< in: rec_get_offsets(rec1, ...) */
 	const ulint*		offsets2,/*!< in: rec_get_offsets(rec2, ...) */
 	const dict_index_t*	index,	/*!< in: data dictionary index */
-	ibool*			null_eq);/*!< out: set to TRUE if
-					found matching null values */
+	struct TABLE*		table)	/*!< in: MySQL table, for reporting
+					duplicate key value if applicable,
+					or NULL */
+	__attribute__((nonnull(1,2,3,4,5), warn_unused_result));
 /*************************************************************//**
 This function is used to compare two physical records. Only the common
 first fields are compared, and if an externally stored field is

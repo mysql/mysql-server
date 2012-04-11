@@ -2579,7 +2579,7 @@ Field *Field_new_decimal::create_from_item (Item *item)
       /* Corrected value fits. */
       len= required_length;
   }
-  return new Field_new_decimal(len, item->maybe_null, item->name,
+  return new Field_new_decimal(len, item->maybe_null, item->item_name.ptr(),
                                dec, item->unsigned_flag);
 }
 

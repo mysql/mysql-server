@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -21,6 +21,7 @@
 #include "m_ctype.h"                            /* CHARSET_INFO */
 
 class Alter_info;
+class Alter_table_ctx;
 class Create_field;
 struct TABLE_LIST;
 class THD;
@@ -33,7 +34,6 @@ typedef struct st_key_cache KEY_CACHE;
 typedef struct st_lock_param_type ALTER_PARTITION_PARAM_TYPE;
 typedef struct st_mysql_lex_string LEX_STRING;
 typedef struct st_order ORDER;
-class Alter_table_change_level;
 
 enum ddl_log_entry_code
 {
@@ -128,11 +128,13 @@ enum enum_explain_filename_mode
 #define WFRM_KEEP_SHARE 8
 
 /* Flags for conversion functions. */
-#define FN_FROM_IS_TMP  (1 << 0)
-#define FN_TO_IS_TMP    (1 << 1)
-#define FN_IS_TMP       (FN_FROM_IS_TMP | FN_TO_IS_TMP)
-#define NO_FRM_RENAME   (1 << 2)
-#define FRM_ONLY        (1 << 3)
+static const uint FN_FROM_IS_TMP=  1 << 0;
+static const uint FN_TO_IS_TMP=    1 << 1;
+static const uint FN_IS_TMP=       FN_FROM_IS_TMP | FN_TO_IS_TMP;
+static const uint NO_FRM_RENAME=   1 << 2;
+static const uint FRM_ONLY=        1 << 3;
+/** Don't remove table in engine. Remove only .FRM and maybe .PAR files. */
+static const uint NO_HA_TABLE=     1 << 4;
 
 uint filename_to_tablename(const char *from, char *to, uint to_length
 #ifndef DBUG_OFF
@@ -146,6 +148,7 @@ uint build_table_filename(char *buff, size_t bufflen, const char *db,
                           const char *table, const char *ext, uint flags);
 uint build_table_shadow_filename(char *buff, size_t bufflen,
                                  ALTER_PARTITION_PARAM_TYPE *lpt);
+uint build_tmptable_filename(THD* thd, char *buff, size_t bufflen);
 bool mysql_create_table(THD *thd, TABLE_LIST *create_table,
                         HA_CREATE_INFO *create_info,
                         Alter_info *alter_info);
@@ -153,11 +156,15 @@ bool mysql_create_table_no_lock(THD *thd, const char *db,
                                 const char *table_name,
                                 HA_CREATE_INFO *create_info,
                                 Alter_info *alter_info,
-                                bool tmp_table, uint select_field_count,
+                                uint select_field_count,
                                 bool *is_trans);
+int mysql_discard_or_import_tablespace(THD *thd,
+                                       TABLE_LIST *table_list,
+                                       bool discard);
 bool mysql_prepare_alter_table(THD *thd, TABLE *table,
                                HA_CREATE_INFO *create_info,
-                               Alter_info *alter_info);
+                               Alter_info *alter_info,
+                               Alter_table_ctx *alter_ctx);
 bool mysql_trans_prepare_alter_copy_data(THD *thd);
 bool mysql_trans_commit_alter_copy_data(THD *thd);
 bool mysql_alter_table(THD *thd, char *new_db, char *new_name,
@@ -168,12 +175,7 @@ bool mysql_alter_table(THD *thd, char *new_db, char *new_name,
 bool mysql_compare_tables(TABLE *table,
                           Alter_info *alter_info,
                           HA_CREATE_INFO *create_info,
-                          uint order_num,
-                          Alter_table_change_level *need_copy_table,
-                          KEY **key_info_buffer,
-                          uint **index_drop_buffer, uint *index_drop_count,
-                          uint **index_add_buffer, uint *index_add_count,
-                          uint *candidate_key_count, bool exact_match);
+                          bool *metadata_equal);
 bool mysql_recreate_table(THD *thd, TABLE_LIST *table_list);
 bool mysql_create_like_table(THD *thd, TABLE_LIST *table,
                              TABLE_LIST *src_table,
@@ -192,7 +194,7 @@ bool mysql_rm_table(THD *thd,TABLE_LIST *tables, my_bool if_exists,
 int mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
                             bool drop_temporary, bool drop_view,
                             bool log_query);
-bool quick_rm_table(handlerton *base,const char *db,
+bool quick_rm_table(THD *thd, handlerton *base, const char *db,
                     const char *table_name, uint flags);
 void close_cached_table(THD *thd, TABLE *table);
 void sp_prepare_create_field(THD *thd, Create_field *sql_field);

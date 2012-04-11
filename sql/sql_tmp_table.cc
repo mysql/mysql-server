@@ -126,7 +126,7 @@ static Field *create_tmp_field_from_item(THD *thd, Item *item, TABLE *table,
   switch (item->result_type()) {
   case REAL_RESULT:
     new_field= new Field_double(item->max_length, maybe_null,
-                                item->name, item->decimals, TRUE);
+                                item->item_name.ptr(), item->decimals, TRUE);
     break;
   case INT_RESULT:
     /* 
@@ -137,10 +137,10 @@ static Field *create_tmp_field_from_item(THD *thd, Item *item, TABLE *table,
     */
     if (item->max_length >= (MY_INT32_NUM_DECIMAL_DIGITS - 1))
       new_field=new Field_longlong(item->max_length, maybe_null,
-                                   item->name, item->unsigned_flag);
+                                   item->item_name.ptr(), item->unsigned_flag);
     else
       new_field=new Field_long(item->max_length, maybe_null,
-                               item->name, item->unsigned_flag);
+                               item->item_name.ptr(), item->unsigned_flag);
     break;
   case STRING_RESULT:
     DBUG_ASSERT(item->collation.collation);
@@ -159,7 +159,7 @@ static Field *create_tmp_field_from_item(THD *thd, Item *item, TABLE *table,
              convert_blob_length <= Field_varstring::MAX_SIZE && 
              convert_blob_length)
       new_field= new Field_varstring(convert_blob_length, maybe_null,
-                                     item->name, table->s,
+                                     item->item_name.ptr(), table->s,
                                      item->collation.collation);
     else
       new_field= item->make_string_field(table);
@@ -208,11 +208,11 @@ static Field *create_tmp_field_for_schema(THD *thd, Item *item, TABLE *table)
     Field *field;
     if (item->max_length > MAX_FIELD_VARCHARLENGTH)
       field= new Field_blob(item->max_length, item->maybe_null,
-                            item->name, item->collation.collation);
+                            item->item_name.ptr(), item->collation.collation);
     else
     {
       field= new Field_varstring(item->max_length, item->maybe_null,
-                                 item->name,
+                                 item->item_name.ptr(),
                                  table->s, item->collation.collation);
       table->s->db_create_options|= HA_OPTION_PACK_RECORD;
     }
@@ -312,8 +312,8 @@ Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
     }
     else
       result= create_tmp_field_from_field(thd, (*from_field= field->field),
-                                          orig_item ? orig_item->name :
-                                          item->name,
+                                          orig_item ? orig_item->item_name.ptr() :
+                                          item->item_name.ptr(),
                                           table,
                                           modify_item ? field :
                                           NULL,
@@ -349,7 +349,7 @@ Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
       Field *result_field=
         create_tmp_field_from_field(thd,
                                     sp_result_field,
-                                    item_func_sp->name,
+                                    item_func_sp->item_name.ptr(),
                                     table,
                                     NULL,
                                     convert_blob_length);

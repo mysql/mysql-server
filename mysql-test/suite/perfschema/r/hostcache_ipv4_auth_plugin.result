@@ -1,8 +1,27 @@
 flush status;
 flush hosts;
+flush user_resources;
+flush privileges;
 select @@global.debug;
 @@global.debug
 
+select @@global.max_connect_errors;
+@@global.max_connect_errors
+10
+select @@global.max_user_connections;
+@@global.max_user_connections
+0
+select @@global.max_connections;
+@@global.max_connections
+151
+select `User`, `Host` from mysql.`user` where `host` like '%\\%%';
+User	Host
+select `User`, `Host` from mysql.`user` where `user` like '192.%';
+User	Host
+select `User`, `Host` from mysql.`user` where `user` like '2001:%';
+User	Host
+select `User`, `Host` from mysql.`user` where `user` like 'santa.claus.%';
+User	Host
 CREATE USER 'plug'@'santa.claus.ipv4.example.com'
   IDENTIFIED WITH 'test_plugin_server' AS 'plug_dest';
 CREATE USER 'plug_dest'@'santa.claus.ipv4.example.com'
