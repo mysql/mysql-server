@@ -22,6 +22,7 @@
 #include <assert.h>
 
 #include "workitem.h"
+#include "NdbInstance.h"
 #include "Operation.h"
 #include "Scheduler.h"
 #include "status_block.h"

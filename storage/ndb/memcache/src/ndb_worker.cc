@@ -880,7 +880,7 @@ void worker_close(NdbTransaction *tx, workitem *wqitem) {
   nwaits_post = ndb->getClientStat(Ndb::WaitExecCompleteCount);
 
   if(nwaits_post > nwaits_pre) 
-    log_app_error(& AppError9003_SyncClose);
+    log_app_error(& AppError29023_SyncClose);
  
   if(wqitem->ext_val) 
     delete wqitem->ext_val;

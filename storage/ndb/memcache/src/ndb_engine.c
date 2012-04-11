@@ -166,6 +166,7 @@ static ENGINE_ERROR_CODE ndb_initialize(ENGINE_HANDLE* handle,
   ENGINE_ERROR_CODE return_status;
   struct ndb_engine *ndb_eng = ndb_handle(handle);
   struct default_engine *def_eng = default_handle(ndb_eng);
+  scheduler_options sched_opts;
   
   /* Process options for both the ndb engine and the default engine:  */
   read_cmdline_options(ndb_eng, def_eng, config_str);
@@ -212,6 +213,10 @@ static ENGINE_ERROR_CODE ndb_initialize(ENGINE_HANDLE* handle,
   /* prefetch data dictionary objects */
   prefetch_dictionary_objects();
 
+  /* Build the scheduler options structure */
+  sched_opts.nthreads = ndb_eng->server_options.nthreads;
+  sched_opts.max_clients = ndb_eng->server_options.maxconns;
+
   /* Allocate and initailize the pipelines, and their schedulers.  
      This will take some time; each pipeline creates slab and pool allocators,
      and each scheduler may preallocate a large number of Ndb objects and 
@@ -224,9 +229,9 @@ static ENGINE_ERROR_CODE ndb_initialize(ENGINE_HANDLE* handle,
   ndb_eng->pipelines  = malloc(nthreads * sizeof(void *));
   ndb_eng->schedulers = malloc(nthreads * sizeof(void *));
   for(i = 0 ; i < nthreads ; i++) {
-    ndb_eng->pipelines[i] = get_request_pipeline(i);
-    ndb_eng->schedulers[i] = 
-      scheduler_initialize(ndb_eng->startup_options.scheduler, nthreads, i);
+    ndb_eng->pipelines[i] = get_request_pipeline(i, ndb_eng);
+    ndb_eng->schedulers[i] = scheduler_initialize(ndb_eng->pipelines[i], 
+                                                  & sched_opts);
     if(ndb_eng->schedulers[i] == 0) {
       logger->log(LOG_WARNING, NULL, "Illegal scheduler: \"%s\"\n", 
                   ndb_eng->startup_options.scheduler); 
@@ -819,6 +824,9 @@ int fetch_core_settings(struct ndb_engine *engine,
     { .key = "cas_enabled",
       .datatype = DT_BOOL,
       .value.dt_bool = &engine->server_options.cas_enabled },
+    { .key = "maxconns",
+      .datatype = DT_SIZE,
+      .value.dt_size = &engine->server_options.maxconns },
     { .key = "num_threads",
       .datatype = DT_SIZE,
       .value.dt_size = &engine->server_options.nthreads },

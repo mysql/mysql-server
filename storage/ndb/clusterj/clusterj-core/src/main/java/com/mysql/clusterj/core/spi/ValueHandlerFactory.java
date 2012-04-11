@@ -19,6 +19,7 @@ package com.mysql.clusterj.core.spi;
 
 import com.mysql.clusterj.core.metadata.DomainTypeHandlerImpl;
 import com.mysql.clusterj.core.store.Db;
+import com.mysql.clusterj.core.store.ResultData;
 
 /** ValueHandlerFactory allows a component to provide an alternative value handler.
  *
@@ -27,5 +28,8 @@ public interface ValueHandlerFactory {
 
     <T> ValueHandler getValueHandler(DomainTypeHandlerImpl<T> domainTypeHandler, Db db);
 
+    <T> ValueHandler getValueHandler(DomainTypeHandlerImpl<T> domainTypeHandler, Db db, ResultData resultData);
+
     <T> ValueHandler getKeyValueHandler(DomainTypeHandlerImpl<T> domainTypeHandler, Db db, Object keyValues);
+
 }

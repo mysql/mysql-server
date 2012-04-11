@@ -23,18 +23,9 @@ public class NdbRecordInsertOperationImpl extends NdbRecordOperationImpl {
 
     public NdbRecordInsertOperationImpl(ClusterTransactionImpl clusterTransaction, Table storeTable) {
         super(clusterTransaction, storeTable);
-        this.ndbRecordValues = clusterTransaction.getCachedNdbRecordImpl(storeTable);
         this.ndbRecordKeys = ndbRecordValues;
-        this.valueBufferSize = ndbRecordValues.getBufferSize();
-        this.numberOfColumns = ndbRecordValues.getNumberOfColumns();
-        this.blobs = new NdbRecordBlobImpl[this.numberOfColumns];
+        this.keyBuffer = valueBuffer;
         resetMask();
-    }
-
-    public void beginDefinition() {
-        // allocate a buffer for the operation data
-        valueBuffer = ndbRecordValues.newBuffer();
-        keyBuffer = valueBuffer;
     }
 
     public void endDefinition() {

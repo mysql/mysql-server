@@ -23,13 +23,21 @@
 #include "ndbmemcache_global.h"
 #include <memcached/types.h>
 
-#include "ndb_pipeline.h"
-
-#ifdef __cplusplus
-#include "NdbInstance.h"
-#include "Configuration.h"
 #include "thread_identifier.h"
 
+
+typedef struct {
+  int nthreads;                /* number of worker threads */
+  int max_clients;             /* maximum number of client connections */
+  const char * config_string;  /* scheduler-specific configuration string */
+} scheduler_options;       
+
+
+#ifdef __cplusplus
+
+/* Forward declarations */
+class Configuration;
+class workitem;
 
 /* Scheduler is an interface */
 
@@ -44,10 +52,9 @@ public:
   /** init() is the called from the main thread, 
       after configuration has been read. 
       threadnum: which thread this scheduler will eventually attach to 
-      nthreads: how many total threads will be initialized 
-      config_string: additional configuration string for scheduler   
+      options: struct specifying run-time options   
   */
-  virtual void init(int threadnum, int nthreads, const char *config_string) = 0;
+  virtual void init(int threadnum, const scheduler_options * options) = 0;
                     
   /** attach_thread() is called from each thread 
       at pipeline initialization time. */
@@ -87,9 +94,6 @@ public:
    */
   virtual bool global_reconfigure(Configuration *new_config) = 0;
     
-  /** each scheduler instance serves a single NDB pipeline 
-  */
-  ndb_pipeline *pipeline;
 };
 #endif
 
