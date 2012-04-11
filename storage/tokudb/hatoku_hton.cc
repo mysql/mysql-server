@@ -813,7 +813,11 @@ static int tokudb_commit(handlerton * hton, THD * thd, bool all) {
         if (tokudb_debug & TOKUDB_DEBUG_TXN) {
             TOKUDB_TRACE("doing txn commit:%d:%p\n", all, *txn);
         }
+        // test hook to induce a crash on a debug build
+        DBUG_EXECUTE_IF("tokudb_crash_commit_before", DBUG_SUICIDE(););
         commit_txn_with_progress(*txn, syncflag, thd);
+        // test hook to induce a crash on a debug build
+        DBUG_EXECUTE_IF("tokudb_crash_commit_after", DBUG_SUICIDE(););
         if (*txn == trx->sp_level) {
             trx->sp_level = 0;
         }
@@ -865,7 +869,11 @@ static int tokudb_xa_prepare(handlerton* hton, THD* thd, bool all) {
         // a TOKU_XA_XID is identical to a MYSQL_XID
         TOKU_XA_XID thd_xid;
         thd_get_xid(thd, (MYSQL_XID*) &thd_xid);
+        // test hook to induce a crash on a debug build
+        DBUG_EXECUTE_IF("tokudb_crash_prepare_before", DBUG_SUICIDE(););
         r = txn->xa_prepare(txn, &thd_xid);
+        // test hook to induce a crash on a debug build
+        DBUG_EXECUTE_IF("tokudb_crash_prepare_after", DBUG_SUICIDE(););
     } 
     else if (tokudb_debug & TOKUDB_DEBUG_TXN) {
         TOKUDB_TRACE("nothing to prepare %d\n", all);
