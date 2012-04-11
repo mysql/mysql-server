@@ -71,7 +71,13 @@ select count(*), sum(crc32(concat(a,b,c,d,e,f))) from t1;
 count(*)	sum(crc32(concat(a,b,c,d,e,f)))
 500	1099869477618
 # verify ndb_select_all
-create temporary table t1tmp (
+create temporary table t1tmp1 (
+x char(255)
+) engine=myisam;
+load data infile 'DUMP_FILE1' into table t1tmp1;
+delete from t1tmp1 where x not regexp '^[0-9]*,';
+select x from t1tmp1 into outfile 'DUMP_FILE2';
+create temporary table t1tmp2 (
 a int primary key,
 b char(40),
 c char(40),
@@ -79,15 +85,16 @@ d char(40),
 e char(40),
 f char(40)
 ) engine=myisam;
-load data infile 'DUMP_FILE' into table t1tmp
+load data infile 'DUMP_FILE2' into table t1tmp2
 fields terminated by ',';
 select count(*), sum(crc32(concat(a,b,c,d,e,unix_timestamp(f)))) from t1;
 count(*)	sum(crc32(concat(a,b,c,d,e,unix_timestamp(f))))
 500	1042802316591
-select count(*), sum(crc32(concat(a,b,c,d,replace(e,'/',' '),f))) from t1tmp;
+select count(*), sum(crc32(concat(a,b,c,d,replace(e,'/',' '),f))) from t1tmp2;
 count(*)	sum(crc32(concat(a,b,c,d,replace(e,'/',' '),f)))
 500	1042802316591
-drop table t1tmp;
+drop table t1tmp1;
+drop table t1tmp2;
 # index queries
 select * from t1 where b = '2011';
 a	b	c	d	e	f
@@ -206,7 +213,13 @@ select count(*), sum(crc32(concat(a,b,c,d,e,f))) from t1;
 count(*)	sum(crc32(concat(a,b,c,d,e,f)))
 500	1091780159996
 # verify ndb_select_all
-create temporary table t1tmp (
+create temporary table t1tmp1 (
+x char(255)
+) engine=myisam;
+load data infile 'DUMP_FILE1' into table t1tmp1;
+delete from t1tmp1 where x not regexp '^[0-9]*,';
+select x from t1tmp1 into outfile 'DUMP_FILE2';
+create temporary table t1tmp2 (
 a int primary key,
 b char(40),
 c char(40),
@@ -214,15 +227,16 @@ d char(40),
 e char(40),
 f char(40)
 ) engine=myisam;
-load data infile 'DUMP_FILE' into table t1tmp
+load data infile 'DUMP_FILE2' into table t1tmp2
 fields terminated by ',';
 select count(*), sum(crc32(concat(a,b,c,d,e,unix_timestamp(f)))) from t1;
 count(*)	sum(crc32(concat(a,b,c,d,e,unix_timestamp(f))))
 500	1102908582969
-select count(*), sum(crc32(concat(a,b,c,d,replace(e,'/',' '),f))) from t1tmp;
+select count(*), sum(crc32(concat(a,b,c,d,replace(e,'/',' '),f))) from t1tmp2;
 count(*)	sum(crc32(concat(a,b,c,d,replace(e,'/',' '),f)))
 500	1102908582969
-drop table t1tmp;
+drop table t1tmp1;
+drop table t1tmp2;
 # index queries
 select * from t1 where b = '1984';
 a	b	c	d	e	f
