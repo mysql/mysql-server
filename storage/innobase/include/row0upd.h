@@ -316,13 +316,14 @@ row_upd_changes_fts_column(
 	upd_field_t*	upd_field);	/*!< in: field to check */
 /***********************************************************//**
 Checks if an FTS Doc ID column is affected by an UPDATE.
-@return TRUE if Doc ID column is affected */
+@return whether Doc ID column is affected */
 UNIV_INTERN
-ulint
+bool
 row_upd_changes_doc_id(
 /*===================*/
 	dict_table_t*	table,		/*!< in: table */
-	upd_field_t*	upd_field);	/*!< in: field to check */
+	upd_field_t*	upd_field)	/*!< in: field to check */
+	__attribute__((nonnull, warn_unused_result));
 /***********************************************************//**
 Checks if an update vector changes the table's FTS-indexed columns.
 NOTE: must not be called for tables which do not have an FTS-index.

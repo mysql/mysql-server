@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2012, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -252,7 +252,7 @@ dict_boot(void)
 	dict_hdr_t*	dict_hdr;
 	mem_heap_t*	heap;
 	mtr_t		mtr;
-	ulint		error;
+	dberr_t		error;
 
 	/* Be sure these constants do not ever change.  To avoid bloat,
 	only check the *NUM_FIELDS* in each table */

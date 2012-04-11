@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2012, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -155,7 +155,7 @@ trx_cleanup_at_db_startup(
 Does the transaction commit for MySQL.
 @return	DB_SUCCESS or error number */
 UNIV_INTERN
-ulint
+dberr_t
 trx_commit_for_mysql(
 /*=================*/
 	trx_t*	trx);	/*!< in/out: transaction */
@@ -804,7 +804,7 @@ struct trx_struct{
 	table_id_t	table_id;	/*!< Table to drop iff dict_operation
 					== TRX_DICT_OP_TABLE, or 0. */
 	/*------------------------------*/
-	void*		mysql_thd;	/*!< MySQL thread handle corresponding
+	THD*		mysql_thd;	/*!< MySQL thread handle corresponding
 					to this trx, or NULL */
 	const char*	mysql_log_file_name;
 					/*!< if MySQL binlog is used, this field
@@ -847,7 +847,7 @@ struct trx_struct{
 					trx_sys->mysql_trx_list */
 #endif /* UNIV_DEBUG */
 	/*------------------------------*/
-	enum db_err	error_state;	/*!< 0 if no error, otherwise error
+	dberr_t		error_state;	/*!< 0 if no error, otherwise error
 					number; NOTE That ONLY the thread
 					doing the transaction is allowed to
 					set this field: this is NOT protected

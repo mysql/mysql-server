@@ -325,7 +325,7 @@ row_log_apply_op_low(
 	dict_index_t*	index,		/*!< in/out: index */
 	row_merge_dup_t*dup,		/*!< in/out: for reporting
 					duplicate key errors */
-	ulint*		error,		/*!< out: DB_SUCCESS or error code */
+	dberr_t*	error,		/*!< out: DB_SUCCESS or error code */
 	mem_heap_t*	heap,		/*!< in/out: memory heap for
 					allocating data tuples */
 	ibool		has_index_lock, /*!< in: TRUE if holding index->lock
@@ -609,7 +609,7 @@ row_log_apply_op(
 	dict_index_t*	index,		/*!< in/out: index */
 	row_merge_dup_t*dup,		/*!< in/out: for reporting
 					duplicate key errors */
-	ulint*		error,		/*!< out: DB_SUCCESS or error code */
+	dberr_t*	error,		/*!< out: DB_SUCCESS or error code */
 	mem_heap_t*	heap,		/*!< in/out: memory heap for
 					allocating data tuples */
 	ibool		has_index_lock, /*!< in: TRUE if holding index->lock
@@ -727,7 +727,7 @@ corrupted:
 Applies operations to a secondary index that was being created.
 @return DB_SUCCESS, or error code on failure */
 static __attribute__((nonnull))
-ulint
+dberr_t
 row_log_apply_ops(
 /*==============*/
 	trx_t*		trx,	/*!< in: transaction (for checking if
@@ -736,7 +736,7 @@ row_log_apply_ops(
 	row_merge_dup_t*dup)	/*!< in/out: for reporting duplicate key
 				errors */
 {
-	ulint		error;
+	dberr_t		error;
 	const mrec_t*	mrec	= NULL;
 	const mrec_t*	next_mrec;
 	const mrec_t*	mrec_end= NULL; /* silence bogus warning */
@@ -1032,7 +1032,7 @@ func_exit:
 Apply the row log to the index upon completing index creation.
 @return DB_SUCCESS, or error code on failure */
 UNIV_INTERN
-ulint
+dberr_t
 row_log_apply(
 /*==========*/
 	trx_t*		trx,	/*!< in: transaction (for checking if
@@ -1041,7 +1041,7 @@ row_log_apply(
 	struct TABLE*	table)	/*!< in/out: MySQL table
 				(for reporting duplicates) */
 {
-	ulint		error;
+	dberr_t		error;
 	row_log_t*	log;
 	row_merge_dup_t dup;
 	dup.index = index;
