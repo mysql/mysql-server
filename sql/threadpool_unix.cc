@@ -295,7 +295,7 @@ int io_poll_create()
 int io_poll_start_read(int pollfd, int fd, void *data)
 {
   struct kevent ke;
-  EV_SET(&ke, fd, EVFILT_READ, EV_ADD|EV_ENABLE|EV_CLEAR, 
+  EV_SET(&ke, fd, EVFILT_READ, EV_ADD|EV_ONESHOT, 
          0, 0, data);
   return kevent(pollfd, &ke, 1, 0, 0, 0); 
 }
@@ -303,6 +303,9 @@ int io_poll_start_read(int pollfd, int fd, void *data)
 
 int io_poll_associate_fd(int pollfd, int fd, void *data)
 {
+  struct kevent ke;
+  EV_SET(&ke, fd, EVFILT_READ, EV_ADD|EV_ONESHOT, 
+         0, 0, data);
   return io_poll_start_read(pollfd,fd, data); 
 }
 
@@ -330,17 +333,6 @@ int io_poll_wait(int pollfd, struct kevent *events, int maxevents, int timeout_m
                (timeout_ms >= 0)?&ts:NULL);
   }
   while (ret == -1 && errno == EINTR);
-  if (ret > 0)
-  {
-    /* Disable monitoring for the events we that we dequeued */
-    for (int i=0; i < ret; i++) 
-    {
-      struct kevent *ke = &events[i];
-      EV_SET(ke, ke->ident, EVFILT_READ, EV_ADD|EV_DISABLE, 
-        0, 0, ke->udata);    
-    }
-    kevent(pollfd, events, ret, 0, 0, 0);
-  }
   return ret;
 }
 
