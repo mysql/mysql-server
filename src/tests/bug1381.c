@@ -8,7 +8,26 @@
 #include <sys/stat.h>
 #include <memory.h>
 
-static void do_1381_maybe_lock (int do_table_lock, u_int64_t *raw_count) {
+static int generate_row_for_put(
+    DB *UU(dest_db), 
+    DB *UU(src_db), 
+    DBT *dest_key, 
+    DBT *dest_val, 
+    const DBT *src_key, 
+    const DBT *src_val
+    ) 
+{    
+    dest_key->data = src_key->data;
+    dest_key->size = src_key->size;
+    dest_key->flags = 0;
+    dest_val->data = src_val->data;
+    dest_val->size = src_val->size;
+    dest_val->flags = 0;
+    return 0;
+}
+
+
+static void do_1381_maybe_lock (int do_loader, u_int64_t *raw_count) {
     int r;
     DB_TXN * const null_txn = 0;
 
@@ -26,6 +45,7 @@ static void do_1381_maybe_lock (int do_table_lock, u_int64_t *raw_count) {
 
 	r = db_env_create(&env, 0);                                           CKERR(r);
 	r = env->set_redzone(env, 0);                                         CKERR(r);
+        r = env->set_generate_row_callback_for_put(env, generate_row_for_put); CKERR(r);
 	r = env->open(env, ENVDIR, envflags, S_IRWXU+S_IRWXG+S_IRWXO);        CKERR(r);
 
 	r = db_create(&db, env, 0);                                           CKERR(r);
@@ -42,6 +62,7 @@ static void do_1381_maybe_lock (int do_table_lock, u_int64_t *raw_count) {
 	
 	r = db_env_create(&env, 0);                                           CKERR(r);
 	r = env->set_redzone(env, 0);                                         CKERR(r);
+        r = env->set_generate_row_callback_for_put(env, generate_row_for_put); CKERR(r);
 	r = env->open(env, ENVDIR, envflags, S_IRWXU+S_IRWXG+S_IRWXO);        CKERR(r);
 
 	r = db_create(&db, env, 0);                                           CKERR(r);
@@ -49,9 +70,22 @@ static void do_1381_maybe_lock (int do_table_lock, u_int64_t *raw_count) {
 
 	DB_TXN *txn;
 	r = env->txn_begin(env, 0, &txn, 0);                              CKERR(r);
-
-	if (do_table_lock) {
-	    r = db->pre_acquire_table_lock(db, txn);                      CKERR(r);
+        u_int32_t mult_put_flags = 0;
+        u_int32_t mult_dbt_flags = 0;
+        DB_LOADER* loader = NULL;
+	if (do_loader) {
+	    r = env->create_loader(
+                env, 
+                txn, 
+                &loader, 
+                NULL, // no src_db needed
+                1, 
+                &db, 
+                &mult_put_flags,
+                &mult_dbt_flags,
+                LOADER_USE_PUTS
+                );
+            CKERR(r);
 	}
 
 	struct txn_stat *s1, *s2;
@@ -60,14 +94,25 @@ static void do_1381_maybe_lock (int do_table_lock, u_int64_t *raw_count) {
 	{
 	    DBT key={.data="hi", .size=3};
 	    DBT val={.data="v",    .size=2};
-	    r = db->put(db, txn, &key, &val, 0);                          CKERR(r);
+            if (do_loader) {
+                r = loader->put(loader, &key, &val);
+                CKERR(r);
+            }
+            else {
+	        r = db->put(db, txn, &key, &val, 0);                          
+                CKERR(r);
+            }
 	}
+        if (do_loader) {
+            r = loader->close(loader);
+            CKERR(r);
+        }
 
 	r = txn->txn_stat(txn, &s2);                                      CKERR(r);
 	//printf("Raw counts = %" PRId64 ", %" PRId64 "\n", s1->rollback_raw_count, s2->rollback_raw_count);
 
 	*raw_count = s2->rollback_raw_count - s1->rollback_raw_count;
-	if (do_table_lock) {
+	if (do_loader) {
 	    assert(s1->rollback_raw_count == s2->rollback_raw_count);
 	} else {
 	    assert(s1->rollback_raw_count < s2->rollback_raw_count);
