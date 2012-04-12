@@ -38,13 +38,13 @@ Created 2012-02-08 by Sunny Bains.
 Write the meta data (index user fields) config file.
 @return DB_SUCCESS or error code. */
 static	__attribute__((nonnull, warn_unused_result))
-db_err
+dberr_t
 row_quiesce_write_index_fields(
 /*===========================*/
 	const dict_index_t*	index,	/*!< in: write the meta data for
 					this index */
 	FILE*			file,	/*!< in: file to write to */
-	void*			thd)	/*!< in/out: session */
+	THD*			thd)	/*!< in/out: session */
 {
 	byte			row[sizeof(ib_uint32_t) * 2];
 
@@ -92,13 +92,13 @@ row_quiesce_write_index_fields(
 Write the meta data config file index information.
 @return DB_SUCCESS or error code. */
 static	__attribute__((nonnull, warn_unused_result))
-db_err
+dberr_t
 row_quiesce_write_indexes(
 /*======================*/
 	const dict_table_t*	table,	/*!< in: write the meta data for
 					this table */
 	FILE*			file,	/*!< in: file to write to */
-	void*			thd)	/*!< in/out: session */
+	THD*			thd)	/*!< in/out: session */
 {
 	{
 		byte		row[sizeof(ib_uint32_t)];
@@ -116,7 +116,7 @@ row_quiesce_write_indexes(
 		}
 	}
 
-	db_err			err = DB_SUCCESS;
+	dberr_t			err = DB_SUCCESS;
 
 	/* Write the index meta data. */
 	for (const dict_index_t* index = UT_LIST_GET_FIRST(table->indexes);
@@ -191,13 +191,13 @@ dict_col_t structure, along with the column name. All fields are serialized
 as ib_uint32_t.
 @return DB_SUCCESS or error code. */
 static	__attribute__((nonnull, warn_unused_result))
-db_err
+dberr_t
 row_quiesce_write_table(
 /*====================*/
 	const dict_table_t*	table,	/*!< in: write the meta data for
 					this table */
 	FILE*			file,	/*!< in: file to write to */
-	void*			thd)	/*!< in/out: session */
+	THD*			thd)	/*!< in/out: session */
 {
 	dict_col_t*		col;
 	byte			row[sizeof(ib_uint32_t) * 7];
@@ -268,13 +268,13 @@ row_quiesce_write_table(
 Write the meta data config file header.
 @return DB_SUCCESS or error code. */
 static	__attribute__((nonnull, warn_unused_result))
-db_err
+dberr_t
 row_quiesce_write_header(
 /*=====================*/
 	const dict_table_t*	table,	/*!< in: write the meta data for
 					this table */
 	FILE*			file,	/*!< in: file to write to */
-	void*			thd)	/*!< in/out: session */
+	THD*			thd)	/*!< in/out: session */
 {
 	byte			value[sizeof(ib_uint32_t)];
 
@@ -375,14 +375,14 @@ row_quiesce_write_header(
 Write the table meta data after quiesce.
 @return DB_SUCCESS or error code */
 static	__attribute__((nonnull, warn_unused_result))
-db_err
+dberr_t
 row_quiesce_write_cfg(
 /*==================*/
 	const dict_table_t*	table,	/*!< in: write the meta data for
 					this table */
-	void*			thd)	/*!< in/out: session */
+	THD*			thd)	/*!< in/out: session */
 {
-	db_err			err;
+	dberr_t			err;
 	char			name[OS_FILE_MAX_PATH];
 
 	srv_get_meta_data_filename(table, name, sizeof(name));
@@ -478,7 +478,7 @@ row_quiesce_table_start(
 		ib_logf(IB_LOG_LEVEL_WARN, "Quiesce aborted!");
 	}
 
-	db_err	err = row_quiesce_set_state(table, QUIESCE_COMPLETE, trx);
+	dberr_t	err = row_quiesce_set_state(table, QUIESCE_COMPLETE, trx);
 	ut_a(err == DB_SUCCESS);
 }
 
@@ -533,7 +533,7 @@ row_quiesce_table_complete(
 		trx_purge_run();
 	}
 
-	db_err	err = row_quiesce_set_state(table, QUIESCE_NONE, trx);
+	dberr_t	err = row_quiesce_set_state(table, QUIESCE_NONE, trx);
 	ut_a(err == DB_SUCCESS);
 }
 
@@ -541,7 +541,7 @@ row_quiesce_table_complete(
 Set a table's quiesce state.
 @return DB_SUCCESS or error code. */
 UNIV_INTERN
-db_err
+dberr_t
 row_quiesce_set_state(
 /*==================*/
 	dict_table_t*	table,		/*!< in: quiesce this table */

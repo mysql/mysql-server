@@ -49,7 +49,7 @@ row_quiesce_table_start(
 Set a table's quiesce state.
 @return DB_SUCCESS or errro code. */
 UNIV_INTERN
-db_err
+dberr_t
 row_quiesce_set_state(
 /*==================*/
 	dict_table_t*	table,		/*!< in: quiesce this table */

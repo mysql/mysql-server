@@ -63,38 +63,6 @@ help 'impossible_function_1';
 help 'impossible_category_1';
 ##############
 
---disable_warnings
-alter table mysql.help_relation engine=innodb;
-alter table mysql.help_keyword engine=innodb;
-alter table mysql.help_topic engine=innodb;
-alter table mysql.help_category engine=innodb;
---enable_warnings
-
-##############
-help 'function_of_my_dream';
-help '%possible_f%';
-help 'impossible_func%';
-help 'impossible_category%';
-help 'impossible_%';
-
-help '%function_1';
-help '%function_2';
-help '%function_3';
-help '%function_4';
-help '%function_5';
-help '%function_6';
-help '%function_7';
-
-help '%category_2';
-help 'impossible_function_1';
-help 'impossible_category_1';
-##############
-
-alter table mysql.help_relation engine=myisam;
-alter table mysql.help_keyword engine=myisam;
-alter table mysql.help_topic engine=myisam;
-alter table mysql.help_category engine=myisam;
-
 delete from mysql.help_topic where help_topic_id=@topic1_id;
 delete from mysql.help_topic where help_topic_id=@topic2_id;
 delete from mysql.help_topic where help_topic_id=@topic3_id;

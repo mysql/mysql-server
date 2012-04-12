@@ -1018,10 +1018,9 @@ srv_general_init(void)
 }
 
 /*********************************************************************//**
-Normalizes init parameter values to use units we use inside InnoDB.
-@return	DB_SUCCESS or error code */
+Normalizes init parameter values to use units we use inside InnoDB. */
 static
-ulint
+void
 srv_normalize_init_values(void)
 /*===========================*/
 {
@@ -1043,28 +1042,19 @@ srv_normalize_init_values(void)
 	srv_log_buffer_size = srv_log_buffer_size / UNIV_PAGE_SIZE;
 
 	srv_lock_table_size = 5 * (srv_buf_pool_size / UNIV_PAGE_SIZE);
-
-	return(DB_SUCCESS);
 }
 
 /*********************************************************************//**
-Boots the InnoDB server.
-@return	DB_SUCCESS or error code */
+Boots the InnoDB server. */
 UNIV_INTERN
-ulint
+void
 srv_boot(void)
 /*==========*/
 {
-	ulint	err;
-
 	/* Transform the init parameter values given by MySQL to
 	use units we use inside InnoDB: */
 
-	err = srv_normalize_init_values();
-
-	if (err != DB_SUCCESS) {
-		return(err);
-	}
+	srv_normalize_init_values();
 
 	/* Initialize synchronization primitives, memory management, and thread
 	local storage */
@@ -1075,8 +1065,6 @@ srv_boot(void)
 
 	srv_init();
 	srv_mon_create();
-
-	return(DB_SUCCESS);
 }
 
 /******************************************************************//**

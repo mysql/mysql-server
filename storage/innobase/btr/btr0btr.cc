@@ -816,12 +816,12 @@ btr_root_fseg_adjust_on_import(
 Checks and adjusts the root node of a tree during IMPORT TABLESPACE.
 @return error code, or DB_SUCCESS */
 UNIV_INTERN
-db_err
+dberr_t
 btr_root_adjust_on_import(
 /*======================*/
 	const dict_index_t*	index)	/*!< in: index tree */
 {
-	db_err		err;
+	dberr_t		err;
 	mtr_t		mtr;
 	page_t*		page;
 	buf_block_t*	block;
@@ -2471,7 +2471,7 @@ btr_insert_on_non_leaf_level_func(
 {
 	big_rec_t*	dummy_big_rec;
 	btr_cur_t	cursor;
-	ulint		err;
+	dberr_t		err;
 	rec_t*		rec;
 
 	ut_ad(level > 0);
@@ -3202,7 +3202,7 @@ btr_node_ptr_delete(
 {
 	btr_cur_t	cursor;
 	ibool		compressed;
-	ulint		err;
+	dberr_t		err;
 
 	ut_ad(mtr_memo_contains(mtr, block, MTR_MEMO_PAGE_X_FIX));
 

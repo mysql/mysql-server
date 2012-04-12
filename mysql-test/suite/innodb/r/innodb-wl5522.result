@@ -150,10 +150,10 @@ ALTER TABLE t1 IMPORT TABLESPACE;
 ERROR HY000: InnoDB: Index x not found in tablespace meta-data file.
 ALTER TABLE t1 DROP INDEX x;
 Warnings:
-Warning	1807	InnoDB: The table test/t1 doesn't have a corresponding tablespace, it was discarded.
+Warning	1810	InnoDB: The table test/t1 doesn't have a corresponding tablespace, it was discarded.
 ALTER TABLE t1 ADD INDEX idx(c2);
 Warnings:
-Warning	1807	InnoDB: The table test/t1 doesn't have a corresponding tablespace, it was discarded.
+Warning	1810	InnoDB: The table test/t1 doesn't have a corresponding tablespace, it was discarded.
 restore: t1
 ALTER TABLE t1 IMPORT TABLESPACE;
 CHECK TABLE t1;
@@ -200,7 +200,7 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=InnoDB AUTO_INCREMENT=28 DEFAULT CHARSET=latin1
 FLUSH TABLES t1 WITH READ LOCK;
 Warnings:
-Warning	1802	InnoDB: Can't quiesce table 'test/t1', it is in the system tablespace
+Warning	1805	InnoDB: Can't quiesce table 'test/t1', it is in the system tablespace
 UNLOCK TABLES;
 DROP TABLE t1;
 SET GLOBAL innodb_file_per_table = 1;

@@ -89,7 +89,7 @@ public:
   }
 
   /**
-    Deletes any information in the repository.
+    Deletes a specific information in the repository.
 
     @param[in] uidx Array of fields that identifies an object
     @param[in] nidx Number of fields in the array

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2012, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -244,8 +244,8 @@ dict_create_sys_columns_tuple(
 /***************************************************************//**
 Builds a table definition to insert.
 @return	DB_SUCCESS or error code */
-static
-ulint
+static __attribute__((nonnull, warn_unused_result))
+dberr_t
 dict_build_table_def_step(
 /*======================*/
 	que_thr_t*	thr,	/*!< in: query thread */
@@ -253,7 +253,7 @@ dict_build_table_def_step(
 {
 	dict_table_t*	table;
 	dtuple_t*	row;
-	ulint		error;
+	dberr_t		error;
 	const char*	path_or_name;
 	ibool		is_path;
 	mtr_t		mtr;
@@ -334,10 +334,9 @@ dict_build_table_def_step(
 }
 
 /***************************************************************//**
-Builds a column definition to insert.
-@return	DB_SUCCESS */
+Builds a column definition to insert. */
 static
-ulint
+void
 dict_build_col_def_step(
 /*====================*/
 	tab_node_t*	node)	/*!< in: table create node */
@@ -347,8 +346,6 @@ dict_build_col_def_step(
 	row = dict_create_sys_columns_tuple(node->table, node->col_no,
 					    node->heap);
 	ins_node_set_new_row(node->col_def, row);
-
-	return(DB_SUCCESS);
 }
 
 /*****************************************************************//**
@@ -572,8 +569,8 @@ dict_create_search_tuple(
 /***************************************************************//**
 Builds an index definition row to insert.
 @return	DB_SUCCESS or error code */
-static
-ulint
+static __attribute__((nonnull, warn_unused_result))
+dberr_t
 dict_build_index_def_step(
 /*======================*/
 	que_thr_t*	thr,	/*!< in: query thread */
@@ -625,10 +622,9 @@ dict_build_index_def_step(
 }
 
 /***************************************************************//**
-Builds a field definition row to insert.
-@return	DB_SUCCESS */
+Builds a field definition row to insert. */
 static
-ulint
+void
 dict_build_field_def_step(
 /*======================*/
 	ind_node_t*	node)	/*!< in: index create node */
@@ -641,15 +637,13 @@ dict_build_field_def_step(
 	row = dict_create_sys_fields_tuple(index, node->field_no, node->heap);
 
 	ins_node_set_new_row(node->field_def, row);
-
-	return(DB_SUCCESS);
 }
 
 /***************************************************************//**
 Creates an index tree for the index if it is not a member of a cluster.
 @return	DB_SUCCESS or DB_OUT_OF_FILE_SPACE */
-static
-ulint
+static __attribute__((nonnull, warn_unused_result))
+dberr_t
 dict_create_index_tree_step(
 /*========================*/
 	ind_node_t*	node)	/*!< in: index create node */
@@ -688,7 +682,7 @@ dict_create_index_tree_step(
 
 	zip_size = dict_table_zip_size(index->table);
 
-	db_err		err = DB_SUCCESS;
+	dberr_t		err = DB_SUCCESS;
 
 	if (node->index->table->ibd_file_missing
 	    || dict_table_is_discarded(node->index->table)) {
@@ -998,7 +992,7 @@ dict_create_table_step(
 	que_thr_t*	thr)	/*!< in: query thread */
 {
 	tab_node_t*	node;
-	ulint		err	= DB_ERROR;
+	dberr_t		err	= DB_ERROR;
 	trx_t*		trx;
 
 	ut_ad(thr);
@@ -1037,12 +1031,7 @@ dict_create_table_step(
 
 		if (node->col_no < (node->table)->n_def) {
 
-			err = dict_build_col_def_step(node);
-
-			if (err != DB_SUCCESS) {
-
-				goto function_exit;
-			}
+			dict_build_col_def_step(node);
 
 			node->col_no++;
 
@@ -1075,7 +1064,7 @@ dict_create_table_step(
 	}
 
 function_exit:
-	trx->error_state = (enum db_err) err;
+	trx->error_state = err;
 
 	if (err == DB_SUCCESS) {
 		/* Ok: do nothing */
@@ -1105,7 +1094,7 @@ dict_create_index_step(
 	que_thr_t*	thr)	/*!< in: query thread */
 {
 	ind_node_t*	node;
-	ulint		err	= DB_ERROR;
+	dberr_t		err	= DB_ERROR;
 	trx_t*		trx;
 
 	ut_ad(thr);
@@ -1142,12 +1131,7 @@ dict_create_index_step(
 
 		if (node->field_no < (node->index)->n_fields) {
 
-			err = dict_build_field_def_step(node);
-
-			if (err != DB_SUCCESS) {
-
-				goto function_exit;
-			}
+			dict_build_field_def_step(node);
 
 			node->field_no++;
 
@@ -1209,7 +1193,7 @@ dict_create_index_step(
 	}
 
 function_exit:
-	trx->error_state = static_cast<enum db_err>(err);
+	trx->error_state = err;
 
 	if (err == DB_SUCCESS) {
 		/* Ok: do nothing */
@@ -1274,12 +1258,12 @@ at database creation or database start if they are not found or are
 not of the right form.
 @return	DB_SUCCESS or error code */
 UNIV_INTERN
-ulint
+dberr_t
 dict_create_or_check_foreign_constraint_tables(void)
 /*================================================*/
 {
 	trx_t*		trx;
-	ulint		error;
+	dberr_t		error;
 	ibool		success;
 	ibool		srv_file_per_table_backup;
 
@@ -1399,8 +1383,8 @@ dict_create_or_check_foreign_constraint_tables(void)
 /****************************************************************//**
 Evaluate the given foreign key SQL statement.
 @return	error code or DB_SUCCESS */
-static
-ulint
+static __attribute__((nonnull, warn_unused_result))
+dberr_t
 dict_foreign_eval_sql(
 /*==================*/
 	pars_info_t*	info,	/*!< in: info struct, or NULL */
@@ -1409,8 +1393,8 @@ dict_foreign_eval_sql(
 	dict_foreign_t*	foreign,/*!< in: foreign */
 	trx_t*		trx)	/*!< in: transaction */
 {
-	ulint		error;
-	FILE*		ef	= dict_foreign_err_file;
+	dberr_t	error;
+	FILE*	ef	= dict_foreign_err_file;
 
 	error = que_eval_sql(info, sql, FALSE, trx);
 
@@ -1465,8 +1449,8 @@ dict_foreign_eval_sql(
 Add a single foreign key field definition to the data dictionary tables in
 the database.
 @return	error code or DB_SUCCESS */
-static
-ulint
+static __attribute__((nonnull, warn_unused_result))
+dberr_t
 dict_create_add_foreign_field_to_dictionary(
 /*========================================*/
 	ulint		field_nr,	/*!< in: foreign field number */
@@ -1504,8 +1488,8 @@ databasename/tablename_ibfk_NUMBER, where the numbers start from 1, and
 are given locally for this table, that is, the number is not global, as in
 the old format constraints < 4.0.18 it used to be.
 @return	error code or DB_SUCCESS */
-static
-ulint
+static __attribute__((nonnull, warn_unused_result))
+dberr_t
 dict_create_add_foreign_to_dictionary(
 /*==================================*/
 	ulint*		id_nr,	/*!< in/out: number to use in id generation;
@@ -1514,7 +1498,7 @@ dict_create_add_foreign_to_dictionary(
 	dict_foreign_t*	foreign,/*!< in: foreign */
 	trx_t*		trx)	/*!< in: transaction */
 {
-	ulint		error;
+	dberr_t		error;
 	ulint		i;
 
 	pars_info_t*	info = pars_info_create();
@@ -1578,7 +1562,7 @@ dict_create_add_foreign_to_dictionary(
 Adds foreign key definitions to data dictionary tables in the database.
 @return	error code or DB_SUCCESS */
 UNIV_INTERN
-ulint
+dberr_t
 dict_create_add_foreigns_to_dictionary(
 /*===================================*/
 	ulint		start_id,/*!< in: if we are actually doing ALTER TABLE
@@ -1594,7 +1578,7 @@ dict_create_add_foreigns_to_dictionary(
 {
 	dict_foreign_t*	foreign;
 	ulint		number	= start_id + 1;
-	ulint		error;
+	dberr_t		error;
 
 	ut_ad(mutex_own(&(dict_sys->mutex)));
 

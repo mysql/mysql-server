@@ -876,3 +876,17 @@ AGAINST ('Tutorial' IN NATURAL LANGUAGE MODE);
 id	title	body
 1	MySQL Tutorial	DBMS stands for DataBase ...
 DROP TABLE articles;
+drop table if exists t1;
+Warnings:
+Note	1051	Unknown table 'test.t1'
+create table t1 (FTS_DOC_ID bigint unsigned auto_increment not null primary key,
+title varchar(200),body text,fulltext(title,body)) engine=innodb;
+insert into t1 set body='test';
+select * from t1 where match(title,body) against('%test');
+FTS_DOC_ID	title	body
+1	NULL	test
+select * from t1 where match(title,body) against('%');
+FTS_DOC_ID	title	body
+select * from t1 where match(title,body) against('%%%%');
+FTS_DOC_ID	title	body
+drop table t1;

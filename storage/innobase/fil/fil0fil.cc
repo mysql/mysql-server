@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2012, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -410,7 +410,7 @@ calculating the byte offset within a space.
 @return DB_SUCCESS, or DB_TABLESPACE_DELETED if we are trying to do
 i/o on a tablespace which does not exist */
 UNIV_INLINE
-ulint
+dberr_t
 fil_read(
 /*=====*/
 	ibool	sync,		/*!< in: TRUE if synchronous aio is desired */
@@ -439,7 +439,7 @@ calculating the byte offset within a space.
 @return DB_SUCCESS, or DB_TABLESPACE_DELETED if we are trying to do
 i/o on a tablespace which does not exist */
 UNIV_INLINE
-ulint
+dberr_t
 fil_write(
 /*======*/
 	ibool	sync,		/*!< in: TRUE if synchronous aio is desired */
@@ -1737,8 +1737,8 @@ fil_set_max_space_id_if_bigger(
 Writes the flushed lsn and the latest archived log number to the page header
 of the first page of a data file of the system tablespace (space 0),
 which is uncompressed. */
-static
-ulint
+static __attribute__((nonnull, warn_unused_result))
+dberr_t
 fil_write_lsn_and_arch_no_to_file(
 /*==============================*/
 	ulint	space,		/*!< in: space to write to */
@@ -1750,19 +1750,23 @@ fil_write_lsn_and_arch_no_to_file(
 {
 	byte*	buf1;
 	byte*	buf;
+	dberr_t	err;
 
 	buf1 = static_cast<byte*>(mem_alloc(2 * UNIV_PAGE_SIZE));
 	buf = static_cast<byte*>(ut_align(buf1, UNIV_PAGE_SIZE));
 
-	fil_read(TRUE, space, 0, sum_of_sizes, 0, UNIV_PAGE_SIZE, buf, NULL);
+	err = fil_read(TRUE, space, 0, sum_of_sizes, 0,
+		       UNIV_PAGE_SIZE, buf, NULL);
+	if (err == DB_SUCCESS) {
+		mach_write_to_8(buf + FIL_PAGE_FILE_FLUSH_LSN, lsn);
 
-	mach_write_to_8(buf + FIL_PAGE_FILE_FLUSH_LSN, lsn);
-
-	fil_write(TRUE, space, 0, sum_of_sizes, 0, UNIV_PAGE_SIZE, buf, NULL);
+		err = fil_write(TRUE, space, 0, sum_of_sizes, 0,
+				UNIV_PAGE_SIZE, buf, NULL);
+	}
 
 	mem_free(buf1);
 
-	return(DB_SUCCESS);
+	return(err);
 }
 
 /****************************************************************//**
@@ -1770,7 +1774,7 @@ Writes the flushed lsn and the latest archived log number to the page
 header of the first page of each data file in the system tablespace.
 @return	DB_SUCCESS or error number */
 UNIV_INTERN
-ulint
+dberr_t
 fil_write_flushed_lsn_to_data_files(
 /*================================*/
 	lsn_t	lsn,		/*!< in: lsn to write */
@@ -1778,7 +1782,7 @@ fil_write_flushed_lsn_to_data_files(
 {
 	fil_space_t*	space;
 	fil_node_t*	node;
-	ulint		err;
+	dberr_t		err;
 
 	mutex_enter(&fil_system->mutex);
 
@@ -2162,7 +2166,7 @@ fil_op_log_parse_or_replay(
 	switch (type) {
 	case MLOG_FILE_DELETE:
 		if (fil_tablespace_exists_in_mem(space_id)) {
-			db_err	err = fil_delete_tablespace(space_id, false);
+			dberr_t	err = fil_delete_tablespace(space_id, false);
 			ut_a(err == DB_SUCCESS);
 		}
 
@@ -2351,7 +2355,7 @@ fil_check_pending_io(
 Check pending operations on a tablespace.
 @return DB_SUCCESS or error failure. */
 static
-db_err
+dberr_t
 fil_check_pending_operations(
 /*=========================*/
 	ulint		id,	/*!< in: space id */
@@ -2419,7 +2423,7 @@ Closes a single-table tablespace. The tablespace must be cached in the
 memory cache. Free all pages used by the tablespace.
 @return	DB_SUCCESS or error */
 UNIV_INTERN
-db_err
+dberr_t
 fil_close_tablespace(
 /*=================*/
 	trx_t*		trx,	/*!< in/out: Transaction covering the close */
@@ -2430,7 +2434,7 @@ fil_close_tablespace(
 
 	ut_a(id != TRX_SYS_SPACE);
 
-	db_err		err = fil_check_pending_operations(id, &space, &path);
+	dberr_t		err = fil_check_pending_operations(id, &space, &path);
 
 	if (err != DB_SUCCESS) {
 		return(err);
@@ -2484,7 +2488,7 @@ Deletes a single-table tablespace. The tablespace must be cached in the
 memory cache. If rename == TRUE we "free" all pages used by the tablespace.
 @return	DB_SUCCESS or error */
 UNIV_INTERN
-db_err
+dberr_t
 fil_delete_tablespace(
 /*==================*/
 	ulint	id,	/*!< in: space id */
@@ -2495,7 +2499,7 @@ fil_delete_tablespace(
 
 	ut_a(id != TRX_SYS_SPACE);
 
-	db_err		err = fil_check_pending_operations(id, &space, &path);
+	dberr_t		err = fil_check_pending_operations(id, &space, &path);
 
 	if (err != DB_SUCCESS) {
 
@@ -2654,13 +2658,13 @@ memory cache. Discarding is like deleting a tablespace, but
  3. Free all the pages in use by the tablespace if rename=TRUE.
 @return	DB_SUCCESS or error */
 UNIV_INTERN
-db_err
+dberr_t
 fil_discard_tablespace(
 /*===================*/
 	ulint	id,	/*!< in: space id */
 	bool	rename)	/*!< in: TRUE=rename to .ibt; FALSE=remove */
 {
-	db_err	err;
+	dberr_t	err;
 
 	switch (err = fil_delete_tablespace(id, rename)) {
 	case DB_SUCCESS:
@@ -2941,7 +2945,7 @@ path '.'. Tables created with CREATE TEMPORARY TABLE we place in the temp
 dir of the mysqld server.
 @return	DB_SUCCESS or error code */
 UNIV_INTERN
-ulint
+dberr_t
 fil_create_new_single_table_tablespace(
 /*===================================*/
 	ulint		space_id,	/*!< in: space id */
@@ -3024,14 +3028,11 @@ fil_create_new_single_table_tablespace(
 	ret = os_file_set_size(path, file, size * UNIV_PAGE_SIZE);
 
 	if (!ret) {
-		err = DB_OUT_OF_FILE_SPACE;
-error_exit:
 		os_file_close(file);
-error_exit2:
 		os_file_delete(path);
 
 		mem_free(path);
-		return(err);
+		return(DB_OUT_OF_FILE_SPACE);
 	}
 
 	/* printf("Creating tablespace %s id %lu\n", path, space_id); */
@@ -3084,8 +3085,11 @@ error_exit2:
 		      " to tablespace ", stderr);
 		ut_print_filename(stderr, path);
 		putc('\n', stderr);
-		err = DB_ERROR;
-		goto error_exit;
+error_exit:
+		os_file_close(file);
+error_exit2:
+		os_file_delete(path);
+		return(DB_ERROR);
 	}
 
 	ret = os_file_flush(file);
@@ -3094,7 +3098,6 @@ error_exit2:
 		fputs("InnoDB: Error: file flush of tablespace ", stderr);
 		ut_print_filename(stderr, path);
 		fputs(" failed\n", stderr);
-		err = DB_ERROR;
 		goto error_exit;
 	}
 
@@ -3103,7 +3106,6 @@ error_exit2:
 	success = fil_space_create(tablename, space_id, flags, FIL_TABLESPACE);
 
 	if (!success) {
-		err = DB_ERROR;
 		goto error_exit2;
 	}
 
@@ -3266,7 +3268,7 @@ first page of the .ibd file, and we can determine whether we need to reset the
 lsn's just by looking at that flush lsn.
 @return	DB_SUCCESS or error code */
 UNIV_INTERN
-db_err
+dberr_t
 fil_reset_space_and_lsn(
 /*====================*/
 	dict_table_t*	table,		/*!< in/out: table
@@ -3275,7 +3277,7 @@ fil_reset_space_and_lsn(
 					to FIL_PAGE_FILE_FLUSH_LSN in the
 					first page is too high */
 {
-	db_err		err;
+	dberr_t		err;
 	byte*		page;
 	os_file_t	file;
 	os_offset_t	offset;
@@ -3485,7 +3487,7 @@ race here. This operation does not leave the file associated with the
 tablespace open, but closes it after we have looked at the space id in it.
 @return	DB_SUCCESS or error code */
 UNIV_INTERN
-db_err
+dberr_t
 fil_open_single_table_tablespace(
 /*=============================*/
 	const dict_table_t*	table,	/*!< in: table handle for consistency
@@ -3504,7 +3506,7 @@ fil_open_single_table_tablespace(
 	char*		filepath;
 	ibool		success;
 	ulint		space_flags;
-	db_err		err = DB_SUCCESS;
+	dberr_t		err = DB_SUCCESS;
 	ulint		space_id = ULINT_UNDEFINED;
 
 	filepath = fil_make_ibd_name(name, FALSE);
@@ -3947,7 +3949,7 @@ static
 int
 fil_file_readdir_next_file(
 /*=======================*/
-	ulint*		err,	/*!< out: this is set to DB_ERROR if an error
+	dberr_t*	err,	/*!< out: this is set to DB_ERROR if an error
 				was encountered, otherwise not changed */
 	const char*	dirname,/*!< in: directory name or path */
 	os_file_dir_t	dir,	/*!< in: directory stream */
@@ -3986,7 +3988,7 @@ in the doublewrite buffer, also to know where to apply log records where the
 space id is != 0.
 @return	DB_SUCCESS or error number */
 UNIV_INTERN
-ulint
+dberr_t
 fil_load_single_table_tablespaces(void)
 /*===================================*/
 {
@@ -3997,7 +3999,7 @@ fil_load_single_table_tablespaces(void)
 	os_file_dir_t	dbdir;
 	os_file_stat_t	dbinfo;
 	os_file_stat_t	fileinfo;
-	ulint		err		= DB_SUCCESS;
+	dberr_t		err		= DB_SUCCESS;
 
 	/* The datadir of MySQL is always the default directory of mysqld */
 
@@ -4513,7 +4515,7 @@ fil_extend_tablespaces_to_stored_len(void)
 	byte*		buf;
 	ulint		actual_size;
 	ulint		size_in_header;
-	ulint		error;
+	dberr_t		error;
 	ibool		success;
 
 	buf = mem_alloc(UNIV_PAGE_SIZE);
@@ -4769,7 +4771,7 @@ Reads or writes data. This operation is asynchronous (aio).
 @return DB_SUCCESS, or DB_TABLESPACE_DELETED if we are trying to do
 i/o on a tablespace which does not exist */
 UNIV_INTERN
-ulint
+dberr_t
 fil_io(
 /*===*/
 	ulint	type,		/*!< in: OS_FILE_READ or OS_FILE_WRITE,

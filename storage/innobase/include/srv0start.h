@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2009, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2012, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -83,14 +83,14 @@ Starts Innobase and creates a new database if database files
 are not found and the user wants.
 @return	DB_SUCCESS or error code */
 UNIV_INTERN
-int
+dberr_t
 innobase_start_or_create_for_mysql(void);
 /*====================================*/
 /****************************************************************//**
 Shuts down the Innobase database.
 @return	DB_SUCCESS or error code */
 UNIV_INTERN
-int
+dberr_t
 innobase_shutdown_for_mysql(void);
 
 /********************************************************************

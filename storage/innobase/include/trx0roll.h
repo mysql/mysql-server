@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2012, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -146,29 +146,32 @@ trx_rollback_step(
 Rollback a transaction used in MySQL.
 @return	error code or DB_SUCCESS */
 UNIV_INTERN
-int
+dberr_t
 trx_rollback_for_mysql(
 /*===================*/
-	trx_t*	trx);	/*!< in/out: transaction */
+	trx_t*	trx)	/*!< in/out: transaction */
+	__attribute__((nonnull));
 /*******************************************************************//**
 Rollback the latest SQL statement for MySQL.
 @return	error code or DB_SUCCESS */
 UNIV_INTERN
-int
+dberr_t
 trx_rollback_last_sql_stat_for_mysql(
 /*=================================*/
-	trx_t*	trx);	/*!< in/out: transaction */
+	trx_t*	trx)	/*!< in/out: transaction */
+	__attribute__((nonnull));
 /*******************************************************************//**
 Rollback a transaction to a given savepoint or do a complete rollback.
 @return	error code or DB_SUCCESS */
 UNIV_INTERN
-int
+dberr_t
 trx_rollback_to_savepoint(
 /*======================*/
 	trx_t*		trx,	/*!< in: transaction handle */
-	trx_savept_t*	savept);/*!< in: pointer to savepoint undo number, if
+	trx_savept_t*	savept)	/*!< in: pointer to savepoint undo number, if
 				partial rollback requested, or NULL for
 				complete rollback */
+	__attribute__((nonnull(1)));
 /*******************************************************************//**
 Rolls back a transaction back to a named savepoint. Modifications after the
 savepoint are undone but InnoDB does NOT release the corresponding locks
@@ -179,17 +182,18 @@ were set after this savepoint are deleted.
 @return if no savepoint of the name found then DB_NO_SAVEPOINT,
 otherwise DB_SUCCESS */
 UNIV_INTERN
-ulint
+dberr_t
 trx_rollback_to_savepoint_for_mysql(
 /*================================*/
 	trx_t*		trx,			/*!< in: transaction handle */
 	const char*	savepoint_name,		/*!< in: savepoint name */
-	ib_int64_t*	mysql_binlog_cache_pos);/*!< out: the MySQL binlog cache
+	ib_int64_t*	mysql_binlog_cache_pos)	/*!< out: the MySQL binlog cache
 						position corresponding to this
 						savepoint; MySQL needs this
 						information to remove the
 						binlog entries of the queries
 						executed after the savepoint */
+	__attribute__((nonnull, warn_unused_result));
 /*******************************************************************//**
 Creates a named savepoint. If the transaction is not yet started, starts it.
 If there is already a savepoint of the same name, this call erases that old
@@ -197,28 +201,28 @@ savepoint and replaces it with a new. Savepoints are deleted in a transaction
 commit or rollback.
 @return	always DB_SUCCESS */
 UNIV_INTERN
-ulint
+dberr_t
 trx_savepoint_for_mysql(
 /*====================*/
 	trx_t*		trx,			/*!< in: transaction handle */
 	const char*	savepoint_name,		/*!< in: savepoint name */
-	ib_int64_t	binlog_cache_pos);	/*!< in: MySQL binlog cache
+	ib_int64_t	binlog_cache_pos)	/*!< in: MySQL binlog cache
 						position corresponding to this
 						connection at the time of the
 						savepoint */
-
+	__attribute__((nonnull));
 /*******************************************************************//**
 Releases a named savepoint. Savepoints which
 were set after this savepoint are deleted.
 @return if no savepoint of the name found then DB_NO_SAVEPOINT,
 otherwise DB_SUCCESS */
 UNIV_INTERN
-ulint
+dberr_t
 trx_release_savepoint_for_mysql(
 /*============================*/
 	trx_t*		trx,			/*!< in: transaction handle */
-	const char*	savepoint_name);	/*!< in: savepoint name */
-
+	const char*	savepoint_name)		/*!< in: savepoint name */
+	__attribute__((nonnull, warn_unused_result));
 /*******************************************************************//**
 Frees savepoint structs starting from savep. */
 UNIV_INTERN

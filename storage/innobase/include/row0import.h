@@ -40,7 +40,7 @@ Imports a tablespace. The space id in the .ibd file must match the space id
 of the table in the data dictionary.
 @return	error code or DB_SUCCESS */
 UNIV_INTERN
-db_err
+dberr_t
 row_import_for_mysql(
 /*=================*/
 	dict_table_struct*	table,		/*!< in/out: table */
@@ -52,7 +52,7 @@ row_import_for_mysql(
 Update the DICT_TF2_DISCARDED flag in SYS_TABLES.
 @return DB_SUCCESS or error code. */
 UNIV_INTERN
-db_err
+dberr_t
 row_import_update_discarded_flag(
 /*=============================*/
 	trx_struct*	trx,			/*!< in/out: transaction that
@@ -71,7 +71,7 @@ Update the (space, root page) of a table's indexes from the values
 in the data dictionary.
 @return DB_SUCCESS or error code */
 UNIV_INTERN
-db_err
+dberr_t
 row_import_update_index_root(
 /*=========================*/
 	trx_struct*		trx,		/*!< in/out: transaction that

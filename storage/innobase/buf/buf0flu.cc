@@ -1090,7 +1090,75 @@ buf_flush_page_try(
 }
 # endif /* UNIV_DEBUG || UNIV_IBUF_DEBUG */
 /***********************************************************//**
-Flushes to disk all flushable pages within the flush area.
+Attempts to flush a given neighbor of a page to disk.
+@return	true if flushed. */
+static
+bool
+buf_flush_try_one_neighbor(
+/*=======================*/
+	ulint		space,		/*!< in: space id */
+	ulint		offset,		/*!< in: page offset */
+	ulint		neighbor_offset,/*!< in: neigbor page offset to try */
+	enum buf_flush	flush_type)	/*!< in: BUF_FLUSH_LRU or
+					BUF_FLUSH_LIST */
+{
+	buf_page_t*	bpage;
+	buf_pool_t*	buf_pool = buf_pool_get(space, neighbor_offset);
+
+	ut_ad(flush_type == BUF_FLUSH_LRU || flush_type == BUF_FLUSH_LIST);
+
+	buf_pool_mutex_enter(buf_pool);
+
+	/* We only want to flush pages from this buffer pool. */
+	bpage = buf_page_hash_get(buf_pool, space, neighbor_offset);
+
+	if (!bpage) {
+
+		buf_pool_mutex_exit(buf_pool);
+		/* not contiguous */
+		return(false);
+	}
+
+	ut_a(buf_page_in_file(bpage));
+
+	/* We avoid flushing 'non-old' blocks in an LRU flush,
+	because the flushed blocks are soon freed */
+
+	if (flush_type != BUF_FLUSH_LRU
+	    || neighbor_offset == offset
+	    || buf_page_is_old(bpage)) {
+		mutex_t* block_mutex = buf_page_get_mutex(bpage);
+
+		mutex_enter(block_mutex);
+
+		if (buf_flush_ready_for_flush(bpage, flush_type)
+		    && (neighbor_offset == offset || !bpage->buf_fix_count)) {
+			/* We only try to flush those
+			neighbors != offset where the buf fix
+			count is zero, as we then know that we
+			probably can latch the page without a
+			semaphore wait. Semaphore waits are
+			expensive because we must flush the
+			doublewrite buffer before we start
+			waiting. */
+
+			buf_flush_page(buf_pool, bpage, flush_type);
+			ut_ad(!mutex_own(block_mutex));
+			ut_ad(!buf_pool_mutex_own(buf_pool));
+			/* contiguous */
+			return(true);
+		} else {
+			mutex_exit(block_mutex);
+		}
+	}
+	buf_pool_mutex_exit(buf_pool);
+
+	/* not contiguous */
+	return(false);
+}
+
+/***********************************************************//**
+Flushes to disk contiguous flushable pages within the flush area.
 @return	number of pages flushed */
 static
 ulint
@@ -1112,6 +1180,7 @@ buf_flush_try_neighbors(
 	buf_pool_t*	buf_pool = buf_pool_get(space, offset);
 
 	ut_ad(flush_type == BUF_FLUSH_LRU || flush_type == BUF_FLUSH_LIST);
+	ut_ad(n_flushed < n_to_flush);
 
 	if (UT_LIST_GET_LEN(buf_pool->LRU) < BUF_LRU_OLD_MIN_LEN
 	    || !srv_flush_neighbors) {
@@ -1140,71 +1209,26 @@ buf_flush_try_neighbors(
 		high = fil_space_get_size(space);
 	}
 
-	for (i = low; i < high; i++) {
+	/* Do a backward scan until one of the following becomes true:
+	(1) We reach the end of the extent
+	(2) We have flushed enough pages requested by the caller
+	(3) We reach the end of contiguously present flushable pages */
 
-		buf_page_t*	bpage;
+	for (i = offset;
+	     i >= low
+	     && (count + n_flushed) < n_to_flush
+	     && buf_flush_try_one_neighbor(space, offset, i, flush_type);
+	     i--) {
+		++count;
+	}
 
-		if ((count + n_flushed) >= n_to_flush) {
-
-			/* We have already flushed enough pages and
-			should call it a day. There is, however, one
-			exception. If the page whose neighbors we
-			are flushing has not been flushed yet then
-			we'll try to flush the victim that we
-			selected originally. */
-			if (i <= offset) {
-				i = offset;
-			} else {
-				break;
-			}
-		}
-
-		buf_pool = buf_pool_get(space, i);
-
-		buf_pool_mutex_enter(buf_pool);
-
-		/* We only want to flush pages from this buffer pool. */
-		bpage = buf_page_hash_get(buf_pool, space, i);
-
-		if (!bpage) {
-
-			buf_pool_mutex_exit(buf_pool);
-			continue;
-		}
-
-		ut_a(buf_page_in_file(bpage));
-
-		/* We avoid flushing 'non-old' blocks in an LRU flush,
-		because the flushed blocks are soon freed */
-
-		if (flush_type != BUF_FLUSH_LRU
-		    || i == offset
-		    || buf_page_is_old(bpage)) {
-			mutex_t* block_mutex = buf_page_get_mutex(bpage);
-
-			mutex_enter(block_mutex);
-
-			if (buf_flush_ready_for_flush(bpage, flush_type)
-			    && (i == offset || !bpage->buf_fix_count)) {
-				/* We only try to flush those
-				neighbors != offset where the buf fix
-				count is zero, as we then know that we
-				probably can latch the page without a
-				semaphore wait. Semaphore waits are
-				expensive because we must flush the
-				doublewrite buffer before we start
-				waiting. */
-
-				buf_flush_page(buf_pool, bpage, flush_type);
-				ut_ad(!mutex_own(block_mutex));
-				ut_ad(!buf_pool_mutex_own(buf_pool));
-				count++;
-				continue;
-			} else {
-				mutex_exit(block_mutex);
-			}
-		}
-		buf_pool_mutex_exit(buf_pool);
+	/* Do a forward scan in same way, if need */
+	for (i = offset + 1;
+	     i < high
+	     && (count + n_flushed) < n_to_flush
+	     && buf_flush_try_one_neighbor(space, offset, i, flush_type);
+	     i++) {
+		++count;
 	}
 
 	if (count > 0) {
