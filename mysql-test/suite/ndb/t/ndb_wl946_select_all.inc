@@ -35,7 +35,10 @@ create temporary table t1tmp2 (
 --chmod 0777 $dump_file2
 --replace_result $dump_file2 DUMP_FILE2
 eval load data infile '$dump_file2' into table t1tmp2
-fields terminated by ',';
+fields terminated by ',' lines terminated by '\n';
+
+# remove any windows CR from last field
+update t1tmp2 set f = replace(f, '\r', '');
 
 select count(*), sum(crc32(concat(a,b,c,d,e,unix_timestamp(f)))) from t1;
 select count(*), sum(crc32(concat(a,b,c,d,replace(e,'/',' '),f))) from t1tmp2;

@@ -86,7 +86,8 @@ e char(40),
 f char(40)
 ) engine=myisam;
 load data infile 'DUMP_FILE2' into table t1tmp2
-fields terminated by ',';
+fields terminated by ',' lines terminated by '\n';
+update t1tmp2 set f = replace(f, '\r', '');
 select count(*), sum(crc32(concat(a,b,c,d,e,unix_timestamp(f)))) from t1;
 count(*)	sum(crc32(concat(a,b,c,d,e,unix_timestamp(f))))
 500	1042802316591
@@ -228,7 +229,8 @@ e char(40),
 f char(40)
 ) engine=myisam;
 load data infile 'DUMP_FILE2' into table t1tmp2
-fields terminated by ',';
+fields terminated by ',' lines terminated by '\n';
+update t1tmp2 set f = replace(f, '\r', '');
 select count(*), sum(crc32(concat(a,b,c,d,e,unix_timestamp(f)))) from t1;
 count(*)	sum(crc32(concat(a,b,c,d,e,unix_timestamp(f))))
 500	1102908582969
