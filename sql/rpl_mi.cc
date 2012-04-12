@@ -477,7 +477,7 @@ bool Master_info::read_info(Rpl_info_handler *from)
 
   if (auto_position != 0 && gtid_mode != 3)
   {
-    sql_print_error("%s", ER(ER_AUTO_POSITION_REQUIRES_GTID_MODE_ON));
+    my_error(ER_AUTO_POSITION_REQUIRES_GTID_MODE_ON, MYF(0));
     DBUG_RETURN(true);
   }
 
