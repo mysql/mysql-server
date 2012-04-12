@@ -10133,9 +10133,6 @@ ha_tokudb::new_alter_table_frm_data(const uchar *frm_data, size_t frm_len) {
         DB_TXN *txn = transaction; // use alter table transaction
         assert(txn);
         error = write_to_status(share->status_block, hatoku_frm_data, (void *)frm_data, (uint)frm_len, txn);
-        DBUG_EXECUTE_IF("new_alter_table_frm_data_fail", {
-            error = 1;
-        });
     }
    
     TOKUDB_DBUG_RETURN(error);
