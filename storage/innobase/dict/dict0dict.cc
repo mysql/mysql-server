@@ -2122,7 +2122,7 @@ add_field_size:
 Adds an index to the dictionary cache.
 @return	DB_SUCCESS, DB_TOO_BIG_RECORD, or DB_CORRUPTION */
 UNIV_INTERN
-ulint
+dberr_t
 dict_index_add_to_cache(
 /*====================*/
 	dict_table_t*	table,	/*!< in: table on which the index is */
@@ -3270,7 +3270,7 @@ At least one of the foreign table and the referenced table must already
 be in the dictionary cache!
 @return	DB_SUCCESS or error code */
 UNIV_INTERN
-ulint
+dberr_t
 dict_foreign_add_to_cache(
 /*======================*/
 	dict_foreign_t*	foreign,	/*!< in, own: foreign key constraint */
@@ -3960,7 +3960,7 @@ be accompanied with indexes in both participating tables. The indexes are
 allowed to contain more fields than mentioned in the constraint.
 @return	error code or DB_SUCCESS */
 static
-ulint
+dberr_t
 dict_create_foreign_constraints_low(
 /*================================*/
 	trx_t*		trx,	/*!< in: transaction */
@@ -3991,7 +3991,7 @@ dict_create_foreign_constraints_low(
 	FILE*		ef			= dict_foreign_err_file;
 	const char*	constraint_name;
 	ibool		success;
-	ulint		error;
+	dberr_t		error;
 	const char*	ptr1;
 	const char*	ptr2;
 	ulint		i;
@@ -4542,11 +4542,11 @@ UNIV_INTERN
 ibool
 dict_str_starts_with_keyword(
 /*=========================*/
-	void*		mysql_thd,	/*!< in: MySQL thread handle */
+	THD*		thd,		/*!< in: MySQL thread handle */
 	const char*	str,		/*!< in: string to scan for keyword */
 	const char*	keyword)	/*!< in: keyword to look for */
 {
-	struct charset_info_st*	cs = innobase_get_charset(mysql_thd);
+	struct charset_info_st*	cs = innobase_get_charset(thd);
 	ibool			success;
 
 	dict_accept(cs, str, keyword, &success);
@@ -4561,7 +4561,7 @@ be accompanied with indexes in both participating tables. The indexes are
 allowed to contain more fields than mentioned in the constraint.
 @return	error code or DB_SUCCESS */
 UNIV_INTERN
-ulint
+dberr_t
 dict_create_foreign_constraints(
 /*============================*/
 	trx_t*		trx,		/*!< in: transaction */
@@ -4581,9 +4581,9 @@ dict_create_foreign_constraints(
 					code DB_CANNOT_ADD_CONSTRAINT if
 					any foreign keys are found. */
 {
-	char*			str;
-	ulint			err;
-	mem_heap_t*		heap;
+	char*		str;
+	dberr_t		err;
+	mem_heap_t*	heap;
 
 	ut_a(trx);
 	ut_a(trx->mysql_thd);
@@ -4606,7 +4606,7 @@ Parses the CONSTRAINT id's to be dropped in an ALTER TABLE statement.
 @return DB_SUCCESS or DB_CANNOT_DROP_CONSTRAINT if syntax error or the
 constraint id does not match */
 UNIV_INTERN
-ulint
+dberr_t
 dict_foreign_parse_drop_constraints(
 /*================================*/
 	mem_heap_t*	heap,			/*!< in: heap from which we can
@@ -5836,7 +5836,7 @@ The caller must own the dictionary mutex.
 dict_table_schema_check() @{
 @return DB_SUCCESS if the table exists and contains the necessary columns */
 UNIV_INTERN
-enum db_err
+dberr_t
 dict_table_schema_check(
 /*====================*/
 	dict_table_schema_t*	req_schema,	/*!< in/out: required table

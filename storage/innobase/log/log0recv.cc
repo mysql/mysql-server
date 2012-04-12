@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2012, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -659,8 +659,8 @@ recv_check_cp_is_consistent(
 /********************************************************//**
 Looks for the maximum consistent checkpoint from the log groups.
 @return	error code or DB_SUCCESS */
-static
-ulint
+static __attribute__((nonnull, warn_unused_result))
+dberr_t
 recv_find_max_checkpoint(
 /*=====================*/
 	log_group_t**	max_group,	/*!< out: max group */
@@ -2877,7 +2877,7 @@ recv_recovery_from_checkpoint_finish should be called later to complete
 the recovery and free the resources used in it.
 @return	error code or DB_SUCCESS */
 UNIV_INTERN
-ulint
+dberr_t
 recv_recovery_from_checkpoint_start_func(
 /*=====================================*/
 #ifdef UNIV_LOG_ARCHIVE
@@ -2901,7 +2901,7 @@ recv_recovery_from_checkpoint_start_func(
 #endif /* UNIV_LOG_ARCHIVE */
 	byte*		buf;
 	byte		log_hdr_buf[LOG_FILE_HDR_SIZE];
-	ulint		err;
+	dberr_t		err;
 
 #ifdef UNIV_LOG_ARCHIVE
 	ut_ad(type != LOG_CHECKPOINT || limit_lsn == LSN_MAX);

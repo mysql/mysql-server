@@ -516,10 +516,10 @@ lock_check_trx_id_sanity(
 
 /*********************************************************************//**
 Checks that a record is seen in a consistent read.
-@return TRUE if sees, or FALSE if an earlier version of the record
+@return true if sees, or false if an earlier version of the record
 should be retrieved */
 UNIV_INTERN
-ibool
+bool
 lock_clust_rec_cons_read_sees(
 /*==========================*/
 	const rec_t*	rec,	/*!< in: user record which should be read or
@@ -547,14 +547,14 @@ lock_clust_rec_cons_read_sees(
 Checks that a non-clustered index record is seen in a consistent read.
 
 NOTE that a non-clustered index page contains so little information on
-its modifications that also in the case FALSE, the present version of
+its modifications that also in the case false, the present version of
 rec may be the right, but we must check this from the clustered index
 record.
 
-@return TRUE if certainly sees, or FALSE if an earlier version of the
+@return true if certainly sees, or false if an earlier version of the
 clustered index record might be needed */
 UNIV_INTERN
-ulint
+bool
 lock_sec_rec_cons_read_sees(
 /*========================*/
 	const rec_t*		rec,	/*!< in: user record which
@@ -571,7 +571,7 @@ lock_sec_rec_cons_read_sees(
 
 	if (recv_recovery_is_on()) {
 
-		return(FALSE);
+		return(false);
 	}
 
 	max_trx_id = page_get_max_trx_id(page_align(rec));
@@ -1836,7 +1836,7 @@ DB_SUCCESS_LOCKED_REC; DB_SUCCESS_LOCKED_REC means that
 there was a deadlock, but another transaction was chosen as a victim,
 and we got the lock immediately: no need to wait then */
 static
-enum db_err
+dberr_t
 lock_rec_enqueue_waiting(
 /*=====================*/
 	ulint			type_mode,/*!< in: lock mode this
@@ -2147,7 +2147,7 @@ lock, or in the case of a page supremum record, a gap type lock.
 @return	DB_SUCCESS, DB_SUCCESS_LOCKED_REC, DB_LOCK_WAIT, DB_DEADLOCK,
 or DB_QUE_THR_SUSPENDED */
 static
-enum db_err
+dberr_t
 lock_rec_lock_slow(
 /*===============*/
 	ibool			impl,	/*!< in: if TRUE, no lock is set
@@ -2164,7 +2164,7 @@ lock_rec_lock_slow(
 	que_thr_t*		thr)	/*!< in: query thread */
 {
 	trx_t*			trx;
-	enum db_err		err = DB_SUCCESS;
+	dberr_t			err = DB_SUCCESS;
 
 	ut_ad(lock_mutex_own());
 	ut_ad((LOCK_MODE_MASK & mode) != LOCK_S
@@ -2222,7 +2222,7 @@ of a page supremum record, a gap type lock.
 @return	DB_SUCCESS, DB_SUCCESS_LOCKED_REC, DB_LOCK_WAIT, DB_DEADLOCK,
 or DB_QUE_THR_SUSPENDED */
 static
-enum db_err
+dberr_t
 lock_rec_lock(
 /*==========*/
 	ibool			impl,	/*!< in: if TRUE, no lock is set
@@ -4206,7 +4206,7 @@ DB_SUCCESS; DB_SUCCESS means that there was a deadlock, but another
 transaction was chosen as a victim, and we got the lock immediately:
 no need to wait then */
 static
-ulint
+dberr_t
 lock_table_enqueue_waiting(
 /*=======================*/
 	ulint		mode,	/*!< in: lock mode this transaction is
@@ -4336,7 +4336,7 @@ Locks the specified database table in the mode given. If the lock cannot
 be granted immediately, the query thread is put to wait.
 @return	DB_SUCCESS, DB_LOCK_WAIT, DB_DEADLOCK, or DB_QUE_THR_SUSPENDED */
 UNIV_INTERN
-ulint
+dberr_t
 lock_table(
 /*=======*/
 	ulint		flags,	/*!< in: if BTR_NO_LOCKING_FLAG bit is set,
@@ -4347,7 +4347,7 @@ lock_table(
 	que_thr_t*	thr)	/*!< in: query thread */
 {
 	trx_t*		trx;
-	ulint		err;
+	dberr_t		err;
 	const lock_t*	wait_for;
 
 	ut_ad(table && thr);
@@ -5779,7 +5779,7 @@ the query thread to the lock wait state and inserts a waiting request
 for a gap x-lock to the lock queue.
 @return	DB_SUCCESS, DB_LOCK_WAIT, DB_DEADLOCK, or DB_QUE_THR_SUSPENDED */
 UNIV_INTERN
-ulint
+dberr_t
 lock_rec_insert_check_and_lock(
 /*===========================*/
 	ulint		flags,	/*!< in: if BTR_NO_LOCKING_FLAG bit is
@@ -5797,7 +5797,7 @@ lock_rec_insert_check_and_lock(
 	const rec_t*	next_rec;
 	trx_t*		trx;
 	lock_t*		lock;
-	ulint		err;
+	dberr_t		err;
 	ulint		next_rec_heap_no;
 
 	ut_ad(block->frame == page_align(rec));
@@ -5884,6 +5884,9 @@ lock_rec_insert_check_and_lock(
 		page_update_max_trx_id(block,
 				       buf_block_get_page_zip(block),
 				       trx->id, mtr);
+	default:
+		/* We only care about the two return values. */
+		break;
 	}
 
 #ifdef UNIV_DEBUG
@@ -5976,7 +5979,7 @@ lock wait state and inserts a waiting request for a record x-lock to the
 lock queue.
 @return	DB_SUCCESS, DB_LOCK_WAIT, DB_DEADLOCK, or DB_QUE_THR_SUSPENDED */
 UNIV_INTERN
-ulint
+dberr_t
 lock_clust_rec_modify_check_and_lock(
 /*=================================*/
 	ulint			flags,	/*!< in: if BTR_NO_LOCKING_FLAG
@@ -5988,7 +5991,7 @@ lock_clust_rec_modify_check_and_lock(
 	const ulint*		offsets,/*!< in: rec_get_offsets(rec, index) */
 	que_thr_t*		thr)	/*!< in: query thread */
 {
-	ulint	err;
+	dberr_t	err;
 	ulint	heap_no;
 
 	ut_ad(rec_offs_validate(rec, index, offsets));
@@ -6035,7 +6038,7 @@ Checks if locks of other transactions prevent an immediate modify (delete
 mark or delete unmark) of a secondary index record.
 @return	DB_SUCCESS, DB_LOCK_WAIT, DB_DEADLOCK, or DB_QUE_THR_SUSPENDED */
 UNIV_INTERN
-ulint
+dberr_t
 lock_sec_rec_modify_check_and_lock(
 /*===============================*/
 	ulint		flags,	/*!< in: if BTR_NO_LOCKING_FLAG
@@ -6051,7 +6054,7 @@ lock_sec_rec_modify_check_and_lock(
 				(can be NULL if BTR_NO_LOCKING_FLAG) */
 	mtr_t*		mtr)	/*!< in/out: mini-transaction */
 {
-	ulint	err;
+	dberr_t	err;
 	ulint	heap_no;
 
 	ut_ad(!dict_index_is_clust(index));
@@ -6120,7 +6123,7 @@ secondary index record.
 @return	DB_SUCCESS, DB_SUCCESS_LOCKED_REC, DB_LOCK_WAIT, DB_DEADLOCK,
 or DB_QUE_THR_SUSPENDED */
 UNIV_INTERN
-enum db_err
+dberr_t
 lock_sec_rec_read_check_and_lock(
 /*=============================*/
 	ulint			flags,	/*!< in: if BTR_NO_LOCKING_FLAG
@@ -6141,8 +6144,8 @@ lock_sec_rec_read_check_and_lock(
 					LOCK_REC_NOT_GAP */
 	que_thr_t*		thr)	/*!< in: query thread */
 {
-	enum db_err	err;
-	ulint		heap_no;
+	dberr_t	err;
+	ulint	heap_no;
 
 	ut_ad(!dict_index_is_clust(index));
 	ut_ad(!dict_index_is_online_ddl(index));
@@ -6198,7 +6201,7 @@ lock on the record.
 @return	DB_SUCCESS, DB_SUCCESS_LOCKED_REC, DB_LOCK_WAIT, DB_DEADLOCK,
 or DB_QUE_THR_SUSPENDED */
 UNIV_INTERN
-enum db_err
+dberr_t
 lock_clust_rec_read_check_and_lock(
 /*===============================*/
 	ulint			flags,	/*!< in: if BTR_NO_LOCKING_FLAG
@@ -6219,8 +6222,8 @@ lock_clust_rec_read_check_and_lock(
 					LOCK_REC_NOT_GAP */
 	que_thr_t*		thr)	/*!< in: query thread */
 {
-	enum db_err	err;
-	ulint		heap_no;
+	dberr_t	err;
+	ulint	heap_no;
 
 	ut_ad(dict_index_is_clust(index));
 	ut_ad(!dict_index_is_online_ddl(index));
@@ -6270,7 +6273,7 @@ lock_clust_rec_read_check_and_lock() that does not require the parameter
 "offsets".
 @return	DB_SUCCESS, DB_LOCK_WAIT, DB_DEADLOCK, or DB_QUE_THR_SUSPENDED */
 UNIV_INTERN
-ulint
+dberr_t
 lock_clust_rec_read_check_and_lock_alt(
 /*===================================*/
 	ulint			flags,	/*!< in: if BTR_NO_LOCKING_FLAG
@@ -6293,7 +6296,7 @@ lock_clust_rec_read_check_and_lock_alt(
 	mem_heap_t*	tmp_heap	= NULL;
 	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
 	ulint*		offsets		= offsets_;
-	ulint		err;
+	dberr_t		err;
 	rec_offs_init(offsets_);
 
 	offsets = rec_get_offsets(rec, index, offsets,
@@ -6736,12 +6739,12 @@ was selected as a deadlock victim, or if it has to wait then cancel
 the wait lock.
 @return DB_DEADLOCK, DB_LOCK_WAIT or DB_SUCCESS */
 UNIV_INTERN
-enum db_err
+dberr_t
 lock_trx_handle_wait(
 /*=================*/
 	trx_t*	trx)	/*!< in/out: trx lock state */
 {
-	enum db_err	err;
+	dberr_t	err;
 
 	lock_mutex_enter();
 

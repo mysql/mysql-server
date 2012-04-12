@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2012, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -46,8 +46,7 @@ Created 4/24/1996 Heikki Tuuri
 #include "fts0priv.h"
 
 
-/** Following are the InnoDB system tables.  The positions in
-this array are referenced by enum dict_system_table_id. */
+/** Following are six InnoDB system tables */
 static const char* SYSTEM_TABLE_NAME[] = {
 	"SYS_TABLES",
 	"SYS_INDEXES",
@@ -1196,7 +1195,7 @@ dict_load_fields(
 	byte*		buf;
 	ulint		i;
 	mtr_t		mtr;
-	ulint		error;
+	dberr_t		error;
 
 	ut_ad(mutex_own(&(dict_sys->mutex)));
 
@@ -1396,8 +1395,8 @@ Loads definitions for table indexes. Adds them to the data dictionary
 cache.
 @return DB_SUCCESS if ok, DB_CORRUPTION if corruption of dictionary
 table or DB_UNSUPPORTED if table has unknown index type */
-static
-ulint
+static __attribute__((nonnull))
+dberr_t
 dict_load_indexes(
 /*==============*/
 	dict_table_t*	table,	/*!< in/out: table */
@@ -1414,7 +1413,7 @@ dict_load_indexes(
 	const rec_t*	rec;
 	byte*		buf;
 	mtr_t		mtr;
-	ulint		error = DB_SUCCESS;
+	dberr_t		error = DB_SUCCESS;
 
 	ut_ad(mutex_own(&(dict_sys->mutex)));
 
@@ -1782,7 +1781,7 @@ dict_load_table(
 	const rec_t*	rec;
 	const byte*	field;
 	ulint		len;
-	ulint		err;
+	dberr_t		err;
 	const char*	err_msg;
 	mtr_t		mtr;
 
@@ -2184,8 +2183,8 @@ dict_load_foreign_cols(
 /***********************************************************************//**
 Loads a foreign key constraint to the dictionary cache.
 @return	DB_SUCCESS or error code */
-static
-ulint
+static __attribute__((nonnull, warn_unused_result))
+dberr_t
 dict_load_foreign(
 /*==============*/
 	const char*	id,	/*!< in: foreign constraint id, not
@@ -2373,7 +2372,7 @@ cache already contains all constraints where the other relevant table is
 already in the dictionary cache.
 @return	DB_SUCCESS or error code */
 UNIV_INTERN
-ulint
+dberr_t
 dict_load_foreigns(
 /*===============*/
 	const char*	table_name,	/*!< in: table name */
@@ -2391,7 +2390,7 @@ dict_load_foreigns(
 	const rec_t*	rec;
 	const byte*	field;
 	ulint		len;
-	ulint		err;
+	dberr_t		err;
 	mtr_t		mtr;
 
 	ut_ad(mutex_own(&(dict_sys->mutex)));

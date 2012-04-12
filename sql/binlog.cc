@@ -173,6 +173,37 @@ public:
   }
 
   /*
+    Sets the write position to point at the position given. If the
+    cache has swapped to a file, it reinitializes it, so that the
+    proper data is added to the IO_CACHE buffer. Otherwise, it just
+    does a my_b_seek.
+
+    my_b_seek will not work if the cache has swapped, that's why
+    we do this workaround.
+
+    @param[IN]  pos the new write position.
+    @param[IN]  use_reinit if the position should be reset resorting
+                to reset_io_cache (which may issue a flush_io_cache 
+                inside)
+
+    @return The previous write position.
+   */
+  my_off_t reset_write_pos(my_off_t pos, bool use_reinit)
+  {
+    DBUG_ENTER("reset_write_pos");
+    DBUG_ASSERT(cache_log.type == WRITE_CACHE);
+
+    my_off_t oldpos= get_byte_position();
+
+    if (use_reinit)
+      reinit_io_cache(&cache_log, WRITE_CACHE, pos, 0, 0);
+    else
+      my_b_seek(&cache_log, pos);
+
+    DBUG_RETURN(oldpos);
+  }
+
+  /*
     Cache to store data before copying it to the binary log.
   */
   IO_CACHE cache_log;
@@ -648,6 +679,7 @@ static int write_empty_groups_to_cache(THD *thd, binlog_cache_data *cache_data)
 int gtid_before_write_cache(THD* thd, binlog_cache_data* cache_data)
 {
   DBUG_ENTER("gtid_before_write_cache");
+  int error= 0;
 
   if (gtid_mode == 0)
     DBUG_RETURN(0);
@@ -666,7 +698,10 @@ int gtid_before_write_cache(THD* thd, binlog_cache_data* cache_data)
     }
   }
   if (write_empty_groups_to_cache(thd, cache_data) != 0)
+  {
+    global_sid_lock.unlock();
     DBUG_RETURN(1);
+  }
 
   global_sid_lock.unlock();
 
@@ -681,21 +716,13 @@ int gtid_before_write_cache(THD* thd, binlog_cache_data* cache_data)
     DBUG_ASSERT(cached_group->spec.type != AUTOMATIC_GROUP);
     Gtid_log_event gtid_ev(thd, cache_data->is_trx_cache(),
                            &cached_group->spec);
-    my_off_t saved_position= cache_data->get_byte_position();
-    IO_CACHE *cache_log= &cache_data->cache_log;
-    flush_io_cache(cache_log);
-    reinit_io_cache(cache_log, WRITE_CACHE, 0, 0, 0);
-    if (gtid_ev.write(cache_log) != 0)
-    {
-      flush_io_cache(cache_log);
-      reinit_io_cache(cache_log, WRITE_CACHE, saved_position, 0, 0);
-      DBUG_RETURN(1);
-    }
-    flush_io_cache(cache_log);
-    reinit_io_cache(cache_log, WRITE_CACHE, saved_position, 0, 0);
+    bool using_file= cache_data->cache_log.pos_in_file > 0;
+    my_off_t saved_position= cache_data->reset_write_pos(0, using_file);
+    error= gtid_ev.write(&cache_data->cache_log);
+    cache_data->reset_write_pos(saved_position, using_file);
   }
 
-  DBUG_RETURN(0);
+  DBUG_RETURN(error);
 }
 
 /**

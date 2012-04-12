@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2009, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2012, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -208,7 +208,7 @@ transaction and in consistent reads that must look to the history of this
 transaction.
 @return	DB_SUCCESS or error code */
 UNIV_INTERN
-ulint
+dberr_t
 trx_undo_report_row_operation(
 /*==========================*/
 	ulint		flags,		/*!< in: if BTR_NO_UNDO_LOG_FLAG bit is
@@ -227,10 +227,11 @@ trx_undo_report_row_operation(
 	const rec_t*	rec,		/*!< in: case of an update or delete
 					marking, the record in the clustered
 					index, otherwise NULL */
-	roll_ptr_t*	roll_ptr);	/*!< out: rollback pointer to the
+	roll_ptr_t*	roll_ptr)	/*!< out: rollback pointer to the
 					inserted undo log record,
 					0 if BTR_NO_UNDO_LOG
 					flag was specified */
+	__attribute__((nonnull(3,4,9), warn_unused_result));
 /******************************************************************//**
 Copies an undo record to heap. This function can be called if we know that
 the undo log record exists.
@@ -249,7 +250,7 @@ purge_sys->view.
 @return DB_SUCCESS, or DB_MISSING_HISTORY if the previous version is
 earlier than purge_view, which means that it may have been removed */
 UNIV_INTERN
-ulint
+dberr_t
 trx_undo_prev_version_build(
 /*========================*/
 	const rec_t*	index_rec,/*!< in: clustered index record in the
@@ -261,9 +262,10 @@ trx_undo_prev_version_build(
 	ulint*		offsets,/*!< in: rec_get_offsets(rec, index) */
 	mem_heap_t*	heap,	/*!< in: memory heap from which the memory
 				needed is allocated */
-	rec_t**		old_vers);/*!< out, own: previous version, or NULL if
+	rec_t**		old_vers)/*!< out, own: previous version, or NULL if
 				rec is the first inserted version, or if
 				history data has been deleted */
+	__attribute__((nonnull, warn_unused_result));
 #endif /* !UNIV_HOTBACKUP */
 /***********************************************************//**
 Parses a redo log record of adding an undo log record.
