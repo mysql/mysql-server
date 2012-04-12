@@ -30,6 +30,7 @@ public:
     // fix if you plan to test with >32 columns.
     column_bitmap_size= sizeof(int);
     tmp_table= NO_TMP_TABLE;
+    db_low_byte_first= true;
   }
 };
 
@@ -61,6 +62,7 @@ class Fake_TABLE: public TABLE
       field[i]->field_index= i;
     }
     const_table= true;
+    maybe_null= 0;
   }
 
 public:
