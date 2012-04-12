@@ -49,6 +49,10 @@ A	B
 A	I
 X	Y
 X	Z
+include/assert.inc [Counter for COM_COMMIT is consistent with the number of actual commits]
+include/assert.inc [Counter for COM_INSERT is consistent with the number of actual inserts]
+include/assert.inc [Counter for COM_DELETE is consistent with the number of actual deletes]
+include/assert.inc [Counter for COM_UPDATE is consistent with the number of actual updates]
 UPDATE t1 SET c2 = 'Q' WHERE c1 = 'A' AND c2 = 'N';
 SELECT * FROM t1 ORDER BY c1,c2;
 C1	C2
