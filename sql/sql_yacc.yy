@@ -8275,7 +8275,7 @@ select_item:
               }
               $2->item_name.copy($4.str, $4.length, system_charset_info, false);
             }
-            else if (!$2->item_name.ptr())
+            else if (!$2->item_name.is_set())
             {
               $2->item_name.copy($1, (uint) ($3 - $1), thd->charset());
             }
@@ -8885,7 +8885,7 @@ simple_expr:
             {
               Item_splocal *il= static_cast<Item_splocal *>($3);
 
-              my_error(ER_WRONG_COLUMN_NAME, MYF(0), il->my_name()->str);
+              my_error(ER_WRONG_COLUMN_NAME, MYF(0), il->m_name.ptr());
               MYSQL_YYABORT;
             }
             $$= new (YYTHD->mem_root) Item_default_value(Lex->current_context(),
@@ -10994,7 +10994,7 @@ procedure_item:
 
             if (add_proc_to_list(thd, $2))
               MYSQL_YYABORT;
-            if (!$2->item_name.ptr())
+            if (!$2->item_name.is_set())
               $2->item_name.copy($1, (uint) ($3 - $1), thd->charset());
           }
         ;
@@ -12781,7 +12781,7 @@ literal:
 
             Item_string *item_str;
             item_str= new (YYTHD->mem_root)
-                        Item_string(NULL, /* name will be set in select_item */
+                        Item_string(null_name_string, /* name will be set in select_item */
                                     str ? str->ptr() : "",
                                     str ? str->length() : 0,
                                     $1);
@@ -12810,7 +12810,7 @@ literal:
 
             Item_string *item_str;
             item_str= new (YYTHD->mem_root)
-                        Item_string(NULL, /* name will be set in select_item */
+                        Item_string(null_name_string, /* name will be set in select_item */
                                     str ? str->ptr() : "",
                                     str ? str->length() : 0,
                                     $1);

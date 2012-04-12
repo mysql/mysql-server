@@ -61,9 +61,8 @@ static void make_unique_view_field_name(Item *target,
                                         List<Item> &item_list,
                                         Item *last_element)
 {
-  char *name= (target->orig_name.ptr() ?
-               target->orig_name.ptr() :
-               target->item_name.ptr());
+  const char *name= (target->orig_name.is_set() ?
+                     target->orig_name.ptr() : target->item_name.ptr());
   size_t name_len;
   uint attempt;
   char buff[NAME_LEN+1];
@@ -137,7 +136,7 @@ bool check_duplicate_names(List<Item> &item_list, bool gen_unique_view_name)
     itc.rewind();
     while ((check= itc++) && check != item)
     {
-      if (item->item_name.eq(&check->item_name))
+      if (item->item_name.eq(check->item_name))
       {
         if (!gen_unique_view_name)
           goto err;
