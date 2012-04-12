@@ -226,8 +226,8 @@ Does an insert operation by updating a delete-marked existing record
 in the index. This situation can occur if the delete-marked record is
 kept in the index for consistent reads.
 @return	DB_SUCCESS or error code */
-static
-ulint
+static __attribute__((nonnull, warn_unused_result))
+dberr_t
 row_ins_sec_index_entry_by_modify(
 /*==============================*/
 	ulint		mode,	/*!< in: BTR_MODIFY_LEAF or BTR_MODIFY_TREE,
@@ -244,7 +244,7 @@ row_ins_sec_index_entry_by_modify(
 	upd_t*		update;
 	rec_t*		rec;
 	const ulint*	offsets;
-	ulint		err;
+	dberr_t		err;
 
 	rec = btr_cur_get_rec(cursor);
 
@@ -278,6 +278,8 @@ row_ins_sec_index_entry_by_modify(
 		case DB_UNDERFLOW:
 		case DB_ZIP_OVERFLOW:
 			err = DB_FAIL;
+		default:
+			break;
 		}
 	} else {
 		ut_a(mode == BTR_MODIFY_TREE);
@@ -305,8 +307,8 @@ Does an insert operation by delete unmarking and updating a delete marked
 existing record in the index. This situation can occur if the delete marked
 record is kept in the index for consistent reads.
 @return	DB_SUCCESS, DB_FAIL, or error code */
-static
-ulint
+static __attribute__((nonnull, warn_unused_result))
+dberr_t
 row_ins_clust_index_entry_by_modify(
 /*================================*/
 	ulint		mode,	/*!< in: BTR_MODIFY_LEAF or BTR_MODIFY_TREE,
@@ -324,7 +326,7 @@ row_ins_clust_index_entry_by_modify(
 {
 	rec_t*		rec;
 	upd_t*		update;
-	ulint		err;
+	dberr_t		err;
 
 	ut_ad(dict_index_is_clust(cursor->index));
 
@@ -356,6 +358,8 @@ row_ins_clust_index_entry_by_modify(
 		case DB_UNDERFLOW:
 		case DB_ZIP_OVERFLOW:
 			err = DB_FAIL;
+		default:
+			break;
 		}
 	} else {
 		ut_a(mode == BTR_MODIFY_TREE);
@@ -406,7 +410,7 @@ row_ins_cascade_ancestor_updates_table(
 Returns the number of ancestor UPDATE or DELETE nodes of a
 cascaded update/delete node.
 @return	number of ancestors */
-static
+static __attribute__((nonnull, warn_unused_result))
 ulint
 row_ins_cascade_n_ancestors(
 /*========================*/
@@ -432,7 +436,7 @@ a cascaded update.
 can also be 0 if no foreign key fields changed; the returned value is
 ULINT_UNDEFINED if the column type in the child table is too short to
 fit the new value in the parent table: that means the update fails */
-static
+static __attribute__((nonnull, warn_unused_result))
 ulint
 row_ins_cascade_calc_update_vec(
 /*============================*/
@@ -891,8 +895,8 @@ Perform referential actions or checks when a parent row is deleted or updated
 and the constraint had an ON DELETE or ON UPDATE condition which was not
 RESTRICT.
 @return	DB_SUCCESS, DB_LOCK_WAIT, or error code */
-static
-ulint
+static __attribute__((nonnull, warn_unused_result))
+dberr_t
 row_ins_foreign_check_on_constraint(
 /*================================*/
 	que_thr_t*	thr,		/*!< in: query thread whose run_node
@@ -918,7 +922,7 @@ row_ins_foreign_check_on_constraint(
 	const buf_block_t* clust_block;
 	upd_t*		update;
 	ulint		n_to_update;
-	ulint		err;
+	dberr_t		err;
 	ulint		i;
 	trx_t*		trx;
 	mem_heap_t*	tmp_heap	= NULL;
@@ -1299,7 +1303,7 @@ Sets a shared lock on a record. Used in locking possible duplicate key
 records and also in checking foreign key constraints.
 @return	DB_SUCCESS, DB_SUCCESS_LOCKED_REC, or error code */
 static
-enum db_err
+dberr_t
 row_ins_set_shared_rec_lock(
 /*========================*/
 	ulint			type,	/*!< in: LOCK_ORDINARY, LOCK_GAP, or
@@ -1310,7 +1314,7 @@ row_ins_set_shared_rec_lock(
 	const ulint*		offsets,/*!< in: rec_get_offsets(rec, index) */
 	que_thr_t*		thr)	/*!< in: query thread */
 {
-	enum db_err	err;
+	dberr_t	err;
 
 	ut_ad(rec_offs_validate(rec, index, offsets));
 
@@ -1330,7 +1334,7 @@ Sets a exclusive lock on a record. Used in locking possible duplicate key
 records
 @return	DB_SUCCESS, DB_SUCCESS_LOCKED_REC, or error code */
 static
-enum db_err
+dberr_t
 row_ins_set_exclusive_rec_lock(
 /*===========================*/
 	ulint			type,	/*!< in: LOCK_ORDINARY, LOCK_GAP, or
@@ -1341,7 +1345,7 @@ row_ins_set_exclusive_rec_lock(
 	const ulint*		offsets,/*!< in: rec_get_offsets(rec, index) */
 	que_thr_t*		thr)	/*!< in: query thread */
 {
-	enum db_err	err;
+	dberr_t	err;
 
 	ut_ad(rec_offs_validate(rec, index, offsets));
 
@@ -1362,7 +1366,7 @@ which lock either the success or the failure of the constraint. NOTE that
 the caller must have a shared latch on dict_operation_lock.
 @return	DB_SUCCESS, DB_NO_REFERENCED_ROW, or DB_ROW_IS_REFERENCED */
 UNIV_INTERN
-ulint
+dberr_t
 row_ins_check_foreign_constraint(
 /*=============================*/
 	ibool		check_ref,/*!< in: TRUE if we want to check that
@@ -1376,7 +1380,7 @@ row_ins_check_foreign_constraint(
 	dtuple_t*	entry,	/*!< in: index entry for index */
 	que_thr_t*	thr)	/*!< in: query thread */
 {
-	ulint		err;
+	dberr_t		err;
 	upd_node_t*	upd_node;
 	dict_table_t*	check_table;
 	dict_index_t*	check_index;
@@ -1628,6 +1632,8 @@ run_again:
 				} else {
 					err = DB_SUCCESS;
 				}
+			default:
+				break;
 			}
 
 			goto end_scan;
@@ -1652,7 +1658,7 @@ end_scan:
 
 do_possible_lock_wait:
 	if (err == DB_LOCK_WAIT) {
-		trx->error_state = static_cast<enum db_err>(err);
+		trx->error_state = err;
 
 		que_thr_stop_for_mysql(thr);
 
@@ -1680,8 +1686,8 @@ Otherwise does searches to the indexes of referenced tables and
 sets shared locks which lock either the success or the failure of
 a constraint.
 @return	DB_SUCCESS or error code */
-static
-ulint
+static __attribute__((nonnull, warn_unused_result))
+dberr_t
 row_ins_check_foreign_constraints(
 /*==============================*/
 	dict_table_t*	table,	/*!< in: table */
@@ -1690,7 +1696,7 @@ row_ins_check_foreign_constraints(
 	que_thr_t*	thr)	/*!< in: query thread */
 {
 	dict_foreign_t*	foreign;
-	ulint		err;
+	dberr_t		err;
 	trx_t*		trx;
 	ibool		got_s_lock	= FALSE;
 
@@ -1812,8 +1818,8 @@ Scans a unique non-clustered index at a given index entry to determine
 whether a uniqueness violation has occurred for the key value of the entry.
 Set shared locks on possible duplicate records.
 @return	DB_SUCCESS, DB_DUPLICATE_KEY, or DB_LOCK_WAIT */
-static
-ulint
+static __attribute__((nonnull, warn_unused_result))
+dberr_t
 row_ins_scan_sec_index_for_duplicate(
 /*=================================*/
 	dict_index_t*	index,	/*!< in: non-clustered unique index */
@@ -1825,7 +1831,7 @@ row_ins_scan_sec_index_for_duplicate(
 	int		cmp;
 	ulint		n_fields_cmp;
 	btr_pcur_t	pcur;
-	ulint		err		= DB_SUCCESS;
+	dberr_t		err		= DB_SUCCESS;
 	ulint		allow_duplicates;
 	mtr_t		mtr;
 	mem_heap_t*	heap		= NULL;
@@ -1940,8 +1946,8 @@ for a clustered index!
 @return DB_SUCCESS if no error, DB_DUPLICATE_KEY if error,
 DB_LOCK_WAIT if we have to wait for a lock on a possible duplicate
 record */
-static
-ulint
+static __attribute__((nonnull, warn_unused_result))
+dberr_t
 row_ins_duplicate_error_in_clust(
 /*=============================*/
 	btr_cur_t*	cursor,	/*!< in: B-tree cursor */
@@ -1949,7 +1955,7 @@ row_ins_duplicate_error_in_clust(
 	que_thr_t*	thr,	/*!< in: query thread */
 	mtr_t*		mtr)	/*!< in: mtr */
 {
-	ulint	err;
+	dberr_t	err;
 	rec_t*	rec;
 	ulint	n_unique;
 	trx_t*	trx		= thr_get_trx(thr);
@@ -2122,8 +2128,8 @@ same fields is found, the other record is necessarily marked deleted.
 It is then unmarked. Otherwise, the entry is just inserted to the index.
 @return DB_SUCCESS, DB_LOCK_WAIT, DB_FAIL if pessimistic retry needed,
 or error code */
-static
-ulint
+static __attribute__((nonnull, warn_unused_result))
+dberr_t
 row_ins_index_entry_low(
 /*====================*/
 	ulint		mode,	/*!< in: BTR_MODIFY_LEAF or BTR_MODIFY_TREE,
@@ -2140,7 +2146,7 @@ row_ins_index_entry_low(
 	rec_t*		insert_rec;
 	rec_t*		rec;
 	ulint*		offsets;
-	ulint		err;
+	dberr_t		err;
 	ulint		n_unique;
 	big_rec_t*	big_rec			= NULL;
 	mtr_t		mtr;
@@ -2356,7 +2362,7 @@ Tries to insert the externally stored fields (off-page columns)
 of a clustered index entry.
 @return DB_SUCCESS or DB_OUT_OF_FILE_SPACE */
 UNIV_INTERN
-ulint
+dberr_t
 row_ins_index_entry_big_rec_func(
 /*=============================*/
 	const dtuple_t*		entry,	/*!< in/out: index entry to insert */
@@ -2373,7 +2379,7 @@ row_ins_index_entry_big_rec_func(
 	mtr_t		mtr;
 	btr_cur_t	cursor;
 	rec_t*		rec;
-	ulint		error;
+	dberr_t		error;
 
 	ut_ad(dict_index_is_clust(index));
 
@@ -2405,7 +2411,7 @@ performs the insert by updating or delete unmarking the delete marked
 record.
 @return	DB_SUCCESS, DB_LOCK_WAIT, DB_DUPLICATE_KEY, or some other error code */
 UNIV_INTERN
-ulint
+dberr_t
 row_ins_index_entry(
 /*================*/
 	dict_index_t*	index,	/*!< in: index */
@@ -2415,7 +2421,7 @@ row_ins_index_entry(
 				(foreign=FALSE only during CREATE INDEX) */
 	que_thr_t*	thr)	/*!< in: query thread */
 {
-	ulint	err;
+	dberr_t	err;
 
 	/* Only clustered indexes may contain externally stored columns. */
 	ut_ad(dict_index_is_clust(index) || !n_ext);
@@ -2510,14 +2516,14 @@ row_ins_index_entry_set_vals(
 Inserts a single index entry to the table.
 @return DB_SUCCESS if operation successfully completed, else error
 code or DB_LOCK_WAIT */
-static
-ulint
+static __attribute__((nonnull, warn_unused_result))
+dberr_t
 row_ins_index_entry_step(
 /*=====================*/
 	ins_node_t*	node,	/*!< in: row insert node */
 	que_thr_t*	thr)	/*!< in: query thread */
 {
-	ulint	err;
+	dberr_t	err;
 
 	ut_ad(dtuple_check_typed(node->row));
 
@@ -2624,8 +2630,8 @@ row_ins_get_row_from_select(
 Inserts a row to a table.
 @return DB_SUCCESS if operation successfully completed, else error
 code or DB_LOCK_WAIT */
-static
-ulint
+static __attribute__((nonnull, warn_unused_result))
+dberr_t
 row_ins(
 /*====*/
 	ins_node_t*	node,	/*!< in: row insert node */
@@ -2657,7 +2663,7 @@ row_ins(
 	ut_ad(node->state == INS_NODE_INSERT_ENTRIES);
 
 	while (node->index != NULL) {
-		ulint	err;
+		dberr_t	err;
 
 		if (node->index->type & DICT_FTS) {
 			goto next_index;
@@ -2717,7 +2723,7 @@ row_ins_step(
 	que_node_t*	parent;
 	sel_node_t*	sel_node;
 	trx_t*		trx;
-	ulint		err;
+	dberr_t		err;
 
 	ut_ad(thr);
 
@@ -2798,7 +2804,7 @@ same_trx:
 	err = row_ins(node, thr);
 
 error_handling:
-	trx->error_state = static_cast<enum db_err>(err);
+	trx->error_state = err;
 
 	if (err != DB_SUCCESS) {
 		/* err == DB_LOCK_WAIT or SQL error detected */

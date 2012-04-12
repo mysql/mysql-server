@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2012, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -1380,7 +1380,7 @@ trx_commit_step(
 Does the transaction commit for MySQL.
 @return	DB_SUCCESS or error number */
 UNIV_INTERN
-ulint
+dberr_t
 trx_commit_for_mysql(
 /*=================*/
 	trx_t*	trx)	/*!< in/out: transaction */
@@ -1946,12 +1946,12 @@ trx_recover_for_mysql(
 	if (count > 0){
 		ut_print_timestamp(stderr);
 		fprintf(stderr,
-			"  InnoDB: %lu transactions in prepared state"
+			"  InnoDB: %d transactions in prepared state"
 			" after recovery\n",
-			(ulong) count);
+			int (count));
 	}
 
-	return ((int) count);
+	return(int (count));
 }
 
 /*******************************************************************//**

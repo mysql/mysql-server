@@ -1511,6 +1511,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  SQLSTATE_SYM                  /* SQL-2003-R */
 %token  SQLWARNING_SYM                /* SQL-2003-R */
 %token  SQL_AFTER_GTIDS               /* MYSQL */
+%token  SQL_AFTER_MTS_GAPS            /* MYSQL */
 %token  SQL_BEFORE_GTIDS              /* MYSQL */
 %token  SQL_BIG_RESULT
 %token  SQL_BUFFER_RESULT
@@ -7685,7 +7686,13 @@ slave_until:
                 lex->mi.gtid) ||
                 !((lex->mi.log_file_name && lex->mi.pos) ||
                   (lex->mi.relay_log_name && lex->mi.relay_log_pos) ||
-                  lex->mi.gtid))
+                  lex->mi.gtid ||
+                  lex->mi.until_after_gaps) ||
+                /* SQL_AFTER_MTS_GAPS is meaningless in combination */
+                /* with any other coordinates related options       */
+                ((lex->mi.log_file_name || lex->mi.pos || lex->mi.relay_log_name
+                  || lex->mi.relay_log_pos || lex->mi.gtid)
+                 && lex->mi.until_after_gaps))
             {
                my_message(ER_BAD_SLAVE_UNTIL_COND,
                           ER(ER_BAD_SLAVE_UNTIL_COND), MYF(0));
@@ -7706,6 +7713,10 @@ slave_until_opts:
           {
             Lex->mi.gtid= $3.str;
             Lex->mi.gtid_until_condition= LEX_MASTER_INFO::UNTIL_SQL_AFTER_GTIDS;
+          }
+        | SQL_AFTER_MTS_GAPS
+          {
+            Lex->mi.until_after_gaps= true;
           }
         ;
 
@@ -13686,6 +13697,9 @@ keyword_sp:
         | SNAPSHOT_SYM             {}
         | SOUNDS_SYM               {}
         | SOURCE_SYM               {}
+        | SQL_AFTER_GTIDS          {}
+        | SQL_AFTER_MTS_GAPS       {}
+        | SQL_BEFORE_GTIDS         {}
         | SQL_CACHE_SYM            {}
         | SQL_BUFFER_RESULT        {}
         | SQL_NO_CACHE_SYM         {}

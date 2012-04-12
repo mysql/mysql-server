@@ -648,7 +648,7 @@ UNIV_INTERN
 const char*
 ut_strerr(
 /*======*/
-	enum db_err	num)	/*!< in: error number */
+	dberr_t	num)	/*!< in: error number */
 {
 	switch (num) {
 	case DB_SUCCESS:

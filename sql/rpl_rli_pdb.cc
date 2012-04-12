@@ -86,8 +86,6 @@ Slave_worker::Slave_worker(Relay_log_info *rli
   checkpoint_master_log_name[0]= 0;
   my_init_dynamic_array(&curr_group_exec_parts, sizeof(db_worker_hash_entry*),
                         SLAVE_INIT_DBS_IN_GROUP, 1);
-  bitmap_init(&group_executed, NULL, c_rli->checkpoint_group, FALSE);
-  bitmap_init(&group_shifted, NULL, c_rli->checkpoint_group, FALSE);
   mysql_mutex_init(key_mutex_slave_parallel_worker, &jobs_lock,
                    MY_MUTEX_INIT_FAST);
   mysql_cond_init(key_cond_slave_parallel_worker, &jobs_cond, NULL);
@@ -96,8 +94,6 @@ Slave_worker::Slave_worker(Relay_log_info *rli
 Slave_worker::~Slave_worker() 
 {
   delete_dynamic(&curr_group_exec_parts);
-  bitmap_free(&group_executed);
-  bitmap_free(&group_shifted);
   mysql_mutex_destroy(&jobs_lock);
   mysql_cond_destroy(&jobs_cond);
 }
@@ -119,7 +115,7 @@ int Slave_worker::init_worker(Relay_log_info * rli, ulong i)
   Slave_job_item empty= {NULL};
 
   c_rli= rli;
-  if (init_info() || 
+  if (init_info(false) || 
       DBUG_EVALUATE_IF("inject_init_worker_init_info_fault", true, false))
     DBUG_RETURN(1);
 
@@ -153,7 +149,27 @@ int Slave_worker::init_worker(Relay_log_info * rli, ulong i)
   DBUG_RETURN(0);
 }
 
-int Slave_worker::init_info()
+/**
+   A part of Slave worker iitializer that provides a 
+   minimum context for MTS recovery.
+
+   @param is_gaps_collecting_phase 
+
+          clarifies what state the caller
+          executes this method from. When it's @c true
+          that is @c mts_recovery_groups() and Worker should
+          restore the last session time info which is processed
+          to collect gaps that is not executed transactions (groups).
+          Such recovery Slave_worker intance is destroyed at the end of
+          @c mts_recovery_groups().
+          Whet it's @c false Slave_worker is initialized for the run time
+          nad should not read the last session time stale info.
+          Its info will be ultimately reset once all gaps are executed
+          to finish off recovery.
+          
+   @return 0 on success, non-zero for a failure
+*/
+int Slave_worker::init_info(bool is_gaps_collecting_phase)
 {
   enum_return_check return_check= ERROR_CHECKING_REPOSITORY;
 
@@ -163,27 +179,42 @@ int Slave_worker::init_info()
     DBUG_RETURN(0);
 
   /*
+    Worker bitmap size depends on recovery mode.
+    If it is gaps collecting the bitmaps must be capable to accept
+    up to MTS_MAX_BITS_IN_GROUP of bits.
+  */
+  size_t num_bits= is_gaps_collecting_phase ?
+    MTS_MAX_BITS_IN_GROUP : c_rli->checkpoint_group;
+  /*
     This checks if the repository was created before and thus there
     will be values to be read. Please, do not move this call after
     the handler->init_info(). 
   */
   return_check= check_info(); 
-  if (return_check == ERROR_CHECKING_REPOSITORY)
+  if (return_check == ERROR_CHECKING_REPOSITORY ||
+      (return_check == REPOSITORY_DOES_NOT_EXIST && is_gaps_collecting_phase))
     goto err;
 
   if (handler->init_info(uidx, nidx))
     goto err;
 
-  if (return_check == REPOSITORY_EXISTS && read_info(handler))
+  bitmap_init(&group_executed, NULL, num_bits, FALSE);
+  bitmap_init(&group_shifted, NULL, num_bits, FALSE);
+  
+  if (is_gaps_collecting_phase && 
+      (DBUG_EVALUATE_IF("mts_slave_worker_init_at_gaps_fails", true, false) ||
+       read_info(handler)))
+  {
+    bitmap_free(&group_executed);
+    bitmap_free(&group_shifted);
     goto err;
-
+  }
   inited= 1;
-  if (flush_info(TRUE))
-    goto err;
 
   DBUG_RETURN(0);
 
 err:
+  // todo: handler->end_info(uidx, nidx);
   inited= 0;
   sql_print_error("Error reading slave worker configuration");
   DBUG_RETURN(1);
@@ -198,6 +229,11 @@ void Slave_worker::end_info()
 
   handler->end_info(uidx, nidx);
 
+  if (inited)
+  {
+    bitmap_free(&group_executed);
+    bitmap_free(&group_shifted);
+  }
   inited = 0;
 
   DBUG_VOID_RETURN;
@@ -273,6 +309,8 @@ bool Slave_worker::read_info(Rpl_info_handler *from)
                      (uchar *) 0))
     DBUG_RETURN(TRUE);
 
+  DBUG_ASSERT(nbytes <= no_bytes_in_map(&group_executed));
+
   group_relay_log_pos=  temp_group_relay_log_pos;
   group_master_log_pos= temp_group_master_log_pos;
   checkpoint_relay_log_pos=  temp_checkpoint_relay_log_pos;
@@ -289,6 +327,8 @@ bool Slave_worker::write_info(Rpl_info_handler *to)
   ulong nbytes= (ulong) no_bytes_in_map(&group_executed);
   uchar *buffer= (uchar*) group_executed.bitmap;
 
+  DBUG_ASSERT(nbytes <= c_rli->checkpoint_group / 8);
+
   if (to->prepare_info_for_write(nidx) ||
       to->set_info(group_relay_log_name) ||
       to->set_info((ulong) group_relay_log_pos) ||
@@ -304,6 +344,24 @@ bool Slave_worker::write_info(Rpl_info_handler *to)
     DBUG_RETURN(TRUE);
 
   DBUG_RETURN(FALSE);
+}
+
+/**
+   Clean up a part of Worker info table that is regarded in
+   in gaps collecting at recovery.
+   This worker won't contribute to recovery bitmap at future
+   slave restart (see @c mts_recovery_groups).
+
+   @retrun FALSE as success TRUE as failure
+*/
+bool Slave_worker::reset_recovery_info()
+{
+  DBUG_ENTER("Slave_worker::reset_recovery_info");
+  
+  set_group_master_log_name("");
+  set_group_master_log_pos(0);
+
+  DBUG_RETURN(flush_info(true));
 }
 
 size_t Slave_worker::get_number_worker_fields()

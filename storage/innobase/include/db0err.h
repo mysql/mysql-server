@@ -27,7 +27,7 @@ Created 5/24/1996 Heikki Tuuri
 #define db0err_h
 
 
-enum db_err {
+enum dberr_t {
 	DB_SUCCESS_LOCKED_REC = 9,	/*!< like DB_SUCCESS, but a new
 					explicit record lock was created */
 	DB_SUCCESS = 10,
