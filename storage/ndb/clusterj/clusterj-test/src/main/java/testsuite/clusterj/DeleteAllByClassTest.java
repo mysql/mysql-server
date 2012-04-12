@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2010, 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -54,7 +54,8 @@ public class DeleteAllByClassTest extends AbstractClusterJModelTest {
         tx.begin();
         int count = session.deletePersistentAll(Employee.class);
         tx.commit();
-        assertEquals("Mismatch on number of deleted instances: ",
+        errorIfNotEqual("Mismatch on number of deleted instances: ",
                 NUMBER_TO_INSERT, count);
+        failOnError();
     }
 }
