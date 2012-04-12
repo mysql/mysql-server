@@ -505,10 +505,9 @@ enum srv_thread_type {
 };
 
 /*********************************************************************//**
-Boots Innobase server.
-@return	DB_SUCCESS or error code */
+Boots Innobase server. */
 UNIV_INTERN
-ulint
+void
 srv_boot(void);
 /*==========*/
 /*********************************************************************//**

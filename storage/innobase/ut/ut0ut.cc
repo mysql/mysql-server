@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2012, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -648,7 +648,7 @@ UNIV_INTERN
 const char*
 ut_strerr(
 /*======*/
-	enum db_err	num)	/*!< in: error number */
+	dberr_t	num)	/*!< in: error number */
 {
 	switch (num) {
 	case DB_SUCCESS:

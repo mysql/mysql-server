@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2012, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -793,7 +793,7 @@ loop:
 			/* It is a normal database startup: create the space
 			object and check that the .ibd file exists. */
 
-			db_err	err = fil_open_single_table_tablespace(
+			dberr_t	err = fil_open_single_table_tablespace(
 				NULL, space_id,
 				dict_tf_to_fsp_flags(flags), name);
 
@@ -1215,7 +1215,7 @@ dict_load_fields(
 	byte*		buf;
 	ulint		i;
 	mtr_t		mtr;
-	ulint		error;
+	dberr_t		error;
 
 	ut_ad(mutex_own(&(dict_sys->mutex)));
 
@@ -1415,8 +1415,8 @@ Loads definitions for table indexes. Adds them to the data dictionary
 cache.
 @return DB_SUCCESS if ok, DB_CORRUPTION if corruption of dictionary
 table or DB_UNSUPPORTED if table has unknown index type */
-static
-db_err
+static __attribute__((nonnull))
+dberr_t
 dict_load_indexes(
 /*==============*/
 	dict_table_t*	table,	/*!< in/out: table */
@@ -1433,7 +1433,7 @@ dict_load_indexes(
 	const rec_t*	rec;
 	byte*		buf;
 	mtr_t		mtr;
-	db_err		error = DB_SUCCESS;
+	dberr_t		error = DB_SUCCESS;
 
 	ut_ad(mutex_own(&(dict_sys->mutex)));
 
@@ -1593,7 +1593,7 @@ corrupted:
 		} else {
 			dict_load_fields(index, heap);
 
-			error = (db_err) dict_index_add_to_cache(
+			error = dict_index_add_to_cache(
 				table, index, index->page, FALSE);
 
 			/* The data dictionary tables should never contain
@@ -1794,7 +1794,7 @@ dict_load_table(
 				/*!< in: error to be ignored when loading
 				table and its indexes' definition */
 {
-	db_err		err;
+	dberr_t		err;
 	dict_table_t*	table;
 	dict_table_t*	sys_tables;
 	btr_pcur_t	pcur;
@@ -1962,7 +1962,7 @@ err_exit:
 	if (!cached || table->ibd_file_missing) {
 		/* Don't attempt to load the indexes from disk. */
 	} else if (err == DB_SUCCESS) {
-		err = (db_err) dict_load_foreigns(table->name, TRUE, TRUE);
+		err = dict_load_foreigns(table->name, TRUE, TRUE);
 
 		if (err != DB_SUCCESS) {
 			dict_table_remove_from_cache(table);
@@ -2205,8 +2205,8 @@ dict_load_foreign_cols(
 /***********************************************************************//**
 Loads a foreign key constraint to the dictionary cache.
 @return	DB_SUCCESS or error code */
-static
-ulint
+static __attribute__((nonnull, warn_unused_result))
+dberr_t
 dict_load_foreign(
 /*==============*/
 	const char*	id,	/*!< in: foreign constraint id, not
@@ -2394,7 +2394,7 @@ cache already contains all constraints where the other relevant table is
 already in the dictionary cache.
 @return	DB_SUCCESS or error code */
 UNIV_INTERN
-ulint
+dberr_t
 dict_load_foreigns(
 /*===============*/
 	const char*	table_name,	/*!< in: table name */
@@ -2412,7 +2412,7 @@ dict_load_foreigns(
 	const rec_t*	rec;
 	const byte*	field;
 	ulint		len;
-	ulint		err;
+	dberr_t		err;
 	mtr_t		mtr;
 
 	ut_ad(mutex_own(&(dict_sys->mutex)));

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2009, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2012, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -199,14 +199,15 @@ cache already contains all constraints where the other relevant table is
 already in the dictionary cache.
 @return	DB_SUCCESS or error code */
 UNIV_INTERN
-ulint
+dberr_t
 dict_load_foreigns(
 /*===============*/
 	const char*	table_name,	/*!< in: table name */
 	ibool		check_recursive,/*!< in: Whether to check recursive
 					load of tables chained by FK */
-	ibool		check_charsets);/*!< in: TRUE=check charsets
+	ibool		check_charsets)	/*!< in: TRUE=check charsets
 					compatibility */
+	__attribute__((nonnull, warn_unused_result));
 /********************************************************************//**
 Prints to the standard output information on all tables found in the data
 dictionary system table. */

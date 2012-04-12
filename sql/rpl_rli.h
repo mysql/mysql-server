@@ -309,7 +309,13 @@ public:
      thread is running).
    */
   enum {UNTIL_NONE= 0, UNTIL_MASTER_POS, UNTIL_RELAY_POS,
-        UNTIL_SQL_BEFORE_GTIDS, UNTIL_SQL_AFTER_GTIDS} until_condition;
+        UNTIL_SQL_BEFORE_GTIDS, UNTIL_SQL_AFTER_GTIDS,
+        UNTIL_SQL_AFTER_MTS_GAPS
+#ifndef DBUG_OFF
+        , UNTIL_DONE
+#endif
+}
+    until_condition;
   char until_log_name[FN_REFLEN];
   ulonglong until_log_pos;
   /* extension extracted from log_name and converted to int */
@@ -512,6 +518,7 @@ public:
   uint checkpoint_seqno;  // counter of groups executed after the most recent CP
   uint checkpoint_group;  // cache for ::opt_mts_checkpoint_group 
   MY_BITMAP recovery_groups;  // bitmap used during recovery
+  bool recovery_groups_inited;
   ulong mts_recovery_group_cnt; // number of groups to execute at recovery
   ulong mts_recovery_index;     // running index of recoverable groups
   bool mts_recovery_group_seen_begin;
@@ -623,6 +630,11 @@ public:
   */
   void reset_notified_checkpoint(ulong, time_t, bool);
 
+  /**
+     Called when gaps execution is ended so it is crash-safe
+     to reset the last session Workers info.
+  */
+  bool mts_finalize_recovery();
   /*
    * End of MTS section ******************************************************/
 

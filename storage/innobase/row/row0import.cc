@@ -132,9 +132,9 @@ public:
 	/** Scan the index and adjust sys fields, purge delete marked records
 	and adjust BLOB references if it is a clustered index.
 	@return DB_SUCCESS or error code. */
-	db_err	import() throw()
+	dberr_t	import() throw()
 	{
-		db_err	err;
+		dberr_t	err;
 		ulint	offsets_[REC_OFFS_NORMAL_SIZE];
 		ulint*	offsets = offsets_;
 		ibool	comp = dict_table_is_comp(m_index->table);
@@ -221,7 +221,7 @@ private:
 
 	/** Position the cursor on the next record.
 	@return DB_SUCCESS or error code */
-	db_err	next() throw()
+	dberr_t	next() throw()
 	{
 		btr_pcur_move_to_next_on_page(&m_pcur);
 
@@ -273,7 +273,7 @@ private:
 	@param offsets - offsets within current record
 	@param i - column ordinal value
 	@return DB_SUCCESS or error code */
-	db_err	adjust_blob_column(
+	dberr_t	adjust_blob_column(
 		page_zip_des_t*	page_zip,
 		rec_t*		rec,
 		const ulint*	offsets,
@@ -323,7 +323,7 @@ private:
 	@param rec - current record
 	@param offsets - column offsets within current record
 	@return DB_SUCCESS or error code */
-	db_err	adjust_blob_columns(
+	dberr_t	adjust_blob_columns(
 		page_zip_des_t*	page_zip,
 		rec_t*		rec,
 		const ulint*	offsets) throw()
@@ -340,7 +340,7 @@ private:
 
 			if (rec_offs_nth_extern(offsets, i)) {
 
-				db_err	err = adjust_blob_column(
+				dberr_t	err = adjust_blob_column(
 					page_zip, rec, offsets, i);
 
 				if (err != DB_SUCCESS) {
@@ -356,7 +356,7 @@ private:
 	/** In the clustered index, adjusts DB_TRX_ID, DB_ROLL_PTR and
 	BLOB pointers as needed.
 	@return DB_SUCCESS or error code */
-	db_err	adjust_clust_index(rec_t* rec, const ulint* offsets) throw()
+	dberr_t	adjust_clust_index(rec_t* rec, const ulint* offsets) throw()
 	{
 		ut_ad(dict_index_is_clust(m_index));
 
@@ -365,7 +365,7 @@ private:
 		page_zip = buf_block_get_page_zip(btr_pcur_get_block(&m_pcur));
 
 		if (rec_offs_any_extern(offsets)) {
-			db_err		err;
+			dberr_t		err;
 
 			err = adjust_blob_columns(page_zip, rec, offsets);
 
@@ -393,7 +393,7 @@ private:
 	tree structure may be changed during a pessimistic delete. */
 	void	purge_pessimistic_delete() throw()
 	{
-		ulint	err;
+		dberr_t	err;
 
 		btr_pcur_restore_position(BTR_MODIFY_TREE, &m_pcur, &m_mtr);
 
@@ -416,14 +416,14 @@ private:
 	@param offsets - column offsets
 	@param deleted - true if row is delete marked
 	@return DB_SUCCESS or error code. */
-	db_err	adjust(rec_t* rec, const ulint* offsets, bool deleted) throw()
+	dberr_t	adjust(rec_t* rec, const ulint* offsets, bool deleted) throw()
 	{
 		/* Only adjust the system fields and BLOB pointers in the
 		clustered index. */
 
 		if (dict_index_is_clust(m_index)) {
 
-			db_err	err;
+			dberr_t	err;
 
 			err = adjust_clust_index(rec, offsets);
 
@@ -560,7 +560,7 @@ row_import_discard_changes(
 /*=======================*/
 	row_prebuilt_t*	prebuilt,	/*!< in/out: prebuilt from handler */
 	trx_t*		trx,		/*!< in/out: transaction for import */
-	db_err		err)		/*!< in: error code */
+	dberr_t		err)		/*!< in: error code */
 {
 	dict_table_t*	table = prebuilt->table;
 
@@ -603,12 +603,12 @@ row_import_discard_changes(
 /*****************************************************************//**
 Cleanup after import tablespace. */
 static	__attribute__((nonnull, warn_unused_result))
-db_err
+dberr_t
 row_import_cleanup(
 /*===============*/
 	row_prebuilt_t*	prebuilt,	/*!< in/out: prebuilt from handler */
 	trx_t*		trx,		/*!< in/out: transaction for import */
-	db_err		err)		/*!< in: error code */
+	dberr_t		err)		/*!< in: error code */
 {
 	ut_a(prebuilt->trx != trx);
 
@@ -647,12 +647,12 @@ row_import_cleanup(
 /*****************************************************************//**
 Report error during tablespace import. */
 static	__attribute__((nonnull, warn_unused_result))
-db_err
+dberr_t
 row_import_error(
 /*=============*/
 	row_prebuilt_t*	prebuilt,	/*!< in/out: prebuilt from handler */
 	trx_t*		trx,		/*!< in/out: transaction for import */
-	db_err		err)		/*!< in: error code */
+	dberr_t		err)		/*!< in: error code */
 {
 	if (!trx_is_interrupted(trx)) {
 		char	table_name[MAX_FULL_NAME_LEN + 1];
@@ -676,7 +676,7 @@ row_import_error(
 Adjust the root on the table's secondary indexes.
 @return error code */
 static	__attribute__((nonnull, warn_unused_result))
-db_err
+dberr_t
 row_import_adjust_root_pages(
 /*=========================*/
 	row_prebuilt_t*		prebuilt,	/*!< in/out: prebuilt from
@@ -689,7 +689,7 @@ row_import_adjust_root_pages(
 						left in index */
 {
 	dict_index_t*		index;
-	db_err			err = DB_SUCCESS;
+	dberr_t			err = DB_SUCCESS;
 
 	DBUG_EXECUTE_IF("ib_import_sec_rec_count_mismatch_failure",
 			n_rows_in_table++;);
@@ -758,14 +758,14 @@ row_import_adjust_root_pages(
 Ensure that dict_sys->row_id exceeds SELECT MAX(DB_ROW_ID).
 @return error code */
 static	__attribute__((nonnull, warn_unused_result))
-db_err
+dberr_t
 row_import_set_sys_max_row_id(
 /*==========================*/
 	row_prebuilt_t*		prebuilt,	/*!< in/out: prebuilt from
 						handler */
 	const dict_table_t*	table)		/*!< in: table to import */
 {
-	db_err			err;
+	dberr_t			err;
 	const rec_t*		rec;
 	mtr_t			mtr;
 	btr_pcur_t		pcur;
@@ -865,7 +865,7 @@ row_import_set_sys_max_row_id(
 Read the a string from the meta data file.
 @return DB_SUCCESS or error code. */
 static
-db_err
+dberr_t
 row_import_cfg_read_string(
 /*=======================*/
 	FILE*		file,		/*!< in/out: File to read from */
@@ -902,11 +902,11 @@ row_import_cfg_read_string(
 Write the meta data (index user fields) config file.
 @return DB_SUCCESS or error code. */
 static	__attribute__((nonnull, warn_unused_result))
-db_err
+dberr_t
 row_import_cfg_read_index_fields(
 /*=============================*/
 	FILE*			file,	/*!< in: file to write to */
-	void*			thd,	/*!< in/out: session */
+	THD*			thd,	/*!< in/out: session */
 	row_index_t*		index,	/*!< Index being read in */
 	row_import_t*		cfg)	/*!< in/out: meta-data read */
 {
@@ -953,7 +953,7 @@ row_import_cfg_read_index_fields(
 
 		field->name = reinterpret_cast<const char*>(name);
 
-		db_err	err = row_import_cfg_read_string(file, name, len);
+		dberr_t	err = row_import_cfg_read_string(file, name, len);
 
 		if (err != DB_SUCCESS) {
 			return(err);
@@ -968,11 +968,11 @@ Read the index names and root page numbers of the indexes and set the values.
 Row format [root_page_no, len of str, str ... ]
 @return DB_SUCCESS or error code. */
 static __attribute__((nonnull, warn_unused_result))
-db_err
+dberr_t
 row_import_read_index_data(
 /*=======================*/
 	FILE*		file,		/*!< in: File to read from */
-	void*		thd,		/*!< in: session */
+	THD*		thd,		/*!< in: session */
 	row_import_t*	cfg)		/*!< in/out: meta-data read */
 {
 	byte*		ptr;
@@ -1055,7 +1055,7 @@ row_import_read_index_data(
 			return(DB_OUT_OF_MEMORY);
 		}
 
-		db_err	err;
+		dberr_t	err;
 
 		err = row_import_cfg_read_string(file, cfg_index->name, len);
 
@@ -1079,11 +1079,11 @@ row_import_read_index_data(
 Set the index root page number for v1 format.
 @return DB_SUCCESS or error code. */
 static
-db_err
+dberr_t
 row_import_read_indexes(
 /*====================*/
 	FILE*		file,		/*!< in: File to read from */
-	void*		thd,		/*!< in: session */
+	THD*		thd,		/*!< in: session */
 	row_import_t*	cfg)		/*!< in/out: meta-data read */
 {
 	byte		row[sizeof(ib_uint32_t)];
@@ -1123,11 +1123,11 @@ row_import_read_indexes(
 Read the meta data (table columns) config file. Deserialise the contents of
 dict_col_t structure, along with the column name. */
 static	__attribute__((nonnull, warn_unused_result))
-db_err
+dberr_t
 row_import_read_columns(
 /*====================*/
 	FILE*			file,	/*!< in: file to write to */
-	void*			thd,	/*!< in/out: session */
+	THD*			thd,	/*!< in/out: session */
 	row_import_t*		cfg)	/*!< in/out: meta-data read */
 {
 	dict_col_t*		col;
@@ -1208,7 +1208,7 @@ row_import_read_columns(
 			return(DB_OUT_OF_MEMORY);
 		}
 
-		db_err	err;
+		dberr_t	err;
 
 		err = row_import_cfg_read_string(file, cfg->col_names[i], len);
 
@@ -1228,11 +1228,11 @@ row_import_read_columns(
 Read the contents of the <tablespace>.cfg file.
 @return DB_SUCCESS or error code. */
 static	__attribute__((nonnull, warn_unused_result))
-db_err
+dberr_t
 row_import_read_v1(
 /*===============*/
 	FILE*		file,		/*!< in: File to read from */
-	void*		thd,		/*!< in: session */
+	THD*		thd,		/*!< in: session */
 	row_import_t*	cfg)		/*!< out: meta data */
 {
 	byte		value[sizeof(ib_uint32_t)];
@@ -1255,7 +1255,7 @@ row_import_read_v1(
 		return(DB_OUT_OF_MEMORY);
 	}
 
-	db_err	err = row_import_cfg_read_string(file, cfg->hostname, len);
+	dberr_t	err = row_import_cfg_read_string(file, cfg->hostname, len);
 
 	if (err != DB_SUCCESS) {
 		ib_pushf(thd, IB_LOG_LEVEL_ERROR, ER_INDEX_CORRUPT,
@@ -1362,12 +1362,12 @@ row_import_read_v1(
 Read the contents of the <tablespace>.cfg file.
 @return DB_SUCCESS or error code. */
 static	__attribute__((nonnull, warn_unused_result))
-db_err
+dberr_t
 row_import_read_meta_data(
 /*======================*/
 	dict_table_t*	table,		/*!< in: table */
 	FILE*		file,		/*!< in: File to read from */
-	void*		thd,		/*!< in: session */
+	THD*		thd,		/*!< in: session */
 	row_import_t**	cfg)		/*!< out: contents of the .cfg file */
 {
 	byte		row[sizeof(ib_uint32_t)];
@@ -1412,14 +1412,14 @@ row_import_read_meta_data(
 Read the contents of the <tablename>.cfg file.
 @return DB_SUCCESS or error code. */
 static	__attribute__((nonnull, warn_unused_result))
-db_err
+dberr_t
 row_import_read_cfg(
 /*================*/
 	dict_table_t*	table,	/*!< in: table */
-	void*		thd,	/*!< in: session */
+	THD*		thd,	/*!< in: session */
 	row_import_t**	cfg)	/*!< out: contents of the .cfg file */
 {
-	db_err		err;
+	dberr_t		err;
 	char		name[OS_FILE_MAX_PATH];
 
 	srv_get_meta_data_filename(table, name, sizeof(name));
@@ -1517,16 +1517,16 @@ Check if the index schema that was read from the .cfg file matches the
 in memory index definition.
 @return DB_SUCCESS or error code. */
 static	__attribute__((nonnull, warn_unused_result))
-db_err
+dberr_t
 row_import_match_index_columns(
 /*===========================*/
-	void*			thd,		/*!< in: session */
+	THD*			thd,		/*!< in: session */
 	const row_import_t*	cfg,		/*!< in: contents of the
 						.cfg file */
 	const dict_index_t*	index)		/*!< in: index to match */
 {
 	const row_index_t*	cfg_index;
-	db_err			err = DB_SUCCESS;
+	dberr_t			err = DB_SUCCESS;
 
 	cfg_index = row_import_find_index(cfg, index->name);
 
@@ -1593,14 +1593,14 @@ Check if the table schema that was read from the .cfg file matches the
 in memory table definition.
 @return DB_SUCCESS or error code. */
 static	__attribute__((nonnull, warn_unused_result))
-db_err
+dberr_t
 row_import_match_table_columns(
 /*===========================*/
-	void*			thd,		/*!< in: session */
+	THD*			thd,		/*!< in: session */
 	const row_import_t*	cfg)		/*!< in: contents of the
 						.cfg file */
 {
-	db_err			err = DB_SUCCESS;
+	dberr_t			err = DB_SUCCESS;
 	const dict_col_t*	col = cfg->table->cols;
 
 	for (ulint i = 0; i < cfg->table->n_cols; ++i, ++col) {
@@ -1706,10 +1706,10 @@ Check if the table (and index) schema that was read from the .cfg file
 matches the in memory table definition.
 @return DB_SUCCESS or error code. */
 static
-db_err
+dberr_t
 row_import_match_schema(
 /*====================*/
-	void*			thd,		/*!< in: session */
+	THD*			thd,		/*!< in: session */
 	const row_import_t*	cfg)		/*!< in: contents of the
 						.cfg file */
 {
@@ -1746,7 +1746,7 @@ row_import_match_schema(
 		return(DB_ERROR);
 	}
 
-	db_err	err = row_import_match_table_columns(thd, cfg);
+	dberr_t	err = row_import_match_table_columns(thd, cfg);
 
 	if (err != DB_SUCCESS) {
 		return(err);
@@ -1758,7 +1758,7 @@ row_import_match_schema(
 	     index != 0;
 	     index = UT_LIST_GET_NEXT(indexes, index)) {
 
-		db_err	index_err;
+		dberr_t	index_err;
 
 		index_err = row_import_match_index_columns(thd, cfg, index);
 
@@ -1774,13 +1774,13 @@ row_import_match_schema(
 Set the index root <space, pageno> from the meta-data.
 @return DB_SUCCESS or error code. */
 static
-db_err
+dberr_t
 row_import_index_set_root(
 /*======================*/
-	void*		thd,		/*!< in: session */
+	THD*		thd,		/*!< in: session */
 	row_import_t*	cfg)		/*!< out: contents of the .cfg file */
 {
-	db_err		err = DB_SUCCESS;
+	dberr_t		err = DB_SUCCESS;
 	row_index_t*	cfg_index = &cfg->indexes[0];
 
 	for (ulint i = 0; i < cfg->n_indexes; ++i, ++cfg_index) {
@@ -1806,7 +1806,7 @@ Update the <space, root page> of a table's indexes from the values
 in the data dictionary.
 @return DB_SUCCESS or error code */
 UNIV_INTERN
-db_err
+dberr_t
 row_import_update_index_root(
 /*=========================*/
 	trx_t*			trx,		/*!< in/out: transaction that
@@ -1822,7 +1822,7 @@ row_import_update_index_root(
 {
 	const dict_index_t*	index;
 	que_t*			graph = 0;
-	db_err			err = DB_SUCCESS;
+	dberr_t			err = DB_SUCCESS;
 
 	static const char	sql[] = {
 		"PROCEDURE UPDATE_INDEX_ROOT() IS\n"
@@ -1962,7 +1962,7 @@ row_import_set_discarded(
 Update the DICT_TF2_DISCARDED flag in SYS_TABLES.
 @return DB_SUCCESS or error code. */
 UNIV_INTERN
-db_err
+dberr_t
 row_import_update_discarded_flag(
 /*=============================*/
 	trx_t*		trx,		/*!< in/out: transaction that
@@ -2013,7 +2013,7 @@ row_import_update_discarded_flag(
 	pars_info_bind_function(
 		info, "my_func", row_import_set_discarded, &discard);
 
-	db_err	err = que_eval_sql(info, sql, !dict_locked, trx);
+	dberr_t	err = que_eval_sql(info, sql, !dict_locked, trx);
 
 	ut_a(discard.n_recs == 1);
 	ut_a(discard.flags2 != ULINT32_UNDEFINED);
@@ -2026,13 +2026,13 @@ Imports a tablespace. The space id in the .ibd file must match the space id
 of the table in the data dictionary.
 @return	error code or DB_SUCCESS */
 UNIV_INTERN
-db_err
+dberr_t
 row_import_for_mysql(
 /*=================*/
 	dict_table_t*	table,		/*!< in/out: table */
 	row_prebuilt_t*	prebuilt)	/*!< in: prebuilt struct in MySQL */
 {
-	db_err		err;
+	dberr_t		err;
 	trx_t*		trx;
 	ib_uint64_t	autoinc = 0;
 	ulint		n_rows_in_table;
@@ -2069,7 +2069,7 @@ row_import_for_mysql(
 
 	mutex_enter(&trx->undo_mutex);
 
-	err = (db_err) trx_undo_assign_undo(trx, TRX_UNDO_UPDATE);
+	err = trx_undo_assign_undo(trx, TRX_UNDO_UPDATE);
 
 	mutex_exit(&trx->undo_mutex);
 

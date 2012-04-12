@@ -285,11 +285,12 @@ undo log reused.
 are: DB_TOO_MANY_CONCURRENT_TRXS DB_OUT_OF_FILE_SPACE DB_READ_ONLY
 DB_OUT_OF_MEMORY */
 UNIV_INTERN
-ulint
+dberr_t
 trx_undo_assign_undo(
 /*=================*/
 	trx_t*		trx,	/*!< in: transaction */
-	ulint		type);	/*!< in: TRX_UNDO_INSERT or TRX_UNDO_UPDATE */
+	ulint		type)	/*!< in: TRX_UNDO_INSERT or TRX_UNDO_UPDATE */
+	__attribute__((nonnull, warn_unused_result));
 /******************************************************************//**
 Sets the state of the undo log segment at a transaction finish.
 @return	undo log segment header page, x-latched */

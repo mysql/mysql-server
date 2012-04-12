@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2006, 2010, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2006, 2012, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -106,7 +106,7 @@ innobase_convert_name(
 	ulint		buflen,	/*!< in: length of buf, in bytes */
 	const char*	id,	/*!< in: identifier to convert */
 	ulint		idlen,	/*!< in: length of id, in bytes */
-	void*		thd,	/*!< in: MySQL connection thread, or NULL */
+	THD*		thd,	/*!< in: MySQL connection thread, or NULL */
 	ibool		table_id);/*!< in: TRUE=id is a table or database name;
 				FALSE=id is an index name */
 
@@ -121,7 +121,7 @@ UNIV_INTERN
 ibool
 thd_is_replication_slave_thread(
 /*============================*/
-	void*	thd);	/*!< in: thread handle (THD*) */
+	THD*	thd);	/*!< in: thread handle */
 
 /******************************************************************//**
 Returns true if the transaction this thread is processing has edited
@@ -133,7 +133,7 @@ UNIV_INTERN
 ibool
 thd_has_edited_nontrans_tables(
 /*===========================*/
-	void*	thd);	/*!< in: thread handle (THD*) */
+	THD*	thd);	/*!< in: thread handle */
 
 /*************************************************************//**
 Prints info of a THD object (== user session thread) to the given file. */
@@ -142,7 +142,7 @@ void
 innobase_mysql_print_thd(
 /*=====================*/
 	FILE*	f,		/*!< in: output stream */
-	void*	thd,		/*!< in: pointer to a MySQL THD object */
+	THD*	thd,		/*!< in: pointer to a MySQL THD object */
 	uint	max_query_len);	/*!< in: max query length to print, or 0 to
 				   use the default max length */
 
@@ -223,11 +223,11 @@ innobase_basename(
 /******************************************************************//**
 Returns true if the thread is executing a SELECT statement.
 @return	true if thd is executing SELECT */
-
+UNIV_INTERN
 ibool
 thd_is_select(
 /*==========*/
-	const void*	thd);	/*!< in: thread handle (THD*) */
+	const THD*	thd);	/*!< in: thread handle */
 
 /******************************************************************//**
 Converts an identifier to a table name. */
@@ -266,7 +266,7 @@ UNIV_INTERN
 struct charset_info_st*
 innobase_get_charset(
 /*=================*/
-	void*	mysql_thd);	/*!< in: MySQL thread handle */
+	THD*	thd);	/*!< in: MySQL thread handle */
 /**********************************************************************//**
 Determines the current SQL statement.
 @return	SQL statement string */
@@ -274,7 +274,7 @@ UNIV_INTERN
 const char*
 innobase_get_stmt(
 /*==============*/
-	void*	mysql_thd,	/*!< in: MySQL thread handle */
+	THD*	thd,		/*!< in: MySQL thread handle */
 	size_t*	length)		/*!< out: length of the SQL statement */
 	__attribute__((nonnull));
 /******************************************************************//**
@@ -311,17 +311,17 @@ UNIV_INTERN
 ibool
 thd_supports_xa(
 /*============*/
-	void*	thd);	/*!< in: thread handle (THD*), or NULL to query
+	THD*	thd);	/*!< in: thread handle, or NULL to query
 			the global innodb_supports_xa */
 
 /******************************************************************//**
 Returns the lock wait timeout for the current connection.
 @return	the lock wait timeout, in seconds */
-
+UNIV_INTERN
 ulong
 thd_lock_wait_timeout(
 /*==================*/
-	void*	thd);	/*!< in: thread handle (THD*), or NULL to query
+	THD*	thd);	/*!< in: thread handle, or NULL to query
 			the global innodb_lock_wait_timeout */
 /******************************************************************//**
 Add up the time waited for the lock for the current query. */
@@ -329,7 +329,7 @@ UNIV_INTERN
 void
 thd_set_lock_wait_time(
 /*===================*/
-	void*	thd,	/*!< in: thread handle (THD*) */
+	THD*	thd,	/*!< in/out: thread handle */
 	ulint	value);	/*!< in: time waited for the lock */
 
 /**********************************************************************//**
@@ -356,11 +356,12 @@ innobase_get_lower_case_table_names(void);
 /*****************************************************************//**
 Frees a possible InnoDB trx object associated with the current THD.
 @return 0 or error number */
+UNIV_INTERN
 int
 innobase_close_thd(
 /*===============*/
-	void*		thd);		/*!< in: MySQL thread handle for
-					which to close the connection */
+	THD*	thd);		/*!< in: MySQL thread handle for
+				which to close the connection */
 /*************************************************************//**
 Get the next token from the given string and store it in *token. */
 UNIV_INTERN
@@ -412,7 +413,7 @@ UNIV_INTERN
 ibool
 thd_trx_is_read_only(
 /*=================*/
-	void*	thd);	/*!< in: thread handle (THD*) */
+	THD*	thd);	/*!< in/out: thread handle */
 
 /******************************************************************//**
 Check if the transaction is an auto-commit transaction. TRUE also
@@ -422,7 +423,7 @@ UNIV_INTERN
 ibool
 thd_trx_is_auto_commit(
 /*===================*/
-	void*	thd);	/*!< in: thread handle (THD*) can be NULL */
+	THD*	thd);	/*!< in: thread handle (THD*) can be NULL */
 
 /*****************************************************************//**
 A wrapper function of innobase_convert_name(), convert a table or
@@ -459,7 +460,7 @@ UNIV_INTERN
 void
 ib_pushf(
 /*=====*/
-	void*		thd,		/*!< in/out: session */
+	THD*		thd,		/*!< in/out: session */
 	ib_log_level_t	level,		/*!< in: warning level */
 	ib_uint32_t	code,		/*!< MySQL error code */
 	const char*	format,		/*!< printf format */

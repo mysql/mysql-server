@@ -362,7 +362,7 @@ At least one of foreign table or referenced table must already be in
 the dictionary cache!
 @return	DB_SUCCESS or error code */
 UNIV_INTERN
-ulint
+dberr_t
 dict_foreign_add_to_cache(
 /*======================*/
 	dict_foreign_t*	foreign,	/*!< in, own: foreign key constraint */
@@ -410,7 +410,7 @@ UNIV_INTERN
 ibool
 dict_str_starts_with_keyword(
 /*=========================*/
-	void*		mysql_thd,	/*!< in: MySQL thread handle */
+	THD*		thd,		/*!< in: MySQL thread handle */
 	const char*	str,		/*!< in: string to scan for keyword */
 	const char*	keyword)	/*!< in: keyword to look for */
 	__attribute__((nonnull, warn_unused_result));
@@ -436,7 +436,7 @@ bot participating tables. The indexes are allowed to contain more
 fields than mentioned in the constraint.
 @return	error code or DB_SUCCESS */
 UNIV_INTERN
-ulint
+dberr_t
 dict_create_foreign_constraints(
 /*============================*/
 	trx_t*		trx,		/*!< in: transaction */
@@ -461,7 +461,7 @@ Parses the CONSTRAINT id's to be dropped in an ALTER TABLE statement.
 @return DB_SUCCESS or DB_CANNOT_DROP_CONSTRAINT if syntax error or the
 constraint id does not match */
 UNIV_INTERN
-ulint
+dberr_t
 dict_foreign_parse_drop_constraints(
 /*================================*/
 	mem_heap_t*	heap,			/*!< in: heap from which we can
@@ -940,7 +940,7 @@ dict_make_room_in_cache(
 Adds an index to the dictionary cache.
 @return	DB_SUCCESS, DB_TOO_BIG_RECORD, or DB_CORRUPTION */
 UNIV_INTERN
-ulint
+dberr_t
 dict_index_add_to_cache(
 /*====================*/
 	dict_table_t*	table,	/*!< in: table on which the index is */
@@ -1563,7 +1563,7 @@ The caller must own the dictionary mutex.
 dict_table_schema_check() @{
 @return DB_SUCCESS if the table exists and contains the necessary columns */
 UNIV_INTERN
-enum db_err
+dberr_t
 dict_table_schema_check(
 /*====================*/
 	dict_table_schema_t*	req_schema,	/*!< in/out: required table

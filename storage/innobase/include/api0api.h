@@ -49,7 +49,7 @@ InnoDB Native API
 
 /* Basic types used by the InnoDB API. */
 /** All InnoDB error codes are represented by ib_err_t */
-typedef enum db_err		ib_err_t;
+typedef enum dberr_t		ib_err_t;
 /** Representation of a byte within InnoDB */
 typedef unsigned char		ib_byte_t;
 /** Representation of an unsigned long int within InnoDB */

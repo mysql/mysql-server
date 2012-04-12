@@ -110,12 +110,11 @@ class ha_innobase: public handler
 	void update_thd();
 	int change_active_index(uint keynr);
 	int general_fetch(uchar* buf, uint direction, uint match_mode);
-	ulint innobase_lock_autoinc();
+	dberr_t innobase_lock_autoinc();
 	ulonglong innobase_peek_autoinc();
-	ulint innobase_set_max_autoinc(ulonglong auto_inc);
-	ulint innobase_reset_autoinc(ulonglong auto_inc);
-	ulint innobase_get_autoinc(ulonglong* value);
-	ulint innobase_update_autoinc(ulonglong	auto_inc);
+	dberr_t innobase_set_max_autoinc(ulonglong auto_inc);
+	dberr_t innobase_reset_autoinc(ulonglong auto_inc);
+	dberr_t innobase_get_autoinc(ulonglong* value);
 	void innobase_initialize_autoinc();
 	dict_index_t* innobase_get_index(uint keynr);
 	int info_low(uint flag, dict_stats_upd_option_t stats_upd_option);

@@ -529,7 +529,7 @@ the list as they age towards the tail of the LRU.
 @retval DB_FAIL if not all freed
 @retval DB_INTERRUPTED if the transaction was interrupted */
 static	__attribute__((nonnull(1), warn_unused_result))
-db_err
+dberr_t
 buf_flush_or_remove_pages(
 /*======================*/
 	buf_pool_t*	buf_pool,	/*!< buffer pool instance */
@@ -619,7 +619,7 @@ buf_flush_dirty_pages(
 	const trx_t*	trx)		/*!< to check if the operation must
 					be interrupted */
 {
-	db_err		err;
+	dberr_t		err;
 
 	do {
 		buf_pool_mutex_enter(buf_pool);

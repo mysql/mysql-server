@@ -1338,7 +1338,7 @@ buf_pool_free_instance(
 Creates the buffer pool.
 @return	DB_SUCCESS if success, DB_ERROR if not enough memory or error */
 UNIV_INTERN
-ulint
+dberr_t
 buf_pool_init(
 /*==========*/
 	ulint	total_size,	/*!< in: size of the total pool in bytes */
@@ -3344,7 +3344,7 @@ UNIV_INTERN
 buf_page_t*
 buf_page_init_for_read(
 /*===================*/
-	ulint*		err,	/*!< out: DB_SUCCESS or DB_TABLESPACE_DELETED */
+	dberr_t*	err,	/*!< out: DB_SUCCESS or DB_TABLESPACE_DELETED */
 	ulint		mode,	/*!< in: BUF_READ_IBUF_PAGES_ONLY, ... */
 	ulint		space,	/*!< in: space id */
 	ulint		zip_size,/*!< in: compressed page size, or 0 */

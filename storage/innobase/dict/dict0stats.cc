@@ -33,7 +33,7 @@ Created Jan 06, 2010 Vasil Dimov
 #include "dict0mem.h" /* DICT_TABLE_MAGIC_N */
 #include "dict0stats.h"
 #include "data0type.h" /* dtype_t */
-#include "db0err.h" /* db_err */
+#include "db0err.h" /* dberr_t */
 #include "dyn0dyn.h" /* dyn_array* */
 #include "pars0pars.h" /* pars_info_create() */
 #include "pars0types.h" /* pars_info_t */
@@ -336,7 +336,7 @@ dict_stats_persistent_storage_check(
 	};
 
 	char		errstr[512];
-	enum db_err	ret;
+	dberr_t		ret;
 
 	if (!caller_has_dict_sys_mutex) {
 		mutex_enter(&(dict_sys->mutex));
@@ -1466,7 +1466,7 @@ will be saved on disk.
 dict_stats_update_persistent() @{
 @return DB_SUCCESS or error code */
 static
-enum db_err
+dberr_t
 dict_stats_update_persistent(
 /*=========================*/
 	dict_table_t*	table)		/*!< in/out: table */
@@ -1529,7 +1529,7 @@ storage.
 dict_stats_save_index_stat() @{
 @return DB_SUCCESS or error code */
 static
-enum db_err
+dberr_t
 dict_stats_save_index_stat(
 /*=======================*/
 	dict_index_t*	index,		/*!< in: index */
@@ -1543,7 +1543,7 @@ dict_stats_save_index_stat(
 					owns dict_sys->mutex */
 {
 	pars_info_t*	pinfo;
-	enum db_err	ret;
+	dberr_t		ret;
 
 	pinfo = pars_info_create();
 
@@ -1637,7 +1637,7 @@ Save the table's statistics into the persistent statistics storage.
 dict_stats_save() @{
 @return DB_SUCCESS or error code */
 static
-enum db_err
+dberr_t
 dict_stats_save(
 /*============*/
 	dict_table_t*	table,		/*!< in: table */
@@ -1648,7 +1648,7 @@ dict_stats_save(
 	pars_info_t*	pinfo;
 	dict_index_t*	index;
 	lint		now;
-	enum db_err	ret;
+	dberr_t		ret;
 
 	/* MySQL's timestamp is 4 byte, so we use
 	pars_info_add_int4_literal() which takes a lint arg, so "now" is
@@ -2173,7 +2173,7 @@ dict_stats_fetch_index_stats_step(
 Read inedx statistics from the persistent statistics storage.
 @return DB_SUCCESS or error code */
 static
-enum db_err
+dberr_t
 dict_stats_fetch_from_ps_for_index(
 /*===============================*/
 	dict_index_t*	index)		/*!< in/out: index */
@@ -2181,7 +2181,7 @@ dict_stats_fetch_from_ps_for_index(
 	index_fetch_t	index_fetch_arg;
 	trx_t*		trx;
 	pars_info_t*	pinfo;
-	enum db_err	ret;
+	dberr_t		ret;
 
 	ut_ad(!mutex_own(&dict_sys->mutex));
 
@@ -2265,7 +2265,7 @@ Read table's statistics from the persistent statistics storage.
 dict_stats_fetch_from_ps() @{
 @return DB_SUCCESS or error code */
 static
-enum db_err
+dberr_t
 dict_stats_fetch_from_ps(
 /*=====================*/
 	dict_table_t*	table,		/*!< in/out: table */
@@ -2275,7 +2275,7 @@ dict_stats_fetch_from_ps(
 	index_fetch_t	index_fetch_arg;
 	trx_t*		trx;
 	pars_info_t*	pinfo;
-	enum db_err	ret;
+	dberr_t		ret;
 
 	ut_ad(mutex_own(&dict_sys->mutex) == caller_has_dict_sys_mutex);
 
@@ -2413,7 +2413,7 @@ are used in query optimization.
 dict_stats_update() @{
 @return DB_* error code or DB_SUCCESS */
 UNIV_INTERN
-enum db_err
+dberr_t
 dict_stats_update(
 /*==============*/
 	dict_table_t*		table,	/*!< in/out: table */
@@ -2426,7 +2426,7 @@ dict_stats_update(
 					/*!< in: TRUE if the caller
 					owns dict_sys->mutex */
 {
-	enum db_err	ret = DB_ERROR;
+	dberr_t	ret = DB_ERROR;
 
 	/* check whether caller_has_dict_sys_mutex is set correctly;
 	note that mutex_own() is not implemented in non-debug code so
@@ -2687,7 +2687,7 @@ transactions and opened the SYS_* records for the *.ibd files.
 dict_stats_delete_index_stats() @{
 @return DB_SUCCESS or error code */
 UNIV_INTERN
-enum db_err
+dberr_t
 dict_stats_delete_index_stats(
 /*==========================*/
 	const char*	tname,	/*!< in: table name */
@@ -2700,9 +2700,9 @@ dict_stats_delete_index_stats(
 	char		database_name[MAX_DATABASE_NAME_LEN + 1];
 	const char*	table_name;
 	pars_info_t*	pinfo;
-	enum db_err	ret;
+	dberr_t		ret;
 	dict_stats_t*	dict_stats;
-	void*		mysql_thd;
+	THD*		mysql_thd;
 
 	/* skip indexes whose table names do not contain a database name
 	e.g. if we are dropping an index from SYS_TABLES */
@@ -2796,7 +2796,7 @@ the table.  This function creates its own transaction and commits it.
 dict_stats_delete_table_stats() @{
 @return DB_SUCCESS or error code */
 UNIV_INTERN
-enum db_err
+dberr_t
 dict_stats_delete_table_stats(
 /*==========================*/
 	const char*	table_name,	/*!< in: table name */
@@ -2808,7 +2808,7 @@ dict_stats_delete_table_stats(
 	const char*	table_name_strip; /* without leading db name */
 	trx_t*		trx;
 	pars_info_t*	pinfo;
-	enum db_err	ret = DB_ERROR;
+	dberr_t		ret = DB_ERROR;
 	dict_stats_t*	dict_stats;
 
 	/* skip tables that do not contain a database name
@@ -3091,7 +3091,7 @@ test_dict_stats_save()
 	dict_field_t	index2_fields[4];
 	ib_uint64_t	index2_stat_n_diff_key_vals[5];
 	ib_uint64_t	index2_stat_n_sample_sizes[5];
-	enum db_err	ret;
+	dberr_t		ret;
 
 	/* craft a dummy dict_table_t */
 	table.name = (char*) (TEST_DATABASE_NAME "/" TEST_TABLE_NAME);
@@ -3247,7 +3247,7 @@ test_dict_stats_fetch_from_ps()
 	dict_index_t	index2;
 	ib_uint64_t	index2_stat_n_diff_key_vals[5];
 	ib_uint64_t	index2_stat_n_sample_sizes[5];
-	enum db_err	ret;
+	dberr_t		ret;
 
 	/* craft a dummy dict_table_t */
 	table.name = (char*) (TEST_DATABASE_NAME "/" TEST_TABLE_NAME);
