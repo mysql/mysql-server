@@ -7,8 +7,6 @@ a
 1
 xa end 'a','ab';
 xa prepare 'a','ab';
-Warnings:
-Warning	1031	Table storage engine for 'TokuDB' doesn't have this option
 xa commit 'a','ab';
 select * from t1;
 a
@@ -21,8 +19,6 @@ a
 2
 xa end 'a','ab';
 xa prepare 'a','ab';
-Warnings:
-Warning	1031	Table storage engine for 'TokuDB' doesn't have this option
 xa rollback 'a','ab';
 select * from t1;
 a
