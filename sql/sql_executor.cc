@@ -4839,7 +4839,7 @@ change_to_use_tmp_fields(THD *thd, Ref_ptr_array ref_pointer_array,
         ifield->db_name= iref->db_name;
       }
 #ifndef DBUG_OFF
-      if (!item_field->item_name.ptr())
+      if (!item_field->item_name.is_set())
       {
         char buff[256];
         String str(buff,sizeof(buff),&my_charset_bin);
