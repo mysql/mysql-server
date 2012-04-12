@@ -1203,3 +1203,61 @@ rename table t2 to t1;
 execute stmt1;
 deallocate prepare stmt1;
 drop table t2;
+
+--echo #
+--echo # Bug#11815557 60269: MYSQL SHOULD REJECT ATTEMPTS TO CREATE SYSTEM
+--echo #                     TABLES IN INCORRECT ENGINE
+--echo #
+--echo # Note: This test assumes that only MyISAM supports system tables.
+--echo #       If other engines are made to support system tables,
+--echo #       then this test needs to be updated
+--echo #
+
+use mysql;
+--error ER_UNSUPPORTED_ENGINE
+ALTER TABLE db ENGINE=innodb;
+--error ER_UNSUPPORTED_ENGINE
+ALTER TABLE user ENGINE=memory;
+--error ER_UNSUPPORTED_ENGINE
+ALTER TABLE proc ENGINE=heap;
+--error ER_UNSUPPORTED_ENGINE
+ALTER TABLE func ENGINE=csv;
+--error ER_UNSUPPORTED_ENGINE
+ALTER TABLE event ENGINE=merge;
+--error ER_UNSUPPORTED_ENGINE
+ALTER TABLE servers ENGINE=innodb;
+--error ER_UNSUPPORTED_ENGINE
+ALTER TABLE procs_priv ENGINE=memory;
+--error ER_UNSUPPORTED_ENGINE
+ALTER TABLE tables_priv ENGINE=heap;
+--error ER_UNSUPPORTED_ENGINE
+ALTER TABLE columns_priv ENGINE=csv;
+--error ER_UNSUPPORTED_ENGINE
+ALTER TABLE time_zone ENGINE=merge;
+--error ER_UNSUPPORTED_ENGINE
+ALTER TABLE help_topic ENGINE=innodb;
+
+--error ER_UNSUPPORTED_ENGINE
+CREATE TABLE db (dummy int) ENGINE=innodb;
+--error ER_UNSUPPORTED_ENGINE
+CREATE TABLE user (dummy int) ENGINE=memory;
+--error ER_UNSUPPORTED_ENGINE
+CREATE TABLE proc (dummy int) ENGINE=heap;
+--error ER_UNSUPPORTED_ENGINE
+CREATE TABLE func (dummy int) ENGINE=csv;
+--error ER_UNSUPPORTED_ENGINE
+CREATE TABLE event (dummy int) ENGINE=merge;
+--error ER_UNSUPPORTED_ENGINE
+CREATE TABLE servers (dummy int) ENGINE=innodb;
+--error ER_UNSUPPORTED_ENGINE
+CREATE TABLE procs_priv (dummy int) ENGINE=memory;
+--error ER_UNSUPPORTED_ENGINE
+CREATE TABLE tables_priv (dummy int) ENGINE=heap;
+--error ER_UNSUPPORTED_ENGINE
+CREATE TABLE columns_priv (dummy int) ENGINE=csv;
+--error ER_UNSUPPORTED_ENGINE
+CREATE TABLE time_zone (dummy int) ENGINE=merge;
+--error ER_UNSUPPORTED_ENGINE
+CREATE TABLE help_topic (dummy int) ENGINE=innodb;
+use test;
+--echo # End of Bug#11815557
