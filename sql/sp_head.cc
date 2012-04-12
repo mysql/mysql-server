@@ -1010,7 +1010,7 @@ subst_spvars(THD *thd, sp_instr *instr, LEX_STRING *query_str)
 
     /* append the spvar substitute */
     res|= qbuf.append(STRING_WITH_LEN(" NAME_CONST('"));
-    res|= qbuf.append((*splocal)->m_name.str, (*splocal)->m_name.length);
+    res|= qbuf.append((*splocal)->m_name);
     res|= qbuf.append(STRING_WITH_LEN("',"));
 
     if (res)
@@ -2814,7 +2814,7 @@ sp_head::show_routine_code(THD *thd)
   if (check_show_routine_access(thd, this, &full_access) || !full_access)
     DBUG_RETURN(1);
 
-  field_list.push_back(new Item_uint("Pos", 9));
+  field_list.push_back(new Item_uint("Pos", 0, 9));
   // 1024 is for not to confuse old clients
   field_list.push_back(new Item_empty_string("Instruction",
                                              max(buffer.length(), 1024U)));
