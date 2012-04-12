@@ -3250,7 +3250,8 @@ public:
     :Field_enum(ptr_arg, len_arg, null_ptr_arg, null_bit_arg,
 		    unireg_check_arg, field_name_arg,
                 packlength_arg,
-                typelib_arg,charset_arg)
+                typelib_arg,charset_arg),
+      empty_set_string("", 0, charset_arg)
     {
       flags= (flags & ~ENUM_FLAG) | SET_FLAG;
     }
@@ -3270,6 +3271,8 @@ public:
     DBUG_ASSERT(real_type() == MYSQL_TYPE_SET);
     return new Field_set(*this);
   }
+private:
+  const String empty_set_string;
 };
 
 
