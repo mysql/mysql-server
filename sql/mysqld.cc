@@ -1830,7 +1830,12 @@ static void network_init(void)
   {
     report_port= mysqld_port;
   }
-  DBUG_ASSERT(report_port != 0);
+
+#ifndef DBUG_OFF
+  if (!opt_disable_networking)
+    DBUG_ASSERT(report_port != 0);
+#endif
+
   if (mysqld_port != 0 && !opt_disable_networking && !opt_bootstrap)
   {
     struct addrinfo *ai, *a;

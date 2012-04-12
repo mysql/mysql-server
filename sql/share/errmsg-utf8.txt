@@ -6500,6 +6500,9 @@ ER_BINLOG_UNSAFE_INSERT_TWO_KEYS
 ER_TABLE_IN_FK_CHECK
   eng "Table is being used in foreign key check."
 
+ER_UNSUPPORTED_ENGINE
+  eng "Storage engine '%s' does not support system tables. [%s.%s]"
+
 #
 #  End of 5.5 error messages.
 #
