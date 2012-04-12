@@ -7763,9 +7763,14 @@ int ha_tokudb::final_add_index(handler_add_index *add_arg, bool commit) {
     DBUG_EXECUTE_IF("final_add_index_fail", {
         error = 1;
     });
-    if (!commit || error) {
-        restore_add_index(table, num_of_keys, incremented_numDBs, modified_DBs);
-    }
+    // at this point, the metadata lock ensures that the
+    // newly created indexes cannot be modified,
+    // regardless of whether the add index was hot.
+    // Because a subsequent drop index may cause an
+    // error requireing us to abort the transaction,
+    // we prematurely close the added indexes, regardless
+    // of whether we are committing or aborting.
+    restore_add_index(table, num_of_keys, incremented_numDBs, modified_DBs);
     // transaction does not need to be committed,
     // we depend on MySQL to rollback the transaction
     // by calling tokudb_rollback
