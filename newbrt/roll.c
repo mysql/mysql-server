@@ -63,6 +63,24 @@ toku_commit_fdelete (u_int8_t   file_was_open,
 	char *fname_in_env = fixup_fname(&bs_fname);
 	char *fname_in_cwd = toku_cachetable_get_fname_in_cwd(txn->logger->ct, fname_in_env);
 
+        // bug fix for #4718
+        // bug was introduced in with fix for #3590
+        // Before Maxwell (and fix for #3590), 
+        // the recovery log was fsynced after the xcommit was loged but 
+        // before we processed rollback entries and before we released
+        // the row locks (in the lock tree). Due to performance concerns,
+        // the fsync was moved to after the release of row locks, which comes
+        // after processing rollback entries. As a result, we may be unlinking a file
+        // here as part of a transactoin that may abort if we do not fsync the log.
+        // So, we fsync the log here.
+        //
+        // Because committing fdeletes should be a rare operation, we do not bother
+        // yielding the ydb lock before performing the fsync.
+        if (txn->logger) {
+            r = toku_logger_fsync_if_lsn_not_fsynced(txn->logger, txn->do_fsync_lsn);
+            assert_zero(r);
+        }
+
 	r = unlink(fname_in_cwd);
 	assert(r==0 || errno==ENOENT);
 	toku_free(fname_in_env);
@@ -433,6 +451,25 @@ toku_commit_load (BYTESTRING old_iname,
     else {
         assert(r==ENOENT);
     }
+
+    // bug fix for #4718
+    // bug was introduced in with fix for #3590
+    // Before Maxwell (and fix for #3590), 
+    // the recovery log was fsynced after the xcommit was loged but 
+    // before we processed rollback entries and before we released
+    // the row locks (in the lock tree). Due to performance concerns,
+    // the fsync was moved to after the release of row locks, which comes
+    // after processing rollback entries. As a result, we may be unlinking a file
+    // here as part of a transactoin that may abort if we do not fsync the log.
+    // So, we fsync the log here.
+    //
+    // Because committing fdeletes should be a rare operation, we do not bother
+    // yielding the ydb lock before performing the fsync.
+    if (txn->logger) {
+        r = toku_logger_fsync_if_lsn_not_fsynced(txn->logger, txn->do_fsync_lsn);
+        assert_zero(r);
+    }
+
     char *fname_in_cwd = toku_cachetable_get_fname_in_cwd(txn->logger->ct, fname_in_env);
     r = unlink(fname_in_cwd);
     assert(r==0 || errno==ENOENT);
