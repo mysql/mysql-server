@@ -317,10 +317,11 @@ static void do_save_blob(Copy_field *copy)
 static void do_field_string(Copy_field *copy)
 {
   char buff[MAX_FIELD_WIDTH];
-  copy->tmp.set_quick(buff,sizeof(buff),copy->tmp.charset());
-  copy->from_field->val_str(&copy->tmp);
-  copy->to_field->store(copy->tmp.c_ptr_quick(),copy->tmp.length(),
-                        copy->tmp.charset());
+  String res(buff, sizeof(buff), copy->from_field->charset());
+  res.length(0U);
+
+  copy->from_field->val_str(&res);
+  copy->to_field->store(res.c_ptr_quick(), res.length(), res.charset());
 }
 
 
@@ -563,7 +564,7 @@ void Copy_field::set(uchar *to,Field *from)
 /*
   To do: 
 
-  If 'save\ is set to true and the 'from' is a blob field, do_copy is set to
+  If 'save' is set to true and the 'from' is a blob field, do_copy is set to
   do_save_blob rather than do_conv_blob.  The only differences between them
   appears to be:
 
