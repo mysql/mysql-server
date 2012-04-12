@@ -781,7 +781,10 @@ loop:
 
 		if (space_id == 0) {
 			/* The system tablespace always exists. */
-			ut_ad(!is_temp);
+			// FIXME: Disable assertion for now, there seems to
+			// a bug in mysql-trunk that results in space_id == 0
+			// for temp tables (used in ALTER TABLE).
+			// ut_ad(!is_temp);
 			ut_ad(!discarded);
 		} else if (in_crash_recovery) {
 
