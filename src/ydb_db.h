@@ -37,7 +37,7 @@ toku_db_get_compare_fun(DB* db) {
 
 int toku_db_pre_acquire_fileops_lock(DB *db, DB_TXN *txn);
 int db_open_iname(DB * db, DB_TXN * txn, const char *iname, u_int32_t flags, int mode);
-int toku_db_pre_acquire_table_lock(DB *db, DB_TXN *txn, BOOL just_lock);
+int toku_db_pre_acquire_table_lock(DB *db, DB_TXN *txn);
 int toku_db_get (DB * db, DB_TXN * txn, DBT * key, DBT * data, u_int32_t flags);
 int toku_db_create(DB ** db, DB_ENV * env, u_int32_t flags);
 int toku_db_close(DB * db, u_int32_t flags, bool oplsn_valid, LSN oplsn);
