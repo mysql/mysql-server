@@ -7825,6 +7825,20 @@ copy_data_between_tables(TABLE *from,TABLE *to,
       copy_ptr->do_copy(copy_ptr);
     }
     prev_insert_id= to->file->next_insert_id;
+
+    /* Set the function defaults. */
+    List_iterator<Create_field> iter(create);
+    for (uint i= 0; i < to->s->fields; ++i)
+    {
+      const Create_field *definition= iter++;
+      if (definition->field == NULL) // this column didn't exist in old table.
+      {
+        Field *column= to->field[i];
+        if (column->has_insert_default_function())
+          column->evaluate_insert_default_function();
+      }            
+    }
+
     error=to->file->ha_write_row(to->record[0]);
     to->auto_increment_field_not_null= FALSE;
     if (error)
