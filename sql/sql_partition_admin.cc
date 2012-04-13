@@ -203,6 +203,19 @@ static bool compare_table_with_partition(THD *thd, TABLE *table,
   part_create_info.auto_increment_value=
                                 table_create_info.auto_increment_value;
 
+  /* Check compatible row_types and set create_info accordingly. */
+  {
+    enum row_type part_row_type= part_table->file->get_row_type();
+    enum row_type table_row_type= table->file->get_row_type();
+    if (part_row_type != table_row_type)
+    {
+      my_error(ER_PARTITION_EXCHANGE_DIFFERENT_OPTION, MYF(0),
+               "ROW_FORMAT");
+      DBUG_RETURN(true);
+    }
+    part_create_info.row_type= table->s->row_type;
+  }
+
   /*
     NOTE: ha_blackhole does not support check_if_compatible_data,
     so this always fail for blackhole tables.
@@ -222,6 +235,10 @@ static bool compare_table_with_partition(THD *thd, TABLE *table,
     my_error(ER_TABLES_DIFFERENT_METADATA, MYF(0));
     DBUG_RETURN(TRUE);
   }
+  DBUG_ASSERT(table->s->db_create_options ==
+              part_table->s->db_create_options);
+  DBUG_ASSERT(table->s->db_options_in_use ==
+              part_table->s->db_options_in_use);
 
   if (table_create_info.avg_row_length != part_create_info.avg_row_length)
   {
