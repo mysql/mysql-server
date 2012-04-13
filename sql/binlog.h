@@ -138,6 +138,8 @@ class MYSQL_BIN_LOG: public TC_LOG, private MYSQL_LOG
   PSI_mutex_key m_key_LOCK_index;
   /** The instrumentation key to use for @ LOCK_queue. */
   PSI_mutex_key m_key_LOCK_queue;
+  /** The instrumentation key to use for @ LOCK_commit. */
+  PSI_mutex_key m_key_LOCK_commit;
   /** The instrumentation key to use for @ update_cond. */
   PSI_cond_key m_key_update_cond;
   /** The instrumentation key to use for opening the log file. */
@@ -145,8 +147,9 @@ class MYSQL_BIN_LOG: public TC_LOG, private MYSQL_LOG
   /** The instrumentation key to use for opening the log index file. */
   PSI_file_key m_key_file_log_index;
 #endif
-  /* LOCK_log and LOCK_index are inited by init_pthread_objects() */
+  /* POSIX thread objects are inited by init_pthread_objects() */
   mysql_mutex_t LOCK_index;
+  mysql_mutex_t LOCK_commit;
   mysql_cond_t update_cond;
   ulonglong bytes_written;
   IO_CACHE index_file;
@@ -279,13 +282,17 @@ public:
 
 #ifdef HAVE_PSI_INTERFACE
   void set_psi_keys(PSI_mutex_key key_LOCK_index,
+                    PSI_mutex_key key_LOCK_log,
                     PSI_mutex_key key_LOCK_queue,
+                    PSI_mutex_key key_LOCK_commit,
                     PSI_cond_key key_update_cond,
                     PSI_file_key key_file_log,
                     PSI_file_key key_file_log_index)
   {
     m_key_LOCK_index= key_LOCK_index;
+    m_key_LOCK_log= key_LOCK_log;
     m_key_LOCK_queue= key_LOCK_queue;
+    m_key_LOCK_commit= key_LOCK_commit;
     m_key_update_cond= key_update_cond;
     m_key_file_log= key_file_log;
     m_key_file_log_index= key_file_log_index;
@@ -317,6 +324,8 @@ private:
   Gtid_set* previous_gtid_set;
 
   int open(const char *opt_name) { return open_binlog(opt_name); }
+  void commit_session_queue(THD *thd, THD *queue, int flush_error);
+  int flush_session_queue(THD *first, my_off_t *total_bytes_var, bool *need_rotate);
   int ordered_commit(THD *thd, bool all, bool skip_commit = false);
 public:
   int open_binlog(const char *opt_name);
@@ -396,7 +405,7 @@ public:
 
   bool write_event(Log_event* event_info);
   bool write_cache(THD *thd, class binlog_cache_data *binlog_cache_data);
-  int  do_write_cache(IO_CACHE *cache, bool lock_log, bool sync_log);
+  int  do_write_cache(IO_CACHE *cache);
 
   void set_write_error(THD *thd, bool is_transactional);
   bool check_write_error(THD *thd);
