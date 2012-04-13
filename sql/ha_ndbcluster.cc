@@ -4444,11 +4444,7 @@ bool ha_ndbcluster::isManualBinlogExec(THD *thd)
 static inline bool
 thd_allow_batch(const THD* thd)
 {
-#ifndef OPTION_ALLOW_BATCH
-  return false;
-#else
   return (thd_options(thd) & OPTION_ALLOW_BATCH);
-#endif
 }
 
 
