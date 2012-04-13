@@ -53,6 +53,7 @@
                                                 // Format_description_log_event
 #include "dynamic_ids.h"
 #include "rpl_rli_pdb.h"
+#include "global_threads.h"
 
 #ifdef HAVE_REPLICATION
 
@@ -3803,6 +3804,7 @@ static int try_to_reconnect(THD *thd, MYSQL *mysql, Master_info *mi,
 pthread_handler_t handle_slave_io(void *arg)
 {
   THD *thd= NULL; // needs to be first for thread_stack
+  bool thd_added= false;
   MYSQL *mysql;
   Master_info *mi = (Master_info*)arg;
   Relay_log_info *rli= mi->rli;
@@ -3843,9 +3845,12 @@ pthread_handler_t handle_slave_io(void *arg)
     sql_print_error("Failed during slave I/O thread initialization");
     goto err;
   }
+
   mysql_mutex_lock(&LOCK_thread_count);
-  threads.push_front(thd);
+  add_global_thread(thd);
+  thd_added= true;
   mysql_mutex_unlock(&LOCK_thread_count);
+
   mi->slave_running = 1;
   mi->abort_slave = 0;
   mysql_mutex_unlock(&mi->run_lock);
@@ -4173,8 +4178,10 @@ err:
   net_end(&thd->net); // destructor will not free it, because net.vio is 0
   mysql_mutex_lock(&LOCK_thread_count);
   THD_CHECK_SENTRY(thd);
-  delete thd;
+  if (thd_added)
+    remove_global_thread(thd);
   mysql_mutex_unlock(&LOCK_thread_count);
+  delete thd;
   mi->abort_slave= 0;
   mi->slave_running= 0;
   mi->info_thd= 0;
@@ -4246,6 +4253,7 @@ int check_temp_dir(char* tmp_file)
 pthread_handler_t handle_slave_worker(void *arg)
 {
   THD *thd;                     /* needs to be first for thread_stack */
+  bool thd_added= false;
   int error= 0;
   Slave_worker *w= (Slave_worker *) arg;
   Relay_log_info* rli= w->c_rli;
@@ -4273,8 +4281,10 @@ pthread_handler_t handle_slave_worker(void *arg)
     goto err;
   }
   thd->init_for_queries();
+
   mysql_mutex_lock(&LOCK_thread_count);
-  threads.push_front(thd);
+  add_global_thread(thd);
+  thd_added= true;
   mysql_mutex_unlock(&LOCK_thread_count);
 
   if (w->update_is_transactional())
@@ -4360,8 +4370,10 @@ err:
       are Coordinator's burden.
     */
     thd->system_thread= NON_SYSTEM_THREAD;
-    delete thd;
+    if (thd_added)
+      remove_global_thread(thd);
     mysql_mutex_unlock(&LOCK_thread_count);
+    delete thd;
   }
 
   my_thread_end();
@@ -5112,6 +5124,7 @@ end:
 pthread_handler_t handle_slave_sql(void *arg)
 {
   THD *thd;                     /* needs to be first for thread_stack */
+  bool thd_added= false;
   char llbuff[22],llbuff1[22];
   char saved_log_name[FN_REFLEN];
   char saved_master_log_name[FN_REFLEN];
@@ -5160,8 +5173,10 @@ pthread_handler_t handle_slave_sql(void *arg)
   thd->init_for_queries();
   thd->temporary_tables = rli->save_temporary_tables; // restore temp tables
   set_thd_in_use_temporary_tables(rli);   // (re)set sql_thd in use for saved temp tables
+
   mysql_mutex_lock(&LOCK_thread_count);
-  threads.push_front(thd);
+  add_global_thread(thd);
+  thd_added= true;
   mysql_mutex_unlock(&LOCK_thread_count);
 
   /* MTS: starting the worker pool */
@@ -5478,8 +5493,10 @@ llstr(rli->get_group_master_log_pos(), llbuff));
   set_thd_in_use_temporary_tables(rli);  // (re)set info_thd in use for saved temp tables
   mysql_mutex_lock(&LOCK_thread_count);
   THD_CHECK_SENTRY(thd);
-  delete thd;
+  if (thd_added)
+    remove_global_thread(thd);
   mysql_mutex_unlock(&LOCK_thread_count);
+  delete thd;
  /*
   Note: the order of the broadcast and unlock calls below (first broadcast, then unlock)
   is important. Otherwise a killer_thread can execute between the calls and

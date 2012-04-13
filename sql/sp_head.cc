@@ -38,6 +38,7 @@
 #include "sql_base.h"                           // close_thread_tables
 #include "transaction.h"       // trans_commit_stmt
 #include "opt_trace.h"         // opt_trace_disable_etc
+#include "global_threads.h"
 
 #include <algorithm>
 

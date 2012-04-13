@@ -2722,7 +2722,7 @@ static Sys_var_ulong Sys_table_cache_size(
 static Sys_var_ulong Sys_thread_cache_size(
        "thread_cache_size",
        "How many threads we should keep in a cache for reuse",
-       GLOBAL_VAR(thread_cache_size), CMD_LINE(REQUIRED_ARG),
+       GLOBAL_VAR(max_blocked_pthreads), CMD_LINE(REQUIRED_ARG),
        VALID_RANGE(0, 16384), DEFAULT(0), BLOCK_SIZE(1));
 
 /**

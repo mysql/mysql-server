@@ -68,11 +68,12 @@ void kill_mysql(void);
 void close_connection(THD *thd, uint sql_errno= 0);
 void handle_connection_in_main_thread(THD *thd);
 void create_thread_to_handle_connection(THD *thd);
-void unlink_thd(THD *thd);
-bool one_thread_per_connection_end(THD *thd, bool put_in_cache);
-void flush_thread_cache();
+void delete_thd(THD *thd);
+bool one_thread_per_connection_end(THD *thd, bool block_pthread);
+void kill_blocked_pthreads();
 void refresh_status(THD *thd);
 bool is_secure_file_path(char *path);
+void dec_connection_count();
 
 // These are needed for unit testing.
 void set_remaining_args(int argc, char **argv);
@@ -216,7 +217,7 @@ extern ulong gtid_mode;
 extern const char *gtid_mode_names[];
 extern TYPELIB gtid_mode_typelib;
 
-extern ulong thread_cache_size;
+extern ulong max_blocked_pthreads;
 extern ulong stored_program_cache_size;
 extern ulong back_log;
 extern char language[FN_REFLEN];
@@ -517,7 +518,6 @@ extern mysql_mutex_t
        LOCK_slave_list, LOCK_active_mi, LOCK_manager,
        LOCK_global_system_variables, LOCK_user_conn, LOCK_log_throttle_qni,
        LOCK_prepared_stmt_count, LOCK_error_messages, LOCK_connection_count;
-extern MYSQL_PLUGIN_IMPORT mysql_mutex_t LOCK_thread_count;
 #ifdef HAVE_OPENSSL
 extern mysql_mutex_t LOCK_des_key_file;
 #endif
@@ -525,7 +525,6 @@ extern mysql_mutex_t LOCK_server_started;
 extern mysql_cond_t COND_server_started;
 extern mysql_rwlock_t LOCK_grant, LOCK_sys_init_connect, LOCK_sys_init_slave;
 extern mysql_rwlock_t LOCK_system_variables_hash;
-extern mysql_cond_t COND_thread_count;
 extern mysql_cond_t COND_manager;
 extern int32 thread_running;
 extern my_atomic_rwlock_t thread_running_lock;
@@ -661,13 +660,7 @@ inline void table_case_convert(char * name, uint length)
                                      name, length, name, length);
 }
 
-inline ulong sql_rnd_with_mutex()
-{
-  mysql_mutex_lock(&LOCK_thread_count);
-  ulong tmp=(ulong) (my_rnd(&sql_rand) * 0xffffffff); /* make all bits random */
-  mysql_mutex_unlock(&LOCK_thread_count);
-  return tmp;
-}
+ulong sql_rnd_with_mutex();
 
 inline int32
 inc_thread_running()
