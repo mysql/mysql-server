@@ -798,7 +798,23 @@ int toku_brtnode_fetch_callback (CACHEFILE UU(cachefile), int fd, BLOCKNUM noden
     // deserialize the node, must pass the bfe in because we cannot
     // evaluate what piece of the the node is necessary until we get it at
     // least partially into memory
+    // <CER> TODO: Use checksum error code as a return HERE!
+    enum deserialize_error_code e;
+    int r = 0;
+    e = toku_deserialize_brtnode_from(fd, nodename, fullhash, node, ndd, bfe);
+    if (e == DS_XSUM_FAIL) {
+        fprintf(stderr, "Checksum failure while reading node in file %s.\n", toku_cachefile_fname_in_env(cachefile));
+        assert(false);  // make absolutely sure we crash before doing anything else
+    } else if (e == DS_ERRNO) {
+        r = errno;
+    } else if (e == DS_OK) {
+        r = 0;
+    } else {
+        assert(false);
+    }
+    /*
     int r = toku_deserialize_brtnode_from(fd, nodename, fullhash, node, ndd, bfe);
+    */
     if (r == 0) {
 	(*node)->h = bfe->h;  // copy reference to header from bfe
 	*sizep = make_brtnode_pair_attr(*node);
@@ -1169,6 +1185,7 @@ brt_status_update_partial_fetch_reason(
 // callback for partially reading a node
 // could have just used toku_brtnode_fetch_callback, but wanted to separate the two cases to separate functions
 int toku_brtnode_pf_callback(void* brtnode_pv, void* disk_data, void* read_extraargs, int fd, PAIR_ATTR* sizep) {
+    enum deserialize_error_code e = DS_OK;
     BRTNODE node = brtnode_pv;
     BRTNODE_DISK_DATA ndd = disk_data;
     struct brtnode_fetch_extra *bfe = read_extraargs;
@@ -1196,18 +1213,25 @@ int toku_brtnode_pf_callback(void* brtnode_pv, void* disk_data, void* read_extra
         if ((lc <= i && i <= rc) || toku_bfe_wants_child_available(bfe, i)) {
             brt_status_update_partial_fetch_reason(bfe, i, BP_STATE(node, i), (node->height == 0));
             if (BP_STATE(node,i) == PT_COMPRESSED) {
-                cilk_spawn toku_deserialize_bp_from_compressed(node, i, &bfe->h->cmp_descriptor, bfe->h->compare_fun);
+                e = toku_deserialize_bp_from_compressed(node, i, &bfe->h->cmp_descriptor, bfe->h->compare_fun);
             }
             else if (BP_STATE(node,i) == PT_ON_DISK) {
-                cilk_spawn toku_deserialize_bp_from_disk(node, ndd, i, fd, bfe);
+                e = toku_deserialize_bp_from_disk(node, ndd, i, fd, bfe);
             }
             else {
                 assert(FALSE);
             }
         }
+
+        if (e != DS_OK) {
+            fprintf(stderr, "Unknown failure while reading node in file %s.\n", toku_cachefile_fname_in_env(bfe->h->cf)); 
+            assert(false);
+        }
     }
+
     cilk_sync;
     *sizep = make_brtnode_pair_attr(node);
+
     return 0;
 }
 

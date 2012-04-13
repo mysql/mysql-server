@@ -465,9 +465,9 @@ int toku_serialize_rollback_log_to (int fd, BLOCKNUM blocknum, ROLLBACK_LOG_NODE
                                     struct brt_header *h, int n_workitems, int n_threads,
                                     BOOL for_checkpoint);
 int toku_deserialize_rollback_log_from (int fd, BLOCKNUM blocknum, u_int32_t fullhash, ROLLBACK_LOG_NODE *logp, struct brt_header *h);
-void toku_deserialize_bp_from_disk(BRTNODE node, BRTNODE_DISK_DATA ndd, int childnum, int fd, struct brtnode_fetch_extra* bfe);
-void toku_deserialize_bp_from_compressed(BRTNODE node, int childnum, DESCRIPTOR desc, brt_compare_func cmp);
-int toku_deserialize_brtnode_from (int fd, BLOCKNUM off, u_int32_t /*fullhash*/, BRTNODE *brtnode, BRTNODE_DISK_DATA* ndd, struct brtnode_fetch_extra* bfe);
+enum deserialize_error_code toku_deserialize_bp_from_disk(BRTNODE node, BRTNODE_DISK_DATA ndd, int childnum, int fd, struct brtnode_fetch_extra* bfe);
+enum deserialize_error_code toku_deserialize_bp_from_compressed(BRTNODE node, int childnum, DESCRIPTOR desc, brt_compare_func cmp);
+enum deserialize_error_code toku_deserialize_brtnode_from (int fd, BLOCKNUM off, u_int32_t /*fullhash*/, BRTNODE *brtnode, BRTNODE_DISK_DATA* ndd, struct brtnode_fetch_extra* bfe);
 unsigned int toku_serialize_brtnode_size(BRTNODE node); /* How much space will it take? */
 int toku_keycompare (bytevec key1, ITEMLEN key1len, bytevec key2, ITEMLEN key2len);
 
