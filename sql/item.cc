@@ -9391,3 +9391,40 @@ void view_error_processor(THD *thd, void *data)
   ((TABLE_LIST *)data)->hide_view_error(thd);
 }
 
+/*
+  Is the item a stored function which may need table access.
+
+  TODO: Either eliminate the execute of this during mysql_delete_prepare
+  or create a better/more accurate way to check if the sp may access tables;
+*/
+
+static bool is_stored_function_which_may_need_table(Item* item)
+{
+  if (item->type() == Item::FUNC_ITEM &&
+      ((Item_func*)item)->functype() == Item_func::FUNC_SP)
+    return true;
+  return false;
+}
+
+
+/**
+  Returns wether it is OK to evaluate the item now.
+
+  @param thd   Thread object
+  @param item  Item to check
+
+  @return true if only constant and is either locked or has no subquery.
+
+  @note After WL#4443 there must be no optimize or exec call during
+  prepare phase.
+*/
+
+bool can_evaluate_item_now(THD *thd, Item *item)
+{
+  if (item->const_item() &&
+      ((thd->lex->is_query_tables_locked() ||
+        (!item->has_subquery() &&
+         !is_stored_function_which_may_need_table(item)))))
+    return true;
+  return false;
+}
