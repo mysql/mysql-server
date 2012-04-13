@@ -1608,7 +1608,7 @@ shutdown the MySQL server and restart it.", name, errno);
 
 MYSQL_LOG::MYSQL_LOG()
   : name(0), write_error(FALSE), inited(FALSE), log_type(LOG_UNKNOWN),
-    log_state(LOG_CLOSED)
+    log_state(LOG_CLOSED), m_key_LOCK_log(key_LOG_LOCK_log)
 {
   /*
     We don't want to initialize LOCK_Log here as such initialization depends on
@@ -1623,7 +1623,7 @@ void MYSQL_LOG::init_pthread_objects()
 {
   DBUG_ASSERT(inited == 0);
   inited= 1;
-  mysql_mutex_init(key_LOG_LOCK_log, &LOCK_log, MY_MUTEX_INIT_SLOW);
+  mysql_mutex_init(m_key_LOCK_log, &LOCK_log, MY_MUTEX_INIT_SLOW);
 }
 
 /*
