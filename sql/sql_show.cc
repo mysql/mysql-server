@@ -2066,13 +2066,14 @@ void mysqld_list_processes(THD *thd,const char *user, bool verbose)
                             Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
     DBUG_VOID_RETURN;
 
-  mysql_mutex_lock(&LOCK_thread_count); // For unlink from list
   if (!thd->killed)
   {
-    I_List_iterator<THD> it(threads);
-    THD *tmp;
-    while ((tmp=it++))
+    mysql_mutex_lock(&LOCK_thread_count);
+    Thread_iterator it= global_thread_list_begin();
+    Thread_iterator end= global_thread_list_end();
+    for (; it != end; ++it)
     {
+      THD *tmp= *it;
       Security_context *tmp_sctx= tmp->security_ctx;
       struct st_my_thread_var *mysys_var;
       if ((tmp->vio_ok() || tmp->system_thread) &&
@@ -2120,8 +2121,8 @@ void mysqld_list_processes(THD *thd,const char *user, bool verbose)
         thread_infos.push_front(thd_info);
       }
     }
+    mysql_mutex_unlock(&LOCK_thread_count);
   }
-  mysql_mutex_unlock(&LOCK_thread_count);
 
   thread_info *thd_info;
   time_t now= my_time(0);
@@ -2161,15 +2162,14 @@ int fill_schema_processlist(THD* thd, TABLE_LIST* tables, Item* cond)
   user= thd->security_ctx->master_access & PROCESS_ACL ?
         NullS : thd->security_ctx->priv_user;
 
-  mysql_mutex_lock(&LOCK_thread_count);
-
   if (!thd->killed)
   {
-    I_List_iterator<THD> it(threads);
-    THD* tmp;
-
-    while ((tmp= it++))
+    mysql_mutex_lock(&LOCK_thread_count);
+    Thread_iterator it= global_thread_list_begin();
+    Thread_iterator end= global_thread_list_end();
+    for (; it != end; ++it)
     {
+      THD* tmp= *it;
       Security_context *tmp_sctx= tmp->security_ctx;
       struct st_my_thread_var *mysys_var;
       const char *val;
@@ -2245,9 +2245,9 @@ int fill_schema_processlist(THD* thd, TABLE_LIST* tables, Item* cond)
         DBUG_RETURN(1);
       }
     }
+    mysql_mutex_unlock(&LOCK_thread_count);
   }
 
-  mysql_mutex_unlock(&LOCK_thread_count);
   DBUG_RETURN(0);
 }
 
@@ -2620,17 +2620,16 @@ void calc_sum_of_all_status(STATUS_VAR *to)
   DBUG_ENTER("calc_sum_of_all_status");
 
   /* Ensure that thread id not killed during loop */
-  mysql_mutex_lock(&LOCK_thread_count); // For unlink from list
+  mysql_mutex_lock(&LOCK_thread_count);
 
-  I_List_iterator<THD> it(threads);
-  THD *tmp;
-  
+  Thread_iterator it= global_thread_list_begin();
+  Thread_iterator end= global_thread_list_end();
   /* Get global values as base */
   *to= global_status_var;
   
   /* Add to this status from existing threads */
-  while ((tmp= it++))
-    add_to_status(to, &tmp->status_var);
+  for (; it != end; ++it)
+    add_to_status(to, &(*it)->status_var);
   
   mysql_mutex_unlock(&LOCK_thread_count);
   DBUG_VOID_RETURN;
