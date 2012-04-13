@@ -3774,7 +3774,7 @@ static Sys_var_uint Sys_checkpoint_mts_group(
 #ifndef DBUG_OFF
        VALID_RANGE(1, MTS_MAX_BITS_IN_GROUP), DEFAULT(512), BLOCK_SIZE(1));
 #else
-       VALID_RANGE(512, MTS_MAX_BITS_IN_GROUP), DEFAULT(512), BLOCK_SIZE(1));
+       VALID_RANGE(32, MTS_MAX_BITS_IN_GROUP), DEFAULT(512), BLOCK_SIZE(8));
 #endif /* DBUG_OFF */
 #endif /* HAVE_REPLICATION */
 

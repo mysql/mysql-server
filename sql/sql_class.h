@@ -4540,8 +4540,13 @@ public:
     table(NULL), tab_ref(NULL), in_equality(NULL),
     join_cond(NULL), copy_field(NULL)
   {}
-  ~Semijoin_mat_exec() {}
-
+private:
+  // Nobody deletes me apparently ...
+  ~Semijoin_mat_exec()
+  {
+    delete [] copy_field;
+  }
+public:
   const uint table_count;       // Number of tables in the sj-nest
   const bool is_scan;           // TRUE if executing as a scan, FALSE if lookup
   bool materialized;            // TRUE <=> materialization has been performed

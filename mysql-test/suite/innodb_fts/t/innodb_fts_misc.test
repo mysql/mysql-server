@@ -812,3 +812,21 @@ SELECT * FROM articles
         AGAINST ('Tutorial' IN NATURAL LANGUAGE MODE);
 
 DROP TABLE articles;
+
+# Test for bug Bug 13940669 - 64901: INNODB: ASSERTION FAILURE IN
+# THREAD 34387022112 IN FILE REM0CMP.CC LINE 5
+
+drop table if exists t1;
+
+create table t1 (FTS_DOC_ID bigint unsigned auto_increment not null primary key,
+title varchar(200),body text,fulltext(title,body)) engine=innodb;
+
+insert into t1 set body='test';
+
+select * from t1 where match(title,body) against('%test');
+
+select * from t1 where match(title,body) against('%');
+
+select * from t1 where match(title,body) against('%%%%');
+
+drop table t1;

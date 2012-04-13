@@ -192,6 +192,46 @@ int Rpl_info_file::do_remove_info(const ulong *uidx __attribute__((unused)),
   DBUG_RETURN(error);
 }
 
+int Rpl_info_file::do_reset_info(const int nparam, const char* param_info_fname)
+{
+  uint i= 0;
+  struct st_my_dir *dir_info= NULL;
+  struct fileinfo *file_info= NULL;
+  char dir_name[FN_REFLEN];
+  size_t dir_size= 0;
+  char* file_name= NULL;
+  size_t file_size= 0;
+  int error= FALSE;
+  Rpl_info_file* info= NULL;
+
+  DBUG_ENTER("Rpl_info_file::do_reset_info");
+
+  if (!(info= new Rpl_info_file(nparam, param_info_fname)))
+    DBUG_RETURN(TRUE);
+
+  file_name= info->info_fname + dirname_part(dir_name, info->info_fname, &dir_size);
+  file_size= strlen(file_name);
+
+  if (!(dir_info= my_dir(dir_name, MYF(MY_DONT_SORT))))
+  {
+    delete info;
+    DBUG_RETURN(TRUE);
+  }
+
+  file_info= dir_info->dir_entry;
+  for (i= dir_info->number_off_files ; i-- ; file_info++)
+  {
+    if (!strncmp(file_info->name, file_name, file_size) &&
+        strlen(file_info->name) == file_size &&
+        my_delete(file_info->name, MYF(MY_WME)))
+      error= TRUE;
+  }
+  my_dirend(dir_info);
+ 
+  delete info;
+  DBUG_RETURN(error);
+}
+
 bool Rpl_info_file::do_set_info(const int pos, const char *value)
 {
   return (my_b_printf(&info_file, "%s\n", value) > (size_t) 0 ?

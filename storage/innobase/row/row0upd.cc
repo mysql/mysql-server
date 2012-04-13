@@ -179,8 +179,8 @@ NOTE that this function will temporarily commit mtr and lose the
 pcur position!
 
 @return	DB_SUCCESS or an error code */
-static
-ulint
+static __attribute__((nonnull, warn_unused_result))
+dberr_t
 row_upd_check_references_constraints(
 /*=================================*/
 	upd_node_t*	node,	/*!< in: row update node */
@@ -198,7 +198,7 @@ row_upd_check_references_constraints(
 	trx_t*		trx;
 	const rec_t*	rec;
 	ulint		n_ext;
-	ulint		err;
+	dberr_t		err;
 	ibool		got_s_lock	= FALSE;
 
 	if (UT_LIST_GET_FIRST(table->referenced_list) == NULL) {
@@ -1386,9 +1386,9 @@ row_upd_changes_some_index_ord_field_binary(
 
 /***********************************************************//**
 Checks if an FTS Doc ID column is affected by an UPDATE.
-@return TRUE if the Doc ID column is changed */
+@return whether the Doc ID column is changed */
 UNIV_INTERN
-ulint
+bool
 row_upd_changes_doc_id(
 /*===================*/
 	dict_table_t*	table,		/*!< in: table */
@@ -1652,8 +1652,8 @@ row_upd_store_row(
 Updates a secondary index entry of a row.
 @return DB_SUCCESS if operation successfully completed, else error
 code or DB_LOCK_WAIT */
-static
-ulint
+static __attribute__((nonnull, warn_unused_result))
+dberr_t
 row_upd_sec_index_entry(
 /*====================*/
 	upd_node_t*	node,	/*!< in: row update node */
@@ -1667,7 +1667,7 @@ row_upd_sec_index_entry(
 	dict_index_t*		index;
 	btr_cur_t*		btr_cur;
 	ibool			referenced;
-	ulint			err	= DB_SUCCESS;
+	dberr_t			err	= DB_SUCCESS;
 	trx_t*			trx	= thr_get_trx(thr);
 	ulint			mode	= BTR_MODIFY_LEAF;
 	enum row_search_result	search_result;
@@ -1824,8 +1824,8 @@ Updates the secondary index record if it is changed in the row update or
 deletes it if this is a delete.
 @return DB_SUCCESS if operation successfully completed, else error
 code or DB_LOCK_WAIT */
-static
-ulint
+static __attribute__((nonnull, warn_unused_result))
+dberr_t
 row_upd_sec_step(
 /*=============*/
 	upd_node_t*	node,	/*!< in: row update node */
@@ -1961,8 +1961,8 @@ fields of the clustered index record change. This should be quite rare in
 database applications.
 @return DB_SUCCESS if operation successfully completed, else error
 code or DB_LOCK_WAIT */
-static
-ulint
+static __attribute__((nonnull, warn_unused_result))
+dberr_t
 row_upd_clust_rec_by_insert(
 /*========================*/
 	upd_node_t*	node,	/*!< in/out: row update node */
@@ -1978,7 +1978,7 @@ row_upd_clust_rec_by_insert(
 	trx_t*		trx;
 	dict_table_t*	table;
 	dtuple_t*	entry;
-	ulint		err;
+	dberr_t		err;
 	ibool		change_ownership	= FALSE;
 	rec_t*		rec;
 	ulint*		offsets			= NULL;
@@ -2109,8 +2109,8 @@ Updates a clustered index record of a row when the ordering fields do
 not change.
 @return DB_SUCCESS if operation successfully completed, else error
 code or DB_LOCK_WAIT */
-static
-ulint
+static __attribute__((nonnull, warn_unused_result))
+dberr_t
 row_upd_clust_rec(
 /*==============*/
 	upd_node_t*	node,	/*!< in: row update node */
@@ -2122,7 +2122,7 @@ row_upd_clust_rec(
 	big_rec_t*	big_rec	= NULL;
 	btr_pcur_t*	pcur;
 	btr_cur_t*	btr_cur;
-	ulint		err;
+	dberr_t		err;
 
 	ut_ad(node);
 	ut_ad(dict_index_is_clust(index));
@@ -2245,8 +2245,8 @@ row_upd_clust_rec(
 /***********************************************************//**
 Delete marks a clustered index record.
 @return	DB_SUCCESS if operation successfully completed, else error code */
-static
-ulint
+static __attribute__((nonnull, warn_unused_result))
+dberr_t
 row_upd_del_mark_clust_rec(
 /*=======================*/
 	upd_node_t*	node,	/*!< in: row update node */
@@ -2261,7 +2261,7 @@ row_upd_del_mark_clust_rec(
 {
 	btr_pcur_t*	pcur;
 	btr_cur_t*	btr_cur;
-	ulint		err;
+	dberr_t		err;
 
 	ut_ad(node);
 	ut_ad(dict_index_is_clust(index));
@@ -2297,8 +2297,8 @@ row_upd_del_mark_clust_rec(
 Updates the clustered index record.
 @return DB_SUCCESS if operation successfully completed, DB_LOCK_WAIT
 in case of a lock wait, else error code */
-static
-ulint
+static __attribute__((nonnull, warn_unused_result))
+dberr_t
 row_upd_clust_step(
 /*===============*/
 	upd_node_t*	node,	/*!< in: row update node */
@@ -2307,7 +2307,7 @@ row_upd_clust_step(
 	dict_index_t*	index;
 	btr_pcur_t*	pcur;
 	ibool		success;
-	ulint		err;
+	dberr_t		err;
 	mtr_t*		mtr;
 	mtr_t		mtr_buf;
 	rec_t*		rec;
@@ -2469,14 +2469,14 @@ to this node, we assume that we have a persistent cursor which was on a
 record, and the position of the cursor is stored in the cursor.
 @return DB_SUCCESS if operation successfully completed, else error
 code or DB_LOCK_WAIT */
-static
-ulint
+static __attribute__((nonnull, warn_unused_result))
+dberr_t
 row_upd(
 /*====*/
 	upd_node_t*	node,	/*!< in: row update node */
 	que_thr_t*	thr)	/*!< in: query thread */
 {
-	ulint	err	= DB_SUCCESS;
+	dberr_t		err	= DB_SUCCESS;
 
 	ut_ad(node && thr);
 
@@ -2564,7 +2564,7 @@ row_upd_step(
 	upd_node_t*	node;
 	sel_node_t*	sel_node;
 	que_node_t*	parent;
-	ulint		err		= DB_SUCCESS;
+	dberr_t		err		= DB_SUCCESS;
 	trx_t*		trx;
 
 	ut_ad(thr);
@@ -2643,7 +2643,7 @@ row_upd_step(
 	err = row_upd(node, thr);
 
 error_handling:
-	trx->error_state = static_cast<enum db_err>(err);
+	trx->error_state = err;
 
 	if (err != DB_SUCCESS) {
 		return(NULL);

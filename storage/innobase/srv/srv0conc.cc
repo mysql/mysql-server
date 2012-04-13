@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2011, 2012, Oracle and/or its affiliates. All Rights Reserved.
 
 Portions of this file contain modifications contributed and copyrighted by
 Google, Inc. Those modifications are gratefully acknowledged and are described
@@ -223,9 +223,7 @@ srv_conc_enter_innodb_with_atomics(
 					(void) os_atomic_decrement_lint(
 						&srv_conc.n_waiting, 1);
 
-					thd_wait_end(
-						static_cast<THD*>(
-							trx->mysql_thd));
+					thd_wait_end(trx->mysql_thd);
 				}
 
 				if (srv_adaptive_max_sleep_delay > 0) {
@@ -261,9 +259,7 @@ srv_conc_enter_innodb_with_atomics(
 				trx_search_latch_release_if_reserved(trx);
 			}
 
-			thd_wait_begin(
-				static_cast<THD*>(trx->mysql_thd),
-				THD_WAIT_USER_LOCK);
+			thd_wait_begin(trx->mysql_thd, THD_WAIT_USER_LOCK);
 
 			notified_mysql = TRUE;
 		}
@@ -476,10 +472,10 @@ retry:
 #endif /* UNIV_SYNC_DEBUG */
 	trx->op_info = "waiting in InnoDB queue";
 
-	thd_wait_begin(static_cast<THD*>(trx->mysql_thd), THD_WAIT_USER_LOCK);
+	thd_wait_begin(trx->mysql_thd, THD_WAIT_USER_LOCK);
 
 	os_event_wait(slot->event);
-	thd_wait_end(static_cast<THD*>(trx->mysql_thd));
+	thd_wait_end(trx->mysql_thd);
 
 	trx->op_info = "";
 

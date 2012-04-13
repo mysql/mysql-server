@@ -7028,6 +7028,12 @@ err:
   mysql_cond_broadcast(&rli_ptr->data_cond);
   mysql_mutex_unlock(&rli_ptr->data_lock);
 
+  /*
+    Increment the global status commit count variable
+  */
+  if (!error)
+    status_var_increment(thd->status_var.com_stat[SQLCOM_COMMIT]);
+
   return error;
 }
 
@@ -7383,9 +7389,6 @@ int User_var_log_event::do_apply_event(Relay_log_info const *rli)
   CHARSET_INFO *charset;
   if (!(charset= get_charset(charset_number, MYF(MY_WME))))
     return 1;
-  LEX_STRING user_var_name;
-  user_var_name.str= name;
-  user_var_name.length= name_len;
   double real_val;
   longlong int_val;
 
@@ -7431,7 +7434,7 @@ int User_var_log_event::do_apply_event(Relay_log_info const *rli)
       return 0;
     }
   }
-  Item_func_set_user_var e(user_var_name, it);
+  Item_func_set_user_var e(NameString(name, name_len, false), it);
   /*
     Item_func_set_user_var can't substitute something else on its place =>
     0 can be passed as last argument (reference on item)
@@ -10137,6 +10140,12 @@ Write_rows_log_event::do_before_row_operations(const Slave_reporting_capability 
 {
   int error= 0;
 
+  /*
+    Increment the global status insert count variable
+  */
+  if (get_flags(STMT_END_F))
+    status_var_increment(thd->status_var.com_stat[SQLCOM_INSERT]);
+
   /**
      todo: to introduce a property for the event (handler?) which forces
      applying the event in the replace (idempotent) fashion.
@@ -11324,6 +11333,12 @@ Delete_rows_log_event::Delete_rows_log_event(const char *buf, uint event_len,
 int 
 Delete_rows_log_event::do_before_row_operations(const Slave_reporting_capability *const)
 {
+  /*
+    Increment the global status delete count variable
+   */
+  if (get_flags(STMT_END_F))
+    status_var_increment(thd->status_var.com_stat[SQLCOM_DELETE]);
+
   if (m_table->s->keys > 0)
   {
     // Allocate buffer for key searches
@@ -11437,6 +11452,12 @@ Update_rows_log_event::Update_rows_log_event(const char *buf, uint event_len,
 int 
 Update_rows_log_event::do_before_row_operations(const Slave_reporting_capability *const)
 {
+  /*
+    Increment the global status update count variable
+  */
+  if (get_flags(STMT_END_F))
+    status_var_increment(thd->status_var.com_stat[SQLCOM_UPDATE]);
+
   if (m_table->s->keys > 0)
   {
     // Allocate buffer for key searches

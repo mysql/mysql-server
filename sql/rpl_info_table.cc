@@ -219,6 +219,59 @@ end:
   DBUG_RETURN(error);
 }
 
+int Rpl_info_table::do_reset_info(uint nparam,
+                                  const char* param_schema,
+                                  const char *param_table)
+
+{
+  int error= 1;
+  TABLE *table= NULL;
+  ulong saved_mode;
+  Open_tables_backup backup;
+  Rpl_info_table *info= NULL;
+  THD *thd= NULL;
+
+  DBUG_ENTER("Rpl_info_table::do_reset_info");
+
+  if (!(info= new Rpl_info_table(nparam, param_schema,
+                                 param_table)))
+    DBUG_RETURN(error);
+
+  thd= info->access->create_thd();
+  saved_mode= thd->variables.sql_mode;
+  tmp_disable_binlog(thd);
+
+  /*
+    Opens and locks the rpl_info table before accessing it.
+  */
+  if (info->access->open_table(thd, info->str_schema, info->str_table,
+                               info->get_number_info(), TL_WRITE,
+                               &table, &backup))
+    goto end;
+
+  /*
+    Deletes a row in the rpl_info table.
+  */
+  if ((error= table->file->truncate()))
+  {
+     table->file->print_error(error, MYF(0));
+     goto end;
+  }
+
+  error= 0;
+
+end:
+  /*
+    Unlocks and closes the rpl_info table.
+  */
+  info->access->close_table(thd, table, &backup, error);
+  reenable_binlog(thd);
+  thd->variables.sql_mode= saved_mode;
+  info->access->drop_thd(thd);
+  delete info;
+  DBUG_RETURN(error);
+}
+
 int Rpl_info_table::do_remove_info(const ulong *uidx, const uint nidx)
 {
   int error= 1;
