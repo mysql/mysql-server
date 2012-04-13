@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2010, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2012, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -148,7 +148,7 @@ position and fetch next or fetch prev must not be tried to the cursor!
 @return DB_SUCCESS, DB_RECORD_NOT_FOUND, DB_END_OF_INDEX, DB_DEADLOCK,
 DB_LOCK_TABLE_FULL, or DB_TOO_BIG_RECORD */
 UNIV_INTERN
-ulint
+dberr_t
 row_search_for_mysql(
 /*=================*/
 	byte*		buf,		/*!< in/out: buffer for the fetched
@@ -163,11 +163,12 @@ row_search_for_mysql(
 					'mode' */
 	ulint		match_mode,	/*!< in: 0 or ROW_SEL_EXACT or
 					ROW_SEL_EXACT_PREFIX */
-	ulint		direction);	/*!< in: 0 or ROW_SEL_NEXT or
+	ulint		direction)	/*!< in: 0 or ROW_SEL_NEXT or
 					ROW_SEL_PREV; NOTE: if this is != 0,
 					then prebuilt must have a pcur
 					with stored position! In opening of a
 					cursor 'direction' should be 0. */
+	__attribute__((nonnull, warn_unused_result));
 /*******************************************************************//**
 Checks if MySQL at the moment is allowed for this table to retrieve a
 consistent read result, or store it to the query cache.
@@ -192,12 +193,13 @@ row_create_key(
 Read the max AUTOINC value from an index.
 @return	DB_SUCCESS if all OK else error code */
 UNIV_INTERN
-ulint
+dberr_t
 row_search_max_autoinc(
 /*===================*/
 	dict_index_t*	index,		/*!< in: index to search */
 	const char*	col_name,	/*!< in: autoinc column name */
-	ib_uint64_t*	value);		/*!< out: AUTOINC value read */
+	ib_uint64_t*	value)		/*!< out: AUTOINC value read */
+	__attribute__((nonnull, warn_unused_result));
 
 /** A structure for caching column values for prefetched rows */
 struct sel_buf_struct{

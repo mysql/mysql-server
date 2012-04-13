@@ -126,7 +126,7 @@ row_purge_remove_clust_if_poss_low(
 	btr_pcur_t*	pcur;
 	btr_cur_t*	btr_cur;
 	ibool		success;
-	ulint		err;
+	dberr_t		err;
 	mtr_t		mtr;
 	rec_t*		rec;
 	mem_heap_t*	heap		= NULL;
@@ -280,7 +280,7 @@ row_purge_remove_sec_if_poss_tree(
 	btr_pcur_t		pcur;
 	btr_cur_t*		btr_cur;
 	ibool			success	= TRUE;
-	ulint			err;
+	dberr_t			err;
 	mtr_t			mtr;
 	enum row_search_result	search_result;
 

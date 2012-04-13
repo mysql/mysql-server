@@ -7271,7 +7271,7 @@ find_item_in_list(Item *find, List<Item> &items, uint *counter,
 	(if this field created from expression argument of group_concat()),
 	=> we have to check presence of name before compare
       */ 
-      if (!item_field->item_name.ptr())
+      if (!item_field->item_name.is_set())
         continue;
 
       if (table_name)
@@ -7326,7 +7326,7 @@ find_item_in_list(Item *find, List<Item> &items, uint *counter,
         int fname_cmp= my_strcasecmp(system_charset_info,
                                      item_field->field_name,
                                      field_name);
-        if (item_field->item_name.eq(field_name))
+        if (item_field->item_name.eq_safe(field_name))
         {
           /*
             If table name was not given we should scan through aliases
@@ -7370,7 +7370,7 @@ find_item_in_list(Item *find, List<Item> &items, uint *counter,
     }
     else if (!table_name)
     { 
-      if (is_ref_by_name && item->item_name.eq(&find->item_name))
+      if (is_ref_by_name && item->item_name.eq_safe(find->item_name))
       {
         found= li.ref();
         *counter= i;
@@ -7401,7 +7401,7 @@ find_item_in_list(Item *find, List<Item> &items, uint *counter,
         Item_field for tables.
       */
       Item_ident *item_ref= (Item_ident *) item;
-      if (item_ref->item_name.eq(field_name) &&
+      if (item_ref->item_name.eq_safe(field_name) &&
           item_ref->table_name &&
           !my_strcasecmp(table_alias_charset, item_ref->table_name,
                          table_name) &&
