@@ -778,6 +778,7 @@ pthread_handler_t handle_bootstrap(void *arg)
 
 void do_handle_bootstrap(THD *thd)
 {
+  bool thd_added= false;
   /* The following must be called before DBUG_ENTER */
   thd->thread_stack= (char*) &thd;
   if (my_thread_init() || thd->store_globals())
@@ -789,19 +790,30 @@ void do_handle_bootstrap(THD *thd)
     goto end;
   }
 
+  mysql_mutex_lock(&LOCK_thread_count);
+  thd_added= true;
+  add_global_thread(thd);
+  mysql_mutex_unlock(&LOCK_thread_count);
+
   handle_bootstrap_impl(thd);
 
 end:
   net_end(&thd->net);
   thd->cleanup();
+
+  /*
+    Here we delete the thd while holding the LOCK_thread_count.
+    The reason is that we have to call ha_close_connection(thd)
+    before shutting down InnoDB (this is done by THD::~THD())
+  */
+  mysql_mutex_lock(&LOCK_thread_count);
+  if (thd_added)
+    remove_global_thread(thd);
+  in_bootstrap= FALSE;
   delete thd;
+  mysql_mutex_unlock(&LOCK_thread_count);
 
 #ifndef EMBEDDED_LIBRARY
-  mysql_mutex_lock(&LOCK_thread_count);
-  thread_count--;
-  in_bootstrap= FALSE;
-  mysql_cond_broadcast(&COND_thread_count);
-  mysql_mutex_unlock(&LOCK_thread_count);
   my_thread_end();
   pthread_exit(0);
 #endif
@@ -1547,7 +1559,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
                         "Slow queries: %llu  Opens: %llu  Flush tables: %lu  "
                         "Open tables: %u  Queries per second avg: %u.%03u",
                         uptime,
-                        (int) thread_count, (ulong) thd->query_id,
+                        (int) get_thread_count(), (ulong) thd->query_id,
                         current_global_status_var.long_query_count,
                         current_global_status_var.opened_tables,
                         refresh_version,
@@ -6861,18 +6873,21 @@ void add_join_natural(TABLE_LIST *a, TABLE_LIST *b, List<String> *using_fields,
 
 uint kill_one_thread(THD *thd, ulong id, bool only_kill_query)
 {
-  THD *tmp;
+  THD *tmp= NULL;
   uint error=ER_NO_SUCH_THREAD;
   DBUG_ENTER("kill_one_thread");
   DBUG_PRINT("enter", ("id=%lu only_kill=%d", id, only_kill_query));
-  mysql_mutex_lock(&LOCK_thread_count); // For unlink from list
-  I_List_iterator<THD> it(threads);
-  while ((tmp=it++))
+
+  mysql_mutex_lock(&LOCK_thread_count);
+  Thread_iterator it= global_thread_list_begin();
+  Thread_iterator end= global_thread_list_end();
+  for (; it != end; ++it)
   {
-    if (tmp->get_command() == COM_DAEMON)
+    if ((*it)->get_command() == COM_DAEMON)
       continue;
-    if (tmp->thread_id == id)
+    if ((*it)->thread_id == id)
     {
+      tmp= *it;
       mysql_mutex_lock(&tmp->LOCK_thd_data);    // Lock from delete
       break;
     }
