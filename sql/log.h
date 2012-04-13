@@ -267,6 +267,8 @@ public:
 #ifdef HAVE_PSI_INTERFACE
   /** Instrumentation key to use for file io in @c log_file */
   PSI_file_key m_log_file_key;
+  /** The instrumentation key to use for @ LOCK_log. */
+  PSI_mutex_key m_key_LOCK_log;
 #endif
 };
 
