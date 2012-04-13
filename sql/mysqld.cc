@@ -2220,8 +2220,8 @@ static void network_init(void)
 {
 #ifdef HAVE_SYS_UN_H
   struct sockaddr_un	UNIXaddr;
-#endif
   int	arg;
+#endif
   DBUG_ENTER("network_init");
 
   if (MYSQL_CALLBACK_ELSE(thread_scheduler, init, (), 0))

@@ -214,6 +214,15 @@ IF (MSVC AND CMAKE_SIZEOF_VOID_P EQUAL 8)
 				    PROPERTIES COMPILE_FLAGS -Od)
 ENDIF()
 
+IF(MSVC)
+  # Avoid "unreferenced label" warning in generated file
+  GET_FILENAME_COMPONENT(_SRC_DIR ${CMAKE_CURRENT_LIST_FILE} PATH)
+  SET_SOURCE_FILES_PROPERTIES(${_SRC_DIR}/pars/pars0grm.c
+          PROPERTIES COMPILE_FLAGS "/wd4102")
+  SET_SOURCE_FILES_PROPERTIES(${_SRC_DIR}/pars/lexyy.c
+          PROPERTIES COMPILE_FLAGS "/wd4003")
+ENDIF()
+
 SET(INNOBASE_SOURCES	btr/btr0btr.c btr/btr0cur.c btr/btr0pcur.c btr/btr0sea.c
 			buf/buf0buddy.c buf/buf0buf.c buf/buf0flu.c buf/buf0lru.c buf/buf0rea.c
 			data/data0data.c data/data0type.c

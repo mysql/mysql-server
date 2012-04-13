@@ -618,8 +618,8 @@ Open streams:  %10lu\n",
 	 (ulong) my_file_opened,
 	 (ulong) my_stream_opened);
 
-  ALARM_INFO alarm_info;
 #ifndef DONT_USE_THR_ALARM
+  ALARM_INFO alarm_info;
   thr_alarm_info(&alarm_info);
   printf("\nAlarm status:\n\
 Active alarms:   %u\n\

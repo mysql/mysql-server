@@ -150,7 +150,7 @@ public:
   void count_only_length();
   void count_real_length();
   void count_decimal_length();
-  inline bool get_arg0_date(MYSQL_TIME *ltime, uint fuzzy_date)
+  inline bool get_arg0_date(MYSQL_TIME *ltime, ulonglong fuzzy_date)
   {
     return (null_value=args[0]->get_date(ltime, fuzzy_date));
   }

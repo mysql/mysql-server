@@ -38,10 +38,10 @@ int func1()
 
 int main (int argc, char *argv[])
 {
-  int i;
 #ifdef DBUG_OFF
   return 1;
-#endif
+#else
+  int i;
   if (argc == 1)
     return 0;
 
@@ -83,4 +83,5 @@ int main (int argc, char *argv[])
   DBUG_SET(""); /* to not have my_end() in the traces */
   my_end(0);
   return 0;
+#endif /* DBUG_OFF */
 }

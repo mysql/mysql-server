@@ -823,16 +823,14 @@ const char *sanitize_table_schema_name(const char *unsafe)
   intptr first= (intptr) &table_share_array[0];
   intptr last= (intptr) &table_share_array[table_share_max];
 
-  PFS_table_share dummy;
 
   /* Check if unsafe points inside table_share_array[] */
   if (likely((first <= ptr) && (ptr < last)))
   {
     intptr offset= (ptr - first) % sizeof(PFS_table_share);
     intptr from= my_offsetof(PFS_table_share, m_key.m_hash_key);
-    intptr len= sizeof(dummy.m_key.m_hash_key);
     /* Check if unsafe points inside PFS_table_share::m_key::m_hash_key */
-    if (likely((from <= offset) && (offset < from + len)))
+    if (likely((from <= offset) && (offset < from + PFS_TABLESHARE_HASHKEY_SIZE)))
     {
       PFS_table_share *base= (PFS_table_share*) (ptr - offset);
       /* Check if unsafe really is the schema name */
@@ -849,16 +847,14 @@ const char *sanitize_table_object_name(const char *unsafe)
   intptr first= (intptr) &table_share_array[0];
   intptr last= (intptr) &table_share_array[table_share_max];
 
-  PFS_table_share dummy;
 
   /* Check if unsafe points inside table_share_array[] */
   if (likely((first <= ptr) && (ptr < last)))
   {
     intptr offset= (ptr - first) % sizeof(PFS_table_share);
     intptr from= my_offsetof(PFS_table_share, m_key.m_hash_key);
-    intptr len= sizeof(dummy.m_key.m_hash_key);
     /* Check if unsafe points inside PFS_table_share::m_key::m_hash_key */
-    if (likely((from <= offset) && (offset < from + len)))
+    if (likely((from <= offset) && (offset < from + PFS_TABLESHARE_HASHKEY_SIZE)))
     {
       PFS_table_share *base= (PFS_table_share*) (ptr - offset);
       /* Check if unsafe really is the table name */

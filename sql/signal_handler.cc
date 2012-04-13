@@ -167,7 +167,7 @@ extern "C" sig_handler handle_fatal_signal(int sig)
       "where mysqld died. If you see no messages after this, something went\n"
       "terribly wrong...\n");
     my_print_stacktrace(thd ? (uchar*) thd->thread_stack : NULL,
-                        my_thread_stack_size);
+                        (ulong)my_thread_stack_size);
   }
   if (thd)
   {

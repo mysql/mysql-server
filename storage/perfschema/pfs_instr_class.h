@@ -128,6 +128,8 @@ struct PFS_thread_class
   bool m_enabled;
 };
 
+#define PFS_TABLESHARE_HASHKEY_SIZE (NAME_LEN + 1 + NAME_LEN + 1)
+
 /** Key identifying a table share. */
 struct PFS_table_share_key
 {
@@ -137,7 +139,7 @@ struct PFS_table_share_key
     the format is "<schema_name><0x00><object_name><0x00>"
     @see create_table_def_key
   */
-  char m_hash_key[NAME_LEN + 1 + NAME_LEN + 1];
+  char m_hash_key[PFS_TABLESHARE_HASHKEY_SIZE];
   /** Length in bytes of @c m_hash_key. */
   uint m_key_length;
 };

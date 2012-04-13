@@ -50,7 +50,6 @@
 #else
 	// Windows-specific
 	#include <io.h>
-	#define strcasecmp	stricmp
 	#define snprintf	_snprintf
 
 	#define	RECV_FLAGS	0

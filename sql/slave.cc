@@ -4155,8 +4155,8 @@ static int queue_event(Master_info* mi,const char* buf, ulong event_len)
 {
   int error= 0;
   String error_msg;
-  ulong inc_pos;
-  ulong event_pos;
+  ulonglong inc_pos;
+  ulonglong event_pos;
   Relay_log_info *rli= &mi->rli;
   mysql_mutex_t *log_lock= rli->relay_log.get_log_lock();
   ulong s_id;

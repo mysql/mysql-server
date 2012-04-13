@@ -289,7 +289,7 @@ int main(int argc __attribute__((unused)),
     fprintf(stderr, "End of memory\n");
     exit(1);
   }
-  for (i= 0; i < (LONG_BUFFER_SIZE + 7 * 2 + 2); i++)
+  for (i= 0; i < (uint32)(LONG_BUFFER_SIZE + 7 * 2 + 2); i++)
     long_buffer[i]= (i & 0xFF);
 
 #ifndef DBUG_OFF

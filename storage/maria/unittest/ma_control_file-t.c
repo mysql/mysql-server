@@ -23,7 +23,9 @@
 #include <my_global.h>
 #include <my_sys.h>
 #include <tap.h>
-
+#ifdef _WIN32
+#include <direct.h> /* rmdir */
+#endif
 #ifndef WITH_ARIA_STORAGE_ENGINE
 /*
   If Aria is not compiled in, normally we don't come to building this test.
