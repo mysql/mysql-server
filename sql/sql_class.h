@@ -2163,10 +2163,9 @@ my_micro_time_to_timeval(ulonglong micro_time, struct timeval *tm)
   a thread/connection descriptor
 */
 
-class THD :public ilink<THD>,
+class THD :public MDL_context_owner,
            public Statement,
-           public Open_tables_state,
-           public MDL_context_owner
+           public Open_tables_state
 {
 private:
   inline bool is_stmt_prepare() const

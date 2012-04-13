@@ -336,11 +336,15 @@ THD *thd_get_current_thd()
 
   thd_new_connection_setup
 
+  @note Must be called with LOCK_thread_count locked.
+
   @param              thd            THD object
   @param              stack_start    Start of stack for connection
 */
 void thd_new_connection_setup(THD *thd, char *stack_start)
 {
+  DBUG_ENTER("thd_new_connection_setup");
+  mysql_mutex_assert_owner(&LOCK_thread_count);
 #ifdef HAVE_PSI_INTERFACE
   thd_set_psi(thd,
               PSI_CALL(new_thread)(key_thread_one_connection,
@@ -350,11 +354,14 @@ void thd_new_connection_setup(THD *thd, char *stack_start)
   thd->set_time();
   thd->prior_thr_create_utime= thd->thr_create_utime= thd->start_utime=
     my_micro_time();
-  threads.push_front(thd);
-  thd_unlock_thread_count(thd);
+
+  add_global_thread(thd);
+  mysql_mutex_unlock(&LOCK_thread_count);
+
   DBUG_PRINT("info", ("init new connection. thd: 0x%lx fd: %d",
           (ulong)thd, mysql_socket_getfd(thd->net.vio->mysql_socket)));
   thd_set_thread_stack(thd, stack_start);
+  DBUG_VOID_RETURN;
 }
 
 /**
@@ -1397,6 +1404,7 @@ THD::~THD()
 {
   THD_CHECK_SENTRY(this);
   DBUG_ENTER("~THD()");
+  DBUG_PRINT("info", ("THD dtor, this %p", this));
   /* Ensure that no one is using THD */
   mysql_mutex_lock(&LOCK_thd_data);
   mysys_var=0;					// Safety (shouldn't be needed)
