@@ -423,9 +423,9 @@ struct st_my_thread_var *_my_thread_var(void)
   return  my_pthread_getspecific(struct st_my_thread_var*,THR_KEY_mysys);
 }
 
-void set_mysys_var(struct st_my_thread_var *mysys_var)
+int set_mysys_var(struct st_my_thread_var *mysys_var)
 {
-  my_pthread_setspecific_ptr(THR_KEY_mysys, mysys_var);
+  return my_pthread_setspecific_ptr(THR_KEY_mysys, mysys_var);
 }
 
 /****************************************************************************
