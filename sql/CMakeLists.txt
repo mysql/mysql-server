@@ -271,7 +271,7 @@ IF(INSTALL_LAYOUT STREQUAL "STANDALONE")
 # We need to create empty directories (data/test) the installation.  
 # This does not work with current CPack due to http://www.cmake.org/Bug/view.php?id=8767
 # Avoid completely empty directories and install dummy file instead.
-SET(DUMMY_FILE ${CMAKE_CURRENT_BINARY_DIR}/.empty ) 
+SET(DUMMY_FILE ${CMAKE_CURRENT_BINARY_DIR}/db.opt ) 
 FILE(WRITE ${DUMMY_FILE} "")
 INSTALL(FILES ${DUMMY_FILE} DESTINATION data/test COMPONENT DataFiles)
 
@@ -303,7 +303,11 @@ IF(WIN32 AND MYSQLD_EXECUTABLE)
     DEPENDS  initdb.dep
   )
   INSTALL(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/data DESTINATION . 
-  COMPONENT DataFiles PATTERN "initdb.dep" EXCLUDE  PATTERN "bootstrap.sql" EXCLUDE)
+  COMPONENT DataFiles 
+  PATTERN "initdb.dep" EXCLUDE  
+  PATTERN "bootstrap.sql" EXCLUDE
+  PATTERN "aria*" EXCLUDE
+  )
 ELSE()
   # Not windows or cross compiling, just install an empty directory
   INSTALL(FILES ${DUMMY_FILE} DESTINATION data/mysql COMPONENT DataFiles)
