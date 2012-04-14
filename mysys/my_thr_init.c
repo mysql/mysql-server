@@ -274,7 +274,6 @@ void my_thread_global_end(void)
   */
   if (all_threads_killed)
   {
-    pthread_key_delete(THR_KEY_mysys);
     my_thread_destroy_internal_mutex();
   }
   my_thread_global_init_done= 0;

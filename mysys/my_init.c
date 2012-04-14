@@ -29,6 +29,7 @@
 #pragma comment(lib, "ws2_32")
 #endif
 my_bool have_tcpip=0;
+extern pthread_key(struct st_my_thread_var*, THR_KEY_mysys);
 static void my_win_init(void);
 static my_bool win32_init_tcp_ip();
 #else
@@ -221,7 +222,9 @@ Voluntary context switches %ld, Involuntary context switches %ld\n",
   if (have_tcpip)
     WSACleanup();
 #endif /* __WIN__ */
-
+ 
+  /* At very last, delete mysys key, it is used everywhere including DBUG */
+  pthread_key_delete(THR_KEY_mysys);
   my_init_done=0;
 } /* my_end */
 

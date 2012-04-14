@@ -423,6 +423,8 @@ static void wt_resource_destroy(uchar *arg)
   DBUG_VOID_RETURN;
 }
 
+static int wt_init_done;
+
 void wt_init()
 {
   DBUG_ENTER("wt_init");
@@ -456,18 +458,22 @@ void wt_init()
   my_atomic_rwlock_init(&cycle_stats_lock);
   my_atomic_rwlock_init(&success_stats_lock);
   my_atomic_rwlock_init(&wait_stats_lock);
+  wt_init_done= 1;
   DBUG_VOID_RETURN;
 }
 
 void wt_end()
 {
   DBUG_ENTER("wt_end");
+  if (!wt_init_done)
+    DBUG_VOID_RETURN;
 
   DBUG_ASSERT(reshash.count == 0);
   lf_hash_destroy(&reshash);
   my_atomic_rwlock_destroy(&cycle_stats_lock);
   my_atomic_rwlock_destroy(&success_stats_lock);
   my_atomic_rwlock_destroy(&wait_stats_lock);
+  wt_init_done= 0;
   DBUG_VOID_RETURN;
 }
 
