@@ -56,7 +56,8 @@ class QueryPlan {
   Uint64 getAutoIncrement() const;
   void debug_dump() const;
   bool hasDataOnDisk() const;
-   
+  bool hasMathColumn() const;
+
   /* public instance variables */
   bool initialized;
   bool dup_numbers;                /* dup_numbers mode for ascii incr/decr */
@@ -88,6 +89,9 @@ class QueryPlan {
   bool has_disk_storage;
 };
 
+inline bool QueryPlan::hasMathColumn() const {
+  return spec->math_column;
+}
 
 inline bool QueryPlan::shouldExternalizeValue(size_t length) const {
   if(extern_store && val_record->value_length) 
