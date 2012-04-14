@@ -29,12 +29,13 @@
 #pragma comment(lib, "ws2_32")
 #endif
 my_bool have_tcpip=0;
-extern pthread_key(struct st_my_thread_var*, THR_KEY_mysys);
 static void my_win_init(void);
 static my_bool win32_init_tcp_ip();
 #else
 #define my_win_init()
 #endif
+
+extern pthread_key(struct st_my_thread_var*, THR_KEY_mysys);
 
 #define SCALE_SEC       100
 #define SCALE_USEC      10000
