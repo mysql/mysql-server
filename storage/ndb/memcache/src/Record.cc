@@ -30,7 +30,8 @@
 
 extern EXTENSION_LOGGER_DESCRIPTOR *logger;
 
-Record::Record(int ncol) : ncolumns(ncol), rec_size(0), nkeys(0), nvalues(0),  
+Record::Record(int ncol) : ncolumns(ncol), rec_size(0), ndb_record(0), 
+                           nkeys(0), nvalues(0),  
                            value_length(0),
                            index(0),
                            n_nullable(0),
@@ -44,7 +45,8 @@ Record::Record(int ncol) : ncolumns(ncol), rec_size(0), nkeys(0), nvalues(0),
 };
 
 Record::~Record() {
-  m_dict->releaseRecord(ndb_record);
+  if(ndb_record) 
+    m_dict->releaseRecord(ndb_record);
   delete[] handlers;
   delete[] specs;
 };
