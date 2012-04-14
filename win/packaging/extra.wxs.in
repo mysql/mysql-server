@@ -233,7 +233,7 @@
         </Control>
 
         <Control Id="CheckBoxModifyRootPassword" Type="CheckBox" X="8" Y="62" Width="222" Height="18" Property="ModifyRootPassword" CheckBoxValue="1" TabSkip="no">
-          <Text>{\Font1}Modify root password</Text>
+          <Text>{\Font1}Modify password for database user 'root'</Text>
           <Publish Property="PASSWORD" >NOT ModifyRootPassword</Publish>
           <Publish Property="RootPasswordConfirm">NOT ModifyRootPassword</Publish>
           <Publish Property="ALLOWREMOTEROOTACCESS">NOT ModifyRootPassword</Publish>
@@ -255,7 +255,7 @@
         </Control>
         <Control Id="CheckBoxALLOWREMOTEROOTACCESS" Type="CheckBox" X="23" Y="122" Width="196" Height="18" Property="ALLOWREMOTEROOTACCESS"
                  CheckBoxValue="--allow-remote-root-access" TabSkip="no">
-          <Text>{\Font1}Enable root access from remote machines</Text>
+          <Text>{\Font1}Enable access from remote machines for 'root' user</Text>
           <Condition Action="enable">ModifyRootPassword</Condition>
           <Condition Action="disable">NOT ModifyRootPassword</Condition>
         </Control>
