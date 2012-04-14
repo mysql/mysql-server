@@ -28,6 +28,10 @@ INSTALL(
  PATTERN ".cvsignore" EXCLUDE
  PATTERN "*.am" EXCLUDE
  PATTERN "*.in" EXCLUDE
+ PATTERN "*.vcxproj" EXCLUDE
+ PATTERN "*.vcxproj.filters" EXCLUDE
+ PATTERN "*.vcxproj.user" EXCLUDE
+ PATTERN "CTest" EXCLUDE
 )
 ENDIF()
 
