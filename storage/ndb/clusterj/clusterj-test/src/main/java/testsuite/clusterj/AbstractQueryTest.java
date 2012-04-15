@@ -457,6 +457,11 @@ abstract public class AbstractQueryTest extends AbstractClusterJModelTest {
 
     public void inQuery(String propertyName, Object parameterValue1,
             String expectedIndex, int... expected) {
+        inQuery("", propertyName, parameterValue1, expectedIndex, expected);
+    }
+
+    public void inQuery(String extraInfo, String propertyName, Object parameterValue1,
+            String expectedIndex, int... expected) {
         tx.begin();
         QueryHolder holder = new QueryHolder(getInstanceType(), propertyName, expectedIndex);
         // specify the where clause
@@ -467,7 +472,7 @@ abstract public class AbstractQueryTest extends AbstractClusterJModelTest {
         holder.setParameterIn(parameterValue1);
         // get the results
         holder.setExpectedResultIds(expected);
-        holder.checkResults(propertyName + " in");
+        holder.checkResults(extraInfo + propertyName + " in");
         tx.commit();
     }
 
