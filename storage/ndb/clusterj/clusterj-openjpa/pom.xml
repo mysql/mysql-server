@@ -129,6 +129,11 @@
     </dependency>
     <dependency>
       <groupId>com.mysql.clusterj</groupId>
+      <artifactId>clusterj-unit</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>com.mysql.clusterj</groupId>
       <artifactId>clusterj-api</artifactId>
       <scope>compile</scope>
     </dependency>
