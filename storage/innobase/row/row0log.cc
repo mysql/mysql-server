@@ -1056,6 +1056,8 @@ row_log_apply(
 
 	if (!dict_table_is_corrupted(index->table)) {
 		error = row_log_apply_ops(trx, index, &dup);
+	} else {
+		error = DB_SUCCESS;
 	}
 
 	if (error != DB_SUCCESS || dup.n_dup) {

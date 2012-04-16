@@ -2119,11 +2119,11 @@ ha_innobase::inplace_alter_table(
 		= static_cast<class ha_innobase_inplace_ctx*>
 		(ha_alter_info->handler_ctx);
 
+	update_thd();
+
 	if (!(ha_alter_info->handler_flags & INNOBASE_INPLACE_CREATE)) {
 		DBUG_RETURN(false);
 	} else if (dict_table_is_discarded(prebuilt->table)) {
-
-		update_thd();
 
 		/* Nothing to do. */
 		for (uint i = 0; i < ctx->num_to_add; ++i) {
