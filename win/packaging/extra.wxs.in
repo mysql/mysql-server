@@ -34,6 +34,7 @@
 
     <!-- Root password -->
     <Property Id="PASSWORD" Hidden="yes" Secure="yes" />
+    <Property Id="ESCAPEDPASSWORD" Hidden="yes" Secure="yes" />
     <!-- Database port -->
     <Property Id="PORT" Value="3306" Secure="yes"/>
     <!-- Whether to allow remote access for root user -->
@@ -668,7 +669,7 @@
     <CustomAction Id='PresetDatabaseProperties' BinaryKey='wixca.dll' DllEntry='PresetDatabaseProperties' />
     <CustomAction Id="CreateDatabaseCommand" Property="CreateDatabase"
     Value=
-    "&quot;[#F.bin.mysql_install_db.exe]&quot;  &quot;--service=[SERVICENAME]&quot; --port=[PORT] &quot;--password=[PASSWORD]&quot; &quot;--datadir=[DATADIR]\&quot; [SKIPNETWORKING] [ALLOWREMOTEROOTACCESS] [DEFAULTUSER]"
+    "&quot;[#F.bin.mysql_install_db.exe]&quot;  &quot;--service=[SERVICENAME]&quot; --port=[PORT] &quot;--password=[ESCAPEDPASSWORD]&quot; &quot;--datadir=[DATADIR]\&quot; [SKIPNETWORKING] [ALLOWREMOTEROOTACCESS] [DEFAULTUSER]"
      Execute="immediate"
      HideTarget="yes"
      />
@@ -703,7 +704,7 @@
         <![CDATA[&DBInstance=3 AND NOT !DBInstance=3 AND OLDERVERSIONBEINGUPGRADED=""]]>
       </Custom>
       <Custom Action="ErrorDataDirNotEmpty" After="CheckDataDirectoryEmpty" >DATADIRNOTEMPTY</Custom>
-
+      <Custom Action="CheckDatabaseProperties" Before="CreateDatabaseCommand">SERVICENAME</Custom>
       <Custom Action="CreateDatabaseCommand" After="CostFinalize" >
         <![CDATA[&DBInstance=3 AND NOT !DBInstance=3 AND OLDERVERSIONBEINGUPGRADED=""]]>
       </Custom>

@@ -316,9 +316,9 @@ static int create_myini()
 
 
 static const char update_root_passwd_part1[]=
-  "UPDATE mysql.user SET Password = PASSWORD('";
+  "UPDATE mysql.user SET Password = PASSWORD(";
 static const char update_root_passwd_part2[]=
-  "') where User='root';\n";
+  ") where User='root';\n";
 static const char remove_default_user_cmd[]= 
   "DELETE FROM mysql.user where User='';\n";
 static const char allow_remote_root_access_cmd[]=
@@ -589,11 +589,19 @@ static int create_db_instance()
   }
 
   /* Change root password if requested. */
-  if (opt_password)
+  if (opt_password && opt_password[0])
   {
-    verbose("Changing root password",remove_default_user_cmd);
+    verbose("Setting root password",remove_default_user_cmd);
     fputs(update_root_passwd_part1, in);
-    fputs(opt_password, in);
+
+    /* Use hex encoding for password, to avoid escaping problems.*/
+    fputc('0', in);
+    fputc('x', in);
+    for(int i= 0; opt_password[i]; i++)
+    {
+      fprintf(in,"%02x",opt_password[i]);
+    }
+
     fputs(update_root_passwd_part2, in);
     fflush(in);
   }
