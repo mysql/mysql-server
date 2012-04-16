@@ -6917,6 +6917,12 @@ bool Xid_log_event::do_commit(THD *thd)
     error |= gtid_empty_group_log_and_cleanup(thd);
   }
 
+  /*
+    Increment the global status commit count variable
+  */
+  if (!error)
+    status_var_increment(thd->status_var.com_stat[SQLCOM_COMMIT]);
+
   return error;
 }
 
@@ -7026,12 +7032,6 @@ int Xid_log_event::do_apply_event(Relay_log_info const *rli)
 err:
   mysql_cond_broadcast(&rli_ptr->data_cond);
   mysql_mutex_unlock(&rli_ptr->data_lock);
-
-  /*
-    Increment the global status commit count variable
-  */
-  if (!error)
-    status_var_increment(thd->status_var.com_stat[SQLCOM_COMMIT]);
 
   return error;
 }
