@@ -30,6 +30,7 @@ import testsuite.clusterj.model.LongIntStringIndex;
  * This test is based on AbstractQueryTest.
  */
 public class QueryMultiColumnIndexInTest extends AbstractQueryTest {
+
     /*
 drop table if exists longintstringix;
 create table longintstringix (
@@ -48,6 +49,9 @@ create table longintstringix (
     public Class<?> getInstanceType() {
         return LongIntStringIndex.class;
     }
+
+    /** The number of iterations of the multi-range IN test */
+    private static final int MULTI_RANGE_IN_ITERATIONS = 1;
 
     protected int PK_MODULUS = 3;
     protected long PRETTY_BIG_NUMBER = 1000000000000000L;
@@ -103,13 +107,15 @@ create table longintstringix (
     }
 
     public void testPrettyBigIn() {
-        int arraySize = 20;
+        int arraySize = 4096;
         Integer[] keys = new Integer[arraySize];
         for (int i = 0; i < arraySize; ++i) {
             keys[i] = i;
         }
         int[] expectedKeys = new int[] {0, 1, 2, 3, 4, 5, 6, 7, 8, 9};
-        inQuery("id", keys, "PRIMARY", expectedKeys);
+        for (int i = 0; i < MULTI_RANGE_IN_ITERATIONS; ++i) {
+            inQuery("iteration " + Integer.toString(i) + " ", "id", keys, "PRIMARY", expectedKeys);
+        }
         failOnError();        
     }
 
