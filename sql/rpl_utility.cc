@@ -1508,8 +1508,17 @@ Hash_slave_rows::make_hash_key(TABLE *table, MY_BITMAP *cols)
     }
   }
 
-  /* initialize crc */
-  crc= my_checksum(crc, table->null_flags, table->s->null_bytes);
+  /* 
+    We can only checksum the bytes if all fields have been signaled
+    in the before image. Otherwise, unpack_row will not have set the
+    null_flags correctly (because it only unpacks those fields and
+    their flags that were actually in the before image). 
+     
+    @c record_compare, as it also skips null_flags if the read_set
+    was not marked completely.
+   */
+  if (bitmap_is_set_all(cols))
+    crc= my_checksum(crc, table->null_flags, table->s->null_bytes);
 
   for (Field **ptr=table->field ;
        *ptr && ((*ptr)->field_index < cols->n_bits);
