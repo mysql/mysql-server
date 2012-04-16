@@ -310,10 +310,6 @@ start slave until sql_after_mts_gaps master_log_pos=0;
 --error 1064
 start slave until sql_after_mts_gaps SQL_BEFORE_GTIDS='dummy';
 
-# check out a "blank" run which leaves an info line into error-log
-start slave until sql_after_mts_gaps;
-
-show warnings;
 call mtr.add_suppression('Slave SQL: Could not execute Update_rows event on table d1.t1; Deadlock found when trying to get lock');
 
 # regular start now

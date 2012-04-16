@@ -90,10 +90,6 @@ start slave until sql_after_mts_gaps master_log_pos=0;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'master_log_pos=0' at line 1
 start slave until sql_after_mts_gaps SQL_BEFORE_GTIDS='dummy';
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'SQL_BEFORE_GTIDS='dummy'' at line 1
-start slave until sql_after_mts_gaps;
-show warnings;
-Level	Code	Message
-Error	1064	You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'SQL_BEFORE_GTIDS='dummy'' at line 1
 call mtr.add_suppression('Slave SQL: Could not execute Update_rows event on table d1.t1; Deadlock found when trying to get lock');
 include/start_slave.inc
 create database d1;
