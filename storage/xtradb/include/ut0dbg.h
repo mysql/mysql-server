@@ -54,27 +54,14 @@ ut_dbg_assertion_failed(
 	const char* file,	/*!< in: source file containing the assertion */
 	ulint line);		/*!< in: line number of the assertion */
 
-#ifdef __NETWARE__
-/** Flag for ignoring further assertion failures.  This is set to TRUE
-when on NetWare there happens an InnoDB assertion failure or other
-fatal error condition that requires an immediate shutdown. */
-extern ibool	panic_shutdown;
-/* Abort the execution. */
-void ut_dbg_panic(void);
-# define UT_DBG_PANIC ut_dbg_panic()
-/* Stop threads in ut_a(). */
-# define UT_DBG_STOP	do {} while (0)	/* We do not do this on NetWare */
-#else /* __NETWARE__ */
-# if defined(__WIN__) || defined(__INTEL_COMPILER)
-#  undef UT_DBG_USE_ABORT
-# elif defined(__GNUC__) && (__GNUC__ > 2)
-#  define UT_DBG_USE_ABORT
-# endif
 
-# ifndef UT_DBG_USE_ABORT
+#define UT_DBG_USE_ABORT
+
+
+#ifndef UT_DBG_USE_ABORT
 /** A null pointer that will be dereferenced to trigger a memory trap */
 extern ulint*	ut_dbg_null_ptr;
-# endif
+#endif
 
 # if defined(UNIV_SYNC_DEBUG) || !defined(UT_DBG_USE_ABORT)
 /** If this is set to TRUE by ut_dbg_assertion_failed(), all threads
@@ -91,9 +78,14 @@ ut_dbg_stop_thread(
 	ulint		line);
 # endif
 
-# ifdef UT_DBG_USE_ABORT
+
+#ifdef UT_DBG_USE_ABORT
 /** Abort the execution. */
-#  define UT_DBG_PANIC abort()
+#ifdef _WIN32
+# define UT_DBG_PANIC __debugbreak()
+#else
+# define UT_DBG_PANIC abort()
+#endif
 /** Stop threads (null operation) */
 #  define UT_DBG_STOP do {} while (0)
 # else /* UT_DBG_USE_ABORT */
@@ -106,7 +98,7 @@ ut_dbg_stop_thread(
 		ut_dbg_stop_thread(__FILE__, (ulint) __LINE__);	\
 	} while (0)
 # endif /* UT_DBG_USE_ABORT */
-#endif /* __NETWARE__ */
+
 
 /** Abort execution if EXPR does not evaluate to nonzero.
 @param EXPR	assertion expression that should hold */
