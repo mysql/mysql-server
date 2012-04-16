@@ -71,6 +71,82 @@ LExit:
   return WcaFinalize(er); 
 }
 
+/*
+  Escape command line parameter fpr pass to CreateProcess().
+
+  We assume out has enough space to include encoded string 
+  2*wcslen(in) is enough.
+
+  It is assumed that called will add double quotation marks before and after
+  the string.
+*/
+static void EscapeCommandLine(const wchar_t *in, wchar_t *out)
+{
+  const wchar_t special_chars[]=L" \t\n\v\"";
+  bool needs_escaping= false;
+  size_t pos;
+
+  for(int i=0; i< sizeof(special_chars) -1; i++)
+  {
+    if (wcschr(in, special_chars[i]))
+    {
+      needs_escaping = true;
+      break;
+    }
+  }
+
+  if(!needs_escaping)
+  {
+    wcscpy(out, in);
+    return;
+  }
+
+  pos= 0;
+  for(int i = 0 ; ; i++) 
+  {
+    size_t n_backslashes = 0;
+    wchar_t c;
+    while (in[i] == L'\\') 
+    {
+      i++;
+      n_backslashes++;
+    }
+
+    c= in[i];
+    if (c == 0) 
+    {
+      /*
+        Escape all backslashes, but let the terminating double quotation mark 
+        that caller adds be interpreted as a metacharacter.
+      */
+      for(int j= 0; j < 2*n_backslashes;j++)
+      {
+        out[pos++]=L'\\';
+      }
+      break;
+    }
+    else if (c == L'"') 
+    {
+      /*
+        Escape all backslashes and the following double quotation mark.
+      */
+      for(int j= 0; j < 2*n_backslashes + 1; j++)
+      {
+        out[pos++]=L'\\';
+      }
+      out[pos++]= L'"';
+    }
+    else 
+    {
+      /* Backslashes aren't special here. */
+      for (int j=0; j < n_backslashes; j++)
+        out[pos++] = L'\\';
+
+      out[pos++]= c;
+    }
+  }
+  out[pos++]= 0;
+}
 /* 
   Check for if directory is empty during install, 
   sets "<PROPERTY>_NOT_EMPTY" otherise
@@ -460,6 +536,8 @@ unsigned long long GetMaxBufferSize(unsigned long long totalPhys)
   return totalPhys;
 #endif
 }
+
+
 /*
   Checks SERVICENAME, PORT and BUFFERSIZE parameters 
 */
@@ -468,6 +546,8 @@ extern "C" UINT  __stdcall CheckDatabaseProperties (MSIHANDLE hInstall)
   wchar_t ServiceName[MAX_PATH]={0};
   wchar_t SkipNetworking[MAX_PATH]={0};
   wchar_t QuickConfig[MAX_PATH]={0};
+  wchar_t Password[MAX_PATH]={0};
+  wchar_t EscapedPassword[2*MAX_PATH+2];
   wchar_t Port[6];
   wchar_t BufferPoolSize[16];
   DWORD PortLen=6;
@@ -510,8 +590,12 @@ extern "C" UINT  __stdcall CheckDatabaseProperties (MSIHANDLE hInstall)
     }
   }
 
-  DWORD SkipNetworkingLen= MAX_PATH;
+  DWORD PasswordLen= MAX_PATH;
+  MsiGetPropertyW (hInstall, L"PASSWORD", Password, &PasswordLen);
+  EscapeCommandLine(Password, EscapedPassword);
+  MsiSetPropertyW(hInstall,L"ESCAPEDPASSWORD",EscapedPassword);
 
+  DWORD SkipNetworkingLen= MAX_PATH;
   MsiGetPropertyW(hInstall, L"SKIPNETWORKING", SkipNetworking, 
     &SkipNetworkingLen);
   MsiGetPropertyW(hInstall, L"PORT", Port, &PortLen);
