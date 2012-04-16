@@ -1634,8 +1634,8 @@ class Item_func_set_user_var :public Item_var_func
   } save_result;
 
 public:
-  LEX_STRING name; // keep it public
-  Item_func_set_user_var(LEX_STRING a,Item *b)
+  NameString name; // keep it public
+  Item_func_set_user_var(NameString a, Item *b)
     :Item_var_func(b), cached_result_type(INT_RESULT),
      entry(NULL), entry_thread_id(0), name(a)
   {}
@@ -1689,11 +1689,10 @@ class Item_func_get_user_var :public Item_var_func,
   Item_result m_cached_result_type;
 
 public:
-  LEX_STRING name; // keep it public
-  Item_func_get_user_var(LEX_STRING a):
+  NameString name; // keep it public
+  Item_func_get_user_var(NameString a):
     Item_var_func(), m_cached_result_type(STRING_RESULT), name(a) {}
   enum Functype functype() const { return GUSERVAR_FUNC; }
-  LEX_STRING get_name() { return name; }
   double val_real();
   longlong val_int();
   my_decimal *val_decimal(my_decimal*);
@@ -1732,11 +1731,11 @@ public:
 */
 class Item_user_var_as_out_param :public Item
 {
-  LEX_STRING name;
+  NameString name;
   user_var_entry *entry;
 public:
-  Item_user_var_as_out_param(LEX_STRING a) : name(a)
-  { item_name.copy(a.str, 0); }
+  Item_user_var_as_out_param(NameString a) :name(a)
+  { item_name.copy(a); }
   /* We should return something different from FIELD_ITEM here */
   enum Type type() const { return STRING_ITEM;}
   double val_real();
