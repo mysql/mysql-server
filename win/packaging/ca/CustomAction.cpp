@@ -80,7 +80,7 @@ LExit:
   It is assumed that called will add double quotation marks before and after
   the string.
 */
-static void EscapeCommandLine(const wchar_t *in, wchar_t *out)
+static void EscapeCommandLine(const wchar_t *in, wchar_t *out, size_t buflen)
 {
   const wchar_t special_chars[]=L" \t\n\v\"";
   bool needs_escaping= false;
@@ -97,7 +97,7 @@ static void EscapeCommandLine(const wchar_t *in, wchar_t *out)
 
   if(!needs_escaping)
   {
-    wcscpy(out, in);
+    wcscpy_s(out, buflen, in);
     return;
   }
 
@@ -119,7 +119,7 @@ static void EscapeCommandLine(const wchar_t *in, wchar_t *out)
         Escape all backslashes, but let the terminating double quotation mark 
         that caller adds be interpreted as a metacharacter.
       */
-      for(int j= 0; j < 2*n_backslashes;j++)
+      for(size_t j= 0; j < 2*n_backslashes;j++)
       {
         out[pos++]=L'\\';
       }
@@ -130,7 +130,7 @@ static void EscapeCommandLine(const wchar_t *in, wchar_t *out)
       /*
         Escape all backslashes and the following double quotation mark.
       */
-      for(int j= 0; j < 2*n_backslashes + 1; j++)
+      for(size_t j= 0; j < 2*n_backslashes + 1; j++)
       {
         out[pos++]=L'\\';
       }
@@ -139,7 +139,7 @@ static void EscapeCommandLine(const wchar_t *in, wchar_t *out)
     else 
     {
       /* Backslashes aren't special here. */
-      for (int j=0; j < n_backslashes; j++)
+      for (size_t j=0; j < n_backslashes; j++)
         out[pos++] = L'\\';
 
       out[pos++]= c;
@@ -592,7 +592,8 @@ extern "C" UINT  __stdcall CheckDatabaseProperties (MSIHANDLE hInstall)
 
   DWORD PasswordLen= MAX_PATH;
   MsiGetPropertyW (hInstall, L"PASSWORD", Password, &PasswordLen);
-  EscapeCommandLine(Password, EscapedPassword);
+  EscapeCommandLine(Password, EscapedPassword,
+    sizeof(EscapedPassword)/sizeof(EscapedPassword[0]));
   MsiSetPropertyW(hInstall,L"ESCAPEDPASSWORD",EscapedPassword);
 
   DWORD SkipNetworkingLen= MAX_PATH;
