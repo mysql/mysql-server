@@ -1249,13 +1249,7 @@ fts_query_union(
 
 	/* Single '%' would confuse parser in pars_like_rebind(). In addition,
 	our wildcard search only supports prefix search */
-	if (*token->f_str == '%') {
-		if (token->f_len == 1) {
-			return(query->error);
-		}
-		token->f_str++;
-		token->f_len--;
-	}
+	ut_ad(*token->f_str != '%');
 
 	fts_query_cache(query, token);
 

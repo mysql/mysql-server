@@ -135,8 +135,7 @@ post_init_event_thread(THD *thd)
   }
 
   mysql_mutex_lock(&LOCK_thread_count);
-  threads.push_front(thd);
-  thread_count++;
+  add_global_thread(thd);
   inc_thread_running();
   mysql_mutex_unlock(&LOCK_thread_count);
   return FALSE;
@@ -159,11 +158,10 @@ deinit_event_thread(THD *thd)
   net_end(&thd->net);
   DBUG_PRINT("exit", ("Event thread finishing"));
   mysql_mutex_lock(&LOCK_thread_count);
-  thread_count--;
+  remove_global_thread(thd);
   dec_thread_running();
-  delete thd;
-  mysql_cond_broadcast(&COND_thread_count);
   mysql_mutex_unlock(&LOCK_thread_count);
+  delete thd;
 }
 
 
@@ -434,11 +432,10 @@ Event_scheduler::start()
     DBUG_ASSERT(new_thd->net.buff != 0);
     net_end(&new_thd->net);
     mysql_mutex_lock(&LOCK_thread_count);
-    thread_count--;
+    remove_global_thread(new_thd);
     dec_thread_running();
-    delete new_thd;
-    mysql_cond_broadcast(&COND_thread_count);
     mysql_mutex_unlock(&LOCK_thread_count);
+    delete new_thd;
   }
 end:
   UNLOCK_DATA();
@@ -568,11 +565,10 @@ error:
     DBUG_ASSERT(new_thd->net.buff != 0);
     net_end(&new_thd->net);
     mysql_mutex_lock(&LOCK_thread_count);
-    thread_count--;
+    remove_global_thread(new_thd);
     dec_thread_running();
-    delete new_thd;
-    mysql_cond_broadcast(&COND_thread_count);
     mysql_mutex_unlock(&LOCK_thread_count);
+    delete new_thd;
   }
   delete event_name;
   DBUG_RETURN(TRUE);
@@ -683,14 +679,14 @@ end:
 uint
 Event_scheduler::workers_count()
 {
-  THD *tmp;
   uint count= 0;
 
   DBUG_ENTER("Event_scheduler::workers_count");
-  mysql_mutex_lock(&LOCK_thread_count);       // For unlink from list
-  I_List_iterator<THD> it(threads);
-  while ((tmp=it++))
-    if (tmp->system_thread == SYSTEM_THREAD_EVENT_WORKER)
+  mysql_mutex_lock(&LOCK_thread_count);
+  Thread_iterator it= global_thread_list_begin();
+  Thread_iterator end= global_thread_list_end();
+  for (; it != end; ++it)
+    if ((*it)->system_thread == SYSTEM_THREAD_EVENT_WORKER)
       ++count;
   mysql_mutex_unlock(&LOCK_thread_count);
   DBUG_PRINT("exit", ("%d", count));

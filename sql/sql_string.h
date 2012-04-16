@@ -22,6 +22,85 @@
 #include "my_sys.h"              /* alloc_root, my_free, my_realloc */
 #include "m_string.h"                           /* TRASH */
 
+
+/**
+  A wrapper class for null-terminated constant strings.
+  Constructors make sure that the position of the '\0' terminating byte
+  in m_str is always in sync with m_length.
+*/
+class SimpleCString
+{
+private:
+  const char *m_str;
+  uint m_length;
+protected:
+  /**
+    Initialize from a C string whose length is already known.
+  */
+  void set(const char *str_arg, uint length_arg)
+  {
+    // NULL is allowed only with length==0
+    DBUG_ASSERT(str_arg || length_arg == 0);
+    // For non-NULL, make sure length_arg is in sync with '\0' terminator.
+    DBUG_ASSERT(!str_arg || str_arg[length_arg] == '\0');
+    m_str= str_arg;
+    m_length= length_arg;
+  }
+public:
+  SimpleCString()
+  {
+    set(NULL, 0);
+  }
+  SimpleCString(const char *str_arg, uint length_arg)
+  {
+    set(str_arg, length_arg);
+  }
+  SimpleCString(const LEX_STRING arg)
+  {
+    set(arg.str, arg.length);
+  }
+  void reset()
+  {
+    set(NULL, 0);
+  }
+  /**
+    Set to a null-terminated string.
+  */
+  void set(const char *str)
+  {
+    set(str, str ? strlen(str) : 0);
+  }
+  /**
+    Return string buffer.
+  */
+  const char *ptr() const { return m_str; }
+  /**
+    Check if m_ptr is set.
+  */
+  bool is_set() const { return m_str != NULL; }
+  /**
+    Return name length.
+  */
+  uint length() const { return m_length; }
+  /**
+    Compare to another SimpleCString.
+  */
+  bool eq_bin(const SimpleCString other) const
+  {
+    return m_length == other.m_length &&
+           memcmp(m_str, other.m_str, m_length) == 0;
+  }
+  /**
+    Copy to the given buffer
+  */
+  void strcpy(char *buff) const
+  {
+    memcpy(buff, m_str, m_length);
+    buff[m_length]= '\0';
+  }
+};
+
+
 class String;
 typedef struct charset_info_st CHARSET_INFO;
 typedef struct st_io_cache IO_CACHE;
@@ -289,6 +368,10 @@ public:
   bool append(LEX_STRING *ls)
   {
     return append(ls->str, ls->length);
+  }
+  bool append(SimpleCString str)
+  {
+    return append(str.ptr(), str.length());
   }
   bool append(const char *s, uint32 arg_length);
   bool append(const char *s, uint32 arg_length, const CHARSET_INFO *cs);
