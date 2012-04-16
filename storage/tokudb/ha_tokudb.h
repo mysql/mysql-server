@@ -7,6 +7,8 @@
 
 #if !defined(HA_CLUSTERING)
 #define HA_CLUSTERING 0
+#endif
+#if !defined(HA_CLUSTERED_INDEX)
 #define HA_CLUSTERED_INDEX 0
 #endif
 
