@@ -2,7 +2,9 @@
 
 SET NAMES utf8;
 
-CREATE TABLE t1 (c1 INT PRIMARY KEY, c2 INT DEFAULT 1, INDEX(c2))
+CREATE TABLE t1 (
+ c1 INT PRIMARY KEY, c2 INT DEFAULT 1, ct TEXT,
+ INDEX(c2))
 ENGINE=InnoDB;
 
 INSERT INTO t1 SET c1=1;
@@ -139,8 +141,81 @@ SHOW CREATE TABLE t1c;
 
 -- source suite/innodb/include/innodb_dict.inc
 
-ALTER TABLE t1 DROP INDEX c2;
+ALTER TABLE t1 DROP INDEX c2, CHANGE c3 c2 INT;
 
 -- source suite/innodb/include/innodb_dict.inc
 
-DROP TABLE t1c, t1, t1p, sys_tables, sys_indexes, sys_foreign;
+CREATE TABLE t1o LIKE t1;
+
+# This will implicitly add a DOC_ID column, copying the table while
+# holding an exclusive lock. The LOCK=SHARED should thus fail.
+--error ER_NOT_SUPPORTED_YET
+ALTER TABLE t1 ADD FULLTEXT INDEX (ct),
+CHANGE c1 pk INT, ALTER c2 SET DEFAULT 42, RENAME TO tt,
+ALGORITHM=INPLACE, LOCK=SHARED;
+
+# Retry with LOCK=EXCLUSIVE.
+ALTER TABLE t1 ADD FULLTEXT INDEX (ct),
+CHANGE c1 pk INT, ALTER c2 SET DEFAULT 42, RENAME TO tt,
+ALGORITHM=INPLACE, LOCK=EXCLUSIVE;
+
+# The output should be empty, because index->id was reassigned.
+-- source suite/innodb/include/innodb_dict.inc
+
+SHOW CREATE TABLE tt;
+
+# FTS_DOC_ID is the internal row identifier for full-text search.
+# It should be of type BIGINT UNSIGNED NOT NULL.
+--error ER_WRONG_COLUMN_NAME
+ALTER TABLE t1o ADD FULLTEXT INDEX(ct), CHANGE c1 FTS_DOC_ID INT,
+ALGORITHM=COPY;
+
+--error ER_INNODB_FT_WRONG_DOCID_COLUMN
+ALTER TABLE t1o ADD FULLTEXT INDEX(ct), CHANGE c1 FTS_DOC_ID INT,
+ALGORITHM=INPLACE;
+--error ER_WRONG_COLUMN_NAME
+ALTER TABLE t1o ADD FULLTEXT INDEX(ct), CHANGE c1 FTS_Doc_ID INT,
+ALGORITHM=INPLACE;
+--error ER_NOT_SUPPORTED_YET
+ALTER TABLE t1o ADD FULLTEXT INDEX(ct),
+CHANGE c1 FTS_DOC_ID BIGINT UNSIGNED NOT NULL,
+ALGORITHM=INPLACE;
+
+CREATE TABLE t1n LIKE t1o;
+
+ALTER TABLE t1n ADD FULLTEXT INDEX(ct);
+--error ER_WRONG_COLUMN_NAME
+ALTER TABLE t1n CHANGE c1 Fts_DOC_ID INT, ALGORITHM=INPLACE;
+--error ER_WRONG_COLUMN_NAME
+ALTER TABLE t1n CHANGE c1 Fts_DOC_ID INT, ALGORITHM=COPY;
+ALTER TABLE t1n CHANGE c1 FTS_DOC_ïD INT, ALGORITHM=INPLACE;
+DROP TABLE t1n;
+
+ALTER TABLE t1o MODIFY c1 BIGINT NOT NULL;
+
+--error ER_INNODB_FT_WRONG_DOCID_COLUMN
+ALTER TABLE t1o ADD FULLTEXT INDEX(ct), CHANGE c1 FTS_DOC_ID BIGINT,
+ALGORITHM=INPLACE;
+
+# This should not show duplicates.
+SELECT sc.pos FROM information_schema.innodb_sys_columns sc
+INNER JOIN information_schema.innodb_sys_tables st
+ON sc.TABLE_ID=st.TABLE_ID
+WHERE st.NAME='test/t1o' AND sc.NAME='FTS_DOC_ID';
+
+SHOW CREATE TABLE t1o;
+
+DROP TABLE t1c, t1p, sys_tables, sys_indexes, sys_foreign;
+
+# Check the internal schemata of tt, t1o.
+
+CREATE TABLE sys_tables SELECT * FROM INFORMATION_SCHEMA.INNODB_SYS_TABLES
+WHERE NAME='test/t1o';
+CREATE TABLE sys_indexes SELECT i.* FROM INFORMATION_SCHEMA.INNODB_SYS_INDEXES i
+INNER JOIN sys_tables st ON i.TABLE_ID=st.TABLE_ID;
+CREATE TABLE sys_foreign SELECT i.*
+FROM INFORMATION_SCHEMA.INNODB_SYS_FOREIGN i WHERE FOR_NAME='test/t1o';
+
+-- source suite/innodb/include/innodb_dict.inc
+
+DROP TABLE tt, t1o, sys_tables, sys_indexes, sys_foreign;
