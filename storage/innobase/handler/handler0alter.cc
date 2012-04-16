@@ -599,10 +599,14 @@ name_ok:
 
 /*******************************************************************//**
 Create index field definition for key part */
-static
+static __attribute__((nonnull(2,3,4)))
 void
 innobase_create_index_field_def(
 /*============================*/
+	const TABLE*		altered_table,	/*!< in: MySQL table that is
+						being altered, or NULL
+						if a new clustered index is
+						not being created */
 	const KEY_PART_INFO*	key_part,	/*!< in: MySQL key definition */
 	mem_heap_t*		heap,		/*!< in: memory heap */
 	merge_index_field_t*	index_field)	/*!< out: index field
@@ -617,7 +621,9 @@ innobase_create_index_field_def(
 	ut_ad(key_part);
 	ut_ad(index_field);
 
-	field = key_part->field;
+	field = altered_table
+		? altered_table->field[key_part->fieldnr]
+		: key_part->field;
 	ut_a(field);
 
 	col_type = get_innobase_type_from_mysql_type(&is_unsigned, field);
@@ -641,10 +647,12 @@ innobase_create_index_field_def(
 
 /*******************************************************************//**
 Create index definition for key */
-static
+static __attribute__((nonnull))
 void
 innobase_create_index_def(
 /*======================*/
+	const TABLE*		altered_table,	/*!< in: MySQL table that is
+						being altered */
 	const KEY*		keys,		/*!< in: key definitions */
 	ulint			key_number,	/*!< in: MySQL key number */
 	bool			new_clustered,	/*!< in: true if generating
@@ -698,9 +706,14 @@ innobase_create_index_def(
 		index->ind_type |= DICT_FTS;
 	}
 
+	if (!new_clustered) {
+		altered_table = NULL;
+	}
+
 	for (i = 0; i < n_fields; i++) {
 		innobase_create_index_field_def(
-			&key->key_part[i], heap, &index->fields[i]);
+			altered_table, &key->key_part[i],
+			heap, &index->fields[i]);
 	}
 
 	DBUG_VOID_RETURN;
@@ -708,12 +721,16 @@ innobase_create_index_def(
 
 /*******************************************************************//**
 Check whether the table has the FTS_DOC_ID column
-@return TRUE if there exists the FTS_DOC_ID column */
+@return whether there exists an FTS_DOC_ID column */
 static
-ibool
+bool
 innobase_fts_check_doc_id_col(
 /*==========================*/
-	const dict_table_t*	table,	/*!< in: table with fulltext index */
+	const dict_table_t*	table,  /*!< in: InnoDB table with
+					fulltext index */
+	const TABLE*		altered_table,
+					/*!< in: MySQL table with
+					fulltext index */
 	ulint*			fts_doc_col_no)
 					/*!< out: The column number for
 					Doc ID, or ULINT_UNDEFINED
@@ -721,7 +738,34 @@ innobase_fts_check_doc_id_col(
 {
 	*fts_doc_col_no = ULINT_UNDEFINED;
 
-	for (ulint i = 0; i + DATA_N_SYS_COLS < (ulint) table->n_cols; i++) {
+	const uint n_cols = altered_table->s->fields;
+	uint i;
+
+	for (i = 0; i < n_cols; i++) {
+		const Field*	field = altered_table->s->field[i];
+
+		if (my_strcasecmp(system_charset_info,
+				  field->field_name, FTS_DOC_ID_COL_NAME)) {
+			continue;
+		}
+
+		if (strcmp(field->field_name, FTS_DOC_ID_COL_NAME)) {
+			my_error(ER_WRONG_COLUMN_NAME, MYF(0),
+				 field->field_name);
+		} else if (field->type() != MYSQL_TYPE_LONGLONG
+			   || field->pack_length() != 8
+			   || field->real_maybe_null()
+			   || !(field->flags & UNSIGNED_FLAG)) {
+			my_error(ER_INNODB_FT_WRONG_DOCID_COLUMN, MYF(0),
+				 field->field_name);
+		} else {
+			*fts_doc_col_no = i;
+		}
+
+		return(true);
+	}
+
+	for (; i + DATA_N_SYS_COLS < (uint) table->n_cols; i++) {
 		const char*     name = dict_table_get_col_name(table, i);
 
 		if (strcmp(name, FTS_DOC_ID_COL_NAME) == 0) {
@@ -729,31 +773,19 @@ innobase_fts_check_doc_id_col(
 
 			col = dict_table_get_nth_col(table, i);
 
-			if (col->mtype != DATA_INT || col->len != 8) {
-				fprintf(stderr,
-					" InnoDB: %s column in table %s"
-					" must be of the BIGINT datatype\n",
-					FTS_DOC_ID_COL_NAME, table->name);
-			} else if (!(col->prtype & DATA_NOT_NULL)) {
-				fprintf(stderr,
-					" InnoDB: %s column in table %s"
-					" must be NOT NULL\n",
-					FTS_DOC_ID_COL_NAME, table->name);
-
-			} else if (!(col->prtype & DATA_UNSIGNED)) {
-				fprintf(stderr,
-					" InnoDB: %s column in table %s"
-					" must be UNSIGNED\n",
-					FTS_DOC_ID_COL_NAME, table->name);
-			} else {
-				*fts_doc_col_no = i;
-			}
-
-			return(TRUE);
+			/* Because the FTS_DOC_ID does not exist in
+			the MySQL data dictionary, this must be the
+			internally created FTS_DOC_ID column. */
+			ut_ad(col->mtype == DATA_INT);
+			ut_ad(col->len == 8);
+			ut_ad(col->prtype & DATA_NOT_NULL);
+			ut_ad(col->prtype & DATA_UNSIGNED);
+			*fts_doc_col_no = i;
+			return(true);
 		}
 	}
 
-	return(FALSE);
+	return(false);
 }
 
 /*******************************************************************//**
@@ -897,6 +929,8 @@ innobase_create_key_defs(
 			definitions are allocated */
 	const Alter_inplace_info*	ha_alter_info,
 			/*!< in: alter operation */
+	const TABLE*		altered_table,
+			/*!< in: MySQL table that is being altered */
 	ulint&				n_add,
 			/*!< in/out: number of indexes to be created */
 	bool				got_default_clust,
@@ -989,8 +1023,8 @@ innobase_create_key_defs(
 
 		/* Create the PRIMARY key index definition */
 		innobase_create_index_def(
-			key_info, primary_key_number, TRUE, TRUE,
-			indexdef++, heap);
+			altered_table, key_info, primary_key_number,
+			TRUE, TRUE, indexdef++, heap);
 
 created_clustered:
 		n_add = 1;
@@ -1001,7 +1035,7 @@ created_clustered:
 			}
 			/* Copy the index definitions. */
 			innobase_create_index_def(
-				key_info, i, TRUE, FALSE,
+				altered_table, key_info, i, TRUE, FALSE,
 				indexdef++, heap);
 			n_add++;
 		}
@@ -1010,7 +1044,7 @@ created_clustered:
 
 		for (ulint i = 0; i < n_add; i++) {
 			innobase_create_index_def(
-				key_info, add[i], FALSE, FALSE,
+				altered_table, key_info, add[i], FALSE, FALSE,
 				indexdef++, heap);
 		}
 	}
@@ -1397,7 +1431,7 @@ prepare_inplace_alter_table_dict(
 	n_add_index = ha_alter_info->index_add_count;
 
 	index_defs = innobase_create_key_defs(
-		heap, ha_alter_info, n_add_index,
+		heap, ha_alter_info, altered_table, n_add_index,
 		row_table_got_default_clust_index(indexed_table),
 		add_fts_doc_id, add_fts_doc_id_idx);
 
@@ -1916,6 +1950,45 @@ err_exit_no_heap:
 		goto err_exit_no_heap;
 	}
 
+	/* Prohibit renaming a column to something that the table
+	already contains. */
+	if (ha_alter_info->handler_flags
+	    & Alter_inplace_info::ALTER_COLUMN_NAME) {
+		List_iterator_fast<Create_field> cf_it;
+
+		for (Field** fp = table->field; *fp; fp++) {
+			if (!((*fp)->flags & FIELD_IS_RENAMED)) {
+				continue;
+			}
+
+			const char* name = 0;
+
+			cf_it.init(ha_alter_info->alter_info
+				   ->create_list);
+			while (Create_field* cf = cf_it++) {
+				if (cf->field == *fp) {
+					name = cf->field_name;
+					goto check_if_ok_to_rename;
+				}
+			}
+
+			ut_error;
+check_if_ok_to_rename:
+			const char*	s = prebuilt->table->col_names;
+
+			for (unsigned i = 0; i < prebuilt->table->n_def; i++) {
+				if (!my_strcasecmp(
+					    system_charset_info, name, s)) {
+					my_error(ER_WRONG_COLUMN_NAME, MYF(0),
+						 s);
+					goto err_exit_no_heap;
+				}
+
+				s += strlen(s) + 1;
+			}
+		}
+	}
+
 	/* Check each index's column length to make sure they do not
 	exceed limit */
 	for (ulint i = 0; i < ha_alter_info->index_add_count; i++) {
@@ -2156,7 +2229,7 @@ err_exit:
 		ulint	fts_doc_col_no;
 
 		if (!innobase_fts_check_doc_id_col(
-			    prebuilt->table, &fts_doc_col_no)) {
+			    prebuilt->table, altered_table, &fts_doc_col_no)) {
 			add_fts_doc_id = true;
 			add_fts_doc_id_idx = true;
 
@@ -2167,8 +2240,6 @@ err_exit:
 				"InnoDB rebuilding table to add column "
 				FTS_DOC_ID_COL_NAME);
 		} else if (fts_doc_col_no == ULINT_UNDEFINED) {
-			my_error(ER_INNODB_FT_WRONG_DOCID_COLUMN, MYF(0),
-				 FTS_DOC_ID_COL_NAME);
 			goto err_exit;
 		} else if (!prebuilt->table->fts) {
 			prebuilt->table->fts = fts_create(prebuilt->table);
@@ -2734,7 +2805,7 @@ ha_innobase::commit_inplace_alter_table(
 		}
 	}
 
-	if (err == 0
+	if (err == 0 && !new_clustered
 	    && (ha_alter_info->handler_flags
 		& Alter_inplace_info::ALTER_COLUMN_NAME)) {
 		List_iterator_fast<Create_field> cf_it;
