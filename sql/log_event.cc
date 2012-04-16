@@ -9126,15 +9126,11 @@ Rows_log_event::decide_row_lookup_algorithm_and_key()
 TABLE_OR_INDEX_HASH_SCAN:
 
   /*
-     NOTE: Blackhole engine cannot use HASH_SCAN, because
-           we cannot iterate over the rows in that engine.
-
-     TODO: remove this DB_TYPE_BLACKHOLE_DB dependency, perhaps
-           adding a flag to the engines flag stating that this
-           engine does not allow scanning.
+     NOTE: Engines like Blackhole cannot use HASH_SCAN, because
+           they do not syncronize reads .
    */
   if (!(slave_rows_search_algorithms_options & SLAVE_ROWS_HASH_SCAN) ||
-      (table->s->db_type()->db_type == DB_TYPE_BLACKHOLE_DB))
+      (table->file->ha_table_flags() & HA_READ_OUT_OF_SYNC))
     goto TABLE_OR_INDEX_FULL_SCAN;
 
   /* search for a key to see if we can narrow the lookup domain further. */
@@ -9447,16 +9443,20 @@ Rows_log_event::next_record_scan(bool first_read)
        */
       error= table->file->ha_index_next(table->record[0]);
       if(m_rows_lookup_algorithm == ROW_LOOKUP_HASH_SCAN)
-      {
-        if ((error))
+        /*
+          if we are out of rows for this particular key value
+          or we have jumped to the next key value, we reposition the
+          marker according to the next key value that we have in the
+          list.
+         */
+        if ((error) ||
+            (key_cmp(keyinfo->key_part, m_key, keyinfo->key_length) != 0))
         {
-          m_key= m_itr++;
-          first_read= true;
+          if ((m_key= m_itr++))
+            first_read= true;
+          else
+            error= HA_ERR_KEY_NOT_FOUND;
         }
-        else
-          if (key_cmp(keyinfo->key_part, m_key, keyinfo->key_length) != 0)
-            m_key= m_itr++;
-      }
     }
 
     if (first_read)
