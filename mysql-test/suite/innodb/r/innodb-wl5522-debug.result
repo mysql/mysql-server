@@ -7,6 +7,15 @@ Warnings:
 Note	1008	Can't drop database 'test_wl5522'; database doesn't exist
 CREATE DATABASE test_wl5522;
 CREATE TABLE test_wl5522.t1 (c1 INT) ENGINE = Innodb;
+INSERT INTO test_wl5522.t1 VALUES (1);
+SET SESSION debug="+d,ib_export_io_write_failure";
+FLUSH TABLES test_wl5522.t1 WITH READ LOCK;
+Warnings:
+Warning	1807	InnoDB: I/O error (9), while writing table meta-data
+UNLOCK TABLES;
+SET SESSION debug="-d,ib_export_io_write_failure";
+DROP TABLE test_wl5522.t1;
+CREATE TABLE test_wl5522.t1 (c1 INT) ENGINE = Innodb;
 INSERT INTO test_wl5522.t1 VALUES (100), (200), (300);
 SELECT COUNT(*) FROM test_wl5522.t1;
 COUNT(*)
@@ -16,12 +25,23 @@ backup: t1
 UNLOCK TABLES;
 DROP TABLE test_wl5522.t1;
 CREATE TABLE test_wl5522.t1 (c1 INT) ENGINE = Innodb;
+INSERT INTO test_wl5522.t1 VALUES (1);
 ALTER TABLE test_wl5522.t1 DISCARD TABLESPACE;
 SELECT COUNT(*) FROM test_wl5522.t1;
 ERROR HY000: Tablespace has been discarded for table 'test_wl5522/t1'
-SET SESSION debug="+d,ib_import_reset_space_and_lsn_failure";
+SET SESSION debug="+d,ib_import_io_read_failure";
 ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
 ERROR HY000: InnoDB: Error opening: 't1.cfg' : No such file or directory
+SET SESSION debug="-d,ib_import_io_read_failure";
+DROP TABLE test_wl5522.t1;
+CREATE TABLE test_wl5522.t1 (c1 INT) ENGINE = Innodb;
+ALTER TABLE test_wl5522.t1 DISCARD TABLESPACE;
+SELECT COUNT(*) FROM test_wl5522.t1;
+ERROR HY000: Tablespace has been discarded for table 'test_wl5522/t1'
+restore: t1
+SET SESSION debug="+d,ib_import_reset_space_and_lsn_failure";
+ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
+ERROR HY000: InnoDB: Cannot reset LSN's in table '"test_wl5522"."t1"' : Too many concurrent transactions
 restore: t1
 SET SESSION debug="-d,ib_import_reset_space_and_lsn_failure";
 SET SESSION debug="+d,ib_import_open_tablespace_failure";

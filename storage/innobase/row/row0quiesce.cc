@@ -59,7 +59,7 @@ row_quiesce_write_index_fields(
 
 		if (fwrite(row, 1, sizeof(row), file) != sizeof(row)) {
 
-			ib_pushf(thd, IB_LOG_LEVEL_ERROR,
+			ib_pushf(thd, IB_LOG_LEVEL_WARN,
 				 ER_IO_WRITE_ERROR,
 				 "I/O error (%lu), while writing index fields.",
 				 (ulint) errno);
@@ -76,7 +76,7 @@ row_quiesce_write_index_fields(
 		if (fwrite(row, 1,  sizeof(len), file) != sizeof(len)
 		    || fwrite(field->name, 1, len, file) != len) {
 
-			ib_pushf(thd, IB_LOG_LEVEL_ERROR,
+			ib_pushf(thd, IB_LOG_LEVEL_WARN,
 				 ER_IO_WRITE_ERROR,
 				 "I/O error (%lu), while writing index column "
 				 "name.", (ulint) errno);
@@ -107,7 +107,7 @@ row_quiesce_write_indexes(
 		mach_write_to_4(row, UT_LIST_GET_LEN(table->indexes));
 
 		if (fwrite(row, 1,  sizeof(row), file) != sizeof(row)) {
-			ib_pushf(thd, IB_LOG_LEVEL_ERROR,
+			ib_pushf(thd, IB_LOG_LEVEL_WARN,
 				 ER_IO_WRITE_ERROR,
 				 "I/O error (%lu), while writing index count.",
 				 (ulint) errno);
@@ -153,7 +153,7 @@ row_quiesce_write_indexes(
 
 		if (fwrite(row, 1, sizeof(row), file) != sizeof(row)) {
 
-			ib_pushf(thd, IB_LOG_LEVEL_ERROR,
+			ib_pushf(thd, IB_LOG_LEVEL_WARN,
 				 ER_IO_WRITE_ERROR,
 				 "I/O error (%lu), while writing index "
 				 "meta-data", (ulint) errno);
@@ -171,7 +171,7 @@ row_quiesce_write_indexes(
 		if (fwrite(row, 1, sizeof(len), file) != sizeof(len)
 		    || fwrite(index->name, 1, len, file) != len) {
 
-			ib_pushf(thd, IB_LOG_LEVEL_ERROR,
+			ib_pushf(thd, IB_LOG_LEVEL_WARN,
 				 ER_IO_WRITE_ERROR,
 				 "I/O error (%lu), while writing index "
 				 "name", (ulint) errno);
@@ -228,7 +228,7 @@ row_quiesce_write_table(
 		mach_write_to_4(ptr, col->max_prefix);
 
 		if (fwrite(row, 1,  sizeof(row), file) != sizeof(row)) {
-			ib_pushf(thd, IB_LOG_LEVEL_ERROR,
+			ib_pushf(thd, IB_LOG_LEVEL_WARN,
 				 ER_IO_WRITE_ERROR,
 				 "I/O error (%lu), while writing table column "
 				 "data.", (ulint) errno);
@@ -252,7 +252,7 @@ row_quiesce_write_table(
 		if (fwrite(row, 1,  sizeof(len), file) != sizeof(len)
 		    || fwrite(col_name, 1, len, file) != len) {
 
-			ib_pushf(thd, IB_LOG_LEVEL_ERROR,
+			ib_pushf(thd, IB_LOG_LEVEL_WARN,
 				 ER_IO_WRITE_ERROR,
 				 "I/O error (%lu), while writing column name",
 				 (ulint) errno);
@@ -282,7 +282,7 @@ row_quiesce_write_header(
 	mach_write_to_4(value, IB_EXPORT_CFG_VERSION_V1);
 
 	if (fwrite(&value, 1,  sizeof(value), file) != sizeof(value)) {
-		ib_pushf(thd, IB_LOG_LEVEL_ERROR, ER_IO_WRITE_ERROR,
+		ib_pushf(thd, IB_LOG_LEVEL_WARN, ER_IO_WRITE_ERROR,
 			"I/O error (%lu), while writing meta-data "
 			"version number.", (ulint) errno);
 
@@ -310,7 +310,7 @@ row_quiesce_write_header(
 	if (fwrite(&value, 1,  sizeof(value), file) != sizeof(value)
 	    || fwrite(hostname, 1,  len, file) != len) {
 
-		ib_pushf(thd, IB_LOG_LEVEL_ERROR, ER_IO_WRITE_ERROR,
+		ib_pushf(thd, IB_LOG_LEVEL_WARN, ER_IO_WRITE_ERROR,
 			"I/O error (%lu), while writing hostname.",
 			(ulint) errno);
 
@@ -327,7 +327,7 @@ row_quiesce_write_header(
 	if (fwrite(&value, 1,  sizeof(value), file) != sizeof(value)
 	    || fwrite(table->name, 1,  len, file) != len) {
 
-		ib_pushf(thd, IB_LOG_LEVEL_ERROR, ER_IO_WRITE_ERROR,
+		ib_pushf(thd, IB_LOG_LEVEL_WARN, ER_IO_WRITE_ERROR,
 			"I/O error (%lu), while writing table name.",
 			(ulint) errno);
 
@@ -340,7 +340,7 @@ row_quiesce_write_header(
 	mach_write_to_8(row, table->autoinc);
 
 	if (fwrite(row, 1,  sizeof(ib_uint64_t), file) != sizeof(ib_uint64_t)) {
-		ib_pushf(thd, IB_LOG_LEVEL_ERROR, ER_IO_WRITE_ERROR,
+		ib_pushf(thd, IB_LOG_LEVEL_WARN, ER_IO_WRITE_ERROR,
 			"I/O error (%lu), while writing table autoinc value",
 			(ulint) errno);
 
@@ -360,8 +360,10 @@ row_quiesce_write_header(
 	/* Write the number of columns in the table. */
 	mach_write_to_4(ptr, table->n_cols);
 
+	DBUG_EXECUTE_IF("ib_export_io_write_failure", fclose(file););
+
 	if (fwrite(row, 1,  sizeof(row), file) != sizeof(row)) {
-		ib_pushf(thd, IB_LOG_LEVEL_ERROR, ER_IO_WRITE_ERROR,
+		ib_pushf(thd, IB_LOG_LEVEL_WARN, ER_IO_WRITE_ERROR,
 			"I/O error (%lu), while writing table meta-data",
 			(ulint) errno);
 
@@ -392,7 +394,7 @@ row_quiesce_write_cfg(
 	FILE*	file = fopen(name, "w+b");
 
 	if (file == NULL) {
-		ib_pushf(thd, IB_LOG_LEVEL_ERROR, ER_CANT_CREATE_FILE,
+		ib_pushf(thd, IB_LOG_LEVEL_WARN, ER_CANT_CREATE_FILE,
 			 "Can't create '%s' : errno %lu", name, (ulong) errno);
 
 		err = DB_IO_ERROR;
@@ -408,7 +410,7 @@ row_quiesce_write_cfg(
 		}
 
 		if (fflush(file) != 0) {
-			ib_logf(IB_LOG_LEVEL_ERROR, "fflush(%s) failed: %s",
+			ib_logf(IB_LOG_LEVEL_WARN, "fflush(%s) failed: %s",
 				name, strerror(errno));
 		}
 
@@ -467,7 +469,7 @@ row_quiesce_table_start(
 		} else if (row_quiesce_write_cfg(table, trx->mysql_thd)
 			   != DB_SUCCESS) {
 
-			ib_logf(IB_LOG_LEVEL_ERROR,
+			ib_logf(IB_LOG_LEVEL_WARN,
 				"There was an error writing to the "
 				"meta data file");
 		} else {
