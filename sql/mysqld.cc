@@ -5158,10 +5158,9 @@ int mysqld_main(int argc, char **argv)
   /*
     init_slave() must be called after the thread keys are created.
   */
-  if (server_id != 0 && init_slave() && active_mi == NULL)
-  if (init_slave())
+  if (server_id != 0 && init_slave())
   {
-    // close_active_mi(); TODO: activate when done merging
+    close_active_mi();
     unireg_abort(1);
   }
 
