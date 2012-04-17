@@ -1375,7 +1375,7 @@ row_import_read_meta_data(
 	*cfg = 0;
 
 	if (fread(&row, 1, sizeof(row), file) != sizeof(row)) {
-		ib_pushf(thd, IB_LOG_LEVEL_WARN, ER_IO_READ_ERROR,
+		ib_pushf(thd, IB_LOG_LEVEL_ERROR, ER_IO_READ_ERROR,
 			"I/O error (%lu) while reading meta-data version",
 			(ulint) errno);
 
@@ -1427,7 +1427,7 @@ row_import_read_cfg(
 	FILE*	file = fopen(name, "rb");
 
 	if (file == NULL) {
-		ib_pushf(thd, IB_LOG_LEVEL_ERROR, ER_INDEX_CORRUPT,
+		ib_pushf(thd, IB_LOG_LEVEL_ERROR, ER_IO_READ_ERROR,
 			 "Error opening: '%s' : %s", name, strerror(errno));
 		err = DB_IO_ERROR;
 	} else {
