@@ -3555,19 +3555,6 @@ static int construct_options(MEM_ROOT *mem_root, struct st_plugin_int *tmp,
                             opt->name, plugin_name);
         }
       }
-      /*
-        PLUGIN_VAR_STR command-line options without PLUGIN_VAR_MEMALLOC, point
-        directly to values in the argv[] array. For plugins started at the
-        server startup, argv[] array is allocated with load_defaults(), and
-        freed when the server is shut down.  But for plugins loaded with
-        INSTALL PLUGIN, the memory allocated with load_defaults() is freed with
-        freed() at the end of mysql_install_plugin(). Which means we cannot
-        allow any pointers into that area.
-        Thus, for all plugins loaded after the server was started,
-        we force all command-line options to be PLUGIN_VAR_MEMALLOC
-      */
-      if (mysqld_server_started && !(opt->flags & PLUGIN_VAR_NOCMDOPT))
-        opt->flags|= PLUGIN_VAR_MEMALLOC;
       break;
     case PLUGIN_VAR_ENUM:
       if (!opt->check)
@@ -3795,8 +3782,29 @@ static int test_plugin_options(MEM_ROOT *tmp_root, struct st_plugin_int *tmp,
   error= 1;
   for (opt= tmp->plugin->system_vars; opt && *opt; opt++)
   {
-    st_mysql_sys_var *o;
-    if (((o= *opt)->flags & PLUGIN_VAR_NOSYSVAR))
+    st_mysql_sys_var *o= *opt;
+
+    /*
+      PLUGIN_VAR_STR command-line options without PLUGIN_VAR_MEMALLOC, point
+      directly to values in the argv[] array. For plugins started at the
+      server startup, argv[] array is allocated with load_defaults(), and
+      freed when the server is shut down.  But for plugins loaded with
+      INSTALL PLUGIN, the memory allocated with load_defaults() is freed with
+      freed() at the end of mysql_install_plugin(). Which means we cannot
+      allow any pointers into that area.
+      Thus, for all plugins loaded after the server was started,
+      we copy string values to a plugin's memroot.
+    */
+    if (mysqld_server_started &&
+        ((o->flags & (PLUGIN_VAR_STR | PLUGIN_VAR_NOCMDOPT |
+                       PLUGIN_VAR_MEMALLOC)) == PLUGIN_VAR_STR))
+    {
+      sysvar_str_t* str= (sysvar_str_t *)o;
+      if (*str->value)
+        *str->value= strdup_root(mem_root, *str->value);
+    }
+
+    if (o->flags & PLUGIN_VAR_NOSYSVAR)
       continue;
     if ((var= find_bookmark(plugin_name.str, o->name, o->flags)))
       v= new (mem_root) sys_var_pluginvar(&chain, var->key + 1, o);
