@@ -31,18 +31,18 @@
  4	4
  show status like "Handler_icp%";
  Variable_name	Value
--Handler_icp_attempts 	2
+-Handler_icp_attempts	2
 -Handler_icp_match	1
-+Handler_icp_attempts 	0
++Handler_icp_attempts	0
 +Handler_icp_match	0
  SELECT * FROM t1 WHERE (c2='3' or c2='4') and c2 % 2 = 0 ;
  c1	c2
  4	4
  show status like "Handler_icp%";
  Variable_name	Value
--Handler_icp_attempts 	2
+-Handler_icp_attempts	2
 -Handler_icp_match	1
-+Handler_icp_attempts 	0
++Handler_icp_attempts	0
 +Handler_icp_match	0
  DROP TABLE t1;
  #

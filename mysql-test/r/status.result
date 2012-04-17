@@ -275,7 +275,7 @@ Variable_name	Value
 Handler_commit	0
 Handler_delete	0
 Handler_discover	0
-Handler_icp_attempts 	0
+Handler_icp_attempts	0
 Handler_icp_match	0
 Handler_mrr_init	0
 Handler_mrr_key_refills	0
@@ -316,7 +316,7 @@ Variable_name	Value
 Handler_commit	0
 Handler_delete	0
 Handler_discover	0
-Handler_icp_attempts 	0
+Handler_icp_attempts	0
 Handler_icp_match	0
 Handler_mrr_init	0
 Handler_mrr_key_refills	0

@@ -3522,7 +3522,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t2	ref	f1	f1	4	test.t1.f1	3	Using index condition(BKA); Using join buffer (flat, BKA join); Key-ordered Rowid-ordered scan
 show status like "Handler_icp%";
 Variable_name	Value
-Handler_icp_attempts 	20
+Handler_icp_attempts	20
 Handler_icp_match	4
 set join_cache_level=6;
 select t2.f1, t2.f2, t2.f3 from t1,t2
@@ -3539,7 +3539,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t2	ref	f1	f1	4	test.t1.f1	3	Using index condition(BKA); Using join buffer (flat, BKA join); Key-ordered Rowid-ordered scan
 show status like "Handler_icp%";
 Variable_name	Value
-Handler_icp_attempts 	40
+Handler_icp_attempts	40
 Handler_icp_match	8
 set join_cache_level=7;
 select t2.f1, t2.f2, t2.f3 from t1,t2
@@ -3556,7 +3556,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t2	ref	f1	f1	4	test.t1.f1	3	Using index condition(BKA); Using where; Using join buffer (flat, BKAH join); Key-ordered Rowid-ordered scan
 show status like "Handler_icp%";
 Variable_name	Value
-Handler_icp_attempts 	60
+Handler_icp_attempts	60
 Handler_icp_match	12
 set join_cache_level=8;
 select t2.f1, t2.f2, t2.f3 from t1,t2
@@ -3573,7 +3573,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t2	ref	f1	f1	4	test.t1.f1	3	Using index condition(BKA); Using where; Using join buffer (flat, BKAH join); Key-ordered Rowid-ordered scan
 show status like "Handler_icp%";
 Variable_name	Value
-Handler_icp_attempts 	80
+Handler_icp_attempts	80
 Handler_icp_match	16
 drop table t1,t2;
 set join_cache_level=default;
