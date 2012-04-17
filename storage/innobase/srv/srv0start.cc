@@ -2751,9 +2751,12 @@ srv_get_meta_data_filename(
 	ut_ad(strncmp(path + (len - suffix_len), ".ibd", suffix_len) == 0);
 
 	strncpy(filename, path, len - suffix_len);
-	strcpy(path + (len - suffix_len), ".cfg");
 
 	mem_free(path);
+
+	filename += len - suffix_len;
+
+	strcpy(filename, ".cfg");
 
 	srv_normalize_path_for_win(filename);
 }
