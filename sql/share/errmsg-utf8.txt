@@ -6778,7 +6778,7 @@ ER_TABLESPACE_DISCARDED
   eng "Tablespace has been discarded for table '%-.192s'"
 
 ER_INTERNAL_ERROR
-  eng "Internal error"
+  eng "Internal error : %s"
 
 #
 #  End of 5.6 error messages.

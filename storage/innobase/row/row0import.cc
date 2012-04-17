@@ -1886,19 +1886,30 @@ row_import_update_index_root(
 
 		que_run_threads(thr);
 
+		DBUG_EXECUTE_IF("ib_import_internal_error",
+				trx->error_state = DB_ERROR;);
+
 		err = trx->error_state;
 
 		if (err != DB_SUCCESS) {
-			char index_name[MAX_FULL_NAME_LEN + 1];
+			const char*	err_msg;
+			char		format[BUFSIZ];
+			char		index_name[MAX_FULL_NAME_LEN + 1];
 
 			innobase_format_name(
 				index_name, sizeof(index_name),
 				index->name, TRUE);
 
+			err_msg = innobase_get_err_msg(ER_INTERNAL_ERROR);
+
+			ut_snprintf(format, sizeof(format),
+				    "%s %s", err_msg, "%s - %s");
+
 			ib_pushf(trx->mysql_thd, IB_LOG_LEVEL_ERROR,
 				 ER_INTERNAL_ERROR,
-				 "While updating the <space, root page number> "
-				 "of index %s - %s",
+				 format,
+				 "While updating the <space, root page "
+				 "number> of index",
 				 index_name, ut_strerr(err));
 
 			break;
