@@ -997,6 +997,8 @@ row_import_read_index_data(
 		/* Read the index data. */
 		size_t	n_bytes = fread(row, 1, sizeof(row), file);
 
+		DBUG_EXECUTE_IF("ib_import_io_read_error", fclose(file););
+
 		if (n_bytes != sizeof(row)) {
 			ib_pushf(thd, IB_LOG_LEVEL_ERROR, ER_IO_READ_ERROR,
 				"I/O error (%lu) while reading index "
