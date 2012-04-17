@@ -4536,11 +4536,13 @@ table_opened:
 
 	if (dict_table_is_discarded(ib_table)) {
 
-		ib_pushf(thd,
-			 IB_LOG_LEVEL_WARN, ER_TABLESPACE_DISCARDED,
-			 "The table %s doesn't have a corresponding "
-			 "tablespace, it was discarded.",
-			 norm_name);
+		const char*	err_msg;
+
+		err_msg = innobase_get_err_msg(ER_TABLESPACE_DISCARDED);
+
+		ib_errf(thd,
+			IB_LOG_LEVEL_WARN, ER_TABLESPACE_DISCARDED,
+			err_msg, norm_name);
 
 		/* Allow an open because a proper DISCARD should have set
 		all the flags and index root page numbers to FIL_NULL that
@@ -4551,12 +4553,13 @@ table_opened:
 
 	} else if (ib_table->ibd_file_missing) {
 
-		ib_pushf(thd,
-			 IB_LOG_LEVEL_WARN, ER_TABLESPACE_MISSING,
-			 "The table '%s' doesn't have a corresponding "
-			 "tablespace, the .ibd file is missing. See " REFMAN
-			 "innodb-troubleshooting.html for help",
-			 norm_name);
+		const char*	err_msg;
+
+		err_msg = innobase_get_err_msg(ER_TABLESPACE_MISSING);
+
+		ib_errf(thd,
+			IB_LOG_LEVEL_WARN, ER_TABLESPACE_MISSING,
+			err_msg, norm_name);
 
 		/* This means we have no idea what happened to the tablespace
 		file, best to play it safe. */
@@ -9275,12 +9278,13 @@ ha_innobase::discard_or_import_tablespace(
 		a new tablespace. */
 
 		if (dict_table->ibd_file_missing) {
-			ib_pushf(prebuilt->trx->mysql_thd,
-				 IB_LOG_LEVEL_WARN, ER_TABLESPACE_MISSING,
-				 "The table '%s' doesn't have a corresponding "
-				 "tablespace, the .ibd file is missing. See "
-				 REFMAN "innodb-troubleshooting.html for help",
-				 dict_table->name);
+			const char*	err_msg;
+
+			err_msg = innobase_get_err_msg(ER_TABLESPACE_MISSING);
+
+			ib_errf(prebuilt->trx->mysql_thd,
+				IB_LOG_LEVEL_WARN, ER_TABLESPACE_MISSING,
+				err_msg, dict_table->name);
 		}
 
 		err = row_discard_tablespace_for_mysql(
@@ -15524,7 +15528,88 @@ ib_pushf(
 	/* If the caller wants to push a message to the client then
 	the caller must pass a valid session handle. */
 
-	ut_a(thd != NULL);
+	ut_a(thd != 0);
+
+	va_start(args, format);
+
+#ifdef __WIN__
+	int		size = _vscprintf(format, args) + 1;
+	str = static_cast<char*>(malloc(size));
+	str[size - 1] = 0x0;
+	vsnprintf(str, size, format, args);
+#elif HAVE_VASPRINTF
+	(void) vasprintf(&str, format, args);
+#else
+	/* Use a fixed length string. */
+	str = static_cast<char*>(malloc(BUFSIZ));
+	my_vsnprintf(str, BUFSIZ, format, args);
+#endif /* __WIN__ */
+
+	Sql_condition::enum_warning_level	l;
+
+	l = Sql_condition::WARN_LEVEL_NOTE;
+
+	switch(level) {
+	case IB_LOG_LEVEL_INFO:
+		break;
+	case IB_LOG_LEVEL_WARN:
+		l = Sql_condition::WARN_LEVEL_WARN;
+		break;
+	case IB_LOG_LEVEL_ERROR: {
+		const char*	err_msg = innobase_get_err_msg(code);
+
+		ut_a(err_msg != 0);
+
+		/* Set l, to avoid a compiler warning. */
+		l = Sql_condition::WARN_LEVEL_ERROR;
+
+		/* We can't use push_warning_printf(), it is a hard error. */
+		my_printf_error(
+			code, "InnoDB: %s - %s", MYF(0), err_msg, str);
+		break;
+	}
+	case IB_LOG_LEVEL_FATAL:
+		l = Sql_condition::WARN_LEVEL_END;
+		break;
+	}
+
+	if (level != IB_LOG_LEVEL_ERROR) {
+		push_warning_printf((THD*) thd, l, code, "InnoDB: %s", str);
+	}
+
+	va_end(args);
+	free(str);
+
+	if (level == IB_LOG_LEVEL_FATAL) {
+		ut_error;
+	}
+}
+
+/******************************************************************//**
+Use this when the format string is from errmsg-utf8.txt.
+Push a warning message to the client, it is a wrapper around:
+
+void push_warning_printf(
+	THD *thd, Sql_condition::enum_warning_level level,
+	uint code, const char *format, ...);
+*/
+UNIV_INTERN
+void
+ib_errf(
+/*====*/
+	THD*		thd,		/*!< in/out: session */
+	ib_log_level_t	level,		/*!< in: warning level */
+	ib_uint32_t	code,		/*!< MySQL error code */
+	const char*	format,		/*!< printf format */
+	...)				/*!< Args */
+{
+	char*		str;
+	va_list         args;
+
+	/* If the caller wants to push a message to the client then
+	the caller must pass a valid session handle. */
+
+	ut_a(thd != 0);
 
 	va_start(args, format);
 
@@ -15573,7 +15658,6 @@ ib_pushf(
 		ut_error;
 	}
 }
-
 /******************************************************************//**
 Write a message to the MySQL log, prefixed with "InnoDB: " */
 UNIV_INTERN

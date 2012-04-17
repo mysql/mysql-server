@@ -468,6 +468,25 @@ ib_pushf(
 	__attribute__((format(printf, 4, 5)));
 
 /******************************************************************//**
+Use this when the format string is from errmsg-utf8.txt.
+Push a warning message to the client, it is a wrapper around:
+
+void push_warning_printf(
+	THD *thd, Sql_condition::enum_warning_level level,
+	uint code, const char *format, ...);
+*/
+UNIV_INTERN
+void
+ib_errf(
+/*====*/
+	THD*		thd,		/*!< in/out: session */
+	ib_log_level_t	level,		/*!< in: warning level */
+	ib_uint32_t	code,		/*!< MySQL error code */
+	const char*	format,		/*!< printf format */
+	...)				/*!< Args */
+	__attribute__((format(printf, 4, 5)));
+
+/******************************************************************//**
 Write a message to the MySQL log, prefixed with "InnoDB: ".
 Wrapper around sql_print_information() */
 UNIV_INTERN

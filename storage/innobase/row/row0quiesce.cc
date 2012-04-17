@@ -562,8 +562,8 @@ row_quiesce_set_state(
 		ib_pushf(trx->mysql_thd,
 			 IB_LOG_LEVEL_WARN,
 			 ER_TABLE_IN_SYSTEM_TABLESPACE,
-			"Can't quiesce table '%s', it is in the system "
-			"tablespace", table->name);
+			 "Can't quiesce table '%s', it is in the system "
+			 "tablespace", table->name);
 
 		return(DB_UNSUPPORTED);
 	}
