@@ -1229,48 +1229,6 @@ no_match:
 #endif
 
 /********************************************************************//**
-This is to create FTS_DOC_ID_INDEX definition on the newly added Doc ID for
-the FTS indexes table
-@return	dict_index_t for the FTS_DOC_ID_INDEX */
-dict_index_t*
-innobase_create_fts_doc_id_idx(
-/*===========================*/
-	dict_table_t*	indexed_table,	/*!< in: Table where indexes are
-					created */
-	trx_t*		trx,		/*!< in: Transaction */
-	bool		new_clustered,	/*!< in: true if creating a
-					clustered index */
-	mem_heap_t*     heap)		/*!< Heap for index definitions */
-{
-	dict_index_t*		index;
-	merge_index_def_t	fts_index_def;
-	char*			index_name;
-
-	/* Create the temp index name for FTS_DOC_ID_INDEX */
-	fts_index_def.name = index_name = static_cast<char*>(
-		mem_heap_alloc(
-			heap, FTS_DOC_ID_INDEX_NAME_LEN + 1 + !new_clustered));
-	if (!new_clustered) {
-		*index_name++ = TEMP_INDEX_PREFIX;
-	}
-	memcpy(index_name, FTS_DOC_ID_INDEX_NAME,
-	       FTS_DOC_ID_INDEX_NAME_LEN);
-	index_name[FTS_DOC_ID_INDEX_NAME_LEN] = 0;
-
-	/* Only the Doc ID will be indexed */
-	fts_index_def.n_fields = 1;
-	fts_index_def.ind_type = DICT_UNIQUE;
-	fts_index_def.fields = static_cast<merge_index_field_t*>(
-		mem_heap_alloc(heap, sizeof *fts_index_def.fields));
-	fts_index_def.fields[0].prefix_len = 0;
-	fts_index_def.fields[0].field_name = mem_heap_strdup(
-		heap, FTS_DOC_ID_COL_NAME);
-
-	index = row_merge_create_index(trx, indexed_table, &fts_index_def);
-	return(index);
-}
-
-/********************************************************************//**
 Drop any indexes that we were not able to free previously due to
 open table handles. */
 static
