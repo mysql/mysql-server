@@ -1179,6 +1179,10 @@ static void plugin_deinitialize(struct st_plugin_int *plugin, bool ref_check)
   }
   plugin->state= PLUGIN_IS_UNINITIALIZED;
 
+  /* maintain the obsolete @@have_innodb variable */
+  if (!my_strcasecmp(&my_charset_latin1, plugin->name.str, "InnoDB"))
+    have_innodb= SHOW_OPTION_DISABLED;
+
   /*
     We do the check here because NDB has a worker THD which doesn't
     exit until NDB is shut down.
