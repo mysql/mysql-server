@@ -1,0 +1,6 @@
+create table t1 (f1 integer primary key) engine innodb;
+alter table t1 add constraint c1 foreign key (f1) references t1(f1);
+ERROR HY000: Error on rename of '#sql-temporary' to './test/t1' (errno: 150)
+InnoDB: which are not compatible with the new table definition.
+InnoDB: has or is referenced in foreign key constraints
+drop table t1;
