@@ -3286,7 +3286,7 @@ fseg_page_is_free(
 
 	seg_inode = fseg_inode_get(seg_header, space, zip_size, &mtr);
 
-	ut_ad(seg_inode);
+	ut_a(seg_inode);
 	ut_ad(mach_read_from_4(seg_inode + FSEG_MAGIC_N)
 	      == FSEG_MAGIC_N_VALUE);
 	ut_ad(!((page_offset(seg_inode) - FSEG_ARR_OFFSET) % FSEG_INODE_SIZE));
