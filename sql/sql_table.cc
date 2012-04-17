@@ -246,10 +246,17 @@ uint explain_filename(THD* thd,
       {
         part_name_len= tmp_p - part_name - 1;
         subpart_name= tmp_p + 3;
+	tmp_p+= 3;
+      }
+      else if ((tmp_p[1] == 'Q' || tmp_p[1] == 'q') &&
+               (tmp_p[2] == 'L' || tmp_p[2] == 'l') &&
+                tmp_p[3] == '-')
+      {
+        name_type= TEMP;
+        tmp_p+= 4; /* sql- prefix found */
       }
       else
         res= 2;
-      tmp_p+= 3;
       break;
     case 'T':
     case 't':
@@ -6718,20 +6725,46 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
     (void) quick_rm_table(new_db_type, new_db, tmp_name, FN_IS_TMP);
   }
   else if (mysql_rename_table(new_db_type, new_db, tmp_name, new_db,
-                              new_alias, FN_FROM_IS_TMP) ||
-           ((new_name != table_name || new_db != db) && // we also do rename
-           (need_copy_table != ALTER_TABLE_METADATA_ONLY ||
-            mysql_rename_table(save_old_db_type, db, table_name, new_db,
-                               new_alias, NO_FRM_RENAME)) &&
-           Table_triggers_list::change_table_name(thd, db, alias, table_name,
-                                                  new_db, new_alias)))
+                              new_alias, FN_FROM_IS_TMP))
   {
     /* Try to get everything back. */
-    error=1;
-    (void) quick_rm_table(new_db_type,new_db,new_alias, 0);
+    error= 1;
     (void) quick_rm_table(new_db_type, new_db, tmp_name, FN_IS_TMP);
     (void) mysql_rename_table(old_db_type, db, old_name, db, alias,
                             FN_FROM_IS_TMP);
+  }
+  else if (new_name != table_name || new_db != db)
+  {
+    if (need_copy_table == ALTER_TABLE_METADATA_ONLY &&
+        mysql_rename_table(save_old_db_type, db, table_name, new_db,
+                           new_alias, NO_FRM_RENAME))
+    {
+      /* Try to get everything back. */
+      error= 1;
+      (void) quick_rm_table(new_db_type, new_db, new_alias, 0);
+      (void) mysql_rename_table(old_db_type, db, old_name, db, alias,
+                                FN_FROM_IS_TMP);
+    }
+    else if (Table_triggers_list::change_table_name(thd, db, alias, 
+                                                    table_name, new_db, 
+                                                    new_alias))
+    {
+      /* Try to get everything back. */
+      error= 1;
+      (void) quick_rm_table(new_db_type, new_db, new_alias, 0);
+      (void) mysql_rename_table(old_db_type, db, old_name, db,
+                                alias, FN_FROM_IS_TMP);
+      /*
+        If we were performing "fast"/in-place ALTER TABLE we also need
+        to restore old name of table in storage engine as a separate
+        step, as the above rename affects .FRM only.
+      */
+      if (need_copy_table == ALTER_TABLE_METADATA_ONLY)
+      {
+        (void) mysql_rename_table(save_old_db_type, new_db, new_alias,
+                                  db, table_name, NO_FRM_RENAME); 
+      }
+    }
   }
 
   if (! error)
