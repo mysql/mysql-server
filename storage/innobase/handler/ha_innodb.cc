@@ -1440,6 +1440,18 @@ innobase_mysql_print_thd(
 }
 
 /******************************************************************//**
+Get the error message format string.
+@return the format string or 0 if not found. */
+UNIV_INTERN
+const char*
+innobase_get_err_msg(
+/*=================*/
+	int	error_code)	/*!< in: MySQL error code */
+{
+	return(my_get_err_msg(error_code));
+}
+
+/******************************************************************//**
 Get the variable length bounds of the given character set. */
 UNIV_INTERN
 void

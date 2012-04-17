@@ -487,4 +487,13 @@ const char*
 server_get_hostname();
 /*=================*/
 
+/******************************************************************//**
+Get the error message format string.
+@return the format string or 0 if not found. */
+UNIV_INTERN
+const char*
+innobase_get_err_msg(
+/*=================*/
+	int	error_code);	/*!< in: MySQL error code */
+
 #endif /* HA_INNODB_PROTOTYPES_H */
