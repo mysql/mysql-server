@@ -7190,6 +7190,16 @@ ha_innobase::index_read(
 		error = HA_ERR_KEY_NOT_FOUND;
 		table->status = STATUS_NOT_FOUND;
 		break;
+	case DB_TABLESPACE_DELETED:
+		my_error(ER_TABLESPACE_DISCARDED, MYF(0), index->table->name);
+		table->status = STATUS_NOT_FOUND;
+		error = HA_ERR_NO_SUCH_TABLE;
+		break;
+	case DB_TABLESPACE_NOT_FOUND:
+		my_error(ER_TABLESPACE_MISSING, MYF(0), index->table->name);
+		table->status = STATUS_NOT_FOUND;
+		error = HA_ERR_NO_SUCH_TABLE;
+		break;
 	default:
 		error = convert_error_code_to_mysql(ret,
 						    prebuilt->table->flags,
@@ -7420,6 +7430,18 @@ ha_innobase::general_fetch(
 	case DB_END_OF_INDEX:
 		error = HA_ERR_END_OF_FILE;
 		table->status = STATUS_NOT_FOUND;
+		break;
+	case DB_TABLESPACE_DELETED:
+		my_error(ER_TABLESPACE_DISCARDED, MYF(0),
+			 prebuilt->table->name);
+		table->status = STATUS_NOT_FOUND;
+		error = HA_ERR_NO_SUCH_TABLE;
+		break;
+	case DB_TABLESPACE_NOT_FOUND:
+		my_error(ER_TABLESPACE_MISSING, MYF(0),
+			 prebuilt->table->name);
+		table->status = STATUS_NOT_FOUND;
+		error = HA_ERR_NO_SUCH_TABLE;
 		break;
 	default:
 		error = convert_error_code_to_mysql(
@@ -7866,6 +7888,18 @@ next_record:
 		case DB_END_OF_INDEX:
 			error = HA_ERR_END_OF_FILE;
 			table->status = STATUS_NOT_FOUND;
+			break;
+		case DB_TABLESPACE_DELETED:
+			my_error(ER_TABLESPACE_DISCARDED,
+				 MYF(0), index->table->name);
+			table->status = STATUS_NOT_FOUND;
+			error = HA_ERR_NO_SUCH_TABLE;
+			break;
+		case DB_TABLESPACE_NOT_FOUND:
+			my_error(ER_TABLESPACE_MISSING,
+				 MYF(0), index->table->name);
+			table->status = STATUS_NOT_FOUND;
+			error = HA_ERR_NO_SUCH_TABLE;
 			break;
 		default:
 			error = convert_error_code_to_mysql(

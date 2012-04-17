@@ -43,7 +43,7 @@ do 'include/innodb-util.inc';
 ib_discard_tablespaces("test_wl5522", "t1");
 EOF
 
---error ER_GET_ERRNO
+--error ER_TABLESPACE_DISCARDED
 SELECT COUNT(*) FROM test_wl5522.t1;
 
 # Test failure after reset of space id and LSN in the tablespace
@@ -153,7 +153,7 @@ EOF
 ##### Before commit crash
 SET SESSION debug="+d,ib_import_before_commit_crash";
 
---error ER_GET_ERRNO
+--error ER_TABLESPACE_DISCARDED
 SELECT * FROM test_wl5522.t1;
 
 # Write file to make mysql-test-run.pl start up the server again
@@ -175,7 +175,7 @@ SET SESSION debug="-d,ib_import_before_commit_crash";
 ##### Before checkpoint crash
 SET SESSION debug="+d,ib_import_before_checkpoint_crash";
 
---error ER_GET_ERRNO
+--error ER_TABLESPACE_DISCARDED
 SELECT COUNT(*) FROM test_wl5522.t1;
 
 # Write file to make mysql-test-run.pl start up the server again
