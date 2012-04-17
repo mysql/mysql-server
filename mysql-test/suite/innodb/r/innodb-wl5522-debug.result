@@ -39,6 +39,18 @@ ALTER TABLE test_wl5522.t1 DISCARD TABLESPACE;
 SELECT COUNT(*) FROM test_wl5522.t1;
 ERROR HY000: Tablespace has been discarded for table 'test_wl5522/t1'
 restore: t1
+SET SESSION debug="+d,ib_import_internal_error";
+ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
+ERROR HY000: InnoDB: Internal error : While updating the <space, root page number> of index "GEN_CLUST_INDEX" - Generic error
+SET SESSION debug="-d,ib_import_internal_error";
+restore: t1
+ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
+DROP TABLE test_wl5522.t1;
+CREATE TABLE test_wl5522.t1 (c1 INT) ENGINE = Innodb;
+ALTER TABLE test_wl5522.t1 DISCARD TABLESPACE;
+SELECT COUNT(*) FROM test_wl5522.t1;
+ERROR HY000: Tablespace has been discarded for table 'test_wl5522/t1'
+restore: t1
 SET SESSION debug="+d,ib_import_reset_space_and_lsn_failure";
 ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
 ERROR HY000: InnoDB: Cannot reset LSN's in table '"test_wl5522"."t1"' : Too many concurrent transactions

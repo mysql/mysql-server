@@ -79,6 +79,45 @@ SET SESSION debug="-d,ib_import_io_read_failure";
 
 DROP TABLE test_wl5522.t1;
 
+# Test handling of internal failure error
+CREATE TABLE test_wl5522.t1 (c1 INT) ENGINE = Innodb;
+
+ALTER TABLE test_wl5522.t1 DISCARD TABLESPACE;
+
+perl;
+do 'include/innodb-util.inc';
+ib_discard_tablespaces("test_wl5522", "t1");
+EOF
+
+--error ER_TABLESPACE_DISCARDED
+SELECT COUNT(*) FROM test_wl5522.t1;
+
+# Restore files
+perl;
+do 'include/innodb-util.inc';
+ib_restore_tablespaces("test_wl5522", "t1");
+EOF
+
+# Test failure after reset of space id and LSN in the tablespace
+SET SESSION debug="+d,ib_import_internal_error";
+
+--replace_regex /'.*t1.cfg'/'t1.cfg'/
+
+--error ER_INTERNAL_ERROR
+ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
+
+SET SESSION debug="-d,ib_import_internal_error";
+
+# Restore files
+perl;
+do 'include/innodb-util.inc';
+ib_restore_tablespaces("test_wl5522", "t1");
+EOF
+
+ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
+
+DROP TABLE test_wl5522.t1;
+
 
 # Test failure after reset of space id and LSN in the tablespace
 CREATE TABLE test_wl5522.t1 (c1 INT) ENGINE = Innodb;
