@@ -2747,7 +2747,7 @@ srv_get_meta_data_filename(
 	path = fil_make_ibd_name(table->name, FALSE);
 	len = ut_strlen(path);
 
-	ut_a(max_len <= len);
+	ut_a(max_len >= len);
 	ut_ad(strncmp(path + (len - suffix_len), ".ibd", suffix_len) == 0);
 
 	strncpy(filename, path, len - suffix_len);
