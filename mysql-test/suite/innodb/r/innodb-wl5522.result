@@ -157,13 +157,13 @@ SELECT * FROM t1;
 ERROR HY000: Tablespace has been discarded for table 'test/t1'
 restore: t1
 ALTER TABLE t1 IMPORT TABLESPACE;
-ERROR HY000: InnoDB: Index x not found in tablespace meta-data file.
+ERROR HY000: InnoDB: Schema mismatch - Index x not found in tablespace meta-data file.
 ALTER TABLE t1 DROP INDEX x;
 Warnings:
-Warning	1810	InnoDB: The table test/t1 doesn't have a corresponding tablespace, it was discarded.
+Warning	1810	InnoDB: Tablespace has been discarded for table 'test/t1'
 ALTER TABLE t1 ADD INDEX idx(c2);
 Warnings:
-Warning	1810	InnoDB: The table test/t1 doesn't have a corresponding tablespace, it was discarded.
+Warning	1810	InnoDB: Tablespace has been discarded for table 'test/t1'
 restore: t1
 ALTER TABLE t1 IMPORT TABLESPACE;
 CHECK TABLE t1;
@@ -277,7 +277,7 @@ SELECT * FROM t1;
 ERROR HY000: Tablespace has been discarded for table 'test/t1'
 restore: t1
 ALTER TABLE t1 IMPORT TABLESPACE;
-ERROR HY000: InnoDB: Number of indexes don't match, table has 1 indexes but the tablespace meta-data file has 2 indexes
+ERROR HY000: InnoDB: Schema mismatch - Number of indexes don't match, table has 1 indexes but the tablespace meta-data file has 2 indexes
 unlink: t1.ibd
 unlink: t1.cfg
 DROP TABLE t1;
@@ -290,7 +290,7 @@ SELECT * FROM t1;
 ERROR HY000: Tablespace has been discarded for table 'test/t1'
 restore: t1
 ALTER TABLE t1 IMPORT TABLESPACE;
-ERROR HY000: InnoDB: Number of columns don't match, table has 6 columns but the tablespace meta-data file has 5 columns
+ERROR HY000: InnoDB: Schema mismatch - Number of columns don't match, table has 6 columns but the tablespace meta-data file has 5 columns
 unlink: t1.ibd
 unlink: t1.cfg
 DROP TABLE t1;
@@ -302,7 +302,7 @@ SELECT * FROM t1;
 ERROR HY000: Tablespace has been discarded for table 'test/t1'
 restore: t1
 ALTER TABLE t1 IMPORT TABLESPACE;
-ERROR HY000: InnoDB: Column c2 precise type mismatch.
+ERROR HY000: InnoDB: Schema mismatch - Column c2 precise type mismatch.
 unlink: t1.ibd
 unlink: t1.cfg
 DROP TABLE t1;
@@ -479,7 +479,7 @@ SELECT * FROM t1;
 ERROR HY000: Tablespace has been discarded for table 'test/t1'
 restore: t1
 ALTER TABLE t1 IMPORT TABLESPACE;
-ERROR HY000: InnoDB: Table flags don't match, server table has 0x5 and the meta-data file has 0x0
+ERROR HY000: InnoDB: Schema mismatch - Table flags don't match, server table has 0x5 and the meta-data file has 0x0
 unlink: t1.ibd
 unlink: t1.cfg
 DROP TABLE t1;
@@ -491,7 +491,7 @@ SELECT * FROM t1;
 ERROR HY000: Tablespace has been discarded for table 'test/t1'
 restore: t1
 ALTER TABLE t1 IMPORT TABLESPACE;
-ERROR HY000: InnoDB: Table flags don't match, server table has 0x5 and the meta-data file has 0x0
+ERROR HY000: InnoDB: Schema mismatch - Table flags don't match, server table has 0x5 and the meta-data file has 0x0
 unlink: t1.ibd
 unlink: t1.cfg
 DROP TABLE t1;
@@ -665,7 +665,7 @@ SELECT * FROM t1;
 ERROR HY000: Tablespace has been discarded for table 'test/t1'
 restore: t1
 ALTER TABLE t1 IMPORT TABLESPACE;
-ERROR HY000: InnoDB: Table flags don't match, server table has 0x5 and the meta-data file has 0x1
+ERROR HY000: InnoDB: Schema mismatch - Table flags don't match, server table has 0x5 and the meta-data file has 0x1
 unlink: t1.ibd
 unlink: t1.cfg
 DROP TABLE t1;
@@ -677,7 +677,7 @@ SELECT * FROM t1;
 ERROR HY000: Tablespace has been discarded for table 'test/t1'
 restore: t1
 ALTER TABLE t1 IMPORT TABLESPACE;
-ERROR HY000: InnoDB: Table flags don't match, server table has 0x5 and the meta-data file has 0x1
+ERROR HY000: InnoDB: Schema mismatch - Table flags don't match, server table has 0x5 and the meta-data file has 0x1
 unlink: t1.ibd
 unlink: t1.cfg
 DROP TABLE t1;
@@ -854,7 +854,7 @@ SELECT * FROM t1;
 ERROR HY000: Tablespace has been discarded for table 'test/t1'
 restore: t1
 ALTER TABLE t1 IMPORT TABLESPACE;
-ERROR HY000: InnoDB: Table flags don't match, server table has 0x5 and the meta-data file has 0x21
+ERROR HY000: InnoDB: Schema mismatch - Table flags don't match, server table has 0x5 and the meta-data file has 0x21
 unlink: t1.ibd
 unlink: t1.cfg
 DROP TABLE t1;
@@ -866,7 +866,7 @@ SELECT * FROM t1;
 ERROR HY000: Tablespace has been discarded for table 'test/t1'
 restore: t1
 ALTER TABLE t1 IMPORT TABLESPACE;
-ERROR HY000: InnoDB: Table flags don't match, server table has 0x5 and the meta-data file has 0x21
+ERROR HY000: InnoDB: Schema mismatch - Table flags don't match, server table has 0x5 and the meta-data file has 0x21
 unlink: t1.ibd
 unlink: t1.cfg
 DROP TABLE t1;

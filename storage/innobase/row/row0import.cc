@@ -1892,25 +1892,23 @@ row_import_update_index_root(
 		err = trx->error_state;
 
 		if (err != DB_SUCCESS) {
-			const char*	err_msg;
-			char		format[BUFSIZ];
+			const char*	format;
+			char		msg[BUFSIZ];
 			char		index_name[MAX_FULL_NAME_LEN + 1];
 
 			innobase_format_name(
 				index_name, sizeof(index_name),
 				index->name, TRUE);
 
-			err_msg = innobase_get_err_msg(ER_INTERNAL_ERROR);
+			format = innobase_get_err_msg(ER_INTERNAL_ERROR);
 
-			ut_snprintf(format, sizeof(format),
-				    "%s %s", err_msg, "%s - %s");
+			ut_snprintf(msg, sizeof(msg),
+				    "While updating the <space, root page "
+				    "number> of index %s - %s",
+				    index_name, ut_strerr(err));
 
-			ib_pushf(trx->mysql_thd, IB_LOG_LEVEL_ERROR,
-				 ER_INTERNAL_ERROR,
-				 format,
-				 "While updating the <space, root page "
-				 "number> of index",
-				 index_name, ut_strerr(err));
+			ib_errf(trx->mysql_thd, IB_LOG_LEVEL_ERROR,
+				 ER_INTERNAL_ERROR, format, msg);
 
 			break;
 		}
@@ -2158,10 +2156,17 @@ row_import_for_mysql(
 			err = DB_TOO_MANY_CONCURRENT_TRXS;);
 
 	if (err != DB_SUCCESS) {
-		ib_pushf(trx->mysql_thd, IB_LOG_LEVEL_ERROR,
-			 ER_GET_ERRNO,
-			 "Cannot reset LSN's in table '%s' : %s",
-			 table_name, ut_strerr(err));
+		const char*	format;
+		char		msg[BUFSIZ];
+
+		format = innobase_get_err_msg(ER_INTERNAL_ERROR);
+
+		ut_snprintf(msg, sizeof(msg),
+			    "Cannot reset LSNs in table '%s' : %s",
+			    table_name, ut_strerr(err));
+
+		ib_errf(trx->mysql_thd, IB_LOG_LEVEL_ERROR,
+			 ER_INTERNAL_ERROR, format, msg);
 
 		return(row_import_cleanup(prebuilt, trx, err));
 	}
@@ -2177,16 +2182,19 @@ row_import_for_mysql(
 			err = DB_TABLESPACE_NOT_FOUND;);
 
 	if (err != DB_SUCCESS) {
-		char*	ibd_filename;
+		char*		ibd_filename;
+		const char*	err_msg;
+
+		err_msg = innobase_get_err_msg(ER_FILE_NOT_FOUND);
+		ut_a(err_msg != 0);
 
 		mutex_exit(&dict_sys->mutex);
 
 		ibd_filename = fil_make_ibd_name(table->name, FALSE);
 
-		ib_pushf(trx->mysql_thd, IB_LOG_LEVEL_ERROR,
-			 ER_FILE_NOT_FOUND,
-			 "Cannot open tablespace '%s' file of '%s' : %s",
-			 ibd_filename, table_name, ut_strerr(err));
+		ib_errf(trx->mysql_thd, IB_LOG_LEVEL_ERROR,
+			 ER_FILE_NOT_FOUND, err_msg,
+			 ibd_filename, err, ut_strerr(err));
 
 		mem_free(ibd_filename);
 

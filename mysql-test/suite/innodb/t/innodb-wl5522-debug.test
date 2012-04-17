@@ -143,7 +143,7 @@ SET SESSION debug="+d,ib_import_reset_space_and_lsn_failure";
 
 --replace_regex /'.*t1.cfg'/'t1.cfg'/
 
---error ER_GET_ERRNO
+--error ER_INTERNAL_ERROR
 ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
 
 # Restore files
