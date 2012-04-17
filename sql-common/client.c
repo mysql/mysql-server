@@ -2303,39 +2303,22 @@ typedef struct {
   value of src_len, then copy src_len bytes from src to dest.
  
  @param dest Destination buffer of size src_len+8
+ @param dest_end One byte past the end of the dest buffer
  @param src Source buff of size src_len
- @param src_len Bytes in src
+ @param src_end One byte past the end of the src buffer
  
- @return pointer dest+src_len+header size.
+ @return pointer dest+src_len+header size or NULL if 
 */
 
-char *write_length_encoded_string(char *dest, char *src, size_t src_len)
+char *write_length_encoded_string(char *dest, char *dest_end, char *src,
+                                  char *src_end)
 {
-  if (src_len < 251)
-  {
-    *dest= (char) src_len;
-    dest+= 1;
-  }
-  else if (src_len >= 251 && src_len < (65536 - 1))
-  {
-    *dest= 0xfc;
-    int2store(dest+1, src_len);
-    dest+= 3;
-  }
-  else if (src_len >= 65536 && src_len < (16777216 - 1))
-  {
-    *dest= 0xfd;
-    int3store(dest + 1, src_len);
-    dest+= 4;
-  }
-  else if (src_len > (16777216 - 1))
-  {
-    *dest= 0xfe;
-    int8store(dest + 1, src_len);
-    dest+= 9;
-  }
-  memcpy(dest, src, src_len);
-  return dest + src_len;
+  size_t src_len= (size_t)(src_end - src);
+  uchar *to= net_store_length((uchar*) dest, src_len);
+  if ((char*)(to + src_len) >= dest_end)
+    return NULL;
+  memcpy(to, src, src_len);
+  return (char*)(to + src_len);
 }
 
 /**
@@ -2430,7 +2413,7 @@ error:
     1           charset number
     23          reserved (always 0)
     n           user name, \0-terminated
-    n           plugin auth data (e.g. scramble), length (1 byte) coded
+    n           plugin auth data (e.g. scramble), length encoded
     n           database name, \0-terminated
                 (if CLIENT_CONNECT_WITH_DB is set in the capabilities)
     n           client auth plugin name - \0-terminated string,
@@ -2450,7 +2433,8 @@ static int send_client_reply_packet(MCPVIO_EXT *mpvio,
     see end= buff+32 below, fixed size of the packet is 32 bytes.
      +9 because data is a length encoded binary where meta data size is max 9.
   */
-  buff= my_alloca(33 + USERNAME_LENGTH + data_len + 9 + NAME_LEN + NAME_LEN);
+  size_t buff_size= 33 + USERNAME_LENGTH + data_len + 9 + NAME_LEN + NAME_LEN;
+  buff= my_alloca(buff_size);
   
   mysql->client_flag|= mysql->options.client_flag;
   mysql->client_flag|= CLIENT_CAPABILITIES;
@@ -2581,7 +2565,11 @@ static int send_client_reply_packet(MCPVIO_EXT *mpvio,
   {
     if (mysql->server_capabilities & CLIENT_SECURE_CONNECTION)
     {
-      end= write_length_encoded_string(end, (char *) data, data_len);
+      end= write_length_encoded_string(end, (char *)(buff + buff_size),
+                                       (char *) data,
+                                       (char *)(data + data_len));
+      if (end == NULL)
+        goto error;
     }
     else
     {
