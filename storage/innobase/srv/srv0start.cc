@@ -2730,61 +2730,6 @@ srv_shutdown_table_bg_threads(void)
 	}
 }
 
-/*************************************************************//**
-Copy the file path component of the physical file to parameter.
-@return number of bytes copied or ULINT_UNDEFINED if destination buffer
-	is smaller than the path to be copied. */
-UNIV_INTERN
-ulint
-srv_path_copy(
-/*==========*/
-	char*		dest,		/*!< out: destination buffer */
-	ulint		dest_len,	/*!< in: max bytes to copy */
-	const char*	basedir,	/*!< in: base directory */
-	const char*	table_name)	/*!< in: source table name */
-{
-	ulint		written;
-
-	written = ut_snprintf(
-		dest, dest_len, "%s%c", basedir, SRV_PATH_SEPARATOR);
-	ut_a(written < dest_len);
-
-	char*		last;
-	char*		copy;
-	char*		name = dest;
-
-	copy = static_cast<char*>(ut_malloc(strlen(table_name) + 1));
-	strcpy(copy, table_name);
-
-	/* Find "database" name from table name. */
-	for (char* ptr = strtok_r(copy, "/", &last);
-	     ptr != 0;
-	     ptr = strtok_r(0, "/", &last)) {
-
-		ulint	len;
-
-		ut_a(last == 0 || last > ptr);
-		ut_a(dest_len > written);
-
-		len = ut_snprintf(
-			name + written, dest_len - written, "%.*s",
-			(int) (last - ptr),
-			ptr);
-
-		ut_a(written + len + 1 < dest_len);
-
-		written += len;
-
-		if (last != 0 && *last != 0) {
-			name[written++] = SRV_PATH_SEPARATOR;
-		}
-	}
-
-	ut_free(copy);
-
-	return(written);
-}
-
 /*****************************************************************//**
 Get the meta-data filename from the table name. */
 UNIV_INTERN
@@ -2795,14 +2740,20 @@ srv_get_meta_data_filename(
 	char*			filename,	/*!< out: filename */
 	ulint			max_len)	/*!< in: filename max length */
 {
+	ulint			len;
+	char*			path;
 	static const ulint	suffix_len = strlen(".cfg");
 
-	ulint	len = srv_path_copy(
-		filename, max_len - suffix_len, srv_data_home, table->name);
+	path = fil_make_ibd_name(table->name, FALSE);
+	len = ut_strlen(path);
 
-	ut_a(len != ULINT_UNDEFINED);
+	ut_a(max_len <= len);
+	ut_ad(strncmp(path + (len - suffix_len), ".ibd", suffix_len) == 0);
 
-	ut_snprintf(filename + len, max_len - (len + suffix_len), ".cfg");
+	strncpy(filename, path, len - suffix_len);
+	strcpy(path + (len - suffix_len), ".cfg");
+
+	mem_free(path);
 
 	srv_normalize_path_for_win(filename);
 }
