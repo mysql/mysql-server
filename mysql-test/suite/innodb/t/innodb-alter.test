@@ -241,10 +241,8 @@ WHERE st.NAME='test/t1o' AND sc.NAME='FTS_DOC_ID';
 
 SHOW CREATE TABLE t1o;
 
-# This will leave an orphan FTS_DOC_ID_INDEX inside InnoDB.
 ALTER TABLE t1o CHANGE FTS_DOC_ID foo_id BIGINT UNSIGNED NOT NULL,
 DROP INDEX ct, ALGORITHM=INPLACE;
-call mtr.add_suppression("InnoDB: Table test/t1o contains 2 indexes inside InnoDB, which is different from the number of indexes 1 defined in the MySQL");
 
 SHOW CREATE TABLE t1o;
 
@@ -261,30 +259,31 @@ FROM INFORMATION_SCHEMA.INNODB_SYS_FOREIGN i WHERE FOR_NAME='test/t1o';
 
 -- source suite/innodb/include/innodb_dict.inc
 
-# Now, there exists a hidden FTS_DOC_ID_INDEX on foo_id, not FTS_DOC_ID.
-# We must rename the foo_id to FTS_DOC_ID first.
+# Ensure that there exists no hidden FTS_DOC_ID_INDEX on foo_id.
 
--- error ER_INNODB_FT_WRONG_DOCID_INDEX
-ALTER TABLE t1o ADD FULLTEXT INDEX(ct);
-
-# Ideally, the renaming should work in the same statement with
-# the ADD FULLTEXT INDEX. This is what we get by defining FTS_DOC_ID
-# as a half-hidden column.
--- error ER_INNODB_FT_WRONG_DOCID_INDEX
-ALTER TABLE t1o ADD FULLTEXT INDEX(ct),
+# Renaming the FTS_DOC_ID column and creating a FULLTEXT index
+# does not work in one go.
+--error ER_INNODB_FT_WRONG_DOCID_INDEX
+ALTER TABLE t1o ADD UNIQUE INDEX FTS_DOC_ID_INDEX(FTS_DOC_ID),
+ADD FULLTEXT INDEX(ct),
 CHANGE foo_id FTS_DOC_ID BIGINT UNSIGNED NOT NULL;
 
+ALTER TABLE t1o ADD UNIQUE INDEX FTS_DOC_ID_INDEX(foo_id);
+
+--error ER_INNODB_FT_WRONG_DOCID_INDEX
+ALTER TABLE t1o CHANGE foo_id FTS_DOC_ID BIGINT UNSIGNED NOT NULL,
+ADD FULLTEXT INDEX(ct);
+
 ALTER TABLE t1o CHANGE foo_id FTS_DOC_ID BIGINT UNSIGNED NOT NULL;
+CREATE FULLTEXT INDEX ct ON t1o (ct);
 
-# InnoDB created FTS_DOC_ID_INDEX internally already.
--- error ER_WRONG_NAME_FOR_INDEX
-ALTER TABLE t1o ADD UNIQUE INDEX FTS_DOC_ID_INDEX(FTS_DOC_ID);
+--error ER_INNODB_FT_WRONG_DOCID_COLUMN
+ALTER TABLE t1o CHANGE FTS_DOC_ID foo_id BIGINT UNSIGNED NOT NULL;
 
-# The ALGORITHM=COPY ignores the internally created index. */
-ALTER TABLE t1o ADD UNIQUE INDEX FTS_DOC_ID_INDEX(FTS_DOC_ID),
-ALGORITHM=COPY;
+DROP TABLE sys_indexes;
+CREATE TABLE sys_indexes SELECT i.* FROM INFORMATION_SCHEMA.INNODB_SYS_INDEXES i
+INNER JOIN sys_tables st ON i.TABLE_ID=st.TABLE_ID;
 
--- error ER_DUP_KEYNAME
-ALTER TABLE t1o ADD UNIQUE INDEX FTS_DOC_ID_INDEX(FTS_DOC_ID);
+-- source suite/innodb/include/innodb_dict.inc
 
 DROP TABLE tt, t1o, sys_tables, sys_indexes, sys_foreign;
