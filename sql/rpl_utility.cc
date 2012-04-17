@@ -1060,7 +1060,7 @@ table_def::table_def(unsigned char *types, ulong size,
       }
       case MYSQL_TYPE_BIT:
       {
-        uint16 x= field_metadata[index++]; 
+        uint16 x= field_metadata[index++];
         x = x + (field_metadata[index++] << 8U);
         m_field_metadata[i]= x;
         break;
@@ -1127,7 +1127,7 @@ bool event_checksum_test(uchar *event_buf, ulong event_len, uint8 alg)
     if (event_buf[EVENT_TYPE_OFFSET] == FORMAT_DESCRIPTION_EVENT)
     {
 #ifndef DBUG_OFF
-      int8 fd_alg= event_buf[event_len - BINLOG_CHECKSUM_LEN - 
+      int8 fd_alg= event_buf[event_len - BINLOG_CHECKSUM_LEN -
                              BINLOG_CHECKSUM_ALG_DESC_LEN];
 #endif
       /*
@@ -1136,8 +1136,8 @@ bool event_checksum_test(uchar *event_buf, ulong event_len, uint8 alg)
       flags= uint2korr(event_buf + FLAGS_OFFSET);
       if (flags & LOG_EVENT_BINLOG_IN_USE_F)
         event_buf[FLAGS_OFFSET] &= ~LOG_EVENT_BINLOG_IN_USE_F;
-      /* 
-         The only algorithm currently is CRC32. Zero indicates 
+      /*
+         The only algorithm currently is CRC32. Zero indicates
          the binlog file is checksum-free *except* the FD-event.
       */
       DBUG_ASSERT(fd_alg == BINLOG_CHECKSUM_ALG_CRC32 || fd_alg == 0);
@@ -1150,7 +1150,7 @@ bool event_checksum_test(uchar *event_buf, ulong event_len, uint8 alg)
     incoming= uint4korr(event_buf + event_len - BINLOG_CHECKSUM_LEN);
     computed= my_checksum(0L, NULL, 0);
     /* checksum the event content but the checksum part itself */
-    computed= my_checksum(computed, (const uchar*) event_buf, 
+    computed= my_checksum(computed, (const uchar*) event_buf,
                           event_len - BINLOG_CHECKSUM_LEN);
     if (flags != 0)
     {
@@ -1169,7 +1169,7 @@ bool event_checksum_test(uchar *event_buf, ulong event_len, uint8 alg)
 
 /**
   Utility methods for handling row based operations.
- */ 
+ */
 
 /**
 
@@ -1178,7 +1178,7 @@ bool event_checksum_test(uchar *event_buf, ulong event_len, uint8 alg)
 
    preamble_ptr= malloc (sizeof(preamble)+sizeof(entry));
    entry_ptr= preamble_ptr+1;
-   
+
    preamble_ptr  -----> |-HASH_ROWS_POS_PREAMBLE--|
                         | - hash_value            |
                         | - length                |
@@ -1193,7 +1193,7 @@ bool event_checksum_test(uchar *event_buf, ulong event_len, uint8 alg)
                         |                         |
                         |-------------------------|
 
-                     
+
    return entry_ptr;
 
    When iterating over an entry with multiple records, we can just use
@@ -1204,7 +1204,7 @@ bool event_checksum_test(uchar *event_buf, ulong event_len, uint8 alg)
 */
 typedef struct hash_row_pos_preamble
 {
-  
+
   /**
      The actual key.
   */
@@ -1214,7 +1214,7 @@ typedef struct hash_row_pos_preamble
      Length of the key.
   */
   uint length;
-  
+
   /**
      The search state used to iterate over multiple entries for a
      given key.
@@ -1225,18 +1225,18 @@ typedef struct hash_row_pos_preamble
      Wether this search_state is usable or not.
    */
   bool is_search_state_inited;
-  
+
 } HASH_ROW_POS_PREAMBLE;
 
 
 /**
   Auxiliar and internal member function used to get the pointer for
   an entry preamble. Dual of @c get_entry.
-   
-  @param the entry from which we are calculating the preamble pointer. 
-  @returns a pointer to the preamble. 
+
+  @param the entry from which we are calculating the preamble pointer.
+  @returns a pointer to the preamble.
  */
-static 
+static
 HASH_ROW_POS_PREAMBLE* get_preamble(HASH_ROW_POS_ENTRY* entry)
 {
   return ((HASH_ROW_POS_PREAMBLE*)entry)-1;
@@ -1245,19 +1245,19 @@ HASH_ROW_POS_PREAMBLE* get_preamble(HASH_ROW_POS_ENTRY* entry)
 /**
   Auxiliar and internal member function used to get the entry when
   given a pointer to a preamble. Dual of @c get_preamble.
-   
-  @param the preamble from which we are calculating the entry pointer. 
+
+  @param the preamble from which we are calculating the entry pointer.
   @returns a pointer to the entry.
 */
-static 
+static
 HASH_ROW_POS_ENTRY* get_entry(HASH_ROW_POS_PREAMBLE* preamble)
 {
   return (HASH_ROW_POS_ENTRY*) (preamble+1);
 }
 
 
-static uchar* 
-hash_slave_rows_get_key(const uchar *record, 
+static uchar*
+hash_slave_rows_get_key(const uchar *record,
                         size_t *length,
                         my_bool not_used __attribute__((unused)))
 {
@@ -1269,7 +1269,7 @@ hash_slave_rows_get_key(const uchar *record,
   DBUG_RETURN((uchar*) &preamble->hash_value);
 }
 
-static void 
+static void
 hash_slave_rows_free_entry(HASH_ROW_POS_PREAMBLE *preamble)
 {
   DBUG_ENTER("free_entry");
@@ -1285,7 +1285,7 @@ bool Hash_slave_rows::is_empty(void)
 
 /**
    Hashing commodity structures and functions.
- */ 
+ */
 
 bool Hash_slave_rows::init(void)
 {
@@ -1318,18 +1318,18 @@ HASH_ROW_POS_ENTRY* Hash_slave_rows::make_entry(const uchar* bi_start, const uch
                                                 const uchar* ai_start, const uchar* ai_ends)
 {
   DBUG_ENTER("Hash_slave_rows::make_entry");
-  
-  size_t size= sizeof(struct hash_row_pos_preamble) + 
+
+  size_t size= sizeof(struct hash_row_pos_preamble) +
                sizeof(struct hash_row_pos_entry);
-  
-  HASH_ROW_POS_PREAMBLE *preamble= 
+
+  HASH_ROW_POS_PREAMBLE *preamble=
     (HASH_ROW_POS_PREAMBLE*) my_malloc(size, MYF(0));
 
   if (!preamble)
     DBUG_RETURN(NULL);
 
   HASH_ROW_POS_ENTRY* entry= get_entry(preamble);
-  
+
   /**
      Filling in the preamble.
    */
@@ -1337,7 +1337,7 @@ HASH_ROW_POS_ENTRY* Hash_slave_rows::make_entry(const uchar* bi_start, const uch
   preamble->length= sizeof(my_hash_value_type);
   preamble->search_state= HASH_ROWS_POS_SEARCH_INVALID;
   preamble->is_search_state_inited= false;
-    
+
   /**
      Filling in the values.
    */
@@ -1347,7 +1347,7 @@ HASH_ROW_POS_ENTRY* Hash_slave_rows::make_entry(const uchar* bi_start, const uch
   entry->ai_ends= (const uchar *) ai_ends;
 
   DBUG_PRINT("debug", ("Added record to hash with key=%u", preamble->hash_value));
-  
+
   /**
      Return the pointer to the entry. The caller should not
      be exposed to the internal preamble.
@@ -1355,8 +1355,8 @@ HASH_ROW_POS_ENTRY* Hash_slave_rows::make_entry(const uchar* bi_start, const uch
   DBUG_RETURN(entry);
 }
 
-bool 
-Hash_slave_rows::put(TABLE *table, 
+bool
+Hash_slave_rows::put(TABLE *table,
                      MY_BITMAP *cols,
                      HASH_ROW_POS_ENTRY* entry)
 {
@@ -1370,9 +1370,9 @@ Hash_slave_rows::put(TABLE *table,
      Handle X bits.
      Handle nulled fields.
      Handled fields not signaled.
-  */  
+  */
   preamble->hash_value= make_hash_key(table, cols);
-  
+
   my_hash_insert(&m_hash, (uchar *) preamble);
   DBUG_PRINT("debug", ("Added record to hash with key=%u", preamble->hash_value));
   DBUG_RETURN(false);
@@ -1386,14 +1386,14 @@ Hash_slave_rows::get(TABLE *table, MY_BITMAP *cols)
   HASH_ROW_POS_PREAMBLE* preamble;
   my_hash_value_type key;
   HASH_ROW_POS_ENTRY* res= NULL;
-          
+
   key= make_hash_key(table, cols);
 
   DBUG_PRINT("debug", ("Looking for record with key=%u in the hash.", key));
 
-  preamble= (HASH_ROW_POS_PREAMBLE*) my_hash_first(&m_hash, 
-                                                   (const uchar*) &key, 
-                                                   sizeof(my_hash_value_type), 
+  preamble= (HASH_ROW_POS_PREAMBLE*) my_hash_first(&m_hash,
+                                                   (const uchar*) &key,
+                                                   sizeof(my_hash_value_type),
                                                    &state);
   if (preamble)
   {
@@ -1405,7 +1405,7 @@ Hash_slave_rows::get(TABLE *table, MY_BITMAP *cols)
     */
     preamble->search_state= state;
     preamble->is_search_state_inited= true;
-    
+
     res= get_entry(preamble);
   }
 
@@ -1435,14 +1435,14 @@ bool Hash_slave_rows::next(HASH_ROW_POS_ENTRY** entry)
    */
   preamble->search_state= HASH_ROWS_POS_SEARCH_INVALID;
   preamble->is_search_state_inited= false;
-  
+
   DBUG_PRINT("debug", ("Looking for record with key=%u in the hash (next).", key));
-  
+
   /**
      Do the actual search in the hash table.
    */
-  preamble= (HASH_ROW_POS_PREAMBLE*) my_hash_next(&m_hash, 
-                                                  (const uchar*) &key, 
+  preamble= (HASH_ROW_POS_PREAMBLE*) my_hash_next(&m_hash,
+                                                  (const uchar*) &key,
                                                   sizeof(my_hash_value_type),
                                                   &state);
   if (preamble)
@@ -1475,7 +1475,7 @@ Hash_slave_rows::del(HASH_ROW_POS_ENTRY* entry)
 
 my_hash_value_type
 Hash_slave_rows::make_hash_key(TABLE *table, MY_BITMAP *cols)
-{ 
+{
   DBUG_ENTER("Hash_slave_rows::make_hash_key");
   ha_checksum crc= 0L;
 
@@ -1495,9 +1495,7 @@ Hash_slave_rows::make_hash_key(TABLE *table, MY_BITMAP *cols)
 
     /*
       If (last_null_bit_pos == 0 && null_bytes > 1), then:
-      
       X bit (if any) + N nullable fields + M Field_bit fields = 8 bits
-      
       Ie, the entire byte is used.
     */
     if (table->s->last_null_bit_pos > 0)
@@ -1508,12 +1506,12 @@ Hash_slave_rows::make_hash_key(TABLE *table, MY_BITMAP *cols)
     }
   }
 
-  /* 
+  /*
     We can only checksum the bytes if all fields have been signaled
     in the before image. Otherwise, unpack_row will not have set the
     null_flags correctly (because it only unpacks those fields and
-    their flags that were actually in the before image). 
-     
+    their flags that were actually in the before image).
+
     @c record_compare, as it also skips null_flags if the read_set
     was not marked completely.
    */
@@ -1527,11 +1525,11 @@ Hash_slave_rows::make_hash_key(TABLE *table, MY_BITMAP *cols)
     Field *f= (*ptr);
 
     /* field is set in the read_set and is not a blob or a BIT */
-    if (bitmap_is_set(cols, f->field_index) && 
+    if (bitmap_is_set(cols, f->field_index) &&
         (f->type() != MYSQL_TYPE_BLOB) && (f->type() != MYSQL_TYPE_BIT))
       crc= my_checksum(crc, f->ptr, f->data_length());
   }
-  
+
   /*
     Restore the saved bytes.
 
@@ -1547,7 +1545,6 @@ Hash_slave_rows::make_hash_key(TABLE *table, MY_BITMAP *cols)
       record[table->s->null_bytes - 1]= saved_filler;
   }
 
-  DBUG_ASSERT(crc > 0);
   DBUG_PRINT("debug", ("Created key=%u", crc));
   DBUG_RETURN(crc);
 }
