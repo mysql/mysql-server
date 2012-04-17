@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2012, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -250,10 +250,10 @@ void
 dict_mem_table_col_rename_low(
 /*==========================*/
 	dict_table_t*	table,	/*!< in/out: table */
+	unsigned	i,	/*!< in: column offset corresponding to s */
 	const char*	from,	/*!< in: old column name */
 	const char*	to,	/*!< in: new column name */
-	const char*	s,	/*!< in: pointer to table->col_names */
-	unsigned	i)	/*!< in: column offset corresponding to s */
+	const char*	s)	/*!< in: pointer to table->col_names */
 {
 	size_t from_len = strlen(from), to_len = strlen(to);
 
@@ -357,33 +357,31 @@ dict_mem_table_col_rename_low(
 }
 
 /**********************************************************************//**
-Renames a column of a table in the data dictionary cache.
-@return whether the operation succeeded */
+Renames a column of a table in the data dictionary cache. */
 UNIV_INTERN
-bool
+void
 dict_mem_table_col_rename(
 /*======================*/
 	dict_table_t*	table,	/*!< in/out: table */
+	unsigned	nth_col,/*!< in: column index */
 	const char*	from,	/*!< in: old column name */
 	const char*	to)	/*!< in: new column name */
 {
-	unsigned	i;
 	const char*	s = table->col_names;
 
-	if (!s) {
-		return(false);
+	ut_ad(nth_col < table->n_def);
+
+	for (unsigned i = 0; i < nth_col; i++) {
+		size_t	len = strlen(s);
+		ut_ad(len > 0);
+		s += len + 1;
 	}
 
-	for (i = 0; i < table->n_def; i++) {
-		if (!strcmp(from, s)) {
-			dict_mem_table_col_rename_low(table, from, to, s, i);
-			return(true);
-		}
+	/* This could fail if the data dictionaries are out of sync.
+	Proceed with the renaming anyway. */
+	ut_ad(!strcmp(from, s));
 
-		s += strlen(s) + 1;
-	}
-
-	return(false);
+	dict_mem_table_col_rename_low(table, nth_col, from, to, s);
 }
 
 /**********************************************************************//**

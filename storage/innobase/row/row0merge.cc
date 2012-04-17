@@ -798,30 +798,47 @@ row_merge_heap_create(
 Search an index object by name and column names.  If several indexes match,
 return the index with the max id.
 @return	matching index, NULL if not found */
-static
+static __attribute__((nonnull, warn_unused_result))
 dict_index_t*
 row_merge_dict_table_get_index(
 /*===========================*/
 	dict_table_t*		table,		/*!< in: table */
 	const merge_index_def_t*index_def)	/*!< in: index definition */
 {
-	ulint		i;
-	dict_index_t*	index;
-	const char**	column_names;
+	dict_index_t*	found	= NULL;
 
-	column_names = static_cast<const char**>(
-		mem_alloc(index_def->n_fields * sizeof *column_names));
+	found = NULL;
+	for (dict_index_t* index = dict_table_get_first_index(table);
+	     index != NULL;
+	     index = dict_table_get_next_index(index)) {
 
-	for (i = 0; i < index_def->n_fields; ++i) {
-		column_names[i] = index_def->fields[i].field_name;
+		if (ut_strcmp(index->name, index_def->name) == 0
+		    && dict_index_get_n_ordering_defined_by_user(index)
+		    == index_def->n_fields) {
+
+			for (ulint i = 0; i < index_def->n_fields; i++) {
+				const dict_field_t*	field
+					= dict_index_get_nth_field(index, i);
+
+				if (dict_col_get_no(field->col) !=
+				    index_def->fields[i].col_no) {
+					goto next_index;
+				}
+			}
+
+			/* We found a matching index, select
+			the index with the higher id*/
+
+			if (!found || index->id > found->id) {
+
+				found = index;
+			}
+		}
+next_index:
+		continue;
 	}
 
-	index = dict_table_get_index_by_max_id(
-		table, index_def->name, column_names, index_def->n_fields);
-
-	mem_free((void*) column_names);
-
-	return(index);
+	return(found);
 }
 
 /********************************************************************//**
@@ -3095,8 +3112,9 @@ row_merge_create_index(
 	for (i = 0; i < n_fields; i++) {
 		merge_index_field_t*	ifield = &index_def->fields[i];
 
-		dict_mem_index_add_field(index, ifield->field_name,
-					 ifield->prefix_len);
+		dict_mem_index_add_field(
+			index, dict_table_get_col_name(table, ifield->col_no),
+			ifield->prefix_len);
 	}
 
 	/* Add the index to SYS_INDEXES, using the index prototype. */

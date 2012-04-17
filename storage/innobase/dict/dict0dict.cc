@@ -3150,65 +3150,6 @@ next_rec:
 }
 
 /**********************************************************************//**
-Returns an index object by matching on the name and column names and
-if more than one index matches return the index with the max id
-@return	matching index, NULL if not found */
-UNIV_INTERN
-dict_index_t*
-dict_table_get_index_by_max_id(
-/*===========================*/
-	dict_table_t*	table,	/*!< in: table */
-	const char*	name,	/*!< in: the index name to find */
-	const char**	columns,/*!< in: array of column names */
-	ulint		n_cols)	/*!< in: number of columns */
-{
-	dict_index_t*	index;
-	dict_index_t*	found;
-
-	found = NULL;
-	index = dict_table_get_first_index(table);
-
-	while (index != NULL) {
-		if (ut_strcmp(index->name, name) == 0
-		    && dict_index_get_n_ordering_defined_by_user(index)
-		    == n_cols) {
-
-			ulint		i;
-
-			for (i = 0; i < n_cols; i++) {
-				dict_field_t*	field;
-				const char*	col_name;
-
-				field = dict_index_get_nth_field(index, i);
-
-				col_name = dict_table_get_col_name(
-					table, dict_col_get_no(field->col));
-
-				if (0 != innobase_strcasecmp(
-					    columns[i], col_name)) {
-
-					break;
-				}
-			}
-
-			if (i == n_cols) {
-				/* We found a matching index, select
-				the index with the higher id*/
-
-				if (!found || index->id > found->id) {
-
-					found = index;
-				}
-			}
-		}
-
-		index = dict_table_get_next_index(index);
-	}
-
-	return(found);
-}
-
-/**********************************************************************//**
 Report an error in a foreign key definition. */
 static
 void

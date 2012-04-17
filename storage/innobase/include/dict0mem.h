@@ -253,13 +253,13 @@ dict_mem_table_add_col(
 	ulint		len)	/*!< in: precision */
 	__attribute__((nonnull(1)));
 /**********************************************************************//**
-Renames a column of a table in the data dictionary cache.
-@return whether the operation succeeded */
+Renames a column of a table in the data dictionary cache. */
 UNIV_INTERN
-bool
+void
 dict_mem_table_col_rename(
 /*======================*/
 	dict_table_t*	table,	/*!< in/out: table */
+	unsigned	nth_col,/*!< in: column index */
 	const char*	from,	/*!< in: old column name */
 	const char*	to)	/*!< in: new column name */
 	__attribute__((nonnull));

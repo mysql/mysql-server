@@ -626,6 +626,8 @@ innobase_create_index_field_def(
 		: key_part->field;
 	ut_a(field);
 
+	index_field->col_no = key_part->fieldnr;
+
 	col_type = get_innobase_type_from_mysql_type(&is_unsigned, field);
 
 	if (DATA_BLOB == col_type
@@ -639,8 +641,6 @@ innobase_create_index_field_def(
 	} else {
 		index_field->prefix_len = 0;
 	}
-
-	index_field->field_name = mem_heap_strdup(heap, field->field_name);
 
 	DBUG_VOID_RETURN;
 }
@@ -935,6 +935,8 @@ innobase_create_key_defs(
 			/*!< in/out: number of indexes to be created */
 	bool				got_default_clust,
 			/*!< in: whether the table lacks a primary key */
+	ulint				fts_doc_id_col,
+			/*!< in: The column number for Doc ID */
 	bool				add_fts_doc_id,
 			/*!< in: whether we need to add new DOC ID
 			column for FTS index */
@@ -1057,13 +1059,14 @@ created_clustered:
 		index->fields = static_cast<merge_index_field_t*>(
 			mem_heap_alloc(heap, sizeof *index->fields));
 		index->n_fields = 1;
+		index->fields->col_no = fts_doc_id_col;
 		index->fields->prefix_len = 0;
-		index->fields->field_name = mem_heap_strdup(
-			heap, FTS_DOC_ID_COL_NAME);
 		index->ind_type = DICT_UNIQUE;
+
 		if (new_primary || add_fts_doc_id) {
 			index->name = mem_heap_strdup(
 				heap, FTS_DOC_ID_INDEX_NAME);
+			ut_ad(fts_doc_id_col == altered_table->s->fields);
 		} else {
 			char*	index_name;
 			index->name = index_name = static_cast<char*>(
@@ -1329,6 +1332,7 @@ while preparing ALTER TABLE.
 @param drop_foreign	Foreign key constraints to be dropped, or NULL
 @param n_drop_foreign	Number of foreign key constraints to drop
 @param num_fts_index	Number of full-text indexes to create
+@param fts_doc_id_col	The column number of FTS_DOC_ID
 @param add_fts_doc_id	Flag: add column FTS_DOC_ID?
 @param add_fts_doc_id_idx Flag: add index (FTS_DOC_ID)?
 
@@ -1350,6 +1354,7 @@ prepare_inplace_alter_table_dict(
 	dict_foreign_t**	drop_foreign,
 	ulint			n_drop_foreign,
 	unsigned		num_fts_index,
+	ulint			fts_doc_id_col,
 	bool			add_fts_doc_id,
 	bool			add_fts_doc_id_idx)
 {
@@ -1391,7 +1396,7 @@ prepare_inplace_alter_table_dict(
 	index_defs = innobase_create_key_defs(
 		heap, ha_alter_info, altered_table, n_add_index,
 		row_table_got_default_clust_index(indexed_table),
-		add_fts_doc_id, add_fts_doc_id_idx);
+		fts_doc_id_col, add_fts_doc_id, add_fts_doc_id_idx);
 
 	new_clustered = DICT_CLUSTERED & index_defs[0].ind_type;
 
@@ -1566,7 +1571,8 @@ col_fail:
 
 		if (add_fts_doc_id) {
 			fts_add_doc_id_column(indexed_table, heap);
-			indexed_table->fts->doc_col = altered_table->s->fields;
+			indexed_table->fts->doc_col = fts_doc_id_col;
+			ut_ad(fts_doc_id_col == altered_table->s->fields);
 		}
 
 		error = row_create_table_for_mysql(indexed_table, trx);
@@ -1833,6 +1839,24 @@ innobase_dropping_foreign(
 	return(false);
 }
 
+/** Determine if fulltext indexes exist in a given table.
+@param table_share	MySQL table
+@return			whether fulltext indexes exist on the table */
+static
+bool
+innobase_fulltext_exist(
+/*====================*/
+	const TABLE_SHARE*	table_share)
+{
+	for (uint i = 0; i < table_share->keys; i++) {
+		if (table_share->key_info[i].flags & HA_FULLTEXT) {
+			return(true);
+		}
+	}
+
+	return(false);
+}
+
 /** Allows InnoDB to update internal structures with concurrent
 writes blocked. Invoked before inplace_alter_table().
 
@@ -1858,6 +1882,7 @@ ha_innobase::prepare_inplace_alter_table(
 	mem_heap_t*     heap;
 	int		error;
 	ulint		num_fts_index;
+	ulint		fts_doc_col_no;
 	bool		add_fts_doc_id		= false;
 	bool		add_fts_doc_id_idx	= false;
 
@@ -1921,8 +1946,7 @@ err_exit_no_heap:
 
 			const char* name = 0;
 
-			cf_it.init(ha_alter_info->alter_info
-				   ->create_list);
+			cf_it.init(ha_alter_info->alter_info->create_list);
 			while (Create_field* cf = cf_it++) {
 				if (cf->field == *fp) {
 					name = cf->field_name;
@@ -1932,9 +1956,28 @@ err_exit_no_heap:
 
 			ut_error;
 check_if_ok_to_rename:
-			const char*	s = prebuilt->table->col_names;
+			/* Prohibit renaming a column from FTS_DOC_ID
+			if full-text indexes exist. */
+			if (!my_strcasecmp(system_charset_info,
+					   (*fp)->field_name,
+					   FTS_DOC_ID_COL_NAME)
+			    && innobase_fulltext_exist(altered_table->s)) {
+				my_error(ER_INNODB_FT_WRONG_DOCID_COLUMN,
+					 MYF(0), name);
+				goto err_exit_no_heap;
+			}
 
-			for (unsigned i = 0; i < prebuilt->table->n_def; i++) {
+			/* Prohibit renaming a column to an internal column. */
+			const char*	s = prebuilt->table->col_names;
+			unsigned j;
+			/* Skip user columns.
+			MySQL should have checked these already.
+			We want to allow renaming of c1 to c2, c2 to c1. */
+			for (j = 0; j < table->s->fields; j++) {
+				s += strlen(s) + 1;
+			}
+
+			for (; j < prebuilt->table->n_def; j++) {
 				if (!my_strcasecmp(
 					    system_charset_info, name, s)) {
 					my_error(ER_WRONG_COLUMN_NAME, MYF(0),
@@ -2184,10 +2227,10 @@ err_exit:
 	add a Doc ID hidden column and rebuild the primary index */
 	if (num_fts_index) {
 		ulint	doc_col_no;
-		ulint	fts_doc_col_no;
 
 		if (!innobase_fts_check_doc_id_col(
 			    prebuilt->table, altered_table, &fts_doc_col_no)) {
+			fts_doc_col_no = altered_table->s->fields;
 			add_fts_doc_id = true;
 			add_fts_doc_id_idx = true;
 
@@ -2228,6 +2271,7 @@ err_exit:
 			    prebuilt->trx, table_share->table_name.str,
 			    heap, drop_index, n_drop_index,
 			    drop_fk, n_drop_fk, num_fts_index,
+			    fts_doc_col_no,
 			    add_fts_doc_id, add_fts_doc_id_idx));
 }
 
@@ -2467,6 +2511,7 @@ innobase_drop_foreign(
 /** Rename a column.
 @param prebuilt		the prebuilt struct
 @param trx		data dictionary transaction
+@param nth_col		0-based index of the column
 @param from		old column name
 @param to		new column name
 @retval true		Failure
@@ -2477,9 +2522,13 @@ innobase_rename_column(
 /*===================*/
 	row_prebuilt_t*	prebuilt,
 	trx_t*		trx,
+	ulint		nth_col,
 	const char*	from,
 	const char*	to)
 {
+	pars_info_t*	info;
+	dberr_t		error;
+
 	DBUG_ENTER("innobase_rename_column");
 
 	DBUG_ASSERT(trx_get_dict_operation(trx) == TRX_DICT_OP_INDEX);
@@ -2489,94 +2538,156 @@ innobase_rename_column(
 	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_EX));
 #endif /* UNIV_SYNC_DEBUG */
 
-	/* Rename the column in the data dictionary. */
-	static const char sql[] =
-		"PROCEDURE RENAME_COLUMN_PROC () IS\n"
-		"fid CHAR;\n"
-		"found INT;\n"
-
-		"DECLARE CURSOR index_cur IS\n"
-		" SELECT ID FROM SYS_INDEXES\n"
-		" WHERE TABLE_ID=:tableid;\n"
-
-		"DECLARE CURSOR for_cur IS\n"
-		" SELECT ID FROM SYS_FOREIGN\n"
-		" WHERE FOR_NAME=:table;\n"
-
-		"DECLARE CURSOR ref_cur IS\n"
-		" SELECT ID FROM SYS_FOREIGN\n"
-		" WHERE REF_NAME=:table;\n"
-
-		"BEGIN\n"
-		"found := 1;\n"
-		"OPEN index_cur;\n"
-		"WHILE found = 1 LOOP\n"
-		"  FETCH index_cur INTO fid;\n"
-		"  IF (SQL % NOTFOUND) THEN\n"
-		"    found := 0;\n"
-		"  ELSE\n"
-		"    UPDATE SYS_FIELDS SET COL_NAME=:new\n"
-		"    WHERE INDEX_ID=fid AND COL_NAME=:old;\n"
-		"  END IF;\n"
-		"END LOOP;\n"
-		"CLOSE index_cur;\n"
-
-		"UPDATE SYS_COLUMNS SET NAME=:new\n"
-		"WHERE TABLE_ID=:tableid AND NAME=:old;\n"
-
-		"found := 1;\n"
-		"OPEN for_cur;\n"
-		"WHILE found = 1 LOOP\n"
-		"  FETCH for_cur INTO fid;\n"
-		"  IF (SQL % NOTFOUND) THEN\n"
-		"    found := 0;\n"
-		"  ELSE\n"
-		"    UPDATE SYS_FOREIGN_COLS SET FOR_COL_NAME=:new\n"
-		"    WHERE ID=fid AND FOR_COL_NAME=:old;\n"
-		"  END IF;\n"
-		"END LOOP;\n"
-		"CLOSE for_cur;\n"
-
-		"found := 1;\n"
-		"OPEN ref_cur;\n"
-		"WHILE found = 1 LOOP\n"
-		"  FETCH ref_cur INTO fid;\n"
-		"  IF (SQL % NOTFOUND) THEN\n"
-		"    found := 0;\n"
-		"  ELSE\n"
-		"    UPDATE SYS_FOREIGN_COLS SET REF_COL_NAME=:new\n"
-		"    WHERE ID=fid AND REF_COL_NAME=:old;\n"
-		"  END IF;\n"
-		"END LOOP;\n"
-		"CLOSE ref_cur;\n"
-
-		"END;\n";
-	pars_info_t*	info	= pars_info_create();
-	dberr_t		error;
+	info = pars_info_create();
 
 	pars_info_add_ull_literal(info, "tableid", prebuilt->table->id);
-	pars_info_add_str_literal(info, "table", prebuilt->table->name);
+	pars_info_add_int4_literal(info, "nth", nth_col);
 	pars_info_add_str_literal(info, "old", from);
 	pars_info_add_str_literal(info, "new", to);
 
-	trx->op_info = "renaming column";
+	trx->op_info = "renaming column in SYS_COLUMNS";
 
-	error = que_eval_sql(info, sql, FALSE, trx);
-	trx->op_info = "";
+	error = que_eval_sql(
+		info,
+		"PROCEDURE RENAME_SYS_COLUMNS_PROC () IS\n"
+		"BEGIN\n"
+		"UPDATE SYS_COLUMNS SET NAME=:new\n"
+		"WHERE TABLE_ID=:tableid AND NAME=:old\n"
+		"AND POS=:nth;\n"
+
+		/* Try again, in case there is a prefix_len
+		encoded in SYS_COLUMNS.POS */
+
+		"UPDATE SYS_COLUMNS SET NAME=:new\n"
+		"WHERE TABLE_ID=:tableid AND NAME=:old\n"
+		"AND POS>=65536*:nth AND POS<65536*(:nth+1);\n"
+
+		"END;\n",
+		FALSE, trx);
 
 	if (error != DB_SUCCESS) {
+err_exit:
 		my_error_innodb(error, prebuilt->table->name, 0);
 		trx->error_state = DB_SUCCESS;
+		trx->op_info = "";
 		DBUG_RETURN(true);
 	}
 
+	trx->op_info = "renaming column in SYS_FIELDS";
+
+	for (dict_index_t* index = dict_table_get_first_index(prebuilt->table);
+	     index != NULL;
+	     index = dict_table_get_next_index(index)) {
+
+		for (ulint i = 0; i < dict_index_get_n_fields(index); i++) {
+			if (strcmp(dict_index_get_nth_field(index, i)->name,
+				   from)) {
+				continue;
+			}
+
+			info = pars_info_create();
+
+			pars_info_add_ull_literal(info, "indexid", index->id);
+			pars_info_add_int4_literal(info, "nth", i);
+			pars_info_add_str_literal(info, "old", from);
+			pars_info_add_str_literal(info, "new", to);
+
+			error = que_eval_sql(
+				info,
+				"PROCEDURE RENAME_SYS_FIELDS_PROC () IS\n"
+				"BEGIN\n"
+
+				"UPDATE SYS_FIELDS SET COL_NAME=:new\n"
+				"WHERE INDEX_ID=:indexid AND COL_NAME=:old\n"
+				"AND POS=:nth;\n"
+
+				/* Try again, in case there is a prefix_len
+				encoded in SYS_FIELDS.POS */
+
+				"UPDATE SYS_FIELDS SET COL_NAME=:new\n"
+				"WHERE INDEX_ID=:indexid AND COL_NAME=:old\n"
+				"AND POS>=65536*:nth AND POS<65536*(:nth+1);\n"
+
+				"END;\n",
+				FALSE, trx);
+
+			if (error != DB_SUCCESS) {
+				goto err_exit;
+			}
+		}
+	}
+
+	trx->op_info = "renaming column in SYS_FOREIGN_COLS";
+
+	for (dict_foreign_t* foreign = UT_LIST_GET_FIRST(
+		     prebuilt->table->foreign_list);
+	     foreign != NULL;
+	     foreign = UT_LIST_GET_NEXT(foreign_list, foreign)) {
+		for (unsigned i = 0; i < foreign->n_fields; i++) {
+			if (strcmp(foreign->foreign_col_names[i], from)) {
+				continue;
+			}
+
+			info = pars_info_create();
+
+			pars_info_add_str_literal(info, "id", foreign->id);
+			pars_info_add_int4_literal(info, "nth", i);
+			pars_info_add_str_literal(info, "old", from);
+			pars_info_add_str_literal(info, "new", to);
+
+			error = que_eval_sql(
+				info,
+				"PROCEDURE RENAME_SYS_FOREIGN_F_PROC () IS\n"
+				"BEGIN\n"
+				"UPDATE SYS_FOREIGN_COLS\n"
+				"SET FOR_COL_NAME=:new\n"
+				"WHERE ID=:id AND POS=:nth\n"
+				"AND FOR_COL_NAME=:old;\n"
+				"END;\n",
+				FALSE, trx);
+
+			if (error != DB_SUCCESS) {
+				goto err_exit;
+			}
+		}
+	}
+
+	for (dict_foreign_t* foreign = UT_LIST_GET_FIRST(
+		     prebuilt->table->referenced_list);
+	     foreign != NULL;
+	     foreign = UT_LIST_GET_NEXT(referenced_list, foreign)) {
+		for (unsigned i = 0; i < foreign->n_fields; i++) {
+			if (strcmp(foreign->referenced_col_names[i], from)) {
+				continue;
+			}
+
+			info = pars_info_create();
+
+			pars_info_add_str_literal(info, "id", foreign->id);
+			pars_info_add_int4_literal(info, "nth", i);
+			pars_info_add_str_literal(info, "old", from);
+			pars_info_add_str_literal(info, "new", to);
+
+			error = que_eval_sql(
+				info,
+				"PROCEDURE RENAME_SYS_FOREIGN_R_PROC () IS\n"
+				"BEGIN\n"
+				"UPDATE SYS_FOREIGN_COLS\n"
+				"SET REF_COL_NAME=:new\n"
+				"WHERE ID=:id AND POS=:nth\n"
+				"AND REF_COL_NAME=:old;\n"
+				"END;\n",
+				FALSE, trx);
+
+			if (error != DB_SUCCESS) {
+				goto err_exit;
+			}
+		}
+	}
+
+	trx->op_info = "";
 	/* Rename the column in the data dictionary cache. */
-	if (!dict_mem_table_col_rename(prebuilt->table, from, to)) {
-		DBUG_ASSERT(0);
-		my_error(ER_NOT_KEYFILE, MYF(0), prebuilt->table->name);
-		DBUG_RETURN(true);
-	}
-
+	dict_mem_table_col_rename(prebuilt->table, nth_col, from, to);
 	DBUG_RETURN(false);
 }
 
@@ -2767,33 +2878,37 @@ ha_innobase::commit_inplace_alter_table(
 	    && (ha_alter_info->handler_flags
 		& Alter_inplace_info::ALTER_COLUMN_NAME)) {
 		List_iterator_fast<Create_field> cf_it;
+		uint i = 0;
 
-		for (Field** fp = table->field; err == 0 && *fp; fp++) {
-			if ((*fp)->flags & FIELD_IS_RENAMED) {
-				cf_it.init(ha_alter_info->alter_info
-					   ->create_list);
-				while (Create_field* cf = cf_it++) {
-					if (cf->field == *fp) {
-						if (innobase_rename_column(
-							    prebuilt,
-							    trx,
-							    cf->field
-							    ->field_name,
-							    cf->field_name)) {
-							err = -1;
-						}
-						goto processed_field;
-					}
-				}
-
-				ut_error;
+		for (Field** fp = table->field; *fp && err == 0; fp++, i++) {
+			if (!((*fp)->flags & FIELD_IS_RENAMED)) {
+				continue;
 			}
+
+			cf_it.init(ha_alter_info->alter_info->create_list);
+			while (Create_field* cf = cf_it++) {
+				if (cf->field == *fp) {
+					if (innobase_rename_column(
+						    prebuilt, trx, i,
+						    cf->field->field_name,
+						    cf->field_name)) {
+						err = -1;
+					}
+					goto processed_field;
+				}
+			}
+
+			ut_error;
 processed_field:
 			continue;
 		}
 	}
 
-	trx_commit_for_mysql(trx);
+	if (err == 0) {
+		trx_commit_for_mysql(trx);
+	} else {
+		trx_rollback_for_mysql(trx);
+	}
 
 	if (err == 0 && ctx) {
 		/* The changes were successfully performed. */

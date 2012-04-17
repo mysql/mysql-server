@@ -542,19 +542,6 @@ dict_foreign_find_index(
 					NOT NULL */
 	__attribute__((nonnull(1,2), warn_unused_result));
 /**********************************************************************//**
-Returns an index object by matching on the name and column names and
-if more than one index matches return the index with the max id
-@return	matching index, NULL if not found */
-UNIV_INTERN
-dict_index_t*
-dict_table_get_index_by_max_id(
-/*===========================*/
-	dict_table_t*	table,	/*!< in: table */
-	const char*	name,	/*!< in: the index name to find */
-	const char**	columns,/*!< in: array of column names */
-	ulint		n_cols)	/*!< in: number of columns */
-	__attribute__((nonnull, warn_unused_result));
-/**********************************************************************//**
 Returns a column's name.
 @return column name. NOTE: not guaranteed to stay valid if table is
 modified in any way (columns added, etc.). */
