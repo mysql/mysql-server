@@ -23,7 +23,9 @@ disconnect con1;
 DROP USER 'kristofer';
 
 GRANT ALL ON *.* TO 'kristofer'@'localhost' IDENTIFIED WITH 'sha256_password';
+GRANT ALL ON *.* TO 'kristofer2'@'localhost' IDENTIFIED WITH 'sha256_password';
 SET PASSWORD FOR 'kristofer'@'localhost'=PASSWORD('secret2');
+SET PASSWORD FOR 'kristofer2'@'localhost'=PASSWORD('secret2');
 --disable_query_log
 --error ER_ACCESS_DENIED_ERROR
 connect(con2,localhost,kristofer,badpassword,,);
@@ -33,6 +35,11 @@ connection con2;
 SELECT USER(),CURRENT_USER();
 --replace_regex /PASSWORD .*$/PASSWORD '<non-deterministic-password-hash>'/
 SHOW GRANTS FOR 'kristofer'@'localhost';
+
+--echo Change user (should succeed)
+change_user kristofer2,secret2;
+SELECT USER(),CURRENT_USER();
+
 connection default;
 disconnect con2;
 --echo **** Client default_auth=sha_256_password and server default auth=native
@@ -42,6 +49,7 @@ disconnect con2;
 --echo **** Client default_auth=sha_256_password + public key on file.
 --exec $MYSQL -ukristofer -psecret2 --port=$MYSQL_PORT --default_auth=sha256_password --server_public_key=$MYSQL_TEST_DIR/std_data/rsa_public_key.pem -e "select user(), current_user()"
 DROP USER 'kristofer'@'localhost';
+DROP USER 'kristofer2'@'localhost';
 
 GRANT ALL ON *.* TO 'kristofer'@'localhost' IDENTIFIED WITH 'sha256_password';
 SET PASSWORD FOR 'kristofer'@'localhost'=PASSWORD('');
@@ -81,8 +89,13 @@ DROP TABLE t1;
 
 #
 # Test null argument
+# PASSWORD(NULL) should produce empty "" values.
 #
-SELECT PASSWORD(NULL);
+SELECT PASSWORD(NULL), PASSWORD('');
+CREATE TABLE t1( c1 text, c2 varchar (2));
+INSERT INTO t1 VALUES (NULL,''),(NULL,''),(NULL,'');
+SELECT PASSWORD(c1), PASSWORD(c2) FROM t1;
+DROP TABLE t1;
 
 #
 # test bad password formats
