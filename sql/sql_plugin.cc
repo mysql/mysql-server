@@ -1587,7 +1587,11 @@ int plugin_init(int *argc, char **argv, int flags)
       {
         if (plugin_ptr->state == PLUGIN_IS_UNINITIALIZED &&
             plugin_initialize(plugin_ptr))
-          goto err_unlock;
+        {
+          if (mandatory)
+            goto err_unlock;
+          plugin_ptr->state= PLUGIN_IS_DISABLED;
+        }
       }
 
       /*

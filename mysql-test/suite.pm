@@ -26,6 +26,9 @@ sub skip_combinations {
 
   $skip{'include/not_windows.inc'} = 'Requires not Windows' if IS_WINDOWS;
 
+  $skip{'t/plugin_loaderr.test'} = 'needs compiled-in innodb'
+            unless $::mysqld_variables{'innodb'} eq "ON";
+
   # disable tests that use ipv6, if unsupported
   use Socket;
   $skip{'include/check_ipv6.inc'} = 'No IPv6'

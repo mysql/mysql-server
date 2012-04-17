@@ -1,0 +1,10 @@
+
+# We used an invalid command-line option and InnoDB failed to start.
+# Ignore all related warnings
+call mtr.add_suppression("InnoDB");
+
+--vertical_results
+SELECT
+PLUGIN_NAME,PLUGIN_STATUS,PLUGIN_TYPE,PLUGIN_LIBRARY,PLUGIN_LIBRARY_VERSION,LOAD_OPTION
+FROM INFORMATION_SCHEMA.PLUGINS WHERE plugin_name = 'innodb';
+
