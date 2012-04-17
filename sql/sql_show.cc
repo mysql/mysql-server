@@ -6838,6 +6838,7 @@ static my_bool find_schema_table_in_plugin(THD *thd, plugin_ref plugin,
   if (!my_strcasecmp(system_charset_info,
                      schema_table->table_name,
                      table_name)) {
+    my_plugin_lock(thd, plugin);
     p_schema_table->schema_table= schema_table;
     DBUG_RETURN(1);
   }
