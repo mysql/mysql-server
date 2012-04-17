@@ -743,6 +743,7 @@ char **orig_argv;
 
 #if defined(HAVE_OPENSSL) && !defined(HAVE_YASSL)
 int init_rsa_keys(void);
+void deinit_rsa_keys(void);
 int show_rsa_public_key(THD *thd, SHOW_VAR *var, char *buff);
 #endif
 
@@ -3882,6 +3883,9 @@ static void openssl_lock(int mode, openssl_lock_t *lock, const char *file,
 static int init_ssl()
 {
 #ifdef HAVE_OPENSSL
+#ifndef HAVE_YASSL
+  CRYPTO_malloc_init();
+#endif
 #ifndef EMBEDDED_LIBRARY
   if (opt_use_ssl)
   {
@@ -3929,6 +3933,9 @@ static void end_ssl()
     ssl_acceptor_fd= 0;
   }
 #endif /* ! EMBEDDED_LIBRARY */
+#ifndef HAVE_YASSL
+  deinit_rsa_keys();
+#endif
 #endif /* HAVE_OPENSSL */
 }
 

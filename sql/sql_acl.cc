@@ -9262,7 +9262,6 @@ static bool parse_com_change_user_packet(MPVIO_EXT *mpvio, uint packet_length)
   DBUG_RETURN (0);
 }
 
-#ifndef EMBEDDED_LIBRARY
 
 /** Get a string according to the protocol of the underlying buffer. */
 typedef char * (*get_proto_string_func_t) (char **, size_t *, size_t *);
@@ -9377,55 +9376,38 @@ char *get_56_lenc_string(char **buffer,
                          size_t *max_bytes_available,
                          size_t *string_length)
 {
-  int len_len= 1;
+  static char empty_string[1]= { '\0' };
+  char *begin= *buffer;
+
   if (*max_bytes_available == 0)
     return NULL;
-
-  /* Do double cast to prevent overflow from signed / unsigned conversion */
-  size_t str_len= (size_t)(unsigned char) **buffer;
-  if (str_len < 251)
-  {
-    len_len= 1;
-  }
-  else if (str_len == 0xfc)
-  {
-    str_len= uint2korr(*buffer + 1);
-    len_len= 3;
-  }
-  else if (str_len == 0xfd)
-  {
-    str_len= uint3korr(*buffer + 1);
-    len_len= 4;
-  }
-  else if (str_len == 0xfe)
-  {
-    str_len= uint8korr(*buffer + 1);
-    len_len= 9;
-  }
 
   /*
     If the length encoded string has the length 0
     the total size of the string is only one byte long (the size byte)
   */
-  if (str_len == 0)
+  if (*begin == 0)
   {
-    ++*buffer;
     *string_length= 0;
+    --*max_bytes_available;
+    ++*buffer;
     /*
-      Return a pointer to the 0 character so the return value will be
+      Return a pointer to the \0 character so the return value will be
       an empty string.
     */
-    return *buffer - 1;
+    return empty_string;
   }
 
-  if (str_len >= *max_bytes_available)
+  *string_length= (size_t)net_field_length_ll((uchar **)buffer);
+
+  size_t len_len= (size_t)(*buffer - begin);
+  
+  if (*string_length + len_len > *max_bytes_available)
     return NULL;
 
-  char *str= *buffer + len_len;
-  *string_length= str_len;
-  *max_bytes_available-= *string_length + len_len;
-  *buffer+= *string_length + len_len;
-  return str;
+  *max_bytes_available -= *string_length + len_len;
+  *buffer += *string_length;
+  return (char *)(begin + len_len);
 }
 
 
@@ -9480,7 +9462,7 @@ char *get_41_lenc_string(char **buffer,
   *buffer+= *string_length + 1;
   return str;
 }
-#endif
+
 
 
 /* the packet format is described in send_client_reply_packet() */
@@ -9662,6 +9644,15 @@ skip_to_ssl:
     get_length_encoded_string= get_41_lenc_string;
 
   /*
+    The CLIENT_PLUGIN_AUTH_LENENC_CLIENT_DATA capability depends on the
+    CLIENT_SECURE_CONNECTION. Refuse any connection which have the first but
+    not the latter.
+  */
+  if ((mpvio->client_capabilities & CLIENT_PLUGIN_AUTH_LENENC_CLIENT_DATA) &&
+      !(mpvio->client_capabilities & CLIENT_SECURE_CONNECTION))
+    return packet_error;
+
+  /*
     In order to safely scan a head for '\0' string terminators
     we must keep track of how many bytes remain in the allocated
     buffer or we might read past the end of the buffer.
@@ -9684,7 +9675,7 @@ skip_to_ssl:
   if (mpvio->client_capabilities & CLIENT_SECURE_CONNECTION)
   {
     /*
-      4.1+ password. First byte is password length.
+      Get the password field.
     */
     passwd= get_length_encoded_string(&end, &bytes_remaining_in_packet,
                                       &passwd_len);
@@ -10725,9 +10716,23 @@ public:
   
   ~Rsa_authentication_keys()
   {
-    delete m_private_key;
-    delete m_public_key;
-    delete m_pem_public_key;
+  }
+
+  void free_memory()
+  {
+    if (m_private_key)
+    {
+      RSA_free(m_private_key);
+      RSA_free(m_public_key);
+    }
+    if (m_pem_public_key)
+      delete [] m_pem_public_key;
+  }
+
+  void *allocate_pem_buffer(size_t buffer_len)
+  {
+    m_pem_public_key= new char[buffer_len];
+    return m_pem_public_key;
   }
 
   RSA *get_private_key()
@@ -10751,10 +10756,9 @@ public:
     return 0;
   }
 
-  int set_public_key(RSA *pk, char *pem_file)
+  int set_public_key(RSA *pk)
   {
     m_public_key= pk;
-    m_pem_public_key= pem_file;
     return 0;
   }
 
@@ -10777,6 +10781,12 @@ int show_rsa_public_key(THD *thd, SHOW_VAR *var, char *buff)
     
   return 0;
 }
+
+void deinit_rsa_keys(void)
+{
+  g_rsa_keys.free_memory();  
+}
+
 
 /**
   Loads the RSA key pair from disk and store them in a global variable. 
@@ -10866,7 +10876,7 @@ int init_rsa_keys(void)
   fseek(public_key_file, 0, SEEK_END);
   filesize= ftell(public_key_file);
   fseek(public_key_file, 0, SEEK_SET);
-  char *pem_file_buffer= new char[filesize+1];
+  char *pem_file_buffer= (char *)g_rsa_keys.allocate_pem_buffer(filesize + 1);
   (void) fread(pem_file_buffer, filesize, 1, public_key_file);
   pem_file_buffer[filesize]= '\0';
 
@@ -10879,8 +10889,7 @@ int init_rsa_keys(void)
   }
   fseek(public_key_file, 0, SEEK_SET);
 
-  if (g_rsa_keys.set_public_key(PEM_read_RSA_PUBKEY(public_key_file, 0, 0, 0),
-                                pem_file_buffer))
+  if (g_rsa_keys.set_public_key(PEM_read_RSA_PUBKEY(public_key_file, 0, 0, 0)))
   {
      sql_print_error("Failure to parse RSA public key (file exists): %s",
                     auth_rsa_public_key_path);
@@ -11041,6 +11050,7 @@ static int sha256_password_authenticate(MYSQL_PLUGIN_VIO *vio,
     Fetch user authentication_string and extract the password salt
   */
   user_salt_begin= (char *) info->auth_string;
+  user_salt_end= (char *) (info->auth_string + info->auth_string_length);
   if (extract_user_salt(&user_salt_begin, &user_salt_end) != CRYPT_SALT_LENGTH)
   {
     /* User salt is not correct */
