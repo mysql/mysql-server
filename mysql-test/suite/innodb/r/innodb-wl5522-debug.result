@@ -18,7 +18,7 @@ DROP TABLE test_wl5522.t1;
 CREATE TABLE test_wl5522.t1 (c1 INT) ENGINE = Innodb;
 ALTER TABLE test_wl5522.t1 DISCARD TABLESPACE;
 SELECT COUNT(*) FROM test_wl5522.t1;
-ERROR HY000: Got error -1 from storage engine
+ERROR HY000: Tablespace has been discarded for table 'test_wl5522/t1'
 SET SESSION debug="+d,ib_import_reset_space_and_lsn_failure";
 ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
 ERROR HY000: InnoDB: Error opening: 't1.cfg' : No such file or directory
@@ -56,13 +56,13 @@ SET SESSION debug="-d,ib_import_set_max_rowid_failure";
 restore: t1
 SET SESSION debug="+d,ib_import_before_commit_crash";
 SELECT * FROM test_wl5522.t1;
-ERROR HY000: Got error -1 from storage engine
+ERROR HY000: Tablespace has been discarded for table 'test_wl5522/t1'
 ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
 ERROR HY000: Lost connection to MySQL server during query
 SET SESSION debug="-d,ib_import_before_commit_crash";
 SET SESSION debug="+d,ib_import_before_checkpoint_crash";
 SELECT COUNT(*) FROM test_wl5522.t1;
-ERROR HY000: Got error -1 from storage engine
+ERROR HY000: Tablespace has been discarded for table 'test_wl5522/t1'
 ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
 ERROR HY000: Lost connection to MySQL server during query
 SET SESSION debug="-d,ib_import_before_checkpoint_crash";
