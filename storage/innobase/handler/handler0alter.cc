@@ -2083,9 +2083,10 @@ found_fk:
 		if (!heap) {
 			heap = mem_heap_create(1024);
 		}
-		drop_index = (dict_index_t**) mem_heap_alloc(
-			heap, ha_alter_info->index_drop_count
-			* sizeof *drop_index);
+		drop_index = static_cast<dict_index_t**>(
+			mem_heap_alloc(
+				heap, (ha_alter_info->index_drop_count + 1)
+				* sizeof *drop_index));
 		for (uint i = 0; i < ha_alter_info->index_drop_count; i++) {
 			const KEY*	key
 				= ha_alter_info->index_drop_buffer[i];
@@ -2108,6 +2109,43 @@ found_fk:
 			}
 		}
 
+		/* If all FULLTEXT indexes were removed, drop an
+		internal FTS_DOC_ID_INDEX as well, unless it exists in
+		the table. */
+
+		if (innobase_fulltext_exist(table->s)
+		    && !innobase_fulltext_exist(altered_table->s)) {
+			dict_index_t*	fts_doc_index
+				= dict_table_get_index_on_name(
+					indexed_table, FTS_DOC_ID_INDEX_NAME);
+
+			/* The FTS_DOC_ID_INDEX should always exist
+			if fulltext indexes exist, unless the MySQL
+			and InnoDB data dictionaries are out of sync. */
+			DBUG_ASSERT(fts_doc_index != NULL);
+
+			// Add some fault tolerance for non-debug builds.
+			if (fts_doc_index == NULL) {
+				goto check_if_can_drop_indexes;
+			}
+
+			for (uint i = 0; i < table->s->keys; i++) {
+				if (!my_strcasecmp(
+					    system_charset_info,
+					    FTS_DOC_ID_INDEX_NAME,
+					    table->s->key_info[i].name)) {
+					/* The index exists in the MySQL
+					data dictionary. Do not drop it,
+					even though it is no longer needed
+					by InnoDB fulltext search. */
+					goto check_if_can_drop_indexes;
+				}
+			}
+
+			drop_index[n_drop_index++] = fts_doc_index;
+		}
+
+check_if_can_drop_indexes:
 		/* Check if the indexes can be dropped */
 
 		if (prebuilt->trx->check_foreigns) {
