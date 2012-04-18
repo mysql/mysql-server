@@ -2912,18 +2912,16 @@ row_discard_tablespace_for_mysql(
 	table = row_discard_tablespace_begin(name, trx);
 
 	if (table == 0) {
-		return(row_discard_tablespace_end(trx, 0, DB_TABLE_NOT_FOUND));
+		err = DB_TABLE_NOT_FOUND;
+	} else {
+		/* Do foreign key constraint checks. */
+
+		err = row_discard_tablespace_foreign_key_checks(trx, table);
+
+		if (err == DB_SUCCESS) {
+			err = row_discard_tablespace(trx, table);
+		}
 	}
-
-	/* Do foreign key constraint checks. */
-
-	err = row_discard_tablespace_foreign_key_checks(trx, table);
-
-	if (err != DB_SUCCESS) {
-		return(row_discard_tablespace_end(trx, table, err));
-	}
-
-	err = row_discard_tablespace(trx, table);
 
 	return(row_discard_tablespace_end(trx, table, err));
 }
