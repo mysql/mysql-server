@@ -8162,7 +8162,7 @@ int setup_wild(THD *thd, TABLE_LIST *tables, List<Item> &fields,
 
           Item_int do not need fix_fields() because it is basic constant.
         */
-        it.replace(new Item_int("Not_used", (longlong) 1,
+        it.replace(new Item_int(NAME_STRING("Not_used"), (longlong) 1,
                                 MY_INT64_NUM_DECIMAL_DIGITS));
       }
       else if (insert_fields(thd, ((Item_field*) item)->context,

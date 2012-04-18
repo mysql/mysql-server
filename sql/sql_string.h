@@ -27,6 +27,12 @@
   A wrapper class for null-terminated constant strings.
   Constructors make sure that the position of the '\0' terminating byte
   in m_str is always in sync with m_length.
+
+  This class must stay as small as possible as we often 
+  pass it and its descendants (such as NameString) into functions
+  using call-by-value evaluation.
+
+  Don't add new members or virual methods into this class!
 */
 class SimpleCString
 {

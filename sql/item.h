@@ -147,6 +147,11 @@ public:
 /**
   Storage for name strings.
   Enpowers SimpleCString with allocation routines from the sql_strmake family.
+
+  This class must stay as small as possible as we often 
+  pass it into functions using call-by-value evaluation.
+
+  Don't add new members or virual methods into this class!
 */
 class NameString: public SimpleCString
 {
@@ -160,6 +165,11 @@ private:
   }
 public:
   NameString(): SimpleCString() {}
+  /*
+    Please do NOT add constructor NameString(const char *str) !
+    It will involve hidden strlen() call, which can affect
+    performance negatively. Use NameString(str, len) instead.
+  */
   NameString(const char *str, uint length):
     SimpleCString(str, length) {}
   NameString(const LEX_STRING str): SimpleCString(str) {}
@@ -226,7 +236,10 @@ public:
 };
 
 
-extern NameString null_name_string;
+#define NAME_STRING(x)  NameString(C_STRING_WITH_LEN(x))
+
+
+extern const NameString null_name_string;
 
 
 /**
@@ -2211,14 +2224,23 @@ public:
 
 class Item_null :public Item_basic_constant
 {
-public:
-  Item_null(const char *name_par=0)
+  void init()
   {
     maybe_null= null_value= TRUE;
     max_length= 0;
-    item_name.copy(name_par ? name_par : (char*) "NULL");
     fixed= 1;
     collation.set(&my_charset_bin, DERIVATION_IGNORABLE);
+  }
+public:
+  Item_null()
+  {
+    init();
+    item_name= NAME_STRING("NULL");
+  }
+  Item_null(const NameString &name_par)
+  {
+    init();
+    item_name= name_par;
   }
   enum Type type() const { return NULL_ITEM; }
   bool eq(const Item *item, bool binary_cmp) const;
@@ -2242,7 +2264,7 @@ public:
   enum Item_result result_type () const { return STRING_RESULT; }
   enum_field_types field_type() const   { return MYSQL_TYPE_NULL; }
   bool basic_const_item() const { return 1; }
-  Item *clone_item() { return new Item_null(item_name.ptr()); }
+  Item *clone_item() { return new Item_null(item_name); }
   bool is_null() { return 1; }
 
   virtual inline void print(String *str, enum_query_type query_type)
@@ -2450,10 +2472,10 @@ public:
     max_length= item_arg->max_length;
     fixed= 1;
   }
-  Item_int(const char *str_arg,longlong i,uint length) :value(i)
+  Item_int(const NameString &name_arg, longlong i, uint length) :value(i)
   {
     max_length= length;
-    item_name.set(str_arg);
+    item_name= name_arg;
     fixed= 1;
   }
   Item_int(const char *str_arg, uint length);
@@ -2484,6 +2506,16 @@ public:
 };
 
 
+/**
+  Item_int with value==0 and length==1
+*/
+class Item_int_0 :public Item_int
+{
+public:
+  Item_int_0() :Item_int(NAME_STRING("0"), 0, 1) {}
+};
+
+
 /*
   Item_temporal is used to store numeric representation
   of time/date/datetime values for queries like:
@@ -2503,13 +2535,13 @@ public:
   {
     DBUG_ASSERT(is_temporal_type(field_type_arg));
   }
-  Item_temporal(enum_field_types field_type_arg,
-                const char *str_arg, longlong i, uint length): Item_int(i),
+  Item_temporal(enum_field_types field_type_arg, const NameString &name_arg,
+                longlong i, uint length): Item_int(i),
     cached_field_type(field_type_arg)
   {
     DBUG_ASSERT(is_temporal_type(field_type_arg));
     max_length= length;
-    item_name.set(str_arg);
+    item_name= name_arg;
     fixed= 1;
   }
   Item *clone_item() { return new Item_temporal(field_type(), value); }
@@ -2536,13 +2568,15 @@ public:
 class Item_uint :public Item_int
 {
 public:
-  Item_uint(const char *str_arg, uint length);
+  Item_uint(const char *str_arg, uint length)
+    :Item_int(str_arg, length) { unsigned_flag= 1; }
   Item_uint(ulonglong i) :Item_int((ulonglong) i, 10) {}
-  Item_uint(const char *str_arg, longlong i, uint length);
+  Item_uint(const NameString &name_arg, longlong i, uint length)
+    :Item_int(name_arg, i, length) { unsigned_flag= 1; }
   double val_real()
     { DBUG_ASSERT(fixed == 1); return ulonglong2double((ulonglong)value); }
   String *val_str(String*);
-  Item *clone_item() { return new Item_uint(item_name.ptr(), value, max_length); }
+  Item *clone_item() { return new Item_uint(item_name, value, max_length); }
   int save_in_field(Field *field, bool no_conversions);
   virtual void print(String *str, enum_query_type query_type);
   Item_num *neg ();
@@ -2558,8 +2592,8 @@ protected:
   my_decimal decimal_value;
 public:
   Item_decimal(const char *str_arg, uint length, const CHARSET_INFO *charset);
-  Item_decimal(const char *str, const my_decimal *val_arg,
-               uint decimal_par, uint length);
+  Item_decimal(const NameString &name_arg,
+               const my_decimal *val_arg, uint decimal_par, uint length);
   Item_decimal(my_decimal *value_par);
   Item_decimal(longlong val, bool unsig);
   Item_decimal(double val, int precision, int scale);
@@ -2584,7 +2618,7 @@ public:
   bool basic_const_item() const { return 1; }
   Item *clone_item()
   {
-    return new Item_decimal(item_name.ptr(), &decimal_value, decimals, max_length);
+    return new Item_decimal(item_name, &decimal_value, decimals, max_length);
   }
   virtual void print(String *str, enum_query_type query_type);
   Item_num *neg()
@@ -2607,13 +2641,14 @@ public:
   double value;
   // Item_real() :value(0) {}
   Item_float(const char *str_arg, uint length);
-  Item_float(const char *str,double val_arg,uint decimal_par,uint length)
+  Item_float(const NameString name_arg,
+             double val_arg, uint decimal_par, uint length)
     :value(val_arg)
   {
-    presentation.set(str);
-    item_name.set(str);
-    decimals=(uint8) decimal_par;
-    max_length=length;
+    presentation= name_arg;
+    item_name= name_arg;
+    decimals= (uint8) decimal_par;
+    max_length= length;
     fixed= 1;
   }
   Item_float(double value_par, uint decimal_par) :value(value_par)
@@ -2650,7 +2685,7 @@ public:
   }
   bool basic_const_item() const { return 1; }
   Item *clone_item()
-  { return new Item_float(item_name.ptr(), value, decimals, max_length); }
+  { return new Item_float(item_name, value, decimals, max_length); }
   Item_num *neg() { value= -value; return this; }
   virtual void print(String *str, enum_query_type query_type);
   bool eq(const Item *, bool binary_cmp) const;
@@ -2659,11 +2694,12 @@ public:
 
 class Item_static_float_func :public Item_float
 {
-  const char *func_name;
+  const NameString func_name;
 public:
-  Item_static_float_func(const char *str, double val_arg, uint decimal_par,
-                        uint length)
-    :Item_float(NullS, val_arg, decimal_par, length), func_name(str)
+  Item_static_float_func(const NameString &name_arg,
+                         double val_arg, uint decimal_par, uint length)
+    :Item_float(null_name_string,
+                val_arg, decimal_par, length), func_name(name_arg)
   {}
 
   virtual inline void print(String *str, enum_query_type query_type)
@@ -2827,10 +2863,10 @@ double_from_string_with_check (const CHARSET_INFO *cs,
 
 class Item_static_string_func :public Item_string
 {
-  const char *func_name;
+  const NameString func_name;
 public:
-  Item_static_string_func(const char *name_par, const char *str, uint length,
-                          const CHARSET_INFO *cs,
+  Item_static_string_func(const NameString &name_par,
+                          const char *str, uint length, const CHARSET_INFO *cs,
                           Derivation dv= DERIVATION_COERCIBLE)
     :Item_string(null_name_string, str, length, cs, dv), func_name(name_par)
   {}
@@ -2909,7 +2945,8 @@ class Item_return_int :public Item_int
 public:
   Item_return_int(const char *name_arg, uint length,
 		  enum_field_types field_type_arg, longlong value= 0)
-    :Item_int(name_arg, value, length), int_field_type(field_type_arg)
+    :Item_int(NameString(name_arg, name_arg ? strlen(name_arg) : 0),
+              value, length), int_field_type(field_type_arg)
   {
     unsigned_flag=1;
   }

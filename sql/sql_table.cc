@@ -7958,7 +7958,8 @@ bool mysql_checksum_table(THD *thd, TABLE_LIST *tables,
 
   field_list.push_back(item = new Item_empty_string("Table", NAME_LEN*2));
   item->maybe_null= 1;
-  field_list.push_back(item= new Item_int("Checksum", (longlong) 1,
+  field_list.push_back(item= new Item_int(NAME_STRING("Checksum"),
+                                          (longlong) 1,
                                           MY_INT64_NUM_DECIMAL_DIGITS));
   item->maybe_null= 1;
   if (protocol->send_result_set_metadata(&field_list,
