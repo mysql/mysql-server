@@ -8873,7 +8873,8 @@ void JOIN::optimize_fts_query()
   */
   List_iterator<Item> it(all_fields);
   Item *item;
-  bool covering= (order == NULL);  // Optimization does not work with filesort
+  // This optimization does not work with filesort nor GROUP BY
+  bool covering= (!order && !group);
   bool docid_found= false;
   while (covering && (item= it++))
   {

@@ -1931,6 +1931,7 @@ public:
   {
     Item_int_func::update_used_tables();
     used_tables_cache|= RAND_TABLE_BIT;
+    const_item_cache= false;
   }
 
   longlong val_int() 
