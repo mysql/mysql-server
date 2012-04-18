@@ -6801,7 +6801,7 @@ bool JOIN::generate_derived_keys()
 
 void JOIN::drop_unused_derived_keys()
 {
-  for (uint i= const_tables ; i < tables ; i++)
+  for (uint i= 0 ; i < tables ; i++)
   {
     JOIN_TAB *tab= join_tab + i;
     TABLE *table= tab->table;

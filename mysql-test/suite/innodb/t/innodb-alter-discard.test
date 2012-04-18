@@ -1,5 +1,6 @@
 #Bug#13955083 ALLOW IN-PLACE DDL OPERATIONS ON MISSING OR DISCARDED TABLESPACES
 
+--source include/not_embedded.inc
 --source include/have_innodb.inc
 
 let $MYSQLD_DATADIR=`select @@datadir`;
