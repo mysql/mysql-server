@@ -4,6 +4,9 @@ SET DEBUG='d,query,debug_sync_exec:i:t:A,ds.trace';
 call mtr.add_suppression("InnoDB: Warning: Small buffer pool size");
 call mtr.add_suppression("Cannot find index .*c2 in InnoDB index translation table");
 call mtr.add_suppression("Find index .*c2 in InnoDB index list but not its MySQL index number");
+call mtr.add_suppression("InnoDB: Error: table 'test/t1'$");
+call mtr.add_suppression("MySQL is trying to open a table handle but the .ibd file for$");
+SET GLOBAL innodb_file_per_table=on;
 CREATE TABLE t1 (c1 INT PRIMARY KEY, c2 INT, c3 INT) ENGINE=InnoDB;
 INSERT INTO t1 VALUES (1,1,0),(2,2,0),(3,3,0),(4,4,0),(5,5,0);
 SET GLOBAL innodb_monitor_enable=module_ddl;
@@ -257,6 +260,48 @@ COUNT(c2)
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
+SET DEBUG_SYNC='row_log_apply_before SIGNAL c2g_created WAIT_FOR dml4_done';
+SET lock_wait_timeout=1;
+ALTER TABLE t1 DROP INDEX c2f, ADD INDEX c2g(c2);
+SET DEBUG_SYNC='now WAIT_FOR c2g_created';
+SET lock_wait_timeout=10;
+ALTER TABLE t1 DISCARD TABLESPACE;
+SELECT state FROM information_schema.processlist
+WHERE info='ALTER TABLE t1 DISCARD TABLESPACE';
+state
+Waiting for table level lock
+SET DEBUG_SYNC='now SIGNAL dml4_done';
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` int(11) NOT NULL,
+  `c2` int(11) DEFAULT NULL,
+  `c3` int(11) DEFAULT NULL,
+  PRIMARY KEY (`c1`),
+  KEY `c2d` (`c2`),
+  KEY `c2f` (`c2`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1 COMMENT='testing if c2e will be dropped'
+ALTER TABLE t1 DROP INDEX c2d, DROP INDEX c2f;
+Warnings:
+Warning	1810	InnoDB: Tablespace has been discarded for table 'test/t1'
+ALTER TABLE t1 ADD INDEX c2h(c2), ALGORITHM=INPLACE;
+Warnings:
+Warning	1810	InnoDB: Tablespace has been discarded for table 'test/t1'
+ALTER TABLE t1 ADD INDEX c2g(c2), ALGORITHM=COPY;
+ERROR HY000: Tablespace has been discarded for table 'test/t1'
+SELECT * FROM t1;
+ERROR HY000: Tablespace has been discarded for table 'test/t1'
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` int(11) NOT NULL,
+  `c2` int(11) DEFAULT NULL,
+  `c3` int(11) DEFAULT NULL,
+  PRIMARY KEY (`c1`),
+  KEY `c2h` (`c2`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1 COMMENT='testing if c2e will be dropped'
+SET GLOBAL innodb_file_per_table=0;
 SET DEBUG_SYNC='RESET';
 SET DEBUG='-d,debug_sync_abort_on_timeout';
 SET DEBUG='';
