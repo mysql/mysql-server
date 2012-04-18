@@ -246,6 +246,7 @@ static void warn(const char *format,...)
   {
     void *frame[SF_REMEMBER_FRAMES + SF_FRAMES_SKIP];
     int frames= backtrace(frame, array_elements(frame));
+    fprintf(stderr, " ");
     if (frames < SF_REMEMBER_FRAMES + SF_FRAMES_SKIP)
       frame[frames]= 0;
     print_stack(frame + SF_FRAMES_SKIP);
