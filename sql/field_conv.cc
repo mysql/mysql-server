@@ -577,9 +577,6 @@ void Copy_field::set(uchar *to,Field *from)
     Field_blob::store. Is this in order to trigger the call to 
     well_formed_copy_nchars, by changing the pointer copy->tmp.ptr()?
     That call will take place anyway in all known cases.
-
-  - The above causes a truncation to MAX_FIELD_WIDTH. Is this the intended 
-    effect? Truncation is handled by well_formed_copy_nchars anyway.
  */
 void Copy_field::set(Field *to,Field *from,bool save)
 {
