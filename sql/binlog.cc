@@ -25,6 +25,7 @@
 #include "rpl_info_factory.h"
 #include "rpl_utility.h"
 #include "debug_sync.h"
+#include "global_threads.h"
 #include "sql_parse.h"
 #include <list>
 #include <string>
@@ -170,6 +171,37 @@ public:
     cache_log.disk_writes= 0;
     group_cache.clear();
     DBUG_ASSERT(is_binlog_empty());
+  }
+
+  /*
+    Sets the write position to point at the position given. If the
+    cache has swapped to a file, it reinitializes it, so that the
+    proper data is added to the IO_CACHE buffer. Otherwise, it just
+    does a my_b_seek.
+
+    my_b_seek will not work if the cache has swapped, that's why
+    we do this workaround.
+
+    @param[IN]  pos the new write position.
+    @param[IN]  use_reinit if the position should be reset resorting
+                to reset_io_cache (which may issue a flush_io_cache 
+                inside)
+
+    @return The previous write position.
+   */
+  my_off_t reset_write_pos(my_off_t pos, bool use_reinit)
+  {
+    DBUG_ENTER("reset_write_pos");
+    DBUG_ASSERT(cache_log.type == WRITE_CACHE);
+
+    my_off_t oldpos= get_byte_position();
+
+    if (use_reinit)
+      reinit_io_cache(&cache_log, WRITE_CACHE, pos, 0, 0);
+    else
+      my_b_seek(&cache_log, pos);
+
+    DBUG_RETURN(oldpos);
   }
 
   /*
@@ -648,6 +680,7 @@ static int write_empty_groups_to_cache(THD *thd, binlog_cache_data *cache_data)
 int gtid_before_write_cache(THD* thd, binlog_cache_data* cache_data)
 {
   DBUG_ENTER("gtid_before_write_cache");
+  int error= 0;
 
   if (gtid_mode == 0)
     DBUG_RETURN(0);
@@ -666,7 +699,10 @@ int gtid_before_write_cache(THD* thd, binlog_cache_data* cache_data)
     }
   }
   if (write_empty_groups_to_cache(thd, cache_data) != 0)
+  {
+    global_sid_lock.unlock();
     DBUG_RETURN(1);
+  }
 
   global_sid_lock.unlock();
 
@@ -681,21 +717,13 @@ int gtid_before_write_cache(THD* thd, binlog_cache_data* cache_data)
     DBUG_ASSERT(cached_group->spec.type != AUTOMATIC_GROUP);
     Gtid_log_event gtid_ev(thd, cache_data->is_trx_cache(),
                            &cached_group->spec);
-    my_off_t saved_position= cache_data->get_byte_position();
-    IO_CACHE *cache_log= &cache_data->cache_log;
-    flush_io_cache(cache_log);
-    reinit_io_cache(cache_log, WRITE_CACHE, 0, 0, 0);
-    if (gtid_ev.write(cache_log) != 0)
-    {
-      flush_io_cache(cache_log);
-      reinit_io_cache(cache_log, WRITE_CACHE, saved_position, 0, 0);
-      DBUG_RETURN(1);
-    }
-    flush_io_cache(cache_log);
-    reinit_io_cache(cache_log, WRITE_CACHE, saved_position, 0, 0);
+    bool using_file= cache_data->cache_log.pos_in_file > 0;
+    my_off_t saved_position= cache_data->reset_write_pos(0, using_file);
+    error= gtid_ev.write(&cache_data->cache_log);
+    cache_data->reset_write_pos(saved_position, using_file);
   }
 
-  DBUG_RETURN(0);
+  DBUG_RETURN(error);
 }
 
 /**
@@ -1276,15 +1304,14 @@ static int binlog_savepoint_rollback(handlerton *hton, THD *thd, void *sv)
 
 static void adjust_linfo_offsets(my_off_t purge_offset)
 {
-  THD *tmp;
-
   mysql_mutex_lock(&LOCK_thread_count);
-  I_List_iterator<THD> it(threads);
 
-  while ((tmp=it++))
+  Thread_iterator it= global_thread_list_begin();
+  Thread_iterator end= global_thread_list_end();
+  for (; it != end; ++it)
   {
     LOG_INFO* linfo;
-    if ((linfo = tmp->current_linfo))
+    if ((linfo = (*it)->current_linfo))
     {
       mysql_mutex_lock(&linfo->lock);
       /*
@@ -1306,16 +1333,16 @@ static void adjust_linfo_offsets(my_off_t purge_offset)
 static bool log_in_use(const char* log_name)
 {
   size_t log_name_len = strlen(log_name) + 1;
-  THD *tmp;
   bool result = 0;
 
   mysql_mutex_lock(&LOCK_thread_count);
-  I_List_iterator<THD> it(threads);
 
-  while ((tmp=it++))
+  Thread_iterator it= global_thread_list_begin();
+  Thread_iterator end= global_thread_list_end();
+  for (; it != end; ++it)
   {
     LOG_INFO* linfo;
-    if ((linfo = tmp->current_linfo))
+    if ((linfo = (*it)->current_linfo))
     {
       mysql_mutex_lock(&linfo->lock);
       result = !memcmp(log_name, linfo->log_file_name, log_name_len);
@@ -1684,6 +1711,8 @@ bool show_binlog_events(THD *thd, MYSQL_BIN_LOG *binary_log)
   IO_CACHE log;
   File file = -1;
   int old_max_allowed_packet= thd->variables.max_allowed_packet;
+  LOG_INFO linfo;
+
   DBUG_ENTER("show_binlog_events");
 
   DBUG_ASSERT(thd->lex->sql_command == SQLCOM_SHOW_BINLOG_EVENTS ||
@@ -1701,7 +1730,6 @@ bool show_binlog_events(THD *thd, MYSQL_BIN_LOG *binary_log)
     char search_file_name[FN_REFLEN], *name;
     const char *log_file_name = lex_mi->log_file_name;
     mysql_mutex_t *log_lock = binary_log->get_log_lock();
-    LOG_INFO linfo;
     Log_event* ev;
 
     unit->set_limit(thd->lex->current_select);

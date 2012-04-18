@@ -2243,6 +2243,42 @@ disconnect con1;
 DROP USER 'untrusted'@localhost;
 DROP DATABASE secret;
 
+--echo #
+--echo # Bug#12766319 - 61865: RENAME USER DOES NOT WORK CORRECTLY - 
+--echo #                       REQUIRES FLUSH PRIVILEGES
+--echo #
+
+CREATE USER foo@'127.0.0.1';
+GRANT ALL ON *.* TO foo@'127.0.0.1';
+
+--echo # First attempt, should connect successfully 
+connect (conn1, '127.0.0.1', foo,,test); 
+SELECT user(), current_user(); 
+
+--echo # Rename the user
+RENAME USER foo@'127.0.0.1' to foo@'127.0.0.0/255.0.0.0';
+
+--echo # Second attempt, should connect successfully as its valid mask
+--echo # This was failing without fix 
+connect (conn2, '127.0.0.1', foo,,test); 
+SELECT user(), current_user(); 
+
+--echo # Rename the user back to original
+RENAME USER foo@'127.0.0.0/255.0.0.0' to foo@'127.0.0.1';
+
+--echo # Third attempt, should connect successfully 
+connect (conn3, '127.0.0.1', foo,,test); 
+SELECT user(), current_user(); 
+
+--echo # Clean-up
+connection default;
+disconnect conn1;
+disconnect conn2;
+disconnect conn3;
+DROP USER foo@'127.0.0.1'; 
+
+--echo # End of Bug#12766319
 
 # Wait till we reached the initial number of concurrent sessions
 --source include/wait_until_count_sessions.inc
+

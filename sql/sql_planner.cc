@@ -37,6 +37,8 @@ using std::max;
 using std::min;
 
 static double prev_record_reads(JOIN *join, uint idx, table_map found_ref);
+static void trace_plan_prefix(JOIN *join, uint idx,
+                              table_map excluded_tables);
 
 /*
   This is a class for considering possible loose index scan optimizations.
@@ -1230,7 +1232,11 @@ void Optimize_table_order::optimize_straight_join(table_map join_tables)
   for (JOIN_TAB **pos= join->best_ref + idx ; (s= *pos) ; pos++)
   {
     Opt_trace_object trace_table(trace);
-    trace_table.add_utf8_table(s->table);
+    if (unlikely(trace->is_started()))
+    {
+      trace_plan_prefix(join, idx, excluded_tables);
+      trace_table.add_utf8_table(s->table);
+    }
     /*
       Dependency computation (make_join_statistics()) and proper ordering
       based on them (join_tab_cmp*) guarantee that this order is compatible
@@ -1811,7 +1817,11 @@ bool Optimize_table_order::best_extension_by_limited_search(
     {
       double current_record_count, current_read_time;
       Opt_trace_object trace_one_table(trace);
-      trace_one_table.add_utf8_table(s->table);
+      if (unlikely(trace->is_started()))
+      {
+        trace_plan_prefix(join, idx, excluded_tables);
+        trace_one_table.add_utf8_table(s->table);
+      }
       POSITION *const position= join->positions + idx;
 
       /* Find the best access method from 's' to the current partial plan */
@@ -2145,7 +2155,11 @@ table_map Optimize_table_order::eq_ref_extension_by_limited_search(
         (!idx || !check_interleaving_with_nj(s)))  // 4)
     {
       Opt_trace_object trace_one_table(trace);
-      trace_one_table.add_utf8_table(s->table);
+      if (unlikely(trace->is_started()))
+      {
+        trace_plan_prefix(join, idx, excluded_tables);
+        trace_one_table.add_utf8_table(s->table);
+      }
       POSITION *const position= join->positions + idx;
       POSITION loose_scan_pos;
 
@@ -3655,6 +3669,35 @@ void Optimize_table_order::backout_nj_state(const table_map remaining_tables,
   }
 }
 
+
+/**
+   Helper function to write the current plan's prefix to the optimizer trace.
+*/
+static void trace_plan_prefix(JOIN *join, uint idx,
+                              table_map excluded_tables)
+{
+#ifdef OPTIMIZER_TRACE
+  THD * const thd= join->thd;
+  Opt_trace_array plan_prefix(&thd->opt_trace, "plan_prefix");
+  for (uint i= 0; i < idx; i++)
+  {
+    const TABLE * const table= join->positions[i].table->table;
+    if (!(table->map & excluded_tables))
+    {
+      TABLE_LIST * const tl= table->pos_in_table_list;
+      if (tl != NULL)
+      {
+        StringBuffer<32> str;
+        tl->print(thd, &str, enum_query_type(QT_TO_SYSTEM_CHARSET |
+                                             QT_SHOW_SELECT_NUMBER |
+                                             QT_NO_DEFAULT_DB |
+                                             QT_DERIVED_TABLE_ONLY_ALIAS));
+        plan_prefix.add_utf8(str.ptr(), str.length());
+      }
+    }
+  }
+#endif
+}
 
 /**
   @} (end of group Query_Planner)

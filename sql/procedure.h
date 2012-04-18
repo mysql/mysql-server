@@ -37,7 +37,7 @@ class Item_proc :public Item
 public:
   Item_proc(const char *name_par): Item()
   {
-     this->name=(char*) name_par;
+     this->item_name.set(name_par);
   }
   enum Type type() const { return Item::PROC_ITEM; }
   virtual void set(double nr)=0;

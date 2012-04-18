@@ -1,0 +1,119 @@
+#
+# Test verifies MTS behaviour with regard to 
+# Change-Master.
+# 
+# Related bugs:
+# Bug 12995174 - MTS: UNEXPECTED RECOVERY ATTEMPT ENDS WITH ER_MASTER_INFO OR ASSERTION 
+
+--source include/master-slave.inc
+# The test for bug#12995174 is not format-specific but uses sleep
+# so it made to be run in ROW format that is the way the bug is reported.
+--source include/have_binlog_format_row.inc
+--source include/have_innodb.inc
+
+--connection slave
+call mtr.add_suppression("Slave SQL: Could not execute Write_rows event on table d1.t1; Duplicate entry '13' for key 'a'");
+call mtr.add_suppression("Slave SQL: ... The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state.");
+--source include/stop_slave.inc
+SET @save.slave_parallel_workers=@@global.slave_parallel_workers;
+SET @@global.slave_parallel_workers=2;
+--source include/start_slave.inc
+
+--connection master
+
+CREATE DATABASE d1;
+CREATE DATABASE d2;
+CREATE TABLE d1.t1 (a int unique) ENGINE=INNODB;
+CREATE TABLE d2.t1 (a int unique) ENGINE=INNODB;
+
+INSERT INTO d1.t1 VALUES (1);
+FLUSH LOGS;
+
+--sync_slave_with_master
+
+--source include/stop_slave.inc
+CHANGE MASTER TO MASTER_DELAY=5;
+--source include/start_slave.inc
+
+--connection master
+INSERT INTO d1.t1 VALUES (3);
+--sleep 3
+INSERT INTO d1.t1 VALUES (5);
+FLUSH LOGS;
+
+--connection slave
+--source include/stop_slave.inc
+
+let $relay_file = query_get_value( SHOW SLAVE STATUS, Relay_Log_File, 1 );
+let $relay_pos = query_get_value( SHOW SLAVE STATUS, Relay_Log_Pos, 1 );
+
+--replace_regex /RELAY_LOG_FILE=[^,]+/RELAY_LOG_FILE=FILE/ /RELAY_LOG_POS=[0-9]+/ RELAY_LOG_POS= POS/
+eval CHANGE MASTER TO RELAY_LOG_FILE='$relay_file', RELAY_LOG_POS=$relay_pos;
+
+--source include/start_slave.inc
+--sleep 5
+--source include/stop_slave.inc
+
+let $relay_file = query_get_value( SHOW SLAVE STATUS, Relay_Log_File, 1 );
+let $relay_pos = query_get_value( SHOW SLAVE STATUS, Relay_Log_Pos, 1 );
+--replace_regex /RELAY_LOG_FILE=[^,]+/RELAY_LOG_FILE=FILE/ /RELAY_LOG_POS=[0-9]+/ RELAY_LOG_POS= POS/
+eval CHANGE MASTER TO RELAY_LOG_FILE='$relay_file', RELAY_LOG_POS=$relay_pos, MASTER_DELAY=0;
+
+--source include/start_slave.inc
+BEGIN;
+INSERT INTO d1.t1 VALUES (13); # to cause the dup key error
+# change-master with gaps
+--connection master
+
+INSERT INTO d1.t1 VALUES (6);
+INSERT INTO d2.t1 VALUES (7);
+INSERT INTO d1.t1 VALUES (13);
+INSERT INTO d2.t1 VALUES (8);
+INSERT INTO d2.t1 VALUES (9);
+
+--connection slave
+COMMIT; # worker executing (13) errors out
+
+--let $slave_sql_errno= 1062
+--source include/wait_for_slave_sql_error.inc
+
+--source include/stop_slave_io.inc
+
+let $relay_file = query_get_value( SHOW SLAVE STATUS, Relay_Log_File, 1 );
+let $relay_pos = query_get_value( SHOW SLAVE STATUS, Relay_Log_Pos, 1 );
+--replace_regex /RELAY_LOG_FILE=[^,]+/RELAY_LOG_FILE=FILE/ /RELAY_LOG_POS=[0-9]+/ RELAY_LOG_POS= POS/
+--error ER_MTS_CHANGE_MASTER_CANT_RUN_WITH_GAPS
+eval CHANGE MASTER TO RELAY_LOG_FILE='$relay_file', RELAY_LOG_POS=$relay_pos;
+
+SET @@global.slave_parallel_workers= @save.slave_parallel_workers; # cleanup
+
+#
+# --relay-log-recovery= 1 and MTS gaps is handled similarly to Change-Master
+#
+--let $rpl_server_number= 2
+--let $rpl_server_parameters= --relay-log-recovery --skip-slave-start
+--source include/rpl_restart_server.inc
+
+--connection slave
+SELECT @@global.relay_log_recovery as 'must be ON';
+call mtr.add_suppression("--relay-log-recovery cannot be executed when the slave was stopped with an error or killed in MTS mode; consider using RESET SLAVE or restart the server with --relay-log-recovery = 0");
+call mtr.add_suppression("Failed to initialize the master info structure");
+
+--let $rpl_server_number= 2
+--let $rpl_server_parameters= --skip-slave-start
+--source include/rpl_restart_server.inc
+
+SELECT @@global.relay_log_recovery as 'must be OFF';
+--connection slave
+DELETE FROM d1.t1 WHERE a = 13;
+--source include/start_slave.inc
+
+#
+# cleanup
+#
+--connection master
+DROP DATABASE d1;
+DROP DATABASE d2;
+--sync_slave_with_master
+
+--source include/rpl_end.inc

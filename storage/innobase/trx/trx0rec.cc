@@ -1186,7 +1186,7 @@ transaction and in consistent reads that must look to the history of this
 transaction.
 @return	DB_SUCCESS or error code */
 UNIV_INTERN
-ulint
+dberr_t
 trx_undo_report_row_operation(
 /*==========================*/
 	ulint		flags,		/*!< in: if BTR_NO_UNDO_LOG_FLAG bit is
@@ -1216,7 +1216,7 @@ trx_undo_report_row_operation(
 	buf_block_t*	undo_block;
 	trx_rseg_t*	rseg;
 	mtr_t		mtr;
-	ulint		err		= DB_SUCCESS;
+	dberr_t		err		= DB_SUCCESS;
 	mem_heap_t*	heap		= NULL;
 	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
 	ulint*		offsets		= offsets_;
@@ -1452,8 +1452,8 @@ purge_view.
 
 @return DB_SUCCESS, or DB_MISSING_HISTORY if the undo log has been
 truncated and we cannot fetch the old version */
-static
-ulint
+static __attribute__((nonnull, warn_unused_result))
+dberr_t
 trx_undo_get_undo_rec(
 /*==================*/
 	roll_ptr_t	roll_ptr,	/*!< in: roll pointer to record */
@@ -1496,7 +1496,7 @@ purge_sys->view.
 @return DB_SUCCESS, or DB_MISSING_HISTORY if the previous version is
 earlier than purge_view, which means that it may have been removed */
 UNIV_INTERN
-ulint
+dberr_t
 trx_undo_prev_version_build(
 /*========================*/
 	const rec_t*	index_rec ATTRIB_USED_ONLY_IN_DEBUG,
@@ -1530,7 +1530,7 @@ trx_undo_prev_version_build(
 	ulint		cmpl_info;
 	ibool		dummy_extern;
 	byte*		buf;
-	ulint		err;
+	dberr_t		err;
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(!rw_lock_own(&purge_sys->latch, RW_LOCK_SHARED));
 #endif /* UNIV_SYNC_DEBUG */

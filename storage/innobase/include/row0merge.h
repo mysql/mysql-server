@@ -63,6 +63,12 @@ The format is the same as a record in ROW_FORMAT=COMPACT with the
 exception that the REC_N_NEW_EXTRA_BYTES are omitted. */
 typedef byte	mrec_t;
 
+/** Merge record in row_merge_buf_t */
+struct mtuple_t {
+	bool		del_mark;	/*!< true when delete-marked */
+	dfield_t*	fields;		/*!< data fields */
+};
+
 /** Buffer for sorting in main memory. */
 struct row_merge_buf_struct {
 	mem_heap_t*	heap;		/*!< memory heap where allocated */
@@ -70,10 +76,8 @@ struct row_merge_buf_struct {
 	ulint		total_size;	/*!< total amount of data bytes */
 	ulint		n_tuples;	/*!< number of data tuples */
 	ulint		max_tuples;	/*!< maximum number of data tuples */
-	const dfield_t**tuples;		/*!< array of pointers to
-					arrays of fields that form
-					the data tuples */
-	const dfield_t**tmp_tuples;	/*!< temporary copy of tuples,
+	mtuple_t*	tuples;		/*!< array of data tuples */
+	mtuple_t*	tmp_tuples;	/*!< temporary copy of tuples,
 					for sorting */
 };
 
@@ -138,12 +142,13 @@ row_merge_dup_report(
 Sets an exclusive lock on a table, for the duration of creating indexes.
 @return	error code or DB_SUCCESS */
 UNIV_INTERN
-ulint
+dberr_t
 row_merge_lock_table(
 /*=================*/
 	trx_t*		trx,		/*!< in/out: transaction */
 	dict_table_t*	table,		/*!< in: table to lock */
-	enum lock_mode	mode);		/*!< in: LOCK_X or LOCK_S */
+	enum lock_mode	mode)		/*!< in: LOCK_X or LOCK_S */
+	__attribute__((nonnull, warn_unused_result));
 /*********************************************************************//**
 Drop indexes that were created before an error occurred.
 The data dictionary must have been locked exclusively by the caller,
@@ -199,7 +204,7 @@ have been locked exclusively by the caller, because the transaction
 will not be committed.
 @return	error code or DB_SUCCESS */
 UNIV_INTERN
-db_err
+dberr_t
 row_merge_rename_tables(
 /*====================*/
 	dict_table_t*	old_table,	/*!< in/out: old table, renamed to
@@ -207,14 +212,15 @@ row_merge_rename_tables(
 	dict_table_t*	new_table,	/*!< in/out: new table, renamed to
 					old_table->name */
 	const char*	tmp_name,	/*!< in: new name for old_table */
-	trx_t*		trx);		/*!< in: transaction handle */
+	trx_t*		trx)		/*!< in: transaction handle */
+	__attribute__((nonnull, warn_unused_result));
 /*********************************************************************//**
 Rename an index in the dictionary that was created. The data
 dictionary must have been locked exclusively by the caller, because
 the transaction will not be committed.
 @return	DB_SUCCESS if all OK */
 UNIV_INTERN
-db_err
+dberr_t
 row_merge_rename_index_to_add(
 /*==========================*/
 	trx_t*		trx,		/*!< in/out: transaction */
@@ -227,7 +233,7 @@ dictionary must have been locked exclusively by the caller, because
 the transaction will not be committed.
 @return	DB_SUCCESS if all OK */
 UNIV_INTERN
-db_err
+dberr_t
 row_merge_rename_index_to_drop(
 /*===========================*/
 	trx_t*		trx,		/*!< in/out: transaction */
@@ -259,7 +265,7 @@ If there are views that refer to the old table name then we "attach" to
 the new instance of the table else we drop it immediately.
 @return	DB_SUCCESS or error code */
 UNIV_INTERN
-db_err
+dberr_t
 row_merge_drop_table(
 /*=================*/
 	trx_t*		trx,		/*!< in: transaction */
@@ -270,7 +276,7 @@ creating a temporary file containing index entries, merge sorting
 these index entries and inserting sorted index entries to indexes.
 @return	DB_SUCCESS or error code */
 UNIV_INTERN
-db_err
+dberr_t
 row_merge_build_indexes(
 /*====================*/
 	trx_t*		trx,		/*!< in: transaction */
@@ -339,7 +345,7 @@ row_merge_file_create(
 Merge disk files.
 @return DB_SUCCESS or error code */
 UNIV_INTERN
-db_err
+dberr_t
 row_merge_sort(
 /*===========*/
 	trx_t*			trx,	/*!< in: transaction */
@@ -348,9 +354,10 @@ row_merge_sort(
 					index entries */
 	row_merge_block_t*	block,	/*!< in/out: 3 buffers */
 	int*			tmpfd,	/*!< in/out: temporary file handle */
-	struct TABLE*		table);	/*!< in/out: MySQL table, for
+	struct TABLE*		table)	/*!< in/out: MySQL table, for
 					reporting erroneous key value
 					if applicable */
+	__attribute__((nonnull));
 /*********************************************************************//**
 Allocate a sort buffer.
 @return own: sort buffer */
@@ -391,7 +398,7 @@ row_merge_read(
 /********************************************************************//**
 Read a merge record.
 @return pointer to next record, or NULL on I/O error or end of list */
-UNIV_INTERN __attribute__((nonnull))
+UNIV_INTERN
 const byte*
 row_merge_read_rec(
 /*===============*/
@@ -399,10 +406,12 @@ row_merge_read_rec(
 	mrec_buf_t*		buf,	/*!< in/out: secondary buffer */
 	const byte*		b,	/*!< in: pointer to record */
 	const dict_index_t*	index,	/*!< in: index of the record */
+	ulint			n_null,	/*!< in: size of the NULL-bit bitmap */
 	int			fd,	/*!< in: file descriptor */
 	ulint*			foffs,	/*!< in/out: file offset */
 	const mrec_t**		mrec,	/*!< out: pointer to merge record,
 					or NULL on end of list
 					(non-NULL on I/O error) */
-	ulint*			offsets);/*!< out: offsets of mrec */
+	ulint*			offsets)/*!< out: offsets of mrec */
+	__attribute__((nonnull, warn_unused_result));
 #endif /* row0merge.h */

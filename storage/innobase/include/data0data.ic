@@ -54,7 +54,7 @@ void
 dfield_set_type(
 /*============*/
 	dfield_t*	field,	/*!< in: SQL data field */
-	dtype_t*	type)	/*!< in: pointer to data type struct */
+	const dtype_t*	type)	/*!< in: pointer to data type struct */
 {
 	ut_ad(field && type);
 

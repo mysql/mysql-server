@@ -77,6 +77,7 @@ Relay_log_info::Relay_log_info(bool is_slave_recovery
    group_master_log_pos(0),
    gtid_set(&global_sid_map, &global_sid_lock),
    log_space_total(0), ignore_log_space_limit(0),
+   sql_force_rotate_relay(false),
    last_master_timestamp(0), slave_skip_counter(0),
    abort_pos_wait(0), until_condition(UNTIL_NONE),
    until_log_pos(0),
@@ -88,7 +89,8 @@ Relay_log_info::Relay_log_info(bool is_slave_recovery
    rows_query_ev(NULL), last_event_start_time(0),
    slave_parallel_workers(0),
    recovery_parallel_workers(0), checkpoint_seqno(0),
-   checkpoint_group(opt_mts_checkpoint_group), mts_recovery_group_cnt(0),
+   checkpoint_group(opt_mts_checkpoint_group), 
+   recovery_groups_inited(false), mts_recovery_group_cnt(0),
    mts_recovery_index(0), mts_recovery_group_seen_begin(0),
    mts_group_status(MTS_NOT_IN_GROUP), reported_unsafe_warning(false),
    sql_delay(0), sql_delay_end(0), m_flags(0), row_stmt_start_timestamp(0),
@@ -107,7 +109,6 @@ Relay_log_info::Relay_log_info(bool is_slave_recovery
     group_master_log_name[0]= 0;
   until_log_name[0]= ign_master_log_name_end[0]= 0;
   set_timespec_nsec(last_clock, 0);
-  bitmap_init(&recovery_groups, NULL, checkpoint_group, FALSE);
   memset(&cache_buf, 0, sizeof(cache_buf));
   cached_charset_invalidate();
 
@@ -151,7 +152,8 @@ Relay_log_info::~Relay_log_info()
 {
   DBUG_ENTER("Relay_log_info::~Relay_log_info");
 
-  bitmap_free(&recovery_groups);
+  if (recovery_groups_inited)
+    bitmap_free(&recovery_groups);
   mysql_mutex_destroy(&log_space_lock);
   mysql_cond_destroy(&log_space_cond);
   mysql_mutex_destroy(&pending_jobs_lock);
@@ -197,8 +199,10 @@ void Relay_log_info::reset_notified_relay_log_change()
                  checkpoint change.
    @param new_ts new seconds_behind_master timestamp value unless zero.
                  Zero could be due to FD event.
+   @param locked true if caller has locked @c data_lock
 */
-void Relay_log_info::reset_notified_checkpoint(ulong shift, time_t new_ts= 0)
+void Relay_log_info::reset_notified_checkpoint(ulong shift, time_t new_ts,
+                                               bool locked)
 {
   /*
     If this is not a parallel execution we return immediately.
@@ -238,10 +242,35 @@ void Relay_log_info::reset_notified_checkpoint(ulong shift, time_t new_ts= 0)
 
   if (new_ts)
   {
-    mysql_mutex_lock(&data_lock);
+    if (!locked)
+      mysql_mutex_lock(&data_lock);
     last_master_timestamp= new_ts;
-    mysql_mutex_unlock(&data_lock);
+    if (!locked)
+      mysql_mutex_unlock(&data_lock);
   }
+}
+
+/**
+   Reset recovery info from Worker info table and 
+   mark MTS recovery is completed.
+
+   @return false on success true when @c reset_notified_checkpoint failed.
+*/
+bool Relay_log_info::mts_finalize_recovery()
+{
+  bool ret= false;
+
+  DBUG_ENTER("Relay_log_info::mts_finalize_recovery");
+
+  for (uint i= 0; !ret && i < workers.elements; i++)
+  {
+    Slave_worker *w= *(Slave_worker **) dynamic_array_ptr(&workers, i);
+    ret= w->reset_recovery_info();
+    DBUG_EXECUTE_IF("mts_debug_recovery_reset_fails", ret= true;);
+  }
+  recovery_parallel_workers= slave_parallel_workers;
+
+  DBUG_RETURN(ret);
 }
 
 static inline int add_relay_log(Relay_log_info* rli,LOG_INFO* linfo)
@@ -505,7 +534,9 @@ err:
     silently discard it
   */
   if (!relay_log_purge)
-    log_space_limit= 0;
+  {
+    log_space_limit= 0; // todo: consider to throw a warning at least
+  }
   mysql_cond_broadcast(&data_cond);
 
   mysql_mutex_unlock(log_lock);
@@ -1244,6 +1275,35 @@ bool Relay_log_info::is_until_satisfied(THD *thd, Log_event *ev)
     DBUG_RETURN(false);
     break;
 
+  case UNTIL_SQL_AFTER_MTS_GAPS:
+#ifndef DBUG_OFF
+  case UNTIL_DONE:
+#endif
+    /*
+      TODO: this condition is actually post-execution or post-scheduling
+            so the proper place to check it before SQL thread goes
+            into next_event() where it can wait while the condition
+            has been satisfied already.
+            It's deployed here temporarily to be fixed along the regular UNTIL
+            support for MTS is provided.
+    */
+    if (mts_recovery_group_cnt == 0)
+    {
+      sql_print_information("Slave SQL thread stopped according to "
+                            "UNTIL SQL_AFTER_MTS_GAPS as it has "
+                            "processed all gap transactions left from "
+                            "the previous slave session.");
+#ifndef DBUG_OFF
+      until_condition= UNTIL_DONE;
+#endif
+      DBUG_RETURN(true);
+    }
+    else
+    {
+      DBUG_RETURN(false);
+    }
+    break;
+
   case UNTIL_NONE:
     DBUG_ASSERT(0);
     break;
@@ -1524,9 +1584,7 @@ int Relay_log_info::init_info()
 
     if (hot_log)
       mysql_mutex_unlock(log_lock);
-
-    DBUG_RETURN(recovery_parallel_workers && !is_mts_recovery() ?
-                mts_recovery_groups(this, &recovery_groups) : 0);
+    DBUG_RETURN(recovery_parallel_workers ? mts_recovery_groups(this) : 0);
   }
 
   cur_log_fd = -1;
@@ -1744,8 +1802,10 @@ a file name for --relay-log-index option.", opt_relaylog_index_name);
   DBUG_RETURN(error);
 
 err:
+  handler->end_info(uidx, nidx);
   inited= 0;
-  sql_print_error("%s.", msg);
+  if (msg)
+    sql_print_error("%s.", msg);
   relay_log.close(LOG_CLOSE_INDEX | LOG_CLOSE_STOP_EVENT);
   DBUG_RETURN(error);
 }

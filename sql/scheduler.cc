@@ -23,6 +23,8 @@
 #include "sql_connect.h"         // init_new_connection_handler_thread
 #include "scheduler.h"
 #include "sql_callback.h"
+#include "global_threads.h"
+#include "mysql/thread_pool_priv.h"
 
 /*
   End connection, in case when we are using 'no-threads'
@@ -30,8 +32,14 @@
 
 static bool no_threads_end(THD *thd, bool put_in_cache)
 {
-  unlink_thd(thd);
+  thd_cleanup(thd);
+  dec_connection_count();
+
+  // THD is an incomplete type here, so use delete_thd() to delete it.
+  mysql_mutex_lock(&LOCK_thread_count);
+  delete_thd(thd);
   mysql_mutex_unlock(&LOCK_thread_count);
+
   return 1;                                     // Abort handle_one_connection
 }
 

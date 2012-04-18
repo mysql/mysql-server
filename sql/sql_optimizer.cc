@@ -786,7 +786,7 @@ JOIN::optimize()
     {
       Item *where= conds;
       if (join_tab[0].type == JT_EQ_REF &&
-	  join_tab[0].ref.items[0]->name == in_left_expr_name)
+	  join_tab[0].ref.items[0]->item_name.ptr() == in_left_expr_name)
       {
         remove_subq_pushed_predicates(&where);
         save_index_subquery_explain_info(join_tab, where);
@@ -799,7 +799,7 @@ JOIN::optimize()
                                                    true /* unique */);
       }
       else if (join_tab[0].type == JT_REF &&
-	       join_tab[0].ref.items[0]->name == in_left_expr_name)
+	       join_tab[0].ref.items[0]->item_name.ptr() == in_left_expr_name)
       {
 	remove_subq_pushed_predicates(&where);
         save_index_subquery_explain_info(join_tab, where);
@@ -810,8 +810,8 @@ JOIN::optimize()
                                                    where, NULL, false, false);
       }
     } else if (join_tab[0].type == JT_REF_OR_NULL &&
-	       join_tab[0].ref.items[0]->name == in_left_expr_name &&
-               having->name == in_having_cond)
+	       join_tab[0].ref.items[0]->item_name.ptr() == in_left_expr_name &&
+               having->item_name.ptr() == in_having_cond)
     {
       join_tab[0].type= JT_INDEX_SUBQUERY;
       error= 0;
@@ -6806,7 +6806,7 @@ bool JOIN::generate_derived_keys()
 
 void JOIN::drop_unused_derived_keys()
 {
-  for (uint i= const_tables ; i < tables ; i++)
+  for (uint i= 0 ; i < tables ; i++)
   {
     JOIN_TAB *tab= join_tab + i;
     TABLE *table= tab->table;
@@ -7882,7 +7882,8 @@ remove_const(JOIN *join,ORDER *first_order, Item *cond,
     String str;
     st_select_lex::print_order(&str, first_order,
                                enum_query_type(QT_TO_SYSTEM_CHARSET |
-                                               QT_SHOW_SELECT_NUMBER));
+                                               QT_SHOW_SELECT_NUMBER |
+                                               QT_NO_DEFAULT_DB));
     trace_simpl.add_utf8("original_clause", str.ptr(), str.length());
   }
   Opt_trace_array trace_each_item(trace, "items");
@@ -7982,7 +7983,8 @@ remove_const(JOIN *join,ORDER *first_order, Item *cond,
     String str;
     st_select_lex::print_order(&str, first_order,
                                enum_query_type(QT_TO_SYSTEM_CHARSET |
-                                               QT_SHOW_SELECT_NUMBER));
+                                               QT_SHOW_SELECT_NUMBER |
+                                               QT_NO_DEFAULT_DB));
     trace_simpl.add_utf8("resulting_clause", str.ptr(), str.length());
   }
 
@@ -8327,7 +8329,7 @@ remove_eq_conds(THD *thd, Item *cond, Item::cond_result *cond_value)
 #endif
 	Item *new_cond;
 	if ((new_cond= new Item_func_eq(args[0],
-					new Item_int("last_insert_id()",
+					new Item_int(NAME_STRING("last_insert_id()"),
                                                      thd->read_first_successful_insert_id_in_prev_stmt(),
                                                      MY_INT64_NUM_DECIMAL_DIGITS))))
 	{
@@ -8719,7 +8721,7 @@ static bool add_ref_to_table_cond(THD *thd, JOIN_TAB *join_tab)
 
 static Item *remove_additional_cond(Item* conds)
 {
-  if (conds->name == in_additional_cond)
+  if (conds->item_name.ptr() == in_additional_cond)
     return 0;
   if (conds->type() == Item::COND_ITEM)
   {
@@ -8728,7 +8730,7 @@ static Item *remove_additional_cond(Item* conds)
     Item *item;
     while ((item= li++))
     {
-      if (item->name == in_additional_cond)
+      if (item->item_name.ptr() == in_additional_cond)
       {
 	li.remove();
 	if (cnd->argument_list()->elements == 1)

@@ -65,7 +65,8 @@ private:
   int do_flush_info(const ulong *uidx, const uint nidx,
                     const bool force);
   int do_remove_info(const ulong *uidx, const uint nidx);
-
+  static int do_reset_info(uint nparam, const char* param_schema,
+                           const char *param_table);
   int do_prepare_info_for_read(const uint nidx);
   int do_prepare_info_for_write(const uint nidx);
 
