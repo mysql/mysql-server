@@ -53,13 +53,6 @@
       </plugin>
     </plugins>
   </build>   
-  <dependencies>
-    <dependency>
-      <groupId>junit</groupId>
-      <artifactId>junit</artifactId>
-      <scope>test</scope>
-    </dependency>
-  </dependencies>   
   <properties>
     <netbeans.hint.useExternalMaven>false</netbeans.hint.useExternalMaven>
   </properties>

@@ -1915,7 +1915,7 @@ NdbQueryImpl::buildQuery(NdbTransaction& trans,
   if (unlikely(query->m_error.code != 0))
   {
     // Transaction error code set already.
-    delete query;
+    query->release();
     return NULL;
   }
   assert(query->m_state==Initial);

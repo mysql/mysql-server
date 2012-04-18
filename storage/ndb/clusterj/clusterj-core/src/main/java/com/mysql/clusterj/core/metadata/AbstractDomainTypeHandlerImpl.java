@@ -413,6 +413,10 @@ public abstract class AbstractDomainTypeHandlerImpl<T> implements DomainTypeHand
         throw new ClusterJFatalInternalException(local.message("ERR_Implementation_Should_Not_Occur"));
     }
 
+    public T newInstance(ResultData resultData, Db db) {
+        throw new ClusterJFatalInternalException(local.message("ERR_Implementation_Should_Not_Occur"));
+    }
+
     public void objectMarkModified(ValueHandler handler, String fieldName) {
         throw new ClusterJFatalInternalException(local.message("ERR_Implementation_Should_Not_Occur"));
     }
@@ -450,7 +454,7 @@ public abstract class AbstractDomainTypeHandlerImpl<T> implements DomainTypeHand
         return reasons == null?null:reasons.toString();
     }
 
-    public T newInstance(ValueHandler valueHandler, Db db) {
+    public T newInstance(ValueHandler valueHandler) {
         throw new ClusterJFatalInternalException(local.message("ERR_Implementation_Should_Not_Occur"));
     }
 

@@ -399,7 +399,6 @@ namespace AQP
     switch (join_tab->type)
     {
     case JT_EQ_REF:
-    case JT_CONST:
       m_index_no= join_tab->ref.key;
 
       if (m_index_no == static_cast<int>(join_tab->table->s->primary_key))
@@ -523,6 +522,8 @@ namespace AQP
       }
       break;
 
+    case JT_CONST:
+    case JT_SYSTEM:
     default:
       /*
         Other join_types either cannot be pushed or the code analyze them is
