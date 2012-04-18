@@ -980,9 +980,13 @@ plugin_ref plugin_lock(THD *thd, plugin_ref ptr)
     without a mutex.
   */
   if (! plugin_dlib(ptr))
+  {
+    plugin_ref_to_int(ptr)->locks_total++;
     DBUG_RETURN(ptr);
+  }
 #endif
   mysql_mutex_lock(&LOCK_plugin);
+  plugin_ref_to_int(ptr)->locks_total++;
   rc= my_intern_plugin_lock_ci(lex, ptr);
   mysql_mutex_unlock(&LOCK_plugin);
   DBUG_RETURN(rc);

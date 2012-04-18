@@ -99,6 +99,7 @@ struct st_plugin_int
   struct st_plugin_dl *plugin_dl;
   uint state;
   uint ref_count;               /* number of threads using the plugin */
+  uint locks_total;             /* how many times the plugin was locked */
   void *data;                   /* plugin type specific, e.g. handlerton */
   MEM_ROOT mem_root;            /* memory for dynamic plugin structures */
   sys_var *system_vars;         /* server variables for this plugin */

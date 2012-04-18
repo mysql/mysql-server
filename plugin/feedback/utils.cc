@@ -152,26 +152,36 @@ namespace feedback {
 static const bool UNSIGNED= true; ///< used below when inserting integers
 
 /**
-  callback for fill_plugin_version() - insert a plugin name and its version
+  callback for fill_plugins()
 */
 static my_bool show_plugins(THD *thd, plugin_ref plugin, void *arg)
 {
   TABLE *table= (TABLE*) arg;
+  char name[NAME_LEN*2];
+  size_t name_len;
   char version[20];
   size_t version_len;
+
+  name_len= my_snprintf(name, sizeof(name), "%s version",
+                        plugin_name(plugin)->str); 
 
   version_len= my_snprintf(version, sizeof(version), "%d.%d",
                            (plugin_decl(plugin)->version) >> 8,
                            (plugin_decl(plugin)->version) & 0xff);
 
-  INSERT2(plugin_name(plugin)->str, plugin_name(plugin)->length,
+  INSERT2(name, name_len,
           (version, version_len, system_charset_info));
+
+  name_len= my_snprintf(name, sizeof(name), "%s used",
+                        plugin_name(plugin)->str); 
+
+  INSERT2(name, name_len, (plugin_ref_to_int(plugin)->locks_total, UNSIGNED));
 
   return 0;
 }
 
 /**
-  inserts all plugins and their versions into I_S.FEEDBACK
+  inserts all plugins, their versions, and usage counters
 */
 int fill_plugin_version(THD *thd, TABLE_LIST *tables)
 {
