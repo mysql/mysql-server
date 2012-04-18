@@ -1003,4 +1003,5 @@ ALTER TABLE t1 DROP INDEX a, ADD INDEX (a, b);
 
 DROP TABLE t1;
 
+
 --echo End of 6.0 tests

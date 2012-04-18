@@ -3462,7 +3462,7 @@ fil_reset_space_and_lsn(
 	}
 
 	DBUG_EXECUTE_IF("ib_reset_space_and_lsn_post_flush_crash",
-		       	DBUG_SUICIDE(););
+			DBUG_SUICIDE(););
 
 func_exit:
 	os_file_close(file);
