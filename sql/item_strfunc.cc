@@ -2081,7 +2081,7 @@ Item *Item_func_sysconst::safe_charset_converter(const CHARSET_INFO *tocs)
   String tmp, cstr, *ostr= val_str(&tmp);
   if (null_value)
   {
-    Item *null_item= new Item_null((char *) fully_qualified_func_name());
+    Item *null_item= new Item_null(fully_qualified_func_name());
     null_item->collation.set (tocs);
     return null_item;
   }
