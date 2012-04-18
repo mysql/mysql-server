@@ -152,6 +152,54 @@ from t1
 join t1 as t2 on t2.a = t1.c and t2.b = t1.d
 where t1.a = 2 and t1.b = 3;
 
+################################################################
+# Bug#13901890 SQL NODE CRASHES DURING INSERT SELECT
+#
+# Incorrect lifetime handling for NdbQuery objects where
+# the root operation was a 'const' lookup operation.
+#
+# 'virtual handler::index_read_idx_map()' was incorectly 
+# implemented by ha_ndbcluster, such that it failed to 
+# 'close' the table when the single 'const' row has been read.
+# Neither was it registered as 'open' by using the ::ha_index_init().
+# (Called ha_ndbcluster::index_init() directly)
+# This resulted in that NdbQuery::close() was never called
+# on these 'const' SPJ queries. Instead NdbTransaction end 
+# forcefully whiped them away by calling NdbQuery::release().
+# However, as there still was dangling pointer refs to 
+# them from ha_ndbcluster::m_active_query, we may later refer
+# them and crash!
+#
+#  - Same query as above.
+#  - Added explict table locks as cleanup of these is one 
+#    (of several?) way to cause released NdbQuery objects to
+#    be refered.
+################################################################
+
+# LOCK'ed tables invokes the same code path as executing
+# an 'INSERT... SELECT' inside a procedure invoked from a trigger.
+# ... and is a much simpler testcase..... 
+LOCK TABLES t1 read, t1 as t2 read;
+
+explain
+select *
+from t1
+join t1 as t2 on t2.a = t1.c and t2.b = t1.d
+where t1.a = 2 and t1.b = 3;
+
+#Returns empty result set
+select *
+from t1
+join t1 as t2 on t2.a = t1.c and t2.b = t1.d
+where t1.a = 2 and t1.b = 3;
+
+#Returns a single row
+select *
+from t1
+join t1 as t2 on t2.a = t1.c and t2.b = t1.d
+where t1.a = 3 and t1.b = 3;
+UNLOCK TABLES;
+
 explain extended
 select *
 from t1

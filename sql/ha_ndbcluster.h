@@ -168,9 +168,6 @@ class ha_ndbcluster: public handler
   int delete_row(const uchar *buf);
   int index_init(uint index, bool sorted);
   int index_end();
-  int index_read_idx_map(uchar *buf, uint index, const uchar *key,
-                         key_part_map keypart_map,
-                         enum ha_rkey_function find_flag);
   int index_read(uchar *buf, const uchar *key, uint key_len, 
                  enum ha_rkey_function find_flag);
   int index_next(uchar *buf);

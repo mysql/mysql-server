@@ -6489,21 +6489,6 @@ check_null_in_key(const KEY* key_info, const uchar *key, uint key_len)
   return 0;
 }
 
-
-int ha_ndbcluster::index_read_idx_map(uchar* buf, uint index,
-                                      const uchar* key,
-                                      key_part_map keypart_map,
-                                      enum ha_rkey_function find_flag)
-{
-  DBUG_ENTER("ha_ndbcluster::index_read_idx_map");
-  int error= index_init(index, 0);
-  if (unlikely(error))
-    DBUG_RETURN(error);
-
-  DBUG_RETURN(index_read_map(buf, key, keypart_map, find_flag));
-}
-
-
 int ha_ndbcluster::index_read(uchar *buf,
                               const uchar *key, uint key_len, 
                               enum ha_rkey_function find_flag)
@@ -7931,6 +7916,7 @@ int ha_ndbcluster::external_lock(THD *thd, int lock_type)
     */
     m_thd_ndb= NULL;    
 
+    DBUG_ASSERT(m_active_query == NULL);
     if (m_active_query)
       DBUG_PRINT("warning", ("m_active_query != NULL"));
     m_active_query= NULL;
@@ -14383,7 +14369,7 @@ ha_ndbcluster::read_multi_range_fetch_next()
       {
         /* We have fetched the last row from the scan. */
         m_active_query->close(FALSE);
-        m_active_query= 0;
+        m_active_query= NULL;
         m_next_row= 0;
         DBUG_RETURN(0);
       }
