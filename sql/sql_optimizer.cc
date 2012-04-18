@@ -8299,7 +8299,7 @@ remove_eq_conds(THD *thd, Item *cond, Item::cond_result *cond_value)
 #endif
 	Item *new_cond;
 	if ((new_cond= new Item_func_eq(args[0],
-					new Item_int("last_insert_id()",
+					new Item_int(NAME_STRING("last_insert_id()"),
                                                      thd->read_first_successful_insert_id_in_prev_stmt(),
                                                      MY_INT64_NUM_DECIMAL_DIGITS))))
 	{

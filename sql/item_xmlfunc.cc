@@ -1167,7 +1167,7 @@ static Item *create_func_string_length(MY_XPATH *xpath, Item **args, uint nargs)
 
 static Item *create_func_round(MY_XPATH *xpath, Item **args, uint nargs)
 {
-  return new Item_func_round(args[0], new Item_int((char*)"0",0,1),0);
+  return new Item_func_round(args[0], new Item_int_0(), 0);
 }
 
 
