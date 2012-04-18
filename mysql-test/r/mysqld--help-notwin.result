@@ -743,12 +743,6 @@ The following options may be given as the first argument:
  --server-id=#       Uniquely identifies the server instance in the community
  of replication partners
  --server-id-bits=#  Set number of significant bits in server-id
- --sha256-password-private-key-path=name 
- A fully qualified path to the private RSA key used for
- authentication
- --sha256-password-public-key-path=name 
- A fully qualified path to the public RSA key used for
- authentication
  --show-slave-auth-info 
  Show user and password in SHOW SLAVE HOSTS on this
  master.
@@ -1130,8 +1124,6 @@ secure-auth TRUE
 secure-file-priv (No default value)
 server-id 0
 server-id-bits 32
-sha256-password-private-key-path private_key.pem
-sha256-password-public-key-path public_key.pem
 show-slave-auth-info FALSE
 skip-grant-tables TRUE
 skip-name-resolve FALSE
