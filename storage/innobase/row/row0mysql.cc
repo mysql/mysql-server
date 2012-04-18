@@ -2827,7 +2827,7 @@ row_discard_tablespace(
 
 	/* Update the index root pages in the system tables, on disk */
 
-    	err = row_import_update_index_root(trx, table, true, true);
+	err = row_import_update_index_root(trx, table, true, true);
 
 	if (err != DB_SUCCESS) {
 		return(err);
@@ -2836,7 +2836,7 @@ row_discard_tablespace(
 	/* Assign a new space ID to the table definition so that purge
 	can ignore the changes. Update the system table on disk. */
 
-    	err = row_mysql_table_id_reassign(table, trx, &new_id);
+	err = row_mysql_table_id_reassign(table, trx, &new_id);
 
 	if (err != DB_SUCCESS) {
 		return(err);
@@ -2844,7 +2844,7 @@ row_discard_tablespace(
 
 	/* Discard the physical file that is used for the tablespace. */
 
-    	err = fil_discard_tablespace(table->space, TRUE);
+	err = fil_discard_tablespace(table->space, TRUE);
 
 	switch(err) {
 	case DB_SUCCESS:
