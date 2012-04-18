@@ -899,7 +899,7 @@ public:
   void cleanup()
   {
     // See Item_basic_const::cleanup()
-    if (orig_name.ptr())
+    if (orig_name.is_set())
       item_name= orig_name;
   }
   bool eq(const Item *item, bool binary_cmp) const;
@@ -956,7 +956,7 @@ public:
   void cleanup()
   {
     // See Item_basic_const::cleanup()
-    if (orig_name.ptr())
+    if (orig_name.is_set())
       item_name= orig_name;
   }
   bool eq(const Item *item, bool binary_cmp) const;
@@ -1013,7 +1013,7 @@ public:
   void cleanup()
   {
     // See Item_basic_const::cleanup()
-    if (orig_name.ptr())
+    if (orig_name.is_set())
       item_name= orig_name;
   }
   bool eq(const Item *item, bool binary_cmp) const;

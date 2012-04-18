@@ -25,6 +25,7 @@
 #include "rpl_info_factory.h"
 #include "rpl_utility.h"
 #include "debug_sync.h"
+#include "global_threads.h"
 #include "sql_parse.h"
 #include <list>
 #include <string>
@@ -1303,15 +1304,14 @@ static int binlog_savepoint_rollback(handlerton *hton, THD *thd, void *sv)
 
 static void adjust_linfo_offsets(my_off_t purge_offset)
 {
-  THD *tmp;
-
   mysql_mutex_lock(&LOCK_thread_count);
-  I_List_iterator<THD> it(threads);
 
-  while ((tmp=it++))
+  Thread_iterator it= global_thread_list_begin();
+  Thread_iterator end= global_thread_list_end();
+  for (; it != end; ++it)
   {
     LOG_INFO* linfo;
-    if ((linfo = tmp->current_linfo))
+    if ((linfo = (*it)->current_linfo))
     {
       mysql_mutex_lock(&linfo->lock);
       /*
@@ -1333,16 +1333,16 @@ static void adjust_linfo_offsets(my_off_t purge_offset)
 static bool log_in_use(const char* log_name)
 {
   size_t log_name_len = strlen(log_name) + 1;
-  THD *tmp;
   bool result = 0;
 
   mysql_mutex_lock(&LOCK_thread_count);
-  I_List_iterator<THD> it(threads);
 
-  while ((tmp=it++))
+  Thread_iterator it= global_thread_list_begin();
+  Thread_iterator end= global_thread_list_end();
+  for (; it != end; ++it)
   {
     LOG_INFO* linfo;
-    if ((linfo = tmp->current_linfo))
+    if ((linfo = (*it)->current_linfo))
     {
       mysql_mutex_lock(&linfo->lock);
       result = !memcmp(log_name, linfo->log_file_name, log_name_len);
@@ -1711,6 +1711,8 @@ bool show_binlog_events(THD *thd, MYSQL_BIN_LOG *binary_log)
   IO_CACHE log;
   File file = -1;
   int old_max_allowed_packet= thd->variables.max_allowed_packet;
+  LOG_INFO linfo;
+
   DBUG_ENTER("show_binlog_events");
 
   DBUG_ASSERT(thd->lex->sql_command == SQLCOM_SHOW_BINLOG_EVENTS ||
@@ -1728,7 +1730,6 @@ bool show_binlog_events(THD *thd, MYSQL_BIN_LOG *binary_log)
     char search_file_name[FN_REFLEN], *name;
     const char *log_file_name = lex_mi->log_file_name;
     mysql_mutex_t *log_lock = binary_log->get_log_lock();
-    LOG_INFO linfo;
     Log_event* ev;
 
     unit->set_limit(thd->lex->current_select);

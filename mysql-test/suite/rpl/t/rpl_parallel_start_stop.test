@@ -68,7 +68,7 @@ let $count= 0;
 let $table= worker_proc_list;
 source include/wait_until_rows_count.inc;
 
-let $slave_sql_errno= 1754; # ER_MTS_PARALLEL_INCONSISTENT_DATA
+let $slave_sql_errno= 1755; # ER_MTS_PARALLEL_INCONSISTENT_DATA
 source include/wait_for_slave_sql_error.inc;
 
 source include/start_slave.inc;
@@ -237,7 +237,8 @@ if (`select $a - max(a) from t1`)
 }
 
 #
-# UNTIL condition is not supported by Parallel slave to reject
+# UNTIL condition other than SQL_AFTER_MTS_GAPS 
+# is not supported by Parallel slave to reject
 # with a warning and no Worker thread is started
 #
 
@@ -278,8 +279,139 @@ sync_slave_with_master;
 
 drop view worker_proc_list;
 drop view coord_proc_list;
-set @@global.slave_parallel_workers= @save.slave_parallel_workers;
+# reuse non-zero Workers value in the follwing tests
+#set @@global.slave_parallel_workers= @save.slave_parallel_workers;
 set @@global.slave_transaction_retries= @save.slave_transaction_retries;
 
---source include/rpl_end.inc
+#
+# START SLAVE UNTIL SQL_AFTER_MTS_GAPS
+# 
+# A new UNTIL condition is introduced as a tool to
+# fill gaps in the sequence of executed transaction started
+# at Exec_Master_Log_Pos.
+# The gaps could be caused by the previous slave session stop
+# with an error, or it was killed, or the server crashed.
+#
 
+connection slave;
+
+source include/stop_slave.inc;
+
+# Show SQL_AFTER_MTS_GAPS is meaningless in combination with coordinates 
+# related options
+--error 1064
+start slave until sql_after_mts_gaps relay_log_file='dummy';
+--error 1064
+start slave until sql_after_mts_gaps relay_log_pos=0;
+--error 1064
+start slave until sql_after_mts_gaps master_log_file='dummy';
+--error 1064
+start slave until sql_after_mts_gaps master_log_pos=0;
+--error 1064
+start slave until sql_after_mts_gaps SQL_BEFORE_GTIDS='dummy';
+
+call mtr.add_suppression('Slave SQL: Could not execute Update_rows event on table d1.t1; Deadlock found when trying to get lock');
+
+# regular start now
+source include/start_slave.inc;
+
+# set up gaps when slave sql errors out
+connection master;
+
+create database d1;
+create database d2;
+create table d1.t1 (a int primary key) engine=innodb;
+create table d2.t1 (a int primary key) engine=innodb;
+create table d1.t2m (a int) engine=myisam; # non-trans engine to detect deadlock
+insert into d1.t1 values (1),(2),(3);
+insert into d2.t1 values (1),(2),(3);
+insert into d1.t2m values (1);
+
+sync_slave_with_master;
+#connection slave;
+begin; # the blocker
+# set up a deadlock at the 1st job
+update d1.t1 set a=31 where a=3;
+insert into d1.t1 values (5),(6),(7);
+
+# create the 1st job to get blocked on the slave
+connection master;
+begin;
+update d1.t1 set a=20 where a=2;
+insert into d1.t2m values (2);
+update d1.t1 set a=30 where a=3;
+insert into d1.t1 values (4);
+commit;
+
+# create the 2nd job for another worker
+delete from d2.t1;
+
+# create the 3nd job to help UNTIL SQL_AFTER_MTS_GAPS be reached
+# (todo: if the last gap event ends the relay-log SQL thread will
+# hang - to be fixed with MTS support for regular UNTIL:s)
+delete from d1.t1;
+
+# wait till the 2nd job will be done
+connection slave1;
+let $count= 0;
+let $table= d2.t1;
+source include/wait_until_rows_count.inc;
+
+# proceed with 1st job into its middle
+connection slave;
+let $count= 2;
+let $table= d1.t2m;
+source include/wait_until_rows_count.inc;
+
+# must victimize the master trans because of deadlock or timeout
+update d1.t1 set a=21 where a=2;
+
+# slave is stopped
+# setting timeout to be as twice as greater than innodb's.
+--let $slave_timeout=`select 2*@@global.innodb_lock_wait_timeout`
+
+let $slave_sql_errno= 1213, 1205; 
+source include/wait_for_slave_sql_error.inc;
+
+rollback; # the blocker
+
+# find out Exec_Master_Log_Pos to store it in Exec_0
+let $exec_pos_0= query_get_value(SHOW SLAVE STATUS, Exec_Master_Log_Pos, 1);
+
+start slave until sql_after_mts_gaps;
+
+# Efficiency of UNTIL proof:
+source include/wait_for_slave_sql_to_stop.inc;
+
+# Consistency proof:
+
+if (`select count(*) <> 4 from d1.t1`)
+{
+    --echo *** Something is wrong in recovery ***
+    --die
+}
+
+# Efficiency of gap filling proof:
+# find out Exec_Master_Log_Pos and compare with Exec_0
+let $exec_pos_1= query_get_value(SHOW SLAVE STATUS, Exec_Master_Log_Pos, 1);
+
+if (`select $exec_pos_1 - $exec_pos_0 <= 0`)
+{
+    --echo *** No gap transaction is executed as expected ***
+    --connection slave
+    show slave status;
+    --connection master
+    show master status;
+    --die
+}
+
+# UNTIL SQL_AFTER_MTS_GAPS cleanup
+source include/start_slave.inc;
+connection master;
+drop database d1;
+drop database d2;
+
+sync_slave_with_master;
+set @@global.slave_parallel_workers= @save.slave_parallel_workers;
+
+--source include/rpl_end.inc

@@ -56,7 +56,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 	return(FTS_NUMB);
 }
 
-[^" \n*()+\-<>~@]*		{
+[^" \n*()+\-<>~@%]*		{
 	val->token = strdup(fts0bget_text(yyscanner));
 
 	return(FTS_TERM);

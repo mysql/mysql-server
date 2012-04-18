@@ -1543,6 +1543,34 @@ int store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
       packet->append(STRING_WITH_LEN(" NULL"));
     }
 
+    switch(field->field_storage_type()){
+    case HA_SM_DEFAULT:
+      break;
+    case HA_SM_DISK:
+      packet->append(STRING_WITH_LEN(" /*!50606 STORAGE DISK */"));
+      break;
+    case HA_SM_MEMORY:
+      packet->append(STRING_WITH_LEN(" /*!50606 STORAGE MEMORY */"));
+      break;
+    default:
+      DBUG_ASSERT(0);
+      break;
+    }
+
+    switch(field->column_format()){
+    case COLUMN_FORMAT_TYPE_DEFAULT:
+      break;
+    case COLUMN_FORMAT_TYPE_FIXED:
+      packet->append(STRING_WITH_LEN(" /*!50606 COLUMN_FORMAT FIXED */"));
+      break;
+    case COLUMN_FORMAT_TYPE_DYNAMIC:
+      packet->append(STRING_WITH_LEN(" /*!50606 COLUMN_FORMAT DYNAMIC */"));
+      break;
+    default:
+      DBUG_ASSERT(0);
+      break;
+    }
+
     if (print_default_clause(thd, field, &def_value, true))
     {
       packet->append(STRING_WITH_LEN(" DEFAULT "));
@@ -2050,7 +2078,7 @@ void mysqld_list_processes(THD *thd,const char *user, bool verbose)
   Protocol *protocol= thd->protocol;
   DBUG_ENTER("mysqld_list_processes");
 
-  field_list.push_back(new Item_int("Id", 0, MY_INT32_NUM_DECIMAL_DIGITS));
+  field_list.push_back(new Item_int(NAME_STRING("Id"), 0, MY_INT32_NUM_DECIMAL_DIGITS));
   field_list.push_back(new Item_empty_string("User",16));
   field_list.push_back(new Item_empty_string("Host",LIST_PROCESS_HOST_LEN));
   field_list.push_back(field=new Item_empty_string("db",NAME_CHAR_LEN));
@@ -2066,13 +2094,14 @@ void mysqld_list_processes(THD *thd,const char *user, bool verbose)
                             Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
     DBUG_VOID_RETURN;
 
-  mysql_mutex_lock(&LOCK_thread_count); // For unlink from list
   if (!thd->killed)
   {
-    I_List_iterator<THD> it(threads);
-    THD *tmp;
-    while ((tmp=it++))
+    mysql_mutex_lock(&LOCK_thread_count);
+    Thread_iterator it= global_thread_list_begin();
+    Thread_iterator end= global_thread_list_end();
+    for (; it != end; ++it)
     {
+      THD *tmp= *it;
       Security_context *tmp_sctx= tmp->security_ctx;
       struct st_my_thread_var *mysys_var;
       if ((tmp->vio_ok() || tmp->system_thread) &&
@@ -2120,8 +2149,8 @@ void mysqld_list_processes(THD *thd,const char *user, bool verbose)
         thread_infos.push_front(thd_info);
       }
     }
+    mysql_mutex_unlock(&LOCK_thread_count);
   }
-  mysql_mutex_unlock(&LOCK_thread_count);
 
   thread_info *thd_info;
   time_t now= my_time(0);
@@ -2161,15 +2190,14 @@ int fill_schema_processlist(THD* thd, TABLE_LIST* tables, Item* cond)
   user= thd->security_ctx->master_access & PROCESS_ACL ?
         NullS : thd->security_ctx->priv_user;
 
-  mysql_mutex_lock(&LOCK_thread_count);
-
   if (!thd->killed)
   {
-    I_List_iterator<THD> it(threads);
-    THD* tmp;
-
-    while ((tmp= it++))
+    mysql_mutex_lock(&LOCK_thread_count);
+    Thread_iterator it= global_thread_list_begin();
+    Thread_iterator end= global_thread_list_end();
+    for (; it != end; ++it)
     {
+      THD* tmp= *it;
       Security_context *tmp_sctx= tmp->security_ctx;
       struct st_my_thread_var *mysys_var;
       const char *val;
@@ -2245,9 +2273,9 @@ int fill_schema_processlist(THD* thd, TABLE_LIST* tables, Item* cond)
         DBUG_RETURN(1);
       }
     }
+    mysql_mutex_unlock(&LOCK_thread_count);
   }
 
-  mysql_mutex_unlock(&LOCK_thread_count);
   DBUG_RETURN(0);
 }
 
@@ -2620,17 +2648,16 @@ void calc_sum_of_all_status(STATUS_VAR *to)
   DBUG_ENTER("calc_sum_of_all_status");
 
   /* Ensure that thread id not killed during loop */
-  mysql_mutex_lock(&LOCK_thread_count); // For unlink from list
+  mysql_mutex_lock(&LOCK_thread_count);
 
-  I_List_iterator<THD> it(threads);
-  THD *tmp;
-  
+  Thread_iterator it= global_thread_list_begin();
+  Thread_iterator end= global_thread_list_end();
   /* Get global values as base */
   *to= global_status_var;
   
   /* Add to this status from existing threads */
-  while ((tmp= it++))
-    add_to_status(to, &tmp->status_var);
+  for (; it != end; ++it)
+    add_to_status(to, &(*it)->status_var);
   
   mysql_mutex_unlock(&LOCK_thread_count);
   DBUG_VOID_RETURN;
@@ -6696,10 +6723,14 @@ TABLE *create_schema_table(THD *thd, TABLE_LIST *table_list)
       break;
     case MYSQL_TYPE_FLOAT:
     case MYSQL_TYPE_DOUBLE:
-      if ((item= new Item_float(fields_info->field_name, 0.0, NOT_FIXED_DEC, 
-                           fields_info->field_length)) == NULL)
+    {
+      const NameString field_name(fields_info->field_name,
+                                  strlen(fields_info->field_name));
+      if ((item= new Item_float(field_name, 0.0, NOT_FIXED_DEC, 
+                                fields_info->field_length)) == NULL)
         DBUG_RETURN(NULL);
       break;
+    }
     case MYSQL_TYPE_DECIMAL:
     case MYSQL_TYPE_NEWDECIMAL:
       if (!(item= new Item_decimal((longlong) fields_info->value, false)))
