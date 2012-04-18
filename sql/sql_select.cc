@@ -6632,7 +6632,12 @@ static bool create_ref_for_key(JOIN *join, JOIN_TAB *j, KEYUSE *org_keyuse,
     j->type= null_ref_key ? JT_REF_OR_NULL : JT_REF;
     j->ref.null_ref_key= null_ref_key;
   }
+#ifndef MCP_WL4784
+  else if (keyuse_uses_no_tables &&
+           !table->file->test_push_flag(HA_PUSH_BLOCK_CONST_TABLE))
+#else
   else if (keyuse_uses_no_tables)
+#endif
   {
     /*
       This happen if we are using a constant expression in the ON part
@@ -6641,10 +6646,10 @@ static bool create_ref_for_key(JOIN *join, JOIN_TAB *j, KEYUSE *org_keyuse,
       Here we should not mark the table as a 'const' as a field may
       have a 'normal' value or a NULL value.
     */
-    j->type=JT_CONST;
+    j->type= JT_CONST;
   }
   else
-    j->type=JT_EQ_REF;
+    j->type= JT_EQ_REF;
   DBUG_RETURN(0);
 }
 
@@ -13193,7 +13198,7 @@ join_no_more_records(READ_RECORD *info)
    * the key of this root operations: ('tab->ref.key_buff')
    * Results from this pushed join can not be reused 
    * for later queries having the same root key.
-   * (ref: join_read_key(), join_read_const() & join_read_system()
+   * (ref: join_read_key())
    */
   if (info->table->file->test_push_flag(HA_PUSH_MULTIPLE_DEPENDENCY))
   {
