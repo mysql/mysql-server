@@ -38,9 +38,6 @@ Smart ALTER TABLE
 #include "handler0alter.h"
 #include "srv0mon.h"
 #include "fts0priv.h"
-#ifdef UNIV_DEBUG
-#include "btr0sea.h"
-#endif /* UNIV_DEBUG */
 
 #include "ha_innodb.h"
 
@@ -154,6 +151,10 @@ ha_innobase::check_if_supported_inplace_alter(
 {
 	DBUG_ENTER("check_if_supported_inplace_alter");
 
+	if (srv_created_new_raw || srv_force_recovery) {
+		DBUG_RETURN(HA_ALTER_INPLACE_NOT_SUPPORTED);
+	}
+
 	HA_CREATE_INFO* create_info = ha_alter_info->create_info;
 
 	if (ha_alter_info->handler_flags
@@ -189,6 +190,7 @@ ha_innobase::check_if_supported_inplace_alter(
 	}
 
 	update_thd();
+	trx_search_latch_release_if_reserved(prebuilt->trx);
 
 	/* Fix the key parts. */
 	for (KEY* new_key = ha_alter_info->key_info_buffer;
@@ -1628,7 +1630,9 @@ col_fail:
 		log is unnecessary. */
 		if (!num_fts_index
 		    && !(ha_alter_info->handler_flags
-			 & ~INNOBASE_ONLINE_OPERATIONS)) {
+			 & ~INNOBASE_ONLINE_OPERATIONS)
+		    && !user_table->ibd_file_missing
+		    && !dict_table_is_discarded(user_table)) {
 			DBUG_EXECUTE_IF("innodb_OOM_prepare_inplace_alter",
 					error = DB_OUT_OF_MEMORY;
 					goto error_handling;);
@@ -1828,18 +1832,10 @@ ha_innobase::prepare_inplace_alter_table(
 		goto func_exit;
 	}
 
-	if (srv_created_new_raw || srv_force_recovery) {
-		my_error(ER_OPEN_AS_READONLY, MYF(0),
-			 table->s->table_name.str);
-		DBUG_RETURN(true);
-	}
-
 	ut_d(mutex_enter(&dict_sys->mutex));
 	ut_d(dict_table_check_for_dup_indexes(
 		     prebuilt->table, CHECK_ABORTED_OK));
 	ut_d(mutex_exit(&dict_sys->mutex));
-
-	update_thd();
 
 	/* In case MySQL calls this in the middle of a SELECT query, release
 	possible adaptive hash latch to avoid deadlocks of threads. */
@@ -2115,34 +2111,21 @@ ha_innobase::inplace_alter_table(
 	ut_ad(!rw_lock_own(&dict_operation_lock, RW_LOCK_SHARED));
 #endif /* UNIV_SYNC_DEBUG */
 
+	if (!(ha_alter_info->handler_flags & INNOBASE_INPLACE_CREATE)) {
+		DBUG_RETURN(false);
+	}
+
 	class ha_innobase_inplace_ctx*	ctx
 		= static_cast<class ha_innobase_inplace_ctx*>
 		(ha_alter_info->handler_ctx);
 
-	update_thd();
+	DBUG_ASSERT(ctx);
+	DBUG_ASSERT(ctx->trx);
 
-	if (!(ha_alter_info->handler_flags & INNOBASE_INPLACE_CREATE)) {
-		DBUG_RETURN(false);
-	} else if (dict_table_is_discarded(prebuilt->table)) {
-
-		/* Nothing to do. */
-		for (uint i = 0; i < ctx->num_to_add; ++i) {
-			dict_index_t*	index = ctx->add[i];
-
-			error = row_log_apply(prebuilt->trx, index, table);
-			ut_a(error == DB_SUCCESS);
-#ifdef UNIV_DEBUG
-			ut_a(index->info.search->magic_n == BTR_SEARCH_MAGIC_N);
-#endif /* UNIV_DEBUG */
-			index->page = FIL_NULL;
-		}
-
-		DBUG_RETURN(false);
+	if (prebuilt->table->ibd_file_missing
+	    || dict_table_is_discarded(prebuilt->table)) {
+		goto all_done;
 	}
-
-	trx_search_latch_release_if_reserved(prebuilt->trx);
-
-	DBUG_ASSERT(ctx->trx != 0);
 
 	/* Read the clustered index of the table and build
 	indexes based on this information using temporary
@@ -2163,6 +2146,7 @@ oom:
 
 	switch (error) {
 		KEY*	dup_key;
+	all_done:
 	case DB_SUCCESS:
 		ut_d(mutex_enter(&dict_sys->mutex));
 		ut_d(dict_table_check_for_dup_indexes(
