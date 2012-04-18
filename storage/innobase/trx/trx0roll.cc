@@ -646,8 +646,7 @@ trx_rollback_active(
 			ib_logf(IB_LOG_LEVEL_WARN,
 				"Dropping table '%s', with id " UINT64PF " "
 				"in recovery",
-				table->name,
-				(ib_uint64_t) trx->table_id);
+				table->name, trx->table_id);
 
 			err = row_drop_table_for_mysql(table->name, trx, TRUE);
 			trx_commit_for_mysql(trx);
