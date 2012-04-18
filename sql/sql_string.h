@@ -63,7 +63,7 @@ public:
   }
   SimpleCString(const LEX_STRING arg)
   {
-    set(arg.str, arg.length);
+    set(arg.str, (uint) arg.length);
   }
   void reset()
   {
@@ -74,7 +74,7 @@ public:
   */
   void set(const char *str)
   {
-    set(str, str ? strlen(str) : 0);
+    set(str, str ? (uint) strlen(str) : 0);
   }
   /**
     Return string buffer.
@@ -373,7 +373,7 @@ public:
   bool append(const char *s);
   bool append(LEX_STRING *ls)
   {
-    return append(ls->str, ls->length);
+    return append(ls->str, (uint32) ls->length);
   }
   bool append(SimpleCString str)
   {
