@@ -1889,7 +1889,7 @@ ha_innobase::prepare_inplace_alter_table(
 	mem_heap_t*     heap;
 	int		error;
 	ulint		num_fts_index;
-	ulint		fts_doc_col_no;
+	ulint		fts_doc_col_no		= ULINT_UNDEFINED;
 	bool		add_fts_doc_id		= false;
 	bool		add_fts_doc_id_idx	= false;
 
