@@ -2617,12 +2617,12 @@ ibuf_merge_pages(
 
 /*********************************************************************//**
 Get the table instance from the table id.
-@return table instance. */
-static
+@return table instance */
+static __attribute__((warn_unused_result))
 dict_table_t*
 ibuf_get_table(
 /*===========*/
-	ib_id_t	table_id)	/*!< in: valid table id */
+	table_id_t	table_id)	/*!< in: valid table id */
 {
 	rw_lock_s_lock_func(&dict_operation_lock, 0, __FILE__, __LINE__);
 
@@ -2716,17 +2716,20 @@ Contracts insert buffer trees by reading pages to the buffer pool.
 @return a lower limit for the combined size in bytes of entries which
 will be merged from ibuf trees to the pages read, 0 if ibuf is
 empty */
-static
+static __attribute__((nonnull, warn_unused_result))
 ulint
 ibuf_merge(
 /*=======*/
-	ib_id_t	table_id,	/*!< in: if merge should be done only for
-				a specific table, for all tables this should
-				be 0 */
-	ulint*	n_pages,	/*!< out: number of pages to which merged */
-	bool	sync)		/*!< in: TRUE if the caller wants to wait for
-				the issued read with the highest tablespace
-				address to complete */
+	table_id_t	table_id,	/*!< in: if merge should be
+					done only for a specific
+					table, for all tables this
+					should be 0 */
+	ulint*		n_pages,	/*!< out: number of pages to
+					which merged */
+	bool		sync)		/*!< in: TRUE if the caller
+					wants to wait for the issued
+					read with the highest
+					tablespace address to complete */
 {
 	dict_table_t*	table;
 
