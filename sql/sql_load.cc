@@ -730,7 +730,7 @@ static bool write_execute_load_query_log_event(THD *thd, sql_exchange* ex,
       if (item->type() == Item::FIELD_ITEM)
       {
         pfields.append("`");
-        pfields.append(item->name);
+        pfields.append(item->item_name.ptr());
         pfields.append("`");
       }
       else
@@ -753,9 +753,9 @@ static bool write_execute_load_query_log_event(THD *thd, sql_exchange* ex,
       if (n++)
         pfields.append(", ");
       pfields.append("`");
-      pfields.append(item->name);
+      pfields.append(item->item_name.ptr());
       pfields.append("`");
-      pfields.append(val->name);
+      pfields.append(val->item_name.ptr());
     }
   }
 
@@ -1183,7 +1183,7 @@ read_xml_field(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
       xmlit.rewind();
       tag= xmlit++;
       
-      while(tag && strcmp(tag->field.c_ptr(), item->name) != 0)
+      while(tag && strcmp(tag->field.c_ptr(), item->item_name.ptr()) != 0)
         tag= xmlit++;
       
       if (!tag) // found null

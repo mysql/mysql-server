@@ -251,6 +251,8 @@ rec_init_offsets_comp_ordinary(
 					the data payload
 					(usually REC_N_NEW_EXTRA_BYTES) */
 	const dict_index_t*	index,	/*!< in: record descriptor */
+	ulint			n_null,	/*!< in: number of fields that
+					can be NULL */
 	ulint*			offsets)/*!< in/out: array of offsets;
 					in: n=rec_offs_n_fields(offsets) */
 {
@@ -258,8 +260,7 @@ rec_init_offsets_comp_ordinary(
 	ulint		offs		= 0;
 	ulint		any_ext		= 0;
 	const byte*	nulls		= rec - (extra + 1);
-	const byte*	lens		= nulls
-		- UT_BITS_IN_BYTES(index->n_nullable);
+	const byte*	lens		= nulls - UT_BITS_IN_BYTES(n_null);
 	dict_field_t*	field;
 	ulint		null_mask	= 1;
 
@@ -270,6 +271,7 @@ rec_init_offsets_comp_ordinary(
 	offsets[2] = (ulint) rec;
 	offsets[3] = (ulint) index;
 #endif /* UNIV_DEBUG */
+	ut_ad(n_null >= index->n_nullable);
 
 	/* read the lengths of fields 0..n */
 	do {
@@ -394,9 +396,9 @@ rec_init_offsets(
 				= dict_index_get_n_unique_in_tree(index);
 			break;
 		case REC_STATUS_ORDINARY:
-			rec_init_offsets_comp_ordinary(rec,
-						       REC_N_NEW_EXTRA_BYTES,
-						       index, offsets);
+			rec_init_offsets_comp_ordinary(
+				rec, REC_N_NEW_EXTRA_BYTES,
+				index, index->n_nullable, offsets);
 			return;
 		}
 
@@ -784,6 +786,8 @@ rec_get_converted_size_comp_prefix(
 					it does not */
 	const dfield_t*		fields,	/*!< in: array of data fields */
 	ulint			n_fields,/*!< in: number of data fields */
+	ulint			n_null,	/*!< in: number of fields that
+					can be NULL */
 	ulint*			extra)	/*!< out: extra size */
 {
 	ulint	extra_size;
@@ -793,9 +797,9 @@ rec_get_converted_size_comp_prefix(
 	ut_ad(fields);
 	ut_ad(n_fields > 0);
 	ut_ad(n_fields <= dict_index_get_n_fields(index));
+	ut_ad(n_null >= index->n_nullable);
 
-	extra_size = REC_N_NEW_EXTRA_BYTES
-		+ UT_BITS_IN_BYTES(index->n_nullable);
+	extra_size = REC_N_NEW_EXTRA_BYTES + UT_BITS_IN_BYTES(n_null);
 	data_size = 0;
 
 	/* read the lengths of fields 0..n */
@@ -869,12 +873,15 @@ rec_get_converted_size_comp(
 	ulint			status,	/*!< in: status bits of the record */
 	const dfield_t*		fields,	/*!< in: array of data fields */
 	ulint			n_fields,/*!< in: number of data fields */
+	ulint			n_null,	/*!< in: number of fields that
+					can be NULL */
 	ulint*			extra)	/*!< out: extra size */
 {
 	ulint	size;
 	ut_ad(index);
 	ut_ad(fields);
 	ut_ad(n_fields > 0);
+	ut_ad(n_null >= index->n_nullable);
 
 	switch (UNIV_EXPECT(status, REC_STATUS_ORDINARY)) {
 	case REC_STATUS_ORDINARY:
@@ -899,8 +906,8 @@ rec_get_converted_size_comp(
 		return(ULINT_UNDEFINED);
 	}
 
-	return(size + rec_get_converted_size_comp_prefix(index, fields,
-							 n_fields, extra));
+	return(size + rec_get_converted_size_comp_prefix(
+		       index, fields, n_fields, n_null, extra));
 }
 
 /***********************************************************//**
@@ -1089,7 +1096,9 @@ rec_convert_dtuple_to_rec_comp(
 	const dict_index_t*	index,	/*!< in: record descriptor */
 	ulint			status,	/*!< in: status bits of the record */
 	const dfield_t*		fields,	/*!< in: array of data fields */
-	ulint			n_fields)/*!< in: number of data fields */
+	ulint			n_fields,/*!< in: number of data fields */
+	ulint			n_null)	/*!< in: number of fields that
+					can be NULL */
 {
 	const dfield_t*	field;
 	const dtype_t*	type;
@@ -1104,6 +1113,7 @@ rec_convert_dtuple_to_rec_comp(
 	ut_ad(extra == 0 || dict_table_is_comp(index->table));
 	ut_ad(extra == 0 || extra == REC_N_NEW_EXTRA_BYTES);
 	ut_ad(n_fields > 0);
+	ut_ad(n_null >= index->n_nullable);
 
 	switch (UNIV_EXPECT(status, REC_STATUS_ORDINARY)) {
 	case REC_STATUS_ORDINARY:
@@ -1126,7 +1136,7 @@ rec_convert_dtuple_to_rec_comp(
 
 	end = rec;
 	nulls = rec - (extra + 1);
-	lens = nulls - UT_BITS_IN_BYTES(index->n_nullable);
+	lens = nulls - UT_BITS_IN_BYTES(n_null);
 	/* clear the SQL-null flags */
 	memset(lens + 1, 0, nulls - lens);
 
@@ -1229,12 +1239,12 @@ rec_convert_dtuple_to_rec_new(
 	status = dtuple_get_info_bits(dtuple) & REC_NEW_STATUS_MASK;
 	rec_get_converted_size_comp(index, status,
 				    dtuple->fields, dtuple->n_fields,
-				    &extra_size);
+				    index->n_nullable, &extra_size);
 	rec = buf + extra_size;
 
 	rec_convert_dtuple_to_rec_comp(
 		rec, REC_N_NEW_EXTRA_BYTES, index, status,
-		dtuple->fields, dtuple->n_fields);
+		dtuple->fields, dtuple->n_fields, index->n_nullable);
 
 	/* Set the info bits of the record */
 	rec_set_info_and_status_bits(rec, dtuple_get_info_bits(dtuple));

@@ -1,7 +1,7 @@
 include/master-slave.inc
 Warnings:
-Note	1756	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	1757	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
 [connection master]
 call mtr.add_suppression('Attempting backtrace');
 call mtr.add_suppression("Recovery from master pos .*");
@@ -70,6 +70,17 @@ SELECT COALESCE(greatest(in_stmt_id + 1, p_stmt_id), 1) INTO in_stmt_id;
 INSERT INTO nt_5(trans_id, stmt_id) VALUES (p_trans_id, in_stmt_id);
 INSERT INTO nt_5(trans_id, stmt_id) VALUES (p_trans_id, in_stmt_id + 1);
 RETURN "fc_i_nt_5_suc";
+END|
+CREATE FUNCTION fc_i_nt_3_tt_3_suc (p_trans_id INTEGER, p_stmt_id INTEGER) RETURNS VARCHAR(64)
+BEGIN
+DECLARE in_stmt_id INTEGER;
+SELECT max(stmt_id) INTO in_stmt_id FROM nt_3 WHERE trans_id= p_trans_id;
+SELECT COALESCE(greatest(in_stmt_id + 1, p_stmt_id), 1) INTO in_stmt_id;
+INSERT INTO nt_3(trans_id, stmt_id) VALUES (p_trans_id, in_stmt_id);
+SELECT max(stmt_id) INTO in_stmt_id FROM tt_3 WHERE trans_id= p_trans_id;
+SELECT COALESCE(greatest(in_stmt_id + 1, p_stmt_id), 1) INTO in_stmt_id;
+INSERT INTO tt_3(trans_id, stmt_id) VALUES (p_trans_id, in_stmt_id);
+RETURN "fc_i_nt_3_tt_3_suc";
 END|
 CREATE TRIGGER tr_i_tt_3_to_nt_3 AFTER INSERT ON tt_3 FOR EACH ROW
 BEGIN
@@ -164,6 +175,17 @@ INSERT INTO nt_5(trans_id, stmt_id) VALUES (p_trans_id, in_stmt_id);
 INSERT INTO nt_5(trans_id, stmt_id) VALUES (p_trans_id, in_stmt_id + 1);
 RETURN "fc_i_nt_5_suc";
 END|
+CREATE FUNCTION fc_i_nt_3_tt_3_suc (p_trans_id INTEGER, p_stmt_id INTEGER) RETURNS VARCHAR(64)
+BEGIN
+DECLARE in_stmt_id INTEGER;
+SELECT max(stmt_id) INTO in_stmt_id FROM nt_3 WHERE trans_id= p_trans_id;
+SELECT COALESCE(greatest(in_stmt_id + 1, p_stmt_id), 1) INTO in_stmt_id;
+INSERT INTO nt_3(trans_id, stmt_id) VALUES (p_trans_id, in_stmt_id);
+SELECT max(stmt_id) INTO in_stmt_id FROM tt_3 WHERE trans_id= p_trans_id;
+SELECT COALESCE(greatest(in_stmt_id + 1, p_stmt_id), 1) INTO in_stmt_id;
+INSERT INTO tt_3(trans_id, stmt_id) VALUES (p_trans_id, in_stmt_id);
+RETURN "fc_i_nt_3_tt_3_suc";
+END|
 CREATE TRIGGER tr_i_tt_3_to_nt_3 AFTER INSERT ON tt_3 FOR EACH ROW
 BEGIN
 DECLARE in_stmt_id INTEGER;
@@ -256,6 +278,17 @@ SELECT COALESCE(greatest(in_stmt_id + 1, p_stmt_id), 1) INTO in_stmt_id;
 INSERT INTO nt_5(trans_id, stmt_id) VALUES (p_trans_id, in_stmt_id);
 INSERT INTO nt_5(trans_id, stmt_id) VALUES (p_trans_id, in_stmt_id + 1);
 RETURN "fc_i_nt_5_suc";
+END|
+CREATE FUNCTION fc_i_nt_3_tt_3_suc (p_trans_id INTEGER, p_stmt_id INTEGER) RETURNS VARCHAR(64)
+BEGIN
+DECLARE in_stmt_id INTEGER;
+SELECT max(stmt_id) INTO in_stmt_id FROM nt_3 WHERE trans_id= p_trans_id;
+SELECT COALESCE(greatest(in_stmt_id + 1, p_stmt_id), 1) INTO in_stmt_id;
+INSERT INTO nt_3(trans_id, stmt_id) VALUES (p_trans_id, in_stmt_id);
+SELECT max(stmt_id) INTO in_stmt_id FROM tt_3 WHERE trans_id= p_trans_id;
+SELECT COALESCE(greatest(in_stmt_id + 1, p_stmt_id), 1) INTO in_stmt_id;
+INSERT INTO tt_3(trans_id, stmt_id) VALUES (p_trans_id, in_stmt_id);
+RETURN "fc_i_nt_3_tt_3_suc";
 END|
 CREATE TRIGGER tr_i_tt_3_to_nt_3 AFTER INSERT ON tt_3 FOR EACH ROW
 BEGIN
@@ -440,7 +473,13 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 ----Executing----
 ==== begin rpl_mts_crash_safe.inc:recovery ====
 include/start_slave_io.inc
-include/rpl_reconnect.inc
+** fixing gaps **
+include/rpl_start_server.inc [server_number=2 parameters: --skip-slave-start --relay-log-recovery=0 --slave-parallel-workers=0]
+START SLAVE UNTIL SQL_AFTER_MTS_GAPS;
+include/wait_for_slave_param.inc [Until_Condition]
+include/wait_for_slave_sql_to_stop.inc
+** regular restart **
+include/rpl_restart_server.inc [server_number=2 parameters: --skip-slave-start --slave-transaction-retries=0 --relay-log-info-repository=TABLE --master-info-repository=TABLE --sync-master-info=1]
 include/start_slave_io.inc
 include/start_slave_sql.inc
 include/stop_slave.inc
@@ -486,7 +525,13 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 ----Executing----
 ==== begin rpl_mts_crash_safe.inc:recovery ====
 include/start_slave_io.inc
-include/rpl_reconnect.inc
+** fixing gaps **
+include/rpl_start_server.inc [server_number=2 parameters: --skip-slave-start --relay-log-recovery=0 --slave-parallel-workers=0]
+START SLAVE UNTIL SQL_AFTER_MTS_GAPS;
+include/wait_for_slave_param.inc [Until_Condition]
+include/wait_for_slave_sql_to_stop.inc
+** regular restart **
+include/rpl_restart_server.inc [server_number=2 parameters: --skip-slave-start --slave-transaction-retries=0 --relay-log-info-repository=TABLE --master-info-repository=TABLE --sync-master-info=1]
 include/start_slave_io.inc
 include/start_slave_sql.inc
 include/stop_slave.inc
@@ -549,7 +594,13 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 ----Executing----
 ==== begin rpl_mts_crash_safe.inc:recovery ====
 include/start_slave_io.inc
-include/rpl_reconnect.inc
+** fixing gaps **
+include/rpl_start_server.inc [server_number=2 parameters: --skip-slave-start --relay-log-recovery=0 --slave-parallel-workers=0]
+START SLAVE UNTIL SQL_AFTER_MTS_GAPS;
+include/wait_for_slave_param.inc [Until_Condition]
+include/wait_for_slave_sql_to_stop.inc
+** regular restart **
+include/rpl_restart_server.inc [server_number=2 parameters: --skip-slave-start --slave-transaction-retries=0 --relay-log-info-repository=TABLE --master-info-repository=TABLE --sync-master-info=1]
 include/start_slave_io.inc
 include/start_slave_sql.inc
 include/stop_slave.inc
@@ -578,7 +629,13 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 ----Executing----
 ==== begin rpl_mts_crash_safe.inc:recovery ====
 include/start_slave_io.inc
-include/rpl_reconnect.inc
+** fixing gaps **
+include/rpl_start_server.inc [server_number=2 parameters: --skip-slave-start --relay-log-recovery=0 --slave-parallel-workers=0]
+START SLAVE UNTIL SQL_AFTER_MTS_GAPS;
+include/wait_for_slave_param.inc [Until_Condition]
+include/wait_for_slave_sql_to_stop.inc
+** regular restart **
+include/rpl_restart_server.inc [server_number=2 parameters: --skip-slave-start --slave-transaction-retries=0 --relay-log-info-repository=TABLE --master-info-repository=TABLE --sync-master-info=1]
 include/start_slave_io.inc
 include/start_slave_sql.inc
 include/stop_slave.inc
@@ -624,7 +681,13 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 ----Executing----
 ==== begin rpl_mts_crash_safe.inc:recovery ====
 include/start_slave_io.inc
-include/rpl_reconnect.inc
+** fixing gaps **
+include/rpl_start_server.inc [server_number=2 parameters: --skip-slave-start --relay-log-recovery=0 --slave-parallel-workers=0]
+START SLAVE UNTIL SQL_AFTER_MTS_GAPS;
+include/wait_for_slave_param.inc [Until_Condition]
+include/wait_for_slave_sql_to_stop.inc
+** regular restart **
+include/rpl_restart_server.inc [server_number=2 parameters: --skip-slave-start --slave-transaction-retries=0 --relay-log-info-repository=TABLE --master-info-repository=TABLE --sync-master-info=1]
 include/start_slave_io.inc
 include/start_slave_sql.inc
 include/stop_slave.inc
@@ -687,7 +750,13 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 ----Executing----
 ==== begin rpl_mts_crash_safe.inc:recovery ====
 include/start_slave_io.inc
-include/rpl_reconnect.inc
+** fixing gaps **
+include/rpl_start_server.inc [server_number=2 parameters: --skip-slave-start --relay-log-recovery=0 --slave-parallel-workers=0]
+START SLAVE UNTIL SQL_AFTER_MTS_GAPS;
+include/wait_for_slave_param.inc [Until_Condition]
+include/wait_for_slave_sql_to_stop.inc
+** regular restart **
+include/rpl_restart_server.inc [server_number=2 parameters: --skip-slave-start --slave-transaction-retries=0 --relay-log-info-repository=TABLE --master-info-repository=TABLE --sync-master-info=1]
 include/start_slave_io.inc
 include/start_slave_sql.inc
 include/stop_slave.inc
@@ -733,7 +802,13 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 ----Executing----
 ==== begin rpl_mts_crash_safe.inc:recovery ====
 include/start_slave_io.inc
-include/rpl_reconnect.inc
+** fixing gaps **
+include/rpl_start_server.inc [server_number=2 parameters: --skip-slave-start --relay-log-recovery=0 --slave-parallel-workers=0]
+START SLAVE UNTIL SQL_AFTER_MTS_GAPS;
+include/wait_for_slave_param.inc [Until_Condition]
+include/wait_for_slave_sql_to_stop.inc
+** regular restart **
+include/rpl_restart_server.inc [server_number=2 parameters: --skip-slave-start --slave-transaction-retries=0 --relay-log-info-repository=TABLE --master-info-repository=TABLE --sync-master-info=1]
 include/start_slave_io.inc
 include/start_slave_sql.inc
 include/stop_slave.inc
@@ -813,7 +888,13 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 ----Executing----
 ==== begin rpl_mts_crash_safe.inc:recovery ====
 include/start_slave_io.inc
-include/rpl_reconnect.inc
+** fixing gaps **
+include/rpl_start_server.inc [server_number=2 parameters: --skip-slave-start --relay-log-recovery=0 --slave-parallel-workers=0]
+START SLAVE UNTIL SQL_AFTER_MTS_GAPS;
+include/wait_for_slave_param.inc [Until_Condition]
+include/wait_for_slave_sql_to_stop.inc
+** regular restart **
+include/rpl_restart_server.inc [server_number=2 parameters: --skip-slave-start --slave-transaction-retries=0 --relay-log-info-repository=TABLE --master-info-repository=TABLE --sync-master-info=1]
 include/start_slave_io.inc
 include/start_slave_sql.inc
 include/stop_slave.inc
@@ -927,7 +1008,13 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 ----Executing----
 ==== begin rpl_mts_crash_safe.inc:recovery ====
 include/start_slave_io.inc
-include/rpl_reconnect.inc
+** fixing gaps **
+include/rpl_start_server.inc [server_number=2 parameters: --skip-slave-start --relay-log-recovery=0 --slave-parallel-workers=0]
+START SLAVE UNTIL SQL_AFTER_MTS_GAPS;
+include/wait_for_slave_param.inc [Until_Condition]
+include/wait_for_slave_sql_to_stop.inc
+** regular restart **
+include/rpl_restart_server.inc [server_number=2 parameters: --skip-slave-start --slave-transaction-retries=0 --relay-log-info-repository=TABLE --master-info-repository=TABLE --sync-master-info=1]
 include/start_slave_io.inc
 include/start_slave_sql.inc
 include/stop_slave.inc
@@ -973,7 +1060,13 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 ----Executing----
 ==== begin rpl_mts_crash_safe.inc:recovery ====
 include/start_slave_io.inc
-include/rpl_reconnect.inc
+** fixing gaps **
+include/rpl_start_server.inc [server_number=2 parameters: --skip-slave-start --relay-log-recovery=0 --slave-parallel-workers=0]
+START SLAVE UNTIL SQL_AFTER_MTS_GAPS;
+include/wait_for_slave_param.inc [Until_Condition]
+include/wait_for_slave_sql_to_stop.inc
+** regular restart **
+include/rpl_restart_server.inc [server_number=2 parameters: --skip-slave-start --slave-transaction-retries=0 --relay-log-info-repository=TABLE --master-info-repository=TABLE --sync-master-info=1]
 include/start_slave_io.inc
 include/start_slave_sql.inc
 include/stop_slave.inc
@@ -1053,7 +1146,13 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 ----Executing----
 ==== begin rpl_mts_crash_safe.inc:recovery ====
 include/start_slave_io.inc
-include/rpl_reconnect.inc
+** fixing gaps **
+include/rpl_start_server.inc [server_number=2 parameters: --skip-slave-start --relay-log-recovery=0 --slave-parallel-workers=0]
+START SLAVE UNTIL SQL_AFTER_MTS_GAPS;
+include/wait_for_slave_param.inc [Until_Condition]
+include/wait_for_slave_sql_to_stop.inc
+** regular restart **
+include/rpl_restart_server.inc [server_number=2 parameters: --skip-slave-start --slave-transaction-retries=0 --relay-log-info-repository=TABLE --master-info-repository=TABLE --sync-master-info=1]
 include/start_slave_io.inc
 include/start_slave_sql.inc
 include/stop_slave.inc
@@ -1167,7 +1266,13 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 ----Executing----
 ==== begin rpl_mts_crash_safe.inc:recovery ====
 include/start_slave_io.inc
-include/rpl_reconnect.inc
+** fixing gaps **
+include/rpl_start_server.inc [server_number=2 parameters: --skip-slave-start --relay-log-recovery=0 --slave-parallel-workers=0]
+START SLAVE UNTIL SQL_AFTER_MTS_GAPS;
+include/wait_for_slave_param.inc [Until_Condition]
+include/wait_for_slave_sql_to_stop.inc
+** regular restart **
+include/rpl_restart_server.inc [server_number=2 parameters: --skip-slave-start --slave-transaction-retries=0 --relay-log-info-repository=TABLE --master-info-repository=TABLE --sync-master-info=1]
 include/start_slave_io.inc
 include/start_slave_sql.inc
 include/stop_slave.inc
@@ -1230,7 +1335,13 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 ----Executing----
 ==== begin rpl_mts_crash_safe.inc:recovery ====
 include/start_slave_io.inc
-include/rpl_reconnect.inc
+** fixing gaps **
+include/rpl_start_server.inc [server_number=2 parameters: --skip-slave-start --relay-log-recovery=0 --slave-parallel-workers=0]
+START SLAVE UNTIL SQL_AFTER_MTS_GAPS;
+include/wait_for_slave_param.inc [Until_Condition]
+include/wait_for_slave_sql_to_stop.inc
+** regular restart **
+include/rpl_restart_server.inc [server_number=2 parameters: --skip-slave-start --slave-transaction-retries=0 --relay-log-info-repository=TABLE --master-info-repository=TABLE --sync-master-info=1]
 include/start_slave_io.inc
 include/start_slave_sql.inc
 include/stop_slave.inc
@@ -1344,7 +1455,13 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 ----Executing----
 ==== begin rpl_mts_crash_safe.inc:recovery ====
 include/start_slave_io.inc
-include/rpl_reconnect.inc
+** fixing gaps **
+include/rpl_start_server.inc [server_number=2 parameters: --skip-slave-start --relay-log-recovery=0 --slave-parallel-workers=0]
+START SLAVE UNTIL SQL_AFTER_MTS_GAPS;
+include/wait_for_slave_param.inc [Until_Condition]
+include/wait_for_slave_sql_to_stop.inc
+** regular restart **
+include/rpl_restart_server.inc [server_number=2 parameters: --skip-slave-start --slave-transaction-retries=0 --relay-log-info-repository=TABLE --master-info-repository=TABLE --sync-master-info=1]
 include/start_slave_io.inc
 include/start_slave_sql.inc
 include/stop_slave.inc
@@ -1509,7 +1626,13 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 ----Executing----
 ==== begin rpl_mts_crash_safe.inc:recovery ====
 include/start_slave_io.inc
-include/rpl_reconnect.inc
+** fixing gaps **
+include/rpl_start_server.inc [server_number=2 parameters: --skip-slave-start --relay-log-recovery=0 --slave-parallel-workers=0]
+START SLAVE UNTIL SQL_AFTER_MTS_GAPS;
+include/wait_for_slave_param.inc [Until_Condition]
+include/wait_for_slave_sql_to_stop.inc
+** regular restart **
+include/rpl_restart_server.inc [server_number=2 parameters: --skip-slave-start --slave-transaction-retries=0 --relay-log-info-repository=TABLE --master-info-repository=TABLE --sync-master-info=1]
 include/start_slave_io.inc
 include/start_slave_sql.inc
 include/stop_slave.inc
@@ -1572,7 +1695,13 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 ----Executing----
 ==== begin rpl_mts_crash_safe.inc:recovery ====
 include/start_slave_io.inc
-include/rpl_reconnect.inc
+** fixing gaps **
+include/rpl_start_server.inc [server_number=2 parameters: --skip-slave-start --relay-log-recovery=0 --slave-parallel-workers=0]
+START SLAVE UNTIL SQL_AFTER_MTS_GAPS;
+include/wait_for_slave_param.inc [Until_Condition]
+include/wait_for_slave_sql_to_stop.inc
+** regular restart **
+include/rpl_restart_server.inc [server_number=2 parameters: --skip-slave-start --slave-transaction-retries=0 --relay-log-info-repository=TABLE --master-info-repository=TABLE --sync-master-info=1]
 include/start_slave_io.inc
 include/start_slave_sql.inc
 include/stop_slave.inc
@@ -1686,7 +1815,13 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 ----Executing----
 ==== begin rpl_mts_crash_safe.inc:recovery ====
 include/start_slave_io.inc
-include/rpl_reconnect.inc
+** fixing gaps **
+include/rpl_start_server.inc [server_number=2 parameters: --skip-slave-start --relay-log-recovery=0 --slave-parallel-workers=0]
+START SLAVE UNTIL SQL_AFTER_MTS_GAPS;
+include/wait_for_slave_param.inc [Until_Condition]
+include/wait_for_slave_sql_to_stop.inc
+** regular restart **
+include/rpl_restart_server.inc [server_number=2 parameters: --skip-slave-start --slave-transaction-retries=0 --relay-log-info-repository=TABLE --master-info-repository=TABLE --sync-master-info=1]
 include/start_slave_io.inc
 include/start_slave_sql.inc
 include/stop_slave.inc
@@ -1851,7 +1986,13 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 ----Executing----
 ==== begin rpl_mts_crash_safe.inc:recovery ====
 include/start_slave_io.inc
-include/rpl_reconnect.inc
+** fixing gaps **
+include/rpl_start_server.inc [server_number=2 parameters: --skip-slave-start --relay-log-recovery=0 --slave-parallel-workers=0]
+START SLAVE UNTIL SQL_AFTER_MTS_GAPS;
+include/wait_for_slave_param.inc [Until_Condition]
+include/wait_for_slave_sql_to_stop.inc
+** regular restart **
+include/rpl_restart_server.inc [server_number=2 parameters: --skip-slave-start --slave-transaction-retries=0 --relay-log-info-repository=TABLE --master-info-repository=TABLE --sync-master-info=1]
 include/start_slave_io.inc
 include/start_slave_sql.inc
 include/stop_slave.inc
@@ -1897,7 +2038,13 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 ----Executing----
 ==== begin rpl_mts_crash_safe.inc:recovery ====
 include/start_slave_io.inc
-include/rpl_reconnect.inc
+** fixing gaps **
+include/rpl_start_server.inc [server_number=2 parameters: --skip-slave-start --relay-log-recovery=0 --slave-parallel-workers=0]
+START SLAVE UNTIL SQL_AFTER_MTS_GAPS;
+include/wait_for_slave_param.inc [Until_Condition]
+include/wait_for_slave_sql_to_stop.inc
+** regular restart **
+include/rpl_restart_server.inc [server_number=2 parameters: --skip-slave-start --slave-transaction-retries=0 --relay-log-info-repository=TABLE --master-info-repository=TABLE --sync-master-info=1]
 include/start_slave_io.inc
 include/start_slave_sql.inc
 include/stop_slave.inc
@@ -1960,7 +2107,13 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 ----Executing----
 ==== begin rpl_mts_crash_safe.inc:recovery ====
 include/start_slave_io.inc
-include/rpl_reconnect.inc
+** fixing gaps **
+include/rpl_start_server.inc [server_number=2 parameters: --skip-slave-start --relay-log-recovery=0 --slave-parallel-workers=0]
+START SLAVE UNTIL SQL_AFTER_MTS_GAPS;
+include/wait_for_slave_param.inc [Until_Condition]
+include/wait_for_slave_sql_to_stop.inc
+** regular restart **
+include/rpl_restart_server.inc [server_number=2 parameters: --skip-slave-start --slave-transaction-retries=0 --relay-log-info-repository=TABLE --master-info-repository=TABLE --sync-master-info=1]
 include/start_slave_io.inc
 include/start_slave_sql.inc
 include/stop_slave.inc
@@ -2006,7 +2159,13 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 ----Executing----
 ==== begin rpl_mts_crash_safe.inc:recovery ====
 include/start_slave_io.inc
-include/rpl_reconnect.inc
+** fixing gaps **
+include/rpl_start_server.inc [server_number=2 parameters: --skip-slave-start --relay-log-recovery=0 --slave-parallel-workers=0]
+START SLAVE UNTIL SQL_AFTER_MTS_GAPS;
+include/wait_for_slave_param.inc [Until_Condition]
+include/wait_for_slave_sql_to_stop.inc
+** regular restart **
+include/rpl_restart_server.inc [server_number=2 parameters: --skip-slave-start --slave-transaction-retries=0 --relay-log-info-repository=TABLE --master-info-repository=TABLE --sync-master-info=1]
 include/start_slave_io.inc
 include/start_slave_sql.inc
 include/stop_slave.inc
@@ -2069,7 +2228,13 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 ----Executing----
 ==== begin rpl_mts_crash_safe.inc:recovery ====
 include/start_slave_io.inc
-include/rpl_reconnect.inc
+** fixing gaps **
+include/rpl_start_server.inc [server_number=2 parameters: --skip-slave-start --relay-log-recovery=0 --slave-parallel-workers=0]
+START SLAVE UNTIL SQL_AFTER_MTS_GAPS;
+include/wait_for_slave_param.inc [Until_Condition]
+include/wait_for_slave_sql_to_stop.inc
+** regular restart **
+include/rpl_restart_server.inc [server_number=2 parameters: --skip-slave-start --slave-transaction-retries=0 --relay-log-info-repository=TABLE --master-info-repository=TABLE --sync-master-info=1]
 include/start_slave_io.inc
 include/start_slave_sql.inc
 include/stop_slave.inc
@@ -2115,7 +2280,13 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 ----Executing----
 ==== begin rpl_mts_crash_safe.inc:recovery ====
 include/start_slave_io.inc
-include/rpl_reconnect.inc
+** fixing gaps **
+include/rpl_start_server.inc [server_number=2 parameters: --skip-slave-start --relay-log-recovery=0 --slave-parallel-workers=0]
+START SLAVE UNTIL SQL_AFTER_MTS_GAPS;
+include/wait_for_slave_param.inc [Until_Condition]
+include/wait_for_slave_sql_to_stop.inc
+** regular restart **
+include/rpl_restart_server.inc [server_number=2 parameters: --skip-slave-start --slave-transaction-retries=0 --relay-log-info-repository=TABLE --master-info-repository=TABLE --sync-master-info=1]
 include/start_slave_io.inc
 include/start_slave_sql.inc
 include/stop_slave.inc
@@ -2178,7 +2349,13 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 ----Executing----
 ==== begin rpl_mts_crash_safe.inc:recovery ====
 include/start_slave_io.inc
-include/rpl_reconnect.inc
+** fixing gaps **
+include/rpl_start_server.inc [server_number=2 parameters: --skip-slave-start --relay-log-recovery=0 --slave-parallel-workers=0]
+START SLAVE UNTIL SQL_AFTER_MTS_GAPS;
+include/wait_for_slave_param.inc [Until_Condition]
+include/wait_for_slave_sql_to_stop.inc
+** regular restart **
+include/rpl_restart_server.inc [server_number=2 parameters: --skip-slave-start --slave-transaction-retries=0 --relay-log-info-repository=TABLE --master-info-repository=TABLE --sync-master-info=1]
 include/start_slave_io.inc
 include/start_slave_sql.inc
 include/stop_slave.inc
@@ -2258,7 +2435,13 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 ----Executing----
 ==== begin rpl_mts_crash_safe.inc:recovery ====
 include/start_slave_io.inc
-include/rpl_reconnect.inc
+** fixing gaps **
+include/rpl_start_server.inc [server_number=2 parameters: --skip-slave-start --relay-log-recovery=0 --slave-parallel-workers=0]
+START SLAVE UNTIL SQL_AFTER_MTS_GAPS;
+include/wait_for_slave_param.inc [Until_Condition]
+include/wait_for_slave_sql_to_stop.inc
+** regular restart **
+include/rpl_restart_server.inc [server_number=2 parameters: --skip-slave-start --slave-transaction-retries=0 --relay-log-info-repository=TABLE --master-info-repository=TABLE --sync-master-info=1]
 include/start_slave_io.inc
 include/start_slave_sql.inc
 include/stop_slave.inc
@@ -2372,7 +2555,13 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 ----Executing----
 ==== begin rpl_mts_crash_safe.inc:recovery ====
 include/start_slave_io.inc
-include/rpl_reconnect.inc
+** fixing gaps **
+include/rpl_start_server.inc [server_number=2 parameters: --skip-slave-start --relay-log-recovery=0 --slave-parallel-workers=0]
+START SLAVE UNTIL SQL_AFTER_MTS_GAPS;
+include/wait_for_slave_param.inc [Until_Condition]
+include/wait_for_slave_sql_to_stop.inc
+** regular restart **
+include/rpl_restart_server.inc [server_number=2 parameters: --skip-slave-start --slave-transaction-retries=0 --relay-log-info-repository=TABLE --master-info-repository=TABLE --sync-master-info=1]
 include/start_slave_io.inc
 include/start_slave_sql.inc
 include/stop_slave.inc
@@ -2452,7 +2641,13 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 ----Executing----
 ==== begin rpl_mts_crash_safe.inc:recovery ====
 include/start_slave_io.inc
-include/rpl_reconnect.inc
+** fixing gaps **
+include/rpl_start_server.inc [server_number=2 parameters: --skip-slave-start --relay-log-recovery=0 --slave-parallel-workers=0]
+START SLAVE UNTIL SQL_AFTER_MTS_GAPS;
+include/wait_for_slave_param.inc [Until_Condition]
+include/wait_for_slave_sql_to_stop.inc
+** regular restart **
+include/rpl_restart_server.inc [server_number=2 parameters: --skip-slave-start --slave-transaction-retries=0 --relay-log-info-repository=TABLE --master-info-repository=TABLE --sync-master-info=1]
 include/start_slave_io.inc
 include/start_slave_sql.inc
 include/stop_slave.inc
@@ -2566,7 +2761,13 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 ----Executing----
 ==== begin rpl_mts_crash_safe.inc:recovery ====
 include/start_slave_io.inc
-include/rpl_reconnect.inc
+** fixing gaps **
+include/rpl_start_server.inc [server_number=2 parameters: --skip-slave-start --relay-log-recovery=0 --slave-parallel-workers=0]
+START SLAVE UNTIL SQL_AFTER_MTS_GAPS;
+include/wait_for_slave_param.inc [Until_Condition]
+include/wait_for_slave_sql_to_stop.inc
+** regular restart **
+include/rpl_restart_server.inc [server_number=2 parameters: --skip-slave-start --slave-transaction-retries=0 --relay-log-info-repository=TABLE --master-info-repository=TABLE --sync-master-info=1]
 include/start_slave_io.inc
 include/start_slave_sql.inc
 include/stop_slave.inc
@@ -2646,7 +2847,13 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 ----Executing----
 ==== begin rpl_mts_crash_safe.inc:recovery ====
 include/start_slave_io.inc
-include/rpl_reconnect.inc
+** fixing gaps **
+include/rpl_start_server.inc [server_number=2 parameters: --skip-slave-start --relay-log-recovery=0 --slave-parallel-workers=0]
+START SLAVE UNTIL SQL_AFTER_MTS_GAPS;
+include/wait_for_slave_param.inc [Until_Condition]
+include/wait_for_slave_sql_to_stop.inc
+** regular restart **
+include/rpl_restart_server.inc [server_number=2 parameters: --skip-slave-start --slave-transaction-retries=0 --relay-log-info-repository=TABLE --master-info-repository=TABLE --sync-master-info=1]
 include/start_slave_io.inc
 include/start_slave_sql.inc
 include/stop_slave.inc
@@ -2760,7 +2967,13 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 ----Executing----
 ==== begin rpl_mts_crash_safe.inc:recovery ====
 include/start_slave_io.inc
-include/rpl_reconnect.inc
+** fixing gaps **
+include/rpl_start_server.inc [server_number=2 parameters: --skip-slave-start --relay-log-recovery=0 --slave-parallel-workers=0]
+START SLAVE UNTIL SQL_AFTER_MTS_GAPS;
+include/wait_for_slave_param.inc [Until_Condition]
+include/wait_for_slave_sql_to_stop.inc
+** regular restart **
+include/rpl_restart_server.inc [server_number=2 parameters: --skip-slave-start --slave-transaction-retries=0 --relay-log-info-repository=TABLE --master-info-repository=TABLE --sync-master-info=1]
 include/start_slave_io.inc
 include/start_slave_sql.inc
 include/stop_slave.inc
@@ -2874,7 +3087,13 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 ----Executing----
 ==== begin rpl_mts_crash_safe.inc:recovery ====
 include/start_slave_io.inc
-include/rpl_reconnect.inc
+** fixing gaps **
+include/rpl_start_server.inc [server_number=2 parameters: --skip-slave-start --relay-log-recovery=0 --slave-parallel-workers=0]
+START SLAVE UNTIL SQL_AFTER_MTS_GAPS;
+include/wait_for_slave_param.inc [Until_Condition]
+include/wait_for_slave_sql_to_stop.inc
+** regular restart **
+include/rpl_restart_server.inc [server_number=2 parameters: --skip-slave-start --slave-transaction-retries=0 --relay-log-info-repository=TABLE --master-info-repository=TABLE --sync-master-info=1]
 include/start_slave_io.inc
 include/start_slave_sql.inc
 include/stop_slave.inc
@@ -3039,7 +3258,13 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 ----Executing----
 ==== begin rpl_mts_crash_safe.inc:recovery ====
 include/start_slave_io.inc
-include/rpl_reconnect.inc
+** fixing gaps **
+include/rpl_start_server.inc [server_number=2 parameters: --skip-slave-start --relay-log-recovery=0 --slave-parallel-workers=0]
+START SLAVE UNTIL SQL_AFTER_MTS_GAPS;
+include/wait_for_slave_param.inc [Until_Condition]
+include/wait_for_slave_sql_to_stop.inc
+** regular restart **
+include/rpl_restart_server.inc [server_number=2 parameters: --skip-slave-start --slave-transaction-retries=0 --relay-log-info-repository=TABLE --master-info-repository=TABLE --sync-master-info=1]
 include/start_slave_io.inc
 include/start_slave_sql.inc
 include/stop_slave.inc
@@ -3153,7 +3378,13 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 ----Executing----
 ==== begin rpl_mts_crash_safe.inc:recovery ====
 include/start_slave_io.inc
-include/rpl_reconnect.inc
+** fixing gaps **
+include/rpl_start_server.inc [server_number=2 parameters: --skip-slave-start --relay-log-recovery=0 --slave-parallel-workers=0]
+START SLAVE UNTIL SQL_AFTER_MTS_GAPS;
+include/wait_for_slave_param.inc [Until_Condition]
+include/wait_for_slave_sql_to_stop.inc
+** regular restart **
+include/rpl_restart_server.inc [server_number=2 parameters: --skip-slave-start --slave-transaction-retries=0 --relay-log-info-repository=TABLE --master-info-repository=TABLE --sync-master-info=1]
 include/start_slave_io.inc
 include/start_slave_sql.inc
 include/stop_slave.inc
@@ -3318,7 +3549,13 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 ----Executing----
 ==== begin rpl_mts_crash_safe.inc:recovery ====
 include/start_slave_io.inc
-include/rpl_reconnect.inc
+** fixing gaps **
+include/rpl_start_server.inc [server_number=2 parameters: --skip-slave-start --relay-log-recovery=0 --slave-parallel-workers=0]
+START SLAVE UNTIL SQL_AFTER_MTS_GAPS;
+include/wait_for_slave_param.inc [Until_Condition]
+include/wait_for_slave_sql_to_stop.inc
+** regular restart **
+include/rpl_restart_server.inc [server_number=2 parameters: --skip-slave-start --slave-transaction-retries=0 --relay-log-info-repository=TABLE --master-info-repository=TABLE --sync-master-info=1]
 include/start_slave_io.inc
 include/start_slave_sql.inc
 include/stop_slave.inc
@@ -3432,7 +3669,13 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 ----Executing----
 ==== begin rpl_mts_crash_safe.inc:recovery ====
 include/start_slave_io.inc
-include/rpl_reconnect.inc
+** fixing gaps **
+include/rpl_start_server.inc [server_number=2 parameters: --skip-slave-start --relay-log-recovery=0 --slave-parallel-workers=0]
+START SLAVE UNTIL SQL_AFTER_MTS_GAPS;
+include/wait_for_slave_param.inc [Until_Condition]
+include/wait_for_slave_sql_to_stop.inc
+** regular restart **
+include/rpl_restart_server.inc [server_number=2 parameters: --skip-slave-start --slave-transaction-retries=0 --relay-log-info-repository=TABLE --master-info-repository=TABLE --sync-master-info=1]
 include/start_slave_io.inc
 include/start_slave_sql.inc
 include/stop_slave.inc
@@ -3597,7 +3840,13 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 ----Executing----
 ==== begin rpl_mts_crash_safe.inc:recovery ====
 include/start_slave_io.inc
-include/rpl_reconnect.inc
+** fixing gaps **
+include/rpl_start_server.inc [server_number=2 parameters: --skip-slave-start --relay-log-recovery=0 --slave-parallel-workers=0]
+START SLAVE UNTIL SQL_AFTER_MTS_GAPS;
+include/wait_for_slave_param.inc [Until_Condition]
+include/wait_for_slave_sql_to_stop.inc
+** regular restart **
+include/rpl_restart_server.inc [server_number=2 parameters: --skip-slave-start --slave-transaction-retries=0 --relay-log-info-repository=TABLE --master-info-repository=TABLE --sync-master-info=1]
 include/start_slave_io.inc
 include/start_slave_sql.inc
 include/stop_slave.inc
@@ -3660,7 +3909,13 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 ----Executing----
 ==== begin rpl_mts_crash_safe.inc:recovery ====
 include/start_slave_io.inc
-include/rpl_reconnect.inc
+** fixing gaps **
+include/rpl_start_server.inc [server_number=2 parameters: --skip-slave-start --relay-log-recovery=0 --slave-parallel-workers=0]
+START SLAVE UNTIL SQL_AFTER_MTS_GAPS;
+include/wait_for_slave_param.inc [Until_Condition]
+include/wait_for_slave_sql_to_stop.inc
+** regular restart **
+include/rpl_restart_server.inc [server_number=2 parameters: --skip-slave-start --slave-transaction-retries=0 --relay-log-info-repository=TABLE --master-info-repository=TABLE --sync-master-info=1]
 include/start_slave_io.inc
 include/start_slave_sql.inc
 include/stop_slave.inc
@@ -3723,7 +3978,13 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 ----Executing----
 ==== begin rpl_mts_crash_safe.inc:recovery ====
 include/start_slave_io.inc
-include/rpl_reconnect.inc
+** fixing gaps **
+include/rpl_start_server.inc [server_number=2 parameters: --skip-slave-start --relay-log-recovery=0 --slave-parallel-workers=0]
+START SLAVE UNTIL SQL_AFTER_MTS_GAPS;
+include/wait_for_slave_param.inc [Until_Condition]
+include/wait_for_slave_sql_to_stop.inc
+** regular restart **
+include/rpl_restart_server.inc [server_number=2 parameters: --skip-slave-start --slave-transaction-retries=0 --relay-log-info-repository=TABLE --master-info-repository=TABLE --sync-master-info=1]
 include/start_slave_io.inc
 include/start_slave_sql.inc
 include/stop_slave.inc
@@ -3786,7 +4047,13 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 ----Executing----
 ==== begin rpl_mts_crash_safe.inc:recovery ====
 include/start_slave_io.inc
-include/rpl_reconnect.inc
+** fixing gaps **
+include/rpl_start_server.inc [server_number=2 parameters: --skip-slave-start --relay-log-recovery=0 --slave-parallel-workers=0]
+START SLAVE UNTIL SQL_AFTER_MTS_GAPS;
+include/wait_for_slave_param.inc [Until_Condition]
+include/wait_for_slave_sql_to_stop.inc
+** regular restart **
+include/rpl_restart_server.inc [server_number=2 parameters: --skip-slave-start --slave-transaction-retries=0 --relay-log-info-repository=TABLE --master-info-repository=TABLE --sync-master-info=1]
 include/start_slave_io.inc
 include/start_slave_sql.inc
 include/stop_slave.inc
@@ -3849,7 +4116,13 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 ----Executing----
 ==== begin rpl_mts_crash_safe.inc:recovery ====
 include/start_slave_io.inc
-include/rpl_reconnect.inc
+** fixing gaps **
+include/rpl_start_server.inc [server_number=2 parameters: --skip-slave-start --relay-log-recovery=0 --slave-parallel-workers=0]
+START SLAVE UNTIL SQL_AFTER_MTS_GAPS;
+include/wait_for_slave_param.inc [Until_Condition]
+include/wait_for_slave_sql_to_stop.inc
+** regular restart **
+include/rpl_restart_server.inc [server_number=2 parameters: --skip-slave-start --slave-transaction-retries=0 --relay-log-info-repository=TABLE --master-info-repository=TABLE --sync-master-info=1]
 include/start_slave_io.inc
 include/start_slave_sql.inc
 include/stop_slave.inc
@@ -3963,7 +4236,13 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 ----Executing----
 ==== begin rpl_mts_crash_safe.inc:recovery ====
 include/start_slave_io.inc
-include/rpl_reconnect.inc
+** fixing gaps **
+include/rpl_start_server.inc [server_number=2 parameters: --skip-slave-start --relay-log-recovery=0 --slave-parallel-workers=0]
+START SLAVE UNTIL SQL_AFTER_MTS_GAPS;
+include/wait_for_slave_param.inc [Until_Condition]
+include/wait_for_slave_sql_to_stop.inc
+** regular restart **
+include/rpl_restart_server.inc [server_number=2 parameters: --skip-slave-start --slave-transaction-retries=0 --relay-log-info-repository=TABLE --master-info-repository=TABLE --sync-master-info=1]
 include/start_slave_io.inc
 include/start_slave_sql.inc
 include/stop_slave.inc
@@ -4077,7 +4356,13 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 ----Executing----
 ==== begin rpl_mts_crash_safe.inc:recovery ====
 include/start_slave_io.inc
-include/rpl_reconnect.inc
+** fixing gaps **
+include/rpl_start_server.inc [server_number=2 parameters: --skip-slave-start --relay-log-recovery=0 --slave-parallel-workers=0]
+START SLAVE UNTIL SQL_AFTER_MTS_GAPS;
+include/wait_for_slave_param.inc [Until_Condition]
+include/wait_for_slave_sql_to_stop.inc
+** regular restart **
+include/rpl_restart_server.inc [server_number=2 parameters: --skip-slave-start --slave-transaction-retries=0 --relay-log-info-repository=TABLE --master-info-repository=TABLE --sync-master-info=1]
 include/start_slave_io.inc
 include/start_slave_sql.inc
 include/stop_slave.inc
@@ -4191,7 +4476,13 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 ----Executing----
 ==== begin rpl_mts_crash_safe.inc:recovery ====
 include/start_slave_io.inc
-include/rpl_reconnect.inc
+** fixing gaps **
+include/rpl_start_server.inc [server_number=2 parameters: --skip-slave-start --relay-log-recovery=0 --slave-parallel-workers=0]
+START SLAVE UNTIL SQL_AFTER_MTS_GAPS;
+include/wait_for_slave_param.inc [Until_Condition]
+include/wait_for_slave_sql_to_stop.inc
+** regular restart **
+include/rpl_restart_server.inc [server_number=2 parameters: --skip-slave-start --slave-transaction-retries=0 --relay-log-info-repository=TABLE --master-info-repository=TABLE --sync-master-info=1]
 include/start_slave_io.inc
 include/start_slave_sql.inc
 include/stop_slave.inc
@@ -4305,7 +4596,13 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 ----Executing----
 ==== begin rpl_mts_crash_safe.inc:recovery ====
 include/start_slave_io.inc
-include/rpl_reconnect.inc
+** fixing gaps **
+include/rpl_start_server.inc [server_number=2 parameters: --skip-slave-start --relay-log-recovery=0 --slave-parallel-workers=0]
+START SLAVE UNTIL SQL_AFTER_MTS_GAPS;
+include/wait_for_slave_param.inc [Until_Condition]
+include/wait_for_slave_sql_to_stop.inc
+** regular restart **
+include/rpl_restart_server.inc [server_number=2 parameters: --skip-slave-start --slave-transaction-retries=0 --relay-log-info-repository=TABLE --master-info-repository=TABLE --sync-master-info=1]
 include/start_slave_io.inc
 include/start_slave_sql.inc
 include/stop_slave.inc
@@ -4470,7 +4767,13 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 ----Executing----
 ==== begin rpl_mts_crash_safe.inc:recovery ====
 include/start_slave_io.inc
-include/rpl_reconnect.inc
+** fixing gaps **
+include/rpl_start_server.inc [server_number=2 parameters: --skip-slave-start --relay-log-recovery=0 --slave-parallel-workers=0]
+START SLAVE UNTIL SQL_AFTER_MTS_GAPS;
+include/wait_for_slave_param.inc [Until_Condition]
+include/wait_for_slave_sql_to_stop.inc
+** regular restart **
+include/rpl_restart_server.inc [server_number=2 parameters: --skip-slave-start --slave-transaction-retries=0 --relay-log-info-repository=TABLE --master-info-repository=TABLE --sync-master-info=1]
 include/start_slave_io.inc
 include/start_slave_sql.inc
 include/stop_slave.inc
@@ -4635,7 +4938,13 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 ----Executing----
 ==== begin rpl_mts_crash_safe.inc:recovery ====
 include/start_slave_io.inc
-include/rpl_reconnect.inc
+** fixing gaps **
+include/rpl_start_server.inc [server_number=2 parameters: --skip-slave-start --relay-log-recovery=0 --slave-parallel-workers=0]
+START SLAVE UNTIL SQL_AFTER_MTS_GAPS;
+include/wait_for_slave_param.inc [Until_Condition]
+include/wait_for_slave_sql_to_stop.inc
+** regular restart **
+include/rpl_restart_server.inc [server_number=2 parameters: --skip-slave-start --slave-transaction-retries=0 --relay-log-info-repository=TABLE --master-info-repository=TABLE --sync-master-info=1]
 include/start_slave_io.inc
 include/start_slave_sql.inc
 include/stop_slave.inc
@@ -4800,7 +5109,13 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 ----Executing----
 ==== begin rpl_mts_crash_safe.inc:recovery ====
 include/start_slave_io.inc
-include/rpl_reconnect.inc
+** fixing gaps **
+include/rpl_start_server.inc [server_number=2 parameters: --skip-slave-start --relay-log-recovery=0 --slave-parallel-workers=0]
+START SLAVE UNTIL SQL_AFTER_MTS_GAPS;
+include/wait_for_slave_param.inc [Until_Condition]
+include/wait_for_slave_sql_to_stop.inc
+** regular restart **
+include/rpl_restart_server.inc [server_number=2 parameters: --skip-slave-start --slave-transaction-retries=0 --relay-log-info-repository=TABLE --master-info-repository=TABLE --sync-master-info=1]
 include/start_slave_io.inc
 include/start_slave_sql.inc
 include/stop_slave.inc
@@ -4965,7 +5280,13 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 ----Executing----
 ==== begin rpl_mts_crash_safe.inc:recovery ====
 include/start_slave_io.inc
-include/rpl_reconnect.inc
+** fixing gaps **
+include/rpl_start_server.inc [server_number=2 parameters: --skip-slave-start --relay-log-recovery=0 --slave-parallel-workers=0]
+START SLAVE UNTIL SQL_AFTER_MTS_GAPS;
+include/wait_for_slave_param.inc [Until_Condition]
+include/wait_for_slave_sql_to_stop.inc
+** regular restart **
+include/rpl_restart_server.inc [server_number=2 parameters: --skip-slave-start --slave-transaction-retries=0 --relay-log-info-repository=TABLE --master-info-repository=TABLE --sync-master-info=1]
 include/start_slave_io.inc
 include/start_slave_sql.inc
 include/stop_slave.inc
@@ -5000,6 +5321,7 @@ DROP PROCEDURE pc_i_tt_5_suc;
 DROP PROCEDURE pc_i_nt_5_suc;
 DROP FUNCTION fc_i_tt_5_suc;
 DROP FUNCTION fc_i_nt_5_suc;
+DROP FUNCTION fc_i_nt_3_tt_3_suc;
 ---- end clean database test_1 ----
 ---- begin clean database test_2 ----
 rpl_mixing_engines.inc [commands=clean]
@@ -5019,6 +5341,7 @@ DROP PROCEDURE pc_i_tt_5_suc;
 DROP PROCEDURE pc_i_nt_5_suc;
 DROP FUNCTION fc_i_tt_5_suc;
 DROP FUNCTION fc_i_nt_5_suc;
+DROP FUNCTION fc_i_nt_3_tt_3_suc;
 ---- end clean database test_2 ----
 ---- begin clean database test_3 ----
 rpl_mixing_engines.inc [commands=clean]
@@ -5038,6 +5361,7 @@ DROP PROCEDURE pc_i_tt_5_suc;
 DROP PROCEDURE pc_i_nt_5_suc;
 DROP FUNCTION fc_i_tt_5_suc;
 DROP FUNCTION fc_i_nt_5_suc;
+DROP FUNCTION fc_i_nt_3_tt_3_suc;
 ---- end clean database test_3 ----
 ==== end rpl_mts_crash_safe.inc:clean ====
 include/rpl_end.inc

@@ -258,7 +258,8 @@ void opt_trace_print_expanded_query(THD *thd, st_select_lex *select_lex,
     inexact parts are irrelevant for the optimizer).
   */
   select_lex->print(thd, &str, enum_query_type(QT_TO_SYSTEM_CHARSET |
-                                               QT_SHOW_SELECT_NUMBER));
+                                               QT_SHOW_SELECT_NUMBER |
+                                               QT_NO_DEFAULT_DB));
   trace_object->add_utf8("expanded_query", str.ptr(), str.length());
 }
 

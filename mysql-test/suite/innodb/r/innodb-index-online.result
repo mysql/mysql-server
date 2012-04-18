@@ -1,6 +1,12 @@
+SET GLOBAL DEBUG='d,query,debug_sync_exec:i:t:A,ds.trace';
+SET DEBUG='+d,debug_sync_abort_on_timeout';
+SET DEBUG='d,query,debug_sync_exec:i:t:A,ds.trace';
 call mtr.add_suppression("InnoDB: Warning: Small buffer pool size");
 call mtr.add_suppression("Cannot find index .*c2 in InnoDB index translation table");
 call mtr.add_suppression("Find index .*c2 in InnoDB index list but not its MySQL index number");
+call mtr.add_suppression("InnoDB: Error: table 'test/t1'$");
+call mtr.add_suppression("MySQL is trying to open a table handle but the .ibd file for$");
+SET GLOBAL innodb_file_per_table=on;
 CREATE TABLE t1 (c1 INT PRIMARY KEY, c2 INT, c3 INT) ENGINE=InnoDB;
 INSERT INTO t1 VALUES (1,1,0),(2,2,0),(3,3,0),(4,4,0),(5,5,0);
 SET GLOBAL innodb_monitor_enable=module_ddl;
@@ -13,6 +19,8 @@ ddl_pending_alter_table	0
 SET DEBUG_SYNC='RESET';
 SET DEBUG_SYNC='write_row_noreplace SIGNAL have_handle WAIT_FOR go_ahead';
 INSERT INTO t1 VALUES(1,2,3);
+SET DEBUG='+d,debug_sync_abort_on_timeout';
+SET DEBUG='d,query,debug_sync_exec:i:t:A,ds.trace';
 SET DEBUG_SYNC='now WAIT_FOR have_handle';
 SET lock_wait_timeout=1;
 ALTER TABLE t1 ADD UNIQUE INDEX(c2);
@@ -252,8 +260,40 @@ COUNT(c2)
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
+SET DEBUG_SYNC='row_log_apply_before SIGNAL c2g_created WAIT_FOR dml4_done';
+SET lock_wait_timeout=1;
+ALTER TABLE t1 DROP INDEX c2f, ADD INDEX c2g(c2);
+SET DEBUG_SYNC='now WAIT_FOR c2g_created';
+SET lock_wait_timeout=10;
+ALTER TABLE t1 DISCARD TABLESPACE;
+SELECT state FROM information_schema.processlist
+WHERE info='ALTER TABLE t1 DISCARD TABLESPACE';
+state
+Waiting for table level lock
+SET DEBUG_SYNC='now SIGNAL dml4_done';
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` int(11) NOT NULL,
+  `c2` int(11) DEFAULT NULL,
+  `c3` int(11) DEFAULT NULL,
+  PRIMARY KEY (`c1`),
+  KEY `c2d` (`c2`),
+  KEY `c2f` (`c2`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1 COMMENT='testing if c2e will be dropped'
+ALTER TABLE t1 DROP INDEX c2d, DROP INDEX c2f;
+ERROR 42S02: Table 'test.t1' doesn't exist
+ALTER TABLE t1 ADD INDEX c2h(c2), ALGORITHM=INPLACE;
+ERROR 42S02: Table 'test.t1' doesn't exist
+ALTER TABLE t1 ADD INDEX c2h(c2), ALGORITHM=COPY;
+ERROR 42S02: Table 'test.t1' doesn't exist
+SET GLOBAL innodb_file_per_table=0;
 SET DEBUG_SYNC='RESET';
+SET DEBUG='-d,debug_sync_abort_on_timeout';
+SET DEBUG='';
 SET GLOBAL innodb_monitor_disable=module_ddl;
 DROP TABLE t1;
+SET GLOBAL DEBUG='';
 SET GLOBAL innodb_monitor_enable=default;
 SET GLOBAL innodb_monitor_disable=default;

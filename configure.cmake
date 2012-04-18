@@ -396,7 +396,6 @@ CHECK_FUNCTION_EXISTS (fcntl HAVE_FCNTL)
 CHECK_FUNCTION_EXISTS (fconvert HAVE_FCONVERT)
 CHECK_FUNCTION_EXISTS (fdatasync HAVE_FDATASYNC)
 CHECK_SYMBOL_EXISTS(fdatasync "unistd.h" HAVE_DECL_FDATASYNC)
-CHECK_FUNCTION_EXISTS (fesetround HAVE_FESETROUND)
 CHECK_FUNCTION_EXISTS (fedisableexcept HAVE_FEDISABLEEXCEPT)
 CHECK_FUNCTION_EXISTS (fpsetmask HAVE_FPSETMASK)
 CHECK_FUNCTION_EXISTS (fseeko HAVE_FSEEKO)
@@ -579,6 +578,15 @@ int main() {
   isinf(0.0); 
   return 0;
 }" HAVE_ISINF)
+
+
+# fesetround() prototype not found in gcc compatibility file fenv.h
+CHECK_CXX_SOURCE_COMPILES(
+"#include  <fenv.h>
+int main() { 
+  fesetround(FE_TONEAREST);
+  return 0;
+}" HAVE_FESETROUND)
 
 
 

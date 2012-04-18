@@ -382,6 +382,7 @@ void init_update_queries(void)
   */
   sql_command_flags[SQLCOM_SET_OPTION]=     CF_REEXECUTION_FRAGILE |
                                             CF_AUTO_COMMIT_TRANS |
+                                            CF_CAN_GENERATE_ROW_EVENTS |
                                             CF_OPTIMIZER_TRACE; // (1)
   // (1) so that subquery is traced when doing "DO @var := (subquery)"
   sql_command_flags[SQLCOM_DO]=             CF_REEXECUTION_FRAGILE |
@@ -427,12 +428,8 @@ void init_update_queries(void)
   sql_command_flags[SQLCOM_SHOW_CREATE_EVENT]= CF_STATUS_COMMAND;
   sql_command_flags[SQLCOM_SHOW_PROFILES]=    CF_STATUS_COMMAND;
   sql_command_flags[SQLCOM_SHOW_PROFILE]=     CF_STATUS_COMMAND;
-  /*
-    @todo SQLCOM_BINLOG_BASE64_EVENT should have
-    CF_CAN_GENERATE_ROW_EVENTS set, because this surely generates row
-    events. /Sven
-  */
-  sql_command_flags[SQLCOM_BINLOG_BASE64_EVENT]= CF_STATUS_COMMAND;
+  sql_command_flags[SQLCOM_BINLOG_BASE64_EVENT]= CF_STATUS_COMMAND |
+                                                 CF_CAN_GENERATE_ROW_EVENTS;
 
    sql_command_flags[SQLCOM_SHOW_TABLES]=       (CF_STATUS_COMMAND |
                                                  CF_SHOW_TABLE_COMMAND |
@@ -448,13 +445,7 @@ void init_update_queries(void)
   sql_command_flags[SQLCOM_REVOKE]=            CF_CHANGES_DATA;
   sql_command_flags[SQLCOM_REVOKE_ALL]=        CF_CHANGES_DATA;
   sql_command_flags[SQLCOM_OPTIMIZE]=          CF_CHANGES_DATA;
-  /*
-    @todo SQLCOM_CREATE_FUNCTION should have CF_AUTO_COMMIT_TRANS
-    set. this currently is binlogged *before* the transaction if
-    executed inside a transaction because it does not have an implicit
-    pre-commit and is written to the statement cache. /Sven
-  */
-  sql_command_flags[SQLCOM_CREATE_FUNCTION]=   CF_CHANGES_DATA;
+  sql_command_flags[SQLCOM_CREATE_FUNCTION]=   CF_CHANGES_DATA | CF_AUTO_COMMIT_TRANS;
   sql_command_flags[SQLCOM_CREATE_PROCEDURE]=  CF_CHANGES_DATA | CF_AUTO_COMMIT_TRANS;
   sql_command_flags[SQLCOM_CREATE_SPFUNCTION]= CF_CHANGES_DATA | CF_AUTO_COMMIT_TRANS;
   sql_command_flags[SQLCOM_DROP_PROCEDURE]=    CF_CHANGES_DATA | CF_AUTO_COMMIT_TRANS;
@@ -488,8 +479,8 @@ void init_update_queries(void)
   sql_command_flags[SQLCOM_CREATE_USER]|=       CF_AUTO_COMMIT_TRANS;
   sql_command_flags[SQLCOM_DROP_USER]|=         CF_AUTO_COMMIT_TRANS;
   sql_command_flags[SQLCOM_RENAME_USER]|=       CF_AUTO_COMMIT_TRANS;
-  sql_command_flags[SQLCOM_REVOKE_ALL]|=        CF_AUTO_COMMIT_TRANS;
   sql_command_flags[SQLCOM_REVOKE]|=            CF_AUTO_COMMIT_TRANS;
+  sql_command_flags[SQLCOM_REVOKE_ALL]|=        CF_AUTO_COMMIT_TRANS;
   sql_command_flags[SQLCOM_GRANT]|=             CF_AUTO_COMMIT_TRANS;
 
   sql_command_flags[SQLCOM_ASSIGN_TO_KEYCACHE]= CF_AUTO_COMMIT_TRANS;
@@ -787,6 +778,7 @@ pthread_handler_t handle_bootstrap(void *arg)
 
 void do_handle_bootstrap(THD *thd)
 {
+  bool thd_added= false;
   /* The following must be called before DBUG_ENTER */
   thd->thread_stack= (char*) &thd;
   if (my_thread_init() || thd->store_globals())
@@ -798,19 +790,30 @@ void do_handle_bootstrap(THD *thd)
     goto end;
   }
 
+  mysql_mutex_lock(&LOCK_thread_count);
+  thd_added= true;
+  add_global_thread(thd);
+  mysql_mutex_unlock(&LOCK_thread_count);
+
   handle_bootstrap_impl(thd);
 
 end:
   net_end(&thd->net);
   thd->cleanup();
+
+  /*
+    Here we delete the thd while holding the LOCK_thread_count.
+    The reason is that we have to call ha_close_connection(thd)
+    before shutting down InnoDB (this is done by THD::~THD())
+  */
+  mysql_mutex_lock(&LOCK_thread_count);
+  if (thd_added)
+    remove_global_thread(thd);
+  in_bootstrap= FALSE;
   delete thd;
+  mysql_mutex_unlock(&LOCK_thread_count);
 
 #ifndef EMBEDDED_LIBRARY
-  mysql_mutex_lock(&LOCK_thread_count);
-  thread_count--;
-  in_bootstrap= FALSE;
-  mysql_cond_broadcast(&COND_thread_count);
-  mysql_mutex_unlock(&LOCK_thread_count);
   my_thread_end();
   pthread_exit(0);
 #endif
@@ -1316,9 +1319,10 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
                         (char *) thd->security_ctx->host_or_ip);
 
 /* PSI begin */
-      thd->m_statement_psi= MYSQL_START_STATEMENT(& thd->m_statement_state,
+      thd->m_statement_psi= MYSQL_START_STATEMENT(&thd->m_statement_state,
                                                   com_statement_info[command].m_key,
-                                                  thd->db, thd->db_length);
+                                                  thd->db, thd->db_length,
+                                                  thd->charset());
       THD_STAGE_INFO(thd, stage_init);
       MYSQL_SET_STATEMENT_TEXT(thd->m_statement_psi, beginning_of_next_stmt, length);
 
@@ -1555,7 +1559,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
                         "Slow queries: %llu  Opens: %llu  Flush tables: %lu  "
                         "Open tables: %u  Queries per second avg: %u.%03u",
                         uptime,
-                        (int) thread_count, (ulong) thd->query_id,
+                        (int) get_thread_count(), (ulong) thd->query_id,
                         current_global_status_var.long_query_count,
                         current_global_status_var.opened_tables,
                         refresh_version,
@@ -1685,9 +1689,22 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 }
 
 
-void log_slow_statement(THD *thd)
+/**
+  Check whether we need to write the current statement (or its rewritten
+  version if it exists) to the slow query log.
+  As a side-effect, a digest of suppressed statements may be written.
+
+  @param thd          thread handle
+
+  @retval
+    true              statement needs to be logged
+  @retval
+    false             statement does not need to be logged
+*/
+
+bool log_slow_applicable(THD *thd)
 {
-  DBUG_ENTER("log_slow_statement");
+  DBUG_ENTER("log_slow_applicable");
 
   /*
     The following should never be true with our current code base,
@@ -1695,7 +1712,7 @@ void log_slow_statement(THD *thd)
     statement in a trigger or stored function
   */
   if (unlikely(thd->in_sub_stmt))
-    DBUG_VOID_RETURN;                           // Don't set time for sub stmt
+    DBUG_RETURN(false);                         // Don't set time for sub stmt
 
   /*
     Do not log administrative statements unless the appropriate option is
@@ -1716,18 +1733,57 @@ void log_slow_statement(THD *thd)
     bool suppress_logging= log_throttle_qni.log(thd, warn_no_index);
 
     if (!suppress_logging && log_this_query)
-    {
-      THD_STAGE_INFO(thd, stage_logging_slow_query);
-      thd->status_var.long_query_count++;
-
-      if (thd->rewritten_query.length())
-        slow_log_print(thd,
-                       thd->rewritten_query.c_ptr_safe(),
-                       thd->rewritten_query.length());
-      else
-        slow_log_print(thd, thd->query(), thd->query_length());
-    }
+      DBUG_RETURN(true);
   }
+  DBUG_RETURN(false);
+}
+
+
+/**
+  Unconditionally the current statement (or its rewritten version if it
+  exists) to the slow query log.
+
+  @param thd              thread handle
+*/
+
+void log_slow_do(THD *thd)
+{
+  DBUG_ENTER("log_slow_do");
+
+  THD_STAGE_INFO(thd, stage_logging_slow_query);
+  thd->status_var.long_query_count++;
+
+  if (thd->rewritten_query.length())
+    slow_log_print(thd,
+                   thd->rewritten_query.c_ptr_safe(),
+                   thd->rewritten_query.length());
+  else
+    slow_log_print(thd, thd->query(), thd->query_length());
+
+  DBUG_VOID_RETURN;
+}
+
+
+/**
+  Check whether we need to write the current statement to the slow query
+  log. If so, do so. This is a wrapper for the two functions above;
+  most callers should use this wrapper.  Only use the above functions
+  directly if you have expensive rewriting that you only need to do if
+  the query actually needs to be logged (e.g. SP variables / NAME_CONST
+  substitution when executing a PROCEDURE).
+  A digest of suppressed statements may be logged instead of the current
+  statement.
+
+  @param thd              thread handle
+*/
+
+void log_slow_statement(THD *thd)
+{
+  DBUG_ENTER("log_slow_statement");
+
+  if (log_slow_applicable(thd))
+    log_slow_do(thd);
+
   DBUG_VOID_RETURN;
 }
 
@@ -5831,7 +5887,7 @@ void create_select_for_variable(const char *var_name)
   if ((var= get_system_var(thd, OPT_SESSION, tmp, null_lex_string)))
   {
     end= strxmov(buff, "@@session.", var_name, NullS);
-    var->set_name(buff, end-buff, system_charset_info);
+    var->item_name.copy(buff, end - buff);
     add_item_to_list(thd, var);
   }
   DBUG_VOID_RETURN;
@@ -6817,18 +6873,21 @@ void add_join_natural(TABLE_LIST *a, TABLE_LIST *b, List<String> *using_fields,
 
 uint kill_one_thread(THD *thd, ulong id, bool only_kill_query)
 {
-  THD *tmp;
+  THD *tmp= NULL;
   uint error=ER_NO_SUCH_THREAD;
   DBUG_ENTER("kill_one_thread");
   DBUG_PRINT("enter", ("id=%lu only_kill=%d", id, only_kill_query));
-  mysql_mutex_lock(&LOCK_thread_count); // For unlink from list
-  I_List_iterator<THD> it(threads);
-  while ((tmp=it++))
+
+  mysql_mutex_lock(&LOCK_thread_count);
+  Thread_iterator it= global_thread_list_begin();
+  Thread_iterator end= global_thread_list_end();
+  for (; it != end; ++it)
   {
-    if (tmp->get_command() == COM_DAEMON)
+    if ((*it)->get_command() == COM_DAEMON)
       continue;
-    if (tmp->thread_id == id)
+    if ((*it)->thread_id == id)
     {
+      tmp= *it;
       mysql_mutex_lock(&tmp->LOCK_thd_data);    // Lock from delete
       break;
     }
@@ -7562,7 +7621,7 @@ Item *negate_expression(THD *thd, Item *expr)
       if it is not boolean function then we have to emulate value of
       not(not(a)), it will be a != 0
     */
-    return new Item_func_ne(arg, new Item_int((char*) "0", 0, 1));
+    return new Item_func_ne(arg, new Item_int_0());
   }
 
   if ((negated= expr->neg_transformer(thd)) != 0)

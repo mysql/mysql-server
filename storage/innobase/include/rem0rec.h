@@ -376,8 +376,11 @@ rec_init_offsets_comp_ordinary(
 					the data payload
 					(usually REC_N_NEW_EXTRA_BYTES) */
 	const dict_index_t*	index,	/*!< in: record descriptor */
-	ulint*			offsets);/*!< in/out: array of offsets;
+	ulint			n_null,	/*!< in: number of fields that
+					can be NULL */
+	ulint*			offsets)/*!< in/out: array of offsets;
 					in: n=rec_offs_n_fields(offsets) */
+	__attribute__((nonnull));
 
 /******************************************************//**
 The following function determines the offsets to each field
@@ -695,7 +698,10 @@ rec_convert_dtuple_to_rec_comp(
 	const dict_index_t*	index,	/*!< in: record descriptor */
 	ulint			status,	/*!< in: status bits of the record */
 	const dfield_t*		fields,	/*!< in: array of data fields */
-	ulint			n_fields);/*!< in: number of data fields */
+	ulint			n_fields,/*!< in: number of data fields */
+	ulint			n_null)	/*!< in: number of fields that
+					can be NULL */
+	__attribute__((nonnull));
 /*********************************************************//**
 Builds a physical record out of a data tuple and
 stores it into the given buffer.
@@ -721,7 +727,7 @@ rec_get_converted_extra_size(
 	ulint	data_size,	/*!< in: data size */
 	ulint	n_fields,	/*!< in: number of fields */
 	ulint	n_ext)		/*!< in: number of externally stored columns */
-		__attribute__((const));
+	__attribute__((const));
 /**********************************************************//**
 Determines the size of a data tuple prefix in ROW_FORMAT=COMPACT.
 @return	total size */
@@ -735,7 +741,10 @@ rec_get_converted_size_comp_prefix(
 					it does not */
 	const dfield_t*		fields,	/*!< in: array of data fields */
 	ulint			n_fields,/*!< in: number of data fields */
-	ulint*			extra);	/*!< out: extra size */
+	ulint			n_null,	/*!< in: number of fields that
+					can be NULL */
+	ulint*			extra)	/*!< out: extra size */
+	__attribute__((warn_unused_result, nonnull(1,2)));
 /**********************************************************//**
 Determines the size of a data tuple in ROW_FORMAT=COMPACT.
 @return	total size */
@@ -750,7 +759,10 @@ rec_get_converted_size_comp(
 	ulint			status,	/*!< in: status bits of the record */
 	const dfield_t*		fields,	/*!< in: array of data fields */
 	ulint			n_fields,/*!< in: number of data fields */
-	ulint*			extra);	/*!< out: extra size */
+	ulint			n_null,	/*!< in: number of fields that
+					can be NULL */
+	ulint*			extra)	/*!< out: extra size */
+	__attribute__((nonnull(1,3)));
 /**********************************************************//**
 The following function returns the size of a data tuple when converted to
 a physical record.
@@ -761,7 +773,8 @@ rec_get_converted_size(
 /*===================*/
 	dict_index_t*	index,	/*!< in: record descriptor */
 	const dtuple_t*	dtuple,	/*!< in: data tuple */
-	ulint		n_ext);	/*!< in: number of externally stored columns */
+	ulint		n_ext)	/*!< in: number of externally stored columns */
+	__attribute__((warn_unused_result, nonnull));
 #ifndef UNIV_HOTBACKUP
 /**************************************************************//**
 Copies the first n fields of a physical record to a data tuple.

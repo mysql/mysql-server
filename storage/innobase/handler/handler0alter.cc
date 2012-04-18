@@ -24,6 +24,7 @@ Smart ALTER TABLE
 #include <unireg.h>
 #include <mysqld_error.h>
 #include <log.h>
+#include <debug_sync.h>
 #include <mysql/innodb_priv.h>
 
 #include "dict0stats.h"
@@ -65,11 +66,11 @@ static UNIV_COLD __attribute__((nonnull))
 void
 my_error_innodb(
 /*============*/
-	int		error,	/*!< in: InnoDB error code */
+	dberr_t		error,	/*!< in: InnoDB error code */
 	const char*	table,	/*!< in: table name */
 	ulint		flags)	/*!< in: table flags */
 {
-	switch (static_cast<enum db_err>(error)) {
+	switch (error) {
 	case DB_MISSING_HISTORY:
 		my_error(ER_TABLE_DEF_CHANGED, MYF(0));
 		break;
@@ -150,6 +151,10 @@ ha_innobase::check_if_supported_inplace_alter(
 {
 	DBUG_ENTER("check_if_supported_inplace_alter");
 
+	if (srv_created_new_raw || srv_force_recovery) {
+		DBUG_RETURN(HA_ALTER_INPLACE_NOT_SUPPORTED);
+	}
+
 	HA_CREATE_INFO* create_info = ha_alter_info->create_info;
 
 	if (ha_alter_info->handler_flags
@@ -185,6 +190,7 @@ ha_innobase::check_if_supported_inplace_alter(
 	}
 
 	update_thd();
+	trx_search_latch_release_if_reserved(prebuilt->trx);
 
 	/* Fix the key parts. */
 	for (KEY* new_key = ha_alter_info->key_info_buffer;
@@ -1344,9 +1350,8 @@ prepare_inplace_alter_table_dict(
 	dict_index_t*		fts_index	= NULL;
 	dict_table_t*		indexed_table	= user_table;
 	ulint			new_clustered	= 0;
-	int			error;
-	THD*			user_thd	= static_cast<THD*>(
-		user_trx->mysql_thd);
+	dberr_t			error;
+	THD*			user_thd	= user_trx->mysql_thd;
 
 	DBUG_ENTER("prepare_inplace_alter_table_dict");
 	DBUG_ASSERT(!n_drop_index == !drop_index);
@@ -1436,7 +1441,7 @@ prepare_inplace_alter_table_dict(
 
 		if (!innobase_table_flags(table_name, altered_table,
 					  ha_alter_info->create_info,
-					  static_cast<THD*>(trx->mysql_thd),
+					  trx->mysql_thd,
 					  srv_file_per_table,
 					  &flags, &flags2)) {
 			goto new_clustered_failed;
@@ -1572,12 +1577,10 @@ col_fail:
 			innobase_convert_tablename(new_table_name);
 			my_error(HA_ERR_TABLE_EXIST, MYF(0),
 				 new_table_name);
-			error = HA_ERR_TABLE_EXIST;
 			goto new_clustered_failed;
 		default:
 			my_error_innodb(
 				trx->error_state, table_name, flags);
-			error = -1;
 		new_clustered_failed:
 			DBUG_ASSERT(trx != user_trx);
 			trx_rollback_to_savepoint(trx, NULL);
@@ -1627,7 +1630,9 @@ col_fail:
 		log is unnecessary. */
 		if (!num_fts_index
 		    && !(ha_alter_info->handler_flags
-			 & ~INNOBASE_ONLINE_OPERATIONS)) {
+			 & ~INNOBASE_ONLINE_OPERATIONS)
+		    && !user_table->ibd_file_missing
+		    && !user_table->tablespace_discarded) {
 			DBUG_EXECUTE_IF("innodb_OOM_prepare_inplace_alter",
 					error = DB_OUT_OF_MEMORY;
 					goto error_handling;);
@@ -1827,18 +1832,10 @@ ha_innobase::prepare_inplace_alter_table(
 		goto func_exit;
 	}
 
-	if (srv_created_new_raw || srv_force_recovery) {
-		my_error(ER_OPEN_AS_READONLY, MYF(0),
-			 table->s->table_name.str);
-		DBUG_RETURN(true);
-	}
-
 	ut_d(mutex_enter(&dict_sys->mutex));
 	ut_d(dict_table_check_for_dup_indexes(
 		     prebuilt->table, CHECK_ABORTED_OK));
 	ut_d(mutex_exit(&dict_sys->mutex));
-
-	update_thd();
 
 	/* In case MySQL calls this in the middle of a SELECT query, release
 	possible adaptive hash latch to avoid deadlocks of threads. */
@@ -2106,7 +2103,7 @@ ha_innobase::inplace_alter_table(
 	TABLE*			altered_table,
 	Alter_inplace_info*	ha_alter_info)
 {
-	ulint	error;
+	dberr_t	error;
 
 	DBUG_ENTER("inplace_alter_table");
 #ifdef UNIV_SYNC_DEBUG
@@ -2118,15 +2115,17 @@ ha_innobase::inplace_alter_table(
 		DBUG_RETURN(false);
 	}
 
-	update_thd();
-	trx_search_latch_release_if_reserved(prebuilt->trx);
-
 	class ha_innobase_inplace_ctx*	ctx
 		= static_cast<class ha_innobase_inplace_ctx*>
 		(ha_alter_info->handler_ctx);
 
 	DBUG_ASSERT(ctx);
 	DBUG_ASSERT(ctx->trx);
+
+	if (prebuilt->table->ibd_file_missing
+	    || prebuilt->table->tablespace_discarded) {
+		goto all_done;
+	}
 
 	/* Read the clustered index of the table and build
 	indexes based on this information using temporary
@@ -2147,6 +2146,7 @@ oom:
 
 	switch (error) {
 		KEY*	dup_key;
+	all_done:
 	case DB_SUCCESS:
 		ut_d(mutex_enter(&dict_sys->mutex));
 		ut_d(dict_table_check_for_dup_indexes(
@@ -2156,6 +2156,7 @@ oom:
 		happens to be executing on this very table. */
 		DBUG_ASSERT(ctx->indexed_table == prebuilt->table
 			    || prebuilt->table->n_ref_count - 1 <= 1);
+		DEBUG_SYNC(user_thd, "innodb_after_inplace_alter_table");
 		DBUG_RETURN(false);
 	case DB_DUPLICATE_KEY:
 		if (prebuilt->trx->error_key_num == ULINT_UNDEFINED) {
@@ -2339,7 +2340,7 @@ ha_innobase::commit_inplace_alter_table(
 	row_mysql_lock_data_dictionary(trx);
 
 	if (new_clustered) {
-		ulint	error;
+		dberr_t	error;
 		char*	tmp_name;
 
 		/* We copied the table. Any indexes that were
@@ -2393,7 +2394,7 @@ ha_innobase::commit_inplace_alter_table(
 			row_merge_drop_table(trx, ctx->indexed_table);
 		}
 	} else if (ctx) {
-		ulint	error;
+		dberr_t	error;
 		/* We altered the table in place. */
 		ulint	i;
 		/* Lose the TEMP_INDEX_PREFIX. */
@@ -2555,7 +2556,7 @@ ha_innobase::commit_inplace_alter_table(
 		for (uint i = 0; i < ha_alter_info->index_drop_count; i++) {
 			const KEY*	key
 				= ha_alter_info->index_drop_buffer[i];
-			enum db_err	ret;
+			dberr_t		ret;
 			char		errstr[1024];
 
 			ret = dict_stats_delete_index_stats(

@@ -44,7 +44,9 @@ class Rpl_info_factory
   static bool change_rli_repository(Relay_log_info *mi, const uint mi_option,
                                     const char **msg);
   static Slave_worker *create_worker(uint rli_option, uint worker_id,
-                                     Relay_log_info *rli);
+                                     Relay_log_info *rli,
+                                     bool is_gaps_collecting_phase);
+  static bool reset_workers(Relay_log_info *rli);
 private:
   static bool decide_repository(Rpl_info *info,
                                 uint option,

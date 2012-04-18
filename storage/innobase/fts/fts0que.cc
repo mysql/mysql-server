@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2007, 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2007, 2012, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -126,11 +126,11 @@ struct fts_query_struct {
 					position info for each matched word
 					in the word list */
 
-	ulint		total_docs;	/*!< The total number of documents */
+	ib_int64_t	total_docs;	/*!< The total number of documents */
 
 	ulint		total_words;	/*!< The total number of words */
 
-	ulint		error;		/*!< Error code if any, that is
+	dberr_t		error;		/*!< Error code if any, that is
 					encountered during query processing */
 
 	ib_rbt_t*	word_freqs;	/*!< RB tree of word frequencies per
@@ -257,12 +257,13 @@ search arguments to search the document again, thus "expand"
 the search result set.
 @return DB_SUCCESS if success, otherwise the error code */
 static
-ulint
+dberr_t
 fts_expand_query(
 /*=============*/
 	dict_index_t*	index,		/*!< in: FTS index to search */
-	fts_query_t*	query);		/*!< in: query result, to be freed
+	fts_query_t*	query)		/*!< in: query result, to be freed
 					by the client */
+	__attribute__((nonnull, warn_unused_result));
 /*************************************************************//**
 This function finds documents that contain all words in a
 phrase or proximity search. And if proximity search, verify
@@ -954,8 +955,8 @@ cont_search:
 /*****************************************************************//**
 Set difference.
 @return DB_SUCCESS if all went well */
-static
-ulint
+static __attribute__((nonnull, warn_unused_result))
+dberr_t
 fts_query_difference(
 /*=================*/
 	fts_query_t*		query,	/*!< in: query instance */
@@ -1026,8 +1027,8 @@ fts_query_difference(
 /*****************************************************************//**
 Intersect the token doc ids with the current set.
 @return DB_SUCCESS if all went well */
-static
-ulint
+static __attribute__((nonnull, warn_unused_result))
+dberr_t
 fts_query_intersect(
 /*================*/
 	fts_query_t*		query,	/*!< in: query instance */
@@ -1216,8 +1217,8 @@ fts_query_cache(
 /*****************************************************************//**
 Set union.
 @return DB_SUCCESS if all went well */
-static
-ulint
+static __attribute__((nonnull, warn_unused_result))
+dberr_t
 fts_query_union(
 /*============*/
 	fts_query_t*		query,	/*!< in: query instance */
@@ -1248,13 +1249,7 @@ fts_query_union(
 
 	/* Single '%' would confuse parser in pars_like_rebind(). In addition,
 	our wildcard search only supports prefix search */
-	if (*token->f_str == '%') {
-		if (token->f_len == 1) {
-			return(query->error);
-		}
-		token->f_str++;
-		token->f_len--;
-	}
+	ut_ad(*token->f_str != '%');
 
 	fts_query_cache(query, token);
 
@@ -1689,13 +1684,12 @@ fts_query_select(
 
 /********************************************************************
 Read the rows from the FTS index, that match word and where the
-doc id is between first and last doc id. */
-static
-ulint
+doc id is between first and last doc id.
+@return DB_SUCCESS if all went well else error code */
+static __attribute__((nonnull, warn_unused_result))
+dberr_t
 fts_query_find_term(
 /*================*/
-					/*!< out: DB_SUCCESS if all went well
-					else error code */
 	fts_query_t*		query,	/*!< in: FTS query state */
 	que_t**			graph,	/*!< in: prepared statement */
 	const fts_string_t*	word,	/*!< in: the word to fetch */
@@ -1705,7 +1699,7 @@ fts_query_find_term(
 	ibool*			found)	/*!< out: TRUE if found else FALSE */
 {
 	pars_info_t*		info;
-	ulint			error;
+	dberr_t			error;
 	fts_select_t		select;
 	doc_id_t		match_doc_id;
 	trx_t*			trx = query->trx;
@@ -1830,19 +1824,18 @@ fts_query_sum(
 }
 
 /********************************************************************
-Calculate the total documents that contain a particular word (term). */
-static
-ulint
+Calculate the total documents that contain a particular word (term).
+@return DB_SUCCESS if all went well else error code */
+static __attribute__((nonnull, warn_unused_result))
+dberr_t
 fts_query_total_docs_containing_term(
 /*=================================*/
-					/*!< out: DB_SUCCESS if all went well
-					else error code */
 	fts_query_t*		query,	/*!< in: FTS query state */
 	const fts_string_t*	word,	/*!< in: the word to check */
 	ulint*			total)	/*!< out: documents containing word */
 {
 	pars_info_t*		info;
-	ulint			error;
+	dberr_t			error;
 	que_t*			graph;
 	ulint			selected;
 	trx_t*			trx = query->trx;
@@ -1910,19 +1903,18 @@ fts_query_total_docs_containing_term(
 }
 
 /********************************************************************
-Get the total number of words in a documents. */
-static
-ulint
+Get the total number of words in a documents.
+@return DB_SUCCESS if all went well else error code */
+static __attribute__((nonnull, warn_unused_result))
+dberr_t
 fts_query_terms_in_document(
 /*========================*/
-					/*!< out: DB_SUCCESS if all went well
-					else error code */
 	fts_query_t*	query,		/*!< in: FTS query state */
 	doc_id_t	doc_id,		/*!< in: the word to check */
 	ulint*		total)		/*!< out: total words in document */
 {
 	pars_info_t*	info;
-	ulint		error;
+	dberr_t		error;
 	que_t*		graph;
 	doc_id_t	read_doc_id;
 	trx_t*		trx = query->trx;
@@ -1993,9 +1985,9 @@ fts_query_terms_in_document(
 
 /*****************************************************************//**
 Retrieve the document and match the phrase tokens.
-@return TRUE if matches else FALSE */
-static
-ulint
+@return DB_SUCCESS or error code */
+static __attribute__((nonnull, warn_unused_result))
+dberr_t
 fts_query_match_document(
 /*=====================*/
 	ib_vector_t*	tokens,		/*!< in: phrase tokens */
@@ -2004,7 +1996,7 @@ fts_query_match_document(
 	ulint		distance,	/*!< in: proximity distance */
 	ibool*		found)		/*!< out: TRUE if phrase found */
 {
-	ulint		error;
+	dberr_t		error;
 	fts_phrase_t	phrase;
 
 	memset(&phrase, 0x0, sizeof(phrase));
@@ -2025,8 +2017,8 @@ fts_query_match_document(
 
 	if (error != DB_SUCCESS) {
 		ut_print_timestamp(stderr);
-		fprintf(stderr, "InnoDB: Error: (%lu) matching document.\n",
-			error);
+		fprintf(stderr, "InnoDB: Error: (%s) matching document.\n",
+			ut_strerr(error));
 	} else {
 		*found = phrase.found;
 	}
@@ -2040,8 +2032,8 @@ fts_query_match_document(
 Iterate over the matched document ids and search the for the
 actual phrase in the text.
 @return DB_SUCCESS if all OK */
-static
-ulint
+static __attribute__((nonnull, warn_unused_result))
+dberr_t
 fts_query_search_phrase(
 /*====================*/
 	fts_query_t*		query,	/*!< in: query instance */
@@ -2128,9 +2120,9 @@ fts_query_search_phrase(
 
 /*****************************************************************//**
 Text/Phrase search.
-@return count of doc ids added */
-static
-ulint
+@return DB_SUCCESS or error code */
+static __attribute__((nonnull, warn_unused_result))
+dberr_t
 fts_query_phrase_search(
 /*====================*/
 	fts_query_t*		query,	/*!< in: query instance */
@@ -2329,8 +2321,8 @@ func_exit:
 /*****************************************************************//**
 Find the word and evaluate.
 @return DB_SUCCESS if all went well */
-static
-ulint
+static __attribute__((nonnull, warn_unused_result))
+dberr_t
 fts_query_execute(
 /*==============*/
 	fts_query_t*		query,	/*!< in: query instance */
@@ -2477,13 +2469,12 @@ fts_query_visitor(
 /*****************************************************************//**
 Process (nested) sub-expression, create a new result set to store the
 sub-expression result by processing nodes under current sub-expression
-list. Merge the sub-expression result with that of parent expression list. */
-
-ulint
+list. Merge the sub-expression result with that of parent expression list.
+@return DB_SUCCESS if all went well */
+UNIV_INTERN
+dberr_t
 fts_ast_visit_sub_exp(
 /*==================*/
-						/*!< out: DB_SUCCESS if all
-						went well */
 	fts_ast_node_t*		node,		/*!< in,out: current root node */
 	fts_ast_callback	visitor,	/*!< in: callback function */
 	void*			arg)		/*!< in,out: arg for callback */
@@ -2492,7 +2483,7 @@ fts_ast_visit_sub_exp(
 	fts_query_t*		query = static_cast<fts_query_t*>(arg);
 	ib_rbt_t*		parent_doc_ids;
 	ib_rbt_t*		subexpr_doc_ids;
-	ulint			error = DB_SUCCESS;
+	dberr_t			error = DB_SUCCESS;
 	ibool			inited = query->inited;
 
 	ut_a(node->type == FTS_AST_SUBEXP_LIST);
@@ -2907,7 +2898,7 @@ fts_query_calculate_idf(
 			}
 		}
 
-		fprintf(stderr,"'%s' -> %lu/%lu %6.5lf\n",
+		fprintf(stderr,"'%s' -> " INT64PF "/%lu %6.5lf\n",
 		       word_freq->word,
 		       query->total_docs, word_freq->doc_count,
 		       word_freq->idf);
@@ -3184,7 +3175,7 @@ fts_query_parse(
 FTS Query entry point.
 @return DB_SUCCESS if successful otherwise error code */
 UNIV_INTERN
-ulint
+dberr_t
 fts_query(
 /*======*/
 	trx_t*		trx,		/*!< in: transaction */
@@ -3196,7 +3187,7 @@ fts_query(
 	fts_result_t**	result)		/*!< in/out: result doc ids */
 {
 	fts_query_t	query;
-	ulint		error;
+	dberr_t		error;
 	byte*		lc_query_str;
 	ulint		lc_query_str_len;
 	ulint		result_len;
@@ -3248,7 +3239,7 @@ fts_query(
 	}
 
 #ifdef	FTS_INTERNAL_DIAG_PRINT
-	fprintf(stderr, "Total docs: %lu Total words: %lu\n",
+	fprintf(stderr, "Total docs: " INT64PF " Total words: %lu\n",
 		query.total_docs, query.total_words);
 #endif
 
@@ -3453,8 +3444,8 @@ words in documents found in the first search pass will be used as
 search arguments to search the document again, thus "expand"
 the search result set.
 @return DB_SUCCESS if success, otherwise the error code */
-static
-ulint
+static __attribute__((nonnull, warn_unused_result))
+dberr_t
 fts_expand_query(
 /*=============*/
 	dict_index_t*	index,		/*!< in: FTS index to search */
@@ -3463,7 +3454,7 @@ fts_expand_query(
 	const ib_rbt_node_t*	node;
 	const ib_rbt_node_t*	token_node;
 	fts_doc_t		result_doc;
-	ulint			error = DB_SUCCESS;
+	dberr_t			error = DB_SUCCESS;
 	const fts_index_cache_t*index_cache;
 
 	/* If no doc is found in first search pass, return */

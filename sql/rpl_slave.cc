@@ -53,6 +53,7 @@
                                                 // Format_description_log_event
 #include "dynamic_ids.h"
 #include "rpl_rli_pdb.h"
+#include "global_threads.h"
 
 #ifdef HAVE_REPLICATION
 
@@ -194,7 +195,6 @@ static int terminate_slave_thread(THD *thd,
 static bool check_io_slave_killed(THD *thd, Master_info *mi, const char *info);
 int slave_worker_exec_job(Slave_worker * w, Relay_log_info *rli);
 static int mts_event_coord_cmp(LOG_POS_COORD *id1, LOG_POS_COORD *id2);
-static bool remove_workers(Relay_log_info* rli);
 
 /*
   Find out which replications threads are running
@@ -398,7 +398,16 @@ int init_recovery(Master_info* mi, const char** errmsg)
 
       We need to improve this. /Alfranio.
     */
-    error= mts_recovery_groups(rli, &rli->recovery_groups);
+    error= mts_recovery_groups(rli);
+    if (rli->mts_recovery_group_cnt)
+    {
+      error= 1;
+      sql_print_error("--relay-log-recovery cannot be executed when the slave "
+                        "was stopped with an error or killed in MTS mode; "
+                        "consider using RESET SLAVE or restart the server "
+                        "with --relay-log-recovery = 0 followed by "
+                        "START SLAVE UNTIL SQL_AFTER_MTS_GAPS");
+    }
   }
 
   group_master_log_name= const_cast<char *>(rli->get_group_master_log_name());
@@ -504,7 +513,7 @@ int remove_info(Master_info* mi)
   mi->end_info();
   mi->rli->end_info();
 
-  if (mi->remove_info() || remove_workers(mi->rli) ||
+  if (mi->remove_info() || Rpl_info_factory::reset_workers(mi->rli) ||
       mi->rli->remove_info())
     goto err;
 
@@ -548,41 +557,6 @@ int flush_master_info(Master_info* mi, bool force)
   mysql_mutex_unlock(log_lock);
 
   DBUG_RETURN (err);
-}
-
-/*
-  Remove worker's entries from the repositories.
-*/
-bool remove_workers(Relay_log_info* rli)
-{
-  Slave_worker *worker= NULL;
-
-  for (uint id= 0; id < rli->recovery_parallel_workers; id++)
-  {
-    if (!(worker=
-          Rpl_info_factory::create_worker(opt_rli_repository_id, id, rli)))
-      goto err;
-
-    if (worker->init_info())
-    {
-      delete worker;
-      goto err;
-    }
-
-    worker->end_info();
-
-    if (worker->remove_info())
-    {
-      delete worker;
-      goto err;
-    }
-
-    delete worker;
-  }
-  return false;
-
-err:
-  return true;
 }
 
 /**
@@ -1093,14 +1067,21 @@ int start_slave_threads(bool need_slave_mutex, bool wait_for_start,
                               mi);
   if (!error && (thread_mask & SLAVE_SQL))
   {
-    error= start_slave_thread(
+    /*
+      MTS-recovery gaps gathering is placed onto common execution path
+      for either START-SLAVE and --skip-start-slave= 0 
+    */
+    if (mi->rli->recovery_parallel_workers != 0)
+      error= mts_recovery_groups(mi->rli);
+    if (!error)
+      error= start_slave_thread(
 #ifdef HAVE_PSI_INTERFACE
-                              key_thread_slave_sql,
+                                key_thread_slave_sql,
 #endif
-                              handle_slave_sql, lock_sql, lock_cond_sql,
-                              cond_sql,
-                              &mi->rli->slave_running, &mi->rli->slave_run_id,
-                              mi);
+                                handle_slave_sql, lock_sql, lock_cond_sql,
+                                cond_sql,
+                                &mi->rli->slave_running, &mi->rli->slave_run_id,
+                                mi);
     if (error)
       terminate_slave_threads(mi, thread_mask & SLAVE_IO, !need_slave_mutex);
   }
@@ -2565,11 +2546,36 @@ bool show_slave_status(THD* thd, Master_info* mi)
     protocol->store((ulonglong) mi->rli->get_group_master_log_pos());
     protocol->store((ulonglong) mi->rli->log_space_total);
 
-    protocol->store(
-      mi->rli->until_condition == Relay_log_info::UNTIL_NONE ? "None" :
-        (mi->rli->until_condition == Relay_log_info::UNTIL_MASTER_POS ? "Master" :
-         (mi->rli->until_condition == Relay_log_info::UNTIL_RELAY_POS ? "Relay" :
-          "SQL_BEFORE_GTIDS")), &my_charset_bin);
+    const char *until_type= "";
+
+    switch (mi->rli->until_condition)
+    {
+    case Relay_log_info::UNTIL_NONE:
+      until_type= "None";
+      break;
+    case Relay_log_info::UNTIL_MASTER_POS:
+      until_type= "Master";
+      break;
+    case Relay_log_info::UNTIL_RELAY_POS:
+      until_type= "Relay";
+      break;
+    case Relay_log_info::UNTIL_SQL_BEFORE_GTIDS:
+      until_type= "SQL_BEFORE_GTIDS";
+      break;
+    case Relay_log_info::UNTIL_SQL_AFTER_GTIDS:
+      until_type= "SQL_AFTER_GTIDS";
+      break;
+    case Relay_log_info::UNTIL_SQL_AFTER_MTS_GAPS:
+      until_type= "SQL_AFTER_MTS_GAPS";
+#ifndef DBUG_OFF
+    case Relay_log_info::UNTIL_DONE:
+      until_type= "DONE";
+      break;
+#endif
+    default:
+      DBUG_ASSERT(0);
+    }
+    protocol->store(until_type, &my_charset_bin);
     protocol->store(mi->rli->until_log_name, &my_charset_bin);
     protocol->store((ulonglong) mi->rli->until_log_pos);
 
@@ -3228,13 +3234,18 @@ int apply_event_and_update_pos(Log_event** ptr_ev, THD* thd, Relay_log_info* rli
   {
     reason= ev->shall_skip(rli);
   }
-
-  DBUG_PRINT("mts", ("Mts is recovering %d, number of bits set %d, "
-             "bitmap is set %d, index %lu.\n",
-             rli->is_mts_recovery(), bitmap_bits_set(&rli->recovery_groups),
-             bitmap_is_set(&rli->recovery_groups, rli->mts_recovery_index),
-             rli->mts_recovery_index));
-
+#ifndef DBUG_OFF
+  if (rli->is_mts_recovery())
+  {
+    DBUG_PRINT("mts", ("Mts is recovering %d, number of bits set %d, "
+                       "bitmap is set %d, index %lu.\n",
+                       rli->is_mts_recovery(),
+                       bitmap_bits_set(&rli->recovery_groups),
+                       bitmap_is_set(&rli->recovery_groups,
+                                     rli->mts_recovery_index),
+                       rli->mts_recovery_index));
+  }
+#endif
   if (reason == Log_event::EVENT_SKIP_COUNT)
   {
     sql_slave_skip_counter= --rli->slave_skip_counter;
@@ -3403,12 +3414,37 @@ int apply_event_and_update_pos(Log_event** ptr_ev, THD* thd, Relay_log_info* rli
         rli->mts_recovery_index++;
         if (--rli->mts_recovery_group_cnt == 0)
         {
-          rli->recovery_parallel_workers= rli->slave_parallel_workers;
           rli->mts_recovery_index= 0;
+          sql_print_information("Slave: MTS Recovery has completed at "
+                                "relay log %s, position %llu "
+                                "master log %s, position %llu.",
+                                rli->get_group_relay_log_name(),
+                                rli->get_group_relay_log_pos(),
+                                rli->get_group_master_log_name(),
+                                rli->get_group_master_log_pos());
+#ifndef DBUG_OFF
+          /* 
+             Few tests wait for UNTIL_SQL_AFTER_MTS_GAPS completion.
+             Due to exisiting convention the status won't change 
+             prior to slave restarts.
+             So making of UNTIL_SQL_AFTER_MTS_GAPS completion isdone here,
+             and only in the debug build to make the test to catch the change
+             despite a faulty design of UNTIL checking before execution.
+          */
+          if (rli->until_condition == Relay_log_info::UNTIL_SQL_AFTER_MTS_GAPS)
+          {
+            rli->until_condition= Relay_log_info::UNTIL_DONE;
+          }
+#endif
+          // reset the Worker tables to remove last slave session time info
+          if ((error= rli->mts_finalize_recovery()))
+          {
+            (void) Rpl_info_factory::reset_workers(rli);
+          }
         }
         rli->mts_recovery_group_seen_begin= false;
-
-        error= rli->flush_info(TRUE);
+        if (!error)
+          error= rli->flush_info(true);
       }
     }
 
@@ -3514,7 +3550,8 @@ static int exec_relay_log_event(THD* thd, Relay_log_info* rli)
       hits the UNTIL barrier.
       MTS: since the master and the relay-group coordinates change 
       asynchronously logics of rli->is_until_satisfied() can't apply.
-      Hence, UNTIL forces the sequential applying.
+      A special UNTIL_SQL_AFTER_MTS_GAPS is still deployed here
+      temporarily (see is_until_satisfied todo).
     */
     if (rli->until_condition != Relay_log_info::UNTIL_NONE &&
         rli->is_until_satisfied(thd, ev))
@@ -3582,7 +3619,8 @@ static int exec_relay_log_event(THD* thd, Relay_log_info* rli)
     if (slave_trans_retries)
     {
       int UNINIT_VAR(temp_err);
-      if (exec_res && (temp_err= rli->has_temporary_error(thd)) &&
+      if (exec_res && !is_mts_worker(thd) /* no reexecution in MTS mode */ &&
+          (temp_err= rli->has_temporary_error(thd)) &&
           !thd->transaction.all.cannot_safely_rollback())
       {
         const char *errmsg;
@@ -3766,6 +3804,7 @@ static int try_to_reconnect(THD *thd, MYSQL *mysql, Master_info *mi,
 pthread_handler_t handle_slave_io(void *arg)
 {
   THD *thd= NULL; // needs to be first for thread_stack
+  bool thd_added= false;
   MYSQL *mysql;
   Master_info *mi = (Master_info*)arg;
   Relay_log_info *rli= mi->rli;
@@ -3806,9 +3845,12 @@ pthread_handler_t handle_slave_io(void *arg)
     sql_print_error("Failed during slave I/O thread initialization");
     goto err;
   }
+
   mysql_mutex_lock(&LOCK_thread_count);
-  threads.push_front(thd);
+  add_global_thread(thd);
+  thd_added= true;
   mysql_mutex_unlock(&LOCK_thread_count);
+
   mi->slave_running = 1;
   mi->abort_slave = 0;
   mysql_mutex_unlock(&mi->run_lock);
@@ -4136,8 +4178,10 @@ err:
   net_end(&thd->net); // destructor will not free it, because net.vio is 0
   mysql_mutex_lock(&LOCK_thread_count);
   THD_CHECK_SENTRY(thd);
-  delete thd;
+  if (thd_added)
+    remove_global_thread(thd);
   mysql_mutex_unlock(&LOCK_thread_count);
+  delete thd;
   mi->abort_slave= 0;
   mi->slave_running= 0;
   mi->info_thd= 0;
@@ -4209,6 +4253,7 @@ int check_temp_dir(char* tmp_file)
 pthread_handler_t handle_slave_worker(void *arg)
 {
   THD *thd;                     /* needs to be first for thread_stack */
+  bool thd_added= false;
   int error= 0;
   Slave_worker *w= (Slave_worker *) arg;
   Relay_log_info* rli= w->c_rli;
@@ -4236,8 +4281,10 @@ pthread_handler_t handle_slave_worker(void *arg)
     goto err;
   }
   thd->init_for_queries();
+
   mysql_mutex_lock(&LOCK_thread_count);
-  threads.push_front(thd);
+  add_global_thread(thd);
+  thd_added= true;
   mysql_mutex_unlock(&LOCK_thread_count);
 
   if (w->update_is_transactional())
@@ -4323,8 +4370,10 @@ err:
       are Coordinator's burden.
     */
     thd->system_thread= NON_SYSTEM_THREAD;
-    delete thd;
+    if (thd_added)
+      remove_global_thread(thd);
     mysql_mutex_unlock(&LOCK_thread_count);
+    delete thd;
   }
 
   my_thread_end();
@@ -4344,7 +4393,7 @@ int mts_event_coord_cmp(LOG_POS_COORD *id1, LOG_POS_COORD *id2)
          (poscmp  < 0  ? -1 : (poscmp  > 0  ?  1 : 0))));
 }
 
-bool mts_recovery_groups(Relay_log_info *rli, MY_BITMAP *groups)
+int mts_recovery_groups(Relay_log_info *rli)
 { 
   Log_event *ev= NULL;
   const char *errmsg= NULL;
@@ -4358,9 +4407,19 @@ bool mts_recovery_groups(Relay_log_info *rli, MY_BITMAP *groups)
   File file;
   LOG_INFO linfo;
   my_off_t offset= 0;
+  MY_BITMAP *groups= &rli->recovery_groups;
 
   DBUG_ENTER("mts_recovery_groups");
-  DBUG_ASSERT(rli->recovery_parallel_workers > 0);
+
+  DBUG_ASSERT(rli->slave_parallel_workers == 0);
+
+  /* 
+     Although mts_recovery_groups() is reentrant it returns
+     early if the previous invocation raised any bit in 
+     recovery_groups bitmap.
+  */
+  if (rli->is_mts_recovery())
+    DBUG_RETURN(0);
 
   /*
     Save relay log position to compare with worker's position.
@@ -4381,12 +4440,13 @@ bool mts_recovery_groups(Relay_log_info *rli, MY_BITMAP *groups)
     above_lwm_jobs in asc ordered by the master binlog coordinates.
   */
   my_init_dynamic_array(&above_lwm_jobs, sizeof(Slave_job_group),
-                        rli->recovery_parallel_workers, rli->recovery_parallel_workers);
+                        rli->recovery_parallel_workers,
+                        rli->recovery_parallel_workers);
 
   for (uint id= 0; id < rli->recovery_parallel_workers; id++)
   {
     Slave_worker *worker=
-      Rpl_info_factory::create_worker(opt_rli_repository_id, id, rli);
+      Rpl_info_factory::create_worker(opt_rli_repository_id, id, rli, true);
 
     if (!worker)
     {
@@ -4394,7 +4454,6 @@ bool mts_recovery_groups(Relay_log_info *rli, MY_BITMAP *groups)
       goto err;
     }
 
-    worker->init_info();
     LOG_POS_COORD w_last= { const_cast<char*>(worker->get_group_master_log_name()),
                             worker->get_group_master_log_pos() };
     if (mts_event_coord_cmp(&w_last, &cp) > 0)
@@ -4438,8 +4497,14 @@ bool mts_recovery_groups(Relay_log_info *rli, MY_BITMAP *groups)
         while(!eof);
         continue;
   */
+  DBUG_ASSERT(!rli->recovery_groups_inited);
 
-  bitmap_clear_all(groups);
+  if (above_lwm_jobs.elements != 0)
+  {
+    bitmap_init(groups, NULL, MTS_MAX_BITS_IN_GROUP, FALSE);
+    rli->recovery_groups_inited= true;
+    bitmap_clear_all(groups);
+  }
   rli->mts_recovery_group_cnt= 0;
   for (uint it_job= 0; it_job < above_lwm_jobs.elements; it_job++)
   {
@@ -4449,14 +4514,14 @@ bool mts_recovery_groups(Relay_log_info *rli, MY_BITMAP *groups)
                             w->get_group_master_log_pos() };
     bool checksum_detected= FALSE;
 
-    sql_print_information("Recovery relay log info based on Worker-Id %lu, "
-                          "group_relay_log_name %s, group_relay_log_pos %lu "
-                          "group_master_log_name %s, group_master_log_pos %lu",
+    sql_print_information("Slave: MTS group recovery relay log info based on Worker-Id %lu, "
+                          "group_relay_log_name %s, group_relay_log_pos %llu "
+                          "group_master_log_name %s, group_master_log_pos %llu",
                           w->id,
                           w->get_group_relay_log_name(),
-                          (ulong) w->get_group_relay_log_pos(),
+                          w->get_group_relay_log_pos(),
                           w->get_group_master_log_name(),
-                          (ulong) w->get_group_master_log_pos());
+                          w->get_group_master_log_pos());
 
     recovery_group_cnt= 0;
     not_reached_commit= true;
@@ -4539,10 +4604,10 @@ bool mts_recovery_groups(Relay_log_info *rli, MY_BITMAP *groups)
           flag_group_seen_begin= false;
           recovery_group_cnt++;
 
-          sql_print_information("Group Recoverying relay log info "
-                                "group_master_log_name %s, event_master_log_pos %llu.",
-                                rli->get_group_master_log_name(),
-                                ev->log_pos);
+          sql_print_information("Slave: MTS group recovery relay log info "
+                                "group_master_log_name %s, "
+                                "event_master_log_pos %llu.",
+                                rli->get_group_master_log_name(), ev->log_pos);
           if ((ret= mts_event_coord_cmp(&ev_coord, &w_last)) == 0)
           {
 #ifndef DBUG_OFF
@@ -4591,8 +4656,8 @@ bool mts_recovery_groups(Relay_log_info *rli, MY_BITMAP *groups)
       recovery_group_cnt : rli->mts_recovery_group_cnt);
   }
 
-  DBUG_ASSERT(rli->mts_recovery_group_cnt < groups->n_bits);
-  DBUG_ASSERT(rli->mts_recovery_group_cnt < rli->checkpoint_group);
+  DBUG_ASSERT(!rli->recovery_groups_inited ||
+              rli->mts_recovery_group_cnt <= groups->n_bits);
 
 err:
   
@@ -4604,8 +4669,13 @@ err:
   }
 
   delete_dynamic(&above_lwm_jobs);
+  if (rli->recovery_groups_inited && rli->mts_recovery_group_cnt == 0)
+  {
+    bitmap_free(groups);
+    rli->recovery_groups_inited= false;
+  }
 
-  DBUG_RETURN(error);
+  DBUG_RETURN(error ? ER_MTS_RECOVERY_FAILURE : 0);
 }
 
 /**
@@ -4737,7 +4807,7 @@ bool mts_checkpoint_routine(Relay_log_info *rli, ulonglong period,
     cnt is zero. This value means that the checkpoint information
     will be completely reset.
   */
-  rli->reset_notified_checkpoint(cnt, rli->gaq->lwm.ts);
+  rli->reset_notified_checkpoint(cnt, rli->gaq->lwm.ts, locked);
 
   /* end-of "Coordinator::"commit_positions" */
 
@@ -4766,7 +4836,7 @@ int slave_start_single_worker(Relay_log_info *rli, ulong i)
   Slave_worker *w= NULL;
 
   if (!(w=
-      Rpl_info_factory::create_worker(opt_rli_repository_id, i, rli)))
+        Rpl_info_factory::create_worker(opt_rli_repository_id, i, rli, false)))
   {
     sql_print_error("Failed during slave worker thread create");
     error= 1;
@@ -4819,6 +4889,8 @@ err:
    communication channels such as Assigned Partition Hash (APH),
    and starting the Worker pool.
 
+   @param  n   Number of configured Workers in the upcoming session.
+
    @return 0         success
            non-zero  as failure
 */
@@ -4827,14 +4899,20 @@ int slave_start_workers(Relay_log_info *rli, ulong n, bool *mts_inited)
   uint i;
   int error= 0;
 
-  if (n == 0) 
-    return error;
+  if (n == 0 && rli->mts_recovery_group_cnt == 0)
+  {
+    reset_dynamic(&rli->workers);
+    goto end;
+  }
 
   *mts_inited= true;
 
-  // RLI constructor time alloc/init
-
-  rli->init_workers(n);
+  /*
+    The requested through argument number of Workers can be different 
+     from the previous time which ended with an error. Thereby
+     the effective number of configured Workers is max of the two.
+  */
+  rli->init_workers(max(n, rli->recovery_parallel_workers));
 
   // CGAP dynarray holds id:s of partitions of the Current being executed Group
   my_init_dynamic_array(&rli->curr_group_assigned_parts,
@@ -4891,12 +4969,18 @@ int slave_start_workers(Relay_log_info *rli, ulong n, bool *mts_inited)
       goto err;
   }
 
-err:
-  rli->slave_parallel_workers= rli->workers.elements;
-  // end recovery right now if mts_recovery_groups() did not find any gaps
-  if (rli->mts_recovery_group_cnt == 0)
-    rli->recovery_parallel_workers= rli->slave_parallel_workers;
+end:
+  rli->slave_parallel_workers= n;
+  // Effective end of the recovery right now when there is no gaps
+  if (!error && rli->mts_recovery_group_cnt == 0)
+  {
+    if ((error= rli->mts_finalize_recovery()))
+      (void) Rpl_info_factory::reset_workers(rli);
+    if (!error)
+      error= rli->flush_info(TRUE);
+  }
 
+err:
   return error;
 }
 
@@ -5040,6 +5124,7 @@ end:
 pthread_handler_t handle_slave_sql(void *arg)
 {
   THD *thd;                     /* needs to be first for thread_stack */
+  bool thd_added= false;
   char llbuff[22],llbuff1[22];
   char saved_log_name[FN_REFLEN];
   char saved_master_log_name[FN_REFLEN];
@@ -5088,8 +5173,10 @@ pthread_handler_t handle_slave_sql(void *arg)
   thd->init_for_queries();
   thd->temporary_tables = rli->save_temporary_tables; // restore temp tables
   set_thd_in_use_temporary_tables(rli);   // (re)set sql_thd in use for saved temp tables
+
   mysql_mutex_lock(&LOCK_thread_count);
-  threads.push_front(thd);
+  add_global_thread(thd);
+  thd_added= true;
   mysql_mutex_unlock(&LOCK_thread_count);
 
   /* MTS: starting the worker pool */
@@ -5351,6 +5438,11 @@ llstr(rli->get_group_master_log_pos(), llbuff));
  err:
 
   slave_stop_workers(rli, &mts_inited); // stopping worker pool
+  if (rli->recovery_groups_inited)
+  {
+    bitmap_free(&rli->recovery_groups);
+    rli->recovery_groups_inited= false;
+  }
 
   /*
     Some events set some playgrounds, which won't be cleared because thread
@@ -5401,8 +5493,10 @@ llstr(rli->get_group_master_log_pos(), llbuff));
   set_thd_in_use_temporary_tables(rli);  // (re)set info_thd in use for saved temp tables
   mysql_mutex_lock(&LOCK_thread_count);
   THD_CHECK_SENTRY(thd);
-  delete thd;
+  if (thd_added)
+    remove_global_thread(thd);
   mysql_mutex_unlock(&LOCK_thread_count);
+  delete thd;
  /*
   Note: the order of the broadcast and unlock calls below (first broadcast, then unlock)
   is important. Otherwise a killer_thread can execute between the calls and
@@ -7452,6 +7546,12 @@ int start_slave(THD* thd , Master_info* mi,  bool net_report)
           }
           global_sid_lock.unlock();
         }
+        else if (thd->lex->mi.until_after_gaps)
+        {
+            mi->rli->until_condition= Relay_log_info::UNTIL_SQL_AFTER_MTS_GAPS;
+            mi->rli->opt_slave_parallel_workers=
+              mi->rli->recovery_parallel_workers;
+        }
         else
           mi->rli->clear_until_condition();
 
@@ -7673,7 +7773,8 @@ err:
 }
 
 /**
-  Execute a CHANGE MASTER statement.
+  Execute a CHANGE MASTER statement. MTS workers info tables data are removed
+  in the successful branch (i.e. there are no gaps in the execution history).
 
   @param thd Pointer to THD object for the client thread executing the
   statement.
@@ -7690,11 +7791,13 @@ bool change_master(THD* thd, Master_info* mi)
   const char* errmsg= 0;
   bool need_relay_log_purge= 1;
   char *var_master_log_name= NULL, *var_group_master_log_name= NULL;
-  bool ret= FALSE;
+  bool ret= false;
   char saved_host[HOSTNAME_LENGTH + 1], saved_bind_addr[HOSTNAME_LENGTH + 1];
   uint saved_port= 0;
   char saved_log_name[FN_REFLEN];
   my_off_t saved_log_pos= 0;
+  my_bool save_relay_log_purge= relay_log_purge;
+  bool mts_remove_workers= false;
 
   DBUG_ENTER("change_master");
 
@@ -7729,7 +7832,28 @@ bool change_master(THD* thd, Master_info* mi)
     ret= true;
     goto err;
   }
+  if (mi->rli->mts_recovery_group_cnt)
+  {
+    /*
+      Change-Master can't be done if there is a mts group gap.
+      That requires mts-recovery which START SLAVE provides.
+    */
+    DBUG_ASSERT(mi->rli->recovery_parallel_workers);
 
+    my_message(ER_MTS_CHANGE_MASTER_CANT_RUN_WITH_GAPS,
+               ER(ER_MTS_CHANGE_MASTER_CANT_RUN_WITH_GAPS), MYF(0));
+    ret= true;
+    goto err;
+  }
+  else
+  {
+    /*
+      Lack of mts group gaps makes Workers info stale
+      regardless of need_relay_log_purge computation.
+    */
+    if (mi->rli->recovery_parallel_workers)
+      mts_remove_workers= true;
+  }
   /*
     We cannot specify auto position and set either the coordinates
     on master or slave. If we try to do so, an error message is
@@ -7982,8 +8106,7 @@ bool change_master(THD* thd, Master_info* mi)
     THD_STAGE_INFO(thd, stage_purging_old_relay_logs);
     if (mi->rli->purge_relay_logs(thd,
                                   0 /* not only reset, but also reinit */,
-                                  &errmsg) ||
-        remove_workers(mi->rli))
+                                  &errmsg))
     {
       my_error(ER_RELAY_LOG_FAIL, MYF(0), errmsg);
       ret= TRUE;
@@ -8005,6 +8128,7 @@ bool change_master(THD* thd, Master_info* mi)
       goto err;
     }
   }
+  relay_log_purge= save_relay_log_purge;
 
   /*
     Coordinates in rli were spoilt by the 'if (need_relay_log_purge)' block,
@@ -8016,10 +8140,12 @@ bool change_master(THD* thd, Master_info* mi)
     ''/0: we have lost all copies of the original good coordinates.
     That's why we always save good coords in rli.
   */
-  mi->rli->set_group_master_log_pos(mi->get_master_log_pos());
-  DBUG_PRINT("info", ("master_log_pos: %lu", (ulong) mi->get_master_log_pos()));
-  mi->rli->set_group_master_log_name(mi->get_master_log_name());
-
+  if (need_relay_log_purge)
+  {
+    mi->rli->set_group_master_log_pos(mi->get_master_log_pos());
+    DBUG_PRINT("info", ("master_log_pos: %lu", (ulong) mi->get_master_log_pos()));
+    mi->rli->set_group_master_log_name(mi->get_master_log_name());
+  }
   var_group_master_log_name=  const_cast<char *>(mi->rli->get_group_master_log_name());
   if (!var_group_master_log_name[0]) // uninitialized case
     mi->rli->set_group_master_log_pos(0);
@@ -8057,7 +8183,15 @@ bool change_master(THD* thd, Master_info* mi)
 err:
   unlock_slave_threads(mi);
   if (ret == FALSE)
-    my_ok(thd);
+  {
+    if (!mts_remove_workers)
+      my_ok(thd);
+    else
+      if (!Rpl_info_factory::reset_workers(mi->rli))
+        my_ok(thd);
+      else
+        my_error(ER_MTS_RESET_WORKERS, MYF(0));
+  }
   DBUG_RETURN(ret);
 }
 /**

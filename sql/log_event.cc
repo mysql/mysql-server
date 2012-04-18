@@ -3503,8 +3503,7 @@ Query_log_event::Query_log_event(THD* thd_arg, const char* query_arg,
         have the flag is_trans set because there is no updated engine but
         must be written to the trx-cache.
 
-      . SET does not have the flag is_trans set but, if auto-commit is off,
-        must be written to the trx-cache.
+      . SET If auto-commit is on, it must not go through a cache.
 
       . CREATE TABLE is classfied as non-row producer but CREATE TEMPORARY
         must be handled as row producer.
@@ -3554,8 +3553,10 @@ Query_log_event::Query_log_event(THD* thd_arg, const char* query_arg,
             thd->in_multi_stmt_transaction_mode()) || cmd_must_go_to_trx_cache;
         break;
       case SQLCOM_SET_OPTION:
-        cmd_can_generate_row_events= cmd_must_go_to_trx_cache=
-          (lex->autocommit ? FALSE : TRUE);
+        if (lex->autocommit)
+          cmd_can_generate_row_events= cmd_must_go_to_trx_cache= FALSE;
+        else
+          cmd_can_generate_row_events= TRUE;
         break;
       case SQLCOM_RELEASE_SAVEPOINT:
       case SQLCOM_ROLLBACK_TO_SAVEPOINT:
@@ -5805,9 +5806,9 @@ Load_log_event::Load_log_event(THD *thd_arg, sql_exchange *ex,
   while ((item = li++))
   {
     num_fields++;
-    uchar len = (uchar) strlen(item->name);
+    uchar len= (uchar) item->item_name.length();
     field_block_len += len + 1;
-    fields_buf.append(item->name, len + 1);
+    fields_buf.append(item->item_name.ptr(), len + 1);
     field_lens_buf.append((char*)&len, 1);
   }
 
@@ -6529,7 +6530,7 @@ int Rotate_log_event::do_update_pos(Relay_log_info *rli)
                         (ulong) rli->get_group_master_log_pos()));
     mysql_mutex_unlock(&rli->data_lock);
     if (rli->is_parallel_exec())
-      rli->reset_notified_checkpoint(0, when.tv_sec + (time_t) exec_time);
+      rli->reset_notified_checkpoint(0, when.tv_sec + (time_t) exec_time, false);
 
     /*
       Reset thd->variables.option_bits and sql_mode etc, because this could be the signal of
@@ -6915,6 +6916,12 @@ bool Xid_log_event::do_commit(THD *thd)
     // GTID logging and cleanup runs regardless of the current res
     error |= gtid_empty_group_log_and_cleanup(thd);
   }
+
+  /*
+    Increment the global status commit count variable
+  */
+  if (!error)
+    status_var_increment(thd->status_var.com_stat[SQLCOM_COMMIT]);
 
   return error;
 }
@@ -7381,9 +7388,6 @@ int User_var_log_event::do_apply_event(Relay_log_info const *rli)
   CHARSET_INFO *charset;
   if (!(charset= get_charset(charset_number, MYF(MY_WME))))
     return 1;
-  LEX_STRING user_var_name;
-  user_var_name.str= name;
-  user_var_name.length= name_len;
   double real_val;
   longlong int_val;
 
@@ -7429,7 +7433,7 @@ int User_var_log_event::do_apply_event(Relay_log_info const *rli)
       return 0;
     }
   }
-  Item_func_set_user_var e(user_var_name, it);
+  Item_func_set_user_var e(NameString(name, name_len, false), it);
   /*
     Item_func_set_user_var can't substitute something else on its place =>
     0 can be passed as last argument (reference on item)
@@ -10135,6 +10139,12 @@ Write_rows_log_event::do_before_row_operations(const Slave_reporting_capability 
 {
   int error= 0;
 
+  /*
+    Increment the global status insert count variable
+  */
+  if (get_flags(STMT_END_F))
+    status_var_increment(thd->status_var.com_stat[SQLCOM_INSERT]);
+
   /**
      todo: to introduce a property for the event (handler?) which forces
      applying the event in the replace (idempotent) fashion.
@@ -11319,6 +11329,12 @@ Delete_rows_log_event::Delete_rows_log_event(const char *buf, uint event_len,
 int 
 Delete_rows_log_event::do_before_row_operations(const Slave_reporting_capability *const)
 {
+  /*
+    Increment the global status delete count variable
+   */
+  if (get_flags(STMT_END_F))
+    status_var_increment(thd->status_var.com_stat[SQLCOM_DELETE]);
+
   if (m_table->s->keys > 0)
   {
     // Allocate buffer for key searches
@@ -11432,6 +11448,12 @@ Update_rows_log_event::Update_rows_log_event(const char *buf, uint event_len,
 int 
 Update_rows_log_event::do_before_row_operations(const Slave_reporting_capability *const)
 {
+  /*
+    Increment the global status update count variable
+  */
+  if (get_flags(STMT_END_F))
+    status_var_increment(thd->status_var.com_stat[SQLCOM_UPDATE]);
+
   if (m_table->s->keys > 0)
   {
     // Allocate buffer for key searches

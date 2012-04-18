@@ -757,9 +757,8 @@ static plugin_ref intern_plugin_lock(LEX *lex, plugin_ref rc)
     *plugin= pi;
 #endif
     pi->ref_count++;
-    DBUG_PRINT("info",("thd: 0x%lx, plugin: \"%s\", ref_count: %d",
-                       (long) current_thd, pi->name.str, pi->ref_count));
-
+    DBUG_PRINT("info",("thd: %p, plugin: \"%s\", ref_count: %d",
+                       current_thd, pi->name.str, pi->ref_count));
     if (lex)
       insert_dynamic(&lex->plugins, &plugin);
     DBUG_RETURN(plugin);
@@ -1003,7 +1002,8 @@ static void reap_plugins(void)
   list= reap;
   while ((plugin= *(--list)))
   {
-    sql_print_information("Shutting down plugin '%s'", plugin->name.str);
+    if (!opt_bootstrap)
+      sql_print_information("Shutting down plugin '%s'", plugin->name.str);
     plugin_deinitialize(plugin, true);
   }
 
