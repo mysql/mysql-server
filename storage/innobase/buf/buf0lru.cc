@@ -359,6 +359,7 @@ buf_flush_yield(
 	mutex_t*	block_mutex;
 
 	ut_ad(buf_pool_mutex_own(buf_pool));
+	ut_ad(buf_page_in_file(bpage));
 
 	block_mutex = buf_page_get_mutex(bpage);
 
@@ -367,11 +368,11 @@ buf_flush_yield(
 	changed after we release the buffer pool and
 	block mutexes. */
 	buf_page_set_sticky(bpage);
-	mutex_exit(block_mutex);
 
 	/* Now it is safe to release the buf_pool->mutex. */
 	buf_pool_mutex_exit(buf_pool);
 
+	mutex_exit(block_mutex);
 	/* Try and force a context switch. */
 	os_thread_yield();
 
