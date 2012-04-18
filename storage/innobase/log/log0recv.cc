@@ -2894,7 +2894,7 @@ recv_recovery_from_checkpoint_start_func(
 	lsn_t		checkpoint_lsn;
 	ib_uint64_t	checkpoint_no;
 	lsn_t		old_scanned_lsn;
-	lsn_t		group_scanned_lsn;
+	lsn_t		group_scanned_lsn = 0;
 	lsn_t		contiguous_lsn;
 #ifdef UNIV_LOG_ARCHIVE
 	lsn_t		archived_lsn;
