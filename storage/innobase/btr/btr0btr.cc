@@ -854,7 +854,7 @@ btr_root_adjust_on_import(
 		bool	page_is_compact_format;
 
 		page_is_compact_format = page_is_comp(page) > 0;
-		
+
 		/* Check if the page format and table format agree. */
 		if (page_is_compact_format != dict_table_is_comp(table)) {
 			err = DB_CORRUPTION;

@@ -15,7 +15,7 @@ set global innodb_monitor_enable = purge_resume_count;
 --enable_query_log
 
 # Should be 0 for both
-SELECT name, count 
+SELECT name, count
   FROM information_schema.innodb_metrics
   WHERE name = 'purge_stop_count' OR name = 'purge_resume_count';
 
@@ -27,7 +27,7 @@ SELECT @orig;
 SET GLOBAL innodb_purge_stop_now = ON;
 
 # Stop count should now be 1
-SELECT name, count 
+SELECT name, count
   FROM information_schema.innodb_metrics
   WHERE name = 'purge_stop_count' OR name = 'purge_resume_count';
 
@@ -37,7 +37,7 @@ SET GLOBAL innodb_purge_run_now = ON;
 SELECT @@global.innodb_purge_run_now;
 
 # Both should be 1 now
-SELECT name, count 
+SELECT name, count
   FROM information_schema.innodb_metrics
   WHERE name = 'purge_stop_count' OR name = 'purge_resume_count';
 

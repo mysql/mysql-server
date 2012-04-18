@@ -1982,8 +1982,8 @@ row_import_update_discarded_flag(
 					to set the root table->flags2 */
 	bool		discarded,	/*!< in: set MIX_LEN column bit
 					to discarded, if true */
-	bool		dict_locked)	/*!< in: set to true if the 
-					caller already owns the 
+	bool		dict_locked)	/*!< in: set to true if the
+					caller already owns the
 					dict_sys_t:: mutex. */
 
 {
