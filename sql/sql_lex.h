@@ -40,6 +40,7 @@ class Event_parse_data;
 */
 
 #include "set_var.h"
+#include "mem_root_array.h"
 
 #ifdef MYSQL_YACC
 #define LEX_YYSTYPE void *
@@ -183,6 +184,7 @@ enum enum_drop_mode
 };
 
 typedef List<Item> List_item;
+typedef Mem_root_array<ORDER*, true> Group_list_ptrs;
 
 /* SERVERS CACHE CHANGES */
 typedef struct st_lex_server_options
@@ -590,7 +592,16 @@ public:
   enum olap_type olap;
   /* FROM clause - points to the beginning of the TABLE_LIST::next_local list. */
   SQL_I_List<TABLE_LIST>  table_list;
-  SQL_I_List<ORDER>       group_list; /* GROUP BY clause. */
+
+  /*
+    GROUP BY clause.
+    This list may be mutated during optimization (by remove_const()),
+    so for prepared statements, we keep a copy of the ORDER.next pointers in
+    group_list_ptrs, and re-establish the original list before each execution.
+  */
+  SQL_I_List<ORDER>       group_list;
+  Group_list_ptrs        *group_list_ptrs;
+
   List<Item>          item_list;  /* list of fields & expressions */
   List<String>        interval_list;
   bool	              is_item_list_lookup;
@@ -779,7 +790,8 @@ public:
   bool test_limit();
 
   friend void lex_start(THD *thd);
-  st_select_lex() : n_sum_items(0), n_child_sum_items(0) {}
+  st_select_lex() : group_list_ptrs(NULL), n_sum_items(0), n_child_sum_items(0)
+  {}
   void make_empty_select()
   {
     init_query();
