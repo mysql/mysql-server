@@ -7381,6 +7381,7 @@ err:
     error=1;
   if (error < 0 && to->file->extra(HA_EXTRA_PREPARE_FOR_RENAME))
     error= 1;
+  thd_progress_end(thd);
   DBUG_RETURN(error > 0 ? -1 : 0);
 }
 
