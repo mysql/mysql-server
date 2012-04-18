@@ -1,4 +1,4 @@
-SELECT name, count 
+SELECT name, count
 FROM information_schema.innodb_metrics
 WHERE name = 'purge_stop_count' OR name = 'purge_resume_count';
 name	count
@@ -9,7 +9,7 @@ SELECT @orig;
 @orig
 0
 SET GLOBAL innodb_purge_stop_now = ON;
-SELECT name, count 
+SELECT name, count
 FROM information_schema.innodb_metrics
 WHERE name = 'purge_stop_count' OR name = 'purge_resume_count';
 name	count
@@ -19,7 +19,7 @@ SET GLOBAL innodb_purge_run_now = ON;
 SELECT @@global.innodb_purge_run_now;
 @@global.innodb_purge_run_now
 0
-SELECT name, count 
+SELECT name, count
 FROM information_schema.innodb_metrics
 WHERE name = 'purge_stop_count' OR name = 'purge_resume_count';
 name	count

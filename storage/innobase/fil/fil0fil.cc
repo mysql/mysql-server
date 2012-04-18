@@ -2336,7 +2336,7 @@ fil_check_pending_io(
 		ut_a(!(*node)->being_extended);
 
 		if (count > 1000) {
-			ib_logf(IB_LOG_LEVEL_WARN, 
+			ib_logf(IB_LOG_LEVEL_WARN,
 				"Trying to close/delete tablespace '%s' "
 				"but there are %lu flushes "
 				" and %lu pending i/o's on it.",
@@ -2406,7 +2406,7 @@ fil_check_pending_operations(
 		if (count == 0) {
 			*path = mem_strdup(node->name);
 		}
-		
+
 		mutex_exit(&fil_system->mutex);
 
 		if (count > 0) {

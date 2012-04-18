@@ -248,8 +248,8 @@ mtr_log_reserve_and_write(
 
 	if (mlog->heap == NULL) {
 		ulint	len;
-		
-		len = mtr->log_mode != MTR_LOG_NO_REDO 
+
+		len = mtr->log_mode != MTR_LOG_NO_REDO
 			? dyn_block_get_used(mlog) : 0;
 
 		mtr->end_lsn = log_reserve_and_write_fast(

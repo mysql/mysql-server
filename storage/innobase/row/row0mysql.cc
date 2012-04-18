@@ -2921,7 +2921,7 @@ row_discard_tablespace_for_mysql(
 
 	if (err != DB_SUCCESS) {
 		return(row_discard_tablespace_end(trx, table, err));
-	}	
+	}
 
 	err = row_discard_tablespace(trx, table);
 
