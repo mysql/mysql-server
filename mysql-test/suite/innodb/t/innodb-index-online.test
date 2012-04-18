@@ -282,18 +282,20 @@ SET lock_wait_timeout=10;
 ALTER TABLE t1 DISCARD TABLESPACE;
 
 connection con1;
-SELECT state FROM information_schema.processlist
-WHERE info='ALTER TABLE t1 DISCARD TABLESPACE';
+let $wait_condition=
+  SELECT COUNT(*) = 1 FROM information_schema.processlist
+  WHERE state = 'Waiting for table level lock' and
+        info = 'ALTER TABLE t1 DISCARD TABLESPACE';
+--source include/wait_condition.inc
 
 SET DEBUG_SYNC='now SIGNAL dml4_done';
 disconnect con1;
-connection default;
---error ER_LOCK_WAIT_TIMEOUT
-reap;
 connection con2;
 reap;
 disconnect con2;
 connection default;
+--error ER_LOCK_WAIT_TIMEOUT
+reap;
 
 SHOW CREATE TABLE t1;
 # The ER_NO_SUCH_TABLE is being thrown by ha_innobase::open().

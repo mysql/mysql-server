@@ -266,10 +266,6 @@ ALTER TABLE t1 DROP INDEX c2f, ADD INDEX c2g(c2);
 SET DEBUG_SYNC='now WAIT_FOR c2g_created';
 SET lock_wait_timeout=10;
 ALTER TABLE t1 DISCARD TABLESPACE;
-SELECT state FROM information_schema.processlist
-WHERE info='ALTER TABLE t1 DISCARD TABLESPACE';
-state
-Waiting for table level lock
 SET DEBUG_SYNC='now SIGNAL dml4_done';
 ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 SHOW CREATE TABLE t1;
