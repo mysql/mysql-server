@@ -5683,13 +5683,6 @@ sub start_servers($) {
   { 
     if(memcacheds()) 
     {
-      # In theory maybe you could run the memcached tests with the embedded
-      # server, but for now we skip it.
-      if($opt_embedded_server) 
-      { 
-        mtr_error("Cannot run memcached tests with the embedded server.");
-      }
-      
       my $avail_port = $memcached_base_port;
       my $memcached;
       memcached_load_metadata($cluster);
