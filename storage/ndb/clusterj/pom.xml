@@ -35,6 +35,7 @@
     <module>clusterj-jdbc</module>
     <module>clusterj-jpatest</module>
     <module>clusterj-openjpa</module>
+    <module>clusterj-unit</module>
   </modules>
   <build>
     <pluginManagement>
@@ -62,12 +63,6 @@
 
   <dependencyManagement>
     <dependencies>
-    <dependency>
-      <groupId>junit</groupId>
-      <artifactId>junit</artifactId>
-      <version>4.7</version>
-      <scope>test</scope>
-    </dependency>
     <dependency>
       <groupId>org.antlr</groupId>
       <artifactId>antlr</artifactId>
@@ -113,6 +108,12 @@
       <groupId>ndbjtie</groupId>
       <artifactId>ndbjtie</artifactId>
       <version>7.1.22-SNAPSHOT</version>
+    </dependency>
+    <dependency>
+      <groupId>com.mysql.clusterj</groupId>
+      <artifactId>clusterj-unit</artifactId>
+      <version>7.1.22-SNAPSHOT</version>
+      <scope>test</scope>
     </dependency>
     </dependencies>
   </dependencyManagement>

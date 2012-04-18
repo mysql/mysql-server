@@ -355,11 +355,23 @@ public class Utility {
                 case Timestamp:
                     return (value >> 32) * 1000L;
                 case Date:
-                    // the unsigned value is stored in the top 3 bytes
-                    return unpackDate((int)(value >>> 40));
+                    // the three high order bytes are the little endian representation
+                    // the original is zzyyxx0000000000 and the result is 0000000000xxyyzz
+                    long packedDate = 0L;
+                    packedDate |= (value & ffoooooooooooooo) >>> 56;
+                    packedDate |= (value & ooffoooooooooooo) >>> 40;
+                    // the xx byte is signed, so shift left 16 and arithmetic shift right 40
+                    packedDate |= ((value & ooooffoooooooooo) << 16) >> 40;
+                    return unpackDate((int)packedDate);
                 case Time:
-                    // the signed value is stored in the top 3 bytes
-                    return unpackTime((int)(value >> 40));
+                    // the three high order bytes are the little endian representation
+                    // the original is zzyyxx0000000000 and the result is 0000000000xxyyzz
+                    long packedTime = 0L;
+                    packedTime |= (value & ffoooooooooooooo) >>> 56;
+                    packedTime |= (value & ooffoooooooooooo) >>> 40;
+                    // the xx byte is signed, so shift left 16 and arithmetic shift right 40
+                    packedTime |= ((value & ooooffoooooooooo) << 16) >> 40;
+                    return unpackTime((int)packedTime);
                 default:
                     throw new ClusterJUserException(
                             local.message("ERR_Unsupported_Mapping", storeColumn.getType(), "long"));
@@ -685,9 +697,9 @@ public class Utility {
                 case Timestamp:
                     return value * 1000L;
                 case Date:
-                    return unpackDate((int)value);
+                    return unpackDate((int)(value));
                 case Time:
-                    return unpackTime((int)value);
+                    return unpackTime((int)(value));
                 default:
                     throw new ClusterJUserException(
                             local.message("ERR_Unsupported_Mapping", storeColumn.getType(), "long"));
@@ -2020,10 +2032,12 @@ public class Utility {
      * @param ndbRecAttr the NdbRecAttr
      * @return the long
      */
-    public static long getLong(Column storeColumn, NdbRecAttr ndbRecAttr) {
-        return endianManager.getLong(storeColumn, ndbRecAttr);
-    }
 
+    /** Convert a long value from storage.
+     * The value stored in the database might be a time, timestamp, date, bit array,
+     * or simply a long value. The converted value can be converted into a 
+     * time, timestamp, date, bit array, or long value.
+     */
     public static long getLong(Column storeColumn, long value) {
         return endianManager.getLong(storeColumn, value);
     }

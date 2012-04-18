@@ -27,6 +27,7 @@ import com.mysql.clusterj.core.util.LoggerFactoryService;
 import com.mysql.clusterj.tie.DbImpl.BufferManager;
 
 import com.mysql.ndbjtie.ndbapi.NdbScanOperation;
+import com.mysql.ndbjtie.ndbapi.NdbOperationConst.LockMode;
 
 /**
  *
@@ -67,6 +68,9 @@ class ScanResultDataImpl extends ResultDataImpl {
             int result = ndbScanOperation.nextResult(fetch, force);
             switch (result) {
                 case RESULT_READY:
+                    if (ndbScanOperation.getLockMode() != LockMode.LM_CommittedRead) { 
+                        ndbScanOperation.lockCurrentTuple();
+                    }
                     return true;
                 case SCAN_FINISHED:
                     ndbScanOperation.close(true, true);
