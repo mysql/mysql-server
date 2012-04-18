@@ -10,7 +10,6 @@
 --source include/not_embedded.inc
 
 let error_log= $MYSQLTEST_VARDIR/log/mysqld.1.err;
---remove_file $error_log
 --source include/restart_mysqld.inc
 
 create table t1 (f1 integer primary key) engine innodb;
@@ -21,7 +20,7 @@ create table t1 (f1 integer primary key) engine innodb;
 --replace_regex /'\.\/test\/#sql-[0-9a-f_]*'/'#sql-temporary'/
 --error ER_ERROR_ON_RENAME
 alter table t1 add constraint c1 foreign key (f1) references t1(f1);
-
+--source include/restart_mysqld.inc
 perl;
 
 $file = "$ENV{'error_log'}";
