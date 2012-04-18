@@ -7,6 +7,7 @@
 # of sync:
 
 --source include/have_innodb.inc
+--source include/not_embedded.inc
 
 let error_log= $MYSQLTEST_VARDIR/log/mysqld.1.err;
 --remove_file $error_log
