@@ -6731,7 +6731,7 @@ TABLE *create_schema_table(THD *thd, TABLE_LIST *table_list)
     case MYSQL_TYPE_DOUBLE:
     {
       const NameString field_name(fields_info->field_name,
-                                  (uint) strlen(fields_info->field_name));
+                                  strlen(fields_info->field_name));
       if ((item= new Item_float(field_name, 0.0, NOT_FIXED_DEC, 
                                 fields_info->field_length)) == NULL)
         DBUG_RETURN(NULL);
