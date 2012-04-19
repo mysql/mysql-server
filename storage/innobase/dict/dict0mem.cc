@@ -35,8 +35,9 @@ Created 1/8/1996 Heikki Tuuri
 #include "dict0dict.h"
 #include "fts0priv.h"
 #ifndef UNIV_HOTBACKUP
-#include "ha_prototypes.h"	/* innobase_casedn_str(),
+# include "ha_prototypes.h"	/* innobase_casedn_str(),
 				innobase_get_lower_case_table_names */
+# include "mysql_com.h"		/* NAME_LEN */
 # include "lock0lock.h"
 #endif /* !UNIV_HOTBACKUP */
 #ifdef UNIV_BLOB_DEBUG
@@ -257,6 +258,8 @@ dict_mem_table_col_rename_low(
 	size_t from_len = strlen(s), to_len = strlen(to);
 
 	ut_ad(i < table->n_def);
+	ut_ad(from_len <= NAME_LEN);
+	ut_ad(to_len <= NAME_LEN);
 
 	if (from_len == to_len) {
 		/* The easy case: simply replace the column name in
