@@ -4086,13 +4086,13 @@ protected:
     Encapsulates the  operations to be done before applying
     row event for update and delete.
    */
-  int init_row_update_or_delete();
+  int row_operations_scan_and_key_setup();
 
   /*
    Encapsulates the  operations to be done after applying
    row event for update and delete.
   */
-  int finish_row_update_or_delete(int error);
+  int row_operations_scan_and_key_teardown(int error);
 
 #endif
 
