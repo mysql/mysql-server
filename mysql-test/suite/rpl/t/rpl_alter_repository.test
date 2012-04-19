@@ -40,10 +40,10 @@ call mtr.add_suppression(" Error while checking replication metadata.");
 #
 # The test executes the following steps:
 #  1 - Changes mysql.slave_relay_log_info and SQL Thread stops gracefully.
-#  2 - Shows that it is possible to restart the server setting --skip-slave-start
-#      and a dummy repository while the problem is fixed.
-#  3 - Shows that after fixing the problem the server can be restared with the
-#      correct repository.
+#  2 - Shows that it is possible to restart the server although replication
+#      is not properly configured and working.
+#  3 - Shows that after fixing the problem the server can be properly
+#      restared.
 #  4 - Shows that trying to fix the problem with START SLAVE, RESET SLAVE may
 #      not work and requires to manually back up positions to restart
 #      replication.
@@ -59,25 +59,28 @@ ALTER TABLE mysql.slave_relay_log_info DROP COLUMN Number_of_workers;
 --connection master
 INSERT INTO t_innodb VALUES (1), (2), (3);
 --connection slave
+# ER_COL_COUNT_DOESNT_MATCH_CORRUPTED_V2 1726
 --let $slave_sql_errno= 1726
 --let $show_slave_sql_error= 1
 --source include/wait_for_slave_sql_error.inc
 --source include/stop_slave_io.inc
 
 #
-#  2 - Shows that it is possible to restart the server setting --skip-slave-start
-#      and a dummy repository while the problem is fixed.
+#  2 - Shows that it is possible to restart the server although replication
+#      is not properly configured and working.
 #
 --let $rpl_server_number= 2
---let $rpl_server_parameters= --relay-log-info-repository=FILE --skip-slave-start
+--let $rpl_server_parameters= --sync-master-info=1 --master-info-repository=TABLE --relay-log-info-repository=TABLE
 --source include/rpl_restart_server.inc
 --connection slave
+--error ER_SLAVE_CONFIGURATION
+START SLAVE SQL_THREAD;
 ALTER TABLE mysql.slave_relay_log_info ADD COLUMN (Number_of_workers INTEGER UNSIGNED NOT NULL);
 UPDATE mysql.slave_relay_log_info SET Number_of_workers= 0;
 
 #
-#  3 - After fixing the problem the server is restared with the correct
-#      repository.
+#  3 - Shows that after fixing the problem the server can be properly
+#      restared.
 #
 --let $rpl_server_number= 2
 --let $rpl_server_parameters= --sync-master-info=1 --master-info-repository=TABLE --relay-log-info-repository=TABLE
@@ -96,6 +99,7 @@ ALTER TABLE mysql.slave_relay_log_info DROP COLUMN Number_of_workers;
 --connection master
 INSERT INTO t_innodb VALUES (1), (2), (3);
 --connection slave
+# ER_COL_COUNT_DOESNT_MATCH_CORRUPTED_V2 1726
 --let $slave_sql_errno= 1726
 --let $show_slave_sql_error= 1
 --source include/wait_for_slave_sql_error.inc
@@ -130,42 +134,45 @@ RESET SLAVE ALL;
 #
 # The test executes the following steps:
 #  1 - Changes mysql.slave_master_info and SQL Thread stops gracefully.
-#  2 - Shows that it is possible to restart the server setting --skip-slave-start
-#      and a dummy repository while the problem is fixed.
-#  3 - Shows that after fixing the problem the server can be restared with the
-#      correct repository.
+#  2 - Shows that it is possible to restart the server although replication
+#      is not properly configured and working.
+#  3 - Shows that after fixing the problem the server can be properly
+#      restared.
 #  4 - Shows that trying to fix the problem with START SLAVE, RESET SLAVE may
 #      not work and requires to manually back up positions to restart
 #      replication.
 #
 
 #
-#  1 - Changes mysql.slave_relay_log_info and SQL Thread stops gracefully.
+#  1 - Changes mysql.slave_master_info and SQL Thread stops gracefully.
 #
 --connection slave
 ALTER TABLE mysql.slave_master_info DROP COLUMN Enabled_auto_position;
 --connection master
 INSERT INTO t_innodb VALUES (1), (2), (3);
 --connection slave
+# ER_SLAVE_FATAL_ERROR
 --let $slave_io_errno= 1593
 --let $show_slave_io_error= 1
 --source include/wait_for_slave_io_error.inc
 --source include/stop_slave_sql.inc
 
 #
-#  2 - Shows that it is possible to restart the server setting --skip-slave-start
-#      and a dummy repository while the problem is fixed.
+#  2 - Shows that it is possible to restart the server although replication
+#      is not properly configured and working.
 #
 --let $rpl_server_number= 2
---let $rpl_server_parameters= --master-info-repository=FILE --skip-slave-start
+--let $rpl_server_parameters= --sync-master-info=1 --master-info-repository=TABLE --relay-log-info-repository=TABLE
 --source include/rpl_restart_server.inc
 --connection slave
+--error ER_SLAVE_CONFIGURATION
+START SLAVE SQL_THREAD;
 ALTER TABLE mysql.slave_master_info ADD COLUMN (Enabled_auto_position BOOLEAN NOT NULL COMMENT 'Indicates whether GTIDs will be used to retrieve events from the master.');
 UPDATE mysql.slave_master_info SET Enabled_auto_position= 0;
 
 #
-#  3 - After fixing the problem the server is restared with the correct
-#      repository.
+#  3 - Shows that after fixing the problem the server can be properly
+#      restared.
 #
 --let $rpl_server_number= 2
 --let $rpl_server_parameters= --sync-master-info=1 --master-info-repository=TABLE --relay-log-info-repository=TABLE
@@ -182,6 +189,7 @@ ALTER TABLE mysql.slave_master_info DROP COLUMN Enabled_auto_position;
 --connection master
 INSERT INTO t_innodb VALUES (1), (2), (3);
 --connection slave
+# ER_SLAVE_FATAL_ERROR
 --let $slave_io_errno= 1593
 --let $show_slave_io_error= 1
 --source include/wait_for_slave_io_error.inc
