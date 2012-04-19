@@ -658,7 +658,7 @@ static void brtnode_clone_partitions(BRTNODE node, BRTNODE cloned_node) {
         BP_STATE(cloned_node,i) = PT_AVAIL;
         BP_WORKDONE(cloned_node, i) = BP_WORKDONE(node, i);
         if (node->height == 0) {
-            set_BLB(cloned_node, i,toku_clone_bn(BLB(node,i)));
+            set_BLB(cloned_node, i, toku_clone_bn(BLB(node,i)));
         }
         else {
             set_BNC(cloned_node, i, toku_clone_nl(BNC(node,i)));
