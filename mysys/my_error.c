@@ -131,7 +131,7 @@ const char* my_get_err_msg(int nr)
   /* get the error message string. Default, if NULL or empty string (""). */
   if (! (format= (meh_p && (nr >= meh_p->meh_first)) ?
                   meh_p->get_errmsgs()[nr - meh_p->meh_first] : NULL) || ! *format)
-    return(NULL);
+    DBUG_RETURN(NULL);
 
   DBUG_RETURN(format);
 }
