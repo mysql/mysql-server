@@ -38,12 +38,12 @@ class SimpleCString
 {
 private:
   const char *m_str;
-  uint m_length;
+  size_t m_length;
 protected:
   /**
     Initialize from a C string whose length is already known.
   */
-  void set(const char *str_arg, uint length_arg)
+  void set(const char *str_arg, size_t length_arg)
   {
     // NULL is allowed only with length==0
     DBUG_ASSERT(str_arg || length_arg == 0);
@@ -57,13 +57,13 @@ public:
   {
     set(NULL, 0);
   }
-  SimpleCString(const char *str_arg, uint length_arg)
+  SimpleCString(const char *str_arg, size_t length_arg)
   {
     set(str_arg, length_arg);
   }
   SimpleCString(const LEX_STRING arg)
   {
-    set(arg.str, (uint) arg.length);
+    set(arg.str, arg.length);
   }
   void reset()
   {
@@ -74,7 +74,7 @@ public:
   */
   void set(const char *str)
   {
-    set(str, str ? (uint) strlen(str) : 0);
+    set(str, str ? strlen(str) : 0);
   }
   /**
     Return string buffer.
@@ -87,7 +87,7 @@ public:
   /**
     Return name length.
   */
-  uint length() const { return m_length; }
+  size_t length() const { return m_length; }
   /**
     Compare to another SimpleCString.
   */
@@ -377,7 +377,7 @@ public:
   }
   bool append(SimpleCString str)
   {
-    return append(str.ptr(), str.length());
+    return append(str.ptr(), static_cast<uint>(str.length()));
   }
   bool append(const char *s, uint32 arg_length);
   bool append(const char *s, uint32 arg_length, const CHARSET_INFO *cs);

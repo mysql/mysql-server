@@ -5760,7 +5760,7 @@ void Item_func_get_system_var::fix_length_and_dec()
 
 void Item_func_get_system_var::print(String *str, enum_query_type query_type)
 {
-  str->append(item_name.ptr(), item_name.length());
+  str->append(item_name);
 }
 
 
