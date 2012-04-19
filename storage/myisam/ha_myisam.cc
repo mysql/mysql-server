@@ -1035,7 +1035,6 @@ int ha_myisam::repair(THD *thd, MI_CHECK &param, bool do_optimize)
   MYISAM_SHARE* share = file->s;
   ha_rows rows= file->state->records;
   DBUG_ENTER("ha_myisam::repair");
-  DBUG_ASSERT(file->lock_type != F_RDLCK);
 
   param.db_name=    table->s->db.str;
   param.table_name= table->alias;
