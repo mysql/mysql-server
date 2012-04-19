@@ -130,7 +130,9 @@ public:
   
   void add_keyuse(table_map remaining_tables, KEYUSE *keyuse)
   {
-    if (try_loosescan && keyuse->sj_pred_no != UINT_MAX)
+    if (try_loosescan && keyuse->sj_pred_no != UINT_MAX &&
+        (keyuse->table->file->index_flags(keyuse->key, 0, 1 ) & HA_READ_ORDER))
+
     {
       if (!(remaining_tables & keyuse->used_tables))
       {

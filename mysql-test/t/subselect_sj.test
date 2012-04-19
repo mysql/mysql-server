@@ -2390,6 +2390,9 @@ EXPLAIN
 SELECT * FROM t1 AS t1_1, t1 AS t1_2
   WHERE (t1_1.a, t1_2.a) IN ( SELECT a, b FROM v1 );
 
+SELECT * FROM t1 AS t1_1, t1 AS t1_2
+  WHERE (t1_1.a, t1_2.a) IN ( SELECT a, b FROM v1 );
+
 DROP VIEW v1;
 DROP TABLE t1;
 set @@join_cache_level= @tmp_jcl_978479;

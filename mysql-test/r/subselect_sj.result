@@ -2680,10 +2680,23 @@ EXPLAIN
 SELECT * FROM t1 AS t1_1, t1 AS t1_2
 WHERE (t1_1.a, t1_2.a) IN ( SELECT a, b FROM v1 );
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1_1	ALL	NULL	NULL	NULL	NULL	11	
-1	PRIMARY	<derived3>	ALL	NULL	NULL	NULL	NULL	11	Using where; LooseScan
-1	PRIMARY	t1_2	ALL	NULL	NULL	NULL	NULL	11	Using where
+1	PRIMARY	t1_1	ALL	NULL	NULL	NULL	NULL	11	Using where
+1	PRIMARY	<derived3>	ref	key0	key0	5	test.t1_1.a	2	Start temporary
+1	PRIMARY	t1_2	ALL	NULL	NULL	NULL	NULL	11	Using where; End temporary
 3	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	11	
+SELECT * FROM t1 AS t1_1, t1 AS t1_2
+WHERE (t1_1.a, t1_2.a) IN ( SELECT a, b FROM v1 );
+a	b	a	b
+3	1	9	1
+5	8	4	0
+3	9	9	1
+2	4	6	8
+2	4	4	0
+2	6	6	8
+2	6	4	0
+5	4	4	0
+7	7	7	7
+5	4	4	0
 DROP VIEW v1;
 DROP TABLE t1;
 set @@join_cache_level= @tmp_jcl_978479;
