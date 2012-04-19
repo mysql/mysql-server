@@ -1582,13 +1582,8 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
         ((field_flags >> COLUMN_FORMAT_SHIFT)& COLUMN_FORMAT_MASK);
       DBUG_PRINT("debug", ("field flags: %u, storage: %u, column_format: %u",
                            field_flags, field_storage, field_column_format));
-#ifndef MCP_WL3627
       reg_field->set_storage_type((ha_storage_media)field_storage);
       reg_field->set_column_format((column_format_type)field_column_format);
-#else
-      (void)field_storage; /* Reserved by and used in MySQL Cluster */
-      (void)field_column_format; /* Reserved by and used in MySQL Cluster */
-#endif
     }
   }
   *field_ptr=0;					// End marker
