@@ -9181,10 +9181,10 @@ end:
              0 success
 */
 int
-Rows_log_event::init_row_update_or_delete()
+Rows_log_event::row_operations_scan_and_key_setup()
 {
   int error= 0;
-  DBUG_ENTER("Row_log_event::init_update_or_delete");
+  DBUG_ENTER("Row_log_event::row_operations_scan_and_key_setup");
 
   /*
      Prepare memory structures for search operations. If
@@ -9221,7 +9221,7 @@ err:
 }
 
 /*
-  Encapsulates the  operations to be done afetr applying
+  Encapsulates the  operations to be done after applying
   row events for update and delete.
 
   @ret value error code
@@ -9229,13 +9229,10 @@ err:
 */
 
 int
-Rows_log_event::finish_row_update_or_delete(int error)
+Rows_log_event::row_operations_scan_and_key_teardown(int error)
 {
 
-  DBUG_ENTER("Rows_log_event::finish_row_update_or_delete");
-
-  if (m_table->file->inited)
-    m_table->file->ha_index_or_rnd_end();
+  DBUG_ENTER("Rows_log_event::row_operations_scan_and_key_teardown");
 
   switch (m_rows_lookup_algorithm)
   {
@@ -11875,7 +11872,7 @@ Delete_rows_log_event::do_before_row_operations(const Slave_reporting_capability
 {
   int error= 0;
   DBUG_ENTER("Delete_rows_log_event::do_before_row_operations");
-  error= init_row_update_or_delete();
+  error= row_operations_scan_and_key_setup();
   DBUG_RETURN(error);
 }
 
@@ -11884,7 +11881,7 @@ Delete_rows_log_event::do_after_row_operations(const Slave_reporting_capability 
                                                int error)
 {
   DBUG_ENTER("Delete_rows_log_event::do_after_row_operations");
-  error= finish_row_update_or_delete(error);
+  error= row_operations_scan_and_key_teardown(error);
   DBUG_RETURN(error);
 }
 
@@ -11973,7 +11970,7 @@ Update_rows_log_event::do_before_row_operations(const Slave_reporting_capability
 {
   int error= 0;
   DBUG_ENTER("Update_rows_log_event::do_before_row_operations");
-  error= init_row_update_or_delete();
+  error= row_operations_scan_and_key_setup();
   DBUG_RETURN(error);
 }
 
@@ -11982,7 +11979,7 @@ Update_rows_log_event::do_after_row_operations(const Slave_reporting_capability 
                                                int error)
 {
   DBUG_ENTER("Update_rows_log_event::do_after_row_operations");
-  error= finish_row_update_or_delete(error);
+  error= row_operations_scan_and_key_teardown(error);
   DBUG_RETURN(error);
 }
 
