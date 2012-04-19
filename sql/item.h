@@ -156,7 +156,7 @@ public:
 class NameString: public SimpleCString
 {
 private:
-  void set_or_copy(const char *str, uint length, bool is_null_terminated)
+  void set_or_copy(const char *str, size_t length, bool is_null_terminated)
   {
     if (is_null_terminated)
       set(str, length);
