@@ -39,16 +39,14 @@ EXTRA_DIST = README.txt utils \
 
 ## ----------------------------------------------------------------------
 
-## list of jar files to install
-##   cannot use _LIBRARIES primary, which does not recognize .jar files;
-##   with _DATA, prefix dist_ is needed to add files to the distribution;
-##   with _DATA, prefix noinst_ seems not applicable.
+## list of jar files to build
 noinst_DATA = $(NDBJTIE_JAR)
 
 ## dependencies
 JTIE_JAR = $(srcdir)/jtie/jtie-@JAVA_NDB_VERSION@.jar
 CLASSPATH_ENV = CLASSPATH=.:$(JTIE_JAR)
 
+## build directories
 JAVAROOT=$(srcdir)/target/classes
 JAVAHROOT=$(srcdir)/target
 

@@ -543,12 +543,16 @@ AC_DEFUN([MYSQL_CHECK_NDB_OPTIONS], [
     # generate ndbjtie unit tests:
     AC_CONFIG_FILES([storage/ndb/src/ndbjtie/test/test_mutils.sh],
            [chmod +x storage/ndb/src/ndbjtie/test/test_mutils.sh])
+    AC_CONFIG_FILES([storage/ndb/src/ndbjtie/test/test_ndbjtie_constants.sh],
+           [chmod +x storage/ndb/src/ndbjtie/test/test_ndbjtie_constants.sh])
     AC_CONFIG_FILES([storage/ndb/src/ndbjtie/test/test_ndbjtie_multilib.sh],
            [chmod +x storage/ndb/src/ndbjtie/test/test_ndbjtie_multilib.sh])
     AC_CONFIG_FILES([storage/ndb/src/ndbjtie/test/test_ndbjtie_smoke.sh],
            [chmod +x storage/ndb/src/ndbjtie/test/test_ndbjtie_smoke.sh])
     AC_CONFIG_FILES([storage/ndb/src/ndbjtie/test/test_unload_mutils.sh],
            [chmod +x storage/ndb/src/ndbjtie/test/test_unload_mutils.sh])
+    AC_CONFIG_FILES([storage/ndb/src/ndbjtie/test/test_unload_ndbjtie_constants.sh],
+           [chmod +x storage/ndb/src/ndbjtie/test/test_unload_ndbjtie_constants.sh])
     AC_CONFIG_FILES([storage/ndb/src/ndbjtie/test/test_unload_ndbjtie_multilib.sh],
            [chmod +x storage/ndb/src/ndbjtie/test/test_unload_ndbjtie_multilib.sh])
     AC_CONFIG_FILES([storage/ndb/src/ndbjtie/test/test_unload_ndbjtie_smoke.sh],
