@@ -1698,7 +1698,7 @@ int ha_tokudb::initialize_share(
 
     share->has_unique_keys = false;
     /* Open other keys;  These are part of the share structure */
-    for (uint i = 0; i < table_share->keys + test(hidden_primary_key); i++) {
+    for (uint i = 0; i < table_share->keys; i++) {
         if (table_share->key_info[i].flags & HA_NOSAME) {
             share->has_unique_keys = true;
         }
@@ -10092,9 +10092,13 @@ ha_tokudb::check(THD *thd, HA_CHECK_OPT *check_opt) {
         for (uint i = 0; i < num_DBs; i++) {
             time_t now;
             DB *db = share->key_file[i];
-            const char *kname = table_share->key_info[i].name;
-            if (i == primary_key)
+            const char *kname = NULL;
+            if (i == primary_key) {
                 kname = "primary"; // hidden primary key does not set name
+            }
+            else {
+                kname = table_share->key_info[i].name;
+            }
             snprintf(write_status_msg, sizeof write_status_msg, "%s key=%s %u", share->table_name, kname, i);
             thd_proc_info(thd, write_status_msg);
             if (ha_tokudb_check_verbose) {
