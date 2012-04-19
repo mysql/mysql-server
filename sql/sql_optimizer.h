@@ -409,6 +409,7 @@ public:
     all_tables= 0;
     tables= 0;
     const_tables= 0;
+    const_table_map= 0;
     join_list= 0;
     implicit_grouping= FALSE;
     sort_and_group= 0;

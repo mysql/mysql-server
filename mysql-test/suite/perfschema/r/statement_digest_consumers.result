@@ -98,30 +98,30 @@ Warning	1265	Data truncated for column 'c' at row 1
 ####################################
 SELECT digest, digest_text, count_star FROM performance_schema.events_statements_summary_by_digest;
 digest	digest_text	count_star
-a938a1f31256fd2ec1bc3cda9b7a8519	TRUNCATE TABLE performance_schema . events_statements_summary_by_digest  	1
-e7f8dc15f1156f57978116e457cc7488	SELECT ? FROM t1  	1
-29c3f8abab7962fe1f664a51fca9effc	SELECT ? FROM `t1`  	1
-ca50ee9fccc00a2c95e44ef3feea866a	SELECT ?, ... FROM t1  	2
-3b8d5477aa795a19c9e9183e4ad04e6b	SELECT ? FROM t2  	1
-8067bb511c3620aac5388c5674b328a0	SELECT ?, ... FROM t2  	2
-a58cc957ffdd32c2cffeffa65b6c9324	INSERT INTO t1 VALUES (?)  	1
-439869529508fe62007c6f97890a43ae	INSERT INTO t2 VALUES (?)  	1
-a9f32e4c511753d7317a014630050274	INSERT INTO t3 VALUES (...)  	4
-55351862b4cc299bfd9958920936dc34	INSERT INTO t4 VALUES (...)  	1
-976ba1912e3bf2d29fb0eefed75c9f89	INSERT INTO t5 VALUES (...)  	1
-de71aea3aaab6826e52c690197c28a42	INSERT INTO t1 VALUES (?) /* , ... */  	2
-51a351f92e6fd34cef43add51eef65fe	INSERT INTO t3 VALUES (...) /* , ... */  	1
-85ec05195fd87103b8e751c559abe9d4	INSERT INTO t5 VALUES (...) /* , ... */  	1
-c72a99dab537b00f123fcb1c87c74115	INSERT INTO t1 VALUES ( NULL )  	1
-799c87eedbd26b27146c7f01cf275a9a	INSERT INTO t6 VALUES (...)  	5
-e50a377fe96a344be8496148bcd60407	SELECT ? + ?  	3
-08bcb063d9c3c6ac9e150ec7c727eea7	SELECT ?  	1
-30046d97cfdc44c95bdaa7f3987d0a20	CREATE SCHEMA statements_digest_temp  	2
-8e40e6461f3ab4454ddb8f21b5cda3ba	DROP SCHEMA statements_digest_temp  	2
-2fb7a70cbcfbc2e1900375406b9e4fca	SELECT ? FROM t11  	1
-1cfadd74d3e5f992ae8ae694c86fc9ec	CREATE TABLE t11 ( c CHARACTER (?) )  	2
-367c6d0eb00c1a6e553deddc195a6061	INSERT INTO t11 VALUES (?)  	1
-756f25d54bb3daf92c54903b6584586c	SHOW WARNINGS  	1
+70ecd9c9e447fe343322f29d53fe454f	TRUNCATE TABLE performance_schema . events_statements_summary_by_digest  	1
+5d495852490f30472a5e451973f373c1	SELECT ? FROM t1  	1
+cb0826a38cf1d9e8c77eba5d7d6fb875	SELECT ? FROM `t1`  	1
+e4473381b53762af1eb5c12614374f7c	SELECT ?, ... FROM t1  	2
+ceee8936a87a0f5175734f5f10e7057c	SELECT ? FROM t2  	1
+a7830790d49ef281f87e24d71515aab4	SELECT ?, ... FROM t2  	2
+80aecfb2707101fc47d6e7fb2de6832f	INSERT INTO t1 VALUES (?)  	1
+3dd3e7bef876fec44fb2a896978ecde9	INSERT INTO t2 VALUES (?)  	1
+9fed5893f1e2c272b47f1790acf6d3a1	INSERT INTO t3 VALUES (...)  	4
+3d4ff83706c001cbc58741e4583d7b0f	INSERT INTO t4 VALUES (...)  	1
+d5c4d8be8f940d3eba1c0c5ae1dc512d	INSERT INTO t5 VALUES (...)  	1
+672215bee7346eba333bf643cfd85563	INSERT INTO t1 VALUES (?) /* , ... */  	2
+af4f2ef1970475437400e5742e5ec4ed	INSERT INTO t3 VALUES (...) /* , ... */  	1
+c8c6cea379a59bd54868aa6a02988de5	INSERT INTO t5 VALUES (...) /* , ... */  	1
+ae280d97097bae4d293c1a986ed28418	INSERT INTO t1 VALUES ( NULL )  	1
+ebbe3cb851969592e6fc25921fa7b53b	INSERT INTO t6 VALUES (...)  	5
+7f07c2f5d5254f45a3365d0a98015862	SELECT ? + ?  	3
+70d3e4d0f131fc5324edc990fbed3bd8	SELECT ?  	1
+fb40aece1f68b5c3fbaf220bc21ad353	CREATE SCHEMA statements_digest_temp  	2
+622ef9323ed99ee165d79477219a693b	DROP SCHEMA statements_digest_temp  	2
+cc0ef8eb2f92a6ddf2e93fef99044c92	SELECT ? FROM t11  	1
+48730227c5e53dfb6ee765c251930bc6	CREATE TABLE t11 ( c CHARACTER (?) )  	2
+5426115bb326553db15da35d0c520b2b	INSERT INTO t11 VALUES (?)  	1
+9e23973ea6beef1737da28d6372eebdc	SHOW WARNINGS  	1
 SELECT digest, digest_text FROM performance_schema.events_statements_current;
 digest	digest_text
 ####################################
