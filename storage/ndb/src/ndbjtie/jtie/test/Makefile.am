@@ -26,9 +26,15 @@ EXTRA_DIST = CMakeLists.txt
 
 ## build a noninstalled test program
 noinst_PROGRAMS = jtie_unit_tests-t
+
+## source files to build the program (dist_ by default)
 jtie_unit_tests_t_SOURCES = jtie_unit_tests-t.cpp
+
+## per-target compilation flags (overrides the AM_ but not the user flags)
+jtie_unit_tests_t_CPPFLAGS = -I$(top_srcdir)/storage/ndb/include
+
+## mode-specific libtool options (overrides AM_LDFLAGS)
 jtie_unit_tests_t_LDFLAGS = -no-undefined ## build self-contained executable
-jtie_unit_tests_t_CXXFLAGS = -I$(top_srcdir)/storage/ndb/include
 
 ## ----------------------------------------------------------------------
 
