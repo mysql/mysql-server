@@ -251,13 +251,11 @@ dict_mem_table_col_rename_low(
 /*==========================*/
 	dict_table_t*	table,	/*!< in/out: table */
 	unsigned	i,	/*!< in: column offset corresponding to s */
-	const char*	from,	/*!< in: old column name */
 	const char*	to,	/*!< in: new column name */
 	const char*	s)	/*!< in: pointer to table->col_names */
 {
-	size_t from_len = strlen(from), to_len = strlen(to);
+	size_t from_len = strlen(s), to_len = strlen(to);
 
-	ut_ad(!strcmp(from, s));
 	ut_ad(i < table->n_def);
 
 	if (from_len == to_len) {
@@ -348,9 +346,19 @@ dict_mem_table_col_rename_low(
 
 			if (strcmp(foreign->referenced_col_names[f],
 				   col_name)) {
-				foreign->referenced_col_names[f]
-					= mem_heap_strdup(
-						foreign->heap, col_name);
+				char**	rc = const_cast<char**>(
+					foreign->referenced_col_names + f);
+				size_t	col_name_len_1 = strlen(col_name) + 1;
+
+				if (col_name_len_1 <= strlen(*rc) + 1) {
+					memcpy(*rc, col_name, col_name_len_1);
+				} else {
+					*rc = static_cast<char*>(
+						mem_heap_dup(
+							foreign->heap,
+							col_name,
+							col_name_len_1));
+				}
 			}
 		}
 	}
@@ -381,7 +389,7 @@ dict_mem_table_col_rename(
 	Proceed with the renaming anyway. */
 	ut_ad(!strcmp(from, s));
 
-	dict_mem_table_col_rename_low(table, nth_col, from, to, s);
+	dict_mem_table_col_rename_low(table, nth_col, to, s);
 }
 
 /**********************************************************************//**
