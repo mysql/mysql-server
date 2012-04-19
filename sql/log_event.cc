@@ -9234,6 +9234,7 @@ Rows_log_event::row_operations_scan_and_key_teardown(int error)
 
   DBUG_ENTER("Rows_log_event::row_operations_scan_and_key_teardown");
 
+  DBUG_ASSERT(!m_table->file->inited);
   switch (m_rows_lookup_algorithm)
   {
   case ROW_LOOKUP_HASH_SCAN:
