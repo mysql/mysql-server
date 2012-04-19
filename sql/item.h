@@ -181,7 +181,7 @@ public:
   NameString(const LEX_STRING str, bool is_null_terminated):
     SimpleCString()
   {
-    set_or_copy(str.str, str.length, is_null_terminated);
+    set_or_copy(str.str, (uint) str.length, is_null_terminated);
   }
   /**
     Allocate space using sql_strmake() or sql_strmake_with_convert().
@@ -200,11 +200,11 @@ public:
   }
   void copy(const LEX_STRING lex)
   {
-    copy(lex.str, lex.length);
+    copy(lex.str, (uint) lex.length);
   }
   void copy(const LEX_STRING *lex)
   {
-    copy(lex->str, lex->length);
+    copy(lex->str, (uint) lex->length);
   }
   void copy(const NameString str)
   {
@@ -2899,7 +2899,7 @@ class Item_return_date_time :public Item_partition_func_safe_string
   enum_field_types date_time_field_type;
 public:
   Item_return_date_time(const char *name_arg, enum_field_types field_type_arg)
-    :Item_partition_func_safe_string(NameString((char *) name_arg, strlen(name_arg)),
+    :Item_partition_func_safe_string(NameString((char *) name_arg, (uint) strlen(name_arg)),
                                      0, &my_charset_bin),
      date_time_field_type(field_type_arg)
   { decimals= 0; }
@@ -2911,7 +2911,7 @@ class Item_blob :public Item_partition_func_safe_string
 {
 public:
   Item_blob(const char *name, uint length) :
-    Item_partition_func_safe_string(NameString((char *) name, strlen(name)),
+    Item_partition_func_safe_string(NameString((char *) name, (uint) strlen(name)),
                                     length, &my_charset_bin)
   { }
   enum Type type() const { return TYPE_HOLDER; }
@@ -2930,7 +2930,7 @@ class Item_empty_string :public Item_partition_func_safe_string
 public:
   Item_empty_string(const char *header, uint length,
                     const CHARSET_INFO *cs= NULL) :
-    Item_partition_func_safe_string(NameString((char *)header, strlen(header)),
+    Item_partition_func_safe_string(NameString((char *)header, (uint) strlen(header)),
                                     0, cs ? cs : &my_charset_utf8_general_ci)
     {
       max_length= length * collation.collation->mbmaxlen;
@@ -2945,7 +2945,7 @@ class Item_return_int :public Item_int
 public:
   Item_return_int(const char *name_arg, uint length,
 		  enum_field_types field_type_arg, longlong value= 0)
-    :Item_int(NameString(name_arg, name_arg ? strlen(name_arg) : 0),
+    :Item_int(NameString(name_arg, name_arg ? (uint) strlen(name_arg) : 0),
               value, length), int_field_type(field_type_arg)
   {
     unsigned_flag=1;
