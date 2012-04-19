@@ -119,10 +119,10 @@ enum enum_server_command
   Was part of old online ALTER API, flag is now unused.
 */
 #define FIELD_IS_RENAMED (1<< 21)       /* Intern: Field is being renamed */
-#define FIELD_FLAGS_STORAGE_MEDIA 22    /* Field storage media, bit 22-23,
-                                           reserved by MySQL Cluster */
-#define FIELD_FLAGS_COLUMN_FORMAT 24    /* Field column format, bit 24-25,
-                                           reserved by MySQL Cluster */
+#define FIELD_FLAGS_STORAGE_MEDIA 22    /* Field storage media, bit 22-23 */
+#define FIELD_FLAGS_STORAGE_MEDIA_MASK (3 << FIELD_FLAGS_STORAGE_MEDIA)
+#define FIELD_FLAGS_COLUMN_FORMAT 24    /* Field column format, bit 24-25 */
+#define FIELD_FLAGS_COLUMN_FORMAT_MASK (3 << FIELD_FLAGS_COLUMN_FORMAT)
 
 #define REFRESH_GRANT		1	/* Refresh grant tables */
 #define REFRESH_LOG		2	/* Start on new log file */
