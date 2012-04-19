@@ -38,7 +38,7 @@ class Relay_log_info;
    no index on the slave's table.
  */
 
-typedef struct hash_row_pos_entry
+typedef struct hash_row_pos_st
 {
   /** 
       Points at the position where the row starts in the
@@ -51,8 +51,46 @@ typedef struct hash_row_pos_entry
   const uchar *ai_start;
   const uchar *ai_ends;
 
-} HASH_ROW_POS_ENTRY;
+} HASH_ROW_POS;
 
+
+/**
+   Internal structure that acts as a preamble for HASH_ROW_POS
+   in memory structure. 
+   
+   Allocation is done in Hash_slave_rows::make_entry as part of 
+   the entry allocation.
+ */
+typedef struct hash_row_preamble_st
+{
+  /*
+    The actual key.
+   */
+  my_hash_value_type hash_value;
+
+  /**  
+    Length of the key.
+   */
+  uint length;
+
+  /**  
+    The search state used to iterate over multiple entries for a
+    given key.
+   */
+  HASH_SEARCH_STATE search_state;
+
+  /**  
+    Wether this search_state is usable or not.
+   */
+  bool is_search_state_inited;
+
+} HASH_ROW_PREAMBLE;
+
+typedef struct hash_row_entry_st
+{
+  HASH_ROW_PREAMBLE *preamble;
+  HASH_ROW_POS *positions;
+} HASH_ROW_ENTRY;
 
 class Hash_slave_rows 
 {
@@ -72,8 +110,8 @@ public:
                      after image ends (if any).
      @returns NULL if a problem occured, a valid pointer otherwise.
    */
-  HASH_ROW_POS_ENTRY* make_entry(const uchar *bi_start, const uchar *bi_ends,
-                                 const uchar *ai_start, const uchar *ai_ends);
+  HASH_ROW_ENTRY* make_entry(const uchar *bi_start, const uchar *bi_ends,
+                             const uchar *ai_start, const uchar *ai_ends);
 
   /**
      Puts data into the hash table.
@@ -85,7 +123,7 @@ public:
 
      @returns true if something went wrong, false otherwise.
    */
-  bool put(TABLE* table, MY_BITMAP *cols, HASH_ROW_POS_ENTRY* entry);
+  bool put(TABLE* table, MY_BITMAP *cols, HASH_ROW_ENTRY* entry);
 
   /**
      Gets the entry, from the hash table, that matches the data in
@@ -100,7 +138,7 @@ public:
               found. If the entry is not found then NULL shall be
               returned.
    */
-  HASH_ROW_POS_ENTRY* get(TABLE *table, MY_BITMAP *cols);
+  HASH_ROW_ENTRY* get(TABLE *table, MY_BITMAP *cols);
 
   /**
      Gets the entry that stands next to the one pointed to by
@@ -118,7 +156,7 @@ public:
               operation this member function returns true and does not
               update the pointer.
    */
-  bool next(HASH_ROW_POS_ENTRY** entry);
+  bool next(HASH_ROW_ENTRY** entry);
 
   /**
      Deletes the entry pointed by entry. It also frees memory used
@@ -129,7 +167,7 @@ public:
      @param entry  Pointer to the entry to be deleted.
      @returns true if something went wrong, false otherwise.
    */
-  bool del(HASH_ROW_POS_ENTRY* entry);
+  bool del(HASH_ROW_ENTRY* entry);
 
   /**
      Initializes the hash table.

@@ -9083,16 +9083,8 @@ search_key_in_table(TABLE *table, MY_BITMAP *bi_cols, uint key_type)
 void
 Rows_log_event::decide_row_lookup_algorithm_and_key()
 {
+
   DBUG_ENTER("decide_row_lookup_algorithm_and_key");
-
-  TABLE *table= this->m_table;
-  uint event_type= this->get_type_code();
-  MY_BITMAP *cols= &this->m_cols;
-  this->m_rows_lookup_algorithm= ROW_LOOKUP_NOT_NEEDED;
-  this->m_key_index= MAX_KEY;
-
-  if (event_type == WRITE_ROWS_EVENT)  // Not needed
-    DBUG_VOID_RETURN;
 
   /*
     Decision table:
@@ -9110,6 +9102,15 @@ Rows_log_event::decide_row_lookup_algorithm_and_key()
     |--------------+-----------+------+------+------|
 
   */
+
+  TABLE *table= this->m_table;
+  uint event_type= this->get_type_code();
+  MY_BITMAP *cols= &this->m_cols;
+  this->m_rows_lookup_algorithm= ROW_LOOKUP_NOT_NEEDED;
+  this->m_key_index= MAX_KEY;
+
+  if (event_type == WRITE_ROWS_EVENT)  // row lookup not needed
+    DBUG_VOID_RETURN;
 
   if (!(slave_rows_search_algorithms_options & SLAVE_ROWS_INDEX_SCAN))
     goto TABLE_OR_INDEX_HASH_SCAN;
@@ -9169,10 +9170,99 @@ end:
   DBUG_PRINT("debug", ("Row lookup method: %s", s));
 #endif
 
-  /* allocate memory and initialize hash */
-
-
   DBUG_VOID_RETURN;
+}
+
+/*
+  Encapsulates the  operations to be done before applying
+  row events for update and delete.
+
+  @ret value error code
+             0 success
+*/
+int
+Rows_log_event::init_row_update_or_delete()
+{
+  int error= 0;
+  DBUG_ENTER("Row_log_event::init_update_or_delete");
+
+  /*
+     Prepare memory structures for search operations. If
+     search is performed:
+
+     1. using hash search => initialize the hash
+     2. using key => decide on key to use and allocate mem structures
+     3. using table scan => do nothing
+   */
+  decide_row_lookup_algorithm_and_key();
+
+  switch (m_rows_lookup_algorithm)
+  {
+  case ROW_LOOKUP_HASH_SCAN:
+    {
+      if (m_hash.init())
+        error= HA_ERR_OUT_OF_MEM;
+      goto err;
+    }
+  case ROW_LOOKUP_INDEX_SCAN:
+    {
+      DBUG_ASSERT (m_key_index < MAX_KEY);
+      // Allocate buffer for key searches
+      m_key= (uchar*)my_malloc(MAX_KEY_LENGTH, MYF(MY_WME));
+      if (!m_key)
+        error= HA_ERR_OUT_OF_MEM;
+      goto err;
+    }
+  case ROW_LOOKUP_TABLE_SCAN:
+  default: break;
+  }
+err:
+  DBUG_RETURN(error);
+}
+
+/*
+  Encapsulates the  operations to be done afetr applying
+  row events for update and delete.
+
+  @ret value error code
+             0 success
+*/
+
+int
+Rows_log_event::finish_row_update_or_delete(int error)
+{
+
+  DBUG_ENTER("Rows_log_event::finish_row_update_or_delete");
+
+  if (m_table->file->inited)
+    m_table->file->ha_index_or_rnd_end();
+
+  switch (m_rows_lookup_algorithm)
+  {
+  case ROW_LOOKUP_HASH_SCAN:
+    {
+      m_hash.deinit(); // we don't need the hash anymore.
+      goto err;
+    }
+
+  case ROW_LOOKUP_INDEX_SCAN:
+    {
+      if (m_table->s->keys > 0)
+      {
+        my_free(m_key); // Free for multi_malloc
+        m_key= NULL;
+        m_key_index= MAX_KEY;
+      }
+     goto err;
+    }
+
+  case ROW_LOOKUP_TABLE_SCAN:
+  default: break;
+  }
+
+err:
+  m_rows_lookup_algorithm= ROW_LOOKUP_UNDEFINED;
+  DBUG_RETURN(error);
 }
 
 /*
@@ -9394,7 +9484,8 @@ Rows_log_event::close_record_scan()
     }
   }
   else
-    error= m_table->file->ha_rnd_end();
+    if (m_table->file->inited)
+      error= m_table->file->ha_rnd_end();
 
   DBUG_RETURN(error);
 }
@@ -9474,7 +9565,7 @@ Rows_log_event::next_record_scan(bool first_read)
 }
 
 /**
-  Initializes scanning of rows. Opens an index and initailizes an iterator
+  Initializes scanning of rows. Opens an index and initializes an iterator
   over a list of distinct keys (m_distinct_key_list) if it is a HASH_SCAN
   over an index or the table if its a HASH_SCAN over the table.
 */
@@ -9548,20 +9639,19 @@ end:
                 -Err_code
 */
 int
-Rows_log_event::add_distinct_keys()
+Rows_log_event::add_key_to_distinct_keyset()
 {
   int error= 0;
-  uint distinct= 0;
-  DBUG_ENTER("Rows_log_event::add_distinct_keys");
+  bool distinct= true;
+  DBUG_ENTER("Rows_log_event::add_key_to_distinct_keyset");
   DBUG_ASSERT(m_key_index < MAX_KEY);
   KEY *cur_key_info= m_table->key_info + m_key_index;
+
   if ((last_hashed_key))
     distinct= key_cmp(cur_key_info->key_part, last_hashed_key,
                       cur_key_info->key_length);
-    else //first row
-      distinct= 1;
 
-  if (distinct != 0)
+  if (distinct)
   {
     uchar *cur_key= (uchar *)my_malloc(cur_key_info->key_length,
                                        MYF(MY_WME));
@@ -9600,8 +9690,6 @@ int Rows_log_event::do_index_scan_and_update(Relay_log_info const *rli)
   prepare_record(table, &m_cols, FALSE);
   if ((error= unpack_current_row(rli, &m_cols)))
     goto end;
-
-  saved_m_curr_row= m_curr_row;
 
   // Temporary fix to find out why it fails [/Matz]
   memcpy(m_table->read_set->bitmap, m_cols.bitmap, (m_table->read_set->n_bits + 7) / 8);
@@ -9793,7 +9881,7 @@ int Rows_log_event::do_hash_scan_and_update(Relay_log_info const *rli)
   const uchar *bi_ends= NULL;
   const uchar *ai_start= NULL;
   const uchar *ai_ends= NULL;
-  HASH_ROW_POS_ENTRY* entry;
+  HASH_ROW_ENTRY* entry;
   int idempotent_errors= 0;
 
   DBUG_ENTER("Rows_log_event::do_hash_scan_and_update");
@@ -9831,7 +9919,7 @@ int Rows_log_event::do_hash_scan_and_update(Relay_log_info const *rli)
   /* add it to the hash table */
   m_hash.put(m_table, &m_cols, entry);
   if (m_key_index < MAX_KEY)
-    add_distinct_keys();
+    add_key_to_distinct_keyset();
 
   /*
     Last row hashed. We are handling the last (pair of) row(s).  So
@@ -9875,8 +9963,8 @@ int Rows_log_event::do_hash_scan_and_update(Relay_log_info const *rli)
            */
           while(entry)
           {
-            m_curr_row= entry->bi_start;
-            m_curr_row_end= entry->bi_ends;
+            m_curr_row= entry->positions->bi_start;
+            m_curr_row_end= entry->positions->bi_ends;
 
             if ((error= unpack_current_row(rli, &m_cols)))
               goto close_table;
@@ -9906,8 +9994,8 @@ int Rows_log_event::do_hash_scan_and_update(Relay_log_info const *rli)
                unpacked correctly to table->record[0] in UPDATE
                implementation of do_exec_row().
             */
-            m_curr_row= entry->bi_start;
-            m_curr_row_end= entry->bi_ends;
+            m_curr_row= entry->positions->bi_start;
+            m_curr_row_end= entry->positions->bi_ends;
 
             /* we don't need this entry anymore, just delete it */
             if ((error= m_hash.del(entry)))
@@ -9947,7 +10035,7 @@ int Rows_log_event::do_hash_scan_and_update(Relay_log_info const *rli)
      be empty. In such cases we count the number of idempotent errors and check
      if it is equal to or greater than the number of rows left in the hash.
     */
-    while (((idempotent_errors < m_hash.size()) && !m_hash.is_empty()) && 
+    while (((idempotent_errors < m_hash.size()) && !m_hash.is_empty()) &&
            (!error || (error == HA_ERR_RECORD_DELETED)));
 
 close_table:
@@ -10058,10 +10146,7 @@ end:
   else
     error= do_apply_row(rli);
 
-  /* close the index */
-  if (table->file->inited)
-    table->file->ha_rnd_end();
-
+  error= close_record_scan();
   if ((get_type_code() == UPDATE_ROWS_EVENT) &&
       (saved_m_curr_row == m_curr_row)) // we need to unpack the AI
   {
@@ -10293,37 +10378,29 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
      if ( m_width == table->s->fields && bitmap_is_set_all(&m_cols))
       set_flags(COMPLETE_ROWS_F);
 
-    /* 
+    /*
       Set tables write and read sets.
-      
+
       Read_set contains all slave columns (in case we are going to fetch
       a complete record from slave)
-      
-      Write_set equals the m_cols bitmap sent from master but it can be 
-      longer if slave has extra columns. 
-     */ 
+
+      Write_set equals the m_cols bitmap sent from master but it can be
+      longer if slave has extra columns.
+     */
 
     DBUG_PRINT_BITSET("debug", "Setting table's read_set from: %s", &m_cols);
-    
+
     bitmap_set_all(table->read_set);
     if (get_type_code() == DELETE_ROWS_EVENT ||
         get_type_code() == UPDATE_ROWS_EVENT)
         bitmap_intersect(table->read_set,&m_cols);
 
     bitmap_set_all(table->write_set);
-    if (!get_flags(COMPLETE_ROWS_F))
-    {
-      if (get_type_code() == UPDATE_ROWS_EVENT)
-      {
-        DBUG_PRINT_BITSET("debug", "Setting table's write_set from: %s", &m_cols_ai);
-        bitmap_intersect(table->write_set,&m_cols_ai);
-      }
-      else /* WRITE ROWS EVENTS store the bitmap in m_cols instead of m_cols_ai */     
-      {
-        DBUG_PRINT_BITSET("debug", "Setting table's write_set from: %s", &m_cols);
-        bitmap_intersect(table->write_set,&m_cols);
-      }
-    }
+
+    /* WRITE ROWS EVENTS store the bitmap in m_cols instead of m_cols_ai */
+    MY_BITMAP *after_image= ((get_type_code() == UPDATE_ROWS_EVENT) ?
+                             &m_cols_ai : &m_cols);
+    bitmap_intersect(table->write_set, after_image);
 
     this->slave_exec_mode= slave_exec_mode_options; // fix the mode
 
@@ -11665,8 +11742,8 @@ Write_rows_log_event::write_row(const Relay_log_info *const rli,
      */
 
     /*
-      If row is incomplete we will use the record found to fill 
-      missing columns.  
+      If row is incomplete we will use the record found to fill
+      missing columns.
     */
     if (!get_flags(COMPLETE_ROWS_F))
     {
@@ -11793,55 +11870,22 @@ Delete_rows_log_event::Delete_rows_log_event(const char *buf, uint event_len,
 
 #if !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION)
 
-int 
+int
 Delete_rows_log_event::do_before_row_operations(const Slave_reporting_capability *const)
 {
-  /* 
-     Prepare memory structures for search operations. If
-     search is performed:
-    
-     1. using hash search => initialize the hash
-     2. using key => decide on key to use and allocate mem structures
-     3. using table scan => do nothing
-   */
-  decide_row_lookup_algorithm_and_key();
-
-  if (m_rows_lookup_algorithm == ROW_LOOKUP_HASH_SCAN)
-  {
-    if (m_hash.init())
-      return HA_ERR_OUT_OF_MEM;
-  }
-
-  if ((m_rows_lookup_algorithm == ROW_LOOKUP_INDEX_SCAN) &&
-      (m_key_index < MAX_KEY))
-  {
-    // Allocate buffer for key searches
-    m_key= (uchar*)my_malloc(MAX_KEY_LENGTH, MYF(MY_WME));
-    if (!m_key)
-      return HA_ERR_OUT_OF_MEM;
-  }
-  return 0;
+  int error= 0;
+  DBUG_ENTER("Delete_rows_log_event::do_before_row_operations");
+  error= init_row_update_or_delete();
+  DBUG_RETURN(error);
 }
 
-int 
-Delete_rows_log_event::do_after_row_operations(const Slave_reporting_capability *const, 
+int
+Delete_rows_log_event::do_after_row_operations(const Slave_reporting_capability *const,
                                                int error)
 {
-  /*error= ToDo:find out what this should really be, this triggers close_scan in nbd, returning error?*/
-  m_table->file->ha_index_or_rnd_end();
-  if ((m_rows_lookup_algorithm == ROW_LOOKUP_INDEX_SCAN) &&
-      (m_key_index < MAX_KEY))
-  {
-    my_free(m_key); // Free for multi_malloc
-    m_key= NULL; 
-    m_key_index= MAX_KEY;
-  }
-
-  /* we don't need the hash anymore, free it */
-  if (m_rows_lookup_algorithm == ROW_LOOKUP_HASH_SCAN)
-    m_hash.deinit();
-  m_rows_lookup_algorithm= ROW_LOOKUP_UNDEFINED;
-  return error;
+  DBUG_ENTER("Delete_rows_log_event::do_after_row_operations");
+  error= finish_row_update_or_delete(error);
+  DBUG_RETURN(error);
 }
 
 int Delete_rows_log_event::do_exec_row(const Relay_log_info *const rli)
@@ -11924,60 +11968,25 @@ Update_rows_log_event::Update_rows_log_event(const char *buf, uint event_len,
 
 #if !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION)
 
-int 
+int
 Update_rows_log_event::do_before_row_operations(const Slave_reporting_capability *const)
 {
-  /* 
-     Prepare memory structures for search operations. If
-     search is performed:
-    
-     1. using hash search => initialize the hash
-     2. using key => decide on key to use and allocate mem structures
-     3. using table scan => do nothing
-   */
-  decide_row_lookup_algorithm_and_key();
-
-  if (m_rows_lookup_algorithm == ROW_LOOKUP_HASH_SCAN)
-  {
-    if (m_hash.init())
-      return HA_ERR_OUT_OF_MEM;
-  }
-
-  if ((m_rows_lookup_algorithm == ROW_LOOKUP_INDEX_SCAN) &&
-      (m_key_index < MAX_KEY))
-  {
-    // Allocate buffer for key searches
-    m_key= (uchar*)my_malloc(MAX_KEY_LENGTH, MYF(MY_WME));
-    if (!m_key)
-      return HA_ERR_OUT_OF_MEM;
-  }
-  return 0;
+  int error= 0;
+  DBUG_ENTER("Update_rows_log_event::do_before_row_operations");
+  error= init_row_update_or_delete();
+  DBUG_RETURN(error);
 }
 
-int 
-Update_rows_log_event::do_after_row_operations(const Slave_reporting_capability *const, 
+int
+Update_rows_log_event::do_after_row_operations(const Slave_reporting_capability *const,
                                                int error)
 {
-  /*error= ToDo:find out what this should really be, this triggers close_scan in nbd, returning error?*/
-  m_table->file->ha_index_or_rnd_end();
-
-  if ((m_table->s->keys > 0) &&
-      (m_rows_lookup_algorithm == ROW_LOOKUP_INDEX_SCAN))
-  {
-    my_free(m_key); // Free for multi_malloc
-    m_key= NULL;
-    m_key_index= MAX_KEY;
-  }
-
-  /* we don't need the hash anymore, free it */
-  if (m_rows_lookup_algorithm == ROW_LOOKUP_HASH_SCAN)  
-    m_hash.deinit();
-  m_rows_lookup_algorithm= ROW_LOOKUP_UNDEFINED;
-
-  return error;
+  DBUG_ENTER("Update_rows_log_event::do_after_row_operations");
+  error= finish_row_update_or_delete(error);
+  DBUG_RETURN(error);
 }
 
-int 
+int
 Update_rows_log_event::do_exec_row(const Relay_log_info *const rli)
 {
   DBUG_ASSERT(m_table != NULL);

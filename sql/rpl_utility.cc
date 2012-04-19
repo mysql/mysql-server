@@ -1171,91 +1171,6 @@ bool event_checksum_test(uchar *event_buf, ulong event_len, uint8 alg)
   Utility methods for handling row based operations.
  */
 
-/**
-
-   Internal structure that acts as a preamble for HASH_ROW_POS_ENTRY
-   in memory structure. Allocation in make_entry is done as follows:
-
-   preamble_ptr= malloc (sizeof(preamble)+sizeof(entry));
-   entry_ptr= preamble_ptr+1;
-
-   preamble_ptr  -----> |-HASH_ROWS_POS_PREAMBLE--|
-                        | - hash_value            |
-                        | - length                |
-                        | - is_search_state_inited|
-                        | - search_state          |
-                        |                         |
-   entry_ptr     -----> |-HASH_ROW_POS_ENTRY------|
-                        | - bi_start              |
-                        | - bi_ends               |
-                        | - ai_start              |
-                        | - ai_ends               |
-                        |                         |
-                        |-------------------------|
-
-
-   return entry_ptr;
-
-   When iterating over an entry with multiple records, we can just use
-   pointer arithmetic to retrieve the preamble pointer. This way we
-   hide from the hash table user the gory details of key bookeeping
-   for the hash (including collision handling).
-
-*/
-typedef struct hash_row_pos_preamble
-{
-
-  /**
-     The actual key.
-  */
-  my_hash_value_type hash_value;
-
-  /**
-     Length of the key.
-  */
-  uint length;
-
-  /**
-     The search state used to iterate over multiple entries for a
-     given key.
-  */
-  HASH_SEARCH_STATE search_state;
-
-  /**
-     Wether this search_state is usable or not.
-   */
-  bool is_search_state_inited;
-
-} HASH_ROW_POS_PREAMBLE;
-
-
-/**
-  Auxiliar and internal member function used to get the pointer for
-  an entry preamble. Dual of @c get_entry.
-
-  @param the entry from which we are calculating the preamble pointer.
-  @returns a pointer to the preamble.
- */
-static
-HASH_ROW_POS_PREAMBLE* get_preamble(HASH_ROW_POS_ENTRY* entry)
-{
-  return ((HASH_ROW_POS_PREAMBLE*)entry)-1;
-}
-
-/**
-  Auxiliar and internal member function used to get the entry when
-  given a pointer to a preamble. Dual of @c get_preamble.
-
-  @param the preamble from which we are calculating the entry pointer.
-  @returns a pointer to the entry.
-*/
-static
-HASH_ROW_POS_ENTRY* get_entry(HASH_ROW_POS_PREAMBLE* preamble)
-{
-  return (HASH_ROW_POS_ENTRY*) (preamble+1);
-}
-
-
 static uchar*
 hash_slave_rows_get_key(const uchar *record,
                         size_t *length,
@@ -1263,18 +1178,25 @@ hash_slave_rows_get_key(const uchar *record,
 {
   DBUG_ENTER("get_key");
 
-  HASH_ROW_POS_PREAMBLE *preamble=(HASH_ROW_POS_PREAMBLE *) record;
+  HASH_ROW_ENTRY *entry=(HASH_ROW_ENTRY *) record;
+  HASH_ROW_PREAMBLE *preamble= entry->preamble;
   *length= preamble->length;
 
   DBUG_RETURN((uchar*) &preamble->hash_value);
 }
 
 static void
-hash_slave_rows_free_entry(HASH_ROW_POS_PREAMBLE *preamble)
+hash_slave_rows_free_entry(HASH_ROW_ENTRY *entry)
 {
   DBUG_ENTER("free_entry");
-  if (preamble)
-    my_free(preamble);
+  if (entry)
+  {
+    if (entry->preamble)
+      my_free(entry->preamble);
+    if (entry->positions)
+      my_free(entry->positions);
+    my_free(entry);
+  }
   DBUG_VOID_RETURN;
 }
 
@@ -1314,21 +1236,17 @@ int Hash_slave_rows::size()
   return m_hash.records;
 }
 
-HASH_ROW_POS_ENTRY* Hash_slave_rows::make_entry(const uchar* bi_start, const uchar* bi_ends,
-                                                const uchar* ai_start, const uchar* ai_ends)
+HASH_ROW_ENTRY* Hash_slave_rows::make_entry(const uchar* bi_start, const uchar* bi_ends,
+                                            const uchar* ai_start, const uchar* ai_ends)
 {
   DBUG_ENTER("Hash_slave_rows::make_entry");
 
-  size_t size= sizeof(struct hash_row_pos_preamble) +
-               sizeof(struct hash_row_pos_entry);
+  HASH_ROW_ENTRY *entry= (HASH_ROW_ENTRY*) my_malloc(sizeof(HASH_ROW_ENTRY), MYF(0));
+  HASH_ROW_PREAMBLE *preamble= (HASH_ROW_PREAMBLE *) my_malloc(sizeof(HASH_ROW_PREAMBLE), MYF(0));
+  HASH_ROW_POS *pos= (HASH_ROW_POS *) my_malloc(sizeof(HASH_ROW_POS), MYF(0));
 
-  HASH_ROW_POS_PREAMBLE *preamble=
-    (HASH_ROW_POS_PREAMBLE*) my_malloc(size, MYF(0));
-
-  if (!preamble)
-    DBUG_RETURN(NULL);
-
-  HASH_ROW_POS_ENTRY* entry= get_entry(preamble);
+  if (!entry || !preamble || !pos)
+    goto err;
 
   /**
      Filling in the preamble.
@@ -1339,31 +1257,40 @@ HASH_ROW_POS_ENTRY* Hash_slave_rows::make_entry(const uchar* bi_start, const uch
   preamble->is_search_state_inited= false;
 
   /**
-     Filling in the values.
+     Filling in the positions.
    */
-  entry->bi_start= (const uchar *) bi_start;
-  entry->bi_ends= (const uchar *) bi_ends;
-  entry->ai_start= (const uchar *) ai_start;
-  entry->ai_ends= (const uchar *) ai_ends;
-
-  DBUG_PRINT("debug", ("Added record to hash with key=%u", preamble->hash_value));
+  pos->bi_start= (const uchar *) bi_start;
+  pos->bi_ends= (const uchar *) bi_ends;
+  pos->ai_start= (const uchar *) ai_start;
+  pos->ai_ends= (const uchar *) ai_ends;
 
   /**
-     Return the pointer to the entry. The caller should not
-     be exposed to the internal preamble.
+    Filling in the entry
    */
+  entry->preamble= preamble;
+  entry->positions= pos;
+
   DBUG_RETURN(entry);
+
+err:
+  if (entry)
+    my_free(entry);
+  if (preamble)
+    my_free(entry);
+  if (pos)
+    my_free(pos);
+  DBUG_RETURN(NULL);
 }
 
 bool
 Hash_slave_rows::put(TABLE *table,
                      MY_BITMAP *cols,
-                     HASH_ROW_POS_ENTRY* entry)
+                     HASH_ROW_ENTRY* entry)
 {
 
   DBUG_ENTER("Hash_slave_rows::put");
 
-  HASH_ROW_POS_PREAMBLE* preamble= get_preamble(entry);
+  HASH_ROW_PREAMBLE* preamble= entry->preamble;
 
   /**
      Skip blobs and BIT fields from key calculation.
@@ -1373,29 +1300,28 @@ Hash_slave_rows::put(TABLE *table,
   */
   preamble->hash_value= make_hash_key(table, cols);
 
-  my_hash_insert(&m_hash, (uchar *) preamble);
+  my_hash_insert(&m_hash, (uchar *) entry);
   DBUG_PRINT("debug", ("Added record to hash with key=%u", preamble->hash_value));
   DBUG_RETURN(false);
 }
 
-HASH_ROW_POS_ENTRY*
+HASH_ROW_ENTRY*
 Hash_slave_rows::get(TABLE *table, MY_BITMAP *cols)
 {
   DBUG_ENTER("Hash_slave_rows::get");
   HASH_SEARCH_STATE state;
-  HASH_ROW_POS_PREAMBLE* preamble;
   my_hash_value_type key;
-  HASH_ROW_POS_ENTRY* res= NULL;
+  HASH_ROW_ENTRY *entry= NULL;
 
   key= make_hash_key(table, cols);
 
   DBUG_PRINT("debug", ("Looking for record with key=%u in the hash.", key));
 
-  preamble= (HASH_ROW_POS_PREAMBLE*) my_hash_first(&m_hash,
-                                                   (const uchar*) &key,
-                                                   sizeof(my_hash_value_type),
-                                                   &state);
-  if (preamble)
+  entry= (HASH_ROW_ENTRY*) my_hash_first(&m_hash,
+                                         (const uchar*) &key,
+                                         sizeof(my_hash_value_type),
+                                         &state);
+  if (entry)
   {
     DBUG_PRINT("debug", ("Found record with key=%u in the hash.", key));
 
@@ -1403,16 +1329,14 @@ Hash_slave_rows::get(TABLE *table, MY_BITMAP *cols)
        Save the search state in case we need to go through entries for
        the given key.
     */
-    preamble->search_state= state;
-    preamble->is_search_state_inited= true;
-
-    res= get_entry(preamble);
+    entry->preamble->search_state= state;
+    entry->preamble->is_search_state_inited= true;
   }
 
-  DBUG_RETURN(res);
+  DBUG_RETURN(entry);
 }
 
-bool Hash_slave_rows::next(HASH_ROW_POS_ENTRY** entry)
+bool Hash_slave_rows::next(HASH_ROW_ENTRY** entry)
 {
   DBUG_ENTER("Hash_slave_rows::next");
   DBUG_ASSERT(*entry);
@@ -1420,7 +1344,7 @@ bool Hash_slave_rows::next(HASH_ROW_POS_ENTRY** entry)
   if (*entry == NULL)
     DBUG_RETURN(true);
 
-  HASH_ROW_POS_PREAMBLE* preamble= get_preamble(*entry);
+  HASH_ROW_PREAMBLE *preamble= (*entry)->preamble;
 
   if (!preamble->is_search_state_inited)
     DBUG_RETURN(true);
@@ -1441,20 +1365,20 @@ bool Hash_slave_rows::next(HASH_ROW_POS_ENTRY** entry)
   /**
      Do the actual search in the hash table.
    */
-  preamble= (HASH_ROW_POS_PREAMBLE*) my_hash_next(&m_hash,
-                                                  (const uchar*) &key,
-                                                  sizeof(my_hash_value_type),
-                                                  &state);
-  if (preamble)
+  *entry= (HASH_ROW_ENTRY*) my_hash_next(&m_hash,
+                                         (const uchar*) &key,
+                                         sizeof(my_hash_value_type),
+                                         &state);
+  if (*entry)
   {
     DBUG_PRINT("debug", ("Found record with key=%u in the hash (next).", key));
+    preamble= (*entry)->preamble;
 
     /**
        Save the search state for next iteration (if any).
      */
     preamble->search_state= state;
     preamble->is_search_state_inited= true;
-    *entry= get_entry(preamble);
   }
   else
     *entry= NULL;
@@ -1463,12 +1387,12 @@ bool Hash_slave_rows::next(HASH_ROW_POS_ENTRY** entry)
 }
 
 bool
-Hash_slave_rows::del(HASH_ROW_POS_ENTRY* entry)
+Hash_slave_rows::del(HASH_ROW_ENTRY *entry)
 {
   DBUG_ENTER("Hash_slave_rows::del");
   DBUG_ASSERT(entry);
 
-  if (my_hash_delete(&m_hash, (uchar *) get_preamble(entry)))
+  if (my_hash_delete(&m_hash, (uchar *) entry))
     DBUG_RETURN(true);
   DBUG_RETURN(false);
 }
