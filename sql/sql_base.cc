@@ -8326,6 +8326,11 @@ insert_fields(THD *thd, Name_resolution_context *context, const char *db_name,
         }
       }
 #endif
+      /*
+         field_iterator.create_item() builds used_items which we
+         have to save because changes made once and they are persistent
+      */
+      tables->persistent_used_items= tables->used_items;
 
       if ((field= field_iterator.field()))
       {
