@@ -9231,7 +9231,6 @@ err:
 int
 Rows_log_event::row_operations_scan_and_key_teardown(int error)
 {
-
   DBUG_ENTER("Rows_log_event::row_operations_scan_and_key_teardown");
 
   DBUG_ASSERT(!m_table->file->inited);
@@ -9468,9 +9467,12 @@ Rows_log_event::close_record_scan()
 {
   DBUG_ENTER("Rows_log_event::close_record_scan");
   int error= 0;
+
+  // if there is something to actually close
   if (m_key_index < MAX_KEY)
   {
-    error= m_table->file->ha_index_end();
+    if (m_table->file->inited)
+      error= m_table->file->ha_index_end();
 
     if(m_rows_lookup_algorithm == ROW_LOOKUP_HASH_SCAN)
     {
@@ -9481,9 +9483,8 @@ Rows_log_event::close_record_scan()
         my_free(key_val);
     }
   }
-  else
-    if (m_table->file->inited)
-      error= m_table->file->ha_rnd_end();
+  else if (m_table->file->inited)
+    error= m_table->file->ha_rnd_end();
 
   DBUG_RETURN(error);
 }
@@ -9852,8 +9853,14 @@ end:
   else
     error= do_apply_row(rli);
 
-  if (table->file->inited)
-    close_record_scan();
+  if (!error)
+    error= close_record_scan();  
+  else
+    /* 
+      we are already with errors. Keep the error code and 
+      try to close the scan anyway.
+    */
+    (void) close_record_scan(); 
 
   if ((get_type_code() == UPDATE_ROWS_EVENT) &&
       (saved_m_curr_row == m_curr_row))
@@ -10044,8 +10051,14 @@ close_table:
                           " (ha_rnd_next returns %d)",error));
     }
 
-    if (m_table->file->inited)
-      close_record_scan();
+    if (!error)
+      error= close_record_scan();  
+    else
+      /* 
+        we are already with errors. Keep the error code and 
+        try to close the scan anyway.
+      */
+      (void) close_record_scan(); 
 
     if (error == HA_ERR_RECORD_DELETED)
       error= 0;
@@ -10144,7 +10157,16 @@ end:
   else
     error= do_apply_row(rli);
 
-  error= close_record_scan();
+
+  if (!error)
+    error= close_record_scan();  
+  else
+    /* 
+      we are already with errors. Keep the error code and 
+      try to close the scan anyway.
+    */
+    (void) close_record_scan(); 
+
   if ((get_type_code() == UPDATE_ROWS_EVENT) &&
       (saved_m_curr_row == m_curr_row)) // we need to unpack the AI
   {

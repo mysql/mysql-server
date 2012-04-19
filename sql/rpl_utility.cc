@@ -1380,8 +1380,6 @@ bool Hash_slave_rows::next(HASH_ROW_ENTRY** entry)
     preamble->search_state= state;
     preamble->is_search_state_inited= true;
   }
-  else
-    *entry= NULL;
 
   DBUG_RETURN(false);
 }
