@@ -60,6 +60,8 @@ loose-performance-schema-max-table-handles=1000
 
 binlog-direct-non-transactional-updates
 
+default-storage-engine=myisam
+
 # here, at the end of [mysqld] group mtr will automatically disable
 # all optional plugins.
 
