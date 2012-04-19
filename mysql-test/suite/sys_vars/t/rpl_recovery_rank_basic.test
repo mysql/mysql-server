@@ -57,12 +57,21 @@ SET @@global.rpl_recovery_rank = 1024;
 SELECT @@global.rpl_recovery_rank;
 SET @@global.rpl_recovery_rank = 123456789;
 SELECT @@global.rpl_recovery_rank;
+
+--disable_warnings
 SET @@global.rpl_recovery_rank = 2147483648*2;
+--enable_warnings
+--replace_result 4294967296 4294967295
 SELECT @@global.rpl_recovery_rank;
+--disable_warnings
 SET @@global.rpl_recovery_rank = 2147483648*1024;
+--enable_warnings
+--replace_result 2199023255552 4294967295
 SELECT @@global.rpl_recovery_rank;
-SELECT @@global.rpl_recovery_rank;
+--disable_warnings
 SET @@global.rpl_recovery_rank = 2147483648*2147483648;
+--enable_warnings
+--replace_result 4611686018427387904 4294967295
 SELECT @@global.rpl_recovery_rank;
 
 

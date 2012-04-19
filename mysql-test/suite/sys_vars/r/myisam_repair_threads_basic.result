@@ -66,8 +66,6 @@ SELECT @@global.myisam_repair_threads ;
 @@global.myisam_repair_threads
 1
 SET @@global.myisam_repair_threads  = 429496729533;
-Warnings:
-Warning	1292	Truncated incorrect myisam_repair_threads value: '429496729533'
 SELECT @@global.myisam_repair_threads ;
 @@global.myisam_repair_threads
 4294967295

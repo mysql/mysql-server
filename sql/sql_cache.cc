@@ -1348,9 +1348,10 @@ ulong Query_cache::resize(ulong query_cache_size_arg)
 
 ulong Query_cache::set_min_res_unit(ulong size)
 {
+  DBUG_ASSERT(size % 8 == 0);
   if (size < min_allocation_unit)
-    size= min_allocation_unit;
-  return (min_result_data_size= ALIGN_SIZE(size));
+    size= ALIGN_SIZE(min_allocation_unit);
+  return (min_result_data_size= size);
 }
 
 

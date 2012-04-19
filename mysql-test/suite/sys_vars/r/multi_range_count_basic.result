@@ -109,9 +109,6 @@ SELECT @@global.multi_range_count;
 @@global.multi_range_count
 1
 SET @@global.multi_range_count = 4294967296;
-Warnings:
-Warning	1287	The syntax '@@multi_range_count' is deprecated and will be removed in MariaDB 5.7. Please use '@@mrr_buffer_size' instead
-Warning	1292	Truncated incorrect multi_range_count value: '4294967296'
 SELECT @@global.multi_range_count;
 @@global.multi_range_count
 4294967295
@@ -123,9 +120,6 @@ SELECT @@global.multi_range_count;
 @@global.multi_range_count
 1
 SET @@global.multi_range_count = 429496729500;
-Warnings:
-Warning	1287	The syntax '@@multi_range_count' is deprecated and will be removed in MariaDB 5.7. Please use '@@mrr_buffer_size' instead
-Warning	1292	Truncated incorrect multi_range_count value: '429496729500'
 SELECT @@global.multi_range_count;
 @@global.multi_range_count
 4294967295
@@ -147,9 +141,6 @@ SELECT @@session.multi_range_count;
 @@session.multi_range_count
 1
 SET @@session.multi_range_count = 4294967296;
-Warnings:
-Warning	1287	The syntax '@@multi_range_count' is deprecated and will be removed in MariaDB 5.7. Please use '@@mrr_buffer_size' instead
-Warning	1292	Truncated incorrect multi_range_count value: '4294967296'
 SELECT @@session.multi_range_count;
 @@session.multi_range_count
 4294967295
@@ -163,9 +154,6 @@ SELECT @@session.multi_range_count;
 SET @@session.multi_range_count = 65530.34.;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near '.' at line 1
 SET @@session.multi_range_count = 4294967295021;
-Warnings:
-Warning	1287	The syntax '@@multi_range_count' is deprecated and will be removed in MariaDB 5.7. Please use '@@mrr_buffer_size' instead
-Warning	1292	Truncated incorrect multi_range_count value: '4294967295021'
 SELECT @@session.multi_range_count;
 @@session.multi_range_count
 4294967295

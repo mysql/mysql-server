@@ -32,26 +32,17 @@ SELECT @@global.rpl_recovery_rank;
 @@global.rpl_recovery_rank
 123456789
 SET @@global.rpl_recovery_rank = 2147483648*2;
-Warnings:
-Warning	1287	The syntax '@@rpl_recovery_rank' is deprecated and will be removed in MariaDB 7.0.
 SELECT @@global.rpl_recovery_rank;
 @@global.rpl_recovery_rank
-4294967296
+4294967295
 SET @@global.rpl_recovery_rank = 2147483648*1024;
-Warnings:
-Warning	1287	The syntax '@@rpl_recovery_rank' is deprecated and will be removed in MariaDB 7.0.
 SELECT @@global.rpl_recovery_rank;
 @@global.rpl_recovery_rank
-2199023255552
-SELECT @@global.rpl_recovery_rank;
-@@global.rpl_recovery_rank
-2199023255552
+4294967295
 SET @@global.rpl_recovery_rank = 2147483648*2147483648;
-Warnings:
-Warning	1287	The syntax '@@rpl_recovery_rank' is deprecated and will be removed in MariaDB 7.0.
 SELECT @@global.rpl_recovery_rank;
 @@global.rpl_recovery_rank
-4611686018427387904
+4294967295
 '#--------------------FN_DYNVARS_142_03-------------------------#'
 SET @@rpl_recovery_rank = 2;
 ERROR HY000: Variable 'rpl_recovery_rank' is a GLOBAL variable and should be set with SET GLOBAL

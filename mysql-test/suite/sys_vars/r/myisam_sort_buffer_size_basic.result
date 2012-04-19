@@ -74,8 +74,6 @@ SELECT @@global.myisam_sort_buffer_size  ;
 @@global.myisam_sort_buffer_size
 4096
 SET @@global.myisam_sort_buffer_size   = 429496729533;
-Warnings:
-Warning	1292	Truncated incorrect myisam_sort_buffer_size value: '429496729533'
 SELECT @@global.myisam_sort_buffer_size  ;
 @@global.myisam_sort_buffer_size
 4294967295

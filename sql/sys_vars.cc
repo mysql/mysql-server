@@ -1892,7 +1892,7 @@ static Sys_var_ulong Sys_query_cache_min_res_unit(
        "The minimum size for blocks allocated by the query cache",
        GLOBAL_VAR(query_cache_min_res_unit), CMD_LINE(REQUIRED_ARG),
        VALID_RANGE(0, UINT_MAX), DEFAULT(QUERY_CACHE_MIN_RESULT_DATA_SIZE),
-       BLOCK_SIZE(1), NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0),
+       BLOCK_SIZE(8), NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0),
        ON_UPDATE(fix_qcache_min_res_unit));
 
 static const char *query_cache_type_names[]= { "OFF", "ON", "DEMAND", 0 };

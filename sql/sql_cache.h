@@ -41,7 +41,7 @@ typedef struct st_changed_table_list CHANGED_TABLE_LIST;
 #define QUERY_CACHE_DEF_TABLE_HASH_SIZE		1024
 
 /* minimal result data size when data allocated */
-#define QUERY_CACHE_MIN_RESULT_DATA_SIZE	1024*4
+#define QUERY_CACHE_MIN_RESULT_DATA_SIZE	(1024*4)
 
 /* 
    start estimation of first result block size only when number of queries
