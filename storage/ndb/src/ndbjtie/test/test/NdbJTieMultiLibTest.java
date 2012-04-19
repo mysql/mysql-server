@@ -43,6 +43,12 @@ public class NdbJTieMultiLibTest extends JTieTestBase {
         out.println();
         out.println("    loaded: " + NDBAPI.class);
 
+        // load native library and class #3
+        out.println();
+        loadSystemLibrary("ndbjtie_unit_tests");
+        out.println();
+        out.println("    loaded: " + NDBAPI.class);
+
         out.println();
         out.println("<-- NdbJTieMultiLibTest.test()");
     };
