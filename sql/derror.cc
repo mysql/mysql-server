@@ -158,12 +158,40 @@ Check that the above file is the right version for this program!",
 
   /* Free old language */
   my_free(*point);
-  if (!(*point= (const char**)
-	my_malloc((size_t) (length+count*sizeof(char*)),MYF(0))))
+
+  /* HACK: TO GET WL#5522 TO WORK AROUND THIS BUG.
+  Run under Valgrind and then To trigger: set LC_TIME_NAMES='ru_RU';
+  Or break point here and and trace.
+  (gdb) fra
+  #13 0x00000000006098ce in read_texts (file_name=0xe66ebf "errmsg.sys", 
+   language=0xe4a52c "russian", point=0x13f3018, error_messages=812)
+      at /home/subains/work/wl5522/sql/derror.cc:169
+      169      if (mysql_file_read(file, buff, (size_t) count*2, MYF(MY_NABP)))
+      (gdb) p *point
+      $40 = (const char * 0x1399ae00
+      (gdb) p sizeof(*point)
+      $41 = 8
+      (gdb) p buff
+      $42 = (uchar  0x1399c760 ""
+      (gdb) p buff - (char*) *point
+      $43 = 6496
+      (gdb) p count
+      $44 = 812
+      (gdb) 
+      (gdb) p length+count*sizeof(char*)
+      $45 = 6548
+      The memory allocated in by the my_malloc() call:
+  */
+  {
+  size_t sz = (size_t) length+count*sizeof(char*)*4;
+
+  if (!(*point= (const char**)my_malloc(sz, MYF(0))))
   {
     funktpos=2;					/* purecov: inspected */
     goto err;					/* purecov: inspected */
   }
+  }
+
   buff= (uchar*) (*point + count);
 
   if (mysql_file_read(file, buff, (size_t) count*2, MYF(MY_NABP)))
