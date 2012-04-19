@@ -178,7 +178,6 @@ enum enum_alter_inplace_result {
 */
 #define HA_CAN_REPAIR                    (LL(1) << 37)
 
-
 /*
   Set of all binlog flags. Currently only contain the capabilities
   flags.
