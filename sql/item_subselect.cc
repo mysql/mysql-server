@@ -757,7 +757,8 @@ void Item_subselect::fix_length_and_dec()
 
 table_map Item_subselect::used_tables() const
 {
-  return (table_map) (engine->uncacheable() ? used_tables_cache : 0L);
+  return (table_map) ((engine->uncacheable() & ~UNCACHEABLE_EXPLAIN)? 
+                      used_tables_cache : 0L);
 }
 
 
