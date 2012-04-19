@@ -5,10 +5,6 @@
 #ident "Copyright (c) 2007-2010 Tokutek Inc.  All rights reserved."
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
 
-#include "c_dialects.h"
-
-C_BEGIN
-
 // A toku_thread is toku_pthread that can be cached.
 struct toku_thread;
 
@@ -52,8 +48,5 @@ int toku_thread_pool_run(struct toku_thread_pool *pool, int dowait, int *nthread
 
 // Print the state of the thread pool
 void toku_thread_pool_print(struct toku_thread_pool *pool, FILE *out);
-
-C_END
-
 
 #endif

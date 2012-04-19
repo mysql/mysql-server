@@ -9,9 +9,6 @@
 #include <errno.h>
 #include "toku_assert.h"
 #include "toku_pthread.h"
-#include "c_dialects.h"
-
-C_BEGIN
 
 struct workitem;
 
@@ -216,8 +213,6 @@ void toku_destroy_workers(WORKQUEUE wq, THREADPOOL *tpptr);
 // pool. the arg is a pointer to the work queue that feeds work to the
 // workers.
 void *toku_worker(void *arg);
-
-C_END
 
 #endif
 

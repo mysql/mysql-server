@@ -10,9 +10,6 @@
 #include "queue.h"
 #include "toku_pthread.h"
 #include "dbufio.h"
-#include "c_dialects.h"
-
-C_BEGIN
 
 /* These functions are exported to allow the tests to compile. */
 
@@ -202,12 +199,9 @@ int merge_row_arrays_base (struct row dest[/*an+bn*/], struct row a[/*an*/], int
 
 int merge_files (struct merge_fileset *fs, BRTLOADER bl, int which_db, DB *dest_db, brt_compare_func, int progress_allocation, QUEUE);
 
-CILK_BEGIN
 int sort_and_write_rows (struct rowset rows, struct merge_fileset *fs, BRTLOADER bl, int which_db, DB *dest_db, brt_compare_func);
 
 int mergesort_row_array (struct row rows[/*n*/], int n, int which_db, DB *dest_db, brt_compare_func, BRTLOADER, struct rowset *);
-
-CILK_END
 
 //int write_file_to_dbfile (int outfile, FIDX infile, BRTLOADER bl, const DESCRIPTOR descriptor, int progress_allocation);
 int toku_merge_some_files_using_dbufio (const BOOL to_q, FIDX dest_data, QUEUE q, int n_sources, DBUFIO_FILESET bfs, FIDX srcs_fidxs[/*n_sources*/], BRTLOADER bl, int which_db, DB *dest_db, brt_compare_func compare, int progress_allocation);
@@ -260,7 +254,5 @@ int toku_brt_loader_get_error(BRTLOADER bl, int *loader_errno);
 int brt_loader_lock_init(BRTLOADER bl);
 void brt_loader_lock_destroy(BRTLOADER bl);
 void brt_loader_set_fractal_workers_count_from_c(BRTLOADER bl);
-
-C_END
 
 #endif

@@ -11,8 +11,6 @@
 #include "test.h"
 #include "brtloader-internal.h"
 
-C_BEGIN
-
 static int event_count, event_count_trigger;
 
 static void my_assert_hook (void) {
@@ -536,5 +534,3 @@ int test_main (int argc, const char *argv[]) {
 
     return 0;
 }
-
-C_END

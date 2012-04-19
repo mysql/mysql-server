@@ -13,10 +13,7 @@
 #include "cachetable.h"
 #include "log.h"
 #include "brt-search.h"
-#include "c_dialects.h"
 #include "compress.h"
-
-C_BEGIN
 
 // A callback function is invoked with the key, and the data.
 // The pointers (to the bytevecs) must not be modified.  The data must be copied out before the callback function returns.
@@ -313,7 +310,5 @@ int toku_brt_strerror_r(int error, char *buf, size_t buflen);
 // If error<0 then return a TokuDB-specific error code.  For unknown cases, we return -1 and set errno=EINVAL, even for cases that *should* be known.  (Not all DB errors are known by this function which is a bug.)
 
 extern BOOL garbage_collection_debug;
-
-C_END
 
 #endif

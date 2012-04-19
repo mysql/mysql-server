@@ -25,13 +25,10 @@
 #include "omt.h"
 #include "leafentry.h"
 #include "block_table.h"
-#include "c_dialects.h"
 #include "mempool.h"
 #include "compress.h"
 
 // Uncomment the following to use quicklz
-
-C_BEGIN
 
 #ifndef BRT_FANOUT
 #define BRT_FANOUT 16
@@ -968,7 +965,5 @@ void toku_flusher_thread_set_callback(void (*callback_f)(int, void*), void* extr
 
 void toku_brt_header_note_hot_begin(BRT brt);
 void toku_brt_header_note_hot_complete(BRT brt, BOOL success, MSN msn_at_start_of_hot);
-
-C_END
 
 #endif
