@@ -83,18 +83,6 @@ toku_brt_serialize_destroy(void) {
 static toku_pthread_mutex_t pwrite_mutex = TOKU_PTHREAD_MUTEX_INITIALIZER;
 static int pwrite_is_locked=0;
 
-int 
-toku_pwrite_lock_init(void) {
-    int r = toku_pthread_mutex_init(&pwrite_mutex, NULL); resource_assert_zero(r);
-    return r;
-}
-
-int 
-toku_pwrite_lock_destroy(void) {
-    int r = toku_pthread_mutex_destroy(&pwrite_mutex); resource_assert_zero(r);
-    return r;
-}
-
 static inline void
 lock_for_pwrite (void) {
     // Locks the pwrite_mutex.
