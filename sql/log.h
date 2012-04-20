@@ -151,6 +151,11 @@ class Relay_log_info;
 extern PSI_mutex_key key_LOG_INFO_lock;
 #endif
 
+/*
+  Note that we destroy the lock mutex in the desctructor here.
+  This means that object instances cannot be destroyed/go out of scope,
+  until we have reset thd->current_linfo to NULL;
+ */
 typedef struct st_log_info
 {
   char log_file_name[FN_REFLEN];
