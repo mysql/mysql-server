@@ -14,7 +14,11 @@ drop database mysqltest;
 create database `mysqltest.db`;
 create table `mysqltest.db`.t1 (a int primary key, b int) engine=ndb;
 alter offline table `mysqltest.db`.t1 add column c int;
+Warnings:
+Warning	1287	'OFFLINE' is deprecated and will be removed in a future release. Please use ALGORITHM=COPY instead
 alter online table `mysqltest.db`.t1 add column d int column_format dynamic;
+Warnings:
+Warning	1287	'ONLINE' is deprecated and will be removed in a future release. Please use ALGORITHM=INPLACE instead
 drop table `mysqltest.db`.t1;
 drop database `mysqltest.db`;
 create database newdb;
