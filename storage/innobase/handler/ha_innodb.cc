@@ -3253,25 +3253,23 @@ retry:
 			}
 		}
 
-		/* The following calls to read the MySQL binary log
-		file name and the position return consistent results:
-		1) Other InnoDB transactions cannot intervene between
-		these calls as we are holding prepare_commit_mutex.
-		2) Binary logging of other engines is not relevant
-		to InnoDB as all InnoDB requires is that committing
-		InnoDB transactions appear in the same order in the
-		MySQL binary log as they appear in InnoDB logs.
-		3) A MySQL log file rotation cannot happen because
-		MySQL protects against this by having a counter of
-		transactions in prepared state and it only allows
-		a rotation when the counter drops to zero. See
-		LOCK_prep_xids and COND_prep_xids in log.cc. */
-		trx->mysql_log_file_name = mysql_bin_log_file_name();
-		trx->mysql_log_offset = (ib_int64_t) mysql_bin_log_file_pos();
+		/* The following call read the binary log position of
+		the transaction being committed.
 
+                Binary logging of other engines is not relevant to
+		InnoDB as all InnoDB requires is that committing
+		InnoDB transactions appear in the same order in the
+		MySQL binary log as they appear in InnoDB logs, which
+		is guaranteed by the server.
+
+                If the binary log is not enabled, or the transaction
+                is not written to the binary log, the file name will
+                be a NULL pointer. */
+                unsigned long long pos;
+                thd_binlog_pos(thd, &trx->mysql_log_file_name, &pos);
+                trx->mysql_log_offset= static_cast<ib_int64_t>(pos);
 		/* Don't do write + flush right now. For group commit
-		to work we want to do the flush after releasing the
-		prepare_commit_mutex. */
+		to work we want to do the flush later. */
 		trx->flush_log_later = TRUE;
 		innobase_commit_low(trx);
 		trx->flush_log_later = FALSE;
