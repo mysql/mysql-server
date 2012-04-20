@@ -1029,6 +1029,7 @@ int ha_myisam::repair(THD *thd, MI_CHECK &param, bool do_optimize)
   int error=0;
   uint local_testflag=param.testflag;
   bool optimize_done= !do_optimize, statistics_done=0;
+  bool has_old_locks= thd->locked_tables_mode || file->lock_type != F_UNLCK;
   const char *old_proc_info=thd->proc_info;
   char fixed_name[FN_REFLEN];
   MYISAM_SHARE* share = file->s;
@@ -1047,8 +1048,8 @@ int ha_myisam::repair(THD *thd, MI_CHECK &param, bool do_optimize)
   // Release latches since this can take a long time
   ha_release_temporary_latches(thd);
 
-  // Don't lock tables if we have used LOCK TABLE
-  if (! thd->locked_tables_mode &&
+  // Don't lock tables if we have used LOCK TABLE or already locked.
+  if (!has_old_locks &&
       mi_lock_database(file, table->s->tmp_table ? F_EXTRA_LCK : F_WRLCK))
   {
     char errbuf[MYSYS_STRERROR_SIZE];
@@ -1176,7 +1177,7 @@ int ha_myisam::repair(THD *thd, MI_CHECK &param, bool do_optimize)
     update_state_info(&param, file, 0);
   }
   thd_proc_info(thd, old_proc_info);
-  if (! thd->locked_tables_mode)
+  if (!has_old_locks)
     mi_lock_database(file,F_UNLCK);
   DBUG_RETURN(error ? HA_ADMIN_FAILED :
 	      !optimize_done ? HA_ADMIN_ALREADY_DONE : HA_ADMIN_OK);
