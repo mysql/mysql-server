@@ -204,6 +204,8 @@ select count(*) from t1;
 count(*)
 2
 ALTER OFFLINE TABLE t1 ADD COLUMN c int;
+Warnings:
+Warning	1287	'OFFLINE' is deprecated and will be removed in a future release. Please use ALGORITHM=COPY instead
 select a from t1 where b = 2;
 a
 2
