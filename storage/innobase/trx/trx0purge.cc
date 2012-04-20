@@ -1328,9 +1328,16 @@ trx_purge_run(void)
 {
 	rw_lock_x_lock(&purge_sys->latch);
 
-	ut_a(purge_sys->state != PURGE_STATE_INIT);
-	ut_a(purge_sys->state != PURGE_STATE_EXIT);
-	ut_a(purge_sys->state != PURGE_STATE_DISABLED);
+	switch(purge_sys->state) {
+	case PURGE_STATE_INIT:
+	case PURGE_STATE_EXIT:
+	case PURGE_STATE_DISABLED:
+		ut_error;
+
+	case PURGE_STATE_RUN:
+	case PURGE_STATE_STOP:
+		break;
+	}
 
 	if (purge_sys->n_stop > 0) {
 

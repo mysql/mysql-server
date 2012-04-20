@@ -6757,16 +6757,16 @@ ER_MTS_RESET_WORKERS
   eng "Cannot clean up worker info tables. Additional error messages can be found in the MySQL error log."
 
 ER_TABLE_SCHEMA_MISMATCH
-  eng "Schema mismatch: %s"
+  eng "Schema mismatch (%s)"
 
 ER_TABLE_IN_SYSTEM_TABLESPACE
-  eng "Table in system tablespace"
+  eng "Table '%-.192s' in system tablespace"
 
 ER_IO_READ_ERROR
-  eng "IO Read error: %s"
+  eng "IO Read error: (%lu, %s) %s"
 
 ER_IO_WRITE_ERROR
-  eng "IO Write error: %s"
+  eng "IO Write error: (%lu, %s) %s"
 
 ER_TABLESPACE_MISSING
   eng "Tablespace is missing for table '%-.192s'"
@@ -6779,6 +6779,9 @@ ER_TABLESPACE_DISCARDED
 
 ER_INTERNAL_ERROR
   eng "Internal error: %s"
+
+ER_INNODB_IMPORT_ERROR
+  eng "ALTER TABLE '%-.192s' IMPORT TABLESPACE failed with error %lu : '%s'"
 
 ER_INNODB_INDEX_CORRUPT
   eng "Index corrupt: %s"
