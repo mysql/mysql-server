@@ -1225,7 +1225,7 @@ fil_space_create(
 		if (space != 0) {
 			ib_logf(IB_LOG_LEVEL_WARN,
 				"Tablespace '%s' exists in the cache "
-				"with id %lu ", name, (ulong) id);
+				"with id %lu", name, (ulong) id);
 
 			if (id == 0 || purpose != FIL_TABLESPACE) {
 
@@ -2282,7 +2282,7 @@ Check for change buffer merges.
 static
 ulint
 fil_ibuf_check_pending_ops(
-/*==========================*/
+/*=======================*/
 	fil_space_t*	space,	/*!< in/out: Tablespace to check */
 	ulint		count)	/*!< in: number of attempts so far */
 {
@@ -3302,7 +3302,7 @@ fil_reset_space_and_lsn(
 
 		ib_logf(IB_LOG_LEVEL_ERROR,
 			"Trying to import a table, but could not "
-			"open the tablespace file %s ", filepath);
+			"open the tablespace file %s", filepath);
 
 		mem_free(filepath);
 

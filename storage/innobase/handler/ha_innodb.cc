@@ -4536,13 +4536,9 @@ table_opened:
 
 	if (dict_table_is_discarded(ib_table)) {
 
-		const char*	err_msg;
-
-		err_msg = innobase_get_err_msg(ER_TABLESPACE_DISCARDED);
-
-		ib_errf(thd,
+		ib_verrf(thd,
 			IB_LOG_LEVEL_WARN, ER_TABLESPACE_DISCARDED,
-			err_msg, norm_name);
+			table->s->table_name.str);
 
 		/* Allow an open because a proper DISCARD should have set
 		all the flags and index root page numbers to FIL_NULL that
@@ -4553,13 +4549,8 @@ table_opened:
 
 	} else if (ib_table->ibd_file_missing) {
 
-		const char*	err_msg;
-
-		err_msg = innobase_get_err_msg(ER_TABLESPACE_MISSING);
-
-		ib_errf(thd,
-			IB_LOG_LEVEL_WARN, ER_TABLESPACE_MISSING,
-			err_msg, norm_name);
+		ib_verrf(thd,
+			IB_LOG_LEVEL_WARN, ER_TABLESPACE_MISSING, norm_name);
 
 		/* This means we have no idea what happened to the tablespace
 		file, best to play it safe. */
@@ -7205,8 +7196,9 @@ ha_innobase::index_read(
 		error = HA_ERR_KEY_NOT_FOUND;
 		table->status = STATUS_NOT_FOUND;
 		break;
-	case DB_TABLESPACE_DELETED:
-		my_error(ER_TABLESPACE_DISCARDED, MYF(0), index->table->name);
+		case DB_TABLESPACE_DELETED:
+		my_error(ER_TABLESPACE_DISCARDED, MYF(0),
+			 table->s->table_name.str);
 		table->status = STATUS_NOT_FOUND;
 		error = HA_ERR_NO_SUCH_TABLE;
 		break;
@@ -7448,7 +7440,7 @@ ha_innobase::general_fetch(
 		break;
 	case DB_TABLESPACE_DELETED:
 		my_error(ER_TABLESPACE_DISCARDED, MYF(0),
-			 prebuilt->table->name);
+			 table->s->table_name.str);
 		table->status = STATUS_NOT_FOUND;
 		error = HA_ERR_NO_SUCH_TABLE;
 		break;
@@ -7906,7 +7898,7 @@ next_record:
 			break;
 		case DB_TABLESPACE_DELETED:
 			my_error(ER_TABLESPACE_DISCARDED,
-				 MYF(0), index->table->name);
+				 MYF(0), table->s->table_name.str);
 			table->status = STATUS_NOT_FOUND;
 			error = HA_ERR_NO_SUCH_TABLE;
 			break;
@@ -9278,13 +9270,9 @@ ha_innobase::discard_or_import_tablespace(
 		a new tablespace. */
 
 		if (dict_table->ibd_file_missing) {
-			const char*	err_msg;
-
-			err_msg = innobase_get_err_msg(ER_TABLESPACE_MISSING);
-
-			ib_errf(prebuilt->trx->mysql_thd,
+			ib_verrf(prebuilt->trx->mysql_thd,
 				IB_LOG_LEVEL_WARN, ER_TABLESPACE_MISSING,
-				err_msg, dict_table->name);
+				dict_table->name);
 		}
 
 		err = row_discard_tablespace_for_mysql(
@@ -10584,7 +10572,7 @@ ha_innobase::check(
 	if (dict_table_is_discarded(prebuilt->table)) {
 
 		my_error(ER_TABLESPACE_DISCARDED, MYF(0),
-			 prebuilt->table->name);
+			 table->s->table_name.str);
 
 		DBUG_RETURN(HA_ADMIN_CORRUPT);
 
@@ -11586,12 +11574,12 @@ ha_innobase::transactional_table_lock(
 		if (dict_table_is_discarded(prebuilt->table)) {
 
 			my_error(ER_TABLESPACE_DISCARDED,
-				 MYF(0), prebuilt->table->name);
+				 MYF(0), table->s->table_name.str);
 
 		} else if (prebuilt->table->ibd_file_missing) {
 
 			my_error(ER_TABLESPACE_MISSING,
-				 MYF(0), prebuilt->table->name);
+				 MYF(0), table->s->table_name.str);
 		}
 
 		DBUG_RETURN(HA_ERR_CRASHED);
@@ -15586,7 +15574,10 @@ ib_pushf(
 }
 
 /******************************************************************//**
-Use this when the format string is from errmsg-utf8.txt.
+Use this when the args are first converted to a formatted string and then
+passed to the format string from errmsg-utf8.txt. The error message format
+must be: "Some string ... %s".
+
 Push a warning message to the client, it is a wrapper around:
 
 void push_warning_printf(
@@ -15610,8 +15601,61 @@ ib_errf(
 	the caller must pass a valid session handle. */
 
 	ut_a(thd != 0);
+	ut_a(format != 0);
 
 	va_start(args, format);
+
+#ifdef __WIN__
+	int		size = _vscprintf(format, args) + 1;
+	str = static_cast<char*>(malloc(size));
+	str[size - 1] = 0x0;
+	vsnprintf(str, size, format, args);
+#elif HAVE_VASPRINTF
+	(void) vasprintf(&str, format, args);
+#else
+	/* Use a fixed length string. */
+	str = static_cast<char*>(malloc(BUFSIZ));
+	my_vsnprintf(str, BUFSIZ, format, args);
+#endif /* __WIN__ */
+
+	ib_verrf(thd, level, code, str);
+
+	va_end(args);
+	free(str);
+}
+
+/******************************************************************//**
+Use this when the args are passed to the format string from
+errmsg-utf8.txt directly as is.
+
+Push a warning message to the client, it is a wrapper around:
+
+void push_warning_printf(
+	THD *thd, Sql_condition::enum_warning_level level,
+	uint code, const char *format, ...);
+*/
+UNIV_INTERN
+void
+ib_verrf(
+/*=====*/
+	THD*		thd,		/*!< in/out: session */
+	ib_log_level_t	level,		/*!< in: warning level */
+	ib_uint32_t	code,		/*!< MySQL error code */
+	...)				/*!< Args */
+{
+	char*		str;
+	va_list         args;
+	const char*	format = my_get_err_msg(code);
+
+	/* If the caller wants to push a message to the client then
+	the caller must pass a valid session handle. */
+
+	ut_a(thd != 0);
+
+	/* The error code must exist in the errmsg-utf8.txt file. */
+	ut_a(format != 0);
+
+	va_start(args, code);
 
 #ifdef __WIN__
 	int		size = _vscprintf(format, args) + 1;
@@ -15658,6 +15702,7 @@ ib_errf(
 		ut_error;
 	}
 }
+
 /******************************************************************//**
 Write a message to the MySQL log, prefixed with "InnoDB: " */
 UNIV_INTERN
