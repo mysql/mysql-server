@@ -331,6 +331,14 @@ THD *thd_get_current_thd()
   return current_thd;
 }
 
+extern "C"
+void thd_binlog_pos(const THD *thd,
+                    const char **file_var,
+                    unsigned long long *pos_var)
+{
+  thd->get_trans_pos(file_var, pos_var);
+}
+
 /**
   Set up various THD data for a new connection
 
