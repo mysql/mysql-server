@@ -10,7 +10,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(10) unsigned NOT NULL AUTO_INCREMENT,
-  `b` int(11) /*!50120 COLUMN_FORMAT DYNAMIC */ DEFAULT NULL,
+  `b` int(11) /*!50606 COLUMN_FORMAT DYNAMIC */ DEFAULT NULL,
   `c` float DEFAULT NULL,
   `d` double unsigned DEFAULT NULL,
   `e` decimal(5,2) DEFAULT NULL,
@@ -35,7 +35,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(10) unsigned NOT NULL AUTO_INCREMENT,
-  `b` int(11) /*!50120 COLUMN_FORMAT DYNAMIC */ DEFAULT NULL,
+  `b` int(11) /*!50606 COLUMN_FORMAT DYNAMIC */ DEFAULT NULL,
   `c` float DEFAULT NULL,
   `d` double unsigned DEFAULT NULL,
   `e` decimal(5,2) DEFAULT NULL,
