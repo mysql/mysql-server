@@ -290,6 +290,24 @@ namespace {
   };
 
 }
+
+class Deferred_log_events
+{
+private:
+  DYNAMIC_ARRAY array;
+  Log_event *last_added;
+
+public:
+  Deferred_log_events(Relay_log_info *rli);
+  ~Deferred_log_events();
+  /* queue for exection at Query-log-event time prior the Query */;
+  int add(Log_event *ev);
+  bool is_empty();
+  bool execute(Relay_log_info *rli);
+  void rewind();
+  bool is_last(Log_event *ev) { return ev == last_added; };
+};
+
 #endif
 
 // NB. number of printed bit values is limited to sizeof(buf) - 1
