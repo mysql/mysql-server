@@ -11061,7 +11061,7 @@ static int sha256_password_authenticate(MYSQL_PLUGIN_VIO *vio,
   }
 
   /* Create hash digest */
-  crypt_genhash_impl(stage2,
+  my_crypt_genhash(stage2,
                      CRYPT_MAX_PASSWORD_SIZE,
                      (char *) pkt,
                      pkt_len-1, 
