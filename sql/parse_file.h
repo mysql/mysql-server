@@ -26,6 +26,7 @@ enum file_opt_type {
   FILE_OPTIONS_STRING,		/**< String (LEX_STRING) */
   FILE_OPTIONS_ESTRING,		/**< Escaped string (LEX_STRING) */
   FILE_OPTIONS_ULONGLONG,	/**< ulonglong parameter (ulonglong) */
+  FILE_OPTIONS_VIEW_ALGO,	/**< Similar to longlong, but needs conversion */
   FILE_OPTIONS_TIMESTAMP,	/**< timestamp (LEX_STRING have to be
 				   allocated with length 20 (19+1) */
   FILE_OPTIONS_STRLIST,         /**< list of escaped strings
