@@ -84,7 +84,7 @@ static void print_version(void)
 static void usage(void)
 {
   print_version();
-  puts(ORACLE_WELCOME_COPYRIGHT_NOTICE("2000, 2011"));
+  puts(ORACLE_WELCOME_COPYRIGHT_NOTICE("2000, 2012"));
   printf("Print a description for a system error code or a MySQL error code.\n");
   printf("If you want to get the error for a negative error code, you should use\n-- before the first error code to tell perror that there was no more options.\n\n");
   printf("Usage: %s [OPTIONS] [ERRORCODE [ERRORCODE...]]\n",my_progname);

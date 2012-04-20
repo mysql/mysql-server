@@ -8045,6 +8045,42 @@ col_datetime_key
 2008-09-27 00:34:58
 DROP TABLE t1,t2;
 SET @@optimizer_search_depth=@old_depth;
+#
+# BUG#13848789: SEGFAULT IN JOIN_READ_NEXT_SAME AT 
+#               SQL/SQL_EXECUTOR.CC ON HAVING...IN...JOIN
+#
+CREATE TABLE t1 (
+col_int_key INT,
+col_varchar_key VARCHAR(1),
+KEY col_int_key (col_int_key),
+KEY col_varchar_key (col_varchar_key)
+);
+INSERT INTO t1 VALUES (8,'x');
+CREATE TABLE t2 (
+col_varchar_key VARCHAR(1),
+KEY col_varchar_key (col_varchar_key)
+);
+INSERT INTO t2 VALUES ('x'), ('y');
+explain SELECT MIN(col_int_key)
+FROM t1 as t1_outer
+HAVING (1, 2) IN (
+SELECT t1_inner.col_int_key, MAX(t1_inner.col_int_key)
+FROM t1 as t1_inner JOIN t2
+ON t2.col_varchar_key = t1_inner.col_varchar_key
+);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
+2	DEPENDENT SUBQUERY	t1_inner	system	col_varchar_key	NULL	NULL	NULL	1	NULL
+2	DEPENDENT SUBQUERY	t2	ref	col_varchar_key	col_varchar_key	4	const	1	Using index
+SELECT MIN(col_int_key)
+FROM t1 as t1_outer
+HAVING (1, 2) IN (
+SELECT t1_inner.col_int_key, MAX(t1_inner.col_int_key)
+FROM t1 as t1_inner JOIN t2
+ON t2.col_varchar_key = t1_inner.col_varchar_key
+);
+MIN(col_int_key)
+DROP TABLE t1,t2;
 # End of 5.6 tests
 set optimizer_switch=default;
 set optimizer_switch=default;

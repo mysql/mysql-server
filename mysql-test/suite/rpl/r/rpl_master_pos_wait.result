@@ -1,7 +1,7 @@
 include/master-slave.inc
 Warnings:
-Note	1756	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	1757	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
 [connection master]
 select master_pos_wait('master-bin.999999',0,2);
 master_pos_wait('master-bin.999999',0,2)
@@ -35,8 +35,8 @@ SQL_THREAD_WAIT_AFTER_GTIDS('', 2)
 0
 SELECT SQL_THREAD_WAIT_AFTER_GTIDS('error-gtid', 2);
 ERROR HY000: Malformed GTID set specification 'error-gtid'.
-SELECT SQL_THREAD_WAIT_AFTER_GTIDS('7805be8e-51ab-11e1-bacc-6706c20ad7ba:1', 2);
+SELECT SQL_THREAD_WAIT_AFTER_GTIDS('7805be8e-51ab-11e1-bacc-6706c20ad7ba:1', 0);
 STOP SLAVE SQL_THREAD;
-SQL_THREAD_WAIT_AFTER_GTIDS('7805be8e-51ab-11e1-bacc-6706c20ad7ba:1', 2)
+SQL_THREAD_WAIT_AFTER_GTIDS('7805be8e-51ab-11e1-bacc-6706c20ad7ba:1', 0)
 NULL
 include/rpl_end.inc

@@ -35,7 +35,7 @@ Created 10/13/2010 Jimmy Yang
 #define ROW_MERGE_READ_GET_NEXT(N)					\
 	do {								\
 		b[N] = row_merge_read_rec(				\
-			block[N], buf[N], b[N], index,			\
+			block[N], buf[N], b[N], index, n_null,		\
 			fd[N], &foffs[N], &mrec[N], offsets[N]);	\
 		if (UNIV_UNLIKELY(!b[N])) {				\
 			if (mrec[N]) {					\
@@ -430,12 +430,12 @@ row_merge_fts_doc_tokenize(
 		ut_a(t_ctx->buf_used < FTS_NUM_AUX_INDEX);
 		idx = t_ctx->buf_used;
 
-		buf->tuples[buf->n_tuples + n_tuple[idx]] = field =
-			static_cast<dfield_t*>(mem_heap_alloc(
-				buf->heap,
-				FTS_NUM_FIELDS_SORT * sizeof *field));
+		mtuple_t* mtuple = &buf->tuples[buf->n_tuples + n_tuple[idx]];
 
-		ut_a(field);
+		mtuple->del_mark = false;
+		field = mtuple->fields = static_cast<dfield_t*>(
+			mem_heap_alloc(buf->heap,
+				       FTS_NUM_FIELDS_SORT * sizeof *field));
 
 		/* The first field is the tokenized word */
 		dfield_set_data(field, t_str.f_str, t_str.f_len);
@@ -519,6 +519,10 @@ row_merge_fts_doc_tokenize(
 	/* Update the data length and the number of new word tuples
 	added in this round of tokenization */
 	for (i = 0; i <  FTS_NUM_AUX_INDEX; i++) {
+		/* The computation of total_size below assumes that no
+		delete-mark flags will be stored and that all fields
+		are NOT NULL and fixed-length. */
+
 		sort_buf[i]->total_size += data_size[i];
 
 		sort_buf[i]->n_tuples += n_tuple[i];
@@ -865,8 +869,8 @@ row_fts_start_parallel_merge(
 /********************************************************************//**
 Insert processed FTS data to auxillary index tables.
 @return	DB_SUCCESS if insertion runs fine */
-UNIV_INTERN
-ulint
+static __attribute__((nonnull))
+dberr_t
 row_merge_write_fts_word(
 /*=====================*/
 	trx_t*		trx,		/*!< in: transaction */
@@ -877,15 +881,15 @@ row_merge_write_fts_word(
 	CHARSET_INFO*	charset)	/*!< in: charset */
 {
 	ulint	selected;
-	ulint	ret = DB_SUCCESS;
+	dberr_t	ret = DB_SUCCESS;
 
 	selected = fts_select_index(
 		charset, word->text.f_str, word->text.f_len);
 	fts_table->suffix = fts_get_suffix(selected);
 
 	/* Pop out each fts_node in word->nodes write them to auxiliary table */
-	while(ib_vector_size(word->nodes) > 0) {
-		ulint		error;
+	while (ib_vector_size(word->nodes) > 0) {
+		dberr_t		error;
 		fts_node_t*	fts_node;
 
 		fts_node = static_cast<fts_node_t*>(ib_vector_pop(word->nodes));
@@ -897,8 +901,8 @@ row_merge_write_fts_word(
 		if (error != DB_SUCCESS) {
 			fprintf(stderr, "InnoDB: failed to write"
 				" word %s to FTS auxiliary index"
-				" table, error (%lu) \n",
-				word->text.f_str, error);
+				" table, error (%s) \n",
+				word->text.f_str, ut_strerr(error));
 			ret = error;
 		}
 
@@ -1223,7 +1227,7 @@ Read sorted file containing index data tuples and insert these data
 tuples to the index
 @return	DB_SUCCESS or error number */
 UNIV_INTERN
-ulint
+dberr_t
 row_fts_merge_insert(
 /*=================*/
 	dict_index_t*		index,	/*!< in: index */
@@ -1235,7 +1239,7 @@ row_fts_merge_insert(
 	const byte**		b;
 	mem_heap_t*		tuple_heap;
 	mem_heap_t*		heap;
-	ulint			error = DB_SUCCESS;
+	dberr_t			error = DB_SUCCESS;
 	ulint*			foffs;
 	ulint**			offsets;
 	fts_tokenizer_word_t	new_word;
@@ -1335,6 +1339,8 @@ row_fts_merge_insert(
 	ins_ctx.fts_table.table_id = table->id;
 	ins_ctx.fts_table.parent = index->table->name;
 	ins_ctx.fts_table.table = NULL;
+
+	const ulint	n_null = index->n_nullable;
 
 	for (i = 0; i < fts_sort_pll_degree; i++) {
 		if (psort_info[i].merge_file[id]->n_rec == 0) {

@@ -213,6 +213,8 @@ typedef struct st_lex_master_info
   ulonglong pos;
   ulong server_id, retry_count;
   char *gtid;
+  enum {UNTIL_SQL_BEFORE_GTIDS= 0, UNTIL_SQL_AFTER_GTIDS} gtid_until_condition;
+  bool until_after_gaps;
 
   /*
     Enum is used for making it possible to detect if the user
@@ -1247,6 +1249,12 @@ public:
       on master and the slave.
     */
     BINLOG_STMT_UNSAFE_UPDATE_IGNORE,
+
+    /**
+      INSERT... ON DUPLICATE KEY UPDATE on a table with more than one
+      UNIQUE KEYS  is unsafe.
+    */
+    BINLOG_STMT_UNSAFE_INSERT_TWO_KEYS,
 
     /* The last element of this enumeration type. */
     BINLOG_STMT_UNSAFE_COUNT
@@ -2655,6 +2663,7 @@ extern bool is_lex_native_function(const LEX_STRING *name);
 
 void my_missing_function_error(const LEX_STRING &token, const char *name);
 bool is_keyword(const char *name, uint len);
+bool db_is_default_db(const char *db, size_t db_len, const THD *thd);
 
 #endif /* MYSQL_SERVER */
 #endif /* SQL_LEX_INCLUDED */

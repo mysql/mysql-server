@@ -3503,8 +3503,7 @@ Query_log_event::Query_log_event(THD* thd_arg, const char* query_arg,
         have the flag is_trans set because there is no updated engine but
         must be written to the trx-cache.
 
-      . SET does not have the flag is_trans set but, if auto-commit is off,
-        must be written to the trx-cache.
+      . SET If auto-commit is on, it must not go through a cache.
 
       . CREATE TABLE is classfied as non-row producer but CREATE TEMPORARY
         must be handled as row producer.
@@ -3554,8 +3553,10 @@ Query_log_event::Query_log_event(THD* thd_arg, const char* query_arg,
             thd->in_multi_stmt_transaction_mode()) || cmd_must_go_to_trx_cache;
         break;
       case SQLCOM_SET_OPTION:
-        cmd_can_generate_row_events= cmd_must_go_to_trx_cache=
-          (lex->autocommit ? FALSE : TRUE);
+        if (lex->autocommit)
+          cmd_can_generate_row_events= cmd_must_go_to_trx_cache= FALSE;
+        else
+          cmd_can_generate_row_events= TRUE;
         break;
       case SQLCOM_RELEASE_SAVEPOINT:
       case SQLCOM_ROLLBACK_TO_SAVEPOINT:
@@ -5066,6 +5067,9 @@ Format_description_log_event(uint8 binlog_ver, const char* server_ver)
       post_header_len[HEARTBEAT_LOG_EVENT-1]= 0;
       post_header_len[IGNORABLE_LOG_EVENT-1]= IGNORABLE_HEADER_LEN;
       post_header_len[ROWS_QUERY_LOG_EVENT-1]= IGNORABLE_HEADER_LEN;
+      post_header_len[RESERVED_EVENT_NUM_1-1]= RESERVED_HEADER_LEN;
+      post_header_len[RESERVED_EVENT_NUM_2-1]= RESERVED_HEADER_LEN;
+      post_header_len[RESERVED_EVENT_NUM_3-1]= RESERVED_HEADER_LEN;
       post_header_len[GTID_LOG_EVENT-1]=
         post_header_len[ANONYMOUS_GTID_LOG_EVENT-1]=
         Gtid_log_event::POST_HEADER_LENGTH;
@@ -5805,9 +5809,9 @@ Load_log_event::Load_log_event(THD *thd_arg, sql_exchange *ex,
   while ((item = li++))
   {
     num_fields++;
-    uchar len = (uchar) strlen(item->name);
+    uchar len= (uchar) item->item_name.length();
     field_block_len += len + 1;
-    fields_buf.append(item->name, len + 1);
+    fields_buf.append(item->item_name.ptr(), len + 1);
     field_lens_buf.append((char*)&len, 1);
   }
 
@@ -6529,7 +6533,7 @@ int Rotate_log_event::do_update_pos(Relay_log_info *rli)
                         (ulong) rli->get_group_master_log_pos()));
     mysql_mutex_unlock(&rli->data_lock);
     if (rli->is_parallel_exec())
-      rli->reset_notified_checkpoint(0, when.tv_sec + (time_t) exec_time);
+      rli->reset_notified_checkpoint(0, when.tv_sec + (time_t) exec_time, false);
 
     /*
       Reset thd->variables.option_bits and sql_mode etc, because this could be the signal of
@@ -6915,6 +6919,12 @@ bool Xid_log_event::do_commit(THD *thd)
     // GTID logging and cleanup runs regardless of the current res
     error |= gtid_empty_group_log_and_cleanup(thd);
   }
+
+  /*
+    Increment the global status commit count variable
+  */
+  if (!error)
+    status_var_increment(thd->status_var.com_stat[SQLCOM_COMMIT]);
 
   return error;
 }
@@ -7381,9 +7391,6 @@ int User_var_log_event::do_apply_event(Relay_log_info const *rli)
   CHARSET_INFO *charset;
   if (!(charset= get_charset(charset_number, MYF(MY_WME))))
     return 1;
-  LEX_STRING user_var_name;
-  user_var_name.str= name;
-  user_var_name.length= name_len;
   double real_val;
   longlong int_val;
 
@@ -7429,7 +7436,7 @@ int User_var_log_event::do_apply_event(Relay_log_info const *rli)
       return 0;
     }
   }
-  Item_func_set_user_var e(user_var_name, it);
+  Item_func_set_user_var e(NameString(name, name_len, false), it);
   /*
     Item_func_set_user_var can't substitute something else on its place =>
     0 can be passed as last argument (reference on item)
@@ -10135,6 +10142,12 @@ Write_rows_log_event::do_before_row_operations(const Slave_reporting_capability 
 {
   int error= 0;
 
+  /*
+    Increment the global status insert count variable
+  */
+  if (get_flags(STMT_END_F))
+    status_var_increment(thd->status_var.com_stat[SQLCOM_INSERT]);
+
   /**
      todo: to introduce a property for the event (handler?) which forces
      applying the event in the replace (idempotent) fashion.
@@ -11319,6 +11332,12 @@ Delete_rows_log_event::Delete_rows_log_event(const char *buf, uint event_len,
 int 
 Delete_rows_log_event::do_before_row_operations(const Slave_reporting_capability *const)
 {
+  /*
+    Increment the global status delete count variable
+   */
+  if (get_flags(STMT_END_F))
+    status_var_increment(thd->status_var.com_stat[SQLCOM_DELETE]);
+
   if (m_table->s->keys > 0)
   {
     // Allocate buffer for key searches
@@ -11432,6 +11451,12 @@ Update_rows_log_event::Update_rows_log_event(const char *buf, uint event_len,
 int 
 Update_rows_log_event::do_before_row_operations(const Slave_reporting_capability *const)
 {
+  /*
+    Increment the global status update count variable
+  */
+  if (get_flags(STMT_END_F))
+    status_var_increment(thd->status_var.com_stat[SQLCOM_UPDATE]);
+
   if (m_table->s->keys > 0)
   {
     // Allocate buffer for key searches
@@ -11807,9 +11832,22 @@ Rows_query_log_event::print(FILE *file,
   {
     IO_CACHE *const head= &print_event_info->head_cache;
     IO_CACHE *const body= &print_event_info->body_cache;
+    char *token= NULL, *saveptr= NULL;
+    char *rows_query_copy= NULL;
+    if (!(rows_query_copy= my_strdup(m_rows_query, MYF(MY_WME))))
+      return;
+
     print_header(head, print_event_info, FALSE);
     my_b_printf(head, "\tRows_query\n");
-    my_b_printf(head, "# %s\n", m_rows_query);
+    /*
+      Prefix every line of a multi-line query with '#' to prevent the
+      statement from being executed when binary log will be processed
+      using 'mysqlbinlog --verbose --verbose'.
+    */
+    for (token= strtok_r(rows_query_copy, "\n", &saveptr); token;
+         token= strtok_r(NULL, "\n", &saveptr))
+      my_b_printf(head, "# %s\n", token);
+    my_free(rows_query_copy);
     print_base64(body, print_event_info, true);
   }
 }

@@ -103,6 +103,10 @@ IF(BUILD_CONFIG)
   ${CMAKE_SOURCE_DIR}/cmake/build_configurations/${BUILD_CONFIG}.cmake)
 ENDIF()
 
+#cmake on 64 bit windows doesn't set CMAKE_SYSTEM_PROCESSOR correctly
+SET(MYSQL_MACHINE_TYPE ${CMAKE_SYSTEM_PROCESSOR})
+
+
 # Include the platform-specific file. To allow exceptions, this code
 # looks for files in order of how specific they are. If there is, for
 # example, a generic Linux.cmake and a version-specific
@@ -319,6 +323,9 @@ MYSQL_CHECK_LIBEVENT()
 # Setup maintainer mode options by the end. Platform checks are
 # not run with the warning options as to not perturb fragile checks
 # (i.e. do not make warnings into errors).
+#
+# Why doesn't these flags affect the entire build?
+# Because things may already have been included with ADD_SUBDIRECTORY
 #
 IF(MYSQL_MAINTAINER_MODE)
   # Set compiler flags required under maintainer mode.

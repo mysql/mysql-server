@@ -2585,3 +2585,29 @@ ERROR 42000: Access denied for user 'untrusted'@'localhost' to database 'secret'
 # Connection default
 DROP USER 'untrusted'@localhost;
 DROP DATABASE secret;
+#
+# Bug#12766319 - 61865: RENAME USER DOES NOT WORK CORRECTLY - 
+#                       REQUIRES FLUSH PRIVILEGES
+#
+CREATE USER foo@'127.0.0.1';
+GRANT ALL ON *.* TO foo@'127.0.0.1';
+# First attempt, should connect successfully 
+SELECT user(), current_user();
+user()	current_user()
+foo@localhost	foo@127.0.0.1
+# Rename the user
+RENAME USER foo@'127.0.0.1' to foo@'127.0.0.0/255.0.0.0';
+# Second attempt, should connect successfully as its valid mask
+# This was failing without fix 
+SELECT user(), current_user();
+user()	current_user()
+foo@localhost	foo@127.0.0.0/255.0.0.0
+# Rename the user back to original
+RENAME USER foo@'127.0.0.0/255.0.0.0' to foo@'127.0.0.1';
+# Third attempt, should connect successfully 
+SELECT user(), current_user();
+user()	current_user()
+foo@localhost	foo@127.0.0.1
+# Clean-up
+DROP USER foo@'127.0.0.1';
+# End of Bug#12766319

@@ -72,3 +72,9 @@ LOCK TABLES performance_schema.setup_instruments READ;
 UNLOCK TABLES;
 LOCK TABLES performance_schema.setup_instruments WRITE;
 UNLOCK TABLES;
+
+# Bug#13813193 ASSERTION `TABLE->READ_SET ==
+# &TABLE->DEF_READ_SET' FAILED / MYSQL_UPDATE
+
+UPDATE performance_schema.setup_instruments SET timed='NO'
+ORDER BY RAND();

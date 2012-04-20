@@ -55,6 +55,9 @@
 call mtr.add_suppression("Slave I/O: The slave IO thread stops because the master has GTID_MODE");
 call mtr.add_suppression("Error reading packet from server: Lost connection to MySQL");
 call mtr.add_suppression("Aborting");
+call mtr.add_suppression(".* CHANGE MASTER TO MASTER_AUTO_POSITION = 1 can only be executed when GTID_MODE = ON.");
+call mtr.add_suppression(".* Found a Gtid_log_event or Previous_gtids_log_event when GTID_MODE = OFF.");
+call mtr.add_suppression(".* Failed to initialize the master info structure");
 
 --sync_slave_with_master
 --source include/stop_slave.inc
@@ -268,23 +271,18 @@ INSERT INTO t1 VALUES (3);
 
 --echo ==== Checks performed at server start when GTID_MODE = OFF ====
 
---connection master
 --let $rpl_server_number= 2
 --source include/rpl_stop_server.inc
-
---echo ---- Fail to start with GTID_MODE = OFF and GTIDs in binlog/relay log ----
-
---let $assert_regex= Found a Gtid_log_event or Previous_gtids_log_event when GTID_MODE = OFF.
---let $assert_command= $server2_cmd 2>&1
---source include/assert_command_output.inc
---error 0,1
---remove_file $datadir/master.info
---error 0,1
---remove_file $datadir/relay.info
-
+--echo ---- Fail to start replication with GTID_MODE = OFF and GTIDs in binlog/relay log ----
+--let $rpl_server_number= 2
+--let $rpl_start_with_gtids= 0
+--source include/rpl_start_server.inc
+--error ER_AUTO_POSITION_REQUIRES_GTID_MODE_ON
+START SLAVE;
 --let $rpl_server_number= 2
 --let $rpl_skip_start_slave= 1
---source include/rpl_start_server.inc
+--let $rpl_start_with_gtids= 1
+--source include/rpl_restart_server.inc
 --connection slave
 RESET SLAVE;
 RESET MASTER;
@@ -308,6 +306,7 @@ RESET MASTER;
 --let $pos= query_get_value(SHOW MASTER STATUS, Position, 1)
 --connection slave
 --replace_result $SERVER_MYPORT_1 PORT $file FILE $pos POS
+--replace_column 2 ####
 eval CHANGE MASTER TO MASTER_HOST = '127.0.0.1', MASTER_PORT = $SERVER_MYPORT_1, MASTER_USER = 'root', MASTER_LOG_FILE = '$file', MASTER_LOG_POS = $pos, MASTER_CONNECT_RETRY = 1;
 
 --echo ---- Slave can't connect ----

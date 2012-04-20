@@ -62,6 +62,8 @@ do { \
    bits instead of 64 is not important; speed is considerably more
    important.  ANSI guarantees that "unsigned long" will be big enough,
    and always using it seems to have few disadvantages.  */
+
+#include "my_global.h"
 typedef uint32 cvs_uint32;
 
 typedef struct {

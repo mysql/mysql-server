@@ -5,6 +5,8 @@
 #                                                                              #
 # Checking of other prerequisites is in charset_master.test                    #
 ################################################################################
+#Want to skip this test from daily Valgrind execution.
+--source include/no_valgrind_without_big.inc
 
 --source include/have_innodb.inc
 

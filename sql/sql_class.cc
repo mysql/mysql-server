@@ -336,11 +336,15 @@ THD *thd_get_current_thd()
 
   thd_new_connection_setup
 
+  @note Must be called with LOCK_thread_count locked.
+
   @param              thd            THD object
   @param              stack_start    Start of stack for connection
 */
 void thd_new_connection_setup(THD *thd, char *stack_start)
 {
+  DBUG_ENTER("thd_new_connection_setup");
+  mysql_mutex_assert_owner(&LOCK_thread_count);
 #ifdef HAVE_PSI_INTERFACE
   thd_set_psi(thd,
               PSI_CALL(new_thread)(key_thread_one_connection,
@@ -350,11 +354,14 @@ void thd_new_connection_setup(THD *thd, char *stack_start)
   thd->set_time();
   thd->prior_thr_create_utime= thd->thr_create_utime= thd->start_utime=
     my_micro_time();
-  threads.push_front(thd);
-  thd_unlock_thread_count(thd);
+
+  add_global_thread(thd);
+  mysql_mutex_unlock(&LOCK_thread_count);
+
   DBUG_PRINT("info", ("init new connection. thd: 0x%lx fd: %d",
           (ulong)thd, mysql_socket_getfd(thd->net.vio->mysql_socket)));
   thd_set_thread_stack(thd, stack_start);
+  DBUG_VOID_RETURN;
 }
 
 /**
@@ -1395,13 +1402,19 @@ void THD::cleanup(void)
 
 THD::~THD()
 {
+  mysql_mutex_assert_not_owner(&LOCK_thread_count);
   THD_CHECK_SENTRY(this);
   DBUG_ENTER("~THD()");
+  DBUG_PRINT("info", ("THD dtor, this %p", this));
+
   /* Ensure that no one is using THD */
   mysql_mutex_lock(&LOCK_thd_data);
   mysys_var=0;					// Safety (shouldn't be needed)
   mysql_mutex_unlock(&LOCK_thd_data);
+
+  mysql_mutex_lock(&LOCK_status);
   add_to_status(&global_status_var, &status_var);
+  mysql_mutex_unlock(&LOCK_status);
 
   /* Close connection */
 #ifndef EMBEDDED_LIBRARY
@@ -2076,7 +2089,8 @@ int THD::send_explain_fields(select_result *result)
   item->maybe_null= 1;
   if (lex->describe & DESCRIBE_EXTENDED)
   {
-    field_list.push_back(item= new Item_float("filtered", 0.1234, 2, 4));
+    field_list.push_back(item= new Item_float(NAME_STRING("filtered"),
+                                              0.1234, 2, 4));
     item->maybe_null=1;
   }
   field_list.push_back(new Item_empty_string("Extra", 255, cs));
@@ -2621,7 +2635,7 @@ bool select_export::send_data(List<Item> &items)
                             ER_TRUNCATED_WRONG_VALUE_FOR_FIELD,
                             ER(ER_TRUNCATED_WRONG_VALUE_FOR_FIELD),
                             "string", printable_buff,
-                            item->name, static_cast<long>(row_count));
+                            item->item_name.ptr(), static_cast<long>(row_count));
       }
       else if (from_end_pos < res->ptr() + res->length())
       { 

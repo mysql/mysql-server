@@ -629,3 +629,16 @@ insert into t2 values(1,100),(2,200),(3,300);
 select * from t1,t2 where t1.a+t2.c=cos(10) and t2.b=2;
 SELECT * FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
 drop table t1,t2;
+
+--echo #
+--echo # Trace of non-default db
+--echo #
+create table t1(a int);
+insert into t1 values(1),(2),(3);
+create database mysqltest2;
+create table mysqltest2.t2(a int);
+insert into mysqltest2.t2 values(1),(2);
+select * from t1,mysqltest2.t2;
+SELECT * FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
+drop table t1;
+drop database mysqltest2;

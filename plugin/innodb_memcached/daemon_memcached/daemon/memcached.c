@@ -6657,6 +6657,13 @@ static void shutdown_server(void) {
     memcached_shutdown = 1;
 }
 
+#ifdef INNODB_MEMCACHED
+bool shutdown_complete(void)
+{
+    return(memcached_shutdown == 2);
+}
+#endif
+
 static EXTENSION_LOGGER_DESCRIPTOR* get_logger(void)
 {
     return settings.extensions.logger;
@@ -6978,6 +6985,8 @@ int main (int argc, char **argv) {
 #else
     engine = "default_engine.so";
 #endif /* INNODB_MEMCACHED */
+
+    memcached_shutdown = 0;
 
     if (!sanitycheck()) {
         return(NULL);
@@ -7851,6 +7860,7 @@ func_exit:
     if (settings.inter)
       free(settings.inter);
 
+    memcached_shutdown = 2;
 
     return EXIT_SUCCESS;
 }
