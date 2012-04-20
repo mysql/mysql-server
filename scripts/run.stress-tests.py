@@ -190,13 +190,9 @@ class TestRunnerBase(object):
         else:
             return time.ctime(timeval)
 
-    def infostr(self, passed):
-        if passed:
-            result = 'PASSED'
-        else:
-            result = 'FAILED'
-        return ('[PASS=%d FAIL=%d] PASSED %s tsize=%d csize=%d ptquery=%d update=%d' %
-                (self.scheduler.passed, self.scheduler.failed,
+    def infostr(self, result):
+        return ('[PASS=%d FAIL=%d] %s %s tsize=%d csize=%d ptquery=%d update=%d' %
+                (self.scheduler.passed, self.scheduler.failed, result,
                  self.execf, self.tsize, self.csize, self.ptquery, self.update))
 
     def logstr(self, result):
@@ -206,12 +202,12 @@ class TestRunnerBase(object):
     def print_success(self):
         self.scheduler.passed += 1
         self.logger.info(self.logstr('PASSED'))
-        info(self.infostr(True))
+        info(self.infostr('PASSED'))
 
     def print_failure(self):
         self.scheduler.failed += 1
         self.logger.warning(self.logstr('FAILED'))
-        warning(self.infostr(False))
+        warning(self.infostr('FAILED'))
 
     def waitfor(self, proc):
         while proc.poll() is None:
