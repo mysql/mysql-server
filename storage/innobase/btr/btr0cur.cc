@@ -470,12 +470,7 @@ btr_cur_search_to_nth_level(
 	estimate = latch_mode & BTR_ESTIMATE;
 
 	/* Turn the flags unrelated to the latch mode off. */
-	latch_mode &= ~(BTR_INSERT
-			| BTR_DELETE_MARK
-			| BTR_DELETE
-			| BTR_ESTIMATE
-			| BTR_IGNORE_SEC_UNIQUE
-			| BTR_ALREADY_S_LATCHED);
+	latch_mode = BTR_LATCH_MODE_WITHOUT_FLAGS(latch_mode);
 
 	ut_ad(!s_latch_by_caller || latch_mode == BTR_SEARCH_LEAF);
 
