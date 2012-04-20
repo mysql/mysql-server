@@ -5210,9 +5210,7 @@ int mysqld_main(int argc, char **argv)
     init_slave() must be called after the thread keys are created.
   */
   if (server_id != 0 && init_slave() && active_mi == NULL)
-  {
     unireg_abort(1);
-  }
 
 #ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
   initialize_performance_schema_acl(opt_bootstrap);
@@ -7524,7 +7522,7 @@ static void usage(void)
   if (!default_collation_name)
     default_collation_name= (char*) default_charset_info->name;
   print_version();
-  puts(ORACLE_WELCOME_COPYRIGHT_NOTICE("2000, 2011"));
+  puts(ORACLE_WELCOME_COPYRIGHT_NOTICE("2000, 2012"));
   puts("Starts the MySQL database server.\n");
   printf("Usage: %s [OPTIONS]\n", my_progname);
   if (!opt_verbose)

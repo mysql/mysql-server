@@ -40,6 +40,7 @@ INCLUDE(${_SCRIPT_DIR}/WindowsCache.cmake)
 # Used by the test suite to ignore bugs on some platforms, 
 IF(CMAKE_SIZEOF_VOID_P MATCHES 8)
   SET(SYSTEM_TYPE "Win64")
+  SET(MYSQL_MACHINE_TYPE "x86_64")
 ELSE()
   SET(SYSTEM_TYPE "Win32")
 ENDIF()

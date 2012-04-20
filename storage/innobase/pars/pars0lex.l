@@ -102,7 +102,7 @@ string_append(
 
 DIGIT		[0-9]
 ID		[a-z_A-Z][a-z_A-Z0-9]*
-TABLE_NAME	[a-z_A-Z][a-z_A-Z0-9]*\/(#sql-|[a-z_A-Z])[a-z_A-Z0-9]*
+TABLE_NAME	[a-z_A-Z][@a-z_A-Z0-9]*\/(#sql-|[a-z_A-Z])[a-z_A-Z0-9]*
 BOUND_LIT	\:[a-z_A-Z0-9]+
 BOUND_ID	\$[a-z_A-Z0-9]+
 
