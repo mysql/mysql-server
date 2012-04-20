@@ -294,8 +294,8 @@ private:
 				index_name, sizeof(index_name),
 				m_index->name, TRUE);
 
-			ib_pushf(m_trx->mysql_thd, IB_LOG_LEVEL_ERROR,
-				 ER_INDEX_CORRUPT,
+			ib_errf(m_trx->mysql_thd, IB_LOG_LEVEL_ERROR,
+				 ER_INNODB_INDEX_CORRUPT,
 				"Externally stored column(%lu) has a reference "
 				"length of %lu in the index %s",
 				(ulong) i, (ulong) len, index_name);
@@ -717,7 +717,7 @@ row_import_adjust_root_pages(
 		if (err != DB_SUCCESS) {
 			ib_pushf(trx->mysql_thd,
 				IB_LOG_LEVEL_WARN,
-				ER_INDEX_CORRUPT,
+				ER_INNODB_INDEX_CORRUPT,
 				"Index '%s' import failed. Corruption detected "
 				"during root page update", index_name);
 			break;
@@ -737,7 +737,7 @@ row_import_adjust_root_pages(
 
 			ib_pushf(trx->mysql_thd,
 				IB_LOG_LEVEL_WARN,
-				ER_INDEX_CORRUPT,
+				ER_INNODB_INDEX_CORRUPT,
 				"Index '%s' contains %lu entries, should be "
 				"%lu, you should recreate this index.",
 				index_name,
@@ -837,7 +837,7 @@ row_import_set_sys_max_row_id(
 
 		ib_pushf(prebuilt->trx->mysql_thd,
 			 IB_LOG_LEVEL_WARN,
-			 ER_INDEX_CORRUPT,
+			 ER_INNODB_INDEX_CORRUPT,
 			 "Index '%s' corruption detected, invalid DB_ROW_ID "
 			 "in index.", index_name);
 
@@ -1044,7 +1044,8 @@ row_import_read_index_data(
 		ulint	len = mach_read_from_4(ptr);
 
 		if (len > OS_FILE_MAX_PATH) {
-			ib_pushf(thd, IB_LOG_LEVEL_ERROR, ER_INDEX_CORRUPT,
+			ib_pushf(thd, IB_LOG_LEVEL_ERROR,
+				 ER_INNODB_INDEX_CORRUPT,
 				 "Index name length (%lu) is too long, "
 				 "the meta-data is corrupt", len);
 
@@ -1102,7 +1103,7 @@ row_import_read_indexes(
 	cfg->n_indexes = mach_read_from_4(row);
 
 	if (cfg->n_indexes == 0) {
-		ib_pushf(thd, IB_LOG_LEVEL_ERROR, ER_INDEX_CORRUPT,
+		ib_pushf(thd, IB_LOG_LEVEL_ERROR, ER_INNODB_INDEX_CORRUPT,
 			 "Number of indexes in meta-data file is 0");
 
 		return(DB_CORRUPTION);
@@ -1216,7 +1217,7 @@ row_import_read_columns(
 
 		if (err != DB_SUCCESS) {
 			ib_pushf(thd, IB_LOG_LEVEL_ERROR,
-				 ER_INDEX_CORRUPT,
+				 ER_INNODB_INDEX_CORRUPT,
 				 "While reading table column name: '%s'.",
 				 ut_strerr(err));
 			return(err);
@@ -1260,7 +1261,7 @@ row_import_read_v1(
 	dberr_t	err = row_import_cfg_read_string(file, cfg->hostname, len);
 
 	if (err != DB_SUCCESS) {
-		ib_pushf(thd, IB_LOG_LEVEL_ERROR, ER_INDEX_CORRUPT,
+		ib_pushf(thd, IB_LOG_LEVEL_ERROR, ER_INNODB_INDEX_CORRUPT,
 			 "While reading export hostname: '%s'.",
 			 ut_strerr(err));
 
@@ -1288,7 +1289,7 @@ row_import_read_v1(
 	err = row_import_cfg_read_string(file, cfg->table_name, len);
 
 	if (err != DB_SUCCESS) {
-		ib_pushf(thd, IB_LOG_LEVEL_ERROR, ER_INDEX_CORRUPT,
+		ib_pushf(thd, IB_LOG_LEVEL_ERROR, ER_INNODB_INDEX_CORRUPT,
 			 "While reading table name: '%s'.", ut_strerr(err));
 
 		return(err);
@@ -1402,7 +1403,7 @@ row_import_read_meta_data(
 
 		return(row_import_read_v1(file, thd, *cfg));
 	default:
-		ib_pushf(thd, IB_LOG_LEVEL_ERROR, ER_INDEX_CORRUPT,
+		ib_pushf(thd, IB_LOG_LEVEL_ERROR, ER_INNODB_INDEX_CORRUPT,
 			"Unsupported meta-data version number (%lu), "
 			"file ignored", (ulong) (*cfg)->version);
 	}
@@ -1892,23 +1893,17 @@ row_import_update_index_root(
 		err = trx->error_state;
 
 		if (err != DB_SUCCESS) {
-			const char*	format;
-			char		msg[BUFSIZ];
 			char		index_name[MAX_FULL_NAME_LEN + 1];
 
 			innobase_format_name(
 				index_name, sizeof(index_name),
 				index->name, TRUE);
 
-			format = innobase_get_err_msg(ER_INTERNAL_ERROR);
-
-			ut_snprintf(msg, sizeof(msg),
-				    "While updating the <space, root page "
-				    "number> of index %s - %s",
-				    index_name, ut_strerr(err));
-
 			ib_errf(trx->mysql_thd, IB_LOG_LEVEL_ERROR,
-				 ER_INTERNAL_ERROR, format, msg);
+				 ER_INTERNAL_ERROR,
+				 "While updating the <space, root page "
+				 "number> of index %s - %s",
+				 index_name, ut_strerr(err));
 
 			break;
 		}
@@ -2156,17 +2151,15 @@ row_import_for_mysql(
 			err = DB_TOO_MANY_CONCURRENT_TRXS;);
 
 	if (err != DB_SUCCESS) {
-		const char*	format;
-		char		msg[BUFSIZ];
+		char	table_name[MAX_FULL_NAME_LEN + 1];
 
-		format = innobase_get_err_msg(ER_INTERNAL_ERROR);
-
-		ut_snprintf(msg, sizeof(msg),
-			    "Cannot reset LSNs in table '%s' : %s",
-			    table_name, ut_strerr(err));
+		innobase_format_name(
+			table_name, sizeof(table_name), table->name, FALSE);
 
 		ib_errf(trx->mysql_thd, IB_LOG_LEVEL_ERROR,
-			 ER_INTERNAL_ERROR, format, msg);
+			ER_INTERNAL_ERROR,
+			"Cannot reset LSNs in table '%s' : %s",
+			table_name, ut_strerr(err));
 
 		return(row_import_cleanup(prebuilt, trx, err));
 	}
@@ -2182,19 +2175,15 @@ row_import_for_mysql(
 			err = DB_TABLESPACE_NOT_FOUND;);
 
 	if (err != DB_SUCCESS) {
-		char*		ibd_filename;
-		const char*	err_msg;
-
-		err_msg = innobase_get_err_msg(ER_FILE_NOT_FOUND);
-		ut_a(err_msg != 0);
+		char*	ibd_filename;
 
 		mutex_exit(&dict_sys->mutex);
 
 		ibd_filename = fil_make_ibd_name(table->name, FALSE);
 
-		ib_errf(trx->mysql_thd, IB_LOG_LEVEL_ERROR,
-			 ER_FILE_NOT_FOUND, err_msg,
-			 ibd_filename, err, ut_strerr(err));
+		ib_verrf(trx->mysql_thd, IB_LOG_LEVEL_ERROR,
+			ER_FILE_NOT_FOUND,
+			ibd_filename, err, ut_strerr(err));
 
 		mem_free(ibd_filename);
 

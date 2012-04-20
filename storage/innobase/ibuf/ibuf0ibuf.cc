@@ -2545,6 +2545,8 @@ ibuf_get_merge_page_nos_func(
 		volume += ibuf_rec_get_volume(mtr, rec);
 
 		++*n_pages;
+
+		btr_pcur_move_to_next(pcur, mtr);
 	}
 
 	return(volume);
@@ -5071,7 +5073,7 @@ ibuf_check_bitmap_on_import(
 
 				ib_pushf(trx->mysql_thd,
 					 IB_LOG_LEVEL_ERROR,
-					 ER_INDEX_CORRUPT,
+					 ER_INNODB_INDEX_CORRUPT,
 					 "Space %u page %u"
 					 " is wrongly flagged to belong to the"
 					 " insert buffer",
@@ -5087,7 +5089,7 @@ ibuf_check_bitmap_on_import(
 
 				ib_pushf(trx->mysql_thd,
 					 IB_LOG_LEVEL_WARN,
-					 ER_INDEX_CORRUPT,
+					 ER_INNODB_INDEX_CORRUPT,
 					 "Buffered changes"
 					 " for space %u page %u are lost",
 					(unsigned) space_id,

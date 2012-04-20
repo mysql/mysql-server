@@ -670,6 +670,7 @@ scan_again:
 		mutex_t*	block_mutex = NULL;
 
 		ut_a(buf_page_in_file(bpage));
+		ut_ad(bpage->in_LRU_list);
 
 		prev_bpage = UT_LIST_GET_PREV(LRU, bpage);
 
@@ -754,9 +755,9 @@ scan_again:
 		if (bpage->oldest_modification != 0) {
 
 			buf_flush_remove(bpage);
-
-			ut_ad(!bpage->in_flush_list);
 		}
+
+		ut_ad(!bpage->in_flush_list);
 
 		/* Remove from the LRU list. */
 
