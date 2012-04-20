@@ -2360,7 +2360,8 @@ static int exec_relay_log_event(THD* thd, Relay_log_info* rli)
       used to read info about the relay log's format; it will be deleted when
       the SQL thread does not need it, i.e. when this thread terminates.
     */
-    if (ev->get_type_code() != FORMAT_DESCRIPTION_EVENT)
+    if (ev->get_type_code() != FORMAT_DESCRIPTION_EVENT &&
+        !rli->is_deferred_event(ev))
     {
       DBUG_PRINT("info", ("Deleting the event after it has been executed"));
       delete ev;
@@ -2990,6 +2991,12 @@ pthread_handler_t handle_slave_sql(void *arg)
     goto err;
   }
   thd->init_for_queries();
+  thd->rli_slave= rli;
+  if ((rli->deferred_events_collecting= rpl_filter->is_on()))
+  {
+    rli->deferred_events= new Deferred_log_events(rli);
+  }
+
   thd->temporary_tables = rli->save_temporary_tables; // restore temp tables
   set_thd_in_use_temporary_tables(rli);   // (re)set sql_thd in use for saved temp tables
   pthread_mutex_lock(&LOCK_thread_count);

@@ -2248,6 +2248,11 @@ mysql_execute_command(THD *thd)
       }
       DBUG_RETURN(0);
     }
+    /* 
+       Execute deferred events first
+    */
+    if (slave_execute_deferred_events(thd))
+      DBUG_RETURN(-1);
   }
   else
   {

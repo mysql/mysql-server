@@ -3961,6 +3961,16 @@ static inline bool copy_event_cache_to_file_and_reinit(IO_CACHE *cache,
     reinit_io_cache(cache, WRITE_CACHE, 0, FALSE, TRUE);
 }
 
+#ifndef MYSQL_CLIENT
+/**
+   The function is called by slave applier in case there are
+   active table filtering rules to force gathering events associated
+   with Query-log-event into an array to execute
+   them once the fate of the Query is determined for execution.
+*/
+bool slave_execute_deferred_events(THD *thd);
+#endif
+
 /**
   @} (end of group Replication)
 */
