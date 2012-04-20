@@ -986,6 +986,9 @@ static bool sp_create_assignment_instr(THD *thd, bool no_lookahead)
   Condition_information_item *cond_info_item;
   Condition_information_item::Name cond_info_item_name;
   List<Condition_information_item> *cond_info_list;
+  /* #ifndef MCP_WL3749 */
+  Alter_info::enum_alter_table_algorithm online_offline;
+  /* #endif */
 }
 
 %{
@@ -1374,10 +1377,16 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  NUMBER_SYM                    /* SQL-2003-N */
 %token  NUMERIC_SYM                   /* SQL-2003-R */
 %token  NVARCHAR_SYM
+/* #ifndef MCP_WL3749  */
+%token  OFFLINE_SYM
+/* #endif */
 %token  OFFSET_SYM
 %token  OLD_PASSWORD
 %token  ON                            /* SQL-2003-R */
 %token  ONE_SYM
+/* #ifndef MCP_WL3749  */
+%token  ONLINE_SYM
+/* #endif */
 %token  ONLY_SYM                      /* SQL-2003-R */
 %token  OPEN_SYM                      /* SQL-2003-R */
 %token  OPTIMIZE
@@ -1797,6 +1806,10 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
         query_expression_body
 
 %type <boolfunc2creator> comp_op
+
+/* #ifndef MCP_WL3749 */
+%type <online_offline> opt_online_offline
+/* #endif */
 
 %type <NONE>
         query verb_clause create change select do drop insert replace insert2
@@ -2374,36 +2387,78 @@ create:
             }
             create_table_set_open_action_and_adjust_tables(lex);
           }
+/* #ifndef MCP_WL3749 */
+        | CREATE opt_online_offline opt_unique INDEX_SYM ident key_alg ON table_ident
+/* #else
         | CREATE opt_unique INDEX_SYM ident key_alg ON table_ident
+   #endif */
           {
+/* #ifndef MCP_WL3749 */
+            if (add_create_index_prepare(Lex, $8))
+              MYSQL_YYABORT;
+            Lex->alter_info.requested_algorithm= $2;
+/* #else
             if (add_create_index_prepare(Lex, $7))
               MYSQL_YYABORT;
+   #endif */
           }
           '(' key_list ')' normal_key_options
           {
+/* #ifndef MCP_WL3749 */
+            if (add_create_index(Lex, $3, $5))
+/* #else
             if (add_create_index(Lex, $2, $4))
+   #endif */
               MYSQL_YYABORT;
           }
+/* #ifndef MCP_WL3749 */
+        | CREATE opt_online_offline fulltext INDEX_SYM ident init_key_options ON
+/* #else
         | CREATE fulltext INDEX_SYM ident init_key_options ON
+   #endif */
           table_ident
           {
+/* #ifndef MCP_WL3749 */
+            if (add_create_index_prepare(Lex, $8))
+              MYSQL_YYABORT;
+            Lex->alter_info.requested_algorithm= $2;
+/* #else
             if (add_create_index_prepare(Lex, $7))
               MYSQL_YYABORT;
+   #endif */
           }
           '(' key_list ')' fulltext_key_options
           {
+/* #ifndef MCP_WL3749 */
+            if (add_create_index(Lex, $3, $5))
+/* #else
             if (add_create_index(Lex, $2, $4))
+   #endif */
               MYSQL_YYABORT;
           }
+/* #ifndef MCP_WL3749 */
+        | CREATE opt_online_offline spatial INDEX_SYM ident init_key_options ON
+/* #else
         | CREATE spatial INDEX_SYM ident init_key_options ON
+   #endif */
           table_ident
           {
+/* #ifndef MCP_WL3749 */
+            if (add_create_index_prepare(Lex, $8))
+              MYSQL_YYABORT;
+            Lex->alter_info.requested_algorithm= $2;
+/* #else
             if (add_create_index_prepare(Lex, $7))
               MYSQL_YYABORT;
+   #endif */
           }
           '(' key_list ')' spatial_key_options
           {
+/* #ifndef MCP_WL3749 */
+            if (add_create_index(Lex, $3, $5))
+/* #else
             if (add_create_index(Lex, $2, $4))
+   #endif */
               MYSQL_YYABORT;
           }
         | CREATE DATABASE opt_if_not_exists ident
@@ -6831,7 +6886,11 @@ string_list:
 */
 
 alter:
+/* #ifndef MCP_WL3749 */
+          ALTER opt_online_offline opt_ignore TABLE_SYM table_ident
+/* #else
           ALTER opt_ignore TABLE_SYM table_ident
+   #endif */
           {
             THD *thd= YYTHD;
             LEX *lex= thd->lex;
@@ -6839,7 +6898,11 @@ alter:
             lex->name.length= 0;
             lex->sql_command= SQLCOM_ALTER_TABLE;
             lex->duplicates= DUP_ERROR; 
+/* #ifndef MCP_WL3749 */
+            if (!lex->select_lex.add_table_to_list(thd, $5, NULL,
+/* #else
             if (!lex->select_lex.add_table_to_list(thd, $4, NULL,
+   #endif */
                                                    TL_OPTION_UPDATING,
                                                    TL_READ_NO_INSERT,
                                                    MDL_SHARED_UPGRADABLE))
@@ -6852,6 +6915,9 @@ alter:
             lex->create_info.default_table_charset= NULL;
             lex->create_info.row_type= ROW_TYPE_NOT_USED;
             lex->alter_info.reset();
+#ifndef MCP_WL3749
+            lex->alter_info.requested_algorithm= $2;
+#endif
             lex->no_write_to_binlog= 0;
             lex->create_info.storage_media= HA_SM_DEFAULT;
             lex->create_last_non_select_table= lex->last_table();
@@ -7195,6 +7261,31 @@ alter_commands:
               MYSQL_YYABORT;
           }
         ;
+
+/* #ifndef MCP_WL3749 */
+opt_online_offline:
+        /* empty */
+          {
+            $$= Alter_info::ALTER_TABLE_ALGORITHM_DEFAULT;
+          }
+        | ONLINE_SYM
+          {
+            push_warning_printf(YYTHD, Sql_condition::WARN_LEVEL_WARN,
+                                ER_WARN_DEPRECATED_SYNTAX,
+                                ER(ER_WARN_DEPRECATED_SYNTAX),
+                                "ONLINE", "ALGORITHM=INPLACE");
+            $$= Alter_info::ALTER_TABLE_ALGORITHM_INPLACE;
+          }
+        | OFFLINE_SYM
+          {
+            push_warning_printf(YYTHD, Sql_condition::WARN_LEVEL_WARN,
+                                ER_WARN_DEPRECATED_SYNTAX,
+                                ER(ER_WARN_DEPRECATED_SYNTAX),
+                                "OFFLINE", "ALGORITHM=COPY");
+            $$= Alter_info::ALTER_TABLE_ALGORITHM_COPY;
+          }
+        ;
+/* #endif */
 
 remove_partitioning:
           REMOVE_SYM PARTITIONING_SYM have_partitioning
@@ -11170,17 +11261,30 @@ drop:
           }
           table_list opt_restrict
           {}
+/* #ifndef MCP_WL3749 */
+        | DROP opt_online_offline INDEX_SYM ident ON table_ident {}
+/* #else
         | DROP INDEX_SYM ident ON table_ident {}
+   #endif */
           {
             LEX *lex=Lex;
+/* #ifndef MCP_WL3749 */
+            Alter_drop *ad= new Alter_drop(Alter_drop::KEY, $4.str);
+/* #else
             Alter_drop *ad= new Alter_drop(Alter_drop::KEY, $3.str);
+   #endif */
             if (ad == NULL)
               MYSQL_YYABORT;
             lex->sql_command= SQLCOM_DROP_INDEX;
             lex->alter_info.reset();
             lex->alter_info.flags= Alter_info::ALTER_DROP_INDEX;
             lex->alter_info.drop_list.push_back(ad);
+/* #ifndef MCP_WL3749 */
+            lex->alter_info.requested_algorithm= $2;
+            if (!lex->current_select->add_table_to_list(lex->thd, $6, NULL,
+/* #else
             if (!lex->current_select->add_table_to_list(lex->thd, $5, NULL,
+   #endif */
                                                         TL_OPTION_UPDATING,
                                                         TL_READ_NO_INSERT,
                                                         MDL_SHARED_UPGRADABLE))
