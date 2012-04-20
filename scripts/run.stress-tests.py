@@ -102,6 +102,16 @@ class TestRunnerBase(object):
     def __str__(self):
         return 'TestRunner<%s, %d, %d>' % (self.execf, self.tsize, self.csize)
 
+    def __getitem__(self, k):
+        if k == 'time1':
+            return self.timestr(0)
+        elif k == 'time2':
+            return self.timestr(1)
+        elif k == 'time3':
+            return self.timestr(2)
+        else:
+            return self.__dict__[k]
+
     def run(self):
         srctests = os.path.join(self.tokudb, 'src', 'tests')
         self.rundir = mkdtemp(dir=srctests)
@@ -136,7 +146,7 @@ class TestRunnerBase(object):
                 pass
             except TestFailure:
                 savedir = self.save()
-                self.print_failure(savedir)
+                self.print_failure()
                 warning('Saved environment to %s', savedir)
             else:
                 self.print_success()
@@ -180,17 +190,6 @@ class TestRunnerBase(object):
         else:
             return time.ctime(timeval)
 
-    def logstr(self, passed):
-        if passed:
-            result = 'PASS'
-        else:
-            result = 'FAIL'
-        return ('"%s",%s,%d,%d,%d,%d,%s,%s,%s,%s' %
-                (self.execf, self.rev, self.tsize, self.csize,
-                 self.ptquery, self.update,
-                 self.timestr(0), self.timestr(1), self.timestr(2),
-                 result))
-
     def infostr(self, passed):
         if passed:
             result = 'PASSED'
@@ -200,14 +199,18 @@ class TestRunnerBase(object):
                 (self.scheduler.passed, self.scheduler.failed,
                  self.execf, self.tsize, self.csize, self.ptquery, self.update))
 
+    def logstr(self, result):
+        fmtstr = result + '\t%(execf)s\t%(rev)s\t%(tsize)d\t%(csize)d\t%(ptquery)d\t%(update)d\t%(time1)s\t%(time2)s\t%(time3)s'
+        return fmtstr % self
+
     def print_success(self):
         self.scheduler.passed += 1
-        self.logger.info(self.logstr(True))
+        self.logger.info(self.logstr('PASSED'))
         info(self.infostr(True))
 
     def print_failure(self):
         self.scheduler.failed += 1
-        self.logger.warning(self.logstr(False))
+        self.logger.warning(self.logstr('FAILED'))
         warning(self.infostr(False))
 
     def waitfor(self, proc):
