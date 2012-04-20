@@ -1402,14 +1402,19 @@ void THD::cleanup(void)
 
 THD::~THD()
 {
+  mysql_mutex_assert_not_owner(&LOCK_thread_count);
   THD_CHECK_SENTRY(this);
   DBUG_ENTER("~THD()");
   DBUG_PRINT("info", ("THD dtor, this %p", this));
+
   /* Ensure that no one is using THD */
   mysql_mutex_lock(&LOCK_thd_data);
   mysys_var=0;					// Safety (shouldn't be needed)
   mysql_mutex_unlock(&LOCK_thd_data);
+
+  mysql_mutex_lock(&LOCK_status);
   add_to_status(&global_status_var, &status_var);
+  mysql_mutex_unlock(&LOCK_status);
 
   /* Close connection */
 #ifndef EMBEDDED_LIBRARY
