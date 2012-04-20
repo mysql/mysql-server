@@ -13,6 +13,7 @@ main.sp @solaris                         # Bug#11753919 2010-01-20 alik Several 
 main.bug33509 @solaris                   # Bug#11753919 2012-02-16 didrik Several test cases fail on Solaris with error Thread stack overrun
 
 main.kill @freebsd                       # Bug#12619719 2011-08-04 Occasional failure in PB2
+main.bug12427262 @windows                # Bug#12427262 2012-04-20 Hemant Fails on mysql-trunk on Windows after Mayank push
 
 innodb.innodb_monitor                    # Bug#12320827 2011-08-04 Occasional failure in PB2
 
