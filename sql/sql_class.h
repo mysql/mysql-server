@@ -2980,7 +2980,7 @@ public:
     DBUG_VOID_RETURN;
   }
 
-  void get_trans_pos(const char **file_var, my_off_t *pos_var) {
+  void get_trans_pos(const char **file_var, my_off_t *pos_var) const {
     DBUG_ENTER("THD::get_trans_pos");
     if (file_var)
       *file_var = m_trans_log_file;
@@ -2991,6 +2991,7 @@ public:
                           pos_var ? *pos_var : 0));
     DBUG_VOID_RETURN;
   }
+
 
   /*
     Error code from committing or rolling back the transaction.
