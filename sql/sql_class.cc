@@ -601,7 +601,7 @@ Diagnostics_area::disable_status()
 THD::THD()
    :Statement(&main_lex, &main_mem_root, CONVENTIONAL_EXECUTION,
               /* statement id */ 0),
-   Open_tables_state(refresh_version), rli_fake(0),
+   Open_tables_state(refresh_version), rli_fake(NULL), rli_slave(NULL),
    lock_id(&main_lock_id),
    user_time(0), in_sub_stmt(0),
    sql_log_bin_toplevel(false),
@@ -1035,6 +1035,8 @@ THD::~THD()
     delete rli_fake;
     rli_fake= NULL;
   }
+  if (rli_slave)
+    rli_slave->cleanup_after_session();
 #endif
 
   free_root(&main_mem_root, MYF(0));
@@ -1267,6 +1269,10 @@ void THD::cleanup_after_query()
   /* reset table map for multi-table update */
   table_map_for_update= 0;
   m_binlog_invoker= FALSE;
+#ifndef EMBEDDED_LIBRARY
+  if (rli_slave)
+    rli_slave->cleanup_after_query();
+#endif
 }
 
 

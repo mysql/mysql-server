@@ -1291,6 +1291,8 @@ class THD :public Statement,
 public:
   /* Used to execute base64 coded binlog events in MySQL server */
   Relay_log_info* rli_fake;
+  /* Slave applier execution context */
+  Relay_log_info* rli_slave;
 
   /*
     Constant for THD::where initialization in the beginning of every query.
