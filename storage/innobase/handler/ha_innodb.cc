@@ -4536,7 +4536,7 @@ table_opened:
 
 	if (dict_table_is_discarded(ib_table)) {
 
-		ib_verrf(thd,
+		ib_senderrf(thd,
 			IB_LOG_LEVEL_WARN, ER_TABLESPACE_DISCARDED,
 			table->s->table_name.str);
 
@@ -4549,7 +4549,7 @@ table_opened:
 
 	} else if (ib_table->ibd_file_missing) {
 
-		ib_verrf(thd,
+		ib_senderrf(thd,
 			IB_LOG_LEVEL_WARN, ER_TABLESPACE_MISSING, norm_name);
 
 		/* This means we have no idea what happened to the tablespace
@@ -9270,7 +9270,7 @@ ha_innobase::discard_or_import_tablespace(
 		a new tablespace. */
 
 		if (dict_table->ibd_file_missing) {
-			ib_verrf(prebuilt->trx->mysql_thd,
+			ib_senderrf(prebuilt->trx->mysql_thd,
 				IB_LOG_LEVEL_WARN, ER_TABLESPACE_MISSING,
 				dict_table->name);
 		}
@@ -15494,86 +15494,6 @@ ha_innobase::idx_cond_push(
 }
 
 /******************************************************************//**
-Push a warning message to the client, it is a wrapper around:
-
-void push_warning_printf(
-	THD *thd, Sql_condition::enum_warning_level level,
-	uint code, const char *format, ...);
-*/
-UNIV_INTERN
-void
-ib_pushf(
-/*=====*/
-	THD*		thd,		/*!< in/out: session */
-	ib_log_level_t	level,		/*!< in: warning level */
-	ib_uint32_t	code,		/*!< MySQL error code */
-	const char*	format,		/*!< printf format */
-	...)				/*!< Args */
-{
-	char*		str;
-	va_list         args;
-
-	/* If the caller wants to push a message to the client then
-	the caller must pass a valid session handle. */
-
-	ut_a(thd != 0);
-
-	va_start(args, format);
-
-#ifdef __WIN__
-	int		size = _vscprintf(format, args) + 1;
-	str = static_cast<char*>(malloc(size));
-	str[size - 1] = 0x0;
-	vsnprintf(str, size, format, args);
-#elif HAVE_VASPRINTF
-	(void) vasprintf(&str, format, args);
-#else
-	/* Use a fixed length string. */
-	str = static_cast<char*>(malloc(BUFSIZ));
-	my_vsnprintf(str, BUFSIZ, format, args);
-#endif /* __WIN__ */
-
-	Sql_condition::enum_warning_level	l;
-
-	l = Sql_condition::WARN_LEVEL_NOTE;
-
-	switch(level) {
-	case IB_LOG_LEVEL_INFO:
-		break;
-	case IB_LOG_LEVEL_WARN:
-		l = Sql_condition::WARN_LEVEL_WARN;
-		break;
-	case IB_LOG_LEVEL_ERROR: {
-		const char*	err_msg = innobase_get_err_msg(code);
-
-		ut_a(err_msg != 0);
-
-		/* Set l, to avoid a compiler warning. */
-		l = Sql_condition::WARN_LEVEL_ERROR;
-
-		/* We can't use push_warning_printf(), it is a hard error. */
-		my_printf_error(
-			code, "InnoDB: %s - %s", MYF(0), err_msg, str);
-		break;
-	}
-	case IB_LOG_LEVEL_FATAL:
-		l = Sql_condition::WARN_LEVEL_END;
-		break;
-	}
-
-	if (level != IB_LOG_LEVEL_ERROR) {
-		push_warning_printf((THD*) thd, l, code, "InnoDB: %s", str);
-	}
-
-	va_end(args);
-	free(str);
-
-	if (level == IB_LOG_LEVEL_FATAL) {
-		ut_error;
-	}
-}
-
-/******************************************************************//**
 Use this when the args are first converted to a formatted string and then
 passed to the format string from errmsg-utf8.txt. The error message format
 must be: "Some string ... %s".
@@ -15618,7 +15538,7 @@ ib_errf(
 	my_vsnprintf(str, BUFSIZ, format, args);
 #endif /* __WIN__ */
 
-	ib_verrf(thd, level, code, str);
+	ib_senderrf(thd, level, code, str);
 
 	va_end(args);
 	free(str);
@@ -15636,8 +15556,8 @@ void push_warning_printf(
 */
 UNIV_INTERN
 void
-ib_verrf(
-/*=====*/
+ib_senderrf(
+/*========*/
 	THD*		thd,		/*!< in/out: session */
 	ib_log_level_t	level,		/*!< in: warning level */
 	ib_uint32_t	code,		/*!< MySQL error code */

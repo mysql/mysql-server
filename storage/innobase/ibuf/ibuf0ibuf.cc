@@ -5071,8 +5071,8 @@ ibuf_check_bitmap_on_import(
 				ibuf_exit(&mtr);
 				mtr_commit(&mtr);
 
-				ib_pushf(trx->mysql_thd,
-					 IB_LOG_LEVEL_ERROR,
+				ib_errf(trx->mysql_thd,
+					IB_LOG_LEVEL_ERROR,
 					 ER_INNODB_INDEX_CORRUPT,
 					 "Space %u page %u"
 					 " is wrongly flagged to belong to the"
@@ -5087,11 +5087,11 @@ ibuf_check_bitmap_on_import(
 				    bitmap_page, offset, zip_size,
 				    IBUF_BITMAP_BUFFERED, &mtr)) {
 
-				ib_pushf(trx->mysql_thd,
-					 IB_LOG_LEVEL_WARN,
-					 ER_INNODB_INDEX_CORRUPT,
-					 "Buffered changes"
-					 " for space %u page %u are lost",
+				ib_errf(trx->mysql_thd,
+					IB_LOG_LEVEL_WARN,
+					ER_INNODB_INDEX_CORRUPT,
+					"Buffered changes"
+					" for space %u page %u are lost",
 					(unsigned) space_id,
 					(unsigned) offset);
 
