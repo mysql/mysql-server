@@ -155,7 +155,7 @@ b Binary(19) NULL AT=FIXED ST=MEMORY DEFAULT 0x636363
 vb Varbinary(19) NULL AT=SHORT_VAR ST=MEMORY DEFAULT 0x646464
 blob1 Blob(256,2000,0) NULL AT=MEDIUM_VAR ST=MEMORY BV=2 BT=NDB$BLOB_XX_9
 text1 Text(256,2000,0;latin1_swedish_ci) NULL AT=MEDIUM_VAR ST=MEMORY BV=2 BT=NDB$BLOB_XX_10
-timestamp_c Timestamp NOT NULL AT=FIXED ST=MEMORY
+timestamp_c Timestamp2(0) NOT NULL AT=FIXED ST=MEMORY DEFAULT 0
 ch2 Char(30;latin1_swedish_ci) NULL AT=FIXED ST=MEMORY DEFAULT "alter table"
 
 -- Indexes -- 
@@ -383,7 +383,7 @@ b Binary(19) NULL AT=FIXED ST=MEMORY DEFAULT 0x636363
 vb Varbinary(19) NULL AT=SHORT_VAR ST=MEMORY DEFAULT 0x646464
 blob1 Blob(256,2000,0) NULL AT=MEDIUM_VAR ST=MEMORY BV=2 BT=NDB$BLOB_XX_9
 text1 Text(256,2000,0;latin1_swedish_ci) NULL AT=MEDIUM_VAR ST=MEMORY BV=2 BT=NDB$BLOB_XX_10
-timestamp_c Timestamp NOT NULL AT=FIXED ST=MEMORY
+timestamp_c Timestamp NOT NULL AT=FIXED ST=MEMORY DEFAULT 0
 
 -- Indexes -- 
 PRIMARY KEY(i) - UniqueHashIndex
@@ -653,7 +653,7 @@ ExtraRowAuthorBits: 0
 TableStatus: Retrieved
 -- Attributes -- 
 a Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
-b Timestamp NOT NULL AT=FIXED ST=MEMORY
+b Timestamp2(0) NOT NULL AT=FIXED ST=MEMORY DEFAULT 0
 
 -- Indexes -- 
 PRIMARY KEY(a) - UniqueHashIndex
@@ -697,7 +697,7 @@ ExtraRowAuthorBits: 0
 TableStatus: Retrieved
 -- Attributes -- 
 a Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
-b Timestamp NOT NULL AT=FIXED ST=MEMORY
+b Timestamp2(0) NOT NULL AT=FIXED ST=MEMORY DEFAULT 0
 
 -- Indexes -- 
 PRIMARY KEY(a) - UniqueHashIndex
@@ -741,7 +741,7 @@ ExtraRowAuthorBits: 0
 TableStatus: Retrieved
 -- Attributes -- 
 a Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
-b Timestamp NOT NULL AT=FIXED ST=MEMORY
+b Timestamp2(0) NOT NULL AT=FIXED ST=MEMORY DEFAULT 0
 
 -- Indexes -- 
 PRIMARY KEY(a) - UniqueHashIndex
@@ -787,7 +787,7 @@ ExtraRowAuthorBits: 0
 TableStatus: Retrieved
 -- Attributes -- 
 a Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
-b Timestamp NOT NULL AT=FIXED ST=MEMORY
+b Timestamp2(0) NOT NULL AT=FIXED ST=MEMORY DEFAULT 0
 c Int NULL AT=FIXED ST=MEMORY
 
 -- Indexes -- 
@@ -836,7 +836,7 @@ ExtraRowAuthorBits: 0
 TableStatus: Retrieved
 -- Attributes -- 
 a Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
-b Timestamp NOT NULL AT=FIXED ST=MEMORY DEFAULT 0
+b Timestamp2(0) NOT NULL AT=FIXED ST=MEMORY DEFAULT 0
 
 -- Indexes -- 
 PRIMARY KEY(a) - UniqueHashIndex
@@ -880,7 +880,7 @@ ExtraRowAuthorBits: 0
 TableStatus: Retrieved
 -- Attributes -- 
 a Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
-b Timestamp NOT NULL AT=FIXED ST=MEMORY DEFAULT 235861201
+b Timestamp2(0) NOT NULL AT=FIXED ST=MEMORY DEFAULT 235861201
 
 -- Indexes -- 
 PRIMARY KEY(a) - UniqueHashIndex
@@ -926,8 +926,8 @@ ExtraRowAuthorBits: 0
 TableStatus: Retrieved
 -- Attributes -- 
 a Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
-b Timestamp NOT NULL AT=FIXED ST=MEMORY DEFAULT 235861201
-c Timestamp NOT NULL AT=FIXED ST=MEMORY
+b Timestamp2(0) NOT NULL AT=FIXED ST=MEMORY DEFAULT 235861201
+c Timestamp2(0) NOT NULL AT=FIXED ST=MEMORY DEFAULT 0
 
 -- Indexes -- 
 PRIMARY KEY(a) - UniqueHashIndex
@@ -973,8 +973,8 @@ ExtraRowAuthorBits: 0
 TableStatus: Retrieved
 -- Attributes -- 
 a Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
-b Timestamp NOT NULL AT=FIXED ST=MEMORY DEFAULT 235861201
-c Timestamp NOT NULL AT=FIXED ST=MEMORY
+b Timestamp2(0) NOT NULL AT=FIXED ST=MEMORY DEFAULT 235861201
+c Timestamp2(0) NOT NULL AT=FIXED ST=MEMORY DEFAULT 0
 
 -- Indexes -- 
 PRIMARY KEY(a) - UniqueHashIndex
@@ -1024,8 +1024,8 @@ ExtraRowAuthorBits: 0
 TableStatus: Retrieved
 -- Attributes -- 
 a Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
-b Timestamp NOT NULL AT=FIXED ST=MEMORY DEFAULT 235861201
-c Timestamp NOT NULL AT=FIXED ST=MEMORY
+b Timestamp2(0) NOT NULL AT=FIXED ST=MEMORY DEFAULT 235861201
+c Timestamp2(0) NOT NULL AT=FIXED ST=MEMORY DEFAULT 0
 
 -- Indexes -- 
 PRIMARY KEY(a) - UniqueHashIndex
@@ -1069,7 +1069,7 @@ ExtraRowAuthorBits: 0
 TableStatus: Retrieved
 -- Attributes -- 
 a Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
-b Timestamp NULL AT=FIXED ST=MEMORY
+b Timestamp2(0) NULL AT=FIXED ST=MEMORY
 
 -- Indexes -- 
 PRIMARY KEY(a) - UniqueHashIndex
@@ -1113,7 +1113,7 @@ ExtraRowAuthorBits: 0
 TableStatus: Retrieved
 -- Attributes -- 
 a Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
-b Timestamp NULL AT=FIXED ST=MEMORY DEFAULT 0
+b Timestamp2(0) NULL AT=FIXED ST=MEMORY DEFAULT 0
 
 -- Indexes -- 
 PRIMARY KEY(a) - UniqueHashIndex
@@ -1157,7 +1157,7 @@ ExtraRowAuthorBits: 0
 TableStatus: Retrieved
 -- Attributes -- 
 a Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
-b Timestamp NULL AT=FIXED ST=MEMORY DEFAULT 235861201
+b Timestamp2(0) NULL AT=FIXED ST=MEMORY DEFAULT 235861201
 
 -- Indexes -- 
 PRIMARY KEY(a) - UniqueHashIndex
@@ -1201,7 +1201,7 @@ ExtraRowAuthorBits: 0
 TableStatus: Retrieved
 -- Attributes -- 
 a Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
-b Timestamp NULL AT=FIXED ST=MEMORY
+b Timestamp2(0) NULL AT=FIXED ST=MEMORY
 
 -- Indexes -- 
 PRIMARY KEY(a) - UniqueHashIndex
@@ -1247,7 +1247,7 @@ ExtraRowAuthorBits: 0
 TableStatus: Retrieved
 -- Attributes -- 
 a Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
-b Timestamp NULL AT=FIXED ST=MEMORY
+b Timestamp2(0) NULL AT=FIXED ST=MEMORY
 c Int NULL AT=FIXED ST=MEMORY
 
 -- Indexes -- 
@@ -1296,7 +1296,7 @@ ExtraRowAuthorBits: 0
 TableStatus: Retrieved
 -- Attributes -- 
 a Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
-b Timestamp NULL AT=FIXED ST=MEMORY
+b Timestamp2(0) NULL AT=FIXED ST=MEMORY
 
 -- Indexes -- 
 PRIMARY KEY(a) - UniqueHashIndex
@@ -1395,7 +1395,7 @@ b Binary(19) NULL AT=FIXED ST=MEMORY DEFAULT 0x636363
 vb Varbinary(19) NULL AT=SHORT_VAR ST=MEMORY DEFAULT 0x646464
 blob1 Blob(256,2000,0) NULL AT=MEDIUM_VAR ST=MEMORY BV=2 BT=NDB$BLOB_XX_8
 text1 Text(256,2000,0;latin1_swedish_ci) NULL AT=MEDIUM_VAR ST=MEMORY BV=2 BT=NDB$BLOB_XX_9
-timestamp_c Timestamp NOT NULL AT=FIXED ST=MEMORY DEFAULT 1275905182
+timestamp_c Timestamp2(0) NOT NULL AT=FIXED ST=MEMORY DEFAULT 1275905182
 newOne Varchar(255;latin1_swedish_ci) NULL AT=SHORT_VAR ST=MEMORY DEFAULT "Comment field default"
 newTwo Bigint NULL AT=FIXED ST=MEMORY
 
