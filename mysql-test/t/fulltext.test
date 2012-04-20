@@ -623,7 +623,6 @@ PREPARE stmt FROM
  ON (MATCH(t1.f1) against (""))
  WHERE t1.f1 GROUP BY t1.f1))';
 
---echo # See BUG#12888306. Correct result is one row with value 1.
 EXECUTE stmt;
 EXECUTE stmt;
 
