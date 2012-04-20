@@ -2647,7 +2647,6 @@ void calc_sum_of_all_status(STATUS_VAR *to)
 {
   DBUG_ENTER("calc_sum_of_all_status");
 
-  /* Ensure that thread id not killed during loop */
   mysql_mutex_lock(&LOCK_thread_count);
 
   Thread_iterator it= global_thread_list_begin();
