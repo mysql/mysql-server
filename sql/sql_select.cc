@@ -3974,17 +3974,12 @@ check_reverse_order:
       bool quick_created= 
         (select && select->quick && select->quick!=save_quick);
 
-      /* 
-         If 'best_key' has changed from  prev. 'ref_key':
-         Update strategy for using index tree reading only
-         ('Using index' in EXPLAIN)
+      /*
+        If ref_key used index tree reading only ('Using index' in EXPLAIN),
+        and best_key doesn't, then revert the decision.
       */
-      if (best_key != ref_key)
-      {
-        const bool using_index= 
-          (table->covering_keys.is_set(best_key) && !table->no_keyread);
-        table->set_keyread(using_index);
-      }
+      if(!table->covering_keys.is_set(best_key))
+        table->set_keyread(false);
       if (!quick_created)
       {
         if (select)                  // Throw any existing quick select

@@ -1297,7 +1297,7 @@ int main(int argc,char *argv[])
 	  mysql_thread_id(&mysql), server_version_string(&mysql));
   put_info((char*) glob_buffer.ptr(),INFO_INFO);
 
-  put_info(ORACLE_WELCOME_COPYRIGHT_NOTICE("2000, 2011"), INFO_INFO);
+  put_info(ORACLE_WELCOME_COPYRIGHT_NOTICE("2000, 2012"), INFO_INFO);
 
 #ifdef HAVE_READLINE
   initialize_readline((char*) my_progname);
@@ -1727,7 +1727,7 @@ static void usage(int version)
 
   if (version)
     return;
-  puts(ORACLE_WELCOME_COPYRIGHT_NOTICE("2000, 2011"));
+  puts(ORACLE_WELCOME_COPYRIGHT_NOTICE("2000, 2012"));
   printf("Usage: %s [OPTIONS] [database]\n", my_progname);
   my_print_help(my_long_options);
   print_defaults("my", load_default_groups);

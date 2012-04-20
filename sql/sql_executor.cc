@@ -3145,6 +3145,18 @@ int join_init_read_record(JOIN_TAB *tab)
   if (init_read_record(&tab->read_record, tab->join->thd, tab->table,
                        tab->select, 1, 1, FALSE))
     return 1;
+  /*
+    set keyread to TRUE if quick index is covering.
+    @todo: Call set_keyread only from access functions. Currently this is
+    also done in make_join_readinfo.
+  */
+  if (tab->select && tab->select->quick)
+  {
+    TABLE *table= tab->table;
+    if(!table->no_keyread && tab->select->quick->index != MAX_KEY //not index merge
+       && table->covering_keys.is_set(tab->select->quick->index))
+      table->set_keyread(true);
+  }
   return (*tab->read_record.read_record)(&tab->read_record);
 }
 

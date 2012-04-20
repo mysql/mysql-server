@@ -54,3 +54,22 @@ disconnect root;
 connection default;
 set global binlog_format = @saved_binlog_format;
 drop user mysqltest_1@localhost;
+
+
+# Testing if REPLICATION CLIENT privilege is enough to execute
+# SHOW MASTER LOGS and SHOW BINARY.
+GRANT REPLICATION CLIENT ON *.* TO 'mysqltest_1'@'localhost';
+--connect(rpl,localhost,mysqltest_1,,)
+
+--connection rpl
+# We are only interested if the following commands succeed and not on
+# their output.
+--disable_result_log
+SHOW MASTER LOGS;
+SHOW BINARY LOGS;
+--enable_result_log
+
+# clean up
+--disconnect rpl
+connection default;
+DROP USER 'mysqltest_1'@'localhost';
