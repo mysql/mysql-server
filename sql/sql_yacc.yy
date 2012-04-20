@@ -7274,7 +7274,12 @@ opt_online_offline:
                                 ER_WARN_DEPRECATED_SYNTAX,
                                 ER(ER_WARN_DEPRECATED_SYNTAX),
                                 "ONLINE", "ALGORITHM=INPLACE");
+#ifdef MCP_WL6224
+            // ha_ndbcluster must be adapted to inplace alter
             $$= Alter_info::ALTER_TABLE_ALGORITHM_INPLACE;
+#else
+            $$= Alter_info::ALTER_TABLE_ALGORITHM_DEFAULT;
+#endif
           }
         | OFFLINE_SYM
           {
