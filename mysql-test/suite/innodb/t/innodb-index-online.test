@@ -10,8 +10,8 @@ call mtr.add_suppression("InnoDB: Warning: Small buffer pool size");
 call mtr.add_suppression("Cannot find index .*c2 in InnoDB index translation table");
 call mtr.add_suppression("Find index .*c2 in InnoDB index list but not its MySQL index number");
 # these will be triggered by DISCARD TABLESPACE
-call mtr.add_suppression("InnoDB: Error: table 'test/t1'$");
-call mtr.add_suppression("MySQL is trying to open a table handle but the .ibd file for$");
+call mtr.add_suppression("InnoDB: Error: table 'test/t1'");
+call mtr.add_suppression("MySQL is trying to open a table handle but the .ibd file for");
 
 # DISCARD TABLESPACE needs file-per-table
 let $per_table=`select @@innodb_file_per_table`;

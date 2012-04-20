@@ -317,7 +317,7 @@ int Master_info::init_info()
   DBUG_RETURN(0);
 
 err:
-  // todo: handler->end_info(uidx, nidx);
+  handler->end_info(uidx, nidx);
   inited= 0;
   sql_print_error("Error reading master configuration.");
   DBUG_RETURN(1);
