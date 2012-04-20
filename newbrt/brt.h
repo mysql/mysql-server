@@ -263,8 +263,6 @@ int toku_brt_init(void (*ydb_lock_callback)(void),
                   void (*db_set_brt)(DB*,BRT))
      __attribute__ ((warn_unused_result));
 int toku_brt_destroy(void)  __attribute__ ((warn_unused_result));
-int toku_pwrite_lock_init(void) __attribute__ ((warn_unused_result));
-int toku_pwrite_lock_destroy(void) __attribute__ ((warn_unused_result));
 int toku_brt_serialize_init(void) __attribute__ ((warn_unused_result));
 int toku_brt_serialize_destroy(void) __attribute__ ((warn_unused_result));
 
