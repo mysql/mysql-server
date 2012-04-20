@@ -407,7 +407,7 @@ void my_make_scrambled_password(char *to, const char *password,
   char salt[CRYPT_SALT_LENGTH + 1];
   
   generate_user_salt(salt, CRYPT_SALT_LENGTH + 1);
-  crypt_genhash_impl(to,
+  my_crypt_genhash(to,
                      CRYPT_MAX_PASSWORD_SIZE,
                      password,
                      pass_len,

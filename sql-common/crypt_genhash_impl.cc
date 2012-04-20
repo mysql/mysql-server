@@ -6,10 +6,11 @@
 #include <sha.hpp>
 #include <openssl/ssl.h>
 #else
-#include <sys/types.h>
 #include <openssl/sha.h>
 #include <openssl/rand.h>
 #endif
+
+#include "crypt_genhash_impl.h"
 
 /* Pre VS2010 compilers doesn't support stdint.h */
 #ifdef HAVE_STDINT_H
@@ -23,12 +24,10 @@ typedef unsigned char uint8_t;
 #endif
 #endif // !HAVE_STDINT_H
 
-#include <errno.h>
-#include <string.h>
 #include <time.h>
-#include <limits.h>
+#include <string.h>
 
-#include "crypt_genhash_impl.h"
+
 
 #ifndef HAVE_YASSL
 #define	DIGEST_CTX	SHA256_CTX
@@ -63,12 +62,6 @@ static const char crypt_alg_magic[] = "$5";
 #endif
 #ifndef MIN
 #define MIN(a, b)  (((a) < (b)) ? (a) : (b))
-#endif
-#ifndef B_FALSE
-#define B_FALSE 0
-#endif
-#ifndef B_TRUE
-#define B_TRUE 1
 #endif
 
 
@@ -122,8 +115,6 @@ static unsigned char b64t[] =		/* 0 ... 63 => ascii - 64 */
 
 #define	ROUNDS		"rounds="
 #define	ROUNDSLEN	(sizeof (ROUNDS) - 1)
-
-typedef bool boolean_t;
 
 /**
   Get the integer value after rounds= where ever it occurs in the string.
@@ -231,10 +222,16 @@ const char *sha256_find_digest(char *pass)
  * "Released into the Public Domain by Ulrich Drepper <drepper@redhat.com>."
  */
  
+/*
+  Due to a Solaris namespace bug DS is a reserved word. To work around this
+  DS is undefined.
+*/
+#undef DS
+
 /* ARGSUSED4 */
 extern "C"
 char *
-crypt_genhash_impl(char *ctbuffer,
+my_crypt_genhash(char *ctbuffer,
                    size_t ctbufflen,
                    const char *plaintext,
                    int plaintext_len,
@@ -250,7 +247,7 @@ crypt_genhash_impl(char *ctbuffer,
   DIGEST_CTX ctxA, ctxB, ctxC, ctxDP, ctxDS;
   int rounds = ROUNDS_DEFAULT;
   int srounds = 0;
-  boolean_t custom_rounds = B_FALSE;
+  bool custom_rounds= false;
   char *p;
   char *P, *Pp;
   char *S, *Sp;
@@ -267,7 +264,7 @@ crypt_genhash_impl(char *ctbuffer,
   srounds = getrounds(salt);
   if (srounds != 0) {
           rounds = MAX(ROUNDS_MIN, MIN(srounds, ROUNDS_MAX));
-          custom_rounds = B_TRUE;
+          custom_rounds= true;
           p = strchr(salt, '$');
           if (p != NULL)
                   salt = p + 1;
