@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2007, 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2007, 2012, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -384,7 +384,7 @@ fts_ast_node_print(
 Traverse the AST - in-order traversal.
 @return DB_SUCCESS if all went well */
 UNIV_INTERN
-ulint
+dberr_t
 fts_ast_visit(
 /*==========*/
 	fts_ast_oper_t		oper,		/*!< in: current operator */
@@ -392,7 +392,7 @@ fts_ast_visit(
 	fts_ast_callback	visitor,	/*!< in: callback function */
 	void*			arg)		/*!< in: arg for callback */
 {
-	ulint			error = DB_SUCCESS;
+	dberr_t	error = DB_SUCCESS;
 
 	ut_a(node->type == FTS_AST_LIST
 	     || node->type == FTS_AST_SUBEXP_LIST);

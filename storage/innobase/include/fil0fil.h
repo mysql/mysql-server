@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2010, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2012, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -329,11 +329,12 @@ Writes the flushed lsn and the latest archived log number to the page
 header of the first page of each data file in the system tablespace.
 @return	DB_SUCCESS or error number */
 UNIV_INTERN
-ulint
+dberr_t
 fil_write_flushed_lsn_to_data_files(
 /*================================*/
 	lsn_t	lsn,		/*!< in: lsn to write */
-	ulint	arch_log_no);	/*!< in: latest archived log file number */
+	ulint	arch_log_no)	/*!< in: latest archived log file number */
+	__attribute__((nonnull));
 /*******************************************************************//**
 Reads the flushed lsn, arch no, and tablespace flag fields from a data
 file at database startup. */
@@ -408,7 +409,9 @@ UNIV_INTERN
 ibool
 fil_delete_tablespace(
 /*==================*/
-	ulint	id);	/*!< in: space id */
+	ulint	id,		/*!< in: space id */
+	ibool	evict_all);	/*!< in: TRUE if we want all pages
+				evicted from LRU. */
 #ifndef UNIV_HOTBACKUP
 /*******************************************************************//**
 Discards a single-table tablespace. The tablespace must be cached in the
@@ -450,7 +453,7 @@ path '.'. Tables created with CREATE TEMPORARY TABLE we place in the temp
 dir of the mysqld server.
 @return	DB_SUCCESS or error code */
 UNIV_INTERN
-ulint
+dberr_t
 fil_create_new_single_table_tablespace(
 /*===================================*/
 	ulint		space_id,	/*!< in: space id */
@@ -462,9 +465,10 @@ fil_create_new_single_table_tablespace(
 					CREATE TEMPORARY TABLE */
 	ulint		flags,		/*!< in: tablespace flags */
 	ulint		flags2,		/*!< in: table flags2 */
-	ulint		size);		/*!< in: the initial size of the
+	ulint		size)		/*!< in: the initial size of the
 					tablespace file in pages,
 					must be >= FIL_IBD_FILE_INITIAL_SIZE */
+	__attribute__((nonnull, warn_unused_result));
 #ifndef UNIV_HOTBACKUP
 /********************************************************************//**
 Tries to open a single-table tablespace and optionally checks the space id is
@@ -520,7 +524,7 @@ in the doublewrite buffer, also to know where to apply log records where the
 space id is != 0.
 @return	DB_SUCCESS or error number */
 UNIV_INTERN
-ulint
+dberr_t
 fil_load_single_table_tablespaces(void);
 /*===================================*/
 /*******************************************************************//**
@@ -625,7 +629,7 @@ Reads or writes data. This operation is asynchronous (aio).
 @return DB_SUCCESS, or DB_TABLESPACE_DELETED if we are trying to do
 i/o on a tablespace which does not exist */
 UNIV_INTERN
-ulint
+dberr_t
 fil_io(
 /*===*/
 	ulint	type,		/*!< in: OS_FILE_READ or OS_FILE_WRITE,
@@ -651,8 +655,9 @@ fil_io(
 	void*	buf,		/*!< in/out: buffer where to store read data
 				or from where to write; in aio this must be
 				appropriately aligned */
-	void*	message);	/*!< in: message for aio handler if non-sync
+	void*	message)	/*!< in: message for aio handler if non-sync
 				aio used, else ignored */
+	__attribute__((nonnull(8)));
 /**********************************************************************//**
 Waits for an aio operation to complete. This function is used to write the
 handler for completed requests. The aio array of pending requests is divided

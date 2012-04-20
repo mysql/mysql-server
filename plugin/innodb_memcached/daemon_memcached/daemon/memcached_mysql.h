@@ -27,7 +27,6 @@ Created 04/12/2011 Jimmy Yang
 #ifndef MEMCACHED_MYSQL_H
 #define MEMCACHED_MYSQL_H
 
-
 /** The main memcached header holding commonly used data
 structures and function prototypes. */
 struct memcached_context
@@ -48,7 +47,9 @@ typedef struct memcached_context        memcached_context_t;
 
 void* daemon_memcached_main(void *p);
 
-void shutdown_server();
+void shutdown_server(void);
+
+bool shutdown_complete(void);
 
 # ifdef __cplusplus
 }

@@ -11,6 +11,7 @@ sync_slave_with_master;
 # Set slave to use SSL for connection to master
 stop slave;
 --replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
+--replace_column 2 ####
 eval change master to
   master_user='replssl',
   master_password='',
@@ -98,6 +99,7 @@ drop table t1;
 sync_slave_with_master;
 
 --source include/stop_slave.inc
+--replace_column 2 ####
 CHANGE MASTER TO
  master_user = 'root',
  master_ssl = 0,

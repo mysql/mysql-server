@@ -1,3 +1,6 @@
+#Want to skip this test from daily Valgrind execution
+--source include/no_valgrind_without_big.inc
+
 -- source include/have_innodb.inc
 
 create table bug53290 (x bigint) engine=innodb;

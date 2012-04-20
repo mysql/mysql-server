@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2009, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2012, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -73,13 +73,14 @@ read_view_close_for_mysql(
 	trx_t*	trx);	/*!< in: trx which has a read view */
 /*********************************************************************//**
 Checks if a read view sees the specified transaction.
-@return	TRUE if sees */
+@return	true if sees */
 UNIV_INLINE
-ibool
+bool
 read_view_sees_trx_id(
 /*==================*/
 	const read_view_t*	view,	/*!< in: read view */
-	trx_id_t		trx_id);/*!< in: trx id */
+	trx_id_t		trx_id)	/*!< in: trx id */
+	__attribute__((nonnull, warn_unused_result));
 /*********************************************************************//**
 Prints a read view to stderr. */
 UNIV_INTERN

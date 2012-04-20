@@ -747,7 +747,7 @@ int set_var_user::update(THD *thd)
 
 void set_var_user::print(THD *thd, String *str)
 {
-  user_var_item->print(str, QT_ORDINARY);
+  user_var_item->print_assignment(str, QT_ORDINARY);
 }
 
 

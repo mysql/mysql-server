@@ -7,6 +7,9 @@
 # records.  The size of ibdata1 must not increase.
 #
 
+#Want to skip this test from daily Valgrind execution.
+--source include/no_valgrind_without_big.inc
+
 -- source include/not_embedded.inc
 -- source include/have_innodb.inc
 

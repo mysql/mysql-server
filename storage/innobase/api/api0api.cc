@@ -20,8 +20,11 @@ this program; if not, write to the Free Software Foundation, Inc.,
 @file api/api0api.cc
 InnoDB Native API
 
+2008-08-01 Created Sunny Bains
 3/20/2011 Jimmy Yang extracted from Embedded InnoDB
 *******************************************************/
+
+#include "univ.i"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -31,7 +34,6 @@ InnoDB Native API
 #include <unistd.h>
 #endif
 
-#include "univ.i"
 #include "api0api.h"
 #include "api0misc.h"
 #include "srv0start.h"
@@ -571,7 +573,7 @@ ib_trx_start(
 
 	/* FIXME: This is a place holder, we should add an arg that comes
 	from the client. */
-	trx->mysql_thd = thd;
+	trx->mysql_thd = static_cast<THD*>(thd);
 
 	return(err);
 }
@@ -1431,7 +1433,7 @@ ib_insert_row_with_lock_retry(
 			que_thr_stop_for_mysql(thr);
 
 			thr->lock_state = QUE_THR_LOCK_ROW;
-			lock_wait = ib_handle_errors(static_cast<db_err*>(&err), trx, thr, savept);
+			lock_wait = ib_handle_errors(&err, trx, thr, savept);
 			thr->lock_state = QUE_THR_LOCK_NOLOCK;
 		} else {
 			lock_wait = FALSE;
@@ -3716,7 +3718,7 @@ ib_close_thd(
 	void*		thd)	/*!< in: handle to the MySQL thread of the user
 				whose resources should be free'd */
 {
-	innobase_close_thd(thd);
+	innobase_close_thd(static_cast<THD*>(thd));
 
 	return(DB_SUCCESS);
 }

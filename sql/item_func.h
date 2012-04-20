@@ -1009,8 +1009,7 @@ class Item_func_rollup_const :public Item_func
 public:
   Item_func_rollup_const(Item *a) :Item_func(a)
   {
-    name= a->name;
-    name_length= a->name_length;
+    item_name= a->item_name;
   }
   double val_real() { return args[0]->val_real(); }
   longlong val_int() { return args[0]->val_int(); }
@@ -1635,8 +1634,8 @@ class Item_func_set_user_var :public Item_var_func
   } save_result;
 
 public:
-  LEX_STRING name; // keep it public
-  Item_func_set_user_var(LEX_STRING a,Item *b)
+  NameString name; // keep it public
+  Item_func_set_user_var(NameString a, Item *b)
     :Item_var_func(b), cached_result_type(INT_RESULT),
      entry(NULL), entry_thread_id(0), name(a)
   {}
@@ -1668,7 +1667,7 @@ public:
   bool fix_fields(THD *thd, Item **ref);
   void fix_length_and_dec();
   virtual void print(String *str, enum_query_type query_type);
-  void print_as_stmt(String *str, enum_query_type query_type);
+  void print_assignment(String *str, enum_query_type query_type);
   const char *func_name() const { return "set_user_var"; }
   int save_in_field(Field *field, bool no_conversions,
                     bool can_use_result_field);
@@ -1690,11 +1689,10 @@ class Item_func_get_user_var :public Item_var_func,
   Item_result m_cached_result_type;
 
 public:
-  LEX_STRING name; // keep it public
-  Item_func_get_user_var(LEX_STRING a):
+  NameString name; // keep it public
+  Item_func_get_user_var(NameString a):
     Item_var_func(), m_cached_result_type(STRING_RESULT), name(a) {}
   enum Functype functype() const { return GUSERVAR_FUNC; }
-  LEX_STRING get_name() { return name; }
   double val_real();
   longlong val_int();
   my_decimal *val_decimal(my_decimal*);
@@ -1733,11 +1731,11 @@ public:
 */
 class Item_user_var_as_out_param :public Item
 {
-  LEX_STRING name;
+  NameString name;
   user_var_entry *entry;
 public:
-  Item_user_var_as_out_param(LEX_STRING a) : name(a)
-  { set_name(a.str, 0, system_charset_info); }
+  Item_user_var_as_out_param(NameString a) :name(a)
+  { item_name.copy(a); }
   /* We should return something different from FIELD_ITEM here */
   enum Type type() const { return STRING_ITEM;}
   double val_real();
@@ -1857,8 +1855,91 @@ public:
 
   bool fix_index();
   void init_search(bool no_order);
+
+  /**
+     Get number of matching rows from FT handler.
+
+     @note Requires that FT handler supports the extended API
+
+     @return Number of matching rows in result 
+   */
+  ulonglong get_count()
+  {
+    DBUG_ASSERT(ft_handler);
+    DBUG_ASSERT(table->file->ha_table_flags() & HA_CAN_FULLTEXT_EXT);
+
+    return ((FT_INFO_EXT *)ft_handler)->could_you->
+      count_matches((FT_INFO_EXT *)ft_handler);
+  }
+
+  /**
+     Check whether FT result is ordered on rank
+
+     @return true if result is ordered
+     @return false otherwise
+   */
+  bool ordered_result()
+  {
+    if (flags & FT_SORTED)
+      return true;
+
+    if ((table->file->ha_table_flags() & HA_CAN_FULLTEXT_EXT) == 0)
+      return false;
+
+    DBUG_ASSERT(ft_handler);
+    return ((FT_INFO_EXT *)ft_handler)->could_you->get_flags() & 
+      FTS_ORDERED_RESULT;
+  }
+
+  /**
+     Check whether FT result contains the document ID
+
+     @return true if document ID is available
+     @return false otherwise
+   */
+  bool docid_in_result()
+  {
+    DBUG_ASSERT(ft_handler);
+
+    if ((table->file->ha_table_flags() & HA_CAN_FULLTEXT_EXT) == 0)
+      return false;
+
+    return ((FT_INFO_EXT *)ft_handler)->could_you->get_flags() & 
+      FTS_DOCID_IN_RESULT;
+  }
 };
 
+/**
+   Item_func class used to fetch document ID from FTS result.  This
+   class is used to replace Item_field objects in order to fetch
+   document ID from FTS result instead of table.
+ */
+class Item_func_docid : public Item_int_func
+{
+  FT_INFO_EXT *ft_handler;
+public:
+  Item_func_docid(FT_INFO_EXT *handler) : ft_handler(handler) 
+  { 
+    max_length= 21;
+    maybe_null= false; 
+    unsigned_flag= true;
+  } 
+
+  const char *func_name() const { return "docid"; }
+
+  void update_used_tables()
+  {
+    Item_int_func::update_used_tables();
+    used_tables_cache|= RAND_TABLE_BIT;
+    const_item_cache= false;
+  }
+
+  longlong val_int() 
+  { 
+    DBUG_ASSERT(ft_handler);
+    return ft_handler->could_you->get_docid(ft_handler);
+  }
+};
 
 class Item_func_bit_xor : public Item_func_bit
 {

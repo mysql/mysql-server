@@ -137,9 +137,9 @@ op_ok:
 	row_merge_buf_encode(), because here we do not encode
 	extra_size+1 (and reserve 0 as the end-of-chunk marker). */
 
-	size = rec_get_converted_size_comp(
-		index, REC_STATUS_ORDINARY,
-		tuple->fields, tuple->n_fields, &extra_size);
+	size = rec_get_converted_size_comp_prefix(
+		index, tuple->fields, tuple->n_fields,
+		index->n_nullable, &extra_size);
 	ut_ad(size >= extra_size);
 	ut_ad(extra_size >= REC_N_NEW_EXTRA_BYTES);
 	extra_size -= REC_N_NEW_EXTRA_BYTES;
@@ -170,7 +170,8 @@ op_ok:
 
 	rec_convert_dtuple_to_rec_comp(
 		b + extra_size, 0, index,
-		REC_STATUS_ORDINARY, tuple->fields, tuple->n_fields);
+		REC_STATUS_ORDINARY, tuple->fields, tuple->n_fields,
+		index->n_nullable);
 	b += size;
 
 	if (mrec_size >= avail_size) {
@@ -324,7 +325,7 @@ row_log_apply_op_low(
 	dict_index_t*	index,		/*!< in/out: index */
 	row_merge_dup_t*dup,		/*!< in/out: for reporting
 					duplicate key errors */
-	ulint*		error,		/*!< out: DB_SUCCESS or error code */
+	dberr_t*	error,		/*!< out: DB_SUCCESS or error code */
 	mem_heap_t*	heap,		/*!< in/out: memory heap for
 					allocating data tuples */
 	ibool		has_index_lock, /*!< in: TRUE if holding index->lock
@@ -608,7 +609,7 @@ row_log_apply_op(
 	dict_index_t*	index,		/*!< in/out: index */
 	row_merge_dup_t*dup,		/*!< in/out: for reporting
 					duplicate key errors */
-	ulint*		error,		/*!< out: DB_SUCCESS or error code */
+	dberr_t*	error,		/*!< out: DB_SUCCESS or error code */
 	mem_heap_t*	heap,		/*!< in/out: memory heap for
 					allocating data tuples */
 	ibool		has_index_lock, /*!< in: TRUE if holding index->lock
@@ -679,7 +680,8 @@ corrupted:
 		return(NULL);
 	}
 
-	rec_init_offsets_comp_ordinary(mrec, 0, index, offsets);
+	rec_init_offsets_comp_ordinary(
+		mrec, 0, index, index->n_nullable, offsets);
 
 	if (rec_offs_any_extern(offsets)) {
 		/* There should never be any externally stored fields
@@ -725,7 +727,7 @@ corrupted:
 Applies operations to a secondary index that was being created.
 @return DB_SUCCESS, or error code on failure */
 static __attribute__((nonnull))
-ulint
+dberr_t
 row_log_apply_ops(
 /*==============*/
 	trx_t*		trx,	/*!< in: transaction (for checking if
@@ -734,7 +736,7 @@ row_log_apply_ops(
 	row_merge_dup_t*dup)	/*!< in/out: for reporting duplicate key
 				errors */
 {
-	ulint		error;
+	dberr_t		error;
 	const mrec_t*	mrec	= NULL;
 	const mrec_t*	next_mrec;
 	const mrec_t*	mrec_end= NULL; /* silence bogus warning */
@@ -1030,7 +1032,7 @@ func_exit:
 Apply the row log to the index upon completing index creation.
 @return DB_SUCCESS, or error code on failure */
 UNIV_INTERN
-ulint
+dberr_t
 row_log_apply(
 /*==========*/
 	trx_t*		trx,	/*!< in: transaction (for checking if
@@ -1039,7 +1041,7 @@ row_log_apply(
 	struct TABLE*	table)	/*!< in/out: MySQL table
 				(for reporting duplicates) */
 {
-	ulint		error;
+	dberr_t		error;
 	row_log_t*	log;
 	row_merge_dup_t dup;
 	dup.index = index;

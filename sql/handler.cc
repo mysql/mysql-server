@@ -39,6 +39,7 @@
 #include <mysql/psi/mysql_table.h>
 #include "debug_sync.h"         // DEBUG_SYNC
 #include <my_bit.h>
+#include <list>
 
 #ifdef WITH_PARTITION_STORAGE_ENGINE
 #include "ha_partition.h"
@@ -46,6 +47,7 @@
 
 using std::min;
 using std::max;
+using std::list;
 
 // This is a temporary backporting fix.
 #ifndef HAVE_LOG2
@@ -104,6 +106,83 @@ TYPELIB tx_isolation_typelib= {array_elements(tx_isolation_names)-1,"",
 static TYPELIB known_extensions= {0,"known_exts", NULL, NULL};
 uint known_extensions_id= 0;
 
+/**
+  Database name that hold most of mysqld system tables.
+  Current code assumes that, there exists only some
+  specific "database name" designated as system database.
+*/
+const char* mysqld_system_database= "mysql";
+
+// System tables that belong to mysqld_system_database.
+st_system_tablename mysqld_system_tables[]= {
+  {mysqld_system_database, "db"},
+  {mysqld_system_database, "user"},
+  {mysqld_system_database, "host"},
+  {mysqld_system_database, "func"},
+  {mysqld_system_database, "proc"},
+  {mysqld_system_database, "event"},
+  {mysqld_system_database, "plugin"},
+  {mysqld_system_database, "servers"},
+  {mysqld_system_database, "procs_priv"},
+  {mysqld_system_database, "tables_priv"},
+  {mysqld_system_database, "proxies_priv"},
+  {mysqld_system_database, "columns_priv"},
+  {mysqld_system_database, "time_zone"},
+  {mysqld_system_database, "time_zone_name"},
+  {mysqld_system_database, "time_zone_leap_second"},
+  {mysqld_system_database, "time_zone_transition"},
+  {mysqld_system_database, "time_zone_transition_type"},
+  {mysqld_system_database, "help_category"},
+  {mysqld_system_database, "help_keyword"},
+  {mysqld_system_database, "help_relation"},
+  {mysqld_system_database, "help_topic"},
+  {(const char *)NULL, (const char *)NULL} /* This must be at the end */
+};
+
+/**
+  This static pointer holds list of system databases from SQL layer and
+  various SE's. The required memory is allocated once, and never freed.
+*/
+static const char **known_system_databases= NULL;
+static const char **ha_known_system_databases();
+
+// Called for each SE to get SE specific system database.
+static my_bool system_databases_handlerton(THD *unused, plugin_ref plugin,
+                                           void *arg);
+
+// Called for each SE to check if given db.table_name is a system table.
+static my_bool check_engine_system_table_handlerton(THD *unused,
+                                                    plugin_ref plugin,
+                                                    void *arg);
+
+/**
+  Structure used by SE during check for system table.
+  This structure is passed to each SE handlerton and the status (OUT param)
+  is collected.
+*/
+struct st_sys_tbl_chk_params
+{
+  const char *db;                             // IN param
+  const char *table_name;                     // IN param
+  bool is_sql_layer_system_table;             // IN param
+  legacy_db_type db_type;                     // IN param
+
+  enum enum_sys_tbl_chk_status
+  {
+    // db.table_name is not a supported system table.
+    NOT_KNOWN_SYSTEM_TABLE,
+    /*
+      db.table_name is a system table,
+      but may not be supported by SE.
+    */
+    KNOWN_SYSTEM_TABLE,
+    /*
+      db.table_name is a system table,
+      and is supported by SE.
+    */
+    SUPPORTED_SYSTEM_TABLE
+  }status;                                    // OUT param
+};
 
 
 static plugin_ref ha_default_plugin(THD *thd)
@@ -635,6 +714,14 @@ int ha_init()
   */
   opt_using_transactions= total_ha>(ulong)opt_bin_log;
   savepoint_alloc_size+= sizeof(SAVEPOINT);
+
+  /*
+    Initialize system database name cache.
+    This cache is used to do a quick check if a given
+    db.tablename is a system table.
+  */
+  known_system_databases= ha_known_system_databases();
+
   DBUG_RETURN(error);
 }
 
@@ -1739,9 +1826,9 @@ bool mysql_xa_recover(THD *thd)
   XID_STATE *xs;
   DBUG_ENTER("mysql_xa_recover");
 
-  field_list.push_back(new Item_int("formatID", 0, MY_INT32_NUM_DECIMAL_DIGITS));
-  field_list.push_back(new Item_int("gtrid_length", 0, MY_INT32_NUM_DECIMAL_DIGITS));
-  field_list.push_back(new Item_int("bqual_length", 0, MY_INT32_NUM_DECIMAL_DIGITS));
+  field_list.push_back(new Item_int(NAME_STRING("formatID"), 0, MY_INT32_NUM_DECIMAL_DIGITS));
+  field_list.push_back(new Item_int(NAME_STRING("gtrid_length"), 0, MY_INT32_NUM_DECIMAL_DIGITS));
+  field_list.push_back(new Item_int(NAME_STRING("bqual_length"), 0, MY_INT32_NUM_DECIMAL_DIGITS));
   field_list.push_back(new Item_empty_string("data",XIDDATASIZE));
 
   if (protocol->send_result_set_metadata(&field_list,
@@ -3686,6 +3773,17 @@ handler::ha_discard_or_import_tablespace(my_bool discard)
 }
 
 
+bool handler::ha_prepare_inplace_alter_table(TABLE *altered_table,
+                                             Alter_inplace_info *ha_alter_info)
+{
+  DBUG_ASSERT(table_share->tmp_table != NO_TMP_TABLE ||
+              m_lock_type != F_UNLCK);
+  mark_trx_read_write();
+
+  return prepare_inplace_alter_table(altered_table, ha_alter_info);
+}
+
+
 bool handler::ha_commit_inplace_alter_table(TABLE *altered_table,
                                             Alter_inplace_info *ha_alter_info,
                                             bool commit)
@@ -3706,77 +3804,6 @@ bool handler::ha_commit_inplace_alter_table(TABLE *altered_table,
 }
 
 
-/**
-   @brief Check if both DROP and CREATE are present for an index in ALTER TABLE
-
-   @details Checks if any index is being modified (present as both DROP INDEX
-   and ADD INDEX) in the current ALTER TABLE statement. Needed for disabling
-   in-place ALTER TABLE.
-
-   @param ha_alter_info     Structure holding data used during in-place alter.
-
-   @return presence of index being altered
-   @retval FALSE  No such index
-   @retval TRUE   Have at least 1 index modified
-*/
-
-static bool is_index_maintenance_unique(const Alter_inplace_info *ha_alter_info)
-{
-  const KEY *add_key;
-  const KEY *drop_key;
-  const uint *idx_add_p;
-  uint idx_drop;
-
-  for (idx_add_p= ha_alter_info->index_add_buffer;
-       idx_add_p < ha_alter_info->index_add_buffer +
-         ha_alter_info->index_add_count; idx_add_p++)
-  {
-    add_key= ha_alter_info->key_info_buffer + *idx_add_p;
-    for (idx_drop= 0; idx_drop < ha_alter_info->index_drop_count; idx_drop++)
-    {
-      drop_key= ha_alter_info->index_drop_buffer[idx_drop];
-      if (!my_strcasecmp(system_charset_info, add_key->name, drop_key->name))
-        return true;
-    }
-  }
-  return false;
-}
-
-
-/**
-   Check if engine supports in-place operation for this type of index and
-   update enum_alter_inplace_result accordingly.
-
-   @param[in]      handler_alter_flags  Flags specifying handler support for
-                                        in-place alter.
-   @param[in,out]  result               Current level of in-place alter support.
-   @param[in]      no_write_flag        *_NO_WRITE flag to check.
-   @param[in]      no_read_write_flag   *_NO_READ_WRITE flag to check.
-*/
-
-static void check_alter_index_flags(ulong handler_alter_flags,
-                                    enum_alter_inplace_result *result,
-                                    ulong no_write_flag,
-                                    ulong no_read_write_flag)
-{
-  /*
-    If we already know that the operation must be done using copy algorithm,
-    there's nothing left to check.
-  */
-  if (*result == HA_ALTER_INPLACE_NOT_SUPPORTED)
-    return;
-  if (handler_alter_flags & no_write_flag)
-  {
-    if (*result != HA_ALTER_INPLACE_EXCLUSIVE_LOCK)
-      *result= HA_ALTER_INPLACE_SHARED_LOCK;
-  }
-  else if (handler_alter_flags & no_read_write_flag)
-    *result= HA_ALTER_INPLACE_EXCLUSIVE_LOCK;
-  else
-    *result= HA_ALTER_INPLACE_NOT_SUPPORTED;
-}
-
-
 /*
    Default implementation to support in-place alter table
    and old online add/drop index API
@@ -3790,34 +3817,15 @@ handler::check_if_supported_inplace_alter(TABLE *altered_table,
 
   HA_CREATE_INFO *create_info= ha_alter_info->create_info;
 
-  ulong handler_alter_flags= table->file->alter_table_flags(0);
-  DBUG_PRINT("info", ("handler_alter_flags: %lu", handler_alter_flags));
-
-  Alter_inplace_info::HA_ALTER_FLAGS inplace_online_operations=
-    Alter_inplace_info::ADD_INDEX |
-    Alter_inplace_info::DROP_INDEX |
-    Alter_inplace_info::ADD_UNIQUE_INDEX |
-    Alter_inplace_info::DROP_UNIQUE_INDEX |
-    Alter_inplace_info::ADD_PK_INDEX |
-    Alter_inplace_info::DROP_PK_INDEX;
   Alter_inplace_info::HA_ALTER_FLAGS inplace_offline_operations=
     Alter_inplace_info::ALTER_COLUMN_EQUAL_PACK_LENGTH |
     Alter_inplace_info::ALTER_COLUMN_NAME |
     Alter_inplace_info::ALTER_COLUMN_DEFAULT |
     Alter_inplace_info::CHANGE_CREATE_OPTION |
     Alter_inplace_info::ALTER_RENAME;
-  Alter_inplace_info::HA_ALTER_FLAGS copy_operations=
-    ~(inplace_online_operations) & ~(inplace_offline_operations);
 
   /* Is there at least one operation that requires copy algorithm? */
-  if (ha_alter_info->handler_flags & copy_operations)
-    DBUG_RETURN(HA_ALTER_INPLACE_NOT_SUPPORTED);
-
-  /*
-    Bug #49838 DROP INDEX and ADD UNIQUE INDEX for same index may
-    corrupt definition at engine
-  */
-  if (is_index_maintenance_unique(ha_alter_info))
+  if (ha_alter_info->handler_flags & ~inplace_offline_operations)
     DBUG_RETURN(HA_ALTER_INPLACE_NOT_SUPPORTED);
 
   /*
@@ -3836,286 +3844,14 @@ handler::check_if_supported_inplace_alter(TABLE *altered_table,
       (table->s->row_type != create_info->row_type))
     DBUG_RETURN(HA_ALTER_INPLACE_NOT_SUPPORTED);
 
-  /*
-    At this point we know that we won't be adding, dropping or
-    reordering columns so we can use simple algorithm to properly
-    set FIELD_IN_ADD_INDEX flag needed by old version of in-place
-    API.
-  */
-  DBUG_ASSERT(!(ha_alter_info->handler_flags &
-                (Alter_inplace_info::ADD_COLUMN |
-                 Alter_inplace_info::DROP_COLUMN |
-                 Alter_inplace_info::ALTER_COLUMN_ORDER)));
-  /* Start by clearing this marker for all fields. */
-  for (uint i= 0; i < table->s->fields; i++)
-    table->field[i]->flags&= ~FIELD_IN_ADD_INDEX;
-  /*
-    Then go through all new indexes and use the fact that
-    fields position has not changed to mark fields belonging
-    to newly added indexes.
-  */
-  for (uint i= 0; i < ha_alter_info->index_add_count; i++)
-  {
-    KEY *k= ha_alter_info->key_info_buffer + ha_alter_info->index_add_buffer[i];
-    KEY_PART_INFO *key_part, *end;
-    for(key_part= k->key_part, end= key_part + k->key_parts;
-        key_part != end; key_part++)
-      table->field[key_part->fieldnr]->flags|= FIELD_IN_ADD_INDEX;
-  }
+  uint table_changes= (ha_alter_info->handler_flags &
+                       Alter_inplace_info::ALTER_COLUMN_EQUAL_PACK_LENGTH) ?
+    IS_EQUAL_PACK_LENGTH : IS_EQUAL_YES;
+  if (table->file->check_if_incompatible_data(create_info, table_changes)
+      == COMPATIBLE_DATA_YES)
+    DBUG_RETURN(HA_ALTER_INPLACE_EXCLUSIVE_LOCK);
 
-  /* We now know that it's only inplace_online_operations. */
-  enum_alter_inplace_result result= HA_ALTER_ERROR;
-
-  /* Is there at least one in-place operation that must be done offline? */
-  if (ha_alter_info->handler_flags & inplace_offline_operations)
-  {
-    uint table_changes= (ha_alter_info->handler_flags &
-                         Alter_inplace_info::ALTER_COLUMN_EQUAL_PACK_LENGTH) ?
-                        IS_EQUAL_PACK_LENGTH : IS_EQUAL_YES;
-    if (table->file->check_if_incompatible_data(create_info, table_changes)
-        == COMPATIBLE_DATA_YES)
-      result= HA_ALTER_INPLACE_EXCLUSIVE_LOCK;
-    else
-      DBUG_RETURN(HA_ALTER_INPLACE_NOT_SUPPORTED);
-  }
-
-  /*
-    Bug#11750045 - 40344: ALTER IGNORE TABLE T ADD INDEX DOES NOT IGNORE
-    IN FAST INDEX CREATION.
-    Supporting IGNORE for in-place ALTER is problematic as IGNORE requires
-    that offending rows are deleted, which complicates locking.
-    Use copy instead.
-  */
-  if (ha_alter_info->ignore)
-    DBUG_RETURN(HA_ALTER_INPLACE_NOT_SUPPORTED);
-
-  /*
-    Bug#13411182 ASSERTION PREBUILT->TABLE->N_REF_COUNT == 2 ON ADD FULLTEXT
-    Creating a fulltext index in InnoDB has the same locking requirements
-    as adding a primary index since it may require a rebuild of the primary
-    index.
-  */
-  if (ha_alter_info->handler_flags & (Alter_inplace_info::ADD_INDEX |
-                                      Alter_inplace_info::ADD_UNIQUE_INDEX))
-  {
-    for (uint i= 0; i < ha_alter_info->index_add_count; i++)
-    {
-      KEY *key=
-        &ha_alter_info->key_info_buffer[ha_alter_info->index_add_buffer[i]];
-      if (key->flags & HA_FULLTEXT)
-      {
-        check_alter_index_flags(handler_alter_flags, &result,
-                                HA_INPLACE_ADD_PK_INDEX_NO_WRITE,
-                                HA_INPLACE_ADD_PK_INDEX_NO_READ_WRITE);
-        break;
-      }
-    }
-  }
-
-  /* Add index */
-  if (ha_alter_info->handler_flags & Alter_inplace_info::ADD_INDEX)
-  {
-    check_alter_index_flags(handler_alter_flags, &result,
-                            HA_INPLACE_ADD_INDEX_NO_WRITE,
-                            HA_INPLACE_ADD_INDEX_NO_READ_WRITE);
-  }
-  /* Drop index */
-  if (ha_alter_info->handler_flags & Alter_inplace_info::DROP_INDEX)
-  {
-    check_alter_index_flags(handler_alter_flags, &result,
-                            HA_INPLACE_DROP_INDEX_NO_WRITE,
-                            HA_INPLACE_DROP_INDEX_NO_READ_WRITE);
-  }
-  /* Add unique index */
-  if (ha_alter_info->handler_flags & Alter_inplace_info::ADD_UNIQUE_INDEX)
-  {
-    check_alter_index_flags(handler_alter_flags, &result,
-                            HA_INPLACE_ADD_UNIQUE_INDEX_NO_WRITE,
-                            HA_INPLACE_ADD_UNIQUE_INDEX_NO_READ_WRITE);
-  }
-  /* Drop unique index */
-  if (ha_alter_info->handler_flags & Alter_inplace_info::DROP_UNIQUE_INDEX)
-  {
-    check_alter_index_flags(handler_alter_flags, &result,
-                            HA_INPLACE_DROP_UNIQUE_INDEX_NO_WRITE,
-                            HA_INPLACE_DROP_UNIQUE_INDEX_NO_READ_WRITE);
-  }
-  /* Add primary key */
-  if (ha_alter_info->handler_flags & Alter_inplace_info::ADD_PK_INDEX)
-  {
-    check_alter_index_flags(handler_alter_flags, &result,
-                            HA_INPLACE_ADD_PK_INDEX_NO_WRITE,
-                            HA_INPLACE_ADD_PK_INDEX_NO_READ_WRITE);
-  }
-  /* Drop primary key */
-  if (ha_alter_info->handler_flags & Alter_inplace_info::DROP_PK_INDEX)
-  {
-    check_alter_index_flags(handler_alter_flags, &result,
-                            HA_INPLACE_DROP_PK_INDEX_NO_WRITE,
-                            HA_INPLACE_DROP_PK_INDEX_NO_READ_WRITE);
-  }
-
-  /* At least one ha_alter_info->handler_flags check should be hit. */
-  DBUG_ASSERT(result != HA_ALTER_ERROR);
-
-  DBUG_RETURN(result);
-}
-
-
-bool handler::ha_prepare_inplace_alter_table(TABLE *altered_table,
-                                             Alter_inplace_info *ha_alter_info)
-{
-  DBUG_ASSERT(table_share->tmp_table != NO_TMP_TABLE ||
-              m_lock_type != F_UNLCK);
-  mark_trx_read_write();
-
-  prepare_for_alter();
-
-  return prepare_inplace_alter_table(altered_table, ha_alter_info);
-}
-
-
-/*
-   Default implementation to support in-place alter table
-   and old online add/drop index API
-*/
-
-bool handler::inplace_alter_table(TABLE *altered_table,
-                                  Alter_inplace_info *ha_alter_info)
-{
-  DBUG_ENTER("inplace_alter_table");
-  int error= 0;
-  Alter_inplace_info::HA_ALTER_FLAGS adding=
-    Alter_inplace_info::ADD_INDEX |
-    Alter_inplace_info::ADD_UNIQUE_INDEX |
-    Alter_inplace_info::ADD_PK_INDEX;
-  Alter_inplace_info::HA_ALTER_FLAGS dropping=
-    Alter_inplace_info::DROP_INDEX |
-    Alter_inplace_info::DROP_UNIQUE_INDEX |
-    Alter_inplace_info::DROP_PK_INDEX;
-
-  if (ha_alter_info->handler_flags & adding)
-  {
-    KEY           *key_info;
-    KEY           *key;
-    uint          *idx_p;
-    uint          *idx_end_p;
-    KEY_PART_INFO *key_part;
-    KEY_PART_INFO *part_end;
-    key_info= (KEY*) ha_thd()->alloc(sizeof(KEY) * ha_alter_info->index_add_count);
-    key= key_info;
-    for (idx_p=  ha_alter_info->index_add_buffer,
-         idx_end_p= idx_p + ha_alter_info->index_add_count;
-         idx_p < idx_end_p;
-         idx_p++, key++)
-     {
-      /* Copy the KEY struct. */
-       *key= ha_alter_info->key_info_buffer[*idx_p];
-      /*
-        Fix the key parts.
-        Note that this is only safe since we know at this point that
-        we're not adding new columns or reordering columns.
-      */
-      part_end= key->key_part + key->key_parts;
-      for (key_part= key->key_part; key_part < part_end; key_part++)
-        key_part->field= table->field[key_part->fieldnr];
-     }
-    /* Add the indexes. */
-    if ((error= add_index(table, key_info,
-                          ha_alter_info->index_add_count,
-                          &ha_alter_info->handler_ctx)))
-    {
-      /*
-        Exchange the key_info for the error message. If we exchange
-        key number by key name in the message later, we need correct info.
-      */
-      KEY *save_key_info= table->key_info;
-      table->key_info= key_info;
-      table->file->print_error(error, MYF(0));
-      table->key_info= save_key_info;
-      DBUG_RETURN(true);
-    }
-    DBUG_ASSERT(ha_alter_info->handler_ctx);
-    ha_alter_info->handler_ctx->pending_add_index= true;
-  }
-
-  if (ha_alter_info->handler_flags & dropping)
-  {
-    /* Currently we must finalize add index if we also drop indexes */
-    if (ha_alter_info->handler_ctx &&
-        ha_alter_info->handler_ctx->pending_add_index)
-    {
-      /* Committing index changes needs exclusive metadata lock. */
-      DBUG_ASSERT(ha_thd()->mdl_context.is_lock_owner(MDL_key::TABLE,
-                                                      table->s->db.str,
-                                                      table->s->table_name.str,
-                                                      MDL_EXCLUSIVE));
-      if ((error= final_add_index(ha_alter_info->handler_ctx, true)))
-      {
-        print_error(error, MYF(0));
-        DBUG_RETURN(true);
-      }
-      ha_alter_info->handler_ctx->pending_add_index= false;
-    }
-
-    DBUG_PRINT("info", ("Renumbering indexes"));
-    /* The prepare_drop_index() method takes an array of keys. */
-    if ((error= prepare_drop_index(ha_alter_info->index_drop_buffer,
-                                   ha_alter_info->index_drop_count)))
-    {
-      table->file->print_error(error, MYF(0));
-      DBUG_RETURN(true);
-    }
-  }
-
-  DBUG_RETURN(false);
-}
-
-
-/*
-   Default implementation to support in-place alter table
-   and old online add/drop index API
-*/
-
-bool handler::commit_inplace_alter_table(TABLE *altered_table,
-                                         Alter_inplace_info *ha_alter_info,
-                                         bool commit)
-{
-  DBUG_ENTER("commit_inplace_alter_table");
-  int error= 0;
-  Alter_inplace_info::HA_ALTER_FLAGS dropping=
-    Alter_inplace_info::DROP_INDEX |
-    Alter_inplace_info::DROP_UNIQUE_INDEX |
-    Alter_inplace_info::DROP_PK_INDEX;
-
-  // Do not call final_drop_index() if commit= false.
-  if (commit && (ha_alter_info->handler_flags & dropping))
-  {
-    if ((error= final_drop_index()))
-    {
-      print_error(error, MYF(0));
-      DBUG_RETURN(true);
-    }
-  }
-
-  if (ha_alter_info->handler_ctx &&
-      ha_alter_info->handler_ctx->pending_add_index)
-  {
-    ha_alter_info->handler_ctx->pending_add_index= false;
-    if ((error= final_add_index(ha_alter_info->handler_ctx, commit)))
-    {
-      print_error(error, MYF(0));
-      DBUG_RETURN(true);
-    }
-  }
-
-  /*
-    For safety. With old API this object was deleted by the handler.
-    With new API the deletion is done by the SQL layer.
-  */
-  ha_alter_info->handler_ctx= NULL;
-
-  DBUG_RETURN(false);
+  DBUG_RETURN(HA_ALTER_INPLACE_NOT_SUPPORTED);
 }
 
 
@@ -4540,6 +4276,220 @@ ha_check_if_table_exists(THD* thd, const char *db, const char *name,
   DBUG_RETURN(FALSE);
 }
 
+/**
+  @brief Check if a given table is a system table.
+
+  @details The primary purpose of introducing this function is to stop system
+  tables to be created or being moved to undesired storage engines.
+
+  @todo There is another function called is_system_table_name() used by
+        get_table_category(), which is used to set TABLE_SHARE table_category.
+        It checks only a subset of table name like proc, event and time*.
+        We cannot use below function in get_table_category(),
+        as that affects locking mechanism. If we need to
+        unify these functions, we need to fix locking issues generated.
+
+  @param   hton                  Handlerton of new engine.
+  @param   db                    Database name.
+  @param   table_name            Table name to be checked.
+
+  @return Operation status
+    @retval  true                If the table name is a valid system table
+                                 or if its a valid user table.
+
+    @retval  false               If the table name is a system table name
+                                 and does not belong to engine specified
+                                 in the command.
+*/
+bool ha_check_if_supported_system_table(handlerton *hton, const char *db,
+                                        const char *table_name)
+{
+  DBUG_ENTER("ha_check_if_supported_system_table");
+  st_sys_tbl_chk_params check_params;
+  bool is_system_database= false;
+  const char **names;
+  st_system_tablename *systab;
+
+  // Check if we have a system database name in the command.
+  DBUG_ASSERT(known_system_databases != NULL);
+  names= known_system_databases;
+  while (names && *names)
+  {
+    if (strcmp(*names, db) == 0)
+    {
+      /* Used to compare later, will be faster */
+      check_params.db= *names;
+      is_system_database= true;
+      break;
+    }
+    names++;
+  }
+  if (!is_system_database)
+    DBUG_RETURN(true); // It's a user table name.
+
+  // Check if this is SQL layer system tables.
+  systab= mysqld_system_tables;
+  check_params.is_sql_layer_system_table= false;
+  while (systab && systab->db)
+  {
+    if (systab->db == check_params.db &&
+        strcmp(systab->tablename, table_name) == 0)
+    {
+      check_params.is_sql_layer_system_table= true;
+      break;
+    }
+    systab++;
+  }
+
+  // Check if this is a system table and if some engine supports it.
+  check_params.status= check_params.is_sql_layer_system_table ?
+    st_sys_tbl_chk_params::KNOWN_SYSTEM_TABLE :
+    st_sys_tbl_chk_params::NOT_KNOWN_SYSTEM_TABLE;
+  check_params.db_type= hton->db_type;
+  check_params.table_name= table_name;
+  plugin_foreach(NULL, check_engine_system_table_handlerton,
+                 MYSQL_STORAGE_ENGINE_PLUGIN, &check_params);
+
+  // SE does not support this system table.
+  if (check_params.status == st_sys_tbl_chk_params::KNOWN_SYSTEM_TABLE)
+    DBUG_RETURN(false);
+
+  // It's a system table or a valid user table.
+  DBUG_RETURN(true);
+}
+
+/**
+  @brief Called for each SE to check if given db, tablename is a system table.
+
+  @details The primary purpose of introducing this function is to stop system
+  tables to be created or being moved to undesired storage engines.
+
+  @param   unused  unused THD*
+  @param   plugin  Points to specific SE.
+  @param   arg     Is of type struct st_sys_tbl_chk_params.
+
+  @note
+    args->status   Indicates OUT param,
+                   see struct st_sys_tbl_chk_params definition for more info.
+
+  @return Operation status
+    @retval  true  There was a match found.
+                   This will stop doing checks with other SE's.
+
+    @retval  false There was no match found.
+                   Other SE's will be checked to find a match.
+*/
+static my_bool check_engine_system_table_handlerton(THD *unused,
+                                                    plugin_ref plugin,
+                                                    void *arg)
+{
+  st_sys_tbl_chk_params *check_params= (st_sys_tbl_chk_params*) arg;
+  handlerton *hton= plugin_data(plugin, handlerton *);
+
+  // Do we already know that the table is a system table?
+  if (check_params->status == st_sys_tbl_chk_params::KNOWN_SYSTEM_TABLE)
+  {
+    /*
+      If this is the same SE specified in the command, we can
+      simply ask the SE if it supports it stop the search regardless.
+    */
+    if (hton->db_type == check_params->db_type)
+    {
+      if (hton->is_supported_system_table &&
+          hton->is_supported_system_table(check_params->db,
+                                       check_params->table_name,
+                                       check_params->is_sql_layer_system_table))
+        check_params->status= st_sys_tbl_chk_params::SUPPORTED_SYSTEM_TABLE;
+      return TRUE;
+    }
+    /*
+      If this is a different SE, there is no point in asking the SE
+      since we already know it's a system table and we don't care
+      if it is supported or not.
+    */
+    return FALSE;
+  }
+
+  /*
+    We don't yet know if the table is a system table or not.
+    We therefore must always ask the SE.
+  */
+  if (hton->is_supported_system_table &&
+      hton->is_supported_system_table(check_params->db,
+                                      check_params->table_name,
+                                      check_params->is_sql_layer_system_table))
+  {
+    /*
+      If this is the same SE specified in the command, we know it's a
+      supported system table and can stop the search.
+    */
+    if (hton->db_type == check_params->db_type)
+    {
+      check_params->status= st_sys_tbl_chk_params::SUPPORTED_SYSTEM_TABLE;
+      return TRUE;
+    }
+    else
+      check_params->status= st_sys_tbl_chk_params::KNOWN_SYSTEM_TABLE;
+  }
+
+  return FALSE;
+}
+
+/*
+  Prepare list of all known system database names
+  current we just have 'mysql' as system database name.
+
+  Later ndbcluster, innodb SE's can define some new database
+  name which can store system tables specific to SE.
+*/
+const char** ha_known_system_databases(void)
+{
+  list<const char*> found_databases;
+  const char **databases, **database;
+
+  // Get mysqld system database name.
+  found_databases.push_back((char*) mysqld_system_database);
+
+  // Get system database names from every specific storage engine.
+  plugin_foreach(NULL, system_databases_handlerton,
+                 MYSQL_STORAGE_ENGINE_PLUGIN, &found_databases);
+
+  databases= (const char **) my_once_alloc(sizeof(char *)*
+                                     (found_databases.size()+1),
+                                     MYF(MY_WME | MY_FAE));
+  DBUG_ASSERT(databases != NULL);
+
+  list<const char*>::iterator it;
+  database= databases;
+  for (it= found_databases.begin(); it != found_databases.end(); it++)
+    *database++= *it;
+  *database= 0; // Last element.
+
+  return databases;
+}
+
+/**
+  @brief Fetch system database name specific to SE.
+
+  @details This function is invoked by plugin_foreach() from
+           ha_known_system_databases(), for each storage engine.
+*/
+static my_bool system_databases_handlerton(THD *unused, plugin_ref plugin,
+                                           void *arg)
+{
+  list<const char*> *found_databases= (list<const char*> *) arg;
+  const char *db;
+
+  handlerton *hton= plugin_data(plugin, handlerton *);
+  if (hton->system_database)
+  {
+    db= hton->system_database();
+    if (db)
+      found_databases->push_back(db);
+  }
+
+  return FALSE;
+}
 
 void st_ha_check_opt::init()
 {

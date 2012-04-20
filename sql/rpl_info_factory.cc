@@ -277,8 +277,54 @@ err:
   DBUG_RETURN(TRUE);
 }
 
+/**
+   Delete all info from Worker info tables to render them useless in 
+   future MTS recovery, and indicate that in Coordinator info table.
+
+   @return false on success, true when a failure in deletion or writing
+           to Coordinator table fails. 
+*/
+bool Rpl_info_factory::reset_workers(Relay_log_info *rli)
+{
+  char search_fname[FN_REFLEN];
+  bool error= true;
+
+  DBUG_ENTER("Rpl_info_factory::reset_workers");
+
+  if (rli->recovery_parallel_workers == 0)
+    DBUG_RETURN(0);
+
+  char *pos= strmov(search_fname, relay_log_info_file);
+  strmov(pos, ".");
+
+  if (Rpl_info_file::do_reset_info(Slave_worker::get_number_worker_fields(),
+                                   search_fname))
+    goto err;
+
+  if (Rpl_info_table::do_reset_info(Slave_worker::get_number_worker_fields() + 2,
+                                    MYSQL_SCHEMA_NAME.str, WORKER_INFO_NAME.str))
+    goto err;
+
+  error= false;
+
+  DBUG_EXECUTE_IF("mts_debug_reset_workers_fails", error= true;);
+
+err:
+  if (error)
+    sql_print_error("Could not delete from Slave Workers info repository.");
+  rli->recovery_parallel_workers= 0;
+  if (rli->flush_info(TRUE))
+  {
+    error= true;
+    sql_print_error("Could not store the reset Slave Worker state into "
+                    "the slave info repository.");
+  }
+  DBUG_RETURN(error);
+}
+
 Slave_worker *Rpl_info_factory::create_worker(uint worker_option, uint worker_id,
-                                              Relay_log_info *rli)
+                                              Relay_log_info *rli,
+                                              bool is_gaps_collecting_phase)
 {
   char info_fname[FN_REFLEN];
   char info_name[FN_REFLEN];
@@ -326,6 +372,13 @@ Slave_worker *Rpl_info_factory::create_worker(uint worker_option, uint worker_id
   if (decide_repository(worker, worker_option, &handler_src, &handler_dest,
                         &msg))
     goto err;
+       
+  if (worker->init_info(is_gaps_collecting_phase))
+  {
+    worker->end_info();
+    msg= "Failed to intialize the worker info structure";
+    goto err;
+  }
 
   DBUG_RETURN(worker);
 

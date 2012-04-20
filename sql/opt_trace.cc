@@ -368,7 +368,8 @@ Opt_trace_struct& Opt_trace_struct::do_add(const char *key, Item *item)
   {
     // QT_TO_SYSTEM_CHARSET because trace must be in UTF8
     item->print(&str, enum_query_type(QT_TO_SYSTEM_CHARSET |
-                                      QT_SHOW_SELECT_NUMBER));
+                                      QT_SHOW_SELECT_NUMBER |
+                                      QT_NO_DEFAULT_DB));
     /* needs escaping */
     return do_add(key, str.ptr(), str.length(), true);
   }
@@ -400,9 +401,17 @@ Opt_trace_struct& Opt_trace_struct::do_add_hex(const char *key, uint64 val)
 
 Opt_trace_struct& Opt_trace_struct::do_add_utf8_table(const TABLE *tab)
 {
-  return
-    do_add("database", tab->s->db.str, tab->s->db.length, true).
-    do_add("table", tab->alias, strlen(tab->alias), true);
+  TABLE_LIST * const tl= tab->pos_in_table_list;
+  if (tl != NULL)
+  {
+    StringBuffer<32> str;
+    tl->print(tab->in_use, &str, enum_query_type(QT_TO_SYSTEM_CHARSET |
+                                                 QT_SHOW_SELECT_NUMBER |
+                                                 QT_NO_DEFAULT_DB |
+                                                 QT_DERIVED_TABLE_ONLY_ALIAS));
+    return do_add("table", str.ptr(), str.length(), true);
+  }
+  return *this;
 }
 
 

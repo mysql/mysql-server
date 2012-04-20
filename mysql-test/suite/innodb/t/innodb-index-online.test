@@ -1,15 +1,21 @@
 --source include/have_innodb.inc
 --source include/have_debug_sync.inc
-# Temporarily prohibit Valgrind runs until Bug#13875241 is resolved
---source include/not_valgrind.inc
 
-SET GLOBAL DEBUG='d,query,debug_sync_exec:i:A,ds.trace';
-SET DEBUG='d,query,debug_sync_exec,debug_sync_abort_on_timeout:i:A,ds.trace';
+SET GLOBAL DEBUG='d,query,debug_sync_exec:i:t:A,ds.trace';
+SET DEBUG='+d,debug_sync_abort_on_timeout';
+SET DEBUG='d,query,debug_sync_exec:i:t:A,ds.trace';
 
 call mtr.add_suppression("InnoDB: Warning: Small buffer pool size");
 # These will be triggered by INSERT INTO t1 VALUES(6,3,1);
 call mtr.add_suppression("Cannot find index .*c2 in InnoDB index translation table");
 call mtr.add_suppression("Find index .*c2 in InnoDB index list but not its MySQL index number");
+# these will be triggered by DISCARD TABLESPACE
+call mtr.add_suppression("InnoDB: Error: table 'test/t1'");
+call mtr.add_suppression("MySQL is trying to open a table handle but the .ibd file for");
+
+# DISCARD TABLESPACE needs file-per-table
+let $per_table=`select @@innodb_file_per_table`;
+SET GLOBAL innodb_file_per_table=on;
 
 # Save the initial number of concurrent sessions.
 --source include/count_sessions.inc
@@ -27,8 +33,9 @@ INSERT INTO t1 VALUES(1,2,3);
 
 connect (con1,localhost,root,,);
 connection con1;
-SET DEBUG='d,query,debug_sync_exec,debug_sync_abort_on_timeout:i:A,ds.trace';
 
+SET DEBUG='+d,debug_sync_abort_on_timeout';
+SET DEBUG='d,query,debug_sync_exec:i:t:A,ds.trace';
 # This should block at the end because of the INSERT in connection default
 # is holding a metadata lock.
 SET DEBUG_SYNC='now WAIT_FOR have_handle';
@@ -180,6 +187,8 @@ SHOW CREATE TABLE t1;
 # The actual limit is a multiple of innodb_sort_buf_size,
 # because that is the size of the in-memory log buffers.
 SET DEBUG_SYNC='row_log_apply_before SIGNAL c2e_created WAIT_FOR dml2_done';
+# Ensure that the ALTER TABLE will be executed even with some concurrent DML.
+SET lock_wait_timeout=10;
 --send
 ALTER TABLE t1 DROP INDEX c2d, ADD INDEX c2e(c2);
 
@@ -254,11 +263,53 @@ SELECT name,count FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE subsystem='ddl';
 SELECT COUNT(c2) FROM t1;
 CHECK TABLE t1;
 
-disconnect con1;
-
 connection default;
+SET DEBUG_SYNC='row_log_apply_before SIGNAL c2g_created WAIT_FOR dml4_done';
+# The lock upgrade at the end of the ALTER will conflict with the DISCARD.
+SET lock_wait_timeout=1;
+--send
+ALTER TABLE t1 DROP INDEX c2f, ADD INDEX c2g(c2);
 
+connection con1;
+SET DEBUG_SYNC='now WAIT_FOR c2g_created';
+
+connect (con2,localhost,root,,);
+connection con2;
+
+# This will conflict with the ALTER in connection default, above.
+SET lock_wait_timeout=10;
+--send
+ALTER TABLE t1 DISCARD TABLESPACE;
+
+connection con1;
+let $wait_condition=
+  SELECT COUNT(*) = 1 FROM information_schema.processlist
+  WHERE state = 'Waiting for table level lock' and
+        info = 'ALTER TABLE t1 DISCARD TABLESPACE';
+--source include/wait_condition.inc
+
+SET DEBUG_SYNC='now SIGNAL dml4_done';
+disconnect con1;
+connection con2;
+reap;
+disconnect con2;
+connection default;
+--error ER_LOCK_WAIT_TIMEOUT
+reap;
+
+SHOW CREATE TABLE t1;
+# The ER_NO_SUCH_TABLE is being thrown by ha_innobase::open().
+# The table does exist, only the tablespace does not exist.
+--error ER_NO_SUCH_TABLE
+ALTER TABLE t1 DROP INDEX c2d, DROP INDEX c2f;
+--error ER_NO_SUCH_TABLE
+ALTER TABLE t1 ADD INDEX c2h(c2), ALGORITHM=INPLACE;
+--error ER_NO_SUCH_TABLE
+ALTER TABLE t1 ADD INDEX c2h(c2), ALGORITHM=COPY;
+
+eval SET GLOBAL innodb_file_per_table=$per_table;
 SET DEBUG_SYNC='RESET';
+SET DEBUG='-d,debug_sync_abort_on_timeout';
 SET DEBUG='';
 SET GLOBAL innodb_monitor_disable=module_ddl;
 

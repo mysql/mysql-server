@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2007, 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2007, 2012, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -180,38 +180,50 @@ fts_ast_state_free(
 /*===============*/
 	fts_ast_state_t*state);			/*!< in: state instance
 						to free */
-/********************************************************************
-Traverse the AST.*/
-ulint
+/******************************************************************//**
+Traverse the AST - in-order traversal.
+@return DB_SUCCESS if all went well */
+UNIV_INTERN
+dberr_t
 fts_ast_visit(
 /*==========*/
 	fts_ast_oper_t		oper,		/*!< in: FTS operator */
 	fts_ast_node_t*		node,		/*!< in: instance to traverse*/
 	fts_ast_callback	visitor,	/*!< in: callback */
-	void*			arg);		/*!< in: callback arg */
-/********************************************************************
-Traverse the sub expression list.*/
-ulint
+	void*			arg)		/*!< in: callback arg */
+	__attribute__((nonnull, warn_unused_result));
+/*****************************************************************//**
+Process (nested) sub-expression, create a new result set to store the
+sub-expression result by processing nodes under current sub-expression
+list. Merge the sub-expression result with that of parent expression list.
+@return DB_SUCCESS if all went well */
+UNIV_INTERN
+dberr_t
 fts_ast_visit_sub_exp(
-/*==========*/
+/*==================*/
 	fts_ast_node_t*		node,		/*!< in: instance to traverse*/
 	fts_ast_callback	visitor,	/*!< in: callback */
-	void*			arg);		/*!< in: callback arg */
+	void*			arg)		/*!< in: callback arg */
+	__attribute__((nonnull, warn_unused_result));
 /********************************************************************
 Create a lex instance.*/
+UNIV_INTERN
 fts_lexer_t*
 fts_lexer_create(
 /*=============*/
 	ibool		boolean_mode,		/*!< in: query type */
 	const byte*	query,			/*!< in: query string */
-	ulint		query_len);		/*!< in: query string len */
+	ulint		query_len)		/*!< in: query string len */
+	__attribute__((nonnull, malloc, warn_unused_result));
 /********************************************************************
 Free an fts_lexer_t instance.*/
+UNIV_INTERN
 void
 fts_lexer_free(
 /*===========*/
-	fts_lexer_t*	fts_lexer);		/*!< in: lexer instance to
+	fts_lexer_t*	fts_lexer)		/*!< in: lexer instance to
 						free */
+	__attribute__((nonnull));
 
 /* Query term type */
 struct fts_ast_term_struct {
