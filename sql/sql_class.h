@@ -1445,6 +1445,8 @@ public:
 
   /* Used to execute base64 coded binlog events in MySQL server */
   Relay_log_info* rli_fake;
+  /* Slave applier execution context */
+  Relay_log_info* rli_slave;
 
   void reset_for_next_command();
   /*
