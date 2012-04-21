@@ -9,10 +9,10 @@ set @@binlog_format=statement;
 *** autoincrement field is not the first in PK warning must be there: ***
 insert into tm set b=null, a=1;
 Warnings:
-Note	1592	Statement may not be safe to log in statement format.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. INSERT into autoincrement field which is not the first part in the composed primary key is unsafe.
 show warnings;
 Level	Code	Message
-Note	1592	Statement may not be safe to log in statement format.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. INSERT into autoincrement field which is not the first part in the composed primary key is unsafe.
 *** no warning when autoincrement is the first in PK
 insert into ti set b=null, a=1;
 show warnings;
@@ -26,9 +26,14 @@ end//
 select multi_part_pk_with_autoinc (3);
 multi_part_pk_with_autoinc (3)
 3
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it invokes a trigger or a stored function that inserts into an AUTO_INCREMENT column. Inserted values cannot be logged correctly.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. INSERT into autoincrement field which is not the first part in the composed primary key is unsafe.
 *** autoincrement field is not the first in PK warning must be there: ***
 show warnings;
 Level	Code	Message
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it invokes a trigger or a stored function that inserts into an AUTO_INCREMENT column. Inserted values cannot be logged correctly.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. INSERT into autoincrement field which is not the first part in the composed primary key is unsafe.
 set @@binlog_format=mixed;
 insert into tm set b=null, a=2;
 drop table tm, ti;
