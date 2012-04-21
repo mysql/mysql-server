@@ -1256,6 +1256,12 @@ public:
     */
     BINLOG_STMT_UNSAFE_INSERT_TWO_KEYS,
 
+    /**
+       INSERT into auto-inc field which is not the first part in composed
+       primary key.
+    */
+    BINLOG_STMT_UNSAFE_AUTOINC_NOT_FIRST,
+
     /* The last element of this enumeration type. */
     BINLOG_STMT_UNSAFE_COUNT
   };
