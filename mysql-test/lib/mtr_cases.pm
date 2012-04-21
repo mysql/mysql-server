@@ -25,6 +25,8 @@ use strict;
 use base qw(Exporter);
 our @EXPORT= qw(collect_option collect_test_cases);
 
+use Carp;
+
 use mtr_report;
 use mtr_match;
 
@@ -103,12 +105,12 @@ sub collect_test_cases ($$$$) {
 
   # If not reordering, we also shouldn't group by suites, unless
   # no test cases were named.
-  # This also effects some logic in the loop following this.
+  # This also affects some logic in the loop following this.
   if ($opt_reorder or !@$opt_cases)
   {
     foreach my $suite (split(",", $suites))
     {
-      push(@$cases, collect_one_suite($suite, $opt_cases));
+      push(@$cases, collect_suite_name($suite, $opt_cases));
     }
   }
 
@@ -136,7 +138,7 @@ sub collect_test_cases ($$$$) {
 	$sname= "main" if !$opt_reorder and !$sname;
 	mtr_error("Could not find '$tname' in '$suites' suite(s)") unless $sname;
 	# If suite was part of name, find it there, may come with combinations
-	my @this_case = collect_one_suite($sname, [ $test_name_spec ]);
+	my @this_case = collect_suite_name($sname, [ $test_name_spec ]);
 	if (@this_case)
         {
 	  push (@$cases, @this_case);
@@ -310,55 +312,74 @@ sub parse_disabled {
   }
 }
 
-sub collect_one_suite
+#
+# processes one user-specified suite name.
+# it could contain wildcards, e.g engines/*
+#
+sub collect_suite_name
 {
   my $suitename= shift;  # Test suite name
   my $opt_cases= shift;
   my $over;
+  my %suites;
 
   ($suitename, $over) = split '-', $suitename;
 
-  mtr_verbose("Collecting: $suitename");
-
-  my $suitedir= $::glob_mysql_test_dir; # Default
-  my @overlays = ();
   if ( $suitename ne "main" )
   {
     # Allow suite to be path to "some dir" if $suitename has at least
     # one directory part
-    if ( -d $suitename and splitdir($suitename) > 1 ){
-      $suitedir= $suitename;
-      mtr_report(" - from '$suitedir'");
-
+    if ( -d $suitename and splitdir($suitename) > 1 ) {
+      $suites{$suitename} = [ $suitename ];
+      mtr_report(" - from '$suitename'");
     }
     else
     {
-      @overlays = my_find_dir(dirname($::glob_mysql_test_dir),
-                              ["mysql-test/suite",
-                               "storage/*/mysql-test",
-                               "plugin/*/mysql-test"],
-                              [$suitename]);
+      my @dirs = my_find_dir(dirname($::glob_mysql_test_dir),
+                             ["mysql-test/suite",
+                              "storage/*/mysql-test",
+                              "plugin/*/mysql-test"],
+                             [$suitename]);
       #
-      # XXX at the moment, for simplicity, we will not fully support one plugin
-      # overlaying a suite of another plugin. Only suites in the main
-      # mysql-test directory can be safely overlayed. To be fixed, when needed.
-      # To fix it we'll need a smarter overlay detection (that is, detection of
-      # what is an overlay and what is the "original" suite) than simply
-      # "prefer directories with more files".
+      # if $suitename contained wildcards, we'll have many suites and
+      # their overlays here. Let's group them appropriately.
       #
-
-      if ($overlays[0] !~ m@/mysql-test/suite/$suitename$@) {
-        # prefer directories with more files
-        @overlays = sort { scalar(<$a/*>) <=> scalar(<$b/*>) } @overlays;
+      for (@dirs) {
+        m@^.*/mysql-test/(?:suite/)?(.*)$@ or confess $_;
+        push @{$suites{$1}}, $_;
       }
-      $suitedir = shift @overlays;
     }
   } else {
-    @overlays = my_find_dir(dirname($::glob_mysql_test_dir),
-                            ["storage/*/mysql-test",
-                             "plugin/*/mysql-test"],
-                            ['main'], NOT_REQUIRED);
+    $suites{$suitename} = [ $::glob_mysql_test_dir,
+                            my_find_dir(dirname($::glob_mysql_test_dir),
+                                        ["storage/*/mysql-test",
+                                         "plugin/*/mysql-test"],
+                                        ['main'], NOT_REQUIRED) ];
   }
+
+  my @cases;
+  while (my ($name, $dirs) = each %suites) {
+    #
+    # XXX at the moment, for simplicity, we will not fully support one
+    # plugin overlaying a suite of another plugin. Only suites in the main
+    # mysql-test directory can be safely overlayed. To be fixed, when
+    # needed.  To fix it we'll need a smarter overlay detection (that is,
+    # detection of what is an overlay and what is the "original" suite)
+    # than simply "prefer directories with more files".
+    #
+    if ($dirs->[0] !~ m@/mysql-test/suite/$name$@) {
+      # prefer directories with more files
+      @$dirs = sort { scalar(<$a/*>) <=> scalar(<$b/*>) } @$dirs;
+    }
+    push @cases, collect_one_suite($opt_cases, $name, $over, @$dirs);
+  }
+  return @cases;
+}
+
+sub collect_one_suite {
+  my ($opt_cases, $suitename, $over, $suitedir, @overlays) = @_;
+
+  mtr_verbose("Collecting: $suitename");
   mtr_verbose("suitedir: $suitedir");
   mtr_verbose("overlays: @overlays") if @overlays;
 
@@ -380,7 +401,7 @@ sub collect_one_suite
     local %file_combinations = ();
     local %file_in_overlay = ();
 
-    die unless m@/(?:storage|plugin)/(\w+)/mysql-test/\w+$@;
+    confess $_ unless m@/(?:storage|plugin)/(\w+)/mysql-test/[\w/]*\w$@;
     next unless defined $over and ($over eq '' or $over eq $1);
     push @cases, 
     # don't add cases that take *all* data from the parent suite
@@ -396,7 +417,7 @@ sub process_suite {
 
   if ($overname) {
     $parent = $suites{$basename};
-    die unless $parent;
+    confess unless $parent;
     $suitename = $basename . '-' . $overname;
   } else {
     $suitename = $basename;
@@ -544,7 +565,7 @@ sub make_combinations($@)
   if ($combinations[0]->{skip}) {
     $test->{skip} = 1;
     $test->{comment} = $combinations[0]->{skip} unless $test->{comment};
-    die unless @combinations == 1;
+    confess unless @combinations == 1;
     return ($test);
   }
 
