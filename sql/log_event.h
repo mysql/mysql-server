@@ -4080,11 +4080,18 @@ private:
   const char* log_ident;
   uint ident_len;
 };
+
+/**
+   The function is called by slave applier in case there are
+   active table filtering rules to force gathering events associated
+   with Query-log-event into an array to execute
+   them once the fate of the Query is determined for execution.
+*/
+bool slave_execute_deferred_events(THD *thd);
 #endif
 
 int append_query_string(THD *thd, CHARSET_INFO *csinfo,
                         String const *from, String *to);
-
 /**
   @} (end of group Replication)
 */

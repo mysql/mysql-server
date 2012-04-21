@@ -6500,6 +6500,9 @@ ER_BINLOG_UNSAFE_INSERT_TWO_KEYS
 ER_UNSUPPORTED_ENGINE
   eng "Storage engine '%s' does not support system tables. [%s.%s]"
 
+ER_BINLOG_UNSAFE_AUTOINC_NOT_FIRST
+  eng "INSERT into autoincrement field which is not the first part in the composed primary key is unsafe."
+
 #
 #  End of 5.5 error messages.
 #
