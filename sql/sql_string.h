@@ -27,17 +27,23 @@
   A wrapper class for null-terminated constant strings.
   Constructors make sure that the position of the '\0' terminating byte
   in m_str is always in sync with m_length.
+
+  This class must stay as small as possible as we often 
+  pass it and its descendants (such as NameString) into functions
+  using call-by-value evaluation.
+
+  Don't add new members or virual methods into this class!
 */
 class SimpleCString
 {
 private:
   const char *m_str;
-  uint m_length;
+  size_t m_length;
 protected:
   /**
     Initialize from a C string whose length is already known.
   */
-  void set(const char *str_arg, uint length_arg)
+  void set(const char *str_arg, size_t length_arg)
   {
     // NULL is allowed only with length==0
     DBUG_ASSERT(str_arg || length_arg == 0);
@@ -51,7 +57,7 @@ public:
   {
     set(NULL, 0);
   }
-  SimpleCString(const char *str_arg, uint length_arg)
+  SimpleCString(const char *str_arg, size_t length_arg)
   {
     set(str_arg, length_arg);
   }
@@ -81,7 +87,7 @@ public:
   /**
     Return name length.
   */
-  uint length() const { return m_length; }
+  size_t length() const { return m_length; }
   /**
     Compare to another SimpleCString.
   */
@@ -367,11 +373,11 @@ public:
   bool append(const char *s);
   bool append(LEX_STRING *ls)
   {
-    return append(ls->str, ls->length);
+    return append(ls->str, (uint32) ls->length);
   }
   bool append(SimpleCString str)
   {
-    return append(str.ptr(), str.length());
+    return append(str.ptr(), static_cast<uint>(str.length()));
   }
   bool append(const char *s, uint32 arg_length);
   bool append(const char *s, uint32 arg_length, const CHARSET_INFO *cs);

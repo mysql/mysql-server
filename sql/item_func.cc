@@ -5158,25 +5158,22 @@ bool Item_func_set_user_var::is_null_result()
   return is_null();
 }
 
-
-void Item_func_set_user_var::print(String *str, enum_query_type query_type)
+// just the assignment, for use in "SET @a:=5" type self-prints
+void Item_func_set_user_var::print_assignment(String *str,
+                                              enum_query_type query_type)
 {
-  str->append(STRING_WITH_LEN("(@"));
+  str->append(STRING_WITH_LEN("@"));
   str->append(name);
   str->append(STRING_WITH_LEN(":="));
   args[0]->print(str, query_type);
-  str->append(')');
 }
 
-
-void Item_func_set_user_var::print_as_stmt(String *str,
-                                           enum_query_type query_type)
+// parenthesize assignment for use in "EXPLAIN EXTENDED SELECT (@e:=80)+5"
+void Item_func_set_user_var::print(String *str, enum_query_type query_type)
 {
-  str->append(STRING_WITH_LEN("set @"));
-  str->append(name);
-  str->append(STRING_WITH_LEN(":="));
-  args[0]->print(str, query_type);
-  str->append(')');
+  str->append(STRING_WITH_LEN("("));
+  print_assignment(str, query_type);
+  str->append(STRING_WITH_LEN(")"));
 }
 
 bool Item_func_set_user_var::send(Protocol *protocol, String *str_arg)
@@ -5763,7 +5760,7 @@ void Item_func_get_system_var::fix_length_and_dec()
 
 void Item_func_get_system_var::print(String *str, enum_query_type query_type)
 {
-  str->append(item_name.ptr(), item_name.length());
+  str->append(item_name);
 }
 
 
@@ -6326,9 +6323,11 @@ err:
 
 bool Item_func_match::eq(const Item *item, bool binary_cmp) const
 {
+  /* We ignore FT_SORTED flag when checking for equality since result is
+     equvialent regardless of sorting */
   if (item->type() != FUNC_ITEM ||
       ((Item_func*)item)->functype() != FT_FUNC ||
-      flags != ((Item_func_match*)item)->flags)
+      (flags | FT_SORTED) != (((Item_func_match*)item)->flags | FT_SORTED))
     return 0;
 
   Item_func_match *ifm=(Item_func_match*) item;

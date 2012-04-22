@@ -2366,18 +2366,12 @@ void dec_connection_count()
 }
 
 
-/*
-  Delete the THD object and decrease number of threads
-
-  SYNOPSIS
-    delete_thd()
-    thd    Thread handler
-*/
-
-void delete_thd(THD *thd)
+/**
+  Delete the THD object.
+ */
+void destroy_thd(THD *thd)
 {
-  mysql_mutex_assert_owner(&LOCK_thread_count);
-  remove_global_thread(thd);
+  mysql_mutex_assert_not_owner(&LOCK_thread_count);
   delete thd;
 }
 
@@ -5210,9 +5204,7 @@ int mysqld_main(int argc, char **argv)
     init_slave() must be called after the thread keys are created.
   */
   if (server_id != 0 && init_slave() && active_mi == NULL)
-  {
     unireg_abort(1);
-  }
 
 #ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
   initialize_performance_schema_acl(opt_bootstrap);
@@ -7524,7 +7516,7 @@ static void usage(void)
   if (!default_collation_name)
     default_collation_name= (char*) default_charset_info->name;
   print_version();
-  puts(ORACLE_WELCOME_COPYRIGHT_NOTICE("2000, 2011"));
+  puts(ORACLE_WELCOME_COPYRIGHT_NOTICE("2000, 2012"));
   puts("Starts the MySQL database server.\n");
   printf("Usage: %s [OPTIONS]\n", my_progname);
   if (!opt_verbose)

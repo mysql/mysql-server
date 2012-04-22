@@ -801,16 +801,22 @@ end:
   net_end(&thd->net);
   thd->cleanup();
 
+  if (thd_added)
+  {
+    mysql_mutex_lock(&LOCK_thread_count);
+    remove_global_thread(thd);
+    mysql_mutex_unlock(&LOCK_thread_count);
+  }
   /*
-    Here we delete the thd while holding the LOCK_thread_count.
+    We need to delete the thd before signalling that bootstrap is done.
     The reason is that we have to call ha_close_connection(thd)
     before shutting down InnoDB (this is done by THD::~THD())
   */
-  mysql_mutex_lock(&LOCK_thread_count);
-  if (thd_added)
-    remove_global_thread(thd);
-  in_bootstrap= FALSE;
   delete thd;
+
+  mysql_mutex_lock(&LOCK_thread_count);
+  in_bootstrap= FALSE;
+  mysql_cond_broadcast(&COND_thread_count);
   mysql_mutex_unlock(&LOCK_thread_count);
 
 #ifndef EMBEDDED_LIBRARY
@@ -3042,7 +3048,7 @@ end_with_restore_list:
     goto error;
 #else
     {
-      if (check_global_access(thd, SUPER_ACL))
+      if (check_global_access(thd, SUPER_ACL | REPL_CLIENT_ACL))
 	goto error;
       res = show_binlogs(thd);
       break;
@@ -7621,7 +7627,7 @@ Item *negate_expression(THD *thd, Item *expr)
       if it is not boolean function then we have to emulate value of
       not(not(a)), it will be a != 0
     */
-    return new Item_func_ne(arg, new Item_int((char*) "0", 0, 1));
+    return new Item_func_ne(arg, new Item_int_0());
   }
 
   if ((negated= expr->neg_transformer(thd)) != 0)
