@@ -4440,9 +4440,6 @@ int toku_brt_create(BRT *brt_ptr) {
     brt->update_fun = NULL;
     int r = toku_omt_create(&brt->txns);
     if (r!=0) { toku_free(brt); return r; }
-    pthread_mutexattr_t attr;
-    r = pthread_mutexattr_init(&attr); assert_zero(r);
-    r = pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_ADAPTIVE_NP); assert_zero(r);
     toku_spin_init(&brt->cursors_lock, 0); 
     *brt_ptr = brt;
     return 0;
