@@ -5362,6 +5362,16 @@ static bool fill_alter_inplace_info(THD *thd,
       */
       if (field->field_index != new_field_index)
         ha_alter_info->handler_flags|= Alter_inplace_info::ALTER_COLUMN_ORDER;
+
+      /* Detect changes in storage type of column */
+      if (new_field->field_storage_type() != field->field_storage_type())
+        ha_alter_info->handler_flags|=
+          Alter_inplace_info::ALTER_COLUMN_STORAGE_TYPE;
+
+      /* Detect changes in column format of column */
+      if (new_field->column_format() != field->column_format())
+        ha_alter_info->handler_flags|=
+          Alter_inplace_info::ALTER_COLUMN_COLUMN_FORMAT;
     }
     else
     {
@@ -7947,7 +7957,8 @@ bool mysql_checksum_table(THD *thd, TABLE_LIST *tables,
 
   field_list.push_back(item = new Item_empty_string("Table", NAME_LEN*2));
   item->maybe_null= 1;
-  field_list.push_back(item= new Item_int("Checksum", (longlong) 1,
+  field_list.push_back(item= new Item_int(NAME_STRING("Checksum"),
+                                          (longlong) 1,
                                           MY_INT64_NUM_DECIMAL_DIGITS));
   item->maybe_null= 1;
   if (protocol->send_result_set_metadata(&field_list,

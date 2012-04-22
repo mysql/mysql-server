@@ -1543,6 +1543,34 @@ int store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
       packet->append(STRING_WITH_LEN(" NULL"));
     }
 
+    switch(field->field_storage_type()){
+    case HA_SM_DEFAULT:
+      break;
+    case HA_SM_DISK:
+      packet->append(STRING_WITH_LEN(" /*!50606 STORAGE DISK */"));
+      break;
+    case HA_SM_MEMORY:
+      packet->append(STRING_WITH_LEN(" /*!50606 STORAGE MEMORY */"));
+      break;
+    default:
+      DBUG_ASSERT(0);
+      break;
+    }
+
+    switch(field->column_format()){
+    case COLUMN_FORMAT_TYPE_DEFAULT:
+      break;
+    case COLUMN_FORMAT_TYPE_FIXED:
+      packet->append(STRING_WITH_LEN(" /*!50606 COLUMN_FORMAT FIXED */"));
+      break;
+    case COLUMN_FORMAT_TYPE_DYNAMIC:
+      packet->append(STRING_WITH_LEN(" /*!50606 COLUMN_FORMAT DYNAMIC */"));
+      break;
+    default:
+      DBUG_ASSERT(0);
+      break;
+    }
+
     if (print_default_clause(thd, field, &def_value, true))
     {
       packet->append(STRING_WITH_LEN(" DEFAULT "));
@@ -2050,7 +2078,7 @@ void mysqld_list_processes(THD *thd,const char *user, bool verbose)
   Protocol *protocol= thd->protocol;
   DBUG_ENTER("mysqld_list_processes");
 
-  field_list.push_back(new Item_int("Id", 0, MY_INT32_NUM_DECIMAL_DIGITS));
+  field_list.push_back(new Item_int(NAME_STRING("Id"), 0, MY_INT32_NUM_DECIMAL_DIGITS));
   field_list.push_back(new Item_empty_string("User",16));
   field_list.push_back(new Item_empty_string("Host",LIST_PROCESS_HOST_LEN));
   field_list.push_back(field=new Item_empty_string("db",NAME_CHAR_LEN));
@@ -2619,7 +2647,6 @@ void calc_sum_of_all_status(STATUS_VAR *to)
 {
   DBUG_ENTER("calc_sum_of_all_status");
 
-  /* Ensure that thread id not killed during loop */
   mysql_mutex_lock(&LOCK_thread_count);
 
   Thread_iterator it= global_thread_list_begin();
@@ -3463,39 +3490,44 @@ end:
 
 static int fill_schema_table_names(THD *thd, TABLE *table,
                                    LEX_STRING *db_name, LEX_STRING *table_name,
-                                   bool with_i_schema)
+                                   bool with_i_schema,
+                                   bool need_table_type)
 {
-  if (with_i_schema)
+  /* Avoid opening FRM files if table type is not needed. */
+  if (need_table_type)
   {
-    table->field[3]->store(STRING_WITH_LEN("SYSTEM VIEW"),
-                           system_charset_info);
-  }
-  else
-  {
-    enum legacy_db_type not_used;
-    char path[FN_REFLEN + 1];
-    (void) build_table_filename(path, sizeof(path) - 1, db_name->str, 
-                                table_name->str, reg_ext, 0);
-    switch (dd_frm_type(thd, path, &not_used)) {
-    case FRMTYPE_ERROR:
-      table->field[3]->store(STRING_WITH_LEN("ERROR"),
-                             system_charset_info);
-      break;
-    case FRMTYPE_TABLE:
-      table->field[3]->store(STRING_WITH_LEN("BASE TABLE"),
-                             system_charset_info);
-      break;
-    case FRMTYPE_VIEW:
-      table->field[3]->store(STRING_WITH_LEN("VIEW"),
-                             system_charset_info);
-      break;
-    default:
-      DBUG_ASSERT(0);
-    }
-    if (thd->is_error() && thd->get_stmt_da()->sql_errno() == ER_NO_SUCH_TABLE)
+    if (with_i_schema)
     {
-      thd->clear_error();
-      return 0;
+      table->field[3]->store(STRING_WITH_LEN("SYSTEM VIEW"),
+                             system_charset_info);
+    }
+    else
+    {
+      enum legacy_db_type not_used;
+      char path[FN_REFLEN + 1];
+      (void) build_table_filename(path, sizeof(path) - 1, db_name->str, 
+                                  table_name->str, reg_ext, 0);
+      switch (dd_frm_type(thd, path, &not_used)) {
+      case FRMTYPE_ERROR:
+        table->field[3]->store(STRING_WITH_LEN("ERROR"),
+                               system_charset_info);
+        break;
+      case FRMTYPE_TABLE:
+        table->field[3]->store(STRING_WITH_LEN("BASE TABLE"),
+                               system_charset_info);
+        break;
+      case FRMTYPE_VIEW:
+        table->field[3]->store(STRING_WITH_LEN("VIEW"),
+                               system_charset_info);
+        break;
+      default:
+        DBUG_ASSERT(0);
+      }
+    if (thd->is_error() && thd->get_stmt_da()->sql_errno() == ER_NO_SUCH_TABLE)
+      {
+        thd->clear_error();
+        return 0;
+      }
     }
   }
   if (schema_table_store_record(thd, table))
@@ -4034,7 +4066,8 @@ int get_all_tables(THD *thd, TABLE_LIST *tables, Item *cond)
           if (schema_table_idx == SCH_TABLE_NAMES)
           {
             if (fill_schema_table_names(thd, tables->table, db_name,
-                                        table_name, with_i_schema))
+                                        table_name, with_i_schema,
+                                        lex->verbose))
               continue;
           }
           else
@@ -6695,10 +6728,14 @@ TABLE *create_schema_table(THD *thd, TABLE_LIST *table_list)
       break;
     case MYSQL_TYPE_FLOAT:
     case MYSQL_TYPE_DOUBLE:
-      if ((item= new Item_float(fields_info->field_name, 0.0, NOT_FIXED_DEC, 
-                           fields_info->field_length)) == NULL)
+    {
+      const NameString field_name(fields_info->field_name,
+                                  strlen(fields_info->field_name));
+      if ((item= new Item_float(field_name, 0.0, NOT_FIXED_DEC, 
+                                fields_info->field_length)) == NULL)
         DBUG_RETURN(NULL);
       break;
+    }
     case MYSQL_TYPE_DECIMAL:
     case MYSQL_TYPE_NEWDECIMAL:
       if (!(item= new Item_decimal((longlong) fields_info->value, false)))

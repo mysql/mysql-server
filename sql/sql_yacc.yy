@@ -1085,6 +1085,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  COLLATION_SYM                 /* SQL-2003-N */
 %token  COLUMNS
 %token  COLUMN_SYM                    /* SQL-2003-R */
+%token  COLUMN_FORMAT_SYM
 %token  COLUMN_NAME_SYM               /* SQL-2003-N */
 %token  COMMENT_SYM
 %token  COMMITTED_SYM                 /* SQL-2003-N */
@@ -6293,6 +6294,39 @@ attribute:
               Lex->charset=$2;
             }
           }
+        | COLUMN_FORMAT_SYM DEFAULT
+          {
+            Lex->type&= ~(FIELD_FLAGS_COLUMN_FORMAT_MASK);
+            Lex->type|=
+              (COLUMN_FORMAT_TYPE_DEFAULT << FIELD_FLAGS_COLUMN_FORMAT);
+          }
+        | COLUMN_FORMAT_SYM FIXED_SYM
+          {
+            Lex->type&= ~(FIELD_FLAGS_COLUMN_FORMAT_MASK);
+            Lex->type|=
+              (COLUMN_FORMAT_TYPE_FIXED << FIELD_FLAGS_COLUMN_FORMAT);
+          }
+        | COLUMN_FORMAT_SYM DYNAMIC_SYM
+          {
+            Lex->type&= ~(FIELD_FLAGS_COLUMN_FORMAT_MASK);
+            Lex->type|=
+              (COLUMN_FORMAT_TYPE_DYNAMIC << FIELD_FLAGS_COLUMN_FORMAT);
+          }
+        | STORAGE_SYM DEFAULT
+          {
+            Lex->type&= ~(FIELD_FLAGS_STORAGE_MEDIA_MASK);
+            Lex->type|= (HA_SM_DEFAULT << FIELD_FLAGS_STORAGE_MEDIA);
+          }
+        | STORAGE_SYM DISK_SYM
+          {
+            Lex->type&= ~(FIELD_FLAGS_STORAGE_MEDIA_MASK);
+            Lex->type|= (HA_SM_DISK << FIELD_FLAGS_STORAGE_MEDIA);
+          }
+        | STORAGE_SYM MEMORY_SYM
+          {
+            Lex->type&= ~(FIELD_FLAGS_STORAGE_MEDIA_MASK);
+            Lex->type|= (HA_SM_MEMORY << FIELD_FLAGS_STORAGE_MEDIA);
+          }
         ;
 
 
@@ -9392,7 +9426,7 @@ function_call_conflict:
         | WEEK_SYM '(' expr ')'
           {
             THD *thd= YYTHD;
-            Item *i1= new (thd->mem_root) Item_int((char*) "0",
+            Item *i1= new (thd->mem_root) Item_int(NAME_STRING("0"),
                                            thd->variables.default_week_format,
                                                    1);
             if (i1 == NULL)
@@ -12745,13 +12779,13 @@ literal:
           }
         | FALSE_SYM
           {
-            $$= new (YYTHD->mem_root) Item_int((char*) "FALSE",0,1);
+            $$= new (YYTHD->mem_root) Item_int(NAME_STRING("FALSE"), 0, 1);
             if ($$ == NULL)
               MYSQL_YYABORT;
           }
         | TRUE_SYM
           {
-            $$= new (YYTHD->mem_root) Item_int((char*) "TRUE",1,1);
+            $$= new (YYTHD->mem_root) Item_int(NAME_STRING("TRUE"), 1, 1);
             if ($$ == NULL)
               MYSQL_YYABORT;
           }
@@ -12831,7 +12865,7 @@ NUM_literal:
           {
             int error;
             $$= new (YYTHD->mem_root)
-                  Item_int($1.str,
+                  Item_int($1,
                            (longlong) my_strtoll10($1.str, NULL, &error),
                            $1.length);
             if ($$ == NULL)
@@ -12841,7 +12875,7 @@ NUM_literal:
           {
             int error;
             $$= new (YYTHD->mem_root)
-                  Item_int($1.str,
+                  Item_int($1,
                            (longlong) my_strtoll10($1.str, NULL, &error),
                            $1.length);
             if ($$ == NULL)
@@ -13484,6 +13518,7 @@ keyword_sp:
         | CODE_SYM                 {}
         | COLLATION_SYM            {}
         | COLUMN_NAME_SYM          {}
+        | COLUMN_FORMAT_SYM        {}
         | COLUMNS                  {}
         | COMMITTED_SYM            {}
         | COMPACT_SYM              {}

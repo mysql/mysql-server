@@ -205,6 +205,7 @@ trx_free(
 	ut_a(trx->magic_n == TRX_MAGIC_N);
 	ut_ad(!trx->in_ro_trx_list);
 	ut_ad(!trx->in_rw_trx_list);
+	ut_ad(!trx->in_mysql_trx_list);
 
 	mutex_free(&trx->undo_mutex);
 
