@@ -1,6 +1,4 @@
-SET GLOBAL DEBUG='d,query,debug_sync_exec:i:t:A,ds.trace';
 SET DEBUG='+d,debug_sync_abort_on_timeout';
-SET DEBUG='d,query,debug_sync_exec:i:t:A,ds.trace';
 call mtr.add_suppression("InnoDB: Warning: Small buffer pool size");
 call mtr.add_suppression("Cannot find index .*c2 in InnoDB index translation table");
 call mtr.add_suppression("Find index .*c2 in InnoDB index list but not its MySQL index number");
@@ -20,7 +18,6 @@ SET DEBUG_SYNC='RESET';
 SET DEBUG_SYNC='write_row_noreplace SIGNAL have_handle WAIT_FOR go_ahead';
 INSERT INTO t1 VALUES(1,2,3);
 SET DEBUG='+d,debug_sync_abort_on_timeout';
-SET DEBUG='d,query,debug_sync_exec:i:t:A,ds.trace';
 SET DEBUG_SYNC='now WAIT_FOR have_handle';
 SET lock_wait_timeout=1;
 ALTER TABLE t1 ADD UNIQUE INDEX(c2);
@@ -103,6 +100,9 @@ SET SESSION innodb_analyze_is_persistent=1;
 ANALYZE TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
+UPDATE mysql.innodb_index_stats SET stat_value=5
+WHERE database_name='test' AND table_name='t1' AND index_name='PRIMARY'
+AND stat_value=6;
 SELECT * FROM mysql.innodb_index_stats;
 database_name	table_name	index_name	last_update	stat_name	stat_value	sample_size	stat_description
 test	t1	PRIMARY	LAST_UPDATE	n_diff_pfx01	5	1	c1

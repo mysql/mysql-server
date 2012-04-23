@@ -1826,6 +1826,8 @@ bool show_binlog_events(THD *thd, MYSQL_BIN_LOG *binary_log)
 
     mysql_mutex_unlock(log_lock);
   }
+  // Check that linfo is still on the function scope.
+  DEBUG_SYNC(thd, "after_show_binlog_events");
 
   ret= FALSE;
 
