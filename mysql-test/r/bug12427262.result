@@ -33,7 +33,7 @@ like "%show_table_lw_db%" AND FILE_NAME like "%.frm%" AND EVENT_NAME='wait/io/fi
 into @count_read_after;
 select @count_read_after-@count_read_before;
 @count_read_after-@count_read_before
-10.000000000000000000000000000000
+0.000000000000000000000000000000
 show full tables;
 Tables_in_show_table_lw_db	Table_type
 t1	BASE TABLE
@@ -51,6 +51,6 @@ like "%show_table_lw_db%" AND FILE_NAME like "%.frm%" AND EVENT_NAME='wait/io/fi
 into @count_read_after;
 select @count_read_after-@count_read_before;
 @count_read_after-@count_read_before
-20.000000000000000000000000000000
+10.000000000000000000000000000000
 drop table t1;
 drop database show_table_lw_db;
