@@ -438,16 +438,22 @@ int opt_sum_query(THD *thd,
 	  }
           removed_tables|= table->map;
         }
-        else if (!expr->const_item() || !is_exact_count)
+        else if (!expr->const_item() || conds || !is_exact_count)
         {
           /*
-            The optimization is not applicable in both cases:
-            (a) 'expr' is a non-constant expression. Then we can't
-            replace 'expr' by a constant.
-            (b) 'expr' is a costant. According to ANSI, MIN/MAX must return
-            NULL if the query does not return any rows. Thus, if we are not
-            able to determine if the query returns any rows, we can't apply
-            the optimization and replace MIN/MAX with a constant.
+            We get here if the aggregate function is not based on a field.
+            Example: "SELECT MAX(1) FROM table ..."
+
+            This constant optimization is not applicable if
+            1. the expression is not constant, or
+            2. it is unknown if the query returns any rows. MIN/MAX must return
+               NULL if the query doesn't return any rows. We can't determine
+               this if:
+               - the query has a condition, because, in contrast to the
+                 "MAX(field)" case above, the condition will not be evaluated
+                 against an index for this case, or
+               - the storage engine does not provide exact count, which means
+                 that it doesn't know whether there are any rows.
           */
           const_result= 0;
           break;
@@ -463,6 +469,8 @@ int opt_sum_query(THD *thd,
         if (!count && !outer_tables)
         {
           item_sum->aggregator_clear();
+          // Mark the aggregated value as based on no rows
+          item->no_rows_in_result();
         }
         else
           item_sum->reset_and_add();
