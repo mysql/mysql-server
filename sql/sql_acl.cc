@@ -7177,7 +7177,13 @@ void append_user(THD *thd, String *str, LEX_USER *user, bool comma= true,
         */
         if (thd->variables.old_passwords == 0)
         {
-          char tmp[SCRAMBLED_PASSWORD_CHAR_LENGTH]= "<secret>";
+          /*
+            my_make_scrambled_password_sha1() requires a target buffer size of
+            SCRAMBLED_PASSWORD_CHAR_LENGTH + 1.
+            The extra character is for the probably originate from either '\0'
+            or the initial '*' character.
+          */
+          char tmp[SCRAMBLED_PASSWORD_CHAR_LENGTH + 1];
           my_make_scrambled_password_sha1(tmp, user->password.str,
                                           user->password.length);
           str->append(tmp);
