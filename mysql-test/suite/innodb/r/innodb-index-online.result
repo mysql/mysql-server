@@ -5,8 +5,8 @@ call mtr.add_suppression("Find index .*c2 in InnoDB index list but not its MySQL
 call mtr.add_suppression("InnoDB: Error: table 'test/t1'");
 call mtr.add_suppression("MySQL is trying to open a table handle but the .ibd file for");
 SET GLOBAL innodb_file_per_table=on;
-CREATE TABLE t1 (c1 INT PRIMARY KEY, c2 INT, c3 INT) ENGINE=InnoDB;
-INSERT INTO t1 VALUES (1,1,0),(2,2,0),(3,3,0),(4,4,0),(5,5,0);
+CREATE TABLE t1 (c1 INT PRIMARY KEY, c2 INT, c3 TEXT) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1,1,''),(2,2,''),(3,3,''),(4,4,''),(5,5,'');
 SET GLOBAL innodb_monitor_enable=module_ddl;
 SELECT name,count FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE subsystem='ddl';
 name	count
@@ -45,7 +45,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` int(11) NOT NULL,
   `c2` int(11) DEFAULT NULL,
-  `c3` int(11) DEFAULT NULL,
+  `c3` text,
   PRIMARY KEY (`c1`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 BEGIN;
@@ -173,13 +173,14 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` int(11) NOT NULL,
   `c2` int(11) DEFAULT NULL,
-  `c3` int(11) DEFAULT NULL,
+  `c3` text,
   PRIMARY KEY (`c1`),
   KEY `c2d` (`c2`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 SET DEBUG_SYNC='row_log_apply_before SIGNAL c2e_created WAIT_FOR dml2_done';
 SET lock_wait_timeout=10;
-ALTER TABLE t1 DROP INDEX c2d, ADD INDEX c2e(c2);
+ALTER TABLE t1 CHANGE c2 c22 INT, DROP INDEX c2d, ADD INDEX c2e(c22),
+ALGORITHM=INPLACE;
 INSERT INTO t1 SELECT 80+c1,c2,c3 FROM t1;
 INSERT INTO t1 SELECT 160+c1,c2,c3 FROM t1;
 UPDATE t1 SET c2=c2+1;
@@ -212,8 +213,25 @@ ddl_background_drop_indexes	0
 ddl_background_drop_tables	0
 ddl_online_create_index	1
 ddl_pending_alter_table	1
+SELECT sf.name, sf.pos FROM INFORMATION_SCHEMA.INNODB_SYS_INDEXES si
+INNER JOIN INFORMATION_SCHEMA.INNODB_SYS_FIELDS sf
+ON si.index_id=sf.index_id
+WHERE si.name='c2e';
+name	pos
+c2	0
 SET DEBUG_SYNC='now SIGNAL dml2_done';
 ERROR HY000: Creating index 'c2e' required more than 'innodb_online_alter_log_max_size' bytes of modification log. Please try again.
+SELECT name,count FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE subsystem='ddl';
+name	count
+ddl_background_drop_indexes	1
+ddl_background_drop_tables	0
+ddl_online_create_index	0
+ddl_pending_alter_table	0
+SELECT sf.name, sf.pos FROM INFORMATION_SCHEMA.INNODB_SYS_INDEXES si
+INNER JOIN INFORMATION_SCHEMA.INNODB_SYS_FIELDS sf
+ON si.index_id=sf.index_id
+WHERE si.name='c2e';
+name	pos
 SELECT name,count FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE subsystem='ddl';
 name	count
 ddl_background_drop_indexes	1
@@ -227,16 +245,15 @@ ddl_background_drop_indexes	0
 ddl_background_drop_tables	0
 ddl_online_create_index	0
 ddl_pending_alter_table	0
-SET GLOBAL innodb_monitor_disable=module_ddl;
 SET DEBUG_SYNC='row_log_apply_before SIGNAL c2f_created WAIT_FOR dml3_done';
-ALTER TABLE t1 ADD INDEX c2f(c2);
+ALTER TABLE t1 ADD INDEX c2f(c22f), CHANGE c2 c22f INT;
 SET DEBUG_SYNC='now WAIT_FOR c2f_created';
 SELECT name,count FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE subsystem='ddl';
 name	count
 ddl_background_drop_indexes	0
 ddl_background_drop_tables	0
-ddl_online_create_index	0
-ddl_pending_alter_table	0
+ddl_online_create_index	1
+ddl_pending_alter_table	1
 BEGIN;
 INSERT INTO t1 SELECT 320+c1,c2,c3 FROM t1 WHERE c1>160;
 DELETE FROM t1 WHERE c1>320;
@@ -249,8 +266,8 @@ SELECT name,count FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE subsystem='ddl';
 name	count
 ddl_background_drop_indexes	0
 ddl_background_drop_tables	0
-ddl_online_create_index	0
-ddl_pending_alter_table	0
+ddl_online_create_index	1
+ddl_pending_alter_table	1
 SET DEBUG_SYNC='now SIGNAL dml3_done';
 SELECT name,count FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE subsystem='ddl';
 name	count
@@ -258,15 +275,56 @@ ddl_background_drop_indexes	0
 ddl_background_drop_tables	0
 ddl_online_create_index	0
 ddl_pending_alter_table	0
-SELECT COUNT(c2) FROM t1;
-COUNT(c2)
+SELECT COUNT(c22f) FROM t1;
+COUNT(c22f)
 320
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
+ALTER TABLE t1 ADD UNIQUE INDEX c3p5(c3(5));
+ERROR 23000: Duplicate entry '' for key 'c3p5'
+UPDATE t1 SET c3=NULL WHERE c3='';
+SET lock_wait_timeout=1;
+SET DEBUG_SYNC='row_log_apply_before SIGNAL c3p5_created WAIT_FOR ins_done';
+ALTER TABLE t1 ADD UNIQUE INDEX c3p5(c3(5));
+SET DEBUG_SYNC='now WAIT_FOR c3p5_created';
+SELECT sf.name, sf.pos FROM INFORMATION_SCHEMA.INNODB_SYS_INDEXES si
+INNER JOIN INFORMATION_SCHEMA.INNODB_SYS_FIELDS sf
+ON si.index_id=sf.index_id
+WHERE si.name='c3p5';
+name	pos
+c3	0
+SET DEBUG_SYNC='ib_after_row_insert SIGNAL ins_done WAIT_FOR ddl_timed_out';
+INSERT INTO t1 VALUES(347,33101,NULL);
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET DEBUG_SYNC='now SIGNAL ddl_timed_out';
+SELECT sf.name, sf.pos FROM INFORMATION_SCHEMA.INNODB_SYS_INDEXES si
+INNER JOIN INFORMATION_SCHEMA.INNODB_SYS_FIELDS sf
+ON si.index_id=sf.index_id
+WHERE si.name='c3p5';
+name	pos
+SELECT name,count FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE subsystem='ddl';
+name	count
+ddl_background_drop_indexes	1
+ddl_background_drop_tables	0
+ddl_online_create_index	0
+ddl_pending_alter_table	0
+SELECT name,count FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE subsystem='ddl';
+name	count
+ddl_background_drop_indexes	1
+ddl_background_drop_tables	0
+ddl_online_create_index	0
+ddl_pending_alter_table	0
+ALTER TABLE t1 COMMENT 'testing if c3p5 will be dropped';
+SELECT name,count FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE subsystem='ddl';
+name	count
+ddl_background_drop_indexes	0
+ddl_background_drop_tables	0
+ddl_online_create_index	0
+ddl_pending_alter_table	0
 SET DEBUG_SYNC='row_log_apply_before SIGNAL c2g_created WAIT_FOR dml4_done';
 SET lock_wait_timeout=1;
-ALTER TABLE t1 DROP INDEX c2f, ADD INDEX c2g(c2);
+ALTER TABLE t1 DROP INDEX c2f, ADD INDEX c2g(c22f);
 SET DEBUG_SYNC='now WAIT_FOR c2g_created';
 SET lock_wait_timeout=10;
 ALTER TABLE t1 DISCARD TABLESPACE;
@@ -276,17 +334,17 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` int(11) NOT NULL,
-  `c2` int(11) DEFAULT NULL,
-  `c3` int(11) DEFAULT NULL,
+  `c22f` int(11) DEFAULT NULL,
+  `c3` text,
   PRIMARY KEY (`c1`),
-  KEY `c2d` (`c2`),
-  KEY `c2f` (`c2`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 COMMENT='testing if c2e will be dropped'
+  KEY `c2d` (`c22f`),
+  KEY `c2f` (`c22f`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1 COMMENT='testing if c3p5 will be dropped'
 ALTER TABLE t1 DROP INDEX c2d, DROP INDEX c2f;
 ERROR 42S02: Table 'test.t1' doesn't exist
-ALTER TABLE t1 ADD INDEX c2h(c2), ALGORITHM=INPLACE;
+ALTER TABLE t1 ADD INDEX c2h(c22f), ALGORITHM=INPLACE;
 ERROR 42S02: Table 'test.t1' doesn't exist
-ALTER TABLE t1 ADD INDEX c2h(c2), ALGORITHM=COPY;
+ALTER TABLE t1 ADD INDEX c2h(c22f), ALGORITHM=COPY;
 ERROR 42S02: Table 'test.t1' doesn't exist
 SET GLOBAL innodb_file_per_table=0;
 SET DEBUG_SYNC='RESET';
