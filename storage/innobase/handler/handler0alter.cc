@@ -3052,7 +3052,7 @@ processed_field:
 	row_mysql_unlock_data_dictionary(trx);
 	trx_free_for_mysql(trx);
 
-	if (trx == ctx->trx) {
+	if (ctx && trx == ctx->trx) {
 		ctx->trx = NULL;
 	}
 
