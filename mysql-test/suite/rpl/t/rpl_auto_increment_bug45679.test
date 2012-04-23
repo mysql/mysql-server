@@ -35,7 +35,7 @@ end//
 delimiter ;//
 
 select multi_part_pk_with_autoinc (3);
---echo *** autoincrement field is not the first in PK warning must be there: ***
+--echo *** No warnings in 5.1 because of Bug11749859-39934 ***
 show warnings;
 
 set @@binlog_format=mixed;

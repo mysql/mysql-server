@@ -26,7 +26,7 @@ end//
 select multi_part_pk_with_autoinc (3);
 multi_part_pk_with_autoinc (3)
 3
-*** autoincrement field is not the first in PK warning must be there: ***
+*** No warnings in 5.1 because of Bug11749859-39934 ***
 show warnings;
 Level	Code	Message
 set @@binlog_format=mixed;
