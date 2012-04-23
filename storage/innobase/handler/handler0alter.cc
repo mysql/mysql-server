@@ -2864,6 +2864,7 @@ ha_innobase::commit_inplace_alter_table(
 			dict_table_close(ctx->indexed_table, TRUE, FALSE);
 			row_merge_drop_table(trx, ctx->indexed_table);
 			ctx->indexed_table = NULL;
+			goto trx_commit;
 		}
 	} else if (ctx) {
 		dberr_t	error;
@@ -2957,6 +2958,7 @@ processed_field:
 	}
 
 	if (err == 0) {
+trx_commit:
 		trx_commit_for_mysql(trx);
 	} else {
 		trx_rollback_for_mysql(trx);
