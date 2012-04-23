@@ -693,8 +693,6 @@ trx_start_low(
 /*==========*/
 	trx_t*	trx)		/*!< in: transaction */
 {
-	static ulint	n_start_times;
-
 	ut_ad(trx->rseg == NULL);
 
 	ut_ad(!trx->is_recovered);
@@ -715,12 +713,6 @@ trx_start_low(
 	if (!trx->read_only) {
 		trx->rseg = trx_assign_rseg_low(
 			srv_undo_logs, srv_undo_tablespaces);
-	}
-
-	/* Avoid making an unnecessary system call, for non-locking
-	auto-commit selects we reuse the start_time for every 32  starts. */
-	if (!trx_is_autocommit_non_locking(trx) || !(n_start_times++ % 32)) {
-		trx->start_time = ut_time();
 	}
 
 	/* The initial value for trx->no: IB_ULONGLONG_MAX is used in
@@ -768,6 +760,12 @@ trx_start_low(
 	ut_ad(trx_sys_validate_trx_list());
 
 	mutex_exit(&trx_sys->mutex);
+
+	/* Avoid making an unnecessary system call, for non-locking
+	auto-commit selects we reuse the start_time for every 32  starts. */
+	if (!trx_is_autocommit_non_locking(trx) || !(trx->id % 32)) {
+		trx->start_time = ut_time();
+	}
 
 	MONITOR_INC(MONITOR_TRX_ACTIVE);
 }
@@ -1061,6 +1059,8 @@ trx_commit(
 
 		trx->state = TRX_STATE_NOT_STARTED;
 
+		read_view_remove(trx->global_read_view, false);
+
 		MONITOR_INC(MONITOR_TRX_NL_RO_COMMIT);
 	} else {
 		lock_trx_release_locks(trx);
@@ -1092,13 +1092,16 @@ trx_commit(
 
 		trx->state = TRX_STATE_NOT_STARTED;
 
+		/* We already own the trx_sys_t::mutex, by doing it here we
+		avoid a potential context switch later. */
+		read_view_remove(trx->global_read_view, true);
+
 		ut_ad(trx_sys_validate_trx_list());
 
 		mutex_exit(&trx_sys->mutex);
 	}
 
 	if (trx->global_read_view != NULL) {
-		read_view_remove(trx->global_read_view);
 
 		mem_heap_empty(trx->global_read_view_heap);
 
