@@ -2841,7 +2841,7 @@ ha_innobase::commit_inplace_alter_table(
 			break;
 		case DB_TABLESPACE_ALREADY_EXISTS:
 		case DB_DUPLICATE_KEY:
-			ut_a(ctx->indexed_table->n_ref_count == 0);
+			ut_a(ctx->indexed_table->n_ref_count == 1);
 			innobase_convert_tablename(tmp_name);
 			my_error(ER_TABLE_EXISTS_ERROR, MYF(0), tmp_name);
 			err = HA_ERR_TABLE_EXIST;
@@ -2854,6 +2854,7 @@ ha_innobase::commit_inplace_alter_table(
 		drop_new_clustered:
 			dict_table_close(ctx->indexed_table, TRUE, FALSE);
 			row_merge_drop_table(trx, ctx->indexed_table);
+			ctx->indexed_table = NULL;
 		}
 	} else if (ctx) {
 		dberr_t	error;
@@ -3051,6 +3052,10 @@ processed_field:
 	row_mysql_unlock_data_dictionary(trx);
 	trx_free_for_mysql(trx);
 
+	if (trx == ctx->trx) {
+		ctx->trx = NULL;
+	}
+
 	if (err == 0) {
 		/* Delete corresponding rows from the stats table. We update
 		the statistics in a separate transaction from trx, because
@@ -3117,6 +3122,8 @@ func_exit:
 	}
 
 ret:
-	MONITOR_ATOMIC_DEC(MONITOR_PENDING_ALTER_TABLE);
+	if (err == 0) {
+		MONITOR_ATOMIC_DEC(MONITOR_PENDING_ALTER_TABLE);
+	}
 	DBUG_RETURN(err != 0);
 }
