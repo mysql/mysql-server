@@ -7225,6 +7225,10 @@ bool get_schema_tables_result(JOIN *join,
   bool result= 0;
   DBUG_ENTER("get_schema_tables_result");
 
+  /* Check if the schema table is optimized away */
+  if (!join->join_tab)
+    DBUG_RETURN(result);
+
   for (JOIN_TAB *tab= join->join_tab; tab < tmp_join_tab; tab++)
   {  
     if (!tab->table || !tab->table->pos_in_table_list)
