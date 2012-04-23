@@ -1442,7 +1442,7 @@ sub command_line_setup {
 
   # We make the path absolute, as the server will do a chdir() before usage
   unless ( $opt_vardir =~ m,^/, or
-           (IS_WINDOWS and $opt_vardir =~ m,^[a-z]:/,i) )
+           (IS_WINDOWS and $opt_vardir =~ m,^[a-z]:[/\\],i) )
   {
     # Make absolute path, relative test dir
     $opt_vardir= "$glob_mysql_test_dir/$opt_vardir";
