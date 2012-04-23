@@ -310,13 +310,18 @@ ddl_background_drop_indexes	1
 ddl_background_drop_tables	0
 ddl_online_create_index	0
 ddl_pending_alter_table	0
-ALTER TABLE t1 COMMENT 'testing if c3p5 will be dropped';
+CREATE TABLE `t1#1`(a INT PRIMARY KEY) ENGINE = InnoDB;
+CREATE FULLTEXT INDEX ft ON t1 (c3);
+ERROR HY000: Table 'test.t1#1' already exists
 SELECT name, count FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE subsystem='ddl';
 name	count
 ddl_background_drop_indexes	0
 ddl_background_drop_tables	0
 ddl_online_create_index	0
 ddl_pending_alter_table	0
+DROP TABLE `t1#1`;
+call mtr.add_suppression("InnoDB: Error creating.*t1@00231.ibd");
+call mtr.add_suppression("InnoDB: Error number 17 means 'File exists'");
 SET DEBUG_SYNC = 'row_log_apply_before SIGNAL c2g_created WAIT_FOR dml4_done';
 SET lock_wait_timeout = 1;
 ALTER TABLE t1 DROP INDEX c2f, ADD INDEX c2g(c22f);
@@ -334,7 +339,7 @@ t1	CREATE TABLE `t1` (
   PRIMARY KEY (`c1`),
   KEY `c2d` (`c22f`),
   KEY `c2f` (`c22f`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 COMMENT='testing if c3p5 will be dropped'
+) ENGINE=InnoDB DEFAULT CHARSET=latin1 COMMENT='testing if c2e will be dropped'
 ALTER TABLE t1 DROP INDEX c2d, DROP INDEX c2f;
 ERROR 42S02: Table 'test.t1' doesn't exist
 ALTER TABLE t1 ADD INDEX c2h(c22f), ALGORITHM = INPLACE;

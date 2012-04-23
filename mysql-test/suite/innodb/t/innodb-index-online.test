@@ -327,8 +327,16 @@ reap;
 # Index c3p5 should still exist in the data dictionary cache.
 eval $innodb_metrics_select;
 
-ALTER TABLE t1 COMMENT 'testing if c3p5 will be dropped';
+CREATE TABLE `t1#1`(a INT PRIMARY KEY) ENGINE = InnoDB;
+--error 156
+CREATE FULLTEXT INDEX ft ON t1 (c3);
+# The failed CREATE FULLTEXT INDEX should have cleaned up c3p5 from the cache.
 eval $innodb_metrics_select;
+
+DROP TABLE `t1#1`;
+
+call mtr.add_suppression("InnoDB: Error creating.*t1@00231.ibd");
+call mtr.add_suppression("InnoDB: Error number 17 means 'File exists'");
 
 SET DEBUG_SYNC = 'row_log_apply_before SIGNAL c2g_created WAIT_FOR dml4_done';
 # The lock upgrade at the end of the ALTER will conflict with the DISCARD.
