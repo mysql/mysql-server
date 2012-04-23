@@ -24,7 +24,6 @@ extern "C" {
 #include <my_base.h>
 #include <my_sys.h>
 #include <m_ctype.h>
-#include "../storage/maria/ma_pagecache.h"
 #include "my_handler.h"
 #include "my_compare.h"
 #include "ft_global.h"
@@ -271,7 +270,6 @@ extern my_bool maria_flush, maria_single_user, maria_page_checksums;
 extern my_bool maria_delay_key_write;
 extern my_off_t maria_max_temp_length;
 extern ulong maria_bulk_insert_tree_size, maria_data_pointer_size;
-extern PAGECACHE maria_pagecache_var, *maria_pagecache;
 extern MY_TMPDIR *maria_tmpdir;
 /*
   This is used to check if a symlink points into the mysql data home,
@@ -356,71 +354,6 @@ typedef struct st_maria_bit_buff
   uint error;
 } MARIA_BIT_BUFF;
 
-
-typedef struct st_maria_sort_info
-{
-#ifdef THREAD
-  /* sync things */
-  pthread_mutex_t mutex;
-  pthread_cond_t cond;
-#endif
-  MARIA_HA *info, *new_info;
-  HA_CHECK *param;
-  char *buff;
-  SORT_KEY_BLOCKS *key_block, *key_block_end;
-  SORT_FT_BUF *ft_buf;
-  my_off_t filelength, dupp, buff_length;
-  pgcache_page_no_t page;
-  ha_rows max_records;
-  uint current_key, total_keys;
-  uint got_error, threads_running;
-  myf myf_rw;
-  enum data_file_type new_data_file_type, org_data_file_type;
-} MARIA_SORT_INFO;
-
-typedef struct st_maria_sort_param
-{
-  pthread_t thr;
-  IO_CACHE read_cache, tempfile, tempfile_for_exceptions;
-  DYNAMIC_ARRAY buffpek;
-  MARIA_BIT_BUFF bit_buff;               /* For parallel repair of packrec. */
-  
-  MARIA_KEYDEF *keyinfo;
-  MARIA_SORT_INFO *sort_info;
-  HA_KEYSEG *seg;
-  uchar **sort_keys;
-  uchar *rec_buff;
-  void *wordlist, *wordptr;
-  MEM_ROOT wordroot;
-  uchar *record;
-  MY_TMPDIR *tmpdir;
-
-  /* 
-    The next two are used to collect statistics, see maria_update_key_parts for
-    description.
-  */
-  ulonglong unique[HA_MAX_KEY_SEG+1];
-  ulonglong notnull[HA_MAX_KEY_SEG+1];
-
-  MARIA_RECORD_POS pos,max_pos,filepos,start_recpos, current_filepos;
-  uint key, key_length,real_key_length,sortbuff_size;
-  uint maxbuffers, keys, find_length, sort_keys_length;
-  my_bool fix_datafile, master;
-  my_bool calc_checksum;                /* calculate table checksum */
-  size_t rec_buff_size;
-
-  int (*key_cmp)(struct st_maria_sort_param *, const void *, const void *);
-  int (*key_read)(struct st_maria_sort_param *, uchar *);
-  int (*key_write)(struct st_maria_sort_param *, const uchar *);
-  void (*lock_in_memory)(HA_CHECK *);
-  int (*write_keys)(struct st_maria_sort_param *, register uchar **,
-                         uint , struct st_buffpek *, IO_CACHE *);
-  uint (*read_to_buffer)(IO_CACHE *,struct st_buffpek *, uint);
-  int (*write_key)(struct st_maria_sort_param *, IO_CACHE *,uchar *,
-                   uint, uint);
-} MARIA_SORT_PARAM;
-
-
 /* functions in maria_check */
 void maria_chk_init(HA_CHECK *param);
 void maria_chk_init_for_check(HA_CHECK *param, MARIA_HA *info);
@@ -448,7 +381,6 @@ int maria_filecopy(HA_CHECK *param, File to, File from, my_off_t start,
                    my_off_t length, const char *type);
 int maria_movepoint(MARIA_HA *info, uchar *record, my_off_t oldpos,
                     my_off_t newpos, uint prot_key);
-int maria_write_data_suffix(MARIA_SORT_INFO *sort_info, my_bool fix_datafile);
 int maria_test_if_almost_full(MARIA_HA *info);
 int maria_recreate_table(HA_CHECK *param, MARIA_HA **org_info, char *filename);
 int maria_disable_indexes(MARIA_HA *info);
@@ -461,10 +393,6 @@ my_bool maria_test_if_sort_rep(MARIA_HA *info, ha_rows rows, ulonglong key_map,
 int maria_init_bulk_insert(MARIA_HA *info, ulong cache_size, ha_rows rows);
 void maria_flush_bulk_insert(MARIA_HA *info, uint inx);
 void maria_end_bulk_insert(MARIA_HA *info);
-int maria_assign_to_pagecache(MARIA_HA *info, ulonglong key_map,
-			      PAGECACHE *key_cache);
-void maria_change_pagecache(PAGECACHE *old_key_cache,
-			    PAGECACHE *new_key_cache);
 int maria_preload(MARIA_HA *info, ulonglong key_map, my_bool ignore_leaves);
 void maria_versioning(MARIA_HA *info, my_bool versioning);
 void maria_ignore_trids(MARIA_HA *info);

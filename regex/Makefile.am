@@ -18,7 +18,9 @@
 INCLUDES =		-I$(top_builddir)/include -I$(top_srcdir)/include
 noinst_LTLIBRARIES =	libregex.la
 LDADD=			libregex.la $(top_builddir)/strings/libmystrings.la
-noinst_HEADERS =	cclass.h cname.h regex2.h utils.h engine.c my_regex.h
+internalincludedir =	$(pkgincludedir)/private
+internalinclude_HEADERS = my_regex.h
+noinst_HEADERS =	cclass.h cname.h regex2.h utils.h engine.c
 libregex_la_SOURCES =	regerror.c regcomp.c regexec.c regfree.c reginit.c
 noinst_PROGRAMS =	re
 re_SOURCES =		split.c debug.c main.c

@@ -35,7 +35,8 @@ pkginclude_HEADERS =	$(HEADERS_ABI) my_dbug.h m_string.h my_sys.h \
 			$(HEADERS_GEN_CONFIGURE) \
 			$(HEADERS_GEN_MAKE)
 
-noinst_HEADERS =	config-win.h config-netware.h lf.h my_bit.h \
+internalincludedir =	$(pkgincludedir)/private
+internalinclude_HEADERS = config-win.h config-netware.h lf.h my_bit.h \
 			heap.h maria.h myisamchk.h my_bitmap.h my_uctype.h \
 			myisam.h myisampack.h myisammrg.h ft_global.h\
 			mysys_err.h my_base.h help_start.h help_end.h \
@@ -44,12 +45,15 @@ noinst_HEADERS =	config-win.h config-netware.h lf.h my_bit.h \
 			thr_lock.h t_ctype.h violite.h my_md5.h base64.h \
 			service_versions.h \
 			my_compare.h my_handler.h my_time.h \
-			my_vle.h my_user.h my_atomic.h atomic/nolock.h \
-			atomic/rwlock.h atomic/x86-gcc.h \
-			atomic/generic-msvc.h \
-                        atomic/gcc_builtins.h my_libwrap.h my_stacktrace.h \
+			my_vle.h my_user.h my_atomic.h my_libwrap.h my_stacktrace.h \
                         wqueue.h waiting_threads.h \
 			welcome_copyright_notice.h
+
+atomicincludedir =      $(internalincludedir)/atomic
+atomicinclude_HEADERS = atomic/nolock.h \
+			atomic/rwlock.h atomic/x86-gcc.h \
+			atomic/generic-msvc.h \
+                        atomic/gcc_builtins.h
 
 EXTRA_DIST =            mysql.h.pp mysql/plugin_auth.h.pp mysql/client_plugin.h.pp CMakeLists.txt
 

@@ -47,7 +47,8 @@ mysqld_LDADD =		libndb.la \
 			$(LDADD)  $(CXXLDFLAGS) $(WRAPLIBS) @LIBDL@ \
 			$(yassl_libs) $(openssl_libs) @MYSQLD_EXTRA_LIBS@
 
-noinst_HEADERS =	item.h item_func.h item_sum.h item_cmpfunc.h \
+internalincludedir =	$(pkgincludedir)/private
+internalinclude_HEADERS = item.h item_func.h item_sum.h item_cmpfunc.h \
 			item_strfunc.h item_timefunc.h \
 			item_xmlfunc.h sql_plugin_services.h \
 			item_create.h item_subselect.h item_row.h \

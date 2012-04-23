@@ -16,6 +16,7 @@
 /* This file is included by all internal maria files */
 
 #include "maria.h"				/* Structs & some defines */
+#include "ma_pagecache.h"
 #include <myisampack.h>				/* packing of keys */
 #include <my_tree.h>
 #include <my_bitmap.h>
@@ -47,6 +48,77 @@
 
 /* maria_open() flag, specific for maria_pack */
 #define HA_OPEN_IGNORE_MOVED_STATE (1U << 30)
+
+extern PAGECACHE maria_pagecache_var, *maria_pagecache;
+int maria_assign_to_pagecache(MARIA_HA *info, ulonglong key_map,
+			      PAGECACHE *key_cache);
+void maria_change_pagecache(PAGECACHE *old_key_cache,
+			    PAGECACHE *new_key_cache);
+
+typedef struct st_maria_sort_info
+{
+#ifdef THREAD
+  /* sync things */
+  pthread_mutex_t mutex;
+  pthread_cond_t cond;
+#endif
+  MARIA_HA *info, *new_info;
+  HA_CHECK *param;
+  char *buff;
+  SORT_KEY_BLOCKS *key_block, *key_block_end;
+  SORT_FT_BUF *ft_buf;
+  my_off_t filelength, dupp, buff_length;
+  pgcache_page_no_t page;
+  ha_rows max_records;
+  uint current_key, total_keys;
+  uint got_error, threads_running;
+  myf myf_rw;
+  enum data_file_type new_data_file_type, org_data_file_type;
+} MARIA_SORT_INFO;
+
+typedef struct st_maria_sort_param
+{
+  pthread_t thr;
+  IO_CACHE read_cache, tempfile, tempfile_for_exceptions;
+  DYNAMIC_ARRAY buffpek;
+  MARIA_BIT_BUFF bit_buff;               /* For parallel repair of packrec. */
+  
+  MARIA_KEYDEF *keyinfo;
+  MARIA_SORT_INFO *sort_info;
+  HA_KEYSEG *seg;
+  uchar **sort_keys;
+  uchar *rec_buff;
+  void *wordlist, *wordptr;
+  MEM_ROOT wordroot;
+  uchar *record;
+  MY_TMPDIR *tmpdir;
+
+  /* 
+    The next two are used to collect statistics, see maria_update_key_parts for
+    description.
+  */
+  ulonglong unique[HA_MAX_KEY_SEG+1];
+  ulonglong notnull[HA_MAX_KEY_SEG+1];
+
+  MARIA_RECORD_POS pos,max_pos,filepos,start_recpos, current_filepos;
+  uint key, key_length,real_key_length,sortbuff_size;
+  uint maxbuffers, keys, find_length, sort_keys_length;
+  my_bool fix_datafile, master;
+  my_bool calc_checksum;                /* calculate table checksum */
+  size_t rec_buff_size;
+
+  int (*key_cmp)(struct st_maria_sort_param *, const void *, const void *);
+  int (*key_read)(struct st_maria_sort_param *, uchar *);
+  int (*key_write)(struct st_maria_sort_param *, const uchar *);
+  void (*lock_in_memory)(HA_CHECK *);
+  int (*write_keys)(struct st_maria_sort_param *, register uchar **,
+                         uint , struct st_buffpek *, IO_CACHE *);
+  uint (*read_to_buffer)(IO_CACHE *,struct st_buffpek *, uint);
+  int (*write_key)(struct st_maria_sort_param *, IO_CACHE *,uchar *,
+                   uint, uint);
+} MARIA_SORT_PARAM;
+
+int maria_write_data_suffix(MARIA_SORT_INFO *sort_info, my_bool fix_datafile);
 
 struct st_transaction;
 

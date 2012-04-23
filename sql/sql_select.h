@@ -32,7 +32,7 @@
 #include <myisam.h>
 
 #if defined(WITH_ARIA_STORAGE_ENGINE) && defined(USE_MARIA_FOR_TMP_TABLES)
-#include "../storage/maria/ha_maria.h"
+#include <maria.h>
 #define TMP_ENGINE_HTON maria_hton
 #else
 #define TMP_ENGINE_HTON myisam_hton
