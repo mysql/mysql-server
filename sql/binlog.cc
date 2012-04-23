@@ -244,6 +244,12 @@ public:
     return group_cache.is_empty();
   }
 
+#ifndef DBUG_OFF
+  bool dbug_is_finalized() const {
+    return flags.finalized;
+  }
+#endif
+
   Rows_log_event *pending() const
   {
     return m_pending;
@@ -586,6 +592,12 @@ public:
   bool is_binlog_empty() const {
     return stmt_cache.is_binlog_empty() && trx_cache.is_binlog_empty();
   }
+
+#ifndef DBUG_OFF
+  bool dbug_any_finalized() const {
+    return stmt_cache.dbug_is_finalized() || trx_cache.dbug_is_finalized();
+  }
+#endif
 
   /*
     Convenience method to flush both caches to the binary log.
@@ -1159,6 +1171,71 @@ static int binlog_rollback(handlerton *hton, THD *thd, bool all)
   DBUG_RETURN(error);
 }
 
+
+bool
+Thread_queue::Inner::append(THD *first)
+{
+  lock();
+  DBUG_PRINT("enter", ("m_first: 0x%llx, &m_first: 0x%llx, m_last: 0x%llx",
+                       (ulonglong) m_first, (ulonglong) &m_first,
+                       (ulonglong) m_last));
+  bool empty= (m_first == NULL);
+  *m_last= first;
+  /*
+    Go to the last THD instance of the list. We expect lists to be
+    moderately short. If they are not, we need to track the end of
+    the queue as well.
+  */
+  while (first->next_to_commit)
+  {
+    DBUG_PRINT("debug", ("first: 0x%llx", (ulonglong) first));
+    first= first->next_to_commit;
+  }
+  m_last= &first->next_to_commit;
+  unlock();
+  return empty;
+}
+
+
+bool
+Thread_queue::append(StageID stage, THD *thd)
+{
+  // If the queue was empty: we're the leader for this batch
+  DBUG_PRINT("debug", ("Enqueue 0x%llx to queue for stage %d",
+                       (ulonglong) thd, stage));
+  bool leader= m_queue[stage].append(thd);
+
+  /*
+    If the queue was not empty, we're a follower and wait for the
+    leader to process the queue. If we were holding a mutex, we have
+    to release it before going to sleep.
+  */
+  if (!leader)
+  {
+    mysql_mutex_lock(&m_lock);
+    while (thd->transaction.flags.pending)
+      mysql_cond_wait(&m_cond, &m_lock);
+    mysql_mutex_unlock(&m_lock);
+  }
+  return leader;
+}
+
+
+THD *Thread_queue::Inner::fetch_and_empty()
+{
+  lock();
+  DBUG_PRINT("enter", ("m_first: 0x%llx, &m_first: 0x%llx, m_last: 0x%llx",
+                       (ulonglong) m_first, (ulonglong) &m_first,
+                       (ulonglong) m_last));
+  THD *result= m_first;
+  m_first= NULL;
+  m_last= &m_first;
+  DBUG_PRINT("return", ("m_first: 0x%llx, &m_first: 0x%llx, m_last: 0x%llx",
+                       (ulonglong) m_first, (ulonglong) &m_first,
+                       (ulonglong) m_last));
+  unlock();
+  return result;
+}
 
 /**
   Write a rollback record of the transaction to the binary log.
@@ -2070,6 +2147,7 @@ void MYSQL_BIN_LOG::cleanup()
     mysql_mutex_destroy(&LOCK_log);
     mysql_mutex_destroy(&LOCK_index);
     mysql_mutex_destroy(&LOCK_commit);
+    mysql_mutex_destroy(&LOCK_sync);
     mysql_cond_destroy(&update_cond);
   }
   DBUG_VOID_RETURN;
@@ -2092,10 +2170,12 @@ void MYSQL_BIN_LOG::init_pthread_objects()
   MYSQL_LOG::init_pthread_objects();
   mysql_mutex_init(m_key_LOCK_index, &LOCK_index, MY_MUTEX_INIT_SLOW);
   mysql_mutex_init(m_key_LOCK_commit, &LOCK_commit, MY_MUTEX_INIT_FAST);
+  mysql_mutex_init(m_key_LOCK_sync, &LOCK_sync, MY_MUTEX_INIT_FAST);
   mysql_cond_init(m_key_update_cond, &update_cond, 0);
-  flush_queue.init(m_key_LOCK_queue);
+  flush_queue.init(m_key_LOCK_flush_queue,
+                   m_key_LOCK_sync_queue,
+                   m_key_LOCK_commit_queue, m_key_LOCK_done, m_key_COND_done);
 }
-
 
 bool MYSQL_BIN_LOG::open_index_file(const char *index_file_name_arg,
                                     const char *log_name, bool need_mutex)
@@ -5625,7 +5705,6 @@ MYSQL_BIN_LOG::flush_session_queue(THD *first,
   {
     binlog_cache_mngr *cache_mngr= thd_get_cache_mngr(head);
     my_off_t bytes= 0;
-    head->transaction.flags.pending= false;
     if (int error= cache_mngr->flush(head, &bytes))
       flush_error= error;
     else if (bytes > 0)
@@ -5693,6 +5772,91 @@ void MYSQL_BIN_LOG::commit_session_queue(THD *thd, THD *first, int flush_error)
   }
 }
 
+
+/**
+  Enter a stage of the ordered commit procedure.
+
+  Entering is stage is done by:
+
+  - Atomically enqueueing a queue of processes (which is just one for
+    the first phase).
+
+  - If the queue was empty, the thread is the leader for that stage
+    and it should process the entire queue for that stage.
+
+  - If the queue was not empty, the thread is a follower and can go
+    waiting for the commit to finish.
+
+  The function will lock the stage mutex if it was designated the
+  leader for the phase.
+
+  @param thd    Session structure
+  @param stage  The stage to enter
+  @param queue  Queue of threads to enqueue for the stage
+  @param stage_mutex Mutex for the stage
+
+  @retval true  The thread should "bail out" and go waiting for the
+                commit to finish
+  @retval false The thread is the leader for the stage and should do
+                the processing.
+*/
+
+bool
+MYSQL_BIN_LOG::enter_stage(THD *thd, Thread_queue::StageID stage,
+                           THD *queue, mysql_mutex_t *stage_mutex)
+{
+  DBUG_ASSERT(0 <= stage && stage < Thread_queue::STAGE_COUNTER);
+  DBUG_ASSERT(stage_mutex);
+  DBUG_ASSERT(queue);
+  if (!flush_queue.append(stage, queue))
+  {
+    DBUG_ASSERT(!thd->transaction.flags.commit_low);
+    DBUG_ASSERT(!thd_get_cache_mngr(thd)->dbug_any_finalized());
+    return true;
+  }
+  mysql_mutex_lock(stage_mutex);
+  return false;
+}
+
+
+
+/**
+  Flush the I/O cache to file.
+
+  Flush the binary log to the binlog file if any byte where written
+  and signal that the binary log file has been updated if the flush
+  succeeds.
+*/
+
+int
+MYSQL_BIN_LOG::flush_cache_to_file(my_off_t *end_pos_var)
+{
+  if (flush_io_cache(&log_file))
+    return ER_ERROR_ON_WRITE;
+  *end_pos_var= my_b_tell(&log_file);
+  return 0;
+}
+
+
+/**
+  Call fsync() to sync the file to disk.
+*/
+int
+MYSQL_BIN_LOG::sync_binlog_file(my_off_t flush_end_pos, bool *synced_var)
+{
+  unsigned int sync_period= get_sync_period();
+  *synced_var= false;
+  if (sync_period && ++sync_counter >= sync_period)
+  {
+    sync_counter= 0;
+    if (mysql_file_sync(log_file.file, MYF(MY_WME)))
+      return ER_ERROR_ON_WRITE;
+    *synced_var= true;
+  }
+  return 0;
+}
+
+
 /**
   Flush and commit the transaction.
 
@@ -5745,99 +5909,106 @@ void MYSQL_BIN_LOG::commit_session_queue(THD *thd, THD *first, int flush_error)
 int MYSQL_BIN_LOG::ordered_commit(THD *thd, bool all, bool skip_commit)
 {
   DBUG_ENTER("MYSQL_BIN_LOG::ordered_commit");
-  flush_queue.enqueue(thd, all);
-  if (skip_commit)
-    thd->transaction.flags.commit_low= false;
-
   int flush_error= 0;
   my_off_t total_bytes= 0;
   bool do_rotate= false;
+
+  /*
+    These values are used while flushing a transaction, so clear
+    everything.
+
+    Notes:
+
+    - It would be good if we could keep transaction coordinator
+      log-specific data out of the THD structure, but that is not the
+      case right now.
+
+    - Everything in the transaction structure is reset when calling
+      ha_commit_low since that calls st_transaction::cleanup.
+  */
+  thd->transaction.flags.pending= true;
+  thd->commit_error= 0;
+  thd->next_to_commit= NULL;
+  thd->transaction.flags.real_commit= all;
+  thd->transaction.flags.commit_low= !skip_commit;
 
   DBUG_PRINT("enter", ("flags.pending: %s, commit_error: %d, thread_id: %lu",
                        YESNO(thd->transaction.flags.pending),
                        thd->commit_error, thd->thread_id));
 
-  mysql_mutex_lock(&LOCK_log);
-#ifndef DBUG_OFF
-  st_my_thread_var *dbug_before_mysys_var= thd->mysys_var;
-#endif
-  if (!thd->transaction.flags.pending)
+  /*
+    Stage #1: flushing transactions to binary log
+  */
+  if (enter_stage(thd, Thread_queue::FLUSH_STAGE, thd, &LOCK_log))
   {
-    /*
-      We release and acquire the mutexes in this order since there
-      might be multiple threads that are not pending (anymore) and all
-      should go to the next phase.
-
-      If we acquire the commit lock before releasing the log lock the
-      thread might block waiting for the commit lock to be
-      released. This will block any threads trying to acquire the log
-      lock.
-
-      For threads where pending is false, they have to wait for the
-      "leader" thread to commit all outstanding transactions.
-
-      If there is a thread for which pending is true, it will start
-      executing phase one as well and write transactions to the binary
-      log while another thread is committing transactions.
-     */
-    mysql_mutex_unlock(&LOCK_log);
-    mysql_mutex_lock(&LOCK_commit);
-    mysql_mutex_unlock(&LOCK_commit);
     DBUG_PRINT("return", ("Thread ID: %lu, commit_error: %d",
                           thd->thread_id, thd->commit_error));
     DBUG_RETURN(thd->commit_error);
   }
+  THD *wait_queue= flush_queue.fetch_queue(Thread_queue::FLUSH_STAGE);
+  DBUG_ASSERT(wait_queue);
+  flush_error= flush_session_queue(wait_queue, &total_bytes, &do_rotate);
 
-  THD *queue= flush_queue.fetch_queue();
-  /*
-    First we flush the caches. We clear the pending flag at this stage
-    since another thread might come in (once we release the mutex) and
-    it should *not* grab the queue in that case but rather be nice and
-    go waiting for the second phase to complete.
-
-    The other thread should still acquire the commit mutex below to
-    ensure that it is serialized correctly with the group commit
-    thread.
-  */
-  flush_error= flush_session_queue(queue, &total_bytes, &do_rotate);
-
-  /*
-    Flush and sync the binary log, and call the after_flush
-    hook. This hook has to be called before calling commit, so
-    this is why we have split the group commit into two passes of
-    the list.
-
-    This can occur if called from trans_commit_implicit. We should
-    ensure to only call ordered_commit if there is anything to commit.
-  */
-  if (total_bytes > 0)
-  {
-    bool synced= 0;
-    if (flush_and_sync(&synced))
-      flush_error= ER_ERROR_ON_WRITE;
-    else
-    {
-      signal_update();
-
-      const char *file_name_ptr= log_file_name + dirname_length(log_file_name);
-      if (RUN_HOOK(binlog_storage, after_flush,
-                   (thd, file_name_ptr, my_b_tell(&log_file), synced)))
-      {
-        sql_print_error("Failed to run 'after_flush' hooks");
-        flush_error= ER_ERROR_ON_WRITE;
-      }
-    }
-
-    DBUG_EXECUTE_IF("crash_commit_after_log", DBUG_SUICIDE(););
-  }
-
-  mysql_mutex_lock(&LOCK_commit);
+  my_off_t flush_end_pos= 0;
+  if (flush_error == 0 && total_bytes > 0)
+    flush_error= flush_cache_to_file(&flush_end_pos);
   mysql_mutex_unlock(&LOCK_log);
 
-  commit_session_queue(thd, queue, flush_error);    // Commit all transactions
-  DBUG_ASSERT(dbug_before_mysys_var == thd->mysys_var);
+  /*
+    Stage #2: Syncing binary log file to disk
+  */
+  if (enter_stage(thd, Thread_queue::SYNC_STAGE, wait_queue, &LOCK_sync))
+  {
+    DBUG_PRINT("return", ("Thread ID: %lu, commit_error: %d",
+                          thd->thread_id, thd->commit_error));
+    DBUG_RETURN(thd->commit_error);
+  }
+  THD *sync_queue= flush_queue.fetch_queue(Thread_queue::SYNC_STAGE);
+  bool synced= false;
+  if (flush_error == 0 && total_bytes > 0)
+    flush_error= sync_binlog_file(flush_end_pos, &synced);
+
+  /* When done with the sync:ing, we can call the after_flush hook */
+  if (flush_error == 0)
+  {
+    const char *file_name_ptr= log_file_name + dirname_length(log_file_name);
+    DBUG_ASSERT(flush_end_pos != 0);
+    if (RUN_HOOK(binlog_storage, after_flush,
+                 (thd, file_name_ptr, flush_end_pos, synced)))
+    {
+      sql_print_error("Failed to run 'after_flush' hooks");
+      flush_error= ER_ERROR_ON_WRITE;
+    }
+    /*
+      Since we are not holding the LOCK_log here now, it is
+      necessary to have the signal_update after the after_flush hook
+      since otherwise the progress have not been recorded properly
+      in the semi-sync plugin.
+    */
+    signal_update();
+    DBUG_EXECUTE_IF("crash_commit_after_log", DBUG_SUICIDE(););
+  }
+  mysql_mutex_unlock(&LOCK_sync);
+
+  /*
+    Stage #3: Commit all transactions in order.
+   */
+  if (enter_stage(thd, Thread_queue::COMMIT_STAGE, sync_queue, &LOCK_commit))
+  {
+    DBUG_PRINT("return", ("Thread ID: %lu, commit_error: %d",
+                          thd->thread_id, thd->commit_error));
+    DBUG_RETURN(thd->commit_error);
+  }
+  THD *commit_queue= flush_queue.fetch_queue(Thread_queue::COMMIT_STAGE);
+  commit_session_queue(thd, commit_queue, flush_error);    // Commit all transactions
   mysql_mutex_unlock(&LOCK_commit);
 
+  /* Commit done so signal all waiting threads */
+  flush_queue.signal_done(commit_queue);
+
+  /*
+    If we need to rotate, we do it now.
+   */
   if (do_rotate)
   {
     /*
@@ -5866,6 +6037,8 @@ int MYSQL_BIN_LOG::ordered_commit(THD *thd, bool all, bool skip_commit)
 
   DBUG_PRINT("return", ("Thread ID: %lu, commit_error: %d",
                         thd->thread_id, thd->commit_error));
+  DBUG_ASSERT(!thd->transaction.flags.commit_low);
+  DBUG_ASSERT(!thd_get_cache_mngr(thd)->dbug_any_finalized());
   DBUG_RETURN(thd->commit_error);
 }
 

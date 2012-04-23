@@ -1426,6 +1426,11 @@ int ha_commit_low(THD *thd, bool all)
   if (all)
     thd->transaction.cleanup();
 
+  /*
+    We clear the flag to be able to assert that commit low was
+    called. This is only for debug purposes.
+  */
+  thd->transaction.flags.commit_low= false;
   DBUG_RETURN(error);
 }
 

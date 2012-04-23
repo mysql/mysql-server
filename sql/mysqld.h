@@ -283,10 +283,14 @@ extern PSI_mutex_key key_PAGE_lock, key_LOCK_sync, key_LOCK_active,
 extern PSI_mutex_key key_LOCK_des_key_file;
 #endif
 
+extern PSI_mutex_key key_BINLOG_LOCK_commit;
+extern PSI_mutex_key key_BINLOG_LOCK_commit_queue;
+extern PSI_mutex_key key_BINLOG_LOCK_done;
+extern PSI_mutex_key key_BINLOG_LOCK_flush_queue;
 extern PSI_mutex_key key_BINLOG_LOCK_index;
 extern PSI_mutex_key key_BINLOG_LOCK_log;
-extern PSI_mutex_key key_BINLOG_LOCK_queue;
-extern PSI_mutex_key key_BINLOG_LOCK_commit;
+extern PSI_mutex_key key_BINLOG_LOCK_sync;
+extern PSI_mutex_key key_BINLOG_LOCK_sync_queue;
 extern PSI_mutex_key
   key_delayed_insert_mutex, key_hash_filo_lock, key_LOCK_active_mi,
   key_LOCK_connection_count, key_LOCK_crypt, key_LOCK_delayed_create,
@@ -308,9 +312,13 @@ extern PSI_mutex_key
   key_LOCK_error_messages, key_LOCK_thread_count,
   key_LOCK_log_throttle_qni;
 extern PSI_mutex_key key_RELAYLOG_LOCK_commit;
-extern PSI_mutex_key key_RELAYLOG_LOCK_log;
+extern PSI_mutex_key key_RELAYLOG_LOCK_commit_queue;
+extern PSI_mutex_key key_RELAYLOG_LOCK_done;
+extern PSI_mutex_key key_RELAYLOG_LOCK_flush_queue;
 extern PSI_mutex_key key_RELAYLOG_LOCK_index;
-extern PSI_mutex_key key_RELAYLOG_LOCK_queue;
+extern PSI_mutex_key key_RELAYLOG_LOCK_log;
+extern PSI_mutex_key key_RELAYLOG_LOCK_sync;
+extern PSI_mutex_key key_RELAYLOG_LOCK_sync_queue;
 
 extern PSI_rwlock_key key_rwlock_LOCK_grant, key_rwlock_LOCK_logger,
   key_rwlock_LOCK_sys_init_connect, key_rwlock_LOCK_sys_init_slave,
@@ -333,6 +341,8 @@ extern PSI_cond_key key_BINLOG_update_cond,
   key_cond_slave_parallel_worker,
   key_TABLE_SHARE_cond, key_user_level_lock_cond,
   key_COND_thread_count, key_COND_thread_cache, key_COND_flush_thread_cache;
+extern PSI_cond_key key_BINLOG_COND_done;
+extern PSI_cond_key key_RELAYLOG_COND_done;
 extern PSI_cond_key key_RELAYLOG_update_cond;
 
 extern PSI_thread_key key_thread_bootstrap, key_thread_delayed_insert,
