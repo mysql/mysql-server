@@ -4339,6 +4339,15 @@ pthread_handler_t handle_slave_worker(void *arg)
 
   mysql_mutex_unlock(&rli->pending_jobs_lock);
 
+  /* 
+     In MTS case cleanup_after_session() has be called explicitly.
+     TODO: to make worker thd be deleted before Slave_worker instance.
+  */
+  if (thd->rli_slave)
+  {
+    w->cleanup_after_session();
+    thd->rli_slave= NULL;
+  }
   mysql_mutex_lock(&w->jobs_lock);
 
   w->running_status= Slave_worker::NOT_RUNNING;
