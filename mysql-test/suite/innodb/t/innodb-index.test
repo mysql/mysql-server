@@ -370,4 +370,9 @@ connection default;
 disconnect a;
 disconnect b;
 
+--error ER_DUP_KEYNAME
+alter table t2 add index t2a(b);
+alter table t2 drop index t2a, add index t2a(b);
+show create table t2;
+
 DROP TABLE t1,t2;

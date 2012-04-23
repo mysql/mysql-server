@@ -794,53 +794,6 @@ row_merge_heap_create(
 	return(heap);
 }
 
-/**********************************************************************//**
-Search an index object by name and column names.  If several indexes match,
-return the index with the max id.
-@return	matching index, NULL if not found */
-static __attribute__((nonnull, warn_unused_result))
-dict_index_t*
-row_merge_dict_table_get_index(
-/*===========================*/
-	dict_table_t*		table,		/*!< in: table */
-	const merge_index_def_t*index_def)	/*!< in: index definition */
-{
-	dict_index_t*	found	= NULL;
-
-	found = NULL;
-	for (dict_index_t* index = dict_table_get_first_index(table);
-	     index != NULL;
-	     index = dict_table_get_next_index(index)) {
-
-		if (ut_strcmp(index->name, index_def->name) == 0
-		    && dict_index_get_n_ordering_defined_by_user(index)
-		    == index_def->n_fields) {
-
-			for (ulint i = 0; i < index_def->n_fields; i++) {
-				const dict_field_t*	field
-					= dict_index_get_nth_field(index, i);
-
-				if (dict_col_get_no(field->col) !=
-				    index_def->fields[i].col_no) {
-					goto next_index;
-				}
-			}
-
-			/* We found a matching index, select
-			the index with the higher id*/
-
-			if (!found || index->id > found->id) {
-
-				found = index;
-			}
-		}
-next_index:
-		continue;
-	}
-
-	return(found);
-}
-
 /********************************************************************//**
 Read a merge block from the file system.
 @return	TRUE if request was successful, FALSE if fail */
@@ -3122,8 +3075,7 @@ row_merge_create_index(
 
 	if (err == DB_SUCCESS) {
 
-		index = row_merge_dict_table_get_index(
-			table, index_def);
+		index = dict_table_get_index_on_name(table, index_def->name);
 
 		ut_a(index);
 
