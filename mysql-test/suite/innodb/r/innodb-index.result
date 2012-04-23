@@ -962,4 +962,14 @@ a	b
 1	e
 3	a
 3	b
+alter table t2 add index t2a(b);
+ERROR 42000: Duplicate key name 't2a'
+alter table t2 drop index t2a, add index t2a(b);
+show create table t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `a` int(11) DEFAULT NULL,
+  `b` char(1) DEFAULT NULL,
+  KEY `t2a` (`b`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 DROP TABLE t1,t2;
