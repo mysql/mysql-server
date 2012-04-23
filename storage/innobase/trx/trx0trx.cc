@@ -205,6 +205,7 @@ trx_free(
 	ut_a(trx->magic_n == TRX_MAGIC_N);
 	ut_ad(!trx->in_ro_trx_list);
 	ut_ad(!trx->in_rw_trx_list);
+	ut_ad(!trx->in_mysql_trx_list);
 
 	mutex_free(&trx->undo_mutex);
 
@@ -1060,6 +1061,8 @@ trx_commit(
 
 		trx->state = TRX_STATE_NOT_STARTED;
 
+		read_view_remove(trx->global_read_view, false);
+
 		MONITOR_INC(MONITOR_TRX_NL_RO_COMMIT);
 	} else {
 		lock_trx_release_locks(trx);
@@ -1091,13 +1094,16 @@ trx_commit(
 
 		trx->state = TRX_STATE_NOT_STARTED;
 
+		/* We already own the trx_sys_t::mutex, by doing it here we
+		avoid a potential context switch later. */
+		read_view_remove(trx->global_read_view, true);
+
 		ut_ad(trx_sys_validate_trx_list());
 
 		mutex_exit(&trx_sys->mutex);
 	}
 
 	if (trx->global_read_view != NULL) {
-		read_view_remove(trx->global_read_view);
 
 		mem_heap_empty(trx->global_read_view_heap);
 

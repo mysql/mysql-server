@@ -189,6 +189,11 @@ enum enum_alter_inplace_result {
 */
 #define HA_READ_BEFORE_WRITE_REMOVAL  (LL(1) << 38)
 
+/*
+  Engine supports extended fulltext API
+ */
+#define HA_CAN_FULLTEXT_EXT              (LL(1) << 39)
+
 /* bits in index_flags(index_number) for what you can do with index */
 #define HA_READ_NEXT            1       /* TODO really use this flag */
 #define HA_READ_PREV            2       /* supports ::index_prev */

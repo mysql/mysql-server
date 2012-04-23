@@ -5760,7 +5760,7 @@ void Item_func_get_system_var::fix_length_and_dec()
 
 void Item_func_get_system_var::print(String *str, enum_query_type query_type)
 {
-  str->append(item_name.ptr(), item_name.length());
+  str->append(item_name);
 }
 
 
@@ -6323,9 +6323,11 @@ err:
 
 bool Item_func_match::eq(const Item *item, bool binary_cmp) const
 {
+  /* We ignore FT_SORTED flag when checking for equality since result is
+     equvialent regardless of sorting */
   if (item->type() != FUNC_ITEM ||
       ((Item_func*)item)->functype() != FT_FUNC ||
-      flags != ((Item_func_match*)item)->flags)
+      (flags | FT_SORTED) != (((Item_func_match*)item)->flags | FT_SORTED))
     return 0;
 
   Item_func_match *ifm=(Item_func_match*) item;
