@@ -5,15 +5,15 @@ where name like 'Wait/Synch/Mutex/sql/%'
 order by name limit 10;
 NAME	ENABLED	TIMED
 wait/synch/mutex/sql/BINARY_LOG::LOCK_commit	YES	YES
+wait/synch/mutex/sql/BINARY_LOG::LOCK_commit_queue	YES	YES
+wait/synch/mutex/sql/BINARY_LOG::LOCK_done	YES	YES
+wait/synch/mutex/sql/BINARY_LOG::LOCK_flush_queue	YES	YES
 wait/synch/mutex/sql/BINARY_LOG::LOCK_index	YES	YES
 wait/synch/mutex/sql/BINARY_LOG::LOCK_log	YES	YES
-wait/synch/mutex/sql/BINARY_LOG::LOCK_queue	YES	YES
+wait/synch/mutex/sql/BINARY_LOG::LOCK_sync	YES	YES
+wait/synch/mutex/sql/BINARY_LOG::LOCK_sync_queue	YES	YES
 wait/synch/mutex/sql/Cversion_lock	YES	YES
 wait/synch/mutex/sql/Delayed_insert::mutex	YES	YES
-wait/synch/mutex/sql/Event_scheduler::LOCK_scheduler_state	YES	YES
-wait/synch/mutex/sql/hash_filo::lock	YES	YES
-wait/synch/mutex/sql/LOCK_active_mi	YES	YES
-wait/synch/mutex/sql/LOCK_audit_mask	YES	YES
 select * from performance_schema.setup_instruments
 where name like 'Wait/Synch/Rwlock/sql/%'
   and name not in ('wait/synch/rwlock/sql/CRYPTO_dynlock_value::lock')
