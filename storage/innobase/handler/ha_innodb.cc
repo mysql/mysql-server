@@ -6275,6 +6275,7 @@ no_commit:
 	innobase_srv_conc_enter_innodb(prebuilt->trx);
 
 	error = row_insert_for_mysql((byte*) record, prebuilt);
+	DEBUG_SYNC(user_thd, "ib_after_row_insert");
 
 	/* Handle duplicate key errors */
 	if (auto_inc_used) {

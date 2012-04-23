@@ -18,8 +18,8 @@ SET GLOBAL innodb_file_per_table=on;
 # Save the initial number of concurrent sessions.
 --source include/count_sessions.inc
 
-CREATE TABLE t1 (c1 INT PRIMARY KEY, c2 INT, c3 INT) ENGINE=InnoDB;
-INSERT INTO t1 VALUES (1,1,0),(2,2,0),(3,3,0),(4,4,0),(5,5,0);
+CREATE TABLE t1 (c1 INT PRIMARY KEY, c2 INT, c3 TEXT) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1,1,''),(2,2,''),(3,3,''),(4,4,''),(5,5,'');
 
 SET GLOBAL innodb_monitor_enable=module_ddl;
 SELECT name,count FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE subsystem='ddl';
@@ -200,7 +200,8 @@ SET DEBUG_SYNC='row_log_apply_before SIGNAL c2e_created WAIT_FOR dml2_done';
 # Ensure that the ALTER TABLE will be executed even with some concurrent DML.
 SET lock_wait_timeout=10;
 --send
-ALTER TABLE t1 DROP INDEX c2d, ADD INDEX c2e(c2);
+ALTER TABLE t1 CHANGE c2 c22 INT, DROP INDEX c2d, ADD INDEX c2e(c22),
+ALGORITHM=INPLACE;
 
 # Generate some log (delete-mark, delete-unmark, insert etc.)
 # while the index creation is blocked. Some of this may run
@@ -226,7 +227,13 @@ while ($c)
   ROLLBACK;
   dec $c;
 }
+# Incomplete index c2e should exist until the DDL thread notices the overflow.
+# (The output below strips TEMP_INDEX_PREFIX from the name.)
 SELECT name,count FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE subsystem='ddl';
+SELECT sf.name, sf.pos FROM INFORMATION_SCHEMA.INNODB_SYS_INDEXES si
+INNER JOIN INFORMATION_SCHEMA.INNODB_SYS_FIELDS sf
+ON si.index_id=sf.index_id
+WHERE si.name='c2e';
 # Release con1.
 SET DEBUG_SYNC='now SIGNAL dml2_done';
 
@@ -235,6 +242,17 @@ connection con1;
 # you should rerun with a larger mtr --debug-sync-timeout.
 --error ER_INNODB_ONLINE_LOG_TOO_BIG
 reap;
+# The index c2e should have been dropped from the data dictionary
+# when the above error was noticed. It should still exist in the
+# cache with index->online_status=ONLINE_INDEX_ABORTED_DROPPED.
+SELECT name,count FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE subsystem='ddl';
+SELECT sf.name, sf.pos FROM INFORMATION_SCHEMA.INNODB_SYS_INDEXES si
+INNER JOIN INFORMATION_SCHEMA.INNODB_SYS_FIELDS sf
+ON si.index_id=sf.index_id
+WHERE si.name='c2e';
+
+# ddl_background_drop_indexes=1 here, because the incomplete index c2e still
+# exists in the InnoDB data dictionary cache.
 SELECT name,count FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE subsystem='ddl';
 
 connection default;
@@ -243,13 +261,12 @@ ALTER TABLE t1 COMMENT 'testing if c2e will be dropped';
 
 # Check that the 'zombie' index c2e was dropped.
 SELECT name,count FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE subsystem='ddl';
-SET GLOBAL innodb_monitor_disable=module_ddl;
 
 connection con1;
 # Accumulate and apply some modification log.
 SET DEBUG_SYNC='row_log_apply_before SIGNAL c2f_created WAIT_FOR dml3_done';
 --send
-ALTER TABLE t1 ADD INDEX c2f(c2);
+ALTER TABLE t1 ADD INDEX c2f(c22f), CHANGE c2 c22f INT;
 
 connection default;
 SET DEBUG_SYNC='now WAIT_FOR c2f_created';
@@ -270,15 +287,55 @@ SET DEBUG_SYNC='now SIGNAL dml3_done';
 connection con1;
 reap;
 SELECT name,count FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE subsystem='ddl';
-SELECT COUNT(c2) FROM t1;
+SELECT COUNT(c22f) FROM t1;
 CHECK TABLE t1;
 
+# Create a column prefix index.
+--error ER_DUP_ENTRY
+ALTER TABLE t1 ADD UNIQUE INDEX c3p5(c3(5));
+UPDATE t1 SET c3=NULL WHERE c3='';
+SET lock_wait_timeout=1;
+SET DEBUG_SYNC='row_log_apply_before SIGNAL c3p5_created WAIT_FOR ins_done';
+--send
+ALTER TABLE t1 ADD UNIQUE INDEX c3p5(c3(5));
+
 connection default;
+SET DEBUG_SYNC='now WAIT_FOR c3p5_created';
+
+# Check that the index was created.
+SELECT sf.name, sf.pos FROM INFORMATION_SCHEMA.INNODB_SYS_INDEXES si
+INNER JOIN INFORMATION_SCHEMA.INNODB_SYS_FIELDS sf
+ON si.index_id=sf.index_id
+WHERE si.name='c3p5';
+
+SET DEBUG_SYNC='ib_after_row_insert SIGNAL ins_done WAIT_FOR ddl_timed_out';
+--send
+INSERT INTO t1 VALUES(347,33101,NULL);
+
+connection con1;
+--error ER_LOCK_WAIT_TIMEOUT
+reap;
+SET DEBUG_SYNC='now SIGNAL ddl_timed_out';
+
+# InnoDB should have cleaned up the index c3p5 from the data dictionary,
+# but not yet from the dictionary cache.
+SELECT sf.name, sf.pos FROM INFORMATION_SCHEMA.INNODB_SYS_INDEXES si
+INNER JOIN INFORMATION_SCHEMA.INNODB_SYS_FIELDS sf
+ON si.index_id=sf.index_id
+WHERE si.name='c3p5';
+SELECT name,count FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE subsystem='ddl';
+connection default;
+reap;
+# Index c3p5 should still exist in the data dictionary cache.
+SELECT name,count FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE subsystem='ddl';
+ALTER TABLE t1 COMMENT 'testing if c3p5 will be dropped';
+SELECT name,count FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE subsystem='ddl';
+
 SET DEBUG_SYNC='row_log_apply_before SIGNAL c2g_created WAIT_FOR dml4_done';
 # The lock upgrade at the end of the ALTER will conflict with the DISCARD.
 SET lock_wait_timeout=1;
 --send
-ALTER TABLE t1 DROP INDEX c2f, ADD INDEX c2g(c2);
+ALTER TABLE t1 DROP INDEX c2f, ADD INDEX c2g(c22f);
 
 connection con1;
 SET DEBUG_SYNC='now WAIT_FOR c2g_created';
@@ -313,9 +370,9 @@ SHOW CREATE TABLE t1;
 --error ER_NO_SUCH_TABLE
 ALTER TABLE t1 DROP INDEX c2d, DROP INDEX c2f;
 --error ER_NO_SUCH_TABLE
-ALTER TABLE t1 ADD INDEX c2h(c2), ALGORITHM=INPLACE;
+ALTER TABLE t1 ADD INDEX c2h(c22f), ALGORITHM=INPLACE;
 --error ER_NO_SUCH_TABLE
-ALTER TABLE t1 ADD INDEX c2h(c2), ALGORITHM=COPY;
+ALTER TABLE t1 ADD INDEX c2h(c22f), ALGORITHM=COPY;
 
 eval SET GLOBAL innodb_file_per_table=$per_table;
 SET DEBUG_SYNC='RESET';
