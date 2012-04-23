@@ -57,12 +57,14 @@ read_view_purge_open(
 	mem_heap_t*	heap);		/*!< in: memory heap from which
 					allocated */
 /*********************************************************************//**
-Remove read view from the trx_sys->view_list. */
-UNIV_INTERN
+Remove a read view from the trx_sys->view_list. */
+UNIV_INLINE
 void
 read_view_remove(
 /*=============*/
-	read_view_t*	view);	/*!< in: read view */
+	read_view_t*	view,		/*!< in: read view, can be 0 */
+	bool		own_mutex);	/*!< in: true if caller owns the
+					trx_sys_t::mutex */
 /*********************************************************************//**
 Closes a consistent read view for MySQL. This function is called at an SQL
 statement end if the trx isolation level is <= TRX_ISO_READ_COMMITTED. */
