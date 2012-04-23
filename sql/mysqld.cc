@@ -3308,8 +3308,13 @@ int init_common_variables()
   */
   mysql_bin_log.set_psi_keys(key_BINLOG_LOCK_index,
                              key_BINLOG_LOCK_log,
-                             key_BINLOG_LOCK_queue,
+                             key_BINLOG_LOCK_flush_queue,
                              key_BINLOG_LOCK_commit,
+                             key_BINLOG_LOCK_commit_queue,
+                             key_BINLOG_LOCK_sync,
+                             key_BINLOG_LOCK_sync_queue,
+                             key_BINLOG_LOCK_done,
+                             key_BINLOG_COND_done,
                              key_BINLOG_update_cond,
                              key_file_binlog,
                              key_file_binlog_index);
@@ -8578,10 +8583,14 @@ PSI_mutex_key key_PAGE_lock, key_LOCK_sync, key_LOCK_active, key_LOCK_pool;
 PSI_mutex_key key_LOCK_des_key_file;
 #endif /* HAVE_OPENSSL */
 
+PSI_mutex_key key_BINLOG_LOCK_commit;
+PSI_mutex_key key_BINLOG_LOCK_commit_queue;
+PSI_mutex_key key_BINLOG_LOCK_done;
+PSI_mutex_key key_BINLOG_LOCK_flush_queue;
 PSI_mutex_key key_BINLOG_LOCK_index;
 PSI_mutex_key key_BINLOG_LOCK_log;
-PSI_mutex_key key_BINLOG_LOCK_queue;
-PSI_mutex_key key_BINLOG_LOCK_commit;
+PSI_mutex_key key_BINLOG_LOCK_sync;
+PSI_mutex_key key_BINLOG_LOCK_sync_queue;
 PSI_mutex_key
   key_delayed_insert_mutex, key_hash_filo_lock, key_LOCK_active_mi,
   key_LOCK_connection_count, key_LOCK_crypt, key_LOCK_delayed_create,
@@ -8603,9 +8612,13 @@ PSI_mutex_key
   key_LOCK_error_messages, key_LOG_INFO_lock, key_LOCK_thread_count,
   key_LOCK_log_throttle_qni;
 PSI_mutex_key key_RELAYLOG_LOCK_commit;
+PSI_mutex_key key_RELAYLOG_LOCK_commit_queue;
+PSI_mutex_key key_RELAYLOG_LOCK_done;
+PSI_mutex_key key_RELAYLOG_LOCK_flush_queue;
 PSI_mutex_key key_RELAYLOG_LOCK_index;
 PSI_mutex_key key_RELAYLOG_LOCK_log;
-PSI_mutex_key key_RELAYLOG_LOCK_queue;
+PSI_mutex_key key_RELAYLOG_LOCK_sync;
+PSI_mutex_key key_RELAYLOG_LOCK_sync_queue;
 
 static PSI_mutex_info all_server_mutexes[]=
 {
@@ -8620,14 +8633,22 @@ static PSI_mutex_info all_server_mutexes[]=
   { &key_LOCK_des_key_file, "LOCK_des_key_file", PSI_FLAG_GLOBAL},
 #endif /* HAVE_OPENSSL */
 
+  { &key_BINLOG_LOCK_commit, "BINARY_LOG::LOCK_commit", 0 },
+  { &key_BINLOG_LOCK_commit_queue, "BINARY_LOG::LOCK_commit_queue", 0 },
+  { &key_BINLOG_LOCK_done, "BINARY_LOG::LOCK_done", 0 },
+  { &key_BINLOG_LOCK_flush_queue, "BINARY_LOG::LOCK_flush_queue", 0 },
   { &key_BINLOG_LOCK_index, "BINARY_LOG::LOCK_index", 0},
   { &key_BINLOG_LOCK_log, "BINARY_LOG::LOCK_log", 0},
-  { &key_BINLOG_LOCK_commit, "BINARY_LOG::LOCK_commit", 0},
-  { &key_BINLOG_LOCK_queue, "BINARY_LOG::LOCK_queue", 0},
-  { &key_RELAYLOG_LOCK_index, "RELAY_LOG::LOCK_index", 0},
+  { &key_BINLOG_LOCK_sync, "BINARY_LOG::LOCK_sync", 0},
+  { &key_BINLOG_LOCK_sync_queue, "BINARY_LOG::LOCK_sync_queue", 0 },
   { &key_RELAYLOG_LOCK_commit, "RELAY_LOG::LOCK_commit", 0},
+  { &key_RELAYLOG_LOCK_commit_queue, "RELAY_LOG::LOCK_commit_queue", 0 },
+  { &key_RELAYLOG_LOCK_done, "RELAY_LOG::LOCK_done", 0 },
+  { &key_RELAYLOG_LOCK_flush_queue, "RELAY_LOG::LOCK_flush_queue", 0 },
+  { &key_RELAYLOG_LOCK_index, "RELAY_LOG::LOCK_index", 0},
   { &key_RELAYLOG_LOCK_log, "RELAY_LOG::LOCK_log", 0},
-  { &key_RELAYLOG_LOCK_queue, "RELAY_LOG::LOCK_queue", 0},
+  { &key_RELAYLOG_LOCK_sync, "RELAY_LOG::LOCK_sync", 0},
+  { &key_RELAYLOG_LOCK_sync_queue, "RELAY_LOG::LOCK_sync_queue", 0 },
   { &key_delayed_insert_mutex, "Delayed_insert::mutex", 0},
   { &key_hash_filo_lock, "hash_filo::lock", 0},
   { &key_LOCK_active_mi, "LOCK_active_mi", PSI_FLAG_GLOBAL},
@@ -8703,6 +8724,8 @@ PSI_cond_key key_BINLOG_update_cond,
   key_TABLE_SHARE_cond, key_user_level_lock_cond,
   key_COND_thread_count, key_COND_thread_cache, key_COND_flush_thread_cache;
 PSI_cond_key key_RELAYLOG_update_cond;
+PSI_cond_key key_BINLOG_COND_done;
+PSI_cond_key key_RELAYLOG_COND_done;
 
 static PSI_cond_info all_server_conds[]=
 {

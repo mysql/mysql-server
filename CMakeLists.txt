@@ -175,6 +175,7 @@ ENDIF()
 
 # Add macros
 INCLUDE(character_sets)
+INCLUDE(cpu_info)
 INCLUDE(zlib)
 INCLUDE(libevent)
 INCLUDE(ssl)

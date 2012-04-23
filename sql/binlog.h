@@ -25,18 +25,81 @@ class Relay_log_info;
 class Format_description_log_event;
 
 /**
-  Class for maintaining the thread queue.
+  Class for maintaining the thread queue for binary log group commit.
 
   The queue is designed so that it should be fast to enqueue new items
-  and fast to empty and grab the entire queue.
+  and fast to empty and grab the entire queue. The queue is actually
+  three sub-queues used in a circular manner internally:
 
-  Currently the implementation is using locks, but if it turns out to
-  be a problem, it can be upgraded to be lock-free.
+  - Current Queue: for threads queuing for commit. Uses LOCK_queue.
+
+  - Flush Queue: for threads being flushed to disk. Protected by
+    LOCK_log.
+
+  - Commit Queue: for threads being committed in the
+    engines. Protected by LOCK_commit.
+
+  When queing a thread, it will be queued to the current queue. When a
+  thread has been identified as leader thread, it will grab the
+  current queue and rotate the roles so that the Commit Queue will
+  become the Current Queue.
  */
 class Thread_queue {
 public:
+  class Inner {
+    friend class Thread_queue;
+  public:
+    Inner()
+      : m_first(NULL), m_last(&m_first)
+    {
+    }
+
+    void init(PSI_mutex_key key_LOCK_queue) {
+      mysql_mutex_init(key_LOCK_queue, &m_lock, MY_MUTEX_INIT_FAST);
+    }
+
+    void deinit() {
+      mysql_mutex_destroy(&m_lock);
+    }
+
+    bool is_empty() const {
+      return m_first == NULL;
+    }
+
+    /** Append a linked list of threads to the queue */
+    bool append(THD *first);
+
+    /**
+       Fetch the entire queue for a stage.
+
+       This will fetch the entire queue in one go.
+    */
+    THD *fetch_and_empty();
+
+  private:
+    void lock() { mysql_mutex_lock(&m_lock); }
+    void unlock() { mysql_mutex_unlock(&m_lock); }
+
+    /**
+       Pointer to the first thread in the queue, or NULL if the queue is
+       empty.
+    */
+    THD *m_first;
+
+    /**
+       Pointer to the location holding the end of the queue.
+
+       This is either @c &first, or a pointer to the @c next_to_commit of
+       the last thread that is enqueued.
+    */
+    THD **m_last;
+
+    /** Lock for protecting the queue. */
+    mysql_mutex_t m_lock;
+  } __attribute__((aligned(CPU_LEVEL1_DCACHE_LINESIZE)));
+
+public:
   Thread_queue()
-    : m_first(NULL), m_last(&m_first)
   {
   }
 
@@ -44,88 +107,84 @@ public:
   {
   }
 
-  void init(PSI_mutex_key key_LOCK_queue)
+  /**
+     Constants for queues for different stages.
+   */
+  enum StageID {
+    FLUSH_STAGE,
+    SYNC_STAGE,
+    COMMIT_STAGE,
+    STAGE_COUNTER
+  };
+
+  void init(PSI_mutex_key key_LOCK_flush_queue,
+            PSI_mutex_key key_LOCK_sync_queue,
+            PSI_mutex_key key_LOCK_commit_queue,
+            PSI_mutex_key key_LOCK_done,
+            PSI_cond_key key_COND_done)
   {
-    mysql_mutex_init(key_LOCK_queue, &m_lock, MY_MUTEX_INIT_FAST);
+    mysql_mutex_init(key_LOCK_done, &m_lock, MY_MUTEX_INIT_FAST);
+    mysql_cond_init(key_COND_done, &m_cond, NULL);
+    m_queue[FLUSH_STAGE].init(key_LOCK_flush_queue);
+    m_queue[SYNC_STAGE].init(key_LOCK_sync_queue);
+    m_queue[COMMIT_STAGE].init(key_LOCK_commit_queue);
   }
 
-  void deinit(PSI_mutex_key key_LOCK_queue)
+  void deinit()
   {
+    for (size_t i = 0 ; i < STAGE_COUNTER ; ++i)
+      m_queue[i].deinit();
+    mysql_cond_destroy(&m_cond);
     mysql_mutex_destroy(&m_lock);
   }
 
   /**
-    Queue thread.
+    Queue thread (or append queue of threads).
 
-    This will queue the session thread for writing and flushing.
+    This will queue the session thread for writing and flushing. If
+    the thread being queued is assigned as group commit leader, it
+    will return immediately, otherwise, the thread will be wait for
+    the queue to be processed by the leader.
 
-    @param thd Session to queue
+    @param stage Stage identifier for the queue to append to.
+    @param first Queue to append.
+
+    @retval true  Thread is session leader.
+    @retval false Thread was not session leader.
    */
-  void enqueue(THD *thd, bool all)
-  {
-    mysql_mutex_lock(&m_lock);
-    /*
-      These values are used while flushing a transaction, so clear
-      everything.
-
-      Note: It would be good if we could keep transaction coordinator
-      log-specific data out of the THD structure, but that is not the
-      case right now.
-
-      Note: Everything in the transaction structure is reset when
-      calling ha_commit_low since that calls st_transaction::cleanup.
-     */
-    thd->transaction.flags.real_commit= all;
-    thd->transaction.flags.pending= true;
-    thd->transaction.flags.commit_low= true;
-    thd->commit_error= 0;
-    thd->next_to_commit= NULL;
-
-    /* Queue the thread */
-    *m_last= thd;
-    m_last= &thd->next_to_commit;
-    mysql_mutex_unlock(&m_lock);
-  }
+  bool append(StageID stage, THD *first);
 
   /**
-    Fetch the entire queue.
+    Fetch the entire queue and empty it.
 
-    This will fetch the entire queue in one go and return a pointer to
-    the first thread.
-
-    @post Queue is empty.
-
-    @return Pointer to first thread in the queue, or NULL if the queue
-    is empty.
+    @return Pointer to the first session of the queue.
    */
-  THD *fetch_queue()
-  {
+  THD *fetch_queue(StageID stage) {
+    return m_queue[stage].fetch_and_empty();
+  }
+
+  void signal_done(THD *queue) {
     mysql_mutex_lock(&m_lock);
-    THD *result= m_first;
-    m_last= &m_first;
-    m_first= NULL;
+    for (THD *thd= queue ; thd ; thd = thd->next_to_commit)
+      thd->transaction.flags.pending= false;
     mysql_mutex_unlock(&m_lock);
-    return result;
+    mysql_cond_broadcast(&m_cond);
   }
 
 private:
   /**
-    Pointer to the first thread in the queue, or NULL if the queue is
-    empty.
+     Queues for sessions.
+
+     We need two queues:
+     - Waiting. Threads waiting to be processed
+     - Committing. Threads waiting to be committed.
    */
-  THD *m_first;
+  Inner m_queue[STAGE_COUNTER];
 
-  /**
-   Pointer to the location holding the end of the queue.
+  /** Condition variable to indicate that the commit was processed */
+  mysql_cond_t m_cond;
 
-   This is either @c &first, or a pointer to the @c next_to_commit of
-   the last thread that is enqueued.
-  */
-  THD **m_last;
-
-  /**
-    Lock for protecting the queue.
-   */
+  /** Mutex used for the condition variable */
   mysql_mutex_t m_lock;
 };
 
@@ -136,10 +195,17 @@ class MYSQL_BIN_LOG: public TC_LOG, private MYSQL_LOG
 #ifdef HAVE_PSI_INTERFACE
   /** The instrumentation key to use for @ LOCK_index. */
   PSI_mutex_key m_key_LOCK_index;
-  /** The instrumentation key to use for @ LOCK_queue. */
-  PSI_mutex_key m_key_LOCK_queue;
+
+  PSI_mutex_key m_key_COND_done;
+
+  PSI_mutex_key m_key_LOCK_commit_queue;
+  PSI_mutex_key m_key_LOCK_done;
+  PSI_mutex_key m_key_LOCK_flush_queue;
+  PSI_mutex_key m_key_LOCK_sync_queue;
   /** The instrumentation key to use for @ LOCK_commit. */
   PSI_mutex_key m_key_LOCK_commit;
+  /** The instrumentation key to use for @ LOCK_sync. */
+  PSI_mutex_key m_key_LOCK_sync;
   /** The instrumentation key to use for @ update_cond. */
   PSI_cond_key m_key_update_cond;
   /** The instrumentation key to use for opening the log file. */
@@ -150,6 +216,7 @@ class MYSQL_BIN_LOG: public TC_LOG, private MYSQL_LOG
   /* POSIX thread objects are inited by init_pthread_objects() */
   mysql_mutex_t LOCK_index;
   mysql_mutex_t LOCK_commit;
+  mysql_mutex_t LOCK_sync;
   mysql_cond_t update_cond;
   ulonglong bytes_written;
   IO_CACHE index_file;
@@ -283,16 +350,27 @@ public:
 #ifdef HAVE_PSI_INTERFACE
   void set_psi_keys(PSI_mutex_key key_LOCK_index,
                     PSI_mutex_key key_LOCK_log,
-                    PSI_mutex_key key_LOCK_queue,
+                    PSI_mutex_key key_LOCK_flush_queue,
                     PSI_mutex_key key_LOCK_commit,
+                    PSI_mutex_key key_LOCK_commit_queue,
+                    PSI_mutex_key key_LOCK_sync,
+                    PSI_mutex_key key_LOCK_sync_queue,
+                    PSI_mutex_key key_LOCK_done,
+                    PSI_cond_key key_COND_done,
                     PSI_cond_key key_update_cond,
                     PSI_file_key key_file_log,
                     PSI_file_key key_file_log_index)
   {
+    m_key_COND_done= key_COND_done;
+
+    m_key_LOCK_commit_queue= key_LOCK_commit_queue;
+    m_key_LOCK_done= key_LOCK_done;
+    m_key_LOCK_flush_queue= key_LOCK_flush_queue;
+
     m_key_LOCK_index= key_LOCK_index;
     m_key_LOCK_log= key_LOCK_log;
-    m_key_LOCK_queue= key_LOCK_queue;
     m_key_LOCK_commit= key_LOCK_commit;
+    m_key_LOCK_sync= key_LOCK_sync;
     m_key_update_cond= key_update_cond;
     m_key_file_log= key_file_log;
     m_key_file_log_index= key_file_log_index;
@@ -324,8 +402,12 @@ private:
   Gtid_set* previous_gtid_set;
 
   int open(const char *opt_name) { return open_binlog(opt_name); }
+  bool enter_stage(THD *thd, Thread_queue::StageID stage,
+                   THD* queue, mysql_mutex_t *enter);
   void commit_session_queue(THD *thd, THD *queue, int flush_error);
   int flush_session_queue(THD *first, my_off_t *total_bytes_var, bool *need_rotate);
+  int flush_cache_to_file(my_off_t *flush_end_pos);
+  int sync_binlog_file(my_off_t end_pos, bool *synced_var);
   int ordered_commit(THD *thd, bool all, bool skip_commit = false);
 public:
   int open_binlog(const char *opt_name);
