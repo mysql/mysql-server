@@ -158,9 +158,9 @@ toku_find_xid_by_xid (OMTVALUE v, void *xidv) {
 int
 toku_find_pair_by_xid (OMTVALUE v, void *xidv) {
     XID_PAIR pair = v;
-    TXNID *xidfind = xidv;
-    if (pair->xid1<*xidfind) return -1;
-    if (pair->xid1>*xidfind) return +1;
+    TXNID xidfind = (TXNID)xidv;
+    if (pair->xid1<xidfind) return -1;
+    if (pair->xid1>xidfind) return +1;
     return 0;
 }
 
@@ -176,17 +176,17 @@ static int
 live_list_reverse_note_txn_end_iter(OMTVALUE live_xidv, u_int32_t UU(index), void*txnv) {
     TOKUTXN txn = txnv;
     TXNID xid = txn->txnid64;          // xid of txn that is closing
-    TXNID *live_xid = live_xidv;       // xid on closing txn's live list
+    TXNID live_xid = (TXNID)live_xidv;       // xid on closing txn's live list
     OMTVALUE pairv;
     XID_PAIR pair;
     uint32_t idx;
 
     int r;
     OMT reverse = txn->logger->live_list_reverse;
-    r = toku_omt_find_zero(reverse, toku_find_pair_by_xid, live_xid, &pairv, &idx);
+    r = toku_omt_find_zero(reverse, toku_find_pair_by_xid, (void *)live_xid, &pairv, &idx);
     invariant(r==0);
     pair = pairv;
-    invariant(pair->xid1 == *live_xid); //sanity check
+    invariant(pair->xid1 == live_xid); //sanity check
     if (pair->xid2 == xid) {
         //There is a record that needs to be either deleted or updated
         TXNID olderxid;
@@ -200,7 +200,7 @@ live_list_reverse_note_txn_end_iter(OMTVALUE live_xidv, u_int32_t UU(index), voi
             //There is an older txn
             olderxid = (TXNID) olderv;
             invariant(olderxid < xid);
-            if (olderxid >= *live_xid) {
+            if (olderxid >= live_xid) {
                 //older txn is new enough, we need to update.
                 pair->xid2 = olderxid;
                 should_delete = FALSE;
@@ -296,12 +296,13 @@ void toku_rollback_txn_close (TOKUTXN txn) {
         }
 
         if (txn->parent==NULL) {
-            OMTVALUE txnagain;
+            OMTVALUE v;
             u_int32_t idx;
             //Remove txn from list of live root txns
-            r = toku_omt_find_zero(logger->live_root_txns, find_xid, txn, &txnagain, &idx);
+            r = toku_omt_find_zero(logger->live_root_txns, toku_find_xid_by_xid, (OMTVALUE)txn->txnid64, &v, &idx);
             assert(r==0);
-            assert(txn==txnagain);
+            TXNID xid = (TXNID) v;
+            invariant(xid == txn->txnid64);
             r = toku_omt_delete_at(logger->live_root_txns, idx);
             assert(r==0);
         }
@@ -328,11 +329,6 @@ void toku_rollback_txn_close (TOKUTXN txn) {
             {
                 //Free memory used for live root txns local list
                 invariant(toku_omt_size(txn->live_root_txn_list) > 0);
-                OMTVALUE v;
-                //store a single array of txnids
-                r = toku_omt_fetch(txn->live_root_txn_list, 0, &v);
-                invariant(r==0);
-                toku_free(v);
                 toku_omt_destroy(&txn->live_root_txn_list);
             }
         }

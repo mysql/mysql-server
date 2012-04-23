@@ -106,7 +106,7 @@ typedef struct {
 
 void toku_txn_get_status(TOKULOGGER logger, TXN_STATUS s);
 
-BOOL toku_is_txn_in_live_root_txn_list(TOKUTXN txn, TXNID xid);
+BOOL toku_is_txn_in_live_root_txn_list(OMT live_root_txn_list, TXNID xid);
 
 TXNID toku_get_oldest_in_live_root_txn_list(TOKUTXN txn);
 

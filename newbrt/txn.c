@@ -97,33 +97,14 @@ void toku_txn_set_container_db_txn (TOKUTXN tokutxn, DB_TXN*container) {
     tokutxn->container_db_txn = container;
 }
 
-
-static int
-fill_xids (OMTVALUE xev, u_int32_t idx, void *varray) {
-    TOKUTXN txn = xev;
-    TXNID *xids = varray;
-    xids[idx] = txn->txnid64;
-    return 0;
-}
-
 // Create list of root transactions that were live when this txn began.
 static int
 setup_live_root_txn_list(TOKUTXN txn) {
-    int r;
     OMT global = txn->logger->live_root_txns;
-    uint32_t num = toku_omt_size(global);
-    // global list must have at least one live root txn, this current one
-    invariant(num > 0);
-    TXNID *XMALLOC_N(num, xids);
-    OMTVALUE *XMALLOC_N(num, xidsp);
-    uint32_t i;
-    for (i = 0; i < num; i++) {
-        xidsp[i] = &xids[i];
-    }
-    r = toku_omt_iterate(global, fill_xids, xids);
-    assert_zero(r);
-    
-    r = toku_omt_create_steal_sorted_array(&txn->live_root_txn_list, &xidsp, num, num);
+    int r = toku_omt_clone_noptr(
+        &txn->live_root_txn_list,
+        global
+        );
     return r;
 }
 
@@ -145,17 +126,17 @@ static int
 live_list_reverse_note_txn_start_iter(OMTVALUE live_xidv, u_int32_t UU(index), void*txnv) {
     TOKUTXN txn = txnv;
     TXNID xid   = txn->txnid64;     // xid of new txn that is being started
-    TXNID *live_xid = live_xidv;    // xid on the new txn's live list
+    TXNID live_xid = (TXNID)live_xidv;    // xid on the new txn's live list
     OMTVALUE pairv;
     XID_PAIR pair;
     uint32_t idx;
 
     int r;
     OMT reverse = txn->logger->live_list_reverse;
-    r = toku_omt_find_zero(reverse, toku_find_pair_by_xid, live_xid, &pairv, &idx);
+    r = toku_omt_find_zero(reverse, toku_find_pair_by_xid, (void *)live_xid, &pairv, &idx);
     if (r==0) {
         pair = pairv;
-        invariant(pair->xid1 == *live_xid); //sanity check
+        invariant(pair->xid1 == live_xid); //sanity check
         invariant(pair->xid2 < xid);        //Must be older
         pair->xid2 = txn->txnid64;
     }
@@ -163,7 +144,7 @@ live_list_reverse_note_txn_start_iter(OMTVALUE live_xidv, u_int32_t UU(index), v
         invariant(r==DB_NOTFOUND);
         //Make new entry
         XMALLOC(pair);
-        pair->xid1 = *live_xid;
+        pair->xid1 = live_xid;
         pair->xid2 = txn->txnid64;
         r = toku_omt_insert_at(reverse, pair, idx);
         assert_zero(r);
@@ -314,7 +295,7 @@ toku_txn_start_txn(TOKUTXN txn) {
         // add ancestor information, and maintain global live root txn list
         if (parent == NULL) {
             //Add txn to list (omt) of live root txns
-            r = toku_omt_insert_at(logger->live_root_txns, txn, toku_omt_size(logger->live_root_txns)); //We know it is the newest one.
+            r = toku_omt_insert_at(logger->live_root_txns, (OMTVALUE) txn->txnid64, toku_omt_size(logger->live_root_txns)); //We know it is the newest one.
             if (r!=0) goto died;
             txn->ancestor_txnid64 = txn->txnid64;
         }
@@ -660,29 +641,18 @@ TXNID toku_get_oldest_in_live_root_txn_list(TOKUTXN txn) {
     int r;
     r = toku_omt_fetch(omt, 0, &v);
     assert_zero(r);
-    TXNID *xidp = v;
-    return *xidp;
+    TXNID xid = (TXNID)v;
+    return xid;
 }
 
-//Heaviside function to find a TXNID* by TXNID* (used to find the index)
-static int
-find_xidp (OMTVALUE v, void *xidv) {
-    TXNID xid = *(TXNID *)v;
-    TXNID xidfind = *(TXNID *)xidv;
-    if (xid < xidfind) return -1;
-    if (xid > xidfind) return +1;
-    return 0;
-}
-
-BOOL toku_is_txn_in_live_root_txn_list(TOKUTXN txn, TXNID xid) {
-    OMT omt = txn->live_root_txn_list;
+BOOL toku_is_txn_in_live_root_txn_list(OMT live_root_txn_list, TXNID xid) {
     OMTVALUE txnidpv;
     uint32_t index;
     BOOL retval = FALSE;
-    int r = toku_omt_find_zero(omt, find_xidp, &xid, &txnidpv, &index);
+    int r = toku_omt_find_zero(live_root_txn_list, toku_find_xid_by_xid, (void *)xid, &txnidpv, &index);
     if (r==0) {
-        TXNID *txnidp = txnidpv;
-        invariant(*txnidp == xid);
+        TXNID txnid = (TXNID)txnidpv;
+        invariant(txnid == xid);
         retval = TRUE;
     }
     else {
@@ -738,7 +708,7 @@ verify_snapshot_system(TOKULOGGER logger) {
                     OMTVALUE v;
                     r = toku_omt_fetch(snapshot_txn->live_root_txn_list, j, &v);
                     assert_zero(r);
-                    live_root_txn_list[j] = *(TXNID*)v;
+                    live_root_txn_list[j] = (TXNID)v;
                 }
             }
             for (j = 0; j < num_live_root_txn_list; j++) {
@@ -773,7 +743,7 @@ verify_snapshot_system(TOKULOGGER logger) {
                 if (txn->snapshot_type != TXN_SNAPSHOT_NONE) {
                     BOOL expect = txn->snapshot_txnid64 >= pair->xid1 &&
                                   txn->snapshot_txnid64 <= pair->xid2;
-                    BOOL found = toku_is_txn_in_live_root_txn_list(txn, pair->xid1);
+                    BOOL found = toku_is_txn_in_live_root_txn_list(txn->live_root_txn_list, pair->xid1);
                     invariant((expect==FALSE) == (found==FALSE));
                 }
             }
