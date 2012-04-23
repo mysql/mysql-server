@@ -1607,8 +1607,7 @@ col_fail:
 				 new_table_name);
 			goto new_clustered_failed;
 		default:
-			my_error_innodb(
-				trx->error_state, table_name, flags);
+			my_error_innodb(trx->error_state, table_name, flags);
 		new_clustered_failed:
 			DBUG_ASSERT(trx != user_trx);
 			trx_rollback_to_savepoint(trx, NULL);
@@ -2447,7 +2446,7 @@ bool
 rollback_inplace_alter_table(
 /*=========================*/
 	Alter_inplace_info*	ha_alter_info,
-	TABLE_SHARE*		table_share,
+	const TABLE_SHARE*	table_share,
 	row_prebuilt_t*		prebuilt)
 {
 	bool	fail	= false;
@@ -2499,6 +2498,7 @@ func_exit:
 }
 
 /** Drop a FOREIGN KEY constraint.
+@param table_share	the TABLE_SHARE
 @param trx		data dictionary transaction
 @param foreign		the foreign key constraint, will be freed
 @retval true		Failure
@@ -2507,8 +2507,9 @@ static __attribute__((nonnull, warn_unused_result))
 bool
 innobase_drop_foreign(
 /*==================*/
-	trx_t*		trx,
-	dict_foreign_t*	foreign)
+	const TABLE_SHARE*	table_share,
+	trx_t*			trx,
+	dict_foreign_t*		foreign)
 {
 	DBUG_ENTER("innobase_drop_foreign");
 
@@ -2537,8 +2538,11 @@ innobase_drop_foreign(
 	error = que_eval_sql(info, sql, FALSE, trx);
 	trx->op_info = "";
 
+	DBUG_EXECUTE_IF("ib_drop_foreign_error",
+			error = DB_OUT_OF_FILE_SPACE;);
+
 	if (error != DB_SUCCESS) {
-		my_error_innodb(error, foreign->foreign_table->name, 0);
+		my_error_innodb(error, table_share->table_name.str, 0);
 		trx->error_state = DB_SUCCESS;
 		DBUG_RETURN(true);
 	}
@@ -2549,6 +2553,7 @@ innobase_drop_foreign(
 }
 
 /** Rename a column.
+@param table_share	the TABLE_SHARE
 @param prebuilt		the prebuilt struct
 @param trx		data dictionary transaction
 @param nth_col		0-based index of the column
@@ -2560,11 +2565,12 @@ static __attribute__((nonnull, warn_unused_result))
 bool
 innobase_rename_column(
 /*===================*/
-	row_prebuilt_t*	prebuilt,
-	trx_t*		trx,
-	ulint		nth_col,
-	const char*	from,
-	const char*	to)
+	const TABLE_SHARE*	table_share,
+	row_prebuilt_t*		prebuilt,
+	trx_t*			trx,
+	ulint			nth_col,
+	const char*		from,
+	const char*		to)
 {
 	pars_info_t*	info;
 	dberr_t		error;
@@ -2605,9 +2611,12 @@ innobase_rename_column(
 		"END;\n",
 		FALSE, trx);
 
+	DBUG_EXECUTE_IF("ib_rename_column_error",
+			error = DB_OUT_OF_FILE_SPACE;);
+
 	if (error != DB_SUCCESS) {
 err_exit:
-		my_error_innodb(error, prebuilt->table->name, 0);
+		my_error_innodb(error, table_share->table_name.str, 0);
 		trx->error_state = DB_SUCCESS;
 		trx->op_info = "";
 		DBUG_RETURN(true);
@@ -2909,7 +2918,8 @@ ha_innobase::commit_inplace_alter_table(
 			DBUG_ASSERT(prebuilt->table
 				    == ctx->drop_fk[i]->foreign_table);
 
-			if (innobase_drop_foreign(trx, ctx->drop_fk[i])) {
+			if (innobase_drop_foreign(
+				    table_share, trx, ctx->drop_fk[i])) {
 				err = -1;
 			}
 		}
@@ -2930,6 +2940,7 @@ ha_innobase::commit_inplace_alter_table(
 			while (Create_field* cf = cf_it++) {
 				if (cf->field == *fp) {
 					if (innobase_rename_column(
+						    table_share,
 						    prebuilt, trx, i,
 						    cf->field->field_name,
 						    cf->field_name)) {
