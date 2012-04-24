@@ -55,7 +55,7 @@ JNIEXPORT jlong JNICALL
 Java_test_NdbJTieConstantsTest_nativeConstValue(JNIEnv * env, jclass cls, jstring p0)
 {
     TRACE("jlong Java_test_NdbJTieConstantsTest_nativeConstValue(JNIEnv *, jclass, jstring)");
-    return gcall_fr< ttrait_longlong, ttrait_char_cp_jutf8null, &::nativeConstValue >(env, cls, p0);
+    return gcall_fr< ttrait_int64, ttrait_char_cp_jutf8null, &::nativeConstValue >(env, cls, p0);
 }
     
 } // extern "C"
