@@ -64,17 +64,32 @@ void Rpl_info_dummy::do_end_info(const ulong *uidx __attribute__((unused)),
   return;
 }
 
+int Rpl_info_dummy::do_reset_info(const int nparam)
+{
+  Rpl_info_dummy* info= NULL;
+
+  if (!(info= new Rpl_info_dummy(nparam)))
+    return 1;
+
+  DBUG_ASSERT(!info->abort);
+
+  delete info;
+  return 0;
+}
+
 int Rpl_info_dummy::do_remove_info(const ulong *uidx __attribute__((unused)),
                                   const uint nidx __attribute__((unused)))
 {
-  if (abort) DBUG_ASSERT(0);
+  DBUG_ASSERT(!abort);
+
   return 0;
 }
 
 bool Rpl_info_dummy::do_set_info(const int pos __attribute__((unused)),
                                 const char *value __attribute__((unused)))
 {
-  if (abort) DBUG_ASSERT(0);
+  DBUG_ASSERT(!abort);
+
   return FALSE;
 }
 
@@ -82,35 +97,40 @@ bool Rpl_info_dummy::do_set_info(const int pos __attribute__((unused)),
                                 const uchar *value __attribute__((unused)),
                                 const size_t size __attribute__((unused)))
 {
-  if (abort) DBUG_ASSERT(0);
+  DBUG_ASSERT(!abort);
+
   return FALSE;
 }
 
 bool Rpl_info_dummy::do_set_info(const int pos __attribute__((unused)),
                                 const ulong value __attribute__((unused)))
 {
-  if (abort) DBUG_ASSERT(0);
+  DBUG_ASSERT(!abort);
+
   return FALSE;
 }
 
 bool Rpl_info_dummy::do_set_info(const int pos __attribute__((unused)),
                                 const int value __attribute__((unused)))
 {
-  if (abort) DBUG_ASSERT(0);
+  DBUG_ASSERT(!abort);
+
   return FALSE;
 }
 
 bool Rpl_info_dummy::do_set_info(const int pos __attribute__((unused)),
                                 const float value __attribute__((unused)))
 {
-  if (abort) DBUG_ASSERT(0);
+  DBUG_ASSERT(!abort);
+
   return FALSE;
 }
 
 bool Rpl_info_dummy::do_set_info(const int pos __attribute__((unused)),
                                 const Dynamic_ids *value __attribute__((unused)))
 {
-  if (abort) DBUG_ASSERT(0);
+  DBUG_ASSERT(!abort);
+
   return FALSE;
 }
 
@@ -119,7 +139,8 @@ bool Rpl_info_dummy::do_get_info(const int pos __attribute__((unused)),
                                 const size_t size __attribute__((unused)),
                                 const char *default_value __attribute__((unused)))
 {
-  if (abort) DBUG_ASSERT(0);
+    DBUG_ASSERT(!abort);
+
   return FALSE;
 }
 
@@ -128,7 +149,8 @@ bool Rpl_info_dummy::do_get_info(const int pos __attribute__((unused)),
                                 const size_t size __attribute__((unused)),
                                 const uchar *default_value __attribute__((unused)))
 {
-  if (abort) DBUG_ASSERT(0);
+  DBUG_ASSERT(!abort);
+
   return FALSE;
 }
 
@@ -136,7 +158,8 @@ bool Rpl_info_dummy::do_get_info(const int pos __attribute__((unused)),
                                 ulong *value __attribute__((unused)),
                                 const ulong default_value __attribute__((unused)))
 {
-  if (abort) DBUG_ASSERT(0);
+  DBUG_ASSERT(!abort);
+
   return FALSE;
 }
 
@@ -144,7 +167,8 @@ bool Rpl_info_dummy::do_get_info(const int pos __attribute__((unused)),
                                 int *value __attribute__((unused)),
                                 const int default_value __attribute__((unused)))
 {
-  if (abort) DBUG_ASSERT(0);
+  DBUG_ASSERT(!abort);
+
   return FALSE;
 }
 
@@ -152,7 +176,8 @@ bool Rpl_info_dummy::do_get_info(const int pos __attribute__((unused)),
                                 float *value __attribute__((unused)),
                                 const float default_value __attribute__((unused)))
 {
-  if (abort) DBUG_ASSERT(0);
+  DBUG_ASSERT(!abort);
+
   return FALSE;
 }
 
@@ -160,24 +185,28 @@ bool Rpl_info_dummy::do_get_info(const int pos __attribute__((unused)),
                                 Dynamic_ids *value __attribute__((unused)),
                                 const Dynamic_ids *default_value __attribute__((unused)))
 {
-  if (abort) DBUG_ASSERT(0);
+  DBUG_ASSERT(!abort);
+
   return FALSE;
 }
 
 char* Rpl_info_dummy::do_get_description_info()
 {
-  if (abort) DBUG_ASSERT(0);
+  DBUG_ASSERT(!abort);
+
   return NULL;
 }
 
 bool Rpl_info_dummy::do_is_transactional()
 {
-  if (abort) DBUG_ASSERT(0);
+  DBUG_ASSERT(!abort);
+
   return FALSE;
 }
 
 bool Rpl_info_dummy::do_update_is_transactional()
 {
-  if (abort) DBUG_ASSERT(0);
+  DBUG_ASSERT(!abort);
+
   return FALSE;
 }

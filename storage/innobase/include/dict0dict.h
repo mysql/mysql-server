@@ -362,7 +362,7 @@ At least one of foreign table or referenced table must already be in
 the dictionary cache!
 @return	DB_SUCCESS or error code */
 UNIV_INTERN
-ulint
+dberr_t
 dict_foreign_add_to_cache(
 /*======================*/
 	dict_foreign_t*	foreign,	/*!< in, own: foreign key constraint */
@@ -410,7 +410,7 @@ UNIV_INTERN
 ibool
 dict_str_starts_with_keyword(
 /*=========================*/
-	void*		mysql_thd,	/*!< in: MySQL thread handle */
+	THD*		thd,		/*!< in: MySQL thread handle */
 	const char*	str,		/*!< in: string to scan for keyword */
 	const char*	keyword)	/*!< in: keyword to look for */
 	__attribute__((nonnull, warn_unused_result));
@@ -436,7 +436,7 @@ bot participating tables. The indexes are allowed to contain more
 fields than mentioned in the constraint.
 @return	error code or DB_SUCCESS */
 UNIV_INTERN
-ulint
+dberr_t
 dict_create_foreign_constraints(
 /*============================*/
 	trx_t*		trx,		/*!< in: transaction */
@@ -461,7 +461,7 @@ Parses the CONSTRAINT id's to be dropped in an ALTER TABLE statement.
 @return DB_SUCCESS or DB_CANNOT_DROP_CONSTRAINT if syntax error or the
 constraint id does not match */
 UNIV_INTERN
-ulint
+dberr_t
 dict_foreign_parse_drop_constraints(
 /*================================*/
 	mem_heap_t*	heap,			/*!< in: heap from which we can
@@ -483,22 +483,6 @@ UNIV_INTERN
 dict_table_t*
 dict_table_open_on_name(
 /*====================*/
-	const char*	table_name,	/*!< in: table name */
-	ibool		dict_locked,	/*!< in: TRUE=data dictionary locked */
-	ibool		try_drop)	/*!< in: TRUE=try to drop any orphan
-					indexes after an aborted online
-					index creation */
-	__attribute__((nonnull, warn_unused_result));
-
-/**********************************************************************//**
-Returns a table object and increment its open handle count. Table
-statistics will not be updated if they are not initialized.
-Call this function when dropping a table.
-@return	table, NULL if does not exist */
-UNIV_INTERN
-dict_table_t*
-dict_table_open_on_name_no_stats(
-/*=============================*/
 	const char*	table_name,	/*!< in: table name */
 	ibool		dict_locked,	/*!< in: TRUE=data dictionary locked */
 	ibool		try_drop,	/*!< in: TRUE=try to drop any orphan
@@ -732,6 +716,35 @@ dict_table_get_n_cols(
 /*==================*/
 	const dict_table_t*	table)	/*!< in: table */
 	__attribute__((nonnull, pure, warn_unused_result));
+/********************************************************************//**
+Gets the approximately estimated number of rows in the table.
+@return	estimated number of rows */
+UNIV_INLINE
+ib_int64_t
+dict_table_get_n_rows(
+/*==================*/
+	const dict_table_t*	table)	/*!< in: table */
+	__attribute__((nonnull, warn_unused_result));
+/********************************************************************//**
+Increment the number of rows in the table by one.
+Notice that this operation is not protected by any latch, the number is
+approximate. */
+UNIV_INLINE
+void
+dict_table_n_rows_inc(
+/*==================*/
+	dict_table_t*	table)	/*!< in/out: table */
+	__attribute__((nonnull));
+/********************************************************************//**
+Decrement the number of rows in the table by one.
+Notice that this operation is not protected by any latch, the number is
+approximate. */
+UNIV_INLINE
+void
+dict_table_n_rows_dec(
+/*==================*/
+	dict_table_t*	table)	/*!< in/out: table */
+	__attribute__((nonnull));
 #ifdef UNIV_DEBUG
 /********************************************************************//**
 Gets the nth column of a table.
@@ -940,7 +953,7 @@ dict_make_room_in_cache(
 Adds an index to the dictionary cache.
 @return	DB_SUCCESS, DB_TOO_BIG_RECORD, or DB_CORRUPTION */
 UNIV_INTERN
-ulint
+dberr_t
 dict_index_add_to_cache(
 /*====================*/
 	dict_table_t*	table,	/*!< in: table on which the index is */
@@ -1563,7 +1576,7 @@ The caller must own the dictionary mutex.
 dict_table_schema_check() @{
 @return DB_SUCCESS if the table exists and contains the necessary columns */
 UNIV_INTERN
-enum db_err
+dberr_t
 dict_table_schema_check(
 /*====================*/
 	dict_table_schema_t*	req_schema,	/*!< in/out: required table

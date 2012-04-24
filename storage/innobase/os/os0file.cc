@@ -1,6 +1,6 @@
 /***********************************************************************
 
-Copyright (c) 1995, 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2012, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2009, Percona Inc.
 
 Portions of this file contain modifications contributed and copyrighted
@@ -382,11 +382,9 @@ os_file_get_last_error_low(
 	ibool	on_error_silent)	/*!< in: TRUE then don't print any
 					diagnostic to the log */
 {
-	ulint	err;
-
 #ifdef __WIN__
 
-	err = (ulint) GetLastError();
+	ulint	err = (ulint) GetLastError();
 
 	if (report_all_errors
 	    || (!on_error_silent
@@ -469,15 +467,15 @@ os_file_get_last_error_low(
 		return(100 + err);
 	}
 #else
-	err = (ulint) errno;
+	int err = errno;
 
 	if (report_all_errors
 	    || (err != ENOSPC && err != EEXIST && !on_error_silent)) {
 
 		ut_print_timestamp(stderr);
 		fprintf(stderr,
-			"  InnoDB: Operating system error number %lu"
-			" in a file operation.\n", (ulong) err);
+			"  InnoDB: Operating system error number %d"
+			" in a file operation.\n", err);
 
 		if (err == ENOENT) {
 			fprintf(stderr,
@@ -497,11 +495,11 @@ os_file_get_last_error_low(
 				" the access rights to\n"
 				"InnoDB: the directory.\n");
 		} else {
-			if (strerror((int) err) != NULL) {
+			if (strerror(err) != NULL) {
 				fprintf(stderr,
-					"InnoDB: Error number %lu"
+					"InnoDB: Error number %d"
 					" means '%s'.\n",
-					err, strerror((int) err));
+					err, strerror(err));
 			}
 
 
@@ -645,8 +643,7 @@ os_file_handle_error_cond_exit(
 
 			ut_print_timestamp(stderr);
 			fprintf(stderr, "  InnoDB: File operation call: "
-				"'%s' returned OS error " ULINTPF ".\n",
-				operation, err);
+				"'%s'.\n", operation);
 		}
 
 		if (should_exit) {
@@ -1376,7 +1373,7 @@ os_file_set_nocache(
 #if defined(UNIV_SOLARIS) && defined(DIRECTIO_ON)
 	if (directio(fd, DIRECTIO_ON) == -1) {
 		int	errno_save;
-		errno_save = (int) errno;
+		errno_save = errno;
 		ut_print_timestamp(stderr);
 		fprintf(stderr,
 			"  InnoDB: Failed to set DIRECTIO_ON "
@@ -1386,7 +1383,7 @@ os_file_set_nocache(
 #elif defined(O_DIRECT)
 	if (fcntl(fd, F_SETFL, O_DIRECT) == -1) {
 		int	errno_save;
-		errno_save = (int) errno;
+		errno_save = errno;
 		ut_print_timestamp(stderr);
 		fprintf(stderr,
 			"  InnoDB: Failed to set O_DIRECT "
@@ -2830,8 +2827,8 @@ retry:
 			(ulint) errno);
 		if (strerror(errno) != NULL) {
 			fprintf(stderr,
-				"InnoDB: Error number %lu means '%s'.\n",
-				(ulint) errno, strerror(errno));
+				"InnoDB: Error number %d means '%s'.\n",
+				errno, strerror(errno));
 		}
 
 		fprintf(stderr,

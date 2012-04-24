@@ -2167,10 +2167,9 @@ my_micro_time_to_timeval(ulonglong micro_time, struct timeval *tm)
   a thread/connection descriptor
 */
 
-class THD :public ilink<THD>,
+class THD :public MDL_context_owner,
            public Statement,
-           public Open_tables_state,
-           public MDL_context_owner
+           public Open_tables_state
 {
 private:
   inline bool is_stmt_prepare() const
@@ -2190,6 +2189,8 @@ public:
 
   /* Used to execute base64 coded binlog events in MySQL server */
   Relay_log_info* rli_fake;
+  /* Slave applier execution context */
+  Relay_log_info* rli_slave;
 
   void reset_for_next_command();
   /*
@@ -3064,7 +3065,7 @@ public:
     if preallocation fails, we should notice that at the first call to
     alloc_root. 
   */
-  void init_for_queries();
+  void init_for_queries(Relay_log_info *rli= NULL);
   void change_user(void);
   void cleanup(void);
   void cleanup_after_query();
@@ -4534,8 +4535,13 @@ public:
     table(NULL), tab_ref(NULL), in_equality(NULL),
     join_cond(NULL), copy_field(NULL)
   {}
-  ~Semijoin_mat_exec() {}
-
+private:
+  // Nobody deletes me apparently ...
+  ~Semijoin_mat_exec()
+  {
+    delete [] copy_field;
+  }
+public:
   const uint table_count;       // Number of tables in the sj-nest
   const bool is_scan;           // TRUE if executing as a scan, FALSE if lookup
   bool materialized;            // TRUE <=> materialization has been performed

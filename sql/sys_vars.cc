@@ -2752,7 +2752,7 @@ static Sys_var_ulong Sys_table_cache_size(
 static Sys_var_ulong Sys_thread_cache_size(
        "thread_cache_size",
        "How many threads we should keep in a cache for reuse",
-       GLOBAL_VAR(thread_cache_size), CMD_LINE(REQUIRED_ARG),
+       GLOBAL_VAR(max_blocked_pthreads), CMD_LINE(REQUIRED_ARG),
        VALID_RANGE(0, 16384), DEFAULT(0), BLOCK_SIZE(1));
 
 /**
@@ -3085,6 +3085,11 @@ static Sys_var_mybool Sys_log_binlog(
        SESSION_VAR(sql_log_bin), NO_CMD_LINE,
        DEFAULT(TRUE), NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(check_sql_log_bin),
        ON_UPDATE(fix_sql_log_bin_after_update));
+
+static Sys_var_bit Sys_transaction_allow_batching(
+       "transaction_allow_batching", "transaction_allow_batching",
+       SESSION_ONLY(option_bits), NO_CMD_LINE, OPTION_ALLOW_BATCH,
+       DEFAULT(FALSE));
 
 static Sys_var_bit Sys_sql_warnings(
        "sql_warnings", "sql_warnings",
@@ -3804,7 +3809,7 @@ static Sys_var_uint Sys_checkpoint_mts_group(
 #ifndef DBUG_OFF
        VALID_RANGE(1, MTS_MAX_BITS_IN_GROUP), DEFAULT(512), BLOCK_SIZE(1));
 #else
-       VALID_RANGE(512, MTS_MAX_BITS_IN_GROUP), DEFAULT(512), BLOCK_SIZE(1));
+       VALID_RANGE(32, MTS_MAX_BITS_IN_GROUP), DEFAULT(512), BLOCK_SIZE(8));
 #endif /* DBUG_OFF */
 #endif /* HAVE_REPLICATION */
 

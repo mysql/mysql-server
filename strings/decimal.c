@@ -1167,6 +1167,17 @@ int double2lldiv_t(double nr, lldiv_t *lld)
   lld->quot= (longlong) (nr > 0 ? floor(nr) : ceil(nr));
   /* Multiply reminder to 10^9 and store into "rem" */
   lld->rem= (longlong) rint((nr - (double) lld->quot) * 1000000000);
+  /*
+    Sometimes the expression "(double) 0.999999999xxx * (double) 10e9"
+    gives 1,000,000,000 instead of 999,999,999 due to lack of double precision.
+    The callers do not expect lld->rem to be greater than 999,999,999.
+    Let's catch this corner case and put the "nanounit" (e.g. nanosecond)
+    value in ldd->rem back into the valid range.
+  */
+  if (lld->rem > 999999999LL)
+    lld->rem= 999999999LL;
+  else if (lld->rem < -999999999LL)
+    lld->rem= -999999999LL;
   return E_DEC_OK;
 }
 
