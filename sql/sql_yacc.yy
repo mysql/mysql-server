@@ -1401,7 +1401,6 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  PARTITIONS_SYM
 %token  PARTITIONING_SYM
 %token  PASSWORD
-%token  STATS_PERSISTENT_SYM
 %token  PHASE_SYM
 %token  PLUGIN_DIR_SYM                /* INTERNAL */
 %token  PLUGIN_SYM
@@ -1527,6 +1526,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  STARTING
 %token  STARTS_SYM
 %token  START_SYM                     /* SQL-2003-R */
+%token  STATS_PERSISTENT_SYM
 %token  STATUS_SYM
 %token  STDDEV_SAMP_SYM               /* SQL-2003-N */
 %token  STD_SYM
@@ -13697,7 +13697,6 @@ keyword_sp:
         | PARTITIONING_SYM         {}
         | PARTITIONS_SYM           {}
         | PASSWORD                 {}
-        | STATS_PERSISTENT_SYM     {}
         | PHASE_SYM                {}
         | PLUGIN_DIR_SYM           {}
         | PLUGIN_SYM               {}
@@ -13763,6 +13762,7 @@ keyword_sp:
         | SQL_NO_CACHE_SYM         {}
         | SQL_THREAD               {}
         | STARTS_SYM               {}
+        | STATS_PERSISTENT_SYM     {}
         | STATUS_SYM               {}
         | STORAGE_SYM              {}
         | STRING_SYM               {}
