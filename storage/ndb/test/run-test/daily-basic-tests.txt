@@ -1533,4 +1533,7 @@ max-time: 300
 cmd: testNodeRestart
 args: -nMasterFailSlowLCP T1
 
+max-time:300
+cmd: testScan
+args: -nScanFragRecExhaust T1
 

@@ -9444,6 +9444,8 @@ void Dbtc::execSCAN_TABREQ(Signal* signal)
   if (unlikely(errCode))
   {
     jam();
+    transP->apiScanRec = scanptr.i;
+    releaseScanResources(scanptr, true /* NotStarted */);
     goto SCAN_TAB_error;
   }
 
@@ -9508,6 +9510,7 @@ void Dbtc::execSCAN_TABREQ(Signal* signal)
     goto SCAN_TAB_error;
   }//if
   ndbrequire(cfirstfreeScanrec == RNIL);
+  ndbrequire(cConcScanCount == cscanrecFileSize);
   jam();
   errCode = ZNO_SCANREC_ERROR;
   goto SCAN_TAB_error;
@@ -9574,7 +9577,8 @@ Dbtc::initScanrec(ScanRecordPtr scanptr,
   for (Uint32 i = 0; i < scanParallel; i++) {
     jam();
     ScanFragRecPtr ptr;
-    if (unlikely(list.seize(ptr) == false))
+    if (unlikely((list.seize(ptr) == false) ||
+                 ERROR_INSERTED(8093)))
     {
       jam();
       goto errout;
@@ -9887,6 +9891,7 @@ void Dbtc::releaseScanResources(ScanRecordPtr scanPtr,
   scanPtr.p->scanTcrec = RNIL;
   scanPtr.p->scanApiRec = RNIL;
   cfirstfreeScanrec = scanPtr.i;
+  cConcScanCount--;
   
   apiConnectptr.p->apiScanRec = RNIL;
   apiConnectptr.p->apiConnectstate = CS_CONNECTED;
@@ -10625,6 +10630,7 @@ Dbtc::seizeScanrec(Signal* signal) {
   ptrCheckGuard(scanptr, cscanrecFileSize, scanRecord);
   cfirstfreeScanrec = scanptr.p->nextScan;
   scanptr.p->nextScan = RNIL;
+  cConcScanCount++;
   ndbrequire(scanptr.p->scanState == ScanRecord::IDLE);
   return scanptr;
 }//Dbtc::seizeScanrec()
@@ -11025,6 +11031,7 @@ void Dbtc::initialiseScanrec(Signal* signal)
   ptrAss(scanptr, scanRecord);
   scanptr.p->nextScan = RNIL;
   cfirstfreeScanrec = 0;
+  cConcScanCount = 0;
 }//Dbtc::initialiseScanrec()
 
 void Dbtc::initialiseScanFragrec(Signal* signal) 
@@ -11916,6 +11923,33 @@ Dbtc::execDUMP_STATE_ORD(Signal* signal)
     {
       warningEvent(" DBTC: dump-7019 to unknown node: %u", nodeId);
     }
+  }
+
+  if (arg == DumpStateOrd::TcResourceSnapshot)
+  {
+    RSS_OP_SNAPSHOT_SAVE(cConcScanCount);
+    RSS_AP_SNAPSHOT_SAVE(c_scan_frag_pool);
+    RSS_AP_SNAPSHOT_SAVE(c_theDefinedTriggerPool);
+    RSS_AP_SNAPSHOT_SAVE(c_theFiredTriggerPool);
+    RSS_AP_SNAPSHOT_SAVE(c_theIndexPool);
+    RSS_AP_SNAPSHOT_SAVE(m_commitAckMarkerPool);
+    RSS_AP_SNAPSHOT_SAVE(c_theIndexOperationPool);
+#ifdef ERROR_INSERT
+    rss_cconcurrentOp = c_counters.cconcurrentOp;
+#endif;
+  }
+  if (arg == DumpStateOrd::TcResourceCheckLeak)
+  {
+    RSS_OP_SNAPSHOT_CHECK(cConcScanCount);
+    RSS_AP_SNAPSHOT_CHECK(c_scan_frag_pool);
+    RSS_AP_SNAPSHOT_CHECK(c_theDefinedTriggerPool);
+    RSS_AP_SNAPSHOT_CHECK(c_theFiredTriggerPool);
+    RSS_AP_SNAPSHOT_CHECK(c_theIndexPool);
+    RSS_AP_SNAPSHOT_CHECK(m_commitAckMarkerPool);
+    RSS_AP_SNAPSHOT_CHECK(c_theIndexOperationPool);
+#ifdef ERROR_INSERT
+    ndbrequire(rss_cconcurrentOp == c_counters.cconcurrentOp);
+#endif;
   }
 }//Dbtc::execDUMP_STATE_ORD()
 

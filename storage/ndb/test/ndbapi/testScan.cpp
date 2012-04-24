@@ -440,6 +440,47 @@ int runScanReadError(NDBT_Context* ctx, NDBT_Step* step){
   return result;
 }
 
+int runScanReadExhaust(NDBT_Context* ctx, NDBT_Step* step)
+{
+  int result = NDBT_OK;
+  int loops = ctx->getNumLoops();
+  int records = ctx->getNumRecords();
+  int parallelism = 240; // Max parallelism
+  int error = 8093;
+  NdbRestarter restarter;
+  
+  /* First take a TC resource snapshot */
+  int savesnapshot= DumpStateOrd::TcResourceSnapshot;
+  int checksnapshot= DumpStateOrd::TcResourceCheckLeak;
+  
+  restarter.dumpStateAllNodes(&savesnapshot, 1);
+  int i = 0;
+  HugoTransactions hugoTrans(*ctx->getTab());
+  hugoTrans.setRetryMax(1);
+  while (i<loops && !ctx->isTestStopped()) {
+    g_info << i << ": ";
+    
+    ndbout << "insertErrorInAllNodes("<<error<<")"<<endl;
+    if (restarter.insertErrorInAllNodes(error) != 0){
+      ndbout << "Could not insert error in all nodes "<<endl;
+      return NDBT_FAILED;
+    }
+    
+    if (hugoTrans.scanReadRecords(GETNDB(step), records, 0, parallelism) == 0)
+    {
+      /* Expect error 291 */
+      result = NDBT_FAILED;
+      break;
+    }
+    i++;
+  }
+  
+  restarter.insertErrorInAllNodes(0);
+
+  restarter.dumpStateAllNodes(&checksnapshot, 1);
+  return result;
+}
+
 int
 runInsertError(NDBT_Context* ctx, NDBT_Step* step){
   int error = ctx->getProperty("ErrorCode");
@@ -2023,6 +2064,13 @@ TESTCASE("CloseRefresh", "")
 TESTCASE("Bug54945", "")
 {
   INITIALIZER(runBug54945);
+}
+TESTCASE("ScanFragRecExhaust", 
+         "Test behaviour when TC scan frag recs exhausted")
+{
+  INITIALIZER(runLoadTable);
+  INITIALIZER(runScanReadExhaust);
+  FINALIZER(runClearTable);
 }
 NDBT_TESTSUITE_END(testScan);
 
