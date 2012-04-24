@@ -1843,7 +1843,7 @@ deserialize_and_upgrade_internal_node(BRTNODE node,
                               true,
                               dest);
             lazy_assert_zero(r);
-            n_bytes_in_buffer += keylen + vallen + KEY_VALUE_OVERHEAD + xids_get_serialize_size(xids);
+            n_bytes_in_buffer += keylen + vallen + BRT_CMD_OVERHEAD + KEY_VALUE_OVERHEAD + xids_get_serialize_size(xids);
             xids_destroy(&xids);
         }
 
@@ -2864,6 +2864,7 @@ upgrade_subtree_estimates_to_stat64info(int UU(fd), struct brt_header *h)
         h->on_disk_stats.numrows += nkeys;
         h->on_disk_stats.numbytes += rbuf_ulonglong(rb);
     }
+    h->in_memory_stats = h->on_disk_stats;
 
     // done, discard the rest
     toku_free(rb->buf);
