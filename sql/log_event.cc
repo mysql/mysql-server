@@ -5067,6 +5067,9 @@ Format_description_log_event(uint8 binlog_ver, const char* server_ver)
       post_header_len[HEARTBEAT_LOG_EVENT-1]= 0;
       post_header_len[IGNORABLE_LOG_EVENT-1]= IGNORABLE_HEADER_LEN;
       post_header_len[ROWS_QUERY_LOG_EVENT-1]= IGNORABLE_HEADER_LEN;
+      post_header_len[RESERVED_EVENT_NUM_1-1]= RESERVED_HEADER_LEN;
+      post_header_len[RESERVED_EVENT_NUM_2-1]= RESERVED_HEADER_LEN;
+      post_header_len[RESERVED_EVENT_NUM_3-1]= RESERVED_HEADER_LEN;
       post_header_len[GTID_LOG_EVENT-1]=
         post_header_len[ANONYMOUS_GTID_LOG_EVENT-1]=
         Gtid_log_event::POST_HEADER_LENGTH;
@@ -6678,11 +6681,12 @@ void Intvar_log_event::print(FILE* file, PRINT_EVENT_INFO* print_event_info)
 #endif
 
 
+#if defined(HAVE_REPLICATION)&& !defined(MYSQL_CLIENT)
+
 /*
   Intvar_log_event::do_apply_event()
 */
 
-#if defined(HAVE_REPLICATION)&& !defined(MYSQL_CLIENT)
 int Intvar_log_event::do_apply_event(Relay_log_info const *rli)
 {
   /*
@@ -6690,6 +6694,9 @@ int Intvar_log_event::do_apply_event(Relay_log_info const *rli)
     been processed.
    */
   const_cast<Relay_log_info*>(rli)->set_flag(Relay_log_info::IN_STMT);
+
+  if (rli->deferred_events_collecting)
+    return rli->deferred_events->add(this);
 
   switch (type) {
   case LAST_INSERT_ID_EVENT:
@@ -6797,6 +6804,9 @@ int Rand_log_event::do_apply_event(Relay_log_info const *rli)
    */
   const_cast<Relay_log_info*>(rli)->set_flag(Relay_log_info::IN_STMT);
 
+  if (rli->deferred_events_collecting)
+    return rli->deferred_events->add(this);
+
   thd->rand.seed1= (ulong) seed1;
   thd->rand.seed2= (ulong) seed2;
   return 0;
@@ -6821,6 +6831,29 @@ Rand_log_event::do_shall_skip(Relay_log_info *rli)
     will be decreased by the following insert event.
   */
   return continue_group(rli);
+}
+
+/**
+   Exec deferred Int-, Rand- and User- var events prefixing
+   a Query-log-event event.
+
+   @param thd THD handle
+
+   @return false on success, true if a failure in an event applying occurred.
+*/
+bool slave_execute_deferred_events(THD *thd)
+{
+  bool res= false;
+  Relay_log_info *rli= thd->rli_slave;
+
+  DBUG_ASSERT(rli && (!rli->deferred_events_collecting || rli->deferred_events));
+
+  if (!rli->deferred_events_collecting || rli->deferred_events->is_empty())
+    return res;
+
+  res= rli->deferred_events->execute(rli);
+
+  return res;
 }
 
 #endif /* !MYSQL_CLIENT */
@@ -6916,6 +6949,12 @@ bool Xid_log_event::do_commit(THD *thd)
     // GTID logging and cleanup runs regardless of the current res
     error |= gtid_empty_group_log_and_cleanup(thd);
   }
+
+  /*
+    Increment the global status commit count variable
+  */
+  if (!error)
+    status_var_increment(thd->status_var.com_stat[SQLCOM_COMMIT]);
 
   return error;
 }
@@ -7380,11 +7419,12 @@ int User_var_log_event::do_apply_event(Relay_log_info const *rli)
 {
   Item *it= 0;
   CHARSET_INFO *charset;
+
+  if (rli->deferred_events_collecting)
+    return rli->deferred_events->add(this);
+
   if (!(charset= get_charset(charset_number, MYF(MY_WME))))
     return 1;
-  LEX_STRING user_var_name;
-  user_var_name.str= name;
-  user_var_name.length= name_len;
   double real_val;
   longlong int_val;
 
@@ -7430,7 +7470,7 @@ int User_var_log_event::do_apply_event(Relay_log_info const *rli)
       return 0;
     }
   }
-  Item_func_set_user_var e(user_var_name, it);
+  Item_func_set_user_var e(NameString(name, name_len, false), it);
   /*
     Item_func_set_user_var can't substitute something else on its place =>
     0 can be passed as last argument (reference on item)
@@ -11444,6 +11484,12 @@ Write_rows_log_event::do_before_row_operations(const Slave_reporting_capability 
 {
   int error= 0;
 
+  /*
+    Increment the global status insert count variable
+  */
+  if (get_flags(STMT_END_F))
+    status_var_increment(thd->status_var.com_stat[SQLCOM_INSERT]);
+
   /**
      todo: to introduce a property for the event (handler?) which forces
      applying the event in the replace (idempotent) fashion.
@@ -11895,8 +11941,14 @@ Delete_rows_log_event::do_before_row_operations(const Slave_reporting_capability
 {
   int error= 0;
   DBUG_ENTER("Delete_rows_log_event::do_before_row_operations");
+  /*
+    Increment the global status delete count variable
+   */
+  if (get_flags(STMT_END_F))
+    status_var_increment(thd->status_var.com_stat[SQLCOM_DELETE]);  
   error= row_operations_scan_and_key_setup();
   DBUG_RETURN(error);
+
 }
 
 int
@@ -11993,8 +12045,14 @@ Update_rows_log_event::do_before_row_operations(const Slave_reporting_capability
 {
   int error= 0;
   DBUG_ENTER("Update_rows_log_event::do_before_row_operations");
+  /*
+    Increment the global status update count variable
+  */
+  if (get_flags(STMT_END_F))
+    status_var_increment(thd->status_var.com_stat[SQLCOM_UPDATE]);
   error= row_operations_scan_and_key_setup();
   DBUG_RETURN(error);
+
 }
 
 int

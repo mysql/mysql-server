@@ -527,8 +527,8 @@ srv_normalize_path_for_win(
 /*********************************************************************//**
 Creates or opens the log files and closes them.
 @return	DB_SUCCESS or error code */
-static
-ulint
+static __attribute__((nonnull, warn_unused_result))
+dberr_t
 open_or_create_log_file(
 /*====================*/
 	ibool	create_new_db,		/*!< in: TRUE if we should create a
@@ -692,8 +692,8 @@ open_or_create_log_file(
 /*********************************************************************//**
 Creates or opens database data files and closes them.
 @return	DB_SUCCESS or error code */
-static
-ulint
+static __attribute__((nonnull, warn_unused_result))
+dberr_t
 open_or_create_data_files(
 /*======================*/
 	ibool*		create_new_db,	/*!< out: TRUE if new database should be
@@ -993,7 +993,7 @@ skip_size_check:
 Create undo tablespace.
 @return	DB_SUCCESS or error code */
 static
-enum db_err
+dberr_t
 srv_undo_tablespace_create(
 /*=======================*/
 	const char*	name,		/*!< in: tablespace name */
@@ -1001,7 +1001,7 @@ srv_undo_tablespace_create(
 {
 	os_file_t	fh;
 	ibool		ret;
-	enum db_err	err = DB_SUCCESS;
+	dberr_t		err = DB_SUCCESS;
 
 	os_file_create_subdirs_if_needed(name);
 
@@ -1057,14 +1057,14 @@ srv_undo_tablespace_create(
 Open an undo tablespace.
 @return	DB_SUCCESS or error code */
 static
-enum db_err
+dberr_t
 srv_undo_tablespace_open(
 /*=====================*/
 	const char*	name,		/*!< in: tablespace name */
 	ulint		space)		/*!< in: tablespace id */
 {
 	os_file_t	fh;
-	enum db_err	err;
+	dberr_t		err;
 	ibool		ret;
 	ulint		flags;
 
@@ -1124,7 +1124,7 @@ srv_undo_tablespace_open(
 Opens the configured number of undo tablespaces.
 @return	DB_SUCCESS or error code */
 static
-enum db_err
+dberr_t
 srv_undo_tablespaces_init(
 /*======================*/
 	ibool		create_new_db,		/*!< in: TRUE if new db being
@@ -1133,7 +1133,7 @@ srv_undo_tablespaces_init(
 						tablespaces */
 {
 	ulint		i;
-	enum db_err	err = DB_SUCCESS;
+	dberr_t		err = DB_SUCCESS;
 	ulint		prev_space_id = 0;
 	ulint		n_undo_tablespaces;
 	ulint		undo_tablespace_ids[TRX_SYS_N_RSEGS + 1];
@@ -1344,7 +1344,7 @@ Starts InnoDB and creates a new database if database files
 are not found and the user wants.
 @return	DB_SUCCESS or error code */
 UNIV_INTERN
-int
+dberr_t
 innobase_start_or_create_for_mysql(void)
 /*====================================*/
 {
@@ -1361,7 +1361,7 @@ innobase_start_or_create_for_mysql(void)
 	ulint		sum_of_new_sizes;
 	ulint		sum_of_data_file_sizes;
 	ulint		tablespace_size_in_header;
-	ulint		err;
+	dberr_t		err;
 	ulint		i;
 	ulint		io_limit;
 	mtr_t		mtr;
@@ -1622,12 +1622,7 @@ innobase_start_or_create_for_mysql(void)
 						computers */
 	}
 
-	err = srv_boot();
-
-	if (err != DB_SUCCESS) {
-
-		return((int) err);
-	}
+	srv_boot();
 
 	mutex_create(srv_monitor_file_mutex_key,
 		     &srv_monitor_file_mutex, SYNC_NO_ORDER_CHECK);
@@ -1699,10 +1694,18 @@ innobase_start_or_create_for_mysql(void)
 	}
 # endif /* __WIN__ */
 
-	os_aio_init(io_limit,
-		    srv_n_read_io_threads,
-		    srv_n_write_io_threads,
-		    SRV_MAX_N_PENDING_SYNC_IOS);
+	if (!os_aio_init(io_limit,
+			 srv_n_read_io_threads,
+			 srv_n_write_io_threads,
+			 SRV_MAX_N_PENDING_SYNC_IOS)) {
+
+		ut_print_timestamp(stderr);
+		fprintf(stderr,
+			" InnoDB: Fatal error: cannot initialize AIO"
+			" sub-system\n");
+
+		return(DB_ERROR);
+	}
 
 	fil_init(srv_file_per_table ? 50000 : 5000, srv_max_n_open_files);
 
@@ -1871,7 +1874,7 @@ innobase_start_or_create_for_mysql(void)
 			" InnoDB: remove old data files"
 			" which contain your precious data!\n");
 
-		return((int) err);
+		return(err);
 	}
 
 #ifdef UNIV_LOG_ARCHIVE
@@ -1884,7 +1887,7 @@ innobase_start_or_create_for_mysql(void)
 					      log_opened, 0, i);
 		if (err != DB_SUCCESS) {
 
-			return((int) err);
+			return(err);
 		}
 
 		if (log_file_created) {
@@ -1935,7 +1938,7 @@ innobase_start_or_create_for_mysql(void)
 	if (err != DB_SUCCESS
 	    && srv_force_recovery < SRV_FORCE_NO_UNDO_LOG_SCAN) {
 
-		return((int) err);
+		return(err);
 	}
 
 	if (log_created && !create_new_db
@@ -2242,7 +2245,7 @@ innobase_start_or_create_for_mysql(void)
 	/* Create the SYS_FOREIGN and SYS_FOREIGN_COLS system tables */
 	err = dict_create_or_check_foreign_constraint_tables();
 	if (err != DB_SUCCESS) {
-		return((int)DB_ERROR);
+		return(DB_ERROR);
 	}
 
 	srv_is_being_started = FALSE;
@@ -2433,7 +2436,7 @@ innobase_start_or_create_for_mysql(void)
 	in a separate background thread. */
 	fts_optimize_init();
 
-	return((int) DB_SUCCESS);
+	return(DB_SUCCESS);
 }
 
 #if 0
@@ -2470,7 +2473,7 @@ srv_fts_close(void)
 Shuts down the InnoDB database.
 @return	DB_SUCCESS or error code */
 UNIV_INTERN
-int
+dberr_t
 innobase_shutdown_for_mysql(void)
 /*=============================*/
 {
@@ -2658,7 +2661,7 @@ innobase_shutdown_for_mysql(void)
 	srv_was_started = FALSE;
 	srv_start_has_been_called = FALSE;
 
-	return((int) DB_SUCCESS);
+	return(DB_SUCCESS);
 }
 #endif /* !UNIV_HOTBACKUP */
 

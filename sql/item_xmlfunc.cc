@@ -1167,7 +1167,7 @@ static Item *create_func_string_length(MY_XPATH *xpath, Item **args, uint nargs)
 
 static Item *create_func_round(MY_XPATH *xpath, Item **args, uint nargs)
 {
-  return new Item_func_round(args[0], new Item_int((char*)"0",0,1),0);
+  return new Item_func_round(args[0], new Item_int_0(), 0);
 }
 
 
@@ -2485,7 +2485,7 @@ my_xpath_parse_VariableReference(MY_XPATH *xpath)
   name.str= (char*) xpath->prevtok.beg;
   
   if (user_var)
-    xpath->item= new Item_func_get_user_var(name);
+    xpath->item= new Item_func_get_user_var(NameString(name, false));
   else
   {
     sp_variable *spv;
@@ -2495,7 +2495,8 @@ my_xpath_parse_VariableReference(MY_XPATH *xpath)
         (spc= lex->get_sp_current_parsing_ctx()) &&
         (spv= spc->find_variable(name, false)))
     {
-      Item_splocal *splocal= new Item_splocal(name, spv->offset, spv->type, 0);
+      Item_splocal *splocal= new Item_splocal(NameString(name, false),
+                                              spv->offset, spv->type, 0);
 #ifndef DBUG_OFF
       if (splocal)
         splocal->m_sp= lex->sphead;

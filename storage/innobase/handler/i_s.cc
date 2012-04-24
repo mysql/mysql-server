@@ -39,6 +39,7 @@ Created July 18, 2007 Vasil Dimov
 #include "btr0types.h"
 #include "buf0buddy.h"	/* for i_s_cmpmem */
 #include "buf0buf.h"	/* for buf_pool */
+#include "dict0dict.h"	/* for dict_table_stats_lock() */
 #include "dict0load.h"	/* for file sys_tables related info. */
 #include "dict0mem.h"
 #include "dict0types.h"
@@ -2607,7 +2608,7 @@ i_s_fts_deleted_generic_fill(
 
 	deleted = fts_doc_ids_create();
 
-	user_table = dict_table_open_on_name_no_stats(
+	user_table = dict_table_open_on_name(
 		fts_internal_tbl_name, FALSE, FALSE, DICT_ERR_IGNORE_NONE);
 
 	if (!user_table) {
@@ -2847,7 +2848,7 @@ i_s_fts_inserted_fill(
 		DBUG_RETURN(0);
 	}
 
-	user_table = dict_table_open_on_name_no_stats(
+	user_table = dict_table_open_on_name(
 		fts_internal_tbl_name, FALSE, FALSE, DICT_ERR_IGNORE_NONE);
 
 	if (!user_table) {
@@ -3126,7 +3127,7 @@ i_s_fts_index_cache_fill(
 		DBUG_RETURN(0);
 	}
 
-	user_table = dict_table_open_on_name_no_stats(
+	user_table = dict_table_open_on_name(
 		fts_internal_tbl_name, FALSE, FALSE, DICT_ERR_IGNORE_NONE);
 
 	if (!user_table) {
@@ -3437,7 +3438,7 @@ i_s_fts_index_table_fill(
 		DBUG_RETURN(0);
 	}
 
-	user_table = dict_table_open_on_name_no_stats(
+	user_table = dict_table_open_on_name(
 		fts_internal_tbl_name, FALSE, FALSE, DICT_ERR_IGNORE_NONE);
 
 	if (!user_table) {
@@ -3598,7 +3599,7 @@ i_s_fts_config_fill(
 
 	fields = table->field;
 
-	user_table = dict_table_open_on_name_no_stats(
+	user_table = dict_table_open_on_name(
 		fts_internal_tbl_name, FALSE, FALSE, DICT_ERR_IGNORE_NONE);
 
 	if (!user_table) {
@@ -5511,11 +5512,10 @@ i_s_common_deinit(
 	DBUG_RETURN(0);
 }
 
-/**  SYS_TABLES  ***************************************************/
 /* Fields of the dynamic table INFORMATION_SCHEMA.SYS_TABLES */
 static ST_FIELD_INFO	innodb_sys_tables_fields_info[] =
 {
-#define SYS_TABLES_ID			0
+#define SYS_TABLE_ID		0
 	{STRUCT_FLD(field_name,		"TABLE_ID"),
 	 STRUCT_FLD(field_length,	MY_INT64_NUM_DECIMAL_DIGITS),
 	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONGLONG),
@@ -5524,7 +5524,7 @@ static ST_FIELD_INFO	innodb_sys_tables_fields_info[] =
 	 STRUCT_FLD(old_name,		""),
 	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
 
-#define SYS_TABLES_NAME			1
+#define SYS_TABLE_NAME		1
 	{STRUCT_FLD(field_name,		"NAME"),
 	 STRUCT_FLD(field_length,	MAX_FULL_NAME_LEN + 1),
 	 STRUCT_FLD(field_type,		MYSQL_TYPE_STRING),
@@ -5533,7 +5533,7 @@ static ST_FIELD_INFO	innodb_sys_tables_fields_info[] =
 	 STRUCT_FLD(old_name,		""),
 	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
 
-#define SYS_TABLES_FLAG			2
+#define SYS_TABLE_FLAG		2
 	{STRUCT_FLD(field_name,		"FLAG"),
 	 STRUCT_FLD(field_length,	MY_INT32_NUM_DECIMAL_DIGITS),
 	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONG),
@@ -5542,7 +5542,7 @@ static ST_FIELD_INFO	innodb_sys_tables_fields_info[] =
 	 STRUCT_FLD(old_name,		""),
 	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
 
-#define SYS_TABLES_NUM_COLUMN		3
+#define SYS_TABLE_NUM_COLUMN	3
 	{STRUCT_FLD(field_name,		"N_COLS"),
 	 STRUCT_FLD(field_length,	MY_INT32_NUM_DECIMAL_DIGITS),
 	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONG),
@@ -5551,7 +5551,7 @@ static ST_FIELD_INFO	innodb_sys_tables_fields_info[] =
 	 STRUCT_FLD(old_name,		""),
 	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
 
-#define SYS_TABLES_SPACE		4
+#define SYS_TABLE_SPACE		4
 	{STRUCT_FLD(field_name,		"SPACE"),
 	 STRUCT_FLD(field_length,	MY_INT32_NUM_DECIMAL_DIGITS),
 	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONG),
@@ -5581,15 +5581,15 @@ i_s_dict_fill_sys_tables(
 
 	fields = table_to_fill->field;
 
-	OK(fields[SYS_TABLES_ID]->store(longlong(table->id), TRUE));
+	OK(fields[SYS_TABLE_ID]->store(longlong(table->id), TRUE));
 
-	OK(field_store_string(fields[SYS_TABLES_NAME], table->name));
+	OK(field_store_string(fields[SYS_TABLE_NAME], table->name));
 
-	OK(fields[SYS_TABLES_FLAG]->store(table->flags));
+	OK(fields[SYS_TABLE_FLAG]->store(table->flags));
 
-	OK(fields[SYS_TABLES_NUM_COLUMN]->store(table->n_cols));
+	OK(fields[SYS_TABLE_NUM_COLUMN]->store(table->n_cols));
 
-	OK(fields[SYS_TABLES_SPACE]->store(table->space));
+	OK(fields[SYS_TABLE_SPACE]->store(table->space));
 
 	OK(schema_table_store_record(thd, table_to_fill));
 
@@ -5742,7 +5742,6 @@ UNIV_INTERN struct st_mysql_plugin	i_s_innodb_sys_tables =
 	STRUCT_FLD(flags, 0UL),
 };
 
-/**  SYS_TABLESTATS  ***********************************************/
 /* Fields of the dynamic table INFORMATION_SCHEMA.SYS_TABLESTATS */
 static ST_FIELD_INFO	innodb_sys_tablestats_fields_info[] =
 {
@@ -5852,24 +5851,37 @@ i_s_dict_fill_sys_tablestats(
 
 	OK(field_store_string(fields[SYS_TABLESTATS_NAME], table->name));
 
+	dict_table_stats_lock(table, RW_S_LATCH);
+
 	if (table->stat_initialized) {
 		OK(field_store_string(fields[SYS_TABLESTATS_INIT],
 				      "Initialized"));
+
+		OK(fields[SYS_TABLESTATS_NROW]->store(table->stat_n_rows,
+						      TRUE));
+
+		OK(fields[SYS_TABLESTATS_CLUST_SIZE]->store(
+				table->stat_clustered_index_size));
+
+		OK(fields[SYS_TABLESTATS_INDEX_SIZE]->store(
+				table->stat_sum_of_other_index_sizes));
+
+		OK(fields[SYS_TABLESTATS_MODIFIED]->store(
+				table->stat_modified_counter));
 	} else {
 		OK(field_store_string(fields[SYS_TABLESTATS_INIT],
 				      "Uninitialized"));
+
+		OK(fields[SYS_TABLESTATS_NROW]->store(0, TRUE));
+
+		OK(fields[SYS_TABLESTATS_CLUST_SIZE]->store(0));
+
+		OK(fields[SYS_TABLESTATS_INDEX_SIZE]->store(0));
+
+		OK(fields[SYS_TABLESTATS_MODIFIED]->store(0));
 	}
 
-	OK(fields[SYS_TABLESTATS_NROW]->store(table->stat_n_rows, TRUE));
-
-	OK(fields[SYS_TABLESTATS_CLUST_SIZE]->store(
-		table->stat_clustered_index_size));
-
-	OK(fields[SYS_TABLESTATS_INDEX_SIZE]->store(
-		table->stat_sum_of_other_index_sizes));
-
-	OK(fields[SYS_TABLESTATS_MODIFIED]->store(
-		table->stat_modified_counter));
+	dict_table_stats_unlock(table, RW_S_LATCH);
 
 	OK(fields[SYS_TABLESTATS_AUTONINC]->store(table->autoinc, TRUE));
 
@@ -6022,7 +6034,6 @@ UNIV_INTERN struct st_mysql_plugin	i_s_innodb_sys_tablestats =
 	STRUCT_FLD(flags, 0UL),
 };
 
-/**  SYS_INDEXES  **************************************************/
 /* Fields of the dynamic table INFORMATION_SCHEMA.SYS_INDEXES */
 static ST_FIELD_INFO	innodb_sysindex_fields_info[] =
 {
@@ -6282,8 +6293,7 @@ UNIV_INTERN struct st_mysql_plugin	i_s_innodb_sys_indexes =
 	STRUCT_FLD(flags, 0UL),
 };
 
-/**  SYS_COLUMNS  **************************************************/
-/* Fields of the dynamic table INFORMATION_SCHEMA.INNODB_SYS_COLUMNS */
+/* Fields of the dynamic table INFORMATION_SCHEMA.SYS_COLUMNS */
 static ST_FIELD_INFO	innodb_sys_columns_fields_info[] =
 {
 #define SYS_COLUMN_TABLE_ID		0
@@ -6521,9 +6531,7 @@ UNIV_INTERN struct st_mysql_plugin	i_s_innodb_sys_columns =
 	/* unsigned long */
 	STRUCT_FLD(flags, 0UL),
 };
-
-/**  SYS_FIELDS  ***************************************************/
-/* Fields of the dynamic table INFORMATION_SCHEMA.INNODB_SYS_FIELDS */
+/* Fields of the dynamic table INFORMATION_SCHEMA.innodb_sys_fields */
 static ST_FIELD_INFO	innodb_sys_fields_fields_info[] =
 {
 #define SYS_FIELD_INDEX_ID	0
@@ -6735,8 +6743,7 @@ UNIV_INTERN struct st_mysql_plugin	i_s_innodb_sys_fields =
 	STRUCT_FLD(flags, 0UL),
 };
 
-/**  SYS_FOREIGN        ********************************************/
-/* Fields of the dynamic table INFORMATION_SCHEMA.INNODB_SYS_FOREIGN */
+/* Fields of the dynamic table INFORMATION_SCHEMA.innodb_sys_foreign */
 static ST_FIELD_INFO	innodb_sys_foreign_fields_info[] =
 {
 #define SYS_FOREIGN_ID		0
@@ -6821,7 +6828,6 @@ i_s_dict_fill_sys_foreign(
 
 	DBUG_RETURN(0);
 }
-
 /*******************************************************************//**
 Function to populate INFORMATION_SCHEMA.innodb_sys_foreign table. Loop
 through each record in SYS_FOREIGN, and extract the foreign key
@@ -6888,7 +6894,6 @@ i_s_sys_foreign_fill_table(
 
 	DBUG_RETURN(0);
 }
-
 /*******************************************************************//**
 Bind the dynamic table INFORMATION_SCHEMA.innodb_sys_foreign
 @return 0 on success */
@@ -6962,9 +6967,7 @@ UNIV_INTERN struct st_mysql_plugin	i_s_innodb_sys_foreign =
 	/* unsigned long */
 	STRUCT_FLD(flags, 0UL),
 };
-
-/**  SYS_FOREIGN_COLS   ********************************************/
-/* Fields of the dynamic table INFORMATION_SCHEMA.INNODB_SYS_FOREIGN_COLS */
+/* Fields of the dynamic table INFORMATION_SCHEMA.innodb_sys_foreign_cols */
 static ST_FIELD_INFO	innodb_sys_foreign_cols_fields_info[] =
 {
 #define SYS_FOREIGN_COL_ID		0

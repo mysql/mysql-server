@@ -1,4 +1,4 @@
-/* Copyright (c) 2007, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2007, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -23,6 +23,8 @@
 #include "sql_connect.h"         // init_new_connection_handler_thread
 #include "scheduler.h"
 #include "sql_callback.h"
+#include "global_threads.h"
+#include "mysql/thread_pool_priv.h"
 
 /*
   End connection, in case when we are using 'no-threads'
@@ -30,8 +32,15 @@
 
 static bool no_threads_end(THD *thd, bool put_in_cache)
 {
-  unlink_thd(thd);
+  thd_cleanup(thd);
+  dec_connection_count();
+
+  // THD is an incomplete type here, so use destroy_thd() to delete it.
+  mysql_mutex_lock(&LOCK_thread_count);
+  remove_global_thread(thd);
   mysql_mutex_unlock(&LOCK_thread_count);
+  destroy_thd(thd);
+
   return 1;                                     // Abort handle_one_connection
 }
 

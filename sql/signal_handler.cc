@@ -114,7 +114,7 @@ extern "C" sig_handler handle_fatal_signal(int sig)
   my_safe_printf_stderr("max_threads=%u\n",
                         (uint) thread_scheduler->max_threads);
 
-  my_safe_printf_stderr("thread_count=%u\n", (uint) thread_count);
+  my_safe_printf_stderr("thread_count=%u\n", get_thread_count());
 
   my_safe_printf_stderr("connection_count=%u\n", (uint) connection_count);
 
