@@ -99,6 +99,7 @@ public:
   void getPtr(ConstPtr<T> &) const;
   void getPtr(Ptr<T> &, bool CrashOnBoundaryError);
   void getPtr(ConstPtr<T> &, bool CrashOnBoundaryError) const;
+  void getPtrIgnoreAlloc(Ptr<T> &);
   
   /**
    * Get pointer for i value
@@ -721,6 +722,26 @@ ArrayPool<T>::getConstPtr(Uint32 i, bool CrashOnBoundaryError) const {
     return &theArray[i];
   } else {
     return 0;
+  }
+}
+
+/**
+   getPtrIgnoreAlloc
+
+   getPtr, without array_guard /theAllocatedBitmask checks
+   Useful when looking at elements in the pool which may or may not
+   be allocated.
+   Retains the range check.
+*/
+template <class T>
+inline
+void
+ArrayPool<T>::getPtrIgnoreAlloc(Ptr<T> & ptr){
+  Uint32 i = ptr.i;
+  if(likely (i < size)){
+    ptr.p = &theArray[i];
+  } else {
+    ErrorReporter::handleAssert("ArrayPool<T>::getPtr", __FILE__, __LINE__);
   }
 }
   
