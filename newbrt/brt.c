@@ -227,7 +227,7 @@ toku_brt_header_suppress_rollbacks(struct brt_header *h, TOKUTXN txn) {
     h->root_that_created_or_locked_when_empty  = rootid;
 }
 
-static bool is_entire_node_in_memory(BRTNODE node) {
+bool is_entire_node_in_memory(BRTNODE node) {
     for (int i = 0; i < node->n_children; i++) {
         if(BP_STATE(node,i) != PT_AVAIL) {
             return false;

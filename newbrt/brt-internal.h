@@ -491,6 +491,7 @@ void destroy_basement_node (BASEMENTNODE bn);
 void destroy_nonleaf_childinfo (NONLEAF_CHILDINFO nl);
 void toku_destroy_brtnode_internals(BRTNODE node);
 void toku_brtnode_free (BRTNODE *node);
+bool is_entire_node_in_memory(BRTNODE node);
 void toku_assert_entire_node_in_memory(BRTNODE node);
 // FIXME needs toku prefix
 void bring_node_fully_into_memory(BRTNODE node, struct brt_header* h);
