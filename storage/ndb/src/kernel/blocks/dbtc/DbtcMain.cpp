@@ -13289,6 +13289,12 @@ void Dbtc::execDBINFO_SCANREQ(Signal *signal)
         0,
         { CFG_DB_NO_TRANSACTIONS,
           CFG_DB_NO_OPS,0,0 }},
+      { "TC Scan Record",  /* TC redundantly included to improve readability */
+        cConcScanCount,
+        cscanrecFileSize,
+        sizeof(ScanRecord),
+        0, /* No HWM */
+        {CFG_DB_NO_SCANS, 0, 0, 0}},
       { NULL, 0,0,0,0,{0,0,0,0} }
     };
 
