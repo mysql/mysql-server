@@ -28,7 +28,7 @@
 // name/value pair
 struct Constant {
     const char * const name;
-    const long long value;
+    const int64_t value;
 };
 
 // the list of defined constants
@@ -432,7 +432,7 @@ static Constant constants[] = {
     { "", UNKNOWN_CONSTANT } // last entry
 };
 
-long long nativeConstValue(const char * p0) {
+int64_t nativeConstValue(const char * p0) {
     assert(p0);
     const int n = sizeof(constants) / sizeof(constants[0]);
     for (int i = 0; i < n; i++) {
