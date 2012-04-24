@@ -10574,6 +10574,8 @@ void Dbtc::execSCAN_TABREQ(Signal* signal)
   if (unlikely(errCode))
   {
     jam();
+    transP->apiScanRec = scanptr.i;
+    releaseScanResources(signal, scanptr, true /* NotStarted */);
     goto SCAN_TAB_error;
   }
 
@@ -10643,6 +10645,7 @@ void Dbtc::execSCAN_TABREQ(Signal* signal)
     goto SCAN_TAB_error;
   }//if
   ndbrequire(cfirstfreeScanrec == RNIL);
+  ndbrequire(cConcScanCount == cscanrecFileSize);
   jam();
   errCode = ZNO_SCANREC_ERROR;
   goto SCAN_TAB_error;
@@ -10713,7 +10716,7 @@ Dbtc::initScanrec(ScanRecordPtr scanptr,
   scanptr.p->scanStoredProcId = scanTabReq->storedProcId;
   scanptr.p->scanState = ScanRecord::RUNNING;
   scanptr.p->m_queued_count = 0;
-  scanptr.p->m_scan_cookie = RNIL;
+  scanptr.p->m_scan_cookie = DihScanTabConf::InvalidCookie;
   scanptr.p->m_close_scan_req = false;
   scanptr.p->m_pass_all_confs =  ScanTabReq::getPassAllConfsFlag(ri);
   scanptr.p->m_4word_conf = ScanTabReq::get4WordConf(ri);
@@ -10723,7 +10726,8 @@ Dbtc::initScanrec(ScanRecordPtr scanptr,
   for (Uint32 i = 0; i < scanParallel; i++) {
     jam();
     ScanFragRecPtr ptr;
-    if (unlikely(list.seize(ptr) == false))
+    if (unlikely((list.seize(ptr) == false) ||
+                 ERROR_INSERTED(8093)))
     {
       jam();
       goto errout;
@@ -10872,6 +10876,7 @@ void Dbtc::diFcountReqLab(Signal* signal, ScanRecordPtr scanptr)
   /*************************************************
    * THE FIRST STEP TO RECEIVE IS SUCCESSFULLY COMPLETED.
    ***************************************************/
+  ndbassert(scanptr.p->m_scan_cookie == DihScanTabConf::InvalidCookie);
   DihScanTabReq * req = (DihScanTabReq*)signal->getDataPtrSend();
   req->senderRef = reference();
   req->senderData = tcConnectptr.i;
@@ -10906,6 +10911,7 @@ void Dbtc::execDIH_SCAN_TAB_CONF(Signal* signal)
   ptrCheckGuard(scanptr, cscanrecFileSize, scanRecord);
   ndbrequire(scanptr.p->scanState == ScanRecord::WAIT_FRAGMENT_COUNT);
   scanptr.p->m_scan_cookie = conf->scanCookie;
+  ndbrequire(scanptr.p->m_scan_cookie != DihScanTabConf::InvalidCookie);
 
   if (conf->reorgFlag)
   {
@@ -11089,18 +11095,24 @@ void Dbtc::releaseScanResources(Signal* signal,
   ndbassert(scanPtr.p->scanApiRec == apiConnectptr.i);
   ndbassert(apiConnectptr.p->apiScanRec == scanPtr.i);
 
-  DihScanTabCompleteRep* rep = (DihScanTabCompleteRep*)signal->getDataPtrSend();
-  rep->tableId = scanPtr.p->scanTableref;
-  rep->scanCookie = scanPtr.p->m_scan_cookie;
-  sendSignal(cdihblockref, GSN_DIH_SCAN_TAB_COMPLETE_REP,
-	     signal, DihScanTabCompleteRep::SignalLength, JBB);
-  
+  if (scanPtr.p->m_scan_cookie != DihScanTabConf::InvalidCookie)
+  {
+    /* Cookie was requested, 'return' it */
+    DihScanTabCompleteRep* rep = (DihScanTabCompleteRep*)signal->getDataPtrSend();
+    rep->tableId = scanPtr.p->scanTableref;
+    rep->scanCookie = scanPtr.p->m_scan_cookie;
+    sendSignal(cdihblockref, GSN_DIH_SCAN_TAB_COMPLETE_REP,
+               signal, DihScanTabCompleteRep::SignalLength, JBB);
+    scanPtr.p->m_scan_cookie = DihScanTabConf::InvalidCookie;
+  }
+    
   // link into free list
   scanPtr.p->nextScan = cfirstfreeScanrec;
   scanPtr.p->scanState = ScanRecord::IDLE;
   scanPtr.p->scanTcrec = RNIL;
   scanPtr.p->scanApiRec = RNIL;
   cfirstfreeScanrec = scanPtr.i;
+  cConcScanCount--;
   
   apiConnectptr.p->apiScanRec = RNIL;
   apiConnectptr.p->apiConnectstate = CS_CONNECTED;
@@ -11885,6 +11897,7 @@ Dbtc::seizeScanrec(Signal* signal) {
   ptrCheckGuard(scanptr, cscanrecFileSize, scanRecord);
   cfirstfreeScanrec = scanptr.p->nextScan;
   scanptr.p->nextScan = RNIL;
+  cConcScanCount++;
   ndbrequire(scanptr.p->scanState == ScanRecord::IDLE);
   return scanptr;
 }//Dbtc::seizeScanrec()
@@ -12405,6 +12418,7 @@ void Dbtc::initialiseScanrec(Signal* signal)
   ptrAss(scanptr, scanRecord);
   scanptr.p->nextScan = RNIL;
   cfirstfreeScanrec = 0;
+  cConcScanCount = 0;
 }//Dbtc::initialiseScanrec()
 
 void Dbtc::initialiseScanFragrec(Signal* signal) 
@@ -13188,6 +13202,33 @@ Dbtc::execDUMP_STATE_ORD(Signal* signal)
       warningEvent(" DBTC: dump-7019 to unknown node: %u", nodeId);
     }
   }
+
+  if (arg == DumpStateOrd::TcResourceSnapshot)
+  {
+    RSS_OP_SNAPSHOT_SAVE(cConcScanCount);
+    RSS_AP_SNAPSHOT_SAVE(c_scan_frag_pool);
+    RSS_AP_SNAPSHOT_SAVE(c_theDefinedTriggerPool);
+    RSS_AP_SNAPSHOT_SAVE(c_theFiredTriggerPool);
+    RSS_AP_SNAPSHOT_SAVE(c_theIndexPool);
+    RSS_AP_SNAPSHOT_SAVE(m_commitAckMarkerPool);
+    RSS_AP_SNAPSHOT_SAVE(c_theIndexOperationPool);
+#ifdef ERROR_INSERT
+    rss_cconcurrentOp = c_counters.cconcurrentOp;
+#endif
+  }
+  if (arg == DumpStateOrd::TcResourceCheckLeak)
+  {
+    RSS_OP_SNAPSHOT_CHECK(cConcScanCount);
+    RSS_AP_SNAPSHOT_CHECK(c_scan_frag_pool);
+    RSS_AP_SNAPSHOT_CHECK(c_theDefinedTriggerPool);
+    RSS_AP_SNAPSHOT_CHECK(c_theFiredTriggerPool);
+    RSS_AP_SNAPSHOT_CHECK(c_theIndexPool);
+    RSS_AP_SNAPSHOT_CHECK(m_commitAckMarkerPool);
+    RSS_AP_SNAPSHOT_CHECK(c_theIndexOperationPool);
+#ifdef ERROR_INSERT
+    ndbrequire(rss_cconcurrentOp == c_counters.cconcurrentOp);
+#endif
+  }
 }//Dbtc::execDUMP_STATE_ORD()
 
 void Dbtc::execDBINFO_SCANREQ(Signal *signal)
@@ -13249,6 +13290,12 @@ void Dbtc::execDBINFO_SCANREQ(Signal *signal)
         0,
         { CFG_DB_NO_TRANSACTIONS,
           CFG_DB_NO_OPS,0,0 }},
+      { "TC Scan Record",  /* TC redundantly included to improve readability */
+        cConcScanCount,
+        cscanrecFileSize,
+        sizeof(ScanRecord),
+        0, /* No HWM */
+        {CFG_DB_NO_SCANS, 0, 0, 0}},
       { NULL, 0,0,0,0,{0,0,0,0} }
     };
 
