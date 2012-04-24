@@ -489,22 +489,24 @@ static ENGINE_ERROR_CODE ndb_get_stats(ENGINE_HANDLE* handle,
     
   DEBUG_ENTER(); 
   
-  if(stat_key && 
-     ((strncasecmp(stat_key, "ndb", 3) == 0)       || 
-      (strncasecmp(stat_key, "scheduler", 9) == 0) ||
-      (strncasecmp(stat_key, "reconf", 6) == 0)    ||
-      (strncasecmp(stat_key, "errors", 6) == 0)
-    ))
-  {
-    /* NDB Engine stats */
-    pipeline_add_stats(pipeline, stat_key, add_stat, cookie);
-    return ENGINE_SUCCESS;
+  if(stat_key) { 
+    if(strncasecmp(stat_key, "menu", 4) == 0)
+      return stats_menu(add_stat, cookie);
+  
+  if((strncasecmp(stat_key, "ndb", 3) == 0)       || 
+     (strncasecmp(stat_key, "scheduler", 9) == 0) ||
+     (strncasecmp(stat_key, "reconf", 6) == 0)    ||
+     (strncasecmp(stat_key, "errors", 6) == 0))
+    {
+      /* NDB Engine stats */
+      pipeline_add_stats(pipeline, stat_key, add_stat, cookie);
+      return ENGINE_SUCCESS;
+    }
   }
-  else {      
-    /* Default engine stats */
-    return def_eng->engine.get_stats(ndb_eng->m_default_engine, cookie,
-                                     stat_key, nkey, add_stat);
-  }
+
+  /* Default engine stats */
+  return def_eng->engine.get_stats(ndb_eng->m_default_engine, cookie,
+                                   stat_key, nkey, add_stat);
 }
 
 
@@ -838,5 +840,66 @@ int fetch_core_settings(struct ndb_engine *engine,
   
   /* This will call "stats settings" and parse the output into the config */
   return se->server.core->get_config(items);
+}
+
+
+ENGINE_ERROR_CODE stats_menu(ADD_STAT add_stat, const void *cookie) {
+  char key[128];
+  char val[128];
+  int klen, vlen;
+  
+  klen = sprintf(key, "ndb");
+  vlen = sprintf(val, "          NDB Engine: NDBAPI statistics");
+  add_stat(key, klen, val, vlen, cookie);
+  
+  klen = sprintf(key, "errors");
+  vlen = sprintf(val, "       NDB Engine: Error message counters");
+  add_stat(key, klen, val, vlen, cookie);
+
+  klen = sprintf(key, "scheduler");
+  vlen = sprintf(val, "    NDB Engine: Scheduler internal statistics");
+  add_stat(key, klen, val, vlen, cookie);
+  
+  klen = sprintf(key, "reconf");
+  vlen = sprintf(val, "       NDB Engine: Current configuration version");
+  add_stat(key, klen, val, vlen, cookie);
+  
+  klen = sprintf(key, "settings");
+  vlen = sprintf(val, "     Server core: configurable settings");
+  add_stat(key, klen, val, vlen, cookie);
+  
+  klen = sprintf(key, "reset");
+  vlen = sprintf(val, "        Server core: reset counters");
+  add_stat(key, klen, val, vlen, cookie);
+
+  klen = sprintf(key, "detail");
+  vlen = sprintf(val, "       Server core: use stats detail on|off|dump");
+  add_stat(key, klen, val, vlen, cookie);
+   
+  klen = sprintf(key, "aggregate");
+  vlen = sprintf(val, "    Server core: aggregated");
+  add_stat(key, klen, val, vlen, cookie);
+  
+  klen = sprintf(key, "slabs");
+  vlen = sprintf(val, "        Cache Engine: allocator");
+  add_stat(key, klen, val, vlen, cookie);  
+  
+  klen = sprintf(key, "items");
+  vlen = sprintf(val, "        Cache Engine: itemes cached");
+  add_stat(key, klen, val, vlen, cookie);  
+
+  klen = sprintf(key, "sizes");
+  vlen = sprintf(val, "        Cache Engine: items per allocation class");
+  add_stat(key, klen, val, vlen, cookie);  
+
+  klen = sprintf(key, "vbucket");
+  vlen = sprintf(val, "      Cache Engine: dump vbucket table");
+  add_stat(key, klen, val, vlen, cookie);  
+
+  klen = sprintf(key, "scrub");
+  vlen = sprintf(val, "        Cache Engine: scrubber status");
+  add_stat(key, klen, val, vlen, cookie);
+  
+  return ENGINE_SUCCESS;
 }
 
