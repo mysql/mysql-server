@@ -18,14 +18,16 @@
  * ndbjtie_unit_tests_consts.hpp
  */
 
+#include "jtie_stdint.h"
+
 #ifndef ndbjtie_unit_tests_consts_hpp
 #define ndbjtie_unit_tests_consts_hpp
 
 // magic value if a constant name is unknown
-const long long UNKNOWN_CONSTANT = 0x0abcdef00fedcba0;
+const int64_t UNKNOWN_CONSTANT = 0x0abcdef00fedcba0LL;
 
 // Returns the integral value of a constant passed by its qualified JVM name,
 // or UNKNOWN_CONSTANT if the passed name is unknown to this function.
-extern long long nativeConstValue(const char * p0);
+extern int64_t nativeConstValue(const char * p0);
 
 #endif // ndbjtie_unit_tests_consts_hpp
