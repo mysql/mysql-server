@@ -5152,6 +5152,7 @@ btr_copy_zblob_prefix(
 				" page %lu space %lu\n",
 				(ulong) fil_page_get_type(bpage->zip.data),
 				(ulong) page_no, (ulong) space_id);
+			ut_ad(0);
 			goto end_of_blob;
 		}
 
