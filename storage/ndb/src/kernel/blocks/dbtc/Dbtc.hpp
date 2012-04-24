@@ -357,6 +357,7 @@ public:
    * Pool of trigger data record
    */
   ArrayPool<TcDefinedTriggerData> c_theDefinedTriggerPool;
+  RSS_AP_SNAPSHOT(c_theDefinedTriggerPool);
 
   /**
    * The list of active triggers
@@ -455,6 +456,7 @@ public:
   ArrayPool<TcFiredTriggerData> c_theFiredTriggerPool;
   DLHashTable<TcFiredTriggerData> c_firedTriggerHash;
   AttributeBuffer::DataBufferPool c_theTriggerAttrInfoPool;
+  RSS_AP_SNAPSHOT(c_theFiredTriggerPool);
 
   Uint32 c_maxNumberOfDefinedTriggers;
   Uint32 c_maxNumberOfFiredTriggers;
@@ -534,6 +536,7 @@ public:
    * Pool of index data record
    */
   ArrayPool<TcIndexData> c_theIndexPool;
+  RSS_AP_SNAPSHOT(c_theIndexPool);
   
   /**
    * The list of defined indexes
@@ -590,6 +593,7 @@ public:
    * Pool of index data record
    */
   ArrayPool<TcIndexOperation> c_theIndexOperationPool;
+  RSS_AP_SNAPSHOT(c_theIndexOperationPool);
 
   UintR c_maxNumberOfIndexOperations;   
 
@@ -1734,7 +1738,8 @@ private:
       return 11;
     }
   } c_counters;
-  
+  RSS_OP_SNAPSHOT(cconcurrentOp);
+
   Uint16 cownNodeid;
   Uint16 terrorCode;
 
@@ -1747,6 +1752,8 @@ private:
   UintR clastgcp;
   UintR cfirstfreeGcp;
   UintR cfirstfreeScanrec;
+  UintR cConcScanCount;
+  RSS_OP_SNAPSHOT(cConcScanCount);
 
   TableRecordPtr tabptr;
   UintR cfirstfreeApiConnectFail;
@@ -1762,6 +1769,7 @@ private:
   UintR cscanrecFileSize;
 
   UnsafeArrayPool<ScanFragRec> c_scan_frag_pool;
+  RSS_AP_SNAPSHOT(c_scan_frag_pool);
   ScanFragRecPtr scanFragptr;
 
   UintR cscanFragrecFileSize;
@@ -1864,6 +1872,7 @@ private:
   
   ArrayPool<CommitAckMarker>   m_commitAckMarkerPool;
   DLHashTable<CommitAckMarker> m_commitAckMarkerHash;
+  RSS_AP_SNAPSHOT(m_commitAckMarkerPool);
   
   void execTC_COMMIT_ACK(Signal* signal);
   void sendRemoveMarkers(Signal*, const CommitAckMarker *);
