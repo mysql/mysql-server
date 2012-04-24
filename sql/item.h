@@ -3811,6 +3811,15 @@ public:
   bool cmp(void);
 };
 
+class Cached_item_temporal :public Cached_item
+{
+  Item *item;
+  longlong value;
+public:
+  Cached_item_temporal(Item *item_par) :item(item_par), value(0) {}
+  bool cmp(void);
+};
+
 
 class Cached_item_decimal :public Cached_item
 {

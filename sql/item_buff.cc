@@ -49,6 +49,8 @@ Cached_item *new_Cached_item(THD *thd, Item *item, bool use_result_field)
   }
   switch (item->result_type()) {
   case STRING_RESULT:
+    if (item->is_temporal())
+      return new Cached_item_temporal((Item_field *) item);
     return new Cached_item_str(thd, (Item_field *) item);
   case INT_RESULT:
     return new Cached_item_int((Item_field *) item);
@@ -84,6 +86,7 @@ bool Cached_item_str::cmp(void)
   bool tmp;
 
   DBUG_ENTER("Cached_item_str::cmp");
+  DBUG_ASSERT(!item->is_temporal());
   if ((res=item->val_str(&tmp_value)))
     res->length(min(res->length(), value_max_length));
   DBUG_PRINT("info", ("old: %s, new: %s",
@@ -131,6 +134,21 @@ bool Cached_item_int::cmp(void)
   {
     null_value= item->null_value;
     value=nr;
+    DBUG_RETURN(TRUE);
+  }
+  DBUG_RETURN(FALSE);
+}
+
+
+bool Cached_item_temporal::cmp(void)
+{
+  DBUG_ENTER("Cached_item_temporal::cmp");
+  longlong nr= item->val_temporal_by_field_type();
+  DBUG_PRINT("info", ("old: %lld, new: %lld", value, nr)); 
+  if (null_value != item->null_value || nr != value)
+  {
+    null_value= item->null_value;
+    value= nr;
     DBUG_RETURN(TRUE);
   }
   DBUG_RETURN(FALSE);
