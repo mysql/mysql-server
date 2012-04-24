@@ -1037,6 +1037,7 @@ public:
     /* The item could be a NULL constant. */
     null_value= args[0]->is_null();
   }
+  enum_field_types field_type() const { return args[0]->field_type(); }
 };
 
 
