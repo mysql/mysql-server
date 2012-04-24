@@ -24,6 +24,7 @@ Created 2007/03/27 Sunny Bains
 Completed 2011/7/10 Sunny and Jimmy Yang
 *******************************************************/
 
+#include "dict0dict.h" /* dict_table_get_n_rows() */
 #include "ut0rbt.h"
 #include "row0sel.h"
 #include "fts0fts.h"
@@ -3233,7 +3234,7 @@ fts_query(
 	query.word_freqs = rbt_create_arg_cmp(
 		sizeof(fts_word_freq_t), innobase_fts_string_cmp, charset);
 
-	query.total_docs = fts_get_total_document_count(index->table);
+	query.total_docs = dict_table_get_n_rows(index->table);
 
 	error = fts_get_total_word_count(trx, query.index, &query.total_words);
 

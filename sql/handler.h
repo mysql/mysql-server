@@ -404,6 +404,12 @@ enum enum_binlog_command {
 #define HA_CREATE_USED_TRANSACTIONAL    (1L << 20)
 /** Unused. Reserved for future versions. */
 #define HA_CREATE_USED_PAGE_CHECKSUM    (1L << 21)
+/** This is set whenever STATS_PERSISTENT=0|1|'default' has been
+specified in CREATE/ALTER TABLE. See also HA_OPTION_STATS_PERSISTENT in
+include/my_base.h. It is possible to distinguish whether
+STATS_PERSISTENT='default' has been specified or no STATS_PERSISTENT= is
+given at all. */
+#define HA_CREATE_USED_STATS_PERSISTENT (1L << 22)
 
 
 /*

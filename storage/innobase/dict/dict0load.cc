@@ -369,7 +369,16 @@ dict_process_sys_tables_rec_and_mtr_commit(
 		/* Update statistics member fields in *table if
 		DICT_TABLE_UPDATE_STATS is set */
 		ut_ad(mutex_own(&dict_sys->mutex));
-		dict_stats_update(*table, DICT_STATS_FETCH, TRUE);
+
+		dict_stats_upd_option_t	opt;
+
+		if (dict_stats_is_persistent_enabled(*table)) {
+			opt = DICT_STATS_FETCH_ONLY_IF_NOT_IN_MEMORY;
+		} else {
+			opt = DICT_STATS_RECALC_TRANSIENT;
+		}
+
+		dict_stats_update(*table, opt, TRUE);
 	}
 
 	return(NULL);
