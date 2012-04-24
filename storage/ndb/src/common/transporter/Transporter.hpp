@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -139,8 +139,6 @@ protected:
    */
   char remoteHostName[256];
   char localHostName[256];
-  struct in_addr remoteHostAddress;
-  struct in_addr localHostAddress;
 
   int m_s_port;
 
@@ -149,8 +147,6 @@ protected:
   
   const bool isServer;
 
-  unsigned createIndex;
-  
   int byteOrder;
   bool compressionUsed;
   bool checksumUsed;
