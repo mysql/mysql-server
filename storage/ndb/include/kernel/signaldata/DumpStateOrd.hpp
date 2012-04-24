@@ -178,7 +178,10 @@ public:
     DbinfoScanTable = 14003,
 
     SchemaResourceSnapshot = 4000, // Save resource consumption
-    SchemaResourceCheckLeak = 4001 // check same as snapshot
+    SchemaResourceCheckLeak = 4001, // check same as snapshot
+
+    TcResourceSnapshot = 2553,
+    TcResourceCheckLeak = 2554
   };
 public:
   
