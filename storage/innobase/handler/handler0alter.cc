@@ -1563,7 +1563,7 @@ col_fail:
 			dictionary cache, because we are still holding
 			the dict_sys->mutex. */
 			ut_ad(mutex_own(&dict_sys->mutex));
-			temp_table = dict_table_open_on_name_no_stats(
+			temp_table = dict_table_open_on_name(
 				indexed_table->name, TRUE, FALSE,
 				DICT_ERR_IGNORE_NONE);
 			ut_a(indexed_table == temp_table);

@@ -3474,6 +3474,9 @@ btr_estimate_n_rows_in_range(
 	ibool		is_n_rows_exact;
 	ulint		i;
 	mtr_t		mtr;
+	ib_int64_t	table_n_rows;
+
+	table_n_rows = dict_table_get_n_rows(index->table);
 
 	mtr_start(&mtr);
 
@@ -3542,16 +3545,15 @@ btr_estimate_n_rows_in_range(
 			to over 1 / 2 of the estimated rows in the whole
 			table */
 
-			if (n_rows > index->table->stat_n_rows / 2
-			    && !is_n_rows_exact) {
+			if (n_rows > table_n_rows / 2 && !is_n_rows_exact) {
 
-				n_rows = index->table->stat_n_rows / 2;
+				n_rows = table_n_rows / 2;
 
 				/* If there are just 0 or 1 rows in the table,
 				then we estimate all rows are in the range */
 
 				if (n_rows == 0) {
-					n_rows = index->table->stat_n_rows;
+					n_rows = table_n_rows;
 				}
 			}
 

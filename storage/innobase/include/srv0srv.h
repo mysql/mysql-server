@@ -248,6 +248,7 @@ extern ulint	srv_fast_shutdown;	/*!< If this is 1, do not do a
 extern ibool	srv_innodb_status;
 
 extern unsigned long long	srv_stats_transient_sample_pages;
+extern my_bool			srv_stats_persistent;
 extern unsigned long long	srv_stats_persistent_sample_pages;
 
 extern ibool	srv_use_doublewrite_buf;

@@ -1401,6 +1401,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  PARTITIONS_SYM
 %token  PARTITIONING_SYM
 %token  PASSWORD
+%token  STATS_PERSISTENT_SYM
 %token  PHASE_SYM
 %token  PLUGIN_DIR_SYM                /* INTERNAL */
 %token  PLUGIN_SYM
@@ -5653,6 +5654,27 @@ create_table_option:
             Lex->create_info.table_options&=
               ~(HA_OPTION_PACK_KEYS | HA_OPTION_NO_PACK_KEYS);
             Lex->create_info.used_fields|= HA_CREATE_USED_PACK_KEYS;
+          }
+        | STATS_PERSISTENT_SYM opt_equal ulong_num
+          {
+            switch($3) {
+            case 0:
+                Lex->create_info.table_options|= HA_OPTION_NO_STATS_PERSISTENT;
+                break;
+            case 1:
+                Lex->create_info.table_options|= HA_OPTION_STATS_PERSISTENT;
+                break;
+            default:
+                my_parse_error(ER(ER_SYNTAX_ERROR));
+                MYSQL_YYABORT;
+            }
+            Lex->create_info.used_fields|= HA_CREATE_USED_STATS_PERSISTENT;
+          }
+        | STATS_PERSISTENT_SYM opt_equal DEFAULT
+          {
+            Lex->create_info.table_options&=
+              ~(HA_OPTION_STATS_PERSISTENT | HA_OPTION_NO_STATS_PERSISTENT);
+            Lex->create_info.used_fields|= HA_CREATE_USED_STATS_PERSISTENT;
           }
         | CHECKSUM_SYM opt_equal ulong_num
           {
@@ -13675,6 +13697,7 @@ keyword_sp:
         | PARTITIONING_SYM         {}
         | PARTITIONS_SYM           {}
         | PASSWORD                 {}
+        | STATS_PERSISTENT_SYM     {}
         | PHASE_SYM                {}
         | PLUGIN_DIR_SYM           {}
         | PLUGIN_SYM               {}
