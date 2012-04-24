@@ -2485,6 +2485,7 @@ fts_ast_visit_sub_exp(
 	ib_rbt_t*		subexpr_doc_ids;
 	dberr_t			error = DB_SUCCESS;
 	ibool			inited = query->inited;
+	bool			will_be_ignored = false;
 
 	ut_a(node->type == FTS_AST_SUBEXP_LIST);
 
@@ -2512,7 +2513,8 @@ fts_ast_visit_sub_exp(
 
 	/* Process nodes in current sub-expression and store its
 	result set in query->doc_ids we created above. */
-	error = fts_ast_visit(FTS_NONE, node->next, visitor, arg);
+	error = fts_ast_visit(FTS_NONE, node->next, visitor,
+			      arg, &will_be_ignored);
 
 	/* Reinstate parent node state and prepare for merge. */
 	query->inited = inited;
@@ -3195,6 +3197,7 @@ fts_query(
 	trx_t*		query_trx;
 	CHARSET_INFO*	charset;
 	ulint		start_time_ms;
+	bool		will_be_ignored = false;
 
 	boolean_mode = flags & FTS_BOOL;
 
@@ -3296,7 +3299,8 @@ fts_query(
 		/* Traverse the Abstract Syntax Tree (AST) and execute
 		the query. */
 		query.error = fts_ast_visit(
-			FTS_NONE, ast, fts_query_visitor, &query);
+			FTS_NONE, ast, fts_query_visitor,
+			&query, &will_be_ignored);
 
 		/* If query expansion is requested, extend the search
 		with first search pass result */

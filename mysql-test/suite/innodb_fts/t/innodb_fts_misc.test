@@ -813,6 +813,42 @@ SELECT * FROM articles
 
 DROP TABLE articles;
 
+# Test for Bug #13907075 - DIFFERENT RESULTS FOR DIFFERENT TERM ORDER
+# WITH INNODB BOOLEAN FULLTEXT SEARCH. The FTS_IGNORE ("-") operation
+# is orderless
+# Create FTS table
+CREATE TABLE articles (
+        id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
+        title VARCHAR(200),
+        body TEXT,
+        FULLTEXT (title,body)
+        ) ENGINE=InnoDB;
+
+# Insert six rows
+INSERT INTO articles (title,body) VALUES
+        ('MySQL Tutorial','DBMS stands for DataBase ...')  ,
+        ('How To Use MySQL Well','After you went through a ...'),
+        ('Optimizing MySQL','In this tutorial we will show ...'),
+        ('1001 MySQL Tricks','1. Never run mysqld as root. 2. ...'),
+        ('MySQL vs. YourSQL','In the following database comparison ...'),
+        ('MySQL Security','When configured properly, MySQL ...');
+
+SELECT *,  MATCH(title, body) AGAINST ('-database +MySQL' IN BOOLEAN MODE) AS score from articles;
+
+SELECT *, MATCH(title, body) AGAINST ('+MySQL -database' IN BOOLEAN MODE) AS score  FROM articles;
+
+# With subquery
+SELECT * FROM articles where  MATCH(title, body) AGAINST ('MySQL - (database - tutorial)' IN BOOLEAN MODE);
+
+SELECT * FROM articles where MATCH(title, body) AGAINST ('MySQL - (- tutorial database)' IN BOOLEAN MODE);
+
+# More complex query
+SELECT * FROM articles where MATCH(title, body) AGAINST ('MySQL - (- tutorial database) -Tricks' IN BOOLEAN MODE);
+
+SELECT * FROM articles where MATCH(title, body) AGAINST ('-Tricks MySQL - (- tutorial database)' IN BOOLEAN MODE);
+
+DROP TABLE articles;
+
 # Test for Bug 13940669 - 64901: INNODB: ASSERTION FAILURE IN
 # THREAD 34387022112 IN FILE REM0CMP.CC LINE 5
 
