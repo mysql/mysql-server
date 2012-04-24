@@ -399,7 +399,7 @@ fts_ast_visit(
 						FTS_IGNORE operator */
 {
 	dberr_t			error = DB_SUCCESS;
-	fts_ast_node_t*		oper_node;
+	fts_ast_node_t*		oper_node = NULL;
 	fts_ast_node_t*		start_node;
 	bool			revisit = false;
 	bool			will_be_ignored = false;
@@ -437,7 +437,7 @@ fts_ast_visit(
 				continue;
 			}
 
-			ut_a(oper == FTS_NONE
+			ut_a(oper == FTS_NONE || !oper_node
 			     || oper_node->oper == oper);
 
 			if (oper == FTS_IGNORE) {
