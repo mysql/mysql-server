@@ -2170,6 +2170,28 @@ public:
   { return extra(operation); }
 
   /**
+    Informs handler that it is possible to optimize away the real read
+    operation from the handler for the current table and instead
+    use a generated read to optimze simple UPDATEs and DELETEs.
+
+    @return true if handler supports rbwr for this write
+  */
+  virtual bool read_before_write_removal_possible(void)
+  { return false; }
+
+  /**
+    Return the number of rows the handler has written while using
+    read before write removal
+
+    @return the number of rows actually written
+   */
+  virtual ha_rows read_before_write_removal_rows_written(void) const
+  {
+    DBUG_ASSERT(false);
+    return (ha_rows) 0;
+  }
+
+  /**
     In an UPDATE or DELETE, if the row under the cursor was locked by another
     transaction, and the engine used an optimistic read of the last
     committed row value under the cursor, then the engine returns 1 from this
