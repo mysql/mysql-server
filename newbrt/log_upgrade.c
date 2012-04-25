@@ -112,6 +112,10 @@ verify_clean_shutdown_of_log_version(const char *log_dir, uint32_t version, LSN 
     if (version < TOKU_LOG_VERSION)  {
         FOOTPRINT(1);
         r = verify_clean_shutdown_of_log_version_old(log_dir, last_lsn);
+	if (r != 0) {
+	    fprintf(stderr, "Cannot upgrade TokuDB version %d database.", version);
+	    fprintf(stderr, "  Previous improper shutdown detected.\n");
+	}
     }
     else {
         FOOTPRINT(2);
