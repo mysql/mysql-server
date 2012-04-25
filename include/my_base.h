@@ -325,6 +325,15 @@ is the global server default. */
 #define HA_OPTION_NO_STATS_PERSISTENT	8192
 #define HA_OPTION_TEMP_COMPRESS_RECORD	((uint) 16384)	/* set by isamchk */
 #define HA_OPTION_READ_ONLY_DATA	((uint) 32768)	/* Set by isamchk */
+/** STATS_AUTO_RECALC=1 has been specified in the SQL command (either CREATE
+or ALTER TABLE). Table and index statistics that are collected by the
+storage engine and used by the optimizer for query optimization may be
+recalculated automatically by the storage engine. */
+#define HA_OPTION_STATS_AUTO_RECALC	65536
+/** STATS_AUTO_RECALC=0 has been specified in CREATE/ALTER TABLE. Statistics
+for the table and its indexes will never be recalculated automatically. Only
+when ANALYZE TABLE has been run by the user. */
+#define HA_OPTION_NO_STATS_AUTO_RECALC	131072
 
 	/* Bits in flag to create() */
 

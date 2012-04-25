@@ -1525,6 +1525,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  STARTS_SYM
 %token  START_SYM                     /* SQL-2003-R */
 %token  STATS_PERSISTENT_SYM
+%token  STATS_AUTO_RECALC_SYM
 %token  STATUS_SYM
 %token  STDDEV_SAMP_SYM               /* SQL-2003-N */
 %token  STD_SYM
@@ -5972,6 +5973,27 @@ create_table_option:
             Lex->create_info.table_options&=
               ~(HA_OPTION_STATS_PERSISTENT | HA_OPTION_NO_STATS_PERSISTENT);
             Lex->create_info.used_fields|= HA_CREATE_USED_STATS_PERSISTENT;
+          }
+        | STATS_AUTO_RECALC_SYM opt_equal ulong_num
+          {
+            switch($3) {
+            case 0:
+                Lex->create_info.table_options|= HA_OPTION_NO_STATS_AUTO_RECALC;
+                break;
+            case 1:
+                Lex->create_info.table_options|= HA_OPTION_STATS_AUTO_RECALC;
+                break;
+            default:
+                my_parse_error(ER(ER_SYNTAX_ERROR));
+                MYSQL_YYABORT;
+            }
+            Lex->create_info.used_fields|= HA_CREATE_USED_STATS_AUTO_RECALC;
+          }
+        | STATS_AUTO_RECALC_SYM opt_equal DEFAULT
+          {
+            Lex->create_info.table_options&=
+              ~(HA_OPTION_STATS_AUTO_RECALC | HA_OPTION_NO_STATS_AUTO_RECALC);
+            Lex->create_info.used_fields|= HA_CREATE_USED_STATS_AUTO_RECALC;
           }
         | CHECKSUM_SYM opt_equal ulong_num
           {
@@ -14163,6 +14185,7 @@ keyword_sp:
         | SQL_THREAD               {}
         | STARTS_SYM               {}
         | STATS_PERSISTENT_SYM     {}
+        | STATS_AUTO_RECALC_SYM    {}
         | STATUS_SYM               {}
         | STORAGE_SYM              {}
         | STRING_SYM               {}
