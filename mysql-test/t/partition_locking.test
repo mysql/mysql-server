@@ -1552,8 +1552,43 @@ DROP TABLE t1;
 --echo # Test of subqueries in INSERT
 --echo #
 CREATE TABLE t1 (a INT, b VARCHAR(64));
+CREATE TABLE t2 (a INT, b VARCHAR(64)) PARTITION BY HASH (a) PARTITIONS 3;
 INSERT INTO t1 VALUES (1, "test 1");
 --error ER_PARSE_ERROR
-INSERT INTO t1 VALUES (SELECT * FROM t1);
+INSERT INTO t2 VALUES (SELECT * FROM t1);
+FLUSH STATUS;
+INSERT INTO t2 VALUES ((SELECT a FROM t1), (SELECT b FROM t1));
+eval $get_handler_status_counts;
+--echo # 12 locks (3 tables + 3 partitions) x lock/unlock
+--echo # I.e. No lock pruning possible
+DROP TABLE t1, t2;
+CREATE TABLE t1 (a INT, b INT);
+CREATE TABLE t2 (a INT, b INT) PARTITION BY HASH (a) PARTITIONS 3;
+INSERT INTO t1 VALUES (1, 1), (2, 0), (4, -1), (5, 2), (7, -3), (8, -9),
+                      (10, 5), (11, 9);
+FLUSH STATUS;
+INSERT INTO t2 VALUES ((SELECT max(a) FROM t1), (SELECT min(a) FROM t1));
+eval $get_handler_status_counts;
+--echo # 12 locks (3 tables + 3 partitions) x lock/unlock
+--echo # I.e. No lock pruning possible
+FLUSH STATUS;
+EXPLAIN PARTITIONS INSERT INTO t2 VALUES ((SELECT max(a) FROM t1),
+                                          (SELECT min(a) FROM t1));
+eval $get_handler_status_counts;
+--echo # 12 locks (3 tables + 3 partitions) x lock/unlock
+--echo # I.e. No lock pruning possible
+FLUSH STATUS;
+INSERT INTO t2 VALUES ((SELECT a FROM t1 WHERE a = 1),
+                       (SELECT b FROM t1 WHERE a = 2));
+eval $get_handler_status_counts;
+--echo # 12 locks (3 tables + 3 partitions) x lock/unlock
+--echo # I.e. No lock pruning possible
+FLUSH STATUS;
+EXPLAIN PARTITIONS INSERT INTO t2 VALUES ((SELECT a FROM t1 WHERE a = 1),
+                                          (SELECT b FROM t1 WHERE a = 2));
+eval $get_handler_status_counts;
+--echo # 12 locks (3 tables + 3 partitions) x lock/unlock
+--echo # I.e. No lock pruning possible
+SELECT * FROM t2 ORDER BY a, b;
 DROP TABLE t1;
-
+DROP TABLE t2;

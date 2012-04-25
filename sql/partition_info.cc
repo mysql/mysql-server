@@ -386,6 +386,15 @@ bool partition_info::set_used_partition(List<Item> &fields,
   DBUG_ENTER("set_partition");
   DBUG_ASSERT(thd);
 
+  /* Only allow checking of constant values */
+  List_iterator_fast<Item> v(values);
+  Item *item;
+  while ((item= v++))
+  {
+    if (!item->const_item())
+      DBUG_RETURN(true);
+  }
+
   default_record(copy_default_values, table);
 
   if (fields.elements || !values.elements)

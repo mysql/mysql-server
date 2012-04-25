@@ -430,7 +430,6 @@ int mysql_update(THD *thd,
                                 "No matching rows after partition pruning");
         goto exit_without_my_ok;
       }
-      free_underlaid_joins(thd, select_lex);
       my_ok(thd);                            // No matching records
       DBUG_RETURN(0);
     }

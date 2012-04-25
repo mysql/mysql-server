@@ -6162,7 +6162,7 @@ static SEL_TREE *get_mm_tree(RANGE_OPT_PARAM *param,Item *cond)
     There are limits on what kinds of const items we can evaluate, grep for
     DontEvaluateMaterializedSubqueryTooEarly.
   */
-  if (can_evaluate_item_now(param->thd, cond) && !cond->is_expensive())
+  if (cond->const_item() && !cond->is_expensive())
   {
     /*
       During the cond->val_int() evaluation we can come across a subselect 
@@ -6596,7 +6596,7 @@ get_mm_leaf(RANGE_OPT_PARAM *param, Item *conf_func, Field *field,
        field->type() == MYSQL_TYPE_DATETIME))
     field->table->in_use->variables.sql_mode|= MODE_INVALID_DATES;
 
-  if (!can_evaluate_item_now(param->thd, value))
+  if (!value->can_be_evaluated_now())
   {
     tree= 0;
     field->table->in_use->variables.sql_mode= orig_sql_mode;

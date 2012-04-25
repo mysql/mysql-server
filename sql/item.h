@@ -711,6 +711,7 @@ public:
                                            subselect. Computed by fix_fields
                                            and updated by update_used_tables. */
 
+  bool tables_locked_cache;
  public:
   // alloc & destruct is done as start of select using sql_alloc
   Item();
@@ -1194,7 +1195,12 @@ public:
     When the default implementation of used_tables() is effective, this
     function will always return true (because used_tables() is empty).
   */
-  virtual bool const_item() const { return used_tables() == 0; }
+  virtual bool const_item() const
+  {
+    if (used_tables() == 0)
+      return can_be_evaluated_now();
+    return false;
+  }
   /* 
     Returns true if this is constant but its value may be not known yet.
     (Can be used for parameters of prep. stmts or of stored procedures.)
@@ -1573,6 +1579,7 @@ public:
       is_expensive_cache= walk(&Item::is_expensive_processor, 0, (uchar*)0);
     return test(is_expensive_cache);
   }
+  virtual bool can_be_evaluated_now() const;
   uint32 max_char_length() const
   { return max_length / collation.collation->mbmaxlen; }
   void fix_length_and_charset(uint32 max_char_length_arg,
@@ -4322,7 +4329,6 @@ void mark_select_range_as_dependent(THD *thd,
                                     st_select_lex *current_sel,
                                     Field *found_field, Item *found_item,
                                     Item_ident *resolved_item);
-bool can_evaluate_item_now(THD *thd, Item *item);
 
 extern Cached_item *new_Cached_item(THD *thd, Item *item,
                                     bool use_result_field);
