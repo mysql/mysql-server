@@ -8737,7 +8737,9 @@ static PSI_cond_info all_server_conds[]=
   { &key_COND_active, "TC_LOG_MMAP::COND_active", 0},
   { &key_COND_pool, "TC_LOG_MMAP::COND_pool", 0},
 #endif /* HAVE_MMAP */
+  { &key_BINLOG_COND_done, "BINARY_LOG::COND_done", 0},
   { &key_BINLOG_update_cond, "BINARY_LOG::update_cond", 0},
+  { &key_RELAYLOG_COND_done, "RELAY_LOG::COND_done", 0},
   { &key_RELAYLOG_update_cond, "RELAY_LOG::update_cond", 0},
   { &key_COND_cache_status_changed, "Query_cache::COND_cache_status_changed", 0},
   { &key_COND_manager, "COND_manager", PSI_FLAG_GLOBAL},
