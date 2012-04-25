@@ -557,7 +557,7 @@ uint bitmap_get_first_set(const MY_BITMAP *map)
 
 uint bitmap_get_next_set(const MY_BITMAP *map, uint bitmap_bit)
 {
-  uint word_pos, start_pos;
+  uint word_pos;
   uint32 first_word;
   my_bitmap_map *data_ptr, *end= map->last_word_ptr;
 
@@ -567,7 +567,7 @@ uint bitmap_get_next_set(const MY_BITMAP *map, uint bitmap_bit)
   bitmap_bit++;
   if (bitmap_bit >= map->n_bits)
     return MY_BIT_NONE;
-  start_pos= word_pos= bitmap_bit / 32;
+  word_pos= bitmap_bit / 32;
   data_ptr= map->bitmap + word_pos;
   first_word= *data_ptr & (0xFFFFFFFF << (bitmap_bit % 32));
   if (data_ptr == end)

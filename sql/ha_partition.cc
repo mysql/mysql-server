@@ -7067,18 +7067,29 @@ const char *ha_partition::index_type(uint inx)
 
 enum row_type ha_partition::get_row_type() const
 {
-  handler **file;
-  enum row_type type= (*m_file)->get_row_type();
+  uint i;
+  enum row_type type;
+  DBUG_ENTER("ha_partition::get_row_type");
 
-  DBUG_ASSERT(bitmap_is_set_all(&(m_part_info->read_partitions)));
-  for (file= m_file, file++; *file; file++)
+  i= bitmap_get_first_set(&m_part_info->read_partitions);
+  DBUG_ASSERT(i < m_tot_parts);
+  if (i >= m_tot_parts)
+    DBUG_RETURN(ROW_TYPE_NOT_USED);
+
+  type= m_file[i]->get_row_type();
+  DBUG_PRINT("info", ("partition %u, row_type: %d", i, type));
+
+  for (i= bitmap_get_next_set(&m_part_info->lock_partitions, i);
+       i < m_tot_parts;
+       i= bitmap_get_next_set(&m_part_info->lock_partitions, i))
   {
-    enum row_type part_type= (*file)->get_row_type();
+    enum row_type part_type= m_file[i]->get_row_type();
+    DBUG_PRINT("info", ("partition %u, row_type: %d", i, type));
     if (part_type != type)
-      return ROW_TYPE_NOT_USED;
+      DBUG_RETURN(ROW_TYPE_NOT_USED);
   }
 
-  return type;
+  DBUG_RETURN(type);
 }
 
 

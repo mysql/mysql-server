@@ -622,7 +622,6 @@ insert into t3 values (5),(15);
 explain partitions select * from t3 where a=11;
 explain partitions select * from t3 where a=10;
 explain partitions select * from t3 where a=20;
-
 explain partitions select * from t3 where a=30;
 
 # LIST(expr) partitioning

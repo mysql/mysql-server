@@ -101,7 +101,6 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, Item *conds,
 	  setup_order(thd, select_lex->ref_pointer_array, &tables,
                     fields, all_fields, order))
     {
-      delete select;
       free_underlaid_joins(thd, &thd->lex->select_lex);
       DBUG_RETURN(TRUE);
     }
@@ -432,6 +431,7 @@ cleanup:
   }
 
   delete select;
+  select= NULL;
   transactional_table= table->file->has_transactions();
 
   if (!transactional_table && deleted > 0)
@@ -479,7 +479,6 @@ exit_all_parts_pruned_away:
   /* No matching records */
   if (!thd->lex->describe)
   {
-    free_underlaid_joins(thd, select_lex);
     my_ok(thd, 0);
     DBUG_RETURN(0);
   }
