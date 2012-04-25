@@ -1578,8 +1578,12 @@ JOIN::optimize()
   }
 
 #ifndef MCP_WL4784
-  if (make_pushed_join(thd, this))
-    DBUG_RETURN(1);
+  // Multiple tables, try to push query to storage engine 
+  if ((tables-const_tables) > 1)
+  {
+    if (make_pushed_join(thd, this))
+      DBUG_RETURN(1);
+  }
 #endif
 
   tmp_having= having;
