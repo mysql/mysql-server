@@ -2473,7 +2473,7 @@ row_merge_drop_index_dict(
 	if (error != DB_SUCCESS) {
 		/* Even though we ensure that DDL transactions are WAIT
 		and DEADLOCK free, we could encounter other errors e.g.,
-		DB_TOO_MANY_TRANSACTIONS. */
+		DB_TOO_MANY_CONCURRENT_TRXS. */
 		trx->error_state = DB_SUCCESS;
 
 		ut_print_timestamp(stderr);
@@ -2545,7 +2545,7 @@ row_merge_drop_indexes_dict(
 	if (error != DB_SUCCESS) {
 		/* Even though we ensure that DDL transactions are WAIT
 		and DEADLOCK free, we could encounter other errors e.g.,
-		DB_TOO_MANY_TRANSACTIONS. */
+		DB_TOO_MANY_CONCURRENT_TRXS. */
 		trx->error_state = DB_SUCCESS;
 
 		ut_print_timestamp(stderr);
@@ -2739,7 +2739,7 @@ row_merge_drop_temp_indexes(void)
 	if (error != DB_SUCCESS) {
 		/* Even though we ensure that DDL transactions are WAIT
 		and DEADLOCK free, we could encounter other errors e.g.,
-		DB_TOO_MANY_TRANSACTIONS. */
+		DB_TOO_MANY_CONCURRENT_TRXS. */
 		trx->error_state = DB_SUCCESS;
 
 		ut_print_timestamp(stderr);
@@ -2871,7 +2871,7 @@ row_merge_rename_index_to_add(
 	if (err != DB_SUCCESS) {
 		/* Even though we ensure that DDL transactions are WAIT
 		and DEADLOCK free, we could encounter other errors e.g.,
-		DB_TOO_MANY_TRANSACTIONS. */
+		DB_TOO_MANY_CONCURRENT_TRXS. */
 		trx->error_state = DB_SUCCESS;
 
 		ut_print_timestamp(stderr);
@@ -2926,7 +2926,7 @@ row_merge_rename_index_to_drop(
 	if (err != DB_SUCCESS) {
 		/* Even though we ensure that DDL transactions are WAIT
 		and DEADLOCK free, we could encounter other errors e.g.,
-		DB_TOO_MANY_TRANSACTIONS. */
+		DB_TOO_MANY_CONCURRENT_TRXS. */
 		trx->error_state = DB_SUCCESS;
 
 		ut_print_timestamp(stderr);

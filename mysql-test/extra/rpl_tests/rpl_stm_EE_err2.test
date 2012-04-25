@@ -29,7 +29,7 @@ call mtr.add_suppression("The slave coordinator and worker threads are stopped, 
 
 --echo (expect different error codes on master and slave)
 # ER_MTS_INCONSISTENT_DATA
---let $slave_sql_errno= 0,1754
+--let $slave_sql_errno= 0,1756
 # can't print error text. MTS reports a separate error in this case.
 # Todo: to fix single-threaded-slave BUG#57287.
 --let $show_slave_sql_error= 0

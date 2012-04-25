@@ -715,6 +715,25 @@ struct dict_table_struct{
 	unsigned	stat_initialized:1; /*!< TRUE if statistics have
 				been calculated the first time
 				after database startup or table creation */
+	ib_uint32_t	stat_persistent;
+				/*!< The two bits below are set in the
+				::stat_persistent member and have the following
+				meaning:
+				1. _ON=0, _OFF=0, no explicit persistent stats
+				setting for this table, the value of the global
+				srv_stats_persistent is used to determine
+				whether the table has persistent stats enabled
+				or not
+				2. _ON=0, _OFF=1, persistent stats are
+				explicitly disabled for this table, regardless
+				of the value of the global srv_stats_persistent
+				3. _ON=1, _OFF=0, persistent stats are
+				explicitly enabled for this table, regardless
+				of the value of the global srv_stats_persistent
+				4. _ON=1, _OFF=1, not allowed, we assert if
+				this ever happens. */
+#define DICT_STAT_PERSISTEN_ON	(1 << 1)
+#define DICT_STAT_PERSISTEN_OFF	(1 << 2)
 	ib_int64_t	stat_n_rows;
 				/*!< approximate number of rows in the table;
 				we periodically calculate new estimates */

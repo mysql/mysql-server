@@ -1747,6 +1747,7 @@ int slave_worker_exec_job(Slave_worker *worker, Relay_log_info *rli)
   if (!ev->when.tv_sec)
     ev->when.tv_sec= my_time(0);
   ev->thd= thd; // todo: assert because up to this point, ev->thd == 0
+  ev->worker= worker;
 
   DBUG_PRINT("slave_worker_exec_job:", ("W_%lu <- job item: %p data: %p thd: %p", worker->id, job_item, ev, thd));
 
@@ -1891,10 +1892,9 @@ err:
                             worker->running_status);
     worker->slave_worker_ends_group(ev, error);
   }
-  
 
-  // todo: similate delay in delete
-  if (ev && ev->get_type_code() != ROWS_QUERY_LOG_EVENT)
+  // todo: simulate delay in delete
+  if (ev && ev->worker && ev->get_type_code() != ROWS_QUERY_LOG_EVENT)
   {
     delete ev;
   }

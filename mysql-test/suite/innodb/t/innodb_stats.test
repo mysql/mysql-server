@@ -7,14 +7,12 @@
 -- disable_warnings
 -- disable_query_log
 
-SET SESSION innodb_analyze_is_persistent=1;
-
 DROP TABLE IF EXISTS test_innodb_stats;
 
 CREATE TABLE test_innodb_stats (
 	a INT,
 	KEY a_key (a)
-) ENGINE=INNODB;
+) ENGINE=INNODB STATS_PERSISTENT=1;
 
 -- enable_warnings
 -- enable_query_log

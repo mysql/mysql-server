@@ -2865,7 +2865,7 @@ bool Item_func_maketime::get_time(MYSQL_TIME *ltime)
 
   // Return maximum value (positive or negative)
   set_max_hhmmss(ltime);
-  char buf[MAX_BIGINT_WIDTH /* hh */ + 6 /* :mm:ss */ + 10 /* .fffffffff */];
+  char buf[MAX_BIGINT_WIDTH /* hh */ + 6 /* :mm:ss */ + 10 /* .fffffffff */ +1];
   char *ptr= longlong10_to_str(hour, buf, args[0]->unsigned_flag ? 10 : -10);
   int len = (int)(ptr - buf) +
     sprintf(ptr, ":%02u:%02u", (uint) minute, (uint) second.quot);
@@ -2875,10 +2875,11 @@ bool Item_func_maketime::get_time(MYSQL_TIME *ltime)
       Display fractional part up to nanoseconds (9 digits),
       which is the maximum precision of my_decimal2lldiv_t().
     */
-    uint dec= MY_MIN(args[2]->decimals, 9);
+    int dec= MY_MIN(args[2]->decimals, 9);
     len+= sprintf(buf + len, ".%0*lld", dec,
                   second.rem / (ulong) log_10_int[9 - dec]);
   }
+  DBUG_ASSERT(strlen(buf) < sizeof(buf));
   make_truncated_value_warning(ErrConvString(buf, len), MYSQL_TIMESTAMP_TIME);
   return false;
 }

@@ -5362,6 +5362,16 @@ static bool fill_alter_inplace_info(THD *thd,
       */
       if (field->field_index != new_field_index)
         ha_alter_info->handler_flags|= Alter_inplace_info::ALTER_COLUMN_ORDER;
+
+      /* Detect changes in storage type of column */
+      if (new_field->field_storage_type() != field->field_storage_type())
+        ha_alter_info->handler_flags|=
+          Alter_inplace_info::ALTER_COLUMN_STORAGE_TYPE;
+
+      /* Detect changes in column format of column */
+      if (new_field->column_format() != field->column_format())
+        ha_alter_info->handler_flags|=
+          Alter_inplace_info::ALTER_COLUMN_COLUMN_FORMAT;
     }
     else
     {
@@ -6552,6 +6562,10 @@ mysql_prepare_alter_table(THD *thd, TABLE *table,
        (HA_OPTION_PACK_KEYS | HA_OPTION_NO_PACK_KEYS)) ||
       (used_fields & HA_CREATE_USED_PACK_KEYS))
     db_create_options&= ~(HA_OPTION_PACK_KEYS | HA_OPTION_NO_PACK_KEYS);
+  if ((create_info->table_options &
+       (HA_OPTION_STATS_PERSISTENT | HA_OPTION_NO_STATS_PERSISTENT)) ||
+      (used_fields & HA_CREATE_USED_STATS_PERSISTENT))
+    db_create_options&= ~(HA_OPTION_STATS_PERSISTENT | HA_OPTION_NO_STATS_PERSISTENT);
   if (create_info->table_options &
       (HA_OPTION_CHECKSUM | HA_OPTION_NO_CHECKSUM))
     db_create_options&= ~(HA_OPTION_CHECKSUM | HA_OPTION_NO_CHECKSUM);
@@ -7825,6 +7839,20 @@ copy_data_between_tables(TABLE *from,TABLE *to,
       copy_ptr->do_copy(copy_ptr);
     }
     prev_insert_id= to->file->next_insert_id;
+
+    /* Set the function defaults. */
+    List_iterator<Create_field> iter(create);
+    for (uint i= 0; i < to->s->fields; ++i)
+    {
+      const Create_field *definition= iter++;
+      if (definition->field == NULL) // this column didn't exist in old table.
+      {
+        Field *column= to->field[i];
+        if (column->has_insert_default_function())
+          column->evaluate_insert_default_function();
+      }            
+    }
+
     error=to->file->ha_write_row(to->record[0]);
     to->auto_increment_field_not_null= FALSE;
     if (error)
@@ -7933,7 +7961,8 @@ bool mysql_checksum_table(THD *thd, TABLE_LIST *tables,
 
   field_list.push_back(item = new Item_empty_string("Table", NAME_LEN*2));
   item->maybe_null= 1;
-  field_list.push_back(item= new Item_int("Checksum", (longlong) 1,
+  field_list.push_back(item= new Item_int(NAME_STRING("Checksum"),
+                                          (longlong) 1,
                                           MY_INT64_NUM_DECIMAL_DIGITS));
   item->maybe_null= 1;
   if (protocol->send_result_set_metadata(&field_list,
