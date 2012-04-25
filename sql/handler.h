@@ -459,6 +459,12 @@ include/my_base.h. It is possible to distinguish whether
 STATS_PERSISTENT=default has been specified or no STATS_PERSISTENT= is
 given at all. */
 #define HA_CREATE_USED_STATS_PERSISTENT (1L << 22)
+/** This is set whenever STATS_AUTO_RECALC=0|1|default has been
+specified in CREATE/ALTER TABLE. See also HA_OPTION_STATS_AUTO_RECALC in
+include/my_base.h. It is possible to distinguish whether
+STATS_AUTO_RECALC=default has been specified or no STATS_AUTO_RECALC= is
+given at all. */
+#define HA_CREATE_USED_STATS_AUTO_RECALC (1L << 23)
 
 
 /*
