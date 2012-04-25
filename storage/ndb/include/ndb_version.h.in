@@ -756,4 +756,22 @@ ndbd_fixed_lookup_query_abort(Uint32 x)
   return x >= NDBD_FIXED_LOOKUP_QUERY_ABORT_72;
 }
 
+/**
+ * NOTE1:
+ *   Even though pushed join support wasn't GA intil 7.2.4
+ *   we claim support for it in all 7.2.x versions.
+ * NOTE2:
+ *   By a mistake this online upgrade check was not
+ *   added until version 7.2.6
+ */
+#define NDBD_JOIN_PUSHDOWN NDB_MAKE_VERSION(7,2,0)
+
+static
+inline
+int
+ndb_join_pushdown(Uint32 x)
+{
+  return x >= NDBD_JOIN_PUSHDOWN;
+}
+
 #endif
