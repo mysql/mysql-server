@@ -2600,14 +2600,6 @@ innobase_rename_column(
 		"UPDATE SYS_COLUMNS SET NAME=:new\n"
 		"WHERE TABLE_ID=:tableid AND NAME=:old\n"
 		"AND POS=:nth;\n"
-
-		/* Try again, in case there is a prefix_len
-		encoded in SYS_COLUMNS.POS */
-
-		"UPDATE SYS_COLUMNS SET NAME=:new\n"
-		"WHERE TABLE_ID=:tableid AND NAME=:old\n"
-		"AND POS>=65536*:nth AND POS<65536*(:nth+1);\n"
-
 		"END;\n",
 		FALSE, trx);
 
