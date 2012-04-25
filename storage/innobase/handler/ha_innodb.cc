@@ -15155,6 +15155,14 @@ static MYSQL_SYSVAR_BOOL(stats_persistent, srv_stats_persistent,
   "at table level",
   NULL, NULL, FALSE);
 
+static MYSQL_SYSVAR_BOOL(stats_auto_recalc, srv_stats_auto_recalc,
+  PLUGIN_VAR_OPCMDARG,
+  "InnoDB automatic recalculation of persistent statistics enabled for all "
+  "tables unless overridden at table level (automatic recalculation is only "
+  "done when InnoDB decides that the table has changed too much and needs a "
+  "new statistics)",
+  NULL, NULL, TRUE);
+
 static MYSQL_SYSVAR_ULONGLONG(stats_persistent_sample_pages,
   srv_stats_persistent_sample_pages,
   PLUGIN_VAR_RQCMDARG,
@@ -15664,6 +15672,7 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(stats_transient_sample_pages),
   MYSQL_SYSVAR(stats_persistent),
   MYSQL_SYSVAR(stats_persistent_sample_pages),
+  MYSQL_SYSVAR(stats_auto_recalc),
   MYSQL_SYSVAR(adaptive_hash_index),
   MYSQL_SYSVAR(stats_method),
   MYSQL_SYSVAR(replication_delay),
