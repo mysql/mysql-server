@@ -382,7 +382,6 @@ int mysql_update(THD *thd,
 #ifdef WITH_PARTITION_STORAGE_ENGINE
   if (table->part_info)
   {
-    bool all_parts_pruned_away;
     bool prune_locks= true;
     MY_BITMAP lock_partitions;
     if (table->triggers &&
@@ -419,9 +418,9 @@ int mysql_update(THD *thd,
       bitmap_copy(&lock_partitions, &table->part_info->lock_partitions);
     }
 
-    if (prune_partitions(thd, table, conds, true, &all_parts_pruned_away))
+    if (prune_partitions(thd, table, conds, true))
       DBUG_RETURN(1);
-    if (all_parts_pruned_away)
+    if (table->all_partitions_pruned_away)
     {
       /* No matching records */
       if (thd->lex->describe)

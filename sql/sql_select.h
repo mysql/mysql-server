@@ -1117,9 +1117,8 @@ bool mysql_prepare_select(THD *thd,
                           Item *having, ORDER *proc_param,
                           ulonglong select_options, select_result *result,
                           SELECT_LEX_UNIT *unit, SELECT_LEX *select_lex,
-                          bool *free_join, JOIN **join_ptr);
-bool mysql_execute_select(THD *thd, SELECT_LEX *select_lex, bool free_join,
-                          JOIN *join);
+                          bool *free_join);
+bool mysql_execute_select(THD *thd, SELECT_LEX *select_lex, bool free_join);
 bool mysql_select(THD *thd,
                   TABLE_LIST *tables, uint wild_num,  List<Item> &list,
                   Item *conds, SQL_I_List<ORDER> *order,

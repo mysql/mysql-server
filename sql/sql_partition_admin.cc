@@ -752,7 +752,6 @@ bool Sql_cmd_alter_table_truncate_partition::execute(THD *thd)
   ulong timeout= thd->variables.lock_wait_timeout;
   TABLE_LIST *first_table= thd->lex->select_lex.table_list.first;
   Alter_info *alter_info= &thd->lex->alter_info;
-  //Alter_table_prelocking_strategy alter_prelocking_strategy(alter_info);
   MDL_savepoint mdl_savepoint;
   uint table_counter, i;
   List<String> partition_names_list;

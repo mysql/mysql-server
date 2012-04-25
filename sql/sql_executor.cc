@@ -132,6 +132,7 @@ JOIN::exec()
   List<Item> *columns_list= &fields_list;
   DBUG_ENTER("JOIN::exec");
 
+  DBUG_ASSERT(!tables || thd->lex->is_query_tables_locked());
   DBUG_ASSERT(!(select_options & SELECT_DESCRIBE));
 
   THD_STAGE_INFO(thd, stage_executing);

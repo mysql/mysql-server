@@ -974,7 +974,6 @@ void JOIN::cleanup_item_list(List<Item> &items) const
                               has 2 unions.
   @param select_lex           the only SELECT_LEX of this query
   @param[out] free_join       if returned JOIN should be freed     
-  @param[in,out] join_ptr     JOIN to execute
 
   @retval
     false  success
@@ -990,18 +989,16 @@ mysql_prepare_select(THD *thd,
                      Item *conds, uint og_num,  ORDER *order, ORDER *group,
                      Item *having, ORDER *proc_param, ulonglong select_options,
                      select_result *result, SELECT_LEX_UNIT *unit,
-                     SELECT_LEX *select_lex, bool *free_join, JOIN **join_ptr)
+                     SELECT_LEX *select_lex, bool *free_join)
 {
   bool err= false;
   JOIN *join;
 
   DBUG_ENTER("mysql_prepare_select");
-  DBUG_ASSERT(join_ptr);
   select_lex->context.resolve_in_select_list= TRUE;
   if (select_lex->join != 0)
   {
     join= select_lex->join;
-    *join_ptr= join;
     /*
       is it single SELECT in derived table, called in derived table
       creation
@@ -1040,7 +1037,6 @@ mysql_prepare_select(THD *thd,
   {
     if (!(join= new JOIN(thd, fields, select_options, result)))
 	DBUG_RETURN(TRUE); /* purecov: inspected */
-    *join_ptr= join;
     THD_STAGE_INFO(thd, stage_init);
     thd->lex->used_tables=0;                         // Updated by setup_fields
     err= join->prepare(tables, wild_num,
@@ -1060,7 +1056,6 @@ mysql_prepare_select(THD *thd,
   @param thd                  thread handler
   @param select_lex           the only SELECT_LEX of this query
   @param free_join            if join should be freed
-  @param join                 JOIN to execute
 
   @retval
     FALSE  success
@@ -1071,10 +1066,10 @@ mysql_prepare_select(THD *thd,
 */
 
 bool
-mysql_execute_select(THD *thd, SELECT_LEX *select_lex, bool free_join,
-                     JOIN *join)
+mysql_execute_select(THD *thd, SELECT_LEX *select_lex, bool free_join)
 {
   bool err;
+  JOIN* join= select_lex->join;
 
   DBUG_ENTER("mysql_execute_select");
 
@@ -1169,7 +1164,6 @@ mysql_select(THD *thd,
   uint og_num= 0;
   ORDER *first_order= NULL;
   ORDER *first_group= NULL;
-  JOIN *join= NULL;
   DBUG_ENTER("mysql_select");
 
   if (order)
@@ -1186,7 +1180,7 @@ mysql_select(THD *thd,
   if (mysql_prepare_select(thd, tables, wild_num, fields,
                            conds, og_num, first_order, first_group, having,
                            proc_param, select_options, result, unit,
-                           select_lex, &free_join, &join))
+                           select_lex, &free_join))
   {
     if (free_join)
     {
@@ -1227,7 +1221,7 @@ mysql_select(THD *thd,
     query_cache_store_query(thd, thd->lex->query_tables);
   }
 
-  if (mysql_execute_select(thd, select_lex, free_join, join))
+  if (mysql_execute_select(thd, select_lex, free_join))
     DBUG_RETURN(true);
 
   DBUG_RETURN(false);

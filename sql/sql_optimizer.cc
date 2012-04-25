@@ -126,6 +126,8 @@ JOIN::optimize()
   uint no_jbuf_after= UINT_MAX;
 
   DBUG_ENTER("JOIN::optimize");
+  DBUG_ASSERT(!tables || thd->lex->is_query_tables_locked());
+
   // to prevent double initialization on EXPLAIN
   if (optimized)
     DBUG_RETURN(0);
@@ -271,8 +273,7 @@ JOIN::optimize()
       if (!tbl->embedding)
       {
         Item *prune_cond= tbl->join_cond()? tbl->join_cond() : conds;
-        if (prune_partitions(thd, tbl->table, prune_cond, false,
-            &tbl->table->all_partitions_pruned_away))
+        if (prune_partitions(thd, tbl->table, prune_cond, false))
         {
           error= 1;
           DBUG_PRINT("error", ("Error from prune_partitions"));
