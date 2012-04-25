@@ -1157,6 +1157,8 @@ public:
   Field *get_timestamp_field();
 
   bool update_const_key_parts(Item *conds);
+
+  bool check_read_removal(uint index);
 };
 
 

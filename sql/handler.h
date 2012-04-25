@@ -2169,27 +2169,23 @@ public:
   virtual int extra_opt(enum ha_extra_function operation, ulong cache_size)
   { return extra(operation); }
 
-  /**
-    Informs handler that it is possible to optimize away the real read
-    operation from the handler for the current table and instead
-    use a generated read to optimze simple UPDATEs and DELETEs.
-
-    @return true if handler supports rbwr for this write
+  /*
+    Start read (before write) removal on the current table. Fake rows may
+    be returned while reading from the selected index. This is used to
+    optimise simple UPDATE and DELETEs.The handler may refuse to start
+    due to internal limitations in the storage engine. Successful start
+    is always followed by end.
+    Function will only be called for handles who returns
+    HA_READ_BEFORE_WRITE_REMOVAL from table_flags()
   */
-  virtual bool read_before_write_removal_possible(void)
-  { return false; }
+  virtual bool start_read_removal(void)
+  { DBUG_ASSERT(0); return false; }
 
-  /**
-    Return the number of rows the handler has written while using
-    read before write removal
-
-    @return the number of rows actually written
-   */
-  virtual ha_rows read_before_write_removal_rows_written(void) const
-  {
-    DBUG_ASSERT(false);
-    return (ha_rows) 0;
-  }
+  /*
+    End read (before write) removal and return the number of rows really written
+  */
+  virtual ha_rows end_read_removal(void)
+  { DBUG_ASSERT(0); return (ha_rows) 0; }
 
   /**
     In an UPDATE or DELETE, if the row under the cursor was locked by another
