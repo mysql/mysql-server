@@ -1,0 +1,113 @@
+
+XZ Utils on DOS
+===============
+
+Introduction
+
+    This document explains how to build XZ Utils for DOS using DJGPP.
+    The resulting binaries should run at least on various DOS versions
+    and under Windows 95/98/98SE/ME, which cannot run the Windows version
+    of XZ Utils.
+
+    This is currently experimental and has got very little testing.
+
+
+Getting and Installing DJGPP
+
+    You may use <http://www.delorie.com/djgpp/zip-picker.html> to help
+    deciding what to download, but as of writing (2009-02-13) that may
+    not be the most convenient way taking into account what components
+    are actually required to build XZ Utils. However, using the
+    zip-picker can still be worth doing to get nice short summary of
+    installation instructions (they can be found from readme.1st too).
+
+    For more manual method, first select a mirror from
+    <http://www.delorie.com/djgpp/getting.html>. You need
+    the following files:
+
+        unzip32.exe
+        beta/v2/djdev204.zip
+        v2gnu/bnu219b.zip
+        v2gnu/gcc432b.zip
+        v2gnu/mak3791b.zip
+        v2gnu/sed415b.zip
+        v2misc/csdpmi5b.zip
+
+    If newer versions are available, probably you should try them first.
+    Note that djdev203.zip is too old to build XZ Utils; you need at
+    least djdev204.zip. Also note that you want csdpmi5b.zip even if you
+    run under Windows or DOSEMU, because the XZ Utils Makefile will embed
+    cwsdstub.exe to the resulting binaries.
+
+    See the instructions in readme.1st found from djdev204.zip. Here's
+    a short summary, but you should still read readme.1st.
+
+        C:\> mkdir DJGPP
+        C:\> cd DJGPP
+        C:\DJGPP> c:\download\unzip32 c:\download\djdev204.zip
+        C:\DJGPP> c:\download\unzip32 c:\download\bnu219b.zip
+        C:\DJGPP> c:\download\unzip32 c:\download\gcc432b.zip
+        C:\DJGPP> c:\download\unzip32 c:\download\mak3791b.zip
+        C:\DJGPP> c:\download\unzip32 c:\download\sed415b.zip
+        C:\DJGPP> c:\download\unzip32 c:\download\csdpmi5b.zip
+
+        C:\DJGPP> set PATH=C:\DJGPP\BIN;%PATH%
+        C:\DJGPP> set DJGPP=C:\DJGPP\DJGPP.ENV
+
+    You may want to add the last two lines into AUTOEXEC.BAT or have,
+    for example, DJGPP.BAT which you can run before using DJGPP.
+
+    Make sure you use completely upper case path in the DJGPP environment
+    variable. This is not required by DJGPP, but the XZ Utils Makefile is
+    a bit stupid and expects that everything in DJGPP environment variable
+    is uppercase.
+
+
+Building
+
+    Just run "make" in this directory (the directory containing this
+    README). You should get liblzma.a, xz.exe, xzdec.exe, and
+    lzmadec.exe. Of these, probably xz.exe is the only interesting one.
+
+    Note: You need to have an environment that supports long filenames.
+    Once you have built XZ Utils, the resulting binaries can be run
+    without long filename support.
+
+
+Additional Make Flags and Targets
+
+    You may want to try some additional optimizations, which may or
+    may not make the code faster (and may or may not hit possible
+    compiler bugs more easily):
+
+        make CFLAGS="-O3 -fomit-frame-pointer -funroll-loops"
+
+    If you want to enable assertions (the assert() macro), use DEBUG=1.
+    You may want to disable optimizations too if you plan to actually
+    debug the code. Never use DEBUG=1 for production builds!
+
+        make DEBUG=1 CFLAGS="-g -O0"
+
+
+Bugs
+
+    "make clean" may remove src/xz/hardware.c when it tries to remove
+    src/xz/hardware-fixed.c. This is probably a bug somewhere in the
+    DOS environment I use. Maybe it tries truncated 8.3 name first and
+    since that gives a name of an existing file, it doesn't look for
+    long filename.
+
+    "xz -fc /dev/tty" hangs at least in DOSEMU and cannot be interrupted
+    by pressing C-c. Maybe xz should never accept non-regular files on
+    DOS even when --force is used.
+
+    Using different memory usage limit for encoding and decoding doesn't
+    make sense under pure DOS. Maybe it is still OK when running under
+    Windows.
+
+    The progress indicator of "xz -v" doesn't get updated when running
+    under Dosbox, but it works in DOSEMU. I currently (2009-02-13) don't
+    know if it works in other environments.
+
+    Report bugs to <lasse.collin@tukaani.org> (in English or Finnish).
+
