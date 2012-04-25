@@ -570,7 +570,12 @@ table_map Item_subselect::used_tables() const
 
 bool Item_subselect::const_item() const
 {
-  return unit->thd->lex->context_analysis_only ? false : const_item_cache;
+  if (unit->thd->lex->context_analysis_only)
+    return false;
+  /* Not constant until tables are locked. */
+  if (!unit->thd->lex->is_query_tables_locked())
+    return false;
+  return const_item_cache;
 }
 
 Item *Item_subselect::get_tmp_table_item(THD *thd_arg)
@@ -2597,10 +2602,12 @@ bool subselect_indexsubquery_engine::scan_table()
   // We never need to do a table scan of the materialized table.
   DBUG_ASSERT(engine_type() != HASH_SJ_ENGINE);
 
-  if (table->file->inited)
-    table->file->ha_index_end();
+  if (table->file->inited == handler::INDEX &&
+      table->file->ha_index_end())
+    DBUG_RETURN(true);
  
-  table->file->ha_rnd_init(1);
+  if (table->file->ha_rnd_init(1))
+    DBUG_RETURN(true);
   table->file->extra_opt(HA_EXTRA_CACHE,
                          current_thd->variables.read_buff_size);
   table->null_row= 0;
@@ -2841,8 +2848,12 @@ bool subselect_indexsubquery_engine::exec()
     DBUG_RETURN(scan_result);
   }
 
-  if (!table->file->inited)
-    table->file->ha_index_init(tab->ref.key, !unique /* sorted */);
+  if (table->file->inited != handler::INDEX &&
+      (error= table->file->ha_index_init(tab->ref.key, !unique /* sorted */)))
+  {
+    (void) report_error(table, error);
+    DBUG_RETURN(true);
+  }
   error= table->file->ha_index_read_map(table->record[0],
                                         tab->ref.key_buff,
                                         make_prev_keypart_map(tab->ref.key_parts),

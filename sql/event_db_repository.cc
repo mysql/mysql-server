@@ -416,7 +416,8 @@ Event_db_repository::index_read_for_db_for_i_s(THD *thd, TABLE *schema_table,
   DBUG_ENTER("Event_db_repository::index_read_for_db_for_i_s");
 
   DBUG_PRINT("info", ("Using prefix scanning on PK"));
-  event_table->file->ha_index_init(0, 1);
+  if (event_table->file->ha_index_init(0, 1))
+    DBUG_RETURN(true);
   key_info= event_table->key_info;
 
   if (key_info->key_parts == 0 ||

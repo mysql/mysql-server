@@ -28,21 +28,7 @@ enum partition_keywords
 
 
 #define PARTITION_BYTES_IN_POS 2
-#define PARTITION_ENABLED_TABLE_FLAGS (HA_FILE_BASED | HA_REC_NOT_IN_SEQ)
-#define PARTITION_DISABLED_TABLE_FLAGS (HA_CAN_GEOMETRY | \
-                                        HA_CAN_FULLTEXT | \
-                                        HA_DUPLICATE_POS | \
-                                        HA_CAN_SQL_HANDLER | \
-                                        HA_CAN_INSERT_DELAYED)
 
-/* First 4 bytes in the .par file is the number of 32-bit words in the file */
-#define PAR_WORD_SIZE 4
-/* offset to the .par file checksum */
-#define PAR_CHECKSUM_OFFSET 4
-/* offset to the total number of partitions */
-#define PAR_NUM_PARTS_OFFSET 8
-/* offset to the engines array */
-#define PAR_ENGINES_OFFSET 12
 
 /** Struct used for partition_name_hash */
 typedef struct st_part_name_def
@@ -188,8 +174,6 @@ private:
   uint m_tot_parts;                      // Total number of partitions;
   uint m_num_locks;                       // For engines like ha_blackhole, which needs no locks
   uint m_last_part;                      // Last file that we update,write,read
-  int m_lock_type;                       // Remembers type of last
-                                         // external_lock
   part_id_range m_part_spec;             // Which parts to scan
   uint m_scan_value;                     // Value passed in rnd_init
                                          // call
@@ -271,6 +255,8 @@ private:
   static int compare_number_of_records(ha_partition *me,
                                        const uint32 *a,
                                        const uint32 *b);
+  /** keep track of started partitions */
+  MY_BITMAP m_started_partitions;
 public:
   Partition_share *get_part_share() { return part_share; }
   handler *clone(const char *name, MEM_ROOT *mem_root);
@@ -381,6 +367,8 @@ private:
   bool populate_partition_name_hash();
   Partition_share *get_share();
   bool set_ha_share_ref(Handler_share **ha_share);
+  bool init_partition_bitmaps();
+  void free_partition_bitmaps();
 
 public:
 
@@ -398,8 +386,6 @@ public:
     If the object was opened it will also be closed before being deleted.
   */
   virtual int open(const char *name, int mode, uint test_if_locked);
-  virtual void unbind_psi();
-  virtual void rebind_psi();
   virtual int close(void);
 
   /*
@@ -441,6 +427,18 @@ public:
   */
   virtual void try_semi_consistent_read(bool);
 
+  /*
+    NOTE: due to performance and resource issues with many partitions,
+    we only use the m_psi on the ha_partition handler, excluding all
+    partitions m_psi.
+  */
+#ifdef HAVE_M_PSI_PER_PARTITION
+  /*
+    Bind the table/handler thread to track table i/o.
+  */
+  virtual void unbind_psi();
+  virtual void rebind_psi();
+#endif
   /*
     -------------------------------------------------------------------------
     MODULE change record
@@ -900,17 +898,7 @@ public:
     HA_CAN_INSERT_DELAYED, HA_PRIMARY_KEY_REQUIRED_FOR_POSITION is disabled
     until further investigated.
   */
-  virtual Table_flags table_flags() const
-  {
-    DBUG_ENTER("ha_partition::table_flags");
-    if (m_handler_status < handler_initialized ||
-        m_handler_status >= handler_closed)
-      DBUG_RETURN(PARTITION_ENABLED_TABLE_FLAGS);
-
-    DBUG_RETURN((m_file[0]->ha_table_flags() &
-                 ~(PARTITION_DISABLED_TABLE_FLAGS)) |
-                (PARTITION_ENABLED_TABLE_FLAGS));
-  }
+  virtual Table_flags table_flags() const;
 
   /*
     This is a bitmap of flags that says how the storage engine
