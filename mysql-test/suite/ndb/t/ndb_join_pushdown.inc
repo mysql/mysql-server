@@ -4010,6 +4010,82 @@ select * from t1 as x1
 connection ddl;
 drop table t1;
 
+############################################################
+# Bug#13990924 / Bug#64865 Large WHERE IN with SPJ leads to
+#                          cluster shutdown
+#
+# Caused by incorrect error handling in SPJ block when
+# there was a buffer overflow (>32K)
+# (Pushed condition became to large)
+#
+# API also failed to prevent this from happen as it checked
+# for size <= 64K, while actuall buffer size was 32K
+# (Has now been increased)
+############################################################
+create table t1 (
+  k1 int primary key,
+  i int,
+  name varchar(32),
+  key (name)
+)
+default charset = utf8
+engine = ndb;
+
+insert into t1 values (1, 1, 'Ole');
+insert into t1 values (2, 2, 'Dole');
+insert into t1 values (3, 3, 'Doffen');
+insert into t1 values (4, 4, 'row# 999');
+
+# Build SPJ query with 2000 IN values
+# This used to result in buffer overflow, but will now
+# pass as buffer size is incresed from 32K -> 64K
+#
+let $query = select * from t1 x, t1 y where y.k1=x.i and x.name in ('foo';
+let $values = 0;
+while ($values < 2000)
+{
+  let $query = $query , 'row# $values';
+  inc $values;
+}
+let $query = $query );
+
+eval explain $query;
+eval $query;
+
+# Same SPJ query with 4000 IN values
+# This will hit the actuall limit of 64K and will be
+# detected by API which will drop this pushed condition.
+#   'Warning 4294 Scan filter is too large, discarded'
+# (Evaluated by mysql instead)
+#
+let $query = select * from t1 x, t1 y where y.k1=x.i and x.name in ('foo';
+let $values = 0;
+while ($values < 4000)
+{
+  let $query = $query , 'row# $values';
+  inc $values;
+}
+let $query = $query );
+
+eval explain $query;
+eval $query;
+
+# Build single table (non-SPJ) query with 4000 IN values
+# Should give same 'Warning 4294' as above
+let $query = select * from t1 x where x.name in ('foo';
+let $values = 0;
+while ($values < 4000)
+{
+  let $query = $query , 'row# $values';
+  inc $values;
+}
+let $query = $query );
+
+eval explain $query;
+eval $query;
+
+drop table t1;
+
 ########################################
 # Verify DBSPJ counters for entire test:
 # Note: These tables are 'temporary' withing 'connection spj'
