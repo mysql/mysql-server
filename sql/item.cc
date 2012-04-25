@@ -712,6 +712,7 @@ void Item::cleanup()
   DBUG_ENTER("Item::cleanup");
   fixed=0;
   marker= 0;
+  tables_locked_cache= false;
   if (orig_name.is_set())
     item_name= orig_name;
   DBUG_VOID_RETURN;

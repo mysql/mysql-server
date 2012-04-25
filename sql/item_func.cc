@@ -6958,6 +6958,8 @@ Item_func_sp::fix_fields(THD *thd, Item **ref)
     const_item_cache= FALSE;
   }
 
+  if (!tables_locked_cache)
+    const_item_cache= false;
   DBUG_RETURN(res);
 }
 
@@ -6971,6 +6973,16 @@ void Item_func_sp::update_used_tables()
     used_tables_cache |= RAND_TABLE_BIT;
     const_item_cache= FALSE;
   }
+}
+
+
+bool Item_func_sp::const_item() const
+{
+  if (const_item_cache)
+    return true;
+  if (can_be_evaluated_now())
+    const_cast<Item_func_sp*>(this)->const_item_cache= true;
+  return const_item_cache;
 }
 
 
