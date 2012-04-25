@@ -356,6 +356,14 @@ dict_table_change_id_in_cache(
 	table_id_t	new_id)	/*!< in: new id to set */
 	__attribute__((nonnull));
 /**********************************************************************//**
+Removes a foreign constraint struct from the dictionary cache. */
+UNIV_INTERN
+void
+dict_foreign_remove_from_cache(
+/*===========================*/
+	dict_foreign_t*	foreign)	/*!< in, own: foreign constraint */
+	__attribute__((nonnull));
+/**********************************************************************//**
 Adds a foreign key constraint object to the dictionary cache. May free
 the object if there already is an object with the same identifier in.
 At least one of foreign table or referenced table must already be in
@@ -517,19 +525,6 @@ dict_foreign_find_index(
 					the columns must be declared
 					NOT NULL */
 	__attribute__((nonnull(1,2), warn_unused_result));
-/**********************************************************************//**
-Returns an index object by matching on the name and column names and
-if more than one index matches return the index with the max id
-@return	matching index, NULL if not found */
-UNIV_INTERN
-dict_index_t*
-dict_table_get_index_by_max_id(
-/*===========================*/
-	dict_table_t*	table,	/*!< in: table */
-	const char*	name,	/*!< in: the index name to find */
-	const char**	columns,/*!< in: array of column names */
-	ulint		n_cols)	/*!< in: number of columns */
-	__attribute__((nonnull, warn_unused_result));
 /**********************************************************************//**
 Returns a column's name.
 @return column name. NOTE: not guaranteed to stay valid if table is
