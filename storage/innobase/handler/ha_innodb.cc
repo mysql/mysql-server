@@ -6349,6 +6349,7 @@ no_commit:
 	innobase_srv_conc_enter_innodb(prebuilt->trx);
 
 	error = row_insert_for_mysql((byte*) record, prebuilt);
+	DEBUG_SYNC(user_thd, "ib_after_row_insert");
 
 	/* Handle duplicate key errors */
 	if (auto_inc_used) {
@@ -9504,20 +9505,21 @@ innobase_drop_database(
 }
 /*********************************************************************//**
 Renames an InnoDB table.
-@return	DB_SUCCESS or error code */
-static
+@return DB_SUCCESS or error code */
+static __attribute__((nonnull, warn_unused_result))
 dberr_t
 innobase_rename_table(
 /*==================*/
 	trx_t*		trx,	/*!< in: transaction */
 	const char*	from,	/*!< in: old name of the table */
-	const char*	to,	/*!< in: new name of the table */
-	ibool		lock_and_commit)
-				/*!< in: TRUE=lock data dictionary and commit */
+	const char*	to)	/*!< in: new name of the table */
 {
 	dberr_t	error;
 	char*	norm_to;
 	char*	norm_from;
+
+	DBUG_ENTER("innobase_rename_table");
+	DBUG_ASSERT(trx_get_dict_operation(trx) == TRX_DICT_OP_INDEX);
 
 	// Magic number 64 arbitrary
 	norm_to = (char*) my_malloc(strlen(to) + 64, MYF(0));
@@ -9529,9 +9531,7 @@ innobase_rename_table(
 	/* Serialize data dictionary operations with dictionary mutex:
 	no deadlocks can occur then in these operations */
 
-	if (lock_and_commit) {
-		row_mysql_lock_data_dictionary(trx);
-	}
+	row_mysql_lock_data_dictionary(trx);
 
 	/* Transaction must be flagged as a locking transaction or it hasn't
 	been started yet. */
@@ -9539,7 +9539,7 @@ innobase_rename_table(
 	ut_a(trx->will_lock > 0);
 
 	error = row_rename_table_for_mysql(
-		norm_from, norm_to, trx, lock_and_commit);
+		norm_from, norm_to, trx, TRUE);
 
 	if (error != DB_SUCCESS) {
 		if (error == DB_TABLE_NOT_FOUND
@@ -9571,8 +9571,7 @@ innobase_rename_table(
 							 from, FALSE);
 #endif
 				error = row_rename_table_for_mysql(
-					par_case_name, norm_to, trx,
-					lock_and_commit);
+					par_case_name, norm_to, trx, TRUE);
 
 			}
 		}
@@ -9605,20 +9604,18 @@ innobase_rename_table(
 		}
 	}
 
-	if (lock_and_commit) {
-		row_mysql_unlock_data_dictionary(trx);
+	row_mysql_unlock_data_dictionary(trx);
 
-		/* Flush the log to reduce probability that the .frm
-		files and the InnoDB data dictionary get out-of-sync
-		if the user runs with innodb_flush_log_at_trx_commit = 0 */
+	/* Flush the log to reduce probability that the .frm
+	files and the InnoDB data dictionary get out-of-sync
+	if the user runs with innodb_flush_log_at_trx_commit = 0 */
 
-		log_buffer_flush_to_disk();
-	}
+	log_buffer_flush_to_disk();
 
 	my_free(norm_to);
 	my_free(norm_from);
 
-	return(error);
+	DBUG_RETURN(error);
 }
 
 /*********************************************************************//**
@@ -9650,15 +9647,11 @@ ha_innobase::rename_table(
 
 	trx = innobase_trx_allocate(thd);
 
-	/* Either the transaction is already flagged as a locking transaction
-	or it hasn't been started yet. */
-
-	ut_a(!trx_is_started(trx) || trx->will_lock > 0);
-
 	/* We are doing a DDL operation. */
 	++trx->will_lock;
+	trx_set_dict_operation(trx, TRX_DICT_OP_INDEX);
 
-	error = innobase_rename_table(trx, from, to, TRUE);
+	error = innobase_rename_table(trx, from, to);
 
 	DEBUG_SYNC(thd, "after_innobase_rename_table");
 

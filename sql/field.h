@@ -759,7 +759,7 @@ public:
   /**
      Signals that this field is NULL-able.
   */
-  inline bool real_maybe_null(void) { return null_ptr != 0; }
+  inline bool real_maybe_null(void) const { return null_ptr != 0; }
 
   enum {
     LAST_NULL_BYTE_UNDEF= 0
