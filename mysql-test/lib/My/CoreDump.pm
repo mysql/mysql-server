@@ -1,5 +1,5 @@
 # -*- cperl -*-
-# Copyright (c) 2008, 2011, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2008, 2012, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -158,7 +158,6 @@ sub cdb_check {
 
 sub _cdb {
   my ($core_name)= @_;
-  print localtime() . " cdb debug A\n";
   print "\nTrying 'cdb' to get a backtrace\n";
   return unless -f $core_name;
   
@@ -184,7 +183,6 @@ sub _cdb {
   # build symbol path (required by cdb if executable was built on 
   # different machine)
   my $tmp_name= $core_name.".cdb_lmv";
-  print localtime() . " cdb debug B\n";
   `cdb -z $core_name -c \"lmv;q\" > $tmp_name 2>&1`;
   print localtime() . " cdb debug C\n";
   if ($? >> 8)
@@ -195,7 +193,7 @@ sub _cdb {
     cdb_check();
     return;
   }
-  
+  print localtime() . " cdb debug E\n";
   open(temp,"< $tmp_name");
   my %dirhash=();
   while(<temp>)
@@ -211,7 +209,7 @@ sub _cdb {
   }
   close(temp);
   unlink($tmp_name);
-  
+  print localtime() . " cdb debug F\n";
   my $image_path= join(";", (keys %dirhash),".");
 
   # For better callstacks, setup _NT_SYMBOL_PATH to include
@@ -242,6 +240,7 @@ sub _cdb {
   my $cdb_output=
     `cdb -c "$cdb_cmd" -z $core_name -i "$image_path" -y "$symbol_path" -t 0 -lines 2>&1`;
   return if $? >> 8;
+  print localtime() . " cdb debug G\n";
   return unless $cdb_output;
   
   # Remove comments (lines starting with *), stack pointer and frame 

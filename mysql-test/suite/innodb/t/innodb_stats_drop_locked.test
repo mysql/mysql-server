@@ -8,11 +8,10 @@
 -- disable_warnings
 -- disable_query_log
 
-SET SESSION innodb_analyze_is_persistent=1;
-
 DROP TABLE IF EXISTS innodb_stats_drop_locked;
 
-CREATE TABLE innodb_stats_drop_locked (c INT, KEY c_key (c)) ENGINE=INNODB;
+CREATE TABLE innodb_stats_drop_locked (c INT, KEY c_key (c))
+ENGINE=INNODB STATS_PERSISTENT=1;
 
 ANALYZE TABLE innodb_stats_drop_locked;
 

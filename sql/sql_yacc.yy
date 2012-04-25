@@ -1085,6 +1085,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  COLLATION_SYM                 /* SQL-2003-N */
 %token  COLUMNS
 %token  COLUMN_SYM                    /* SQL-2003-R */
+%token  COLUMN_FORMAT_SYM
 %token  COLUMN_NAME_SYM               /* SQL-2003-N */
 %token  COMMENT_SYM
 %token  COMMITTED_SYM                 /* SQL-2003-N */
@@ -1526,6 +1527,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  STARTING
 %token  STARTS_SYM
 %token  START_SYM                     /* SQL-2003-R */
+%token  STATS_PERSISTENT_SYM
 %token  STATUS_SYM
 %token  STDDEV_SAMP_SYM               /* SQL-2003-N */
 %token  STD_SYM
@@ -5654,6 +5656,27 @@ create_table_option:
               ~(HA_OPTION_PACK_KEYS | HA_OPTION_NO_PACK_KEYS);
             Lex->create_info.used_fields|= HA_CREATE_USED_PACK_KEYS;
           }
+        | STATS_PERSISTENT_SYM opt_equal ulong_num
+          {
+            switch($3) {
+            case 0:
+                Lex->create_info.table_options|= HA_OPTION_NO_STATS_PERSISTENT;
+                break;
+            case 1:
+                Lex->create_info.table_options|= HA_OPTION_STATS_PERSISTENT;
+                break;
+            default:
+                my_parse_error(ER(ER_SYNTAX_ERROR));
+                MYSQL_YYABORT;
+            }
+            Lex->create_info.used_fields|= HA_CREATE_USED_STATS_PERSISTENT;
+          }
+        | STATS_PERSISTENT_SYM opt_equal DEFAULT
+          {
+            Lex->create_info.table_options&=
+              ~(HA_OPTION_STATS_PERSISTENT | HA_OPTION_NO_STATS_PERSISTENT);
+            Lex->create_info.used_fields|= HA_CREATE_USED_STATS_PERSISTENT;
+          }
         | CHECKSUM_SYM opt_equal ulong_num
           {
             Lex->create_info.table_options|= $3 ? HA_OPTION_CHECKSUM : HA_OPTION_NO_CHECKSUM;
@@ -6293,6 +6316,39 @@ attribute:
             {
               Lex->charset=$2;
             }
+          }
+        | COLUMN_FORMAT_SYM DEFAULT
+          {
+            Lex->type&= ~(FIELD_FLAGS_COLUMN_FORMAT_MASK);
+            Lex->type|=
+              (COLUMN_FORMAT_TYPE_DEFAULT << FIELD_FLAGS_COLUMN_FORMAT);
+          }
+        | COLUMN_FORMAT_SYM FIXED_SYM
+          {
+            Lex->type&= ~(FIELD_FLAGS_COLUMN_FORMAT_MASK);
+            Lex->type|=
+              (COLUMN_FORMAT_TYPE_FIXED << FIELD_FLAGS_COLUMN_FORMAT);
+          }
+        | COLUMN_FORMAT_SYM DYNAMIC_SYM
+          {
+            Lex->type&= ~(FIELD_FLAGS_COLUMN_FORMAT_MASK);
+            Lex->type|=
+              (COLUMN_FORMAT_TYPE_DYNAMIC << FIELD_FLAGS_COLUMN_FORMAT);
+          }
+        | STORAGE_SYM DEFAULT
+          {
+            Lex->type&= ~(FIELD_FLAGS_STORAGE_MEDIA_MASK);
+            Lex->type|= (HA_SM_DEFAULT << FIELD_FLAGS_STORAGE_MEDIA);
+          }
+        | STORAGE_SYM DISK_SYM
+          {
+            Lex->type&= ~(FIELD_FLAGS_STORAGE_MEDIA_MASK);
+            Lex->type|= (HA_SM_DISK << FIELD_FLAGS_STORAGE_MEDIA);
+          }
+        | STORAGE_SYM MEMORY_SYM
+          {
+            Lex->type&= ~(FIELD_FLAGS_STORAGE_MEDIA_MASK);
+            Lex->type|= (HA_SM_MEMORY << FIELD_FLAGS_STORAGE_MEDIA);
           }
         ;
 
@@ -8276,7 +8332,7 @@ select_item:
               }
               $2->item_name.copy($4.str, $4.length, system_charset_info, false);
             }
-            else if (!$2->item_name.ptr())
+            else if (!$2->item_name.is_set())
             {
               $2->item_name.copy($1, (uint) ($3 - $1), thd->charset());
             }
@@ -8886,7 +8942,7 @@ simple_expr:
             {
               Item_splocal *il= static_cast<Item_splocal *>($3);
 
-              my_error(ER_WRONG_COLUMN_NAME, MYF(0), il->my_name()->str);
+              my_error(ER_WRONG_COLUMN_NAME, MYF(0), il->m_name.ptr());
               MYSQL_YYABORT;
             }
             $$= new (YYTHD->mem_root) Item_default_value(Lex->current_context(),
@@ -9393,7 +9449,7 @@ function_call_conflict:
         | WEEK_SYM '(' expr ')'
           {
             THD *thd= YYTHD;
-            Item *i1= new (thd->mem_root) Item_int((char*) "0",
+            Item *i1= new (thd->mem_root) Item_int(NAME_STRING("0"),
                                            thd->variables.default_week_format,
                                                    1);
             if (i1 == NULL)
@@ -10995,7 +11051,7 @@ procedure_item:
 
             if (add_proc_to_list(thd, $2))
               MYSQL_YYABORT;
-            if (!$2->item_name.ptr())
+            if (!$2->item_name.is_set())
               $2->item_name.copy($1, (uint) ($3 - $1), thd->charset());
           }
         ;
@@ -12770,13 +12826,13 @@ literal:
           }
         | FALSE_SYM
           {
-            $$= new (YYTHD->mem_root) Item_int((char*) "FALSE",0,1);
+            $$= new (YYTHD->mem_root) Item_int(NAME_STRING("FALSE"), 0, 1);
             if ($$ == NULL)
               MYSQL_YYABORT;
           }
         | TRUE_SYM
           {
-            $$= new (YYTHD->mem_root) Item_int((char*) "TRUE",1,1);
+            $$= new (YYTHD->mem_root) Item_int(NAME_STRING("TRUE"), 1, 1);
             if ($$ == NULL)
               MYSQL_YYABORT;
           }
@@ -12806,7 +12862,7 @@ literal:
 
             Item_string *item_str;
             item_str= new (YYTHD->mem_root)
-                        Item_string(NULL, /* name will be set in select_item */
+                        Item_string(null_name_string, /* name will be set in select_item */
                                     str ? str->ptr() : "",
                                     str ? str->length() : 0,
                                     $1);
@@ -12835,7 +12891,7 @@ literal:
 
             Item_string *item_str;
             item_str= new (YYTHD->mem_root)
-                        Item_string(NULL, /* name will be set in select_item */
+                        Item_string(null_name_string, /* name will be set in select_item */
                                     str ? str->ptr() : "",
                                     str ? str->length() : 0,
                                     $1);
@@ -12856,7 +12912,7 @@ NUM_literal:
           {
             int error;
             $$= new (YYTHD->mem_root)
-                  Item_int($1.str,
+                  Item_int($1,
                            (longlong) my_strtoll10($1.str, NULL, &error),
                            $1.length);
             if ($$ == NULL)
@@ -12866,7 +12922,7 @@ NUM_literal:
           {
             int error;
             $$= new (YYTHD->mem_root)
-                  Item_int($1.str,
+                  Item_int($1,
                            (longlong) my_strtoll10($1.str, NULL, &error),
                            $1.length);
             if ($$ == NULL)
@@ -13509,6 +13565,7 @@ keyword_sp:
         | CODE_SYM                 {}
         | COLLATION_SYM            {}
         | COLUMN_NAME_SYM          {}
+        | COLUMN_FORMAT_SYM        {}
         | COLUMNS                  {}
         | COMMITTED_SYM            {}
         | COMPACT_SYM              {}
@@ -13723,11 +13780,15 @@ keyword_sp:
         | SNAPSHOT_SYM             {}
         | SOUNDS_SYM               {}
         | SOURCE_SYM               {}
+        | SQL_AFTER_GTIDS          {}
+        | SQL_AFTER_MTS_GAPS       {}
+        | SQL_BEFORE_GTIDS         {}
         | SQL_CACHE_SYM            {}
         | SQL_BUFFER_RESULT        {}
         | SQL_NO_CACHE_SYM         {}
         | SQL_THREAD               {}
         | STARTS_SYM               {}
+        | STATS_PERSISTENT_SYM     {}
         | STATUS_SYM               {}
         | STORAGE_SYM              {}
         | STRING_SYM               {}

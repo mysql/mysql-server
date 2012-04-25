@@ -1359,9 +1359,11 @@ let $wait_timeout= 10;
 let $wait_condition= SELECT COUNT(*) FROM INFORMATION_SCHEMA.PROCESSLIST WHERE INFO LIKE '%GET_LOCK%' AND ID != CONNECTION_ID();
 --source include/wait_condition.inc
 --replace_column 1 ### 3 ### 6 ### 7 ###
+--sorted_result
 SHOW PROCESSLIST;
 SET NAMES utf8;
 --replace_column 1 ### 3 ### 6 ### 7 ###
+--sorted_result
 SHOW PROCESSLIST;
 SELECT RELEASE_LOCK('t');
 --connection con1

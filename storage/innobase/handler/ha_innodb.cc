@@ -243,6 +243,11 @@ const struct _ft_vft ft_vft_result = {NULL,
 				      innobase_fts_retrieve_ranking,
 				      NULL};
 
+const struct _ft_vft_ext ft_vft_ext_result = {innobase_fts_get_version,
+					      innobase_fts_flags,
+					      innobase_fts_retrieve_docid,
+					      innobase_fts_count_matches};
+
 #ifdef HAVE_PSI_INTERFACE
 /* Keys to register pthread mutexes/cond in the current file with
 performance schema */
@@ -496,12 +501,6 @@ static MYSQL_THDVAR_BOOL(ft_enable_stopword, PLUGIN_VAR_OPCMDARG,
   "Create FTS index with stopword.",
   NULL, NULL,
   /* default */ TRUE);
-
-static MYSQL_THDVAR_BOOL(analyze_is_persistent, PLUGIN_VAR_OPCMDARG,
-  "ANALYZE TABLE in InnoDB uses a more precise (and slow) sampling "
-  "algorithm and saves the results persistently.",
-  /* check_func */ NULL, /* update_func */ NULL,
-  /* default */ FALSE);
 
 static MYSQL_THDVAR_ULONG(lock_wait_timeout, PLUGIN_VAR_RQCMDARG,
   "Timeout in seconds an InnoDB transaction may wait for a lock before being rolled back. Values above 100000000 disable the timeout.",
@@ -2082,7 +2081,8 @@ ha_innobase::ha_innobase(
 		  HA_PRIMARY_KEY_IN_READ_INDEX |
 		  HA_BINLOG_ROW_CAPABLE |
 		  HA_CAN_GEOMETRY | HA_PARTIAL_COLUMN_READ |
-		  HA_TABLE_SCAN_ON_INDEX | HA_CAN_FULLTEXT),
+		  HA_TABLE_SCAN_ON_INDEX | HA_CAN_FULLTEXT |
+		  HA_CAN_FULLTEXT_EXT),
 	start_of_scan(0),
 	num_write_row(0)
 {}
@@ -3955,6 +3955,78 @@ test_normalize_table_name_low()
 		}
 	}
 }
+
+/*********************************************************************
+Test ut_format_name(). */
+static
+void
+test_ut_format_name()
+/*=================*/
+{
+	char		buf[NAME_LEN * 3];
+
+	struct {
+		const char*	name;
+		ibool		is_table;
+		ulint		buf_size;
+		const char*	expected;
+	} test_data[] = {
+		{"test/t1",	TRUE,	sizeof(buf),	"\"test\".\"t1\""},
+		{"test/t1",	TRUE,	12,		"\"test\".\"t1\""},
+		{"test/t1",	TRUE,	11,		"\"test\".\"t1"},
+		{"test/t1",	TRUE,	10,		"\"test\".\"t"},
+		{"test/t1",	TRUE,	9,		"\"test\".\""},
+		{"test/t1",	TRUE,	8,		"\"test\"."},
+		{"test/t1",	TRUE,	7,		"\"test\""},
+		{"test/t1",	TRUE,	6,		"\"test"},
+		{"test/t1",	TRUE,	5,		"\"tes"},
+		{"test/t1",	TRUE,	4,		"\"te"},
+		{"test/t1",	TRUE,	3,		"\"t"},
+		{"test/t1",	TRUE,	2,		"\""},
+		{"test/t1",	TRUE,	1,		""},
+		{"test/t1",	TRUE,	0,		"BUF_NOT_CHANGED"},
+		{"table",	TRUE,	sizeof(buf),	"\"table\""},
+		{"ta'le",	TRUE,	sizeof(buf),	"\"ta'le\""},
+		{"ta\"le",	TRUE,	sizeof(buf),	"\"ta\"\"le\""},
+		{"ta`le",	TRUE,	sizeof(buf),	"\"ta`le\""},
+		{"index",	FALSE,	sizeof(buf),	"\"index\""},
+		{"ind/ex",	FALSE,	sizeof(buf),	"\"ind/ex\""},
+	};
+
+	for (size_t i = 0; i < UT_ARR_SIZE(test_data); i++) {
+
+		memcpy(buf, "BUF_NOT_CHANGED", strlen("BUF_NOT_CHANGED") + 1);
+
+		char*	ret;
+
+		ret = ut_format_name(test_data[i].name,
+				     test_data[i].is_table,
+				     buf,
+				     test_data[i].buf_size);
+
+		ut_a(ret == buf);
+
+		if (strcmp(buf, test_data[i].expected) == 0) {
+			fprintf(stderr,
+				"ut_format_name(%s, %s, buf, %lu), "
+				"expected %s, OK\n",
+				test_data[i].name,
+				test_data[i].is_table ? "TRUE" : "FALSE",
+				test_data[i].buf_size,
+				test_data[i].expected);
+		} else {
+			fprintf(stderr,
+				"ut_format_name(%s, %s, buf, %lu), "
+				"expected %s, ERROR: got %s\n",
+				test_data[i].name,
+				test_data[i].is_table ? "TRUE" : "FALSE",
+				test_data[i].buf_size,
+				test_data[i].expected,
+				buf);
+			ut_error;
+		}
+	}
+}
 #endif /* !DBUG_OFF */
 
 /********************************************************************//**
@@ -4401,7 +4473,8 @@ ha_innobase::open(
 
 retry:
 	/* Get pointer to a table object in InnoDB dictionary cache */
-	ib_table = dict_table_open_on_name(norm_name, FALSE, TRUE);
+	ib_table = dict_table_open_on_name(norm_name, FALSE, TRUE,
+					   DICT_ERR_IGNORE_NONE);
 
 	if (NULL == ib_table) {
 		if (is_part && retries < 10) {
@@ -4445,7 +4518,8 @@ retry:
 				}
 
 				ib_table = dict_table_open_on_name(
-					par_case_name, FALSE, TRUE);
+					par_case_name, FALSE, TRUE,
+					DICT_ERR_IGNORE_NONE);
 			}
 
 			if (!ib_table) {
@@ -4504,6 +4578,12 @@ retry:
 	}
 
 table_opened:
+
+	dict_stats_init(
+		ib_table,
+		table->s->db_create_options & HA_OPTION_STATS_PERSISTENT,
+		table->s->db_create_options & HA_OPTION_NO_STATS_PERSISTENT,
+		FALSE  /* dict not locked */);
 
 	MONITOR_INC(MONITOR_TABLE_OPEN);
 
@@ -7726,6 +7806,7 @@ ha_innobase::ft_init_ext(
 						   MYF(0));
 
 		fts_hdl->please = (struct _ft_vft*)(&ft_vft_result);
+		fts_hdl->could_you = (struct _ft_vft_ext*)(&ft_vft_ext_result);
 		fts_hdl->ft_prebuilt = prebuilt;
 		fts_hdl->ft_result = result;
 	}
@@ -7777,6 +7858,13 @@ next_record:
 	if (result->current != NULL) {
 		dict_index_t*	index;
 		dtuple_t*	tuple = prebuilt->search_tuple;
+
+		/* If we only need information from result we can return
+		   without fetching the table row */
+		if (ft_prebuilt->read_just_key) {
+			table->status= 0;
+			return (0);
+		}
 
 		index = dict_table_get_index_on_name(
 			prebuilt->table, FTS_DOC_ID_INDEX_NAME);
@@ -8945,7 +9033,7 @@ ha_innobase::create(
 	if (flags2 & DICT_TF2_FTS) {
 		enum fts_doc_id_index_enum	ret;
 
-		innobase_table = dict_table_open_on_name_no_stats(
+		innobase_table = dict_table_open_on_name(
 			norm_name, TRUE, FALSE, DICT_ERR_IGNORE_NONE);
 
 		ut_a(innobase_table);
@@ -9066,9 +9154,16 @@ ha_innobase::create(
 
 	log_buffer_flush_to_disk();
 
-	innobase_table = dict_table_open_on_name(norm_name, FALSE, FALSE);
+	innobase_table = dict_table_open_on_name(norm_name, FALSE, FALSE,
+						 DICT_ERR_IGNORE_NONE);
 
 	DBUG_ASSERT(innobase_table != 0);
+
+	dict_stats_set_persistent(
+		innobase_table, 
+		create_info->table_options & HA_OPTION_STATS_PERSISTENT,
+		create_info->table_options & HA_OPTION_NO_STATS_PERSISTENT);
+	dict_stats_update(innobase_table, DICT_STATS_EMPTY_TABLE, FALSE);
 
 	if (innobase_table) {
 		/* We update the highest file format in the system table
@@ -9225,6 +9320,10 @@ ha_innobase::delete_table(
 	DBUG_EXECUTE_IF(
 		"test_normalize_table_name_low",
 		test_normalize_table_name_low();
+	);
+	DBUG_EXECUTE_IF(
+		"test_ut_format_name",
+		test_ut_format_name();
 	);
 
 	/* Strangely, MySQL passes the table name without the '.frm'
@@ -9782,7 +9881,32 @@ ha_innobase::scan_time()
 	as a random disk read, that is, we do not divide the following
 	by 10, which would be physically realistic. */
 
-	return((double) (prebuilt->table->stat_clustered_index_size));
+	/* The locking below is disabled for performance reasons. Without
+	it we could end up returning uninitialized value to the caller,
+	which in the worst case could make some query plan go bogus or
+	issue a Valgrind warning. */
+#if 0
+	/* avoid potential lock order violation with dict_table_stats_lock()
+	below */
+	update_thd(ha_thd());
+	trx_search_latch_release_if_reserved(prebuilt->trx);
+#endif
+
+	ulint	stat_clustered_index_size;
+
+#if 0
+	dict_table_stats_lock(prebuilt->table, RW_S_LATCH);
+#endif
+
+	ut_a(prebuilt->table->stat_initialized);
+
+	stat_clustered_index_size = prebuilt->table->stat_clustered_index_size;
+
+#if 0
+	dict_table_stats_unlock(prebuilt->table, RW_S_LATCH);
+#endif
+
+	return((double) stat_clustered_index_size);
 }
 
 /******************************************************************//**
@@ -9933,6 +10057,8 @@ innodb_rec_per_key(
 {
 	ha_rows		rec_per_key;
 
+	ut_a(index->table->stat_initialized);
+
 	ut_ad(i < dict_index_get_n_unique(index));
 
 	/* Note the stat_n_diff_key_vals[] stores the diff value with
@@ -9982,14 +10108,9 @@ in various fields of the handle object.
 @return HA_ERR_* error code or 0 */
 UNIV_INTERN
 int
-ha_innobase::info_low(
-/*==================*/
-	uint			flag,	/*!< in: what information MySQL
-					requests */
-	dict_stats_upd_option_t	stats_upd_option)
-					/*!< in: whether to (re) calc
-					the stats or to fetch them from
-					the persistent storage */
+ha_innobase::info(
+/*==============*/
+	uint	flag)	/*!< in: what information is requested */
 {
 	dict_table_t*	ib_table;
 	ha_rows		rec_per_key;
@@ -10020,17 +10141,28 @@ ha_innobase::info_low(
 	DBUG_ASSERT(ib_table->n_ref_count > 0);
 
 	if (flag & HA_STATUS_TIME) {
-		if (stats_upd_option != DICT_STATS_FETCH
+		if (thd_sql_command(user_thd) == SQLCOM_ANALYZE
 		    || innobase_stats_on_metadata) {
-			/* In sql_show we call with this flag: update
-			then statistics so that they are up-to-date */
-			dberr_t	ret;
+
+			dict_stats_upd_option_t	opt;
+			dberr_t			ret;
 
 			prebuilt->trx->op_info = "updating table statistics";
 
+			if (dict_stats_is_persistent_enabled(ib_table)) {
+				if (thd_sql_command(user_thd) == SQLCOM_ANALYZE) {
+					opt = DICT_STATS_RECALC_PERSISTENT;
+				} else {
+					/* This is e.g. 'SHOW INDEXES', fetch
+					the persistent stats from disk. */
+					opt = DICT_STATS_FETCH_ONLY_IF_NOT_IN_MEMORY;
+				}
+			} else {
+				opt = DICT_STATS_RECALC_TRANSIENT;
+			}
+
 			ut_ad(!mutex_own(&dict_sys->mutex));
-			ret = dict_stats_update(ib_table, stats_upd_option,
-						FALSE);
+			ret = dict_stats_update(ib_table, opt, FALSE);
 
 			if (ret != DB_SUCCESS) {
 				prebuilt->trx->op_info = "";
@@ -10056,8 +10188,26 @@ ha_innobase::info_low(
 	if (flag & HA_STATUS_VARIABLE) {
 
 		ulint	page_size;
+		ulint	stat_clustered_index_size;
+		ulint	stat_sum_of_other_index_sizes;
+
+		if (!(flag & HA_STATUS_NO_LOCK)) {
+			dict_table_stats_lock(ib_table, RW_S_LATCH);
+		}
+
+		ut_a(ib_table->stat_initialized);
 
 		n_rows = ib_table->stat_n_rows;
+
+		stat_clustered_index_size
+			= ib_table->stat_clustered_index_size;
+
+		stat_sum_of_other_index_sizes
+			= ib_table->stat_sum_of_other_index_sizes;
+
+		if (!(flag & HA_STATUS_NO_LOCK)) {
+			dict_table_stats_unlock(ib_table, RW_S_LATCH);
+		}
 
 		/* Because we do not protect stat_n_rows by any mutex in a
 		delete, it is theoretically possible that the value can be
@@ -10105,10 +10255,10 @@ ha_innobase::info_low(
 		stats.records = (ha_rows) n_rows;
 		stats.deleted = 0;
 		stats.data_file_length
-			= ((ulonglong) ib_table->stat_clustered_index_size)
+			= ((ulonglong) stat_clustered_index_size)
 			* page_size;
-		stats.index_file_length =
-			((ulonglong) ib_table->stat_sum_of_other_index_sizes)
+		stats.index_file_length
+			= ((ulonglong) stat_sum_of_other_index_sizes)
 			* page_size;
 
 		/* Since fsp_get_available_space_in_free_extents() is
@@ -10220,6 +10370,12 @@ ha_innobase::info_low(
 					table->s->keys);
 		}
 
+		if (!(flag & HA_STATUS_NO_LOCK)) {
+			dict_table_stats_lock(ib_table, RW_S_LATCH);
+		}
+
+		ut_a(ib_table->stat_initialized);
+
 		for (i = 0; i < table->s->keys; i++) {
 			ulong	j;
 			/* We could get index quickly through internal
@@ -10287,6 +10443,10 @@ ha_innobase::info_low(
 				  (ulong) rec_per_key;
 			}
 		}
+
+		if (!(flag & HA_STATUS_NO_LOCK)) {
+			dict_table_stats_unlock(ib_table, RW_S_LATCH);
+		}
 	}
 
 	if (srv_force_recovery >= SRV_FORCE_NO_IBUF_MERGE) {
@@ -10324,19 +10484,6 @@ func_exit:
 	DBUG_RETURN(0);
 }
 
-/*********************************************************************//**
-Returns statistics information of the table to the MySQL interpreter,
-in various fields of the handle object.
-@return HA_ERR_* error code or 0 */
-UNIV_INTERN
-int
-ha_innobase::info(
-/*==============*/
-	uint	flag)	/*!< in: what information MySQL requests */
-{
-	return(info_low(flag, DICT_STATS_FETCH));
-}
-
 /**********************************************************************//**
 Updates index cardinalities of the table, based on random dives into
 each index tree. This does NOT calculate exact statistics on the table.
@@ -10348,19 +10495,11 @@ ha_innobase::analyze(
 	THD*		thd,		/*!< in: connection thread handle */
 	HA_CHECK_OPT*	check_opt)	/*!< in: currently ignored */
 {
-	dict_stats_upd_option_t	upd_option;
-	int			ret;
+	int	ret;
 
-	if (THDVAR(thd, analyze_is_persistent)) {
-		upd_option = DICT_STATS_RECALC_PERSISTENT;
-	} else {
-		upd_option = DICT_STATS_RECALC_TRANSIENT;
-	}
-
-	/* Simply call ::info_low() with all the flags
+	/* Simply call ::info() with all the flags
 	and request recalculation of the statistics */
-	ret = info_low(HA_STATUS_TIME | HA_STATUS_CONST | HA_STATUS_VARIABLE,
-		       upd_option);
+	ret = info(HA_STATUS_TIME | HA_STATUS_CONST | HA_STATUS_VARIABLE);
 
 	if (ret != 0) {
 		return(HA_ADMIN_FAILED);
@@ -12768,6 +12907,13 @@ ha_innobase::check_if_incompatible_data(
 	HA_CREATE_INFO*	info,
 	uint		table_changes)
 {
+	/* Copy the persistent stats flags from info->table_options to
+	prebuilt->table */
+	dict_stats_set_persistent(
+		prebuilt->table,
+		info->table_options & HA_OPTION_STATS_PERSISTENT,
+		info->table_options & HA_OPTION_NO_STATS_PERSISTENT);
+
 	if (table_changes != IS_EQUAL_YES) {
 
 		return(COMPATIBLE_DATA_NO);
@@ -13160,7 +13306,7 @@ innodb_internal_table_validate(
 		return(0);
 	}
 
-	user_table = dict_table_open_on_name_no_stats(
+	user_table = dict_table_open_on_name(
 		table_name, FALSE, TRUE, DICT_ERR_IGNORE_NONE);
 
 	if (user_table) {
@@ -14033,6 +14179,12 @@ innobase_fts_retrieve_ranking(
 
 	ft_prebuilt = ((NEW_FT_INFO*) fts_hdl)->ft_prebuilt;
 
+	if (ft_prebuilt->read_just_key) {
+		fts_ranking_t*  ranking = 
+			rbt_value(fts_ranking_t, result->current);
+		return (ranking->rank);
+	}
+
 	/* Retrieve the ranking value for doc_id with value of
 	prebuilt->fts_doc_id */
 	return(fts_retrieve_ranking(result, ft_prebuilt->fts_doc_id));
@@ -14086,6 +14238,69 @@ innobase_fts_find_ranking(
 	prebuilt->fts_doc_id */
 	return fts_retrieve_ranking(result, ft_prebuilt->fts_doc_id);
 }
+
+/***********************************************************************
+@return version of the extended FTS API */
+uint
+innobase_fts_get_version()
+{
+	/* Currently this doesn't make much sense as returning
+	HA_CAN_FULLTEXT_EXT automatically mean this version is supported.
+	This supposed to ease future extensions.  */
+	return 2;
+}
+
+/***********************************************************************
+@return Which part of the extended FTS API is supported */
+ulonglong
+innobase_fts_flags()
+{
+	return (FTS_ORDERED_RESULT | FTS_DOCID_IN_RESULT);
+}
+
+
+/***********************************************************************
+Find and Retrieve the FTS doc_id for the current result row
+@return the document ID */
+ulonglong
+innobase_fts_retrieve_docid(
+/*============================*/
+		FT_INFO_EXT * fts_hdl)	/*!< in: FTS handler */
+{
+	row_prebuilt_t* ft_prebuilt;
+	fts_result_t*	result;
+
+	ft_prebuilt = ((NEW_FT_INFO *)fts_hdl)->ft_prebuilt;
+	result = ((NEW_FT_INFO *)fts_hdl)->ft_result;
+
+	if (ft_prebuilt->read_just_key) {
+		fts_ranking_t* ranking = 
+			rbt_value(fts_ranking_t, result->current);
+		return (ranking->doc_id);
+	}
+
+	return(ft_prebuilt->fts_doc_id);
+}
+
+/***********************************************************************
+Find and retrieve the size of the current result
+@return number of matching rows */
+ulonglong
+innobase_fts_count_matches(
+/*============================*/
+		FT_INFO_EXT * fts_hdl)	/*!< in: FTS handler */
+{
+	row_prebuilt_t* ft_prebuilt;
+
+	ft_prebuilt = ((NEW_FT_INFO *)fts_hdl)->ft_prebuilt;
+
+	if (ft_prebuilt->result->rankings_by_id != NULL) {
+		return rbt_size(ft_prebuilt->result->rankings_by_id);
+	} else {
+		return(0);
+	}
+}
+
 
 /* These variables are never read by InnoDB or changed. They are a kind of
 dummies that are needed by the MySQL infrastructure to call
@@ -14376,7 +14591,8 @@ static MYSQL_SYSVAR_BOOL(status_file, innobase_create_status_file,
 
 static MYSQL_SYSVAR_BOOL(stats_on_metadata, innobase_stats_on_metadata,
   PLUGIN_VAR_OPCMDARG,
-  "Enable statistics gathering for metadata commands such as SHOW TABLE STATUS (on by default)",
+  "Enable statistics gathering for metadata commands such as "
+  "SHOW TABLE STATUS for tables that use transient statistics (on by default)",
   NULL, NULL, TRUE);
 
 static MYSQL_SYSVAR_ULONGLONG(stats_sample_pages, srv_stats_transient_sample_pages,
@@ -14390,6 +14606,12 @@ static MYSQL_SYSVAR_ULONGLONG(stats_transient_sample_pages,
   "The number of leaf index pages to sample when calculating transient "
   "statistics (if persistent statistics are not used, default 8)",
   NULL, NULL, 8, 1, ~0ULL, 0);
+
+static MYSQL_SYSVAR_BOOL(stats_persistent, srv_stats_persistent,
+  PLUGIN_VAR_OPCMDARG,
+  "InnoDB persistent statistics enabled for all tables unless overridden "
+  "at table level",
+  NULL, NULL, FALSE);
 
 static MYSQL_SYSVAR_ULONGLONG(stats_persistent_sample_pages,
   srv_stats_persistent_sample_pages,
@@ -14885,6 +15107,7 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(stats_on_metadata),
   MYSQL_SYSVAR(stats_sample_pages),
   MYSQL_SYSVAR(stats_transient_sample_pages),
+  MYSQL_SYSVAR(stats_persistent),
   MYSQL_SYSVAR(stats_persistent_sample_pages),
   MYSQL_SYSVAR(adaptive_hash_index),
   MYSQL_SYSVAR(stats_method),
@@ -14894,7 +15117,6 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(support_xa),
   MYSQL_SYSVAR(sort_buffer_size),
   MYSQL_SYSVAR(online_alter_log_max_size),
-  MYSQL_SYSVAR(analyze_is_persistent),
   MYSQL_SYSVAR(sync_spin_loops),
   MYSQL_SYSVAR(spin_wait_delay),
   MYSQL_SYSVAR(table_locks),

@@ -470,12 +470,7 @@ btr_cur_search_to_nth_level(
 	estimate = latch_mode & BTR_ESTIMATE;
 
 	/* Turn the flags unrelated to the latch mode off. */
-	latch_mode &= ~(BTR_INSERT
-			| BTR_DELETE_MARK
-			| BTR_DELETE
-			| BTR_ESTIMATE
-			| BTR_IGNORE_SEC_UNIQUE
-			| BTR_ALREADY_S_LATCHED);
+	latch_mode = BTR_LATCH_MODE_WITHOUT_FLAGS(latch_mode);
 
 	ut_ad(!s_latch_by_caller || latch_mode == BTR_SEARCH_LEAF);
 
@@ -3479,6 +3474,9 @@ btr_estimate_n_rows_in_range(
 	ibool		is_n_rows_exact;
 	ulint		i;
 	mtr_t		mtr;
+	ib_int64_t	table_n_rows;
+
+	table_n_rows = dict_table_get_n_rows(index->table);
 
 	mtr_start(&mtr);
 
@@ -3547,16 +3545,15 @@ btr_estimate_n_rows_in_range(
 			to over 1 / 2 of the estimated rows in the whole
 			table */
 
-			if (n_rows > index->table->stat_n_rows / 2
-			    && !is_n_rows_exact) {
+			if (n_rows > table_n_rows / 2 && !is_n_rows_exact) {
 
-				n_rows = index->table->stat_n_rows / 2;
+				n_rows = table_n_rows / 2;
 
 				/* If there are just 0 or 1 rows in the table,
 				then we estimate all rows are in the range */
 
 				if (n_rows == 0) {
-					n_rows = index->table->stat_n_rows;
+					n_rows = table_n_rows;
 				}
 			}
 
@@ -5155,6 +5152,7 @@ btr_copy_zblob_prefix(
 				" page %lu space %lu\n",
 				(ulong) fil_page_get_type(bpage->zip.data),
 				(ulong) page_no, (ulong) space_id);
+			ut_ad(0);
 			goto end_of_blob;
 		}
 
