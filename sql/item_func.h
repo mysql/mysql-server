@@ -2116,6 +2116,7 @@ public:
     return sp_result_field;
   }
 
+  virtual bool const_item() const;
   virtual void update_null_value();
   virtual bool can_be_evaluated_now() const;
 };
