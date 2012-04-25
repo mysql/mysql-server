@@ -1,0 +1,155 @@
+
+XZ Utils on Windows
+===================
+
+Introduction
+
+    This document explains how to build XZ Utils for Microsoft Windows
+    using MinGW (Minimalist GNU for Windows).
+
+    This is currently experimental and has got very little testing.
+    No ABI stability is promised for liblzma.dll.
+
+
+Why MinGW
+
+    XZ Utils code is C99. It should be possible to compile at least
+    liblzma using any C99 compiler. Compiling the command line tools may
+    need a little extra work to get them built on new systems, because
+    they use some features that aren't standardized in POSIX.
+
+    MinGW is free software. MinGW runtime provides some functions that
+    made porting the command line tools easier. Most(?) of the MinGW
+    runtime, which gets linked into the resulting binaries, is in the
+    public domain.
+
+    While most C compilers nowadays support C99 well enough (including
+    most compilers for Windows), MSVC doesn't. It seems that Microsoft
+    has no plans to ever support C99. Thus, it is not possible to build
+    XZ Utils using MSVC without doing a lot of work to convert the code.
+    Using prebuilt liblzma from MSVC is possible though, since the
+    liblzma API headers are in C89 and contain some non-standard extra
+    hacks required by MSVC.
+
+
+Getting and Installing MinGW
+
+    You can download MinGW for 32-bit Windows from Sourceforge:
+
+        http://sourceforge.net/project/showfiles.php?group_id=2435
+
+    It is enough to pick Automated MinGW Installer and MSYS Base System.
+    Using the automated installer, select at least runtime, w32api,
+    core compiler, and MinGW make. From MSYS you actually need only
+    certain tools, but it is easiest to just install the whole MSYS.
+
+    To build for x86-64 version of Windows, you can download a snapshot
+    of MinGW targeting for 64-bit Windows:
+
+        http://sourceforge.net/project/showfiles.php?group_id=202880
+
+    You can use the 32-bit MSYS also for 64-bit build, since we don't
+    link against anything in MSYS, just use the tools from it. You may
+    use the make tool from 32-bit MinGW (mingw32-make.exe) although
+    probably the make.exe from MSYS works too.
+
+    Naturally you can pick the components manually, for example to try
+    the latest available GCC. It is also possible to use a cross-compiler
+    to build Windows binaries for example on GNU/Linux, or use Wine to
+    run the Windows binaries. However, these instructions focus on
+    building on Windows.
+
+
+Building for 32-bit Windows
+
+    Add MinGW and MSYS to PATH (adjust if you installed to non-default
+    location):
+
+        set PATH=C:\MinGW\bin;C:\MSYS\1.0\bin;%PATH%
+
+    Then it should be enough to just run mingw32-make in this directory
+    (the directory containing this README):
+
+        mingw32-make
+
+
+Building for 64-bit Windows
+
+    For 64-bit build the PATH has to point to 64-bit MinGW:
+
+        set PATH=C:\MinGW64\bin;C:\MSYS\1.0\bin;%PATH%
+
+    You need to pass W64=1 to mingw32-make (or make if you don't have
+    mingw32-make):
+
+        mingw32-make W64=1
+
+
+Additional Make Flags and Targets
+
+    You may want to try some additional optimizations, which may or
+    may not make the code faster (and may or may not hit possible
+    compiler bugs more easily):
+
+        mingw32-make CFLAGS="-O3 -fomit-frame-pointer -funroll-loops"
+
+    If you want to enable assertions (the assert() macro), use DEBUG=1.
+    You may want to disable optimizations too if you plan to actually
+    debug the code. Never use DEBUG=1 for production builds!
+
+        mingw32-make DEBUG=1 CFLAGS="-g -O0"
+
+    To copy the built binaries and required headers into a clean
+    directory, use the pkg target:
+
+        mingw32-make pkg
+
+    It first removes a possibly existing pkg directory, and then
+    recreates it with the required files.
+
+    TODO: The pkg target doesn't copy any license or other copyright
+    related information into the pkg directory.
+
+
+Creating an Import Library for MSVC
+
+    The included Makefile creates import library liblzma.a which works
+    only(?) with MinGW. To use liblzma.dll for MSVC, you need to create
+    liblzma.lib using the lib command from MSVC:
+
+        lib /def:liblzma.def /out:liblzma.lib /machine:ix86
+
+    On x86-64, the /machine argument has to naturally be changed:
+
+        lib /def:liblzma.def /out:liblzma.lib /machine:x64
+
+
+To Do
+
+    - Test Win64 support and add instructions about getting x86-64
+      version of MinGW.
+
+    - Creating the import library for other compilers/linkers
+
+    - Building with other compilers for Windows
+
+    - liblzma currently uses cdecl. Would stdcall be more compatible?
+
+    - Support building more size-optimized liblzma (the HAVE_SMALL
+      define and other things that are needed)
+
+    - Support selecting which parts of liblzma to build to make the
+      library even smaller.
+
+    - Use the configure script on Windows just like it is used on all
+      the other systems?
+
+
+Bugs
+
+    Report bugs to <lasse.collin@tukaani.org> (in English or Finnish).
+
+    Take into account that I don't have MSVC and I cannot very easily
+    test anything on Windows. As of writing, I have tried MinGW and the
+    resulting binaries only under 32-bit Wine.
+
