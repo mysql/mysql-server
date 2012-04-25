@@ -474,35 +474,6 @@ int mysql_update(THD *thd,
     }
   } // Ends scope for optimizer trace wrapper
 
-  /*
-    Read removal is possible if the selected quick read
-    method is using full unique index
-
-    NOTE! table->read_set currently holds the columns which are
-    used for the WHERE clause(this info is most likely already
-    available in select->quick, but where?)
-  */
-  if (table->file->ha_table_flags() & HA_READ_BEFORE_WRITE_REMOVAL &&
-      select && select->quick && select->quick->index != MAX_KEY &&
-      !ignore &&
-      !using_limit)
-  {
-    const uint idx= select->quick->index;
-    DBUG_PRINT("rbwr", ("checking index: %d", idx));
-    const KEY *key= table->key_info + idx;
-    if (key->flags & HA_NOSAME)
-    {
-      DBUG_PRINT("rbwr", ("index is unique"));
-      bitmap_clear_all(&table->tmp_set);
-      table->mark_columns_used_by_index_no_reset(idx, &table->tmp_set);
-      if (bitmap_cmp(&table->tmp_set, table->read_set))
-      {
-        DBUG_PRINT("rbwr", ("using full index, rbwr possible"));
-        read_removal= true;
-      }
-    }
-  }
-
   /* If running in safe sql mode, don't allow updates without keys */
   if (table->quick_keys.is_clear_all())
   {
@@ -688,10 +659,6 @@ int mysql_update(THD *thd,
     }
     if (used_index < MAX_KEY && old_covering_keys.is_set(used_index))
       table->set_keyread(false);
-
-    /* Rows are already read -> not possible to remove */
-    DBUG_PRINT("rbwr", ("rows are already read, turning off rbwr"));
-    read_removal= false;
   }
 
   if (ignore)
@@ -730,13 +697,11 @@ int mysql_update(THD *thd,
   else
     will_batch= !table->file->start_bulk_update();
 
-  if (read_removal &&
-      will_batch &&
+  if ((table->file->ha_table_flags() & HA_READ_BEFORE_WRITE_REMOVAL) &&
+      !ignore && !using_limit &&
+      select && select->quick && select->quick->index != MAX_KEY &&
       check_constant_expressions(values))
-  {
-    DBUG_ASSERT(select && select->quick);
-    read_removal= table->file->read_before_write_removal_possible();
-  }
+    read_removal= table->check_read_removal(select->quick->index);
 
   // For prepare_record_for_error_message():
   if (table->file->ha_table_flags() & HA_PARTIAL_COLUMN_READ)
@@ -952,15 +917,9 @@ int mysql_update(THD *thd,
   if (read_removal)
   {
     /* Only handler knows how many records really was written */
-    DBUG_PRINT("rbwr", ("adjusting updated: %ld, found: %ld",
-                        (long)updated, (long)found));
-
-    updated= table->file->read_before_write_removal_rows_written();
+    updated= table->file->end_read_removal();
     if (!records_are_comparable(table))
       found= updated;
-
-    DBUG_PRINT("rbwr", ("really updated: %ld, found: %ld",
-                        (long)updated, (long)found));
   }
 
   if (!transactional_table && updated > 0)
