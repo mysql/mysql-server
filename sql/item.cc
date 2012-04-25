@@ -549,7 +549,8 @@ int Item::save_str_value_in_field(Field *field, String *result)
 Item::Item():
   is_expensive_cache(-1), rsize(0),
   marker(0), fixed(0),
-  collation(&my_charset_bin, DERIVATION_COERCIBLE), with_subselect(false)
+  collation(&my_charset_bin, DERIVATION_COERCIBLE), with_subselect(false),
+  tables_locked_cache(false)
 {
   maybe_null=null_value=with_sum_func=unsigned_flag=0;
   decimals= 0; max_length= 0;
@@ -597,7 +598,8 @@ Item::Item(THD *thd, Item *item):
   fixed(item->fixed),
   collation(item->collation),
   cmp_context(item->cmp_context),
-  with_subselect(item->with_subselect)
+  with_subselect(item->with_subselect),
+  tables_locked_cache(item->tables_locked_cache)
 {
   next= thd->free_list;				// Put in free list
   thd->free_list= this;
@@ -5852,6 +5854,30 @@ bool Item::eq_by_collation(Item *item, bool binary_cmp,
 
 
 /**
+  Check if it is OK to evaluate the item now.
+
+  @return true if the item can be evaluated in the current statement state.
+    @retval true  The item can be evaluated now.
+    @retval false The item can not be evaluated now,
+                  (i.e. depend on non locked table).
+
+  @note Help function to avoid optimize or exec call during prepare phase.
+*/
+
+bool Item::can_be_evaluated_now() const
+{
+  if (tables_locked_cache)
+    return true;
+  if (has_subquery())
+    const_cast<Item*>(this)->tables_locked_cache=
+                               current_thd->lex->is_query_tables_locked();
+  else
+    const_cast<Item*>(this)->tables_locked_cache= true;
+  return tables_locked_cache;
+}
+
+
+/**
   Create a field to hold a string value from an item.
 
   If max_length > CONVERT_IF_BIGGER_TO_BLOB create a blob @n
@@ -9394,4 +9420,3 @@ void view_error_processor(THD *thd, void *data)
 {
   ((TABLE_LIST *)data)->hide_view_error(thd);
 }
-
