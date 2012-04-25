@@ -3041,7 +3041,6 @@ static void dbug_print_singlepoint_range(SEL_ARG **start, uint num);
   @param      thd            Thread handle
   @param      table          Table to perform partition pruning for
   @param      pprune_cond    Condition to use for partition pruning
-  @param[out] no_parts_used  If no partitions can fulfil the condition
   
   @note This function assumes that lock_partitions are setup when it
   is invoked. The function analyzes the condition, finds partitions that
@@ -3059,11 +3058,11 @@ static void dbug_print_singlepoint_range(SEL_ARG **start, uint num);
 */
 
 bool prune_partitions(THD *thd, TABLE *table, Item *pprune_cond,
-                      bool is_prepare, bool *all_parts_pruned_away)
+                      bool is_prepare)
 {
   partition_info *part_info = table->part_info;
   DBUG_ENTER("prune_partitions");
-  *all_parts_pruned_away= false;
+  table->all_partitions_pruned_away= false;
 
   if (!part_info)
     DBUG_RETURN(FALSE); /* not a partitioned table */
@@ -3221,7 +3220,7 @@ end:
                 &prune_param.part_info->read_partitions);
   }
   if (bitmap_is_clear_all(&(prune_param.part_info->read_partitions)))
-    *all_parts_pruned_away= true;
+    table->all_partitions_pruned_away= true;
   DBUG_RETURN(false);
 }
 

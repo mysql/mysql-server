@@ -60,9 +60,6 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, Item *conds,
   bool          skip_record;
   bool          need_sort= FALSE;
   bool          err= true;
-#ifdef WITH_PARTITION_STORAGE_ENGINE
-  bool all_parts_pruned_away;
-#endif
   ORDER *order= (ORDER *) ((order_list && order_list->elements) ?
                            order_list->first : NULL);
   uint usable_index= MAX_KEY;
@@ -111,9 +108,9 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, Item *conds,
     Non delete tables are pruned in JOIN::prepare,
     only the delete table needs this.
   */
-  if (prune_partitions(thd, table, conds, true, &all_parts_pruned_away))
+  if (prune_partitions(thd, table, conds, true))
     DBUG_RETURN(true);
-  if (all_parts_pruned_away)
+  if (table->all_partitions_pruned_away)
     goto exit_all_parts_pruned_away;
 #endif
 
@@ -212,9 +209,9 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, Item *conds,
 
 #ifdef WITH_PARTITION_STORAGE_ENGINE
   /* Prune a second time to be able to prune on subqueries in WHERE clause. */
-  if (prune_partitions(thd, table, conds, false, &all_parts_pruned_away))
+  if (prune_partitions(thd, table, conds, false))
     DBUG_RETURN(true);
-  if (all_parts_pruned_away)
+  if (table->all_partitions_pruned_away)
     goto exit_all_parts_pruned_away;
 #endif
 
@@ -475,6 +472,7 @@ cleanup:
   }
   DBUG_RETURN(thd->is_error() || thd->killed);
 
+#ifdef WITH_PARTITION_STORAGE_ENGINE
 exit_all_parts_pruned_away:
   /* No matching records */
   if (!thd->lex->describe)
@@ -483,6 +481,7 @@ exit_all_parts_pruned_away:
     DBUG_RETURN(0);
   }
   err= explain_no_table(thd, "No matching rows after partition pruning");
+#endif
 
 exit_without_my_ok:
   delete select;
