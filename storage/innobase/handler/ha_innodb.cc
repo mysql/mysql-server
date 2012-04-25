@@ -36,6 +36,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 #include <sql_acl.h>	// PROCESS_ACL
 #include <debug_sync.h> // DEBUG_SYNC
+#include <my_base.h>	// HA_OPTION_*
 #include <mysys_err.h>
 #include <mysql/innodb_priv.h>
 
@@ -4646,7 +4647,9 @@ table_opened:
 	dict_stats_init(
 		ib_table,
 		table->s->db_create_options & HA_OPTION_STATS_PERSISTENT,
-		table->s->db_create_options & HA_OPTION_NO_STATS_PERSISTENT);
+		table->s->db_create_options & HA_OPTION_NO_STATS_PERSISTENT,
+		table->s->db_create_options & HA_OPTION_STATS_AUTO_RECALC,
+		table->s->db_create_options & HA_OPTION_NO_STATS_AUTO_RECALC);
 
 	MONITOR_INC(MONITOR_TABLE_OPEN);
 
@@ -9351,6 +9354,12 @@ ha_innobase::create(
 		innobase_table, 
 		create_info->table_options & HA_OPTION_STATS_PERSISTENT,
 		create_info->table_options & HA_OPTION_NO_STATS_PERSISTENT);
+
+	dict_stats_auto_recalc_set(
+		innobase_table, 
+		create_info->table_options & HA_OPTION_STATS_AUTO_RECALC,
+		create_info->table_options & HA_OPTION_NO_STATS_AUTO_RECALC);
+
 	dict_stats_update(innobase_table, DICT_STATS_EMPTY_TABLE, FALSE);
 
 	if (innobase_table) {
@@ -13234,6 +13243,13 @@ ha_innobase::check_if_incompatible_data(
 		prebuilt->table,
 		info->table_options & HA_OPTION_STATS_PERSISTENT,
 		info->table_options & HA_OPTION_NO_STATS_PERSISTENT);
+
+	/* Copy the auto recalc flags from info->table_options to
+	prebuilt->table */
+	dict_stats_auto_recalc_set(
+		prebuilt->table,
+		info->table_options & HA_OPTION_STATS_AUTO_RECALC,
+		info->table_options & HA_OPTION_NO_STATS_AUTO_RECALC);
 
 	if (table_changes != IS_EQUAL_YES) {
 

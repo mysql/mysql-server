@@ -80,15 +80,40 @@ dict_stats_is_persistent_enabled(
 	__attribute__((nonnull, warn_unused_result));
 
 /*********************************************************************//**
+Set the auto recalc flag for a given table (only honored for a persistent
+stats enabled table). This is set only in the in-memory table object and is
+not saved on disk. It will be read from the .frm file upon first open from
+MySQL after a server restart. */
+UNIV_INLINE
+void
+dict_stats_auto_recalc_set(
+/*=======================*/
+	dict_table_t*	table,			/*!< in/out: table */
+	ibool		auto_recalc_on,		/*!< in: explicitly enabled */
+	ibool		auto_recalc_off);	/*!< in: explicitly disabled */
+
+/*********************************************************************//**
+Check whether auto recalc is enabled for a given table.
+@return TRUE if enabled, FALSE otherwise */
+UNIV_INLINE
+ibool
+dict_stats_auto_recalc_is_enabled(
+/*==============================*/
+	const dict_table_t*	table);	/*!< in: table */
+
+/*********************************************************************//**
 Initialize table's stats for the first time when opening a table. */
 UNIV_INLINE
 void
 dict_stats_init(
 /*============*/
-	dict_table_t*	table,	/*!< in/out: table */
-	ibool		ps_on,	/*!< in: persistent stats explicitly enabled */
-	ibool		ps_off)	/*!< in: persistent stats explicitly disabled */
-	__attribute__((nonnull));
+	dict_table_t*	table,			/*!< in/out: table */
+	ibool		ps_on,			/*!< in: persistent stats
+						explicitly enabled */
+	ibool		ps_off,			/*!< in: persistent stats
+						explicitly disabled */
+	ibool		auto_recalc_on,		/*!< in: auto recalc enabled */
+	ibool		auto_recalc_off);	/*!< in: auto recalc disabled */
 
 /*********************************************************************//**
 Deinitialize table's stats after the last close of the table. This is

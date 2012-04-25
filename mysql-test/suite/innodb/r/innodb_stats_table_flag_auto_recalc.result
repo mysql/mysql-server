@@ -1,0 +1,35 @@
+CREATE TABLE test_ps_auto_recalc (a INT, PRIMARY KEY (a)) ENGINE=INNODB;
+SHOW CREATE TABLE test_ps_auto_recalc;
+Table	test_ps_auto_recalc
+Create Table	CREATE TABLE `test_ps_auto_recalc` (
+  `a` int(11) NOT NULL DEFAULT '0',
+  PRIMARY KEY (`a`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+DROP TABLE test_ps_auto_recalc;
+CREATE TABLE test_ps_auto_recalc (a INT, PRIMARY KEY (a)) ENGINE=INNODB
+STATS_AUTO_RECALC=default;
+SHOW CREATE TABLE test_ps_auto_recalc;
+Table	test_ps_auto_recalc
+Create Table	CREATE TABLE `test_ps_auto_recalc` (
+  `a` int(11) NOT NULL DEFAULT '0',
+  PRIMARY KEY (`a`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+DROP TABLE test_ps_auto_recalc;
+CREATE TABLE test_ps_auto_recalc (a INT, PRIMARY KEY (a)) ENGINE=INNODB
+STATS_AUTO_RECALC=0;
+SHOW CREATE TABLE test_ps_auto_recalc;
+Table	test_ps_auto_recalc
+Create Table	CREATE TABLE `test_ps_auto_recalc` (
+  `a` int(11) NOT NULL DEFAULT '0',
+  PRIMARY KEY (`a`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1 STATS_AUTO_RECALC=0
+DROP TABLE test_ps_auto_recalc;
+CREATE TABLE test_ps_auto_recalc (a INT, PRIMARY KEY (a)) ENGINE=INNODB
+STATS_AUTO_RECALC=1;
+SHOW CREATE TABLE test_ps_auto_recalc;
+Table	test_ps_auto_recalc
+Create Table	CREATE TABLE `test_ps_auto_recalc` (
+  `a` int(11) NOT NULL DEFAULT '0',
+  PRIMARY KEY (`a`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1 STATS_AUTO_RECALC=1
+DROP TABLE test_ps_auto_recalc;

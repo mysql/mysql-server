@@ -744,6 +744,27 @@ struct dict_table_struct{
 				this ever happens. */
 #define DICT_STATS_PERSISTENT_ON	(1 << 1)
 #define DICT_STATS_PERSISTENT_OFF	(1 << 2)
+	ib_uint32_t	stats_auto_recalc;
+				/*!< The two bits below are set in the
+				::stats_auto_recalc member and have
+				the following meaning:
+				1. _ON=0, _OFF=0, no explicit auto recalc
+				setting for this table, the value of the global
+				srv_stats_persistent_auto_recalc is used to
+				determine whether the table has auto recalc
+				enabled or not
+				2. _ON=0, _OFF=1, auto recalc is explicitly
+				disabled for this table, regardless of the
+				value of the global
+				srv_stats_persistent_auto_recalc
+				3. _ON=1, _OFF=0, auto recalc is explicitly
+				enabled for this table, regardless of the
+				value of the global
+				srv_stats_persistent_auto_recalc
+				4. _ON=1, _OFF=1, not allowed, we assert if
+				this ever happens. */
+#define DICT_STATS_AUTO_RECALC_ON	(1 << 1)
+#define DICT_STATS_AUTO_RECALC_OFF	(1 << 2)
 	ib_uint64_t	stat_n_rows;
 				/*!< approximate number of rows in the table;
 				we periodically calculate new estimates */
