@@ -890,7 +890,9 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
       legacy_db_type < DB_TYPE_FIRST_DYNAMIC)
     share->db_plugin= ha_lock_engine(NULL, 
                                      ha_checktype(thd, legacy_db_type, 0, 0));
-  share->db_create_options= db_create_options= uint2korr(head+30);
+  db_create_options= uint2korr(head+30);
+  db_create_options|= ((ulong) uint2korr(head+42)) << 16;
+  share->db_create_options= db_create_options;
   share->db_options_in_use= share->db_create_options;
   share->mysql_version= uint4korr(head+51);
   share->null_field_first= 0;
@@ -2762,7 +2764,8 @@ File create_frm(THD *thd, const char *name, const char *db,
     fileinfo[27]=2;				// Use long pack-fields
     /* fileinfo[28 & 29] is set to key_info_length in mysql_create_frm() */
     create_info->table_options|=HA_OPTION_LONG_BLOB_PTR; // Use portable blob pointers
-    int2store(fileinfo+30,create_info->table_options);
+    /* store the low 2 bytes of table_options in fileinfo[30,31] */
+    int2store(fileinfo+30,create_info->table_options & 0xffff);
     fileinfo[32]=0;				// No filename anymore
     fileinfo[33]=5;                             // Mark for 5.0 frm file
     int4store(fileinfo+34,create_info->avg_row_length);
@@ -2775,10 +2778,10 @@ File create_frm(THD *thd, const char *name, const char *db,
     */
     fileinfo[39]= 0;
     fileinfo[40]= (uchar) create_info->row_type;
-    /* Next few bytes where for RAID support */
+    /* Bytes 41-46 were for RAID support; now reused for other purposes */
     fileinfo[41]= (uchar) (csid >> 8);
-    fileinfo[42]= 0;
-    fileinfo[43]= 0;
+    /* store the high 2 bytes of table_options in fileinfo[42,43] */
+    int2store(fileinfo+42,(create_info->table_options >> 16) & 0xffff);
     fileinfo[44]= 0;
     fileinfo[45]= 0;
     fileinfo[46]= 0;
