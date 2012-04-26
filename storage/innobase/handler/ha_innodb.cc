@@ -10107,7 +10107,7 @@ ha_innobase::info(
 {
 	dict_table_t*	ib_table;
 	ha_rows		rec_per_key;
-	ib_int64_t	n_rows;
+	ib_uint64_t	n_rows;
 	char		path[FN_REFLEN];
 	os_file_stat_t	stat_info;
 
@@ -10202,10 +10202,7 @@ ha_innobase::info(
 			dict_table_stats_unlock(ib_table, RW_S_LATCH);
 		}
 
-		/* Because we do not protect stat_n_rows by any mutex in a
-		delete, it is theoretically possible that the value can be
-		smaller than zero! TODO: fix this race.
-
+		/*
 		The MySQL optimizer seems to assume in a left join that n_rows
 		is an accurate estimate if it is zero. Of course, it is not,
 		since we do not have any locks on the rows yet at this phase.
@@ -10214,10 +10211,6 @@ ha_innobase::info(
 		set that flag, we add one to a zero value if the flag is not
 		set. That way SHOW TABLE STATUS will show the best estimate,
 		while the optimizer never sees the table empty. */
-
-		if (n_rows < 0) {
-			n_rows = 0;
-		}
 
 		if (n_rows == 0 && !(flag & HA_STATUS_TIME)) {
 			n_rows++;
