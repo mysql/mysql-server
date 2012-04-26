@@ -1267,8 +1267,8 @@ private:
   /**
    * Scratch buffers...
    */
-  Uint32 m_buffer0[8192]; // 32k
-  Uint32 m_buffer1[8192]; // 32k
+  Uint32 m_buffer0[16*1024]; // 64k
+  Uint32 m_buffer1[16*1024]; // 64k
 };
 
 #endif

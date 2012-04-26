@@ -15,7 +15,7 @@
 
 # neither wildcards (nor line breaks) for clean targets supported by cmake
 SET_DIRECTORY_PROPERTIES(PROPERTIES ADDITIONAL_MAKE_CLEAN_FILES
-  "test_mutils.sh.log;test_mutils.cmd.log;test_ndbjtie_multilib.sh.log;test_ndbjtie_multilib.cmd.log;test_ndbjtie_smoke.sh.log;test_ndbjtie_smoke.cmd.log;test_unload_mutils.sh.log;test_unload_mutils.cmd.log;test_unload_ndbjtie_multilib.sh.log;test_unload_ndbjtie_multilib.cmd.log;test_unload_ndbjtie_smoke.sh.log;test_unload_ndbjtie_smoke.cmd.log;")
+  "test_mutils.sh.log;test_mutils.cmd.log;test_ndbjtie_constants.sh.log;test_ndbjtie_constants.cmd.log;test_ndbjtie_multilib.sh.log;test_ndbjtie_multilib.cmd.log;test_ndbjtie_smoke.sh.log;test_ndbjtie_smoke.cmd.log;test_unload_mutils.sh.log;test_unload_mutils.cmd.log;test_unload_ndbjtie_constants.sh.log;test_unload_ndbjtie_constants.cmd.log;test_unload_ndbjtie_multilib.sh.log;test_unload_ndbjtie_multilib.cmd.log;test_unload_ndbjtie_smoke.sh.log;test_unload_ndbjtie_smoke.cmd.log;")
 
 # the test classes
 FILE(GLOB JAVA_SOURCES
@@ -33,11 +33,39 @@ CREATE_JAR(ndbjtie-test ${JAVA_SOURCES}
 
 ADD_EXECUTABLE(ndbjtie_unit_tests-t ndbjtie_unit_tests-t.cpp)
 
+IF(HAVE_JDK)
+
+  INCLUDE_DIRECTORIES(
+  	${CMAKE_SOURCE_DIR}/storage/ndb/src/ndbjtie/utils
+  	${CMAKE_SOURCE_DIR}/storage/ndb/src/ndbjtie/jtie
+  	${CMAKE_SOURCE_DIR}/storage/ndb/include/mgmapi
+  	${CMAKE_SOURCE_DIR}/storage/ndb/include/ndbapi
+  	${JNI_INCLUDE_DIRS})
+
+  # enable safety behaviour
+  SET(CMAKE_CXX_FLAGS
+  	"${CMAKE_CXX_FLAGS} -DJTIE_OBJECT_CLEAR_ADDRESS_UPON_DELETE")
+
+  # shared library for testing
+  ADD_LIBRARY(libndbjtie_unit_tests SHARED
+	ndbjtie_unit_tests_consts.cpp
+	ndbjtie_unit_tests_lib.cpp)
+
+  SET_TARGET_PROPERTIES(libndbjtie_unit_tests PROPERTIES
+	OUTPUT_NAME "ndbjtie_unit_tests")
+  # no other library dependencies
+  #TARGET_LINK_LIBRARIES(libndbjtie_unit_tests ...)
+
+ENDIF(HAVE_JDK)
+
 IF(WIN32)
 
   # build the unit-test scripts for win
   CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/test_mutils.cmd.in
                  ${CMAKE_CURRENT_BINARY_DIR}/test_mutils.cmd
+		 @ONLY NEWLINE_STYLE WIN32)
+  CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/test_ndbjtie_constants.cmd.in
+                 ${CMAKE_CURRENT_BINARY_DIR}/test_ndbjtie_constants.cmd
 		 @ONLY NEWLINE_STYLE WIN32)
   CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/test_ndbjtie_multilib.cmd.in
                  ${CMAKE_CURRENT_BINARY_DIR}/test_ndbjtie_multilib.cmd
@@ -47,6 +75,9 @@ IF(WIN32)
 		 @ONLY NEWLINE_STYLE WIN32)
   CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/test_unload_mutils.cmd.in
                  ${CMAKE_CURRENT_BINARY_DIR}/test_unload_mutils.cmd
+		 @ONLY NEWLINE_STYLE WIN32)
+  CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/test_unload_ndbjtie_constants.cmd.in
+                 ${CMAKE_CURRENT_BINARY_DIR}/test_unload_ndbjtie_constants.cmd
 		 @ONLY NEWLINE_STYLE WIN32)
   CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/test_unload_ndbjtie_multilib.cmd.in
                  ${CMAKE_CURRENT_BINARY_DIR}/test_unload_ndbjtie_multilib.cmd
@@ -63,6 +94,12 @@ ELSE(WIN32)
 		 @ONLY NEWLINE_STYLE UNIX)
   ADD_CUSTOM_TARGET(chmod_x_mutils ALL
     chmod a+x "${CMAKE_CURRENT_BINARY_DIR}/test_mutils.sh"
+    || echo "") # don't break the build if file was deleted)
+  CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/test_ndbjtie_constants.sh.in
+                 ${CMAKE_CURRENT_BINARY_DIR}/test_ndbjtie_constants.sh
+		 @ONLY NEWLINE_STYLE UNIX)
+  ADD_CUSTOM_TARGET(chmod_x_ndbjtie_constants ALL
+    chmod a+x "${CMAKE_CURRENT_BINARY_DIR}/test_ndbjtie_constants.sh"
     || echo "") # don't break the build if file was deleted)
   CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/test_ndbjtie_multilib.sh.in
                  ${CMAKE_CURRENT_BINARY_DIR}/test_ndbjtie_multilib.sh
@@ -81,6 +118,12 @@ ELSE(WIN32)
 		 @ONLY NEWLINE_STYLE UNIX)
   ADD_CUSTOM_TARGET(chmod_x_unload_mutils ALL
     chmod a+x "${CMAKE_CURRENT_BINARY_DIR}/test_unload_mutils.sh"
+    || echo "") # don't break the build if file was deleted)
+  CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/test_unload_ndbjtie_constants.sh.in
+                 ${CMAKE_CURRENT_BINARY_DIR}/test_unload_ndbjtie_constants.sh
+		 @ONLY NEWLINE_STYLE UNIX)
+  ADD_CUSTOM_TARGET(chmod_x_unload_ndbjtie_constants ALL
+    chmod a+x "${CMAKE_CURRENT_BINARY_DIR}/test_unload_ndbjtie_constants.sh"
     || echo "") # don't break the build if file was deleted)
   CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/test_unload_ndbjtie_multilib.sh.in
                  ${CMAKE_CURRENT_BINARY_DIR}/test_unload_ndbjtie_multilib.sh
