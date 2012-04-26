@@ -109,33 +109,6 @@ char *my_strerror(char *buf, size_t len, int nr)
 
 
 /*
-   Get format message
-
-   SYNOPSIS
-     my_get_err_msg()
-       nr	Errno
-*/
-
-const char* my_get_err_msg(int nr)
-{
-  const char *format;
-  struct my_err_head *meh_p;
-  DBUG_ENTER("my_get_err_msg");
-  DBUG_PRINT("my", ("nr: %d", nr));
-
-  /* Search for the error messages array, which could contain the message. */
-  for (meh_p= my_errmsgs_list; meh_p; meh_p= meh_p->meh_next)
-    if (nr <= meh_p->meh_last)
-      break;
-
-  /* get the error message string. Default, if NULL or empty string (""). */
-  if (! (format= (meh_p && (nr >= meh_p->meh_first)) ?
-                  meh_p->get_errmsgs()[nr - meh_p->meh_first] : NULL) || ! *format)
-    DBUG_RETURN(NULL);
-
-  DBUG_RETURN(format);
-}
-/*
    Error message to user
 
    SYNOPSIS
@@ -149,12 +122,20 @@ const char* my_get_err_msg(int nr)
 void my_error(int nr, myf MyFlags, ...)
 {
   const char *format;
+  struct my_err_head *meh_p;
   va_list args;
   char ebuff[ERRMSGSIZE];
   DBUG_ENTER("my_error");
   DBUG_PRINT("my", ("nr: %d  MyFlags: %d  errno: %d", nr, MyFlags, errno));
 
-  if (!(format = my_get_err_msg(nr)))
+  /* Search for the error messages array, which could contain the message. */
+  for (meh_p= my_errmsgs_list; meh_p; meh_p= meh_p->meh_next)
+    if (nr <= meh_p->meh_last)
+      break;
+
+  /* get the error message string. Default, if NULL or empty string (""). */
+  if (! (format= (meh_p && (nr >= meh_p->meh_first)) ?
+                  meh_p->get_errmsgs()[nr - meh_p->meh_first] : NULL) || ! *format)
     (void) my_snprintf (ebuff, sizeof(ebuff), "Unknown error %d", nr);
   else
   {

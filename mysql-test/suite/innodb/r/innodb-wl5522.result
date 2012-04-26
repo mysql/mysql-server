@@ -12,7 +12,7 @@ c1 INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
 c2 INT) ENGINE=InnoDB;
 INSERT INTO t1(c2) VALUES(1);
 ALTER TABLE t1 IMPORT TABLESPACE;
-ERROR HY000: Tablespace for table 'test/t1' exists. Please DISCARD the tablespace before IMPORT.
+ERROR HY000: InnoDB: Tablespace for table 't1' exists. Please DISCARD the tablespace before IMPORT.
 SELECT * FROM t1;
 c1	c2
 1	1
@@ -42,7 +42,7 @@ c1 INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
 c2 INT) ENGINE=InnoDB;
 ALTER TABLE t1 DISCARD TABLESPACE;
 SELECT * FROM t1;
-ERROR HY000: Tablespace has been discarded for table 't1'
+ERROR HY000: InnoDB: Tablespace has been discarded for table 't1'
 restore: t1
 t1.cfg
 t1.frm
@@ -84,7 +84,7 @@ c1 INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
 c2 INT) ENGINE=InnoDB;
 ALTER TABLE t1 DISCARD TABLESPACE;
 SELECT * FROM t1;
-ERROR HY000: Tablespace has been discarded for table 't1'
+ERROR HY000: InnoDB: Tablespace has been discarded for table 't1'
 restore: t1
 t1.cfg
 t1.frm
@@ -122,7 +122,7 @@ c1 INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
 c2 INT, INDEX(c2)) ENGINE=InnoDB;
 ALTER TABLE t1 DISCARD TABLESPACE;
 SELECT * FROM t1;
-ERROR HY000: Tablespace has been discarded for table 't1'
+ERROR HY000: InnoDB: Tablespace has been discarded for table 't1'
 restore: t1
 ALTER TABLE t1 IMPORT TABLESPACE;
 CHECK TABLE t1;
@@ -154,7 +154,7 @@ c1 INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
 c2 INT, INDEX x(c2)) ENGINE=InnoDB;
 ALTER TABLE t1 DISCARD TABLESPACE;
 SELECT * FROM t1;
-ERROR HY000: Tablespace has been discarded for table 't1'
+ERROR HY000: InnoDB: Tablespace has been discarded for table 't1'
 restore: t1
 ALTER TABLE t1 IMPORT TABLESPACE;
 ERROR HY000: InnoDB: Schema mismatch (Index x not found in tablespace meta-data file.)
@@ -274,7 +274,7 @@ c1 INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
 c2 INT) ENGINE=InnoDB;
 ALTER TABLE t1 DISCARD TABLESPACE;
 SELECT * FROM t1;
-ERROR HY000: Tablespace has been discarded for table 't1'
+ERROR HY000: InnoDB: Tablespace has been discarded for table 't1'
 restore: t1
 ALTER TABLE t1 IMPORT TABLESPACE;
 ERROR HY000: InnoDB: Schema mismatch (Number of indexes don't match, table has 1 indexes but the tablespace meta-data file has 2 indexes)
@@ -287,7 +287,7 @@ c2 INT,
 c3 INT, INDEX idx(c2)) ENGINE=InnoDB;
 ALTER TABLE t1 DISCARD TABLESPACE;
 SELECT * FROM t1;
-ERROR HY000: Tablespace has been discarded for table 't1'
+ERROR HY000: InnoDB: Tablespace has been discarded for table 't1'
 restore: t1
 ALTER TABLE t1 IMPORT TABLESPACE;
 ERROR HY000: InnoDB: Schema mismatch (Number of columns don't match, table has 6 columns but the tablespace meta-data file has 5 columns)
@@ -299,7 +299,7 @@ c1 INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
 c2 BIGINT, INDEX idx(c2)) ENGINE=InnoDB;
 ALTER TABLE t1 DISCARD TABLESPACE;
 SELECT * FROM t1;
-ERROR HY000: Tablespace has been discarded for table 't1'
+ERROR HY000: InnoDB: Tablespace has been discarded for table 't1'
 restore: t1
 ALTER TABLE t1 IMPORT TABLESPACE;
 ERROR HY000: InnoDB: Schema mismatch (Column c2 precise type mismatch.)
@@ -311,7 +311,7 @@ c1 INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
 c2 INT, INDEX idx(c2)) ENGINE=InnoDB;
 ALTER TABLE t1 DISCARD TABLESPACE;
 SELECT * FROM t1;
-ERROR HY000: Tablespace has been discarded for table 't1'
+ERROR HY000: InnoDB: Tablespace has been discarded for table 't1'
 restore: t1
 ALTER TABLE t1 IMPORT TABLESPACE;
 CHECK TABLE t1;
@@ -421,7 +421,7 @@ c1 INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
 c2 INT, INDEX idx(c2)) ENGINE=InnoDB ROW_FORMAT=REDUNDANT;
 ALTER TABLE t1 DISCARD TABLESPACE;
 SELECT * FROM t1;
-ERROR HY000: Tablespace has been discarded for table 't1'
+ERROR HY000: InnoDB: Tablespace has been discarded for table 't1'
 restore: t1
 ALTER TABLE t1 IMPORT TABLESPACE;
 CHECK TABLE t1;
@@ -476,7 +476,7 @@ c1 INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
 c2 INT, INDEX idx(c2)) ENGINE=InnoDB ROW_FORMAT=COMPACT;
 ALTER TABLE t1 DISCARD TABLESPACE;
 SELECT * FROM t1;
-ERROR HY000: Tablespace has been discarded for table 't1'
+ERROR HY000: InnoDB: Tablespace has been discarded for table 't1'
 restore: t1
 ALTER TABLE t1 IMPORT TABLESPACE;
 ERROR HY000: InnoDB: Schema mismatch (Table flags don't match, server table has 0x5 and the meta-data file has 0x0)
@@ -488,7 +488,7 @@ c1 INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
 c2 INT, INDEX idx(c2)) ENGINE=InnoDB ROW_FORMAT=DYNAMIC;
 ALTER TABLE t1 DISCARD TABLESPACE;
 SELECT * FROM t1;
-ERROR HY000: Tablespace has been discarded for table 't1'
+ERROR HY000: InnoDB: Tablespace has been discarded for table 't1'
 restore: t1
 ALTER TABLE t1 IMPORT TABLESPACE;
 ERROR HY000: InnoDB: Schema mismatch (Table flags don't match, server table has 0x5 and the meta-data file has 0x0)
@@ -500,7 +500,7 @@ c1 INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
 c2 INT, INDEX idx(c2)) ENGINE=InnoDB ROW_FORMAT=REDUNDANT;
 ALTER TABLE t1 DISCARD TABLESPACE;
 SELECT * FROM t1;
-ERROR HY000: Tablespace has been discarded for table 't1'
+ERROR HY000: InnoDB: Tablespace has been discarded for table 't1'
 restore: t1
 ALTER TABLE t1 IMPORT TABLESPACE;
 unlink: t1.cfg
@@ -607,7 +607,7 @@ c1 INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
 c2 INT, INDEX idx(c2)) ENGINE=InnoDB ROW_FORMAT=COMPACT;
 ALTER TABLE t1 DISCARD TABLESPACE;
 SELECT * FROM t1;
-ERROR HY000: Tablespace has been discarded for table 't1'
+ERROR HY000: InnoDB: Tablespace has been discarded for table 't1'
 restore: t1
 ALTER TABLE t1 IMPORT TABLESPACE;
 CHECK TABLE t1;
@@ -662,7 +662,7 @@ c1 INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
 c2 INT, INDEX idx(c2)) ENGINE=InnoDB ROW_FORMAT=REDUNDANT;
 ALTER TABLE t1 DISCARD TABLESPACE;
 SELECT * FROM t1;
-ERROR HY000: Tablespace has been discarded for table 't1'
+ERROR HY000: InnoDB: Tablespace has been discarded for table 't1'
 restore: t1
 ALTER TABLE t1 IMPORT TABLESPACE;
 ERROR HY000: InnoDB: Schema mismatch (Table flags don't match, server table has 0x5 and the meta-data file has 0x1)
@@ -674,7 +674,7 @@ c1 INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
 c2 INT, INDEX idx(c2)) ENGINE=InnoDB ROW_FORMAT=DYNAMIC;
 ALTER TABLE t1 DISCARD TABLESPACE;
 SELECT * FROM t1;
-ERROR HY000: Tablespace has been discarded for table 't1'
+ERROR HY000: InnoDB: Tablespace has been discarded for table 't1'
 restore: t1
 ALTER TABLE t1 IMPORT TABLESPACE;
 ERROR HY000: InnoDB: Schema mismatch (Table flags don't match, server table has 0x5 and the meta-data file has 0x1)
@@ -686,7 +686,7 @@ c1 INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
 c2 INT, INDEX idx(c2)) ENGINE=InnoDB ROW_FORMAT=COMPACT;
 ALTER TABLE t1 DISCARD TABLESPACE;
 SELECT * FROM t1;
-ERROR HY000: Tablespace has been discarded for table 't1'
+ERROR HY000: InnoDB: Tablespace has been discarded for table 't1'
 restore: t1
 ALTER TABLE t1 IMPORT TABLESPACE;
 CHECK TABLE t1;
@@ -796,7 +796,7 @@ c1 INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
 c2 INT, INDEX idx(c2)) ENGINE=InnoDB ROW_FORMAT=DYNAMIC;
 ALTER TABLE t1 DISCARD TABLESPACE;
 SELECT * FROM t1;
-ERROR HY000: Tablespace has been discarded for table 't1'
+ERROR HY000: InnoDB: Tablespace has been discarded for table 't1'
 restore: t1
 ALTER TABLE t1 IMPORT TABLESPACE;
 CHECK TABLE t1;
@@ -851,7 +851,7 @@ c1 INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
 c2 INT, INDEX idx(c2)) ENGINE=InnoDB ROW_FORMAT=COMPACT;
 ALTER TABLE t1 DISCARD TABLESPACE;
 SELECT * FROM t1;
-ERROR HY000: Tablespace has been discarded for table 't1'
+ERROR HY000: InnoDB: Tablespace has been discarded for table 't1'
 restore: t1
 ALTER TABLE t1 IMPORT TABLESPACE;
 ERROR HY000: InnoDB: Schema mismatch (Table flags don't match, server table has 0x5 and the meta-data file has 0x21)
@@ -863,7 +863,7 @@ c1 INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
 c2 INT, INDEX idx(c2)) ENGINE=InnoDB ROW_FORMAT=REDUNDANT;
 ALTER TABLE t1 DISCARD TABLESPACE;
 SELECT * FROM t1;
-ERROR HY000: Tablespace has been discarded for table 't1'
+ERROR HY000: InnoDB: Tablespace has been discarded for table 't1'
 restore: t1
 ALTER TABLE t1 IMPORT TABLESPACE;
 ERROR HY000: InnoDB: Schema mismatch (Table flags don't match, server table has 0x5 and the meta-data file has 0x21)
@@ -875,7 +875,7 @@ c1 INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
 c2 INT, INDEX idx(c2)) ENGINE=InnoDB ROW_FORMAT=DYNAMIC;
 ALTER TABLE t1 DISCARD TABLESPACE;
 SELECT * FROM t1;
-ERROR HY000: Tablespace has been discarded for table 't1'
+ERROR HY000: InnoDB: Tablespace has been discarded for table 't1'
 restore: t1
 ALTER TABLE t1 IMPORT TABLESPACE;
 CHECK TABLE t1;

@@ -653,7 +653,6 @@ extern int my_sync(File fd, myf my_flags);
 extern int my_sync_dir(const char *dir_name, myf my_flags);
 extern int my_sync_dir_by_file(const char *file_name, myf my_flags);
 extern char *my_strerror(char *buf, size_t len, int errnum);
-extern const char* my_get_err_msg(int nr);
 extern void my_error(int nr,myf MyFlags, ...);
 extern void my_printf_error(uint my_err, const char *format,
                             myf MyFlags, ...)

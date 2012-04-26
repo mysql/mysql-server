@@ -1198,7 +1198,7 @@ row_import_read_columns(
 		/* FIXME: What is the maximum column name length? */
 		if (len == 0 || len > 128) {
 			ib_errf(thd, IB_LOG_LEVEL_ERROR,
-				ER_EXCEPTIONS_WRITE_ERROR,
+				ER_IO_READ_ERROR,
 				"Column name length %lu, is invalid",
 				(ulong) len);
 
