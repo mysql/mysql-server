@@ -423,7 +423,7 @@ UNIV_INTERN
 ibool
 thd_trx_is_auto_commit(
 /*===================*/
-	THD*	thd);	/*!< in: thread handle (THD*) can be NULL */
+	THD*	thd);	/*!< in: thread handle, or NULL */
 
 /*****************************************************************//**
 A wrapper function of innobase_convert_name(), convert a table or
