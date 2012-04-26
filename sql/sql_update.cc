@@ -165,10 +165,10 @@ static bool check_fields(THD *thd, List<Item> &items)
 /**
   Check if all expressions in list are constant expressions
 
-  @param[in] values List of expessions
+  @param[in] values List of expressions
 
-  @return true Only constant expressions
-  @return false At least one non-constant expression
+  @retval true Only constant expressions
+  @retval false At least one non-constant expression
 */
 
 static bool check_constant_expressions(List<Item> &values)
