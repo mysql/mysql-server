@@ -1003,7 +1003,7 @@ row_update_statistics_if_needed(
 /*============================*/
 	dict_table_t*	table)	/*!< in: table */
 {
-	ulint	counter;
+	ib_uint64_t	counter;
 
 	if (!table->stat_initialized) {
 		DBUG_EXECUTE_IF(
@@ -1024,13 +1024,11 @@ row_update_statistics_if_needed(
 	/* else */
 
 	/* Calculate new statistics if 1 / 16 of table has been modified
-	since the last time a statistics batch was run, or if
-	stat_modified_counter > 2 000 000 000 (to avoid wrap-around).
+	since the last time a statistics batch was run.
 	We calculate statistics at most every 16th round, since we may have
 	a counter table which is very small and updated very often. */
 
-	if (counter > 2000000000
-	    || ((ib_int64_t) counter > 16 + table->stat_n_rows / 16)) {
+	if (counter > 16 + (ib_uint64_t) table->stat_n_rows / 16) {
 
 		ut_ad(!mutex_own(&dict_sys->mutex));
 		/* this will reset table->stat_modified_counter to 0 */
