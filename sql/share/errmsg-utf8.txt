@@ -6752,6 +6752,11 @@ ER_MTS_RECOVERY_FAILURE
   eng "Cannot recover after SLAVE errored out in parallel execution mode. Additional error messages can be found in the MySQL error log."
 ER_MTS_RESET_WORKERS
   eng "Cannot clean up worker info tables. Additional error messages can be found in the MySQL error log."
+
+ER_INVALID_YEAR_COLUMN_LENGTH
+  eng "YEAR(%lu) column type is deprecated. Creating YEAR(4) column instead."
+  rus "Тип YEAR(%lu) более не поддерживается, вместо него будет создана колонка с типом YEAR(4)."
+
 #
 #  End of 5.6 error messages.
 #

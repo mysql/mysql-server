@@ -3357,12 +3357,12 @@ int handler::check_old_types()
 {
   Field** field;
 
-  if (!table->s->mysql_version)
+  for (field= table->field; (*field); field++)
   {
-    /* check for bad DECIMAL field */
-    for (field= table->field; (*field); field++)
+    if (table->s->mysql_version == 0) // prior to MySQL 5.0
     {
-      if ((*field)->type() == MYSQL_TYPE_NEWDECIMAL)
+      /* check for bad DECIMAL field */
+      if ((*field)->type() == MYSQL_TYPE_NEWDECIMAL) // TODO: error? MYSQL_TYPE_DECIMAL?
       {
         return HA_ADMIN_NEEDS_ALTER;
       }
@@ -3371,6 +3371,8 @@ int handler::check_old_types()
         return HA_ADMIN_NEEDS_ALTER;
       }
     }
+    if ((*field)->type() == MYSQL_TYPE_YEAR && (*field)->field_length == 2)
+      return HA_ADMIN_NEEDS_ALTER; // obsolete YEAR(2) type
   }
   return 0;
 }
