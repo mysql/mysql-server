@@ -835,7 +835,7 @@ buf_LRU_remove_pages(
 }
 
 /******************************************************************//**
-FLushes all dirty pages if flush == true or removes all pages belonging
+Flushes all dirty pages or removes all pages belonging
 to a given tablespace. A PROBLEM: if readahead is being started, what
 guarantees that it will not try to read in pages after this operation
 has completed? */
