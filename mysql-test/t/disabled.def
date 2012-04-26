@@ -17,3 +17,5 @@ log_tables-big           : Bug#11756699 2010-11-15 mattiasj report already exist
 ds_mrr-big @solaris      : Hemant disabled since this leads to timeout on Solaris on slow sparc servers
 partition_locking_4	 : Bug#13924750 2012-04-04 lost connection.
 mysql_embedded_client_test	: Bug#13964673 2012-04-16 amitbha since most of the test cases are failing
+ssl_crl                    : Bug#14006448 2012-04-26 bernt
+ssl_crl_clrpath            : Bug#14006448 2012-04-26 bernt
