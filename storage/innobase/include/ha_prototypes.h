@@ -518,5 +518,4 @@ const char*
 innobase_get_err_msg(
 /*=================*/
 	int	error_code);	/*!< in: MySQL error code */
-
 #endif /* HA_INNODB_PROTOTYPES_H */

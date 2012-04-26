@@ -30,7 +30,7 @@ CREATE TABLE test_wl5522.t1 (c1 INT) ENGINE = Innodb;
 INSERT INTO test_wl5522.t1 VALUES (1);
 ALTER TABLE test_wl5522.t1 DISCARD TABLESPACE;
 SELECT COUNT(*) FROM test_wl5522.t1;
-ERROR HY000: Tablespace has been discarded for table 't1'
+ERROR HY000: InnoDB: Tablespace has been discarded for table 't1'
 SET SESSION debug="+d,ib_import_io_read_failure";
 ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
 ERROR HY000: InnoDB: IO Read error: (2, No such file or directory) Error opening 't1.cfg'
@@ -39,7 +39,7 @@ DROP TABLE test_wl5522.t1;
 CREATE TABLE test_wl5522.t1 (c1 INT) ENGINE = Innodb;
 ALTER TABLE test_wl5522.t1 DISCARD TABLESPACE;
 SELECT COUNT(*) FROM test_wl5522.t1;
-ERROR HY000: Tablespace has been discarded for table 't1'
+ERROR HY000: InnoDB: Tablespace has been discarded for table 't1'
 restore: t1
 SET SESSION debug="+d,ib_import_internal_error";
 ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
@@ -51,7 +51,7 @@ DROP TABLE test_wl5522.t1;
 CREATE TABLE test_wl5522.t1 (c1 INT) ENGINE = Innodb;
 ALTER TABLE test_wl5522.t1 DISCARD TABLESPACE;
 SELECT COUNT(*) FROM test_wl5522.t1;
-ERROR HY000: Tablespace has been discarded for table 't1'
+ERROR HY000: InnoDB: Tablespace has been discarded for table 't1'
 restore: t1
 SET SESSION debug="+d,ib_import_reset_space_and_lsn_failure";
 ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
@@ -90,13 +90,13 @@ SET SESSION debug="-d,ib_import_set_max_rowid_failure";
 restore: t1
 SET SESSION debug="+d,ib_import_before_commit_crash";
 SELECT * FROM test_wl5522.t1;
-ERROR HY000: Tablespace has been discarded for table 't1'
+ERROR HY000: InnoDB: Tablespace has been discarded for table 't1'
 ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
 ERROR HY000: Lost connection to MySQL server during query
 SET SESSION debug="-d,ib_import_before_commit_crash";
 SET SESSION debug="+d,ib_import_before_checkpoint_crash";
 SELECT COUNT(*) FROM test_wl5522.t1;
-ERROR HY000: Tablespace has been discarded for table 't1'
+ERROR HY000: InnoDB: Tablespace has been discarded for table 't1'
 ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
 ERROR HY000: Lost connection to MySQL server during query
 SET SESSION debug="-d,ib_import_before_checkpoint_crash";

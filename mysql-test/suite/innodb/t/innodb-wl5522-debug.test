@@ -464,6 +464,7 @@ call mtr.add_suppression("InnoDB: Table '.*' tablespace is set as discarded.");
 call mtr.add_suppression("InnoDB: Tablespace '.*' exists in the cache.*");
 call mtr.add_suppression("InnoDB: Freeing existing tablespace '.*' entry from the cache with id.*");
 call mtr.add_suppression("InnoDB: The table .* doesn't have a corresponding tablespace, it was discarded");
+call mtr.add_suppression(".*There was an error writing to the meta data file.*");
 
 eval SET GLOBAL INNODB_FILE_PER_TABLE=$innodb_file_per_table;
 
