@@ -12,13 +12,15 @@ PRIMARY KEY (id)
 ) ENGINE=InnoDB ROW_FORMAT=COMPACT
 PARTITION BY HASH (id)
 PARTITIONS 2;
+Warnings:
+Warning	1804	YEAR(2) column type is deprecated. Creating YEAR(4) column instead.
 CREATE TABLE t2 LIKE t1;
 ALTER TABLE t2 REMOVE PARTITIONING;
 SHOW CREATE TABLE t1;
 Table	t1
 Create Table	CREATE TABLE `t1` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
-  `year` year(2) DEFAULT NULL,
+  `year` year(4) DEFAULT NULL,
   `modified` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=COMPACT
@@ -28,7 +30,7 @@ SHOW CREATE TABLE t2;
 Table	t2
 Create Table	CREATE TABLE `t2` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
-  `year` year(2) DEFAULT NULL,
+  `year` year(4) DEFAULT NULL,
   `modified` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=COMPACT
@@ -50,7 +52,7 @@ SHOW CREATE TABLE t1;
 Table	t1
 Create Table	CREATE TABLE `t1` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
-  `year` year(2) DEFAULT NULL,
+  `year` year(4) DEFAULT NULL,
   `modified` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=COMPACT
@@ -60,7 +62,7 @@ SHOW CREATE TABLE t2;
 Table	t2
 Create Table	CREATE TABLE `t2` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
-  `year` year(2) DEFAULT NULL,
+  `year` year(4) DEFAULT NULL,
   `modified` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=COMPACT
@@ -85,12 +87,16 @@ year year(2) DEFAULT NULL,
 modified timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
 PRIMARY KEY (id)
 ) ENGINE=InnoDB;
+Warnings:
+Level	Warning
+Code	1804
+Message	YEAR(2) column type is deprecated. Creating YEAR(4) column instead.
 ALTER TABLE t1 EXCHANGE PARTITION p1 WITH TABLE t2;
 SHOW CREATE TABLE t1;
 Table	t1
 Create Table	CREATE TABLE `t1` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
-  `year` year(2) DEFAULT NULL,
+  `year` year(4) DEFAULT NULL,
   `modified` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=COMPACT
@@ -100,7 +106,7 @@ SHOW CREATE TABLE t2;
 Table	t2
 Create Table	CREATE TABLE `t2` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
-  `year` year(2) DEFAULT NULL,
+  `year` year(4) DEFAULT NULL,
   `modified` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
@@ -127,18 +133,26 @@ PRIMARY KEY (id)
 ) ENGINE=InnoDB
 PARTITION BY HASH (id)
 PARTITIONS 2;
+Warnings:
+Level	Warning
+Code	1804
+Message	YEAR(2) column type is deprecated. Creating YEAR(4) column instead.
 CREATE TABLE t2 (
 id int(11) NOT NULL AUTO_INCREMENT,
 year year(2) DEFAULT NULL,
 modified timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
 PRIMARY KEY (id)
 ) ENGINE=InnoDB ROW_FORMAT = COMPACT;
+Warnings:
+Level	Warning
+Code	1804
+Message	YEAR(2) column type is deprecated. Creating YEAR(4) column instead.
 ALTER TABLE t1 EXCHANGE PARTITION p1 WITH TABLE t2;
 SHOW CREATE TABLE t1;
 Table	t1
 Create Table	CREATE TABLE `t1` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
-  `year` year(2) DEFAULT NULL,
+  `year` year(4) DEFAULT NULL,
   `modified` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
@@ -148,7 +162,7 @@ SHOW CREATE TABLE t2;
 Table	t2
 Create Table	CREATE TABLE `t2` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
-  `year` year(2) DEFAULT NULL,
+  `year` year(4) DEFAULT NULL,
   `modified` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=COMPACT
@@ -175,18 +189,26 @@ PRIMARY KEY (id)
 ) ENGINE=InnoDB
 PARTITION BY HASH (id)
 PARTITIONS 2;
+Warnings:
+Level	Warning
+Code	1804
+Message	YEAR(2) column type is deprecated. Creating YEAR(4) column instead.
 CREATE TABLE t2 (
 id int(11) NOT NULL AUTO_INCREMENT,
 year year(2) DEFAULT NULL,
 modified timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
 PRIMARY KEY (id)
 ) ENGINE=InnoDB;
+Warnings:
+Level	Warning
+Code	1804
+Message	YEAR(2) column type is deprecated. Creating YEAR(4) column instead.
 ALTER TABLE t1 EXCHANGE PARTITION p1 WITH TABLE t2;
 SHOW CREATE TABLE t1;
 Table	t1
 Create Table	CREATE TABLE `t1` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
-  `year` year(2) DEFAULT NULL,
+  `year` year(4) DEFAULT NULL,
   `modified` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
@@ -196,7 +218,7 @@ SHOW CREATE TABLE t2;
 Table	t2
 Create Table	CREATE TABLE `t2` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
-  `year` year(2) DEFAULT NULL,
+  `year` year(4) DEFAULT NULL,
   `modified` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
@@ -223,18 +245,26 @@ PRIMARY KEY (id)
 ) ENGINE=InnoDB ROW_FORMAT = REDUNDANT
 PARTITION BY HASH (id)
 PARTITIONS 2;
+Warnings:
+Level	Warning
+Code	1804
+Message	YEAR(2) column type is deprecated. Creating YEAR(4) column instead.
 CREATE TABLE t2 (
 id int(11) NOT NULL AUTO_INCREMENT,
 year year(2) DEFAULT NULL,
 modified timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
 PRIMARY KEY (id)
 ) ENGINE=InnoDB ROW_FORMAT = REDUNDANT;
+Warnings:
+Level	Warning
+Code	1804
+Message	YEAR(2) column type is deprecated. Creating YEAR(4) column instead.
 ALTER TABLE t1 EXCHANGE PARTITION p1 WITH TABLE t2;
 SHOW CREATE TABLE t1;
 Table	t1
 Create Table	CREATE TABLE `t1` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
-  `year` year(2) DEFAULT NULL,
+  `year` year(4) DEFAULT NULL,
   `modified` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=REDUNDANT
@@ -244,7 +274,7 @@ SHOW CREATE TABLE t2;
 Table	t2
 Create Table	CREATE TABLE `t2` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
-  `year` year(2) DEFAULT NULL,
+  `year` year(4) DEFAULT NULL,
   `modified` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=REDUNDANT
@@ -271,19 +301,27 @@ PRIMARY KEY (id)
 ) ENGINE=InnoDB
 PARTITION BY HASH (id)
 PARTITIONS 2;
+Warnings:
+Level	Warning
+Code	1804
+Message	YEAR(2) column type is deprecated. Creating YEAR(4) column instead.
 CREATE TABLE t2 (
 id int(11) NOT NULL AUTO_INCREMENT,
 year year(2) DEFAULT NULL,
 modified timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
 PRIMARY KEY (id)
 ) ENGINE=InnoDB ROW_FORMAT = REDUNDANT;
+Warnings:
+Level	Warning
+Code	1804
+Message	YEAR(2) column type is deprecated. Creating YEAR(4) column instead.
 ALTER TABLE t1 EXCHANGE PARTITION p1 WITH TABLE t2;
 ERROR HY000: Non matching attribute 'ROW_FORMAT' between partition and table
 SHOW CREATE TABLE t1;
 Table	t1
 Create Table	CREATE TABLE `t1` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
-  `year` year(2) DEFAULT NULL,
+  `year` year(4) DEFAULT NULL,
   `modified` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
@@ -293,7 +331,7 @@ SHOW CREATE TABLE t2;
 Table	t2
 Create Table	CREATE TABLE `t2` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
-  `year` year(2) DEFAULT NULL,
+  `year` year(4) DEFAULT NULL,
   `modified` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=REDUNDANT
@@ -320,19 +358,27 @@ PRIMARY KEY (id)
 ) ENGINE=InnoDB ROW_FORMAT = COMPACT
 PARTITION BY HASH (id)
 PARTITIONS 2;
+Warnings:
+Level	Warning
+Code	1804
+Message	YEAR(2) column type is deprecated. Creating YEAR(4) column instead.
 CREATE TABLE t2 (
 id int(11) NOT NULL AUTO_INCREMENT,
 year year(2) DEFAULT NULL,
 modified timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
 PRIMARY KEY (id)
 ) ENGINE=InnoDB ROW_FORMAT = REDUNDANT;
+Warnings:
+Level	Warning
+Code	1804
+Message	YEAR(2) column type is deprecated. Creating YEAR(4) column instead.
 ALTER TABLE t1 EXCHANGE PARTITION p1 WITH TABLE t2;
 ERROR HY000: Non matching attribute 'ROW_FORMAT' between partition and table
 SHOW CREATE TABLE t1;
 Table	t1
 Create Table	CREATE TABLE `t1` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
-  `year` year(2) DEFAULT NULL,
+  `year` year(4) DEFAULT NULL,
   `modified` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=COMPACT
@@ -342,7 +388,7 @@ SHOW CREATE TABLE t2;
 Table	t2
 Create Table	CREATE TABLE `t2` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
-  `year` year(2) DEFAULT NULL,
+  `year` year(4) DEFAULT NULL,
   `modified` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=REDUNDANT
