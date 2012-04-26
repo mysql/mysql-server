@@ -522,7 +522,7 @@ public:
 
 class Alter_drop :public Sql_alloc {
 public:
-  enum drop_type {KEY, COLUMN };
+  enum drop_type {KEY, COLUMN, FOREIGN_KEY };
   const char *name;
   enum drop_type type;
   Alter_drop(enum drop_type par_type,const char *par_name)
@@ -2185,6 +2185,8 @@ public:
 
   /* Used to execute base64 coded binlog events in MySQL server */
   Relay_log_info* rli_fake;
+  /* Slave applier execution context */
+  Relay_log_info* rli_slave;
 
   void reset_for_next_command();
   /*
@@ -3059,7 +3061,7 @@ public:
     if preallocation fails, we should notice that at the first call to
     alloc_root. 
   */
-  void init_for_queries();
+  void init_for_queries(Relay_log_info *rli= NULL);
   void change_user(void);
   void cleanup(void);
   void cleanup_after_query();

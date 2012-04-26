@@ -253,7 +253,19 @@ dict_mem_table_add_col(
 	const char*	name,	/*!< in: column name, or NULL */
 	ulint		mtype,	/*!< in: main datatype */
 	ulint		prtype,	/*!< in: precise type */
-	ulint		len);	/*!< in: precision */
+	ulint		len)	/*!< in: precision */
+	__attribute__((nonnull(1)));
+/**********************************************************************//**
+Renames a column of a table in the data dictionary cache. */
+UNIV_INTERN
+void
+dict_mem_table_col_rename(
+/*======================*/
+	dict_table_t*	table,	/*!< in/out: table */
+	unsigned	nth_col,/*!< in: column index */
+	const char*	from,	/*!< in: old column name */
+	const char*	to)	/*!< in: new column name */
+	__attribute__((nonnull));
 /**********************************************************************//**
 This function populates a dict_col_t memory structure with
 supplied information. */
@@ -713,6 +725,25 @@ struct dict_table_struct{
 	unsigned	stat_initialized:1; /*!< TRUE if statistics have
 				been calculated the first time
 				after database startup or table creation */
+	ib_uint32_t	stat_persistent;
+				/*!< The two bits below are set in the
+				::stat_persistent member and have the following
+				meaning:
+				1. _ON=0, _OFF=0, no explicit persistent stats
+				setting for this table, the value of the global
+				srv_stats_persistent is used to determine
+				whether the table has persistent stats enabled
+				or not
+				2. _ON=0, _OFF=1, persistent stats are
+				explicitly disabled for this table, regardless
+				of the value of the global srv_stats_persistent
+				3. _ON=1, _OFF=0, persistent stats are
+				explicitly enabled for this table, regardless
+				of the value of the global srv_stats_persistent
+				4. _ON=1, _OFF=1, not allowed, we assert if
+				this ever happens. */
+#define DICT_STATS_PERSISTENT_ON	(1 << 1)
+#define DICT_STATS_PERSISTENT_OFF	(1 << 2)
 	ib_int64_t	stat_n_rows;
 				/*!< approximate number of rows in the table;
 				we periodically calculate new estimates */

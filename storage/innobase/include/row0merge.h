@@ -96,9 +96,9 @@ typedef struct merge_file_struct	merge_file_t;
 
 /** Index field definition */
 struct merge_index_field_struct {
+	ulint		col_no;		/*!< column offset */
 	ulint		prefix_len;	/*!< column prefix length, or 0
 					if indexing the whole column */
-	const char*	field_name;	/*!< field name */
 };
 
 /** Index field definition */

@@ -296,3 +296,14 @@ disconnect newconn;
 SET @@GLOBAL.max_allowed_packet=default;
 
 --echo End of 5.1 tests
+
+--echo #
+--echo # Bug#13581962 HIGH MEMORY USAGE ATTEMPT, THEN CRASH WITH LONGTEXT, UNION, USER VARIABLE
+--echo #
+
+CREATE TABLE t1 AS SELECT CONCAT(CAST(REPEAT('9', 1000) AS SIGNED)),
+                          CONCAT(CAST(REPEAT('9', 1000) AS UNSIGNED));
+SHOW CREATE TABLE t1;
+DROP TABLE t1;
+
+--echo End of 5.5 tests

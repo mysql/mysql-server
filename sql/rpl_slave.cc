@@ -3394,7 +3394,11 @@ int apply_event_and_update_pos(Log_event** ptr_ev, THD* thd, Relay_log_info* rli
     }
     else
     {
-      DBUG_ASSERT(*ptr_ev == ev || rli->is_parallel_exec());
+      DBUG_ASSERT(*ptr_ev == ev || rli->is_parallel_exec() ||
+		  (!ev->worker &&
+		   (ev->get_type_code() == INTVAR_EVENT ||
+		    ev->get_type_code() == RAND_EVENT ||
+		    ev->get_type_code() == USER_VAR_EVENT)));
 
       rli->inc_event_relay_log_pos();
     }
@@ -4280,7 +4284,7 @@ pthread_handler_t handle_slave_worker(void *arg)
     sql_print_error("Failed during slave worker initialization");
     goto err;
   }
-  thd->init_for_queries();
+  thd->init_for_queries(w);
 
   mysql_mutex_lock(&LOCK_thread_count);
   add_global_thread(thd);
@@ -4335,6 +4339,15 @@ pthread_handler_t handle_slave_worker(void *arg)
 
   mysql_mutex_unlock(&rli->pending_jobs_lock);
 
+  /* 
+     In MTS case cleanup_after_session() has be called explicitly.
+     TODO: to make worker thd be deleted before Slave_worker instance.
+  */
+  if (thd->rli_slave)
+  {
+    w->cleanup_after_session();
+    thd->rli_slave= NULL;
+  }
   mysql_mutex_lock(&w->jobs_lock);
 
   w->running_status= Slave_worker::NOT_RUNNING;
@@ -5170,7 +5183,7 @@ pthread_handler_t handle_slave_sql(void *arg)
                 "Failed during slave thread initialization");
     goto err;
   }
-  thd->init_for_queries();
+  thd->init_for_queries(rli);
   thd->temporary_tables = rli->save_temporary_tables; // restore temp tables
   set_thd_in_use_temporary_tables(rli);   // (re)set sql_thd in use for saved temp tables
 

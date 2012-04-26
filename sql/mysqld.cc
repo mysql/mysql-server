@@ -2366,18 +2366,12 @@ void dec_connection_count()
 }
 
 
-/*
-  Delete the THD object and decrease number of threads
-
-  SYNOPSIS
-    delete_thd()
-    thd    Thread handler
-*/
-
-void delete_thd(THD *thd)
+/**
+  Delete the THD object.
+ */
+void destroy_thd(THD *thd)
 {
-  mysql_mutex_assert_owner(&LOCK_thread_count);
-  remove_global_thread(thd);
+  mysql_mutex_assert_not_owner(&LOCK_thread_count);
   delete thd;
 }
 

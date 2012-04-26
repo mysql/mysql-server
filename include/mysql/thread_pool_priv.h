@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2010, 2011, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -99,7 +99,9 @@ void thd_cleanup(THD *thd);
 /* Decrement connection counter */
 void dec_connection_count();
 /* Destroy THD object */
-void delete_thd(THD *thd);
+void destroy_thd(THD *thd);
+/* Remove the THD from the set of global threads. */
+void remove_global_thread(THD *thd);
 
 /*
   thread_created is maintained by thread pool when activated since
