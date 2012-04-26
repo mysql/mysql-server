@@ -1293,11 +1293,7 @@ bool mysql_multi_update(THD *thd,
   DBUG_PRINT("info",("res: %d  report_error: %d", res, (int) thd->is_error()));
   res|= thd->is_error();
   if (unlikely(res))
-  {
-    /* If we had a another error reported earlier then this will be ignored */
-    result->send_error(ER_UNKNOWN_ERROR, ER(ER_UNKNOWN_ERROR));
     result->abort();
-  }
   delete result;
   thd->abort_on_warning= 0;
   DBUG_RETURN(FALSE);
