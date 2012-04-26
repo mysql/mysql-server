@@ -3062,7 +3062,7 @@ sub ndbd_start {
 
 sub memcached_start {
   my ($cluster, $memcached) = @_;
-
+  
   my $name = $memcached->name();
   mtr_verbose("memcached_start '$name'"); 
   
@@ -3071,17 +3071,16 @@ sub memcached_start {
       "mysql-test/lib",              # install
       "share/mysql-test/lib"],       # install 
       "memcached_path.pl", NOT_REQUIRED);
-  
+
+  mtr_verbose("Found memcache script: '$found_perl_source'");
+  $found_perl_source ne "" or return;
+      
   my $found_so = my_find_file($bindir,
     ["storage/ndb/memcache",        # source or build
      "lib", "lib64"],               # install
-    "ndb_engine.so", NOT_REQUIRED); 
-
-  mtr_verbose("Found memcache script: '$found_perl_source'");
+    "ndb_engine.so"); 
   mtr_verbose("Found memcache plugin: '$found_so'");
 
-  $found_perl_source ne "" or return;
-  $found_so ne "" or mtr_error("Failed to find ndb_engine.so");  
   require "$found_perl_source";
   if(! memcached_is_available()) 
   {
@@ -3142,22 +3141,23 @@ sub memcached_start {
 
 sub memcached_load_metadata($) {
   my $cluster= shift;
-    
+
+  foreach my $mysqld (mysqlds())
+  {
+    if(-d $mysqld->value('datadir') . "/" . "ndbmemcache")
+    {
+      mtr_verbose("skipping memcache metadata (already stored)");
+      return;
+    }
+  }
+ 
   my $sql_script= my_find_file($bindir,
                               ["share/mysql/memcache-api", # RPM install
                                "share/memcache-api",       # Other installs
                                "scripts"                   # Build tree
                               ],
                               "ndb_memcache_metadata.sql", NOT_REQUIRED);
-
-  foreach my $mysqld (mysqlds()) {
-    if(-d $mysqld->value('datadir') . "/" . "ndbmemcache") {
-      mtr_verbose("skipping memcache metadata (already stored)");
-      return;
-    }
-  }
-  
-  mtr_verbose("memcached_load_metadata: $sql_script");
+  mtr_verbose("memcached_load_metadata: '$sql_script'");
   
   if (-f $sql_script )
   {
@@ -3166,8 +3166,6 @@ sub memcached_load_metadata($) {
     mtr_add_arg($args, "--defaults-file=%s", $path_config_file);
     mtr_add_arg($args, "--defaults-group-suffix=%s", $cluster->suffix());
     mtr_add_arg($args, "--connect-timeout=20");
-    
-    mtr_verbose("Script: $sql_script");
     if ( My::SafeProcess->run(
            name   => "ndbmemcache config loader",
            path   => $exe_mysql,
