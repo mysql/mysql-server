@@ -1,3 +1,6 @@
+--source include/not_embedded.inc
+--source include/not_windows.inc
+
 --perl
 
 use strict;
@@ -6,8 +9,6 @@ use IO::File;
 use lib "lib/";
 use My::Platform;
 use My::Find;
-
-require "lib/mtr_misc.pl";
 
 my $mysql_test_dir = $ENV{MYSQL_TEST_DIR} or die "Need MYSQL_TEST_DIR";
 my $vardir = $ENV{MYSQLTEST_VARDIR} or die "Need MYSQLTEST_VARDIR";
@@ -28,4 +29,5 @@ $F->close();
 EOF
 
 --source $MYSQLTEST_VARDIR/tmp/have_memcache_result.inc
+
 

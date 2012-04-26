@@ -152,6 +152,54 @@ from t1
 join t1 as t2 on t2.a = t1.c and t2.b = t1.d
 where t1.a = 2 and t1.b = 3;
 
+################################################################
+# Bug#13901890 SQL NODE CRASHES DURING INSERT SELECT
+#
+# Incorrect lifetime handling for NdbQuery objects where
+# the root operation was a 'const' lookup operation.
+#
+# 'virtual handler::index_read_idx_map()' was incorectly 
+# implemented by ha_ndbcluster, such that it failed to 
+# 'close' the table when the single 'const' row has been read.
+# Neither was it registered as 'open' by using the ::ha_index_init().
+# (Called ha_ndbcluster::index_init() directly)
+# This resulted in that NdbQuery::close() was never called
+# on these 'const' SPJ queries. Instead NdbTransaction end 
+# forcefully whiped them away by calling NdbQuery::release().
+# However, as there still was dangling pointer refs to 
+# them from ha_ndbcluster::m_active_query, we may later refer
+# them and crash!
+#
+#  - Same query as above.
+#  - Added explict table locks as cleanup of these is one 
+#    (of several?) way to cause released NdbQuery objects to
+#    be refered.
+################################################################
+
+# LOCK'ed tables invokes the same code path as executing
+# an 'INSERT... SELECT' inside a procedure invoked from a trigger.
+# ... and is a much simpler testcase..... 
+LOCK TABLES t1 read, t1 as t2 read;
+
+explain
+select *
+from t1
+join t1 as t2 on t2.a = t1.c and t2.b = t1.d
+where t1.a = 2 and t1.b = 3;
+
+#Returns empty result set
+select *
+from t1
+join t1 as t2 on t2.a = t1.c and t2.b = t1.d
+where t1.a = 2 and t1.b = 3;
+
+#Returns a single row
+select *
+from t1
+join t1 as t2 on t2.a = t1.c and t2.b = t1.d
+where t1.a = 3 and t1.b = 3;
+UNLOCK TABLES;
+
 explain extended
 select *
 from t1
@@ -3960,6 +4008,82 @@ select * from t1 as x1
 	join t1 as x3 on x3.a=x2.c and x3.b=x1.d and x3.c=0x4f;
 
 connection ddl;
+drop table t1;
+
+############################################################
+# Bug#13990924 / Bug#64865 Large WHERE IN with SPJ leads to
+#                          cluster shutdown
+#
+# Caused by incorrect error handling in SPJ block when
+# there was a buffer overflow (>32K)
+# (Pushed condition became to large)
+#
+# API also failed to prevent this from happen as it checked
+# for size <= 64K, while actuall buffer size was 32K
+# (Has now been increased)
+############################################################
+create table t1 (
+  k1 int primary key,
+  i int,
+  name varchar(32),
+  key (name)
+)
+default charset = utf8
+engine = ndb;
+
+insert into t1 values (1, 1, 'Ole');
+insert into t1 values (2, 2, 'Dole');
+insert into t1 values (3, 3, 'Doffen');
+insert into t1 values (4, 4, 'row# 999');
+
+# Build SPJ query with 2000 IN values
+# This used to result in buffer overflow, but will now
+# pass as buffer size is incresed from 32K -> 64K
+#
+let $query = select * from t1 x, t1 y where y.k1=x.i and x.name in ('foo';
+let $values = 0;
+while ($values < 2000)
+{
+  let $query = $query , 'row# $values';
+  inc $values;
+}
+let $query = $query );
+
+eval explain $query;
+eval $query;
+
+# Same SPJ query with 4000 IN values
+# This will hit the actuall limit of 64K and will be
+# detected by API which will drop this pushed condition.
+#   'Warning 4294 Scan filter is too large, discarded'
+# (Evaluated by mysql instead)
+#
+let $query = select * from t1 x, t1 y where y.k1=x.i and x.name in ('foo';
+let $values = 0;
+while ($values < 4000)
+{
+  let $query = $query , 'row# $values';
+  inc $values;
+}
+let $query = $query );
+
+eval explain $query;
+eval $query;
+
+# Build single table (non-SPJ) query with 4000 IN values
+# Should give same 'Warning 4294' as above
+let $query = select * from t1 x where x.name in ('foo';
+let $values = 0;
+while ($values < 4000)
+{
+  let $query = $query , 'row# $values';
+  inc $values;
+}
+let $query = $query );
+
+eval explain $query;
+eval $query;
+
 drop table t1;
 
 ########################################

@@ -22,7 +22,7 @@
 # redirected to a local log file.
 
 # TAP: report test plan
-plan="1..6"
+plan="1..8"
 echo "$plan"
 
 this_dir="`dirname $0`"
@@ -65,9 +65,11 @@ run_test()
 }
 
 run_test "mutils"
+run_test "ndbjtie_constants"
 run_test "ndbjtie_multilib"
 run_test "ndbjtie_smoke"
 run_test "unload_mutils"
+run_test "unload_ndbjtie_constants"
 run_test "unload_ndbjtie_multilib"
 run_test "unload_ndbjtie_smoke"
 

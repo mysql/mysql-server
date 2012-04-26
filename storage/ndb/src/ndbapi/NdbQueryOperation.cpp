@@ -1907,6 +1907,12 @@ NdbQueryImpl::buildQuery(NdbTransaction& trans,
                          const NdbQueryDefImpl& queryDef)
 {
   assert(queryDef.getNoOfOperations() > 0);
+  // Check for online upgrade/downgrade.
+  if (unlikely(!ndb_join_pushdown(trans.getNdb()->getMinDbNodeVersion())))
+  {
+    trans.setOperationErrorCodeAbort(Err_FunctionNotImplemented);
+    return NULL;
+  }
   NdbQueryImpl* const query = new NdbQueryImpl(trans, queryDef);
   if (unlikely(query==NULL)) {
     trans.setOperationErrorCodeAbort(Err_MemoryAlloc);
@@ -1915,7 +1921,7 @@ NdbQueryImpl::buildQuery(NdbTransaction& trans,
   if (unlikely(query->m_error.code != 0))
   {
     // Transaction error code set already.
-    delete query;
+    query->release();
     return NULL;
   }
   assert(query->m_state==Initial);

@@ -38,6 +38,7 @@ struct DihScanTabReq
 struct DihScanTabConf
 {
   STATIC_CONST( SignalLength = 6 );
+  STATIC_CONST( InvalidCookie = RNIL );
 
   Uint32 tableId;
   Uint32 senderData;

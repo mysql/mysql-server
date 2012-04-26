@@ -53,11 +53,7 @@
 
 #endif
 
-#if 1
-#define DEBUG_CRASH() ndbrequire(false)
-#else
-#define DEBUG_CRASH()
-#endif
+#define DEBUG_CRASH() ndbassert(false)
 
 #if 1
 #undef DEBUG
@@ -861,7 +857,7 @@ Dbspj::build(Build_context& ctx,
   err = DbspjErr::InvalidTreeNodeCount;
   if (loop == 0 || loop > NDB_SPJ_MAX_TREE_NODES)
   {
-    DEBUG_CRASH();
+    jam();
     goto error;
   }
 
@@ -878,28 +874,28 @@ Dbspj::build(Build_context& ctx,
     err = DbspjErr::QueryNodeTooBig;
     if (unlikely(node_len >= NDB_ARRAY_SIZE(m_buffer0)))
     {
-      DEBUG_CRASH();
+      jam();
       goto error;
     }
 
     err = DbspjErr::QueryNodeParametersTooBig;
     if (unlikely(param_len >= NDB_ARRAY_SIZE(m_buffer1)))
     {
-      DEBUG_CRASH();
+      jam();
       goto error;
     }
 
     err = DbspjErr::InvalidTreeNodeSpecification;
     if (unlikely(tree.getWords(m_buffer0, node_len) == false))
     {
-      DEBUG_CRASH();
+      jam();
       goto error;
     }
 
     err = DbspjErr::InvalidTreeParametersSpecification;
     if (unlikely(param.getWords(m_buffer1, param_len) == false))
     {
-      DEBUG_CRASH();
+      jam();
       goto error;
     }
 
@@ -918,7 +914,6 @@ Dbspj::build(Build_context& ctx,
     err = DbspjErr::UnknowQueryOperation;
     if (unlikely(node_op != param_op))
     {
-      DEBUG_CRASH();
       jam();
       goto error;
     }
@@ -933,7 +928,7 @@ Dbspj::build(Build_context& ctx,
     const OpInfo* info = getOpInfo(node_op);
     if (unlikely(info == 0))
     {
-      DEBUG_CRASH();
+      jam();
       goto error;
     }
 
@@ -2223,8 +2218,18 @@ Dbspj::execTRANSID_AI(Signal* signal)
   if (treeNodePtr.p->m_bits & TreeNode::T_ROW_BUFFER)
   {
     jam();
-    Uint32 err = storeRow(requestPtr, treeNodePtr, row);
-    ndbrequire(err == 0);
+    Uint32 err;
+    if (ERROR_INSERTED_CLEAR(17120) ||
+        (treeNodePtr.p->m_parentPtrI != RNIL && ERROR_INSERTED_CLEAR(17121)))
+    {
+      jam();
+      abort(signal, requestPtr, DbspjErr::OutOfRowMemory);
+    }
+    else if ((err = storeRow(requestPtr, treeNodePtr, row)) != 0)
+    {
+      jam();
+      abort(signal, requestPtr, err);
+    }
   }
 
   ndbrequire(treeNodePtr.p->m_info&&treeNodePtr.p->m_info->m_execTRANSID_AI);
@@ -2818,7 +2823,6 @@ Dbspj::lookup_build(Build_context& ctx,
     if (unlikely(node->len < QN_LookupNode::NodeSize))
     {
       jam();
-      DEBUG_CRASH();
       break;
     }
 
@@ -2827,7 +2831,6 @@ Dbspj::lookup_build(Build_context& ctx,
     if (unlikely(param->len < QN_LookupParameters::NodeSize))
     {
       jam();
-      DEBUG_CRASH();
       break;
     }
 
@@ -3195,6 +3198,15 @@ Dbspj::lookup_send(Signal* signal,
       err = DbspjErr::NodeFailure;
       break;
     }
+    // Test for online downgrade.
+    if (unlikely(!ndb_join_pushdown(getNodeInfo(Tnode).m_version)))
+    {
+      jam();
+      releaseSections(handle);
+      err = 4003; // Function not implemented.
+      break;
+    }
+
     if (unlikely(!c_alive_nodes.get(Tnode)))
     {
       jam();
@@ -4017,7 +4029,6 @@ Dbspj::scanFrag_build(Build_context& ctx,
     if (unlikely(node->len < QN_ScanFragNode::NodeSize))
     {
       jam();
-      DEBUG_CRASH();
       break;
     }
 
@@ -4026,7 +4037,6 @@ Dbspj::scanFrag_build(Build_context& ctx,
     if (unlikely(param->len < QN_ScanFragParameters::NodeSize))
     {
       jam();
-      DEBUG_CRASH();
       break;
     }
 
@@ -4279,6 +4289,15 @@ Dbspj::scanFrag_send(Signal* signal,
     c_Counters.incr_counter(CI_LOCAL_TABLE_SCANS_SENT, 1);
   }
 
+  if (ERROR_INSERTED_CLEAR(17100))
+  {
+    jam();
+    ndbout_c("Injecting invalid schema version error at line %d file %s",
+             __LINE__,  __FILE__);
+    // Provoke 'Invalid schema version' in order to receive SCAN_FRAGREF
+    req->schemaVersion++;
+  }
+
   ndbrequire(refToNode(ref) == getOwnNodeId());
   sendSignal(ref, GSN_SCAN_FRAGREQ, signal,
              NDB_ARRAY_SIZE(treeNodePtr.p->m_scanfrag_data.m_scanFragReq),
@@ -4343,6 +4362,8 @@ Dbspj::scanFrag_execSCAN_FRAGREF(Signal* signal,
                                  Ptr<TreeNode> treeNodePtr,
                                  Ptr<ScanFragHandle> scanFragHandlePtr)
 {
+  jam();
+
   const ScanFragRef* rep =
     reinterpret_cast<const ScanFragRef*>(signal->getDataPtr());
   Uint32 errCode = rep->errorCode;
@@ -4585,7 +4606,6 @@ Dbspj::scanIndex_build(Build_context& ctx,
     if (unlikely(node->len < QN_ScanIndexNode::NodeSize))
     {
       jam();
-      DEBUG_CRASH();
       break;
     }
 
@@ -4594,7 +4614,6 @@ Dbspj::scanIndex_build(Build_context& ctx,
     if (unlikely(param->len < QN_ScanIndexParameters::NodeSize))
     {
       jam();
-      DEBUG_CRASH();
       break;
     }
 
@@ -5018,11 +5037,14 @@ Dbspj::execDIH_SCAN_TAB_CONF(Signal* signal)
       jam();
       treeNodePtr.p->m_state = TreeNode::TN_INACTIVE;
     }
-    checkPrepareComplete(signal, requestPtr, 1);
-
-    return;
   } while (0);
 
+  if (likely(err==0))
+  {
+    jam();
+    checkPrepareComplete(signal, requestPtr, 1); 
+    return;
+  }
 error:
   ndbrequire(requestPtr.p->isScan());
   ndbrequire(requestPtr.p->m_outstanding >= 1);
@@ -5599,6 +5621,15 @@ Dbspj::scanIndex_send(Signal* signal,
       req->senderData = fragPtr.i;
       req->fragmentNoKeyLen = fragPtr.p->m_fragId;
 
+      // Test for online downgrade.
+      if (unlikely(ref != 0 && 
+                   !ndb_join_pushdown(getNodeInfo(refToNode(ref)).m_version)))
+      {
+        jam();
+        err = 4003; // Function not implemented.
+        break;
+      }
+
       if (prune)
       {
         jam();
@@ -5690,6 +5721,18 @@ Dbspj::scanIndex_send(Signal* signal,
          * right away.
          */
         jam();
+
+        if (ERROR_INSERTED_CLEAR(17110) ||
+            (treeNodePtr.p->isLeaf() && ERROR_INSERTED_CLEAR(17111)) ||
+            (treeNodePtr.p->m_parentPtrI != RNIL && ERROR_INSERTED_CLEAR(17112)))
+        {
+          jam();
+          ndbout_c("Injecting invalid schema version error at line %d file %s",
+                   __LINE__,  __FILE__);
+          // Provoke 'Invalid schema version' in order to receive SCAN_FRAGREF
+          req->schemaVersion++;
+        }
+
         sendSignal(ref, GSN_SCAN_FRAGREQ, signal,
                    NDB_ARRAY_SIZE(data.m_scanFragReq), JBB, &handle);
         fragPtr.p->m_rangePtrI = RNIL;
@@ -6613,9 +6656,6 @@ Dbspj::appendParamToPattern(Local_pattern_store& dst,
                             const RowPtr::Linear & row, Uint32 col)
 {
   jam();
-  /**
-   * TODO handle errors
-   */
   Uint32 offset = row.m_header->m_offset[col];
   const Uint32 * ptr = row.m_data + offset;
   Uint32 len = AttributeHeader::getDataSize(* ptr ++);
@@ -6638,9 +6678,6 @@ Dbspj::appendParamHeadToPattern(Local_pattern_store& dst,
                                 const RowPtr::Linear & row, Uint32 col)
 {
   jam();
-  /**
-   * TODO handle errors
-   */
   Uint32 offset = row.m_header->m_offset[col];
   const Uint32 * ptr = row.m_data + offset;
   Uint32 len = AttributeHeader::getDataSize(*ptr);
@@ -6834,7 +6871,7 @@ Dbspj::appendPkColToSection(Uint32 & dst, const RowPtr::Linear & row, Uint32 col
   Uint32 tmp = row.m_data[offset];
   Uint32 len = AttributeHeader::getDataSize(tmp);
   ndbrequire(len>1);  // NULL-value in PkKey is an error
-  return appendToSection(dst, row.m_data+offset+2, len - 1) ? 0 : /** todo error code */ 1;
+  return appendToSection(dst, row.m_data+offset+2, len - 1) ? 0 : DbspjErr::OutOfSectionMemory;
 }
 
 Uint32
@@ -7084,15 +7121,12 @@ Dbspj::expandS(Uint32 & _dst, Local_pattern_store& pattern,
     if (unlikely(err != 0))
     {
       jam();
-      goto error;
+      return err;
     }
   }
 
   _dst = dst;
   return 0;
-error:
-  jam();
-  return err;
 }
 
 /**
@@ -7148,17 +7182,15 @@ Dbspj::expandL(Uint32 & _dst, Local_pattern_store& pattern,
     if (unlikely(err != 0))
     {
       jam();
-      goto error;
+      return err;
     }
   }
 
   _dst = dst;
   return 0;
-error:
-  jam();
-  return err;
 }
 
+/* ::expand() used during initial 'build' phase on 'tree' + 'param' from API */
 Uint32
 Dbspj::expand(Uint32 & ptrI, DABuffer& pattern, Uint32 len,
               DABuffer& param, Uint32 paramCnt, bool& hasNull)
@@ -7167,7 +7199,7 @@ Dbspj::expand(Uint32 & ptrI, DABuffer& pattern, Uint32 len,
   /**
    * TODO handle error
    */
-  Uint32 err;
+  Uint32 err = 0;
   Uint32 tmp[1+MAX_ATTRIBUTES_IN_TABLE];
   struct RowPtr::Linear row;
   row.m_data = param.ptr;
@@ -7200,19 +7232,17 @@ Dbspj::expand(Uint32 & ptrI, DABuffer& pattern, Uint32 len,
       {
         jam();
         hasNull = true;
-        err = 0;
       }
       else if (likely(appendToSection(dst, ptr, val)))
       {
         jam();
-        err = 0;
+        ptr += val;
       }
       else
       {
         jam();
-        err = DbspjErr::InvalidPattern;
+        err = DbspjErr::OutOfSectionMemory;
       }
-      ptr += val;
       break;
     case QueryPattern::P_COL:    // (linked) COL's not expected here
     case QueryPattern::P_PARENT: // Prefix to P_COL
@@ -7222,12 +7252,12 @@ Dbspj::expand(Uint32 & ptrI, DABuffer& pattern, Uint32 len,
       jam();
       jamLine(type);
       err = DbspjErr::InvalidPattern;
-      DEBUG_CRASH();
     }
     if (unlikely(err != 0))
     {
       jam();
-      goto error;
+      ptrI = dst;
+      return err;
     }
   }
 
@@ -7235,13 +7265,11 @@ Dbspj::expand(Uint32 & ptrI, DABuffer& pattern, Uint32 len,
    * Iterate forward
    */
   pattern.ptr = end;
-
-error:
-  jam();
   ptrI = dst;
-  return err;
+  return 0;
 }
 
+/* ::expand() used during initial 'build' phase on 'tree' + 'param' from API */
 Uint32
 Dbspj::expand(Local_pattern_store& dst, Ptr<TreeNode> treeNodePtr,
               DABuffer& pattern, Uint32 len,
@@ -7293,7 +7321,11 @@ Dbspj::expand(Local_pattern_store& dst, Ptr<TreeNode> treeNodePtr,
     {
       jam();
       err = appendToPattern(dst, pattern, 1);
-
+      if (unlikely(err))
+      {
+        jam();
+        break;
+      }
       // Locate requested grandparent and request it to
       // T_ROW_BUFFER its result rows
       Ptr<TreeNode> parentPtr;
@@ -7313,20 +7345,16 @@ Dbspj::expand(Local_pattern_store& dst, Ptr<TreeNode> treeNodePtr,
     }
     default:
       err = DbspjErr::InvalidPattern;
-      DEBUG_CRASH();
+      jam();
     }
 
     if (unlikely(err != 0))
     {
       jam();
-      goto error;
+      return err;
     }
   }
   return 0;
-
-error:
-  jam();
-  return err;
 }
 
 Uint32
@@ -7386,7 +7414,7 @@ Dbspj::parseDA(Build_context& ctx,
       Uint32 cnt = unpackList(NDB_ARRAY_SIZE(dst), dst, tree);
       if (unlikely(cnt > NDB_ARRAY_SIZE(dst)))
       {
-        DEBUG_CRASH();
+        jam();
         break;
       }
 
@@ -7395,7 +7423,7 @@ Dbspj::parseDA(Build_context& ctx,
         /**
          * Only a single parent supported for now, i.e only trees
          */
-        DEBUG_CRASH();
+        jam();
         break;
       }
 
@@ -7428,7 +7456,7 @@ Dbspj::parseDA(Build_context& ctx,
     if (unlikely( ((treeBits  & DABits::NI_KEY_PARAMS)==0) !=
                   ((paramBits & DABits::PI_KEY_PARAMS)==0)))
     {
-      DEBUG_CRASH();
+      jam();
       break;
     }
 
@@ -7456,7 +7484,7 @@ Dbspj::parseDA(Build_context& ctx,
       if (unlikely( ((cnt==0) != ((treeBits & DABits::NI_KEY_PARAMS) == 0)) ||
                     ((cnt==0) != ((paramBits & DABits::PI_KEY_PARAMS) == 0))))
       {
-        DEBUG_CRASH();
+        jam();
         break;
       }
 
@@ -7574,7 +7602,7 @@ Dbspj::parseDA(Build_context& ctx,
           err = DbspjErr::BothTreeAndParametersContainInterpretedProgram;
           if (unlikely(paramBits & DABits::PI_ATTR_INTERPRET))
           {
-            DEBUG_CRASH();
+            jam();
             break;
           }
 
@@ -7748,7 +7776,7 @@ Dbspj::parseDA(Build_context& ctx,
         Uint32 cnt = unpackList(MAX_ATTRIBUTES_IN_TABLE, dst, tree);
         if (unlikely(cnt > MAX_ATTRIBUTES_IN_TABLE))
         {
-          DEBUG_CRASH();
+          jam();
           break;
         }
 

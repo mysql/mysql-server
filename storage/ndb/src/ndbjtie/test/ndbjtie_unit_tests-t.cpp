@@ -139,10 +139,11 @@ int main(int argc, char **argv)
     assert(this_name);
 
     // TAP: print number of tests to run
-    plan(6);
+    plan(8);
 
     // run tests
     run_test_script(this_dir, "mutils");
+    run_test_script(this_dir, "ndbjtie_constants");
     run_test_script(this_dir, "ndbjtie_multilib");
     run_test_script(this_dir, "ndbjtie_smoke");
     // TAP: configured by MYTAP_CONFIG environment var
@@ -151,10 +152,12 @@ int main(int argc, char **argv)
     if (false) {
         printf("\n");
         skip(1, "big subtest unload_mutils");
+        skip(1, "big subtest unload_ndbjtie_constants");
         skip(1, "big subtest unload_ndbjtie_multilib");
         skip(1, "big subtest unload_ndbjtie_smoke");
     } else {
         run_test_script(this_dir, "unload_mutils");
+        run_test_script(this_dir, "unload_ndbjtie_constants");
         run_test_script(this_dir, "unload_ndbjtie_multilib");
         run_test_script(this_dir, "unload_ndbjtie_smoke");
     }

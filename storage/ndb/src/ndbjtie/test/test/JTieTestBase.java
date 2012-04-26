@@ -30,6 +30,15 @@ public abstract class JTieTestBase {
     static protected final PrintWriter out = new PrintWriter(System.out, true);
     static protected final PrintWriter err = new PrintWriter(System.err, true);
 
+    // ensure that asserts are enabled
+    static {
+        boolean assertsEnabled = false;
+        assert assertsEnabled = true; // intentional side effect
+        if (!assertsEnabled) {
+            throw new RuntimeException("Asserts must be enabled for this test to be effective!");
+        }
+    }
+
     /**
      * Loads a dynamically linked library.
      */
