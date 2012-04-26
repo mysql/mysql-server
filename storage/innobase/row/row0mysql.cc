@@ -1028,7 +1028,7 @@ row_update_statistics_if_needed(
 	We calculate statistics at most every 16th round, since we may have
 	a counter table which is very small and updated very often. */
 
-	if (counter > 16 + (ib_uint64_t) table->stat_n_rows / 16) {
+	if (counter > 16 + table->stat_n_rows / 16) {
 
 		ut_ad(!mutex_own(&dict_sys->mutex));
 		/* this will reset table->stat_modified_counter to 0 */

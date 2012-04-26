@@ -746,7 +746,7 @@ struct dict_table_struct{
 				this ever happens. */
 #define DICT_STATS_PERSISTENT_ON	(1 << 1)
 #define DICT_STATS_PERSISTENT_OFF	(1 << 2)
-	ib_int64_t	stat_n_rows;
+	ib_uint64_t	stat_n_rows;
 				/*!< approximate number of rows in the table;
 				we periodically calculate new estimates */
 	ulint		stat_clustered_index_size;
