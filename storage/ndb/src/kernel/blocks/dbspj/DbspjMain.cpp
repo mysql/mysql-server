@@ -53,11 +53,7 @@
 
 #endif
 
-#if 1
-#define DEBUG_CRASH() ndbrequire(false)
-#else
-#define DEBUG_CRASH()
-#endif
+#define DEBUG_CRASH() ndbassert(false)
 
 #if 1
 #undef DEBUG
@@ -861,7 +857,7 @@ Dbspj::build(Build_context& ctx,
   err = DbspjErr::InvalidTreeNodeCount;
   if (loop == 0 || loop > NDB_SPJ_MAX_TREE_NODES)
   {
-    DEBUG_CRASH();
+    jam();
     goto error;
   }
 
@@ -878,28 +874,28 @@ Dbspj::build(Build_context& ctx,
     err = DbspjErr::QueryNodeTooBig;
     if (unlikely(node_len >= NDB_ARRAY_SIZE(m_buffer0)))
     {
-      DEBUG_CRASH();
+      jam();
       goto error;
     }
 
     err = DbspjErr::QueryNodeParametersTooBig;
     if (unlikely(param_len >= NDB_ARRAY_SIZE(m_buffer1)))
     {
-      DEBUG_CRASH();
+      jam();
       goto error;
     }
 
     err = DbspjErr::InvalidTreeNodeSpecification;
     if (unlikely(tree.getWords(m_buffer0, node_len) == false))
     {
-      DEBUG_CRASH();
+      jam();
       goto error;
     }
 
     err = DbspjErr::InvalidTreeParametersSpecification;
     if (unlikely(param.getWords(m_buffer1, param_len) == false))
     {
-      DEBUG_CRASH();
+      jam();
       goto error;
     }
 
@@ -918,7 +914,6 @@ Dbspj::build(Build_context& ctx,
     err = DbspjErr::UnknowQueryOperation;
     if (unlikely(node_op != param_op))
     {
-      DEBUG_CRASH();
       jam();
       goto error;
     }
@@ -933,7 +928,7 @@ Dbspj::build(Build_context& ctx,
     const OpInfo* info = getOpInfo(node_op);
     if (unlikely(info == 0))
     {
-      DEBUG_CRASH();
+      jam();
       goto error;
     }
 
@@ -2828,7 +2823,6 @@ Dbspj::lookup_build(Build_context& ctx,
     if (unlikely(node->len < QN_LookupNode::NodeSize))
     {
       jam();
-      DEBUG_CRASH();
       break;
     }
 
@@ -2837,7 +2831,6 @@ Dbspj::lookup_build(Build_context& ctx,
     if (unlikely(param->len < QN_LookupParameters::NodeSize))
     {
       jam();
-      DEBUG_CRASH();
       break;
     }
 
@@ -3205,6 +3198,15 @@ Dbspj::lookup_send(Signal* signal,
       err = DbspjErr::NodeFailure;
       break;
     }
+    // Test for online downgrade.
+    if (unlikely(!ndb_join_pushdown(getNodeInfo(Tnode).m_version)))
+    {
+      jam();
+      releaseSections(handle);
+      err = 4003; // Function not implemented.
+      break;
+    }
+
     if (unlikely(!c_alive_nodes.get(Tnode)))
     {
       jam();
@@ -4027,7 +4029,6 @@ Dbspj::scanFrag_build(Build_context& ctx,
     if (unlikely(node->len < QN_ScanFragNode::NodeSize))
     {
       jam();
-      DEBUG_CRASH();
       break;
     }
 
@@ -4036,7 +4037,6 @@ Dbspj::scanFrag_build(Build_context& ctx,
     if (unlikely(param->len < QN_ScanFragParameters::NodeSize))
     {
       jam();
-      DEBUG_CRASH();
       break;
     }
 
@@ -4606,7 +4606,6 @@ Dbspj::scanIndex_build(Build_context& ctx,
     if (unlikely(node->len < QN_ScanIndexNode::NodeSize))
     {
       jam();
-      DEBUG_CRASH();
       break;
     }
 
@@ -4615,7 +4614,6 @@ Dbspj::scanIndex_build(Build_context& ctx,
     if (unlikely(param->len < QN_ScanIndexParameters::NodeSize))
     {
       jam();
-      DEBUG_CRASH();
       break;
     }
 
@@ -5622,6 +5620,15 @@ Dbspj::scanIndex_send(Signal* signal,
        */
       req->senderData = fragPtr.i;
       req->fragmentNoKeyLen = fragPtr.p->m_fragId;
+
+      // Test for online downgrade.
+      if (unlikely(ref != 0 && 
+                   !ndb_join_pushdown(getNodeInfo(refToNode(ref)).m_version)))
+      {
+        jam();
+        err = 4003; // Function not implemented.
+        break;
+      }
 
       if (prune)
       {
@@ -7183,6 +7190,7 @@ Dbspj::expandL(Uint32 & _dst, Local_pattern_store& pattern,
   return 0;
 }
 
+/* ::expand() used during initial 'build' phase on 'tree' + 'param' from API */
 Uint32
 Dbspj::expand(Uint32 & ptrI, DABuffer& pattern, Uint32 len,
               DABuffer& param, Uint32 paramCnt, bool& hasNull)
@@ -7244,7 +7252,6 @@ Dbspj::expand(Uint32 & ptrI, DABuffer& pattern, Uint32 len,
       jam();
       jamLine(type);
       err = DbspjErr::InvalidPattern;
-      DEBUG_CRASH();
     }
     if (unlikely(err != 0))
     {
@@ -7262,6 +7269,7 @@ Dbspj::expand(Uint32 & ptrI, DABuffer& pattern, Uint32 len,
   return 0;
 }
 
+/* ::expand() used during initial 'build' phase on 'tree' + 'param' from API */
 Uint32
 Dbspj::expand(Local_pattern_store& dst, Ptr<TreeNode> treeNodePtr,
               DABuffer& pattern, Uint32 len,
@@ -7337,7 +7345,7 @@ Dbspj::expand(Local_pattern_store& dst, Ptr<TreeNode> treeNodePtr,
     }
     default:
       err = DbspjErr::InvalidPattern;
-      DEBUG_CRASH();
+      jam();
     }
 
     if (unlikely(err != 0))
@@ -7406,7 +7414,7 @@ Dbspj::parseDA(Build_context& ctx,
       Uint32 cnt = unpackList(NDB_ARRAY_SIZE(dst), dst, tree);
       if (unlikely(cnt > NDB_ARRAY_SIZE(dst)))
       {
-        DEBUG_CRASH();
+        jam();
         break;
       }
 
@@ -7415,7 +7423,7 @@ Dbspj::parseDA(Build_context& ctx,
         /**
          * Only a single parent supported for now, i.e only trees
          */
-        DEBUG_CRASH();
+        jam();
         break;
       }
 
@@ -7448,7 +7456,7 @@ Dbspj::parseDA(Build_context& ctx,
     if (unlikely( ((treeBits  & DABits::NI_KEY_PARAMS)==0) !=
                   ((paramBits & DABits::PI_KEY_PARAMS)==0)))
     {
-      DEBUG_CRASH();
+      jam();
       break;
     }
 
@@ -7476,7 +7484,7 @@ Dbspj::parseDA(Build_context& ctx,
       if (unlikely( ((cnt==0) != ((treeBits & DABits::NI_KEY_PARAMS) == 0)) ||
                     ((cnt==0) != ((paramBits & DABits::PI_KEY_PARAMS) == 0))))
       {
-        DEBUG_CRASH();
+        jam();
         break;
       }
 
@@ -7594,7 +7602,7 @@ Dbspj::parseDA(Build_context& ctx,
           err = DbspjErr::BothTreeAndParametersContainInterpretedProgram;
           if (unlikely(paramBits & DABits::PI_ATTR_INTERPRET))
           {
-            DEBUG_CRASH();
+            jam();
             break;
           }
 
@@ -7768,7 +7776,7 @@ Dbspj::parseDA(Build_context& ctx,
         Uint32 cnt = unpackList(MAX_ATTRIBUTES_IN_TABLE, dst, tree);
         if (unlikely(cnt > MAX_ATTRIBUTES_IN_TABLE))
         {
-          DEBUG_CRASH();
+          jam();
           break;
         }
 

@@ -51,7 +51,7 @@ set MYJAPI=..\jtie\test\myjapi
 set NDBJTIE_JAR=%NDBJTIE%\ndbjtie-@JAVA_NDB_VERSION@.jar
 set MYJAPI_JAR=%MYJAPI%\jtie-test-myjapi-@JAVA_NDB_VERSION@.jar
 set JAVA_CLASSPATH=-classpath "%TEST_JAR%;%MYJAPI_JAR%;%NDBJTIE_JAR%"
-set JAVA_LIBPATH=-Djava.library.path="%MYJAPI%\%BIN_DIR%;%NDBCLIENT%\%BIN_DIR%"
+set JAVA_LIBPATH=-Djava.library.path="%MYJAPI%\%BIN_DIR%;%NDBCLIENT%\%BIN_DIR%;%BIN_DIR%"
 set JAVA_DEFS=
 
 echo running
