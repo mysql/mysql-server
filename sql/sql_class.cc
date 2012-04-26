@@ -790,7 +790,7 @@ bool Drop_table_error_handler::handle_condition(THD *thd,
 THD::THD(bool enable_plugins)
    :Statement(&main_lex, &main_mem_root, STMT_CONVENTIONAL_EXECUTION,
               /* statement id */ 0),
-   rli_fake(0),
+   rli_fake(0), rli_slave(NULL),
    in_sub_stmt(0),
    binlog_unsafe_warning_flags(0),
    binlog_table_maps(0),
@@ -1292,7 +1292,7 @@ void THD::init(void)
   See also comments in sql_class.h.
 */
 
-void THD::init_for_queries()
+void THD::init_for_queries(Relay_log_info *rli)
 {
   set_time(); 
   ha_enable_transaction(this,TRUE);
@@ -1304,6 +1304,18 @@ void THD::init_for_queries()
                       variables.trans_prealloc_size);
   transaction.xid_state.xid.null();
   transaction.xid_state.in_thd=1;
+#if defined(MYSQL_SERVER) && defined(HAVE_REPLICATION)
+  if (rli)
+  {
+    if ((rli->deferred_events_collecting= rpl_filter->is_on()))
+    {
+      rli->deferred_events= new Deferred_log_events(rli);
+    }
+    rli_slave= rli;
+
+    DBUG_ASSERT(rli_slave->info_thd == this && slave_thread);
+  }
+#endif
 }
 
 
@@ -1402,14 +1414,19 @@ void THD::cleanup(void)
 
 THD::~THD()
 {
+  mysql_mutex_assert_not_owner(&LOCK_thread_count);
   THD_CHECK_SENTRY(this);
   DBUG_ENTER("~THD()");
   DBUG_PRINT("info", ("THD dtor, this %p", this));
+
   /* Ensure that no one is using THD */
   mysql_mutex_lock(&LOCK_thd_data);
   mysys_var=0;					// Safety (shouldn't be needed)
   mysql_mutex_unlock(&LOCK_thd_data);
+
+  mysql_mutex_lock(&LOCK_status);
   add_to_status(&global_status_var, &status_var);
+  mysql_mutex_unlock(&LOCK_status);
 
   /* Close connection */
 #ifndef EMBEDDED_LIBRARY
@@ -1460,6 +1477,8 @@ THD::~THD()
   }
   
   mysql_audit_free_thd(this);
+  if (rli_slave)
+    rli_slave->cleanup_after_session();
 #endif
 
   free_root(&main_mem_root, MYF(0));
@@ -1827,6 +1846,10 @@ void THD::cleanup_after_query()
   {
     delete_dynamic(&lex->mi.repl_ignore_server_ids);
   }
+#ifndef EMBEDDED_LIBRARY
+  if (rli_slave)
+    rli_slave->cleanup_after_query();
+#endif
 }
 
 

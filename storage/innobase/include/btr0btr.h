@@ -100,6 +100,14 @@ buffer when the record is not in the buffer pool. */
 on the index tree */
 #define BTR_ALREADY_S_LATCHED	16384
 
+#define BTR_LATCH_MODE_WITHOUT_FLAGS(latch_mode)	\
+	((latch_mode) & ~(BTR_INSERT			\
+			  | BTR_DELETE_MARK		\
+			  | BTR_DELETE			\
+			  | BTR_ESTIMATE		\
+			  | BTR_IGNORE_SEC_UNIQUE	\
+			  | BTR_ALREADY_S_LATCHED))
+
 /**************************************************************//**
 Report that an index page is corrupted. */
 UNIV_INTERN

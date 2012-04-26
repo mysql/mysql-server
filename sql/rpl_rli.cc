@@ -86,7 +86,7 @@ Relay_log_info::Relay_log_info(bool is_slave_recovery
    until_sql_gtids_first_event(true),
    retried_trans(0),
    tables_to_lock(0), tables_to_lock_count(0),
-   rows_query_ev(NULL), last_event_start_time(0),
+   rows_query_ev(NULL), last_event_start_time(0), deferred_events(NULL),
    slave_parallel_workers(0),
    recovery_parallel_workers(0), checkpoint_seqno(0),
    checkpoint_group(opt_mts_checkpoint_group), 

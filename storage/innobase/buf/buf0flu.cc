@@ -1631,8 +1631,6 @@ buf_flush_batch(
 	}
 #endif /* UNIV_DEBUG */
 
-	srv_buf_pool_flushed += count;
-
 	return(count);
 }
 
@@ -1659,13 +1657,6 @@ buf_flush_common(
 #endif /* UNIV_DEBUG */
 
 	srv_buf_pool_flushed += page_count;
-
-	if (flush_type == BUF_FLUSH_LRU) {
-		/* We keep track of all flushes happening as part of LRU
-		flush. When estimating the desired rate at which flush_list
-		should be flushed we factor in this value. */
-		buf_lru_flush_page_count += page_count;
-	}
 }
 
 /******************************************************************//**

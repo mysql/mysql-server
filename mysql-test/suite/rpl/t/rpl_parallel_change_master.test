@@ -71,13 +71,14 @@ INSERT INTO d1.t1 VALUES (13);
 INSERT INTO d2.t1 VALUES (8);  # this worker will race over one inserting (13)
 INSERT INTO d2.t1 VALUES (9);
 
---connection slave
+--connection slave1
 # make sure workers doing d2.t1 raced the one that occupied  with d1.t1
 --let $count= 1
 --let $table= d2.t1
 --let $wait_condition= select count(*) = 1 from $table where a = 8
 --source include/wait_condition.inc
 
+--connection slave
 # make worker executing (13) to error out
 COMMIT; 
 

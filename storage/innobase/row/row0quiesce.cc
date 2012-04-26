@@ -580,10 +580,8 @@ row_quiesce_set_state(
 		innobase_format_name(
 			table_name, sizeof(table_name), table->name, FALSE);
 
-		ib_senderrf(trx->mysql_thd,
-			IB_LOG_LEVEL_WARN,
-			ER_TABLE_IN_SYSTEM_TABLESPACE,
-			table->name);
+		ib_senderrf(trx->mysql_thd, IB_LOG_LEVEL_WARN,
+			    ER_TABLE_IN_SYSTEM_TABLESPACE, table_name);
 
 		return(DB_UNSUPPORTED);
 	}

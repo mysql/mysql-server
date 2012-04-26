@@ -2295,9 +2295,13 @@ row_import_for_mysql(
 	table->flags2 &= ~DICT_TF2_DISCARDED;
 
 	if (autoinc != 0) {
+		char	table_name[MAX_FULL_NAME_LEN + 1];
+
+		innobase_format_name(
+			table_name, sizeof(table_name), table->name, FALSE);
 
 		ib_logf(IB_LOG_LEVEL_INFO, "%s autoinc value set to " IB_ID_FMT,
-			table->name, autoinc);
+			table_name, autoinc);
 
 		dict_table_autoinc_lock(table);
 		dict_table_autoinc_initialize(table, autoinc);

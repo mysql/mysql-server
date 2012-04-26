@@ -801,16 +801,22 @@ end:
   net_end(&thd->net);
   thd->cleanup();
 
+  if (thd_added)
+  {
+    mysql_mutex_lock(&LOCK_thread_count);
+    remove_global_thread(thd);
+    mysql_mutex_unlock(&LOCK_thread_count);
+  }
   /*
-    Here we delete the thd while holding the LOCK_thread_count.
+    We need to delete the thd before signalling that bootstrap is done.
     The reason is that we have to call ha_close_connection(thd)
     before shutting down InnoDB (this is done by THD::~THD())
   */
-  mysql_mutex_lock(&LOCK_thread_count);
-  if (thd_added)
-    remove_global_thread(thd);
-  in_bootstrap= FALSE;
   delete thd;
+
+  mysql_mutex_lock(&LOCK_thread_count);
+  in_bootstrap= FALSE;
+  mysql_cond_broadcast(&COND_thread_count);
   mysql_mutex_unlock(&LOCK_thread_count);
 
 #ifndef EMBEDDED_LIBRARY
@@ -2341,6 +2347,11 @@ mysql_execute_command(THD *thd)
       }
       DBUG_RETURN(0);
     }
+    /* 
+       Execute deferred events first
+    */
+    if (slave_execute_deferred_events(thd))
+      DBUG_RETURN(-1);
   }
   else
   {
