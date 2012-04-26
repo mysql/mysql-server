@@ -245,7 +245,6 @@ our @opt_experimentals;
 our $experimental_test_cases= [];
 
 my $baseport;
-my $memcached_base_port;
 # $opt_build_thread may later be set from $opt_port_base
 my $opt_build_thread= $ENV{'MTR_BUILD_THREAD'} || "auto";
 my $opt_port_base= $ENV{'MTR_PORT_BASE'} || "auto";
@@ -1808,7 +1807,6 @@ sub set_build_thread_ports($) {
 
   mtr_report("Using MTR_BUILD_THREAD $build_thread,",
 	     "with reserved ports $baseport..".($baseport+9));
-  $memcached_base_port = $baseport + 8;
 
 }
 
@@ -3063,9 +3061,10 @@ sub ndbd_start {
 
 
 sub memcached_start {
-  my ($cluster, $memcached, $port_number) = @_;
-  
-  mtr_verbose("memcached_start"); 
+  my ($cluster, $memcached) = @_;
+
+  my $name = $memcached->name();
+  mtr_verbose("memcached_start '$name'"); 
   
   my $found_perl_source = my_find_file($basedir, 
      ["storage/ndb/memcache",        # source
@@ -3074,26 +3073,12 @@ sub memcached_start {
       "memcached_path.pl", NOT_REQUIRED);
   
   my $found_so = my_find_file($bindir,
-    ["storage/ndb/memcache/",       # source or build
+    ["storage/ndb/memcache",        # source or build
      "lib", "lib64"],               # install
     "ndb_engine.so", NOT_REQUIRED); 
 
-  mtr_verbose("Found memcache script: $found_perl_source");
-  mtr_verbose("Found memcache plugin: $found_so");
-     
-  my $mgm_host;
-  my $mgm_port;
-  foreach my $mgmd ( in_cluster($cluster, ndb_mgmds()) ) {
-    $mgm_host = $mgmd->value('HostName');
-    $mgm_port = $mgmd->value('PortNumber');
-    last;
-  }
-  my $ndb_opt_string = "connectstring=$mgm_host:$mgm_port";
-  my $options = $memcached->value("options");
-  if($options) {  
-    $ndb_opt_string = $ndb_opt_string . ";" . $options;
-  }
-
+  mtr_verbose("Found memcache script: '$found_perl_source'");
+  mtr_verbose("Found memcache plugin: '$found_so'");
 
   $found_perl_source ne "" or return;
   $found_so ne "" or mtr_error("Failed to find ndb_engine.so");  
@@ -3114,30 +3099,38 @@ sub memcached_start {
     $exe = get_memcached_exe_path();
   }
   $exe ne "" or mtr_error("Failed to find memcached.");
-
+  
   my $args;
   mtr_init_args(\$args);
-  mtr_add_arg($args, "-p");
-  mtr_add_arg($args, $port_number);
-  mtr_add_arg($args, "-c");
-  mtr_add_arg($args,"100");   # max 100 connections
+  # TCP port number to listen on
+  mtr_add_arg($args, "-p %d", $memcached->value('port'));
+  # Max simultaneous connections
+  mtr_add_arg($args, "-c %d", $memcached->value('max_connections'));
+  # Load engine as storage engine, ie. /path/ndb_engine.so
   mtr_add_arg($args, "-E");
-  mtr_add_arg($args, $found_so);  # /path/ndb_engine.so    
-  mtr_add_arg($args, "-e");  
-  mtr_add_arg($args, "$ndb_opt_string");
+  mtr_add_arg($args, $found_so);
+  # Config options for loaded storage engine
+  {
+    my @opts;
+    push(@opts, "connectstring=" . $memcached->value('ndb_connectstring'));
+    push(@opts, $memcached->if_exist("options"));
+    mtr_add_arg($args, "-e");
+    mtr_add_arg($args, join(";", @opts));
+  }
 
   if($opt_gdb)
   {
     gdb_arguments(\$args, \$exe, "memcached");
   }
-  
+
   my $proc = My::SafeProcess->new 
-  ( name     =>  "memcached",
+  ( name     =>  $name,
     path     =>  $exe,
     args     => \$args,
-    output   =>  "$opt_vardir/log/memcached.out",
-    error    =>  "$opt_vardir/log/memcached.out",
+    output   =>  "$opt_vardir/log/$name.out",
+    error    =>  "$opt_vardir/log/$name.out",
     append   =>  1,
+    verbose  => $opt_verbose,
   );
   mtr_verbose("Started $proc");
   
@@ -5603,24 +5596,19 @@ sub start_servers($) {
     }
   }
   
-  # Start memcached if needed
-  foreach my $cluster (clusters()) 
+  # Start memcached(s) for each cluster
+  foreach my $cluster ( clusters() ) 
   { 
-    if(memcacheds()) 
-    {
-      my $avail_port = $memcached_base_port;
-      my $memcached;
-      memcached_load_metadata($cluster);
+    next if !in_cluster($cluster, memcacheds());
+    
+    # Load the memcache metadata into this cluster
+    memcached_load_metadata($cluster);
 
-      # Start them
-      foreach $memcached( in_cluster($cluster, memcacheds()) )
-      {
-        if(! started($memcached)) 
-        {
-          memcached_start($cluster, $memcached, $avail_port);
-        }
-        $avail_port += 1;
-      }
+    # Start memcached(s)
+    foreach my $memcached ( in_cluster($cluster, memcacheds()))
+    {
+      next if started($memcached); 
+      memcached_start($cluster, $memcached);
     }
   }
 
