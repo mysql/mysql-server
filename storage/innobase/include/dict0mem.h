@@ -754,14 +754,14 @@ struct dict_table_struct{
 				database pages */
 	ulint		stat_sum_of_other_index_sizes;
 				/*!< other indexes in database pages */
-	ulint		stat_modified_counter;
+	ib_uint64_t	stat_modified_counter;
 				/*!< when a row is inserted, updated,
 				or deleted,
 				we add 1 to this number; we calculate new
 				estimates for the stat_... values for the
-				table and the indexes at an interval of 2 GB
-				or when about 1 / 16 of table has been
-				modified; also when the estimate operation is
+				table and the indexes when about 1 / 16 of
+				table has been modified;
+				also when the estimate operation is
 				called for MySQL SHOW TABLE STATUS; the
 				counter is reset to zero at statistics
 				calculation; this counter is not protected by
