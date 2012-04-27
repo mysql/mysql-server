@@ -1451,6 +1451,9 @@ static ib_err_msg_t	ib_err_msg[] = {
 	{ER_FILE_NOT_FOUND,
         "Can't find file: '%-.200s' (errno: %d - %s)"},
 
+	{ER_CANT_CREATE_FILE,
+        "Can't create file '%-.200s' (errno: %d - %s)"},
+
 	{ER_TABLE_SCHEMA_MISMATCH,
 	"Schema mismatch (%s)"},
 

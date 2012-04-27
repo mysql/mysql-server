@@ -168,6 +168,9 @@ row_quiesce_write_indexes(
 
 		mach_write_to_4(row, len);
 
+		DBUG_EXECUTE_IF("ib_export_io_write_failure",
+				close(fileno(file)););
+
 		if (fwrite(row, 1, sizeof(len), file) != sizeof(len)
 		    || fwrite(index->name, 1, len, file) != len) {
 
@@ -363,8 +366,6 @@ row_quiesce_write_header(
 
 	/* Write the number of columns in the table. */
 	mach_write_to_4(ptr, table->n_cols);
-
-	DBUG_EXECUTE_IF("ib_export_io_write_failure", fclose(file););
 
 	if (fwrite(row, 1,  sizeof(row), file) != sizeof(row)) {
 		ib_senderrf(
