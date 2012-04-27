@@ -188,8 +188,10 @@ int setup_wild(THD *thd, TABLE_LIST *tables, List<Item> &fields,
 bool setup_fields(THD *thd, Ref_ptr_array ref_pointer_array,
                   List<Item> &item, enum_mark_columns mark_used_columns,
                   List<Item> *sum_func_list, bool allow_sum_func);
+bool fill_record(THD * thd, List<Item> &fields, List<Item> &values,
+                 bool ignore_errors, MY_BITMAP *bitmap);
 bool fill_record(THD *thd, Field **field, List<Item> &values,
-                 bool ignore_errors);
+                 bool ignore_errors, MY_BITMAP *bitmap);
 
 Field *
 find_field_in_tables(THD *thd, Item_ident *item,
@@ -240,6 +242,8 @@ bool lock_table_names(THD *thd, TABLE_LIST *table_list,
                       uint flags);
 bool open_tables(THD *thd, TABLE_LIST **tables, uint *counter, uint flags,
                  Prelocking_strategy *prelocking_strategy);
+void open_and_lock_tables_cleanup(THD *thd,
+                                  const MDL_savepoint &mdl_savepoint);
 /* open_and_lock_tables with optional derived handling */
 bool open_and_lock_tables(THD *thd, TABLE_LIST *tables,
                           bool derived, uint flags,
