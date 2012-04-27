@@ -151,7 +151,7 @@ maybe_destroy_child_blbs(BRTNODE node, BRTNODE child)
     // If the node is already fully in memory, as in upgrade, we don't
     // need to destroy the basement nodes because they are all equally
     // up to date.
-    if (!is_entire_node_in_memory(child) && 
+    if (child->n_children > 1 && 
         child->height == 0 && 
         !child->dirty) {
         for (int i = 0; i < child->n_children; ++i) {
