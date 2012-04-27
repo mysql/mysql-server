@@ -41,7 +41,7 @@ static int update_func(
 
 
 static void
-doit (void) {
+doit (BOOL keep_other_bn_in_memory) {
     BLOCKNUM node_leaf;
     BLOCKNUM node_internal, node_root;
 
@@ -195,13 +195,25 @@ doit (void) {
     r = toku_brt_lookup(brt, toku_fill_dbt(&k, "a", 2), lookup_checkf, &pair);
     assert(r==0);
 
-    //
-    // pin the leaf one more time
-    // and make sure that one basement
-    // node is in memory and another is
-    // on disk
-    //
-    fill_bfe_for_min_read(&bfe, brt->h);
+    if (keep_other_bn_in_memory) {
+        //
+        // pin the leaf one more time
+        // and make sure that one basement
+        // both basement nodes are in memory,
+        // but only one should have broadcast message
+        // applied.
+        //
+        fill_bfe_for_full_read(&bfe, brt->h);
+    }
+    else {
+        //
+        // pin the leaf one more time
+        // and make sure that one basement
+        // node is in memory and another is
+        // on disk
+        //
+        fill_bfe_for_min_read(&bfe, brt->h);
+    }
     toku_pin_brtnode_off_client_thread(
         brt->h, 
         node_leaf,
@@ -215,7 +227,12 @@ doit (void) {
     assert(!node->dirty);
     assert(node->n_children == 2);
     assert(BP_STATE(node,0) == PT_AVAIL);
-    assert(BP_STATE(node,1) == PT_ON_DISK);
+    if (keep_other_bn_in_memory) {
+        assert(BP_STATE(node,1) == PT_AVAIL);
+    }
+    else {
+        assert(BP_STATE(node,1) == PT_ON_DISK);
+    }
     toku_unpin_brtnode_off_client_thread(brt->h, node);
     
     //
@@ -285,6 +302,7 @@ doit (void) {
 int
 test_main (int argc __attribute__((__unused__)), const char *argv[] __attribute__((__unused__))) {
     default_parse_args(argc, argv);
-    doit();
+    doit(FALSE);
+    doit(TRUE);
     return 0;
 }
