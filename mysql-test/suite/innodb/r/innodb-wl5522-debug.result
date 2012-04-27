@@ -11,8 +11,8 @@ INSERT INTO test_wl5522.t1 VALUES (1);
 SET SESSION debug="+d,ib_export_io_write_failure";
 FLUSH TABLES test_wl5522.t1 WITH READ LOCK;
 Warnings:
-Warning	1808	InnoDB: IO Write error: (9, Bad file descriptor) ./test_wl5522/t1.cfg flush() failed
-Warning	1808	InnoDB: IO Write error: (9, Bad file descriptor) ./test_wl5522/t1.cfg flose() failed
+Warning	1808	InnoDB: IO Write error: (9, Bad file descriptor\) t1.cfg flush() failed
+Warning	1808	InnoDB: IO Write error: (9, Bad file descriptor\) t1.cfg flose() failed
 UNLOCK TABLES;
 SET SESSION debug="-d,ib_export_io_write_failure";
 DROP TABLE test_wl5522.t1;

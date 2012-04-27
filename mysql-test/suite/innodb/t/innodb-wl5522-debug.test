@@ -28,7 +28,7 @@ INSERT INTO test_wl5522.t1 VALUES (1);
 
 SET SESSION debug="+d,ib_export_io_write_failure";
 
---replace_regex /'.*t1.cfg'/'t1.cfg'/
+--replace_regex /, .*).*t1.cfg/, Bad file descriptor\) t1.cfg/
 
 FLUSH TABLES test_wl5522.t1 WITH READ LOCK;
 
