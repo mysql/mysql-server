@@ -1840,9 +1840,13 @@ static void network_init(void)
   {
     struct addrinfo *ai, *a;
     struct addrinfo hints;
+    const char *bind_address= my_bind_addr_str;
+
+    if (!bind_address)
+      bind_address= "0.0.0.0";
 
     sql_print_information("Server hostname (bind-address): '%s'; port: %d",
-                          my_bind_addr_str, mysqld_port);
+                          bind_address, mysqld_port);
 
     // Get list of IP-addresses associated with the server hostname.
     bzero(&hints, sizeof (hints));
@@ -1851,7 +1855,7 @@ static void network_init(void)
     hints.ai_family= AF_UNSPEC;
 
     my_snprintf(port_buf, NI_MAXSERV, "%d", mysqld_port);
-    if (getaddrinfo(my_bind_addr_str, port_buf, &hints, &ai))
+    if (getaddrinfo(bind_address, port_buf, &hints, &ai))
     {
       sql_perror(ER_DEFAULT(ER_IPSOCK_ERROR));  /* purecov: tested */
       sql_print_error("Can't start server: cannot resolve hostname!");
@@ -1871,7 +1875,7 @@ static void network_init(void)
       }
 
       sql_print_information("  - '%s' resolves to '%s';",
-                            my_bind_addr_str, ip_addr);
+                            bind_address, ip_addr);
     }
 
     /*
