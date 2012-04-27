@@ -755,7 +755,7 @@ autocommit TRUE
 automatic-sp-privileges TRUE
 back-log 50
 big-tables FALSE
-bind-address (No default value)
+bind-address 0.0.0.0
 binlog-cache-size 32768
 binlog-direct-non-transactional-updates FALSE
 binlog-format STATEMENT
