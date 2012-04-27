@@ -1841,6 +1841,9 @@ static void network_init(void)
     struct addrinfo *ai, *a;
     struct addrinfo hints;
 
+    if (!my_bind_addr_str)
+      my_bind_addr_str= (char *) "0.0.0.0";
+
     sql_print_information("Server hostname (bind-address): '%s'; port: %d",
                           my_bind_addr_str, mysqld_port);
 
