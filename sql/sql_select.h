@@ -1322,6 +1322,7 @@ public:
     return (do_send_rows && implicit_grouping && !group_optimized_away &&
             having_value != Item::COND_FALSE);
   }
+  bool empty_result() { return (zero_result_cause && !implicit_grouping); }
   bool change_result(select_result *result);
   bool is_top_level_join() const
   {
