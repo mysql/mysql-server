@@ -341,7 +341,7 @@ static char *default_character_set_name;
 static char *character_set_filesystem_name;
 static char *lc_messages;
 static char *lc_time_names_name;
-static char *my_bind_addr_str;
+char *my_bind_addr_str;
 static char *default_collation_name;
 char *default_storage_engine;
 static char compiled_default_collation_name[]= MYSQL_DEFAULT_COLLATION_NAME;
@@ -1840,9 +1840,6 @@ static void network_init(void)
   {
     struct addrinfo *ai, *a;
     struct addrinfo hints;
-
-    if (!my_bind_addr_str)
-      my_bind_addr_str= (char *) "0.0.0.0";
 
     sql_print_information("Server hostname (bind-address): '%s'; port: %d",
                           my_bind_addr_str, mysqld_port);
@@ -5713,9 +5710,6 @@ struct my_option my_long_options[]=
   {"autocommit", 0, "Set default value for autocommit (0 or 1)",
    &opt_autocommit, &opt_autocommit, 0,
    GET_BOOL, OPT_ARG, 1, 0, 0, 0, 0, NULL},
-  {"bind-address", OPT_BIND_ADDRESS, "IP address to bind to.",
-   &my_bind_addr_str, &my_bind_addr_str, 0, GET_STR,
-   REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"binlog-do-db", OPT_BINLOG_DO_DB,
    "Tells the master it should log updates for the specified database, "
    "and exclude all others not explicitly mentioned.",
