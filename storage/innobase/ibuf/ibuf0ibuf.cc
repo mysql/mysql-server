@@ -2513,8 +2513,8 @@ Reads page numbers for a space id from an ibuf tree.
 merged */
 static	__attribute__((nonnull, warn_unused_result))
 ulint
-ibuf_get_merge_page_nos_func(
-/*=========================*/
+ibuf_get_merge_pages(
+/*=================*/
 	btr_pcur_t*	pcur,	/*!< in/out: cursor */
 	ulint		space,	/*!< in: space for which to merge */
 	ulint		limit,	/*!< in: max page numbers to read */
@@ -2681,7 +2681,7 @@ ibuf_merge_space(
 
 	} else {
 
-		sum_sizes = ibuf_get_merge_page_nos_func(
+		sum_sizes = ibuf_get_merge_pages(
 			&pcur, space, IBUF_MAX_N_PAGES_MERGED,
 			&pages[0], &spaces[0], &versions[0], n_pages,
 			&mtr);
