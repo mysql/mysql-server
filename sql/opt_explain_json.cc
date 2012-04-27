@@ -54,7 +54,7 @@ static const char *json_extra_tags[ET_total]=
   "unique_row_not_found",               // ET_UNIQUE_ROW_NOT_FOUND
   "impossible_on_condition",            // ET_IMPOSSIBLE_ON_CONDITION
 #ifndef MCP_WL4784
-  NULL                                  // ET_PUSHED_JOIN
+  "pushed_join"                         // ET_PUSHED_JOIN
 #endif
 };
 
