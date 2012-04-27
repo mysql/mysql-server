@@ -234,6 +234,7 @@ SET(TESTS
   dynarray
   filesort_buffer
   filesort_compare
+  my_fileutils
   mdl
   mdl_mytap
   my_bitmap
