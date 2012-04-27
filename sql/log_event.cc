@@ -1316,7 +1316,8 @@ Log_event* Log_event::read_log_event(IO_CACHE* file,
   Log_event *res=  0;
 #ifndef max_allowed_packet
   THD *thd=current_thd;
-  uint max_allowed_packet= thd ? thd->variables.max_allowed_packet : ~(ulong)0;
+  ulong max_allowed_packet= thd ? thd->variables.max_allowed_packet :
+                                  ~(ulong)0;
 #endif
 
   ulong const max_size=

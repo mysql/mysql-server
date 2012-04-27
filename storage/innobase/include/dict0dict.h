@@ -814,7 +814,7 @@ ulint
 dict_tf_get_format(
 /*===============*/
 	ulint		flags)		/*!< in: dict_table_t::flags */
-	__attribute__((nonnull, warn_unused_result));
+	__attribute__((warn_unused_result));
 /********************************************************************//**
 Set the various values in a dict_table_t::flags pointer. */
 UNIV_INLINE

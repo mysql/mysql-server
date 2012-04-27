@@ -1417,9 +1417,9 @@ int ha_tina::rnd_end()
       DBUG_RETURN(-1);
 
     /* Open the file again */
-    if (((data_file= mysql_file_open(csv_key_file_data,
-                                     share->data_file_name,
-                                     O_RDONLY, MYF(MY_WME))) == -1))
+    if ((data_file= mysql_file_open(csv_key_file_data,
+                                    share->data_file_name,
+                                    O_RDONLY, MYF(MY_WME))) == -1)
       DBUG_RETURN(my_errno ? my_errno : -1);
     /*
       As we reopened the data file, increase share->data_file_version 

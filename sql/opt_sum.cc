@@ -81,7 +81,7 @@ static ulonglong get_exact_record_count(TABLE_LIST *tables)
   for (TABLE_LIST *tl= tables; tl; tl= tl->next_leaf)
   {
     ha_rows tmp= tl->table->file->records();
-    if ((tmp == HA_POS_ERROR))
+    if (tmp == HA_POS_ERROR)
       return ULONGLONG_MAX;
     count*= tmp;
   }
