@@ -2538,13 +2538,14 @@ ibuf_get_merge_pages(
 
 		ulint	page_no = ibuf_rec_get_page_no(mtr, rec);
 
-		spaces[*n_pages] = space;
-		pages[*n_pages] = page_no;
-		versions[*n_pages] = version;
+		if (*n_pages == 0 || pages[*n_pages - 1] != page_no) {
+			spaces[*n_pages] = space;
+			pages[*n_pages] = page_no;
+			versions[*n_pages] = version;
+			++*n_pages;
+		}
 
 		volume += ibuf_rec_get_volume(mtr, rec);
-
-		++*n_pages;
 
 		btr_pcur_move_to_next(pcur, mtr);
 	}
