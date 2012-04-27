@@ -995,7 +995,9 @@ row_import_read_index_data(
 		/* Read the index data. */
 		size_t	n_bytes = fread(row, 1, sizeof(row), file);
 
-		DBUG_EXECUTE_IF("ib_import_io_read_error", fclose(file););
+		/* Trigger EOF */
+		DBUG_EXECUTE_IF("ib_import_io_read_error",
+				(void) fseek(file, 0L, SEEK_END););
 
 		if (n_bytes != sizeof(row)) {
 			char	msg[BUFSIZ];
