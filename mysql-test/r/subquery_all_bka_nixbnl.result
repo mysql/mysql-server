@@ -7376,5 +7376,27 @@ AND ( table1.col_varchar_key LIKE '%a%' OR table1.col_varchar_key LIKE
 );
 field1	field2	field3	field4	field5	field6
 DROP TABLE t2,t1;
+#
+# Bug #13735712 SELECT W/ SUBQUERY PRODUCES MORE ROWS WHEN USING
+# VARIABLES
+#
+CREATE TABLE t1(a INT);
+INSERT INTO t1 VALUES(9);
+CREATE TABLE t2(b INT);
+INSERT INTO t2 VALUES(8);
+CREATE TABLE t3(c INT);
+INSERT INTO t3 VALUES(3);
+SELECT *
+FROM t2 RIGHT JOIN t3 ON(c = b)
+WHERE b < ALL(SELECT a FROM t1 WHERE a <= 7);
+b	c
+NULL	3
+SET @var = 7;
+SELECT *
+FROM t2 RIGHT JOIN t3 ON(c = b)
+WHERE b < ALL(SELECT a FROM t1 WHERE a <= @var);
+b	c
+NULL	3
+DROP TABLE t1, t2, t3;
 set optimizer_switch=default;
 set optimizer_switch=default;
