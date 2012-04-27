@@ -72,10 +72,11 @@ static void push_index_cond(JOIN_TAB *tab, uint keyno, bool other_tbls_ok,
   This handles SELECT with and without UNION
 */
 
-bool handle_select(THD *thd, LEX *lex, select_result *result,
+bool handle_select(THD *thd, select_result *result,
                    ulong setup_tables_done_option)
 {
   bool res;
+  LEX *lex= thd->lex;
   register SELECT_LEX *select_lex = &lex->select_lex;
   DBUG_ENTER("handle_select");
   MYSQL_SELECT_START(thd->query());
@@ -96,10 +97,8 @@ bool handle_select(THD *thd, LEX *lex, select_result *result,
 		      select_lex->table_list.first,
 		      select_lex->with_wild, select_lex->item_list,
 		      select_lex->where,
-		      select_lex->order_list.elements +
-		      select_lex->group_list.elements,
-		      select_lex->order_list.first,
-		      select_lex->group_list.first,
+		      &select_lex->order_list,
+		      &select_lex->group_list,
 		      select_lex->having,
 		      lex->proc_list.first,
 		      select_lex->options | thd->variables.option_bits |
@@ -119,7 +118,7 @@ bool handle_select(THD *thd, LEX *lex, select_result *result,
 
 /*****************************************************************************
   Check fields, find best join, do the select and output fields.
-  mysql_select assumes that all tables are already opened
+  All tables must be opened.
 *****************************************************************************/
 
 /**
@@ -939,7 +938,7 @@ void JOIN::cleanup_item_list(List<Item> &items) const
 
 
 /**
-  An entry point to single-unit select (a select without UNION).
+  Prepare stage of mysql_select.
 
   @param thd                  thread handler
                               the top-level select_lex for this query
@@ -967,34 +966,36 @@ void JOIN::cleanup_item_list(List<Item> &items) const
                               This object is responsible for send result
                               set rows to the client or inserting them
                               into a table.
-  @param select_lex           the only SELECT_LEX of this query
   @param unit                 top-level UNIT of this query
                               UNIT is an artificial object created by the
                               parser for every SELECT clause.
                               e.g.
                               SELECT * FROM t1 WHERE a1 IN (SELECT * FROM t2)
                               has 2 unions.
+  @param select_lex           the only SELECT_LEX of this query
+  @param[out] free_join       if returned JOIN should be freed     
 
   @retval
-    FALSE  success
+    false  success
   @retval
-    TRUE   an error
+    true   an error
+
+  @note tables must be opened before calling mysql_prepare_select.
 */
 
 bool
-mysql_select(THD *thd, 
-	     TABLE_LIST *tables, uint wild_num, List<Item> &fields,
-	     Item *conds, uint og_num,  ORDER *order, ORDER *group,
-	     Item *having, ORDER *proc_param, ulonglong select_options,
-	     select_result *result, SELECT_LEX_UNIT *unit,
-	     SELECT_LEX *select_lex)
+mysql_prepare_select(THD *thd,
+                     TABLE_LIST *tables, uint wild_num, List<Item> &fields,
+                     Item *conds, uint og_num,  ORDER *order, ORDER *group,
+                     Item *having, ORDER *proc_param, ulonglong select_options,
+                     select_result *result, SELECT_LEX_UNIT *unit,
+                     SELECT_LEX *select_lex, bool *free_join)
 {
-  bool err;
-  bool free_join= 1;
-  DBUG_ENTER("mysql_select");
-
-  select_lex->context.resolve_in_select_list= TRUE;
+  bool err= false;
   JOIN *join;
+
+  DBUG_ENTER("mysql_prepare_select");
+  select_lex->context.resolve_in_select_list= TRUE;
   if (select_lex->join != 0)
   {
     join= select_lex->join;
@@ -1026,12 +1027,10 @@ mysql_select(THD *thd,
                            conds, og_num, order, group, having, proc_param,
                            select_lex, unit);
         if (err)
-	{
-	  goto err;
-	}
+          DBUG_RETURN(TRUE);
       }
     }
-    free_join= 0;
+    *free_join= 0;
     join->select_options= select_options;
   }
   else
@@ -1044,10 +1043,38 @@ mysql_select(THD *thd,
                        conds, og_num, order, group, having, proc_param,
                        select_lex, unit);
     if (err)
-    {
-      goto err;
-    }
+      DBUG_RETURN(TRUE);
   }
+
+  DBUG_RETURN(err);
+}
+
+
+/**
+  Execute stage of mysql_select.
+
+  @param thd                  thread handler
+  @param select_lex           the only SELECT_LEX of this query
+  @param free_join            if join should be freed
+
+  @retval
+    FALSE  success
+  @retval
+    TRUE   an error
+
+  @note tables must be opened and locked before calling mysql_execute_select.
+*/
+
+bool
+mysql_execute_select(THD *thd, SELECT_LEX *select_lex, bool free_join)
+{
+  bool err;
+  JOIN* join= select_lex->join;
+
+  DBUG_ENTER("mysql_execute_select");
+
+  if (!join)
+    DBUG_RETURN(false);
 
   if ((err= join->optimize()))
   {
@@ -1057,7 +1084,7 @@ mysql_select(THD *thd,
   if (thd->is_error())
     goto err;
 
-  if (select_options & SELECT_DESCRIBE)
+  if (join->select_options & SELECT_DESCRIBE)
   {
     join->explain();
     free_join= 0;
@@ -1075,6 +1102,130 @@ err:
   DBUG_RETURN(join->error);
 }
 
+
+/**
+  An entry point to single-unit select (a select without UNION).
+
+  @param thd                  thread handler
+  @param tables               list of all tables used in this query.
+                              The tables have been pre-opened.
+  @param wild_num             number of wildcards used in the top level 
+                              select of this query.
+                              For example statement
+                              SELECT *, t1.*, catalog.t2.* FROM t0, t1, t2;
+                              has 3 wildcards.
+  @param fields               list of items in SELECT list of the top-level
+                              select
+                              e.g. SELECT a, b, c FROM t1 will have Item_field
+                              for a, b and c in this list.
+  @param conds                top level item of an expression representing
+                              WHERE clause of the top level select
+  @param og_num               total number of ORDER BY and GROUP BY clauses
+                              arguments
+  @param order                linked list of ORDER BY agruments
+  @param group                linked list of GROUP BY arguments
+  @param having               top level item of HAVING expression
+  @param proc_param           list of PROCEDUREs
+  @param select_options       select options (BIG_RESULT, etc)
+  @param result               an instance of result set handling class.
+                              This object is responsible for send result
+                              set rows to the client or inserting them
+                              into a table.
+  @param unit                 top-level UNIT of this query
+                              UNIT is an artificial object created by the
+                              parser for every SELECT clause.
+                              e.g.
+                              SELECT * FROM t1 WHERE a1 IN (SELECT * FROM t2)
+                              has 2 unions.
+  @param select_lex           the only SELECT_LEX of this query
+  @param tables_to_open_and_lock  Tables to open and lock
+                                  (NULL if already locked)
+  @param open_tables_is_done  All tables are already opened
+  @param tables_to_lock       If open_tables_is_done, not null means we should
+                              also lock tables
+  @param open_mdl_savepoint   If open_tables_is_done, savepoint to use on
+                              failure
+
+  @retval
+    FALSE  success
+  @retval
+    TRUE   an error
+*/
+
+bool
+mysql_select(THD *thd,
+             TABLE_LIST *tables, uint wild_num, List<Item> &fields,
+             Item *conds, SQL_I_List<ORDER> *order, SQL_I_List<ORDER> *group,
+             Item *having, ORDER *proc_param, ulonglong select_options,
+             select_result *result, SELECT_LEX_UNIT *unit,
+             SELECT_LEX *select_lex)
+{
+  bool free_join= 1;
+  uint og_num= 0;
+  ORDER *first_order= NULL;
+  ORDER *first_group= NULL;
+  DBUG_ENTER("mysql_select");
+
+  if (order)
+  {
+    og_num= order->elements;
+    first_order= order->first;
+  }
+  if (group)
+  {
+    og_num+= group->elements;
+    first_group= group->first;
+  }
+
+  if (mysql_prepare_select(thd, tables, wild_num, fields,
+                           conds, og_num, first_order, first_group, having,
+                           proc_param, select_options, result, unit,
+                           select_lex, &free_join))
+  {
+    if (free_join)
+    {
+      thd_proc_info(thd, "end");
+      (void) select_lex->cleanup();
+    }
+    DBUG_RETURN(true);
+  }
+
+  if (! thd->lex->is_query_tables_locked())
+  {
+    /*
+      If tables are not locked at this point, it means that we have delayed
+      this step until after prepare stage (i.e. this moment). This allows to
+      do better partition pruning and avoid locking unused partitions.
+      As a consequence, in such a case, prepare stage can rely only on
+      metadata about tables used and not data from them.
+      We need to lock tables now in order to proceed with the remaning
+      stages of query optimization and execution.
+    */
+    if (lock_tables(thd, thd->lex->query_tables, thd->lex->table_count, 0))
+    {
+      if (free_join)
+      {
+        thd_proc_info(thd, "end");
+        (void) select_lex->cleanup();
+      }
+      DBUG_RETURN(true);
+    }
+
+    /*
+      Only register query in cache if it tables were locked above.
+
+      Tables must be locked before storing the query in the query cache.
+      Transactional engines must been signalled that the statement started,
+      which external_lock signals.
+    */
+    query_cache_store_query(thd, thd->lex->query_tables);
+  }
+
+  if (mysql_execute_select(thd, select_lex, free_join))
+    DBUG_RETURN(true);
+
+  DBUG_RETURN(false);
+}
 
 /*****************************************************************************
   Go through all combinations of not marked tables and find the one

@@ -1542,8 +1542,6 @@ return param1;
 SELECT * FROM (SELECT * FROM t1) tt WHERE f1 = func1(f1);
 f1
 1
-2
-3
 EXPLAIN SELECT * FROM (SELECT * FROM t1) tt WHERE f1 = func1(f1);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	3	Using where
@@ -1551,8 +1549,6 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 SELECT * FROM (SELECT * FROM t1) tt WHERE f1 = func2(f1);
 f1
 1
-2
-3
 EXPLAIN SELECT * FROM (SELECT * FROM t1) tt WHERE f1 = func2(f1);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	3	Using where

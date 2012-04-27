@@ -149,13 +149,6 @@ static bool check_exchange_partition(TABLE *table, TABLE *part_table)
     DBUG_RETURN(TRUE);
   }
 
-  /* The table cannot have foreign keys constraints or be referenced */
-  if(!table->file->can_switch_engines())
-  {
-    my_error(ER_PARTITION_EXCHANGE_FOREIGN_KEY, MYF(0),
-             table->s->table_name.str);
-    DBUG_RETURN(TRUE);
-  }
   DBUG_RETURN(FALSE);
 }
 
@@ -488,6 +481,7 @@ bool Sql_cmd_alter_table_exchange_partition::
   handlerton *table_hton;
   partition_element *part_elem;
   char *partition_name;
+  List<String> partition_names_list;
   char temp_name[FN_REFLEN+1];
   char part_file_name[FN_REFLEN+1];
   char swap_file_name[FN_REFLEN+1];
@@ -497,11 +491,11 @@ bool Sql_cmd_alter_table_exchange_partition::
   Alter_table_prelocking_strategy alter_prelocking_strategy;
   MDL_ticket *swap_table_mdl_ticket= NULL;
   MDL_ticket *part_table_mdl_ticket= NULL;
+  uint table_counter;
+  MDL_savepoint mdl_savepoint= thd->mdl_context.mdl_savepoint();
   bool error= TRUE;
   DBUG_ENTER("mysql_exchange_partition");
   DBUG_ASSERT(alter_info->flags & Alter_info::ALTER_EXCHANGE_PARTITION);
-
-  partition_name= alter_info->partition_names.head();
 
   /* Don't allow to exchange with log table */
   swap_table_list= table_list->next_local;
@@ -530,15 +524,41 @@ bool Sql_cmd_alter_table_exchange_partition::
     to be able to verify the structure/metadata.
   */
   table_list->mdl_request.set_type(MDL_SHARED_NO_WRITE);
-  if (open_and_lock_tables(thd, table_list, FALSE, 0,
-                           &alter_prelocking_strategy))
+  if (open_tables(thd, &table_list, &table_counter, 0,
+                  &alter_prelocking_strategy))
+  {
+    open_and_lock_tables_cleanup(thd, mdl_savepoint);
     DBUG_RETURN(TRUE);
+  }
 
   part_table= table_list->table;
   swap_table= swap_table_list->table;
 
   if (check_exchange_partition(swap_table, part_table))
     DBUG_RETURN(TRUE);
+
+  /* set lock pruning on first table */
+  partition_name= alter_info->partition_names.head();
+  if (table_list->table->part_info->
+        set_named_partition_bitmap(partition_name, strlen(partition_name)))
+    DBUG_RETURN(TRUE);
+
+  if (lock_tables(thd, table_list, table_counter, 0))
+  {
+    open_and_lock_tables_cleanup(thd, mdl_savepoint);
+    DBUG_RETURN(TRUE);
+  }
+
+  /*
+    The table cannot have foreign keys constraints or be referenced.
+    This can only be checked after locking the table.
+  */
+  if(!swap_table->file->can_switch_engines())
+  {
+    my_error(ER_PARTITION_EXCHANGE_FOREIGN_KEY, MYF(0),
+             swap_table->s->table_name.str);
+    DBUG_RETURN(TRUE);
+  }
 
   table_hton= swap_table->file->ht;
 
@@ -731,6 +751,10 @@ bool Sql_cmd_alter_table_truncate_partition::execute(THD *thd)
   ha_partition *partition;
   ulong timeout= thd->variables.lock_wait_timeout;
   TABLE_LIST *first_table= thd->lex->select_lex.table_list.first;
+  Alter_info *alter_info= &thd->lex->alter_info;
+  MDL_savepoint mdl_savepoint;
+  uint table_counter, i;
+  List<String> partition_names_list;
   bool binlog_stmt;
   DBUG_ENTER("Sql_cmd_alter_table_truncate_partition::execute");
 
@@ -755,8 +779,14 @@ bool Sql_cmd_alter_table_truncate_partition::execute(THD *thd)
   if (check_one_table_access(thd, DROP_ACL, first_table))
     DBUG_RETURN(TRUE);
 
-  if (open_and_lock_tables(thd, first_table, FALSE, 0))
-    DBUG_RETURN(TRUE);
+  mdl_savepoint= thd->mdl_context.mdl_savepoint();
+  //if (open_tables(thd, &first_table, &table_counter, 0,
+                  //&alter_prelocking_strategy))
+  if (open_tables(thd, &first_table, &table_counter, 0))
+  {
+    open_and_lock_tables_cleanup(thd, mdl_savepoint);
+    DBUG_RETURN(true);
+  }
 
   /*
     TODO: Add support for TRUNCATE PARTITION for NDB and other
@@ -766,6 +796,29 @@ bool Sql_cmd_alter_table_truncate_partition::execute(THD *thd)
   {
     my_error(ER_PARTITION_MGMT_ON_NONPARTITIONED, MYF(0));
     DBUG_RETURN(TRUE);
+  }
+
+  
+  /* Prune all, but named partitions */
+  List_iterator<char> partition_names_it(alter_info->partition_names);
+  uint num_names= alter_info->partition_names.elements;
+  for (i= 0; i < num_names; i++)
+  {
+    char *partition_name= partition_names_it++;
+    String *str_partition_name= new (thd->mem_root)
+                                  String(partition_name, system_charset_info);
+    if (!str_partition_name)
+      DBUG_RETURN(true);
+    partition_names_list.push_back(str_partition_name);
+  }
+  first_table->partition_names= &partition_names_list;
+  if (first_table->table->part_info->set_partition_bitmaps(first_table))
+    DBUG_RETURN(true);
+
+  if (lock_tables(thd, first_table, table_counter, 0))
+  {
+    open_and_lock_tables_cleanup(thd, mdl_savepoint);
+    DBUG_RETURN(true);
   }
 
   /*
@@ -780,12 +833,10 @@ bool Sql_cmd_alter_table_truncate_partition::execute(THD *thd)
   tdc_remove_table(thd, TDC_RT_REMOVE_NOT_OWN, first_table->db,
                    first_table->table_name, FALSE);
 
-  partition= (ha_partition *) first_table->table->file;
-
+  partition= (ha_partition*) first_table->table->file;
   /* Invoke the handler method responsible for truncating the partition. */
-  if ((error= partition->truncate_partition(&thd->lex->alter_info,
-                                            &binlog_stmt)))
-    first_table->table->file->print_error(error, MYF(0));
+  if ((error= partition->truncate_partition(alter_info, &binlog_stmt)))
+    partition->print_error(error, MYF(0));
 
   /*
     All effects of a truncate operation are committed even if the
