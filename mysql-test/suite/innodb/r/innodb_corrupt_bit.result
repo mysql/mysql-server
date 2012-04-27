@@ -46,7 +46,7 @@ ERROR HY000: Index corrupt_bit_test_ā is corrupted
 show warnings;
 Level	Code	Message
 Warning	180	InnoDB: Index "idxē" for table "test"."corrupt_bit_test_ā" is marked as corrupted
-Error	1738	Index corrupt_bit_test_ā is corrupted
+Error	1712	Index corrupt_bit_test_ā is corrupted
 insert into corrupt_bit_test_ā values (10001, "a", 20001, 20001);
 select * from corrupt_bit_test_ā use index(primary) where a = 10001;
 a	b	c	z
