@@ -2400,8 +2400,9 @@ JOIN_CACHE_BKA::init_join_matching_records(RANGE_SEQ_IF *seq_funcs, uint ranges)
     Prepare to iterate over keys from the join buffer and to get
     matching candidates obtained with MMR handler functions.
   */ 
-  if (!file->inited)
-    file->ha_index_init(join_tab->ref.key, 1);
+  if (!file->inited &&
+      (error= file->ha_index_init(join_tab->ref.key, 1)))
+    return NESTED_LOOP_ERROR;
   if ((error= file->multi_range_read_init(seq_funcs, (void*) this, ranges,
 					  mrr_mode, &mrr_buff)))
     rc= error < 0 ? NESTED_LOOP_NO_MORE_ROWS: NESTED_LOOP_ERROR;

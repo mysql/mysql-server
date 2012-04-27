@@ -218,6 +218,8 @@ row_upd_check_references_constraints(
 
 	mtr_commit(mtr);
 
+	DEBUG_SYNC_C("foreign_constraint_check_for_update");
+
 	mtr_start(mtr);
 
 	if (trx->dict_operation_lock_mode == 0) {

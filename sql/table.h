@@ -900,7 +900,11 @@ typedef Bitmap<MAX_FIELDS> Field_map;
 struct TABLE
 {
   TABLE() {}                               /* Remove gcc warning */
-  virtual ~TABLE() {}
+  /*
+    Since TABLE instances are often cleared using memset(), do not
+    add virtual members and do not inherit from TABLE.
+    Otherwise memset() will start overwriting the vtable pointer.
+  */
 
   TABLE_SHARE	*s;
   handler	*file;
