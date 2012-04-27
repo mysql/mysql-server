@@ -504,15 +504,17 @@ sub main {
   # Send Ctrl-C to any children still running
   kill("INT", keys(%children));
 
-  # Wait for childs to exit
-  foreach my $pid (keys %children)
-  {
-    my $ret_pid= waitpid($pid, 0);
-    if ($ret_pid != $pid){
-      mtr_report("Unknown process $ret_pid exited");
-    }
-    else {
-      delete $children{$ret_pid};
+  if (!IS_WINDOWS) {
+    # Wait for children to exit
+    foreach my $pid (keys %children)
+    {
+      my $ret_pid= waitpid($pid, 0);
+      if ($ret_pid != $pid){
+        mtr_report("Unknown process $ret_pid exited");
+      }
+      else {
+        delete $children{$ret_pid};
+      }
     }
   }
 
