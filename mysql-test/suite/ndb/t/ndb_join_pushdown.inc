@@ -68,6 +68,12 @@ select *
 from t1
 join t1 as t2 on t2.a = t1.b and t2.b = t1.c;
 
+# Check that new JSON explain format is also handled:
+explain format=JSON
+select *
+from t1
+join t1 as t2 on t2.a = t1.b and t2.b = t1.c;
+
 # Check that we do not push an operation if this prevents us from using
 # 'join buffer'.
 explain extended 
