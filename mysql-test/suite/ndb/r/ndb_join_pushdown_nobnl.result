@@ -54,6 +54,55 @@ a	b	c	d	a	b	c	d
 4	1	4	5	1	4	2	3
 4	3	1	2	3	1	1	2
 4	4	4	4	4	4	4	4
+explain format=JSON
+select *
+from t1
+join t1 as t2 on t2.a = t1.b and t2.b = t1.c;
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "nested_loop": [
+      {
+        "table": {
+          "table_name": "t1",
+          "partitions": [
+            "p0",
+            "p1"
+          ],
+          "access_type": "ALL",
+          "rows": 16,
+          "filtered": 100,
+          "pushed_join": "Parent of 2 pushed join@1"
+        }
+      },
+      {
+        "table": {
+          "table_name": "t2",
+          "partitions": [
+            "p0",
+            "p1"
+          ],
+          "access_type": "eq_ref",
+          "possible_keys": [
+            "PRIMARY"
+          ],
+          "key": "PRIMARY",
+          "key_length": "8",
+          "ref": [
+            "test.t1.b",
+            "test.t1.c"
+          ],
+          "rows": 1,
+          "filtered": 100,
+          "pushed_join": "Child of 't1' in pushed join@1"
+        }
+      }
+    ]
+  }
+}
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c`,`test`.`t1`.`d` AS `d`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c`,`test`.`t2`.`d` AS `d` from `test`.`t1` join `test`.`t1` `t2` where ((`test`.`t2`.`b` = `test`.`t1`.`c`) and (`test`.`t2`.`a` = `test`.`t1`.`b`))
 explain extended 
 select straight_join count(*) 
 from t1 as x1 
@@ -5528,7 +5577,7 @@ where new.variable_name = old.variable_name
 order by new.variable_name;
 variable_name	new.variable_value - old.variable_value
 NDB_PRUNED_SCAN_COUNT	8
-NDB_PUSHED_QUERIES_DEFINED	406
+NDB_PUSHED_QUERIES_DEFINED	407
 NDB_PUSHED_QUERIES_DROPPED	7
 NDB_PUSHED_QUERIES_EXECUTED	569
 NDB_SORTED_SCAN_COUNT	11
