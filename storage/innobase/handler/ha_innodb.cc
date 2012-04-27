@@ -7362,7 +7362,7 @@ ha_innobase::change_active_index(
 				"InnoDB: Index %s for table %s is"
 				" marked as corrupted",
 				index_name, table_name);
-			DBUG_RETURN(1);
+			DBUG_RETURN(HA_ERR_INDEX_CORRUPT);
 		} else {
 			push_warning_printf(
 				user_thd, Sql_condition::WARN_LEVEL_WARN,
@@ -7373,7 +7373,7 @@ ha_innobase::change_active_index(
 
 		/* The caller seems to ignore this.  Thus, we must check
 		this again in row_search_for_mysql(). */
-		DBUG_RETURN(2);
+		DBUG_RETURN(HA_ERR_TABLE_DEF_CHANGED);
 	}
 
 	ut_a(prebuilt->search_tuple != 0);
@@ -10596,7 +10596,7 @@ ha_innobase::check(
 	/* Enlarge the fatal lock wait timeout during CHECK TABLE. */
 	os_increment_counter_by_amount(
 		server_mutex,
-		srv_fatal_semaphore_wait_threshold, 7200/*2 hours*/);
+		srv_fatal_semaphore_wait_threshold, SRV_SEMAPHORE_WAIT_EXTENSION);
 
 	for (index = dict_table_get_first_index(prebuilt->table);
 	     index != NULL;
@@ -10740,7 +10740,7 @@ ha_innobase::check(
 	/* Restore the fatal lock wait timeout after CHECK TABLE. */
 	os_decrement_counter_by_amount(
 		server_mutex,
-		srv_fatal_semaphore_wait_threshold, 7200/*2 hours*/);
+		srv_fatal_semaphore_wait_threshold, SRV_SEMAPHORE_WAIT_EXTENSION);
 
 	prebuilt->trx->op_info = "";
 	if (thd_killed(user_thd)) {

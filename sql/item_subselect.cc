@@ -2597,10 +2597,18 @@ bool subselect_indexsubquery_engine::scan_table()
   // We never need to do a table scan of the materialized table.
   DBUG_ASSERT(engine_type() != HASH_SJ_ENGINE);
 
-  if (table->file->inited)
-    table->file->ha_index_end();
+  if (table->file->inited &&
+      (error= table->file->ha_index_end()))
+  {
+    (void) report_error(table, error);
+    DBUG_RETURN(true);
+  }
  
-  table->file->ha_rnd_init(1);
+  if ((error= table->file->ha_rnd_init(1)))
+  {
+    (void) report_error(table, error);
+    DBUG_RETURN(true);
+  }
   table->file->extra_opt(HA_EXTRA_CACHE,
                          current_thd->variables.read_buff_size);
   table->null_row= 0;
@@ -2841,8 +2849,12 @@ bool subselect_indexsubquery_engine::exec()
     DBUG_RETURN(scan_result);
   }
 
-  if (!table->file->inited)
-    table->file->ha_index_init(tab->ref.key, !unique /* sorted */);
+  if (!table->file->inited &&
+      (error= table->file->ha_index_init(tab->ref.key, !unique /* sorted */)))
+  {
+    (void) report_error(table, error);
+    DBUG_RETURN(true);
+  }
   error= table->file->ha_index_read_map(table->record[0],
                                         tab->ref.key_buff,
                                         make_prev_keypart_map(tab->ref.key_parts),

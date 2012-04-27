@@ -1316,7 +1316,8 @@ Log_event* Log_event::read_log_event(IO_CACHE* file,
   Log_event *res=  0;
 #ifndef max_allowed_packet
   THD *thd=current_thd;
-  uint max_allowed_packet= thd ? thd->variables.max_allowed_packet : ~(ulong)0;
+  ulong max_allowed_packet= thd ? thd->variables.max_allowed_packet :
+                                  ~(ulong)0;
 #endif
 
   ulong const max_size=
@@ -10430,9 +10431,15 @@ Rows_log_event::write_row(const Relay_log_info *const rli,
       DBUG_PRINT("info",("Locating offending record using ha_rnd_pos()"));
 
       if (table->file->inited && (error= table->file->ha_index_end()))
-        DBUG_RETURN(error);
+      {
+        table->file->print_error(error, MYF(0));
+        goto error;
+      }
       if ((error= table->file->ha_rnd_init(FALSE)))
-        DBUG_RETURN(error);
+      {
+        table->file->print_error(error, MYF(0));
+        goto error;
+      }
 
       error= table->file->ha_rnd_pos(table->record[1], table->file->dup_ref);
 
@@ -11287,14 +11294,20 @@ TABLE_SCAN:
 
       case HA_ERR_END_OF_FILE:
         if (++restart_count < 2)
-          table->file->ha_rnd_init(1);
+        {
+          if ((error= table->file->ha_rnd_init(1)))
+          {
+            table->file->print_error(error, MYF(0));
+            goto err;
+          }
+        }
         break;
 
       default:
         DBUG_PRINT("info", ("Failed to get next record"
                             " (ha_rnd_next returns %d)",error));
         table->file->print_error(error, MYF(0));
-        table->file->ha_rnd_end();
+        (void) table->file->ha_rnd_end();
         goto err;
       }
     }

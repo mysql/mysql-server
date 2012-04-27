@@ -5610,6 +5610,13 @@ dict_foreign_replace_index(
 
 			foreign->foreign_index = new_index;
 		}
+	}
+
+	for (foreign = UT_LIST_GET_FIRST(table->referenced_list);
+	     foreign;
+	     foreign = UT_LIST_GET_NEXT(referenced_list, foreign)) {
+
+		dict_index_t*	new_index;
 
 		if (foreign->referenced_index == index) {
 			ut_ad(foreign->referenced_table == index->table);
