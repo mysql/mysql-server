@@ -619,13 +619,13 @@ capture_persistent_env_contents (DB_ENV * env, DB_TXN * txn) {
 	assert(r == 0);
 	PERSISTENT_UPGRADE_STATUS_VALUE(PERSISTENT_UPGRADE_LAST_LSN_OF_V13) = toku_dtoh64(*(uint32_t*)val.data);
 
-	toku_fill_dbt(&key, upgrade_v14_time_key, strlen(upgrade_v14_time_key));
+	toku_fill_dbt(&key, upgrade_v19_time_key, strlen(upgrade_v19_time_key));
 	toku_init_dbt(&val);
 	r = toku_db_get(persistent_environment, txn, &key, &val, 0);
 	assert(r == 0);
 	PERSISTENT_UPGRADE_STATUS_VALUE(PERSISTENT_UPGRADE_V14_TIME) = toku_dtoh64((*(time_t*)val.data));
 
-	toku_fill_dbt(&key, upgrade_v14_footprint_key, strlen(upgrade_v14_footprint_key));
+	toku_fill_dbt(&key, upgrade_v19_footprint_key, strlen(upgrade_v19_footprint_key));
 	toku_init_dbt(&val);
 	r = toku_db_get(persistent_environment, txn, &key, &val, 0);
 	assert(r == 0);
