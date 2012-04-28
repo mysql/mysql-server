@@ -85,7 +85,8 @@ class TestRunnerBase(object):
         self.oldversionstr = 'noupgrade'
 
     def __str__(self):
-        return 'TestRunner<%s, %d, %d>' % (self.execf, self.tsize, self.csize)
+        return (self.__class__.__name__ +
+                '<%(execf)s, %(tsize)d, %(csize)d, %(oldversionstr)s>') % self
 
     def __getitem__(self, k):
         return self.__getattribute__(k)
@@ -94,8 +95,8 @@ class TestRunnerBase(object):
         return '\t'.join(['%(execf)s',
                           '%(rev)s',
                           '%(tsize)d',
-                          '%(oldversionstr)s',
                           '%(csize)d',
+                          '%(oldversionstr)s',
                           '%(num_ptquery)d',
                           '%(num_update)d',
                           '%(time)d']) % self
@@ -189,11 +190,6 @@ class TestRunnerBase(object):
         for lib in glob(os.path.join(self.tokudb, 'lib', '*.so')):
             copy(lib, targetfor(lib))
 
-        commandsf = open(targetfor("commands.txt"), "w")
-        print >>commandsf, ' '.join([self.execf] + self.prepareargs)
-        print >>commandsf, ' '.join([self.execf] + self.testargs)
-        commandsf.close()
-
         return savedir
 
     def waitfor(self, proc):
@@ -205,6 +201,9 @@ class TestRunnerBase(object):
 
     def spawn_child(self, args):
         logging.debug('%s spawning %s', self, ' '.join([self.execf] + args))
+        commandsf = open(os.path.join(self.rundir, 'commands.txt'), 'a')
+        print >>commandsf, ' '.join([self.execf] + args)
+        commandsf.close()
         proc = Popen([self.execf] + args,
                      executable=os.path.join('..', self.execf),
                      env=self.env,
