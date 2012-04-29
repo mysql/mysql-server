@@ -1009,6 +1009,13 @@ static void calculate_perpendicular(
 
 int Item_func_buffer::Transporter::single_point(double x, double y)
 {
+  if (buffer_op == Gcalc_function::op_difference)
+  {
+    m_fn->add_operation(Gcalc_function::op_false, 0);
+    return 0;
+  }
+  
+  m_nshapes= 0;
   return add_point_buffer(x, y);
 }
 
@@ -1108,6 +1115,7 @@ int Item_func_buffer::Transporter::start_line()
 {
   if (buffer_op == Gcalc_function::op_difference)
   {
+    m_fn->add_operation(Gcalc_function::op_false, 0);
     skip_line= TRUE;
     return 0;
   }

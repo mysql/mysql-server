@@ -574,7 +574,7 @@ int gcalc_set_double(Gcalc_internal_coord *c, double d, double ext)
     c[1]= 0;
     c[0]++;
   }
-  if (sign)
+  if (sign && (c[0] | c[1]))
     c[0]|= GCALC_COORD_MINUS;
 #ifdef GCALC_CHECK_WITH_FLOAT
   GCALC_DBUG_ASSERT(de_check(d, gcalc_get_double(c, 2)));
