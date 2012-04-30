@@ -325,7 +325,7 @@ close_indexer(DB_INDEXER *indexer) {
 
     toku_ydb_lock();
     {
-        // Add all created dbs to the transaction's checkpoint_before_commit list.  
+        // Mark txn as needing a checkpoint.  
         // (This will cause a local checkpoint of created index files, which is necessary 
         //   because these files are not necessarily on disk and all the operations 
         //   to create them are not in the recovery log.)
@@ -336,7 +336,7 @@ close_indexer(DB_INDEXER *indexer) {
         for (int which_db = 0; which_db < indexer->i->N ; which_db++) {
             db = indexer->i->dest_dbs[which_db];
             brt = db_struct_i(db)->brt;
-            toku_brt_require_local_checkpoint(brt, tokutxn);
+            toku_txn_require_checkpoint_on_commit(tokutxn);
         }
 
         // Disassociate the indexer from the hot db and free_indexer

@@ -390,7 +390,6 @@ struct brt_header {
     TXNID root_xid_that_created;
     struct toku_list live_brts;
     struct toku_list zombie_brts;
-    struct toku_list checkpoint_before_commit_link;
 
     brt_compare_func compare_fun;
     brt_update_func update_fun;

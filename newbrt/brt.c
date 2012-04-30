@@ -3352,7 +3352,6 @@ brt_init_header (BRT t, TOKUTXN txn) {
 
     toku_list_init(&t->h->live_brts);
     toku_list_init(&t->h->zombie_brts);
-    toku_list_init(&t->h->checkpoint_before_commit_link);
     int r = brt_init_header_partial(t, txn);
     if (r==0) toku_block_verify_no_free_blocknums(t->h->blocktable);
     return r;
@@ -6534,25 +6533,13 @@ int toku_brt_destroy(void) {
     return r;
 }
 
-
-// Require that dictionary specified by brt is fully written to disk before
-// transaction txn is committed.
-void
-toku_brt_require_local_checkpoint (BRT brt, TOKUTXN txn) {
-    toku_brtheader_lock(brt->h);
-    toku_list_push(&txn->checkpoint_before_commit,
-		   &brt->h->checkpoint_before_commit_link);
-    toku_brtheader_unlock(brt->h);
-}
-
-
 //Suppress both rollback and recovery logs.
 void
 toku_brt_suppress_recovery_logs (BRT brt, TOKUTXN txn) {
     assert(brt->h->txnid_that_created_or_locked_when_empty == toku_txn_get_txnid(txn));
     assert(brt->h->txnid_that_suppressed_recovery_logs	   == TXNID_NONE);
     brt->h->txnid_that_suppressed_recovery_logs		   = toku_txn_get_txnid(txn);
-    toku_list_push(&txn->checkpoint_before_commit, &brt->h->checkpoint_before_commit_link);
+    txn->checkpoint_needed_before_commit = TRUE;
 }
 
 BOOL

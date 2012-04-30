@@ -2893,7 +2893,6 @@ deserialize_brtheader_versioned(int fd, struct rbuf *rb, struct brt_header **brt
     h->panic_string = 0;
     toku_list_init(&h->live_brts);
     toku_list_init(&h->zombie_brts);
-    toku_list_init(&h->checkpoint_before_commit_link);
 
     //version MUST be in network order on disk regardless of disk order
     h->layout_version_read_from_disk = rbuf_network_int(rb);

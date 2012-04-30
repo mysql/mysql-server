@@ -67,6 +67,9 @@ void toku_txn_get_fsync_info(TOKUTXN ttxn, BOOL* do_fsync, LSN* do_fsync_lsn);
 // Complete and destroy a txn
 void toku_txn_close_txn(TOKUTXN txn);
 
+// Require a checkpoint upon commit
+void toku_txn_require_checkpoint_on_commit(TOKUTXN txn);
+
 // Remove a txn from any live txn lists
 void toku_txn_complete_txn(TOKUTXN txn);
 
