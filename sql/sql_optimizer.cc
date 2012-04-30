@@ -8683,13 +8683,14 @@ static bool add_ref_to_table_cond(THD *thd, JOIN_TAB *join_tab)
   {
     if (join_tab->select->cond)
       error=(int) cond->add(join_tab->select->cond);
-    join_tab->select->cond= cond;
-    join_tab->set_condition(cond, __LINE__);
+    join_tab->set_jt_and_sel_condition(cond, __LINE__);
   }
   else if ((join_tab->select= make_select(join_tab->table, 0, 0, cond, 0,
                                           &error)))
     join_tab->set_condition(cond, __LINE__);
 
+  if (join_tab->select)
+    Opt_trace_object(&thd->opt_trace).add("added_back_ref_condition", cond);
   /*
     If we have pushed parts of the select condition down to the
     storage engine we also need to add the condition for the const
