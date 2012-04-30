@@ -1144,7 +1144,7 @@ ib_cursor_open_index_using_name(
 {
 	dict_table_t*	table;
 	dict_index_t*	index;
-	ib_id_u64_t	index_id = 0;
+	index_id_t	index_id = 0;
 	ib_err_t	err = DB_TABLE_NOT_FOUND;
 	ib_cursor_t*	cursor = (ib_cursor_t*) ib_open_crsr;
 
@@ -2000,7 +2000,7 @@ ib_cursor_delete_row(
 
 		if (rec && !rec_get_deleted_flag(rec, page_format)) {
 			err = ib_delete_row(cursor, pcur, rec);
-		} else{
+		} else {
 			err = DB_RECORD_NOT_FOUND;
 		}
 	} else {
