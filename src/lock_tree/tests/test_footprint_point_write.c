@@ -1,7 +1,8 @@
-// benchmark point write locks acquisition rate.
-// rate = nrows / time to execute the benchmark.
+// measure the lock tree memory footprint while acquiring point write locks.
+// this test assumes that the lock tree lock limits and lock memory limites are big enough to store the locks
+// without the need for lock escalation.
 //
-// example: ./benchmark_point_write_locks.tlog --max_locks 1000000 --max_lock_memory 1000000000 --nrows 1000000
+// example: ./test_footprint_point_write.tlog --max_locks 1000000 --max_lock_memory 1000000000 --nrows 1000000
 
 #define TOKU_ALLOW_DEPRECATED
 #include <malloc.h>
