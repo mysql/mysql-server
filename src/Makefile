@@ -28,7 +28,6 @@ OBJS_RAW = \
 	ydb_db \
 	ydb_txn \
 	errors \
-	dlmalloc \
 	loader \
 	indexer \
 	indexer-undo-do \

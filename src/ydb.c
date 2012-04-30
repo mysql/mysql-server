@@ -27,7 +27,6 @@ const char *toku_copyright_string = "Copyright (c) 2007-2009 Tokutek Inc.  All r
 #include "cachetable.h"
 #include "log.h"
 #include "memory.h"
-#include "dlmalloc.h"
 #include "checkpoint.h"
 #include "key.h"
 #include "loader.h"
