@@ -336,8 +336,7 @@ dberr_t
 fil_write_flushed_lsn_to_data_files(
 /*================================*/
 	lsn_t	lsn,		/*!< in: lsn to write */
-	ulint	arch_log_no)	/*!< in: latest archived log file number */
-	__attribute__((nonnull));
+	ulint	arch_log_no);	/*!< in: latest archived log file number */
 /*******************************************************************//**
 Reads the flushed lsn, arch no, and tablespace flag fields from a data
 file at database startup. */

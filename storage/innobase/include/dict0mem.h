@@ -744,7 +744,7 @@ struct dict_table_struct{
 				this ever happens. */
 #define DICT_STATS_PERSISTENT_ON	(1 << 1)
 #define DICT_STATS_PERSISTENT_OFF	(1 << 2)
-	ib_int64_t	stat_n_rows;
+	ib_uint64_t	stat_n_rows;
 				/*!< approximate number of rows in the table;
 				we periodically calculate new estimates */
 	ulint		stat_clustered_index_size;
@@ -752,14 +752,14 @@ struct dict_table_struct{
 				database pages */
 	ulint		stat_sum_of_other_index_sizes;
 				/*!< other indexes in database pages */
-	ulint		stat_modified_counter;
+	ib_uint64_t	stat_modified_counter;
 				/*!< when a row is inserted, updated,
 				or deleted,
 				we add 1 to this number; we calculate new
 				estimates for the stat_... values for the
-				table and the indexes at an interval of 2 GB
-				or when about 1 / 16 of table has been
-				modified; also when the estimate operation is
+				table and the indexes when about 1 / 16 of
+				table has been modified;
+				also when the estimate operation is
 				called for MySQL SHOW TABLE STATUS; the
 				counter is reset to zero at statistics
 				calculation; this counter is not protected by
