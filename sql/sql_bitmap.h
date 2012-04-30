@@ -47,7 +47,7 @@ public:
   void set_prefix(uint n) { bitmap_set_prefix(&map, n); }
   void set_all() { bitmap_set_all(&map); }
   void clear_all() { bitmap_clear_all(&map); }
-  void intersect(Bitmap& map2) { bitmap_intersect(&map, &map2.map); }
+  void intersect(const Bitmap& map2) { bitmap_intersect(&map, &map2.map); }
   void intersect(ulonglong map2buff)
   {
     MY_BITMAP map2;
@@ -62,8 +62,8 @@ public:
       bitmap_set_above(&map, sizeof(ulonglong),
                        test(map2buff & (LL(1) << (sizeof(ulonglong) * 8 - 1))));
   }
-  void subtract(Bitmap& map2) { bitmap_subtract(&map, &map2.map); }
-  void merge(Bitmap& map2) { bitmap_union(&map, &map2.map); }
+  void subtract(const Bitmap& map2) { bitmap_subtract(&map, &map2.map); }
+  void merge(const Bitmap& map2) { bitmap_union(&map, &map2.map); }
   my_bool is_set(uint n) const { return bitmap_is_set(&map, n); }
   my_bool is_prefix(uint n) const { return bitmap_is_prefix(&map, n); }
   my_bool is_clear_all() const { return bitmap_is_clear_all(&map); }
@@ -129,11 +129,11 @@ public:
   }
   void set_all() { map=~(ulonglong)0; }
   void clear_all() { map=(ulonglong)0; }
-  void intersect(Bitmap<64>& map2) { map&= map2.map; }
+  void intersect(const Bitmap<64>& map2) { map&= map2.map; }
   void intersect(ulonglong map2) { map&= map2; }
   void intersect_extended(ulonglong map2) { map&= map2; }
-  void subtract(Bitmap<64>& map2) { map&= ~map2.map; }
-  void merge(Bitmap<64>& map2) { map|= map2.map; }
+  void subtract(const Bitmap<64>& map2) { map&= ~map2.map; }
+  void merge(const Bitmap<64>& map2) { map|= map2.map; }
   my_bool is_set(uint n) const { return test(map & (((ulonglong)1) << n)); }
   my_bool is_prefix(uint n) const { return map == (((ulonglong)1) << n)-1; }
   my_bool is_clear_all() const { return map == (ulonglong)0; }
