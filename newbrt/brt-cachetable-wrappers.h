@@ -53,11 +53,11 @@ toku_create_new_brtnode (
     );
 
 /**
- * The intent of toku_pin_brtnode(_holding_lock) is to abstract the
- * process of retrieving a node from the rest of brt.c, so that there is
- * only one place where we need to worry applying ancestor messages to a
- * leaf node. The idea is for all of brt.c (search, splits, merges,
- * flushes, etc) to access a node via toku_pin_brtnode(_holding_lock)
+ * toku_pin_brtnode either pins a brtnode, if the operation is fast (because
+ * a partial fetch is not required and there is no contention for the node)
+ * or it returns TOKUDB_TRY_AGAIN after unlocking its ancestors (using 
+ * unlockers and ancestors) and bringing the necessary pieces of the node
+ * into memory. 
  */
 int
 toku_pin_brtnode(
@@ -75,10 +75,11 @@ toku_pin_brtnode(
     );
 
 /**
- * Pin a brtnode off the client thread, which means
- * it is pinned without the ydb lock being held.
- * As a result, unlike toku_pin_brtnode, we cannot apply ancestor
- * messages.
+ * Unfortunately, this function is poorly named
+ * as over time, client threads have also started
+ * calling this function.
+ * This function returns a pinned brtnode to the caller.
+ * Unlike toku_pin_brtnode, this function blocks until the node is pinned.
  */
 void
 toku_pin_brtnode_off_client_thread(
