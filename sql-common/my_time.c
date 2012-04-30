@@ -1200,8 +1200,8 @@ my_system_gmt_sec(const MYSQL_TIME *t_src, long *my_timezone,
 static inline int
 my_useconds_to_str(char *to, ulong useconds, uint dec)
 {
-  DBUG_ASSERT(dec > 0 && dec <= DATETIME_MAX_DECIMALS);
-  return sprintf(to, ".%0*lu", dec,
+  DBUG_ASSERT(dec <= DATETIME_MAX_DECIMALS);
+  return sprintf(to, ".%0*lu", (int) dec,
                  useconds / (ulong) log_10_int[DATETIME_MAX_DECIMALS - dec]);
 }
 

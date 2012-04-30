@@ -1215,7 +1215,18 @@ no_match:
 
 		for (uint j = 0; j < n_cols; j++) {
 			const KEY_PART_INFO&	key_part = key->key_part[j];
-			if (key_part.length < key_part.field->pack_length()) {
+			uint32			col_len
+				= key_part.field->pack_length();
+
+			/* The MySQL pack length contains 1 or 2 bytes
+			length field for a true VARCHAR. */
+
+			if (key_part.field->type() == MYSQL_TYPE_VARCHAR) {
+				col_len -= static_cast<const Field_varstring*>(
+					key_part.field)->length_bytes;
+			}
+
+			if (key_part.length < col_len) {
 
 				/* Column prefix indexes cannot be
 				used for FOREIGN KEY constraints. */
