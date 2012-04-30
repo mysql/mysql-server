@@ -5883,6 +5883,10 @@ ha_innobase::build_template(
 
 	prebuilt->need_to_access_clustered = (index == clust_index);
 
+	/* Either prebuilt->index should be a secondary index, or it
+	should be the clustered index. */
+	ut_ad(dict_index_is_clust(index) == (index == clust_index));
+
 	/* Below we check column by column if we need to access
 	the clustered index. */
 
@@ -9815,10 +9819,10 @@ ha_rows
 ha_innobase::estimate_rows_upper_bound()
 /*====================================*/
 {
-	dict_index_t*	index;
-	ulonglong	estimate;
-	ulonglong	local_data_file_length;
-	ulint		stat_n_leaf_pages;
+	const dict_index_t*	index;
+	ulonglong		estimate;
+	ulonglong		local_data_file_length;
+	ulint			stat_n_leaf_pages;
 
 	DBUG_ENTER("estimate_rows_upper_bound");
 
@@ -9828,8 +9832,7 @@ ha_innobase::estimate_rows_upper_bound()
 
 	update_thd(ha_thd());
 
-	prebuilt->trx->op_info = (char*)
-				 "calculating upper bound for table rows";
+	prebuilt->trx->op_info = "calculating upper bound for table rows";
 
 	/* In case MySQL calls this in the middle of a SELECT query, release
 	possible adaptive hash latch to avoid deadlocks of threads */
@@ -9845,16 +9848,15 @@ ha_innobase::estimate_rows_upper_bound()
 	local_data_file_length =
 		((ulonglong) stat_n_leaf_pages) * UNIV_PAGE_SIZE;
 
-
 	/* Calculate a minimum length for a clustered index record and from
 	that an upper bound for the number of rows. Since we only calculate
 	new statistics in row0mysql.cc when a table has grown by a threshold
 	factor, we must add a safety factor 2 in front of the formula below. */
 
-	estimate = 2 * local_data_file_length /
-					 dict_index_calc_min_rec_len(index);
+	estimate = 2 * local_data_file_length
+		/ dict_index_calc_min_rec_len(index);
 
-	prebuilt->trx->op_info = (char*)"";
+	prebuilt->trx->op_info = "";
 
 	DBUG_RETURN((ha_rows) estimate);
 }
