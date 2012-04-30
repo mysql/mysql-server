@@ -43,7 +43,7 @@ nb_mutex_destroy(NB_MUTEX nb_mutex) {
 
 // obtain a write lock
 // expects: mutex is locked
-static inline void nb_mutex_write_lock(NB_MUTEX nb_mutex, 
+static inline void nb_mutex_lock(NB_MUTEX nb_mutex, 
         toku_pthread_mutex_t *mutex) {
     rwlock_write_lock(&nb_mutex->lock, mutex);
 }
