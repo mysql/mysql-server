@@ -127,7 +127,6 @@ struct brtnode_nonleaf_childinfo {
     OMT broadcast_list;
     OMT fresh_message_tree;
     OMT stale_message_tree;
-    unsigned int n_bytes_in_buffer; /* How many bytes are in each buffer (including overheads for the disk-representation) */
 };
 
 unsigned int toku_bnc_nbytesinbuf(NONLEAF_CHILDINFO bnc);

@@ -331,9 +331,6 @@ test_prefetching(void) {
     CKERR(r);
 
     // data in the buffers does not matter in this test
-    BNC(&sn, 0)->n_bytes_in_buffer = 0;
-    BNC(&sn, 1)->n_bytes_in_buffer = 0;
-    BNC(&sn, 2)->n_bytes_in_buffer = 0;
     //Cleanup:
     xids_destroy(&xids_0);
     xids_destroy(&xids_123);

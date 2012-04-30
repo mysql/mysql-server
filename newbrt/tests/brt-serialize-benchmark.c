@@ -224,7 +224,6 @@ test_serialize_nonleaf(int valsize, int nelts, double entropy) {
 
             r = toku_bnc_insert_msg(bnc, &k, sizeof k, buf, valsize, BRT_NONE, next_dummymsn(), xids_123, true, NULL, long_key_cmp); assert_zero(r);
         }
-        bnc->n_bytes_in_buffer = nperchild*(BRT_CMD_OVERHEAD+KEY_VALUE_OVERHEAD+(sizeof k)+valsize+xids_get_serialize_size(xids_123));
         if (ck < 7) {
             sn.childkeys[ck] = kv_pair_malloc(&k, sizeof k, 0, 0);
             sn.totalchildkeylens += sizeof k;

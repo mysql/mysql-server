@@ -65,6 +65,7 @@ int toku_fifo_enq (FIFO, const void *key, ITEMLEN keylen, const void *data, ITEM
 
 // int toku_fifo_peek_cmdstruct (FIFO, BRT_MSG, DBT*, DBT*); // fill in the BRT_MSG, using the two DBTs for the DBT part.
                           // THIS ONLY REMAINS FOR TESTING, DO NOT USE IT IN CODE
+unsigned int toku_fifo_buffer_size_in_use (FIFO fifo);
 unsigned long toku_fifo_memory_size_in_use(FIFO fifo);  // return how much memory in the fifo holds useful data
 
 unsigned long toku_fifo_memory_footprint(FIFO fifo);  // return how much memory the fifo occupies
@@ -104,6 +105,8 @@ const struct fifo_entry *toku_fifo_get_entry(FIFO fifo, long off);
 void toku_fifo_clone(FIFO orig_fifo, FIFO* cloned_fifo);
 
 BOOL toku_are_fifos_same(FIFO fifo1, FIFO fifo2);
+
+
 
 #if defined(__cplusplus) || defined(__cilkplusplus)
 };

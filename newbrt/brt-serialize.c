@@ -932,7 +932,6 @@ static void
 deserialize_child_buffer(NONLEAF_CHILDINFO bnc, struct rbuf *rbuf,
                          DESCRIPTOR desc, brt_compare_func cmp) {
     int r;
-    int n_bytes_in_buffer = 0;
     int n_in_this_buffer = rbuf_int(rbuf);
     void **fresh_offsets, **stale_offsets;
     void **broadcast_offsets;
@@ -977,7 +976,6 @@ deserialize_child_buffer(NONLEAF_CHILDINFO bnc, struct rbuf *rbuf,
         }
         r = toku_fifo_enq(bnc->buffer, key, keylen, val, vallen, type, msn, xids, is_fresh, dest); /* Copies the data into the fifo */
         lazy_assert_zero(r);
-        n_bytes_in_buffer += keylen + vallen + KEY_VALUE_OVERHEAD + BRT_CMD_OVERHEAD + xids_get_serialize_size(xids);
         //printf("Inserted\n");
         xids_destroy(&xids);
     }
@@ -999,7 +997,6 @@ deserialize_child_buffer(NONLEAF_CHILDINFO bnc, struct rbuf *rbuf,
         r = toku_omt_create_steal_sorted_array(&bnc->broadcast_list, &broadcast_offsets, nbroadcast_offsets, n_in_this_buffer);
         assert_zero(r);
     }
-    bnc->n_bytes_in_buffer = n_bytes_in_buffer;
 }
 
 // dump a buffer to stderr
@@ -1095,7 +1092,6 @@ BASEMENTNODE toku_create_empty_bn_no_buffer(void) {
 
 NONLEAF_CHILDINFO toku_create_empty_nl(void) {
     NONLEAF_CHILDINFO XMALLOC(cn);
-    cn->n_bytes_in_buffer = 0;
     int r = toku_fifo_create(&cn->buffer); assert_zero(r);
     r = toku_omt_create(&cn->fresh_message_tree); assert_zero(r);
     r = toku_omt_create(&cn->stale_message_tree); assert_zero(r);
@@ -1106,7 +1102,6 @@ NONLEAF_CHILDINFO toku_create_empty_nl(void) {
 // does NOT create OMTs, just the FIFO
 NONLEAF_CHILDINFO toku_clone_nl(NONLEAF_CHILDINFO orig_childinfo) {
     NONLEAF_CHILDINFO XMALLOC(cn);
-    cn->n_bytes_in_buffer = orig_childinfo->n_bytes_in_buffer;    
     cn->fresh_message_tree = NULL;
     cn->stale_message_tree = NULL;
     cn->broadcast_list = NULL;
@@ -1779,7 +1774,6 @@ deserialize_and_upgrade_internal_node(BRTNODE node,
     // Deserialize de-compressed buffers.
     for (int i = 0; i < node->n_children; ++i) {
         NONLEAF_CHILDINFO bnc = BNC(node, i);
-        int n_bytes_in_buffer = 0;
         int n_in_this_buffer = rbuf_int(rb);
 
         void **fresh_offsets;
@@ -1843,7 +1837,6 @@ deserialize_and_upgrade_internal_node(BRTNODE node,
                               true,
                               dest);
             lazy_assert_zero(r);
-            n_bytes_in_buffer += keylen + vallen + BRT_CMD_OVERHEAD + KEY_VALUE_OVERHEAD + xids_get_serialize_size(xids);
             xids_destroy(&xids);
         }
 
@@ -1870,8 +1863,6 @@ deserialize_and_upgrade_internal_node(BRTNODE node,
                                                    n_in_this_buffer);
             assert_zero(r);
         }
-
-        bnc->n_bytes_in_buffer = n_bytes_in_buffer;
     }
 
     // Assign the highest msn from our upgrade message FIFO queues.

@@ -288,7 +288,7 @@ get_node_reactivity (BRTNODE node) {
 unsigned int
 toku_bnc_nbytesinbuf(NONLEAF_CHILDINFO bnc)
 {
-    return bnc->n_bytes_in_buffer;
+    return toku_fifo_buffer_size_in_use(bnc->buffer);
 }
 
 // return TRUE if the size of the buffers plus the amount of work done is large enough.   (But return false if there is nothing to be flushed (the buffers empty)).
@@ -2024,7 +2024,6 @@ toku_bnc_insert_msg(NONLEAF_CHILDINFO bnc, const void *key, ITEMLEN keylen, cons
 //
 // This is only exported for tests.
 {
-    int diff = keylen + datalen + KEY_VALUE_OVERHEAD + BRT_CMD_OVERHEAD + xids_get_serialize_size(xids);
     long offset;
     int r = toku_fifo_enq(bnc->buffer, key, keylen, data, datalen, type, msn, xids, is_fresh, &offset);
     assert_zero(r);
@@ -2044,7 +2043,6 @@ toku_bnc_insert_msg(NONLEAF_CHILDINFO bnc, const void *key, ITEMLEN keylen, cons
     } else {
         assert(FALSE);
     }
-    bnc->n_bytes_in_buffer += diff;
     return r;
 }
 
@@ -2456,7 +2454,7 @@ toku_bnc_flush_to_child(
                                      logger->live_root_txns);
             assert_zero(r);
             // take advantage of surrounding mutex, update stats.
-            size_t buffsize = bnc->n_bytes_in_buffer;
+            size_t buffsize = toku_fifo_buffer_size_in_use(bnc->buffer);
             STATUS_VALUE(BRT_MSG_BYTES_OUT) += buffsize;
             // may be misleading if there's a broadcast message in there
             STATUS_VALUE(BRT_MSG_BYTES_CURR) -= buffsize;
