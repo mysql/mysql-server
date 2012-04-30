@@ -20,9 +20,6 @@ INSERT INTO ibtest11c VALUES (1, 5, 'khD','khD');
 SET DEBUG_SYNC='foreign_constraint_check_for_update WAIT_FOR drop_done';
 UPDATE ibtest11a SET A=2;
 ALTER TABLE ibtest11c ADD INDEX idx_2(B, C), DROP INDEX idx, ALGORITHM=INPLACE;
-ERROR HY000: Cannot drop index 'idx': needed in a foreign key constraint
-CREATE INDEX idx_2 ON ibtest11c(B, C);
-DROP INDEX idx ON ibtest11c;
 SET DEBUG_SYNC='now SIGNAL drop_done';
 SELECT * FROM ibtest11c;
 A	D	B	C

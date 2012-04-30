@@ -219,6 +219,7 @@ connection master;
 CREATE TABLE test.t5 (a INT AUTO_INCREMENT PRIMARY KEY, b INT, c INT); # ignored on slave
 CREATE TABLE test.t1 (a INT); # accepted on slave
 INSERT INTO test.t1 VALUES(1);
+call mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT");
 
 --sync_slave_with_master
 call mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT");

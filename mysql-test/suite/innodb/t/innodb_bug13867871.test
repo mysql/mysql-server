@@ -58,14 +58,11 @@ SET DEBUG_SYNC='foreign_constraint_check_for_update WAIT_FOR drop_done';
 UPDATE ibtest11a SET A=2;
 
 # drop the original FK index "idx" on table ibtest11a while above
-# insert blcoked in dict_foreign_replace_index()
+# insert blocked in dict_foreign_replace_index()
 connection default;
 
---error ER_DROP_INDEX_FK
 ALTER TABLE ibtest11c ADD INDEX idx_2(B, C), DROP INDEX idx, ALGORITHM=INPLACE;
 
-CREATE INDEX idx_2 ON ibtest11c(B, C);
-DROP INDEX idx ON ibtest11c;
 SET DEBUG_SYNC='now SIGNAL drop_done';
 
 connection con1;

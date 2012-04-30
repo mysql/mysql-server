@@ -495,7 +495,7 @@ uint tablename_to_filename(const char *from, char *to, uint to_length)
       a lot of places don't check the return value and expect 
       a zero terminated string.
     */  
-    if (check_table_name(to, length, TRUE))
+    if (check_table_name(to, length, TRUE) != IDENT_NAME_OK)
     {
       to[0]= 0;
       length= 0;

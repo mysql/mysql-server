@@ -2050,6 +2050,7 @@ dict_load_table_on_id(
 	sys_table_ids = dict_table_get_next_index(
 		dict_table_get_first_index(sys_tables));
 	ut_ad(!dict_table_is_comp(sys_tables));
+	ut_ad(!dict_index_is_clust(sys_table_ids));
 	heap = mem_heap_create(256);
 
 	tuple  = dtuple_create(heap, 1);
@@ -2445,6 +2446,7 @@ dict_load_foreigns(
 
 	sec_index = dict_table_get_next_index(
 		dict_table_get_first_index(sys_foreign));
+	ut_ad(!dict_index_is_clust(sec_index));
 start_load:
 
 	tuple = dtuple_create_from_mem(tuple_buf, sizeof(tuple_buf), 1);
