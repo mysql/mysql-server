@@ -199,7 +199,8 @@ int Rpl_info_table::do_flush_info(const ulong *uidx, const uint nidx,
 end:
   DBUG_EXECUTE_IF("mts_debug_concurrent_access",
     {
-      while (mts_debug_concurrent_access < 2 && mts_debug_concurrent_access >  0)
+      while (thd->system_thread == SYSTEM_THREAD_SLAVE_WORKER &&
+             mts_debug_concurrent_access < 2 && mts_debug_concurrent_access >  0)
       {
         DBUG_PRINT("mts", ("Waiting while locks are acquired to show "
           "concurrency in mts: %u %lu\n", mts_debug_concurrent_access,
