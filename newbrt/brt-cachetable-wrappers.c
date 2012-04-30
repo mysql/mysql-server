@@ -162,39 +162,6 @@ toku_pin_brtnode(
 }
 
 void
-toku_pin_brtnode_holding_lock(
-    BRT brt,
-    BLOCKNUM blocknum,
-    u_int32_t fullhash,
-    ANCESTORS ancestors,
-    const PIVOT_BOUNDS bounds,
-    BRTNODE_FETCH_EXTRA bfe,
-    BOOL apply_ancestor_messages, // this BOOL is probably temporary, for #3972, once we know how range query estimates work, will revisit this
-    BOOL may_modify_node,
-    BRTNODE *node_p)
-{
-    void *node_v;
-    int r = toku_cachetable_get_and_pin(
-        brt->cf,
-        blocknum,
-        fullhash,
-        &node_v,
-        NULL,
-        get_write_callbacks_for_node(brt->h),
-        toku_brtnode_fetch_callback,
-        toku_brtnode_pf_req_callback,
-        toku_brtnode_pf_callback,
-        may_modify_node,
-        bfe
-        );
-    assert(r==0);
-    BRTNODE node = node_v;
-    BOOL msgs_applied;
-    if (apply_ancestor_messages) maybe_apply_ancestors_messages_to_node(brt, node, ancestors, bounds, &msgs_applied);
-    *node_p = node;
-}
-
-void
 toku_pin_brtnode_off_client_thread(
     struct brt_header* h,
     BLOCKNUM blocknum,
