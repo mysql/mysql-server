@@ -1382,10 +1382,17 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     }
     thd->convert_string(&table_name, system_charset_info,
 			packet, arg_length, thd->charset());
-    if (check_table_name(table_name.str, table_name.length, FALSE))
+    enum_ident_name_check ident_check_status=
+      check_table_name(table_name.str, table_name.length, FALSE);
+    if (ident_check_status == IDENT_NAME_WRONG)
     {
       /* this is OK due to convert_string() null-terminating the string */
       my_error(ER_WRONG_TABLE_NAME, MYF(0), table_name.str);
+      break;
+    }
+    else if (ident_check_status == IDENT_NAME_TOO_LONG)
+    {
+      my_error(ER_TOO_LONG_IDENT, MYF(0), table_name.str);
       break;
     }
     packet= arg_end + 1;
@@ -1859,11 +1866,8 @@ int prepare_schema_table(THD *thd, LEX *lex, Table_ident *table_ident,
       schema_select_lex->table_list.first= NULL;
       db.length= strlen(db.str);
 
-      if (check_and_convert_db_name(&db, FALSE))
-      {
-        my_error(ER_WRONG_DB_NAME, MYF(0), db.str);
+      if (check_and_convert_db_name(&db, FALSE) != IDENT_NAME_OK)
         DBUG_RETURN(1);
-      }
       break;
     }
 #endif
@@ -3671,11 +3675,8 @@ end_with_restore_list:
     HA_CREATE_INFO create_info(lex->create_info);
     char *alias;
     if (!(alias=thd->strmake(lex->name.str, lex->name.length)) ||
-        check_and_convert_db_name(&lex->name, FALSE))
-    {
-      my_error(ER_WRONG_DB_NAME, MYF(0), lex->name.str);
+        (check_and_convert_db_name(&lex->name, FALSE) != IDENT_NAME_OK))
       break;
-    }
     /*
       If in a slave thread :
       CREATE DATABASE DB was certainly not preceded by USE DB.
@@ -3698,11 +3699,8 @@ end_with_restore_list:
   }
   case SQLCOM_DROP_DB:
   {
-    if (check_and_convert_db_name(&lex->name, FALSE))
-    {
-      my_error(ER_WRONG_DB_NAME, MYF(0), lex->name.str);
+    if (check_and_convert_db_name(&lex->name, FALSE) != IDENT_NAME_OK)
       break;
-    }
     /*
       If in a slave thread :
       DROP DATABASE DB may not be preceded by USE DB.
@@ -3733,11 +3731,8 @@ end_with_restore_list:
       break;
     }
 #endif
-    if (check_and_convert_db_name(db, FALSE))
-    {
-      my_error(ER_WRONG_DB_NAME, MYF(0), db->str);
+    if (check_and_convert_db_name(db, FALSE) != IDENT_NAME_OK)
       break;
-    }
     if (check_access(thd, ALTER_ACL, db->str, NULL, NULL, 1, 0) ||
         check_access(thd, DROP_ACL, db->str, NULL, NULL, 1, 0) ||
         check_access(thd, CREATE_ACL, db->str, NULL, NULL, 1, 0))
@@ -3754,11 +3749,8 @@ end_with_restore_list:
   {
     LEX_STRING *db= &lex->name;
     HA_CREATE_INFO create_info(lex->create_info);
-    if (check_and_convert_db_name(db, FALSE))
-    {
-      my_error(ER_WRONG_DB_NAME, MYF(0), db->str);
+    if (check_and_convert_db_name(db, FALSE) != IDENT_NAME_OK)
       break;
-    }
     /*
       If in a slave thread :
       ALTER DATABASE DB may not be preceded by USE DB.
@@ -3782,11 +3774,8 @@ end_with_restore_list:
   {
     DBUG_EXECUTE_IF("4x_server_emul",
                     my_error(ER_UNKNOWN_ERROR, MYF(0)); goto error;);
-    if (check_and_convert_db_name(&lex->name, TRUE))
-    {
-      my_error(ER_WRONG_DB_NAME, MYF(0), lex->name.str);
+    if (check_and_convert_db_name(&lex->name, TRUE) != IDENT_NAME_OK)
       break;
-    }
     res= mysqld_show_create_db(thd, lex->name.str, &lex->create_info);
     break;
   }
@@ -4208,11 +4197,8 @@ end_with_restore_list:
       Verify that the database name is allowed, optionally
       lowercase it.
     */
-    if (check_and_convert_db_name(&lex->sphead->m_db, FALSE))
-    {
-      my_error(ER_WRONG_DB_NAME, MYF(0), lex->sphead->m_db.str);
+    if (check_and_convert_db_name(&lex->sphead->m_db, FALSE) != IDENT_NAME_OK)
       goto create_sp_error;
-    }
 
     if (check_access(thd, CREATE_PROC_ACL, lex->sphead->m_db.str,
                      NULL, NULL, 0, 0))
@@ -6316,19 +6302,24 @@ TABLE_LIST *st_select_lex::add_table_to_list(THD *thd,
   if (!table)
     DBUG_RETURN(0);				// End of memory
   alias_str= alias ? alias->str : table->table.str;
-  if (!test(table_options & TL_OPTION_ALIAS) && 
-      check_table_name(table->table.str, table->table.length, FALSE))
+  if (!test(table_options & TL_OPTION_ALIAS))
   {
-    my_error(ER_WRONG_TABLE_NAME, MYF(0), table->table.str);
-    DBUG_RETURN(0);
+    enum_ident_name_check ident_check_status=
+      check_table_name(table->table.str, table->table.length, FALSE);
+    if (ident_check_status == IDENT_NAME_WRONG)
+    {
+      my_error(ER_WRONG_TABLE_NAME, MYF(0), table->table.str);
+      DBUG_RETURN(0);
+    }
+    else if (ident_check_status == IDENT_NAME_TOO_LONG)
+    {
+      my_error(ER_TOO_LONG_IDENT, MYF(0), table->table.str);
+      DBUG_RETURN(0);
+    }
   }
-
   if (table->is_derived_table() == FALSE && table->db.str &&
-      check_and_convert_db_name(&table->db, FALSE))
-  {
-    my_error(ER_WRONG_DB_NAME, MYF(0), table->db.str);
+      (check_and_convert_db_name(&table->db, FALSE) != IDENT_NAME_OK))
     DBUG_RETURN(0);
-  }
 
   if (!alias)					/* Alias is case sensitive */
   {

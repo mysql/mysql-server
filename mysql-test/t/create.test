@@ -47,7 +47,7 @@ show create table `a/a`;
 create table t1 like `a/a`;
 drop table `a/a`;
 drop table `t1`;
---error 1103
+--error ER_TOO_LONG_IDENT
 create table `aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa` (aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa int);
 --error 1059
 create table a (`aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa` int);
@@ -1276,9 +1276,9 @@ drop table t1,t2;
 # Test incorrect database names
 #
 
---error 1102
+--error ER_TOO_LONG_IDENT
 CREATE DATABASE aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa;
---error 1102
+--error ER_TOO_LONG_IDENT
 DROP DATABASE aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa;
 
 # TODO: enable these tests when RENAME DATABASE is implemented.
@@ -1291,9 +1291,9 @@ DROP DATABASE aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
 # RENAME DATABASE mysqltest TO aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa;
 # drop database mysqltest;
 
---error 1102
+--error ER_TOO_LONG_IDENT
 USE aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa;
---error 1102
+--error ER_TOO_LONG_IDENT
 SHOW CREATE DATABASE aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa;
 
 #
@@ -2086,3 +2086,13 @@ drop function f;
 
 --error ER_TOO_BIG_ROWSIZE
 CREATE TABLE t1 (v varchar(65535));
+
+--echo #
+--echo # Bug#11746295 - 25168: "INCORRECT TABLE NAME" INSTEAD OF "IDENTIFIER TOO
+--echo #                       LONG" IF TABLE NAME > 64 CHARACTERS
+--echo #
+
+--error ER_TOO_LONG_IDENT
+CREATE TABLE t01234567890123456789012345678901234567890123456789012345678901234567890123456789(a int);
+--error ER_TOO_LONG_IDENT
+CREATE DATABASE t01234567890123456789012345678901234567890123456789012345678901234567890123456789;
