@@ -4969,14 +4969,14 @@ dict_table_print_low(
 	fprintf(stderr,
 		"--------------------------------------\n"
 		"TABLE: name %s, id %llu, flags %lx, columns %lu,"
-		" indexes %lu, appr.rows %lu\n"
+		" indexes %lu, appr.rows " UINT64PF "\n"
 		"  COLUMNS: ",
 		table->name,
 		(ullint) table->id,
 		(ulong) table->flags,
 		(ulong) table->n_cols,
 		(ulong) UT_LIST_GET_LEN(table->indexes),
-		(ulong) table->stat_n_rows);
+		table->stat_n_rows);
 
 	for (i = 0; i < (ulint) table->n_cols; i++) {
 		dict_col_print_low(table, dict_table_get_nth_col(table, i));

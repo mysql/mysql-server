@@ -5565,7 +5565,7 @@ Field_time_common::convert_number_to_TIME(longlong nr, bool unsigned_val,
     Both number_to_time() call and negative nanoseconds value
     affect ltime->neg, hence "|=" to combine them:
   */
-  if (ltime->neg|= (nanoseconds < 0))
+  if ((ltime->neg|= (nanoseconds < 0)))
     nanoseconds= -nanoseconds;
   ltime->second_part= 0;
   return time_add_nanoseconds_with_round(ltime, nanoseconds, warnings);

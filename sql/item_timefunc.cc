@@ -2792,7 +2792,7 @@ bool Item_func_timediff::get_time(MYSQL_TIME *l_time3)
   if (l_time1.neg != l_time2.neg)
     l_sign= -l_sign;
 
-  memset(l_time3, 0, sizeof(l_time3));
+  memset(l_time3, 0, sizeof(*l_time3));
   
   l_time3->neg= calc_time_diff(&l_time1, &l_time2, l_sign,
                                &seconds, &microseconds);

@@ -129,7 +129,7 @@ bool Cached_item_int::cmp(void)
 {
   DBUG_ENTER("Cached_item_int::cmp");
   longlong nr=item->val_int();
-  DBUG_PRINT("info", ("old: %Ld, new: %Ld", value, nr));
+  DBUG_PRINT("info", ("old: %lld, new: %lld", value, nr));
   if (null_value != item->null_value || nr != value)
   {
     null_value= item->null_value;

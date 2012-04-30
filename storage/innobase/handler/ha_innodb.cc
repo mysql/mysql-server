@@ -7492,7 +7492,7 @@ ha_innobase::change_active_index(
 				"InnoDB: Index %s for table %s is"
 				" marked as corrupted",
 				index_name, table_name);
-			DBUG_RETURN(1);
+			DBUG_RETURN(HA_ERR_INDEX_CORRUPT);
 		} else {
 			push_warning_printf(
 				user_thd, Sql_condition::WARN_LEVEL_WARN,
@@ -7503,7 +7503,7 @@ ha_innobase::change_active_index(
 
 		/* The caller seems to ignore this.  Thus, we must check
 		this again in row_search_for_mysql(). */
-		DBUG_RETURN(2);
+		DBUG_RETURN(HA_ERR_TABLE_DEF_CHANGED);
 	}
 
 	ut_a(prebuilt->search_tuple != 0);
@@ -10337,7 +10337,7 @@ ha_innobase::info(
 {
 	dict_table_t*	ib_table;
 	ha_rows		rec_per_key;
-	ib_int64_t	n_rows;
+	ib_uint64_t	n_rows;
 	char		path[FN_REFLEN];
 	os_file_stat_t	stat_info;
 
@@ -10433,10 +10433,7 @@ ha_innobase::info(
 			dict_table_stats_unlock(ib_table, RW_S_LATCH);
 		}
 
-		/* Because we do not protect stat_n_rows by any mutex in a
-		delete, it is theoretically possible that the value can be
-		smaller than zero! TODO: fix this race.
-
+		/*
 		The MySQL optimizer seems to assume in a left join that n_rows
 		is an accurate estimate if it is zero. Of course, it is not,
 		since we do not have any locks on the rows yet at this phase.
@@ -10445,10 +10442,6 @@ ha_innobase::info(
 		set that flag, we add one to a zero value if the flag is not
 		set. That way SHOW TABLE STATUS will show the best estimate,
 		while the optimizer never sees the table empty. */
-
-		if (n_rows < 0) {
-			n_rows = 0;
-		}
 
 		if (n_rows == 0 && !(flag & HA_STATUS_TIME)) {
 			n_rows++;
@@ -10838,7 +10831,7 @@ ha_innobase::check(
 	/* Enlarge the fatal lock wait timeout during CHECK TABLE. */
 	os_increment_counter_by_amount(
 		server_mutex,
-		srv_fatal_semaphore_wait_threshold, 7200/*2 hours*/);
+		srv_fatal_semaphore_wait_threshold, SRV_SEMAPHORE_WAIT_EXTENSION);
 
 	for (index = dict_table_get_first_index(prebuilt->table);
 	     index != NULL;
@@ -10982,7 +10975,7 @@ ha_innobase::check(
 	/* Restore the fatal lock wait timeout after CHECK TABLE. */
 	os_decrement_counter_by_amount(
 		server_mutex,
-		srv_fatal_semaphore_wait_threshold, 7200/*2 hours*/);
+		srv_fatal_semaphore_wait_threshold, SRV_SEMAPHORE_WAIT_EXTENSION);
 
 	prebuilt->trx->op_info = "";
 	if (thd_killed(user_thd)) {
