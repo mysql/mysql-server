@@ -8,6 +8,7 @@
 #include "checkpoint.h"
 #include "log_header.h"
 #include "ydb_txn.h"
+#include "lth.h"
 #include <valgrind/helgrind.h>
 
 static int 
