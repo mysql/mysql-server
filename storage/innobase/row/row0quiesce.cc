@@ -57,6 +57,9 @@ row_quiesce_write_index_fields(
 
 		mach_write_to_4(ptr, field->fixed_len);
 
+		DBUG_EXECUTE_IF("ib_export_io_write_failure_9",
+				close(fileno(file)););
+
 		if (fwrite(row, 1, sizeof(row), file) != sizeof(row)) {
 
 			ib_senderrf(
@@ -72,6 +75,9 @@ row_quiesce_write_index_fields(
 		ut_a(len > 1);
 
 		mach_write_to_4(row, len);
+
+		DBUG_EXECUTE_IF("ib_export_io_write_failure_10",
+				close(fileno(file)););
 
 		if (fwrite(row, 1,  sizeof(len), file) != sizeof(len)
 		    || fwrite(field->name, 1, len, file) != len) {
@@ -105,6 +111,9 @@ row_quiesce_write_indexes(
 
 		/* Write the number of indexes in the table. */
 		mach_write_to_4(row, UT_LIST_GET_LEN(table->indexes));
+
+		DBUG_EXECUTE_IF("ib_export_io_write_failure_11",
+				close(fileno(file)););
 
 		if (fwrite(row, 1,  sizeof(row), file) != sizeof(row)) {
 			ib_senderrf(
@@ -151,6 +160,9 @@ row_quiesce_write_indexes(
 
 		mach_write_to_4(ptr, index->n_fields);
 
+		DBUG_EXECUTE_IF("ib_export_io_write_failure_12",
+				close(fileno(file)););
+
 		if (fwrite(row, 1, sizeof(row), file) != sizeof(row)) {
 
 			ib_senderrf(
@@ -168,7 +180,7 @@ row_quiesce_write_indexes(
 
 		mach_write_to_4(row, len);
 
-		DBUG_EXECUTE_IF("ib_export_io_write_failure",
+		DBUG_EXECUTE_IF("ib_export_io_write_failure_1",
 				close(fileno(file)););
 
 		if (fwrite(row, 1, sizeof(len), file) != sizeof(len)
@@ -230,6 +242,9 @@ row_quiesce_write_table(
 
 		mach_write_to_4(ptr, col->max_prefix);
 
+		DBUG_EXECUTE_IF("ib_export_io_write_failure_2",
+				close(fileno(file)););
+
 		if (fwrite(row, 1,  sizeof(row), file) != sizeof(row)) {
 			ib_senderrf(
 				thd, IB_LOG_LEVEL_WARN, ER_IO_WRITE_ERROR,
@@ -251,6 +266,9 @@ row_quiesce_write_table(
 		ut_a(len > 1);
 
 		mach_write_to_4(row, len);
+
+		DBUG_EXECUTE_IF("ib_export_io_write_failure_3",
+				close(fileno(file)););
 
 		if (fwrite(row, 1,  sizeof(len), file) != sizeof(len)
 		    || fwrite(col_name, 1, len, file) != len) {
@@ -284,6 +302,8 @@ row_quiesce_write_header(
 	/* Write the meta-data version number. */
 	mach_write_to_4(value, IB_EXPORT_CFG_VERSION_V1);
 
+	DBUG_EXECUTE_IF("ib_export_io_write_failure_4", close(fileno(file)););
+
 	if (fwrite(&value, 1,  sizeof(value), file) != sizeof(value)) {
 		ib_senderrf(
 			thd, IB_LOG_LEVEL_WARN, ER_IO_WRITE_ERROR,
@@ -311,6 +331,8 @@ row_quiesce_write_header(
 	len = strlen(hostname) + 1;
 	mach_write_to_4(value, len);
 
+	DBUG_EXECUTE_IF("ib_export_io_write_failure_5", close(fileno(file)););
+
 	if (fwrite(&value, 1,  sizeof(value), file) != sizeof(value)
 	    || fwrite(hostname, 1,  len, file) != len) {
 
@@ -329,6 +351,8 @@ row_quiesce_write_header(
 	/* Write the table name. */
 	mach_write_to_4(value, len);
 
+	DBUG_EXECUTE_IF("ib_export_io_write_failure_6", close(fileno(file)););
+
 	if (fwrite(&value, 1,  sizeof(value), file) != sizeof(value)
 	    || fwrite(table->name, 1,  len, file) != len) {
 
@@ -344,6 +368,8 @@ row_quiesce_write_header(
 
 	/* Write the next autoinc value. */
 	mach_write_to_8(row, table->autoinc);
+
+	DBUG_EXECUTE_IF("ib_export_io_write_failure_7", close(fileno(file)););
 
 	if (fwrite(row, 1,  sizeof(ib_uint64_t), file) != sizeof(ib_uint64_t)) {
 		ib_senderrf(
@@ -366,6 +392,8 @@ row_quiesce_write_header(
 
 	/* Write the number of columns in the table. */
 	mach_write_to_4(ptr, table->n_cols);
+
+	DBUG_EXECUTE_IF("ib_export_io_write_failure_8", close(fileno(file)););
 
 	if (fwrite(row, 1,  sizeof(row), file) != sizeof(row)) {
 		ib_senderrf(

@@ -491,12 +491,11 @@ static	__attribute__((nonnull))
 void
 row_import_free(
 /*============*/
-	row_import_t*	cfg)		/*!< in/own: memory to free */
+	row_import_t*&	cfg)		/*!< in/own: memory to free */
 {
-	for (ulint i = 0; i < cfg->n_indexes; ++i) {
+	for (ulint i = 0; cfg->indexes != 0 && i < cfg->n_indexes; ++i) {
 		if (cfg->indexes[i].name != 0) {
 			delete [] cfg->indexes[i].name;
-			cfg->indexes[i].name = 0;
 		}
 
 		if (cfg->indexes[i].fields == 0) {
@@ -509,47 +508,43 @@ row_import_free(
 		for (ulint j = 0; j < n_fields; ++j) {
 			if (fields[j].name != 0) {
 				delete [] fields[j].name;
-				fields[j].name = 0;
 			}
 		}
 
-		delete [] cfg->indexes[i].fields;
-		cfg->indexes[i].fields = 0;
+		delete [] fields;
 	}
 
-	for (ulint i = 0; i < cfg->n_cols; ++i) {
+	for (ulint i = 0; cfg->col_names != 0 && i < cfg->n_cols; ++i) {
 		if (cfg->col_names[i] != 0) {
 			delete [] cfg->col_names[i];
-			cfg->col_names[i] = 0;
 		}
 	}
 
 	if (cfg->cols != 0) {
 		delete [] cfg->cols;
-		cfg->cols = 0;
 	}
 
 	if (cfg->indexes != 0) {
 		delete [] cfg->indexes;
-		cfg->indexes = 0;
 	}
 
 	if (cfg->col_names != 0) {
 		delete [] cfg->col_names;
-		cfg->col_names = 0;
 	}
 
-	if (cfg->table_name) {
+	if (cfg->table_name != 0) {
 		delete [] cfg->table_name;
-		cfg->table_name = 0;
 	}
 
-	if (cfg->hostname) {
+	if (cfg->hostname != 0) {
 		delete [] cfg->hostname;
-		cfg->hostname = 0;
 	}
+
+	memset(cfg, 0xff, sizeof(*cfg));
 
 	delete cfg;
+
+	cfg = 0;
 }
 
 /*****************************************************************//**
@@ -913,6 +908,10 @@ row_import_cfg_read_index_fields(
 
 	index->fields = new(std::nothrow) dict_field_t[n_fields];
 
+	/* Trigger OOM */
+	DBUG_EXECUTE_IF("ib_import_OOM_4",
+			delete [] index->fields; index->fields = 0;);
+
 	if (index->fields == 0) {
 		return(DB_OUT_OF_MEMORY);
 	}
@@ -923,6 +922,10 @@ row_import_cfg_read_index_fields(
 
 	for (ulint i = 0; i < n_fields; ++i, ++field) {
 		byte*		ptr = row;
+
+		/* Trigger EOF */
+		DBUG_EXECUTE_IF("ib_import_io_read_error_1",
+				(void) fseek(file, 0L, SEEK_END););
 
 		if (fread(row, 1, sizeof(row), file) != sizeof(row)) {
 
@@ -944,6 +947,9 @@ row_import_cfg_read_index_fields(
 		ulint	len = mach_read_from_4(ptr);
 
 		byte*	name = new(std::nothrow) byte[len];
+
+		/* Trigger OOM */
+		DBUG_EXECUTE_IF("ib_import_OOM_5", delete [] name; name = 0;);
 
 		if (name == 0) {
 			return(DB_OUT_OF_MEMORY);
@@ -983,6 +989,10 @@ row_import_read_index_data(
 
 	cfg->indexes = new(std::nothrow) row_index_t[cfg->n_indexes];
 
+	/* Trigger OOM */
+	DBUG_EXECUTE_IF("ib_import_OOM_6",
+			delete [] cfg->indexes; cfg->indexes = 0;);
+
 	if (cfg->indexes == 0) {
 		return(DB_OUT_OF_MEMORY);
 	}
@@ -992,6 +1002,10 @@ row_import_read_index_data(
 	cfg_index = cfg->indexes;
 
 	for (ulint i = 0; i < cfg->n_indexes; ++i, ++cfg_index) {
+		/* Trigger EOF */
+		DBUG_EXECUTE_IF("ib_import_io_read_error_2",
+				(void) fseek(file, 0L, SEEK_END););
+
 		/* Read the index data. */
 		size_t	n_bytes = fread(row, 1, sizeof(row), file);
 
@@ -1056,6 +1070,11 @@ row_import_read_index_data(
 
 		cfg_index->name = new(std::nothrow) byte[len];
 
+		/* Trigger OOM */
+		DBUG_EXECUTE_IF("ib_import_OOM_7",
+				delete [] cfg_index->name;
+				cfg_index->name = 0;);
+
 		if (cfg_index->name == 0) {
 			return(DB_OUT_OF_MEMORY);
 		}
@@ -1092,6 +1111,10 @@ row_import_read_indexes(
 	row_import_t*	cfg)		/*!< in/out: meta-data read */
 {
 	byte		row[sizeof(ib_uint32_t)];
+
+	/* Trigger EOF */
+	DBUG_EXECUTE_IF("ib_import_io_read_error_3",
+			(void) fseek(file, 0L, SEEK_END););
 
 	/* Read the number of indexes. */
 	if (fread(row, 1, sizeof(row), file) != sizeof(row)) {
@@ -1144,11 +1167,18 @@ row_import_read_columns(
 
 	cfg->cols = new(std::nothrow) dict_col_t[cfg->n_cols];
 
+	/* Trigger OOM */
+	DBUG_EXECUTE_IF("ib_import_OOM_8", delete [] cfg->cols; cfg->cols = 0;);
+
 	if (cfg->cols == 0) {
 		return(DB_OUT_OF_MEMORY);
 	}
 
 	cfg->col_names = new(std::nothrow) byte* [cfg->n_cols];
+
+	/* Trigger OOM */
+	DBUG_EXECUTE_IF("ib_import_OOM_9",
+			delete [] cfg->col_names; cfg->col_names = 0;);
 
 	if (cfg->col_names == 0) {
 		return(DB_OUT_OF_MEMORY);
@@ -1161,6 +1191,10 @@ row_import_read_columns(
 
 	for (ulint i = 0; i < cfg->n_cols; ++i, ++col) {
 		byte*		ptr = row;
+
+		/* Trigger EOF */
+		DBUG_EXECUTE_IF("ib_import_io_read_error_4",
+				(void) fseek(file, 0L, SEEK_END););
 
 		if (fread(row, 1,  sizeof(row), file) != sizeof(row)) {
 			ib_senderrf(
@@ -1209,6 +1243,11 @@ row_import_read_columns(
 
 		cfg->col_names[i] = new(std::nothrow) byte[len];
 
+		/* Trigger OOM */
+		DBUG_EXECUTE_IF("ib_import_OOM_10",
+				delete [] cfg->col_names[i];
+				cfg->col_names[i] = 0;);
+
 		if (cfg->col_names[i] == 0) {
 			return(DB_OUT_OF_MEMORY);
 		}
@@ -1242,6 +1281,10 @@ row_import_read_v1(
 {
 	byte		value[sizeof(ib_uint32_t)];
 
+	/* Trigger EOF */
+	DBUG_EXECUTE_IF("ib_import_io_read_error_5",
+			(void) fseek(file, 0L, SEEK_END););
+
 	/* Read the hostname where the tablespace was exported. */
 	if (fread(value, 1, sizeof(value), file) != sizeof(value)) {
 		ib_senderrf(
@@ -1257,6 +1300,10 @@ row_import_read_v1(
 	/* NUL byte is part of name length. */
 	cfg->hostname = new(std::nothrow) byte[len];
 
+	/* Trigger OOM */
+	DBUG_EXECUTE_IF("ib_import_OOM_1",
+			delete [] cfg->hostname; cfg->hostname = 0;);
+
 	if (cfg->hostname == 0) {
 		return(DB_OUT_OF_MEMORY);
 	}
@@ -1270,6 +1317,10 @@ row_import_read_v1(
 
 		return(err);
 	}
+
+	/* Trigger EOF */
+	DBUG_EXECUTE_IF("ib_import_io_read_error_6",
+			(void) fseek(file, 0L, SEEK_END););
 
 	/* Read the table name of tablespace that was exported. */
 	if (fread(value, 1, sizeof(value), file) != sizeof(value)) {
@@ -1285,6 +1336,10 @@ row_import_read_v1(
 
 	/* NUL byte is part of name length. */
 	cfg->table_name = new(std::nothrow) byte[len];
+
+	/* Trigger OOM */
+	DBUG_EXECUTE_IF("ib_import_OOM_2",
+			delete [] cfg->table_name; cfg->table_name = 0;);
 
 	if (cfg->table_name == 0) {
 		return(DB_OUT_OF_MEMORY);
@@ -1305,6 +1360,10 @@ row_import_read_v1(
 
 	byte		row[sizeof(ib_uint32_t) * 3];
 
+	/* Trigger EOF */
+	DBUG_EXECUTE_IF("ib_import_io_read_error_7",
+			(void) fseek(file, 0L, SEEK_END););
+
 	/* Read the autoinc value. */
 	if (fread(row, 1, sizeof(ib_uint64_t), file) != sizeof(ib_uint64_t)) {
 		ib_senderrf(
@@ -1316,6 +1375,10 @@ row_import_read_v1(
 	}
 
 	cfg->autoinc = mach_read_from_8(row);
+
+	/* Trigger EOF */
+	DBUG_EXECUTE_IF("ib_import_io_read_error_9",
+			(void) fseek(file, 0L, SEEK_END););
 
 	/* Read the tablespace page size. */
 	if (fread(row, 1, sizeof(row), file) != sizeof(row)) {
@@ -1383,6 +1446,10 @@ row_import_read_meta_data(
 
 	*cfg = 0;
 
+	/* Trigger EOF */
+	DBUG_EXECUTE_IF("ib_import_io_read_error_10",
+			(void) fseek(file, 0L, SEEK_END););
+
 	if (fread(&row, 1, sizeof(row), file) != sizeof(row)) {
 		ib_senderrf(
 			thd, IB_LOG_LEVEL_ERROR, ER_IO_READ_ERROR,
@@ -1393,6 +1460,9 @@ row_import_read_meta_data(
 	}
 
 	*cfg = new(std::nothrow) row_import_t;
+
+	/* Trigger OOM */
+	DBUG_EXECUTE_IF("ib_import_OOM_3", delete *cfg; *cfg = 0;);
 
 	if (*cfg == 0) {
 		return(DB_OUT_OF_MEMORY);
