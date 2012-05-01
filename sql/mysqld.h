@@ -194,6 +194,7 @@ extern ulong max_prepared_stmt_count, prepared_stmt_count;
 extern ulong open_files_limit;
 extern ulong binlog_cache_size, binlog_stmt_cache_size;
 extern ulonglong max_binlog_cache_size, max_binlog_stmt_cache_size;
+extern int32 opt_binlog_max_flush_queue_time;
 extern ulong max_binlog_size, max_relay_log_size;
 extern ulong opt_binlog_rows_event_max_size;
 extern ulong binlog_checksum_options;

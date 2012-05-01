@@ -1175,35 +1175,73 @@ static int binlog_rollback(handlerton *hton, THD *thd, bool all)
 bool
 Thread_queue::Inner::append(THD *first)
 {
+  DBUG_ENTER("Thread_queue::Inner::append");
   lock();
-  DBUG_PRINT("enter", ("m_first: 0x%llx, &m_first: 0x%llx, m_last: 0x%llx",
+  DBUG_PRINT("enter", ("first: 0x%llx", (ulonglong) first));
+  DBUG_PRINT("info", ("m_first: 0x%llx, &m_first: 0x%llx, m_last: 0x%llx",
                        (ulonglong) m_first, (ulonglong) &m_first,
                        (ulonglong) m_last));
   bool empty= (m_first == NULL);
   *m_last= first;
+  DBUG_PRINT("info", ("m_first: 0x%llx, &m_first: 0x%llx, m_last: 0x%llx",
+                       (ulonglong) m_first, (ulonglong) &m_first,
+                       (ulonglong) m_last));
   /*
     Go to the last THD instance of the list. We expect lists to be
     moderately short. If they are not, we need to track the end of
     the queue as well.
   */
   while (first->next_to_commit)
-  {
-    DBUG_PRINT("debug", ("first: 0x%llx", (ulonglong) first));
     first= first->next_to_commit;
-  }
   m_last= &first->next_to_commit;
+  DBUG_PRINT("info", ("m_first: 0x%llx, &m_first: 0x%llx, m_last: 0x%llx",
+                        (ulonglong) m_first, (ulonglong) &m_first,
+                        (ulonglong) m_last));
+  DBUG_ASSERT(m_first || m_last == &m_first);
+  DBUG_PRINT("return", ("empty: %s", YESNO(empty)));
   unlock();
-  return empty;
+  DBUG_RETURN(empty);
+}
+
+
+std::pair<bool, THD*>
+Thread_queue::Inner::pop_front()
+{
+  DBUG_ENTER("Thread_queue::Inner::pop_front");
+  lock();
+  THD *result= m_first;
+  bool more= true;
+  /*
+    We do not set next_to_commit to NULL here since this is only used
+    in the flush stage. We will have to call fetch_queue last here,
+    and will then "cut" the linked list by setting the end of that
+    queue to NULL.
+  */
+  if (result)
+    m_first= result->next_to_commit;
+  if (m_first == NULL)
+  {
+    more= false;
+    m_last = &m_first;
+  }
+  DBUG_ASSERT(m_first || m_last == &m_first);
+  unlock();
+  DBUG_PRINT("return", ("result: 0x%llx, more: %s",
+                        (ulonglong) result, YESNO(more)));
+  DBUG_RETURN(std::make_pair(more, result));
 }
 
 
 bool
-Thread_queue::append(StageID stage, THD *thd)
+Thread_queue::append(StageID stage, THD *thd, bool wait_if_follower)
 {
   // If the queue was empty: we're the leader for this batch
   DBUG_PRINT("debug", ("Enqueue 0x%llx to queue for stage %d",
                        (ulonglong) thd, stage));
   bool leader= m_queue[stage].append(thd);
+
+  if (!wait_if_follower)
+    return leader;
 
   /*
     If the queue was not empty, we're a follower and wait for the
@@ -1223,6 +1261,7 @@ Thread_queue::append(StageID stage, THD *thd)
 
 THD *Thread_queue::Inner::fetch_and_empty()
 {
+  DBUG_ENTER("Thread_queue::Inner::fetch_and_empty");
   lock();
   DBUG_PRINT("enter", ("m_first: 0x%llx, &m_first: 0x%llx, m_last: 0x%llx",
                        (ulonglong) m_first, (ulonglong) &m_first,
@@ -1230,11 +1269,13 @@ THD *Thread_queue::Inner::fetch_and_empty()
   THD *result= m_first;
   m_first= NULL;
   m_last= &m_first;
-  DBUG_PRINT("return", ("m_first: 0x%llx, &m_first: 0x%llx, m_last: 0x%llx",
+  DBUG_PRINT("info", ("m_first: 0x%llx, &m_first: 0x%llx, m_last: 0x%llx",
                        (ulonglong) m_first, (ulonglong) &m_first,
                        (ulonglong) m_last));
+  DBUG_ASSERT(m_first || m_last == &m_first);
+  DBUG_PRINT("return", ("result: 0x%llx", (ulonglong) result));
   unlock();
-  return result;
+  DBUG_RETURN(result);
 }
 
 /**
@@ -2172,9 +2213,14 @@ void MYSQL_BIN_LOG::init_pthread_objects()
   mysql_mutex_init(m_key_LOCK_commit, &LOCK_commit, MY_MUTEX_INIT_FAST);
   mysql_mutex_init(m_key_LOCK_sync, &LOCK_sync, MY_MUTEX_INIT_FAST);
   mysql_cond_init(m_key_update_cond, &update_cond, 0);
-  flush_queue.init(m_key_LOCK_flush_queue,
+  flush_queue.init(
+#ifdef HAVE_PSI_INTERFACE
+                   m_key_LOCK_flush_queue,
                    m_key_LOCK_sync_queue,
-                   m_key_LOCK_commit_queue, m_key_LOCK_done, m_key_COND_done);
+                   m_key_LOCK_commit_queue,
+                   m_key_LOCK_done, m_key_COND_done
+#endif
+                   );
 }
 
 bool MYSQL_BIN_LOG::open_index_file(const char *index_file_name_arg,
@@ -5681,44 +5727,89 @@ int MYSQL_BIN_LOG::commit(THD *thd, bool all)
 }
 
 
-/**
-  Flush a sequence of sessions.
+std::pair<int,my_off_t>
+MYSQL_BIN_LOG::flush_thread_caches(THD *thd)
+{
+  binlog_cache_mngr *cache_mngr= thd_get_cache_mngr(thd);
+  my_off_t bytes= 0;
+  int error= cache_mngr->flush(thd, &bytes);
+  if (!error && bytes > 0)
+    thd->set_trans_pos(log_file_name, my_b_tell(&log_file));
+  DBUG_PRINT("debug", ("bytes: %llu", bytes));
+  return std::make_pair(error, bytes);
+}
 
-  @param first First session in queue
+
+/**
+  Execute the flush stage.
 
   @param total_bytes_var Pointer to variable that will be set to total
   number of bytes flushed, or NULL.
 
   @param rotate_var Pointer to variable that will be set to true if
-  binlog rotation should be performed after releasing locks.
+  binlog rotation should be performed after releasing locks. If rotate
+  is not necessary, the variable will not be touched.
+
+  @return Error code on error, zero on success
  */
 
 int
-MYSQL_BIN_LOG::flush_session_queue(THD *first,
-                                   my_off_t *total_bytes_var,
-                                   bool *rotate_var)
+MYSQL_BIN_LOG::flush_stage_queue(my_off_t *total_bytes_var,
+                                 bool *rotate_var,
+                                 THD **out_queue_var)
 {
+  DBUG_ASSERT(total_bytes_var && rotate_var && out_queue_var);
   my_off_t total_bytes= 0;
   int flush_error= 0;
   mysql_mutex_assert_owner(&LOCK_log);
-  for (THD *head= first ; head ; head = head->next_to_commit)
+
+  my_atomic_rwlock_rdlock(&LOCK_opt_binlog_max_flush_queue_time);
+  const ulonglong max_udelay= my_atomic_load32(&opt_binlog_max_flush_queue_time);
+  my_atomic_rwlock_rdunlock(&LOCK_opt_binlog_max_flush_queue_time);
+  const ulonglong start_utime= max_udelay > 0 ? my_micro_time() : 0;
+
+  /*
+    First we read the queue until it either is empty or the difference
+    between the time we started and the current time is too large.
+
+    We remember the first thread we unqueued, because this will be the
+    beginning of the out queue.
+   */
+  bool has_more= true;
+  THD *first_seen= NULL;
+  while ((max_udelay == 0 || my_micro_time() < start_utime + max_udelay) && has_more)
   {
-    binlog_cache_mngr *cache_mngr= thd_get_cache_mngr(head);
-    my_off_t bytes= 0;
-    if (int error= cache_mngr->flush(head, &bytes))
-      flush_error= error;
-    else if (bytes > 0)
-      head->set_trans_pos(log_file_name, my_b_tell(&log_file));
-    DBUG_PRINT("debug", ("bytes: %llu", bytes));
-    DBUG_PRINT("debug", ("pos_in_file: %llu, my_b_tell: %llu",
-                         log_file.pos_in_file, my_b_tell(&log_file)));
-    total_bytes+= bytes;
+    std::pair<bool,THD*> current= flush_queue.pop_front(Thread_queue::FLUSH_STAGE);
+    std::pair<int,my_off_t> result= flush_thread_caches(current.second);
+    has_more= current.first;
+    total_bytes+= result.second;
+    if (flush_error == 0)
+      flush_error= result.first;
+    if (first_seen == NULL)
+      first_seen= current.second;
   }
 
-  if (total_bytes_var)
-    *total_bytes_var= total_bytes;
-  if (rotate_var && total_bytes > 0)
-    *rotate_var= (my_b_tell(&log_file) >= (my_off_t) max_size);
+  /*
+    Either the queue is empty, or we ran out of time. If we ran out of
+    time, we have to fetch the entire queue (and flush it) since
+    otherwise the next batch will not have a leader.
+   */
+  if (has_more)
+  {
+    THD *queue= flush_queue.fetch_queue(Thread_queue::FLUSH_STAGE);
+    for (THD *head= queue ; head ; head = head->next_to_commit)
+    {
+      std::pair<int,my_off_t> result= flush_thread_caches(head);
+      total_bytes+= result.second;
+      if (flush_error == 0)
+        flush_error= result.first;
+    }
+  }
+
+  *out_queue_var= first_seen;
+  *total_bytes_var= total_bytes;
+  if (total_bytes > 0 && my_b_tell(&log_file) >= (my_off_t) max_size)
+    *rotate_var= true;
   return flush_error;
 }
 
@@ -5805,6 +5896,9 @@ bool
 MYSQL_BIN_LOG::enter_stage(THD *thd, Thread_queue::StageID stage,
                            THD *queue, mysql_mutex_t *stage_mutex)
 {
+  DBUG_ENTER("MYSQL_BIN_LOG::enter_stage");
+  DBUG_PRINT("enter", ("thd: 0x%llx, stage: %d, queue: 0x%llx",
+                       (ulonglong) thd, stage, (ulonglong) queue));
   DBUG_ASSERT(0 <= stage && stage < Thread_queue::STAGE_COUNTER);
   DBUG_ASSERT(stage_mutex);
   DBUG_ASSERT(queue);
@@ -5812,10 +5906,10 @@ MYSQL_BIN_LOG::enter_stage(THD *thd, Thread_queue::StageID stage,
   {
     DBUG_ASSERT(!thd->transaction.flags.commit_low);
     DBUG_ASSERT(!thd_get_cache_mngr(thd)->dbug_any_finalized());
-    return true;
+    DBUG_RETURN(true);
   }
   mysql_mutex_lock(stage_mutex);
-  return false;
+  DBUG_RETURN(false);
 }
 
 
@@ -5938,6 +6032,11 @@ int MYSQL_BIN_LOG::ordered_commit(THD *thd, bool all, bool skip_commit)
 
   /*
     Stage #1: flushing transactions to binary log
+
+    While flushing, we allow new threads to enter and will process
+    them in due time. Once the queue was empty, we cannot reap
+    anything more since it is possible that a thread entered and
+    appointed itself leader for the flush phase.
   */
   if (enter_stage(thd, Thread_queue::FLUSH_STAGE, thd, &LOCK_log))
   {
@@ -5945,13 +6044,14 @@ int MYSQL_BIN_LOG::ordered_commit(THD *thd, bool all, bool skip_commit)
                           thd->thread_id, thd->commit_error));
     DBUG_RETURN(thd->commit_error);
   }
-  THD *wait_queue= flush_queue.fetch_queue(Thread_queue::FLUSH_STAGE);
-  DBUG_ASSERT(wait_queue);
-  flush_error= flush_session_queue(wait_queue, &total_bytes, &do_rotate);
+
+  THD *wait_queue;
+  flush_error= flush_stage_queue(&total_bytes, &do_rotate, &wait_queue);
 
   my_off_t flush_end_pos= 0;
   if (flush_error == 0 && total_bytes > 0)
     flush_error= flush_cache_to_file(&flush_end_pos);
+
   mysql_mutex_unlock(&LOCK_log);
 
   /*

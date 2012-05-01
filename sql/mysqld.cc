@@ -509,6 +509,8 @@ ulong thread_cache_size=0;
 ulong binlog_cache_size=0;
 ulonglong  max_binlog_cache_size=0;
 ulong binlog_stmt_cache_size=0;
+my_atomic_rwlock_t opt_binlog_max_flush_queue_time_lock;
+int32 opt_binlog_max_flush_queue_time= 0;
 ulonglong  max_binlog_stmt_cache_size=0;
 ulong query_cache_size=0;
 ulong refresh_version;  /* Increments on each reload */
@@ -1662,6 +1664,7 @@ void clean_up(bool print_message)
   DBUG_PRINT("quit", ("Error messages freed"));
   /* Tell main we are ready */
   logger.cleanup_end();
+  my_atomic_rwlock_destroy(&opt_binlog_max_flush_queue_time_lock);
   my_atomic_rwlock_destroy(&global_query_id_lock);
   my_atomic_rwlock_destroy(&thread_running_lock);
   mysql_mutex_lock(&LOCK_thread_count);
@@ -3313,13 +3316,13 @@ int init_common_variables()
     and can not be set in the MYSQL_BIN_LOG constructor (called before main()).
   */
   mysql_bin_log.set_psi_keys(key_BINLOG_LOCK_index,
-                             key_BINLOG_LOCK_log,
-                             key_BINLOG_LOCK_flush_queue,
                              key_BINLOG_LOCK_commit,
                              key_BINLOG_LOCK_commit_queue,
+                             key_BINLOG_LOCK_done,
+                             key_BINLOG_LOCK_flush_queue,
+                             key_BINLOG_LOCK_log,
                              key_BINLOG_LOCK_sync,
                              key_BINLOG_LOCK_sync_queue,
-                             key_BINLOG_LOCK_done,
                              key_BINLOG_COND_done,
                              key_BINLOG_update_cond,
                              key_file_binlog,
@@ -7524,6 +7527,7 @@ static int mysql_init_variables(void)
   what_to_log= ~ (1L << (uint) COM_TIME);
   refresh_version= 1L;  /* Increments on each reload */
   global_query_id= thread_id= 1L;
+  my_atomic_rwlock_init(&opt_binlog_max_flush_queue_time_lock);
   my_atomic_rwlock_init(&global_query_id_lock);
   my_atomic_rwlock_init(&thread_running_lock);
   strmov(server_version, MYSQL_SERVER_VERSION);

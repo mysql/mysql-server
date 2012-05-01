@@ -1608,7 +1608,10 @@ shutdown the MySQL server and restart it.", name, errno);
 
 MYSQL_LOG::MYSQL_LOG()
   : name(0), write_error(FALSE), inited(FALSE), log_type(LOG_UNKNOWN),
-    log_state(LOG_CLOSED), m_key_LOCK_log(key_LOG_LOCK_log)
+    log_state(LOG_CLOSED)
+#ifdef HAVE_PSI_INTERFACE
+  , m_key_LOCK_log(key_LOG_LOCK_log)
+#endif
 {
   /*
     We don't want to initialize LOCK_Log here as such initialization depends on
