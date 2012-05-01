@@ -2213,9 +2213,14 @@ void MYSQL_BIN_LOG::init_pthread_objects()
   mysql_mutex_init(m_key_LOCK_commit, &LOCK_commit, MY_MUTEX_INIT_FAST);
   mysql_mutex_init(m_key_LOCK_sync, &LOCK_sync, MY_MUTEX_INIT_FAST);
   mysql_cond_init(m_key_update_cond, &update_cond, 0);
-  flush_queue.init(m_key_LOCK_flush_queue,
+  flush_queue.init(
+#ifdef HAVE_PSI_INTERFACE
+                   m_key_LOCK_flush_queue,
                    m_key_LOCK_sync_queue,
-                   m_key_LOCK_commit_queue, m_key_LOCK_done, m_key_COND_done);
+                   m_key_LOCK_commit_queue,
+                   m_key_LOCK_done, m_key_COND_done
+#endif
+                   );
 }
 
 bool MYSQL_BIN_LOG::open_index_file(const char *index_file_name_arg,
