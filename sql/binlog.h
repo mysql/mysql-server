@@ -54,7 +54,11 @@ public:
     {
     }
 
-    void init(PSI_mutex_key key_LOCK_queue) {
+    void init(
+#ifdef HAVE_PSI_INTERFACE
+              PSI_mutex_key key_LOCK_queue
+#endif
+              ) {
       mysql_mutex_init(key_LOCK_queue, &m_lock, MY_MUTEX_INIT_FAST);
     }
 
@@ -119,17 +123,33 @@ public:
     STAGE_COUNTER
   };
 
-  void init(PSI_mutex_key key_LOCK_flush_queue,
+  void init(
+#ifdef HAVE_PSI_INTERFACE
+            PSI_mutex_key key_LOCK_flush_queue,
             PSI_mutex_key key_LOCK_sync_queue,
             PSI_mutex_key key_LOCK_commit_queue,
             PSI_mutex_key key_LOCK_done,
-            PSI_cond_key key_COND_done)
+            PSI_cond_key key_COND_done
+#endif
+            )
   {
     mysql_mutex_init(key_LOCK_done, &m_lock, MY_MUTEX_INIT_FAST);
     mysql_cond_init(key_COND_done, &m_cond, NULL);
-    m_queue[FLUSH_STAGE].init(key_LOCK_flush_queue);
-    m_queue[SYNC_STAGE].init(key_LOCK_sync_queue);
-    m_queue[COMMIT_STAGE].init(key_LOCK_commit_queue);
+    m_queue[FLUSH_STAGE].init(
+#ifdef HAVE_PSI_INTERFACE
+                              key_LOCK_flush_queue
+#endif
+                              );
+    m_queue[SYNC_STAGE].init(
+#ifdef HAVE_PSI_INTERFACE
+                             key_LOCK_sync_queue
+#endif
+                             );
+    m_queue[COMMIT_STAGE].init(
+#ifdef HAVE_PSI_INTERFACE
+                               key_LOCK_commit_queue
+#endif
+                               );
   }
 
   void deinit()
