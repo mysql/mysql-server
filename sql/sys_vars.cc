@@ -572,6 +572,16 @@ static Sys_var_ulong Sys_binlog_stmt_cache_size(
        NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0),
        ON_UPDATE(fix_binlog_stmt_cache_size));
 
+static Sys_var_ulong Sys_binlog_max_flush_queue_time(
+       "binlog_max_flush_queue_time",
+       "The maximum time that the binary log group commit will keep reading"
+       " transactions before it flush the transactions to the binary log (and"
+       " optionally sync, depending on the value of sync_binlog).",
+       GLOBAL_VAR(opt_binlog_max_flush_queue_time),
+       CMD_LINE(REQUIRED_ARG),
+       VALID_RANGE(0, 100000), DEFAULT(0), BLOCK_SIZE(1),
+       NO_MUTEX_GUARD, NOT_IN_BINLOG);
+
 static bool check_has_super(sys_var *self, THD *thd, set_var *var)
 {
   DBUG_ASSERT(self->scope() != sys_var::GLOBAL);// don't abuse check_has_super()

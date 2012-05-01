@@ -54,7 +54,11 @@ public:
     {
     }
 
-    void init(PSI_mutex_key key_LOCK_queue) {
+    void init(
+#ifdef HAVE_PSI_INTERFACE
+              PSI_mutex_key key_LOCK_queue
+#endif
+              ) {
       mysql_mutex_init(key_LOCK_queue, &m_lock, MY_MUTEX_INIT_FAST);
     }
 
@@ -75,6 +79,8 @@ public:
        This will fetch the entire queue in one go.
     */
     THD *fetch_and_empty();
+
+    std::pair<bool,THD*> pop_front();
 
   private:
     void lock() { mysql_mutex_lock(&m_lock); }
@@ -117,17 +123,33 @@ public:
     STAGE_COUNTER
   };
 
-  void init(PSI_mutex_key key_LOCK_flush_queue,
+  void init(
+#ifdef HAVE_PSI_INTERFACE
+            PSI_mutex_key key_LOCK_flush_queue,
             PSI_mutex_key key_LOCK_sync_queue,
             PSI_mutex_key key_LOCK_commit_queue,
             PSI_mutex_key key_LOCK_done,
-            PSI_cond_key key_COND_done)
+            PSI_cond_key key_COND_done
+#endif
+            )
   {
     mysql_mutex_init(key_LOCK_done, &m_lock, MY_MUTEX_INIT_FAST);
     mysql_cond_init(key_COND_done, &m_cond, NULL);
-    m_queue[FLUSH_STAGE].init(key_LOCK_flush_queue);
-    m_queue[SYNC_STAGE].init(key_LOCK_sync_queue);
-    m_queue[COMMIT_STAGE].init(key_LOCK_commit_queue);
+    m_queue[FLUSH_STAGE].init(
+#ifdef HAVE_PSI_INTERFACE
+                              key_LOCK_flush_queue
+#endif
+                              );
+    m_queue[SYNC_STAGE].init(
+#ifdef HAVE_PSI_INTERFACE
+                             key_LOCK_sync_queue
+#endif
+                             );
+    m_queue[COMMIT_STAGE].init(
+#ifdef HAVE_PSI_INTERFACE
+                               key_LOCK_commit_queue
+#endif
+                               );
   }
 
   void deinit()
@@ -141,18 +163,29 @@ public:
   /**
     Queue thread (or append queue of threads).
 
-    This will queue the session thread for writing and flushing. If
-    the thread being queued is assigned as group commit leader, it
-    will return immediately, otherwise, the thread will be wait for
-    the queue to be processed by the leader.
+    This will queue the session thread for writing and flushing.
+
+    If the thread being queued is assigned as stage leader, it will
+    return immediately.
+
+    If wait_if_follower is true the thread is not the stage leader,
+    the thread will be wait for the queue to be processed by the
+    leader before it returns.
 
     @param stage Stage identifier for the queue to append to.
     @param first Queue to append.
+    @param wait_if_follower If
 
-    @retval true  Thread is session leader.
-    @retval false Thread was not session leader.
+    @retval true  Thread is stage leader.
+    @retval false Thread is/was not stage leader.
    */
-  bool append(StageID stage, THD *first);
+  bool append(StageID stage, THD *first, bool wait_if_follower = true);
+
+  std::pair<bool,THD*> pop_front(StageID stage)
+  {
+    return m_queue[stage].pop_front();
+  }
+
 
   /**
     Fetch the entire queue and empty it.
@@ -160,6 +193,7 @@ public:
     @return Pointer to the first session of the queue.
    */
   THD *fetch_queue(StageID stage) {
+    DBUG_PRINT("debug", ("Fetching queue for stage %d", stage));
     return m_queue[stage].fetch_and_empty();
   }
 
@@ -349,13 +383,13 @@ public:
 
 #ifdef HAVE_PSI_INTERFACE
   void set_psi_keys(PSI_mutex_key key_LOCK_index,
-                    PSI_mutex_key key_LOCK_log,
-                    PSI_mutex_key key_LOCK_flush_queue,
                     PSI_mutex_key key_LOCK_commit,
                     PSI_mutex_key key_LOCK_commit_queue,
+                    PSI_mutex_key key_LOCK_done,
+                    PSI_mutex_key key_LOCK_flush_queue,
+                    PSI_mutex_key key_LOCK_log,
                     PSI_mutex_key key_LOCK_sync,
                     PSI_mutex_key key_LOCK_sync_queue,
-                    PSI_mutex_key key_LOCK_done,
                     PSI_cond_key key_COND_done,
                     PSI_cond_key key_update_cond,
                     PSI_file_key key_file_log,
@@ -405,7 +439,9 @@ private:
   bool enter_stage(THD *thd, Thread_queue::StageID stage,
                    THD* queue, mysql_mutex_t *enter);
   void commit_session_queue(THD *thd, THD *queue, int flush_error);
-  int flush_session_queue(THD *first, my_off_t *total_bytes_var, bool *need_rotate);
+  std::pair<int,my_off_t> flush_thread_caches(THD *thd);
+  int flush_stage_queue(my_off_t *total_bytes_var, bool *rotate_var,
+                        THD **out_queue_var);
   int flush_cache_to_file(my_off_t *flush_end_pos);
   int sync_binlog_file(my_off_t end_pos, bool *synced_var);
   int ordered_commit(THD *thd, bool all, bool skip_commit = false);
