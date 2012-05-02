@@ -3955,7 +3955,8 @@ public:
     pairs.put("name", param_name);
     pairs.put("comment", info.getDescription(section, param_name));
 
-    switch (info.getType(section, param_name)) {
+    const ConfigInfo::Type param_type = info.getType(section, param_name);
+    switch (param_type) {
     case ConfigInfo::CI_BOOL:
       pairs.put("type", "bool");
 
@@ -3996,6 +3997,13 @@ public:
         pairs.put("mandatory", "true");
       else if (info.hasDefault(section, param_name))
         pairs.put("default", info.getDefaultString(section, param_name));
+
+      if (param_type == ConfigInfo::CI_ENUM)
+      {
+        // Concatenate the allowed enum values to a space separated string
+        info.get_enum_values(section, param_name, buf);
+        require(pairs.put("allowed_values", buf.c_str()));
+      }
       break;
 
     case ConfigInfo::CI_SECTION:

@@ -22,8 +22,22 @@
 
 #include <ndberror.h>
 
-extern ndberror_struct AppError9001_ReconfLock;
-extern ndberror_struct AppError9002_NoNDBs;
+/* 
+   The NDB Engine for Memcached uses error codes 29000 - 29999 
+*/
 
+
+
+/*** Errors 290xx and 291xx are reported as "Scheduler Error" ***/
+
+/* 2900x: general scheduler error codes */
+extern ndberror_struct AppError29001_ReconfLock;
+extern ndberror_struct AppError29002_NoNDBs;
+
+/* 2902x: blocking NDB operations in worker thread */
+extern ndberror_struct AppError29023_SyncClose;
+extern ndberror_struct AppError29024_autogrow;
+
+/*** Errors 29200 and up are reported as "Memcached Error" ***/
 
 #endif

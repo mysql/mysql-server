@@ -17,101 +17,31 @@
 
 package com.mysql.clusterj.tie;
 
-import java.nio.ByteBuffer;
-import java.nio.ByteOrder;
-
-import com.mysql.clusterj.core.store.Column;
-import com.mysql.clusterj.core.store.ResultData;
 import com.mysql.clusterj.core.store.Table;
 
 public class NdbRecordKeyOperationImpl extends NdbRecordOperationImpl {
 
     public NdbRecordKeyOperationImpl(ClusterTransactionImpl clusterTransaction, Table storeTable) {
         super(clusterTransaction, storeTable);
-        this.ndbRecordKeys = clusterTransaction.getCachedNdbRecordImpl(storeTable);
-        this.keyBufferSize = ndbRecordKeys.getBufferSize();
-        this.ndbRecordValues = clusterTransaction.getCachedNdbRecordImpl(storeTable);
-        this.valueBufferSize = ndbRecordValues.getBufferSize();
-        this.numberOfColumns = ndbRecordValues.getNumberOfColumns();
-        this.blobs = new NdbRecordBlobImpl[this.numberOfColumns];
-        resetMask();
-    }
-
-    public void beginDefinition() {
-        // allocate a buffer for the key data
-        keyBuffer = ByteBuffer.allocateDirect(keyBufferSize);
-        keyBuffer.order(ByteOrder.nativeOrder());
-        // allocate a buffer for the value result data
-        // TODO: we should not need another buffer
-        valueBuffer = ByteBuffer.allocateDirect(valueBufferSize);
-        valueBuffer.order(ByteOrder.nativeOrder());
-    }
-
-    /** Specify the columns to be used for the operation.
-     */
-    public void getValue(Column storeColumn) {
-        int columnId = storeColumn.getColumnId();
-        columnSet(columnId);
-    }
-
-    /**
-     * Mark this blob column to be read.
-     * @param storeColumn the store column
-     */
-    @Override
-    public void getBlob(Column storeColumn) {
-        // create an NdbRecordBlobImpl for the blob
-        int columnId = storeColumn.getColumnId();
-        columnSet(columnId);
-        NdbRecordBlobImpl blob = new NdbRecordBlobImpl(this, storeColumn);
-        blobs[columnId] = blob;
+        this.ndbRecordKeys = this.ndbRecordValues;
+        this.keyBufferSize = this.valueBufferSize;
+        this.keyBuffer = valueBuffer;
     }
 
     public void endDefinition() {
-        // position the key buffer at the beginning for ndbjtie
-        keyBuffer.position(0);
-        keyBuffer.limit(keyBufferSize);
         // position the value buffer at the beginning for ndbjtie
         valueBuffer.position(0);
         valueBuffer.limit(valueBufferSize);
         // create the key operation
         ndbOperation = clusterTransaction.readTuple(ndbRecordKeys.getNdbRecord(), keyBuffer,
                 ndbRecordValues.getNdbRecord(), valueBuffer, mask, null);
-        // set up a callback when this operation is executed
-        clusterTransaction.postExecuteCallback(new Runnable() {
-            public void run() {
-                for (int columnId = 0; columnId < numberOfColumns; ++columnId) {
-                    NdbRecordBlobImpl blob = blobs[columnId];
-                    if (blob != null) {
-                        blob.setNdbBlob();
-                    }
-                }
-            }
-        });
-    }
-
-    /** Construct a new ResultData using the saved column data and then execute the operation.
-     */
-    @Override
-    public ResultData resultData() {
-        return resultData(true);
-    }
-
-    /** Construct a new ResultData and if requested, execute the operation.
-     */
-    @Override
-    public ResultData resultData(boolean execute) {
-        NdbRecordResultDataImpl result =
-            new NdbRecordResultDataImpl(this);
-        if (execute) {
-            clusterTransaction.executeNoCommit(false, true);
-        }
-        return result;
+        // set the NdbBlob for all active blob columns
+        activateBlobs();
     }
 
     @Override
     public String toString() {
-        return " key " + tableName;
+        return " primary key " + tableName;
     }
 
 }

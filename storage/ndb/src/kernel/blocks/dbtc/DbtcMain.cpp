@@ -1856,6 +1856,14 @@ start_failure:
     abortErrorLab(signal);
     return;
   }
+  case 66:
+  {
+    jam();
+    /* Function not implemented yet */
+    terrorCode = 4003;
+    abortErrorLab(signal);
+    return;
+  }
   default:
     jam();
     systemErrorLab(signal, __LINE__);
@@ -2924,6 +2932,17 @@ void Dbtc::execTCKEYREQ(Signal* signal)
     return;
   }
   
+  if (unlikely(TViaSPJFlag &&
+               /* Check that all nodes can handle SPJ requests. */
+               !ndb_join_pushdown(getNodeVersionInfo().m_type[NodeInfo::DB]
+                                  .m_min_version)))
+  {
+    jam();
+    releaseSections(handle);
+    TCKEY_abort(signal, 66);
+    return;
+  }
+
   /* KeyInfo and AttrInfo are buffered in segmented sections
    * If they arrived in segmented sections then there's nothing to do
    * If they arrived in short signals then they are appended into
@@ -4291,7 +4310,7 @@ void Dbtc::execLQHKEYCONF(Signal* signal)
   UintR Ttrans1 = lqhKeyConf->transId1;
   UintR Ttrans2 = lqhKeyConf->transId2;
   Uint32 noFired = LqhKeyConf::getFiredCount(lqhKeyConf->noFiredTriggers);
-  Uint32 deferred = LqhKeyConf::getDeferredBit(lqhKeyConf->noFiredTriggers);
+  Uint32 deferred = LqhKeyConf::getDeferredUKBit(lqhKeyConf->noFiredTriggers);
 
   if (TapiConnectptrIndex >= TapiConnectFilesize) {
     TCKEY_abort(signal, 29);
@@ -4348,9 +4367,9 @@ void Dbtc::execLQHKEYCONF(Signal* signal)
   regTcPtr->lastLqhNodeId = refToNode(tlastLqhBlockref);
   regTcPtr->noFiredTriggers = noFired;
   regTcPtr->m_special_op_flags |= (deferred) ?
-    TcConnectRecord::SOF_DEFERRED_TRIGGER : 0;
+    TcConnectRecord::SOF_DEFERRED_UK_TRIGGER : 0;
   regApiPtr.p->m_flags |= (deferred) ?
-    ApiConnectRecord::TF_DEFERRED_TRIGGERS : 0;
+    ApiConnectRecord::TF_DEFERRED_UK_TRIGGERS : 0;
 
   UintR Ttckeyrec = (UintR)regApiPtr.p->tckeyrec;
   UintR TclientData = regTcPtr->clientData;
@@ -4516,8 +4535,41 @@ void Dbtc::execLQHKEYCONF(Signal* signal)
 
   /**
    * And now decide what to do next
+   * 1) First check if there are fired triggers
+   * 2) Then check if it's a index-table read
+   * 3) Then check if op was created by trigger
+   * 4) Else it's a normal op
+   *
+   * - trigger op, can cause new trigger ops (cascade)
+   * - trigger op can be using uk
    */
-  if (regTcPtr->triggeringOperation != RNIL)
+  if (noFired)
+  {
+    // We have fired triggers
+    jam();
+    saveTriggeringOpState(signal, regTcPtr);
+    if (regTcPtr->noReceivedTriggers == noFired)
+    {
+      // We have received all data
+      jam();
+      executeTriggers(signal, &regApiPtr);
+    }
+    // else wait for more trigger data
+  }
+  else if (regTcPtr->isIndexOp(regTcPtr->m_special_op_flags))
+  {
+    // This is a index-table read
+    jam();
+    setupIndexOpReturn(regApiPtr.p, regTcPtr);
+    lqhKeyConf_checkTransactionState(signal, regApiPtr);
+  }
+  else if (regTcPtr->triggeringOperation == RNIL)
+  {
+    // This is "normal" path
+    jam();
+    lqhKeyConf_checkTransactionState(signal, regApiPtr);
+  }
+  else
   {
     jam();
     // This operation was created by a trigger execting operation
@@ -4528,25 +4580,6 @@ void Dbtc::execLQHKEYCONF(Signal* signal)
     ptrCheckGuard(opPtr, ctcConnectFilesize, localTcConnectRecord);
     trigger_op_finished(signal, regApiPtr, regTcPtr->currentTriggerId,
                         opPtr.p, 0);
-  } else if (noFired == 0) {
-    // This operation did not fire any triggers, finish operation
-    jam();
-    if (regTcPtr->isIndexOp(regTcPtr->m_special_op_flags)) {
-      jam();
-      setupIndexOpReturn(regApiPtr.p, regTcPtr);
-    }
-    lqhKeyConf_checkTransactionState(signal, regApiPtr);
-  } else {
-    // We have fired triggers
-    jam();
-    saveTriggeringOpState(signal, regTcPtr);
-    if (regTcPtr->noReceivedTriggers == noFired) 
-    {
-      // We have received all data
-      jam();
-      executeTriggers(signal, &regApiPtr);
-    }
-    // else wait for more trigger data
   }
 }//Dbtc::execLQHKEYCONF()
  
@@ -4920,7 +4953,7 @@ void Dbtc::diverify010Lab(Signal* signal)
     systemErrorLab(signal, __LINE__);
   }//if
 
-  if (tc_testbit(regApiPtr->m_flags, ApiConnectRecord::TF_DEFERRED_TRIGGERS))
+  if (tc_testbit(regApiPtr->m_flags, ApiConnectRecord::TF_DEFERRED_UK_TRIGGERS))
   {
     jam();
     /**
@@ -4928,7 +4961,7 @@ void Dbtc::diverify010Lab(Signal* signal)
      *   transaction starts to commit
      */
     regApiPtr->pendingTriggers = 0;
-    tc_clearbit(regApiPtr->m_flags, ApiConnectRecord::TF_DEFERRED_TRIGGERS);
+    tc_clearbit(regApiPtr->m_flags, ApiConnectRecord::TF_DEFERRED_UK_TRIGGERS);
     sendFireTrigReq(signal, apiConnectptr, regApiPtr->firstTcConnect);
     return;
   }
@@ -5738,10 +5771,10 @@ Dbtc::sendFireTrigReq(Signal* signal,
 
     const Uint32 nextTcConnect = localTcConnectptr.p->nextTcConnect;
     Uint32 flags = localTcConnectptr.p->m_special_op_flags;
-    if (flags & TcConnectRecord::SOF_DEFERRED_TRIGGER)
+    if (flags & TcConnectRecord::SOF_DEFERRED_UK_TRIGGER)
     {
       jam();
-      tc_clearbit(flags, TcConnectRecord::SOF_DEFERRED_TRIGGER);
+      tc_clearbit(flags, TcConnectRecord::SOF_DEFERRED_UK_TRIGGER);
       ndbrequire(localTcConnectptr.p->tcConnectstate == OS_PREPARED);
       localTcConnectptr.p->tcConnectstate = OS_FIRE_TRIG_REQ;
       localTcConnectptr.p->m_special_op_flags = flags;
@@ -5895,13 +5928,13 @@ Dbtc::execFIRE_TRIG_CONF(Signal* signal)
   localTcConnectptr.p->tcConnectstate = OS_PREPARED;
 
   Uint32 noFired  = FireTrigConf::getFiredCount(conf->noFiredTriggers);
-  Uint32 deferred = FireTrigConf::getDeferredBit(conf->noFiredTriggers);
+  Uint32 deferreduk = FireTrigConf::getDeferredUKBit(conf->noFiredTriggers);
 
   regApiPtr.p->pendingTriggers += noFired;
-  regApiPtr.p->m_flags |= (deferred) ?
-    ApiConnectRecord::TF_DEFERRED_TRIGGERS : 0;
-  localTcConnectptr.p->m_special_op_flags |= (deferred) ?
-    TcConnectRecord::SOF_DEFERRED_TRIGGER : 0;
+  regApiPtr.p->m_flags |= (deferreduk) ?
+    ApiConnectRecord::TF_DEFERRED_UK_TRIGGERS : 0;
+  localTcConnectptr.p->m_special_op_flags |= (deferreduk) ?
+    TcConnectRecord::SOF_DEFERRED_UK_TRIGGER : 0;
 
   if (regApiPtr.p->pendingTriggers == 0)
   {
@@ -10492,6 +10525,16 @@ void Dbtc::execSCAN_TABREQ(Signal* signal)
     goto SCAN_TAB_error;
   }
 
+  if (unlikely (ScanTabReq::getViaSPJFlag(ri) &&
+                /* Check that all nodes can handle SPJ requests. */
+                !ndb_join_pushdown(getNodeVersionInfo().m_type[NodeInfo::DB]
+                                   .m_min_version)))
+  {
+    jam();
+    errCode = 4003; // Function not implemented
+    goto SCAN_TAB_error;
+  }
+
   ptrAss(tabptr, tableRecord);
   if ((aiLength == 0) ||
       (!tabptr.p->checkTable(schemaVersion)) ||
@@ -10560,6 +10603,8 @@ void Dbtc::execSCAN_TABREQ(Signal* signal)
   if (unlikely(errCode))
   {
     jam();
+    transP->apiScanRec = scanptr.i;
+    releaseScanResources(signal, scanptr, true /* NotStarted */);
     goto SCAN_TAB_error;
   }
 
@@ -10629,6 +10674,7 @@ void Dbtc::execSCAN_TABREQ(Signal* signal)
     goto SCAN_TAB_error;
   }//if
   ndbrequire(cfirstfreeScanrec == RNIL);
+  ndbrequire(cConcScanCount == cscanrecFileSize);
   jam();
   errCode = ZNO_SCANREC_ERROR;
   goto SCAN_TAB_error;
@@ -10699,7 +10745,7 @@ Dbtc::initScanrec(ScanRecordPtr scanptr,
   scanptr.p->scanStoredProcId = scanTabReq->storedProcId;
   scanptr.p->scanState = ScanRecord::RUNNING;
   scanptr.p->m_queued_count = 0;
-  scanptr.p->m_scan_cookie = RNIL;
+  scanptr.p->m_scan_cookie = DihScanTabConf::InvalidCookie;
   scanptr.p->m_close_scan_req = false;
   scanptr.p->m_pass_all_confs =  ScanTabReq::getPassAllConfsFlag(ri);
   scanptr.p->m_4word_conf = ScanTabReq::get4WordConf(ri);
@@ -10709,7 +10755,8 @@ Dbtc::initScanrec(ScanRecordPtr scanptr,
   for (Uint32 i = 0; i < scanParallel; i++) {
     jam();
     ScanFragRecPtr ptr;
-    if (unlikely(list.seize(ptr) == false))
+    if (unlikely((list.seize(ptr) == false) ||
+                 ERROR_INSERTED(8093)))
     {
       jam();
       goto errout;
@@ -10858,6 +10905,7 @@ void Dbtc::diFcountReqLab(Signal* signal, ScanRecordPtr scanptr)
   /*************************************************
    * THE FIRST STEP TO RECEIVE IS SUCCESSFULLY COMPLETED.
    ***************************************************/
+  ndbassert(scanptr.p->m_scan_cookie == DihScanTabConf::InvalidCookie);
   DihScanTabReq * req = (DihScanTabReq*)signal->getDataPtrSend();
   req->senderRef = reference();
   req->senderData = tcConnectptr.i;
@@ -10892,6 +10940,7 @@ void Dbtc::execDIH_SCAN_TAB_CONF(Signal* signal)
   ptrCheckGuard(scanptr, cscanrecFileSize, scanRecord);
   ndbrequire(scanptr.p->scanState == ScanRecord::WAIT_FRAGMENT_COUNT);
   scanptr.p->m_scan_cookie = conf->scanCookie;
+  ndbrequire(scanptr.p->m_scan_cookie != DihScanTabConf::InvalidCookie);
 
   if (conf->reorgFlag)
   {
@@ -11075,18 +11124,24 @@ void Dbtc::releaseScanResources(Signal* signal,
   ndbassert(scanPtr.p->scanApiRec == apiConnectptr.i);
   ndbassert(apiConnectptr.p->apiScanRec == scanPtr.i);
 
-  DihScanTabCompleteRep* rep = (DihScanTabCompleteRep*)signal->getDataPtrSend();
-  rep->tableId = scanPtr.p->scanTableref;
-  rep->scanCookie = scanPtr.p->m_scan_cookie;
-  sendSignal(cdihblockref, GSN_DIH_SCAN_TAB_COMPLETE_REP,
-	     signal, DihScanTabCompleteRep::SignalLength, JBB);
-  
+  if (scanPtr.p->m_scan_cookie != DihScanTabConf::InvalidCookie)
+  {
+    /* Cookie was requested, 'return' it */
+    DihScanTabCompleteRep* rep = (DihScanTabCompleteRep*)signal->getDataPtrSend();
+    rep->tableId = scanPtr.p->scanTableref;
+    rep->scanCookie = scanPtr.p->m_scan_cookie;
+    sendSignal(cdihblockref, GSN_DIH_SCAN_TAB_COMPLETE_REP,
+               signal, DihScanTabCompleteRep::SignalLength, JBB);
+    scanPtr.p->m_scan_cookie = DihScanTabConf::InvalidCookie;
+  }
+    
   // link into free list
   scanPtr.p->nextScan = cfirstfreeScanrec;
   scanPtr.p->scanState = ScanRecord::IDLE;
   scanPtr.p->scanTcrec = RNIL;
   scanPtr.p->scanApiRec = RNIL;
   cfirstfreeScanrec = scanPtr.i;
+  cConcScanCount--;
   
   apiConnectptr.p->apiScanRec = RNIL;
   apiConnectptr.p->apiConnectstate = CS_CONNECTED;
@@ -11871,6 +11926,7 @@ Dbtc::seizeScanrec(Signal* signal) {
   ptrCheckGuard(scanptr, cscanrecFileSize, scanRecord);
   cfirstfreeScanrec = scanptr.p->nextScan;
   scanptr.p->nextScan = RNIL;
+  cConcScanCount++;
   ndbrequire(scanptr.p->scanState == ScanRecord::IDLE);
   return scanptr;
 }//Dbtc::seizeScanrec()
@@ -12391,6 +12447,7 @@ void Dbtc::initialiseScanrec(Signal* signal)
   ptrAss(scanptr, scanRecord);
   scanptr.p->nextScan = RNIL;
   cfirstfreeScanrec = 0;
+  cConcScanCount = 0;
 }//Dbtc::initialiseScanrec()
 
 void Dbtc::initialiseScanFragrec(Signal* signal) 
@@ -13174,6 +13231,33 @@ Dbtc::execDUMP_STATE_ORD(Signal* signal)
       warningEvent(" DBTC: dump-7019 to unknown node: %u", nodeId);
     }
   }
+
+  if (arg == DumpStateOrd::TcResourceSnapshot)
+  {
+    RSS_OP_SNAPSHOT_SAVE(cConcScanCount);
+    RSS_AP_SNAPSHOT_SAVE(c_scan_frag_pool);
+    RSS_AP_SNAPSHOT_SAVE(c_theDefinedTriggerPool);
+    RSS_AP_SNAPSHOT_SAVE(c_theFiredTriggerPool);
+    RSS_AP_SNAPSHOT_SAVE(c_theIndexPool);
+    RSS_AP_SNAPSHOT_SAVE(m_commitAckMarkerPool);
+    RSS_AP_SNAPSHOT_SAVE(c_theIndexOperationPool);
+#ifdef ERROR_INSERT
+    rss_cconcurrentOp = c_counters.cconcurrentOp;
+#endif
+  }
+  if (arg == DumpStateOrd::TcResourceCheckLeak)
+  {
+    RSS_OP_SNAPSHOT_CHECK(cConcScanCount);
+    RSS_AP_SNAPSHOT_CHECK(c_scan_frag_pool);
+    RSS_AP_SNAPSHOT_CHECK(c_theDefinedTriggerPool);
+    RSS_AP_SNAPSHOT_CHECK(c_theFiredTriggerPool);
+    RSS_AP_SNAPSHOT_CHECK(c_theIndexPool);
+    RSS_AP_SNAPSHOT_CHECK(m_commitAckMarkerPool);
+    RSS_AP_SNAPSHOT_CHECK(c_theIndexOperationPool);
+#ifdef ERROR_INSERT
+    ndbrequire(rss_cconcurrentOp == c_counters.cconcurrentOp);
+#endif
+  }
 }//Dbtc::execDUMP_STATE_ORD()
 
 void Dbtc::execDBINFO_SCANREQ(Signal *signal)
@@ -13235,6 +13319,12 @@ void Dbtc::execDBINFO_SCANREQ(Signal *signal)
         0,
         { CFG_DB_NO_TRANSACTIONS,
           CFG_DB_NO_OPS,0,0 }},
+      { "TC Scan Record",  /* TC redundantly included to improve readability */
+        cConcScanCount,
+        cscanrecFileSize,
+        sizeof(ScanRecord),
+        0, /* No HWM */
+        {CFG_DB_NO_SCANS, 0, 0, 0}},
       { NULL, 0,0,0,0,{0,0,0,0} }
     };
 

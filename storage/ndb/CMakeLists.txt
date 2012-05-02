@@ -122,10 +122,10 @@ MYSQL_ADD_PLUGIN(ndbcluster ${NDBCLUSTER_SOURCES} STORAGE_ENGINE
   LINK_LIBRARIES ndbclient_static)
 
 #
-# Add NDB binaries if ndbcluster is built
+# Build NDB only if MYSQL_ADD_PLUGIN has decided(by looking at various
+# cmake args same as all other plugins have) to build ndbcluster(our handler)
 #
 IF (NOT WITH_NDBCLUSTER)
-  # Not building NDB 
   MESSAGE(STATUS "Not building NDB")
   RETURN()
 ENDIF()

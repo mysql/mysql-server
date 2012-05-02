@@ -946,7 +946,7 @@ max-time: 500
 cmd: testNdbApi
 args: -n Bug44065
 
-max-time: 500
+max-time: 1000
 cmd: testNdbApi
 args: -n Bug44065_org
 
@@ -1850,6 +1850,10 @@ args: -n TestFragmentedSend T1
 max-time: 300
 cmd: testNodeRestart
 args: -n MasterFailSlowLCP T1
+
+max-time:300
+cmd: testScan
+args: -nScanFragRecExhaust T1
 
 max-time: 300
 cmd: testNodeRestart

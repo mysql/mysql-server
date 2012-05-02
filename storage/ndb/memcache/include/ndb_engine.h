@@ -62,6 +62,7 @@ struct ndb_engine {
   } startup_options;
   
   struct {
+    size_t maxconns;
     size_t nthreads;
     bool cas_enabled;  
     size_t verbose;

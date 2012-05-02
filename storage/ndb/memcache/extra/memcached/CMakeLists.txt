@@ -84,6 +84,7 @@ CHECK_INCLUDE_FILE("netdb.h"         HAVE_NETDB_H)
 CHECK_INCLUDE_FILE("sys/uio.h"       HAVE_SYS_UIO_H)
 CHECK_INCLUDE_FILE("signal.h"        HAVE_SIGIGNORE)
 CHECK_INCLUDE_FILES("sys/types.h;netinet/tcp.h" HAVE_NETINET_TCP_H)
+CHECK_FUNCTION_EXISTS(htonll         HAVE_HTONLL)
 
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/config_tests.in 
                ${CMAKE_CURRENT_SOURCE_DIR}/config.h)

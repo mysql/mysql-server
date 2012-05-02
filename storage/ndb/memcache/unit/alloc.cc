@@ -27,14 +27,16 @@
 
 #include "all_tests.h"
 
+#define TEST_ALLOC_BLOCKS 34
+
 int run_allocator_test(QueryPlan *, Ndb *, int v) {
-  struct request_pipeline *p = get_request_pipeline(0);
+  struct request_pipeline *p = get_request_pipeline(0, NULL);
   
   memory_pool *p1 = pipeline_create_memory_pool(p);
   int sz = 13;
   uint tot = 0;
   void *v1, *v2;
-  for(int i = 0 ; i < 25 ; i++) {
+  for(int i = 0 ; i < TEST_ALLOC_BLOCKS ; i++) {
     v1 = memory_pool_alloc(p1, sz);     tot += sz;
     v2 = memory_pool_alloc(p1, sz + 1); tot += sz + 1;
     sz = (int) (sz * 1.25);

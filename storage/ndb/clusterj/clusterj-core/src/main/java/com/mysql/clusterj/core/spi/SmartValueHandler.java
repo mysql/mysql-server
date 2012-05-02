@@ -19,6 +19,7 @@ package com.mysql.clusterj.core.spi;
 
 import com.mysql.clusterj.core.store.ClusterTransaction;
 import com.mysql.clusterj.core.store.Operation;
+import com.mysql.clusterj.core.store.ResultData;
 
 /** SmartValueHandler is the interface that must be implemented for
  * operations that bypass the normal value handler and directly

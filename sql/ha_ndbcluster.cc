@@ -4437,11 +4437,7 @@ bool ha_ndbcluster::isManualBinlogExec(THD *thd)
 static inline bool
 thd_allow_batch(const THD* thd)
 {
-#ifndef OPTION_ALLOW_BATCH
-  return false;
-#else
   return (thd_options(thd) & OPTION_ALLOW_BATCH);
-#endif
 }
 
 
@@ -6478,21 +6474,6 @@ check_null_in_key(const KEY* key_info, const uchar *key, uint key_len)
   return 0;
 }
 
-
-int ha_ndbcluster::index_read_idx_map(uchar* buf, uint index,
-                                      const uchar* key,
-                                      key_part_map keypart_map,
-                                      enum ha_rkey_function find_flag)
-{
-  DBUG_ENTER("ha_ndbcluster::index_read_idx_map");
-  int error= index_init(index, 0);
-  if (unlikely(error))
-    DBUG_RETURN(error);
-
-  DBUG_RETURN(index_read_map(buf, key, keypart_map, find_flag));
-}
-
-
 int ha_ndbcluster::index_read(uchar *buf,
                               const uchar *key, uint key_len, 
                               enum ha_rkey_function find_flag)
@@ -7924,6 +7905,7 @@ int ha_ndbcluster::external_lock(THD *thd, int lock_type)
     */
     m_thd_ndb= NULL;    
 
+    DBUG_ASSERT(m_active_query == NULL);
     if (m_active_query)
       DBUG_PRINT("warning", ("m_active_query != NULL"));
     m_active_query= NULL;
@@ -14238,7 +14220,8 @@ int ha_ndbcluster::multi_range_start_retrievals(uint starting_range)
       
 #ifndef NDB_WITHOUT_JOIN_PUSHDOWN
       /* Create the scan operation for the first scan range. */
-      if (is_pushed)
+      if (check_if_pushable(NdbQueryOperationDef::OrderedIndexScan, 
+                            active_index))
       {
         DBUG_ASSERT(!m_read_before_write_removal_used);
         if (!m_active_query)
@@ -14710,7 +14693,7 @@ ha_ndbcluster::read_multi_range_fetch_next()
       {
         /* We have fetched the last row from the scan. */
         m_active_query->close(FALSE);
-        m_active_query= 0;
+        m_active_query= NULL;
         m_next_row= 0;
         DBUG_RETURN(0);
       }
@@ -14767,7 +14750,9 @@ int ndbcluster_make_pushed_join(handlerton *hton,
   DBUG_ENTER("ndbcluster_make_pushed_join");
   (void)ha_ndb_ext; // prevents compiler warning.
 
-  if (THDVAR(thd, join_pushdown))
+  if (THDVAR(thd, join_pushdown) &&
+      // Check for online upgrade/downgrade.
+      ndb_join_pushdown(g_ndb_cluster_connection->get_min_db_version()))
   {
     ndb_pushed_builder_ctx pushed_builder(*plan);
 
@@ -14848,7 +14833,7 @@ ha_ndbcluster::assign_pushed_join(const ndb_pushed_join* pushed_join)
 bool
 ha_ndbcluster::maybe_pushable_join(const char*& reason) const
 {
-  reason= "";
+  reason= NULL;
   if (uses_blob_value(table->read_set))
   {
     reason= "select list can't contain BLOB columns";
@@ -14996,7 +14981,7 @@ ha_ndbcluster::parent_of_pushed_join() const
     uint parent_ix= m_pushed_join_member
                     ->get_query_def().getQueryOperation(m_pushed_join_operation)
                     ->getParentOperation(0)
-                    ->getQueryOperationIx();
+                    ->getOpNo();
     return m_pushed_join_member->get_table(parent_ix);
   }
   return NULL;
@@ -15896,11 +15881,14 @@ HA_ALTER_FLAGS supported_alter_operations()
     HA_ADD_UNIQUE_INDEX |
     HA_DROP_UNIQUE_INDEX |
     HA_ADD_COLUMN |
+    HA_COLUMN_DEFAULT_VALUE |
     HA_COLUMN_STORAGE |
     HA_COLUMN_FORMAT |
     HA_ADD_PARTITION |
     HA_ALTER_TABLE_REORG |
-    HA_CHANGE_AUTOINCREMENT_VALUE;
+    HA_CHANGE_AUTOINCREMENT_VALUE | 
+    HA_ALTER_MAX_ROWS
+;
 }
 
 int ha_ndbcluster::check_if_supported_alter(TABLE *altered_table,
@@ -15950,6 +15938,13 @@ int ha_ndbcluster::check_if_supported_alter(TABLE *altered_table,
     }
   }
 
+  if (alter_flags->is_set(HA_COLUMN_DEFAULT_VALUE) &&
+      !alter_flags->is_set(HA_ADD_COLUMN))
+  {
+    DBUG_PRINT("info", ("Altering default value is not supported"));
+    DBUG_RETURN(HA_ALTER_NOT_SUPPORTED);
+  }
+
   if ((*alter_flags & not_supported).is_set())
   {
 #ifndef DBUG_OFF
@@ -15964,7 +15959,8 @@ int ha_ndbcluster::check_if_supported_alter(TABLE *altered_table,
 
   if (alter_flags->is_set(HA_ADD_COLUMN) ||
       alter_flags->is_set(HA_ADD_PARTITION) ||
-      alter_flags->is_set(HA_ALTER_TABLE_REORG))
+      alter_flags->is_set(HA_ALTER_TABLE_REORG) ||
+      alter_flags->is_set(HA_ALTER_MAX_ROWS))
   {
      Ndb *ndb= get_ndb(thd);
      NDBDICT *dict= ndb->getDictionary();
@@ -15979,13 +15975,14 @@ int ha_ndbcluster::check_if_supported_alter(TABLE *altered_table,
          Check that we are only adding columns
        */
        /*
-         HA_COLUMN_STORAGE & HA_COLUMN_FORMAT
+         HA_COLUMN_DEFAULT_VALUE & HA_COLUMN_STORAGE & HA_COLUMN_FORMAT
          are set if they are specified in an later cmd
          even if they're no change. This is probably a bug
          conclusion: add them to add_column-mask, so that we silently "accept" them
          In case of someone trying to change a column, the HA_CHANGE_COLUMN would be set
          which we don't support, so we will still return HA_ALTER_NOT_SUPPORTED in those cases
        */
+       add_column.set_bit(HA_COLUMN_DEFAULT_VALUE);
        add_column.set_bit(HA_COLUMN_STORAGE);
        add_column.set_bit(HA_COLUMN_FORMAT);
        if ((*alter_flags & ~add_column).is_set())
@@ -16010,19 +16007,48 @@ int ha_ndbcluster::check_if_supported_alter(TABLE *altered_table,
          DBUG_PRINT("info", ("storage_type %i, column_format %i",
                              (uint) field->field_storage_type(),
                              (uint) field->column_format()));
+         if (!(field->flags & NO_DEFAULT_VALUE_FLAG))
+         {
+           my_ptrdiff_t src_offset= field->table->s->default_values 
+             - field->table->record[0];
+           if ((! field->is_null_in_record_with_offset(src_offset)) ||
+               ((field->flags & NOT_NULL_FLAG)))
+           {
+             DBUG_PRINT("info",("Adding column with non-null default value is not supported on-line"));
+             DBUG_RETURN(HA_ALTER_NOT_SUPPORTED);
+           }
+         }
          /* Create new field to check if it can be added */
-         if ((my_errno= create_ndb_column(0, col, field, create_info,
+         if ((my_errno= create_ndb_column(thd, col, field, create_info,
                                           COLUMN_FORMAT_TYPE_DYNAMIC)))
          {
            DBUG_PRINT("info", ("create_ndb_column returned %u", my_errno));
            DBUG_RETURN(my_errno);
          }
-         new_tab.addColumn(col);
+         if (new_tab.addColumn(col))
+         {
+           my_errno= errno;
+           DBUG_PRINT("info", ("NdbDictionary::Table::addColumn returned %u", my_errno));
+           DBUG_RETURN(my_errno);
+         }
        }
      }
 
      if (alter_flags->is_set(HA_ALTER_TABLE_REORG))
      {
+       /* 
+          Refuse if Max_rows has been used before...
+          Workaround is to use ALTER ONLINE TABLE <t> MAX_ROWS=<bigger>;
+       */
+       if (old_tab->getMaxRows() != 0)
+       {
+         push_warning(current_thd,
+                      MYSQL_ERROR::WARN_LEVEL_WARN, ER_UNKNOWN_ERROR,
+                      "Cannot online REORGANIZE a table with Max_Rows set.  "
+                      "Use ALTER TABLE ... MAX_ROWS=<new_val> or offline REORGANIZE "
+                      "to redistribute this table.");
+         DBUG_RETURN(HA_ALTER_NOT_SUPPORTED);
+       }
        new_tab.setFragmentCount(0);
        new_tab.setFragmentData(0, 0);
      }
@@ -16030,6 +16056,27 @@ int ha_ndbcluster::check_if_supported_alter(TABLE *altered_table,
      {
        DBUG_PRINT("info", ("Adding partition (%u)", part_info->num_parts));
        new_tab.setFragmentCount(part_info->num_parts);
+     }
+     if (alter_flags->is_set(HA_ALTER_MAX_ROWS))
+     {
+       ulonglong rows= create_info->max_rows;
+       uint no_fragments= get_no_fragments(rows);
+       uint reported_frags= no_fragments;
+       if (adjusted_frag_count(ndb, no_fragments, reported_frags))
+       {
+         push_warning(current_thd,
+                      MYSQL_ERROR::WARN_LEVEL_WARN, ER_UNKNOWN_ERROR,
+                      "Ndb might have problems storing the max amount "
+                      "of rows specified");
+       }
+       if (reported_frags < old_tab->getFragmentCount())
+       {
+         DBUG_PRINT("info", ("Online reduction in number of fragments not supported"));
+         DBUG_RETURN(HA_ALTER_NOT_SUPPORTED);
+       }
+       new_tab.setFragmentCount(reported_frags);
+       new_tab.setDefaultNoPartitionsFlag(false);
+       new_tab.setFragmentData(0, 0);
      }
 
      NDB_Modifiers table_modifiers(ndb_table_modifiers);
@@ -16349,7 +16396,9 @@ int ha_ndbcluster::alter_table_phase1(THD *thd,
      }
   }
 
-  if (alter_flags->is_set(HA_ALTER_TABLE_REORG) || alter_flags->is_set(HA_ADD_PARTITION))
+  if (alter_flags->is_set(HA_ALTER_TABLE_REORG) || 
+      alter_flags->is_set(HA_ADD_PARTITION) ||
+      alter_flags->is_set(HA_ALTER_MAX_ROWS))
   {
     if (alter_flags->is_set(HA_ALTER_TABLE_REORG))
     {
@@ -16361,7 +16410,29 @@ int ha_ndbcluster::alter_table_phase1(THD *thd,
       partition_info *part_info= altered_table->part_info;
       new_tab->setFragmentCount(part_info->num_parts);
     }
-
+    else if (alter_flags->is_set(HA_ALTER_MAX_ROWS))
+    {
+      ulonglong rows= create_info->max_rows;
+      uint no_fragments= get_no_fragments(rows);
+      uint reported_frags= no_fragments;
+      if (adjusted_frag_count(ndb, no_fragments, reported_frags))
+      {
+        DBUG_ASSERT(false); /* Checked above */
+      }
+      if (reported_frags < old_tab->getFragmentCount())
+      {
+        DBUG_ASSERT(false);
+        DBUG_RETURN(HA_ALTER_NOT_SUPPORTED);
+      }
+      /* Note we don't set the ndb table's max_rows param, as that 
+       * is considered a 'real' change
+       */
+      //new_tab->setMaxRows(create_info->max_rows);
+      new_tab->setFragmentCount(reported_frags);
+      new_tab->setDefaultNoPartitionsFlag(false);
+      new_tab->setFragmentData(0, 0);
+    }
+    
     int res= dict->prepareHashMap(*old_tab, *new_tab);
     if (res == -1)
     {
@@ -17608,7 +17679,7 @@ static MYSQL_SYSVAR_UINT(
 
 static
 void
-dbug_check_shares(THD*, st_mysql_sys_var*, void*, const void*)
+dbg_check_shares_update(THD*, st_mysql_sys_var*, void*, const void*)
 {
   sql_print_information("dbug_check_shares open:");
   for (uint i= 0; i < ndbcluster_open_tables.records; i++)
@@ -17654,11 +17725,11 @@ dbug_check_shares(THD*, st_mysql_sys_var*, void*, const void*)
 }
 
 static MYSQL_THDVAR_UINT(
-  check_shares,              /* name */
+  dbg_check_shares,                  /* name */
   PLUGIN_VAR_RQCMDARG,
   "Debug, only...check that no shares are lingering...",
   NULL,                              /* check func */
-  dbug_check_shares,                 /* update func */
+  dbg_check_shares_update,           /* update func */
   0,                                 /* default */
   0,                                 /* min */
   1,                                 /* max */
@@ -17706,7 +17777,7 @@ static struct st_mysql_sys_var* system_variables[]= {
   MYSQL_SYSVAR(deferred_constraints),
   MYSQL_SYSVAR(join_pushdown),
 #ifndef DBUG_OFF
-  MYSQL_SYSVAR(check_shares),
+  MYSQL_SYSVAR(dbg_check_shares),
 #endif
   NULL
 };

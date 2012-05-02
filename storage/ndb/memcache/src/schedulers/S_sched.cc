@@ -64,13 +64,14 @@ S::SchedulerGlobal::SchedulerGlobal(Configuration *cf) :
 }
 
 
-void S::SchedulerGlobal::init(int _nthreads, const char *_config_string) {
+void S::SchedulerGlobal::init(const scheduler_options *sched_opts) {
   DEBUG_ENTER_METHOD("S::SchedulerGlobal::init");
 
   /* Set member variables */
-  nthreads = _nthreads;
-  config_string = _config_string;
+  nthreads = sched_opts->nthreads;
+  config_string = sched_opts->config_string;
   parse_config_string(nthreads, config_string);
+  options.max_clients = sched_opts->max_clients;
 
   /* Fetch or initialize clusters */
   nclusters = conf->nclusters;
@@ -104,8 +105,9 @@ void S::SchedulerGlobal::init(int _nthreads, const char *_config_string) {
   
   /* Log message for startup */
   logger->log(LOG_WARNING, 0, "Scheduler: starting for %d cluster%s; "
-              "c%d,f%d,t%d", nclusters, nclusters == 1 ? "" : "s",
-              options.n_connections, options.force_send, options.send_timer);
+              "c%d,f%d,g%d,t%d", nclusters, nclusters == 1 ? "" : "s",
+              options.n_connections, options.force_send, 
+              options.auto_grow, options.send_timer);
 
   /* Now Running */
   running = true;
@@ -171,6 +173,7 @@ void S::SchedulerGlobal::parse_config_string(int nthreads, const char *str) {
   options.n_connections = 0;   // 0 = n_connections based on db-stored config
   options.force_send = 0;      // 0 = force send always off
   options.send_timer = 1;      // 1 = 1 ms. timer in send thread
+  options.auto_grow = 1;       // 1 = allow NDB instance pool to grow on demand
 
   if(str) {
     const char *s = str;
@@ -187,6 +190,9 @@ void S::SchedulerGlobal::parse_config_string(int nthreads, const char *str) {
           break;
         case 'f':
           options.force_send = value;
+          break;
+        case 'g':
+          options.auto_grow = value;
           break;
         case 't':
           options.send_timer = value;
@@ -213,6 +219,10 @@ void S::SchedulerGlobal::parse_config_string(int nthreads, const char *str) {
   if(options.send_timer < 1 || options.send_timer > 10) {
     logger->log(LOG_WARNING, 0, "Invalid scheduler configuration.\n");
     assert(options.send_timer >= 1 && options.send_timer <= 10);
+  }
+  if(options.auto_grow < 0 || options.auto_grow > 1) {
+    logger->log(LOG_WARNING, 0, "Invalid scheduler configuration.\n");
+    assert(options.auto_grow == 0 || options.auto_grow == 1);
   }
 }
 
@@ -249,15 +259,14 @@ void S::SchedulerGlobal::add_stats(const char *stat_key,
 /* SchedulerWorker methods */
 
 void S::SchedulerWorker::init(int my_thread, 
-                              int nthreads, 
-                              const char * config_string) {
+                              const scheduler_options * options) {
   /* On the first call in, initialize the SchedulerGlobal.
    * This will start the send & poll threads for each connection.
    */
   if(my_thread == 0) {
     sched_generation_number = 1;
     s_global = new SchedulerGlobal(& get_Configuration());
-    s_global->init(nthreads, config_string);
+    s_global->init(options);
   }
   
   /* Initialize member variables */
@@ -286,7 +295,7 @@ void S::SchedulerWorker::attach_thread(thread_identifier *parent) {
 ENGINE_ERROR_CODE S::SchedulerWorker::schedule(workitem *item) {
   int c = item->prefix_info.cluster_id;
   ENGINE_ERROR_CODE response_code;
-  NdbInstance *inst;
+  NdbInstance *inst = 0;
   S::WorkerConnection *wc;
   const KeyPrefix *pfx;
   
@@ -299,29 +308,41 @@ ENGINE_ERROR_CODE S::SchedulerWorker::schedule(workitem *item) {
     pthread_rwlock_unlock(& reconf_lock);
   }
   else {
-    log_app_error(& AppError9001_ReconfLock);
+    log_app_error(& AppError29001_ReconfLock);
     return ENGINE_TMPFAIL;
   }
   /* READ LOCK RELEASED */
   
   item->base.nsuffix = item->base.nkey - pfx->prefix_len;
   if(item->base.nsuffix == 0) return ENGINE_EINVAL; // key too short
-  
-  if(wc && wc->freelist) {
+ 
+  if(wc == 0) return ENGINE_FAILED;
+    
+  if(wc->freelist) {                 /* Get the next NDB from the freelist. */
     inst = wc->freelist;
     wc->freelist = inst->next;
   }
-  else {
-    /* No more free NDBs. 
-     Eventually Scheduler::io_completed() will run _in this thread_ and return 
-     an NDB to the freelist.  But no other thread can free one, so 
-     all we can do is return an error. 
-     (Or, alternately, the scheduler may be shutting down.)
-     */
-    log_app_error(& AppError9002_NoNDBs);
-    return ENGINE_TMPFAIL;
+  else {                             /* No free NDBs. */
+    if(wc->sendqueue->is_aborted()) {
+      return ENGINE_TMPFAIL;
+    }
+    else {                           /* Try to make an NdbInstance on the fly */
+      inst = wc->newNdbInstance();
+      if(inst) {
+        log_app_error(& AppError29024_autogrow);
+      }
+      else {
+        /* We have hit a hard maximum.  Eventually Scheduler::io_completed() 
+           will run _in this thread_ and return an NDB to the freelist.  
+           But no other thread can free one, so here we return an error. 
+         */
+        log_app_error(& AppError29002_NoNDBs);
+        return ENGINE_TMPFAIL;
+      }
+    }
   }
   
+  assert(inst);
   inst->link_workitem(item);
   
   // Fetch the query plan for this prefix.
@@ -520,6 +541,18 @@ void S::Cluster::add_stats(const char *stat_key,
 
 /* WorkerConnection methods */
 
+
+NdbInstance * S::WorkerConnection::newNdbInstance() {
+  NdbInstance *inst = 0;
+  if(instances.current < instances.max) {
+    inst = new NdbInstance(conn->conn, 2);
+    instances.current++;
+    inst->id = ((id.thd + 1) * 10000) + instances.current;
+  }
+  return inst;
+}
+
+
 S::WorkerConnection::WorkerConnection(SchedulerGlobal *global,
                                       int thd_id, int cluster_id) {
   S::Cluster *cl = global->clusters[cluster_id];  
@@ -536,21 +569,25 @@ S::WorkerConnection::WorkerConnection(SchedulerGlobal *global,
   plan_set = new ConnQueryPlanSet(conn->conn, conf->nprefixes);
   plan_set->buildSetForConfiguration(conf, cluster_id);
 
+  /* How many NDB instances to start initially */
+  instances.initial = conn->instances.initial / conn->n_workers;
+
+  /* Maximum size of send queue, and upper bound on NDB instances */
+  instances.max = conn->instances.max / conn->n_workers;
+
   /* Build the freelist */
   freelist = 0;
-  int my_ndb_inst = conn->nInst / global->options.n_worker_threads;
-  for(int j = 0 ; j < my_ndb_inst ; j++ ) {
-    NdbInstance *inst = new NdbInstance(conn->conn, 2);
-    inst->id = ((id.thd + 1) * 10000) + j + 1; 
+  for(instances.current = 0; instances.current < instances.initial; ) {
+    NdbInstance *inst = newNdbInstance();
     inst->next = freelist;
     freelist = inst;
   }
 
   DEBUG_PRINT("Cluster %d, connection %d (node %d), worker %d: %d NDBs.", 
-              id.cluster, id.conn, id.node, id.thd, my_ndb_inst);
+              id.cluster, id.conn, id.node, id.thd, instances.current);
   
   /* Initialize the sendqueue */
-  sendqueue = new Queue<NdbInstance>(my_ndb_inst);
+  sendqueue = new Queue<NdbInstance>(instances.max);
   
   /* Hoard a transaction (an API connect record) for each Ndb object.  This
    * first call to startTransaction() will send TC_SEIZEREQ and wait for a 
@@ -560,7 +597,7 @@ S::WorkerConnection::WorkerConnection(SchedulerGlobal *global,
   QueryPlan *plan;
   const KeyPrefix *prefix = conf->getNextPrefixForCluster(id.cluster, NULL);
   if(prefix) {
-    NdbTransaction ** txlist = new NdbTransaction * [my_ndb_inst];
+    NdbTransaction ** txlist = new NdbTransaction * [instances.current];
     int i = 0;
 
     // Open them all.
@@ -573,7 +610,7 @@ S::WorkerConnection::WorkerConnection(SchedulerGlobal *global,
     }
     
     // Close them all.
-    for(i = 0 ; i < my_ndb_inst ; i++) {
+    for(i = 0 ; i < instances.current ; i++) {
       txlist[i]->close();
     }    
     
@@ -642,17 +679,29 @@ S::Connection::Connection(S::Cluster & _cl, int _id) :
   n_workers = global->options.n_worker_threads / cluster.nconnections;
   if(n_total_workers % cluster.nconnections > id) n_workers += 1;  
 
-  /* How many NDB objects are needed? */
-  /* Note that this is used to configure hard limits on the size of the 
-   * waitgroup, the sentqueue, and the reschedulequeue -- and it will not be 
+  /* How many NDB objects are needed for the desired performance? */
+  double total_ndb_objects = conf->figureInFlightTransactions(cluster.cluster_id);
+  instances.initial = (int) (total_ndb_objects / cluster.nconnections);
+  while(instances.initial % n_workers) instances.initial++; // round up
+
+  /* The maximum number of NDB objects.
+   * This is used to configure hard limits on the size of the waitgroup, 
+   * the sentqueue, and the reschedulequeue -- and it will not be 
    * possible to increase those limits during online reconfig. 
    */
-  double total_ndb_objects = conf->figureInFlightTransactions(cluster.cluster_id);
-  nInst = (int) (total_ndb_objects / cluster.nconnections);
-  while(nInst % n_workers) nInst++; // round up
-    
+  instances.max = instances.initial;
+  // allow the pool to grow on demand? 
+  if(global->options.auto_grow)
+    instances.max = (int) (instances.max * 1.6);
+  // max_clients imposes a hard upper limit
+  if(instances.max > (global->options.max_clients / cluster.nconnections))
+    instances.max = global->options.max_clients / cluster.nconnections;
+  // instances.initial might also be subject to the max_clients limit
+  if(instances.initial > instances.max) 
+    instances.initial = instances.max;
+  
   /* Get a multi-wait Poll Group */
-  pollgroup = conn->create_ndb_wait_group(nInst);
+  pollgroup = conn->create_ndb_wait_group(instances.max);
       
   /* Initialize the statistics */
   stats.sent_operations = 0;
@@ -665,8 +714,8 @@ S::Connection::Connection(S::Cluster & _cl, int _id) :
   sem.counter = 0;
     
   /* Initialize the queues for sent and resceduled items */
-  sentqueue = new Queue<NdbInstance>(nInst);
-  reschedulequeue = new Queue<NdbInstance>(nInst);
+  sentqueue = new Queue<NdbInstance>(instances.max);
+  reschedulequeue = new Queue<NdbInstance>(instances.max);
 }
 
 
@@ -725,6 +774,14 @@ void S::Connection::add_stats(const char *stat_key,
 
   klen = sprintf(key, "cl%d.conn%d.timeout_races", cluster.cluster_id, id);
   vlen = sprintf(val, "%llu", stats.timeout_races);
+  add_stat(key, klen, val, vlen, cookie);
+  
+  klen = sprintf(key, "cl%d.conn%d.instances.initial", cluster.cluster_id, id);
+  vlen = sprintf(val, "%d", instances.initial);
+  add_stat(key, klen, val, vlen, cookie);
+
+  klen = sprintf(key, "cl%d.conn%d.instances.max", cluster.cluster_id, id);
+  vlen = sprintf(val, "%d", instances.max);
   add_stat(key, klen, val, vlen, cookie);
 }                              
   

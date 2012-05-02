@@ -40,7 +40,7 @@ show status like 'ndb_index_stat_cache%';
 --enable_query_log
 
 --error 0,1193
-set global ndb_check_shares=1;
+set global ndb_dbg_check_shares=1;
 
 --error 0,1051
 drop table if exists t1;

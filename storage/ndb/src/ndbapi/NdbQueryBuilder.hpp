@@ -225,7 +225,7 @@ public:
   /**
    * Get the ordinal position of this operation within the QueryDef.
    */
-  Uint32 getQueryOperationIx() const;
+  Uint32 getOpNo() const;
 
   Uint32 getNoOfParentOperations() const;
   const NdbQueryOperationDef* getParentOperation(Uint32 i) const;

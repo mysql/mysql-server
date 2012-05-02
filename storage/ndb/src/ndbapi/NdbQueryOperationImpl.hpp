@@ -603,6 +603,12 @@ public:
   NdbQueryOperationImpl& getRoot() const
   { return m_queryImpl.getRoot(); }
 
+  // A shorthand method.
+  Uint32 getInternalOpNo() const
+  {
+    return m_operationDef.getInternalOpNo();
+  }
+
   const NdbQueryDefImpl& getQueryDef() const
   { return m_queryImpl.getQueryDef(); }
 

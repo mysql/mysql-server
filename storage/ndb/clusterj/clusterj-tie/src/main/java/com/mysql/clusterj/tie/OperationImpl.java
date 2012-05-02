@@ -24,6 +24,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
+import com.mysql.clusterj.ClusterJUserException;
 import com.mysql.clusterj.core.store.Blob;
 import com.mysql.clusterj.core.store.Column;
 import com.mysql.clusterj.core.store.Operation;
@@ -235,6 +236,11 @@ class OperationImpl implements Operation {
 
     public void setBytes(Column storeColumn, byte[] value) {
         // TODO use the string storage buffer instead of allocating a new buffer for each value
+        int length = value.length;
+        if (length > storeColumn.getLength()) {
+            throw new ClusterJUserException(local.message("ERR_Data_Too_Long", 
+                    storeColumn.getName(), storeColumn.getLength(), length));
+        }
         ByteBuffer buffer = Utility.convertValue(storeColumn, value);
         int returnCode = ndbOperation.setValue(storeColumn.getColumnId(), buffer);
         handleError(returnCode, ndbOperation);
@@ -280,6 +286,11 @@ class OperationImpl implements Operation {
 
     public void setString(Column storeColumn, String value) {
         ByteBuffer stringStorageBuffer = Utility.encode(value, storeColumn, bufferManager);
+        int length = stringStorageBuffer.remaining() - storeColumn.getPrefixLength();
+        if (length > storeColumn.getLength()) {
+            throw new ClusterJUserException(local.message("ERR_Data_Too_Long", 
+                    storeColumn.getName(), storeColumn.getLength(), length));
+        }
         int returnCode = ndbOperation.setValue(storeColumn.getColumnId(), stringStorageBuffer);
         bufferManager.clearStringStorageBuffer();
         handleError(returnCode, ndbOperation);

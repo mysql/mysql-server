@@ -20,13 +20,22 @@
 
 #include <ndberror.h>
 
-ndberror_struct AppError9001_ReconfLock = 
-  { ndberror_st_temporary , ndberror_cl_application , 9001, -1,
+ndberror_struct AppError29001_ReconfLock = 
+  { ndberror_st_temporary , ndberror_cl_application , 29001, -1,
     "Could not obtain configuration read lock", 0
   };
 
-ndberror_struct AppError9002_NoNDBs =
-  { ndberror_st_temporary , ndberror_cl_application , 9002, -1,
+ndberror_struct AppError29002_NoNDBs =
+  { ndberror_st_temporary , ndberror_cl_application , 29002, -1,
     "No Ndb Instances in freelist", 0
   };
 
+ndberror_struct AppError29023_SyncClose =
+  { ndberror_st_temporary , ndberror_cl_application , 29023, -1,
+    "Waited for synchronous close of NDB transaction", 0 
+  };
+
+ndberror_struct AppError29024_autogrow = 
+  { ndberror_st_temporary , ndberror_cl_application , 29024, -1,
+    "Out of Ndb instances, growing freelist", 0 
+  };
