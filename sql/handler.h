@@ -194,6 +194,14 @@ enum enum_alter_inplace_result {
  */
 #define HA_CAN_FULLTEXT_EXT              (LL(1) << 39)
 
+/*
+  Storage engine doesn't synchronize result set with expected table contents.
+  Used by replication slave to check if it is possible to retrieve rows from
+  the table when deciding whether to do a full table scan, index scan or hash
+  scan while applying a row event.
+ */
+#define HA_READ_OUT_OF_SYNC              (LL(1) << 40)
+
 /* bits in index_flags(index_number) for what you can do with index */
 #define HA_READ_NEXT            1       /* TODO really use this flag */
 #define HA_READ_PREV            2       /* supports ::index_prev */

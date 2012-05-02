@@ -62,24 +62,3 @@ UPDATE t1 SET c1= 0;
 DROP TABLE t1; 
 -- sync_slave_with_master
 
-#
-# BUG#11766865: 60091: RBR + NO PK + UPDATE NULL VALUE --> SLAVE BREAK WITH ERROR HA_ERR_END_OF_ 
-#
-
---connection master
---source include/rpl_reset.inc
---connection master
-
---eval CREATE TABLE t1 (c1 int(11) NOT NULL, c2 int(11) NOT NULL, c3 int(11) DEFAULT '-1') ENGINE=$engine DEFAULT CHARSET=latin1
-
-INSERT INTO t1 VALUES (1,2,NULL);
-UPDATE t1 SET c1=1, c2=2, c3=-1 WHERE c1=1 AND c2=2 AND ISNULL(c3);
-
---sync_slave_with_master
-
---let $diff_tables=master:test.t1, slave:test.t1
---source include/diff_tables.inc
-
---connection master
-DROP TABLE t1;
---sync_slave_with_master
