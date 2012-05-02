@@ -725,6 +725,8 @@ struct dict_table_struct{
 	unsigned	stat_initialized:1; /*!< TRUE if statistics have
 				been calculated the first time
 				after database startup or table creation */
+	ib_time_t	stats_last_recalc;
+				/*!< Timestamp of last recalc of the stats */
 	ib_uint32_t	stat_persistent;
 				/*!< The two bits below are set in the
 				::stat_persistent member and have the following
