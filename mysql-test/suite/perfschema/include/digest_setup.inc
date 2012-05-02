@@ -17,5 +17,6 @@ CREATE TABLE t2(a int);
 CREATE TABLE t3(a int, b int);
 CREATE TABLE t4(a int, b int);
 CREATE TABLE t5(a int, b int, c int);
+CREATE TABLE t6(a int, b int, c int, d int);
 --enable_warnings
 

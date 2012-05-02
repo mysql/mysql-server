@@ -1316,7 +1316,8 @@ Log_event* Log_event::read_log_event(IO_CACHE* file,
   Log_event *res=  0;
 #ifndef max_allowed_packet
   THD *thd=current_thd;
-  uint max_allowed_packet= thd ? thd->variables.max_allowed_packet : ~(ulong)0;
+  ulong max_allowed_packet= thd ? thd->variables.max_allowed_packet :
+                                  ~(ulong)0;
 #endif
 
   ulong const max_size=
@@ -3503,8 +3504,7 @@ Query_log_event::Query_log_event(THD* thd_arg, const char* query_arg,
         have the flag is_trans set because there is no updated engine but
         must be written to the trx-cache.
 
-      . SET does not have the flag is_trans set but, if auto-commit is off,
-        must be written to the trx-cache.
+      . SET If auto-commit is on, it must not go through a cache.
 
       . CREATE TABLE is classfied as non-row producer but CREATE TEMPORARY
         must be handled as row producer.
@@ -3554,8 +3554,10 @@ Query_log_event::Query_log_event(THD* thd_arg, const char* query_arg,
             thd->in_multi_stmt_transaction_mode()) || cmd_must_go_to_trx_cache;
         break;
       case SQLCOM_SET_OPTION:
-        cmd_can_generate_row_events= cmd_must_go_to_trx_cache=
-          (lex->autocommit ? FALSE : TRUE);
+        if (lex->autocommit)
+          cmd_can_generate_row_events= cmd_must_go_to_trx_cache= FALSE;
+        else
+          cmd_can_generate_row_events= TRUE;
         break;
       case SQLCOM_RELEASE_SAVEPOINT:
       case SQLCOM_ROLLBACK_TO_SAVEPOINT:
@@ -5066,6 +5068,9 @@ Format_description_log_event(uint8 binlog_ver, const char* server_ver)
       post_header_len[HEARTBEAT_LOG_EVENT-1]= 0;
       post_header_len[IGNORABLE_LOG_EVENT-1]= IGNORABLE_HEADER_LEN;
       post_header_len[ROWS_QUERY_LOG_EVENT-1]= IGNORABLE_HEADER_LEN;
+      post_header_len[RESERVED_EVENT_NUM_1-1]= RESERVED_HEADER_LEN;
+      post_header_len[RESERVED_EVENT_NUM_2-1]= RESERVED_HEADER_LEN;
+      post_header_len[RESERVED_EVENT_NUM_3-1]= RESERVED_HEADER_LEN;
       post_header_len[GTID_LOG_EVENT-1]=
         post_header_len[ANONYMOUS_GTID_LOG_EVENT-1]=
         Gtid_log_event::POST_HEADER_LENGTH;
@@ -6677,11 +6682,12 @@ void Intvar_log_event::print(FILE* file, PRINT_EVENT_INFO* print_event_info)
 #endif
 
 
+#if defined(HAVE_REPLICATION)&& !defined(MYSQL_CLIENT)
+
 /*
   Intvar_log_event::do_apply_event()
 */
 
-#if defined(HAVE_REPLICATION)&& !defined(MYSQL_CLIENT)
 int Intvar_log_event::do_apply_event(Relay_log_info const *rli)
 {
   /*
@@ -6689,6 +6695,9 @@ int Intvar_log_event::do_apply_event(Relay_log_info const *rli)
     been processed.
    */
   const_cast<Relay_log_info*>(rli)->set_flag(Relay_log_info::IN_STMT);
+
+  if (rli->deferred_events_collecting)
+    return rli->deferred_events->add(this);
 
   switch (type) {
   case LAST_INSERT_ID_EVENT:
@@ -6796,6 +6805,9 @@ int Rand_log_event::do_apply_event(Relay_log_info const *rli)
    */
   const_cast<Relay_log_info*>(rli)->set_flag(Relay_log_info::IN_STMT);
 
+  if (rli->deferred_events_collecting)
+    return rli->deferred_events->add(this);
+
   thd->rand.seed1= (ulong) seed1;
   thd->rand.seed2= (ulong) seed2;
   return 0;
@@ -6820,6 +6832,29 @@ Rand_log_event::do_shall_skip(Relay_log_info *rli)
     will be decreased by the following insert event.
   */
   return continue_group(rli);
+}
+
+/**
+   Exec deferred Int-, Rand- and User- var events prefixing
+   a Query-log-event event.
+
+   @param thd THD handle
+
+   @return false on success, true if a failure in an event applying occurred.
+*/
+bool slave_execute_deferred_events(THD *thd)
+{
+  bool res= false;
+  Relay_log_info *rli= thd->rli_slave;
+
+  DBUG_ASSERT(rli && (!rli->deferred_events_collecting || rli->deferred_events));
+
+  if (!rli->deferred_events_collecting || rli->deferred_events->is_empty())
+    return res;
+
+  res= rli->deferred_events->execute(rli);
+
+  return res;
 }
 
 #endif /* !MYSQL_CLIENT */
@@ -6915,6 +6950,12 @@ bool Xid_log_event::do_commit(THD *thd)
     // GTID logging and cleanup runs regardless of the current res
     error |= gtid_empty_group_log_and_cleanup(thd);
   }
+
+  /*
+    Increment the global status commit count variable
+  */
+  if (!error)
+    status_var_increment(thd->status_var.com_stat[SQLCOM_COMMIT]);
 
   return error;
 }
@@ -7379,11 +7420,12 @@ int User_var_log_event::do_apply_event(Relay_log_info const *rli)
 {
   Item *it= 0;
   CHARSET_INFO *charset;
+
+  if (rli->deferred_events_collecting)
+    return rli->deferred_events->add(this);
+
   if (!(charset= get_charset(charset_number, MYF(MY_WME))))
     return 1;
-  LEX_STRING user_var_name;
-  user_var_name.str= name;
-  user_var_name.length= name_len;
   double real_val;
   longlong int_val;
 
@@ -7429,7 +7471,7 @@ int User_var_log_event::do_apply_event(Relay_log_info const *rli)
       return 0;
     }
   }
-  Item_func_set_user_var e(user_var_name, it);
+  Item_func_set_user_var e(NameString(name, name_len, false), it);
   /*
     Item_func_set_user_var can't substitute something else on its place =>
     0 can be passed as last argument (reference on item)
@@ -10135,6 +10177,12 @@ Write_rows_log_event::do_before_row_operations(const Slave_reporting_capability 
 {
   int error= 0;
 
+  /*
+    Increment the global status insert count variable
+  */
+  if (get_flags(STMT_END_F))
+    status_var_increment(thd->status_var.com_stat[SQLCOM_INSERT]);
+
   /**
      todo: to introduce a property for the event (handler?) which forces
      applying the event in the replace (idempotent) fashion.
@@ -10383,9 +10431,15 @@ Rows_log_event::write_row(const Relay_log_info *const rli,
       DBUG_PRINT("info",("Locating offending record using ha_rnd_pos()"));
 
       if (table->file->inited && (error= table->file->ha_index_end()))
-        DBUG_RETURN(error);
+      {
+        table->file->print_error(error, MYF(0));
+        goto error;
+      }
       if ((error= table->file->ha_rnd_init(FALSE)))
-        DBUG_RETURN(error);
+      {
+        table->file->print_error(error, MYF(0));
+        goto error;
+      }
 
       error= table->file->ha_rnd_pos(table->record[1], table->file->dup_ref);
 
@@ -11240,14 +11294,20 @@ TABLE_SCAN:
 
       case HA_ERR_END_OF_FILE:
         if (++restart_count < 2)
-          table->file->ha_rnd_init(1);
+        {
+          if ((error= table->file->ha_rnd_init(1)))
+          {
+            table->file->print_error(error, MYF(0));
+            goto err;
+          }
+        }
         break;
 
       default:
         DBUG_PRINT("info", ("Failed to get next record"
                             " (ha_rnd_next returns %d)",error));
         table->file->print_error(error, MYF(0));
-        table->file->ha_rnd_end();
+        (void) table->file->ha_rnd_end();
         goto err;
       }
     }
@@ -11319,6 +11379,12 @@ Delete_rows_log_event::Delete_rows_log_event(const char *buf, uint event_len,
 int 
 Delete_rows_log_event::do_before_row_operations(const Slave_reporting_capability *const)
 {
+  /*
+    Increment the global status delete count variable
+   */
+  if (get_flags(STMT_END_F))
+    status_var_increment(thd->status_var.com_stat[SQLCOM_DELETE]);
+
   if (m_table->s->keys > 0)
   {
     // Allocate buffer for key searches
@@ -11432,6 +11498,12 @@ Update_rows_log_event::Update_rows_log_event(const char *buf, uint event_len,
 int 
 Update_rows_log_event::do_before_row_operations(const Slave_reporting_capability *const)
 {
+  /*
+    Increment the global status update count variable
+  */
+  if (get_flags(STMT_END_F))
+    status_var_increment(thd->status_var.com_stat[SQLCOM_UPDATE]);
+
   if (m_table->s->keys > 0)
   {
     // Allocate buffer for key searches

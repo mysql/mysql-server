@@ -2073,13 +2073,11 @@ public:
     mysql_mutex_destroy(&mutex);
     mysql_cond_destroy(&cond);
     mysql_cond_destroy(&cond_client);
-    thd.unlink();				// Must be unlinked under lock
+    remove_global_thread(&thd);         // Must be removed under lock
     my_free(table_list.table_name);
     thd.security_ctx->user= thd.security_ctx->host=0;
-    thread_count--;
     delayed_insert_threads--;
     mysql_mutex_unlock(&LOCK_thread_count);
-    mysql_cond_broadcast(&COND_thread_count); /* Tell main we are ready */
   }
 
   /* The following is for checking when we can delete ourselves */
@@ -2218,9 +2216,6 @@ bool delayed_get_table(THD *thd, MDL_request *grl_protection_request,
     {
       if (!(di= new Delayed_insert()))
         goto end_create;
-      mysql_mutex_lock(&LOCK_thread_count);
-      thread_count++;
-      mysql_mutex_unlock(&LOCK_thread_count);
       di->table_list= *table_list;			// Needed to open table
       /* Replace volatile strings with local copies */
       di->thd.set_db(table_list->db, (uint) strlen(table_list->db));
@@ -2703,7 +2698,7 @@ pthread_handler_t handle_delayed_insert(void *arg)
   mysql_mutex_lock(&LOCK_thread_count);
   thd->thread_id= thd->variables.pseudo_thread_id= thread_id++;
   thd->set_current_time();
-  threads.push_front(thd);
+  add_global_thread(thd);
   thd->killed=abort_loop ? THD::KILL_CONNECTION : THD::NOT_KILLED;
   mysql_mutex_unlock(&LOCK_thread_count);
 
@@ -3203,9 +3198,8 @@ bool Delayed_insert::handle_inserts(void)
   DBUG_RETURN(0);
 
  err:
-#ifndef DBUG_OFF
-  max_rows= 0;                                  // For DBUG output
-#endif
+  max_rows= 0;
+  mysql_mutex_lock(&mutex);
   /* Remove all not used rows */
   while ((row=rows.get()))
   {
@@ -3215,13 +3209,13 @@ bool Delayed_insert::handle_inserts(void)
       free_delayed_insert_blobs(table);
     }
     delete row;
-    thread_safe_increment(delayed_insert_errors,&LOCK_delayed_status);
     stacked_inserts--;
-#ifndef DBUG_OFF
     max_rows++;
-#endif
   }
+  mysql_mutex_unlock(&mutex);
   DBUG_PRINT("error", ("dropped %lu rows after an error", max_rows));
+  for (; max_rows > 0; max_rows--)
+    thread_safe_increment(delayed_insert_errors, &LOCK_delayed_status);
   thread_safe_increment(delayed_insert_errors, &LOCK_delayed_status);
   mysql_mutex_lock(&mutex);
   DBUG_RETURN(1);

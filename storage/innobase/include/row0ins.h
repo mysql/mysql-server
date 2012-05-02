@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2009, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2012, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -40,7 +40,7 @@ the caller must have a shared latch on dict_foreign_key_check_lock.
 @return DB_SUCCESS, DB_LOCK_WAIT, DB_NO_REFERENCED_ROW, or
 DB_ROW_IS_REFERENCED */
 UNIV_INTERN
-ulint
+dberr_t
 row_ins_check_foreign_constraint(
 /*=============================*/
 	ibool		check_ref,/*!< in: TRUE If we want to check that
@@ -52,7 +52,8 @@ row_ins_check_foreign_constraint(
 	dict_table_t*	table,	/*!< in: if check_ref is TRUE, then the foreign
 				table, else the referenced table */
 	dtuple_t*	entry,	/*!< in: index entry for index */
-	que_thr_t*	thr);	/*!< in: query thread */
+	que_thr_t*	thr)	/*!< in: query thread */
+	__attribute__((nonnull, warn_unused_result));
 /*********************************************************************//**
 Creates an insert node struct.
 @return	own: insert node struct */
@@ -80,7 +81,7 @@ performs the insert by updating or delete unmarking the delete marked
 record.
 @return	DB_SUCCESS, DB_LOCK_WAIT, DB_DUPLICATE_KEY, or some other error code */
 UNIV_INTERN
-ulint
+dberr_t
 row_ins_index_entry(
 /*================*/
 	dict_index_t*	index,	/*!< in: index */
@@ -88,13 +89,14 @@ row_ins_index_entry(
 	ulint		n_ext,	/*!< in: number of externally stored columns */
 	ibool		foreign,/*!< in: TRUE=check foreign key constraints
 				(foreign=FALSE only during CREATE INDEX) */
-	que_thr_t*	thr);	/*!< in: query thread */
+	que_thr_t*	thr)	/*!< in: query thread */
+	__attribute__((nonnull, warn_unused_result));
 /***************************************************************//**
 Tries to insert the externally stored fields (off-page columns)
 of a clustered index entry.
 @return DB_SUCCESS or DB_OUT_OF_FILE_SPACE */
 UNIV_INTERN
-ulint
+dberr_t
 row_ins_index_entry_big_rec_func(
 /*=============================*/
 	const dtuple_t*		entry,	/*!< in/out: index entry to insert */

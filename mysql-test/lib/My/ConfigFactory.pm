@@ -309,6 +309,16 @@ my @ndbd_rules=
 
 
 #
+# Rules to run for each memcached in the config
+#  - will be run in order listed here
+#
+my @memcached_rules=
+(
+ { '#host' => \&fix_host },
+ { 'port' => \&fix_port },
+);
+
+#
 # Rules to run for each cluster_config section
 #  - will be run in order listed here
 #
@@ -678,6 +688,10 @@ sub new_config {
 			   'mysqld.',
 			   @mysqld_rules);
 
+  $self->run_section_rules($config,
+			   'memcached.',
+			   @memcached_rules);
+               
   # [mysqlbinlog] need additional settings
   $self->run_rules_for_group($config,
 			     $config->insert('mysqlbinlog'),

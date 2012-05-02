@@ -680,10 +680,11 @@ PREPARE stmt FROM
  ALL((SELECT 1 FROM t1 JOIN t1 a
  ON (MATCH(t1.f1) against (""))
  WHERE t1.f1 GROUP BY t1.f1))';
-# See BUG#12888306. Correct result is one row with value 1.
 EXECUTE stmt;
 1
+1
 EXECUTE stmt;
+1
 1
 DEALLOCATE PREPARE stmt;
 DROP TABLE t1;

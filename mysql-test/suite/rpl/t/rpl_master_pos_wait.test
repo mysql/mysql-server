@@ -53,7 +53,7 @@ SELECT SQL_THREAD_WAIT_AFTER_GTIDS('error-gtid', 2);
 # SQL_THREAD_WAIT_AFTER_GTIDS: Check if it hangs when slave is 
 # idle and STOP SLAVE is issued.
 #
-send SELECT SQL_THREAD_WAIT_AFTER_GTIDS('7805be8e-51ab-11e1-bacc-6706c20ad7ba:1', 2);
+send SELECT SQL_THREAD_WAIT_AFTER_GTIDS('7805be8e-51ab-11e1-bacc-6706c20ad7ba:1', 0);
 --connection slave1
 STOP SLAVE SQL_THREAD;
 --connection slave

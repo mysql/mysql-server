@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2012, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -4169,7 +4169,8 @@ static void end_stage_v1()
 
 static PSI_statement_locker*
 get_thread_statement_locker_v1(PSI_statement_locker_state *state,
-                               PSI_statement_key key)
+                               PSI_statement_key key,
+                               const void *charset)
 {
   DBUG_ASSERT(state != NULL);
   if (! flag_global_instrumentation)
@@ -4269,6 +4270,7 @@ get_thread_statement_locker_v1(PSI_statement_locker_state *state,
     flags|= STATE_FLAG_DIGEST;
     state->m_digest_state.m_last_id_index= 0;
     digest_reset(& state->m_digest_state.m_digest_storage);
+    state->m_digest_state.m_digest_storage.m_charset= charset;
   }
 
   state->m_discarded= false;
@@ -4567,10 +4569,7 @@ static void end_statement_v1(PSI_statement_locker *locker, void *stmt_da)
     if (flags & STATE_FLAG_DIGEST)
     {
       digest_storage= &state->m_digest_state.m_digest_storage;
-
-      /* 
-        Populate PFS_statements_digest_stat with computed digest information.
-      */
+      /* Populate PFS_statements_digest_stat with computed digest information.*/
       digest_stat= find_or_create_digest(thread, digest_storage);
     }
 
@@ -4637,10 +4636,7 @@ static void end_statement_v1(PSI_statement_locker *locker, void *stmt_da)
       {
         /* Set digest stat. */
         digest_storage= &state->m_digest_state.m_digest_storage;
-
-        /* 
-          Populate PFS_statements_digest_stat with computed digest information.
-        */
+        /* Populate statements_digest_stat with computed digest information. */
         digest_stat= find_or_create_digest(thread, digest_storage);
       }
     }

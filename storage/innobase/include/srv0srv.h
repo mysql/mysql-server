@@ -248,6 +248,7 @@ extern ulint	srv_fast_shutdown;	/*!< If this is 1, do not do a
 extern ibool	srv_innodb_status;
 
 extern unsigned long long	srv_stats_transient_sample_pages;
+extern my_bool			srv_stats_persistent;
 extern unsigned long long	srv_stats_persistent_sample_pages;
 
 extern ibool	srv_use_doublewrite_buf;
@@ -312,6 +313,7 @@ extern	ibool	srv_print_latch_waits;
 #endif /* UNIV_DEBUG */
 
 extern ulint	srv_fatal_semaphore_wait_threshold;
+#define SRV_SEMAPHORE_WAIT_EXTENSION	7200
 extern ulint	srv_dml_needed_delay;
 
 #ifndef HAVE_ATOMIC_BUILTINS
@@ -501,10 +503,9 @@ enum srv_thread_type {
 };
 
 /*********************************************************************//**
-Boots Innobase server.
-@return	DB_SUCCESS or error code */
+Boots Innobase server. */
 UNIV_INTERN
-ulint
+void
 srv_boot(void);
 /*==========*/
 /*********************************************************************//**

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2011, 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2011, 2012, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -30,7 +30,7 @@ Created April 08, 2011 Vasil Dimov
 
 #include "buf0buf.h" /* buf_pool_mutex_enter(), srv_buf_pool_instances */
 #include "buf0dump.h"
-#include "db0err.h" /* enum db_err */
+#include "db0err.h"
 #include "dict0dict.h" /* dict_operation_lock */
 #include "os0file.h" /* OS_FILE_MAX_PATH */
 #include "os0sync.h" /* os_event* */

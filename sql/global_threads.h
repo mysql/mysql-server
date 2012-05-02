@@ -16,13 +16,39 @@
 #ifndef GLOBAL_THREADS_INCLUDED
 #define GLOBAL_THREADS_INCLUDED
 
-/*
-  TODO: Make a proper interface for keeping track of global threads.
- */
-#include "sql_list.h"
-#include "sql_class.h"
+#include <my_global.h>
+#include <my_pthread.h>
+#include <set>
 
-extern I_List<THD> threads;
-extern uint volatile thread_count;
+class THD;
+
+extern mysql_mutex_t LOCK_thread_count;
+extern mysql_cond_t COND_thread_count;
+
+/*
+  We maintail a set of all registered threads.
+  We provide acccessors to iterate over all threads.
+
+  We also provide mutators for inserting, and removing an element:
+  add_global_thread() inserts a THD into the set, and increments the counter.
+  remove_global_thread() removes a THD from the set, and decrements the counter.
+  remove_global_thread() also broadcasts COND_thread_count.
+
+  All functions must be called with LOCK_thread_count.
+ */
+typedef std::set<THD*>::iterator Thread_iterator;
+Thread_iterator global_thread_list_begin();
+Thread_iterator global_thread_list_end();
+void add_global_thread(THD *);
+void remove_global_thread(THD *);
+
+/*
+  We maintain a separate counter for the number of threads,
+  which can be accessed without LOCK_thread_count.
+  An un-locked read, means that the result is fuzzy of course.
+  This accessor is used by DBUG printing, by signal handlers,
+  and by the 'mysqladmin status' command.
+*/
+uint get_thread_count();
 
 #endif  // GLOBAL_THREADS_INCLUDED

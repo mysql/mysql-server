@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2012, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -146,8 +146,8 @@ trx_create(void)
 	trx->lock.table_locks = ib_vector_create(
 		heap_alloc, sizeof(void**), 32);
 
-	/* For non-locking selects we avoid calling ut_time() too frequently.
-	Set the time here for new transactions. */
+	/* Avoid calling ut_time() too frequently. Set the time here
+	for new transactions. */
 	trx->start_time = ut_time();
 
 	return(trx);
@@ -205,6 +205,7 @@ trx_free(
 	ut_a(trx->magic_n == TRX_MAGIC_N);
 	ut_ad(!trx->in_ro_trx_list);
 	ut_ad(!trx->in_rw_trx_list);
+	ut_ad(!trx->in_mysql_trx_list);
 
 	mutex_free(&trx->undo_mutex);
 
@@ -692,9 +693,8 @@ trx_start_low(
 /*==========*/
 	trx_t*	trx)		/*!< in: transaction */
 {
-	static ulint	n_start_times;
-
 	ut_ad(trx->rseg == NULL);
+	ut_ad(trx->start_time != 0);
 
 	ut_ad(!trx->is_recovered);
 	ut_ad(trx_state_eq(trx, TRX_STATE_NOT_STARTED));
@@ -714,12 +714,6 @@ trx_start_low(
 	if (!trx->read_only) {
 		trx->rseg = trx_assign_rseg_low(
 			srv_undo_logs, srv_undo_tablespaces);
-	}
-
-	/* Avoid making an unnecessary system call, for non-locking
-	auto-commit selects we reuse the start_time for every 32  starts. */
-	if (!trx_is_autocommit_non_locking(trx) || !(n_start_times++ % 32)) {
-		trx->start_time = ut_time();
 	}
 
 	/* The initial value for trx->no: IB_ULONGLONG_MAX is used in
@@ -767,6 +761,12 @@ trx_start_low(
 	ut_ad(trx_sys_validate_trx_list());
 
 	mutex_exit(&trx_sys->mutex);
+
+	/* Avoid making an unnecessary system call, we reuse the start_time
+	for every 32  starts. */
+	if (!(trx->id % 32)) {
+		trx->start_time = ut_time();
+	}
 
 	MONITOR_INC(MONITOR_TRX_ACTIVE);
 }
@@ -1060,6 +1060,8 @@ trx_commit(
 
 		trx->state = TRX_STATE_NOT_STARTED;
 
+		read_view_remove(trx->global_read_view, false);
+
 		MONITOR_INC(MONITOR_TRX_NL_RO_COMMIT);
 	} else {
 		lock_trx_release_locks(trx);
@@ -1091,13 +1093,16 @@ trx_commit(
 
 		trx->state = TRX_STATE_NOT_STARTED;
 
+		/* We already own the trx_sys_t::mutex, by doing it here we
+		avoid a potential context switch later. */
+		read_view_remove(trx->global_read_view, true);
+
 		ut_ad(trx_sys_validate_trx_list());
 
 		mutex_exit(&trx_sys->mutex);
 	}
 
 	if (trx->global_read_view != NULL) {
-		read_view_remove(trx->global_read_view);
 
 		mem_heap_empty(trx->global_read_view_heap);
 
@@ -1380,7 +1385,7 @@ trx_commit_step(
 Does the transaction commit for MySQL.
 @return	DB_SUCCESS or error number */
 UNIV_INTERN
-ulint
+dberr_t
 trx_commit_for_mysql(
 /*=================*/
 	trx_t*	trx)	/*!< in/out: transaction */
@@ -1946,12 +1951,12 @@ trx_recover_for_mysql(
 	if (count > 0){
 		ut_print_timestamp(stderr);
 		fprintf(stderr,
-			"  InnoDB: %lu transactions in prepared state"
+			"  InnoDB: %d transactions in prepared state"
 			" after recovery\n",
-			(ulong) count);
+			int (count));
 	}
 
-	return ((int) count);
+	return(int (count));
 }
 
 /*******************************************************************//**

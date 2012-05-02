@@ -446,7 +446,8 @@ static void end_stage_noop(void)
 
 static PSI_statement_locker*
 get_thread_statement_locker_noop(PSI_statement_locker_state *state NNN,
-                                 PSI_statement_key key NNN)
+                                 PSI_statement_key key NNN,
+                                 const void *charset NNN)
 {
   return NULL;
 }

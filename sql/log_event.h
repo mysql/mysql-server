@@ -269,6 +269,7 @@ struct sql_ex_info
 #define INCIDENT_HEADER_LEN    2
 #define HEARTBEAT_HEADER_LEN   0
 #define IGNORABLE_HEADER_LEN   0
+#define RESERVED_HEADER_LEN    0
 
 /*
    The maximum number of updated databases that a status of
@@ -691,10 +692,15 @@ enum Log_event_type
   IGNORABLE_LOG_EVENT= 28,
   ROWS_QUERY_LOG_EVENT= 29,
 
-  GTID_LOG_EVENT= 30,
-  ANONYMOUS_GTID_LOG_EVENT= 31,
+  /* Following event numbers reserved for WL#5917 */
+  RESERVED_EVENT_NUM_1 = 30,
+  RESERVED_EVENT_NUM_2 = 31,
+  RESERVED_EVENT_NUM_3 = 32,
 
-  PREVIOUS_GTIDS_LOG_EVENT= 32,
+  GTID_LOG_EVENT= 33,
+  ANONYMOUS_GTID_LOG_EVENT= 34,
+
+  PREVIOUS_GTIDS_LOG_EVENT= 35,
   /*
     Add new events here - right above this comment!
     Existing events (except ENUM_END_EVENT) should never change their numbers
@@ -4547,6 +4553,14 @@ private:
   const char* log_ident;
   uint ident_len;
 };
+
+/**
+   The function is called by slave applier in case there are
+   active table filtering rules to force gathering events associated
+   with Query-log-event into an array to execute
+   them once the fate of the Query is determined for execution.
+*/
+bool slave_execute_deferred_events(THD *thd);
 #endif
 
 int append_query_string(THD *thd, const CHARSET_INFO *csinfo,

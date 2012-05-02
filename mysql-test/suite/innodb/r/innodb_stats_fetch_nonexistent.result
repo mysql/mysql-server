@@ -1,0 +1,27 @@
+CREATE TABLE test_ps_fetch_nonexistent
+(a INT, PRIMARY KEY (a))
+ENGINE=INNODB STATS_PERSISTENT=1;
+ANALYZE TABLE test_ps_fetch_nonexistent;
+Table	test.test_ps_fetch_nonexistent
+Op	analyze
+Msg_type	status
+Msg_text	OK
+SELECT COUNT(*)
+FROM mysql.innodb_table_stats WHERE table_name = 'test_ps_fetch_nonexistent';
+COUNT(*)	1
+DELETE FROM mysql.innodb_index_stats WHERE table_name = 'test_ps_fetch_nonexistent';
+DELETE FROM mysql.innodb_table_stats WHERE table_name = 'test_ps_fetch_nonexistent';
+FLUSH TABLE test_ps_fetch_nonexistent;
+SELECT seq_in_index, column_name, cardinality
+FROM information_schema.statistics WHERE table_name = 'test_ps_fetch_nonexistent'
+ORDER BY index_name, seq_in_index;
+seq_in_index	1
+column_name	a
+cardinality	0
+SELECT table_rows, avg_row_length, max_data_length, index_length
+FROM information_schema.tables WHERE table_name = 'test_ps_fetch_nonexistent';
+table_rows	0
+avg_row_length	0
+max_data_length	0
+index_length	0
+DROP TABLE test_ps_fetch_nonexistent;

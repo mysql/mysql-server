@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2012, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -184,7 +184,7 @@ dict_print(void)
 
 	os_increment_counter_by_amount(
 		server_mutex,
-		srv_fatal_semaphore_wait_threshold, 7200/*2 hours*/);
+		srv_fatal_semaphore_wait_threshold, SRV_SEMAPHORE_WAIT_EXTENSION);
 
 	heap = mem_heap_create(1000);
 	mutex_enter(&(dict_sys->mutex));
@@ -222,7 +222,7 @@ dict_print(void)
 	/* Restore the fatal semaphore wait timeout */
 	os_decrement_counter_by_amount(
 		server_mutex,
-		srv_fatal_semaphore_wait_threshold, 7200/*2 hours*/);
+		srv_fatal_semaphore_wait_threshold, SRV_SEMAPHORE_WAIT_EXTENSION);
 }
 
 /********************************************************************//**
@@ -369,7 +369,16 @@ dict_process_sys_tables_rec_and_mtr_commit(
 		/* Update statistics member fields in *table if
 		DICT_TABLE_UPDATE_STATS is set */
 		ut_ad(mutex_own(&dict_sys->mutex));
-		dict_stats_update(*table, DICT_STATS_FETCH, TRUE);
+
+		dict_stats_upd_option_t	opt;
+
+		if (dict_stats_is_persistent_enabled(*table)) {
+			opt = DICT_STATS_FETCH_ONLY_IF_NOT_IN_MEMORY;
+		} else {
+			opt = DICT_STATS_RECALC_TRANSIENT;
+		}
+
+		dict_stats_update(*table, opt, TRUE);
 	}
 
 	return(NULL);
@@ -1195,7 +1204,7 @@ dict_load_fields(
 	byte*		buf;
 	ulint		i;
 	mtr_t		mtr;
-	ulint		error;
+	dberr_t		error;
 
 	ut_ad(mutex_own(&(dict_sys->mutex)));
 
@@ -1395,8 +1404,8 @@ Loads definitions for table indexes. Adds them to the data dictionary
 cache.
 @return DB_SUCCESS if ok, DB_CORRUPTION if corruption of dictionary
 table or DB_UNSUPPORTED if table has unknown index type */
-static
-ulint
+static __attribute__((nonnull))
+dberr_t
 dict_load_indexes(
 /*==============*/
 	dict_table_t*	table,	/*!< in/out: table */
@@ -1413,7 +1422,7 @@ dict_load_indexes(
 	const rec_t*	rec;
 	byte*		buf;
 	mtr_t		mtr;
-	ulint		error = DB_SUCCESS;
+	dberr_t		error = DB_SUCCESS;
 
 	ut_ad(mutex_own(&(dict_sys->mutex)));
 
@@ -1781,7 +1790,7 @@ dict_load_table(
 	const rec_t*	rec;
 	const byte*	field;
 	ulint		len;
-	ulint		err;
+	dberr_t		err;
 	const char*	err_msg;
 	mtr_t		mtr;
 
@@ -2020,6 +2029,7 @@ dict_load_table_on_id(
 	sys_table_ids = dict_table_get_next_index(
 		dict_table_get_first_index(sys_tables));
 	ut_ad(!dict_table_is_comp(sys_tables));
+	ut_ad(!dict_index_is_clust(sys_table_ids));
 	heap = mem_heap_create(256);
 
 	tuple  = dtuple_create(heap, 1);
@@ -2183,8 +2193,8 @@ dict_load_foreign_cols(
 /***********************************************************************//**
 Loads a foreign key constraint to the dictionary cache.
 @return	DB_SUCCESS or error code */
-static
-ulint
+static __attribute__((nonnull, warn_unused_result))
+dberr_t
 dict_load_foreign(
 /*==============*/
 	const char*	id,	/*!< in: foreign constraint id, not
@@ -2372,7 +2382,7 @@ cache already contains all constraints where the other relevant table is
 already in the dictionary cache.
 @return	DB_SUCCESS or error code */
 UNIV_INTERN
-ulint
+dberr_t
 dict_load_foreigns(
 /*===============*/
 	const char*	table_name,	/*!< in: table name */
@@ -2390,7 +2400,7 @@ dict_load_foreigns(
 	const rec_t*	rec;
 	const byte*	field;
 	ulint		len;
-	ulint		err;
+	dberr_t		err;
 	mtr_t		mtr;
 
 	ut_ad(mutex_own(&(dict_sys->mutex)));
@@ -2415,6 +2425,7 @@ dict_load_foreigns(
 
 	sec_index = dict_table_get_next_index(
 		dict_table_get_first_index(sys_foreign));
+	ut_ad(!dict_index_is_clust(sec_index));
 start_load:
 
 	tuple = dtuple_create_from_mem(tuple_buf, sizeof(tuple_buf), 1);

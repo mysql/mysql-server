@@ -309,7 +309,13 @@ public:
      thread is running).
    */
   enum {UNTIL_NONE= 0, UNTIL_MASTER_POS, UNTIL_RELAY_POS,
-        UNTIL_SQL_BEFORE_GTIDS, UNTIL_SQL_AFTER_GTIDS} until_condition;
+        UNTIL_SQL_BEFORE_GTIDS, UNTIL_SQL_AFTER_GTIDS,
+        UNTIL_SQL_AFTER_MTS_GAPS
+#ifndef DBUG_OFF
+        , UNTIL_DONE
+#endif
+}
+    until_condition;
   char until_log_name[FN_REFLEN];
   ulonglong until_log_pos;
   /* extension extracted from log_name and converted to int */
@@ -460,6 +466,19 @@ public:
     The timestamp is set and reset in @c sql_slave_killed().
   */
   time_t last_event_start_time;
+  /*
+    A container to hold on Intvar-, Rand-, Uservar- log-events in case
+    the slave is configured with table filtering rules.
+    The withhold events are executed when their parent Query destiny is
+    determined for execution as well.
+  */
+  Deferred_log_events *deferred_events;
+
+  /*
+    State of the container: true stands for IRU events gathering, 
+    false does for execution, either deferred or direct.
+  */
+  bool deferred_events_collecting;
 
   /*****************************************************************************
     WL#5569 MTS
@@ -512,6 +531,7 @@ public:
   uint checkpoint_seqno;  // counter of groups executed after the most recent CP
   uint checkpoint_group;  // cache for ::opt_mts_checkpoint_group 
   MY_BITMAP recovery_groups;  // bitmap used during recovery
+  bool recovery_groups_inited;
   ulong mts_recovery_group_cnt; // number of groups to execute at recovery
   ulong mts_recovery_index;     // running index of recoverable groups
   bool mts_recovery_group_seen_begin;
@@ -623,10 +643,35 @@ public:
   */
   void reset_notified_checkpoint(ulong, time_t, bool);
 
+  /**
+     Called when gaps execution is ended so it is crash-safe
+     to reset the last session Workers info.
+  */
+  bool mts_finalize_recovery();
   /*
    * End of MTS section ******************************************************/
 
-
+  /* 
+     Returns true if the argument event resides in the containter;
+     more specifically, the checking is done against the last added event.
+  */
+  bool is_deferred_event(Log_event * ev)
+  {
+    return deferred_events_collecting ? deferred_events->is_last(ev) : false;
+  };
+  /* The general cleanup that slave applier may need at the end of query. */
+  inline void cleanup_after_query()
+  {
+    if (deferred_events)
+      deferred_events->rewind();
+  };
+  /* The general cleanup that slave applier may need at the end of session. */
+  void cleanup_after_session()
+  {
+    if (deferred_events)
+      delete deferred_events;
+  };
+   
   /**
     Helper function to do after statement completion.
 
