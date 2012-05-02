@@ -1169,6 +1169,11 @@ class Item_func_last_day :public Item_date
 {
 public:
   Item_func_last_day(Item *a) :Item_date(a) {}
+  void fix_length_and_dec()
+  {
+    Item_date::fix_length_and_dec();
+    maybe_null= 1;
+  }
   const char *func_name() const { return "last_day"; }
   bool get_date(MYSQL_TIME *res, uint fuzzy_date);
 };

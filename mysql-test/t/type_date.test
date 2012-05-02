@@ -26,6 +26,13 @@ INSERT INTO t2 VALUES ('1998-01-02','note02');
 select name,t1.cdate,note from t1,t2 where t1.cdate=t2.cdate and t1.cdate='1998-01-01';
 drop table t1,t2;
 
+# MariaDB lp:993103. WHERE LAST_DAY(zero_date) IS NULL does not evaluate to TRUE.
+
+CREATE TABLE t1(a INT);
+INSERT INTO t1 VALUES(1);
+SELECT * FROM t1 WHERE LAST_DAY('0000-00-00 00:00:00') IS NULL;
+DROP TABLE t1;
+
 #
 # Date and BETWEEN
 #
