@@ -221,8 +221,7 @@ Quick test of ndb-log-empty-epochs = 1
 --------------------------------------
 select * from mysql.ndb_binlog_index order by epoch;
 Position	File	epoch	inserts	updates	deletes	schemaops	orig_server_id	orig_epoch	gci	next_position	next_file
-show binlog events from <binlog_start>;
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+include/show_binlog_events.inc
 show variables like 'ndb_log_empty_epochs';
 Variable_name	Value
 ndb_log_empty_epochs	OFF
@@ -249,7 +248,6 @@ bi1.Position != bi2.Position OR
 bi1.File != bi2.File;
 epoch	Position	File	next_position	next_file	epoch	Position	File	next_position	next_file
 Show that we have no epochs in the Binlog
-show binlog events from <binlog_start>;
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+include/show_binlog_events.inc
 Disable
 set global ndb_log_empty_epochs=0;
