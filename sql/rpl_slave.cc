@@ -6993,17 +6993,9 @@ static Log_event* next_event(Relay_log_info* rli)
           }
           else
           {
-            if (rli->mts_group_status != Relay_log_info::MTS_IN_GROUP)
-            {
-              /*
-                Before to let the current relay log be purged Workers
-                have to finish off their current assignments.
-              */
-              (void) wait_for_workers_to_finish(rli);
-              rli->sql_force_rotate_relay= true;
-            }
+            rli->sql_force_rotate_relay=
+              (rli->mts_group_status != Relay_log_info::MTS_IN_GROUP);
           }
-
           /* ask for one more event */
           rli->ignore_log_space_limit= true;
         }

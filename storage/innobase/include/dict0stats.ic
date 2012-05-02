@@ -51,11 +51,11 @@ dict_stats_set_persistent(
 	ib_uint32_t	stat_persistent = 0;
 
 	if (ps_on) {
-		stat_persistent |= DICT_STAT_PERSISTEN_ON;
+		stat_persistent |= DICT_STATS_PERSISTENT_ON;
 	}
 
 	if (ps_off) {
-		stat_persistent |= DICT_STAT_PERSISTEN_OFF;
+		stat_persistent |= DICT_STATS_PERSISTENT_OFF;
 	}
 
 	/* we rely on this assignment to be atomic */
@@ -91,10 +91,10 @@ dict_stats_is_persistent_enabled(
 	/* we rely on this read to be atomic */
 	ib_uint32_t	stat_persistent = table->stat_persistent;
 
-	if (stat_persistent & DICT_STAT_PERSISTEN_ON) {
-		ut_ad(!(stat_persistent & DICT_STAT_PERSISTEN_OFF));
+	if (stat_persistent & DICT_STATS_PERSISTENT_ON) {
+		ut_ad(!(stat_persistent & DICT_STATS_PERSISTENT_OFF));
 		return(TRUE);
-	} else if (stat_persistent & DICT_STAT_PERSISTEN_OFF) {
+	} else if (stat_persistent & DICT_STATS_PERSISTENT_OFF) {
 		return(FALSE);
 	} else {
 		return(srv_stats_persistent);

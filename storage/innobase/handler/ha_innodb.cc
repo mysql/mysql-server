@@ -5883,6 +5883,10 @@ ha_innobase::build_template(
 
 	prebuilt->need_to_access_clustered = (index == clust_index);
 
+	/* Either prebuilt->index should be a secondary index, or it
+	should be the clustered index. */
+	ut_ad(dict_index_is_clust(index) == (index == clust_index));
+
 	/* Below we check column by column if we need to access
 	the clustered index. */
 
@@ -6349,6 +6353,7 @@ no_commit:
 	innobase_srv_conc_enter_innodb(prebuilt->trx);
 
 	error = row_insert_for_mysql((byte*) record, prebuilt);
+	DEBUG_SYNC(user_thd, "ib_after_row_insert");
 
 	/* Handle duplicate key errors */
 	if (auto_inc_used) {
@@ -7361,7 +7366,7 @@ ha_innobase::change_active_index(
 				"InnoDB: Index %s for table %s is"
 				" marked as corrupted",
 				index_name, table_name);
-			DBUG_RETURN(1);
+			DBUG_RETURN(HA_ERR_INDEX_CORRUPT);
 		} else {
 			push_warning_printf(
 				user_thd, Sql_condition::WARN_LEVEL_WARN,
@@ -7372,7 +7377,7 @@ ha_innobase::change_active_index(
 
 		/* The caller seems to ignore this.  Thus, we must check
 		this again in row_search_for_mysql(). */
-		DBUG_RETURN(2);
+		DBUG_RETURN(HA_ERR_TABLE_DEF_CHANGED);
 	}
 
 	ut_a(prebuilt->search_tuple != 0);
@@ -9504,20 +9509,21 @@ innobase_drop_database(
 }
 /*********************************************************************//**
 Renames an InnoDB table.
-@return	DB_SUCCESS or error code */
-static
+@return DB_SUCCESS or error code */
+static __attribute__((nonnull, warn_unused_result))
 dberr_t
 innobase_rename_table(
 /*==================*/
 	trx_t*		trx,	/*!< in: transaction */
 	const char*	from,	/*!< in: old name of the table */
-	const char*	to,	/*!< in: new name of the table */
-	ibool		lock_and_commit)
-				/*!< in: TRUE=lock data dictionary and commit */
+	const char*	to)	/*!< in: new name of the table */
 {
 	dberr_t	error;
 	char*	norm_to;
 	char*	norm_from;
+
+	DBUG_ENTER("innobase_rename_table");
+	DBUG_ASSERT(trx_get_dict_operation(trx) == TRX_DICT_OP_INDEX);
 
 	// Magic number 64 arbitrary
 	norm_to = (char*) my_malloc(strlen(to) + 64, MYF(0));
@@ -9529,9 +9535,7 @@ innobase_rename_table(
 	/* Serialize data dictionary operations with dictionary mutex:
 	no deadlocks can occur then in these operations */
 
-	if (lock_and_commit) {
-		row_mysql_lock_data_dictionary(trx);
-	}
+	row_mysql_lock_data_dictionary(trx);
 
 	/* Transaction must be flagged as a locking transaction or it hasn't
 	been started yet. */
@@ -9539,7 +9543,7 @@ innobase_rename_table(
 	ut_a(trx->will_lock > 0);
 
 	error = row_rename_table_for_mysql(
-		norm_from, norm_to, trx, lock_and_commit);
+		norm_from, norm_to, trx, TRUE);
 
 	if (error != DB_SUCCESS) {
 		if (error == DB_TABLE_NOT_FOUND
@@ -9571,8 +9575,7 @@ innobase_rename_table(
 							 from, FALSE);
 #endif
 				error = row_rename_table_for_mysql(
-					par_case_name, norm_to, trx,
-					lock_and_commit);
+					par_case_name, norm_to, trx, TRUE);
 
 			}
 		}
@@ -9605,20 +9608,18 @@ innobase_rename_table(
 		}
 	}
 
-	if (lock_and_commit) {
-		row_mysql_unlock_data_dictionary(trx);
+	row_mysql_unlock_data_dictionary(trx);
 
-		/* Flush the log to reduce probability that the .frm
-		files and the InnoDB data dictionary get out-of-sync
-		if the user runs with innodb_flush_log_at_trx_commit = 0 */
+	/* Flush the log to reduce probability that the .frm
+	files and the InnoDB data dictionary get out-of-sync
+	if the user runs with innodb_flush_log_at_trx_commit = 0 */
 
-		log_buffer_flush_to_disk();
-	}
+	log_buffer_flush_to_disk();
 
 	my_free(norm_to);
 	my_free(norm_from);
 
-	return(error);
+	DBUG_RETURN(error);
 }
 
 /*********************************************************************//**
@@ -9650,15 +9651,11 @@ ha_innobase::rename_table(
 
 	trx = innobase_trx_allocate(thd);
 
-	/* Either the transaction is already flagged as a locking transaction
-	or it hasn't been started yet. */
-
-	ut_a(!trx_is_started(trx) || trx->will_lock > 0);
-
 	/* We are doing a DDL operation. */
 	++trx->will_lock;
+	trx_set_dict_operation(trx, TRX_DICT_OP_INDEX);
 
-	error = innobase_rename_table(trx, from, to, TRUE);
+	error = innobase_rename_table(trx, from, to);
 
 	DEBUG_SYNC(thd, "after_innobase_rename_table");
 
@@ -9822,10 +9819,10 @@ ha_rows
 ha_innobase::estimate_rows_upper_bound()
 /*====================================*/
 {
-	dict_index_t*	index;
-	ulonglong	estimate;
-	ulonglong	local_data_file_length;
-	ulint		stat_n_leaf_pages;
+	const dict_index_t*	index;
+	ulonglong		estimate;
+	ulonglong		local_data_file_length;
+	ulint			stat_n_leaf_pages;
 
 	DBUG_ENTER("estimate_rows_upper_bound");
 
@@ -9835,8 +9832,7 @@ ha_innobase::estimate_rows_upper_bound()
 
 	update_thd(ha_thd());
 
-	prebuilt->trx->op_info = (char*)
-				 "calculating upper bound for table rows";
+	prebuilt->trx->op_info = "calculating upper bound for table rows";
 
 	/* In case MySQL calls this in the middle of a SELECT query, release
 	possible adaptive hash latch to avoid deadlocks of threads */
@@ -9852,16 +9848,15 @@ ha_innobase::estimate_rows_upper_bound()
 	local_data_file_length =
 		((ulonglong) stat_n_leaf_pages) * UNIV_PAGE_SIZE;
 
-
 	/* Calculate a minimum length for a clustered index record and from
 	that an upper bound for the number of rows. Since we only calculate
 	new statistics in row0mysql.cc when a table has grown by a threshold
 	factor, we must add a safety factor 2 in front of the formula below. */
 
-	estimate = 2 * local_data_file_length /
-					 dict_index_calc_min_rec_len(index);
+	estimate = 2 * local_data_file_length
+		/ dict_index_calc_min_rec_len(index);
 
-	prebuilt->trx->op_info = (char*)"";
+	prebuilt->trx->op_info = "";
 
 	DBUG_RETURN((ha_rows) estimate);
 }
@@ -10114,7 +10109,7 @@ ha_innobase::info(
 {
 	dict_table_t*	ib_table;
 	ha_rows		rec_per_key;
-	ib_int64_t	n_rows;
+	ib_uint64_t	n_rows;
 	char		path[FN_REFLEN];
 	os_file_stat_t	stat_info;
 
@@ -10209,10 +10204,7 @@ ha_innobase::info(
 			dict_table_stats_unlock(ib_table, RW_S_LATCH);
 		}
 
-		/* Because we do not protect stat_n_rows by any mutex in a
-		delete, it is theoretically possible that the value can be
-		smaller than zero! TODO: fix this race.
-
+		/*
 		The MySQL optimizer seems to assume in a left join that n_rows
 		is an accurate estimate if it is zero. Of course, it is not,
 		since we do not have any locks on the rows yet at this phase.
@@ -10221,10 +10213,6 @@ ha_innobase::info(
 		set that flag, we add one to a zero value if the flag is not
 		set. That way SHOW TABLE STATUS will show the best estimate,
 		while the optimizer never sees the table empty. */
-
-		if (n_rows < 0) {
-			n_rows = 0;
-		}
 
 		if (n_rows == 0 && !(flag & HA_STATUS_TIME)) {
 			n_rows++;
@@ -10610,7 +10598,7 @@ ha_innobase::check(
 	/* Enlarge the fatal lock wait timeout during CHECK TABLE. */
 	os_increment_counter_by_amount(
 		server_mutex,
-		srv_fatal_semaphore_wait_threshold, 7200/*2 hours*/);
+		srv_fatal_semaphore_wait_threshold, SRV_SEMAPHORE_WAIT_EXTENSION);
 
 	for (index = dict_table_get_first_index(prebuilt->table);
 	     index != NULL;
@@ -10754,7 +10742,7 @@ ha_innobase::check(
 	/* Restore the fatal lock wait timeout after CHECK TABLE. */
 	os_decrement_counter_by_amount(
 		server_mutex,
-		srv_fatal_semaphore_wait_threshold, 7200/*2 hours*/);
+		srv_fatal_semaphore_wait_threshold, SRV_SEMAPHORE_WAIT_EXTENSION);
 
 	prebuilt->trx->op_info = "";
 	if (thd_killed(user_thd)) {

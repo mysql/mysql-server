@@ -1502,14 +1502,12 @@ bool mysql_change_db(THD *thd, const LEX_STRING *new_db_name, bool force_switch)
     in this case to be sure.
   */
 
-  if (check_and_convert_db_name(&new_db_file_name, FALSE))
+  if (check_and_convert_db_name(&new_db_file_name, FALSE) != IDENT_NAME_OK)
   {
-    my_error(ER_WRONG_DB_NAME, MYF(0), new_db_file_name.str);
     my_free(new_db_file_name.str);
 
     if (force_switch)
       mysql_change_db_impl(thd, NULL, 0, thd->variables.collation_server);
-
     DBUG_RETURN(TRUE);
   }
 
