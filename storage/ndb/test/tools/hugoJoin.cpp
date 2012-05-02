@@ -209,7 +209,7 @@ int main(int argc, char** argv){
       }
       else
       {
-        res = hq.runLookupQuery(&MyNdb, _records, _batch);
+        res = hq.runLookupQuery(&MyNdb, _records/_depth, _batch);
       }
       if (res != 0)
       {
