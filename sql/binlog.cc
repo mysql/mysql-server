@@ -1173,9 +1173,9 @@ static int binlog_rollback(handlerton *hton, THD *thd, bool all)
 
 
 bool
-Thread_queue::Inner::append(THD *first)
+Stage_manager::Mutex_queue::append(THD *first)
 {
-  DBUG_ENTER("Thread_queue::Inner::append");
+  DBUG_ENTER("Stage_manager::Mutex_queue::append");
   lock();
   DBUG_PRINT("enter", ("first: 0x%llx", (ulonglong) first));
   DBUG_PRINT("info", ("m_first: 0x%llx, &m_first: 0x%llx, m_last: 0x%llx",
@@ -1205,9 +1205,9 @@ Thread_queue::Inner::append(THD *first)
 
 
 std::pair<bool, THD*>
-Thread_queue::Inner::pop_front()
+Stage_manager::Mutex_queue::pop_front()
 {
-  DBUG_ENTER("Thread_queue::Inner::pop_front");
+  DBUG_ENTER("Stage_manager::Mutex_queue::pop_front");
   lock();
   THD *result= m_first;
   bool more= true;
@@ -1233,15 +1233,19 @@ Thread_queue::Inner::pop_front()
 
 
 bool
-Thread_queue::append(StageID stage, THD *thd, bool wait_if_follower)
+Stage_manager::enroll_for(StageID stage, THD *thd, mysql_mutex_t *stage_mutex)
 {
   // If the queue was empty: we're the leader for this batch
   DBUG_PRINT("debug", ("Enqueue 0x%llx to queue for stage %d",
                        (ulonglong) thd, stage));
   bool leader= m_queue[stage].append(thd);
 
-  if (!wait_if_follower)
-    return leader;
+  /*
+    The stage mutex can be NULL if we are enrolling for the first
+    stage.
+  */
+  if (stage_mutex)
+    mysql_mutex_unlock(stage_mutex);
 
   /*
     If the queue was not empty, we're a follower and wait for the
@@ -1250,18 +1254,18 @@ Thread_queue::append(StageID stage, THD *thd, bool wait_if_follower)
   */
   if (!leader)
   {
-    mysql_mutex_lock(&m_lock);
+    mysql_mutex_lock(&m_lock_done);
     while (thd->transaction.flags.pending)
-      mysql_cond_wait(&m_cond, &m_lock);
-    mysql_mutex_unlock(&m_lock);
+      mysql_cond_wait(&m_cond_done, &m_lock_done);
+    mysql_mutex_unlock(&m_lock_done);
   }
   return leader;
 }
 
 
-THD *Thread_queue::Inner::fetch_and_empty()
+THD *Stage_manager::Mutex_queue::fetch_and_empty()
 {
-  DBUG_ENTER("Thread_queue::Inner::fetch_and_empty");
+  DBUG_ENTER("Stage_manager::Mutex_queue::fetch_and_empty");
   lock();
   DBUG_PRINT("enter", ("m_first: 0x%llx, &m_first: 0x%llx, m_last: 0x%llx",
                        (ulonglong) m_first, (ulonglong) &m_first,
@@ -2213,7 +2217,7 @@ void MYSQL_BIN_LOG::init_pthread_objects()
   mysql_mutex_init(m_key_LOCK_commit, &LOCK_commit, MY_MUTEX_INIT_FAST);
   mysql_mutex_init(m_key_LOCK_sync, &LOCK_sync, MY_MUTEX_INIT_FAST);
   mysql_cond_init(m_key_update_cond, &update_cond, 0);
-  flush_queue.init(
+  stage_manager.init(
 #ifdef HAVE_PSI_INTERFACE
                    m_key_LOCK_flush_queue,
                    m_key_LOCK_sync_queue,
@@ -5779,7 +5783,7 @@ MYSQL_BIN_LOG::flush_stage_queue(my_off_t *total_bytes_var,
   THD *first_seen= NULL;
   while ((max_udelay == 0 || my_micro_time() < start_utime + max_udelay) && has_more)
   {
-    std::pair<bool,THD*> current= flush_queue.pop_front(Thread_queue::FLUSH_STAGE);
+    std::pair<bool,THD*> current= stage_manager.pop_front(Stage_manager::FLUSH_STAGE);
     std::pair<int,my_off_t> result= flush_thread_caches(current.second);
     has_more= current.first;
     total_bytes+= result.second;
@@ -5796,7 +5800,7 @@ MYSQL_BIN_LOG::flush_stage_queue(my_off_t *total_bytes_var,
    */
   if (has_more)
   {
-    THD *queue= flush_queue.fetch_queue(Thread_queue::FLUSH_STAGE);
+    THD *queue= stage_manager.fetch_queue_for(Stage_manager::FLUSH_STAGE);
     for (THD *head= queue ; head ; head = head->next_to_commit)
     {
       std::pair<int,my_off_t> result= flush_thread_caches(head);
@@ -5893,22 +5897,28 @@ void MYSQL_BIN_LOG::commit_session_queue(THD *thd, THD *first, int flush_error)
 */
 
 bool
-MYSQL_BIN_LOG::enter_stage(THD *thd, Thread_queue::StageID stage,
-                           THD *queue, mysql_mutex_t *stage_mutex)
+MYSQL_BIN_LOG::change_stage(THD *thd,
+                            Stage_manager::StageID stage, THD *queue,
+                            mysql_mutex_t *leave_mutex,
+                            mysql_mutex_t *enter_mutex)
 {
-  DBUG_ENTER("MYSQL_BIN_LOG::enter_stage");
+  DBUG_ENTER("MYSQL_BIN_LOG::change_stage");
   DBUG_PRINT("enter", ("thd: 0x%llx, stage: %d, queue: 0x%llx",
                        (ulonglong) thd, stage, (ulonglong) queue));
-  DBUG_ASSERT(0 <= stage && stage < Thread_queue::STAGE_COUNTER);
+  DBUG_ASSERT(0 <= stage && stage < Stage_manager::STAGE_COUNTER);
   DBUG_ASSERT(stage_mutex);
   DBUG_ASSERT(queue);
-  if (!flush_queue.append(stage, queue))
+  /*
+    enroll_for will release the leave_mutex once the sessions are
+    queued.
+  */
+  if (!stage_manager.enroll_for(stage, queue, leave_mutex))
   {
     DBUG_ASSERT(!thd->transaction.flags.commit_low);
     DBUG_ASSERT(!thd_get_cache_mngr(thd)->dbug_any_finalized());
     DBUG_RETURN(true);
   }
-  mysql_mutex_lock(stage_mutex);
+  mysql_mutex_lock(enter_mutex);
   DBUG_RETURN(false);
 }
 
@@ -6038,7 +6048,7 @@ int MYSQL_BIN_LOG::ordered_commit(THD *thd, bool all, bool skip_commit)
     anything more since it is possible that a thread entered and
     appointed itself leader for the flush phase.
   */
-  if (enter_stage(thd, Thread_queue::FLUSH_STAGE, thd, &LOCK_log))
+  if (change_stage(thd, Stage_manager::FLUSH_STAGE, thd, NULL, &LOCK_log))
   {
     DBUG_PRINT("return", ("Thread ID: %lu, commit_error: %d",
                           thd->thread_id, thd->commit_error));
@@ -6052,18 +6062,16 @@ int MYSQL_BIN_LOG::ordered_commit(THD *thd, bool all, bool skip_commit)
   if (flush_error == 0 && total_bytes > 0)
     flush_error= flush_cache_to_file(&flush_end_pos);
 
-  mysql_mutex_unlock(&LOCK_log);
-
   /*
     Stage #2: Syncing binary log file to disk
   */
-  if (enter_stage(thd, Thread_queue::SYNC_STAGE, wait_queue, &LOCK_sync))
+  if (change_stage(thd, Stage_manager::SYNC_STAGE, wait_queue, &LOCK_log, &LOCK_sync))
   {
     DBUG_PRINT("return", ("Thread ID: %lu, commit_error: %d",
                           thd->thread_id, thd->commit_error));
     DBUG_RETURN(thd->commit_error);
   }
-  THD *sync_queue= flush_queue.fetch_queue(Thread_queue::SYNC_STAGE);
+  THD *sync_queue= stage_manager.fetch_queue_for(Stage_manager::SYNC_STAGE);
   bool synced= false;
   if (flush_error == 0 && total_bytes > 0)
     flush_error= sync_binlog_file(flush_end_pos, &synced);
@@ -6088,23 +6096,23 @@ int MYSQL_BIN_LOG::ordered_commit(THD *thd, bool all, bool skip_commit)
     signal_update();
     DBUG_EXECUTE_IF("crash_commit_after_log", DBUG_SUICIDE(););
   }
-  mysql_mutex_unlock(&LOCK_sync);
 
   /*
     Stage #3: Commit all transactions in order.
    */
-  if (enter_stage(thd, Thread_queue::COMMIT_STAGE, sync_queue, &LOCK_commit))
+  if (change_stage(thd, Stage_manager::COMMIT_STAGE,
+                   sync_queue, &LOCK_sync, &LOCK_commit))
   {
     DBUG_PRINT("return", ("Thread ID: %lu, commit_error: %d",
                           thd->thread_id, thd->commit_error));
     DBUG_RETURN(thd->commit_error);
   }
-  THD *commit_queue= flush_queue.fetch_queue(Thread_queue::COMMIT_STAGE);
+  THD *commit_queue= stage_manager.fetch_queue_for(Stage_manager::COMMIT_STAGE);
   commit_session_queue(thd, commit_queue, flush_error);    // Commit all transactions
   mysql_mutex_unlock(&LOCK_commit);
 
   /* Commit done so signal all waiting threads */
-  flush_queue.signal_done(commit_queue);
+  stage_manager.signal_done(commit_queue);
 
   /*
     If we need to rotate, we do it now.
