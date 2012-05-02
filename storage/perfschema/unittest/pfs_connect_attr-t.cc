@@ -176,8 +176,8 @@ void test_multibyte_lengths()
 
 void test_utf8_parser()
 {
-  /* utf8 max byte length per character is 3*/
-  char name[33 * 3], value[1024 * 3], packet[1500 * 3], *ptr;
+  /* utf8 max byte length per character is 6 */
+  char name[33 * 6], value[1024 * 6], packet[1500 * 6], *ptr;
   uint name_len, value_len;
   bool result;
   const CHARSET_INFO *cs= &my_charset_utf8_bin;
