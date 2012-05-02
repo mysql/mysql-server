@@ -279,10 +279,12 @@ ndb_serialize_cond(const Item *item, void *arg)
                 (context->expecting_field_result(field->result_type()) ||
                  // Date and year can be written as string or int
                  ((type == MYSQL_TYPE_TIME ||
+                   type == MYSQL_TYPE_TIME2 ||
                    type == MYSQL_TYPE_DATE || 
                    type == MYSQL_TYPE_NEWDATE || 
                    type == MYSQL_TYPE_YEAR ||
-                   type == MYSQL_TYPE_DATETIME)
+                   type == MYSQL_TYPE_DATETIME ||
+                   type == MYSQL_TYPE_DATETIME2)
                   ? (context->expecting_field_result(STRING_RESULT) ||
                      context->expecting_field_result(INT_RESULT))
                   : TRUE)) &&
@@ -303,10 +305,12 @@ ndb_serialize_cond(const Item *item, void *arg)
               {
                 // We have not seen second argument yet
                 if (type == MYSQL_TYPE_TIME ||
+                    type == MYSQL_TYPE_TIME2 ||
                     type == MYSQL_TYPE_DATE || 
                     type == MYSQL_TYPE_NEWDATE || 
                     type == MYSQL_TYPE_YEAR ||
-                    type == MYSQL_TYPE_DATETIME)
+                    type == MYSQL_TYPE_DATETIME ||
+                    type == MYSQL_TYPE_DATETIME2)
                 {
                   context->expect_only(Item::STRING_ITEM);
                   context->expect(Item::INT_ITEM);
@@ -347,10 +351,12 @@ ndb_serialize_cond(const Item *item, void *arg)
                 if ((field->result_type() == STRING_RESULT) &&
                     !context->expecting_collation(item->collation.collation)
                     && type != MYSQL_TYPE_TIME
+                    && type != MYSQL_TYPE_TIME2
                     && type != MYSQL_TYPE_DATE
                     && type != MYSQL_TYPE_NEWDATE
                     && type != MYSQL_TYPE_YEAR
-                    && type != MYSQL_TYPE_DATETIME)
+                    && type != MYSQL_TYPE_DATETIME
+                    && type != MYSQL_TYPE_DATETIME2)
                 {
                   DBUG_PRINT("info", ("Found non-matching collation %s",  
                                       item->collation.collation->name)); 
