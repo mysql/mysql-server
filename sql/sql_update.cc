@@ -496,14 +496,8 @@ int mysql_update(THD *thd,
       matching rows before updating the table!
     */
 
-    // Verify that table->restore_column_maps_after_mark_index() will work
-    DBUG_ASSERT(table->read_set == &table->def_read_set);
-    DBUG_ASSERT(table->write_set == &table->def_write_set);
-
     if (used_index < MAX_KEY && old_covering_keys.is_set(used_index))
-      table->add_read_columns_used_by_index(used_index);
-    else
-      table->use_all_columns();
+      table->set_keyread(true);
 
     /* note: We avoid sorting if we sort on the used index */
     if (using_filesort)
@@ -544,6 +538,7 @@ int mysql_update(THD *thd,
 	we go trough the matching rows, save a pointer to them and
 	update these in a separate loop based on the pointer.
       */
+      table->prepare_for_position();
 
       IO_CACHE tempfile;
       if (open_cached_file(&tempfile, mysql_tmpdir,TEMP_PREFIX,
@@ -633,11 +628,8 @@ int mysql_update(THD *thd,
       if (error >= 0)
         goto exit_without_my_ok;
     }
-    /*
-      This restore bitmaps, works for add_read_columns_used_by_index() and
-      use_all_columns():
-    */
-    table->restore_column_maps_after_mark_index();
+    if (used_index < MAX_KEY && old_covering_keys.is_set(used_index))
+      table->set_keyread(false);
   }
 
   if (ignore)
@@ -676,10 +668,7 @@ int mysql_update(THD *thd,
   else
     will_batch= !table->file->start_bulk_update();
 
-  /*
-    Assure that we can use position()
-    if we need to create an error message.
-  */
+  // For prepare_record_for_error_message():
   if (table->file->ha_table_flags() & HA_PARTIAL_COLUMN_READ)
     table->prepare_for_position();
 
@@ -2176,7 +2165,8 @@ int multi_update::do_updates()
     org_updated= updated;
     tmp_table= tmp_tables[cur_table->shared];
     tmp_table->file->extra(HA_EXTRA_CACHE);	// Change to read cache
-    (void) table->file->ha_rnd_init(0);
+    if ((local_error= table->file->ha_rnd_init(0)))
+      goto err;
     table->file->extra(HA_EXTRA_NO_CACHE);
 
     check_opt_it.rewind();
@@ -2301,11 +2291,16 @@ err:
   }
 
 err2:
-  (void) table->file->ha_rnd_end();
-  (void) tmp_table->file->ha_rnd_end();
+  if (table->file->inited)
+    (void) table->file->ha_rnd_end();
+  if (tmp_table->file->inited)
+    (void) tmp_table->file->ha_rnd_end();
   check_opt_it.rewind();
   while (TABLE *tbl= check_opt_it++)
-      tbl->file->ha_rnd_end();
+  {
+    if (tbl->file->inited)
+      (void) tbl->file->ha_rnd_end();
+  }
 
   if (updated != org_updated)
   {

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2007, 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2007, 2012, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -262,7 +262,7 @@ fts_parse_sql_no_dict_lock(
 Evaluate an SQL query graph.
 @return DB_SUCCESS or error code */
 UNIV_INTERN
-ulint
+dberr_t
 fts_eval_sql(
 /*=========*/
 	trx_t*		trx,		/*!< in: transaction */
@@ -327,16 +327,16 @@ fts_get_select_columns_str(
 Commit a transaction.
 @return DB_SUCCESS or error code */
 UNIV_INTERN
-ulint
+dberr_t
 fts_sql_commit(
 /*===========*/
 	trx_t*		trx)		/*!< in: transaction */
 {
-	ulint	error;
+	dberr_t	error;
 
 	error = trx_commit_for_mysql(trx);
 
-	/* Commit above returns 0 on success, it should always succeed */
+	/* Commit should always succeed */
 	ut_a(error == DB_SUCCESS);
 
 	return(DB_SUCCESS);
@@ -346,7 +346,7 @@ fts_sql_commit(
 Rollback a transaction.
 @return DB_SUCCESS or error code */
 UNIV_INTERN
-ulint
+dberr_t
 fts_sql_rollback(
 /*=============*/
 	trx_t*		trx)		/*!< in: transaction */

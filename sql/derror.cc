@@ -138,12 +138,12 @@ bool read_texts(const char *file_name, const char *language,
   if (mysql_file_read(file, (uchar*) head, 32, MYF(MY_NABP)))
     goto err;
   if (head[0] != (uchar) 254 || head[1] != (uchar) 254 ||
-      head[2] != 2 || head[3] != 1)
+      head[2] != 3 || head[3] != 1)
     goto err; /* purecov: inspected */
   textcount=head[4];
 
   error_message_charset_info= system_charset_info;
-  length=uint2korr(head+6); count=uint2korr(head+8);
+  length=uint4korr(head+6); count=uint4korr(head+10);
 
   if (count < error_messages)
   {
@@ -166,12 +166,12 @@ Check that the above file is the right version for this program!",
   }
   buff= (uchar*) (*point + count);
 
-  if (mysql_file_read(file, buff, (size_t) count*2, MYF(MY_NABP)))
+  if (mysql_file_read(file, buff, (size_t) count*4, MYF(MY_NABP)))
     goto err;
   for (i=0, pos= buff ; i< count ; i++)
   {
-    (*point)[i]= (char*) buff+uint2korr(pos);
-    pos+=2;
+    (*point)[i]= (char*) buff+uint4korr(pos);
+    pos+=4;
   }
   if (mysql_file_read(file, buff, length, MYF(MY_NABP)))
     goto err;

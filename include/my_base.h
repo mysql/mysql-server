@@ -305,6 +305,18 @@ enum ha_base_keytype {
 #define HA_OPTION_RELIES_ON_SQL_LAYER   512
 #define HA_OPTION_NULL_FIELDS		1024
 #define HA_OPTION_PAGE_CHECKSUM		2048
+/** STATS_PERSISTENT=1 has been specified in the SQL command (either CREATE
+or ALTER TABLE). Table and index statistics that are collected by the
+storage engine and used by the optimizer for query optimization will be
+stored on disk and will not change after a server restart. */
+#define HA_OPTION_STATS_PERSISTENT	4096
+/** STATS_PERSISTENT=0 has been specified in CREATE/ALTER TABLE. Statistics
+for the table will be wiped away on server shutdown and new ones recalculated
+after the server is started again. If none of HA_OPTION_STATS_PERSISTENT or
+HA_OPTION_NO_STATS_PERSISTENT is set, this means that the setting is not
+explicitly set at table level and the corresponding table will use whatever
+is the global server default. */
+#define HA_OPTION_NO_STATS_PERSISTENT	8192
 #define HA_OPTION_TEMP_COMPRESS_RECORD	((uint) 16384)	/* set by isamchk */
 #define HA_OPTION_READ_ONLY_DATA	((uint) 32768)	/* Set by isamchk */
 

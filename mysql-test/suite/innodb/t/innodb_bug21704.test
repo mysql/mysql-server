@@ -9,12 +9,6 @@
 --echo # foreign key (either in the referencing or referenced table).
 --echo
 
---disable_warnings
-DROP TABLE IF EXISTS t1;
-DROP TABLE IF EXISTS t2;
-DROP TABLE IF EXISTS t3;
---enable_warnings
-
 CREATE TABLE t1 (a INT PRIMARY KEY, b INT) ROW_FORMAT=COMPACT ENGINE=INNODB;
 
 CREATE TABLE t2 (a INT PRIMARY KEY, b INT,
@@ -33,63 +27,49 @@ INSERT INTO t3 VALUES (1,1,1),(2,2,2),(3,3,3);
 --echo # Test renaming the column in the referenced table.
 --echo
 
-# mysqltest first does replace_regex, then replace_result
---replace_regex /'[^']*test\/#sql-[0-9a-f_]*'/'#sql-temporary'/
-# Embedded server doesn't chdir to data directory
---replace_result $MYSQLTEST_VARDIR . mysqld.1/data/ ''
---error ER_ERROR_ON_RENAME
-ALTER TABLE t1 CHANGE a c INT;
+--enable_info
+ALTER TABLE t1 CHANGE a e INT;
 
 --echo # Ensure that online column rename works.
 
---enable_info
 ALTER TABLE t1 CHANGE b c INT;
---disable_info
 
 --echo
 --echo # Test renaming the column in the referencing table
 --echo
 
-# mysqltest first does replace_regex, then replace_result
---replace_regex /'[^']*test\/#sql-[0-9a-f_]*'/'#sql-temporary'/
-# Embedded server doesn't chdir to data directory
---replace_result $MYSQLTEST_VARDIR . mysqld.1/data/ ''
---error ER_ERROR_ON_RENAME
-ALTER TABLE t2 CHANGE a c INT;
+ALTER TABLE t2 CHANGE a z INT;
 
 --echo # Ensure that online column rename works.
 
---enable_info
 ALTER TABLE t2 CHANGE b c INT;
---disable_info
 
 --echo
 --echo # Test with self-referential constraints
 --echo
 
-# mysqltest first does replace_regex, then replace_result
---replace_regex /'[^']*test\/#sql-[0-9a-f_]*'/'#sql-temporary'/
-# Embedded server doesn't chdir to data directory
---replace_result $MYSQLTEST_VARDIR . mysqld.1/data/ ''
---error ER_ERROR_ON_RENAME
-ALTER TABLE t3 CHANGE a d INT;
+ALTER TABLE t3 CHANGE a f INT;
 
-# mysqltest first does replace_regex, then replace_result
---replace_regex /'[^']*test\/#sql-[0-9a-f_]*'/'#sql-temporary'/
-# Embedded server doesn't chdir to data directory
---replace_result $MYSQLTEST_VARDIR . mysqld.1/data/ ''
---error ER_ERROR_ON_RENAME
-ALTER TABLE t3 CHANGE b d INT;
+ALTER TABLE t3 CHANGE b g INT;
 
 --echo # Ensure that online column rename works.
 
---enable_info
 ALTER TABLE t3 CHANGE c d INT;
---disable_info
 
 --echo
 --echo # Cleanup.
 --echo
+
+--disable_info
+SHOW CREATE TABLE t1;
+SHOW CREATE TABLE t2;
+SHOW CREATE TABLE t3;
+
+SELECT f.*, c.*
+FROM INFORMATION_SCHEMA.INNODB_SYS_FOREIGN_COLS c
+INNER JOIN INFORMATION_SCHEMA.INNODB_SYS_FOREIGN f
+ON c.ID=f.ID
+WHERE FOR_NAME LIKE 'test/t%';
 
 DROP TABLE t3;
 DROP TABLE t2;

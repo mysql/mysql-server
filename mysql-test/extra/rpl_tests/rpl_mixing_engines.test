@@ -1761,6 +1761,43 @@ connection master;
 
 
 --echo ###################################################################################
+--echo #                            5 - SET WITH ROW CHANGES
+--echo ###################################################################################
+--let $commands= set-T
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+--let $commands= set-N
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+--let $commands= set-NT
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+--let $commands= B set-N set-T C
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+--let $commands= B set-T set-N C
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+--let $commands= B set-N set-T R
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+--let $commands= B set-T set-N R
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+--let $commands= B set-NT set-T C
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+--let $commands= B set-T set-NT C
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+--let $commands= B set-NT set-T R
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+--let $commands= B set-T set-NT R
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+
+--echo ###################################################################################
 --echo #                               CHECK CONSISTENCY 
 --echo ###################################################################################
 connection master;

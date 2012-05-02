@@ -5565,7 +5565,7 @@ Field_time_common::convert_number_to_TIME(longlong nr, bool unsigned_val,
     Both number_to_time() call and negative nanoseconds value
     affect ltime->neg, hence "|=" to combine them:
   */
-  if (ltime->neg|= (nanoseconds < 0))
+  if ((ltime->neg|= (nanoseconds < 0)))
     nanoseconds= -nanoseconds;
   ltime->second_part= 0;
   return time_add_nanoseconds_with_round(ltime, nanoseconds, warnings);
@@ -8506,7 +8506,19 @@ String *Field_set::val_str(String *val_buffer,
   ulonglong tmp=(ulonglong) Field_enum::val_int();
   uint bitnr=0;
 
-  val_buffer->set("", 0, field_charset);
+  if (tmp == 0)
+  {
+    /*
+      Some callers expect *val_buffer to contain the result,
+      so we assign to it, rather than doing 'return &empty_set_string.
+     */
+    *val_buffer= empty_set_string;
+    return val_buffer;
+  }
+
+  val_buffer->set_charset(field_charset);
+  val_buffer->length(0);
+
   while (tmp && bitnr < (uint) typelib->count)
   {
     if (tmp & 1)

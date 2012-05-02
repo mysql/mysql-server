@@ -226,6 +226,7 @@ static bool
 has_write_table_with_auto_increment(TABLE_LIST *tables);
 static bool
 has_write_table_with_auto_increment_and_select(TABLE_LIST *tables);
+static bool has_write_table_auto_increment_not_first_in_pk(TABLE_LIST *tables);
 
 uint cached_open_tables(void)
 {
@@ -5879,6 +5880,12 @@ bool lock_tables(THD *thd, TABLE_LIST *tables, uint count,
     if (thd->variables.binlog_format != BINLOG_FORMAT_ROW && tables &&
         has_write_table_with_auto_increment_and_select(tables))
       thd->lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_WRITE_AUTOINC_SELECT);
+    /* Todo: merge all has_write_table_auto_inc with decide_logging_format */
+    if (thd->variables.binlog_format != BINLOG_FORMAT_ROW && tables)
+    {
+      if (has_write_table_auto_increment_not_first_in_pk(tables))
+        thd->lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_AUTOINC_NOT_FIRST);
+    }
 
     /* 
      INSERT...ON DUPLICATE KEY UPDATE on a table with more than one unique keys
@@ -5900,6 +5907,8 @@ bool lock_tables(THD *thd, TABLE_LIST *tables, uint count,
         if (!query_table->placeholder() &&
             query_table->lock_type >= TL_WRITE_ALLOW_WRITE &&
             unique_keys > 1 && thd->lex->sql_command == SQLCOM_INSERT &&
+            /* Duplicate key update is not supported by INSERT DELAYED */
+            thd->get_command() != COM_DELAYED_INSERT &&
             thd->lex->duplicates == DUP_UPDATE)
           thd->lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_INSERT_TWO_KEYS);
       }
@@ -7257,7 +7266,7 @@ find_item_in_list(Item *find, List<Item> &items, uint *counter,
 	(if this field created from expression argument of group_concat()),
 	=> we have to check presence of name before compare
       */ 
-      if (!item_field->item_name.ptr())
+      if (!item_field->item_name.is_set())
         continue;
 
       if (table_name)
@@ -7312,7 +7321,7 @@ find_item_in_list(Item *find, List<Item> &items, uint *counter,
         int fname_cmp= my_strcasecmp(system_charset_info,
                                      item_field->field_name,
                                      field_name);
-        if (item_field->item_name.eq(field_name))
+        if (item_field->item_name.eq_safe(field_name))
         {
           /*
             If table name was not given we should scan through aliases
@@ -7356,7 +7365,7 @@ find_item_in_list(Item *find, List<Item> &items, uint *counter,
     }
     else if (!table_name)
     { 
-      if (is_ref_by_name && item->item_name.eq(&find->item_name))
+      if (is_ref_by_name && item->item_name.eq_safe(find->item_name))
       {
         found= li.ref();
         *counter= i;
@@ -7387,7 +7396,7 @@ find_item_in_list(Item *find, List<Item> &items, uint *counter,
         Item_field for tables.
       */
       Item_ident *item_ref= (Item_ident *) item;
-      if (item_ref->item_name.eq(field_name) &&
+      if (item_ref->item_name.eq_safe(field_name) &&
           item_ref->table_name &&
           !my_strcasecmp(table_alias_charset, item_ref->table_name,
                          table_name) &&
@@ -8160,7 +8169,7 @@ int setup_wild(THD *thd, TABLE_LIST *tables, List<Item> &fields,
 
           Item_int do not need fix_fields() because it is basic constant.
         */
-        it.replace(new Item_int("Not_used", (longlong) 1,
+        it.replace(new Item_int(NAME_STRING("Not_used"), (longlong) 1,
                                 MY_INT64_NUM_DECIMAL_DIGITS));
       }
       else if (insert_fields(thd, ((Item_field*) item)->context,
@@ -9459,6 +9468,32 @@ has_write_table_with_auto_increment_and_select(TABLE_LIST *tables)
       }
   }
   return(has_select && has_auto_increment_tables);
+}
+
+/*
+  Tells if there is a table whose auto_increment column is a part
+  of a compound primary key while is not the first column in
+  the table definition.
+
+  @param tables Table list
+
+  @return true if the table exists, fais if does not.
+*/
+
+static bool
+has_write_table_auto_increment_not_first_in_pk(TABLE_LIST *tables)
+{
+  for (TABLE_LIST *table= tables; table; table= table->next_global)
+  {
+    /* we must do preliminary checks as table->table may be NULL */
+    if (!table->placeholder() &&
+        table->table->found_next_number_field &&
+        (table->lock_type >= TL_WRITE_ALLOW_WRITE)
+        && table->table->s->next_number_keypart != 0)
+      return 1;
+  }
+
+  return 0;
 }
 
 

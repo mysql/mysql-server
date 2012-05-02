@@ -368,11 +368,11 @@ private:
         Opt_trace_object tmp_table(json, K_TABLE);
 
         if (!col_join_type.is_empty())
-          obj->add_alnum(K_ACCESS_TYPE, col_join_type.str);
+          tmp_table.add_alnum(K_ACCESS_TYPE, col_join_type.str);
         if (!col_key.is_empty())
-          obj->add_utf8(K_KEY, col_key.str);
+          tmp_table.add_utf8(K_KEY, col_key.str);
         if (!col_rows.is_empty())
-          obj->add(K_ROWS, col_rows.value);
+          tmp_table.add(K_ROWS, col_rows.value);
       }
 
       if (subquery->is_query_block())
