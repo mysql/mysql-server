@@ -135,10 +135,10 @@ HugoQueries::getValueForQueryOp(NdbQueryOperation* pOp, NDBT_ResultRow * pRow)
 
 int
 HugoQueries::runLookupQuery(Ndb* pNdb,
-                            int records,
+                            int queries,
                             int batch)
 {
-  int r = 0;
+  int q = 0;
   int retryAttempt = 0;
 
   m_rows_found.clear();
@@ -153,10 +153,10 @@ HugoQueries::runLookupQuery(Ndb* pNdb,
 
   allocRows(batch);
 
-  while (r < records)
+  while (q < queries)
   {
-    if(r + batch > records)
-      batch = records - r;
+    if (q + batch > queries)
+      batch = queries - q;
 
     if (retryAttempt >= m_retryMax)
     {
@@ -188,7 +188,7 @@ HugoQueries::runLookupQuery(Ndb* pNdb,
     {
       char buf[NDB_MAX_TUPLE_SIZE];
       NdbQueryParamValue params[NDB_MAX_NO_OF_ATTRIBUTES_IN_KEY];
-      equalForParameters(buf, m_ops[0], params, b + r);
+      equalForParameters(buf, m_ops[0], params, b + q);
 
       NdbQuery * query = pTrans->createQuery(m_query_def, params);
       if (query == 0)
@@ -301,7 +301,7 @@ HugoQueries::runLookupQuery(Ndb* pNdb,
     }
 
     pTrans->close();
-    r += batch;
+    q += batch;
 
     for (unsigned i = 0; i<batch_rows_found.size(); i++)
       m_rows_found[i] += batch_rows_found[i];
