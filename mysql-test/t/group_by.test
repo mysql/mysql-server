@@ -1342,6 +1342,45 @@ SELECT alias2.f3 AS field1 , alias2.f1 AS field2 FROM t1 AS alias1 JOIN t1 AS al
 SET SESSION SQL_MODE=default;
 drop table t1;
 
+--echo #
+--echo # LP bug#967242 Wrong result (extra rows, not grouped) with JOIN, AND in ON condition, multi-part key, GROUP BY, OR in WHERE
+--echo #
+
+CREATE TABLE t1 ( a VARCHAR(1) ) ENGINE=MyISAM;
+INSERT INTO t1 VALUES ('x');
+CREATE TABLE t2 ( b INT, c VARCHAR(1), KEY (c, b) ) ENGINE=MyISAM;
+INSERT INTO t2 VALUES
+(4, 'd'),(8, 'g'),(3, 'x'),(3, 'f'),
+(0, 'p'),(3, 'j'),(8, 'c');
+
+SELECT t2_1.b as zzz
+FROM t1 JOIN t2 AS t2_1 JOIN t2 AS t2_2
+ON (t2_2.b = t2_1.b ) AND (t2_2.c = t2_1.c )
+WHERE
+rand() + 1 > 0 OR
+a = t2_1.c
+GROUP BY zzz;
+
+SELECT t2_1.b as zzz
+FROM t1 JOIN t2 AS t2_1 JOIN t2 AS t2_2
+ON (t2_2.b = t2_1.b ) AND (t2_2.c = t2_1.c )
+WHERE
+1 > 0 OR
+a = t2_1.c
+GROUP BY zzz;
+
+SELECT t2_1.b as zzz
+FROM t1 JOIN t2 AS t2_1 JOIN t2 AS t2_2
+ON (t2_2.b = t2_1.b ) AND (t2_2.c = t2_1.c )
+WHERE
+t2_1.b + 1 > 0 OR
+a = t2_1.c
+GROUP BY zzz;
+
+--echo #TODO: in merge with 5.3 add original test suite
+
+drop table t1, t2;
+
 --echo # End of 5.2 tests
 
 --echo #
