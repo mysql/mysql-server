@@ -1178,6 +1178,24 @@ bool Item_singlerow_subselect::val_bool()
 }
 
 
+bool Item_singlerow_subselect::get_date(MYSQL_TIME *ltime,uint fuzzydate)
+{
+  DBUG_ASSERT(fixed == 1);
+  if (forced_const)
+    return value->get_date(ltime, fuzzydate);
+  if (!exec() && !value->null_value)
+  {
+    null_value= FALSE;
+    return value->get_date(ltime, fuzzydate);
+  }
+  else
+  {
+    reset();
+    return 0;
+  }
+}
+
+
 Item_exists_subselect::Item_exists_subselect(st_select_lex *select_lex):
   Item_subselect()
 {

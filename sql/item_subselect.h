@@ -275,6 +275,7 @@ public:
   String *val_str (String *);
   my_decimal *val_decimal(my_decimal *);
   bool val_bool();
+  bool get_date(MYSQL_TIME *ltime,uint fuzzydate);
   enum Item_result result_type() const;
   enum_field_types field_type() const;
   void fix_length_and_dec();
