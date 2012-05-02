@@ -8177,7 +8177,7 @@ create_table_def(
 				"column type and try to re-create "
 				"the table with an appropriate "
 				"column type.",
-				table->name, (char*) field->field_name);
+				table->name, field->field_name);
 			goto err_col;
 		}
 
@@ -8241,7 +8241,7 @@ err_col:
 		}
 
 		dict_mem_table_add_col(table, heap,
-			(char*) field->field_name,
+			field->field_name,
 			col_type,
 			dtype_form_prtype(
 				(ulint) field->type()
