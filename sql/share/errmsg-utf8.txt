@@ -6755,6 +6755,9 @@ ER_MTS_RECOVERY_FAILURE
   eng "Cannot recover after SLAVE errored out in parallel execution mode. Additional error messages can be found in the MySQL error log."
 ER_MTS_RESET_WORKERS
   eng "Cannot clean up worker info tables. Additional error messages can be found in the MySQL error log."
+
+ER_SLAVE_SILENT_RETRY_TRANSACTION
+  eng "Slave must silently retry current transaction"
 #
 #  End of 5.6 error messages.
 #
