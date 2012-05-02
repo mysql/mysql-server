@@ -8439,6 +8439,10 @@ read_client_connect_attrs(char **ptr, size_t *max_bytes_available,
   if (length > *max_bytes_available)
     return true;
 
+  /* impose an artificial length limit of 64k */
+  if (length > 65535)
+    return true;
+
 #ifdef HAVE_PSI_THREAD_INTERFACE
   if (PSI_CALL(set_thread_connect_attrs)(*ptr, length, from_cs) && log_warnings)
     sql_print_warning("Connection attributes of length %lu were truncated",
