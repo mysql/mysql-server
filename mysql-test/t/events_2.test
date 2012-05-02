@@ -187,7 +187,7 @@ drop event e1;
 # Test wrong syntax
 #
 
---error ER_WRONG_DB_NAME 
+--error ER_TOO_LONG_IDENT 
 SHOW EVENTS FROM aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa;
 --error ER_WRONG_DB_NAME
 SHOW EVENTS FROM ``;

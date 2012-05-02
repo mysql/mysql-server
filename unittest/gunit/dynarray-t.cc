@@ -83,6 +83,19 @@ static inline bool operator==(const Key_use &lhs, const Key_use &rhs)
 }
 
 
+static inline std::ostream &operator<<(std::ostream &s, const Key_use &v)
+{
+  return s << "{"
+           << v.table->tablenr << ", "
+           << v.key            << ", "
+           << v.keypart        << ", "
+           << v.used_tables    << ", "
+           << v.optimize
+           << "}"
+    ;
+}
+
+
 namespace {
 
 /*
@@ -105,19 +118,6 @@ inline int sort_keyuse(Key_use *a, Key_use *b)
   /* Place rows that are not 'OPTIMIZE_REF_OR_NULL' first */
   return (int) ((a->optimize & KEY_OPTIMIZE_REF_OR_NULL) -
 		(b->optimize & KEY_OPTIMIZE_REF_OR_NULL));
-}
-
-
-std::ostream &operator<<(std::ostream &s, const Key_use &v)
-{
-  return s << "{"
-           << v.table->tablenr << ", "
-           << v.key            << ", "
-           << v.keypart        << ", "
-           << v.used_tables    << ", "
-           << v.optimize
-           << "}"
-    ;
 }
 
 

@@ -370,18 +370,14 @@ dict_table_get_n_cols(
 Gets the approximately estimated number of rows in the table.
 @return	estimated number of rows */
 UNIV_INLINE
-ib_int64_t
+ib_uint64_t
 dict_table_get_n_rows(
 /*==================*/
 	const dict_table_t*	table)	/*!< in: table */
 {
-	ib_int64_t	n_rows;
-
 	ut_ad(table->stat_initialized);
 
-	n_rows = table->stat_n_rows;
-
-	return(n_rows);
+	return(table->stat_n_rows);
 }
 
 /********************************************************************//**
@@ -395,8 +391,8 @@ dict_table_n_rows_inc(
 	dict_table_t*	table)	/*!< in/out: table */
 {
 	if (table->stat_initialized) {
-		ib_int64_t      n_rows = table->stat_n_rows;
-		if (n_rows < 0x7FFFFFFFFFFFFFFFLL) {
+		ib_uint64_t	n_rows = table->stat_n_rows;
+		if (n_rows < 0xFFFFFFFFFFFFFFFFULL) {
 			table->stat_n_rows = n_rows + 1;
 		}
 	}
@@ -413,7 +409,7 @@ dict_table_n_rows_dec(
 	dict_table_t*	table)	/*!< in/out: table */
 {
 	if (table->stat_initialized) {
-		ib_int64_t      n_rows = table->stat_n_rows;
+		ib_uint64_t	n_rows = table->stat_n_rows;
 		if (n_rows > 0) {
 			table->stat_n_rows = n_rows - 1;
 		}

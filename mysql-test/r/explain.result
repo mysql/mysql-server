@@ -202,8 +202,7 @@ EXPLAIN EXTENDED SELECT 1 FROM t1
 WHERE f1 > ALL( SELECT t.f1 FROM t1,t1 AS t );
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
-2	SUBQUERY	t1	system	NULL	NULL	NULL	NULL	0	0.00	const row not found
-2	SUBQUERY	t	system	NULL	NULL	NULL	NULL	0	0.00	const row not found
+2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 Warnings:
 Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t1` where 0
 SET SESSION sql_mode=@old_sql_mode;

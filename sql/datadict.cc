@@ -90,15 +90,19 @@ bool dd_frm_storage_engine(THD *thd, const char *db, const char *table_name,
   DBUG_ASSERT(thd->mdl_context.is_lock_owner(MDL_key::TABLE, db,
                                              table_name, MDL_SHARED));
 
-  if (check_and_convert_db_name(&db_name, FALSE))
-  {
-    my_error(ER_WRONG_DB_NAME, MYF(0), db_name.str);
+  if (check_and_convert_db_name(&db_name, FALSE) != IDENT_NAME_OK)
     return TRUE;
-  }
 
-  if (check_table_name(table_name, strlen(table_name), FALSE))
+  enum_ident_name_check ident_check_status=
+    check_table_name(table_name, strlen(table_name), FALSE);
+  if (ident_check_status == IDENT_NAME_WRONG)
   {
     my_error(ER_WRONG_TABLE_NAME, MYF(0), table_name);
+    return TRUE;
+  }
+  else if (ident_check_status == IDENT_NAME_TOO_LONG)
+  {
+    my_error(ER_TOO_LONG_IDENT, MYF(0), table_name);
     return TRUE;
   }
 

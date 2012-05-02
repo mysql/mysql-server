@@ -495,7 +495,7 @@ uint tablename_to_filename(const char *from, char *to, uint to_length)
       a lot of places don't check the return value and expect 
       a zero terminated string.
     */  
-    if (check_table_name(to, length, TRUE))
+    if (check_table_name(to, length, TRUE) != IDENT_NAME_OK)
     {
       to[0]= 0;
       length= 0;
@@ -6540,9 +6540,20 @@ mysql_prepare_alter_table(THD *thd, TABLE *table,
 
   if (alter_info->drop_list.elements)
   {
-    my_error(ER_CANT_DROP_FIELD_OR_KEY, MYF(0),
-             alter_info->drop_list.head()->name);
-    goto err;
+    Alter_drop *drop;
+    drop_it.rewind();
+    while ((drop=drop_it++)) {
+      switch (drop->type) {
+      case Alter_drop::KEY:
+      case Alter_drop::COLUMN:
+        my_error(ER_CANT_DROP_FIELD_OR_KEY, MYF(0),
+                 alter_info->drop_list.head()->name);
+        goto err;
+      case Alter_drop::FOREIGN_KEY:
+        // Leave the DROP FOREIGN KEY names in the alter_info->drop_list.
+        break;
+      }
+    }
   }
   if (alter_info->alter_list.elements)
   {
