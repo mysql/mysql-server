@@ -166,6 +166,7 @@ static ENGINE_ERROR_CODE ndb_initialize(ENGINE_HANDLE* handle,
   ENGINE_ERROR_CODE return_status;
   struct ndb_engine *ndb_eng = ndb_handle(handle);
   struct default_engine *def_eng = default_handle(ndb_eng);
+  scheduler_options sched_opts;
   
   /* Process options for both the ndb engine and the default engine:  */
   read_cmdline_options(ndb_eng, def_eng, config_str);
@@ -173,7 +174,6 @@ static ENGINE_ERROR_CODE ndb_initialize(ENGINE_HANDLE* handle,
   /* Initalize the debug library */
   DEBUG_INIT(NULL, ndb_eng->startup_options.debug_enable);
   DEBUG_ENTER();
-  print_debug_startup_info();
   
   /* Connect to the Primary cluster */
   if(!(connect_to_primary_cluster(ndb_eng->startup_options.connectstring,
@@ -213,6 +213,10 @@ static ENGINE_ERROR_CODE ndb_initialize(ENGINE_HANDLE* handle,
   /* prefetch data dictionary objects */
   prefetch_dictionary_objects();
 
+  /* Build the scheduler options structure */
+  sched_opts.nthreads = ndb_eng->server_options.nthreads;
+  sched_opts.max_clients = ndb_eng->server_options.maxconns;
+
   /* Allocate and initailize the pipelines, and their schedulers.  
      This will take some time; each pipeline creates slab and pool allocators,
      and each scheduler may preallocate a large number of Ndb objects and 
@@ -225,9 +229,9 @@ static ENGINE_ERROR_CODE ndb_initialize(ENGINE_HANDLE* handle,
   ndb_eng->pipelines  = malloc(nthreads * sizeof(void *));
   ndb_eng->schedulers = malloc(nthreads * sizeof(void *));
   for(i = 0 ; i < nthreads ; i++) {
-    ndb_eng->pipelines[i] = get_request_pipeline(i);
-    ndb_eng->schedulers[i] = 
-      scheduler_initialize(ndb_eng->startup_options.scheduler, nthreads, i);
+    ndb_eng->pipelines[i] = get_request_pipeline(i, ndb_eng);
+    ndb_eng->schedulers[i] = scheduler_initialize(ndb_eng->pipelines[i], 
+                                                  & sched_opts);
     if(ndb_eng->schedulers[i] == 0) {
       logger->log(LOG_WARNING, NULL, "Illegal scheduler: \"%s\"\n", 
                   ndb_eng->startup_options.scheduler); 
@@ -244,6 +248,8 @@ static ENGINE_ERROR_CODE ndb_initialize(ENGINE_HANDLE* handle,
   if(return_status == ENGINE_SUCCESS) {
     set_initial_cas_ids(& ndb_eng->cas_hi, & ndb_eng->cas_lo);
   }
+
+  print_debug_startup_info();
 
   /* Listen for reconfiguration signals */
   if(ndb_eng->startup_options.reconf_enable) {
@@ -483,22 +489,24 @@ static ENGINE_ERROR_CODE ndb_get_stats(ENGINE_HANDLE* handle,
     
   DEBUG_ENTER(); 
   
-  if(stat_key && 
-     ((strncasecmp(stat_key, "ndb", 3) == 0)       || 
-      (strncasecmp(stat_key, "scheduler", 9) == 0) ||
-      (strncasecmp(stat_key, "reconf", 6) == 0)    ||
-      (strncasecmp(stat_key, "errors", 6) == 0)
-    ))
-  {
-    /* NDB Engine stats */
-    pipeline_add_stats(pipeline, stat_key, add_stat, cookie);
-    return ENGINE_SUCCESS;
+  if(stat_key) { 
+    if(strncasecmp(stat_key, "menu", 4) == 0)
+      return stats_menu(add_stat, cookie);
+  
+  if((strncasecmp(stat_key, "ndb", 3) == 0)       || 
+     (strncasecmp(stat_key, "scheduler", 9) == 0) ||
+     (strncasecmp(stat_key, "reconf", 6) == 0)    ||
+     (strncasecmp(stat_key, "errors", 6) == 0))
+    {
+      /* NDB Engine stats */
+      pipeline_add_stats(pipeline, stat_key, add_stat, cookie);
+      return ENGINE_SUCCESS;
+    }
   }
-  else {      
-    /* Default engine stats */
-    return def_eng->engine.get_stats(ndb_eng->m_default_engine, cookie,
-                                     stat_key, nkey, add_stat);
-  }
+
+  /* Default engine stats */
+  return def_eng->engine.get_stats(ndb_eng->m_default_engine, cookie,
+                                   stat_key, nkey, add_stat);
 }
 
 
@@ -818,6 +826,9 @@ int fetch_core_settings(struct ndb_engine *engine,
     { .key = "cas_enabled",
       .datatype = DT_BOOL,
       .value.dt_bool = &engine->server_options.cas_enabled },
+    { .key = "maxconns",
+      .datatype = DT_SIZE,
+      .value.dt_size = &engine->server_options.maxconns },
     { .key = "num_threads",
       .datatype = DT_SIZE,
       .value.dt_size = &engine->server_options.nthreads },
@@ -829,5 +840,66 @@ int fetch_core_settings(struct ndb_engine *engine,
   
   /* This will call "stats settings" and parse the output into the config */
   return se->server.core->get_config(items);
+}
+
+
+ENGINE_ERROR_CODE stats_menu(ADD_STAT add_stat, const void *cookie) {
+  char key[128];
+  char val[128];
+  int klen, vlen;
+  
+  klen = sprintf(key, "ndb");
+  vlen = sprintf(val, "          NDB Engine: NDBAPI statistics");
+  add_stat(key, klen, val, vlen, cookie);
+  
+  klen = sprintf(key, "errors");
+  vlen = sprintf(val, "       NDB Engine: Error message counters");
+  add_stat(key, klen, val, vlen, cookie);
+
+  klen = sprintf(key, "scheduler");
+  vlen = sprintf(val, "    NDB Engine: Scheduler internal statistics");
+  add_stat(key, klen, val, vlen, cookie);
+  
+  klen = sprintf(key, "reconf");
+  vlen = sprintf(val, "       NDB Engine: Current configuration version");
+  add_stat(key, klen, val, vlen, cookie);
+  
+  klen = sprintf(key, "settings");
+  vlen = sprintf(val, "     Server core: configurable settings");
+  add_stat(key, klen, val, vlen, cookie);
+  
+  klen = sprintf(key, "reset");
+  vlen = sprintf(val, "        Server core: reset counters");
+  add_stat(key, klen, val, vlen, cookie);
+
+  klen = sprintf(key, "detail");
+  vlen = sprintf(val, "       Server core: use stats detail on|off|dump");
+  add_stat(key, klen, val, vlen, cookie);
+   
+  klen = sprintf(key, "aggregate");
+  vlen = sprintf(val, "    Server core: aggregated");
+  add_stat(key, klen, val, vlen, cookie);
+  
+  klen = sprintf(key, "slabs");
+  vlen = sprintf(val, "        Cache Engine: allocator");
+  add_stat(key, klen, val, vlen, cookie);  
+  
+  klen = sprintf(key, "items");
+  vlen = sprintf(val, "        Cache Engine: itemes cached");
+  add_stat(key, klen, val, vlen, cookie);  
+
+  klen = sprintf(key, "sizes");
+  vlen = sprintf(val, "        Cache Engine: items per allocation class");
+  add_stat(key, klen, val, vlen, cookie);  
+
+  klen = sprintf(key, "vbucket");
+  vlen = sprintf(val, "      Cache Engine: dump vbucket table");
+  add_stat(key, klen, val, vlen, cookie);  
+
+  klen = sprintf(key, "scrub");
+  vlen = sprintf(val, "        Cache Engine: scrubber status");
+  add_stat(key, klen, val, vlen, cookie);
+  
+  return ENGINE_SUCCESS;
 }
 

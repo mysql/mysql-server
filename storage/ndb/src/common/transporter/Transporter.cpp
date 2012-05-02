@@ -74,7 +74,7 @@ Transporter::Transporter(TransporterRegistry &t_reg,
   checksumUsed    = _checksum;
   signalIdUsed    = _signalId;
 
-  m_timeOutMillis = 30000;
+  m_timeOutMillis = 3000;
 
   m_connect_address.s_addr= 0;
   if(s_port<0)

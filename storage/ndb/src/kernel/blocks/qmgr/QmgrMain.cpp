@@ -3691,13 +3691,13 @@ Qmgr::execAPI_VERSION_REQ(Signal * signal) {
     conf->version = getNodeInfo(nodeId).m_version;
     conf->mysql_version = getNodeInfo(nodeId).m_mysql_version;
     struct in_addr in= globalTransporterRegistry.get_connect_address(nodeId);
-    conf->inet_addr= in.s_addr;
+    conf->m_inet_addr= in.s_addr;
   }
   else
   {
     conf->version =  0;
     conf->mysql_version =  0;
-    conf->inet_addr= 0;
+    conf->m_inet_addr= 0;
   }
   conf->nodeId = nodeId;
 

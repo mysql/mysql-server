@@ -61,6 +61,27 @@ public:
   Vector<Attrib*> attriblist;
 };
 
+/**
+ * TODO expose in ndbapi
+ */
+static
+bool
+isIndexable(const NdbDictionary::Column* col)
+{
+  if (col == 0)
+    return false;
+
+  switch(col->getType())
+  {
+  case NDB_TYPE_BIT:
+  case NDB_TYPE_BLOB:
+  case NDB_TYPE_TEXT:
+    return false;
+  default:
+    return true;
+  }
+}
+
 void AttribList::buildAttribList(const NdbDictionary::Table* pTab){
   attriblist.clear();
 
@@ -139,6 +160,29 @@ void AttribList::buildAttribList(const NdbDictionary::Table* pTab){
   }
 #endif
 
+  /**
+   * Trim away combinations that contain non indexable columns
+   */
+  Vector<Attrib*> tmp;
+  for (Uint32 ii = 0; ii < attriblist.size(); ii++)
+  {
+    Attrib* attr = attriblist[ii];
+    for (int j = 0; j < attr->numAttribs; j++)
+    {
+      if (!isIndexable(pTab->getColumn(attr->attribs[j])))
+      {
+        delete attr;
+        goto skip;
+      }
+    }
+
+    tmp.push_back(attr);
+skip:
+    (void)1;
+  }
+
+  attriblist.clear();
+  attriblist = tmp;
 }
 
 char idxName[255];

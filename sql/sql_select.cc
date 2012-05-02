@@ -1509,7 +1509,12 @@ bool create_ref_for_key(JOIN *join, JOIN_TAB *j, Key_use *org_keyuse,
     j->type= null_ref_key ? JT_REF_OR_NULL : JT_REF;
     j->ref.null_ref_key= null_ref_key;
   }
+#ifndef MCP_WL4784
+  else if (keyuse_uses_no_tables &&
+           !table->file->test_push_flag(HA_PUSH_BLOCK_CONST_TABLE))
+#else
   else if (keyuse_uses_no_tables)
+#endif
   {
     /*
       This happen if we are using a constant expression in the ON part

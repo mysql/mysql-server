@@ -10341,6 +10341,14 @@ void Dblqh::execSCAN_FRAGREQ(Signal* signal)
     goto error_handler_early_1;
   }
   
+  if (table_version_major(scanFragReq->schemaVersion) !=
+      table_version_major(tabptr.p->schemaVersion))
+  {
+    errorCode = ZINVALID_SCHEMA_VERSION;
+    senderData = scanFragReq->senderData;
+    goto error_handler_early;
+  }
+
   if (cfirstfreeTcConrec != RNIL && !ERROR_INSERTED_CLEAR(5055)) {
     seizeTcrec();
     tcConnectptr.p->clientConnectrec = scanFragReq->senderData;
@@ -22788,7 +22796,7 @@ Dblqh::execDUMP_STATE_ORD(Signal* signal)
 
     ScanRecordPtr sp;
     sp.i = recordNo;
-    c_scanRecordPool.getPtr(sp);
+    c_scanRecordPool.getPtrIgnoreAlloc(sp);
     infoEvent("Dblqh::ScanRecord[%d]: state=%d, type=%d, "
 	      "complStatus=%d, scanNodeId=%d",
 	      sp.i,
@@ -22818,6 +22826,10 @@ Dblqh::execDUMP_STATE_ORD(Signal* signal)
 	      sp.p->scanTcWaiting,
 	      sp.p->scanTcrec,
 	      sp.p->scanKeyinfoFlag);
+    infoEvent(" LcpScan=%d  RowId(%u:%u)",
+              sp.p->lcpScan,
+              sp.p->m_row_id.m_page_no,
+              sp.p->m_row_id.m_page_idx);
     return;
   }
   if(dumpState->args[0] == DumpStateOrd::LqhDumpLcpState){
@@ -22845,6 +22857,28 @@ Dblqh::execDUMP_STATE_ORD(Signal* signal)
     infoEvent(" m_EMPTY_LCP_REQ=%s",
 	      TlcpPtr.p->m_EMPTY_LCP_REQ.getText(buf));
     
+    if ((signal->length() == 2) &&
+        (dumpState->args[1] == 0))
+    {
+      /* Dump reserved LCP scan rec */
+      /* As there's only one, we'll do a tight loop here */
+      infoEvent(" dumping reserved scan records");
+      for (Uint32 rec=0; rec < cscanrecFileSize; rec++)
+      {
+        ScanRecordPtr sp;
+        sp.i = rec;
+        c_scanRecordPool.getPtrIgnoreAlloc(sp);
+
+        if (sp.p->m_reserved &&
+            sp.p->lcpScan)
+        {
+          dumpState->args[0] = DumpStateOrd::LqhDumpOneScanRec;
+          dumpState->args[1] = rec;
+          execDUMP_STATE_ORD(signal);
+        }
+      }
+    }
+
     return;
   }
   if (dumpState->args[0] == DumpStateOrd::LQHLogFileInitStatus){

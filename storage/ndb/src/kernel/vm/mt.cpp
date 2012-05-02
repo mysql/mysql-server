@@ -36,6 +36,7 @@
 #include <portlib/ndb_prefetch.h>
 
 #include "mt-asm.h"
+#include "mt-lock.hpp"
 
 inline
 SimulatedBlock*
@@ -95,16 +96,6 @@ static Uint32 first_receiver_thread_no = 0;
 
 /* max signal is 32 words, 7 for signal header and 25 datawords */
 #define MIN_SIGNALS_PER_PAGE (thr_job_buffer::SIZE / 32)
-
-struct mt_lock_stat
-{
-  const void * m_ptr;
-  char * m_name;
-  Uint32 m_contended_count;
-  Uint32 m_spin_count;
-};
-static void register_lock(const void * ptr, const char * name);
-static mt_lock_stat * lookup_lock(const void * ptr);
 
 #if defined(HAVE_LINUX_FUTEX) && defined(NDB_HAVE_XCNG)
 #define USE_FUTEX
@@ -273,132 +264,6 @@ wakeup(struct thr_wait* wait)
 }
 
 #endif
-
-#ifdef NDB_HAVE_XCNG
-template <unsigned SZ>
-struct thr_spin_lock
-{
-  thr_spin_lock(const char * name = 0)
-  {
-    m_lock = 0;
-    register_lock(this, name);
-  }
-
-  union {
-    volatile Uint32 m_lock;
-    char pad[SZ];
-  };
-};
-
-static
-ATTRIBUTE_NOINLINE
-void
-lock_slow(void * sl, volatile unsigned * val)
-{
-  mt_lock_stat* s = lookup_lock(sl); // lookup before owning lock
-
-loop:
-  Uint32 spins = 0;
-  do {
-    spins++;
-    cpu_pause();
-  } while (* val == 1);
-
-  if (unlikely(xcng(val, 1) != 0))
-    goto loop;
-
-  if (s)
-  {
-    s->m_spin_count += spins;
-    Uint32 count = ++s->m_contended_count;
-    Uint32 freq = (count > 10000 ? 5000 : (count > 20 ? 200 : 1));
-
-    if ((count % freq) == 0)
-      printf("%s waiting for lock, contentions: %u spins: %u\n",
-             s->m_name, count, s->m_spin_count);
-  }
-}
-
-template <unsigned SZ>
-static
-inline
-void
-lock(struct thr_spin_lock<SZ>* sl)
-{
-  volatile unsigned* val = &sl->m_lock;
-  if (likely(xcng(val, 1) == 0))
-    return;
-
-  lock_slow(sl, val);
-}
-
-template <unsigned SZ>
-static
-inline
-void
-unlock(struct thr_spin_lock<SZ>* sl)
-{
-  /**
-   * Memory barrier here, to make sure all of our stores are visible before
-   * the lock release is.
-   */
-  mb();
-  sl->m_lock = 0;
-}
-
-template <unsigned SZ>
-static
-inline
-int
-trylock(struct thr_spin_lock<SZ>* sl)
-{
-  volatile unsigned* val = &sl->m_lock;
-  return xcng(val, 1);
-}
-#else
-#define thr_spin_lock thr_mutex
-#endif
-
-template <unsigned SZ>
-struct thr_mutex
-{
-  thr_mutex(const char * name = 0) {
-    NdbMutex_Init(&m_mutex);
-    register_lock(this, name);
-  }
-
-  union {
-    NdbMutex m_mutex;
-    char pad[SZ];
-  };
-};
-
-template <unsigned SZ>
-static
-inline
-void
-lock(struct thr_mutex<SZ>* sl)
-{
-  NdbMutex_Lock(&sl->m_mutex);
-}
-
-template <unsigned SZ>
-static
-inline
-void
-unlock(struct thr_mutex<SZ>* sl)
-{
-  NdbMutex_Unlock(&sl->m_mutex);
-}
-
-template <unsigned SZ>
-static
-inline
-int
-trylock(struct thr_mutex<SZ> * sl)
-{
-  return NdbMutex_Trylock(&sl->m_mutex);
-}
 
 /**
  * thr_safe_pool
@@ -2719,6 +2584,13 @@ pack_send_buffer(thr_data *selfptr, Uint32 node)
    * After having locked/unlock m_send_lock
    *   "protocol" dictates that we must check the m_force_send
    */
+
+  /**
+   * We need a memory barrier here to prevent race between clearing lock
+   *   and reading of m_force_send.
+   *   CPU can reorder the load to before the clear of the lock
+   */
+  mb();
   if (sb->m_force_send)
   {
     try_send(selfptr, node);
@@ -2787,7 +2659,13 @@ mt_send_handle::forceSend(NodeId nodeId)
 
   do
   {
+    /**
+     * NOTE: we don't need a memory barrier after clearing
+     *       m_force_send here as we unconditionally lock m_send_lock
+     *       hence there is no way that our data can be "unsent"
+     */
     sb->m_force_send = 0;
+
     lock(&sb->m_send_lock);
     sb->m_send_thread = selfptr->m_thr_no;
     globalTransporterRegistry.performSend(nodeId);
@@ -2799,6 +2677,12 @@ mt_send_handle::forceSend(NodeId nodeId)
      */
     selfptr->m_send_buffer_pool.release_global(rep->m_mm,
                                                RG_TRANSPORTER_BUFFERS);
+    /**
+     * We need a memory barrier here to prevent race between clearing lock
+     *   and reading of m_force_send.
+     *   CPU can reorder the load to before the clear of the lock
+     */
+    mb();
   } while (sb->m_force_send);
 
   return true;
@@ -2821,6 +2705,16 @@ try_send(thr_data * selfptr, Uint32 node)
       return;
     }
 
+    /**
+     * Now clear the flag, and start sending all data available to this node.
+     *
+     * Put a memory barrier here, so that if another thread tries to grab
+     * the send lock but fails due to us holding it here, we either
+     * 1) Will see m_force_send[nodeId] set to 1 at the end of the loop, or
+     * 2) We clear here the flag just set by the other thread, but then we
+     * will (thanks to mb()) be able to see and send all of the data already
+     * in the first send iteration.
+     */
     sb->m_force_send = 0;
     mb();
 
@@ -2834,6 +2728,13 @@ try_send(thr_data * selfptr, Uint32 node)
      */
     selfptr->m_send_buffer_pool.release_global(rep->m_mm,
                                                RG_TRANSPORTER_BUFFERS);
+
+    /**
+     * We need a memory barrier here to prevent race between clearing lock
+     *   and reading of m_force_send.
+     *   CPU can reorder the load to before the clear of the lock
+     */
+    mb();
   } while (sb->m_force_send);
 }
 
@@ -2966,6 +2867,13 @@ do_send(struct thr_data* selfptr, bool must_send)
       {
         register_pending_send(selfptr, node);
       }
+
+      /**
+       * We need a memory barrier here to prevent race between clearing lock
+       *   and reading of m_force_send.
+       *   CPU can reorder the load to before the clear of the lock
+       */
+      mb();
       if (sb->m_force_send)
       {
         /**

@@ -98,6 +98,8 @@ public interface SessionSPI extends Session {
 
     <T> QueryDomainType<T> createQueryDomainType(DomainTypeHandler<T> handler);
 
+    <T> T newInstance(ResultData resultData, DomainTypeHandler<T> domainTypeHandler);
+
     String getCoordinatedTransactionId();
 
     void setCoordinatedTransactionId(String coordinatedTransactionId);

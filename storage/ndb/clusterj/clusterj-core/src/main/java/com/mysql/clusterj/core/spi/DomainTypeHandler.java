@@ -93,6 +93,8 @@ public interface DomainTypeHandler<T> {
 
     public void setUnsupported(String reason);
 
-    public T newInstance(ValueHandler valueHandler, Db db);
+    public T newInstance(ValueHandler valueHandler);
+
+    public T newInstance(ResultData resultData, Db db);
 
 }

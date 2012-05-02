@@ -22,7 +22,6 @@ import java.util.ArrayList;
 import java.util.List;
 
 import com.mysql.clusterj.ClusterJDatastoreException;
-import com.mysql.clusterj.ClusterJException;
 import com.mysql.clusterj.ClusterJFatalInternalException;
 import com.mysql.clusterj.ClusterJHelper;
 import com.mysql.clusterj.LockMode;
@@ -55,6 +54,8 @@ import com.mysql.ndbjtie.ndbapi.NdbDictionary.TableConst;
 import com.mysql.ndbjtie.ndbapi.NdbOperation.OperationOptionsConst;
 import com.mysql.ndbjtie.ndbapi.NdbOperationConst.AbortOption;
 import com.mysql.ndbjtie.ndbapi.NdbScanOperation.ScanFlag;
+import com.mysql.ndbjtie.ndbapi.NdbScanOperation.ScanOptions;
+import com.mysql.ndbjtie.ndbapi.NdbScanOperation.ScanOptionsConst;
 
 /**
  *
@@ -243,12 +244,18 @@ class ClusterTransactionImpl implements ClusterTransaction {
 
     public IndexScanOperation getIndexScanOperation(Index storeIndex, Table storeTable) {
         enlist();
+        if (USE_NDBRECORD) {
+            return new NdbRecordIndexScanOperationImpl(this, storeIndex, storeTable, indexScanLockMode);
+        }
         IndexConst ndbIndex = ndbDictionary.getIndex(storeIndex.getInternalName(), storeTable.getName());
         handleError(ndbIndex, ndbDictionary);
         NdbIndexScanOperation ndbOperation = ndbTransaction.getNdbIndexScanOperation(ndbIndex);
         handleError(ndbOperation, ndbTransaction);
-        int lockMode = indexScanLockMode;
         int scanFlags = 0;
+        int lockMode = indexScanLockMode;
+        if (lockMode != com.mysql.ndbjtie.ndbapi.NdbOperationConst.LockMode.LM_CommittedRead) {
+            scanFlags = ScanFlag.SF_KeyInfo;
+        }
         int parallel = 0;
         int batch = 0;
         int returnCode = ndbOperation.readTuples(lockMode, scanFlags, parallel, batch);
@@ -259,12 +266,19 @@ class ClusterTransactionImpl implements ClusterTransaction {
 
     public IndexScanOperation getIndexScanOperationMultiRange(Index storeIndex, Table storeTable) {
         enlist();
+        if (USE_NDBRECORD) {
+            return new NdbRecordIndexScanOperationImpl(this, storeIndex, storeTable, true, indexScanLockMode);
+        }
         IndexConst ndbIndex = ndbDictionary.getIndex(storeIndex.getInternalName(), storeTable.getName());
         handleError(ndbIndex, ndbDictionary);
         NdbIndexScanOperation ndbOperation = ndbTransaction.getNdbIndexScanOperation(ndbIndex);
         handleError(ndbOperation, ndbTransaction);
+        int scanFlags = 0;
         int lockMode = indexScanLockMode;
-        int scanFlags = ScanFlag.SF_MultiRange;
+        if (lockMode != com.mysql.ndbjtie.ndbapi.NdbOperationConst.LockMode.LM_CommittedRead) {
+            scanFlags = ScanFlag.SF_KeyInfo;
+        }
+        scanFlags |= ScanFlag.SF_MultiRange;
         int parallel = 0;
         int batch = 0;
         int returnCode = ndbOperation.readTuples(lockMode, scanFlags, parallel, batch);
@@ -307,12 +321,18 @@ class ClusterTransactionImpl implements ClusterTransaction {
 
     public ScanOperation getTableScanOperation(Table storeTable) {
         enlist();
+        if (USE_NDBRECORD) {
+            return new NdbRecordTableScanOperationImpl(this, storeTable, tableScanLockMode);
+        }
         TableConst ndbTable = ndbDictionary.getTable(storeTable.getName());
         handleError(ndbTable, ndbDictionary);
         NdbScanOperation ndbScanOperation = ndbTransaction.getNdbScanOperation(ndbTable);
         handleError(ndbScanOperation, ndbTransaction);
         int lockMode = tableScanLockMode;
         int scanFlags = 0;
+        if (lockMode != com.mysql.ndbjtie.ndbapi.NdbOperationConst.LockMode.LM_CommittedRead) {
+            scanFlags = ScanFlag.SF_KeyInfo;
+        }
         int parallel = 0;
         int batch = 0;
         int returnCode = ndbScanOperation.readTuples(lockMode, scanFlags, parallel, batch);
@@ -339,6 +359,9 @@ class ClusterTransactionImpl implements ClusterTransaction {
 
     public IndexOperation getUniqueIndexOperation(Index storeIndex, Table storeTable) {
         enlist();
+        if (USE_NDBRECORD) {
+            return new NdbRecordUniqueKeyOperationImpl(this, storeIndex, storeTable);
+        }
         IndexConst ndbIndex = ndbDictionary.getIndex(storeIndex.getInternalName(), storeTable.getName());
         handleError(ndbIndex, ndbDictionary);
         NdbIndexOperation ndbIndexOperation = ndbTransaction.getNdbIndexOperation(ndbIndex);
@@ -412,6 +435,33 @@ class ClusterTransactionImpl implements ClusterTransaction {
         NdbOperationConst operation = ndbTransaction.insertTuple(ndbRecord, buffer, mask, options, 0);
         handleError(operation, ndbTransaction);
         return operation;
+    }
+
+    /** Create a table scan operation using NdbRecord.
+     * 
+     * @param ndbRecord the NdbRecord for the result
+     * @param mask the columns to read
+     * @param options the scan options
+     * @return
+     */
+    public NdbScanOperation scanTable(NdbRecordConst ndbRecord, byte[] mask, ScanOptionsConst options) {
+        enlist();
+        int lockMode = tableScanLockMode;
+        NdbScanOperation operation = ndbTransaction.scanTable(ndbRecord, lockMode, mask, options, 0);
+        handleError(operation, ndbTransaction);
+        return operation;
+    }
+
+    /** Create a scan operation on the index using NdbRecord. 
+     * 
+     * @param ndbRecord the ndb record
+     * @param mask the mask that specifies which columns to read
+     * @param object scan options // TODO change this
+     * @return
+     */
+    public NdbIndexScanOperation scanIndex(NdbRecordConst key_record, NdbRecordConst result_record,
+            byte[] result_mask, ScanOptions scanOptions) {
+        return ndbTransaction.scanIndex(key_record, result_record, indexScanLockMode, result_mask, null, scanOptions, 0);
     }
 
     /** Create an NdbOperation for delete using NdbRecord.
@@ -653,6 +703,16 @@ class ClusterTransactionImpl implements ClusterTransaction {
      */
     protected NdbRecordImpl getCachedNdbRecordImpl(Table storeTable) {
         return clusterConnectionImpl.getCachedNdbRecordImpl(storeTable);
+    }
+
+    /** Get the cached NdbRecordImpl for this index and table. The NdbRecordImpl is cached in the
+     * cluster connection.
+     * @param storeTable the table
+     * @param storeIndex the index
+     * @return
+     */
+    protected NdbRecordImpl getCachedNdbRecordImpl(Index storeIndex, Table storeTable) {
+        return clusterConnectionImpl.getCachedNdbRecordImpl(storeIndex, storeTable);
     }
 
     /** 

@@ -55,6 +55,7 @@ public:   /* public instance variable */
 public:   /* public interface methods */
   Queue(int maxnodes) {
     /* Initialize the node allocation pool */
+    maxnodes += 1;  // add one for a dummy node at the head.
     assert(sizeof(Node) < CACHE_LINE_SIZE);
     nodepool = (char *) calloc(maxnodes, CACHE_LINE_SIZE);
     nodelist = 0;

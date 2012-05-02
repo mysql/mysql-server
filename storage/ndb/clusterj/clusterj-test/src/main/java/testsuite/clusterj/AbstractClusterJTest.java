@@ -23,6 +23,8 @@ import com.mysql.clusterj.Constants;
 import com.mysql.clusterj.Session;
 import com.mysql.clusterj.SessionFactory;
 import com.mysql.clusterj.Transaction;
+import com.mysql.clusterj.core.util.Logger;
+import com.mysql.clusterj.core.util.LoggerFactoryService;
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -57,6 +59,10 @@ import junit.framework.TestCase;
  *
  */
 public abstract class AbstractClusterJTest extends TestCase {
+    /** My logger */
+    static final Logger logger = LoggerFactoryService.getFactory()
+            .getInstance("com.mysql.clusterj.test");
+
     protected static final String JDBC_DRIVER_NAME = "jdbc.driverName";
     protected static final String JDBC_URL = "jdbc.url";
     protected static Connection connection;
@@ -76,7 +82,7 @@ public abstract class AbstractClusterJTest extends TestCase {
      *
      * Error messages collected during a test.
      */
-    private StringBuffer errorMessages;
+    protected StringBuffer errorMessages;
     /**
      *
      * A list of registered pc classes.

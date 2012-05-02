@@ -9500,7 +9500,7 @@ void Dbdih::execDIH_SCAN_TAB_REQ(Signal* signal)
   }
 
   tabPtr.p->m_scan_count[0]++;
-
+  ndbassert(tabPtr.p->m_map_ptr_i != DihScanTabConf::InvalidCookie);
   {
     DihScanTabConf* conf = (DihScanTabConf*)signal->getDataPtrSend();
     conf->tableId = tabPtr.i;

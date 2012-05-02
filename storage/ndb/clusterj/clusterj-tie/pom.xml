@@ -20,13 +20,13 @@
   <parent>
     <groupId>com.mysql.clusterj</groupId>
     <artifactId>clusterj-aggregate</artifactId>
-    <version>7.1.20-SNAPSHOT</version>
+    <version>7.1.22-SNAPSHOT</version>
   </parent>
   <modelVersion>4.0.0</modelVersion>
   <groupId>com.mysql.clusterj</groupId>
   <artifactId>clusterj-tie</artifactId>
   <packaging>bundle</packaging>
-  <version>7.1.20-SNAPSHOT</version>
+  <version>7.1.22-SNAPSHOT</version>
   <name>ClusterJ Tie</name>
   <description>The ndbj-tie implementation of ClusterJ storage spi</description>
   <build>
@@ -141,8 +141,8 @@
       <scope>compile</scope>
     </dependency>
     <dependency>
-      <groupId>junit</groupId>
-      <artifactId>junit</artifactId>
+      <groupId>com.mysql.clusterj</groupId>
+      <artifactId>clusterj-unit</artifactId>
       <scope>test</scope>
     </dependency>
     <dependency>

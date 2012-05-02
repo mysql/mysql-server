@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2011, Oracle and/or its affiliates. All rights reserved.
+ *  Copyright (c) 2011, 2012, Oracle and/or its affiliates. All rights reserved.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -17,6 +17,8 @@
 
 package testsuite.clusterj;
 
+import java.io.File;
+
 import com.mysql.clusterj.ClusterJHelper;
 import com.mysql.clusterj.Dbug;
 
@@ -25,7 +27,9 @@ import com.mysql.clusterj.Dbug;
  */
 public class DbugTest extends AbstractClusterJTest{
 
-    static String tmpFileName = System.getProperty("MYSQL_TMP_DIR", "/tmp") + "/clusterj-test-dbug";
+    private static final String TMP_DIR_NAME = System.getProperty("java.io.tmpdir");
+    private static final String FILE_SEPARATOR = File.separator;
+    private static final String TMP_FILE_NAME = TMP_DIR_NAME + FILE_SEPARATOR + "clusterj-test-dbug";
 
     public boolean getDebug() {
         return false;
@@ -46,7 +50,7 @@ public class DbugTest extends AbstractClusterJTest{
             return;
         }
         String originalState = "t";
-        String newState = "d,jointx:o," + tmpFileName;
+        String newState = "d,jointx:o," + TMP_FILE_NAME;
         dbug.set(originalState);
         String actualState = dbug.get();
         errorIfNotEqual("Failed to set original state", originalState, actualState);
@@ -58,17 +62,17 @@ public class DbugTest extends AbstractClusterJTest{
         errorIfNotEqual("Failed to pop original state", originalState, actualState);
 
         dbug = ClusterJHelper.newDbug();
-        dbug.output(tmpFileName).flush().debug(new String[] {"a", "b", "c", "d", "e", "f"}).push();
+        dbug.output(TMP_FILE_NAME).flush().debug(new String[] {"a", "b", "c", "d", "e", "f"}).push();
         actualState = dbug.get();
         // keywords are stored LIFO
-        errorIfNotEqual("Wrong state created", "d,f,e,d,c,b,a:O," + tmpFileName, actualState);
+        errorIfNotEqual("Wrong state created", "d,f,e,d,c,b,a:O," + TMP_FILE_NAME, actualState);
         dbug.pop();
 
         dbug = ClusterJHelper.newDbug();
-        dbug.append(tmpFileName).trace().debug("a,b,c,d,e,f").set();
+        dbug.append(TMP_FILE_NAME).trace().debug("a,b,c,d,e,f").set();
         actualState = dbug.get();
         // keywords are stored LIFO
-        errorIfNotEqual("Wrong state created", "d,f,e,d,c,b,a:a," + tmpFileName + ":t", actualState);
+        errorIfNotEqual("Wrong state created", "d,f,e,d,c,b,a:a," + TMP_FILE_NAME + ":t", actualState);
         dbug.pop();
 
         failOnError();

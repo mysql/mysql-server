@@ -47,4 +47,3 @@ NdbInstance::~NdbInstance() {
   if(db) delete db;
 }
 
-

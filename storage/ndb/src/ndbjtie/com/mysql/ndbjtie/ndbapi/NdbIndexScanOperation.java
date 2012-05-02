@@ -48,27 +48,27 @@ public class NdbIndexScanOperation extends NdbScanOperation implements NdbIndexS
     public final native int get_range_no();
     public interface /*_struct_*/ IndexBoundConst
     {
-        String/*_const char *_*/ low_key();
+        ByteBuffer/*_const char *_*/ low_key();
         int/*_Uint32_*/ low_key_count();
         boolean low_inclusive();
-        String/*_const char *_*/ high_key();
+        ByteBuffer/*_const char *_*/ high_key();
         int/*_Uint32_*/ high_key_count();
         boolean high_inclusive();
         int/*_Uint32_*/ range_no();
     }
     static public class /*_struct_*/ IndexBound extends Wrapper implements IndexBoundConst
     {
-        public final native String/*_const char *_*/ low_key();
+        public final native ByteBuffer/*_const char *_*/ low_key();
         public final native int/*_Uint32_*/ low_key_count();
         public final native boolean low_inclusive();
-        public final native String/*_const char *_*/ high_key();
+        public final native ByteBuffer/*_const char *_*/ high_key();
         public final native int/*_Uint32_*/ high_key_count();
         public final native boolean high_inclusive();
         public final native int/*_Uint32_*/ range_no();
-        public final native void low_key(String/*_const char *_*/ p0);
+        public final native void low_key(ByteBuffer/*_const char *_*/ p0);
         public final native void low_key_count(int/*_Uint32_*/ p0);
         public final native void low_inclusive(boolean p0);
-        public final native void high_key(String/*_const char *_*/ p0);
+        public final native void high_key(ByteBuffer/*_const char *_*/ p0);
         public final native void high_key_count(int/*_Uint32_*/ p0);
         public final native void high_inclusive(boolean p0);
         public final native void range_no(int/*_Uint32_*/ p0);
