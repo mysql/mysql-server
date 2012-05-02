@@ -4872,9 +4872,9 @@ static void set_socket_thread_owner_v1(PSI_socket *socket)
 
 /**
   Implementation of the thread attribute connection interface
-  @sa PSI_v1::thread_set_connect_attr.
+  @sa PSI_v1::set_thread_connect_attr.
 */
-static int thread_set_connect_attrs_v1(const char *buffer, uint length,
+static int set_thread_connect_attrs_v1(const char *buffer, uint length,
                                        const void *from_cs)
 {
 
@@ -5000,7 +5000,7 @@ PSI_v1 PFS_v1=
   set_socket_thread_owner_v1,
   pfs_digest_start_v1,
   pfs_digest_add_token_v1,
-  thread_set_connect_attrs_v1,
+  set_thread_connect_attrs_v1,
 };
 
 static void* get_interface(int version)

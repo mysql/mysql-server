@@ -500,7 +500,7 @@ typedef struct PSI_digest_locker * (*digest_start_v1_t)
   (struct PSI_statement_locker *locker);
 typedef struct PSI_digest_locker* (*digest_add_token_v1_t)
   (struct PSI_digest_locker *locker, uint token, struct OPAQUE_LEX_YYSTYPE *yylval);
-typedef int (*thread_set_connect_attrs_v1_t)(const char *buffer, uint length,
+typedef int (*set_thread_connect_attrs_v1_t)(const char *buffer, uint length,
                                              const void *from_cs);
 struct PSI_v1
 {
@@ -599,7 +599,7 @@ struct PSI_v1
   set_socket_thread_owner_v1_t set_socket_thread_owner;
   digest_start_v1_t digest_start;
   digest_add_token_v1_t digest_add_token;
-  thread_set_connect_attrs_v1_t thread_set_connect_attrs;
+  set_thread_connect_attrs_v1_t set_thread_connect_attrs;
 };
 typedef struct PSI_v1 PSI;
 typedef struct PSI_mutex_info_v1 PSI_mutex_info;

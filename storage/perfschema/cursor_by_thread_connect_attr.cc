@@ -154,11 +154,11 @@ bool read_nth_attr(const char *connect_attrs, uint connect_attrs_length,
     if (parse_length_encoded_string(&ptr,
                                     attr_name, max_attr_name, &copy_length,
                                     connect_attrs,
-				    connect_attrs_length,
-				    fill_in_attr_name,
+                                    connect_attrs_length,
+                                    fill_in_attr_name,
                                     connect_attrs_cs, 32) ||
-	!copy_length
-	)
+        !copy_length
+        )
       return false;
     if (idx == ordinal)
       *attr_name_length= copy_length;
@@ -168,8 +168,8 @@ bool read_nth_attr(const char *connect_attrs, uint connect_attrs_length,
     if (parse_length_encoded_string(&ptr,
                                     attr_value, max_attr_value, &copy_length,
                                     connect_attrs,
-				    connect_attrs_length,
-				    fill_in_attr_value,
+                                    connect_attrs_length,
+                                    fill_in_attr_value,
                                     connect_attrs_cs, 1024))
       return false;
 
@@ -201,7 +201,7 @@ int cursor_by_thread_connect_attr::rnd_next(void)
       if (m_row_exists)
       {
         m_next_pos.set_after(&m_pos);
-	return 0;
+        return 0;
       }
     }
   }
@@ -302,7 +302,7 @@ int cursor_by_thread_connect_attr::read_row_values(TABLE *table,
         break;
       case FO_ATTR_NAME:
         set_field_varchar_utf8(f, m_row.m_attr_name,
-			       m_row.m_attr_name_length);
+                               m_row.m_attr_name_length);
         break;
       case FO_ATTR_VALUE:
         if (m_row.m_attr_value_length)
@@ -312,7 +312,7 @@ int cursor_by_thread_connect_attr::read_row_values(TABLE *table,
           f->set_null();
         break;
       case FO_ORDINAL_POSITION:
-	set_field_ulong(f, m_row.m_ordinal_position);
+        set_field_ulong(f, m_row.m_ordinal_position);
         break;
       default:
         DBUG_ASSERT(false);

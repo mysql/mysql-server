@@ -747,7 +747,7 @@ emb_transfer_connect_attrs(MYSQL *mysql)
 
     buf= (uchar *) my_alloca(length + 2);
     send_client_connect_attrs(mysql, buf);
-    PSI_CALL(thread_set_connect_attrs)((char *) (buf + 2), length,
+    PSI_CALL(set_thread_connect_attrs)((char *) (buf + 2), length,
                                        thd->charset());
 
     my_afree(buf);

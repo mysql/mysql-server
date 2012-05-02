@@ -1883,7 +1883,7 @@ typedef struct PSI_digest_locker* (*digest_add_token_v1_t)
     @retval  non-0    attributes truncated
     @retval  0        stored the attribute
 */
-typedef int (*thread_set_connect_attrs_v1_t)(const char *buffer, uint length,
+typedef int (*set_thread_connect_attrs_v1_t)(const char *buffer, uint length,
                                              const void *from_cs);
 
 /**
@@ -2081,8 +2081,8 @@ struct PSI_v1
   digest_start_v1_t digest_start;
   /** @sa digest_add_token_v1_t. */
   digest_add_token_v1_t digest_add_token;
-  /** @sa thread_set_connect_attrs_v1_t. */
-  thread_set_connect_attrs_v1_t thread_set_connect_attrs;
+  /** @sa set_thread_connect_attrs_v1_t. */
+  set_thread_connect_attrs_v1_t set_thread_connect_attrs;
 };
 
 /** @} (end of group Group_PSI_v1) */

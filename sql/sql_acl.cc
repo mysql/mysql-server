@@ -8434,9 +8434,11 @@ read_client_connect_attrs(char **ptr, size_t *max_bytes_available,
   if (length > *max_bytes_available)
     return true;
 
-  if (PSI_CALL(thread_set_connect_attrs)(*ptr, length, from_cs) && log_warnings)
+#ifdef HAVE_PSI_THREAD_INTERFACE
+  if (PSI_CALL(set_thread_connect_attrs)(*ptr, length, from_cs) && log_warnings)
     sql_print_warning("Connection attributes of length %u were truncated",
                       length);
+#endif
   return false;
 }
 
@@ -8548,11 +8550,7 @@ static bool parse_com_change_user_packet(MPVIO_EXT *mpvio, uint packet_length)
   else
   {
     if (mpvio->client_capabilities & CLIENT_SECURE_CONNECTION)
-    {
       client_plugin= native_password_plugin_name.str;
-      uint plugin_len= strlen(client_plugin);
-      ptr= client_plugin + plugin_len + 1;
-    }
     else
     {
       client_plugin=  old_password_plugin_name.str;
@@ -8570,7 +8568,6 @@ static bool parse_com_change_user_packet(MPVIO_EXT *mpvio, uint packet_length)
   size_t bytes_remaining_in_packet= end - ptr;
 
   if ((mpvio->client_capabilities & CLIENT_CONNECT_ATTRS) &&
-      ptr  + 2 < end &&
       read_client_connect_attrs(&ptr, &bytes_remaining_in_packet,
                                 mpvio->charset_adapter->charset()))
     return packet_error;
