@@ -738,6 +738,7 @@ err:
 static void
 emb_transfer_connect_attrs(MYSQL *mysql)
 {
+#ifdef HAVE_PSI_THREAD_INTERFACE
   if (mysql->options.extension &&
       mysql->options.extension->connection_attributes_length)
   {
@@ -749,9 +750,9 @@ emb_transfer_connect_attrs(MYSQL *mysql)
     send_client_connect_attrs(mysql, buf);
     PSI_CALL(set_thread_connect_attrs)((char *) (buf + 2), length,
                                        thd->charset());
-
     my_afree(buf);
   }
+#endif
 }
 
 
