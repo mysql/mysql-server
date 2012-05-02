@@ -25,31 +25,14 @@ class Relay_log_info;
 class Format_description_log_event;
 
 /**
-  Class for maintaining the thread queue for binary log group commit.
-
-  The queue is designed so that it should be fast to enqueue new items
-  and fast to empty and grab the entire queue. The queue is actually
-  three sub-queues used in a circular manner internally:
-
-  - Current Queue: for threads queuing for commit. Uses LOCK_queue.
-
-  - Flush Queue: for threads being flushed to disk. Protected by
-    LOCK_log.
-
-  - Commit Queue: for threads being committed in the
-    engines. Protected by LOCK_commit.
-
-  When queing a thread, it will be queued to the current queue. When a
-  thread has been identified as leader thread, it will grab the
-  current queue and rotate the roles so that the Commit Queue will
-  become the Current Queue.
+  Class for maintaining the commit stages for binary log group commit.
  */
-class Thread_queue {
+class Stage_manager {
 public:
-  class Inner {
-    friend class Thread_queue;
+  class Mutex_queue {
+    friend class Stage_manager;
   public:
-    Inner()
+    Mutex_queue()
       : m_first(NULL), m_last(&m_first)
     {
     }
@@ -105,11 +88,11 @@ public:
   } __attribute__((aligned(CPU_LEVEL1_DCACHE_LINESIZE)));
 
 public:
-  Thread_queue()
+  Stage_manager()
   {
   }
 
-  ~Thread_queue()
+  ~Stage_manager()
   {
   }
 
@@ -133,8 +116,8 @@ public:
 #endif
             )
   {
-    mysql_mutex_init(key_LOCK_done, &m_lock, MY_MUTEX_INIT_FAST);
-    mysql_cond_init(key_COND_done, &m_cond, NULL);
+    mysql_mutex_init(key_LOCK_done, &m_lock_done, MY_MUTEX_INIT_FAST);
+    mysql_cond_init(key_COND_done, &m_cond_done, NULL);
     m_queue[FLUSH_STAGE].init(
 #ifdef HAVE_PSI_INTERFACE
                               key_LOCK_flush_queue
@@ -156,12 +139,12 @@ public:
   {
     for (size_t i = 0 ; i < STAGE_COUNTER ; ++i)
       m_queue[i].deinit();
-    mysql_cond_destroy(&m_cond);
-    mysql_mutex_destroy(&m_lock);
+    mysql_cond_destroy(&m_cond_done);
+    mysql_mutex_destroy(&m_lock_done);
   }
 
   /**
-    Queue thread (or append queue of threads).
+    Enroll a set of sessions for a stage.
 
     This will queue the session thread for writing and flushing.
 
@@ -174,12 +157,14 @@ public:
 
     @param stage Stage identifier for the queue to append to.
     @param first Queue to append.
-    @param wait_if_follower If
+    @param stage_mutex
+                 Pointer to the currently held stage mutex, or NULL if
+                 we're not in a stage.
 
     @retval true  Thread is stage leader.
-    @retval false Thread is/was not stage leader.
+    @retval false Thread was not stage leader and processing has been done.
    */
-  bool append(StageID stage, THD *first, bool wait_if_follower = true);
+  bool enroll_for(StageID stage, THD *first, mysql_mutex_t *stage_mutex);
 
   std::pair<bool,THD*> pop_front(StageID stage)
   {
@@ -192,17 +177,17 @@ public:
 
     @return Pointer to the first session of the queue.
    */
-  THD *fetch_queue(StageID stage) {
+  THD *fetch_queue_for(StageID stage) {
     DBUG_PRINT("debug", ("Fetching queue for stage %d", stage));
     return m_queue[stage].fetch_and_empty();
   }
 
   void signal_done(THD *queue) {
-    mysql_mutex_lock(&m_lock);
+    mysql_mutex_lock(&m_lock_done);
     for (THD *thd= queue ; thd ; thd = thd->next_to_commit)
       thd->transaction.flags.pending= false;
-    mysql_mutex_unlock(&m_lock);
-    mysql_cond_broadcast(&m_cond);
+    mysql_mutex_unlock(&m_lock_done);
+    mysql_cond_broadcast(&m_cond_done);
   }
 
 private:
@@ -213,13 +198,13 @@ private:
      - Waiting. Threads waiting to be processed
      - Committing. Threads waiting to be committed.
    */
-  Inner m_queue[STAGE_COUNTER];
+  Mutex_queue m_queue[STAGE_COUNTER];
 
   /** Condition variable to indicate that the commit was processed */
-  mysql_cond_t m_cond;
+  mysql_cond_t m_cond_done;
 
-  /** Mutex used for the condition variable */
-  mysql_mutex_t m_lock;
+  /** Mutex used for the condition variable above */
+  mysql_mutex_t m_lock_done;
 };
 
 
@@ -315,10 +300,8 @@ class MYSQL_BIN_LOG: public TC_LOG, private MYSQL_LOG
   int new_file_without_locking();
   int new_file_impl(bool need_lock);
 
-  /**
-    Queue of threads waiting to be flushed to binary log.
-   */
-  Thread_queue flush_queue;
+  /** Manage the stages in ordered_commit. */
+  Stage_manager stage_manager;
   void do_flush(THD *thd);
 
 public:
@@ -436,8 +419,9 @@ private:
   Gtid_set* previous_gtid_set;
 
   int open(const char *opt_name) { return open_binlog(opt_name); }
-  bool enter_stage(THD *thd, Thread_queue::StageID stage,
-                   THD* queue, mysql_mutex_t *enter);
+  bool change_stage(THD *thd, Stage_manager::StageID stage,
+                    THD* queue, mysql_mutex_t *leave,
+                    mysql_mutex_t *enter);
   void commit_session_queue(THD *thd, THD *queue, int flush_error);
   std::pair<int,my_off_t> flush_thread_caches(THD *thd);
   int flush_stage_queue(my_off_t *total_bytes_var, bool *rotate_var,
