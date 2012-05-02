@@ -44,7 +44,7 @@ Created Jan 06, 2010 Vasil Dimov
 #include "trx0trx.h" /* trx_create() */
 #include "trx0roll.h" /* trx_rollback_to_savepoint() */
 #include "ut0rnd.h" /* ut_rnd_interval() */
-#include "ut0ut.h" /* ut_format_name() */
+#include "ut0ut.h" /* ut_format_name(), ut_time() */
 
 /* Sampling algorithm description @{
 
@@ -303,6 +303,8 @@ dict_stats_update_transient(
 
 	table->stat_sum_of_other_index_sizes = sum_of_index_sizes
 		- index->stat_index_size;
+
+	table->stats_last_recalc = ut_time();
 
 	table->stat_modified_counter = 0;
 
@@ -1656,6 +1658,8 @@ dict_stats_update_persistent(
 		table->stat_sum_of_other_index_sizes
 			+= index->stat_index_size;
 	}
+
+	table->stats_last_recalc = ut_time();
 
 	table->stat_modified_counter = 0;
 

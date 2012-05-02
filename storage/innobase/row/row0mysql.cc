@@ -45,6 +45,7 @@ Created 9/17/2000 Heikki Tuuri
 #include "dict0load.h"
 #include "dict0boot.h"
 #include "dict0stats.h"
+#include "dict0stats_background.h"
 #include "trx0roll.h"
 #include "trx0purge.h"
 #include "trx0rec.h"
@@ -1024,6 +1025,7 @@ row_update_statistics_if_needed(
 	dict_table_t*	table)	/*!< in: table */
 {
 	ib_uint64_t	counter;
+	ib_uint64_t	n_rows;
 
 	if (!table->stat_initialized) {
 		DBUG_EXECUTE_IF(
@@ -1034,11 +1036,14 @@ row_update_statistics_if_needed(
 		return;
 	}
 
-	/* Update the counter even for persistent stats enabled table
-	because it is displayed in INFORMATION_SCHEMA */
 	counter = table->stat_modified_counter++;
+	n_rows = dict_table_get_n_rows(table);
 
 	if (dict_stats_is_persistent_enabled(table)) {
+		if (counter > n_rows / 10 /* 10% */) {
+			dict_stats_enqueue_table_for_auto_recalc(table);
+			table->stat_modified_counter = 0;
+		}
 		return;
 	}
 	/* else */
@@ -1048,7 +1053,7 @@ row_update_statistics_if_needed(
 	We calculate statistics at most every 16th round, since we may have
 	a counter table which is very small and updated very often. */
 
-	if (counter > 16 + table->stat_n_rows / 16) {
+	if (counter > 16 + n_rows / 16 /* 6.25% */) {
 
 		ut_ad(!mutex_own(&dict_sys->mutex));
 		/* this will reset table->stat_modified_counter to 0 */
