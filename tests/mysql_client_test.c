@@ -20257,7 +20257,7 @@ static void test_wl5924()
                   " FROM performance_schema.session_account_connect_attrs"
                   " WHERE ATTR_NAME IN ('key1','key2','key3','key4',"
                   "  '\xc3\xe5\xee\xf0\xe3\xe8') AND"
-                  "  PROCESS_ID = CONNECTION_ID() ORDER BY ATTR_NAME");
+                  "  PROCESSLIST_ID = CONNECTION_ID() ORDER BY ATTR_NAME");
   myquery2(l_mysql,rc);
   res= mysql_use_result(l_mysql);
   DIE_UNLESS(res);

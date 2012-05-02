@@ -1632,7 +1632,7 @@ static Exit_status safe_connect()
 #endif
   mysql_options(mysql, MYSQL_OPT_CONNECT_ATTR_RESET, 0);
   mysql_options4(mysql, MYSQL_OPT_CONNECT_ATTR_ADD,
-                 "program_name", "mysqltbinlog");
+                 "program_name", "mysqlbinlog");
   if (!mysql_real_connect(mysql, host, user, pass, 0, port, sock, 0))
   {
     error("Failed on connect: %s", mysql_error(mysql));

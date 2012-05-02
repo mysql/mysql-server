@@ -50,6 +50,9 @@ struct pos_connect_attr_by_thread_by_attr
   }
 };
 
+#define MAX_ATTR_NAME_CHARS 32
+#define MAX_ATTR_VALUE_CHARS 1024
+#define MAX_UTF8_BYTES 6
 /**
   A row of PERFORMANCE_SCHEMA.SESSION_CONNECT_ATTRS and
   PERFORMANCE_SCHEMA.SESSION_ACCOUNT_CONNECT_ATTRS.
@@ -59,11 +62,11 @@ struct row_session_connect_attrs
   /** Column PROCESS_ID. */
   ulong m_process_id;
   /** Column ATTR_NAME. In UTF-8 */
-  char m_attr_name[32 * 3];
+  char m_attr_name[MAX_ATTR_NAME_CHARS * MAX_UTF8_BYTES];
   /** Length in bytes of @c m_attr_name. */
   uint m_attr_name_length;
   /** Column ATTR_VALUE. In UTF-8 */
-  char m_attr_value[1024 * 3];
+  char m_attr_value[MAX_ATTR_VALUE_CHARS * MAX_UTF8_BYTES];
   /** Length in bytes of @c m_attr_name. */
   uint m_attr_value_length;
   /** Column ORDINAL_POSITION. */
