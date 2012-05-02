@@ -2267,6 +2267,16 @@ struct st_mysql_client_plugin *mysql_client_builtins[]=
 };
 
 
+static uchar *
+write_length_encoded_string(uchar *buf, char *string, size_t length)
+{
+  buf= net_store_length(buf, length);
+  memcpy(buf, string, length);
+  buf+= length;
+  return buf;
+}
+
+
 uchar *
 send_client_connect_attrs(MYSQL *mysql, uchar *buf)
 {
@@ -2275,10 +2285,10 @@ send_client_connect_attrs(MYSQL *mysql, uchar *buf)
   {
 
     /* Always store the length if the client supports it */
-    int2store(buf,
-              mysql->options.extension ?
-              mysql->options.extension->connection_attributes_length : 0);
-    buf+= 2;
+    buf= net_store_length(buf,
+                          mysql->options.extension ?
+                          mysql->options.extension->connection_attributes_length :
+                          0);
 
     /* check if we have connection attributes */
     if (mysql->options.extension &&
@@ -2296,18 +2306,8 @@ send_client_connect_attrs(MYSQL *mysql, uchar *buf)
         /* we can't have zero length keys */
         DBUG_ASSERT(key->length);
 
-        /* store the key string */
-        buf= net_store_length(buf, key->length);
-        memcpy(buf, key->str, key->length);
-        buf+= key->length;
-
-        /* store the value string (optionally with zero length) */
-        buf= net_store_length(buf, value->length);
-        if (value->length)
-        {
-          memcpy(buf, value->str, value->length);
-          buf+= value->length;
-        }
+        buf= write_length_encoded_string(buf, key->str, key->length);
+        buf= write_length_encoded_string(buf, value->str, value->length);
       }
     }
   }
@@ -2376,7 +2376,7 @@ static int send_change_user_packet(MCPVIO_EXT *mpvio,
     mysql->options.extension->connection_attributes_length : 0;
 
   buff= my_alloca(USERNAME_LENGTH + data_len + 1 + NAME_LEN + 2 + NAME_LEN +
-                  connect_attrs_len + 2 /* for the length of the attrs */);
+                  connect_attrs_len + 9 /* for the length of the attrs */);
 
   end= strmake(buff, mysql->user, USERNAME_LENGTH) + 1;
 
@@ -2423,6 +2423,9 @@ error:
   return res;
 }
 
+
+#define MAX_CONNECTION_ATTR_STORAGE_LENGTH 65536
+
 /**
   sends a client authentication packet (second packet in the 3-way handshake)
 
@@ -2464,11 +2467,11 @@ static int send_client_reply_packet(MCPVIO_EXT *mpvio,
      mysql->options.extension) ?
     mysql->options.extension->connection_attributes_length : 0;
 
-  DBUG_ASSERT(connect_attrs_len < 65536);
+  DBUG_ASSERT(connect_attrs_len < MAX_CONNECTION_ATTR_STORAGE_LENGTH);
 
   /* see end= buff+32 below, fixed size of the packet is 32 bytes */
   buff= my_alloca(33 + USERNAME_LENGTH + data_len + NAME_LEN + NAME_LEN +
-                  connect_attrs_len + 2 /* for the length of the attrs */);
+                  connect_attrs_len + 9 /* for the length of the attrs */);
 
   mysql->client_flag|= mysql->options.client_flag;
   mysql->client_flag|= CLIENT_CAPABILITIES;
@@ -4325,8 +4328,6 @@ get_attr_key(LEX_STRING *part, size_t *length,
   *length= part[0].length;
   return (uchar *) part[0].str;
 }
-
-#define MAX_CONNECTION_ATTR_STORAGE_LENGTH UINT_MAX
 
 int STDCALL
 mysql_options4(MYSQL *mysql,enum mysql_option option,

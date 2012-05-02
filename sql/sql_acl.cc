@@ -8420,15 +8420,20 @@ static bool
 read_client_connect_attrs(char **ptr, size_t *max_bytes_available,
                           const CHARSET_INFO *from_cs)
 {
-  uint length;
+  size_t length, length_length;
+  char *ptr_save;
   /* not enough bytes to hold the length */
-  if (*max_bytes_available < 2)
+  if (*max_bytes_available < 1)
     return true;
 
   /* read the length */
-  length= uint2korr(*ptr);
-  *ptr+= 2;
-  *max_bytes_available-= 2;
+  ptr_save= *ptr;
+  length= net_field_length_ll((uchar **) ptr);
+  length_length= *ptr - ptr_save;
+  if (*max_bytes_available < length_length)
+    return true;
+
+  *max_bytes_available-= length_length;
 
   /* length says there're more data than can fit into the packet */
   if (length > *max_bytes_available)
@@ -8436,7 +8441,7 @@ read_client_connect_attrs(char **ptr, size_t *max_bytes_available,
 
 #ifdef HAVE_PSI_THREAD_INTERFACE
   if (PSI_CALL(set_thread_connect_attrs)(*ptr, length, from_cs) && log_warnings)
-    sql_print_warning("Connection attributes of length %u were truncated",
+    sql_print_warning("Connection attributes of length %lu were truncated",
                       length);
 #endif
   return false;
