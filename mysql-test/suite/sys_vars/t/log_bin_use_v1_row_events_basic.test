@@ -1,0 +1,95 @@
+############# mysql-test\t\log_bin_use_v1_row_events_basic.test ###############
+#                                                                             #
+# Variable Name: log_bin_use_v1_row_events                                    #
+# Scope: Global                                                               #
+# Access Type: Static                                                         #
+# Data Type: bool                                                             #
+#                                                                             #
+#                                                                             #
+# Creation Date: 2011-11-23                                                   #
+# Author : Frazer Clement                                                     #
+#                                                                             #
+#                                                                             #
+# Description:Test Cases of Static System Variable log_bin_use_v1_row_events  #
+#             that checks the behavior of this variable in the following ways #
+#              * Value Check                                                  #
+#              * Scope Check                                                  #
+#                                                                             #
+# Reference:                                                                  #
+#    http://dev.mysql.com/doc/refman/5.X/en/server-system-variables.html      #
+#                                                                             #
+###############################################################################
+
+
+--echo '#---------------------BS_STVARS_002_01----------------------#'
+####################################################################
+#   Displaying default value                                       #
+####################################################################
+SET @start_value= @@global.log_bin_use_v1_row_events;
+SELECT @start_value;
+
+SELECT COUNT(@@GLOBAL.log_bin_use_v1_row_events);
+--echo 1 Expected
+
+--echo '#---------------------BS_STVARS_002_02----------------------#'
+####################################################################
+#   Check if Value can set                                         #
+####################################################################
+SET @@global.log_bin_use_v1_row_events = TRUE;
+SET @@global.log_bin_use_v1_row_events = DEFAULT;
+SELECT @@global.log_bin_use_v1_row_events;
+
+SET @@global.log_bin_use_v1_row_events = ON;
+SELECT @@global.log_bin_use_v1_row_events;
+SET @@global.log_bin_use_v1_row_events = OFF;
+SELECT @@global.log_bin_use_v1_row_events;
+SET @@global.log_bin_use_v1_row_events = 1;
+SELECT @@global.log_bin_use_v1_row_events;
+SET @@global.log_bin_use_v1_row_events = 0;
+SELECT @@global.log_bin_use_v1_row_events;
+SET @@global.log_bin_use_v1_row_events = TRUE;
+SELECT @@global.log_bin_use_v1_row_events;
+SET @@global.log_bin_use_v1_row_events = FALSE;
+SELECT @@global.log_bin_use_v1_row_events;
+
+--echo '#-------------------FN_DYNVARS_063_04----------------------------#'
+###############################################################################
+#     Test if accessing session log_bin_use_v1_row_events gives error         #
+###############################################################################
+
+--Error ER_GLOBAL_VARIABLE
+SET @@session.log_bin_use_v1_row_events = 0;
+--Error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT @@session.log_bin_use_v1_row_events;
+
+--echo '#---------------------BS_STVARS_002_03----------------------#'
+#################################################################
+# Check if the value in GLOBAL Table matches value in variable  #
+#################################################################
+
+SELECT IF(@@GLOBAL.log_bin_use_v1_row_events, "ON", "OFF") = VARIABLE_VALUE
+FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+WHERE VARIABLE_NAME='log_bin_use_v1_row_events';
+--echo 1 Expected
+
+SELECT COUNT(@@GLOBAL.log_bin_use_v1_row_events);
+--echo 1 Expected
+
+SELECT COUNT(VARIABLE_VALUE)
+FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+WHERE VARIABLE_NAME='log_bin_use_v1_row_events';
+--echo 1 Expected
+
+
+--echo '#---------------------BS_STVARS_002_05----------------------#'
+################################################################################
+# Check if log_bin_use_v1_row_events can be accessed with and without @@ sign  #
+################################################################################
+
+SELECT COUNT(@@log_bin_use_v1_row_events);
+--echo 1 Expected
+SELECT COUNT(@@GLOBAL.log_bin_use_v1_row_events);
+--echo 1 Expected
+
+SET @@global.log_bin_use_v1_row_events= @start_value;
+

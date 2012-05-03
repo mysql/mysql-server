@@ -525,6 +525,7 @@ ulong specialflag=0;
 ulong binlog_cache_use= 0, binlog_cache_disk_use= 0;
 ulong binlog_stmt_cache_use= 0, binlog_stmt_cache_disk_use= 0;
 ulong max_connections, max_connect_errors;
+my_bool log_bin_use_v1_row_events= 0;
 /**
   Limit of the total number of prepared statements in the server.
   Is necessary to protect the server against out-of-memory attacks.

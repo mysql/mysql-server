@@ -1413,6 +1413,15 @@ static Sys_var_mybool Sys_trust_function_creators(
        GLOBAL_VAR(trust_function_creators),
        CMD_LINE(OPT_ARG), DEFAULT(FALSE));
 
+static Sys_var_mybool Sys_use_v1_row_events(
+       "log_bin_use_v1_row_events",
+       "If equal to 1 then version 1 row events are written to a row based "
+       "binary log.  If equal to 0, then the latest version of events are "
+       "written.  "
+       "This option is useful during some upgrades.",
+       GLOBAL_VAR(log_bin_use_v1_row_events),
+       CMD_LINE(OPT_ARG), DEFAULT(FALSE));
+
 static Sys_var_charptr Sys_log_error(
        "log_error", "Error log file",
        READ_ONLY GLOBAL_VAR(log_error_file_ptr),
