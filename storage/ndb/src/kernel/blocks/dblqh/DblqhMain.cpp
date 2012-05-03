@@ -10292,8 +10292,6 @@ void Dblqh::execSCAN_FRAGREQ(Signal* signal)
   TcConnectionrecPtr nextHashptr;
   Uint32 senderHi = signal->getSendersBlockRef();
 
-  const Uint32 reqinfo = scanFragReq->requestInfo;
-
   /* Short SCANFRAGREQ has no sections, Long SCANFRAGREQ has 1 or 2
    * Section 0 : Mandatory ATTRINFO section
    * Section 1 : Optional KEYINFO section
@@ -10322,9 +10320,17 @@ void Dblqh::execSCAN_FRAGREQ(Signal* signal)
   else
   {
     /* Short request, get Attr + Key len from signal */
-    aiLen= ScanFragReq::getAttrLen(reqinfo);
+    aiLen= ScanFragReq::getAttrLen(scanFragReq->requestInfo);
     keyLen= (scanFragReq->fragmentNoKeyLen >> 16);
+    /*
+     * bug#13834481.  Clear attribute length so that it is not
+     * re-interpreted as new 7.x bits.  initScanrec() uses signal
+     * data so we must modify signal data.
+     */
+    ScanFragReq::clearAttrLen(scanFragReq->requestInfo);
   }
+
+  const Uint32 reqinfo = scanFragReq->requestInfo;
   
   const Uint32 fragId = (scanFragReq->fragmentNoKeyLen & 0xFFFF);
   tabptr.i = scanFragReq->tableId;
