@@ -276,7 +276,7 @@ my_win_translate_command_line_args(const CHARSET_INFO *cs, int *argc, char ***ar
   /* Allocate new command line parameter */
   av= (char **) my_once_alloc(nbytes, MYF(MY_ZEROFILL));
 
-  for(i= 0; i < *argc; i++)
+  for(i= 0; i < ac; i++)
   {
     uint dummy_errors;
     size_t arg_len= wcslen(wargs[i]);
