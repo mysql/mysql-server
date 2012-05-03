@@ -180,7 +180,6 @@ class ha_ndbcluster: public handler
   int rnd_next(uchar *buf);
   int rnd_pos(uchar *buf, uchar *pos);
   void position(const uchar *record);
-  int read_first_row(uchar *buf, uint primary_key);
   virtual int cmp_ref(const uchar * ref1, const uchar * ref2);
   int read_range_first(const key_range *start_key,
                        const key_range *end_key,
@@ -337,15 +336,6 @@ static void set_tabname(const char *pathname, char *tabname);
 
   bool maybe_pushable_join(const char*& reason) const;
   int assign_pushed_join(const ndb_pushed_join* pushed_join);
-
-#ifdef NDB_WITHOUT_JOIN_PUSHDOWN
-  enum ha_push_flag {
-    HA_PUSH_BLOCK_CONST_TABLE,
-    HA_PUSH_MULTIPLE_DEPENDENCY,
-    HA_PUSH_NO_ORDERED_INDEX
-  };
-#endif
-  bool test_push_flag(enum ha_push_flag flag) const;
 
   uint number_of_pushed_joins() const;
   const TABLE* root_of_pushed_join() const;

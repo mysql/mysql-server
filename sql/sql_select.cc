@@ -1511,7 +1511,7 @@ bool create_ref_for_key(JOIN *join, JOIN_TAB *j, Key_use *org_keyuse,
   }
 #ifndef MCP_WL4784
   else if (keyuse_uses_no_tables &&
-           !table->file->test_push_flag(HA_PUSH_BLOCK_CONST_TABLE))
+           !(table->file->ha_table_flags() & HA_BLOCK_CONST_TABLE))
 #else
   else if (keyuse_uses_no_tables)
 #endif
@@ -3310,6 +3310,7 @@ const_expression_in_where(Item *cond, Item *comp_item, Field *comp_field,
   }
   return 0;
 }
+
 
 
 /**

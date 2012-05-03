@@ -3120,21 +3120,8 @@ join_read_last_key(JOIN_TAB *tab)
 
 	/* ARGSUSED */
 static int
-join_no_more_records(READ_RECORD *info)
+join_no_more_records(READ_RECORD *info __attribute__((unused)))
 {
-#ifndef MCP_WL4784
-  /**
-   * When a pushed join completes, and its results did not only depend on
-   * the key of this root operations: ('tab->ref.key_buff')
-   * Results from this pushed join can not be reused 
-   * for later queries having the same root key.
-   * (ref: join_read_key(), join_read_const() & join_read_system()
-   */
-  if (info->table->file->test_push_flag(HA_PUSH_MULTIPLE_DEPENDENCY))
-  {
-    info->table->status= STATUS_GARBAGE;
-  }
-#endif
   return -1;
 }
 

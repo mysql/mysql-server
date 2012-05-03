@@ -28,6 +28,7 @@
 
 #include <memcached/util.h>
 #include <memcached/config_parser.h>
+#include <memcached/extension.h>
 #include <memcached/extension_loggers.h>
 
 #include "ndb_engine.h"
@@ -93,7 +94,7 @@ ENGINE_ERROR_CODE create_instance(uint64_t interface,
     return ENGINE_ENOMEM;
   }
  
-  logger = get_stderr_logger();
+  logger = api->extension->get_extension(EXTENSION_LOGGER);
     
   ndb_eng->npipelines = 0;
   ndb_eng->connected  = false;
@@ -364,6 +365,7 @@ static ENGINE_ERROR_CODE ndb_remove(ENGINE_HANDLE* handle,
     return_status = ENGINE_KEY_ENOENT;  
     hash_item *it = item_get(def_eng, key, nkey);
     if (it != NULL) {
+      // ACTUALLY NO??? 
       /* In the binary protocol there is such a thing as a CAS delete.
          This is the CAS check.  If we will also be deleting from the database, 
          there are two possibilities:
