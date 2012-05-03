@@ -785,6 +785,14 @@ The following options may be given as the first argument:
  Max size of Slave Worker queues holding yet not applied
  events.The least possible value must be not less than the
  master side max_allowed_packet.
+ --slave-rows-search-algorithms=name 
+ Set of searching algorithms that the slave will use while
+ searching for records from the storage engine to either
+ updated or deleted them. Possible values are: INDEX_SCAN,
+ TABLE_SCAN and HASH_SCAN. Any combination is allowed, and
+ the slave will always pick the most suitable algorithm
+ for any given scenario. (Default: INDEX_SCAN,
+ TABLE_SCAN).
  --slave-skip-errors=name 
  Tells the slave thread to continue replication when a
  query event returns an error from the provided list
@@ -1135,6 +1143,7 @@ slave-exec-mode STRICT
 slave-net-timeout 3600
 slave-parallel-workers 0
 slave-pending-jobs-size-max 16777216
+slave-rows-search-algorithms TABLE_SCAN,INDEX_SCAN
 slave-skip-errors (No default value)
 slave-sql-verify-checksum TRUE
 slave-transaction-retries 10

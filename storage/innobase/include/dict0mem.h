@@ -229,9 +229,7 @@ dict_mem_table_create(
 /*==================*/
 	const char*	name,		/*!< in: table name */
 	ulint		space,		/*!< in: space where the clustered index
-					of the table is placed; this parameter
-					is ignored if the table is made
-					a member of a cluster */
+					of the table is placed */
 	ulint		n_cols,		/*!< in: number of columns */
 	ulint		flags,		/*!< in: table flags */
 	ulint		flags2);	/*!< in: table flags2 */

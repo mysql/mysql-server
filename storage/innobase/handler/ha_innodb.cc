@@ -88,6 +88,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #ifdef UNIV_DEBUG
 #include "trx0purge.h"
 #endif /* UNIV_DEBUG */
+#include "fts0priv.h"
 
 #include "ha_innodb.h"
 #include "i_s.h"
@@ -1440,61 +1441,6 @@ innobase_mysql_print_thd(
 	putc('\n', f);
 }
 
-/* Temporary hack until the following bugs are fixed:
-Bug 13979228 - MEMORY CORRUPTION IN READ_TEXTS() (SQL/DERROR.CC) 
-Bug 13983918 - FACTOR OUT MY_GET_ERR_MSG() FROM MY_ERROR() FOR GENERAL USE */
-
-struct ib_err_msg_t {
-	int		code;		/*!< Error code */
-	const char*	format;		/*!< Message format string */
-};
-
-static ib_err_msg_t	ib_err_msg[] = {
-	{ER_FILE_NOT_FOUND,
-        "Can't find file: '%-.200s' (errno: %d - %s)"},
-
-	{ER_CANT_CREATE_FILE,
-        "Can't create file '%-.200s' (errno: %d - %s)"},
-
-	{ER_TABLE_SCHEMA_MISMATCH,
-	"Schema mismatch (%s)"},
-
-	{ER_TABLE_IN_SYSTEM_TABLESPACE,
-	"Table '%-.192s' in system tablespace" },
-
-	{ER_IO_READ_ERROR,
-	"IO Read error: (%lu, %s) %s"},
-
-	{ER_IO_WRITE_ERROR,
-	"IO Write error: (%lu, %s) %s"},
-
-	{ER_TABLESPACE_MISSING,
-	"Tablespace is missing for table '%-.192s'"},
-
-	{ER_TABLESPACE_EXISTS,
-	"Tablespace for table '%-.192s' exists. Please DISCARD the "
-	"tablespace before IMPORT."},
-
-	{ER_TABLESPACE_DISCARDED,
-	"Tablespace has been discarded for table '%-.192s'"},
-
-	{ER_INTERNAL_ERROR,
-	"Internal error: %s"},
-
-	{ER_INNODB_IMPORT_ERROR,
-	"ALTER TABLE '%-.192s' IMPORT TABLESPACE failed with "
-	"error %lu : '%s'"},
-
-	{ER_INNODB_INDEX_CORRUPT,
-	"Index corrupt: %s"},
-
-	{ER_DISCARD_FK_CHECKS_RUNNING,
-	"There is a foreign key check running on table '%-.192s'. "
-	"Cannot discard the table."},
-
-	{0, NULL}
-};
-
 /******************************************************************//**
 Get the error message format string.
 @return the format string or 0 if not found. */
@@ -1504,14 +1450,7 @@ innobase_get_err_msg(
 /*=================*/
 	int	error_code)	/*!< in: MySQL error code */
 {
-	for (ib_err_msg_t* msg = ib_err_msg; msg->code != 0; ++msg) {
-		if (msg->code == error_code) {
-			return(msg->format);
-		}
-	}
-
-	ut_error;
-	return(0);
+	return(my_get_err_msg(error_code));
 }
 
 /******************************************************************//**
@@ -8351,7 +8290,7 @@ create_table_def(
 				"column type and try to re-create "
 				"the table with an appropriate "
 				"column type.",
-				table->name, (char*) field->field_name);
+				table->name, field->field_name);
 			goto err_col;
 		}
 
@@ -8415,7 +8354,7 @@ err_col:
 		}
 
 		dict_mem_table_add_col(table, heap,
-			(char*) field->field_name,
+			field->field_name,
 			col_type,
 			dtype_form_prtype(
 				(ulint) field->type()
@@ -8442,6 +8381,10 @@ err_col:
 
 		*buf_end = '\0';
 		my_error(ER_TABLE_EXISTS_ERROR, MYF(0), buf);
+	}
+
+	if (flags2 & DICT_TF2_FTS) {
+		fts_optimize_add_table(table);
 	}
 
 error_ret:

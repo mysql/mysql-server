@@ -1,0 +1,60 @@
+set @saved_slave_rows_search_algorithms = @@global.slave_rows_search_algorithms;
+SELECT @@global.slave_rows_search_algorithms;
+@@global.slave_rows_search_algorithms
+TABLE_SCAN,INDEX_SCAN
+SET GLOBAL SLAVE_ROWS_SEARCH_ALGORITHMS=DEFAULT;
+SELECT @@global.slave_rows_search_algorithms;
+@@global.slave_rows_search_algorithms
+TABLE_SCAN,INDEX_SCAN
+SET GLOBAL SLAVE_ROWS_SEARCH_ALGORITHMS='TABLE_SCAN';
+SELECT @@global.slave_rows_search_algorithms;
+@@global.slave_rows_search_algorithms
+TABLE_SCAN
+SET GLOBAL SLAVE_ROWS_SEARCH_ALGORITHMS='HASH_SCAN';
+SELECT @@global.slave_rows_search_algorithms;
+@@global.slave_rows_search_algorithms
+HASH_SCAN
+SET GLOBAL SLAVE_ROWS_SEARCH_ALGORITHMS='INDEX_SCAN';
+SELECT @@global.slave_rows_search_algorithms;
+@@global.slave_rows_search_algorithms
+INDEX_SCAN
+SET GLOBAL SLAVE_ROWS_SEARCH_ALGORITHMS='TABLE_SCAN,HASH_SCAN';
+SELECT @@global.slave_rows_search_algorithms;
+@@global.slave_rows_search_algorithms
+TABLE_SCAN,HASH_SCAN
+SET GLOBAL SLAVE_ROWS_SEARCH_ALGORITHMS='TABLE_SCAN,HASH_SCAN,INDEX_SCAN';
+SELECT @@global.slave_rows_search_algorithms;
+@@global.slave_rows_search_algorithms
+TABLE_SCAN,INDEX_SCAN,HASH_SCAN
+SET GLOBAL SLAVE_ROWS_SEARCH_ALGORITHMS='TABLE_SCAN,INDEX_SCAN';
+SELECT @@global.slave_rows_search_algorithms;
+@@global.slave_rows_search_algorithms
+TABLE_SCAN,INDEX_SCAN
+SET GLOBAL SLAVE_ROWS_SEARCH_ALGORITHMS='HASH_SCAN,INDEX_SCAN';
+SELECT @@global.slave_rows_search_algorithms;
+@@global.slave_rows_search_algorithms
+INDEX_SCAN,HASH_SCAN
+SET GLOBAL SLAVE_ROWS_SEARCH_ALGORITHMS='TABLE_5CAN';
+ERROR 42000: Variable 'slave_rows_search_algorithms' can't be set to the value of 'TABLE_5CAN'
+SELECT @@global.slave_rows_search_algorithms;
+@@global.slave_rows_search_algorithms
+INDEX_SCAN,HASH_SCAN
+SET GLOBAL SLAVE_ROWS_SEARCH_ALGORITHMS='';
+ERROR 42000: Variable 'slave_rows_search_algorithms' can't be set to the value of ''
+SELECT @@global.slave_rows_search_algorithms;
+@@global.slave_rows_search_algorithms
+INDEX_SCAN,HASH_SCAN
+SET GLOBAL SLAVE_ROWS_SEARCH_ALGORITHMS='1';
+ERROR 42000: Variable 'slave_rows_search_algorithms' can't be set to the value of '1'
+SELECT @@global.slave_rows_search_algorithms;
+@@global.slave_rows_search_algorithms
+INDEX_SCAN,HASH_SCAN
+SET GLOBAL SLAVE_ROWS_SEARCH_ALGORITHMS=NULL;
+ERROR 42000: Variable 'slave_rows_search_algorithms' can't be set to the value of 'NULL'
+SELECT @@global.slave_rows_search_algorithms;
+@@global.slave_rows_search_algorithms
+INDEX_SCAN,HASH_SCAN
+set global slave_rows_search_algorithms = @saved_slave_rows_search_algorithms;
+SELECT @@global.slave_rows_search_algorithms;
+@@global.slave_rows_search_algorithms
+TABLE_SCAN,INDEX_SCAN
