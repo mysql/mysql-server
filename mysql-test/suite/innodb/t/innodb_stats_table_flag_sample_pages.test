@@ -11,7 +11,15 @@
 CREATE TABLE test_ps_sample_pages (a INT, PRIMARY KEY (a)) ENGINE=INNODB;
 
 SHOW CREATE TABLE test_ps_sample_pages;
+SELECT create_options FROM information_schema.tables
+WHERE table_name='test_ps_sample_pages';
 
+ALTER TABLE test_ps_sample_pages STATS_SAMPLE_PAGES=12345;
+
+# confirm that the flag survives server restart
+-- source include/restart_mysqld.inc
+
+SHOW CREATE TABLE test_ps_sample_pages;
 SELECT create_options FROM information_schema.tables
 WHERE table_name='test_ps_sample_pages';
 
@@ -23,7 +31,6 @@ CREATE TABLE test_ps_sample_pages (a INT, PRIMARY KEY (a)) ENGINE=INNODB
 STATS_SAMPLE_PAGES=default;
 
 SHOW CREATE TABLE test_ps_sample_pages;
-
 SELECT create_options FROM information_schema.tables
 WHERE table_name='test_ps_sample_pages';
 
@@ -48,7 +55,6 @@ STATS_SAMPLE_PAGES=1;
 -- source include/restart_mysqld.inc
 
 SHOW CREATE TABLE test_ps_sample_pages;
-
 SELECT create_options FROM information_schema.tables
 WHERE table_name='test_ps_sample_pages';
 
@@ -63,7 +69,15 @@ STATS_SAMPLE_PAGES=5678;
 -- source include/restart_mysqld.inc
 
 SHOW CREATE TABLE test_ps_sample_pages;
+SELECT create_options FROM information_schema.tables
+WHERE table_name='test_ps_sample_pages';
 
+ALTER TABLE test_ps_sample_pages STATS_SAMPLE_PAGES=default;
+
+# confirm that the flag survives server restart
+-- source include/restart_mysqld.inc
+
+SHOW CREATE TABLE test_ps_sample_pages;
 SELECT create_options FROM information_schema.tables
 WHERE table_name='test_ps_sample_pages';
 
