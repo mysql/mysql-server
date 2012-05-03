@@ -424,7 +424,7 @@ payload_copy(toku_lock_tree* tree,
     return r;
 }
 
-static inline int 
+static inline void
 p_makecopy(toku_lock_tree* tree, toku_point** ppoint) {
     assert(ppoint);
     int r;
@@ -438,7 +438,6 @@ p_makecopy(toku_lock_tree* tree, toku_point** ppoint) {
                      point->key_payload,       point->key_len);
     assert_zero(r);
     *ppoint = temp_point;
-    return r;
 }
 
 /* Provides access to a selfread tree for a particular transaction.
@@ -873,7 +872,6 @@ static inline int
 lt_alloc_extreme(toku_lock_tree* tree, toku_range* to_insert, bool alloc_left, BOOL* alloc_right) {
     assert(to_insert && alloc_right);
     bool copy_left = FALSE;
-    int r;
     
     /* The pointer comparison may speed up the evaluation in some cases, 
        but it is not strictly needed */
@@ -885,21 +883,11 @@ lt_alloc_extreme(toku_lock_tree* tree, toku_range* to_insert, bool alloc_left, B
     }
 
     if (alloc_left) {
-        r = p_makecopy(tree, &to_insert->ends.left);
-        if (0) { 
-        died1:
-            if (alloc_left) 
-                p_free(tree, to_insert->ends.left); 
-            return r; 
-        }
-        if (r != 0) 
-            return r;
+        p_makecopy(tree, &to_insert->ends.left);
     }
     if (*alloc_right) {
         assert(!copy_left);
-        r = p_makecopy(tree, &to_insert->ends.right);
-        if (r != 0) 
-            goto died1;
+        p_makecopy(tree, &to_insert->ends.right);
     }
     else if (copy_left) 
         to_insert->ends.right = to_insert->ends.left;
