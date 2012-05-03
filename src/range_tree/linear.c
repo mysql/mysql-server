@@ -41,9 +41,7 @@ toku__rt_decrease_capacity(toku_range_tree* tree, u_int32_t _num) {
             temp_len /= 2;
         assert(temp_len >= _num);   //Sanity check.
         size_t start_size = toku_rt_memory_size(tree);
-        toku_range* temp_ranges = toku_realloc(tree->i.ranges, temp_len * sizeof(toku_range));
-        if (!temp_ranges) 
-            return errno;
+        toku_range* temp_ranges = toku_xrealloc(tree->i.ranges, temp_len * sizeof(toku_range));
         tree->i.ranges     = temp_ranges;
         tree->i.ranges_len = temp_len;
         size_t end_size = toku_rt_memory_size(tree);
@@ -63,9 +61,7 @@ toku__rt_increase_capacity(toku_range_tree* tree, u_int32_t num) {
         while (temp_len < num) 
             temp_len *= 2;
         size_t start_size = toku_rt_memory_size(tree);
-        toku_range* temp_ranges = toku_realloc(tree->i.ranges, temp_len * sizeof(toku_range));
-        if (!temp_ranges) 
-            return errno;
+        toku_range* temp_ranges = toku_xrealloc(tree->i.ranges, temp_len * sizeof(toku_range));
         tree->i.ranges     = temp_ranges;
         tree->i.ranges_len = temp_len;
         size_t end_size = toku_rt_memory_size(tree);
@@ -133,21 +129,13 @@ toku_rt_create(toku_range_tree** ptree,
     if (!ptree) 
         return EINVAL;
     r = toku_rt_super_create(ptree, &tmptree, end_cmp, data_cmp, allow_overlaps, incr_memory_size, decr_memory_size, extra_memory_size);
-    if (0) {
-    died1:
-        toku_free(tmptree);
-        return r;
-    }
     if (r != 0) 
         return r;
     
     //Any local initializers go here.
     tmptree->i.numelements = 0;
     tmptree->i.ranges_len = minlen;
-    tmptree->i.ranges     = (toku_range*) toku_malloc(tmptree->i.ranges_len * sizeof(toku_range));
-    if (!tmptree->i.ranges) { 
-        r = errno; goto died1; 
-    }
+    tmptree->i.ranges     = (toku_range*) toku_xmalloc(tmptree->i.ranges_len * sizeof(toku_range));
     tmptree->incr_memory_size(tmptree->extra_memory_size, toku_rt_memory_size(tmptree));
 
     *ptree = tmptree;
@@ -184,8 +172,7 @@ toku_rt_find(toku_range_tree* tree, toku_interval* query, u_int32_t k,
     for (u_int32_t i = 0; i < tree->i.numelements; i++) {
         if (toku__rt_overlap(tree, query, &tree->i.ranges[i].ends)) {
             r = toku__rt_increase_buffer(tree, buf, buflen, temp_numfound + 1);
-            if (r != 0) 
-                return r;
+            assert_zero(r);
             (*buf)[temp_numfound++] = tree->i.ranges[i];
             //k == 0 means limit of infinity, this is not a bug.
             if (temp_numfound == k) 
@@ -222,8 +209,8 @@ toku_rt_insert(toku_range_tree* tree, toku_range* range) {
     }
     /* Goes in slot 'i' */
     r = toku__rt_increase_capacity(tree, tree->i.numelements + 1);
-    if (r != 0) 
-        return r;
+    assert_zero(r);
+
     tree->i.numelements++;
     /* Shift to make room. */
     for (u_int32_t move = tree->i.numelements - 1; move > i; move--) {
