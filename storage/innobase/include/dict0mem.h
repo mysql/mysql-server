@@ -767,6 +767,12 @@ struct dict_table_struct{
 				this ever happens. */
 #define DICT_STATS_AUTO_RECALC_ON	(1 << 1)
 #define DICT_STATS_AUTO_RECALC_OFF	(1 << 2)
+	ulint		stats_sample_pages;
+				/*!< the number of pages to sample for this
+				table during persistent stats estimation;
+				if this is 0, then the value of the global
+				srv_stats_persistent_sample_pages will be
+				used instead. */
 	ib_uint64_t	stat_n_rows;
 				/*!< approximate number of rows in the table;
 				we periodically calculate new estimates */
