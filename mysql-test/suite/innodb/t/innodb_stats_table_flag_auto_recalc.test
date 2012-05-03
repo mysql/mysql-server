@@ -12,6 +12,9 @@ CREATE TABLE test_ps_auto_recalc (a INT, PRIMARY KEY (a)) ENGINE=INNODB;
 
 SHOW CREATE TABLE test_ps_auto_recalc;
 
+SELECT create_options FROM information_schema.tables
+WHERE table_name='test_ps_auto_recalc';
+
 DROP TABLE test_ps_auto_recalc;
 
 ##
@@ -20,6 +23,9 @@ CREATE TABLE test_ps_auto_recalc (a INT, PRIMARY KEY (a)) ENGINE=INNODB
 STATS_AUTO_RECALC=default;
 
 SHOW CREATE TABLE test_ps_auto_recalc;
+
+SELECT create_options FROM information_schema.tables
+WHERE table_name='test_ps_auto_recalc';
 
 DROP TABLE test_ps_auto_recalc;
 
@@ -33,6 +39,9 @@ STATS_AUTO_RECALC=0;
 
 SHOW CREATE TABLE test_ps_auto_recalc;
 
+SELECT create_options FROM information_schema.tables
+WHERE table_name='test_ps_auto_recalc';
+
 DROP TABLE test_ps_auto_recalc;
 
 ##
@@ -44,5 +53,8 @@ STATS_AUTO_RECALC=1;
 -- source include/restart_mysqld.inc
 
 SHOW CREATE TABLE test_ps_auto_recalc;
+
+SELECT create_options FROM information_schema.tables
+WHERE table_name='test_ps_auto_recalc';
 
 DROP TABLE test_ps_auto_recalc;
