@@ -532,6 +532,9 @@ icp_match	1
 drop table monitor_test;
 set global innodb_monitor_disable = all;
 set global innodb_monitor_reset_all = all;
+select 1 from `information_schema`.`INNODB_METRICS`
+where case (1) when (1) then (AVG_COUNT_RESET) else (1) end;
+1
 set global innodb_monitor_enable = default;
 set global innodb_monitor_disable = default;
 set global innodb_monitor_reset = default;
