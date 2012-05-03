@@ -48,7 +48,7 @@ Created Jan 06, 2010 Vasil Dimov
 
 /* Sampling algorithm description @{
 
-The algorithm is controlled by one number - srv_stats_persistent_sample_pages,
+The algorithm is controlled by one number - N_SAMPLE_PAGES(index),
 let it be A, which is the number of leaf pages to analyze for a given index
 for each n-prefix (if the index is on 3 columns, then 3*A leaf pages will be
 analyzed).
@@ -123,10 +123,16 @@ where n=1..n_uniq.
 #define DEBUG_PRINTF(fmt, ...)	/* noop */
 #endif /* UNIV_STATS_DEBUG */
 
+/* Gets the number of leaf pages to sample in persistent stats estimation */
+#define N_SAMPLE_PAGES(index)				\
+	((index)->table->stats_sample_pages != 0 ?	\
+	 (index)->table->stats_sample_pages :		\
+	 srv_stats_persistent_sample_pages)
+
 /* number of distinct records on a given level that are required to stop
-descending to lower levels and fetch
-srv_stats_persistent_sample_pages records from that level */
-#define N_DIFF_REQUIRED	(srv_stats_persistent_sample_pages * 10)
+descending to lower levels and fetch N_SAMPLE_PAGES(index) records
+from that level */
+#define N_DIFF_REQUIRED(index)	(N_SAMPLE_PAGES(index) * 10)
 
 /** Open handles on the stats tables. Currently this is used to increase the
 reference count of the stats tables. */
@@ -417,7 +423,7 @@ dict_stats_persistent_storage_check(
 
 /* @{ Pseudo code about the relation between the following functions
 
-let N = srv_stats_persistent_sample_pages
+let N = N_SAMPLE_PAGES(index)
 
 dict_stats_analyze_index()
   for each n_prefix
@@ -1070,7 +1076,7 @@ dict_stats_analyze_index_below_cur(
 /* @} */
 
 /*********************************************************************//**
-For a given level in an index select srv_stats_persistent_sample_pages
+For a given level in an index select N_SAMPLE_PAGES(index)
 (or less) records from that level and dive below them to the corresponding
 leaf pages, then scan those leaf pages and save the sampling results in
 index->stat_n_diff_key_vals[n_prefix] and the number of pages scanned in
@@ -1129,8 +1135,8 @@ dict_stats_analyze_index_for_n_prefix(
 	ut_ad(total_recs_on_level > 0);
 	ut_ad(n_diff_for_this_prefix > 0);
 
-	/* this is configured to be min 1, someone has changed the code */
-	ut_ad(srv_stats_persistent_sample_pages > 0);
+	/* this must be at least 1 */
+	ut_ad(N_SAMPLE_PAGES(index) > 0);
 
 	heap = mem_heap_create(256);
 
@@ -1175,7 +1181,7 @@ dict_stats_analyze_index_for_n_prefix(
 
 	n_diff_sum_of_all_analyzed_pages = 0;
 
-	n_recs_to_dive_below = ut_min(srv_stats_persistent_sample_pages,
+	n_recs_to_dive_below = ut_min(N_SAMPLE_PAGES(index),
 				      n_diff_for_this_prefix);
 
 	for (i = 0; i < n_recs_to_dive_below; i++) {
@@ -1392,13 +1398,12 @@ dict_stats_analyze_index(
 	has requested to sample too many pages then do full scan */
 	if (root_level == 0
 	    /* for each n-column prefix (for n=1..n_uniq)
-	    srv_stats_persistent_sample_pages will be sampled, so in total
-	    srv_stats_persistent_sample_pages * n_uniq leaf pages will be
+	    N_SAMPLE_PAGES(index) will be sampled, so in total
+	    N_SAMPLE_PAGES(index) * n_uniq leaf pages will be
 	    sampled. If that number is bigger than the total number of leaf
 	    pages then do full scan of the leaf level instead since it will
 	    be faster and will give better results. */
-	    || srv_stats_persistent_sample_pages * n_uniq
-	       > index->stat_n_leaf_pages) {
+	    || N_SAMPLE_PAGES(index) * n_uniq > index->stat_n_leaf_pages) {
 
 		if (root_level == 0) {
 			DEBUG_PRINTF("  %s(): just one page, "
@@ -1463,7 +1468,7 @@ dict_stats_analyze_index(
 
 		DEBUG_PRINTF("  %s(): searching level with >=%llu "
 			     "distinct records, n_prefix=%lu\n",
-			     __func__, N_DIFF_REQUIRED, n_prefix);
+			     __func__, N_DIFF_REQUIRED(index), n_prefix);
 
 		/* Commit the mtr to release the tree S lock to allow
 		other threads to do some work too. */
@@ -1487,7 +1492,7 @@ dict_stats_analyze_index(
 		distinct records because we do not want to scan the
 		leaf level because it may contain too many records */
 		if (level_is_analyzed
-		    && (n_diff_on_level[n_prefix] >= N_DIFF_REQUIRED
+		    && (n_diff_on_level[n_prefix] >= N_DIFF_REQUIRED(index)
 			|| level == 1)) {
 
 			goto found_level;
@@ -1500,7 +1505,7 @@ dict_stats_analyze_index(
 
 			/* if this does not hold we should be on
 			"found_level" instead of here */
-			ut_ad(n_diff_on_level[n_prefix] < N_DIFF_REQUIRED);
+			ut_ad(n_diff_on_level[n_prefix] < N_DIFF_REQUIRED(index));
 
 			level--;
 			level_is_analyzed = FALSE;
@@ -1525,12 +1530,13 @@ dict_stats_analyze_index(
 			total_recs is left from the previous iteration when
 			we scanned one level upper or we have not scanned any
 			levels yet in which case total_recs is 1. */
-			if (total_recs > srv_stats_persistent_sample_pages) {
+			if (total_recs > N_SAMPLE_PAGES(index)) {
 
-				/* if the above cond is true then we are not
-				at the root level since on the root level
-				total_recs == 1 and cannot
-				be > srv_stats_persistent_sample_pages */
+				/* if the above cond is true then we are
+				not at the root level since on the root
+				level total_recs == 1 (set before we
+				enter the n-prefix loop) and cannot
+				be > N_SAMPLE_PAGES(index) */
 				ut_a(level != root_level);
 
 				/* step one level back and be satisfied with
@@ -1551,7 +1557,7 @@ dict_stats_analyze_index(
 
 			level_is_analyzed = TRUE;
 
-			if (n_diff_on_level[n_prefix] >= N_DIFF_REQUIRED
+			if (n_diff_on_level[n_prefix] >= N_DIFF_REQUIRED(index)
 			    || level == 1) {
 				/* we found a good level with many distinct
 				records or we have reached the last level we
