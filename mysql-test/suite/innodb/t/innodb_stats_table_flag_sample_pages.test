@@ -12,6 +12,9 @@ CREATE TABLE test_ps_sample_pages (a INT, PRIMARY KEY (a)) ENGINE=INNODB;
 
 SHOW CREATE TABLE test_ps_sample_pages;
 
+SELECT create_options FROM information_schema.tables
+WHERE table_name='test_ps_sample_pages';
+
 DROP TABLE test_ps_sample_pages;
 
 ##
@@ -20,6 +23,9 @@ CREATE TABLE test_ps_sample_pages (a INT, PRIMARY KEY (a)) ENGINE=INNODB
 STATS_SAMPLE_PAGES=default;
 
 SHOW CREATE TABLE test_ps_sample_pages;
+
+SELECT create_options FROM information_schema.tables
+WHERE table_name='test_ps_sample_pages';
 
 DROP TABLE test_ps_sample_pages;
 
@@ -43,6 +49,9 @@ STATS_SAMPLE_PAGES=1;
 
 SHOW CREATE TABLE test_ps_sample_pages;
 
+SELECT create_options FROM information_schema.tables
+WHERE table_name='test_ps_sample_pages';
+
 DROP TABLE test_ps_sample_pages;
 
 ##
@@ -54,5 +63,8 @@ STATS_SAMPLE_PAGES=5678;
 -- source include/restart_mysqld.inc
 
 SHOW CREATE TABLE test_ps_sample_pages;
+
+SELECT create_options FROM information_schema.tables
+WHERE table_name='test_ps_sample_pages';
 
 DROP TABLE test_ps_sample_pages;

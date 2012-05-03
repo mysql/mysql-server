@@ -5,6 +5,9 @@ Create Table	CREATE TABLE `test_ps_sample_pages` (
   `a` int(11) NOT NULL DEFAULT '0',
   PRIMARY KEY (`a`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
+SELECT create_options FROM information_schema.tables
+WHERE table_name='test_ps_sample_pages';
+create_options	
 DROP TABLE test_ps_sample_pages;
 CREATE TABLE test_ps_sample_pages (a INT, PRIMARY KEY (a)) ENGINE=INNODB
 STATS_SAMPLE_PAGES=default;
@@ -14,6 +17,9 @@ Create Table	CREATE TABLE `test_ps_sample_pages` (
   `a` int(11) NOT NULL DEFAULT '0',
   PRIMARY KEY (`a`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
+SELECT create_options FROM information_schema.tables
+WHERE table_name='test_ps_sample_pages';
+create_options	
 DROP TABLE test_ps_sample_pages;
 CREATE TABLE test_ps_sample_pages (a INT, PRIMARY KEY (a)) ENGINE=INNODB
 STATS_SAMPLE_PAGES=-5;
@@ -29,6 +35,9 @@ Create Table	CREATE TABLE `test_ps_sample_pages` (
   `a` int(11) NOT NULL DEFAULT '0',
   PRIMARY KEY (`a`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1 STATS_SAMPLE_PAGES=1
+SELECT create_options FROM information_schema.tables
+WHERE table_name='test_ps_sample_pages';
+create_options	stats_sample_pages=1
 DROP TABLE test_ps_sample_pages;
 CREATE TABLE test_ps_sample_pages (a INT, PRIMARY KEY (a)) ENGINE=INNODB
 STATS_SAMPLE_PAGES=5678;
@@ -38,4 +47,7 @@ Create Table	CREATE TABLE `test_ps_sample_pages` (
   `a` int(11) NOT NULL DEFAULT '0',
   PRIMARY KEY (`a`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1 STATS_SAMPLE_PAGES=5678
+SELECT create_options FROM information_schema.tables
+WHERE table_name='test_ps_sample_pages';
+create_options	stats_sample_pages=5678
 DROP TABLE test_ps_sample_pages;
