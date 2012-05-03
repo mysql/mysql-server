@@ -259,6 +259,7 @@ SET(SERVER_TESTS
   opt_trace
   sql_table
   get_diagnostics
+  my_error
   segfault
   join_tab_sort
 )

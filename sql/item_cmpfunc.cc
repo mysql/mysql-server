@@ -532,23 +532,13 @@ void Item_bool_func2::fix_length_and_dec()
 
   DBUG_ENTER("Item_bool_func2::fix_length_and_dec");
 
-  /* 
-    We allow to convert to Unicode character sets in some cases.
-    The conditions when conversion is possible are:
-    - arguments A and B have different charsets
-    - A wins according to coercibility rules
-    - character set of A is superset for character set of B
-   
-    If all of the above is true, then it's possible to convert
-    B into the character set of A, and then compare according
-    to the collation of A.
+  /*
+    See agg_item_charsets() in item.cc for comments
+    on character set and collation aggregation.
   */
-
-  
-  DTCollation coll;
   if (args[0]->result_type() == STRING_RESULT &&
       args[1]->result_type() == STRING_RESULT &&
-      agg_arg_charsets_for_comparison(coll, args, 2))
+      agg_arg_charsets_for_comparison(cmp.cmp_collation, args, 2))
     DBUG_VOID_RETURN;
     
   args[0]->cmp_context= args[1]->cmp_context=
