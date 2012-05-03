@@ -167,7 +167,6 @@ void threadpool_remove_connection(THD *thd)
   worker_context.save();
 
   thread_attach(thd);
-  thd->killed= KILL_CONNECTION;
   thd->net.reading_or_writing= 0;
 
   end_connection(thd);

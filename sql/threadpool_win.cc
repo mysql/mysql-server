@@ -573,6 +573,10 @@ static VOID CALLBACK io_completion_callback(PTP_CALLBACK_INSTANCE instance,
   }
 
   connection_t *connection = (connection_t*)context;
+
+  if (io_result != ERROR_SUCCESS)
+    goto error;
+
   THD *thd= connection->thd;
   ulonglong old_timeout = connection->timeout;
   connection->timeout = ULONGLONG_MAX;
