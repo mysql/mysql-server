@@ -15179,7 +15179,7 @@ static MYSQL_SYSVAR_BOOL(stats_persistent, srv_stats_persistent,
   PLUGIN_VAR_OPCMDARG,
   "InnoDB persistent statistics enabled for all tables unless overridden "
   "at table level",
-  NULL, NULL, FALSE);
+  NULL, NULL, TRUE);
 
 static MYSQL_SYSVAR_BOOL(stats_auto_recalc, srv_stats_auto_recalc,
   PLUGIN_VAR_OPCMDARG,
