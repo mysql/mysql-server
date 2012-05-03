@@ -677,6 +677,8 @@ buf_page_is_corrupted(
 	is added and not handled here */
 	}
 
+	DBUG_EXECUTE_IF("buf_page_is_corrupt_failure", return(TRUE); );
+
 	return(FALSE);
 }
 
@@ -3979,6 +3981,18 @@ buf_page_io_complete(
 
 		if (buf_page_is_corrupted(true, frame,
 					  buf_page_get_zip_size(bpage))) {
+
+			/* Not a real corruption if it was triggered by
+			error injection */
+			DBUG_EXECUTE_IF("buf_page_is_corrupt_failure",
+				if (bpage->space > TRX_SYS_SPACE
+				    && buf_mark_space_corrupt(bpage)) {
+					ib_logf(IB_LOG_LEVEL_INFO,
+						"Simulated page corruption");
+					return;
+				}
+				goto page_not_corrupt;
+				;);
 corrupt:
 			fprintf(stderr,
 				"InnoDB: Database page corruption on disk"
@@ -4032,6 +4046,9 @@ corrupt:
 				}
 			}
 		}
+
+		DBUG_EXECUTE_IF("buf_page_is_corrupt_failure",
+				page_not_corrupt:  bpage = bpage; );
 
 		if (recv_recovery_is_on()) {
 			/* Pages must be uncompressed for crash recovery. */

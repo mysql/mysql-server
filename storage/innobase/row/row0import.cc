@@ -286,6 +286,9 @@ private:
 
 		field = rec_get_nth_field(rec, offsets, i, &len);
 
+		DBUG_EXECUTE_IF("ib_import_trigger_corruption_5",
+				len = BTR_EXTERN_FIELD_REF_SIZE - 1;);
+
 		if (len < BTR_EXTERN_FIELD_REF_SIZE) {
 
 			char index_name[MAX_FULL_NAME_LEN + 1];
@@ -339,12 +342,13 @@ private:
 			/* Only if the column is stored "externally". */
 
 			if (rec_offs_nth_extern(offsets, i)) {
+				dberr_t	err;
 
-				dberr_t	err = adjust_blob_column(
+				err = adjust_blob_column(
 					page_zip, rec, offsets, i);
 
 				if (err != DB_SUCCESS) {
-					break;
+					return(err);
 				}
 			}
 
@@ -365,7 +369,7 @@ private:
 		page_zip = buf_block_get_page_zip(btr_pcur_get_block(&m_pcur));
 
 		if (rec_offs_any_extern(offsets)) {
-			dberr_t		err;
+			dberr_t	err;
 
 			err = adjust_blob_columns(page_zip, rec, offsets);
 
@@ -384,6 +388,9 @@ private:
 
 		row_upd_rec_sys_fields(
 			rec, page_zip, m_index, offsets, m_trx, 0);
+
+		DBUG_EXECUTE_IF("ib_import_trigger_corruption_8",
+				return(DB_CORRUPTION););
 
 		return(DB_SUCCESS);
 	}

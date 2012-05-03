@@ -859,11 +859,13 @@ fsp_header_get_space_id(
 
 	id = mach_read_from_4(page + FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID);
 
+	DBUG_EXECUTE_IF("fsp_header_get_space_id_failure",
+			id = ULINT_UNDEFINED;);
+
 	if (id != fsp_id) {
-		fprintf(stderr,
-			"InnoDB: Error: space id in fsp header %lu,"
-			" but in the page header %lu\n",
-			(ulong) fsp_id, (ulong) id);
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"Space id in fsp header %lu,but in the page header "
+			"%lu", fsp_id, id);
 
 		return(ULINT_UNDEFINED);
 	}
@@ -3297,6 +3299,9 @@ fseg_page_is_free(
 	is_free = xdes_get_bit(descr, XDES_FREE_BIT,
 			       page % FSP_EXTENT_SIZE, &mtr);
 	mtr_commit(&mtr);
+
+	DBUG_EXECUTE_IF("ib_import_trigger_corruption_1", is_free = true;);
+
 	return(is_free);
 }
 

@@ -64,6 +64,8 @@ fsp_flags_is_valid(
 	ulint	page_ssize = FSP_FLAGS_GET_PAGE_SSIZE(flags);
 	ulint	unused = FSP_FLAGS_GET_UNUSED(flags);
 
+	DBUG_EXECUTE_IF("fsp_flags_is_valid_failure", return(false););
+
 	/* fsp_flags is zero unless atomic_blobs is set. */
 	/* Make sure there are no bits that we do not know about. */
 	if (unused != 0 || flags == 1) {

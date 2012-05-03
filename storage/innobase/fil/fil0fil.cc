@@ -1213,6 +1213,8 @@ fil_space_create(
 {
 	fil_space_t*	space;
 
+	DBUG_EXECUTE_IF("fil_space_create_failure", return(false););
+
 	ut_a(fil_system);
 	ut_a(fsp_flags_is_valid(flags));
 
@@ -2454,9 +2456,10 @@ fil_close_tablespace(
 
 	buf_LRU_flush_or_remove_pages(id, BUF_REMOVE_FLUSH_WRITE, trx);
 #endif
-	/* printf("Deleting tablespace %s id %lu\n", space->name, id); */
-
 	mutex_enter(&fil_system->mutex);
+
+	/* If the free is successful, the X lock will be released before
+	the space memory data structure is freed. */
 
 	if (!fil_space_free(id, TRUE)) {
 		rw_lock_x_unlock(&space->latch);
@@ -3156,6 +3159,20 @@ enum fil_page_status_t {
 	FIL_PAGE_STATUS_CORRUPTED	/*!< Page is corrupted */
 };
 
+#if defined UNIV_DEBUG
+/********************************************************************//**
+@return true error condition is enabled. */
+static
+bool
+fil_trigger_corruption()
+/*====================*/
+{
+	return(false);
+}
+#else
+#define fil_trigger_corruption()	(false)
+#endif /* UNIV_DEBUG */
+
 /********************************************************************//**
 Read a file page for resetting the space identifier and the system lsn.
 @return 0 on success, 1 if all zero, 2 if corrupted */
@@ -3195,7 +3212,8 @@ fil_reset_space_and_lsn_read(
 		we flag it as corrupt. */
 
 		while (b != e) {
-			if (*b++) {
+
+			if (*b++ && !fil_trigger_corruption()) {
 				fil_page_corrupted(name, offset, size);
 				return(FIL_PAGE_STATUS_CORRUPTED);
 			}
@@ -3295,6 +3313,16 @@ fil_reset_space_and_lsn(
 	file = os_file_create_simple_no_error_handling(
 		innodb_file_data_key, filepath,
 		OS_FILE_OPEN, OS_FILE_READ_WRITE, &success);
+
+	DBUG_EXECUTE_IF("fil_reset_space_and_lsn_failure",
+			{
+			static bool once;
+
+			if (!once || !(random() % 32)) {
+				once = true;
+				success = FALSE;
+			}
+       			});
 
 	if (!success) {
 		/* The following call prints an error message */
@@ -3508,6 +3536,9 @@ fil_open_single_table_tablespace(
 	ulint		space_flags;
 	dberr_t		err = DB_SUCCESS;
 	ulint		space_id = ULINT_UNDEFINED;
+
+	DBUG_EXECUTE_IF("ib_import_trigger_corruption_3",
+			return(DB_CORRUPTION););
 
 	filepath = fil_make_ibd_name(name, FALSE);
 

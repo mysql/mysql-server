@@ -696,6 +696,10 @@ dict_create_index_tree_step(
 		if (node->page_no == FIL_NULL) {
 			err = DB_OUT_OF_FILE_SPACE;
 		}
+
+		DBUG_EXECUTE_IF("ib_import_create_index_failure_1",
+				node->page_no = FIL_NULL;
+				err = DB_OUT_OF_FILE_SPACE; );
 	}
 
 	page_rec_write_field(
