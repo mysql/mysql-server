@@ -229,9 +229,9 @@ JOIN::exec()
       */
       init_items_ref_array();
 
-      ORDER_with_src tmp_group= 
-        (!simple_group && !procedure && !(test_flags & TEST_NO_KEY_GROUP)) ? 
-        group_list : NULL;
+      ORDER_with_src tmp_group;
+      if (!simple_group && !procedure && !(test_flags & TEST_NO_KEY_GROUP))
+        tmp_group= group_list;
       
       tmp_table_param.hidden_field_count= 
         all_fields.elements - fields_list.elements;
