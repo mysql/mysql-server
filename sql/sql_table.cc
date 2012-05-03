@@ -6320,6 +6320,9 @@ mysql_prepare_alter_table(THD *thd, TABLE *table,
   if (!(used_fields & HA_CREATE_USED_KEY_BLOCK_SIZE))
     create_info->key_block_size= table->s->key_block_size;
 
+  if (!(used_fields & HA_CREATE_USED_STATS_SAMPLE_PAGES))
+    create_info->stats_sample_pages= table->s->stats_sample_pages;
+
   if (!create_info->tablespace)
     create_info->tablespace= table->s->tablespace;
 

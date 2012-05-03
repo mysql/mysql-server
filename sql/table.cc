@@ -903,6 +903,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
     share->table_charset= get_charset((((uint) head[41]) << 8) + 
                                         (uint) head[38],MYF(0));
     share->null_field_first= 1;
+    share->stats_sample_pages= uint2korr(head+44);
   }
   if (!share->table_charset)
   {
@@ -2782,8 +2783,7 @@ File create_frm(THD *thd, const char *name, const char *db,
     fileinfo[41]= (uchar) (csid >> 8);
     /* store the high 2 bytes of table_options in fileinfo[42,43] */
     int2store(fileinfo+42,(create_info->table_options >> 16) & 0xffff);
-    fileinfo[44]= 0;
-    fileinfo[45]= 0;
+    int2store(fileinfo+44,create_info->stats_sample_pages & 0xffff);
     fileinfo[46]= 0;
     int4store(fileinfo+47, key_length);
     tmp= MYSQL_VERSION_ID;          // Store to avoid warning from int4store
