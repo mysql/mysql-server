@@ -82,6 +82,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "pars0pars.h"
 #include "fts0fts.h"
 #include "fts0types.h"
+#include "fts0priv.h"
 
 #include "ha_innodb.h"
 #include "i_s.h"
@@ -8268,6 +8269,10 @@ err_col:
 
 		*buf_end = '\0';
 		my_error(ER_TABLE_EXISTS_ERROR, MYF(0), buf);
+	}
+
+	if (flags2 & DICT_TF2_FTS) {
+		fts_optimize_add_table(table);
 	}
 
 error_ret:
