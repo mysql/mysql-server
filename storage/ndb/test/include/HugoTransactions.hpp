@@ -27,6 +27,8 @@ class NDBT_Stats;
 
 class HugoTransactions : public HugoOperations {
 public:
+  struct HugoBound { int attr; int type; const void* value; };
+
   HugoTransactions(const NdbDictionary::Table&,
 		   const NdbDictionary::Index* idx = 0);
   ~HugoTransactions();
@@ -62,7 +64,8 @@ public:
 		      int abort = 0,
 		      int parallelism = 0,
 		      NdbOperation::LockMode = NdbOperation::LM_Read,
-                      int scan_flags = 0);
+                      int scan_flags = 0,
+                      int bound_cnt = 0, const HugoBound* bound_arr = 0);
 
   int pkReadRecords(Ndb*, 
 		    int records,
