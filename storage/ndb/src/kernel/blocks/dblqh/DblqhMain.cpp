@@ -9777,6 +9777,10 @@ void Dblqh::execSCAN_NEXTREQ(Signal* signal)
   const Uint32 transid2 = nextReq->transId2;
   const Uint32 senderData = nextReq->senderData;
   Uint32 hashHi = signal->getSendersBlockRef();
+  // bug#13834481 hashHi!=0 caused timeout (tx not found)
+  const NodeInfo& senderInfo = getNodeInfo(refToNode(hashHi));
+  if (unlikely(senderInfo.m_version < NDBD_LONG_SCANFRAGREQ))
+    hashHi = 0;
 
   if (findTransaction(transid1, transid2, senderData, hashHi) != ZOK){
     jam();
@@ -10291,6 +10295,10 @@ void Dblqh::execSCAN_FRAGREQ(Signal* signal)
   Uint32 hashIndex;
   TcConnectionrecPtr nextHashptr;
   Uint32 senderHi = signal->getSendersBlockRef();
+  // bug#13834481 hashHi!=0 caused timeout (tx not found)
+  const NodeInfo& senderInfo = getNodeInfo(refToNode(senderHi));
+  if (unlikely(senderInfo.m_version < NDBD_LONG_SCANFRAGREQ))
+    senderHi = 0;
 
   /* Short SCANFRAGREQ has no sections, Long SCANFRAGREQ has 1 or 2
    * Section 0 : Mandatory ATTRINFO section
