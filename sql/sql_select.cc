@@ -2880,12 +2880,7 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables_arg, COND *conds,
          no_partitions_used) &&
 	!s->dependent &&
 	(table->file->ha_table_flags() & HA_STATS_RECORDS_IS_EXACT) &&
-#ifndef MCP_WL4784
-        !table->fulltext_searched && !join->no_const_tables &&
-        !table->file->test_push_flag(HA_PUSH_BLOCK_CONST_TABLE))
-#else
         !table->fulltext_searched && !join->no_const_tables)
-#endif
     {
       set_position(join,const_count++,s,(KEYUSE*) 0);
     }
@@ -3081,7 +3076,7 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables_arg, COND *conds,
               !table->fulltext_searched && 
 #ifndef MCP_WL4784
               !table->pos_in_table_list->embedding &&
-              !table->file->test_push_flag(HA_PUSH_BLOCK_CONST_TABLE))
+              !(table->file->ha_table_flags() & HA_BLOCK_CONST_TABLE))
 #else
               !table->pos_in_table_list->embedding)
 #endif
@@ -6634,7 +6629,7 @@ static bool create_ref_for_key(JOIN *join, JOIN_TAB *j, KEYUSE *org_keyuse,
   }
 #ifndef MCP_WL4784
   else if (keyuse_uses_no_tables &&
-           !table->file->test_push_flag(HA_PUSH_BLOCK_CONST_TABLE))
+           !(table->file->ha_table_flags() & HA_BLOCK_CONST_TABLE))
 #else
   else if (keyuse_uses_no_tables)
 #endif
@@ -13190,21 +13185,8 @@ join_read_last_key(JOIN_TAB *tab)
 
 	/* ARGSUSED */
 static int
-join_no_more_records(READ_RECORD *info)
+join_no_more_records(READ_RECORD *info __attribute__((unused)))
 {
-#ifndef MCP_WL4784
-  /**
-   * When a pushed join completes, and its results did not only depend on
-   * the key of this root operations: ('tab->ref.key_buff')
-   * Results from this pushed join can not be reused 
-   * for later queries having the same root key.
-   * (ref: join_read_key())
-   */
-  if (info->table->file->test_push_flag(HA_PUSH_MULTIPLE_DEPENDENCY))
-  {
-    info->table->status= STATUS_GARBAGE;
-  }
-#endif
   return -1;
 }
 
