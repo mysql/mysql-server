@@ -12009,7 +12009,11 @@ void Dbtc::sendScanFragReq(Signal* signal,
      */
     Uint32 reqAttrLen = sections.m_ptr[0].sz;
     ScanFragReq::setAttrLen(req->requestInfo, reqAttrLen);
-    req->fragmentNoKeyLen |= reqKeyLen;
+    /*
+     * bug#13834481 missing shift, causing fragment not found
+     * (error 1231) on 6.3 node.
+     */
+    req->fragmentNoKeyLen |= (reqKeyLen << 16);
     sendSignal(scanFragP->lqhBlockref, GSN_SCAN_FRAGREQ, signal,
                ScanFragReq::SignalLength, JBB);
     if(reqKeyLen > 0)
