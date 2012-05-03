@@ -6568,46 +6568,6 @@ int ha_ndbcluster::index_read_last(uchar * buf, const uchar * key, uint key_len)
 }
 
 
-/**
-  Read first row (only) from a table.
-
-  This is actually (yet) never called for ndbcluster tables, as these table types
-  does not set HA_STATS_RECORDS_IS_EXACT.
-
-  UPDATE: Might be called if the predicate contain '<column> IS NULL', and
-          <column> is defined as 'NOT NULL' (or is part of primary key)
-
-  Implemented regardless of this as the default implememtation would break 
-  any pushed joins as it calls ha_rnd_end() / ha_index_end() at end of execution.
-  */
-int ha_ndbcluster::read_first_row(uchar * buf, uint primary_key)
-{
-  register int error;
-  DBUG_ENTER("ha_ndbcluster::read_first_row");
-
-  ha_statistic_increment(&SSV::ha_read_first_count);
-
-  /*
-    If there is very few deleted rows in the table, find the first row by
-    scanning the table.
-    TODO remove the test for HA_READ_ORDER
-  */
-  if (stats.deleted < 10 || primary_key >= MAX_KEY ||
-      !(index_flags(primary_key, 0, 0) & HA_READ_ORDER))
-  {
-    (void) ha_rnd_init(1);
-    while ((error= rnd_next(buf)) == HA_ERR_RECORD_DELETED) ;
-  }
-  else
-  {
-    /* Find the first row through the primary key */
-    (void) ha_index_init(primary_key, 0);
-    error=index_first(buf);
-  }
-  DBUG_RETURN(error);
-}
-
-
 int ha_ndbcluster::read_range_first_to_buf(const key_range *start_key,
                                            const key_range *end_key,
                                            bool desc, bool sorted,
