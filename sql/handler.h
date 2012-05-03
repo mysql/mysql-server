@@ -465,6 +465,11 @@ include/my_base.h. It is possible to distinguish whether
 STATS_AUTO_RECALC=default has been specified or no STATS_AUTO_RECALC= is
 given at all. */
 #define HA_CREATE_USED_STATS_AUTO_RECALC (1L << 23)
+/** This is set whenever STATS_SAMPLE_PAGES=N|default has been
+specified in CREATE/ALTER TABLE. It is possible to distinguish whether
+STATS_SAMPLE_PAGES=default has been specified or no STATS_SAMPLE_PAGES= is
+given at all. */
+#define HA_CREATE_USED_STATS_SAMPLE_PAGES (1L << 24)
 
 
 /*
@@ -1014,6 +1019,8 @@ typedef struct st_ha_create_information
   ulong avg_row_length;
   ulong used_fields;
   ulong key_block_size;
+  uint stats_sample_pages;		/* number of pages to sample during
+					stats estimation, if used, otherwise 0. */
   SQL_I_List<TABLE_LIST> merge_list;
   handlerton *db_type;
   /**

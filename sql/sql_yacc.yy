@@ -1526,6 +1526,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  START_SYM                     /* SQL-2003-R */
 %token  STATS_PERSISTENT_SYM
 %token  STATS_AUTO_RECALC_SYM
+%token  STATS_SAMPLE_PAGES_SYM
 %token  STATUS_SYM
 %token  STDDEV_SAMP_SYM               /* SQL-2003-N */
 %token  STD_SYM
@@ -5994,6 +5995,21 @@ create_table_option:
             Lex->create_info.table_options&=
               ~(HA_OPTION_STATS_AUTO_RECALC | HA_OPTION_NO_STATS_AUTO_RECALC);
             Lex->create_info.used_fields|= HA_CREATE_USED_STATS_AUTO_RECALC;
+          }
+        | STATS_SAMPLE_PAGES_SYM opt_equal ulong_num
+          {
+            if ($3 == 0)
+            {
+              my_parse_error(ER(ER_SYNTAX_ERROR));
+              MYSQL_YYABORT;
+            }
+            Lex->create_info.stats_sample_pages=$3;
+            Lex->create_info.used_fields|= HA_CREATE_USED_STATS_SAMPLE_PAGES;
+          }
+        | STATS_SAMPLE_PAGES_SYM opt_equal DEFAULT
+          {
+            Lex->create_info.stats_sample_pages=0;
+            Lex->create_info.used_fields|= HA_CREATE_USED_STATS_SAMPLE_PAGES;
           }
         | CHECKSUM_SYM opt_equal ulong_num
           {
@@ -14186,6 +14202,7 @@ keyword_sp:
         | STARTS_SYM               {}
         | STATS_PERSISTENT_SYM     {}
         | STATS_AUTO_RECALC_SYM    {}
+        | STATS_SAMPLE_PAGES_SYM   {}
         | STATUS_SYM               {}
         | STORAGE_SYM              {}
         | STRING_SYM               {}
