@@ -3447,11 +3447,11 @@ from t1, t2
 where t2.a = t1.b
 and t1.a = 2;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	const	PRIMARY	PRIMARY	4	const	1	100.00	NULL
-1	SIMPLE	t2	eq_ref	PRIMARY	PRIMARY	4	const	1	100.00	NULL
+1	SIMPLE	t1	eq_ref	PRIMARY	PRIMARY	4	const	1	100.00	Using where with pushed condition (`test`.`t1`.`b` is not null)
+1	SIMPLE	t2	eq_ref	PRIMARY	PRIMARY	4	test.t1.b	1	100.00	NULL
 Warnings:
-Note	9999	Table 't1' was optimized away, or const'ified by optimizer
-Note	1003	/* select#1 */ select '2' AS `a`,'1' AS `b`,'kalle' AS `c`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t1` join `test`.`t2` where ((`test`.`t2`.`a` = '1'))
+Note	9999	Table 't1' is not pushable: select list can't contain BLOB columns
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t1` join `test`.`t2` where ((`test`.`t1`.`a` = 2) and (`test`.`t2`.`a` = `test`.`t1`.`b`))
 select *
 from t1, t2
 where t2.a = t1.b
@@ -4871,11 +4871,12 @@ on table3.u = table1.u
 where table2.pk = 3;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	table1	ALL	NULL	NULL	NULL	NULL	13	100.00	NULL
-1	SIMPLE	table2	eq_ref	PRIMARY,ix2	PRIMARY	4	const	1	100.00	Parent of 2 pushed join@1; Using where with pushed condition (`test`.`table2`.`a` is not null)
-1	SIMPLE	table3	ref	ix2	ix2	9	test.table2.a,test.table1.u	1	100.00	Child of 'table2' in pushed join@1
+1	SIMPLE	table2	eq_ref	PRIMARY,ix2	PRIMARY	4	const	1	100.00	Using where with pushed condition (`test`.`table2`.`a` is not null)
+1	SIMPLE	table3	ref	ix2	ix2	9	test.table2.a,test.table1.u	1	100.00	NULL
 Warnings:
 Note	9999	Can't push table 'table2' as child of 'table1', their dependency is 'const'
 Note	9999	Can't push table 'table3' as child of 'table1', column 'table2.a' is outside scope of pushable join
+Note	9999	Cannot push table 'table3' as child of 'table2', since it referes to column 'table1.u' prior to a potential 'const' root.
 Note	1003	/* select#1 */ select straight_join `test`.`table1`.`pk` AS `pk`,`test`.`table1`.`u` AS `u`,`test`.`table1`.`a` AS `a`,`test`.`table1`.`b` AS `b`,`test`.`table2`.`pk` AS `pk`,`test`.`table2`.`u` AS `u`,`test`.`table2`.`a` AS `a`,`test`.`table2`.`b` AS `b`,`test`.`table3`.`pk` AS `pk`,`test`.`table3`.`u` AS `u`,`test`.`table3`.`a` AS `a`,`test`.`table3`.`b` AS `b` from `test`.`t1` `table1` join `test`.`t1` `table2` join `test`.`t1` `table3` where ((`test`.`table3`.`a` = `test`.`table2`.`a`) and (`test`.`table3`.`u` = `test`.`table1`.`u`) and (`test`.`table2`.`pk` = 3))
 select straight_join * from
 t1 as table1 join 
@@ -5700,7 +5701,7 @@ CONST_PRUNED_RANGE_SCANS_RECEIVED	8
 LOCAL_TABLE_SCANS_SENT	256
 PRUNED_RANGE_SCANS_RECEIVED	27
 RANGE_SCANS_RECEIVED	728
-READS_RECEIVED	56
+READS_RECEIVED	43
 TABLE_SCANS_RECEIVED	256
 drop table spj_counts_at_startup;
 drop table spj_counts_at_end;
@@ -5711,9 +5712,9 @@ where new.variable_name = old.variable_name
 order by new.variable_name;
 variable_name	new.variable_value - old.variable_value
 NDB_PRUNED_SCAN_COUNT	8
-NDB_PUSHED_QUERIES_DEFINED	403
+NDB_PUSHED_QUERIES_DEFINED	401
 NDB_PUSHED_QUERIES_DROPPED	7
-NDB_PUSHED_QUERIES_EXECUTED	547
+NDB_PUSHED_QUERIES_EXECUTED	534
 NDB_SORTED_SCAN_COUNT	11
 drop table server_counts_at_startup;
 set ndb_join_pushdown = @save_ndb_join_pushdown;

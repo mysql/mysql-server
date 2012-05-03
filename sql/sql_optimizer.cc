@@ -3049,16 +3049,6 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables_arg, Item *conds,
       */
       extract_method= extract_no_table;
     }
-#ifndef MCP_WL4784
-    else if (table->file->test_push_flag(HA_PUSH_BLOCK_CONST_TABLE))
-    {
-      /*
-        Handler implements pushed joins, and prefer const tables to
-        be pushed together with rest of the pushed query.
-      */
-      extract_method= extract_no_table;
-    }
-#endif
     else if (*s->on_expr_ref)
     {
       /* s is the only inner table of an outer join, extract empty tables */
@@ -3243,7 +3233,7 @@ const_table_extraction_done:
               !(tl->embedding && tl->embedding->sj_on_expr) &&       // 3
 #ifndef MCP_WL4784
               !(*s->on_expr_ref && (*s->on_expr_ref)->is_expensive()) &&// 4
-              !table->file->test_push_flag(HA_PUSH_BLOCK_CONST_TABLE)) // 5
+              !(table->file->ha_table_flags() & HA_BLOCK_CONST_TABLE)) // 5
 #else
               !(*s->on_expr_ref && (*s->on_expr_ref)->is_expensive())) // 4
 #endif
