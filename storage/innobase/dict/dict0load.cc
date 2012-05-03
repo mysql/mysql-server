@@ -728,7 +728,13 @@ loop:
 
 		field = rec_get_nth_field_old(
 			rec, DICT_FLD__SYS_TABLES__NAME, &len);
+
 		name = mem_strdupl((char*) field, len);
+
+		char	table_name[MAX_FULL_NAME_LEN + 1];
+
+		innobase_format_name(
+			table_name, sizeof(table_name), name, FALSE);
 
 		flags = dict_sys_tables_get_flags(rec);
 		if (UNIV_UNLIKELY(flags == ULINT_UNDEFINED)) {
@@ -738,13 +744,9 @@ loop:
 			ut_ad(len == 4); /* this was checked earlier */
 			flags = mach_read_from_4(field);
 
-			ut_print_timestamp(stderr);
-			fputs("  InnoDB: Error: table ", stderr);
-			ut_print_filename(stderr, name);
-			fprintf(stderr, "\n"
-				"InnoDB: in InnoDB data dictionary"
-				" has unknown type %lx.\n",
-				(ulong) flags);
+			ib_logf(IB_LOG_LEVEL_ERROR,
+				"Table '%s' in InnoDB data dictionary"
+				" has unknown type %lx", table_name, flags);
 
 			goto loop;
 		}
@@ -808,13 +810,13 @@ loop:
 			if (err != DB_SUCCESS) {
 				ib_logf(IB_LOG_LEVEL_ERROR,
 					"Tablespace open failed for '%s', "
-					"ignored.", name);
+					"ignored.", table_name);
 			}
 
 		} else {
 			ib_logf(IB_LOG_LEVEL_INFO,
 				"DISCARD flag set for table '%s', ignored.",
-				name);
+				table_name);
 		}
 
 		mem_free(name);
@@ -1875,13 +1877,17 @@ err_exit:
 		goto err_exit;
 	}
 
+	char	table_name[MAX_FULL_NAME_LEN + 1];
+
+	innobase_format_name(table_name, sizeof(table_name), name, FALSE);
+
 	if (table->space == 0) {
 		/* The system tablespace is always available. */
 	} else if (table->flags2 & DICT_TF2_DISCARDED) {
 
 		ib_logf(IB_LOG_LEVEL_WARN,
 			"Table '%s' tablespace is set as discarded.",
-			table->name);
+			table_name);
 
 		table->ibd_file_missing = TRUE;
 
@@ -1896,7 +1902,7 @@ err_exit:
 				"Failed to find tablespace for table '%s' "
 				"in the cache. Attempting to load the "
 				"tablespace with space id %lu.",
-				name, (ulong) table->space);
+				table_name, (ulong) table->space);
 
 			/* Try to open the tablespace */
 			err = fil_open_single_table_tablespace(

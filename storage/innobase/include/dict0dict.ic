@@ -740,6 +740,9 @@ dict_tf_to_fsp_flags(
 /*=================*/
 	ulint	flags)	/*!< in: dict_table_t::flags */
 {
+	DBUG_EXECUTE_IF("dict_tf_to_fsp_flags_failure",
+			return(ULINT_UNDEFINED););
+
 	/* Adjust bit zero. */
 	flags = (flags == DICT_TF_COMPACT) ? 0 : flags;
 
