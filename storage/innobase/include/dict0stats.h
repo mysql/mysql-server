@@ -107,13 +107,7 @@ UNIV_INLINE
 void
 dict_stats_init(
 /*============*/
-	dict_table_t*	table,			/*!< in/out: table */
-	ibool		ps_on,			/*!< in: persistent stats
-						explicitly enabled */
-	ibool		ps_off,			/*!< in: persistent stats
-						explicitly disabled */
-	ibool		auto_recalc_on,		/*!< in: auto recalc enabled */
-	ibool		auto_recalc_off);	/*!< in: auto recalc disabled */
+	dict_table_t*	table);	/*!< in/out: table */
 
 /*********************************************************************//**
 Deinitialize table's stats after the last close of the table. This is

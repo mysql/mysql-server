@@ -2119,6 +2119,28 @@ trx_is_started(
 }
 
 /*********************************************************************//**
+Copy flags from MySQL into an InnoDB table object. Those flags are stored
+in .frm file and end up in the MySQL table object, but are frequently used
+inside InnoDB so we keep their copies into the InnoDB table object. */
+static
+void
+copy_frm_flags_into_innodb(
+/*=======================*/
+	dict_table_t*	innodb_table,	/*!< in/out: InnoDB table */
+	uint		mysql_opts)	/*!< in: MySQL table options */
+{
+	dict_stats_set_persistent(
+		innodb_table,
+		mysql_opts & HA_OPTION_STATS_PERSISTENT,
+		mysql_opts & HA_OPTION_NO_STATS_PERSISTENT);
+
+	dict_stats_auto_recalc_set(
+		innodb_table,
+		mysql_opts & HA_OPTION_STATS_AUTO_RECALC,
+		mysql_opts & HA_OPTION_NO_STATS_AUTO_RECALC);
+}
+
+/*********************************************************************//**
 Construct ha_innobase handler. */
 UNIV_INTERN
 ha_innobase::ha_innobase(
@@ -4644,12 +4666,9 @@ retry:
 
 table_opened:
 
-	dict_stats_init(
-		ib_table,
-		table->s->db_create_options & HA_OPTION_STATS_PERSISTENT,
-		table->s->db_create_options & HA_OPTION_NO_STATS_PERSISTENT,
-		table->s->db_create_options & HA_OPTION_STATS_AUTO_RECALC,
-		table->s->db_create_options & HA_OPTION_NO_STATS_AUTO_RECALC);
+	copy_frm_flags_into_innodb(ib_table, table->s->db_create_options);
+
+	dict_stats_init(ib_table);
 
 	MONITOR_INC(MONITOR_TABLE_OPEN);
 
@@ -9350,15 +9369,7 @@ ha_innobase::create(
 
 	DBUG_ASSERT(innobase_table != 0);
 
-	dict_stats_set_persistent(
-		innobase_table, 
-		create_info->table_options & HA_OPTION_STATS_PERSISTENT,
-		create_info->table_options & HA_OPTION_NO_STATS_PERSISTENT);
-
-	dict_stats_auto_recalc_set(
-		innobase_table, 
-		create_info->table_options & HA_OPTION_STATS_AUTO_RECALC,
-		create_info->table_options & HA_OPTION_NO_STATS_AUTO_RECALC);
+	copy_frm_flags_into_innodb(innobase_table, create_info->table_options);
 
 	dict_stats_update(innobase_table, DICT_STATS_EMPTY_TABLE, FALSE);
 
@@ -13237,19 +13248,7 @@ ha_innobase::check_if_incompatible_data(
 	HA_CREATE_INFO*	info,
 	uint		table_changes)
 {
-	/* Copy the persistent stats flags from info->table_options to
-	prebuilt->table */
-	dict_stats_set_persistent(
-		prebuilt->table,
-		info->table_options & HA_OPTION_STATS_PERSISTENT,
-		info->table_options & HA_OPTION_NO_STATS_PERSISTENT);
-
-	/* Copy the auto recalc flags from info->table_options to
-	prebuilt->table */
-	dict_stats_auto_recalc_set(
-		prebuilt->table,
-		info->table_options & HA_OPTION_STATS_AUTO_RECALC,
-		info->table_options & HA_OPTION_NO_STATS_AUTO_RECALC);
+	copy_frm_flags_into_innodb(prebuilt->table, info->table_options);
 
 	if (table_changes != IS_EQUAL_YES) {
 
