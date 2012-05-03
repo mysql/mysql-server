@@ -4277,35 +4277,6 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli)
   return do_apply_event(rli, query, q_len);
 }
 
-/*
-  is_silent_error
-
-  Return true if the thread has an error which should be
-  handled silently
-*/
-  
-static bool is_silent_error(THD* thd)
-{
-  DBUG_ENTER("is_silent_error");
-  Diagnostics_area::Sql_condition_iterator it=
-    thd->get_stmt_da()->sql_conditions();
-  const Sql_condition *err;
-  while ((err= it++))
-  {
-    DBUG_PRINT("info", ("has condition %d %s", err->get_sql_errno(),
-                        err->get_message_text()));
-    switch (err->get_sql_errno())
-    {
-    case ER_SLAVE_SILENT_RETRY_TRANSACTION:
-    {
-      DBUG_RETURN(true);
-    }
-    default:
-      break;
-    }
-  }
-  DBUG_RETURN(false);
-}
 
 /**
   @todo
@@ -4655,14 +4626,11 @@ Default database: '%s'. Query: '%s'",
     */
     else if (thd->is_slave_error || thd->is_fatal_error)
     {
-      if (!is_silent_error(thd))
-      {
-        rli->report(ERROR_LEVEL, actual_error,
-                    "Error '%s' on query. Default database: '%s'. Query: '%s'",
-                    (actual_error ? thd->get_stmt_da()->message() :
-                     "unexpected success or fatal error"),
-                    print_slave_db_safe(thd->db), query_arg);
-      }
+      rli->report(ERROR_LEVEL, actual_error,
+                      "Error '%s' on query. Default database: '%s'. Query: '%s'",
+                      (actual_error ? thd->get_stmt_da()->message() :
+                       "unexpected success or fatal error"),
+                      print_slave_db_safe(thd->db), query_arg);
       thd->is_slave_error= 1;
     }
 
