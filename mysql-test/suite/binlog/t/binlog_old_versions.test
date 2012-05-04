@@ -24,6 +24,17 @@
 
 source include/not_embedded.inc;
 
+--echo ==== Read binlog with v2 row events ====
+
+# Read binlog.
+--exec $MYSQL_BINLOG --local-load=$MYSQLTEST_VARDIR/tmp/ suite/binlog/std_data/ver_trunk_row_v2.001 | $MYSQL --local-infile=1
+# Show result.
+SELECT * FROM t1 ORDER BY a;
+SELECT * FROM t2 ORDER BY a;
+SELECT COUNT(*) FROM t3;
+# Reset.
+DROP TABLE t1, t2, t3;
+
 
 --echo ==== Read modern binlog (version 5.1.23) ====
 

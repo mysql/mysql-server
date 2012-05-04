@@ -1034,6 +1034,9 @@ Exit_status process_event(PRINT_EVENT_INFO *print_event_info, Log_event *ev,
     case WRITE_ROWS_EVENT:
     case DELETE_ROWS_EVENT:
     case UPDATE_ROWS_EVENT:
+    case WRITE_ROWS_EVENT_V1:
+    case UPDATE_ROWS_EVENT_V1:
+    case DELETE_ROWS_EVENT_V1:
     case PRE_GA_WRITE_ROWS_EVENT:
     case PRE_GA_DELETE_ROWS_EVENT:
     case PRE_GA_UPDATE_ROWS_EVENT:
@@ -1042,7 +1045,10 @@ Exit_status process_event(PRINT_EVENT_INFO *print_event_info, Log_event *ev,
       Table_map_log_event *ignored_map= NULL;
       if (ev_type == WRITE_ROWS_EVENT ||
           ev_type == DELETE_ROWS_EVENT ||
-          ev_type == UPDATE_ROWS_EVENT)
+          ev_type == UPDATE_ROWS_EVENT ||
+          ev_type == WRITE_ROWS_EVENT_V1 ||
+          ev_type == DELETE_ROWS_EVENT_V1 ||
+          ev_type == UPDATE_ROWS_EVENT_V1)
       {
         Rows_log_event *new_ev= (Rows_log_event*) ev;
         if (new_ev->get_flags(Rows_log_event::STMT_END_F))

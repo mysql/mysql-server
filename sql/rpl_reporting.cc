@@ -38,12 +38,10 @@ Slave_reporting_capability::Slave_reporting_capability(char const *thread_name)
   @error_arg  the error code for assessment. 
               defaults to zero which makes the function check the top
               of the reported errors stack.
-  @silent     bool indicating whether the error should be silently handled.
 
   @return 1 as the positive and 0 as the negative verdict
 */
-int Slave_reporting_capability::has_temporary_error(THD *thd, 
-                                                    uint error_arg, bool* silent) const
+int Slave_reporting_capability::has_temporary_error(THD *thd, uint error_arg) const
 {
   uint error;
   DBUG_ENTER("has_temporary_error");
@@ -77,6 +75,7 @@ int Slave_reporting_capability::has_temporary_error(THD *thd,
       (error == ER_LOCK_DEADLOCK || error == ER_LOCK_WAIT_TIMEOUT))
     DBUG_RETURN(1);
 
+#ifdef HAVE_NDB_BINLOG
   /*
     currently temporary error set in ndbcluster
   */
@@ -91,16 +90,11 @@ int Slave_reporting_capability::has_temporary_error(THD *thd,
     {
     case ER_GET_TEMPORARY_ERRMSG:
       DBUG_RETURN(1);
-    case ER_SLAVE_SILENT_RETRY_TRANSACTION:
-    {
-      if (silent != NULL)
-        *silent= true;
-      DBUG_RETURN(1);
-    }
     default:
       break;
     }
   }
+#endif
   DBUG_RETURN(0);
 }
 #endif // EMBEDDED_LIBRARY

@@ -1586,6 +1586,7 @@ set global innodb_monitor_reset = default;
 set global innodb_monitor_reset_all = default;
 -- enable_warnings
 
+call mtr.add_suppression("'Resource temporarily unavailable'");
 call mtr.add_suppression("Monitor ibuf_merges is already enabled");
 call mtr.add_suppression("Monitor ibuf_merges_insert is already enabled");
 call mtr.add_suppression("Got error -1 when reading table '.*'");
@@ -1594,6 +1595,11 @@ call mtr.add_suppression("InnoDB: Tablespace '.*' exists in the cache.*");
 call mtr.add_suppression("InnoDB: Freeing existing tablespace '.*' entry from the cache with id.*");
 call mtr.add_suppression("InnoDB: The table .* doesn't have a corresponding tablespace, it was discarded");
 call mtr.add_suppression(".*There was an error writing to the meta data file.*");
+call mtr.add_suppression("Trying to import a table, but could not open the tablespace file.*t1.ibd");
+call mtr.add_suppression("Unsupported tablespace format");
+call mtr.add_suppression("Error in page .* of index \"GEN_CLUST_INDEX\" of table \"test_wl5522\".\"t1\"");
+call mtr.add_suppression("Page is marked as free");
+call mtr.add_suppression("t1.ibd: Page .* at offset .* looks corrupted");
 
 eval SET GLOBAL INNODB_FILE_PER_TABLE=$innodb_file_per_table;
 

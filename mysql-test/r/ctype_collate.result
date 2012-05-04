@@ -660,3 +660,62 @@ latin5_turkish_ci then 2 else 3 end
 select concat(_latin1'a',_latin2'b',_latin5'c' collate latin5_turkish_ci);
 concat(_latin1'a',_latin2'b',_latin5'c' collate latin5_turkish_ci)
 abc
+#
+# Bug#11765016 57926: ILLEGAL MIX OF COLLATIONS FOR OPERATION 'UNION' .. USING CONCAT/FUNCTION/
+# Not a bug: only adding coverage tests
+#
+SET NAMES latin1 COLLATE latin1_german2_ci;
+CREATE DATABASE test1 DEFAULT CHARACTER SET latin1 COLLATE latin1_german2_ci;
+USE test1;
+#
+# Using "COLLATE latin1_swedish_ci" as the default collation for latin1
+#
+CREATE FUNCTION `getText`() RETURNS varchar(20) CHARSET latin1
+BEGIN
+RETURN "Testtext";
+END;//
+SELECT getText(), CHARSET(getText()), COLLATION(getText()), COERCIBILITY(getText());
+getText()	CHARSET(getText())	COLLATION(getText())	COERCIBILITY(getText())
+Testtext	latin1	latin1_swedish_ci	4
+CREATE TABLE t1 AS SELECT ' - ' AS a UNION SELECT getText();
+ERROR HY000: Illegal mix of collations for operation 'UNION'
+DROP FUNCTION getText;
+#
+# Using "CHARACTER SET latin1 COLLATE latin1_german2_ci" as the database defaults
+#
+CREATE FUNCTION `getText`() RETURNS varchar(20)
+BEGIN
+RETURN "Testtext";
+END;//
+SELECT getText(), CHARSET(getText()), COLLATION(getText()), COERCIBILITY(getText());
+getText()	CHARSET(getText())	COLLATION(getText())	COERCIBILITY(getText())
+Testtext	latin1	latin1_german2_ci	4
+CREATE TABLE t1 AS SELECT ' - ' AS a UNION SELECT getText();
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` varchar(20) COLLATE latin1_german2_ci DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1 COLLATE=latin1_german2_ci
+DROP TABLE t1;
+DROP FUNCTION getText;
+#
+# Using explicit "CHARACTER SET latin1 COLLATE latin1_german2_ci"
+#
+CREATE FUNCTION `getText`() RETURNS varchar(20) CHARACTER SET latin1 COLLATE latin1_german2_ci
+BEGIN
+RETURN "Testtext";
+END;//
+SELECT getText(), CHARSET(getText()), COLLATION(getText()), COERCIBILITY(getText());
+getText()	CHARSET(getText())	COLLATION(getText())	COERCIBILITY(getText())
+Testtext	latin1	latin1_german2_ci	4
+CREATE TABLE t1 AS SELECT ' - ' AS a UNION SELECT getText();
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` varchar(20) COLLATE latin1_german2_ci DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1 COLLATE=latin1_german2_ci
+DROP TABLE t1;
+DROP FUNCTION getText;
+DROP DATABASE test1;
+USE test;
+SET NAMES latin1;
