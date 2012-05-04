@@ -5221,8 +5221,8 @@ int mysqld_main(int argc, char **argv)
   /*
     init_slave() must be called after the thread keys are created.
   */
-  if (server_id != 0 && init_slave() && active_mi == NULL)
-    unireg_abort(1);
+  if (server_id != 0)
+    init_slave(); /* Ignoring errors while configuring replication. */
 
 #ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
   initialize_performance_schema_acl(opt_bootstrap);
