@@ -12376,16 +12376,11 @@ ulonglong ha_ndbcluster::table_flags(void) const
     f= (f | HA_BINLOG_STMT_CAPABLE) & ~HA_HAS_OWN_BINLOGGING;
 
   /**
-   * To maximize join pushability we want const-table optimization
-   * blocked if table is possibly pushable, that is:
-   *  - Variable 'ndb_join_pushdown= on'
-   *  - Lock mode is LM_CommittedRead
+   * To maximize join pushability we want const-table 
+   * optimization blocked if 'ndb_join_pushdown= on'
    */
-  if (THDVAR(thd, join_pushdown) &&
-      get_ndb_lock_mode(m_lock.type) == NdbOperation::LM_CommittedRead)
-  {
+  if (THDVAR(thd, join_pushdown))
     f= f | HA_BLOCK_CONST_TABLE;
-  }
 
   return f;
 }
