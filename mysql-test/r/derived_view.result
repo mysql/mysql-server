@@ -2044,6 +2044,59 @@ a
 drop table t1,t2;
 set optimizer_switch=@save968720_optimizer_switch;
 #
+# LP BUG#978847 Server crashes in Item_ref::real_item on
+# INSERT .. SELECT with FROM subquery and derived_merge=ON
+SET @save978847_optimizer_switch=@@optimizer_switch;
+SET optimizer_switch = 'derived_merge=on';
+CREATE TABLE t1 ( a INT, b INT );
+INSERT INTO t1 VALUES (2,1),(3,2);
+select * from t1;
+a	b
+2	1
+3	2
+INSERT INTO t1 SELECT * FROM
+( SELECT * FROM t1 ) AS alias;
+select * from t1;
+a	b
+2	1
+3	2
+2	1
+3	2
+prepare stmt1 from  'INSERT INTO t1 SELECT SQL_BIG_RESULT * FROM
+  ( SELECT * FROM t1 ) AS alias';
+execute stmt1;
+select * from t1;
+a	b
+2	1
+3	2
+2	1
+3	2
+2	1
+3	2
+2	1
+3	2
+execute stmt1;
+select * from t1;
+a	b
+2	1
+3	2
+2	1
+3	2
+2	1
+3	2
+2	1
+3	2
+2	1
+3	2
+2	1
+3	2
+2	1
+3	2
+2	1
+3	2
+drop table t1;
+set optimizer_switch=@save978847_optimizer_switch;
+#
 # end of 5.3 tests
 #
 set optimizer_switch=@exit_optimizer_switch;

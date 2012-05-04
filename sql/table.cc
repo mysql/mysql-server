@@ -6696,7 +6696,8 @@ bool TABLE_LIST::change_refs_to_fields()
       We need to restore the pointers after the execution of the
       prepared statement.
     */
-    thd->change_item_tree((Item **)&ref->ref, (Item*)materialized_items + idx);
+    thd->change_item_tree((Item **)&ref->ref,
+                          (Item*)(materialized_items + idx));
   }
 
   return FALSE;

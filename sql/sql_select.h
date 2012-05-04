@@ -36,7 +36,7 @@
 
 
 #if defined(WITH_ARIA_STORAGE_ENGINE)
-#include "../storage/maria/ha_maria.h"
+#include <maria.h>
 #endif
 #if defined(USE_ARIA_FOR_TMP_TABLES)
 #define TMP_ENGINE_HTON maria_hton
@@ -1319,6 +1319,7 @@ public:
     return (do_send_rows && implicit_grouping && !group_optimized_away &&
             having_value != Item::COND_FALSE);
   }
+  bool empty_result() { return (zero_result_cause && !implicit_grouping); }
   bool change_result(select_result *result);
   bool is_top_level_join() const
   {

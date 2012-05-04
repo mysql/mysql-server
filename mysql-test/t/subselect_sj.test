@@ -2366,5 +2366,38 @@ DEALLOCATE PREPARE pstmt;
 DROP VIEW v1;
 DROP TABLE t1, t2;
 
+--echo #
+--echo # BUG#978479: Wrong result (extra rows) with derived_with_keys+loosescan+semijoin=ON, materialization=OFF
+--echo #
+
+set @tmp_jcl_978479= @@join_cache_level;
+set join_cache_level=0;
+
+set @tmp_os_978479= @@optimizer_switch;
+set optimizer_switch = 'derived_with_keys=on,loosescan=on,semijoin=on,materialization=off';
+
+--echo # Part#1: make sure EXPLAIN is using LooseScan:
+CREATE TABLE t1 ( a INT, b INT );
+INSERT INTO t1 VALUES
+  (4,0),(6,8),(3,1),(5,8),(3,9),(2,4),
+  (2,6),(9,1),(5,4),(7,7),(5,4);
+
+CREATE ALGORITHM=TEMPTABLE
+  VIEW v1 AS SELECT * FROM t1;
+
+--echo # This will use LooseScan:
+EXPLAIN
+SELECT * FROM t1 AS t1_1, t1 AS t1_2
+  WHERE (t1_1.a, t1_2.a) IN ( SELECT a, b FROM v1 );
+
+SELECT * FROM t1 AS t1_1, t1 AS t1_2
+  WHERE (t1_1.a, t1_2.a) IN ( SELECT a, b FROM v1 );
+
+DROP VIEW v1;
+DROP TABLE t1;
+set @@join_cache_level= @tmp_jcl_978479;
+set @@optimizer_switch= @tmp_os_978479;
+
+
 # The following command must be the last one the file 
 set optimizer_switch=@subselect_sj_tmp;

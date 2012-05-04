@@ -4583,7 +4583,7 @@ SELECT MAX(b), (SELECT COUNT(*) FROM st1,st2 WHERE st2.b <= t1.b)
 FROM t1 
 WHERE a = 230;
 MAX(b)	(SELECT COUNT(*) FROM st1,st2 WHERE st2.b <= t1.b)
-NULL	0
+NULL	NULL
 DROP TABLE t1, st1, st2;
 #
 # Bug #48709: Assertion failed in sql_select.cc:11782: 
@@ -6516,6 +6516,47 @@ INSERT INTO t1 VALUES (1);
 SELECT a FROM t1 WHERE ( SELECT MIN(a) = 100 );
 a
 drop table t1;
+#
+# LP BUG#985667 Wrong result with subquery in SELECT clause, and constant table in 
+# main query and implicit grouping
+#
+CREATE TABLE t1 (f1 int) engine=MyISAM;
+INSERT INTO t1 VALUES (7),(8);
+CREATE TABLE t2 (f2 int, f3 varchar(1)) engine=MyISAM;
+INSERT INTO t2 VALUES (3,'f');
+EXPLAIN
+SELECT COUNT(f1), (SELECT f1 FROM t1 WHERE f2 > 0 limit 1) AS f4 FROM t2, t1 WHERE 'v'= f3;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+2	DEPENDENT SUBQUERY	t1	ALL	NULL	NULL	NULL	NULL	2	
+SELECT COUNT(f1), (SELECT f1 FROM t1 WHERE f2 > 0 limit 1) AS f4 FROM t2, t1 WHERE 'v'= f3;
+COUNT(f1)	f4
+0	NULL
+EXPLAIN
+SELECT COUNT(f1), exists(SELECT f1 FROM t1 WHERE f2 > 0 limit 1) AS f4 FROM t2, t1 WHERE 'v'= f3;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+2	DEPENDENT SUBQUERY	t1	ALL	NULL	NULL	NULL	NULL	2	
+SELECT COUNT(f1), exists(SELECT f1 FROM t1 WHERE f2 > 0 limit 1) AS f4 FROM t2, t1 WHERE 'v'= f3;
+COUNT(f1)	f4
+0	0
+EXPLAIN
+SELECT COUNT(f1), f2 > ALL (SELECT f1 FROM t1 WHERE f2 > 0) AS f4 FROM t2, t1 WHERE 'v'= f3;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+2	DEPENDENT SUBQUERY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
+SELECT COUNT(f1), f2 > ALL (SELECT f1 FROM t1 WHERE f2 > 0) AS f4 FROM t2, t1 WHERE 'v'= f3;
+COUNT(f1)	f4
+0	1
+EXPLAIN
+SELECT COUNT(f1), f2 IN (SELECT f1 FROM t1 WHERE f2 > 0) AS f4 FROM t2, t1 WHERE 'v'= f3;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+2	DEPENDENT SUBQUERY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
+SELECT COUNT(f1), f2 IN (SELECT f1 FROM t1 WHERE f2 > 0) AS f4 FROM t2, t1 WHERE 'v'= f3;
+COUNT(f1)	f4
+0	0
+drop table t1,t2;
 # return optimizer switch changed in the beginning of this test
 set optimizer_switch=@subselect_tmp;
 set @optimizer_switch_for_subselect_test=null;

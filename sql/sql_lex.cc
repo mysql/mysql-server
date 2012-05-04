@@ -3420,6 +3420,11 @@ bool st_select_lex::optimize_unflattened_subqueries()
           continue;
       }
 
+      bool empty_union_result= true;
+      /*
+        If the subquery is a UNION, optimize all the subqueries in the UNION. If
+        there is no UNION, then the loop will execute once for the subquery.
+      */
       for (SELECT_LEX *sl= un->first_select(); sl; sl= sl->next_select())
       {
         JOIN *inner_join= sl->join;
@@ -3442,9 +3447,19 @@ bool st_select_lex::optimize_unflattened_subqueries()
         res= inner_join->optimize();
         inner_join->select_options= save_options;
         un->thd->lex->current_select= save_select;
+        if (empty_union_result)
+        {
+          /*
+            If at least one subquery in a union is non-empty, the UNION result
+            is non-empty. If there is no UNION, the only subquery is non-empy.
+          */
+          empty_union_result= inner_join->empty_result();
+        }
         if (res)
           return TRUE;
       }
+      if (empty_union_result)
+        subquery_predicate->no_rows_in_result();
     }
   }
   return FALSE;

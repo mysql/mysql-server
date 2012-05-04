@@ -49,7 +49,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include <m_ctype.h>
 #include <mysys_err.h>
 #include <mysql/plugin.h>
-#include <mysql/innodb_priv.h>
+#include <innodb_priv.h>
 #include <mysql/psi/psi.h>
 #include <my_sys.h>
 

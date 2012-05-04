@@ -752,7 +752,7 @@ static File_option view_parameters[]=
   FILE_OPTIONS_ULONGLONG},
  {{ C_STRING_WITH_LEN("algorithm")},
   my_offsetof(TABLE_LIST, algorithm),
-  FILE_OPTIONS_ULONGLONG},
+  FILE_OPTIONS_VIEW_ALGO},
  {{ C_STRING_WITH_LEN("definer_user")},
   my_offsetof(TABLE_LIST, definer.user),
   FILE_OPTIONS_STRING},

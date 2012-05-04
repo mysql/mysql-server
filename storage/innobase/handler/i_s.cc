@@ -33,7 +33,7 @@ Created July 18, 2007 Vasil Dimov
 #include <my_sys.h>
 #include "i_s.h"
 #include <sql_plugin.h>
-#include <mysql/innodb_priv.h>
+#include <innodb_priv.h>
 
 extern "C" {
 #include "btr0types.h"

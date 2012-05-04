@@ -4431,10 +4431,9 @@ static int queue_event(Master_info* mi,const char* buf, ulong event_len)
       (event_pos= uint4korr(buf+LOG_POS_OFFSET)) > mi->master_log_pos + inc_pos)
   {
     inc_pos= event_pos - mi->master_log_pos;
-    DBUG_PRINT("info", ("Adjust master_log_pos %lu->%lu to account for "
+    DBUG_PRINT("info", ("Adjust master_log_pos %llu->%llu to account for "
                         "master-side filtering",
-                        (unsigned long)(mi->master_log_pos + inc_pos),
-                        event_pos));
+                        mi->master_log_pos + inc_pos, event_pos));
   }
 
   /*
