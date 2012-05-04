@@ -37,8 +37,8 @@ ALTER TABLE t ADD INDEX (a), ALGORITHM=INPLACE;
 --error ER_NO_SUCH_TABLE
 ALTER TABLE t1 ADD INDEX (a), ALGORITHM=COPY;
 
-call mtr.add_suppression("InnoDB: Tablespace open failed for 'test/t', ignored");
-call mtr.add_suppression("InnoDB: Failed to find tablespace for table 'test/t' in the cache");
+call mtr.add_suppression("InnoDB: Tablespace open failed for '\"test\"\.\"t\"', ignored");
+call mtr.add_suppression("InnoDB: Failed to find tablespace for table '\"test\"\.\"t\"' in the cache");
 call mtr.add_suppression("InnoDB: Cannot delete tablespace [0-9]+.*not found");
 
 ALTER TABLE t DISCARD TABLESPACE;
