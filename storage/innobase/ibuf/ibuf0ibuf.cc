@@ -25,6 +25,10 @@ Created 7/19/1997 Heikki Tuuri
 
 #include "ibuf0ibuf.h"
 
+#if defined UNIV_DEBUG || defined UNIV_IBUF_DEBUG
+UNIV_INTERN my_bool	srv_ibuf_disable_background_merge;
+#endif /* UNIV_DEBUG || UNIV_IBUF_DEBUG */
+
 /** Number of bits describing a single page */
 #define IBUF_BITS_PER_PAGE	4
 #if IBUF_BITS_PER_PAGE % 2
