@@ -19,6 +19,7 @@
 
 #include "my_sys.h" // my_strerror()
 #include "my_base.h" // HA_ERR_KEY_NOT_FOUND
+#include <string.h>
 
 namespace {
 
@@ -29,11 +30,15 @@ TEST(MyErrorTest, MyStrErrorSystem)
 
   msg= my_strerror(buf, sizeof(buf) - 1, 9999);
   EXPECT_TRUE(!strcasecmp("unknown error", msg) ||
-              !strcasecmp("unknown error 9999", msg));
+              !strcasecmp("unknown error: 9999", msg) ||
+              !strcasecmp("unknown error 9999", msg))
+    << "msg<" << msg << ">";
 
   // try a proper error number
-  msg= my_strerror(buf, sizeof(buf) - 1, 1);
-  EXPECT_STRCASEEQ("Operation not permitted", msg);
+  msg= my_strerror(buf, sizeof(buf) - 1, EPERM);
+  const char *os_msg= strerror(EPERM);
+  EXPECT_STREQ(os_msg, msg)
+    << "msg<" << msg << ">";
 }
 
 TEST(MyErrorTest, MyStrErrorHandlerPlugin)

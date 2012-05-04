@@ -160,10 +160,10 @@ ALTER TABLE t1 IMPORT TABLESPACE;
 ERROR HY000: InnoDB: Schema mismatch (Index x not found in tablespace meta-data file.)
 ALTER TABLE t1 DROP INDEX x;
 Warnings:
-Warning	1811	InnoDB: Tablespace has been discarded for table 't1'
+Warning	1812	InnoDB: Tablespace has been discarded for table 't1'
 ALTER TABLE t1 ADD INDEX idx(c2);
 Warnings:
-Warning	1811	InnoDB: Tablespace has been discarded for table 't1'
+Warning	1812	InnoDB: Tablespace has been discarded for table 't1'
 restore: t1
 ALTER TABLE t1 IMPORT TABLESPACE;
 CHECK TABLE t1;
@@ -210,7 +210,7 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=InnoDB AUTO_INCREMENT=28 DEFAULT CHARSET=latin1
 FLUSH TABLES t1 WITH READ LOCK;
 Warnings:
-Warning	1806	InnoDB: Table '"test"."t1"' in system tablespace
+Warning	1807	InnoDB: Table '"test"."t1"' in system tablespace
 UNLOCK TABLES;
 DROP TABLE t1;
 SET GLOBAL innodb_file_per_table = 1;

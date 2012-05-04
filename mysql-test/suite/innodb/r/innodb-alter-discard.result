@@ -14,6 +14,6 @@ call mtr.add_suppression("InnoDB: Failed to find tablespace for table 'test/t' i
 call mtr.add_suppression("InnoDB: Cannot delete tablespace [0-9]+.*not found");
 ALTER TABLE t DISCARD TABLESPACE;
 Warnings:
-Warning	1809	InnoDB: Tablespace is missing for table 'test/t'
-Warning	1809	InnoDB: Tablespace is missing for table 't'
+Warning	1810	InnoDB: Tablespace is missing for table 'test/t'
+Warning	1810	InnoDB: Tablespace is missing for table 't'
 DROP TABLE t;
