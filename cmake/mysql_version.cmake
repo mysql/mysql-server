@@ -126,10 +126,12 @@ ENDIF()
 IF(MSVC)
     # Tiny version is used to identify the build, it can be set with cmake -DTINY_VERSION=<number>
     # to bzr revno for example (in the CI builds)
-    SET(TINY_VERSION "0" CACHE INTERNAL "")
+    IF(NOT TINY_VERSION)
+      SET(TINY_VERSION "0")
+    ENDIF()
   
     GET_FILENAME_COMPONENT(MYSQL_CMAKE_SCRIPT_DIR ${CMAKE_CURRENT_LIST_FILE} PATH)
-	
+
     SET(FILETYPE VFT_APP)
     CONFIGURE_FILE(${MYSQL_CMAKE_SCRIPT_DIR}/versioninfo.rc.in 
     ${CMAKE_BINARY_DIR}/versioninfo_exe.rc)
@@ -137,7 +139,7 @@ IF(MSVC)
     SET(FILETYPE VFT_DLL)
     CONFIGURE_FILE(${MYSQL_CMAKE_SCRIPT_DIR}/versioninfo.rc.in  
       ${CMAKE_BINARY_DIR}/versioninfo_dll.rc)
-	  
+
   FUNCTION(ADD_VERSION_INFO target target_type sources_var)
     IF("${target_type}" MATCHES "SHARED" OR "${target_type}" MATCHES "MODULE")
       SET(rcfile ${CMAKE_BINARY_DIR}/versioninfo_dll.rc)

@@ -4,7 +4,7 @@
     Id="*" 
     UpgradeCode="@CPACK_WIX_UPGRADE_CODE@"
     Name="@CPACK_WIX_PACKAGE_NAME@" 
-    Version="@MAJOR_VERSION@.@MINOR_VERSION@.@PATCH_VERSION@" 
+    Version="@MAJOR_VERSION@.@MINOR_VERSION@.@PATCH_VERSION@.@TINY_VERSION@" 
     Language="1033" 
     Manufacturer="@MANUFACTURER@">
     
@@ -26,14 +26,16 @@
       <UpgradeVersion 
         Minimum="@MAJOR_VERSION@.@MINOR_VERSION@.0"
         IncludeMinimum="yes"
-        Maximum="@MAJOR_VERSION@.@MINOR_VERSION@.@PATCH_VERSION@"
+        Maximum="@MAJOR_VERSION@.@MINOR_VERSION@.@PATCH_VERSION@.@TINY_VERSION@"
+        IncludeMaximum="yes"
         Property="OLDERVERSIONBEINGUPGRADED"
         MigrateFeatures="yes"
         />
      <?endif?>
       <UpgradeVersion 
-        Minimum="@MAJOR_VERSION@.@MINOR_VERSION@.@PATCH_VERSION@"
+        Minimum="@MAJOR_VERSION@.@MINOR_VERSION@.@PATCH_VERSION@.@TINY_VERSION@"
         Maximum="@MAJOR_VERSION@.@MINOR_VERSION@.999"
+        IncludeMinimum="no"
         OnlyDetect="yes"
         Property="NEWERVERSIONDETECTED" />
     </Upgrade>
