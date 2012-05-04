@@ -2851,7 +2851,21 @@ dict_stats_delete_table_stats(
 
 	ret = que_eval_sql(pinfo,
 			   "PROCEDURE DROP_TABLE_STATS () IS\n"
+			   "dummy CHAR;\n"
 			   "BEGIN\n"
+
+			   /* Lock TABLE_STATS_NAME first to avoid deadlock
+			   with dict_stats_save() which locks the two tables
+			   in order TABLE_STATS_NAME,INDEX_STATS_NAME. The
+			   foreign key imposes that order during INSERT/UPDATE
+			   and the reverse order during DELETE. */
+
+			   "SELECT database_name INTO dummy\n"
+			   "FROM \"" TABLE_STATS_NAME "\"\n"
+			   "WHERE\n"
+			   "database_name = :database_name AND\n"
+			   "table_name = :table_name\n"
+			   "FOR UPDATE;\n"
 
 			   "DELETE FROM \"" INDEX_STATS_NAME "\" WHERE\n"
 			   "database_name = :database_name AND\n"
