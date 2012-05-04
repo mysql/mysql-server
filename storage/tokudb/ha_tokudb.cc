@@ -6618,6 +6618,7 @@ row_format_to_row_type(srv_row_format_t row_format)
     case SRV_ROW_FORMAT_DEFAULT:
         return ROW_TYPE_DEFAULT;
     }
+    assert(0); return ROW_TYPE_DEFAULT;;
 }
 
 //
