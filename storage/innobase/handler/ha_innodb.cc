@@ -9386,7 +9386,7 @@ ha_innobase::discard_or_import_tablespace(
 			ER_TABLE_IN_SYSTEM_TABLESPACE,
 			table->s->table_name.str);
 
-		return(HA_ERR_TABLE_NEEDS_UPGRADE);
+		DBUG_RETURN(HA_ERR_TABLE_NEEDS_UPGRADE);
 	}
 
 	trx_start_if_not_started(prebuilt->trx);
