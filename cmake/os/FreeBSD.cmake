@@ -23,6 +23,15 @@
 # The below was used for really old versions of FreeBSD, roughly: before 5.1.9
 # ADD_DEFINITIONS(-DHAVE_BROKEN_REALPATH)
 
+# Find libexecinfo (library that contains backtrace_symbols etc)
+INCLUDE_DIRECTORIES(/usr/local/include)
+SET(CMAKE_REQUIRED_INCLUDES ${CMAKE_REQUIRED_INCLUDES} /usr/local/include )
+SET(ENV{LIB} "$ENV{LIB}:/usr/local/lib")
+FIND_LIBRARY(EXECINFO NAMES execinfo)
+IF(EXECINFO)
+ SET(LIBEXECINFO ${EXECINFO})
+ENDIF()
+
 # Use atomic builtins
 IF(CMAKE_SIZEOF_VOID_P EQUAL 4 AND CMAKE_SYSTEM_PROCESSOR STREQUAL "i386")
   SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -march=i686")		

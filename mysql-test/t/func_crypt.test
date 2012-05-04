@@ -23,7 +23,9 @@ select old_password('');
 select password('gabbagabbahey');
 select old_password('idkfa');
 select length(password('1'));
+--replace_result 60 13
 select length(encrypt('test'));
+--replace_result  \$2a\$04\$aO....................ql.D6ROU4Byvysj72xrV1ZAkrMKS8I6 aaqPiZY5xR5l.
 select encrypt('test','aa');
 select old_password(NULL);
 select password(NULL);
