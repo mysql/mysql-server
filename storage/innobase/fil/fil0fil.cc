@@ -3318,7 +3318,7 @@ fil_reset_space_and_lsn(
 			{
 			static bool once;
 
-			if (!once || !(random() % 32)) {
+			if (!once || ut_rnd_interval(0, 10) == 5) {
 				once = true;
 				success = FALSE;
 			}
