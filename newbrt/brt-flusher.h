@@ -68,7 +68,7 @@ toku_flusher_thread_set_callback(
  */
 void
 flush_node_on_background_thread(
-    BRT brt,
+    struct brt_header *h,
     BRTNODE parent
     );
 

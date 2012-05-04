@@ -138,7 +138,7 @@ test_msnfilter(int do_verify) {
     //         node and unlock it again before and after each message injection, but that requires more
     //         work than it's worth (setting up dummy callbacks, etc.)
     //         
-    toku_unpin_brtnode(brt, newroot);
+    toku_unpin_brtnode(brt->h, newroot);
 
     populate_leaf(brt, newroot, htonl(2), 1);
 

@@ -1766,17 +1766,17 @@ static void flush_node_fun(void *fe_v)
 
 static void
 place_node_and_bnc_on_background_thread(
-    BRT brt,
+    struct brt_header *h,
     BRTNODE node,
     NONLEAF_CHILDINFO bnc)
 {
     struct flusher_extra* fe = NULL;
     fe = toku_xmalloc(sizeof(struct flusher_extra));
     assert(fe);
-    fe->h = brt->h;
+    fe->h = h;
     fe->node = node;
     fe->bnc = bnc;
-    cachefile_kibbutz_enq(brt->cf, flush_node_fun, fe);
+    cachefile_kibbutz_enq(h->cf, flush_node_fun, fe);
 }
 
 //
@@ -1793,7 +1793,7 @@ place_node_and_bnc_on_background_thread(
 //     The parent will be unlocked on the background thread
 //
 void
-flush_node_on_background_thread(BRT brt, BRTNODE parent)
+flush_node_on_background_thread(struct brt_header *h, BRTNODE parent)
 {
     //
     // first let's see if we can detach buffer on client thread
@@ -1806,9 +1806,9 @@ flush_node_on_background_thread(BRT brt, BRTNODE parent)
     //
     void *node_v;
     BRTNODE child;
-    u_int32_t childfullhash = compute_child_fullhash(brt->cf, parent, childnum);
+    u_int32_t childfullhash = compute_child_fullhash(h->cf, parent, childnum);
     int r = toku_cachetable_maybe_get_and_pin_clean (
-        brt->cf,
+        h->cf,
         BP_BLOCKNUM(parent,childnum),
         childfullhash,
         &node_v
@@ -1817,7 +1817,7 @@ flush_node_on_background_thread(BRT brt, BRTNODE parent)
         // In this case, we could not lock the child, so just place the parent on the background thread
         // In the callback, we will use flush_some_child, which checks to
         // see if we should blow away the old basement nodes.
-        place_node_and_bnc_on_background_thread(brt, parent, NULL);
+        place_node_and_bnc_on_background_thread(h, parent, NULL);
     }
     else {
         //
@@ -1845,17 +1845,17 @@ flush_node_on_background_thread(BRT brt, BRTNODE parent)
             // so, because we know for sure the child is not
             // reactive, we can unpin the parent
             //
-            place_node_and_bnc_on_background_thread(brt, child, bnc);
-            toku_unpin_brtnode(brt, parent);
+            place_node_and_bnc_on_background_thread(h, child, bnc);
+            toku_unpin_brtnode(h, parent);
         }
         else {
             // because the child may be reactive, we need to
             // put parent on background thread.
             // As a result, we unlock the child here.
-            toku_unpin_brtnode(brt, child);
+            toku_unpin_brtnode(h, child);
             // Again, we'll have the parent on the background thread, so
             // we don't need to destroy the basement nodes yet.
-            place_node_and_bnc_on_background_thread(brt, parent, NULL);
+            place_node_and_bnc_on_background_thread(h, parent, NULL);
         }
     }
 }

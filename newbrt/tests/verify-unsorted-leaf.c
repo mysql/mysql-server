@@ -76,7 +76,7 @@ test_dup_in_leaf(int do_verify) {
     *rootp = newroot->thisnodename;
 
     // unpin the new root
-    toku_unpin_brtnode(brt, newroot);
+    toku_unpin_brtnode(brt->h, newroot);
 
     if (do_verify) {
         r = toku_verify_brt(brt);

@@ -38,7 +38,6 @@ static void release_locks(uint64_t keys[], int n, TXNID txn) {
 }
 
 struct test_arg {
-    DB *db;
     TXNID txn;
     toku_ltm *ltm;
     toku_lock_tree *lt;
@@ -47,7 +46,7 @@ struct test_arg {
     uint64_t iterations;
 };
 
-static void runtest(DB *db, TXNID txn, toku_ltm *ltm UU(), toku_lock_tree *lt, uint64_t locks_per_txn, uint64_t nrows, uint64_t iterations) {
+static void runtest(TXNID txn, toku_ltm *ltm UU(), toku_lock_tree *lt, uint64_t locks_per_txn, uint64_t nrows, uint64_t iterations) {
     int r;
 
     uint64_t notgranted = 0, deadlocked = 0;
@@ -59,7 +58,7 @@ static void runtest(DB *db, TXNID txn, toku_ltm *ltm UU(), toku_lock_tree *lt, u
         for (i = 0; i < locks_per_txn; i++) {
             DBT key = { .data = &keys[i], .size = sizeof keys[i] };
             toku_lock_request lr;
-            toku_lock_request_init(&lr, db, txn, &key, &key, LOCK_REQUEST_WRITE);
+            toku_lock_request_init(&lr, txn, &key, &key, LOCK_REQUEST_WRITE);
             r = toku_lt_acquire_lock_request_with_default_timeout(lt, &lr);
             if (r == 0) {
                 get_lock(keys[i], txn);
@@ -87,7 +86,7 @@ static void runtest(DB *db, TXNID txn, toku_ltm *ltm UU(), toku_lock_tree *lt, u
 
 static void *runtest_wrapper(void *arg_wrapper) {
     struct test_arg *arg = (struct test_arg *) arg_wrapper;
-    runtest(arg->db, arg->txn, arg->ltm, arg->lt, arg->locks_per_txn, arg->nrows, arg->iterations);
+    runtest(arg->txn, arg->ltm, arg->lt, arg->locks_per_txn, arg->nrows, arg->iterations);
     return arg;
 }
 
@@ -142,20 +141,18 @@ int main(int argc, const char *argv[]) {
     r = toku_ltm_create(&ltm, max_locks, max_lock_memory, dbpanic);
     assert(r == 0 && ltm);
 
-    DB *fake_db = (DB *) 1;
-
     toku_lock_tree *lt = NULL;
-    r = toku_ltm_get_lt(ltm, &lt, (DICTIONARY_ID){1}, fake_db, dbcmp);
+    r = toku_ltm_get_lt(ltm, &lt, (DICTIONARY_ID){1}, NULL, dbcmp);
     assert(r == 0 && lt);
 
     toku_pthread_t tids[nthreads];
     struct test_arg args[nthreads];
     for (uint64_t i = 1; i < nthreads; i++) {
-        args[i] = (struct test_arg) { fake_db, (TXNID) i, ltm, lt, locks_per_txn, nrows, iterations };
+        args[i] = (struct test_arg) { (TXNID) i, ltm, lt, locks_per_txn, nrows, iterations };
         toku_pthread_create(&tids[i], NULL, runtest_wrapper, &args[i]);
     }
 
-    runtest(fake_db, (TXNID)nthreads, ltm, lt, locks_per_txn, nrows, iterations);
+    runtest((TXNID)nthreads, ltm, lt, locks_per_txn, nrows, iterations);
     
     for (uint64_t i = 1; i < nthreads; i++) {
         void *retptr;
@@ -163,7 +160,7 @@ int main(int argc, const char *argv[]) {
     }
 
     // shutdown 
-    toku_lt_remove_db_ref(lt, fake_db);
+    toku_lt_remove_db_ref(lt);
     r = toku_ltm_close(ltm); assert(r == 0);
 
     return 0;

@@ -95,7 +95,7 @@ make_tree(BRT brt, int height, int fanout, int nperleaf, int *seq, int *minkey, 
                 struct kv_pair *pivotkey = kv_pair_malloc(&k, sizeof k, NULL, 0);
                 toku_brt_nonleaf_append_child(node, child, pivotkey, sizeof k);
             }
-            toku_unpin_brtnode(brt, child);
+            toku_unpin_brtnode(brt->h, child);
             insert_into_child_buffer(brt, node, childnum, minkeys[childnum], maxkeys[childnum]);
         }
         *minkey = minkeys[0];
@@ -151,7 +151,7 @@ test_make_tree(int height, int fanout, int nperleaf, int do_verify) {
     // newroot->max_msn_applied_to_node = last_dummymsn(); // capture msn of last message injected into tree
 
     // unpin the new root
-    toku_unpin_brtnode(brt, newroot);
+    toku_unpin_brtnode(brt->h, newroot);
 
     if (do_verify) {
         r = toku_verify_brt(brt);

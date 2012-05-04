@@ -195,7 +195,7 @@ doit (void) {
     // child 1 should still have message in buffer
     assert(toku_bnc_n_entries(node->bp[0].ptr.u.nonleaf) == 0);
     assert(toku_bnc_n_entries(node->bp[1].ptr.u.nonleaf) > 0);
-    toku_unpin_brtnode(t, node);
+    toku_unpin_brtnode(t->h, node);
     r = toku_checkpoint(ct, NULL, NULL, NULL, NULL, NULL, CLIENT_CHECKPOINT);
     assert_zero(r);    
     toku_pin_node_with_min_bfe(&node, node_internal, t);
@@ -213,7 +213,7 @@ doit (void) {
     assert(toku_bnc_n_entries(node->bp[0].ptr.u.nonleaf) == 0);
     assert(toku_bnc_n_entries(node->bp[1].ptr.u.nonleaf) == 0);
     // now let's do a flush with an empty buffer, make sure it is ok
-    toku_unpin_brtnode(t, node);
+    toku_unpin_brtnode(t->h, node);
     r = toku_checkpoint(ct, NULL, NULL, NULL, NULL, NULL, CLIENT_CHECKPOINT);
     assert_zero(r);    
     toku_pin_node_with_min_bfe(&node, node_internal, t);
@@ -230,7 +230,7 @@ doit (void) {
     // both buffers should be empty now
     assert(toku_bnc_n_entries(node->bp[0].ptr.u.nonleaf) == 0);
     assert(toku_bnc_n_entries(node->bp[1].ptr.u.nonleaf) == 0);
-    toku_unpin_brtnode(t, node);
+    toku_unpin_brtnode(t->h, node);
 
     // now let's start a flush from the root, that always recursively flushes    
     flusher_advice_init(
@@ -254,13 +254,13 @@ doit (void) {
     
         toku_pin_node_with_min_bfe(&node, node_internal, t);
         assert(!node->dirty); // nothing was flushed, so node better not be dirty
-        toku_unpin_brtnode(t, node);
+        toku_unpin_brtnode(t->h, node);
         toku_pin_node_with_min_bfe(&node, node_leaf[0], t);
         assert(!node->dirty); // nothing was flushed, so node better not be dirty
-        toku_unpin_brtnode(t, node);
+        toku_unpin_brtnode(t->h, node);
         toku_pin_node_with_min_bfe(&node, node_leaf[1], t);
         assert(!node->dirty); // nothing was flushed, so node better not be dirty
-        toku_unpin_brtnode(t, node);
+        toku_unpin_brtnode(t->h, node);
     }
 
     // now one more test to show a bug was fixed
@@ -288,7 +288,7 @@ doit (void) {
         toku_brtnode_pe_callback(node, make_pair_attr(0xffffffff), &attr, NULL);
     }
     assert(BP_STATE(node,0) == PT_COMPRESSED);
-    toku_unpin_brtnode(t, node);
+    toku_unpin_brtnode(t->h, node);
 
     //now let's do the same test as above
     toku_pin_node_with_min_bfe(&node, node_root, t);

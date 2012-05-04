@@ -320,8 +320,8 @@ toku_brt_nonleaf_is_gorged (BRTNODE node) {
             (!buffers_are_empty));
 }
 
-static void brt_verify_flags(BRT brt, BRTNODE node) {
-    assert(brt->flags == node->flags);
+static void brt_verify_flags(struct brt_header *h, BRTNODE node) {
+    assert(h->flags == node->flags);
 }
 
 int toku_brt_debug_mode = 0;
@@ -1465,7 +1465,7 @@ toku_initialize_empty_brtnode (BRTNODE n, BLOCKNUM nodename, int height, int num
 }
 
 static void
-brt_init_new_root(BRT brt, BRTNODE nodea, BRTNODE nodeb, DBT splitk, CACHEKEY *rootp, BRTNODE *newrootp)
+brt_init_new_root(struct brt_header *h, BRTNODE nodea, BRTNODE nodeb, DBT splitk, CACHEKEY *rootp, BRTNODE *newrootp)
 // Effect:  Create a new root node whose two children are NODEA and NODEB, and the pivotkey is SPLITK.
 //  Store the new root's identity in *ROOTP, and the node in *NEWROOTP.
 //  Unpin nodea and nodeb.
@@ -1474,11 +1474,11 @@ brt_init_new_root(BRT brt, BRTNODE nodea, BRTNODE nodeb, DBT splitk, CACHEKEY *r
     BRTNODE XMALLOC(newroot);
     int new_height = nodea->height+1;
     BLOCKNUM newroot_diskoff;
-    toku_allocate_blocknum(brt->h->blocktable, &newroot_diskoff, brt->h);
+    toku_allocate_blocknum(h->blocktable, &newroot_diskoff, h);
     assert(newroot);
     *rootp=newroot_diskoff;
     assert(new_height > 0);
-    toku_initialize_empty_brtnode (newroot, newroot_diskoff, new_height, 2, brt->h->layout_version, brt->h->nodesize, brt->flags, brt->h);
+    toku_initialize_empty_brtnode (newroot, newroot_diskoff, new_height, 2, h->layout_version, h->nodesize, h->flags, h);
     //printf("new_root %lld %d %lld %lld\n", newroot_diskoff, newroot->height, nodea->thisnodename, nodeb->thisnodename);
     //printf("%s:%d Splitkey=%p %s\n", __FILE__, __LINE__, splitkey, splitkey);
     newroot->childkeys[0] = splitk.data;
@@ -1494,12 +1494,12 @@ brt_init_new_root(BRT brt, BRTNODE nodea, BRTNODE nodeb, DBT splitk, CACHEKEY *r
     BP_STATE(newroot,0) = PT_AVAIL;
     BP_STATE(newroot,1) = PT_AVAIL;
     toku_mark_node_dirty(newroot);
-    toku_unpin_brtnode(brt, nodea);
-    toku_unpin_brtnode(brt, nodeb);
+    toku_unpin_brtnode(h, nodea);
+    toku_unpin_brtnode(h, nodeb);
     //printf("%s:%d put %lld\n", __FILE__, __LINE__, newroot_diskoff);
-    u_int32_t fullhash = toku_cachetable_hash(brt->cf, newroot_diskoff);
+    u_int32_t fullhash = toku_cachetable_hash(h->cf, newroot_diskoff);
     newroot->fullhash = fullhash;
-    toku_cachetable_put(brt->cf, newroot_diskoff, fullhash, newroot, make_brtnode_pair_attr(newroot), get_write_callbacks_for_node(brt->h));
+    toku_cachetable_put(h->cf, newroot_diskoff, fullhash, newroot, make_brtnode_pair_attr(newroot), get_write_callbacks_for_node(h));
     *newrootp = newroot;
 }
 
@@ -2247,7 +2247,7 @@ brt_nonleaf_put_cmd (brt_compare_func compare_fun, DESCRIPTOR desc, BRTNODE node
 
 
 static void
-brt_handle_maybe_reactive_root (BRT brt, CACHEKEY *rootp, BRTNODE *nodep) {
+brt_handle_maybe_reactive_root (struct brt_header *h, CACHEKEY *rootp, BRTNODE *nodep) {
     BRTNODE node = *nodep;
     toku_assert_entire_node_in_memory(node);
     enum reactivity re = get_node_reactivity(node);
@@ -2259,18 +2259,18 @@ brt_handle_maybe_reactive_root (BRT brt, CACHEKEY *rootp, BRTNODE *nodep) {
 	{
 	    BRTNODE nodea,nodeb;
 	    DBT splitk;
-	    assert(brt->h->nodesize>=node->nodesize); /* otherwise we might be in trouble because the nodesize shrank. */
+	    assert(h->nodesize>=node->nodesize); /* otherwise we might be in trouble because the nodesize shrank. */
             //
             // This happens on the client thread with the ydb lock, so it is safe to
             // not pass in dependent nodes. Although if we wanted to, we could pass
             // in just node. That would be correct.
             //
 	    if (node->height==0) {
-		brtleaf_split(brt->h, node, &nodea, &nodeb, &splitk, TRUE, 0, NULL);
+		brtleaf_split(h, node, &nodea, &nodeb, &splitk, TRUE, 0, NULL);
 	    } else {
-		brt_nonleaf_split(brt->h, node, &nodea, &nodeb, &splitk, 0, NULL);
+		brt_nonleaf_split(h, node, &nodea, &nodeb, &splitk, 0, NULL);
 	    }
-	    brt_init_new_root(brt, nodea, nodeb, splitk, rootp, nodep);
+	    brt_init_new_root(h, nodea, nodeb, splitk, rootp, nodep);
 	    return;
 	}
     case RE_FUSIBLE:
@@ -2622,22 +2622,22 @@ void toku_apply_cmd_to_leaf(
     VERIFY_NODE(t, node);
 }
 
-static void push_something_at_root (BRT brt, BRTNODE *nodep, BRT_MSG cmd)
+static void push_something_at_root (struct brt_header *h, BRTNODE *nodep, BRT_MSG cmd)
 // Effect:  Put CMD into brt's root node, and update 
 // the value of root's max_msn_applied_to_node_on_disk
 {
     BRTNODE node = *nodep;
     toku_assert_entire_node_in_memory(node);
-    TOKULOGGER logger = toku_cachefile_logger(brt->cf);
+    TOKULOGGER logger = toku_cachefile_logger(h->cf);
     OMT snapshot_txnids = logger ? logger->snapshot_txnids : NULL;
     OMT live_list_reverse = logger ? logger->live_list_reverse : NULL;
     OMT live_root_txns = logger ? logger->live_root_txns : NULL;
     MSN cmd_msn = cmd->msn;
     invariant(cmd_msn.msn > node->max_msn_applied_to_node_on_disk.msn);
     brtnode_put_cmd(
-        brt->compare_fun,
-        brt->update_fun,
-        &brt->h->cmp_descriptor,
+        h->compare_fun,
+        h->update_fun,
+        &h->cmp_descriptor,
         node,
         cmd,
         true,
@@ -2673,7 +2673,7 @@ CACHEKEY* toku_calculate_root_offset_pointer (struct brt_header* h, u_int32_t *r
 }
 
 int 
-toku_brt_root_put_cmd (BRT brt, BRT_MSG_S * cmd)
+toku_brt_root_put_cmd (struct brt_header *h, BRT_MSG_S * cmd)
 // Effect:
 //  - assign msn to cmd	 
 //  - push the cmd into the brt
@@ -2682,7 +2682,7 @@ toku_brt_root_put_cmd (BRT brt, BRT_MSG_S * cmd)
     BRTNODE node;
     CACHEKEY *rootp;
     //assert(0==toku_cachetable_assert_all_unpinned(brt->cachetable));
-    assert(brt->h);
+    assert(h);
     //
     // As of Dr. Noga, the following code is currently protected by two locks:
     //  - the ydb lock
@@ -2712,16 +2712,16 @@ toku_brt_root_put_cmd (BRT brt, BRT_MSG_S * cmd)
     //  others
     //
     {
-        toku_brtheader_grab_treelock(brt->h);
+        toku_brtheader_grab_treelock(h);
 
         u_int32_t fullhash;
-        rootp = toku_calculate_root_offset_pointer(brt->h, &fullhash);
+        rootp = toku_calculate_root_offset_pointer(h, &fullhash);
 
         // get the root node
         struct brtnode_fetch_extra bfe;
-        fill_bfe_for_full_read(&bfe, brt->h);
+        fill_bfe_for_full_read(&bfe, h);
         toku_pin_brtnode_off_client_thread(
-            brt->h, 
+            h, 
             *rootp, 
             fullhash,
             &bfe, 
@@ -2738,26 +2738,26 @@ toku_brt_root_put_cmd (BRT brt, BRT_MSG_S * cmd)
         // the msn and store it in the relevant node, including the root
         // node. This is how the new msn is set in the root.
 
-        VERIFY_NODE(brt, node);
+        //VERIFY_NODE(brt, node);
         assert(node->fullhash==fullhash);
-        brt_verify_flags(brt, node);
+        brt_verify_flags(h, node);
 
         // first handle a reactive root, then put in the message
-        brt_handle_maybe_reactive_root(brt, rootp, &node);
+        brt_handle_maybe_reactive_root(h, rootp, &node);
 
-        toku_brtheader_release_treelock(brt->h);
+        toku_brtheader_release_treelock(h);
     }
-    push_something_at_root(brt, &node, cmd);
+    push_something_at_root(h, &node, cmd);
     // verify that msn of latest message was captured in root node (push_something_at_root() did not release ydb lock)
     invariant(cmd->msn.msn == node->max_msn_applied_to_node_on_disk.msn);
 
     // if we call flush_some_child, then that function unpins the root
     // otherwise, we unpin ourselves
     if (node->height > 0 && toku_brt_nonleaf_is_gorged(node)) {
-        flush_node_on_background_thread(brt, node);
+        flush_node_on_background_thread(h, node);
     }
     else {
-        toku_unpin_brtnode(brt, node);  // unpin root
+        toku_unpin_brtnode(h, node);  // unpin root
     }
 
     return 0;
@@ -2830,7 +2830,7 @@ toku_brt_optimize (BRT brt) {
     toku_init_dbt(&key);
     toku_init_dbt(&val);
     BRT_MSG_S brtcmd = { BRT_OPTIMIZE, ZERO_MSN, message_xids, .u.id={&key,&val}};
-    r = toku_brt_root_put_cmd(brt, &brtcmd);
+    r = toku_brt_root_put_cmd(brt->h, &brtcmd);
     xids_destroy(&message_xids);
     return r;
 }
@@ -2947,7 +2947,7 @@ brt_send_update_msg(BRT brt, BRT_MSG_S *msg, TOKUTXN txn) {
     msg->xids = (txn
 		 ? toku_txn_get_xids(txn)
 		 : xids_get_root_xids());
-    int r = toku_brt_root_put_cmd(brt, msg);
+    int r = toku_brt_root_put_cmd(brt->h, msg);
     return r;
 }
 
@@ -3038,7 +3038,7 @@ cleanup:
 int
 toku_brt_send_insert(BRT brt, DBT *key, DBT *val, XIDS xids, enum brt_msg_type type) {
     BRT_MSG_S brtcmd = { type, ZERO_MSN, xids, .u.id = { key, val }};
-    int r = toku_brt_root_put_cmd(brt, &brtcmd);
+    int r = toku_brt_root_put_cmd(brt->h, &brtcmd);
     return r;
 }
 
@@ -3046,7 +3046,7 @@ int
 toku_brt_send_commit_any(BRT brt, DBT *key, XIDS xids) {
     DBT val; 
     BRT_MSG_S brtcmd = { BRT_COMMIT_ANY, ZERO_MSN, xids, .u.id = { key, toku_init_dbt(&val) }};
-    int r = toku_brt_root_put_cmd(brt, &brtcmd);
+    int r = toku_brt_root_put_cmd(brt->h, &brtcmd);
     return r;
 }
 
@@ -3135,7 +3135,7 @@ int
 toku_brt_send_delete(BRT brt, DBT *key, XIDS xids) {
     DBT val; toku_init_dbt(&val);
     BRT_MSG_S brtcmd = { BRT_DELETE_ANY, ZERO_MSN, xids, .u.id = { key, &val }};
-    int result = toku_brt_root_put_cmd(brt, &brtcmd);
+    int result = toku_brt_root_put_cmd(brt->h, &brtcmd);
     return result;
 }
 
@@ -3229,7 +3229,7 @@ static int setup_initial_brt_root_node (BRT t, BLOCKNUM blocknum) {
     if (r != 0)
 	toku_free(node);
     else
-        toku_unpin_brtnode(t, node);
+        toku_unpin_brtnode(t->h, node);
     return r;
 }
 
@@ -5435,7 +5435,7 @@ brt_search_child(BRT brt, BRTNODE node, int childnum, brt_search_t *search, BRT_
 
         assert(next_unlockers.locked);
         if (msgs_applied) {
-            toku_unpin_brtnode(brt, childnode);
+            toku_unpin_brtnode(brt->h, childnode);
         }
         else {
             toku_unpin_brtnode_read_only(brt, childnode);
@@ -5451,7 +5451,7 @@ brt_search_child(BRT brt, BRTNODE node, int childnum, brt_search_t *search, BRT_
         //  the node was not unpinned, so we unpin it here
         if (next_unlockers.locked) {
             if (msgs_applied) {
-                toku_unpin_brtnode(brt, childnode);
+                toku_unpin_brtnode(brt->h, childnode);
             }
             else {
                 toku_unpin_brtnode_read_only(brt, childnode);
@@ -6689,7 +6689,7 @@ static BOOL is_empty_fast_iter (BRT brt, BRTNODE node) {
                     );
 	    }
 	    int child_is_empty = is_empty_fast_iter(brt, childnode);
-	    toku_unpin_brtnode(brt, childnode);
+	    toku_unpin_brtnode(brt->h, childnode);
 	    if (!child_is_empty) return 0;
 	}
 	return 1;
@@ -6731,7 +6731,7 @@ BOOL toku_brt_is_empty_fast (BRT brt)
         toku_brtheader_release_treelock(brt->h);
     }
     BOOL r = is_empty_fast_iter(brt, node);
-    toku_unpin_brtnode(brt, node);
+    toku_unpin_brtnode(brt->h, node);
     return r;
 }
 

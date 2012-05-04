@@ -37,16 +37,14 @@ int main(int argc, const char *argv[]) {
     r = toku_ltm_create(&ltm, max_locks, max_lock_memory, dbpanic);
     assert(r == 0 && ltm);
 
-    DB *fake_db = (DB *) 1;
-
     toku_lock_tree *lt = NULL;
-    r = toku_ltm_get_lt(ltm, &lt, (DICTIONARY_ID){1}, fake_db, dbcmp);
+    r = toku_ltm_get_lt(ltm, &lt, (DICTIONARY_ID){1}, NULL, dbcmp);
     assert(r == 0 && lt);
 
     // add a lock for a transaction
     const TXNID txn_a = 1;
     DBT key_l; dbt_init(&key_l, "L", 1);
-    toku_lock_request a_w_l; toku_lock_request_init(&a_w_l, fake_db, txn_a, &key_l, &key_l, LOCK_REQUEST_WRITE);
+    toku_lock_request a_w_l; toku_lock_request_init(&a_w_l, txn_a, &key_l, &key_l, LOCK_REQUEST_WRITE);
     r = toku_lock_request_start(&a_w_l, lt, false); assert(r == 0); 
     assert(a_w_l.state == LOCK_REQUEST_COMPLETE && a_w_l.complete_r == 0);
     toku_lock_request_destroy(&a_w_l);
@@ -55,7 +53,7 @@ int main(int argc, const char *argv[]) {
     toku_lt_add_ref(lt);
 
     // start closing the lock tree
-    toku_lt_remove_db_ref(lt, fake_db);
+    toku_lt_remove_db_ref(lt);
 
     // release all locks for the transaction
     r = toku_lt_unlock_txn(lt, txn_a);  assert(r == 0);

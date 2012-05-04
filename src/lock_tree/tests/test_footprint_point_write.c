@@ -104,10 +104,8 @@ int main(int argc, const char *argv[]) {
     assert(s.max_lock_memory == max_lock_memory);
     assert(s.curr_lock_memory == 0);
 
-    DB *db_a = (DB *) 2;
-
     toku_lock_tree *lt = NULL;
-    r = toku_ltm_get_lt(ltm, &lt, (DICTIONARY_ID){1}, db_a, dbcmp);
+    r = toku_ltm_get_lt(ltm, &lt, (DICTIONARY_ID){1}, NULL, dbcmp);
     assert(r == 0 && lt);
 
     TXNID txn_a = 1;
@@ -116,7 +114,7 @@ int main(int argc, const char *argv[]) {
     for (uint64_t i = 1; i <= nrows; i++) {
         uint64_t k = htonl64(i);
         DBT key = { .data = &k, .size = sizeof k };
-        r = toku_lt_acquire_write_lock(lt, db_a, txn_a, &key);
+        r = toku_lt_acquire_write_lock(lt, txn_a, &key);
         if (r != 0) {
             assert(r == TOKUDB_OUT_OF_LOCKS);
             break;
@@ -143,7 +141,7 @@ int main(int argc, const char *argv[]) {
     assert(s.curr_locks == 0);
 
     // shutdown 
-    toku_lt_remove_db_ref(lt, db_a);
+    toku_lt_remove_db_ref(lt);
     r = toku_ltm_close(ltm); assert(r == 0);
 
     return 0;

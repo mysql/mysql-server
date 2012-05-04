@@ -184,7 +184,7 @@ doit (BOOL after_split) {
         );
     assert(node->height == 1);
     assert(node->n_children == 2);
-    toku_unpin_brtnode(t, node);
+    toku_unpin_brtnode(t->h, node);
 
     void *ret;
     r = toku_pthread_join(checkpoint_tid, &ret); 

@@ -172,7 +172,7 @@ doit (BOOL after_child_pin) {
     assert(node->height == 1);
     assert(node->n_children == 1);
     assert(toku_bnc_nbytesinbuf(BNC(node, 0)) == 0);
-    toku_unpin_brtnode(t, node);
+    toku_unpin_brtnode(t->h, node);
 
     void *ret;
     r = toku_pthread_join(checkpoint_tid, &ret); 

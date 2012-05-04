@@ -150,10 +150,10 @@ doit (int state) {
     BRTNODE node = NULL;
     toku_pin_node_with_min_bfe(&node, node_leaves[0], t);
     BLB_SEQINSERT(node, node->n_children-1) = FALSE;
-    toku_unpin_brtnode(t, node);
+    toku_unpin_brtnode(t->h, node);
     toku_pin_node_with_min_bfe(&node, node_leaves[1], t);
     BLB_SEQINSERT(node, node->n_children-1) = FALSE;
-    toku_unpin_brtnode(t, node);
+    toku_unpin_brtnode(t->h, node);
 
     
     struct brtnode_fetch_extra bfe;
@@ -188,7 +188,7 @@ doit (int state) {
         );
     assert(node->height == 1);
     assert(node->n_children == 1);
-    toku_unpin_brtnode(t, node);
+    toku_unpin_brtnode(t->h, node);
 
     void *ret;
     r = toku_pthread_join(checkpoint_tid, &ret); 

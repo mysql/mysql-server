@@ -2,6 +2,7 @@
 TOKUROOT=../../
 INCLUDEDIRS=-I. -I.. -I../../include
 
+CFLAGS+=-Werror
 ifeq ($(CYGWIN),)
 LINK_FILES += $(NEWBRT)
 else ifneq ($(CC),icc)

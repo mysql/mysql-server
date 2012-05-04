@@ -34,14 +34,12 @@ static void init_query(void) {
     query.right = &qright;
 }
 
-static DB *fake_db = (DB *) 1;
-
 static void setup_tree(void) {
     assert(!lt && !ltm);
     r = toku_ltm_create(&ltm, max_locks, max_lock_memory, dbpanic);
     CKERR(r);
     assert(ltm);
-    r = toku_ltm_get_lt(ltm, &lt, (DICTIONARY_ID){1}, fake_db, dbcmp);
+    r = toku_ltm_get_lt(ltm, &lt, (DICTIONARY_ID){1}, NULL, dbcmp);
     CKERR(r);
     assert(lt);
     init_query();
@@ -49,7 +47,7 @@ static void setup_tree(void) {
 
 static void close_tree(void) {
     assert(lt && ltm);
-    toku_lt_remove_db_ref(lt, fake_db);
+    toku_lt_remove_db_ref(lt);
     r = toku_ltm_close(ltm);
         CKERR(r);
     lt = NULL;
@@ -84,11 +82,11 @@ static void lt_insert(int r_expect, char txn, int key_l,
     TXNID local_txn = (TXNID) (size_t) txn;
 
     if (read_flag)
-        r = toku_lt_acquire_range_read_lock(lt, db, local_txn,
+        r = toku_lt_acquire_range_read_lock(lt, local_txn,
                                             key_left,
                                             key_right);
     else
-        r = toku_lt_acquire_write_lock(lt, db, local_txn, key_left);
+        r = toku_lt_acquire_write_lock(lt, local_txn, key_left);
     CKERR2(r, r_expect);
 }
 
@@ -110,13 +108,13 @@ static void lt_unlock(char ctxn) {
 static void runtest(void) {
     setup_tree();
     lt_insert_write(0, 'a', 1);
-    toku_lt_verify(lt, NULL);
+    toku_lt_verify(lt);
     lt_insert_write(0, 'a', 5);
-    toku_lt_verify(lt, NULL);
+    toku_lt_verify(lt);
     lt_insert_write(0, 'a', 20);
-    toku_lt_verify(lt, NULL);
+    toku_lt_verify(lt);
     lt_insert_write(0, 'b', 10);
-    toku_lt_verify(lt, NULL);
+    toku_lt_verify(lt);
     lt_unlock('a');
     lt_unlock('b');
     close_tree();

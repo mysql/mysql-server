@@ -63,7 +63,7 @@ get_range_lock(DB *db, DB_TXN *txn, const DBT *left_key, const DBT *right_key, t
     if (r == 0) {
         TXNID txn_anc_id = toku_txn_get_txnid(db_txn_struct_i(txn_anc)->tokutxn);
         toku_lock_request lock_request;
-        toku_lock_request_init(&lock_request, db, txn_anc_id, left_key, right_key, lock_type);
+        toku_lock_request_init(&lock_request, txn_anc_id, left_key, right_key, lock_type);
         r = toku_lt_acquire_lock_request_with_default_timeout(db->i->lt, &lock_request);
         toku_lock_request_destroy(&lock_request);
     }
@@ -78,7 +78,7 @@ start_range_lock(DB *db, DB_TXN *txn, const DBT *left_key, const DBT *right_key,
     r = toku_txn_add_lt(txn_anc, db->i->lt);
     if (r == 0) {
         TXNID txn_anc_id = toku_txn_get_txnid(db_txn_struct_i(txn_anc)->tokutxn);
-        toku_lock_request_set(lock_request, db, txn_anc_id, left_key, right_key, lock_type);
+        toku_lock_request_set(lock_request, txn_anc_id, left_key, right_key, lock_type);
         r = toku_lock_request_start(lock_request, db->i->lt, true);
     }
     return r;
@@ -99,7 +99,7 @@ toku_grab_write_lock (DB *db, DBT *key, TOKUTXN tokutxn) {
     int r = toku_txn_add_lt(txn_anc, db->i->lt);
     if (r == 0) {
         TXNID txn_anc_id = toku_txn_get_txnid(db_txn_struct_i(txn_anc)->tokutxn);
-        r = toku_lt_acquire_write_lock(db->i->lt, db, txn_anc_id, key);
+        r = toku_lt_acquire_write_lock(db->i->lt, txn_anc_id, key);
     }
     return r;
 }

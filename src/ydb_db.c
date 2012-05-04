@@ -137,7 +137,7 @@ db_close_before_brt(DB *db, u_int32_t UU(flags), bool oplsn_valid, LSN oplsn)
     }
     else {
 	if (db->i->lt) {
-	    toku_lt_remove_db_ref(db->i->lt, db);
+	    toku_lt_remove_db_ref(db->i->lt);
 	}
 	// printf("%s:%d %d=__toku_db_close(%p)\n", __FILE__, __LINE__, r, db);
 	toku_sdbt_cleanup(&db->i->skey);
@@ -429,7 +429,7 @@ db_open_iname(DB * db, DB_TXN * txn, const char *iname_in_env, u_int32_t flags, 
     db->i->opened = 1;
     if (need_locktree) {
 	db->i->dict_id = toku_brt_get_dictionary_id(db->i->brt);
-        r = toku_ltm_get_lt(db->dbenv->i->ltm, &db->i->lt, db->i->dict_id, db, toku_brt_get_bt_compare(db->i->brt));
+        r = toku_ltm_get_lt(db->dbenv->i->ltm, &db->i->lt, db->i->dict_id, db->cmp_descriptor, toku_brt_get_bt_compare(db->i->brt));
         if (r!=0) { goto error_cleanup; }
     }
     //Add to transaction's list of 'must close' if necessary.
@@ -445,7 +445,7 @@ error_cleanup:
     db->i->dict_id = DICTIONARY_ID_NONE;
     db->i->opened = 0;
     if (db->i->lt) {
-        toku_lt_remove_db_ref(db->i->lt, db);
+        toku_lt_remove_db_ref(db->i->lt);
         db->i->lt = NULL;
     }
     return r;
@@ -529,7 +529,7 @@ toku_db_change_descriptor(DB *db, DB_TXN* txn, const DBT* descriptor, u_int32_t 
         r = toku_db_pre_acquire_fileops_lock(db, txn);
         if (r != 0) { goto cleanup; }    
     }
-    
+
     old_descriptor.size = db->descriptor->dbt.size;
     old_descriptor.data = toku_memdup(db->descriptor->dbt.data, db->descriptor->dbt.size);
     r = toku_brt_change_descriptor(
@@ -540,6 +540,14 @@ toku_db_change_descriptor(DB *db, DB_TXN* txn, const DBT* descriptor, u_int32_t 
         ttxn, 
         update_cmp_descriptor
         );
+    if (r != 0) { goto cleanup; }
+
+    // the lock tree uses a copy of the header's descriptor for comparisons.
+    // if we need to update the cmp descriptor, we need to make sure the lock
+    // tree can get a copy of the new descriptor.
+    if (update_cmp_descriptor) {
+        toku_lt_update_descriptor(db->i->lt, db->cmp_descriptor);
+    }
 cleanup:
     if (old_descriptor.data) toku_free(old_descriptor.data);
     return r;

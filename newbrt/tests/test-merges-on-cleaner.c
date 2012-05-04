@@ -143,7 +143,7 @@ doit (void) {
     toku_pin_node_with_min_bfe(&node, node_leaf[1], brt);
     // hack to get merge going
     BLB_SEQINSERT(node, node->n_children-1) = FALSE;
-    toku_unpin_brtnode(brt, node);
+    toku_unpin_brtnode(brt->h, node);
 
     // now do a lookup on one of the keys, this should bring a leaf node up to date 
     DBT k;

@@ -49,7 +49,7 @@ int toku_testsetup_leaf(BRT brt, BLOCKNUM *blocknum, int n_children, char **keys
     }
 
     *blocknum = node->thisnodename;
-    toku_unpin_brtnode(brt, node);
+    toku_unpin_brtnode(brt->h, node);
     return 0;
 }
 
@@ -71,7 +71,7 @@ int toku_testsetup_nonleaf (BRT brt, int height, BLOCKNUM *blocknum, int n_child
         node->totalchildkeylens += keylens[i];
     }
     *blocknum = node->thisnodename;
-    toku_unpin_brtnode(brt, node);
+    toku_unpin_brtnode(brt->h, node);
     return 0;
 }
 
@@ -103,7 +103,7 @@ int toku_testsetup_get_sersize(BRT brt, BLOCKNUM diskoff) // Return the size on 
         );
     assert(r==0);
     int size = toku_serialize_brtnode_size(node_v);
-    toku_unpin_brtnode(brt, node_v);
+    toku_unpin_brtnode(brt->h, node_v);
     return size;
 }
 
@@ -153,7 +153,7 @@ int toku_testsetup_insert_to_leaf (BRT brt, BLOCKNUM blocknum, char *key, int ke
 
     toku_verify_or_set_counts(node);
 
-    toku_unpin_brtnode(brt, node_v);
+    toku_unpin_brtnode(brt->h, node_v);
     return 0;
 }
 
@@ -222,6 +222,6 @@ int toku_testsetup_insert_to_nonleaf (BRT brt, BLOCKNUM blocknum, enum brt_msg_t
     node->max_msn_applied_to_node_on_disk = msn;
     node->dirty = 1;
 
-    toku_unpin_brtnode(brt, node_v);
+    toku_unpin_brtnode(brt->h, node_v);
     return 0;
 }
