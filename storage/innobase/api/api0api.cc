@@ -1475,7 +1475,7 @@ ib_execute_insert_query_graph(
 
 		dict_table_n_rows_inc(table);
 
-		srv_n_rows_inserted++;
+		srv_stats.n_rows_inserted.inc();
 	}
 
 	trx->op_info = "";
@@ -1827,9 +1827,9 @@ ib_execute_update_query_graph(
 
 			dict_table_n_rows_dec(table);
 
-			srv_n_rows_deleted++;
+			srv_stats.n_rows_deleted.inc();
 		} else {
-			srv_n_rows_updated++;
+			srv_stats.n_rows_updated.inc();
 		}
 
 	} else if (err == DB_RECORD_NOT_FOUND) {

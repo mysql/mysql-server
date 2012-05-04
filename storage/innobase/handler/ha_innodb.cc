@@ -7276,6 +7276,7 @@ ha_innobase::index_read(
 	case DB_SUCCESS:
 		error = 0;
 		table->status = 0;
+		srv_stats.n_rows_read.add(prebuilt->trx->id, 1);
 		break;
 	case DB_RECORD_NOT_FOUND:
 		error = HA_ERR_KEY_NOT_FOUND;
@@ -7527,6 +7528,7 @@ ha_innobase::general_fetch(
 	case DB_SUCCESS:
 		error = 0;
 		table->status = 0;
+		srv_stats.n_rows_read.add(prebuilt->trx->id, 1);
 		break;
 	case DB_RECORD_NOT_FOUND:
 		error = HA_ERR_END_OF_FILE;
@@ -11971,41 +11973,7 @@ innodb_mutex_show_status(
 			block_mutex_oswait_count += mutex->count_os_wait;
 			continue;
 		}
-#ifdef UNIV_DEBUG
-		if (mutex->mutex_type != 1) {
-			if (mutex->count_using > 0) {
-				buf1len= my_snprintf(buf1, sizeof(buf1),
-					"%s:%s",
-					mutex->cmutex_name,
-					innobase_basename(mutex->cfile_name));
-				buf2len= my_snprintf(buf2, sizeof(buf2),
-					"count=%lu, spin_waits=%lu,"
-					" spin_rounds=%lu, "
-					"os_waits=%lu, os_yields=%lu,"
-					" os_wait_times=%lu",
-					mutex->count_using,
-					mutex->count_spin_loop,
-					mutex->count_spin_rounds,
-					mutex->count_os_wait,
-					mutex->count_os_yield,
-					(ulong) (mutex->lspent_time/1000));
 
-				if (stat_print(thd, innobase_hton_name,
-						hton_name_len, buf1, buf1len,
-						buf2, buf2len)) {
-					mutex_exit(&mutex_list_mutex);
-					DBUG_RETURN(1);
-				}
-			}
-		} else {
-			rw_lock_count += mutex->count_using;
-			rw_lock_count_spin_loop += mutex->count_spin_loop;
-			rw_lock_count_spin_rounds += mutex->count_spin_rounds;
-			rw_lock_count_os_wait += mutex->count_os_wait;
-			rw_lock_count_os_yield += mutex->count_os_yield;
-			rw_lock_wait_time += mutex->lspent_time;
-		}
-#else /* UNIV_DEBUG */
 		buf1len= (uint) my_snprintf(buf1, sizeof(buf1), "%s:%lu",
 				     innobase_basename(mutex->cfile_name),
 				     (ulong) mutex->cline);
@@ -12018,7 +11986,6 @@ innodb_mutex_show_status(
 			mutex_exit(&mutex_list_mutex);
 			DBUG_RETURN(1);
 		}
-#endif /* UNIV_DEBUG */
 	}
 
 	if (block_mutex) {

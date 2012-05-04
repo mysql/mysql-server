@@ -1368,7 +1368,7 @@ error_exit:
 
 	que_thr_stop_for_mysql_no_error(thr, trx);
 
-	srv_n_rows_inserted++;
+	srv_stats.n_rows_inserted.add(trx->id, 1);
 
 	/* Not protected by dict_table_stats_lock() for performance
 	reasons, we would rather get garbage in stat_n_rows (which is
@@ -1738,9 +1738,9 @@ run_again:
 		with a latch. */
 		dict_table_n_rows_dec(prebuilt->table);
 
-		srv_n_rows_deleted++;
+		srv_stats.n_rows_deleted.add(trx->id, 1);
 	} else {
-		srv_n_rows_updated++;
+		srv_stats.n_rows_updated.add(trx->id, 1);
 	}
 
 	/* We update table statistics only if it is a DELETE or UPDATE
@@ -1962,9 +1962,9 @@ run_again:
 		with a latch. */
 		dict_table_n_rows_dec(table);
 
-		srv_n_rows_deleted++;
+		srv_stats.n_rows_deleted.add(trx->id, 1);
 	} else {
-		srv_n_rows_updated++;
+		srv_stats.n_rows_updated.add(trx->id, 1);
 	}
 
 	row_update_statistics_if_needed(table);
@@ -2138,23 +2138,23 @@ err_exit:
 		/* The lock timeout monitor thread also takes care
 		of InnoDB monitor prints */
 
-		os_event_set(srv_timeout_event);
+		os_event_set(lock_sys->timeout_event);
 	} else if (STR_EQ(table_name, table_name_len,
 			  S_innodb_lock_monitor)) {
 
 		srv_print_innodb_monitor = TRUE;
 		srv_print_innodb_lock_monitor = TRUE;
-		os_event_set(srv_timeout_event);
+		os_event_set(lock_sys->timeout_event);
 	} else if (STR_EQ(table_name, table_name_len,
 			  S_innodb_tablespace_monitor)) {
 
 		srv_print_innodb_tablespace_monitor = TRUE;
-		os_event_set(srv_timeout_event);
+		os_event_set(lock_sys->timeout_event);
 	} else if (STR_EQ(table_name, table_name_len,
 			  S_innodb_table_monitor)) {
 
 		srv_print_innodb_table_monitor = TRUE;
-		os_event_set(srv_timeout_event);
+		os_event_set(lock_sys->timeout_event);
 #ifdef UNIV_MEM_DEBUG
 	} else if (STR_EQ(table_name, table_name_len,
 			  S_innodb_mem_validate)) {

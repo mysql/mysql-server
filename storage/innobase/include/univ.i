@@ -489,6 +489,8 @@ headers may define 'bool' differently. Do not assume that 'bool' is a ulint! */
 
 #endif
 
+#define UNIV_NOTHROW
+
 /** The following number as the length of a logical field means that the field
 has the SQL NULL as its value. NOTE that because we assume that the length
 of a field is a 32-bit integer when we store it, for example, to an undo log

@@ -39,6 +39,7 @@ Created 9/5/1995 Heikki Tuuri
 #include "sync0rw.h"
 #include "os0sync.h"
 #include "os0file.h"
+#include "lock0lock.h"
 #include "srv0srv.h"
 #include "ha_prototypes.h"
 
@@ -1005,7 +1006,7 @@ sync_array_print_long_waits(
 			(ulong) os_file_n_pending_pwrites);
 
 		srv_print_innodb_monitor = TRUE;
-		os_event_set(srv_timeout_event);
+		os_event_set(lock_sys->timeout_event);
 
 		os_thread_sleep(30000000);
 

@@ -590,12 +590,6 @@ lock_sys_create(
 {
 	ulint	lock_sys_sz;
 
-	srv_n_lock_wait_count = 0;
-	srv_n_lock_wait_time = 0;
-	srv_n_lock_max_wait_time = 0;
-	srv_lock_timeout_active = FALSE;
-	srv_n_lock_wait_current_count = 0;
-
 	lock_sys_sz = sizeof(*lock_sys)
 		+ OS_THREAD_MAX_N * sizeof(srv_slot_t);
 
@@ -619,8 +613,6 @@ lock_sys_create(
 
 	lock_latest_err_file = os_file_create_tmpfile();
 	ut_a(lock_latest_err_file);
-
-	srv_timeout_event = os_event_create(NULL);
 }
 
 /*********************************************************************//**
