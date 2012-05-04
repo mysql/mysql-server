@@ -33,7 +33,7 @@ foreach $line (reverse @lines) {
        ++$count; 
        print "$line"; 
        if ($count == 2) {
-          break;
+          last;
        }
     }
 }
