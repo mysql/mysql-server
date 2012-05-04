@@ -78,7 +78,8 @@ BEGIN {
 
 use lib "lib";
 
-use Cwd;
+use Cwd ;
+use Cwd 'realpath';
 use Getopt::Long;
 use My::File::Path; # Patched version of File::Path
 use File::Basename;
@@ -1040,8 +1041,14 @@ sub ignore_option {
 # Setup any paths that are $opt_vardir related
 sub set_vardir {
   my ($vardir)= @_;
-
-  $opt_vardir= $vardir;
+  if(IS_WINDOWS)
+  {
+    $opt_vardir= $vardir;
+  }
+  else
+  {
+    $opt_vardir= realpath($vardir);
+  }
 
   $path_vardir_trace= $opt_vardir;
   # Chop off any "c:", DBUG likes a unix path ex: c:/src/... => /src/...
