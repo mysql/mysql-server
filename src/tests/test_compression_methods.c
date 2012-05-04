@@ -69,7 +69,7 @@ with_open_db(db_callback cb, void *cb_extra, bool set_method, enum toku_compress
             // we should not be able to successfully do this on an unopened DB
             r = db->set_compression_method(db, TOKU_NO_COMPRESSION);
             assert(r != 0);
-            enum toku_compression_method m = 999;
+            enum toku_compression_method m = (enum toku_compression_method) 999;
             r = db->get_compression_method(db, &m);
             assert(r != 0);
             assert(m == 999);
