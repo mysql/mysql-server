@@ -89,8 +89,6 @@ extern ibool		buf_debug_prints;/*!< If this is set TRUE, the program
 					prints info whenever read or flush
 					occurs */
 #endif /* UNIV_DEBUG */
-extern ulint srv_buf_pool_write_requests; /*!< variable to count write request
-					  issued */
 extern ulint srv_buf_pool_instances;
 extern ulint srv_buf_pool_curr_size;
 #else /* !UNIV_HOTBACKUP */

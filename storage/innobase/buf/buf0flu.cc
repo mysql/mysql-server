@@ -1656,7 +1656,7 @@ buf_flush_common(
 	}
 #endif /* UNIV_DEBUG */
 
-	srv_buf_pool_flushed += page_count;
+	srv_stats.buf_pool_flushed.add(page_count);
 }
 
 /******************************************************************//**

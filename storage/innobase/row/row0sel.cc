@@ -3837,7 +3837,6 @@ row_search_for_mysql(
 
 			prebuilt->n_rows_fetched++;
 
-			srv_n_rows_read++;
 			err = DB_SUCCESS;
 			goto func_exit;
 		}
@@ -3994,8 +3993,6 @@ row_search_for_mysql(
 
 				/* ut_print_name(stderr, index->name);
 				fputs(" shortcut\n", stderr); */
-
-				srv_n_rows_read++;
 
 				err = DB_SUCCESS;
 				goto release_search_latch_if_needed;
@@ -5142,9 +5139,6 @@ normal_return:
 	dict_index_name_print(stderr, index);
 	fprintf(stderr, " cnt %lu ret value %lu err\n", cnt, err); */
 #endif /* UNIV_SEARCH_DEBUG */
-	if (err == DB_SUCCESS) {
-		srv_n_rows_read++;
-	}
 
 func_exit:
 	trx->op_info = "";
