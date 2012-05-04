@@ -48,7 +48,7 @@ UNIV_INTERN os_event_t	dict_stats_event = NULL;
 /** This mutex protects the following auto_recalc_* variables. */
 static mutex_t		auto_recalc_mutex;
 #ifdef HAVE_PSI_INTERFACE
-static mysql_pfs_key_t	auto_recalc_mutex_key
+static mysql_pfs_key_t	auto_recalc_mutex_key;
 #endif /* HAVE_PSI_INTERFACE */
 /** The number of tables that can be queued before the queue is enlarged */
 #define AUTO_RECALC_LIST_INITIAL_SLOTS	128
