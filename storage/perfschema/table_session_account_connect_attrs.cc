@@ -36,7 +36,6 @@ public:
 
 PFS_readonly_world_acl pfs_readonly_world_acl;
 
-
 PFS_engine_table_share
 table_session_account_connect_attrs::m_share=
 {
@@ -53,17 +52,14 @@ table_session_account_connect_attrs::m_share=
   false /* checked */
 };
 
-
 PFS_engine_table* table_session_account_connect_attrs::create()
 {
   return new table_session_account_connect_attrs();
 }
 
-
 table_session_account_connect_attrs::table_session_account_connect_attrs()
-  : cursor_by_thread_connect_attr(&m_share)
+  : table_session_connect(&m_share)
 {}
-
 
 bool
 table_session_account_connect_attrs::thread_fits(PFS_thread *thread,

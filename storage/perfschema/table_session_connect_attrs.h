@@ -16,14 +16,14 @@
 #ifndef TABLE_SESSION_CONNECT_ATTRS_H
 #define TABLE_SESSION_CONNECT_ATTRS_H
 
-#include "cursor_by_thread_connect_attr.h"
+#include "table_session_connect.h"
 /**
   \addtogroup Performance_schema_tables
   @{
 */
 
 /** Table PERFORMANCE_SCHEMA.SESSION_CONNECT_ATTRS. */
-class table_session_connect_attrs : public cursor_by_thread_connect_attr
+class table_session_connect_attrs : public table_session_connect
 {
 public:
   /** Table share */
@@ -37,9 +37,6 @@ protected:
 public:
   ~table_session_connect_attrs()
   {}
-
-private:
-  bool thread_fits(PFS_thread *thread, PFS_thread *current_thread);
 
 private:
   /** Table share lock. */

@@ -119,6 +119,7 @@ table_tiws_by_table.h
 table_tlws_by_table.h
 table_users.h
 cursor_by_thread_connect_attr.h
+table_session_connect.h
 table_session_connect_attrs.h
 table_session_account_connect_attrs.h
 cursor_by_account.cc
@@ -193,6 +194,7 @@ table_tiws_by_table.cc
 table_tlws_by_table.cc
 table_users.cc
 cursor_by_thread_connect_attr.cc
+table_session_connect.cc
 table_session_connect_attrs.cc
 table_session_account_connect_attrs.cc
 )

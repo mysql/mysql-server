@@ -50,30 +50,6 @@ struct pos_connect_attr_by_thread_by_attr
   }
 };
 
-#define MAX_ATTR_NAME_CHARS 32
-#define MAX_ATTR_VALUE_CHARS 1024
-#define MAX_UTF8_BYTES 6
-/**
-  A row of PERFORMANCE_SCHEMA.SESSION_CONNECT_ATTRS and
-  PERFORMANCE_SCHEMA.SESSION_ACCOUNT_CONNECT_ATTRS.
-*/
-struct row_session_connect_attrs
-{
-  /** Column PROCESS_ID. */
-  ulong m_process_id;
-  /** Column ATTR_NAME. In UTF-8 */
-  char m_attr_name[MAX_ATTR_NAME_CHARS * MAX_UTF8_BYTES];
-  /** Length in bytes of @c m_attr_name. */
-  uint m_attr_name_length;
-  /** Column ATTR_VALUE. In UTF-8 */
-  char m_attr_value[MAX_ATTR_VALUE_CHARS * MAX_UTF8_BYTES];
-  /** Length in bytes of @c m_attr_name. */
-  uint m_attr_value_length;
-  /** Column ORDINAL_POSITION. */
-  ulong m_ordinal_position;
-};
-
-
 /** Cursor CURSOR_BY_THREAD_CONNECT_ATTR. */
 class cursor_by_thread_connect_attr : public PFS_engine_table
 {
@@ -84,30 +60,22 @@ public:
 
 protected:
   cursor_by_thread_connect_attr(const PFS_engine_table_share *share);
-  virtual int read_row_values(TABLE *table, unsigned char *buf,
-                              Field **fields, bool read_all);
 
 public:
   ~cursor_by_thread_connect_attr()
   {}
 
 protected:
-  void make_row(PFS_thread *thread, uint ordinal);
-  virtual bool thread_fits(PFS_thread *thread, PFS_thread *current_thread) = 0;
+  virtual void make_row(PFS_thread *thread, uint ordinal)= 0;
+  virtual bool thread_fits(PFS_thread *thread, PFS_thread *current_thread)= 0;
+  /** True if row exists */
+  bool m_row_exists;
 
 private:
   /** Current position. */
   pos_connect_attr_by_thread_by_attr m_pos;
   /** Next position. */
   pos_connect_attr_by_thread_by_attr m_next_pos;
-
-protected:
-  /** Fields definition. */
-  static TABLE_FIELD_DEF m_field_def;
-  /** Current row. */
-  row_session_connect_attrs m_row;
-  /** True if the current row exists. */
-  bool m_row_exists;
 };
 
 /** @} */
