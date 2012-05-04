@@ -2751,7 +2751,7 @@ dict_stats_delete_index_stats(
 
 		ut_snprintf(errstr, errstr_sz,
 			    "Unable to delete statistics for index %s "
-			    "from %s%s. They can be deleted later using "
+			    "from %s%s: %s. They can be deleted later using "
 			    "DELETE FROM %s WHERE "
 			    "database_name = '%s' AND "
 			    "table_name = '%s' AND "
@@ -2761,6 +2761,7 @@ dict_stats_delete_index_stats(
 			    (ret == DB_LOCK_WAIT_TIMEOUT
 			     ? " because the rows are locked"
 			     : ""),
+			    ut_strerr(ret),
 			    INDEX_STATS_NAME_PRINT,
 			    database_name,
 			    table_name,
@@ -2870,7 +2871,7 @@ dict_stats_delete_table_stats(
 
 		ut_snprintf(errstr, errstr_sz,
 			    "Unable to delete statistics for table %s.%s "
-			    "from %s or %s%s. "
+			    "from %s or %s%s: %s. "
 			    "They can be deleted later using "
 
 			    "DELETE FROM %s WHERE "
@@ -2887,6 +2888,8 @@ dict_stats_delete_table_stats(
 			    (ret == DB_LOCK_WAIT_TIMEOUT
 			     ? " because the rows are locked"
 			     : ""),
+
+			    ut_strerr(ret),
 
 			    INDEX_STATS_NAME_PRINT,
 			    database_name, table_name_strip,
