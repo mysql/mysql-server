@@ -705,6 +705,10 @@ dict_stats_analyze_index_level(
 	}
 #endif /* UNIV_STATS_DEBUG */
 
+	/* Release the latch on the last page, because that is not done by
+	btr_pcur_close(). This function works also for non-leaf pages. */
+	btr_leaf_page_release(btr_pcur_get_block(&pcur), pcur.latch_mode, mtr);
+
 	btr_pcur_close(&pcur);
 
 	if (prev_rec_buf != NULL) {
