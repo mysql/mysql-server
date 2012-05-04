@@ -51,6 +51,7 @@ Created 11/5/1995 Heikki Tuuri
 #include "log0recv.h"
 #include "srv0srv.h"
 #include "srv0mon.h"
+#include "lock0lock.h"
 
 #include "ha_prototypes.h"
 
@@ -1175,7 +1176,7 @@ buf_LRU_check_size_of_non_data_objects(
 
 			buf_lru_switched_on_innodb_mon = TRUE;
 			srv_print_innodb_monitor = TRUE;
-			os_event_set(srv_timeout_event);
+			os_event_set(lock_sys->timeout_event);
 		}
 	} else if (buf_lru_switched_on_innodb_mon) {
 
@@ -1323,7 +1324,7 @@ loop:
 		mon_value_was = srv_print_innodb_monitor;
 		started_monitor = TRUE;
 		srv_print_innodb_monitor = TRUE;
-		os_event_set(srv_timeout_event);
+		os_event_set(lock_sys->timeout_event);
 	}
 
 	/* If we have scanned the whole LRU and still are unable to
@@ -1350,7 +1351,7 @@ loop:
 		++flush_failures;
 	}
 
-	++srv_buf_pool_wait_free;
+	srv_stats.buf_pool_wait_free.add(n_iterations, 1);
 
 	n_iterations++;
 

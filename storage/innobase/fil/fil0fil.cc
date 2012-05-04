@@ -4886,9 +4886,9 @@ fil_io(
 #endif /* !UNIV_HOTBACKUP */
 
 	if (type == OS_FILE_READ) {
-		srv_data_read+= len;
+		srv_stats.data_read.add(len);
 	} else if (type == OS_FILE_WRITE) {
-		srv_data_written+= len;
+		srv_stats.data_written.add(len);
 	}
 
 	/* Reserve the fil_system mutex and make sure that we can open at

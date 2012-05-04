@@ -36,6 +36,7 @@ Created 9/11/1995 Heikki Tuuri
 #include "univ.i"
 #ifndef UNIV_HOTBACKUP
 #include "ut0lst.h"
+#include "ut0counter.h"
 #include "sync0sync.h"
 #include "os0sync.h"
 
@@ -43,6 +44,43 @@ Created 9/11/1995 Heikki Tuuri
 in MySQL: */
 #undef rw_lock_t
 #endif /* !UNIV_HOTBACKUP */
+
+/** Counters for RW locks. */
+struct rw_lock_stats_t {
+	typedef ib_counter_t<ib_int64_t, IB_N_SLOTS> ib_int64_counter_t;
+
+	/** number of spin waits on rw-latches,
+	resulted during shared (read) locks */
+	ib_int64_counter_t	rw_s_spin_wait_count;
+
+	/** number of spin loop rounds on rw-latches,
+	resulted during shared (read) locks */
+	ib_int64_counter_t	rw_s_spin_round_count;
+
+	/** number of OS waits on rw-latches,
+	resulted during shared (read) locks */
+	ib_int64_counter_t	rw_s_os_wait_count;
+
+	/** number of unlocks (that unlock shared locks),
+	set only when UNIV_SYNC_PERF_STAT is defined */
+	ib_int64_counter_t	rw_s_exit_count;
+
+	/** number of spin waits on rw-latches,
+	resulted during exclusive (write) locks */
+	ib_int64_counter_t	rw_x_spin_wait_count;
+
+	/** number of spin loop rounds on rw-latches,
+	resulted during exclusive (write) locks */
+	ib_int64_counter_t	rw_x_spin_round_count;
+
+	/** number of OS waits on rw-latches,
+	resulted during exclusive (write) locks */
+	ib_int64_counter_t	rw_x_os_wait_count;
+
+	/** number of unlocks (that unlock exclusive locks),
+	set only when UNIV_SYNC_PERF_STAT is defined */
+	ib_int64_counter_t	rw_x_exit_count;
+};
 
 /* Latch types; these are used also in btr0btr.h: keep the numerical values
 smaller than 30 and the order of the numerical values like below! */
@@ -80,30 +118,8 @@ extern ibool		rw_lock_debug_waiters;	/*!< This is set to TRUE, if
 					there may be waiters for the event */
 #endif /* UNIV_SYNC_DEBUG */
 
-/** number of spin waits on rw-latches,
-resulted during exclusive (write) locks */
-extern	ib_int64_t	rw_s_spin_wait_count;
-/** number of spin loop rounds on rw-latches,
-resulted during exclusive (write) locks */
-extern	ib_int64_t	rw_s_spin_round_count;
-/** number of unlocks (that unlock shared locks),
-set only when UNIV_SYNC_PERF_STAT is defined */
-extern	ib_int64_t	rw_s_exit_count;
-/** number of OS waits on rw-latches,
-resulted during shared (read) locks */
-extern	ib_int64_t	rw_s_os_wait_count;
-/** number of spin waits on rw-latches,
-resulted during shared (read) locks */
-extern	ib_int64_t	rw_x_spin_wait_count;
-/** number of spin loop rounds on rw-latches,
-resulted during shared (read) locks */
-extern	ib_int64_t	rw_x_spin_round_count;
-/** number of OS waits on rw-latches,
-resulted during exclusive (write) locks */
-extern	ib_int64_t	rw_x_os_wait_count;
-/** number of unlocks (that unlock exclusive locks),
-set only when UNIV_SYNC_PERF_STAT is defined */
-extern	ib_int64_t	rw_x_exit_count;
+/** Counters for RW locks. */
+extern rw_lock_stats_t	rw_lock_stats;
 
 #ifdef UNIV_PFS_RWLOCK
 /* Following are rwlock keys used to register with MySQL

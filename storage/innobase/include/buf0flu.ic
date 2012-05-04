@@ -26,6 +26,7 @@ Created 11/5/1995 Heikki Tuuri
 #ifndef UNIV_HOTBACKUP
 #include "buf0buf.h"
 #include "mtr0mtr.h"
+#include "srv0srv.h"
 
 /********************************************************************//**
 Inserts a modified block into the flush list. */
@@ -91,7 +92,7 @@ buf_flush_note_modification(
 
 	mutex_exit(&block->mutex);
 
-	++srv_buf_pool_write_requests;
+	srv_stats.buf_pool_write_requests.inc();
 }
 
 /********************************************************************//**

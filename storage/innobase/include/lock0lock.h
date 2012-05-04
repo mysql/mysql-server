@@ -883,6 +883,13 @@ struct lock_sys_struct{
 						recovered transactions is
 						complete. Protected by
 						lock_sys->mutex */
+
+	ulint		n_lock_max_wait_time;	/*!< Max wait time */
+
+	os_event_t	timeout_event;		/* Set to the event that is
+						created in the lock wait monitor
+						thread. A value of 0 means the
+						thread is not active */
 };
 
 /** The lock system */
@@ -916,14 +923,6 @@ extern lock_sys_t*	lock_sys;
 #define lock_wait_mutex_exit() do {		\
 	mutex_exit(&lock_sys->wait_mutex);	\
 } while (0)
-
-// FIXME: Move these to lock_sys_t
-extern	ibool		srv_lock_timeout_active;
-extern	ulint		srv_n_lock_wait_count;
-extern	ulint		srv_n_lock_wait_current_count;
-extern	ib_int64_t	srv_n_lock_wait_time;
-extern	ulint		srv_n_lock_max_wait_time;
-extern	os_event_t	srv_lock_timeout_thread_event;
 
 #ifndef UNIV_NONINL
 #include "lock0lock.ic"

@@ -2522,8 +2522,15 @@ innobase_shutdown_for_mysql(void)
 		/* NOTE: IF YOU CREATE THREADS IN INNODB, YOU MUST EXIT THEM
 		HERE OR EARLIER */
 
+		/* Take a snapshot of the state because the state of
+		this variable can change asynchronously during shutdown. */
+
+		os_event_t	timeout_event = lock_sys->timeout_event;
+
 		/* a. Let the lock timeout thread exit */
-		os_event_set(srv_timeout_event);
+		if (timeout_event != 0) {
+			os_event_set(timeout_event);
+		}
 
 		/* b. srv error monitor thread exits automatically, no need
 		to do anything here */
