@@ -13,7 +13,10 @@
 #define HAVE_CONFIG_H
 #endif
 
+#ifndef MYSQL_DYNAMIC_PLUGIN
 #define MYSQL_DYNAMIC_PLUGIN
+#endif
+
 #define MYSQL_SERVER 1
 
 #include <my_config.h>
