@@ -1,5 +1,5 @@
 
-IF(WIN32 OR CMAKE_SYSTEM_NAME MATCHES "FreeBSD")
+IF(WIN32)
   # Handlersocket does not compile on Windows, compiles but does 
   # not start on FreeBSD.  
   RETURN()
