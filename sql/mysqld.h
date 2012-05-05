@@ -310,6 +310,7 @@ extern PSI_mutex_key key_BINLOG_LOCK_index, key_BINLOG_LOCK_prep_xids,
   key_LOCK_error_messages, key_LOCK_thread_count,
   key_LOCK_log_throttle_qni;
 extern PSI_mutex_key key_RELAYLOG_LOCK_index;
+extern PSI_mutex_key key_LOCK_sql_rand;
 
 extern PSI_rwlock_key key_rwlock_LOCK_grant, key_rwlock_LOCK_logger,
   key_rwlock_LOCK_sys_init_connect, key_rwlock_LOCK_sys_init_slave,

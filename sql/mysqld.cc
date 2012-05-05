@@ -686,11 +686,8 @@ mysql_mutex_t
   LOCK_global_system_variables,
   LOCK_user_conn, LOCK_slave_list, LOCK_active_mi,
   LOCK_connection_count, LOCK_error_messages;
+mysql_mutex_t LOCK_sql_rand;
 
-namespace {
-  mysql_mutex_t LOCK_sql_rand;
-  PSI_mutex_key key_LOCK_sql_rand;
-}
 /**
   The below lock protects access to two global server variables:
   max_prepared_stmt_count and prepared_stmt_count. These variables
@@ -5221,8 +5218,8 @@ int mysqld_main(int argc, char **argv)
   /*
     init_slave() must be called after the thread keys are created.
   */
-  if (server_id != 0 && init_slave() && active_mi == NULL)
-    unireg_abort(1);
+  if (server_id != 0)
+    init_slave(); /* Ignoring errors while configuring replication. */
 
 #ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
   initialize_performance_schema_acl(opt_bootstrap);
@@ -8736,6 +8733,7 @@ PSI_mutex_key key_BINLOG_LOCK_index, key_BINLOG_LOCK_prep_xids,
   key_LOCK_error_messages, key_LOG_INFO_lock, key_LOCK_thread_count,
   key_LOCK_log_throttle_qni;
 PSI_mutex_key key_RELAYLOG_LOCK_index;
+PSI_mutex_key key_LOCK_sql_rand;
 
 static PSI_mutex_info all_server_mutexes[]=
 {
