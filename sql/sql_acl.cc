@@ -8559,14 +8559,16 @@ static ulong parse_client_handshake_packet(MPVIO_EXT *mpvio,
   if (find_mpvio_user(mpvio))
     return packet_error;
 
-  if (thd->client_capabilities & CLIENT_PLUGIN_AUTH)
+  if ((thd->client_capabilities & CLIENT_PLUGIN_AUTH) &&
+      (client_plugin < (char *)net->read_pos + pkt_len))
   {
-    if (client_plugin >= (char *)net->read_pos + pkt_len)
-      return packet_error;
     client_plugin= fix_plugin_ptr(client_plugin);
   }
   else
   {
+    /* Some clients lie. Sad, but true */
+    thd->client_capabilities &= ~CLIENT_PLUGIN_AUTH;
+
     if (thd->client_capabilities & CLIENT_SECURE_CONNECTION)
       client_plugin= native_password_plugin_name.str;
     else

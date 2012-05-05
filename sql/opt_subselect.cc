@@ -5467,8 +5467,8 @@ bool JOIN::choose_tableless_subquery_plan()
     /*
       If the optimizer determined that his query has an empty result,
       in most cases the subquery predicate is a known constant value -
-      either FALSE or NULL. The implementation of Item_subselect::reset()
-      determines which one.
+      either of TRUE, FALSE or NULL. The implementation of
+      Item_subselect::no_rows_in_result() determines which one.
     */
     if (zero_result_cause)
     {
@@ -5476,14 +5476,13 @@ bool JOIN::choose_tableless_subquery_plan()
       {
         /*
           Both group by queries and non-group by queries without aggregate
-          functions produce empty subquery result.
+          functions produce empty subquery result. There is no need to further
+          rewrite the subquery because it will not be executed at all.
         */
-        subs_predicate->reset();
-        subs_predicate->make_const();
         return FALSE;
       }
 
-      /* TODO:
+      /* @todo
          A further optimization is possible when a non-group query with
          MIN/MAX/COUNT is optimized by opt_sum_query. Then, if there are
          only MIN/MAX functions over an empty result set, the subquery

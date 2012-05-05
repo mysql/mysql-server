@@ -17,7 +17,7 @@
 
 #ifndef _WIN32 /*no fork() in Windows*/
 
-#include "maria.h"
+#include "maria_def.h"
 #include <sys/types.h>
 #ifdef HAVE_SYS_WAIT_H
 # include <sys/wait.h>

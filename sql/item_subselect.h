@@ -158,6 +158,11 @@ public:
     eliminated= FALSE;
     null_value= 1;
   }
+  /**
+    Set the subquery result to the default value for the predicate when the
+    subquery is known to produce an empty result.
+  */
+  void no_rows_in_result()= 0;
   virtual bool select_transformer(JOIN *join);
   bool assigned() { return value_assigned; }
   void assigned(bool a) { value_assigned= a; }
@@ -274,6 +279,7 @@ public:
   subs_type substype() { return SINGLEROW_SUBS; }
 
   void reset();
+  void no_rows_in_result() { reset(); make_const(); }
   bool select_transformer(JOIN *join);
   void store(uint i, Item* item);
   double val_real();
@@ -281,6 +287,7 @@ public:
   String *val_str (String *);
   my_decimal *val_decimal(my_decimal *);
   bool val_bool();
+  bool get_date(MYSQL_TIME *ltime, ulonglong fuzzydate);
   enum Item_result result_type() const;
   enum_field_types field_type() const;
   void fix_length_and_dec();
@@ -326,6 +333,7 @@ public:
   bool any_value() { return was_values; }
   void register_value() { was_values= TRUE; }
   void reset_value_registration() { was_values= FALSE; }
+  void no_rows_in_result();
 };
 
 /* exists subselect */
@@ -347,6 +355,7 @@ public:
     eliminated= FALSE;
     value= 0;
   }
+  void no_rows_in_result();
 
   enum Item_result result_type() const { return INT_RESULT;}
   longlong val_int();
@@ -676,6 +685,7 @@ public:
   virtual void print(String *str, enum_query_type query_type);
   bool is_maxmin_applicable(JOIN *join);
   bool transform_into_max_min(JOIN *join);
+  void no_rows_in_result();
 };
 
 

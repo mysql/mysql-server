@@ -8787,7 +8787,7 @@ bool  Item_cache_temporal::cache_value()
   value_cached= true;
  
   MYSQL_TIME ltime;
-  if (example->get_date(&ltime, TIME_FUZZY_DATE))
+  if (example->get_date_result(&ltime, TIME_FUZZY_DATE))
     value=0;
   else
     value= pack_time(&ltime);

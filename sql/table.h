@@ -1363,12 +1363,6 @@ typedef struct st_schema_table
 /*
   Types of derived tables. The ending part is a bitmap of phases that are
   applicable to a derived table of the type.
- * /
-#define VIEW_ALGORITHM_UNDEFINED        0
-#define VIEW_ALGORITHM_MERGE            1 + DT_COMMON + DT_MERGE
-#define DERIVED_ALGORITHM_MERGE         2 + DT_COMMON + DT_MERGE
-#define VIEW_ALGORITHM_TMPTABLE         3 + DT_COMMON + DT_MATERIALIZE
-#define DERIVED_ALGORITHM_MATERIALIZE   4 + DT_COMMON + DT_MATERIALIZE
 */
 #define DTYPE_ALGORITHM_UNDEFINED    0
 #define DTYPE_VIEW                   1
@@ -1401,7 +1395,16 @@ typedef struct st_schema_table
 
 #define VIEW_ALGORITHM_UNDEFINED 0
 #define VIEW_ALGORITHM_MERGE    (DTYPE_VIEW | DTYPE_MERGE)
-#define VIEW_ALGORITHM_TMPTABLE (DTYPE_VIEW + DTYPE_MATERIALIZE )
+#define VIEW_ALGORITHM_TMPTABLE (DTYPE_VIEW | DTYPE_MATERIALIZE)
+
+/*
+  View algorithm values as stored in the FRM. Values differ from in-memory
+  representation for backward compatibility.
+*/
+
+#define VIEW_ALGORITHM_UNDEFINED_FRM  0
+#define VIEW_ALGORITHM_MERGE_FRM      1
+#define VIEW_ALGORITHM_TMPTABLE_FRM   2
 
 #define JOIN_TYPE_LEFT	1
 #define JOIN_TYPE_RIGHT	2

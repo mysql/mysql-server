@@ -51,7 +51,7 @@ Place, Suite 330, Boston, MA 02111-1307 USA
 #include <m_ctype.h>
 #include <mysys_err.h>
 #include <mysql/plugin.h>
-#include <mysql/innodb_priv.h>
+#include <innodb_priv.h>
 #include <mysql/psi/psi.h>
 #include <my_sys.h>
 
