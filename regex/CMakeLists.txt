@@ -17,3 +17,5 @@ INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/include)
 
 SET(REGEX_SOURCES regcomp.c regerror.c regexec.c regfree.c reginit.c)
 ADD_CONVENIENCE_LIBRARY(regex ${REGEX_SOURCES})
+
+INSTALL(FILES "my_regex.h" DESTINATION ${INSTALL_INCLUDEDIR}/private COMPONENT Development)

@@ -1,6 +1,5 @@
 usr/bin/mysql_config
-usr/include/mysql/*.h
-usr/include/mysql/psi/*.h
+usr/include/mysql
 usr/lib/libmysqlclient.a
 usr/lib/libmysqlclient_r.a
 usr/lib/libmysqlservices.a

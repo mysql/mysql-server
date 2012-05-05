@@ -1140,3 +1140,4 @@ libmysqld/gcalc_tools.cc
 sql/share/errmsg.sys
 sql/share/mysql
 install_manifest.txt
+sql/db.opt
