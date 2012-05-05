@@ -708,6 +708,10 @@ dict_stats_analyze_index_level(
 	}
 #endif /* UNIV_STATS_DEBUG */
 
+	/* Release the latch on the last page, because that is not done by
+	btr_pcur_close(). This function works also for non-leaf pages. */
+	btr_leaf_page_release(btr_pcur_get_block(&pcur), pcur.latch_mode, mtr);
+
 	btr_pcur_close(&pcur);
 
 	if (prev_rec_buf != NULL) {
@@ -2750,7 +2754,7 @@ dict_stats_delete_index_stats(
 
 		ut_snprintf(errstr, errstr_sz,
 			    "Unable to delete statistics for index %s "
-			    "from %s%s. They can be deleted later using "
+			    "from %s%s: %s. They can be deleted later using "
 			    "DELETE FROM %s WHERE "
 			    "database_name = '%s' AND "
 			    "table_name = '%s' AND "
@@ -2760,6 +2764,7 @@ dict_stats_delete_index_stats(
 			    (ret == DB_LOCK_WAIT_TIMEOUT
 			     ? " because the rows are locked"
 			     : ""),
+			    ut_strerr(ret),
 			    INDEX_STATS_NAME_PRINT,
 			    database_name,
 			    table_name,
@@ -2849,7 +2854,21 @@ dict_stats_delete_table_stats(
 
 	ret = que_eval_sql(pinfo,
 			   "PROCEDURE DROP_TABLE_STATS () IS\n"
+			   "dummy CHAR;\n"
 			   "BEGIN\n"
+
+			   /* Lock TABLE_STATS_NAME first to avoid deadlock
+			   with dict_stats_save() which locks the two tables
+			   in order TABLE_STATS_NAME,INDEX_STATS_NAME. The
+			   foreign key imposes that order during INSERT/UPDATE
+			   and the reverse order during DELETE. */
+
+			   "SELECT database_name INTO dummy\n"
+			   "FROM \"" TABLE_STATS_NAME "\"\n"
+			   "WHERE\n"
+			   "database_name = :database_name AND\n"
+			   "table_name = :table_name\n"
+			   "FOR UPDATE;\n"
 
 			   "DELETE FROM \"" INDEX_STATS_NAME "\" WHERE\n"
 			   "database_name = :database_name AND\n"
@@ -2869,7 +2888,7 @@ dict_stats_delete_table_stats(
 
 		ut_snprintf(errstr, errstr_sz,
 			    "Unable to delete statistics for table %s.%s "
-			    "from %s or %s%s. "
+			    "from %s or %s%s: %s. "
 			    "They can be deleted later using "
 
 			    "DELETE FROM %s WHERE "
@@ -2886,6 +2905,8 @@ dict_stats_delete_table_stats(
 			    (ret == DB_LOCK_WAIT_TIMEOUT
 			     ? " because the rows are locked"
 			     : ""),
+
+			    ut_strerr(ret),
 
 			    INDEX_STATS_NAME_PRINT,
 			    database_name, table_name_strip,
