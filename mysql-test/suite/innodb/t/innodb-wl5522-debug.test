@@ -1241,7 +1241,7 @@ DROP TABLE test_wl5522.t1;
 ####
 # Create a table and save the tablespace and .cfg file, we need to create
 # a Btree that has several levels
-CREATE TABLE test_wl5522.t1 (c1 INT, c2 VARCHAR(7192), c3 BLOB) ENGINE = Innodb;
+CREATE TABLE test_wl5522.t1 (c1 INT, c2 VARCHAR(1024), c3 BLOB) ENGINE = Innodb;
 
 INSERT INTO test_wl5522.t1 VALUES
 	(100, REPEAT('Karanbir', 899), REPEAT('Ajeeth', 1200));
@@ -1266,7 +1266,7 @@ UNLOCK TABLES;
 
 DROP TABLE test_wl5522.t1;
 
-CREATE TABLE test_wl5522.t1 (c1 INT, c2 VARCHAR(7192), c3 BLOB) ENGINE = Innodb;
+CREATE TABLE test_wl5522.t1 (c1 INT, c2 VARCHAR(1024), c3 BLOB) ENGINE = Innodb;
 
 ALTER TABLE test_wl5522.t1 DISCARD TABLESPACE;
 
@@ -1302,7 +1302,7 @@ EOF
 
 #
 
-CREATE TABLE test_wl5522.t1 (c1 INT, c2 VARCHAR(7192), c3 BLOB) ENGINE = Innodb;
+CREATE TABLE test_wl5522.t1 (c1 INT, c2 VARCHAR(1024), c3 BLOB) ENGINE = Innodb;
 
 ALTER TABLE test_wl5522.t1 DISCARD TABLESPACE;
 
@@ -1336,7 +1336,7 @@ do 'include/innodb-util.inc';
 ib_unlink_tablespace("test_wl5522", "t1");
 EOF
 
-CREATE TABLE test_wl5522.t1 (c1 INT, c2 VARCHAR(7192), c3 BLOB) ENGINE = Innodb;
+CREATE TABLE test_wl5522.t1 (c1 INT, c2 VARCHAR(1024), c3 BLOB) ENGINE = Innodb;
 
 ALTER TABLE test_wl5522.t1 DISCARD TABLESPACE;
 
@@ -1372,7 +1372,7 @@ EOF
 
 #
 
-CREATE TABLE test_wl5522.t1 (c1 INT, c2 VARCHAR(7192), c3 BLOB) ENGINE = Innodb;
+CREATE TABLE test_wl5522.t1 (c1 INT, c2 VARCHAR(1024), c3 BLOB) ENGINE = Innodb;
 
 ALTER TABLE test_wl5522.t1 DISCARD TABLESPACE;
 
@@ -1406,7 +1406,7 @@ do 'include/innodb-util.inc';
 ib_unlink_tablespace("test_wl5522", "t1");
 EOF
 
-CREATE TABLE test_wl5522.t1 (c1 INT, c2 VARCHAR(7192), c3 BLOB) ENGINE = Innodb;
+CREATE TABLE test_wl5522.t1 (c1 INT, c2 VARCHAR(1024), c3 BLOB) ENGINE = Innodb;
 
 ALTER TABLE test_wl5522.t1 DISCARD TABLESPACE;
 
@@ -1442,7 +1442,7 @@ EOF
 
 #
 
-CREATE TABLE test_wl5522.t1 (c1 INT, c2 VARCHAR(7192), c3 BLOB) ENGINE = Innodb;
+CREATE TABLE test_wl5522.t1 (c1 INT, c2 VARCHAR(1024), c3 BLOB) ENGINE = Innodb;
 
 ALTER TABLE test_wl5522.t1 DISCARD TABLESPACE;
 
@@ -1469,7 +1469,7 @@ EOF
 
 #
 
-CREATE TABLE test_wl5522.t1 (c1 INT, c2 VARCHAR(7192), c3 BLOB) ENGINE = Innodb;
+CREATE TABLE test_wl5522.t1 (c1 INT, c2 VARCHAR(1024), c3 BLOB) ENGINE = Innodb;
 
 ALTER TABLE test_wl5522.t1 DISCARD TABLESPACE;
 
@@ -1505,7 +1505,7 @@ EOF
 
 #
 
-CREATE TABLE test_wl5522.t1 (c1 INT, c2 VARCHAR(7192), c3 BLOB) ENGINE = Innodb;
+CREATE TABLE test_wl5522.t1 (c1 INT, c2 VARCHAR(1024), c3 BLOB) ENGINE = Innodb;
 
 ALTER TABLE test_wl5522.t1 DISCARD TABLESPACE;
 
@@ -1541,7 +1541,7 @@ EOF
 
 #
 
-CREATE TABLE test_wl5522.t1 (c1 INT, c2 VARCHAR(7192), c3 BLOB) ENGINE = Innodb;
+CREATE TABLE test_wl5522.t1 (c1 INT, c2 VARCHAR(1024), c3 BLOB) ENGINE = Innodb;
 
 ALTER TABLE test_wl5522.t1 DISCARD TABLESPACE;
 
@@ -1577,7 +1577,7 @@ EOF
 
 #
 
-CREATE TABLE test_wl5522.t1 (c1 INT, c2 VARCHAR(7192), c3 BLOB) ENGINE = Innodb;
+CREATE TABLE test_wl5522.t1 (c1 INT, c2 VARCHAR(1024), c3 BLOB) ENGINE = Innodb;
 
 ALTER TABLE test_wl5522.t1 DISCARD TABLESPACE;
 
