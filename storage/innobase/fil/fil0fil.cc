@@ -3321,6 +3321,7 @@ fil_reset_space_and_lsn(
 			if (!once || ut_rnd_interval(0, 10) == 5) {
 				once = true;
 				success = FALSE;
+				os_file_close(file);
 			}
        			});
 
