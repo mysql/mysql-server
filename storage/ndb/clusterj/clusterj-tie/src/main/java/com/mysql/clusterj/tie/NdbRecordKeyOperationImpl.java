@@ -37,6 +37,11 @@ public class NdbRecordKeyOperationImpl extends NdbRecordOperationImpl {
                 ndbRecordValues.getNdbRecord(), valueBuffer, mask, null);
         // set the NdbBlob for all active blob columns
         activateBlobs();
+        clusterTransaction.postExecuteCallback(new Runnable() {
+            public void run() {
+                freeResourcesAfterExecute();
+            }
+        });
     }
 
     @Override

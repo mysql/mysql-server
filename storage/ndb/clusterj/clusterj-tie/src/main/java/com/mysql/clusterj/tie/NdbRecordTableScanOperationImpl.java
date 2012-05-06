@@ -35,6 +35,11 @@ public class NdbRecordTableScanOperationImpl extends NdbRecordScanOperationImpl 
         getScanOptions();
         // create the ndb scan operation
         ndbOperation = clusterTransaction.scanTable(ndbRecordValues.getNdbRecord(), mask, scanOptions);
+        clusterTransaction.postExecuteCallback(new Runnable() {
+            public void run() {
+                freeResourcesAfterExecute();
+            }
+        });
     }
 
 }
