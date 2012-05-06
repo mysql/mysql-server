@@ -26,9 +26,13 @@ import com.mysql.ndbjtie.ndbapi.Ndb.Key_part_ptr;
 import com.mysql.ndbjtie.ndbapi.Ndb.Key_part_ptrArray;
 
 import com.mysql.ndbjtie.ndbapi.NdbErrorConst;
+import com.mysql.ndbjtie.ndbapi.NdbInterpretedCode;
+import com.mysql.ndbjtie.ndbapi.NdbScanFilter;
 import com.mysql.ndbjtie.ndbapi.NdbTransaction;
 import com.mysql.ndbjtie.ndbapi.NdbDictionary.Dictionary;
 import com.mysql.ndbjtie.ndbapi.NdbDictionary.TableConst;
+import com.mysql.ndbjtie.ndbapi.NdbIndexScanOperation.IndexBound;
+import com.mysql.ndbjtie.ndbapi.NdbScanOperation.ScanOptions;
 
 import com.mysql.clusterj.ClusterJDatastoreException;
 import com.mysql.clusterj.ClusterJFatalInternalException;
@@ -84,6 +88,30 @@ class DbImpl implements com.mysql.clusterj.core.store.Db {
     /** The ClusterConnection */
     private ClusterConnectionImpl clusterConnection;
 
+    /** The number of IndexBound created */
+    private int numberOfIndexBoundCreated;
+
+    /** The number of IndexBound deleted */
+    private int numberOfIndexBoundDeleted;
+
+    /** The number of InterpretedCode created */
+    private int numberOfInterpretedCodeCreated;
+
+    /** The number of InterpretedCode deleted */
+    private int numberOfInterpretedCodeDeleted;
+
+    /** The number of NdbScanFilters created */
+    private int numberOfNdbScanFilterCreated;
+
+    /** The number of NdbScanFilters deleted */
+    private int numberOfNdbScanFilterDeleted;
+
+    /** The number of ScanOptions created */
+    private int numberOfScanOptionsCreated;
+
+    /** The number of ScanOptions deleted */
+    private int numberOfScanOptionsDeleted;
+
     public DbImpl(ClusterConnectionImpl clusterConnection, Ndb ndb, int maxTransactions) {
         this.clusterConnection = clusterConnection;
         this.ndb = ndb;
@@ -95,6 +123,23 @@ class DbImpl implements com.mysql.clusterj.core.store.Db {
     }
 
     public void close() {
+        // check the counts of interface objects created versus deleted
+        if (numberOfIndexBoundCreated != numberOfIndexBoundDeleted) {
+            logger.warn("numberOfIndexBoundCreated " + numberOfIndexBoundCreated + 
+                    " != numberOfIndexBoundDeleted " + numberOfIndexBoundDeleted);
+        }
+        if (numberOfInterpretedCodeCreated != numberOfInterpretedCodeDeleted) {
+            logger.warn("numberOfInterpretedCodeCreated " + numberOfInterpretedCodeCreated + 
+                    " != numberOfInterpretedCodeDeleted " + numberOfInterpretedCodeDeleted);
+        }
+        if (numberOfNdbScanFilterCreated != numberOfNdbScanFilterDeleted) {
+            logger.warn("numberOfNdbScanFilterCreated " + numberOfNdbScanFilterCreated + 
+                    " != numberOfNdbScanFilterDeleted " + numberOfNdbScanFilterDeleted);
+        }
+        if (numberOfScanOptionsCreated != numberOfScanOptionsDeleted) {
+            logger.warn("numberOfScanOptionsCreated " + numberOfScanOptionsCreated + 
+                    " != numberOfScanOptionsDeleted " + numberOfScanOptionsDeleted);
+        }
         if (ndb != null) {
             Ndb.delete(ndb);
             ndb = null;
@@ -374,6 +419,46 @@ class DbImpl implements com.mysql.clusterj.core.store.Db {
 
     public NdbRecordOperationImpl newNdbRecordOperationImpl(Table storeTable) {
         return clusterConnection.newNdbRecordOperationImpl(this, storeTable);
+    }
+
+    public IndexBound createIndexBound() {
+        ++numberOfIndexBoundCreated;
+        return IndexBound.create();
+    }
+
+    public void delete(IndexBound ndbIndexBound) {
+        ++numberOfIndexBoundDeleted;
+        IndexBound.delete(ndbIndexBound);
+    }
+
+    public NdbInterpretedCode createInterpretedCode(TableConst ndbTable, int[] buffer, int i) {
+        ++numberOfInterpretedCodeCreated;
+        return NdbInterpretedCode.create(ndbTable, buffer, i);
+    }
+
+    public void delete(NdbInterpretedCode ndbInterpretedCode) {
+        ++numberOfInterpretedCodeDeleted;
+        NdbInterpretedCode.delete(ndbInterpretedCode);
+    }
+
+    public NdbScanFilter createScanFilter(NdbInterpretedCode ndbInterpretedCode) {
+        ++numberOfNdbScanFilterCreated;
+        return NdbScanFilter.create(ndbInterpretedCode);
+    }
+
+    public void delete(NdbScanFilter ndbScanFilter) {
+        ++numberOfNdbScanFilterDeleted;
+        NdbScanFilter.delete(ndbScanFilter);
+    }
+
+    public ScanOptions createScanOptions() {
+        ++numberOfScanOptionsCreated;
+        return ScanOptions.create();
+    }
+
+    public void delete(ScanOptions scanOptions) {
+        ++numberOfScanOptionsDeleted;
+        ScanOptions.delete(scanOptions);
     }
 
 }
