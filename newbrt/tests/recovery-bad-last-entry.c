@@ -4,7 +4,7 @@
 #include "test.h"
 #include "includes.h"
 
-#define TESTDIR "dir." __FILE__ 
+#define TESTDIR __FILE__ ".dir"
 
 static const int magic_begin_end_checkpoint_sz = 85;  // leave this many bytes in file
 

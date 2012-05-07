@@ -3,7 +3,7 @@
 #include <string.h>
 #include <stdbool.h>
 #include "toku_assert.h"
-#include "brttypes.h"
+#include <newbrt/brttypes.h>
 #include "memory.h"
 #include "toku_list.h"
 #include "txnid_set.h"
@@ -194,13 +194,13 @@ wfg_exist_cycle_from_txnid(struct wfg *wfg, TXNID a) {
 
 static int 
 print_node_id(TXNID node_id, void *extra UU()) {
-    printf("%lu ", node_id);
+    printf("%"PRIu64" ", node_id);
     return 0;
 }
 
 static int 
 print_edge(TXNID node_id, TXNID edge_id, void *extra UU()) {
-    printf("(%lu %lu) ", node_id, edge_id);
+    printf("(%"PRIu64" %"PRIu64") ", node_id, edge_id);
     return 0;
 }
 

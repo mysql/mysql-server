@@ -12,7 +12,7 @@
 #include <errno.h>
 #include <getopt.h>
 #if IS_TDB
-#include <ydb.h>
+#include <src/ydb.h>
 #endif
 
 #include "tokudb_common.h"

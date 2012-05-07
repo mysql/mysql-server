@@ -131,7 +131,7 @@ test_main (int argc, char * const argv[]) {
         int bufsiz = nrows * 128;   // assume 128 characters per row
         char buff[bufsiz];  
         r = env->get_engine_status_text(env, buff, bufsiz);
-        printf(buff);
+        printf("%s", buff);
 
         printf("\n\n\n\n\nFinally, print as reported by test utility print_engine_status()\n");
 

@@ -1,1 +1,1 @@
-../../linux/tests/test-pthread-rwlock-rdlock.c
+../../portability/tests/test-pthread-rwlock-rdlock.c

@@ -5,6 +5,7 @@
 /* Tell me the diff between two brt files. */
 
 #include "includes.h"
+#include <inttypes.h>
 
 static void
 format_time(const uint64_t time_int, char *buf) {
@@ -95,9 +96,9 @@ dump_header (int f, struct brt_header **header, CACHEFILE cf) {
     printf(" build_id=%d\n", h->build_id);
     printf(" build_id_original=%d\n", h->build_id_original);
     format_time(h->time_of_creation, timestr);
-    printf(" time_of_creation=         %ld    %s\n", h->time_of_creation, timestr);
+    printf(" time_of_creation=         %"PRIu64"    %s\n", h->time_of_creation, timestr);
     format_time(h->time_of_last_modification, timestr);
-    printf(" time_of_last_modification=%ld    %s\n", h->time_of_last_modification, timestr);
+    printf(" time_of_last_modification=%"PRIu64"    %s\n", h->time_of_last_modification, timestr);
     printf(" dirty=%d\n", h->dirty);
     printf(" checkpoint_count=%" PRId64 "\n", h->checkpoint_count);
     printf(" checkpoint_lsn=%" PRId64 "\n", h->checkpoint_lsn.lsn);

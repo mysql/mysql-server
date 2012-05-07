@@ -19,11 +19,11 @@
 #include <stdio.h>
 #include <string.h>
 #include "ydb-internal.h"
-#include "../newbrt/brtloader.h"
+#include <newbrt/brtloader.h>
 #include "loader.h"
 #include "ydb_load.h"
-#include "checkpoint.h"
-#include "brt-internal.h"
+#include <newbrt/checkpoint.h>
+#include <newbrt/brt-internal.h>
 #include "ydb_db.h"
 
 

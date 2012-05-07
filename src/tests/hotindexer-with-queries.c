@@ -2,6 +2,7 @@
 #ident "Copyright (c) 2010 Tokutek Inc.  All rights reserved."
 #ident "$Id$"
 
+#include <config.h>
 #include "test.h"
 #include "toku_pthread.h"
 #include <db.h>
@@ -236,6 +237,7 @@ do_args (int argc, char * const argv[]) {
 	argc--; argv++;
     }
 
+#if defined(HAVE_SCHED_GETAFFINITY)
     if (num_cpus > 0) {
         cpu_set_t cpuset;
         CPU_ZERO(&cpuset);
@@ -251,6 +253,11 @@ do_args (int argc, char * const argv[]) {
         assert(r == 0);
         assert(memcmp(&cpuset, &use_cpuset, sizeof cpuset) == 0);
     }
+#else
+    /* not implemented unless we have sched_getaffinity/sched_setaffinity, for
+     * example, on darwin.  sort of a todo.
+     */
+#endif
 }
 
 

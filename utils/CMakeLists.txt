@@ -1,0 +1,21 @@
+set(utils tokudb_gen tokudb_load tokudb_dump)
+foreach(util ${utils})
+  add_executable(${util} ${util}.c)
+  set_target_properties(${util} PROPERTIES
+    COMPILE_DEFINITIONS "IS_TDB=1;USE_TDB=1;TDB_IS_STATIC=0")
+  target_link_libraries(${util} ${LIBTOKUDB} ${LIBTOKUPORTABILITY})
+
+  add_executable(${util}_static ${util}.c)
+  set_target_properties(${util}_static PROPERTIES
+    COMPILE_DEFINITIONS "IS_TDB=1;USE_TDB=1;TDB_IS_STATIC=1")
+  target_link_libraries(${util}_static ${LIBTOKUDB}_static ${LIBTOKUPORTABILITY}_static)
+
+  if(BDB_FOUND)
+    add_executable(${util}.bdb ${util}.c)
+    set_property(TARGET ${util}.bdb APPEND PROPERTY
+      COMPILE_DEFINITIONS "IS_TDB=0;USE_BDB=1;TOKU_ALLOW_DEPRECATED")
+    set_target_properties(${util}.bdb PROPERTIES
+      INCLUDE_DIRECTORIES "${BDB_INCLUDE_DIR};${CMAKE_CURRENT_BINARY_DIR}/../toku_include;${CMAKE_CURRENT_SOURCE_DIR}/../toku_include;${CMAKE_CURRENT_SOURCE_DIR}/../portability;${CMAKE_CURRENT_SOURCE_DIR}/..")
+    target_link_libraries(${util}.bdb ${LIBTOKUPORTABILITY} ${BDB_LIBRARIES})
+  endif()
+endforeach(util)

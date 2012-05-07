@@ -13,8 +13,8 @@ extern "C" {
 /* Tokutek memory allocation functions and macros.
  * These are functions for malloc and free */
 
-int toku_memory_startup(void);
-void toku_memory_shutdown(void);
+int toku_memory_startup(void) __attribute__((constructor));
+void toku_memory_shutdown(void) __attribute__((destructor));
 
 /* Generally: errno is set to 0 or a value to indicate problems. */
 

@@ -6,7 +6,9 @@
 
 #include "includes.h"
 
+#ifndef dname
 #define dname __FILE__ ".dir"
+#endif
 #define rmrf "rm -rf " dname "/"
 
 // create and close, making sure that everything is deallocated properly.

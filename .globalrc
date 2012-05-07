@@ -1,0 +1,2 @@
+default:\
+        :skip=/windows/,/dbg/,/opt/,/build/,/gccdbg/,/gccopt/,/iccdbg/,/iccopt/,/NightlyRelease/,/NightlyCoverage/,/NightlyDebug/,/Debug/,/Release/,/Coverage/,/cov/:

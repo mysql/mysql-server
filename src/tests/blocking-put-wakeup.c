@@ -89,13 +89,7 @@ static void *t_a_thread(void *arg) {
 int test_main(int argc, char * const argv[]) {
     uint64_t cachesize = 0;
     uint32_t pagesize = 0;
-#if defined(USE_TDB)
-    char *db_env_dir = "dir." __FILE__ ".tokudb";
-#elif defined(USE_BDB)
-    char *db_env_dir = "dir." __FILE__ ".bdb";
-#else
-#error
-#endif
+    char *db_env_dir = ENVDIR;
     char *db_filename = "test.db";
     int db_env_open_flags = DB_CREATE | DB_PRIVATE | DB_INIT_MPOOL | DB_INIT_TXN | DB_INIT_LOCK | DB_INIT_LOG | DB_THREAD;
 

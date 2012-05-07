@@ -6,9 +6,10 @@
 #ifndef _THREADED_STRESS_TEST_HELPERS_H_
 #define _THREADED_STRESS_TEST_HELPERS_H_
 
+#include <config.h>
 #include "test.h"
 
-#include "rwlock.h"
+#include <newbrt/rwlock.h>
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -18,8 +19,13 @@
 #include <memory.h>
 #include <sys/stat.h>
 #include <db.h>
-#include <malloc.h>
+#if defined(HAVE_MALLOC_H)
+# include <malloc.h>
+#elif defined(HAVE_SYS_MALLOC_H)
+# include <sys/malloc.h>
+#endif
 
+#if defined(HAVE_RANDOM_R)
 static inline int32_t
 myrandom_r(struct random_data *buf)
 {
@@ -28,6 +34,39 @@ myrandom_r(struct random_data *buf)
     CKERR(r);
     return x;
 }
+#elif defined(HAVE_NRAND48)
+struct random_data {
+    unsigned short xsubi[3];
+};
+static int
+initstate_r(unsigned int seed, char *UU(statebuf), size_t UU(statelen), struct random_data *buf)
+{
+    buf->xsubi[0] = (seed & 0xffff0000) >> 16;
+    buf->xsubi[0] = (seed & 0x0000ffff);
+    buf->xsubi[2] = (seed & 0x00ffff00) >> 8;
+    return 0;
+}
+static inline int32_t
+myrandom_r(struct random_data *buf)
+{
+    int32_t x = nrand48(buf->xsubi);
+    return x;
+}
+#else
+# error "no suitable reentrant random function available (checked random_r and jrand48)"
+#endif
+
+#if !defined(HAVE_MEMALIGN)
+# if defined(HAVE_VALLOC)
+static void *
+memalign(size_t UU(alignment), size_t size)
+{
+    return valloc(size);
+}
+# else
+#  error "no suitable aligned malloc available (checked memalign and valloc)"
+# endif
+#endif
 
 volatile bool run_test; // should be volatile since we are communicating through this variable.
 
@@ -163,7 +202,7 @@ static void *worker(void *arg_v) {
     DB_ENV *env = arg->env;
     DB_TXN *txn = NULL;
     if (verbose) {
-        printf("%lu starting %p\n", toku_pthread_self(), arg->operation);
+        printf("%lu starting %p\n", (unsigned long) toku_pthread_self(), arg->operation);
     }
     if (arg->single_txn) {
         r = env->txn_begin(env, 0, &txn, arg->txn_type); CKERR(r);
@@ -197,7 +236,7 @@ static void *worker(void *arg_v) {
         CHK(txn->commit(txn, 0));
     }
     if (verbose)
-        printf("%lu returning\n", toku_pthread_self());
+        printf("%lu returning\n", (unsigned long) toku_pthread_self());
     toku_free(random_buf);
     return arg;
 }
@@ -828,19 +867,19 @@ static int run_workers(
         worker_extra[i].num_operations_completed = 0;
         CHK(toku_pthread_create(&tids[i], NULL, worker, &worker_extra[i]));
         if (verbose) 
-            printf("%lu created\n", tids[i]);
+            printf("%lu created\n", (unsigned long) tids[i]);
     }
     CHK(toku_pthread_create(&time_tid, NULL, test_time, &tte));
     if (verbose) 
-        printf("%lu created\n", time_tid);
+        printf("%lu created\n", (unsigned long) time_tid);
 
     void *ret;
     r = toku_pthread_join(time_tid, &ret); assert_zero(r);
-    if (verbose) printf("%lu joined\n", time_tid);
+    if (verbose) printf("%lu joined\n", (unsigned long) time_tid);
     for (int i = 0; i < num_threads; ++i) {
         r = toku_pthread_join(tids[i], &ret); assert_zero(r);
         if (verbose) 
-            printf("%lu joined\n", tids[i]);
+            printf("%lu joined\n", (unsigned long) tids[i]);
     }
     if (verbose) 
         printf("ending test, pthreads have joined\n");
@@ -1074,7 +1113,7 @@ static inline void parse_stress_test_args (int argc, char *const argv[], struct 
             fprintf(stderr, "\t--num_seconds                   INT (default %ds)\n", default_args.time_of_test);
             fprintf(stderr, "\t--node_size                     INT (default %d bytes)\n", default_args.env_args.node_size);
             fprintf(stderr, "\t--basement_node_size            INT (default %d bytes)\n", default_args.env_args.basement_node_size);
-            fprintf(stderr, "\t--cachetable_size               INT (default %ld bytes)\n", default_args.env_args.cachetable_size);
+            fprintf(stderr, "\t--cachetable_size               INT (default %"PRIu64" bytes)\n", default_args.env_args.cachetable_size);
             fprintf(stderr, "\t--checkpointing_period          INT (default %ds)\n",      default_args.env_args.checkpointing_period);
             fprintf(stderr, "\t--cleaner_period                INT (default %ds)\n",      default_args.env_args.cleaner_period);
             fprintf(stderr, "\t--cleaner_iterations            INT (default %ds)\n",      default_args.env_args.cleaner_iterations);

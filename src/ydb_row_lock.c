@@ -6,7 +6,7 @@
 #include <db.h>
 #include "ydb-internal.h"
 #include "ydb_row_lock.h"
-#include "lth.h"
+#include <lock_tree/lth.h>
 
 static int 
 toku_txn_add_lt(DB_TXN* txn, toku_lock_tree* lt) {

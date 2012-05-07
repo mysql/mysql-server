@@ -9,7 +9,7 @@
 #include "checkpoint.h"
 
 
-#define TESTDIR "dir." __FILE__ 
+#define TESTDIR __FILE__ ".dir"
 #define FILENAME "test0.brt"
 
 static void do_yield (voidfp f, void *fv, void *UU(v)) {

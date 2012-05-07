@@ -2,6 +2,7 @@
 
 #include "test.h"
 #include "wfg.h"
+#include <inttypes.h>
 
 struct print_node_extra {
     TXNID max_id;
@@ -9,7 +10,7 @@ struct print_node_extra {
 
 static int print_some_nodes(TXNID id, void *extra) {
     struct print_node_extra *print_node_extra = (struct print_node_extra *) extra;
-    if (verbose) printf("%lu ", id);
+    if (verbose) printf("%"PRIu64" ", id);
     return id == print_node_extra->max_id ? -1 : 0;
 }       
 
@@ -19,7 +20,7 @@ struct print_edge_extra {
 
 static int print_some_edges(TXNID node_id, TXNID edge_id, void *extra) {
     struct print_edge_extra *print_edge_extra = (struct print_edge_extra *) extra;
-    if (verbose) printf("(%lu %lu) ", node_id, edge_id);
+    if (verbose) printf("(%"PRIu64" %"PRIu64") ", node_id, edge_id);
     return edge_id == print_edge_extra->max_id ? -1 : 0;
 }
 

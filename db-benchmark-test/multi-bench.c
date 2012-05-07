@@ -1,3 +1,4 @@
+#include <config.h>
 #include <stdio.h>
 #include <assert.h>
 #include <stdint.h>
@@ -8,7 +9,7 @@
 #include <pthread.h>
 #include <sys/stat.h>
 #include <db.h>
-#include <byteswap.h>
+#include <toku_byteswap.h>
 
 static int verbose = 0;
 static int commit_flag = 0;

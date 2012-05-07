@@ -4,6 +4,7 @@
 
 #include <unistd.h>
 #include <stdlib.h>
+#include <libgen.h>
 #include <sys/time.h>
 #include "test.h"
 
@@ -124,13 +125,20 @@ static int
 run_test(const char *prog, const char *origbrt) {
     int r;
 
-    size_t templen = strlen(prog) + strlen(TMPBRTFMT) - 2;
+    char *fullprog = toku_strdup(__FILE__);
+    char *progdir = dirname(fullprog);
+
+    size_t templen = strlen(progdir) + strlen(prog) + strlen(TMPBRTFMT) - 1;
     char tempbrt[templen + 1];
     snprintf(tempbrt, templen + 1, TMPBRTFMT, prog);
+    size_t fullorigbrtlen = strlen(progdir) + strlen(origbrt) + 1;
+    char fullorigbrt[fullorigbrtlen + 1];
+    snprintf(fullorigbrt, fullorigbrtlen + 1, "%s/%s", progdir, origbrt);
+    toku_free(fullprog);
     {
-        size_t len = 4 + strlen(origbrt) + strlen(tempbrt);
+        size_t len = 4 + strlen(fullorigbrt) + strlen(tempbrt);
         char buf[len + 1];
-        snprintf(buf, len + 1, "cp %s %s", origbrt, tempbrt);
+        snprintf(buf, len + 1, "cp %s %s", fullorigbrt, tempbrt);
         r = system(buf);
         CKERR(r);
     }

@@ -8,7 +8,7 @@
 
 #include <stdbool.h>
 #include <db.h>
-#include <brttypes.h>
+#include <newbrt/brttypes.h>
 
 /**
    \file  locktree.h

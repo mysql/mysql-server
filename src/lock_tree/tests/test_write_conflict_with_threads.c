@@ -5,6 +5,7 @@
 // T(B) releases locks
 
 #include "test.h"
+#include <inttypes.h>
 
 static int write_lock(toku_lock_tree *lt, TXNID txnid, char *k) {
     DBT key; dbt_init(&key, k, strlen(k));
@@ -30,12 +31,12 @@ struct writer_arg {
 
 static void *writer_thread(void *arg) {
     struct writer_arg *writer_arg = (struct writer_arg *) arg;
-    printf("%lu wait\n", writer_arg->id);
+    printf("%"PRIu64" wait\n", writer_arg->id);
     int r = write_lock(writer_arg->lt, writer_arg->id, writer_arg->name); assert(r == 0);
-    printf("%lu locked\n", writer_arg->id);
+    printf("%"PRIu64" locked\n", writer_arg->id);
     sleep(1);
     toku_lt_unlock_txn(writer_arg->lt, writer_arg->id);
-    printf("%lu unlocked\n", writer_arg->id);
+    printf("%"PRIu64" unlocked\n", writer_arg->id);
     return arg;
 }
 

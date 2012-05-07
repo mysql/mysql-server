@@ -10,7 +10,7 @@
 #include "toku_assert.h"
 #include "brttypes.h"
 #include "memory.h"
-#include "toku_htonl.h"
+#include <toku_htonl.h>
 
 #if defined(__cplusplus) || defined(__cilkplusplus)
 extern "C" {

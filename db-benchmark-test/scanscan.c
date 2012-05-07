@@ -11,9 +11,9 @@
 #include <fcntl.h>
 #include <unistd.h>
 #ifdef TOKUDB
-#include "key.h"
-#include "cachetable.h"
-#include "trace_mem.h"
+#include <newbrt/key.h>
+#include <newbrt/cachetable.h>
+#include <newbrt/trace_mem.h>
 #endif
 
 static const char *pname;

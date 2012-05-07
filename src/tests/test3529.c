@@ -29,7 +29,7 @@ static void insert(int i, DB_TXN *txn);
 
 static ssize_t my_pread (int fd, void *buf, size_t count, off_t offset) {
     long n_read_so_far = __sync_fetch_and_add(&n_preads, 1);
-    if (do_XX_on_pread==n_read_so_far) {
+    if (do_XX_on_pread==n_read_so_far && XX != NULL) {
 	// we're supposed to do the XX operation now.  Insert a row.
 	printf("Did XX\n");
 	insert(0, XX);
@@ -120,7 +120,9 @@ setup (void) {
 static void finish (void) {
     int r;
     r = YY->commit(YY, 0);                                                            CKERR(r);
+    YY = NULL;
     r = XX->commit(XX, 0);                                                            CKERR(r);
+    XX = NULL;
     r = db->close(db, 0);                                                             CKERR(r);
     r = env->close(env, 0);                                                           CKERR(r);
 }

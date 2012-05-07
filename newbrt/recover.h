@@ -8,7 +8,7 @@
 #include <toku_portability.h>
 #include <errno.h>
 
-#include "../include/db.h"
+#include <db.h>
 #include "brttypes.h"
 #include "memory.h"
 #include "x1764.h"

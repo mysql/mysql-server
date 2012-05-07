@@ -3,8 +3,14 @@
 
 #include "test.h"
 #include "includes.h"
+#if defined(HAVE_LIMITS_H)
+# include <limits.h>
+#endif
+#if defined(HAVE_SYS_SYSLIMITS_H)
+# include <sys/syslimits.h>
+#endif
 
-#define TESTDIR "dir." __FILE__ 
+#define TESTDIR __FILE__ ".dir"
 
 static void recover_callback_at_turnaround(void *UU(arg)) {
     // change the LSN in the first log entry of log 2.  this will cause an LSN error during the forward scan.

@@ -13,13 +13,16 @@
 
 
 // Need to use malloc for the malloc instrumentation tests
+#ifndef TOKU_ALLOW_DEPRECATED
 #define TOKU_ALLOW_DEPRECATED
+#endif
 
 #include "test.h"
 #include "toku_pthread.h"
 #include <db.h>
 #include <sys/stat.h>
 #include "ydb-internal.h"
+#include <dlfcn.h>
 
 DB_ENV *env;
 enum {MAX_NAME=128};
@@ -45,11 +48,18 @@ size_t hiwater_start;
 static long long mcount = 0, fcount=0;
 
 
+typedef size_t (*malloc_usable_size_fun_t)(void *p);
+#if defined(HAVE_MALLOC_USABLE_SIZE)
 size_t malloc_usable_size(void *p);
+static malloc_usable_size_fun_t malloc_usable_size_f = malloc_usable_size;
+#elif defined(HAVE_MALLOC_SIZE)
+size_t malloc_size(void *p);
+static malloc_usable_size_fun_t malloc_usable_size_f = malloc_size;
+#endif
 
 static void my_free(void*p) {
     if (p) {
-	water-=malloc_usable_size(p);
+	water-=malloc_usable_size_f(p);
     }
     free(p);
 }
@@ -57,18 +67,18 @@ static void my_free(void*p) {
 static void *my_malloc(size_t size) {
     void *r = malloc(size);
     if (r) {
-	water += malloc_usable_size(r);
+	water += malloc_usable_size_f(r);
 	if (water>hiwater) hiwater=water;
     }
     return r;
 }
 
 static void *my_realloc(void *p, size_t size) {
-    size_t old_usable = p ? malloc_usable_size(p) : 0;
+    size_t old_usable = p ? malloc_usable_size_f(p) : 0;
     void *r = realloc(p, size);
     if (r) {
 	water -= old_usable;
-	water += malloc_usable_size(r);
+	water += malloc_usable_size_f(r);
     }
     return r;
 }
@@ -446,7 +456,9 @@ static void test_loader(DB **dbs)
 static char *envdir = ENVDIR;
 char *tmp_subdir = "tmp.subdir";
 
+#ifndef OLDDATADIR
 #define OLDDATADIR "../../../../tokudb.data/"
+#endif
 char *db_v4_dir        = OLDDATADIR "env_preload.4.2.0.emptydictionaries.cleanshutdown";
 
 static void setup(void) {
@@ -560,8 +572,11 @@ int test_main(int argc, char * const *argv) {
     }
     if (footprint_print) {
 	printf("%s:%d Hiwater=%ld water=%ld (extra hiwater=%ldM) mcount=%lld fcount=%lld\n", __FILE__, __LINE__, hiwater, water, (hiwater-hiwater_start)/(1024*1024), mcount, fcount);
-	extern void malloc_stats(void);
-	malloc_stats();
+        typedef void (*malloc_stats_fun_t)(void);
+        malloc_stats_fun_t malloc_stats_f = (malloc_stats_fun_t) dlsym(RTLD_DEFAULT, "malloc_stats");
+        if (malloc_stats_f) {
+            malloc_stats_f();
+        }
     }
     return 0;
 }

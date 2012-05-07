@@ -134,7 +134,12 @@ static int
 multi_operation_lock_init(void) {
     pthread_rwlockattr_t attr;
     pthread_rwlockattr_init(&attr);
+#if defined(HAVE_PTHREAD_RWLOCKATTR_SETKIND_NP)
     pthread_rwlockattr_setkind_np(&attr, PTHREAD_RWLOCK_PREFER_WRITER_NONRECURSIVE_NP);
+#else
+    // TODO: need to figure out how to make writer-preferential rwlocks
+    // happen on osx
+#endif
     int r = toku_pthread_rwlock_init(&multi_operation_lock, &attr); 
     pthread_rwlockattr_destroy(&attr);
     assert(r == 0);

@@ -5,10 +5,10 @@
 #ident "Copyright (c) 2007-2010 Tokutek Inc.  All rights reserved."
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
 
+#include <config.h>
+
 // Portability first!
-#include "toku_stdint.h"
 #include <toku_portability.h>
-#include "toku_os.h"
 
 #if TOKU_WINDOWS
 #include "toku_pthread.h"
@@ -25,7 +25,11 @@
 
 #include <ctype.h>
 #include <errno.h>
-#include <malloc.h>
+#if defined(HAVE_MALLOC_H)
+# include <malloc.h>
+#elif defined(HAVE_SYS_MALLOC_H)
+# include <sys/malloc.h>
+#endif
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -49,7 +53,7 @@
 #include "toku_assert.h"
 #include "wbuf.h"
 
-#include "../include/db.h"
+#include <db.h>
 #include "tokuconst.h"
 
 #endif

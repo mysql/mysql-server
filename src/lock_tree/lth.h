@@ -14,7 +14,7 @@
 
 //Defines bool data type.
 #include <db.h>
-#include <brttypes.h>
+#include <newbrt/brttypes.h>
 
 #if defined(__cplusplus)
 extern "C" {

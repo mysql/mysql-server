@@ -205,7 +205,7 @@ int
 test_main (int argc , const char *argv[]) {
     default_parse_args(argc, argv);
 
-    const char *logdir = "dir." __FILE__;
+    const char *logdir = __FILE__ ".dir";
     init_logdir(logdir);
     int error = chdir(logdir);
     assert(error == 0);

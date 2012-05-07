@@ -72,6 +72,7 @@ int main(int argc, char *argv[]) {
     }
     int starti = i;
 
+#if defined(HAVE_SCHED_GETAFFINITY)
     if (ncpus > 0) {
         cpu_set_t cpuset;
         CPU_ZERO(&cpuset);
@@ -87,6 +88,11 @@ int main(int argc, char *argv[]) {
         assert(r == 0);
         assert(memcmp(&cpuset, &use_cpuset, sizeof cpuset) == 0);
     }
+#else
+    /* currently disabled for systems that don't have
+     * sched_setaffinity/sched_getaffinity (darwin)
+     */
+#endif
 
     if (starti == argc) {
         dotest(poolsize, nloops);
