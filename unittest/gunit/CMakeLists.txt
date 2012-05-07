@@ -252,6 +252,10 @@ SET(SERVER_TESTS
   create_field
   delayable_insert_operation
   field
+  field_date
+  field_datetime
+  field_long
+  field_newdecimal
   field_timestamp
   item
   item_func_now_local

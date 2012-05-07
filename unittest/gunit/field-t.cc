@@ -22,6 +22,7 @@
 
 #include "field.h"
 #include "sql_time.h"
+#include <my_decimal.h>
 
 namespace {
 
@@ -222,31 +223,31 @@ TEST_F(FieldTest, FieldTimef)
   
   // Not testing make_field, it also needs a mock TABLE object
   
-  EXPECT_EQ(0, field->store("12:23:12.123456", 15, &my_charset_numeric));
+  EXPECT_EQ(TYPE_OK, field->store("12:23:12.123456", 15, &my_charset_numeric));
   EXPECT_DOUBLE_EQ(122312.1235, field->val_real());
 
-  EXPECT_EQ(0, field->store_decimal(dec));
+  EXPECT_EQ(TYPE_OK, field->store_decimal(dec));
   EXPECT_DOUBLE_EQ(122312.1234, field->val_real());
 
-  EXPECT_EQ(0, field->store(-234545, false));
+  EXPECT_EQ(TYPE_OK, field->store(-234545, false));
   EXPECT_DOUBLE_EQ(-234545.0, field->val_real());
   
   {
     // Test that store() with a to big number gives right error
     Mock_error_handler error_handler(thd(), ER_TRUNCATED_WRONG_VALUE);
-    EXPECT_EQ(1, field->store(0x80000000, true));
+    EXPECT_EQ(TYPE_WARN_OUT_OF_RANGE, field->store(0x80000000, true));
     // Test that error handler was actually called
     EXPECT_EQ(1, error_handler.handle_called());
     // Test that field contains expecte max time value
     EXPECT_DOUBLE_EQ(8385959, field->val_real());  // Max time value
   }
 
-  EXPECT_EQ(0, field->store(1234545.555555));
+  EXPECT_EQ(TYPE_OK, field->store(1234545.555555));
   EXPECT_DOUBLE_EQ(1234545.5556, field->val_real());
 
   // Some of the functions inherited from Field
   Field *f= field;
-  EXPECT_EQ(0, f->store_time(&time, MYSQL_TIMESTAMP_TIME)); 
+  EXPECT_EQ(TYPE_OK, f->store_time(&time, MYSQL_TIMESTAMP_TIME));
   EXPECT_DOUBLE_EQ(122312.1234, f->val_real());  // Why decimals  here?
   EXPECT_STREQ("12:23:12.1234", f->val_str(&timeStr)->c_ptr());
   EXPECT_STREQ("122312", f->val_int_as_str(&timeStr, false)->c_ptr());

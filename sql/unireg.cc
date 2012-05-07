@@ -1133,9 +1133,9 @@ static bool make_empty_rec(THD *thd, File file,
         be constant.
       */
       DBUG_ASSERT(field->def->type() != Item::FUNC_ITEM);
-      int res= field->def->save_in_field(regfield, 1);
-      /* If not ok or warning of level 'note' */
-      if (res != 0 && res != 3)
+      type_conversion_status res= field->def->save_in_field(regfield, 1);
+      if (res != TYPE_OK && res != TYPE_NOTE_TIME_TRUNCATED &&
+          res != TYPE_NOTE_TRUNCATED)
       {
         /*
           clear current error and report INVALID DEFAULT value error message
