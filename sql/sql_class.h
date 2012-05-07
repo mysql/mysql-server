@@ -2558,6 +2558,7 @@ public:
     struct {
       bool enabled:1;                   // see ha_enable_transaction()
       bool pending:1;                   // Is the transaction commit pending?
+      bool xid_written:1;               // The session wrote an XID
       bool real_commit:1;               // Is this a "real" commit?
       bool commit_low:1;                // see MYSQL_BIN_LOG::ordered_commit
     } flags;
