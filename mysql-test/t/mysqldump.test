@@ -2367,3 +2367,30 @@ RESET MASTER;
 
 # Wait till we reached the initial number of concurrent sessions
 --source include/wait_until_count_sessions.inc
+
+--echo #
+--echo # Bug#45740 MYSQLDUMP DOESN'T DUMP GENERAL_LOG AND SLOW_QUERY CAUSES RESTORE PROBLEM
+--echo #
+SET @old_log_output_state=       @@global.log_output;
+SET @old_general_log_state=      @@global.general_log;
+SET @old_slow_query_log_state=   @@global.slow_query_log;
+
+call mtr.add_suppression("Failed to write to mysql.general_log");
+--exec $MYSQL_DUMP -uroot --all-databases > $MYSQLTEST_VARDIR/tmp/bug45740.sql
+# Make log_output as table and disabling general_log and slow_log
+SET @@global.log_output="TABLE";
+SET @@global.general_log='OFF';
+SET @@global.slow_query_log='OFF';
+DROP DATABASE mysql; 
+--exec $MYSQL < $MYSQLTEST_VARDIR/tmp/bug45740.sql
+SHOW CREATE TABLE mysql.general_log;
+SHOW CREATE TABLE mysql.slow_log;
+--remove_file $MYSQLTEST_VARDIR/tmp/bug45740.sql
+
+SET @@global.log_output=       @old_log_output_state;
+SET @@global.slow_query_log=   @old_slow_query_log_state;
+SET @@global.general_log=      @old_general_log_state;
+ 
+--echo #
+--echo # End of 5.1 tests
+--echo #

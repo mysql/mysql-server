@@ -5205,3 +5205,48 @@ DROP DATABASE b12809202_db;
 # Delete all existing binary logs.
 #
 RESET MASTER;
+#
+# Bug#45740 MYSQLDUMP DOESN'T DUMP GENERAL_LOG AND SLOW_QUERY CAUSES RESTORE PROBLEM
+#
+SET @old_log_output_state=       @@global.log_output;
+SET @old_general_log_state=      @@global.general_log;
+SET @old_slow_query_log_state=   @@global.slow_query_log;
+call mtr.add_suppression("Failed to write to mysql.general_log");
+SET @@global.log_output="TABLE";
+SET @@global.general_log='OFF';
+SET @@global.slow_query_log='OFF';
+DROP DATABASE mysql;
+Warnings:
+Error	1146	Table 'mysql.proc' doesn't exist
+Error	1146	Table 'mysql.event' doesn't exist
+SHOW CREATE TABLE mysql.general_log;
+Table	Create Table
+general_log	CREATE TABLE `general_log` (
+  `event_time` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `user_host` mediumtext NOT NULL,
+  `thread_id` int(11) NOT NULL,
+  `server_id` int(10) unsigned NOT NULL,
+  `command_type` varchar(64) NOT NULL,
+  `argument` mediumtext NOT NULL
+) ENGINE=CSV DEFAULT CHARSET=utf8 COMMENT='General log'
+SHOW CREATE TABLE mysql.slow_log;
+Table	Create Table
+slow_log	CREATE TABLE `slow_log` (
+  `start_time` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `user_host` mediumtext NOT NULL,
+  `query_time` time NOT NULL,
+  `lock_time` time NOT NULL,
+  `rows_sent` int(11) NOT NULL,
+  `rows_examined` int(11) NOT NULL,
+  `db` varchar(512) NOT NULL,
+  `last_insert_id` int(11) NOT NULL,
+  `insert_id` int(11) NOT NULL,
+  `server_id` int(10) unsigned NOT NULL,
+  `sql_text` mediumtext NOT NULL
+) ENGINE=CSV DEFAULT CHARSET=utf8 COMMENT='Slow log'
+SET @@global.log_output=       @old_log_output_state;
+SET @@global.slow_query_log=   @old_slow_query_log_state;
+SET @@global.general_log=      @old_general_log_state;
+#
+# End of 5.1 tests
+#
