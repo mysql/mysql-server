@@ -27,12 +27,9 @@ namespace {
 using my_testing::Server_initializer;
 using my_testing::Mock_error_handler;
 
-class FieldTest : public ::testing::Test
+class FieldLongTest : public ::testing::Test
 {
 protected:
-  static void SetUpTestCase() { Server_initializer::SetUpTestCase(); }
-  static void TearDownTestCase() { Server_initializer::TearDownTestCase(); }
-
   virtual void SetUp() { initializer.SetUp(); }
   virtual void TearDown() { initializer.TearDown(); }
 
@@ -102,7 +99,7 @@ void test_store_string(Field_long *field,
 }
 
 
-TEST_F(FieldTest, StoreLegalIntValues)
+TEST_F(FieldLongTest, StoreLegalIntValues)
 {
   Mock_field_long field_long;
   Fake_TABLE table(&field_long);
@@ -142,7 +139,7 @@ TEST_F(FieldTest, StoreLegalIntValues)
 }
 
 // Values higher and lower than valid range for the Field_long
-TEST_F(FieldTest, StoreOutOfRangeIntValues)
+TEST_F(FieldLongTest, StoreOutOfRangeIntValues)
 {
   Mock_field_long field_long;
   Fake_TABLE table(&field_long);
@@ -184,7 +181,7 @@ TEST_F(FieldTest, StoreOutOfRangeIntValues)
 }
 
 
-TEST_F(FieldTest, StoreLegalStringValues)
+TEST_F(FieldLongTest, StoreLegalStringValues)
 {
   Mock_field_long field_long;
 
@@ -226,7 +223,8 @@ TEST_F(FieldTest, StoreLegalStringValues)
   field_long.unsigned_flag= true;
   {
     SCOPED_TRACE("");
-    test_store_string(&field_long, STRING_WITH_LEN(max_int_plus1), INT_MAX32+1,
+    test_store_string(&field_long, STRING_WITH_LEN(max_int_plus1),
+                      INT_MAX32 + 1LL,
                       0, TYPE_OK);
   }
   {
@@ -237,7 +235,7 @@ TEST_F(FieldTest, StoreLegalStringValues)
 }
 
 
-TEST_F(FieldTest, StoreIllegalStringValues)
+TEST_F(FieldLongTest, StoreIllegalStringValues)
 {
   Mock_field_long field_long;
 
@@ -325,7 +323,7 @@ TEST_F(FieldTest, StoreIllegalStringValues)
   }
 }
 
-TEST_F(FieldTest, StoreNullValue)
+TEST_F(FieldLongTest, StoreNullValue)
 {
   Mock_field_long field_long;
 
