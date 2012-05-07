@@ -233,6 +233,7 @@ void print_keyuse_array(Opt_trace_context *trace,
 }
 
 #ifndef DBUG_OFF
+/* purecov: begin inspected */
 
 /* 
   Print the current state during query optimization.
@@ -524,7 +525,7 @@ void mysql_print_status()
   printf("\nStatus information:\n\n");
   (void) my_getwd(current_dir, sizeof(current_dir),MYF(0));
   printf("Current dir: %s\n", current_dir);
-  printf("Running threads: %d  Stack size: %ld\n", thread_count,
+  printf("Running threads: %u  Stack size: %ld\n", get_thread_count(),
 	 (long) my_thread_stack_size);
   thr_print_locks();				// Write some debug info
 #ifndef DBUG_OFF
@@ -596,7 +597,8 @@ Estimated memory (with thread stack):    %ld\n",
 	 (int) info.uordblks,
 	 (int) info.fordblks,
 	 (int) info.keepcost,
-	 (long) (thread_count * my_thread_stack_size + info.hblkhd + info.arena));
+	 (long) (get_thread_count() * my_thread_stack_size +
+                 info.hblkhd + info.arena));
 #endif
 
 #ifdef HAVE_EVENT_SCHEDULER

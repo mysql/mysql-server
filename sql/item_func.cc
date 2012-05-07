@@ -3584,7 +3584,7 @@ udf_handler::fix_fields(THD *thd, Item_result_field *func,
 
       f_args.lengths[i]= arguments[i]->max_length;
       f_args.maybe_null[i]= (char) arguments[i]->maybe_null;
-      f_args.attributes[i]= arguments[i]->item_name.ptr();
+      f_args.attributes[i]= (char*) arguments[i]->item_name.ptr();
       f_args.attribute_lengths[i]= arguments[i]->item_name.length();
 
       if (arguments[i]->const_item())
@@ -4546,23 +4546,23 @@ longlong Item_func_sleep::val_int()
 
 #define extra_size sizeof(double)
 
-static user_var_entry *get_variable(HASH *hash, LEX_STRING &name,
+static user_var_entry *get_variable(HASH *hash, NameString &name,
 				    bool create_if_not_exists)
 {
   user_var_entry *entry;
 
-  if (!(entry = (user_var_entry*) my_hash_search(hash, (uchar*) name.str,
-                                                 name.length)) &&
+  if (!(entry = (user_var_entry*) my_hash_search(hash, (uchar*) name.ptr(),
+                                                 name.length())) &&
       create_if_not_exists)
   {
-    uint size=ALIGN_SIZE(sizeof(user_var_entry))+name.length+1+extra_size;
+    uint size=ALIGN_SIZE(sizeof(user_var_entry))+name.length()+1+extra_size;
     if (!my_hash_inited(hash))
       return 0;
     if (!(entry = (user_var_entry*) my_malloc(size,MYF(MY_WME | ME_FATALERROR))))
       return 0;
     entry->name.str=(char*) entry+ ALIGN_SIZE(sizeof(user_var_entry))+
       extra_size;
-    entry->name.length=name.length;
+    entry->name.length= name.length();
     entry->value=0;
     entry->length=0;
     entry->update_query_id=0;
@@ -4580,7 +4580,7 @@ static user_var_entry *get_variable(HASH *hash, LEX_STRING &name,
     */
     entry->used_query_id=current_thd->query_id;
     entry->type=STRING_RESULT;
-    memcpy(entry->name.str, name.str, name.length+1);
+    name.strcpy(entry->name.str);
     if (my_hash_insert(hash,(uchar*) entry))
     {
       my_free(entry);
@@ -5158,25 +5158,22 @@ bool Item_func_set_user_var::is_null_result()
   return is_null();
 }
 
-
-void Item_func_set_user_var::print(String *str, enum_query_type query_type)
+// just the assignment, for use in "SET @a:=5" type self-prints
+void Item_func_set_user_var::print_assignment(String *str,
+                                              enum_query_type query_type)
 {
-  str->append(STRING_WITH_LEN("(@"));
-  str->append(name.str, name.length);
+  str->append(STRING_WITH_LEN("@"));
+  str->append(name);
   str->append(STRING_WITH_LEN(":="));
   args[0]->print(str, query_type);
-  str->append(')');
 }
 
-
-void Item_func_set_user_var::print_as_stmt(String *str,
-                                           enum_query_type query_type)
+// parenthesize assignment for use in "EXPLAIN EXTENDED SELECT (@e:=80)+5"
+void Item_func_set_user_var::print(String *str, enum_query_type query_type)
 {
-  str->append(STRING_WITH_LEN("set @"));
-  str->append(name.str, name.length);
-  str->append(STRING_WITH_LEN(":="));
-  args[0]->print(str, query_type);
-  str->append(')');
+  str->append(STRING_WITH_LEN("("));
+  print_assignment(str, query_type);
+  str->append(STRING_WITH_LEN(")"));
 }
 
 bool Item_func_set_user_var::send(Protocol *protocol, String *str_arg)
@@ -5196,7 +5193,7 @@ void Item_func_set_user_var::make_field(Send_field *tmp_field)
   {
     result_field->make_field(tmp_field);
     DBUG_ASSERT(tmp_field->table_name != 0);
-    if (Item::item_name.ptr())
+    if (Item::item_name.is_set())
       tmp_field->col_name=Item::item_name.ptr();    // Use user supplied name
   }
   else
@@ -5365,7 +5362,7 @@ longlong Item_func_get_user_var::val_int()
 
 static int
 get_var_with_binlog(THD *thd, enum_sql_command sql_command,
-                    LEX_STRING &name, user_var_entry **out_entry)
+                    NameString &name, user_var_entry **out_entry)
 {
   BINLOG_USER_VAR_EVENT *user_var_event;
   user_var_entry *var_entry;
@@ -5548,7 +5545,7 @@ enum Item_result Item_func_get_user_var::result_type() const
 void Item_func_get_user_var::print(String *str, enum_query_type query_type)
 {
   str->append(STRING_WITH_LEN("(@"));
-  str->append(name.str,name.length);
+  str->append(name);
   str->append(')');
 }
 
@@ -5563,15 +5560,14 @@ bool Item_func_get_user_var::eq(const Item *item, bool binary_cmp) const
       ((Item_func*) item)->functype() != functype())
     return 0;
   Item_func_get_user_var *other=(Item_func_get_user_var*) item;
-  return (name.length == other->name.length &&
-	  !memcmp(name.str, other->name.str, name.length));
+  return name.eq_bin(other->name);
 }
 
 
 bool Item_func_get_user_var::set_value(THD *thd,
                                        sp_rcontext * /*ctx*/, Item **it)
 {
-  Item_func_set_user_var *suv= new Item_func_set_user_var(get_name(), *it);
+  Item_func_set_user_var *suv= new Item_func_set_user_var(name, *it);
   /*
     Item_func_set_user_var is not fixed after construction, call
     fix_fields().
@@ -5647,7 +5643,7 @@ my_decimal* Item_user_var_as_out_param::val_decimal(my_decimal *decimal_buffer)
 void Item_user_var_as_out_param::print(String *str, enum_query_type query_type)
 {
   str->append('@');
-  str->append(name.str,name.length);
+  str->append(name);
 }
 
 
@@ -5764,7 +5760,7 @@ void Item_func_get_system_var::fix_length_and_dec()
 
 void Item_func_get_system_var::print(String *str, enum_query_type query_type)
 {
-  str->append(item_name.ptr(), item_name.length());
+  str->append(item_name);
 }
 
 
@@ -6327,9 +6323,11 @@ err:
 
 bool Item_func_match::eq(const Item *item, bool binary_cmp) const
 {
+  /* We ignore FT_SORTED flag when checking for equality since result is
+     equvialent regardless of sorting */
   if (item->type() != FUNC_ITEM ||
       ((Item_func*)item)->functype() != FT_FUNC ||
-      flags != ((Item_func_match*)item)->flags)
+      (flags | FT_SORTED) != (((Item_func_match*)item)->flags | FT_SORTED))
     return 0;
 
   Item_func_match *ifm=(Item_func_match*) item;
@@ -6805,7 +6803,7 @@ Item_func_sp::make_field(Send_field *tmp_field)
   DBUG_ENTER("Item_func_sp::make_field");
   DBUG_ASSERT(sp_result_field);
   sp_result_field->make_field(tmp_field);
-  if (item_name.ptr())
+  if (item_name.is_set())
     tmp_field->col_name= item_name.ptr();
   DBUG_VOID_RETURN;
 }

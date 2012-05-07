@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2012, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -87,7 +87,7 @@ read should see. We assume that the trx id stored in rec is such that
 the consistent read should not see rec in its present version.
 @return	DB_SUCCESS or DB_MISSING_HISTORY */
 UNIV_INTERN
-ulint
+dberr_t
 row_vers_build_for_consistent_read(
 /*===============================*/
 	const rec_t*	rec,	/*!< in: record in a clustered index; the
@@ -106,16 +106,17 @@ row_vers_build_for_consistent_read(
 				*old_vers is allocated; memory for possible
 				intermediate versions is allocated and freed
 				locally within the function */
-	rec_t**		old_vers);/*!< out, own: old version, or NULL if the
+	rec_t**		old_vers)/*!< out, own: old version, or NULL if the
 				record does not exist in the view, that is,
 				it was freshly inserted afterwards */
+	__attribute__((nonnull(1,2,3,4,5,6,7), warn_unused_result));
 
 /*****************************************************************//**
 Constructs the last committed version of a clustered index record,
 which should be seen by a semi-consistent read.
 @return	DB_SUCCESS or DB_MISSING_HISTORY */
 UNIV_INTERN
-ulint
+dberr_t
 row_vers_build_for_semi_consistent_read(
 /*====================================*/
 	const rec_t*	rec,	/*!< in: record in a clustered index; the
@@ -132,9 +133,10 @@ row_vers_build_for_semi_consistent_read(
 				*old_vers is allocated; memory for possible
 				intermediate versions is allocated and freed
 				locally within the function */
-	const rec_t**	old_vers);/*!< out: rec, old version, or NULL if the
+	const rec_t**	old_vers)/*!< out: rec, old version, or NULL if the
 				record does not exist in the view, that is,
 				it was freshly inserted afterwards */
+	__attribute__((nonnull(1,2,3,4,5), warn_unused_result));
 
 
 #ifndef UNIV_NONINL

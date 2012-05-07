@@ -277,8 +277,54 @@ err:
   DBUG_RETURN(TRUE);
 }
 
+/**
+   Delete all info from Worker info tables to render them useless in 
+   future MTS recovery, and indicate that in Coordinator info table.
+
+   @return false on success, true when a failure in deletion or writing
+           to Coordinator table fails. 
+*/
+bool Rpl_info_factory::reset_workers(Relay_log_info *rli)
+{
+  char search_fname[FN_REFLEN];
+  bool error= true;
+
+  DBUG_ENTER("Rpl_info_factory::reset_workers");
+
+  if (rli->recovery_parallel_workers == 0)
+    DBUG_RETURN(0);
+
+  char *pos= strmov(search_fname, relay_log_info_file);
+  strmov(pos, ".");
+
+  if (Rpl_info_file::do_reset_info(Slave_worker::get_number_worker_fields(),
+                                   search_fname))
+    goto err;
+
+  if (Rpl_info_table::do_reset_info(Slave_worker::get_number_worker_fields() + 2,
+                                    MYSQL_SCHEMA_NAME.str, WORKER_INFO_NAME.str))
+    goto err;
+
+  error= false;
+
+  DBUG_EXECUTE_IF("mts_debug_reset_workers_fails", error= true;);
+
+err:
+  if (error)
+    sql_print_error("Could not delete from Slave Workers info repository.");
+  rli->recovery_parallel_workers= 0;
+  if (rli->flush_info(TRUE))
+  {
+    error= true;
+    sql_print_error("Could not store the reset Slave Worker state into "
+                    "the slave info repository.");
+  }
+  DBUG_RETURN(error);
+}
+
 Slave_worker *Rpl_info_factory::create_worker(uint worker_option, uint worker_id,
-                                              Relay_log_info *rli)
+                                              Relay_log_info *rli,
+                                              bool is_gaps_collecting_phase)
 {
   char info_fname[FN_REFLEN];
   char info_name[FN_REFLEN];
@@ -326,6 +372,13 @@ Slave_worker *Rpl_info_factory::create_worker(uint worker_option, uint worker_id
   if (decide_repository(worker, worker_option, &handler_src, &handler_dest,
                         &msg))
     goto err;
+       
+  if (worker->rli_init_info(is_gaps_collecting_phase))
+  {
+    worker->end_info();
+    msg= "Failed to intialize the worker info structure";
+    goto err;
+  }
 
   DBUG_RETURN(worker);
 
@@ -405,40 +458,15 @@ bool Rpl_info_factory::decide_repository(Rpl_info *info,
   {
     /*
       If there is an error, we cannot proceed with the normal operation.
-      In this case, we just pick the dest repository if check_info() has
-      not failed to execute against it in order to give users the chance
-      to fix the problem and restart the server. One particular case can
-      happen when there is an inplace upgrade: no source table (it did 
-      not exist in 5.5) and the default destination is a file.
-
-      Notice that migration will not take place and the destination may
-      be empty.
+      One particular case can happen when there is an inplace upgrade:
+      no source table (it did not exist in 5.5) and the default
+      destination is a file.
     */
-    if (opt_skip_slave_start && return_check_dst != ERROR_CHECKING_REPOSITORY)
-    {
-      sql_print_warning("Error while checking replication metadata. "
-                        "Setting the requested repository in order to "
-                        "give users the chance to fix the problem and "
-                        "restart the server. If this is a live upgrade "
-                        "please consider using mysql_upgrade to fix the "
-                        "problem.");
-      delete (*handler_src);
-      *handler_src= NULL;
-      info->set_rpl_info_handler(*handler_dest);
-      info->set_rpl_info_type(option);
-      error= FALSE;
-      goto err;
-    }
-    else
-    {
-      *msg= "Error while checking replication metadata. This might also happen "
-            "when doing a live upgrade from a version that did not make use "
-            "of the replication metadata tables. If that was the case, consider "
-            "starting the server with the option --skip-slave-start which "
-            "causes the server to bypass the replication metadata tables check "
-            "while it is starting up";
-      goto err;
-    }
+    *msg= "Error while checking replication metadata. This might also happen "
+          "when doing a live upgrade from a version that did not make use "
+          "of the replication metadata tables. If that was the case, consider "
+          "finishing the upgrade before starting replication.";
+    goto err;
   }
   else
   {
@@ -453,7 +481,7 @@ bool Rpl_info_factory::decide_repository(Rpl_info *info,
       *msg= "Multiple replication metadata repository instances "
             "found with data in them. Unable to decide which is "
             "the correct one to choose";
-      DBUG_RETURN(error);
+      goto err;
     }
 
     if (return_check_src == REPOSITORY_EXISTS &&

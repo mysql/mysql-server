@@ -43,7 +43,7 @@ FLUSH BINARY LOGS;
 INSERT INTO t1 VALUES (1);
 
 sync_slave_with_master;
-
+--source include/stop_slave.inc
 #
 # Test on master
 #
@@ -64,7 +64,9 @@ source include/rpl_start_server.inc;
 --let $include_silent=0
 
 --echo # Master has restarted successfully
-
+--connection slave
+--source include/start_slave.inc
+--connection master
 #
 # Test master can handle old format with directory path in index file
 #
@@ -85,6 +87,9 @@ if (!$is_windows)
 --disable_query_log
 source include/write_var_to_file.inc;
 --enable_query_log
+--sync_slave_with_master
+--source include/stop_slave.inc
+--connection master
 
 --echo # Shutdown master
 --let $rpl_server_number=1
@@ -106,9 +111,10 @@ source include/rpl_start_server.inc;
 
 --echo # Master has restarted successfully
 
-connection slave;
---echo # stop slave
---source include/stop_slave.inc
+--connection slave
+--source include/start_slave.inc
+--sync_with_master
+--connection master
 --let $rpl_server_number= 2
 --source include/rpl_stop_server.inc
 

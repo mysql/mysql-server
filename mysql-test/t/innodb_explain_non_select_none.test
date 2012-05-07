@@ -1,3 +1,5 @@
+#Want to skip this test from daily Valgrind execution
+--source include/no_valgrind_without_big.inc
 # 
 # Run explain_non_select.inc on InnoDB without any of the socalled 6.0 features.
 #

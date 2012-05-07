@@ -320,6 +320,7 @@ int Master_info::mi_init_info()
   DBUG_RETURN(0);
 
 err:
+  handler->end_info(uidx, nidx);
   inited= 0;
   sql_print_error("Error reading master configuration.");
   DBUG_RETURN(1);
@@ -480,7 +481,7 @@ bool Master_info::read_info(Rpl_info_handler *from)
 
   if (auto_position != 0 && gtid_mode != 3)
   {
-    sql_print_error("%s", ER(ER_AUTO_POSITION_REQUIRES_GTID_MODE_ON));
+    my_error(ER_AUTO_POSITION_REQUIRES_GTID_MODE_ON, MYF(0));
     DBUG_RETURN(true);
   }
 

@@ -214,6 +214,7 @@ typedef struct st_lex_master_info
   ulong server_id, retry_count;
   char *gtid;
   enum {UNTIL_SQL_BEFORE_GTIDS= 0, UNTIL_SQL_AFTER_GTIDS} gtid_until_condition;
+  bool until_after_gaps;
 
   /*
     Enum is used for making it possible to detect if the user
@@ -1254,6 +1255,12 @@ public:
       UNIQUE KEYS  is unsafe.
     */
     BINLOG_STMT_UNSAFE_INSERT_TWO_KEYS,
+
+    /**
+       INSERT into auto-inc field which is not the first part in composed
+       primary key.
+    */
+    BINLOG_STMT_UNSAFE_AUTOINC_NOT_FIRST,
 
     /* The last element of this enumeration type. */
     BINLOG_STMT_UNSAFE_COUNT

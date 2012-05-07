@@ -1646,18 +1646,19 @@ void kill_zombie_dump_threads(String *slave_uuid)
   DBUG_ASSERT(slave_uuid->length() == UUID_LENGTH);
 
   mysql_mutex_lock(&LOCK_thread_count);
-  I_List_iterator<THD> it(threads);
-  THD *tmp;
-
-  while ((tmp=it++))
+  THD *tmp= NULL;
+  Thread_iterator it= global_thread_list_begin();
+  Thread_iterator end= global_thread_list_end();
+  for (; it != end; ++it)
   {
-    if (tmp != current_thd && (tmp->get_command() == COM_BINLOG_DUMP ||
-        tmp->get_command() == COM_BINLOG_DUMP_GTID))
+    if ((*it) != current_thd && ((*it)->get_command() == COM_BINLOG_DUMP ||
+                                 (*it)->get_command() == COM_BINLOG_DUMP_GTID))
     {
       String tmp_uuid;
-      if (get_slave_uuid(tmp, &tmp_uuid) != NULL &&
+      if (get_slave_uuid((*it), &tmp_uuid) != NULL &&
           !strncmp(slave_uuid->c_ptr(), tmp_uuid.c_ptr(), UUID_LENGTH))
       {
+        tmp= *it;
         mysql_mutex_lock(&tmp->LOCK_thd_data);	// Lock from delete
         break;
       }

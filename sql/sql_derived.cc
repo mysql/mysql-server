@@ -338,9 +338,21 @@ bool mysql_derived_create(THD *thd, LEX *lex, TABLE_LIST *derived)
    *) Some commands, like show table status, doesn't prepare views/derived
       tables => no need to create result table also.
    *) Table is already created.
+   *) Table is a constant one with all NULL values.
   */
-  if (!derived->uses_materialization() || !table || table->created)
+  if (!derived->uses_materialization() || !table || table->created ||
+      (derived->select_lex->join != NULL &&
+       (derived->select_lex->join->const_table_map & table->map)))
+  {
+    /*
+      At this point, JT_CONST derived tables should be null rows. Otherwise they
+      would have been materialized already.
+    */
+    DBUG_ASSERT(table == NULL || table->reginfo.join_tab == NULL ||
+                table->reginfo.join_tab->type != JT_CONST ||
+                table->null_row == 1);
     DBUG_RETURN(FALSE);
+  }
   /* create tmp table */
   select_union *result= (select_union*)unit->get_result();
 
