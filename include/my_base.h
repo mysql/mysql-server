@@ -332,8 +332,10 @@ recalculated automatically by the storage engine. */
 #define HA_OPTION_STATS_AUTO_RECALC	65536
 /** STATS_AUTO_RECALC=0 has been specified in CREATE/ALTER TABLE. Statistics
 for the table and its indexes will never be recalculated automatically. Only
-when ANALYZE TABLE has been run by the user. */
-#define HA_OPTION_NO_STATS_AUTO_RECALC	131072
+when ANALYZE TABLE has been run by the user.
+Notice that HA_OPTION_NO_CHECKSUM and HA_OPTION_NO_DELAY_KEY_WRITE are
+defined separately in sql/handler.h */
+#define HA_OPTION_NO_STATS_AUTO_RECALC	524288
 
 	/* Bits in flag to create() */
 
