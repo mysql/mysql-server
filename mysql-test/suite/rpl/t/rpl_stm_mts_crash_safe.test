@@ -1,4 +1,9 @@
---source include/big_test.inc
+#
+# Temprorarily made as regular to catch a failure
+# visible on weekly runs.
+# todo: restore
+#--source include/big_test.inc
+#
 --source include/master-slave.inc
 --source include/have_binlog_format_statement.inc
 --source include/have_innodb.inc
