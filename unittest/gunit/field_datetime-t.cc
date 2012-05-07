@@ -28,12 +28,9 @@ namespace {
 using my_testing::Server_initializer;
 using my_testing::Mock_error_handler;
 
-class FieldTest : public ::testing::Test
+class FieldDatetimeTest : public ::testing::Test
 {
 protected:
-  static void SetUpTestCase() { Server_initializer::SetUpTestCase(); }
-  static void TearDownTestCase() { Server_initializer::TearDownTestCase(); }
-
   virtual void SetUp() { initializer.SetUp(); }
   virtual void TearDown() { initializer.TearDown(); }
 
@@ -75,7 +72,7 @@ public:
 };
 
 
-TEST_F(FieldTest, StoreLegalStringValues)
+TEST_F(FieldDatetimeTest, StoreLegalStringValues)
 {
   char buff[MAX_FIELD_WIDTH];
   String str(buff, sizeof(buff), &my_charset_bin);
@@ -105,7 +102,7 @@ TEST_F(FieldTest, StoreLegalStringValues)
 }
 
 
-TEST_F(FieldTest, StoreIllegalStringValues)
+TEST_F(FieldDatetimeTest, StoreIllegalStringValues)
 {
   Mock_field_datetime field_dt;
   Fake_TABLE table(&field_dt);
@@ -188,7 +185,7 @@ static const sql_mode_t strict_modes[no_modes]=
   (neither NO_ZERO_DATE or NO_ZERO_IN_DATE are set). There should be
   no errors, warnings or notes.
 */
-TEST_F(FieldTest, StoreZeroDateSqlMode_NoZeroRestrictions)
+TEST_F(FieldDatetimeTest, StoreZeroDateSqlModeNoZeroRestrictions)
 {
   Mock_field_datetime field_dt;
   Fake_TABLE table(&field_dt);
@@ -249,7 +246,7 @@ static const type_conversion_status nozero_expected_status[]=
   should be no errors, warnings or notes unless the entire date is
   zero: "0000-00-00"
 */
-TEST_F(FieldTest, StoreZeroDateSqlMode_NoZeroDate)
+TEST_F(FieldDatetimeTest, StoreZeroDateSqlModeNoZeroDate)
 {
   Mock_field_datetime field_dt;
   Fake_TABLE table(&field_dt);
@@ -310,7 +307,7 @@ TEST_F(FieldTest, StoreZeroDateSqlMode_NoZeroDate)
   Try storing dates with zeroes when NO_ZERO_IN_DATE flag is set. There
   should be no errors unless either month or day is zero.
 */
-TEST_F(FieldTest, StoreZeroDateSqlMode_NoZeroInDate)
+TEST_F(FieldDatetimeTest, StoreZeroDateSqlModeNoZeroInDate)
 {
   Mock_field_datetime field_dt;
   Fake_TABLE table(&field_dt);

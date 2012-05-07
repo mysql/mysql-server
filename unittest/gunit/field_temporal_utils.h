@@ -13,6 +13,9 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
+#ifndef FIELD_TEMPORAL_UTILS_INCLUDED
+#define FIELD_TEMPORAL_UTILS_INCLUDED
+
 #include "field.h"
 #include <gtest/gtest.h>
 #include "test_utils.h"
@@ -71,3 +74,6 @@ void test_store_string(Field_temporal *field,
 
 
 };
+
+
+#endif  // FIELD_TEMPORAL_UTILS_INCLUDED

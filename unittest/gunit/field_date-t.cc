@@ -28,12 +28,9 @@ namespace {
 using my_testing::Server_initializer;
 using my_testing::Mock_error_handler;
 
-class FieldTest : public ::testing::Test
+class FieldDateTest : public ::testing::Test
 {
 protected:
-  static void SetUpTestCase() { Server_initializer::SetUpTestCase(); }
-  static void TearDownTestCase() { Server_initializer::TearDownTestCase(); }
-
   virtual void SetUp() { initializer.SetUp(); }
   virtual void TearDown() { initializer.TearDown(); }
 
@@ -42,6 +39,28 @@ protected:
   Server_initializer initializer;
 
   Field_set *create_field_set(TYPELIB *tl);
+
+  // Store zero date using different combinations of SQL modes
+  static const int no_modes= 4;
+  static const sql_mode_t strict_modes[no_modes];
+
+  static const type_conversion_status nozero_expected_status[];
+};
+
+const sql_mode_t FieldDateTest::strict_modes[no_modes]=
+{
+  0,
+  MODE_STRICT_TRANS_TABLES,
+  MODE_STRICT_ALL_TABLES,
+  MODE_STRICT_TRANS_TABLES | MODE_STRICT_ALL_TABLES
+};
+
+const type_conversion_status FieldDateTest::nozero_expected_status[]=
+{
+  TYPE_NOTE_TIME_TRUNCATED,
+  TYPE_ERR_BAD_VALUE,
+  TYPE_ERR_BAD_VALUE,
+  TYPE_ERR_BAD_VALUE
 };
 
 
@@ -74,7 +93,7 @@ public:
 };
 
 
-TEST_F(FieldTest, StoreLegalStringValues)
+TEST_F(FieldDateTest, StoreLegalStringValues)
 {
   Mock_field_date field_date;
   Fake_TABLE table(&field_date);
@@ -98,7 +117,7 @@ TEST_F(FieldTest, StoreLegalStringValues)
   }
 }
 
-TEST_F(FieldTest, StoreIllegalStringValues)
+TEST_F(FieldDateTest, StoreIllegalStringValues)
 {
   Mock_field_date field_date;
   Fake_TABLE table(&field_date);
@@ -145,16 +164,6 @@ TEST_F(FieldTest, StoreIllegalStringValues)
 }
 
 
-// Store zero date using different combinations of SQL modes
-static const int no_modes= 4;
-static const sql_mode_t strict_modes[no_modes]=
-  {
-    0,
-    MODE_STRICT_TRANS_TABLES,
-    MODE_STRICT_ALL_TABLES,
-    MODE_STRICT_TRANS_TABLES | MODE_STRICT_ALL_TABLES
-  };
-
 
 /**
   Strictness mode test 1:
@@ -163,7 +172,7 @@ static const sql_mode_t strict_modes[no_modes]=
   (neither NO_ZERO_DATE or NO_ZERO_IN_DATE are set). There should be
   no errors, warnings or notes.
 */
-TEST_F(FieldTest, StoreZeroDateSqlMode_NoZeroRestrictions)
+TEST_F(FieldDateTest, StoreZeroDateSqlModeNoZeroRestrictions)
 {
   Mock_field_date field_date;
   Fake_TABLE table(&field_date);
@@ -203,14 +212,6 @@ TEST_F(FieldTest, StoreZeroDateSqlMode_NoZeroRestrictions)
 }
 
 
-static const type_conversion_status nozero_expected_status[]=
-  {
-    TYPE_NOTE_TIME_TRUNCATED,
-    TYPE_ERR_BAD_VALUE,
-    TYPE_ERR_BAD_VALUE,
-    TYPE_ERR_BAD_VALUE
-  };
-
 /**
   Strictness mode test 2:
 
@@ -218,7 +219,7 @@ static const type_conversion_status nozero_expected_status[]=
   should be no errors, warnings or notes unless the entire date is
   zero: "0000-00-00"
 */
-TEST_F(FieldTest, StoreZeroDateSqlMode_NoZeroDate)
+TEST_F(FieldDateTest, StoreZeroDateSqlModeNoZeroDate)
 {
   Mock_field_date field_date;
   Fake_TABLE table(&field_date);
@@ -279,7 +280,7 @@ TEST_F(FieldTest, StoreZeroDateSqlMode_NoZeroDate)
   Try storing dates with zeroes when NO_ZERO_IN_DATE flag is set. There
   should be no errors unless either month or day is zero.
 */
-TEST_F(FieldTest, StoreZeroDateSqlMode_NoZeroInDate)
+TEST_F(FieldDateTest, StoreZeroDateSqlModeNoZeroInDate)
 {
   Mock_field_date field_date;
   Fake_TABLE table(&field_date);

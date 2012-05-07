@@ -30,12 +30,9 @@ namespace {
 using my_testing::Server_initializer;
 using my_testing::Mock_error_handler;
 
-class FieldTest : public ::testing::Test
+class FieldNewDecimalTest : public ::testing::Test
 {
 protected:
-  static void SetUpTestCase() { Server_initializer::SetUpTestCase(); }
-  static void TearDownTestCase() { Server_initializer::TearDownTestCase(); }
-
   virtual void SetUp() { initializer.SetUp(); }
   virtual void TearDown() { initializer.TearDown(); }
 
@@ -102,7 +99,7 @@ public:
 };
 
 
-TEST_F(FieldTest, StoreLegalStringValues)
+TEST_F(FieldNewDecimalTest, StoreLegalStringValues)
 {
   // Alows storing this range [-999.999, 999.999]
   Mock_field_new_decimal field_dec(3);
@@ -124,7 +121,7 @@ TEST_F(FieldTest, StoreLegalStringValues)
 }
 
 
-TEST_F(FieldTest, StoreIllegalStringValues)
+TEST_F(FieldNewDecimalTest, StoreIllegalStringValues)
 {
   // Alows storing this range [-999.999, 999.999]
   Mock_field_new_decimal field_dec(3);
@@ -202,7 +199,7 @@ static void test_store_internal(Field_new_decimal *field,
   function for Field_new_decimal. The function does not modify the
   NULL value of the field so we don't test field.is_null()
 */
-TEST_F(FieldTest, storeInternalWithErrorCheck_LegalValues)
+TEST_F(FieldNewDecimalTest, storeInternalWithErrorCheckLegalValues)
 {
   // Alows storing this range [-99.9999, 99.9999]
   Mock_field_new_decimal field_dec(4);
@@ -257,7 +254,7 @@ TEST_F(FieldTest, storeInternalWithErrorCheck_LegalValues)
 /**
   Test store_internal_with_error_check() - out of range valuse
 */
-TEST_F(FieldTest, storeInternalWithErrorCheck_OutOfRange)
+TEST_F(FieldNewDecimalTest, storeInternalWithErrorCheckOutOfRange)
 {
   // Alows storing this range [-99.9999, 99.9999]
   Mock_field_new_decimal field_dec(4);
@@ -296,7 +293,7 @@ TEST_F(FieldTest, storeInternalWithErrorCheck_OutOfRange)
   input decimal value because E_DEC_OVERFLOW indicates that the decimal
   conversion got a number that was too high/low.
 */
-TEST_F(FieldTest, storeInternalWithErrorCheck_EDecOverflow)
+TEST_F(FieldNewDecimalTest, storeInternalWithErrorCheckEDecOverflow)
 {
   // Alows storing this range [-99.9999, 99.9999]
   Mock_field_new_decimal field_dec(4);
@@ -366,7 +363,7 @@ TEST_F(FieldTest, storeInternalWithErrorCheck_EDecOverflow)
   automatically changed like in the E_DEC_OVERFLOW case tested
   above.
 */
-TEST_F(FieldTest, storeInternalWithErrorCheck_EDecTrunkated)
+TEST_F(FieldNewDecimalTest, storeInternalWithErrorCheckEDecTrunkated)
 {
   // Alows storing this range [-99.9999, 99.9999]
   Mock_field_new_decimal field_dec(4);
@@ -434,7 +431,7 @@ TEST_F(FieldTest, storeInternalWithErrorCheck_EDecTrunkated)
   Any E_DEC_* value other than E_DEC_OK, E_DEC_TRUNCATED and
   E_DEC_OVERFLOW will be ignored.
 */
-TEST_F(FieldTest, storeInternalWithErrorCheck_RestOfParams)
+TEST_F(FieldNewDecimalTest, storeInternalWithErrorCheckRestOfParams)
 {
   // Alows storing this range [-99.9999, 99.9999]
   Mock_field_new_decimal field_dec(4);

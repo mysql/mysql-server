@@ -32,9 +32,6 @@ using my_testing::Mock_error_handler;
 class FieldTest : public ::testing::Test
 {
 protected:
-  static void SetUpTestCase() { Server_initializer::SetUpTestCase(); }
-  static void TearDownTestCase() { Server_initializer::TearDownTestCase(); }
-
   virtual void SetUp() { initializer.SetUp(); }
   virtual void TearDown() { initializer.TearDown(); }
 
@@ -409,3 +406,9 @@ TEST_F(FieldTest, CopyFieldSet)
 
 
 }
+
+#include "field_date-t.cc"
+#include "field_datetime-t.cc"
+#include "field_long-t.cc"
+#include "field_newdecimal-t.cc"
+#include "field_timestamp-t.cc"

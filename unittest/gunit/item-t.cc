@@ -33,25 +33,8 @@ using my_testing::Mock_error_handler;
 class ItemTest : public ::testing::Test
 {
 protected:
-  static void SetUpTestCase()
-  {
-    Server_initializer::SetUpTestCase();
-  }
-
-  static void TearDownTestCase()
-  {
-    Server_initializer::TearDownTestCase();
-  }
-
-  virtual void SetUp()
-  {
-    initializer.SetUp();
-  }
-
-  virtual void TearDown()
-  {
-    initializer.TearDown();
-  }
+  virtual void SetUp() { initializer.SetUp(); }
+  virtual void TearDown() { initializer.TearDown(); }
 
   THD *thd() { return initializer.thd(); }
 
