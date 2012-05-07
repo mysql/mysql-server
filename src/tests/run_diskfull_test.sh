@@ -6,9 +6,8 @@ test $# -ge 2
 
 bin=$1; shift
 abortcode=$1; shift
-valgrind="$@"
 
-num_writes=$($valgrind $bin -q)
+num_writes=$($bin -q)
 set +e
 for (( i = 0; i < $num_writes; i++ ))
 do
