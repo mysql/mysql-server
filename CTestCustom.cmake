@@ -45,6 +45,19 @@ list(APPEND CTEST_CUSTOM_MEMCHECK_IGNORE
   try-leak-uninit
   )
 
+## tests that are supposed to crash will generate memcheck failures
+set(tests_that_should_fail
+  try-assert0
+  try-assert-zero
+  test-assertA
+  test-assertB
+  test_truncate_txn_abort.tdb
+  test_db_no_env.tdb
+  recover-missing-dbfile.abortrecover
+  recover-missing-dbfile-2.abortrecover
+  )
+list(APPEND CTEST_CUSTOM_MEMCHECK_IGNORE ${tests_that_should_fail})
+
 ## don't run drd stress tests with valgrind either (because that would do valgrind twice)
 set(stress_tests
   test_stress1.tdb
