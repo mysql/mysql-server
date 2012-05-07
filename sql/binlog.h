@@ -286,6 +286,50 @@ class MYSQL_BIN_LOG: public TC_LOG, private MYSQL_LOG
   uint *sync_period_ptr;
   uint sync_counter;
 
+  my_atomic_rwlock_t m_prep_xids_lock;
+  mysql_cond_t m_prep_xids_cond;
+  volatile int32 m_prep_xids;
+
+  /**
+    Increment the prepared XID counter.
+   */
+  void inc_prep_xids() {
+    DBUG_ENTER("MYSQL_BIN_LOG::inc_prep_xids");
+    my_atomic_rwlock_wrlock(&m_prep_xids_lock);
+#ifndef DBUG_OFF
+    int result= my_atomic_add32(&m_prep_xids, 1);
+#else
+    (void) my_atomic_add32(&m_prep_xids, 1);
+#endif
+    DBUG_PRINT("debug", ("m_prep_xids: %d", result + 1));
+    my_atomic_rwlock_wrunlock(&m_prep_xids_lock);
+    DBUG_VOID_RETURN;
+  }
+
+  /**
+    Decrement the prepared XID counter.
+
+    Signal m_prep_xids_cond if the counter reaches zero.
+   */
+  void dec_prep_xids() {
+    DBUG_ENTER("MYSQL_BIN_LOG::dec_prep_xids");
+    my_atomic_rwlock_wrlock(&m_prep_xids_lock);
+    int32 result= my_atomic_add32(&m_prep_xids, -1);
+    DBUG_PRINT("debug", ("m_prep_xids: %d", result - 1));
+    my_atomic_rwlock_wrunlock(&m_prep_xids_lock);
+    /* If the old value was 1, it is zero now. */
+    if (result == 1)
+      mysql_cond_signal(&m_prep_xids_cond);
+    DBUG_VOID_RETURN;
+  }
+
+  int32 get_prep_xids() {
+    my_atomic_rwlock_rdlock(&m_prep_xids_lock);
+    int32 result= my_atomic_load32(&m_prep_xids);
+    my_atomic_rwlock_rdunlock(&m_prep_xids_lock);
+    return result;
+  }
+
   inline uint get_sync_period()
   {
     return *sync_period_ptr;
@@ -422,12 +466,13 @@ private:
   bool change_stage(THD *thd, Stage_manager::StageID stage,
                     THD* queue, mysql_mutex_t *leave,
                     mysql_mutex_t *enter);
-  void commit_session_queue(THD *thd, THD *queue, int flush_error);
   std::pair<int,my_off_t> flush_thread_caches(THD *thd);
-  int flush_stage_queue(my_off_t *total_bytes_var, bool *rotate_var,
-                        THD **out_queue_var);
   int flush_cache_to_file(my_off_t *flush_end_pos);
+  int finish_commit(THD *thd);
   int sync_binlog_file(my_off_t end_pos, bool *synced_var);
+  void process_commit_stage_queue(THD *thd, THD *queue, int flush_error);
+  int process_flush_stage_queue(my_off_t *total_bytes_var, bool *rotate_var,
+                                THD **out_queue_var);
   int ordered_commit(THD *thd, bool all, bool skip_commit = false);
 public:
   int open_binlog(const char *opt_name);
@@ -617,6 +662,7 @@ int gtid_empty_group_log_and_cleanup(THD *thd);
 
 extern const char *log_bin_index;
 extern const char *log_bin_basename;
+extern bool opt_binlog_order_commits;
 
 /**
   Turns a relative log binary log path into a full path, based on the

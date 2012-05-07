@@ -572,7 +572,7 @@ static Sys_var_ulong Sys_binlog_stmt_cache_size(
        NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0),
        ON_UPDATE(fix_binlog_stmt_cache_size));
 
-static Sys_var_ulong Sys_binlog_max_flush_queue_time(
+static Sys_var_int32 Sys_binlog_max_flush_queue_time(
        "binlog_max_flush_queue_time",
        "The maximum time that the binary log group commit will keep reading"
        " transactions before it flush the transactions to the binary log (and"
@@ -860,6 +860,13 @@ static Sys_var_mybool Sys_binlog_rows_query(
        "binlog_rows_query_log_events",
        "Allow writing of Rows_query_log events into binary log.",
        SESSION_VAR(binlog_rows_query_log_events),
+       CMD_LINE(OPT_ARG), DEFAULT(FALSE));
+
+static Sys_var_mybool Sys_binlog_order_commits(
+       "binlog_order_commits",
+       "Issue internal commit calls in the same order as transactions are"
+       " written to the binary log.",
+       GLOBAL_VAR(opt_binlog_order_commits),
        CMD_LINE(OPT_ARG), DEFAULT(FALSE));
 
 static Sys_var_ulong Sys_bulk_insert_buff_size(
@@ -3789,8 +3796,9 @@ static Sys_var_uint Sys_checkpoint_mts_group(
 #endif /* HAVE_REPLICATION */
 
 static Sys_var_uint Sys_sync_binlog_period(
-       "sync_binlog", "Synchronously flush binary log to disk after "
-       "every #th event. Use 0 (default) to disable synchronous flushing",
+       "sync_binlog", "Synchronously flush binary log to disk after"
+       " every #th write to the file. Use 0 (default) to disable synchronous"
+       " flushing",
        GLOBAL_VAR(sync_binlog_period), CMD_LINE(REQUIRED_ARG),
        VALID_RANGE(0, UINT_MAX), DEFAULT(0), BLOCK_SIZE(1));
 
