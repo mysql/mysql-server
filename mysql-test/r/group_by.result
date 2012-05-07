@@ -2059,4 +2059,16 @@ MIN(a)	b
 0	a
 
 DROP TABLE t1;
+#
+# LP bug#993726 Wrong result from a query with ALL subquery predicate in WHERE
+#
+CREATE TABLE t1(a INT);
+INSERT INTO t1 VALUES (0);
+SELECT 1 FROM t1 WHERE 1 > ALL(SELECT 1 FROM t1 WHERE a!=0);
+1
+1
+SELECT max(1) FROM t1 WHERE a!=0;
+max(1)
+NULL
+drop table t1;
 # End of 5.2 tests
