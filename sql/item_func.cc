@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -5239,12 +5239,13 @@ void Item_func_set_user_var::make_field(Send_field *tmp_field)
     TRUE        Error
 */
 
-int Item_func_set_user_var::save_in_field(Field *field, bool no_conversions,
-                                          bool can_use_result_field)
+type_conversion_status
+Item_func_set_user_var::save_in_field(Field *field, bool no_conversions,
+                                      bool can_use_result_field)
 {
   bool use_result_field= (!can_use_result_field ? 0 :
                           (result_field && result_field != field));
-  int error;
+  type_conversion_status error;
 
   /* Update the value of the user variable */
   check(use_result_field);
