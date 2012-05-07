@@ -97,4 +97,6 @@ public interface Operation {
 
     public int getClassification();
 
+    public void freeResourcesAfterExecute();
+
 }
