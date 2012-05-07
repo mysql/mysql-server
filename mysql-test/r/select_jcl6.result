@@ -5112,6 +5112,18 @@ Warning	1292	Incorrect datetime value: 'aa'
 DROP TABLE t1;
 DROP VIEW v1;
 SET optimizer_switch=@save_optimizer_switch;
+#
+# LP bug#994275 Assertion `real->type() == Item::FIELD_ITEM' failed
+# in add_not_null_conds(JOIN*) with JOIN, ZEROFILL column, PK
+#
+CREATE TABLE t1 ( a INT(6) ZEROFILL );
+INSERT INTO t1 VALUES (1),(2);
+CREATE TABLE t2 ( b INT PRIMARY KEY );
+INSERT INTO t2 VALUES (3),(4);
+SELECT * FROM t1, t2 WHERE a=3 AND a=b;
+a	b
+drop table t1,t2;
+End of 5.3 tests
 set join_cache_level=default;
 show variables like 'join_cache_level';
 Variable_name	Value

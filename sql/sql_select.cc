@@ -7998,6 +7998,16 @@ static void add_not_null_conds(JOIN *join)
           Item *item= tab->ref.items[keypart];
           Item *notnull;
           Item *real= item->real_item();
+          if (real->basic_const_item())
+          {
+            /*
+              It could be constant instead of field after constant
+              propagation.
+            */
+            DBUG_ASSERT(real->is_expensive() || // prevent early expensive eval
+                        !real->is_null()); // NULLs are not propagated
+            continue;
+          }
           DBUG_ASSERT(real->type() == Item::FIELD_ITEM);
           Item_field *not_null_item= (Item_field*)real;
           JOIN_TAB *referred_tab= not_null_item->field->table->reginfo.join_tab;
