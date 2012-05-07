@@ -1,0 +1,28 @@
+#
+# Test the persistent stats auto recalc
+#
+
+-- source include/have_innodb.inc
+# Page numbers printed by this test depend on the page size
+-- source include/have_innodb_16k.inc
+
+-- vertical_results
+
+-- let $check_stats = SELECT n_rows, clustered_index_size FROM mysql.innodb_table_stats WHERE table_name = 'autorecalc'; SELECT index_name, stat_name, stat_value FROM mysql.innodb_index_stats WHERE table_name = 'autorecalc';
+
+CREATE TABLE autorecalc (a INT, PRIMARY KEY (a)) ENGINE=INNODB;
+
+# the CREATE should have inserted zeroed stats
+-- eval $check_stats
+
+INSERT INTO autorecalc VALUES (1);
+INSERT INTO autorecalc VALUES (2);
+
+# wait for the bg stats thread to update the stats
+let $wait_condition = SELECT n_rows = 2 FROM mysql.innodb_table_stats WHERE table_name = 'autorecalc';
+-- source include/wait_condition.inc
+
+# the second INSERT from above should have triggered an auto-recalc
+-- eval $check_stats
+
+DROP TABLE autorecalc;
