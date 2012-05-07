@@ -43,6 +43,11 @@ public class NdbRecordDeleteOperationImpl extends NdbRecordOperationImpl {
     public void endDefinition() {
         // create the delete operation
         ndbOperation = delete(clusterTransaction);
+        clusterTransaction.postExecuteCallback(new Runnable() {
+            public void run() {
+                freeResourcesAfterExecute();
+            }
+        });
     }
 
     @Override
