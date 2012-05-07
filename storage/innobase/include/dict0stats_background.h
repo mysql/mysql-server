@@ -50,6 +50,16 @@ dict_stats_enqueue_table_for_auto_recalc(
 /* @} */
 
 /*****************************************************************//**
+Remove a table from the auto recalc list.
+dict_stats_remove_table_from_auto_recalc() @{ */
+UNIV_INTERN
+void
+dict_stats_remove_table_from_auto_recalc(
+/*=====================================*/
+	const char*	table_name);	/*!< in: table name, e.g. "db/table" */
+/* @} */
+
+/*****************************************************************//**
 Initialize global variables needed for the operation of dict_stats_thread().
 Must be called before dict_stats_thread() is started.
 dict_stats_thread_init() @{ */

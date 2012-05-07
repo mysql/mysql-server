@@ -147,6 +147,71 @@ dict_stats_dequeue_table_for_auto_recalc(
 /* @} */
 
 /*****************************************************************//**
+Remove a table from the auto recalc list.
+dict_stats_remove_table_from_auto_recalc() @{ */
+UNIV_INTERN
+void
+dict_stats_remove_table_from_auto_recalc(
+/*=====================================*/
+	const char*	table_name)	/*!< in: table name, e.g. "db/table" */
+{
+	dict_table_t*	table;
+	table_id_t	id;
+
+	/* fetch table id from table name */
+	table = dict_table_open_on_name(table_name, FALSE, FALSE,
+					DICT_ERR_IGNORE_NONE);
+
+	if (table == NULL) {
+		/* table does not exist */
+		return;
+	}
+
+	id = table->id;
+
+	dict_table_close(table, FALSE, FALSE);
+
+	mutex_enter(&auto_recalc_mutex);
+
+	if (auto_recalc_used == 0) {
+		/* empty list */
+		mutex_exit(&auto_recalc_mutex);
+		return;
+	}
+	/* else */
+
+	ulint	i;
+
+	/* search the list */
+	for (i = 0; i < auto_recalc_used; i++) {
+		if (auto_recalc_list[i] == id) {
+			/* found */
+			break;
+		}
+	}
+
+	if (i == auto_recalc_used) {
+		/* was not in the list */
+		mutex_exit(&auto_recalc_mutex);
+		return;
+	}
+
+	if (i < auto_recalc_used - 1) {
+		ut_memmove(
+			&auto_recalc_list[i],
+			&auto_recalc_list[i + 1],
+			(auto_recalc_used - i - 1) * sizeof(auto_recalc_list[0]));
+	}
+
+	auto_recalc_used--;
+
+	mutex_exit(&auto_recalc_mutex);
+
+	return;
+}
+/* @} */
+
+/*****************************************************************//**
 Initialize global variables needed for the operation of dict_stats_thread()
 Must be called before dict_stats_thread() is started.
 dict_stats_thread_init() @{ */
@@ -226,15 +291,22 @@ printf("%s() empty list\n", __func__);
 
 	dict_table_t*	table;
 
-	table = dict_table_open_on_id(table_id, FALSE, FALSE);
+	mutex_enter(&dict_sys->mutex);
+
+	table = dict_table_open_on_id(table_id, TRUE, FALSE);
 
 	if (table == NULL) {
 printf("%s() table %lu has gone\n", __func__, table_id);
 		/* table does not exist, must have been DROPped
 		after its id was enqueued */
+		mutex_exit(&dict_sys->mutex);
 		return;
 	}
 	/* else */
+
+	table->in_bg_stat_processing = TRUE;
+
+	mutex_exit(&dict_sys->mutex);
 
 	if (ut_difftime(ut_time(), table->stats_last_recalc)
 	    < MIN_RECALC_INTERVAL) {
@@ -243,15 +315,18 @@ printf("%s() table %lu recalc was too soon, noop\n", __func__, table_id);
 		too frequent stats updates we put back the table on
 		the auto recalc list and do nothing. */
 		dict_stats_enqueue_table_for_auto_recalc(table);
-		dict_table_close(table, FALSE, FALSE);
-		return;
-	}
-	/* else */
-
+	} else {
 printf("%s() table %lu RECALC\n", __func__, table_id);
-	dict_stats_update(table, DICT_STATS_RECALC_PERSISTENT, FALSE);
+		dict_stats_update(table, DICT_STATS_RECALC_PERSISTENT, FALSE);
+	}
 
-	dict_table_close(table, FALSE, FALSE);
+	mutex_enter(&dict_sys->mutex);
+
+	table->in_bg_stat_processing = FALSE;
+
+	dict_table_close(table, TRUE, FALSE);
+
+	mutex_exit(&dict_sys->mutex);
 }
 /* @} */
 

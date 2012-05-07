@@ -74,6 +74,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "row0merge.h"
 #include "dict0boot.h"
 #include "dict0stats.h"
+#include "dict0stats_background.h"
 #include "ha_prototypes.h"
 #include "ut0mem.h"
 #include "ibuf0ibuf.h"
@@ -9614,6 +9615,8 @@ ha_innobase::delete_table(
 	if (IS_MAGIC_TABLE_AND_USER_DENIED_ACCESS(norm_name, thd)) {
 		DBUG_RETURN(HA_ERR_GENERIC);
 	}
+
+	dict_stats_remove_table_from_auto_recalc(norm_name);
 
 	/* Remove stats for this table and all of its indexes from the
 	persistent storage if it exists and if there are stats for this

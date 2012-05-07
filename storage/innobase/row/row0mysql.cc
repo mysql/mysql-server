@@ -3662,6 +3662,12 @@ retry:
 		}
 	}
 
+	while (table->in_bg_stat_processing) {
+		row_mysql_unlock_data_dictionary(trx);
+		os_thread_sleep(250000);
+		row_mysql_lock_data_dictionary(trx);
+	}
+
 	ut_a(table->n_foreign_key_checks_running == 0);
 
 	/* Move the table the the non-LRU list so that it isn't
