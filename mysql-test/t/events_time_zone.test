@@ -37,7 +37,9 @@ let $N = 5;
 #
 
 --source include/big_test.inc
-
+#Event scheduler is not available at all when the embedded server is used
+#So this test has to include "not_embedded.inc", like all other tests for the event scheduler
+--source include/not_embedded.inc
 
 --disable_warnings
 DROP DATABASE IF EXISTS mysqltest_db1;
