@@ -6976,16 +6976,6 @@ void Item_func_sp::update_used_tables()
 }
 
 
-bool Item_func_sp::const_item() const
-{
-  if (const_item_cache)
-    return true;
-  if (can_be_evaluated_now())
-    const_cast<Item_func_sp*>(this)->const_item_cache= true;
-  return const_item_cache;
-}
-
-
 /**
   Check if it is OK to evaluate the item now.
 
