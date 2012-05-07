@@ -14,7 +14,7 @@
 
 let MYSQLD_DATADIR =`SELECT @@datadir`;
 let $innodb_file_per_table = `SELECT @@innodb_file_per_table`;
-let $pathfix=/\\test_wl5522\\//test_wl5522\//;
+let $pathfix=/: '.*test_wl5522.*t1.ibd'/: 'test_wl5522\\t1.ibd'/;
 
 SET GLOBAL innodb_file_per_table = 1;
 SELECT @@innodb_file_per_table;
@@ -1490,7 +1490,7 @@ EOF
 
 SET SESSION debug="+d,fil_space_create_failure";
 
---replace_regex /'.*t1.cfg'/'t1.cfg'/
+--replace_regex $pathfix
 
 --error ER_FILE_NOT_FOUND
 ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
@@ -1562,7 +1562,7 @@ EOF
 
 SET SESSION debug="+d,dict_tf_to_fsp_flags_failure";
 
---replace_regex /'.*t1.cfg'/'t1.cfg'/
+--replace_regex $pathfix
 
 --error ER_FILE_NOT_FOUND
 ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
