@@ -794,6 +794,11 @@ struct dict_table_struct{
 				calculation; this counter is not protected by
 				any latch, because this is only used for
 				heuristics */
+	ibool		in_bg_stat_processing;
+				/*!< This is set to TRUE when the background
+				stats code is working on this table. The DROP
+				table code waits for this to become FALSE
+				before proceeding. */
 				/* @} */
 	/*----------------------*/
 				/**!< The following fields are used by the
