@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2002, 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2002, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -609,7 +609,8 @@ int Gis_line_string::is_closed(int *closed) const
     return 0;
   }
   data+= 4;
-  if (no_data(data, SIZEOF_STORED_DOUBLE * 2 * n_points))
+  if (n_points == 0 ||
+      no_data(data, SIZEOF_STORED_DOUBLE * 2 * n_points))
     return 1;
 
   /* Get first point */
