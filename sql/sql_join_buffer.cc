@@ -2384,7 +2384,7 @@ enum_nested_loop_state JOIN_CACHE_BKA::join_matching_records(bool skip_last)
 enum_nested_loop_state 
 JOIN_CACHE_BKA::init_join_matching_records(RANGE_SEQ_IF *seq_funcs, uint ranges)
 {
-  int error;
+  int error= 0;
   handler *file= join_tab->table->file;
   enum_nested_loop_state rc= NESTED_LOOP_OK;
 
