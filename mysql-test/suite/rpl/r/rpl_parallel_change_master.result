@@ -9,8 +9,6 @@ include/stop_slave.inc
 SET @save.slave_parallel_workers=@@global.slave_parallel_workers;
 SET @@global.slave_parallel_workers=2;
 include/start_slave.inc
-Warnings:
-Note	1750	slave_transaction_retries is not supported in multi-threaded slave mode. In the event of a transient failure, the slave will not retry the transaction and will stop.
 CREATE DATABASE d1;
 CREATE DATABASE d2;
 CREATE TABLE d1.t1 (a int unique) ENGINE=INNODB;
@@ -20,21 +18,15 @@ FLUSH LOGS;
 include/stop_slave.inc
 CHANGE MASTER TO MASTER_DELAY=5;
 include/start_slave.inc
-Warnings:
-Note	1750	slave_transaction_retries is not supported in multi-threaded slave mode. In the event of a transient failure, the slave will not retry the transaction and will stop.
 INSERT INTO d1.t1 VALUES (3);
 INSERT INTO d1.t1 VALUES (5);
 FLUSH LOGS;
 include/stop_slave.inc
 CHANGE MASTER TO RELAY_LOG_FILE=FILE,  RELAY_LOG_POS= POS;
 include/start_slave.inc
-Warnings:
-Note	1750	slave_transaction_retries is not supported in multi-threaded slave mode. In the event of a transient failure, the slave will not retry the transaction and will stop.
 include/stop_slave.inc
 CHANGE MASTER TO RELAY_LOG_FILE=FILE,  RELAY_LOG_POS= POS, MASTER_DELAY=0;
 include/start_slave.inc
-Warnings:
-Note	1750	slave_transaction_retries is not supported in multi-threaded slave mode. In the event of a transient failure, the slave will not retry the transaction and will stop.
 BEGIN;
 INSERT INTO d1.t1 VALUES (13);
 INSERT INTO d1.t1 VALUES (6);
