@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2007, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2007, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -27,20 +27,18 @@ static int opt_drop = 1;
 static int opt_subloop = 5;
 static int opt_wait_all = 0;
 
-typedef uchar* gptr;
-
 static struct my_option my_long_options[] =
 {
-  NDB_STD_OPTS("ndb_desc"),
+  NDB_STD_OPTS("ndb_connect"),
   { "loop", 'l', "loops",
-    (gptr*) &opt_loop, (gptr*) &opt_loop, 0,
+    (uchar**) &opt_loop, (uchar**) &opt_loop, 0,
     GET_INT, REQUIRED_ARG, opt_loop, 0, 0, 0, 0, 0 },
   { "sleep", 's', "Sleep (ms) between connection attempt",
-    (gptr*) &opt_sleep, (gptr*) &opt_sleep, 0,
+    (uchar**) &opt_sleep, (uchar**) &opt_sleep, 0,
     GET_INT, REQUIRED_ARG, opt_sleep, 0, 0, 0, 0, 0 },
   { "drop", 'd', 
     "Drop event operations before disconnect (0 = no, 1 = yes, else rand",
-    (gptr*) &opt_drop, (gptr*) &opt_drop, 0,
+    (uchar**) &opt_drop, (uchar**) &opt_drop, 0,
     GET_INT, REQUIRED_ARG, opt_drop, 0, 0, 0, 0, 0 },
   { "subscribe-loop", NDB_OPT_NOSHORT,
     "Loop in subscribe/unsubscribe",
@@ -60,7 +58,7 @@ int main(int argc, char** argv){
   load_defaults("my",load_default_groups,&argc,&argv);
   int ho_error;
 #ifndef DBUG_OFF
-  opt_debug= "d:t:O,/tmp/ndb_desc.trace";
+  opt_debug= "d:t:O,/tmp/ndb_connect.trace";
 #endif
   if ((ho_error=handle_options(&argc, &argv, my_long_options, 
 			       ndb_std_get_one_option)))
