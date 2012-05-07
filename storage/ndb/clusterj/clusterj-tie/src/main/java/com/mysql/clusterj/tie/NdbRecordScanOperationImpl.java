@@ -82,20 +82,25 @@ public abstract class NdbRecordScanOperationImpl extends NdbRecordOperationImpl 
         return " scan " + tableName;
     }
 
-    /** Deallocate resources used in by this scan after the scan is complete.
+    /** Close the ndbOperation used by this scan after the scan is complete.
      * 
      */
     public void close() {
+        ((NdbScanOperation)ndbOperation).close(true, true);
+    }
+
+    /** Deallocate resources used by this scan after the scan is executed */
+    public void freeResourcesAfterExecute() {
+        super.freeResourcesAfterExecute();
         if (ndbInterpretedCode != null) {
-            NdbInterpretedCode.delete(ndbInterpretedCode);
+            db.delete(ndbInterpretedCode);
         }
         if (ndbScanFilter != null) {
-            NdbScanFilter.delete(ndbScanFilter);
+            db.delete(ndbScanFilter);
         }
         if (scanOptions != null) {
-            ScanOptions.delete(scanOptions);
+            db.delete(scanOptions);
         }
-        ((NdbScanOperation)ndbOperation).close(true, true);
     }
 
     public void deleteCurrentTuple() {
@@ -113,7 +118,7 @@ public abstract class NdbRecordScanOperationImpl extends NdbRecordOperationImpl 
         if (multiRange | (ndbScanFilter != null) | 
                 (lockMode != com.mysql.ndbjtie.ndbapi.NdbOperationConst.LockMode.LM_CommittedRead)) {
 
-            scanOptions = ScanOptions.create();
+            scanOptions = db.createScanOptions();
             if (multiRange) {
                 flags |= ScanFlag.SF_MultiRange;
                 options |= (long)Type.SO_SCANFLAGS;
@@ -162,8 +167,9 @@ public abstract class NdbRecordScanOperationImpl extends NdbRecordOperationImpl 
      */
     public ScanFilter getScanFilter(QueryExecutionContext context) {
         
-        ndbInterpretedCode = NdbInterpretedCode.create(ndbRecordValues.getNdbTable(), null, 0);
-        ndbScanFilter = NdbScanFilter.create(ndbInterpretedCode);
+        ndbInterpretedCode = db.createInterpretedCode(ndbRecordValues.getNdbTable(), null, 0);
+        handleError(ndbInterpretedCode, ndbOperation);
+        ndbScanFilter = db.createScanFilter(ndbInterpretedCode);
         handleError(ndbScanFilter, ndbOperation);
         ScanFilter scanFilter = new ScanFilterImpl(ndbScanFilter);
         context.addFilter(scanFilter);

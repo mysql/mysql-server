@@ -90,6 +90,9 @@ public class NdbRecordIndexScanOperationImpl extends NdbRecordScanOperationImpl 
     /** The list of index bounds already defined; null for a single range */
     List<NdbIndexScanOperation.IndexBound> ndbIndexBoundList = null;
 
+    /** The single index bound for a single range scan */
+    NdbIndexScanOperation.IndexBound ndbIndexBound = null;
+
     public NdbRecordIndexScanOperationImpl(ClusterTransactionImpl clusterTransaction,
             Index storeIndex, Table storeTable, int lockMode) {
         this(clusterTransaction, storeIndex, storeTable, false, lockMode);
@@ -128,10 +131,16 @@ public class NdbRecordIndexScanOperationImpl extends NdbRecordScanOperationImpl 
             }
         } else {
             // only one range defined
-            NdbIndexScanOperation.IndexBound ndbIndexBound = getNdbIndexBound();
+            ndbIndexBound = getNdbIndexBound();
             int returnCode = ndbIndexScanOperation.setBound(ndbRecordKeys.getNdbRecord(), ndbIndexBound);
             handleError(returnCode, ndbIndexScanOperation);
         }
+        clusterTransaction.postExecuteCallback(new Runnable() {
+            // free structures used to define operation            
+            public void run() {
+                freeResourcesAfterExecute();
+            }
+        });
     }
 
     public void setBoundBigInteger(Column storeColumn, BoundType type, BigInteger value) {
@@ -321,8 +330,8 @@ public class NdbRecordIndexScanOperationImpl extends NdbRecordScanOperationImpl 
                 reclaimed = indexBoundLowBuffer;
                 indexBoundLowBuffer = indexBoundHighBuffer;
             }
-            // set the index bound
-            NdbIndexScanOperation.IndexBound ndbindexBound = NdbIndexScanOperation.IndexBound.create();
+            // create the index bound; use a local variable that will be used for either the single or list of bounds
+            NdbIndexScanOperation.IndexBound ndbindexBound = db.createIndexBound();
             ndbindexBound.low_key(indexBoundLowBuffer);
             ndbindexBound.high_key(indexBoundHighBuffer);
             ndbindexBound.low_key_count(indexBoundLowCount);
@@ -353,6 +362,23 @@ public class NdbRecordIndexScanOperationImpl extends NdbRecordScanOperationImpl 
             return ndbindexBound;
         } else {
             return null;
+        }
+    }
+
+    /** Free resources used by this scan after the scan is executed.
+     * 
+     */
+    public void freeResourcesAfterExecute() {
+        super.freeResourcesAfterExecute();
+        if (ndbIndexBound != null) {
+            db.delete(ndbIndexBound);
+            ndbIndexBound = null;
+        }
+        if (ndbIndexBoundList != null) {
+            for (NdbIndexScanOperation.IndexBound ndbindexBound: ndbIndexBoundList) {
+                db.delete(ndbindexBound);
+            }
+            ndbIndexBoundList = null;
         }
     }
 
