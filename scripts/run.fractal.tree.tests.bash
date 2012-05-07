@@ -100,7 +100,7 @@ function getsysinfo() {
 }
 
 function get_latest_svn_revision() {
-    svn info | awk -v ORS="" '/Last Changed Rev:/ { print $4 }'
+    svn info $1 | awk -v ORS="" '/Last Changed Rev:/ { print $4 }'
 }
 
 function my_mktemp() {
@@ -158,7 +158,7 @@ cat "$resultsdir/trace" | awk '
     }
     print "PASS=" pass
 }' >"$cf"
-get_latest_svn_revision >>"$cf"
+get_latest_svn_revision $FULLTOKUDBDIR >>"$cf"
 echo -n " " >>"$cf"
 cat "$resultsdir/trace" | awk '
 BEGIN {
@@ -242,7 +242,7 @@ END {
     }
     print "PASS=" pass
 }' >"$cf"
-get_latest_svn_revision >>"$cf"
+get_latest_svn_revision $FULLTOKUDBDIR >>"$cf"
 echo -n " " >>"$cf"
 cat "$resultsdir/trace" | awk '
 BEGIN {
@@ -326,7 +326,7 @@ END {
     }
     print "PASS=" pass
 }' >"$cf"
-get_latest_svn_revision >>"$cf"
+get_latest_svn_revision $FULLTOKUDBDIR >>"$cf"
 echo -n " " >>"$cf"
 cat "$resultsdir/trace" | awk '
 BEGIN {
