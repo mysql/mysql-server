@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -8257,7 +8257,19 @@ String *Field_set::val_str(String *val_buffer,
   ulonglong tmp=(ulonglong) Field_enum::val_int();
   uint bitnr=0;
 
-  val_buffer->set("", 0, field_charset);
+  if (tmp == 0)
+  {
+    /*
+      Some callers expect *val_buffer to contain the result,
+      so we assign to it, rather than doing 'return &empty_set_string.
+     */
+    *val_buffer= empty_set_string;
+    return val_buffer;
+  }
+
+  val_buffer->set_charset(field_charset);
+  val_buffer->length(0);
+
   while (tmp && bitnr < (uint) typelib->count)
   {
     if (tmp & 1)
