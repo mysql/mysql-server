@@ -1379,8 +1379,13 @@ end:
 }
 
 /**
-  @note
-  This function does not care about global read lock. A caller should.
+  Commit the sessions outstanding transaction.
+
+  @pre thd->transaction.flags.commit_low == true
+  @post thd->transaction.flags.commit_low == false
+
+  @note This function does not care about global read lock; the caller
+  should.
 
   @param[in]  all  Is set in case of explicit commit
                    (COMMIT statement), or implicit commit
@@ -1427,8 +1432,9 @@ int ha_commit_low(THD *thd, bool all)
     thd->transaction.cleanup();
 
   /*
-    We clear the flag to be able to assert that commit low was
-    called. This is only for debug purposes.
+    When the transaction has been committed, we clear the commit_low
+    flag. This allow other parts of the system to check if commit_low
+    was called.
   */
   thd->transaction.flags.commit_low= false;
   DBUG_RETURN(error);
