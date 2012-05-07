@@ -2005,4 +2005,58 @@ zzz
 8
 #TODO: in merge with 5.3 add original test suite
 drop table t1, t2;
+#
+# Bug#12578908: SELECT SQL_BUFFER_RESULT OUTPUTS TOO MANY 
+#               ROWS WHEN GROUP IS OPTIMIZED AWAY
+#
+CREATE TABLE t1 (col1 int, col2 int) ;
+INSERT INTO t1 VALUES (10,1),(11,7);
+CREATE TABLE t2 (col1 int, col2 int) ;
+INSERT INTO t2 VALUES (10,8);
+
+EXPLAIN SELECT SQL_BUFFER_RESULT t2.col2 FROM t2 JOIN t1 ON t1.col1 GROUP BY t2.col2;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t2	system	NULL	NULL	NULL	NULL	1	Using temporary
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
+SELECT SQL_BUFFER_RESULT t2.col2 FROM t2 JOIN t1 ON t1.col1 GROUP BY t2.col2;
+col2
+8
+
+EXPLAIN SELECT t2.col2 FROM t2 JOIN t1 ON t1.col1 GROUP BY t2.col2;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t2	system	NULL	NULL	NULL	NULL	1	
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
+SELECT t2.col2 FROM t2 JOIN t1 ON t1.col1 GROUP BY t2.col2;
+col2
+8
+
+DROP TABLE t1,t2;
+#
+# BUG#12640437: USING SQL_BUFFER_RESULT RESULTS IN A
+#               DIFFERENT QUERY OUTPUT
+#
+CREATE TABLE t1 (
+a int,
+b varchar(1),
+KEY (b,a)
+);
+INSERT INTO t1 VALUES (1,NULL),(0,'a');
+
+EXPLAIN SELECT SQL_BUFFER_RESULT MIN(a), b FROM t1 WHERE t1.b = 'a' GROUP BY b;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	b	b	9	NULL	2	Using where; Using index for group-by; Using temporary
+
+SELECT SQL_BUFFER_RESULT MIN(a), b FROM t1 WHERE t1.b = 'a' GROUP BY b;
+MIN(a)	b
+0	a
+
+EXPLAIN SELECT MIN(a), b FROM t1 WHERE t1.b = 'a' GROUP BY b;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	b	b	9	NULL	2	Using where; Using index for group-by
+
+SELECT MIN(a), b FROM t1 WHERE t1.b = 'a' GROUP BY b;
+MIN(a)	b
+0	a
+
+DROP TABLE t1;
 # End of 5.2 tests
