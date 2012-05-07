@@ -229,6 +229,7 @@ SET(TESTS
   bounded_queue
   bounds_checked_array
   byteorder
+  cost_estimate
   dbug
   decimal
   dynarray
@@ -237,12 +238,12 @@ SET(TESTS
   mdl
   mdl_mytap
   my_bitmap
+  my_error
   my_regex
   sql_list
   sql_plist
-  thread_utils
   stdcxx
-  cost_estimate
+  thread_utils
   )
 
 # Add tests (link them with gunit library and the server libraries) 

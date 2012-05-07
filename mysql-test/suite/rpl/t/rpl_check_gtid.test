@@ -1,3 +1,5 @@
+#Want to skip this test from daily Valgrind execution
+--source include/no_valgrind_without_big.inc
 ################################################################################
 # This test case checks if a set of properites related to the GTIDs hold
 # after rotating the binary/relay logs and after crashes. The properties

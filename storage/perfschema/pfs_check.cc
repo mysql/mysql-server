@@ -56,6 +56,8 @@ void check_performance_schema()
   PFS_engine_table_share::check_all_tables(thd);
 
   delete thd;
+  /* Remember that we don't have a THD */
+  my_pthread_setspecific_ptr(THR_THD,  0);
   DBUG_VOID_RETURN;
 }
 

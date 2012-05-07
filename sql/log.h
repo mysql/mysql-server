@@ -152,6 +152,11 @@ extern TC_LOG_DUMMY tc_log_dummy;
 extern PSI_mutex_key key_LOG_INFO_lock;
 #endif
 
+/*
+  Note that we destroy the lock mutex in the desctructor here.
+  This means that object instances cannot be destroyed/go out of scope,
+  until we have reset thd->current_linfo to NULL;
+ */
 typedef struct st_log_info
 {
   char log_file_name[FN_REFLEN];
@@ -328,8 +333,6 @@ int check_if_log_table(size_t db_len, const char *db, size_t table_name_len,
 
 class Log_to_csv_event_handler: public Log_event_handler
 {
-  friend class LOGGER;
-
 public:
   Log_to_csv_event_handler();
   ~Log_to_csv_event_handler();

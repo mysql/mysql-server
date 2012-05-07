@@ -42,6 +42,8 @@
   but we keep them this way for now.  /Sven
 */
 
+/* These classes are based on the v1 RowsHeaderLen */
+#define ROWS_HEADER_LEN ROWS_HEADER_LEN_V1
 
 /**
   @class Old_rows_log_event
@@ -374,7 +376,7 @@ public:
                                           const uchar *after_record)
   {
     return thd->binlog_write_row(table, is_transactional,
-                                 after_record);
+                                 after_record, NULL);
   }
 #endif
 
@@ -448,7 +450,7 @@ public:
                                           const uchar *after_record)
   {
     return thd->binlog_update_row(table, is_transactional,
-                                  before_record, after_record);
+                                  before_record, after_record, NULL);
   }
 #endif
 
@@ -522,7 +524,7 @@ public:
                                           __attribute__((unused)))
   {
     return thd->binlog_delete_row(table, is_transactional,
-                                  before_record);
+                                  before_record, NULL);
   }
 #endif
   

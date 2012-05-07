@@ -81,7 +81,7 @@ static ulonglong get_exact_record_count(TABLE_LIST *tables)
   for (TABLE_LIST *tl= tables; tl; tl= tl->next_leaf)
   {
     ha_rows tmp= tl->table->file->records();
-    if ((tmp == HA_POS_ERROR))
+    if (tmp == HA_POS_ERROR)
       return ULONGLONG_MAX;
     count*= tmp;
   }
@@ -239,7 +239,7 @@ int opt_sum_query(THD *thd,
 {
   List_iterator_fast<Item> it(all_fields);
   int const_result= 1;
-  bool recalc_const_item= 0;
+  bool recalc_const_item= false;
   ulonglong count= 1;
   bool is_exact_count= TRUE, maybe_exact_count= TRUE;
   table_map removed_tables= 0, outer_tables= 0, used_tables= 0;
@@ -348,11 +348,37 @@ int opt_sum_query(THD *thd,
             }
             is_exact_count= 1;                  // count is now exact
           }
-          ((Item_sum_count*) item)->make_const((longlong) count);
-          recalc_const_item= 1;
+        }
+        /* For result count of full-text search: If
+           1. it is a single table query,
+           2. the WHERE condition is a single MATCH expresssion,
+           3. the table engine can provide the row count from FTS result, and
+           4. the expr in COUNT(expr) can not be NULL,
+           we do the full-text search now, and replace with the actual count.
+
+           Note: Item_func_match::init_search() will be called again
+                 later in the optimization phase by init_fts_funcs(),
+                 but search will still only be done once.
+        */
+        else if (tables->next_leaf == NULL &&                             // 1 
+                 conds && conds->type() == Item::FUNC_ITEM && 
+                 ((Item_func*)conds)->functype() == Item_func::FT_FUNC && // 2
+                 (tables->table->file->ha_table_flags() &
+                  HA_CAN_FULLTEXT_EXT) &&                                 // 3
+                 !((Item_sum_count*) item)->get_arg(0)->maybe_null)       // 4
+        {
+          Item_func_match* fts_item= static_cast<Item_func_match*>(conds); 
+          fts_item->init_search(true);
+          count= fts_item->get_count();
         }
         else
           const_result= 0;
+
+        if (const_result == 1) {
+          ((Item_sum_count*) item)->make_const((longlong) count);
+          recalc_const_item= true;
+        }
+          
         break;
       case Item_sum::MIN_FUNC:
       case Item_sum::MAX_FUNC:
@@ -389,7 +415,11 @@ int opt_sum_query(THD *thd,
             const_result= 0;
             break;
           }
-          table->file->ha_index_init((uint) ref.key, 1);
+          if ((error= table->file->ha_index_init((uint) ref.key, 1)))
+          {
+            table->file->print_error(error, MYF(0));
+            DBUG_RETURN(error);
+          }
 
           error= is_max ? 
                  get_index_max_value(table, &ref, range_fl) :
@@ -412,16 +442,22 @@ int opt_sum_query(THD *thd,
 	  }
           removed_tables|= table->map;
         }
-        else if (!expr->const_item() || !is_exact_count)
+        else if (!expr->const_item() || conds || !is_exact_count)
         {
           /*
-            The optimization is not applicable in both cases:
-            (a) 'expr' is a non-constant expression. Then we can't
-            replace 'expr' by a constant.
-            (b) 'expr' is a costant. According to ANSI, MIN/MAX must return
-            NULL if the query does not return any rows. Thus, if we are not
-            able to determine if the query returns any rows, we can't apply
-            the optimization and replace MIN/MAX with a constant.
+            We get here if the aggregate function is not based on a field.
+            Example: "SELECT MAX(1) FROM table ..."
+
+            This constant optimization is not applicable if
+            1. the expression is not constant, or
+            2. it is unknown if the query returns any rows. MIN/MAX must return
+               NULL if the query doesn't return any rows. We can't determine
+               this if:
+               - the query has a condition, because, in contrast to the
+                 "MAX(field)" case above, the condition will not be evaluated
+                 against an index for this case, or
+               - the storage engine does not provide exact count, which means
+                 that it doesn't know whether there are any rows.
           */
           const_result= 0;
           break;
@@ -437,6 +473,8 @@ int opt_sum_query(THD *thd,
         if (!count && !outer_tables)
         {
           item_sum->aggregator_clear();
+          // Mark the aggregated value as based on no rows
+          item->no_rows_in_result();
         }
         else
           item_sum->reset_and_add();

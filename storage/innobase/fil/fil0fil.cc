@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2012, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -409,7 +409,7 @@ calculating the byte offset within a space.
 @return DB_SUCCESS, or DB_TABLESPACE_DELETED if we are trying to do
 i/o on a tablespace which does not exist */
 UNIV_INLINE
-ulint
+dberr_t
 fil_read(
 /*=====*/
 	ibool	sync,		/*!< in: TRUE if synchronous aio is desired */
@@ -438,7 +438,7 @@ calculating the byte offset within a space.
 @return DB_SUCCESS, or DB_TABLESPACE_DELETED if we are trying to do
 i/o on a tablespace which does not exist */
 UNIV_INLINE
-ulint
+dberr_t
 fil_write(
 /*======*/
 	ibool	sync,		/*!< in: TRUE if synchronous aio is desired */
@@ -1770,8 +1770,8 @@ fil_set_max_space_id_if_bigger(
 Writes the flushed lsn and the latest archived log number to the page header
 of the first page of a data file of the system tablespace (space 0),
 which is uncompressed. */
-static
-ulint
+static __attribute__((warn_unused_result))
+dberr_t
 fil_write_lsn_and_arch_no_to_file(
 /*==============================*/
 	ulint	space,		/*!< in: space to write to */
@@ -1783,19 +1783,23 @@ fil_write_lsn_and_arch_no_to_file(
 {
 	byte*	buf1;
 	byte*	buf;
+	dberr_t	err;
 
 	buf1 = static_cast<byte*>(mem_alloc(2 * UNIV_PAGE_SIZE));
 	buf = static_cast<byte*>(ut_align(buf1, UNIV_PAGE_SIZE));
 
-	fil_read(TRUE, space, 0, sum_of_sizes, 0, UNIV_PAGE_SIZE, buf, NULL);
+	err = fil_read(TRUE, space, 0, sum_of_sizes, 0,
+		       UNIV_PAGE_SIZE, buf, NULL);
+	if (err == DB_SUCCESS) {
+		mach_write_to_8(buf + FIL_PAGE_FILE_FLUSH_LSN, lsn);
 
-	mach_write_to_8(buf + FIL_PAGE_FILE_FLUSH_LSN, lsn);
-
-	fil_write(TRUE, space, 0, sum_of_sizes, 0, UNIV_PAGE_SIZE, buf, NULL);
+		err = fil_write(TRUE, space, 0, sum_of_sizes, 0,
+				UNIV_PAGE_SIZE, buf, NULL);
+	}
 
 	mem_free(buf1);
 
-	return(DB_SUCCESS);
+	return(err);
 }
 
 /****************************************************************//**
@@ -1803,7 +1807,7 @@ Writes the flushed lsn and the latest archived log number to the page
 header of the first page of each data file in the system tablespace.
 @return	DB_SUCCESS or error number */
 UNIV_INTERN
-ulint
+dberr_t
 fil_write_flushed_lsn_to_data_files(
 /*================================*/
 	lsn_t	lsn,		/*!< in: lsn to write */
@@ -1811,7 +1815,7 @@ fil_write_flushed_lsn_to_data_files(
 {
 	fil_space_t*	space;
 	fil_node_t*	node;
-	ulint		err;
+	dberr_t		err;
 
 	mutex_enter(&fil_system->mutex);
 
@@ -1944,7 +1948,7 @@ fil_inc_pending_ops(
 
 	if (space == NULL) {
 		fprintf(stderr,
-			"InnoDB: Error: trying to do ibuf merge to a"
+			"InnoDB: Error: trying to do an operation on a"
 			" dropped tablespace %lu\n",
 			(ulong) id);
 	}
@@ -2753,7 +2757,7 @@ path '.'. Tables created with CREATE TEMPORARY TABLE we place in the temp
 dir of the mysqld server.
 @return	DB_SUCCESS or error code */
 UNIV_INTERN
-ulint
+dberr_t
 fil_create_new_single_table_tablespace(
 /*===================================*/
 	ulint		space_id,	/*!< in: space id */
@@ -2836,14 +2840,11 @@ fil_create_new_single_table_tablespace(
 	ret = os_file_set_size(path, file, size * UNIV_PAGE_SIZE);
 
 	if (!ret) {
-		err = DB_OUT_OF_FILE_SPACE;
-error_exit:
 		os_file_close(file);
-error_exit2:
 		os_file_delete(path);
 
 		mem_free(path);
-		return(err);
+		return(DB_OUT_OF_FILE_SPACE);
 	}
 
 	/* printf("Creating tablespace %s id %lu\n", path, space_id); */
@@ -2896,8 +2897,11 @@ error_exit2:
 		      " to tablespace ", stderr);
 		ut_print_filename(stderr, path);
 		putc('\n', stderr);
-		err = DB_ERROR;
-		goto error_exit;
+error_exit:
+		os_file_close(file);
+error_exit2:
+		os_file_delete(path);
+		return(DB_ERROR);
 	}
 
 	ret = os_file_flush(file);
@@ -2906,7 +2910,6 @@ error_exit2:
 		fputs("InnoDB: Error: file flush of tablespace ", stderr);
 		ut_print_filename(stderr, path);
 		fputs(" failed\n", stderr);
-		err = DB_ERROR;
 		goto error_exit;
 	}
 
@@ -2915,7 +2918,6 @@ error_exit2:
 	success = fil_space_create(tablename, space_id, flags, FIL_TABLESPACE);
 
 	if (!success) {
-		err = DB_ERROR;
 		goto error_exit2;
 	}
 
@@ -3569,7 +3571,7 @@ static
 int
 fil_file_readdir_next_file(
 /*=======================*/
-	ulint*		err,	/*!< out: this is set to DB_ERROR if an error
+	dberr_t*	err,	/*!< out: this is set to DB_ERROR if an error
 				was encountered, otherwise not changed */
 	const char*	dirname,/*!< in: directory name or path */
 	os_file_dir_t	dir,	/*!< in: directory stream */
@@ -3608,7 +3610,7 @@ in the doublewrite buffer, also to know where to apply log records where the
 space id is != 0.
 @return	DB_SUCCESS or error number */
 UNIV_INTERN
-ulint
+dberr_t
 fil_load_single_table_tablespaces(void)
 /*===================================*/
 {
@@ -3619,7 +3621,7 @@ fil_load_single_table_tablespaces(void)
 	os_file_dir_t	dbdir;
 	os_file_stat_t	dbinfo;
 	os_file_stat_t	fileinfo;
-	ulint		err		= DB_SUCCESS;
+	dberr_t		err		= DB_SUCCESS;
 
 	/* The datadir of MySQL is always the default directory of mysqld */
 
@@ -4125,7 +4127,7 @@ fil_extend_tablespaces_to_stored_len(void)
 	byte*		buf;
 	ulint		actual_size;
 	ulint		size_in_header;
-	ulint		error;
+	dberr_t		error;
 	ibool		success;
 
 	buf = mem_alloc(UNIV_PAGE_SIZE);
@@ -4381,7 +4383,7 @@ Reads or writes data. This operation is asynchronous (aio).
 @return DB_SUCCESS, or DB_TABLESPACE_DELETED if we are trying to do
 i/o on a tablespace which does not exist */
 UNIV_INTERN
-ulint
+dberr_t
 fil_io(
 /*===*/
 	ulint	type,		/*!< in: OS_FILE_READ or OS_FILE_WRITE,
@@ -4465,9 +4467,9 @@ fil_io(
 #endif /* !UNIV_HOTBACKUP */
 
 	if (type == OS_FILE_READ) {
-		srv_data_read+= len;
+		srv_stats.data_read.add(len);
 	} else if (type == OS_FILE_WRITE) {
-		srv_data_written+= len;
+		srv_stats.data_written.add(len);
 	}
 
 	/* Reserve the fil_system mutex and make sure that we can open at

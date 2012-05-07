@@ -292,7 +292,7 @@ bool reload_acl_and_cache(THD *thd, unsigned long options,
   if (thd && (options & REFRESH_STATUS))
     refresh_status(thd);
   if (options & REFRESH_THREADS)
-    flush_thread_cache();
+    kill_blocked_pthreads();
 #ifdef HAVE_REPLICATION
   if (options & REFRESH_MASTER)
   {

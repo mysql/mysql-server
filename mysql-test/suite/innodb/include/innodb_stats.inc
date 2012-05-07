@@ -17,10 +17,10 @@ index_name = 'a_key' AND
 stat_name IN ('n_diff_pfx01', 'n_diff_pfx02', 'n_leaf_pages', 'size')
 ORDER BY stat_name;
 
-# provoke reading from persistent storage from
-# row_update_statistics_if_needed()
-INSERT INTO test_innodb_stats SELECT * FROM test_innodb_stats;
+# provoke reading from persistent storage upon next table access (the SELECT
+# from information_schema.statistics below)
+FLUSH TABLE test_innodb_stats;
 
-# see what has been read
+# see what we are going to read
 query_vertical SELECT * FROM information_schema.statistics
 WHERE table_name = 'test_innodb_stats';

@@ -1060,7 +1060,7 @@ table_def::table_def(unsigned char *types, ulong size,
       }
       case MYSQL_TYPE_BIT:
       {
-        uint16 x= field_metadata[index++]; 
+        uint16 x= field_metadata[index++];
         x = x + (field_metadata[index++] << 8U);
         m_field_metadata[i]= x;
         break;
@@ -1127,7 +1127,7 @@ bool event_checksum_test(uchar *event_buf, ulong event_len, uint8 alg)
     if (event_buf[EVENT_TYPE_OFFSET] == FORMAT_DESCRIPTION_EVENT)
     {
 #ifndef DBUG_OFF
-      int8 fd_alg= event_buf[event_len - BINLOG_CHECKSUM_LEN - 
+      int8 fd_alg= event_buf[event_len - BINLOG_CHECKSUM_LEN -
                              BINLOG_CHECKSUM_ALG_DESC_LEN];
 #endif
       /*
@@ -1136,8 +1136,8 @@ bool event_checksum_test(uchar *event_buf, ulong event_len, uint8 alg)
       flags= uint2korr(event_buf + FLAGS_OFFSET);
       if (flags & LOG_EVENT_BINLOG_IN_USE_F)
         event_buf[FLAGS_OFFSET] &= ~LOG_EVENT_BINLOG_IN_USE_F;
-      /* 
-         The only algorithm currently is CRC32. Zero indicates 
+      /*
+         The only algorithm currently is CRC32. Zero indicates
          the binlog file is checksum-free *except* the FD-event.
       */
       DBUG_ASSERT(fd_alg == BINLOG_CHECKSUM_ALG_CRC32 || fd_alg == 0);
@@ -1150,7 +1150,7 @@ bool event_checksum_test(uchar *event_buf, ulong event_len, uint8 alg)
     incoming= uint4korr(event_buf + event_len - BINLOG_CHECKSUM_LEN);
     computed= my_checksum(0L, NULL, 0);
     /* checksum the event content but the checksum part itself */
-    computed= my_checksum(computed, (const uchar*) event_buf, 
+    computed= my_checksum(computed, (const uchar*) event_buf,
                           event_len - BINLOG_CHECKSUM_LEN);
     if (flags != 0)
     {
@@ -1163,3 +1163,376 @@ bool event_checksum_test(uchar *event_buf, ulong event_len, uint8 alg)
   return DBUG_EVALUATE_IF("simulate_checksum_test_failure", TRUE, res);
 }
 
+#ifndef MYSQL_CLIENT
+
+#define HASH_ROWS_POS_SEARCH_INVALID -1
+
+/**
+  Utility methods for handling row based operations.
+ */
+
+static uchar*
+hash_slave_rows_get_key(const uchar *record,
+                        size_t *length,
+                        my_bool not_used __attribute__((unused)))
+{
+  DBUG_ENTER("get_key");
+
+  HASH_ROW_ENTRY *entry=(HASH_ROW_ENTRY *) record;
+  HASH_ROW_PREAMBLE *preamble= entry->preamble;
+  *length= preamble->length;
+
+  DBUG_RETURN((uchar*) &preamble->hash_value);
+}
+
+static void
+hash_slave_rows_free_entry(HASH_ROW_ENTRY *entry)
+{
+  DBUG_ENTER("free_entry");
+  if (entry)
+  {
+    if (entry->preamble)
+      my_free(entry->preamble);
+    if (entry->positions)
+      my_free(entry->positions);
+    my_free(entry);
+  }
+  DBUG_VOID_RETURN;
+}
+
+bool Hash_slave_rows::is_empty(void)
+{
+  return (m_hash.records == 0);
+}
+
+/**
+   Hashing commodity structures and functions.
+ */
+
+bool Hash_slave_rows::init(void)
+{
+  if (my_hash_init(&m_hash,
+                   &my_charset_bin,                /* the charater set information */
+                   16 /* TODO */,                  /* growth size */
+                   0,                              /* key offset */
+                   0,                              /* key length */
+                   hash_slave_rows_get_key,                        /* get function pointer */
+                   (my_hash_free_key) hash_slave_rows_free_entry,  /* freefunction pointer */
+                   MYF(0)))                        /* flags */
+    return true;
+  return false;
+}
+
+bool Hash_slave_rows::deinit(void)
+{
+  if (my_hash_inited(&m_hash))
+    my_hash_free(&m_hash);
+
+  return 0;
+}
+
+int Hash_slave_rows::size()
+{
+  return m_hash.records;
+}
+
+HASH_ROW_ENTRY* Hash_slave_rows::make_entry(const uchar* bi_start, const uchar* bi_ends,
+                                            const uchar* ai_start, const uchar* ai_ends)
+{
+  DBUG_ENTER("Hash_slave_rows::make_entry");
+
+  HASH_ROW_ENTRY *entry= (HASH_ROW_ENTRY*) my_malloc(sizeof(HASH_ROW_ENTRY), MYF(0));
+  HASH_ROW_PREAMBLE *preamble= (HASH_ROW_PREAMBLE *) my_malloc(sizeof(HASH_ROW_PREAMBLE), MYF(0));
+  HASH_ROW_POS *pos= (HASH_ROW_POS *) my_malloc(sizeof(HASH_ROW_POS), MYF(0));
+
+  if (!entry || !preamble || !pos)
+    goto err;
+
+  /**
+     Filling in the preamble.
+   */
+  preamble->hash_value= 0;
+  preamble->length= sizeof(my_hash_value_type);
+  preamble->search_state= HASH_ROWS_POS_SEARCH_INVALID;
+  preamble->is_search_state_inited= false;
+
+  /**
+     Filling in the positions.
+   */
+  pos->bi_start= (const uchar *) bi_start;
+  pos->bi_ends= (const uchar *) bi_ends;
+  pos->ai_start= (const uchar *) ai_start;
+  pos->ai_ends= (const uchar *) ai_ends;
+
+  /**
+    Filling in the entry
+   */
+  entry->preamble= preamble;
+  entry->positions= pos;
+
+  DBUG_RETURN(entry);
+
+err:
+  if (entry)
+    my_free(entry);
+  if (preamble)
+    my_free(entry);
+  if (pos)
+    my_free(pos);
+  DBUG_RETURN(NULL);
+}
+
+bool
+Hash_slave_rows::put(TABLE *table,
+                     MY_BITMAP *cols,
+                     HASH_ROW_ENTRY* entry)
+{
+
+  DBUG_ENTER("Hash_slave_rows::put");
+
+  HASH_ROW_PREAMBLE* preamble= entry->preamble;
+
+  /**
+     Skip blobs and BIT fields from key calculation.
+     Handle X bits.
+     Handle nulled fields.
+     Handled fields not signaled.
+  */
+  preamble->hash_value= make_hash_key(table, cols);
+
+  my_hash_insert(&m_hash, (uchar *) entry);
+  DBUG_PRINT("debug", ("Added record to hash with key=%u", preamble->hash_value));
+  DBUG_RETURN(false);
+}
+
+HASH_ROW_ENTRY*
+Hash_slave_rows::get(TABLE *table, MY_BITMAP *cols)
+{
+  DBUG_ENTER("Hash_slave_rows::get");
+  HASH_SEARCH_STATE state;
+  my_hash_value_type key;
+  HASH_ROW_ENTRY *entry= NULL;
+
+  key= make_hash_key(table, cols);
+
+  DBUG_PRINT("debug", ("Looking for record with key=%u in the hash.", key));
+
+  entry= (HASH_ROW_ENTRY*) my_hash_first(&m_hash,
+                                         (const uchar*) &key,
+                                         sizeof(my_hash_value_type),
+                                         &state);
+  if (entry)
+  {
+    DBUG_PRINT("debug", ("Found record with key=%u in the hash.", key));
+
+    /**
+       Save the search state in case we need to go through entries for
+       the given key.
+    */
+    entry->preamble->search_state= state;
+    entry->preamble->is_search_state_inited= true;
+  }
+
+  DBUG_RETURN(entry);
+}
+
+bool Hash_slave_rows::next(HASH_ROW_ENTRY** entry)
+{
+  DBUG_ENTER("Hash_slave_rows::next");
+  DBUG_ASSERT(*entry);
+
+  if (*entry == NULL)
+    DBUG_RETURN(true);
+
+  HASH_ROW_PREAMBLE *preamble= (*entry)->preamble;
+
+  if (!preamble->is_search_state_inited)
+    DBUG_RETURN(true);
+
+  my_hash_value_type key= preamble->hash_value;
+  HASH_SEARCH_STATE state= preamble->search_state;
+
+  /*
+    Invalidate search for current preamble, because it is going to be
+    used in the search below (and search state is used in a
+    one-time-only basis).
+   */
+  preamble->search_state= HASH_ROWS_POS_SEARCH_INVALID;
+  preamble->is_search_state_inited= false;
+
+  DBUG_PRINT("debug", ("Looking for record with key=%u in the hash (next).", key));
+
+  /**
+     Do the actual search in the hash table.
+   */
+  *entry= (HASH_ROW_ENTRY*) my_hash_next(&m_hash,
+                                         (const uchar*) &key,
+                                         sizeof(my_hash_value_type),
+                                         &state);
+  if (*entry)
+  {
+    DBUG_PRINT("debug", ("Found record with key=%u in the hash (next).", key));
+    preamble= (*entry)->preamble;
+
+    /**
+       Save the search state for next iteration (if any).
+     */
+    preamble->search_state= state;
+    preamble->is_search_state_inited= true;
+  }
+
+  DBUG_RETURN(false);
+}
+
+bool
+Hash_slave_rows::del(HASH_ROW_ENTRY *entry)
+{
+  DBUG_ENTER("Hash_slave_rows::del");
+  DBUG_ASSERT(entry);
+
+  if (my_hash_delete(&m_hash, (uchar *) entry))
+    DBUG_RETURN(true);
+  DBUG_RETURN(false);
+}
+
+my_hash_value_type
+Hash_slave_rows::make_hash_key(TABLE *table, MY_BITMAP *cols)
+{
+  DBUG_ENTER("Hash_slave_rows::make_hash_key");
+  ha_checksum crc= 0L;
+
+  uchar *record= table->record[0];
+  uchar saved_x= 0, saved_filler= 0;
+
+  if (table->s->null_bytes > 0)
+  {
+    /*
+      If we have an X bit then we need to take care of it.
+    */
+    if (!(table->s->db_options_in_use & HA_OPTION_PACK_RECORD))
+    {
+      saved_x= record[0];
+      record[0]|= 1U;
+    }
+
+    /*
+      If (last_null_bit_pos == 0 && null_bytes > 1), then:
+      X bit (if any) + N nullable fields + M Field_bit fields = 8 bits
+      Ie, the entire byte is used.
+    */
+    if (table->s->last_null_bit_pos > 0)
+    {
+      saved_filler= record[table->s->null_bytes - 1];
+      record[table->s->null_bytes - 1]|=
+        256U - (1U << table->s->last_null_bit_pos);
+    }
+  }
+
+  /*
+    We can only checksum the bytes if all fields have been signaled
+    in the before image. Otherwise, unpack_row will not have set the
+    null_flags correctly (because it only unpacks those fields and
+    their flags that were actually in the before image).
+
+    @c record_compare, as it also skips null_flags if the read_set
+    was not marked completely.
+   */
+  if (bitmap_is_set_all(cols))
+    crc= my_checksum(crc, table->null_flags, table->s->null_bytes);
+
+  for (Field **ptr=table->field ;
+       *ptr && ((*ptr)->field_index < cols->n_bits);
+       ptr++)
+  {
+    Field *f= (*ptr);
+
+    /* field is set in the read_set and is not a blob or a BIT */
+    if (bitmap_is_set(cols, f->field_index) &&
+        (f->type() != MYSQL_TYPE_BLOB) && (f->type() != MYSQL_TYPE_BIT))
+      crc= my_checksum(crc, f->ptr, f->data_length());
+  }
+
+  /*
+    Restore the saved bytes.
+
+    TODO[record format ndb]: Remove this code once NDB returns the
+    correct record format.
+  */
+  if (table->s->null_bytes > 0)
+  {
+    if (!(table->s->db_options_in_use & HA_OPTION_PACK_RECORD))
+      record[0]= saved_x;
+
+    if (table->s->last_null_bit_pos)
+      record[table->s->null_bytes - 1]= saved_filler;
+  }
+
+  DBUG_PRINT("debug", ("Created key=%u", crc));
+  DBUG_RETURN(crc);
+}
+
+
+#endif
+
+#if defined(MYSQL_SERVER) && defined(HAVE_REPLICATION)
+
+Deferred_log_events::Deferred_log_events(Relay_log_info *rli) : last_added(NULL)
+{
+  my_init_dynamic_array(&array, sizeof(Log_event *), 32, 16);
+}
+
+Deferred_log_events::~Deferred_log_events() 
+{
+  delete_dynamic(&array);
+}
+
+int Deferred_log_events::add(Log_event *ev)
+{
+  last_added= ev;
+  insert_dynamic(&array, (uchar*) &ev);
+  ev->worker= NULL; // to mark event busy avoiding deletion
+  return 0;
+}
+
+bool Deferred_log_events::is_empty()
+{  
+  return array.elements == 0;
+}
+
+bool Deferred_log_events::execute(Relay_log_info *rli)
+{
+  bool res= false;
+
+  DBUG_ASSERT(rli->deferred_events_collecting);
+
+  rli->deferred_events_collecting= false;
+  for (uint i=  0; !res && i < array.elements; i++)
+  {
+    Log_event *ev= (* (Log_event **)
+                    dynamic_array_ptr(&array, i));
+    res= ev->apply_event(rli);
+  }
+  rli->deferred_events_collecting= true;
+  return res;
+}
+
+void Deferred_log_events::rewind()
+{
+  /*
+    Reset preceeding Query log event events which execution was
+    deferred because of slave side filtering.
+  */
+  if (!is_empty())
+  {
+    for (uint i=  0; i < array.elements; i++)
+    {
+      Log_event *ev= *(Log_event **) dynamic_array_ptr(&array, i);
+      delete ev;
+    }
+    if (array.elements > array.max_element)
+      freeze_size(&array);
+    reset_dynamic(&array);
+  }
+}
+
+#endif

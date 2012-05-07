@@ -1,0 +1,26 @@
+SET NAMES utf8;
+CREATE TABLE ① (
+c1 INT PRIMARY KEY, c2 INT DEFAULT 1, ct TEXT, INDEX(c2))
+ENGINE = InnoDB;
+CREATE TABLE t1ć (c1 INT PRIMARY KEY, c2 INT, INDEX(c2),
+CONSTRAINT t1c2 FOREIGN KEY (c2) REFERENCES ①(c2))
+ENGINE=InnoDB;
+INSERT INTO ① SET c1 = 1;
+SET DEBUG = '+d,ib_drop_foreign_error';
+ALTER TABLE t1ć DROP FOREIGN KEY t1c2, RENAME TO ②;
+ERROR HY000: The table 't1ć' is full
+SET DEBUG = '-d,ib_drop_foreign_error';
+SET DEBUG = '+d,ib_rename_column_error';
+ALTER TABLE ① CHANGE c2 š INT;
+ERROR HY000: The table '①' is full
+SET DEBUG = '-d,ib_rename_column_error';
+SHOW CREATE TABLE t1ć;
+Table	Create Table
+t1ć	CREATE TABLE `t1ć` (
+  `c1` int(11) NOT NULL,
+  `c2` int(11) DEFAULT NULL,
+  PRIMARY KEY (`c1`),
+  KEY `c2` (`c2`),
+  CONSTRAINT `t1c2` FOREIGN KEY (`c2`) REFERENCES `①` (`c2`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+DROP TABLE t1ć, ①;

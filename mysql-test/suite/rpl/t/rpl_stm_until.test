@@ -124,6 +124,9 @@ start slave sql_thread;
 --replace_result 776 MASTER_LOG_POS
 start slave until master_log_file='master-bin.000001', master_log_pos=776;
 
+--echo *** TODO: consider to relocate SLAVE UNTIL SQL_AFTER_MTS_GAPS testing ***
+--echo *** from rpl_parallel_start_stop when this test gets enabled          ***
+
 #
 # bug#47210  first execution of "start slave until" stops too early  
 #

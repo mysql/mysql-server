@@ -1657,19 +1657,13 @@ int ha_archive::info(uint flag)
 {
   DBUG_ENTER("ha_archive::info");
 
-  /* 
-    If dirty, we lock, and then reset/flush the data.
-    I found that just calling azflush() doesn't always work.
-  */
   mysql_mutex_lock(&share->mutex);
-  if (share->dirty == TRUE)
+  if (share->dirty)
   {
-    if (share->dirty == TRUE)
-    {
-      DBUG_PRINT("ha_archive", ("archive flushing out rows for scan"));
-      azflush(&(share->archive_write), Z_SYNC_FLUSH);
-      share->dirty= FALSE;
-    }
+    DBUG_PRINT("ha_archive", ("archive flushing out rows for scan"));
+    DBUG_ASSERT(share->archive_write_open);
+    azflush(&(share->archive_write), Z_SYNC_FLUSH);
+    share->dirty= FALSE;
   }
 
   /* 
@@ -1709,6 +1703,7 @@ int ha_archive::info(uint flag)
 
   if (flag & HA_STATUS_AUTO)
   {
+    /* TODO: Use the shared writer instead during the lock above. */
     init_archive_reader();
     mysql_mutex_lock(&share->mutex);
     azflush(&archive, Z_SYNC_FLUSH);
@@ -1782,7 +1777,10 @@ int ha_archive::end_bulk_insert()
 {
   DBUG_ENTER("ha_archive::end_bulk_insert");
   bulk_insert= FALSE;
-  share->dirty= TRUE;
+  mysql_mutex_lock(&share->mutex);
+  if (share->archive_write_open)
+    share->dirty= true;
+  mysql_mutex_unlock(&share->mutex);
   DBUG_RETURN(0);
 }
 

@@ -470,12 +470,7 @@ btr_cur_search_to_nth_level(
 	estimate = latch_mode & BTR_ESTIMATE;
 
 	/* Turn the flags unrelated to the latch mode off. */
-	latch_mode &= ~(BTR_INSERT
-			| BTR_DELETE_MARK
-			| BTR_DELETE
-			| BTR_ESTIMATE
-			| BTR_IGNORE_SEC_UNIQUE
-			| BTR_ALREADY_S_LATCHED);
+	latch_mode = BTR_LATCH_MODE_WITHOUT_FLAGS(latch_mode);
 
 	ut_ad(!s_latch_by_caller || latch_mode == BTR_SEARCH_LEAF);
 
@@ -1135,7 +1130,7 @@ btr_cur_insert_if_possible(
 For an insert, checks the locks and does the undo logging if desired.
 @return	DB_SUCCESS, DB_WAIT_LOCK, DB_FAIL, or error number */
 UNIV_INLINE __attribute__((warn_unused_result, nonnull(2,3,5,6)))
-ulint
+dberr_t
 btr_cur_ins_lock_and_undo(
 /*======================*/
 	ulint		flags,	/*!< in: undo logging and locking flags: if
@@ -1150,7 +1145,7 @@ btr_cur_ins_lock_and_undo(
 				successor record */
 {
 	dict_index_t*	index;
-	ulint		err;
+	dberr_t		err;
 	rec_t*		rec;
 	roll_ptr_t	roll_ptr;
 
@@ -1218,7 +1213,7 @@ one record on the page, the insert will always succeed; this is to
 prevent trying to split a page with just one record.
 @return	DB_SUCCESS, DB_WAIT_LOCK, DB_FAIL, or error number */
 UNIV_INTERN
-ulint
+dberr_t
 btr_cur_optimistic_insert(
 /*======================*/
 	ulint		flags,	/*!< in: undo logging and locking flags: if not
@@ -1252,7 +1247,7 @@ btr_cur_optimistic_insert(
 	ibool		inherit;
 	ulint		zip_size;
 	ulint		rec_size;
-	ulint		err;
+	dberr_t		err;
 
 	*big_rec = NULL;
 
@@ -1481,7 +1476,7 @@ made on the leaf level, to avoid deadlocks, mtr must also own x-latches
 to brothers of page, if those brothers exist.
 @return	DB_SUCCESS or error number */
 UNIV_INTERN
-ulint
+dberr_t
 btr_cur_pessimistic_insert(
 /*=======================*/
 	ulint		flags,	/*!< in: undo logging and locking flags: if not
@@ -1506,7 +1501,7 @@ btr_cur_pessimistic_insert(
 	ulint		zip_size	= dict_table_zip_size(index->table);
 	big_rec_t*	big_rec_vec	= NULL;
 	mem_heap_t*	heap		= NULL;
-	ulint		err;
+	dberr_t		err;
 	ibool		dummy_inh;
 	ibool		success;
 	ulint		n_extents	= 0;
@@ -1626,7 +1621,7 @@ btr_cur_pessimistic_insert(
 For an update, checks the locks and does the undo logging.
 @return	DB_SUCCESS, DB_WAIT_LOCK, or error number */
 UNIV_INLINE __attribute__((warn_unused_result, nonnull(2,3,6,7)))
-ulint
+dberr_t
 btr_cur_upd_lock_and_undo(
 /*======================*/
 	ulint		flags,	/*!< in: undo logging and locking flags */
@@ -1641,7 +1636,7 @@ btr_cur_upd_lock_and_undo(
 {
 	dict_index_t*	index;
 	rec_t*		rec;
-	ulint		err;
+	dberr_t		err;
 
 	ut_ad(thr || (flags & BTR_NO_LOCKING_FLAG));
 
@@ -1882,7 +1877,7 @@ Updates a record when the update causes no size changes in its fields.
 We assume here that the ordering fields of the record do not change.
 @return	DB_SUCCESS or error number */
 UNIV_INTERN
-ulint
+dberr_t
 btr_cur_update_in_place(
 /*====================*/
 	ulint		flags,	/*!< in: undo logging and locking flags */
@@ -1901,7 +1896,7 @@ btr_cur_update_in_place(
 	dict_index_t*	index;
 	buf_block_t*	block;
 	page_zip_des_t*	page_zip;
-	ulint		err;
+	dberr_t		err;
 	rec_t*		rec;
 	roll_ptr_t	roll_ptr	= 0;
 	ulint		was_delete_marked;
@@ -2021,7 +2016,7 @@ fields of the record do not change.
 DB_UNDERFLOW if the page would become too empty, or DB_ZIP_OVERFLOW if
 there is not enough space left on the compressed page */
 UNIV_INTERN
-ulint
+dberr_t
 btr_cur_optimistic_update(
 /*======================*/
 	ulint		flags,	/*!< in: undo logging and locking flags */
@@ -2040,7 +2035,7 @@ btr_cur_optimistic_update(
 {
 	dict_index_t*	index;
 	page_cur_t*	page_cursor;
-	ulint		err;
+	dberr_t		err;
 	buf_block_t*	block;
 	page_t*		page;
 	page_zip_des_t*	page_zip;
@@ -2282,7 +2277,7 @@ own x-latches to brothers of page, if those brothers exist. We assume
 here that the ordering fields of the record do not change.
 @return	DB_SUCCESS or error code */
 UNIV_INTERN
-ulint
+dberr_t
 btr_cur_pessimistic_update(
 /*=======================*/
 	ulint		flags,	/*!< in: undo logging, locking, and rollback
@@ -2313,8 +2308,8 @@ btr_cur_pessimistic_update(
 	rec_t*		rec;
 	page_cur_t*	page_cursor;
 	dtuple_t*	new_entry;
-	ulint		err;
-	ulint		optim_err;
+	dberr_t		err;
+	dberr_t		optim_err;
 	roll_ptr_t	roll_ptr;
 	ibool		was_first;
 	ulint		n_extents	= 0;
@@ -2745,7 +2740,7 @@ of the deleting transaction, and in the roll ptr field pointer to the
 undo log record created.
 @return	DB_SUCCESS, DB_LOCK_WAIT, or error number */
 UNIV_INTERN
-ulint
+dberr_t
 btr_cur_del_mark_set_clust_rec(
 /*===========================*/
 	buf_block_t*	block,	/*!< in/out: buffer block of the record */
@@ -2756,7 +2751,7 @@ btr_cur_del_mark_set_clust_rec(
 	mtr_t*		mtr)	/*!< in: mtr */
 {
 	roll_ptr_t	roll_ptr;
-	ulint		err;
+	dberr_t		err;
 	page_zip_des_t*	page_zip;
 	trx_t*		trx;
 
@@ -2894,7 +2889,7 @@ btr_cur_parse_del_mark_set_sec_rec(
 Sets a secondary index record delete mark to TRUE or FALSE.
 @return	DB_SUCCESS, DB_LOCK_WAIT, or error number */
 UNIV_INTERN
-ulint
+dberr_t
 btr_cur_del_mark_set_sec_rec(
 /*=========================*/
 	ulint		flags,	/*!< in: locking flag */
@@ -2905,7 +2900,7 @@ btr_cur_del_mark_set_sec_rec(
 {
 	buf_block_t*	block;
 	rec_t*		rec;
-	ulint		err;
+	dberr_t		err;
 
 	block = btr_cur_get_block(cursor);
 	rec = btr_cur_get_rec(cursor);
@@ -3099,7 +3094,7 @@ UNIV_INTERN
 ibool
 btr_cur_pessimistic_delete(
 /*=======================*/
-	ulint*		err,	/*!< out: DB_SUCCESS or DB_OUT_OF_FILE_SPACE;
+	dberr_t*	err,	/*!< out: DB_SUCCESS or DB_OUT_OF_FILE_SPACE;
 				the latter may occur because we may have
 				to update node pointers on upper levels,
 				and in the case of variable length keys
@@ -3479,6 +3474,9 @@ btr_estimate_n_rows_in_range(
 	ibool		is_n_rows_exact;
 	ulint		i;
 	mtr_t		mtr;
+	ib_int64_t	table_n_rows;
+
+	table_n_rows = dict_table_get_n_rows(index->table);
 
 	mtr_start(&mtr);
 
@@ -3547,16 +3545,15 @@ btr_estimate_n_rows_in_range(
 			to over 1 / 2 of the estimated rows in the whole
 			table */
 
-			if (n_rows > index->table->stat_n_rows / 2
-			    && !is_n_rows_exact) {
+			if (n_rows > table_n_rows / 2 && !is_n_rows_exact) {
 
-				n_rows = index->table->stat_n_rows / 2;
+				n_rows = table_n_rows / 2;
 
 				/* If there are just 0 or 1 rows in the table,
 				then we estimate all rows are in the range */
 
 				if (n_rows == 0) {
-					n_rows = index->table->stat_n_rows;
+					n_rows = table_n_rows;
 				}
 			}
 
@@ -4218,7 +4215,7 @@ The fields are stored on pages allocated from leaf node
 file segment of the index tree.
 @return	DB_SUCCESS or DB_OUT_OF_FILE_SPACE */
 UNIV_INTERN
-enum db_err
+dberr_t
 btr_store_big_rec_extern_fields(
 /*============================*/
 	dict_index_t*	index,		/*!< in: index of rec; the index tree
@@ -4252,7 +4249,7 @@ btr_store_big_rec_extern_fields(
 	z_stream	c_stream;
 	buf_block_t**	freed_pages	= NULL;
 	ulint		n_freed_pages	= 0;
-	enum db_err	error		= DB_SUCCESS;
+	dberr_t		error		= DB_SUCCESS;
 
 	ut_ad(rec_offs_validate(rec, index, offsets));
 	ut_ad(rec_offs_any_extern(offsets));
@@ -5155,6 +5152,7 @@ btr_copy_zblob_prefix(
 				" page %lu space %lu\n",
 				(ulong) fil_page_get_type(bpage->zip.data),
 				(ulong) page_no, (ulong) space_id);
+			ut_ad(0);
 			goto end_of_blob;
 		}
 

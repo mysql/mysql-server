@@ -110,15 +110,13 @@ class ha_innobase: public handler
 	void update_thd();
 	int change_active_index(uint keynr);
 	int general_fetch(uchar* buf, uint direction, uint match_mode);
-	ulint innobase_lock_autoinc();
+	dberr_t innobase_lock_autoinc();
 	ulonglong innobase_peek_autoinc();
-	ulint innobase_set_max_autoinc(ulonglong auto_inc);
-	ulint innobase_reset_autoinc(ulonglong auto_inc);
-	ulint innobase_get_autoinc(ulonglong* value);
-	ulint innobase_update_autoinc(ulonglong	auto_inc);
+	dberr_t innobase_set_max_autoinc(ulonglong auto_inc);
+	dberr_t innobase_reset_autoinc(ulonglong auto_inc);
+	dberr_t innobase_get_autoinc(ulonglong* value);
 	void innobase_initialize_autoinc();
 	dict_index_t* innobase_get_index(uint keynr);
-	int info_low(uint flag, dict_stats_upd_option_t stats_upd_option);
 
 	/* Init values for the class: */
  public:
@@ -237,6 +235,7 @@ class ha_innobase: public handler
 
 	@retval HA_ALTER_INPLACE_NOT_SUPPORTED	Not supported
 	@retval HA_ALTER_INPLACE_EXCLUSIVE_LOCK	Supported, but requires X-lock
+	@retval HA_ALTER_INPLACE_NO_LOCK Supported
 	@retval HA_ALTER_INPLACE_NO_LOCK_AFTER_PREPARE Supported, prepare phase
 	*/
 	enum_alter_inplace_result check_if_supported_inplace_alter(
@@ -445,6 +444,7 @@ extern const struct _ft_vft ft_vft_result;
 typedef struct new_ft_info
 {
 	struct _ft_vft		*please;
+	struct _ft_vft_ext	*could_you;
 	row_prebuilt_t*		ft_prebuilt;
 	fts_result_t*		ft_result;
 } NEW_FT_INFO;
@@ -566,6 +566,32 @@ innobase_fts_check_doc_id_index_in_def(
 	ulint		n_key,		/*!< in: Number of keys */
 	const KEY*	key_info)	/*!< in: Key definitions */
 	__attribute__((nonnull, warn_unused_result));
+
+/***********************************************************************
+@return version of the extended FTS API */
+uint
+innobase_fts_get_version();
+
+/***********************************************************************
+@return Which part of the extended FTS API is supported */
+ulonglong
+innobase_fts_flags();
+
+/***********************************************************************
+Find and Retrieve the FTS doc_id for the current result row
+@return the document ID */
+ulonglong
+innobase_fts_retrieve_docid(
+/*============================*/
+	FT_INFO_EXT*	fts_hdl);	/*!< in: FTS handler */
+
+/***********************************************************************
+Find and retrieve the size of the current result
+@return number of matching rows */
+ulonglong
+innobase_fts_count_matches(
+/*============================*/
+	FT_INFO_EXT*	fts_hdl);	/*!< in: FTS handler */
 
 /** "GEN_CLUST_INDEX" is the name reserved for InnoDB default
 system clustered index when there is no primary key. */
