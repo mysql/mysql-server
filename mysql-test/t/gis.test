@@ -812,4 +812,19 @@ CREATE TABLE t3 (
 # cleanup
 DROP TABLE t0, t1, t2;
 
+
+--echo #
+--echo # BUG#12414917 - ISCLOSED() CRASHES ON 64-BIT BUILDS
+--echo #
+SELECT ISCLOSED(CONVERT(CONCAT('     ', 0x2), BINARY(20)));
+
+--echo #
+--echo # BUG#12537203 - CRASH WHEN SUBSELECTING GLOBAL VARIABLES IN 
+--echo # GEOMETRY FUNCTION ARGUMENTS
+--echo #
+--replace_regex /non geometric .* value/non geometric '' value/
+--error ER_ILLEGAL_VALUE_FOR_TYPE
+SELECT GEOMETRYCOLLECTION((SELECT @@OLD));
+
+
 --echo End of 5.1 tests
