@@ -394,7 +394,17 @@ public:
   */
   SEL_ARG *next_key_part; 
   enum leaf_color { BLACK,RED } color;
-  enum Type { IMPOSSIBLE, MAYBE, MAYBE_KEY, KEY_RANGE } type;
+
+  /**
+    Starting an effort to document this field:
+
+    IMPOSSIBLE: if the range predicate for this index is always false.
+
+    ALWAYS: if the range predicate for this index is always true.
+
+    KEY_RANGE: if there is a range predicate that can be used on this index.
+  */
+  enum Type { IMPOSSIBLE, ALWAYS, MAYBE, MAYBE_KEY, KEY_RANGE } type;
 
   enum { MAX_SEL_ARGS = 16000 };
 
@@ -699,10 +709,28 @@ class SEL_IMERGE;
 class SEL_TREE :public Sql_alloc
 {
 public:
-  /*
+  /**
     Starting an effort to document this field:
-    (for some i, keys[i]->type == SEL_ARG::IMPOSSIBLE) => 
-       (type == SEL_TREE::IMPOSSIBLE)
+
+    IMPOSSIBLE: if keys[i]->type == SEL_ARG::IMPOSSIBLE for some i,
+      then type == SEL_TREE::IMPOSSIBLE. Rationale: if the predicate for
+      one of the indexes is always false, then the full predicate is also
+      always false.
+
+    ALWAYS: if either (keys[i]->type == SEL_ARG::ALWAYS) or 
+      (keys[i] == NULL) for all i, then type == SEL_TREE::ALWAYS. 
+      Rationale: the range access method will not be able to filter
+      out any rows when there are no range predicates that can be used
+      to filter on any index.
+
+    KEY: There are range predicates that can be used on at least one
+      index.
+      
+    KEY_SMALLER: There are range predicates that can be used on at
+      least one index. In addition, there are predicates that cannot
+      be directly utilized by range access on key parts in the same
+      index. These unused predicates makes it probable that the row
+      estimate for range access on this index is too pessimistic.
   */
   enum Type { IMPOSSIBLE, ALWAYS, MAYBE, KEY, KEY_SMALLER } type;
   SEL_TREE(enum Type type_arg) :type(type_arg) {}
@@ -7538,6 +7566,8 @@ key_or(RANGE_OPT_PARAM *param, SEL_ARG *key1, SEL_ARG *key2)
           // cur_key2 is full range: [-inf <= cur_key2 <= +inf]
           key1->free_tree();
           key2->free_tree();
+          key1->type= SEL_ARG::ALWAYS;
+          key2->type= SEL_ARG::ALWAYS;
           if (key1->maybe_flag)
             return new SEL_ARG(SEL_ARG::MAYBE_KEY);
           return 0;
@@ -7746,6 +7776,8 @@ key_or(RANGE_OPT_PARAM *param, SEL_ARG *key1, SEL_ARG *key2)
         if (full_range)
         {                                       // Full range
           key1->free_tree();
+          key1->type= SEL_ARG::ALWAYS;
+          key2->type= SEL_ARG::ALWAYS;
           for (; cur_key2 ; cur_key2= cur_key2->next)
             cur_key2->increment_use_count(-1);  // Free not used tree
           if (key1->maybe_flag)
