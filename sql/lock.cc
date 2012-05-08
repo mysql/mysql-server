@@ -1041,6 +1041,15 @@ void Global_read_lock::unlock_global_read_lock(THD *thd)
 
   DBUG_ASSERT(m_mdl_global_shared_lock && m_state);
 
+  if (thd->global_disable_checkpoint)
+  {
+    thd->global_disable_checkpoint= 0;
+    if (!--global_disable_checkpoint)
+    {
+      ha_checkpoint_state(0);                   // Enable checkpoints
+    }
+  }
+
   if (m_mdl_blocks_commits_lock)
   {
     thd->mdl_context.release_lock(m_mdl_blocks_commits_lock);
