@@ -2119,7 +2119,7 @@ join t1 as x2 on x2.a = x1.c and x1.b < 2
 join t1 as x3 on x3.a = x1.d;
 count(*)
 20000
-set global debug='-d,max_64rows_in_spj_batches';
+set global debug=@save_debug;
 drop table t1;
 drop table tx;
 create table t1 (
@@ -4017,7 +4017,7 @@ join t1 as t3 on t3.a = t2.c and t3.b = t2.d;
 count(*)
 8990
 drop table t1;
-set global debug='-d,max_64rows_in_spj_batches';
+set global debug=@save_debug;
 create logfile group lg1
 add undofile 'undofile.dat'
 initial_size 1m
@@ -4475,7 +4475,7 @@ Warnings:
 Note	1003	select `test`.`x`.`pk` AS `pk`,`test`.`x`.`u` AS `u`,`test`.`y`.`pk` AS `pk`,`test`.`y`.`u` AS `u` from `test`.`t1` `x` join `test`.`t1` `y` where (`test`.`y`.`pk` = `test`.`x`.`u`) order by `test`.`x`.`pk`
 select * from t1 as x join t1 as y on x.u=y.pk order by(x.pk);
 pk	u	pk	u
-set global debug='-d,max_64rows_in_spj_batches';
+set global debug=@save_debug;
 drop table t1;
 create table t1 (pk int primary key, u int not null, a int, b int) engine=ndb;
 create index ix1 on t1(b,a);
@@ -4646,7 +4646,7 @@ pk	u	a	b	pk	u	a	b	pk	u	a	b
 7	7	10	10	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
 8	8	10	10	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
 9	9	10	10	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
-set global debug='-d,max_4rows_in_spj_batches';
+set global debug=@save_debug;
 explain extended select straight_join * from t1 as x1 
 inner join t1 as x2 on x2.b = x1.a;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -4741,7 +4741,7 @@ join t1 as x7 on x7.b = x1.a
 where x3.a < x2.pk and x4.a < x3.pk;
 count(*)
 632736
-set global debug='-d,max_64rows_in_spj_batches';
+set global debug=@save_debug;
 explain extended select straight_join count(*) from t1 as x1 
 left join t1 as x2 on x2.b = x1.a
 join t1 as x3 on x3.b = x1.b;
@@ -4848,7 +4848,7 @@ select straight_join count(*) from
 left outer join t1 as z on z.u = x.a;
 count(*)
 156
-set global debug='-d,max_64rows_in_spj_batches';
+set global debug=@save_debug;
 update t1 set u=u-100;
 drop index ix2 on t1;
 create unique index ix2 on t1(a,u);
@@ -4939,7 +4939,7 @@ count(*)
 300
 Local_range_scans
 4
-set global debug='-d,max_64rows_in_spj_batches';
+set global debug=@save_debug;
 drop table t1;
 drop table t2;
 drop table t3;
@@ -5707,7 +5707,7 @@ join t as t6 on t6.k = t1.k
 where t1.i < 2;
 count(*)
 243
-set global debug='-d,max_4rows_in_spj_batches';
+set global debug=@save_debug;
 drop table t;
 create temporary table spj_counts_at_end
 select counter_name, sum(val) as val 
@@ -5747,4 +5747,3 @@ NDB_PUSHED_QUERIES_EXECUTED	541
 NDB_SORTED_SCAN_COUNT	11
 drop table server_counts_at_startup;
 set ndb_join_pushdown = @save_ndb_join_pushdown;
-set global debug=@save_debug;
