@@ -12,6 +12,7 @@ where variable_name in
 'Ndb_pushed_queries_defined',
 'Ndb_pushed_queries_dropped',
 'Ndb_pushed_queries_executed');
+set @save_debug = @@global.debug;
 set @save_ndb_join_pushdown = @@session.ndb_join_pushdown;
 set ndb_join_pushdown = true;
 create table t1 (
@@ -2105,6 +2106,7 @@ PRIMARY KEY (`a`)
 delete from t1;
 insert into tx values (0), (1), (2), (3), (4), (5), (6), (7), (8), (9);
 insert into t1 select 1, x1.a * 10+x2.a, 1, 1 from tx as x1 cross join tx as x2;
+set global debug='+d,max_64rows_in_spj_batches';
 explain select count(*) from t1 as x1
 join t1 as x2 on x2.a = x1.c and x1.b < 2 
 join t1 as x3 on x3.a = x1.d;
@@ -2117,6 +2119,7 @@ join t1 as x2 on x2.a = x1.c and x1.b < 2
 join t1 as x3 on x3.a = x1.d;
 count(*)
 20000
+set global debug='-d,max_64rows_in_spj_batches';
 drop table t1;
 drop table tx;
 create table t1 (
@@ -3936,6 +3939,7 @@ k	b	k	b	k	b	k	b
 3	1	1	1	1	1	1	1
 4	1	1	1	1	1	1	1
 drop table t1;
+set global debug='+d,max_64rows_in_spj_batches';
 create table t1 (
 a int not null auto_increment,
 b char(255) not null,
@@ -4013,6 +4017,7 @@ join t1 as t3 on t3.a = t2.c and t3.b = t2.d;
 count(*)
 8990
 drop table t1;
+set global debug='-d,max_64rows_in_spj_batches';
 create logfile group lg1
 add undofile 'undofile.dat'
 initial_size 1m
@@ -4461,6 +4466,7 @@ insert into t1 values (0,-1), (1,-1), (2,-1), (3,-1), (4,-1), (5,-1), (6,-1),
 (118,-1), (119,-1), (120,-1), (121,-1), (122,-1), (123,-1), (124,-1), 
 (125,-1), (126,-1), (127,-1), (128,-1), (129,-1), (130,-1), (131,-1), 
 (132,-1), (133,-1), (134,-1), (135,-1), (136,-1), (137,-1), (138,-1), (139,-1);
+set global debug='+d,max_64rows_in_spj_batches';
 explain extended select * from t1 as x join t1 as y on x.u=y.pk order by(x.pk);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	x	index	NULL	PRIMARY	4	NULL	140	100.00	Parent of 2 pushed join@1
@@ -4469,6 +4475,7 @@ Warnings:
 Note	1003	select `test`.`x`.`pk` AS `pk`,`test`.`x`.`u` AS `u`,`test`.`y`.`pk` AS `pk`,`test`.`y`.`u` AS `u` from `test`.`t1` `x` join `test`.`t1` `y` where (`test`.`y`.`pk` = `test`.`x`.`u`) order by `test`.`x`.`pk`
 select * from t1 as x join t1 as y on x.u=y.pk order by(x.pk);
 pk	u	pk	u
+set global debug='-d,max_64rows_in_spj_batches';
 drop table t1;
 create table t1 (pk int primary key, u int not null, a int, b int) engine=ndb;
 create index ix1 on t1(b,a);
@@ -4594,6 +4601,7 @@ join t1 as x2 on x1.a=x2.b
 where x1.pk = 1 or x1.u=1;
 count(*)
 13
+set global debug='+d,max_4rows_in_spj_batches';
 set ndb_join_pushdown=on;
 explain extended
 select straight_join * from t1 as table1
@@ -4638,6 +4646,7 @@ pk	u	a	b	pk	u	a	b	pk	u	a	b
 7	7	10	10	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
 8	8	10	10	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
 9	9	10	10	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+set global debug='-d,max_4rows_in_spj_batches';
 explain extended select straight_join * from t1 as x1 
 inner join t1 as x2 on x2.b = x1.a;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -4721,6 +4730,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	x7	ref	ix1	ix1	5	test.x2.b	2	100.00	Child of 'x1' in pushed join@1; Using where
 Warnings:
 Note	1003	select straight_join count(0) AS `count(*)` from `test`.`t1` `x1` join `test`.`t1` `x2` join `test`.`t1` `x3` join `test`.`t1` `x4` join `test`.`t1` `x5` join `test`.`t1` `x6` join `test`.`t1` `x7` where ((`test`.`x2`.`b` = `test`.`x1`.`a`) and (`test`.`x3`.`b` = `test`.`x1`.`a`) and (`test`.`x4`.`b` = `test`.`x1`.`a`) and (`test`.`x5`.`b` = `test`.`x1`.`a`) and (`test`.`x6`.`b` = `test`.`x1`.`a`) and (`test`.`x7`.`b` = `test`.`x1`.`a`) and (`test`.`x3`.`a` < `test`.`x2`.`pk`) and (`test`.`x4`.`a` < `test`.`x3`.`pk`))
+set global debug='+d,max_64rows_in_spj_batches';
 select straight_join count(*) from t1 as x1 
 join t1 as x2 on x2.b = x1.a
 join t1 as x3 on x3.b = x1.a
@@ -4731,6 +4741,7 @@ join t1 as x7 on x7.b = x1.a
 where x3.a < x2.pk and x4.a < x3.pk;
 count(*)
 632736
+set global debug='-d,max_64rows_in_spj_batches';
 explain extended select straight_join count(*) from t1 as x1 
 left join t1 as x2 on x2.b = x1.a
 join t1 as x3 on x3.b = x1.b;
@@ -4822,6 +4833,7 @@ count(*)
 update t1 set b=b-10;
 update t1 set u=u+100;
 set ndb_join_pushdown=on;
+set global debug='+d,max_64rows_in_spj_batches';
 explain extended select straight_join count(*) from 
 (t1 as x join t1 as y on y.b = x.a)
 left outer join t1 as z on z.u = x.a;
@@ -4836,6 +4848,7 @@ select straight_join count(*) from
 left outer join t1 as z on z.u = x.a;
 count(*)
 156
+set global debug='-d,max_64rows_in_spj_batches';
 update t1 set u=u-100;
 drop index ix2 on t1;
 create unique index ix2 on t1(a,u);
@@ -4893,6 +4906,7 @@ PRIMARY KEY (`a`,`b`)
 ) ENGINE=ndbcluster;
 insert into t2 values (0), (1), (2), (3), (4), (5), (6), (7), (8), (9);
 insert into t3 select 1, x1.a * 10+x2.a from t2 as x1 cross join t2 as x2;
+set global debug='+d,max_64rows_in_spj_batches';
 explain select straight_join count(*) from t1 as x0  
 join t3 as x1 on x1.a=x0.c
 join t1 as x2 on x2.a=x0.d
@@ -4925,6 +4939,7 @@ count(*)
 300
 Local_range_scans
 4
+set global debug='-d,max_64rows_in_spj_batches';
 drop table t1;
 drop table t2;
 drop table t3;
@@ -5656,6 +5671,44 @@ k1	i	name
 Warnings:
 Warning	4294	Scan filter is too large, discarded
 drop table t1;
+create table t(
+pk int primary key auto_increment,
+i int, 
+j int,
+k int,
+index(i,j),
+index(i),
+index(j),
+index(k)
+) engine = ndb;
+insert into t(i,j,k) values
+(1,1,1), (1,1,1), (1,1,1),
+(2,2,2), (2,2,2), (2,2,2);
+set global debug='+d,max_4rows_in_spj_batches';
+explain
+select straight_join count(*) from 
+t as t1
+join t as t2 on t2.i = t1.i
+join (t as t3 join t as t4 on t4.k=t3.k join t as t5 on t5.i=t4.i and t5.j=t3.j) on t3.pk=t1.j
+join t as t6 on t6.k = t1.k
+where t1.i < 2;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	i,i_2,j,k	i	5	NULL	3	Parent of 6 pushed join@1; Using where with pushed condition
+1	SIMPLE	t2	ref	i,i_2	i	5	test.t1.i	1	Child of 't1' in pushed join@1; Using where
+1	SIMPLE	t3	eq_ref	PRIMARY,j,k	PRIMARY	4	test.t1.j	1	Child of 't1' in pushed join@1
+1	SIMPLE	t4	ref	i,i_2,k	k	5	test.t3.k	2	Child of 't3' in pushed join@1; Using where
+1	SIMPLE	t5	ref	i,i_2,j	i	10	test.t4.i,test.t3.j	2	Child of 't4' in pushed join@1; Using where
+1	SIMPLE	t6	ref	k	k	5	test.t1.k	2	Child of 't1' in pushed join@1; Using where
+select straight_join count(*) from 
+t as t1
+join t as t2 on t2.i = t1.i
+join (t as t3 join t as t4 on t4.k=t3.k join t as t5 on t5.i=t4.i and t5.j=t3.j) on t3.pk=t1.j
+join t as t6 on t6.k = t1.k
+where t1.i < 2;
+count(*)
+243
+set global debug='-d,max_4rows_in_spj_batches';
+drop table t;
 create temporary table spj_counts_at_end
 select counter_name, sum(val) as val 
 from ndbinfo.counters 
@@ -5676,7 +5729,7 @@ counter_name	spj_counts_at_end.val - spj_counts_at_startup.val
 CONST_PRUNED_RANGE_SCANS_RECEIVED	8
 LOCAL_TABLE_SCANS_SENT	254
 PRUNED_RANGE_SCANS_RECEIVED	27
-RANGE_SCANS_RECEIVED	736
+RANGE_SCANS_RECEIVED	738
 READS_RECEIVED	47
 TABLE_SCANS_RECEIVED	254
 drop table spj_counts_at_startup;
@@ -5694,3 +5747,4 @@ NDB_PUSHED_QUERIES_EXECUTED	541
 NDB_SORTED_SCAN_COUNT	11
 drop table server_counts_at_startup;
 set ndb_join_pushdown = @save_ndb_join_pushdown;
+set global debug=@save_debug;
