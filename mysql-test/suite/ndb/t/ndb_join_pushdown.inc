@@ -4133,6 +4133,57 @@ eval $query;
 
 drop table t1;
 
+############################################################
+# Bug#14010406 LARGE PUSHED JOIN HIT ASSERT IN SPJ BLOCK
+#
+# Buffered rows (caused by PARENT refs) was prematurely
+# released when there was no TN_ACTIVE treeNodes childs.
+# However, in bushy scans, a scan branch can be 'repeated'
+# even if its previous execution was 'complete'. 
+#
+# Thus we have to use a less eager release strategy where
+# we don't release any buffered rows until we prepare for
+# a NEXTREQ which will fetch more rows into the treeNode.
+############################################################
+
+create table t(
+  pk int primary key auto_increment,
+  i int, 
+  j int,
+  k int,
+  index(i,j),
+  index(i),
+  index(j),
+  index(k)
+) engine = ndb;
+
+insert into t(i,j,k) values
+   (1,1,1), (1,1,1), (1,1,1),
+   (2,2,2), (2,2,2), (2,2,2);
+
+--error 0,1193
+set global debug='+d,max_4rows_in_spj_batches';
+
+explain
+select straight_join count(*) from 
+  t as t1
+  join t as t2 on t2.i = t1.i
+  join (t as t3 join t as t4 on t4.k=t3.k join t as t5 on t5.i=t4.i and t5.j=t3.j) on t3.pk=t1.j
+  join t as t6 on t6.k = t1.k
+  where t1.i < 2;
+
+select straight_join count(*) from 
+  t as t1
+  join t as t2 on t2.i = t1.i
+  join (t as t3 join t as t4 on t4.k=t3.k join t as t5 on t5.i=t4.i and t5.j=t3.j) on t3.pk=t1.j
+  join t as t6 on t6.k = t1.k
+  where t1.i < 2;
+
+--error 0,1193
+set global debug='-d,max_4rows_in_spj_batches';
+
+drop table t;
+
 ########################################
 # Verify DBSPJ counters for entire test:
 # Note: These tables are 'temporary' withing 'connection spj'
