@@ -39,6 +39,7 @@ create temporary table server_counts_at_startup
 ##############
 # Test start
 
+--error 0,1193
 set @save_debug = @@global.debug;
 set @save_ndb_join_pushdown = @@session.ndb_join_pushdown;
 set ndb_join_pushdown = true;
@@ -1093,13 +1094,17 @@ insert into tx values (0), (1), (2), (3), (4), (5), (6), (7), (8), (9);
 
 insert into t1 select 1, x1.a * 10+x2.a, 1, 1 from tx as x1 cross join tx as x2;
 
+--error 0,1193
 set global debug='+d,max_64rows_in_spj_batches';
+
 explain select count(*) from t1 as x1
   join t1 as x2 on x2.a = x1.c and x1.b < 2 
   join t1 as x3 on x3.a = x1.d;
 select count(*) from t1 as x1
   join t1 as x2 on x2.a = x1.c and x1.b < 2 
   join t1 as x3 on x3.a = x1.d;
+
+--error 0,1193
 set global debug='-d,max_64rows_in_spj_batches';
 
 connection ddl;
@@ -2524,7 +2529,9 @@ drop table t1;
 ##
 # Try with higher row-count to test batching/flow control
 #
+--error 0,1193
 set global debug='+d,max_64rows_in_spj_batches';
+
 connection ddl;
 create table t1 (
   a int not null auto_increment,
@@ -2591,6 +2598,8 @@ join t1 as t3 on t3.a = t2.c and t3.b = t2.d;
 
 connection ddl;
 drop table t1;
+
+--error 0,1193
 set global debug='-d,max_64rows_in_spj_batches';
 
 # Pushed join accessing disk data.
@@ -3099,9 +3108,13 @@ insert into t1 values (0,-1), (1,-1), (2,-1), (3,-1), (4,-1), (5,-1), (6,-1),
 (125,-1), (126,-1), (127,-1), (128,-1), (129,-1), (130,-1), (131,-1), 
 (132,-1), (133,-1), (134,-1), (135,-1), (136,-1), (137,-1), (138,-1), (139,-1);
 
+--error 0,1193
 set global debug='+d,max_64rows_in_spj_batches';
+
 explain extended select * from t1 as x join t1 as y on x.u=y.pk order by(x.pk);
 select * from t1 as x join t1 as y on x.u=y.pk order by(x.pk);
+
+--error 0,1193
 set global debug='-d,max_64rows_in_spj_batches';
 
 connection ddl;
@@ -3213,7 +3226,9 @@ select count(*) from t1 as x1
 # which correctly preserves the dependency between the parent subscans 
 # and its child(s).
 
+--error 0,1193
 set global debug='+d,max_4rows_in_spj_batches';
+
 set ndb_join_pushdown=on;
 explain extended
 select straight_join * from t1 as table1
@@ -3225,6 +3240,8 @@ select straight_join * from t1 as table1
   left join 
    (t1 as table2  join t1 as table3 on table2.pk = table3.b)
  on table1.pk = table2.b;
+
+--error 0,1193
 set global debug='-d,max_4rows_in_spj_batches';
 
 #############
@@ -3292,6 +3309,8 @@ where x3.a < x2.pk and x4.a < x3.pk;
 
 # set '64rows' in order to avoid to small batches which will
 # cause all subscans to be repeated... and repeated... and
+
+--error 0,1193
 set global debug='+d,max_64rows_in_spj_batches';
 
 select straight_join count(*) from t1 as x1 
@@ -3302,6 +3321,8 @@ select straight_join count(*) from t1 as x1
   join t1 as x6 on x6.b = x1.a
   join t1 as x7 on x7.b = x1.a
 where x3.a < x2.pk and x4.a < x3.pk; 
+
+--error 0,1193
 set global debug='-d,max_64rows_in_spj_batches';
 
 #############
@@ -3394,6 +3415,8 @@ update t1 set b=b-10;
 update t1 set u=u+100;
 
 set ndb_join_pushdown=on;
+
+--error 0,1193
 set global debug='+d,max_64rows_in_spj_batches';
 
 explain extended select straight_join count(*) from 
@@ -3403,6 +3426,7 @@ select straight_join count(*) from
   (t1 as x join t1 as y on y.b = x.a)
  left outer join t1 as z on z.u = x.a;
 
+--error 0,1193
 set global debug='-d,max_64rows_in_spj_batches';
 
 #Undo update
@@ -3467,6 +3491,8 @@ insert into t2 values (0), (1), (2), (3), (4), (5), (6), (7), (8), (9);
 connection spj;
 # Make t3 so big that it takes multiple batches to scan it.
 insert into t3 select 1, x1.a * 10+x2.a from t2 as x1 cross join t2 as x2;
+
+--error 0,1193
 set global debug='+d,max_64rows_in_spj_batches';
 
 explain select straight_join count(*) from t1 as x0  
@@ -3502,6 +3528,7 @@ select straight_join count(*) from t1 as x1
 --eval select sum(val) - $scan_rows as Local_range_scans from ndbinfo.counters where block_name='DBSPJ' and counter_name='LOCAL_RANGE_SCANS_SENT';
 --enable_query_log
 
+--error 0,1193
 set global debug='-d,max_64rows_in_spj_batches';
 
 connection ddl;
@@ -4153,5 +4180,6 @@ drop table server_counts_at_startup;
 --source ndbinfo_drop.inc
 
 set ndb_join_pushdown = @save_ndb_join_pushdown;
+--error 0,1193
 set global debug=@save_debug;
 
