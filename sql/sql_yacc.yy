@@ -1183,6 +1183,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  EXISTS                        /* SQL-2003-R */
 %token  EXIT_SYM
 %token  EXPANSION_SYM
+%token  EXPORT_SYM
 %token  EXTENDED_SYM
 %token  EXTENT_SIZE_SYM
 %token  EXTRACT_SYM                   /* SQL-2003-N */
@@ -1826,7 +1827,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
         opt_column_list grant_privileges grant_ident grant_list grant_option
         object_privilege object_privilege_list user_list rename_list
         clear_privileges flush_options flush_option
-        opt_with_read_lock flush_options_list
+        opt_flush_lock flush_options_list
         equal optional_braces
         opt_mi_check_type opt_to mi_check_types normal_join
         table_to_table_list table_to_table opt_table_list opt_as
@@ -12318,16 +12319,35 @@ flush_options:
             YYPS->m_mdl_type= MDL_SHARED_HIGH_PRIO;
           }
           opt_table_list {}
-          opt_with_read_lock {}
+          opt_flush_lock {}
         | flush_options_list
         ;
 
-opt_with_read_lock:
+opt_flush_lock:
           /* empty */ {}
         | WITH READ_SYM LOCK_SYM
           {
             TABLE_LIST *tables= Lex->query_tables;
             Lex->type|= REFRESH_READ_LOCK;
+            for (; tables; tables= tables->next_global)
+            {
+              tables->mdl_request.set_type(MDL_SHARED_NO_WRITE);
+              tables->required_type= FRMTYPE_TABLE; /* Don't try to flush views. */
+              tables->open_type= OT_BASE_ONLY;      /* Ignore temporary tables. */
+            }
+          }
+        | FOR_SYM
+          {
+            if (Lex->query_tables == NULL) // Table list can't be empty
+            {
+              my_parse_error(ER(ER_NO_TABLES_USED));
+              MYSQL_YYABORT;
+            } 
+          }
+          EXPORT_SYM
+          {
+            TABLE_LIST *tables= Lex->query_tables;
+            Lex->type|= REFRESH_FOR_EXPORT;
             for (; tables; tables= tables->next_global)
             {
               tables->mdl_request.set_type(MDL_SHARED_NO_WRITE);
@@ -13598,6 +13618,7 @@ keyword_sp:
         | EVERY_SYM                {}
         | EXCHANGE_SYM             {}
         | EXPANSION_SYM            {}
+        | EXPORT_SYM               {}
         | EXTENDED_SYM             {}
         | EXTENT_SIZE_SYM          {}
         | FAULTS_SYM               {}

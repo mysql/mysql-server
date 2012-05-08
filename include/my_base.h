@@ -193,7 +193,12 @@ enum ha_extra_function {
   HA_EXTRA_ADD_CHILDREN_LIST,
   HA_EXTRA_ATTACH_CHILDREN,
   HA_EXTRA_IS_ATTACHED_CHILDREN,
-  HA_EXTRA_DETACH_CHILDREN
+  HA_EXTRA_DETACH_CHILDREN,
+  /*
+    Prepare table for export
+    (e.g. quiesce the table and write table metadata).
+  */
+  HA_EXTRA_EXPORT
 };
 
 /* Compatible option, to be deleted in 6.0 */
