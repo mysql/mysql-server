@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2011, 2012 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -2613,7 +2613,7 @@ int TC_LOG_MMAP::overflow()
   and uses the functions that were there with the old interface to
   implement the logic.
  */
-int TC_LOG_MMAP::commit(THD *thd, bool all)
+TC_LOG::enum_result TC_LOG_MMAP::commit(THD *thd, bool all)
 {
   DBUG_ENTER("TC_LOG_MMAP::commit");
   unsigned long cookie= 0;
@@ -2621,16 +2621,16 @@ int TC_LOG_MMAP::commit(THD *thd, bool all)
 
   if (all && xid)
     if ((cookie= log_xid(thd, xid)))
-      DBUG_RETURN(1);                 // Failed to log the transaction
+      DBUG_RETURN(RESULT_ABORTED);    // Failed to log the transaction
 
   if (ha_commit_low(thd, all))
-    DBUG_RETURN(2);           // Transaction logged, but not committed
+    DBUG_RETURN(RESULT_INCONSISTENT); // Transaction logged, but not committed
 
   /* If cookie is non-zero, something was logged */
   if (cookie)
     if (unlog(cookie, xid))
-      DBUG_RETURN(2); // Transaction logged, committed, but not unlogged.
-  DBUG_RETURN(0);
+      DBUG_RETURN(RESULT_INCONSISTENT); // Transaction logged, committed, but not unlogged.
+  DBUG_RETURN(RESULT_SUCCESS);
 }
 
 
