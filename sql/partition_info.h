@@ -223,6 +223,9 @@ public:
   bool from_openfrm;
   bool has_null_value;
   bool column_list;                          // COLUMNS PARTITIONING, 5.5+
+  enum enum_prune_state { NOT_PRUNED= 0, PREPARE_PRUNED, PREPARE_CONST_PRUNED,
+                          OPTIMIZE_PRUNED };
+  enum_prune_state prune_state;
 
   partition_info()
   : get_partition_id(NULL), get_part_partition_id(NULL),
@@ -255,7 +258,7 @@ public:
     list_of_part_fields(FALSE), list_of_subpart_fields(FALSE),
     linear_hash_ind(FALSE), fixed(FALSE),
     is_auto_partitioned(FALSE), from_openfrm(FALSE),
-    has_null_value(FALSE), column_list(FALSE)
+    has_null_value(FALSE), column_list(FALSE), prune_state(NOT_PRUNED)
   {
     partitions.empty();
     temp_partitions.empty();
@@ -329,6 +332,8 @@ public:
                                   List<Item> &fields,
                                   bool empty_values,
                                   bool *prune_needs_default_values);
+  bool is_const_pruned() const;
+  void set_prune_state(bool is_prepare, bool is_const);
 private:
   static int list_part_cmp(const void* a, const void* b);
   bool set_up_default_partitions(handler *file, HA_CREATE_INFO *info,
