@@ -202,6 +202,12 @@ enum enum_alter_inplace_result {
  */
 #define HA_READ_OUT_OF_SYNC              (LL(1) << 40)
 
+/*
+  Storage engine supports table export using the
+  FLUSH TABLE <table_list> FOR EXPORT statement.
+*/
+#define HA_CAN_EXPORT                    (LL(1) << 41)
+
 /* bits in index_flags(index_number) for what you can do with index */
 #define HA_READ_NEXT            1       /* TODO really use this flag */
 #define HA_READ_PREV            2       /* supports ::index_prev */
