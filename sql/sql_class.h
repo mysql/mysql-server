@@ -1380,7 +1380,7 @@ class Ha_trx_info
 {
 #ifndef DBUG_OFF
   friend const char *
-    ha_list_names(Ha_trx_info *ha_list, char *const buf_arg)
+  ha_list_names(Ha_trx_info *ha_list, char *const buf_arg)
   {
     char *buf = buf_arg;
     while (ha_list)
