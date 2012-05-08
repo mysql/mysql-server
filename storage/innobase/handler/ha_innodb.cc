@@ -11585,19 +11585,20 @@ ha_innobase::external_lock(
 			TABLES. It can be done via START TRANSACTION; too
 			implicitly. */
 
-			trx->flush_tables = true;
+			++trx->flush_tables;
 		}
 		break;
 
 	case QUIESCE_COMPLETE:
 		/* Check for UNLOCK TABLES; implicit or explicit
 		or trx interruption. */
-		if (trx->flush_tables
+		if (trx->flush_tables > 0
 		    && (lock_type == F_UNLCK || trx_is_interrupted(trx))) {
 
 			row_quiesce_table_complete(prebuilt->table, trx);
 
-			trx->flush_tables = false;
+			ut_a(trx->flush_tables > 0);
+			--trx->flush_tables;
 		}
 
 		break;
