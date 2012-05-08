@@ -9,6 +9,7 @@ size=$1; shift
 runs=$1; shift
 abortcode=$1; shift
 
+mkdir -p dir.recover_stress.c.tdb
 $bin -C -n $size -l
 $bin -C -i 0 -n $size -l
 for (( i = 1; i < $runs; i++ ))
