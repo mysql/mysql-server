@@ -103,6 +103,8 @@ if(CMAKE_C_COMPILER_ID MATCHES "^Intel$")
   string(REGEX REPLACE ";" "," intel_warning_string "${intel_warnings}")
   set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -diag-disable ${intel_warning_string}")
 
-  # make sure to link with both intel's math library and regular -lm
-  link_libraries(imf m)
+  # make sure intel libs are linked statically
+  set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -static-intel")
+  set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -static-intel")
+  set(CMAKE_MODULE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -static-intel")
 endif()
