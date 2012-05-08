@@ -5813,9 +5813,9 @@ MYSQL_BIN_LOG::process_flush_stage_queue(my_off_t *total_bytes_var,
   int flush_error= 0;
   mysql_mutex_assert_owner(&LOCK_log);
 
-  my_atomic_rwlock_rdlock(&LOCK_opt_binlog_max_flush_queue_time);
+  my_atomic_rwlock_rdlock(&opt_binlog_max_flush_queue_time_lock);
   const ulonglong max_udelay= my_atomic_load32(&opt_binlog_max_flush_queue_time);
-  my_atomic_rwlock_rdunlock(&LOCK_opt_binlog_max_flush_queue_time);
+  my_atomic_rwlock_rdunlock(&opt_binlog_max_flush_queue_time_lock);
   const ulonglong start_utime= max_udelay > 0 ? my_micro_time() : 0;
 
   /*
