@@ -824,11 +824,14 @@ fractional:
 }
 
 
-/*
-  Convert numer to TIME
+/**
+  Convert number to TIME
   @param nr            Number to convert.
   @param OUT ltime     Variable to convert to.
   @param OUT warnings  Warning vector.
+
+  @retval false OK
+  @retval true No. is out of range
 */
 my_bool
 number_to_time(longlong nr, MYSQL_TIME *ltime, int *warnings)
@@ -1385,6 +1388,12 @@ int my_timeval_to_str(const struct timeval *tm, char *to, uint dec)
     -1              Timestamp with wrong values
     anything else   DATETIME as integer in YYYYMMDDHHMMSS format
     Datetime value in YYYYMMDDHHMMSS format.
+
+    was_cut         if return value -1: one of
+                      - MYSQL_TIME_WARN_OUT_OF_RANGE
+                      - MYSQL_TIME_WARN_ZERO_DATE
+                      - MYSQL_TIME_WARN_TRUNCATED
+                    otherwise 0.
 */
 
 longlong number_to_datetime(longlong nr, MYSQL_TIME *time_res,
@@ -1466,7 +1475,7 @@ longlong number_to_datetime(longlong nr, MYSQL_TIME *time_res,
     return LL(-1);
 
  err:
-  *was_cut= 1;
+  *was_cut= MYSQL_TIME_WARN_TRUNCATED;
   return LL(-1);
 }
 
