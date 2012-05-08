@@ -1469,7 +1469,7 @@ public:
                                         ptr, null, 1);
   }
   store_key(store_key &arg)
-    :null_key(arg.null_key), to_field(arg.to_field),
+    :Sql_alloc(), null_key(arg.null_key), to_field(arg.to_field),
              null_ptr(arg.null_ptr), err(arg.err)
 
   {}
