@@ -12346,13 +12346,8 @@ opt_flush_lock:
           }
           EXPORT_SYM
           {
-            /*
-              Following code is a temporary copy of the "WITH READ LOCK" logic
-              from the previous rule.
-              TODO: Runtime: replace with the "FOR EXPORT" implementation.
-            */
             TABLE_LIST *tables= Lex->query_tables;
-            Lex->type|= REFRESH_READ_LOCK;
+            Lex->type|= REFRESH_FOR_EXPORT;
             for (; tables; tables= tables->next_global)
             {
               tables->mdl_request.set_type(MDL_SHARED_NO_WRITE);
