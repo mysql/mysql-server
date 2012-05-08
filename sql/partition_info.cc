@@ -223,6 +223,7 @@ bool partition_info::set_partition_bitmaps(TABLE_LIST *table_list)
 
   DBUG_ASSERT(bitmaps_are_initialized);
   DBUG_ASSERT(table);
+  prune_state= NOT_PRUNED;
   if (!bitmaps_are_initialized)
     DBUG_RETURN(TRUE);
 
@@ -2729,6 +2730,39 @@ bool partition_info::fix_parser_data(THD *thd)
     } while (++j < num_elements);
   } while (++i < num_parts);
   DBUG_RETURN(FALSE);
+}
+
+
+/**
+  Is the table pruned when cond->const_item() was true.
+*/
+
+bool partition_info::is_const_pruned() const
+{
+  if (prune_state >= PREPARE_CONST_PRUNED)
+    return true;
+  return false;
+}
+
+
+/**
+  Set prune_state.
+
+  @param  is_prepare  Is in prepare stage.
+  @param  is_const    Is the pruning condition const_item.
+*/
+
+void partition_info::set_prune_state(bool is_prepare, bool is_const)
+{
+  if (is_prepare)
+  {
+    if (is_const)
+      prune_state= PREPARE_CONST_PRUNED;
+    else
+      prune_state= PREPARE_PRUNED;
+  }
+  else
+    prune_state= OPTIMIZE_PRUNED;
 }
 
 

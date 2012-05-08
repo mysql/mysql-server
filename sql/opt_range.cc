@@ -3041,6 +3041,7 @@ static void dbug_print_singlepoint_range(SEL_ARG **start, uint num);
   @param      thd            Thread handle
   @param      table          Table to perform partition pruning for
   @param      pprune_cond    Condition to use for partition pruning
+  @param      is_prepare     Is prepare stage
   
   @note This function assumes that lock_partitions are setup when it
   is invoked. The function analyzes the condition, finds partitions that
@@ -3073,23 +3074,24 @@ bool prune_partitions(THD *thd, TABLE *table, Item *pprune_cond,
     DBUG_RETURN(FALSE);
   }
   
-  /*
-    If only constant items and no subqueries are used, it is no use of running
-    prune_partitions() twice on the same statement.
-    It is cheeper to run in the JOIN::optimize than in the JOIN::prepare
-    step since in the optimize step there are already cached items.
-    But there are greater gains if done before before the optimize step,
-    since this can also prune away calls to store_lock, external_lock and
-    start_stmt.
+  /* No need to continue pruning if there is no more partitions to prune! */
+  if (bitmap_is_clear_all(&part_info->lock_partitions))
+    bitmap_clear_all(&part_info->read_partitions);
+  if (bitmap_is_clear_all(&part_info->read_partitions))
+  {
+    table->all_partitions_pruned_away= true;
+    DBUG_RETURN(false);
+  }
 
-    So if we are in the optimize step and have only constant items
-    and no subqueries, simply return. Since it will not be able to prune
-    anything more than the previous call from the prepare step.
+  /*
+    If the prepare stage only had constant items and no subqueries are used,
+    it is no use of running prune_partitions() twice on the same statement.
+    Since it will not be able to prune anything more than the previous call
+    from the prepare step.
   */
-  if (!is_prepare &&
-      pprune_cond->const_item() && 
+  if (part_info->is_const_pruned() &&
       !pprune_cond->has_subquery())
-    DBUG_RETURN(FALSE);
+    DBUG_RETURN(false);
 
   PART_PRUNE_PARAM prune_param;
   MEM_ROOT alloc;
@@ -3221,6 +3223,7 @@ end:
   }
   if (bitmap_is_clear_all(&(prune_param.part_info->read_partitions)))
     table->all_partitions_pruned_away= true;
+  part_info->set_prune_state(is_prepare, pprune_cond->const_item());
   DBUG_RETURN(false);
 }
 
