@@ -5671,6 +5671,44 @@ k1	i	name
 Warnings:
 Warning	4294	Scan filter is too large, discarded
 drop table t1;
+create table t(
+pk int primary key auto_increment,
+i int, 
+j int,
+k int,
+index(i,j),
+index(i),
+index(j),
+index(k)
+) engine = ndb;
+insert into t(i,j,k) values
+(1,1,1), (1,1,1), (1,1,1),
+(2,2,2), (2,2,2), (2,2,2);
+set global debug='+d,max_4rows_in_spj_batches';
+explain
+select straight_join count(*) from 
+t as t1
+join t as t2 on t2.i = t1.i
+join (t as t3 join t as t4 on t4.k=t3.k join t as t5 on t5.i=t4.i and t5.j=t3.j) on t3.pk=t1.j
+join t as t6 on t6.k = t1.k
+where t1.i < 2;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	i,i_2,j,k	i	5	NULL	3	Parent of 6 pushed join@1; Using where with pushed condition
+1	SIMPLE	t2	ref	i,i_2	i	5	test.t1.i	1	Child of 't1' in pushed join@1; Using where
+1	SIMPLE	t3	eq_ref	PRIMARY,j,k	PRIMARY	4	test.t1.j	1	Child of 't1' in pushed join@1
+1	SIMPLE	t4	ref	i,i_2,k	k	5	test.t3.k	2	Child of 't3' in pushed join@1; Using where
+1	SIMPLE	t5	ref	i,i_2,j	i	10	test.t4.i,test.t3.j	2	Child of 't4' in pushed join@1; Using where
+1	SIMPLE	t6	ref	k	k	5	test.t1.k	2	Child of 't1' in pushed join@1; Using where
+select straight_join count(*) from 
+t as t1
+join t as t2 on t2.i = t1.i
+join (t as t3 join t as t4 on t4.k=t3.k join t as t5 on t5.i=t4.i and t5.j=t3.j) on t3.pk=t1.j
+join t as t6 on t6.k = t1.k
+where t1.i < 2;
+count(*)
+243
+set global debug='-d,max_4rows_in_spj_batches';
+drop table t;
 create temporary table spj_counts_at_end
 select counter_name, sum(val) as val 
 from ndbinfo.counters 
@@ -5691,7 +5729,7 @@ counter_name	spj_counts_at_end.val - spj_counts_at_startup.val
 CONST_PRUNED_RANGE_SCANS_RECEIVED	8
 LOCAL_TABLE_SCANS_SENT	254
 PRUNED_RANGE_SCANS_RECEIVED	27
-RANGE_SCANS_RECEIVED	736
+RANGE_SCANS_RECEIVED	738
 READS_RECEIVED	47
 TABLE_SCANS_RECEIVED	254
 drop table spj_counts_at_startup;
