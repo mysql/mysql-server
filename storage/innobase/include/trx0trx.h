@@ -944,8 +944,8 @@ struct trx_struct{
 					with FTS indexes (yet). */
 	doc_id_t	fts_next_doc_id;/* The document id used for updates */
 	/*------------------------------*/
-	bool		flush_tables;	/*!< true if "covering" the FLUSH
-					TABLES". */
+	ulint		flush_tables;	/*!< if "covering" the FLUSH TABLES",
+					count of tables being flushed. */
 	/*------------------------------*/
 	char detailed_error[256];	/*!< detailed error message for last
 					error, or empty. */
