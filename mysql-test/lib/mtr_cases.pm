@@ -1090,6 +1090,13 @@ sub collect_one_test_case {
     }
   }
 
+  if ( $tinfo->{'not_windows'} && IS_WINDOWS )
+  {
+    $tinfo->{'skip'}= 1;
+    $tinfo->{'comment'}= "Test not supported on Windows";
+    return $tinfo;
+  }
+
   # ----------------------------------------------------------------------
   # Find config file to use if not already selected in <testname>.opt file
   # ----------------------------------------------------------------------
@@ -1172,6 +1179,7 @@ my @tags=
  ["include/not_embedded.inc", "not_embedded", 1],
  ["include/have_ssl.inc", "need_ssl", 1],
  ["include/have_ssl_communication.inc", "need_ssl", 1],
+ ["include/not_windows.inc", "not_windows", 1],
 );
 
 

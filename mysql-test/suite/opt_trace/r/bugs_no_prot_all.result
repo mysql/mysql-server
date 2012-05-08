@@ -2291,6 +2291,9 @@ SELECT 1 FROM t1 WHERE 1 LIKE
                         ] /* refine_plan */
                       },
                       {
+                        "added_back_ref_condition": "((`t1`.`a` <=> 1))"
+                      },
+                      {
                         "reconsidering_access_paths_for_index_ordering": {
                           "index_order_summary": {
                             "table": "`t1`",

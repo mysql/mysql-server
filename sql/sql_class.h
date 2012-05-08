@@ -90,6 +90,10 @@ enum enum_slave_exec_mode { SLAVE_EXEC_MODE_STRICT,
                             SLAVE_EXEC_MODE_LAST_BIT };
 enum enum_slave_type_conversions { SLAVE_TYPE_CONVERSIONS_ALL_LOSSY,
                                    SLAVE_TYPE_CONVERSIONS_ALL_NON_LOSSY};
+enum enum_slave_rows_search_algorithms { SLAVE_ROWS_TABLE_SCAN = (1U << 0),
+                                         SLAVE_ROWS_INDEX_SCAN = (1U << 1),
+                                         SLAVE_ROWS_HASH_SCAN  = (1U << 2)};
+
 enum enum_mark_columns
 { MARK_COLUMNS_NONE, MARK_COLUMNS_READ, MARK_COLUMNS_WRITE};
 enum enum_filetype { FILETYPE_CSV, FILETYPE_XML };
@@ -524,7 +528,7 @@ public:
 
 class Alter_drop :public Sql_alloc {
 public:
-  enum drop_type {KEY, COLUMN };
+  enum drop_type {KEY, COLUMN, FOREIGN_KEY };
   const char *name;
   enum drop_type type;
   Alter_drop(enum drop_type par_type,const char *par_name)
@@ -2213,10 +2217,9 @@ my_micro_time_to_timeval(ulonglong micro_time, struct timeval *tm)
   a thread/connection descriptor
 */
 
-class THD :public ilink<THD>,
+class THD :public MDL_context_owner,
            public Statement,
-           public Open_tables_state,
-           public MDL_context_owner
+           public Open_tables_state
 {
 private:
   inline bool is_stmt_prepare() const
@@ -2236,6 +2239,8 @@ public:
 
   /* Used to execute base64 coded binlog events in MySQL server */
   Relay_log_info* rli_fake;
+  /* Slave applier execution context */
+  Relay_log_info* rli_slave;
 
   void reset_for_next_command();
   /*
@@ -2406,6 +2411,15 @@ public:
   void set_next_event_pos(const char* _filename, ulonglong _pos);
   void clear_next_event_pos();
 
+  /*
+     Ptr to row event extra data to be written to Binlog /
+     received from Binlog.
+
+   */
+  uchar* binlog_row_event_extra_data;
+  static bool binlog_row_event_extra_data_eq(const uchar* a,
+                                             const uchar* b);
+
 #ifndef MYSQL_CLIENT
   int binlog_setup_trx_data();
 
@@ -2415,11 +2429,14 @@ public:
   int binlog_write_table_map(TABLE *table, bool is_transactional,
                              bool binlog_rows_query);
   int binlog_write_row(TABLE* table, bool is_transactional,
-                       const uchar *new_data);
+                       const uchar *new_data,
+                       const uchar* extra_row_info);
   int binlog_delete_row(TABLE* table, bool is_transactional,
-                        const uchar *old_data);
+                        const uchar *old_data,
+                        const uchar* extra_row_info);
   int binlog_update_row(TABLE* table, bool is_transactional,
-                        const uchar *old_data, const uchar *new_data);
+                        const uchar *old_data, const uchar *new_data,
+                        const uchar* extra_row_info);
   void binlog_prepare_row_images(TABLE* table);
 
   void set_server_id(uint32 sid) { server_id = sid; }
@@ -2431,7 +2448,8 @@ public:
     binlog_prepare_pending_rows_event(TABLE* table, uint32 serv_id,
                                       size_t needed,
                                       bool is_transactional,
-				      RowsEventT* hint);
+				      RowsEventT* hint,
+                                      const uchar* extra_row_info);
   Rows_log_event* binlog_get_pending_rows_event(bool is_transactional) const;
   inline int binlog_flush_pending_rows_event(bool stmt_end)
   {
@@ -3176,7 +3194,7 @@ public:
     if preallocation fails, we should notice that at the first call to
     alloc_root. 
   */
-  void init_for_queries();
+  void init_for_queries(Relay_log_info *rli= NULL);
   void change_user(void);
   void cleanup(void);
   void cleanup_after_query();
@@ -4659,8 +4677,13 @@ public:
     table(NULL), tab_ref(NULL), in_equality(NULL),
     join_cond(NULL), copy_field(NULL)
   {}
-  ~Semijoin_mat_exec() {}
-
+private:
+  // Nobody deletes me apparently ...
+  ~Semijoin_mat_exec()
+  {
+    delete [] copy_field;
+  }
+public:
   const uint table_count;       // Number of tables in the sj-nest
   const bool is_scan;           // TRUE if executing as a scan, FALSE if lookup
   bool materialized;            // TRUE <=> materialization has been performed

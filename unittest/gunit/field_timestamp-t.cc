@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,8 +13,7 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-// First include (the generated) my_config.h, to get correct platform defines,
-// then gtest.h (before any other MySQL headers), to avoid min() macros etc ...
+// First include (the generated) my_config.h, to get correct platform defines.
 #include "my_config.h"
 #include <gtest/gtest.h>
 
@@ -35,12 +34,7 @@ using my_testing::Mock_error_handler;
 class FieldTimestampTest : public ::testing::Test
 {
 protected:
-  static void SetUpTestCase() { Server_initializer::SetUpTestCase(); }
-
-  static void TearDownTestCase() { Server_initializer::TearDownTestCase(); }
-
   virtual void SetUp() { initializer.SetUp(); }
-
   virtual void TearDown() { initializer.TearDown(); }
 
   THD *get_thd() { return initializer.thd(); }

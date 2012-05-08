@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2012, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -310,7 +310,7 @@ que_node_print_info(
 Evaluate the given SQL
 @return	error code or DB_SUCCESS */
 UNIV_INTERN
-enum db_err
+dberr_t
 que_eval_sql(
 /*=========*/
 	pars_info_t*	info,	/*!< in: info struct, or NULL */
