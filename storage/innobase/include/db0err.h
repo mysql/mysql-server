@@ -82,6 +82,8 @@ Created 5/24/1996 Heikki Tuuri
 #define DB_REFERENCING_NO_INDEX	52	/* the parent (referencing) table does
 					not have an index that contains the
 					foreign keys as its prefix columns */
+#define DB_TABLE_IN_FK_CHECK    53	/* table is being used in foreign
+					key check */
 
 /* The following are partial failure codes */
 #define DB_FAIL			1000
