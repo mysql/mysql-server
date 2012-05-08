@@ -408,7 +408,7 @@ public:
   }
 
   int inc_group_relay_log_pos(ulonglong log_pos,
-                              bool skip_lock);
+                              bool need_data_lock);
 
   int wait_for_pos(THD* thd, String* log_name, longlong log_pos, 
 		   longlong timeout);
@@ -737,7 +737,7 @@ public:
 
   int count_relay_log_space();
 
-  int init_info();
+  int rli_init_info();
   void end_info();
   int flush_info(bool force= FALSE);
   int flush_current_log();
@@ -881,7 +881,27 @@ public:
     return long_find_row_note_printed;
   }
 
+public:
+  /**
+    Delete the existing event and set a new one.  This class is
+    responsible for freeing the event, the caller should not do that.
+  */
+  void set_rli_description_event(Format_description_log_event *fdle)
+  {
+    delete rli_description_event;
+    rli_description_event= fdle;
+  }
+  /**
+    Return the current Format_description_log_event.
+  */
+  Format_description_log_event *get_rli_description_event() const
+  {
+    return rli_description_event;
+  }
+
 private:
+  Format_description_log_event *rli_description_event;
+
   /**
     Delay slave SQL thread by this amount, compared to master (in
     seconds). This is set with CHANGE MASTER TO MASTER_DELAY=X.
