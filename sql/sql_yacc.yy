@@ -7581,6 +7581,8 @@ slave:
           START_SYM SLAVE opt_slave_thread_option_list
           {
             LEX *lex=Lex;
+            /* Clean previous slave connection values */
+            lex->slave_connection.reset();
             lex->sql_command = SQLCOM_SLAVE_START;
             lex->type = 0;
             /* We'll use mi structure for UNTIL options */
@@ -7674,7 +7676,7 @@ slave_connection_opts:
 
 slave_user_name_opt:
           {
-            Lex->slave_connection.user= 0;
+            /* empty */
           }
         | USER EQ TEXT_STRING_sys
           {
@@ -7684,7 +7686,7 @@ slave_user_name_opt:
 
 slave_user_pass_opt:
           {
-            Lex->slave_connection.password= 0;
+            /* empty */
           }
         | PASSWORD EQ TEXT_STRING_sys
           {
@@ -7693,7 +7695,7 @@ slave_user_pass_opt:
 
 slave_plugin_auth_opt:
           {
-            Lex->slave_connection.plugin_auth= 0;
+            /* empty */
           }
         | DEFAULT_AUTH_SYM EQ TEXT_STRING_sys
           {
@@ -7703,7 +7705,7 @@ slave_plugin_auth_opt:
 
 slave_plugin_dir_opt:
           {
-            Lex->slave_connection.plugin_dir= 0;
+            /* empty */
           }
         | PLUGIN_DIR_SYM EQ TEXT_STRING_sys
           {
@@ -7750,7 +7752,8 @@ slave_until:
           {
             LEX *lex=Lex;
             if (((lex->mi.log_file_name || lex->mi.pos) &&
-                (lex->mi.relay_log_name || lex->mi.relay_log_pos) &&
+                lex->mi.gtid) ||
+               ((lex->mi.relay_log_name || lex->mi.relay_log_pos) &&
                 lex->mi.gtid) ||
                 !((lex->mi.log_file_name && lex->mi.pos) ||
                   (lex->mi.relay_log_name && lex->mi.relay_log_pos) ||
