@@ -1,0 +1,11 @@
+install(
+  FILES
+    db-insert.c
+    db-insert-multiple.c
+    db-scan.c
+    db-update.c
+    Makefile
+    README.examples
+  DESTINATION
+    examples
+  )
