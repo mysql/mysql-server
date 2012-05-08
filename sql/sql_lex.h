@@ -986,6 +986,8 @@ typedef struct struct_slave_connection
   char *password;
   char *plugin_auth;
   char *plugin_dir;
+
+  void reset();
 } LEX_SLAVE_CONNECTION;
 
 struct st_sp_chistics
