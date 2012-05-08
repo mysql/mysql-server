@@ -11580,16 +11580,24 @@ ha_innobase::external_lock(
 		    && lock_type == F_RDLCK) {
 
 			row_quiesce_table_start(prebuilt->table, trx);
+
+			/* Use the transaction instance to track UNLOCK
+			TABLES. It can be done via START TRANSACTION; too
+			implicitly. */
+
+			trx->flush_tables = true;
 		}
 		break;
 
 	case QUIESCE_COMPLETE:
-		/* Check for UNLOCK TABLES; or trx interruption. */
-		if ((thd_sql_command(thd) == SQLCOM_UNLOCK_TABLES
-		     || trx_is_interrupted(trx))
-		    && lock_type == F_UNLCK) {
+		/* Check for UNLOCK TABLES; implicit or explicit
+		or trx interruption. */
+		if (trx->flush_tables
+		    && (lock_type == F_UNLCK || trx_is_interrupted(trx))) {
 
 			row_quiesce_table_complete(prebuilt->table, trx);
+
+			trx->flush_tables = false;
 		}
 
 		break;

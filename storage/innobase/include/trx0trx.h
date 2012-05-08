@@ -939,10 +939,13 @@ struct trx_struct{
 					each time we determine that a lock will
 					be acquired by the MySQL layer. */
 	/*------------------------------*/
-	fts_trx_t*	fts_trx;	/* FTS information, or NULL if
+	fts_trx_t*	fts_trx;	/*!< FTS information, or NULL if
 					transaction hasn't modified tables
 					with FTS indexes (yet). */
 	doc_id_t	fts_next_doc_id;/* The document id used for updates */
+	/*------------------------------*/
+	bool		flush_tables;	/*!< true if "covering" the FLUSH
+					TABLES". */
 	/*------------------------------*/
 	char detailed_error[256];	/*!< detailed error message for last
 					error, or empty. */
