@@ -266,8 +266,10 @@ public:
 
   void set_write_error(THD *thd, bool is_transactional);
   bool check_write_error(THD *thd);
-  bool write_incident(THD *thd, bool lock);
-  bool write_incident(Incident_log_event *ev, bool lock);
+  bool write_incident(THD *thd, bool need_lock_log,
+                      bool do_flush_and_sync= true);
+  bool write_incident(Incident_log_event *ev, bool need_lock_log,
+                      bool do_flush_and_sync= true);
 
   void start_union_events(THD *thd, query_id_t query_id_param);
   void stop_union_events(THD *thd);
