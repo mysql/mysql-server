@@ -21,6 +21,7 @@
 #include "log.h"
 
 class Relay_log_info;
+class Master_info;
 
 class Format_description_log_event;
 
@@ -75,14 +76,6 @@ class MYSQL_BIN_LOG: public TC_LOG, private MYSQL_LOG
   uint file_id;
   uint open_count;				// For replication
   int readers_count;
-  /*
-    no_auto_events means we don't want any of these automatic events :
-    Start/Rotate/Stop. That is, in 4.x when we rotate a relay log, we don't
-    want a Rotate_log event to be written to the relay log. When we start a
-    relay log etc. So in 4.x this is 1 for relay logs, 0 for binlogs.
-    In 5.0 it's 0 for relay logs too!
-  */
-  bool no_auto_events;
 
   /* pointer to the sync period variable, for binlog this will be
      sync_binlog_period, for relay log this will be
@@ -102,8 +95,8 @@ class MYSQL_BIN_LOG: public TC_LOG, private MYSQL_LOG
     new_file() is locking. new_file_without_locking() does not acquire
     LOCK_log.
   */
-  int new_file_without_locking();
-  int new_file_impl(bool need_lock);
+  int new_file_without_locking(Format_description_log_event *extra_description_event);
+  int new_file_impl(bool need_lock, Format_description_log_event *extra_description_event);
 
 public:
   using MYSQL_LOG::generate_name;
@@ -147,16 +140,6 @@ public:
     FD.(A) - the value of (A) in FD
   */
   uint8 relay_log_checksum_alg;
-  /*
-    These describe the log's format. This is used only for relay logs.
-    _for_exec is used by the SQL thread, _for_queue by the I/O thread. It's
-    necessary to have 2 distinct objects, because the I/O thread may be reading
-    events in a different format from what the SQL thread is reading (consider
-    the case of a master which has been upgraded from 5.0 to 5.1 without doing
-    RESET MASTER, or from 4.x to 5.0).
-  */
-  Format_description_log_event *description_event_for_exec,
-    *description_event_for_queue;
 
   MYSQL_BIN_LOG(uint *sync_period);
   /*
@@ -203,8 +186,8 @@ private:
   Gtid_set* previous_gtid_set;
 
   int open(const char *opt_name) { return open_binlog(opt_name); }
-public:
   int open_binlog(const char *opt_name);
+public:
   void close();
   int log_xid(THD *thd, my_xid xid);
   int recover(IO_CACHE *log, Format_description_log_event *fdle,
@@ -243,41 +226,38 @@ public:
   void signal_update();
   int wait_for_update_relay_log(THD* thd, const struct timespec * timeout);
   int  wait_for_update_bin_log(THD* thd, const struct timespec * timeout);
-  int init(bool no_auto_events_arg, ulong max_size);
+public:
   void init_pthread_objects();
   void cleanup();
   /**
     Create a new binary log.
     @param log_name Name of binlog
-    @param log_type Always LOG_BIN. This is probably redundant and can
-    be removed
     @param new_name Name of binlog, too. todo: what's the difference
     between new_name and log_name?
     @param io_cache_type_arg Specifies how the IO cache is opened:
     read-only or read-write.
-    @param no_auto_events_arg Do not create Format_description_log_event.
     @param max_size The size at which this binlog will be rotated.
     @param null_created If false, and a Format_description_log_event
     is written, then the Format_description_log_event will have the
     timestamp 0. Otherwise, it the timestamp will be the time when the
     event was written to the log.
-    @param need_mutex If true, LOCK_index is acquired; otherwise
+    @param need_lock_index If true, LOCK_index is acquired; otherwise
     LOCK_index must be taken by the caller.
     @param need_sid_lock If true, the read lock on global_sid_lock
     will be acquired.  Otherwise, the caller must hold the read lock
     on global_sid_lock.
   */
   bool open_binlog(const char *log_name,
-                   enum_log_type log_type,
                    const char *new_name,
                    enum cache_type io_cache_type_arg,
-                   bool no_auto_events_arg, ulong max_size,
+                   ulong max_size,
                    bool null_created,
-                   bool need_mutex, bool need_sid_lock);
+                   bool need_lock_index, bool need_sid_lock,
+                   Format_description_log_event *extra_description_event);
   bool open_index_file(const char *index_file_name_arg,
-                       const char *log_name, bool need_mutex);
+                       const char *log_name, bool need_lock_index);
   /* Use this to start writing a new log file */
-  int new_file();
+  int new_file(Format_description_log_event *extra_description_event);
 
   bool write_event(Log_event* event_info);
   bool write_cache(THD *thd, class binlog_cache_data *binlog_cache_data,
@@ -286,15 +266,22 @@ public:
 
   void set_write_error(THD *thd, bool is_transactional);
   bool check_write_error(THD *thd);
-  bool write_incident(THD *thd, bool lock);
-  bool write_incident(Incident_log_event *ev, bool lock);
+  bool write_incident(THD *thd, bool need_lock_log,
+                      bool do_flush_and_sync= true);
+  bool write_incident(Incident_log_event *ev, bool need_lock_log,
+                      bool do_flush_and_sync= true);
 
   void start_union_events(THD *thd, query_id_t query_id_param);
   void stop_union_events(THD *thd);
   bool is_query_in_union(THD *thd, query_id_t query_id_param);
 
-  bool append_buffer(const char* buf, uint len);
-  bool append_event(Log_event* ev);
+#ifdef HAVE_REPLICATION
+  bool append_buffer(const char* buf, uint len, Master_info *mi);
+  bool append_event(Log_event* ev, Master_info *mi);
+private:
+  bool after_append_to_relay_log(Master_info *mi);
+#endif // ifdef HAVE_REPLICATION
+public:
 
   void make_log_name(char* buf, const char* log_ident);
   bool is_active(const char* log_file_name);
@@ -318,15 +305,16 @@ public:
   */
   bool flush_and_sync(bool *synced, const bool force=FALSE);
   int purge_logs(const char *to_log, bool included,
-                 bool need_mutex, bool need_update_threads,
+                 bool need_lock_index, bool need_update_threads,
                  ulonglong *decrease_log_space);
   int purge_logs_before_date(time_t purge_time);
   int purge_first_log(Relay_log_info* rli, bool included);
   int set_crash_safe_index_file_name(const char *base_file_name);
   int open_crash_safe_index_file();
   int close_crash_safe_index_file();
-  int add_log_to_index(uchar* log_file_name, int name_len, bool need_mutex);
-  int move_crash_safe_index_file_to_index_file(bool need_mutex);
+  int add_log_to_index(uchar* log_file_name, int name_len,
+                       bool need_lock_index);
+  int move_crash_safe_index_file_to_index_file(bool need_lock_index);
   int set_purge_index_file_name(const char *base_file_name);
   int open_purge_index_file(bool destroy);
   bool is_inited_purge_index_file();
@@ -336,14 +324,14 @@ public:
   int register_purge_index_entry(const char* entry);
   int register_create_index_entry(const char* entry);
   int purge_index_entry(THD *thd, ulonglong *decrease_log_space,
-                        bool need_mutex);
+                        bool need_lock_index);
   bool reset_logs(THD* thd);
   void close(uint exiting);
 
   // iterating through the log index file
   int find_log_pos(LOG_INFO* linfo, const char* log_name,
-		   bool need_mutex);
-  int find_next_log(LOG_INFO* linfo, bool need_mutex);
+                   bool need_lock_index);
+  int find_next_log(LOG_INFO* linfo, bool need_lock_index);
   int get_current_log(LOG_INFO* linfo);
   int raw_get_current_log(LOG_INFO* linfo);
   uint next_file_id();
@@ -377,6 +365,10 @@ bool trans_cannot_safely_rollback(const THD* thd);
 bool stmt_cannot_safely_rollback(const THD* thd);
 
 int log_loaded_block(IO_CACHE* file);
+
+/**
+  Open a single binary log file for reading.
+*/
 File open_binlog_file(IO_CACHE *log, const char *log_file_name,
                       const char **errmsg);
 int check_binlog_magic(IO_CACHE* log, const char** errmsg);

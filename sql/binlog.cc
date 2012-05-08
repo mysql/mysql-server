@@ -27,6 +27,7 @@
 #include "debug_sync.h"
 #include "global_threads.h"
 #include "sql_parse.h"
+#include "rpl_mi.h"
 #include <list>
 #include <string>
 
@@ -938,7 +939,7 @@ binlog_truncate_trx_cache(THD *thd, binlog_cache_mngr *cache_mngr, bool all)
   if (ending_trans(thd, all))
   {
     if (cache_mngr->trx_cache.has_incident())
-      error= mysql_bin_log.write_incident(thd, TRUE);
+      error= mysql_bin_log.write_incident(thd, true/*need_lock_log=true*/);
 
     thd->clear_binlog_table_maps();
 
@@ -1093,7 +1094,7 @@ static int binlog_rollback(handlerton *hton, THD *thd, bool all)
   */
   if (cache_mngr->stmt_cache.has_incident())
   {
-    error= mysql_bin_log.write_incident(thd, TRUE);
+    error= mysql_bin_log.write_incident(thd, true/*need_lock_log=true*/);
     cache_mngr->reset_stmt_cache();
   }
   else
@@ -1545,8 +1546,10 @@ bool purge_master_logs(THD* thd, const char* to_log)
 
   mysql_bin_log.make_log_name(search_file_name, to_log);
   return purge_error_message(thd,
-			     mysql_bin_log.purge_logs(search_file_name, 0, 1,
-						      1, NULL));
+                             mysql_bin_log.purge_logs(search_file_name, false,
+                                                      true/*need_lock_index=true*/,
+                                                      true/*need_update_threads=true*/,
+                                                      NULL));
 }
 
 
@@ -1744,7 +1747,7 @@ bool show_binlog_events(THD *thd, MYSQL_BIN_LOG *binary_log)
 
     linfo.index_file_offset = 0;
 
-    if (binary_log->find_log_pos(&linfo, name, 1))
+    if (binary_log->find_log_pos(&linfo, name, true/*need_lock_index=true*/))
     {
       errmsg = "Could not find target log";
       goto err;
@@ -1893,7 +1896,6 @@ MYSQL_BIN_LOG::MYSQL_BIN_LOG(uint *sync_period)
    is_relay_log(0), signal_cnt(0),
    checksum_alg_reset(BINLOG_CHECKSUM_ALG_UNDEF),
    relay_log_checksum_alg(BINLOG_CHECKSUM_ALG_UNDEF),
-   description_event_for_exec(0), description_event_for_queue(0),
    previous_gtid_set(0)
 {
   /*
@@ -1918,24 +1920,11 @@ void MYSQL_BIN_LOG::cleanup()
   {
     inited= 0;
     close(LOG_CLOSE_INDEX|LOG_CLOSE_STOP_EVENT);
-    delete description_event_for_queue;
-    delete description_event_for_exec;
     mysql_mutex_destroy(&LOCK_log);
     mysql_mutex_destroy(&LOCK_index);
     mysql_cond_destroy(&update_cond);
   }
   DBUG_VOID_RETURN;
-}
-
-
-/* Init binlog-specific vars */
-int MYSQL_BIN_LOG::init(bool no_auto_events_arg, ulong max_size_arg)
-{
-  DBUG_ENTER("MYSQL_BIN_LOG::init");
-  no_auto_events= no_auto_events_arg;
-  max_size= max_size_arg;
-  DBUG_PRINT("info",("max_size: %lu", max_size));
-  DBUG_RETURN(0);
 }
 
 
@@ -1948,7 +1937,7 @@ void MYSQL_BIN_LOG::init_pthread_objects()
 
 
 bool MYSQL_BIN_LOG::open_index_file(const char *index_file_name_arg,
-                                    const char *log_name, bool need_mutex)
+                                    const char *log_name, bool need_lock_index)
 {
   File index_file_nr= -1;
   DBUG_ASSERT(!my_b_inited(&index_file));
@@ -2020,7 +2009,7 @@ bool MYSQL_BIN_LOG::open_index_file(const char *index_file_name_arg,
 
   if (set_purge_index_file_name(index_file_name_arg) ||
       open_purge_index_file(FALSE) ||
-      purge_index_entry(NULL, NULL, need_mutex) ||
+      purge_index_entry(NULL, NULL, need_lock_index) ||
       close_purge_index_file() ||
       DBUG_EVALUATE_IF("fault_injection_recovering_index", 1, 0))
   {
@@ -2222,8 +2211,8 @@ bool MYSQL_BIN_LOG::init_gtid_sets(Gtid_set *all_gtids, Gtid_set *lost_gtids,
   list<string>::reverse_iterator rit;
   bool reached_first_file= false;
 
-  for (error= find_log_pos(&linfo, NULL, false); !error;
-       error= find_next_log(&linfo, false))
+  for (error= find_log_pos(&linfo, NULL, false/*need_lock_index=false*/); !error;
+       error= find_next_log(&linfo, false/*need_lock_index=false*/))
   {
     DBUG_PRINT("info", ("read log filename '%s'", linfo.log_file_name));
     filename_list.push_back(string(linfo.log_file_name));
@@ -2322,22 +2311,22 @@ end:
 */
 
 bool MYSQL_BIN_LOG::open_binlog(const char *log_name,
-                                enum_log_type log_type_arg,
                                 const char *new_name,
                                 enum cache_type io_cache_type_arg,
-                                bool no_auto_events_arg,
                                 ulong max_size_arg,
                                 bool null_created_arg,
-                                bool need_mutex,
-                                bool need_sid_lock)
+                                bool need_lock_index,
+                                bool need_sid_lock,
+                                Format_description_log_event *extra_description_event)
 {
   File file= -1;
 
-  DBUG_ASSERT(log_type_arg == LOG_BIN);
-  DBUG_ENTER("MYSQL_BIN_LOG::open_binlog(const char *, enum_log_type, ...)");
-  DBUG_PRINT("enter",("log_type: %d name: %s",(int) log_type_arg, log_name));
+  // lock_index must be acquired *before* sid_lock.
+  DBUG_ASSERT(need_sid_lock || !need_lock_index);
+  DBUG_ENTER("MYSQL_BIN_LOG::open_binlog(const char *, ...)");
+  DBUG_PRINT("enter",("name: %s", log_name));
 
-  if (init_and_set_log_file_name(log_name, new_name, log_type_arg,
+  if (init_and_set_log_file_name(log_name, new_name, LOG_BIN,
                                  io_cache_type_arg))
   {
     sql_print_error("MYSQL_BIN_LOG::open failed to generate new file name.");
@@ -2380,7 +2369,7 @@ bool MYSQL_BIN_LOG::open_binlog(const char *log_name,
 #ifdef HAVE_PSI_INTERFACE
                       m_key_file_log,
 #endif
-                      log_name, log_type_arg, new_name, io_cache_type_arg))
+                      log_name, LOG_BIN, new_name, io_cache_type_arg))
   {
 #ifdef HAVE_REPLICATION
     close_purge_index_file();
@@ -2388,12 +2377,14 @@ bool MYSQL_BIN_LOG::open_binlog(const char *log_name,
     DBUG_RETURN(1);                            /* all warnings issued */
   }
 
-  if (init(no_auto_events_arg, max_size_arg) != 0)
-    DBUG_RETURN(1);
+  max_size= max_size_arg;
 
   open_count++;
 
   bool write_file_name_to_index_file=0;
+
+  /* This must be before goto err. */
+  Format_description_log_event s(BINLOG_VERSION);
 
   if (!my_b_filelength(&log_file))
   {
@@ -2410,58 +2401,54 @@ bool MYSQL_BIN_LOG::open_binlog(const char *log_name,
     write_file_name_to_index_file= 1;
   }
 
-  if (!no_auto_events)
+  /*
+    don't set LOG_EVENT_BINLOG_IN_USE_F for SEQ_READ_APPEND io_cache
+    as we won't be able to reset it later
+  */
+  if (io_cache_type == WRITE_CACHE)
+    s.flags |= LOG_EVENT_BINLOG_IN_USE_F;
+  s.checksum_alg= is_relay_log ?
+    /* relay-log */
+    /* inherit master's A descriptor if one has been received */
+    (relay_log_checksum_alg=
+     (relay_log_checksum_alg != BINLOG_CHECKSUM_ALG_UNDEF) ?
+     relay_log_checksum_alg :
+     /* otherwise use slave's local preference of RL events verification */
+     (opt_slave_sql_verify_checksum == 0) ?
+     (uint8) BINLOG_CHECKSUM_ALG_OFF : binlog_checksum_options):
+    /* binlog */
+    binlog_checksum_options;
+  DBUG_ASSERT(s.checksum_alg != BINLOG_CHECKSUM_ALG_UNDEF);
+  if (!s.is_valid())
+    goto err;
+  s.dont_set_created= null_created_arg;
+  /* Set LOG_EVENT_RELAY_LOG_F flag for relay log's FD */
+  if (is_relay_log)
+    s.set_relay_log_event();
+  if (s.write(&log_file))
+    goto err;
+  bytes_written+= s.data_written;
+  /*
+    We need to revisit this code and improve it.
+    See further comments in the mysqld.
+    /Alfranio
+  */
+  if (current_thd && gtid_mode > 0)
   {
-    Format_description_log_event s(BINLOG_VERSION);
-    /*
-      don't set LOG_EVENT_BINLOG_IN_USE_F for SEQ_READ_APPEND io_cache
-      as we won't be able to reset it later
-    */
-    if (io_cache_type == WRITE_CACHE)
-      s.flags |= LOG_EVENT_BINLOG_IN_USE_F;
-    s.checksum_alg= is_relay_log ?
-      /* relay-log */
-      /* inherit master's A descriptor if one has been received */
-      (relay_log_checksum_alg= 
-       (relay_log_checksum_alg != BINLOG_CHECKSUM_ALG_UNDEF) ?
-       relay_log_checksum_alg :
-       /* otherwise use slave's local preference of RL events verification */
-       (opt_slave_sql_verify_checksum == 0) ?
-       (uint8) BINLOG_CHECKSUM_ALG_OFF : binlog_checksum_options):
-      /* binlog */
-      binlog_checksum_options;
-    DBUG_ASSERT(s.checksum_alg != BINLOG_CHECKSUM_ALG_UNDEF);
-    if (!s.is_valid())
+    if (need_sid_lock)
+      global_sid_lock.wrlock();
+    else
+      global_sid_lock.assert_some_wrlock();
+    Previous_gtids_log_event prev_gtids_ev(previous_gtid_set);
+    if (need_sid_lock)
+      global_sid_lock.unlock();
+    prev_gtids_ev.checksum_alg= s.checksum_alg;
+    if (prev_gtids_ev.write(&log_file))
       goto err;
-    s.dont_set_created= null_created_arg;
-    /* Set LOG_EVENT_RELAY_LOG_F flag for relay log's FD */
-    if (is_relay_log)
-      s.set_relay_log_event();
-    if (s.write(&log_file))
-      goto err;
-    bytes_written+= s.data_written;
-    /*
-      We need to revisit this code and improve it.
-      See further comments in the mysqld.
-      /Alfranio
-    */
-    if (current_thd && gtid_mode > 0)
-    {
-      if (need_sid_lock)
-        global_sid_lock.wrlock();
-      else
-        global_sid_lock.assert_some_wrlock();
-      Previous_gtids_log_event prev_gtids_ev(previous_gtid_set);
-      if (need_sid_lock)
-        global_sid_lock.unlock();
-      prev_gtids_ev.checksum_alg= s.checksum_alg;
-      if (prev_gtids_ev.write(&log_file))
-        goto err;
-      bytes_written+= prev_gtids_ev.data_written;
-    }
+    bytes_written+= prev_gtids_ev.data_written;
   }
-  if (description_event_for_queue &&
-      description_event_for_queue->binlog_version>=4)
+  if (extra_description_event &&
+      extra_description_event->binlog_version>=4)
   {
     /*
       This is a relay log written to by the I/O slave thread.
@@ -2472,9 +2459,9 @@ bool MYSQL_BIN_LOG::open_binlog(const char *log_name,
       master), so this is suitable to parse the next relay log's event. It
       has been produced by
       Format_description_log_event::Format_description_log_event(char* buf,).
-      Why don't we want to write the description_event_for_queue if this
+      Why don't we want to write the mi_description_event if this
       event is for format<4 (3.23 or 4.x): this is because in that case, the
-      description_event_for_queue describes the data received from the
+      mi_description_event describes the data received from the
       master, but not the data written to the relay log (*conversion*),
       which is in format 4 (slave's).
     */
@@ -2483,13 +2470,13 @@ bool MYSQL_BIN_LOG::open_binlog(const char *log_name,
       trigger cleaning actions on the slave in
       Format_description_log_event::apply_event_impl().
     */
-    description_event_for_queue->created= 0;
+    extra_description_event->created= 0;
     /* Don't set log_pos in event header */
-    description_event_for_queue->set_artificial_event();
+    extra_description_event->set_artificial_event();
 
-    if (description_event_for_queue->write(&log_file))
+    if (extra_description_event->write(&log_file))
       goto err;
-    bytes_written+= description_event_for_queue->data_written;
+    bytes_written+= extra_description_event->data_written;
   }
   if (flush_io_cache(&log_file) ||
       mysql_file_sync(log_file.file, MYF(MY_WME)))
@@ -2510,7 +2497,7 @@ bool MYSQL_BIN_LOG::open_binlog(const char *log_name,
     */
     if (DBUG_EVALUATE_IF("fault_injection_updating_index", 1, 0) ||
         add_log_to_index((uchar*) log_file_name, strlen(log_file_name),
-                         need_mutex))
+                         need_lock_index))
       goto err;
 
 #ifdef HAVE_REPLICATION
@@ -2529,7 +2516,7 @@ bool MYSQL_BIN_LOG::open_binlog(const char *log_name,
 err:
 #ifdef HAVE_REPLICATION
   if (is_inited_purge_index_file())
-    purge_index_entry(NULL, NULL, need_mutex);
+    purge_index_entry(NULL, NULL, need_lock_index);
   close_purge_index_file();
 #endif
   sql_print_error("Could not use %s for logging (error %d). \
@@ -2550,23 +2537,22 @@ shutdown the MySQL server and restart it.", name, errno);
 /**
   Move crash safe index file to index file.
 
-  @param need_mutex    Set it to FALSE if its caller already has a
-                       lock on LOCK_index
+  @param need_lock_index If true, LOCK_index will be acquired;
+  otherwise it should already be held.
 
-  @retval
-    0    ok
-  @retval
-    -1    error
+  @retval 0 ok
+  @retval -1 error
 */
-int MYSQL_BIN_LOG::move_crash_safe_index_file_to_index_file(bool need_mutex)
+int MYSQL_BIN_LOG::move_crash_safe_index_file_to_index_file(bool need_lock_index)
 {
   int error= 0;
   File fd= -1;
   DBUG_ENTER("MYSQL_BIN_LOG::move_crash_safe_index_file_to_index_file");
 
-  if (need_mutex)
+  if (need_lock_index)
     mysql_mutex_lock(&LOCK_index);
-  mysql_mutex_assert_owner(&LOCK_index);
+  else
+    mysql_mutex_assert_owner(&LOCK_index);
 
   if (my_b_inited(&index_file))
   {
@@ -2607,7 +2593,7 @@ int MYSQL_BIN_LOG::move_crash_safe_index_file_to_index_file(bool need_mutex)
   }
 
 err:
-  if (need_mutex)
+  if (need_lock_index)
     mysql_mutex_unlock(&LOCK_index);
   DBUG_RETURN(error);
 }
@@ -2627,7 +2613,7 @@ err:
     -1   error
 */
 int MYSQL_BIN_LOG::add_log_to_index(uchar* log_name,
-                                    int log_name_len, bool need_mutex)
+                                    int log_name_len, bool need_lock_index)
 {
   DBUG_ENTER("MYSQL_BIN_LOG::add_log_to_index");
 
@@ -2663,7 +2649,7 @@ int MYSQL_BIN_LOG::add_log_to_index(uchar* log_name,
     goto err;
   }
 
-  if (move_crash_safe_index_file_to_index_file(need_mutex))
+  if (move_crash_safe_index_file_to_index_file(need_lock_index))
   {
     sql_print_error("MYSQL_BIN_LOG::add_log_to_index failed to "
                     "move crash safe index file to index file.");
@@ -2746,12 +2732,12 @@ void MYSQL_BIN_LOG::set_write_error(THD *thd, bool is_transactional)
 /**
   Find the position in the log-index-file for the given log name.
 
-  @param linfo		Store here the found log file name and position to
-                       the NEXT log file name in the index file.
-  @param log_name	Filename to find in the index file.
-                       Is a null pointer if we want to read the first entry
-  @param need_lock	Set this to 1 if the parent doesn't already have a
-                       lock on LOCK_index
+  @param[out] linfo The found log file name will be stored here, along
+  with the byte offset of the next log file name in the index file.
+  @param log_name Filename to find in the index file, or NULL if we
+  want to read the first entry.
+  @param need_lock_index If false, this function acquires LOCK_index;
+  otherwise the lock should already be held by the caller.
 
   @note
     On systems without the truncate function the file will end with one or
@@ -2766,7 +2752,7 @@ void MYSQL_BIN_LOG::set_write_error(THD *thd, bool is_transactional)
 */
 
 int MYSQL_BIN_LOG::find_log_pos(LOG_INFO *linfo, const char *log_name,
-			    bool need_lock)
+                                bool need_lock_index)
 {
   int error= 0;
   char *full_fname= linfo->log_file_name;
@@ -2779,9 +2765,10 @@ int MYSQL_BIN_LOG::find_log_pos(LOG_INFO *linfo, const char *log_name,
     Mutex needed because we need to make sure the file pointer does not
     move from under our feet
   */
-  if (need_lock)
+  if (need_lock_index)
     mysql_mutex_lock(&LOCK_index);
-  mysql_mutex_assert_owner(&LOCK_index);
+  else
+    mysql_mutex_assert_owner(&LOCK_index);
 
   // extend relative paths for log_name to be searched
   if (log_name)
@@ -2837,7 +2824,7 @@ int MYSQL_BIN_LOG::find_log_pos(LOG_INFO *linfo, const char *log_name,
   }
 
 end:  
-  if (need_lock)
+  if (need_lock_index)
     mysql_mutex_unlock(&LOCK_index);
   DBUG_RETURN(error);
 }
@@ -2846,12 +2833,11 @@ end:
 /**
   Find the position in the log-index-file for the given log name.
 
-  @param
-    linfo		Store here the next log file name and position to
-			the file name after that.
-  @param
-    need_lock		Set this to 1 if the parent doesn't already have a
-			lock on LOCK_index
+  @param[out] linfo The filename will be stored here, along with the
+  byte offset of the next filename in the index file.
+
+  @param need_lock_index If true, LOCK_index will be acquired;
+  otherwise it should already be held by the caller.
 
   @note
     - Before calling this function, one has to call find_log_pos()
@@ -2859,24 +2845,21 @@ end:
     - Mutex needed because we need to make sure the file pointer does not move
     from under our feet
 
-  @retval
-    0			ok
-  @retval
-    LOG_INFO_EOF	        End of log-index-file found
-  @retval
-    LOG_INFO_IO		Got IO error while reading file
+  @retval 0 ok
+  @retval LOG_INFO_EOF End of log-index-file found
+  @retval LOG_INFO_IO Got IO error while reading file
 */
-
-int MYSQL_BIN_LOG::find_next_log(LOG_INFO* linfo, bool need_lock)
+int MYSQL_BIN_LOG::find_next_log(LOG_INFO* linfo, bool need_lock_index)
 {
   int error= 0;
   uint length;
   char fname[FN_REFLEN];
   char *full_fname= linfo->log_file_name;
 
-  if (need_lock)
+  if (need_lock_index)
     mysql_mutex_lock(&LOCK_index);
-  mysql_mutex_assert_owner(&LOCK_index);
+  else
+    mysql_mutex_assert_owner(&LOCK_index);
 
   /* As the file is flushed, we can't get an error here */
   my_b_seek(&index_file, linfo->index_file_offset);
@@ -2902,7 +2885,7 @@ int MYSQL_BIN_LOG::find_next_log(LOG_INFO* linfo, bool need_lock)
   linfo->index_file_offset= my_b_tell(&index_file);
 
 err:
-  if (need_lock)
+  if (need_lock_index)
     mysql_mutex_unlock(&LOCK_index);
   return error;
 }
@@ -2967,7 +2950,7 @@ bool MYSQL_BIN_LOG::reset_logs(THD* thd)
     in order to make the operation safe.
   */
 
-  if ((err= find_log_pos(&linfo, NullS, 0)) != 0)
+  if ((err= find_log_pos(&linfo, NullS, false/*need_lock_index=false*/)) != 0)
   {
     uint errcode= purge_log_get_error_code(err);
     sql_print_error("Failed to locate old binlog or relay log files");
@@ -3003,7 +2986,7 @@ bool MYSQL_BIN_LOG::reset_logs(THD* thd)
         goto err;
       }
     }
-    if (find_next_log(&linfo, 0))
+    if (find_next_log(&linfo, false/*need_lock_index=false*/))
       break;
   }
 
@@ -3051,10 +3034,12 @@ bool MYSQL_BIN_LOG::reset_logs(THD* thd)
   }
 #endif
 
-  if (!open_index_file(index_file_name, 0, FALSE))
-    if ((error= open_binlog(save_name, log_type, 0, io_cache_type,
-                            no_auto_events, max_size, 0,
-                            false/*need mutex*/, false/*need sid_lock*/)))
+  if (!open_index_file(index_file_name, 0, false/*need_lock_index=false*/))
+    if ((error= open_binlog(save_name, 0, io_cache_type,
+                            max_size, false,
+                            false/*need_lock_index=false*/,
+                            false/*need_sid_lock=false*/,
+                            NULL)))
       goto err;
   my_free((void *) save_name);
 
@@ -3204,6 +3189,8 @@ int MYSQL_BIN_LOG::purge_first_log(Relay_log_info* rli, bool included)
   char *to_purge_if_included= NULL;
   DBUG_ENTER("purge_first_log");
 
+  DBUG_ASSERT(current_thd->system_thread == SYSTEM_THREAD_SLAVE_SQL);
+  DBUG_ASSERT(is_relay_log);
   DBUG_ASSERT(is_open());
   DBUG_ASSERT(rli->slave_running == 1);
   DBUG_ASSERT(!strcmp(rli->linfo.log_file_name,rli->get_event_relay_log_name()));
@@ -3217,8 +3204,9 @@ int MYSQL_BIN_LOG::purge_first_log(Relay_log_info* rli, bool included)
     Read the next log file name from the index file and pass it back to
     the caller.
   */
-  if((error=find_log_pos(&rli->linfo, rli->get_event_relay_log_name(), 0)) || 
-     (error=find_next_log(&rli->linfo, 0)))
+  if((error=find_log_pos(&rli->linfo, rli->get_event_relay_log_name(),
+                         false/*need_lock_index=false*/)) ||
+     (error=find_next_log(&rli->linfo, false/*need_lock_index=false*/)))
   {
     char buff[22];
     sql_print_error("next log error: %d  offset: %s  log: %s included: %d",
@@ -3254,7 +3242,11 @@ int MYSQL_BIN_LOG::purge_first_log(Relay_log_info* rli, bool included)
 
   mysql_mutex_lock(&rli->log_space_lock);
   rli->relay_log.purge_logs(to_purge_if_included, included,
-                            0, 0, &rli->log_space_total);
+                            false/*need_lock_index=false*/,
+                            false/*need_update_threads=false*/,
+                            &rli->log_space_total);
+  // Tell the I/O thread to take the relay_log_space_limit into account
+  rli->ignore_log_space_limit= 0;
   mysql_mutex_unlock(&rli->log_space_lock);
 
   /*
@@ -3268,7 +3260,8 @@ int MYSQL_BIN_LOG::purge_first_log(Relay_log_info* rli, bool included)
    * Need to update the log pos because purge logs has been called 
    * after fetching initially the log pos at the begining of the method.
    */
-  if((error=find_log_pos(&rli->linfo, rli->get_event_relay_log_name(), 0)))
+  if((error=find_log_pos(&rli->linfo, rli->get_event_relay_log_name(),
+                         false/*need_lock_index=false*/)))
   {
     char buff[22];
     sql_print_error("next log error: %d  offset: %s  log: %s included: %d",
@@ -3335,7 +3328,7 @@ int MYSQL_BIN_LOG::remove_logs_from_index(LOG_INFO* log_info, bool need_update_t
   }
   DBUG_EXECUTE_IF("fault_injection_copy_part_file", DBUG_SUICIDE(););
 
-  if (move_crash_safe_index_file_to_index_file(FALSE))
+  if (move_crash_safe_index_file_to_index_file(false/*need_lock_index=false*/))
   {
     sql_print_error("MYSQL_BIN_LOG::remove_logs_from_index failed to "
                     "move crash safe index file to index file.");
@@ -3356,7 +3349,7 @@ err:
 
   @param to_log	      Delete all log file name before this file.
   @param included            If true, to_log is deleted too.
-  @param need_mutex
+  @param need_lock_index
   @param need_update_threads If we want to update the log coordinates of
                              all threads. False for relay logs, true otherwise.
   @param freed_log_space     If not null, decrement this variable of
@@ -3377,7 +3370,7 @@ err:
 
 int MYSQL_BIN_LOG::purge_logs(const char *to_log, 
                               bool included,
-                              bool need_mutex, 
+                              bool need_lock_index,
                               bool need_update_threads, 
                               ulonglong *decrease_log_space)
 {
@@ -3388,9 +3381,11 @@ int MYSQL_BIN_LOG::purge_logs(const char *to_log,
   DBUG_ENTER("purge_logs");
   DBUG_PRINT("info",("to_log= %s",to_log));
 
-  if (need_mutex)
+  if (need_lock_index)
     mysql_mutex_lock(&LOCK_index);
-  if ((error=find_log_pos(&log_info, to_log, 0 /*no mutex*/))) 
+  else
+    mysql_mutex_assert_owner(&LOCK_index);
+  if ((error=find_log_pos(&log_info, to_log, false/*need_lock_index=false*/))) 
   {
     sql_print_error("MYSQL_BIN_LOG::purge_logs was called with file %s not "
                     "listed in the index.", to_log);
@@ -3407,7 +3402,7 @@ int MYSQL_BIN_LOG::purge_logs(const char *to_log,
     File name exists in index file; delete until we find this file
     or a file that is used.
   */
-  if ((error=find_log_pos(&log_info, NullS, 0 /*no mutex*/)))
+  if ((error=find_log_pos(&log_info, NullS, false/*need_lock_index=false*/)))
     goto err;
   while ((strcmp(to_log,log_info.log_file_name) || (exit_loop=included)) &&
          !is_active(log_info.log_file_name) &&
@@ -3420,7 +3415,7 @@ int MYSQL_BIN_LOG::purge_logs(const char *to_log,
       goto err;
     }
 
-    if (find_next_log(&log_info, 0) || exit_loop)
+    if (find_next_log(&log_info, false/*need_lock_index=false*/) || exit_loop)
       break;
   }
 
@@ -3456,14 +3451,14 @@ int MYSQL_BIN_LOG::purge_logs(const char *to_log,
 err:
   /* Read each entry from purge_index_file and delete the file. */
   if (is_inited_purge_index_file() &&
-      (error= purge_index_entry(thd, decrease_log_space, FALSE)))
+      (error= purge_index_entry(thd, decrease_log_space, false/*need_lock_index=false*/)))
     sql_print_error("MYSQL_BIN_LOG::purge_logs failed to process registered files"
                     " that would be purged.");
   close_purge_index_file();
 
   DBUG_EXECUTE_IF("crash_purge_non_critical_after_update_index", DBUG_SUICIDE(););
 
-  if (need_mutex)
+  if (need_lock_index)
     mysql_mutex_unlock(&LOCK_index);
   DBUG_RETURN(error);
 }
@@ -3563,7 +3558,7 @@ int MYSQL_BIN_LOG::register_create_index_entry(const char *entry)
 }
 
 int MYSQL_BIN_LOG::purge_index_entry(THD *thd, ulonglong *decrease_log_space,
-                                     bool need_mutex)
+                                     bool need_lock_index)
 {
   MY_STAT s;
   int error= 0;
@@ -3650,7 +3645,8 @@ int MYSQL_BIN_LOG::purge_index_entry(THD *thd, ulonglong *decrease_log_space,
     }
     else
     {
-      if ((error= find_log_pos(&check_log_info, log_info.log_file_name, need_mutex)))
+      if ((error= find_log_pos(&check_log_info, log_info.log_file_name,
+                               need_lock_index)))
       {
         if (error != LOG_INFO_EOF)
         {
@@ -3672,10 +3668,13 @@ int MYSQL_BIN_LOG::purge_index_entry(THD *thd, ulonglong *decrease_log_space,
         }
            
         error= 0;
-        if (!need_mutex)
+        if (!need_lock_index)
         {
           /*
             This is to avoid triggering an error in NDB.
+
+            @todo: This is weird, what does NDB errors have to do with
+            need_lock_index? Explain better or refactor /Sven
           */
           ha_binlog_index_purge_file(current_thd, log_info.log_file_name);
         }
@@ -3771,7 +3770,7 @@ int MYSQL_BIN_LOG::purge_logs_before_date(time_t purge_time)
   mysql_mutex_lock(&LOCK_index);
   to_log[0]= 0;
 
-  if ((error=find_log_pos(&log_info, NullS, 0 /*no mutex*/)))
+  if ((error=find_log_pos(&log_info, NullS, false/*need_lock_index=false*/)))
     goto err;
 
   while (strcmp(log_file_name, log_info.log_file_name) &&
@@ -3821,11 +3820,14 @@ int MYSQL_BIN_LOG::purge_logs_before_date(time_t purge_time)
       else
         break;
     }
-    if (find_next_log(&log_info, 0))
+    if (find_next_log(&log_info, false/*need_lock_index=false*/))
       break;
   }
 
-  error= (to_log[0] ? purge_logs(to_log, 1, 0, 1, (ulonglong *) 0) : 0);
+  error= (to_log[0] ? purge_logs(to_log, true,
+                                 false/*need_lock_index=false*/,
+                                 true/*need_update_threads=true*/,
+                                 (ulonglong *) 0) : 0);
 
 err:
   mysql_mutex_unlock(&LOCK_index);
@@ -3875,34 +3877,33 @@ bool MYSQL_BIN_LOG::is_active(const char *log_file_name_arg)
 
 */
 
-int MYSQL_BIN_LOG::new_file()
+int MYSQL_BIN_LOG::new_file(Format_description_log_event *extra_description_event)
 {
-  return new_file_impl(1);
+  return new_file_impl(true/*need_lock_log=true*/, extra_description_event);
 }
 
 /*
   @retval
     nonzero - error
 */
-int MYSQL_BIN_LOG::new_file_without_locking()
+int MYSQL_BIN_LOG::new_file_without_locking(Format_description_log_event *extra_description_event)
 {
-  return new_file_impl(0);
+  return new_file_impl(false/*need_lock_log=false*/, extra_description_event);
 }
 
 
 /**
   Start writing to a new log file or reopen the old file.
 
-  @param need_lock		Set to 1 if caller has not locked LOCK_log
+  @param need_lock_log If true, this function acquires LOCK_log;
+  otherwise the caller should already have acquired it.
 
-  @retval
-    nonzero - error
+  @retval 0 success
+  @retval nonzero - error
 
-  @note
-    The new file name is stored last in the index file
+  @note The new file name is stored last in the index file
 */
-
-int MYSQL_BIN_LOG::new_file_impl(bool need_lock)
+int MYSQL_BIN_LOG::new_file_impl(bool need_lock_log, Format_description_log_event *extra_description_event)
 {
   int error= 0, close_on_error= FALSE;
   char new_name[FN_REFLEN], *new_name_ptr, *old_name, *file_to_open;
@@ -3914,12 +3915,11 @@ int MYSQL_BIN_LOG::new_file_impl(bool need_lock)
     DBUG_RETURN(error);
   }
 
-  if (need_lock)
+  if (need_lock_log)
     mysql_mutex_lock(&LOCK_log);
+  else
+    mysql_mutex_assert_owner(&LOCK_log);
   mysql_mutex_lock(&LOCK_index);
-
-  mysql_mutex_assert_owner(&LOCK_log);
-  mysql_mutex_assert_owner(&LOCK_index);
 
   /*
     if binlog is used as tc log, be sure all xids are "unlogged",
@@ -3951,10 +3951,9 @@ int MYSQL_BIN_LOG::new_file_impl(bool need_lock)
   */
   if ((error= generate_new_name(new_name, name)))
     goto end;
-  new_name_ptr=new_name;
-
-  if (!no_auto_events)
+  else
   {
+    new_name_ptr=new_name;
     /*
       We log the whole file name for log file as the user may decide
       to change base names at some point.
@@ -4013,14 +4012,16 @@ int MYSQL_BIN_LOG::new_file_impl(bool need_lock)
 
   /* reopen index binlog file, BUG#34582 */
   file_to_open= index_file_name;
-  error= open_index_file(index_file_name, 0, FALSE);
+  error= open_index_file(index_file_name, 0, false/*need_lock_index=false*/);
   if (!error)
   {
     /* reopen the binary log file. */
     file_to_open= new_name_ptr;
-    error= open_binlog(old_name, log_type, new_name_ptr, io_cache_type,
-                       no_auto_events, max_size, 1,
-                       false/*need mutex*/, true/*need sid_lock*/);
+    error= open_binlog(old_name, new_name_ptr, io_cache_type,
+                       max_size, true,
+                       false/*need_lock_index=false*/,
+                       true/*need_sid_lock=true*/,
+                       extra_description_event);
   }
 
   /* handle reopening errors */
@@ -4058,7 +4059,7 @@ end:
                     "server and restart it.", 
                     new_name_ptr, errno);
   }
-  if (need_lock)
+  if (need_lock_log)
     mysql_mutex_unlock(&LOCK_log);
   mysql_mutex_unlock(&LOCK_index);
 
@@ -4066,62 +4067,100 @@ end:
 }
 
 
-bool MYSQL_BIN_LOG::append_event(Log_event* ev)
+#ifdef HAVE_REPLICATION
+/**
+  Called after an event has been written to the relay log by the IO
+  thread.  This flushes and possibly syncs the file (according to the
+  sync options), rotates the file if it has grown over the limit, and
+  finally calls signal_update().
+
+  @note The caller must hold LOCK_log before invoking this function.
+
+  @param mi Master_info for the IO thread.
+  @param need_data_lock If true, mi->data_lock will be acquired if a
+  rotation is needed.  Otherwise, mi->data_lock must be held by the
+  caller.
+
+  @retval false success
+  @retval true error
+*/
+bool MYSQL_BIN_LOG::after_append_to_relay_log(Master_info *mi)
 {
-  bool error = 0;
-  mysql_mutex_lock(&LOCK_log);
+  DBUG_ENTER("MYSQL_BIN_LOG::after_append_to_relay_log");
+  DBUG_PRINT("info",("max_size: %lu",max_size));
+
+  // Check pre-conditions
+  mysql_mutex_assert_owner(&LOCK_log);
+  mysql_mutex_assert_owner(&mi->data_lock);
+  DBUG_ASSERT(is_relay_log);
+  DBUG_ASSERT(current_thd->system_thread == SYSTEM_THREAD_SLAVE_IO);
+
+  // Flush and sync
+  bool error= false;
+  if (flush_and_sync(0) == 0)
+  {
+    // If relay log is too big, rotate
+    if ((uint) my_b_append_tell(&log_file) >
+        DBUG_EVALUATE_IF("rotate_slave_debug_group", 500, max_size))
+    {
+      error= new_file_without_locking(mi->get_mi_description_event());
+    }
+  }
+
+  signal_update();
+
+  DBUG_RETURN(error);
+}
+
+
+bool MYSQL_BIN_LOG::append_event(Log_event* ev, Master_info *mi)
+{
   DBUG_ENTER("MYSQL_BIN_LOG::append");
 
+  // check preconditions
   DBUG_ASSERT(log_file.type == SEQ_READ_APPEND);
-  /*
-    Log_event::write() is smart enough to use my_b_write() or
-    my_b_append() depending on the kind of cache we have.
-  */
-  if (ev->write(&log_file))
+  DBUG_ASSERT(is_relay_log);
+
+  // acquire locks
+  mysql_mutex_lock(&LOCK_log);
+
+  // write data
+  bool error = false;
+  if (ev->write(&log_file) == 0)
   {
-    error=1;
-    goto err;
+    bytes_written+= ev->data_written;
+    error= after_append_to_relay_log(mi);
   }
-  bytes_written+= ev->data_written;
-  DBUG_PRINT("info",("max_size: %lu",max_size));
-  if (flush_and_sync(0))
-    goto err;
-  if ((uint) my_b_append_tell(&log_file) >
-      DBUG_EVALUATE_IF("rotate_slave_debug_group", 500, max_size))
-    error= new_file_without_locking();
-err:
+  else
+    error= true;
+
   mysql_mutex_unlock(&LOCK_log);
-  signal_update();				// Safe as we don't call close
   DBUG_RETURN(error);
 }
 
 
-bool MYSQL_BIN_LOG::append_buffer(const char* buf, uint len)
+bool MYSQL_BIN_LOG::append_buffer(const char* buf, uint len, Master_info *mi)
 {
-  bool error= 0;
   DBUG_ENTER("MYSQL_BIN_LOG::append_buffer");
 
+  // check preconditions
   DBUG_ASSERT(log_file.type == SEQ_READ_APPEND);
-
+  DBUG_ASSERT(is_relay_log);
   mysql_mutex_assert_owner(&LOCK_log);
-  if (my_b_append(&log_file,(uchar*) buf,len))
-  {
-    error= 1;
-    goto err;
-  }
-  bytes_written += len;
 
-  DBUG_PRINT("info",("max_size: %lu",max_size));
-  if (flush_and_sync(0))
-    goto err;
-  if ((uint) my_b_append_tell(&log_file) >
-      DBUG_EVALUATE_IF("rotate_slave_debug_group", 500, max_size))
-    error= new_file_without_locking();
-err:
-  if (!error)
-    signal_update();
+  // write data
+  bool error= false;
+  if (my_b_append(&log_file,(uchar*) buf,len) == 0)
+  {
+    bytes_written += len;
+    error= after_append_to_relay_log(mi);
+  }
+  else
+    error= true;
+
   DBUG_RETURN(error);
 }
+#endif // ifdef HAVE_REPLICATION
 
 bool MYSQL_BIN_LOG::flush_and_sync(bool *synced, const bool force)
 {
@@ -4441,6 +4480,8 @@ err:
     to create a new log file, we still try to write an 
     incident event to the current log.
 
+  @note The caller must hold LOCK_log when invoking this function.
+
   @retval
     nonzero - error in rotating routine.
 */
@@ -4449,12 +4490,14 @@ int MYSQL_BIN_LOG::rotate(bool force_rotate, bool* check_purge)
   int error= 0;
   DBUG_ENTER("MYSQL_BIN_LOG::rotate");
 
-  //todo: fix the macro def and restore safe_mutex_assert_owner(&LOCK_log);
+  DBUG_ASSERT(!is_relay_log);
+  mysql_mutex_assert_owner(&LOCK_log);
+
   *check_purge= false;
 
   if (force_rotate || (my_b_tell(&log_file) >= (my_off_t) max_size))
   {
-    if ((error= new_file_without_locking()))
+    if ((error= new_file_without_locking(NULL)))
       /** 
         Be conservative... There are possible lost events (eg, 
         failing to log the Execute_load_query_log_event
@@ -4464,7 +4507,8 @@ int MYSQL_BIN_LOG::rotate(bool force_rotate, bool* check_purge)
         We give it a shot and try to write an incident event anyway
         to the current log. 
       */
-      if (!write_incident(current_thd, FALSE))
+      if (!write_incident(current_thd, false/*need_lock_log=false*/,
+                          false/*do_flush_and_sync==false*/))
         flush_and_sync(0);
 
     *check_purge= true;
@@ -4508,7 +4552,7 @@ int MYSQL_BIN_LOG::rotate_and_purge(bool force_rotate)
   DBUG_ENTER("MYSQL_BIN_LOG::rotate_and_purge");
   bool check_purge= false;
 
-  //todo: fix the macro def and restore safe_mutex_assert_not_owner(&LOCK_log);
+  DBUG_ASSERT(!is_relay_log);
   mysql_mutex_lock(&LOCK_log);
   error= rotate(force_rotate, &check_purge);
   /*
@@ -4807,15 +4851,17 @@ int MYSQL_BIN_LOG::do_write_cache(IO_CACHE *cache, bool lock_log, bool sync_log)
 /**
   Writes an incident event to the binary log.
 
-  @param ev   Incident event to be written
-  @param lock If the binary lock should be locked or not
+  @param ev Incident event to be written
+  @param need_lock_log If true, will acquire LOCK_log; otherwise the
+  caller should already have acquired LOCK_log.
+  @do_flush_and_sync If true, will call flush_and_sync(), rotate() and
+  purge().
 
-  @retval
-    0    error
-  @retval
-    1    success
+  @retval false error
+  @retval true success
 */
-bool MYSQL_BIN_LOG::write_incident(Incident_log_event *ev, bool lock)
+bool MYSQL_BIN_LOG::write_incident(Incident_log_event *ev, bool need_lock_log,
+                                   bool do_flush_and_sync)
 {
   uint error= 0;
   DBUG_ENTER("MYSQL_BIN_LOG::write_incident");
@@ -4823,29 +4869,30 @@ bool MYSQL_BIN_LOG::write_incident(Incident_log_event *ev, bool lock)
   if (!is_open())
     DBUG_RETURN(error);
 
-  if (lock)
+  if (need_lock_log)
     mysql_mutex_lock(&LOCK_log);
+  else
+    mysql_mutex_assert_owner(&LOCK_log);
 
   // @todo make this work with the group log. /sven
 
   error= ev->write(&log_file);
 
-  if (lock)
+  if (do_flush_and_sync)
   {
     if (!error && !(error= flush_and_sync(0)))
     {
       bool check_purge= false;
       signal_update();
       error= rotate(true, &check_purge);
-      mysql_mutex_unlock(&LOCK_log);
       if (!error && check_purge)
         purge();
     }
-    else
-    {
-      mysql_mutex_unlock(&LOCK_log);
-    }
   }
+
+  if (need_lock_log)
+    mysql_mutex_unlock(&LOCK_log);
+
   DBUG_RETURN(error);
 }
 /**
@@ -4860,7 +4907,8 @@ bool MYSQL_BIN_LOG::write_incident(Incident_log_event *ev, bool lock)
   @retval
     1    success
 */
-bool MYSQL_BIN_LOG::write_incident(THD *thd, bool lock)
+bool MYSQL_BIN_LOG::write_incident(THD *thd, bool need_lock_log,
+                                   bool do_flush_and_sync)
 {
   DBUG_ENTER("MYSQL_BIN_LOG::write_incident");
 
@@ -4872,7 +4920,7 @@ bool MYSQL_BIN_LOG::write_incident(THD *thd, bool lock)
   Incident incident= INCIDENT_LOST_EVENTS;
   Incident_log_event ev(thd, incident, write_error_msg);
 
-  DBUG_RETURN(write_incident(&ev, lock));
+  DBUG_RETURN(write_incident(&ev, need_lock_log, do_flush_and_sync));
 }
 
 /**
@@ -4925,7 +4973,8 @@ bool MYSQL_BIN_LOG::write_cache(THD *thd, binlog_cache_data *cache_data,
       if ((write_error= do_write_cache(cache, false, false)))
         goto err;
 
-      if (incident && write_incident(thd, FALSE))
+      if (incident && write_incident(thd, false/*need_lock_log=false*/,
+                                     false/*do_flush_and_sync==false*/))
         goto err;
 
       bool synced= 0;
@@ -5088,7 +5137,7 @@ void MYSQL_BIN_LOG::close(uint exiting)
   if (log_state == LOG_OPENED)
   {
 #ifdef HAVE_REPLICATION
-    if (!no_auto_events && (exiting & LOG_CLOSE_STOP_EVENT))
+    if ((exiting & LOG_CLOSE_STOP_EVENT) != 0)
     {
       Stop_log_event s;
       // the checksumming rule for relay-log case is similar to Rotate
@@ -5186,6 +5235,11 @@ int MYSQL_BIN_LOG::open_binlog(const char *opt_name)
   LOG_INFO log_info;
   int      error= 1;
 
+  /*
+    This function is used for 2pc transaction coordination.  Hence, it
+    is never used for relay logs.
+  */
+  DBUG_ASSERT(!is_relay_log);
   DBUG_ASSERT(total_ha_2pc > 1);
   DBUG_ASSERT(opt_name && opt_name[0]);
 
@@ -5203,13 +5257,15 @@ int MYSQL_BIN_LOG::open_binlog(const char *opt_name)
   if (using_heuristic_recover())
   {
     /* generate a new binlog to mask a corrupted one */
-    open_binlog(opt_name, LOG_BIN, 0, WRITE_CACHE, 0, max_binlog_size, 0,
-                true/*need mutex*/, true/*need sid_lock*/);
+    open_binlog(opt_name, 0, WRITE_CACHE, max_binlog_size, false,
+                true/*need_lock_index=true*/,
+                true/*need_sid_lock=true*/,
+                NULL);
     cleanup();
     return 1;
   }
 
-  if ((error= find_log_pos(&log_info, NullS, 1)))
+  if ((error= find_log_pos(&log_info, NullS, true/*need_lock_index=true*/)))
   {
     if (error != LOG_INFO_EOF)
       sql_print_error("find_log_pos() failed (error: %d)", error);
@@ -5235,7 +5291,7 @@ int MYSQL_BIN_LOG::open_binlog(const char *opt_name)
     do
     {
       strmake(log_name, log_info.log_file_name, sizeof(log_name)-1);
-    } while (!(error= find_next_log(&log_info, 1)));
+    } while (!(error= find_next_log(&log_info, true/*need_lock_index=true*/)));
 
     if (error !=  LOG_INFO_EOF)
     {
