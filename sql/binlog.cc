@@ -939,7 +939,7 @@ binlog_truncate_trx_cache(THD *thd, binlog_cache_mngr *cache_mngr, bool all)
   if (ending_trans(thd, all))
   {
     if (cache_mngr->trx_cache.has_incident())
-      error= mysql_bin_log.write_incident(thd, TRUE);
+      error= mysql_bin_log.write_incident(thd, true/*need_lock_log=true*/);
 
     thd->clear_binlog_table_maps();
 
@@ -1094,7 +1094,7 @@ static int binlog_rollback(handlerton *hton, THD *thd, bool all)
   */
   if (cache_mngr->stmt_cache.has_incident())
   {
-    error= mysql_bin_log.write_incident(thd, TRUE);
+    error= mysql_bin_log.write_incident(thd, true/*need_lock_log=true*/);
     cache_mngr->reset_stmt_cache();
   }
   else
@@ -2383,6 +2383,9 @@ bool MYSQL_BIN_LOG::open_binlog(const char *log_name,
 
   bool write_file_name_to_index_file=0;
 
+  /* This must be before goto err. */
+  Format_description_log_event s(BINLOG_VERSION);
+
   if (!my_b_filelength(&log_file))
   {
     /*
@@ -2398,54 +2401,51 @@ bool MYSQL_BIN_LOG::open_binlog(const char *log_name,
     write_file_name_to_index_file= 1;
   }
 
+  /*
+    don't set LOG_EVENT_BINLOG_IN_USE_F for SEQ_READ_APPEND io_cache
+    as we won't be able to reset it later
+  */
+  if (io_cache_type == WRITE_CACHE)
+    s.flags |= LOG_EVENT_BINLOG_IN_USE_F;
+  s.checksum_alg= is_relay_log ?
+    /* relay-log */
+    /* inherit master's A descriptor if one has been received */
+    (relay_log_checksum_alg=
+     (relay_log_checksum_alg != BINLOG_CHECKSUM_ALG_UNDEF) ?
+     relay_log_checksum_alg :
+     /* otherwise use slave's local preference of RL events verification */
+     (opt_slave_sql_verify_checksum == 0) ?
+     (uint8) BINLOG_CHECKSUM_ALG_OFF : binlog_checksum_options):
+    /* binlog */
+    binlog_checksum_options;
+  DBUG_ASSERT(s.checksum_alg != BINLOG_CHECKSUM_ALG_UNDEF);
+  if (!s.is_valid())
+    goto err;
+  s.dont_set_created= null_created_arg;
+  /* Set LOG_EVENT_RELAY_LOG_F flag for relay log's FD */
+  if (is_relay_log)
+    s.set_relay_log_event();
+  if (s.write(&log_file))
+    goto err;
+  bytes_written+= s.data_written;
+  /*
+    We need to revisit this code and improve it.
+    See further comments in the mysqld.
+    /Alfranio
+  */
+  if (current_thd && gtid_mode > 0)
   {
-    Format_description_log_event s(BINLOG_VERSION);
-    /*
-      don't set LOG_EVENT_BINLOG_IN_USE_F for SEQ_READ_APPEND io_cache
-      as we won't be able to reset it later
-    */
-    if (io_cache_type == WRITE_CACHE)
-      s.flags |= LOG_EVENT_BINLOG_IN_USE_F;
-    s.checksum_alg= is_relay_log ?
-      /* relay-log */
-      /* inherit master's A descriptor if one has been received */
-      (relay_log_checksum_alg= 
-       (relay_log_checksum_alg != BINLOG_CHECKSUM_ALG_UNDEF) ?
-       relay_log_checksum_alg :
-       /* otherwise use slave's local preference of RL events verification */
-       (opt_slave_sql_verify_checksum == 0) ?
-       (uint8) BINLOG_CHECKSUM_ALG_OFF : binlog_checksum_options):
-      /* binlog */
-      binlog_checksum_options;
-    DBUG_ASSERT(s.checksum_alg != BINLOG_CHECKSUM_ALG_UNDEF);
-    if (!s.is_valid())
+    if (need_sid_lock)
+      global_sid_lock.wrlock();
+    else
+      global_sid_lock.assert_some_wrlock();
+    Previous_gtids_log_event prev_gtids_ev(previous_gtid_set);
+    if (need_sid_lock)
+      global_sid_lock.unlock();
+    prev_gtids_ev.checksum_alg= s.checksum_alg;
+    if (prev_gtids_ev.write(&log_file))
       goto err;
-    s.dont_set_created= null_created_arg;
-    /* Set LOG_EVENT_RELAY_LOG_F flag for relay log's FD */
-    if (is_relay_log)
-      s.set_relay_log_event();
-    if (s.write(&log_file))
-      goto err;
-    bytes_written+= s.data_written;
-    /*
-      We need to revisit this code and improve it.
-      See further comments in the mysqld.
-      /Alfranio
-    */
-    if (current_thd && gtid_mode > 0)
-    {
-      if (need_sid_lock)
-        global_sid_lock.wrlock();
-      else
-        global_sid_lock.assert_some_wrlock();
-      Previous_gtids_log_event prev_gtids_ev(previous_gtid_set);
-      if (need_sid_lock)
-        global_sid_lock.unlock();
-      prev_gtids_ev.checksum_alg= s.checksum_alg;
-      if (prev_gtids_ev.write(&log_file))
-        goto err;
-      bytes_written+= prev_gtids_ev.data_written;
-    }
+    bytes_written+= prev_gtids_ev.data_written;
   }
   if (extra_description_event &&
       extra_description_event->binlog_version>=4)
@@ -3879,7 +3879,7 @@ bool MYSQL_BIN_LOG::is_active(const char *log_file_name_arg)
 
 int MYSQL_BIN_LOG::new_file(Format_description_log_event *extra_description_event)
 {
-  return new_file_impl(1, extra_description_event);
+  return new_file_impl(true/*need_lock_log=true*/, extra_description_event);
 }
 
 /*
@@ -3888,7 +3888,7 @@ int MYSQL_BIN_LOG::new_file(Format_description_log_event *extra_description_even
 */
 int MYSQL_BIN_LOG::new_file_without_locking(Format_description_log_event *extra_description_event)
 {
-  return new_file_impl(0, extra_description_event);
+  return new_file_impl(false/*need_lock_log=false*/, extra_description_event);
 }
 
 
@@ -3951,9 +3951,9 @@ int MYSQL_BIN_LOG::new_file_impl(bool need_lock_log, Format_description_log_even
   */
   if ((error= generate_new_name(new_name, name)))
     goto end;
-  new_name_ptr=new_name;
-
+  else
   {
+    new_name_ptr=new_name;
     /*
       We log the whole file name for log file as the user may decide
       to change base names at some point.
@@ -4493,7 +4493,6 @@ int MYSQL_BIN_LOG::rotate(bool force_rotate, bool* check_purge)
   DBUG_ASSERT(!is_relay_log);
   mysql_mutex_assert_owner(&LOCK_log);
 
-  //todo: fix the macro def and restore safe_mutex_assert_owner(&LOCK_log);
   *check_purge= false;
 
   if (force_rotate || (my_b_tell(&log_file) >= (my_off_t) max_size))
@@ -4508,7 +4507,8 @@ int MYSQL_BIN_LOG::rotate(bool force_rotate, bool* check_purge)
         We give it a shot and try to write an incident event anyway
         to the current log. 
       */
-      if (!write_incident(current_thd, FALSE))
+      if (!write_incident(current_thd, false/*need_lock_log=false*/,
+                          false/*do_flush_and_sync==false*/))
         flush_and_sync(0);
 
     *check_purge= true;
@@ -4553,7 +4553,6 @@ int MYSQL_BIN_LOG::rotate_and_purge(bool force_rotate)
   bool check_purge= false;
 
   DBUG_ASSERT(!is_relay_log);
-  //todo: fix the macro def and restore safe_mutex_assert_not_owner(&LOCK_log);
   mysql_mutex_lock(&LOCK_log);
   error= rotate(force_rotate, &check_purge);
   /*
@@ -4855,11 +4854,14 @@ int MYSQL_BIN_LOG::do_write_cache(IO_CACHE *cache, bool lock_log, bool sync_log)
   @param ev Incident event to be written
   @param need_lock_log If true, will acquire LOCK_log; otherwise the
   caller should already have acquired LOCK_log.
+  @do_flush_and_sync If true, will call flush_and_sync(), rotate() and
+  purge().
 
   @retval false error
   @retval true success
 */
-bool MYSQL_BIN_LOG::write_incident(Incident_log_event *ev, bool need_lock_log)
+bool MYSQL_BIN_LOG::write_incident(Incident_log_event *ev, bool need_lock_log,
+                                   bool do_flush_and_sync)
 {
   uint error= 0;
   DBUG_ENTER("MYSQL_BIN_LOG::write_incident");
@@ -4876,26 +4878,21 @@ bool MYSQL_BIN_LOG::write_incident(Incident_log_event *ev, bool need_lock_log)
 
   error= ev->write(&log_file);
 
-  if (need_lock_log)
+  if (do_flush_and_sync)
   {
-    /**
-      @todo this is weird, what does need_lock_log have to do with
-      flush_and_sync()? Explain this or refactor. /Sven
-    */
     if (!error && !(error= flush_and_sync(0)))
     {
       bool check_purge= false;
       signal_update();
       error= rotate(true, &check_purge);
-      mysql_mutex_unlock(&LOCK_log);
       if (!error && check_purge)
         purge();
     }
-    else
-    {
-      mysql_mutex_unlock(&LOCK_log);
-    }
   }
+
+  if (need_lock_log)
+    mysql_mutex_unlock(&LOCK_log);
+
   DBUG_RETURN(error);
 }
 /**
@@ -4910,7 +4907,8 @@ bool MYSQL_BIN_LOG::write_incident(Incident_log_event *ev, bool need_lock_log)
   @retval
     1    success
 */
-bool MYSQL_BIN_LOG::write_incident(THD *thd, bool need_lock_log)
+bool MYSQL_BIN_LOG::write_incident(THD *thd, bool need_lock_log,
+                                   bool do_flush_and_sync)
 {
   DBUG_ENTER("MYSQL_BIN_LOG::write_incident");
 
@@ -4922,7 +4920,7 @@ bool MYSQL_BIN_LOG::write_incident(THD *thd, bool need_lock_log)
   Incident incident= INCIDENT_LOST_EVENTS;
   Incident_log_event ev(thd, incident, write_error_msg);
 
-  DBUG_RETURN(write_incident(&ev, need_lock_log));
+  DBUG_RETURN(write_incident(&ev, need_lock_log, do_flush_and_sync));
 }
 
 /**
@@ -4975,7 +4973,8 @@ bool MYSQL_BIN_LOG::write_cache(THD *thd, binlog_cache_data *cache_data,
       if ((write_error= do_write_cache(cache, false, false)))
         goto err;
 
-      if (incident && write_incident(thd, FALSE))
+      if (incident && write_incident(thd, false/*need_lock_log=false*/,
+                                     false/*do_flush_and_sync==false*/))
         goto err;
 
       bool synced= 0;
