@@ -1289,8 +1289,19 @@ JOIN::optimize()
         store_key *key_copy= tab->ref.key_copy[key_copy_index];
         if (key_copy->type() == store_key::FIELD_STORE_KEY)
         {
-          store_key_field *field_copy= ((store_key_field *)key_copy);
-          field_copy->change_source_field((Item_field *) item);
+          if (item->basic_const_item())
+          {
+            /* It is constant propagated here */
+            tab->ref.key_copy[key_copy_index]=
+              new store_key_const_item(*tab->ref.key_copy[key_copy_index],
+                                       item);
+          }
+          else
+          {
+            store_key_field *field_copy= ((store_key_field *)key_copy);
+            DBUG_ASSERT(item->type() == Item::FIELD_ITEM);
+            field_copy->change_source_field((Item_field *) item);
+          }
         }
       }
       key_copy_index++;
