@@ -501,9 +501,7 @@ row_import_free(
 	row_import_t*&	cfg)		/*!< in/own: memory to free */
 {
 	for (ulint i = 0; cfg->indexes != 0 && i < cfg->n_indexes; ++i) {
-		if (cfg->indexes[i].name != 0) {
-			delete [] cfg->indexes[i].name;
-		}
+		delete [] cfg->indexes[i].name;
 
 		if (cfg->indexes[i].fields == 0) {
 			continue;
@@ -513,39 +511,21 @@ row_import_free(
 		ulint		n_fields = cfg->indexes[i].n_fields;
 
 		for (ulint j = 0; j < n_fields; ++j) {
-			if (fields[j].name != 0) {
-				delete [] fields[j].name;
-			}
+			delete [] fields[j].name;
 		}
 
 		delete [] fields;
 	}
 
 	for (ulint i = 0; cfg->col_names != 0 && i < cfg->n_cols; ++i) {
-		if (cfg->col_names[i] != 0) {
-			delete [] cfg->col_names[i];
-		}
+		delete [] cfg->col_names[i];
 	}
 
-	if (cfg->cols != 0) {
-		delete [] cfg->cols;
-	}
-
-	if (cfg->indexes != 0) {
-		delete [] cfg->indexes;
-	}
-
-	if (cfg->col_names != 0) {
-		delete [] cfg->col_names;
-	}
-
-	if (cfg->table_name != 0) {
-		delete [] cfg->table_name;
-	}
-
-	if (cfg->hostname != 0) {
-		delete [] cfg->hostname;
-	}
+	delete [] cfg->cols;
+	delete [] cfg->indexes;
+	delete [] cfg->col_names;
+	delete [] cfg->table_name;
+	delete [] cfg->hostname;
 
 	memset(cfg, 0xff, sizeof(*cfg));
 
