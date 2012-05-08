@@ -6354,7 +6354,7 @@ get_mm_leaf(RANGE_OPT_PARAM *param, Item *conf_func, Field *field,
   MEM_ROOT *alloc= param->mem_root;
   uchar *str;
   sql_mode_t orig_sql_mode;
-  int err;
+  type_conversion_status err;
   const char* impossible_cond_cause= NULL;
   DBUG_ENTER("get_mm_leaf");
 
@@ -6588,7 +6588,7 @@ get_mm_leaf(RANGE_OPT_PARAM *param, Item *conf_func, Field *field,
   // Note that value may be a stored function call, executed here.
   err= value->save_in_field_no_warnings(field, 1);
 
-  if (err > 0)
+  if (err != TYPE_OK && err != TYPE_ERR_NULL_CONSTRAINT_VIOLATION)
   {
     if (field->cmp_type() != value->result_type())
     {
@@ -6609,7 +6609,8 @@ get_mm_leaf(RANGE_OPT_PARAM *param, Item *conf_func, Field *field,
           for the cases like int_field > 999999999999999999999999 as well.
         */
         tree= 0;
-        if (err == 3 && field->type() == FIELD_TYPE_DATE &&
+        if (err == TYPE_NOTE_TIME_TRUNCATED &&
+            field->type() == FIELD_TYPE_DATE &&
             (type == Item_func::GT_FUNC || type == Item_func::GE_FUNC ||
              type == Item_func::LT_FUNC || type == Item_func::LE_FUNC) )
         {
@@ -6645,7 +6646,8 @@ get_mm_leaf(RANGE_OPT_PARAM *param, Item *conf_func, Field *field,
       If an integer got bounded (e.g. to within 0..255 / -128..127)
       for < or >, set flags as for <= or >= (no NEAR_MAX / NEAR_MIN)
     */
-    else if (err == 1 && field->result_type() == INT_RESULT)
+    else if (err == TYPE_WARN_OUT_OF_RANGE && 
+             field->result_type() == INT_RESULT)
     {
       if (type == Item_func::LT_FUNC && (value->val_int() > 0))
         type = Item_func::LE_FUNC;
@@ -6657,7 +6659,7 @@ get_mm_leaf(RANGE_OPT_PARAM *param, Item *conf_func, Field *field,
         type = Item_func::GE_FUNC;
     }
   }
-  else if (err < 0)
+  else if (err == TYPE_ERR_NULL_CONSTRAINT_VIOLATION)
   {
     impossible_cond_cause= "null_field_in_non_null_column";
     field->table->in_use->variables.sql_mode= orig_sql_mode;
