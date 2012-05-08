@@ -5,7 +5,7 @@
 ##   ENABLE_TESTING()
 ##   INCLUDE(CTest)
 set(CTEST_PROJECT_NAME "tokudb")
-set(CTEST_NIGHTLY_START_TIME "23:30:00 EDT")
+set(CTEST_NIGHTLY_START_TIME "23:59:00 EDT")
 
 set(CTEST_DROP_METHOD "http")
 set(CTEST_DROP_SITE "munchkin.leifwalsh.com")
