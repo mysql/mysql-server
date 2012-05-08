@@ -34,12 +34,7 @@ using my_testing::Mock_error_handler;
 class FieldTimestampTest : public ::testing::Test
 {
 protected:
-  static void SetUpTestCase() { Server_initializer::SetUpTestCase(); }
-
-  static void TearDownTestCase() { Server_initializer::TearDownTestCase(); }
-
   virtual void SetUp() { initializer.SetUp(); }
-
   virtual void TearDown() { initializer.TearDown(); }
 
   THD *get_thd() { return initializer.thd(); }

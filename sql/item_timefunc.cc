@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -812,7 +812,8 @@ bool Item_temporal_func::check_precision()
 }
 
 
-int Item_temporal_hybrid_func::save_in_field(Field *field, bool no_conversions)
+type_conversion_status
+Item_temporal_hybrid_func::save_in_field(Field *field, bool no_conversions)
 {
   if (cached_field_type == MYSQL_TYPE_TIME)
     return save_time_in_field(field);
@@ -1868,7 +1869,8 @@ Time_zone *Item_func_now_utc::time_zone()
 }
 
 
-int Item_func_now::save_in_field(Field *to, bool no_conversions)
+type_conversion_status
+Item_func_now::save_in_field(Field *to, bool no_conversions)
 {
   to->set_notnull();
   return to->store_time(cached_time.get_TIME_ptr(), decimals);
