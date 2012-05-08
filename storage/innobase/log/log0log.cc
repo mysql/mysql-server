@@ -222,7 +222,7 @@ loop:
 
 		log_buffer_flush_to_disk();
 
-		srv_log_waits++;
+		srv_stats.log_waits.inc();
 
 		ut_ad(++count < 50);
 
@@ -327,7 +327,7 @@ part_loop:
 		goto part_loop;
 	}
 
-	srv_log_write_requests++;
+	srv_stats.log_write_requests.inc();
 }
 
 /************************************************************//**
@@ -1162,7 +1162,7 @@ log_group_file_header_flush(
 
 		MONITOR_INC(MONITOR_LOG_IO);
 
-		srv_os_log_pending_writes++;
+		srv_stats.os_log_pending_writes.inc();
 
 		fil_io(OS_FILE_WRITE | OS_FILE_LOG, TRUE, group->space_id, 0,
 		       (ulint) (dest_offset / UNIV_PAGE_SIZE),
@@ -1170,7 +1170,7 @@ log_group_file_header_flush(
 		       OS_FILE_LOG_BLOCK_SIZE,
 		       buf, group);
 
-		srv_os_log_pending_writes--;
+		srv_stats.os_log_pending_writes.dec();
 	}
 }
 
@@ -1237,8 +1237,9 @@ loop:
 		log_group_file_header_flush(group, (ulint)
 					    (next_offset / group->file_size),
 					    start_lsn);
-		srv_os_log_written += OS_FILE_LOG_BLOCK_SIZE;
-		srv_log_writes++;
+		srv_stats.os_log_written.add(OS_FILE_LOG_BLOCK_SIZE);
+
+		srv_stats.log_writes.inc();
 	}
 
 	if ((next_offset % group->file_size) + len > group->file_size) {
@@ -1288,7 +1289,7 @@ loop:
 
 		MONITOR_INC(MONITOR_LOG_IO);
 
-		srv_os_log_pending_writes++;
+		srv_stats.os_log_pending_writes.inc();
 
 		ut_a(next_offset / UNIV_PAGE_SIZE <= ULINT_MAX);
 
@@ -1297,10 +1298,10 @@ loop:
 		       (ulint) (next_offset % UNIV_PAGE_SIZE), write_len, buf,
 		       group);
 
-		srv_os_log_pending_writes--;
+		srv_stats.os_log_pending_writes.dec();
 
-		srv_os_log_written += write_len;
-		srv_log_writes++;
+		srv_stats.os_log_written.add(write_len);
+		srv_stats.log_writes.inc();
 	}
 
 	if (write_len < len) {

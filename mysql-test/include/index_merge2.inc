@@ -463,3 +463,34 @@ DROP TABLE t1, t2;
 #a	b
 #1	b
 #DROP TABLE t1, t2;
+
+--echo #
+--echo # BUG#13970015: ASSERT `MIN_ENDP || MAX_ENDP' FAILED IN
+--echo #               HANDLER::MULTI_RANGE_READ_INFO_CONST
+--echo #
+
+CREATE TABLE t1 (
+  pk INT NOT NULL,
+  col_int_key INT NOT NULL,
+  col_varchar_key VARCHAR(1) NOT NULL,
+  PRIMARY KEY (pk),
+  KEY col_int_key (col_int_key),
+  KEY col_varchar_key (col_varchar_key,col_int_key)
+);
+
+INSERT INTO t1 VALUES (1,1,'a'), (2,2,'b');
+
+EXPLAIN
+SELECT col_int_key
+FROM t1
+WHERE col_varchar_key >= 'l' OR 
+      (((pk BETWEEN 141 AND 141) OR col_varchar_key <> 'l') 
+         AND ((pk BETWEEN 141 AND 141) OR (col_int_key > 141)));
+
+SELECT col_int_key
+FROM t1
+WHERE col_varchar_key >= 'l' OR 
+      (((pk BETWEEN 141 AND 141) OR col_varchar_key <> 'l') 
+         AND ((pk BETWEEN 141 AND 141) OR (col_int_key > 141)));
+
+DROP TABLE t1;

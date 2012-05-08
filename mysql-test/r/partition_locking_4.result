@@ -1,0 +1,183 @@
+# Original tests for WL#4443
+# Must have InnoDB as engine to get the same statistics results.
+# embedded uses MyISAM as default. CREATE SELECT uses the default engine.
+SET @old_default_storage_engine = @@global.default_storage_engine;
+SET @@global.default_storage_engine = 'InnoDB';
+SET @old_autocommit = @@global.autocommit;
+SET @@global.autocommit = 0;
+SET @old_lock_wait_timeout= @@global.lock_wait_timeout;
+SET @@global.lock_wait_timeout = 1;
+SET @old_innodb_lock_wait_timeout= @@global.innodb_lock_wait_timeout;
+SET @@global.innodb_lock_wait_timeout = 1;
+SET @old_wait_timeout= @@global.wait_timeout;
+SET @@global.wait_timeout= 1;
+USE test;
+CREATE USER 'mysqltest1'@'localhost';
+CREATE USER 'mysqltest2'@'localhost';
+GRANT ALL PRIVILEGES ON test.* TO 'mysqltest1'@'localhost';
+GRANT ALL PRIVILEGES ON test.* TO 'mysqltest2'@'localhost';
+CREATE TABLE t1 (a int PRIMARY KEY, b varchar(128), KEY (b))
+ENGINE = InnoDB
+PARTITION BY HASH (a) PARTITIONS 13;
+CREATE TABLE t2 (a int PRIMARY KEY AUTO_INCREMENT, b varchar(128))
+ENGINE = InnoDB
+PARTITION BY HASH (a) PARTITIONS 13;
+INSERT INTO t1 VALUES (0, 'First row, p0');
+INSERT INTO t1 VALUES (1, 'First row, p1');
+INSERT INTO t1 VALUES (2, 'First row, p2');
+INSERT INTO t1 VALUES (3, 'First row, p3');
+INSERT INTO t1 VALUES (4, 'First row, p4');
+INSERT INTO t1 VALUES (5, 'First row, p5');
+INSERT INTO t1 VALUES (6, 'First row, p6');
+INSERT INTO t1 VALUES (7, 'First row, p7');
+INSERT INTO t1 VALUES (8, 'First row, p8');
+INSERT INTO t1 VALUES (9, 'First row, p9');
+INSERT INTO t1 VALUES (10, 'First row, p10');
+INSERT INTO t1 VALUES (11, 'First row, p11');
+INSERT INTO t1 VALUES (12, 'First row, p12');
+connect  test1,localhost,mysqltest1,,test;
+connect  test2,localhost,mysqltest2,,test;
+#
+#
+# Test insert
+#
+connection default;
+FLUSH STATUS;
+connection test1;
+INSERT INTO t1 PARTITION (p12) VALUES (26+12, 'third row, p12');
+SELECT * FROM INFORMATION_SCHEMA.SESSION_STATUS
+WHERE VARIABLE_NAME LIKE 'HANDLER_%' AND VARIABLE_VALUE > 0;
+VARIABLE_NAME	VARIABLE_VALUE
+HANDLER_COMMIT	1
+HANDLER_EXTERNAL_LOCK	4
+HANDLER_WRITE	18
+SELECT * FROM t1 ORDER BY a;
+a	b
+0	First row, p0
+1	First row, p1
+2	First row, p2
+3	First row, p3
+4	First row, p4
+5	First row, p5
+6	First row, p6
+7	First row, p7
+8	First row, p8
+9	First row, p9
+10	First row, p10
+11	First row, p11
+12	First row, p12
+38	third row, p12
+connection default;
+FLUSH STATUS;
+connection test2;
+INSERT INTO t1 VALUES (13+0, 'Second row, p0');
+INSERT INTO t1 VALUES (13+1, 'Second row, p1');
+INSERT INTO t1 VALUES (13+2, 'Second row, p2');
+INSERT INTO t1 VALUES (13+3, 'Second row, p3');
+INSERT INTO t1 VALUES (13+4, 'Second row, p4');
+INSERT INTO t1 VALUES (13+5, 'Second row, p5');
+INSERT INTO t1 VALUES (13+6, 'Second row, p6');
+INSERT INTO t1 VALUES (13+7, 'Second row, p7');
+INSERT INTO t1 VALUES (13+8, 'Second row, p8');
+INSERT INTO t1 VALUES (13+9, 'Second row, p9');
+INSERT INTO t1 VALUES (13+10, 'Second row, p10');
+INSERT INTO t1 VALUES (13+11, 'Second row, p11');
+INSERT INTO t1 VALUES (13+12, 'Second row, p12');
+SELECT * FROM INFORMATION_SCHEMA.SESSION_STATUS
+WHERE VARIABLE_NAME LIKE 'HANDLER_%' AND VARIABLE_VALUE > 0;
+VARIABLE_NAME	VARIABLE_VALUE
+HANDLER_COMMIT	13
+HANDLER_EXTERNAL_LOCK	52
+HANDLER_WRITE	30
+SELECT * FROM t1 ORDER BY a;
+a	b
+0	First row, p0
+1	First row, p1
+2	First row, p2
+3	First row, p3
+4	First row, p4
+5	First row, p5
+6	First row, p6
+7	First row, p7
+8	First row, p8
+9	First row, p9
+10	First row, p10
+11	First row, p11
+12	First row, p12
+13	Second row, p0
+14	Second row, p1
+15	Second row, p2
+16	Second row, p3
+17	Second row, p4
+18	Second row, p5
+19	Second row, p6
+20	Second row, p7
+21	Second row, p8
+22	Second row, p9
+23	Second row, p10
+24	Second row, p11
+25	Second row, p12
+connection default;
+FLUSH STATUS;
+connection test1;
+SELECT * FROM INFORMATION_SCHEMA.SESSION_STATUS
+WHERE VARIABLE_NAME LIKE 'HANDLER_%' AND VARIABLE_VALUE > 0;
+VARIABLE_NAME	VARIABLE_VALUE
+HANDLER_COMMIT	2
+HANDLER_EXTERNAL_LOCK	32
+HANDLER_READ_FIRST	13
+HANDLER_READ_KEY	13
+HANDLER_READ_NEXT	14
+HANDLER_READ_RND_NEXT	19
+HANDLER_WRITE	36
+connection default;
+SELECT * FROM t1 PARTITION (p0) ORDER BY a;
+a	b
+0	First row, p0
+SELECT * FROM t1 PARTITION (p1) ORDER BY a;
+a	b
+1	First row, p1
+SELECT * FROM t1 PARTITION (p2) ORDER BY a;
+a	b
+2	First row, p2
+SELECT * FROM t1 PARTITION (p3) ORDER BY a;
+a	b
+3	First row, p3
+SELECT * FROM t1 PARTITION (p4) ORDER BY a;
+a	b
+4	First row, p4
+SELECT * FROM t1 PARTITION (p5) ORDER BY a;
+a	b
+5	First row, p5
+SELECT * FROM t1 PARTITION (p6) ORDER BY a;
+a	b
+6	First row, p6
+SELECT * FROM t1 PARTITION (p7) ORDER BY a;
+a	b
+7	First row, p7
+SELECT * FROM t1 PARTITION (p8) ORDER BY a;
+a	b
+8	First row, p8
+SELECT * FROM t1 PARTITION (p9) ORDER BY a;
+a	b
+9	First row, p9
+SELECT * FROM t1 PARTITION (p10) ORDER BY a;
+a	b
+10	First row, p10
+SELECT * FROM t1 PARTITION (p11) ORDER BY a;
+a	b
+11	First row, p11
+SELECT * FROM t1 PARTITION (p12) ORDER BY a;
+a	b
+12	First row, p12
+FLUSH STATUS;
+connection test1;
+connection default;
+DROP TABLE t1, t2;
+DROP USER 'mysqltest1'@'localhost';
+DROP USER 'mysqltest2'@'localhost';
+SET @@global.default_storage_engine= @old_default_storage_engine;
+SET @@global.autocommit = @old_autocommit;
+SET @@global.lock_wait_timeout= @old_lock_wait_timeout;
+SET @@global.innodb_lock_wait_timeout= @old_innodb_lock_wait_timeout;
+SET @@global.wait_timeout= @old_wait_timeout;

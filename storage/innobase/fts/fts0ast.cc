@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2007, 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2007, 2012, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -381,34 +381,100 @@ fts_ast_node_print(
 }
 
 /******************************************************************//**
-Traverse the AST - in-order traversal.
+Traverse the AST - in-order traversal, except for the FTS_IGNORE
+nodes, which will be ignored in the first pass of each level, and
+visited in a second pass after all other nodes in the same level are visited.
 @return DB_SUCCESS if all went well */
 UNIV_INTERN
-ulint
+dberr_t
 fts_ast_visit(
 /*==========*/
 	fts_ast_oper_t		oper,		/*!< in: current operator */
 	fts_ast_node_t*		node,		/*!< in: current root node */
 	fts_ast_callback	visitor,	/*!< in: callback function */
-	void*			arg)		/*!< in: arg for callback */
+	void*			arg,		/*!< in: arg for callback */
+	bool*			has_ignore)	/*!< out: true, if the operator
+						was ignored during processing,
+						currently we only ignore
+						FTS_IGNORE operator */
 {
-	ulint			error = DB_SUCCESS;
+	dberr_t			error = DB_SUCCESS;
+	fts_ast_node_t*		oper_node = NULL;
+	fts_ast_node_t*		start_node;
+	bool			revisit = false;
+	bool			will_be_ignored = false;
+
+	start_node = node->list.head;
 
 	ut_a(node->type == FTS_AST_LIST
 	     || node->type == FTS_AST_SUBEXP_LIST);
 
+	/* In the first pass of the tree, at the leaf level of the
+	tree, FTS_IGNORE operation will be ignored. It will be
+	repeated at the level above the leaf level */
 	for (node = node->list.head;
-	     node && error == DB_SUCCESS;
+	     node && (error == DB_SUCCESS);
 	     node = node->next) {
 
 		if (node->type == FTS_AST_LIST) {
-			error = fts_ast_visit(oper, node, visitor, arg);
+			error = fts_ast_visit(oper, node, visitor,
+					      arg, &will_be_ignored);
+
+			/* If will_be_ignored is set to true, then
+			we encountered and ignored a FTS_IGNORE operator,
+			and a second pass is needed to process FTS_IGNORE
+			operator */
+			if (will_be_ignored) {
+				revisit = true;
+			}
 		} else if (node->type == FTS_AST_SUBEXP_LIST) {
 			error = fts_ast_visit_sub_exp(node, visitor, arg);
 		} else if (node->type == FTS_AST_OPER) {
 			oper = node->oper;
+			oper_node = node;
 		} else {
-			visitor(oper, node, arg);
+			if (node->visited) {
+				continue;
+			}
+
+			ut_a(oper == FTS_NONE || !oper_node
+			     || oper_node->oper == oper);
+
+			if (oper == FTS_IGNORE) {
+				*has_ignore = true;
+				/* Change the operator to FTS_IGNORE_SKIP,
+				so that it is processed in the second pass */
+				oper_node->oper = FTS_IGNORE_SKIP;
+				continue;
+			}
+
+			if (oper == FTS_IGNORE_SKIP) {
+				/* This must be the second pass, now we process
+				the FTS_IGNORE operator */
+				visitor(FTS_IGNORE, node, arg);
+			} else {
+				visitor(oper, node, arg);
+			}
+
+			node->visited = true;
+		}
+	}
+
+	/* Second pass to process the skipped FTS_IGNORE operation.
+	It is only performed at the level above leaf level */
+	if (revisit) {
+		for (node = start_node;
+		     node && error == DB_SUCCESS;
+		     node = node->next) {
+
+			if (node->type == FTS_AST_LIST) {
+				/* In this pass, it will process all those
+				operators ignored in the first pass, and those
+				whose operators are set to FTS_IGNORE_SKIP */
+				error = fts_ast_visit(
+					oper, node, visitor, arg,
+					&will_be_ignored);
+			}
 		}
 	}
 

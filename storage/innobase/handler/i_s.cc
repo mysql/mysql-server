@@ -39,6 +39,7 @@ Created July 18, 2007 Vasil Dimov
 #include "btr0types.h"
 #include "buf0buddy.h"	/* for i_s_cmpmem */
 #include "buf0buf.h"	/* for buf_pool */
+#include "dict0dict.h"	/* for dict_table_stats_lock() */
 #include "dict0load.h"	/* for file sys_tables related info. */
 #include "dict0mem.h"
 #include "dict0types.h"
@@ -1963,7 +1964,7 @@ static ST_FIELD_INFO	innodb_metrics_fields_info[] =
 
 #define	METRIC_AVG_VALUE_START	5
 	{STRUCT_FLD(field_name,		"AVG_COUNT"),
-	 STRUCT_FLD(field_length,	0),
+	 STRUCT_FLD(field_length,	MAX_FLOAT_STR_LENGTH),
 	 STRUCT_FLD(field_type,		MYSQL_TYPE_FLOAT),
 	 STRUCT_FLD(value,		0),
 	 STRUCT_FLD(field_flags,	MY_I_S_MAYBE_NULL),
@@ -1999,7 +2000,7 @@ static ST_FIELD_INFO	innodb_metrics_fields_info[] =
 
 #define	METRIC_AVG_VALUE_RESET	9
 	{STRUCT_FLD(field_name,		"AVG_COUNT_RESET"),
-	 STRUCT_FLD(field_length,	0),
+	 STRUCT_FLD(field_length,	MAX_FLOAT_STR_LENGTH),
 	 STRUCT_FLD(field_type,		MYSQL_TYPE_FLOAT),
 	 STRUCT_FLD(value,		0),
 	 STRUCT_FLD(field_flags,	MY_I_S_MAYBE_NULL),
@@ -2607,7 +2608,7 @@ i_s_fts_deleted_generic_fill(
 
 	deleted = fts_doc_ids_create();
 
-	user_table = dict_table_open_on_name_no_stats(
+	user_table = dict_table_open_on_name(
 		fts_internal_tbl_name, FALSE, FALSE, DICT_ERR_IGNORE_NONE);
 
 	if (!user_table) {
@@ -2847,7 +2848,7 @@ i_s_fts_inserted_fill(
 		DBUG_RETURN(0);
 	}
 
-	user_table = dict_table_open_on_name_no_stats(
+	user_table = dict_table_open_on_name(
 		fts_internal_tbl_name, FALSE, FALSE, DICT_ERR_IGNORE_NONE);
 
 	if (!user_table) {
@@ -3126,7 +3127,7 @@ i_s_fts_index_cache_fill(
 		DBUG_RETURN(0);
 	}
 
-	user_table = dict_table_open_on_name_no_stats(
+	user_table = dict_table_open_on_name(
 		fts_internal_tbl_name, FALSE, FALSE, DICT_ERR_IGNORE_NONE);
 
 	if (!user_table) {
@@ -3437,7 +3438,7 @@ i_s_fts_index_table_fill(
 		DBUG_RETURN(0);
 	}
 
-	user_table = dict_table_open_on_name_no_stats(
+	user_table = dict_table_open_on_name(
 		fts_internal_tbl_name, FALSE, FALSE, DICT_ERR_IGNORE_NONE);
 
 	if (!user_table) {
@@ -3598,7 +3599,7 @@ i_s_fts_config_fill(
 
 	fields = table->field;
 
-	user_table = dict_table_open_on_name_no_stats(
+	user_table = dict_table_open_on_name(
 		fts_internal_tbl_name, FALSE, FALSE, DICT_ERR_IGNORE_NONE);
 
 	if (!user_table) {
@@ -3844,7 +3845,7 @@ static ST_FIELD_INFO	i_s_innodb_buffer_stats_fields_info[] =
 
 #define	IDX_BUF_STATS_PAGE_YOUNG_RATE	12
 	{STRUCT_FLD(field_name,		"PAGES_MADE_YOUNG_RATE"),
-	 STRUCT_FLD(field_length,	0),
+	 STRUCT_FLD(field_length,	MAX_FLOAT_STR_LENGTH),
 	 STRUCT_FLD(field_type,		MYSQL_TYPE_FLOAT),
 	 STRUCT_FLD(value,		0),
 	 STRUCT_FLD(field_flags,	0),
@@ -3853,7 +3854,7 @@ static ST_FIELD_INFO	i_s_innodb_buffer_stats_fields_info[] =
 
 #define	IDX_BUF_STATS_PAGE_NOT_YOUNG_RATE 13
 	{STRUCT_FLD(field_name,		"PAGES_MADE_NOT_YOUNG_RATE"),
-	 STRUCT_FLD(field_length,	0),
+	 STRUCT_FLD(field_length,	MAX_FLOAT_STR_LENGTH),
 	 STRUCT_FLD(field_type,		MYSQL_TYPE_FLOAT),
 	 STRUCT_FLD(value,		0),
 	 STRUCT_FLD(field_flags,	0),
@@ -3889,7 +3890,7 @@ static ST_FIELD_INFO	i_s_innodb_buffer_stats_fields_info[] =
 
 #define	IDX_BUF_STATS_PAGE_READ_RATE	17
 	{STRUCT_FLD(field_name,		"PAGES_READ_RATE"),
-	 STRUCT_FLD(field_length,	0),
+	 STRUCT_FLD(field_length,	MAX_FLOAT_STR_LENGTH),
 	 STRUCT_FLD(field_type,		MYSQL_TYPE_FLOAT),
 	 STRUCT_FLD(value,		0),
 	 STRUCT_FLD(field_flags,	0),
@@ -3898,7 +3899,7 @@ static ST_FIELD_INFO	i_s_innodb_buffer_stats_fields_info[] =
 
 #define	IDX_BUF_STATS_PAGE_CREATE_RATE	18
 	{STRUCT_FLD(field_name,		"PAGES_CREATE_RATE"),
-	 STRUCT_FLD(field_length,	0),
+	 STRUCT_FLD(field_length,	MAX_FLOAT_STR_LENGTH),
 	 STRUCT_FLD(field_type,		MYSQL_TYPE_FLOAT),
 	 STRUCT_FLD(value,		0),
 	 STRUCT_FLD(field_flags,	0),
@@ -3907,7 +3908,7 @@ static ST_FIELD_INFO	i_s_innodb_buffer_stats_fields_info[] =
 
 #define	IDX_BUF_STATS_PAGE_WRITTEN_RATE	19
 	{STRUCT_FLD(field_name,		"PAGES_WRITTEN_RATE"),
-	 STRUCT_FLD(field_length,	0),
+	 STRUCT_FLD(field_length,	MAX_FLOAT_STR_LENGTH),
 	 STRUCT_FLD(field_type,		MYSQL_TYPE_FLOAT),
 	 STRUCT_FLD(value,		0),
 	 STRUCT_FLD(field_flags,	0),
@@ -3970,7 +3971,7 @@ static ST_FIELD_INFO	i_s_innodb_buffer_stats_fields_info[] =
 
 #define	IDX_BUF_STATS_READ_AHEAD_RATE	26
 	{STRUCT_FLD(field_name,		"READ_AHEAD_RATE"),
-	 STRUCT_FLD(field_length,	0),
+	 STRUCT_FLD(field_length,	MAX_FLOAT_STR_LENGTH),
 	 STRUCT_FLD(field_type,		MYSQL_TYPE_FLOAT),
 	 STRUCT_FLD(value,		0),
 	 STRUCT_FLD(field_flags,	0),
@@ -3979,7 +3980,7 @@ static ST_FIELD_INFO	i_s_innodb_buffer_stats_fields_info[] =
 
 #define	IDX_BUF_STATS_READ_AHEAD_EVICT_RATE 27
 	{STRUCT_FLD(field_name,		"READ_AHEAD_EVICTED_RATE"),
-	 STRUCT_FLD(field_length,	0),
+	 STRUCT_FLD(field_length,	MAX_FLOAT_STR_LENGTH),
 	 STRUCT_FLD(field_type,		MYSQL_TYPE_FLOAT),
 	 STRUCT_FLD(value,		0),
 	 STRUCT_FLD(field_flags,	0),
@@ -5850,24 +5851,37 @@ i_s_dict_fill_sys_tablestats(
 
 	OK(field_store_string(fields[SYS_TABLESTATS_NAME], table->name));
 
+	dict_table_stats_lock(table, RW_S_LATCH);
+
 	if (table->stat_initialized) {
 		OK(field_store_string(fields[SYS_TABLESTATS_INIT],
 				      "Initialized"));
+
+		OK(fields[SYS_TABLESTATS_NROW]->store(table->stat_n_rows,
+						      TRUE));
+
+		OK(fields[SYS_TABLESTATS_CLUST_SIZE]->store(
+				table->stat_clustered_index_size));
+
+		OK(fields[SYS_TABLESTATS_INDEX_SIZE]->store(
+				table->stat_sum_of_other_index_sizes));
+
+		OK(fields[SYS_TABLESTATS_MODIFIED]->store(
+				table->stat_modified_counter));
 	} else {
 		OK(field_store_string(fields[SYS_TABLESTATS_INIT],
 				      "Uninitialized"));
+
+		OK(fields[SYS_TABLESTATS_NROW]->store(0, TRUE));
+
+		OK(fields[SYS_TABLESTATS_CLUST_SIZE]->store(0));
+
+		OK(fields[SYS_TABLESTATS_INDEX_SIZE]->store(0));
+
+		OK(fields[SYS_TABLESTATS_MODIFIED]->store(0));
 	}
 
-	OK(fields[SYS_TABLESTATS_NROW]->store(table->stat_n_rows, TRUE));
-
-	OK(fields[SYS_TABLESTATS_CLUST_SIZE]->store(
-		table->stat_clustered_index_size));
-
-	OK(fields[SYS_TABLESTATS_INDEX_SIZE]->store(
-		table->stat_sum_of_other_index_sizes));
-
-	OK(fields[SYS_TABLESTATS_MODIFIED]->store(
-		table->stat_modified_counter));
+	dict_table_stats_unlock(table, RW_S_LATCH);
 
 	OK(fields[SYS_TABLESTATS_AUTONINC]->store(table->autoinc, TRUE));
 

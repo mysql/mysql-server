@@ -34,6 +34,7 @@
 
 #define MAX_ROWS  1000
 #define HEADER_LENGTH 32                /* Length of header in errmsg.sys */
+#define ERRMSG_VERSION 3                /* Version number of errmsg.sys */
 #define DEFAULT_CHARSET_DIR "../sql/share/charsets"
 #define ER_PREFIX "ER_"
 #define WARN_PREFIX "WARN_"
@@ -47,8 +48,14 @@ static char *DATADIRECTORY= (char*) "../sql/share/";
 static char *default_dbug_option= (char*) "d:t:O,/tmp/comp_err.trace";
 #endif
 
-/* Header for errmsg.sys files */
-uchar file_head[]= { 254, 254, 2, 1 };
+/* 
+  Header for errmsg.sys files 
+  Byte 3 is treated as version number for errmsg.sys
+    With this version ERRMSG_VERSION = 3, number of bytes 
+    used for the length, count and offset are increased 
+    from 2 bytes to 4 bytes.
+*/
+uchar file_head[]= { 254, 254, ERRMSG_VERSION, 1 };
 /* Store positions to each error message row to store in errmsg.sys header */
 uint file_pos[MAX_ROWS];
 
@@ -329,8 +336,8 @@ static int create_sys_files(struct languages *lang_head,
     if (!(to= my_fopen(outfile, O_WRONLY | FILE_BINARY, MYF(MY_WME))))
       DBUG_RETURN(1);
 
-    /* 2 is for 2 bytes to store row position / error message */
-    start_pos= (long) (HEADER_LENGTH + row_count * 2);
+    /* 4 is for 4 bytes to store row position / error message */
+    start_pos= (long) (HEADER_LENGTH + row_count * 4);
     fseek(to, start_pos, 0);
     row_nr= 0;
     for (tmp_error= error_head; tmp_error; tmp_error= tmp_error->next_error)
@@ -354,12 +361,12 @@ static int create_sys_files(struct languages *lang_head,
     }
 
     /* continue with header of the errmsg.sys file */
-    length= ftell(to) - HEADER_LENGTH - row_count * 2;
+    length= ftell(to) - HEADER_LENGTH - row_count * 4;
     memset(head, 0, HEADER_LENGTH);
     bmove((uchar *) head, (uchar *) file_head, 4);
     head[4]= 1;
-    int2store(head + 6, length);
-    int2store(head + 8, row_count);
+    int4store(head + 6, length);
+    int4store(head + 10, row_count);
     head[30]= csnum;
 
     my_fseek(to, 0l, MY_SEEK_SET, MYF(0));
@@ -368,8 +375,8 @@ static int create_sys_files(struct languages *lang_head,
 
     for (i= 0; i < row_count; i++)
     {
-      int2store(head, file_pos[i]);
-      if (my_fwrite(to, (uchar*) head, 2, MYF(MY_WME | MY_FNABP)))
+      int4store(head, file_pos[i]);
+      if (my_fwrite(to, (uchar*) head, 4, MYF(MY_WME | MY_FNABP)))
 	goto err;
     }
     my_fclose(to, MYF(0));

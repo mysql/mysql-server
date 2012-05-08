@@ -382,6 +382,7 @@ void init_update_queries(void)
   */
   sql_command_flags[SQLCOM_SET_OPTION]=     CF_REEXECUTION_FRAGILE |
                                             CF_AUTO_COMMIT_TRANS |
+                                            CF_CAN_GENERATE_ROW_EVENTS |
                                             CF_OPTIMIZER_TRACE; // (1)
   // (1) so that subquery is traced when doing "DO @var := (subquery)"
   sql_command_flags[SQLCOM_DO]=             CF_REEXECUTION_FRAGILE |
@@ -427,12 +428,8 @@ void init_update_queries(void)
   sql_command_flags[SQLCOM_SHOW_CREATE_EVENT]= CF_STATUS_COMMAND;
   sql_command_flags[SQLCOM_SHOW_PROFILES]=    CF_STATUS_COMMAND;
   sql_command_flags[SQLCOM_SHOW_PROFILE]=     CF_STATUS_COMMAND;
-  /*
-    @todo SQLCOM_BINLOG_BASE64_EVENT should have
-    CF_CAN_GENERATE_ROW_EVENTS set, because this surely generates row
-    events. /Sven
-  */
-  sql_command_flags[SQLCOM_BINLOG_BASE64_EVENT]= CF_STATUS_COMMAND;
+  sql_command_flags[SQLCOM_BINLOG_BASE64_EVENT]= CF_STATUS_COMMAND |
+                                                 CF_CAN_GENERATE_ROW_EVENTS;
 
    sql_command_flags[SQLCOM_SHOW_TABLES]=       (CF_STATUS_COMMAND |
                                                  CF_SHOW_TABLE_COMMAND |
@@ -448,13 +445,7 @@ void init_update_queries(void)
   sql_command_flags[SQLCOM_REVOKE]=            CF_CHANGES_DATA;
   sql_command_flags[SQLCOM_REVOKE_ALL]=        CF_CHANGES_DATA;
   sql_command_flags[SQLCOM_OPTIMIZE]=          CF_CHANGES_DATA;
-  /*
-    @todo SQLCOM_CREATE_FUNCTION should have CF_AUTO_COMMIT_TRANS
-    set. this currently is binlogged *before* the transaction if
-    executed inside a transaction because it does not have an implicit
-    pre-commit and is written to the statement cache. /Sven
-  */
-  sql_command_flags[SQLCOM_CREATE_FUNCTION]=   CF_CHANGES_DATA;
+  sql_command_flags[SQLCOM_CREATE_FUNCTION]=   CF_CHANGES_DATA | CF_AUTO_COMMIT_TRANS;
   sql_command_flags[SQLCOM_CREATE_PROCEDURE]=  CF_CHANGES_DATA | CF_AUTO_COMMIT_TRANS;
   sql_command_flags[SQLCOM_CREATE_SPFUNCTION]= CF_CHANGES_DATA | CF_AUTO_COMMIT_TRANS;
   sql_command_flags[SQLCOM_DROP_PROCEDURE]=    CF_CHANGES_DATA | CF_AUTO_COMMIT_TRANS;
@@ -488,8 +479,8 @@ void init_update_queries(void)
   sql_command_flags[SQLCOM_CREATE_USER]|=       CF_AUTO_COMMIT_TRANS;
   sql_command_flags[SQLCOM_DROP_USER]|=         CF_AUTO_COMMIT_TRANS;
   sql_command_flags[SQLCOM_RENAME_USER]|=       CF_AUTO_COMMIT_TRANS;
-  sql_command_flags[SQLCOM_REVOKE_ALL]|=        CF_AUTO_COMMIT_TRANS;
   sql_command_flags[SQLCOM_REVOKE]|=            CF_AUTO_COMMIT_TRANS;
+  sql_command_flags[SQLCOM_REVOKE_ALL]|=        CF_AUTO_COMMIT_TRANS;
   sql_command_flags[SQLCOM_GRANT]|=             CF_AUTO_COMMIT_TRANS;
 
   sql_command_flags[SQLCOM_ASSIGN_TO_KEYCACHE]= CF_AUTO_COMMIT_TRANS;
@@ -787,6 +778,7 @@ pthread_handler_t handle_bootstrap(void *arg)
 
 void do_handle_bootstrap(THD *thd)
 {
+  bool thd_added= false;
   /* The following must be called before DBUG_ENTER */
   thd->thread_stack= (char*) &thd;
   if (my_thread_init() || thd->store_globals())
@@ -798,19 +790,36 @@ void do_handle_bootstrap(THD *thd)
     goto end;
   }
 
+  mysql_mutex_lock(&LOCK_thread_count);
+  thd_added= true;
+  add_global_thread(thd);
+  mysql_mutex_unlock(&LOCK_thread_count);
+
   handle_bootstrap_impl(thd);
 
 end:
   net_end(&thd->net);
   thd->cleanup();
+
+  if (thd_added)
+  {
+    mysql_mutex_lock(&LOCK_thread_count);
+    remove_global_thread(thd);
+    mysql_mutex_unlock(&LOCK_thread_count);
+  }
+  /*
+    We need to delete the thd before signalling that bootstrap is done.
+    The reason is that we have to call ha_close_connection(thd)
+    before shutting down InnoDB (this is done by THD::~THD())
+  */
   delete thd;
 
-#ifndef EMBEDDED_LIBRARY
   mysql_mutex_lock(&LOCK_thread_count);
-  thread_count--;
   in_bootstrap= FALSE;
   mysql_cond_broadcast(&COND_thread_count);
   mysql_mutex_unlock(&LOCK_thread_count);
+
+#ifndef EMBEDDED_LIBRARY
   my_thread_end();
   pthread_exit(0);
 #endif
@@ -1316,9 +1325,10 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
                         (char *) thd->security_ctx->host_or_ip);
 
 /* PSI begin */
-      thd->m_statement_psi= MYSQL_START_STATEMENT(& thd->m_statement_state,
+      thd->m_statement_psi= MYSQL_START_STATEMENT(&thd->m_statement_state,
                                                   com_statement_info[command].m_key,
-                                                  thd->db, thd->db_length);
+                                                  thd->db, thd->db_length,
+                                                  thd->charset());
       THD_STAGE_INFO(thd, stage_init);
       MYSQL_SET_STATEMENT_TEXT(thd->m_statement_psi, beginning_of_next_stmt, length);
 
@@ -1372,10 +1382,17 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     }
     thd->convert_string(&table_name, system_charset_info,
 			packet, arg_length, thd->charset());
-    if (check_table_name(table_name.str, table_name.length, FALSE))
+    enum_ident_name_check ident_check_status=
+      check_table_name(table_name.str, table_name.length, FALSE);
+    if (ident_check_status == IDENT_NAME_WRONG)
     {
       /* this is OK due to convert_string() null-terminating the string */
       my_error(ER_WRONG_TABLE_NAME, MYF(0), table_name.str);
+      break;
+    }
+    else if (ident_check_status == IDENT_NAME_TOO_LONG)
+    {
+      my_error(ER_TOO_LONG_IDENT, MYF(0), table_name.str);
       break;
     }
     packet= arg_end + 1;
@@ -1555,7 +1572,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
                         "Slow queries: %llu  Opens: %llu  Flush tables: %lu  "
                         "Open tables: %u  Queries per second avg: %u.%03u",
                         uptime,
-                        (int) thread_count, (ulong) thd->query_id,
+                        (int) get_thread_count(), (ulong) thd->query_id,
                         current_global_status_var.long_query_count,
                         current_global_status_var.opened_tables,
                         refresh_version,
@@ -1849,11 +1866,8 @@ int prepare_schema_table(THD *thd, LEX *lex, Table_ident *table_ident,
       schema_select_lex->table_list.first= NULL;
       db.length= strlen(db.str);
 
-      if (check_and_convert_db_name(&db, FALSE))
-      {
-        my_error(ER_WRONG_DB_NAME, MYF(0), db.str);
+      if (check_and_convert_db_name(&db, FALSE) != IDENT_NAME_OK)
         DBUG_RETURN(1);
-      }
       break;
     }
 #endif
@@ -2337,6 +2351,11 @@ mysql_execute_command(THD *thd)
       }
       DBUG_RETURN(0);
     }
+    /* 
+       Execute deferred events first
+    */
+    if (slave_execute_deferred_events(thd))
+      DBUG_RETURN(-1);
   }
   else
   {
@@ -3038,7 +3057,7 @@ end_with_restore_list:
     goto error;
 #else
     {
-      if (check_global_access(thd, SUPER_ACL))
+      if (check_global_access(thd, SUPER_ACL | REPL_CLIENT_ACL))
 	goto error;
       res = show_binlogs(thd);
       break;
@@ -3656,11 +3675,8 @@ end_with_restore_list:
     HA_CREATE_INFO create_info(lex->create_info);
     char *alias;
     if (!(alias=thd->strmake(lex->name.str, lex->name.length)) ||
-        check_and_convert_db_name(&lex->name, FALSE))
-    {
-      my_error(ER_WRONG_DB_NAME, MYF(0), lex->name.str);
+        (check_and_convert_db_name(&lex->name, FALSE) != IDENT_NAME_OK))
       break;
-    }
     /*
       If in a slave thread :
       CREATE DATABASE DB was certainly not preceded by USE DB.
@@ -3683,11 +3699,8 @@ end_with_restore_list:
   }
   case SQLCOM_DROP_DB:
   {
-    if (check_and_convert_db_name(&lex->name, FALSE))
-    {
-      my_error(ER_WRONG_DB_NAME, MYF(0), lex->name.str);
+    if (check_and_convert_db_name(&lex->name, FALSE) != IDENT_NAME_OK)
       break;
-    }
     /*
       If in a slave thread :
       DROP DATABASE DB may not be preceded by USE DB.
@@ -3718,11 +3731,8 @@ end_with_restore_list:
       break;
     }
 #endif
-    if (check_and_convert_db_name(db, FALSE))
-    {
-      my_error(ER_WRONG_DB_NAME, MYF(0), db->str);
+    if (check_and_convert_db_name(db, FALSE) != IDENT_NAME_OK)
       break;
-    }
     if (check_access(thd, ALTER_ACL, db->str, NULL, NULL, 1, 0) ||
         check_access(thd, DROP_ACL, db->str, NULL, NULL, 1, 0) ||
         check_access(thd, CREATE_ACL, db->str, NULL, NULL, 1, 0))
@@ -3739,11 +3749,8 @@ end_with_restore_list:
   {
     LEX_STRING *db= &lex->name;
     HA_CREATE_INFO create_info(lex->create_info);
-    if (check_and_convert_db_name(db, FALSE))
-    {
-      my_error(ER_WRONG_DB_NAME, MYF(0), db->str);
+    if (check_and_convert_db_name(db, FALSE) != IDENT_NAME_OK)
       break;
-    }
     /*
       If in a slave thread :
       ALTER DATABASE DB may not be preceded by USE DB.
@@ -3767,11 +3774,8 @@ end_with_restore_list:
   {
     DBUG_EXECUTE_IF("4x_server_emul",
                     my_error(ER_UNKNOWN_ERROR, MYF(0)); goto error;);
-    if (check_and_convert_db_name(&lex->name, TRUE))
-    {
-      my_error(ER_WRONG_DB_NAME, MYF(0), lex->name.str);
+    if (check_and_convert_db_name(&lex->name, TRUE) != IDENT_NAME_OK)
       break;
-    }
     res= mysqld_show_create_db(thd, lex->name.str, &lex->create_info);
     break;
   }
@@ -4193,11 +4197,8 @@ end_with_restore_list:
       Verify that the database name is allowed, optionally
       lowercase it.
     */
-    if (check_and_convert_db_name(&lex->sphead->m_db, FALSE))
-    {
-      my_error(ER_WRONG_DB_NAME, MYF(0), lex->sphead->m_db.str);
+    if (check_and_convert_db_name(&lex->sphead->m_db, FALSE) != IDENT_NAME_OK)
       goto create_sp_error;
-    }
 
     if (check_access(thd, CREATE_PROC_ACL, lex->sphead->m_db.str,
                      NULL, NULL, 0, 0))
@@ -6306,19 +6307,24 @@ TABLE_LIST *st_select_lex::add_table_to_list(THD *thd,
   if (!table)
     DBUG_RETURN(0);				// End of memory
   alias_str= alias ? alias->str : table->table.str;
-  if (!test(table_options & TL_OPTION_ALIAS) && 
-      check_table_name(table->table.str, table->table.length, FALSE))
+  if (!test(table_options & TL_OPTION_ALIAS))
   {
-    my_error(ER_WRONG_TABLE_NAME, MYF(0), table->table.str);
-    DBUG_RETURN(0);
+    enum_ident_name_check ident_check_status=
+      check_table_name(table->table.str, table->table.length, FALSE);
+    if (ident_check_status == IDENT_NAME_WRONG)
+    {
+      my_error(ER_WRONG_TABLE_NAME, MYF(0), table->table.str);
+      DBUG_RETURN(0);
+    }
+    else if (ident_check_status == IDENT_NAME_TOO_LONG)
+    {
+      my_error(ER_TOO_LONG_IDENT, MYF(0), table->table.str);
+      DBUG_RETURN(0);
+    }
   }
-
   if (table->is_derived_table() == FALSE && table->db.str &&
-      check_and_convert_db_name(&table->db, FALSE))
-  {
-    my_error(ER_WRONG_DB_NAME, MYF(0), table->db.str);
+      (check_and_convert_db_name(&table->db, FALSE) != IDENT_NAME_OK))
     DBUG_RETURN(0);
-  }
 
   if (!alias)					/* Alias is case sensitive */
   {
@@ -6874,18 +6880,21 @@ void add_join_natural(TABLE_LIST *a, TABLE_LIST *b, List<String> *using_fields,
 
 uint kill_one_thread(THD *thd, ulong id, bool only_kill_query)
 {
-  THD *tmp;
+  THD *tmp= NULL;
   uint error=ER_NO_SUCH_THREAD;
   DBUG_ENTER("kill_one_thread");
   DBUG_PRINT("enter", ("id=%lu only_kill=%d", id, only_kill_query));
-  mysql_mutex_lock(&LOCK_thread_count); // For unlink from list
-  I_List_iterator<THD> it(threads);
-  while ((tmp=it++))
+
+  mysql_mutex_lock(&LOCK_thread_count);
+  Thread_iterator it= global_thread_list_begin();
+  Thread_iterator end= global_thread_list_end();
+  for (; it != end; ++it)
   {
-    if (tmp->get_command() == COM_DAEMON)
+    if ((*it)->get_command() == COM_DAEMON)
       continue;
-    if (tmp->thread_id == id)
+    if ((*it)->thread_id == id)
     {
+      tmp= *it;
       mysql_mutex_lock(&tmp->LOCK_thd_data);    // Lock from delete
       break;
     }
@@ -7619,7 +7628,7 @@ Item *negate_expression(THD *thd, Item *expr)
       if it is not boolean function then we have to emulate value of
       not(not(a)), it will be a != 0
     */
-    return new Item_func_ne(arg, new Item_int((char*) "0", 0, 1));
+    return new Item_func_ne(arg, new Item_int_0());
   }
 
   if ((negated= expr->neg_transformer(thd)) != 0)

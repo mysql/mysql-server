@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2007, 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2007, 2012, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -70,7 +70,7 @@ Get value from the config table. The caller must ensure that enough
 space is allocated for value to hold the column contents.
 @return DB_SUCCESS or error code */
 UNIV_INTERN
-ulint
+dberr_t
 fts_config_get_value(
 /*=================*/
 	trx_t*		trx,			/*!< transaction */
@@ -83,7 +83,7 @@ fts_config_get_value(
 {
 	pars_info_t*	info;
 	que_t*		graph;
-	ulint		error;
+	dberr_t		error;
 	ulint		name_len = strlen(name);
 
 	info = pars_info_create();
@@ -162,7 +162,7 @@ must ensure that enough space is allocated for value to hold the
 column contents.
 @return DB_SUCCESS or error code */
 UNIV_INTERN
-ulint
+dberr_t
 fts_config_get_index_value(
 /*=======================*/
 	trx_t*		trx,			/*!< transaction */
@@ -173,7 +173,7 @@ fts_config_get_index_value(
 						config table */
 {
 	char*		name;
-	ulint		error;
+	dberr_t		error;
 	fts_table_t	fts_table;
 
 	FTS_INIT_FTS_TABLE(&fts_table, "CONFIG", FTS_COMMON_TABLE,
@@ -193,7 +193,7 @@ fts_config_get_index_value(
 Set the value in the config table for name.
 @return DB_SUCCESS or error code */
 UNIV_INTERN
-ulint
+dberr_t
 fts_config_set_value(
 /*=================*/
 	trx_t*		trx,			/*!< transaction */
@@ -206,7 +206,7 @@ fts_config_set_value(
 {
 	pars_info_t*	info;
 	que_t*		graph;
-	ulint		error;
+	dberr_t		error;
 	undo_no_t	undo_no;
 	undo_no_t	n_rows_updated;
 	ulint		name_len = strlen(name);
@@ -262,7 +262,7 @@ fts_config_set_value(
 Set the value specific to an FTS index in the config table.
 @return DB_SUCCESS or error code */
 UNIV_INTERN
-ulint
+dberr_t
 fts_config_set_index_value(
 /*=======================*/
 	trx_t*		trx,			/*!< transaction */
@@ -273,7 +273,7 @@ fts_config_set_index_value(
 						config table */
 {
 	char*		name;
-	ulint		error;
+	dberr_t		error;
 	fts_table_t	fts_table;
 
 	FTS_INIT_FTS_TABLE(&fts_table, "CONFIG", FTS_COMMON_TABLE,
@@ -293,7 +293,7 @@ fts_config_set_index_value(
 Get an ulint value from the config table.
 @return DB_SUCCESS if all OK else error code */
 UNIV_INTERN
-ulint
+dberr_t
 fts_config_get_index_ulint(
 /*=======================*/
 	trx_t*		trx,			/*!< in: transaction */
@@ -301,7 +301,7 @@ fts_config_get_index_ulint(
 	const char*	name,			/*!< in: param name */
 	ulint*		int_value)		/*!< out: value */
 {
-	ulint		error;
+	dberr_t		error;
 	fts_string_t	value;
 
 	/* We set the length of value to the max bytes it can hold. This
@@ -314,8 +314,8 @@ fts_config_get_index_ulint(
 	if (UNIV_UNLIKELY(error != DB_SUCCESS)) {
 		ut_print_timestamp(stderr);
 
-		fprintf(stderr, "  InnoDB: Error: (%lu) reading `%s'\n",
-			error, name);
+		fprintf(stderr, "  InnoDB: Error: (%s) reading `%s'\n",
+			ut_strerr(error), name);
 	} else {
 		*int_value = strtoul((char*) value.f_str, NULL, 10);
 	}
@@ -329,7 +329,7 @@ fts_config_get_index_ulint(
 Set an ulint value in the config table.
 @return DB_SUCCESS if all OK else error code */
 UNIV_INTERN
-ulint
+dberr_t
 fts_config_set_index_ulint(
 /*=======================*/
 	trx_t*		trx,			/*!< in: transaction */
@@ -337,7 +337,7 @@ fts_config_set_index_ulint(
 	const char*	name,			/*!< in: param name */
 	ulint		int_value)		/*!< in: value */
 {
-	ulint		error;
+	dberr_t		error;
 	fts_string_t	value;
 
 	/* We set the length of value to the max bytes it can hold. This
@@ -356,8 +356,8 @@ fts_config_set_index_ulint(
 	if (UNIV_UNLIKELY(error != DB_SUCCESS)) {
 		ut_print_timestamp(stderr);
 
-		fprintf(stderr, "  InnoDB: Error: (%lu) writing `%s'\n",
-			error, name);
+		fprintf(stderr, "  InnoDB: Error: (%s) writing `%s'\n",
+			ut_strerr(error), name);
 	}
 
 	ut_free(value.f_str);
@@ -369,7 +369,7 @@ fts_config_set_index_ulint(
 Get an ulint value from the config table.
 @return DB_SUCCESS if all OK else error code */
 UNIV_INTERN
-ulint
+dberr_t
 fts_config_get_ulint(
 /*=================*/
 	trx_t*		trx,			/*!< in: transaction */
@@ -378,7 +378,7 @@ fts_config_get_ulint(
 	const char*	name,			/*!< in: param name */
 	ulint*		int_value)		/*!< out: value */
 {
-	ulint		error;
+	dberr_t		error;
 	fts_string_t	value;
 
 	/* We set the length of value to the max bytes it can hold. This
@@ -391,8 +391,8 @@ fts_config_get_ulint(
 	if (UNIV_UNLIKELY(error != DB_SUCCESS)) {
 		ut_print_timestamp(stderr);
 
-		fprintf(stderr, "  InnoDB: Error: (%lu) reading `%s'\n",
-			error, name);
+		fprintf(stderr, "  InnoDB: Error: (%s) reading `%s'\n",
+			ut_strerr(error), name);
 	} else {
 		*int_value = strtoul((char*) value.f_str, NULL, 10);
 	}
@@ -406,7 +406,7 @@ fts_config_get_ulint(
 Set an ulint value in the config table.
 @return DB_SUCCESS if all OK else error code */
 UNIV_INTERN
-ulint
+dberr_t
 fts_config_set_ulint(
 /*=================*/
 	trx_t*		trx,			/*!< in: transaction */
@@ -415,7 +415,7 @@ fts_config_set_ulint(
 	const char*	name,			/*!< in: param name */
 	ulint		int_value)		/*!< in: value */
 {
-	ulint		error;
+	dberr_t		error;
 	fts_string_t	value;
 
 	/* We set the length of value to the max bytes it can hold. This
@@ -434,8 +434,8 @@ fts_config_set_ulint(
 	if (UNIV_UNLIKELY(error != DB_SUCCESS)) {
 		ut_print_timestamp(stderr);
 
-		fprintf(stderr, "  InnoDB: Error: (%lu) writing `%s'\n",
-			error, name);
+		fprintf(stderr, "  InnoDB: Error: (%s) writing `%s'\n",
+			ut_strerr(error), name);
 	}
 
 	ut_free(value.f_str);
@@ -447,7 +447,7 @@ fts_config_set_ulint(
 Increment the value in the config table for column name.
 @return DB_SUCCESS or error code */
 UNIV_INTERN
-ulint
+dberr_t
 fts_config_increment_value(
 /*=======================*/
 	trx_t*		trx,			/*!< transaction */
@@ -458,7 +458,7 @@ fts_config_increment_value(
 	ulint		delta)			/*!< in: increment by this
 						much */
 {
-	ulint		error;
+	dberr_t		error;
 	fts_string_t	value;
 	que_t*		graph = NULL;
 	ulint		name_len = strlen(name);
@@ -520,8 +520,8 @@ fts_config_increment_value(
 
 		ut_print_timestamp(stderr);
 
-		fprintf(stderr, "  InnoDB: Error: (%lu) "
-			"while incrementing %s.\n", error, name);
+		fprintf(stderr, "  InnoDB: Error: (%s) "
+			"while incrementing %s.\n", ut_strerr(error), name);
 	}
 
 	ut_free(value.f_str);
@@ -533,7 +533,7 @@ fts_config_increment_value(
 Increment the per index value in the config table for column name.
 @return DB_SUCCESS or error code */
 UNIV_INTERN
-ulint
+dberr_t
 fts_config_increment_index_value(
 /*=============================*/
 	trx_t*		trx,			/*!< transaction */
@@ -544,7 +544,7 @@ fts_config_increment_index_value(
 						much */
 {
 	char*		name;
-	ulint		error;
+	dberr_t		error;
 	fts_table_t	fts_table;
 
 	FTS_INIT_FTS_TABLE(&fts_table, "CONFIG", FTS_COMMON_TABLE,

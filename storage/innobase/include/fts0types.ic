@@ -37,46 +37,6 @@ extern const ulint UTF8_ERROR;
 #define fts_utf8_is_valid(b) (((b) & 0xC0) == 0x80)
 
 /******************************************************************//**
-Compare two fts_trx_table_t instances.
-@return < 0 if n1 < n2, 0 if n1 == n2, > 0 if n1 > n2  */
-UNIV_INLINE
-int
-fts_trx_table_cmp(
-/*==============*/
-	const void*	p1,			/*!< in: id1 */
-	const void*	p2)			/*!< in: id2 */
-{
-	const dict_table_t* table1 = (*(const fts_trx_table_t**) p1)->table;
-	const dict_table_t* table2 = (*(const fts_trx_table_t**) p2)->table;
-
-	return((table1->id > table2->id)
-	       ? 1
-	       : (table1->id == table2->id)
-		  ? 0
-		  : -1);
-}
-
-/******************************************************************//**
-Compare a table id with a fts_trx_table_t table id.
-@return < 0 if n1 < n2, 0 if n1 == n2,> 0 if n1 > n2 */
-UNIV_INLINE
-int
-fts_trx_table_id_cmp(
-/*=================*/
-	const void*	p1,			/*!< in: id1 */
-	const void*	p2)			/*!< in: id2 */
-{
-	const ullint* table_id = (const ullint*) p1;
-	const dict_table_t* table2 = (*(const fts_trx_table_t**) p2)->table;
-
-	return((*table_id > table2->id)
-	       ? 1
-	       : (*table_id == table2->id)
-		  ? 0
-		  : -1);
-}
-
-/******************************************************************//**
 Duplicate an UTF-8 string.
 @return < 0 if n1 < n2, 0 if n1 == n2, > 0 if n1 > n2 */
 UNIV_INLINE

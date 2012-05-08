@@ -209,8 +209,6 @@ mutex_enter_func(
 	/* Note that we do not peek at the value of lock_word before trying
 	the atomic test_and_set; we could peek, and possibly save time. */
 
-	ut_d(mutex->count_using++);
-
 	if (!mutex_test_and_set(mutex)) {
 		ut_d(mutex->thread_id = os_thread_get_curr_id());
 #ifdef UNIV_SYNC_DEBUG
@@ -236,24 +234,24 @@ pfs_mutex_enter_func(
 	const char*	file_name,	/*!< in: file name where locked */
 	ulint		line)		/*!< in: line where locked */
 {
-	if (mutex->pfs_psi != NULL)
-	{
+	if (mutex->pfs_psi != NULL) {
 		PSI_mutex_locker*	locker;
 		PSI_mutex_locker_state	state;
 
-		locker = PSI_CALL(start_mutex_wait)(&state, mutex->pfs_psi,
+		locker = PSI_CALL(start_mutex_wait)(
+			&state, mutex->pfs_psi,
 			PSI_MUTEX_LOCK, file_name, line);
 
 		mutex_enter_func(mutex, file_name, line);
 
-		if (locker != NULL)
+		if (locker != NULL) {
 			PSI_CALL(end_mutex_wait)(locker, 0);
-	}
-	else
-	{
+		}
+	} else {
 		mutex_enter_func(mutex, file_name, line);
 	}
 }
+
 /********************************************************************//**
 NOTE! Please use the corresponding macro mutex_enter_nowait(), not directly
 this function!
@@ -269,28 +267,28 @@ pfs_mutex_enter_nowait_func(
 					requested */
 	ulint		line)		/*!< in: line where requested */
 {
-	ulint	ret;
+	ulint		ret;
 
-	if (mutex->pfs_psi != NULL)
-	{
+	if (mutex->pfs_psi != NULL) {
 		PSI_mutex_locker*	locker;
 		PSI_mutex_locker_state		state;
 
-		locker = PSI_CALL(start_mutex_wait)(&state, mutex->pfs_psi,
+		locker = PSI_CALL(start_mutex_wait)(
+			&state, mutex->pfs_psi,
 			PSI_MUTEX_TRYLOCK, file_name, line);
 
 		ret = mutex_enter_nowait_func(mutex, file_name, line);
 
-		if (locker != NULL)
+		if (locker != NULL) {
 			PSI_CALL(end_mutex_wait)(locker, (int) ret);
-	}
-	else
-	{
+		}
+	} else {
 		ret = mutex_enter_nowait_func(mutex, file_name, line);
 	}
 
 	return(ret);
 }
+
 /******************************************************************//**
 NOTE! Please use the corresponding macro mutex_exit(), not directly
 this function!
@@ -302,8 +300,9 @@ pfs_mutex_exit_func(
 /*================*/
 	mutex_t*	mutex)	/*!< in: pointer to mutex */
 {
-	if (mutex->pfs_psi != NULL)
+	if (mutex->pfs_psi != NULL) {
 		PSI_CALL(unlock_mutex)(mutex->pfs_psi);
+	}
 
 	mutex_exit_func(mutex);
 }
@@ -341,6 +340,7 @@ pfs_mutex_create_func(
 			  cfile_name,
 			  cline);
 }
+
 /******************************************************************//**
 NOTE! Please use the corresponding macro mutex_free(), not directly
 this function!
@@ -352,8 +352,7 @@ pfs_mutex_free_func(
 /*================*/
 	mutex_t*	mutex)	/*!< in: mutex */
 {
-	if (mutex->pfs_psi != NULL)
-	{
+	if (mutex->pfs_psi != NULL) {
 		PSI_CALL(destroy_mutex)(mutex->pfs_psi);
 		mutex->pfs_psi = NULL;
 	}

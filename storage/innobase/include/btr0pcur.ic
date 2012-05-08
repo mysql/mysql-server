@@ -429,7 +429,7 @@ btr_pcur_open_low(
 
 	btr_pcur_init(cursor);
 
-	cursor->latch_mode = latch_mode;
+	cursor->latch_mode = BTR_LATCH_MODE_WITHOUT_FLAGS(latch_mode);
 	cursor->search_mode = mode;
 
 	/* Search with the tree cursor */
@@ -556,7 +556,16 @@ btr_pcur_open_at_rnd_pos_func(
 
 /**************************************************************//**
 Frees the possible memory heap of a persistent cursor and sets the latch
-mode of the persistent cursor to BTR_NO_LATCHES. */
+mode of the persistent cursor to BTR_NO_LATCHES.
+WARNING: this function does not release the latch on the page where the
+cursor is currently positioned. The latch is acquired by the
+"move to next/previous" family of functions. Since recursive shared locks
+are not allowed, you must take care (if using the cursor in S-mode) to
+manually release the latch by either calling
+btr_leaf_page_release(btr_pcur_get_block(&pcur), pcur.latch_mode, mtr)
+or by committing the mini-transaction right after btr_pcur_close().
+A subsequent attempt to crawl the same page in the same mtr would cause
+an assertion failure. */
 UNIV_INLINE
 void
 btr_pcur_close(

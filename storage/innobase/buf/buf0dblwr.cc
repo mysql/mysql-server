@@ -845,8 +845,8 @@ try_again:
 
 flush:
 	/* increment the doublewrite flushed pages counter */
-	srv_dblwr_pages_written += buf_dblwr->first_free;
-	srv_dblwr_writes++;
+	srv_stats.dblwr_pages_written.add(buf_dblwr->first_free);
+	srv_stats.dblwr_writes.inc();
 
 	/* Now flush the doublewrite buffer data to disk */
 	fil_flush(TRX_SYS_SPACE);
@@ -1077,8 +1077,8 @@ retry:
 	buf_dblwr->in_use[i] = FALSE;
 
 	/* increment the doublewrite flushed pages counter */
-	srv_dblwr_pages_written += buf_dblwr->first_free;
-	srv_dblwr_writes++;
+	srv_stats.dblwr_pages_written.add(buf_dblwr->first_free);
+	srv_stats.dblwr_writes.inc();
 
 	mutex_exit(&(buf_dblwr->mutex));
 

@@ -1,0 +1,62 @@
+--source include/master-slave.inc
+--source include/have_debug.inc
+--source include/have_binlog_format_row.inc
+
+--echo Basic insert, update, delete from Master->Slave
+--echo DBUG code will set + check transfer of extra
+--echo row data in RBR
+--echo **** On Master ****
+CREATE TABLE t1 (a INT);
+
+--echo Ten inserts in one transaction -> 1 epoch transaction
+BEGIN;
+INSERT INTO t1 VALUES (1),(2),(3),(4),(5),(6),(7),(8),(9),(10);
+COMMIT;
+
+--echo Wait for Binlog-on-disk
+flush logs;
+
+--echo Check that we have the expected extra row data in the Binlog
+create table raw_data(txt varchar(1000));
+--disable_query_log
+let $MYSQLD_DATADIR= `select @@datadir;`;
+--exec $MYSQL_BINLOG --verbose $MYSQLD_DATADIR/master-bin.000001 > $MYSQLTEST_VARDIR/tmp/rpl_extra_row_data.out
+
+--eval load data local infile '$MYSQLTEST_VARDIR/tmp/rpl_extra_row_data.out' into table raw_data columns terminated by '\n';
+--enable_query_log
+
+select replace(txt, '\r', '') from raw_data where txt like '%### Extra row data format%' order by txt;
+drop table raw_data;
+
+--echo Generate some more insert, update, delete traffic
+INSERT INTO t1 SELECT a+10 FROM t1;
+INSERT INTO t1 SELECT a+20 FROM t1;
+INSERT INTO t1 SELECT a+40 FROM t1;
+# 80 rows, 80 inserts
+UPDATE t1 SET a = a+1;
+UPDATE t1 SET a = a+1;
+UPDATE t1 SET a = a+1;
+UPDATE t1 SET a = a+1;
+UPDATE t1 SET a = a+1;
+# 5 Updates of 80 rows = 400 updates, enough to show all potential lengths
+# of Binlog extra row data including 0 + 255.
+
+# 10 deletes
+DELETE FROM t1 WHERE a > 390;
+
+#show binlog events;
+#let $MYSQLD_DATADIR= `select @@datadir;`;
+#--exec $MYSQL_BINLOG --verbose $MYSQLD_DATADIR/master-bin.000001
+
+--echo **** On Slave ****
+--sync_slave_with_master
+connection slave;
+
+--echo Check row count and that slave is running ok
+SELECT count(*) from t1;
+source include/check_slave_is_running.inc;
+
+connection master;
+DROP TABLE t1;
+--sync_slave_with_master
+--source include/rpl_end.inc
