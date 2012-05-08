@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2011, 2012 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -52,6 +52,12 @@ class TC_LOG
   TC_LOG() {}
   virtual ~TC_LOG() {}
 
+  enum enum_result {
+    RESULT_SUCCESS,
+    RESULT_ABORTED,
+    RESULT_INCONSISTENT
+  };
+
   virtual int open(const char *opt_name)=0;
   virtual void close()=0;
 
@@ -68,7 +74,7 @@ class TC_LOG
 
      @return Error code on failure, zero on success.
    */
-  virtual int commit(THD *thd, bool all) = 0;
+  virtual enum_result commit(THD *thd, bool all) = 0;
 
   /**
      Log a rollback record of the transaction to the transaction
@@ -94,8 +100,12 @@ public:
   TC_LOG_DUMMY() {}
   int open(const char *opt_name)        { return 0; }
   void close()                          { }
-  int commit(THD *thd, bool all)        { return ha_commit_low(thd, all); }
-  int rollback(THD *thd, bool all)      { return ha_rollback_low(thd, all); }
+  enum_result commit(THD *thd, bool all)     {
+    return ha_commit_low(thd, all) ? RESULT_ABORTED : RESULT_SUCCESS;
+  }
+  int rollback(THD *thd, bool all) {
+    return ha_rollback_low(thd, all);
+  }
 };
 
 #ifdef HAVE_MMAP
@@ -139,7 +149,7 @@ class TC_LOG_MMAP: public TC_LOG
   TC_LOG_MMAP(): inited(0) {}
   int open(const char *opt_name);
   void close();
-  int commit(THD *thd, bool all);
+  enum_result commit(THD *thd, bool all);
   int rollback(THD *thd, bool all)      { return ha_rollback_low(thd, all); }
   int recover();
 

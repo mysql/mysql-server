@@ -1,4 +1,4 @@
-/* Copyright (c) 2009, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2009, 2011, 2012 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1142,7 +1142,11 @@ static int binlog_prepare(handlerton *hton, THD *thd, bool all)
 /**
   This function is called once after each statement.
 
-  It has the responsibility to flush the caches to the binary log on commits.
+  @todo This function is currently not used any more and will
+  eventually be eliminated. The real commit job is done in the
+  MYSQL_BIN_LOG::commit function.
+
+  @see MYSQL_BIN_LOG::commit
 
   @param hton  The binlog handlerton.
   @param thd   The client thread that executes the transaction.
@@ -5597,13 +5601,13 @@ void MYSQL_BIN_LOG::close()
   @retval 1    error, transaction was neither logged nor committed
   @retval 2    error, transaction was logged but not committed
 */
-int MYSQL_BIN_LOG::commit(THD *thd, bool all)
+TC_LOG::enum_result MYSQL_BIN_LOG::commit(THD *thd, bool all)
 {
   DBUG_ENTER("MYSQL_BIN_LOG::commit");
 
   binlog_cache_mngr *cache_mngr= thd_get_cache_mngr(thd);
   my_xid xid= thd->transaction.xid_state.xid.get_my_xid();
-  int error= 0;
+  int error= RESULT_SUCCESS;
   bool stuff_logged= false;
 
   DBUG_PRINT("enter", ("thd: 0x%llx, all: %s, xid: %llu, cache_mngr: 0x%llx",
@@ -5617,8 +5621,8 @@ int MYSQL_BIN_LOG::commit(THD *thd, bool all)
   if (cache_mngr == NULL)
   {
     if (ha_commit_low(thd, all))
-      DBUG_RETURN(1);
-    DBUG_RETURN(0);
+      DBUG_RETURN(RESULT_ABORTED);
+    DBUG_RETURN(RESULT_SUCCESS);
   }
 
   THD_TRANS *trans= all ? &thd->transaction.all : &thd->transaction.stmt;
@@ -5653,7 +5657,7 @@ int MYSQL_BIN_LOG::commit(THD *thd, bool all)
    */
   if (!all && trans->ha_list == 0 &&
       cache_mngr->stmt_cache.is_binlog_empty())
-    DBUG_RETURN(0);
+    DBUG_RETURN(RESULT_SUCCESS);
 
   /*
     If there is anything in the stmt cache, and GTIDs are enabled,
@@ -5669,8 +5673,8 @@ int MYSQL_BIN_LOG::commit(THD *thd, bool all)
     error= write_empty_groups_to_cache(thd, &cache_mngr->stmt_cache);
     if (error == 0)
     {
-      if (int error= cache_mngr->stmt_cache.finalize(thd))
-        DBUG_RETURN(error);
+      if (cache_mngr->stmt_cache.finalize(thd))
+        DBUG_RETURN(RESULT_ABORTED);
       stuff_logged= true;
     }
   }
@@ -5717,14 +5721,14 @@ int MYSQL_BIN_LOG::commit(THD *thd, bool all)
     {
       Xid_log_event end_evt(thd, xid);
       if (cache_mngr->trx_cache.finalize(thd, &end_evt))
-        DBUG_RETURN(1);
+        DBUG_RETURN(RESULT_ABORTED);
     }
     else
     {
       Query_log_event end_evt(thd, STRING_WITH_LEN("COMMIT"),
                               true, FALSE, TRUE, 0, TRUE);
       if (cache_mngr->trx_cache.finalize(thd, &end_evt))
-        DBUG_RETURN(1);
+        DBUG_RETURN(RESULT_ABORTED);
     }
     stuff_logged= true;
   }
@@ -5738,7 +5742,7 @@ int MYSQL_BIN_LOG::commit(THD *thd, bool all)
   DBUG_PRINT("debug", ("error: %d", error));
 
   if (error)
-    DBUG_RETURN(1);
+    DBUG_RETURN(RESULT_ABORTED);
 
   /*
     Now all the events are written to the caches, so we will commit
@@ -5753,15 +5757,15 @@ int MYSQL_BIN_LOG::commit(THD *thd, bool all)
   if (stuff_logged)
   {
     if (ordered_commit(thd, all))
-      DBUG_RETURN(2);
+      DBUG_RETURN(RESULT_INCONSISTENT);
   }
   else
   {
     if (ha_commit_low(thd, all))
-      DBUG_RETURN(2);
+      DBUG_RETURN(RESULT_INCONSISTENT);
   }
 
-  DBUG_RETURN(error ? 2 : 0);
+  DBUG_RETURN(error ? RESULT_INCONSISTENT : RESULT_SUCCESS);
 }
 
 
