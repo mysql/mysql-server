@@ -1,4 +1,4 @@
-# Copyright (c) 2008, 2010, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2008, 2012, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -13,7 +13,7 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
-INCLUDE(libutils) # MERGE_STATIC_LIBS
+INCLUDE(libutils)
 
 ADD_SUBDIRECTORY(common)
 ADD_SUBDIRECTORY(mgmapi)
@@ -71,21 +71,22 @@ IF(HAVE_JDK AND HAVE_JAVA)
 ENDIF()
 
 #
-# Version
+# Build shared ndbclient
 #
-INCLUDE("${NDB_SOURCE_DIR}/cmake/ndb_get_config_value.cmake")
+
+# Extract version from storage/ndb/VERSION
+INCLUDE(ndb_get_config_value)
 NDB_GET_CONFIG_VALUE(NDB_SHARED_LIB_VERSION_MAJOR major)
 NDB_GET_CONFIG_VALUE(NDB_SHARED_LIB_VERSION_MINOR minor)
 NDB_GET_CONFIG_VALUE(NDB_SHARED_LIB_VERSION_BUILD build)
 SET(NDB_SHARED_LIB_VERSION "${major}.${minor}.${build}")
 
-#
-# libndbclient.so
-#
 ADD_LIBRARY(ndbclient_so SHARED ${EXTRA_SRC})
 TARGET_LINK_LIBRARIES(ndbclient_so ${NDBCLIENT_SO_LIBS})
 SET_TARGET_PROPERTIES(ndbclient_so PROPERTIES
                       OUTPUT_NAME "ndbclient"
                       SOVERSION ${NDB_SHARED_LIB_VERSION})
-MYSQL_INSTALL_TARGETS(ndbclient_so DESTINATION "${INSTALL_LIBDIR}" COMPONENT Developement)
+MYSQL_INSTALL_TARGETS(ndbclient_so
+  DESTINATION "${INSTALL_LIBDIR}"
+  COMPONENT Developement)
 
