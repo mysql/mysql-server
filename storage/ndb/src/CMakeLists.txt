@@ -44,7 +44,7 @@ MERGE_LIBRARIES(ndbclient_static STATIC ${NDBCLIENT_LIBS} COMPONENT Development)
 # Do a shared libd
 #
 SET(NDBCLIENT_SO_LIBS ${NDBCLIENT_LIBS})
-SET(EXTRA_SRC dummy.cpp)
+SET(EXTRA_SRC ndbclient_exports.cpp)
 
 IF(HAVE_JDK AND HAVE_JAVA)
 
