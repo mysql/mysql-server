@@ -1027,7 +1027,7 @@ mysql_prepare_select(THD *thd,
                            conds, og_num, order, group, having, proc_param,
                            select_lex, unit);
         if (err)
-          DBUG_RETURN(TRUE);
+          DBUG_RETURN(true);
       }
     }
     *free_join= 0;
@@ -1043,7 +1043,7 @@ mysql_prepare_select(THD *thd,
                        conds, og_num, order, group, having, proc_param,
                        select_lex, unit);
     if (err)
-      DBUG_RETURN(TRUE);
+      DBUG_RETURN(true);
   }
 
   DBUG_RETURN(err);
@@ -1057,10 +1057,9 @@ mysql_prepare_select(THD *thd,
   @param select_lex           the only SELECT_LEX of this query
   @param free_join            if join should be freed
 
-  @retval
-    FALSE  success
-  @retval
-    TRUE   an error
+  @return Operation status
+    @retval false  success
+    @retval true   an error
 
   @note tables must be opened and locked before calling mysql_execute_select.
 */
@@ -1147,9 +1146,9 @@ err:
                               failure
 
   @retval
-    FALSE  success
+    false  success
   @retval
-    TRUE   an error
+    true   an error
 */
 
 bool

@@ -822,7 +822,7 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
         goto exit_without_my_ok;
       }
       /* Also clears all bits. */
-      if (bitmap_init(&used_partitions, bitmap_buf, num_partitions, FALSE))
+      if (bitmap_init(&used_partitions, bitmap_buf, num_partitions, false))
       {
         mem_alloc_error(bitmap_bytes);   /* Cannot happen, due to pre-alloc */
         goto exit_without_my_ok;

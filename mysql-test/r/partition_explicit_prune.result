@@ -255,8 +255,8 @@ HANDLER_COMMIT	1
 HANDLER_EXTERNAL_LOCK	4
 HANDLER_WRITE	18
 # Should be 1 commit
-# 4 external locks (6 before WL#4443)
-# (1 ha_partition + 2 ha_innobase) x 2 (lock + unlock)
+# 4 external locks (due to pruning of locks)
+# (1 ha_partition + 1 ha_innobase) x 2 (lock + unlock)
 # and 18 write (1 ha_innobase + 17 internal I_S write)
 INSERT INTO t1 PARTITION (pNeg, subp0) VALUES (-3, "pNeg(-subp1)");
 INSERT INTO t1 PARTITION (pNeg, subp0) VALUES (-2, "(pNeg-)subp0");
