@@ -1,3 +1,5 @@
+set_property(DIRECTORY APPEND PROPERTY COMPILE_DEFINITIONS _GNU_SOURCE)
+
 set(utils tokudb_gen tokudb_load tokudb_dump)
 foreach(util ${utils})
   add_executable(${util} ${util}.c)

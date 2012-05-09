@@ -76,13 +76,6 @@ set(BRT_SOURCES
   ybt.c
   )
 
-## define HAVE_CILK if we want cilk
-if(USE_CILK)
-  foreach(src ${BRT_SOURCES})
-    set_property(SOURCE ${src} APPEND PROPERTY COMPILE_DEFINITIONS HAVE_CILK=1)
-  endforeach(src)
-endif()
-
 add_library(newbrt SHARED ${BRT_SOURCES})
 add_library(newbrt_static STATIC ${BRT_SOURCES})
 set_property(TARGET newbrt_static APPEND PROPERTY COMPILE_FLAGS "-fPIC")
@@ -96,11 +89,17 @@ add_dependencies(newbrt_static install_tdb_h build_lzma)
 target_link_libraries(newbrt ${LIBTOKUPORTABILITY} lzma)
 target_link_libraries(newbrt_static ${LIBTOKUPORTABILITY} lzma)
 
-## conditionally link with cilkrts
-if(USE_CILK)
+if (CMAKE_C_COMPILER_ID STREQUAL "Intel")
+  target_link_libraries(newbrt -nodefaultlibs c -Bstatic irc -Bdynamic)
+endif ()
+
+## conditionally use cilk
+if (USE_CILK)
+  set_property(TARGET newbrt APPEND PROPERTY COMPILE_DEFINITIONS HAVE_CILK=1)
+  set_property(TARGET newbrt_static APPEND PROPERTY COMPILE_DEFINITIONS HAVE_CILK=1)
   target_link_libraries(newbrt cilkrts)
   target_link_libraries(newbrt_static cilkrts)
-endif()
+endif (USE_CILK)
 
 ## build the bins in this directory
 set(bins

@@ -15,7 +15,6 @@ endif()
 ## preprocessor definitions we want everywhere
 add_c_defines(
   _SVID_SOURCE
-  _GNU_SOURCE
   _XOPEN_SOURCE=600
   _FILE_OFFSET_BITS=64
   _LARGEFILE64_SOURCE
@@ -25,9 +24,6 @@ if(CMAKE_SYSTEM_NAME MATCHES Darwin)
   message(WARNING "Setting TOKU_ALLOW_DEPRECATED on Darwin.  TODO: remove this.")
   add_c_defines(TOKU_ALLOW_DEPRECATED)
 endif()
-
-## default warning levels
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Wextra")
 
 ## coverage
 option(USE_GCOV "Use gcov for test coverage." OFF)
@@ -90,6 +86,9 @@ elseif(HAVE_CC_FLAG_IPO)
 endif()
 
 if(CMAKE_C_COMPILER_ID MATCHES "^Intel$")
+  # make sure intel libs are linked statically
+  set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -static-intel")
+
   # disable some intel-specific warnings
   set(intel_warnings
     94     # allow arrays of length 0
@@ -102,9 +101,23 @@ if(CMAKE_C_COMPILER_ID MATCHES "^Intel$")
     )
   string(REGEX REPLACE ";" "," intel_warning_string "${intel_warnings}")
   set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -diag-disable ${intel_warning_string}")
+  set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -debug all")
 
-  # make sure intel libs are linked statically
-  set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -static-intel")
-  set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -static-intel")
-  set(CMAKE_MODULE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -static-intel")
+  set(EXTRA_CFLAGS "-Wall -Wcheck")
+else()
+  set(EXTRA_CFLAGS "-Wall -Wextra -Wcast-align -Wbad-function-cast -Wno-missing-noreturn -Wstrict-prototypes -Wmissing-prototypes -Wmissing-declarations -Wpointer-arith -Wmissing-format-attribute -Wshadow")
 endif()
+
+## default warning levels
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${EXTRA_CFLAGS}")
+
+## function for adding -fvisibility=hidden to targets
+function(set_targets_visibility_hidden)
+  if (NOT CMAKE_C_COMPILER_ID STREQUAL "Intel")
+    foreach(target ${ARGN})
+      get_target_property(flags ${target} COMPILE_FLAGS)
+      set_target_properties(${target} PROPERTIES
+        COMPILE_FLAGS "${COMPILE_FLAGS} -fvisibility=hidden")
+    endforeach(target)
+  endif ()
+endfunction(set_targets_visibility_hidden)

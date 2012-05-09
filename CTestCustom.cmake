@@ -159,4 +159,6 @@ if(NOT @RUN_LONG_TESTS@)
 endif()
 
 ## don't complain about warnings in xz source
-list(APPEND CTEST_CUSTOM_WARNING_EXCEPTION "xz-4.999.9beta/src/liblzma")
+list(APPEND CTEST_CUSTOM_WARNING_EXCEPTION
+  "xz-4.999.9beta/src/liblzma"
+  )
