@@ -67,6 +67,10 @@ UNIV_INTERN dict_index_t*	dict_ind_compact;
 #include "row0merge.h"
 #include "row0log.h"
 #include "ut0ut.h" /* ut_format_name() */
+#include "m_string.h"
+#include "my_sys.h"
+
+#include <ctype.h>
 
 /** the dictionary system */
 UNIV_INTERN dict_sys_t*	dict_sys	= NULL;
@@ -2949,6 +2953,8 @@ dict_foreign_free(
 /*==============*/
 	dict_foreign_t*	foreign)	/*!< in, own: foreign key struct */
 {
+	ut_a(foreign->foreign_table->n_foreign_key_checks_running == 0);
+
 	mem_heap_free(foreign->heap);
 }
 

@@ -325,10 +325,10 @@ dict_stats_persistent_storage_check(
 	/* definition for the table TABLE_STATS_NAME */
 	dict_col_meta_t	table_stats_columns[] = {
 		{"database_name", DATA_VARMYSQL,
-			DATA_NOT_NULL, MAX_DATABASE_NAME_LEN},
+			DATA_NOT_NULL, 192},
 
 		{"table_name", DATA_VARMYSQL,
-			DATA_NOT_NULL, MAX_TABLE_NAME_LEN},
+			DATA_NOT_NULL, 192},
 
 		{"last_update", DATA_FIXBINARY,
 			DATA_NOT_NULL, 4},
@@ -351,13 +351,13 @@ dict_stats_persistent_storage_check(
 	/* definition for the table INDEX_STATS_NAME */
 	dict_col_meta_t	index_stats_columns[] = {
 		{"database_name", DATA_VARMYSQL,
-			DATA_NOT_NULL, MAX_DATABASE_NAME_LEN},
+			DATA_NOT_NULL, 192},
 
 		{"table_name", DATA_VARMYSQL,
-			DATA_NOT_NULL, MAX_TABLE_NAME_LEN},
+			DATA_NOT_NULL, 192},
 
 		{"index_name", DATA_VARMYSQL,
-			DATA_NOT_NULL, MAX_TABLE_NAME_LEN},
+			DATA_NOT_NULL, 192},
 
 		{"last_update", DATA_FIXBINARY,
 			DATA_NOT_NULL, 4},
