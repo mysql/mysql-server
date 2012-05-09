@@ -24,9 +24,14 @@
 
 #include "../include/ndbapi/NdbApi.hpp"
 
+extern "C" void* JNI_OnLoad(void*, void*);
+
 void
 _ndbclient_exports(void)
 {
   Ndb_cluster_connection cluster_connection;
   NdbScanFilter scan_filter((NdbOperation*)0);
+#ifdef NDB_WITH_NDBJTIE
+  JNI_OnLoad(0,0);
+#endif
 }
