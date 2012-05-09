@@ -427,6 +427,7 @@ public:
     m_key_LOCK_commit_queue= key_LOCK_commit_queue;
     m_key_LOCK_done= key_LOCK_done;
     m_key_LOCK_flush_queue= key_LOCK_flush_queue;
+    m_key_LOCK_sync_queue= key_LOCK_sync_queue;
 
     m_key_LOCK_index= key_LOCK_index;
     m_key_LOCK_log= key_LOCK_log;
