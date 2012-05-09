@@ -654,7 +654,8 @@ int Gis_line_string::is_closed(int *closed) const
     return 0;
   }
   data+= 4;
-  if (no_data(data, POINT_DATA_SIZE * n_points))
+  if (n_points == 0 ||
+      no_data(data, POINT_DATA_SIZE * n_points))
     return 1;
 
   /* Get first point */

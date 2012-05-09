@@ -1268,7 +1268,8 @@ bool JOIN::set_access_methods()
       */
       const table_map available_tables=
         sj_is_materialize_strategy(tab->get_sj_strategy()) ?
-          used_tables & tab->emb_sj_nest->sj_inner_tables : used_tables;
+        (used_tables & tab->emb_sj_nest->sj_inner_tables) |
+        OUTER_REF_TABLE_BIT : used_tables;
       if (create_ref_for_key(this, tab, keyuse, available_tables))
         DBUG_RETURN(true);
     }
@@ -1396,6 +1397,7 @@ bool create_ref_for_key(JOIN *join, JOIN_TAB *j, Key_use *org_keyuse,
       }
       keyuse++;
     } while (keyuse->table == table && keyuse->key == key);
+    DBUG_ASSERT(length > 0 && keyparts != 0);
   } /* not ftkey */
 
   /* set up fieldref */
@@ -3719,6 +3721,9 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
   LINT_INIT(ref_key_parts);
   LINT_INIT(orig_cond);
 
+  /* Check that we are always called with first non-const table */
+  DBUG_ASSERT(tab == tab->join->join_tab + tab->join->const_tables); 
+
   Plan_change_watchdog watchdog(tab, no_changes);
 
   /* Sorting a single row can always be skipped */
@@ -3973,7 +3978,8 @@ check_reverse_order:
         keyuse++;
 
       if (create_ref_for_key(tab->join, tab, keyuse, 
-                             tab->join->const_table_map))
+                             tab->join->const_table_map |
+                             OUTER_REF_TABLE_BIT))
         goto use_filesort;
 
       DBUG_ASSERT(tab->type != JT_REF_OR_NULL && tab->type != JT_FT);
