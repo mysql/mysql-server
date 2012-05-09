@@ -1580,6 +1580,8 @@ static
 dberr_t
 dict_stats_save_index_stat(
 /*=======================*/
+	const char*	database_name,	/*!< in: database name */
+	const char*	table_name,	/*!< in: table name */
 	dict_index_t*	index,		/*!< in: index */
 	lint		last_update,	/*!< in: timestamp of the stat */
 	const char*	stat_name,	/*!< in: name of the stat */
@@ -1595,12 +1597,9 @@ dict_stats_save_index_stat(
 
 	pinfo = pars_info_create();
 
-	pars_info_add_literal(pinfo, "database_name", index->table->name,
-			      dict_get_db_name_len(index->table->name),
-			      DATA_VARCHAR, 0);
+	pars_info_add_str_literal(pinfo, "database_name", database_name);
 
-	pars_info_add_str_literal(pinfo, "table_name",
-				  dict_remove_db_name(index->table->name));
+	pars_info_add_str_literal(pinfo, "table_name", table_name);
 
 	pars_info_add_str_literal(pinfo, "index_name", index->name);
 
@@ -1665,15 +1664,13 @@ dict_stats_save_index_stat(
 	/* pinfo is freed by que_eval_sql() */
 
 	if (ret != DB_SUCCESS) {
-		char	buf_table[MAX_FULL_NAME_LEN];
 		char	buf_index[MAX_FULL_NAME_LEN];
 		ut_print_timestamp(stderr);
 		fprintf(stderr,
 			" InnoDB: Error while trying to save index "
-			"statistics for table %s, index %s, "
-			"stat name %s: %s\n",
-			ut_format_name(index->table->name, TRUE,
-				       buf_table, sizeof(buf_table)),
+			"statistics for table %s.%s, index %s, "
+			"stat name \"%s\": %s\n",
+			database_name, table_name,
 			ut_format_name(index->name, FALSE,
 				       buf_index, sizeof(buf_index)),
 			stat_name, ut_strerr(ret));
@@ -1697,11 +1694,31 @@ dict_stats_save(
 	ibool		caller_has_dict_sys_mutex)/*!< in: TRUE if the caller
 					owns dict_sys->mutex */
 {
+	char		database_name[MAX_DATABASE_NAME_LEN + 1];
+	char		table_name[MAX_TABLE_NAME_LEN + 1];
 	trx_t*		trx;
 	pars_info_t*	pinfo;
 	dict_index_t*	index;
 	lint		now;
 	dberr_t		ret;
+
+	/* Copy database and table name under dict_sys mutex because
+	RENAME TABLE does memcpy() over table->name under the same mutex
+	and if we do not synchronize we may read garbage. */
+
+	if (!caller_has_dict_sys_mutex) {
+		mutex_enter(&dict_sys->mutex);
+	}
+
+	ut_snprintf(database_name, sizeof(database_name), "%.*s",
+		    (int) dict_get_db_name_len(table->name), table->name);
+
+	ut_snprintf(table_name, sizeof(table_name), "%s",
+		    dict_remove_db_name(table->name));
+
+	if (!caller_has_dict_sys_mutex) {
+		mutex_exit(&dict_sys->mutex);
+	}
 
 	/* MySQL's timestamp is 4 byte, so we use
 	pars_info_add_int4_literal() which takes a lint arg, so "now" is
@@ -1720,12 +1737,9 @@ dict_stats_save(
 
 	pinfo = pars_info_create();
 
-	pars_info_add_literal(pinfo, "database_name", table->name,
-			      dict_get_db_name_len(table->name),
-			      DATA_VARCHAR, 0);
+	pars_info_add_str_literal(pinfo, "database_name", database_name);
 
-	pars_info_add_str_literal(pinfo, "table_name",
-				  dict_remove_db_name(table->name));
+	pars_info_add_str_literal(pinfo, "table_name", table_name);
 
 	pars_info_add_int4_literal(pinfo, "last_update", now);
 
@@ -1777,13 +1791,11 @@ dict_stats_save(
 	/* pinfo is freed by que_eval_sql() */
 
 	if (ret != DB_SUCCESS) {
-		char	buf[MAX_FULL_NAME_LEN];
 		ut_print_timestamp(stderr);
 		fprintf(stderr,
 			" InnoDB: Error while trying to save table "
-			"statistics for table %s: %s\n",
-			ut_format_name(table->name, TRUE, buf, sizeof(buf)),
-			ut_strerr(ret));
+			"statistics for table %s.%s: %s\n",
+			database_name, table_name, ut_strerr(ret));
 
 		goto end_rollback;
 	}
@@ -1797,7 +1809,8 @@ dict_stats_save(
 		ulint		n_uniq;
 		ulint		i;
 
-		ret = dict_stats_save_index_stat(index, now, "size",
+		ret = dict_stats_save_index_stat(database_name, table_name,
+						 index, now, "size",
 						 index->stat_index_size,
 						 NULL,
 						 "Number of pages "
@@ -1808,7 +1821,8 @@ dict_stats_save(
 			goto end_rollback;
 		}
 
-		ret = dict_stats_save_index_stat(index, now, "n_leaf_pages",
+		ret = dict_stats_save_index_stat(database_name, table_name,
+						 index, now, "n_leaf_pages",
 						 index->stat_n_leaf_pages,
 						 NULL,
 						 "Number of leaf pages "
@@ -1855,6 +1869,7 @@ dict_stats_save(
 			}
 
 			ret = dict_stats_save_index_stat(
+				database_name, table_name,
 				index, now, stat_name,
 				stat_n_diff_key_vals[i],
 				&stat_n_sample_sizes[i],
