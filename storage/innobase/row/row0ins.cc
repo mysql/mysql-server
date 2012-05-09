@@ -1699,6 +1699,8 @@ row_ins_check_foreign_constraints(
 
 	foreign = UT_LIST_GET_FIRST(table->foreign_list);
 
+	DEBUG_SYNC_C("foreign_constraint_check_for_ins");
+
 	while (foreign) {
 		if (foreign->foreign_index == index) {
 			dict_table_t*	ref_table = NULL;
@@ -1707,7 +1709,7 @@ row_ins_check_foreign_constraints(
 
 				ref_table = dict_table_open_on_name(
 					foreign->referenced_table_name_lookup,
-					FALSE, FALSE);
+					FALSE, FALSE, DICT_ERR_IGNORE_NONE);
 			}
 
 			if (0 == trx->dict_operation_lock_mode) {

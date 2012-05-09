@@ -415,13 +415,31 @@ void Optimize_table_order::best_access_path(
 
   Opt_trace_object trace_wrapper(trace, "best_access_path");
   Opt_trace_array trace_paths(trace, "considered_access_paths");
-  
-  loose_scan_opt.init(s, remaining_tables,
-                      // in_dups_producing_range
-                      ((idx == join->const_tables) ? false :
-                       (pos[-1].dups_producing_tables != 0)),
-                      emb_sjm_nest != NULL);
-  
+
+  {
+    /*
+      Loose-scan specific-logic:
+      - we must decide whether this is within the dups_producing range.
+      - if 'pos' is within the JOIN::positions array, then decide this
+      by using the pos[-1] entry.
+      - if 'pos' is not in the JOIN::position array then
+      in_dups_producing_range must be false (this case may occur in
+      semijoin_*_access_paths() which calls best_access_path() with 'pos'
+      allocated on the stack).
+      @todo One day Loose-scan will be considered in advance_sj_state() only,
+      outside best_access_path(), so this complicated logic will not be
+      needed.
+    */
+    const bool in_dups_producing_range=
+      (idx == join->const_tables) ?
+      false :
+      (pos == (join->positions + idx) ?
+       (pos[-1].dups_producing_tables != 0) :
+       false);
+    loose_scan_opt.init(s, remaining_tables, in_dups_producing_range,
+                        emb_sjm_nest != NULL);
+  }
+
   /*
     This isn't unlikely at all, but unlikely() cuts 6% CPU time on a 20-table
     search when s->keyuse==0, and has no cost when s->keyuse!=0.

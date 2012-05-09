@@ -1,3 +1,5 @@
+#Want to skip this test from daily Valgrind execution
+--source include/no_valgrind_without_big.inc
 # BUG#13979418: SHOW BINLOG EVENTS MAY CRASH THE SERVER
 #
 # The function mysql_show_binlog_events has a local stack variable

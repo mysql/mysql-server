@@ -233,6 +233,7 @@ void print_keyuse_array(Opt_trace_context *trace,
 }
 
 #ifndef DBUG_OFF
+/* purecov: begin inspected */
 
 /* 
   Print the current state during query optimization.

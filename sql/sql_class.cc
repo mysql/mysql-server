@@ -792,6 +792,7 @@ THD::THD(bool enable_plugins)
               /* statement id */ 0),
    rli_fake(0), rli_slave(NULL),
    in_sub_stmt(0),
+   binlog_row_event_extra_data(NULL),
    binlog_unsafe_warning_flags(0),
    binlog_table_maps(0),
    binlog_accessed_db_names(NULL),
@@ -1270,6 +1271,7 @@ void THD::init(void)
   update_charset();
   reset_current_stmt_binlog_format_row();
   memset(&status_var, 0, sizeof(status_var));
+  binlog_row_event_extra_data= 0;
 
   if (variables.sql_log_bin)
     variables.option_bits|= OPTION_BIN_LOG;

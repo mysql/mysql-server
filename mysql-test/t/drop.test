@@ -225,11 +225,11 @@ DROP DATABASE mysql_test;
 create database mysqltestbug26703;
 use mysqltestbug26703;
 create table `#mysql50#abc``def` ( id int );
---error ER_WRONG_TABLE_NAME
+--error ER_TOO_LONG_IDENT
 create table `aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa` (a int);
 create table `aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa` (a int);
 create table `#mysql50#aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa` (a int);
---error ER_WRONG_TABLE_NAME
+--error ER_TOO_LONG_IDENT
 create table `#mysql50#aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa` (a int);
 use test;
 drop database mysqltestbug26703;

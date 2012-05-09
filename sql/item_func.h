@@ -1,7 +1,7 @@
 #ifndef ITEM_FUNC_INCLUDED
 #define ITEM_FUNC_INCLUDED
 
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -528,12 +528,18 @@ public:
 class Item_func_signed :public Item_int_func
 {
 public:
-  Item_func_signed(Item *a) :Item_int_func(a) {}
+  Item_func_signed(Item *a) :Item_int_func(a) 
+  {
+    unsigned_flag= 0;
+  }
   const char *func_name() const { return "cast_as_signed"; }
   longlong val_int();
   longlong val_int_from_str(int *error);
   void fix_length_and_dec()
-  { fix_char_length(args[0]->max_char_length()); unsigned_flag=0; }
+  {
+    fix_char_length(std::min<uint32>(args[0]->max_char_length(),
+                                     MY_INT64_NUM_DECIMAL_DIGITS));
+  }
   virtual void print(String *str, enum_query_type query_type);
   uint decimal_precision() const { return args[0]->decimal_precision(); }
 };
@@ -542,14 +548,11 @@ public:
 class Item_func_unsigned :public Item_func_signed
 {
 public:
-  Item_func_unsigned(Item *a) :Item_func_signed(a) {}
-  const char *func_name() const { return "cast_as_unsigned"; }
-  void fix_length_and_dec()
+  Item_func_unsigned(Item *a) :Item_func_signed(a)
   {
-    fix_char_length(std::min<uint32>(args[0]->max_char_length(),
-                                     DECIMAL_MAX_PRECISION + 2));
-    unsigned_flag=1;
+    unsigned_flag= 1;
   }
+  const char *func_name() const { return "cast_as_unsigned"; }
   longlong val_int();
   virtual void print(String *str, enum_query_type query_type);
 };
@@ -1034,6 +1037,7 @@ public:
     /* The item could be a NULL constant. */
     null_value= args[0]->is_null();
   }
+  enum_field_types field_type() const { return args[0]->field_type(); }
 };
 
 
@@ -1669,9 +1673,9 @@ public:
   virtual void print(String *str, enum_query_type query_type);
   void print_assignment(String *str, enum_query_type query_type);
   const char *func_name() const { return "set_user_var"; }
-  int save_in_field(Field *field, bool no_conversions,
-                    bool can_use_result_field);
-  int save_in_field(Field *field, bool no_conversions)
+  type_conversion_status save_in_field(Field *field, bool no_conversions,
+                                       bool can_use_result_field);
+  type_conversion_status save_in_field(Field *field, bool no_conversions)
   {
     return save_in_field(field, no_conversions, 1);
   }

@@ -360,6 +360,14 @@ f1 bit(2) NOT NULL default b'10',
 f2 bit(14) NOT NULL default b'11110000111100'
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1 COLLATE=latin1_general_ci;
 SHOW CREATE TABLE t1;
+
+# Should store the defaults
+INSERT INTO t1 (f1) VALUES (DEFAULT);
+# Should store 0's, not the default
+INSERT INTO t1 VALUES (b'', b''); 
+
+SELECT HEX(f1), HEX(f2) FROM t1;
+
 DROP TABLE t1;
 
 --error ER_INVALID_DEFAULT
@@ -439,3 +447,15 @@ SELECT SUM(a) FROM t1 GROUP BY c, b, a;
 DROP TABLE t1;
 
 --echo End of 5.1 tests
+
+--echo #
+--echo # Test insert of no bits. Should be treated as 0.
+--echo #
+
+CREATE TABLE IF NOT EXISTS t1 (
+f1 bit(2) NOT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1 COLLATE=latin1_general_ci;
+INSERT INTO t1 VALUES (b'');
+SELECT bin(f1) FROM t1;
+DROP TABLE t1;
+
