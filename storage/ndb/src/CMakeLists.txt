@@ -22,57 +22,38 @@ ADD_SUBDIRECTORY(kernel)
 ADD_SUBDIRECTORY(mgmclient)
 ADD_SUBDIRECTORY(mgmsrv)
 
-INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/storage/ndb/include
-                    ${CMAKE_SOURCE_DIR}/include)
-
-SET(NDBCLIENT_LIBS
-                mysys dbug strings
-                ndbapi
-                ndbtransport
-                ndbtrace
-                ndbsignaldata
-                ndbmgmapi
-                ndbmgmcommon
-                ndblogger
-                ndbportlib
-                ndbgeneral
-                ndbconf)
+SET(NDBJTIE_LIB)
+IF(HAVE_JDK)
+  ADD_SUBDIRECTORY(ndbjtie)
+  SET(NDBJTIE_LIB ndbjtie)
+  ADD_DEFINITIONS(-DNDB_WITH_NDBJTIE)
+ENDIF()
 
 #
 # Build static ndbclient library
 #
+SET(NDBCLIENT_LIBS
+  mysys dbug strings
+  ndbapi
+  ndbtransport
+  ndbtrace
+  ndbsignaldata
+  ndbmgmapi
+  ndbmgmcommon
+  ndblogger
+  ndbportlib
+  ndbgeneral
+  ndbconf)
+
 MERGE_LIBRARIES(ndbclient_static STATIC ${NDBCLIENT_LIBS} COMPONENT Development)
 # Build test program to check linking against ndclient_static
 ADD_EXECUTABLE(ndbclient_static_link_test ndbclient_link_test.cpp)
 TARGET_LINK_LIBRARIES(ndbclient_static_link_test ndbclient_static)
 
 #
-# Do a shared libd
+# Build shared ndbclient library
 #
-SET(NDBCLIENT_SO_LIBS ${NDBCLIENT_LIBS})
-SET(EXTRA_SRC ndbclient_exports.cpp)
-
-IF(HAVE_JDK AND HAVE_JAVA)
-
-  ADD_SUBDIRECTORY(ndbjtie)
-
-  SET(NDBCLIENT_SO_LIBS ${NDBCLIENT_SO_LIBS} ndbjtie)
-
-  INCLUDE_DIRECTORIES(${JNI_INCLUDE_DIRS})
-  INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/storage/ndb/include/ndbapi
-                      ${CMAKE_SOURCE_DIR}/storage/ndb/include/mgmapi
-                      ${CMAKE_SOURCE_DIR}/storage/ndb/src/ndbjtie
-                      ${CMAKE_SOURCE_DIR}/storage/ndb/src/ndbjtie/jtie
-                      ${CMAKE_SOURCE_DIR}/storage/ndb/src/ndbjtie/utils
-                      ${CMAKE_SOURCE_DIR}/storage/ndb/src/ndbjtie/mysql
-                     )
-  # JNI needs a DLL
-  SET(EXTRA_SRC ${CMAKE_SOURCE_DIR}/storage/ndb/src/ndbjtie/ndbjtie_lib.cpp)
-ENDIF()
-
-#
-# Build shared ndbclient
-#
+SET(NDBCLIENT_SO_LIBS ${NDBCLIENT_LIBS} ${NDBJTIE_LIB})
 
 # Extract version from storage/ndb/VERSION
 INCLUDE(ndb_get_config_value)
@@ -81,11 +62,11 @@ NDB_GET_CONFIG_VALUE(NDB_SHARED_LIB_VERSION_MINOR minor)
 NDB_GET_CONFIG_VALUE(NDB_SHARED_LIB_VERSION_BUILD build)
 SET(NDB_SHARED_LIB_VERSION "${major}.${minor}.${build}")
 
-ADD_LIBRARY(ndbclient_so SHARED ${EXTRA_SRC})
+ADD_LIBRARY(ndbclient_so SHARED ndbclient_exports.cpp)
 TARGET_LINK_LIBRARIES(ndbclient_so ${NDBCLIENT_SO_LIBS})
 SET_TARGET_PROPERTIES(ndbclient_so PROPERTIES
-                      OUTPUT_NAME "ndbclient"
-                      SOVERSION ${NDB_SHARED_LIB_VERSION})
+  OUTPUT_NAME "ndbclient"
+  SOVERSION ${NDB_SHARED_LIB_VERSION})
 MYSQL_INSTALL_TARGETS(ndbclient_so
   DESTINATION "${INSTALL_LIBDIR}"
   COMPONENT Developement)
