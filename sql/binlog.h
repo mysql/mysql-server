@@ -479,6 +479,7 @@ public:
   void close();
   enum_result commit(THD *thd, bool all);
   int rollback(THD *thd, bool all);
+  int prepare(THD *thd, bool all);
   int recover(IO_CACHE *log, Format_description_log_event *fdle,
               my_off_t *valid_pos);
   int recover(IO_CACHE *log, Format_description_log_event *fdle);

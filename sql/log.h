@@ -91,6 +91,17 @@ class TC_LOG
      @return Error code on failure, zero on success.
    */
   virtual int rollback(THD *thd, bool all) = 0;
+  /**
+     Log a prepare record of the transaction to the storage engines.
+
+     @param thd Session to log transaction record for.
+
+     @param all @c true if an explicit commit or an implicit commit
+     for a statement, @c false if an internal commit of the statement.
+
+     @return Error code on failure, zero on success.
+   */
+  virtual int prepare(THD *thd, bool all) = 0;
 };
 
 
@@ -100,11 +111,14 @@ public:
   TC_LOG_DUMMY() {}
   int open(const char *opt_name)        { return 0; }
   void close()                          { }
-  enum_result commit(THD *thd, bool all)     {
+  enum_result commit(THD *thd, bool all) {
     return ha_commit_low(thd, all) ? RESULT_ABORTED : RESULT_SUCCESS;
   }
   int rollback(THD *thd, bool all) {
     return ha_rollback_low(thd, all);
+  }
+  int prepare(THD *thd, bool all) {
+    return ha_prepare_low(thd, all);
   }
 };
 
@@ -151,6 +165,7 @@ class TC_LOG_MMAP: public TC_LOG
   void close();
   enum_result commit(THD *thd, bool all);
   int rollback(THD *thd, bool all)      { return ha_rollback_low(thd, all); }
+  int prepare(THD *thd, bool all)       { return ha_prepare_low(thd, all); }
   int recover();
 
 private:

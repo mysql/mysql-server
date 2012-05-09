@@ -1416,31 +1416,7 @@ int ha_commit_trans(THD *thd, bool all)
     }
 
     if (!trans->no_2pc && (rw_ha_count > 1))
-    {
-      for (; ha_info && !error; ha_info= ha_info->next())
-      {
-        int err;
-        handlerton *ht= ha_info->ht();
-        /*
-          Do not call two-phase commit if this particular
-          transaction is read-only. This allows for simpler
-          implementation in engines that are always read-only.
-        */
-        if (! ha_info->is_trx_read_write())
-          continue;
-        /*
-          Sic: we know that prepare() is not NULL since otherwise
-          trans->no_2pc would have been set.
-        */
-        if ((err= ht->prepare(ht, thd, all)))
-        {
-          my_error(ER_ERROR_DURING_COMMIT, MYF(0), err);
-          error= 1;
-        }
-        status_var_increment(thd->status_var.ha_prepare_count);
-      }
-      DBUG_EXECUTE_IF("crash_commit_after_prepare", DBUG_SUICIDE(););
-    }
+      error= tc_log->prepare(thd, all);
   }
   if (error || (error= tc_log->commit(thd, all)))
   {
@@ -2011,6 +1987,39 @@ int ha_rollback_to_savepoint(THD *thd, SAVEPOINT *sv)
     ha_info->reset(); /* keep it conveniently zero-filled */
   }
   trans->ha_list= sv->ha_list;
+  DBUG_RETURN(error);
+}
+
+int ha_prepare_low(THD *thd, bool all)
+{
+  int error= 0;
+  THD_TRANS *trans=all ? &thd->transaction.all : &thd->transaction.stmt;
+  Ha_trx_info *ha_info= trans->ha_list;
+  DBUG_ENTER("ha_prepare_low");
+
+  if (ha_info)
+  {
+    for (; ha_info && !error; ha_info= ha_info->next())
+    {
+      int err= 0;
+      handlerton *ht= ha_info->ht();
+      /*
+        Do not call two-phase commit if this particular
+        transaction is read-only. This allows for simpler
+        implementation in engines that are always read-only.
+      */
+      if (!ha_info->is_trx_read_write())
+        continue;
+      if ((err= ht->prepare(ht, thd, all)))
+      {
+        my_error(ER_ERROR_DURING_COMMIT, MYF(0), err);
+        error= 1;
+      }
+      status_var_increment(thd->status_var.ha_prepare_count);
+    }
+    DBUG_EXECUTE_IF("crash_commit_after_prepare", DBUG_SUICIDE(););
+  }
+
   DBUG_RETURN(error);
 }
 

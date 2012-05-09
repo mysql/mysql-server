@@ -5605,6 +5605,25 @@ void MYSQL_BIN_LOG::close()
 {
 }
 
+/*
+  Prepare the transaction in the transaction coordinator.
+
+  This function will prepare the transaction in the storage engines
+  (by calling @c ha_prepare_low) what will write a prepare record
+  to the log buffers.
+
+  @retval 0    success
+  @retval 1    error
+*/
+int MYSQL_BIN_LOG::prepare(THD *thd, bool all)
+{
+  DBUG_ENTER("MYSQL_BIN_LOG::prepare");
+
+  int error= ha_prepare_low(thd, all);
+
+  DBUG_RETURN(error);
+}
+
 /**
   Commit the transaction in the transaction coordinator.
 
@@ -6160,6 +6179,7 @@ int MYSQL_BIN_LOG::ordered_commit(THD *thd, bool all, bool skip_commit)
   thd->transaction.flags.pending= true;
   thd->commit_error= 0;
   thd->next_to_commit= NULL;
+  thd->durability_property= HA_IGNORE_DURABILITY;
   thd->transaction.flags.real_commit= all;
   thd->transaction.flags.xid_written= false;
   thd->transaction.flags.commit_low= !skip_commit;
