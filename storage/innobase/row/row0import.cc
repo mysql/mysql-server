@@ -42,6 +42,8 @@ Created 2012-02-08 by Sunny Bains.
 
 /** Index information required by IMPORT. */
 struct row_index_t {
+	index_id_t	id;			/*!< Index id of the table
+						in the exporting server */
 	byte*		name;			/*!< Index name */
 
 	ulint		space;			/*!< Space where it is placed */
@@ -65,6 +67,10 @@ struct row_index_t {
 	ulint		n_fields;		/*!< Total number of fields */
 
 	dict_field_t*	fields;			/*!< Index fields */
+
+	const dict_index_t*	
+			srv_index;		/*!< Index instance in the
+						importing server */
 };
 
 /** Meta data required by IMPORT. */
@@ -968,7 +974,7 @@ row_import_read_index_data(
 {
 	byte*		ptr;
 	row_index_t*	cfg_index;
-	byte		row[sizeof(ib_uint32_t) * 9];
+	byte		row[sizeof(index_id_t) + sizeof(ib_uint32_t) * 9];
 
 	/* FIXME: What is the max value? */
 	ut_a(cfg->n_indexes > 0);
@@ -1018,6 +1024,9 @@ row_import_read_index_data(
 		}
 
 		ptr = row;
+
+		cfg_index->id = mach_read_from_8(ptr);
+		ptr += sizeof(index_id_t);
 
 		cfg_index->space = mach_read_from_4(ptr);
 		ptr += sizeof(ib_uint32_t);
@@ -1539,16 +1548,16 @@ row_import_find_col(
 Find the index entry in in the cfg indexes.
 @return instance if found else 0. */
 static	__attribute__((nonnull, warn_unused_result))
-const row_index_t*
+row_index_t*
 row_import_find_index(
 /*==================*/
-	const row_import_t*	cfg,		/*!< in: contents of the
+	row_import_t*		cfg,		/*!< in: contents of the
 						.cfg file */
 	const char*		name)		/*!< in: name of index to
 						look for */
 {
 	for (ulint i = 0; i < cfg->n_indexes; ++i) {
-		const row_index_t*	cfg_index = &cfg->indexes[i];
+		row_index_t*	cfg_index = &cfg->indexes[i];
 
 		if (strcmp(reinterpret_cast<const char*>(cfg_index->name),
 			   name) == 0) {
@@ -1594,11 +1603,11 @@ dberr_t
 row_import_match_index_columns(
 /*===========================*/
 	THD*			thd,		/*!< in: session */
-	const row_import_t*	cfg,		/*!< in: contents of the
+	row_import_t*		cfg,		/*!< in/out: contents of the
 						.cfg file */
 	const dict_index_t*	index)		/*!< in: index to match */
 {
-	const row_index_t*	cfg_index;
+	row_index_t*		cfg_index;
 	dberr_t			err = DB_SUCCESS;
 
 	cfg_index = row_import_find_index(cfg, index->name);
@@ -1611,6 +1620,8 @@ row_import_match_index_columns(
 
 		return(DB_ERROR);
 	}
+
+	cfg_index->srv_index = index;
 
 	const dict_field_t*	field = index->fields;
 
@@ -1783,7 +1794,7 @@ dberr_t
 row_import_match_schema(
 /*====================*/
 	THD*			thd,		/*!< in: session */
-	const row_import_t*	cfg)		/*!< in: contents of the
+	row_import_t*		cfg)		/*!< in/out: contents of the
 						.cfg file */
 {
 	/* Do some simple checks. */
