@@ -122,6 +122,7 @@ CREATE TABLE test.t5 (a INT AUTO_INCREMENT PRIMARY KEY, b INT, c INT);
 CREATE TABLE test.t1 (a INT);
 INSERT INTO test.t1 VALUES(1);
 call mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT");
+call mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT");
 CREATE TABLE test.t_slave (a INT AUTO_INCREMENT PRIMARY KEY, b INT, c INT);
 CREATE TRIGGER t1_update AFTER UPDATE ON test.t1 FOR EACH ROW
 INSERT INTO test.t_slave VALUES(NULL, ROUND(RAND() * 1000), @c);

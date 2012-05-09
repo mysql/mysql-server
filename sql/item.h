@@ -1,7 +1,7 @@
 #ifndef ITEM_INCLUDED
 #define ITEM_INCLUDED
 
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -768,7 +768,8 @@ public:
   */
   inline void quick_fix_field() { fixed= 1; }
   /* Function returns 1 on overflow and -1 on fatal errors */
-  int save_in_field_no_warnings(Field *field, bool no_conversions);
+  type_conversion_status save_in_field_no_warnings(Field *field,
+                                                   bool no_conversions);
   /**
     Save a temporal value in packed longlong format into a Field.
     Used in optimizer.
@@ -776,10 +777,11 @@ public:
     @retval 0         On success.
     @retval >0        In error.
   */
-  virtual int save_in_field(Field *field, bool no_conversions);
+  virtual type_conversion_status save_in_field(Field *field,
+                                               bool no_conversions);
   virtual void save_org_in_field(Field *field)
   { (void) save_in_field(field, 1); }
-  virtual int save_safe_in_field(Field *field)
+  virtual type_conversion_status save_safe_in_field(Field *field)
   { return save_in_field(field, 1); }
   virtual bool send(Protocol *protocol, String *str);
   virtual bool eq(const Item *, bool binary_cmp) const;
@@ -1132,9 +1134,9 @@ protected:
 
 public:
 
-  int save_time_in_field(Field *field);
-  int save_date_in_field(Field *field);
-  int save_str_value_in_field(Field *field, String *result);
+  type_conversion_status save_time_in_field(Field *field);
+  type_conversion_status save_date_in_field(Field *field);
+  type_conversion_status save_str_value_in_field(Field *field, String *result);
 
   virtual Field *get_tmp_table_field() { return 0; }
   /* This is also used to create fields in CREATE ... SELECT: */
@@ -1738,7 +1740,8 @@ public:
 
 public:
   inline void make_field(Send_field *field);  
-  inline int save_in_field(Field *field, bool no_conversions);
+  inline type_conversion_status save_in_field(Field *field,
+                                              bool no_conversions);
   inline bool send(Protocol *protocol, String *str);
 }; 
 
@@ -1753,7 +1756,8 @@ inline void Item_sp_variable::make_field(Send_field *field)
   it->make_field(field);
 }
 
-inline int Item_sp_variable::save_in_field(Field *field, bool no_conversions)
+inline type_conversion_status
+Item_sp_variable::save_in_field(Field *field, bool no_conversions)
 {
   return this_item()->save_in_field(field, no_conversions);
 }
@@ -1937,7 +1941,7 @@ public:
     return value_item->result_type();
   }
 
-  int save_in_field(Field *field, bool no_conversions)
+  type_conversion_status save_in_field(Field *field, bool no_conversions)
   {
     return  value_item->save_in_field(field, no_conversions);
   }
@@ -2145,7 +2149,7 @@ public:
   void reset_field(Field *f);
   bool fix_fields(THD *, Item **);
   void make_field(Send_field *tmp_field);
-  int save_in_field(Field *field,bool no_conversions);
+  type_conversion_status save_in_field(Field *field,bool no_conversions);
   void save_org_in_field(Field *field);
   table_map used_tables() const;
   virtual table_map resolved_used_tables() const;
@@ -2282,8 +2286,8 @@ public:
   {
     return true;
   }
-  int save_in_field(Field *field, bool no_conversions);
-  int save_safe_in_field(Field *field);
+  type_conversion_status save_in_field(Field *field, bool no_conversions);
+  type_conversion_status save_safe_in_field(Field *field);
   bool send(Protocol *protocol, String *str);
   enum Item_result result_type () const { return STRING_RESULT; }
   enum_field_types field_type() const   { return MYSQL_TYPE_NULL; }
@@ -2398,7 +2402,7 @@ public:
   String *val_str(String*);
   bool get_time(MYSQL_TIME *tm);
   bool get_date(MYSQL_TIME *tm, uint fuzzydate);
-  int  save_in_field(Field *field, bool no_conversions);
+  type_conversion_status save_in_field(Field *field, bool no_conversions);
 
   void set_null();
   void set_int(longlong i, uint32 max_length_arg);
@@ -2518,7 +2522,7 @@ public:
   {
     return get_time_from_int(ltime);
   }
-  int save_in_field(Field *field, bool no_conversions);
+  type_conversion_status save_in_field(Field *field, bool no_conversions);
   bool basic_const_item() const { return 1; }
   Item *clone_item() { return new Item_int(this); }
   virtual void print(String *str, enum_query_type query_type);
@@ -2569,7 +2573,7 @@ public:
     fixed= 1;
   }
   Item *clone_item() { return new Item_temporal(field_type(), value); }
-  int save_in_field(Field *field, bool no_conversions);
+  type_conversion_status save_in_field(Field *field, bool no_conversions);
   longlong val_time_temporal() { return val_int(); }
   longlong val_date_temporal() { return val_int(); }
   bool get_date(MYSQL_TIME *ltime, uint fuzzydate)
@@ -2600,8 +2604,9 @@ public:
   double val_real()
     { DBUG_ASSERT(fixed == 1); return ulonglong2double((ulonglong)value); }
   String *val_str(String*);
+
   Item *clone_item() { return new Item_uint(item_name, value, max_length); }
-  int save_in_field(Field *field, bool no_conversions);
+  type_conversion_status save_in_field(Field *field, bool no_conversions);
   virtual void print(String *str, enum_query_type query_type);
   Item_num *neg ();
   uint decimal_precision() const { return max_length; }
@@ -2638,7 +2643,7 @@ public:
   {
     return get_time_from_decimal(ltime);
   }
-  int save_in_field(Field *field, bool no_conversions);
+  type_conversion_status save_in_field(Field *field, bool no_conversions);
   bool basic_const_item() const { return 1; }
   Item *clone_item()
   {
@@ -2680,7 +2685,7 @@ public:
     decimals= (uint8) decimal_par;
     fixed= 1;
   }
-  int save_in_field(Field *field, bool no_conversions);
+  type_conversion_status save_in_field(Field *field, bool no_conversions);
   enum Type type() const { return REAL_ITEM; }
   enum_field_types field_type() const { return MYSQL_TYPE_DOUBLE; }
   double val_real() { DBUG_ASSERT(fixed == 1); return value; }
@@ -2814,7 +2819,7 @@ public:
   {
     return get_time_from_string(ltime);
   }
-  int save_in_field(Field *field, bool no_conversions);
+  type_conversion_status save_in_field(Field *field, bool no_conversions);
   enum Item_result result_type () const { return STRING_RESULT; }
   enum_field_types field_type() const { return MYSQL_TYPE_VARCHAR; }
   bool basic_const_item() const { return 1; }
@@ -3001,7 +3006,7 @@ public:
   {
     return get_time_from_string(ltime);
   }
-  int save_in_field(Field *field, bool no_conversions);
+  type_conversion_status save_in_field(Field *field, bool no_conversions);
   enum Item_result result_type () const { return STRING_RESULT; }
   enum Item_result cast_to_int_type() const { return INT_RESULT; }
   enum_field_types field_type() const { return MYSQL_TYPE_VARCHAR; }
@@ -3121,7 +3126,7 @@ public:
   bool fix_fields(THD *, Item **);
   void fix_after_pullout(st_select_lex *parent_select,
                          st_select_lex *removed_select, Item **ref);
-  int save_in_field(Field *field, bool no_conversions);
+  type_conversion_status save_in_field(Field *field, bool no_conversions);
   void save_org_in_field(Field *field);
   enum Item_result result_type () const { return (*ref)->result_type(); }
   enum_field_types field_type() const   { return (*ref)->field_type(); }
@@ -3423,7 +3428,7 @@ public:
   {
     unsigned_flag= unsigned_arg;
   }
-  int save_in_field(Field *field, bool no_conversions)
+  type_conversion_status save_in_field(Field *field, bool no_conversions)
   {
     return ref->save_in_field(field, no_conversions);
   }
@@ -3641,7 +3646,8 @@ public:
   virtual longlong val_int() = 0;
   virtual bool get_date(MYSQL_TIME *ltime, uint fuzzydate)= 0;
   virtual bool get_time(MYSQL_TIME *ltime)= 0;
-  virtual int save_in_field(Field *field, bool no_conversions) = 0;
+  virtual type_conversion_status save_in_field(Field *field,
+                                               bool no_conversions) = 0;
 };
 
 /**
@@ -3661,7 +3667,7 @@ public:
   bool get_date(MYSQL_TIME *ltime, uint fuzzydate);
   bool get_time(MYSQL_TIME *ltime);
   void copy();
-  int save_in_field(Field *field, bool no_conversions);
+  type_conversion_status save_in_field(Field *field, bool no_conversions);
 };
 
 
@@ -3671,7 +3677,7 @@ protected:
   longlong cached_value; 
 public:
   Item_copy_int (Item *i) : Item_copy(i) {}
-  int save_in_field(Field *field, bool no_conversions);
+  type_conversion_status save_in_field(Field *field, bool no_conversions);
 
   virtual String *val_str(String*);
   virtual my_decimal *val_decimal(my_decimal *);
@@ -3717,7 +3723,7 @@ protected:
   double cached_value; 
 public:
   Item_copy_float (Item *i) : Item_copy(i) {}
-  int save_in_field(Field *field, bool no_conversions);
+  type_conversion_status save_in_field(Field *field, bool no_conversions);
 
   String *val_str(String*);
   my_decimal *val_decimal(my_decimal *);
@@ -3751,7 +3757,7 @@ protected:
   my_decimal cached_value;
 public:
   Item_copy_decimal (Item *i) : Item_copy(i) {}
-  int save_in_field(Field *field, bool no_conversions);
+  type_conversion_status save_in_field(Field *field, bool no_conversions);
 
   String *val_str(String*);
   my_decimal *val_decimal(my_decimal *) 
@@ -3811,6 +3817,15 @@ public:
   bool cmp(void);
 };
 
+class Cached_item_temporal :public Cached_item
+{
+  Item *item;
+  longlong value;
+public:
+  Cached_item_temporal(Item *item_par) :item(item_par), value(0) {}
+  bool cmp(void);
+};
+
 
 class Cached_item_decimal :public Cached_item
 {
@@ -3867,7 +3882,7 @@ public:
   bool eq(const Item *item, bool binary_cmp) const;
   bool fix_fields(THD *, Item **);
   virtual void print(String *str, enum_query_type query_type);
-  int save_in_field(Field *field_arg, bool no_conversions);
+  type_conversion_status save_in_field(Field *field_arg, bool no_conversions);
   table_map used_tables() const { return (table_map)0L; }
 
   bool walk(Item_processor processor, bool walk_subquery, uchar *args)
@@ -3900,7 +3915,7 @@ public:
   bool eq(const Item *item, bool binary_cmp) const;
   bool fix_fields(THD *, Item **);
   virtual void print(String *str, enum_query_type query_type);
-  int save_in_field(Field *field_arg, bool no_conversions)
+  type_conversion_status save_in_field(Field *field_arg, bool no_conversions)
   {
     return Item_field::save_in_field(field_arg, no_conversions);
   }
@@ -4210,7 +4225,7 @@ public:
   }
   enum Item_result result_type() const { return STRING_RESULT; }
   const CHARSET_INFO *charset() const { return value->charset(); };
-  int save_in_field(Field *field, bool no_conversions);
+  type_conversion_status save_in_field(Field *field, bool no_conversions);
   bool cache_value();
 };
 

@@ -50,21 +50,90 @@ Created 10/10/1995 Heikki Tuuri
 #include "trx0types.h"
 #include "srv0conc.h"
 #include "buf0checksum.h"
+#include "ut0counter.h"
+
+/* Global counters used inside InnoDB. */
+struct srv_stats_t {
+	typedef ib_counter_t<lsn_t, 1, single_indexer_t> lsn_ctr_1_t;
+	typedef ib_counter_t<ulint, 1, single_indexer_t> ulint_ctr_1_t;
+	typedef ib_counter_t<lint, 1, single_indexer_t> lint_ctr_1_t;
+	typedef ib_counter_t<ulint, 64> ulint_ctr_64_t;
+	typedef ib_counter_t<ib_int64_t, 1, single_indexer_t> ib_int64_ctr_1_t;
+
+	/** Count the amount of data written in total (in bytes) */
+	ulint_ctr_1_t		data_written;
+
+	/** Number of the log write requests done */
+	ulint_ctr_1_t		log_write_requests;
+
+	/** Number of physical writes to the log performed */
+	ulint_ctr_1_t		log_writes;
+
+	/** Amount of data written to the log files in bytes */
+	lsn_ctr_1_t		os_log_written;
+
+	/** Number of writes being done to the log files */
+	lint_ctr_1_t		os_log_pending_writes;
+
+	/** We increase this counter, when we don't have enough
+	space in the log buffer and have to flush it */
+	ulint_ctr_1_t		log_waits;
+
+	/** Count the number of times the doublewrite buffer was flushed */
+	ulint_ctr_1_t		dblwr_writes;
+
+	/** Store the number of pages that have been flushed to the
+	doublewrite buffer */
+	ulint_ctr_1_t		dblwr_pages_written;
+
+	/** Store the number of write requests issued */
+	ulint_ctr_1_t		buf_pool_write_requests;
+
+	/** Store the number of times when we had to wait for a free page
+	in the buffer pool. It happens when the buffer pool is full and we
+	need to make a flush, in order to be able to read or create a page. */
+	ulint_ctr_1_t		buf_pool_wait_free;
+
+	/** Count the number of pages that were written from buffer
+	pool to the disk */
+	ulint_ctr_1_t		buf_pool_flushed;
+
+	/** Number of buffer pool reads that led to the reading of
+	a disk page */
+	ulint_ctr_1_t		buf_pool_reads;
+
+	/** Number of data read in total (in bytes) */
+	ulint_ctr_1_t		data_read;
+
+	/** Wait time of database locks */
+	ib_int64_ctr_1_t	n_lock_wait_time;
+
+	/** Number of database lock waits */
+	ulint_ctr_1_t		n_lock_wait_count;
+
+	/** Number of threads currently waiting on database locks */
+	lint_ctr_1_t		n_lock_wait_current_count;
+
+	/** Number of rows read. */
+	ulint_ctr_64_t		n_rows_read;
+
+	/** Number of rows updated */
+	ulint_ctr_64_t		n_rows_updated;
+
+	/** Number of rows deleted */
+	ulint_ctr_64_t		n_rows_deleted;
+
+	/** Number of rows inserted */
+	ulint_ctr_64_t		n_rows_inserted;
+};
 
 extern const char*	srv_main_thread_op_info;
 
 /** Prefix used by MySQL to indicate pre-5.1 table name encoding */
 extern const char	srv_mysql50_table_name_prefix[10];
 
-/* When this event is set the lock timeout and InnoDB monitor
-thread starts running */
-extern os_event_t	srv_lock_timeout_thread_event;
-
 /* The monitor thread waits on this event. */
 extern os_event_t	srv_monitor_event;
-
-/* The lock timeout thread waits on this event. */
-extern os_event_t	srv_timeout_event;
 
 /* The error monitor thread waits on this event. */
 extern os_event_t	srv_error_event;
@@ -248,6 +317,7 @@ extern ulint	srv_fast_shutdown;	/*!< If this is 1, do not do a
 extern ibool	srv_innodb_status;
 
 extern unsigned long long	srv_stats_transient_sample_pages;
+extern my_bool			srv_stats_persistent;
 extern unsigned long long	srv_stats_persistent_sample_pages;
 
 extern ibool	srv_use_doublewrite_buf;
@@ -261,11 +331,6 @@ extern ulong	srv_max_purge_lag_delay;
 extern ulong	srv_replication_delay;
 /*-------------------------------------------*/
 
-extern ulint	srv_n_rows_inserted;
-extern ulint	srv_n_rows_updated;
-extern ulint	srv_n_rows_deleted;
-extern ulint	srv_n_rows_read;
-
 extern ibool	srv_print_innodb_monitor;
 extern ibool	srv_print_innodb_lock_monitor;
 extern ibool	srv_print_innodb_tablespace_monitor;
@@ -276,7 +341,6 @@ extern ibool	srv_print_verbose_log;
 	"tables instead, see " REFMAN "innodb-i_s-tables.html"
 extern ibool	srv_print_innodb_table_monitor;
 
-extern ibool	srv_lock_timeout_active;
 extern ibool	srv_monitor_active;
 extern ibool	srv_error_monitor_active;
 
@@ -288,8 +352,6 @@ extern ulong	srv_n_free_tickets_to_enter;
 extern ulong	srv_thread_sleep_delay;
 extern ulong	srv_spin_wait_delay;
 extern ibool	srv_priority_boost;
-
-extern ulint	srv_n_lock_wait_count;
 
 extern ulint	srv_truncated_status_writes;
 extern ulint	srv_available_undo_logs;
@@ -312,6 +374,7 @@ extern	ibool	srv_print_latch_waits;
 #endif /* UNIV_DEBUG */
 
 extern ulint	srv_fatal_semaphore_wait_threshold;
+#define SRV_SEMAPHORE_WAIT_EXTENSION	7200
 extern ulint	srv_dml_needed_delay;
 
 #ifndef HAVE_ATOMIC_BUILTINS
@@ -326,22 +389,6 @@ i/o handler thread */
 extern const char* srv_io_thread_op_info[];
 extern const char* srv_io_thread_function[];
 
-/* the number of the log write requests done */
-extern ulint srv_log_write_requests;
-
-/* the number of physical writes to the log performed */
-extern ulint srv_log_writes;
-
-/* amount of data written to the log files in bytes */
-extern lsn_t srv_os_log_written;
-
-/* amount of writes being done to the log files */
-extern ulint srv_os_log_pending_writes;
-
-/* we increase this counter, when there we don't have enough space in the
-log buffer and have to flush it */
-extern ulint srv_log_waits;
-
 /* the number of purge threads to use from the worker pool (currently 0 or 1) */
 extern ulong srv_n_purge_threads;
 
@@ -350,36 +397,6 @@ extern ulong srv_purge_batch_size;
 
 /* the number of sync wait arrays */
 extern ulong srv_sync_array_size;
-
-/* variable that counts amount of data read in total (in bytes) */
-extern ulint srv_data_read;
-
-/* here we count the amount of data written in total (in bytes) */
-extern ulint srv_data_written;
-
-/* this variable counts the amount of times, when the doublewrite buffer
-was flushed */
-extern ulint srv_dblwr_writes;
-
-/* here we store the number of pages that have been flushed to the
-doublewrite buffer */
-extern ulint srv_dblwr_pages_written;
-
-/* in this variable we store the number of write requests issued */
-extern ulint srv_buf_pool_write_requests;
-
-/* here we store the number of times when we had to wait for a free page
-in the buffer pool. It happens when the buffer pool is full and we need
-to make a flush, in order to be able to read or create a page. */
-extern ulint srv_buf_pool_wait_free;
-
-/* variable to count the number of pages that were written from the
-buffer pool to disk */
-extern ulint srv_buf_pool_flushed;
-
-/** Number of buffer pool reads that led to the
-reading of a disk page */
-extern ulint srv_buf_pool_reads;
 
 /* print all user-level transactions deadlocks to mysqld stderr */
 extern my_bool srv_print_all_deadlocks;
@@ -395,6 +412,9 @@ typedef srv_slot_t	srv_table_t;
 
 /** Status variables to be passed to MySQL */
 extern export_struc export_vars;
+
+/** Global counters */
+extern srv_stats_t	srv_stats;
 
 # ifdef UNIV_PFS_THREAD
 /* Keys to register InnoDB threads with performance schema */

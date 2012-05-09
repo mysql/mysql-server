@@ -3002,7 +3002,7 @@ fts_optimize_thread(
 			if (slot->state != FTS_STATE_EMPTY) {
 				dict_table_t*	table;
 
-			        table = dict_table_open_on_name_no_stats(
+			        table = dict_table_open_on_name(
 					slot->table->name, FALSE, FALSE,
 					DICT_ERR_IGNORE_INDEX_ROOT);
 

@@ -1526,6 +1526,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  STARTING
 %token  STARTS_SYM
 %token  START_SYM                     /* SQL-2003-R */
+%token  STATS_PERSISTENT_SYM
 %token  STATUS_SYM
 %token  STDDEV_SAMP_SYM               /* SQL-2003-N */
 %token  STD_SYM
@@ -2704,11 +2705,9 @@ clear_privileges:
 sp_name:
           ident '.' ident
           {
-            if (!$1.str || check_and_convert_db_name(&$1, FALSE))
-            {
-              my_error(ER_WRONG_DB_NAME, MYF(0), $1.str);
+            if (!$1.str ||
+                (check_and_convert_db_name(&$1, FALSE) != IDENT_NAME_OK))
               MYSQL_YYABORT;
-            }
             if (check_routine_name(&$3))
             {
               MYSQL_YYABORT;
@@ -5654,6 +5653,27 @@ create_table_option:
               ~(HA_OPTION_PACK_KEYS | HA_OPTION_NO_PACK_KEYS);
             Lex->create_info.used_fields|= HA_CREATE_USED_PACK_KEYS;
           }
+        | STATS_PERSISTENT_SYM opt_equal ulong_num
+          {
+            switch($3) {
+            case 0:
+                Lex->create_info.table_options|= HA_OPTION_NO_STATS_PERSISTENT;
+                break;
+            case 1:
+                Lex->create_info.table_options|= HA_OPTION_STATS_PERSISTENT;
+                break;
+            default:
+                my_parse_error(ER(ER_SYNTAX_ERROR));
+                MYSQL_YYABORT;
+            }
+            Lex->create_info.used_fields|= HA_CREATE_USED_STATS_PERSISTENT;
+          }
+        | STATS_PERSISTENT_SYM opt_equal DEFAULT
+          {
+            Lex->create_info.table_options&=
+              ~(HA_OPTION_STATS_PERSISTENT | HA_OPTION_NO_STATS_PERSISTENT);
+            Lex->create_info.used_fields|= HA_CREATE_USED_STATS_PERSISTENT;
+          }
         | CHECKSUM_SYM opt_equal ulong_num
           {
             Lex->create_info.table_options|= $3 ? HA_OPTION_CHECKSUM : HA_OPTION_NO_CHECKSUM;
@@ -7368,8 +7388,12 @@ alter_list_item:
           }
         | DROP FOREIGN KEY_SYM opt_ident
           {
-            Lex->alter_info.flags|= Alter_info::ALTER_DROP_INDEX |
-                                    Alter_info::DROP_FOREIGN_KEY;
+            LEX *lex=Lex;
+            Alter_drop *ad= new Alter_drop(Alter_drop::FOREIGN_KEY, $4.str);
+            if (ad == NULL)
+              MYSQL_YYABORT;
+            lex->alter_info.drop_list.push_back(ad);
+            lex->alter_info.flags|= Alter_info::DROP_FOREIGN_KEY;
           }
         | DROP PRIMARY_SYM KEY_SYM
           {
@@ -7429,12 +7453,21 @@ alter_list_item:
             {
               MYSQL_YYABORT;
             }
-            if (check_table_name($3->table.str,$3->table.length, FALSE) ||
-                ($3->db.str && check_and_convert_db_name(&$3->db, FALSE)))
+            enum_ident_name_check ident_check_status=
+              check_table_name($3->table.str,$3->table.length, FALSE);
+            if (ident_check_status == IDENT_NAME_WRONG)
             {
               my_error(ER_WRONG_TABLE_NAME, MYF(0), $3->table.str);
               MYSQL_YYABORT;
             }
+            else if (ident_check_status == IDENT_NAME_TOO_LONG)
+            {
+              my_error(ER_TOO_LONG_IDENT, MYF(0), $3->table.str);
+              MYSQL_YYABORT;
+            }
+            if ($3->db.str &&
+                (check_and_convert_db_name(&$3->db, FALSE) != IDENT_NAME_OK))
+              MYSQL_YYABORT;
             lex->name= $3->table;
             lex->alter_info.flags|= Alter_info::ALTER_RENAME;
           }
@@ -9644,11 +9677,9 @@ function_call_generic:
               version() (a vendor can specify any schema).
             */
 
-            if (!$1.str || check_and_convert_db_name(&$1, FALSE))
-            {
-              my_error(ER_WRONG_DB_NAME, MYF(0), $1.str);
+            if (!$1.str ||
+                (check_and_convert_db_name(&$1, FALSE) != IDENT_NAME_OK))
               MYSQL_YYABORT;
-            }
             if (check_routine_name(&$3))
             {
               MYSQL_YYABORT;
@@ -11209,11 +11240,9 @@ drop:
             THD *thd= YYTHD;
             LEX *lex= thd->lex;
             sp_name *spname;
-            if ($4.str && check_and_convert_db_name(&$4, FALSE))
-            {
-               my_error(ER_WRONG_DB_NAME, MYF(0), $4.str);
+            if ($4.str &&
+                (check_and_convert_db_name(&$4, FALSE) != IDENT_NAME_OK))
                MYSQL_YYABORT;
-            }
             if (lex->sphead)
             {
               my_error(ER_SP_NO_DROP_SP, MYF(0), "FUNCTION");
@@ -13749,6 +13778,7 @@ keyword_sp:
         | SQL_NO_CACHE_SYM         {}
         | SQL_THREAD               {}
         | STARTS_SYM               {}
+        | STATS_PERSISTENT_SYM     {}
         | STATUS_SYM               {}
         | STORAGE_SYM              {}
         | STRING_SYM               {}

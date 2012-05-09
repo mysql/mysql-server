@@ -70,10 +70,6 @@ Created 10/8/1995 Heikki Tuuri
 #include "mysql/plugin.h"
 #include "mysql/service_thd_wait.h"
 
-/* The following counter is incremented whenever there is some user activity
-in the server */
-UNIV_INTERN ulint	srv_activity_count	= 0;
-
 /* The following is the maximum allowed duration of a lock wait. */
 UNIV_INTERN ulint	srv_fatal_semaphore_wait_threshold = 600;
 
@@ -270,61 +266,17 @@ that during a time of heavy update/insert activity. */
 UNIV_INTERN ulong	srv_max_buf_pool_modified_pct	= 75;
 
 /* The number of purge threads to use.*/
-UNIV_INTERN ulong srv_n_purge_threads = 1;
+UNIV_INTERN ulong	srv_n_purge_threads = 1;
 
 /* the number of pages to purge in one batch */
-UNIV_INTERN ulong srv_purge_batch_size = 20;
-
-/* variable counts amount of data read in total (in bytes) */
-UNIV_INTERN ulint srv_data_read = 0;
+UNIV_INTERN ulong	srv_purge_batch_size = 20;
 
 /* Internal setting for "innodb_stats_method". Decides how InnoDB treats
 NULL value when collecting statistics. By default, it is set to
 SRV_STATS_NULLS_EQUAL(0), ie. all NULL value are treated equal */
-ulong srv_innodb_stats_method = SRV_STATS_NULLS_EQUAL;
+UNIV_INTERN ulong srv_innodb_stats_method = SRV_STATS_NULLS_EQUAL;
 
-/* here we count the amount of data written in total (in bytes) */
-UNIV_INTERN ulint srv_data_written = 0;
-
-/* the number of the log write requests done */
-UNIV_INTERN ulint srv_log_write_requests = 0;
-
-/* the number of physical writes to the log performed */
-UNIV_INTERN ulint srv_log_writes = 0;
-
-/* amount of data written to the log files in bytes */
-UNIV_INTERN lsn_t srv_os_log_written = 0;
-
-/* amount of writes being done to the log files */
-UNIV_INTERN ulint srv_os_log_pending_writes = 0;
-
-/* we increase this counter, when there we don't have enough space in the
-log buffer and have to flush it */
-UNIV_INTERN ulint srv_log_waits = 0;
-
-/* this variable counts the amount of times, when the doublewrite buffer
-was flushed */
-UNIV_INTERN ulint srv_dblwr_writes = 0;
-
-/* here we store the number of pages that have been flushed to the
-doublewrite buffer */
-UNIV_INTERN ulint srv_dblwr_pages_written = 0;
-
-/* in this variable we store the number of write requests issued */
-UNIV_INTERN ulint srv_buf_pool_write_requests = 0;
-
-/* here we store the number of times when we had to wait for a free page
-in the buffer pool. It happens when the buffer pool is full and we need
-to make a flush, in order to be able to read or create a page. */
-UNIV_INTERN ulint srv_buf_pool_wait_free = 0;
-
-/* variable to count the number of pages that were written from buffer
-pool to the disk */
-UNIV_INTERN ulint srv_buf_pool_flushed = 0;
-
-/** Number of buffer pool reads that led to the
-reading of a disk page */
-UNIV_INTERN ulint srv_buf_pool_reads = 0;
+UNIV_INTERN srv_stats_t	srv_stats;
 
 /* structure to pass status variables to MySQL */
 UNIV_INTERN export_struc export_vars;
@@ -354,6 +306,7 @@ this many index pages, there are 2 ways to calculate statistics:
 * quick transient stats, that are used if persistent stats for the given
   table/index are not found in the innodb database */
 UNIV_INTERN unsigned long long	srv_stats_transient_sample_pages = 8;
+UNIV_INTERN my_bool		srv_stats_persistent = FALSE;
 UNIV_INTERN unsigned long long	srv_stats_persistent_sample_pages = 20;
 
 UNIV_INTERN ibool	srv_use_doublewrite_buf	= TRUE;
@@ -378,11 +331,6 @@ UNIV_INTERN ibool	srv_print_buf_io		= FALSE;
 UNIV_INTERN ibool	srv_print_log_io		= FALSE;
 UNIV_INTERN ibool	srv_print_latch_waits		= FALSE;
 #endif /* UNIV_DEBUG */
-
-UNIV_INTERN ulint	srv_n_rows_inserted		= 0;
-UNIV_INTERN ulint	srv_n_rows_updated		= 0;
-UNIV_INTERN ulint	srv_n_rows_deleted		= 0;
-UNIV_INTERN ulint	srv_n_rows_read			= 0;
 
 static ulint		srv_n_rows_inserted_old		= 0;
 static ulint		srv_n_rows_updated_old		= 0;
@@ -418,48 +366,48 @@ UNIV_INTERN mutex_t	srv_monitor_file_mutex;
 /* Key to register server_mutex with performance schema */
 UNIV_INTERN mysql_pfs_key_t	server_mutex_key;
 # endif /* !HAVE_ATOMIC_BUILTINS */
-/* Key to register srv_innodb_monitor_mutex with performance schema */
+/** Key to register srv_innodb_monitor_mutex with performance schema */
 UNIV_INTERN mysql_pfs_key_t	srv_innodb_monitor_mutex_key;
-/* Key to register srv_monitor_file_mutex with performance schema */
+/** Key to register srv_monitor_file_mutex with performance schema */
 UNIV_INTERN mysql_pfs_key_t	srv_monitor_file_mutex_key;
-/* Key to register srv_dict_tmpfile_mutex with performance schema */
+/** Key to register srv_dict_tmpfile_mutex with performance schema */
 UNIV_INTERN mysql_pfs_key_t	srv_dict_tmpfile_mutex_key;
-/* Key to register the mutex with performance schema */
+/** Key to register the mutex with performance schema */
 UNIV_INTERN mysql_pfs_key_t	srv_misc_tmpfile_mutex_key;
-/* Key to register srv_sys_t::mutex with performance schema */
+/** Key to register srv_sys_t::mutex with performance schema */
 UNIV_INTERN mysql_pfs_key_t	srv_sys_mutex_key;
-/* Key to register srv_sys_t::tasks_mutex with performance schema */
+/** Key to register srv_sys_t::tasks_mutex with performance schema */
 UNIV_INTERN mysql_pfs_key_t	srv_sys_tasks_mutex_key;
 #endif /* UNIV_PFS_MUTEX */
 
-/* Temporary file for innodb monitor output */
+/** Temporary file for innodb monitor output */
 UNIV_INTERN FILE*	srv_monitor_file;
-/* Mutex for locking srv_dict_tmpfile.
+/** Mutex for locking srv_dict_tmpfile.
 This mutex has a very high rank; threads reserving it should not
 be holding any InnoDB latches. */
 UNIV_INTERN mutex_t	srv_dict_tmpfile_mutex;
-/* Temporary file for output from the data dictionary */
+/** Temporary file for output from the data dictionary */
 UNIV_INTERN FILE*	srv_dict_tmpfile;
-/* Mutex for locking srv_misc_tmpfile.
+/** Mutex for locking srv_misc_tmpfile.
 This mutex has a very low rank; threads reserving it should not
 acquire any further latches or sleep before releasing this one. */
 UNIV_INTERN mutex_t	srv_misc_tmpfile_mutex;
-/* Temporary file for miscellanous diagnostic output */
+/** Temporary file for miscellanous diagnostic output */
 UNIV_INTERN FILE*	srv_misc_tmpfile;
 
 UNIV_INTERN ulint	srv_main_thread_process_no	= 0;
 UNIV_INTERN ulint	srv_main_thread_id		= 0;
 
-/* The following count work done by srv_master_thread. */
+/* The following counts are used by the srv_master_thread. */
 
-/* Iterations of the loop bounded by 'srv_active' label. */
-static ulint   srv_main_active_loops		= 0;
-/* Iterations of the loop bounded by the 'srv_idle' label. */
-static ulint   srv_main_idle_loops		= 0;
-/* Iterations of the loop bounded by the 'srv_shutdown' label. */
-static ulint   srv_main_shutdown_loops		= 0;
-/* Log writes involving flush. */
-static ulint   srv_log_writes_and_flush		= 0;
+/** Iterations of the loop bounded by 'srv_active' label. */
+static ulint		srv_main_active_loops		= 0;
+/** Iterations of the loop bounded by the 'srv_idle' label. */
+static ulint		srv_main_idle_loops		= 0;
+/** Iterations of the loop bounded by the 'srv_shutdown' label. */
+static ulint		srv_main_shutdown_loops		= 0;
+/** Log writes involving flush. */
+static ulint		srv_log_writes_and_flush	= 0;
 
 /* This is only ever touched by the master thread. It records the
 time when the last flush of log file has happened. The master
@@ -594,7 +542,8 @@ struct srv_sys_struct{
 						/*!< number of threads active
 						in a thread class */
 
-	ulint		activity_count;		/*!< For tracking server
+	srv_stats_t::ulint_ctr_1_t
+			activity_count;		/*!< For tracking server
 						activity */
 };
 
@@ -1083,10 +1032,10 @@ srv_refresh_innodb_monitor_stats(void)
 
 	buf_refresh_io_stats_all();
 
-	srv_n_rows_inserted_old = srv_n_rows_inserted;
-	srv_n_rows_updated_old = srv_n_rows_updated;
-	srv_n_rows_deleted_old = srv_n_rows_deleted;
-	srv_n_rows_read_old = srv_n_rows_read;
+	srv_n_rows_inserted_old = srv_stats.n_rows_inserted;
+	srv_n_rows_updated_old = srv_stats.n_rows_updated;
+	srv_n_rows_deleted_old = srv_stats.n_rows_deleted;
+	srv_n_rows_read_old = srv_stats.n_rows_read;
 
 	mutex_exit(&srv_innodb_monitor_mutex);
 }
@@ -1264,26 +1213,26 @@ srv_printf_innodb_monitor(
 		"Number of rows inserted " ULINTPF
 		", updated " ULINTPF ", deleted " ULINTPF
 		", read " ULINTPF "\n",
-		srv_n_rows_inserted,
-		srv_n_rows_updated,
-		srv_n_rows_deleted,
-		srv_n_rows_read);
+		(ulint) srv_stats.n_rows_inserted,
+		(ulint) srv_stats.n_rows_updated,
+		(ulint) srv_stats.n_rows_deleted,
+		(ulint) srv_stats.n_rows_read);
 	fprintf(file,
 		"%.2f inserts/s, %.2f updates/s,"
 		" %.2f deletes/s, %.2f reads/s\n",
-		(srv_n_rows_inserted - srv_n_rows_inserted_old)
+		((ulint) srv_stats.n_rows_inserted - srv_n_rows_inserted_old)
 		/ time_elapsed,
-		(srv_n_rows_updated - srv_n_rows_updated_old)
+		((ulint) srv_stats.n_rows_updated - srv_n_rows_updated_old)
 		/ time_elapsed,
-		(srv_n_rows_deleted - srv_n_rows_deleted_old)
+		((ulint) srv_stats.n_rows_deleted - srv_n_rows_deleted_old)
 		/ time_elapsed,
-		(srv_n_rows_read - srv_n_rows_read_old)
+		((ulint) srv_stats.n_rows_read - srv_n_rows_read_old)
 		/ time_elapsed);
 
-	srv_n_rows_inserted_old = srv_n_rows_inserted;
-	srv_n_rows_updated_old = srv_n_rows_updated;
-	srv_n_rows_deleted_old = srv_n_rows_deleted;
-	srv_n_rows_read_old = srv_n_rows_read;
+	srv_n_rows_inserted_old = srv_stats.n_rows_inserted;
+	srv_n_rows_updated_old = srv_stats.n_rows_updated;
+	srv_n_rows_deleted_old = srv_stats.n_rows_deleted;
+	srv_n_rows_read_old = srv_stats.n_rows_read;
 
 	fputs("----------------------------\n"
 	      "END OF INNODB MONITOR OUTPUT\n"
@@ -1311,77 +1260,129 @@ srv_export_innodb_status(void)
 
 	mutex_enter(&srv_innodb_monitor_mutex);
 
-	export_vars.innodb_data_pending_reads
-		= os_n_pending_reads;
-	export_vars.innodb_data_pending_writes
-		= os_n_pending_writes;
-	export_vars.innodb_data_pending_fsyncs
-		= fil_n_pending_log_flushes
+	export_vars.innodb_data_pending_reads =
+		os_n_pending_reads;
+
+	export_vars.innodb_data_pending_writes =
+		os_n_pending_writes;
+
+	export_vars.innodb_data_pending_fsyncs =
+		fil_n_pending_log_flushes
 		+ fil_n_pending_tablespace_flushes;
+
 	export_vars.innodb_data_fsyncs = os_n_fsyncs;
-	export_vars.innodb_data_read = srv_data_read;
+
+	export_vars.innodb_data_read = srv_stats.data_read;
+
 	export_vars.innodb_data_reads = os_n_file_reads;
+
 	export_vars.innodb_data_writes = os_n_file_writes;
-	export_vars.innodb_data_written = srv_data_written;
+
+	export_vars.innodb_data_written = srv_stats.data_written;
+
 	export_vars.innodb_buffer_pool_read_requests = stat.n_page_gets;
-	export_vars.innodb_buffer_pool_write_requests
-		= srv_buf_pool_write_requests;
-	export_vars.innodb_buffer_pool_wait_free = srv_buf_pool_wait_free;
-	export_vars.innodb_buffer_pool_pages_flushed = srv_buf_pool_flushed;
-	export_vars.innodb_buffer_pool_reads = srv_buf_pool_reads;
-	export_vars.innodb_buffer_pool_read_ahead_rnd
-		= stat.n_ra_pages_read_rnd;
-	export_vars.innodb_buffer_pool_read_ahead
-		= stat.n_ra_pages_read;
-	export_vars.innodb_buffer_pool_read_ahead_evicted
-		= stat.n_ra_pages_evicted;
+
+	export_vars.innodb_buffer_pool_write_requests =
+		srv_stats.buf_pool_write_requests;
+
+	export_vars.innodb_buffer_pool_wait_free =
+		srv_stats.buf_pool_wait_free;
+
+	export_vars.innodb_buffer_pool_pages_flushed =
+		srv_stats.buf_pool_flushed;
+
+	export_vars.innodb_buffer_pool_reads = srv_stats.buf_pool_reads;
+
+	export_vars.innodb_buffer_pool_read_ahead_rnd =
+		stat.n_ra_pages_read_rnd;
+
+	export_vars.innodb_buffer_pool_read_ahead =
+		stat.n_ra_pages_read;
+
+	export_vars.innodb_buffer_pool_read_ahead_evicted =
+		stat.n_ra_pages_evicted;
+
 	export_vars.innodb_buffer_pool_pages_data = LRU_len;
+
 	export_vars.innodb_buffer_pool_pages_dirty = flush_list_len;
+
 	export_vars.innodb_buffer_pool_pages_free = free_len;
+
 #ifdef UNIV_DEBUG
-	export_vars.innodb_buffer_pool_pages_latched
-		= buf_get_latched_pages_number();
+	export_vars.innodb_buffer_pool_pages_latched =
+		buf_get_latched_pages_number();
 #endif /* UNIV_DEBUG */
 	export_vars.innodb_buffer_pool_pages_total = buf_pool_get_n_pages();
 
-	export_vars.innodb_buffer_pool_pages_misc
-		= buf_pool_get_n_pages() - LRU_len - free_len;
+	export_vars.innodb_buffer_pool_pages_misc =
+		buf_pool_get_n_pages() - LRU_len - free_len;
+
 #ifdef HAVE_ATOMIC_BUILTINS
 	export_vars.innodb_have_atomic_builtins = 1;
 #else
 	export_vars.innodb_have_atomic_builtins = 0;
 #endif
 	export_vars.innodb_page_size = UNIV_PAGE_SIZE;
-	export_vars.innodb_log_waits = srv_log_waits;
-	export_vars.innodb_os_log_written = srv_os_log_written;
+
+	export_vars.innodb_log_waits = srv_stats.log_waits;
+
+	export_vars.innodb_os_log_written = srv_stats.os_log_written;
+
 	export_vars.innodb_os_log_fsyncs = fil_n_log_flushes;
+
 	export_vars.innodb_os_log_pending_fsyncs = fil_n_pending_log_flushes;
-	export_vars.innodb_os_log_pending_writes = srv_os_log_pending_writes;
-	export_vars.innodb_log_write_requests = srv_log_write_requests;
-	export_vars.innodb_log_writes = srv_log_writes;
-	export_vars.innodb_dblwr_pages_written = srv_dblwr_pages_written;
-	export_vars.innodb_dblwr_writes = srv_dblwr_writes;
+
+	export_vars.innodb_os_log_pending_writes =
+		srv_stats.os_log_pending_writes;
+
+	export_vars.innodb_log_write_requests = srv_stats.log_write_requests;
+
+	export_vars.innodb_log_writes = srv_stats.log_writes;
+
+	export_vars.innodb_dblwr_pages_written =
+		srv_stats.dblwr_pages_written;
+
+	export_vars.innodb_dblwr_writes = srv_stats.dblwr_writes;
+
 	export_vars.innodb_pages_created = stat.n_pages_created;
+
 	export_vars.innodb_pages_read = stat.n_pages_read;
+
 	export_vars.innodb_pages_written = stat.n_pages_written;
-	export_vars.innodb_row_lock_waits = srv_n_lock_wait_count;
-	export_vars.innodb_row_lock_current_waits
-		= srv_n_lock_wait_current_count;
-	export_vars.innodb_row_lock_time = srv_n_lock_wait_time / 1000;
-	if (srv_n_lock_wait_count > 0) {
+
+	export_vars.innodb_row_lock_waits = srv_stats.n_lock_wait_count;
+
+	export_vars.innodb_row_lock_current_waits =
+		srv_stats.n_lock_wait_current_count;
+
+	export_vars.innodb_row_lock_time = srv_stats.n_lock_wait_time / 1000;
+
+	if (srv_stats.n_lock_wait_count > 0) {
+
 		export_vars.innodb_row_lock_time_avg = (ulint)
-			(srv_n_lock_wait_time / 1000 / srv_n_lock_wait_count);
+			(srv_stats.n_lock_wait_time
+			 / 1000 / srv_stats.n_lock_wait_count);
+
 	} else {
 		export_vars.innodb_row_lock_time_avg = 0;
 	}
-	export_vars.innodb_row_lock_time_max
-		= srv_n_lock_max_wait_time / 1000;
-	export_vars.innodb_rows_read = srv_n_rows_read;
-	export_vars.innodb_rows_inserted = srv_n_rows_inserted;
-	export_vars.innodb_rows_updated = srv_n_rows_updated;
-	export_vars.innodb_rows_deleted = srv_n_rows_deleted;
+
+	export_vars.innodb_row_lock_time_max =
+		lock_sys->n_lock_max_wait_time / 1000;
+
+	export_vars.innodb_rows_read = srv_stats.n_rows_read;
+
+	export_vars.innodb_rows_inserted = srv_stats.n_rows_inserted;
+
+	export_vars.innodb_rows_updated = srv_stats.n_rows_updated;
+
+	export_vars.innodb_rows_deleted = srv_stats.n_rows_deleted;
+
 	export_vars.innodb_num_open_files = fil_n_file_opened;
-	export_vars.innodb_truncated_status_writes = srv_truncated_status_writes;
+
+	export_vars.innodb_truncated_status_writes =
+		srv_truncated_status_writes;
+
 	export_vars.innodb_available_undo_logs = srv_available_undo_logs;
 
 	mutex_exit(&srv_innodb_monitor_mutex);
@@ -1683,7 +1684,7 @@ void
 srv_inc_activity_count(void)
 /*========================*/
 {
-	++srv_sys->activity_count;
+	srv_sys->activity_count.inc();
 }
 
 /**********************************************************************//**
@@ -1733,9 +1734,14 @@ srv_any_background_threads_are_active(void)
 {
 	const char*	thread_active = NULL;
 
+	/* Take a snapshot of the state because the state of this variable
+	can change asynchronously during shutdown. */
+
+	os_event_t	timeout_event = lock_sys->timeout_event;
+
 	if (srv_error_monitor_active) {
 		thread_active = "srv_error_monitor_thread";
-	} else if (srv_lock_timeout_active) {
+	} else if (timeout_event != 0) {
 		thread_active = "srv_lock_timeout thread";
 	} else if (srv_monitor_active) {
 		thread_active = "srv_monitor_thread";
@@ -1745,8 +1751,11 @@ srv_any_background_threads_are_active(void)
 
 	os_event_set(srv_error_event);
 	os_event_set(srv_monitor_event);
-	os_event_set(srv_timeout_event);
 	os_event_set(srv_buf_dump_event);
+
+	if (timeout_event != 0) {
+		os_event_set(timeout_event);
+	}
 
 	return(thread_active);
 }

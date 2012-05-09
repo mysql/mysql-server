@@ -117,7 +117,6 @@ class ha_innobase: public handler
 	dberr_t innobase_get_autoinc(ulonglong* value);
 	void innobase_initialize_autoinc();
 	dict_index_t* innobase_get_index(uint keynr);
-	int info_low(uint flag, dict_stats_upd_option_t stats_upd_option);
 
 	/* Init values for the class: */
  public:
@@ -236,6 +235,7 @@ class ha_innobase: public handler
 
 	@retval HA_ALTER_INPLACE_NOT_SUPPORTED	Not supported
 	@retval HA_ALTER_INPLACE_EXCLUSIVE_LOCK	Supported, but requires X-lock
+	@retval HA_ALTER_INPLACE_NO_LOCK Supported
 	@retval HA_ALTER_INPLACE_NO_LOCK_AFTER_PREPARE Supported, prepare phase
 	*/
 	enum_alter_inplace_result check_if_supported_inplace_alter(
