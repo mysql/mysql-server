@@ -3,7 +3,6 @@
 --source include/have_innodb.inc
 --source include/have_debug_sync.inc
 
-
 CREATE TABLE ibtest11a (A INT, D INT, B VARCHAR(20), C VARCHAR(75), PRIMARY KEY (A, D, B), INDEX (B, C), INDEX (C)) ENGINE = INNODB;
 
 CREATE TABLE ibtest11c (A INT, D INT, B VARCHAR(20), C VARCHAR(75), PRIMARY KEY (A, D, B), INDEX (B, C), INDEX (C), FOREIGN KEY (A, D) REFERENCES ibtest11a (A, D) ON DELETE CASCADE ON UPDATE CASCADE, CONSTRAINT kukkuu FOREIGN KEY (B, C) REFERENCES ibtest11a (B, C) ON DELETE CASCADE ON UPDATE CASCADE) ENGINE = INNODB;
@@ -25,7 +24,6 @@ CREATE INDEX idx1 ON ibtest11a(B, C);
 DROP INDEX B ON ibtest11a;
 SET DEBUG_SYNC='now SIGNAL drop_done';
 
-
 # Now test deleting an index on ibtest11c
 
 connection con1;
@@ -40,6 +38,8 @@ connection default;
 CREATE INDEX idx ON ibtest11c(B, C);
 DROP INDEX B ON ibtest11c;
 SET DEBUG_SYNC='now SIGNAL drop_done';
+
+-- sleep 2
 
 SELECT * FROM ibtest11c;
 SELECT * FROM ibtest11a;
@@ -70,10 +70,9 @@ reap;
 disconnect con1;
 
 CONNECTION default;
+-- sleep 1
 SELECT * FROM ibtest11c;
 SELECT * FROM ibtest11a;
 
 DROP TABLE ibtest11c;
 DROP TABLE ibtest11a;
-
-

@@ -793,6 +793,8 @@ ut_strerr(
 		return("End of index");
 	case DB_IO_ERROR:
 		return("I/O error");
+	case DB_TABLE_IN_FK_CHECK:
+		return("Table is being used in foreign key check");
 	case DB_DATA_MISMATCH:
 		return("data mismatch");
 	case DB_SCHEMA_NOT_LOCKED:
