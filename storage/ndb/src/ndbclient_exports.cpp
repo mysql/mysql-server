@@ -23,15 +23,30 @@
 */
 
 #include "../include/ndbapi/NdbApi.hpp"
+#include "ndbapi/NdbInfo.hpp"
+#include "../include/portlib/NdbDir.hpp"
 
 extern "C" void* JNI_OnLoad(void*, void*);
+extern "C" void ndb_usage(void);
+extern "C" void myRandom48Init(void);
+extern "C" void ndb_rand(void);
 
 void
 _ndbclient_exports(void)
 {
+  (void)ndb_init();
   Ndb_cluster_connection cluster_connection;
   NdbScanFilter scan_filter((NdbOperation*)0);
+  NdbIndexStat index_stat;
+  NdbInfo info(&cluster_connection, "");
+  drop_instance(); // NdbPool
 #ifdef NDB_WITH_NDBJTIE
   JNI_OnLoad(0,0);
 #endif
+  ndb_usage();
+  myRandom48Init();
+  ndb_rand();
+  (void)NdbDir::chdir("");
+  (void)BitmaskImpl::setField(0, 0, 0, 37, (Uint32*)0);
+  ndb_end(0);
 }

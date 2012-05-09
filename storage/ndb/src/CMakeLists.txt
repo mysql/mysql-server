@@ -64,6 +64,9 @@ SET(NDB_SHARED_LIB_VERSION "${major}.${minor}.${build}")
 
 ADD_LIBRARY(ndbclient_so SHARED ndbclient_exports.cpp)
 TARGET_LINK_LIBRARIES(ndbclient_so ${NDBCLIENT_SO_LIBS})
+# Turn off cmake's transitive link behaviour, the shared
+# ndbclient is self contained
+TARGET_LINK_LIBRARIES(ndbclient_so LINK_INTERFACE_LIBRARIES)
 SET_TARGET_PROPERTIES(ndbclient_so PROPERTIES
   OUTPUT_NAME "ndbclient"
   SOVERSION ${NDB_SHARED_LIB_VERSION})
