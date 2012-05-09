@@ -245,6 +245,7 @@ extern ulint	srv_n_log_files;
 extern ib_uint64_t	srv_log_file_size;
 extern ulint	srv_log_buffer_size;
 extern ulong	srv_flush_log_at_trx_commit;
+extern uint	srv_flush_log_at_timeout;
 extern char	srv_adaptive_flushing;
 
 /* If this flag is TRUE, then we will load the indexes' (and tables') metadata

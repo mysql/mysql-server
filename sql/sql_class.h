@@ -3018,6 +3018,12 @@ public:
   int commit_error;
 
   /*
+    Define durability properties that engines may check to
+    improve performance.
+  */
+  enum durability_properties durability_property;
+
+  /*
     If checking this in conjunction with a wait condition, please
     include a check after enter_cond() if you want to avoid a race
     condition. For details see the implementation of awake(),

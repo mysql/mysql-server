@@ -1012,6 +1012,19 @@ thd_is_replication_slave_thread(
 }
 
 /******************************************************************//**
+Gets information on the durability property requested by thread.
+Used when writing either a prepare or commit record to the log
+buffer. @return the durability property. */
+UNIV_INTERN
+enum durability_properties
+thd_requested_durability(
+/*=====================*/
+	const THD* thd)	/*!< in: thread handle (THD*) */
+{
+	return(thd_get_durability_property(thd));
+}
+
+/******************************************************************//**
 Returns true if transaction should be flagged as read-only.
 @return	true if the thd is marked as read-only */
 UNIV_INTERN
@@ -14427,6 +14440,11 @@ static MYSQL_SYSVAR_STR(ft_server_stopword_table, innobase_server_stopword_table
   innodb_stopword_table_update,
   NULL);
 
+static MYSQL_SYSVAR_UINT(flush_log_at_timeout, srv_flush_log_at_timeout,
+  PLUGIN_VAR_OPCMDARG,
+  "Write and flush logs every (n) second.",
+  NULL, NULL, 1, 0, 2700, 0);
+
 static MYSQL_SYSVAR_ULONG(flush_log_at_trx_commit, srv_flush_log_at_trx_commit,
   PLUGIN_VAR_OPCMDARG,
   "Set to 0 (write and flush once per second),"
@@ -14980,6 +14998,7 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(file_format),
   MYSQL_SYSVAR(file_format_check),
   MYSQL_SYSVAR(file_format_max),
+  MYSQL_SYSVAR(flush_log_at_timeout),
   MYSQL_SYSVAR(flush_log_at_trx_commit),
   MYSQL_SYSVAR(flush_method),
   MYSQL_SYSVAR(force_recovery),
