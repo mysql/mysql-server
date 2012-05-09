@@ -16,6 +16,13 @@
 */
 
 #include "../include/ndbapi/NdbApi.hpp"
+#include "ndbapi/NdbInfo.hpp"
+#include "../include/util/ndb_opts.h"
+#include "../include/util/random.h"
+#include "../include/util/ndb_rand.h"
+#include "../include/portlib/NdbDir.hpp"
+#include "../include/util/Bitmask.hpp"
+
 #include <stdio.h>
 
 int main(int argc, const char**)
@@ -49,6 +56,12 @@ int main(int argc, const char**)
     eop->isConsistent();
     NdbBlob* blob = op->getBlobHandle("");
     blob->truncate();
+    NdbInfo info(&cluster_con, "");
+    ndb_std_print_version();
+    (void)myRandom48(0);
+    (void)ndb_rand_r(0);
+    (void)NdbDir::u_rwx();
+    (void)BitmaskImpl::getField(0, 0, 0, 64, 0);
     ndb_end(0);
   }
 }
