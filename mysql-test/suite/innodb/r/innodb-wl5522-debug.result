@@ -8,7 +8,7 @@ Note	1008	Can't drop database 'test_wl5522'; database doesn't exist
 CREATE DATABASE test_wl5522;
 CREATE TABLE test_wl5522.t1 (c1 INT) ENGINE = Innodb;
 INSERT INTO test_wl5522.t1 VALUES (1), (2), (3), (4);
-FLUSH TABLES test_wl5522.t1 WITH READ LOCK;
+FLUSH TABLES test_wl5522.t1 FOR EXPORT;
 backup: t1
 UNLOCK TABLES;
 DROP TABLE test_wl5522.t1;
@@ -61,7 +61,7 @@ DROP TABLE test_wl5522.t1;
 CREATE TABLE test_wl5522.t1 (c1 INT) ENGINE = Innodb;
 INSERT INTO test_wl5522.t1 VALUES (1);
 SET SESSION debug="+d,ib_export_io_write_failure_1";
-FLUSH TABLES test_wl5522.t1 WITH READ LOCK;
+FLUSH TABLES test_wl5522.t1 FOR EXPORT;
 Warnings:
 Warning	1809	InnoDB: IO Write error: (9, Bad file descriptor) t1.cfg flush() failed
 Warning	1809	InnoDB: IO Write error: (9, Bad file descriptor) t1.cfg flose() failed
@@ -71,7 +71,7 @@ DROP TABLE test_wl5522.t1;
 CREATE TABLE test_wl5522.t1 (c1 INT) ENGINE = Innodb;
 INSERT INTO test_wl5522.t1 VALUES (1);
 SET SESSION debug="+d,ib_export_io_write_failure_2";
-FLUSH TABLES test_wl5522.t1 WITH READ LOCK;
+FLUSH TABLES test_wl5522.t1 FOR EXPORT;
 Warnings:
 Warning	1809	InnoDB: IO Write error: (9, Bad file descriptor) t1.cfg flush() failed
 Warning	1809	InnoDB: IO Write error: (9, Bad file descriptor) t1.cfg flose() failed
@@ -81,7 +81,7 @@ DROP TABLE test_wl5522.t1;
 CREATE TABLE test_wl5522.t1 (c1 INT) ENGINE = Innodb;
 INSERT INTO test_wl5522.t1 VALUES (1);
 SET SESSION debug="+d,ib_export_io_write_failure_3";
-FLUSH TABLES test_wl5522.t1 WITH READ LOCK;
+FLUSH TABLES test_wl5522.t1 FOR EXPORT;
 Warnings:
 Warning	1809	InnoDB: IO Write error: (9, Bad file descriptor) t1.cfg flush() failed
 Warning	1809	InnoDB: IO Write error: (9, Bad file descriptor) t1.cfg flose() failed
@@ -91,7 +91,7 @@ DROP TABLE test_wl5522.t1;
 CREATE TABLE test_wl5522.t1 (c1 INT) ENGINE = Innodb;
 INSERT INTO test_wl5522.t1 VALUES (1);
 SET SESSION debug="+d,ib_export_io_write_failure_4";
-FLUSH TABLES test_wl5522.t1 WITH READ LOCK;
+FLUSH TABLES test_wl5522.t1 FOR EXPORT;
 Warnings:
 Warning	1809	InnoDB: IO Write error: (9, Bad file descriptor) t1.cfg flush() failed
 Warning	1809	InnoDB: IO Write error: (9, Bad file descriptor) t1.cfg flose() failed
@@ -101,7 +101,7 @@ DROP TABLE test_wl5522.t1;
 CREATE TABLE test_wl5522.t1 (c1 INT) ENGINE = Innodb;
 INSERT INTO test_wl5522.t1 VALUES (1);
 SET SESSION debug="+d,ib_export_io_write_failure_5";
-FLUSH TABLES test_wl5522.t1 WITH READ LOCK;
+FLUSH TABLES test_wl5522.t1 FOR EXPORT;
 Warnings:
 Warning	1809	InnoDB: IO Write error: (9, Bad file descriptor) t1.cfg flush() failed
 Warning	1809	InnoDB: IO Write error: (9, Bad file descriptor) t1.cfg flose() failed
@@ -111,7 +111,7 @@ DROP TABLE test_wl5522.t1;
 CREATE TABLE test_wl5522.t1 (c1 INT) ENGINE = Innodb;
 INSERT INTO test_wl5522.t1 VALUES (1);
 SET SESSION debug="+d,ib_export_io_write_failure_6";
-FLUSH TABLES test_wl5522.t1 WITH READ LOCK;
+FLUSH TABLES test_wl5522.t1 FOR EXPORT;
 Warnings:
 Warning	1809	InnoDB: IO Write error: (9, Bad file descriptor) t1.cfg flush() failed
 Warning	1809	InnoDB: IO Write error: (9, Bad file descriptor) t1.cfg flose() failed
@@ -121,7 +121,7 @@ DROP TABLE test_wl5522.t1;
 CREATE TABLE test_wl5522.t1 (c1 INT) ENGINE = Innodb;
 INSERT INTO test_wl5522.t1 VALUES (1);
 SET SESSION debug="+d,ib_export_io_write_failure_7";
-FLUSH TABLES test_wl5522.t1 WITH READ LOCK;
+FLUSH TABLES test_wl5522.t1 FOR EXPORT;
 Warnings:
 Warning	1809	InnoDB: IO Write error: (9, Bad file descriptor) t1.cfg flush() failed
 Warning	1809	InnoDB: IO Write error: (9, Bad file descriptor) t1.cfg flose() failed
@@ -131,7 +131,7 @@ DROP TABLE test_wl5522.t1;
 CREATE TABLE test_wl5522.t1 (c1 INT) ENGINE = Innodb;
 INSERT INTO test_wl5522.t1 VALUES (1);
 SET SESSION debug="+d,ib_export_io_write_failure_8";
-FLUSH TABLES test_wl5522.t1 WITH READ LOCK;
+FLUSH TABLES test_wl5522.t1 FOR EXPORT;
 Warnings:
 Warning	1809	InnoDB: IO Write error: (9, Bad file descriptor) t1.cfg flush() failed
 Warning	1809	InnoDB: IO Write error: (9, Bad file descriptor) t1.cfg flose() failed
@@ -141,7 +141,7 @@ DROP TABLE test_wl5522.t1;
 CREATE TABLE test_wl5522.t1 (c1 INT) ENGINE = Innodb;
 INSERT INTO test_wl5522.t1 VALUES (1);
 SET SESSION debug="+d,ib_export_io_write_failure_9";
-FLUSH TABLES test_wl5522.t1 WITH READ LOCK;
+FLUSH TABLES test_wl5522.t1 FOR EXPORT;
 Warnings:
 Warning	1809	InnoDB: IO Write error: (9, Bad file descriptor) t1.cfg flush() failed
 Warning	1809	InnoDB: IO Write error: (9, Bad file descriptor) t1.cfg flose() failed
@@ -151,7 +151,7 @@ DROP TABLE test_wl5522.t1;
 CREATE TABLE test_wl5522.t1 (c1 INT) ENGINE = Innodb;
 INSERT INTO test_wl5522.t1 VALUES (1);
 SET SESSION debug="+d,ib_export_io_write_failure_10";
-FLUSH TABLES test_wl5522.t1 WITH READ LOCK;
+FLUSH TABLES test_wl5522.t1 FOR EXPORT;
 Warnings:
 Warning	1809	InnoDB: IO Write error: (9, Bad file descriptor) t1.cfg flush() failed
 Warning	1809	InnoDB: IO Write error: (9, Bad file descriptor) t1.cfg flose() failed
@@ -161,7 +161,7 @@ DROP TABLE test_wl5522.t1;
 CREATE TABLE test_wl5522.t1 (c1 INT) ENGINE = Innodb;
 INSERT INTO test_wl5522.t1 VALUES (1);
 SET SESSION debug="+d,ib_export_io_write_failure_11";
-FLUSH TABLES test_wl5522.t1 WITH READ LOCK;
+FLUSH TABLES test_wl5522.t1 FOR EXPORT;
 Warnings:
 Warning	1809	InnoDB: IO Write error: (9, Bad file descriptor) t1.cfg flush() failed
 Warning	1809	InnoDB: IO Write error: (9, Bad file descriptor) t1.cfg flose() failed
@@ -171,7 +171,7 @@ DROP TABLE test_wl5522.t1;
 CREATE TABLE test_wl5522.t1 (c1 INT) ENGINE = Innodb;
 INSERT INTO test_wl5522.t1 VALUES (1);
 SET SESSION debug="+d,ib_export_io_write_failure_12";
-FLUSH TABLES test_wl5522.t1 WITH READ LOCK;
+FLUSH TABLES test_wl5522.t1 FOR EXPORT;
 Warnings:
 Warning	1809	InnoDB: IO Write error: (9, Bad file descriptor) t1.cfg flush() failed
 Warning	1809	InnoDB: IO Write error: (9, Bad file descriptor) t1.cfg flose() failed
@@ -183,7 +183,7 @@ INSERT INTO test_wl5522.t1 VALUES (100), (200), (300);
 SELECT COUNT(*) FROM test_wl5522.t1;
 COUNT(*)
 3
-FLUSH TABLES test_wl5522.t1 WITH READ LOCK;
+FLUSH TABLES test_wl5522.t1 FOR EXPORT;
 backup: t1
 UNLOCK TABLES;
 DROP TABLE test_wl5522.t1;
@@ -631,7 +631,7 @@ SELECT name
 FROM information_schema.innodb_metrics
 WHERE name = 'ibuf_merges_insert' AND count = 0;
 name
-FLUSH TABLES test_wl5522.t1 WITH READ LOCK;
+FLUSH TABLES test_wl5522.t1 FOR EXPORT;
 backup: t1
 UNLOCK TABLES;
 SELECT name
@@ -795,7 +795,7 @@ INSERT INTO test_wl5522.t1 SELECT * FROM test_wl5522.t1;
 SELECT COUNT(*) FROM test_wl5522.t1;
 COUNT(*)
 256
-FLUSH TABLES test_wl5522.t1 WITH READ LOCK;
+FLUSH TABLES test_wl5522.t1 FOR EXPORT;
 backup: t1
 UNLOCK TABLES;
 DROP TABLE test_wl5522.t1;
