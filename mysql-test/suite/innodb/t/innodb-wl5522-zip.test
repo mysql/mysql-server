@@ -470,6 +470,37 @@ EOF
 
 DROP TABLE t1;
 
+# This should fail because KEY_BLOCK_SIZE is different
+CREATE TABLE t1(
+        c1 INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+        c2 INT, INDEX idx(c2)) ENGINE=InnoDB
+        ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=4;
+
+ALTER TABLE t1 DISCARD TABLESPACE;
+--error ER_TABLESPACE_DISCARDED
+SELECT * FROM t1;
+
+perl;
+do 'include/innodb-util.inc';
+ib_discard_tablespaces("test", "t1");
+ib_restore_tablespaces("test", "t1");
+EOF
+
+# This should fail because is KEY_BLOCK_SIZE=4 
+# but KEY_BLOCK_SIZE=8 is exported table
+# Need better error message for following
+--replace_regex /\(.*\)//
+-- error ER_TABLE_SCHEMA_MISMATCH
+ALTER TABLE t1 IMPORT TABLESPACE;
+
+perl;
+do 'include/innodb-util.inc';
+ib_unlink_tablespace("test", "t1");
+EOF
+
+DROP TABLE t1;
+
+
 # This should be OK.
 CREATE TABLE t1(
 	c1 INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
