@@ -38,7 +38,13 @@ SET(NDBCLIENT_LIBS
                 ndbgeneral
                 ndbconf)
 
+#
+# Build static ndbclient library
+#
 MERGE_LIBRARIES(ndbclient_static STATIC ${NDBCLIENT_LIBS} COMPONENT Development)
+# Build test program to check linking against ndclient_static
+ADD_EXECUTABLE(ndbclient_static_link_test ndbclient_link_test.cpp)
+TARGET_LINK_LIBRARIES(ndbclient_static_link_test ndbclient_static)
 
 #
 # Do a shared libd
