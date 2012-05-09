@@ -2950,15 +2950,24 @@ bool ha_partition::init_partition_bitmaps()
   DBUG_ENTER("ha_partition::init_partition_bitmaps");
   /* Initialize the bitmap we use to minimize ha_start_bulk_insert calls */
   if (bitmap_init(&m_bulk_insert_started, NULL, m_tot_parts + 1, FALSE))
-    goto err;
+    DBUG_RETURN(true);
   bitmap_clear_all(&m_bulk_insert_started);
+
   /* Initialize the bitmap we use to keep track of locked partitions */
   if (bitmap_init(&m_locked_partitions, NULL, m_tot_parts, FALSE))
-    goto err;
+  {
+    bitmap_free(&m_bulk_insert_started);
+    DBUG_RETURN(true);
+  }
   bitmap_clear_all(&m_locked_partitions);
+
   /* Initialize the bitmap we use to keep track of started partitions */
   if (bitmap_init(&m_started_partitions, NULL, m_tot_parts, FALSE))
-    goto err;
+  {
+    bitmap_free(&m_bulk_insert_started);
+    bitmap_free(&m_locked_partitions);
+    DBUG_RETURN(true);
+  }
   bitmap_clear_all(&m_started_partitions);
 
   /* Initialize the bitmap for read/lock_partitions */
@@ -2966,13 +2975,14 @@ bool ha_partition::init_partition_bitmaps()
   {
     DBUG_ASSERT(!m_clone_mem_root);
     if (m_part_info->set_partition_bitmaps(NULL))
-      goto err;
+    {
+      bitmap_free(&m_bulk_insert_started);
+      bitmap_free(&m_locked_partitions);
+      bitmap_free(&m_started_partitions);
+      DBUG_RETURN(true);
+    }
   }
   DBUG_RETURN(false);
-
-err:
-  free_partition_bitmaps();
-  DBUG_RETURN(true);
 }
 
 
@@ -3379,7 +3389,6 @@ int ha_partition::external_lock(THD *thd, int lock_type)
       leave it as is after unlocking to be able to prune ::reset() calls.
     */
     DBUG_ASSERT(bitmap_is_clear_all(&m_started_partitions));
-    bitmap_clear_all(&m_started_partitions);
     used_partitions= &(m_part_info->lock_partitions);
   }
   first_used_partition= bitmap_get_first_set(used_partitions);

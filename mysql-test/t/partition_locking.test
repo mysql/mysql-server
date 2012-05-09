@@ -41,7 +41,7 @@ FLUSH STATUS;
 INSERT INTO t1 VALUES (1, 'First row, duplicate');
 eval $get_handler_status_counts;
 --echo # 4 locks (table + partition lock/unlock)
---echo # 1 commit
+--echo # 1 rollback
 FLUSH STATUS;
 INSERT INTO t1 VALUES (0, 'First row, p0'), (2, 'First row, p2'),
                       (3, 'First row, p3'), (4, 'First row, p4');
@@ -57,14 +57,14 @@ eval $get_handler_status_counts;
 FLUSH STATUS;
 INSERT INTO t2 VALUES (NULL, 'First auto-inc row');
 eval $get_handler_status_counts;
---echo # Auto increment value not know until write.
+--echo # Auto increment value is not known until write.
 --echo # 28 locks (table + 13 partition lock/unlock)
 --echo # 1 commit
 
 FLUSH STATUS;
 INSERT INTO t2 (b) VALUES ('Second auto-inc row');
 eval $get_handler_status_counts;
---echo # Auto increment value not know until write.
+--echo # Auto increment value is not known until write.
 --echo # 28 locks (table + 13 partition lock/unlock)
 --echo # 1 commit
 
@@ -174,7 +174,7 @@ DROP TABLE t3;
 --echo #
 --echo # Test of insert pruning with subpartitions
 --echo #
---echo # I've place the varchar column before the int column for better
+--echo # I've placed the varchar column before the int column for better
 --echo # distribution by LINEAR KEY.
 CREATE TABLE t3
 (a int DEFAULT 10,
@@ -249,6 +249,11 @@ FLUSH STATUS;
 INSERT INTO t3 (a, b, c, d) VALUES (1, "Full part", "Full subpart", 1);
 eval $get_handler_status_counts;
 --echo # 4 locks (1 table, 1 subpartition lock/unlock)
+DELETE FROM t3 WHERE a = 10 AND b = 'Default' AND c = 'Default' AND D = 9;
+FLUSH STATUS;
+INSERT INTO t3 VALUES ();
+eval $get_handler_status_counts;
+--echo # 4 locks (1 table, 1 subpartition lock/unlock)
 
 --sorted_result
 SELECT * FROM t3;
@@ -271,6 +276,10 @@ LOCK TABLES t3 WRITE;
 eval $get_handler_status_counts;
 --echo # 17 locks (1 table, 16 partitions lock)
 --echo # No further locks/unlocks until UNLOCK TABLES.
+DELETE FROM t3 WHERE a = 10 AND b = 'Default' AND c = 'Default' AND D = 9;
+FLUSH STATUS;
+INSERT INTO t3 VALUES ();
+eval $get_handler_status_counts;
 FLUSH STATUS;
 DELETE FROM t3
 WHERE a = 10 AND b = "Default" AND c = "Default" AND d = 9;
@@ -323,9 +332,14 @@ CREATE TABLE t3
  b char(10),
  PRIMARY KEY (a, b))
 PARTITION BY HASH (UNIX_TIMESTAMP(a)) PARTITIONS 3;
-FLUSH STATUS;
-INSERT INTO t3 (a) VALUES (NULL);
 SHOW CREATE TABLE t3;
+FLUSH STATUS;
+SET TIMESTAMP = 1234567890;
+INSERT INTO t3 (a) VALUES (NULL);
+eval $get_handler_status_counts;
+--echo # 4 locks (1 table, 1 partition lock/unlock)
+FLUSH STATUS;
+INSERT INTO t3 VALUES ();
 eval $get_handler_status_counts;
 --echo # 4 locks (1 table, 1 partition lock/unlock)
 FLUSH STATUS;
@@ -345,7 +359,7 @@ INSERT INTO t3 (a) VALUES ('2011-01-01 00:00:00')
 ON DUPLICATE KEY UPDATE b = CONCAT(b, ", DUP_KEY");
 eval $get_handler_status_counts;
 --echo # 4 locks (1 table, 1 partition lock/unlock)
-SELECT COUNT(*) FROM t3;
+SELECT * FROM t3;
 DROP TABLE t3;
 CREATE TABLE t3
 (a timestamp DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -354,9 +368,16 @@ CREATE TABLE t3
 PARTITION BY HASH (UNIX_TIMESTAMP(a)) PARTITIONS 3;
 SHOW CREATE TABLE t3;
 FLUSH STATUS;
+SET TIMESTAMP = 1234567890;
 INSERT INTO t3 (a) VALUES (NULL);
 eval $get_handler_status_counts;
 --echo # 4 locks (1 table, 1 partition lock/unlock)
+--echo # TODO Fix the bug in INSERT INTO t3 VALUES () and enable the test
+#FLUSH STATUS;
+#SET TIMESTAMP = 1234567891;
+#INSERT INTO t3 VALUES ();
+#eval $get_handler_status_counts;
+#--echo # 4 locks (1 table, 1 partition lock/unlock)
 FLUSH STATUS;
 INSERT INTO t3 (a) VALUES ('2011-01-01 00:00:00');
 eval $get_handler_status_counts;
@@ -370,13 +391,14 @@ INSERT INTO t3 (a) VALUES ('2011-01-01 00:00:02'), ('2011-01-01 00:00:03');
 eval $get_handler_status_counts;
 --echo # 6 locks (1 table, 2 partition lock/unlock)
 FLUSH STATUS;
+SET TIMESTAMP = 1234567892;
 INSERT INTO t3 (a) VALUES ('2011-01-01 00:00:00')
 ON DUPLICATE KEY UPDATE b = CONCAT(b, ", DUP_KEY");
-#eval $get_handler_status_counts;
---echo # May change partition, so gives different UPDATE/DELETE/WRITE count
-SHOW STATUS LIKE 'Handler_external_lock';
+eval $get_handler_status_counts;
+#--echo # May change partition, so gives different UPDATE/DELETE/WRITE count
+#SHOW STATUS LIKE 'Handler_external_lock';
 --echo # 8 locks (1 table, 3 partition lock/unlock)
-SELECT COUNT(*) FROM t3;
+SELECT * FROM t3;
 DROP TABLE t3;
 CREATE TABLE t3
 (a timestamp DEFAULT 0 ON UPDATE CURRENT_TIMESTAMP,
@@ -503,7 +525,7 @@ eval $get_handler_status_counts;
 --echo # 1 commit
 
 --echo #
---echo # Test of failed update
+--echo # Test of insert on duplicate key with failed update
 --echo #
 FLUSH STATUS;
 INSERT INTO t1 VALUES (78, "No duplicate")
@@ -526,7 +548,7 @@ eval $get_handler_status_counts;
 --echo # 1 rollback
 
 --echo #
---echo # Test of update to different partition
+--echo # Test of insert on duplicate key with update to different partition
 --echo #
 FLUSH STATUS;
 INSERT INTO t1 VALUES (104, "No duplicate")
@@ -554,6 +576,11 @@ eval $get_handler_status_counts;
 --echo # 28 lock (1 table + 13 partition lock/unlock)
 --echo # 1 write
 --echo # 1 commit
+
+--echo #
+--echo # Test of insert on duplicate key with failed update to different
+--echo # partition
+--echo #
 FLUSH STATUS;
 --error ER_DUP_ENTRY
 INSERT INTO t1 VALUES (104, "No duplicate 104 + 1")
@@ -673,7 +700,6 @@ eval $get_handler_status_counts;
 --echo # Test pruning of non static values
 --echo # They will need to lock all partitions, but will allow pruning
 --echo # due to a second pruning call in optimize.
---echo # TODO: Partition wise joins ?
 --echo #
 CREATE TABLE t3 (a INT);
 INSERT INTO t3 VALUES (1);
@@ -695,7 +721,6 @@ EXPLAIN PARTITIONS SELECT t1.a, t1.b FROM t1 INNER JOIN t3 ON t1.a = t3.a;
 eval $get_handler_status_counts;
 --echo # 30 locks (2 table + 13 partitions lock/unlock)
 FLUSH STATUS;
---echo # EXPLAIN does not evaluate SUBQUERIES, so pruning will not show!
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a = (SELECT a FROM t3);
 eval $get_handler_status_counts;
 --echo # 30 locks (2 table + 13 partitions lock/unlock)
@@ -1105,14 +1130,6 @@ DROP TABLE t3;
 --echo #
 --echo # Test Stored procedures
 --echo #
---disable_warnings
-DROP PROCEDURE IF EXISTS sp_insert;
-DROP PROCEDURE IF EXISTS sp_insert_partition;
-DROP PROCEDURE IF EXISTS sp_select_all;
-DROP PROCEDURE IF EXISTS sp_select_exact;
-DROP PROCEDURE IF EXISTS sp_select_partition;
-DROP PROCEDURE IF EXISTS sp_select_range;
---enable_warnings
 CREATE PROCEDURE sp_insert(a INT, b CHAR(16))
   INSERT INTO test.t1 VALUES (a, b);
 
@@ -1123,6 +1140,7 @@ BEGIN
   SET @x = a, @y = b;
   PREPARE stmt FROM @str;
   EXECUTE stmt USING @x, @y;
+  DEALLOCATE PREPARE stmt;
 END|
 delimiter ;|
 
@@ -1138,6 +1156,7 @@ BEGIN
   SET @str = CONCAT("SELECT * FROM test.t1 PARTITION(", p, ")");
   PREPARE stmt FROM @str;
   EXECUTE stmt;
+  DEALLOCATE PREPARE stmt;
 END|
 delimiter ;|
 
@@ -1299,6 +1318,9 @@ SELECT * FROM t2 ORDER BY a;
 
 --echo #
 --echo # Test triggers
+--echo # Tables used in triggers cannot be pruned for locks.
+--echo # Tables with triggers cannot be pruned for locks if
+--echo # BEFORE INSERT/UPDATE trigger exists.
 --echo #
 CREATE TABLE t3
 (old_a int,
@@ -1387,6 +1409,7 @@ SELECT * FROM t1 WHERE a = 0;
 FLUSH STATUS;
 EXPLAIN PARTITIONS UPDATE t1 SET b = CONCAT(b, ", UPDATED2") WHERE a = 3;
 eval $get_handler_status_counts;
+--echo # No pruning possible, due to BEFORE UPDATE trigger
 --echo # 52 locks (3 tables, 13 + 5 + 5 partition lock/unlock)
 --echo # t1, before update, after update
 SELECT * FROM t1 WHERE a = 3;
@@ -1435,21 +1458,9 @@ CREATE TRIGGER t2_before_insert BEFORE INSERT
 ON t2 FOR EACH ROW
 SET NEW.a = NEW.a + 1;
 
---echo # Test that one cannot update a row in BEFORE UPDATE
---error ER_TRG_CANT_CHANGE_ROW
-CREATE TRIGGER t2_before_update BEFORE UPDATE
-ON t2 FOR EACH ROW
-SET OLD.a = OLD.a - 1;
-
 CREATE TRIGGER t2_before_update BEFORE UPDATE
 ON t2 FOR EACH ROW
 SET NEW.a = NEW.a - 1;
-
---echo # Test that one cannot update a row in BEFORE DELETE
---error ER_TRG_CANT_CHANGE_ROW
-CREATE TRIGGER t2_before_delete BEFORE DELETE
-ON t2 FOR EACH ROW
-SET OLD.a = OLD.a - 1;
 
 FLUSH STATUS;
 INSERT INTO t2 VALUES (1, "Second row, p1");
@@ -1493,6 +1504,55 @@ DO (SELECT @x:= b FROM t1 WHERE a = 5 or a = 1 ORDER BY b LIMIT 1);
 eval $get_handler_status_counts;
 --echo # 8 locks (1 table + 3 partitions lock/unlock)
 SELECT @x;
+
+--echo #
+--echo # SET is not supported by WL#4443 !!!
+--echo # Test of SET (eg. SELECT only setting an internal variable from
+--echo # the returning value)
+--echo #
+FLUSH STATUS;
+SET @x = (SELECT a FROM t1 WHERE a = 5);
+eval $get_handler_status_counts;
+--echo # 8 locks (1 table + 3 partitions lock/unlock)
+SELECT @x;
+FLUSH STATUS;
+SET @y = (SELECT @x:= b FROM t1 WHERE a = 5);
+eval $get_handler_status_counts;
+--echo # 8 locks (1 table + 3 partitions lock/unlock)
+SELECT @x, @y;
+FLUSH STATUS;
+SET @y = (SELECT @x:= b FROM t1 WHERE a = 5 or a = 1 ORDER BY b LIMIT 1);
+eval $get_handler_status_counts;
+--echo # 8 locks (1 table + 3 partitions lock/unlock)
+SELECT @x, @y;
+
+--echo #
+--echo # LOAD DATA is not supported by WL#4443 !!!
+--echo #
+FLUSH STATUS;
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+eval SELECT * FROM t1 WHERE a IN (1, 4)
+INTO OUTFILE '$MYSQLTEST_VARDIR/tmp/t1.part1';
+eval $get_handler_status_counts;
+--echo # 4 locks (1 table + 1 partitions lock/unlock)
+DELETE FROM t1 WHERE a IN (1, 4);
+SELECT * FROM t1 ORDER BY a, b;
+FLUSH STATUS;
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+eval LOAD DATA INFILE '$MYSQLTEST_VARDIR/tmp/t1.part1' INTO TABLE t1;
+eval $get_handler_status_counts;
+--echo # 8 locks (1 table + 3 partitions lock/unlock)
+SELECT * FROM t1 ORDER BY a, b;
+DELETE FROM t1 WHERE a IN (1, 4);
+SELECT * FROM t1 ORDER BY a, b;
+--echo # It is possible to avoid locking with explicit partitioning selection!
+FLUSH STATUS;
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+eval LOAD DATA INFILE '$MYSQLTEST_VARDIR/tmp/t1.part1' INTO TABLE t1 PARTITION(p1);
+eval $get_handler_status_counts;
+--echo # 4 locks (1 table + 1 partitions lock/unlock)
+SELECT * FROM t1 ORDER BY a, b;
+--remove_file $MYSQLTEST_VARDIR/tmp/t1.part1
 
 DROP TABLE t1;
 
@@ -1561,6 +1621,14 @@ INSERT INTO t2 VALUES ((SELECT a FROM t1), (SELECT b FROM t1));
 eval $get_handler_status_counts;
 --echo # 12 locks (3 tables + 3 partitions) x lock/unlock
 --echo # I.e. No lock pruning possible
+FLUSH STATUS;
+INSERT INTO t2 VALUES (1 + (SELECT a FROM t1),
+                       CONCAT("subq: ", (SELECT b FROM t1)));
+eval $get_handler_status_counts;
+--echo # 12 locks (3 tables + 3 partitions) x lock/unlock
+--echo # I.e. No lock pruning possible
+--sorted_result
+SELECT * FROM t2;
 DROP TABLE t1, t2;
 CREATE TABLE t1 (a INT, b INT);
 CREATE TABLE t2 (a INT, b INT) PARTITION BY HASH (a) PARTITIONS 3;

@@ -541,12 +541,12 @@ bool Sql_cmd_alter_table_exchange_partition::
   partition_name= alter_info->partition_names.head();
   if (table_list->table->part_info->
         set_named_partition_bitmap(partition_name, strlen(partition_name)))
-    DBUG_RETURN(TRUE);
+    DBUG_RETURN(true);
 
   if (lock_tables(thd, table_list, table_counter, 0))
   {
     open_and_lock_tables_cleanup(thd, mdl_savepoint);
-    DBUG_RETURN(TRUE);
+    DBUG_RETURN(true);
   }
 
   /*
@@ -557,7 +557,7 @@ bool Sql_cmd_alter_table_exchange_partition::
   {
     my_error(ER_PARTITION_EXCHANGE_FOREIGN_KEY, MYF(0),
              swap_table->s->table_name.str);
-    DBUG_RETURN(TRUE);
+    DBUG_RETURN(true);
   }
 
   table_hton= swap_table->file->ht;
@@ -780,8 +780,6 @@ bool Sql_cmd_alter_table_truncate_partition::execute(THD *thd)
     DBUG_RETURN(TRUE);
 
   mdl_savepoint= thd->mdl_context.mdl_savepoint();
-  //if (open_tables(thd, &first_table, &table_counter, 0,
-                  //&alter_prelocking_strategy))
   if (open_tables(thd, &first_table, &table_counter, 0))
   {
     open_and_lock_tables_cleanup(thd, mdl_savepoint);

@@ -5728,8 +5728,8 @@ err:
                         MYSQL_LOCK_IGNORE_FLUSH - open table even if someone has
                         done a flush on it.
 
-  @retval FALSE - ok
-  @retval TRUE  - error
+  @retval false - ok
+  @retval true  - error
 
   @note
     This is to be used on prepare stage when you don't read any
@@ -9031,7 +9031,7 @@ fill_record_n_invoke_before_triggers(THD *thd, List<Item> &fields,
   @param thd           thread handler
   @param ptr           pointer on pointer to record
   @param values        list of fields
-  @param ignore_errors TRUE if we should ignore errors
+  @param ignore_errors True if we should ignore errors
   @param bitmap        Bitmap over fields to fill
 
   @note fill_record() may set table->auto_increment_field_not_null and a

@@ -33,7 +33,7 @@ HANDLER_EXTERNAL_LOCK	4
 HANDLER_ROLLBACK	1
 HANDLER_WRITE	18
 # 4 locks (table + partition lock/unlock)
-# 1 commit
+# 1 rollback
 FLUSH STATUS;
 INSERT INTO t1 VALUES (0, 'First row, p0'), (2, 'First row, p2'),
 (3, 'First row, p3'), (4, 'First row, p4');
@@ -64,7 +64,7 @@ VARIABLE_NAME	VARIABLE_VALUE
 HANDLER_COMMIT	1
 HANDLER_EXTERNAL_LOCK	28
 HANDLER_WRITE	18
-# Auto increment value not know until write.
+# Auto increment value is not known until write.
 # 28 locks (table + 13 partition lock/unlock)
 # 1 commit
 FLUSH STATUS;
@@ -75,7 +75,7 @@ VARIABLE_NAME	VARIABLE_VALUE
 HANDLER_COMMIT	1
 HANDLER_EXTERNAL_LOCK	28
 HANDLER_WRITE	18
-# Auto increment value not know until write.
+# Auto increment value is not known until write.
 # 28 locks (table + 13 partition lock/unlock)
 # 1 commit
 #
@@ -325,7 +325,7 @@ DROP TABLE t3;
 #
 # Test of insert pruning with subpartitions
 #
-# I've place the varchar column before the int column for better
+# I've placed the varchar column before the int column for better
 # distribution by LINEAR KEY.
 CREATE TABLE t3
 (a int DEFAULT 10,
@@ -462,6 +462,16 @@ HANDLER_COMMIT	1
 HANDLER_EXTERNAL_LOCK	4
 HANDLER_WRITE	18
 # 4 locks (1 table, 1 subpartition lock/unlock)
+DELETE FROM t3 WHERE a = 10 AND b = 'Default' AND c = 'Default' AND D = 9;
+FLUSH STATUS;
+INSERT INTO t3 VALUES ();
+SELECT * FROM INFORMATION_SCHEMA.SESSION_STATUS
+WHERE VARIABLE_NAME LIKE 'HANDLER_%' AND VARIABLE_VALUE > 0;
+VARIABLE_NAME	VARIABLE_VALUE
+HANDLER_COMMIT	1
+HANDLER_EXTERNAL_LOCK	4
+HANDLER_WRITE	18
+# 4 locks (1 table, 1 subpartition lock/unlock)
 SELECT * FROM t3;
 a	b	c	d	e
 -1	ZZZzzzz	yyyYYY	0	Default-filler.filler.filler.
@@ -516,6 +526,14 @@ HANDLER_EXTERNAL_LOCK	17
 HANDLER_WRITE	17
 # 17 locks (1 table, 16 partitions lock)
 # No further locks/unlocks until UNLOCK TABLES.
+DELETE FROM t3 WHERE a = 10 AND b = 'Default' AND c = 'Default' AND D = 9;
+FLUSH STATUS;
+INSERT INTO t3 VALUES ();
+SELECT * FROM INFORMATION_SCHEMA.SESSION_STATUS
+WHERE VARIABLE_NAME LIKE 'HANDLER_%' AND VARIABLE_VALUE > 0;
+VARIABLE_NAME	VARIABLE_VALUE
+HANDLER_COMMIT	1
+HANDLER_WRITE	18
 FLUSH STATUS;
 DELETE FROM t3
 WHERE a = 10 AND b = "Default" AND c = "Default" AND d = 9;
@@ -642,8 +660,6 @@ CREATE TABLE t3
 b char(10),
 PRIMARY KEY (a, b))
 PARTITION BY HASH (UNIX_TIMESTAMP(a)) PARTITIONS 3;
-FLUSH STATUS;
-INSERT INTO t3 (a) VALUES (NULL);
 SHOW CREATE TABLE t3;
 Table	Create Table
 t3	CREATE TABLE `t3` (
@@ -653,6 +669,18 @@ t3	CREATE TABLE `t3` (
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY HASH (UNIX_TIMESTAMP(a))
 PARTITIONS 3 */
+FLUSH STATUS;
+SET TIMESTAMP = 1234567890;
+INSERT INTO t3 (a) VALUES (NULL);
+SELECT * FROM INFORMATION_SCHEMA.SESSION_STATUS
+WHERE VARIABLE_NAME LIKE 'HANDLER_%' AND VARIABLE_VALUE > 0;
+VARIABLE_NAME	VARIABLE_VALUE
+HANDLER_COMMIT	1
+HANDLER_EXTERNAL_LOCK	4
+HANDLER_WRITE	18
+# 4 locks (1 table, 1 partition lock/unlock)
+FLUSH STATUS;
+INSERT INTO t3 VALUES ();
 SELECT * FROM INFORMATION_SCHEMA.SESSION_STATUS
 WHERE VARIABLE_NAME LIKE 'HANDLER_%' AND VARIABLE_VALUE > 0;
 VARIABLE_NAME	VARIABLE_VALUE
@@ -699,9 +727,14 @@ HANDLER_READ_KEY	1
 HANDLER_UPDATE	1
 HANDLER_WRITE	18
 # 4 locks (1 table, 1 partition lock/unlock)
-SELECT COUNT(*) FROM t3;
-COUNT(*)
-5
+SELECT * FROM t3;
+a	b
+0000-00-00 00:00:00	
+2009-02-14 02:31:30	
+2011-01-01 00:00:00	, DUP_KEY
+2011-01-01 00:00:03	
+2011-01-01 00:00:01	
+2011-01-01 00:00:02	
 DROP TABLE t3;
 CREATE TABLE t3
 (a timestamp DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -718,6 +751,7 @@ t3	CREATE TABLE `t3` (
 /*!50100 PARTITION BY HASH (UNIX_TIMESTAMP(a))
 PARTITIONS 3 */
 FLUSH STATUS;
+SET TIMESTAMP = 1234567890;
 INSERT INTO t3 (a) VALUES (NULL);
 SELECT * FROM INFORMATION_SCHEMA.SESSION_STATUS
 WHERE VARIABLE_NAME LIKE 'HANDLER_%' AND VARIABLE_VALUE > 0;
@@ -726,6 +760,7 @@ HANDLER_COMMIT	1
 HANDLER_EXTERNAL_LOCK	4
 HANDLER_WRITE	18
 # 4 locks (1 table, 1 partition lock/unlock)
+# TODO Fix the bug in INSERT INTO t3 VALUES () and enable the test
 FLUSH STATUS;
 INSERT INTO t3 (a) VALUES ('2011-01-01 00:00:00');
 SELECT * FROM INFORMATION_SCHEMA.SESSION_STATUS
@@ -754,16 +789,25 @@ HANDLER_EXTERNAL_LOCK	6
 HANDLER_WRITE	19
 # 6 locks (1 table, 2 partition lock/unlock)
 FLUSH STATUS;
+SET TIMESTAMP = 1234567892;
 INSERT INTO t3 (a) VALUES ('2011-01-01 00:00:00')
 ON DUPLICATE KEY UPDATE b = CONCAT(b, ", DUP_KEY");
-# May change partition, so gives different UPDATE/DELETE/WRITE count
-SHOW STATUS LIKE 'Handler_external_lock';
-Variable_name	Value
-Handler_external_lock	8
+SELECT * FROM INFORMATION_SCHEMA.SESSION_STATUS
+WHERE VARIABLE_NAME LIKE 'HANDLER_%' AND VARIABLE_VALUE > 0;
+VARIABLE_NAME	VARIABLE_VALUE
+HANDLER_COMMIT	1
+HANDLER_DELETE	1
+HANDLER_EXTERNAL_LOCK	8
+HANDLER_READ_KEY	1
+HANDLER_WRITE	19
 # 8 locks (1 table, 3 partition lock/unlock)
-SELECT COUNT(*) FROM t3;
-COUNT(*)
-5
+SELECT * FROM t3;
+a	b
+2009-02-14 02:31:30	
+2011-01-01 00:00:03	
+2011-01-01 00:00:01	
+2009-02-14 02:31:32	, DUP_KEY
+2011-01-01 00:00:02	
 DROP TABLE t3;
 CREATE TABLE t3
 (a timestamp DEFAULT 0 ON UPDATE CURRENT_TIMESTAMP,
@@ -996,7 +1040,7 @@ HANDLER_WRITE	18
 # 1 update
 # 1 commit
 #
-# Test of failed update
+# Test of insert on duplicate key with failed update
 #
 FLUSH STATUS;
 INSERT INTO t1 VALUES (78, "No duplicate")
@@ -1030,7 +1074,7 @@ HANDLER_WRITE	18
 # 1 update
 # 1 rollback
 #
-# Test of update to different partition
+# Test of insert on duplicate key with update to different partition
 #
 FLUSH STATUS;
 INSERT INTO t1 VALUES (104, "No duplicate")
@@ -1075,6 +1119,10 @@ HANDLER_WRITE	18
 # 28 lock (1 table + 13 partition lock/unlock)
 # 1 write
 # 1 commit
+#
+# Test of insert on duplicate key with failed update to different
+# partition
+#
 FLUSH STATUS;
 INSERT INTO t1 VALUES (104, "No duplicate 104 + 1")
 ON DUPLICATE KEY UPDATE a = a + 1;
@@ -1342,7 +1390,6 @@ HANDLER_WRITE	17
 # Test pruning of non static values
 # They will need to lock all partitions, but will allow pruning
 # due to a second pruning call in optimize.
-# TODO: Partition wise joins ?
 #
 CREATE TABLE t3 (a INT);
 INSERT INTO t3 VALUES (1);
@@ -1392,7 +1439,6 @@ HANDLER_EXTERNAL_LOCK	30
 HANDLER_WRITE	17
 # 30 locks (2 table + 13 partitions lock/unlock)
 FLUSH STATUS;
-# EXPLAIN does not evaluate SUBQUERIES, so pruning will not show!
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a = (SELECT a FROM t3);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	p1	const	PRIMARY	PRIMARY	4	const	1	NULL
@@ -2420,12 +2466,6 @@ DROP TABLE t3;
 #
 # Test Stored procedures
 #
-DROP PROCEDURE IF EXISTS sp_insert;
-DROP PROCEDURE IF EXISTS sp_insert_partition;
-DROP PROCEDURE IF EXISTS sp_select_all;
-DROP PROCEDURE IF EXISTS sp_select_exact;
-DROP PROCEDURE IF EXISTS sp_select_partition;
-DROP PROCEDURE IF EXISTS sp_select_range;
 CREATE PROCEDURE sp_insert(a INT, b CHAR(16))
 INSERT INTO test.t1 VALUES (a, b);
 CREATE PROCEDURE sp_insert_partition(p CHAR(16), a INT, b CHAR(16))
@@ -2434,6 +2474,7 @@ SET @str = CONCAT("INSERT INTO test.t1 PARTITION(", p, ") VALUES (?, ?)");
 SET @x = a, @y = b;
 PREPARE stmt FROM @str;
 EXECUTE stmt USING @x, @y;
+DEALLOCATE PREPARE stmt;
 END|
 CREATE PROCEDURE sp_select_all()
 SELECT * FROM test.t1;
@@ -2444,6 +2485,7 @@ BEGIN
 SET @str = CONCAT("SELECT * FROM test.t1 PARTITION(", p, ")");
 PREPARE stmt FROM @str;
 EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
 END|
 CREATE PROCEDURE sp_select_range(x INT, y INT)
 SELECT * FROM test.t1 WHERE a between x and y;
@@ -2866,6 +2908,9 @@ a	b
 4	First row, p4, t1.b:First row, p4
 #
 # Test triggers
+# Tables used in triggers cannot be pruned for locks.
+# Tables with triggers cannot be pruned for locks if
+# BEFORE INSERT/UPDATE trigger exists.
 #
 CREATE TABLE t3
 (old_a int,
@@ -3009,6 +3054,7 @@ VARIABLE_NAME	VARIABLE_VALUE
 HANDLER_COMMIT	1
 HANDLER_EXTERNAL_LOCK	52
 HANDLER_WRITE	17
+# No pruning possible, due to BEFORE UPDATE trigger
 # 52 locks (3 tables, 13 + 5 + 5 partition lock/unlock)
 # t1, before update, after update
 SELECT * FROM t1 WHERE a = 3;
@@ -3107,19 +3153,9 @@ INSERT INTO t2 VALUES (3, "First row, p3");
 CREATE TRIGGER t2_before_insert BEFORE INSERT
 ON t2 FOR EACH ROW
 SET NEW.a = NEW.a + 1;
-# Test that one cannot update a row in BEFORE UPDATE
-CREATE TRIGGER t2_before_update BEFORE UPDATE
-ON t2 FOR EACH ROW
-SET OLD.a = OLD.a - 1;
-ERROR HY000: Updating of OLD row is not allowed in trigger
 CREATE TRIGGER t2_before_update BEFORE UPDATE
 ON t2 FOR EACH ROW
 SET NEW.a = NEW.a - 1;
-# Test that one cannot update a row in BEFORE DELETE
-CREATE TRIGGER t2_before_delete BEFORE DELETE
-ON t2 FOR EACH ROW
-SET OLD.a = OLD.a - 1;
-ERROR HY000: Updating of OLD row is not allowed in trigger
 FLUSH STATUS;
 INSERT INTO t2 VALUES (1, "Second row, p1");
 SELECT * FROM INFORMATION_SCHEMA.SESSION_STATUS
@@ -3249,6 +3285,125 @@ HANDLER_WRITE	17
 SELECT @x;
 @x
 Five
+#
+# SET is not supported by WL#4443 !!!
+# Test of SET (eg. SELECT only setting an internal variable from
+# the returning value)
+#
+FLUSH STATUS;
+SET @x = (SELECT a FROM t1 WHERE a = 5);
+SELECT * FROM INFORMATION_SCHEMA.SESSION_STATUS
+WHERE VARIABLE_NAME LIKE 'HANDLER_%' AND VARIABLE_VALUE > 0;
+VARIABLE_NAME	VARIABLE_VALUE
+HANDLER_COMMIT	1
+HANDLER_EXTERNAL_LOCK	8
+HANDLER_READ_FIRST	1
+HANDLER_READ_KEY	1
+HANDLER_READ_RND_NEXT	3
+HANDLER_WRITE	17
+# 8 locks (1 table + 3 partitions lock/unlock)
+SELECT @x;
+@x
+5
+FLUSH STATUS;
+SET @y = (SELECT @x:= b FROM t1 WHERE a = 5);
+SELECT * FROM INFORMATION_SCHEMA.SESSION_STATUS
+WHERE VARIABLE_NAME LIKE 'HANDLER_%' AND VARIABLE_VALUE > 0;
+VARIABLE_NAME	VARIABLE_VALUE
+HANDLER_COMMIT	1
+HANDLER_EXTERNAL_LOCK	8
+HANDLER_READ_FIRST	1
+HANDLER_READ_KEY	1
+HANDLER_READ_RND_NEXT	3
+HANDLER_WRITE	17
+# 8 locks (1 table + 3 partitions lock/unlock)
+SELECT @x, @y;
+@x	@y
+Five	Five
+FLUSH STATUS;
+SET @y = (SELECT @x:= b FROM t1 WHERE a = 5 or a = 1 ORDER BY b LIMIT 1);
+SELECT * FROM INFORMATION_SCHEMA.SESSION_STATUS
+WHERE VARIABLE_NAME LIKE 'HANDLER_%' AND VARIABLE_VALUE > 0;
+VARIABLE_NAME	VARIABLE_VALUE
+HANDLER_COMMIT	1
+HANDLER_EXTERNAL_LOCK	8
+HANDLER_READ_FIRST	2
+HANDLER_READ_KEY	2
+HANDLER_READ_RND_NEXT	6
+HANDLER_WRITE	17
+# 8 locks (1 table + 3 partitions lock/unlock)
+SELECT @x, @y;
+@x	@y
+Five	Five
+#
+# LOAD DATA is not supported by WL#4443 !!!
+#
+FLUSH STATUS;
+SELECT * FROM t1 WHERE a IN (1, 4)
+INTO OUTFILE 'MYSQLTEST_VARDIR/tmp/t1.part1';
+SELECT * FROM INFORMATION_SCHEMA.SESSION_STATUS
+WHERE VARIABLE_NAME LIKE 'HANDLER_%' AND VARIABLE_VALUE > 0;
+VARIABLE_NAME	VARIABLE_VALUE
+HANDLER_COMMIT	1
+HANDLER_EXTERNAL_LOCK	4
+HANDLER_READ_FIRST	1
+HANDLER_READ_KEY	1
+HANDLER_READ_RND_NEXT	3
+HANDLER_WRITE	17
+# 4 locks (1 table + 1 partitions lock/unlock)
+DELETE FROM t1 WHERE a IN (1, 4);
+SELECT * FROM t1 ORDER BY a, b;
+a	b
+0	Zero
+2	Two
+3	Three
+5	Five
+6	Six
+FLUSH STATUS;
+LOAD DATA INFILE 'MYSQLTEST_VARDIR/tmp/t1.part1' INTO TABLE t1;
+SELECT * FROM INFORMATION_SCHEMA.SESSION_STATUS
+WHERE VARIABLE_NAME LIKE 'HANDLER_%' AND VARIABLE_VALUE > 0;
+VARIABLE_NAME	VARIABLE_VALUE
+HANDLER_COMMIT	1
+HANDLER_EXTERNAL_LOCK	8
+HANDLER_WRITE	19
+# 8 locks (1 table + 3 partitions lock/unlock)
+SELECT * FROM t1 ORDER BY a, b;
+a	b
+0	Zero
+1	One
+2	Two
+3	Three
+4	Four
+5	Five
+6	Six
+DELETE FROM t1 WHERE a IN (1, 4);
+SELECT * FROM t1 ORDER BY a, b;
+a	b
+0	Zero
+2	Two
+3	Three
+5	Five
+6	Six
+# It is possible to avoid locking with explicit partitioning selection!
+FLUSH STATUS;
+LOAD DATA INFILE 'MYSQLTEST_VARDIR/tmp/t1.part1' INTO TABLE t1 PARTITION(p1);
+SELECT * FROM INFORMATION_SCHEMA.SESSION_STATUS
+WHERE VARIABLE_NAME LIKE 'HANDLER_%' AND VARIABLE_VALUE > 0;
+VARIABLE_NAME	VARIABLE_VALUE
+HANDLER_COMMIT	1
+HANDLER_EXTERNAL_LOCK	4
+HANDLER_WRITE	19
+# 4 locks (1 table + 1 partitions lock/unlock)
+SELECT * FROM t1 ORDER BY a, b;
+a	b
+0	Zero
+1	One
+2	Two
+3	Three
+4	Four
+5	Five
+6	Six
 DROP TABLE t1;
 #
 # Test EXCHANGE PARTITION to only lock exchanged partition
@@ -3381,6 +3536,24 @@ HANDLER_READ_RND_NEXT	4
 HANDLER_WRITE	18
 # 12 locks (3 tables + 3 partitions) x lock/unlock
 # I.e. No lock pruning possible
+FLUSH STATUS;
+INSERT INTO t2 VALUES (1 + (SELECT a FROM t1),
+CONCAT("subq: ", (SELECT b FROM t1)));
+SELECT * FROM INFORMATION_SCHEMA.SESSION_STATUS
+WHERE VARIABLE_NAME LIKE 'HANDLER_%' AND VARIABLE_VALUE > 0;
+VARIABLE_NAME	VARIABLE_VALUE
+HANDLER_COMMIT	1
+HANDLER_EXTERNAL_LOCK	12
+HANDLER_READ_FIRST	2
+HANDLER_READ_KEY	2
+HANDLER_READ_RND_NEXT	4
+HANDLER_WRITE	18
+# 12 locks (3 tables + 3 partitions) x lock/unlock
+# I.e. No lock pruning possible
+SELECT * FROM t2;
+a	b
+1	test 1
+2	subq: test 1
 DROP TABLE t1, t2;
 CREATE TABLE t1 (a INT, b INT);
 CREATE TABLE t2 (a INT, b INT) PARTITION BY HASH (a) PARTITIONS 3;

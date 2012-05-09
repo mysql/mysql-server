@@ -137,8 +137,8 @@ FLUSH STATUS;
 INSERT INTO t1 PARTITION (pNeg, pNeg) VALUES (-1, "pNeg(-subp1)");
 eval $get_handler_status_counts;
 --echo # Should be 1 commit
---echo # 4 external locks (6 before WL#4443)
---echo # (1 ha_partition + 2 ha_innobase) x 2 (lock + unlock)
+--echo # 4 external locks (due to pruning of locks)
+--echo # (1 ha_partition + 1 ha_innobase) x 2 (lock + unlock)
 --echo # and 18 write (1 ha_innobase + 17 internal I_S write)
 INSERT INTO t1 PARTITION (pNeg, subp0) VALUES (-3, "pNeg(-subp1)");
 INSERT INTO t1 PARTITION (pNeg, subp0) VALUES (-2, "(pNeg-)subp0");

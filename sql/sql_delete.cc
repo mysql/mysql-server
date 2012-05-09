@@ -560,8 +560,8 @@ extern "C" int refpos_order_cmp(const void* arg, const void *a,const void *b)
   @param      thd          Thread context.
   @param[out] table_count  Number of tables to be deleted from.
 
-  @retval FALST - success.
-  @retval TRUE  - error.
+  @retval false - success.
+  @retval true  - error.
 */
 
 int mysql_multi_delete_prepare(THD *thd, uint *table_count)
