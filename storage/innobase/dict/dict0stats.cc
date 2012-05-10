@@ -429,6 +429,71 @@ dict_stats_analyze_index()
 @} */
 
 /*********************************************************************//**
+Close the stats tables. Should always be called after successful
+dict_stats_open(). It will free the dict_stats handle.
+dict_stats_close() @{ */
+UNIV_INLINE
+void
+dict_stats_close(
+/*=============*/
+	dict_stats_t*	dict_stats)	/*!< in/own: Handle to open
+					statistics tables */
+{
+	if (dict_stats->table_stats != NULL) {
+		dict_table_close(dict_stats->table_stats, FALSE, FALSE);
+		dict_stats->table_stats = NULL;
+	}
+
+	if (dict_stats->index_stats != NULL) {
+		dict_table_close(dict_stats->index_stats, FALSE, FALSE);
+		dict_stats->index_stats = NULL;
+	}
+
+	mem_free(dict_stats);
+}
+/* @} */
+
+/*********************************************************************//**
+Open stats tables to prevent these tables from being DROPped.
+Also check whether they have the correct structure. The caller
+must call dict_stats_close() when he has finished DMLing the tables.
+dict_stats_open() @{
+@return pointer to open tables or NULL on failure */
+UNIV_INLINE
+dict_stats_t*
+dict_stats_open(void)
+/*=================*/
+{
+	dict_stats_t*	dict_stats;
+
+	dict_stats = static_cast<dict_stats_t*>(
+		mem_zalloc(sizeof(*dict_stats)));
+
+	dict_stats->table_stats = dict_table_open_on_name(
+		TABLE_STATS_NAME, FALSE, FALSE, DICT_ERR_IGNORE_NONE);
+
+	dict_stats->index_stats = dict_table_open_on_name(
+		INDEX_STATS_NAME, FALSE, FALSE, DICT_ERR_IGNORE_NONE);
+
+	/* Check if the tables have the correct structure, if yes then
+	after this function we can safely DELETE from them without worrying
+	that they may get DROPped or DDLed because the open will have
+	increased the reference count. */
+
+	if (dict_stats->table_stats == NULL
+	    || dict_stats->index_stats == NULL
+	    || !dict_stats_persistent_storage_check(FALSE)) {
+
+		/* There was an error, close the tables and free the handle. */
+		dict_stats_close(dict_stats);
+		dict_stats = NULL;
+	}
+
+	return(dict_stats);
+}
+/* @} */
+
+/*********************************************************************//**
 Find the total number and the number of distinct keys on a given level in
 an index. Each of the 1..n_uniq prefixes are looked up and the results are
 saved in the array n_diff[]. Notice that n_diff[] must be able to store
@@ -1694,11 +1759,21 @@ dict_stats_save(
 {
 	char		database_name[MAX_DATABASE_NAME_LEN + 1];
 	char		table_name[MAX_TABLE_NAME_LEN + 1];
+	dict_stats_t*	dict_stats;
 	trx_t*		trx;
 	pars_info_t*	pinfo;
 	dict_index_t*	index;
 	lint		now;
 	dberr_t		ret;
+
+	/* Increment table reference count to prevent the tables from
+	being DROPped just before que_eval_sql(). */
+	dict_stats = dict_stats_open();
+
+	if (dict_stats == NULL) {
+		/* stats tables do not exist or have unexpected structure */
+		return(DB_SUCCESS);
+	}
 
 	/* Copy database and table name under dict_sys mutex because
 	RENAME TABLE does memcpy() over table->name under the same mutex
@@ -1789,6 +1864,7 @@ do { \
 			" InnoDB: Cannot save table statistics for table "
 			"%s.%s: %s\n",
 			database_name, table_name, ut_strerr(ret));
+		dict_stats_close(dict_stats);
 		return(ret);
 	}
 
@@ -1809,6 +1885,7 @@ do { \
 						 "in the index",
 						 caller_has_dict_sys_mutex);
 		if (ret != DB_SUCCESS) {
+			dict_stats_close(dict_stats);
 			return(ret);
 		}
 
@@ -1820,6 +1897,7 @@ do { \
 						 "in the index",
 						 caller_has_dict_sys_mutex);
 		if (ret != DB_SUCCESS) {
+			dict_stats_close(dict_stats);
 			return(ret);
 		}
 
@@ -1867,10 +1945,13 @@ do { \
 				caller_has_dict_sys_mutex);
 
 			if (ret != DB_SUCCESS) {
+				dict_stats_close(dict_stats);
 				return(ret);
 			}
 		}
 	}
+
+	dict_stats_close(dict_stats);
 
 	return(DB_SUCCESS);
 }
@@ -2586,71 +2667,6 @@ transient:
 /* @} */
 
 /*********************************************************************//**
-Close the stats tables. Should always be called after successful
-dict_stats_open(). It will free the dict_stats handle.
-dict_stats_close() @{ */
-UNIV_INLINE
-void
-dict_stats_close(
-/*=============*/
-	dict_stats_t*	dict_stats)	/*!< in/own: Handle to open
-					statistics tables */
-{
-	if (dict_stats->table_stats != NULL) {
-		dict_table_close(dict_stats->table_stats, FALSE, FALSE);
-		dict_stats->table_stats = NULL;
-	}
-
-	if (dict_stats->index_stats != NULL) {
-		dict_table_close(dict_stats->index_stats, FALSE, FALSE);
-		dict_stats->index_stats = NULL;
-	}
-
-	mem_free(dict_stats);
-}
-/* @} */
-
-/*********************************************************************//**
-Open stats tables to prevent these tables from being DROPped.
-Also check whether they have the correct structure. The caller
-must call dict_stats_close() when he has finished DMLing the tables.
-dict_stats_open() @{
-@return pointer to open tables or NULL on failure */
-UNIV_INLINE
-dict_stats_t*
-dict_stats_open(void)
-/*=================*/
-{
-	dict_stats_t*	dict_stats;
-
-	dict_stats = static_cast<dict_stats_t*>(
-		mem_zalloc(sizeof(*dict_stats)));
-
-	dict_stats->table_stats = dict_table_open_on_name(
-		TABLE_STATS_NAME, FALSE, FALSE, DICT_ERR_IGNORE_NONE);
-
-	dict_stats->index_stats = dict_table_open_on_name(
-		INDEX_STATS_NAME, FALSE, FALSE, DICT_ERR_IGNORE_NONE);
-
-	/* Check if the tables have the correct structure, if yes then
-	after this function we can safely DELETE from them without worrying
-	that they may get DROPped or DDLed because the open will have
-	increased the reference count. */
-
-	if (dict_stats->table_stats == NULL
-	    || dict_stats->index_stats == NULL
-	    || !dict_stats_persistent_storage_check(FALSE)) {
-
-		/* There was an error, close the tables and free the handle. */
-		dict_stats_close(dict_stats);
-		dict_stats = NULL;
-	}
-
-	return(dict_stats);
-}
-/* @} */
-
-/*********************************************************************//**
 Removes the information for a particular index's stats from the persistent
 storage if it exists and if there is data stored for this index.
 The transaction is not committed, it must not be committed in this
@@ -2889,6 +2905,78 @@ dict_stats_delete_table_stats(
 
 	dict_stats_close(dict_stats);
 
+	return(ret);
+}
+/* @} */
+
+/*********************************************************************//**
+Renames a table in InnoDB persistent stats storage.
+This function creates its own transaction and commits it.
+dict_stats_rename_table() @{
+@return DB_SUCCESS or error code */
+UNIV_INTERN
+dberr_t
+dict_stats_rename_table(
+/*====================*/
+	const char*	old_name,	/*!< in: old table name */
+	const char*	new_name,	/*!< in: new table name */
+	char*		errstr,		/*!< out: error string if != DB_SUCCESS
+					is returned */
+	size_t		errstr_sz)	/*!< in: errstr size */
+{
+	char	old_buf[MAX_FULL_NAME_LEN];
+	char	new_buf[MAX_FULL_NAME_LEN];
+	dberr_t	ret;
+
+	ut_ad(!mutex_own(&dict_sys->mutex));
+
+	ret = dict_stats_delete_table_stats(old_name, errstr, errstr_sz);
+
+	if (ret != DB_SUCCESS) {
+		size_t	len = strlen(errstr);
+		if (errstr_sz > len + 40) {
+			ut_snprintf(
+				errstr + len,
+				errstr_sz - len,
+				" (during rename from %s to %s)",
+				ut_format_name(old_name, TRUE,
+					       old_buf, sizeof(old_buf)),
+				ut_format_name(new_name, TRUE,
+					       new_buf, sizeof(new_buf)));
+		}
+		return(ret);
+	}
+
+	dict_table_t*	table;
+
+	table = dict_table_open_on_name(new_name, FALSE, FALSE,
+					DICT_ERR_IGNORE_NONE);
+
+	if (table == NULL) {
+		ut_format_name(new_name, TRUE, new_buf, sizeof(new_buf));
+		ut_snprintf(errstr, errstr_sz,
+			    "During rename from %s to %s: "
+			    "%s not found",
+			    ut_format_name(old_name, TRUE,
+					   old_buf, sizeof(old_buf)),
+			    new_buf, new_buf);
+		return(DB_TABLE_NOT_FOUND);
+	}
+
+	ret = dict_stats_save(table, FALSE);
+
+	dict_table_close(table, FALSE, FALSE);
+
+	if (ret != DB_SUCCESS) {
+		ut_format_name(new_name, TRUE, new_buf, sizeof(new_buf));
+		ut_snprintf(errstr, errstr_sz,
+			    "During rename from %s to %s: "
+			    "Failed to save the statistics for %s",
+			    ut_format_name(old_name, TRUE,
+					   old_buf, sizeof(old_buf)),
+			    new_buf, new_buf);
+	}
+ 
 	return(ret);
 }
 /* @} */

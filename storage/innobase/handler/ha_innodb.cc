@@ -9674,6 +9674,24 @@ ha_innobase::rename_table(
 	innobase_commit_low(trx);
 	trx_free_for_mysql(trx);
 
+	if (error == DB_SUCCESS) {
+		char	norm_from[MAX_FULL_NAME_LEN];
+		char	norm_to[MAX_FULL_NAME_LEN];
+		char	errstr[512];
+		dberr_t	ret;
+
+		normalize_table_name(norm_from, from);
+		normalize_table_name(norm_to, to);
+
+		ret = dict_stats_rename_table(norm_from, norm_to,
+					      errstr, sizeof(errstr));
+
+		if (ret != DB_SUCCESS) {
+			push_warning(thd, Sql_condition::WARN_LEVEL_WARN,
+				     ER_LOCK_WAIT_TIMEOUT, errstr);
+		}
+	}
+
 	/* Add a special case to handle the Duplicated Key error
 	and return DB_ERROR instead.
 	This is to avoid a possible SIGSEGV error from mysql error
