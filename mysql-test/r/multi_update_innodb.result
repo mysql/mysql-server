@@ -67,3 +67,22 @@ SELECT * FROM t2;
 col_int_key	pk_1	pk_2	col_int
 1	2	3	4
 DROP TABLE t1,t2;
+#
+#Bug 11757486 - 49539: NON-DESCRIPTIVE ERR (ERROR 0 FROM STORAGE ENGINE)
+#                      WITH MULTI-TABLE UPDATE
+#
+CREATE TABLE table_11757486 (field1 tinyint) ENGINE=INNODB;
+INSERT INTO table_11757486 VALUES (0),(0);
+SET SESSION SQL_MODE='STRICT_ALL_TABLES';
+UPDATE IGNORE (SELECT 128 as col1) x, table_11757486 SET field1=x.col1;
+Warnings:
+Warning	1264	Out of range value for column 'field1' at row 1
+Warning	1264	Out of range value for column 'field1' at row 2
+UPDATE (SELECT 128 as col1) x, table_11757486 SET field1=x.col1;
+ERROR 22003: Out of range value for column 'field1' at row 1
+SET SESSION SQL_MODE='';
+UPDATE IGNORE (SELECT 128 as col1) x, table_11757486 SET field1=x.col1;
+Warnings:
+Warning	1264	Out of range value for column 'field1' at row 1
+Warning	1264	Out of range value for column 'field1' at row 2
+DROP TABLE table_11757486;
