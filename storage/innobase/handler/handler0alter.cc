@@ -1183,13 +1183,21 @@ public:
 		drop (drop_arg), num_to_drop (num_to_drop_arg),
 		drop_fk (drop_fk_arg), num_to_drop_fk (num_to_drop_fk_arg),
 		online (online_arg), heap (heap_arg), trx (trx_arg),
-		indexed_table (indexed_table_arg) {}
+		indexed_table (indexed_table_arg) {
+#ifdef UNIV_DEBUG
+		for (ulint i = 0; i < num_to_add; i++) {
+			ut_ad(!add[i]->to_be_dropped);
+		}
+		for (ulint i = 0; i < num_to_drop; i++) {
+			ut_ad(drop[i]->to_be_dropped);
+		}
+#endif /* UNIV_DEBUG */
+	}
 	~ha_innobase_inplace_ctx() {
 		mem_heap_free(heap);
 	}
 };
 
-#if 1 /* TODO: enable this in WL#6049 (MDL for FK lookups) */
 /*******************************************************************//**
 Check if a foreign key constraint can make use of an index
 that is being created.
@@ -1245,7 +1253,6 @@ no_match:
 
 	return(NULL);
 }
-#endif
 
 /********************************************************************//**
 Drop any indexes that we were not able to free previously due to
@@ -1909,6 +1916,14 @@ ha_innobase::prepare_inplace_alter_table(
 
 	MONITOR_ATOMIC_INC(MONITOR_PENDING_ALTER_TABLE);
 
+#ifdef UNIV_DEBUG
+	for (dict_index_t* index = dict_table_get_first_index(prebuilt->table);
+	     index;
+	     index = dict_table_get_next_index(index)) {
+		ut_ad(!index->to_be_dropped);
+	}
+#endif /* UNIV_DEBUG */
+
 	if (!(ha_alter_info->handler_flags & ~INNOBASE_INPLACE_IGNORE)) {
 		/* Nothing to do */
 		goto func_exit;
@@ -2088,7 +2103,7 @@ found_fk:
 		DBUG_ASSERT(ha_alter_info->handler_flags
 			    & (Alter_inplace_info::DROP_INDEX
 			       | Alter_inplace_info::DROP_UNIQUE_INDEX));
-		/* check which indexes to drop */
+		/* Check which indexes to drop. */
 		if (!heap) {
 			heap = mem_heap_create(1024);
 		}
@@ -2096,6 +2111,7 @@ found_fk:
 			mem_heap_alloc(
 				heap, (ha_alter_info->index_drop_count + 1)
 				* sizeof *drop_index));
+
 		for (uint i = 0; i < ha_alter_info->index_drop_count; i++) {
 			const KEY*	key
 				= ha_alter_info->index_drop_buffer[i];
@@ -2114,6 +2130,7 @@ found_fk:
 				my_error(ER_REQUIRES_PRIMARY_KEY, MYF(0));
 				goto err_exit;
 			} else {
+				ut_ad(!index->to_be_dropped);
 				drop_index[n_drop_index++] = index;
 			}
 		}
@@ -2132,6 +2149,7 @@ found_fk:
 			if fulltext indexes exist, unless the MySQL
 			and InnoDB data dictionaries are out of sync. */
 			DBUG_ASSERT(fts_doc_index != NULL);
+			DBUG_ASSERT(!fts_doc_index->to_be_dropped);
 
 			// Add some fault tolerance for non-debug builds.
 			if (fts_doc_index == NULL) {
@@ -2155,12 +2173,18 @@ found_fk:
 		}
 
 check_if_can_drop_indexes:
-		/* Check if the indexes can be dropped */
+		/* Check if the indexes can be dropped. */
+
+		/* Prevent a race condition between DROP INDEX and
+		CREATE TABLE adding FOREIGN KEY constraints. */
+		row_mysql_lock_data_dictionary(prebuilt->trx);
 
 		if (prebuilt->trx->check_foreigns) {
 			for (uint i = 0; i < n_drop_index; i++) {
 				dict_index_t*	index = drop_index[i];
 				dict_foreign_t*	foreign;
+
+				ut_ad(!index->to_be_dropped);
 
 				/* Check if the index is referenced. */
 				foreign = dict_table_get_referenced_constraint(
@@ -2170,7 +2194,6 @@ check_if_can_drop_indexes:
 				      == foreign->referenced_table);
 
 				if (foreign
-#if 1 /* TODO: enable this in WL#6049 (MDL for FK lookups) */
 				    && !dict_foreign_find_index(
 					    indexed_table,
 					    foreign->referenced_col_names,
@@ -2183,12 +2206,13 @@ check_if_can_drop_indexes:
 					    ha_alter_info->key_info_buffer,
 					    ha_alter_info->index_add_buffer,
 					    ha_alter_info->index_add_count)
-#endif
 				    ) {
 index_needed:
 					prebuilt->trx->error_info = index;
 					print_error(HA_ERR_DROP_INDEX_FK,
 						    MYF(0));
+					row_mysql_unlock_data_dictionary(
+						prebuilt->trx);
 					goto err_exit;
 				}
 
@@ -2203,7 +2227,6 @@ index_needed:
 				if (foreign
 				    && !innobase_dropping_foreign(
 					    foreign, drop_fk, n_drop_fk)
-#if 1 /* TODO: enable this in WL#6049 (MDL for FK lookups) */
 				    && !dict_foreign_find_index(
 					    indexed_table,
 					    foreign->foreign_col_names,
@@ -2216,12 +2239,19 @@ index_needed:
 					    ha_alter_info->key_info_buffer,
 					    ha_alter_info->index_add_buffer,
 					    ha_alter_info->index_add_count)
-#endif
 				    ) {
 					goto index_needed;
 				}
 			}
 		}
+
+		/* Flag all indexes that are to be dropped. */
+		for (ulint i = 0; i < n_drop_index; i++) {
+			ut_ad(!drop_index[i]->to_be_dropped);
+			drop_index[i]->to_be_dropped = 1;
+		}
+
+		row_mysql_unlock_data_dictionary(prebuilt->trx);
 	} else {
 		drop_index = NULL;
 	}
@@ -2350,6 +2380,8 @@ ha_innobase::inplace_alter_table(
 #endif /* UNIV_SYNC_DEBUG */
 
 	if (!(ha_alter_info->handler_flags & INNOBASE_INPLACE_CREATE)) {
+ok_exit:
+		DEBUG_SYNC(user_thd, "innodb_after_inplace_alter_table");
 		DBUG_RETURN(false);
 	}
 
@@ -2394,8 +2426,7 @@ oom:
 		happens to be executing on this very table. */
 		DBUG_ASSERT(ctx->indexed_table == prebuilt->table
 			    || prebuilt->table->n_ref_count - 1 <= 1);
-		DEBUG_SYNC(user_thd, "innodb_after_inplace_alter_table");
-		DBUG_RETURN(false);
+		goto ok_exit;
 	case DB_DUPLICATE_KEY:
 		if (prebuilt->trx->error_key_num == ULINT_UNDEFINED) {
 			/* This should be the hidden index on FTS_DOC_ID. */
@@ -2502,6 +2533,18 @@ rollback_inplace_alter_table(
 	trx_free_for_mysql(ctx->trx);
 
 func_exit:
+	if (ctx && prebuilt->table == ctx->indexed_table) {
+		/* Clear the to_be_dropped flag in the data dictionary. */
+		for (ulint i = 0; i < ctx->num_to_drop; i++) {
+			dict_index_t*	index = ctx->drop[i];
+			DBUG_ASSERT(*index->name != TEMP_INDEX_PREFIX);
+			DBUG_ASSERT(index->table == prebuilt->table);
+			DBUG_ASSERT(index->to_be_dropped);
+
+			index->to_be_dropped = 0;
+		}
+	}
+
 	trx_commit_for_mysql(prebuilt->trx);
 	srv_active_wake_master_thread();
 	MONITOR_ATOMIC_DEC(MONITOR_PENDING_ALTER_TABLE);
@@ -2900,6 +2943,7 @@ ha_innobase::commit_inplace_alter_table(
 			dict_index_t*	index = ctx->drop[i];
 			DBUG_ASSERT(*index->name != TEMP_INDEX_PREFIX);
 			DBUG_ASSERT(index->table == prebuilt->table);
+			DBUG_ASSERT(index->to_be_dropped);
 
 			error = row_merge_rename_index_to_drop(
 				trx, index->table->id, index->id);
@@ -3009,6 +3053,7 @@ trx_commit:
 				dict_index_t*	index = ctx->drop[i];
 				DBUG_ASSERT(*index->name != TEMP_INDEX_PREFIX);
 				DBUG_ASSERT(index->table == prebuilt->table);
+				DBUG_ASSERT(index->to_be_dropped);
 
 				/* Replace the indexes in foreign key
 				constraints if needed. */
@@ -3046,6 +3091,14 @@ trx_commit:
 
 		ut_d(dict_table_check_for_dup_indexes(
 			     prebuilt->table, CHECK_ALL_COMPLETE));
+#ifdef UNIV_DEBUG
+		for (dict_index_t* index = dict_table_get_first_index(
+			     prebuilt->table);
+		     index;
+		     index = dict_table_get_next_index(index)) {
+			ut_ad(!index->to_be_dropped);
+		}
+#endif /* UNIV_DEBUG */
 		DBUG_ASSERT(new_clustered == !prebuilt->trx);
 
 		if (add_fts) {

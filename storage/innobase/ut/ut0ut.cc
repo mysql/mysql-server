@@ -789,6 +789,8 @@ ut_strerr(
 		return("Undo record too big");
 	case DB_END_OF_INDEX:
 		return("End of index");
+	case DB_TABLE_IN_FK_CHECK:
+		return("Table is being used in foreign key check");
 	case DB_DATA_MISMATCH:
 		return("data mismatch");
 	case DB_SCHEMA_NOT_LOCKED:
