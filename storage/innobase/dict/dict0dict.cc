@@ -3051,12 +3051,15 @@ dict_foreign_find_index(
 {
 	dict_index_t*	index;
 
+	ut_ad(mutex_own(&dict_sys->mutex));
+
 	index = dict_table_get_first_index(table);
 
 	while (index != NULL) {
 		/* Ignore matches that refer to the same instance
 		(or the index is to be dropped) */
-		if (types_idx == index || index->type & DICT_FTS) {
+		if (types_idx == index || index->type & DICT_FTS
+		    || index->to_be_dropped) {
 
 			goto next_rec;
 
@@ -5581,7 +5584,6 @@ dict_table_get_index_on_name(
 
 }
 
-#if 1 /* TODO: enable this in WL#6049 (MDL for FK lookups) */
 /**********************************************************************//**
 Replace the index passed in with another equivalent index in the
 foreign key lists of the table. */
@@ -5594,6 +5596,8 @@ dict_foreign_replace_index(
 	const trx_t*		trx)	/*!< in: transaction handle */
 {
 	dict_foreign_t*	foreign;
+
+	ut_ad(index->to_be_dropped);
 
 	for (foreign = UT_LIST_GET_FIRST(table->foreign_list);
 	     foreign;
@@ -5613,6 +5617,7 @@ dict_foreign_replace_index(
 			since this must have been checked earlier. */
 			ut_a(new_index || !trx->check_foreigns);
 			ut_ad(!new_index || new_index->table == index->table);
+			ut_ad(!new_index || !new_index->to_be_dropped);
 
 			foreign->foreign_index = new_index;
 		}
@@ -5636,12 +5641,12 @@ dict_foreign_replace_index(
 			since this must have been checked earlier. */
 			ut_a(new_index || !trx->check_foreigns);
 			ut_ad(!new_index || new_index->table == index->table);
+			ut_ad(!new_index || !new_index->to_be_dropped);
 
 			foreign->referenced_index = new_index;
 		}
 	}
 }
-#endif
 
 /**********************************************************************//**
 In case there is more than one index with the same name return the index
