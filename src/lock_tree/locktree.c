@@ -572,6 +572,13 @@ lt_rt_dominates(toku_lock_tree* tree, toku_interval* query, toku_range_tree* rt,
 
 #if TOKU_LT_USE_BORDERWRITE
 
+static inline bool 
+interval_strictly_internal(toku_interval* query, toku_interval* to) {
+    assert(query && to);
+    return (bool)(toku_lt_point_cmp(query->left,  to->left) > 0 &&
+                  toku_lt_point_cmp(query->right, to->right) < 0);
+}
+
 typedef enum {TOKU_NO_CONFLICT, TOKU_MAYBE_CONFLICT, TOKU_YES_CONFLICT} toku_conflict;
 
 /*
@@ -580,9 +587,12 @@ typedef enum {TOKU_NO_CONFLICT, TOKU_MAYBE_CONFLICT, TOKU_YES_CONFLICT} toku_con
     If >= 2 ranges overlap the query then, by definition of borderwrite,
     at least one overlapping regions must not be 'self'. Design document
     explains why this MUST cause a conflict.
-    If exactly one range overlaps and its data == self, there is no conflict.
-    If exactly one range overlaps and its data != self, there might be a
-    conflict.  We need to check the 'peer'write table to verify.
+    If exactly one border_range overlaps and its data == self, there is no conflict.
+    If exactly one border_range overlaps and its data != self:
+     - If the query range overlaps one of the endpoints of border_range,
+       there must be a conflict
+     - Otherwise (query range is strictly internal to border_range),
+       we need to check the 'peer'write table to determine if there is a conflict or not.
 */
 static inline int 
 lt_borderwrite_conflict(toku_lock_tree* tree, TXNID self,
@@ -602,13 +612,28 @@ lt_borderwrite_conflict(toku_lock_tree* tree, TXNID self,
     if (r != 0) 
         return r;
     assert(numfound <= query_size);
-    if (numfound == 2) 
-        *conflict = TOKU_YES_CONFLICT;
-    else if (numfound == 0 || !lt_txn_cmp(buf[0].data, self)) 
+    if (numfound == 0)
         *conflict = TOKU_NO_CONFLICT;
+    else if (numfound == 1) {
+        toku_interval* border_range = &buf[0].ends;
+        TXNID border_txn = buf[0].data;
+        if (!lt_txn_cmp(border_txn, self))
+            *conflict = TOKU_NO_CONFLICT;
+        else if (interval_strictly_internal(query, border_range)) {
+            // Only the end-points of border_range are known to be locked.
+            // We need to look at the self_write tree to determine
+            // if there is a conflict or not.
+            *conflict = TOKU_MAYBE_CONFLICT;
+            *peer = border_txn;
+        }
+        else
+            *conflict = TOKU_YES_CONFLICT;
+    }
     else {
-        *conflict = TOKU_MAYBE_CONFLICT;
-        *peer = buf[0].data;
+        // query overlaps >= 2 border ranges and therefore overlaps end points
+        // of >= 2 border_ranges with different transactions (at least one must
+        // conflict).
+        *conflict = TOKU_YES_CONFLICT;
     }
     return 0;
 }
@@ -646,35 +671,6 @@ lt_meets(toku_lock_tree* tree, toku_interval* query, toku_range_tree* rt, bool* 
     return 0;
 }
 
-/* 
-    Determines whether 'query' meets 'rt' at txn2 not equal to txn.
-    This function supports all range trees, but queries must either be a single point,
-    or the range tree is homogenous.
-    Uses the standard definition of 'query' meets 'tree' at 'data' from the
-    design document.
-*/
-static inline int 
-lt_meets_peer(toku_lock_tree* tree, toku_interval* query, 
-              toku_range_tree* rt, bool is_homogenous,
-              TXNID self, bool* met) {
-    assert(tree && query && rt && met);
-    assert(query->left == query->right || is_homogenous);
-
-    const uint32_t query_size = is_homogenous ? 1 : 2;
-    toku_range   buffer[2];
-    uint32_t     buflen     = query_size;
-    toku_range*  buf        = &buffer[0];
-    uint32_t     numfound;
-    int          r;
-
-    r = toku_rt_find(rt, query, query_size, &buf, &buflen, &numfound);
-    if (r != 0) 
-        return r;
-    assert(numfound <= query_size);
-    *met = (bool) (numfound == 2 || (numfound == 1 && lt_txn_cmp(buf[0].data, self)));
-    return 0;
-}
-
 /* Checks for if a write range conflicts with reads.
    Supports ranges. */
 static inline int 
@@ -686,7 +682,7 @@ lt_write_range_conflicts_reads(toku_lock_tree* tree, TXNID txn, toku_interval* q
     
     while ((forest = toku_rth_next(tree->rth)) != NULL) {
         if (forest->self_read != NULL && lt_txn_cmp(forest->hash_key, txn)) {
-            r = lt_meets_peer(tree, query, forest->self_read, TRUE, txn, &met);
+            r = lt_meets(tree, query, forest->self_read, &met);
             if (r != 0)
                 goto cleanup;
             if (met)  { 
@@ -710,7 +706,7 @@ lt_write_range_conflicts_writes(toku_lock_tree* tree, TXNID txn, toku_interval* 
     
     while ((forest = toku_rth_next(tree->rth)) != NULL) {
         if (forest->self_write != NULL && lt_txn_cmp(forest->hash_key, txn)) {
-            r = lt_meets_peer(tree, query, forest->self_write, TRUE, txn, &met);
+            r = lt_meets(tree, query, forest->self_write, &met);
             if (r != 0) 
                 goto cleanup;
             if (met)  { 
@@ -752,10 +748,10 @@ lt_check_borderwrite_conflict(toku_lock_tree* tree, TXNID txn, toku_interval* qu
             return r;
         conflict = met ? TOKU_YES_CONFLICT : TOKU_NO_CONFLICT;
     }
-    if (conflict == TOKU_YES_CONFLICT) 
-        return DB_LOCK_NOTGRANTED;
-    assert(conflict == TOKU_NO_CONFLICT);
-    return 0;
+    if (conflict == TOKU_NO_CONFLICT) 
+        return 0;
+    assert(conflict == TOKU_YES_CONFLICT);
+    return DB_LOCK_NOTGRANTED;
 #else
     int r = lt_write_range_conflicts_writes(tree, txn, query);
     return r;
@@ -2551,7 +2547,8 @@ find_read_conflicts(toku_lock_tree *tree, toku_interval *query, TXNID id, txnid_
     while ((forest = toku_rth_next(tree->rth)) != NULL) {
         if (forest->self_read != NULL && lt_txn_cmp(forest->hash_key, id)) {
             numfound = 0;
-            int r = toku_rt_find(forest->self_read, query, 0, range_ptr, n_expected_ranges_ptr, &numfound);
+            // All ranges in a self_read tree have the same txn
+            int r = toku_rt_find(forest->self_read, query, 1, range_ptr, n_expected_ranges_ptr, &numfound);
             if (r == 0)
                 add_conflicts(conflicts, *range_ptr, numfound, id);
         }
@@ -2585,11 +2582,28 @@ toku_lt_get_lock_request_conflicts(toku_lock_tree *tree, toku_lock_request *lock
     uint32_t numfound = 0;
     r = toku_rt_find(tree->borderwrite, &query, 0, &ranges, &n_expected_ranges, &numfound);
     if (r == 0) {
-        for (uint32_t i = 0; i < numfound; i++) 
-            if (ranges[i].data != lock_request->txnid)
-                txnid_set_add(conflicts, ranges[i].data);
+        bool false_positive = false;
+        if (numfound == 1 && interval_strictly_internal(&query, &ranges[0].ends)) {
+            toku_range_tree* peer_selfwrite = toku_lt_ifexist_selfwrite(tree, ranges[0].data);
+            if (!peer_selfwrite) {
+                r = lt_panic(tree, TOKU_LT_INCONSISTENT);
+                goto cleanup;
+            }
+
+            bool met;
+            r = lt_meets(tree, &query, peer_selfwrite, &met);
+            if (r != 0)   
+                goto cleanup;
+            false_positive = !met;
+        }
+        if (!false_positive) {
+            for (uint32_t i = 0; i < numfound; i++) 
+                if (ranges[i].data != lock_request->txnid)
+                    txnid_set_add(conflicts, ranges[i].data);
+        }
     }
 
+cleanup:
     if (ranges) 
         toku_free(ranges);
 

@@ -1,5 +1,5 @@
 // T(A) gets R(TABLE)
-// T(B) gets R(TABLE)
+// T(B) gets R(L)
 // T(C) trys W(L) blocked
 // T(C) gets conflicts { A, B }
 // T(A) releases locks
@@ -57,52 +57,24 @@ int main(int argc, const char *argv[]) {
 
     const TXNID txn_a = 1;
     toku_lock_request a_r_t; toku_lock_request_init(&a_r_t, txn_a, toku_lt_neg_infinity, toku_lt_infinity, LOCK_REQUEST_READ);
-    r = toku_lock_request_start(&a_r_t, lt, false); assert(r == 0); 
-    assert(a_r_t.state == LOCK_REQUEST_COMPLETE && a_r_t.complete_r == 0);
-    txnid_set_init(&conflicts);
-    r = toku_lt_get_lock_request_conflicts(lt, &a_r_t, &conflicts);
-    assert(r == 0);
-    assert(txnid_set_size(&conflicts) == 0);
-    txnid_set_destroy(&conflicts);
-    toku_lock_request_destroy(&a_r_t);
+
+    do_request_and_succeed(lt, &a_r_t);
 
     const TXNID txn_b = 2;
-    toku_lock_request b_r_l; toku_lock_request_init(&b_r_l, txn_b, &key_l, &key_l, LOCK_REQUEST_READ);
-    r = toku_lock_request_start(&b_r_l, lt, false); assert(r == 0); 
-    assert(b_r_l.state == LOCK_REQUEST_COMPLETE && b_r_l.complete_r == 0);
-    txnid_set_init(&conflicts);
-    r = toku_lt_get_lock_request_conflicts(lt, &b_r_l, &conflicts);
-    assert(r == 0);
-    assert(txnid_set_size(&conflicts) == 0);
-    txnid_set_destroy(&conflicts);
-    toku_lock_request_destroy(&b_r_l);
+    READ_REQUEST(b, l);
+    do_request_and_succeed(lt, &b_r_l);
 
     const TXNID txn_c = 3;
-    toku_lock_request c_w_l; toku_lock_request_init(&c_w_l, txn_c, &key_l, &key_l, LOCK_REQUEST_WRITE);
-    r = toku_lock_request_start(&c_w_l, lt, false); assert(r != 0); 
-    assert(c_w_l.state == LOCK_REQUEST_PENDING);
-
-    txnid_set_init(&conflicts);
-    r = toku_lt_get_lock_request_conflicts(lt, &c_w_l, &conflicts);
-    assert(r == 0);
-    assert(txnid_set_size(&conflicts) == 2);
-    sortit(&conflicts);
-    assert(txnid_set_get(&conflicts, 0) == txn_a);
-    assert(txnid_set_get(&conflicts, 1) == txn_b);
-    txnid_set_destroy(&conflicts);
+    WRITE_REQUEST(c, l);
+    do_request_that_blocks(lt, &c_w_l, 2, (TXNID[]){ txn_a, txn_b });
 
     r = toku_lt_unlock_txn(lt, txn_a); assert(r == 0);
-    assert(c_w_l.state == LOCK_REQUEST_PENDING);
-    txnid_set_init(&conflicts);
-    r = toku_lt_get_lock_request_conflicts(lt, &c_w_l, &conflicts);
-    assert(r == 0);
-    assert(txnid_set_size(&conflicts) == 1);
-    assert(txnid_set_get(&conflicts, 0) == txn_b);
-    txnid_set_destroy(&conflicts);
+    request_still_blocked(lt, &c_w_l, 1, (TXNID[]){ txn_b });
 
     r = toku_lt_unlock_txn(lt, txn_b); assert(r == 0);
-    assert(c_w_l.state == LOCK_REQUEST_COMPLETE && c_w_l.complete_r == 0);
-    toku_lock_request_destroy(&c_w_l);
+
+    verify_and_clean_finished_request(lt, &c_w_l);
+
     r = toku_lt_unlock_txn(lt, txn_c); assert(r == 0);
 
     // shutdown 
