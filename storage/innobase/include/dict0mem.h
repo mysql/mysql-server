@@ -486,6 +486,8 @@ struct dict_index_struct{
 	unsigned	n_nullable:10;/*!< number of nullable fields */
 	unsigned	cached:1;/*!< TRUE if the index object is in the
 				dictionary cache */
+	unsigned	to_be_dropped:1;
+				/*!< TRUE if the index is to be dropped */
 	unsigned	online_status:2;
 				/*!< enum online_index_status */
 	dict_field_t*	fields;	/*!< array of field descriptions */
