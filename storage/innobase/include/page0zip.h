@@ -335,11 +335,12 @@ UNIV_INTERN
 void
 page_zip_dir_delete(
 /*================*/
-	page_zip_des_t*	page_zip,/*!< in/out: compressed page */
-	byte*		rec,	/*!< in: deleted record */
-	dict_index_t*	index,	/*!< in: index of rec */
-	const ulint*	offsets,/*!< in: rec_get_offsets(rec) */
-	const byte*	free)	/*!< in: previous start of the free list */
+	page_zip_des_t*		page_zip,	/*!< in/out: compressed page */
+	byte*			rec,		/*!< in: deleted record */
+	const dict_index_t*	index,		/*!< in: index of rec */
+	const ulint*		offsets,	/*!< in: rec_get_offsets(rec) */
+	const byte*		free)		/*!< in: previous start of
+						the free list */
 	__attribute__((nonnull(1,2,3,4)));
 
 /**********************************************************************//**
