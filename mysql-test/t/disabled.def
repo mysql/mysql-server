@@ -19,3 +19,4 @@ partition_locking_4	 : Bug#13924750 2012-04-04 lost connection.
 mysql_embedded_client_test	: Bug#13964673 2012-04-16 amitbha since most of the test cases are failing
 ssl_crl                    : Bug#14006448 2012-04-26 bernt
 ssl_crl_clrpath            : Bug#14006448 2012-04-26 bernt
+ssl_crl_clients_valid      : Bug#14006448 2012-05-09 bernt
