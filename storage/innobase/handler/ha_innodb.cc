@@ -4613,8 +4613,7 @@ table_opened:
 	dict_stats_init(
 		ib_table,
 		table->s->db_create_options & HA_OPTION_STATS_PERSISTENT,
-		table->s->db_create_options & HA_OPTION_NO_STATS_PERSISTENT,
-		FALSE  /* dict not locked */);
+		table->s->db_create_options & HA_OPTION_NO_STATS_PERSISTENT);
 
 	MONITOR_INC(MONITOR_TABLE_OPEN);
 
@@ -4818,6 +4817,31 @@ table_opened:
 	info(HA_STATUS_NO_LOCK | HA_STATUS_VARIABLE | HA_STATUS_CONST);
 
 	DBUG_RETURN(0);
+}
+
+UNIV_INTERN
+handler*
+ha_innobase::clone(
+/*===============*/
+	const char*	name,		/*!< in: table name */
+	MEM_ROOT*	mem_root)	/*!< in: memory context */
+{
+	ha_innobase* new_handler;
+
+	DBUG_ENTER("ha_innobase::clone");
+
+	new_handler = static_cast<ha_innobase*>(handler::clone(name,
+							       mem_root));
+	if (new_handler) {
+		DBUG_ASSERT(new_handler->prebuilt != NULL);
+		DBUG_ASSERT(new_handler->user_thd == user_thd);
+		DBUG_ASSERT(new_handler->prebuilt->trx == prebuilt->trx);
+
+		new_handler->prebuilt->select_lock_type
+			= prebuilt->select_lock_type;
+	}
+
+	DBUG_RETURN(new_handler);
 }
 
 UNIV_INTERN
@@ -9852,6 +9876,24 @@ ha_innobase::rename_table(
 
 	innobase_commit_low(trx);
 	trx_free_for_mysql(trx);
+
+	if (error == DB_SUCCESS) {
+		char	norm_from[MAX_FULL_NAME_LEN];
+		char	norm_to[MAX_FULL_NAME_LEN];
+		char	errstr[512];
+		dberr_t	ret;
+
+		normalize_table_name(norm_from, from);
+		normalize_table_name(norm_to, to);
+
+		ret = dict_stats_rename_table(norm_from, norm_to,
+					      errstr, sizeof(errstr));
+
+		if (ret != DB_SUCCESS) {
+			push_warning(thd, Sql_condition::WARN_LEVEL_WARN,
+				     ER_LOCK_WAIT_TIMEOUT, errstr);
+		}
+	}
 
 	/* Add a special case to handle the Duplicated Key error
 	and return DB_ERROR instead.

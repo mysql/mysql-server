@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1432,7 +1432,7 @@ bool mysql_multi_update(THD *thd,
     DBUG_RETURN(TRUE);
   }
 
-  thd->abort_on_warning= thd->is_strict_mode();
+  thd->abort_on_warning= (!ignore && thd->is_strict_mode());
 
   if (thd->lex->describe)
     res= explain_multi_table_modification(thd, *result);

@@ -398,7 +398,6 @@ dict_table_is_referenced_by_foreign_key(
 /*====================================*/
 	const dict_table_t*	table)	/*!< in: InnoDB table */
 	__attribute__((nonnull, warn_unused_result));
-#if 1 /* TODO: enable this in WL#6049 (MDL for FK lookups) */
 /**********************************************************************//**
 Replace the index passed in with another equivalent index in the
 foreign key lists of the table. */
@@ -410,7 +409,6 @@ dict_foreign_replace_index(
 	const dict_index_t*	index,	/*!< in: index to be replaced */
 	const trx_t*		trx)	/*!< in: transaction handle */
 	__attribute__((nonnull));
-#endif
 /**********************************************************************//**
 Determines whether a string starts with the specified keyword.
 @return TRUE if str starts with keyword */
