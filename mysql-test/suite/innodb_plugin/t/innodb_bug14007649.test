@@ -1,0 +1,58 @@
+--source include/have_innodb_plugin.inc
+--source include/have_debug.inc
+
+create table t1 (
+  rowid int,
+  f1    int,
+  f2    int,
+  key i1 (f1, f2),
+  key i2 (f2)) engine=innodb;
+
+show create table t1;
+insert into `t1` (rowid, f1, f2) values (1, 1, 10), (2, 1, NULL);
+
+connect (a,localhost,root,,);
+connect (b,localhost,root,,);
+
+connection a;
+start transaction with consistent snapshot;
+
+connection b;
+start transaction;
+update t1 set f2 = 4  where f1 = 1 and f2 is null;
+
+-- echo (b) Number of rows updated:
+select row_count();
+
+insert into t1 values (3, 1, null);
+
+-- echo (b) After update and insert query.
+select rowid, f1, f2 from t1;
+
+commit;
+
+connection a;
+
+-- echo (a) Before the update statement is executed.
+select rowid, f1, f2 from t1;
+
+SET SESSION debug="+d,bug14007649";
+update t1 set f2 = 6 where f1 = 1 and f2 is null;
+
+-- echo (a) Number of rows updated:
+select row_count();
+
+-- echo (a) After the update statement is executed.
+select rowid, f1, f2 from t1;
+
+commit;
+
+--echo "The trx with consistent snapshot ended."
+
+select rowid, f1, f2 from t1;
+
+connection default;
+disconnect a;
+disconnect b;
+
+drop table t1;
