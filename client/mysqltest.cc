@@ -2297,7 +2297,7 @@ void var_query_set(VAR *var, const char *query, const char** query_end)
     command.query= (char*)query;
     command.first_word_len= (*query_end - query);
     command.first_argument= command.query + command.first_word_len;
-    command.end= (char*)*query;
+    command.end= (char*)*query_end;
     command.abort_on_error= 1; /* avoid uninitialized variables */
     handle_no_active_connection(&command, cur_con, &ds_res);
     DBUG_VOID_RETURN;
