@@ -98,13 +98,18 @@ if(BUILD_TESTING)
     endif()
   endforeach(src)
 
-  ## give some tests, that time out when run with valgrind, 1 hour to complete
+  ## give some tests, that time out normally, 1 hour to complete
   set(long_tests
-    subblock-test-checksum
     subblock-test-compression
-    benchmark-test
     benchmark-test_256
     is_empty
     )
   set_tests_properties(${long_tests} PROPERTIES TIMEOUT 3600)
+  ## some take even longer, with valgrind
+  set(extra_long_tests
+    subblock-test-checksum
+    orthopush-flush
+    benchmark-test
+    )
+  set_tests_properties(${extra_long_tests} PROPERTIES TIMEOUT 5400)
 endif(BUILD_TESTING)
