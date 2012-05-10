@@ -602,21 +602,6 @@ row_import_cleanup(
 
 	if (err != DB_SUCCESS) {
 		row_import_discard_changes(prebuilt, trx, err);
-	} else {
-		/* Ensure that all pages dirtied during the IMPORT
-		make it to disk. */
-
-		buf_LRU_flush_or_remove_pages(
-			prebuilt->table->space, BUF_REMOVE_FLUSH_WRITE, trx);
-
-		if (trx_is_interrupted(trx)) {
-
-			ib_logf(IB_LOG_LEVEL_WARN, "IMPORT interrupted!");
-
-			err = DB_INTERRUPTED;
-
-			row_import_discard_changes(prebuilt, trx, err);
-		}
 	}
 
 	DBUG_EXECUTE_IF("ib_import_before_commit_crash", DBUG_SUICIDE(););
@@ -2350,6 +2335,15 @@ row_import_for_mysql(
 
 	if (err != DB_SUCCESS) {
 		return(row_import_error(prebuilt, trx, err));
+	}
+
+	/* Ensure that all pages dirtied during the IMPORT make it to disk. */
+
+	buf_LRU_flush_or_remove_pages(
+		prebuilt->table->space, BUF_REMOVE_FLUSH_WRITE, trx);
+
+	if (trx_is_interrupted(trx)) {
+		return(row_import_error(prebuilt, trx, DB_INTERRUPTED));
 	}
 
 	mutex_enter(&dict_sys->mutex);
