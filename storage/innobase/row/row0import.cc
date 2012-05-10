@@ -610,11 +610,12 @@ row_import_cleanup(
 			prebuilt->table->space, BUF_REMOVE_FLUSH_WRITE, trx);
 
 		if (trx_is_interrupted(trx)) {
+
 			ib_logf(IB_LOG_LEVEL_WARN, "IMPORT interrupted!");
 
-			row_import_discard_changes(prebuilt, trx, err);
-
 			err = DB_INTERRUPTED;
+
+			row_import_discard_changes(prebuilt, trx, err);
 		}
 	}
 
