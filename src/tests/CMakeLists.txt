@@ -594,9 +594,33 @@ if(BUILD_TESTING)
     loader-stress-del.p.loader
     loader-stress-del.nop.loader
     test1572.tdb
+    checkpoint_1.tdb
+    env-put-multiple.tdb
+    loader-cleanup-test0.tdb
+    loader-cleanup-test2.tdb
+    manyfiles.tdb
+    root_fifo_1.tdb
+    root_fifo_2.tdb
+    root_fifo_31.tdb
+    root_fifo_32.tdb
+    shutdown-3344.tdb
+    stat64-create-modify-times.tdb
+    test_abort5.tdb
+    test_archive1.tdb
+    test_logmax.tdb
+    test_txn_abort5.tdb
+    test_txn_abort5a.tdb
+    test_txn_abort6.tdb
+    test_txn_nested2.tdb
     )
   if (BDB_FOUND)
-    list(APPEND long_tests test1426.tdb)
+    list(APPEND long_tests
+      test1426.tdb
+      root_fifo_1.bdb
+      test_log10.bdb
+      test_log7.bdb
+      test_logmax.bdb
+      )
   endif (BDB_FOUND)
   set_tests_properties(${long_tests} PROPERTIES TIMEOUT 3600)
 endif(BUILD_TESTING)
