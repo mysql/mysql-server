@@ -275,7 +275,7 @@ static void print_defines (void) {
     printf("#define LOADER_USE_PUTS 1\n"); // minimize space usage
 }
 
-void print_db_env_struct (void) {
+static void print_db_env_struct (void) {
     field_counter=0;
     STRUCT_SETUP(DB_ENV, api1_internal,   "void *%s"); /* Used for C++ hacking. */
     STRUCT_SETUP(DB_ENV, app_private, "void *%s");
