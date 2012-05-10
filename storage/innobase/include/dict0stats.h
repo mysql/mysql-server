@@ -160,6 +160,20 @@ dict_stats_update_for_index(
 	dict_index_t*	index)	/*!< in/out: index */
 	__attribute__((nonnull));
 
+/*********************************************************************//**
+Renames a table in InnoDB persistent stats storage.
+This function creates its own transaction and commits it.
+@return DB_SUCCESS or error code */
+UNIV_INTERN
+dberr_t
+dict_stats_rename_table(
+/*====================*/
+	const char*	old_name,	/*!< in: old table name */
+	const char*	new_name,	/*!< in: new table name */
+	char*		errstr,		/*!< out: error string if != DB_SUCCESS
+					is returned */
+	size_t		errstr_sz);	/*!< in: errstr size */
+
 #ifndef UNIV_NONINL
 #include "dict0stats.ic"
 #endif
