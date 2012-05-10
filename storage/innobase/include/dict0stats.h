@@ -87,8 +87,7 @@ dict_stats_init(
 /*============*/
 	dict_table_t*	table,	/*!< in/out: table */
 	ibool		ps_on,	/*!< in: persistent stats explicitly enabled */
-	ibool		ps_off,	/*!< in: persistent stats explicitly disabled */
-	ibool		dict_locked)/*!< in: TRUE=data dictionary locked */
+	ibool		ps_off)	/*!< in: persistent stats explicitly disabled */
 	__attribute__((nonnull));
 
 /*********************************************************************//**

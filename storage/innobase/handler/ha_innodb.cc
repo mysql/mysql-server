@@ -4586,8 +4586,7 @@ table_opened:
 	dict_stats_init(
 		ib_table,
 		table->s->db_create_options & HA_OPTION_STATS_PERSISTENT,
-		table->s->db_create_options & HA_OPTION_NO_STATS_PERSISTENT,
-		FALSE  /* dict not locked */);
+		table->s->db_create_options & HA_OPTION_NO_STATS_PERSISTENT);
 
 	MONITOR_INC(MONITOR_TABLE_OPEN);
 
