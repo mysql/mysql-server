@@ -886,10 +886,13 @@ struct lock_sys_struct{
 
 	ulint		n_lock_max_wait_time;	/*!< Max wait time */
 
-	os_event_t	timeout_event;		/* Set to the event that is
+	os_event_t	timeout_event;		/*!< Set to the event that is
 						created in the lock wait monitor
 						thread. A value of 0 means the
 						thread is not active */
+
+	bool		timeout_thread_active;	/*!< True if the timeout thread
+						is running */
 };
 
 /** The lock system */

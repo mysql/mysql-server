@@ -1734,14 +1734,9 @@ srv_any_background_threads_are_active(void)
 {
 	const char*	thread_active = NULL;
 
-	/* Take a snapshot of the state because the state of this variable
-	can change asynchronously during shutdown. */
-
-	os_event_t	timeout_event = lock_sys->timeout_event;
-
 	if (srv_error_monitor_active) {
 		thread_active = "srv_error_monitor_thread";
-	} else if (timeout_event != 0) {
+	} else if (lock_sys->timeout_thread_active) {
 		thread_active = "srv_lock_timeout thread";
 	} else if (srv_monitor_active) {
 		thread_active = "srv_monitor_thread";
@@ -1752,10 +1747,7 @@ srv_any_background_threads_are_active(void)
 	os_event_set(srv_error_event);
 	os_event_set(srv_monitor_event);
 	os_event_set(srv_buf_dump_event);
-
-	if (timeout_event != 0) {
-		os_event_set(timeout_event);
-	}
+	os_event_set(lock_sys->timeout_event);
 
 	return(thread_active);
 }
