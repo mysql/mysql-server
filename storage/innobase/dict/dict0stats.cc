@@ -2685,7 +2685,7 @@ UNIV_INTERN
 dberr_t
 dict_stats_delete_index_stats(
 /*==========================*/
-	const char*	tname,	/*!< in: table name */
+	const char*	tname,	/*!< in: table name, e.g. 'db/table' */
 	const char*	iname,	/*!< in: index name */
 	trx_t*		trx,	/*!< in/out: user transaction */
 	char*		errstr, /*!< out: error message if != DB_SUCCESS
@@ -2795,7 +2795,7 @@ UNIV_INTERN
 dberr_t
 dict_stats_delete_table_stats(
 /*==========================*/
-	const char*	table_name,	/*!< in: table name */
+	const char*	table_name,	/*!< in: table name, e.g. 'db/table' */
 	char*		errstr,		/*!< out: error message
 					if != DB_SUCCESS is returned */
 	ulint		errstr_sz)	/*!< in: size of errstr buffer */
@@ -2915,8 +2915,8 @@ UNIV_INTERN
 dberr_t
 dict_stats_rename_table(
 /*====================*/
-	const char*	old_name,	/*!< in: old table name */
-	const char*	new_name,	/*!< in: new table name */
+	const char*	old_name,	/*!< in: old name, e.g. 'db/table' */
+	const char*	new_name,	/*!< in: new name, e.g. 'db/table' */
 	char*		errstr,		/*!< out: error string if != DB_SUCCESS
 					is returned */
 	size_t		errstr_sz)	/*!< in: errstr size */
