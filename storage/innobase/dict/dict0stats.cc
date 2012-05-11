@@ -2788,6 +2788,116 @@ dict_stats_drop_index(
 /* @} */
 
 /*********************************************************************//**
+Executes
+DELETE FROM mysql.innodb_table_stats
+WHERE database_name = '...' AND table_name = '...';
+Creates its own transaction and commits it.
+mysql.innodb_table_stats should be protected from DDL with dict_stats_open().
+dict_stats_delete_from_table_stats() @{
+@return DB_SUCCESS or error code */
+UNIV_INLINE
+dberr_t
+dict_stats_delete_from_table_stats(
+/*===============================*/
+	const char*	database_name,	/*!< in: database name, e.g. 'db' */
+	const char*	table_name)	/*!< in: table name, e.g. 'table' */
+{
+	pars_info_t*	pinfo;
+	trx_t*		trx;
+	dberr_t		ret;
+
+	ut_ad(!mutex_own(&dict_sys->mutex));
+
+	pinfo = pars_info_create();
+
+	pars_info_add_str_literal(pinfo, "database_name", database_name);
+	pars_info_add_str_literal(pinfo, "table_name", table_name);
+
+	trx = trx_allocate_for_background();
+	trx_start_if_not_started(trx);
+
+	ret = que_eval_sql(
+		pinfo,
+		"PROCEDURE DELETE_FROM_TABLE_STATS () IS\n"
+		"BEGIN\n"
+		"DELETE FROM \"" TABLE_STATS_NAME "\" WHERE\n"
+		"database_name = :database_name AND\n"
+		"table_name = :table_name;\n"
+		"END;\n",
+		TRUE, trx);
+	/* pinfo is freed by que_eval_sql() */
+
+	if (ret == DB_SUCCESS) {
+		trx_commit_for_mysql(trx);
+	} else {
+		trx->op_info = "rollback of internal trx on stats tables";
+		trx_rollback_to_savepoint(trx, NULL);
+		trx->op_info = "";
+		ut_a(trx->error_state == DB_SUCCESS);
+	}
+
+	trx_free_for_background(trx);
+
+	return(ret);
+}
+/* @} */
+
+/*********************************************************************//**
+Executes
+DELETE FROM mysql.innodb_index_stats
+WHERE database_name = '...' AND table_name = '...';
+Creates its own transaction and commits it.
+mysql.innodb_index_stats should be protected from DDL with dict_stats_open().
+dict_stats_delete_from_index_stats() @{
+@return DB_SUCCESS or error code */
+UNIV_INLINE
+dberr_t
+dict_stats_delete_from_index_stats(
+/*===============================*/
+	const char*	database_name,	/*!< in: database name, e.g. 'db' */
+	const char*	table_name)	/*!< in: table name, e.g. 'table' */
+{
+	pars_info_t*	pinfo;
+	trx_t*		trx;
+	dberr_t		ret;
+
+	ut_ad(!mutex_own(&dict_sys->mutex));
+
+	pinfo = pars_info_create();
+
+	pars_info_add_str_literal(pinfo, "database_name", database_name);
+	pars_info_add_str_literal(pinfo, "table_name", table_name);
+
+	trx = trx_allocate_for_background();
+	trx_start_if_not_started(trx);
+
+	ret = que_eval_sql(
+		pinfo,
+		"PROCEDURE DELETE_FROM_INDEX_STATS () IS\n"
+		"BEGIN\n"
+		"DELETE FROM \"" INDEX_STATS_NAME "\" WHERE\n"
+		"database_name = :database_name AND\n"
+		"table_name = :table_name;\n"
+		"END;\n",
+		TRUE, trx);
+	/* pinfo is freed by que_eval_sql() */
+
+	if (ret == DB_SUCCESS) {
+		trx_commit_for_mysql(trx);
+	} else {
+		trx->op_info = "rollback of internal trx on stats tables";
+		trx_rollback_to_savepoint(trx, NULL);
+		trx->op_info = "";
+		ut_a(trx->error_state == DB_SUCCESS);
+	}
+
+	trx_free_for_background(trx);
+
+	return(ret);
+}
+/* @} */
+
+/*********************************************************************//**
 Removes the statistics for a table and all of its indexes from the
 persistent statistics storage if it exists and if there is data stored for
 the table. This function creates its own transaction and commits it.
@@ -2804,9 +2914,7 @@ dict_stats_drop_table(
 {
 	char		database_name[MAX_DATABASE_NAME_LEN + 1];
 	const char*	table_name_strip; /* without leading db name */
-	trx_t*		trx;
-	pars_info_t*	pinfo;
-	dberr_t		ret = DB_ERROR;
+	dberr_t		ret;
 	dict_stats_t*	dict_stats;
 
 	ut_ad(!mutex_own(&dict_sys->mutex));
@@ -2840,44 +2948,12 @@ dict_stats_drop_table(
 
 	table_name_strip = dict_remove_db_name(table_name);
 
-	pinfo = pars_info_create();
-	pars_info_add_str_literal(pinfo, "database_name", database_name);
-	pars_info_add_str_literal(pinfo, "table_name", table_name_strip);
-
-	trx = trx_allocate_for_background();
-	trx_start_if_not_started(trx);
-	ret = que_eval_sql(
-		pinfo,
-		"PROCEDURE DROP_TABLE_STATS_TABLE () IS\n"
-		"BEGIN\n"
-		"DELETE FROM \"" TABLE_STATS_NAME "\" WHERE\n"
-		"database_name = :database_name AND\n"
-		"table_name = :table_name;\n"
-		"END;\n",
-		TRUE, trx);
-	/* pinfo is freed by que_eval_sql() */
-	trx_commit_for_mysql(trx);
-	trx_free_for_background(trx);
+	ret = dict_stats_delete_from_table_stats(database_name,
+						 table_name_strip);
 
 	if (ret == DB_SUCCESS) {
-		pinfo = pars_info_create();
-		pars_info_add_str_literal(pinfo, "database_name", database_name);
-		pars_info_add_str_literal(pinfo, "table_name", table_name_strip);
-
-		trx = trx_allocate_for_background();
-		trx_start_if_not_started(trx);
-		ret = que_eval_sql(
-			pinfo,
-			"PROCEDURE DROP_TABLE_STATS_INDEX () IS\n"
-			"BEGIN\n"
-			"DELETE FROM \"" INDEX_STATS_NAME "\" WHERE\n"
-			"database_name = :database_name AND\n"
-			"table_name = :table_name;\n"
-			"END;\n",
-			TRUE, trx);
-		/* pinfo is freed by que_eval_sql() */
-		trx_commit_for_mysql(trx);
-		trx_free_for_background(trx);
+		ret = dict_stats_delete_from_index_stats(database_name,
+							 table_name_strip);
 	}
 
 	if (ret != DB_SUCCESS) {
@@ -2911,6 +2987,132 @@ dict_stats_drop_table(
 /* @} */
 
 /*********************************************************************//**
+Executes
+UPDATE mysql.innodb_table_stats SET
+database_name = '...', table_name = '...'
+WHERE database_name = '...' AND table_name = '...';
+Creates its own transaction and commits it.
+mysql.innodb_table_stats should be protected from DDL with dict_stats_open().
+dict_stats_rename_in_table_stats() @{
+@return DB_SUCCESS or error code */
+UNIV_INLINE
+dberr_t
+dict_stats_rename_in_table_stats(
+/*=============================*/
+	const char*	old_database_name,/*!< in: database name, e.g. 'olddb' */
+	const char*	old_table_name,	/*!< in: table name, e.g. 'oldtable' */
+	const char*	new_database_name,/*!< in: database name, e.g. 'newdb' */
+	const char*	new_table_name)	/*!< in: table name, e.g. 'newtable' */
+{
+	pars_info_t*	pinfo;
+	trx_t*		trx;
+	dberr_t		ret;
+
+	ut_ad(!mutex_own(&dict_sys->mutex));
+
+	pinfo = pars_info_create();
+
+	pars_info_add_str_literal(pinfo, "old_database_name", old_database_name);
+	pars_info_add_str_literal(pinfo, "old_table_name", old_table_name);
+	pars_info_add_str_literal(pinfo, "new_database_name", new_database_name);
+	pars_info_add_str_literal(pinfo, "new_table_name", new_table_name);
+
+	trx = trx_allocate_for_background();
+	trx_start_if_not_started(trx);
+
+	ret = que_eval_sql(
+		pinfo,
+		"PROCEDURE RENAME_IN_TABLE_STATS () IS\n"
+		"BEGIN\n"
+		"UPDATE \"" TABLE_STATS_NAME "\" SET\n"
+		"database_name = :new_database_name,\n"
+		"table_name = :new_table_name\n"
+		"WHERE\n"
+		"database_name = :old_database_name AND\n"
+		"table_name = :old_table_name;\n"
+		"END;\n",
+		TRUE, trx);
+	/* pinfo is freed by que_eval_sql() */
+
+	if (ret == DB_SUCCESS) {
+		trx_commit_for_mysql(trx);
+	} else {
+		trx->op_info = "rollback of internal trx on stats tables";
+		trx_rollback_to_savepoint(trx, NULL);
+		trx->op_info = "";
+		ut_a(trx->error_state == DB_SUCCESS);
+	}
+
+	trx_free_for_background(trx);
+
+	return(ret);
+}
+/* @} */
+
+/*********************************************************************//**
+Executes
+UPDATE mysql.innodb_index_stats SET
+database_name = '...', table_name = '...'
+WHERE database_name = '...' AND table_name = '...';
+Creates its own transaction and commits it.
+mysql.innodb_index_stats should be protected from DDL with dict_stats_open().
+dict_stats_rename_in_index_stats() @{
+@return DB_SUCCESS or error code */
+UNIV_INLINE
+dberr_t
+dict_stats_rename_in_index_stats(
+/*=============================*/
+	const char*	old_database_name,/*!< in: database name, e.g. 'olddb' */
+	const char*	old_table_name,	/*!< in: table name, e.g. 'oldtable' */
+	const char*	new_database_name,/*!< in: database name, e.g. 'newdb' */
+	const char*	new_table_name)	/*!< in: table name, e.g. 'newtable' */
+{
+	pars_info_t*	pinfo;
+	trx_t*		trx;
+	dberr_t		ret;
+
+	ut_ad(!mutex_own(&dict_sys->mutex));
+
+	pinfo = pars_info_create();
+
+	pars_info_add_str_literal(pinfo, "old_database_name", old_database_name);
+	pars_info_add_str_literal(pinfo, "old_table_name", old_table_name);
+	pars_info_add_str_literal(pinfo, "new_database_name", new_database_name);
+	pars_info_add_str_literal(pinfo, "new_table_name", new_table_name);
+
+	trx = trx_allocate_for_background();
+	trx_start_if_not_started(trx);
+
+	ret = que_eval_sql(
+		pinfo,
+		"PROCEDURE RENAME_IN_INDEX_STATS () IS\n"
+		"BEGIN\n"
+		"UPDATE \"" INDEX_STATS_NAME "\" SET\n"
+		"database_name = :new_database_name,\n"
+		"table_name = :new_table_name\n"
+		"WHERE\n"
+		"database_name = :old_database_name AND\n"
+		"table_name = :old_table_name;\n"
+		"END;\n",
+		TRUE, trx);
+	/* pinfo is freed by que_eval_sql() */
+
+	if (ret == DB_SUCCESS) {
+		trx_commit_for_mysql(trx);
+	} else {
+		trx->op_info = "rollback of internal trx on stats tables";
+		trx_rollback_to_savepoint(trx, NULL);
+		trx->op_info = "";
+		ut_a(trx->error_state == DB_SUCCESS);
+	}
+
+	trx_free_for_background(trx);
+
+	return(ret);
+}
+/* @} */
+
+/*********************************************************************//**
 Renames a table in InnoDB persistent stats storage.
 This function creates its own transaction and commits it.
 dict_stats_rename_table() @{
@@ -2931,9 +3133,7 @@ dict_stats_rename_table(
 	char		new_database_name[MAX_DATABASE_NAME_LEN + 1];
 	const char*	old_table_name; /* without leading db name */
 	const char*	new_table_name; /* without leading db name */
-	trx_t*		trx;
-	pars_info_t*	pinfo;
-	dberr_t		ret = DB_ERROR;
+	dberr_t		ret;
 	dict_stats_t*	dict_stats;
 
 	/* skip innodb_table_stats and innodb_index_stats themselves */
@@ -2964,77 +3164,30 @@ dict_stats_rename_table(
 
 	new_table_name = dict_remove_db_name(new_name);
 
-	pinfo = pars_info_create();
-	pars_info_add_str_literal(
-		pinfo, "old_database_name", old_database_name);
-	pars_info_add_str_literal(
-		pinfo, "old_table_name", old_table_name);
-	pars_info_add_str_literal(
-		pinfo, "new_database_name", new_database_name);
-	pars_info_add_str_literal(
-		pinfo, "new_table_name", new_table_name);
+	ulint	n_attempts = 0;
+	do {
+		n_attempts++;
 
-	trx = trx_allocate_for_background();
-	trx_start_if_not_started(trx);
-	ret = que_eval_sql(
-		pinfo,
-		"PROCEDURE RENAME_TABLE_STATS_TABLE () IS\n"
-		"BEGIN\n"
-		"UPDATE \"" TABLE_STATS_NAME "\" SET\n"
-		"database_name = :new_database_name,\n"
-		"table_name = :new_table_name\n"
-		"WHERE\n"
-		"database_name = :old_database_name AND\n"
-		"table_name = :old_table_name;\n"
-		"END;\n",
-		TRUE, trx);
-	/* pinfo is freed by que_eval_sql() */
-	trx_commit_for_mysql(trx);
-	trx_free_for_background(trx);
+		ret = dict_stats_rename_in_table_stats(
+			old_database_name, old_table_name,
+			new_database_name, new_table_name);
 
-	if (ret == DB_SUCCESS) {
-		pinfo = pars_info_create();
-		pars_info_add_str_literal(
-			pinfo, "old_database_name", old_database_name);
-		pars_info_add_str_literal(
-			pinfo, "old_table_name", old_table_name);
-		pars_info_add_str_literal(
-			pinfo, "new_database_name", new_database_name);
-		pars_info_add_str_literal(
-			pinfo, "new_table_name", new_table_name);
+		if (ret == DB_DUPLICATE_KEY) {
+			dict_stats_delete_from_table_stats(
+				new_database_name, new_table_name);
+		}
 
-		trx = trx_allocate_for_background();
-		trx_start_if_not_started(trx);
-		ret = que_eval_sql(
-			pinfo,
-			"PROCEDURE RENAME_TABLE_STATS_INDEX () IS\n"
-			"BEGIN\n"
-			"UPDATE \"" INDEX_STATS_NAME "\" SET\n"
-			"database_name = :new_database_name,\n"
-			"table_name = :new_table_name\n"
-			"WHERE\n"
-			"database_name = :old_database_name AND\n"
-			"table_name = :old_table_name;\n"
-			"END;\n",
-			TRUE, trx);
-		/* pinfo is freed by que_eval_sql() */
-		trx_commit_for_mysql(trx);
-		trx_free_for_background(trx);
-	}
+		if (ret != DB_SUCCESS) {
+			os_thread_sleep(200000 /* 0.2 sec */);
+		}
+	} while ((ret == DB_DUPLICATE_KEY || ret == DB_LOCK_WAIT_TIMEOUT)
+		 && n_attempts < 5);
 
 	if (ret != DB_SUCCESS) {
-
 		ut_snprintf(errstr, errstr_sz,
 			    "Unable rename statistics from "
-			    "%s.%s to %s.%s: %s. "
+			    "%s.%s to %s.%s in %s: %s. "
 			    "They can be renamed later using "
-
-			    "UPDATE %s SET "
-			    "database_name = '%s', "
-			    "table_name = '%s' "
-			    "WHERE "
-			    "database_name = '%s' AND "
-			    "table_name = '%s'; "
 
 			    "UPDATE %s SET "
 			    "database_name = '%s', "
@@ -3045,18 +3198,57 @@ dict_stats_rename_table(
 
 			    old_database_name, old_table_name,
 			    new_database_name, new_table_name,
+			    TABLE_STATS_NAME_PRINT,
 			    ut_strerr(ret),
-
-			    INDEX_STATS_NAME_PRINT,
-			    new_database_name, new_table_name,
-			    old_database_name, old_table_name,
 
 			    TABLE_STATS_NAME_PRINT,
 			    new_database_name, new_table_name,
 			    old_database_name, old_table_name);
+		dict_stats_close(dict_stats);
+		return(ret);
+	}
+	/* else */
 
-		ut_print_timestamp(stderr);
-		fprintf(stderr, " InnoDB: %s\n", errstr);
+	n_attempts = 0;
+	do {
+		n_attempts++;
+
+		ret = dict_stats_rename_in_index_stats(
+			old_database_name, old_table_name,
+			new_database_name, new_table_name);
+
+		if (ret == DB_DUPLICATE_KEY) {
+			dict_stats_delete_from_index_stats(
+				new_database_name, new_table_name);
+		}
+
+		if (ret != DB_SUCCESS) {
+			os_thread_sleep(200000 /* 0.2 sec */);
+		}
+	} while ((ret == DB_DUPLICATE_KEY || ret == DB_LOCK_WAIT_TIMEOUT)
+		 && n_attempts < 5);
+
+	if (ret != DB_SUCCESS) {
+		ut_snprintf(errstr, errstr_sz,
+			    "Unable rename statistics from "
+			    "%s.%s to %s.%s in %s: %s. "
+			    "They can be renamed later using "
+
+			    "UPDATE %s SET "
+			    "database_name = '%s', "
+			    "table_name = '%s' "
+			    "WHERE "
+			    "database_name = '%s' AND "
+			    "table_name = '%s';",
+
+			    old_database_name, old_table_name,
+			    new_database_name, new_table_name,
+			    INDEX_STATS_NAME_PRINT,
+			    ut_strerr(ret),
+
+			    INDEX_STATS_NAME_PRINT,
+			    new_database_name, new_table_name,
+			    old_database_name, old_table_name);
 	}
 
 	dict_stats_close(dict_stats);
