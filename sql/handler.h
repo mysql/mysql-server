@@ -2269,6 +2269,17 @@ public:
 
   virtual int get_default_no_partitions(HA_CREATE_INFO *info) { return 1;}
   virtual void set_auto_partitions(partition_info *part_info) { return; }
+
+  /**
+    Get number of partitions for table in SE
+
+    @param name normalized path(same as open) to the table
+
+    @param[out] no_parts Number of partitions
+
+    @retval false for success
+    @retval true for failure, for example table didn't exist in engine
+  */
   virtual bool get_no_parts(const char *name,
                             uint *no_parts)
   {
