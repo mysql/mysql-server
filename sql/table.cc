@@ -1865,6 +1865,8 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
     prgflag   		READ_ALL etc..
     ha_open_flags	HA_OPEN_ABORT_IF_LOCKED etc..
     outparam       	result table
+    is_create_table     Indicates that table is opened as part
+                        of CREATE or ALTER and does not yet exist in SE
 
   RETURN VALUES
    0	ok
