@@ -84,7 +84,7 @@ cachetable_test (void) {
   r = toku_cachetable_unpin(f1, make_blocknum(1), toku_cachetable_hash(f1, make_blocknum(1)), CACHETABLE_CLEAN, make_pair_attr(2));
   
   toku_cachetable_verify(ct);
-  r = toku_cachefile_close(&f1, 0, FALSE, ZERO_LSN); assert(r == 0 && f1 == 0);
+  r = toku_cachefile_close(&f1, 0, FALSE, ZERO_LSN); assert(r == 0);
   r = toku_cachetable_close(&ct); lazy_assert_zero(r);
 
 

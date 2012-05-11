@@ -278,7 +278,7 @@ flush_to_internal(BRT t) {
     set_BNC(child, 0, child_bnc);
     BP_STATE(child, 0) = PT_AVAIL;
 
-    toku_bnc_flush_to_child(t->compare_fun, t->update_fun, &t->h->descriptor, t->cf, parent_bnc, child);
+    toku_bnc_flush_to_child(t->compare_fun, t->update_fun, &t->h->descriptor, t->h->cf, parent_bnc, child);
 
     int parent_messages_present[num_parent_messages];
     int child_messages_present[num_child_messages];
@@ -413,7 +413,7 @@ flush_to_internal_multiple(BRT t) {
         }
     }
 
-    toku_bnc_flush_to_child(t->compare_fun, t->update_fun, &t->h->descriptor, t->cf, parent_bnc, child);
+    toku_bnc_flush_to_child(t->compare_fun, t->update_fun, &t->h->descriptor, t->h->cf, parent_bnc, child);
 
     int total_messages = 0;
     for (i = 0; i < 8; ++i) {
@@ -605,7 +605,7 @@ flush_to_leaf(BRT t, bool make_leaf_up_to_date, bool use_flush) {
     }
 
     if (use_flush) {
-        toku_bnc_flush_to_child(t->compare_fun, t->update_fun, &t->h->descriptor, t->cf, parent_bnc, child);
+        toku_bnc_flush_to_child(t->compare_fun, t->update_fun, &t->h->descriptor, t->h->cf, parent_bnc, child);
         destroy_nonleaf_childinfo(parent_bnc);
     } else {
         BRTNODE XMALLOC(parentnode);
@@ -1010,7 +1010,7 @@ compare_apply_and_flush(BRT t, bool make_leaf_up_to_date) {
         }
     }
 
-    toku_bnc_flush_to_child(t->compare_fun, t->update_fun, &t->h->descriptor, t->cf, parent_bnc, child1);
+    toku_bnc_flush_to_child(t->compare_fun, t->update_fun, &t->h->descriptor, t->h->cf, parent_bnc, child1);
 
     BRTNODE XMALLOC(parentnode);
     BLOCKNUM parentblocknum = { 17 };
@@ -1126,7 +1126,7 @@ test_main (int argc, const char *argv[]) {
     assert(r==0);
     unlink(fname);
     BRT t;
-    r = toku_open_brt(fname, 1, &t, 4*M, 64*1024, ct, null_txn, toku_builtin_compare_fun, null_db); assert(r==0);
+    r = toku_open_brt(fname, 1, &t, 4*M, 64*1024, ct, null_txn, toku_builtin_compare_fun); assert(r==0);
     r = toku_brt_set_update(t, orthopush_flush_update_fun); assert(r==0);
 
     // normally, just check a few things, but if --slow is provided, then

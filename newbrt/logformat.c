@@ -103,7 +103,7 @@ const struct logtype logtypes[] = {
 			    {"BYTESTRING", "iname", 0},   // pathname of file
 			    NULLFIELD}},
     //We do not use a TXNINFO struct since recovery log has
-    //FILENUMS and TOKUTXN has BRTs (for open_brts)
+    //FILENUMS and TOKUTXN has BRTs (for open_brt_headers)
     {"xstillopen", 's', FA{{"TXNID", "xid", 0}, 
                            {"TXNID", "parentxid", 0}, 
                            {"u_int64_t", "rollentry_raw_count", 0}, 

@@ -40,7 +40,7 @@ test_main (int UU(argc), char UU(*const argv[])) {
     r=db->close(db, 0);         assert(r==0);
 
     r=db_create(&db, env, 0);   assert(r==0);
-    r=db->remove(db, "master.db", NULL, 0); assert(r==0);
+    r=env->dbremove(env, NULL, "master.db", NULL, 0); assert(r==0);
 
     r=env->close(env, 0);     assert(r==0);
     return 0;

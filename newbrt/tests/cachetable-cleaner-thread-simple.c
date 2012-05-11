@@ -78,7 +78,7 @@ run_test (void) {
     assert(my_cleaner_callback_called);
 
     toku_cachetable_verify(ct);
-    r = toku_cachefile_close(&f1, 0, FALSE, ZERO_LSN); assert(r == 0 && f1 == 0);
+    r = toku_cachefile_close(&f1, 0, FALSE, ZERO_LSN); assert(r == 0 );
     r = toku_cachetable_close(&ct); lazy_assert_zero(r);
 }
 

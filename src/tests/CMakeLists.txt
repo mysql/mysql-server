@@ -36,7 +36,6 @@ if(BUILD_TESTING)
       checkpoint_1.c
       checkpoint_callback.c
       checkpoint_stress.c
-      checkpoint_truncate_1.c
       cursor-isolation.c
       cursor-set-del-rmw.c
       cursor-set-range-rmw.c
@@ -299,7 +298,6 @@ if(BUILD_TESTING)
   endif()
 
   set(tdb_tests_that_should_fail
-    test_truncate_txn_abort.tdb
     test_db_no_env.tdb
     test_log8.recover
     test_log9.recover

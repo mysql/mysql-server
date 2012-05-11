@@ -99,8 +99,8 @@ with_open_tree(const char *fname, tree_cb cb, void *cb_extra)
                       128*(1<<10), 
                       ct, 
                       null_txn, 
-                      toku_builtin_compare_fun, 
-                      null_db);
+                      toku_builtin_compare_fun
+                      );
     CKERR(r);
 
     r2 = cb(t, ct, cb_extra);

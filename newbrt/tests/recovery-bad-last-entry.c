@@ -58,11 +58,8 @@ run_test(void) {
             break;
         // run recovery
         r = tokudb_recover(NULL,
-			   NULL_keep_zombie_callback,
 			   NULL_prepared_txn_callback,
 			   NULL_keep_cachetable_callback,
-			   NULL_setup_db_callback,
-			   NULL_close_db_callback,
 			   NULL_logger,
 			   TESTDIR, TESTDIR, 0, 0, 0, NULL, 0); 
         assert(r == 0);

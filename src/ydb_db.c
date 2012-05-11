@@ -111,43 +111,7 @@ create_iname(DB_ENV *env, u_int64_t id, char *hint, char *mark, int n) {
     return rval;
 }
 
-
-
 static int toku_db_open(DB * db, DB_TXN * txn, const char *fname, const char *dbname, DBTYPE dbtype, u_int32_t flags, int mode);
-
-int
-db_close_before_brt(DB *db, u_int32_t UU(flags), bool oplsn_valid, LSN oplsn)
-// Effect: When the BRT closes a zombie DB, this function is called to inform the YDB layer that the brt is closed (before actually closing the BRT).
-//  This function will actually close the brt.
-{
-    int r;
-    char *error_string = NULL;
-    
-    if (db_opened(db) && db->i->dname) {
-        // internal (non-user) dictionary has no dname
-        env_note_zombie_db_closed(db->dbenv, db);  // tell env that this db is no longer a zombie (it is completely closed)
-    }
-    r = toku_close_brt_lsn(db->i->brt, &error_string, oplsn_valid, oplsn);
-    if (r) {
-	if (!error_string)
-	    error_string = "Closing file\n";
-	// Panicking the whole environment may be overkill, but I'm not sure what else to do.
-	env_panic(db->dbenv, r, error_string);
-	toku_ydb_do_error(db->dbenv, r, "%s", error_string);
-    }
-    else {
-	if (db->i->lt) {
-	    toku_lt_remove_db_ref(db->i->lt);
-	}
-	// printf("%s:%d %d=__toku_db_close(%p)\n", __FILE__, __LINE__, r, db);
-	toku_sdbt_cleanup(&db->i->skey);
-	toku_sdbt_cleanup(&db->i->sval);
-	if (db->i->dname) toku_free(db->i->dname);
-	toku_free(db->i);
-	toku_free(db);
-    }
-    return r;
-}
 
 void
 toku_db_add_ref(DB *db) {
@@ -161,7 +125,7 @@ toku_db_release_ref(DB *db){
 
 //DB->close()
 int 
-toku_db_close(DB * db, u_int32_t flags, bool oplsn_valid, LSN oplsn) {
+toku_db_close(DB * db) {
     int r = 0;
     // the magic number one comes from the fact that only one loader
     // or hot indexer may reference a DB at a time. when that changes,
@@ -174,14 +138,25 @@ toku_db_close(DB * db, u_int32_t flags, bool oplsn_valid, LSN oplsn) {
         if (db_opened(db) && db->i->dname) {
             // internal (non-user) dictionary has no dname
             env_note_db_closed(db->dbenv, db);  // tell env that this db is no longer in use by the user of this api (user-closed, may still be in use by fractal tree internals)
-            db->i->is_zombie = TRUE;
-            env_note_zombie_db(db->dbenv, db);  // tell env that this db is a zombie
         }
         //Remove from transaction's list of 'must close' if necessary.
         if (!toku_list_empty(&db->i->dbs_that_must_close_before_abort))
             toku_list_remove(&db->i->dbs_that_must_close_before_abort);
 
-        r = toku_brt_db_delay_closed(db->i->brt, db, db_close_before_brt, flags, oplsn_valid, oplsn);
+        r = toku_brt_close(db->i->brt, FALSE, ZERO_LSN);
+        if (r == 0) {
+            // go ahead and close this DB handle right away.
+            if (db->i->lt) {
+                toku_lt_remove_db_ref(db->i->lt);
+            }
+            toku_sdbt_cleanup(&db->i->skey);
+            toku_sdbt_cleanup(&db->i->sval);
+            if (db->i->dname) {
+                toku_free(db->i->dname);
+            }
+            toku_free(db->i);
+            toku_free(db);
+        }
     }
     return r;
 }
@@ -378,6 +353,18 @@ toku_db_open(DB * db, DB_TXN * txn, const char *fname, const char *dbname, DBTYP
     return r;
 }
 
+// callback that sets the descriptors when 
+// a dictionary is redirected at the brt layer
+// I wonder if client applications can safely access
+// the descriptor via db->descriptor, because
+// a redirect may be happening underneath the covers.
+// Need to investigate further.
+static void db_on_redirect_callback(BRT brt, void* extra) {
+    DB* db = extra;
+    db->descriptor = &brt->h->descriptor;
+    db->cmp_descriptor = &brt->h->cmp_descriptor;
+}
+
 int 
 db_open_iname(DB * db, DB_TXN * txn, const char *iname_in_env, u_int32_t flags, int mode) {
     int r;
@@ -392,6 +379,11 @@ db_open_iname(DB * db, DB_TXN * txn, const char *iname_in_env, u_int32_t flags, 
         r = toku_brt_set_update(db->i->brt,db->dbenv->i->update_function);
         assert(r==0);
     }
+    toku_brt_set_redirect_callback(
+        db->i->brt,
+        db_on_redirect_callback,
+        db
+        );
     BOOL need_locktree = (BOOL)((db->dbenv->i->open_flags & DB_INIT_LOCK) &&
                                 (db->dbenv->i->open_flags & DB_INIT_TXN));
 
@@ -418,15 +410,23 @@ db_open_iname(DB * db, DB_TXN * txn, const char *iname_in_env, u_int32_t flags, 
     db->i->open_flags = flags;
     db->i->open_mode = mode;
 
-    r = toku_brt_open(db->i->brt, iname_in_env,
+    BRT brt = db->i->brt;
+    r = toku_brt_open(brt, iname_in_env,
 		      is_db_create, is_db_excl,
 		      db->dbenv->i->cachetable,
-		      txn ? db_txn_struct_i(txn)->tokutxn : NULL_TXN,
-		      db);
+		      txn ? db_txn_struct_i(txn)->tokutxn : NULL_TXN);
     if (r != 0)
         goto error_cleanup;
 
     db->i->opened = 1;
+
+    // now that the brt has successfully opened, a valid descriptor
+    // is in the brt header. we need a copy of the pointer in the DB.
+    // TODO: there may be a cleaner way to do this. 
+    // toku_brt_get_descriptor(db, &cmp_desc, &desc); ??
+    db->descriptor = &brt->h->descriptor;
+    db->cmp_descriptor = &brt->h->cmp_descriptor;
+
     if (need_locktree) {
 	db->i->dict_id = toku_brt_get_dictionary_id(db->i->brt);
         r = toku_ltm_get_lt(db->dbenv->i->ltm, &db->i->lt, db->i->dict_id, db->cmp_descriptor, toku_brt_get_bt_compare(db->i->brt));
@@ -480,26 +480,6 @@ int toku_db_pre_acquire_fileops_lock(DB *db, DB_TXN *txn) {
 	STATUS_VALUE(YDB_LAYER_DIRECTORY_WRITE_LOCKS)++;  // accountability 
     else
 	STATUS_VALUE(YDB_LAYER_DIRECTORY_WRITE_LOCKS_FAIL)++;  // accountability 
-    return r;
-}
-
-static int
-toku_db_remove(DB * db, const char *fname, const char *dbname, u_int32_t flags) {
-    HANDLE_PANICKED_DB(db);
-    DB_TXN *null_txn = NULL;
-    int r  = toku_env_dbremove(db->dbenv, null_txn, fname, dbname, flags);
-    int r2 = toku_db_close(db, 0, false, ZERO_LSN);
-    if (r==0) r = r2;
-    return r;
-}
-
-static int
-toku_db_rename(DB * db, const char *fname, const char *dbname, const char *newname, u_int32_t flags) {
-    HANDLE_PANICKED_DB(db);
-    DB_TXN *null_txn = NULL;
-    int r  = toku_env_dbrename(db->dbenv, null_txn, fname, dbname, newname, flags);
-    int r2 = toku_db_close(db, 0, false, ZERO_LSN);
-    if (r==0) r = r2;
     return r;
 }
 
@@ -676,9 +656,9 @@ toku_db_pre_acquire_table_lock(DB *db, DB_TXN *txn) {
 }
 
 static int 
-locked_db_close(DB * db, u_int32_t flags) {
+locked_db_close(DB * db, u_int32_t UU(flags)) {
     toku_ydb_lock(); 
-    int r = toku_db_close(db, flags, false, ZERO_LSN);
+    int r = toku_db_close(db);
     toku_ydb_unlock(); 
     return r;
 }
@@ -703,47 +683,6 @@ autotxn_db_getf_set (DB *db, DB_TXN *txn, u_int32_t flags, DBT *key, YDB_CALLBAC
     return toku_db_destruct_autotxn(txn, r, changed, FALSE);
 }
 
-// truncate a database
-// effect: remove all of the rows from a database
-static int 
-toku_db_truncate(DB *db, DB_TXN *txn, u_int32_t *row_count, u_int32_t flags) {
-    HANDLE_PANICKED_DB(db);
-    HANDLE_DB_ILLEGAL_WORKING_PARENT_TXN(db, txn);
-    int r;
-
-    u_int32_t unhandled_flags = flags;
-    int ignore_cursors = 0;
-    if (flags & DB_TRUNCATE_WITHCURSORS) {
-        ignore_cursors = 1;
-        unhandled_flags &= ~DB_TRUNCATE_WITHCURSORS;
-    }
-
-    // dont support flags (yet)
-    if (unhandled_flags)
-        return EINVAL;
-    // dont support cursors unless explicitly told to
-    if (!ignore_cursors && toku_brt_get_cursor_count(db->i->brt) > 0)
-        return EINVAL;
-
-    // acquire a table lock
-    if (txn) {
-        r = toku_db_pre_acquire_fileops_lock(db, txn);
-        if (r != 0) {
-            return r;
-        }
-        r = toku_db_pre_acquire_table_lock(db, txn);
-        if (r != 0) {
-            return r;
-        }
-    }
-
-    *row_count = 0;
-
-    r = toku_brt_truncate(db->i->brt);
-
-    return r;
-}
-
 static inline int 
 autotxn_db_open(DB* db, DB_TXN* txn, const char *fname, const char *dbname, DBTYPE dbtype, u_int32_t flags, int mode) {
     BOOL changed; int r;
@@ -758,26 +697,6 @@ static int
 locked_db_open(DB *db, DB_TXN *txn, const char *fname, const char *dbname, DBTYPE dbtype, u_int32_t flags, int mode) {
     toku_multi_operation_client_lock(); //Cannot begin checkpoint
     toku_ydb_lock(); int r = autotxn_db_open(db, txn, fname, dbname, dbtype, flags, mode); toku_ydb_unlock();
-    toku_multi_operation_client_unlock(); //Can now begin checkpoint
-    return r;
-}
-
-static int 
-locked_db_remove(DB * db, const char *fname, const char *dbname, u_int32_t flags) {
-    toku_multi_operation_client_lock(); //Cannot begin checkpoint
-    toku_ydb_lock();
-    int r = toku_db_remove(db, fname, dbname, flags);
-    toku_ydb_unlock();
-    toku_multi_operation_client_unlock(); //Can now begin checkpoint
-    return r;
-}
-
-static int 
-locked_db_rename(DB * db, const char *namea, const char *nameb, const char *namec, u_int32_t flags) {
-    toku_multi_operation_client_lock(); //Cannot begin checkpoint
-    toku_ydb_lock();
-    int r = toku_db_rename(db, namea, nameb, namec, flags);
-    toku_ydb_unlock();
     toku_multi_operation_client_unlock(); //Can now begin checkpoint
     return r;
 }
@@ -854,16 +773,6 @@ static const DBT* toku_db_dbt_neg_infty(void) __attribute__((pure));
 static const DBT* 
 toku_db_dbt_neg_infty(void) {
     return toku_lt_neg_infinity;
-}
-
-static int 
-locked_db_truncate(DB *db, DB_TXN *txn, u_int32_t *row_count, u_int32_t flags) {
-    toku_checkpoint_safe_client_lock();
-    toku_ydb_lock();
-    int r = toku_db_truncate(db, txn, row_count, flags);
-    toku_ydb_unlock();
-    toku_checkpoint_safe_client_unlock();
-    return r;
 }
 
 static int
@@ -971,10 +880,6 @@ db_pre_acquire_table_lock(DB *db, DB_TXN *txn) {
     return toku_db_pre_acquire_table_lock(db, txn);
 }
 
-int toku_close_db_internal (DB * db, bool oplsn_valid, LSN oplsn) {
-    return toku_db_close(db, 0, oplsn_valid, oplsn);
-}
-
 int toku_setup_db_internal (DB **dbp, DB_ENV *env, u_int32_t flags, BRT brt, bool is_open) {
     if (flags || env == NULL) 
         return EINVAL;
@@ -1026,8 +931,6 @@ toku_db_create(DB ** db, DB_ENV * env, u_int32_t flags) {
     SDB(close);
     //    SDB(key_range);
     SDB(open);
-    SDB(remove);
-    SDB(rename);
     SDB(change_descriptor);
     SDB(set_errfile);
     SDB(set_pagesize);
@@ -1039,7 +942,6 @@ toku_db_create(DB ** db, DB_ENV * env, u_int32_t flags) {
     SDB(set_flags);
     SDB(get_flags);
     SDB(fd);
-    SDB(truncate);
     SDB(get_max_row_size);
     SDB(optimize);
     SDB(get_fragmentation);

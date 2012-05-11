@@ -434,11 +434,8 @@ static void test_multi_filehandles (void) {
     r = toku_cachetable_get_and_pin(f3, make_blocknum(2), toku_cachetable_hash(f3, make_blocknum(2)), &v, NULL, wc, add222_fetch, def_pf_req_callback, def_pf_callback, TRUE, (void*)222); assert(r==0);
     assert((unsigned long)v==224);
 
+    // we support only one close for a file handle
     r = toku_cachetable_unpin(f1, make_blocknum(1), toku_cachetable_hash(f1, make_blocknum(1)), CACHETABLE_CLEAN, make_pair_attr(0)); assert(r==0);
-    // r = toku_cachetable_unpin(f1, make_blocknum(2), toku_cachetable_hash(f1, make_blocknum(2)), CACHETABLE_CLEAN, 0); assert(r==0);
-    r = toku_cachefile_close(&f1, 0, FALSE, ZERO_LSN); assert(r==0);
-
-    //r = toku_cachetable_unpin(f2, make_blocknum(1), toku_cachetable_hash(f2, make_blocknum(1)), CACHETABLE_CLEAN, 0); assert(r==0);
     r = toku_cachetable_unpin(f2, make_blocknum(2), toku_cachetable_hash(f2, make_blocknum(2)), CACHETABLE_CLEAN, make_pair_attr(0)); assert(r==0);
     r = toku_cachefile_close(&f2, 0, FALSE, ZERO_LSN); assert(r==0);
 

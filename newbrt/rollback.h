@@ -55,9 +55,7 @@ void *toku_memdup_in_rollback(ROLLBACK_LOG_NODE log, const void *v, size_t len);
 // if necessary.
 void toku_maybe_spill_rollbacks(TOKUTXN txn, ROLLBACK_LOG_NODE log);
 
-int toku_txn_note_brt (TOKUTXN txn, BRT brt);
-int toku_txn_note_swap_brt (BRT live, BRT zombie);
-int toku_txn_note_close_brt (BRT brt);
+int toku_txn_note_brt (TOKUTXN txn, struct brt_header* h);
 int toku_logger_txn_rollback_raw_count(TOKUTXN txn, u_int64_t *raw_count);
 
 int toku_find_pair_by_xid (OMTVALUE v, void *txnv);

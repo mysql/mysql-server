@@ -18,19 +18,13 @@ extern "C" {
 #endif
 
 typedef void (*prepared_txn_callback_t)(DB_ENV*, TOKUTXN);
-typedef void (*keep_zombie_callback_t)(DB_ENV*, BRT, char *iname, bool oplsn_valid, LSN oplsn);
 typedef void (*keep_cachetable_callback_t)(DB_ENV*, CACHETABLE);
-typedef int (*setup_db_callback_t)(DB **, DB_ENV *, u_int32_t db_create_flags, BRT, bool /*is_open*/)   __attribute__ ((warn_unused_result));
-typedef int (*close_db_callback_t)(DB *, bool oplsn_valid, LSN oplsn) __attribute__ ((warn_unused_result));
 
 // Run tokudb recovery from the log
 // Returns 0 if success
 int tokudb_recover (DB_ENV *env,
-		    keep_zombie_callback_t     keep_zombie_callback,
 		    prepared_txn_callback_t    prepared_txn_callback,
 		    keep_cachetable_callback_t keep_cachetable_callback,
-		    setup_db_callback_t        setup_db_callback,
-		    close_db_callback_t        close_db_callback,
 		    TOKULOGGER logger,
 		    const char *env_dir, const char *log_dir,
                     brt_compare_func bt_compare,
@@ -59,11 +53,7 @@ int toku_recover_lock (const char *lock_dir, int *lockfd);
 int toku_recover_unlock(int lockfd);
 
 static const prepared_txn_callback_t NULL_prepared_txn_callback         __attribute__((__unused__)) = NULL;
-static const keep_zombie_callback_t  NULL_keep_zombie_callback          __attribute__((__unused__)) = NULL;
 static const keep_cachetable_callback_t  NULL_keep_cachetable_callback  __attribute__((__unused__)) = NULL;
-static const setup_db_callback_t NULL_setup_db_callback                 __attribute__((__unused__)) = NULL;
-static const close_db_callback_t NULL_close_db_callback                 __attribute__((__unused__)) = NULL;
-
 
 #if defined(__cplusplus) || defined(__cilkplusplus)
 };

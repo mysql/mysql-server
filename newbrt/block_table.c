@@ -605,23 +605,6 @@ toku_free_blocknum(BLOCK_TABLE bt, BLOCKNUM *bp, struct brt_header * h, BOOL for
     unlock_for_blocktable(bt);
 }
     
-//fd is protected (must be holding fdlock)
-void
-toku_block_translation_truncate_unlocked(BLOCK_TABLE bt, int fd, struct brt_header *h) {
-    assert(bt->is_locked);
-    u_int64_t allocated_limit_at_start = block_allocator_allocated_limit(bt->block_allocator);
-    brtheader_set_dirty(h, FALSE);
-    //Free all regular/data blocks (non reserved)
-    //Meta data is stored in reserved blocks
-    struct translation *t = &bt->current;
-    int64_t i;
-    for (i=RESERVED_BLOCKNUMS; i<t->smallest_never_used_blocknum.b; i++) {
-        BLOCKNUM b = make_blocknum(i);
-        if (t->block_translation[i].size >= 0) free_blocknum_unlocked(bt, &b, h, FALSE);
-    }
-    maybe_truncate_cachefile(bt, fd, h, allocated_limit_at_start);
-}
-
 //Verify there are no free blocks.
 void
 toku_block_verify_no_free_blocknums(BLOCK_TABLE bt) {

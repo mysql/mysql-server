@@ -2892,7 +2892,8 @@ deserialize_brtheader_versioned(int fd, struct rbuf *rb, struct brt_header **brt
     h->panic = 0;
     h->panic_string = 0;
     toku_list_init(&h->live_brts);
-    toku_list_init(&h->zombie_brts);
+    int r = toku_omt_create(&h->txns);
+    assert_zero(r);
 
     //version MUST be in network order on disk regardless of disk order
     h->layout_version_read_from_disk = rbuf_network_int(rb);
@@ -3039,7 +3040,7 @@ deserialize_brtheader_versioned(int fd, struct rbuf *rb, struct brt_header **brt
     // version if it gets written out, we need to write the descriptor in
     // the new format (without those bytes) before that happens.
     if (version <= BRT_LAYOUT_VERSION_13) {
-    int r = toku_update_descriptor(h, &h->cmp_descriptor, fd);
+    r = toku_update_descriptor(h, &h->cmp_descriptor, fd);
         if (r != 0) {
             errno = r;
             e = DS_ERRNO;

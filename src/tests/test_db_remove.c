@@ -27,9 +27,7 @@ static void test_db_remove (void) {
     r = db1->open(db1, null_txn, fname, 0, DB_BTREE, DB_CREATE, 0666); assert(r == 0);
 
     // Now remove it, while it is open.
-    DB *db2;
-    r = db_create(&db2, env, 0);                                  assert(r==0);
-    r = db2->remove(db2, fname, 0, 0);
+    r = env->dbremove(env, NULL, fname, 0, 0);
 #ifdef USE_TDB
     assert(r!=0);
 #else

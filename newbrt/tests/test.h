@@ -233,12 +233,11 @@ default_parse_args (int argc, const char *argv[]) {
 int test_main(int argc, const char *argv[]);
 
 static void dummy(void) {}
-static void dummy_set_brt(DB *db UU(), BRT brt UU()) {}
 
 int
 main(int argc, const char *argv[]) {
     initialize_dummymsn();
-    int rinit = toku_brt_init(dummy, dummy, dummy_set_brt);
+    int rinit = toku_brt_init(dummy, dummy);
     CKERR(rinit);
     int r = test_main(argc, argv);
     int rdestroy = toku_brt_destroy();

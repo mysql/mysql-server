@@ -45,7 +45,7 @@ run_test (void) {
     r = toku_cachetable_get_and_pin(f1, make_blocknum(1), 1, &v1, &s1, wc, def_fetch, def_pf_req_callback, def_pf_callback, TRUE, NULL);
     foo = FALSE;
     cachefile_kibbutz_enq(f1, kibbutz_work, f1);
-    r = toku_cachefile_close(&f1, 0, FALSE, ZERO_LSN); assert(r == 0 && f1 == 0);
+    r = toku_cachefile_close(&f1, 0, FALSE, ZERO_LSN); assert(r == 0);
     assert(foo);
     r = toku_cachetable_close(&ct); lazy_assert_zero(r);
     

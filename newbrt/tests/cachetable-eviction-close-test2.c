@@ -144,7 +144,7 @@ static void cachetable_eviction_full_test (void) {
 
     // close with the eviction in progress. the close should block until
     // all of the reads and writes are complete.
-    r = toku_cachefile_close(&f1, 0, FALSE, ZERO_LSN); assert(r == 0 && f1 == 0);
+    r = toku_cachefile_close(&f1, 0, FALSE, ZERO_LSN); assert(r == 0);
     r = toku_cachetable_close(&ct); assert(r == 0 && ct == 0);
 }
 

@@ -77,20 +77,20 @@ static void assert_cursor_first_last(BRT brt, long long firstv, long long lastv)
     assert(r==0);
 }
 
-static void test_brt_cursor_first(int n, DB *db) {
+static void test_brt_cursor_first(int n) {
     CACHETABLE ct;
     BRT brt;
     int r;
     int i;
 
-    if (verbose) printf("test_brt_cursor_first:%d %p\n", n, db);
+    if (verbose) printf("test_brt_cursor_first:%d\n", n);
 
     unlink(fname);
 
     r = toku_brt_create_cachetable(&ct, 0, ZERO_LSN, NULL_LOGGER);
     assert(r==0);
 
-    r = toku_open_brt(fname, 1, &brt, 1<<12, 1<<9, ct, null_txn, test_brt_cursor_keycompare, db);
+    r = toku_open_brt(fname, 1, &brt, 1<<12, 1<<9, ct, null_txn, test_brt_cursor_keycompare);
     assert(r==0);
 
     /* insert a bunch of kv pairs */
@@ -118,20 +118,20 @@ static void test_brt_cursor_first(int n, DB *db) {
     assert(r==0);
 }
 
-static void test_brt_cursor_last(int n, DB *db) {
+static void test_brt_cursor_last(int n) {
     CACHETABLE ct;
     BRT brt;
     int r;
     int i;
 
-    if (verbose) printf("test_brt_cursor_last:%d %p\n", n, db);
+    if (verbose) printf("test_brt_cursor_last:%d\n", n);
 
     unlink(fname);
 
     r = toku_brt_create_cachetable(&ct, 0, ZERO_LSN, NULL_LOGGER);
     assert(r==0);
 
-    r = toku_open_brt(fname, 1, &brt, 1<<12, 1<<9, ct, null_txn, test_brt_cursor_keycompare, db);
+    r = toku_open_brt(fname, 1, &brt, 1<<12, 1<<9, ct, null_txn, test_brt_cursor_keycompare);
     assert(r==0);
 
     /* insert keys 0, 1, .. (n-1) */
@@ -159,20 +159,20 @@ static void test_brt_cursor_last(int n, DB *db) {
     assert(r==0);
 }
 
-static void test_brt_cursor_first_last(int n, DB *db) {
+static void test_brt_cursor_first_last(int n) {
     CACHETABLE ct;
     BRT brt;
     int r;
     int i;
 
-    if (verbose) printf("test_brt_cursor_first_last:%d %p\n", n, db);
+    if (verbose) printf("test_brt_cursor_first_last:%d\n", n);
 
     unlink(fname);
 
     r = toku_brt_create_cachetable(&ct, 0, ZERO_LSN, NULL_LOGGER);
     assert(r==0);
 
-    r = toku_open_brt(fname, 1, &brt, 1<<12, 1<<9, ct, null_txn, test_brt_cursor_keycompare, db);
+    r = toku_open_brt(fname, 1, &brt, 1<<12, 1<<9, ct, null_txn, test_brt_cursor_keycompare);
     assert(r==0);
 
     /* insert a bunch of kv pairs */
@@ -204,20 +204,20 @@ static void test_brt_cursor_first_last(int n, DB *db) {
 
 }
 
-static void test_brt_cursor_rfirst(int n, DB *db) {
+static void test_brt_cursor_rfirst(int n) {
     CACHETABLE ct;
     BRT brt;
     int r;
     int i;
 
-    if (verbose) printf("test_brt_cursor_rfirst:%d %p\n", n, db);
+    if (verbose) printf("test_brt_cursor_rfirst:%d\n", n);
 
     unlink(fname);
 
     r = toku_brt_create_cachetable(&ct, 0, ZERO_LSN, NULL_LOGGER);
     assert(r==0);
 
-    r = toku_open_brt(fname, 1, &brt, 1<<12, 1<<9, ct, null_txn, test_brt_cursor_keycompare, db);
+    r = toku_open_brt(fname, 1, &brt, 1<<12, 1<<9, ct, null_txn, test_brt_cursor_keycompare);
     assert(r==0);
 
     /* insert keys n-1, n-2, ... , 0 */
@@ -272,20 +272,20 @@ static void assert_cursor_walk(BRT brt, int n) {
     assert(r==0);
 }
 
-static void test_brt_cursor_walk(int n, DB *db) {
+static void test_brt_cursor_walk(int n) {
     CACHETABLE ct;
     BRT brt;
     int r;
     int i;
 
-    if (verbose) printf("test_brt_cursor_walk:%d %p\n", n, db);
+    if (verbose) printf("test_brt_cursor_walk:%d\n", n);
 
     unlink(fname);
 
     r = toku_brt_create_cachetable(&ct, 0, ZERO_LSN, NULL_LOGGER);
     assert(r==0);
 
-    r = toku_open_brt(fname, 1, &brt, 1<<12, 1<<9, ct, null_txn, test_brt_cursor_keycompare, db);
+    r = toku_open_brt(fname, 1, &brt, 1<<12, 1<<9, ct, null_txn, test_brt_cursor_keycompare);
     assert(r==0);
 
     /* insert a bunch of kv pairs */
@@ -338,20 +338,20 @@ static void assert_cursor_rwalk(BRT brt, int n) {
     assert(r==0);
 }
 
-static void test_brt_cursor_rwalk(int n, DB *db) {
+static void test_brt_cursor_rwalk(int n) {
     CACHETABLE ct;
     BRT brt;
     int r;
     int i;
 
-    if (verbose) printf("test_brt_cursor_rwalk:%d %p\n", n, db);
+    if (verbose) printf("test_brt_cursor_rwalk:%d\n", n);
 
     unlink(fname);
 
     r = toku_brt_create_cachetable(&ct, 0, ZERO_LSN, NULL_LOGGER);
     assert(r==0);
 
-    r = toku_open_brt(fname, 1, &brt, 1<<12, 1<<9, ct, null_txn, test_brt_cursor_keycompare, db);
+    r = toku_open_brt(fname, 1, &brt, 1<<12, 1<<9, ct, null_txn, test_brt_cursor_keycompare);
     assert(r==0);
 
     /* insert a bunch of kv pairs */
@@ -423,20 +423,20 @@ static void assert_cursor_walk_inorder(BRT brt, int n) {
     assert(r==0);
 }
 
-static void test_brt_cursor_rand(int n, DB *db) {
+static void test_brt_cursor_rand(int n) {
     CACHETABLE ct;
     BRT brt;
     int r;
     int i;
 
-    if (verbose) printf("test_brt_cursor_rand:%d %p\n", n, db);
+    if (verbose) printf("test_brt_cursor_rand:%d\n", n);
 
     unlink(fname);
 
     r = toku_brt_create_cachetable(&ct, 0, ZERO_LSN, NULL_LOGGER);
     assert(r==0);
 
-    r = toku_open_brt(fname, 1, &brt, 1<<12, 1<<9, ct, null_txn, test_brt_cursor_keycompare, db);
+    r = toku_open_brt(fname, 1, &brt, 1<<12, 1<<9, ct, null_txn, test_brt_cursor_keycompare);
     assert(r==0);
 
     /* insert a bunch of kv pairs */
@@ -475,7 +475,7 @@ static void test_brt_cursor_rand(int n, DB *db) {
 
 }
 
-static void test_brt_cursor_split(int n, DB *db) {
+static void test_brt_cursor_split(int n) {
     CACHETABLE ct;
     BRT brt;
     BRT_CURSOR cursor=0;
@@ -483,14 +483,14 @@ static void test_brt_cursor_split(int n, DB *db) {
     int keyseqnum;
     int i;
 
-    if (verbose) printf("test_brt_cursor_split:%d %p\n", n, db);
+    if (verbose) printf("test_brt_cursor_split:%d\n", n);
 
     unlink(fname);
 
     r = toku_brt_create_cachetable(&ct, 0, ZERO_LSN, NULL_LOGGER);
     assert(r==0);
 
-    r = toku_open_brt(fname, 1, &brt, 1<<12, 1<<9, ct, null_txn, test_brt_cursor_keycompare, db);
+    r = toku_open_brt(fname, 1, &brt, 1<<12, 1<<9, ct, null_txn, test_brt_cursor_keycompare);
     assert(r==0);
 
     /* insert a bunch of kv pairs */
@@ -553,8 +553,8 @@ static void test_brt_cursor_split(int n, DB *db) {
     assert(r==0);
 }
 
-static void test_multiple_brt_cursors(int n, DB *db) {
-    if (verbose) printf("test_multiple_brt_cursors:%d %p\n", n, db);
+static void test_multiple_brt_cursors(int n) {
+    if (verbose) printf("test_multiple_brt_cursors:%d\n", n);
 
     int r;
     CACHETABLE ct;
@@ -566,7 +566,7 @@ static void test_multiple_brt_cursors(int n, DB *db) {
     r = toku_brt_create_cachetable(&ct, 0, ZERO_LSN, NULL_LOGGER);
     assert(r==0);
 
-    r = toku_open_brt(fname, 1, &brt, 1<<12, 1<<9, ct, null_txn, test_brt_cursor_keycompare, db);
+    r = toku_open_brt(fname, 1, &brt, 1<<12, 1<<9, ct, null_txn, test_brt_cursor_keycompare);
     assert(r==0);
 
     int i;
@@ -597,8 +597,8 @@ static int log16(int n) {
     return r;
 }
 
-static void test_multiple_brt_cursor_walk(int n, DB *db) {
-    if (verbose) printf("test_multiple_brt_cursor_walk:%d %p\n", n, db);
+static void test_multiple_brt_cursor_walk(int n) {
+    if (verbose) printf("test_multiple_brt_cursor_walk:%d\n", n);
 
     int r;
     CACHETABLE ct;
@@ -615,7 +615,7 @@ static void test_multiple_brt_cursor_walk(int n, DB *db) {
     r = toku_brt_create_cachetable(&ct, cachesize, ZERO_LSN, NULL_LOGGER);
     assert(r==0);
 
-    r = toku_open_brt(fname, 1, &brt, 1<<12, 1<<9, ct, null_txn, test_brt_cursor_keycompare, db);
+    r = toku_open_brt(fname, 1, &brt, 1<<12, 1<<9, ct, null_txn, test_brt_cursor_keycompare);
     assert(r==0);
 
     int c;
@@ -679,8 +679,8 @@ static void test_multiple_brt_cursor_walk(int n, DB *db) {
     assert(r==0);
 }
 
-static void test_brt_cursor_set(int n, int cursor_op, DB *db) {
-    if (verbose) printf("test_brt_cursor_set:%d %d %p\n", n, cursor_op, db);
+static void test_brt_cursor_set(int n, int cursor_op) {
+    if (verbose) printf("test_brt_cursor_set:%d %d\n", n, cursor_op);
 
     int r;
     CACHETABLE ct;
@@ -692,7 +692,7 @@ static void test_brt_cursor_set(int n, int cursor_op, DB *db) {
     r = toku_brt_create_cachetable(&ct, 0, ZERO_LSN, NULL_LOGGER);
     assert(r==0);
 
-    r = toku_open_brt(fname, 1, &brt, 1<<12, 1<<9, ct, null_txn, test_brt_cursor_keycompare, db);
+    r = toku_open_brt(fname, 1, &brt, 1<<12, 1<<9, ct, null_txn, test_brt_cursor_keycompare);
     assert(r==0);
 
     int i;
@@ -751,8 +751,8 @@ static void test_brt_cursor_set(int n, int cursor_op, DB *db) {
     assert(r==0);
 }
 
-static void test_brt_cursor_set_range(int n, DB *db) {
-    if (verbose) printf("test_brt_cursor_set_range:%d %p\n", n, db);
+static void test_brt_cursor_set_range(int n) {
+    if (verbose) printf("test_brt_cursor_set_range:%d\n", n);
 
     int r;
     CACHETABLE ct;
@@ -764,7 +764,7 @@ static void test_brt_cursor_set_range(int n, DB *db) {
     r = toku_brt_create_cachetable(&ct, 0, ZERO_LSN, NULL_LOGGER);
     assert(r==0);
 
-    r = toku_open_brt(fname, 1, &brt, 1<<12, 1<<9, ct, null_txn, test_brt_cursor_keycompare, db);
+    r = toku_open_brt(fname, 1, &brt, 1<<12, 1<<9, ct, null_txn, test_brt_cursor_keycompare);
     assert(r==0);
 
     int i;
@@ -815,8 +815,8 @@ static void test_brt_cursor_set_range(int n, DB *db) {
     assert(r==0);
 }
 
-static void test_brt_cursor_delete(int n, DB *db) {
-    if (verbose) printf("test_brt_cursor_delete:%d %p\n", n, db);
+static void test_brt_cursor_delete(int n) {
+    if (verbose) printf("test_brt_cursor_delete:%d\n", n);
 
     int error;
     CACHETABLE ct;
@@ -828,7 +828,7 @@ static void test_brt_cursor_delete(int n, DB *db) {
     error = toku_brt_create_cachetable(&ct, 0, ZERO_LSN, NULL_LOGGER);
     assert(error == 0);
 
-    error = toku_open_brt(fname, 1, &brt, 1<<12, 1<<9, ct, null_txn, test_brt_cursor_keycompare, db);
+    error = toku_open_brt(fname, 1, &brt, 1<<12, 1<<9, ct, null_txn, test_brt_cursor_keycompare);
     assert(error == 0);
 
     error = toku_brt_cursor(brt, &cursor, NULL, FALSE, FALSE);
@@ -879,58 +879,55 @@ static void test_brt_cursor_delete(int n, DB *db) {
 static int test_brt_cursor_inc = 1000;
 static int test_brt_cursor_limit = 10000;
 
-static void test_brt_cursor(DB *db) {
+static void test_brt_cursor(void) {
     int n;
 
-    test_multiple_brt_cursors(1, db);
-    test_multiple_brt_cursors(2, db);
-    test_multiple_brt_cursors(3, db);
+    test_multiple_brt_cursors(1);
+    test_multiple_brt_cursors(2);
+    test_multiple_brt_cursors(3);
 
     for (n=0; n<test_brt_cursor_limit; n += test_brt_cursor_inc) {
-        test_brt_cursor_first(n, db); 
+        test_brt_cursor_first(n); 
      }
     for (n=0; n<test_brt_cursor_limit; n += test_brt_cursor_inc) {
-        test_brt_cursor_rfirst(n, db); 
+        test_brt_cursor_rfirst(n); 
     }
     for (n=0; n<test_brt_cursor_limit; n += test_brt_cursor_inc) {
-        test_brt_cursor_walk(n, db); 
+        test_brt_cursor_walk(n); 
     }
     for (n=0; n<test_brt_cursor_limit; n += test_brt_cursor_inc) {
-        test_brt_cursor_last(n, db); 
+        test_brt_cursor_last(n); 
     }
     for (n=0; n<test_brt_cursor_limit; n += test_brt_cursor_inc) {
-        test_brt_cursor_first_last(n, db); 
+        test_brt_cursor_first_last(n); 
     }
     for (n=0; n<test_brt_cursor_limit; n += test_brt_cursor_inc) {
-        test_brt_cursor_split(n, db); 
+        test_brt_cursor_split(n); 
     }
     for (n=0; n<test_brt_cursor_limit; n += test_brt_cursor_inc) {
-        test_brt_cursor_rand(n, db); 
+        test_brt_cursor_rand(n); 
     }
     for (n=0; n<test_brt_cursor_limit; n += test_brt_cursor_inc) {
-        test_brt_cursor_rwalk(n, db); 
+        test_brt_cursor_rwalk(n); 
     }
 
-    test_brt_cursor_set(1000, DB_SET, db); 
-    test_brt_cursor_set(10000, DB_SET, db); 
-    test_brt_cursor_set(1000, DB_SET_RANGE, db); 
-    test_brt_cursor_set_range(1000, db); 
-    test_brt_cursor_set_range(10000, db); 
+    test_brt_cursor_set(1000, DB_SET); 
+    test_brt_cursor_set(10000, DB_SET); 
+    test_brt_cursor_set(1000, DB_SET_RANGE); 
+    test_brt_cursor_set_range(1000); 
+    test_brt_cursor_set_range(10000); 
 
 
-    test_brt_cursor_delete(1000, db); 
-    test_multiple_brt_cursor_walk(10000, db); 
-    test_multiple_brt_cursor_walk(100000, db); 
+    test_brt_cursor_delete(1000); 
+    test_multiple_brt_cursor_walk(10000); 
+    test_multiple_brt_cursor_walk(100000); 
 }
 
 
 int
 test_main (int argc , const char *argv[]) {
     default_parse_args(argc, argv);
-
-    DB a_db;
-    DB *db = &a_db;
-    test_brt_cursor(db);
+    test_brt_cursor();
     if (verbose) printf("test ok\n");
     return 0;
 }

@@ -191,9 +191,9 @@ toku_logger_open_rollback(TOKULOGGER logger, CACHETABLE cachetable, BOOL create)
 
     r = toku_brt_create(&t);
     assert_zero(r);
-    r = toku_brt_open(t, ROLLBACK_CACHEFILE_NAME, create, create, cachetable, NULL_TXN, NULL);
+    r = toku_brt_open(t, ROLLBACK_CACHEFILE_NAME, create, create, cachetable, NULL_TXN);
     assert_zero(r);
-    logger->rollback_cachefile = t->cf;
+    logger->rollback_cachefile = t->h->cf;
     toku_brtheader_lock(t->h);
     //Verify it is empty
     assert(!t->h->panic);

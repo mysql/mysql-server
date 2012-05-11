@@ -17,7 +17,6 @@ static void test_sub_block(int n) {
     const int basementnodesize = 128*1024;
 
     TOKUTXN const null_txn = 0;
-    DB * const null_db = 0;
 
     int error;
     CACHETABLE ct;
@@ -29,7 +28,7 @@ static void test_sub_block(int n) {
     error = toku_brt_create_cachetable(&ct, 0, ZERO_LSN, NULL_LOGGER);
     assert(error == 0);
 
-    error = toku_open_brt(fname, TRUE, &brt, nodesize, basementnodesize, ct, null_txn, toku_builtin_compare_fun, null_db);
+    error = toku_open_brt(fname, TRUE, &brt, nodesize, basementnodesize, ct, null_txn, toku_builtin_compare_fun);
     assert(error == 0);
 
     // insert keys 0, 1, 2, .. (n-1)
@@ -48,7 +47,7 @@ static void test_sub_block(int n) {
     assert(error == 0);
 
     // verify the brt by walking a cursor through the rows
-    error = toku_open_brt(fname, FALSE, &brt, nodesize, basementnodesize, ct, null_txn, toku_builtin_compare_fun, null_db);
+    error = toku_open_brt(fname, FALSE, &brt, nodesize, basementnodesize, ct, null_txn, toku_builtin_compare_fun);
     assert(error == 0);
 
     BRT_CURSOR cursor;

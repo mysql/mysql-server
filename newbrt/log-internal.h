@@ -138,7 +138,7 @@ struct tokutxn {
     time_t     starttime;         // timestamp in seconds of transaction start
 
     u_int64_t  rollentry_raw_count;  // the total count of every byte in the transaction and all its children.
-    OMT        open_brts; // a collection of the brts that we touched.  Indexed by filenum.
+    OMT        open_brt_headers; // a collection of the brts that we touched.  Indexed by filenum.
     TXN_SNAPSHOT_TYPE snapshot_type;
     OMT        live_root_txn_list; // the root txns live when the root ancestor (self if a root) started
     XIDS       xids;      //Represents the xid list
@@ -188,7 +188,7 @@ struct tokutxn {
 struct txninfo {
     uint64_t   rollentry_raw_count;  // the total count of every byte in the transaction and all its children.
     uint32_t   num_brts;
-    BRT       *open_brts;
+    struct brt_header** open_brt_headers;
     BOOL       force_fsync_on_commit;  //This transaction NEEDS an fsync once (if) it commits.  (commit means root txn)
     uint64_t   num_rollback_nodes;
     uint64_t   num_rollentries;

@@ -243,37 +243,39 @@ static int find_xid (OMTVALUE v, void *txnv) {
 }
 
 
-static int remove_txn (OMTVALUE brtv, u_int32_t UU(idx), void *txnv)
+static int remove_txn (OMTVALUE hv, u_int32_t UU(idx), void *txnv)
 // Effect:  This function is called on every open BRT that a transaction used.
 //  This function removes the transaction from that BRT.
 {
-    BRT brt     = brtv;
+    struct brt_header* h = hv;
     TOKUTXN txn = txnv;
     OMTVALUE txnv_again=NULL;
     u_int32_t index;
-    int r = toku_omt_find_zero(brt->txns, find_xid, txn, &txnv_again, &index);
+    int r = toku_omt_find_zero(h->txns, find_xid, txn, &txnv_again, &index);
     assert(r==0);
     assert(txnv_again == txnv);
-    r = toku_omt_delete_at(brt->txns, index);
+    r = toku_omt_delete_at(h->txns, index);
     assert(r==0);
-    if (txn->txnid64==brt->h->txnid_that_created_or_locked_when_empty) {
-        brt->h->txnid_that_created_or_locked_when_empty = TXNID_NONE;
-        brt->h->root_that_created_or_locked_when_empty  = TXNID_NONE;
+    if (txn->txnid64==h->txnid_that_created_or_locked_when_empty) {
+        h->txnid_that_created_or_locked_when_empty = TXNID_NONE;
+        h->root_that_created_or_locked_when_empty  = TXNID_NONE;
     }
-    if (txn->txnid64==brt->h->txnid_that_suppressed_recovery_logs) {
-        brt->h->txnid_that_suppressed_recovery_logs = TXNID_NONE;
+    if (txn->txnid64==h->txnid_that_suppressed_recovery_logs) {
+        h->txnid_that_suppressed_recovery_logs = TXNID_NONE;
     }
-    if (!toku_brt_zombie_needed(brt) && brt->was_closed) {
+    if (!toku_brt_header_needed(h)) {
         //Close immediately.
-        assert(brt->close_db);
-        r = brt->close_db(brt->db, brt->close_flags, false, ZERO_LSN);
+        // I have no idea how this error string business works
+        char *error_string = NULL;
+        r = toku_remove_brtheader(h, &error_string, false, ZERO_LSN);
+        lazy_assert_zero(r);
     }
     return r;
 }
 
 // for every BRT in txn, remove it.
 static void note_txn_closing (TOKUTXN txn) {
-    toku_omt_iterate(txn->open_brts, remove_txn, txn);
+    toku_omt_iterate(txn->open_brt_headers, remove_txn, txn);
 }
 
 void toku_rollback_txn_close (TOKUTXN txn) {
@@ -367,20 +369,20 @@ void *toku_memdup_in_rollback(ROLLBACK_LOG_NODE log, const void *v, size_t len) 
     return r;
 }
 
-static int note_brt_used_in_txns_parent(OMTVALUE brtv, u_int32_t UU(index), void*txnv) {
+static int note_brt_used_in_txns_parent(OMTVALUE hv, u_int32_t UU(index), void*txnv) {
     TOKUTXN child  = txnv;
     TOKUTXN parent = child->parent;
-    BRT brt = brtv;
-    int r = toku_txn_note_brt(parent, brt);
+    struct brt_header* h = hv;
+    int r = toku_txn_note_brt(parent, h);
     if (r==0 &&
-        brt->h->txnid_that_created_or_locked_when_empty == toku_txn_get_txnid(child)) {
+        h->txnid_that_created_or_locked_when_empty == toku_txn_get_txnid(child)) {
         //Pass magic "no rollback needed" flag to parent.
-        brt->h->txnid_that_created_or_locked_when_empty = toku_txn_get_txnid(parent);
+        h->txnid_that_created_or_locked_when_empty = toku_txn_get_txnid(parent);
     }
     if (r==0 &&
-        brt->h->txnid_that_suppressed_recovery_logs == toku_txn_get_txnid(child)) {
+        h->txnid_that_suppressed_recovery_logs == toku_txn_get_txnid(child)) {
         //Pass magic "no recovery needed" flag to parent.
-        brt->h->txnid_that_suppressed_recovery_logs = toku_txn_get_txnid(parent);
+        h->txnid_that_suppressed_recovery_logs = toku_txn_get_txnid(parent);
     }
     return r;
 }
@@ -452,7 +454,7 @@ int toku_rollback_commit(TOKUTXN txn, YIELDF yield, void*yieldv, LSN lsn) {
         }
 
         // Note the open brts, the omts must be merged
-        r = toku_omt_iterate(txn->open_brts, note_brt_used_in_txns_parent, txn);
+        r = toku_omt_iterate(txn->open_brt_headers, note_brt_used_in_txns_parent, txn);
         assert(r==0);
 
         // Merge the list of headers that must be checkpointed before commit
@@ -683,24 +685,22 @@ void toku_maybe_spill_rollbacks(TOKUTXN txn, ROLLBACK_LOG_NODE log) {
     }
 }
 
-static int find_filenum (OMTVALUE v, void *brtv) {
-    BRT brt     = v;
-    BRT brtfind = brtv;
-    FILENUM fnum     = toku_cachefile_filenum(brt    ->cf);
-    FILENUM fnumfind = toku_cachefile_filenum(brtfind->cf);
+static int find_filenum (OMTVALUE v, void *hv) {
+    struct brt_header* h = v;
+    struct brt_header* hfind = hv;
+    FILENUM fnum     = toku_cachefile_filenum(h->cf);
+    FILENUM fnumfind = toku_cachefile_filenum(hfind->cf);
     if (fnum.fileid<fnumfind.fileid) return -1;
     if (fnum.fileid>fnumfind.fileid) return +1;
-    if (brt < brtfind) return -1;
-    if (brt > brtfind) return +1;
     return 0;
 }
 
 //Notify a transaction that it has touched a brt.
-int toku_txn_note_brt (TOKUTXN txn, BRT brt) {
+int toku_txn_note_brt (TOKUTXN txn, struct brt_header* h) {
     OMTVALUE txnv;
     u_int32_t index;
     // Does brt already know about transaction txn?
-    int r = toku_omt_find_zero(brt->txns, find_xid, txn, &txnv, &index);
+    int r = toku_omt_find_zero(h->txns, find_xid, txn, &txnv, &index);
     if (r==0) {
 	// It's already there.
 	assert((TOKUTXN)txnv==txn);
@@ -708,74 +708,10 @@ int toku_txn_note_brt (TOKUTXN txn, BRT brt) {
     }
     // Otherwise it's not there.
     // Insert reference to transaction into brt
-    r = toku_omt_insert_at(brt->txns, txn, index);
+    r = toku_omt_insert_at(h->txns, txn, index);
     assert(r==0);
     // Insert reference to brt into transaction
-    r = toku_omt_insert(txn->open_brts, brt, find_filenum, brt, 0);
-    assert(r==0);
-    return 0;
-}
-
-struct swap_brt_extra {
-    BRT live;
-    BRT zombie;
-};
-
-static int swap_brt (OMTVALUE txnv, u_int32_t UU(idx), void *extra) {
-    struct swap_brt_extra *info = extra;
-
-    TOKUTXN txn = txnv;
-    OMTVALUE zombie_again=NULL;
-    u_int32_t index;
-
-    int r;
-    r = toku_txn_note_brt(txn, info->live); //Add new brt.
-    assert(r==0);
-    r = toku_omt_find_zero(txn->open_brts, find_filenum, info->zombie, &zombie_again, &index);
-    assert(r==0);
-    assert((void*)zombie_again==info->zombie);
-    r = toku_omt_delete_at(txn->open_brts, index); //Delete old brt.
-    assert(r==0);
-    return 0;
-}
-
-int toku_txn_note_swap_brt (BRT live, BRT zombie) {
-    if (zombie->pinned_by_checkpoint) {
-        //Swap checkpoint responsibility.
-        assert(!live->pinned_by_checkpoint); //Pin only uses one brt.
-        live->pinned_by_checkpoint = 1;
-        zombie->pinned_by_checkpoint = 0;
-    }
-
-    struct swap_brt_extra swap = {.live = live, .zombie = zombie};
-    int r = toku_omt_iterate(zombie->txns, swap_brt, &swap);
-    assert(r==0);
-    toku_omt_clear(zombie->txns);
-
-    //Close immediately.
-    assert(zombie->close_db);
-    assert(!toku_brt_zombie_needed(zombie));
-    r = zombie->close_db(zombie->db, zombie->close_flags, false, ZERO_LSN);
-    return r;
-}
-
-
-static int remove_brt (OMTVALUE txnv, u_int32_t UU(idx), void *brtv) {
-    TOKUTXN txn = txnv;
-    BRT     brt = brtv;
-    OMTVALUE brtv_again=NULL;
-    u_int32_t index;
-    int r = toku_omt_find_zero(txn->open_brts, find_filenum, brt, &brtv_again, &index);
-    assert(r==0);
-    assert((void*)brtv_again==brtv);
-    r = toku_omt_delete_at(txn->open_brts, index);
-    assert(r==0);
-    return 0;
-}
-
-int toku_txn_note_close_brt (BRT brt) {
-    assert(toku_omt_size(brt->txns)==0);
-    int r = toku_omt_iterate(brt->txns, remove_brt, brt);
+    r = toku_omt_insert(txn->open_brt_headers, h, find_filenum, h, 0);
     assert(r==0);
     return 0;
 }

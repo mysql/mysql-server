@@ -188,18 +188,12 @@ init_dbt_realloc(DBT *dbt) {
     return dbt;
 }
 
-//Callback used for redirecting dictionaries.
-static void
-ydb_set_brt(DB *db, BRT brt) {
-    db->i->brt = brt;
-}
-
 int 
 toku_ydb_init(void) {
     int r = 0;
     //Lower level must be initialized first.
     if (r==0) 
-        r = toku_brt_init(toku_ydb_lock, toku_ydb_unlock, ydb_set_brt);
+        r = toku_brt_init(toku_ydb_lock, toku_ydb_unlock);
     if (r==0) 
         r = toku_ydb_lock_init();
     return r;
@@ -394,20 +388,6 @@ env_setup_real_tmp_dir(DB_ENV *env) {
     env_setup_real_dir(env, &env->i->real_tmp_dir, env->i->tmp_dir);
 }
 
-static void keep_zombie_callback (DB_ENV *env, BRT brt, char *dname, bool oplsn_valid, LSN oplsn) {
-    if (brt->db->i==NULL) {
-	XMALLOC(brt->db->i);
-    }
-    brt->db->i->dname = dname;
-    toku_list_init(&brt->db->i->dbs_that_must_close_before_abort);
-    env_note_db_opened(env, brt->db);
-    env_note_db_closed(env, brt->db);
-    brt->db->i->is_zombie = TRUE;
-    env_note_zombie_db(env, brt->db);
-    int r = toku_brt_db_delay_closed(brt, brt->db, db_close_before_brt, 0, oplsn_valid, oplsn);
-    assert(r==0);
-}
-
 static void keep_cachetable_callback (DB_ENV *env, CACHETABLE cachetable)
 {
     env->i->cachetable = cachetable;
@@ -418,11 +398,8 @@ ydb_do_recovery (DB_ENV *env) {
     assert(env->i->real_log_dir);
     toku_ydb_unlock();
     int r = tokudb_recover(env,
-			   keep_zombie_callback,
 			   toku_keep_prepared_txn_callback,
 			   keep_cachetable_callback,
-			   toku_setup_db_internal,
-                           toku_close_db_internal,
 			   env->i->logger,
                            env->i->dir, env->i->real_log_dir, env->i->bt_compare,
                            env->i->update_function,
@@ -954,7 +931,6 @@ toku_env_open(DB_ENV * env, const char *home, u_int32_t flags, int mode) {
         r = toku_brt_create_cachetable(&env->i->cachetable, env->i->cachetable_size, ZERO_LSN, env->i->logger);
         if (r!=0) goto died2;
     }
-    toku_cachetable_set_lock_unlock_for_io(env->i->cachetable, toku_ydb_lock, toku_ydb_unlock);
 
     toku_cachetable_set_env_dir(env->i->cachetable, env->i->dir);
 
@@ -1062,9 +1038,9 @@ toku_env_close(DB_ENV * env, u_int32_t flags) {
         r = toku_ydb_do_error(env, EINVAL, "%s", err_msg);
         goto panic_and_quit_early;
     }
-    if (env->i->open_dbs) { //Verify open dbs. Zombies are ok at this stage, fully open is not.
+    if (env->i->open_dbs) { //Verify that there are no open dbs.
         uint32_t size = toku_omt_size(env->i->open_dbs);
-        assert(size == env->i->num_open_dbs + env->i->num_zombie_dbs);
+        assert(size == env->i->num_open_dbs);
         if (env->i->num_open_dbs > 0) {
 	    err_msg = "Cannot close environment due to open DBs\n";
             r = toku_ydb_do_error(env, EINVAL, "%s", err_msg);
@@ -1073,7 +1049,7 @@ toku_env_close(DB_ENV * env, u_int32_t flags) {
     }
     {
         if (env->i->persistent_environment) {
-            r = toku_db_close(env->i->persistent_environment, 0, false, ZERO_LSN);
+            r = toku_db_close(env->i->persistent_environment);
             if (r) {
 		err_msg = "Cannot close persistent environment dictionary (DB->close error)\n";
                 toku_ydb_do_error(env, r, "%s", err_msg);
@@ -1081,7 +1057,7 @@ toku_env_close(DB_ENV * env, u_int32_t flags) {
             }
         }
         if (env->i->directory) {
-            r = toku_db_close(env->i->directory, 0, false, ZERO_LSN);
+            r = toku_db_close(env->i->directory);
             if (r) {
 		err_msg = "Cannot close Directory dictionary (DB->close error)\n";
                 toku_ydb_do_error(env, r, "%s", err_msg);
@@ -1098,15 +1074,6 @@ toku_env_close(DB_ENV * env, u_int32_t flags) {
 		err_msg = "Cannot close environment (error during checkpoint)\n";
                 toku_ydb_do_error(env, r, "%s", err_msg);
                 goto panic_and_quit_early;
-            }
-            { //Verify open dbs. Neither Zombies nor fully open are ok at this stage.
-                uint32_t size = toku_omt_size(env->i->open_dbs);
-                assert(size == env->i->num_open_dbs + env->i->num_zombie_dbs);
-                if (size > 0) {
-		    err_msg = "Cannot close environment due to zombie DBs\n";
-                    r = toku_ydb_do_error(env, EINVAL, "%s", err_msg);
-                    goto panic_and_quit_early;
-                }
             }
             r = toku_logger_close_rollback(env->i->logger, FALSE);
             if (r) {
@@ -2542,10 +2509,6 @@ find_db_by_db (OMTVALUE v, void *dbv) {
     const char *dnamefind = dbfind->i->dname;
     cmp = strcmp(dname, dnamefind);
     if (cmp != 0) return cmp;
-    int is_zombie     = db->i->is_zombie != 0;
-    int is_zombiefind = dbfind->i->is_zombie != 0;
-    cmp = is_zombie - is_zombiefind;
-    if (cmp != 0) return cmp;
     if (db < dbfind) return -1;
     if (db > dbfind) return  1;
     return 0;
@@ -2555,7 +2518,6 @@ find_db_by_db (OMTVALUE v, void *dbv) {
 void
 env_note_db_opened(DB_ENV *env, DB *db) {
     assert(db->i->dname);  // internal (non-user) dictionary has no dname
-    assert(!db->i->is_zombie);
     int r;
     OMTVALUE dbv;
     uint32_t idx;
@@ -2575,7 +2537,6 @@ env_note_db_closed(DB_ENV *env, DB *db)
 // Effect: Tell the DB_ENV that the DB is no longer in use by the user of the API.  The DB may still be in use by the fractal tree internals.
 {
     assert(db->i->dname);
-    assert(!db->i->is_zombie);
     assert(env->i->num_open_dbs);
     int r;
     OMTVALUE dbv;
@@ -2590,52 +2551,6 @@ env_note_db_closed(DB_ENV *env, DB *db)
     assert_zero(r);
 }
 
-void
-env_note_zombie_db(DB_ENV *env, DB *db)
-// Effect: Tell the DB_ENV that the the DB is a zombie.  That is, the DB is closed, but there's a unresolved transaction that refers to it (or may still be in use by the fractal tree internals).
-{
-    assert(db->i->dname);  // internal (non-user) dictionary has no dname
-    assert(db->i->is_zombie);
-    int r;
-    OMTVALUE dbv;
-    uint32_t idx;
-    env->i->num_zombie_dbs++;
-    r = toku_omt_find_zero(env->i->open_dbs, find_db_by_db, db, &dbv, &idx);
-    assert(r==DB_NOTFOUND); //Must not already be there.
-    r = toku_omt_insert_at(env->i->open_dbs, db, idx);
-    assert_zero(r);
-}
-
-void
-env_note_zombie_db_closed(DB_ENV *env, DB *db) {
-    assert(db->i->dname);
-    assert(db->i->is_zombie);
-    assert(env->i->num_zombie_dbs);
-    int r;
-    OMTVALUE dbv;
-    uint32_t idx;
-    env->i->num_zombie_dbs--;
-    r = toku_omt_find_zero(env->i->open_dbs, find_db_by_db, db, &dbv, &idx);
-    assert_zero(r); //Must already be there.
-    assert((DB*)dbv == db);
-    r = toku_omt_delete_at(env->i->open_dbs, idx);
-    assert_zero(r);
-}
-
-static int
-find_zombie_db_by_dname (OMTVALUE v, void *dnamev) {
-    DB *db = v;            // DB* that is stored in the omt
-    int cmp;
-    const char *dname     = db->i->dname;
-    const char *dnamefind = dnamev;
-    cmp = strcmp(dname, dnamefind);
-    if (cmp != 0) return cmp;
-    int is_zombie     = db->i->is_zombie != 0;
-    int is_zombiefind = 1;
-    cmp = is_zombie - is_zombiefind;
-    return cmp;
-}
-
 static int
 find_open_db_by_dname (OMTVALUE v, void *dnamev) {
     DB *db = v;            // DB* that is stored in the omt
@@ -2643,10 +2558,6 @@ find_open_db_by_dname (OMTVALUE v, void *dnamev) {
     const char *dname     = db->i->dname;
     const char *dnamefind = dnamev;
     cmp = strcmp(dname, dnamefind);
-    if (cmp != 0) return cmp;
-    int is_zombie     = db->i->is_zombie != 0;
-    int is_zombiefind = 0;
-    cmp = is_zombie - is_zombiefind;
     return cmp;
 }
 
@@ -2661,34 +2572,11 @@ env_is_db_with_dname_open(DB_ENV *env, const char *dname) {
     if (r==0) {
         DB *db = dbv;
         assert(strcmp(dname, db->i->dname) == 0);
-        assert(!db->i->is_zombie);
         rval = TRUE;
     }
     else {
         assert(r==DB_NOTFOUND);
         rval = FALSE;
-    }
-    return rval;
-}
-
-// return true if there is any db open with the given dname
-static DB*
-env_get_zombie_db_with_dname(DB_ENV *env, const char *dname) {
-    int r;
-    DB* rval;
-    OMTVALUE dbv;
-    uint32_t idx;
-    r = toku_omt_find_zero(env->i->open_dbs, find_zombie_db_by_dname, (void*)dname, &dbv, &idx);
-    if (r==0) {
-        DB *db = dbv;
-        assert(db);
-        assert(strcmp(dname, db->i->dname) == 0);
-        assert(db->i->is_zombie);
-        rval = db;
-    }
-    else {
-        assert(r==DB_NOTFOUND);
-        rval = NULL;
     }
     return rval;
 }
@@ -2718,6 +2606,37 @@ finalize_file_removal(DICTIONARY_ID dict_id, void * extra) {
         //Poison the lock tree to prevent a future file from re-using it.
         toku_ltm_invalidate_lt(ltm, dict_id);
     }
+}
+
+// see if we can acquire a table lock for the given dname.
+// requires: write lock on dname in the directory. dictionary
+//          open, close, and begin checkpoint cannot occur.
+// returns: true if we could open, lock, and close a dictionary
+//          with the given dname, false otherwise.
+static bool
+can_acquire_table_lock(DB_ENV *env, DB_TXN *txn, const char *iname_in_env)
+{
+    int r;
+    bool got_lock = false;
+    DB *db;
+
+    r = toku_db_create(&db, env, 0);
+    assert_zero(r);
+    r = db_open_iname(db, txn, iname_in_env, 0, 0);
+    if (r != 0) {
+        printf("%s had db_open_iname return %d\n", __FUNCTION__, r);
+    }
+    assert_zero(r);
+    r = toku_db_pre_acquire_table_lock(db, txn);
+    if (r == 0) {
+        got_lock = true;
+    } else {
+        got_lock = false;
+    }
+    r = toku_db_close(db);
+    assert_zero(r);
+
+    return got_lock;
 }
 
 int
@@ -2770,16 +2689,15 @@ toku_env_dbremove(DB_ENV * env, DB_TXN *txn, const char *fname, const char *dbna
                 if (r==0) {
                     // we know a live db handle does not exist.
                     //
-                    // if there exists a zombie, make sure that it is due to
-                    // checkpoint by trying to get a table lock. we can't
-                    // remove a db that live txns reference, but it's okay
-                    // to deal with the fact that its pinned for checkpoint
-                    // further down the stack.
-                    DB* zombie = env_get_zombie_db_with_dname(env, dname);
-                    if (zombie)
-                        r = toku_db_pre_acquire_table_lock(zombie, child);
-                    if (r!=0 && r!=DB_LOCK_NOTGRANTED)
-                        toku_ydb_do_error(env, r, "Cannot remove dictionary.\n");
+                    // if the lock tree still exists, try to get a full table
+                    // lock. if we can't get it, then some txn still needs
+                    // the brtheader and we should return lock not granted.
+                    // otherwise, we're okay in marking this brt as remove on
+                    // commit. no new handles can open for this dictionary
+                    // because the txn has directory write locks on the dname
+                    if (!can_acquire_table_lock(env, child, iname)) {
+                        r = DB_LOCK_NOTGRANTED;
+                    }
                 }
             }
             else {
@@ -2863,15 +2781,17 @@ toku_env_dbrename(DB_ENV *env, DB_TXN *txn, const char *fname, const char *dbnam
 	assert_zero(r);
     }
 
+    char *iname;
     r = toku_db_get(env->i->directory, child, &old_dname_dbt, &iname_dbt, DB_SERIALIZABLE);  // allocates memory for iname
-    char *iname = iname_dbt.data;
+    iname = iname_dbt.data;
     if (r==DB_NOTFOUND)
         r = ENOENT;
     else if (r==0) {
 	// verify that newname does not already exist
-	r = db_getf_set(env->i->directory, child, DB_SERIALIZABLE, &new_dname_dbt, ydb_getf_do_nothing, NULL);
-	if (r == 0) 
+        r = db_getf_set(env->i->directory, child, DB_SERIALIZABLE, &new_dname_dbt, ydb_getf_do_nothing, NULL);
+	if (r == 0) {
 	    r = EEXIST;
+	}
 	else if (r == DB_NOTFOUND) {
 	    // remove old (dname,iname) and insert (newname,iname) in directory
 	    r = toku_db_del(env->i->directory, child, &old_dname_dbt, DB_DELETE_ANY, TRUE);
@@ -2880,22 +2800,18 @@ toku_env_dbrename(DB_ENV *env, DB_TXN *txn, const char *fname, const char *dbnam
             //Now that we have writelocks on both dnames, verify that there are still no handles open. (to prevent race conditions)
             if (r==0 && env_is_db_with_dname_open(env, dname))
                 r = toku_ydb_do_error(env, EINVAL, "Cannot rename dictionary with an open handle.\n");
-            DB* zombie = NULL;
-            if (r==0) {
-                zombie = env_get_zombie_db_with_dname(env, dname);
-                if (zombie)
-                    r = toku_db_pre_acquire_table_lock(zombie, child);
-                if (r!=0 && r!=DB_LOCK_NOTGRANTED)
-                    toku_ydb_do_error(env, r, "Cannot rename dictionary.\n");
+            if (r == 0) {
+                // we know a live db handle for the old name does not exist.
+                //
+                // if the lock tree still exists, try to get a full table
+                // lock. if we can't get it, then some txn still references 
+                // this dictionary, so we can't proceed.
+                if (!can_acquire_table_lock(env, child, iname)) {
+                    r = DB_LOCK_NOTGRANTED;
+                }
             }
-            if (r==0 && env_is_db_with_dname_open(env, newname))
+            if (r==0 && env_is_db_with_dname_open(env, newname)) {
                 r = toku_ydb_do_error(env, EINVAL, "Cannot rename dictionary; Dictionary with target name has an open handle.\n");
-            if (r==0 && zombie) {
-                //Update zombie in list if exists.
-                env_note_zombie_db_closed(env, zombie);  // tell env that this db is no longer a zombie (it is completely closed)
-                toku_free(zombie->i->dname);
-                zombie->i->dname = toku_xstrdup(newname);
-                env_note_zombie_db(env, zombie);  // tell env that this db is a zombie
             }
 	}
     }
@@ -2913,6 +2829,7 @@ toku_env_dbrename(DB_ENV *env, DB_TXN *txn, const char *fname, const char *dbnam
     }
 
     if (iname) toku_free(iname);
+
     return r;
 
 }

@@ -299,6 +299,7 @@ static void test (const char *directory, BOOL is_error) {
 
     BRTLOADER bl;
     BRT *XCALLOC_N(N_DEST_DBS, brts);
+    DB* *XCALLOC_N(N_DEST_DBS, dbs);
     const char **XMALLOC_N(N_DEST_DBS, new_fnames_in_env);
     for (int i=0; i<N_DEST_DBS; i++) {
 	char s[100];
@@ -320,7 +321,7 @@ static void test (const char *directory, BOOL is_error) {
 					       ct,
 					       (generate_row_for_put_func)NULL,
 					       (DB*)NULL,
-					       N_DEST_DBS, brts,
+					       N_DEST_DBS, brts, dbs,
 					       new_fnames_in_env,
 					       bt_compare_functions,
 					       "tempxxxxxx",
@@ -437,6 +438,7 @@ static void test (const char *directory, BOOL is_error) {
     toku_free(fnames);
     toku_free(fds);
     toku_free(brts);
+    toku_free(dbs);
     toku_free(new_fnames_in_env);
     toku_free(bt_compare_functions);
     toku_free(lsnp);

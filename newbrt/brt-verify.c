@@ -18,7 +18,8 @@
 static int 
 compare_pairs (BRT brt, struct kv_pair *a, struct kv_pair *b) {
     DBT x,y;
-    int cmp = brt->compare_fun(brt->db,
+    FAKE_DB(db, &brt->h->cmp_descriptor);
+    int cmp = brt->compare_fun(&db,
                                toku_fill_dbt(&x, kv_pair_key(a), kv_pair_keylen(a)),
                                toku_fill_dbt(&y, kv_pair_key(b), kv_pair_keylen(b)));
     return cmp;
@@ -27,7 +28,8 @@ compare_pairs (BRT brt, struct kv_pair *a, struct kv_pair *b) {
 static int 
 compare_leafentries (BRT brt, LEAFENTRY a, LEAFENTRY b) {
     DBT x,y;
-    int cmp = brt->compare_fun(brt->db,
+    FAKE_DB(db, &brt->h->cmp_descriptor);
+    int cmp = brt->compare_fun(&db,
                                toku_fill_dbt(&x, le_key(a), le_keylen(a)),
                                toku_fill_dbt(&y, le_key(b), le_keylen(b)));
     return cmp;
@@ -36,7 +38,8 @@ compare_leafentries (BRT brt, LEAFENTRY a, LEAFENTRY b) {
 static int 
 compare_pair_to_leafentry (BRT brt, struct kv_pair *a, LEAFENTRY b) {
     DBT x,y;
-    int cmp = brt->compare_fun(brt->db,
+    FAKE_DB(db, &brt->h->cmp_descriptor);
+    int cmp = brt->compare_fun(&db,
                                toku_fill_dbt(&x, kv_pair_key(a), kv_pair_keylen(a)),
                                toku_fill_dbt(&y, le_key(b), le_keylen(b)));
     return cmp;
@@ -45,7 +48,8 @@ compare_pair_to_leafentry (BRT brt, struct kv_pair *a, LEAFENTRY b) {
 static int 
 compare_pair_to_key (BRT brt, struct kv_pair *a, bytevec key, ITEMLEN keylen) {
     DBT x, y;
-    int cmp = brt->compare_fun(brt->db,
+    FAKE_DB(db, &brt->h->cmp_descriptor);
+    int cmp = brt->compare_fun(&db,
                                toku_fill_dbt(&x, kv_pair_key(a), kv_pair_keylen(a)),
                                toku_fill_dbt(&y, key, keylen));
     return cmp;
@@ -106,7 +110,7 @@ struct count_msgs_extra {
     DBT *key;
     MSN msn;
     FIFO fifo;
-    DB *cmp_extra;
+    DESCRIPTOR desc;
     brt_compare_func cmp;
 };
 
@@ -118,7 +122,8 @@ count_msgs(OMTVALUE v, u_int32_t UU(idx), void *ve)
     const struct fifo_entry *entry = toku_fifo_get_entry(e->fifo, offset);
     DBT dbt;
     const DBT *buffer_key = fill_dbt_for_fifo_entry(&dbt, entry);
-    if (entry->msn.msn == e->msn.msn && e->cmp(e->cmp_extra, e->key, buffer_key) == 0) {
+    FAKE_DB(db, e->desc);
+    if (entry->msn.msn == e->msn.msn && e->cmp(&db, e->key, buffer_key) == 0) {
         e->count++;
     }
     return 0;
@@ -207,7 +212,7 @@ toku_get_node_for_verify(
     BRTNODE* nodep
     )
 {
-    u_int32_t fullhash = toku_cachetable_hash(brt->cf, blocknum);
+    u_int32_t fullhash = toku_cachetable_hash(brt->h->cf, blocknum);
     struct brtnode_fetch_extra bfe;
     fill_bfe_for_full_read(&bfe, brt->h);
     toku_pin_brtnode_off_client_thread(
@@ -312,7 +317,7 @@ toku_verify_brtnode (BRT brt,
                              DBT keydbt;
                              struct count_msgs_extra extra = { .count = 0, .key = toku_fill_dbt(&keydbt, key, keylen),
                                                                .msn = msn, .fifo = bnc->buffer,
-                                                               .cmp_extra = brt->db, .cmp = brt->compare_fun };
+                                                               .desc = &brt->h->cmp_descriptor, .cmp = brt->compare_fun };
                              extra.count = 0;
                              toku_omt_iterate(bnc->broadcast_list, count_msgs, &extra);
                              if (brt_msg_type_applies_all(type) || brt_msg_type_does_nothing(type)) {
@@ -379,9 +384,9 @@ toku_verify_brtnode (BRT brt,
 done:
     {
     int r = toku_cachetable_unpin(
-        brt->cf, 
+        brt->h->cf, 
         node->thisnodename, 
-        toku_cachetable_hash(brt->cf, node->thisnodename), 
+        toku_cachetable_hash(brt->h->cf, node->thisnodename), 
         CACHETABLE_CLEAN, 
         make_brtnode_pair_attr(node)
         );

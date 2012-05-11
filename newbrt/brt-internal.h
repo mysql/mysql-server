@@ -391,7 +391,8 @@ struct brt_header {
     TXNID txnid_that_suppressed_recovery_logs;
     TXNID root_xid_that_created;
     struct toku_list live_brts;
-    struct toku_list zombie_brts;
+    OMT txns; // transactions that are using this header    
+    bool pinned_by_checkpoint;  //Keep this heaer around for checkpoint, like a transaction
 
     brt_compare_func compare_fun;
     brt_update_func update_fun;
@@ -410,13 +411,19 @@ struct brt_header {
     MSN      highest_unused_msn_for_upgrade;
 };
 
+// Copy the descriptor into a temporary variable, and tell DRD that subsequent code happens after reading that pointer.
+// In combination with the annotation in toku_update_descriptor, this seems to be enough to convince test_4015 that all is well.
+// Otherwise, drd complains that the newly malloc'd descriptor string is touched later by some comparison operation.
+static const struct __toku_db zero_db; // it's static, so it's all zeros.  icc needs this to be a global
+static inline void setup_fake_db (DB *fake_db, DESCRIPTOR orig_desc) {
+    *fake_db = zero_db;
+    fake_db->cmp_descriptor = orig_desc;
+}
+#define FAKE_DB(db, desc) struct __toku_db db; setup_fake_db(&db, (desc))
+
 struct brt {
-    CACHEFILE cf;
     // The header is shared.  It is also ephemeral.
     struct brt_header *h;
-
-    toku_spinlock_t cursors_lock;
-    struct toku_list cursors;
 
     unsigned int nodesize;
     unsigned int basementnodesize;
@@ -424,17 +431,10 @@ struct brt {
     BOOL did_set_flags;
     brt_compare_func compare_fun;
     brt_update_func update_fun;
-    DB *db;           // To pass to the compare fun, and close once transactions are done.
-
-    OMT txns; // transactions that are using this OMT (note that the transaction checks the cf also)
-    int pinned_by_checkpoint;  //Keep this brt around for checkpoint, like a transaction
-
-    int was_closed; //True when this brt was closed, but is being kept around for transactions (or checkpoint).
-    int (*close_db)(DB*, u_int32_t, bool oplsn_valid, LSN oplsn);
-    u_int32_t close_flags;
+    on_redirect_callback redirect_callback;;
+    void* redirect_callback_extra;
 
     struct toku_list live_brt_link;
-    struct toku_list zombie_brt_link;
 };
 
 // FIXME needs toku prefix
@@ -963,7 +963,7 @@ void brtnode_put_cmd (
     OMT live_root_txns
     );
 
-void toku_reset_root_xid_that_created(BRT brt, TXNID new_root_xid_that_created);
+void toku_reset_root_xid_that_created(struct brt_header* h, TXNID new_root_xid_that_created);
 // Reset the root_xid_that_created field to the given value.  
 // This redefines which xid created the dictionary.
 void toku_flusher_thread_set_callback(void (*callback_f)(int, void*), void* extra);

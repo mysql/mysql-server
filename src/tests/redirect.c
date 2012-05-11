@@ -208,8 +208,8 @@ redirect_EINVAL(void) {
     redirect_dictionary(DICT_1, EINVAL);
     insert(1, 1);
     redirect_dictionary(DICT_1, EINVAL);
-    close_db(); //Still open as zombie after this.
-    redirect_dictionary(DICT_1, EINVAL); //Fail due to zombie
+    close_db();
+    redirect_dictionary(DICT_1, EINVAL);
     close_db();
     commit_txn();
     end_env();

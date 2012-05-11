@@ -18,7 +18,7 @@ static void test2 (int limit) {
     
     r = toku_brt_create_cachetable(&ct, 0, ZERO_LSN, NULL_LOGGER); assert(r==0);
     unlink(fname);
-    r = toku_open_brt(fname, 1, &t, 1024, 256, ct, null_txn, toku_builtin_compare_fun, null_db);
+    r = toku_open_brt(fname, 1, &t, 1024, 256, ct, null_txn, toku_builtin_compare_fun);
     if (verbose) printf("%s:%d did setup\n", __FILE__, __LINE__);
     assert(r==0);
     for (i=0; i<limit; i++) { // 4096
@@ -30,10 +30,6 @@ static void test2 (int limit) {
 	assert(r==0);
 	r = toku_verify_brt(t); assert(r==0);
 	//printf("%s:%d did insert %d\n", __FILE__, __LINE__, i);
-	if (0) {
-	    r = toku_brt_flush(t);
-	    assert(r==0);
-	}
     }
     if (verbose) printf("%s:%d inserted\n", __FILE__, __LINE__);
     r = toku_verify_brt(t); assert(r==0);

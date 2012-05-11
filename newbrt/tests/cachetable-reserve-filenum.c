@@ -69,7 +69,7 @@ cachetable_reserve_filenum_test (void) {
     assert(fn2.fileid == fn.fileid);
     toku_cachetable_unreserve_filenum (ct, fn);
 
-    r = toku_cachefile_close(&cf, 0, FALSE, ZERO_LSN); assert(r == 0 && cf == 0);
+    r = toku_cachefile_close(&cf, 0, FALSE, ZERO_LSN); assert(r == 0);
     r = toku_cachetable_close(&ct); assert(r == 0 && ct == 0);
 }
 

@@ -28,8 +28,7 @@ static void run_test (void) {
     r = db->close(db, 0);                                                               CKERR(r);
 
     // delete
-    r = db_create(&db, env, 0);                                                         CKERR(r);
-    r = db->remove(db, namea, NULL, 0);                                                 CKERR(r);
+    r = env->dbremove(env, NULL, namea, NULL, 0);                                       CKERR(r);
 
     // create
     r = db_create(&db, env, 0);                                                         CKERR(r);

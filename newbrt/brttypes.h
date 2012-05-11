@@ -241,6 +241,7 @@ typedef const struct brt_msg *BRT_MSG;
 typedef int (*brt_compare_func)(DB *, const DBT *, const DBT *);
 typedef void (*setval_func)(const DBT *, void *);
 typedef int (*brt_update_func)(DB *, const DBT *, const DBT *, const DBT *, setval_func, void *);
+typedef void (*on_redirect_callback)(BRT, void*);
 
 #define UU(x) x __attribute__((__unused__))
 
