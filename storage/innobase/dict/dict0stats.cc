@@ -156,7 +156,7 @@ dict_stats_empty_table(
 		= UT_LIST_GET_LEN(table->indexes) - 1;
 	table->stat_modified_counter = 0;
 
-	dict_index_t*   index;
+	dict_index_t*	index;
 
 	for (index = dict_table_get_first_index(table);
 	     index != NULL;
@@ -180,7 +180,7 @@ dict_stats_empty_table(
 /*********************************************************************//**
 Calculates new estimates for index statistics. This function is
 relatively quick and is used to calculate transient statistics that
-are not saved on disk.  This was the only way to calculate statistics
+are not saved on disk. This was the only way to calculate statistics
 before the Persistent Statistics feature was introduced.
 dict_stats_update_transient_for_index() @{
 @return size of the index in pages, or 0 if skipped */
@@ -2788,7 +2788,7 @@ dict_stats_delete_index_stats(
 /*********************************************************************//**
 Removes the statistics for a table and all of its indexes from the
 persistent statistics storage if it exists and if there is data stored for
-the table.  This function creates its own transaction and commits it.
+the table. This function creates its own transaction and commits it.
 dict_stats_delete_table_stats() @{
 @return DB_SUCCESS or error code */
 UNIV_INTERN
