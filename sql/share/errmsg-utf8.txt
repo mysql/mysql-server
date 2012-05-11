@@ -6760,6 +6760,9 @@ ER_COL_COUNT_DOESNT_MATCH_CORRUPTED_V2
   eng "Column count of %s.%s is wrong. Expected %d, found %d. The table is probably corrupted"
   ger "Spaltenanzahl von %s.%s falsch. %d erwartet, aber %d gefunden. Tabelle ist wahrscheinlich beschädigt"
 
+ER_SLAVE_SILENT_RETRY_TRANSACTION
+  eng "Slave must silently retry current transaction"
+
 #
 #  End of 5.6 error messages.
 #
