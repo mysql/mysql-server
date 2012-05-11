@@ -70,6 +70,10 @@ if ($index_merge_random_rows_in_EXPLAIN)
 }
 explain select * from t0 where key1 < 3 or key2 <4;
 
+if ($index_merge_random_rows_in_EXPLAIN)
+{
+  --replace_column 9 #
+}
 explain
 select * from t0 where (key1 > 30 and key1<35) or (key2 >32 and key2 < 40);
 # Bug#21277: InnoDB, wrong result set, index_merge strategy, second index not evaluated
