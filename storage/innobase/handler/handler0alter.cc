@@ -3143,7 +3143,7 @@ trx_commit:
 			dberr_t		ret;
 			char		errstr[1024];
 
-			ret = dict_stats_delete_index_stats(
+			ret = dict_stats_drop_index(
 				prebuilt->table->name, key->name,
 				prebuilt->trx,
 				errstr, sizeof(errstr));
