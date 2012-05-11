@@ -127,8 +127,8 @@ index.
 @return DB_SUCCESS or error code */
 UNIV_INTERN
 dberr_t
-dict_stats_delete_index_stats(
-/*==========================*/
+dict_stats_drop_index(
+/*==================*/
 	const char*	tname,	/*!< in: table name */
 	const char*	iname,	/*!< in: index name */
 	trx_t*		trx,	/*!< in/out: user transaction */
@@ -143,8 +143,8 @@ This function creates its own transaction and commits it.
 @return DB_SUCCESS or error code */
 UNIV_INTERN
 dberr_t
-dict_stats_delete_table_stats(
-/*==========================*/
+dict_stats_drop_table(
+/*==================*/
 	const char*	table_name,	/*!< in: table name */
 	char*		errstr,		/*!< out: error message
 					if != DB_SUCCESS is returned */
