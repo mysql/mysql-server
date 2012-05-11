@@ -184,8 +184,37 @@ enum enum_alter_inplace_result {
  */
 #define HA_BINLOG_FLAGS (HA_BINLOG_ROW_CAPABLE | HA_BINLOG_STMT_CAPABLE)
 
-/*
+/**
   The handler supports read before write removal optimization
+
+  Read before write removal may be used for storage engines which support
+  write without previous read of the row to be updated. Handler returning
+  this flag must implement start_read_removal() and end_read_removal().
+  The handler may return "fake" rows constructed from the key of the row
+  asked for. This is used to optimize UPDATE and DELETE by reducing the
+  numer of roundtrips between handler and storage engine.
+  
+  Example:
+  UPDATE a=1 WHERE pk IN (<keys>)
+
+  mysql_update()
+  {
+    if (<conditions for starting read removal>)
+      start_read_removal()
+      -> handler returns true if read removal supported for this table/query
+
+    while(read_record("pk=<key>"))
+      -> handler returns fake row with column "pk" set to <key>
+
+      ha_update_row()
+      -> handler sends write "a=1" for row with "pk=<key>"
+
+    end_read_removal()
+    -> handler returns the number of rows actually written
+  }
+
+  @note This optimization in combination with batching may be used to
+        remove even more roundtrips.
 */
 #define HA_READ_BEFORE_WRITE_REMOVAL  (LL(1) << 38)
 
@@ -2169,20 +2198,17 @@ public:
   virtual int extra_opt(enum ha_extra_function operation, ulong cache_size)
   { return extra(operation); }
 
-  /*
-    Start read (before write) removal on the current table. Fake rows may
-    be returned while reading from the selected index. This is used to
-    optimise simple UPDATE and DELETEs.The handler may refuse to start
-    due to internal limitations in the storage engine. Successful start
-    is always followed by end.
-    Function will only be called for handles who returns
-    HA_READ_BEFORE_WRITE_REMOVAL from table_flags()
+  /**
+    Start read (before write) removal on the current table.
+    @see HA_READ_BEFORE_WRITE_REMOVAL
   */
   virtual bool start_read_removal(void)
   { DBUG_ASSERT(0); return false; }
 
-  /*
-    End read (before write) removal and return the number of rows really written
+  /**
+    End read (before write) removal and return the number of rows
+    really written
+    @see HA_READ_BEFORE_WRITE_REMOVAL
   */
   virtual ha_rows end_read_removal(void)
   { DBUG_ASSERT(0); return (ha_rows) 0; }
