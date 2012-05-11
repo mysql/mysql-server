@@ -6174,7 +6174,12 @@ TABLE *open_table_uncached(THD *thd, const char *path, const char *db,
                                     HA_GET_INDEX) : 0,
                             READ_KEYINFO | COMPUTE_TYPES | EXTRA_RECORD,
                             ha_open_options,
-                            tmp_table, FALSE))
+                            tmp_table,
+                            /*
+                              Set "is_create_table" if the table does not
+                              exist in SE
+                            */
+                            open_in_engine ? false : true))
   {
     /* No need to lock share->mutex as this is not needed for tmp tables */
     free_table_share(share);
