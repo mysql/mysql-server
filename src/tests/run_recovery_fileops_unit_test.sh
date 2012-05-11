@@ -48,12 +48,7 @@ do
                             do
                                 for h in $hset
                                 do
-                                    test $O != c || true
-                                    test $c -eq 0 || true
-                                    test $b -eq 0 || true
-                                    test $e -eq 0 || true
-                                    test $d -eq 1 || true
-                                    if true #[[ ( $O != c ) -a ( $c -eq 0 ) -a ( ( $b -eq 0 ) -o ( $e -eq 0 ) -o ( $d -eq 1 ) ) ]]
+                                    if [[ "$O" != "c" && $c -eq 0 && ( $b -eq 0 || $e -eq 0 || $d -eq 1 ) ]]
                                     then
                                         iset="0 1"
                                     else
