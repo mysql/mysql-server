@@ -257,6 +257,7 @@ public:
   {}
   bool fix_fields(THD *, Item **);
   bool fix_left(THD *thd, Item **ref);
+  table_map not_null_tables() const { return 0; }
   bool is_null();
   longlong val_int();
   void cleanup();
@@ -473,6 +474,7 @@ public:
      show(0)
     {}
   virtual void top_level_item() { abort_on_null= 1; }
+  table_map not_null_tables() const { return 0; }
   bool top_level() { return abort_on_null; }
   longlong val_int();
   enum Functype functype() const { return NOT_ALL_FUNC; }
