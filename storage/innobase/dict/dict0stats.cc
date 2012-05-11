@@ -2699,6 +2699,8 @@ dict_stats_delete_index_stats(
 	dict_stats_t*	dict_stats;
 	THD*		mysql_thd;
 
+	ut_ad(!mutex_own(&dict_sys->mutex));
+
 	/* skip indexes whose table names do not contain a database name
 	e.g. if we are dropping an index from SYS_TABLES */
 	if (strchr(tname, '/') == NULL) {
@@ -2806,6 +2808,8 @@ dict_stats_delete_table_stats(
 	pars_info_t*	pinfo;
 	dberr_t		ret = DB_ERROR;
 	dict_stats_t*	dict_stats;
+
+	ut_ad(!mutex_own(&dict_sys->mutex));
 
 	/* skip tables that do not contain a database name
 	e.g. if we are dropping SYS_TABLES */
