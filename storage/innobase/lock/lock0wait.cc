@@ -457,13 +457,13 @@ DECLARE_THREAD(lock_wait_timeout_thread)(
 			os_thread_create */
 {
 	ib_int64_t	sig_count = 0;
-	os_event_t	event = os_event_create(NULL);
+	os_event_t	event = lock_sys->timeout_event;
 
 #ifdef UNIV_PFS_THREAD
 	pfs_register_thread(srv_lock_timeout_thread_key);
 #endif
 
-	lock_sys->timeout_event = event;
+	lock_sys->timeout_thread_active = true;
 
 	do {
 		srv_slot_t*	slot;
@@ -503,7 +503,7 @@ DECLARE_THREAD(lock_wait_timeout_thread)(
 
 	} while (srv_shutdown_state < SRV_SHUTDOWN_CLEANUP);
 
-	lock_sys->timeout_event = 0;
+	lock_sys->timeout_thread_active = false;
 
 	/* We count the number of threads in os_thread_exit(). A created
 	thread should always use that to exit and not use return() to exit. */
