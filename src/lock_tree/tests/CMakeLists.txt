@@ -4,6 +4,8 @@ if(BUILD_TESTING)
     get_filename_component(base ${src} NAME_WE)
 
     foreach(impl lin tlog)
+      ## each source file test_foo.c creates binaries lt_test_foo.lin and
+      ## lt_test_foo.tlog
       add_executable(lt_${base}.${impl} ${src})
       set_property(TARGET lt_${base}.${impl} APPEND PROPERTY
         COMPILE_DEFINITIONS "TESTDIR=\"dir.${base}.c.${impl}\"")
@@ -22,6 +24,9 @@ if(BUILD_TESTING)
       COMPILE_DEFINITIONS TOKU_RT_NOOVERLAPS)
   endforeach(src)
 
+  ## run test_footprint_point_write.c and test_footprint_range_write.c in
+  ## a bunch of different ways.
+  ## TODO: add lt_ prefix to test names
   foreach(impl lin tlog)
     foreach(type point range)
       foreach(i 1 2)

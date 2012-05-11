@@ -6,11 +6,11 @@ function(add_c_defines)
 endfunction(add_c_defines)
 
 ## os name detection (threadpool-test.c needs this)
-if(CMAKE_SYSTEM_NAME MATCHES "Darwin")
+if (CMAKE_SYSTEM_NAME MATCHES Darwin)
   add_c_defines(DARWIN=1 _DARWIN_C_SOURCE)
-elseif(CMAKE_SYSTEM_NAME MATCHES "Linux")
+elseif (CMAKE_SYSTEM_NAME MATCHES Linux)
   add_c_defines(__linux__=1)
-endif()
+endif ()
 
 ## preprocessor definitions we want everywhere
 add_c_defines(
@@ -20,10 +20,10 @@ add_c_defines(
   _LARGEFILE64_SOURCE
   )
 
-if(CMAKE_SYSTEM_NAME MATCHES Darwin)
+if (CMAKE_SYSTEM_NAME MATCHES Darwin)
   message(WARNING "Setting TOKU_ALLOW_DEPRECATED on Darwin.  TODO: remove this.")
   add_c_defines(TOKU_ALLOW_DEPRECATED)
-endif()
+endif ()
 
 ## coverage
 option(USE_GCOV "Use gcov for test coverage." OFF)
@@ -33,6 +33,9 @@ if (USE_GCOV)
   endif ()
 endif (USE_GCOV)
 
+## this function makes sure that the libraries passed to it get compiled
+## with gcov-needed flags, we only add those flags to our libraries
+## because we don't really care whether our tests get covered
 function(maybe_add_gcov_to_libraries)
   if (USE_GCOV)
     foreach(lib ${ARGN})
@@ -55,41 +58,46 @@ endfunction(maybe_add_gcov_to_libraries)
 
 include(CheckCCompilerFlag)
 
-## disable some warnings, if we can
-function(set_flag_if_exists flag)
-  check_c_compiler_flag(${flag} HAVE_${flag})
-  if(HAVE_${flag})
-    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${flag}")
-  endif()
+## adds a compiler flag if the compiler supports it
+function(set_cflags_if_supported)
+  foreach(flag ${ARGN})
+    check_c_compiler_flag(${flag} HAVE_${flag})
+    if (HAVE_${flag})
+      set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${flag}")
+    endif ()
+  endforeach(flag)
 endfunction(set_flag_if_exists)
 
-foreach(flag -Wno-self-assign -Wno-missing-field-initializers -Wno-maybe-uninitialized)
-  set_flag_if_exists(${flag})
-endforeach(flag)
+## disable some warnings
+set_cflags_if_supported(
+  -Wno-self-assign
+  -Wno-missing-field-initializers
+  -Wno-maybe-uninitialized
+  )
 
 ## set extra debugging flags and preprocessor definitions
-set(CMAKE_C_FLAGS_DEBUG "-g3 -ggdb -O0")
+set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -g3 -ggdb -O0")
 set_property(DIRECTORY APPEND PROPERTY COMPILE_DEFINITIONS_DEBUG FORTIFY_SOURCE=2)
 
 ## set extra release flags
-set(CMAKE_C_FLAGS_RELEASE "-O3")
+set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -O3")
 
 ## check how to do inter-procedural optimization
 check_c_compiler_flag(-flto HAVE_CC_FLAG_FLTO)
 check_c_compiler_flag(-ipo HAVE_CC_FLAG_IPO)
 
 ## add inter-procedural optimization flags
-if(HAVE_CC_FLAG_FLTO)
+if (HAVE_CC_FLAG_FLTO)
   set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -flto")
-elseif(HAVE_CC_FLAG_IPO)
+elseif (HAVE_CC_FLAG_IPO)
   set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -ip -ipo1")
-endif()
+endif ()
 
-if(CMAKE_C_COMPILER_ID MATCHES "^Intel$")
-  # make sure intel libs are linked statically
+if (CMAKE_C_COMPILER_ID MATCHES Intel)
+  ## make sure intel libs are linked statically
   set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -static-intel")
 
-  # disable some intel-specific warnings
+  ## disable some intel-specific warnings
   set(intel_warnings
     94     # allow arrays of length 0
     589    # do not complain about goto that skips initialization
@@ -101,15 +109,33 @@ if(CMAKE_C_COMPILER_ID MATCHES "^Intel$")
     )
   string(REGEX REPLACE ";" "," intel_warning_string "${intel_warnings}")
   set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -diag-disable ${intel_warning_string}")
+
+  ## icc does -g differently
   set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -debug all")
 
-  set(EXTRA_CFLAGS "-Wall -Wcheck")
+  ## set icc warnings
+  set(WARN_CFLAGS
+    -Wall
+    -Wcheck  ## icc version of -Wextra
+    )
 else()
-  set(EXTRA_CFLAGS "-Wall -Wextra -Wcast-align -Wbad-function-cast -Wno-missing-noreturn -Wstrict-prototypes -Wmissing-prototypes -Wmissing-declarations -Wpointer-arith -Wmissing-format-attribute -Wshadow")
+  ## set gcc warnings
+  set(WARN_CFLAGS
+    -Wall
+    -Wextra
+    -Wcast-align
+    -Wbad-function-cast
+    -Wno-missing-noreturn
+    -Wstrict-prototypes
+    -Wmissing-prototypes
+    -Wmissing-declarations
+    -Wpointer-arith
+    -Wmissing-format-attribute
+    -Wshadow
+    )
 endif()
 
-## default warning levels
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${EXTRA_CFLAGS}")
+set_cflags_if_supported(${WARN_CFLAGS})
 
 ## function for adding -fvisibility=hidden to targets
 function(set_targets_visibility_hidden)
