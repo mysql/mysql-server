@@ -3,8 +3,7 @@
 # tables for the new table. This cannot happen normally, one have to insert
 # manually like what we do here.
 #
-# The RENAME should succeed, but emit a warning and not overwrite the
-# existing rows.
+# The RENAME should succeed and existent rows should be overwritten.
 #
 
 -- source include/have_innodb.inc
