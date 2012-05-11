@@ -197,27 +197,13 @@ select key1,key2,key3,key4,filler1 from t1 where key3=200 or (key1=100 and key2=
 ##
 
 # Check that the shortest key is used for ROR-intersection, covering and non-covering.
-if ($index_merge_random_rows_in_EXPLAIN)
+if (!$index_merge_random_rows_in_EXPLAIN)
 {
-  --replace_column 9 #
-  --replace_result st_a ### sta_swt1a ###
+  # Too unstable on InnoDB
+  explain select * from t1 where st_a=1 and st_b=1;
+  explain select st_a,st_b from t1 where st_a=1 and st_b=1;
+  explain select st_a from t1 ignore index (st_a) where st_a=1 and st_b=1;
 }
-explain select * from t1 where st_a=1 and st_b=1;
-
-if ($index_merge_random_rows_in_EXPLAIN)
-{
-  --replace_column 9 #
-  --replace_result sta_swt1a sta_swt#a sta_swt2a sta_swt#a  
-}
-explain select st_a,st_b from t1 where st_a=1 and st_b=1;
-
-# Check if "ingore index" syntax works
-if ($index_merge_random_rows_in_EXPLAIN)
-{
-  --replace_column 9 #
-  --replace_result sta_swt1a sta_swt#a sta_swt2a sta_swt#a  
-}
-explain select st_a from t1 ignore index (st_a) where st_a=1 and st_b=1;
 
 # Do many tests
 # Check that keys that don't improve selectivity are skipped.
@@ -231,12 +217,24 @@ explain select * from t1 where st_b=1 and swt1b=1 and swt2b=1;
 
 explain select * from t1 where st_a=1 and swt1a=1 and swt2a=1 and st_b=1 and swt1b=1 and swt2b=1;
 
+if ($index_merge_random_rows_in_EXPLAIN)
+{
+  --replace_column 9 #
+}
 explain select * from t1 ignore index (sta_swt21a, stb_swt1a_2b)
   where st_a=1 and swt1a=1 and swt2a=1 and st_b=1 and swt1b=1 and swt2b=1;
 
+if ($index_merge_random_rows_in_EXPLAIN)
+{
+  --replace_column 9 #
+}
 explain select * from t1 ignore index (sta_swt21a, sta_swt12a, stb_swt1a_2b)
   where st_a=1 and swt1a=1 and swt2a=1 and st_b=1 and swt1b=1 and swt2b=1;
 
+if ($index_merge_random_rows_in_EXPLAIN)
+{
+  --replace_column 9 #
+}
 explain select * from t1 ignore index (sta_swt21a, sta_swt12a, stb_swt1a_2b, stb_swt1b)
   where st_a=1 and swt1a=1 and swt2a=1 and st_b=1 and swt1b=1 and swt2b=1;
 
