@@ -2898,9 +2898,6 @@ dict_stats_delete_table_stats(
 
 			    TABLE_STATS_NAME_PRINT,
 			    database_name, table_name_strip);
-
-		ut_print_timestamp(stderr);
-		fprintf(stderr, " InnoDB: %s\n", errstr);
 	}
 
 	dict_stats_close(dict_stats);
