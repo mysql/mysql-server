@@ -1429,6 +1429,10 @@ static inline char *dlerror(void)
 /* Length of decimal number represented by INT64. */
 #define MY_INT64_NUM_DECIMAL_DIGITS 21
 
+#ifdef __cplusplus
+#include <limits> /* should be included before min/max macros */
+#endif
+
 /* Define some useful general macros (should be done after all headers). */
 #if !defined(max)
 #define max(a, b)	((a) > (b) ? (a) : (b))
