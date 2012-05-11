@@ -21,32 +21,19 @@ struct toku_logfilemgr {
 };
 
 int toku_logfilemgr_create(TOKULOGFILEMGR *lfm) {
-    int failresult=0;
     // malloc a logfilemgr
-    TOKULOGFILEMGR mgr = toku_malloc(sizeof(struct toku_logfilemgr));
-//    printf("toku_logfilemgr_create [%p]\n", mgr);
-    if ( mgr == NULL ) {
-        failresult = ENOMEM;
-        goto createfail;
-    }
+    TOKULOGFILEMGR mgr = toku_xmalloc(sizeof(struct toku_logfilemgr));
     mgr->first = NULL;
     mgr->last = NULL;
-    mgr->n_entries = 0;
-    
+    mgr->n_entries = 0;    
     *lfm = mgr;
     return 0;
-
-createfail:
-    toku_logfilemgr_destroy(&mgr);
-    *lfm = NULL;
-    return failresult;
 }
 
 int toku_logfilemgr_destroy(TOKULOGFILEMGR *lfm) {
     int r=0;
     if ( *lfm != NULL ) { // be tolerant of being passed a NULL
         TOKULOGFILEMGR mgr = *lfm;
-//        printf("toku_logfilemgr_destroy [%p], %d entries\n", mgr, mgr->n_entries);
         while ( mgr->n_entries > 0 ) {
             toku_logfilemgr_delete_oldest_logfile_info(mgr);
         }
@@ -57,7 +44,6 @@ int toku_logfilemgr_destroy(TOKULOGFILEMGR *lfm) {
 }
 
 int toku_logfilemgr_init(TOKULOGFILEMGR lfm, const char *log_dir) {
-//    printf("toku_logfilemgr_init [%p]\n", lfm);
     assert(lfm!=0);
 
     int r;
@@ -74,10 +60,7 @@ int toku_logfilemgr_init(TOKULOGFILEMGR lfm, const char *log_dir) {
     char *basename;
     LSN tmp_lsn = {0};
     for(int i=0;i<n_logfiles;i++){
-        lf_info = toku_malloc(sizeof(struct toku_logfile_info));
-        if ( lf_info == NULL ) {
-            return ENOMEM;
-        }
+        lf_info = toku_xmalloc(sizeof(struct toku_logfile_info));
         // find the index
 	// basename is the filename of the i-th logfile
         basename = strrchr(logfiles[i], '/') + 1;
@@ -113,41 +96,34 @@ int toku_logfilemgr_init(TOKULOGFILEMGR lfm, const char *log_dir) {
 }
 
 int toku_logfilemgr_num_logfiles(TOKULOGFILEMGR lfm) {
-    assert(lfm!=NULL);
+    assert(lfm);
     return lfm->n_entries;
 }
 
 int toku_logfilemgr_add_logfile_info(TOKULOGFILEMGR lfm, TOKULOGFILEINFO lf_info) {
-    assert(lfm!=NULL);
-    struct lfm_entry *entry = toku_malloc(sizeof(struct lfm_entry));
-//    printf("toku_logfilemgr_add_logfile_info [%p] : entry [%p]\n", lfm, entry);
-    int r=0;
-    if ( entry != NULL ) {
-        entry->lf_info=lf_info;
-        entry->next = NULL;
-        if ( lfm->n_entries != 0 )
-            lfm->last->next = entry;
-        lfm->last = entry;
-        lfm->n_entries++;
-        if (lfm->n_entries == 1 ) {
-            lfm->first = lfm->last;
-        }
+    assert(lfm);
+    struct lfm_entry *entry = toku_xmalloc(sizeof(struct lfm_entry));
+    entry->lf_info = lf_info;
+    entry->next = NULL;
+    if ( lfm->n_entries != 0 )
+        lfm->last->next = entry;
+    lfm->last = entry;
+    lfm->n_entries++;
+    if (lfm->n_entries == 1 ) {
+        lfm->first = lfm->last;
     }
-    else 
-        r = ENOMEM;
-    return r;
+    return 0;
 }
 
 TOKULOGFILEINFO toku_logfilemgr_get_oldest_logfile_info(TOKULOGFILEMGR lfm) {
-    assert(lfm!=NULL);
+    assert(lfm);
     return lfm->first->lf_info;
 }
 
 void toku_logfilemgr_delete_oldest_logfile_info(TOKULOGFILEMGR lfm) {
-    assert(lfm!=NULL);
+    assert(lfm);
     if ( lfm->n_entries > 0 ) {
         struct lfm_entry *entry = lfm->first;
-//        printf("toku_logfilemgr_delete_oldest_logfile_info [%p] : entry [%p]\n", lfm, entry);
         toku_free(entry->lf_info);
         lfm->first = entry->next;
         toku_free(entry);
@@ -159,7 +135,7 @@ void toku_logfilemgr_delete_oldest_logfile_info(TOKULOGFILEMGR lfm) {
 }
 
 LSN toku_logfilemgr_get_last_lsn(TOKULOGFILEMGR lfm) {
-    assert(lfm!=NULL);
+    assert(lfm);
     if ( lfm->n_entries == 0 ) {
         LSN lsn;
         lsn.lsn = 0;
@@ -169,17 +145,16 @@ LSN toku_logfilemgr_get_last_lsn(TOKULOGFILEMGR lfm) {
 }
 
 void toku_logfilemgr_update_last_lsn(TOKULOGFILEMGR lfm, LSN lsn) {
-    assert(lfm!=NULL);
+    assert(lfm);
     assert(lfm->last!=NULL);
     lfm->last->lf_info->maxlsn = lsn;
 }
 
 void toku_logfilemgr_print(TOKULOGFILEMGR lfm) {
-    assert(lfm!=NULL);
+    assert(lfm);
     printf("toku_logfilemgr_print [%p] : %d entries \n", lfm, lfm->n_entries);
-    int i;
     struct lfm_entry *entry = lfm->first;
-    for (i=0;i<lfm->n_entries;i++) {
+    for (int i=0;i<lfm->n_entries;i++) {
         printf("  entry %d : index = %"PRId64", maxlsn = %"PRIu64"\n", i, entry->lf_info->index, entry->lf_info->maxlsn.lsn);
         entry = entry->next;
     }

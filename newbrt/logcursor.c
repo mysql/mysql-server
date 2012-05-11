@@ -24,8 +24,7 @@ struct toku_logcursor {
 
 #define LC_LSN_ERROR (DB_RUNRECOVERY)
 
-static void lc_print_logcursor (TOKULOGCURSOR lc) __attribute__((unused));
-static void lc_print_logcursor (TOKULOGCURSOR lc)  {
+void toku_logcursor_print(TOKULOGCURSOR lc)  {
     printf("lc = %p\n", lc);
     printf("  logdir = %s\n", lc->logdir);
     printf("  logfiles = %p\n", lc->logfiles);
@@ -51,7 +50,8 @@ static int lc_close_cur_logfile(TOKULOGCURSOR lc) {
 
 static toku_off_t lc_file_len(const char *name) {
    toku_struct_stat buf;
-   int r = toku_stat(name, &buf); assert(r == 0);
+   int r = toku_stat(name, &buf); 
+   assert(r == 0);
    return buf.st_size;
 }
 
@@ -117,15 +117,9 @@ static int lc_check_lsn(TOKULOGCURSOR lc, int dir) {
 //   - returns a pointer to a logcursor
 
 static int lc_create(TOKULOGCURSOR *lc, const char *log_dir) {
-    int failresult=0;
-    int r=0;
 
     // malloc a cursor
-    TOKULOGCURSOR cursor = (TOKULOGCURSOR) toku_malloc(sizeof(struct toku_logcursor));
-    if ( cursor == NULL ) {
-        failresult = ENOMEM;
-        goto lc_create_fail;
-    }
+    TOKULOGCURSOR cursor = (TOKULOGCURSOR) toku_xmalloc(sizeof(struct toku_logcursor));
     // find logfiles in logdir
     cursor->is_open = FALSE;
     cursor->cur_logfiles_index = 0;
@@ -134,24 +128,12 @@ static int lc_create(TOKULOGCURSOR *lc, const char *log_dir) {
     cursor->buffer = toku_malloc(cursor->buffer_size); // it does not matter if it failes
     // cursor->logdir must be an absolute path
     if (toku_os_is_absolute_name(log_dir)) {
-        cursor->logdir = (char *) toku_malloc(strlen(log_dir)+1);
-        if ( cursor->logdir == NULL ) {
-            failresult = ENOMEM;
-            goto lc_create_fail;
-        }
+        cursor->logdir = (char *) toku_xmalloc(strlen(log_dir)+1);
         sprintf(cursor->logdir, "%s", log_dir);
     } else {
         char *cwd = getcwd(NULL, 0);
-        if ( cwd == NULL ) {
-            failresult = -1;
-            goto lc_create_fail;
-        }
-        cursor->logdir = (char *) toku_malloc(strlen(cwd)+strlen(log_dir)+2);
-        if ( cursor->logdir == NULL ) {
-            toku_free(cwd);
-            failresult = ENOMEM;
-            goto lc_create_fail;
-        }
+        assert(cwd);
+        cursor->logdir = (char *) toku_xmalloc(strlen(cwd)+strlen(log_dir)+2);
         sprintf(cursor->logdir, "%s/%s", cwd, log_dir);
         toku_free(cwd);
     }
@@ -161,12 +143,7 @@ static int lc_create(TOKULOGCURSOR *lc, const char *log_dir) {
     cursor->last_direction=LC_FIRST;
     
     *lc = cursor;
-    return r;
-
- lc_create_fail:
-    toku_logcursor_destroy(&cursor);
-    *lc = NULL;
-    return failresult;
+    return 0;
 }
 
 static int lc_fix_bad_logfile(TOKULOGCURSOR lc);
@@ -194,29 +171,16 @@ int toku_logcursor_create_for_file(TOKULOGCURSOR *lc, const char *log_dir, const
 
     TOKULOGCURSOR cursor = *lc;
     int fullnamelen = strlen(cursor->logdir) + strlen(log_file) + 3;
-    char *log_file_fullname = toku_malloc(fullnamelen);
-    if ( log_file_fullname == NULL ) {
-        failresult = ENOMEM;
-        goto fail;
-    }
+    char *log_file_fullname = toku_xmalloc(fullnamelen);
     sprintf(log_file_fullname, "%s/%s", cursor->logdir, log_file);
 
     cursor->n_logfiles=1;
 
-    char **logfiles = toku_malloc(sizeof(char**));
-    if ( logfiles == NULL ) {
-        failresult = ENOMEM;
-        goto fail;
-    }
+    char **logfiles = toku_xmalloc(sizeof(char**));
     cursor->logfiles = logfiles;
     cursor->logfiles[0] = log_file_fullname;
     *lc = cursor;
-    return r;
-fail:
-    toku_free(log_file_fullname);
-    toku_logcursor_destroy(&cursor);
-    *lc = NULL;
-    return failresult;
+    return 0;
 }
 
 int toku_logcursor_destroy(TOKULOGCURSOR *lc) {
@@ -461,9 +425,14 @@ static int lc_fix_bad_logfile(TOKULOGCURSOR lc) {
     unsigned int version=0;
     int r = 0;
 
-    r = fseek(lc->cur_fp, 0, SEEK_SET);                if ( r!=0 ) return r;
-    r = toku_read_logmagic(lc->cur_fp, &version);      if ( r!=0 ) return r;
-    if (version != TOKU_LOG_VERSION) return -1;
+    r = fseek(lc->cur_fp, 0, SEEK_SET);                
+    if ( r!=0 ) 
+        return r;
+    r = toku_read_logmagic(lc->cur_fp, &version);      
+    if ( r!=0 ) 
+        return r;
+    if (version != TOKU_LOG_VERSION) 
+        return -1;
     
     toku_off_t last_good_pos;
     last_good_pos = ftello(lc->cur_fp);
@@ -473,7 +442,8 @@ static int lc_fix_bad_logfile(TOKULOGCURSOR lc) {
         memset(&le, 0, sizeof(le));
         r = toku_log_fread(lc->cur_fp, &le);
         toku_log_free_log_entry_resources(&le);
-        if ( r!=0 ) break;
+        if ( r!=0 ) 
+            break;
         last_good_pos = ftello(lc->cur_fp);
     }
     // now have position of last good entry
@@ -481,9 +451,17 @@ static int lc_fix_bad_logfile(TOKULOGCURSOR lc) {
     // 2) truncate the file to remove the error
     // 3) reopen the file
     // 4) set the pos to last
-    r = lc_close_cur_logfile(lc);                                   if ( r!=0 ) return r;
-    r = truncate(lc->logfiles[lc->n_logfiles - 1], last_good_pos);  if ( r!=0 ) return r;
-    r = lc_open_logfile(lc, lc->n_logfiles-1);                      if ( r!=0 ) return r;
-    r = fseek(lc->cur_fp, 0, SEEK_END);                             if ( r!=0 ) return r;
+    r = lc_close_cur_logfile(lc);                                   
+    if ( r!=0 ) 
+        return r;
+    r = truncate(lc->logfiles[lc->n_logfiles - 1], last_good_pos);  
+    if ( r!=0 ) 
+        return r;
+    r = lc_open_logfile(lc, lc->n_logfiles-1);                      
+    if ( r!=0 ) 
+        return r;
+    r = fseek(lc->cur_fp, 0, SEEK_END);                             
+    if ( r!=0 ) 
+        return r;
     return 0;
 }
