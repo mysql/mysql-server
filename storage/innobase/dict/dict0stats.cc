@@ -2924,59 +2924,142 @@ dict_stats_rename_table(
 					is returned */
 	size_t		errstr_sz)	/*!< in: errstr size */
 {
-	char	old_buf[MAX_FULL_NAME_LEN];
-	char	new_buf[MAX_FULL_NAME_LEN];
-	dberr_t	ret;
-
 	ut_ad(!mutex_own(&dict_sys->mutex));
 
-	ret = dict_stats_delete_table_stats(old_name, errstr, errstr_sz);
+	char		old_database_name[MAX_DATABASE_NAME_LEN + 1];
+	char		new_database_name[MAX_DATABASE_NAME_LEN + 1];
+	const char*	old_table_name; /* without leading db name */
+	const char*	new_table_name; /* without leading db name */
+	trx_t*		trx;
+	pars_info_t*	pinfo;
+	dberr_t		ret = DB_ERROR;
+	dict_stats_t*	dict_stats;
+
+	/* skip innodb_table_stats and innodb_index_stats themselves */
+	if (strcmp(old_name, TABLE_STATS_NAME) == 0
+	    || strcmp(old_name, INDEX_STATS_NAME) == 0
+	    || strcmp(new_name, TABLE_STATS_NAME) == 0
+	    || strcmp(new_name, INDEX_STATS_NAME) == 0) {
+
+		return(DB_SUCCESS);
+	}
+
+	/* Increment table reference count to prevent the tables from
+	being DROPped just before que_eval_sql(). */
+	dict_stats = dict_stats_open();
+
+	if (dict_stats == NULL) {
+		/* stats tables do not exist or have unexpected structure */
+		return(DB_SUCCESS);
+	}
+
+	ut_snprintf(old_database_name, sizeof(old_database_name), "%.*s",
+		    (int) dict_get_db_name_len(old_name), old_name);
+
+	old_table_name = dict_remove_db_name(old_name);
+
+	ut_snprintf(new_database_name, sizeof(new_database_name), "%.*s",
+		    (int) dict_get_db_name_len(new_name), new_name);
+
+	new_table_name = dict_remove_db_name(new_name);
+
+	pinfo = pars_info_create();
+	pars_info_add_str_literal(
+		pinfo, "old_database_name", old_database_name);
+	pars_info_add_str_literal(
+		pinfo, "old_table_name", old_table_name);
+	pars_info_add_str_literal(
+		pinfo, "new_database_name", new_database_name);
+	pars_info_add_str_literal(
+		pinfo, "new_table_name", new_table_name);
+
+	trx = trx_allocate_for_background();
+	trx_start_if_not_started(trx);
+	ret = que_eval_sql(
+		pinfo,
+		"PROCEDURE RENAME_TABLE_STATS_TABLE () IS\n"
+		"BEGIN\n"
+		"UPDATE \"" TABLE_STATS_NAME "\" SET\n"
+		"database_name = :new_database_name,\n"
+		"table_name = :new_table_name\n"
+		"WHERE\n"
+		"database_name = :old_database_name AND\n"
+		"table_name = :old_table_name;\n"
+		"END;\n",
+		TRUE, trx);
+	/* pinfo is freed by que_eval_sql() */
+	trx_commit_for_mysql(trx);
+	trx_free_for_background(trx);
+
+	if (ret == DB_SUCCESS) {
+		pinfo = pars_info_create();
+		pars_info_add_str_literal(
+			pinfo, "old_database_name", old_database_name);
+		pars_info_add_str_literal(
+			pinfo, "old_table_name", old_table_name);
+		pars_info_add_str_literal(
+			pinfo, "new_database_name", new_database_name);
+		pars_info_add_str_literal(
+			pinfo, "new_table_name", new_table_name);
+
+		trx = trx_allocate_for_background();
+		trx_start_if_not_started(trx);
+		ret = que_eval_sql(
+			pinfo,
+			"PROCEDURE RENAME_TABLE_STATS_INDEX () IS\n"
+			"BEGIN\n"
+			"UPDATE \"" INDEX_STATS_NAME "\" SET\n"
+			"database_name = :new_database_name,\n"
+			"table_name = :new_table_name\n"
+			"WHERE\n"
+			"database_name = :old_database_name AND\n"
+			"table_name = :old_table_name;\n"
+			"END;\n",
+			TRUE, trx);
+		/* pinfo is freed by que_eval_sql() */
+		trx_commit_for_mysql(trx);
+		trx_free_for_background(trx);
+	}
 
 	if (ret != DB_SUCCESS) {
-		size_t	len = strlen(errstr);
-		if (errstr_sz > len + 40) {
-			ut_snprintf(
-				errstr + len,
-				errstr_sz - len,
-				" (during rename from %s to %s)",
-				ut_format_name(old_name, TRUE,
-					       old_buf, sizeof(old_buf)),
-				ut_format_name(new_name, TRUE,
-					       new_buf, sizeof(new_buf)));
-		}
-		return(ret);
-	}
 
-	dict_table_t*	table;
-
-	table = dict_table_open_on_name(new_name, FALSE, FALSE,
-					DICT_ERR_IGNORE_NONE);
-
-	if (table == NULL) {
-		ut_format_name(new_name, TRUE, new_buf, sizeof(new_buf));
 		ut_snprintf(errstr, errstr_sz,
-			    "During rename from %s to %s: "
-			    "%s not found",
-			    ut_format_name(old_name, TRUE,
-					   old_buf, sizeof(old_buf)),
-			    new_buf, new_buf);
-		return(DB_TABLE_NOT_FOUND);
+			    "Unable rename statistics from "
+			    "%s.%s to %s.%s: %s. "
+			    "They can be renamed later using "
+
+			    "UPDATE %s SET "
+			    "database_name = '%s', "
+			    "table_name = '%s' "
+			    "WHERE "
+			    "database_name = '%s' AND "
+			    "table_name = '%s'; "
+
+			    "UPDATE %s SET "
+			    "database_name = '%s', "
+			    "table_name = '%s' "
+			    "WHERE "
+			    "database_name = '%s' AND "
+			    "table_name = '%s';",
+
+			    old_database_name, old_table_name,
+			    new_database_name, new_table_name,
+			    ut_strerr(ret),
+
+			    INDEX_STATS_NAME_PRINT,
+			    new_database_name, new_table_name,
+			    old_database_name, old_table_name,
+
+			    TABLE_STATS_NAME_PRINT,
+			    new_database_name, new_table_name,
+			    old_database_name, old_table_name);
+
+		ut_print_timestamp(stderr);
+		fprintf(stderr, " InnoDB: %s\n", errstr);
 	}
 
-	ret = dict_stats_save(table, FALSE);
+	dict_stats_close(dict_stats);
 
-	dict_table_close(table, FALSE, FALSE);
-
-	if (ret != DB_SUCCESS) {
-		ut_format_name(new_name, TRUE, new_buf, sizeof(new_buf));
-		ut_snprintf(errstr, errstr_sz,
-			    "During rename from %s to %s: "
-			    "Failed to save the statistics for %s",
-			    ut_format_name(old_name, TRUE,
-					   old_buf, sizeof(old_buf)),
-			    new_buf, new_buf);
-	}
- 
 	return(ret);
 }
 /* @} */
