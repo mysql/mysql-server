@@ -6024,6 +6024,39 @@ Field *TABLE::get_timestamp_field()
 
 
 /**
+  Read removal is possible if the selected quick read
+  method is using full unique index
+
+  @see HA_READ_BEFORE_WRITE_REMOVAL
+
+  @param index              Number of the index used for read
+
+  @retval true   success, read removal started
+  @retval false  read removal not started
+*/
+
+bool TABLE::check_read_removal(uint index)
+{
+  DBUG_ENTER("check_read_removal");
+  DBUG_ASSERT(file->ha_table_flags() & HA_READ_BEFORE_WRITE_REMOVAL);
+  DBUG_ASSERT(index != MAX_KEY);
+
+  // Index must be unique
+  if ((key_info[index].flags & HA_NOSAME) == 0)
+    DBUG_RETURN(false);
+
+  // Full index must be used
+  bitmap_clear_all(&tmp_set);
+  mark_columns_used_by_index_no_reset(index, &tmp_set);
+  if (!bitmap_cmp(&tmp_set, read_set))
+    DBUG_RETURN(false);
+
+  // Start read removal in handler
+  DBUG_RETURN(file->start_read_removal());
+}
+
+
+/**
   Test if the order list consists of simple field expressions
 
   @param order                Linked list of ORDER BY arguments

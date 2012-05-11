@@ -163,6 +163,34 @@ static bool check_fields(THD *thd, List<Item> &items)
 
 
 /**
+  Check if all expressions in list are constant expressions
+
+  @param[in] values List of expressions
+
+  @retval true Only constant expressions
+  @retval false At least one non-constant expression
+*/
+
+static bool check_constant_expressions(List<Item> &values)
+{
+  Item *value;
+  List_iterator_fast<Item> v(values);
+  DBUG_ENTER("check_constant_expressions");
+
+  while ((value= v++))
+  {
+    if (!value->const_item())
+    {
+      DBUG_PRINT("exit", ("expression is not constant"));
+      DBUG_RETURN(false);
+    }
+  }
+  DBUG_PRINT("exit", ("expression is constant"));
+  DBUG_RETURN(true);
+}
+
+
+/**
   Re-read record if more columns are needed for error message.
 
   If we got a duplicate key error, we want to write an error
@@ -272,6 +300,7 @@ int mysql_update(THD *thd,
   bool          need_sort= TRUE;
   bool          reverse= FALSE;
   bool          using_filesort;
+  bool          read_removal= false;
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   uint		want_privilege;
 #endif
@@ -668,6 +697,12 @@ int mysql_update(THD *thd,
   else
     will_batch= !table->file->start_bulk_update();
 
+  if ((table->file->ha_table_flags() & HA_READ_BEFORE_WRITE_REMOVAL) &&
+      !ignore && !using_limit &&
+      select && select->quick && select->quick->index != MAX_KEY &&
+      check_constant_expressions(values))
+    read_removal= table->check_read_removal(select->quick->index);
+
   // For prepare_record_for_error_message():
   if (table->file->ha_table_flags() & HA_PARTIAL_COLUMN_READ)
     table->prepare_for_position();
@@ -878,6 +913,14 @@ int mysql_update(THD *thd,
   if (will_batch)
     table->file->end_bulk_update();
   table->file->try_semi_consistent_read(0);
+
+  if (read_removal)
+  {
+    /* Only handler knows how many records really was written */
+    updated= table->file->end_read_removal();
+    if (!records_are_comparable(table))
+      found= updated;
+  }
 
   if (!transactional_table && updated > 0)
     thd->transaction.stmt.mark_modified_non_trans_table();
