@@ -5997,9 +5997,11 @@ Field *TABLE::get_timestamp_field()
 }
 
 
-/*
+/**
   Read removal is possible if the selected quick read
   method is using full unique index
+
+  @see HA_READ_BEFORE_WRITE_REMOVAL
 
   @param index              Number of the index used for read
 
