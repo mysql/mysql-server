@@ -66,7 +66,7 @@ function(set_cflags_if_supported)
       set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${flag}")
     endif ()
   endforeach(flag)
-endfunction(set_flag_if_exists)
+endfunction(set_cflags_if_supported)
 
 ## disable some warnings
 set_cflags_if_supported(
