@@ -416,7 +416,7 @@ int opt_sum_query(THD *thd,
 	  }
           removed_tables|= table->map;
         }
-        else if (!expr->const_item() || !is_exact_count)
+        else if (!expr->const_item() || !is_exact_count || conds)
         {
           /*
             The optimization is not applicable in both cases:
@@ -426,6 +426,8 @@ int opt_sum_query(THD *thd,
             NULL if the query does not return any rows. Thus, if we are not
             able to determine if the query returns any rows, we can't apply
             the optimization and replace MIN/MAX with a constant.
+            (c) there is a WHERE clause. The WHERE conditions may result in
+            an empty result, but the clause cannot be taken into account here.
           */
           const_result= 0;
           break;

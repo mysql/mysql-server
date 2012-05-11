@@ -1487,7 +1487,6 @@ JOIN::optimize()
     simple_order=1;
     select_distinct= 0;                       // No need in distinct for 1 row
     group_optimized_away= 1;
-    implicit_grouping= TRUE;
   }
 
   calc_group_buffer(this, group_list);
@@ -7880,7 +7879,31 @@ JOIN::make_simple_join(JOIN *parent, TABLE *temp_table)
   tmp_table_param.copy_field= tmp_table_param.copy_field_end=0;
   first_record= sort_and_group=0;
   send_records= (ha_rows) 0;
-  group= 0;
+
+  if (group_optimized_away && !tmp_table_param.precomputed_group_by)
+  {
+    /*
+      If grouping has been optimized away, a temporary table is
+      normally not needed unless we're explicitly requested to create
+      one (e.g. due to a SQL_BUFFER_RESULT hint or INSERT ... SELECT).
+
+      In this case (grouping was optimized away), temp_table was
+      created without a grouping expression and JOIN::exec() will not
+      perform the necessary grouping (by the use of end_send_group()
+      or end_write_group()) if JOIN::group is set to false.
+
+      There is one exception: if the loose index scan access method is
+      used to read into the temporary table, grouping and aggregate
+      functions are handled.
+    */
+    // the temporary table was explicitly requested
+    DBUG_ASSERT(test(select_options & OPTION_BUFFER_RESULT));
+    // the temporary table does not have a grouping expression
+    DBUG_ASSERT(!temp_table->group); 
+  }
+  else
+    group= false;
+
   row_limit= unit->select_limit_cnt;
   do_send_rows= row_limit ? 1 : 0;
 
