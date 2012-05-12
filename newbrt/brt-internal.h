@@ -470,10 +470,6 @@ int toku_keycompare (bytevec key1, ITEMLEN key1len, bytevec key2, ITEMLEN key2le
 
 void toku_verify_or_set_counts(BRTNODE);
 
-void 
-toku_brt_header_init(struct brt_header *h,
-                     BLOCKNUM root_blocknum_on_disk, LSN checkpoint_lsn, TXNID root_xid_that_created, uint32_t target_nodesize, uint32_t target_basementnodesize, enum toku_compression_method compression_method);
-
 int toku_serialize_brt_header_size (struct brt_header *h);
 int toku_serialize_brt_header_to (int fd, struct brt_header *h);
 int toku_serialize_brt_header_to_wbuf (struct wbuf *, struct brt_header *h, int64_t address_translation, int64_t size_translation);
@@ -545,9 +541,6 @@ extern int toku_brtnode_pe_callback (void *brtnode_pv, PAIR_ATTR old_attr, PAIR_
 extern BOOL toku_brtnode_pf_req_callback(void* brtnode_pv, void* read_extraargs);
 int toku_brtnode_pf_callback(void* brtnode_pv, void* UU(disk_data), void* read_extraargs, int fd, PAIR_ATTR* sizep);
 extern int toku_brtnode_cleaner_callback( void *brtnode_pv, BLOCKNUM blocknum, u_int32_t fullhash, void *extraargs);
-extern int toku_brt_alloc_init_header(BRT t, TOKUTXN txn);
-extern int toku_read_brt_header_and_store_in_cachefile (BRT brt, CACHEFILE cf, LSN max_acceptable_lsn, struct brt_header **header, BOOL* was_open);
-void toku_brtheader_note_brt_open(BRT live);
 extern CACHEKEY* toku_calculate_root_offset_pointer (struct brt_header* h, u_int32_t *root_hash);
 
 static inline CACHETABLE_WRITE_CALLBACK get_write_callbacks_for_node(struct brt_header* h) {
@@ -809,15 +802,6 @@ toku_verify_brtnode (BRT brt,
                      int recurse, int verbose, int keep_going_on_failure)
     __attribute__ ((warn_unused_result));
 
-void toku_brtheader_init_treelock(struct brt_header* h);
-void toku_brtheader_destroy_treelock(struct brt_header* h);
-void toku_brtheader_grab_treelock(struct brt_header* h);
-void toku_brtheader_release_treelock(struct brt_header* h);
-void toku_brtheader_free (struct brt_header *h);
-int toku_brtheader_close (CACHEFILE cachefile, int fd, void *header_v, char **error_string, BOOL oplsn_valid, LSN oplsn) __attribute__((__warn_unused_result__));
-int toku_brtheader_begin_checkpoint (LSN checkpoint_lsn, void *header_v) __attribute__((__warn_unused_result__));
-int toku_brtheader_checkpoint (CACHEFILE cachefile, int fd, void *header_v) __attribute__((__warn_unused_result__));
-int toku_brtheader_end_checkpoint (CACHEFILE cachefile, int fd, void *header_v) __attribute__((__warn_unused_result__));
 int toku_db_badformat(void) __attribute__((__warn_unused_result__));
 
 int toku_brt_remove_on_commit(TOKUTXN child, DBT* iname_dbt_p) __attribute__((__warn_unused_result__));
@@ -968,8 +952,5 @@ void toku_reset_root_xid_that_created(struct brt_header* h, TXNID new_root_xid_t
 // Reset the root_xid_that_created field to the given value.  
 // This redefines which xid created the dictionary.
 void toku_flusher_thread_set_callback(void (*callback_f)(int, void*), void* extra);
-
-void toku_brt_header_note_hot_begin(BRT brt);
-void toku_brt_header_note_hot_complete(BRT brt, BOOL success, MSN msn_at_start_of_hot);
 
 #endif
