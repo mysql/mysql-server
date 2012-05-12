@@ -504,6 +504,28 @@ WHERE t3.f2 ;
 DROP TABLE t1,t2,t3,t4,t5;
 
 --echo #
+--echo # BUG#997747: Assertion `join->best_read < ((double)1.79..5e+308L)' 
+--echo #             failed in greedy_search with LEFT JOINs and unique keys  
+--echo #
+CREATE TABLE t1 (a1 INT);
+CREATE TABLE t2 (b1 INT);
+CREATE TABLE t3 (c1 INT, UNIQUE KEY(c1));
+CREATE TABLE t4 (d1 INT, UNIQUE KEY(d1));
+CREATE TABLE t5 (e1 INT);
+
+INSERT INTO t1 VALUES (1),(2);
+INSERT INTO t2 VALUES (2),(3);
+INSERT INTO t3 VALUES (3),(4);
+INSERT INTO t4 VALUES (4),(5);
+INSERT INTO t5 VALUES (5),(6);
+
+SELECT a1 FROM t1 LEFT JOIN t2 LEFT JOIN t3 LEFT JOIN t4
+ON c1 = d1 ON d1 = b1 ON a1 = b1
+LEFT JOIN t5 ON a1 = e1 ;
+
+DROP TABLE t1,t2,t3,t4,t5;
+
+--echo #
 --echo # BUG#884184: Wrong result with RIGHT JOIN + derived_merge
 --echo #
 CREATE TABLE t1 (a int(11), b varchar(1)) ;
@@ -520,5 +542,7 @@ EXPLAIN SELECT alias1.* FROM t3 LEFT JOIN v1 as alias1 ON ( t3.a = alias1.b );
 
 drop view v1;
 DROP TABLE t1,t2,t3;
+
+
 
 SET optimizer_switch=@save_optimizer_switch;
