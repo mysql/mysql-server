@@ -246,7 +246,7 @@ toku_logger_close_rollback(TOKULOGGER logger, BOOL recovery_failed) {
         }
 
         char *error_string_ignore = NULL;
-        r = toku_close_brt_nolsn(brt_to_close, &error_string_ignore);
+        r = toku_brt_close(brt_to_close, FALSE, ZERO_LSN);
         //Set as dealt with already.
         logger->rollback_cachefile = NULL;
     }
