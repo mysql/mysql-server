@@ -9130,14 +9130,16 @@ static uint reset_nj_counters(JOIN *join, List<TABLE_LIST> *join_list)
   while ((table= li++))
   {
     NESTED_JOIN *nested_join;
+    bool is_eliminated_nest= FALSE;
     if ((nested_join= table->nested_join))
     {
       nested_join->counter= 0;
-      //nested_join->n_tables= my_count_bits(nested_join->used_tables & 
-      //                                     ~join->eliminated_tables);
       nested_join->n_tables= reset_nj_counters(join, &nested_join->join_list);
+      if (!nested_join->n_tables)
+        is_eliminated_nest= TRUE;
     }
-    if (!table->table || (table->table->map & ~join->eliminated_tables))
+    if ((table->nested_join && !is_eliminated_nest) || 
+        (!table->nested_join && (table->table->map & ~join->eliminated_tables)))
       n++;
   }
   DBUG_RETURN(n);
