@@ -567,6 +567,27 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 #    as that violates the "no interleaving of outer join nests" rule.
 DROP TABLE t1,t2,t3,t4,t5;
 #
+# BUG#997747: Assertion `join->best_read < ((double)1.79..5e+308L)' 
+#             failed in greedy_search with LEFT JOINs and unique keys  
+#
+CREATE TABLE t1 (a1 INT);
+CREATE TABLE t2 (b1 INT);
+CREATE TABLE t3 (c1 INT, UNIQUE KEY(c1));
+CREATE TABLE t4 (d1 INT, UNIQUE KEY(d1));
+CREATE TABLE t5 (e1 INT);
+INSERT INTO t1 VALUES (1),(2);
+INSERT INTO t2 VALUES (2),(3);
+INSERT INTO t3 VALUES (3),(4);
+INSERT INTO t4 VALUES (4),(5);
+INSERT INTO t5 VALUES (5),(6);
+SELECT a1 FROM t1 LEFT JOIN t2 LEFT JOIN t3 LEFT JOIN t4
+ON c1 = d1 ON d1 = b1 ON a1 = b1
+LEFT JOIN t5 ON a1 = e1 ;
+a1
+1
+2
+DROP TABLE t1,t2,t3,t4,t5;
+#
 # BUG#884184: Wrong result with RIGHT JOIN + derived_merge
 #
 CREATE TABLE t1 (a int(11), b varchar(1)) ;
