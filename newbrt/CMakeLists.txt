@@ -30,6 +30,7 @@ set(BRT_SOURCES
   brt.c
   brt-cachetable-wrappers.c
   brt-flusher.c
+  brt_header.c
   brt-hot-flusher.c
   brt_msg.c
   brt-test-helpers.c
