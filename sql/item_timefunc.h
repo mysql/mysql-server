@@ -1,7 +1,7 @@
 #ifndef ITEM_TIMEFUNC_INCLUDED
 #define ITEM_TIMEFUNC_INCLUDED
 
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -560,7 +560,7 @@ public:
   longlong val_int() { return val_int_from_decimal(); }
   double val_real() { return val_real_from_decimal(); }
   my_decimal *val_decimal(my_decimal *decimal_value);
-  int save_in_field(Field *field, bool no_conversions);
+  type_conversion_status save_in_field(Field *field, bool no_conversions);
   /**
     Return string value in ASCII character set.
   */
@@ -618,7 +618,7 @@ public:
     DBUG_ASSERT(fixed == 1);
     return  val_decimal_from_date(decimal_value);
   }
-  int save_in_field(Field *field, bool no_conversions)
+  type_conversion_status save_in_field(Field *field, bool no_conversions)
   {
     return save_date_in_field(field);
   }
@@ -659,7 +659,7 @@ public:
     DBUG_ASSERT(fixed == 1);
     return  val_decimal_from_date(decimal_value);
   }
-  int save_in_field(Field *field, bool no_conversions)
+  type_conversion_status save_in_field(Field *field, bool no_conversions)
   {
     return save_date_in_field(field);
   }
@@ -691,7 +691,7 @@ public:
     DBUG_ASSERT(fixed == 1);
     return  val_decimal_from_time(decimal_value);
   }
-  int save_in_field(Field *field, bool no_conversions)
+  type_conversion_status save_in_field(Field *field, bool no_conversions)
   {
     return save_time_in_field(field);
   }
@@ -899,7 +899,7 @@ public:
   void cleanup()
   {
     // See Item_basic_const::cleanup()
-    if (orig_name.ptr())
+    if (orig_name.is_set())
       item_name= orig_name;
   }
   bool eq(const Item *item, bool binary_cmp) const;
@@ -956,7 +956,7 @@ public:
   void cleanup()
   {
     // See Item_basic_const::cleanup()
-    if (orig_name.ptr())
+    if (orig_name.is_set())
       item_name= orig_name;
   }
   bool eq(const Item *item, bool binary_cmp) const;
@@ -1013,7 +1013,7 @@ public:
   void cleanup()
   {
     // See Item_basic_const::cleanup()
-    if (orig_name.ptr())
+    if (orig_name.is_set())
       item_name= orig_name;
   }
   bool eq(const Item *item, bool binary_cmp) const;
@@ -1135,7 +1135,7 @@ public:
   */
   Item_func_now(uint8 dec_arg) :Item_datetime_func() { decimals= dec_arg; }
   void fix_length_and_dec();
-  int save_in_field(Field *to, bool no_conversions);
+  type_conversion_status save_in_field(Field *to, bool no_conversions);
   longlong val_date_temporal()
   {
     DBUG_ASSERT(fixed == 1);

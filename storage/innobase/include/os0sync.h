@@ -99,9 +99,6 @@ typedef struct os_mutex_struct	os_mutex_str_t;
 /** Operating system mutex handle */
 typedef os_mutex_str_t*		os_mutex_t;
 
-/** Return value of os_event_wait_time() when the time is exceeded */
-#define OS_SYNC_TIME_EXCEEDED	1
-
 /** Mutex protecting counts and the event and OS 'slow' mutex lists */
 extern os_mutex_t	os_sync_mutex;
 
@@ -191,7 +188,7 @@ os_event_wait_low(
 					os_event_reset(). */
 
 #define os_event_wait(event) os_event_wait_low(event, 0)
-#define os_event_wait_time(e, t) os_event_wait_time_low(event, t, 0)
+#define os_event_wait_time(event, t) os_event_wait_time_low(event, t, 0)
 
 /**********************************************************//**
 Waits for an event object until it is in the signaled state or

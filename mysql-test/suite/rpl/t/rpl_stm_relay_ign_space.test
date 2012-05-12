@@ -14,15 +14,16 @@
 #
 # The purpose is to show that the IO thread will honor the limits
 # while the SQL thread is not able to purge the relay logs, which did
-# not happen before this patch. In addition we assert that while
-# ignoring the limit (SQL thread needs to rotate before purging), the
-# IO thread does not do it in an uncontrolled manner.
+# not happen before this patch. 
+# It is proved that when the blocking
+# condition are removed the occupied relay log space shrinks back to
+# below the limit.
+
 
 --source include/have_binlog_format_statement.inc
 --source include/master-slave.inc
 --source include/have_innodb.inc
 
---disable_query_log
 CREATE TABLE t1 (c1 TEXT) engine=InnoDB;
 
 INSERT INTO t1 VALUES ('xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx');
@@ -59,34 +60,43 @@ INSERT INTO t1 VALUES ('xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 INSERT INTO t1 VALUES ('xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx');
 INSERT INTO t1 VALUES ('xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx');
 
+--let $space_total= query_get_value(SHOW MASTER STATUS, Position, 1)
+
 --connection slave
 
-# ASSERT that the IO thread waits for the SQL thread to release some 
-# space before continuing
---let $show_statement= SHOW PROCESSLIST
---let $field= State
---let $condition= LIKE 'Waiting for %'
-# before the patch (IO would have transfered everything)
-#--let $condition= = 'Waiting for master to send event'
-# after the patch (now it waits for space to be freed)
-#--let $condition= = 'Waiting for the slave SQL thread to free enough relay log space'
---source include/wait_show_condition.inc
-
-# without the patch we can uncomment the following two lines and
-# watch the IO thread synchronize with the master, thus writing 
-# relay logs way over the space limit
-#--connection master
-#--source include/sync_slave_io_with_master.inc
-
-## ASSERT that the IO thread has honored the limit+few bytes required to be able to purge
---let $relay_log_space_while_sql_is_executing = query_get_value(SHOW SLAVE STATUS, Relay_Log_Space, 1)
---let $relay_log_space_limit = query_get_value(SHOW VARIABLES LIKE "relay_log_space_limit", Value, 1)
---let $assert_text= Assert that relay log space is close to the limit
---let $assert_cond= $relay_log_space_while_sql_is_executing <= $relay_log_space_limit * 1.20
---source include/assert.inc
+--let $relay_log_space_limit= `select variable_value from information_schema.global_variables where variable_name like 'relay_log_space_limit'`
+if (`select $relay_log_space_limit >= $space_total`)
+{
+    --echo *** relay_log_space_limit on the slave must be less than size of unprocessed events. ***
+    --die
+}
 
 # unlock the table and let SQL thread continue applying events
 UNLOCK TABLES;
+# make the oldest logs removable
+
+--let $count= 14
+--let $table= t1
+--source include/wait_until_rows_count.inc
+FLUSH LOGS;
+
+--disable_query_log
+# Prove the total relay log space decreases below the limit
+--let $cnt=20 # 20 seconds
+--let $relay_log_space = query_get_value(SHOW SLAVE STATUS, Relay_Log_Space, 1)
+while (`select $relay_log_space > $relay_log_space_limit`)
+{
+    --sleep 1
+    FLUSH LOGS; # SQL thread gets awakened to proceed to purge task
+    --dec $cnt
+    --let $relay_log_space = query_get_value(SHOW SLAVE STATUS, Relay_Log_Space, 1)
+    if ($cnt < 0)
+    {
+	--echo *** Failed to wait for total relay log space freed below the limit. ***
+	--die
+    }
+}
+--enable_query_log
 
 --connection master
 --sync_slave_with_master
@@ -95,7 +105,6 @@ UNLOCK TABLES;
 
 --connection master
 DROP TABLE t1;
---enable_query_log
 --sync_slave_with_master
 
 --source include/rpl_end.inc

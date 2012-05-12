@@ -2670,4 +2670,16 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	index	NULL	PRIMARY	4	NULL	8	Using index
 1	SIMPLE	t2	ref	i_a	i_a	5	test.t1.a	2	Using index
 DROP TABLE t1, t2;
+#
+# Bug #13949068 ASSERT TAB->REF.KEY == REF_KEY IN
+# PLAN_CHANGE_WATCHDOG::~PLAN_CHANGE_WATCHDOG
+#
+CREATE TABLE t1 (a INT, b INT, KEY(b), KEY(b,a)) ENGINE=INNODB;
+INSERT INTO t1 VALUES (0,0);
+EXPLAIN SELECT DISTINCT a FROM t1 WHERE b=1 ORDER BY 1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ref	b,b_2	b_2	5	const	1	Using where
+SELECT DISTINCT a FROM t1 WHERE b=1 ORDER BY 1;
+a
+DROP TABLE t1;
 set optimizer_switch=default;

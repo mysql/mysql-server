@@ -394,7 +394,17 @@ public:
   */
   SEL_ARG *next_key_part; 
   enum leaf_color { BLACK,RED } color;
-  enum Type { IMPOSSIBLE, MAYBE, MAYBE_KEY, KEY_RANGE } type;
+
+  /**
+    Starting an effort to document this field:
+
+    IMPOSSIBLE: if the range predicate for this index is always false.
+
+    ALWAYS: if the range predicate for this index is always true.
+
+    KEY_RANGE: if there is a range predicate that can be used on this index.
+  */
+  enum Type { IMPOSSIBLE, ALWAYS, MAYBE, MAYBE_KEY, KEY_RANGE } type;
 
   enum { MAX_SEL_ARGS = 16000 };
 
@@ -699,10 +709,28 @@ class SEL_IMERGE;
 class SEL_TREE :public Sql_alloc
 {
 public:
-  /*
+  /**
     Starting an effort to document this field:
-    (for some i, keys[i]->type == SEL_ARG::IMPOSSIBLE) => 
-       (type == SEL_TREE::IMPOSSIBLE)
+
+    IMPOSSIBLE: if keys[i]->type == SEL_ARG::IMPOSSIBLE for some i,
+      then type == SEL_TREE::IMPOSSIBLE. Rationale: if the predicate for
+      one of the indexes is always false, then the full predicate is also
+      always false.
+
+    ALWAYS: if either (keys[i]->type == SEL_ARG::ALWAYS) or 
+      (keys[i] == NULL) for all i, then type == SEL_TREE::ALWAYS. 
+      Rationale: the range access method will not be able to filter
+      out any rows when there are no range predicates that can be used
+      to filter on any index.
+
+    KEY: There are range predicates that can be used on at least one
+      index.
+      
+    KEY_SMALLER: There are range predicates that can be used on at
+      least one index. In addition, there are predicates that cannot
+      be directly utilized by range access on key parts in the same
+      index. These unused predicates makes it probable that the row
+      estimate for range access on this index is too pessimistic.
   */
   enum Type { IMPOSSIBLE, ALWAYS, MAYBE, KEY, KEY_SMALLER } type;
   SEL_TREE(enum Type type_arg) :type(type_arg) {}
@@ -1326,7 +1354,7 @@ int QUICK_RANGE_SELECT::init()
 {
   DBUG_ENTER("QUICK_RANGE_SELECT::init");
 
-  if (file->inited != handler::NONE)
+  if (file->inited)
     file->ha_index_or_rnd_end();
   DBUG_RETURN(FALSE);
 }
@@ -1334,7 +1362,7 @@ int QUICK_RANGE_SELECT::init()
 
 void QUICK_RANGE_SELECT::range_end()
 {
-  if (file->inited != handler::NONE)
+  if (file->inited)
     file->ha_index_or_rnd_end();
 }
 
@@ -1585,6 +1613,7 @@ failure:
 */
 int QUICK_ROR_INTERSECT_SELECT::init_ror_merged_scan(bool reuse_handler)
 {
+  int error;
   List_iterator_fast<QUICK_RANGE_SELECT> quick_it(quick_selects);
   QUICK_RANGE_SELECT* quick;
   DBUG_ENTER("QUICK_ROR_INTERSECT_SELECT::init_ror_merged_scan");
@@ -1598,8 +1627,8 @@ int QUICK_ROR_INTERSECT_SELECT::init_ror_merged_scan(bool reuse_handler)
       There is no use of this->file. Use it for the first of merged range
       selects.
     */
-    if (quick->init_ror_merged_scan(TRUE))
-      DBUG_RETURN(1);
+    if ((error= quick->init_ror_merged_scan(TRUE)))
+      DBUG_RETURN(error);
     quick->file->extra(HA_EXTRA_KEYREAD_PRESERVE_FIELDS);
   }
   while ((quick= quick_it++))
@@ -1608,8 +1637,8 @@ int QUICK_ROR_INTERSECT_SELECT::init_ror_merged_scan(bool reuse_handler)
     const MY_BITMAP * const save_read_set= quick->head->read_set;
     const MY_BITMAP * const save_write_set= quick->head->write_set;
 #endif
-    if (quick->init_ror_merged_scan(FALSE))
-      DBUG_RETURN(1);
+    if ((error= quick->init_ror_merged_scan(FALSE)))
+      DBUG_RETURN(error);
     quick->file->extra(HA_EXTRA_KEYREAD_PRESERVE_FIELDS);
     // Sets are shared by all members of "quick_selects" so must not change
     DBUG_ASSERT(quick->head->read_set == save_read_set);
@@ -1618,10 +1647,10 @@ int QUICK_ROR_INTERSECT_SELECT::init_ror_merged_scan(bool reuse_handler)
     quick->record= head->record[0];
   }
 
-  if (need_to_fetch_row && head->file->ha_rnd_init(1))
+  if (need_to_fetch_row && (error= head->file->ha_rnd_init(1)))
   {
     DBUG_PRINT("error", ("ROR index_merge rnd_init call failed"));
-    DBUG_RETURN(1);
+    DBUG_RETURN(error);
   }
   DBUG_RETURN(0);
 }
@@ -1677,7 +1706,7 @@ QUICK_ROR_INTERSECT_SELECT::~QUICK_ROR_INTERSECT_SELECT()
   quick_selects.delete_elements();
   delete cpk_quick;
   free_root(&alloc,MYF(0));
-  if (need_to_fetch_row && head->file->inited != handler::NONE)
+  if (need_to_fetch_row && head->file->inited)
     head->file->ha_rnd_end();
   DBUG_VOID_RETURN;
 }
@@ -1781,8 +1810,8 @@ int QUICK_ROR_UNION_SELECT::reset()
   List_iterator_fast<QUICK_SELECT_I> it(quick_selects);
   while ((quick= it++))
   {
-    if (quick->reset())
-      DBUG_RETURN(1);
+    if ((error= quick->reset()))
+      DBUG_RETURN(error);
     if ((error= quick->get_next()))
     {
       if (error == HA_ERR_END_OF_FILE)
@@ -1793,10 +1822,10 @@ int QUICK_ROR_UNION_SELECT::reset()
     queue_insert(&queue, (uchar*)quick);
   }
 
-  if (head->file->ha_rnd_init(1))
+  if ((error= head->file->ha_rnd_init(1)))
   {
     DBUG_PRINT("error", ("ROR index_merge rnd_init call failed"));
-    DBUG_RETURN(1);
+    DBUG_RETURN(error);
   }
 
   DBUG_RETURN(0);
@@ -1814,7 +1843,7 @@ QUICK_ROR_UNION_SELECT::~QUICK_ROR_UNION_SELECT()
   DBUG_ENTER("QUICK_ROR_UNION_SELECT::~QUICK_ROR_UNION_SELECT");
   delete_queue(&queue);
   quick_selects.delete_elements();
-  if (head->file->inited != handler::NONE)
+  if (head->file->inited)
     head->file->ha_rnd_end();
   free_root(&alloc,MYF(0));
   DBUG_VOID_RETURN;
@@ -6353,7 +6382,7 @@ get_mm_leaf(RANGE_OPT_PARAM *param, Item *conf_func, Field *field,
   MEM_ROOT *alloc= param->mem_root;
   uchar *str;
   sql_mode_t orig_sql_mode;
-  int err;
+  type_conversion_status err;
   const char* impossible_cond_cause= NULL;
   DBUG_ENTER("get_mm_leaf");
 
@@ -6587,7 +6616,7 @@ get_mm_leaf(RANGE_OPT_PARAM *param, Item *conf_func, Field *field,
   // Note that value may be a stored function call, executed here.
   err= value->save_in_field_no_warnings(field, 1);
 
-  if (err > 0)
+  if (err != TYPE_OK && err != TYPE_ERR_NULL_CONSTRAINT_VIOLATION)
   {
     if (field->cmp_type() != value->result_type())
     {
@@ -6608,7 +6637,8 @@ get_mm_leaf(RANGE_OPT_PARAM *param, Item *conf_func, Field *field,
           for the cases like int_field > 999999999999999999999999 as well.
         */
         tree= 0;
-        if (err == 3 && field->type() == FIELD_TYPE_DATE &&
+        if (err == TYPE_NOTE_TIME_TRUNCATED &&
+            field->type() == FIELD_TYPE_DATE &&
             (type == Item_func::GT_FUNC || type == Item_func::GE_FUNC ||
              type == Item_func::LT_FUNC || type == Item_func::LE_FUNC) )
         {
@@ -6644,7 +6674,8 @@ get_mm_leaf(RANGE_OPT_PARAM *param, Item *conf_func, Field *field,
       If an integer got bounded (e.g. to within 0..255 / -128..127)
       for < or >, set flags as for <= or >= (no NEAR_MAX / NEAR_MIN)
     */
-    else if (err == 1 && field->result_type() == INT_RESULT)
+    else if (err == TYPE_WARN_OUT_OF_RANGE && 
+             field->result_type() == INT_RESULT)
     {
       if (type == Item_func::LT_FUNC && (value->val_int() > 0))
         type = Item_func::LE_FUNC;
@@ -6656,7 +6687,7 @@ get_mm_leaf(RANGE_OPT_PARAM *param, Item *conf_func, Field *field,
         type = Item_func::GE_FUNC;
     }
   }
-  else if (err < 0)
+  else if (err == TYPE_ERR_NULL_CONSTRAINT_VIOLATION)
   {
     impossible_cond_cause= "null_field_in_non_null_column";
     field->table->in_use->variables.sql_mode= orig_sql_mode;
@@ -7535,6 +7566,8 @@ key_or(RANGE_OPT_PARAM *param, SEL_ARG *key1, SEL_ARG *key2)
           // cur_key2 is full range: [-inf <= cur_key2 <= +inf]
           key1->free_tree();
           key2->free_tree();
+          key1->type= SEL_ARG::ALWAYS;
+          key2->type= SEL_ARG::ALWAYS;
           if (key1->maybe_flag)
             return new SEL_ARG(SEL_ARG::MAYBE_KEY);
           return 0;
@@ -7743,6 +7776,8 @@ key_or(RANGE_OPT_PARAM *param, SEL_ARG *key1, SEL_ARG *key2)
         if (full_range)
         {                                       // Full range
           key1->free_tree();
+          key1->type= SEL_ARG::ALWAYS;
+          key2->type= SEL_ARG::ALWAYS;
           for (; cur_key2 ; cur_key2= cur_key2->next)
             cur_key2->increment_use_count(-1);  // Free not used tree
           if (key1->maybe_flag)
@@ -9603,7 +9638,7 @@ int QUICK_INDEX_MERGE_SELECT::read_keys_and_merge()
       if (!cur_quick)
         break;
 
-      if (cur_quick->file->inited != handler::NONE) 
+      if (cur_quick->file->inited) 
         cur_quick->file->ha_index_end();
       if (cur_quick->init() || cur_quick->reset())
         DBUG_RETURN(1);
@@ -9852,7 +9887,7 @@ int QUICK_RANGE_SELECT::reset()
   last_range= NULL;
   cur_range= (QUICK_RANGE**) ranges.buffer;
 
-  if (file->inited == handler::NONE)
+  if (!file->inited)
   {
     if (in_ror_merged_scan)
       head->column_bitmaps_set_no_signal(&column_bitmap, &column_bitmap);
@@ -12054,7 +12089,7 @@ int QUICK_GROUP_MIN_MAX_SELECT::init()
 QUICK_GROUP_MIN_MAX_SELECT::~QUICK_GROUP_MIN_MAX_SELECT()
 {
   DBUG_ENTER("QUICK_GROUP_MIN_MAX_SELECT::~QUICK_GROUP_MIN_MAX_SELECT");
-  if (head->file->inited != handler::NONE) 
+  if (head->file->inited) 
     head->file->ha_index_end();
   if (min_max_arg_part)
     delete_dynamic(&min_max_ranges);
@@ -12420,7 +12455,7 @@ int QUICK_GROUP_MIN_MAX_SELECT::next_min()
     if (min_max_arg_part && min_max_arg_part->field->is_null())
     {
       /* Find the first subsequent record without NULL in the MIN/MAX field. */
-      key_copy(tmp_record, record, index_info, 0);
+      key_copy(tmp_record, record, index_info, max_used_key_length);
       result= head->file->ha_index_read_map(record, tmp_record,
                                             make_keypart_map(real_key_parts),
                                             HA_READ_AFTER_KEY);

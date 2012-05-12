@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -22,6 +22,9 @@
 
 namespace my_testing {
 
+void setup_server_for_unit_tests();
+void teardown_server_for_unit_tests();
+
 /*
   A class which wraps the necessary setup/teardown logic for
   unit tests which depend on a working THD environment.
@@ -32,8 +35,6 @@ public:
   Server_initializer() : m_thd(NULL) {}
 
   // Invoke these from corresponding functions in test fixture classes.
-  static void SetUpTestCase();
-  static void TearDownTestCase();
   void SetUp();
   void TearDown();
 

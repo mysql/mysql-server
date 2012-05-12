@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2012, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -65,7 +65,7 @@ static
 ulint
 buf_read_page_low(
 /*==============*/
-	ulint*	err,	/*!< out: DB_SUCCESS or DB_TABLESPACE_DELETED if we are
+	dberr_t*	err,	/*!< out: DB_SUCCESS or DB_TABLESPACE_DELETED if we are
 			trying to read from a non-existent tablespace, or a
 			tablespace which is just now being dropped */
 	ibool	sync,	/*!< in: TRUE if synchronous aio is desired */
@@ -203,7 +203,7 @@ buf_read_ahead_random(
 	ulint		ibuf_mode;
 	ulint		count;
 	ulint		low, high;
-	ulint		err;
+	dberr_t		err;
 	ulint		i;
 	const ulint	buf_read_ahead_random_area
 				= BUF_READ_AHEAD_AREA(buf_pool);
@@ -332,7 +332,7 @@ read_ahead:
 	buf_LRU_stat_inc_io();
 
 	buf_pool->stat.n_ra_pages_read_rnd += count;
-	srv_buf_pool_reads += count;
+	srv_stats.buf_pool_reads.add(count);
 	return(count);
 }
 
@@ -352,7 +352,7 @@ buf_read_page(
 {
 	ib_int64_t	tablespace_version;
 	ulint		count;
-	ulint		err;
+	dberr_t		err;
 
 	tablespace_version = fil_space_get_version(space);
 
@@ -362,7 +362,7 @@ buf_read_page(
 	count = buf_read_page_low(&err, TRUE, BUF_READ_ANY_PAGE, space,
 				  zip_size, FALSE,
 				  tablespace_version, offset);
-	srv_buf_pool_reads += count;
+	srv_stats.buf_pool_reads.add(count);
 	if (err == DB_TABLESPACE_DELETED) {
 		ut_print_timestamp(stderr);
 		fprintf(stderr,
@@ -395,7 +395,7 @@ buf_read_page_async(
 	ulint		zip_size;
 	ib_int64_t	tablespace_version;
 	ulint		count;
-	ulint		err;
+	dberr_t		err;
 
 	zip_size = fil_space_get_zip_size(space);
 
@@ -410,7 +410,7 @@ buf_read_page_async(
 				  | BUF_READ_IGNORE_NONEXISTENT_PAGES,
 				  space, zip_size, FALSE,
 				  tablespace_version, offset);
-	srv_buf_pool_reads += count;
+	srv_stats.buf_pool_reads.add(count);
 
 	/* We do not increment number of I/O operations used for LRU policy
 	here (buf_LRU_stat_inc_io()). We use this in heuristics to decide
@@ -468,7 +468,7 @@ buf_read_ahead_linear(
 	ulint		fail_count;
 	ulint		ibuf_mode;
 	ulint		low, high;
-	ulint		err;
+	dberr_t		err;
 	ulint		i;
 	const ulint	buf_read_ahead_linear_area
 		= BUF_READ_AHEAD_AREA(buf_pool);
@@ -739,7 +739,7 @@ buf_read_ibuf_merge_pages(
 #endif
 
 	for (i = 0; i < n_stored; i++) {
-		ulint		err;
+		dberr_t		err;
 		buf_pool_t*	buf_pool;
 		ulint		zip_size = fil_space_get_zip_size(space_ids[i]);
 
@@ -805,7 +805,7 @@ buf_read_recv_pages(
 {
 	ib_int64_t	tablespace_version;
 	ulint		count;
-	ulint		err;
+	dberr_t		err;
 	ulint		i;
 
 	zip_size = fil_space_get_zip_size(space);

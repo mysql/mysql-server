@@ -1582,8 +1582,8 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
         ((field_flags >> COLUMN_FORMAT_SHIFT)& COLUMN_FORMAT_MASK);
       DBUG_PRINT("debug", ("field flags: %u, storage: %u, column_format: %u",
                            field_flags, field_storage, field_column_format));
-      (void)field_storage; /* Reserved by and used in MySQL Cluster */
-      (void)field_column_format; /* Reserved by and used in MySQL Cluster */
+      reg_field->set_storage_type((ha_storage_media)field_storage);
+      reg_field->set_column_format((column_format_type)field_column_format);
     }
   }
   *field_ptr=0;					// End marker
@@ -2922,31 +2922,37 @@ uint calculate_key_len(TABLE *table, uint key, const uchar *buf,
   return length;
 }
 
-/*
+/**
   Check if database name is valid
 
-  SYNPOSIS
-    check_db_name()
-    org_name		Name of database and length
-    preserve_lettercase Preserve lettercase if true
+  @param org_name             Name of database and length
+  @param preserve_lettercase  Preserve lettercase if true
 
-  NOTES
-    If lower_case_table_names is true and preserve_lettercase is false then
-    database is converted to lower case
+  @note If lower_case_table_names is true and preserve_lettercase
+  is false then database is converted to lower case
 
-  RETURN
-    0	ok
-    1   error
+  @retval  IDENT_NAME_OK        Identifier name is Ok (Success)
+  @retval  IDENT_NAME_WRONG     Identifier name is Wrong (ER_WRONG_TABLE_NAME)
+  @retval  IDENT_NAME_TOO_LONG  Identifier name is too long if it is greater
+                                than 64 characters (ER_TOO_LONG_IDENT)
+
+  @note In case of IDENT_NAME_WRONG and IDENT_NAME_TOO_LONG, this
+  function reports an error (my_error)
 */
 
-bool check_and_convert_db_name(LEX_STRING *org_name, bool preserve_lettercase)
+enum_ident_name_check check_and_convert_db_name(LEX_STRING *org_name,
+                                                bool preserve_lettercase)
 {
   char *name= org_name->str;
   uint name_length= org_name->length;
   bool check_for_path_chars;
+  enum_ident_name_check ident_check_status;
 
   if (!name_length || name_length > NAME_LEN)
-    return 1;
+  {
+    my_error(ER_WRONG_DB_NAME, MYF(0), org_name->str);
+    return IDENT_NAME_WRONG;
+  }
 
   if ((check_for_path_chars= check_mysql50_prefix(name)))
   {
@@ -2957,28 +2963,44 @@ bool check_and_convert_db_name(LEX_STRING *org_name, bool preserve_lettercase)
   if (!preserve_lettercase && lower_case_table_names && name != any_db)
     my_casedn_str(files_charset_info, name);
 
-  return check_table_name(name, name_length, check_for_path_chars);
+  ident_check_status= check_table_name(name, name_length, check_for_path_chars);
+  if (ident_check_status == IDENT_NAME_WRONG)
+    my_error(ER_WRONG_DB_NAME, MYF(0), org_name->str);
+  else if (ident_check_status == IDENT_NAME_TOO_LONG)
+    my_error(ER_TOO_LONG_IDENT, MYF(0), org_name->str);
+  return ident_check_status;
 }
 
 
-/*
-  Allow anything as a table name, as long as it doesn't contain an
-  ' ' at the end
-  returns 1 on error
+/**
+  Function to check if table name is valid or not. If it is invalid,
+  return appropriate error in each case to the caller.
+
+  @param name                  Table name
+  @param length                Length of table name
+  @param check_for_path_chars  Check if the table name contains path chars
+
+  @retval  IDENT_NAME_OK        Identifier name is Ok (Success)
+  @retval  IDENT_NAME_WRONG     Identifier name is Wrong (ER_WRONG_TABLE_NAME)
+  @retval  IDENT_NAME_TOO_LONG  Identifier name is too long if it is greater
+                                than 64 characters (ER_TOO_LONG_IDENT)
+
+  @note Reporting error to the user is the responsiblity of the caller.
 */
 
-bool check_table_name(const char *name, size_t length, bool check_for_path_chars)
+enum_ident_name_check check_table_name(const char *name, size_t length,
+                                       bool check_for_path_chars)
 {
   // name length in symbols
   size_t name_length= 0;
   const char *end= name+length;
   if (!length || length > NAME_LEN)
-    return 1;
+    return IDENT_NAME_WRONG;
 #if defined(USE_MB) && defined(USE_MB_IDENT)
   bool last_char_is_space= FALSE;
 #else
   if (name[length-1]==' ')
-    return 1;
+    return IDENT_NAME_WRONG;
 #endif
 
   while (name != end)
@@ -2998,15 +3020,17 @@ bool check_table_name(const char *name, size_t length, bool check_for_path_chars
 #endif
     if (check_for_path_chars &&
         (*name == '/' || *name == '\\' || *name == '~' || *name == FN_EXTCHAR))
-      return 1;
+      return IDENT_NAME_WRONG;
     name++;
     name_length++;
   }
 #if defined(USE_MB) && defined(USE_MB_IDENT)
-  return last_char_is_space || (name_length > NAME_CHAR_LEN);
-#else
-  return FALSE;
+  if (last_char_is_space)
+   return IDENT_NAME_WRONG;
+  else if (name_length > NAME_CHAR_LEN)
+   return IDENT_NAME_TOO_LONG;
 #endif
+  return IDENT_NAME_OK;
 }
 
 
@@ -5364,6 +5388,23 @@ void TABLE_LIST::reinit_before_use(THD *thd)
     were closed in the end of previous prepare or execute call.
   */
   table= 0;
+
+ /*
+   Reset table_name and table_name_length,if it is a anonymous derived table
+   or schema table. They are not valid as TABLEs were closed in the end of
+   previous prepare or execute call.
+ */
+  if (derived)
+  {
+    table_name= NULL;
+    table_name_length= 0;
+  }
+  else if (schema_table_name)
+  {
+    table_name= schema_table_name;
+    table_name_length= strlen(schema_table_name);
+  }
+
   /* Reset is_schema_table_processed value(needed for I_S tables */
   schema_table_state= NOT_PROCESSED;
 

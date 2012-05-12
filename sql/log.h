@@ -91,6 +91,17 @@ class TC_LOG
      @return Error code on failure, zero on success.
    */
   virtual int rollback(THD *thd, bool all) = 0;
+  /**
+     Log a prepare record of the transaction to the storage engines.
+
+     @param thd Session to log transaction record for.
+
+     @param all @c true if an explicit commit or an implicit commit
+     for a statement, @c false if an internal commit of the statement.
+
+     @return Error code on failure, zero on success.
+   */
+  virtual int prepare(THD *thd, bool all) = 0;
 };
 
 
@@ -100,11 +111,14 @@ public:
   TC_LOG_DUMMY() {}
   int open(const char *opt_name)        { return 0; }
   void close()                          { }
-  enum_result commit(THD *thd, bool all)     {
+  enum_result commit(THD *thd, bool all) {
     return ha_commit_low(thd, all) ? RESULT_ABORTED : RESULT_SUCCESS;
   }
   int rollback(THD *thd, bool all) {
     return ha_rollback_low(thd, all);
+  }
+  int prepare(THD *thd, bool all) {
+    return ha_prepare_low(thd, all);
   }
 };
 
@@ -151,6 +165,7 @@ class TC_LOG_MMAP: public TC_LOG
   void close();
   enum_result commit(THD *thd, bool all);
   int rollback(THD *thd, bool all)      { return ha_rollback_low(thd, all); }
+  int prepare(THD *thd, bool all)       { return ha_prepare_low(thd, all); }
   int recover();
 
 private:
@@ -201,6 +216,11 @@ extern TC_LOG_DUMMY tc_log_dummy;
 extern PSI_mutex_key key_LOG_INFO_lock;
 #endif
 
+/*
+  Note that we destroy the lock mutex in the desctructor here.
+  This means that object instances cannot be destroyed/go out of scope,
+  until we have reset thd->current_linfo to NULL;
+ */
 typedef struct st_log_info
 {
   char log_file_name[FN_REFLEN];
@@ -379,8 +399,6 @@ int check_if_log_table(size_t db_len, const char *db, size_t table_name_len,
 
 class Log_to_csv_event_handler: public Log_event_handler
 {
-  friend class LOGGER;
-
 public:
   Log_to_csv_event_handler();
   ~Log_to_csv_event_handler();

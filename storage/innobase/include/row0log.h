@@ -78,7 +78,7 @@ row_log_get_max_trx(
 Merge the row log to the index upon completing index creation.
 @return DB_SUCCESS, or error code on failure */
 UNIV_INTERN
-ulint
+dberr_t
 row_log_apply(
 /*==========*/
 	trx_t*		trx,	/*!< in: transaction (for checking if

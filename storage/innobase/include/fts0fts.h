@@ -395,15 +395,15 @@ fts_cache_index_cache_create(
 
 /******************************************************************//**
 Get the next available document id. This function creates a new
-transaction to generate the document id. */
+transaction to generate the document id.
+@return DB_SUCCESS if OK */
 UNIV_INTERN
-ulint
+dberr_t
 fts_get_next_doc_id(
 /*================*/
-						/*!< out: DB_SUCCESS if OK */
-	const dict_table_t*	table,		/*!< in: table */
-	doc_id_t*		doc_id);	/*!< out: new document id */
-
+	const dict_table_t*	table,	/*!< in: table */
+	doc_id_t*		doc_id)	/*!< out: new document id */
+	__attribute__((nonnull));
 /*********************************************************************//**
 Update the next and last Doc ID in the CONFIG table to be the input
 "doc_id" value (+ 1). We would do so after each FTS index build or
@@ -413,27 +413,15 @@ void
 fts_update_next_doc_id(
 /*===================*/
 	const dict_table_t*	table,		/*!< in: table */
-	const char*		table_name,	/*!< in: table name */
-	doc_id_t		doc_id);	/*!< in: DOC ID to set */
-
-/******************************************************************//**
-Update the last document id. This function could create a new
-transaction to update the last document id. */
-UNIV_INTERN
-ulint
-fts_update_sync_doc_id(
-/*===================*/
-						/*!< out: DB_SUCCESS if OK */
-	const dict_table_t*	table,		/*!< in: table */
-	const char*		table_name,	/*!< in: table name */
-	doc_id_t		doc_id,		/*!< in: last document id */
-	trx_t*			trx);		/*!< in: update trx */
+	const char*		table_name,	/*!< in: table name, or NULL */
+	doc_id_t		doc_id)		/*!< in: DOC ID to set */
+	__attribute__((nonnull(1)));
 
 /******************************************************************//**
 Create a new document id .
 @return DB_SUCCESS if all went well else error */
 UNIV_INTERN
-ulint
+dberr_t
 fts_create_doc_id(
 /*==============*/
 	dict_table_t*	table,			/*!< in: row is of this
@@ -442,8 +430,8 @@ fts_create_doc_id(
 						value to this row. This is the
 						current row that is being
 						inserted. */
-	mem_heap_t*	heap);			/*!< in: heap */
-
+	mem_heap_t*	heap)			/*!< in: heap */
+	__attribute__((nonnull));
 /******************************************************************//**
 Create a new fts_doc_ids_t.
 @return new fts_doc_ids_t. */
@@ -488,7 +476,7 @@ on the given table. row_mysql_lock_data_dictionary must have been
 called before this.
 @return DB_SUCCESS or error code */
 UNIV_INTERN
-ulint
+dberr_t
 fts_create_common_tables(
 /*=====================*/
 	trx_t*		trx,			/*!< in: transaction handle */
@@ -496,27 +484,27 @@ fts_create_common_tables(
 			table,			/*!< in: table with one FTS
 						index */
 	const char*	name,			/*!< in: table name */
-	ibool		skip_doc_id_index);
-						/*!< in: Skip index on doc id */
+	bool		skip_doc_id_index)	/*!< in: Skip index on doc id */
+	__attribute__((nonnull, warn_unused_result));
 /******************************************************************//**
 Wrapper function of fts_create_index_tables_low(), create auxiliary
 tables for an FTS index
 @return DB_SUCCESS or error code */
 UNIV_INTERN
-ulint
+dberr_t
 fts_create_index_tables(
 /*====================*/
 	trx_t*			trx,		/*!< in: transaction handle */
-	const dict_index_t*	index);		/*!< in: the FTS index
+	const dict_index_t*	index)		/*!< in: the FTS index
 						instance */
-
+	__attribute__((nonnull, warn_unused_result));
 /******************************************************************//**
 Creates the column specific ancillary tables needed for supporting an
 FTS index on the given table. row_mysql_lock_data_dictionary must have
 been called before this.
 @return DB_SUCCESS or error code */
 UNIV_INTERN
-ulint
+dberr_t
 fts_create_index_tables_low(
 /*========================*/
 	trx_t*		trx,			/*!< in: transaction handle */
@@ -524,8 +512,8 @@ fts_create_index_tables_low(
 			index,			/*!< in: the FTS index
 						instance */
 	const char*	table_name,		/*!< in: the table name */
-	table_id_t	table_id);		/*!< in: the table id */
-
+	table_id_t	table_id)		/*!< in: the table id */
+	__attribute__((nonnull));
 /******************************************************************//**
 Add the FTS document id hidden column. */
 UNIV_INTERN
@@ -542,28 +530,29 @@ given table. row_mysql_lock_data_dictionary must have been called before
 this.
 @return DB_SUCCESS or error code */
 UNIV_INTERN
-ulint
+dberr_t
 fts_drop_tables(
 /*============*/
 	trx_t*		trx,			/*!< in: transaction */
-	dict_table_t*	table);			/*!< in: table has the FTS
+	dict_table_t*	table)			/*!< in: table has the FTS
 						index */
-
+	__attribute__((nonnull));
 /******************************************************************//**
 The given transaction is about to be committed; do whatever is necessary
 from the FTS system's POV.
 @return DB_SUCCESS or error code */
 UNIV_INTERN
-ulint
+dberr_t
 fts_commit(
 /*=======*/
-	trx_t*		trx);			/*!< in: transaction */
+	trx_t*		trx)			/*!< in: transaction */
+	__attribute__((nonnull, warn_unused_result));
 
 /*******************************************************************//**
 FTS Query entry point.
 @return DB_SUCCESS if successful otherwise error code */
 UNIV_INTERN
-ulint
+dberr_t
 fts_query(
 /*======*/
 	trx_t*		trx,			/*!< in: transaction */
@@ -572,8 +561,9 @@ fts_query(
 	const byte*	query,			/*!< in: FTS query */
 	ulint		query_len,		/*!< in: FTS query string len
 						in bytes */
-	fts_result_t**	result);		/*!< out: query result, to be
+	fts_result_t**	result)			/*!< out: query result, to be
 						freed by the caller.*/
+	__attribute__((nonnull, warn_unused_result));
 
 /******************************************************************//**
 Retrieve the FTS Relevance Ranking result for doc with doc_id
@@ -687,10 +677,11 @@ fts_free(
 Run OPTIMIZE on the given table.
 @return DB_SUCCESS if all OK */
 UNIV_INTERN
-ulint
+dberr_t
 fts_optimize_table(
 /*===============*/
-	dict_table_t*	table);			/*!< in: table to optimiza */
+	dict_table_t*	table)			/*!< in: table to optimiza */
+	__attribute__((nonnull));
 
 /**********************************************************************//**
 Startup the optimize thread and create the work queue. */
@@ -711,11 +702,12 @@ fts_optimize_is_init(void);
 Drops index ancillary tables for a FTS index
 @return DB_SUCCESS or error code */
 UNIV_INTERN
-ulint
+dberr_t
 fts_drop_index_tables(
 /*==================*/
 	trx_t*		trx,			/*!< in: transaction */
-	dict_index_t*	index);			/*!< in: Index to drop */
+	dict_index_t*	index)			/*!< in: Index to drop */
+	__attribute__((nonnull, warn_unused_result));
 
 /******************************************************************//**
 Remove the table from the OPTIMIZER's list. We do wait for
@@ -741,24 +733,22 @@ fts_optimize_end(void);
 /*===================*/
 
 /**********************************************************************//**
-Take a FTS savepoint.
-@return DB_SUCCESS or error code */
+Take a FTS savepoint. */
 UNIV_INTERN
 void
 fts_savepoint_take(
 /*===============*/
 	trx_t*		trx,			/*!< in: transaction */
-	const char*	name);			/*!< in: savepoint name */
-
+	const char*	name)			/*!< in: savepoint name */
+	__attribute__((nonnull));
 /**********************************************************************//**
-Refresh last statement savepoint.
-@return DB_SUCCESS or error code */
+Refresh last statement savepoint. */
 UNIV_INTERN
 void
 fts_savepoint_laststmt_refresh(
 /*===========================*/
-	trx_t*		trx);			/*!< in: transaction */
-
+	trx_t*		trx)			/*!< in: transaction */
+	__attribute__((nonnull));
 /**********************************************************************//**
 Release the savepoint data identified by  name. */
 UNIV_INTERN
@@ -822,26 +812,26 @@ fts_drop_orphaned_tables(void);
 /*==========================*/
 
 /******************************************************************//**
-Since we do a horizontal split on the index table, we need to drop the
-all the split tables. */
+Since we do a horizontal split on the index table, we need to drop
+all the split tables.
+@return DB_SUCCESS or error code */
 UNIV_INTERN
-ulint
+dberr_t
 fts_drop_index_split_tables(
 /*========================*/
-						/*!< out: DB_SUCCESS
-						or error code */
 	trx_t*		trx,			/*!< in: transaction */
-	dict_index_t*	index);			/*!< in: fts instance */
+	dict_index_t*	index)			/*!< in: fts instance */
+	__attribute__((nonnull, warn_unused_result));
 
 /****************************************************************//**
 Run SYNC on the table, i.e., write out data from the cache to the
-FTS auxiliary INDEX table and clear the cache at the end.
-@return DB_SUCCESS if all OK */
+FTS auxiliary INDEX table and clear the cache at the end. */
 UNIV_INTERN
-ulint
+void
 fts_sync_table(
 /*===========*/
-	dict_table_t*	table);			/*!< in: table */
+	dict_table_t*	table)			/*!< in: table */
+	__attribute__((nonnull));
 
 /****************************************************************//**
 Free the query graph but check whether dict_sys->mutex is already
@@ -979,9 +969,9 @@ fts_get_docs_create(
 
 /****************************************************************//**
 Read the rows from the FTS index
-@return vector of rows fetched */
+@return DB_SUCCESS if OK */
 UNIV_INTERN
-ulint
+dberr_t
 fts_table_fetch_doc_ids(
 /*====================*/
 	trx_t*		trx,			/*!< in: transaction */
@@ -1012,12 +1002,13 @@ fts_add_index(
 Drop auxiliary tables related to an FTS index
 @return DB_SUCCESS or error number */
 UNIV_INTERN
-ulint
+dberr_t
 fts_drop_index(
 /*===========*/
 	dict_table_t*	table,	/*!< in: Table where indexes are dropped */
 	dict_index_t*	index,	/*!< in: Index to be dropped */
-	trx_t*		trx);	/*!< in: Transaction for the drop */
+	trx_t*		trx)	/*!< in: Transaction for the drop */
+	__attribute__((nonnull));
 
 /*******************************************************************//**
 Check indexes in the fts->indexes is also present in index cache and

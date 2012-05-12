@@ -74,6 +74,12 @@ SELECT argument FROM mysql.general_log WHERE argument LIKE 'SET CHARACTER SET %'
 SELECT argument FROM mysql.general_log WHERE argument LIKE 'SET NAMES %';
 --echo ------ done ------ see log_tables.test for more proof! :)
 
+--echo Bug#13958454 -- show we print SET @a:=5, but SELECT (@a:=5)
+# We need the () in EXPLAIN extended, for (@e:=80)+5.
+# In SET however, they'd break syntax.
+# VIEWs do not accepted variables at this time.
+EXPLAIN EXTENDED SELECT @a=5,@b:=10,@c:=20,@d:=40+5,(@e:=80)+5;
+
 DROP TABLE test_log;
 
 --remove_file $MYSQLTEST_VARDIR/log/rewrite_general.log
