@@ -408,6 +408,7 @@ toku_create_new_brtheader(BRT t, CACHEFILE cf, TOKUTXN txn) {
         r = ENOMEM;
         goto exit;
     }
+    memset(t->h, 0, sizeof(struct brt_header));
 
     t->h->layout_version = BRT_LAYOUT_VERSION;
     t->h->layout_version_original = BRT_LAYOUT_VERSION;
