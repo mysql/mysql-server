@@ -19,6 +19,19 @@ toku_brt_header_suppress_rollbacks(struct brt_header *h, TOKUTXN txn) {
     h->root_that_created_or_locked_when_empty  = rootid;
 }
 
+void 
+toku_reset_root_xid_that_created(struct brt_header* h, TXNID new_root_xid_that_created) {
+    // Reset the root_xid_that_created field to the given value.  
+    // This redefines which xid created the dictionary.
+
+    // hold lock around setting and clearing of dirty bit
+    // (see cooperative use of dirty bit in brtheader_begin_checkpoint())
+    toku_brtheader_lock (h);
+    h->root_xid_that_created = new_root_xid_that_created;
+    h->dirty = 1;
+    toku_brtheader_unlock (h);
+}
+
 static void
 brtheader_destroy(struct brt_header *h) {
     if (!h->panic) assert(!h->checkpoint_header);
@@ -804,17 +817,51 @@ cleanup:
     return r;
 }
 
-void 
-toku_reset_root_xid_that_created(struct brt_header* h, TXNID new_root_xid_that_created) {
-    // Reset the root_xid_that_created field to the given value.  
-    // This redefines which xid created the dictionary.
-
-    // hold lock around setting and clearing of dirty bit
-    // (see cooperative use of dirty bit in brtheader_begin_checkpoint())
-    toku_brtheader_lock (h);
-    h->root_xid_that_created = new_root_xid_that_created;
-    h->dirty = 1;
-    toku_brtheader_unlock (h);
+//Heaviside function to find a TOKUTXN by TOKUTXN (used to find the index)
+static int find_xid (OMTVALUE v, void *txnv) {
+    TOKUTXN txn = v;
+    TOKUTXN txnfind = txnv;
+    if (txn->txnid64<txnfind->txnid64) return -1;
+    if (txn->txnid64>txnfind->txnid64) return +1;
+    return 0;
 }
 
+void
+toku_brtheader_maybe_add_txn_ref(struct brt_header* h, TOKUTXN txn) {
+    OMTVALUE txnv;
+    u_int32_t index;
+    toku_brtheader_lock(h);
+    // Does brt already know about transaction txn?
+    int r = toku_omt_find_zero(h->txns, find_xid, txn, &txnv, &index);
+    if (r==0) {
+        // It's already there.
+        assert((TOKUTXN)txnv==txn);
+        return 0;
+    }
+    // Otherwise it's not there.
+    // Insert reference to transaction into brt
+    r = toku_omt_insert_at(h->txns, txn, index);
+    assert(r==0);
+    toku_brtheader_unlock(h);
+}
+
+void
+toku_brtheader_remove_txn_ref(struct brt_header* h, TOKUTXN txn) {
+    OMTVALUE txnv_again=NULL;
+    u_int32_t index;
+    toku_brtheader_lock(h);
+    int r = toku_omt_find_zero(h->txns, find_xid, txn, &txnv_again, &index);
+    assert(r==0);
+    assert(txnv_again == txn);
+    r = toku_omt_delete_at(h->txns, index);
+    assert(r==0);
+    if (!toku_brt_header_needed(h)) {
+        //Close immediately.
+        // I have no idea how this error string business works
+        char *error_string = NULL;
+        r = toku_remove_brtheader(h, &error_string, false, ZERO_LSN);
+        lazy_assert_zero(r);
+    }
+    toku_brtheader_unlock(h);
+}
 

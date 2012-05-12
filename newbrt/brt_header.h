@@ -52,4 +52,11 @@ void toku_reset_root_xid_that_created(struct brt_header* h, TXNID new_root_xid_t
 // Reset the root_xid_that_created field to the given value.  
 // This redefines which xid created the dictionary.
 
+
+void
+toku_brtheader_maybe_add_txn_ref(struct brt_header* h, TOKUTXN txn);
+void
+toku_brtheader_remove_txn_ref(struct brt_header* h, TOKUTXN txn);
+
+
 #endif

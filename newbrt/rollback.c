@@ -242,20 +242,13 @@ static int find_xid (OMTVALUE v, void *txnv) {
     return 0;
 }
 
-
 static int remove_txn (OMTVALUE hv, u_int32_t UU(idx), void *txnv)
 // Effect:  This function is called on every open BRT that a transaction used.
 //  This function removes the transaction from that BRT.
 {
     struct brt_header* h = hv;
     TOKUTXN txn = txnv;
-    OMTVALUE txnv_again=NULL;
-    u_int32_t index;
-    int r = toku_omt_find_zero(h->txns, find_xid, txn, &txnv_again, &index);
-    assert(r==0);
-    assert(txnv_again == txnv);
-    r = toku_omt_delete_at(h->txns, index);
-    assert(r==0);
+
     if (txn->txnid64==h->txnid_that_created_or_locked_when_empty) {
         h->txnid_that_created_or_locked_when_empty = TXNID_NONE;
         h->root_that_created_or_locked_when_empty  = TXNID_NONE;
@@ -263,14 +256,9 @@ static int remove_txn (OMTVALUE hv, u_int32_t UU(idx), void *txnv)
     if (txn->txnid64==h->txnid_that_suppressed_recovery_logs) {
         h->txnid_that_suppressed_recovery_logs = TXNID_NONE;
     }
-    if (!toku_brt_header_needed(h)) {
-        //Close immediately.
-        // I have no idea how this error string business works
-        char *error_string = NULL;
-        r = toku_remove_brtheader(h, &error_string, false, ZERO_LSN);
-        lazy_assert_zero(r);
-    }
-    return r;
+    toku_brtheader_remove_txn_ref(h, txn);
+
+    return 0;
 }
 
 // for every BRT in txn, remove it.
@@ -697,21 +685,9 @@ static int find_filenum (OMTVALUE v, void *hv) {
 
 //Notify a transaction that it has touched a brt.
 int toku_txn_note_brt (TOKUTXN txn, struct brt_header* h) {
-    OMTVALUE txnv;
-    u_int32_t index;
-    // Does brt already know about transaction txn?
-    int r = toku_omt_find_zero(h->txns, find_xid, txn, &txnv, &index);
-    if (r==0) {
-	// It's already there.
-	assert((TOKUTXN)txnv==txn);
-	return 0;
-    }
-    // Otherwise it's not there.
-    // Insert reference to transaction into brt
-    r = toku_omt_insert_at(h->txns, txn, index);
-    assert(r==0);
+    toku_brtheader_maybe_add_txn_ref(h, txn);
     // Insert reference to brt into transaction
-    r = toku_omt_insert(txn->open_brt_headers, h, find_filenum, h, 0);
+    int r = toku_omt_insert(txn->open_brt_headers, h, find_filenum, h, 0);
     assert(r==0);
     return 0;
 }
