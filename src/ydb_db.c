@@ -454,17 +454,10 @@ error_cleanup:
 // Return the maximum key and val size in 
 // *key_size and *val_size respectively
 static void
-db_get_max_row_size(DB * UU(db), uint32_t * max_key_size, uint32_t * max_val_size) {
+toku_db_get_max_row_size(DB * UU(db), uint32_t * max_key_size, uint32_t * max_val_size) {
     *max_key_size = 0;
     *max_val_size = 0;
     toku_brt_get_maximum_advised_key_value_lengths(max_key_size, max_val_size);
-}
-
-static void
-locked_db_get_max_row_size(DB *db, uint32_t *max_key_size, uint32_t *max_val_size) {
-    toku_ydb_lock();
-    db_get_max_row_size(db, max_key_size, max_val_size);
-    toku_ydb_unlock();
 }
 
 int toku_db_pre_acquire_fileops_lock(DB *db, DB_TXN *txn) {
@@ -710,57 +703,13 @@ locked_db_change_descriptor(DB *db, DB_TXN* txn, const DBT* descriptor, u_int32_
 }
 
 static void 
-locked_db_set_errfile (DB *db, FILE *errfile) {
+toku_db_set_errfile (DB *db, FILE *errfile) {
     db->dbenv->set_errfile(db->dbenv, errfile);
-}
-
-static int 
-locked_db_set_flags(DB *db, u_int32_t flags) {
-    toku_ydb_lock(); int r = toku_db_set_flags(db, flags); toku_ydb_unlock(); return r;
-}
-
-static int 
-locked_db_get_flags(DB *db, u_int32_t *flags) {
-    toku_ydb_lock(); int r = toku_db_get_flags(db, flags); toku_ydb_unlock(); return r;
-}
-
-static int 
-locked_db_set_pagesize(DB *db, u_int32_t pagesize) {
-    toku_ydb_lock(); int r = toku_db_set_pagesize(db, pagesize); toku_ydb_unlock(); return r;
-}
-
-static int 
-locked_db_get_pagesize(DB *db, u_int32_t *pagesize_ptr) {
-    toku_ydb_lock(); int r = toku_db_get_pagesize(db, pagesize_ptr); toku_ydb_unlock(); return r;
-}
-
-static int 
-locked_db_set_readpagesize(DB *db, u_int32_t readpagesize) {
-    toku_ydb_lock(); int r = toku_db_set_readpagesize(db, readpagesize); toku_ydb_unlock(); return r;
-}
-
-static int 
-locked_db_get_readpagesize(DB *db, u_int32_t *readpagesize_ptr) {
-    toku_ydb_lock(); int r = toku_db_get_readpagesize(db, readpagesize_ptr); toku_ydb_unlock(); return r;
-}
-
-static int 
-locked_db_set_compression_method(DB *db, enum toku_compression_method compression_method) {
-    toku_ydb_lock(); int r = toku_db_set_compression_method(db, compression_method); toku_ydb_unlock(); return r;
-}
-
-static int 
-locked_db_get_compression_method(DB *db, enum toku_compression_method *compression_method_ptr) {
-    toku_ydb_lock(); int r = toku_db_get_compression_method(db, compression_method_ptr); toku_ydb_unlock(); return r;
 }
 
 // TODO 2216 delete this
 static int 
-locked_db_fd(DB * UU(db), int * UU(fdp)) {
-    //    toku_ydb_lock(); 
-    // int r = toku_db_fd(db, fdp); 
-    //    toku_ydb_unlock(); 
-    //    return r;
+toku_db_fd(DB * UU(db), int * UU(fdp)) {
     return 0;
 }
 static const DBT* toku_db_dbt_pos_infty(void) __attribute__((pure));
@@ -837,19 +786,9 @@ toku_db_set_indexer(DB *db, DB_INDEXER * indexer) {
     return r;
 }
 
-static int 
-locked_db_set_indexer(DB *db, DB_INDEXER *indexer) {
-    toku_ydb_lock(); int r = toku_db_set_indexer(db, indexer); toku_ydb_unlock(); return r;
-}
-
 DB_INDEXER *
 toku_db_get_indexer(DB *db) {
     return db->i->indexer;
-}
-
-static void 
-locked_db_get_indexer(DB *db, DB_INDEXER **indexer_ptr) {
-    toku_ydb_lock(); *indexer_ptr = toku_db_get_indexer(db); toku_ydb_unlock();
 }
 
 struct ydb_verify_context {
@@ -872,12 +811,6 @@ toku_db_verify_with_progress(DB *db, int (*progress_callback)(void *extra, float
     struct ydb_verify_context context = { progress_callback, progress_extra };
     int r = toku_verify_brt_with_progress(db->i->brt, ydb_verify_progress_callback, &context, verbose, keep_going);
     return r;
-}
-
-
-static int 
-db_pre_acquire_table_lock(DB *db, DB_TXN *txn) {
-    return toku_db_pre_acquire_table_lock(db, txn);
 }
 
 int toku_setup_db_internal (DB **dbp, DB_ENV *env, u_int32_t flags, BRT brt, bool is_open) {
@@ -929,45 +862,45 @@ toku_db_create(DB ** db, DB_ENV * env, u_int32_t flags) {
     // methods that grab the ydb lock
 #define SDB(name) result->name = locked_db_ ## name
     SDB(close);
-    //    SDB(key_range);
     SDB(open);
     SDB(change_descriptor);
-    SDB(set_errfile);
-    SDB(set_pagesize);
-    SDB(get_pagesize);
-    SDB(set_readpagesize);
-    SDB(get_readpagesize);
-    SDB(set_compression_method);
-    SDB(get_compression_method);
-    SDB(set_flags);
-    SDB(get_flags);
-    SDB(fd);
-    SDB(get_max_row_size);
     SDB(optimize);
     SDB(get_fragmentation);
-    SDB(set_indexer);
-    SDB(get_indexer);
 #undef SDB
-    // methods that take the ydb lock in some capacity,
-    // but not from beginning to end
+    // methods that do not take the ydb lock
+#define USDB(name) result->name = toku_db_ ## name
+    USDB(set_errfile);
+    USDB(set_pagesize);
+    USDB(get_pagesize);
+    USDB(set_readpagesize);
+    USDB(get_readpagesize);
+    USDB(set_compression_method);
+    USDB(get_compression_method);
+    USDB(set_flags);
+    USDB(get_flags);
+    USDB(fd);
+    USDB(get_max_row_size);
+    USDB(set_indexer);
+    USDB(get_indexer);
+    USDB(pre_acquire_table_lock);
+    USDB(pre_acquire_fileops_lock);
+    USDB(key_range64);
+    USDB(hot_optimize);
+    USDB(stat64);
+    USDB(verify_with_progress);
+    USDB(cursor);
+    USDB(dbt_pos_infty);
+    USDB(dbt_neg_infty);
+#undef USDB
     result->del = autotxn_db_del;
     result->put = autotxn_db_put;
     result->update = autotxn_db_update;
     result->update_broadcast = autotxn_db_update_broadcast;
     
     // unlocked methods
-    result->cursor = toku_db_cursor;
     result->get = autotxn_db_get;
     result->getf_set = autotxn_db_getf_set;
-    result->pre_acquire_table_lock = db_pre_acquire_table_lock;
-    result->pre_acquire_fileops_lock = toku_db_pre_acquire_fileops_lock;
-    result->key_range64 = toku_db_key_range64;
-    result->hot_optimize = toku_db_hot_optimize;
-    result->stat64 = toku_db_stat64;
-    result->verify_with_progress = toku_db_verify_with_progress;
     
-    result->dbt_pos_infty = toku_db_dbt_pos_infty;
-    result->dbt_neg_infty = toku_db_dbt_neg_infty;
     result->i->dict_id = DICTIONARY_ID_NONE;
     result->i->opened = 0;
     result->i->open_flags = 0;
