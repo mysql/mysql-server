@@ -550,7 +550,7 @@ int toku_remove_brtheader (struct brt_header* h, char **error_string, BOOL oplsn
 BRT toku_brtheader_get_some_existing_brt(struct brt_header* h) {
     BRT brt_ret = NULL;
     toku_brtheader_lock(h);
-    if (toku_list_empty(&h->live_brts)) {
+    if (!toku_list_empty(&h->live_brts)) {
         brt_ret = toku_list_struct(toku_list_head(&h->live_brts), struct brt, live_brt_link);
     }
     toku_brtheader_unlock(h);
@@ -826,8 +826,10 @@ static int find_xid (OMTVALUE v, void *txnv) {
     return 0;
 }
 
-void
+// returns if ref was added
+BOOL
 toku_brtheader_maybe_add_txn_ref(struct brt_header* h, TOKUTXN txn) {
+    BOOL ref_added = FALSE;
     OMTVALUE txnv;
     u_int32_t index;
     toku_brtheader_lock(h);
@@ -836,13 +838,16 @@ toku_brtheader_maybe_add_txn_ref(struct brt_header* h, TOKUTXN txn) {
     if (r==0) {
         // It's already there.
         assert((TOKUTXN)txnv==txn);
-        return 0;
+        ref_added = FALSE;
     }
     // Otherwise it's not there.
     // Insert reference to transaction into brt
     r = toku_omt_insert_at(h->txns, txn, index);
     assert(r==0);
+    ref_added = TRUE;
+exit:
     toku_brtheader_unlock(h);
+    return ref_added;
 }
 
 void
