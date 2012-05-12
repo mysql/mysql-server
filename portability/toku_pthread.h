@@ -7,7 +7,6 @@
 #define _TOKU_PTHREAD_H
 
 #include <pthread.h>
-#include "toku_spinlock.h"
 #include <time.h>
 #include <stdint.h>
 #include "toku_assert.h"
