@@ -865,9 +865,9 @@ static Sys_var_mybool Sys_binlog_rows_query(
 static Sys_var_mybool Sys_binlog_order_commits(
        "binlog_order_commits",
        "Issue internal commit calls in the same order as transactions are"
-       " written to the binary log.",
+       " written to the binary log. Default is to order commits.",
        GLOBAL_VAR(opt_binlog_order_commits),
-       CMD_LINE(OPT_ARG), DEFAULT(FALSE));
+       CMD_LINE(OPT_ARG), DEFAULT(TRUE));
 
 static Sys_var_ulong Sys_bulk_insert_buff_size(
        "bulk_insert_buffer_size", "Size of tree cache used in bulk "
