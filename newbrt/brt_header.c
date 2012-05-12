@@ -512,83 +512,6 @@ toku_brtheader_note_brt_open(BRT live) {
     toku_brtheader_unlock(h);
 }
 
-// Open a brt for use by redirect.  The new brt must have the same dict_id as the old_brt passed in.  (FILENUM is assigned by the brt_open() function.)
-static int
-brt_open_for_redirect(BRT *new_brtp, const char *fname_in_env, TOKUTXN txn, struct brt_header* old_h) {
-    int r;
-    BRT t;
-    assert(old_h->dict_id.dictid != DICTIONARY_ID_NONE.dictid);
-    r = toku_brt_create(&t);
-    assert_zero(r);
-    r = toku_brt_set_bt_compare(t, old_h->compare_fun);
-    assert_zero(r);
-    r = toku_brt_set_update(t, old_h->update_fun);
-    assert_zero(r);
-    r = toku_brt_set_nodesize(t, old_h->nodesize);
-    assert_zero(r);
-    r = toku_brt_set_basementnodesize(t, old_h->basementnodesize);
-    assert_zero(r);
-    CACHETABLE ct = toku_cachefile_get_cachetable(old_h->cf);
-    r = toku_brt_open_with_dict_id(t, fname_in_env, 0, 0, ct, txn, old_h->dict_id);
-    assert_zero(r);
-    assert(t->h->dict_id.dictid == old_h->dict_id.dictid);
-
-    *new_brtp = t;
-    return r;
-}
-
-// This function performs most of the work to redirect a dictionary to different file.
-// It is called for redirect and to abort a redirect.  (This function is almost its own inverse.)
-static int
-dictionary_redirect_internal(const char *dst_fname_in_env, struct brt_header *src_h, TOKUTXN txn, struct brt_header **dst_hp) {
-    int r;
-
-    FILENUM src_filenum = toku_cachefile_filenum(src_h->cf);
-    FILENUM dst_filenum = FILENUM_NONE;
-
-    struct brt_header *dst_h = NULL;
-    struct toku_list *list;
-    // open a dummy brt based off of 
-    // dst_fname_in_env to get the header
-    // then we will change all the brt's to have
-    // their headers point to dst_h instead of src_h
-    BRT tmp_dst_brt = NULL;
-    r = brt_open_for_redirect(&tmp_dst_brt, dst_fname_in_env, txn, src_h);
-    assert_zero(r);
-    dst_h = tmp_dst_brt->h;
-
-    // some sanity checks on dst_filenum
-    dst_filenum = toku_cachefile_filenum(dst_h->cf);
-    assert(dst_filenum.fileid!=FILENUM_NONE.fileid);
-    assert(dst_filenum.fileid!=src_filenum.fileid); //Cannot be same file.
-
-    // for each live brt, brt->h is currently src_h
-    // we want to change it to dummy_dst
-    while (!toku_list_empty(&src_h->live_brts)) {
-        list = src_h->live_brts.next;
-        BRT src_brt = NULL;
-        src_brt = toku_list_struct(list, struct brt, live_brt_link);
-
-        toku_brtheader_lock(src_h);
-        toku_list_remove(&src_brt->live_brt_link);
-        toku_brtheader_unlock(src_h);
-        
-        src_brt->h = dst_h;
-        
-        toku_brtheader_note_brt_open(src_brt);
-        if (src_brt->redirect_callback) {
-            src_brt->redirect_callback(src_brt, src_brt->redirect_callback_extra);
-        }
-    }
-    assert(dst_h);
-
-    r = toku_brt_close(tmp_dst_brt, FALSE, ZERO_LSN);
-    assert_zero(r);
-
-    *dst_hp = dst_h;
-    return r;
-}
-
 int
 toku_brt_header_needed(struct brt_header* h) {
     return !toku_list_empty(&h->live_brts) || toku_omt_size(h->txns) != 0 || h->pinned_by_checkpoint;
@@ -674,6 +597,85 @@ toku_brt_header_init(struct brt_header *h,
     h->compression_method = compression_method;
     h->highest_unused_msn_for_upgrade.msn  = MIN_MSN.msn - 1;
 }
+
+// Open a brt for use by redirect.  The new brt must have the same dict_id as the old_brt passed in.  (FILENUM is assigned by the brt_open() function.)
+static int
+brt_open_for_redirect(BRT *new_brtp, const char *fname_in_env, TOKUTXN txn, struct brt_header* old_h) {
+    int r;
+    BRT t;
+    assert(old_h->dict_id.dictid != DICTIONARY_ID_NONE.dictid);
+    r = toku_brt_create(&t);
+    assert_zero(r);
+    r = toku_brt_set_bt_compare(t, old_h->compare_fun);
+    assert_zero(r);
+    r = toku_brt_set_update(t, old_h->update_fun);
+    assert_zero(r);
+    r = toku_brt_set_nodesize(t, old_h->nodesize);
+    assert_zero(r);
+    r = toku_brt_set_basementnodesize(t, old_h->basementnodesize);
+    assert_zero(r);
+    CACHETABLE ct = toku_cachefile_get_cachetable(old_h->cf);
+    r = toku_brt_open_with_dict_id(t, fname_in_env, 0, 0, ct, txn, old_h->dict_id);
+    assert_zero(r);
+    assert(t->h->dict_id.dictid == old_h->dict_id.dictid);
+
+    *new_brtp = t;
+    return r;
+}
+
+// This function performs most of the work to redirect a dictionary to different file.
+// It is called for redirect and to abort a redirect.  (This function is almost its own inverse.)
+static int
+dictionary_redirect_internal(const char *dst_fname_in_env, struct brt_header *src_h, TOKUTXN txn, struct brt_header **dst_hp) {
+    int r;
+
+    FILENUM src_filenum = toku_cachefile_filenum(src_h->cf);
+    FILENUM dst_filenum = FILENUM_NONE;
+
+    struct brt_header *dst_h = NULL;
+    struct toku_list *list;
+    // open a dummy brt based off of 
+    // dst_fname_in_env to get the header
+    // then we will change all the brt's to have
+    // their headers point to dst_h instead of src_h
+    BRT tmp_dst_brt = NULL;
+    r = brt_open_for_redirect(&tmp_dst_brt, dst_fname_in_env, txn, src_h);
+    assert_zero(r);
+    dst_h = tmp_dst_brt->h;
+
+    // some sanity checks on dst_filenum
+    dst_filenum = toku_cachefile_filenum(dst_h->cf);
+    assert(dst_filenum.fileid!=FILENUM_NONE.fileid);
+    assert(dst_filenum.fileid!=src_filenum.fileid); //Cannot be same file.
+
+    // for each live brt, brt->h is currently src_h
+    // we want to change it to dummy_dst
+    while (!toku_list_empty(&src_h->live_brts)) {
+        list = src_h->live_brts.next;
+        BRT src_brt = NULL;
+        src_brt = toku_list_struct(list, struct brt, live_brt_link);
+
+        toku_brtheader_lock(src_h);
+        toku_list_remove(&src_brt->live_brt_link);
+        toku_brtheader_unlock(src_h);
+        
+        src_brt->h = dst_h;
+        
+        toku_brtheader_note_brt_open(src_brt);
+        if (src_brt->redirect_callback) {
+            src_brt->redirect_callback(src_brt, src_brt->redirect_callback_extra);
+        }
+    }
+    assert(dst_h);
+
+    r = toku_brt_close(tmp_dst_brt, FALSE, ZERO_LSN);
+    assert_zero(r);
+
+    *dst_hp = dst_h;
+    return r;
+}
+
+
 
 //This is the 'abort redirect' function.  The redirect of old_h to new_h was done
 //and now must be undone, so here we redirect new_h back to old_h.
