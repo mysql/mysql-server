@@ -21,15 +21,9 @@ void toku_brtheader_destroy_treelock(struct brt_header* h);
 void toku_brtheader_grab_treelock(struct brt_header* h);
 void toku_brtheader_release_treelock(struct brt_header* h);
 
-int toku_brtheader_close (CACHEFILE cachefile, int fd, void *header_v, char **error_string, BOOL oplsn_valid, LSN oplsn) __attribute__((__warn_unused_result__));
-int toku_brtheader_begin_checkpoint (LSN checkpoint_lsn, void *header_v) __attribute__((__warn_unused_result__));
-int toku_brtheader_checkpoint (CACHEFILE cachefile, int fd, void *header_v) __attribute__((__warn_unused_result__));
-int toku_brtheader_end_checkpoint (CACHEFILE cachefile, int fd, void *header_v) __attribute__((__warn_unused_result__));
-
 int toku_create_new_brtheader(BRT t, CACHEFILE cf, TOKUTXN txn);
 void toku_brtheader_free (struct brt_header *h);
 
-int toku_brt_alloc_init_header(BRT t, TOKUTXN txn);
 int toku_read_brt_header_and_store_in_cachefile (BRT brt, CACHEFILE cf, LSN max_acceptable_lsn, struct brt_header **header, BOOL* was_open);
 void toku_brtheader_note_brt_open(BRT live);
 
@@ -49,5 +43,11 @@ toku_brt_header_init(
     uint32_t target_basementnodesize, 
     enum toku_compression_method compression_method
     );
+
+int toku_dictionary_redirect_abort(struct brt_header *old_h, struct brt_header *new_h, TOKUTXN txn) __attribute__ ((warn_unused_result));
+int toku_dictionary_redirect (const char *dst_fname_in_env, BRT old_brt, TOKUTXN txn);
+void toku_reset_root_xid_that_created(struct brt_header* h, TXNID new_root_xid_that_created);
+// Reset the root_xid_that_created field to the given value.  
+// This redefines which xid created the dictionary.
 
 #endif

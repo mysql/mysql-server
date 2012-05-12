@@ -7,6 +7,7 @@
 #include <brt-flusher.h>
 #include <brt-flusher-internal.h>
 #include <brt-cachetable-wrappers.h>
+#include <brt_header.h>
 
 /* Status is intended for display to humans to help understand system behavior.
  * It does not need to be perfectly thread-safe.

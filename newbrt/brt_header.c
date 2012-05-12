@@ -5,6 +5,8 @@
 
 
 #include "includes.h"
+#include <brt-cachetable-wrappers.h>
+
 
 void
 toku_brt_header_suppress_rollbacks(struct brt_header *h, TOKUTXN txn) {
@@ -95,6 +97,10 @@ toku_brtheader_release_treelock(struct brt_header* h) {
     int r = toku_pthread_mutex_unlock(&h->tree_lock); assert(r == 0);
 }
 
+/////////////////////////////////////////////////////////////////////////
+// Start of Functions that are callbacks to the cachefule
+//
+
 static int
 brtheader_log_fassociate_during_checkpoint (CACHEFILE cf, void *header_v) {
     struct brt_header *h = header_v;
@@ -121,9 +127,208 @@ brtheader_log_suppress_rollback_during_checkpoint (CACHEFILE cf, void *header_v)
     return r;
 }
 
+// Create checkpoint-in-progress versions of header and translation (btt) (and fifo for now...).
+//Has access to fd (it is protected).
+static int
+brtheader_begin_checkpoint (LSN checkpoint_lsn, void *header_v) {
+    struct brt_header *h = header_v;
+    int r = h->panic;
+    if (r==0) {
+        // hold lock around copying and clearing of dirty bit
+        toku_brtheader_lock (h);
+        assert(h->type == BRTHEADER_CURRENT);
+        assert(h->checkpoint_header == NULL);
+        brtheader_copy_for_checkpoint(h, checkpoint_lsn);
+        h->dirty = 0;             // this is only place this bit is cleared        (in currentheader)
+        // on_disk_stats includes on disk changes since last checkpoint,
+        // so checkpoint_staging_stats now includes changes for checkpoint in progress.
+        h->checkpoint_staging_stats = h->on_disk_stats;
+        toku_block_translation_note_start_checkpoint_unlocked(h->blocktable);
+        toku_brtheader_unlock (h);
+    }
+    return r;
+}
 
-static int brtheader_note_pin_by_checkpoint (CACHEFILE cachefile, void *header_v);
-static int brtheader_note_unpin_by_checkpoint (CACHEFILE cachefile, void *header_v);
+// Write checkpoint-in-progress versions of header and translation to disk (really to OS internal buffer).
+// Copy current header's version of checkpoint_staging stat64info to checkpoint header.
+// Must have access to fd (protected).
+// Requires: all pending bits are clear.  This implies that no thread will modify the checkpoint_staging
+// version of the stat64info.
+static int
+brtheader_checkpoint (CACHEFILE cf, int fd, void *header_v) {
+    struct brt_header *h = header_v;
+    struct brt_header *ch = h->checkpoint_header;
+    int r = 0;
+    if (h->panic!=0) goto handle_error;
+    //printf("%s:%d allocated_limit=%lu writing queue to %lu\n", __FILE__, __LINE__,
+    //             block_allocator_allocated_limit(h->block_allocator), h->unused_blocks.b*h->nodesize);
+    assert(ch);
+    if (ch->panic!=0) goto handle_error;
+    assert(ch->type == BRTHEADER_CHECKPOINT_INPROGRESS);
+    if (ch->dirty) {            // this is only place this bit is tested (in checkpoint_header)
+        TOKULOGGER logger = toku_cachefile_logger(cf);
+        if (logger) {
+            r = toku_logger_fsync_if_lsn_not_fsynced(logger, ch->checkpoint_lsn);
+            if (r!=0) goto handle_error;
+        }
+        uint64_t now = (uint64_t) time(NULL); // 4018;
+        h->time_of_last_modification = now;
+        ch->time_of_last_modification = now;
+        ch->checkpoint_count++;
+        // Threadsafety of checkpoint_staging_stats here depends on there being no pending bits set,
+        // so that all callers to flush callback should have the for_checkpoint argument false,
+        // and therefore will not modify the checkpoint_staging_stats.
+        // TODO 4184: If the flush callback is called with the for_checkpoint argument true even when all the pending bits
+        //            are clear, then this is a problem.  
+        ch->checkpoint_staging_stats = h->checkpoint_staging_stats;  
+        // The in_memory_stats and on_disk_stats in the checkpoint header should be ignored, but we set them 
+        // here just in case the serializer looks in the wrong place.
+        ch->in_memory_stats = ch->checkpoint_staging_stats;  
+        ch->on_disk_stats   = ch->checkpoint_staging_stats;  
+                                                             
+        // write translation and header to disk (or at least to OS internal buffer)
+        r = toku_serialize_brt_header_to(fd, ch);
+        if (r!=0) goto handle_error;
+        ch->dirty = 0;                      // this is only place this bit is cleared (in checkpoint_header)
+        
+        // fsync the cachefile
+        r = toku_cachefile_fsync(cf);
+        if (r!=0) {
+            goto handle_error;
+        }
+        h->checkpoint_count++;        // checkpoint succeeded, next checkpoint will save to alternate header location
+        h->checkpoint_lsn = ch->checkpoint_lsn;  //Header updated.
+    } 
+    else {
+        toku_block_translation_note_skipped_checkpoint(ch->blocktable);
+    }
+    if (0) {
+handle_error:
+        if (h->panic) r = h->panic;
+        else if (ch->panic) {
+            r = ch->panic;
+            //Steal panic string.  Cannot afford to malloc.
+            h->panic             = ch->panic;
+            h->panic_string  = ch->panic_string;
+        }
+        else toku_block_translation_note_failed_checkpoint(ch->blocktable);
+    }
+    return r;
+
+}
+
+// free unused disk space 
+// (i.e. tell BlockAllocator to liberate blocks used by previous checkpoint).
+// Must have access to fd (protected)
+static int
+brtheader_end_checkpoint (CACHEFILE UU(cachefile), int fd, void *header_v) {
+    struct brt_header *h = header_v;
+    int r = h->panic;
+    if (r==0) {
+        assert(h->type == BRTHEADER_CURRENT);
+        toku_block_translation_note_end_checkpoint(h->blocktable, fd, h);
+    }
+    if (h->checkpoint_header) {         // could be NULL only if panic was true at begin_checkpoint
+        brtheader_free(h->checkpoint_header);
+        h->checkpoint_header = NULL;
+    }
+    return r;
+}
+
+//Has access to fd (it is protected).
+static int
+brtheader_close (CACHEFILE cachefile, int fd, void *header_v, char **malloced_error_string, BOOL oplsn_valid, LSN oplsn) {
+    struct brt_header *h = header_v;
+    assert(h->type == BRTHEADER_CURRENT);
+    toku_brtheader_lock(h);
+    assert(!toku_brt_header_needed(h));
+    toku_brtheader_unlock(h);
+    int r = 0;
+    if (h->panic) {
+        r = h->panic;
+    } else if (h->dictionary_opened) { //Otherwise header has never fully been created.
+        assert(h->cf == cachefile);
+        TOKULOGGER logger = toku_cachefile_logger(cachefile);
+        LSN lsn = ZERO_LSN;
+        //Get LSN
+        if (oplsn_valid) {
+            //Use recovery-specified lsn
+            lsn = oplsn;
+            //Recovery cannot reduce lsn of a header.
+            if (lsn.lsn < h->checkpoint_lsn.lsn)
+                lsn = h->checkpoint_lsn;
+        }
+        else {
+            //Get LSN from logger
+            lsn = ZERO_LSN; // if there is no logger, we use zero for the lsn
+            if (logger) {
+                char* fname_in_env = toku_cachefile_fname_in_env(cachefile);
+                assert(fname_in_env);
+                BYTESTRING bs = {.len=strlen(fname_in_env), .data=fname_in_env};
+                r = toku_log_fclose(logger, &lsn, h->dirty, bs, toku_cachefile_filenum(cachefile)); // flush the log on close (if new header is being written), otherwise it might not make it out.
+                if (r!=0) return r;
+            }
+        }
+        if (h->dirty) {               // this is the only place this bit is tested (in currentheader)
+            if (logger) { //Rollback cachefile MUST NOT BE CLOSED DIRTY
+                          //It can be checkpointed only via 'checkpoint'
+                assert(logger->rollback_cachefile != cachefile);
+            }
+            int r2;
+            //assert(lsn.lsn!=0);
+            r2 = brtheader_begin_checkpoint(lsn, header_v);
+            if (r==0) r = r2;
+            r2 = brtheader_checkpoint(cachefile, fd, h);
+            if (r==0) r = r2;
+            r2 = brtheader_end_checkpoint(cachefile, fd, header_v);
+            if (r==0) r = r2;
+            if (!h->panic) assert(!h->dirty);             // dirty bit should be cleared by begin_checkpoint and never set again (because we're closing the dictionary)
+        }
+    }
+    if (malloced_error_string) *malloced_error_string = h->panic_string;
+    if (r == 0) {
+        r = h->panic;
+    }
+    toku_brtheader_free(h);
+    return r;
+}
+
+//Must be protected by ydb lock.
+//Is only called by checkpoint begin, which holds it
+static int
+brtheader_note_pin_by_checkpoint (CACHEFILE UU(cachefile), void *header_v)
+{
+    //Set arbitrary brt (for given header) as pinned by checkpoint.
+    //Only one can be pinned (only one checkpoint at a time), but not worth verifying.
+    struct brt_header *h = header_v;
+    assert(!h->pinned_by_checkpoint);
+    h->pinned_by_checkpoint = true;
+    return 0;
+}
+
+//Must be protected by ydb lock.
+//Called by end_checkpoint, which grabs ydb lock around note_unpin
+static int
+brtheader_note_unpin_by_checkpoint (CACHEFILE UU(cachefile), void *header_v)
+{
+    struct brt_header *h = header_v;
+    assert(h->pinned_by_checkpoint);
+    h->pinned_by_checkpoint = false; //Unpin
+    int r = 0;
+    //Close if necessary
+    if (!toku_brt_header_needed(h)) {
+        //Close immediately.
+        char *error_string = NULL;
+        r = toku_remove_brtheader(h, &error_string, false, ZERO_LSN);
+        lazy_assert_zero(r);
+    }
+    return r;
+
+}
+
+//
+// End of Functions that are callbacks to the cachefule
+/////////////////////////////////////////////////////////////////////////
 
 static int setup_initial_brtheader_root_node (struct brt_header* h, BLOCKNUM blocknum) {
     BRTNODE XMALLOC(node);
@@ -169,10 +374,10 @@ brt_init_header_partial (BRT t, CACHEFILE cf, TOKUTXN txn) {
                                 t->h,
                                 brtheader_log_fassociate_during_checkpoint,
                                 brtheader_log_suppress_rollback_during_checkpoint,
-                                toku_brtheader_close,
-                                toku_brtheader_checkpoint,
-                                toku_brtheader_begin_checkpoint,
-                                toku_brtheader_end_checkpoint,
+                                brtheader_close,
+                                brtheader_checkpoint,
+                                brtheader_begin_checkpoint,
+                                brtheader_end_checkpoint,
                                 brtheader_note_pin_by_checkpoint,
                                 brtheader_note_unpin_by_checkpoint);
 exit:
@@ -277,10 +482,10 @@ int toku_read_brt_header_and_store_in_cachefile (BRT brt, CACHEFILE cf, LSN max_
                                 (void*)h,
                                 brtheader_log_fassociate_during_checkpoint,
                                 brtheader_log_suppress_rollback_during_checkpoint,
-                                toku_brtheader_close,
-                                toku_brtheader_checkpoint,
-                                toku_brtheader_begin_checkpoint,
-                                toku_brtheader_end_checkpoint,
+                                brtheader_close,
+                                brtheader_checkpoint,
+                                brtheader_begin_checkpoint,
+                                brtheader_end_checkpoint,
                                 brtheader_note_pin_by_checkpoint,
                                 brtheader_note_unpin_by_checkpoint);
     *header = h;
@@ -373,208 +578,9 @@ dictionary_redirect_internal(const char *dst_fname_in_env, struct brt_header *sr
     return r;
 }
 
-// Create checkpoint-in-progress versions of header and translation (btt) (and fifo for now...).
-//Has access to fd (it is protected).
-int
-toku_brtheader_begin_checkpoint (LSN checkpoint_lsn, void *header_v) {
-    struct brt_header *h = header_v;
-    int r = h->panic;
-    if (r==0) {
-        // hold lock around copying and clearing of dirty bit
-        toku_brtheader_lock (h);
-        assert(h->type == BRTHEADER_CURRENT);
-        assert(h->checkpoint_header == NULL);
-        brtheader_copy_for_checkpoint(h, checkpoint_lsn);
-        h->dirty = 0;             // this is only place this bit is cleared        (in currentheader)
-        // on_disk_stats includes on disk changes since last checkpoint,
-        // so checkpoint_staging_stats now includes changes for checkpoint in progress.
-        h->checkpoint_staging_stats = h->on_disk_stats;
-        toku_block_translation_note_start_checkpoint_unlocked(h->blocktable);
-        toku_brtheader_unlock (h);
-    }
-    return r;
-}
-
 int
 toku_brt_header_needed(struct brt_header* h) {
     return !toku_list_empty(&h->live_brts) || toku_omt_size(h->txns) != 0 || h->pinned_by_checkpoint;
-}
-
-//Must be protected by ydb lock.
-//Is only called by checkpoint begin, which holds it
-static int
-brtheader_note_pin_by_checkpoint (CACHEFILE UU(cachefile), void *header_v)
-{
-    //Set arbitrary brt (for given header) as pinned by checkpoint.
-    //Only one can be pinned (only one checkpoint at a time), but not worth verifying.
-    struct brt_header *h = header_v;
-    assert(!h->pinned_by_checkpoint);
-    h->pinned_by_checkpoint = true;
-    return 0;
-}
-
-//Must be protected by ydb lock.
-//Called by end_checkpoint, which grabs ydb lock around note_unpin
-static int
-brtheader_note_unpin_by_checkpoint (CACHEFILE UU(cachefile), void *header_v)
-{
-    struct brt_header *h = header_v;
-    assert(h->pinned_by_checkpoint);
-    h->pinned_by_checkpoint = false; //Unpin
-    int r = 0;
-    //Close if necessary
-    if (!toku_brt_header_needed(h)) {
-        //Close immediately.
-        char *error_string = NULL;
-        r = toku_remove_brtheader(h, &error_string, false, ZERO_LSN);
-        lazy_assert_zero(r);
-    }
-    return r;
-
-}
-
-// Write checkpoint-in-progress versions of header and translation to disk (really to OS internal buffer).
-// Copy current header's version of checkpoint_staging stat64info to checkpoint header.
-// Must have access to fd (protected).
-// Requires: all pending bits are clear.  This implies that no thread will modify the checkpoint_staging
-// version of the stat64info.
-int
-toku_brtheader_checkpoint (CACHEFILE cf, int fd, void *header_v) {
-    struct brt_header *h = header_v;
-    struct brt_header *ch = h->checkpoint_header;
-    int r = 0;
-    if (h->panic!=0) goto handle_error;
-    //printf("%s:%d allocated_limit=%lu writing queue to %lu\n", __FILE__, __LINE__,
-    //             block_allocator_allocated_limit(h->block_allocator), h->unused_blocks.b*h->nodesize);
-    assert(ch);
-    if (ch->panic!=0) goto handle_error;
-    assert(ch->type == BRTHEADER_CHECKPOINT_INPROGRESS);
-    if (ch->dirty) {            // this is only place this bit is tested (in checkpoint_header)
-        TOKULOGGER logger = toku_cachefile_logger(cf);
-        if (logger) {
-            r = toku_logger_fsync_if_lsn_not_fsynced(logger, ch->checkpoint_lsn);
-            if (r!=0) goto handle_error;
-        }
-        uint64_t now = (uint64_t) time(NULL); // 4018;
-        h->time_of_last_modification = now;
-        ch->time_of_last_modification = now;
-        ch->checkpoint_count++;
-        // Threadsafety of checkpoint_staging_stats here depends on there being no pending bits set,
-        // so that all callers to flush callback should have the for_checkpoint argument false,
-        // and therefore will not modify the checkpoint_staging_stats.
-        // TODO 4184: If the flush callback is called with the for_checkpoint argument true even when all the pending bits
-        //            are clear, then this is a problem.  
-        ch->checkpoint_staging_stats = h->checkpoint_staging_stats;  
-        // The in_memory_stats and on_disk_stats in the checkpoint header should be ignored, but we set them 
-        // here just in case the serializer looks in the wrong place.
-        ch->in_memory_stats = ch->checkpoint_staging_stats;  
-        ch->on_disk_stats   = ch->checkpoint_staging_stats;  
-                                                             
-        // write translation and header to disk (or at least to OS internal buffer)
-        r = toku_serialize_brt_header_to(fd, ch);
-        if (r!=0) goto handle_error;
-        ch->dirty = 0;                      // this is only place this bit is cleared (in checkpoint_header)
-        
-        // fsync the cachefile
-        r = toku_cachefile_fsync(cf);
-        if (r!=0) {
-            goto handle_error;
-        }
-        h->checkpoint_count++;        // checkpoint succeeded, next checkpoint will save to alternate header location
-        h->checkpoint_lsn = ch->checkpoint_lsn;  //Header updated.
-    } 
-    else {
-        toku_block_translation_note_skipped_checkpoint(ch->blocktable);
-    }
-    if (0) {
-handle_error:
-        if (h->panic) r = h->panic;
-        else if (ch->panic) {
-            r = ch->panic;
-            //Steal panic string.  Cannot afford to malloc.
-            h->panic             = ch->panic;
-            h->panic_string  = ch->panic_string;
-        }
-        else toku_block_translation_note_failed_checkpoint(ch->blocktable);
-    }
-    return r;
-
-}
-
-// free unused disk space 
-// (i.e. tell BlockAllocator to liberate blocks used by previous checkpoint).
-// Must have access to fd (protected)
-int
-toku_brtheader_end_checkpoint (CACHEFILE UU(cachefile), int fd, void *header_v) {
-    struct brt_header *h = header_v;
-    int r = h->panic;
-    if (r==0) {
-        assert(h->type == BRTHEADER_CURRENT);
-        toku_block_translation_note_end_checkpoint(h->blocktable, fd, h);
-    }
-    if (h->checkpoint_header) {         // could be NULL only if panic was true at begin_checkpoint
-        brtheader_free(h->checkpoint_header);
-        h->checkpoint_header = NULL;
-    }
-    return r;
-}
-
-//Has access to fd (it is protected).
-int
-toku_brtheader_close (CACHEFILE cachefile, int fd, void *header_v, char **malloced_error_string, BOOL oplsn_valid, LSN oplsn) {
-    struct brt_header *h = header_v;
-    assert(h->type == BRTHEADER_CURRENT);
-    toku_brtheader_lock(h);
-    assert(!toku_brt_header_needed(h));
-    toku_brtheader_unlock(h);
-    int r = 0;
-    if (h->panic) {
-        r = h->panic;
-    } else if (h->dictionary_opened) { //Otherwise header has never fully been created.
-        assert(h->cf == cachefile);
-        TOKULOGGER logger = toku_cachefile_logger(cachefile);
-        LSN lsn = ZERO_LSN;
-        //Get LSN
-        if (oplsn_valid) {
-            //Use recovery-specified lsn
-            lsn = oplsn;
-            //Recovery cannot reduce lsn of a header.
-            if (lsn.lsn < h->checkpoint_lsn.lsn)
-                lsn = h->checkpoint_lsn;
-        }
-        else {
-            //Get LSN from logger
-            lsn = ZERO_LSN; // if there is no logger, we use zero for the lsn
-            if (logger) {
-                char* fname_in_env = toku_cachefile_fname_in_env(cachefile);
-                assert(fname_in_env);
-                BYTESTRING bs = {.len=strlen(fname_in_env), .data=fname_in_env};
-                r = toku_log_fclose(logger, &lsn, h->dirty, bs, toku_cachefile_filenum(cachefile)); // flush the log on close (if new header is being written), otherwise it might not make it out.
-                if (r!=0) return r;
-            }
-        }
-        if (h->dirty) {               // this is the only place this bit is tested (in currentheader)
-            if (logger) { //Rollback cachefile MUST NOT BE CLOSED DIRTY
-                          //It can be checkpointed only via 'checkpoint'
-                assert(logger->rollback_cachefile != cachefile);
-            }
-            int r2;
-            //assert(lsn.lsn!=0);
-            r2 = toku_brtheader_begin_checkpoint(lsn, header_v);
-            if (r==0) r = r2;
-            r2 = toku_brtheader_checkpoint(cachefile, fd, h);
-            if (r==0) r = r2;
-            r2 = toku_brtheader_end_checkpoint(cachefile, fd, header_v);
-            if (r==0) r = r2;
-            if (!h->panic) assert(!h->dirty);             // dirty bit should be cleared by begin_checkpoint and never set again (because we're closing the dictionary)
-        }
-    }
-    if (malloced_error_string) *malloced_error_string = h->panic_string;
-    if (r == 0) {
-        r = h->panic;
-    }
-    toku_brtheader_free(h);
-    return r;
 }
 
 // Close brt.  If opsln_valid, use given oplsn as lsn in brt header instead of logging 
@@ -602,7 +608,7 @@ toku_brt_header_note_hot_begin(BRT brt) {
     time_t now = time(NULL);
 
     // hold lock around setting and clearing of dirty bit
-    // (see cooperative use of dirty bit in toku_brtheader_begin_checkpoint())
+    // (see cooperative use of dirty bit in brtheader_begin_checkpoint())
     toku_brtheader_lock(h);
     h->time_of_last_optimize_begin = now;
     h->count_of_optimize_in_progress++;
@@ -772,4 +778,18 @@ toku_dictionary_redirect (const char *dst_fname_in_env, BRT old_brt, TOKUTXN txn
 cleanup:
     return r;
 }
+
+void 
+toku_reset_root_xid_that_created(struct brt_header* h, TXNID new_root_xid_that_created) {
+    // Reset the root_xid_that_created field to the given value.  
+    // This redefines which xid created the dictionary.
+
+    // hold lock around setting and clearing of dirty bit
+    // (see cooperative use of dirty bit in brtheader_begin_checkpoint())
+    toku_brtheader_lock (h);
+    h->root_xid_that_created = new_root_xid_that_created;
+    h->dirty = 1;
+    toku_brtheader_unlock (h);
+}
+
 

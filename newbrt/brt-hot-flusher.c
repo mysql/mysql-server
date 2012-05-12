@@ -7,6 +7,7 @@
 #include <brt-flusher-internal.h>
 #include <brt-cachetable-wrappers.h>
 #include <brt-internal.h>
+#include <brt_header.h>
 
 // Member Descirption:
 // 1. highest_pivot_key - this is the key that corresponds to the 

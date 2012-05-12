@@ -5839,20 +5839,6 @@ int toku_brt_strerror_r(int error, char *buf, size_t buflen)
     }
 }
 
-
-void 
-toku_reset_root_xid_that_created(struct brt_header* h, TXNID new_root_xid_that_created) {
-    // Reset the root_xid_that_created field to the given value.  
-    // This redefines which xid created the dictionary.
-
-    // hold lock around setting and clearing of dirty bit
-    // (see cooperative use of dirty bit in toku_brtheader_begin_checkpoint())
-    toku_brtheader_lock (h);
-    h->root_xid_that_created = new_root_xid_that_created;
-    h->dirty = 1;
-    toku_brtheader_unlock (h);
-}
-
 #include <valgrind/helgrind.h>
 void __attribute__((__constructor__)) toku_brt_helgrind_ignore(void);
 void
