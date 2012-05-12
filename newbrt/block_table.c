@@ -614,6 +614,7 @@ toku_block_verify_no_free_blocknums(BLOCK_TABLE bt) {
 //Verify there are no data blocks except root.
 void
 toku_block_verify_no_data_blocks_except_root_unlocked(BLOCK_TABLE bt, BLOCKNUM root) {
+    lock_for_blocktable(bt);
     //Relies on checkpoint having used optimize_translation
     assert(root.b >= RESERVED_BLOCKNUMS);
     assert(bt->current.smallest_never_used_blocknum.b == root.b + 1);
@@ -622,6 +623,7 @@ toku_block_verify_no_data_blocks_except_root_unlocked(BLOCK_TABLE bt, BLOCKNUM r
         BLOCKNUM b = make_blocknum(i);
         assert(bt->current.block_translation[b.b].size == size_is_free);
     }
+    unlock_for_blocktable(bt);
 }
 
 //Verify a blocknum is currently allocated.
