@@ -839,6 +839,7 @@ toku_brtheader_maybe_add_txn_ref(struct brt_header* h, TOKUTXN txn) {
         // It's already there.
         assert((TOKUTXN)txnv==txn);
         ref_added = FALSE;
+        goto exit;
     }
     // Otherwise it's not there.
     // Insert reference to transaction into brt
