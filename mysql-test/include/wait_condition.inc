@@ -13,12 +13,14 @@
 #
 #   OR
 #
+#    let $slave_failure_printout= 1; # to force post-failure printout
 #    let $wait_timeout= 60; # Override default 30 seconds with 60.
 #    let $wait_condition=
 #      SELECT c = 3 FROM t;
 #    --source include/wait_condition.inc
 #    --echo Executed the test condition $wait_condition_reps times
 #
+# 
 # EXAMPLE
 #    events_bugs.test, events_time_zone.test
 #
@@ -51,5 +53,16 @@ while ($wait_counter)
 }
 if (!$success)
 {
+  if ($slave_failure_printout)
+  {
+     --connection slave
+     --echo
+     --echo *** Slave server status: ***
+     --echo
+     --query_vertical show slave status
+     --query_vertical show processlist
+     --query_vertical select * from mysql.slave_relay_log_info
+     --query_vertical select * from mysql.slave_master_info
+  }
   die Timeout in wait_condition.inc for $wait_condition;
 }

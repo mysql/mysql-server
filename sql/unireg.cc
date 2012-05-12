@@ -390,8 +390,8 @@ bool mysql_create_frm(THD *thd, const char *file_name,
     List_iterator<Create_field> it(create_fields);
     while ((field=it++))
     {
-      const uchar field_storage= 0; /* Used in MySQL Cluster */
-      const uchar field_column_format= 0; /* Used in MySQL Cluster */
+      const uchar field_storage= field->field_storage_type();
+      const uchar field_column_format= field->column_format();
       const uchar field_flags=
         field_storage + (field_column_format << COLUMN_FORMAT_SHIFT);
       *ptr= field_flags;
@@ -1133,9 +1133,9 @@ static bool make_empty_rec(THD *thd, File file,
         be constant.
       */
       DBUG_ASSERT(field->def->type() != Item::FUNC_ITEM);
-      int res= field->def->save_in_field(regfield, 1);
-      /* If not ok or warning of level 'note' */
-      if (res != 0 && res != 3)
+      type_conversion_status res= field->def->save_in_field(regfield, 1);
+      if (res != TYPE_OK && res != TYPE_NOTE_TIME_TRUNCATED &&
+          res != TYPE_NOTE_TRUNCATED)
       {
         /*
           clear current error and report INVALID DEFAULT value error message

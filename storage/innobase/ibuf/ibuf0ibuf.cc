@@ -507,7 +507,7 @@ ibuf_init_at_db_start(void)
 	dict_index_t*	index;
 	ulint		n_used;
 	page_t*		header_page;
-	ulint		error;
+	dberr_t		error;
 
 	ibuf = static_cast<ibuf_t*>(mem_zalloc(sizeof(ibuf_t)));
 
@@ -3215,8 +3215,8 @@ ibuf_get_entry_counter_func(
 Buffer an operation in the insert/delete buffer, instead of doing it
 directly to the disk page, if this is possible.
 @return	DB_SUCCESS, DB_STRONG_FAIL or other error */
-static
-ulint
+static __attribute__((nonnull, warn_unused_result))
+dberr_t
 ibuf_insert_low(
 /*============*/
 	ulint		mode,	/*!< in: BTR_MODIFY_PREV or BTR_MODIFY_TREE */
@@ -3246,7 +3246,7 @@ ibuf_insert_low(
 	page_t*		bitmap_page;
 	buf_block_t*	block;
 	page_t*		root;
-	ulint		err;
+	dberr_t		err;
 	ibool		do_merge;
 	ulint		space_ids[IBUF_MAX_N_PAGES_MERGED];
 	ib_int64_t	space_versions[IBUF_MAX_N_PAGES_MERGED];
@@ -3553,7 +3553,7 @@ ibuf_insert(
 	ulint		page_no,/*!< in: page number where to insert */
 	que_thr_t*	thr)	/*!< in: query thread */
 {
-	ulint		err;
+	dberr_t		err;
 	ulint		entry_size;
 	ibool		no_counter;
 	/* Read the settable global variable ibuf_use only once in
@@ -4149,7 +4149,7 @@ ibuf_delete_rec(
 {
 	ibool		success;
 	page_t*		root;
-	ulint		err;
+	dberr_t		err;
 
 	ut_ad(ibuf_inside(mtr));
 	ut_ad(page_rec_is_user_rec(btr_pcur_get_rec(pcur)));

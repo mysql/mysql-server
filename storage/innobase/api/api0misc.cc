@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2008, 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2008, 2012, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -47,7 +47,7 @@ InnoDB Native API
 Sets a lock on a table.
 @return	error code or DB_SUCCESS */
 UNIV_INTERN
-enum db_err
+dberr_t
 ib_trx_lock_table_with_retry(
 /*=========================*/
 	trx_t*		trx,		/*!< in/out: transaction */
@@ -55,7 +55,7 @@ ib_trx_lock_table_with_retry(
 	enum lock_mode	mode)		/*!< in: LOCK_X or LOCK_S */
 {
 	que_thr_t*	thr;
-	enum db_err	err;
+	dberr_t		err;
 	mem_heap_t*	heap;
 	sel_node_t*	node;
 
@@ -78,7 +78,7 @@ run_again:
 	thr->run_node = thr;
 	thr->prev_node = thr->common.parent;
 
-	err = static_cast<db_err>(lock_table(0, table, mode, thr));
+	err = lock_table(0, table, mode, thr);
 
 	trx->error_state = err;
 
@@ -126,7 +126,7 @@ UNIV_INTERN
 ibool
 ib_handle_errors(
 /*=============*/
-        enum db_err*    new_err,/*!< out: possible new error encountered in
+        dberr_t*	new_err,/*!< out: possible new error encountered in
                                 lock wait, or if no new error, the value
                                 of trx->error_state at the entry of this
                                 function */
@@ -134,7 +134,7 @@ ib_handle_errors(
         que_thr_t*      thr,    /*!< in: query thread */
         trx_savept_t*   savept) /*!< in: savepoint or NULL */
 {
-        enum db_err     err;
+        dberr_t		err;
 handle_new_error:
         err = trx->error_state;
 
@@ -144,8 +144,8 @@ handle_new_error:
 
         switch (err) {
         case DB_LOCK_WAIT_TIMEOUT:
-                       trx_rollback_for_mysql(trx);
-                       break;
+		trx_rollback_for_mysql(trx);
+		break;
                 /* fall through */
         case DB_DUPLICATE_KEY:
         case DB_FOREIGN_DUPLICATE_KEY:

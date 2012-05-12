@@ -177,8 +177,9 @@ INSERT INTO t_03_03_temp VALUES(1);
 --echo
 --echo **** Dropping the connections
 --echo **** We want to SHOW BINLOG EVENTS, to know what was logged. But there is no
---echo **** guarantee that logging of the terminated con1 has been done yet.a  To be 
---echo **** sure that logging has been done, we use a user lock.
+--echo **** guarantee that logging of the terminated con_temp has been done yet. To
+--echo **** be sure that logging has been done, we wait for binlog event after each
+--echo **** disconnect.
 --echo
 connection master;
 sync_slave_with_master;
@@ -187,23 +188,27 @@ show status like 'Slave_open_temp_tables';
 
 connection master;
 let $binlog_start= query_get_value(SHOW MASTER STATUS, Position, 1);
+
 connection con_temp_01;
-select get_lock("con_01",10);
-connection master;
 disconnect con_temp_01;
-select get_lock("con_01",10);
+--source include/wait_until_disconnected.inc
+connection master;
+--let $wait_binlog_event= DROP
+--source include/wait_for_binlog_event.inc
 
 connection con_temp_02;
-select get_lock("con_02",10);
-connection master;
 disconnect con_temp_02;
-select get_lock("con_02",10);
+--source include/wait_until_disconnected.inc
+connection master;
+--let $wait_binlog_event= DROP
+--source include/wait_for_binlog_event.inc
 
 connection con_temp_03;
-select get_lock("con_03",10);
-connection master;
 disconnect con_temp_03;
-select get_lock("con_03",10);
+--source include/wait_until_disconnected.inc
+connection master;
+--let $wait_binlog_event= DROP
+--source include/wait_for_binlog_event.inc
 
 --echo
 --echo **** Checking the binary log and temporary tables

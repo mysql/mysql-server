@@ -411,7 +411,6 @@ sub main {
     unshift(@$tests, $tinfo);
   }
 
-  print "vardir: $opt_vardir\n";
   initialize_servers();
 
   #######################################################################
@@ -505,15 +504,17 @@ sub main {
   # Send Ctrl-C to any children still running
   kill("INT", keys(%children));
 
-  # Wait for childs to exit
-  foreach my $pid (keys %children)
-  {
-    my $ret_pid= waitpid($pid, 0);
-    if ($ret_pid != $pid){
-      mtr_report("Unknown process $ret_pid exited");
-    }
-    else {
-      delete $children{$ret_pid};
+  if (!IS_WINDOWS) {
+    # Wait for children to exit
+    foreach my $pid (keys %children)
+    {
+      my $ret_pid= waitpid($pid, 0);
+      if ($ret_pid != $pid){
+        mtr_report("Unknown process $ret_pid exited");
+      }
+      else {
+        delete $children{$ret_pid};
+      }
     }
   }
 
@@ -1454,7 +1455,7 @@ sub command_line_setup {
 
   # We make the path absolute, as the server will do a chdir() before usage
   unless ( $opt_vardir =~ m,^/, or
-           (IS_WINDOWS and $opt_vardir =~ m,^[a-z]:/,i) )
+           (IS_WINDOWS and $opt_vardir =~ m,^[a-z]:[/\\],i) )
   {
     # Make absolute path, relative test dir
     $opt_vardir= "$glob_mysql_test_dir/$opt_vardir";
@@ -1734,6 +1735,10 @@ sub command_line_setup {
 
     mtr_report("Running valgrind with options \"",
 	       join(" ", @valgrind_args), "\"");
+    
+    # Turn off check testcases to save time
+    mtr_report("Turning off --check-testcases to save time when valgrinding");
+    $opt_check_testcases = 0; 
   }
 
   if ($opt_debug_common)
@@ -2817,7 +2822,7 @@ sub check_ndbcluster_support ($) {
     mtr_report(" - MySQL Cluster");
     # Enable ndb engine and add more test suites
     $opt_include_ndbcluster = 1;
-    $DEFAULT_SUITES.=",ndb,ndb_binlog,rpl_ndb,ndb_rpl";
+    $DEFAULT_SUITES.=",ndb,ndb_binlog,rpl_ndb,ndb_rpl,ndb_memcache";
   }
 
   if ($opt_include_ndbcluster)
@@ -3079,6 +3084,126 @@ sub ndbd_start {
   $ndbd->{proc}= $proc;
 
   return;
+}
+
+
+sub memcached_start {
+  my ($cluster, $memcached) = @_;
+
+  my $name = $memcached->name();
+  mtr_verbose("memcached_start '$name'");
+
+  my $found_perl_source = my_find_file($basedir,
+     ["storage/ndb/memcache",        # source
+      "mysql-test/lib",              # install
+      "share/mysql-test/lib"],       # install
+      "memcached_path.pl", NOT_REQUIRED);
+
+  mtr_verbose("Found memcache script: '$found_perl_source'");
+  $found_perl_source ne "" or return;
+
+  my $found_so = my_find_file($bindir,
+    ["storage/ndb/memcache",        # source or build
+     "lib", "lib64"],               # install
+    "ndb_engine.so");
+  mtr_verbose("Found memcache plugin: '$found_so'");
+
+  require "$found_perl_source";
+  if(! memcached_is_available())
+  {
+    mtr_error("Memcached not available.");
+  }
+  my $exe = "";
+  if(memcached_is_bundled())
+  {
+    $exe = my_find_bin($bindir,
+    ["libexec", "sbin", "bin", "storage/ndb/memcache/extra/memcached"],
+    "memcached", NOT_REQUIRED);
+  }
+  else
+  {
+    $exe = get_memcached_exe_path();
+  }
+  $exe ne "" or mtr_error("Failed to find memcached.");
+
+  my $args;
+  mtr_init_args(\$args);
+  # TCP port number to listen on
+  mtr_add_arg($args, "-p %d", $memcached->value('port'));
+  # Max simultaneous connections
+  mtr_add_arg($args, "-c %d", $memcached->value('max_connections'));
+  # Load engine as storage engine, ie. /path/ndb_engine.so
+  mtr_add_arg($args, "-E");
+  mtr_add_arg($args, $found_so);
+  # Config options for loaded storage engine
+  {
+    my @opts;
+    push(@opts, "connectstring=" . $memcached->value('ndb_connectstring'));
+    push(@opts, $memcached->if_exist("options"));
+    mtr_add_arg($args, "-e");
+    mtr_add_arg($args, join(";", @opts));
+  }
+
+  if($opt_gdb)
+  {
+    gdb_arguments(\$args, \$exe, "memcached");
+  }
+
+  my $proc = My::SafeProcess->new
+  ( name     =>  $name,
+    path     =>  $exe,
+    args     => \$args,
+    output   =>  "$opt_vardir/log/$name.out",
+    error    =>  "$opt_vardir/log/$name.out",
+    append   =>  1,
+    verbose  => $opt_verbose,
+  );
+  mtr_verbose("Started $proc");
+
+  $memcached->{proc} = $proc;
+
+  return;
+}
+
+
+sub memcached_load_metadata($) {
+  my $cluster= shift;
+
+  foreach my $mysqld (mysqlds())
+  {
+    if(-d $mysqld->value('datadir') . "/" . "ndbmemcache")
+    {
+      mtr_verbose("skipping memcache metadata (already stored)");
+      return;
+    }
+  }
+
+  my $sql_script= my_find_file($bindir,
+                              ["share/mysql/memcache-api", # RPM install
+                               "share/memcache-api",       # Other installs
+                               "scripts"                   # Build tree
+                              ],
+                              "ndb_memcache_metadata.sql", NOT_REQUIRED);
+  mtr_verbose("memcached_load_metadata: '$sql_script'");
+  if (-f $sql_script )
+  {
+    my $args;
+    mtr_init_args(\$args);
+    mtr_add_arg($args, "--defaults-file=%s", $path_config_file);
+    mtr_add_arg($args, "--defaults-group-suffix=%s", $cluster->suffix());
+    mtr_add_arg($args, "--connect-timeout=20");
+    if ( My::SafeProcess->run(
+           name   => "ndbmemcache config loader",
+           path   => $exe_mysql,
+           args   => \$args,
+           input  => $sql_script,
+           output => "$opt_vardir/log/memcache_config.log",
+           error  => "$opt_vardir/log/memcache_config.log"
+       ) != 0)
+    {
+      mtr_error("Could not load ndb_memcache_metadata.sql file");
+    }
+  }
 }
 
 
@@ -3901,6 +4026,8 @@ sub resfile_report_test ($) {
 sub run_testcase ($) {
   my $tinfo=  shift;
 
+  my $print_freq=20;
+
   mtr_verbose("Running test:", $tinfo->{name});
   resfile_report_test($tinfo) if $opt_resfile;
 
@@ -4059,6 +4186,7 @@ sub run_testcase ($) {
   my $test= start_mysqltest($tinfo);
   # Set only when we have to keep waiting after expectedly died server
   my $keep_waiting_proc = 0;
+  my $print_timeout= start_timer($print_freq * 60);
 
   while (1)
   {
@@ -4083,7 +4211,22 @@ sub run_testcase ($) {
     }
     if (! $keep_waiting_proc)
     {
-      $proc= My::SafeProcess->wait_any_timeout($test_timeout);
+      if($test_timeout > $print_timeout)
+      {
+         $proc= My::SafeProcess->wait_any_timeout($print_timeout);
+         if ( $proc->{timeout} )
+         {
+            #print out that the test is still on
+            mtr_print("Test still running: $tinfo->{name}");
+            #reset the timer
+            $print_timeout= start_timer($print_freq * 60);
+            next;
+         }
+      }
+      else
+      {
+         $proc= My::SafeProcess->wait_any_timeout($test_timeout);
+      }
     }
 
     # Will be restored if we need to keep waiting
@@ -4236,7 +4379,7 @@ sub run_testcase ($) {
     }
 
     # Try to dump core for mysqltest and all servers
-    foreach my $proc ($test, started(all_servers())) 
+    foreach my $proc ($test, started(all_servers()))
     {
       mtr_print("Trying to dump core for $proc");
       if ($proc->dump_core())
@@ -5262,8 +5405,8 @@ sub mysqlds { return _like('mysqld.'); }
 sub ndbds   { return _like('cluster_config.ndbd.');}
 sub ndb_mgmds { return _like('cluster_config.ndb_mgmd.'); }
 sub clusters  { return _like('mysql_cluster.'); }
-sub all_servers { return ( mysqlds(), ndb_mgmds(), ndbds() ); }
-
+sub memcacheds { return _like('memcached.'); }
+sub all_servers { return ( mysqlds(), ndb_mgmds(), ndbds(), memcacheds() ); }
 
 #
 # Filter a list of servers and return only those that are part
@@ -5335,7 +5478,7 @@ sub stop_servers($$) {
 
     # cluster processes
     My::SafeProcess::shutdown( $opt_shutdown_timeout,
-			       started(ndbds(), ndb_mgmds()) );
+			       started(ndbds(), ndb_mgmds(), memcacheds()) );
   }
   else
   {
@@ -5530,6 +5673,23 @@ sub start_servers($) {
       return 1;
     }
   }
+
+  # Start memcached(s) for each cluster
+  foreach my $cluster ( clusters() )
+  {
+    next if !in_cluster($cluster, memcacheds());
+
+    # Load the memcache metadata into this cluster
+    memcached_load_metadata($cluster);
+
+    # Start memcached(s)
+    foreach my $memcached ( in_cluster($cluster, memcacheds()))
+    {
+      next if started($memcached);
+      memcached_start($cluster, $memcached);
+    }
+  }
+
   return 0;
 }
 

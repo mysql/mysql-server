@@ -344,11 +344,15 @@ void thd_binlog_pos(const THD *thd,
 
   thd_new_connection_setup
 
+  @note Must be called with LOCK_thread_count locked.
+
   @param              thd            THD object
   @param              stack_start    Start of stack for connection
 */
 void thd_new_connection_setup(THD *thd, char *stack_start)
 {
+  DBUG_ENTER("thd_new_connection_setup");
+  mysql_mutex_assert_owner(&LOCK_thread_count);
 #ifdef HAVE_PSI_INTERFACE
   thd_set_psi(thd,
               PSI_CALL(new_thread)(key_thread_one_connection,
@@ -358,11 +362,14 @@ void thd_new_connection_setup(THD *thd, char *stack_start)
   thd->set_time();
   thd->prior_thr_create_utime= thd->thr_create_utime= thd->start_utime=
     my_micro_time();
-  threads.push_front(thd);
-  thd_unlock_thread_count(thd);
+
+  add_global_thread(thd);
+  mysql_mutex_unlock(&LOCK_thread_count);
+
   DBUG_PRINT("info", ("init new connection. thd: 0x%lx fd: %d",
           (ulong)thd, mysql_socket_getfd(thd->net.vio->mysql_socket)));
   thd_set_thread_stack(thd, stack_start);
+  DBUG_VOID_RETURN;
 }
 
 /**
@@ -791,8 +798,9 @@ bool Drop_table_error_handler::handle_condition(THD *thd,
 THD::THD(bool enable_plugins)
    :Statement(&main_lex, &main_mem_root, STMT_CONVENTIONAL_EXECUTION,
               /* statement id */ 0),
-   rli_fake(0),
+   rli_fake(0), rli_slave(NULL),
    in_sub_stmt(0),
+   binlog_row_event_extra_data(NULL),
    binlog_unsafe_warning_flags(0),
    binlog_table_maps(0),
    binlog_accessed_db_names(NULL),
@@ -876,6 +884,8 @@ THD::THD(bool enable_plugins)
   mysys_var=0;
   binlog_evt_union.do_union= FALSE;
   enable_slow_log= 0;
+  commit_error= 0;
+  durability_property= HA_REGULAR_DURABILITY;
 #ifndef DBUG_OFF
   dbug_sentry=THD_SENTRY_MAGIC;
 #endif
@@ -1274,6 +1284,7 @@ void THD::init(void)
   update_charset();
   reset_current_stmt_binlog_format_row();
   memset(&status_var, 0, sizeof(status_var));
+  binlog_row_event_extra_data= 0;
 
   if (variables.sql_log_bin)
     variables.option_bits|= OPTION_BIN_LOG;
@@ -1296,7 +1307,7 @@ void THD::init(void)
   See also comments in sql_class.h.
 */
 
-void THD::init_for_queries()
+void THD::init_for_queries(Relay_log_info *rli)
 {
   set_time(); 
   ha_enable_transaction(this,TRUE);
@@ -1308,6 +1319,18 @@ void THD::init_for_queries()
                       variables.trans_prealloc_size);
   transaction.xid_state.xid.null();
   transaction.xid_state.in_thd=1;
+#if defined(MYSQL_SERVER) && defined(HAVE_REPLICATION)
+  if (rli)
+  {
+    if ((rli->deferred_events_collecting= rpl_filter->is_on()))
+    {
+      rli->deferred_events= new Deferred_log_events(rli);
+    }
+    rli_slave= rli;
+
+    DBUG_ASSERT(rli_slave->info_thd == this && slave_thread);
+  }
+#endif
 }
 
 
@@ -1414,12 +1437,18 @@ void THD::cleanup(void)
 
 THD::~THD()
 {
+  mysql_mutex_assert_not_owner(&LOCK_thread_count);
   THD_CHECK_SENTRY(this);
   DBUG_ENTER("~THD()");
+  DBUG_PRINT("info", ("THD dtor, this %p", this));
+
   /* Ensure that no one is using THD */
   mysql_mutex_lock(&LOCK_thd_data);
   mysql_mutex_unlock(&LOCK_thd_data);
+
+  mysql_mutex_lock(&LOCK_status);
   add_to_status(&global_status_var, &status_var);
+  mysql_mutex_unlock(&LOCK_status);
 
   /* Close connection */
 #ifndef EMBEDDED_LIBRARY
@@ -1470,6 +1499,8 @@ THD::~THD()
   }
   
   mysql_audit_free_thd(this);
+  if (rli_slave)
+    rli_slave->cleanup_after_session();
 #endif
 
   free_root(&main_mem_root, MYF(0));
@@ -1838,6 +1869,10 @@ void THD::cleanup_after_query()
   {
     delete_dynamic(&lex->mi.repl_ignore_server_ids);
   }
+#ifndef EMBEDDED_LIBRARY
+  if (rli_slave)
+    rli_slave->cleanup_after_query();
+#endif
 }
 
 
@@ -2095,7 +2130,8 @@ int THD::send_explain_fields(select_result *result)
   item->maybe_null= 1;
   if (lex->describe & DESCRIBE_EXTENDED)
   {
-    field_list.push_back(item= new Item_float("filtered", 0.1234, 2, 4));
+    field_list.push_back(item= new Item_float(NAME_STRING("filtered"),
+                                              0.1234, 2, 4));
     item->maybe_null=1;
   }
   field_list.push_back(new Item_empty_string("Extra", 255, cs));
@@ -3880,6 +3916,16 @@ extern "C" bool thd_binlog_filter_ok(const MYSQL_THD thd)
 extern "C" bool thd_sqlcom_can_generate_row_events(const MYSQL_THD thd)
 {
   return sqlcom_can_generate_row_events(thd);
+}
+
+extern "C" enum durability_properties thd_get_durability_property(const MYSQL_THD thd)
+{
+  enum durability_properties ret= HA_REGULAR_DURABILITY;
+  
+  if (thd != NULL)
+    ret= thd->durability_property;
+
+  return ret;
 }
 
 #ifndef EMBEDDED_LIBRARY

@@ -427,6 +427,7 @@ public:
     m_key_LOCK_commit_queue= key_LOCK_commit_queue;
     m_key_LOCK_done= key_LOCK_done;
     m_key_LOCK_flush_queue= key_LOCK_flush_queue;
+    m_key_LOCK_sync_queue= key_LOCK_sync_queue;
 
     m_key_LOCK_index= key_LOCK_index;
     m_key_LOCK_log= key_LOCK_log;
@@ -479,6 +480,7 @@ public:
   void close();
   enum_result commit(THD *thd, bool all);
   int rollback(THD *thd, bool all);
+  int prepare(THD *thd, bool all);
   int recover(IO_CACHE *log, Format_description_log_event *fdle,
               my_off_t *valid_pos);
   int recover(IO_CACHE *log, Format_description_log_event *fdle);

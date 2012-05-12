@@ -653,6 +653,7 @@ extern int my_sync(File fd, myf my_flags);
 extern int my_sync_dir(const char *dir_name, myf my_flags);
 extern int my_sync_dir_by_file(const char *file_name, myf my_flags);
 extern char *my_strerror(char *buf, size_t len, int errnum);
+extern const char *my_get_err_msg(int nr);
 extern void my_error(int nr,myf MyFlags, ...);
 extern void my_printf_error(uint my_err, const char *format,
                             myf MyFlags, ...)
@@ -990,6 +991,18 @@ void my_init_mysys_psi_keys(void);
 
 struct st_mysql_file;
 extern struct st_mysql_file *mysql_stdin;
+
+enum durability_properties
+{
+  /*
+    Preserves the durability properties defined by the engine */
+  HA_REGULAR_DURABILITY= 0,
+  /* 
+     Ignore the durability properties defined by the engine and
+     write only in-memory entries.
+  */
+  HA_IGNORE_DURABILITY= 1
+};
 
 C_MODE_END
 #endif /* _my_sys_h */

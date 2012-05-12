@@ -103,6 +103,10 @@ IF(BUILD_CONFIG)
   ${CMAKE_SOURCE_DIR}/cmake/build_configurations/${BUILD_CONFIG}.cmake)
 ENDIF()
 
+#cmake on 64 bit windows doesn't set CMAKE_SYSTEM_PROCESSOR correctly
+SET(MYSQL_MACHINE_TYPE ${CMAKE_SYSTEM_PROCESSOR})
+
+
 # Include the platform-specific file. To allow exceptions, this code
 # looks for files in order of how specific they are. If there is, for
 # example, a generic Linux.cmake and a version-specific

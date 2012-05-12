@@ -451,7 +451,8 @@ static bool convert_constant_item(THD *thd, Item_field *field_item,
       orig_field_val= field->val_int();
     int rc;
     if (!(*item)->is_null() &&
-        (((rc= (*item)->save_in_field(field, 1)) == 0) || rc == 3)) // TS-TODO
+        (((rc= (*item)->save_in_field(field, 1)) == TYPE_OK) ||
+         rc == TYPE_NOTE_TIME_TRUNCATED)) // TS-TODO
     {
       int field_cmp= 0;
       /*
@@ -532,23 +533,13 @@ void Item_bool_func2::fix_length_and_dec()
 
   DBUG_ENTER("Item_bool_func2::fix_length_and_dec");
 
-  /* 
-    We allow to convert to Unicode character sets in some cases.
-    The conditions when conversion is possible are:
-    - arguments A and B have different charsets
-    - A wins according to coercibility rules
-    - character set of A is superset for character set of B
-   
-    If all of the above is true, then it's possible to convert
-    B into the character set of A, and then compare according
-    to the collation of A.
+  /*
+    See agg_item_charsets() in item.cc for comments
+    on character set and collation aggregation.
   */
-
-  
-  DTCollation coll;
   if (args[0]->result_type() == STRING_RESULT &&
       args[1]->result_type() == STRING_RESULT &&
-      agg_arg_charsets_for_comparison(coll, args, 2))
+      agg_arg_charsets_for_comparison(cmp.cmp_collation, args, 2))
     DBUG_VOID_RETURN;
     
   args[0]->cmp_context= args[1]->cmp_context=
@@ -2972,20 +2963,20 @@ Item_func_if::fix_length_and_dec()
   }
 
   agg_result_type(&cached_result_type, args + 1, 2);
+  cached_field_type= agg_field_type(args + 1, 2);
   maybe_null= args[1]->maybe_null || args[2]->maybe_null;
   decimals= max(args[1]->decimals, args[2]->decimals);
   unsigned_flag=args[1]->unsigned_flag && args[2]->unsigned_flag;
 
   if (cached_result_type == STRING_RESULT)
   {
-    if (agg_arg_charsets_for_string_result(collation, args + 1, 2))
+    if (count_string_result_length(cached_field_type, args + 1, 2))
       return;
   }
   else
   {
     collation.set_numeric(); // Number
   }
-  cached_field_type= agg_field_type(args + 1, 2);
 
   uint32 char_length;
   if ((cached_result_type == DECIMAL_RESULT )

@@ -25,6 +25,7 @@
 #include "rpl_info_factory.h"
 #include "rpl_utility.h"
 #include "debug_sync.h"
+#include "global_threads.h"
 #include "sql_parse.h"
 #include <list>
 #include <string>
@@ -305,6 +306,37 @@ public:
     cache_log.disk_writes= 0;
     group_cache.clear();
     DBUG_ASSERT(is_binlog_empty());
+  }
+
+  /*
+    Sets the write position to point at the position given. If the
+    cache has swapped to a file, it reinitializes it, so that the
+    proper data is added to the IO_CACHE buffer. Otherwise, it just
+    does a my_b_seek.
+
+    my_b_seek will not work if the cache has swapped, that's why
+    we do this workaround.
+
+    @param[IN]  pos the new write position.
+    @param[IN]  use_reinit if the position should be reset resorting
+                to reset_io_cache (which may issue a flush_io_cache 
+                inside)
+
+    @return The previous write position.
+   */
+  my_off_t reset_write_pos(my_off_t pos, bool use_reinit)
+  {
+    DBUG_ENTER("reset_write_pos");
+    DBUG_ASSERT(cache_log.type == WRITE_CACHE);
+
+    my_off_t oldpos= get_byte_position();
+
+    if (use_reinit)
+      reinit_io_cache(&cache_log, WRITE_CACHE, pos, 0, 0);
+    else
+      my_b_seek(&cache_log, pos);
+
+    DBUG_RETURN(oldpos);
   }
 
   /*
@@ -881,6 +913,7 @@ static int
 gtid_before_write_cache(THD* thd, binlog_cache_data* cache_data)
 {
   DBUG_ENTER("gtid_before_write_cache");
+  int error= 0;
 
   if (gtid_mode == 0)
     DBUG_RETURN(0);
@@ -899,7 +932,10 @@ gtid_before_write_cache(THD* thd, binlog_cache_data* cache_data)
     }
   }
   if (write_empty_groups_to_cache(thd, cache_data) != 0)
+  {
+    global_sid_lock.unlock();
     DBUG_RETURN(1);
+  }
 
   global_sid_lock.unlock();
 
@@ -914,21 +950,13 @@ gtid_before_write_cache(THD* thd, binlog_cache_data* cache_data)
     DBUG_ASSERT(cached_group->spec.type != AUTOMATIC_GROUP);
     Gtid_log_event gtid_ev(thd, cache_data->is_trx_cache(),
                            &cached_group->spec);
-    my_off_t saved_position= cache_data->get_byte_position();
-    IO_CACHE *cache_log= &cache_data->cache_log;
-    flush_io_cache(cache_log);
-    reinit_io_cache(cache_log, WRITE_CACHE, 0, 0, 0);
-    if (gtid_ev.write(cache_log) != 0)
-    {
-      flush_io_cache(cache_log);
-      reinit_io_cache(cache_log, WRITE_CACHE, saved_position, 0, 0);
-      DBUG_RETURN(1);
-    }
-    flush_io_cache(cache_log);
-    reinit_io_cache(cache_log, WRITE_CACHE, saved_position, 0, 0);
+    bool using_file= cache_data->cache_log.pos_in_file > 0;
+    my_off_t saved_position= cache_data->reset_write_pos(0, using_file);
+    error= gtid_ev.write(&cache_data->cache_log);
+    cache_data->reset_write_pos(saved_position, using_file);
   }
 
-  DBUG_RETURN(0);
+  DBUG_RETURN(error);
 }
 
 /**
@@ -1596,15 +1624,14 @@ static int binlog_savepoint_rollback(handlerton *hton, THD *thd, void *sv)
 
 static void adjust_linfo_offsets(my_off_t purge_offset)
 {
-  THD *tmp;
-
   mysql_mutex_lock(&LOCK_thread_count);
-  I_List_iterator<THD> it(threads);
 
-  while ((tmp=it++))
+  Thread_iterator it= global_thread_list_begin();
+  Thread_iterator end= global_thread_list_end();
+  for (; it != end; ++it)
   {
     LOG_INFO* linfo;
-    if ((linfo = tmp->current_linfo))
+    if ((linfo = (*it)->current_linfo))
     {
       mysql_mutex_lock(&linfo->lock);
       /*
@@ -1626,16 +1653,16 @@ static void adjust_linfo_offsets(my_off_t purge_offset)
 static bool log_in_use(const char* log_name)
 {
   size_t log_name_len = strlen(log_name) + 1;
-  THD *tmp;
   bool result = 0;
 
   mysql_mutex_lock(&LOCK_thread_count);
-  I_List_iterator<THD> it(threads);
 
-  while ((tmp=it++))
+  Thread_iterator it= global_thread_list_begin();
+  Thread_iterator end= global_thread_list_end();
+  for (; it != end; ++it)
   {
     LOG_INFO* linfo;
-    if ((linfo = tmp->current_linfo))
+    if ((linfo = (*it)->current_linfo))
     {
       mysql_mutex_lock(&linfo->lock);
       result = !memcmp(log_name, linfo->log_file_name, log_name_len);
@@ -2004,6 +2031,8 @@ bool show_binlog_events(THD *thd, MYSQL_BIN_LOG *binary_log)
   IO_CACHE log;
   File file = -1;
   int old_max_allowed_packet= thd->variables.max_allowed_packet;
+  LOG_INFO linfo;
+
   DBUG_ENTER("show_binlog_events");
 
   DBUG_ASSERT(thd->lex->sql_command == SQLCOM_SHOW_BINLOG_EVENTS ||
@@ -2021,7 +2050,6 @@ bool show_binlog_events(THD *thd, MYSQL_BIN_LOG *binary_log)
     char search_file_name[FN_REFLEN], *name;
     const char *log_file_name = lex_mi->log_file_name;
     mysql_mutex_t *log_lock = binary_log->get_log_lock();
-    LOG_INFO linfo;
     Log_event* ev;
 
     unit->set_limit(thd->lex->current_select);
@@ -2118,6 +2146,8 @@ bool show_binlog_events(THD *thd, MYSQL_BIN_LOG *binary_log)
 
     mysql_mutex_unlock(log_lock);
   }
+  // Check that linfo is still on the function scope.
+  DEBUG_SYNC(thd, "after_show_binlog_events");
 
   ret= FALSE;
 
@@ -5575,6 +5605,25 @@ void MYSQL_BIN_LOG::close()
 {
 }
 
+/*
+  Prepare the transaction in the transaction coordinator.
+
+  This function will prepare the transaction in the storage engines
+  (by calling @c ha_prepare_low) what will write a prepare record
+  to the log buffers.
+
+  @retval 0    success
+  @retval 1    error
+*/
+int MYSQL_BIN_LOG::prepare(THD *thd, bool all)
+{
+  DBUG_ENTER("MYSQL_BIN_LOG::prepare");
+
+  int error= ha_prepare_low(thd, all);
+
+  DBUG_RETURN(error);
+}
+
 /**
   Commit the transaction in the transaction coordinator.
 
@@ -6130,6 +6179,7 @@ int MYSQL_BIN_LOG::ordered_commit(THD *thd, bool all, bool skip_commit)
   thd->transaction.flags.pending= true;
   thd->commit_error= 0;
   thd->next_to_commit= NULL;
+  thd->durability_property= HA_IGNORE_DURABILITY;
   thd->transaction.flags.real_commit= all;
   thd->transaction.flags.xid_written= false;
   thd->transaction.flags.commit_low= !skip_commit;
@@ -7223,14 +7273,15 @@ template <class RowsEventT> Rows_log_event*
 THD::binlog_prepare_pending_rows_event(TABLE* table, uint32 serv_id,
                                        size_t needed,
                                        bool is_transactional,
-				       RowsEventT *hint __attribute__((unused)))
+				       RowsEventT *hint __attribute__((unused)),
+                                       const uchar* extra_row_info)
 {
   DBUG_ENTER("binlog_prepare_pending_rows_event");
   /* Pre-conditions */
   DBUG_ASSERT(table->s->table_map_id != ~0UL);
 
   /* Fetch the type code for the RowsEventT template parameter */
-  int const type_code= RowsEventT::TYPE_CODE;
+  int const general_type_code= RowsEventT::TYPE_CODE;
 
   Rows_log_event* pending= binlog_get_pending_rows_event(is_transactional);
 
@@ -7250,14 +7301,16 @@ THD::binlog_prepare_pending_rows_event(TABLE* table, uint32 serv_id,
   if (!pending ||
       pending->server_id != serv_id || 
       pending->get_table_id() != table->s->table_map_id ||
-      pending->get_type_code() != type_code || 
+      pending->get_general_type_code() != general_type_code ||
       pending->get_data_size() + needed > opt_binlog_rows_event_max_size ||
-      pending->read_write_bitmaps_cmp(table) == FALSE)
+      pending->read_write_bitmaps_cmp(table) == FALSE ||
+      !binlog_row_event_extra_data_eq(pending->get_extra_row_data(),
+                                      extra_row_info))
   {
     /* Create a new RowsEventT... */
     Rows_log_event* const
 	ev= new RowsEventT(this, table, table->s->table_map_id,
-                           is_transactional);
+                           is_transactional, extra_row_info);
     if (unlikely(!ev))
       DBUG_RETURN(NULL);
     ev->server_id= serv_id; // I don't like this, it's too easy to forget.
@@ -7403,7 +7456,8 @@ CPP_UNNAMED_NS_START
 CPP_UNNAMED_NS_END
 
 int THD::binlog_write_row(TABLE* table, bool is_trans, 
-                          uchar const *record) 
+                          uchar const *record,
+                          const uchar* extra_row_info)
 { 
   DBUG_ASSERT(is_current_stmt_binlog_format_row() && mysql_bin_log.is_open());
 
@@ -7421,7 +7475,8 @@ int THD::binlog_write_row(TABLE* table, bool is_trans,
 
   Rows_log_event* const ev=
     binlog_prepare_pending_rows_event(table, server_id, len, is_trans,
-                                      static_cast<Write_rows_log_event*>(0));
+                                      static_cast<Write_rows_log_event*>(0),
+                                      extra_row_info);
 
   if (unlikely(ev == 0))
     return HA_ERR_OUT_OF_MEM;
@@ -7431,7 +7486,8 @@ int THD::binlog_write_row(TABLE* table, bool is_trans,
 
 int THD::binlog_update_row(TABLE* table, bool is_trans,
                            const uchar *before_record,
-                           const uchar *after_record)
+                           const uchar *after_record,
+                           const uchar* extra_row_info)
 { 
   DBUG_ASSERT(is_current_stmt_binlog_format_row() && mysql_bin_log.is_open());
   int error= 0;
@@ -7479,7 +7535,8 @@ int THD::binlog_update_row(TABLE* table, bool is_trans,
   Rows_log_event* const ev=
     binlog_prepare_pending_rows_event(table, server_id,
 				      before_size + after_size, is_trans,
-				      static_cast<Update_rows_log_event*>(0));
+				      static_cast<Update_rows_log_event*>(0),
+                                      extra_row_info);
 
   if (unlikely(ev == 0))
     return HA_ERR_OUT_OF_MEM;
@@ -7495,7 +7552,8 @@ int THD::binlog_update_row(TABLE* table, bool is_trans,
 }
 
 int THD::binlog_delete_row(TABLE* table, bool is_trans, 
-                           uchar const *record)
+                           uchar const *record,
+                           const uchar* extra_row_info)
 { 
   DBUG_ASSERT(is_current_stmt_binlog_format_row() && mysql_bin_log.is_open());
   int error= 0;
@@ -7529,7 +7587,8 @@ int THD::binlog_delete_row(TABLE* table, bool is_trans,
 
   Rows_log_event* const ev=
     binlog_prepare_pending_rows_event(table, server_id, len, is_trans,
-				      static_cast<Delete_rows_log_event*>(0));
+				      static_cast<Delete_rows_log_event*>(0),
+                                      extra_row_info);
 
   if (unlikely(ev == 0))
     return HA_ERR_OUT_OF_MEM;
@@ -7635,6 +7694,38 @@ int THD::binlog_flush_pending_rows_event(bool stmt_end, bool is_transactional)
   DBUG_RETURN(error);
 }
 
+
+/**
+   binlog_row_event_extra_data_eq
+
+   Comparator for two binlog row event extra data
+   pointers.
+
+   It compares their significant bytes.
+
+   Null pointers are acceptable
+
+   @param a
+     first pointer
+
+   @param b
+     first pointer
+
+   @return
+     true if the referenced structures are equal
+*/
+bool
+THD::binlog_row_event_extra_data_eq(const uchar* a,
+                                    const uchar* b)
+{
+  return ((a == b) ||
+          ((a != NULL) &&
+           (b != NULL) &&
+           (a[EXTRA_ROW_INFO_LEN_OFFSET] ==
+            b[EXTRA_ROW_INFO_LEN_OFFSET]) &&
+           (memcmp(a, b,
+                   a[EXTRA_ROW_INFO_LEN_OFFSET]) == 0)));
+}
 
 #if !defined(DBUG_OFF) && !defined(_lint)
 static const char *
