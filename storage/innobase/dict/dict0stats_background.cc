@@ -288,13 +288,11 @@ void
 pop_from_auto_recalc_list_and_recalc()
 /*==================================*/
 {
-printf("%s() begin\n", __func__);
 	table_id_t	table_id;
 
 	/* pop the first table from the auto recalc list */
 	if (!dict_stats_dequeue_table_for_auto_recalc(&table_id)) {
 		/* no tables for auto recalc */
-printf("%s() empty list\n", __func__);
 		return;
 	}
 	/* else */
@@ -306,7 +304,6 @@ printf("%s() empty list\n", __func__);
 	table = dict_table_open_on_id(table_id, TRUE, FALSE);
 
 	if (table == NULL) {
-printf("%s() table %lu has gone\n", __func__, table_id);
 		/* table does not exist, must have been DROPped
 		after its id was enqueued */
 		mutex_exit(&dict_sys->mutex);
@@ -320,13 +317,11 @@ printf("%s() table %lu has gone\n", __func__, table_id);
 
 	if (ut_difftime(ut_time(), table->stats_last_recalc)
 	    < MIN_RECALC_INTERVAL) {
-printf("%s() table %lu recalc was too soon, noop\n", __func__, table_id);
 		/* Stats were (re)calculated not long ago. To avoid
 		too frequent stats updates we put back the table on
 		the auto recalc list and do nothing. */
 		dict_stats_enqueue_table_for_auto_recalc(table);
 	} else {
-printf("%s() table %lu RECALC\n", __func__, table_id);
 		dict_stats_update(table, DICT_STATS_RECALC_PERSISTENT, FALSE);
 	}
 
@@ -357,7 +352,6 @@ DECLARE_THREAD(dict_stats_thread)(
 
 	while (!SHUTTING_DOWN()) {
 
-printf("%s() wait\n", __func__);
 		/* Wake up periodically even if not signaled. This is
 		because we may lose an event - if the below call to
 		pop_from_auto_recalc_list_and_recalc() puts the entry back
@@ -365,8 +359,6 @@ printf("%s() wait\n", __func__);
 		os_event_reset(). */
 		os_event_wait_time(dict_stats_event,
 				   MIN_RECALC_INTERVAL * 1000000);
-ut_print_timestamp(stdout);
-printf(" %s() waked up\n", __func__);
 
 		if (SHUTTING_DOWN()) {
 			break;
