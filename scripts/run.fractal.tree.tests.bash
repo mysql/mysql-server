@@ -1,5 +1,11 @@
 #!/bin/bash
 
+function usage() {
+    echo "run.fractal.tree.tests.bash - run the nightly fractal tree test suite"
+    echo "[--ftcc=$ftcc] [--BDBVERSION=$BDBVERSION] [--ctest_model=$ctest_model]"
+    return 1
+}
+
 set -e
 
 pushd $(dirname $0) &>/dev/null
@@ -23,13 +29,23 @@ export TOKUDB_NAME=$tokudb_name
 
 productname=$tokudb_name
 
-if [[ -z $ftcc ]]; then
-    export ftcc=icc
+ftcc=icc
+BDBVERSION=5.3
+ctest_model=Nightly
+while [ $# -gt 0 ] ; do
+    arg=$1; shift
+    if [[ $arg =~ --(.*)=(.*) ]] ; then
+        eval ${BASH_REMATCH[1]}=${BASH_REMATCH[2]}
+    else
+        usage; exit 1;
+    fi
+done
+
+if [[ ! ( ( $ctest_model = Nightly ) || ( $ctest_model = Experimental ) || ( $ctest_model = Continuous ) ) ]]; then
+    echo "--ctest_model must be Nightly, Experimental, or Continuous"
+    usage
 fi
-if [[ -z $BDBVERSION ]]
-then
-    export BDBVERSION=5.3
-fi
+
 export BDBDIR=/usr/local/BerkeleyDB.$BDBVERSION
 
 # delete some characters that cygwin and osx have trouble with
@@ -129,17 +145,17 @@ cmake \
 cmake --system-information $resultsdir/sysinfo
 set +e
 ctest -j$ncpus \
-    -D NightlyStart \
-    -D NightlyUpdate \
-    -D NightlyConfigure \
-    -D NightlyBuild \
-    -D NightlyTest \
+    -D ${ctest_model}Start \
+    -D ${ctest_model}Update \
+    -D ${ctest_model}Configure \
+    -D ${ctest_model}Build \
+    -D ${ctest_model}Test \
     2>&1 | tee -a $tracefile
 set -e
 
 cp $tracefile notes.txt
 set +e
-ctest -D NightlySubmit -A notes.txt \
+ctest -D ${ctest_model}Submit -A notes.txt \
     2>&1 | tee -a $tracefile
 set -e
 rm notes.txt
@@ -204,18 +220,18 @@ cmake \
 cmake --system-information $resultsdir/sysinfo
 set +e
 ctest -j$ncpus \
-    -D NightlyStart \
-    -D NightlyUpdate \
-    -D NightlyConfigure \
-    -D NightlyBuild \
-    -D NightlyTest \
-    -D NightlyMemCheck \
+    -D ${ctest_model}Start \
+    -D ${ctest_model}Update \
+    -D ${ctest_model}Configure \
+    -D ${ctest_model}Build \
+    -D ${ctest_model}Test \
+    -D ${ctest_model}MemCheck \
     2>&1 | tee -a $tracefile
 set -e
 
 cp $tracefile notes.txt
 set +e
-ctest -D NightlySubmit -A notes.txt \
+ctest -D ${ctest_model}Submit -A notes.txt \
     2>&1 | tee -a $tracefile
 set -e
 rm notes.txt
@@ -300,18 +316,18 @@ cmake \
 cmake --system-information $resultsdir/sysinfo
 set +e
 ctest -j$ncpus \
-    -D NightlyStart \
-    -D NightlyUpdate \
-    -D NightlyConfigure \
-    -D NightlyBuild \
-    -D NightlyTest \
-    -D NightlyCoverage \
+    -D ${ctest_model}Start \
+    -D ${ctest_model}Update \
+    -D ${ctest_model}Configure \
+    -D ${ctest_model}Build \
+    -D ${ctest_model}Test \
+    -D ${ctest_model}Coverage \
     2>&1 | tee -a $tracefile
 set -e
 
 cp $tracefile notes.txt
 set +e
-ctest -D NightlySubmit -A notes.txt \
+ctest -D ${ctest_model}Submit -A notes.txt \
     2>&1 | tee -a $tracefile
 set -e
 rm notes.txt
