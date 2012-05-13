@@ -6,6 +6,8 @@
 #ident "$Id$"
 #ident "Copyright (c) 2010 Tokutek Inc.  All rights reserved."
 
+#include <stdbool.h>
+
 // Fair readers/writer locks.  These are fair (meaning first-come first-served.  No reader starvation, and no writer starvation).  And they are
 // probably faster than the linux readers/writer locks (pthread_rwlock_t).
 struct toku_cv_fair_rwlock_waiter_state; // this structure is used internally.
