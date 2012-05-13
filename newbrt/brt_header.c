@@ -861,6 +861,9 @@ toku_brtheader_remove_txn_ref(struct brt_header* h, TOKUTXN txn) {
     assert(txnv_again == txn);
     r = toku_omt_delete_at(h->txns, index);
     assert(r==0);
+    // TODO: (Zardosht) figure out how to properly do this
+    // below this unlock, are depending on ydb lock
+    toku_brtheader_unlock(h);
     if (!toku_brt_header_needed(h)) {
         //Close immediately.
         // I have no idea how this error string business works
@@ -868,6 +871,5 @@ toku_brtheader_remove_txn_ref(struct brt_header* h, TOKUTXN txn) {
         r = toku_remove_brtheader(h, &error_string, false, ZERO_LSN);
         lazy_assert_zero(r);
     }
-    toku_brtheader_unlock(h);
 }
 
