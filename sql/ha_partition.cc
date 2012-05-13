@@ -6548,8 +6548,6 @@ int ha_partition::reset(void)
     int tmp;
     uint i;
 
-    DBUG_ASSERT(bitmap_is_subset(&m_partitions_to_reset,
-                                 &m_part_info->lock_partitions));
     for (i= bitmap_get_first_set(&m_partitions_to_reset);
          i < m_tot_parts;
          i= bitmap_get_next_set(&m_partitions_to_reset, i))
