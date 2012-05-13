@@ -392,7 +392,7 @@ struct brt_header {
     TXNID root_xid_that_created;
     struct toku_list live_brts;
     OMT txns; // transactions that are using this header    
-    bool pinned_by_checkpoint;  //Keep this heaer around for checkpoint, like a transaction
+    bool pinned_by_checkpoint;  //Keep this header around for checkpoint, like a transaction
 
     brt_compare_func compare_fun;
     brt_update_func update_fun;
@@ -541,7 +541,6 @@ extern int toku_brtnode_pe_callback (void *brtnode_pv, PAIR_ATTR old_attr, PAIR_
 extern BOOL toku_brtnode_pf_req_callback(void* brtnode_pv, void* read_extraargs);
 int toku_brtnode_pf_callback(void* brtnode_pv, void* UU(disk_data), void* read_extraargs, int fd, PAIR_ATTR* sizep);
 extern int toku_brtnode_cleaner_callback( void *brtnode_pv, BLOCKNUM blocknum, u_int32_t fullhash, void *extraargs);
-extern CACHEKEY* toku_calculate_root_offset_pointer (struct brt_header* h, u_int32_t *root_hash);
 
 static inline CACHETABLE_WRITE_CALLBACK get_write_callbacks_for_node(struct brt_header* h) {
     CACHETABLE_WRITE_CALLBACK wc;
