@@ -32,9 +32,11 @@ target_link_libraries(${LIBTOKUDB}_static lock_tree_static range_tree_static new
 ## add a version script and set -fvisibility=hidden for the shared library
 configure_file(export.map . COPYONLY)
 get_target_property(link_flags ${LIBTOKUDB} LINK_FLAGS)
-set_target_properties(${LIBTOKUDB} PROPERTIES
-  LINK_FLAGS "${LINK_FLAGS} -Wl,--version-script=export.map")
-set_targets_visibility_hidden(${LIBTOKUDB})
+if (NOT CMAKE_SYSTEM_NAME STREQUAL Darwin)
+  set_target_properties(${LIBTOKUDB} PROPERTIES
+    LINK_FLAGS "${LINK_FLAGS} -Wl,--version-script=export.map")
+  set_targets_visibility_hidden(${LIBTOKUDB})
+endif ()
 
 ## add gcov and define _GNU_SOURCE
 maybe_add_gcov_to_libraries(${LIBTOKUDB} ${LIBTOKUDB}_static)
