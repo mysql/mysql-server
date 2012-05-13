@@ -112,9 +112,11 @@ if(BUILD_TESTING)
 
   ## give some tests, that time out normally, 1 hour to complete
   set(long_tests
+    log-test7
     subblock-test-compression
     benchmark-test_256
     is_empty
+    recovery-bad-last-entry
     )
   set_tests_properties(${long_tests} PROPERTIES TIMEOUT 3600)
   ## some take even longer, with valgrind
