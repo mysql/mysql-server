@@ -703,11 +703,7 @@ bool
 btr_validate_index(
 /*===============*/
 	dict_index_t*	index,			/*!< in: index */
-	const trx_t*	trx,			/*!< in: transaction or NULL */
-	bool		init_id)		/*!< in: FALSE=check that
-						PAGE_INDEX_ID equals index->id;
-						TRUE=assign PAGE_INDEX_ID
-						and PAGE_MAX_TRX_ID = trx->id */
+	const trx_t*	trx)			/*!< in: transaction or 0 */
 	__attribute__((nonnull(1), warn_unused_result));
 
 #define BTR_N_LEAF_PAGES	1

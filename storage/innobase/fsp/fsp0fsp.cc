@@ -3300,8 +3300,6 @@ fseg_page_is_free(
 			       page % FSP_EXTENT_SIZE, &mtr);
 	mtr_commit(&mtr);
 
-	DBUG_EXECUTE_IF("ib_import_trigger_corruption_1", is_free = true;);
-
 	return(is_free);
 }
 

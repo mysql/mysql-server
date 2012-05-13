@@ -1034,22 +1034,6 @@ page_find_rec_with_heap_no(
 /*=======================*/
 	const page_t*	page,	/*!< in: index page */
 	ulint		heap_no);/*!< in: heap number */
-
-/*******************************************************//**
-Removes the record from a leaf page. This function does not log
-any changes. It is used by the IMPORT tablespace functions.
-@return	true if success, i.e., the page did not become too empty */
-UNIV_INTERN
-bool
-page_delete_rec(
-/*============*/
-	const dict_index_t*	index,	/*!< in: The index that the record
-					belongs to */
-	page_cur_t*		pcur,	/*!< in/out: page cursor on record
-					to delete */
-	page_zip_des_t*		page_zip,/*!< in: compressed page descriptor */
-	const ulint*		offsets);/*!< in: offsets for record */
-
 #ifdef UNIV_MATERIALIZE
 #undef UNIV_INLINE
 #define UNIV_INLINE  UNIV_INLINE_ORIGINAL
