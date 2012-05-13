@@ -4331,7 +4331,7 @@ ibuf_restore_pos(
 		ibuf_btr_pcur_commit_specify_mtr(pcur, mtr);
 
 		fputs("InnoDB: Validating insert buffer tree:\n", stderr);
-		if (!btr_validate_index(ibuf->index, NULL, FALSE)) {
+		if (!btr_validate_index(ibuf->index, 0)) {
 			ut_error;
 		}
 

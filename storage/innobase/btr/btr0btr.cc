@@ -835,6 +835,9 @@ btr_root_adjust_on_import(
 
 	mtr_set_log_mode(&mtr, MTR_LOG_NO_REDO);
 
+	DBUG_EXECUTE_IF("ib_import_trigger_corruption_3",
+			return(DB_CORRUPTION););
+
 	block = btr_block_get(
 		space_id, zip_size, root_page_no, RW_X_LATCH, index, &mtr);
 
@@ -3970,7 +3973,7 @@ btr_print_index(
 
 	mtr_commit(&mtr);
 
-	btr_validate_index(index, NULL, FALSE);
+	btr_validate_index(index, 0);
 }
 #endif /* UNIV_BTR_PRINT */
 
@@ -4226,10 +4229,7 @@ btr_validate_level(
 /*===============*/
 	dict_index_t*	index,	/*!< in: index tree */
 	const trx_t*	trx,	/*!< in: transaction or NULL */
-	ulint		level,	/*!< in: level number */
-	bool		init_id)/*!< in: FALSE=check that PAGE_INDEX_ID
-				equals index->id; TRUE=assign PAGE_INDEX_ID
-				and PAGE_MAX_TRX_ID = trx->id */
+	ulint		level)	/*!< in: level number */
 {
 	ulint		space;
 	ulint		space_flags;
@@ -4253,17 +4253,8 @@ btr_validate_level(
 	ulint*		offsets	= NULL;
 	ulint*		offsets2= NULL;
 	page_zip_des_t*	page_zip;
-	ulint		n_pages = 0;
-
-	ut_ad(index);
-	ut_ad(!init_id || trx);
 
 	mtr_start(&mtr);
-
-	/* If it is an IMPORT then no point in logging changes. */
-	if (init_id) {
-		mtr_set_log_mode(&mtr, MTR_LOG_NO_REDO);
-	}
 
 	mtr_x_lock(dict_index_get_lock(index), &mtr);
 
@@ -4277,13 +4268,14 @@ btr_validate_level(
 	fil_space_get_latch(space, &space_flags);
 
 	if (zip_size != dict_tf_get_zip_size(space_flags)) {
-		ut_print_timestamp(stderr);
-		fprintf(stderr, " InnoDB: Flags mismatch: "
-			"table=%lu, tablespace=%lu\n",
-			(ulong) index->table->flags, (ulong) space_flags);
+
+		ib_logf(IB_LOG_LEVEL_WARN,
+			"Flags mismatch: table=%lu, tablespace=%lu\n",
+			(ulint) index->table->flags, (ulint) space_flags);
 
 		mtr_commit(&mtr);
-		return(FALSE);
+
+		return(false);
 	}
 
 	while (level != btr_page_get_level(page, &mtr)) {
@@ -4294,8 +4286,7 @@ btr_validate_level(
 
 			btr_validate_report1(index, level, block);
 
-			ut_print_timestamp(stderr);
-			fprintf(stderr, " InnoDB: page is free\n");
+			ib_logf(IB_LOG_LEVEL_WARN, "page is free\n");
 
 			ret = false;
 		}
@@ -4345,17 +4336,13 @@ loop:
 		ib_logf(IB_LOG_LEVEL_WARN, "Page is marked as free\n");
 		ret = false;
 
-	} else if (init_id) {
-
-		btr_page_set_index_id(page, page_zip, index->id, &mtr);
-		page_set_max_trx_id(block, page_zip, trx->id, &mtr);
-
 	} else if (btr_page_get_index_id(page) != index->id) {
 
 		ib_logf(IB_LOG_LEVEL_ERROR,
 			"Page index id " IB_ID_FMT " != data dictionary "
 			"index id " IB_ID_FMT,
 			btr_page_get_index_id(page), index->id);
+
 		ret = false;
 
 	} else if (!page_validate(page, index)) {
@@ -4628,63 +4615,46 @@ node_ptr_fails:
 	mtr_commit(&mtr);
 
 	if (trx_is_interrupted(trx)) {
-		mem_heap_free(heap);
+		/* Return FALSE if trx was interrupted. */
+		ret = false;
 
-		/* Return FALSE if init_id was interrupted. */
-		return(ret && !init_id);
-	}
+	} else if (right_page_no != FIL_NULL) {
 
-	if (init_id && !(n_pages++ % 256)) {
-		buf_LRU_flush_or_remove_pages(
-			index->table->space, BUF_REMOVE_FLUSH_WRITE, trx);
-	}
-
-	if (right_page_no != FIL_NULL) {
 		mtr_start(&mtr);
 
-		if (init_id) {
-			mtr_set_log_mode(&mtr, MTR_LOG_NO_REDO);
-		}
+		block = btr_block_get(
+			space, zip_size, right_page_no,
+			RW_X_LATCH, index, &mtr);
 
-		block = btr_block_get(space, zip_size, right_page_no,
-				      RW_X_LATCH, index, &mtr);
 		page = buf_block_get_frame(block);
 
 		goto loop;
 	}
 
 	mem_heap_free(heap);
+
 	return(ret);
 }
 
 /**************************************************************//**
-Checks the consistency of an index tree and updates the page fields
-if init_id is true.
+Checks the consistency of an index tree.
 @return	TRUE if ok */
 UNIV_INTERN
 bool
 btr_validate_index(
 /*===============*/
 	dict_index_t*	index,	/*!< in: index */
-	const trx_t*	trx,	/*!< in: transaction or NULL */
-	bool		init_id)/*!< in: FALSE=check that PAGE_INDEX_ID
-				 equals index->id; TRUE=assign PAGE_INDEX_ID
-				 and PAGE_MAX_TRX_ID = trx->id  */
+	const trx_t*	trx)	/*!< in: transaction or NULL */
 {
 	/* Full Text index are implemented by auxiliary tables,
 	not the B-tree */
 	if (dict_index_is_online_ddl(index) || (index->type & DICT_FTS)) {
-		return(TRUE);
+		return(true);
 	}
 
 	mtr_t		mtr;
 
 	mtr_start(&mtr);
-
-	/* If we are doing an IMPORT then no point in generating REDO. */
-	if (init_id) {
-		mtr_set_log_mode(&mtr, MTR_LOG_NO_REDO);
-	}
 
 	mtr_x_lock(dict_index_get_lock(index), &mtr);
 
@@ -4692,22 +4662,17 @@ btr_validate_index(
 	page_t*	root = btr_root_get(index, &mtr);
 	ulint	n = btr_page_get_level(root, &mtr);
 
-	if (init_id) {
-		mtr_commit(&mtr);
-	}
+	for (ulint i = 0; i <= n; ++i) {
 
-	for (ulint i = 0; i <= n && !trx_is_interrupted(trx); i++) {
-
-		if (!btr_validate_level(index, trx, n - i, init_id)) {
+		if (!btr_validate_level(index, trx, n - i)) {
 			ok = false;
 			break;
 		}
 	}
 
-	if (!init_id) {
-		mtr_commit(&mtr);
-	}
+	mtr_commit(&mtr);
 
 	return(ok);
 }
+
 #endif /* !UNIV_HOTBACKUP */

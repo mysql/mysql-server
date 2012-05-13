@@ -3137,375 +3137,6 @@ error_exit2:
 
 #ifndef UNIV_HOTBACKUP
 /********************************************************************//**
-Report that a page is corrupted. */
-static	__attribute__((nonnull))
-void
-fil_page_corrupted(
-/*===============*/
-	const char*	name,		/*!< in: name of the file or path as a
-					null-terminated string */
-	os_offset_t	offset,		/*!< in: file offset */
-	ulint		size)		/*!< in: page size */
-{
-	ib_logf(IB_LOG_LEVEL_WARN,
-		"%s: Page %lu at offset " UINT64PF " looks corrupted.\n",
-		name, (ulong) (offset / size), offset);
-}
-
-/** Status returned by fil_reset_space_and_lsn_read() */
-enum fil_page_status_t {
-	FIL_PAGE_STATUS_OK,		/*!< Page is OK */
-	FIL_PAGE_STATUS_ALL_ZERO,	/*!< Page is all zeros */
-	FIL_PAGE_STATUS_CORRUPTED	/*!< Page is corrupted */
-};
-
-#if defined UNIV_DEBUG
-/********************************************************************//**
-@return true error condition is enabled. */
-static
-bool
-fil_trigger_corruption()
-/*====================*/
-{
-	return(false);
-}
-#else
-#define fil_trigger_corruption()	(false)
-#endif /* UNIV_DEBUG */
-
-/********************************************************************//**
-Read a file page for resetting the space identifier and the system lsn.
-@return 0 on success, 1 if all zero, 2 if corrupted */
-static	__attribute__((nonnull, warn_unused_result))
-fil_page_status_t
-fil_reset_space_and_lsn_read(
-/*=========================*/
-	const char*	name,		/*!< in: name of the file or path as a
-					null-terminated string */
-	os_file_t	file,		/*!< in: tablespace file handle */
-	os_offset_t	offset,		/*!< in: file offset */
-	page_t*		page,		/*!< out: page frame */
-	ulint		zip_size)	/*!< in: compressed page size in
-					bytes, or 0 */
-{
-	const ulint	size	= zip_size ? zip_size : UNIV_PAGE_SIZE;
-
-	/* Check that the page number corresponds to the offset in
-	the file. Flag as corrupt if it doesn't. Disable the check
-	for LSN in buf_page_is_corrupted() */
-
-	if (!os_file_read(file, page, offset, size)
-	    || buf_page_is_corrupted(false, page, zip_size)
-	    || (page_get_page_no(page) != offset / size
-		&& page_get_page_no(page) != 0)) {
-
-		fil_page_corrupted(name, offset, size);
-		return(FIL_PAGE_STATUS_CORRUPTED);
-
-	} else if (offset > 0 && page_get_page_no(page) == 0) {
-
-		const byte*	b = page;
-		const byte*	e = b + size;
-
-		/* If the page number is zero and offset > 0 then
-		the entire page MUST consist of zeroes. If not then
-		we flag it as corrupt. */
-
-		while (b != e) {
-
-			if (*b++ && !fil_trigger_corruption()) {
-				fil_page_corrupted(name, offset, size);
-				return(FIL_PAGE_STATUS_CORRUPTED);
-			}
-		}
-
-		/* The page is all zero: do nothing. */
-		return(FIL_PAGE_STATUS_ALL_ZERO);
-	}
-
-	return(FIL_PAGE_STATUS_OK);
-}
-
-/********************************************************************//**
-Write the space identifier and the system lsn of a file page if needed.
-@return TRUE on success */
-static	__attribute__((nonnull(2,6), warn_unused_result))
-ibool
-fil_reset_space_and_lsn_write(
-/*==========================*/
-	ib_uint64_t	current_lsn,	/*!< in: current log sequence number */
-	const char*	name,		/*!< in: name of the file or path as a
-					null-terminated string */
-	os_file_t	file,		/*!< in: tablespace file handle */
-	ulint		space_id,	/*!< in: tablespace identifier */
-	os_offset_t	offset,		/*!< in: file offset */
-	page_t*		page,		/*!< in/out: page frame */
-	page_zip_des_t*	page_zip)	/*!< in/out: compressed page,
-					or NULL */
-{
-	const ulint	size	= page_zip
-		? page_zip_get_size(page_zip) : UNIV_PAGE_SIZE;
-
-	if (offset == 0
-	    || mach_read_from_8(page + FIL_PAGE_LSN) > current_lsn
-	    || page_get_space_id(page) != space_id) {
-
-		/* We have to reset the fields. */
-		mach_write_to_4(FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID
-				+ page, space_id);
-
-		if (page_zip) {
-			memcpy(page_zip->data, page, size);
-			buf_flush_init_for_writing(page, page_zip,
-						   current_lsn);
-			if (!os_file_write(name, file, page_zip->data,
-					   offset, size)) {
-
-				return(FALSE);
-			}
-		} else {
-			buf_flush_init_for_writing(page, NULL, current_lsn);
-			if (!os_file_write(name, file, page, offset, size)) {
-
-				return(FALSE);
-			}
-		}
-	}
-
-	return(TRUE);
-}
-
-/********************************************************************//**
-It is possible, though very improbable, that the lsn's in the tablespace to be
-imported have risen above the current system lsn, if a lengthy purge, ibuf
-merge, or rollback was performed on a backup taken with ibbackup. If that is
-the case, reset page lsn's in the file. We assume that mysqld was shut down
-after it performed these cleanup operations on the .ibd file, so that it at
-the shutdown stamped the latest lsn to the FIL_PAGE_FILE_FLUSH_LSN in the
-first page of the .ibd file, and we can determine whether we need to reset the
-lsn's just by looking at that flush lsn.
-@return	DB_SUCCESS or error code */
-UNIV_INTERN
-dberr_t
-fil_reset_space_and_lsn(
-/*====================*/
-	dict_table_t*	table,		/*!< in/out: table
-					(in: name, space_id, out: flags) */
-	lsn_t		current_lsn)	/*!< in: reset lsn's if the lsn stamped
-					to FIL_PAGE_FILE_FLUSH_LSN in the
-					first page is too high */
-{
-	dberr_t		err;
-	byte*		page;
-	os_file_t	file;
-	os_offset_t	offset;
-	ibool		success;
-	page_zip_des_t	page_zip;
-	ulint		zip_size;
-	char*		filepath;
-	byte*		buf2 = 0;
-	lsn_t		flush_lsn;
-	os_offset_t	file_size;
-	ulint		fil_space_id;
-
-	filepath = fil_make_ibd_name(table->name, FALSE);
-
-	file = os_file_create_simple_no_error_handling(
-		innodb_file_data_key, filepath,
-		OS_FILE_OPEN, OS_FILE_READ_WRITE, &success);
-
-	DBUG_EXECUTE_IF("fil_reset_space_and_lsn_failure",
-			{
-			static bool once;
-
-			if (!once || ut_rnd_interval(0, 10) == 5) {
-				once = true;
-				success = FALSE;
-				os_file_close(file);
-			}
-       			});
-
-	if (!success) {
-		/* The following call prints an error message */
-		os_file_get_last_error(TRUE);
-
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"Trying to import a table, but could not "
-			"open the tablespace file %s", filepath);
-
-		mem_free(filepath);
-
-		return(DB_TABLESPACE_NOT_FOUND);
-
-	} else {
-		err = DB_SUCCESS;
-	}
-
-	/* Read the first page of the tablespace */
-	buf2 = static_cast<byte*>(ut_malloc(3 * UNIV_PAGE_SIZE));
-
-	/* Align the memory for file i/o if we might have O_DIRECT set */
-	page = static_cast<byte*>(ut_align(buf2, UNIV_PAGE_SIZE));
-
-	if (!os_file_read(file, page, 0, UNIV_PAGE_SIZE)) {
-		err = DB_IO_ERROR;
-		goto func_exit;
-	}
-
-	fil_space_id = fsp_header_get_space_id(page);
-
-	switch (fil_space_id) {
-	case 0:
-	case ULINT_UNDEFINED:
-		err = DB_ERROR;
-		goto func_exit;
-	}
-
-	zip_size = fsp_header_get_zip_size(page);
-
-	page_zip_des_init(&page_zip);
-	page_zip_set_size(&page_zip, zip_size);
-	if (zip_size) {
-		page_zip.data = page + UNIV_PAGE_SIZE;
-	}
-
-	/* We have to read the file flush lsn from the header of the file */
-
-	flush_lsn = mach_read_from_8(page + FIL_PAGE_FILE_FLUSH_LSN);
-
-	if (current_lsn >= flush_lsn
-	    && flush_lsn != 0
-	    && fil_space_id == table->space) {
-
-		err = DB_SUCCESS;
-		goto func_exit;
-	}
-
-	page_zip_des_init(&page_zip);
-	page_zip_set_size(&page_zip, zip_size);
-
-	if (zip_size) {
-		page_zip.data = page + UNIV_PAGE_SIZE;
-	}
-
-	if (table->space != fil_space_id) {
-		ib_logf(IB_LOG_LEVEL_INFO,
-			"Reset the tablespace id and LSN");
-	} else {
-		ib_logf(IB_LOG_LEVEL_INFO, "Space id matches reset the LSN");
-	}
-
-	ut_a(ut_is_2pow(zip_size));
-	ut_a(zip_size <= UNIV_ZIP_SIZE_MAX);
-
-	/* Loop through all the pages in the tablespace and reset the lsn and
-	the page checksum if necessary */
-
-	file_size = os_file_get_size(file);
-	ut_a(file_size != (os_offset_t) -1);
-
-	/* Convert page 0 last, so that the operation will be
-	completed after a crash.  (After a crash, we would read page 0
-	and note that adjustment will be needed.) */
-	offset = zip_size ? zip_size : UNIV_PAGE_SIZE;
-
-	for (; offset < file_size;
-	     offset += zip_size ? zip_size : UNIV_PAGE_SIZE) {
-
-		switch (fil_reset_space_and_lsn_read(
-				filepath, file, offset, page, zip_size)) {
-		case FIL_PAGE_STATUS_OK:
-			if (!fil_reset_space_and_lsn_write(
-				current_lsn, filepath, file,
-				table->space, offset, page,
-				zip_size ? &page_zip : NULL)) {
-
-				err = DB_ERROR;
-			}
-
-			break;
-
-		case FIL_PAGE_STATUS_ALL_ZERO:
-			/* The page is all zero: leave it as is. */
-			break;
-
-		case FIL_PAGE_STATUS_CORRUPTED:
-			err = DB_CORRUPTION;
-		}
-	}
-
-	DBUG_EXECUTE_IF("ib_reset_space_and_lsn_no_pre_flush_crash",
-			DBUG_SUICIDE(););
-
-	if (err != DB_SUCCESS) {
-		; // Get out of here
-	} else if (!os_file_flush(file)) {
-
-		/* Flush all but the first page, to be on the safe side after
-		a crash.  Then, adjust and flush the first page. */
-
-		err = DB_IO_ERROR;
-
-	} else if (fil_reset_space_and_lsn_read(
-			filepath, file, 0, page, zip_size)
-		   != FIL_PAGE_STATUS_OK) {
-
-		/* The first page is corrupted.  Actually, it should
-		never be, as it has already been checked. */
-		err = DB_CORRUPTION;
-	} else {
-		/* Validate the space flags */
-		ulint	space_flags = fsp_header_get_flags(page);
-
-		if (!fsp_flags_is_valid(space_flags)) {
-
-			ib_logf(IB_LOG_LEVEL_ERROR,
-				"Unsupported tablespace format %lu",
-				(ulong) space_flags);
-
-			err = DB_UNSUPPORTED;
-		} else {
-			mach_write_to_8(
-				FIL_PAGE_FILE_FLUSH_LSN + page, current_lsn);
-
-			/* Write space_id to the file space header. */
-
-			mach_write_to_4(
-				FSP_HEADER_OFFSET + page + FSP_SPACE_ID,
-				table->space);
-
-			/* Update the flush_lsn stamp at the start
-			of the file */
-
-			if (!fil_reset_space_and_lsn_write(
-				current_lsn, filepath, file, table->space, 0,
-				page, zip_size ? &page_zip : NULL)) {
-
-				err = DB_ERROR;
-			}
-		}
-
-		if (err == DB_SUCCESS && !os_file_flush(file)) {
-			err = DB_IO_ERROR;
-		}
-	}
-
-	DBUG_EXECUTE_IF("ib_reset_space_and_lsn_post_flush_crash",
-			DBUG_SUICIDE(););
-
-func_exit:
-	os_file_close(file);
-
-	if (buf2) {
-		ut_free(buf2);
-	}
-
-	mem_free(filepath);
-
-	return(err);
-}
-
-/********************************************************************//**
 Tries to open a single-table tablespace and optionally checks the space id is
 right in it. If does not succeed, prints an error message to the .err log. This
 function is used to open a tablespace when we start up mysqld, and also in
@@ -3537,9 +3168,6 @@ fil_open_single_table_tablespace(
 	ulint		space_flags;
 	dberr_t		err = DB_SUCCESS;
 	ulint		space_id = ULINT_UNDEFINED;
-
-	DBUG_EXECUTE_IF("ib_import_trigger_corruption_3",
-			return(DB_CORRUPTION););
 
 	filepath = fil_make_ibd_name(name, FALSE);
 
@@ -5427,3 +5055,274 @@ fil_close(void)
 
 	fil_system = NULL;
 }
+
+/********************************************************************//**
+Initializes a buffer control block when the buf_pool is created. */
+static
+void
+fil_buf_block_init(
+/*===============*/
+	buf_block_t*	block,		/*!< in: pointer to control block */
+	byte*		frame)		/*!< in: pointer to buffer frame */
+{
+	UNIV_MEM_DESC(frame, UNIV_PAGE_SIZE);
+
+	block->frame = frame;
+
+	block->page.io_fix = BUF_IO_NONE;
+	/* There are assertions that check for this. */
+	block->page.buf_fix_count = 1;
+	block->page.state = BUF_BLOCK_READY_FOR_USE;
+
+	page_zip_des_init(&block->page.zip);
+}
+
+struct fil_iterator_t {
+	os_file_t	file;			/*!< File handle */
+	const char*	filepath;		/*!< File path name */
+	os_offset_t	start;			/*!< From where to start */
+	os_offset_t	end;			/*!< Where to stop */
+	os_offset_t	file_size;		/*!< File size in bytes */
+	ulint		page_size;		/*!< Page size */
+	ulint		n_io_buffers;		/*!< Number of pages to use
+						for IO */
+	byte*		io_buffer;		/*!< Buffer to use for IO */
+};
+
+/********************************************************************//**
+TODO: This can be made parallel trivially by chunking up the file and creating
+a callback per thread. . Main benefit will be to use multiple CPUs for
+checksums and compressed tables. We have to do compressed tables block by
+block right now. Secondly we need to decompress/compress and copy too much
+of data. These are CPU intensive.
+
+Iterate over all the pages in the tablespace.
+@param iter - Tablespace iterator
+@param block - block to use for IO
+@param callback - Callback to inspect and update page contents
+@retval DB_SUCCESS or error code */
+static
+dberr_t
+fil_iterate(
+/*========*/
+	const fil_iterator_t&	iter,
+	buf_block_t*		block,
+	PageCallback&		callback)
+{
+	os_offset_t		offset;
+	ulint			page_no = 0;
+	ulint			space_id = callback.get_space_id();
+	ulint			n_bytes = iter.n_io_buffers * iter.page_size;
+
+	/* TODO: For compressed tables we do a lot of useless
+	copying for non-index pages. Unfortunately, it is
+	required by buf_zip_decompress() */
+
+	for (offset = iter.start; offset < iter.end; offset += n_bytes) {
+
+		byte*		io_buffer = iter.io_buffer;
+
+		block->frame = io_buffer;
+
+		if (callback.get_zip_size() > 0) {
+			page_zip_des_init(&block->page.zip);
+			page_zip_set_size(&block->page.zip, iter.page_size);
+			block->page.zip.data = block->frame + UNIV_PAGE_SIZE;
+			ut_d(block->page.zip.m_external = true);
+			ut_ad(iter.page_size == callback.get_zip_size());
+
+			/* Zip IO is done in the compressed page buffer. */
+			io_buffer = block->page.zip.data;
+		} else {
+			io_buffer = iter.io_buffer;
+		}
+
+		/* We have to read the exact number of bytes. Otherwise the
+		InnoDB IO functions croak on failed reads. */
+
+		n_bytes = ut_min(n_bytes, iter.end - offset);
+
+		if (!os_file_read(iter.file, io_buffer, offset, n_bytes)) {
+
+			ib_logf(IB_LOG_LEVEL_ERROR, "os_file_read() failed");
+
+			return(DB_IO_ERROR);
+		}
+
+		bool		updated = false;
+		os_offset_t	page_off = offset;
+		ulint		n_pages_read = n_bytes / iter.page_size;
+
+		for (ulint i = 0; i < n_pages_read; ++i) {
+
+			buf_block_set_file_page(block, space_id, page_no++);
+
+			dberr_t	err;
+
+			if ((err = callback(page_off, block)) != DB_SUCCESS) {
+
+				return(err);
+
+			} else if (!updated) {
+				updated = buf_block_get_state(block)
+					== BUF_BLOCK_FILE_PAGE;
+			}
+
+			buf_block_set_state(block, BUF_BLOCK_NOT_USED);
+			buf_block_set_state(block, BUF_BLOCK_READY_FOR_USE);
+
+			page_off += iter.page_size;
+			block->frame += iter.page_size;
+		}
+
+		/* A page was updated in the set, write back to disk. */
+		if (updated
+		    && !os_file_write(
+				iter.filepath, iter.file, io_buffer,
+				offset, n_bytes)) {
+
+			ib_logf(IB_LOG_LEVEL_ERROR, "os_file_write() failed");
+
+			return(DB_IO_ERROR);
+		}
+	}
+
+	return(DB_SUCCESS);
+}
+
+/********************************************************************//**
+Iterate over all the pages in the tablespace.
+@param table - the table definiton in the server
+@param n_io_buffers - number of blocks to read and write together
+@param callback - functor that will do the page updates
+@return	DB_SUCCESS or error code */
+UNIV_INTERN
+dberr_t
+fil_tablespace_iterate(
+/*===================*/
+	dict_table_t*	table,
+	ulint		n_io_buffers,
+	PageCallback&	callback)
+{
+	dberr_t		err;
+	os_file_t	file;
+	char*		filepath;
+
+	ut_a(n_io_buffers > 0);
+
+	DBUG_EXECUTE_IF("ib_import_trigger_corruption_1",
+			return(DB_CORRUPTION););
+
+	filepath = fil_make_ibd_name(table->name, FALSE);
+
+	{
+		ibool	success;
+
+		file = os_file_create_simple_no_error_handling(
+			innodb_file_data_key, filepath,
+			OS_FILE_OPEN, OS_FILE_READ_WRITE, &success);
+
+		DBUG_EXECUTE_IF("fil_tablespace_iterate_failure",
+		{
+			static bool once;
+
+			if (!once || ut_rnd_interval(0, 10) == 5) {
+				once = true;
+				success = FALSE;
+				os_file_close(file);
+			}
+		});
+
+		if (!success) {
+			/* The following call prints an error message */
+			os_file_get_last_error(TRUE);
+
+			ib_logf(IB_LOG_LEVEL_ERROR,
+				"Trying to import a tablespace, but could not "
+				"open the tablespace file %s", filepath);
+
+			mem_free(filepath);
+
+			return(DB_TABLESPACE_NOT_FOUND);
+
+		} else {
+			err = DB_SUCCESS;
+		}
+	}
+
+	callback.set_file(filepath, file);
+
+	os_offset_t	file_size = os_file_get_size(file);
+	ut_a(file_size != (os_offset_t) -1);
+
+	/* The block we will use for every physical page */
+	buf_block_t	block;
+
+	memset(&block, 0x0, sizeof(block));
+
+	/* Allocate a page to read in the tablespace header, so that we
+	can determine the page size and zip_size (if it is compressed). */
+
+	void*	page_ptr = mem_alloc(3 * UNIV_PAGE_SIZE);
+	byte*	page = static_cast<byte*>(ut_align(page_ptr, UNIV_PAGE_SIZE));
+
+	fil_buf_block_init(&block, page);
+
+	/* Read the first page and determine the page and zip size. */
+
+	if (!os_file_read(file, page, 0, UNIV_PAGE_SIZE)) {
+
+		err = DB_IO_ERROR;
+
+	} else if ((err = callback.init(file_size, &block)) == DB_SUCCESS) {
+		fil_iterator_t	iter;
+
+		iter.file = file;
+		iter.start = 0;
+		iter.end = file_size;
+		iter.filepath = filepath;
+		iter.file_size = file_size;
+		iter.n_io_buffers = n_io_buffers;
+		iter.page_size = callback.get_page_size();
+
+		/* Compressed pages can't be optimised for block IO for now.
+		We do the IMPORT page by page. */
+
+		if (callback.get_zip_size() > 0) {
+			iter.n_io_buffers = 1;
+			ut_a(iter.page_size == callback.get_zip_size());
+		}
+
+		/** Add an extra page for compressed page scratch area. */
+
+		void*	io_buffer = mem_alloc(
+			(2 + iter.n_io_buffers) * UNIV_PAGE_SIZE);
+
+		iter.io_buffer = static_cast<byte*>(
+			ut_align(io_buffer, UNIV_PAGE_SIZE));
+
+		err = fil_iterate(iter, &block, callback);
+
+		mem_free(io_buffer);
+	}
+
+	if (err == DB_SUCCESS) {
+
+		ib_logf(IB_LOG_LEVEL_INFO, "Sync to disk");
+
+		if (!os_file_flush(file)) {
+			ib_logf(IB_LOG_LEVEL_INFO, "os_file_flush() failed!");
+			err = DB_IO_ERROR;
+		} else {
+			ib_logf(IB_LOG_LEVEL_INFO, "Sync to disk - done!");
+		}
+	}
+
+	os_file_close(file);
+
+	mem_free(page_ptr);
+	mem_free(filepath);
+
+	return(err);
+}
+

@@ -514,26 +514,6 @@ fil_open_single_table_tablespace(
 	const char*		name)	/*!< in: table name in the
 					databasename/tablename format */
 	__attribute__((nonnull(4), warn_unused_result));
-/********************************************************************//**
-It is possible, though very improbable, that the lsn's in the tablespace to be
-imported have risen above the current system lsn, if a lengthy purge, ibuf
-merge, or rollback was performed on a backup taken with ibbackup. If that is
-the case, reset page lsn's in the file. We assume that mysqld was shut down
-after it performed these cleanup operations on the .ibd file, so that it at
-the shutdown stamped the latest lsn to the FIL_PAGE_FILE_FLUSH_LSN in the
-first page of the .ibd file, and we can determine whether we need to reset the
-lsn's just by looking at that flush lsn.
-@return	DB_SUCCESS or error code */
-UNIV_INTERN
-dberr_t
-fil_reset_space_and_lsn(
-/*====================*/
-	dict_table_t*	table,		/*!< in/out: table
-					(in: name, space_id, out: flags) */
-	lsn_t		current_lsn)	/*!< in: reset lsn's if the lsn stamped
-					to FIL_PAGE_FILE_FLUSH_LSN in the
-					first page is too high */
-	__attribute__((nonnull, warn_unused_result));
 #endif /* !UNIV_HOTBACKUP */
 /********************************************************************//**
 At the server startup, if we need crash recovery, scans the database
@@ -774,6 +754,102 @@ fil_make_ibd_name(
 	const char*	name,		/*!< in: table name or a dir path of a
 					TEMPORARY table */
 	ibool		is_temp);	/*!< in: TRUE if it is a dir path */
+
+/** Callback functor. */
+struct PageCallback {
+
+	/**
+	Default constructor */
+	PageCallback()
+		:
+		m_zip_size(),
+		m_page_size(),
+		m_filepath() UNIV_NOTHROW {}
+
+	virtual ~PageCallback() UNIV_NOTHROW {}
+
+	/**
+	Called for page 0 in the tablespace file at the start.
+	@param file_size - size of the file in bytes
+	@param block - contents of the first page in the tablespace file
+	@retval DB_SUCCESS or error code.*/
+	virtual dberr_t init(
+		os_offset_t		file_size,
+		const buf_block_t*	block) UNIV_NOTHROW = 0;
+
+	/**
+	Called for every page in the tablespace. If the page was not
+	updated then its state must be set to BUF_PAGE_NOT_USED. For
+	compressed tables the page descriptor memory will be at offset:
+       		block->frame + UNIV_PAGE_SIZE;
+	@param offset - physical offset within the file
+	@param block - block read from file, note it is not from the buffer pool
+	@retval DB_SUCCESS or error code. */
+	virtual dberr_t operator()(
+		os_offset_t 	offset,
+		buf_block_t*	block) UNIV_NOTHROW = 0;
+
+	/**
+	Set the name of the physical file and the file handle that is used
+	to open it for the file that is being iterated over.
+	@param filename - then physical name of the tablespace file. 
+	@param file - OS file handle */
+	void set_file(const char* filename, os_file_t file) UNIV_NOTHROW
+	{
+		m_file = file;
+		m_filepath = filename;
+	}
+
+	/**
+	@return the space id of the tablespace */
+	virtual ulint get_space_id() const UNIV_NOTHROW = 0;
+
+	/** The compressed page size
+	@return the compressed page size */
+	ulint get_zip_size() const
+	{
+		return(m_zip_size);
+	}
+
+	/** The compressed page size
+	@return the compressed page size */
+	ulint get_page_size() const
+	{
+		return(m_page_size);
+	}
+
+	/** Compressed table page size */
+	ulint			m_zip_size;
+
+	/** The tablespace page size. */
+	ulint			m_page_size;
+
+	/** File handle to the tablespace */
+	os_file_t		m_file;
+
+	/** Physical file path. */
+	const char*		m_filepath;
+
+protected:
+	// Disable copying
+	PageCallback(const PageCallback&);
+	PageCallback& operator=(const PageCallback&);
+};
+
+/********************************************************************//**
+Iterate over all the pages in the tablespace.
+@param table - the table definiton in the server
+@param n_io_buffers - number of blocks to read and write together
+@param callback - functor that will do the page updates
+@return	DB_SUCCESS or error code */
+UNIV_INTERN
+dberr_t
+fil_tablespace_iterate(
+/*===================*/
+	dict_table_t*		table,
+	ulint			n_io_buffers,
+	PageCallback&		callback)
+	__attribute__((nonnull, warn_unused_result));
 
 typedef	struct fil_space_struct	fil_space_t;
 

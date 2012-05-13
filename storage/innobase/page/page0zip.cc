@@ -3924,6 +3924,7 @@ page_zip_write_trx_id_and_roll_ptr(
 	ulint	len;
 
 	ut_ad(PAGE_ZIP_MATCH(rec, page_zip));
+
 	ut_ad(page_simple_validate_new(page));
 	ut_ad(page_zip_simple_validate(page_zip));
 	ut_ad(page_zip_get_size(page_zip)

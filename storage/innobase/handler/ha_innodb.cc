@@ -10834,16 +10834,11 @@ ha_innobase::check(
 	     index != NULL;
 	     index = dict_table_get_next_index(index)) {
 		char	index_name[MAX_FULL_NAME_LEN + 1];
-#if 0
-		fputs("Validating index ", stderr);
-		ut_print_name(stderr, trx, FALSE, index->name);
-		putc('\n', stderr);
-#endif
 
 		/* If this is an index being created or dropped, break */
 		if (*index->name == TEMP_INDEX_PREFIX) {
 			break;
-		} else if (!btr_validate_index(index, prebuilt->trx, FALSE)) {
+		} else if (!btr_validate_index(index, prebuilt->trx)) {
 			is_ok = FALSE;
 
 			innobase_format_name(

@@ -332,6 +332,20 @@ page_cur_parse_delete_rec(
 	buf_block_t*	block,	/*!< in: page or NULL */
 	dict_index_t*	index,	/*!< in: record descriptor */
 	mtr_t*		mtr);	/*!< in: mtr or NULL */
+/*******************************************************//**
+Removes the record from a leaf page. This function does not log
+any changes. It is used by the IMPORT tablespace functions.
+@return	true if success, i.e., the page did not become too empty */
+UNIV_INTERN
+bool
+page_delete_rec(
+/*============*/
+	const dict_index_t*	index,	/*!< in: The index that the record
+					belongs to */
+	page_cur_t*		pcur,	/*!< in/out: page cursor on record
+					to delete */
+	page_zip_des_t*		page_zip,/*!< in: compressed page descriptor */
+	const ulint*		offsets);/*!< in: offsets for record */
 
 /** Index page cursor */
 
