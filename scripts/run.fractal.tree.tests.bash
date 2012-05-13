@@ -3,6 +3,7 @@
 function usage() {
     echo "run.fractal.tree.tests.bash - run the nightly fractal tree test suite"
     echo "[--ftcc=$ftcc] [--BDBVERSION=$BDBVERSION] [--ctest_model=$ctest_model]"
+    echo "[--commit=$commit]"
     return 1
 }
 
@@ -32,6 +33,7 @@ productname=$tokudb_name
 ftcc=icc
 BDBVERSION=5.3
 ctest_model=Nightly
+commit=1
 while [ $# -gt 0 ] ; do
     arg=$1; shift
     if [[ $arg =~ --(.*)=(.*) ]] ; then
@@ -82,25 +84,29 @@ fi
 
 export GCCVERSION=$($ftcc --version|head -1|cut -f3 -d" ")
 
-svnbase=~/svn.build
-if [ ! -d $svnbase ] ; then mkdir $svnbase ; fi
+if [[ $commit -eq 1 ]]; then
+    svnbase=~/svn.build
+    if [ ! -d $svnbase ] ; then mkdir $svnbase ; fi
 
-# checkout the build dir
-buildbase=$svnbase/tokudb.build
-if [ ! -d $buildbase ] ; then
-    mkdir $buildbase
+    # checkout the build dir
+    buildbase=$svnbase/tokudb.build
+    if [ ! -d $buildbase ] ; then
+        mkdir $buildbase
+    fi
+
+    # make the build directory, possibly on multiple machines simultaneously, there can be only one
+    builddir=$buildbase/$date
+    pushd $buildbase
+    while [ ! -d $date ] ; do
+        (svn mkdir $svnserver/tokudb.build/$date -m "" ;
+            svn co -q $svnserver/tokudb.build/$date) || rm -rf $date
+    done
+    popd
+
+    tracefilepfx=$builddir/$productname+$ftcc-$GCCVERSION+bdb-$BDBVERSION+$nodename+$system+$release+$arch
+else
+    tracefilepfx=$FULLTOKUDBDIR/test-trace
 fi
-
-# make the build directory, possibly on multiple machines simultaneously, there can be only one
-builddir=$buildbase/$date
-pushd $buildbase
-while [ ! -d $date ] ; do
-    (svn mkdir $svnserver/tokudb.build/$date -m "" ;
-     svn co -q $svnserver/tokudb.build/$date) || rm -rf $date
-done
-popd
-
-tracefilepfx=$builddir/$productname+$ftcc-$GCCVERSION+bdb-$BDBVERSION+$nodename+$system+$release+$arch
 
 function getsysinfo() {
     tracefile=$1; shift
@@ -162,8 +168,9 @@ rm notes.txt
 
 tag=$(head -n1 Testing/TAG)
 cp -r Testing/$tag $resultsdir
-cf=$(my_mktemp ftresult)
-cat "$resultsdir/trace" | awk '
+if [[ $commit -eq 1 ]]; then
+    cf=$(my_mktemp ftresult)
+    cat "$resultsdir/trace" | awk '
 /[0-9]+% tests passed, [0-9]+ tests failed out of [0-9]+/ {
     fail=$4;
     total=$9;
@@ -174,9 +181,9 @@ cat "$resultsdir/trace" | awk '
     }
     print "PASS=" pass
 }' >"$cf"
-get_latest_svn_revision $FULLTOKUDBDIR >>"$cf"
-echo -n " " >>"$cf"
-cat "$resultsdir/trace" | awk '
+    get_latest_svn_revision $FULLTOKUDBDIR >>"$cf"
+    echo -n " " >>"$cf"
+    cat "$resultsdir/trace" | awk '
 BEGIN {
     FS=": ";
 }
@@ -184,8 +191,8 @@ BEGIN {
     print $2;
     exit
 }' >>"$cf"
-(echo; echo) >>"$cf"
-cat "$resultsdir/trace" | awk '
+    (echo; echo) >>"$cf"
+    cat "$resultsdir/trace" | awk '
 BEGIN {
     printit=0
 }
@@ -196,9 +203,10 @@ BEGIN {
         print $0
     }
 }' >>"$cf"
-svn add $resultsdir
-svn commit -F "$cf" $resultsdir
-rm $cf
+    svn add $resultsdir
+    svn commit -F "$cf" $resultsdir
+    rm $cf
+fi
 
 ################################################################################
 ## run valgrind on icc debug build
@@ -238,8 +246,9 @@ rm notes.txt
 
 tag=$(head -n1 Testing/TAG)
 cp -r Testing/$tag $resultsdir
-cf=$(my_mktemp ftresult)
-cat "$resultsdir/trace" | awk '
+if [[ $commit -eq 1 ]]; then
+    cf=$(my_mktemp ftresult)
+    cat "$resultsdir/trace" | awk '
 BEGIN {
     errs=0;
     look=0;
@@ -270,9 +279,9 @@ END {
     }
     print "PASS=" pass
 }' >"$cf"
-get_latest_svn_revision $FULLTOKUDBDIR >>"$cf"
-echo -n " " >>"$cf"
-cat "$resultsdir/trace" | awk '
+    get_latest_svn_revision $FULLTOKUDBDIR >>"$cf"
+    echo -n " " >>"$cf"
+    cat "$resultsdir/trace" | awk '
 BEGIN {
     FS=": ";
 }
@@ -280,8 +289,8 @@ BEGIN {
     print $2;
     exit
 }' >>"$cf"
-(echo; echo) >>"$cf"
-cat "$resultsdir/trace" | awk '
+    (echo; echo) >>"$cf"
+    cat "$resultsdir/trace" | awk '
 BEGIN {
     printit=0
 }
@@ -292,9 +301,10 @@ BEGIN {
         print $0
     }
 }' >>"$cf"
-svn add $resultsdir
-svn commit -F "$cf" $resultsdir
-rm $cf
+    svn add $resultsdir
+    svn commit -F "$cf" $resultsdir
+    rm $cf
+fi
 
 ################################################################################
 ## run gcov on gcc debug build
@@ -334,8 +344,9 @@ rm notes.txt
 
 tag=$(head -n1 Testing/TAG)
 cp -r Testing/$tag $resultsdir
-cf=$(my_mktemp ftresult)
-cat "$resultsdir/trace" | awk '
+if [[ $commit -eq 1 ]]; then
+    cf=$(my_mktemp ftresult)
+    cat "$resultsdir/trace" | awk '
 BEGIN {
     ORS=" ";
 }
@@ -354,9 +365,9 @@ END {
     }
     print "PASS=" pass
 }' >"$cf"
-get_latest_svn_revision $FULLTOKUDBDIR >>"$cf"
-echo -n " " >>"$cf"
-cat "$resultsdir/trace" | awk '
+    get_latest_svn_revision $FULLTOKUDBDIR >>"$cf"
+    echo -n " " >>"$cf"
+    cat "$resultsdir/trace" | awk '
 BEGIN {
     FS=": ";
 }
@@ -364,8 +375,8 @@ BEGIN {
     print $2;
     exit
 }' >>"$cf"
-(echo; echo) >>"$cf"
-cat "$resultsdir/trace" | awk '
+    (echo; echo) >>"$cf"
+    cat "$resultsdir/trace" | awk '
 BEGIN {
     printit=0
 }
@@ -376,8 +387,9 @@ BEGIN {
         print $0
     }
 }' >>"$cf"
-svn add $resultsdir
-svn commit -F "$cf" $resultsdir
-rm $cf
+    svn add $resultsdir
+    svn commit -F "$cf" $resultsdir
+    rm $cf
+fi
 
 exit 0
