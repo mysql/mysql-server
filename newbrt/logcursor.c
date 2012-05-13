@@ -164,7 +164,6 @@ int toku_logcursor_create(TOKULOGCURSOR *lc, const char *log_dir) {
 }
 
 int toku_logcursor_create_for_file(TOKULOGCURSOR *lc, const char *log_dir, const char *log_file) {
-    int failresult = 0;
     int r = lc_create(lc, log_dir);
     if ( r!=0 ) 
         return r;

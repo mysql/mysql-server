@@ -24,6 +24,7 @@
 #include "ydb_load.h"
 #include <newbrt/checkpoint.h>
 #include <newbrt/brt-internal.h>
+#include <newbrt/brt_header.h>
 #include "ydb_db.h"
 
 

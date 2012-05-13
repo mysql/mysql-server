@@ -93,7 +93,7 @@ void sequential_consistency (void) {
 // That's probably good enough for us, since we'll have a barrier instruction anywhere it matters.
 volatile int val = 0;
 
-/* not static */
+static
 void time_nop (void) {
     struct timeval start,end;
     for (int t=0; t<T; t++) {
@@ -113,7 +113,7 @@ void time_nop (void) {
     }
 }
 
-/* not static */
+static
 void time_fcall (void) {
     struct timeval start,end;
     for (int t=0; t<T; t++) {
@@ -129,15 +129,15 @@ void time_fcall (void) {
     }
 }
 
-/* not static */
+static
 void time_cas (void) {
-    volatile int64_t val = 0;
+    volatile int64_t myval = 0;
     struct timeval start,end;
     for (int t=0; t<T; t++) {
 	gettimeofday(&start, NULL);
 	for (int i=0; i<N; i++) {
-	    { int r = __sync_val_compare_and_swap(&val, 0, 1);  assert(r==0); }
-	    { int r = __sync_val_compare_and_swap(&val, 1, 0);  assert(r==1); }
+	    { int r = __sync_val_compare_and_swap(&myval, 0, 1);  assert(r==0); }
+	    { int r = __sync_val_compare_and_swap(&myval, 1, 0);  assert(r==1); }
 	}
 	gettimeofday(&end,   NULL);
 	double diff = 1e9*toku_tdiff(&end, &start)/N;
@@ -148,7 +148,7 @@ void time_cas (void) {
 }
 
 
-/* not static */
+static
 void time_pthread_mutex (void) {
     pthread_mutex_t mutex;
     { int r = pthread_mutex_init(&mutex, NULL); assert(r==0); }
@@ -170,7 +170,7 @@ void time_pthread_mutex (void) {
     { int r = pthread_mutex_destroy(&mutex);    assert(r==0); }
 }
 
-/* not static */
+static
 void time_pthread_rwlock (void) {
     pthread_rwlock_t mutex;
     { int r = pthread_rwlock_init(&mutex, NULL); assert(r==0); }
@@ -205,7 +205,7 @@ static void newbrt_rwlock_unlock (RWLOCK rwlock, toku_pthread_mutex_t *mutex) {
 }
 
 // Time the read lock that's in newbrt/rwlock.h
-/* not static */
+static
 void time_newbrt_rwlock (void) {
     struct rwlock rwlock;
     toku_pthread_mutex_t external_mutex;
@@ -232,7 +232,7 @@ void time_newbrt_rwlock (void) {
 }
 
 // Time the read lock that's in newbrt/rwlock.h, assuming the mutex is already held.
-/* not static*/
+static
 void time_newbrt_prelocked_rwlock (void) {
     struct rwlock rwlock;
     toku_pthread_mutex_t external_mutex;
@@ -260,7 +260,7 @@ void time_newbrt_prelocked_rwlock (void) {
     { int r = pthread_mutex_destroy(&external_mutex);    assert(r==0); }
 }
 
-/* not static*/
+static
 void time_toku_fair_rwlock (void) {
     toku_fair_rwlock_t mutex;
     { int r = toku_fair_rwlock_init(&mutex);                  assert(r==0); }
@@ -282,7 +282,7 @@ void time_toku_fair_rwlock (void) {
     { int r = toku_fair_rwlock_destroy(&mutex);                  assert(r==0); }
 }
 
-/* not static*/
+static
 void time_toku_cv_fair_rwlock (void) {
     toku_cv_fair_rwlock_t mutex;
     { int r = toku_cv_fair_rwlock_init(&mutex);                  assert(r==0); }

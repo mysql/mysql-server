@@ -34,6 +34,7 @@ const char *toku_copyright_string = "Copyright (c) 2007-2009 Tokutek Inc.  All r
 #include "ydb_load.h"
 #include <newbrt/brtloader.h>
 #include <newbrt/log_header.h>
+#include <newbrt/brt_header.h>
 #include "ydb_cursor.h"
 #include "ydb_row_lock.h"
 #include "ydb_env_func.h"
