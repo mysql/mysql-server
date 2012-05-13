@@ -121,15 +121,10 @@ test_msnfilter(int do_verify) {
     r = toku_open_brt(fname, 1, &brt, 1024, 256, ct, null_txn, toku_builtin_compare_fun);
     assert(r == 0);
 
-    // discard the old root block
-    u_int32_t fullhash = 0;
-    CACHEKEY *rootp;
-    rootp = toku_calculate_root_offset_pointer(brt->h, &fullhash);
-
     BRTNODE newroot = make_node(brt, 0);
 
     // set the new root to point to the new tree
-    *rootp = newroot->thisnodename;
+    toku_brtheader_set_new_root_blocknum(brt->h, newroot->thisnodename);
 
     // KLUDGE: Unpin the new root so toku_brt_lookup() can pin it.  (Pin lock is no longer a recursive
     //         mutex.)  Just leaving it unpinned for this test program works  because it is the only 

@@ -2146,14 +2146,15 @@ brt_nonleaf_put_cmd (brt_compare_func compare_fun, DESCRIPTOR desc, BRTNODE node
 }
 
 
-static void
+// return TRUE if root changed, FALSE otherwise
+static BOOL
 brt_handle_maybe_reactive_root (struct brt_header *h, CACHEKEY *rootp, BRTNODE *nodep) {
     BRTNODE node = *nodep;
     toku_assert_entire_node_in_memory(node);
     enum reactivity re = get_node_reactivity(node);
     switch (re) {
     case RE_STABLE:
-	return;
+	return FALSE;
     case RE_FISSIBLE:
 	// The root node should split, so make a new root.
 	{
@@ -2171,10 +2172,10 @@ brt_handle_maybe_reactive_root (struct brt_header *h, CACHEKEY *rootp, BRTNODE *
 		brt_nonleaf_split(h, node, &nodea, &nodeb, &splitk, 0, NULL);
 	    }
 	    brt_init_new_root(h, nodea, nodeb, splitk, rootp, nodep);
-	    return;
+	    return TRUE;
 	}
     case RE_FUSIBLE:
-	return; // Cannot merge anything at the root, so return happy.
+	return FALSE; // Cannot merge anything at the root, so return happy.
     }
     abort(); // cannot happen
 }
@@ -2575,7 +2576,7 @@ toku_brt_root_put_cmd (struct brt_header *h, BRT_MSG_S * cmd)
 //  - cmd will set new msn in tree
 {
     BRTNODE node;
-    CACHEKEY *rootp;
+    CACHEKEY root_key;
     //assert(0==toku_cachetable_assert_all_unpinned(brt->cachetable));
     assert(h);
     //
@@ -2610,14 +2611,14 @@ toku_brt_root_put_cmd (struct brt_header *h, BRT_MSG_S * cmd)
         toku_brtheader_grab_treelock(h);
 
         u_int32_t fullhash;
-        rootp = toku_calculate_root_offset_pointer(h, &fullhash);
+        toku_calculate_root_offset_pointer(h, &root_key, &fullhash);
 
         // get the root node
         struct brtnode_fetch_extra bfe;
         fill_bfe_for_full_read(&bfe, h);
         toku_pin_brtnode_off_client_thread(
             h, 
-            *rootp, 
+            root_key, 
             fullhash,
             &bfe, 
             TRUE, // may_modify_node
@@ -2638,7 +2639,11 @@ toku_brt_root_put_cmd (struct brt_header *h, BRT_MSG_S * cmd)
         brt_verify_flags(h, node);
 
         // first handle a reactive root, then put in the message
-        brt_handle_maybe_reactive_root(h, rootp, &node);
+        CACHEKEY new_root_key;
+        BOOL root_changed = brt_handle_maybe_reactive_root(h, &new_root_key, &node);
+        if (root_changed) {
+            toku_brtheader_set_new_root_blocknum(h, new_root_key);
+        }
 
         toku_brtheader_release_treelock(h);
     }
@@ -4867,10 +4872,11 @@ try_again:
     {
         toku_brtheader_grab_treelock(brt->h);
         u_int32_t fullhash;
-        CACHEKEY *rootp = toku_calculate_root_offset_pointer(brt->h, &fullhash);
+        CACHEKEY root_key;
+        toku_calculate_root_offset_pointer(brt->h, &root_key, &fullhash);
         toku_pin_brtnode_off_client_thread(
             brt->h, 
-            *rootp, 
+            root_key, 
             fullhash,
             &bfe, 
             FALSE, // may_modify_node set to FALSE, because root cannot change during search
@@ -5427,10 +5433,11 @@ toku_brt_keyrange (BRT brt, DBT *key, u_int64_t *less_p, u_int64_t *equal_p, u_i
             toku_brtheader_grab_treelock(brt->h);
 
             u_int32_t fullhash;
-            CACHEKEY *rootp = toku_calculate_root_offset_pointer(brt->h, &fullhash);
+            CACHEKEY root_key;
+            toku_calculate_root_offset_pointer(brt->h, &root_key, &fullhash);
             toku_pin_brtnode_off_client_thread(
                 brt->h, 
-                *rootp, 
+                root_key, 
                 fullhash,
                 &bfe, 
                 FALSE, // may_modify_node, cannot change root during keyrange
@@ -5589,8 +5596,9 @@ int toku_dump_brt (FILE *f, BRT brt) {
         toku_brtheader_grab_treelock(brt->h);
 
         u_int32_t fullhash = 0;
-        CACHEKEY *rootp = toku_calculate_root_offset_pointer(brt->h, &fullhash);
-        r = toku_dump_brtnode(f, brt, *rootp, 0, 0, 0);
+        CACHEKEY root_key;
+        toku_calculate_root_offset_pointer(brt->h, &root_key, &fullhash);
+        r = toku_dump_brtnode(f, brt, root_key, 0, 0, 0);
 
         toku_brtheader_release_treelock(brt->h);
     }
@@ -5793,12 +5801,13 @@ BOOL toku_brt_is_empty_fast (BRT brt)
     {
         toku_brtheader_grab_treelock(brt->h);
 
-        CACHEKEY *rootp = toku_calculate_root_offset_pointer(brt->h, &fullhash);
+        CACHEKEY root_key;
+        toku_calculate_root_offset_pointer(brt->h, &root_key, &fullhash);
         struct brtnode_fetch_extra bfe;
         fill_bfe_for_full_read(&bfe, brt->h);
         toku_pin_brtnode_off_client_thread(
             brt->h,
-            *rootp,
+            root_key,
             fullhash,
             &bfe,
             FALSE, // may_modify_node set to FALSE, node does not change

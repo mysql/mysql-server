@@ -63,16 +63,12 @@ test_dup_in_leaf(int do_verify) {
     assert(r == 0);
 
     // discard the old root block
-    u_int32_t fullhash = 0;
-    CACHEKEY *rootp;
-    rootp = toku_calculate_root_offset_pointer(brt->h, &fullhash);
-
     BRTNODE newroot = make_node(brt, 0);
     populate_leaf(newroot, htonl(2), 1);
     populate_leaf(newroot, htonl(1), 2);
 
     // set the new root to point to the new tree
-    *rootp = newroot->thisnodename;
+    toku_brtheader_set_new_root_blocknum(brt->h, newroot->thisnodename);
 
     // unpin the new root
     toku_unpin_brtnode(brt->h, newroot);

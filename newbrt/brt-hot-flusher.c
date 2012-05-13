@@ -264,7 +264,7 @@ toku_brt_hot_optimize(BRT brt,
     // the hot optimize contract.
     do {
         BRTNODE root;
-        CACHEKEY *rootp;
+        CACHEKEY root_key;
         u_int32_t fullhash;
 
         {
@@ -272,11 +272,11 @@ toku_brt_hot_optimize(BRT brt,
 
             // Get root node (the first parent of each successive HOT
             // call.)
-            rootp = toku_calculate_root_offset_pointer(brt->h, &fullhash);
+            toku_calculate_root_offset_pointer(brt->h, &root_key, &fullhash);
             struct brtnode_fetch_extra bfe;
             fill_bfe_for_full_read(&bfe, brt->h);
             toku_pin_brtnode_off_client_thread(brt->h,
-                                               (BLOCKNUM) *rootp,
+                                               (BLOCKNUM) root_key,
                                                fullhash,
                                                &bfe,
                                                TRUE, 
