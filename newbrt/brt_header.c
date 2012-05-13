@@ -891,3 +891,19 @@ void toku_brtheader_set_new_root_blocknum(
     h->root_blocknum = new_root_key;
 }
 
+LSN toku_brt_checkpoint_lsn(struct brt_header* h) {
+    return h->checkpoint_lsn;
+}
+
+int toku_brtheader_set_panic(struct brt_header *h, int panic, char *panic_string) {
+    if (h->panic == 0) {
+        h->panic = panic;
+        if (h->panic_string) {
+            toku_free(h->panic_string);
+        }
+        h->panic_string = toku_strdup(panic_string);
+    }
+    return 0;
+}
+
+

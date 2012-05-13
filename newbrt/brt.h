@@ -169,8 +169,6 @@ int toku_dump_brt (FILE *,BRT brt)  __attribute__ ((warn_unused_result));
 void brt_fsync (BRT); /* fsync, but don't clear the caches. */
 void brt_flush (BRT); /* fsync and clear the caches. */
 
-LSN toku_brt_checkpoint_lsn(struct brt_header* h)  __attribute__ ((warn_unused_result));
-
 // create and initialize a cache table
 // cachesize is the upper limit on the size of the size of the values in the table
 // pass 0 if you want the default
@@ -272,7 +270,6 @@ void toku_brt_suppress_recovery_logs (BRT brt, TOKUTXN txn);
 //           implies: toku_txn_note_brt(brt, txn) has been called
 
 int toku_brt_get_fragmentation(BRT brt, TOKU_DB_FRAGMENTATION report) __attribute__ ((warn_unused_result));
-int toku_brt_header_set_panic(struct brt_header *h, int panic, char *panic_string) __attribute__ ((warn_unused_result));
 
 BOOL toku_brt_is_empty_fast (BRT brt);
 // Effect: Return TRUE if there are no messages or leaf entries in the tree.  If so, it's empty.  If there are messages  or leaf entries, we say it's not empty
@@ -281,8 +278,6 @@ BOOL toku_brt_is_empty_fast (BRT brt);
 BOOL toku_brt_is_empty_fast (BRT brt) __attribute__ ((warn_unused_result));
 // Effect: Return TRUE if there are no messages or leaf entries in the tree.  If so, it's empty.  If there are messages  or leaf entries, we say it's not empty
 // even though if we were to optimize the tree it might turn out that they are empty.
-
-BOOL toku_brt_is_recovery_logging_suppressed (BRT) __attribute__ ((warn_unused_result));
 
 int toku_brt_strerror_r(int error, char *buf, size_t buflen);
 // Effect: LIke the XSI-compliant strerorr_r, extended to db_strerror().
