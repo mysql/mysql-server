@@ -108,7 +108,7 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, Item *conds,
     Non delete tables are pruned in JOIN::prepare,
     only the delete table needs this.
   */
-  if (prune_partitions(thd, table, conds, true))
+  if (prune_partitions(thd, table, conds))
     DBUG_RETURN(true);
   if (table->all_partitions_pruned_away)
     goto exit_all_parts_pruned_away;
@@ -209,7 +209,7 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, Item *conds,
 
 #ifdef WITH_PARTITION_STORAGE_ENGINE
   /* Prune a second time to be able to prune on subqueries in WHERE clause. */
-  if (prune_partitions(thd, table, conds, false))
+  if (prune_partitions(thd, table, conds))
     DBUG_RETURN(true);
   if (table->all_partitions_pruned_away)
     goto exit_all_parts_pruned_away;

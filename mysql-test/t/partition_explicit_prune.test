@@ -835,4 +835,12 @@ SELECT * FROM t1 PARTITION (p2);
 
 DROP TABLE t1;
 
+--echo #
+--echo # Test explicit partition selection on a non partitioned temp table
+--echo #
+CREATE TEMPORARY TABLE t1 (a INT);
+--error ER_PARTITION_CLAUSE_ON_NONPARTITIONED
+SELECT * FROM t1 PARTITION(pNonexisting);
+DROP TEMPORARY TABLE t1;
+
 SET @@default_storage_engine = @old_default_storage_engine;

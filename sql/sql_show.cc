@@ -5230,7 +5230,7 @@ int fill_schema_proc(THD *thd, TABLE_LIST *tables, Item *cond)
   TABLE *proc_table;
   TABLE_LIST proc_tables;
   const char *wild= thd->lex->wild ? thd->lex->wild->ptr() : NullS;
-  int res= 0;
+  int error, res= 0;
   TABLE *table= tables->table;
   bool full_access;
   char definer[USER_HOST_BUFF_SIZE];
@@ -5254,14 +5254,17 @@ int fill_schema_proc(THD *thd, TABLE_LIST *tables, Item *cond)
   {
     DBUG_RETURN(1);
   }
-  if (proc_table->file->ha_index_init(0, 1))
+  if ((error= proc_table->file->ha_index_init(0, 1)))
   {
+    proc_table->file->print_error(error, MYF(0));
     res= 1;
     goto err;
   }
-  if ((res= proc_table->file->ha_index_first(proc_table->record[0])))
+  if ((error= proc_table->file->ha_index_first(proc_table->record[0])))
   {
-    res= (res == HA_ERR_END_OF_FILE) ? 0 : 1;
+    res= (error == HA_ERR_END_OF_FILE) ? 0 : 1;
+    if (res)
+      proc_table->file->print_error(error, MYF(0));
     goto err;
   }
 

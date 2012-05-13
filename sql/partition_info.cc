@@ -171,15 +171,8 @@ bool partition_info::prune_partition_bitmaps(TABLE_LIST *table_list)
   List_iterator<String> partition_names_it(*(table_list->partition_names));
   uint num_names= table_list->partition_names->elements;
   uint i= 0;
-  HASH *part_name_hash;
-  Partition_share *part_share;
   DBUG_ENTER("partition_info::prune_partition_bitmaps");
 
-  DBUG_ASSERT(table && table->s && table->s->ha_share);
-  part_share= static_cast<Partition_share*>((table->s->ha_share));
-  DBUG_ASSERT(part_share->partition_name_hash_initialized);
-  part_name_hash= &part_share->partition_name_hash;
-  DBUG_ASSERT(part_name_hash->records);
   if (num_names < 1)
     DBUG_RETURN(true);
 
@@ -223,7 +216,7 @@ bool partition_info::set_partition_bitmaps(TABLE_LIST *table_list)
 
   DBUG_ASSERT(bitmaps_are_initialized);
   DBUG_ASSERT(table);
-  prune_state= NOT_PRUNED;
+  is_const_item_pruned= false;
   if (!bitmaps_are_initialized)
     DBUG_RETURN(TRUE);
 
@@ -248,23 +241,40 @@ bool partition_info::set_partition_bitmaps(TABLE_LIST *table_list)
 /**
   Checks if possible to do prune partitions on insert.
 
+  @param thd           Thread context
   @param duplic        How to handle duplicates
+  @param update        In case of ON DUPLICATE UPDATE, default function fields
   @param update_fields In case of ON DUPLICATE UPDATE, which fields to update
   @param fields        Listed fields
   @param empty_values  True if values is empty (only defaults)
   @param[out] prune_needs_default_values  Set on return if copying of default
                                           values is needed
+  @param[out] can_prune_partitions        Enum showing if possible to prune
+  @param[inout] used_partitions           If possible to prune the bitmap
+                                          is initialized and cleared
+
+  @return Operation status
+    @retval false  Success
+    @retval true   Failure
 */
 
-partition_info::enum_can_prune
-partition_info::can_prune_insert(enum_duplicates duplic,
-                                 COPY_INFO &update,
-                                 List<Item> &update_fields,
-                                 List<Item> &fields,
-                                 bool empty_values,
-                                 bool *prune_needs_default_values)
+bool partition_info::can_prune_insert(THD* thd,
+                                      enum_duplicates duplic,
+                                      COPY_INFO &update,
+                                      List<Item> &update_fields,
+                                      List<Item> &fields,
+                                      bool empty_values,
+                                      enum_can_prune *can_prune_partitions,
+                                      bool *prune_needs_default_values,
+                                      MY_BITMAP *used_partitions)
 {
+  uint32 *bitmap_buf;
+  uint bitmap_bytes;
+  uint num_partitions= 0;
+  *can_prune_partitions= PRUNE_NO;
+  DBUG_ASSERT(bitmaps_are_initialized);
   DBUG_ENTER("partition_info::can_prune_insert");
+
   /*
     If under LOCK TABLES pruning will skip start_stmt instead of external_lock
     for unused partitions.
@@ -274,16 +284,8 @@ partition_info::can_prune_insert(enum_duplicates duplic,
   */
   if (table->triggers &&
       table->triggers->has_triggers(TRG_EVENT_INSERT, TRG_ACTION_BEFORE))
-    DBUG_RETURN(PRUNE_NO);
+    DBUG_RETURN(false);
 
-  /*
-    Note: It makes no sense to prune on partition/subpartition level when
-    only partition/subpartition fields are affected.
-    For subpartitioned tables, there makes little sense to prune only on
-    partition level or subpartition level. Since it is only possible in
-    few cases (update/auto_inc fields only in part OR subpart fields).
-    Cannot be INSERT SELECT.
-  */
   if (table->found_next_number_field)
   {
     /*
@@ -291,9 +293,9 @@ partition_info::can_prune_insert(enum_duplicates duplic,
       TODO: If all rows have not null values and
       is not 0 (with NO_AUTO_VALUE_ON_ZERO sql_mode), then pruning is possible!
     */
-    if (bitmap_is_set(&table->part_info->full_part_field_set,
+    if (bitmap_is_set(&full_part_field_set,
         table->found_next_number_field->field_index))
-      DBUG_RETURN(PRUNE_NO);
+      DBUG_RETURN(false);
   }
 
   /*
@@ -311,15 +313,14 @@ partition_info::can_prune_insert(enum_duplicates duplic,
       Cannot prune if any field in the partitioning expression can
       be updated by ON DUPLICATE UPDATE.
     */
-    if (update.function_defaults_apply_on_columns(&table->part_info->
-                                                  full_part_field_set))
-      DBUG_RETURN(PRUNE_NO);
+    if (update.function_defaults_apply_on_columns(&full_part_field_set))
+      DBUG_RETURN(false);
  
     /*
       TODO: add check for static update values, which can be pruned.
     */
     if (is_field_in_part_expr(update_fields))
-      DBUG_RETURN(PRUNE_NO);
+      DBUG_RETURN(false);
 
     /*
       Cannot prune if there are BEFORE UPDATE triggers,
@@ -328,7 +329,7 @@ partition_info::can_prune_insert(enum_duplicates duplic,
     if (table->triggers &&
         table->triggers->has_triggers(TRG_EVENT_UPDATE,
                                       TRG_ACTION_BEFORE))
-      DBUG_RETURN(PRUNE_NO);
+      DBUG_RETURN(false);
   }
 
   /*
@@ -351,24 +352,51 @@ partition_info::can_prune_insert(enum_duplicates duplic,
   {
     *prune_needs_default_values= true; // like 'INSERT INTO t () VALUES ()'
   }
+  else
+  {
+     /*
+       In case of INSERT INTO t VALUES (...) we must get values for
+       all fields in table from VALUES (...) part, so no defaults
+       are needed.
+     */
+  }
 
+  /* Pruning possible, have to initialize the used_partitions bitmap. */
+  num_partitions= lock_partitions.n_bits;
+  bitmap_bytes= bitmap_buffer_size(num_partitions);
+  if (!(bitmap_buf= (uint32*) thd->alloc(bitmap_bytes)))
+  {
+    mem_alloc_error(bitmap_bytes);
+    DBUG_RETURN(true);
+  }
+  /* Also clears all bits. */
+  if (bitmap_init(used_partitions, bitmap_buf, num_partitions, false))
+  {
+    /* Cannot happen, due to pre-alloc, purecov: begin deadcode */
+    mem_alloc_error(bitmap_bytes);
+    DBUG_RETURN(true);
+    /* purecov: end */
+  }
   /*
     If no partitioning field in set (e.g. defaults) check pruning only once.
   */
   if (fields.elements &&
       !is_field_in_part_expr(fields))
-    DBUG_RETURN(PRUNE_DEFAULTS);
+    *can_prune_partitions= PRUNE_DEFAULTS;
+  else
+    *can_prune_partitions= PRUNE_YES;
 
-  DBUG_RETURN(PRUNE_YES);
+  DBUG_RETURN(false);
 }
 
 
 /**
   Mark the partition, the record belongs to, as used.
 
-  @param table            Table to use
   @param fields           Fields to set
   @param values           Values to use
+  @param info             COPY_INFO used for default values handling
+  @param copy_default_values  True if we should copy default values
   @param used_partitions  Bitmap to set
 
   @returns Operational status
@@ -378,43 +406,62 @@ partition_info::can_prune_insert(enum_duplicates duplic,
 
 bool partition_info::set_used_partition(List<Item> &fields,
                                         List<Item> &values,
+                                        COPY_INFO &info,
                                         bool copy_default_values,
                                         MY_BITMAP *used_partitions)
 {
   THD *thd= table->in_use;
   uint32 part_id;
   longlong func_value;
+  Dummy_error_handler error_handler;
+  bool ret= true;
   DBUG_ENTER("set_partition");
   DBUG_ASSERT(thd);
 
   /* Only allow checking of constant values */
   List_iterator_fast<Item> v(values);
   Item *item;
+  thd->push_internal_handler(&error_handler);
   while ((item= v++))
   {
     if (!item->const_item())
-      DBUG_RETURN(true);
+      goto err;
   }
 
-  default_record(copy_default_values, table);
+  if (copy_default_values)
+    restore_record(table,s->default_values);
 
   if (fields.elements || !values.elements)
   {
     if (fill_record(thd, fields, values, false, &full_part_field_set))
-      DBUG_RETURN(true);
+      goto err;
   }
   else
   {
     if (fill_record(thd, table->field, values, false, &full_part_field_set))
-      DBUG_RETURN(true);
+      goto err;
   }
+  DBUG_ASSERT(!table->auto_increment_field_not_null);
+
+  /*
+    Evaluate DEFAULT functions like CURRENT_TIMESTAMP.
+    TODO: avoid setting non partitioning fields default value, to avoid
+    overhead. Not yet done, since mostly only one DEFAULT function per
+    table, or at least very few such columns.
+  */
+  if (info.function_defaults_apply_on_columns(&full_part_field_set))
+    info.set_function_defaults(table);
 
   if (get_partition_id(this, &part_id, &func_value))
-    DBUG_RETURN(true);
+    goto err;
 
   DBUG_PRINT("info", ("Insert into partition %u", part_id));
   bitmap_set_bit(used_partitions, part_id);
-  DBUG_RETURN(false);
+  ret= false;
+
+err:
+  thd->pop_internal_handler();
+  DBUG_RETURN(ret);
 }
 
 
@@ -2097,7 +2144,8 @@ bool partition_info::is_field_in_part_expr(List<Item> &fields)
     }
     else
     {
-      DBUG_ASSERT(0); // Should already be checked
+      /* Some non-updateable entity. Should have been checked already. */
+      DBUG_ASSERT(0);
       DBUG_RETURN(true);
     }
   }
@@ -2130,7 +2178,8 @@ bool partition_info::is_full_part_expr_in_fields(List<Item> &fields)
     {
       if (!(field= item->field_for_view_update()))
       {
-        DBUG_ASSERT(0); // Should already be checked
+        /* Some non-updateable entity. Should have been checked already. */
+        DBUG_ASSERT(0);
         DBUG_RETURN(false);
       }
       else
@@ -2730,39 +2779,6 @@ bool partition_info::fix_parser_data(THD *thd)
     } while (++j < num_elements);
   } while (++i < num_parts);
   DBUG_RETURN(FALSE);
-}
-
-
-/**
-  Is the table pruned when cond->const_item() was true.
-*/
-
-bool partition_info::is_const_pruned() const
-{
-  if (prune_state >= PREPARE_CONST_PRUNED)
-    return true;
-  return false;
-}
-
-
-/**
-  Set prune_state.
-
-  @param  is_prepare  Is in prepare stage.
-  @param  is_const    Is the pruning condition const_item.
-*/
-
-void partition_info::set_prune_state(bool is_prepare, bool is_const)
-{
-  if (is_prepare)
-  {
-    if (is_const)
-      prune_state= PREPARE_CONST_PRUNED;
-    else
-      prune_state= PREPARE_PRUNED;
-  }
-  else
-    prune_state= OPTIMIZE_PRUNED;
 }
 
 

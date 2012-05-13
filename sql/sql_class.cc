@@ -4479,7 +4479,7 @@ void xid_cache_delete(XID_STATE *xid_state)
    @retval true Memory allocation error.
 */
 
-bool allocate_column_bitmap(TABLE *table, MY_BITMAP **bitmap)
+static bool allocate_column_bitmap(TABLE *table, MY_BITMAP **bitmap)
 {
   DBUG_ENTER("allocate_column_bitmap");
   const uint number_bits= table->s->fields;
@@ -4558,24 +4558,21 @@ void COPY_INFO::set_function_defaults(TABLE *table)
 
   DBUG_ASSERT(m_function_default_columns != NULL);
 
-  /* Quick reject test for checking the case when no defaults are invoked. */
-  if (bitmap_is_clear_all(m_function_default_columns))
-    DBUG_VOID_RETURN;
-
-  for (uint i= 0; i < table->s->fields; ++i)
-    if (bitmap_is_set(m_function_default_columns, i))
+  for (uint i= bitmap_get_first_set(m_function_default_columns);
+       i < table->s->fields;
+       i= bitmap_get_next_set(m_function_default_columns, i))
+  {
+    DBUG_ASSERT(bitmap_is_set(table->write_set, i));
+    switch (m_optype)
     {
-      DBUG_ASSERT(bitmap_is_set(table->write_set, i));
-      switch (m_optype)
-      {
-      case INSERT_OPERATION:
-        table->field[i]->evaluate_insert_default_function();
-        break;
-      case UPDATE_OPERATION:
-        table->field[i]->evaluate_update_default_function();
-        break;
-      }
+    case INSERT_OPERATION:
+      table->field[i]->evaluate_insert_default_function();
+      break;
+    case UPDATE_OPERATION:
+      table->field[i]->evaluate_update_default_function();
+      break;
     }
+  }
   DBUG_VOID_RETURN;
 }
 

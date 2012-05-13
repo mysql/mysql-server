@@ -242,8 +242,6 @@ bool lock_table_names(THD *thd, TABLE_LIST *table_list,
                       uint flags);
 bool open_tables(THD *thd, TABLE_LIST **tables, uint *counter, uint flags,
                  Prelocking_strategy *prelocking_strategy);
-void open_and_lock_tables_cleanup(THD *thd,
-                                  const MDL_savepoint &mdl_savepoint);
 /* open_and_lock_tables with optional derived handling */
 bool open_and_lock_tables(THD *thd, TABLE_LIST *tables,
                           bool derived, uint flags,

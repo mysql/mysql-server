@@ -60,7 +60,6 @@
 #include "unireg.h"                    // REQUIRED: for other includes
 #include "sql_insert.h"
 #include "sql_update.h"                         // compare_record
-#include "sql_derived.h"                        // mysql_derived_*
 #include "sql_base.h"                           // close_thread_tables
 #include "sql_cache.h"                          // query_cache_*
 #include "key.h"                                // key_copy
@@ -767,6 +766,13 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
   /* mysql_prepare_insert set table_list->table if it was not set */
   table= table_list->table;
 
+  /* Must be done before can_prune_insert, due to internal initialization. */
+  if (info.add_function_default_columns(table, table->write_set))
+    goto exit_without_my_ok;
+  if (duplic == DUP_UPDATE &&
+      update.add_function_default_columns(table, table->write_set))
+    goto exit_without_my_ok;
+
   context= &thd->lex->select_lex.context;
   /*
     These three asserts test the hypothesis that the resetting of the name
@@ -787,53 +793,34 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
   table_list->next_local= 0;
   context->resolve_in_table_list_only(table_list);
 
-  /* Must be done before can_prune_insert, due to internal initialization. */
-  if (info.add_function_default_columns(table, table->write_set))
-    goto exit_without_my_ok;
-  if (duplic == DUP_UPDATE &&
-      update.add_function_default_columns(table, table->write_set))
-    goto exit_without_my_ok;
-
 #ifdef WITH_PARTITION_STORAGE_ENGINE
   if (!is_locked && table->part_info)
   {
-    can_prune_partitions=
-      table->part_info->can_prune_insert(duplic,
-                                         update,
-                                         update_fields,
-                                         fields,
-                                         !test(values->elements),
-                                         &prune_needs_default_values);
+    if (table->part_info->can_prune_insert(thd,
+                                           duplic,
+                                           update,
+                                           update_fields,
+                                           fields,
+                                           !test(values->elements),
+                                           &can_prune_partitions,
+                                           &prune_needs_default_values,
+                                           &used_partitions))
+      goto exit_without_my_ok;
+
     if (can_prune_partitions != partition_info::PRUNE_NO)
     {
-      uint32 *bitmap_buf;
-      uint bitmap_bytes;
-      DBUG_ASSERT(table->part_info->bitmaps_are_initialized);
-
-      /*
-        Pruning probably possible, must unmark all partitions for read/lock,
-        and add them on row by row basis.
-      */
       num_partitions= table->part_info->lock_partitions.n_bits;
-      bitmap_bytes= bitmap_buffer_size(num_partitions);
-      if (!(bitmap_buf= (uint32*) thd->alloc(bitmap_bytes)))
-      {
-        mem_alloc_error(bitmap_bytes);
-        goto exit_without_my_ok;
-      }
-      /* Also clears all bits. */
-      if (bitmap_init(&used_partitions, bitmap_buf, num_partitions, false))
-      {
-        mem_alloc_error(bitmap_bytes);   /* Cannot happen, due to pre-alloc */
-        goto exit_without_my_ok;
-      }
       /*
+        Pruning probably possible, all partitions is unmarked for read/lock,
+        and we must now add them on row by row basis.
+
         Check the first INSERT value.
         Do not fail here, since that would break MyISAM behavior of inserting
         all rows before the failing row.
       */
       if (table->part_info->set_used_partition(fields,
                                                *values,
+                                               info,
                                                prune_needs_default_values,
                                                &used_partitions))
         can_prune_partitions= partition_info::PRUNE_NO;
@@ -854,7 +841,7 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
 
 #ifdef WITH_PARTITION_STORAGE_ENGINE
     /*
-      To make it possible to increase concurrancy on table level locking
+      To make it possible to increase concurrency on table level locking
       engines such as MyISAM, we check pruning for each row until we will use
       all partitions, Even if the number of rows is much higher than the
       number of partitions.
@@ -865,17 +852,24 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
     {
       if (table->part_info->set_used_partition(fields,
                                                *values,
+                                               info,
                                                prune_needs_default_values,
                                                &used_partitions))
         can_prune_partitions= partition_info::PRUNE_NO;
       if (!(counter % num_partitions))
       {
+        /*
+          Check if we using all partitions in table after adding partition
+          for current row to the set of used partitions. Do it only from
+          time to time to avoid overhead from bitmap_is_set_all() call.
+        */
         if (bitmap_is_set_all(&used_partitions))
           can_prune_partitions= partition_info::PRUNE_NO;
       }
     }
 #endif /* WITH_PARTITION_STORAGE_ENGINE */
   }
+  table->auto_increment_field_not_null= false;
   its.rewind ();
  
   /* Restore the current context. */
@@ -902,6 +896,10 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
       the new set of read/lock partitions is the intersection of read/lock
       partitions and used partitions, i.e only the partitions that exists in
       both sets will be marked for read/lock.
+      It is also safe for REPLACE, since all potentially conflicting records
+      always belong to the same partition as the one which we try to
+      insert a row. This is because ALL unique/primary keys must
+      include ALL partitioning columns.
     */
     bitmap_intersect(&table->part_info->read_partitions,
                      &used_partitions);
@@ -3795,8 +3793,11 @@ void select_insert::abort_result_set() {
   {
     bool changed, transactional_table;
     /*
-      If we are not in prelocked mode, we end the bulk insert started
-      before.
+      Try to end the bulk insert which might have been started before.
+      We don't need to do this if we are in prelocked mode (since we
+      don't use bulk insert in this case). Also we should not do this
+      if tables are not locked yet (bulk insert is not started yet
+      in this case).
     */
     if (thd->locked_tables_mode <= LTM_LOCK_TABLES &&
         thd->lex->is_query_tables_locked())

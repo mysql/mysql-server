@@ -1135,26 +1135,7 @@ public:
   /* Return pointer to first not-own table in query-tables or 0 */
   TABLE_LIST* first_not_own_table()
   {
-    /*
-      Note: query_tables_own_last may be set to &first_table->next_global
-      which might be removed by unlink_first_table.
-      So if query_tables_own_last is set, but *query_tables_own_last is NULL,
-      Then it might be not own tables left any way.
-      This can be checked by comparing query_tables_own_last with
-      query_tables_last and if they is not the same, then
-      first_not_own_table is query_tables.
-    */
-    if (query_tables_own_last)
-    {
-      if (*query_tables_own_last)
-        return *query_tables_own_last;
-      else
-      {
-        if (query_tables_own_last != query_tables_last)
-          return query_tables;
-      }
-    }
-    return NULL;
+    return ( query_tables_own_last ? *query_tables_own_last : 0);
   }
   void chop_off_not_own_tables()
   {

@@ -149,6 +149,13 @@ static bool check_exchange_partition(TABLE *table, TABLE *part_table)
     DBUG_RETURN(TRUE);
   }
 
+  /* The table cannot have foreign keys constraints or be referenced */
+  if(!table->file->can_switch_engines())
+  {
+    my_error(ER_PARTITION_EXCHANGE_FOREIGN_KEY, MYF(0),
+             table->s->table_name.str);
+    DBUG_RETURN(TRUE);
+  }
   DBUG_RETURN(FALSE);
 }
 
@@ -481,7 +488,6 @@ bool Sql_cmd_alter_table_exchange_partition::
   handlerton *table_hton;
   partition_element *part_elem;
   char *partition_name;
-  List<String> partition_names_list;
   char temp_name[FN_REFLEN+1];
   char part_file_name[FN_REFLEN+1];
   char swap_file_name[FN_REFLEN+1];
@@ -526,10 +532,7 @@ bool Sql_cmd_alter_table_exchange_partition::
   table_list->mdl_request.set_type(MDL_SHARED_NO_WRITE);
   if (open_tables(thd, &table_list, &table_counter, 0,
                   &alter_prelocking_strategy))
-  {
-    open_and_lock_tables_cleanup(thd, mdl_savepoint);
-    DBUG_RETURN(TRUE);
-  }
+    DBUG_RETURN(true);
 
   part_table= table_list->table;
   swap_table= swap_table_list->table;
@@ -544,21 +547,8 @@ bool Sql_cmd_alter_table_exchange_partition::
     DBUG_RETURN(true);
 
   if (lock_tables(thd, table_list, table_counter, 0))
-  {
-    open_and_lock_tables_cleanup(thd, mdl_savepoint);
     DBUG_RETURN(true);
-  }
 
-  /*
-    The table cannot have foreign keys constraints or be referenced.
-    This can only be checked after locking the table.
-  */
-  if(!swap_table->file->can_switch_engines())
-  {
-    my_error(ER_PARTITION_EXCHANGE_FOREIGN_KEY, MYF(0),
-             swap_table->s->table_name.str);
-    DBUG_RETURN(true);
-  }
 
   table_hton= swap_table->file->ht;
 
@@ -781,10 +771,7 @@ bool Sql_cmd_alter_table_truncate_partition::execute(THD *thd)
 
   mdl_savepoint= thd->mdl_context.mdl_savepoint();
   if (open_tables(thd, &first_table, &table_counter, 0))
-  {
-    open_and_lock_tables_cleanup(thd, mdl_savepoint);
     DBUG_RETURN(true);
-  }
 
   /*
     TODO: Add support for TRUNCATE PARTITION for NDB and other
@@ -814,10 +801,7 @@ bool Sql_cmd_alter_table_truncate_partition::execute(THD *thd)
     DBUG_RETURN(true);
 
   if (lock_tables(thd, first_table, table_counter, 0))
-  {
-    open_and_lock_tables_cleanup(thd, mdl_savepoint);
     DBUG_RETURN(true);
-  }
 
   /*
     Under locked table modes this might still not be an exclusive

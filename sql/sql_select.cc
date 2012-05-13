@@ -973,7 +973,8 @@ void JOIN::cleanup_item_list(List<Item> &items) const
                               SELECT * FROM t1 WHERE a1 IN (SELECT * FROM t2)
                               has 2 unions.
   @param select_lex           the only SELECT_LEX of this query
-  @param[out] free_join       if returned JOIN should be freed     
+  @param[out] free_join       Will be set to false if select_lex->join does
+                              not need to be freed.
 
   @retval
     false  success
@@ -983,7 +984,7 @@ void JOIN::cleanup_item_list(List<Item> &items) const
   @note tables must be opened before calling mysql_prepare_select.
 */
 
-bool
+static bool
 mysql_prepare_select(THD *thd,
                      TABLE_LIST *tables, uint wild_num, List<Item> &fields,
                      Item *conds, uint og_num,  ORDER *order, ORDER *group,
@@ -1030,7 +1031,7 @@ mysql_prepare_select(THD *thd,
           DBUG_RETURN(true);
       }
     }
-    *free_join= 0;
+    *free_join= false;
     join->select_options= select_options;
   }
   else
@@ -1064,16 +1065,14 @@ mysql_prepare_select(THD *thd,
   @note tables must be opened and locked before calling mysql_execute_select.
 */
 
-bool
+static bool
 mysql_execute_select(THD *thd, SELECT_LEX *select_lex, bool free_join)
 {
   bool err;
   JOIN* join= select_lex->join;
 
   DBUG_ENTER("mysql_execute_select");
-
-  if (!join)
-    DBUG_RETURN(false);
+  DBUG_ASSERT(join);
 
   if ((err= join->optimize()))
   {
@@ -1086,7 +1085,7 @@ mysql_execute_select(THD *thd, SELECT_LEX *select_lex, bool free_join)
   if (join->select_options & SELECT_DESCRIBE)
   {
     join->explain();
-    free_join= 0;
+    free_join= false;
   }
   else
     join->exec();
@@ -1119,8 +1118,6 @@ err:
                               for a, b and c in this list.
   @param conds                top level item of an expression representing
                               WHERE clause of the top level select
-  @param og_num               total number of ORDER BY and GROUP BY clauses
-                              arguments
   @param order                linked list of ORDER BY agruments
   @param group                linked list of GROUP BY arguments
   @param having               top level item of HAVING expression
@@ -1137,13 +1134,6 @@ err:
                               SELECT * FROM t1 WHERE a1 IN (SELECT * FROM t2)
                               has 2 unions.
   @param select_lex           the only SELECT_LEX of this query
-  @param tables_to_open_and_lock  Tables to open and lock
-                                  (NULL if already locked)
-  @param open_tables_is_done  All tables are already opened
-  @param tables_to_lock       If open_tables_is_done, not null means we should
-                              also lock tables
-  @param open_mdl_savepoint   If open_tables_is_done, savepoint to use on
-                              failure
 
   @retval
     false  success
@@ -1159,7 +1149,7 @@ mysql_select(THD *thd,
              select_result *result, SELECT_LEX_UNIT *unit,
              SELECT_LEX *select_lex)
 {
-  bool free_join= 1;
+  bool free_join= true;
   uint og_num= 0;
   ORDER *first_order= NULL;
   ORDER *first_group= NULL;
@@ -1183,7 +1173,7 @@ mysql_select(THD *thd,
   {
     if (free_join)
     {
-      thd_proc_info(thd, "end");
+      THD_STAGE_INFO(thd, stage_end);
       (void) select_lex->cleanup();
     }
     DBUG_RETURN(true);
@@ -1204,7 +1194,7 @@ mysql_select(THD *thd,
     {
       if (free_join)
       {
-        thd_proc_info(thd, "end");
+        THD_STAGE_INFO(thd, stage_end);
         (void) select_lex->cleanup();
       }
       DBUG_RETURN(true);
@@ -1220,10 +1210,7 @@ mysql_select(THD *thd,
     query_cache_store_query(thd, thd->lex->query_tables);
   }
 
-  if (mysql_execute_select(thd, select_lex, free_join))
-    DBUG_RETURN(true);
-
-  DBUG_RETURN(false);
+  DBUG_RETURN(mysql_execute_select(thd, select_lex, free_join));
 }
 
 /*****************************************************************************

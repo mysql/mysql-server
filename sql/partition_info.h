@@ -223,9 +223,8 @@ public:
   bool from_openfrm;
   bool has_null_value;
   bool column_list;                          // COLUMNS PARTITIONING, 5.5+
-  enum enum_prune_state { NOT_PRUNED= 0, PREPARE_PRUNED, PREPARE_CONST_PRUNED,
-                          OPTIMIZE_PRUNED };
-  enum_prune_state prune_state;
+  /** True if pruning has been done with cond->const_item(). */
+  bool is_const_item_pruned;
 
   partition_info()
   : get_partition_id(NULL), get_part_partition_id(NULL),
@@ -258,7 +257,7 @@ public:
     list_of_part_fields(FALSE), list_of_subpart_fields(FALSE),
     linear_hash_ind(FALSE), fixed(FALSE),
     is_auto_partitioned(FALSE), from_openfrm(FALSE),
-    has_null_value(FALSE), column_list(FALSE), prune_state(NOT_PRUNED)
+    has_null_value(FALSE), column_list(FALSE), is_const_item_pruned(false)
   {
     partitions.empty();
     temp_partitions.empty();
@@ -319,21 +318,21 @@ public:
                                    char *file_name,
                                    uint32 *part_id);
   void report_part_expr_error(bool use_subpart_expr);
-  bool is_field_in_part_expr(List<Item> &fields);
-  bool is_full_part_expr_in_fields(List<Item> &fields);
   bool set_used_partition(List<Item> &fields,
                           List<Item> &values,
+                          COPY_INFO &info,
                           bool copy_default_values,
                           MY_BITMAP *used_partitions);
   enum enum_can_prune {PRUNE_NO=0, PRUNE_DEFAULTS, PRUNE_YES};
-  enum_can_prune can_prune_insert(enum_duplicates duplic,
-                                  COPY_INFO &update,
-                                  List<Item> &update_fields,
-                                  List<Item> &fields,
-                                  bool empty_values,
-                                  bool *prune_needs_default_values);
-  bool is_const_pruned() const;
-  void set_prune_state(bool is_prepare, bool is_const);
+  bool can_prune_insert(THD *thd,
+                        enum_duplicates duplic,
+                        COPY_INFO &update,
+                        List<Item> &update_fields,
+                        List<Item> &fields,
+                        bool empty_values,
+                        enum_can_prune *can_prune_partitions,
+                        bool *prune_needs_default_values,
+                        MY_BITMAP *used_partitions);
 private:
   static int list_part_cmp(const void* a, const void* b);
   bool set_up_default_partitions(handler *file, HA_CREATE_INFO *info,
@@ -345,6 +344,8 @@ private:
                                          const char *part_name);
   bool prune_partition_bitmaps(TABLE_LIST *table_list);
   bool add_named_partition(const char *part_name, uint length);
+  bool is_field_in_part_expr(List<Item> &fields);
+  bool is_full_part_expr_in_fields(List<Item> &fields);
 };
 
 uint32 get_next_partition_id_range(struct st_partition_iter* part_iter);

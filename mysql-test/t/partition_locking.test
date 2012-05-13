@@ -29,7 +29,8 @@ PARTITION BY HASH (a) PARTITIONS 13;
 
 --echo #
 --echo #
---echo # Test insert
+--echo # Test how INSERT prune locks
+--echo # First test, no defaults
 --echo #
 FLUSH STATUS;
 INSERT INTO t1 VALUES (1, 'First row, p1');
@@ -54,6 +55,10 @@ INSERT INTO t1 VALUES (1 * 13, 'Second row, p0'), (2 * 13, 'Third row, p0'),
 eval $get_handler_status_counts;
 --echo # 4 locks (table + 1 partition lock/unlock)
 --echo # 1 commit
+
+--echo #
+--echo # INSERT with auto increment, lock pruning
+--echo #
 FLUSH STATUS;
 INSERT INTO t2 VALUES (NULL, 'First auto-inc row');
 eval $get_handler_status_counts;
@@ -69,7 +74,7 @@ eval $get_handler_status_counts;
 --echo # 1 commit
 
 --echo #
---echo # Test of pruning with secondary column auto_inc
+--echo # Test of pruning with secondary column auto_inc INSERT
 --echo #
 CREATE TABLE t3 (a INT, b INT AUTO_INCREMENT, PRIMARY KEY (a, b))
 ENGINE = MyISAM
@@ -101,7 +106,7 @@ SELECT * FROM t3;
 DROP TABLE t3;
 
 --echo #
---echo # More INSERT pruning tests
+--echo # Test handling of INSERT INTO <table> VALUES (<all fields specified>)
 --echo #
 CREATE TABLE t3 (a INT, b CHAR(10)) PARTITION BY HASH (a) PARTITIONS 2;
 FLUSH STATUS;
@@ -144,6 +149,11 @@ FLUSH STATUS;
 INSERT INTO t3 (a, b) VALUES (0, "Test 0");
 eval $get_handler_status_counts;
 --echo # 4 locks (1 table, 1 partition lock/unlock)
+
+--echo #
+--echo # Test handling of
+--echo # INSERT INTO <table> VALUES (<not all fields specified>)
+--echo #
 FLUSH STATUS;
 INSERT INTO t3 (a) VALUES (1);
 eval $get_handler_status_counts;
@@ -190,18 +200,37 @@ SUBPARTITIONS 4
  PARTITION `p0-9` VALUES LESS THAN (9, MAXVALUE),
  PARTITION p10 VALUES LESS THAN (10, MAXVALUE),
  PARTITION `p11-100` VALUES LESS THAN (99, MAXVALUE));
+--echo #
+--echo # Test INSERT with
+--echo # empty field specifier list and empty value list
+--echo #
 FLUSH STATUS;
 INSERT INTO t3 () VALUES ();
 eval $get_handler_status_counts;
 --echo # 4 locks (1 table, 1 subpartition lock/unlock)
+
+--echo #
+--echo # Test INSERT with
+--echo # no field specifier list and full value list, including DEFAULT
+--echo # specifier
+--echo #
 FLUSH STATUS;
 INSERT INTO t3 VALUES (-1, "ZZZzzzz", "yyyYYY", -1, DEFAULT);
 eval $get_handler_status_counts;
 --echo # 4 locks (1 table, 1 subpartition lock/unlock)
+
+--echo #
+--echo # Test INSERT with
+--echo # empty field specifier list and full value list, including NULL
+--echo #
 FLUSH STATUS;
 INSERT INTO t3 () VALUES (0, "", "", 0, NULL);
 eval $get_handler_status_counts;
 --echo # 4 locks (1 table, 1 subpartition lock/unlock)
+
+--echo #
+--echo # Test INSERT with field specifier list for only some fields
+--echo #
 FLUSH STATUS;
 INSERT INTO t3 (a) VALUES (1);
 eval $get_handler_status_counts;
@@ -246,15 +275,27 @@ INSERT INTO t3 (b, c, d) VALUES ("Half part", "Full subpart", 1);
 eval $get_handler_status_counts;
 --echo # 4 locks (1 table, 1 subpartition lock/unlock)
 FLUSH STATUS;
+
+--echo #
+--echo # Test INSERT with full field specifier list and full value list
+--echo #
 INSERT INTO t3 (a, b, c, d) VALUES (1, "Full part", "Full subpart", 1);
 eval $get_handler_status_counts;
 --echo # 4 locks (1 table, 1 subpartition lock/unlock)
+
+--echo #
+--echo # Test INSERT with no field specifier list and empty value list
+--echo # (need to delete previous inserted default row first...)
+--echo #
 DELETE FROM t3 WHERE a = 10 AND b = 'Default' AND c = 'Default' AND D = 9;
 FLUSH STATUS;
 INSERT INTO t3 VALUES ();
 eval $get_handler_status_counts;
 --echo # 4 locks (1 table, 1 subpartition lock/unlock)
 
+--echo #
+--echo # Verifing result
+--echo #
 --sorted_result
 SELECT * FROM t3;
 --sorted_result
@@ -276,11 +317,21 @@ LOCK TABLES t3 WRITE;
 eval $get_handler_status_counts;
 --echo # 17 locks (1 table, 16 partitions lock)
 --echo # No further locks/unlocks until UNLOCK TABLES.
+
+--echo #
+--echo # Test INSERT with no field specifier list and empty value list
+--echo # (need to delete previous inserted default row first...)
+--echo #
 DELETE FROM t3 WHERE a = 10 AND b = 'Default' AND c = 'Default' AND D = 9;
 FLUSH STATUS;
 INSERT INTO t3 VALUES ();
 eval $get_handler_status_counts;
 FLUSH STATUS;
+
+--echo #
+--echo # Test INSERT with field specifier list for only some fields
+--echo # (need to delete previous inserted default row first...)
+--echo #
 DELETE FROM t3
 WHERE a = 10 AND b = "Default" AND c = "Default" AND d = 9;
 eval $get_handler_status_counts;
@@ -288,16 +339,28 @@ FLUSH STATUS;
 INSERT INTO t3 (b, d, e) VALUES (DEFAULT, DEFAULT, "All default!");
 eval $get_handler_status_counts;
 FLUSH STATUS;
+
+--echo #
+--echo # Test UPDATE of non PK field in default row
+--echo #
 UPDATE t3
 SET e = CONCAT(e, ", updated")
 WHERE a = 10 AND b = "Default" AND c = "Default" AND d = 9;
 eval $get_handler_status_counts;
 FLUSH STATUS;
+
+--echo #
+--echo # Test UPDATE of PK field + non PK field in default row
+--echo #
 UPDATE t3
 SET a = DEFAULT, b = "Not DEFAULT!", e = CONCAT(e, ", updated2")
 WHERE a = 10 AND b = "Default" AND c = "Default" AND d = 9;
 eval $get_handler_status_counts;
 FLUSH STATUS;
+
+--echo #
+--echo # Test REPLACE of default row (INSERT, since not duplicate)
+--echo #
 REPLACE INTO t3 (e) VALUES ("New default row");
 eval $get_handler_status_counts;
 FLUSH STATUS;
@@ -309,9 +372,18 @@ EXPLAIN PARTITIONS SELECT * FROM t3
 WHERE a = 10 AND b = "Default" AND c = "Default" AND d = 9;
 eval $get_handler_status_counts;
 FLUSH STATUS;
+
+--echo #
+--echo # Test REPLACE of default row (REPLACE, since duplicate exists)
+--echo #
 REPLACE INTO t3 (e) VALUES ("Newest default row");
 eval $get_handler_status_counts;
+
+--echo #
+--echo # Test SELECT with explicit partition selection
+--echo #
 FLUSH STATUS;
+--sorted_result
 SELECT * FROM t3 PARTITION (p10);
 eval $get_handler_status_counts;
 FLUSH STATUS;
@@ -323,146 +395,123 @@ UNLOCK TABLES;
 eval $get_handler_status_counts;
 --echo # 17 locks (1 table, 16 partitions unlock)
 DROP TABLE t3;
+--echo #
+--echo # End of LOCK TABLE test.
+--echo #
 
+# Only TIMESTAMP auto converts NULL to NOW().
+--let $null_as_now= 1;
+--let $default_update= 0;
 --echo #
---echo # Test insert with timestamp column
+--echo # Test INSERT with timestamp column NO default function
 --echo #
+SELECT UNIX_TIMESTAMP('2011-01-01 00:00:00') as time_t,
+       UNIX_TIMESTAMP('2011-01-01 00:00:00') % 3 as part,
+       1234567890 % 3 as part2;
 CREATE TABLE t3
 (a timestamp DEFAULT 0,
  b char(10),
- PRIMARY KEY (a, b))
+ PRIMARY KEY (a))
 PARTITION BY HASH (UNIX_TIMESTAMP(a)) PARTITIONS 3;
 SHOW CREATE TABLE t3;
-FLUSH STATUS;
-SET TIMESTAMP = 1234567890;
-INSERT INTO t3 (a) VALUES (NULL);
-eval $get_handler_status_counts;
---echo # 4 locks (1 table, 1 partition lock/unlock)
-FLUSH STATUS;
-INSERT INTO t3 VALUES ();
-eval $get_handler_status_counts;
---echo # 4 locks (1 table, 1 partition lock/unlock)
-FLUSH STATUS;
-INSERT INTO t3 (a) VALUES ('2011-01-01 00:00:00');
-eval $get_handler_status_counts;
---echo # 4 locks (1 table, 1 partition lock/unlock)
-FLUSH STATUS;
-INSERT INTO t3 (a) VALUES ('2011-01-01 00:00:01');
-eval $get_handler_status_counts;
---echo # 4 locks (1 table, 1 partition lock/unlock)
-FLUSH STATUS;
-INSERT INTO t3 (a) VALUES ('2011-01-01 00:00:02'), ('2011-01-01 00:00:03');
-eval $get_handler_status_counts;
---echo # 6 locks (1 table, 2 partition lock/unlock)
-FLUSH STATUS;
-INSERT INTO t3 (a) VALUES ('2011-01-01 00:00:00')
-ON DUPLICATE KEY UPDATE b = CONCAT(b, ", DUP_KEY");
-eval $get_handler_status_counts;
---echo # 4 locks (1 table, 1 partition lock/unlock)
-SELECT * FROM t3;
-DROP TABLE t3;
-CREATE TABLE t3
-(a timestamp DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
- b char(10),
- PRIMARY KEY (a, b))
-PARTITION BY HASH (UNIX_TIMESTAMP(a)) PARTITIONS 3;
-SHOW CREATE TABLE t3;
-FLUSH STATUS;
-SET TIMESTAMP = 1234567890;
-INSERT INTO t3 (a) VALUES (NULL);
-eval $get_handler_status_counts;
---echo # 4 locks (1 table, 1 partition lock/unlock)
---echo # TODO Fix the bug in INSERT INTO t3 VALUES () and enable the test
-#FLUSH STATUS;
-#SET TIMESTAMP = 1234567891;
-#INSERT INTO t3 VALUES ();
-#eval $get_handler_status_counts;
-#--echo # 4 locks (1 table, 1 partition lock/unlock)
-FLUSH STATUS;
-INSERT INTO t3 (a) VALUES ('2011-01-01 00:00:00');
-eval $get_handler_status_counts;
---echo # 4 locks (1 table, 1 partition lock/unlock)
-FLUSH STATUS;
-INSERT INTO t3 (a) VALUES ('2011-01-01 00:00:01');
-eval $get_handler_status_counts;
---echo # 4 locks (1 table, 1 partition lock/unlock)
-FLUSH STATUS;
-INSERT INTO t3 (a) VALUES ('2011-01-01 00:00:02'), ('2011-01-01 00:00:03');
-eval $get_handler_status_counts;
---echo # 6 locks (1 table, 2 partition lock/unlock)
-FLUSH STATUS;
-SET TIMESTAMP = 1234567892;
-INSERT INTO t3 (a) VALUES ('2011-01-01 00:00:00')
-ON DUPLICATE KEY UPDATE b = CONCAT(b, ", DUP_KEY");
-eval $get_handler_status_counts;
-#--echo # May change partition, so gives different UPDATE/DELETE/WRITE count
-#SHOW STATUS LIKE 'Handler_external_lock';
---echo # 8 locks (1 table, 3 partition lock/unlock)
-SELECT * FROM t3;
-DROP TABLE t3;
-CREATE TABLE t3
-(a timestamp DEFAULT 0 ON UPDATE CURRENT_TIMESTAMP,
- b char(10),
- PRIMARY KEY (a, b))
-PARTITION BY HASH (UNIX_TIMESTAMP(a)) PARTITIONS 3;
-SHOW CREATE TABLE t3;
-FLUSH STATUS;
-INSERT INTO t3 (a) VALUES (NULL);
-eval $get_handler_status_counts;
---echo # 4 locks (1 table, 1 partition lock/unlock)
-FLUSH STATUS;
-INSERT INTO t3 (a) VALUES ('2011-01-01 00:00:00');
-eval $get_handler_status_counts;
---echo # 4 locks (1 table, 1 partition lock/unlock)
-FLUSH STATUS;
-INSERT INTO t3 (a) VALUES ('2011-01-01 00:00:01');
-eval $get_handler_status_counts;
---echo # 4 locks (1 table, 1 partition lock/unlock)
-FLUSH STATUS;
-INSERT INTO t3 (a) VALUES ('2011-01-01 00:00:02'), ('2011-01-01 00:00:03');
-eval $get_handler_status_counts;
---echo # 6 locks (1 table, 2 partition lock/unlock)
-FLUSH STATUS;
-INSERT INTO t3 (a) VALUES ('2011-01-01 00:00:00')
-ON DUPLICATE KEY UPDATE b = CONCAT(b, ", DUP_KEY");
-#eval $get_handler_status_counts;
---echo # May change partition, so gives different UPDATE/DELETE/WRITE count
-SHOW STATUS LIKE 'Handler_external_lock';
---echo # 8 locks (1 table, 3 partition lock/unlock)
-SELECT COUNT(*) FROM t3;
-DROP TABLE t3;
-CREATE TABLE t3
-(a timestamp DEFAULT CURRENT_TIMESTAMP,
- b char(10),
- PRIMARY KEY (a, b))
-PARTITION BY HASH (UNIX_TIMESTAMP(a)) PARTITIONS 3;
-SHOW CREATE TABLE t3;
-FLUSH STATUS;
-INSERT INTO t3 (a) VALUES (NULL);
-eval $get_handler_status_counts;
---echo # 4 locks (1 table, 1 partition lock/unlock)
-FLUSH STATUS;
-INSERT INTO t3 (a) VALUES ('2011-01-01 00:00:00');
-eval $get_handler_status_counts;
---echo # 4 locks (1 table, 1 partition lock/unlock)
-FLUSH STATUS;
-INSERT INTO t3 (a) VALUES ('2011-01-01 00:00:01');
-eval $get_handler_status_counts;
---echo # 4 locks (1 table, 1 partition lock/unlock)
-FLUSH STATUS;
-INSERT INTO t3 (a) VALUES ('2011-01-01 00:00:02'), ('2011-01-01 00:00:03');
-eval $get_handler_status_counts;
---echo # 6 locks (1 table, 2 partition lock/unlock)
-FLUSH STATUS;
-INSERT INTO t3 (a) VALUES ('2011-01-01 00:00:00')
-ON DUPLICATE KEY UPDATE b = CONCAT(b, ", DUP_KEY");
-eval $get_handler_status_counts;
---echo # 4 locks (1 table, 1 partition lock/unlock)
-SELECT COUNT(*) FROM t3;
+--source include/partition_default_functions.inc
 DROP TABLE t3;
 
 --echo #
---echo # Test insert select
+--echo # Test INSERT with timestamp column DEFAULT INSERT + UPDATE
+--echo #
+--let $default_update= 1;
+CREATE TABLE t3
+(a timestamp DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+ b char(10),
+ PRIMARY KEY (a))
+PARTITION BY HASH (UNIX_TIMESTAMP(a)) PARTITIONS 3;
+SHOW CREATE TABLE t3;
+--source include/partition_default_functions.inc
+DROP TABLE t3;
+
+--echo #
+--echo # Test INSERT with timestamp column DEFAULT UPDATE
+--echo #
+--let $default_update= 1;
+CREATE TABLE t3
+(a timestamp DEFAULT 0 ON UPDATE CURRENT_TIMESTAMP,
+ b char(10),
+ PRIMARY KEY (a))
+PARTITION BY HASH (UNIX_TIMESTAMP(a)) PARTITIONS 3;
+SHOW CREATE TABLE t3;
+--source include/partition_default_functions.inc
+DROP TABLE t3;
+
+--echo #
+--echo # Test INSERT with timestamp column DEFAULT INSERT
+--echo #
+--let $default_update= 0;
+CREATE TABLE t3
+(a timestamp DEFAULT CURRENT_TIMESTAMP,
+ b char(10),
+ PRIMARY KEY (a))
+PARTITION BY HASH (UNIX_TIMESTAMP(a)) PARTITIONS 3;
+SHOW CREATE TABLE t3;
+--source include/partition_default_functions.inc
+DROP TABLE t3;
+
+# Only TIMESTAMP auto converts NULL to NOW().
+--let $null_as_now= 0;
+--let $default_update= 0;
+--echo #
+--echo # Test INSERT with DATETIME column NO default function
+--echo #
+CREATE TABLE t3
+(a DATETIME DEFAULT 0,
+ b char(10),
+ PRIMARY KEY (a))
+PARTITION BY KEY (a) PARTITIONS 3;
+SHOW CREATE TABLE t3;
+--source include/partition_default_functions.inc
+DROP TABLE t3;
+
+--echo #
+--echo # Test INSERT with DATETIME column DEFAULT INSERT + UPDATE
+--echo #
+--let $default_update= 1;
+CREATE TABLE t3
+(a DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+ b char(10),
+ PRIMARY KEY (a))
+PARTITION BY KEY (a) PARTITIONS 3;
+SHOW CREATE TABLE t3;
+--source include/partition_default_functions.inc
+DROP TABLE t3;
+
+--echo #
+--echo # Test INSERT with DATETIME column DEFAULT UPDATE
+--echo #
+--let $default_update= 1;
+CREATE TABLE t3
+(a DATETIME DEFAULT 0 ON UPDATE CURRENT_TIMESTAMP,
+ b char(10),
+ PRIMARY KEY (a))
+PARTITION BY KEY (a) PARTITIONS 3;
+SHOW CREATE TABLE t3;
+--source include/partition_default_functions.inc
+DROP TABLE t3;
+
+--echo #
+--echo # Test INSERT with DATETIME column DEFAULT INSERT
+--echo #
+--let $default_update= 0;
+CREATE TABLE t3
+(a DATETIME DEFAULT CURRENT_TIMESTAMP,
+ b char(10),
+ PRIMARY KEY (a))
+PARTITION BY KEY (a) PARTITIONS 3;
+SHOW CREATE TABLE t3;
+--source include/partition_default_functions.inc
+DROP TABLE t3;
+
+--echo #
+--echo # Test INSERT SELECT
 --echo #
 FLUSH STATUS;
 TRUNCATE TABLE t2;
@@ -486,7 +535,10 @@ FLUSH STATUS;
 ALTER TABLE t2 TRUNCATE PARTITION p1;
 eval $get_handler_status_counts;
 --echo # 4 locks (1 table, 1 partition lock/unlock)
+FLUSH STATUS;
 INSERT INTO t2 SELECT a, b FROM t1 WHERE a = 1;
+eval $get_handler_status_counts;
+--echo # 32 locks (2 table + 13 + 1 partitions)
 
 --echo #
 --echo # Test insert on duplicated key update
@@ -611,7 +663,7 @@ eval $get_handler_status_counts;
 --echo # 1 rollback
 
 --echo #
---echo # Test select
+--echo # Test SELECT
 --echo #
 FLUSH STATUS;
 SELECT * FROM t1 ORDER BY a;
@@ -647,7 +699,7 @@ eval $get_handler_status_counts;
 --echo # 5 read_next
 
 --echo #
---echo # Test EXPLAIN select
+--echo # Test EXPLAIN SELECT
 --echo #
 FLUSH STATUS;
 --sorted_result
@@ -698,7 +750,7 @@ eval $get_handler_status_counts;
 
 --echo #
 --echo # Test pruning of non static values
---echo # They will need to lock all partitions, but will allow pruning
+--echo # They will need to lock all partitions, but will allow scan pruning
 --echo # due to a second pruning call in optimize.
 --echo #
 CREATE TABLE t3 (a INT);
@@ -762,7 +814,7 @@ DROP TABLE t4;
 
 
 --echo #
---echo # Test select * from (select * from ...)
+--echo # Test derived tables like SELECT * FROM (SELECT * FROM ...)
 --echo #
 FLUSH STATUS;
 SELECT * FROM (SELECT * FROM t1 WHERE a IN (0,2,3,13,26)) t3;
@@ -781,7 +833,7 @@ eval $get_handler_status_counts;
 
 
 --echo #
---echo # Test EXPLAIN select * from (select * from ...)
+--echo # Test EXPLAIN SELECT * FROM (SELECT * FROM ...)
 --echo #
 FLUSH STATUS;
 EXPLAIN SELECT * FROM (SELECT * FROM t1 WHERE a IN (0,2,3,13,26)) t3;
@@ -803,7 +855,7 @@ eval $get_handler_status_counts;
 
 
 --echo #
---echo # Test select ... UNION select ...
+--echo # Test SELECT ... UNION SELECT ...
 --echo #
 FLUSH STATUS;
 --sorted_result
@@ -837,7 +889,7 @@ eval $get_handler_status_counts;
 
 
 --echo #
---echo # Test EXPLAIN select ... UNION select ...
+--echo # Test EXPLAIN SELECT ... UNION SELECT ...
 --echo #
 FLUSH STATUS;
 EXPLAIN SELECT * FROM t1 UNION SELECT * FROM t2;
@@ -898,7 +950,7 @@ eval $get_handler_status_counts;
 
 
 --echo #
---echo # Test update
+--echo # Test UPDATE
 --echo #
 SELECT * FROM t1 ORDER BY a;
 --echo # This should be prunable (does not change the partitioning key)
@@ -955,7 +1007,7 @@ eval $get_handler_status_counts;
 --echo # 32 locks (2 tables, 1 + 13 partitions lock/unlock)
 
 --echo #
---echo # Test multi table update
+--echo # Test multi table UPDATE
 --echo #
 SELECT * FROM t1 ORDER BY a;
 SELECT * FROM t2 ORDER BY a;
@@ -1067,9 +1119,6 @@ FLUSH STATUS;
 DELETE FROM v1_9_check WHERE a = 8;
 eval $get_handler_status_counts;
 --echo # 0 locks, impossible where!
---echo # TODO: See if the reviewer in optimizer notices the difference :)
---echo # I.e. EXPLAIN DELETE for non partitioned tables does not optimize this
---echo # as SELECT would!
 EXPLAIN EXTENDED DELETE FROM v1_9_check WHERE a = 8;
 EXPLAIN EXTENDED SELECT * FROM v1_9_check WHERE a = 8;
 SELECT * FROM t1 WHERE a = 8;
@@ -1221,7 +1270,7 @@ DROP PROCEDURE sp_select_range;
 DROP PROCEDURE sp_select_exact;
 
 --echo #
---echo # Test EXPLAIN delete
+--echo # Test EXPLAIN DELETE
 --echo #
 SELECT * FROM t1 ORDER BY a;
 FLUSH STATUS;
@@ -1270,7 +1319,7 @@ eval $get_handler_status_counts;
 EXPLAIN PARTITIONS DELETE FROM t1 WHERE a = (SELECT a + 90 FROM t2 WHERE a = 1);
 
 --echo #
---echo # Test multi table delete
+--echo # Test multi table DELETE
 --echo #
 SELECT * FROM t1 ORDER BY a;
 SELECT * FROM t2 ORDER BY a;

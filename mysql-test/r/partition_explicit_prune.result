@@ -1916,4 +1916,11 @@ a	b
 SELECT * FROM t1 PARTITION (p2);
 a	b
 DROP TABLE t1;
+#
+# Test explicit partition selection on a non partitioned temp table
+#
+CREATE TEMPORARY TABLE t1 (a INT);
+SELECT * FROM t1 PARTITION(pNonexisting);
+ERROR HY000: PARTITION () clause on non partitioned table
+DROP TEMPORARY TABLE t1;
 SET @@default_storage_engine = @old_default_storage_engine;

@@ -3035,13 +3035,12 @@ static void dbug_print_singlepoint_range(SEL_ARG **start, uint num);
 #endif
 
 
-/*
+/**
   Perform partition pruning for a given table and condition.
 
   @param      thd            Thread handle
   @param      table          Table to perform partition pruning for
   @param      pprune_cond    Condition to use for partition pruning
-  @param      is_prepare     Is prepare stage
   
   @note This function assumes that lock_partitions are setup when it
   is invoked. The function analyzes the condition, finds partitions that
@@ -3058,8 +3057,7 @@ static void dbug_print_singlepoint_range(SEL_ARG **start, uint num);
     @retval false Success
 */
 
-bool prune_partitions(THD *thd, TABLE *table, Item *pprune_cond,
-                      bool is_prepare)
+bool prune_partitions(THD *thd, TABLE *table, Item *pprune_cond)
 {
   partition_info *part_info = table->part_info;
   DBUG_ENTER("prune_partitions");
@@ -3089,7 +3087,7 @@ bool prune_partitions(THD *thd, TABLE *table, Item *pprune_cond,
     Since it will not be able to prune anything more than the previous call
     from the prepare step.
   */
-  if (part_info->is_const_pruned() &&
+  if (part_info->is_const_item_pruned &&
       !pprune_cond->has_subquery())
     DBUG_RETURN(false);
 
@@ -3223,7 +3221,7 @@ end:
   }
   if (bitmap_is_clear_all(&(prune_param.part_info->read_partitions)))
     table->all_partitions_pruned_away= true;
-  part_info->set_prune_state(is_prepare, pprune_cond->const_item());
+  part_info->is_const_item_pruned= pprune_cond->const_item();
   DBUG_RETURN(false);
 }
 
@@ -6600,7 +6598,6 @@ get_mm_leaf(RANGE_OPT_PARAM *param, Item *conf_func, Field *field,
 
   if (!value->can_be_evaluated_now())
   {
-    tree= 0;
     field->table->in_use->variables.sql_mode= orig_sql_mode;
     goto end;
   }
