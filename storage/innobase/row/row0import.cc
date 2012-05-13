@@ -1579,7 +1579,8 @@ PageConverter::update_page(
 		return(DB_SUCCESS);
 	}
 
-	ut_error;
+	ib_logf(IB_LOG_LEVEL_WARN, "Unknown page type (%lu)", page_type);
+
 	return(DB_CORRUPTION);
 }
 
