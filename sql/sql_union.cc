@@ -41,29 +41,26 @@ bool mysql_union(THD *thd, LEX *lex, select_result *result,
   if (res)
     goto err;
 
-  if (! thd->lex->is_query_tables_locked())
-  {
-    /*
-      If tables are not locked at this point, it means that we have delayed
-      this step until after prepare stage (i.e. this moment). This allows to
-      do better partition pruning and avoid locking unused partitions.
-      As a consequence, in such a case, prepare stage can rely only on
-      metadata about tables used and not data from them.
-      We need to lock tables now in order to proceed with the remaning
-      stages of query optimization and execution.
-    */
-    if (lock_tables(thd, lex->query_tables, lex->table_count, 0))
-      goto err;
 
-    /*
-      Only register query in cache if it tables were locked above.
+  /*
+    Tables are not locked at this point, it means that we have delayed
+    this step until after prepare stage (i.e. this moment). This allows to
+    do better partition pruning and avoid locking unused partitions.
+    As a consequence, in such a case, prepare stage can rely only on
+    metadata about tables used and not data from them.
+    We need to lock tables now in order to proceed with the remaning
+    stages of query optimization and execution.
+  */
+  DBUG_ASSERT(! thd->lex->is_query_tables_locked());
+  if (lock_tables(thd, lex->query_tables, lex->table_count, 0))
+    goto err;
 
-      Tables must be locked before storing the query in the query cache.
-      Transactional engines must been signalled that the statement started,
-      which external_lock signals.
-    */
-    query_cache_store_query(thd, thd->lex->query_tables);
-  }
+  /*
+    Tables must be locked before storing the query in the query cache.
+    Transactional engines must been signalled that the statement started,
+    which external_lock signals.
+  */
+  query_cache_store_query(thd, thd->lex->query_tables);
 
   res= unit->optimize() || unit->exec();
   res|= unit->cleanup();

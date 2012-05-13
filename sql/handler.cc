@@ -6770,19 +6770,6 @@ int handler::ha_external_lock(THD *thd, int lock_type)
                lock_type == F_UNLCK));
   /* SQL HANDLER call locks/unlock while scanning (RND/INDEX). */
   DBUG_ASSERT(inited == NONE || table->open_by_handler);
-#ifndef DBUG_OFF
-  /*
-    If this handler is cloned, then table->file is not this handler!
-    TODO: have an indicator in the handler to show that it is clone,
-    since table->file may point to ha_partition too...
-  */
-  if (table->key_read != 0 && table->file == this)
-  {
-    DBUG_PRINT("error", ("key_read != 0 (%d)", table->key_read));
-    table->key_read= 0;
-    DBUG_ASSERT(0);
-  }
-#endif
 
   if (MYSQL_HANDLER_RDLOCK_START_ENABLED() ||
       MYSQL_HANDLER_WRLOCK_START_ENABLED() ||

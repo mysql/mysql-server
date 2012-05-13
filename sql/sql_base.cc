@@ -3198,15 +3198,14 @@ retry_share:
   table_list->table= table;
 
 #ifdef WITH_PARTITION_STORAGE_ENGINE
-  /* Set all [named] partitions as used. */
   if (table->part_info)
   {
+
+    /* Set all [named] partitions as used. */
     if (table->part_info->set_partition_bitmaps(table_list))
       DBUG_RETURN(true);
   }
-  else if (table_list &&
-           table_list->partition_names &&
-           table_list->partition_names->elements)
+  else if (table_list->partition_names)
   {
     /* Don't allow PARTITION () clause on a nonpartitioned table */
     my_error(ER_PARTITION_CLAUSE_ON_NONPARTITIONED, MYF(0));
@@ -5650,24 +5649,6 @@ end:
 
 
 /**
-  Cleanup failed open or lock tables.
-
-  @param thd            Thread context.
-  @param mdl_savepoint  Savepoint for rollback.
-*/
-
-void open_and_lock_tables_cleanup(THD *thd,
-                                  const MDL_savepoint &mdl_savepoint)
-{
-  if (!thd->in_sub_stmt)
-    trans_rollback_stmt(thd);  /* Necessary if derived handling failed. */
-  close_thread_tables(thd);
-  /* Don't keep locks for a failed statement. */
-  thd->mdl_context.rollback_to_savepoint(mdl_savepoint);
-}
-
-
-/**
   Open all tables in list, locks them and optionally process derived tables.
 
   @param thd		      Thread context.
@@ -5714,7 +5695,11 @@ bool open_and_lock_tables(THD *thd, TABLE_LIST *tables,
 
   DBUG_RETURN(FALSE);
 err:
-  open_and_lock_tables_cleanup(thd, mdl_savepoint);
+  if (! thd->in_sub_stmt)
+    trans_rollback_stmt(thd);  /* Necessary if derived handling failed. */
+  close_thread_tables(thd);
+  /* Don't keep locks for a failed statement. */
+  thd->mdl_context.rollback_to_savepoint(mdl_savepoint);
   DBUG_RETURN(TRUE);
 }
 
@@ -6377,6 +6362,16 @@ bool open_temporary_table(THD *thd, TABLE_LIST *tl)
     }
     DBUG_RETURN(FALSE);
   }
+
+#ifdef WITH_PARTITION_STORAGE_ENGINE
+  if (tl->partition_names)
+  {
+    /* Partitioned temporary tables is not supported. */
+    DBUG_ASSERT(!table->part_info);
+    my_error(ER_PARTITION_CLAUSE_ON_NONPARTITIONED, MYF(0));
+    DBUG_RETURN(true);
+  }
+#endif
 
   if (table->query_id)
   {

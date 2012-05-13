@@ -255,8 +255,8 @@ private:
   static int compare_number_of_records(ha_partition *me,
                                        const uint32 *a,
                                        const uint32 *b);
-  /** keep track of started partitions */
-  MY_BITMAP m_started_partitions;
+  /** keep track of partitions to call ha_reset */
+  MY_BITMAP m_partitions_to_reset;
 public:
   Partition_share *get_part_share() { return part_share; }
   handler *clone(const char *name, MEM_ROOT *mem_root);

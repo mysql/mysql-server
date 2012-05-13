@@ -418,7 +418,7 @@ int mysql_update(THD *thd,
       bitmap_copy(&lock_partitions, &table->part_info->lock_partitions);
     }
 
-    if (prune_partitions(thd, table, conds, true))
+    if (prune_partitions(thd, table, conds))
       DBUG_RETURN(1);
     if (table->all_partitions_pruned_away)
     {
