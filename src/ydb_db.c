@@ -786,9 +786,9 @@ toku_db_set_indexer(DB *db, DB_INDEXER * indexer) {
     return r;
 }
 
-DB_INDEXER *
-toku_db_get_indexer(DB *db) {
-    return db->i->indexer;
+static void 
+toku_db_get_indexer(DB *db, DB_INDEXER **indexer_ptr) {
+    *indexer_ptr = db->i->indexer;
 }
 
 struct ydb_verify_context {
