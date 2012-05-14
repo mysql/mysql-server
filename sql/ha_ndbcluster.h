@@ -92,7 +92,8 @@ typedef enum ndb_write_op {
   NDB_PK_UPDATE = 2
 } NDB_WRITE_OP;
 
-class NDB_ALTER_DATA : public Sql_alloc
+//class NDB_ALTER_DATA : public Sql_alloc
+class NDB_ALTER_DATA : public inplace_alter_handler_ctx
 {
 public:
   NDB_ALTER_DATA(NdbDictionary::Dictionary *dict,
@@ -370,37 +371,33 @@ static void set_tabname(const char *pathname, char *tabname);
                                      uint key_length,
                                      qc_engine_callback *engine_callback,
                                      ulonglong *engine_data);
+enum_alter_inplace_result
+  check_if_supported_inplace_alter(TABLE *altered_table,
+                                   Alter_inplace_info *ha_alter_info);
 
-#ifndef NDB_WITHOUT_ONLINE_ALTER
-  int check_if_supported_alter(TABLE *altered_table,
-                               HA_CREATE_INFO *create_info,
-                               HA_ALTER_INFO *alter_info,
-                               HA_ALTER_FLAGS *alter_flags,
-                               uint table_changes);
+bool prepare_inplace_alter_table(TABLE *altered_table,
+                                    Alter_inplace_info *ha_alter_info);
 
-  int alter_table_phase1(THD *thd,
-                         TABLE *altered_table,
-                         HA_CREATE_INFO *create_info,
-                         HA_ALTER_INFO *alter_info,
-                         HA_ALTER_FLAGS *alter_flags);
+bool inplace_alter_table(TABLE *altered_table,
+                            Alter_inplace_info *ha_alter_info);
+  
+bool commit_inplace_alter_table(TABLE *altered_table,
+                                   Alter_inplace_info *ha_alter_info,
+                                   bool commit);
 
-  int alter_table_phase2(THD *thd,
-                         TABLE *altered_table,
-                         HA_CREATE_INFO *create_info,
-                         HA_ALTER_INFO *alter_info,
-                         HA_ALTER_FLAGS *alter_flags);
-
-  int alter_table_phase3(THD *thd, TABLE *table,
-                         HA_CREATE_INFO *create_info,
-                         HA_ALTER_INFO *alter_info,
-                         HA_ALTER_FLAGS *alter_flags);
-
-  int alter_table_abort(THD *thd,
-                        HA_ALTER_INFO *alter_info,
-                        HA_ALTER_FLAGS *alter_flags);
-#endif
+void notify_table_changed();
 
 private:
+  void prepare_for_alter();
+  /*
+  int add_index(TABLE *table_arg, KEY *key_info, uint num_of_keys,
+		handler_add_index **add);
+  */
+  int prepare_drop_index(TABLE *table_arg, uint *key_num, uint num_of_keys);
+  int final_drop_index(TABLE *table_arg);
+  
+  bool abort_inplace_alter_table(TABLE *altered_table,
+                                 Alter_inplace_info *ha_alter_info);
 #ifdef HAVE_NDB_BINLOG
   int prepare_conflict_detection(enum_conflicting_op_type op_type,
                                  const NdbRecord* key_rec,
@@ -488,9 +485,7 @@ private:
 
   int ndb_optimize_table(THD* thd, uint delay);
 
-#ifndef NDB_WITHOUT_ONLINE_ALTER
   int alter_frm(THD *thd, const char *file, NDB_ALTER_DATA *alter_data);
-#endif
 
   bool check_all_operations_for_error(NdbTransaction *trans,
                                       const NdbOperation *first,

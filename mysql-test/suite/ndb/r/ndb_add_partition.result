@@ -143,7 +143,11 @@ select * from t2 where b = 50;
 a	b	c
 50	50	50
 alter online table t1 reorganize partition;
+Warnings:
+Warning	1287	'ONLINE' is deprecated and will be removed in a future release. Please use ALGORITHM=INPLACE instead
 alter online table t2 reorganize partition;
+Warnings:
+Warning	1287	'ONLINE' is deprecated and will be removed in a future release. Please use ALGORITHM=INPLACE instead
 partitions added to t1
 t1_added
 0
@@ -151,7 +155,11 @@ partitions added to t2
 t2_added
 0
 alter online table t1 add partition partitions 1;
+Warnings:
+Warning	1287	'ONLINE' is deprecated and will be removed in a future release. Please use ALGORITHM=INPLACE instead
 alter online table t2 add partition partitions 4;
+Warnings:
+Warning	1287	'ONLINE' is deprecated and will be removed in a future release. Please use ALGORITHM=INPLACE instead
 partitions added to t1
 t1_added
 1
@@ -257,7 +265,11 @@ select * from t2 where b = 50;
 a	b	c
 50	50	50
 alter online table t1 add partition partitions 2;
+Warnings:
+Warning	1287	'ONLINE' is deprecated and will be removed in a future release. Please use ALGORITHM=INPLACE instead
 alter online table t2 add partition partitions 1;
+Warnings:
+Warning	1287	'ONLINE' is deprecated and will be removed in a future release. Please use ALGORITHM=INPLACE instead
 partitions added to t1
 t1_added
 3
