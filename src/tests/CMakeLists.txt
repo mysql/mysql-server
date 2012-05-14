@@ -585,9 +585,7 @@ if(BUILD_TESTING)
 
   ## give some tests, that time out normally, 1 hour to complete
   set(long_tests
-    drd_test_4015.tdb
     test_query.tdb
-    loader-stress-del.nop.loader
     test1572.tdb
     checkpoint_1.tdb
     env-put-multiple.tdb
@@ -600,6 +598,8 @@ if(BUILD_TESTING)
     root_fifo_32.tdb
     shutdown-3344.tdb
     stat64-create-modify-times.tdb
+    test_abort4_19_0.tdb
+    test_abort4_19_1.tdb
     test_abort5.tdb
     test_archive1.tdb
     test_logmax.tdb
@@ -624,11 +624,13 @@ if(BUILD_TESTING)
   set_tests_properties(${long_tests} PROPERTIES TIMEOUT 3600)
   ## some take even longer, with valgrind
   set(extra_long_tests
+    drd_test_4015.tdb
     checkpoint_stress.tdb
     recover_stress.tdb
     test3039.tdb
     loader-dup-test0.tdb
     loader-stress-del.p.loader
+    loader-stress-del.nop.loader
     )
-  set_tests_properties(${extra_long_tests} PROPERTIES TIMEOUT 5400)
+  set_tests_properties(${extra_long_tests} PROPERTIES TIMEOUT 7200)
 endif(BUILD_TESTING)

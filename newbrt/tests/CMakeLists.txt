@@ -114,7 +114,6 @@ if(BUILD_TESTING)
   set(long_tests
     log-test7
     subblock-test-compression
-    benchmark-test_256
     is_empty
     recovery-bad-last-entry
     )
@@ -123,6 +122,7 @@ if(BUILD_TESTING)
   set(extra_long_tests
     subblock-test-checksum
     benchmark-test
+    benchmark-test_256
     )
-  set_tests_properties(${extra_long_tests} PROPERTIES TIMEOUT 5400)
+  set_tests_properties(${extra_long_tests} PROPERTIES TIMEOUT 7200)
 endif(BUILD_TESTING)
