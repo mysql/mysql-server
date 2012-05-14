@@ -118,6 +118,9 @@ database_name	table_name	index_name	last_update	stat_name	stat_value	sample_size
 test	t1	PRIMARY	LAST_UPDATE	n_diff_pfx01	5	1	c1
 test	t1	PRIMARY	LAST_UPDATE	n_leaf_pages	1	NULL	Number of leaf pages in the index
 test	t1	PRIMARY	LAST_UPDATE	size	1	NULL	Number of pages in the index
+test	t1_c2_stats	GEN_CLUST_INDEX	LAST_UPDATE	n_diff_pfx01	2	1	DB_ROW_ID
+test	t1_c2_stats	GEN_CLUST_INDEX	LAST_UPDATE	n_leaf_pages	1	NULL	Number of leaf pages in the index
+test	t1_c2_stats	GEN_CLUST_INDEX	LAST_UPDATE	size	1	NULL	Number of pages in the index
 KILL QUERY @id;
 ERROR 70100: Query execution was interrupted
 SET DEBUG_SYNC = 'row_log_apply_before SIGNAL c2d_created WAIT_FOR kill_done';
