@@ -3975,22 +3975,15 @@ int toku_cachefile_redirect_nullfd (CACHEFILE cf) {
     return 0;
 }
 
-u_int64_t
-toku_cachefile_size_in_memory(CACHEFILE cf)
-{
-    u_int64_t result=0;
-    CACHETABLE ct=cf->cachetable;
-    unsigned long i;
-    for (i=0; i<ct->table_size; i++) {
-	PAIR p;
-	for (p=ct->table[i]; p; p=p->hash_chain) {
-	    if (p->cachefile==cf) {
-		result += p->attr.size;
-	    }
-	}
-    }
-    return result;
+u_int64_t toku_cachefile_size(CACHEFILE cf) {
+    int64_t file_size;
+    int fd = toku_cachefile_get_and_pin_fd(cf);
+    int r = toku_os_get_file_size(fd, &file_size);
+    toku_cachefile_unpin_fd(cf);
+    assert_zero(r);
+    return file_size;
 }
+
 
 char *
 toku_construct_full_name(int count, ...) {

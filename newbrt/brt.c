@@ -5428,33 +5428,7 @@ toku_brt_keyrange (BRT brt, DBT *key, u_int64_t *less_p, u_int64_t *equal_p, u_i
 int 
 toku_brt_stat64 (BRT brt, TOKUTXN UU(txn), struct brtstat64_s *s) {
     assert(brt->h);
-
-    {
-        int64_t file_size;
-        int fd = toku_cachefile_get_and_pin_fd(brt->h->cf);
-        int r = toku_os_get_file_size(fd, &file_size);
-        toku_cachefile_unpin_fd(brt->h->cf);
-        assert_zero(r);
-        s->fsize = file_size + toku_cachefile_size_in_memory(brt->h->cf);
-    }
-    // just use the in memory stats from the header
-    // prevent appearance of negative numbers for numrows, numbytes
-    int64_t n = brt->h->in_memory_stats.numrows;
-    if (n < 0) {
-        n = 0;
-    }
-    s->nkeys = s->ndata = n;
-    n = brt->h->in_memory_stats.numbytes;
-    if (n < 0) {
-        n = 0;
-    }
-    s->dsize = n; 
-
-    // 4018
-    s->create_time_sec = brt->h->time_of_creation;
-    s->modify_time_sec = brt->h->time_of_last_modification;
-    s->verify_time_sec = brt->h->time_of_last_verification;
-    
+    toku_brtheader_stat64(brt->h, s);
     return 0;
 }
 

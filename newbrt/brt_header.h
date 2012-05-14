@@ -62,6 +62,6 @@ void toku_calculate_root_offset_pointer ( struct brt_header* h, CACHEKEY* root_k
 void toku_brtheader_set_new_root_blocknum(struct brt_header* h, CACHEKEY new_root_key); 
 LSN toku_brt_checkpoint_lsn(struct brt_header* h)  __attribute__ ((warn_unused_result));
 int toku_brtheader_set_panic(struct brt_header *h, int panic, char *panic_string) __attribute__ ((warn_unused_result));
-
+void toku_brtheader_stat64 (struct brt_header* h, struct brtstat64_s *s);
 
 #endif
