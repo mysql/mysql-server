@@ -906,7 +906,7 @@ innobase_fts_check_doc_id_index_in_def(
 		}
 
 		return(FTS_EXIST_DOC_ID_INDEX);
-        }
+	}
 
 	return(FTS_NOT_EXIST_DOC_ID_INDEX);
 }
@@ -3143,7 +3143,7 @@ trx_commit:
 			dberr_t		ret;
 			char		errstr[1024];
 
-			ret = dict_stats_delete_index_stats(
+			ret = dict_stats_drop_index(
 				prebuilt->table->name, key->name,
 				prebuilt->trx,
 				errstr, sizeof(errstr));

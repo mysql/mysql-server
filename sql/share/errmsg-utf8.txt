@@ -6797,6 +6797,7 @@ ER_DISCARD_FK_CHECKS_RUNNING
 ER_COL_COUNT_DOESNT_MATCH_CORRUPTED_V2
   eng "Column count of %s.%s is wrong. Expected %d, found %d. The table is probably corrupted"
   ger "Spaltenanzahl von %s.%s falsch. %d erwartet, aber %d gefunden. Tabelle ist wahrscheinlich beschädigt"
+
 #
 #  End of 5.6 error messages.
 #
