@@ -4373,6 +4373,16 @@ CREATE TABLE t3 (
 
 INSERT INTO t3 VALUES (10);
 
+-- disable_query_log
+-- disable_result_log
+ANALYZE TABLE t1;
+ANALYZE TABLE t2;
+ANALYZE TABLE t3;
+ANALYZE TABLE grandparent1;
+ANALYZE TABLE parent1;
+-- enable_result_log
+-- enable_query_log
+
 let $query=
 SELECT *
 FROM t1
@@ -5058,6 +5068,13 @@ INSERT INTO t2 VALUES
  (9,6,'d','d'), (10,2,'s','s'), (11,4,'r','r'), (12,8,'m','m'),
  (13,4,'b','b'), (14,4,'x','x'), (15,7,'g','g'), (16,4,'p','p'),
  (17,1,'q','q'), (18,9,'w','w'), (19,4,'d','d'), (20,8,'e','e');
+
+-- disable_query_log
+-- disable_result_log
+ANALYZE TABLE t1;
+ANALYZE TABLE t2;
+-- enable_result_log
+-- enable_query_log
 
 let $query=
 SELECT ot1.col_int_key AS field1

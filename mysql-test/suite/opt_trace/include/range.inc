@@ -266,6 +266,8 @@ SELECT * FROM information_schema.OPTIMIZER_TRACE;
 DROP INDEX i1_idx ON t1;
 CREATE INDEX i1_i2_idx ON t1 (i2,i1);
 
+ANALYZE TABLE t1;
+
 --echo
 --echo # Covering ROR intersect not chosen: cost
 EXPLAIN SELECT v FROM t1 WHERE i1 = 1 AND i2 = 1  AND v = 'a' AND pk < 3;

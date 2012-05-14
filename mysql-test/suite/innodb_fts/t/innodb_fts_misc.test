@@ -487,6 +487,12 @@ INSERT INTO t1 (a,b) VALUES
 # Create the FTS index Using Alter Table
 ALTER TABLE t1 ADD FULLTEXT INDEX idx (a,b);
 
+-- disable_query_log
+-- disable_result_log
+ANALYZE TABLE t1;
+-- enable_result_log
+-- enable_query_log
+
 SELECT * FROM t1 ORDER BY MATCH(a,b) AGAINST ('aac') DESC;
 SELECT * FROM t1 ORDER BY MATCH(a,b) AGAINST ('aab') DESC; 
 
