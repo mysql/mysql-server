@@ -215,6 +215,10 @@ explain select * from t1 where st_a=1 and swt1a=1 and swt2a=1;
 
 explain select * from t1 where st_b=1 and swt1b=1 and swt2b=1;
 
+if ($index_merge_random_rows_in_EXPLAIN)
+{
+  --replace_column 9 #
+}
 explain select * from t1 where st_a=1 and swt1a=1 and swt2a=1 and st_b=1 and swt1b=1 and swt2b=1;
 
 if ($index_merge_random_rows_in_EXPLAIN)
@@ -238,15 +242,31 @@ if ($index_merge_random_rows_in_EXPLAIN)
 explain select * from t1 ignore index (sta_swt21a, sta_swt12a, stb_swt1a_2b, stb_swt1b)
   where st_a=1 and swt1a=1 and swt2a=1 and st_b=1 and swt1b=1 and swt2b=1;
 
+if ($index_merge_random_rows_in_EXPLAIN)
+{
+  --replace_column 9 #
+}
 explain select * from t1
   where st_a=1 and swt1a=1 and swt2a=1 and st_b=1 and swt1b=1;
 
+if ($index_merge_random_rows_in_EXPLAIN)
+{
+  --replace_column 9 #
+}
 explain select * from t1
   where st_a=1 and swt1a=1 and st_b=1 and swt1b=1 and swt1b=1;
 
+if ($index_merge_random_rows_in_EXPLAIN)
+{
+  --replace_column 9 #
+}
 explain select st_a from t1
   where st_a=1 and swt1a=1 and st_b=1 and swt1b=1 and swt1b=1;
 
+if ($index_merge_random_rows_in_EXPLAIN)
+{
+  --replace_column 9 #
+}
 explain select st_a from t1
   where st_a=1 and swt1a=1 and st_b=1 and swt1b=1 and swt1b=1;
 

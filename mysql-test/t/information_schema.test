@@ -1854,6 +1854,12 @@ INSERT INTO t1 VALUES (1);
 SELECT MAX(a) FROM information_schema.engines RIGHT JOIN t1 ON 1;
 DROP TABLE t1;
 
+--echo #
+--echo # BUG#13463397 - 63562: UNKNOWN DATABASE INFORMATION_SCHEMA 
+--echo #
+
+--error ER_DBACCESS_DENIED_ERROR
+CREATE PROCEDURE information_schema.is() BEGIN END;
 
 --echo #
 --echo # End of 5.6 tests
