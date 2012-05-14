@@ -557,7 +557,8 @@ public:
     int cmp_ref(const uchar * ref1, const uchar * ref2);
     bool check_if_incompatible_data(HA_CREATE_INFO * info, uint table_changes);
 
-#if MYSQL_VERSION_ID >= 50521
+#if MYSQL_VERSION_ID >= 50606
+#elif MYSQL_VERSION_ID >= 50521
     int add_index(TABLE *table_arg, KEY *key_info, uint num_of_keys, handler_add_index **add);
     int final_add_index(handler_add_index *add, bool commit);
 #else
