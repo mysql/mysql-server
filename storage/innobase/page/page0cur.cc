@@ -973,6 +973,9 @@ page_cur_insert_rec_low(
 	page = page_align(current_rec);
 	ut_ad(dict_table_is_comp(index->table)
 	      == (ibool) !!page_is_comp(page));
+	ut_ad(fil_page_get_type(page) == FIL_PAGE_INDEX);
+	ut_ad(mach_read_from_8(page + PAGE_HEADER + PAGE_INDEX_ID)
+	      == index->id || mtr->inside_ibuf || recv_recovery_is_on());
 
 	ut_ad(!page_rec_is_supremum(current_rec));
 
@@ -1246,6 +1249,9 @@ page_cur_insert_rec_zip(
 	page = page_align(*current_rec);
 	ut_ad(dict_table_is_comp(index->table));
 	ut_ad(page_is_comp(page));
+	ut_ad(fil_page_get_type(page) == FIL_PAGE_INDEX);
+	ut_ad(mach_read_from_8(page + PAGE_HEADER + PAGE_INDEX_ID)
+	      == index->id || mtr->inside_ibuf || recv_recovery_is_on());
 
 	ut_ad(!page_rec_is_supremum(*current_rec));
 #ifdef UNIV_ZIP_DEBUG
@@ -1896,6 +1902,9 @@ page_cur_delete_rec(
 	current_rec = cursor->rec;
 	ut_ad(rec_offs_validate(current_rec, index, offsets));
 	ut_ad(!!page_is_comp(page) == dict_table_is_comp(index->table));
+	ut_ad(fil_page_get_type(page) == FIL_PAGE_INDEX);
+	ut_ad(mach_read_from_8(page + PAGE_HEADER + PAGE_INDEX_ID)
+	      == index->id || mtr->inside_ibuf || recv_recovery_is_on());
 
 	/* The record must not be the supremum or infimum record. */
 	ut_ad(page_rec_is_user_rec(current_rec));
