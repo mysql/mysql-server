@@ -528,7 +528,7 @@ CREATE TABLE t1 (
 
   KEY (col_int_key),
   KEY (col_varchar_key, col_int_key)
-);
+) stats_persistent=0;
 
 INSERT INTO t1 VALUES (NULL,2,'w');
 INSERT INTO t1 VALUES (7,9,'m');
@@ -552,14 +552,7 @@ INSERT INTO t1 VALUES (NULL,6,'f');
 
 CREATE TABLE t2 (
   c1 INTEGER NOT NULL
-);
-
--- disable_query_log
--- disable_result_log
-ANALYZE TABLE t1;
-ANALYZE TABLE t2;
--- enable_result_log
--- enable_query_log
+) stats_persistent=0;
 
 let query=
 SELECT table1.col_int_nokey

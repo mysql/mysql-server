@@ -1,6 +1,13 @@
 #
 # DuplicateElimination strategy test
 #
+
+-- disable_query_log
+-- disable_result_log
+SET GLOBAL innodb_stats_persistent=0;
+-- enable_result_log
+-- enable_query_log
+
 create table t0 (a int);
 insert into t0 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
 
@@ -62,12 +69,6 @@ select * from t3 where b in (select A.a+B.a from t0 A, t0 B where B.a<5);
  
 set join_buffer_size= @save_join_buffer_size;
 set max_heap_table_size= @save_max_heap_table_size;
-
--- disable_query_log
--- disable_result_log
-ANALYZE TABLE t1;
--- enable_result_log
--- enable_query_log
 
 # O2I join orders, with shortcutting: 
 explain select * from t1 where a in (select b from t2);
@@ -141,3 +142,9 @@ WHERE i IN (SELECT innr.i
    AND i = 2;
 
 DROP TABLE t1, t2;
+
+-- disable_query_log
+-- disable_result_log
+SET GLOBAL innodb_stats_persistent=default;
+-- enable_result_log
+-- enable_query_log
