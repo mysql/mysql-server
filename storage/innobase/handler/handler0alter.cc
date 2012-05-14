@@ -44,16 +44,35 @@ Smart ALTER TABLE
 #include "ha_innodb.h"
 
 /** Operations for creating an index in place */
-static const Alter_inplace_info::HA_ALTER_FLAGS INNOBASE_INPLACE_CREATE
+static const Alter_inplace_info::HA_ALTER_FLAGS INNOBASE_ONLINE_CREATE
 	= Alter_inplace_info::ADD_INDEX
-	| Alter_inplace_info::ADD_UNIQUE_INDEX
-	| Alter_inplace_info::ADD_PK_INDEX;// not online
+	| Alter_inplace_info::ADD_UNIQUE_INDEX;
+
+/** Operations for rebuilding a table in place */
+static const Alter_inplace_info::HA_ALTER_FLAGS INNOBASE_INPLACE_REBUILD
+	= Alter_inplace_info::ADD_PK_INDEX
+	| Alter_inplace_info::CHANGE_CREATE_OPTION
+	/*
+	| Alter_inplace_info::ALTER_COLUMN_NULLABLE
+	| Alter_inplace_info::ALTER_COLUMN_NOT_NULLABLE
+	| Alter_inplace_info::ALTER_COLUMN_TYPE
+	| Alter_inplace_info::ALTER_COLUMN_EQUAL_PACK_LENGTH,
+	| Alter_inplace_info::ALTER_COLUMN_ORDER
+	| Alter_inplace_info::ADD_COLUMN
+	| Alter_inplace_info::DROP_COLUMN
+	*/
+	;
+
+/** Operations for creating indexes or rebuilding a table */
+static const Alter_inplace_info::HA_ALTER_FLAGS INNOBASE_INPLACE_CREATE
+	= INNOBASE_ONLINE_CREATE | INNOBASE_INPLACE_REBUILD;
 
 /** Operations for altering a table that InnoDB does not care about */
 static const Alter_inplace_info::HA_ALTER_FLAGS INNOBASE_INPLACE_IGNORE
 	= Alter_inplace_info::ALTER_COLUMN_DEFAULT
-	| Alter_inplace_info::ALTER_RENAME
-	| Alter_inplace_info::CHANGE_CREATE_OPTION;
+	| Alter_inplace_info::ALTER_COLUMN_COLUMN_FORMAT
+	| Alter_inplace_info::ALTER_COLUMN_STORAGE_TYPE
+	| Alter_inplace_info::ALTER_RENAME;
 
 /** Operations that InnoDB can perform online */
 static const Alter_inplace_info::HA_ALTER_FLAGS INNOBASE_ONLINE_OPERATIONS
@@ -135,6 +154,29 @@ my_error_innodb(
 	}
 }
 
+/*******************************************************************//**
+Determine if ALTER TABLE needs to rebuild the table.
+@param ha_alter_info		the DDL operation
+@return whether it is necessary to rebuild the table */
+static __attribute__((nonnull, warn_unused_result))
+bool
+innobase_need_rebuild(
+/*==================*/
+	const Alter_inplace_info*	ha_alter_info)
+{
+	if (ha_alter_info->handler_flags
+	    == Alter_inplace_info::CHANGE_CREATE_OPTION
+	    && !(ha_alter_info->create_info->used_fields
+		 & (HA_CREATE_USED_ROW_FORMAT
+		    | HA_CREATE_USED_KEY_BLOCK_SIZE))) {
+		/* Any other CHANGE_CREATE_OPTION than changing
+		ROW_FORMAT or KEY_BLOCK_SIZE is ignored. */
+		return(false);
+	}
+
+	return(!!(ha_alter_info->handler_flags & INNOBASE_INPLACE_REBUILD));
+}
+
 /** Check if InnoDB supports a particular alter table in-place
 @param altered_table	TABLE object for new version of table.
 @param ha_alter_info	Structure describing changes to be done
@@ -161,28 +203,9 @@ ha_innobase::check_if_supported_inplace_alter(
 		DBUG_RETURN(HA_ALTER_INPLACE_NOT_SUPPORTED);
 	}
 
-	HA_CREATE_INFO* create_info = ha_alter_info->create_info;
-
 	if (ha_alter_info->handler_flags
-	    & ~(INNOBASE_ONLINE_OPERATIONS
-		| Alter_inplace_info::ADD_PK_INDEX)) {
+	    & ~(INNOBASE_ONLINE_OPERATIONS | INNOBASE_INPLACE_REBUILD)) {
 		DBUG_RETURN(HA_ALTER_INPLACE_NOT_SUPPORTED);
-	}
-
-	if (ha_alter_info->handler_flags
-	    & Alter_inplace_info::CHANGE_CREATE_OPTION) {
-		/* Changing ROW_FORMAT or KEY_BLOCK_SIZE should
-		rebuild the table. TODO: copy index-by-index instead
-		of row-by-row. */
-
-		if (create_info->used_fields & HA_CREATE_USED_ROW_FORMAT
-		    && create_info->row_type != get_row_type()) {
-			DBUG_RETURN(HA_ALTER_INPLACE_NOT_SUPPORTED);
-		}
-
-		if (create_info->used_fields & HA_CREATE_USED_KEY_BLOCK_SIZE) {
-			DBUG_RETURN(HA_ALTER_INPLACE_NOT_SUPPORTED);
-		}
 	}
 
 	if (!(ha_alter_info->handler_flags & ~INNOBASE_INPLACE_IGNORE)) {
@@ -254,14 +277,9 @@ ha_innobase::check_if_supported_inplace_alter(
 
 	prebuilt->trx->will_lock++;
 
-	/* TODO: Reject if creating a fulltext index and there is an
-	incompatible FTS_DOC_ID or FTS_DOC_ID_INDEX, either in the table
-	or in the ha_alter_info. We can and should reject this before
-	locking the data dictionary. */
-
-	/* Creating the primary key requires an exclusive lock on the
+	/* Rebuilding the clustered index requires an exclusive lock on the
 	table during the whole copying operation. */
-	if (ha_alter_info->handler_flags & Alter_inplace_info::ADD_PK_INDEX) {
+	if (innobase_need_rebuild(ha_alter_info)) {
 		DBUG_RETURN(HA_ALTER_INPLACE_EXCLUSIVE_LOCK);
 	}
 
@@ -934,7 +952,7 @@ innobase_create_key_defs(
 			definitions are allocated */
 	const Alter_inplace_info*	ha_alter_info,
 			/*!< in: alter operation */
-	const TABLE*		altered_table,
+	const TABLE*			altered_table,
 			/*!< in: MySQL table that is being altered */
 	ulint&				n_add,
 			/*!< in/out: number of indexes to be created */
@@ -970,20 +988,21 @@ innobase_create_key_defs(
 	/* If there is a primary key, it is always the first index
 	defined for the innodb_table. */
 
-	new_primary = !my_strcasecmp(system_charset_info,
-				     key_info[*add].name, "PRIMARY");
+	new_primary = n_add > 0
+		&& !my_strcasecmp(system_charset_info,
+				  key_info[*add].name, "PRIMARY");
 
 	/* If there is a UNIQUE INDEX consisting entirely of NOT NULL
 	columns and if the index does not contain column prefix(es)
 	(only prefix/part of the column is indexed), MySQL will treat the
 	index as a PRIMARY KEY unless the table already has one. */
 
-	if (!new_primary && got_default_clust
+	if (n_add > 0 && !new_primary && got_default_clust
 	    && (key_info[*add].flags & HA_NOSAME)
 	    && !(key_info[*add].flags & HA_KEY_HAS_PART_KEY_SEG)) {
 		uint	key_part = key_info[*add].key_parts;
 
-		new_primary = TRUE;
+		new_primary = true;
 
 		while (key_part--) {
 			const uint	maybe_null
@@ -994,38 +1013,33 @@ innobase_create_key_defs(
 				    field->null_ptr);
 
 			if (maybe_null) {
-				new_primary = FALSE;
+				new_primary = false;
 				break;
 			}
 		}
 	}
 
-	if (new_primary || add_fts_doc_id) {
+	if (new_primary || add_fts_doc_id
+	    || innobase_need_rebuild(ha_alter_info)) {
 		ulint	primary_key_number;
 
 		if (new_primary) {
+			DBUG_ASSERT(n_add > 0);
 			primary_key_number = *add;
-		} else if (add_fts_doc_id) {
-			/* If DICT_TF2_FTS_ADD_DOC_ID is set, we will need to
-			rebuild the table to add the unique Doc ID column for
-			FTS index. And thus the clustered index would required
-			to be rebuilt. */
+		} else if (got_default_clust) {
+			/* Create the GEN_CLUST_INDEX */
+			merge_index_def_t*	index = indexdef++;
 
-			if (got_default_clust) {
-				/* Create the GEN_CLUST_INDEX */
-				merge_index_def_t*	index = indexdef++;
-
-				index->fields = NULL;
-				index->n_fields = 0;
-				index->ind_type = DICT_CLUSTERED;
-				index->name = mem_heap_strdup(
-					heap, innobase_index_reserve_name);
-				index->key_number = ~0;
-				primary_key_number = ULINT_UNDEFINED;
-				goto created_clustered;
-			} else {
-				primary_key_number = 0;
-			}
+			index->fields = NULL;
+			index->n_fields = 0;
+			index->ind_type = DICT_CLUSTERED;
+			index->name = mem_heap_strdup(
+				heap, innobase_index_reserve_name);
+			index->key_number = ~0;
+			primary_key_number = ULINT_UNDEFINED;
+			goto created_clustered;
+		} else {
+			primary_key_number = 0;
 		}
 
 		/* Create the PRIMARY key index definition */
@@ -1433,7 +1447,7 @@ prepare_inplace_alter_table_dict(
 	be exclusively locked when a full-text index is being created. */
 	DBUG_ASSERT(!!new_clustered
 		    == ((ha_alter_info->handler_flags
-			 & Alter_inplace_info::ADD_PK_INDEX)
+			 & INNOBASE_INPLACE_REBUILD)
 			|| add_fts_doc_id));
 
 	/* Allocate memory for dictionary index definitions */
@@ -1674,8 +1688,7 @@ col_fail:
 		will be exclusively locked anyway, the modification
 		log is unnecessary. */
 		if (!exclusive && !num_fts_index
-		    && !(ha_alter_info->handler_flags
-			 & ~INNOBASE_ONLINE_OPERATIONS)
+		    && !innobase_need_rebuild(ha_alter_info)
 		    && !user_table->ibd_file_missing
 		    && !user_table->tablespace_discarded) {
 			DBUG_EXECUTE_IF("innodb_OOM_prepare_inplace_alter",
@@ -1924,19 +1937,33 @@ ha_innobase::prepare_inplace_alter_table(
 	}
 #endif /* UNIV_DEBUG */
 
-	if (!(ha_alter_info->handler_flags & ~INNOBASE_INPLACE_IGNORE)) {
-		/* Nothing to do */
-		goto func_exit;
-	}
-
 	ut_d(mutex_enter(&dict_sys->mutex));
 	ut_d(dict_table_check_for_dup_indexes(
 		     prebuilt->table, CHECK_ABORTED_OK));
 	ut_d(mutex_exit(&dict_sys->mutex));
 
-	/* In case MySQL calls this in the middle of a SELECT query, release
-	possible adaptive hash latch to avoid deadlocks of threads. */
-	trx_search_latch_release_if_reserved(prebuilt->trx);
+	if (!(ha_alter_info->handler_flags & ~INNOBASE_INPLACE_IGNORE)) {
+		/* Nothing to do */
+		goto func_exit;
+	}
+
+	if (ha_alter_info->handler_flags
+	    == Alter_inplace_info::CHANGE_CREATE_OPTION
+	    && !innobase_need_rebuild(ha_alter_info)) {
+		goto func_exit;
+	}
+
+	if (ha_alter_info->handler_flags
+	    & Alter_inplace_info::CHANGE_CREATE_OPTION) {
+		if (const char* invalid_opt = create_options_are_invalid(
+			    user_thd, altered_table,
+			    ha_alter_info->create_info,
+			    prebuilt->table->space != 0)) {
+			my_error(ER_ILLEGAL_HA_CREATE_OPTION, MYF(0),
+				 table_type(), invalid_opt);
+			DBUG_RETURN(true);
+		}
+	}
 
 	/* Check if any index name is reserved. */
 	if (innobase_index_name_is_reserved(
@@ -2383,6 +2410,12 @@ ha_innobase::inplace_alter_table(
 ok_exit:
 		DEBUG_SYNC(user_thd, "innodb_after_inplace_alter_table");
 		DBUG_RETURN(false);
+	}
+
+	if (ha_alter_info->handler_flags
+	    == Alter_inplace_info::CHANGE_CREATE_OPTION
+	    && !innobase_need_rebuild(ha_alter_info)) {
+		goto ok_exit;
 	}
 
 	class ha_innobase_inplace_ctx*	ctx
