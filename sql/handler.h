@@ -1067,6 +1067,19 @@ public:
   // Change the column format of column
   static const HA_ALTER_FLAGS ALTER_COLUMN_COLUMN_FORMAT = 1L << 20;
 
+  /* Changes to partitioning */
+  static const HA_ALTER_FLAGS ADD_PARTITION                = 1L << 21;
+  static const HA_ALTER_FLAGS DROP_PARTITION               = 1L << 22;
+  static const HA_ALTER_FLAGS ALTER_PARTITION              = 1L << 23;
+  static const HA_ALTER_FLAGS COALESCE_PARTITION           = 1L << 24;
+  static const HA_ALTER_FLAGS REORGANIZE_PARTITION         = 1L << 25;
+  static const HA_ALTER_FLAGS ALTER_TABLE_REORG            = 1L << 26;
+  static const HA_ALTER_FLAGS ALTER_REMOVE_PARTITIONING    = 1L << 27;
+  static const HA_ALTER_FLAGS ALTER_ALL_PARTITION          = 1L << 28;
+
+  /* Change of AUTO_INCREMENT value */
+  static const HA_ALTER_FLAGS CHANGE_AUTOINCREMENT_VALUE   = 1L << 29;
+
   /**
     Create options (like MAX_ROWS) for the new version of table.
 

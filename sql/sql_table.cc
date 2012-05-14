@@ -5246,6 +5246,7 @@ static bool fill_alter_inplace_info(THD *thd,
   KEY_PART_INFO *key_part, *new_part;
   KEY_PART_INFO *end;
   uint candidate_key_count= 0;
+  HA_CREATE_INFO *create_info= ha_alter_info->create_info;
   Alter_info *alter_info= ha_alter_info->alter_info;
   DBUG_ENTER("fill_alter_inplace_info");
 
@@ -5258,6 +5259,29 @@ static bool fill_alter_inplace_info(THD *thd,
     DBUG_RETURN(true);
 
   /* First we setup ha_alter_flags based on what was detected by parser. */
+
+  /* Check partition changes */
+  if (alter_info->flags & Alter_info::ALTER_ADD_PARTITION)
+    ha_alter_info->handler_flags|= Alter_inplace_info::ADD_PARTITION;
+  if (alter_info->flags & Alter_info::ALTER_DROP_PARTITION)
+    ha_alter_info->handler_flags|= Alter_inplace_info::DROP_PARTITION;
+  if (alter_info->flags & Alter_info::ALTER_PARTITION)
+    ha_alter_info->handler_flags|= Alter_inplace_info::ALTER_PARTITION;
+  if (alter_info->flags & Alter_info::ALTER_COALESCE_PARTITION)
+    ha_alter_info->handler_flags|= Alter_inplace_info::COALESCE_PARTITION;
+  if (alter_info->flags & Alter_info::ALTER_REORGANIZE_PARTITION)
+    ha_alter_info->handler_flags|= Alter_inplace_info::REORGANIZE_PARTITION;
+  if (alter_info->flags & Alter_info::ALTER_TABLE_REORG)
+    ha_alter_info->handler_flags|= Alter_inplace_info::ALTER_TABLE_REORG;
+  if (alter_info->flags & Alter_info::ALTER_REMOVE_PARTITIONING)
+    ha_alter_info->handler_flags|= Alter_inplace_info::ALTER_REMOVE_PARTITIONING;
+  if (alter_info->flags & Alter_info::ALTER_ALL_PARTITION)
+    ha_alter_info->handler_flags|= Alter_inplace_info::ALTER_ALL_PARTITION;
+
+  if (create_info->auto_increment_value !=
+      table->file->stats.auto_increment_value)
+    ha_alter_info->handler_flags|= Alter_inplace_info::CHANGE_AUTOINCREMENT_VALUE;
+
   if (alter_info->flags & Alter_info::ALTER_ADD_COLUMN)
     ha_alter_info->handler_flags|= Alter_inplace_info::ADD_COLUMN;
   if (alter_info->flags & Alter_info::ALTER_DROP_COLUMN)
@@ -5280,6 +5304,15 @@ static bool fill_alter_inplace_info(THD *thd,
   if (alter_info->flags & Alter_info::ALTER_RENAME)
     ha_alter_info->handler_flags|= Alter_inplace_info::ALTER_RENAME;
 
+  if (alter_info->flags & Alter_info::ALTER_COLUMN_ORDER)
+    ha_alter_info->handler_flags|= Alter_inplace_info::ALTER_COLUMN_ORDER;
+
+  if (alter_info->flags & Alter_info::ALTER_COLUMN_STORAGE_TYPE)
+    ha_alter_info->handler_flags|= Alter_inplace_info::ALTER_COLUMN_STORAGE_TYPE;
+  if (alter_info->flags & Alter_info::ALTER_COLUMN_COLUMN_FORMAT)
+    ha_alter_info->handler_flags|= Alter_inplace_info::ALTER_COLUMN_COLUMN_FORMAT;
+
+
   /*
     If we altering table with old VARCHAR fields we will be automatically
     upgrading VARCHAR column types.
@@ -5300,6 +5333,8 @@ static bool fill_alter_inplace_info(THD *thd,
   */
   for (f_ptr= table->field; (field= *f_ptr); f_ptr++)
   {
+    /* Clear marker for field in new index we are going to set later. */
+    field->flags&= ~FIELD_IN_ADD_INDEX;
     /* Clear marker for renamed field which we are going to set later. */
     field->flags&= ~FIELD_IS_RENAMED;
 
@@ -5561,6 +5596,8 @@ static bool fill_alter_inplace_info(THD *thd,
   {
     table_key= *dropped_key;
 
+    DBUG_PRINT("info", ("Found dropped index %s", table_key->name));
+
     if (table_key->flags & HA_NOSAME)
     {
       /*
@@ -5587,6 +5624,8 @@ static bool fill_alter_inplace_info(THD *thd,
   for (uint add_key_idx= 0; add_key_idx < ha_alter_info->index_add_count; add_key_idx++)
   {
     new_key= ha_alter_info->key_info_buffer + ha_alter_info->index_add_buffer[add_key_idx];
+    
+    DBUG_PRINT("info", ("Found added index %s", new_key->name));
 
     if (new_key->flags & HA_NOSAME)
     {
@@ -5610,6 +5649,22 @@ static bool fill_alter_inplace_info(THD *thd,
     }
     else
       ha_alter_info->handler_flags|= Alter_inplace_info::ADD_INDEX;
+    /* Mark all fields in the new index */
+    KEY_PART_INFO *key_part= new_key->key_part;
+    KEY_PART_INFO *end= key_part + new_key->key_parts;
+    for(; key_part != end; key_part++)
+    {
+      /*
+        Check if all fields in key are declared
+        NOT NULL
+      */
+      if (key_part->fieldnr < table->s->fields)
+      {
+        /* Mark field to be part of new key */
+        Field *field= table->field[key_part->fieldnr];
+        field->flags|= FIELD_IN_ADD_INDEX;
+      }
+    }
   }
 
   DBUG_RETURN(false);
@@ -7085,7 +7140,12 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
        Alter_info::ALTER_TABLE_ALGORITHM_INPLACE)
       || is_inplace_alter_impossible(table, create_info, alter_info)
 #ifdef WITH_PARTITION_STORAGE_ENGINE
+#ifndef MCP_WL3749
+      || (partition_changed &&
+          !(table->s->db_type()->partition_flags() & HA_USE_AUTO_PARTITION))
+#else
       || partition_changed
+#endif
 #endif
      )
   {

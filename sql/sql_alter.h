@@ -108,6 +108,7 @@ public:
   // Set for REMOVE PARTITIONING
   static const uint ALTER_REMOVE_PARTITIONING   = 1L << 21;
 
+
   // Set for ADD FOREIGN KEY
   static const uint ADD_FOREIGN_KEY             = 1L << 22;
 
@@ -123,6 +124,11 @@ public:
   // Set for ADD [COLUMN] FIRST | AFTER
   static const uint ALTER_COLUMN_ORDER          = 1L << 26;
 
+  // Change the storage type of column 
+  static const uint ALTER_COLUMN_STORAGE_TYPE = 1L << 27;
+
+  // Change the column format of column
+  static const uint ALTER_COLUMN_COLUMN_FORMAT = 1L << 28;
 
   enum enum_enable_or_disable { LEAVE_AS_IS, ENABLE, DISABLE };
 
@@ -183,7 +189,6 @@ public:
   enum_alter_table_algorithm    requested_algorithm;
   // Type of ALTER TABLE lock.
   enum_alter_table_lock         requested_lock;
-
 
   Alter_info() :
     flags(0),
