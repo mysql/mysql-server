@@ -570,7 +570,12 @@ table_map Item_subselect::used_tables() const
 
 bool Item_subselect::const_item() const
 {
-  return unit->thd->lex->context_analysis_only ? false : const_item_cache;
+  if (unit->thd->lex->context_analysis_only)
+    return false;
+  /* Not constant until tables are locked. */
+  if (!unit->thd->lex->is_query_tables_locked())
+    return false;
+  return const_item_cache;
 }
 
 Item *Item_subselect::get_tmp_table_item(THD *thd_arg)

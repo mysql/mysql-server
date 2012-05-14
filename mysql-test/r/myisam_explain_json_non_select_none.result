@@ -5738,14 +5738,14 @@ INSERT INTO t2 VALUES (1), (2), (3);
 EXPLAIN UPDATE        t1 SET a = 10 WHERE a IN (SELECT * FROM (SELECT b FROM t2 ORDER BY b LIMIT 2,2) x);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	Using where
-2	DEPENDENT SUBQUERY	<derived3>	ALL	NULL	NULL	NULL	NULL	3	Using where
+2	DEPENDENT SUBQUERY	<derived3>	index_subquery	auto_key0	auto_key0	5	func	2	Using index
 3	DERIVED	t2	ALL	NULL	NULL	NULL	NULL	3	Using filesort
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED UPDATE        t1 SET a = 10 WHERE a IN (SELECT * FROM (SELECT b FROM t2 ORDER BY b LIMIT 2,2) x);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
-2	DEPENDENT SUBQUERY	<derived3>	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
+2	DEPENDENT SUBQUERY	<derived3>	index_subquery	auto_key0	auto_key0	5	func	2	100.00	Using index
 3	DERIVED	t2	ALL	NULL	NULL	NULL	NULL	3	100.00	Using filesort
 # Status of EXPLAIN EXTENDED query
 Variable_name	Value
@@ -5760,7 +5760,7 @@ EXPLAIN
       "access_type": "ALL",
       "rows": 3,
       "filtered": 100,
-      "attached_condition": "<in_optimizer>(`test`.`t1`.`a`,<exists>(select 1 from (select `test`.`t2`.`b` AS `b` from `test`.`t2` order by `test`.`t2`.`b` limit 2,2) `x` where (<cache>(`test`.`t1`.`a`) = `x`.`b`)))",
+      "attached_condition": "<in_optimizer>(`test`.`t1`.`a`,<exists>(<index_lookup>(<cache>(`test`.`t1`.`a`) in x on auto_key0)))",
       "attached_subqueries": [
         {
           "dependent": true,
@@ -5769,10 +5769,18 @@ EXPLAIN
             "select_id": 2,
             "table": {
               "table_name": "x",
-              "access_type": "ALL",
-              "rows": 3,
+              "access_type": "index_subquery",
+              "possible_keys": [
+                "auto_key0"
+              ] /* possible_keys */,
+              "key": "auto_key0",
+              "key_length": "5",
+              "ref": [
+                "func"
+              ] /* ref */,
+              "rows": 2,
               "filtered": 100,
-              "attached_condition": "(<cache>(`test`.`t1`.`a`) = `x`.`b`)",
+              "using_index": true,
               "materialized_from_subquery": {
                 "using_temporary_table": true,
                 "dependent": false,
@@ -5874,7 +5882,8 @@ Sort_rows	3
 Sort_scan	1
 # Status of testing query execution:
 Variable_name	Value
-Handler_read_rnd_next	13
+Handler_read_key	3
+Handler_read_rnd_next	8
 Handler_update	1
 Handler_write	1
 Sort_rows	3

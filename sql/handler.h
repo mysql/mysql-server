@@ -3005,6 +3005,7 @@ public:
     ha_share= arg_ha_share;
     return false;
   }
+  int get_lock_type() const { return m_lock_type; }
 protected:
   Handler_share *get_ha_share_ptr();
   void set_ha_share_ptr(Handler_share *arg_ha_share);
