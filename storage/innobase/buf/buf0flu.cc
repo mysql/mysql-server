@@ -709,6 +709,27 @@ buf_flush_write_complete(
 #endif /* !UNIV_HOTBACKUP */
 
 /********************************************************************//**
+Calculate the checksum of a page from compressed table and update the page. */
+UNIV_INTERN
+void
+buf_flush_update_zip_checksum(
+/*==========================*/
+	buf_frame_t*	page,		/*!< in/out: Page to update */
+	ulint		zip_size,	/*!< in: Compressed page size */
+	lsn_t		lsn)		/*!< in: Lsn to stamp on the page */
+{
+	ut_a(zip_size > 0);
+
+	ib_uint32_t	checksum = page_zip_calc_checksum(
+		page, zip_size,
+		static_cast<srv_checksum_algorithm_t>(srv_checksum_algorithm));
+
+	mach_write_to_8(page + FIL_PAGE_LSN, lsn);
+	memset(page + FIL_PAGE_FILE_FLUSH_LSN, 0, 8);
+	mach_write_to_4(page + FIL_PAGE_SPACE_OR_CHKSUM, checksum);
+}
+
+/********************************************************************//**
 Initializes a page for writing to the tablespace. */
 UNIV_INTERN
 void
@@ -746,17 +767,10 @@ buf_flush_init_for_writing(
 		case FIL_PAGE_TYPE_ZBLOB:
 		case FIL_PAGE_TYPE_ZBLOB2:
 		case FIL_PAGE_INDEX:
-			checksum = page_zip_calc_checksum(
-				page_zip->data, zip_size,
-				static_cast<srv_checksum_algorithm_t>(
-					srv_checksum_algorithm));
 
-			mach_write_to_8(page_zip->data
-					+ FIL_PAGE_LSN, newest_lsn);
-			memset(page_zip->data + FIL_PAGE_FILE_FLUSH_LSN, 0, 8);
-			mach_write_to_4(page_zip->data
-					+ FIL_PAGE_SPACE_OR_CHKSUM,
-					checksum);
+			buf_flush_update_zip_checksum(
+				page_zip->data, zip_size, newest_lsn);
+
 			return;
 		}
 

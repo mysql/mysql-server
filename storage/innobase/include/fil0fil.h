@@ -811,6 +811,11 @@ struct PageCallback {
 		return(m_zip_size);
 	}
 
+	/**
+	Set the tablespace compressed table size.
+	@return DB_SUCCESS if it is valie or DB_CORRUPTION if not */
+	dberr_t set_zip_size(const buf_frame_t* page) UNIV_NOTHROW;
+
 	/** The compressed page size
 	@return the compressed page size */
 	ulint get_page_size() const
