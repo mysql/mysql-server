@@ -554,6 +554,13 @@ CREATE TABLE t2 (
   c1 INTEGER NOT NULL
 );
 
+-- disable_query_log
+-- disable_result_log
+ANALYZE TABLE t1;
+ANALYZE TABLE t2;
+-- enable_result_log
+-- enable_query_log
+
 let query=
 SELECT table1.col_int_nokey
 FROM t1 AS table1 STRAIGHT_JOIN (
