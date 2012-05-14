@@ -272,6 +272,11 @@ public:
 		page_zip_des_t*		page_zip,
 		ulint*			offsets) UNIV_NOTHROW
 	{
+		/* We can't end up with an empty page unless it is root. */
+		if (page_get_n_recs(m_cur.block->frame) <= 1) {
+			return(false);
+		}
+
 		return(page_delete_rec(index, &m_cur, page_zip, offsets));
 	}
 
@@ -1335,8 +1340,11 @@ PageConverter::purge(const ulint* offsets) UNIV_NOTHROW
 {
 	const dict_index_t*	index = m_index->m_srv_index;
 
+	/* We can't have a page that is empty and not root. */
 	if (m_rec_iter.remove(index, m_page_zip_ptr, m_offsets)) {
+
 		++m_index->m_stats.m_n_purged;
+
 		return(true);
 	} else {
 		++m_index->m_stats.m_n_purge_failed;
