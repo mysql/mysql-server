@@ -336,7 +336,7 @@ a	count(a)
 1	1
 NULL	1
 drop table t1;
-create table t1 (f1 int, f2 char(1), primary key(f1,f2));
+create table t1 (f1 int, f2 char(1), primary key(f1,f2)) stats_persistent=0;
 insert into t1 values ( 1,"e"),(2,"a"),( 3,"c"),(4,"d");
 alter table t1 drop primary key, add primary key (f2, f1);
 explain select distinct f1 a, f1 b from t1;
@@ -372,7 +372,7 @@ dept varchar(20) NOT NULL,
 age tinyint(3) unsigned NOT NULL,
 PRIMARY KEY (id),
 INDEX (name,dept)
-) ENGINE=InnoDB;
+) ENGINE=InnoDB STATS_PERSISTENT=0;
 INSERT INTO t1(id, dept, age, name) VALUES
 (3987, 'cs1', 10, 'rs1'), (3988, 'cs2', 20, 'rs1'), (3995, 'cs3', 10, 'rs2'),
 (3996, 'cs4', 20, 'rs2'), (4003, 'cs5', 10, 'rs3'), (4004, 'cs6', 20, 'rs3'),
@@ -545,7 +545,7 @@ stat_id int NOT NULL,
 acct_id int DEFAULT NULL,
 INDEX idx1 (stat_id, acct_id),
 INDEX idx2 (acct_id)
-) ENGINE=InnoDB;
+) ENGINE=InnoDB STATS_PERSISTENT=0;
 INSERT INTO t1(stat_id,acct_id) VALUES
 (1,759), (2,831), (3,785), (4,854), (1,921),
 (1,553), (2,589), (3,743), (2,827), (2,545),
@@ -2535,7 +2535,7 @@ f5 VARCHAR(50),
 PRIMARY KEY (f1),
 KEY idx1 (f2,f5,f4),
 KEY idx2 (f2,f4)
-) ENGINE=InnoDB;
+) ENGINE=InnoDB STATS_PERSISTENT=0;
 LOAD DATA INFILE '../../std_data/intersect-bug50389.tsv' INTO TABLE t1;
 SELECT * FROM t1 WHERE f1 IN
 (3305028,3353871,3772880,3346860,4228206,3336022,
@@ -2572,7 +2572,7 @@ f4 tinyint(1) NOT NULL,
 PRIMARY KEY (f1),
 UNIQUE KEY (f2, f3),
 KEY (f4)
-) ENGINE=InnoDB;
+) ENGINE=InnoDB STATS_PERSISTENT=0;
 INSERT INTO t1 VALUES
 (1,1,991,1), (2,1,992,1), (3,1,993,1), (4,1,994,1), (5,1,995,1),
 (6,1,996,1), (7,1,997,1), (8,1,998,1), (10,1,999,1), (11,1,9910,1),
@@ -2605,7 +2605,7 @@ DROP TABLE t1;
 # Bug#55656: mysqldump can be slower after bug #39653 fix
 #
 CREATE TABLE t1 (a INT , b INT, c INT, d INT,
-KEY (b), PRIMARY KEY (a,b)) ENGINE=INNODB;
+KEY (b), PRIMARY KEY (a,b)) ENGINE=INNODB STATS_PERSISTENT=0;
 INSERT INTO t1 VALUES (1,1,1,1), (2,2,2,2), (3,3,3,3);
 EXPLAIN SELECT COUNT(*) FROM t1;
 id	1

@@ -389,7 +389,7 @@ drop table t1;
 # Bug #13293 Wrongly used index results in endless loop.
 # (was part of group_min_max.test)
 #
-create table t1 (f1 int, f2 char(1), primary key(f1,f2));
+create table t1 (f1 int, f2 char(1), primary key(f1,f2)) stats_persistent=0;
 insert into t1 values ( 1,"e"),(2,"a"),( 3,"c"),(4,"d");
 alter table t1 drop primary key, add primary key (f2, f1);
 explain select distinct f1 a, f1 b from t1;
@@ -433,7 +433,7 @@ CREATE TABLE t1 (
   age tinyint(3) unsigned NOT NULL,
   PRIMARY KEY (id),
   INDEX (name,dept)
-) ENGINE=InnoDB;
+) ENGINE=InnoDB STATS_PERSISTENT=0;
 INSERT INTO t1(id, dept, age, name) VALUES
   (3987, 'cs1', 10, 'rs1'), (3988, 'cs2', 20, 'rs1'), (3995, 'cs3', 10, 'rs2'),
   (3996, 'cs4', 20, 'rs2'), (4003, 'cs5', 10, 'rs3'), (4004, 'cs6', 20, 'rs3'),
@@ -547,7 +547,7 @@ CREATE TABLE t2(
   acct_id int DEFAULT NULL,
   INDEX idx1 (stat_id, acct_id),
   INDEX idx2 (acct_id)
-) ENGINE=InnoDB;
+) ENGINE=InnoDB STATS_PERSISTENT=0;
 
 INSERT INTO t1(stat_id,acct_id) VALUES
   (1,759), (2,831), (3,785), (4,854), (1,921),
