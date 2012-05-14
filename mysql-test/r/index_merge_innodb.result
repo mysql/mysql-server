@@ -759,7 +759,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ref	stb_swt1a_2b,stb_swt1b,st_b	stb_swt1a_2b	8	const,const	3999	Using where
 explain select * from t1 where st_a=1 and swt1a=1 and swt2a=1 and st_b=1 and swt1b=1 and swt2b=1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	index_merge	sta_swt12a,sta_swt1a,sta_swt2a,sta_swt21a,st_a,stb_swt1a_2b,stb_swt1b,st_b	sta_swt12a,stb_swt1a_2b	12,12	NULL	61	Using intersect(sta_swt12a,stb_swt1a_2b); Using where
+1	SIMPLE	t1	index_merge	sta_swt12a,sta_swt1a,sta_swt2a,sta_swt21a,st_a,stb_swt1a_2b,stb_swt1b,st_b	sta_swt12a,stb_swt1a_2b	12,12	NULL	#	Using intersect(sta_swt12a,stb_swt1a_2b); Using where
 explain select * from t1 ignore index (sta_swt21a, stb_swt1a_2b)
 where st_a=1 and swt1a=1 and swt2a=1 and st_b=1 and swt1b=1 and swt2b=1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
@@ -775,19 +775,19 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 explain select * from t1
 where st_a=1 and swt1a=1 and swt2a=1 and st_b=1 and swt1b=1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	index_merge	sta_swt12a,sta_swt1a,sta_swt2a,sta_swt21a,st_a,stb_swt1a_2b,stb_swt1b,st_b	sta_swt12a,stb_swt1a_2b	12,12	NULL	61	Using intersect(sta_swt12a,stb_swt1a_2b); Using where
+1	SIMPLE	t1	index_merge	sta_swt12a,sta_swt1a,sta_swt2a,sta_swt21a,st_a,stb_swt1a_2b,stb_swt1b,st_b	sta_swt12a,stb_swt1a_2b	12,12	NULL	#	Using intersect(sta_swt12a,stb_swt1a_2b); Using where
 explain select * from t1
 where st_a=1 and swt1a=1 and st_b=1 and swt1b=1 and swt1b=1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	index_merge	sta_swt12a,sta_swt1a,sta_swt2a,sta_swt21a,st_a,stb_swt1a_2b,stb_swt1b,st_b	sta_swt1a,stb_swt1b	8,8	NULL	246	Using intersect(sta_swt1a,stb_swt1b); Using where
+1	SIMPLE	t1	index_merge	sta_swt12a,sta_swt1a,sta_swt2a,sta_swt21a,st_a,stb_swt1a_2b,stb_swt1b,st_b	sta_swt1a,stb_swt1b	8,8	NULL	#	Using intersect(sta_swt1a,stb_swt1b); Using where
 explain select st_a from t1
 where st_a=1 and swt1a=1 and st_b=1 and swt1b=1 and swt1b=1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	index_merge	sta_swt12a,sta_swt1a,sta_swt2a,sta_swt21a,st_a,stb_swt1a_2b,stb_swt1b,st_b	sta_swt1a,stb_swt1b	8,8	NULL	246	Using intersect(sta_swt1a,stb_swt1b); Using where; Using index
+1	SIMPLE	t1	index_merge	sta_swt12a,sta_swt1a,sta_swt2a,sta_swt21a,st_a,stb_swt1a_2b,stb_swt1b,st_b	sta_swt1a,stb_swt1b	8,8	NULL	#	Using intersect(sta_swt1a,stb_swt1b); Using where; Using index
 explain select st_a from t1
 where st_a=1 and swt1a=1 and st_b=1 and swt1b=1 and swt1b=1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	index_merge	sta_swt12a,sta_swt1a,sta_swt2a,sta_swt21a,st_a,stb_swt1a_2b,stb_swt1b,st_b	sta_swt1a,stb_swt1b	8,8	NULL	246	Using intersect(sta_swt1a,stb_swt1b); Using where; Using index
+1	SIMPLE	t1	index_merge	sta_swt12a,sta_swt1a,sta_swt2a,sta_swt21a,st_a,stb_swt1a_2b,stb_swt1b,st_b	sta_swt1a,stb_swt1b	8,8	NULL	#	Using intersect(sta_swt1a,stb_swt1b); Using where; Using index
 drop table t0,t1;
 create table t2 (
 a char(10),
