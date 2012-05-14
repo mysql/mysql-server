@@ -987,7 +987,6 @@ int Arg_comparator::set_cmp_func(Item_result_field *owner_arg,
   set_null= set_null && owner_arg;
   a= a1;
   b= a2;
-  thd= current_thd;
 
   if ((cmp_type= can_compare_as_dates(*a, *b, &const_value)))
   {
