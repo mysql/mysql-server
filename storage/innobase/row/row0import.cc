@@ -547,7 +547,7 @@ private:
 	/** @return true if compressed table. */
 	bool is_compressed_table() const UNIV_NOTHROW
 	{
-		return(m_zip_size > 0);
+		return(get_zip_size() > 0);
 	}
 
 private:
@@ -1177,16 +1177,15 @@ PageConverter::init(
 	/* Since we don't know whether it is a compressed table or not,
 	the data is always read into the block->frame. */
 
-	m_zip_size = fsp_header_get_zip_size(block->frame);
+	dberr_t	err = set_zip_size(block->frame);
 
-	if (!ut_is_2pow(m_zip_size) || m_zip_size > UNIV_ZIP_SIZE_MAX) {
-
+	if (err != DB_SUCCESS) {
 		return(DB_CORRUPTION);
 	}
 
 	/* Set the page size used to traverse the tablespace. */
 
-	m_page_size = (m_zip_size > 0) ? m_zip_size : UNIV_PAGE_SIZE;
+	m_page_size = (is_compressed_table()) ? get_zip_size() : UNIV_PAGE_SIZE;
 
 	if ((file_size % m_page_size)) {
 
@@ -1549,6 +1548,9 @@ PageConverter::update_page(
 		return(update_header(block));
 
 	case FIL_PAGE_INDEX:
+		/* We need to decompress the contents into block->frame
+		before we can do any thing with Btree pages. */
+
 		if (is_compressed_table() && !buf_zip_decompress(block, TRUE)) {
 			return(DB_CORRUPTION);
 		}
@@ -1600,7 +1602,7 @@ PageConverter::validate(
 	the file. Flag as corrupt if it doesn't. Disable the check
 	for LSN in buf_page_is_corrupted() */
 
-	if (buf_page_is_corrupted(false, page, m_zip_size)
+	if (buf_page_is_corrupted(false, page, get_zip_size())
 	    || (page_get_page_no(page) != offset / m_page_size
 		&& page_get_page_no(page) != 0)) {
 
@@ -1671,7 +1673,22 @@ PageConverter::operator() (
 		buf_flush_init_for_writing(
 			page_type == FIL_PAGE_INDEX || !is_compressed_table()
 			? block->frame : block->page.zip.data,
-			m_page_zip_ptr, m_current_lsn);
+			page_type != FIL_PAGE_INDEX || !is_compressed_table()
+			? 0 : m_page_zip_ptr,
+			m_current_lsn);
+
+		/* Calculate and update the checksum of non-btree pages for
+		compressed tables explicitly here. It was not done in the 
+		function buf_flush_init_for_writing() because we deliberately
+		passed in a NULL Zip descriptor to avoid copying data around
+		unnecessarily. For large tables this is a HUGE cost. */
+
+		if (is_compressed_table() && page_type != FIL_PAGE_INDEX) {
+
+			buf_flush_update_zip_checksum(
+				get_frame(block), get_zip_size(),
+				m_current_lsn);
+		}
 
 		break;
 

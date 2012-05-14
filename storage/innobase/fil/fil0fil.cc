@@ -5326,3 +5326,17 @@ fil_tablespace_iterate(
 	return(err);
 }
 
+/**
+Set the tablespace compressed table size.
+@return DB_SUCCESS if it is valie or DB_CORRUPTION if not */
+dberr_t
+PageCallback::set_zip_size(const buf_frame_t* page) UNIV_NOTHROW
+{
+	m_zip_size = fsp_header_get_zip_size(page);
+
+	if (!ut_is_2pow(m_zip_size) || m_zip_size > UNIV_ZIP_SIZE_MAX) {
+		return(DB_CORRUPTION);
+	}
+
+	return(DB_SUCCESS);
+}
