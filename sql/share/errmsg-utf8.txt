@@ -6758,8 +6758,15 @@ ER_MTS_RECOVERY_FAILURE
 ER_MTS_RESET_WORKERS
   eng "Cannot clean up worker info tables. Additional error messages can be found in the MySQL error log."
 
+ER_COL_COUNT_DOESNT_MATCH_CORRUPTED_V2
+  eng "Column count of %s.%s is wrong. Expected %d, found %d. The table is probably corrupted"
+  ger "Spaltenanzahl von %s.%s falsch. %d erwartet, aber %d gefunden. Tabelle ist wahrscheinlich beschädigt"
+
 ER_SLAVE_SILENT_RETRY_TRANSACTION
   eng "Slave must silently retry current transaction"
+
+ER_DISCARD_FK_CHECKS_RUNNING
+  eng "There is a foreign key check running on table '%-.192s'. Cannot discard the table."
 
 ER_TABLE_SCHEMA_MISMATCH
   eng "Schema mismatch (%s)"
@@ -6790,13 +6797,6 @@ ER_INNODB_IMPORT_ERROR
 
 ER_INNODB_INDEX_CORRUPT
   eng "Index corrupt: %s"
-
-ER_DISCARD_FK_CHECKS_RUNNING
-  eng "There is a foreign key check running on table '%-.192s'. Cannot discard the table."
-
-ER_COL_COUNT_DOESNT_MATCH_CORRUPTED_V2
-  eng "Column count of %s.%s is wrong. Expected %d, found %d. The table is probably corrupted"
-  ger "Spaltenanzahl von %s.%s falsch. %d erwartet, aber %d gefunden. Tabelle ist wahrscheinlich beschädigt"
 
 #
 #  End of 5.6 error messages.
