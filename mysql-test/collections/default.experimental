@@ -12,6 +12,7 @@ main.sp @solaris                         # Bug#11753919 2010-01-20 alik Several 
 
 main.bug33509 @solaris                   # Bug#11753919 2012-02-16 didrik Several test cases fail on Solaris with error Thread stack overrun
 
+main.index_merge_innodb                  # BUG#45727    2012-05-08 jorgen Doing an attempt at reenabling tests disabled by bug. EXPLAIN's row estimates varies for innodb so marked experimental for a while
 main.kill @freebsd                       # Bug#12619719 2011-08-04 Occasional failure in PB2
 
 innodb.innodb_monitor                    # Bug#12320827 2011-08-04 Occasional failure in PB2

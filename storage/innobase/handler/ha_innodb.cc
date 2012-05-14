@@ -2382,7 +2382,7 @@ innobase_invalidate_query_cache(
 
 	/* Argument TRUE below means we are using transactions */
 #ifdef HAVE_QUERY_CACHE
-	mysql_query_cache_invalidate4(trx->mysql_thd,
+	mysql_query_cache_invalidate4(static_cast<THD*>(trx->mysql_thd),
 				      full_name,
 				      (uint32) full_name_len,
 				      TRUE);
@@ -2566,7 +2566,8 @@ trx_is_interrupted(
 /*===============*/
 	const trx_t*	trx)	/*!< in: transaction */
 {
-	return(trx && trx->mysql_thd && thd_killed(trx->mysql_thd));
+	return(trx && trx->mysql_thd
+	       && thd_killed(static_cast<THD*>(trx->mysql_thd)));
 }
 
 /**********************************************************************//**
@@ -2579,7 +2580,7 @@ trx_is_strict(
 	trx_t*	trx)	/*!< in: transaction */
 {
 	return(trx && trx->mysql_thd
-	       && THDVAR(trx->mysql_thd, strict_mode));
+	       && THDVAR(static_cast<THD*>(trx->mysql_thd), strict_mode));
 }
 
 /**************************************************************//**
@@ -3873,8 +3874,8 @@ ha_innobase::primary_key_is_clustered()
 
 /*****************************************************************//**
 Normalizes a table name string. A normalized name consists of the
-database name catenated to '/' and table name. An example:
-test/mytable. On Windows normalization puts both the database name and the
+database name catenated to '/' and table name. Example: test/mytable.
+On Windows normalization puts both the database name and the
 table name always to lower case if "set_lower_case" is set to TRUE. */
 static
 void
@@ -4527,13 +4528,13 @@ retry:
 
 			1) If boot against an installation from Windows
 			platform, then its partition table name could
-			be all be in lower case in system tables. So we
-			will need to check lower case name when load table.
+			be in lower case in system tables. So we will
+			need to check lower case name when load table.
 
-			2) If  we boot an installation from other case
+			2) If we boot an installation from other case
 			sensitive platform in Windows, we might need to
-			check the existence of table name without lowering
-			case them in the system table. */
+			check the existence of table name without lower
+			case in the system table. */
 			if (innobase_get_lower_case_table_names() == 1) {
 
 				if (!par_case_name_set) {
@@ -7304,7 +7305,7 @@ ha_innobase::index_read(
 	case DB_SUCCESS:
 		error = 0;
 		table->status = 0;
-		srv_stats.n_rows_read.add(prebuilt->trx->id, 1);
+		srv_stats.n_rows_read.add((size_t) prebuilt->trx->id, 1);
 		break;
 	case DB_RECORD_NOT_FOUND:
 		error = HA_ERR_KEY_NOT_FOUND;
@@ -7556,7 +7557,7 @@ ha_innobase::general_fetch(
 	case DB_SUCCESS:
 		error = 0;
 		table->status = 0;
-		srv_stats.n_rows_read.add(prebuilt->trx->id, 1);
+		srv_stats.n_rows_read.add((size_t) prebuilt->trx->id, 1);
 		break;
 	case DB_RECORD_NOT_FOUND:
 		error = HA_ERR_END_OF_FILE;
@@ -8180,7 +8181,7 @@ create_table_check_doc_id_col(
 				*doc_id_col = i;
 			} else {
 				push_warning_printf(
-					trx->mysql_thd,
+					static_cast<THD*>(trx->mysql_thd),
 					Sql_condition::WARN_LEVEL_WARN,
 					ER_ILLEGAL_HA_CREATE_OPTION,
 					"InnoDB: FTS_DOC_ID column must be "
@@ -8219,9 +8220,10 @@ create_table_def(
 	ulint		flags,		/*!< in: table flags */
 	ulint		flags2)		/*!< in: table flags2 */
 {
+	THD*		thd = static_cast<THD*>(trx->mysql_thd);
 	dict_table_t*	table;
 	ulint		n_cols;
-	dberr_t		error;
+	dberr_t		err;
 	ulint		col_type;
 	ulint		col_len;
 	ulint		nulls_allowed;
@@ -8237,13 +8239,13 @@ create_table_def(
 	DBUG_ENTER("create_table_def");
 	DBUG_PRINT("enter", ("table_name: %s", table_name));
 
-	DBUG_ASSERT(trx->mysql_thd != NULL);
+	DBUG_ASSERT(thd != NULL);
 
 	/* MySQL does the name length check. But we do additional check
 	on the name length here */
 	if (strlen(table_name) > MAX_FULL_NAME_LEN) {
 		push_warning_printf(
-			trx->mysql_thd, Sql_condition::WARN_LEVEL_WARN,
+			thd, Sql_condition::WARN_LEVEL_WARN,
 			ER_TABLE_NAME,
 			"InnoDB: Table Name or Database Name is too long");
 
@@ -8255,7 +8257,7 @@ create_table_def(
 	if (strcmp(strchr(table_name, '/') + 1,
 		   "innodb_table_monitor") == 0) {
 		push_warning(
-			trx->mysql_thd, Sql_condition::WARN_LEVEL_WARN,
+			thd, Sql_condition::WARN_LEVEL_WARN,
 			HA_ERR_WRONG_COMMAND,
 			DEPRECATED_MSG_INNODB_TABLE_MONITOR);
 	}
@@ -8269,7 +8271,7 @@ create_table_def(
 		if (doc_id_col == ULINT_UNDEFINED) {
 			trx_commit_for_mysql(trx);
 
-			error = DB_ERROR;
+			err = DB_ERROR;
 			goto error_ret;
 		} else {
 			has_doc_id_col = TRUE;
@@ -8312,8 +8314,7 @@ create_table_def(
 
 		if (!col_type) {
 			push_warning_printf(
-				trx->mysql_thd,
-				Sql_condition::WARN_LEVEL_WARN,
+				thd, Sql_condition::WARN_LEVEL_WARN,
 				ER_CANT_CREATE_TABLE,
 				"Error creating table '%s' with "
 				"column '%s'. Please check its "
@@ -8337,8 +8338,7 @@ create_table_def(
 				/* in data0type.h we assume that the
 				number fits in one byte in prtype */
 				push_warning_printf(
-					trx->mysql_thd,
-					Sql_condition::WARN_LEVEL_WARN,
+					thd, Sql_condition::WARN_LEVEL_WARN,
 					ER_CANT_CREATE_TABLE,
 					"In InnoDB, charset-collation codes"
 					" must be below 256."
@@ -8379,7 +8379,7 @@ err_col:
 			mem_heap_free(heap);
 			trx_commit_for_mysql(trx);
 
-			error = DB_ERROR;
+			err = DB_ERROR;
 			goto error_ret;
 		}
 
@@ -8399,18 +8399,19 @@ err_col:
 		fts_add_doc_id_column(table, heap);
 	}
 
-	error = row_create_table_for_mysql(table, trx);
+	err = row_create_table_for_mysql(table, trx);
 
 	mem_heap_free(heap);
 
-	if (error == DB_DUPLICATE_KEY) {
-		char buf[100];
+	if (err == DB_DUPLICATE_KEY) {
+		char display_name[FN_REFLEN];
 		char* buf_end = innobase_convert_identifier(
-			buf, sizeof buf - 1, table_name, strlen(table_name),
-			trx->mysql_thd, TRUE);
+			display_name, sizeof(display_name) - 1,
+			table_name, strlen(table_name),
+			thd, TRUE);
 
 		*buf_end = '\0';
-		my_error(ER_TABLE_EXISTS_ERROR, MYF(0), buf);
+		my_error(ER_TABLE_EXISTS_ERROR, MYF(0), display_name);
 	}
 
 	if (flags2 & DICT_TF2_FTS) {
@@ -8418,7 +8419,7 @@ err_col:
 	}
 
 error_ret:
-	DBUG_RETURN(convert_error_code_to_mysql(error, flags, trx->mysql_thd));
+	DBUG_RETURN(convert_error_code_to_mysql(err, flags, thd));
 }
 
 /*****************************************************************//**
@@ -9554,9 +9555,11 @@ ha_innobase::delete_table(
 	persistent storage if it exists and if there are stats for this
 	table in there. This function creates its own trx and commits
 	it. */
-	error = dict_stats_delete_table_stats(norm_name,
-					      errstr, sizeof(errstr));
+	error = dict_stats_drop_table(norm_name, errstr, sizeof(errstr));
 	if (error != DB_SUCCESS) {
+		ut_print_timestamp(stderr);
+		fprintf(stderr, " InnoDB: %s\n", errstr);
+
 		push_warning(thd, Sql_condition::WARN_LEVEL_WARN,
 			     ER_LOCK_WAIT_TIMEOUT, errstr);
 	}
@@ -9890,6 +9893,9 @@ ha_innobase::rename_table(
 					      errstr, sizeof(errstr));
 
 		if (ret != DB_SUCCESS) {
+			ut_print_timestamp(stderr);
+			fprintf(stderr, " InnoDB: %s\n", errstr);
+
 			push_warning(thd, Sql_condition::WARN_LEVEL_WARN,
 				     ER_LOCK_WAIT_TIMEOUT, errstr);
 		}
@@ -10513,8 +10519,8 @@ ha_innobase::info(
 					"space for table %s but its "
 					"tablespace has been discarded or "
 					"the .ibd file is missing. Setting "
-                                        "the free space to zero. "
-                                        "(errno: %d - %s)",
+					"the free space to zero. "
+					"(errno: %d - %s)",
 					ib_table->name, errno,
 					my_strerror(errbuf, sizeof(errbuf),
 						    errno));
