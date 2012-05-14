@@ -8519,7 +8519,7 @@ get_row_format_name(
 			"InnoDB: ROW_FORMAT=%s requires"	\
 			" innodb_file_per_table.",		\
 			get_row_format_name(row_format));	\
-		ret = FALSE;					\
+		ret = "ROW_FORMAT";					\
 	}
 
 /** If file-format is Antelope, issue warning and set ret false */
@@ -8531,7 +8531,7 @@ get_row_format_name(
 			"InnoDB: ROW_FORMAT=%s requires"	\
 			" innodb_file_format > Antelope.",	\
 			get_row_format_name(row_format));	\
-		ret = FALSE;					\
+		ret = "ROW_FORMAT";				\
 	}
 
 
@@ -8540,11 +8540,11 @@ Validates the create options. We may build on this function
 in future. For now, it checks two specifiers:
 KEY_BLOCK_SIZE and ROW_FORMAT
 If innodb_strict_mode is not set then this function is a no-op
-@return	TRUE if valid. */
-static
-ibool
-create_options_are_valid(
-/*=====================*/
+@return	NULL if valid, string if not. */
+UNIV_INTERN
+const char*
+create_options_are_invalid(
+/*=======================*/
 	THD*		thd,		/*!< in: connection thread. */
 	TABLE*		form,		/*!< in: information on table
 					columns and indexes */
@@ -8552,14 +8552,14 @@ create_options_are_valid(
 	bool		use_tablespace)	/*!< in: srv_file_per_table */
 {
 	ibool	kbs_specified	= FALSE;
-	ibool	ret		= TRUE;
+	const char*	ret	= NULL;
 	enum row_type	row_format	= form->s->row_type;
 
 	ut_ad(thd != NULL);
 
 	/* If innodb_strict_mode is not set don't do any validation. */
 	if (!(THDVAR(thd, strict_mode))) {
-		return(TRUE);
+		return(NULL);
 	}
 
 	ut_ad(form != NULL);
@@ -8582,7 +8582,7 @@ create_options_are_valid(
 					ER_ILLEGAL_HA_CREATE_OPTION,
 					"InnoDB: KEY_BLOCK_SIZE requires"
 					" innodb_file_per_table.");
-				ret = FALSE;
+				ret = "KEY_BLOCK_SIZE";
 			}
 			if (srv_file_format < UNIV_FORMAT_B) {
 				push_warning(
@@ -8590,7 +8590,7 @@ create_options_are_valid(
 					ER_ILLEGAL_HA_CREATE_OPTION,
 					"InnoDB: KEY_BLOCK_SIZE requires"
 					" innodb_file_format > Antelope.");
-				ret = FALSE;
+				ret = "KEY_BLOCK_SIZE";
 			}
 
 			/* The maximum KEY_BLOCK_SIZE (KBS) is 16. But if
@@ -8607,7 +8607,7 @@ create_options_are_valid(
 					" cannot be larger than %ld.",
 					create_info->key_block_size,
 					kbs_max);
-				ret = FALSE;
+				ret = "KEY_BLOCK_SIZE";
 			}
 			break;
 		default:
@@ -8617,7 +8617,7 @@ create_options_are_valid(
 				"InnoDB: invalid KEY_BLOCK_SIZE = %lu."
 				" Valid values are [1, 2, 4, 8, 16]",
 				create_info->key_block_size);
-			ret = FALSE;
+			ret = "KEY_BLOCK_SIZE";
 			break;
 		}
 	}
@@ -8642,7 +8642,7 @@ create_options_are_valid(
 				"InnoDB: cannot specify ROW_FORMAT = %s"
 				" with KEY_BLOCK_SIZE.",
 				get_row_format_name(row_format));
-			ret = FALSE;
+			ret = "KEY_BLOCK_SIZE";
 		}
 		break;
 	case ROW_TYPE_DEFAULT:
@@ -8654,7 +8654,7 @@ create_options_are_valid(
 			thd, Sql_condition::WARN_LEVEL_WARN,
 			ER_ILLEGAL_HA_CREATE_OPTION,		\
 			"InnoDB: invalid ROW_FORMAT specifier.");
-		ret = FALSE;
+		ret = "ROW_TYPE";
 		break;
 	}
 
@@ -8991,7 +8991,7 @@ ha_innobase::create(
 	/* Create the table definition in InnoDB */
 
 	/* Validate create options if innodb_strict_mode is set. */
-	if (!create_options_are_valid(
+	if (create_options_are_invalid(
 			thd, form, create_info, use_tablespace)) {
 		DBUG_RETURN(ER_ILLEGAL_HA_CREATE_OPTION);
 	}
