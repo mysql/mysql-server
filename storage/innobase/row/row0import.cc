@@ -1473,6 +1473,9 @@ PageConverter::update_index_page(
 
 		iter = m_index_map.find(id);
 
+		/* We assume that the page was freed and doesn't belong
+		to any known index. */
+
 		if (iter == m_index_map.end()) {
 			return(DB_CORRUPTION);
 		}
@@ -1482,11 +1485,6 @@ PageConverter::update_index_page(
 	}
 
 	page_set_max_trx_id(block, m_page_zip_ptr, m_trx->id, 0);
-
-	/* This is on every page in the tablespace. */
-	mach_write_to_4(
-		get_frame(block)
-		+ FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID, get_space_id());
 
 	/* This has to be written to uncompressed index header. */
 	btr_page_set_index_id(
@@ -1561,6 +1559,16 @@ PageConverter::update_page(
 
 		if (is_compressed_table() && !buf_zip_decompress(block, TRUE)) {
 			return(DB_CORRUPTION);
+		}
+
+		/* This is on every page in the tablespace. */
+		mach_write_to_4(
+			get_frame(block)
+			+ FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID, get_space_id());
+
+		/* Page is empty, it could be a deleted page too. Igore it. */
+		if (page_get_n_recs(block->frame) == 0) {
+			return(DB_SUCCESS);
 		}
 
 		/* Only update the Btree nodes. */
