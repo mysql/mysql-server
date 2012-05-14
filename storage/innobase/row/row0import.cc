@@ -1477,7 +1477,7 @@ PageConverter::update_index_page(
 		to any known index. */
 
 		if (iter == m_index_map.end()) {
-			return(DB_CORRUPTION);
+			return(DB_SUCCESS);
 		}
 
 		/* Update current index */
