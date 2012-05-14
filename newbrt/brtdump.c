@@ -151,10 +151,10 @@ dump_node (int f, BLOCKNUM blocknum, struct brt_header *h) {
 
     printf(" pivots:\n");
     for (int i=0; i<n->n_children-1; i++) {
-        struct kv_pair *piv = n->childkeys[i];
+        const DBT *piv = &n->childkeys[i];
         printf("  pivot %2d:", i);
         assert(n->flags == 0);
-        print_item(kv_pair_key_const(piv), kv_pair_keylen(piv));
+        print_item(piv->data, piv->size);
         printf("\n");
     }
     printf(" children:\n");

@@ -111,7 +111,7 @@ static void
 destroy_brtnode_and_internals(struct brtnode *node)
 {
     for (int i = 0; i < node->n_children - 1; ++i) {
-        kv_pair_free(node->childkeys[i]);
+        toku_free(node->childkeys[i].data);
     }
     for (int i = 0; i < node->n_children; ++i) {
         BASEMENTNODE bn = BLB(node, i);
@@ -156,7 +156,7 @@ test_split_on_boundary(void)
             insert_dummy_value(&sn, bn, k);
         }
         if (bn < sn.n_children - 1) {
-            sn.childkeys[bn] = kv_pair_malloc(&k, sizeof k, 0, 0);
+            toku_fill_dbt(&sn.childkeys[bn], toku_xmemdup(&k, sizeof k), sizeof k);
             sn.totalchildkeylens += (sizeof k);
         }
     }
@@ -216,7 +216,7 @@ test_split_with_everything_on_the_left(void)
                 k = bn * eltsperbn + i;
                 big_val_size += insert_dummy_value(&sn, bn, k);
             }
-            sn.childkeys[bn] = kv_pair_malloc(&k, sizeof k, 0, 0);
+            toku_fill_dbt(&sn.childkeys[bn], toku_xmemdup(&k, sizeof k), sizeof k);
             sn.totalchildkeylens += (sizeof k);
         } else {
             k = bn * eltsperbn;
@@ -288,7 +288,7 @@ test_split_on_boundary_of_last_node(void)
                 k = bn * eltsperbn + i;
                 big_val_size += insert_dummy_value(&sn, bn, k);
             }
-            sn.childkeys[bn] = kv_pair_malloc(&k, sizeof k, 0, 0);
+            toku_fill_dbt(&sn.childkeys[bn], toku_xmemdup(&k, sizeof k), sizeof k);
             sn.totalchildkeylens += (sizeof k);
         } else {
             k = bn * eltsperbn;
@@ -357,7 +357,7 @@ test_split_at_begin(void)
             totalbytes += insert_dummy_value(&sn, bn, k);
         }
         if (bn < sn.n_children - 1) {
-            sn.childkeys[bn] = kv_pair_malloc(&k, sizeof k, 0, 0);
+            toku_fill_dbt(&sn.childkeys[bn], toku_xmemdup(&k, sizeof k), sizeof k);
             sn.totalchildkeylens += (sizeof k);
         }
     }
@@ -436,7 +436,7 @@ test_split_at_end(void)
             }
         }
         if (bn < sn.n_children - 1) {
-            sn.childkeys[bn] = kv_pair_malloc(&k, sizeof k, 0, 0);
+            toku_fill_dbt(&sn.childkeys[bn], toku_xmemdup(&k, sizeof k), sizeof k);
             sn.totalchildkeylens += (sizeof k);
         }
     }
@@ -490,7 +490,7 @@ test_split_odd_nodes(void)
             insert_dummy_value(&sn, bn, k);
         }
         if (bn < sn.n_children - 1) {
-            sn.childkeys[bn] = kv_pair_malloc(&k, sizeof k, 0, 0);
+            toku_fill_dbt(&sn.childkeys[bn], toku_xmemdup(&k, sizeof k), sizeof k);
             sn.totalchildkeylens += (sizeof k);
         }
     }

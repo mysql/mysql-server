@@ -96,7 +96,7 @@ test_serialize_leaf(int valsize, int nelts, double entropy) {
         }
         BLB_NBYTESINBUF(&sn, ck) = nperbn*(KEY_VALUE_OVERHEAD+(sizeof(long)+valsize)) + toku_omt_size(BLB_BUFFER(&sn, ck));
         if (ck < 7) {
-            sn.childkeys[ck] = kv_pair_malloc(&k, sizeof k, 0, 0);
+            toku_fill_dbt(&sn.childkeys[ck], toku_xmemdup(&k, sizeof k), sizeof k);
             sn.totalchildkeylens += sizeof k;
         }
     }
@@ -154,7 +154,7 @@ test_serialize_leaf(int valsize, int nelts, double entropy) {
     toku_brtnode_free(&dn);
 
     for (int i = 0; i < sn.n_children-1; ++i) {
-        kv_pair_free(sn.childkeys[i]);
+        toku_free(sn.childkeys[i].data);
     }
     for (int i = 0; i < nelts; ++i) {
         if (les[i]) { toku_free(les[i]); }
@@ -227,7 +227,7 @@ test_serialize_nonleaf(int valsize, int nelts, double entropy) {
             r = toku_bnc_insert_msg(bnc, &k, sizeof k, buf, valsize, BRT_NONE, next_dummymsn(), xids_123, true, NULL, long_key_cmp); assert_zero(r);
         }
         if (ck < 7) {
-            sn.childkeys[ck] = kv_pair_malloc(&k, sizeof k, 0, 0);
+            toku_fill_dbt(&sn.childkeys[ck], toku_xmemdup(&k, sizeof k), sizeof k);
             sn.totalchildkeylens += sizeof k;
         }
     }
@@ -289,7 +289,7 @@ test_serialize_nonleaf(int valsize, int nelts, double entropy) {
     toku_brtnode_free(&dn);
 
     for (int i = 0; i < sn.n_children-1; ++i) {
-        kv_pair_free(sn.childkeys[i]);
+        toku_free(sn.childkeys[i].data);
     }
     for (int i = 0; i < sn.n_children; ++i) {
         destroy_nonleaf_childinfo(BNC(&sn, i));

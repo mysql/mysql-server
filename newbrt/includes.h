@@ -43,7 +43,6 @@
 #include "fifo.h"
 #include "toku_list.h"
 #include "key.h"
-#include "kv-pair.h"
 #include "leafentry.h"
 #include "log-internal.h"
 #include "log_header.h"

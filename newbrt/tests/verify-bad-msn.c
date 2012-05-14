@@ -88,12 +88,12 @@ make_tree(BRT brt, int height, int fanout, int nperleaf, int *seq, int *minkey, 
         int minkeys[fanout], maxkeys[fanout];
         for (int childnum = 0; childnum < fanout; childnum++) {
             BRTNODE child = make_tree(brt, height-1, fanout, nperleaf, seq, &minkeys[childnum], &maxkeys[childnum]);
-            if (childnum == 0) 
-                toku_brt_nonleaf_append_child(node, child, NULL, 0);
-            else {
+            if (childnum == 0) {
+                toku_brt_nonleaf_append_child(node, child, NULL);
+            } else {
                 int k = maxkeys[childnum-1]; // use the max of the left tree
-                struct kv_pair *pivotkey = kv_pair_malloc(&k, sizeof k, NULL, 0);
-                toku_brt_nonleaf_append_child(node, child, pivotkey, sizeof k);
+                DBT pivotkey;
+                toku_brt_nonleaf_append_child(node, child, toku_fill_dbt(&pivotkey, toku_xmemdup(&k, sizeof k), sizeof k));
             }
             toku_unpin_brtnode(brt->h, child);
             insert_into_child_buffer(brt, node, childnum, minkeys[childnum], maxkeys[childnum]);

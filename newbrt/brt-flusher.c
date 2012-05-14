@@ -378,10 +378,8 @@ ct_maybe_merge_child(struct flusher_advice *fa,
             ctme.is_last_child = FALSE;
             pivot_to_save = childnum;
         }
-        struct kv_pair *pivot = parent->childkeys[pivot_to_save];
-        size_t pivotlen = kv_pair_keylen(pivot);
-        char *buf = toku_xmemdup(kv_pair_key_const(pivot), pivotlen);
-        toku_fill_dbt(&ctme.target_key, buf, pivotlen);
+        const DBT *pivot = &parent->childkeys[pivot_to_save];
+        toku_clone_dbt(&ctme.target_key, *pivot);
 
         // at this point, ctme is properly setup, now we can do the merge
         struct flusher_advice new_fa;
@@ -420,7 +418,7 @@ ct_maybe_merge_child(struct flusher_advice *fa,
 
         (void) __sync_fetch_and_add(&STATUS_VALUE(BRT_FLUSHER_CLEANER_NUM_LEAF_MERGES_RUNNING), -1);
 
-        toku_free(buf);
+        toku_free(ctme.target_key.data);
     }
 }
 
@@ -495,7 +493,7 @@ handle_split_of_child(
         int i;
         printf("%s:%d Child %d splitting on %s\n", __FILE__, __LINE__, childnum, (char*)splitk->data);
         printf("%s:%d oldsplitkeys:", __FILE__, __LINE__);
-        for(i=0; i<node->n_children-1; i++) printf(" %s", (char*)node->childkeys[i]);
+        for(i=0; i<node->n_children-1; i++) printf(" %s", (char *) node->childkeys[i].data);
         printf("\n");
     }
                  )
@@ -524,21 +522,19 @@ handle_split_of_child(
 
     // Slide the keys over
     {
-        struct kv_pair *pivot = splitk->data;
-
         for (cnum=node->n_children-2; cnum>childnum; cnum--) {
-            node->childkeys[cnum] = node->childkeys[cnum-1];
+            toku_copyref_dbt(&node->childkeys[cnum], node->childkeys[cnum-1]);
         }
         //if (logger) assert((t->flags&TOKU_DB_DUPSORT)==0); // the setpivot is wrong for TOKU_DB_DUPSORT, so recovery will be broken.
-        node->childkeys[childnum]= pivot;
-        node->totalchildkeylens += toku_brt_pivot_key_len(pivot);
+        toku_copyref_dbt(&node->childkeys[childnum], *splitk);
+        node->totalchildkeylens += splitk->size;
     }
 
     WHEN_NOT_GCOV(
     if (toku_brt_debug_mode) {
         int i;
         printf("%s:%d splitkeys:", __FILE__, __LINE__);
-        for(i=0; i<node->n_children-2; i++) printf(" %s", (char*)node->childkeys[i]);
+        for(i=0; i<node->n_children-2; i++) printf(" %s", (char*)node->childkeys[i].data);
         printf("\n");
     }
                  )
@@ -876,15 +872,15 @@ brtleaf_split(
         int base_index = (split_on_boundary ? last_bn_on_left + 1 : last_bn_on_left);
         // make pivots in B
         for (int i=0; i < num_children_in_b-1; i++) {
-            B->childkeys[i] = node->childkeys[i+base_index];
-            B->totalchildkeylens += toku_brt_pivot_key_len(node->childkeys[i+base_index]);
-            node->totalchildkeylens -= toku_brt_pivot_key_len(node->childkeys[i+base_index]);
-            node->childkeys[i+base_index] = NULL;
+            toku_copyref_dbt(&B->childkeys[i], node->childkeys[i+base_index]);
+            B->totalchildkeylens += node->childkeys[i+base_index].size;
+            node->totalchildkeylens -= node->childkeys[i+base_index].size;
+            toku_init_dbt(&node->childkeys[i+base_index]);
         }
         if (split_on_boundary) {
             // destroy the extra childkey between the nodes, we'll
             // recreate it in splitk below
-            toku_free(node->childkeys[last_bn_on_left]);
+            toku_free(node->childkeys[last_bn_on_left].data);
         }
         REALLOC_N(num_children_in_node, node->bp);
         REALLOC_N(num_children_in_node-1, node->childkeys);
@@ -896,9 +892,9 @@ brtleaf_split(
         int r=toku_omt_fetch(BLB_BUFFER(node, last_bn_on_left), toku_omt_size(BLB_BUFFER(node, last_bn_on_left))-1, &lev);
         assert_zero(r); // that fetch should have worked.
         LEAFENTRY le=lev;
-        splitk->size = le_keylen(le);
-        splitk->data = kv_pair_malloc(le_key(le), le_keylen(le), 0, 0);
-        splitk->flags=0;
+        uint32_t keylen;
+        void *key = le_key_and_len(le, &keylen);
+        toku_fill_dbt(splitk, toku_xmemdup(key, keylen), keylen);
     }
 
     verify_all_in_mempool(node);
@@ -959,19 +955,18 @@ brt_nonleaf_split(
             {
                 assert(i>0);
                 if (i>n_children_in_a) {
-                    B->childkeys[targchild-1] = node->childkeys[i-1];
-                    B->totalchildkeylens += toku_brt_pivot_key_len(node->childkeys[i-1]);
-                    node->totalchildkeylens -= toku_brt_pivot_key_len(node->childkeys[i-1]);
-                    node->childkeys[i-1] = 0;
+                    toku_copyref_dbt(&B->childkeys[targchild-1], node->childkeys[i-1]);
+                    B->totalchildkeylens += node->childkeys[i-1].size;
+                    node->totalchildkeylens -= node->childkeys[i-1].size;
+                    toku_init_dbt(&node->childkeys[i-1]);
                 }
             }
         }
 
         node->n_children=n_children_in_a;
 
-        splitk->data = (void*)(node->childkeys[n_children_in_a-1]);
-        splitk->size = toku_brt_pivot_key_len(node->childkeys[n_children_in_a-1]);
-        node->totalchildkeylens -= toku_brt_pivot_key_len(node->childkeys[n_children_in_a-1]);
+        toku_copyref_dbt(splitk, node->childkeys[n_children_in_a-1]);
+        node->totalchildkeylens -= node->childkeys[n_children_in_a-1].size;
 
         REALLOC_N(n_children_in_a,   node->bp);
         REALLOC_N(n_children_in_a-1, node->childkeys);
@@ -1137,8 +1132,10 @@ merge_leaf_nodes(BRTNODE a, BRTNODE b)
             BLB_BUFFER(a, a->n_children-1),
             toku_omt_size(BLB_BUFFER(a, a->n_children-1))-1
             );
-        a->childkeys[a->n_children-1] = kv_pair_malloc(le_key(le), le_keylen(le), 0, 0);
-        a->totalchildkeylens += le_keylen(le);
+        uint32_t keylen;
+        void *key = le_key_and_len(le, &keylen);
+        toku_fill_dbt(&a->childkeys[a->n_children-1], toku_xmemdup(key, keylen), keylen);
+        a->totalchildkeylens += keylen;
     }
 
     u_int32_t offset = a_has_tail ? a->n_children : a->n_children - 1;
@@ -1146,8 +1143,8 @@ merge_leaf_nodes(BRTNODE a, BRTNODE b)
         a->bp[i+offset] = b->bp[i];
         memset(&b->bp[i],0,sizeof(b->bp[0]));
         if (i < (b->n_children-1)) {
-            a->childkeys[i+offset] = b->childkeys[i];
-            b->childkeys[i] = NULL;
+            toku_copyref_dbt(&a->childkeys[i+offset], b->childkeys[i]);
+            toku_init_dbt(&b->childkeys[i]);
         }
     }
     a->totalchildkeylens += b->totalchildkeylens;
@@ -1163,19 +1160,17 @@ static int
 balance_leaf_nodes(
     BRTNODE a,
     BRTNODE b,
-    struct kv_pair **splitk)
+    DBT *splitk)
 // Effect:
 //  If b is bigger then move stuff from b to a until b is the smaller.
 //  If a is bigger then move stuff from a to b until a is the smaller.
 {
     STATUS_VALUE(BRT_FLUSHER_BALANCE_LEAF)++;
-    DBT splitk_dbt;
     // first merge all the data into a
     merge_leaf_nodes(a,b);
     // now split them
     // because we are not creating a new node, we can pass in no dependent nodes
-    brtleaf_split(NULL, a, &a, &b, &splitk_dbt, FALSE, 0, NULL);
-    *splitk = splitk_dbt.data;
+    brtleaf_split(NULL, a, &a, &b, splitk, FALSE, 0, NULL);
 
     return 0;
 }
@@ -1184,10 +1179,10 @@ static void
 maybe_merge_pinned_leaf_nodes(
     BRTNODE a,
     BRTNODE b,
-    struct kv_pair *parent_splitk,
+    DBT *parent_splitk,
     BOOL *did_merge,
     BOOL *did_rebalance,
-    struct kv_pair **splitk)
+    DBT *splitk)
 // Effect: Either merge a and b into one one node (merge them into a) and set *did_merge = TRUE.
 //	   (We do this if the resulting node is not fissible)
 //	   or distribute the leafentries evenly between a and b, and set *did_rebalance = TRUE.
@@ -1201,11 +1196,11 @@ maybe_merge_pinned_leaf_nodes(
         if (sizea*4 > a->nodesize && sizeb*4 > a->nodesize) {
             // no need to do anything if both are more than 1/4 of a node.
             *did_rebalance = FALSE;
-            *splitk = parent_splitk;
+            toku_clone_dbt(splitk, *parent_splitk);
             return;
         }
         // one is less than 1/4 of a node, and together they are more than 3/4 of a node.
-        toku_free(parent_splitk); // We don't need the parent_splitk any more. If we need a splitk (if we don't merge) we'll malloc a new one.
+        toku_free(parent_splitk->data); // We don't need the parent_splitk any more. If we need a splitk (if we don't merge) we'll malloc a new one.
         *did_rebalance = TRUE;
         int r = balance_leaf_nodes(a, b, splitk);
         assert(r==0);
@@ -1213,24 +1208,24 @@ maybe_merge_pinned_leaf_nodes(
         // we are merging them.
         *did_merge = TRUE;
         *did_rebalance = FALSE;
-        *splitk = 0;
-        toku_free(parent_splitk); // if we are merging, the splitk gets freed.
+        toku_init_dbt(splitk);
+        toku_free(parent_splitk->data); // if we are merging, the splitk gets freed.
         merge_leaf_nodes(a, b);
     }
 }
 
 static void
 maybe_merge_pinned_nonleaf_nodes(
-    struct kv_pair *parent_splitk,
+    const DBT *parent_splitk,
     BRTNODE a,
     BRTNODE b,
     BOOL *did_merge,
     BOOL *did_rebalance,
-    struct kv_pair **splitk)
+    DBT *splitk)
 {
     toku_assert_entire_node_in_memory(a);
     toku_assert_entire_node_in_memory(b);
-    assert(parent_splitk);
+    assert(parent_splitk->data);
     int old_n_children = a->n_children;
     int new_n_children = old_n_children + b->n_children;
     XREALLOC_N(new_n_children, a->bp);
@@ -1240,11 +1235,11 @@ maybe_merge_pinned_nonleaf_nodes(
     memset(b->bp,0,b->n_children*sizeof(b->bp[0]));
 
     XREALLOC_N(new_n_children-1, a->childkeys);
-    a->childkeys[old_n_children-1] = parent_splitk;
+    toku_copyref_dbt(&a->childkeys[old_n_children-1], *parent_splitk);
     memcpy(a->childkeys + old_n_children,
            b->childkeys,
            (b->n_children-1)*sizeof(b->childkeys[0]));
-    a->totalchildkeylens += b->totalchildkeylens + toku_brt_pivot_key_len(parent_splitk);
+    a->totalchildkeylens += b->totalchildkeylens + parent_splitk->size;
     a->n_children = new_n_children;
 
     b->totalchildkeylens = 0;
@@ -1255,7 +1250,7 @@ maybe_merge_pinned_nonleaf_nodes(
 
     *did_merge = TRUE;
     *did_rebalance = FALSE;
-    *splitk = NULL;
+    toku_init_dbt(splitk);
 
     STATUS_VALUE(BRT_FLUSHER_MERGE_NONLEAF)++;
 }
@@ -1263,12 +1258,12 @@ maybe_merge_pinned_nonleaf_nodes(
 static void
 maybe_merge_pinned_nodes(
     BRTNODE parent,
-    struct kv_pair *parent_splitk,
+    DBT *parent_splitk,
     BRTNODE a,
     BRTNODE b,
     BOOL *did_merge,
     BOOL *did_rebalance,
-    struct kv_pair **splitk)
+    DBT *splitk)
 // Effect: either merge a and b into one node (merge them into a) and set *did_merge = TRUE.
 //	   (We do this if the resulting node is not fissible)
 //	   or distribute a and b evenly and set *did_merge = FALSE and *did_rebalance = TRUE
@@ -1390,15 +1385,24 @@ brt_merge_child(
 
     BOOL did_merge, did_rebalance;
     {
-        struct kv_pair *splitk_kvpair = 0;
-        struct kv_pair *old_split_key = node->childkeys[childnuma];
-        unsigned int deleted_size = toku_brt_pivot_key_len(old_split_key);
-        maybe_merge_pinned_nodes(node, node->childkeys[childnuma], childa, childb, &did_merge, &did_rebalance, &splitk_kvpair);
-        if (childa->height>0) { int i; for (i=0; i+1<childa->n_children; i++) assert(childa->childkeys[i]); }
+        DBT splitk;
+        toku_init_dbt(&splitk);
+        DBT *old_split_key = &node->childkeys[childnuma];
+        unsigned int deleted_size = old_split_key->size;
+        maybe_merge_pinned_nodes(node, &node->childkeys[childnuma], childa, childb, &did_merge, &did_rebalance, &splitk);
+        if (childa->height>0) {
+            for (int i=0; i+1<childa->n_children; i++) {
+                assert(childa->childkeys[i].data);
+            }
+        }
         //toku_verify_estimates(t,childa);
         // the tree did react if a merge (did_merge) or rebalance (new spkit key) occurred
         *did_react = (BOOL)(did_merge || did_rebalance);
-        if (did_merge) assert(!splitk_kvpair); else assert(splitk_kvpair);
+        if (did_merge) {
+            assert(!splitk.data);
+        } else {
+            assert(splitk.data);
+        }
 
         node->totalchildkeylens -= deleted_size; // The key was free()'d inside the maybe_merge_pinned_nodes.
 
@@ -1418,10 +1422,9 @@ brt_merge_child(
             toku_mark_node_dirty(childa);  // just to make sure
             toku_mark_node_dirty(childb);  // just to make sure
         } else {
-            assert(splitk_kvpair);
             // If we didn't merge the nodes, then we need the correct pivot.
-            node->childkeys[childnuma] = splitk_kvpair;
-            node->totalchildkeylens += toku_brt_pivot_key_len(node->childkeys[childnuma]);
+            toku_copyref_dbt(&node->childkeys[childnuma], splitk);
+            node->totalchildkeylens += node->childkeys[childnuma].size;
             toku_mark_node_dirty(node);
         }
     }

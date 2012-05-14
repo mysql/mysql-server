@@ -309,8 +309,8 @@ test_prefetching(void) {
     
     MALLOC_N(sn.n_children, sn.bp);
     MALLOC_N(sn.n_children-1, sn.childkeys);
-    sn.childkeys[0] = kv_pair_malloc(&key1, sizeof(key1), 0, 0);
-    sn.childkeys[1] = kv_pair_malloc(&key2, sizeof(key2), 0, 0);
+    toku_fill_dbt(&sn.childkeys[0], toku_xmemdup(&key1, sizeof(key1)), sizeof key1);
+    toku_fill_dbt(&sn.childkeys[1], toku_xmemdup(&key2, sizeof(key2)), sizeof key2);
     sn.totalchildkeylens = sizeof(key1) + sizeof(key2);
     BP_BLOCKNUM(&sn, 0).b = 30;
     BP_BLOCKNUM(&sn, 1).b = 35;
@@ -370,8 +370,8 @@ test_prefetching(void) {
     test_prefetch_read(fd, brt, brt_h);    
     test_subset_read(fd, brt, brt_h);
 
-    kv_pair_free(sn.childkeys[0]);
-    kv_pair_free(sn.childkeys[1]);
+    toku_free(sn.childkeys[0].data);
+    toku_free(sn.childkeys[1].data);
     destroy_nonleaf_childinfo(BNC(&sn, 0));
     destroy_nonleaf_childinfo(BNC(&sn, 1));
     destroy_nonleaf_childinfo(BNC(&sn, 2));

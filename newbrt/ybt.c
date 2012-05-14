@@ -36,6 +36,14 @@ toku_fill_dbt(DBT *dbt, bytevec k, ITEMLEN len) {
     return dbt;
 }
 
+DBT *toku_copyref_dbt(DBT *dst, const DBT src) {
+    return toku_fill_dbt(dst, src.data, src.size);
+}
+
+DBT *toku_clone_dbt(DBT *dst, const DBT src) {
+    return toku_fill_dbt(dst, toku_xmemdup(src.data, src.size), src.size);
+}
+
 void
 toku_sdbt_cleanup(struct simple_dbt *sdbt) {
     if (sdbt->data) toku_free(sdbt->data);

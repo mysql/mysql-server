@@ -23,7 +23,6 @@
 #include "fifo.h"
 #include "brt.h"
 #include "toku_list.h"
-#include "kv-pair.h"
 #include "omt.h"
 #include "leafentry.h"
 #include "block_table.h"
@@ -103,8 +102,7 @@ struct toku_fifo_entry_key_msn_heaviside_extra {
     DESCRIPTOR desc;
     brt_compare_func cmp;
     FIFO fifo;
-    bytevec key;
-    ITEMLEN keylen;
+    const DBT *key;
     MSN msn;
 };
 
@@ -252,7 +250,7 @@ struct brtnode {
     int n_children; //for internal nodes, if n_children==TREE_FANOUT+1 then the tree needs to be rebalanced.
                     // for leaf nodes, represents number of basement nodes
     unsigned int    totalchildkeylens;
-    struct kv_pair **childkeys;   /* Pivot keys.  Child 0's keys are <= childkeys[0].  Child 1's keys are <= childkeys[1].
+    DBT *childkeys;   /* Pivot keys.  Child 0's keys are <= childkeys[0].  Child 1's keys are <= childkeys[1].
                                                                         Child 1's keys are > childkeys[0]. */
     // array of size n_children, consisting of brtnode partitions
     // each one is associated with a child
@@ -493,7 +491,7 @@ void toku_assert_entire_node_in_memory(BRTNODE node);
 void bring_node_fully_into_memory(BRTNODE node, struct brt_header* h);
 
 // append a child node to a parent node
-void toku_brt_nonleaf_append_child(BRTNODE node, BRTNODE child, struct kv_pair *pivotkey, size_t pivotkeysize);
+void toku_brt_nonleaf_append_child(BRTNODE node, BRTNODE child, const DBT *pivotkey);
 
 // append a cmd to a nonleaf node child buffer
 void toku_brt_append_to_child_buffer(brt_compare_func compare_fun, DESCRIPTOR desc, BRTNODE node, int childnum, enum brt_msg_type type, MSN msn, XIDS xids, bool is_fresh, const DBT *key, const DBT *val);
@@ -554,9 +552,6 @@ static inline CACHETABLE_WRITE_CALLBACK get_write_callbacks_for_node(struct brt_
 }
 
 static const BRTNODE null_brtnode=0;
-
-// How long is the pivot key?
-unsigned int toku_brt_pivot_key_len (struct kv_pair *);
 
 // Values to be used to update brtcursor if a search is successful.
 struct brt_cursor_leaf_info_to_be {
@@ -704,8 +699,8 @@ struct ancestors {
     ANCESTORS next;     // Parent of this node (so next->node.(next->childnum) refers to this node).
 };
 struct pivot_bounds {
-    struct kv_pair const * const lower_bound_exclusive;
-    struct kv_pair const * const upper_bound_inclusive; // NULL to indicate negative or positive infinity (which are in practice exclusive since there are now transfinite keys in messages).
+    const DBT * const lower_bound_exclusive;
+    const DBT * const upper_bound_inclusive; // NULL to indicate negative or positive infinity (which are in practice exclusive since there are now transfinite keys in messages).
 };
 
 // FIXME needs toku prefix
@@ -795,8 +790,8 @@ int
 toku_verify_brtnode (BRT brt,
                      MSN rootmsn, MSN parentmsn,
                      BRTNODE node, int height,
-                     struct kv_pair *lesser_pivot,               // Everything in the subtree should be > lesser_pivot.  (lesser_pivot==NULL if there is no lesser pivot.)
-                     struct kv_pair *greatereq_pivot,            // Everything in the subtree should be <= lesser_pivot.  (lesser_pivot==NULL if there is no lesser pivot.)
+                     const DBT *lesser_pivot,               // Everything in the subtree should be > lesser_pivot.  (lesser_pivot==NULL if there is no lesser pivot.)
+                     const DBT *greatereq_pivot,            // Everything in the subtree should be <= lesser_pivot.  (lesser_pivot==NULL if there is no lesser pivot.)
                      int (*progress_callback)(void *extra, float progress), void *progress_extra,
                      int recurse, int verbose, int keep_going_on_failure)
     __attribute__ ((warn_unused_result));
