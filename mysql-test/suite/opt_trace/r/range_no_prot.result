@@ -5288,6 +5288,9 @@ EXPLAIN SELECT v FROM t1 WHERE i1 = 1 AND v = 'a' AND pk < 3	{
 }	0	0
 DROP INDEX i1_idx ON t1;
 CREATE INDEX i1_i2_idx ON t1 (i2,i1);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 
 # Covering ROR intersect not chosen: cost
 EXPLAIN SELECT v FROM t1 WHERE i1 = 1 AND i2 = 1  AND v = 'a' AND pk < 3;
