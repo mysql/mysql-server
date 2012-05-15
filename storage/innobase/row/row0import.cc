@@ -25,8 +25,6 @@ Created 2012-02-08 by Sunny Bains.
 
 #include "row0import.h"
 
-#include <map>
-
 #ifdef UNIV_NONINL
 #include "row0import.ic"
 #endif
@@ -555,17 +553,28 @@ private:
 		return(get_zip_size() > 0);
 	}
 
-private:
-	typedef std::map<index_id_t, row_index_t*> index_map_t;
+	/**
+	Find an index with the matching id.
+	@return row_index_t* instance or 0 */
+	row_index_t* find_index(index_id_t id) UNIV_NOTHROW
+	{
+		row_index_t*	index = &m_cfg->m_indexes[0];
 
+		for (ulint i = 0; i < m_cfg->m_n_indexes; ++i, ++index) {
+			if (id == index->m_id) {
+				return(index);
+			}
+		}
+
+		return(0);
+
+	}
+private:
 	/** Config for table that is being imported. */
 	row_import*		m_cfg;
 
 	/** Transaction covering the import. */
 	trx_t*			m_trx;
-
-	/** Map from old index id to the index config information. */
-	index_map_t		m_index_map;
 
 	/** Current index whose pages are being imported */
 	row_index_t*		m_index;
@@ -1142,23 +1151,7 @@ PageConverter::PageConverter(
 	m_page_zip_ptr(0),
 	m_heap(0) UNIV_NOTHROW
 {
-	row_index_t*	index = &m_cfg->m_indexes[0];
-
-	ut_a(m_cfg->m_n_indexes > 0);
-
-	for (ulint i = 0; i < m_cfg->m_n_indexes; ++i, ++index) {
-		m_index_map[index->m_id] = index;
-	}
-
-	m_index = m_index_map[m_cfg->m_indexes[0].m_id];
-	ut_a(m_index != 0);
-
-	/* It is possible that the lsn's in the tablespace to be
-	imported are above the current system lsn or the space id in
-	the tablespace files differs from the table->space.  If that
-	is the case, reset space_id and page lsn in the file.  We
-	assume that mysqld stamped the latest lsn to the
-	FIL_PAGE_FILE_FLUSH_LSN in the first page of the .ibd file. */
+	m_index = m_cfg->m_indexes;
 
 	m_current_lsn = log_get_lsn();
 	ut_a(m_current_lsn > 0);
@@ -1469,19 +1462,17 @@ PageConverter::update_index_page(
 
 	if ((id = btr_page_get_index_id(page)) != m_index->m_id) {
 
-		index_map_t::iterator iter;
-
-		iter = m_index_map.find(id);
+		row_index_t*	index = find_index(id);
 
 		/* We assume that the page was freed and doesn't belong
 		to any known index. */
 
-		if (iter == m_index_map.end()) {
+		if (index == 0) {
 			return(DB_SUCCESS);
 		}
 
 		/* Update current index */
-		m_index = (*iter).second;
+		m_index = index;
 	}
 
 	page_set_max_trx_id(block, m_page_zip_ptr, m_trx->id, 0);
