@@ -181,7 +181,7 @@ doit (BOOL keep_other_bn_in_memory) {
     // a hack to get the basement nodes evicted
     for (int i = 0; i < 20; i++) {
         PAIR_ATTR attr;
-        toku_brtnode_pe_callback(node, make_pair_attr(0xffffffff), &attr, NULL);
+        toku_brtnode_pe_callback(node, make_pair_attr(0xffffffff), &attr, brt->h);
     }
     // this ensures that when we do the lookups below,
     // that the data is read off disk
