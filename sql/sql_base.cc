@@ -663,7 +663,7 @@ TABLE_SHARE *get_table_share(THD *thd, TABLE_LIST *table_list,
   share->ref_count++;				// Mark in use
 
 #ifdef HAVE_PSI_TABLE_INTERFACE
-  share->m_psi= PSI_CALL(get_table_share)(false, share);
+  share->m_psi= PSI_TABLE_CALL(get_table_share)(false, share);
 #else
   share->m_psi= NULL;
 #endif
@@ -6163,7 +6163,7 @@ TABLE *open_table_uncached(THD *thd, const char *path, const char *db,
   }
 
 #ifdef HAVE_PSI_TABLE_INTERFACE
-  share->m_psi= PSI_CALL(get_table_share)(true, share);
+  share->m_psi= PSI_TABLE_CALL(get_table_share)(true, share);
 #else
   share->m_psi= NULL;
 #endif

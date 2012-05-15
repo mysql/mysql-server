@@ -122,7 +122,7 @@
 static inline void inline_mysql_statement_register(
   const char *category, PSI_statement_info *info, int count)
 {
-  PSI_CALL(register_statement)(category, info, count);
+  PSI_STATEMENT_CALL(register_statement)(category, info, count);
 }
 
 #ifdef HAVE_PSI_STATEMENT_DIGEST_INTERFACE
@@ -132,7 +132,7 @@ inline_mysql_digest_start(PSI_statement_locker *locker)
   PSI_digest_locker* digest_locker= NULL;
 
   if (likely(locker != NULL))
-    digest_locker= PSI_CALL(digest_start)(locker);
+    digest_locker= PSI_STATEMENT_CALL(digest_start)(locker);
   return digest_locker;
 }
 #endif
@@ -143,7 +143,7 @@ inline_mysql_add_token(PSI_digest_locker *locker, uint token,
                        void *yylval)
 {
   if (likely(locker != NULL))
-    locker= PSI_CALL(digest_add_token)(locker, token,
+    locker= PSI_STATEMENT_CALL(digest_add_token)(locker, token,
                                       (OPAQUE_LEX_YYSTYPE*)yylval);
   return locker;
 }
@@ -157,9 +157,9 @@ inline_mysql_start_statement(PSI_statement_locker_state *state,
                              const char *src_file, int src_line)
 {
   PSI_statement_locker *locker;
-  locker= PSI_CALL(get_thread_statement_locker)(state, key, charset);
+  locker= PSI_STATEMENT_CALL(get_thread_statement_locker)(state, key, charset);
   if (likely(locker != NULL))
-    PSI_CALL(start_statement)(locker, db, db_len, src_file, src_line);
+    PSI_STATEMENT_CALL(start_statement)(locker, db, db_len, src_file, src_line);
   return locker;
 }
 
@@ -169,7 +169,7 @@ inline_mysql_refine_statement(PSI_statement_locker *locker,
 {
   if (likely(locker != NULL))
   {
-    locker= PSI_CALL(refine_statement)(locker, key);
+    locker= PSI_STATEMENT_CALL(refine_statement)(locker, key);
   }
   return locker;
 }
@@ -180,7 +180,7 @@ inline_mysql_set_statement_text(PSI_statement_locker *locker,
 {
   if (likely(locker != NULL))
   {
-    PSI_CALL(set_statement_text)(locker, text, text_len);
+    PSI_STATEMENT_CALL(set_statement_text)(locker, text, text_len);
   }
 }
 
@@ -190,7 +190,7 @@ inline_mysql_set_statement_lock_time(PSI_statement_locker *locker,
 {
   if (likely(locker != NULL))
   {
-    PSI_CALL(set_statement_lock_time)(locker, count);
+    PSI_STATEMENT_CALL(set_statement_lock_time)(locker, count);
   }
 }
 
@@ -200,7 +200,7 @@ inline_mysql_set_statement_rows_sent(PSI_statement_locker *locker,
 {
   if (likely(locker != NULL))
   {
-    PSI_CALL(set_statement_rows_sent)(locker, count);
+    PSI_STATEMENT_CALL(set_statement_rows_sent)(locker, count);
   }
 }
 
@@ -210,7 +210,7 @@ inline_mysql_set_statement_rows_examined(PSI_statement_locker *locker,
 {
   if (likely(locker != NULL))
   {
-    PSI_CALL(set_statement_rows_examined)(locker, count);
+    PSI_STATEMENT_CALL(set_statement_rows_examined)(locker, count);
   }
 }
 
@@ -218,9 +218,9 @@ static inline void
 inline_mysql_end_statement(struct PSI_statement_locker *locker,
                            Diagnostics_area *stmt_da)
 {
-  PSI_CALL(end_stage)();
+  PSI_STAGE_CALL(end_stage)();
   if (likely(locker != NULL))
-    PSI_CALL(end_statement)(locker, stmt_da);
+    PSI_STATEMENT_CALL(end_statement)(locker, stmt_da);
 }
 #endif
 

@@ -2477,8 +2477,8 @@ int mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
                                     table->table_name););
 #ifdef HAVE_PSI_TABLE_INTERFACE
     if (drop_temporary && likely(error == 0))
-      PSI_CALL(drop_table_share)(true, table->db, table->db_length,
-                                 table->table_name, table->table_name_length);
+      PSI_TABLE_CALL(drop_table_share)
+        (true, table->db, table->db_length, table->table_name, table->table_name_length);
 #endif
   }
   DEBUG_SYNC(thd, "rm_table_no_locks_before_binlog");
@@ -4849,8 +4849,8 @@ mysql_rename_table(handlerton *base, const char *old_db,
   if (likely(error == 0))
   {
     my_bool temp_table= (my_bool)is_prefix(old_name, tmp_file_prefix);
-    PSI_CALL(drop_table_share)(temp_table, old_db, strlen(old_db),
-                               old_name, strlen(old_name));
+    PSI_TABLE_CALL(drop_table_share)
+      (temp_table, old_db, strlen(old_db), old_name, strlen(old_name));
   }
 #endif
 

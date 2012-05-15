@@ -16,6 +16,9 @@
 #ifndef PFS_GLOBAL_H
 #define PFS_GLOBAL_H
 
+#include "my_global.h"
+#include "my_compiler.h"
+
 /**
   @file storage/perfschema/pfs_global.h
   Miscellaneous global dependencies (declarations).
@@ -25,6 +28,14 @@
 extern bool pfs_initialized;
 /** Total memory allocated by the performance schema, in bytes. */
 extern ulonglong pfs_allocated_memory;
+
+#if defined(HAVE_POSIX_MEMALIGN) || defined(HAVE_MEMALIGN) || defined(HAVE_ALIGNED_MALLOC)
+#define PFS_ALIGNEMENT 128
+#define PFS_ALIGNED MY_ALIGNED(PFS_ALIGNEMENT)
+#else
+#error "Really ? What platform is this ?"
+#define PFS_ALIGNED
+#endif /* HAVE_POSIX_MEMALIGN || HAVE_MEMALIGN || HAVE_ALIGNED_MALLOC */
 
 void *pfs_malloc(size_t size, myf flags);
 
