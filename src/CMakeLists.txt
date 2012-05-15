@@ -21,12 +21,12 @@ set(tokudb_srcs
 
 ## make the shared library
 add_library(${LIBTOKUDB} SHARED ${tokudb_srcs})
-add_dependencies(${LIBTOKUDB} generate_logging_code install_tdb_h)
+add_dependencies(${LIBTOKUDB} install_tdb_h)
 target_link_libraries(${LIBTOKUDB} lock_tree_static range_tree_static newbrt_static)
 
 ## make the static library
 add_library(${LIBTOKUDB}_static STATIC ${tokudb_srcs})
-add_dependencies(${LIBTOKUDB}_static generate_logging_code install_tdb_h)
+add_dependencies(${LIBTOKUDB}_static install_tdb_h)
 target_link_libraries(${LIBTOKUDB}_static lock_tree_static range_tree_static newbrt_static)
 
 ## add a version script and set -fvisibility=hidden for the shared library
