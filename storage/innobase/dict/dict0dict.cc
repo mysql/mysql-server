@@ -2217,7 +2217,7 @@ undo_size_ok:
 	UT_LIST_ADD_LAST(indexes, table->indexes, new_index);
 	new_index->table = table;
 	new_index->table_name = table->name;
-	new_index->info.search = btr_search_info_create(new_index->heap);
+	new_index->search_info = btr_search_info_create(new_index->heap);
 
 	new_index->stat_index_size = 1;
 	new_index->stat_n_leaf_pages = 1;
@@ -2286,19 +2286,10 @@ dict_index_remove_from_cache_low(
 
 	rw_lock_x_lock(dict_index_get_lock(index));
 
-	switch (dict_index_get_online_status(index)) {
-	case ONLINE_INDEX_CREATION:
-		if (index->info.online_log) {
-			row_log_free(index);
-		}
-		/* fall through */
-	case ONLINE_INDEX_ABORTED:
-	case ONLINE_INDEX_ABORTED_DROPPED:
-		/* Pretend that the index is complete. */
-		index->online_status = ONLINE_INDEX_COMPLETE;
-		break;
-	case ONLINE_INDEX_COMPLETE:
-		break;
+	if (index->online_log) {
+		ut_ad(dict_index_get_online_status(index)
+		      == ONLINE_INDEX_CREATION);
+		row_log_free(index);
 	}
 
 	rw_lock_x_unlock(dict_index_get_lock(index));

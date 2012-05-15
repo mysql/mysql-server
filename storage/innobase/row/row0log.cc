@@ -76,7 +76,6 @@ struct row_log_struct {
 	row_log_buf_t	head;	/*!< reader context; protected by MDL only;
 				modifiable by row_log_apply_ops() */
 	ulint		size;	/*!< allocated size */
-	btr_search_t*	search; /*!< old content of index->info.search */
 };
 
 /******************************************************//**
@@ -124,13 +123,13 @@ op_ok:
 	}
 
 	ut_ad(dict_index_is_online_ddl(index));
-	mutex_enter(&index->info.online_log->mutex);
+	mutex_enter(&index->online_log->mutex);
 
-	if (trx_id > index->info.online_log->max_trx) {
-		index->info.online_log->max_trx = trx_id;
+	if (trx_id > index->online_log->max_trx) {
+		index->online_log->max_trx = trx_id;
 	}
 
-	log = index->info.online_log;
+	log = index->online_log;
 	UNIV_MEM_INVALID(log->tail.buf, sizeof log->tail.buf);
 
 	/* Compute the size of the record. This differs from
@@ -194,7 +193,7 @@ op_ok:
 		UNIV_MEM_ASSERT_RW(log->tail.block, srv_sort_buf_size);
 		ret = os_file_write(
 			"(modification log)",
-			OS_FILE_FROM_FD(index->info.online_log->fd),
+			OS_FILE_FROM_FD(index->online_log->fd),
 			log->tail.block, byte_offset, srv_sort_buf_size);
 		log->tail.blocks++;
 		if (!ret) {
@@ -214,7 +213,7 @@ write_failed:
 	}
 
 	UNIV_MEM_INVALID(log->tail.buf, sizeof log->tail.buf);
-	mutex_exit(&index->info.online_log->mutex);
+	mutex_exit(&index->online_log->mutex);
 }
 
 /******************************************************//**
@@ -251,9 +250,8 @@ row_log_allocate(
 	log->tail.block = buf + srv_sort_buf_size;
 	log->tail.blocks = log->tail.bytes = 0;
 	log->head.blocks = log->head.bytes = 0;
-	log->search = index->info.search;
 	dict_index_set_online_status(index, ONLINE_INDEX_CREATION);
-	index->info.online_log = log;
+	index->online_log = log;
 
 	/* While we might be holding an exclusive data dictionary lock
 	here, in row_log_free() we will not always be holding it. Use
@@ -286,15 +284,12 @@ row_log_free(
 /*=========*/
 	dict_index_t*	index)	/*!< in/out: index (x-latched) */
 {
-	row_log_t*	log;
-
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(rw_lock_own(dict_index_get_lock(index), RW_LOCK_EX));
 #endif /* UNIV_SYNC_DEBUG */
 	dict_index_set_online_status(index, ONLINE_INDEX_ABORTED);
-	log = index->info.online_log;
-	index->info.search = log->search;
-	row_log_free_low(log);
+	row_log_free_low(index->online_log);
+	index->online_log = NULL;
 }
 
 /******************************************************//**
@@ -310,10 +305,10 @@ row_log_get_max_trx(
 	ut_ad(dict_index_get_online_status(index) == ONLINE_INDEX_CREATION);
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad((rw_lock_own(dict_index_get_lock(index), RW_LOCK_SHARED)
-	       && mutex_own(&index->info.online_log->mutex))
+	       && mutex_own(&index->online_log->mutex))
 	      || rw_lock_own(dict_index_get_lock(index), RW_LOCK_EX));
 #endif /* UNIV_SYNC_DEBUG */
-	return(index->info.online_log->max_trx);
+	return(index->online_log->max_trx);
 }
 
 /******************************************************//**
@@ -354,8 +349,8 @@ row_log_apply_op_low(
 	scanned. */
 	btr_cur_search_to_nth_level(index, 0, entry, PAGE_CUR_LE,
 				    has_index_lock
-				    ? BTR_MODIFY_TREE_APPLY_LOG
-				    : BTR_MODIFY_LEAF_APPLY_LOG,
+				    ? BTR_MODIFY_TREE
+				    : BTR_MODIFY_LEAF,
 				    &cursor, 0, __FILE__, __LINE__,
 				    &mtr);
 
@@ -410,9 +405,8 @@ row_log_apply_op_low(
 				mtr_start(&mtr);
 				btr_cur_search_to_nth_level(
 					index, 0, entry, PAGE_CUR_LE,
-					BTR_MODIFY_TREE_APPLY_LOG,
-					&cursor, 0, __FILE__, __LINE__,
-					&mtr);
+					BTR_MODIFY_TREE, &cursor, 0,
+					__FILE__, __LINE__, &mtr);
 
 				/* No other thread than the current one
 				is allowed to modify the index tree.
@@ -497,8 +491,7 @@ update_the_rec:
 				mtr_start(&mtr);
 				btr_cur_search_to_nth_level(
 					index, 0, entry, PAGE_CUR_LE,
-					BTR_MODIFY_TREE_APPLY_LOG,
-					&cursor, 0,
+					BTR_MODIFY_TREE, &cursor, 0,
 					__FILE__, __LINE__, &mtr);
 				/* No other thread than the
 				current one is allowed to
@@ -569,8 +562,7 @@ insert_the_rec:
 				mtr_start(&mtr);
 				btr_cur_search_to_nth_level(
 					index, 0, entry, PAGE_CUR_LE,
-					BTR_MODIFY_TREE_APPLY_LOG,
-					&cursor, 0,
+					BTR_MODIFY_TREE, &cursor, 0,
 					__FILE__, __LINE__, &mtr);
 				/* We already determined that the
 				record did not exist. No other thread
@@ -756,7 +748,7 @@ row_log_apply_ops(
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(rw_lock_own(dict_index_get_lock(index), RW_LOCK_EX));
 #endif /* UNIV_SYNC_DEBUG */
-	ut_ad(index->info.online_log);
+	ut_ad(index->online_log);
 	UNIV_MEM_INVALID(&mrec_end, sizeof mrec_end);
 
 	offsets = static_cast<ulint*>(ut_malloc(i * sizeof *offsets));
@@ -771,7 +763,7 @@ next_block:
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(rw_lock_own(dict_index_get_lock(index), RW_LOCK_EX));
 #endif /* UNIV_SYNC_DEBUG */
-	ut_ad(index->info.online_log->head.bytes == 0);
+	ut_ad(index->online_log->head.bytes == 0);
 
 	if (trx_is_interrupted(trx)) {
 		goto interrupted;
@@ -782,8 +774,8 @@ next_block:
 		goto func_exit;
 	}
 
-	if (UNIV_UNLIKELY(index->info.online_log->head.blocks
-			  > index->info.online_log->tail.blocks)) {
+	if (UNIV_UNLIKELY(index->online_log->head.blocks
+			  > index->online_log->tail.blocks)) {
 unexpected_eof:
 		fprintf(stderr, "InnoDB: unexpected end of temporary file"
 			" for index %s\n", index->name + 1);
@@ -792,26 +784,26 @@ corruption:
 		goto func_exit;
 	}
 
-	if (index->info.online_log->head.blocks
-	    == index->info.online_log->tail.blocks) {
-		if (index->info.online_log->head.blocks) {
+	if (index->online_log->head.blocks
+	    == index->online_log->tail.blocks) {
+		if (index->online_log->head.blocks) {
 #ifdef HAVE_FTRUNCATE
 			/* Truncate the file in order to save space. */
-			ftruncate(index->info.online_log->fd, 0);
+			ftruncate(index->online_log->fd, 0);
 #endif /* HAVE_FTRUNCATE */
-			index->info.online_log->head.blocks
-				= index->info.online_log->tail.blocks = 0;
+			index->online_log->head.blocks
+				= index->online_log->tail.blocks = 0;
 		}
 
-		next_mrec = index->info.online_log->tail.block;
-		next_mrec_end = next_mrec + index->info.online_log->tail.bytes;
+		next_mrec = index->online_log->tail.block;
+		next_mrec_end = next_mrec + index->online_log->tail.bytes;
 
 		if (next_mrec_end == next_mrec) {
 			/* End of log reached. */
 all_done:
 			ut_ad(has_index_lock);
-			ut_ad(index->info.online_log->head.blocks == 0);
-			ut_ad(index->info.online_log->tail.blocks == 0);
+			ut_ad(index->online_log->head.blocks == 0);
+			ut_ad(index->online_log->tail.blocks == 0);
 			error = DB_SUCCESS;
 			goto func_exit;
 		}
@@ -819,7 +811,7 @@ all_done:
 		os_offset_t	ofs;
 		ibool		success;
 
-		ofs = (os_offset_t) index->info.online_log->head.blocks
+		ofs = (os_offset_t) index->online_log->head.blocks
 			* srv_sort_buf_size;
 
 		if (has_index_lock) {
@@ -830,8 +822,8 @@ all_done:
 		log_free_check();
 
 		success = os_file_read_no_error_handling(
-			OS_FILE_FROM_FD(index->info.online_log->fd),
-			index->info.online_log->head.block, ofs,
+			OS_FILE_FROM_FD(index->online_log->fd),
+			index->online_log->head.block, ofs,
 			srv_sort_buf_size);
 
 		if (!success) {
@@ -842,19 +834,19 @@ all_done:
 
 #ifdef POSIX_FADV_DONTNEED
 		/* Each block is read exactly once.  Free up the file cache. */
-		posix_fadvise(index->info.online_log->fd,
+		posix_fadvise(index->online_log->fd,
 			      ofs, srv_sort_buf_size, POSIX_FADV_DONTNEED);
 #endif /* POSIX_FADV_DONTNEED */
 #ifdef FALLOC_FL_PUNCH_HOLE
 		/* Try to deallocate the space for the file on disk.
 		This should work on ext4 on Linux 2.6.39 and later,
 		and be ignored when the operation is unsupported. */
-		fallocate(index->info.online_log->fd,
+		fallocate(index->online_log->fd,
 			  FALLOC_FL_PUNCH_HOLE | FALLOC_FL_KEEP_SIZE,
 			  ofs, srv_buf_size);
 #endif /* FALLOC_FL_PUNCH_HOLE */
 
-		next_mrec = index->info.online_log->head.block;
+		next_mrec = index->online_log->head.block;
 		next_mrec_end = next_mrec + srv_sort_buf_size;
 	}
 
@@ -862,19 +854,19 @@ all_done:
 		/* A partial record was read from the previous block.
 		Copy the temporary buffer full, as we do not know the
 		length of the record. Parse subsequent records from
-		the bigger buffer index->info.online_log->head.block
-		or index->info.online_log->tail.block. */
+		the bigger buffer index->online_log->head.block
+		or index->online_log->tail.block. */
 
-		ut_ad(mrec == index->info.online_log->head.buf);
+		ut_ad(mrec == index->online_log->head.buf);
 		ut_ad(mrec_end > mrec);
-		ut_ad(mrec_end < (&index->info.online_log->head.buf)[1]);
+		ut_ad(mrec_end < (&index->online_log->head.buf)[1]);
 
 		memcpy((mrec_t*) mrec_end, next_mrec,
-		       (&index->info.online_log->head.buf)[1] - mrec_end);
+		       (&index->online_log->head.buf)[1] - mrec_end);
 		mrec = row_log_apply_op(
 			index, dup, &error, heap, has_index_lock,
-			index->info.online_log->head.buf,
-			(&index->info.online_log->head.buf)[1], offsets);
+			index->online_log->head.buf,
+			(&index->online_log->head.buf)[1], offsets);
 		if (error != DB_SUCCESS) {
 			goto func_exit;
 		} else if (UNIV_UNLIKELY(mrec == NULL)) {
@@ -886,8 +878,8 @@ all_done:
 		it should proceed beyond the old end of the buffer. */
 		ut_a(mrec > mrec_end);
 
-		index->info.online_log->head.bytes = mrec - mrec_end;
-		next_mrec += index->info.online_log->head.bytes;
+		index->online_log->head.bytes = mrec - mrec_end;
+		next_mrec += index->online_log->head.bytes;
 	}
 
 	ut_ad(next_mrec <= next_mrec_end);
@@ -896,32 +888,32 @@ all_done:
 
 	/* mrec!=NULL means that the next record starts from the
 	middle of the block */
-	ut_ad((mrec == NULL) == (index->info.online_log->head.bytes == 0));
+	ut_ad((mrec == NULL) == (index->online_log->head.bytes == 0));
 
 #ifdef UNIV_DEBUG
-	if (next_mrec_end == index->info.online_log->head.block
+	if (next_mrec_end == index->online_log->head.block
 	    + srv_sort_buf_size) {
 		/* If tail.bytes == 0, next_mrec_end can also be at
 		the end of tail.block. */
-		if (index->info.online_log->tail.bytes == 0) {
+		if (index->online_log->tail.bytes == 0) {
 			ut_ad(next_mrec == next_mrec_end);
-			ut_ad(index->info.online_log->tail.blocks == 0);
-			ut_ad(index->info.online_log->head.blocks == 0);
-			ut_ad(index->info.online_log->head.bytes == 0);
+			ut_ad(index->online_log->tail.blocks == 0);
+			ut_ad(index->online_log->head.blocks == 0);
+			ut_ad(index->online_log->head.bytes == 0);
 		} else {
-			ut_ad(next_mrec == index->info.online_log->head.block
-			      + index->info.online_log->head.bytes);
-			ut_ad(index->info.online_log->tail.blocks
-			      > index->info.online_log->head.blocks);
+			ut_ad(next_mrec == index->online_log->head.block
+			      + index->online_log->head.bytes);
+			ut_ad(index->online_log->tail.blocks
+			      > index->online_log->head.blocks);
 		}
-	} else if (next_mrec_end == index->info.online_log->tail.block
-		   + index->info.online_log->tail.bytes) {
-		ut_ad(next_mrec == index->info.online_log->tail.block
-		      + index->info.online_log->head.bytes);
-		ut_ad(index->info.online_log->tail.blocks == 0);
-		ut_ad(index->info.online_log->head.blocks == 0);
-		ut_ad(index->info.online_log->head.bytes
-		      <= index->info.online_log->tail.bytes);
+	} else if (next_mrec_end == index->online_log->tail.block
+		   + index->online_log->tail.bytes) {
+		ut_ad(next_mrec == index->online_log->tail.block
+		      + index->online_log->head.bytes);
+		ut_ad(index->online_log->tail.blocks == 0);
+		ut_ad(index->online_log->head.blocks == 0);
+		ut_ad(index->online_log->head.bytes
+		      <= index->online_log->tail.bytes);
 	} else {
 		ut_error;
 	}
@@ -939,10 +931,10 @@ all_done:
 			Release and reacquire index->lock in order to
 			allow other threads to concurrently buffer
 			modifications. */
-			ut_ad(mrec >= index->info.online_log->head.block);
-			ut_ad(mrec_end == index->info.online_log->head.block
+			ut_ad(mrec >= index->online_log->head.block);
+			ut_ad(mrec_end == index->online_log->head.block
 			      + srv_sort_buf_size);
-			ut_ad(index->info.online_log->head.bytes
+			ut_ad(index->online_log->head.bytes
 			      < srv_sort_buf_size);
 
 			/* Take the opportunity to do a redo log
@@ -952,11 +944,11 @@ all_done:
 			/* We are applying operations from the last block.
 			Do not allow other threads to buffer anything,
 			so that we can finally catch up and synchronize. */
-			ut_ad(index->info.online_log->head.blocks == 0);
-			ut_ad(index->info.online_log->tail.blocks == 0);
-			ut_ad(mrec_end == index->info.online_log->tail.block
-			      + index->info.online_log->tail.bytes);
-			ut_ad(mrec >= index->info.online_log->tail.block);
+			ut_ad(index->online_log->head.blocks == 0);
+			ut_ad(index->online_log->tail.blocks == 0);
+			ut_ad(mrec_end == index->online_log->tail.block
+			      + index->online_log->tail.bytes);
+			ut_ad(mrec >= index->online_log->tail.block);
 		}
 
 		next_mrec = row_log_apply_op(
@@ -979,26 +971,26 @@ process_next_block:
 			rw_lock_x_lock(dict_index_get_lock(index));
 			has_index_lock = TRUE;
 
-			index->info.online_log->head.bytes = 0;
-			index->info.online_log->head.blocks++;
+			index->online_log->head.bytes = 0;
+			index->online_log->head.blocks++;
 			goto next_block;
 		} else if (next_mrec != NULL) {
 			ut_ad(next_mrec < next_mrec_end);
-			index->info.online_log->head.bytes += next_mrec - mrec;
+			index->online_log->head.bytes += next_mrec - mrec;
 		} else if (has_index_lock) {
 			/* When mrec is within tail.block, it should
 			be a complete record, because we are holding
 			index->lock and thus excluding the writer. */
-			ut_ad(index->info.online_log->tail.blocks == 0);
-			ut_ad(mrec_end == index->info.online_log->tail.block
-			      + index->info.online_log->tail.bytes);
+			ut_ad(index->online_log->tail.blocks == 0);
+			ut_ad(mrec_end == index->online_log->tail.block
+			      + index->online_log->tail.bytes);
 			ut_ad(0);
 			goto unexpected_eof;
 		} else {
-			memcpy(index->info.online_log->head.buf, mrec,
+			memcpy(index->online_log->head.buf, mrec,
 			       mrec_end - mrec);
-			mrec_end += index->info.online_log->head.buf - mrec;
-			mrec = index->info.online_log->head.buf;
+			mrec_end += index->online_log->head.buf - mrec;
+			mrec = index->online_log->head.buf;
 			goto process_next_block;
 		}
 	}
@@ -1014,7 +1006,7 @@ func_exit:
 	case DB_SUCCESS:
 		break;
 	case DB_INDEX_CORRUPT:
-		if (((os_offset_t) index->info.online_log->tail.blocks + 1)
+		if (((os_offset_t) index->online_log->tail.blocks + 1)
 		    * srv_sort_buf_size >= srv_online_max_size) {
 			/* The log file grew too big. */
 			error = DB_ONLINE_LOG_TOO_BIG;
@@ -1076,8 +1068,8 @@ row_log_apply(
 		dict_index_set_online_status(index, ONLINE_INDEX_COMPLETE);
 	}
 
-	log = index->info.online_log;
-	index->info.search = log->search;
+	log = index->online_log;
+	index->online_log = NULL;
 	/* We could remove the TEMP_INDEX_PREFIX and update the data
 	dictionary to say that this index is complete, if we had
 	access to the .frm file here.  If the server crashes before

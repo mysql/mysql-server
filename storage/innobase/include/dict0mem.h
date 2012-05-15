@@ -491,18 +491,13 @@ struct dict_index_struct{
 #ifndef UNIV_HOTBACKUP
 	UT_LIST_NODE_T(dict_index_t)
 			indexes;/*!< list of indexes of the table */
-	union {
-		btr_search_t*	search; /*!< info used in optimistic searches;
-					valid when online_status is one of
-					ONLINE_INDEX_COMPLETE,
-					ONLINE_INDEX_ABORTED,
-					ONLINE_INDEX_ABORTED_DROPPED */
-		row_log_t*	online_log;
-					/*!< the log of modifications
-					during online index creation;
-					valid when online_status is
-					ONLINE_INDEX_CREATION */
-	} info;
+	btr_search_t*	search_info;
+				/*!< info used in optimistic searches */
+	row_log_t*	online_log;
+				/*!< the log of modifications
+				during online index creation;
+				valid when online_status is
+				ONLINE_INDEX_CREATION */
 	/*----------------------*/
 	/** Statistics for query optimization */
 	/* @{ */

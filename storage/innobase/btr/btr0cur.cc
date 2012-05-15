@@ -253,7 +253,6 @@ btr_cur_latch_leaves(
 	switch (latch_mode) {
 	case BTR_SEARCH_LEAF:
 	case BTR_MODIFY_LEAF:
-	case BTR_MODIFY_LEAF_APPLY_LOG:
 		mode = latch_mode == BTR_SEARCH_LEAF ? RW_S_LATCH : RW_X_LATCH;
 		get_block = btr_block_get(
 			space, zip_size, page_no, mode, cursor->index, mtr);
@@ -263,7 +262,6 @@ btr_cur_latch_leaves(
 		get_block->check_index_page_at_flush = TRUE;
 		return;
 	case BTR_MODIFY_TREE:
-	case BTR_MODIFY_TREE_APPLY_LOG:
 		/* x-latch also brothers from left to right */
 		left_page_no = btr_page_get_prev(page, mtr);
 
@@ -384,7 +382,7 @@ btr_cur_search_to_nth_level(
 	page_t*		page;
 	buf_block_t*	block;
 	ulint		space;
-	buf_block_t*	guess	= NULL;
+	buf_block_t*	guess;
 	ulint		height;
 	ulint		page_no;
 	ulint		up_match;
@@ -480,18 +478,6 @@ btr_cur_search_to_nth_level(
 #ifndef BTR_CUR_ADAPT
 	guess = NULL;
 #else
-	switch (latch_mode) {
-	default:
-		if (level == 0) {
-			break;
-		}
-		/* fall through */
-	case BTR_MODIFY_TREE_APPLY_LOG:
-	case BTR_MODIFY_LEAF_APPLY_LOG:
-		info = NULL;
-		goto no_guess;
-	}
-
 	info = btr_search_get_info(index);
 
 	guess = info->root_guess;
@@ -529,7 +515,6 @@ btr_cur_search_to_nth_level(
 		return;
 	}
 # endif /* BTR_CUR_HASH_ADAPT */
-no_guess:
 #endif /* BTR_CUR_ADAPT */
 	btr_cur_n_non_sea++;
 
@@ -548,7 +533,6 @@ no_guess:
 
 	switch (latch_mode) {
 	case BTR_MODIFY_TREE:
-	case BTR_MODIFY_TREE_APPLY_LOG:
 		mtr_x_lock(dict_index_get_lock(index), mtr);
 		break;
 	case BTR_CONT_MODIFY_TREE:
@@ -723,7 +707,7 @@ retry_page_get:
 		cursor->tree_height = root_height + 1;
 
 #ifdef BTR_CUR_ADAPT
-		if (block != guess && info) {
+		if (block != guess) {
 			info->root_guess = block;
 		}
 #endif
@@ -739,7 +723,6 @@ retry_page_get:
 
 		switch (latch_mode) {
 		case BTR_MODIFY_TREE:
-		case BTR_MODIFY_TREE_APPLY_LOG:
 		case BTR_CONT_MODIFY_TREE:
 			break;
 		default:
@@ -815,14 +798,8 @@ retry_page_get:
 		will properly check btr_search_enabled again in
 		btr_search_build_page_hash_index() before building a
 		page hash index, while holding btr_search_latch. */
-		switch (latch_mode) {
-		case BTR_MODIFY_TREE_APPLY_LOG:
-		case BTR_MODIFY_LEAF_APPLY_LOG:
-			break;
-		default:
-			if (btr_search_enabled) {
-				btr_search_info_update(index, cursor);
-			}
+		if (btr_search_enabled) {
+			btr_search_info_update(index, cursor);
 		}
 #endif
 		ut_ad(cursor->up_match != ULINT_UNDEFINED
@@ -883,9 +860,6 @@ btr_cur_open_at_index_side_func(
 	savepoint = mtr_set_savepoint(mtr);
 
 	switch (latch_mode) {
-	case BTR_MODIFY_TREE_APPLY_LOG:
-	case BTR_MODIFY_LEAF_APPLY_LOG:
-		ut_error;
 	case BTR_CONT_MODIFY_TREE:
 		break;
 	case BTR_MODIFY_TREE:
@@ -935,7 +909,6 @@ btr_cur_open_at_index_side_func(
 			switch (latch_mode) {
 			case BTR_MODIFY_TREE:
 			case BTR_CONT_MODIFY_TREE:
-			case BTR_MODIFY_TREE_APPLY_LOG:
 				break;
 			default:
 				/* Release the tree s-latch */
@@ -1012,14 +985,11 @@ btr_cur_open_at_rnd_pos_func(
 	rec_offs_init(offsets_);
 
 	switch (latch_mode) {
-	case BTR_CONT_MODIFY_TREE:
-	case BTR_MODIFY_TREE_APPLY_LOG:
-	case BTR_MODIFY_LEAF_APPLY_LOG:
-		ut_error;
 	case BTR_MODIFY_TREE:
 		mtr_x_lock(dict_index_get_lock(index), mtr);
 		break;
 	default:
+		ut_ad(latch_mode != BTR_CONT_MODIFY_TREE);
 		mtr_s_lock(dict_index_get_lock(index), mtr);
 	}
 
