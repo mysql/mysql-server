@@ -83,8 +83,8 @@ INSERT INTO test_wl5522.t1 VALUES (1);
 SET SESSION debug="+d,ib_export_io_write_failure_1";
 FLUSH TABLES test_wl5522.t1 FOR EXPORT;
 Warnings:
-Warning	1809	InnoDB: IO Write error: (9, Bad file descriptor) t1.cfg flush() failed
-Warning	1809	InnoDB: IO Write error: (9, Bad file descriptor) t1.cfg flose() failed
+Warning	1811	InnoDB: IO Write error: (9, Bad file descriptor) t1.cfg flush() failed
+Warning	1811	InnoDB: IO Write error: (9, Bad file descriptor) t1.cfg flose() failed
 UNLOCK TABLES;
 SET SESSION debug="-d,ib_export_io_write_failure_1";
 DROP TABLE test_wl5522.t1;
@@ -94,8 +94,8 @@ INSERT INTO test_wl5522.t1 VALUES (1);
 SET SESSION debug="+d,ib_export_io_write_failure_2";
 FLUSH TABLES test_wl5522.t1 FOR EXPORT;
 Warnings:
-Warning	1809	InnoDB: IO Write error: (9, Bad file descriptor) t1.cfg flush() failed
-Warning	1809	InnoDB: IO Write error: (9, Bad file descriptor) t1.cfg flose() failed
+Warning	1811	InnoDB: IO Write error: (9, Bad file descriptor) t1.cfg flush() failed
+Warning	1811	InnoDB: IO Write error: (9, Bad file descriptor) t1.cfg flose() failed
 UNLOCK TABLES;
 SET SESSION debug="-d,ib_export_io_write_failure_2";
 DROP TABLE test_wl5522.t1;
@@ -105,8 +105,8 @@ INSERT INTO test_wl5522.t1 VALUES (1);
 SET SESSION debug="+d,ib_export_io_write_failure_3";
 FLUSH TABLES test_wl5522.t1 FOR EXPORT;
 Warnings:
-Warning	1809	InnoDB: IO Write error: (9, Bad file descriptor) t1.cfg flush() failed
-Warning	1809	InnoDB: IO Write error: (9, Bad file descriptor) t1.cfg flose() failed
+Warning	1811	InnoDB: IO Write error: (9, Bad file descriptor) t1.cfg flush() failed
+Warning	1811	InnoDB: IO Write error: (9, Bad file descriptor) t1.cfg flose() failed
 UNLOCK TABLES;
 SET SESSION debug="-d,ib_export_io_write_failure_3";
 DROP TABLE test_wl5522.t1;
@@ -116,8 +116,8 @@ INSERT INTO test_wl5522.t1 VALUES (1);
 SET SESSION debug="+d,ib_export_io_write_failure_4";
 FLUSH TABLES test_wl5522.t1 FOR EXPORT;
 Warnings:
-Warning	1809	InnoDB: IO Write error: (9, Bad file descriptor) t1.cfg flush() failed
-Warning	1809	InnoDB: IO Write error: (9, Bad file descriptor) t1.cfg flose() failed
+Warning	1811	InnoDB: IO Write error: (9, Bad file descriptor) t1.cfg flush() failed
+Warning	1811	InnoDB: IO Write error: (9, Bad file descriptor) t1.cfg flose() failed
 UNLOCK TABLES;
 SET SESSION debug="-d,ib_export_io_write_failure_4";
 DROP TABLE test_wl5522.t1;
@@ -127,8 +127,8 @@ INSERT INTO test_wl5522.t1 VALUES (1);
 SET SESSION debug="+d,ib_export_io_write_failure_5";
 FLUSH TABLES test_wl5522.t1 FOR EXPORT;
 Warnings:
-Warning	1809	InnoDB: IO Write error: (9, Bad file descriptor) t1.cfg flush() failed
-Warning	1809	InnoDB: IO Write error: (9, Bad file descriptor) t1.cfg flose() failed
+Warning	1811	InnoDB: IO Write error: (9, Bad file descriptor) t1.cfg flush() failed
+Warning	1811	InnoDB: IO Write error: (9, Bad file descriptor) t1.cfg flose() failed
 UNLOCK TABLES;
 SET SESSION debug="-d,ib_export_io_write_failure_5";
 DROP TABLE test_wl5522.t1;
@@ -138,8 +138,8 @@ INSERT INTO test_wl5522.t1 VALUES (1);
 SET SESSION debug="+d,ib_export_io_write_failure_6";
 FLUSH TABLES test_wl5522.t1 FOR EXPORT;
 Warnings:
-Warning	1809	InnoDB: IO Write error: (9, Bad file descriptor) t1.cfg flush() failed
-Warning	1809	InnoDB: IO Write error: (9, Bad file descriptor) t1.cfg flose() failed
+Warning	1811	InnoDB: IO Write error: (9, Bad file descriptor) t1.cfg flush() failed
+Warning	1811	InnoDB: IO Write error: (9, Bad file descriptor) t1.cfg flose() failed
 UNLOCK TABLES;
 SET SESSION debug="-d,ib_export_io_write_failure_6";
 DROP TABLE test_wl5522.t1;
@@ -149,8 +149,8 @@ INSERT INTO test_wl5522.t1 VALUES (1);
 SET SESSION debug="+d,ib_export_io_write_failure_7";
 FLUSH TABLES test_wl5522.t1 FOR EXPORT;
 Warnings:
-Warning	1809	InnoDB: IO Write error: (9, Bad file descriptor) t1.cfg flush() failed
-Warning	1809	InnoDB: IO Write error: (9, Bad file descriptor) t1.cfg flose() failed
+Warning	1811	InnoDB: IO Write error: (9, Bad file descriptor) t1.cfg flush() failed
+Warning	1811	InnoDB: IO Write error: (9, Bad file descriptor) t1.cfg flose() failed
 UNLOCK TABLES;
 SET SESSION debug="-d,ib_export_io_write_failure_7";
 DROP TABLE test_wl5522.t1;
@@ -160,8 +160,8 @@ INSERT INTO test_wl5522.t1 VALUES (1);
 SET SESSION debug="+d,ib_export_io_write_failure_8";
 FLUSH TABLES test_wl5522.t1 FOR EXPORT;
 Warnings:
-Warning	1809	InnoDB: IO Write error: (9, Bad file descriptor) t1.cfg flush() failed
-Warning	1809	InnoDB: IO Write error: (9, Bad file descriptor) t1.cfg flose() failed
+Warning	1811	InnoDB: IO Write error: (9, Bad file descriptor) t1.cfg flush() failed
+Warning	1811	InnoDB: IO Write error: (9, Bad file descriptor) t1.cfg flose() failed
 UNLOCK TABLES;
 SET SESSION debug="-d,ib_export_io_write_failure_8";
 DROP TABLE test_wl5522.t1;
@@ -171,8 +171,8 @@ INSERT INTO test_wl5522.t1 VALUES (1);
 SET SESSION debug="+d,ib_export_io_write_failure_9";
 FLUSH TABLES test_wl5522.t1 FOR EXPORT;
 Warnings:
-Warning	1809	InnoDB: IO Write error: (9, Bad file descriptor) t1.cfg flush() failed
-Warning	1809	InnoDB: IO Write error: (9, Bad file descriptor) t1.cfg flose() failed
+Warning	1811	InnoDB: IO Write error: (9, Bad file descriptor) t1.cfg flush() failed
+Warning	1811	InnoDB: IO Write error: (9, Bad file descriptor) t1.cfg flose() failed
 UNLOCK TABLES;
 SET SESSION debug="-d,ib_export_io_write_failure_9";
 DROP TABLE test_wl5522.t1;
@@ -182,8 +182,8 @@ INSERT INTO test_wl5522.t1 VALUES (1);
 SET SESSION debug="+d,ib_export_io_write_failure_10";
 FLUSH TABLES test_wl5522.t1 FOR EXPORT;
 Warnings:
-Warning	1809	InnoDB: IO Write error: (9, Bad file descriptor) t1.cfg flush() failed
-Warning	1809	InnoDB: IO Write error: (9, Bad file descriptor) t1.cfg flose() failed
+Warning	1811	InnoDB: IO Write error: (9, Bad file descriptor) t1.cfg flush() failed
+Warning	1811	InnoDB: IO Write error: (9, Bad file descriptor) t1.cfg flose() failed
 UNLOCK TABLES;
 SET SESSION debug="-d,ib_export_io_write_failure_10";
 DROP TABLE test_wl5522.t1;
@@ -193,8 +193,8 @@ INSERT INTO test_wl5522.t1 VALUES (1);
 SET SESSION debug="+d,ib_export_io_write_failure_11";
 FLUSH TABLES test_wl5522.t1 FOR EXPORT;
 Warnings:
-Warning	1809	InnoDB: IO Write error: (9, Bad file descriptor) t1.cfg flush() failed
-Warning	1809	InnoDB: IO Write error: (9, Bad file descriptor) t1.cfg flose() failed
+Warning	1811	InnoDB: IO Write error: (9, Bad file descriptor) t1.cfg flush() failed
+Warning	1811	InnoDB: IO Write error: (9, Bad file descriptor) t1.cfg flose() failed
 UNLOCK TABLES;
 SET SESSION debug="-d,ib_export_io_write_failure_11";
 DROP TABLE test_wl5522.t1;
@@ -204,8 +204,8 @@ INSERT INTO test_wl5522.t1 VALUES (1);
 SET SESSION debug="+d,ib_export_io_write_failure_12";
 FLUSH TABLES test_wl5522.t1 FOR EXPORT;
 Warnings:
-Warning	1809	InnoDB: IO Write error: (9, Bad file descriptor) t1.cfg flush() failed
-Warning	1809	InnoDB: IO Write error: (9, Bad file descriptor) t1.cfg flose() failed
+Warning	1811	InnoDB: IO Write error: (9, Bad file descriptor) t1.cfg flush() failed
+Warning	1811	InnoDB: IO Write error: (9, Bad file descriptor) t1.cfg flose() failed
 UNLOCK TABLES;
 SET SESSION debug="-d,ib_export_io_write_failure_12";
 DROP TABLE test_wl5522.t1;
@@ -901,7 +901,7 @@ ERROR HY000: InnoDB: Tablespace has been discarded for table 't1'
 SET SESSION debug="+d,ib_import_create_index_failure_1";
 ALTER TABLE test_wl5522.t1 ADD INDEX idx(c1);
 Warnings:
-Warning	1812	InnoDB: Tablespace has been discarded for table 't1'
+Warning	1814	InnoDB: Tablespace has been discarded for table 't1'
 SET SESSION debug="-d,ib_import_create_index_failure_1";
 DROP TABLE test_wl5522.t1;
 unlink: t1.ibd
