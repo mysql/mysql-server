@@ -254,16 +254,25 @@ select * from t4 where b = 50;
 a	b	c
 50	50	50
 alter online table t1 reorganize partition;
+Warnings:
+Warning	1287	'ONLINE' is deprecated and will be removed in a future release. Please use ALGORITHM=INPLACE instead
 alter online table t2 reorganize partition;
+Warnings:
+Warning	1287	'ONLINE' is deprecated and will be removed in a future release. Please use ALGORITHM=INPLACE instead
 Cannot use normal reorganize partition on t3 as it has explicit MAX_ROWS set
 alter online table t3 reorganize partition;
 ERROR 42000: This version of MySQL doesn't yet support 'alter online table t3 reorganize partition'
 show warnings;
 Level	Code	Message
+Warning	1287	'ONLINE' is deprecated and will be removed in a future release. Please use ALGORITHM=INPLACE instead
 Warning	1105	Cannot online REORGANIZE a table with Max_Rows set.  Use ALTER TABLE ... MAX_ROWS=<new_val> or offline REORGANIZE to redistribute this table.
 Error	1235	This version of MySQL doesn't yet support 'alter online table t3 reorganize partition'
 alter online table t3 max_rows=50000000;
+Warnings:
+Warning	1287	'ONLINE' is deprecated and will be removed in a future release. Please use ALGORITHM=INPLACE instead
 alter online table t4 reorganize partition;
+Warnings:
+Warning	1287	'ONLINE' is deprecated and will be removed in a future release. Please use ALGORITHM=INPLACE instead
 Check partitions added, expect 0 in all cases
 partitions added to t1
 t1_added
@@ -278,8 +287,14 @@ partitions added to t4
 t4_added
 0
 alter online table t1 add partition partitions 1;
+Warnings:
+Warning	1287	'ONLINE' is deprecated and will be removed in a future release. Please use ALGORITHM=INPLACE instead
 alter online table t2 add partition partitions 4;
+Warnings:
+Warning	1287	'ONLINE' is deprecated and will be removed in a future release. Please use ALGORITHM=INPLACE instead
 alter online table t3 max_rows=100000000;
+Warnings:
+Warning	1287	'ONLINE' is deprecated and will be removed in a future release. Please use ALGORITHM=INPLACE instead
 alter online table t4 max_rows=100000000;
 ERROR 42000: This version of MySQL doesn't yet support 'alter online table t4 max_rows=100000000'
 partitions added to t1 (expect 1)
@@ -300,9 +315,12 @@ alter online table t3 reorganize partition;
 ERROR 42000: This version of MySQL doesn't yet support 'alter online table t3 reorganize partition'
 show warnings;
 Level	Code	Message
+Warning	1287	'ONLINE' is deprecated and will be removed in a future release. Please use ALGORITHM=INPLACE instead
 Warning	1105	Cannot online REORGANIZE a table with Max_Rows set.  Use ALTER TABLE ... MAX_ROWS=<new_val> or offline REORGANIZE to redistribute this table.
 Error	1235	This version of MySQL doesn't yet support 'alter online table t3 reorganize partition'
 alter online table t4 reorganize partition;
+Warnings:
+Warning	1287	'ONLINE' is deprecated and will be removed in a future release. Please use ALGORITHM=INPLACE instead
 select count(*) from t1;
 count(*)
 100
@@ -491,8 +509,14 @@ a	b	c
 50	50	50
 drop table t4;
 alter online table t1 add partition partitions 2;
+Warnings:
+Warning	1287	'ONLINE' is deprecated and will be removed in a future release. Please use ALGORITHM=INPLACE instead
 alter online table t2 add partition partitions 1;
+Warnings:
+Warning	1287	'ONLINE' is deprecated and will be removed in a future release. Please use ALGORITHM=INPLACE instead
 alter online table t3 max_rows=150000000;
+Warnings:
+Warning	1287	'ONLINE' is deprecated and will be removed in a future release. Please use ALGORITHM=INPLACE instead
 partitions added to t1 (expect 3)
 t1_added
 3
