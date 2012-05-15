@@ -65,11 +65,7 @@ enum btr_latch_mode {
 	/** Search the previous record. */
 	BTR_SEARCH_PREV = 35,
 	/** Modify the previous record. */
-	BTR_MODIFY_PREV = 36,
-	/** Apply records that were logged during online index creation. */
-	BTR_MODIFY_LEAF_APPLY_LOG = 37,
-	/** Apply records that were logged during online index creation. */
-	BTR_MODIFY_TREE_APPLY_LOG = 38
+	BTR_MODIFY_PREV = 36
 };
 
 /* BTR_INSERT, BTR_DELETE and BTR_DELETE_MARK are mutually exclusive. */
