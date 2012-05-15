@@ -2660,6 +2660,7 @@ dict_stats_update(
 		/* Must unlock because otherwise there is a lock order
 		violation with dict_sys->mutex below. Declare stats to be
 		initialized before unlocking. */
+		table->stat_modified_counter = 0;
 		table->stat_initialized = TRUE;
 		dict_table_stats_unlock(table, RW_X_LATCH);
 
