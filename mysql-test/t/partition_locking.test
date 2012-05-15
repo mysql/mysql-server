@@ -73,6 +73,23 @@ eval $get_handler_status_counts;
 --echo # 28 locks (table + 13 partition lock/unlock)
 --echo # 1 commit
 
+FLUSH STATUS;
+INSERT INTO t2 VALUES (10, "First row, p10");
+eval $get_handler_status_counts;
+--echo # Insert pruning on tables with auto increment is not yet supported
+--echo # 28 locks (table + 13 partition lock/unlock)
+--echo # 1 commit
+
+
+--echo #
+--echo # UPDATE with auto increment, lock pruning
+--echo #
+FLUSH STATUS;
+UPDATE t2 SET b = CONCAT(b, ", UPDATED") WHERE a = 10;
+eval $get_handler_status_counts;
+--echo # 4 locks (table + 1 partition lock/unlock)
+--echo # 1 read_key + 1 update + 1 commit
+
 --echo #
 --echo # Test of pruning with secondary column auto_inc INSERT
 --echo #
@@ -1369,7 +1386,7 @@ SELECT * FROM t2 ORDER BY a;
 --echo # Test triggers
 --echo # Tables used in triggers cannot be pruned for locks.
 --echo # Tables with triggers cannot be pruned for locks if
---echo # BEFORE INSERT/UPDATE trigger exists.
+--echo # BEFORE INSERT/UPDATE trigger uses any partitioning columns.
 --echo #
 CREATE TABLE t3
 (old_a int,
@@ -1501,38 +1518,224 @@ eval $get_handler_status_counts;
 --echo # 28 locks (3 tables, 1 + 5 + 5 partitions)
 --echo # t1, t3 before delete trigger, t3 after delete trigger
 
-INSERT INTO t2 VALUES (1, "First row, p1");
-INSERT INTO t2 VALUES (3, "First row, p3");
-CREATE TRIGGER t2_before_insert BEFORE INSERT
-ON t2 FOR EACH ROW
-SET NEW.a = NEW.a + 1;
-
-CREATE TRIGGER t2_before_update BEFORE UPDATE
-ON t2 FOR EACH ROW
-SET NEW.a = NEW.a - 1;
-
-FLUSH STATUS;
-INSERT INTO t2 VALUES (1, "Second row, p1");
-eval $get_handler_status_counts;
---echo # 28 locks (1 tables, 13 partitions lock/unlock)
-SELECT * FROM t2 ORDER BY a;
-
-FLUSH STATUS;
---error ER_DUP_ENTRY
-UPDATE t2 SET b = CONCAT(b, ", UPDATED3") WHERE a = 4;
-eval $get_handler_status_counts;
---echo # 28 locks (1 tables, 13 partitions lock/unlock)
-
-FLUSH STATUS;
-UPDATE t2 SET b = CONCAT(b, ", UPDATED3") WHERE a = 1;
-eval $get_handler_status_counts;
---echo # 28 locks (1 tables, 13 partitions lock/unlock)
-
-
 SELECT * FROM t1 ORDER BY a;
 SELECT * FROM t2 ORDER BY a;
 --sorted_result
 SELECT * FROM t3 ORDER BY new_a;
+TRUNCATE TABLE t1;
+
+DROP TRIGGER t1_before_insert;
+DROP TRIGGER t1_before_update;
+DROP TRIGGER t1_before_delete;
+DROP TRIGGER t1_after_insert;
+DROP TRIGGER t1_after_update;
+DROP TRIGGER t1_after_delete;
+
+--echo #
+--echo # Test BEFORE INSERT TRIGGER depending on partitioning column
+--echo #
+CREATE TRIGGER t1_before_insert BEFORE INSERT
+ON t1 FOR EACH ROW
+SET NEW.b = CONCAT("b: ", NEW.b, " a: ", NEW.a);
+
+FLUSH STATUS;
+INSERT INTO t1 VALUES (0, "first row, p0");
+eval $get_handler_status_counts;
+--echo # 28 locks (1 tables, 13 partitions lock/unlock)
+
+FLUSH STATUS;
+INSERT INTO t1 VALUES (0, "Second row, p0")
+ON DUPLICATE KEY UPDATE b = CONCAT(b, ", duplicate key");
+eval $get_handler_status_counts;
+--echo # 28 locks (1 tables, 13 partitions lock/unlock)
+
+FLUSH STATUS;
+UPDATE t1 SET b = CONCAT(b, ", Updated") WHERE a = 0;
+eval $get_handler_status_counts;
+--echo # 4 locks (1 tables, 1 partitions lock/unlock)
+
+FLUSH STATUS;
+UPDATE t1 SET a = 1, b = CONCAT(b, ", a was 0") WHERE a = 0;
+eval $get_handler_status_counts;
+--echo # Updating partitioning column, no lock pruning
+--echo # 28 locks (1 tables, 13 partitions lock/unlock)
+
+--echo #
+--echo # Test BEFORE INSERT TRIGGER not depending on partitioning column
+--echo #
+DROP TRIGGER t1_before_insert;
+
+CREATE TRIGGER t1_before_insert BEFORE INSERT
+ON t1 FOR EACH ROW
+SET NEW.b = CONCAT("b: ", NEW.b);
+
+FLUSH STATUS;
+INSERT INTO t1 VALUES (0, "first row, p0");
+eval $get_handler_status_counts;
+--echo # 4 locks (1 tables, 1 partitions lock/unlock)
+
+FLUSH STATUS;
+INSERT INTO t1 VALUES (0, "Second row, p0")
+ON DUPLICATE KEY UPDATE b = CONCAT(b, ", duplicate key");
+eval $get_handler_status_counts;
+--echo # 4 locks (1 tables, 1 partitions lock/unlock)
+
+FLUSH STATUS;
+UPDATE t1 SET b = CONCAT(b, ", Updated") WHERE a = 0;
+eval $get_handler_status_counts;
+--echo # 4 locks (1 tables, 1 partitions lock/unlock)
+
+FLUSH STATUS;
+UPDATE t1 SET a = 2, b = CONCAT(b, ", a was 0") WHERE a = 0;
+eval $get_handler_status_counts;
+--echo # Updating partitioning column, no lock pruning
+--echo # 28 locks (1 tables, 13 partitions lock/unlock)
+
+--echo #
+--echo # Test BEFORE UPDATE TRIGGER OLD depending on partitioning column.
+--echo # Note that it does not update any partitioning column.
+--echo #
+CREATE TRIGGER t1_before_update BEFORE UPDATE
+ON t1 FOR EACH ROW
+SET NEW.b = CONCAT("old a: ", OLD.a, " new b: ", NEW.b);
+
+FLUSH STATUS;
+INSERT INTO t1 VALUES (0, "1st p0");
+eval $get_handler_status_counts;
+--echo # 4 locks (1 tables, 1 partitions lock/unlock)
+
+FLUSH STATUS;
+INSERT INTO t1 VALUES (0, "2nd p0")
+ON DUPLICATE KEY UPDATE b = CONCAT(b, ", dup key");
+eval $get_handler_status_counts;
+--echo # 28 locks (1 tables, 13 partitions lock/unlock)
+
+FLUSH STATUS;
+UPDATE t1 SET b = CONCAT(b, ", Updated") WHERE a = 0;
+eval $get_handler_status_counts;
+--echo # Lock pruning possible!
+--echo # 4 locks (1 tables, 1 partitions lock/unlock)
+
+FLUSH STATUS;
+UPDATE t1 SET a = 3, b = CONCAT(b, ", a was 0") WHERE a = 0;
+eval $get_handler_status_counts;
+--echo # Updating partitioning column, no lock pruning
+--echo # 28 locks (1 tables, 13 partitions lock/unlock)
+
+--echo #
+--echo # Test BEFORE UPDATE TRIGGER NEW depending on partitioning column.
+--echo # Note that it does not update any partitioning column.
+--echo #
+DROP TRIGGER t1_before_update;
+
+CREATE TRIGGER t1_before_update BEFORE UPDATE
+ON t1 FOR EACH ROW
+SET NEW.b = CONCAT("new a: ", NEW.a, " new b: ", NEW.b);
+
+FLUSH STATUS;
+INSERT INTO t1 VALUES (0, "1st p0");
+eval $get_handler_status_counts;
+--echo # 4 locks (1 tables, 1 partitions lock/unlock)
+
+FLUSH STATUS;
+INSERT INTO t1 VALUES (0, "2nd p0")
+ON DUPLICATE KEY UPDATE b = CONCAT(b, ", dup key");
+eval $get_handler_status_counts;
+--echo # 28 locks (1 tables, 13 partitions lock/unlock)
+
+FLUSH STATUS;
+UPDATE t1 SET b = CONCAT(b, ", Updated") WHERE a = 0;
+eval $get_handler_status_counts;
+--echo # 28 locks (1 tables, 13 partitions lock/unlock)
+
+FLUSH STATUS;
+UPDATE t1 SET a = 4, b = CONCAT(b, ", a was 0") WHERE a = 0;
+eval $get_handler_status_counts;
+--echo # Updating partitioning column, no lock pruning
+--echo # 28 locks (1 tables, 13 partitions lock/unlock)
+
+
+--echo #
+--echo # Test BEFORE UPDATE TRIGGER not depending on partitioning column
+--echo #
+DROP TRIGGER t1_before_update;
+
+CREATE TRIGGER t1_before_update BEFORE UPDATE
+ON t1 FOR EACH ROW
+SET NEW.b = CONCAT("new b: ", NEW.b);
+
+FLUSH STATUS;
+INSERT INTO t1 VALUES (0, "1st p0");
+eval $get_handler_status_counts;
+--echo # 4 locks (1 tables, 1 partitions lock/unlock)
+
+FLUSH STATUS;
+INSERT INTO t1 VALUES (0, "2nd p0")
+ON DUPLICATE KEY UPDATE b = CONCAT(b, ", dup key");
+eval $get_handler_status_counts;
+--echo # 4 locks (1 tables, 1 partitions lock/unlock)
+
+FLUSH STATUS;
+UPDATE t1 SET b = CONCAT(b, ", Updated") WHERE a = 0;
+eval $get_handler_status_counts;
+--echo # 4 locks (1 tables, 1 partitions lock/unlock)
+
+FLUSH STATUS;
+UPDATE t1 SET a = 5, b = CONCAT(b, ", a was 0") WHERE a = 0;
+eval $get_handler_status_counts;
+--echo # Updating partitioning column, no lock pruning
+--echo # 28 locks (1 tables, 13 partitions lock/unlock)
+
+SELECT * FROM t1 ORDER BY a;
+
+--echo #
+--echo # Test of BEFORE UPDATE triggers and multi UPDATE
+--echo #
+DROP TRIGGER t1_before_insert;
+DROP TRIGGER t1_before_update;
+TRUNCATE TABLE t1;
+TRUNCATE TABLE t2;
+INSERT INTO t1 VALUES (1, "MultiUpdate1");
+INSERT INTO t1 VALUES (2, "MultiUpdate2");
+INSERT INTO t2 VALUES (1, "MultiUpdate1");
+INSERT INTO t2 VALUES (2, "MultiUpdate2");
+
+CREATE TRIGGER t1_before_update BEFORE UPDATE
+ON t1 FOR EACH ROW
+SET NEW.b = CONCAT("new1 b: ", NEW.b);
+
+CREATE TRIGGER t2_before_update BEFORE UPDATE
+ON t2 FOR EACH ROW
+SET NEW.b = CONCAT("new2 a: ", NEW.a, " new2 b: ", NEW.b);
+
+FLUSH STATUS;
+UPDATE t1, t2
+SET t1.b = CONCAT(t1.b, ",(1) t2.b:", t2.b),
+    t2.b = CONCAT(t2.b, ",(1) t1.b:", t1.b)
+WHERE t2.b = t1.b and t1.a = 1;
+eval $get_handler_status_counts;
+--echo # 32 locks (2 table, 13 + 1 partitions lock/unlock)
+--echo # 15 read_key
+--echo # 1 read_next, read_rnd
+--echo # 2 rean_rnd_next
+--echo # 2 update
+
+FLUSH STATUS;
+UPDATE t1, t2
+SET t1.b = CONCAT(t1.b, ",(2) t2.b:", t2.b),
+    t2.b = CONCAT(t2.b, ",(2) t1.b:", t1.b)
+WHERE t1.b = t2.b and t2.a = 2;
+eval $get_handler_status_counts;
+--echo # 32 locks (2 table, 13 + 1 partitions lock/unlock)
+--echo # 15 read_key
+--echo # 1 read_next, read_rnd
+--echo # 2 rean_rnd_next
+--echo # 2 update
+
+SELECT * FROM t1 ORDER BY a;
+--echo # TODO: FIXME: Why is the first row in t2 also affected by t1 trigger?
+SELECT * FROM t2 ORDER BY a;
+
 DROP TABLE t1, t2, t3;
 
 --echo #

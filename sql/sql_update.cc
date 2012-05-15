@@ -408,45 +408,15 @@ int mysql_update(THD *thd,
   // Don't count on usage of 'only index' when calculating which key to use
   table->covering_keys.clear_all();
 
+  /*
+    This must be done before partitioning pruning, since prune_partitions()
+    uses the table->write_set to determine may prune locks too.
+  */
+  table->mark_columns_needed_for_update();
+
 #ifdef WITH_PARTITION_STORAGE_ENGINE
   if (table->part_info)
   {
-    bool prune_locks= true;
-    MY_BITMAP lock_partitions;
-    if (table->triggers &&
-        table->triggers->has_triggers(TRG_EVENT_UPDATE, TRG_ACTION_BEFORE))
-    {
-      /*
-        BEFORE UPDATE triggers may change the records partitioning
-        column, forcing it to another partition.
-        So it is not possible to prune external_lock/start_stmt for
-        partitions (lock_partitions bitmap), only for scanning
-        (read_partitions bitmap).
-        Copy the current lock_partitions bitmap and restore it after
-        prune_partitions call, to lock all non explicitly selected
-        partitions.
-      */
-      uint32 *bitmap_buf;
-      uint bitmap_bytes;
-      uint num_partitions;
-      DBUG_ASSERT(table->part_info->bitmaps_are_initialized);
-      prune_locks= false;
-      num_partitions= table->part_info->lock_partitions.n_bits;
-      bitmap_bytes= bitmap_buffer_size(num_partitions);
-      if (!(bitmap_buf= (uint32*) thd->alloc(bitmap_bytes)))
-      {
-        mem_alloc_error(bitmap_bytes);
-        DBUG_RETURN(1);
-      }
-      /* Also clears all bits. */
-      if (bitmap_init(&lock_partitions, bitmap_buf, num_partitions, FALSE))
-      {
-        mem_alloc_error(bitmap_bytes);   /* Cannot happen, due to pre-alloc */
-        DBUG_RETURN(1);
-      }
-      bitmap_copy(&lock_partitions, &table->part_info->lock_partitions);
-    }
-
     if (prune_partitions(thd, table, conds))
       DBUG_RETURN(1);
     if (table->all_partitions_pruned_away)
@@ -461,8 +431,6 @@ int mysql_update(THD *thd,
       my_ok(thd);                            // No matching records
       DBUG_RETURN(0);
     }
-    if (!prune_locks)
-      bitmap_copy(&table->part_info->lock_partitions, &lock_partitions);
   }
 #endif
   if (lock_tables(thd, table_list, thd->lex->table_count, 0))
@@ -471,7 +439,6 @@ int mysql_update(THD *thd,
   /* Update the table->file->stats.records number */
   table->file->info(HA_STATUS_VARIABLE | HA_STATUS_NO_LOCK);
 
-  table->mark_columns_needed_for_update();
   select= make_select(table, 0, 0, conds, 0, &error);
 
   { // Enter scope for optimizer trace wrapper
