@@ -215,21 +215,23 @@ drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
 # be filtered as well.
 #
 connection master;
-CREATE TABLE test.t5 (a INT AUTO_INCREMENT PRIMARY KEY, b INT, c INT); # ignored on slave
+# Although RAND() is from 0 to 1.0, DECIMAL(M,D), requires that M must be >= D.
+CREATE TABLE test.t5 (a INT AUTO_INCREMENT PRIMARY KEY, b DECIMAL(20,20), c INT); # ignored on slave
 CREATE TABLE test.t1 (a INT); # accepted on slave
 INSERT INTO test.t1 VALUES(1);
 
 --sync_slave_with_master
 call mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT");
-CREATE TABLE test.t_slave (a INT AUTO_INCREMENT PRIMARY KEY, b INT, c INT);
+# Although RAND() is from 0 to 1.0, DECIMAL(M,D), requires that M must be >= D.
+CREATE TABLE test.t_slave (a INT AUTO_INCREMENT PRIMARY KEY, b DECIMAL(20,20), c INT);
 CREATE TRIGGER t1_update AFTER UPDATE ON test.t1 FOR EACH ROW
-                               INSERT INTO test.t_slave VALUES(NULL, ROUND(RAND() * 1000), @c);
+                               INSERT INTO test.t_slave VALUES(NULL, RAND(), @c);
 
 connection master;
 SET INSERT_ID=2;
 SET @c=2;
 SET @@rand_seed1=10000000, @@rand_seed2=1000000;
-INSERT INTO t5 VALUES (NULL, ROUND(RAND() * 1000), @c); # to be ignored
+INSERT INTO t5 VALUES (NULL, RAND(), @c); # to be ignored
 SELECT b into @b FROM test.t5;
 --let $b_master=`select @b`
 UPDATE test.t1 SET a=2; # to run trigger on slave
@@ -253,10 +255,9 @@ if (`SELECT @a != 2 and @c != NULL`)
 SELECT b into @b FROM test.t_slave;
 --let $b_slave=`select @b`
 
-if (`SELECT $b_slave = $b_master`)
-{
-    --echo Might be pure coincidence of two randoms from master and slave table. Don not panic yet.
-}
+--let $assert_text= Random values from master and slave must be different
+--let $assert_cond= $b_master != $b_slave
+--source include/assert.inc
 
 # cleanup BUG#11754117
 connection master;
