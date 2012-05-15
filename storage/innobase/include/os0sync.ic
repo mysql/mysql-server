@@ -66,7 +66,7 @@ pfs_os_fast_mutex_init(
 	os_fast_mutex_t*	fast_mutex)	/*!< out: fast mutex */
 {
 #ifdef HAVE_PSI_MUTEX_INTERFACE
-	fast_mutex->pfs_psi = PSI_CALL(init_mutex)(key, &fast_mutex->mutex);
+	fast_mutex->pfs_psi = PSI_MUTEX_CALL(init_mutex)(key, &fast_mutex->mutex);
 #else
 	fast_mutex->pfs_psi = NULL;
 #endif
@@ -86,7 +86,7 @@ pfs_os_fast_mutex_free(
 {
 #ifdef HAVE_PSI_MUTEX_INTERFACE
 	if (fast_mutex->pfs_psi != NULL)
-		PSI_CALL(destroy_mutex)(fast_mutex->pfs_psi);
+		PSI_MUTEX_CALL(destroy_mutex)(fast_mutex->pfs_psi);
 #endif
 	fast_mutex->pfs_psi = NULL;
 
@@ -112,13 +112,13 @@ pfs_os_fast_mutex_lock(
 		PSI_mutex_locker* 	locker;
 		PSI_mutex_locker_state	state;
 
-		locker = PSI_CALL(start_mutex_wait)(&state, fast_mutex->pfs_psi,
+		locker = PSI_MUTEX_CALL(start_mutex_wait)(&state, fast_mutex->pfs_psi,
 			PSI_MUTEX_LOCK, file_name, line);
 
 		os_fast_mutex_lock_func(&fast_mutex->mutex);
 
 		if (locker != NULL)
-			PSI_CALL(end_mutex_wait)(locker, 0);
+			PSI_MUTEX_CALL(end_mutex_wait)(locker, 0);
 	}
 	else
 #endif
@@ -141,7 +141,7 @@ pfs_os_fast_mutex_unlock(
 {
 #ifdef HAVE_PSI_MUTEX_INTERFACE
 	if (fast_mutex->pfs_psi != NULL)
-		PSI_CALL(unlock_mutex)(fast_mutex->pfs_psi);
+		PSI_MUTEX_CALL(unlock_mutex)(fast_mutex->pfs_psi);
 #endif
 
 	os_fast_mutex_unlock_func(&fast_mutex->mutex);

@@ -42,7 +42,7 @@ static PFS_single_stat *host_instr_class_waits_array= NULL;
 static PFS_stage_stat *host_instr_class_stages_array= NULL;
 static PFS_statement_stat *host_instr_class_statements_array= NULL;
 
-static LF_HASH host_hash;
+LF_HASH host_hash;
 static bool host_hash_inited= false;
 
 /**
@@ -146,10 +146,11 @@ C_MODE_END
 */
 int init_host_hash(void)
 {
-  if (! host_hash_inited)
+  if ((! host_hash_inited) && (host_max > 0))
   {
     lf_hash_init(&host_hash, sizeof(PFS_host*), LF_HASH_UNIQUE,
                  0, 0, host_hash_get_key, &my_charset_bin);
+    host_hash.size= host_max;
     host_hash_inited= true;
   }
   return 0;
