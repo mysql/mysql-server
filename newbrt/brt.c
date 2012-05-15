@@ -579,18 +579,6 @@ toku_get_and_clear_basement_stats(BRTNODE leafnode) {
     return deltas;
 }
 
-static void
-update_header_stats(STAT64INFO headerstats, STAT64INFO delta) {
-    (void) __sync_fetch_and_add(&(headerstats->numrows),  delta->numrows);
-    (void) __sync_fetch_and_add(&(headerstats->numbytes), delta->numbytes);
-}
-
-static void
-decrease_header_stats(STAT64INFO headerstats, STAT64INFO delta) {
-    (void) __sync_fetch_and_sub(&(headerstats->numrows),  delta->numrows);
-    (void) __sync_fetch_and_sub(&(headerstats->numbytes), delta->numbytes);
-}
-
 // This is the ONLY place where a node is marked as dirty, other than toku_initialize_empty_brtnode().
 void
 toku_mark_node_dirty(BRTNODE node) {
@@ -635,9 +623,9 @@ static void brtnode_update_disk_stats(
     STAT64INFO_S deltas = ZEROSTATS;
     // capture deltas before rebalancing basements for serialization
     deltas = toku_get_and_clear_basement_stats(brtnode);
-    update_header_stats(&(h->on_disk_stats), &deltas);
+    toku_brt_header_update_stats(&h->on_disk_stats, deltas);
     if (for_checkpoint) {
-        update_header_stats(&(h->checkpoint_staging_stats), &deltas);
+        toku_brt_header_update_stats(&h->checkpoint_staging_stats, deltas);
     }
 }
 
@@ -760,7 +748,7 @@ void toku_brtnode_flush_callback (
                 for (int i = 0; i < brtnode->n_children; i++) {
                     if (BP_STATE(brtnode,i) == PT_AVAIL) {
                         BASEMENTNODE bn = BLB(brtnode, i);
-                        decrease_header_stats(&h->in_memory_stats, &bn->stat64_delta);
+                        toku_brt_header_decrease_stats(&h->in_memory_stats, bn->stat64_delta);
                     }
                 }
             }
@@ -890,7 +878,7 @@ void toku_evict_bn_from_memory(BRTNODE node, int childnum, struct brt_header* h)
     // free the basement node
     assert(!node->dirty);
     BASEMENTNODE bn = BLB(node, childnum);
-    decrease_header_stats(&h->in_memory_stats, &bn->stat64_delta);
+    toku_brt_header_decrease_stats(&h->in_memory_stats, bn->stat64_delta);
     struct mempool * mp = &bn->buffer_mempool;
     toku_mempool_destroy(mp);
     destroy_basement_node(bn);
@@ -2229,7 +2217,7 @@ brt_leaf_gc_all_les(BRTNODE node,
         delta.numrows = 0;
         delta.numbytes = 0;
         basement_node_gc_all_les(bn, snapshot_xids, live_list_reverse, live_root_txns, &delta);
-        update_header_stats(&(h->in_memory_stats), &(delta));
+        toku_brt_header_update_stats(&h->in_memory_stats, delta);
     }
 }
 
@@ -2260,7 +2248,7 @@ toku_bnc_flush_to_child(
                 );
         }));
     if (stats_delta.numbytes || stats_delta.numrows) {
-        update_header_stats(&h->in_memory_stats, &stats_delta);
+        toku_brt_header_update_stats(&h->in_memory_stats, stats_delta);
     }
     // Run garbage collection, if we are a leaf entry.
     TOKULOGGER logger = toku_cachefile_logger(h->cf);
@@ -2457,7 +2445,7 @@ static void push_something_at_root (struct brt_header *h, BRTNODE *nodep, BRT_MS
         &stats_delta
         );
     if (stats_delta.numbytes || stats_delta.numrows) {
-        update_header_stats(&h->in_memory_stats, &stats_delta);
+        toku_brt_header_update_stats(&h->in_memory_stats, stats_delta);
     }
     //
     // assumption is that toku_brt_node_put_cmd will
@@ -4133,7 +4121,7 @@ bnc_apply_messages_to_basement_node(
     // update stats
     //
     if (stats_delta.numbytes || stats_delta.numrows) {
-        update_header_stats(&t->h->in_memory_stats, &stats_delta);
+        toku_brt_header_update_stats(&t->h->in_memory_stats, stats_delta);
     }
     // We can't delete things out of the fresh tree inside the above
     // procedures because we're still looking at the fresh tree.  Instead
