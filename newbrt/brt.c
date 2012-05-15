@@ -585,6 +585,12 @@ update_header_stats(STAT64INFO headerstats, STAT64INFO delta) {
     (void) __sync_fetch_and_add(&(headerstats->numbytes), delta->numbytes);
 }
 
+static void
+decrease_header_stats(STAT64INFO headerstats, STAT64INFO delta) {
+    (void) __sync_fetch_and_sub(&(headerstats->numrows),  delta->numrows);
+    (void) __sync_fetch_and_sub(&(headerstats->numbytes), delta->numbytes);
+}
+
 // This is the ONLY place where a node is marked as dirty, other than toku_initialize_empty_brtnode().
 void
 toku_mark_node_dirty(BRTNODE node) {
@@ -593,14 +599,10 @@ toku_mark_node_dirty(BRTNODE node) {
     if (!node->dirty) {
         if (node->height == 0) {
             STATUS_VALUE(BRT_DIRTY_LEAF)++;
-            struct brt_header *h = node->h;
-            for (int i = 0; i < node->n_children; i++) {
-                STAT64INFO delta = &(BLB(node,i)->stat64_delta);
-                update_header_stats(&h->in_memory_stats, delta);
-            }
         }
-        else
+        else {
             STATUS_VALUE(BRT_DIRTY_NONLEAF)++;
+        }
     }
     node->dirty = 1;
 }
@@ -750,7 +752,19 @@ void toku_brtnode_flush_callback (
         brt_status_update_flush_reason(brtnode, for_checkpoint);
     }
     if (!keep_me) {
-        if (!is_clone) toku_free(*disk_data);
+        if (!is_clone) { 
+            toku_free(*disk_data);
+        }
+        else {
+            if (brtnode->height == 0) {
+                for (int i = 0; i < brtnode->n_children; i++) {
+                    if (BP_STATE(brtnode,i) == PT_AVAIL) {
+                        BASEMENTNODE bn = BLB(brtnode, i);
+                        decrease_header_stats(&h->in_memory_stats, &bn->stat64_delta);
+                    }
+                }
+            }
+        }
         toku_brtnode_free(&brtnode);
     }
     else {
@@ -872,9 +886,22 @@ compress_internal_node_partition(BRTNODE node, int i)
     BP_STATE(node,i) = PT_COMPRESSED;
 }
 
+void toku_evict_bn_from_memory(BRTNODE node, int childnum, struct brt_header* h) {
+    // free the basement node
+    assert(!node->dirty);
+    BASEMENTNODE bn = BLB(node, childnum);
+    decrease_header_stats(&h->in_memory_stats, &bn->stat64_delta);
+    struct mempool * mp = &bn->buffer_mempool;
+    toku_mempool_destroy(mp);
+    destroy_basement_node(bn);
+    set_BNULL(node, childnum);
+    BP_STATE(node, childnum) = PT_ON_DISK;
+}
+
 // callback for partially evicting a node
-int toku_brtnode_pe_callback (void *brtnode_pv, PAIR_ATTR UU(old_attr), PAIR_ATTR* new_attr, void* UU(extraargs)) {
+int toku_brtnode_pe_callback (void *brtnode_pv, PAIR_ATTR UU(old_attr), PAIR_ATTR* new_attr, void* extraargs) {
     BRTNODE node = (BRTNODE)brtnode_pv;
+    struct brt_header* h = extraargs;
     // Don't partially evict dirty nodes
     if (node->dirty) {
         goto exit;
@@ -923,13 +950,7 @@ int toku_brtnode_pe_callback (void *brtnode_pv, PAIR_ATTR UU(old_attr), PAIR_ATT
             else if (BP_STATE(node,i) == PT_AVAIL) {
                 if (BP_SHOULD_EVICT(node,i)) {
                     STATUS_VALUE(BRT_PARTIAL_EVICTIONS_LEAF)++;
-                    // free the basement node
-                    BASEMENTNODE bn = BLB(node, i);
-                    struct mempool * mp = &bn->buffer_mempool;
-                    toku_mempool_destroy(mp);
-                    destroy_basement_node(bn);
-                    set_BNULL(node,i);
-                    BP_STATE(node,i) = PT_ON_DISK;
+                    toku_evict_bn_from_memory(node, i, h);
                 }
                 else {
                     BP_SWEEP_CLOCK(node,i);
@@ -1453,10 +1474,8 @@ brt_leaf_apply_cmd_once (
     bn->stat64_delta.numrows  += numrows_delta;
     bn->stat64_delta.numbytes += numbytes_delta;
 
-    if (leafnode->dirty) {
-	STAT64INFO_S deltas = {.numrows = numrows_delta, .numbytes = numbytes_delta};
-	update_header_stats(&(leafnode->h->in_memory_stats), &(deltas));
-    }
+    STAT64INFO_S deltas = {.numrows = numrows_delta, .numbytes = numbytes_delta};
+    update_header_stats(&(leafnode->h->in_memory_stats), &(deltas));
 }
 
 static const uint32_t setval_tag = 0xee0ccb99; // this was gotten by doing "cat /dev/random|head -c4|od -x" to get a random number.  We want to make sure that the user actually passes us the setval_extra_s that we passed in.
@@ -2205,11 +2224,7 @@ brt_leaf_gc_all_les(BRTNODE node,
         delta.numrows = 0;
         delta.numbytes = 0;
         basement_node_gc_all_les(bn, snapshot_xids, live_list_reverse, live_root_txns, &delta);
-        // Update the header stats, but only if the leaf node is
-        // dirty.
-        if (node->dirty) {
-            update_header_stats(&(node->h->in_memory_stats), &(delta));
-        }
+        update_header_stats(&(node->h->in_memory_stats), &(delta));
     }
 }
 
