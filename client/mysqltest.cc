@@ -33,7 +33,7 @@
   And many others
 */
 
-#define MTEST_VERSION "3.3"
+#define MTEST_VERSION "3.4"
 
 #include "client_priv.h"
 #include <mysql_version.h>
@@ -78,6 +78,8 @@ static my_bool non_blocking_api_enabled= 0;
 #define MAX_DELIMITER_LENGTH 16
 #define DEFAULT_MAX_CONN        64
 
+#define DIE_BUFF_SIZE           8192
+
 /* Flags controlling send and reap */
 #define QUERY_SEND_FLAG  1
 #define QUERY_REAP_FLAG  2
@@ -106,6 +108,7 @@ static int opt_port= 0;
 static int opt_max_connect_retries;
 static int opt_result_format_version;
 static int opt_max_connections= DEFAULT_MAX_CONN;
+static int error_count= 0;
 static my_bool opt_compress= 0, silent= 0, verbose= 0;
 static my_bool debug_info_flag= 0, debug_check_flag= 0;
 static my_bool tty_password= 0;
@@ -122,7 +125,7 @@ static my_bool disable_connect_log= 1;
 static my_bool disable_warnings= 0, disable_column_names= 0;
 static my_bool prepare_warnings_enabled= 0;
 static my_bool disable_info= 1;
-static my_bool abort_on_error= 1;
+static my_bool abort_on_error= 1, opt_continue_on_error= 0;
 static my_bool server_initialized= 0;
 static my_bool is_windows= 0;
 static char **default_argv;
@@ -559,14 +562,15 @@ const char *from, int len);
 
 static void cleanup_and_exit(int exit_code) __attribute__((noreturn));
 
-void die(const char *fmt, ...)
-  ATTRIBUTE_FORMAT(printf, 1, 2) __attribute__((noreturn));
-void abort_not_supported_test(const char *fmt, ...)
-  ATTRIBUTE_FORMAT(printf, 1, 2) __attribute__((noreturn));
-void verbose_msg(const char *fmt, ...)
-  ATTRIBUTE_FORMAT(printf, 1, 2);
-void log_msg(const char *fmt, ...)
-  ATTRIBUTE_FORMAT(printf, 1, 2);
+void really_die(const char *msg) __attribute__((noreturn));
+void report_or_die(const char *fmt, ...) ATTRIBUTE_FORMAT(printf, 1, 2);
+void die(const char *fmt, ...) ATTRIBUTE_FORMAT(printf, 1, 2)
+  __attribute__((noreturn));
+static void make_error_message(char *buf, size_t len, const char *fmt, va_list args);
+void abort_not_supported_test(const char *fmt, ...) ATTRIBUTE_FORMAT(printf, 1, 2)
+  __attribute__((noreturn));
+void verbose_msg(const char *fmt, ...) ATTRIBUTE_FORMAT(printf, 1, 2);
+void log_msg(const char *fmt, ...) ATTRIBUTE_FORMAT(printf, 1, 2);
 
 VAR* var_from_env(const char *, const char *);
 VAR* var_init(VAR* v, const char *name, int name_len, const char *val,
@@ -983,7 +987,10 @@ void do_eval(DYNAMIC_STRING *query_eval, const char *query,
       else
       {
 	if (!(v= var_get(p, &p, 0, 0)))
-	  die("Bad variable in eval");
+        {
+          report_or_die( "Bad variable in eval");
+          return;
+        }
 	dynstr_append_mem(query_eval, v->str_val, v->str_val_len);
       }
       break;
@@ -1270,9 +1277,13 @@ void handle_command_error(struct st_command *command, uint error,
     int i;
 
     if (command->abort_on_error)
-      die("command \"%.*s\" failed with error: %u  my_errno: %d  errno: %d",
+    {
+      report_or_die("command \"%.*s\" failed with error: %u  my_errno: %d  "
+                    "errno: %d",
           command->first_word_len, command->query, error, my_errno,
           sys_errno);
+      return;
+    }
 
     i= match_expected_error(command, error, NULL);
 
@@ -1285,14 +1296,17 @@ void handle_command_error(struct st_command *command, uint error,
       DBUG_VOID_RETURN;
     }
     if (command->expected_errors.count > 0)
-      die("command \"%.*s\" failed with wrong error: %u  my_errno: %d  errno: %d",
-          command->first_word_len, command->query, error, my_errno, sys_errno);
+      report_or_die("command \"%.*s\" failed with wrong error: %u  "
+                    "my_errno: %d  errno: %d",
+                    command->first_word_len, command->query, error, my_errno,
+                    sys_errno);
   }
   else if (command->expected_errors.err[0].type == ERR_ERRNO &&
            command->expected_errors.err[0].code.errnum != 0)
   {
     /* Error code we wanted was != 0, i.e. not an expected success */
-    die("command \"%.*s\" succeeded - should have failed with errno %d...",
+    report_or_die("command \"%.*s\" succeeded - should have failed with "
+                  "errno %d...",
         command->first_word_len, command->query,
         command->expected_errors.err[0].code.errnum);
   }
@@ -1437,50 +1451,59 @@ static void cleanup_and_exit(int exit_code)
   exit(exit_code);
 }
 
-void print_file_stack()
+size_t print_file_stack(char *s, const char *end)
 {
+  char *start= s;
   struct st_test_file* err_file= cur_file;
   if (err_file == file_stack)
-    return;
+    return 0;
 
   for (;;)
   {
     err_file--;
-    fprintf(stderr, "included from %s at line %d:\n",
-            err_file->file_name, err_file->lineno);
+    s+= my_snprintf(s, end - s, "included from %s at line %d:\n",
+                     err_file->file_name, err_file->lineno);
     if (err_file == file_stack)
       break;
   }
+  return s - start;
+}
+
+
+static void make_error_message(char *buf, size_t len, const char *fmt, va_list args)
+{
+  char *s= buf, *end= buf + len;
+  s+= my_snprintf(s, end - s, "mysqltest: ");
+  if (cur_file && cur_file != file_stack)
+  {
+    s+= my_snprintf(s, end - s, "In included file \"%s\": \n",
+                    cur_file->file_name);
+    s+= print_file_stack(s, end);
+  }
+  
+  if (start_lineno > 0)
+    s+= my_snprintf(s, end -s, "At line %u: ", start_lineno);
+  if (!fmt)
+    fmt= "unknown error";
+
+  s+= my_vsnprintf(s, end - s, fmt, args);
+  s+= my_snprintf(s, end -s, "\n", start_lineno);
 }
 
 void die(const char *fmt, ...)
 {
-  static int dying= 0;
+  char buff[DIE_BUFF_SIZE];
   va_list args;
-  DBUG_ENTER("die");
-  DBUG_PRINT("enter", ("start_lineno: %d", start_lineno));
+  va_start(args, fmt);
+  make_error_message(buff, sizeof(buff), fmt, args);
+  really_die(buff);
+}
 
+void really_die(const char *msg)
+{
+  static int dying= 0;
   fflush(stdout);
-  /* Print the error message */
-  fprintf(stderr, "mysqltest: ");
-  if (cur_file && cur_file != file_stack)
-  {
-    fprintf(stderr, "In included file \"%s\": \n",
-            cur_file->file_name);
-    print_file_stack();
-  }
-  
-  if (start_lineno > 0)
-    fprintf(stderr, "At line %u: ", start_lineno);
-  if (fmt)
-  {
-    va_start(args, fmt);
-    vfprintf(stderr, fmt, args);
-    va_end(args);
-  }
-  else
-    fprintf(stderr, "unknown error");
-  fprintf(stderr, "\n");
+  fprintf(stderr, "%s", msg);
   fflush(stderr);
 
   /*
@@ -1504,6 +1527,28 @@ void die(const char *fmt, ...)
   cleanup_and_exit(1);
 }
 
+void report_or_die(const char *fmt, ...)
+{
+  va_list args;
+  DBUG_ENTER("report_or_die");
+
+  char buff[DIE_BUFF_SIZE];
+
+  va_start(args, fmt);
+  make_error_message(buff, sizeof(buff), fmt, args);
+  va_end(args);
+
+  if (opt_continue_on_error)
+  {
+    /* Just log the error and continue */
+    replace_dynstr_append(&ds_res, buff);
+    error_count++;
+    DBUG_VOID_RETURN;
+  }
+
+  really_die(buff);
+}
+
 
 void abort_not_supported_test(const char *fmt, ...)
 {
@@ -1516,7 +1561,10 @@ void abort_not_supported_test(const char *fmt, ...)
           file_stack->file_name);
   fprintf(stderr, "Detected in file %s at line %d\n",
           cur_file->file_name, cur_file->lineno);
-  print_file_stack();
+
+  char buff[DIE_BUFF_SIZE];
+  print_file_stack(buff, buff + sizeof(buff));
+  fprintf(stderr, "%s", buff);
 
   /* Print error message */
   va_start(args, fmt);
@@ -1648,7 +1696,10 @@ static int run_command(char* cmd,
   DBUG_PRINT("enter", ("cmd: %s", cmd));
 
   if (!(res_file= popen(cmd, "r")))
-    die("popen(\"%s\", \"r\") failed", cmd);
+  {
+    report_or_die("popen(\"%s\", \"r\") failed", cmd);
+    return -1;
+  }
 
   while (fgets(buf, sizeof(buf), res_file))
   {
@@ -1748,7 +1799,10 @@ static int diff_check(const char *diff_name)
   if (!(res_file= popen(buf, "r")))
     die("popen(\"%s\", \"r\") failed", buf);
 
-  /* if diff is not present, nothing will be in stdout to increment have_diff */
+  /*
+    if diff is not present, nothing will be in stdout to increment
+    have_diff
+  */
   if (fgets(buf, sizeof(buf), res_file))
     have_diff= 1;
 
@@ -2061,7 +2115,7 @@ int dyn_string_cmp(DYNAMIC_STRING* ds, const char *fname)
 
 void check_result()
 {
-  const char* mess= "Result content mismatch\n";
+  const char *mess= 0;
 
   DBUG_ENTER("check_result");
   DBUG_ASSERT(result_file_name);
@@ -2069,9 +2123,13 @@ void check_result()
 
   switch (compare_files(log_file.file_name(), result_file_name)) {
   case RESULT_OK:
-    break; /* ok */
+    if (!error_count)
+      break; /* ok */
+    mess= "Got errors while running test";
+    /* Fallthrough */
   case RESULT_LENGTH_MISMATCH:
-    mess= "Result length mismatch\n";
+    if (!mess)
+      mess= "Result length mismatch\n";
     /* Fallthrough */
   case RESULT_CONTENT_MISMATCH:
   {
@@ -2081,6 +2139,10 @@ void check_result()
     */
     char reject_file[FN_REFLEN];
     size_t reject_length;
+
+    if (!mess)
+      mess= "Result content mismatch\n";
+
     dirname_part(reject_file, result_file_name, &reject_length);
 
     if (access(reject_file, W_OK) == 0)
@@ -2180,8 +2242,8 @@ static int strip_surrounding(char* str, char c1, char c2)
 static void strip_parentheses(struct st_command *command)
 {
   if (strip_surrounding(command->first_argument, '(', ')'))
-      die("%.*s - argument list started with '%c' must be ended with '%c'",
-          command->first_word_len, command->query, '(', ')');
+    die("%.*s - argument list started with '%c' must be ended with '%c'",
+        command->first_word_len, command->query, '(', ')');
 }
 
 
@@ -2518,8 +2580,8 @@ void var_query_set(VAR *var, const char *query, const char** query_end)
 
   if (mysql_real_query(mysql, ds_query.str, ds_query.length)) 
   {
-    handle_error (curr_command, mysql_errno(mysql), mysql_error(mysql),
-                  mysql_sqlstate(mysql), &ds_res);
+    handle_error(curr_command, mysql_errno(mysql), mysql_error(mysql),
+                 mysql_sqlstate(mysql), &ds_res);
     /* If error was acceptable, return empty string */
     dynstr_free(&ds_query);
     eval_expr(var, "", 0);
@@ -2527,7 +2589,12 @@ void var_query_set(VAR *var, const char *query, const char** query_end)
   }
   
   if (!(res= mysql_store_result(mysql)))
-    die("Query '%s' didn't return a result set", ds_query.str);
+  {
+    report_or_die("Query '%s' didn't return a result set", ds_query.str);
+    dynstr_free(&ds_query);
+    eval_expr(var, "", 0);
+    return;
+  }
   dynstr_free(&ds_query);
 
   if ((row= mysql_fetch_row(res)) && row[0])
@@ -2696,16 +2763,23 @@ void var_set_query_get_value(struct st_command *command, VAR *var)
   /* Run the query */
   if (mysql_real_query(mysql, ds_query.str, ds_query.length))
   {
-    handle_error (curr_command, mysql_errno(mysql), mysql_error(mysql),
-                  mysql_sqlstate(mysql), &ds_res);
+    handle_error(curr_command, mysql_errno(mysql), mysql_error(mysql),
+                 mysql_sqlstate(mysql), &ds_res);
     /* If error was acceptable, return empty string */
     dynstr_free(&ds_query);
+    dynstr_free(&ds_col);
     eval_expr(var, "", 0);
     DBUG_VOID_RETURN;
   }
 
   if (!(res= mysql_store_result(mysql)))
-    die("Query '%s' didn't return a result set", ds_query.str);
+  {
+    report_or_die("Query '%s' didn't return a result set", ds_query.str);
+    dynstr_free(&ds_query);
+    dynstr_free(&ds_col);
+    eval_expr(var, "", 0);
+    return;
+  }
 
   {
     /* Find column number from the given column name */
@@ -2725,8 +2799,11 @@ void var_set_query_get_value(struct st_command *command, VAR *var)
     if (col_no == -1)
     {
       mysql_free_result(res);
-      die("Could not find column '%s' in the result of '%s'",
-          ds_col.str, ds_query.str);
+      report_or_die("Could not find column '%s' in the result of '%s'",
+                    ds_col.str, ds_query.str);
+      dynstr_free(&ds_query);
+      dynstr_free(&ds_col);
+      return;
     }
     DBUG_PRINT("info", ("Found column %d with name '%s'",
                         i, fields[i].name));
@@ -3165,7 +3242,10 @@ void do_exec(struct st_command *command)
   while (*cmd && my_isspace(charset_info, *cmd))
     cmd++;
   if (!*cmd)
-    die("Missing argument in exec");
+  {
+    report_or_die("Missing argument in exec");
+    return;
+  }
   command->last_argument= command->end;
 
   init_dynamic_string(&ds_cmd, 0, command->query_len+256, 256);
@@ -3197,10 +3277,12 @@ void do_exec(struct st_command *command)
   DBUG_PRINT("info", ("Executing '%s' as '%s'",
                       command->first_argument, ds_cmd.str));
 
-  if (!(res_file= my_popen(&ds_cmd, "r")) && command->abort_on_error)
+  if (!(res_file= my_popen(&ds_cmd, "r")))
   {
     dynstr_free(&ds_cmd);
-    die("popen(\"%s\", \"r\") failed", command->first_argument);
+    if (command->abort_on_error)
+      report_or_die("popen(\"%s\", \"r\") failed", command->first_argument);
+    return;
   }
 
   ds_result= &ds_res;
@@ -3237,11 +3319,12 @@ void do_exec(struct st_command *command)
 
     if (command->abort_on_error)
     {
-      log_msg("exec of '%s' failed, error: %d, status: %d, errno: %d",
-              ds_cmd.str, error, status, errno);
+      report_or_die("exec of '%s' failed, error: %d, status: %d, errno: %d\n"
+                    "Output from before failure:\n%s\n",
+                    ds_cmd.str, error, status, errno,
+                    ds_res.str);
       dynstr_free(&ds_cmd);
-      die("command \"%s\" failed\n\nOutput from before failure:\n%s\n",
-          command->first_argument, ds_res.str);
+      return;
     }
 
     DBUG_PRINT("info",
@@ -3256,8 +3339,8 @@ void do_exec(struct st_command *command)
     {
       dynstr_free(&ds_cmd);
       if (command->expected_errors.count > 0)
-        die("command \"%s\" failed with wrong error: %d",
-            command->first_argument, status);
+        report_or_die("command \"%s\" failed with wrong error: %d",
+                      command->first_argument, status);
     }
   }
   else if (command->expected_errors.err[0].type == ERR_ERRNO &&
@@ -3267,8 +3350,10 @@ void do_exec(struct st_command *command)
     log_msg("exec of '%s failed, error: %d, errno: %d",
             ds_cmd.str, error, errno);
     dynstr_free(&ds_cmd);
-    die("command \"%s\" succeeded - should have failed with errno %d...",
-        command->first_argument, command->expected_errors.err[0].code.errnum);
+    report_or_die("command \"%s\" succeeded - should have failed with "
+                  "errno %d...",
+                  command->first_argument,
+                  command->expected_errors.err[0].code.errnum);
   }
 
   dynstr_free(&ds_cmd);
@@ -3302,7 +3387,8 @@ int do_modify_var(struct st_command *command,
   const char *p= command->first_argument;
   VAR* v;
   if (!*p)
-    die("Missing argument to %.*s", command->first_word_len, command->query);
+    die("Missing argument to %.*s", command->first_word_len,
+        command->query);
   if (*p != '$')
     die("The argument to %.*s must be a variable (start with $)",
         command->first_word_len, command->query);
@@ -3368,7 +3454,10 @@ void do_system(struct st_command *command)
   DBUG_ENTER("do_system");
 
   if (strlen(command->first_argument) == 0)
-    die("Missing arguments to system, nothing to do!");
+  {
+    report_or_die("Missing arguments to system, nothing to do!");
+    return;
+  }
 
   init_dynamic_string(&ds_cmd, 0, command->query_len + 64, 256);
 
@@ -3389,12 +3478,14 @@ void do_system(struct st_command *command)
   if (my_system(&ds_cmd))
   {
     if (command->abort_on_error)
-      die("system command '%s' failed", command->first_argument);
-
-    /* If ! abort_on_error, log message and continue */
-    dynstr_append(&ds_res, "system command '");
-    replace_dynstr_append(&ds_res, command->first_argument);
-    dynstr_append(&ds_res, "' failed\n");
+      report_or_die("system command '%s' failed", command->first_argument);
+    else
+    {
+      /* If ! abort_on_error, log message and continue */
+      dynstr_append(&ds_res, "system command '");
+      replace_dynstr_append(&ds_res, command->first_argument);
+      dynstr_append(&ds_res, "' failed\n");
+    }
   }
 
   command->last_argument= command->end;
@@ -3941,12 +4032,12 @@ void read_until_delimiter(DYNAMIC_STRING *ds,
         No characters except \n are allowed on
         the same line as the command
       */
-      die("Trailing characters found after command");
+      report_or_die("Trailing characters found after command");
     }
 
     if (feof(cur_file->file))
-      die("End of file encountered before '%s' delimiter was found",
-          ds_delimiter->str);
+      report_or_die("End of file encountered before '%s' delimiter was found",
+                    ds_delimiter->str);
 
     if (match_delimiter(c, ds_delimiter->str, ds_delimiter->length))
     {
@@ -4350,8 +4441,13 @@ void do_perl(struct st_command *command)
     /* Format the "perl <filename>" command */
     my_snprintf(buf, sizeof(buf), "perl %s", temp_file_path);
 
-    if (!(res_file= popen(buf, "r")) && command->abort_on_error)
-     die("popen(\"%s\", \"r\") failed", buf);
+    if (!(res_file= popen(buf, "r")))
+    {
+      if (command->abort_on_error)
+        die("popen(\"%s\", \"r\") failed", buf);
+      dynstr_free(&ds_delimiter);
+      return;
+    }
 
     while (fgets(buf, sizeof(buf), res_file))
     {
@@ -4506,14 +4602,14 @@ void do_sync_with_master2(struct st_command *command, long offset)
         information is not initialized, the arguments are
         incorrect, or an error has occured
       */
-      die("%.*s failed: '%s' returned NULL "\
+      die("%.*s failed: '%s' returned NULL "          \
           "indicating slave SQL thread failure",
           command->first_word_len, command->query, query_buf);
 
     }
 
     if (result == -1)
-      die("%.*s failed: '%s' returned -1 "\
+      die("%.*s failed: '%s' returned -1 "            \
           "indicating timeout after %d seconds",
           command->first_word_len, command->query, query_buf, timeout);
     else
@@ -4808,7 +4904,8 @@ int do_sleep(struct st_command *command, my_bool real_sleep)
   while (my_isspace(charset_info, *p))
     p++;
   if (!*p)
-    die("Missing argument to %.*s", command->first_word_len, command->query);
+    die("Missing argument to %.*s", command->first_word_len,
+        command->query);
   sleep_start= p;
   /* Check that arg starts with a digit, not handled by my_strtod */
   if (!my_isdigit(charset_info, *sleep_start))
@@ -4880,16 +4977,21 @@ int query_get_string(MYSQL* mysql, const char* query,
   MYSQL_ROW row;
 
   if (mysql_query(mysql, query))
-    die("'%s' failed: %d %s", query,
-        mysql_errno(mysql), mysql_error(mysql));
+  {
+    report_or_die("'%s' failed: %d %s", query,
+                  mysql_errno(mysql), mysql_error(mysql));
+    return 1;
+  }
   if ((res= mysql_store_result(mysql)) == NULL)
-    die("Failed to store result: %d %s",
-        mysql_errno(mysql), mysql_error(mysql));
+  {
+    report_or_die("Failed to store result: %d %s",
+                  mysql_errno(mysql), mysql_error(mysql));
+    return 1;
+  }
 
   if ((row= mysql_fetch_row(res)) == NULL)
   {
     mysql_free_result(res);
-    ds= 0;
     return 1;
   }
   init_dynamic_string(ds, (row[column] ? row[column] : "NULL"), ~0, 32);
@@ -5161,7 +5263,7 @@ void do_get_errcodes(struct st_command *command)
       while (*p && p != end)
       {
         if (!my_isdigit(charset_info, *p))
-          die("Invalid argument to error: '%s' - "\
+          die("Invalid argument to error: '%s' - "            \
               "the errno may only consist of digits[0-9]",
               command->first_argument);
         p++;
@@ -6084,7 +6186,7 @@ void do_block(enum block_cmd cmd, struct st_command* command)
     eval_expr(&v2, curr_ptr, &expr_end);
 
     if ((operand!=EQ_OP && operand!=NE_OP) && ! (v.is_int && v2.is_int))
-      die ("Only == and != are supported for string values");
+      die("Only == and != are supported for string values");
 
     /* Now we overwrite the first variable with 0 or 1 (for false or true) */
 
@@ -6442,7 +6544,7 @@ int read_line(char *buf, int size)
 	*p++= c;
     }
   }
-  die("The input buffer is too small for this query.x\n" \
+  die("The input buffer is too small for this query.x\n"      \
       "check your query or increase MAX_QUERY and recompile");
   DBUG_RETURN(0);
 }
@@ -6675,6 +6777,12 @@ static struct my_option my_long_options[] =
   {"compress", 'C', "Use the compressed server/client protocol.",
    &opt_compress, &opt_compress, 0, GET_BOOL, NO_ARG, 0, 0, 0,
    0, 0, 0},
+  {"continue-on-error", 0,
+   "Continue test even if we got an error. "
+   "This is mostly useful when testing a storage engine to see what from a test file it can execute, "
+   "or to find all syntax errors in a newly created big test file",
+   &opt_continue_on_error, &opt_continue_on_error, 0,
+   GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"cursor-protocol", 0, "Use cursors for prepared statements.",
    &cursor_protocol, &cursor_protocol, 0,
    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
@@ -7006,7 +7114,8 @@ int parse_args(int argc, char **argv)
   {
     /* Check that the result file exists */
     if (result_file_name && access(result_file_name, F_OK) != 0)
-      die("The specified result file '%s' does not exist", result_file_name);
+      die("The specified result file '%s' does not exist",
+          result_file_name);
   }
 
   return 0;
@@ -7333,8 +7442,8 @@ void append_stmt_result(DYNAMIC_STRING *ds, MYSQL_STMT *stmt,
   }
 
   if (error != MYSQL_NO_DATA)
-    die("mysql_fetch didn't end with MYSQL_NO_DATA from statement: error: %d",
-        error);
+    die("mysql_fetch didn't end with MYSQL_NO_DATA from statement: "
+        "error: %d", error);
   if (mysql_stmt_fetch(stmt) != MYSQL_NO_DATA)
     die("mysql_fetch didn't end with MYSQL_NO_DATA from statement: %d %s",
 	mysql_stmt_errno(stmt), mysql_stmt_error(stmt));
@@ -7666,7 +7775,8 @@ static int match_expected_error(struct st_command *command,
         NULL is quite likely, but not in conjunction with a SQL-state expect!
       */
       if (unlikely(err_sqlstate == NULL))
-        die("expecting a SQL-state (%s) from query '%s' which cannot produce one...",
+        die("expecting a SQL-state (%s) from query '%s' which cannot "
+            "produce one...",
             command->expected_errors.err[i].code.sqlstate, command->query);
 
       if (strncmp(command->expected_errors.err[i].code.sqlstate,
@@ -7720,7 +7830,11 @@ void handle_error(struct st_command *command,
   }
 
   if (command->abort_on_error)
-    die("query '%s' failed: %d: %s", command->query, err_errno, err_error);
+  {
+    report_or_die("query '%s' failed: %d: %s", command->query, err_errno,
+                  err_error);
+    DBUG_VOID_RETURN;
+  }
 
   DBUG_PRINT("info", ("expected_errors.count: %d",
                       command->expected_errors.count));
@@ -7766,13 +7880,15 @@ void handle_error(struct st_command *command,
   if (command->expected_errors.count > 0)
   {
     if (command->expected_errors.err[0].type == ERR_ERRNO)
-      die("query '%s' failed with wrong errno %d: '%s', instead of %d...",
-          command->query, err_errno, err_error,
-          command->expected_errors.err[0].code.errnum);
+      report_or_die("query '%s' failed with wrong errno %d: '%s', instead of "
+                    "%d...",
+                    command->query, err_errno, err_error,
+                    command->expected_errors.err[0].code.errnum);
     else
-      die("query '%s' failed with wrong sqlstate %s: '%s', instead of %s...",
-          command->query, err_sqlstate, err_error,
-	  command->expected_errors.err[0].code.sqlstate);
+      report_or_die("query '%s' failed with wrong sqlstate %s: '%s', "
+                    "instead of %s...",
+                    command->query, err_sqlstate, err_error,
+                    command->expected_errors.err[0].code.sqlstate);
   }
 
   revert_properties();
@@ -7799,15 +7915,17 @@ void handle_no_error(struct st_command *command)
       command->expected_errors.err[0].code.errnum != 0)
   {
     /* Error code we wanted was != 0, i.e. not an expected success */
-    die("query '%s' succeeded - should have failed with errno %d...",
-        command->query, command->expected_errors.err[0].code.errnum);
+    report_or_die("query '%s' succeeded - should have failed with errno %d...",
+                  command->query, command->expected_errors.err[0].code.errnum);
   }
   else if (command->expected_errors.err[0].type == ERR_SQLSTATE &&
            strcmp(command->expected_errors.err[0].code.sqlstate,"00000") != 0)
   {
     /* SQLSTATE we wanted was != "00000", i.e. not an expected success */
-    die("query '%s' succeeded - should have failed with sqlstate %s...",
-        command->query, command->expected_errors.err[0].code.sqlstate);
+    report_or_die("query '%s' succeeded - should have failed with "
+                  "sqlstate %s...",
+                  command->query,
+                  command->expected_errors.err[0].code.sqlstate);
   }
   DBUG_VOID_RETURN;
 }
@@ -8105,10 +8223,10 @@ void run_query(struct st_connection *cn, struct st_command *command, int flags)
   DBUG_ENTER("run_query");
 
   if (cn->pending && (flags & QUERY_SEND_FLAG))
-    die ("Cannot run query on connection between send and reap");
+    die("Cannot run query on connection between send and reap");
 
   if (!(flags & QUERY_SEND_FLAG) && !cn->pending)
-    die ("Cannot reap on a connection without pending send");
+    die("Cannot reap on a connection without pending send");
   
   init_dynamic_string(&ds_warnings, NULL, 0, 256);
   ds_warn= &ds_warnings;
@@ -8293,13 +8411,14 @@ void run_query(struct st_connection *cn, struct st_command *command, int flags)
   if (sp_created)
   {
     if (util_query(mysql, "DROP PROCEDURE mysqltest_tmp_sp "))
-      die("Failed to drop sp: %d: %s", mysql_errno(mysql), mysql_error(mysql));
+      report_or_die("Failed to drop sp: %d: %s", mysql_errno(mysql),
+                     mysql_error(mysql));
   }
 
   if (view_created)
   {
     if (util_query(mysql, "DROP VIEW mysqltest_tmp_v "))
-      die("Failed to drop view: %d: %s",
+      report_or_die("Failed to drop view: %d: %s",
 	  mysql_errno(mysql), mysql_error(mysql));
   }
 
@@ -8463,9 +8582,10 @@ void get_command_type(struct st_command* command)
     else
     {
       /* -- "comment" that didn't contain a mysqltest command */
-      die("Found line beginning with --  that didn't contain "\
-          "a valid mysqltest command, check your syntax or "\
+      report_or_die("Found line beginning with --  that didn't contain " \
+          "a valid mysqltest command, check your syntax or "            \
           "use # if you intended to write a comment");
+      command->type= Q_COMMENT;
     }
   }
 
@@ -9190,7 +9310,7 @@ int main(int argc, char **argv)
         if (parsing_disabled == 0)
           parsing_disabled= 1;
         else
-          die("Parsing is already disabled");
+          report_or_die("Parsing is already disabled");
         break;
       case Q_ENABLE_PARSING:
         /*
@@ -9200,7 +9320,7 @@ int main(int argc, char **argv)
         if (parsing_disabled == 1)
           parsing_disabled= 0;
         else
-          die("Parsing is already enabled");
+          report_or_die("Parsing is already enabled");
         break;
       case Q_DIE:
         /* Abort test with error code and error message */
@@ -9404,7 +9524,8 @@ void do_get_replace_column(struct st_command *command)
     if (!(column_number= atoi(to)) || column_number > MAX_COLUMNS)
       die("Wrong column number to replace_column in '%s'", command->query);
     if (!*from)
-      die("Wrong number of arguments to replace_column in '%s'", command->query);
+      die("Wrong number of arguments to replace_column in '%s'",
+          command->query);
     to= get_string(&buff, &from, command);
     my_free(replace_column[column_number-1]);
     replace_column[column_number-1]= my_strdup(to, MYF(MY_WME | MY_FAE));

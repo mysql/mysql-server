@@ -230,7 +230,7 @@ my %opts_extern;
 sub using_extern { return (keys %opts_extern > 0);};
 
 our $opt_fast= 0;
-our $opt_force;
+our $opt_force= 0;
 our $opt_mem= $ENV{'MTR_MEM'};
 our $opt_clean_vardir= $ENV{'MTR_CLEAN_VARDIR'};
 
@@ -1136,7 +1136,7 @@ sub command_line_setup {
 	     'defaults-extra-file=s'    => \&collect_option,
 
              # Control what test suites or cases to run
-             'force'                    => \$opt_force,
+             'force+'                   => \$opt_force,
              'with-ndbcluster-only'     => \&collect_option,
              'include-ndbcluster'       => \$opt_include_ndbcluster,
              'skip-ndbcluster|skip-ndb' => \$opt_skip_ndbcluster,
@@ -5856,6 +5856,11 @@ sub start_mysqltest ($) {
     mtr_add_arg($args, "%s", $_) for @args_saved;
   }
 
+  if ($opt_force > 1)
+  {
+    mtr_add_arg($args, "--continue-on-error");
+  }
+
   my $suite = $tinfo->{suite};
   if ($suite->{parent}) {
     mtr_add_arg($args, "--overlay-dir=%s/", $suite->{dir});
@@ -6285,7 +6290,11 @@ Options to control directories to use
 
 Options to control what test suites or cases to run
 
-  force                 Continue to run the suite after failure
+  force                 Continue after a failure. When specified once, a
+                        failure in a test file will abort this test file, and
+                        the execution will continue from the next test file.
+                        When specified twice, execution will continue executing
+                        the failed test file from the next command.
   with-ndbcluster-only  Run only tests that include "ndb" in the filename
   skip-ndb[cluster]     Skip all tests that need cluster. Default.
   include-ndb[cluster]  Enable all tests that need cluster
