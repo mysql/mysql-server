@@ -2120,32 +2120,27 @@ row_ins_must_modify_rec(
 }
 
 /***************************************************************//**
-Tries to insert an index entry to an index. If the index is clustered
-and a record with the same unique key is found, the other record is
-necessarily marked deleted by a committed transaction, or a unique key
-violation error occurs. The delete marked record is then updated to an
-existing record, and we must write an undo log record on the delete
-marked record. If the index is secondary, and a record with exactly the
-same fields is found, the other record is necessarily marked deleted.
-It is then unmarked. Otherwise, the entry is just inserted to the index.
-@return DB_SUCCESS, DB_LOCK_WAIT, DB_FAIL if pessimistic retry needed,
-or error code */
+Tries to insert an entry into a clustered index. If a record with the
+same unique key is found, the other record is necessarily marked
+deleted by a committed transaction, or a unique key violation error
+occurs. The delete marked record is then updated to an existing
+record, and we must write an undo log record on the delete marked
+record.
+@return DB_SUCCESS, DB_LOCK_WAIT, DB_FAIL if pessimistic
+retry needed, or error code */
 static __attribute__((nonnull, warn_unused_result))
 dberr_t
-row_ins_index_entry_low(
-/*====================*/
+row_ins_clust_index_entry_low(
+/*==========================*/
 	ulint		mode,	/*!< in: BTR_MODIFY_LEAF or BTR_MODIFY_TREE,
 				depending on whether we wish optimistic or
 				pessimistic descent down the index tree */
-	dict_index_t*	index,	/*!< in: index */
+	dict_index_t*	index,	/*!< in: clustered index */
 	dtuple_t*	entry,	/*!< in/out: index entry to insert */
 	ulint		n_ext,	/*!< in: number of externally stored columns */
 	que_thr_t*	thr)	/*!< in: query thread */
 {
 	btr_cur_t	cursor;
-	ulint		search_mode;
-	ibool		modify			= FALSE;
-	rec_t*		insert_rec;
 	rec_t*		rec;
 	ulint*		offsets;
 	dberr_t		err;
@@ -2153,6 +2148,8 @@ row_ins_index_entry_low(
 	big_rec_t*	big_rec			= NULL;
 	mtr_t		mtr;
 	mem_heap_t*	heap			= NULL;
+
+	ut_ad(dict_index_is_clust(index));
 
 	log_free_check();
 
@@ -2164,27 +2161,8 @@ row_ins_index_entry_low(
 	the function will return in both low_match and up_match of the
 	cursor sensible values */
 
-	if (dict_index_is_clust(index)) {
-		search_mode = mode;
-	} else if (!(thr_get_trx(thr)->check_unique_secondary)) {
-		search_mode = mode | BTR_INSERT | BTR_IGNORE_SEC_UNIQUE;
-	} else {
-		search_mode = mode | BTR_INSERT;
-	}
-
-	btr_cur_search_to_nth_level(index, 0, entry, PAGE_CUR_LE,
-				    search_mode,
+	btr_cur_search_to_nth_level(index, 0, entry, PAGE_CUR_LE, mode,
 				    &cursor, 0, __FILE__, __LINE__, &mtr);
-
-	if (cursor.flag == BTR_CUR_INSERT_TO_IBUF) {
-		/* The insertion was made to the insert buffer already during
-		the search: we are done */
-
-		ut_ad(search_mode & BTR_INSERT);
-		err = DB_SUCCESS;
-
-		goto function_exit;
-	}
 
 #ifdef UNIV_DEBUG
 	{
@@ -2203,126 +2181,98 @@ row_ins_index_entry_low(
 	if (dict_index_is_unique(index) && (cursor.up_match >= n_unique
 					    || cursor.low_match >= n_unique)) {
 
-		if (dict_index_is_clust(index)) {
-			/* Note that the following may return also
-			DB_LOCK_WAIT */
+		/* Note that the following may return also
+		DB_LOCK_WAIT */
 
-			err = row_ins_duplicate_error_in_clust(
-				&cursor, entry, thr, &mtr);
-			if (err != DB_SUCCESS) {
+		err = row_ins_duplicate_error_in_clust(
+			&cursor, entry, thr, &mtr);
+		if (err != DB_SUCCESS) {
 
-				goto function_exit;
-			}
-		} else {
-			mtr_commit(&mtr);
-			err = row_ins_scan_sec_index_for_duplicate(
-				index, entry, thr);
-			mtr_start(&mtr);
-
-			if (err != DB_SUCCESS) {
-				goto function_exit;
-			}
-
-			/* We did not find a duplicate and we have now
-			locked with s-locks the necessary records to
-			prevent any insertion of a duplicate by another
-			transaction. Let us now reposition the cursor and
-			continue the insertion. */
-
-			btr_cur_search_to_nth_level(index, 0, entry,
-						    PAGE_CUR_LE,
-						    mode | BTR_INSERT,
-						    &cursor, 0,
-						    __FILE__, __LINE__, &mtr);
+			goto function_exit;
 		}
 	}
 
-	modify = row_ins_must_modify_rec(&cursor);
-
-	if (modify) {
+	if (row_ins_must_modify_rec(&cursor)) {
 		/* There is already an index entry with a long enough common
 		prefix, we must convert the insert into a modify of an
 		existing record */
 
-		if (dict_index_is_clust(index)) {
-			err = row_ins_clust_index_entry_by_modify(
-				mode, &cursor, &heap, &big_rec, entry,
-				thr, &mtr);
+		err = row_ins_clust_index_entry_by_modify(
+			mode, &cursor, &heap, &big_rec, entry,
+			thr, &mtr);
 
-			if (big_rec) {
-				ut_a(err == DB_SUCCESS);
-				/* Write out the externally stored
-				columns while still x-latching
-				index->lock and block->lock. Allocate
-				pages for big_rec in the mtr that
-				modified the B-tree, but be sure to skip
-				any pages that were freed in mtr. We will
-				write out the big_rec pages before
-				committing the B-tree mini-transaction. If
-				the system crashes so that crash recovery
-				will not replay the mtr_commit(&mtr), the
-				big_rec pages will be left orphaned until
-				the pages are allocated for something else.
+		if (big_rec) {
+			ut_a(err == DB_SUCCESS);
+			/* Write out the externally stored
+			columns while still x-latching
+			index->lock and block->lock. Allocate
+			pages for big_rec in the mtr that
+			modified the B-tree, but be sure to skip
+			any pages that were freed in mtr. We will
+			write out the big_rec pages before
+			committing the B-tree mini-transaction. If
+			the system crashes so that crash recovery
+			will not replay the mtr_commit(&mtr), the
+			big_rec pages will be left orphaned until
+			the pages are allocated for something else.
 
-				TODO: If the allocation extends the
-				tablespace, it will not be redo
-				logged, in either mini-transaction.
-				Tablespace extension should be
-				redo-logged in the big_rec
-				mini-transaction, so that recovery
-				will not fail when the big_rec was
-				written to the extended portion of the
-				file, in case the file was somehow
-				truncated in the crash. */
+			TODO: If the allocation extends the
+			tablespace, it will not be redo
+			logged, in either mini-transaction.
+			Tablespace extension should be
+			redo-logged in the big_rec
+			mini-transaction, so that recovery
+			will not fail when the big_rec was
+			written to the extended portion of the
+			file, in case the file was somehow
+			truncated in the crash. */
 
-				rec = btr_cur_get_rec(&cursor);
-				offsets = rec_get_offsets(
-					rec, index, NULL,
-					ULINT_UNDEFINED, &heap);
+			rec = btr_cur_get_rec(&cursor);
+			offsets = rec_get_offsets(
+				rec, index, NULL,
+				ULINT_UNDEFINED, &heap);
 
-				DEBUG_SYNC_C_IF_THD(
-					thr_get_trx(thr)->mysql_thd,
-					"before_row_ins_upd_extern");
-				err = btr_store_big_rec_extern_fields(
-					index, btr_cur_get_block(&cursor),
-					rec, offsets, big_rec, &mtr,
-					BTR_STORE_INSERT_UPDATE);
-				DEBUG_SYNC_C_IF_THD(
-					thr_get_trx(thr)->mysql_thd,
-					"after_row_ins_upd_extern");
-				/* If writing big_rec fails (for
-				example, because of DB_OUT_OF_FILE_SPACE),
-				the record will be corrupted. Even if
-				we did not update any externally
-				stored columns, our update could cause
-				the record to grow so that a
-				non-updated column was selected for
-				external storage. This non-update
-				would not have been written to the
-				undo log, and thus the record cannot
-				be rolled back.
+			DEBUG_SYNC_C_IF_THD(
+				thr_get_trx(thr)->mysql_thd,
+				"before_row_ins_upd_extern");
+			err = btr_store_big_rec_extern_fields(
+				index, btr_cur_get_block(&cursor),
+				rec, offsets, big_rec, &mtr,
+				BTR_STORE_INSERT_UPDATE);
+			DEBUG_SYNC_C_IF_THD(
+				thr_get_trx(thr)->mysql_thd,
+				"after_row_ins_upd_extern");
+			/* If writing big_rec fails (for
+			example, because of DB_OUT_OF_FILE_SPACE),
+			the record will be corrupted. Even if
+			we did not update any externally
+			stored columns, our update could cause
+			the record to grow so that a
+			non-updated column was selected for
+			external storage. This non-update
+			would not have been written to the
+			undo log, and thus the record cannot
+			be rolled back.
 
-				However, because we have not executed
-				mtr_commit(mtr) yet, the update will
-				not be replayed in crash recovery, and
-				the following assertion failure will
-				effectively "roll back" the operation. */
-				ut_a(err == DB_SUCCESS);
-				mtr_commit(&mtr);
-				goto stored_big_rec;
-			}
-		} else {
-			ut_ad(!n_ext);
-			err = row_ins_sec_index_entry_by_modify(
-				mode, &cursor, entry, thr, &mtr);
+			However, because we have not executed
+			mtr_commit(mtr) yet, the update will
+			not be replayed in crash recovery, and
+			the following assertion failure will
+			effectively "roll back" the operation. */
+			ut_a(err == DB_SUCCESS);
+			mtr_commit(&mtr);
+			dtuple_big_rec_free(big_rec);
+			goto stored_big_rec;
 		}
 	} else {
+		rec_t*	insert_rec;
+
 		if (mode == BTR_MODIFY_LEAF) {
 			err = btr_cur_optimistic_insert(
 				0, &cursor, entry, &insert_rec, &big_rec,
 				n_ext, thr, &mtr);
 		} else {
-			ut_a(mode == BTR_MODIFY_TREE);
+			ut_ad(mode == BTR_MODIFY_TREE);
 			if (buf_LRU_buf_pool_running_out()) {
 
 				err = DB_LOCK_TABLE_FULL;
@@ -2345,17 +2295,139 @@ function_exit:
 		err = row_ins_index_entry_big_rec(
 			entry, big_rec, NULL, &heap, index,
 			thr_get_trx(thr)->mysql_thd, __FILE__, __LINE__);
-stored_big_rec:
-		if (modify) {
-			dtuple_big_rec_free(big_rec);
-		} else {
-			dtuple_convert_back_big_rec(index, entry, big_rec);
-		}
+		dtuple_convert_back_big_rec(index, entry, big_rec);
 	}
-
+stored_big_rec:
 	if (UNIV_LIKELY_NULL(heap)) {
 		mem_heap_free(heap);
 	}
+	return(err);
+}
+
+/***************************************************************//**
+Tries to insert an entry into a secondary index. If a record with exactly the
+same fields is found, the other record is necessarily marked deleted.
+It is then unmarked. Otherwise, the entry is just inserted to the index.
+@return DB_SUCCESS, DB_LOCK_WAIT, DB_FAIL if pessimistic retry needed,
+or error code */
+static __attribute__((nonnull, warn_unused_result))
+dberr_t
+row_ins_sec_index_entry_low(
+/*========================*/
+	ulint		mode,	/*!< in: BTR_MODIFY_LEAF or BTR_MODIFY_TREE,
+				depending on whether we wish optimistic or
+				pessimistic descent down the index tree */
+	dict_index_t*	index,	/*!< in: secondary index */
+	dtuple_t*	entry,	/*!< in/out: index entry to insert */
+	que_thr_t*	thr)	/*!< in: query thread */
+{
+	btr_cur_t	cursor;
+	ulint		search_mode;
+	dberr_t		err;
+	ulint		n_unique;
+	mtr_t		mtr;
+
+	ut_ad(!dict_index_is_clust(index));
+	ut_ad(!dict_index_is_online_ddl(index));
+
+	log_free_check();
+
+	mtr_start(&mtr);
+
+	cursor.thr = thr;
+
+	/* Note that we use PAGE_CUR_LE as the search mode, because then
+	the function will return in both low_match and up_match of the
+	cursor sensible values */
+
+	if (!thr_get_trx(thr)->check_unique_secondary) {
+		search_mode = mode | BTR_INSERT | BTR_IGNORE_SEC_UNIQUE;
+	} else {
+		search_mode = mode | BTR_INSERT;
+	}
+
+	btr_cur_search_to_nth_level(index, 0, entry, PAGE_CUR_LE,
+				    search_mode,
+				    &cursor, 0, __FILE__, __LINE__, &mtr);
+
+	if (cursor.flag == BTR_CUR_INSERT_TO_IBUF) {
+		/* The insert was buffered during the search: we are done */
+
+		err = DB_SUCCESS;
+
+		goto function_exit;
+	}
+
+#ifdef UNIV_DEBUG
+	{
+		page_t*	page = btr_cur_get_page(&cursor);
+		rec_t*	first_rec = page_rec_get_next(
+			page_get_infimum_rec(page));
+
+		ut_ad(page_rec_is_supremum(first_rec)
+		      || rec_get_n_fields(first_rec, index)
+		      == dtuple_get_n_fields(entry));
+	}
+#endif
+
+	n_unique = dict_index_get_n_unique(index);
+
+	if (dict_index_is_unique(index) && (cursor.up_match >= n_unique
+					    || cursor.low_match >= n_unique)) {
+
+		mtr_commit(&mtr);
+		err = row_ins_scan_sec_index_for_duplicate(index, entry, thr);
+		mtr_start(&mtr);
+
+		if (err != DB_SUCCESS) {
+			goto function_exit;
+		}
+
+		/* We did not find a duplicate and we have now
+		locked with s-locks the necessary records to
+		prevent any insertion of a duplicate by another
+		transaction. Let us now reposition the cursor and
+		continue the insertion. */
+
+		btr_cur_search_to_nth_level(index, 0, entry,
+					    PAGE_CUR_LE,
+					    mode | BTR_INSERT,
+					    &cursor, 0,
+					    __FILE__, __LINE__, &mtr);
+	}
+
+	if (row_ins_must_modify_rec(&cursor)) {
+		/* There is already an index entry with a long enough common
+		prefix, we must convert the insert into a modify of an
+		existing record */
+
+		err = row_ins_sec_index_entry_by_modify(
+			mode, &cursor, entry, thr, &mtr);
+	} else {
+		rec_t*		insert_rec;
+		big_rec_t*	big_rec;
+
+		if (mode == BTR_MODIFY_LEAF) {
+			err = btr_cur_optimistic_insert(
+				0, &cursor, entry, &insert_rec,
+				&big_rec, 0, thr, &mtr);
+		} else {
+			ut_ad(mode == BTR_MODIFY_TREE);
+			if (buf_LRU_buf_pool_running_out()) {
+
+				err = DB_LOCK_TABLE_FULL;
+			} else {
+				err = btr_cur_pessimistic_insert(
+					0, &cursor, entry, &insert_rec,
+					&big_rec, 0, thr, &mtr);
+			}
+		}
+
+		ut_ad(!big_rec);
+	}
+
+function_exit:
+	mtr_commit(&mtr);
 	return(err);
 }
 
@@ -2407,28 +2479,63 @@ row_ins_index_entry_big_rec_func(
 }
 
 /***************************************************************//**
-Inserts an index entry to index. Tries first optimistic, then pessimistic
-descent down the tree. If the entry matches enough to a delete marked record,
-performs the insert by updating or delete unmarking the delete marked
-record.
+Inserts an entry into a clustered index. Tries first optimistic,
+then pessimistic descent down the tree. If the entry matches enough
+to a delete marked record, performs the insert by updating or delete
+unmarking the delete marked record.
 @return	DB_SUCCESS, DB_LOCK_WAIT, DB_DUPLICATE_KEY, or some other error code */
 UNIV_INTERN
 dberr_t
-row_ins_index_entry(
-/*================*/
-	dict_index_t*	index,	/*!< in: index */
+row_ins_clust_index_entry(
+/*======================*/
+	dict_index_t*	index,	/*!< in: clustered index */
 	dtuple_t*	entry,	/*!< in/out: index entry to insert */
-	ulint		n_ext,	/*!< in: number of externally stored columns */
-	ibool		foreign,/*!< in: TRUE=check foreign key constraints
-				(foreign=FALSE only during CREATE INDEX) */
+	que_thr_t*	thr,	/*!< in: query thread */
+	ulint		n_ext)	/*!< in: number of externally stored columns */
+{
+	dberr_t	err;
+
+	if (UT_LIST_GET_FIRST(index->table->foreign_list)) {
+		err = row_ins_check_foreign_constraints(
+			index->table, index, entry, thr);
+		if (err != DB_SUCCESS) {
+
+			return(err);
+		}
+	}
+
+	/* Try first optimistic descent to the B-tree */
+
+	err = row_ins_clust_index_entry_low(BTR_MODIFY_LEAF, index, entry,
+					    n_ext, thr);
+	if (err != DB_FAIL) {
+
+		return(err);
+	}
+
+	/* Try then pessimistic descent to the B-tree */
+
+	return(row_ins_clust_index_entry_low(BTR_MODIFY_TREE, index, entry,
+					     n_ext, thr));
+}
+
+/***************************************************************//**
+Inserts an entry into a secondary index. Tries first optimistic,
+then pessimistic descent down the tree. If the entry matches enough
+to a delete marked record, performs the insert by updating or delete
+unmarking the delete marked record.
+@return	DB_SUCCESS, DB_LOCK_WAIT, DB_DUPLICATE_KEY, or some other error code */
+UNIV_INTERN
+dberr_t
+row_ins_sec_index_entry(
+/*====================*/
+	dict_index_t*	index,	/*!< in: secondary index */
+	dtuple_t*	entry,	/*!< in/out: index entry to insert */
 	que_thr_t*	thr)	/*!< in: query thread */
 {
 	dberr_t	err;
 
-	/* Only clustered indexes may contain externally stored columns. */
-	ut_ad(dict_index_is_clust(index) || !n_ext);
-
-	if (foreign && UT_LIST_GET_FIRST(index->table->foreign_list)) {
+	if (UT_LIST_GET_FIRST(index->table->foreign_list)) {
 		err = row_ins_check_foreign_constraints(index->table, index,
 							entry, thr);
 		if (err != DB_SUCCESS) {
@@ -2439,14 +2546,12 @@ row_ins_index_entry(
 
 	if (dict_index_online_trylog(index, entry, thr_get_trx(thr)->id,
 				     ROW_OP_INSERT)) {
-
 		return(DB_SUCCESS);
 	}
 
 	/* Try first optimistic descent to the B-tree */
 
-	err = row_ins_index_entry_low(BTR_MODIFY_LEAF, index, entry,
-				      n_ext, thr);
+	err = row_ins_sec_index_entry_low(BTR_MODIFY_LEAF, index, entry, thr);
 	if (err != DB_FAIL) {
 
 		return(err);
@@ -2454,9 +2559,29 @@ row_ins_index_entry(
 
 	/* Try then pessimistic descent to the B-tree */
 
-	err = row_ins_index_entry_low(BTR_MODIFY_TREE, index, entry,
-				      n_ext, thr);
-	return(err);
+	return(row_ins_sec_index_entry_low(
+		       BTR_MODIFY_TREE, index, entry, thr));
+}
+
+/***************************************************************//**
+Inserts an index entry to index. Tries first optimistic, then pessimistic
+descent down the tree. If the entry matches enough to a delete marked record,
+performs the insert by updating or delete unmarking the delete marked
+record.
+@return	DB_SUCCESS, DB_LOCK_WAIT, DB_DUPLICATE_KEY, or some other error code */
+static
+dberr_t
+row_ins_index_entry(
+/*================*/
+	dict_index_t*	index,	/*!< in: index */
+	dtuple_t*	entry,	/*!< in/out: index entry to insert */
+	que_thr_t*	thr)	/*!< in: query thread */
+{
+	if (dict_index_is_clust(index)) {
+		return(row_ins_clust_index_entry(index, entry, thr, 0));
+	} else {
+		return(row_ins_sec_index_entry(index, entry, thr));
+	}
 }
 
 /***********************************************************//**
@@ -2533,7 +2658,7 @@ row_ins_index_entry_step(
 
 	ut_ad(dtuple_check_typed(node->entry));
 
-	err = row_ins_index_entry(node->index, node->entry, 0, TRUE, thr);
+	err = row_ins_index_entry(node->index, node->entry, thr);
 
 	return(err);
 }

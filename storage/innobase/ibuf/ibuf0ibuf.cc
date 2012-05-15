@@ -3939,7 +3939,7 @@ ibuf_set_del_mark(
 		/* Delete mark the old index record. According to a
 		comment in row_upd_sec_index_entry(), it can already
 		have been delete marked if a lock wait occurred in
-		row_ins_index_entry() in a previous invocation of
+		row_ins_sec_index_entry() in a previous invocation of
 		row_upd_sec_index_entry(). */
 
 		if (UNIV_LIKELY

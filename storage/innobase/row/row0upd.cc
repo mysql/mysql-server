@@ -1734,7 +1734,7 @@ row_upd_sec_index_entry(
 	case ROW_FOUND:
 		/* Delete mark the old index record; it can already be
 		delete marked if we return after a lock wait in
-		row_ins_index_entry below */
+		row_ins_sec_index_entry() below */
 
 		if (!rec_get_deleted_flag(
 			rec, dict_table_is_comp(index->table))) {
@@ -1774,7 +1774,7 @@ row_upd_sec_index_entry(
 	ut_a(entry);
 
 	/* Insert new index entry */
-	err = row_ins_index_entry(index, entry, 0, TRUE, thr);
+	err = row_ins_sec_index_entry(index, entry, thr);
 
 func_exit:
 	mem_heap_free(heap);
@@ -2005,7 +2005,7 @@ row_upd_clust_rec_by_insert(
 	default:
 		ut_error;
 	case UPD_NODE_INSERT_BLOB:
-		/* A lock wait occurred in row_ins_index_entry() in
+		/* A lock wait occurred in row_ins_clust_index_entry() in
 		the previous invocation of this function. Mark the
 		off-page columns in the entry inherited. */
 
@@ -2014,7 +2014,7 @@ row_upd_clust_rec_by_insert(
 		ut_a(change_ownership);
 		/* fall through */
 	case UPD_NODE_INSERT_CLUSTERED:
-		/* A lock wait occurred in row_ins_index_entry() in
+		/* A lock wait occurred in row_ins_clust_index_entry() in
 		the previous invocation of this function. */
 		break;
 	case UPD_NODE_UPDATE_CLUSTERED:
@@ -2065,9 +2065,9 @@ err_exit:
 
 	mtr_commit(mtr);
 
-	err = row_ins_index_entry(index, entry,
-				  node->upd_ext ? node->upd_ext->n_ext : 0,
-				  TRUE, thr);
+	err = row_ins_clust_index_entry(
+		index, entry, thr,
+		node->upd_ext ? node->upd_ext->n_ext : 0);
 	node->state = change_ownership
 		? UPD_NODE_INSERT_BLOB
 		: UPD_NODE_INSERT_CLUSTERED;
