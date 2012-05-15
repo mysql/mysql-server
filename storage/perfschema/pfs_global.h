@@ -33,7 +33,11 @@ extern ulonglong pfs_allocated_memory;
 #define PFS_ALIGNEMENT 128
 #define PFS_ALIGNED MY_ALIGNED(PFS_ALIGNEMENT)
 #else
-#error "Really ? What platform is this ?"
+/*
+  Known platforms that do not provide aligned memory:
+  - MacOSX Darwin (osx10.5)
+  For these platforms, compile without the alignment optimization.
+*/
 #define PFS_ALIGNED
 #endif /* HAVE_POSIX_MEMALIGN || HAVE_MEMALIGN || HAVE_ALIGNED_MALLOC */
 
