@@ -75,20 +75,32 @@ ins_node_set_new_row(
 	ins_node_t*	node,	/*!< in: insert node */
 	dtuple_t*	row);	/*!< in: new row (or first row) for the node */
 /***************************************************************//**
-Inserts an index entry to index. Tries first optimistic, then pessimistic
-descent down the tree. If the entry matches enough to a delete marked record,
-performs the insert by updating or delete unmarking the delete marked
-record.
+Inserts an entry into a clustered index. Tries first optimistic,
+then pessimistic descent down the tree. If the entry matches enough
+to a delete marked record, performs the insert by updating or delete
+unmarking the delete marked record.
 @return	DB_SUCCESS, DB_LOCK_WAIT, DB_DUPLICATE_KEY, or some other error code */
 UNIV_INTERN
 dberr_t
-row_ins_index_entry(
-/*================*/
-	dict_index_t*	index,	/*!< in: index */
+row_ins_clust_index_entry(
+/*======================*/
+	dict_index_t*	index,	/*!< in: clustered index */
 	dtuple_t*	entry,	/*!< in/out: index entry to insert */
-	ulint		n_ext,	/*!< in: number of externally stored columns */
-	ibool		foreign,/*!< in: TRUE=check foreign key constraints
-				(foreign=FALSE only during CREATE INDEX) */
+	que_thr_t*	thr,	/*!< in: query thread */
+	ulint		n_ext)	/*!< in: number of externally stored columns */
+	__attribute__((nonnull, warn_unused_result));
+/***************************************************************//**
+Inserts an entry into a secondary index. Tries first optimistic,
+then pessimistic descent down the tree. If the entry matches enough
+to a delete marked record, performs the insert by updating or delete
+unmarking the delete marked record.
+@return	DB_SUCCESS, DB_LOCK_WAIT, DB_DUPLICATE_KEY, or some other error code */
+UNIV_INTERN
+dberr_t
+row_ins_sec_index_entry(
+/*====================*/
+	dict_index_t*	index,	/*!< in: secondary index */
+	dtuple_t*	entry,	/*!< in/out: index entry to insert */
 	que_thr_t*	thr)	/*!< in: query thread */
 	__attribute__((nonnull, warn_unused_result));
 /***************************************************************//**
