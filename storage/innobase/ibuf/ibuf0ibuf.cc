@@ -2700,7 +2700,7 @@ ibuf_merge_space(
 
 	if (sum_sizes > 0) {
 
-		ut_a(*n_pages > 0);
+		ut_a(*n_pages > 0 || sum_sizes == 1);
 
 #ifdef UNIV_DEBUG
 		ut_ad(*n_pages <= UT_ARR_SIZE(pages));
