@@ -177,8 +177,17 @@ static Field *create_tmp_field_from_item(THD *thd, Item *item, TABLE *table,
   }
   if (new_field)
     new_field->init(table);
-    
-  if (copy_func && item->is_result_field())
+
+  /*
+    If the item is a function, a pointer to the item is stored in
+    copy_func. We separate fields from functions by checking if the
+    item is a result field item. The real_item() must be checked to
+    avoid falsely identifying Item_ref and its subclasses as functions
+    when they refer to field-like items, such as Item_copy and
+    subclasses. References to true fields have already been untangled
+    in the beginning of create_tmp_field().
+   */
+  if (copy_func && item->real_item()->is_result_field())
     *((*copy_func)++) = item;			// Save for copy_funcs
   if (modify_item)
     item->set_result_field(new_field);
