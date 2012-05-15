@@ -3473,7 +3473,6 @@ toku_cachetable_begin_checkpoint (CACHETABLE ct, TOKULOGGER logger) {
     //                                                    written to disk before it can be modified.)
 
     {
-        brt_begin_checkpoint();
         unsigned i;
 	cachetable_lock(ct);
 	//Initialize accountability counters
@@ -3800,9 +3799,7 @@ toku_cachetable_end_checkpoint(CACHETABLE ct, TOKULOGGER logger,
             }
         }
     }
-
     
-    brt_end_checkpoint();
 panic:
     return retval;
 }
