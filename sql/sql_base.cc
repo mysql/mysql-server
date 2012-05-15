@@ -1739,8 +1739,8 @@ retry:
                  ("convert merged to materialization to resolve the conflict"));
       derived->change_refs_to_fields();
       derived->set_materialized_derived();
+      goto retry;
     }
-    goto retry;
   }
   DBUG_RETURN(res);
 }
