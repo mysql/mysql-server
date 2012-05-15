@@ -323,30 +323,6 @@ static int internal_recover_fopen_or_fcreate (RECOVER_ENV renv, BOOL must_create
     return 0;
 }
 
-static int toku_recover_local_txn_checkpoint (struct logtype_local_txn_checkpoint *l, RECOVER_ENV UU(renv)) {
-    int r;
-    switch (renv->ss.ss) {
-    case FORWARD_BETWEEN_CHECKPOINT_BEGIN_END:
-    case FORWARD_NEWER_CHECKPOINT_END: {
-        // assert that the transaction exists
-        TOKUTXN txn = NULL;
-        r = toku_txnid2txn(renv->logger, l->xid, &txn);
-        assert(r == 0 && txn != NULL);
-        r = 0;
-        break;
-    }
-    default:
-        assert(0);
-        return 0;
-    }
-    return r;
-}
-
-static int toku_recover_backward_local_txn_checkpoint (struct logtype_local_txn_checkpoint *UU(l), RECOVER_ENV UU(renv)) {
-    // nothing
-    return 0;
-}
-
 static int toku_recover_begin_checkpoint (struct logtype_begin_checkpoint *l, RECOVER_ENV renv) {
     int r;
     switch (renv->ss.ss) {

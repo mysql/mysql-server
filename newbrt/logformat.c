@@ -90,7 +90,9 @@ const struct logtype rollbacks[] = {
 
 const struct logtype logtypes[] = {
     // Records produced by checkpoints
+#if 0 // no longer used, but reserve the type
     {"local_txn_checkpoint", 'c', FA{{"TXNID",      "xid", 0}, NULLFIELD}},
+#endif
     {"begin_checkpoint", 'x', FA{{"u_int64_t", "timestamp", 0}, NULLFIELD}},
     {"end_checkpoint",   'X', FA{{"TXNID", "xid", 0},           // xid is LSN of begin_checkpoint
 				 {"u_int64_t", "timestamp", 0},
