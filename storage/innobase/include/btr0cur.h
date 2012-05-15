@@ -220,11 +220,12 @@ btr_cur_optimistic_insert(
 				NULL */
 	ulint		n_ext,	/*!< in: number of externally stored columns */
 	que_thr_t*	thr,	/*!< in: query thread or NULL */
-	mtr_t*		mtr);	/*!< in: mtr; if this function returns
+	mtr_t*		mtr)	/*!< in: mtr; if this function returns
 				DB_SUCCESS on a leaf page of a secondary
 				index in a compressed tablespace, the
 				mtr must be committed before latching
 				any further pages */
+	__attribute__((nonnull(2,3,4,5,8), warn_unused_result));
 /*************************************************************//**
 Performs an insert on a page of an index tree. It is assumed that mtr
 holds an x-latch on the tree and on the cursor page. If the insert is
@@ -251,7 +252,8 @@ btr_cur_pessimistic_insert(
 				NULL */
 	ulint		n_ext,	/*!< in: number of externally stored columns */
 	que_thr_t*	thr,	/*!< in: query thread or NULL */
-	mtr_t*		mtr);	/*!< in: mtr */
+	mtr_t*		mtr)	/*!< in: mtr */
+	__attribute__((nonnull(2,3,4,5,8), warn_unused_result));
 /*************************************************************//**
 See if there is enough place in the page modification log to log
 an update-in-place.
