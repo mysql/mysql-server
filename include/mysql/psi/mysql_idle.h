@@ -70,7 +70,7 @@ inline_mysql_start_idle_wait(PSI_idle_locker_state *state,
                              const char *src_file, int src_line)
 {
   struct PSI_idle_locker *locker;
-  locker= PSI_CALL(start_idle_wait)(state, src_file, src_line);
+  locker= PSI_IDLE_CALL(start_idle_wait)(state, src_file, src_line);
   return locker;
 }
 
@@ -82,7 +82,7 @@ static inline void
 inline_mysql_end_idle_wait(struct PSI_idle_locker *locker)
 {
   if (likely(locker != NULL))
-    PSI_CALL(end_idle_wait)(locker);
+    PSI_IDLE_CALL(end_idle_wait)(locker);
 }
 #endif
 

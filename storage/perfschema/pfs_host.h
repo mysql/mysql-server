@@ -44,7 +44,7 @@ struct PFS_host_key
   uint m_key_length;
 };
 
-struct PFS_host : PFS_connection_slice
+struct PFS_ALIGNED PFS_host : PFS_connection_slice
 {
 public:
   inline void init_refcount(void)
@@ -104,6 +104,8 @@ extern ulong host_lost;
 /* Exposing the data directly, for iterators. */
 
 extern PFS_host *host_array;
+
+extern LF_HASH host_hash;
 
 /** @} */
 #endif
