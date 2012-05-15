@@ -2187,8 +2187,9 @@ row_ins_clust_index_entry_low(
 		err = row_ins_duplicate_error_in_clust(
 			&cursor, entry, thr, &mtr);
 		if (err != DB_SUCCESS) {
-
-			goto function_exit;
+err_exit:
+			mtr_commit(&mtr);
+			return(err);
 		}
 	}
 
@@ -2260,44 +2261,44 @@ row_ins_clust_index_entry_low(
 			the following assertion failure will
 			effectively "roll back" the operation. */
 			ut_a(err == DB_SUCCESS);
-			mtr_commit(&mtr);
 			dtuple_big_rec_free(big_rec);
-			goto stored_big_rec;
 		}
+
+		mtr_commit(&mtr);
 	} else {
 		rec_t*	insert_rec;
 
-		if (mode == BTR_MODIFY_LEAF) {
+		if (mode != BTR_MODIFY_TREE) {
+			ut_ad(mode == BTR_MODIFY_LEAF);
 			err = btr_cur_optimistic_insert(
 				0, &cursor, entry, &insert_rec, &big_rec,
 				n_ext, thr, &mtr);
 		} else {
-			ut_ad(mode == BTR_MODIFY_TREE);
 			if (buf_LRU_buf_pool_running_out()) {
 
 				err = DB_LOCK_TABLE_FULL;
-
-				goto function_exit;
+				goto err_exit;
 			}
 			err = btr_cur_pessimistic_insert(
 				0, &cursor, entry, &insert_rec, &big_rec,
 				n_ext, thr, &mtr);
 		}
+
+		mtr_commit(&mtr);
+
+		if (UNIV_LIKELY_NULL(big_rec)) {
+			DBUG_EXECUTE_IF(
+				"row_ins_extern_checkpoint",
+				log_make_checkpoint_at(
+					IB_ULONGLONG_MAX, TRUE););
+			err = row_ins_index_entry_big_rec(
+				entry, big_rec, NULL, &heap, index,
+				thr_get_trx(thr)->mysql_thd,
+				__FILE__, __LINE__);
+			dtuple_convert_back_big_rec(index, entry, big_rec);
+		}
 	}
 
-function_exit:
-	mtr_commit(&mtr);
-
-	if (UNIV_LIKELY_NULL(big_rec)) {
-		DBUG_EXECUTE_IF(
-			"row_ins_extern_checkpoint",
-			log_make_checkpoint_at(IB_ULONGLONG_MAX, TRUE););
-		err = row_ins_index_entry_big_rec(
-			entry, big_rec, NULL, &heap, index,
-			thr_get_trx(thr)->mysql_thd, __FILE__, __LINE__);
-		dtuple_convert_back_big_rec(index, entry, big_rec);
-	}
-stored_big_rec:
 	if (UNIV_LIKELY_NULL(heap)) {
 		mem_heap_free(heap);
 	}
