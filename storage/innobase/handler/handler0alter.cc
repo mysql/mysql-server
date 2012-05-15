@@ -2952,6 +2952,8 @@ ha_innobase::commit_inplace_alter_table(
 		/* Lose the TEMP_INDEX_PREFIX. */
 		for (i = 0; i < ctx->num_to_add; i++) {
 			dict_index_t*	index = ctx->add[i];
+			DBUG_ASSERT(dict_index_get_online_status(index)
+				    == ONLINE_INDEX_COMPLETE);
 			DBUG_ASSERT(*index->name
 				    == TEMP_INDEX_PREFIX);
 			index->name++;
