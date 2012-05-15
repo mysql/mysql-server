@@ -4940,6 +4940,28 @@ dict_table_replace_index_in_foreign_list(
 			foreign->foreign_index = new_index;
 		}
 	}
+
+
+	for (foreign = UT_LIST_GET_FIRST(table->referenced_list);
+	     foreign;
+	     foreign = UT_LIST_GET_NEXT(referenced_list, foreign)) {
+
+		dict_index_t*	new_index;
+
+		if (foreign->referenced_index == index) {
+			ut_ad(foreign->referenced_table == index->table);
+
+			new_index = dict_foreign_find_index(
+				foreign->referenced_table,
+				foreign->referenced_col_names,
+				foreign->n_fields, index,
+				/*check_charsets=*/TRUE, /*check_null=*/FALSE);
+			ut_ad(new_index || !trx->check_foreigns);
+			ut_ad(!new_index || new_index->table == index->table);
+
+			foreign->referenced_index = new_index;
+		}
+	}
 }
 
 /**********************************************************************//**
