@@ -24,6 +24,7 @@ enum brt_layout_version_e {
     BRT_LAYOUT_VERSION_17 = 17, // Dr. No:  Add STAT64INFO_S to brt_header
     BRT_LAYOUT_VERSION_18 = 18, // Dr. No:  Add HOT info to brt_header
     BRT_LAYOUT_VERSION_19 = 19, // Doofenshmirtz: Add compression method, highest_unused_msn_for_upgrade
+    BRT_LAYOUT_VERSION_20 = 20, // Clayface: Add compression method to log_fcreate
     BRT_NEXT_VERSION,           // the version after the current version
     BRT_LAYOUT_VERSION   = BRT_NEXT_VERSION-1, // A hack so I don't have to change this line.
     BRT_LAYOUT_MIN_SUPPORTED_VERSION = BRT_LAYOUT_VERSION_13, // Minimum version supported

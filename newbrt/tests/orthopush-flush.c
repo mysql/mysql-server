@@ -1128,7 +1128,7 @@ test_main (int argc, const char *argv[]) {
     assert(r==0);
     unlink(fname);
     BRT t;
-    r = toku_open_brt(fname, 1, &t, 128*1024, 4096, ct, null_txn, toku_builtin_compare_fun); assert(r==0);
+    r = toku_open_brt(fname, 1, &t, 128*1024, 4096, TOKU_DEFAULT_COMPRESSION_METHOD, ct, null_txn, toku_builtin_compare_fun); assert(r==0);
     r = toku_brt_set_update(t, orthopush_flush_update_fun); assert(r==0);
 
     for (int i = 0; i < 10; ++i) {

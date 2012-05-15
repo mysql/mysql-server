@@ -97,6 +97,7 @@ with_open_tree(const char *fname, tree_cb cb, void *cb_extra)
                       &t, 
                       4*(1<<20), 
                       128*(1<<10), 
+                      TOKU_DEFAULT_COMPRESSION_METHOD,
                       ct, 
                       null_txn, 
                       toku_builtin_compare_fun

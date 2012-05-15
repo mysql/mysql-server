@@ -118,7 +118,7 @@ test_msnfilter(int do_verify) {
     // create the brt
     TOKUTXN null_txn = NULL;
     BRT brt = NULL;
-    r = toku_open_brt(fname, 1, &brt, 1024, 256, ct, null_txn, toku_builtin_compare_fun);
+    r = toku_open_brt(fname, 1, &brt, 1024, 256, TOKU_DEFAULT_COMPRESSION_METHOD, ct, null_txn, toku_builtin_compare_fun);
     assert(r == 0);
 
     BRTNODE newroot = make_node(brt, 0);

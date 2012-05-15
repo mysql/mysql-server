@@ -45,7 +45,7 @@ create_populate_tree(const char *logdir, const char *fname, int n) {
     assert(error == 0);
 
     BRT brt = NULL;
-    error = toku_open_brt(fname, 1, &brt, 1<<12, 1<<9, ct, txn, test_brt_cursor_keycompare);
+    error = toku_open_brt(fname, 1, &brt, 1<<12, 1<<9, TOKU_DEFAULT_COMPRESSION_METHOD, ct, txn, test_brt_cursor_keycompare);
     assert(error == 0);
 
     error = toku_txn_commit_txn(txn, TRUE, txn_yield, NULL, NULL, NULL, false);
@@ -98,7 +98,7 @@ walk_tree(const char *fname, int n) {
     assert(error == 0);
 
     BRT brt = NULL;
-    error = toku_open_brt(fname, 1, &brt, 1<<12, 1<<9, ct, null_txn, test_brt_cursor_keycompare);
+    error = toku_open_brt(fname, 1, &brt, 1<<12, 1<<9, TOKU_DEFAULT_COMPRESSION_METHOD, ct, null_txn, test_brt_cursor_keycompare);
     assert(error == 0);
 
     LE_CURSOR cursor = NULL;

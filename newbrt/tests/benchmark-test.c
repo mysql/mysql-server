@@ -20,6 +20,7 @@ enum { BASEMENT_NODE_SIZE = 128 * 1024 };
 
 static int nodesize = NODE_SIZE;
 static int basementnodesize = BASEMENT_NODE_SIZE;
+static enum toku_compression_method compression_method = TOKU_DEFAULT_COMPRESSION_METHOD;
 static int keysize = sizeof (long long);
 static int valsize = sizeof (long long);
 static int do_verify =0; /* Do a slow verify after every insert. */
@@ -34,7 +35,7 @@ static void setup (void) {
     int r;
     unlink(fname);
     r = toku_brt_create_cachetable(&ct, 0, ZERO_LSN, NULL_LOGGER);         assert(r==0);
-    r = toku_open_brt(fname, 1, &t, nodesize, basementnodesize, ct, NULL_TXN, toku_builtin_compare_fun); assert(r==0);
+    r = toku_open_brt(fname, 1, &t, nodesize, basementnodesize, compression_method, ct, NULL_TXN, toku_builtin_compare_fun); assert(r==0);
 }
 
 static void toku_shutdown (void) {

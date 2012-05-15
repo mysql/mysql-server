@@ -18,7 +18,7 @@ static void test2 (int limit) {
     
     r = toku_brt_create_cachetable(&ct, 0, ZERO_LSN, NULL_LOGGER); assert(r==0);
     unlink(fname);
-    r = toku_open_brt(fname, 1, &t, 1024, 256, ct, null_txn, toku_builtin_compare_fun);
+    r = toku_open_brt(fname, 1, &t, 1024, 256, TOKU_DEFAULT_COMPRESSION_METHOD, ct, null_txn, toku_builtin_compare_fun);
     if (verbose) printf("%s:%d did setup\n", __FILE__, __LINE__);
     assert(r==0);
     for (i=0; i<limit; i++) { // 4096

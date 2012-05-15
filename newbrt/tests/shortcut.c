@@ -20,7 +20,7 @@ test_main (int argc __attribute__((__unused__)), const char *argv[]  __attribute
     unlink(fname);
 
     r = toku_brt_create_cachetable(&ct, 0, ZERO_LSN, NULL_LOGGER);                               assert(r==0);
-    r = toku_open_brt(fname, 1, &brt, 1<<12, 1<<9, ct, null_txn, test_brt_cursor_keycompare);   assert(r==0);
+    r = toku_open_brt(fname, 1, &brt, 1<<12, 1<<9, TOKU_DEFAULT_COMPRESSION_METHOD, ct, null_txn, test_brt_cursor_keycompare);   assert(r==0);
     r = toku_brt_cursor(brt, &cursor, NULL, FALSE, FALSE);               assert(r==0);
 
     int i;

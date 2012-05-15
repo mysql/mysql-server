@@ -65,21 +65,12 @@ with_open_db(db_callback cb, void *cb_extra, bool set_method, enum toku_compress
         DB_TXN *txn;
         r = env->txn_begin(env, 0, &txn, 0);
         CKERR(r);
-        {
-            // we should not be able to successfully do this on an unopened DB
-            r = db->set_compression_method(db, TOKU_NO_COMPRESSION);
-            assert(r != 0);
-            enum toku_compression_method m = (enum toku_compression_method) 999;
-            r = db->get_compression_method(db, &m);
-            assert(r != 0);
-            assert(m == 999);
-        }
-        r = db->open(db, txn, "foo.db", 0, DB_BTREE, DB_CREATE, S_IRWXU+S_IRWXG+S_IRWXO);
-        CKERR(r);
         if (set_method) {
             r = db->set_compression_method(db, method);
             CKERR(r);
         }
+        r = db->open(db, txn, "foo.db", 0, DB_BTREE, DB_CREATE, S_IRWXU+S_IRWXG+S_IRWXO);
+        CKERR(r);
         r = txn->commit(txn, 0);
         CKERR(r);
     }

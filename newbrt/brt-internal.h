@@ -425,6 +425,7 @@ struct brt {
 
     unsigned int nodesize;
     unsigned int basementnodesize;
+    enum toku_compression_method compression_method;
     unsigned int flags;
     BOOL did_set_flags;
     brt_compare_func compare_fun;

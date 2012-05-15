@@ -21,7 +21,7 @@ static void test_header (void) {
     r = toku_brt_create_cachetable(&ct, 0, ZERO_LSN, NULL_LOGGER);
     assert(r==0);
     unlink(fname);
-    r = toku_open_brt(fname, 1, &t, 1024, 256, ct, null_txn, toku_builtin_compare_fun);
+    r = toku_open_brt(fname, 1, &t, 1024, 256, TOKU_DEFAULT_COMPRESSION_METHOD, ct, null_txn, toku_builtin_compare_fun);
     assert(r==0);
     // now insert some info into the header
     struct brt_header *h = t->h;
@@ -39,7 +39,7 @@ static void test_header (void) {
     // Now read dictionary back into memory and examine some header fields
     r = toku_brt_create_cachetable(&ct, 0, ZERO_LSN, NULL_LOGGER);
     assert(r==0);
-    r = toku_open_brt(fname, 0, &t, 1024, 256, ct, null_txn, toku_builtin_compare_fun);
+    r = toku_open_brt(fname, 0, &t, 1024, 256, TOKU_DEFAULT_COMPRESSION_METHOD, ct, null_txn, toku_builtin_compare_fun);
     assert(r==0);
 
     h = t->h;

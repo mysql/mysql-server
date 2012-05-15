@@ -8,6 +8,8 @@
 
 static const char fname[]= __FILE__ ".brt";
 
+static const enum toku_compression_method compression_method = TOKU_DEFAULT_COMPRESSION_METHOD;
+
 static TOKUTXN const null_txn = 0;
 static DB * const null_db = 0;
 
@@ -21,7 +23,7 @@ static void test3 (int nodesize, int basementnodesize, int count) {
     r = toku_brt_create_cachetable(&ct, 0, ZERO_LSN, NULL_LOGGER); assert(r==0);
     gettimeofday(&t0, 0);
     unlink(fname);
-    r = toku_open_brt(fname, 1, &t, nodesize, basementnodesize, ct, null_txn, toku_builtin_compare_fun);
+    r = toku_open_brt(fname, 1, &t, nodesize, basementnodesize, compression_method, ct, null_txn, toku_builtin_compare_fun);
     assert(r==0);
     for (i=0; i<count; i++) {
 	char key[100],val[100];

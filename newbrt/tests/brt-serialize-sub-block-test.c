@@ -15,6 +15,7 @@ static void test_sub_block(int n) {
     const char fname[]= __FILE__ ".brt";
     const int nodesize = 4*1024*1024;
     const int basementnodesize = 128*1024;
+    const enum toku_compression_method compression_method = TOKU_DEFAULT_COMPRESSION_METHOD;
 
     TOKUTXN const null_txn = 0;
 
@@ -28,7 +29,7 @@ static void test_sub_block(int n) {
     error = toku_brt_create_cachetable(&ct, 0, ZERO_LSN, NULL_LOGGER);
     assert(error == 0);
 
-    error = toku_open_brt(fname, TRUE, &brt, nodesize, basementnodesize, ct, null_txn, toku_builtin_compare_fun);
+    error = toku_open_brt(fname, TRUE, &brt, nodesize, basementnodesize, compression_method, ct, null_txn, toku_builtin_compare_fun);
     assert(error == 0);
 
     // insert keys 0, 1, 2, .. (n-1)
@@ -47,7 +48,7 @@ static void test_sub_block(int n) {
     assert(error == 0);
 
     // verify the brt by walking a cursor through the rows
-    error = toku_open_brt(fname, FALSE, &brt, nodesize, basementnodesize, ct, null_txn, toku_builtin_compare_fun);
+    error = toku_open_brt(fname, FALSE, &brt, nodesize, basementnodesize, compression_method, ct, null_txn, toku_builtin_compare_fun);
     assert(error == 0);
 
     BRT_CURSOR cursor;
