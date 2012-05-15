@@ -1105,7 +1105,7 @@ select count(*) from t1 as x1
   join t1 as x3 on x3.a = x1.d;
 
 --error 0,1193
-set global debug='-d,max_64rows_in_spj_batches';
+set global debug=@save_debug;
 
 connection ddl;
 drop table t1;
@@ -2600,7 +2600,7 @@ connection ddl;
 drop table t1;
 
 --error 0,1193
-set global debug='-d,max_64rows_in_spj_batches';
+set global debug=@save_debug;
 
 # Pushed join accessing disk data.
 
@@ -3115,7 +3115,7 @@ explain extended select * from t1 as x join t1 as y on x.u=y.pk order by(x.pk);
 select * from t1 as x join t1 as y on x.u=y.pk order by(x.pk);
 
 --error 0,1193
-set global debug='-d,max_64rows_in_spj_batches';
+set global debug=@save_debug;
 
 connection ddl;
 drop table t1;
@@ -3242,7 +3242,7 @@ select straight_join * from t1 as table1
  on table1.pk = table2.b;
 
 --error 0,1193
-set global debug='-d,max_4rows_in_spj_batches';
+set global debug=@save_debug;
 
 #############
 # Testcase for 'sledgehammer' fix for scan -> outer join scan:
@@ -3323,7 +3323,7 @@ select straight_join count(*) from t1 as x1
 where x3.a < x2.pk and x4.a < x3.pk; 
 
 --error 0,1193
-set global debug='-d,max_64rows_in_spj_batches';
+set global debug=@save_debug;
 
 #############
 # If we have an outer join, we can't create an artificial dep. 'through' the outer join.
@@ -3427,7 +3427,7 @@ select straight_join count(*) from
  left outer join t1 as z on z.u = x.a;
 
 --error 0,1193
-set global debug='-d,max_64rows_in_spj_batches';
+set global debug=@save_debug;
 
 #Undo update
 update t1 set u=u-100;
@@ -3529,7 +3529,7 @@ select straight_join count(*) from t1 as x1
 --enable_query_log
 
 --error 0,1193
-set global debug='-d,max_64rows_in_spj_batches';
+set global debug=@save_debug;
 
 connection ddl;
 drop table t1;
@@ -4180,7 +4180,7 @@ select straight_join count(*) from
   where t1.i < 2;
 
 --error 0,1193
-set global debug='-d,max_4rows_in_spj_batches';
+set global debug=@save_debug;
 
 drop table t;
 
@@ -4231,6 +4231,4 @@ drop table server_counts_at_startup;
 --source ndbinfo_drop.inc
 
 set ndb_join_pushdown = @save_ndb_join_pushdown;
---error 0,1193
-set global debug=@save_debug;
 
