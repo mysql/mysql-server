@@ -47,8 +47,10 @@
  */
 #define UNUSED(x) ((void)(x))
 
-// To force usage of SCAN_NEXTREQ even for small scans resultsets
-static const bool testNextReq = false;
+// To force usage of SCAN_NEXTREQ even for small scans resultsets:
+// - '0' is default (production) value
+// - '4' is normally a good value for testing batch related problems
+static const int enforcedBatchSize = 0;
 
 // Use double buffered ResultSets, may later change 
 // to be more adaptive based on query type
@@ -4374,11 +4376,18 @@ NdbQueryOperationImpl
   Uint32 maxBatchRows = 0;
   if (myClosestScan != NULL)
   {
-
     // To force usage of SCAN_NEXTREQ even for small scans resultsets
-    if (testNextReq)
+    if (DBUG_EVALUATE_IF("max_4rows_in_spj_batches", true, false))
     {
-      m_maxBatchRows = 1;
+      m_maxBatchRows = 4;
+    }
+    else if (DBUG_EVALUATE_IF("max_64rows_in_spj_batches", true, false))
+    {
+      m_maxBatchRows = 64;
+    }
+    else if (enforcedBatchSize)
+    {
+      m_maxBatchRows = enforcedBatchSize;
     }
 
     const Ndb& ndb = *getQuery().getNdbTransaction().getNdb();
