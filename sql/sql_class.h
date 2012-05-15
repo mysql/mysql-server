@@ -3226,14 +3226,14 @@ public:
       my_micro_time_to_timeval(start_utime, &start_time);
 
 #ifdef HAVE_PSI_THREAD_INTERFACE
-    PSI_CALL(set_thread_start_time)(start_time.tv_sec);
+    PSI_THREAD_CALL(set_thread_start_time)(start_time.tv_sec);
 #endif
   }
   inline void set_current_time()
   {
     my_micro_time_to_timeval(my_micro_time(), &start_time);
 #ifdef HAVE_PSI_THREAD_INTERFACE
-    PSI_CALL(set_thread_start_time)(start_time.tv_sec);
+    PSI_THREAD_CALL(set_thread_start_time)(start_time.tv_sec);
 #endif
   }
   inline void set_time(const struct timeval *t)
@@ -3241,7 +3241,7 @@ public:
     start_time= user_time= *t;
     start_utime= utime_after_lock= my_micro_time();
 #ifdef HAVE_PSI_THREAD_INTERFACE
-    PSI_CALL(set_thread_start_time)(start_time.tv_sec);
+    PSI_THREAD_CALL(set_thread_start_time)(start_time.tv_sec);
 #endif
   }
   /*TODO: this will be obsolete when we have support for 64 bit my_time_t */
@@ -3688,7 +3688,7 @@ public:
     result= new_db && !db;
 #ifdef HAVE_PSI_THREAD_INTERFACE
     if (result)
-      PSI_CALL(set_thread_db)(new_db, static_cast<int>(new_db_len));
+      PSI_THREAD_CALL(set_thread_db)(new_db, static_cast<int>(new_db_len));
 #endif
     return result;
   }
@@ -3709,7 +3709,7 @@ public:
     db= new_db;
     db_length= new_db_len;
 #ifdef HAVE_PSI_THREAD_INTERFACE
-    PSI_CALL(set_thread_db)(new_db, static_cast<int>(new_db_len));
+    PSI_THREAD_CALL(set_thread_db)(new_db, static_cast<int>(new_db_len));
 #endif
   }
   /*
