@@ -46,7 +46,7 @@ struct PFS_account_key
   uint m_key_length;
 };
 
-struct PFS_account : PFS_connection_slice
+struct PFS_ALIGNED PFS_account : PFS_connection_slice
 {
 public:
   inline void init_refcount(void)
@@ -114,6 +114,8 @@ extern ulong account_lost;
 /* Exposing the data directly, for iterators. */
 
 extern PFS_account *account_array;
+
+extern LF_HASH account_hash;
 
 /** @} */
 #endif

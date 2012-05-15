@@ -60,22 +60,22 @@
   @sa MYSQL_END_TABLE_WAIT.
 */
 #ifdef HAVE_PSI_TABLE_INTERFACE
-  #define MYSQL_TABLE_IO_WAIT(PSI, OP, INDEX, FLAGS, PAYLOAD)          \
-    {                                                                  \
-      if (PSI != NULL)                                                 \
-      {                                                                \
-        PSI_table_locker *locker;                                      \
-        PSI_table_locker_state state;                                  \
-        locker= PSI_CALL(start_table_io_wait)(& state, PSI, OP, INDEX, \
-                                              __FILE__, __LINE__);     \
-        PAYLOAD                                                        \
-        if (locker != NULL)                                            \
-          PSI_CALL(end_table_io_wait)(locker);                         \
-      }                                                                \
-      else                                                             \
-      {                                                                \
-        PAYLOAD                                                        \
-      }                                                                \
+  #define MYSQL_TABLE_IO_WAIT(PSI, OP, INDEX, FLAGS, PAYLOAD) \
+    {                                                         \
+      if (PSI != NULL)                                        \
+      {                                                       \
+        PSI_table_locker *locker;                             \
+        PSI_table_locker_state state;                         \
+        locker= PSI_TABLE_CALL(start_table_io_wait)           \
+          (& state, PSI, OP, INDEX, __FILE__, __LINE__);      \
+        PAYLOAD                                               \
+        if (locker != NULL)                                   \
+          PSI_TABLE_CALL(end_table_io_wait)(locker);          \
+      }                                                       \
+      else                                                    \
+      {                                                       \
+        PAYLOAD                                               \
+      }                                                       \
     }
 #else
   #define MYSQL_TABLE_IO_WAIT(PSI, OP, INDEX, FLAGS, PAYLOAD) \
@@ -93,22 +93,22 @@
   @sa MYSQL_END_TABLE_WAIT.
 */
 #ifdef HAVE_PSI_TABLE_INTERFACE
-  #define MYSQL_TABLE_LOCK_WAIT(PSI, OP, FLAGS, PAYLOAD)                 \
-    {                                                                    \
-      if (PSI != NULL)                                                   \
-      {                                                                  \
-        PSI_table_locker *locker;                                        \
-        PSI_table_locker_state state;                                    \
-        locker= PSI_CALL(start_table_lock_wait)(& state, PSI, OP, FLAGS, \
-                                                __FILE__, __LINE__);     \
-        PAYLOAD                                                          \
-        if (locker != NULL)                                              \
-          PSI_CALL(end_table_lock_wait)(locker);                         \
-      }                                                                  \
-      else                                                               \
-      {                                                                  \
-        PAYLOAD                                                          \
-      }                                                                  \
+  #define MYSQL_TABLE_LOCK_WAIT(PSI, OP, FLAGS, PAYLOAD) \
+    {                                                    \
+      if (PSI != NULL)                                   \
+      {                                                  \
+        PSI_table_locker *locker;                        \
+        PSI_table_locker_state state;                    \
+        locker= PSI_TABLE_CALL(start_table_lock_wait)    \
+          (& state, PSI, OP, FLAGS, __FILE__, __LINE__); \
+        PAYLOAD                                          \
+        if (locker != NULL)                              \
+          PSI_TABLE_CALL(end_table_lock_wait)(locker);   \
+      }                                                  \
+      else                                               \
+      {                                                  \
+        PAYLOAD                                          \
+      }                                                  \
     }
 #else
   #define MYSQL_TABLE_LOCK_WAIT(PSI, OP, FLAGS, PAYLOAD) \
@@ -164,7 +164,8 @@ inline_mysql_start_table_lock_wait(PSI_table_locker_state *state,
   if (psi != NULL)
   {
     struct PSI_table_locker *locker;
-    locker= PSI_CALL(start_table_lock_wait)(state, psi, op, flags, src_file, src_line);
+    locker= PSI_TABLE_CALL(start_table_lock_wait)
+      (state, psi, op, flags, src_file, src_line);
     return locker;
   }
   return NULL;
@@ -178,7 +179,7 @@ static inline void
 inline_mysql_end_table_lock_wait(struct PSI_table_locker *locker)
 {
   if (locker != NULL)
-    PSI_CALL(end_table_lock_wait)(locker);
+    PSI_TABLE_CALL(end_table_lock_wait)(locker);
 }
 #endif
 

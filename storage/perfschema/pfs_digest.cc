@@ -70,7 +70,7 @@ bool flag_statements_digest= true;
 */
 volatile uint32 digest_index= 1;
 
-static LF_HASH digest_hash;
+LF_HASH digest_hash;
 static bool digest_hash_inited= false;
 
 /**
@@ -137,11 +137,12 @@ C_MODE_END
 */
 int init_digest_hash(void)
 {
-  if (! digest_hash_inited)
+  if ((! digest_hash_inited) && (digest_max > 0))
   {
     lf_hash_init(&digest_hash, sizeof(PFS_statements_digest_stat*),
                  LF_HASH_UNIQUE, 0, 0, digest_hash_get_key,
                  &my_charset_bin);
+    digest_hash.size= digest_max;
     digest_hash_inited= true;
   }
   return 0;
