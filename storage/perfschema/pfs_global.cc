@@ -64,7 +64,7 @@ void *pfs_malloc(size_t size, myf flags)
 #else
 #ifdef HAVE_ALIGNED_MALLOC
   /* Windows */
-  ptr= _aligned_malloc(PFS_ALIGNEMENT, size);
+  ptr= _aligned_malloc(size, PFS_ALIGNEMENT);
   if (unlikely(ptr == NULL))
     return NULL;
 #else
