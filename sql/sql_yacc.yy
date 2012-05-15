@@ -6307,7 +6307,11 @@ opt_attribute_list:
 attribute:
           NULL_SYM { Lex->type&= ~ NOT_NULL_FLAG; }
         | not NULL_SYM { Lex->type|= NOT_NULL_FLAG; }
-        | DEFAULT now_or_signed_literal { Lex->default_value=$2; }
+        | DEFAULT now_or_signed_literal 
+          { 
+            Lex->default_value=$2;
+            Lex->alter_info.flags|= Alter_info::ALTER_CHANGE_COLUMN_DEFAULT;
+          }
         | ON UPDATE_SYM now { Lex->on_update_value= $3; }
         | AUTO_INC { Lex->type|= AUTO_INCREMENT_FLAG | NOT_NULL_FLAG; }
         | SERIAL_SYM DEFAULT VALUE_SYM
@@ -6353,33 +6357,39 @@ attribute:
             Lex->type&= ~(FIELD_FLAGS_COLUMN_FORMAT_MASK);
             Lex->type|=
               (COLUMN_FORMAT_TYPE_DEFAULT << FIELD_FLAGS_COLUMN_FORMAT);
+            Lex->alter_info.flags|= Alter_info::ALTER_COLUMN_COLUMN_FORMAT;
           }
         | COLUMN_FORMAT_SYM FIXED_SYM
           {
             Lex->type&= ~(FIELD_FLAGS_COLUMN_FORMAT_MASK);
             Lex->type|=
               (COLUMN_FORMAT_TYPE_FIXED << FIELD_FLAGS_COLUMN_FORMAT);
+            Lex->alter_info.flags|= Alter_info::ALTER_COLUMN_COLUMN_FORMAT;
           }
         | COLUMN_FORMAT_SYM DYNAMIC_SYM
           {
             Lex->type&= ~(FIELD_FLAGS_COLUMN_FORMAT_MASK);
             Lex->type|=
               (COLUMN_FORMAT_TYPE_DYNAMIC << FIELD_FLAGS_COLUMN_FORMAT);
+            Lex->alter_info.flags|= Alter_info::ALTER_COLUMN_COLUMN_FORMAT;
           }
         | STORAGE_SYM DEFAULT
           {
             Lex->type&= ~(FIELD_FLAGS_STORAGE_MEDIA_MASK);
             Lex->type|= (HA_SM_DEFAULT << FIELD_FLAGS_STORAGE_MEDIA);
+            Lex->alter_info.flags|= Alter_info::ALTER_COLUMN_STORAGE_TYPE;
           }
         | STORAGE_SYM DISK_SYM
           {
             Lex->type&= ~(FIELD_FLAGS_STORAGE_MEDIA_MASK);
             Lex->type|= (HA_SM_DISK << FIELD_FLAGS_STORAGE_MEDIA);
+            Lex->alter_info.flags|= Alter_info::ALTER_COLUMN_STORAGE_TYPE;
           }
         | STORAGE_SYM MEMORY_SYM
           {
             Lex->type&= ~(FIELD_FLAGS_STORAGE_MEDIA_MASK);
             Lex->type|= (HA_SM_MEMORY << FIELD_FLAGS_STORAGE_MEDIA);
+            Lex->alter_info.flags|= Alter_info::ALTER_COLUMN_STORAGE_TYPE;
           }
         ;
 
@@ -7274,12 +7284,7 @@ opt_online_offline:
                                 ER_WARN_DEPRECATED_SYNTAX,
                                 ER(ER_WARN_DEPRECATED_SYNTAX),
                                 "ONLINE", "ALGORITHM=INPLACE");
-#ifdef MCP_WL6224
-            // ha_ndbcluster must be adapted to inplace alter
             $$= Alter_info::ALTER_TABLE_ALGORITHM_INPLACE;
-#else
-            $$= Alter_info::ALTER_TABLE_ALGORITHM_DEFAULT;
-#endif
           }
         | OFFLINE_SYM
           {

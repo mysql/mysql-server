@@ -50,7 +50,7 @@ static const Alter_inplace_info::HA_ALTER_FLAGS INNOBASE_INPLACE_CREATE
 /** Operations for altering a table that InnoDB does not care about */
 static const Alter_inplace_info::HA_ALTER_FLAGS INNOBASE_INPLACE_IGNORE
 	= Alter_inplace_info::ALTER_COLUMN_DEFAULT
-	| Alter_inplace_info::CHANGE_CREATE_OPTION;
+        | Alter_inplace_info::CHANGE_CREATE_OPTION;
 
 /** Operations that InnoDB can perform online */
 static const Alter_inplace_info::HA_ALTER_FLAGS INNOBASE_ONLINE_OPERATIONS

@@ -4749,8 +4749,19 @@ uint prep_alter_part_table(THD *thd, TABLE *table, Alter_info *alter_info,
     if (alter_info->flags & Alter_info::ALTER_TABLE_REORG)
     {
       uint new_part_no, curr_part_no;
+#ifndef MCP_WL3749
+      /* 'ALTER TABLE t REORG PARTITION' only allowed with auto partition 
+          if default partitioning is used */
+                          
+      if (tab_part_info->part_type != HASH_PARTITION ||
+          ((table->s->db_type()->partition_flags() & HA_USE_AUTO_PARTITION) &&
+           !tab_part_info->use_default_num_partitions) ||
+          ((!(table->s->db_type()->partition_flags() & HA_USE_AUTO_PARTITION))&&
+           tab_part_info->use_default_num_partitions))
+#else
       if (tab_part_info->part_type != HASH_PARTITION ||
           tab_part_info->use_default_num_partitions)
+#endif
       {
         my_error(ER_REORG_NO_PARAM_ERROR, MYF(0));
         goto err;
@@ -4764,7 +4775,15 @@ uint prep_alter_part_table(THD *thd, TABLE *table, Alter_info *alter_info,
           after the change as before. Thus we can reply ok immediately
           without any changes at all.
         */
+#ifndef MCP_WL3749
+        flags= table->file->alter_table_flags(alter_info->flags);
+        if ((flags & (HA_FAST_CHANGE_PARTITION | HA_PARTITION_ONE_PHASE)) != 0)
+        {
+          *fast_alter_table= true;
+        }
+#else
         *fast_alter_table= true;
+#endif
         thd->work_part_info= tab_part_info;
         DBUG_RETURN(FALSE);
       }
