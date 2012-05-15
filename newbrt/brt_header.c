@@ -930,3 +930,43 @@ toku_brtheader_stat64 (struct brt_header* h, struct brtstat64_s *s) {
     s->verify_time_sec = h->time_of_last_verification;    
 }
 
+// TODO: (Zardosht), once the fdlock has been removed from cachetable, remove
+// fd as parameter and access it in this function
+int 
+toku_update_descriptor(struct brt_header * h, DESCRIPTOR d, int fd) 
+// Effect: Change the descriptor in a tree (log the change, make sure it makes it to disk eventually).
+//  Updates to the descriptor must be performed while holding some sort of lock.  (In the ydb layer
+//  there is a row lock on the directory that provides exclusion.)
+{
+    int r = 0;
+    DISKOFF offset;
+    // 4 for checksum
+    toku_realloc_descriptor_on_disk(h->blocktable, toku_serialize_descriptor_size(d)+4, &offset, h);
+    r = toku_serialize_descriptor_contents_to_fd(fd, d, offset);
+    if (r) {
+        goto cleanup;
+    }
+    if (h->descriptor.dbt.data) {
+        toku_free(h->descriptor.dbt.data);
+    }
+    h->descriptor.dbt.size = d->dbt.size;
+    h->descriptor.dbt.data = toku_memdup(d->dbt.data, d->dbt.size);
+
+    r = 0;
+cleanup:
+    return r;
+}
+
+void 
+toku_brtheader_update_cmp_descriptor(struct brt_header* h) {
+    if (h->cmp_descriptor.dbt.data != NULL) {
+        toku_free(h->cmp_descriptor.dbt.data);
+    }
+    h->cmp_descriptor.dbt.size = h->descriptor.dbt.size;
+    h->cmp_descriptor.dbt.data = toku_xmemdup(
+        h->descriptor.dbt.data, 
+        h->descriptor.dbt.size
+        );
+}
+
+

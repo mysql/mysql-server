@@ -63,5 +63,9 @@ void toku_brtheader_set_new_root_blocknum(struct brt_header* h, CACHEKEY new_roo
 LSN toku_brt_checkpoint_lsn(struct brt_header* h)  __attribute__ ((warn_unused_result));
 int toku_brtheader_set_panic(struct brt_header *h, int panic, char *panic_string) __attribute__ ((warn_unused_result));
 void toku_brtheader_stat64 (struct brt_header* h, struct brtstat64_s *s);
+int toku_update_descriptor(struct brt_header * h, DESCRIPTOR d, int fd);
+// Note: See the locking discussion in brt.c for toku_brt_change_descriptor and toku_update_descriptor.
+void toku_brtheader_update_cmp_descriptor(struct brt_header* h);
+
 
 #endif
