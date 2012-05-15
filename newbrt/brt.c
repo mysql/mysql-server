@@ -666,7 +666,6 @@ void toku_brtnode_clone_callback(
     }
 
     cloned_node->max_msn_applied_to_node_on_disk = node->max_msn_applied_to_node_on_disk;
-    cloned_node->h = node->h;
     cloned_node->nodesize = node->nodesize;
     cloned_node->flags = node->flags;
     cloned_node->thisnodename = node->thisnodename;
@@ -800,7 +799,6 @@ int toku_brtnode_fetch_callback (CACHEFILE UU(cachefile), int fd, BLOCKNUM noden
     }
 
     if (r == 0) {
-        (*node)->h = bfe->h;  // copy reference to header from bfe
         *sizep = make_brtnode_pair_attr(*node);
         *dirtyp = (*node)->dirty;  // deserialize could mark the node as dirty (presumably for upgrade)
     }
@@ -857,7 +855,7 @@ exit:
 }
 
 static void
-compress_internal_node_partition(BRTNODE node, int i)
+compress_internal_node_partition(BRTNODE node, int i, enum toku_compression_method compression_method)
 {
     // if we should evict, compress the
     // message buffer into a sub_block
@@ -866,7 +864,7 @@ compress_internal_node_partition(BRTNODE node, int i)
     SUB_BLOCK sb = NULL;
     sb = toku_xmalloc(sizeof(struct sub_block));
     sub_block_init(sb);
-    toku_create_compressed_partition_from_available(node, i, sb);
+    toku_create_compressed_partition_from_available(node, i, compression_method, sb);
 
     // now free the old partition and replace it with this
     destroy_nonleaf_childinfo(BNC(node,i));
@@ -907,7 +905,7 @@ int toku_brtnode_pe_callback (void *brtnode_pv, PAIR_ATTR UU(old_attr), PAIR_ATT
             if (BP_STATE(node,i) == PT_AVAIL) {
                 if (BP_SHOULD_EVICT(node,i)) {
                     STATUS_VALUE(BRT_PARTIAL_EVICTIONS_NONLEAF)++;
-                    cilk_spawn compress_internal_node_partition(node, i);
+                    cilk_spawn compress_internal_node_partition(node, i, h->compression_method);
                 }
                 else {
                     BP_SWEEP_CLOCK(node,i);
@@ -1247,7 +1245,7 @@ void toku_brtnode_free (BRTNODE *nodep) {
 }
 
 void
-toku_initialize_empty_brtnode (BRTNODE n, BLOCKNUM nodename, int height, int num_children, int layout_version, unsigned int nodesize, unsigned int flags, struct brt_header *h)
+toku_initialize_empty_brtnode (BRTNODE n, BLOCKNUM nodename, int height, int num_children, int layout_version, unsigned int nodesize, unsigned int flags)
 // Effect: Fill in N as an empty brtnode.
 {
     assert(layout_version != 0);
@@ -1259,7 +1257,6 @@ toku_initialize_empty_brtnode (BRTNODE n, BLOCKNUM nodename, int height, int num
         STATUS_VALUE(BRT_CREATE_NONLEAF)++;
 
     n->max_msn_applied_to_node_on_disk = ZERO_MSN;    // correct value for root node, harmless for others
-    n->h = h;
     n->nodesize = nodesize;
     n->flags = flags;
     n->thisnodename = nodename;
@@ -1305,7 +1302,7 @@ brt_init_new_root(struct brt_header *h, BRTNODE nodea, BRTNODE nodeb, DBT splitk
     assert(newroot);
     *rootp=newroot_diskoff;
     assert(new_height > 0);
-    toku_initialize_empty_brtnode (newroot, newroot_diskoff, new_height, 2, h->layout_version, h->nodesize, h->flags, h);
+    toku_initialize_empty_brtnode (newroot, newroot_diskoff, new_height, 2, h->layout_version, h->nodesize, h->flags);
     //printf("new_root %lld %d %lld %lld\n", newroot_diskoff, newroot->height, nodea->thisnodename, nodeb->thisnodename);
     //printf("%s:%d Splitkey=%p %s\n", __FILE__, __LINE__, splitkey, splitkey);
     toku_copyref_dbt(&newroot->childkeys[0], splitk);

@@ -670,20 +670,24 @@ rebalance_brtnode_leaf(BRTNODE node, unsigned int basementnodesize)
 }  // end of rebalance_brtnode_leaf()
 
 static void
-serialize_and_compress_partition(BRTNODE node, int childnum, SUB_BLOCK sb)
+serialize_and_compress_partition(BRTNODE node,
+                                 int childnum,
+                                 enum toku_compression_method compression_method,
+                                 SUB_BLOCK sb)
 {
     serialize_brtnode_partition(node, childnum, sb);
-    compress_brtnode_sub_block(sb, node->h->compression_method);
+    compress_brtnode_sub_block(sb, compression_method);
 }
 
 void
 toku_create_compressed_partition_from_available(
     BRTNODE node,
     int childnum,
+    enum toku_compression_method compression_method,
     SUB_BLOCK sb
     )
 {
-    serialize_and_compress_partition(node, childnum, sb);
+    serialize_and_compress_partition(node, childnum, compression_method, sb);
     //
     // now we have an sb that would be ready for being written out,
     // but we are not writing it out, we are storing it in cache for a potentially
@@ -710,9 +714,12 @@ toku_create_compressed_partition_from_available(
 
 
 static void
-serialize_and_compress_serially(BRTNODE node, int npartitions, struct sub_block sb[]) {
+serialize_and_compress_serially(BRTNODE node,
+                                int npartitions,
+                                enum toku_compression_method compression_method,
+                                struct sub_block sb[]) {
     for (int i = 0; i < npartitions; i++) {
-        serialize_and_compress_partition(node, i, &sb[i]);
+        serialize_and_compress_partition(node, i, compression_method, &sb[i]);
     }
 }
 
@@ -720,6 +727,7 @@ struct serialize_compress_work {
     struct work base;
     BRTNODE node;
     int i;
+    enum toku_compression_method compression_method;
     struct sub_block *sb;
 };
 
@@ -731,16 +739,19 @@ serialize_and_compress_worker(void *arg) {
         if (w == NULL)
             break;
         int i = w->i;
-        serialize_and_compress_partition(w->node, i, &w->sb[i]);
+        serialize_and_compress_partition(w->node, i, w->compression_method, &w->sb[i]);
     }
     workset_release_ref(ws);
     return arg;
 }
 
 static void
-serialize_and_compress_in_parallel(BRTNODE node, int npartitions, struct sub_block sb[]) {
+serialize_and_compress_in_parallel(BRTNODE node,
+                                   int npartitions,
+                                   enum toku_compression_method compression_method,
+                                   struct sub_block sb[]) {
     if (npartitions == 1) {
-        serialize_and_compress_partition(node, 0, &sb[0]);
+        serialize_and_compress_partition(node, 0, compression_method, &sb[0]);
     } else {
         int T = num_cores;
         if (T > npartitions)
@@ -752,7 +763,10 @@ serialize_and_compress_in_parallel(BRTNODE node, int npartitions, struct sub_blo
         struct serialize_compress_work work[npartitions];
         workset_lock(&ws);
         for (int i = 0; i < npartitions; i++) {
-            work[i] = (struct serialize_compress_work) { .node = node, .i = i, .sb = sb };
+            work[i] = (struct serialize_compress_work) { .node = node,
+                                                         .i = i,
+                                                         .compression_method = compression_method,
+                                                         .sb = sb };
             workset_put_locked(&ws, &work[i].base);
         }
         workset_unlock(&ws);
@@ -773,6 +787,7 @@ int
 toku_serialize_brtnode_to_memory (BRTNODE node,
                                   BRTNODE_DISK_DATA* ndd,
                                   unsigned int basementnodesize,
+                                  enum toku_compression_method compression_method,
                                   BOOL do_rebalancing,
                                   BOOL in_parallel, // for loader is TRUE, for toku_brtnode_flush_callback, is false
                           /*out*/ size_t *n_bytes_to_write,
@@ -800,17 +815,17 @@ toku_serialize_brtnode_to_memory (BRTNODE node,
     // First, let's serialize and compress the individual sub blocks
     //
     if (in_parallel) {
-        serialize_and_compress_in_parallel(node, npartitions, sb);
+        serialize_and_compress_in_parallel(node, npartitions, compression_method, sb);
     }
     else {
-        serialize_and_compress_serially(node, npartitions, sb);
+        serialize_and_compress_serially(node, npartitions, compression_method, sb);
     }
     //
     // Now lets create a sub-block that has the common node information,
     // This does NOT include the header
     //
     serialize_brtnode_info(node, &sb_node_info);
-    compress_brtnode_sub_block(&sb_node_info, node->h->compression_method);
+    compress_brtnode_sub_block(&sb_node_info, compression_method);
 
     // now we have compressed each of our pieces into individual sub_blocks,
     // we can put the header and all the subblocks into a single buffer
@@ -893,12 +908,13 @@ toku_serialize_brtnode_to (int fd, BLOCKNUM blocknum, BRTNODE node, BRTNODE_DISK
         // alternatively, we could have made in_parallel a parameter
         // for toku_serialize_brtnode_to, but instead we did this.
         int r = toku_serialize_brtnode_to_memory(
-            node, 
-            ndd, 
-            h->basementnodesize, 
+            node,
+            ndd,
+            h->basementnodesize,
+            h->compression_method,
             do_rebalancing,
             FALSE, // in_parallel
-            &n_to_write, 
+            &n_to_write,
             &compressed_buf
             );
         if (r!=0) return r;
