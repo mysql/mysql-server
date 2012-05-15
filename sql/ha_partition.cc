@@ -6322,7 +6322,17 @@ ha_rows ha_partition::min_rows_for_estimate()
   DBUG_ENTER("ha_partition::min_rows_for_estimate");
 
   tot_used_partitions= bitmap_bits_set(&m_part_info->used_partitions);
-  DBUG_ASSERT(tot_used_partitions);
+
+  /*
+    All partitions might have been left as unused during partition pruning
+    due to, for example, an impossible WHERE condition. Nonetheless, the
+    optimizer might still attempt to perform (e.g. range) analysis where an
+    estimate of the the number of rows is calculated using records_in_range.
+    Hence, to handle this and other possible cases, use zero as the minimum
+    number of rows to base the estimate on if no partition is being used.
+  */
+  if (!tot_used_partitions)
+    DBUG_RETURN(0);
 
   /*
     Allow O(log2(tot_partitions)) increase in number of used partitions.
