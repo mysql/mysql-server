@@ -688,6 +688,7 @@ static inline int mysql_mutex_lock(...)
   - socket io (MYSQL_SOCKET)
   - table io
   - table lock
+  - idle
 
   The flow of data between aggregates tables varies for each instrumentation.
 
@@ -889,33 +890,68 @@ static inline int mysql_mutex_lock(...)
   @subsection IMPL_WAIT_TABLE Table waits
 
 @verbatim
-  table_locker(T, Tb)
+  table_locker(Thread Th, Table Tb, Event = io or lock)
    |
    | [1]
    |
-   |-> pfs_table(Tb)                          =====>> [B], [C], [D]
-        |
-        | [2]
-        |
-        |-> pfs_table_share(Tb.share)         =====>> [C], [D]
-        |
-        |-> pfs_thread(T).event_name(Tb)      =====>> [A]
-             |
-            ...
+1a |-> pfs_table(Tb)                          =====>> [A], [B], [C]
+   |    |
+   |    | [2]
+   |    |
+   |    |-> pfs_table_share(Tb.share)         =====>> [B], [C]
+   |         |
+   |         | [3]
+   |         |
+   |         |-> global_table_io_stat         =====>> [C]
+   |         |
+   |         |-> global_table_lock_stat       =====>> [C]
+   |
+1b |-> pfs_thread(Th).event_name(E)           =====>> [D], [E], [F], [G]
+   |    |
+   |    | [ 4-RESET]
+   |    |
+   |    |-> pfs_account(U, H).event_name(E)   =====>> [E], [F], [G]
+   |    .    |
+   |    .    | [5-RESET]
+   |    .    |
+   |    .....+-> pfs_user(U).event_name(E)    =====>> [F]
+   |    .    |
+   |    .....+-> pfs_host(H).event_name(E)    =====>> [G]
+   |
+1c |-> pfs_thread(Th).waits_current(W)        =====>> [H]
+   |
+1d |-> pfs_thread(Th).waits_history(W)        =====>> [I]
+   |
+1e |-> waits_history_long(W)                  =====>> [J]
 @endverbatim
 
   Implemented as:
   - [1] @c start_table_io_wait_v1(), @c end_table_io_wait_v1()
   - [2] @c close_table_v1()
-  - [A] EVENTS_WAITS_SUMMARY_BY_THREAD_BY_EVENT_NAME,
-        @c table_ews_by_thread_by_event_name::make_row()
-  - [B] EVENTS_WAITS_SUMMARY_BY_INSTANCE,
+  - [3] @c drop_table_share_v1()
+  - [4] @c TRUNCATE TABLE EVENTS_WAITS_SUMMARY_BY_THREAD_BY_EVENT_NAME
+  - [5] @c TRUNCATE TABLE EVENTS_WAITS_SUMMARY_BY_ACCOUNT_BY_EVENT_NAME
+  - [A] EVENTS_WAITS_SUMMARY_BY_INSTANCE,
         @c table_events_waits_summary_by_instance::make_table_row()
+  - [B] OBJECTS_SUMMARY_GLOBAL_BY_TYPE,
+        @c table_os_global_by_type::make_row()
   - [C] EVENTS_WAITS_SUMMARY_GLOBAL_BY_EVENT_NAME,
         @c table_ews_global_by_event_name::make_table_io_row(),
         @c table_ews_global_by_event_name::make_table_lock_row()
-  - [D] OBJECTS_SUMMARY_GLOBAL_BY_TYPE,
-        @c table_os_global_by_type::make_row()
+  - [D] EVENTS_WAITS_SUMMARY_BY_THREAD_BY_EVENT_NAME,
+        @c table_ews_by_thread_by_event_name::make_row()
+  - [E] EVENTS_WAITS_SUMMARY_BY_ACCOUNT_BY_EVENT_NAME,
+        @c table_ews_by_user_by_account_name::make_row()
+  - [F] EVENTS_WAITS_SUMMARY_BY_USER_BY_EVENT_NAME,
+        @c table_ews_by_user_by_event_name::make_row()
+  - [G] EVENTS_WAITS_SUMMARY_BY_HOST_BY_EVENT_NAME,
+        @c table_ews_by_host_by_event_name::make_row()
+  - [H] EVENTS_WAITS_CURRENT,
+        @c table_events_waits_common::make_row()
+  - [I] EVENTS_WAITS_HISTORY,
+        @c table_events_waits_common::make_row()
+  - [J] EVENTS_WAITS_HISTORY_LONG,
+        @c table_events_waits_common::make_row()
 
   @section IMPL_STAGE Implementation for stages aggregates
 
@@ -1594,7 +1630,6 @@ static void unbind_table_v1(PSI_table *table)
   PFS_table *pfs= reinterpret_cast<PFS_table*> (table);
   if (likely(pfs != NULL))
   {
-    pfs->aggregate();
     pfs->m_thread_owner= NULL;
   }
 }
@@ -1614,12 +1649,6 @@ rebind_table_v1(PSI_table_share *share, const void *identity, PSI_table *table)
 
     /* The table handle was already instrumented, reuse it for this thread. */
     thread= my_pthread_getspecific_ptr(PFS_thread*, THR_PFS);
-
-    if (unlikely(thread == NULL))
-    {
-      destroy_table(pfs);
-      return NULL;
-    }
 
     if (unlikely(! pfs->m_share->m_enabled))
     {
@@ -1660,8 +1689,6 @@ rebind_table_v1(PSI_table_share *share, const void *identity, PSI_table *table)
     return NULL;
 
   PFS_thread *thread= my_pthread_getspecific_ptr(PFS_thread*, THR_PFS);
-  if (unlikely(thread == NULL))
-    return NULL;
 
   PFS_table *pfs_table= create_table(pfs_table_share, thread, identity);
   return reinterpret_cast<PSI_table *> (pfs_table);
@@ -2478,8 +2505,6 @@ start_table_io_wait_v1(PSI_table_locker_state *state,
     return NULL;
 
   PFS_thread *pfs_thread= pfs_table->m_thread_owner;
-  if (unlikely(pfs_thread == NULL))
-    return NULL;
 
   DBUG_ASSERT(pfs_thread ==
               my_pthread_getspecific_ptr(PFS_thread*, THR_PFS));
@@ -2489,6 +2514,8 @@ start_table_io_wait_v1(PSI_table_locker_state *state,
 
   if (flag_thread_instrumentation)
   {
+    if (pfs_thread == NULL)
+      return NULL;
     if (! pfs_thread->m_enabled)
       return NULL;
     state->m_thread= reinterpret_cast<PSI_thread *> (pfs_thread);
@@ -2538,7 +2565,6 @@ start_table_io_wait_v1(PSI_table_locker_state *state,
 
       pfs_thread->m_events_waits_current++;
     }
-    /* TODO: consider a shortcut here */
   }
   else
   {
@@ -2585,8 +2611,6 @@ start_table_lock_wait_v1(PSI_table_locker_state *state,
     return NULL;
 
   PFS_thread *pfs_thread= pfs_table->m_thread_owner;
-  if (unlikely(pfs_thread == NULL))
-    return NULL;
 
   DBUG_ASSERT(pfs_thread ==
               my_pthread_getspecific_ptr(PFS_thread*, THR_PFS));
@@ -2619,6 +2643,8 @@ start_table_lock_wait_v1(PSI_table_locker_state *state,
 
   if (flag_thread_instrumentation)
   {
+    if (pfs_thread == NULL)
+      return NULL;
     if (! pfs_thread->m_enabled)
       return NULL;
     state->m_thread= reinterpret_cast<PSI_thread *> (pfs_thread);
@@ -2668,7 +2694,6 @@ start_table_lock_wait_v1(PSI_table_locker_state *state,
 
       pfs_thread->m_events_waits_current++;
     }
-    /* TODO: consider a shortcut here */
   }
   else
   {
@@ -3352,17 +3377,16 @@ static void end_idle_wait_v1(PSI_idle_locker* locker)
     PFS_thread *thread= reinterpret_cast<PFS_thread *> (state->m_thread);
     PFS_single_stat *event_name_array;
     event_name_array= thread->m_instr_class_waits_stats;
-    uint index= global_idle_class.m_event_name_index;
 
     if (flags & STATE_FLAG_TIMED)
     {
       /* Aggregate to EVENTS_WAITS_SUMMARY_BY_THREAD_BY_EVENT_NAME (timed) */
-      event_name_array[index].aggregate_value(wait_time);
+      event_name_array[GLOBAL_IDLE_EVENT_INDEX].aggregate_value(wait_time);
     }
     else
     {
       /* Aggregate to EVENTS_WAITS_SUMMARY_BY_THREAD_BY_EVENT_NAME (counted) */
-      event_name_array[index].aggregate_counted();
+      event_name_array[GLOBAL_IDLE_EVENT_INDEX].aggregate_counted();
     }
 
     if (flags & STATE_FLAG_EVENT)
@@ -3723,22 +3747,40 @@ static void end_table_io_wait_v1(PSI_table_locker* locker)
     stat->aggregate_counted();
   }
 
-  if (flags & STATE_FLAG_EVENT)
+  if (flags & STATE_FLAG_THREAD)
   {
-    DBUG_ASSERT(flags & STATE_FLAG_THREAD);
     PFS_thread *thread= reinterpret_cast<PFS_thread *> (state->m_thread);
     DBUG_ASSERT(thread != NULL);
 
-    PFS_events_waits *wait= reinterpret_cast<PFS_events_waits*> (state->m_wait);
-    DBUG_ASSERT(wait != NULL);
+    PFS_single_stat *event_name_array;
+    event_name_array= thread->m_instr_class_waits_stats;
 
-    wait->m_timer_end= timer_end;
-    wait->m_end_event_id= thread->m_event_id;
-    if (flag_events_waits_history)
-      insert_events_waits_history(thread, wait);
-    if (flag_events_waits_history_long)
-      insert_events_waits_history_long(wait);
-    thread->m_events_waits_current--;
+    /*
+      Aggregate to EVENTS_WAITS_SUMMARY_BY_THREAD_BY_EVENT_NAME
+      (for wait/io/table/sql/handler)
+    */
+    if (flags & STATE_FLAG_TIMED)
+    {
+      event_name_array[GLOBAL_TABLE_IO_EVENT_INDEX].aggregate_value(wait_time);
+    }
+    else
+    {
+      event_name_array[GLOBAL_TABLE_IO_EVENT_INDEX].aggregate_counted();
+    }
+
+    if (flags & STATE_FLAG_EVENT)
+    {
+      PFS_events_waits *wait= reinterpret_cast<PFS_events_waits*> (state->m_wait);
+      DBUG_ASSERT(wait != NULL);
+
+      wait->m_timer_end= timer_end;
+      wait->m_end_event_id= thread->m_event_id;
+      if (flag_events_waits_history)
+        insert_events_waits_history(thread, wait);
+      if (flag_events_waits_history_long)
+        insert_events_waits_history_long(wait);
+      thread->m_events_waits_current--;
+    }
   }
 
   table->m_has_io_stats= true;
@@ -3774,22 +3816,40 @@ static void end_table_lock_wait_v1(PSI_table_locker* locker)
     stat->aggregate_counted();
   }
 
-  if (flags & STATE_FLAG_EVENT)
+  if (flags & STATE_FLAG_THREAD)
   {
-    DBUG_ASSERT(flags & STATE_FLAG_THREAD);
     PFS_thread *thread= reinterpret_cast<PFS_thread *> (state->m_thread);
     DBUG_ASSERT(thread != NULL);
 
-    PFS_events_waits *wait= reinterpret_cast<PFS_events_waits*> (state->m_wait);
-    DBUG_ASSERT(wait != NULL);
+    PFS_single_stat *event_name_array;
+    event_name_array= thread->m_instr_class_waits_stats;
 
-    wait->m_timer_end= timer_end;
-    wait->m_end_event_id= thread->m_event_id;
-    if (flag_events_waits_history)
-      insert_events_waits_history(thread, wait);
-    if (flag_events_waits_history_long)
-      insert_events_waits_history_long(wait);
-    thread->m_events_waits_current--;
+    /*
+      Aggregate to EVENTS_WAITS_SUMMARY_BY_THREAD_BY_EVENT_NAME
+      (for wait/lock/table/sql/handler)
+    */
+    if (flags & STATE_FLAG_TIMED)
+    {
+      event_name_array[GLOBAL_TABLE_LOCK_EVENT_INDEX].aggregate_value(wait_time);
+    }
+    else
+    {
+      event_name_array[GLOBAL_TABLE_LOCK_EVENT_INDEX].aggregate_counted();
+    }
+
+    if (flags & STATE_FLAG_EVENT)
+    {
+      PFS_events_waits *wait= reinterpret_cast<PFS_events_waits*> (state->m_wait);
+      DBUG_ASSERT(wait != NULL);
+
+      wait->m_timer_end= timer_end;
+      wait->m_end_event_id= thread->m_event_id;
+      if (flag_events_waits_history)
+        insert_events_waits_history(thread, wait);
+      if (flag_events_waits_history_long)
+        insert_events_waits_history_long(wait);
+      thread->m_events_waits_current--;
+    }
   }
 
   table->m_has_lock_stats= true;
