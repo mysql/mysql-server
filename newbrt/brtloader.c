@@ -2694,7 +2694,7 @@ static void add_pair_to_leafnode (struct leaf_buf *lbuf, unsigned char *key, int
     DBT theval = { .data = val, .size = vallen };
     BRT_MSG_S cmd = { BRT_INSERT, ZERO_MSN, lbuf->xids, .u.id = { &thekey, &theval } };
     uint64_t workdone=0;
-    brt_leaf_apply_cmd_once(BLB(leafnode,0), &cmd, idx, NULL, &workdone, NULL);
+    toku_brt_bn_apply_cmd_once(BLB(leafnode,0), &cmd, idx, NULL, &workdone, NULL);
 }
 
 static int write_literal(struct dbout *out, void*data,  size_t len) {

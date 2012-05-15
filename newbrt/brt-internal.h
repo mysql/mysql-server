@@ -884,9 +884,8 @@ typedef struct {
 
 void toku_brt_get_status(BRT_STATUS);
 
-// FIXME needs toku prefix
 void
-brt_leaf_apply_cmd_once (
+toku_brt_bn_apply_cmd_once (
     BASEMENTNODE bn,
     const BRT_MSG cmd,
     u_int32_t idx,
@@ -895,30 +894,30 @@ brt_leaf_apply_cmd_once (
     STAT64INFO stats_to_update
     );
 
-// FIXME needs toku prefix
 void
-brt_leaf_put_cmd (
+toku_brt_bn_apply_cmd (
     brt_compare_func compare_fun,
     brt_update_func update_fun,
     DESCRIPTOR desc,
-    BASEMENTNODE bn, 
-    BRT_MSG cmd, 
+    BASEMENTNODE bn,
+    BRT_MSG cmd,
     uint64_t *workdone,
     STAT64INFO stats_to_update
     );
 
-void toku_apply_cmd_to_leaf(
-    brt_compare_func compare_fun, 
-    brt_update_func update_fun, 
-    DESCRIPTOR desc, 
-    BRTNODE node, 
-    BRT_MSG cmd, 
+void
+toku_brt_leaf_apply_cmd (
+    brt_compare_func compare_fun,
+    brt_update_func update_fun,
+    DESCRIPTOR desc,
+    BRTNODE node,
+    BRT_MSG cmd,
     uint64_t *workdone,
     STAT64INFO stats_to_update
     );
 
-// FIXME needs toku prefix
-void brtnode_put_cmd (
+void
+toku_brt_node_put_cmd (
     brt_compare_func compare_fun,
     brt_update_func update_fun,
     DESCRIPTOR desc,

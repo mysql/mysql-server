@@ -133,7 +133,7 @@ int toku_testsetup_insert_to_leaf (BRT brt, BLOCKNUM blocknum, char *key, int ke
                      .u.id={toku_fill_dbt(&keydbt, key, keylen),
                             toku_fill_dbt(&valdbt, val, vallen)}};
 
-    brtnode_put_cmd (
+    toku_brt_node_put_cmd (
         brt->h->compare_fun,
         brt->h->update_fun,
         &brt->h->cmp_descriptor,

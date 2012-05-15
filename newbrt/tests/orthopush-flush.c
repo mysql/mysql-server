@@ -98,7 +98,7 @@ insert_random_message(NONLEAF_CHILDINFO bnc, BRT_MSG_S **save, bool *is_fresh_ou
 // generate a random message with xids and a key starting with pfx, insert
 // it into blb, and save it in output param save
 static void
-insert_random_message_to_leaf(BRT t, BASEMENTNODE blb, LEAFENTRY *save, XIDS xids, int pfx)
+insert_random_message_to_bn(BRT t, BASEMENTNODE blb, LEAFENTRY *save, XIDS xids, int pfx)
 {
     int keylen = (random() % 16) + 16;
     int vallen = (random() % 128) + 16;
@@ -127,7 +127,7 @@ insert_random_message_to_leaf(BRT t, BASEMENTNODE blb, LEAFENTRY *save, XIDS xid
     int64_t numbytes;
     int r = apply_msg_to_leafentry(&msg, NULL, &memsize, save, NULL, NULL, NULL, &numbytes);
     assert_zero(r);
-    brt_leaf_put_cmd(t->compare_fun, t->update_fun, NULL, blb, &msg, NULL, NULL);
+    toku_brt_bn_apply_cmd(t->compare_fun, t->update_fun, NULL, blb, &msg, NULL, NULL);
     if (msn.msn > blb->max_msn_applied.msn) {
         blb->max_msn_applied = msn;
     }
@@ -139,7 +139,7 @@ insert_random_message_to_leaf(BRT t, BASEMENTNODE blb, LEAFENTRY *save, XIDS xid
 // used for making two leaf nodes the same in order to compare the result
 // of 'maybe_apply' and a normal buffer flush
 static void
-insert_same_message_to_leaves(BRT t, BASEMENTNODE blb1, BASEMENTNODE blb2, LEAFENTRY *save, XIDS xids, int pfx)
+insert_same_message_to_bns(BRT t, BASEMENTNODE blb1, BASEMENTNODE blb2, LEAFENTRY *save, XIDS xids, int pfx)
 {
     int keylen = (random() % 16) + 16;
     int vallen = (random() % 128) + 16;
@@ -168,11 +168,11 @@ insert_same_message_to_leaves(BRT t, BASEMENTNODE blb1, BASEMENTNODE blb2, LEAFE
     int64_t numbytes;
     int r = apply_msg_to_leafentry(&msg, NULL, &memsize, save, NULL, NULL, NULL, &numbytes);
     assert_zero(r);
-    brt_leaf_put_cmd(t->compare_fun, t->update_fun, NULL, blb1, &msg, NULL, NULL);
+    toku_brt_bn_apply_cmd(t->compare_fun, t->update_fun, NULL, blb1, &msg, NULL, NULL);
     if (msn.msn > blb1->max_msn_applied.msn) {
         blb1->max_msn_applied = msn;
     }
-    brt_leaf_put_cmd(t->compare_fun, t->update_fun, NULL, blb2, &msg, NULL, NULL);
+    toku_brt_bn_apply_cmd(t->compare_fun, t->update_fun, NULL, blb2, &msg, NULL, NULL);
     if (msn.msn > blb2->max_msn_applied.msn) {
         blb2->max_msn_applied = msn;
     }
@@ -544,7 +544,7 @@ flush_to_leaf(BRT t, bool make_leaf_up_to_date, bool use_flush) {
     int total_size = 0;
     for (i = 0; total_size < 128*1024; ++i) {
         total_size -= child_blbs[i%8]->n_bytes_in_buffer;
-        insert_random_message_to_leaf(t, child_blbs[i%8], &child_messages[i], xids_123, i%8);
+        insert_random_message_to_bn(t, child_blbs[i%8], &child_messages[i], xids_123, i%8);
         total_size += child_blbs[i%8]->n_bytes_in_buffer;
         if (i % 8 < 7) {
             u_int32_t keylen;
@@ -584,7 +584,7 @@ flush_to_leaf(BRT t, bool make_leaf_up_to_date, bool use_flush) {
     if (make_leaf_up_to_date) {
         for (i = 0; i < num_parent_messages; ++i) {
             if (!parent_messages_is_fresh[i]) {
-                toku_apply_cmd_to_leaf(t->compare_fun, t->update_fun, &t->h->descriptor, child, parent_messages[i], NULL, NULL);
+                toku_brt_leaf_apply_cmd(t->compare_fun, t->update_fun, &t->h->descriptor, child, parent_messages[i], NULL, NULL);
             }
         }
         for (i = 0; i < 8; ++i) {
@@ -771,7 +771,7 @@ flush_to_leaf_with_keyrange(BRT t, bool make_leaf_up_to_date) {
     int total_size = 0;
     for (i = 0; total_size < 128*1024; ++i) {
         total_size -= child_blbs[i%8]->n_bytes_in_buffer;
-        insert_random_message_to_leaf(t, child_blbs[i%8], &child_messages[i], xids_123, i%8);
+        insert_random_message_to_bn(t, child_blbs[i%8], &child_messages[i], xids_123, i%8);
         total_size += child_blbs[i%8]->n_bytes_in_buffer;
         u_int32_t keylen;
         char *key = le_key_and_len(child_messages[i], &keylen);
@@ -808,7 +808,7 @@ flush_to_leaf_with_keyrange(BRT t, bool make_leaf_up_to_date) {
         for (i = 0; i < num_parent_messages; ++i) {
             if (dummy_cmp(NULL, parent_messages[i]->u.id.key, &childkeys[7]) <= 0 &&
                 !parent_messages_is_fresh[i]) {
-                toku_apply_cmd_to_leaf(t->compare_fun, t->update_fun, &t->h->descriptor, child, parent_messages[i], NULL, NULL);
+                toku_brt_leaf_apply_cmd(t->compare_fun, t->update_fun, &t->h->descriptor, child, parent_messages[i], NULL, NULL);
             }
         }
         for (i = 0; i < 8; ++i) {
@@ -958,7 +958,7 @@ compare_apply_and_flush(BRT t, bool make_leaf_up_to_date) {
     int total_size = 0;
     for (i = 0; total_size < 128*1024; ++i) {
         total_size -= child1_blbs[i%8]->n_bytes_in_buffer;
-        insert_same_message_to_leaves(t, child1_blbs[i%8], child2_blbs[i%8], &child_messages[i], xids_123, i%8);
+        insert_same_message_to_bns(t, child1_blbs[i%8], child2_blbs[i%8], &child_messages[i], xids_123, i%8);
         total_size += child1_blbs[i%8]->n_bytes_in_buffer;
         if (i % 8 < 7) {
             u_int32_t keylen;
@@ -1001,8 +1001,8 @@ compare_apply_and_flush(BRT t, bool make_leaf_up_to_date) {
     if (make_leaf_up_to_date) {
         for (i = 0; i < num_parent_messages; ++i) {
             if (!parent_messages_is_fresh[i]) {
-                toku_apply_cmd_to_leaf(t->compare_fun, t->update_fun, &t->h->descriptor, child1, parent_messages[i], NULL, NULL);
-                toku_apply_cmd_to_leaf(t->compare_fun, t->update_fun, &t->h->descriptor, child2, parent_messages[i], NULL, NULL);
+                toku_brt_leaf_apply_cmd(t->compare_fun, t->update_fun, &t->h->descriptor, child1, parent_messages[i], NULL, NULL);
+                toku_brt_leaf_apply_cmd(t->compare_fun, t->update_fun, &t->h->descriptor, child2, parent_messages[i], NULL, NULL);
             }
         }
         for (i = 0; i < 8; ++i) {
