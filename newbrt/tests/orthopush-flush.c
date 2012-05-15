@@ -10,8 +10,6 @@
 static TOKUTXN const null_txn = 0;
 static DB * const null_db = 0;
 static char fname[] = __SRCFILE__ ".brt";
-static struct brt_header my_fake_header;
-static struct brt_header *my_header = &my_fake_header;
 
 static int dummy_cmp(DB *db __attribute__((unused)),
                      const DBT *a, const DBT *b) {
