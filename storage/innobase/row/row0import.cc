@@ -23,9 +23,9 @@ Import a tablespace to a running instance.
 Created 2012-02-08 by Sunny Bains.
 *******************************************************/
 
-#include <map>
-
 #include "row0import.h"
+
+#include <map>
 
 #ifdef UNIV_NONINL
 #include "row0import.ic"
