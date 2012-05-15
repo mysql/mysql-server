@@ -1072,7 +1072,7 @@ flush_this_child(
     set_BNC(node, childnum, toku_create_empty_nl());
 
     // now we have a bnc to flush to the child
-    r = toku_bnc_flush_to_child(h->compare_fun, h->update_fun, &h->cmp_descriptor, h->cf, bnc, child); assert_zero(r);
+    r = toku_bnc_flush_to_child(h, bnc, child); assert_zero(r);
     destroy_nonleaf_childinfo(bnc);
 }
 
@@ -1571,10 +1571,7 @@ flush_some_child(
         }
         // do the actual flush
         r = toku_bnc_flush_to_child(
-            h->compare_fun,
-            h->update_fun,
-            &h->cmp_descriptor,
-            h->cf,
+            h,
             bnc,
             child
             );
@@ -1733,10 +1730,7 @@ static void flush_node_fun(void *fe_v)
         call_flusher_thread_callback(ft_flush_before_applying_inbox);
 
         r = toku_bnc_flush_to_child(
-            fe->h->compare_fun,
-            fe->h->update_fun,
-            &fe->h->cmp_descriptor,
-            fe->h->cf,
+            fe->h,
             fe->bnc,
             fe->node
             );

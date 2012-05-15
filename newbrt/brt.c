@@ -2230,10 +2230,7 @@ brt_leaf_gc_all_les(BRTNODE node,
 
 int
 toku_bnc_flush_to_child(
-    brt_compare_func compare_fun, 
-    brt_update_func update_fun, 
-    DESCRIPTOR desc, 
-    CACHEFILE cf,
+    struct brt_header* h,
     NONLEAF_CHILDINFO bnc, 
     BRTNODE child
     )
@@ -2247,9 +2244,9 @@ toku_bnc_flush_to_child(
             BRT_MSG_S brtcmd = { type, msn, xids, .u.id= {toku_fill_dbt(&hk, key, keylen),
                                                           toku_fill_dbt(&hv, val, vallen)} };
             brtnode_put_cmd(
-                compare_fun,
-                update_fun,
-                desc,
+                h->compare_fun,
+                h->update_fun,
+                &h->cmp_descriptor,
                 child, 
                 &brtcmd, 
                 is_fresh
@@ -2257,7 +2254,7 @@ toku_bnc_flush_to_child(
         }));
 
     // Run garbage collection, if we are a leaf entry.
-    TOKULOGGER logger = toku_cachefile_logger(cf);
+    TOKULOGGER logger = toku_cachefile_logger(h->cf);
     if (child->height == 0 && logger) {
         int r;
         OMT snapshot_txnids = NULL;
