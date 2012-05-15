@@ -5743,7 +5743,9 @@ end:
     transaction of the enclosing statement.
   */
   DBUG_ASSERT(thd->transaction.stmt.is_empty() ||
-              (thd->state_flags & Open_tables_state::BACKUPS_AVAIL));
+              (thd->state_flags & Open_tables_state::BACKUPS_AVAIL) ||
+              (thd->stmt_arena->state ==
+                                  Query_arena::STMT_INITIALIZED_FOR_SP));
   close_thread_tables(thd);
   /* Don't keep locks for a failed statement. */
   thd->mdl_context.rollback_to_savepoint(mdl_savepoint);
