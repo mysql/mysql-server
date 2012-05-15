@@ -110,14 +110,12 @@ setup_dn(enum brtnode_verify_type bft, int fd, struct brt_header *brt_h, BRTNODE
         fill_bfe_for_full_read(&bfe, brt_h);
         r = toku_deserialize_brtnode_from(fd, make_blocknum(20), 0/*pass zero for hash*/, dn, ndd, &bfe);
         assert(r==0);
-        (*dn)->h = brt_h;
     }
     else if (bft == read_compressed || bft == read_none) {
         struct brtnode_fetch_extra bfe;
         fill_bfe_for_min_read(&bfe, brt_h);
         r = toku_deserialize_brtnode_from(fd, make_blocknum(20), 0/*pass zero for hash*/, dn, ndd, &bfe);
         assert(r==0);
-        (*dn)->h = brt_h;
         // assert all bp's are compressed or on disk.
         for (int i = 0; i < (*dn)->n_children; i++) {
             assert(BP_STATE(*dn,i) == PT_COMPRESSED || BP_STATE(*dn, i) == PT_ON_DISK);
@@ -184,7 +182,6 @@ setup_dn(enum brtnode_verify_type bft, int fd, struct brt_header *brt_h, BRTNODE
 
 static void write_sn_to_disk(int fd, BRT brt, BRTNODE sn, BRTNODE_DISK_DATA* src_ndd, BOOL do_clone) {
     int r;
-    sn->h = brt->h;
     if (do_clone) {
         void* cloned_node_v = NULL;
         PAIR_ATTR attr;

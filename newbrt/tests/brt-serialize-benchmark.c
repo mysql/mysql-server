@@ -104,7 +104,6 @@ test_serialize_leaf(int valsize, int nelts, double entropy) {
     struct brt *XMALLOC(brt);
     struct brt_header *XCALLOC(brt_h);
     brt->h = brt_h;
-    sn.h = brt_h;
     brt_h->type = BRTHEADER_CURRENT;
     brt_h->panic = 0; brt_h->panic_string = 0;
     brt_h->basementnodesize = 128*1024;
@@ -146,7 +145,6 @@ test_serialize_leaf(int valsize, int nelts, double entropy) {
     BRTNODE_DISK_DATA ndd2 = NULL;
     r = toku_deserialize_brtnode_from(fd, make_blocknum(20), 0/*pass zero for hash*/, &dn, &ndd2, &bfe);
     assert(r==0);
-    dn->h = brt_h;
     gettimeofday(&t[1], NULL);
     dt = (t[1].tv_sec - t[0].tv_sec) + ((t[1].tv_usec - t[0].tv_usec) / USECS_PER_SEC);
     printf("deserialize leaf: %0.05lf\n", dt);
@@ -239,7 +237,6 @@ test_serialize_nonleaf(int valsize, int nelts, double entropy) {
     struct brt *XMALLOC(brt);
     struct brt_header *XCALLOC(brt_h);
     brt->h = brt_h;
-    sn.h = brt_h;
     brt_h->type = BRTHEADER_CURRENT;
     brt_h->panic = 0; brt_h->panic_string = 0;
     brt_h->basementnodesize = 128*1024;
@@ -281,7 +278,6 @@ test_serialize_nonleaf(int valsize, int nelts, double entropy) {
     BRTNODE_DISK_DATA ndd2 = NULL;
     r = toku_deserialize_brtnode_from(fd, make_blocknum(20), 0/*pass zero for hash*/, &dn, &ndd2, &bfe);
     assert(r==0);
-    dn->h = brt_h;
     gettimeofday(&t[1], NULL);
     dt = (t[1].tv_sec - t[0].tv_sec) + ((t[1].tv_usec - t[0].tv_usec) / USECS_PER_SEC);
     printf("deserialize nonleaf: %0.05lf\n", dt);
