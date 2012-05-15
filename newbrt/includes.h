@@ -45,7 +45,7 @@
 #include "key.h"
 #include "leafentry.h"
 #include "log-internal.h"
-#include "log_header.h"
+#include <newbrt/log_header.h>
 #include "logcursor.h"
 #include "logfilemgr.h"
 #include "rbuf.h"

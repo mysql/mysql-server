@@ -10,16 +10,12 @@ add_executable(logformat logformat.c)
 target_link_libraries(logformat ${LIBTOKUPORTABILITY})
 
 add_custom_command(
-  OUTPUT "${CMAKE_CURRENT_SOURCE_DIR}/log_code.c"
-  OUTPUT "${CMAKE_CURRENT_SOURCE_DIR}/log_print.c"
-  OUTPUT "${CMAKE_CURRENT_SOURCE_DIR}/log_header.h"
-  COMMAND $<TARGET_FILE:logformat> "${CMAKE_CURRENT_SOURCE_DIR}"
+  OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/log_code.c"
+  OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/log_print.c"
+  OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/log_header.h"
+  COMMAND $<TARGET_FILE:logformat> .
   DEPENDS logformat
-)
-add_custom_target(generate_logging_code DEPENDS
-  "${CMAKE_CURRENT_SOURCE_DIR}/log_code.c"
-  "${CMAKE_CURRENT_SOURCE_DIR}/log_print.c"
-  "${CMAKE_CURRENT_SOURCE_DIR}/log_header.h")
+  )
 
 set(BRT_SOURCES
   block_allocator.c
@@ -46,9 +42,10 @@ set(BRT_SOURCES
   le-cursor.c
   logfilemgr.c
   logger.c
-  log_code.c
+  "${CMAKE_CURRENT_BINARY_DIR}/log_code.c"
+  "${CMAKE_CURRENT_BINARY_DIR}/log_header.h"
   log_upgrade.c
-  log_print.c
+  "${CMAKE_CURRENT_BINARY_DIR}/log_print.c"
   logcursor.c
   memarena.c
   mempool.c
