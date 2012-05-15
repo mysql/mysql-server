@@ -9,7 +9,7 @@
 
 static TOKUTXN const null_txn = 0;
 static DB * const null_db = 0;
-static char fname[] = __FILE__ ".brt";
+static char fname[] = __SRCFILE__ ".brt";
 static struct brt_header my_fake_header;
 static struct brt_header *my_header = &my_fake_header;
 

@@ -277,13 +277,13 @@ int
 test_main (int argc , const char *argv[]) {
     default_parse_args(argc, argv);
 
-    const char *logdir = __FILE__ ".dir";
+    const char *logdir = __SRCFILE__ ".dir";
     init_logdir(logdir);
     int error = chdir(logdir);
     assert(error == 0);
 
     const int n = 10;
-    const char *brtfile =  __FILE__ ".brt";
+    const char *brtfile =  __SRCFILE__ ".brt";
     create_populate_tree(".", brtfile, n);
     test_neg_infinity(brtfile, n);
     test_pos_infinity(brtfile, n);

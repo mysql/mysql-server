@@ -10,7 +10,7 @@ static DB * const null_db = 0;
 int
 test_main(int argc, const char *argv[]) {
     default_parse_args (argc, argv);
-    const char *n = __FILE__ "dump.brt";
+    const char *n = __SRCFILE__ "dump.brt";
     int r;
     BRT t;
     CACHETABLE ct;

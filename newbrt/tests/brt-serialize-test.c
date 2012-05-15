@@ -206,7 +206,7 @@ test_serialize_leaf_check_msn(enum brtnode_verify_type bft, BOOL do_clone) {
     const int nodesize = 1024;
     struct brtnode sn, *dn;
 
-    int fd = open(__FILE__ ".brt", O_RDWR|O_CREAT|O_BINARY, S_IRWXU|S_IRWXG|S_IRWXO); assert(fd >= 0);
+    int fd = open(__SRCFILE__ ".brt", O_RDWR|O_CREAT|O_BINARY, S_IRWXU|S_IRWXG|S_IRWXO); assert(fd >= 0);
 
     int r;
 
@@ -353,7 +353,7 @@ test_serialize_leaf_with_large_pivots(enum brtnode_verify_type bft, BOOL do_clon
     struct brtnode sn, *dn;
     const int keylens = 256*1024, vallens = 0, nrows = 8;
     // assert(val_size > BN_MAX_SIZE);  // BN_MAX_SIZE isn't visible
-    int fd = open(__FILE__ ".brt", O_RDWR|O_CREAT|O_BINARY, S_IRWXU|S_IRWXG|S_IRWXO); assert(fd >= 0);
+    int fd = open(__SRCFILE__ ".brt", O_RDWR|O_CREAT|O_BINARY, S_IRWXU|S_IRWXG|S_IRWXO); assert(fd >= 0);
 
     sn.max_msn_applied_to_node_on_disk.msn = 0;
     sn.nodesize = 4*(1<<20);
@@ -496,7 +496,7 @@ test_serialize_leaf_with_many_rows(enum brtnode_verify_type bft, BOOL do_clone) 
     struct brtnode sn, *dn;
     const int keylens = sizeof(int), vallens = sizeof(int), nrows = 196*1024;
     // assert(val_size > BN_MAX_SIZE);  // BN_MAX_SIZE isn't visible
-    int fd = open(__FILE__ ".brt", O_RDWR|O_CREAT|O_BINARY, S_IRWXU|S_IRWXG|S_IRWXO); assert(fd >= 0);
+    int fd = open(__SRCFILE__ ".brt", O_RDWR|O_CREAT|O_BINARY, S_IRWXU|S_IRWXG|S_IRWXO); assert(fd >= 0);
 
     sn.max_msn_applied_to_node_on_disk.msn = 0;
     sn.nodesize = 4*(1<<20);
@@ -636,7 +636,7 @@ test_serialize_leaf_with_large_rows(enum brtnode_verify_type bft, BOOL do_clone)
     const size_t key_size = 8;
     const size_t val_size = 512*1024;
     // assert(val_size > BN_MAX_SIZE);  // BN_MAX_SIZE isn't visible
-    int fd = open(__FILE__ ".brt", O_RDWR|O_CREAT|O_BINARY, S_IRWXU|S_IRWXG|S_IRWXO); assert(fd >= 0);
+    int fd = open(__SRCFILE__ ".brt", O_RDWR|O_CREAT|O_BINARY, S_IRWXU|S_IRWXG|S_IRWXO); assert(fd >= 0);
 
     sn.max_msn_applied_to_node_on_disk.msn = 0;
     sn.nodesize = 4*(1<<20);
@@ -782,7 +782,7 @@ test_serialize_leaf_with_empty_basement_nodes(enum brtnode_verify_type bft, BOOL
     const int nodesize = 1024;
     struct brtnode sn, *dn;
 
-    int fd = open(__FILE__ ".brt", O_RDWR|O_CREAT|O_BINARY, S_IRWXU|S_IRWXG|S_IRWXO); assert(fd >= 0);
+    int fd = open(__SRCFILE__ ".brt", O_RDWR|O_CREAT|O_BINARY, S_IRWXU|S_IRWXG|S_IRWXO); assert(fd >= 0);
 
     int r;
 
@@ -931,7 +931,7 @@ test_serialize_leaf_with_multiple_empty_basement_nodes(enum brtnode_verify_type 
     const int nodesize = 1024;
     struct brtnode sn, *dn;
 
-    int fd = open(__FILE__ ".brt", O_RDWR|O_CREAT|O_BINARY, S_IRWXU|S_IRWXG|S_IRWXO); assert(fd >= 0);
+    int fd = open(__SRCFILE__ ".brt", O_RDWR|O_CREAT|O_BINARY, S_IRWXU|S_IRWXG|S_IRWXO); assert(fd >= 0);
 
     int r;
 
@@ -1047,7 +1047,7 @@ test_serialize_leaf(enum brtnode_verify_type bft, BOOL do_clone) {
     const int nodesize = 1024;
     struct brtnode sn, *dn;
 
-    int fd = open(__FILE__ ".brt", O_RDWR|O_CREAT|O_BINARY, S_IRWXU|S_IRWXG|S_IRWXO); assert(fd >= 0);
+    int fd = open(__SRCFILE__ ".brt", O_RDWR|O_CREAT|O_BINARY, S_IRWXU|S_IRWXG|S_IRWXO); assert(fd >= 0);
 
     int r;
     BRTNODE_DISK_DATA src_ndd = NULL;
@@ -1187,7 +1187,7 @@ test_serialize_nonleaf(enum brtnode_verify_type bft, BOOL do_clone) {
     const int nodesize = 1024;
     struct brtnode sn, *dn;
 
-    int fd = open(__FILE__ ".brt", O_RDWR|O_CREAT|O_BINARY, S_IRWXU|S_IRWXG|S_IRWXO); assert(fd >= 0);
+    int fd = open(__SRCFILE__ ".brt", O_RDWR|O_CREAT|O_BINARY, S_IRWXU|S_IRWXG|S_IRWXO); assert(fd >= 0);
 
     int r;
 

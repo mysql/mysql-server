@@ -10,7 +10,7 @@
 # include <sys/syslimits.h>
 #endif
 
-#define TESTDIR __FILE__ ".dir"
+#define TESTDIR __SRCFILE__ ".dir"
 
 static void recover_callback_at_turnaround(void *UU(arg)) {
     // change the LSN in the first log entry of log 2.  this will cause an LSN error during the forward scan.

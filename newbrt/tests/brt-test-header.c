@@ -15,7 +15,7 @@ static void test_header (void) {
     BRT t;
     int r;
     CACHETABLE ct;
-    char fname[]= __FILE__ ".brt";
+    char fname[]= __SRCFILE__ ".brt";
 
     // First create dictionary
     r = toku_brt_create_cachetable(&ct, 0, ZERO_LSN, NULL_LOGGER);

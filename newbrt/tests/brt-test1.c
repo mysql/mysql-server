@@ -12,7 +12,7 @@ static void test1 (void) {
     BRT t;
     int r;
     CACHETABLE ct;
-    char fname[]= __FILE__ "1.brt";
+    char fname[]= __SRCFILE__ ".brt";
     DBT k,v;
     
     r = toku_brt_create_cachetable(&ct, 0, ZERO_LSN, NULL_LOGGER);

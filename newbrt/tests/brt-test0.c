@@ -12,19 +12,19 @@ static void test0 (void) {
     BRT t;
     int r;
     CACHETABLE ct;
-    char fname[]= __FILE__ "0.brt";
-    if (verbose) printf("%s:%d test0\n", __FILE__, __LINE__);
+    char fname[]= __SRCFILE__ ".brt";
+    if (verbose) printf("%s:%d test0\n", __SRCFILE__, __LINE__);
     
     r = toku_brt_create_cachetable(&ct, 0, ZERO_LSN, NULL_LOGGER);
     assert(r==0);
-    if (verbose) printf("%s:%d test0\n", __FILE__, __LINE__);
+    if (verbose) printf("%s:%d test0\n", __SRCFILE__, __LINE__);
     unlink(fname);
     r = toku_open_brt(fname, 1, &t, 1024, 256, TOKU_DEFAULT_COMPRESSION_METHOD, ct, null_txn, toku_builtin_compare_fun);
     assert(r==0);
-    //printf("%s:%d test0\n", __FILE__, __LINE__);
-    //printf("%s:%d n_items_malloced=%lld\n", __FILE__, __LINE__, n_items_malloced);
+    //printf("%s:%d test0\n", __SRCFILE__, __LINE__);
+    //printf("%s:%d n_items_malloced=%lld\n", __SRCFILE__, __LINE__, n_items_malloced);
     r = toku_close_brt_nolsn(t, 0);     assert(r==0);
-    //printf("%s:%d n_items_malloced=%lld\n", __FILE__, __LINE__, n_items_malloced);
+    //printf("%s:%d n_items_malloced=%lld\n", __SRCFILE__, __LINE__, n_items_malloced);
     r = toku_cachetable_close(&ct);
     assert(r==0);
     

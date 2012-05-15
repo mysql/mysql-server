@@ -173,7 +173,7 @@ static char *merge(char **tempfiles, int ntempfiles, const char *testdir) {
         f[i].f = fopen(tname, "r"); 
 	if (f[i].f == NULL) {
 	    int error = errno;
-	    fprintf(stderr, "%s:%d errno=%d %s\n", __FILE__, __LINE__, error, strerror(error));
+	    fprintf(stderr, "%s:%d errno=%d %s\n", __SRCFILE__, __LINE__, error, strerror(error));
 	    if (error == EMFILE)
 		fprintf(stderr, "may need to increase the nofile ulimit\n");
 	}

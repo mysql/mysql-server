@@ -64,7 +64,7 @@ static void cachetable_prefetch_flowcontrol_test (int cachetable_size_limit) {
     int r;
     CACHETABLE ct;
     r = toku_create_cachetable(&ct, cachetable_size_limit, ZERO_LSN, NULL_LOGGER); assert(r == 0);
-    char fname1[] = __FILE__ "test1.dat";
+    char fname1[] = __SRCFILE__ "test1.dat";
     unlink(fname1);
     CACHEFILE f1;
     r = toku_cachetable_openf(&f1, ct, fname1, O_RDWR|O_CREAT, S_IRWXU|S_IRWXG|S_IRWXO); assert(r == 0);

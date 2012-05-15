@@ -12,7 +12,7 @@
 # include <sys/syslimits.h>
 #endif
 
-#define dname __FILE__ ".dir"
+#define dname __SRCFILE__ ".dir"
 #define rmrf "rm -rf " dname "/"
 
 // log a couple of timestamp entries and verify the log by walking 

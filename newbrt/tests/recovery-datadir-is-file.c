@@ -4,8 +4,8 @@
 #include "test.h"
 #include "includes.h"
 
-#define TESTDIR __FILE__ ".dir"
-#define TESTFILE __FILE__ ".dir.bogus"
+#define TESTDIR __SRCFILE__ ".dir"
+#define TESTFILE __SRCFILE__ ".dir.bogus"
 
 static int 
 run_test(void) {

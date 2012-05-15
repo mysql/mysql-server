@@ -22,11 +22,11 @@ doit (void) {
 
     int r;
     
-    fnamelen = strlen(__FILE__) + 20;
+    fnamelen = strlen(__SRCFILE__) + 20;
     fname = toku_malloc(fnamelen);
     assert(fname!=0);
 
-    snprintf(fname, fnamelen, "%s.brt", __FILE__);
+    snprintf(fname, fnamelen, "%s.brt", __SRCFILE__);
     r = toku_brt_create_cachetable(&ct, 500*1024*1024, ZERO_LSN, NULL_LOGGER); assert(r==0);
     unlink(fname);
     r = toku_open_brt(fname, 1, &t, NODESIZE, NODESIZE/2, TOKU_DEFAULT_COMPRESSION_METHOD, ct, null_txn, toku_builtin_compare_fun);

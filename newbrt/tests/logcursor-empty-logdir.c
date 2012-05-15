@@ -6,7 +6,7 @@
 
 #include "includes.h"
 
-#define dname __FILE__ ".dir"
+#define dname __SRCFILE__ ".dir"
 #define rmrf "rm -rf " dname "/"
 
 // a logcursor in an empty directory should not find any log entries

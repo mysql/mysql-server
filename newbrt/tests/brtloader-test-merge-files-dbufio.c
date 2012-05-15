@@ -381,7 +381,7 @@ static void test (const char *directory, BOOL is_error) {
 	if (is_error && r!=0) {
 	    result = r;
 	} else {
-	    if (r!=0) printf("%s:%d r=%d (%s)\n", __FILE__, __LINE__, r, errorstr_static(r));
+	    if (r!=0) printf("%s:%d r=%d (%s)\n", __SRCFILE__, __LINE__, r, errorstr_static(r));
 	    assert(r==0);
 	}
         if (r)
@@ -414,7 +414,7 @@ static void test (const char *directory, BOOL is_error) {
 	    assert(cthunk.n_read == N_RECORDS);
 	}
     }
-    //printf("%s:%d Destroying\n", __FILE__, __LINE__);
+    //printf("%s:%d Destroying\n", __SRCFILE__, __LINE__);
     {
 	int r = queue_destroy(bl->primary_rowset_queue);
 	assert(r==0);

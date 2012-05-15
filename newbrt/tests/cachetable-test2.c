@@ -159,14 +159,14 @@ static void test_chaining (void) {
     long i, trial;
     r = toku_create_cachetable(&ct, N_PRESENT_LIMIT, ZERO_LSN, NULL_LOGGER);    assert(r==0);
     for (i=0; i<N_FILES; i++) {
-	r = snprintf(fname[i], FILENAME_LEN, __FILE__ ".%ld.dat", i);
+	r = snprintf(fname[i], FILENAME_LEN, __SRCFILE__ ".%ld.dat", i);
 	assert(r>0 && r<FILENAME_LEN);
 	unlink(fname[i]);
 	r = toku_cachetable_openf(&f[i], ct, fname[i], O_RDWR|O_CREAT, S_IRWXU|S_IRWXG|S_IRWXO);   assert(r==0);
 	}
     for (i=0; i<N_PRESENT_LIMIT; i++) {
 	int fnum = i%N_FILES;
-	//printf("%s:%d Add %d\n", __FILE__, __LINE__, i);
+	//printf("%s:%d Add %d\n", __SRCFILE__, __LINE__, i);
 	u_int32_t fhash = toku_cachetable_hash(f[fnum], make_blocknum(i));
         CACHETABLE_WRITE_CALLBACK wc = def_write_callback((void *)i);
         wc.flush_callback = flush_forchain;
@@ -217,7 +217,7 @@ static void test_chaining (void) {
 	int fnum = i%N_FILES;
 	// i is always incrementing, so we need not worry about inserting a duplicate
         // if i is a duplicate, cachetable_put will return -1
-	// printf("%s:%d Add {%ld,%p}\n", __FILE__, __LINE__, i, f[fnum]);
+	// printf("%s:%d Add {%ld,%p}\n", __SRCFILE__, __LINE__, i, f[fnum]);
 	u_int32_t fhash = toku_cachetable_hash(f[fnum], make_blocknum(i));
         CACHETABLE_WRITE_CALLBACK wc = def_write_callback((void *)i);
         wc.flush_callback = flush_forchain;

@@ -17,7 +17,7 @@ cachetable_reserve_filenum_test (void) {
     int r;
     CACHETABLE ct;
     r = toku_create_cachetable(&ct, test_limit, ZERO_LSN, NULL_LOGGER); assert(r == 0);
-    char fname1[] = __FILE__ "test1.dat";
+    char fname1[] = __SRCFILE__ "test1.dat";
     unlink(fname1);
     CACHEFILE cf;
     r = toku_cachetable_openf(&cf, ct, fname1, O_RDWR|O_CREAT, S_IRWXU|S_IRWXG|S_IRWXO); assert(r == 0);
@@ -26,7 +26,7 @@ cachetable_reserve_filenum_test (void) {
     toku_cachefile_unpin_fd(cf);
 
     // test set to good fd succeeds
-    char fname2[] = __FILE__ "test2.data";
+    char fname2[] = __SRCFILE__ "test2.data";
     unlink(fname2);
     int fd2 = open(fname2, O_RDWR | O_CREAT, S_IRWXU|S_IRWXG|S_IRWXO); assert(fd2 >= 0 && fd1 != fd2);
     r = toku_cachefile_set_fd(cf, fd2, fname2); assert(r == 0);

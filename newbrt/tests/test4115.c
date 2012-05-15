@@ -12,7 +12,7 @@
 static TOKUTXN const null_txn = 0;
 static DB * const null_db = 0;
 
-char fname[]= __FILE__ ".brt";
+char fname[]= __SRCFILE__ ".brt";
 CACHETABLE ct;
 BRT t;
 int keysize = 9;

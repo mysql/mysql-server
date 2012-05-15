@@ -28,17 +28,10 @@ if(BUILD_TESTING)
       get_filename_component(base ${src} NAME_WE)
       add_executable(${base} ${src})
       target_link_libraries(${base} newbrt ${LIBTOKUPORTABILITY})
+      set_property(TARGET ${base} APPEND PROPERTY
+        COMPILE_DEFINITIONS "__SRCFILE__=\"${src}\"")
+      set_property(DIRECTORY APPEND PROPERTY ADDITIONAL_MAKE_CLEAN_FILES "${src}.brt")
     endif()
-  endforeach(src)
-
-  file(GLOB log_tests RELATIVE "${CMAKE_CURRENT_SOURCE_DIR}" log-test*.c)
-  foreach(src ${log_tests})
-    ## these tests use -Ddname=foo to decide where to put their data, if
-    ## we don't specify it, it defaults to "dir."__FILE__ which with cmake
-    ## is going to be an absolute path with "dir." in front, and that's
-    ## not a valid path
-    set_property(SOURCE ${src} APPEND PROPERTY
-      COMPILE_DEFINITIONS "dname=\"${src}\"")
   endforeach(src)
 
   ## declare some tests that should be run with specific options
