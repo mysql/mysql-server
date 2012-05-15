@@ -13,7 +13,6 @@
 #ifdef TOKUDB
 #include <newbrt/key.h>
 #include <newbrt/cachetable.h>
-#include <newbrt/trace_mem.h>
 #endif
 
 static const char *pname;
@@ -467,10 +466,6 @@ static int test_main (int argc, char *const argv[]) {
     }
     scanscan_shutdown();
 
-#if defined(TOKUDB)
-    // if tokudb has tracing enabled (see trace_mem.h) then this will dump the trace data
-    if (1) toku_print_trace_mem(stderr);
-#endif
 #if defined(__linux__) && __linux__
     if (verbose) {
         char fname[256];
