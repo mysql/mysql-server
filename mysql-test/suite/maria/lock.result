@@ -1,0 +1,10 @@
+drop table if exists t1,t2;
+Warnings:
+Note	1051	Unknown table 't1'
+Note	1051	Unknown table 't2'
+CREATE TABLE t1 (i INT) ENGINE=Aria;
+CREATE TABLE t2 (i INT) ENGINE=Aria;
+LOCK TABLE t1 WRITE, t2 WRITE;
+DROP TABLE t1;
+UNLOCK TABLES;
+DROP TABLE t2;

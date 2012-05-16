@@ -2126,7 +2126,8 @@ int mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
           error= -1;
           goto err;
         }
-        close_all_tables_for_name(thd, table->table->s, TRUE);
+        close_all_tables_for_name(thd, table->table->s,
+                                  HA_EXTRA_PREPARE_FOR_DROP);
         table->table= 0;
       }
 
@@ -2134,11 +2135,7 @@ int mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
       DBUG_ASSERT(thd->mdl_context.is_lock_owner(MDL_key::TABLE, table->db,
                                                  table->table_name,
                                                  MDL_EXCLUSIVE));
-      if (thd->killed)
-      {
-        error= -1;
-        goto err;
-      }
+
       alias= (lower_case_table_names == 2) ? table->alias : table->table_name;
       /* remove .frm file and engine files */
       path_length= build_table_filename(path, sizeof(path) - 1, db, alias,
@@ -6188,7 +6185,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
       */
       if (wait_while_table_is_used(thd, table, extra_func))
         goto err;
-      close_all_tables_for_name(thd, table->s, TRUE);
+      close_all_tables_for_name(thd, table->s, HA_EXTRA_PREPARE_FOR_RENAME);
       /*
         Then, we want check once again that target table does not exist.
         Actually the order of these two steps does not matter since
@@ -6895,7 +6892,9 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
   }
 
   close_all_tables_for_name(thd, table->s,
-                            new_name != table_name || new_db != db);
+                            new_name != table_name || new_db != db ?
+                            HA_EXTRA_PREPARE_FOR_RENAME :
+                            HA_EXTRA_NORMAL);
 
   error=0;
   table_list->table= table= 0;                  /* Safety */

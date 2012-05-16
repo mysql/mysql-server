@@ -1116,7 +1116,7 @@ bool close_cached_tables(THD *thd, TABLE_LIST *tables,
         result= TRUE;
         goto err_with_reopen;
       }
-      close_all_tables_for_name(thd, table->s, FALSE);
+      close_all_tables_for_name(thd, table->s, HA_EXTRA_NORMAL);
     }
   }
 
@@ -1393,7 +1393,7 @@ static void close_open_tables(THD *thd)
 
 void
 close_all_tables_for_name(THD *thd, TABLE_SHARE *share,
-                          bool remove_from_locked_tables)
+                          ha_extra_function extra)
 {
   char key[MAX_DBKEY_LENGTH];
   uint key_length= share->table_cache_key.length;
@@ -1412,19 +1412,17 @@ close_all_tables_for_name(THD *thd, TABLE_SHARE *share,
     {
       thd->locked_tables_list.unlink_from_list(thd,
                                                table->pos_in_locked_tables,
-                                               remove_from_locked_tables);
+                                               extra != HA_EXTRA_NORMAL);
+      /* Inform handler that there is a drop table or rename going on */
+      if (extra != HA_EXTRA_NORMAL && table->db_stat)
+        table->file->extra(extra);
+
       /*
         Does nothing if the table is not locked.
         This allows one to use this function after a table
         has been unlocked, e.g. in partition management.
       */
       mysql_lock_remove(thd, thd->lock, table);
-
-      /* Inform handler that table will be dropped after close */
-#ifdef MERGE_FOR_MONTY_TO_FIX
-      if (remove_from_locked_tables && table->db_stat) /* Not true for partitioned tables. */
-        table->file->extra(HA_EXTRA_PREPARE_FOR_DROP);
-#endif
       close_thread_table(thd, prev);
     }
     else

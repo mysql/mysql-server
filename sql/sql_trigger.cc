@@ -561,7 +561,7 @@ bool mysql_create_or_drop_trigger(THD *thd, TABLE_LIST *tables, bool create)
   if (result)
     goto end;
 
-  close_all_tables_for_name(thd, table->s, FALSE);
+  close_all_tables_for_name(thd, table->s, HA_EXTRA_NORMAL);
   /*
     Reopen the table if we were under LOCK TABLES.
     Ignore the return value for now. It's better to
