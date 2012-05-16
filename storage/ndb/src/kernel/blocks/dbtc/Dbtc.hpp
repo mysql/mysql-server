@@ -122,6 +122,7 @@
 #define ZNODEFAIL_BEFORE_COMMIT 286
 #define ZINDEX_CORRUPT_ERROR 287
 #define ZSCAN_FRAGREC_ERROR 291
+#define ZMISSING_TRIGGER_DATA 240
 
 // ----------------------------------------
 // Seize error
@@ -138,6 +139,8 @@
 #define ZNOT_FOUND 626
 #define ZALREADYEXIST 630
 #define ZNOTUNIQUE 893
+#define ZFK_NO_PARENT_ROW_EXISTS 255
+#define ZFK_CHILD_ROW_EXISTS 256
 
 #define ZINVALID_KEY 290
 #define ZUNLOCKED_IVAL_TOO_HIGH 294
@@ -790,7 +793,7 @@ public:
     };
     Uint32 m_flags;
 
-    Uint8 m_special_op_flags; // Used to mark on-going TcKeyReq as indx table
+    Uint16 m_special_op_flags; // Used to mark on-going TcKeyReq as indx table
 
     Uint8 takeOverRec;
     Uint8 currentReplicaNo;
@@ -916,7 +919,7 @@ public:
                              /* 1 = UPDATE REQUEST                          */
                              /* 2 = INSERT REQUEST                          */
                              /* 3 = DELETE REQUEST                          */
-    Uint8 m_special_op_flags; // See ApiConnectRecord::SpecialOpFlags
+    Uint16 m_special_op_flags; // See ApiConnectRecord::SpecialOpFlags
     enum SpecialOpFlags {
       SOF_NORMAL = 0,
       SOF_INDEX_TABLE_READ = 1,       // Read index table
@@ -927,10 +930,11 @@ public:
       SOF_TRIGGER = 16,               // A trigger
       SOF_REORG_COPY = 32,
       SOF_REORG_DELETE = 64,
-      SOF_DEFERRED_UK_TRIGGER = 128   // Op has deferred trigger
+      SOF_DEFERRED_UK_TRIGGER = 128,  // Op has deferred trigger
+      SOF_FK_READ_COMMITTED = 256     // reply to TC even for dirty read
     };
     
-    static inline bool isIndexOp(Uint8 flags) {
+    static inline bool isIndexOp(Uint16 flags) {
       return
         flags == SOF_INDEX_TABLE_READ ||
         flags == SOF_INDEX_BASE_TABLE_ACCESS;
@@ -1661,6 +1665,10 @@ private:
                            TcFiredTriggerData* firedTriggerData,
                            ApiConnectRecordPtr* transPtr,
                            TcConnectRecordPtr* opPtr);
+  Uint32 appendDataToSection(Uint32& sectionIVal,
+                             DataBuffer<11> & src,
+                             DataBuffer<11>::DataBufferIterator & iter,
+                             Uint32 len);
   bool appendAttrDataToSection(Uint32& sectionIVal,
                                DataBuffer<11>& values,
                                bool withHeaders,
@@ -1682,6 +1690,35 @@ private:
                            TcFiredTriggerData* firedTriggerData,
                            ApiConnectRecordPtr* transPtr,
                            TcConnectRecordPtr* opPtr);
+
+  void executeFKParentTrigger(Signal* signal,
+                              TcDefinedTriggerData* definedTriggerData,
+                              TcFiredTriggerData* firedTriggerData,
+                              ApiConnectRecordPtr* transPtr,
+                              TcConnectRecordPtr* opPtr);
+
+  void executeFKChildTrigger(Signal* signal,
+                              TcDefinedTriggerData* definedTriggerData,
+                              TcFiredTriggerData* firedTriggerData,
+                              ApiConnectRecordPtr* transPtr,
+                              TcConnectRecordPtr* opPtr);
+
+  void fk_readFromParentTable(Signal* signal,
+                              TcFiredTriggerData* firedTriggerData,
+                              ApiConnectRecordPtr* transPtr,
+                              TcConnectRecordPtr* opPtr,
+                              TcFKData* fkData);
+  void fk_readFromChildTable(Signal* signal,
+                             TcFiredTriggerData* firedTriggerData,
+                             ApiConnectRecordPtr* transPtr,
+                             TcConnectRecordPtr* opPtr,
+                             TcFKData* fkData,
+                             Uint32 op, Uint32 attrValuesPtrI);
+
+  Uint32 fk_buildKeyInfo(Uint32& keyInfoPtrI, bool& hasNull,
+                         LocalDataBuffer<11>& values,
+                         TcFKData* fkData,
+                         bool parent);
 
   void releaseFiredTriggerData(DLFifoList<TcFiredTriggerData>* triggers);
   void abortTransFromTrigger(Signal* signal, const ApiConnectRecordPtr& transPtr, 
