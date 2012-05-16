@@ -498,7 +498,6 @@ bool Sql_cmd_alter_table_exchange_partition::
   MDL_ticket *swap_table_mdl_ticket= NULL;
   MDL_ticket *part_table_mdl_ticket= NULL;
   uint table_counter;
-  MDL_savepoint mdl_savepoint= thd->mdl_context.mdl_savepoint();
   bool error= TRUE;
   DBUG_ENTER("mysql_exchange_partition");
   DBUG_ASSERT(alter_info->flags & Alter_info::ALTER_EXCHANGE_PARTITION);
