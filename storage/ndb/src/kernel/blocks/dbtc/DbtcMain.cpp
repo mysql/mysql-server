@@ -692,6 +692,12 @@ void Dbtc::execREAD_CONFIG_REQ(Signal* signal)
   m_max_writes_per_trans = val;
 
   ctimeOutCheckDelay = 50; // 500ms
+
+  Pool_context pc;
+  pc.m_block = this;
+
+  c_fk_hash.setSize(16);
+  c_fk_pool.init(RT_DBDICT_FILE, pc); // TODO
 }//Dbtc::execSIZEALT_REP()
 
 void Dbtc::execSTTOR(Signal* signal) 
@@ -13727,6 +13733,7 @@ ref:
     break;
   case TriggerType::FK_PARENT:
   case TriggerType::FK_CHILD:
+    triggerData->fkId = req->indexId;
     break;
   default:
     c_theDefinedTriggers.release(triggerPtr);
@@ -13944,15 +13951,108 @@ Dbtc::execCREATE_FK_IMPL_REQ(Signal* signal)
                                             signal->getDataPtr());
   CreateFKImplReq * req = &reqCopy;
 
+  Uint32 errCode = 0;
   SectionHandle handle(this, signal);
-  releaseSections(handle);
 
-  CreateFKImplConf * conf = CAST_PTR(CreateFKImplConf,
-                                     signal->getDataPtrSend());
-  conf->senderRef = reference();
-  conf->senderData = req->senderData;
-  sendSignal(req->senderRef, GSN_CREATE_FK_IMPL_CONF,
-             signal, CreateFKImplConf::SignalLength, JBB);
+  if (req->requestType == CreateFKImplReq::RT_PREPARE)
+  {
+    jam();
+    Ptr<TcFKData> fkPtr;
+    if (c_fk_hash.find(fkPtr, req->fkId))
+    {
+      jam();
+      errCode = CreateFKImplRef::ObjectAlreadyExist;
+      goto error;
+    }
+    if (!c_fk_pool.seize(fkPtr))
+    {
+      jam();
+      errCode = CreateFKImplRef::NoMoreObjectRecords;
+      goto error;
+    }
+
+    fkPtr.p->fkId = req->fkId;
+    fkPtr.p->bits = req->bits;
+    fkPtr.p->parentTableId = req->parentTableId;
+    fkPtr.p->childTableId = req->childTableId;
+    fkPtr.p->childIndexId = req->childIndexId;
+
+    if (req->parentIndexId != RNIL)
+    {
+      /**
+       * Ignore base-table here...we'll only use the index anyway
+       */
+      jam();
+      fkPtr.p->parentTableId = req->parentIndexId;
+    }
+
+    if (req->childIndexId == RNIL)
+    {
+      jam();
+      fkPtr.p->childIndexId = req->childTableId;
+    }
+
+    {
+      SegmentedSectionPtr ssPtr;
+      handle.getSection(ssPtr, CreateFKImplReq::PARENT_COLUMNS);
+      fkPtr.p->parentTableColumns.sz = ssPtr.sz;
+      if (ssPtr.sz > NDB_ARRAY_SIZE(fkPtr.p->parentTableColumns.id))
+      {
+        errCode = CreateFKImplRef::InvalidFormat;
+        goto error;
+      }
+      copy(fkPtr.p->parentTableColumns.id, ssPtr);
+    }
+
+    {
+      SegmentedSectionPtr ssPtr;
+      handle.getSection(ssPtr, CreateFKImplReq::CHILD_COLUMNS);
+      fkPtr.p->childTableColumns.sz = ssPtr.sz;
+      if (ssPtr.sz > NDB_ARRAY_SIZE(fkPtr.p->childTableColumns.id))
+      {
+        errCode = CreateFKImplRef::InvalidFormat;
+        goto error;
+      }
+      copy(fkPtr.p->childTableColumns.id, ssPtr);
+    }
+
+    c_fk_hash.add(fkPtr);
+  }
+  else if (req->requestType == CreateFKImplReq::RT_ABORT)
+  {
+    jam();
+    Ptr<TcFKData> fkPtr;
+    ndbassert(c_fk_hash.find(fkPtr, req->fkId));
+    if (c_fk_hash.find(fkPtr, req->fkId))
+    {
+      jam();
+      c_fk_hash.release(fkPtr);
+    }
+  }
+  else
+  {
+    ndbrequire(false); // No other request should reach TC
+  }
+
+  releaseSections(handle);
+  {
+    CreateFKImplConf * conf = CAST_PTR(CreateFKImplConf,
+                                       signal->getDataPtrSend());
+    conf->senderRef = reference();
+    conf->senderData = req->senderData;
+    sendSignal(req->senderRef, GSN_CREATE_FK_IMPL_CONF,
+               signal, CreateFKImplConf::SignalLength, JBB);
+  }
+  return;
+error:
+  releaseSections(handle);
+  CreateFKImplRef * ref = CAST_PTR(CreateFKImplRef,
+                                   signal->getDataPtrSend());
+  ref->senderRef = reference();
+  ref->senderData = req->senderData;
+  ref->errorCode = errCode;
+  sendSignal(req->senderRef, GSN_CREATE_FK_IMPL_REF,
+             signal, CreateFKImplRef::SignalLength, JBB);
 }
 
 void
@@ -13966,12 +14066,31 @@ Dbtc::execDROP_FK_IMPL_REQ(Signal* signal)
   SectionHandle handle(this, signal);
   releaseSections(handle);
 
-  DropFKImplConf * conf = CAST_PTR(DropFKImplConf,
+  Ptr<TcFKData> fkPtr;
+  ndbassert(c_fk_hash.find(fkPtr, req->fkId));
+  if (c_fk_hash.find(fkPtr, req->fkId))
+  {
+    jam();
+    c_fk_hash.release(fkPtr);
+
+    DropFKImplConf * conf = CAST_PTR(DropFKImplConf,
+                                     signal->getDataPtrSend());
+    conf->senderRef = reference();
+    conf->senderData = req->senderData;
+    sendSignal(req->senderRef, GSN_DROP_FK_IMPL_CONF,
+               signal, DropFKImplConf::SignalLength, JBB);
+  }
+  else
+  {
+    jam();
+    DropFKImplRef * ref = CAST_PTR(DropFKImplRef,
                                    signal->getDataPtrSend());
-  conf->senderRef = reference();
-  conf->senderData = req->senderData;
-  sendSignal(req->senderRef, GSN_DROP_FK_IMPL_CONF,
-             signal, DropFKImplConf::SignalLength, JBB);
+    ref->senderRef = reference();
+    ref->senderData = req->senderData;
+    ref->errorCode = DropFKImplRef::NoSuchObject;
+    sendSignal(req->senderRef, GSN_DROP_FK_IMPL_REF,
+               signal, DropFKImplRef::SignalLength, JBB);
+  }
 }
 
 void Dbtc::execFIRE_TRIG_ORD(Signal* signal)

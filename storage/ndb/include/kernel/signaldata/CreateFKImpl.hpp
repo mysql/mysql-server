@@ -104,6 +104,13 @@ struct CreateFKImplRef
   Uint32 senderData;
   Uint32 senderRef;
   Uint32 errorCode;
+
+  enum ErrCode
+  {
+    ObjectAlreadyExist = 700,
+    NoMoreObjectRecords = 700,
+    InvalidFormat = 700
+  };
 };
 
 struct CreateFKImplConf

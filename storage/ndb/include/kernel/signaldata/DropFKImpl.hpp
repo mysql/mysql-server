@@ -67,6 +67,11 @@ struct DropFKImplRef
   Uint32 senderData;
   Uint32 senderRef;
   Uint32 errorCode;
+
+  enum ErrCode
+  {
+    NoSuchObject = 700
+  };
 };
 
 struct DropFKImplConf
