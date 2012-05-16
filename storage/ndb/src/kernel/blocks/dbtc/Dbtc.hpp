@@ -1228,7 +1228,9 @@ public:
 
     // State of this scan
     ScanState scanState;
-    
+    Uint32 scanKeyInfoPtr;
+    Uint32 scanAttrInfoPtr;
+
     DLList<ScanFragRec>::Head m_running_scan_frags;  // Currently in LQH
     union { Uint32 m_queued_count; Uint32 scanReceivedOperations; };
     DLList<ScanFragRec>::Head m_queued_scan_frags;   // In TC !sent to API
@@ -1245,9 +1247,7 @@ public:
     Uint32 nextScan;
 
     // Length of expected attribute information
-    union { Uint32 scanAiLength; Uint32 m_booked_fragments_count; };
-
-    Uint32 scanKeyLen;
+    Uint32 m_booked_fragments_count;
 
     // Reference to ApiConnectRecord
     Uint32 scanApiRec;
@@ -1288,6 +1288,12 @@ public:
      * Send opcount/total len as different words
      */
     bool m_4word_conf;
+
+    /**
+     *
+     */
+    bool m_scan_dist_key_flag;
+    Uint32 m_scan_dist_key;
   };
   typedef Ptr<ScanRecord> ScanRecordPtr;
   
@@ -1438,6 +1444,7 @@ private:
   void printState(Signal* signal, int place);
   int seizeTcRecord(Signal* signal);
   int seizeCacheRecord(Signal* signal);
+  void releaseCacheRecord(ApiConnectRecordPtr transPtr, CacheRecord*);
   void TCKEY_abort(Signal* signal, int place);
   void copyFromToLen(UintR* sourceBuffer, UintR* destBuffer, UintR copyLen);
   void reportNodeFailed(Signal* signal, Uint32 nodeId);
@@ -1481,8 +1488,6 @@ private:
   Uint32 initScanrec(ScanRecordPtr,  const class ScanTabReq*,
                      const UintR scanParallel,
                      const UintR noOprecPerFrag,
-                     const Uint32 aiLength,
-                     const Uint32 keyLength,
                      const Uint32 apiPtr[]);
   void initScanfragrec(Signal* signal);
   void releaseScanResources(Signal*, ScanRecordPtr, bool not_started = false);
