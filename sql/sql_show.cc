@@ -6735,12 +6735,13 @@ TABLE *create_schema_table(THD *thd, TABLE_LIST *table_list)
     case MYSQL_TYPE_TIME:
     case MYSQL_TYPE_TIMESTAMP:
     case MYSQL_TYPE_DATETIME:
-      if (!(item=new Item_return_date_time(fields_info->field_name,
-                                           fields_info->field_type)))
-      {
+    {
+      const Name_string field_name(fields_info->field_name,
+                                   strlen(fields_info->field_name));
+      if (!(item=new Item_temporal(fields_info->field_type, field_name, 0, 0)))
         DBUG_RETURN(0);
-      }
       break;
+    }
     case MYSQL_TYPE_FLOAT:
     case MYSQL_TYPE_DOUBLE:
     {
