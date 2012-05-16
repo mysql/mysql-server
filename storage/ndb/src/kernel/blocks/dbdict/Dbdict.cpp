@@ -2189,6 +2189,21 @@ Dbdict::Dbdict(Block_context& ctx):
   addRecSignal(GSN_INDEX_STAT_IMPL_CONF, &Dbdict::execINDEX_STAT_IMPL_CONF);
   addRecSignal(GSN_INDEX_STAT_IMPL_REF, &Dbdict::execINDEX_STAT_IMPL_REF);
   addRecSignal(GSN_INDEX_STAT_REP, &Dbdict::execINDEX_STAT_REP);
+
+  // fk
+  addRecSignal(GSN_CREATE_FK_REQ, &Dbdict::execCREATE_FK_REQ);
+  addRecSignal(GSN_CREATE_FK_IMPL_REF, &Dbdict::execCREATE_FK_IMPL_REF);
+  addRecSignal(GSN_CREATE_FK_IMPL_CONF, &Dbdict::execCREATE_FK_IMPL_CONF);
+
+  addRecSignal(GSN_BUILD_FK_REQ, &Dbdict::execBUILD_FK_REQ);
+  addRecSignal(GSN_BUILD_FK_REF, &Dbdict::execBUILD_FK_REF);
+  addRecSignal(GSN_BUILD_FK_CONF, &Dbdict::execBUILD_FK_CONF);
+  addRecSignal(GSN_BUILD_FK_IMPL_REF, &Dbdict::execBUILD_FK_IMPL_REF);
+  addRecSignal(GSN_BUILD_FK_IMPL_CONF, &Dbdict::execBUILD_FK_IMPL_CONF);
+
+  addRecSignal(GSN_DROP_FK_REQ, &Dbdict::execDROP_FK_REQ);
+  addRecSignal(GSN_DROP_FK_IMPL_REF, &Dbdict::execDROP_FK_IMPL_REF);
+  addRecSignal(GSN_DROP_FK_IMPL_CONF, &Dbdict::execDROP_FK_IMPL_CONF);
 }//Dbdict::Dbdict()
 
 Dbdict::~Dbdict()
@@ -24001,6 +24016,666 @@ Dbdict::execDROP_NODEGROUP_IMPL_CONF(Signal* signal)
 
 // DropNodegroup: END
 
+// MODULE: CreateFK
+
+const Dbdict::OpInfo
+Dbdict::CreateFKRec::g_opInfo = {
+  { 'C', 'F', 'K', 0 },
+  ~RT_DBDICT_DROP_NODEGROUP, // TODO
+  GSN_CREATE_FK_IMPL_REQ,
+  CreateFKImplReq::SignalLength,
+
+  //
+  &Dbdict::createFK_seize,
+  &Dbdict::createFK_release,
+  //
+  &Dbdict::createFK_parse,
+  &Dbdict::createFK_subOps,
+  &Dbdict::createFK_reply,
+  //
+  &Dbdict::createFK_prepare,
+  &Dbdict::createFK_commit,
+  &Dbdict::createFK_complete,
+  //
+  &Dbdict::createFK_abortParse,
+  &Dbdict::createFK_abortPrepare
+};
+
+void
+Dbdict::execCREATE_FK_REQ(Signal* signal)
+{
+  jamEntry();
+  if (!assembleFragments(signal)) {
+    jam();
+    return;
+  }
+  SectionHandle handle(this, signal);
+
+  const CreateFKReq req_copy =
+    *(const CreateFKReq*)signal->getDataPtr();
+  const CreateFKReq* req = &req_copy;
+
+  ErrorInfo error;
+  do {
+    SchemaOpPtr op_ptr;
+    CreateFKRecPtr createFKRecPtr;
+    CreateFKImplReq* impl_req;
+
+    startClientReq(op_ptr, createFKRecPtr, req, impl_req, error);
+    if (hasError(error)) {
+      jam();
+      break;
+    }
+
+    handleClientReq(signal, op_ptr, handle);
+    return;
+  } while (0);
+
+  releaseSections(handle);
+
+  CreateFKRef* ref = (CreateFKRef*)signal->getDataPtrSend();
+  ref->senderRef = reference();
+  ref->transId = req->transId;
+  ref->senderData = req->senderData;
+  getError(error, ref);
+
+  sendSignal(req->senderRef, GSN_CREATE_FK_REF, signal,
+	     CreateFKRef::SignalLength, JBB);
+}
+
+bool
+Dbdict::createFK_seize(SchemaOpPtr op_ptr)
+{
+  return seizeOpRec<CreateFKRec>(op_ptr);
+}
+
+void
+Dbdict::createFK_release(SchemaOpPtr op_ptr)
+{
+  releaseOpRec<CreateFKRec>(op_ptr);
+}
+
+// CreateFK: PARSE
+
+void
+Dbdict::createFK_parse(Signal* signal, bool master,
+                              SchemaOpPtr op_ptr,
+                              SectionHandle& handle, ErrorInfo& error)
+{
+  SchemaTransPtr trans_ptr = op_ptr.p->m_trans_ptr;
+  CreateFKRecPtr createFKRecPtr;
+  getOpRec(op_ptr, createFKRecPtr);
+  CreateFKImplReq* impl_req = &createFKRecPtr.p->m_request;
+
+  jam();
+ }
+
+void
+Dbdict::createFK_abortParse(Signal* signal, SchemaOpPtr op_ptr)
+{
+  jam();
+  sendTransConf(signal, op_ptr);
+}
+
+bool
+Dbdict::createFK_subOps(Signal* signal, SchemaOpPtr op_ptr)
+{
+  SchemaTransPtr trans_ptr = op_ptr.p->m_trans_ptr;
+  CreateFKRecPtr createFKRecPtr;
+  getOpRec(op_ptr, createFKRecPtr);
+  //CreateFKImplReq* impl_req = &createFKRecPtr.p->m_request;
+
+
+  return false;
+}
+
+void
+Dbdict::createFK_reply(Signal* signal, SchemaOpPtr op_ptr, ErrorInfo error)
+{
+  jam();
+  SchemaTransPtr trans_ptr = op_ptr.p->m_trans_ptr;
+  CreateFKRecPtr createFKRecPtr;
+  getOpRec(op_ptr, createFKRecPtr);
+  CreateFKImplReq* impl_req = &createFKRecPtr.p->m_request;
+
+  if (!hasError(error))
+  {
+    jam();
+    CreateFKConf* conf = (CreateFKConf*)signal->getDataPtrSend();
+    conf->senderRef = reference();
+    conf->senderData = op_ptr.p->m_clientData;
+    conf->transId = trans_ptr.p->m_transId;
+    conf->fkId = impl_req->fkId;
+    conf->fkVersion = impl_req->fkVersion;
+    Uint32 clientRef = op_ptr.p->m_clientRef;
+    sendSignal(clientRef, GSN_CREATE_FK_CONF, signal,
+               CreateFKConf::SignalLength, JBB);
+  }
+  else
+  {
+    jam();
+    CreateFKRef* ref = (CreateFKRef*)signal->getDataPtrSend();
+    ref->senderRef = reference();
+    ref->senderData = op_ptr.p->m_clientData;
+    ref->transId = trans_ptr.p->m_transId;
+    getError(error, ref);
+
+    Uint32 clientRef = op_ptr.p->m_clientRef;
+    sendSignal(clientRef, GSN_CREATE_FK_REF, signal,
+               CreateFKRef::SignalLength, JBB);
+  }
+}
+
+// CreateFK: PREPARE
+
+void
+Dbdict::createFK_prepare(Signal* signal, SchemaOpPtr op_ptr)
+{
+  jam();
+  SchemaTransPtr trans_ptr = op_ptr.p->m_trans_ptr;
+  CreateFKRecPtr createFKRecPtr;
+  getOpRec(op_ptr, createFKRecPtr);
+  CreateFKImplReq* impl_req = &createFKRecPtr.p->m_request;
+
+  sendTransConf(signal, op_ptr);
+}
+
+
+void
+Dbdict::createFK_abortPrepare(Signal* signal, SchemaOpPtr op_ptr)
+{
+  SchemaTransPtr trans_ptr = op_ptr.p->m_trans_ptr;
+  CreateFKRecPtr createFKRecPtr;
+  getOpRec(op_ptr, createFKRecPtr);
+  //CreateFKImplReq* impl_req = &createFKRecPtr.p->m_request;
+
+  sendTransConf(signal, op_ptr);
+}
+
+// CreateFK: COMMIT
+
+void
+Dbdict::createFK_commit(Signal* signal, SchemaOpPtr op_ptr)
+{
+  jam();
+  SchemaTransPtr trans_ptr = op_ptr.p->m_trans_ptr;
+  CreateFKRecPtr createFKRecPtr;
+  getOpRec(op_ptr, createFKRecPtr);
+  CreateFKImplReq* impl_req = &createFKRecPtr.p->m_request;
+
+  sendTransConf(signal, op_ptr);
+}
+
+// CreateFK: COMPLETE
+
+void
+Dbdict::createFK_complete(Signal* signal, SchemaOpPtr op_ptr)
+{
+  jam();
+  SchemaTransPtr trans_ptr = op_ptr.p->m_trans_ptr;
+  CreateFKRecPtr createFKRecPtr;
+  getOpRec(op_ptr, createFKRecPtr);
+  CreateFKImplReq* impl_req = &createFKRecPtr.p->m_request;
+
+  sendTransConf(signal, op_ptr);
+}
+
+void
+Dbdict::execCREATE_FK_IMPL_REF(Signal* signal)
+{
+  jamEntry();
+  CreateFKImplRef * ref = (CreateFKImplRef*)signal->getDataPtr();
+  handleDictRef(signal, ref);
+}
+
+void
+Dbdict::execCREATE_FK_IMPL_CONF(Signal* signal)
+{
+  jamEntry();
+  CreateFKImplConf * conf = (CreateFKImplConf*)signal->getDataPtr();
+  handleDictConf(signal, conf);
+}
+
+// CreateFK: END
+
+// MODULE: BuildFK
+
+const Dbdict::OpInfo
+Dbdict::BuildFKRec::g_opInfo = {
+  { 'B', 'F', 'K', 0 },
+  ~RT_DBDICT_DROP_NODEGROUP, // TODO
+  GSN_BUILD_FK_IMPL_REQ,
+  BuildFKImplReq::SignalLength,
+
+  //
+  &Dbdict::buildFK_seize,
+  &Dbdict::buildFK_release,
+  //
+  &Dbdict::buildFK_parse,
+  &Dbdict::buildFK_subOps,
+  &Dbdict::buildFK_reply,
+  //
+  &Dbdict::buildFK_prepare,
+  &Dbdict::buildFK_commit,
+  &Dbdict::buildFK_complete,
+  //
+  &Dbdict::buildFK_abortParse,
+  &Dbdict::buildFK_abortPrepare
+};
+
+void
+Dbdict::execBUILD_FK_REQ(Signal* signal)
+{
+  jamEntry();
+  if (!assembleFragments(signal)) {
+    jam();
+    return;
+  }
+  SectionHandle handle(this, signal);
+
+  const BuildFKReq req_copy =
+    *(const BuildFKReq*)signal->getDataPtr();
+  const BuildFKReq* req = &req_copy;
+
+  ErrorInfo error;
+  do {
+    SchemaOpPtr op_ptr;
+    BuildFKRecPtr buildFKRecPtr;
+    BuildFKImplReq* impl_req;
+
+    startClientReq(op_ptr, buildFKRecPtr, req, impl_req, error);
+    if (hasError(error)) {
+      jam();
+      break;
+    }
+
+    handleClientReq(signal, op_ptr, handle);
+    return;
+  } while (0);
+
+  releaseSections(handle);
+
+  BuildFKRef* ref = (BuildFKRef*)signal->getDataPtrSend();
+  ref->senderRef = reference();
+  ref->transId = req->transId;
+  ref->senderData = req->senderData;
+  getError(error, ref);
+
+  sendSignal(req->senderRef, GSN_BUILD_FK_REF, signal,
+	     BuildFKRef::SignalLength, JBB);
+}
+
+bool
+Dbdict::buildFK_seize(SchemaOpPtr op_ptr)
+{
+  return seizeOpRec<BuildFKRec>(op_ptr);
+}
+
+void
+Dbdict::buildFK_release(SchemaOpPtr op_ptr)
+{
+  releaseOpRec<BuildFKRec>(op_ptr);
+}
+
+// BuildFK: PARSE
+
+void
+Dbdict::buildFK_parse(Signal* signal, bool master,
+                              SchemaOpPtr op_ptr,
+                              SectionHandle& handle, ErrorInfo& error)
+{
+  SchemaTransPtr trans_ptr = op_ptr.p->m_trans_ptr;
+  BuildFKRecPtr buildFKRecPtr;
+  getOpRec(op_ptr, buildFKRecPtr);
+  BuildFKImplReq* impl_req = &buildFKRecPtr.p->m_request;
+
+  jam();
+ }
+
+void
+Dbdict::buildFK_abortParse(Signal* signal, SchemaOpPtr op_ptr)
+{
+  jam();
+  sendTransConf(signal, op_ptr);
+}
+
+bool
+Dbdict::buildFK_subOps(Signal* signal, SchemaOpPtr op_ptr)
+{
+  SchemaTransPtr trans_ptr = op_ptr.p->m_trans_ptr;
+  BuildFKRecPtr buildFKRecPtr;
+  getOpRec(op_ptr, buildFKRecPtr);
+  //BuildFKImplReq* impl_req = &buildFKRecPtr.p->m_request;
+
+
+  return false;
+}
+
+void
+Dbdict::buildFK_reply(Signal* signal, SchemaOpPtr op_ptr, ErrorInfo error)
+{
+  jam();
+  SchemaTransPtr trans_ptr = op_ptr.p->m_trans_ptr;
+  BuildFKRecPtr buildFKRecPtr;
+  getOpRec(op_ptr, buildFKRecPtr);
+  BuildFKImplReq* impl_req = &buildFKRecPtr.p->m_request;
+
+  if (!hasError(error))
+  {
+    jam();
+    BuildFKConf* conf = (BuildFKConf*)signal->getDataPtrSend();
+    conf->senderRef = reference();
+    conf->senderData = op_ptr.p->m_clientData;
+    conf->transId = trans_ptr.p->m_transId;
+    Uint32 clientRef = op_ptr.p->m_clientRef;
+    sendSignal(clientRef, GSN_BUILD_FK_CONF, signal,
+               BuildFKConf::SignalLength, JBB);
+  }
+  else
+  {
+    jam();
+    BuildFKRef* ref = (BuildFKRef*)signal->getDataPtrSend();
+    ref->senderRef = reference();
+    ref->senderData = op_ptr.p->m_clientData;
+    ref->transId = trans_ptr.p->m_transId;
+    getError(error, ref);
+
+    Uint32 clientRef = op_ptr.p->m_clientRef;
+    sendSignal(clientRef, GSN_BUILD_FK_REF, signal,
+               BuildFKRef::SignalLength, JBB);
+  }
+}
+
+// BuildFK: PREPARE
+
+void
+Dbdict::buildFK_prepare(Signal* signal, SchemaOpPtr op_ptr)
+{
+  jam();
+  SchemaTransPtr trans_ptr = op_ptr.p->m_trans_ptr;
+  BuildFKRecPtr buildFKRecPtr;
+  getOpRec(op_ptr, buildFKRecPtr);
+  BuildFKImplReq* impl_req = &buildFKRecPtr.p->m_request;
+
+  sendTransConf(signal, op_ptr);
+}
+
+
+void
+Dbdict::buildFK_abortPrepare(Signal* signal, SchemaOpPtr op_ptr)
+{
+  jam();
+  sendTransConf(signal, op_ptr);
+}
+
+// BuildFK: COMMIT
+
+void
+Dbdict::buildFK_commit(Signal* signal, SchemaOpPtr op_ptr)
+{
+  jam();
+  sendTransConf(signal, op_ptr);
+}
+
+// BuildFK: COMPLETE
+
+void
+Dbdict::buildFK_complete(Signal* signal, SchemaOpPtr op_ptr)
+{
+  jam();
+  sendTransConf(signal, op_ptr);
+}
+
+void
+Dbdict::execBUILD_FK_REF(Signal* signal)
+{
+  jamEntry();
+  const BuildFKRef* ref = (const BuildFKRef*)signal->getDataPtr();
+  handleDictRef(signal, ref);
+}
+
+void
+Dbdict::execBUILD_FK_CONF(Signal* signal)
+{
+  jamEntry();
+  const BuildFKConf* conf = (const BuildFKConf*)signal->getDataPtr();
+  handleDictConf(signal, conf);
+}
+
+void
+Dbdict::execBUILD_FK_IMPL_REF(Signal* signal)
+{
+  jamEntry();
+  BuildFKImplRef * ref = (BuildFKImplRef*)signal->getDataPtr();
+  handleDictRef(signal, ref);
+}
+
+void
+Dbdict::execBUILD_FK_IMPL_CONF(Signal* signal)
+{
+  jamEntry();
+  BuildFKImplConf * conf = (BuildFKImplConf*)signal->getDataPtr();
+  handleDictConf(signal, conf);
+}
+
+// BuildFK: END
+
+// MODULE: DropFK
+
+const Dbdict::OpInfo
+Dbdict::DropFKRec::g_opInfo = {
+  { 'D', 'F', 'K', 0 },
+  ~RT_DBDICT_DROP_NODEGROUP, // TODO
+  GSN_DROP_FK_IMPL_REQ,
+  DropFKImplReq::SignalLength,
+  //
+  &Dbdict::dropFK_seize,
+  &Dbdict::dropFK_release,
+  //
+  &Dbdict::dropFK_parse,
+  &Dbdict::dropFK_subOps,
+  &Dbdict::dropFK_reply,
+  //
+  &Dbdict::dropFK_prepare,
+  &Dbdict::dropFK_commit,
+  &Dbdict::dropFK_complete,
+  //
+  &Dbdict::dropFK_abortParse,
+  &Dbdict::dropFK_abortPrepare
+};
+
+void
+Dbdict::execDROP_FK_REQ(Signal* signal)
+{
+  jamEntry();
+  if (!assembleFragments(signal)) {
+    jam();
+    return;
+  }
+  SectionHandle handle(this, signal);
+
+  const DropFKReq req_copy =
+    *(const DropFKReq*)signal->getDataPtr();
+  const DropFKReq* req = &req_copy;
+
+  ErrorInfo error;
+  do {
+    SchemaOpPtr op_ptr;
+    DropFKRecPtr dropFKRecPtr;
+    DropFKImplReq* impl_req;
+
+    startClientReq(op_ptr, dropFKRecPtr, req, impl_req, error);
+    if (hasError(error)) {
+      jam();
+      break;
+    }
+
+    impl_req->fkId = req->fkId;
+    impl_req->fkVersion = req->fkVersion;
+
+    handleClientReq(signal, op_ptr, handle);
+    return;
+  } while (0);
+
+  releaseSections(handle);
+
+  DropFKRef* ref = (DropFKRef*)signal->getDataPtrSend();
+  ref->senderRef = reference();
+  ref->transId = req->transId;
+  ref->senderData = req->senderData;
+  getError(error, ref);
+
+  sendSignal(req->senderRef, GSN_DROP_FK_REF, signal,
+	     DropFKRef::SignalLength, JBB);
+}
+
+bool
+Dbdict::dropFK_seize(SchemaOpPtr op_ptr)
+{
+  return seizeOpRec<DropFKRec>(op_ptr);
+}
+
+void
+Dbdict::dropFK_release(SchemaOpPtr op_ptr)
+{
+  releaseOpRec<DropFKRec>(op_ptr);
+}
+
+// DropFK: PARSE
+
+void
+Dbdict::dropFK_parse(Signal* signal, bool master,
+                          SchemaOpPtr op_ptr,
+                          SectionHandle& handle, ErrorInfo& error)
+{
+  SchemaTransPtr trans_ptr = op_ptr.p->m_trans_ptr;
+  DropFKRecPtr dropFKRecPtr;
+  getOpRec(op_ptr, dropFKRecPtr);
+  DropFKImplReq* impl_req = &dropFKRecPtr.p->m_request;
+}
+
+void
+Dbdict::dropFK_abortParse(Signal* signal, SchemaOpPtr op_ptr)
+{
+  jam();
+  sendTransConf(signal, op_ptr);
+}
+
+bool
+Dbdict::dropFK_subOps(Signal* signal, SchemaOpPtr op_ptr)
+{
+  return false;
+}
+
+void
+Dbdict::dropFK_reply(Signal* signal, SchemaOpPtr op_ptr, ErrorInfo error)
+{
+  jam();
+  SchemaTransPtr trans_ptr = op_ptr.p->m_trans_ptr;
+  DropFKRecPtr dropFKRecPtr;
+  getOpRec(op_ptr, dropFKRecPtr);
+  //DropFKImplReq* impl_req = &dropFKRecPtr.p->m_request;
+
+  if (!hasError(error))
+  {
+    jam();
+    DropFKConf* conf = (DropFKConf*)signal->getDataPtrSend();
+    conf->senderRef = reference();
+    conf->senderData = op_ptr.p->m_clientData;
+    conf->transId = trans_ptr.p->m_transId;
+    Uint32 clientRef = op_ptr.p->m_clientRef;
+    sendSignal(clientRef, GSN_DROP_FK_CONF, signal,
+               DropFKConf::SignalLength, JBB);
+  }
+  else
+  {
+    jam();
+    DropFKRef* ref = (DropFKRef*)signal->getDataPtrSend();
+    ref->senderRef = reference();
+    ref->senderData = op_ptr.p->m_clientData;
+    ref->transId = trans_ptr.p->m_transId;
+    getError(error, ref);
+
+    Uint32 clientRef = op_ptr.p->m_clientRef;
+    sendSignal(clientRef, GSN_DROP_FK_REF, signal,
+               DropFKRef::SignalLength, JBB);
+  }
+}
+
+// DropFK: PREPARE
+
+void
+Dbdict::dropFK_prepare(Signal* signal, SchemaOpPtr op_ptr)
+{
+  jam();
+  SchemaTransPtr trans_ptr = op_ptr.p->m_trans_ptr;
+  DropFKRecPtr dropFKRecPtr;
+  getOpRec(op_ptr, dropFKRecPtr);
+  DropFKImplReq* impl_req = &dropFKRecPtr.p->m_request;
+
+  sendTransConf(signal, op_ptr);
+}
+
+void
+Dbdict::dropFK_abortPrepare(Signal* signal, SchemaOpPtr op_ptr)
+{
+  SchemaTransPtr trans_ptr = op_ptr.p->m_trans_ptr;
+  DropFKRecPtr dropFKRecPtr;
+  getOpRec(op_ptr, dropFKRecPtr);
+  //DropFKImplReq* impl_req = &dropFKRecPtr.p->m_request;
+
+  sendTransConf(signal, op_ptr);
+}
+
+// DropFK: COMMIT
+
+void
+Dbdict::dropFK_commit(Signal* signal, SchemaOpPtr op_ptr)
+{
+  jam();
+  SchemaTransPtr trans_ptr = op_ptr.p->m_trans_ptr;
+  DropFKRecPtr dropFKRecPtr;
+  getOpRec(op_ptr, dropFKRecPtr);
+  DropFKImplReq* impl_req = &dropFKRecPtr.p->m_request;
+
+  impl_req->requestType = DropFKImplReq::RT_COMMIT;
+}
+
+// DropFK: COMPLETE
+
+void
+Dbdict::dropFK_complete(Signal* signal, SchemaOpPtr op_ptr)
+{
+  jam();
+
+  SchemaTransPtr trans_ptr = op_ptr.p->m_trans_ptr;
+  DropFKRecPtr dropFKRecPtr;
+  getOpRec(op_ptr, dropFKRecPtr);
+  DropFKImplReq* impl_req = &dropFKRecPtr.p->m_request;
+
+  impl_req->requestType = DropFKImplReq::RT_COMPLETE;
+  sendTransConf(signal, trans_ptr);
+}
+
+void
+Dbdict::execDROP_FK_IMPL_REF(Signal* signal)
+{
+  jamEntry();
+  DropFKImplRef * ref = (DropFKImplRef*)signal->getDataPtr();
+  handleDictRef(signal, ref);
+}
+
+void
+Dbdict::execDROP_FK_IMPL_CONF(Signal* signal)
+{
+  jamEntry();
+  DropFKImplConf * conf = (DropFKImplConf*)signal->getDataPtr();
+  handleDictConf(signal, conf);
+}
+
+// DropFK: END
+
+
 /*
   return 1 if all of the below is true
   a) node in single user mode
@@ -24174,6 +24849,9 @@ Dbdict::g_opInfoList[] = {
   &Dbdict::CopyDataRec::g_opInfo,
   &Dbdict::CreateNodegroupRec::g_opInfo,
   &Dbdict::DropNodegroupRec::g_opInfo,
+  &Dbdict::CreateFKRec::g_opInfo,
+  &Dbdict::DropFKRec::g_opInfo,
+  &Dbdict::BuildFKRec::g_opInfo,
   0
 };
 
