@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -2834,7 +2834,7 @@ Create_sp_func::create(THD *thd, LEX_STRING db, LEX_STRING name,
 
   qname= new (thd->mem_root) sp_name(db, name, use_explicit_name);
   qname->init_qname(thd);
-  sp_add_used_routine(lex, thd, qname, TYPE_ENUM_FUNCTION);
+  sp_add_used_routine(lex, thd, qname, SP_TYPE_FUNCTION);
 
   if (arg_count > 0)
     func= new (thd->mem_root) Item_func_sp(lex->current_context(), qname,
