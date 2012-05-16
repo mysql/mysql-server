@@ -377,6 +377,11 @@ tablespace file.
      * Keep a counter of number of rows, ie. non-delete-marked rows
      * Keep a counter of number of delete marked rows
      * Keep a counter of number of purge failure
+     * If a page is stamped with an index id that isn't in the .cfg file
+       we assume it is deleted and the page can be ignored.
+     * We can't tell free pages from allocated paes (for now). Therefore
+       the assumption is that the free pages are either empty or are logically
+       consistent. TODO: Cache the extent bitmap and check free pages.
 
    4. Set the page state to dirty so that it will be written to disk.
 */
