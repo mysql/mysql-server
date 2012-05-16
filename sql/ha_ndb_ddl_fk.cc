@@ -164,7 +164,7 @@ inline
 const char *
 lex2str(const LEX_STRING& str, char buf[], size_t len)
 {
-  my_snprintf(buf, len, "%.*s", str.length, str.str);
+  my_snprintf(buf, len, "%.*s", (int)str.length, str.str);
   return buf;
 }
 
@@ -732,4 +732,195 @@ ha_ndbcluster::free_foreign_key_create_info(char* str)
   {
     free(str);
   }
+}
+
+int
+ha_ndbcluster::copy_fk_for_offline_alter(THD * thd, Ndb* ndb, NDBTAB* _dsttab)
+{
+  DBUG_ENTER("copy_fk_for_offline_alter");
+  if (thd->lex == 0)
+  {
+    assert(false);
+    DBUG_RETURN(0);
+  }
+
+  const char * src_db = thd->lex->select_lex.table_list.first->db;
+  const char * src_tab = thd->lex->select_lex.table_list.first->table_name;
+
+  if (src_db == 0 || src_tab == 0)
+  {
+    assert(false);
+    DBUG_RETURN(0);
+  }
+
+  assert(thd->lex != 0);
+  NDBDICT* dict = ndb->getDictionary();
+  Ndb_table_guard srctab(dict, src_tab);
+  if (srctab.get_table() == 0)
+  {
+    /**
+     * when doign alter table engine=ndb this can happen
+     */
+    DBUG_RETURN(0);
+  }
+
+  Ndb_table_guard dsttab(dict, _dsttab->getName());
+  if (dsttab.get_table() == 0)
+  {
+    ERR_RETURN(dict->getNdbError());
+  }
+
+  NDBDICT::List obj_list;
+  dict->listDependentObjects(obj_list, *srctab.get_table());
+  for (unsigned i = 0; i < obj_list.count; i++)
+  {
+    if (obj_list.elements[i].type == NdbDictionary::Object::ForeignKey)
+    {
+      {
+        /**
+         * Check if it should be copied
+         */
+        char db_and_name[FN_LEN + 1];
+        const char * name= fk_split_name(db_and_name,obj_list.elements[i].name);
+
+        bool found= false;
+        Alter_drop * drop_item= 0;
+        List_iterator<Alter_drop> drop_iterator(thd->lex->alter_info.drop_list);
+        while ((drop_item=drop_iterator++))
+        {
+          if (drop_item->type != Alter_drop::FOREIGN_KEY)
+            continue;
+          if (strcmp(drop_item->name, name) == 0)
+          {
+            found= true;
+            break;
+          }
+        }
+        if (found)
+        {
+          /**
+           * Item is on drop list...
+           *   don't copy it
+           */
+          continue;
+        }
+      }
+
+      NdbDictionary::ForeignKey fk;
+      if (dict->getForeignKey(fk, obj_list.elements[i].name) != 0)
+      {
+        ERR_RETURN(dict->getNdbError());
+      }
+
+      unsigned parentObjectId= 0;
+      unsigned childObjectId= 0;
+
+      {
+        char db_and_name[FN_LEN + 1];
+        const char * name= fk_split_name(db_and_name, fk.getParentTable());
+        Ndb_table_guard org_parent(dict, name);
+        if (org_parent.get_table() == 0)
+        {
+          ERR_RETURN(dict->getNdbError());
+        }
+        parentObjectId= org_parent.get_table()->getObjectId();
+      }
+
+      {
+        char db_and_name[FN_LEN + 1];
+        const char * name= fk_split_name(db_and_name, fk.getChildTable());
+        Ndb_table_guard org_child(dict, name);
+        if (org_child.get_table() == 0)
+        {
+          ERR_RETURN(dict->getNdbError());
+        }
+        childObjectId= org_child.get_table()->getObjectId();
+      }
+
+      char db_and_name[FN_LEN + 1];
+      const char * name= fk_split_name(db_and_name, fk.getParentTable());
+      if (strcmp(name, src_tab) == 0 &&
+          strcmp(db_and_name, src_db) == 0)
+      {
+        /**
+         * We used to be parent...
+         */
+        const NDBCOL * cols[NDB_MAX_ATTRIBUTES_IN_INDEX + 1];
+        for (unsigned j= 0; j < fk.getParentColumnCount(); j++)
+        {
+          unsigned no= fk.getParentColumnNo(j);
+          cols[j]= dsttab.get_table()->getColumn(no);
+        }
+        cols[fk.getParentColumnCount()]= 0;
+        parentObjectId= dsttab.get_table()->getObjectId();
+        if (fk.getParentIndex() != 0)
+        {
+          name = fk_split_name(db_and_name, fk.getParentIndex(), true);
+          const NDBINDEX * idx = dict->getIndexGlobal(name,*dsttab.get_table());
+          if (idx == 0)
+          {
+            printf("%u %s - %u/%u get_index(%s)\n",
+                   __LINE__, fk.getName(),
+                   parentObjectId,
+                   childObjectId,
+                   name); fflush(stdout);
+            ERR_RETURN(dict->getNdbError());
+          }
+          fk.setParent(* dsttab.get_table(), idx, cols);
+          dict->removeIndexGlobal(* idx, 0);
+        }
+        else
+        {
+          fk.setParent(* dsttab.get_table(), 0, cols);
+        }
+      }
+      else
+      {
+        name = fk_split_name(db_and_name, fk.getChildTable());
+        assert(strcmp(name, src_tab) == 0 &&
+               strcmp(db_and_name, src_db) == 0);
+        const NDBCOL * cols[NDB_MAX_ATTRIBUTES_IN_INDEX + 1];
+        for (unsigned j= 0; j < fk.getChildColumnCount(); j++)
+        {
+          unsigned no= fk.getChildColumnNo(j);
+          cols[j]= dsttab.get_table()->getColumn(no);
+        }
+        cols[fk.getChildColumnCount()]= 0;
+        childObjectId= dsttab.get_table()->getObjectId();
+        if (fk.getChildIndex() != 0)
+        {
+          name = fk_split_name(db_and_name, fk.getChildIndex(), true);
+          const NDBINDEX * idx = dict->getIndexGlobal(name,*dsttab.get_table());
+          if (idx == 0)
+          {
+            printf("%u %s - %u/%u get_index(%s)\n",
+                   __LINE__, fk.getName(),
+                   parentObjectId,
+                   childObjectId,
+                   name); fflush(stdout);
+            ERR_RETURN(dict->getNdbError());
+          }
+          fk.setChild(* dsttab.get_table(), idx, cols);
+          dict->removeIndexGlobal(* idx, 0);
+        }
+        else
+        {
+          fk.setChild(* dsttab.get_table(), 0, cols);
+        }
+      }
+
+      char new_name[FN_LEN + 1];
+      name= fk_split_name(db_and_name, fk.getName());
+      my_snprintf(new_name, sizeof(new_name), "%u/%u/%s",
+                  parentObjectId,
+                  childObjectId,
+                  name);
+      fk.setName(new_name);
+      if (dict->createForeignKey(fk) != 0)
+      {
+        ERR_RETURN(dict->getNdbError());
+      }
+    }
+  }
+  DBUG_RETURN(0);
 }

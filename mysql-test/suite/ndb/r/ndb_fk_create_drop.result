@@ -10,6 +10,9 @@ b int not null,
 c int not null,
 unique(b) using hash,
 index(c)) engine = ndb;
+alter table child add constraint fk1 foreign key (a) references parent(a);
+alter table child add constraint fk2 foreign key (b) references parent(a);
+alter table child add constraint fk3 foreign key (c) references parent(a);
 show create table child;
 Table	Create Table
 child	CREATE TABLE `child` (
@@ -23,6 +26,9 @@ child	CREATE TABLE `child` (
  CONSTRAINT `fk2` FOREIGN KEY(`b`) REFERENCES `parent` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION,
  CONSTRAINT `fk3` FOREIGN KEY(`c`) REFERENCES `parent` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+alter table child add constraint fk4 foreign key (a) references parent(b);
+alter table child add constraint fk5 foreign key (b) references parent(b);
+alter table child add constraint fk6 foreign key (c) references parent(b);
 show create table child;
 Table	Create Table
 child	CREATE TABLE `child` (
@@ -39,6 +45,9 @@ child	CREATE TABLE `child` (
  CONSTRAINT `fk5` FOREIGN KEY(`b`) REFERENCES `parent` (`b`) ON DELETE NO ACTION ON UPDATE NO ACTION,
  CONSTRAINT `fk6` FOREIGN KEY(`c`) REFERENCES `parent` (`b`) ON DELETE NO ACTION ON UPDATE NO ACTION
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+alter table child add constraint fk7 foreign key (a) references parent(c);
+alter table child add constraint fk8 foreign key (a) references parent(c);
+alter table child add constraint fk9 foreign key (a) references parent(c);
 drop table parent, child;
 create table parent (
 a int primary key,

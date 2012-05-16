@@ -218,7 +218,11 @@ public:
 
 class Alter_drop :public Sql_alloc {
 public:
-  enum drop_type {KEY, COLUMN };
+  enum drop_type {KEY, COLUMN
+#ifndef MCP_WL6244
+                  ,FOREIGN_KEY
+#endif
+  };
   const char *name;
   enum drop_type type;
   Alter_drop(enum drop_type par_type,const char *par_name)
