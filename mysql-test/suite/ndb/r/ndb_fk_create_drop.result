@@ -45,9 +45,15 @@ child	CREATE TABLE `child` (
  CONSTRAINT `fk5` FOREIGN KEY(`b`) REFERENCES `parent` (`b`) ON DELETE NO ACTION ON UPDATE NO ACTION,
  CONSTRAINT `fk6` FOREIGN KEY(`c`) REFERENCES `parent` (`b`) ON DELETE NO ACTION ON UPDATE NO ACTION
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1
-alter table child add constraint fk7 foreign key (a) references parent(c);
-alter table child add constraint fk8 foreign key (a) references parent(c);
-alter table child add constraint fk9 foreign key (a) references parent(c);
+alter offline table child add constraint fk7 foreign key (a) references parent(c);
+alter offline table child add constraint fk8 foreign key (a) references parent(c);
+alter offline table child add constraint fk9 foreign key (a) references parent(c);
+alter online table child add constraint fk7 foreign key (a) references parent(c);
+ERROR HY000: Unknown error 700
+alter online table child add constraint fk8 foreign key (a) references parent(c);
+ERROR HY000: Unknown error 700
+alter online table child add constraint fk9 foreign key (a) references parent(c);
+ERROR HY000: Unknown error 700
 drop table parent, child;
 create table parent (
 a int primary key,

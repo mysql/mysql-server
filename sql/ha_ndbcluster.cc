@@ -832,6 +832,7 @@ static int ndb_to_mysql_error(const NdbError *ndberr)
 
     /* Mapping missing, go with the ndb error code*/
   case -1:
+  case 0:
     error= ndberr->code;
     break;
     /* Mapping exists, go with the mapped code */
@@ -15597,7 +15598,10 @@ HA_ALTER_FLAGS supported_alter_operations()
     HA_ADD_PARTITION |
     HA_ALTER_TABLE_REORG |
     HA_CHANGE_AUTOINCREMENT_VALUE | 
-    HA_ALTER_MAX_ROWS
+    HA_ALTER_MAX_ROWS |
+    HA_ADD_FOREIGN_KEY |
+    HA_DROP_FOREIGN_KEY |
+    HA_ALTER_FOREIGN_KEY
 ;
 }
 
@@ -16152,6 +16156,23 @@ int ha_ndbcluster::alter_table_phase1(THD *thd,
     }
   }
 
+  if (alter_flags->is_set(HA_ALTER_FOREIGN_KEY) ||
+      alter_flags->is_set(HA_ADD_FOREIGN_KEY))
+  {
+    int res= create_fks(thd, ndb, 0);
+    if (res != 0)
+    {
+      const NdbError err= dict->getNdbError();
+#if MYSQL_VERSION_ID < 50501
+      set_ndb_err(thd, err);
+#endif
+      my_errno= error= ndb_to_mysql_error(&err);
+      error= ndb_to_mysql_error(&err);
+      my_error(error, MYF(0), 0);
+      goto abort;
+    }
+  }
+
   DBUG_RETURN(0);
 abort:
   if (dict->endSchemaTrans(NdbDictionary::Dictionary::SchemaTransAbort)
@@ -16248,6 +16269,18 @@ int ha_ndbcluster::alter_table_phase2(THD *thd,
   {
     /* Tell the handler to finally drop the indexes. */
     if ((error= final_drop_index(table)))
+    {
+      print_error(error, MYF(0));
+      goto abort;
+    }
+  }
+
+  if (alter_flags->is_set(HA_DROP_FOREIGN_KEY) ||
+      alter_flags->is_set(HA_ALTER_FOREIGN_KEY))
+  {
+    NDB_ALTER_DATA *alter_data= (NDB_ALTER_DATA *) alter_info->data;
+    const NDBTAB* tab= alter_data->old_table;
+    if ((error= drop_fk_for_online_alter(thd, dict, tab)) != 0)
     {
       print_error(error, MYF(0));
       goto abort;

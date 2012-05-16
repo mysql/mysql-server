@@ -924,3 +924,61 @@ ha_ndbcluster::copy_fk_for_offline_alter(THD * thd, Ndb* ndb, NDBTAB* _dsttab)
   }
   DBUG_RETURN(0);
 }
+
+int
+ha_ndbcluster::drop_fk_for_online_alter(THD * thd, NDBDICT * dict,
+                                        const NDBTAB* tab)
+{
+  DBUG_ENTER("drop_fk_for_online");
+  if (thd->lex == 0)
+  {
+    assert(false);
+    DBUG_RETURN(0);
+  }
+
+  Ndb_table_guard srctab(dict, tab->getName());
+  if (srctab.get_table() == 0)
+  {
+    DBUG_ASSERT(false); // Why ??
+    DBUG_RETURN(0);
+  }
+
+  NDBDICT::List obj_list;
+  dict->listDependentObjects(obj_list, *srctab.get_table());
+
+  Alter_drop * drop_item= 0;
+  List_iterator<Alter_drop> drop_iterator(thd->lex->alter_info.drop_list);
+  while ((drop_item=drop_iterator++))
+  {
+    if (drop_item->type != Alter_drop::FOREIGN_KEY)
+      continue;
+
+    bool found= false;
+    for (unsigned i = 0; i < obj_list.count && !found; i++)
+    {
+      if (obj_list.elements[i].type != NdbDictionary::Object::ForeignKey)
+      {
+        continue;
+      }
+
+      char db_and_name[FN_LEN + 1];
+      const char * name= fk_split_name(db_and_name,obj_list.elements[i].name);
+
+      if (strcmp(drop_item->name, name) == 0)
+      {
+        found= true;
+        NdbDictionary::ForeignKey fk;
+        if (dict->getForeignKey(fk, obj_list.elements[i].name) != 0)
+        {
+          ERR_RETURN(dict->getNdbError());
+        }
+        if (dict->dropForeignKey(fk) != 0)
+        {
+          ERR_RETURN(dict->getNdbError());
+        }
+        break;
+      }
+    }
+  }
+  DBUG_RETURN(0);
+}
