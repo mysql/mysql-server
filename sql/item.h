@@ -2551,6 +2551,8 @@ public:
      WHERE datetime_column NOT IN
      ('2006-04-25 10:00:00','2006-04-25 10:02:00', ...);
 
+  and for SHOW/INFORMATION_SCHEMA purposes (see sql_show.cc)
+
   TS-TODO: Can't we use Item_time_literal, Item_date_literal,
   TS-TODO: and Item_datetime_literal for this purpose?
 */
@@ -2920,19 +2922,6 @@ public:
   {
     max_length= length;
   }
-};
-
-
-class Item_return_date_time :public Item_partition_func_safe_string
-{
-  enum_field_types date_time_field_type;
-public:
-  Item_return_date_time(const char *name_arg, enum_field_types field_type_arg)
-    :Item_partition_func_safe_string(Name_string(name_arg, strlen(name_arg)),
-                                     0, &my_charset_bin),
-     date_time_field_type(field_type_arg)
-  { decimals= 0; }
-  enum_field_types field_type() const { return date_time_field_type; }
 };
 
 
