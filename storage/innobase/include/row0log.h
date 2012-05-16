@@ -83,7 +83,7 @@ row_log_apply(
 /*==========*/
 	trx_t*		trx,	/*!< in: transaction (for checking if
 				the operation was interrupted) */
-	dict_index_t*	index,	/*!< in/out: index */
+	dict_index_t*	index,	/*!< in/out: secondary index */
 	struct TABLE*	table)	/*!< in/out: MySQL table
 				(for reporting duplicates) */
 	__attribute__((nonnull, warn_unused_result));

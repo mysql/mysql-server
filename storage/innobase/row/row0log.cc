@@ -1033,7 +1033,7 @@ row_log_apply(
 /*==========*/
 	trx_t*		trx,	/*!< in: transaction (for checking if
 				the operation was interrupted) */
-	dict_index_t*	index,	/*!< in/out: index */
+	dict_index_t*	index,	/*!< in/out: secondary index */
 	struct TABLE*	table)	/*!< in/out: MySQL table
 				(for reporting duplicates) */
 {
@@ -1045,6 +1045,7 @@ row_log_apply(
 	dup.n_dup = 0;
 
 	ut_ad(dict_index_is_online_ddl(index));
+	ut_ad(!dict_index_is_clust(index));
 
 	log_free_check();
 
