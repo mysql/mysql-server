@@ -28,3 +28,7 @@ insert into t1 values (2);
 select * from t2 left join t1 on (t2.a=t1.a) where t2.a='bbb';
 a	a
 drop table t1,t2;
+CREATE TABLE t1 ( i INT ) ENGINE=Aria
+PARTITION BY HASH(i) PARTITIONS 2;
+ALTER TABLE t1 ADD PARTITION PARTITIONS 2;
+drop table t1;

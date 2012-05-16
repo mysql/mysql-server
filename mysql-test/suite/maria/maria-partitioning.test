@@ -34,6 +34,15 @@ insert into t1 values (2);
 select * from t2 left join t1 on (t2.a=t1.a) where t2.a='bbb';
 drop table t1,t2;
 
+#
+# LP:990187
+# Assertion `share->reopen == 1' failed at maria_extra on ADD PARTITION
+#
+CREATE TABLE t1 ( i INT ) ENGINE=Aria
+  PARTITION BY HASH(i) PARTITIONS 2;
+ALTER TABLE t1 ADD PARTITION PARTITIONS 2;
+drop table t1;
+
 # Set defaults back
 --disable_result_log
 --disable_query_log

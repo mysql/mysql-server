@@ -2312,6 +2312,7 @@ bool rename_temporary_table(THD* thd, TABLE *table, const char *db,
    @param function HA_EXTRA_PREPARE_FOR_DROP if table is to be deleted
                    HA_EXTRA_FORCE_REOPEN if table is not be used
                    HA_EXTRA_PREPARE_FOR_RENAME if table is to be renamed
+                   HA_EXTRA_NORMAL             Don't call extra()
 
    @note When returning, the table will be unusable for other threads
          until metadata lock is downgraded.
@@ -2336,7 +2337,8 @@ bool wait_while_table_is_used(THD *thd, TABLE *table,
                    table->s->db.str, table->s->table_name.str,
                    FALSE);
   /* extra() call must come only after all instances above are closed */
-  (void) table->file->extra(function);
+  if (function != HA_EXTRA_NORMAL)
+    (void) table->file->extra(function);
   DBUG_RETURN(FALSE);
 }
 
@@ -9240,6 +9242,7 @@ void tdc_remove_table(THD *thd, enum_tdc_remove_table_type remove_type,
   uint key_length;
   TABLE *table;
   TABLE_SHARE *share;
+  DBUG_ENTER("tdc_remove_table");
 
   if (! has_lock)
     mysql_mutex_lock(&LOCK_open);
@@ -9297,6 +9300,7 @@ void tdc_remove_table(THD *thd, enum_tdc_remove_table_type remove_type,
 
   if (! has_lock)
     mysql_mutex_unlock(&LOCK_open);
+  DBUG_VOID_RETURN;
 }
 
 
