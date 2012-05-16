@@ -1989,31 +1989,6 @@ select bug2772()|
 bug2772()
 a
 drop function bug2772|
-drop procedure if exists bug2776_1|
-create procedure bug2776_1(out x int)
-begin
-declare v int;
-set v = default;
-set x = v;
-end|
-drop procedure if exists bug2776_2|
-create procedure bug2776_2(out x int)
-begin
-declare v int default 42;
-set v = default;
-set x = v;
-end|
-set @x = 1|
-call bug2776_1(@x)|
-select @x|
-@x
-NULL
-call bug2776_2(@x)|
-select @x|
-@x
-42
-drop procedure bug2776_1|
-drop procedure bug2776_2|
 create table t3 (s1 smallint)|
 insert into t3 values (123456789012)|
 Warnings:
@@ -7720,4 +7695,58 @@ DROP FUNCTION f2;
 DROP FUNCTION f3;
 DROP FUNCTION f4;
 #
+#
+# WL#6230: Remove 'SET = DEFAULT'
+#
+CREATE TABLE t1(a INT);
+CREATE PROCEDURE p(p INT)
+SET p = DEFAULT|
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '' at line 2
+CREATE PROCEDURE p()
+BEGIN
+DECLARE v INT;
+SET v = DEFAULT;
+END|
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ';
+END' at line 4
+CREATE PROCEDURE p()
+BEGIN
+DECLARE v INT DEFAULT 1;
+SET v = DEFAULT;
+END|
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ';
+END' at line 4
+CREATE PROCEDURE p()
+BEGIN
+DECLARE v INT DEFAULT (SELECT * FROM t1);
+SET v = DEFAULT;
+END|
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ';
+END' at line 4
+CREATE TRIGGER t1_bu BEFORE UPDATE ON t1 FOR EACH ROW
+BEGIN
+SET NEW.a = DEFAULT;
+END|
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ';
+END' at line 3
+
+# Check that setting system variables to DEFAULT still works in SP.
+
+CREATE PROCEDURE p1()
+SET @@default_storage_engine = DEFAULT;
+SET @default_storage_engine_saved = @@default_storage_engine;
+SELECT @@default_storage_engine;
+@@default_storage_engine
+MyISAM
+SET @@default_storage_engine = InnoDB;
+SELECT @@default_storage_engine;
+@@default_storage_engine
+InnoDB
+CALL p1();
+SELECT @@default_storage_engine;
+@@default_storage_engine
+MyISAM
+SET @@default_storage_engine = @default_storage_engine_saved;
+DROP PROCEDURE p1;
+DROP TABLE t1;
 # End of 5.6 tests

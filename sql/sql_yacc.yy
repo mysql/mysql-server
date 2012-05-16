@@ -14309,13 +14309,9 @@ option_value_no_option_type:
               {
                 // This is: SET NEW.x = DEFAULT
                 // DEFAULT clause is not supported in triggers.
-                // Use NULL instead.
-                // See also WL#6230.
 
-                $4= new Item_null();
-
-                if (!$4)
-                  MYSQL_YYABORT;
+                my_parse_error(ER(ER_SYNTAX_ERROR));
+                MYSQL_YYABORT;
               }
               else if (lex->is_metadata_used())
               {
@@ -14349,10 +14345,11 @@ option_value_no_option_type:
 
               if (!$4)
               {
-                // This is: SET x = DEFAULT
-                // See also WL#6230.
+                // This is: SET x = DEFAULT, where x is a SP-variable.
+                // This is not supported.
 
-                $4= spv->default_value;
+                my_parse_error(ER(ER_SYNTAX_ERROR));
+                MYSQL_YYABORT;
               }
               else if (lex->is_metadata_used())
               {
