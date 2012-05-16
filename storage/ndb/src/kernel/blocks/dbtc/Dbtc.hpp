@@ -38,6 +38,7 @@
 #include <signaldata/EventReport.hpp>
 #include <trigger_definitions.h>
 #include <SignalCounter.hpp>
+#include <KeyTable.hpp>
 #endif
 
 #ifdef DBTC_C
@@ -366,6 +367,7 @@ public:
     union {
       Uint32 indexId; // For unique index trigger
       Uint32 tableId; // For reorg trigger
+      Uint32 fkId;    // For FK trigger
     };
 
     /**
@@ -633,6 +635,50 @@ public:
   ArrayPool<TcIndexOperation> c_theIndexOperationPool;
 
   UintR c_maxNumberOfIndexOperations;   
+
+  struct TcFKData {
+    TcFKData() {}
+
+    Uint32 m_magic;
+
+    union {
+      Uint32 key;
+      Uint32 fkId;
+    };
+
+    /**
+     * Columns used in parent table
+     */
+    IndexAttributeList parentTableColumns;
+
+    /**
+     * Columns used in child table
+     */
+    IndexAttributeList childTableColumns;
+
+    Uint32 parentTableId; // could be unique index table...
+    Uint32 childTableId;  //
+    Uint32 childIndexId;  // (could be tableId too)
+    Uint32 bits;          // CreateFKImplReq::Bits
+
+    Uint32 nextPool;
+    Uint32 nextHash;
+    Uint32 prevHash;
+
+    Uint32 hashValue() const {
+      return key;
+    }
+
+    bool equal(const TcFKData& obj) const {
+      return key == obj.key;
+    }
+  };
+
+  typedef RecordPool<TcFKData, RWPool> FK_pool;
+  typedef KeyTableImpl<FK_pool, TcFKData> FK_hash;
+
+  FK_pool c_fk_pool;
+  FK_hash c_fk_hash;
 
   /************************** API CONNECT RECORD ***********************
    * The API connect record contains the connection record to which the
