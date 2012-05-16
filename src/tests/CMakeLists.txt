@@ -433,10 +433,10 @@ if(BUILD_TESTING)
     add_drd_test(drd_tiny_${test} $<TARGET_FILE:tiny_${test}> --num_seconds 5 --num_elements 150)
     add_custom_executable(mid ${test} ${src})
     add_drd_test(drd_mid_${test} ${CMAKE_CFG_INTDIR}/run_stress_test.sh $<TARGET_FILE:mid_${test}> 10000 100)
-    set_tests_properties(drd_mid_${test} PROPERTIES TIMEOUT 3600)
+    set_tests_properties(drd_mid_${test} PROPERTIES TIMEOUT 7200)
     add_custom_executable(large ${test} ${src})
     add_drd_test(drd_large_${test} ${CMAKE_CFG_INTDIR}/run_stress_test.sh $<TARGET_FILE:large_${test}> 150000 1000)
-    set_tests_properties(drd_large_${test} PROPERTIES TIMEOUT 7200)
+    set_tests_properties(drd_large_${test} PROPERTIES TIMEOUT 14400)
   endforeach(src)
 
   ## for some reason this rule doesn't run with the makefile and it crashes with this rule, so I'm disabling this special case
@@ -611,7 +611,6 @@ if(BUILD_TESTING)
     test_txn_nested5.tdb
     recovery_fileops_stress.tdb
     recovery_fileops_unit.tdb
-    hotindexer-with-queries.tdb
     )
   if (BDB_FOUND)
     list(APPEND long_tests
@@ -627,13 +626,18 @@ if(BUILD_TESTING)
   set_tests_properties(${long_tests} PROPERTIES TIMEOUT 3600)
   ## some take even longer, with valgrind
   set(extra_long_tests
-    checkpoint_stress.tdb
-    recover_stress.tdb
     drd_test_4015.tdb
     test3039.tdb
     loader-dup-test0.tdb
     loader-stress-del.p.loader
     loader-stress-del.nop.loader
+    hotindexer-with-queries.tdb
     )
   set_tests_properties(${extra_long_tests} PROPERTIES TIMEOUT 7200)
+  ## these really take a long time with valgrind
+  set(phenomenally_long_tests
+    checkpoint_stress.tdb
+    recover_stress.tdb
+    )
+  set_tests_properties(${phenomenally_long_tests} PROPERTIES TIMEOUT 14400)
 endif(BUILD_TESTING)
