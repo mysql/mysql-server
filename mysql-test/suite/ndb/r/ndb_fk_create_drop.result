@@ -1,0 +1,13 @@
+create table parent (
+a int primary key,
+b int not null,
+c int not null,
+unique(b) using hash,
+index(c)) engine = ndb;
+create table child (
+a int primary key,
+b int not null,
+c int not null,
+unique(b) using hash,
+index(c)) engine = ndb;
+drop table parent, child;
