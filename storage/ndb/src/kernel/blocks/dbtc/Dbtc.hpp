@@ -927,7 +927,6 @@ public:
     enum SpecialOpFlags {
       SOF_NORMAL = 0,
       SOF_INDEX_TABLE_READ = 1,       // Read index table
-      SOF_INDEX_BASE_TABLE_ACCESS = 2,// Execute on "real" table
       SOF_REORG_TRIGGER_BASE = 4,
       SOF_REORG_TRIGGER = 4 | 16,     // A reorg trigger
       SOF_REORG_MOVING = 8,           // A record that should be moved
@@ -940,9 +939,7 @@ public:
     };
     
     static inline bool isIndexOp(Uint16 flags) {
-      return
-        flags == SOF_INDEX_TABLE_READ ||
-        flags == SOF_INDEX_BASE_TABLE_ACCESS;
+      return (flags & SOF_INDEX_TABLE_READ) != 0;
     }
 
     //---------------------------------------------------
@@ -1641,7 +1638,8 @@ private:
   bool receivedAllTRANSID_AI(TcIndexOperation* indexOp);
   void readIndexTable(Signal* signal, 
 		      ApiConnectRecord* regApiPtr,
-		      TcIndexOperation* indexOp);
+		      TcIndexOperation* indexOp,
+                      Uint32 special_op_flags);
   void executeIndexOperation(Signal* signal, 
 			     ApiConnectRecord* regApiPtr,
 			     TcIndexOperation* indexOp);
@@ -1729,6 +1727,8 @@ private:
                          TcFKData* fkData,
                          bool parent);
 
+  void fk_execTCINDXREQ(Signal*, ApiConnectRecordPtr, TcConnectRecordPtr,
+                        Uint32 operation);
   void fk_scanFromChildTable(Signal* signal,
                              TcFiredTriggerData* firedTriggerData,
                              ApiConnectRecordPtr* transPtr,

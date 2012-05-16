@@ -50,11 +50,10 @@ insert into child values (3,3,3);
 --error 1452
 update child set b = 3 where a = 1;
 
-# NOT IMPLEMENTED YET
-# begin;
-# delete from parent where a = 1;
-# select * from child order by 1,2,3;
-# commit;
+begin;
+delete from parent where a = 1;
+select * from child order by 1,2,3;
+commit;
 
 delete from child;
 delete from parent;
@@ -102,11 +101,10 @@ insert into child values (3,3,3);
 --error 1451
 update parent set b = 3 where a = 1;
 
-# NOT IMPLEMENTED YET
-#begin;
-#delete from parent where a = 1;
-#select * from child order by 1,2,3;
-#commit;
+begin;
+delete from parent where a = 1;
+select * from child order by 1,2,3;
+commit;
 
 delete from child;
 delete from parent;

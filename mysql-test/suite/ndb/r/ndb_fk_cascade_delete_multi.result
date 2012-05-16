@@ -57,3 +57,52 @@ id	name	manager
 12	wille	8
 alter table emp drop foreign key fkname;
 drop table emp;
+create table tree (
+id int primary key,
+value varchar(256) not null,
+parent int null,
+left_child int null,
+right_child int null,
+index (parent),
+unique (left_child),
+unique (right_child)) engine = ndb;
+insert into tree values (0, '3-root',  null, 1,2);
+insert into tree values (1, '1-inner',    0, 3,4);
+insert into tree values (2, '5-inner',    0, 5,6);
+insert into tree values (3, '0-leaf',     1, null, null);
+insert into tree values (4, '2-leaf',     1, null, null);
+insert into tree values (5, '4-leaf',     2, null, null);
+insert into tree values (6, '6-leaf',     2, null, null);
+select * from tree order by 1;
+id	value	parent	left_child	right_child
+0	3-root	NULL	1	2
+1	1-inner	0	3	4
+2	5-inner	0	5	6
+3	0-leaf	1	NULL	NULL
+4	2-leaf	1	NULL	NULL
+5	4-leaf	2	NULL	NULL
+6	6-leaf	2	NULL	NULL
+begin;
+delete from tree where value = '5-inner';
+select * from tree order by 1;
+id	value	parent	left_child	right_child
+0	3-root	NULL	1	2
+1	1-inner	0	3	4
+3	0-leaf	1	NULL	NULL
+4	2-leaf	1	NULL	NULL
+rollback;
+begin;
+delete from tree where value = '4-leaf';
+select * from tree order by 1;
+id	value	parent	left_child	right_child
+0	3-root	NULL	1	2
+1	1-inner	0	3	4
+3	0-leaf	1	NULL	NULL
+4	2-leaf	1	NULL	NULL
+rollback;
+begin;
+delete from tree where value = '3-root';
+select * from tree order by 1;
+id	value	parent	left_child	right_child
+commit;
+drop table tree;
