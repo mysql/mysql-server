@@ -78,6 +78,10 @@ row_undo_ins_remove_clust_rec(
 					    &mtr);
 	ut_a(success);
 
+	ut_ad(rec_get_trx_id(btr_pcur_get_rec(&node->pcur),
+			     node->pcur.btr_cur.index)
+	      == node->trx->id);
+
 	if (node->table->id == DICT_INDEXES_ID) {
 		ut_ad(node->trx->dict_operation_lock_mode == RW_X_LATCH);
 

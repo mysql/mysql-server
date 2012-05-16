@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2012, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -29,6 +29,7 @@ Created 5/30/1994 Heikki Tuuri
 #include "rem0rec.ic"
 #endif
 
+#include "page0page.h"
 #include "mtr0mtr.h"
 #include "mtr0log.h"
 #include "fts0fts.h"
@@ -1792,4 +1793,50 @@ rec_print(
 		}
 	}
 }
+
+# ifdef UNIV_DEBUG
+/************************************************************//**
+Reads the DB_TRX_ID of a clustered index record.
+@return	the value of DB_TRX_ID */
+UNIV_INTERN
+trx_id_t
+rec_get_trx_id(
+/*===========*/
+	const rec_t*		rec,	/*!< in: record */
+	const dict_index_t*	index)	/*!< in: clustered index */
+{
+	const page_t*	page
+		= page_align(rec);
+	ulint		trx_id_col
+		= dict_index_get_sys_col_pos(index, DATA_TRX_ID);
+	const byte*	trx_id;
+	ulint		len;
+	mem_heap_t*	heap		= NULL;
+	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
+	ulint*		offsets		= offsets_;
+	rec_offs_init(offsets_);
+
+	ut_ad(fil_page_get_type(page) == FIL_PAGE_INDEX);
+	ut_ad(mach_read_from_8(page + PAGE_HEADER + PAGE_INDEX_ID)
+	      == index->id);
+	ut_ad(dict_index_is_clust(index));
+	ut_ad(trx_id_col > 0);
+	ut_ad(trx_id_col != ULINT_UNDEFINED);
+
+	offsets = rec_get_offsets(rec, index, offsets, trx_id_col + 1, &heap);
+
+	trx_id = rec_get_nth_field(rec, offsets, trx_id_col, &len);
+
+	ut_ad(len == DATA_TRX_ID_LEN);
+#  if DATA_TRX_ID_LEN != 6
+#   error
+#  endif
+
+	if (heap) {
+		mem_heap_free(heap);
+	}
+
+	return(mach_read_from_6(trx_id));
+}
+# endif /* UNIV_DEBUG */
 #endif /* !UNIV_HOTBACKUP */

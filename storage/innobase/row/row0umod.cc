@@ -128,6 +128,10 @@ row_undo_mod_clust_low(
 
 	ut_ad(success);
 
+	ut_ad(rec_get_trx_id(btr_cur_get_rec(btr_cur),
+			     btr_cur_get_index(btr_cur))
+	      == thr_get_trx(thr)->id);
+
 	if (mode == BTR_MODIFY_LEAF) {
 
 		err = btr_cur_optimistic_update(BTR_NO_LOCKING_FLAG
@@ -189,6 +193,17 @@ row_undo_mod_remove_clust_low(
 	}
 
 	btr_cur = btr_pcur_get_btr_cur(&node->pcur);
+
+	ut_ad(rec_get_trx_id(btr_cur_get_rec(btr_cur),
+			     btr_cur_get_index(btr_cur))
+	      == thr_get_trx(thr)->id
+	      /* TODO: why is the below needed?
+	      innodb.innodb-index innodb.innodb_16k fails otherwise */
+	      || thr_get_trx(thr)->dict_operation == TRX_DICT_OP_TABLE);
+	ut_ad(!rec_get_deleted_flag(btr_cur_get_rec(btr_cur),
+				    dict_table_is_comp(node->table))
+	      /* TODO: remove the below */
+	      || thr_get_trx(thr)->dict_operation == TRX_DICT_OP_TABLE);
 
 	if (mode == BTR_MODIFY_LEAF) {
 		err = btr_cur_optimistic_delete(btr_cur, 0, mtr)

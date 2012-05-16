@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2012, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -420,8 +420,9 @@ rec_offs_make_valid(
 /*================*/
 	const rec_t*		rec,	/*!< in: record */
 	const dict_index_t*	index,	/*!< in: record descriptor */
-	ulint*			offsets);/*!< in: array returned by
+	ulint*			offsets)/*!< in: array returned by
 					rec_get_offsets() */
+	__attribute__((nonnull));
 #else
 # define rec_offs_make_valid(rec, index, offsets) ((void) 0)
 #endif /* UNIV_DEBUG */
@@ -836,6 +837,19 @@ rec_print(
 	FILE*			file,	/*!< in: file where to print */
 	const rec_t*		rec,	/*!< in: physical record */
 	const dict_index_t*	index);	/*!< in: record descriptor */
+
+# ifdef UNIV_DEBUG
+/************************************************************//**
+Reads the DB_TRX_ID of a clustered index record.
+@return	the value of DB_TRX_ID */
+UNIV_INTERN
+trx_id_t
+rec_get_trx_id(
+/*===========*/
+	const rec_t*		rec,	/*!< in: record */
+	const dict_index_t*	index)	/*!< in: clustered index */
+	__attribute__((nonnull, warn_unused_result));
+# endif /* UNIV_DEBUG */
 #endif /* UNIV_HOTBACKUP */
 
 /* Maximum lengths for the data in a physical record if the offsets
