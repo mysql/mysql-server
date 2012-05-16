@@ -6894,7 +6894,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
   close_all_tables_for_name(thd, table->s,
                             new_name != table_name || new_db != db ?
                             HA_EXTRA_PREPARE_FOR_RENAME :
-                            HA_EXTRA_NORMAL);
+                            HA_EXTRA_NOT_USED);
 
   error=0;
   table_list->table= table= 0;                  /* Safety */

@@ -6270,7 +6270,7 @@ static void alter_partition_lock_handling(ALTER_PARTITION_PARAM_TYPE *lpt)
   THD *thd= lpt->thd;
 
   if (lpt->old_table)
-    close_all_tables_for_name(thd, lpt->old_table->s, HA_EXTRA_NORMAL);
+    close_all_tables_for_name(thd, lpt->old_table->s, HA_EXTRA_NOT_USED);
   if (lpt->table)
   {
     /*
@@ -6307,7 +6307,7 @@ static int alter_close_tables(ALTER_PARTITION_PARAM_TYPE *lpt, bool close_old)
   }
   if (close_old && lpt->old_table)
   {
-    close_all_tables_for_name(lpt->thd, lpt->old_table->s, HA_EXTRA_NORMAL);
+    close_all_tables_for_name(lpt->thd, lpt->old_table->s, HA_EXTRA_NOT_USED);
     lpt->old_table= 0;
   }
   DBUG_RETURN(0);
@@ -6640,7 +6640,7 @@ uint fast_alter_partition_table(THD *thd, TABLE *table,
         mysql_write_frm(lpt, WFRM_WRITE_SHADOW) ||
         ERROR_INJECT_CRASH("crash_drop_partition_2") ||
         ERROR_INJECT_ERROR("fail_drop_partition_2") ||
-        wait_while_table_is_used(thd, table, HA_EXTRA_NORMAL) ||
+        wait_while_table_is_used(thd, table, HA_EXTRA_NOT_USED) ||
         ERROR_INJECT_CRASH("crash_drop_partition_3") ||
         ERROR_INJECT_ERROR("fail_drop_partition_3") ||
         (close_table_on_failure= TRUE, FALSE) ||
@@ -6714,7 +6714,7 @@ uint fast_alter_partition_table(THD *thd, TABLE *table,
         mysql_write_frm(lpt, WFRM_WRITE_SHADOW) ||
         ERROR_INJECT_CRASH("crash_add_partition_2") ||
         ERROR_INJECT_ERROR("fail_add_partition_2") ||
-        wait_while_table_is_used(thd, table, HA_EXTRA_NORMAL) ||
+        wait_while_table_is_used(thd, table, HA_EXTRA_NOT_USED) ||
         ERROR_INJECT_CRASH("crash_add_partition_3") ||
         ERROR_INJECT_ERROR("fail_add_partition_3") ||
         (close_table_on_failure= TRUE, FALSE) ||
@@ -6820,7 +6820,7 @@ uint fast_alter_partition_table(THD *thd, TABLE *table,
         mysql_change_partitions(lpt) ||
         ERROR_INJECT_CRASH("crash_change_partition_4") ||
         ERROR_INJECT_ERROR("fail_change_partition_4") ||
-        wait_while_table_is_used(thd, table, HA_EXTRA_NORMAL) ||
+        wait_while_table_is_used(thd, table, HA_EXTRA_NOT_USED) ||
         ERROR_INJECT_CRASH("crash_change_partition_5") ||
         ERROR_INJECT_ERROR("fail_change_partition_5") ||
         write_log_final_change_partition(lpt) ||

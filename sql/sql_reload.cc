@@ -243,9 +243,9 @@ bool reload_acl_and_cache(THD *thd, unsigned long options,
         {
           /*
             It is not safe to upgrade the metadata lock without GLOBAL IX lock.
-            This can happen with FLUSH TABLES <list> WITH READ LOCK as we in these
-            cases don't take a GLOBAL IX lock in order to be compatible with
-            global read lock.
+            This can happen with FLUSH TABLES <list> WITH READ LOCK as we in
+            these cases don't take a GLOBAL IX lock in order to be compatible
+            with global read lock.
           */
           if (thd->open_tables &&
               !thd->mdl_context.is_lock_owner(MDL_key::GLOBAL, "", "",

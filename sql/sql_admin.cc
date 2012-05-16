@@ -80,6 +80,7 @@ static int prepare_for_repair(THD *thd, TABLE_LIST *table_list,
 {
   int error= 0;
   TABLE tmp_table, *table;
+  TABLE_LIST *pos_in_locked_tables= 0;
   TABLE_SHARE *share;
   bool has_mdl_lock= FALSE;
   char from[FN_REFLEN],tmp[FN_REFLEN+32];
@@ -194,9 +195,13 @@ static int prepare_for_repair(THD *thd, TABLE_LIST *table_list,
       Table was successfully open in mysql_admin_table(). Now we need
       to close it, but leave it protected by exclusive metadata lock.
     */
-    if (wait_while_table_is_used(thd, table, HA_EXTRA_FORCE_REOPEN))
+    pos_in_locked_tables= table->pos_in_locked_tables;
+    if (wait_while_table_is_used(thd, table,
+                                 HA_EXTRA_PREPARE_FOR_FORCED_CLOSE))
       goto end;
-    close_all_tables_for_name(thd, table_list->table->s, HA_EXTRA_NORMAL);
+    /* Close table but don't remove from locked list */
+    close_all_tables_for_name(thd, table_list->table->s,
+                              HA_EXTRA_NOT_USED);
     table_list->table= 0;
   }
   /*
@@ -230,18 +235,25 @@ static int prepare_for_repair(THD *thd, TABLE_LIST *table_list,
     goto end;
   }
 
-  if (thd->locked_tables_list.reopen_tables(thd))
-    goto end;
-
-  /*
-    Now we should be able to open the partially repaired table
-    to finish the repair in the handler later on.
-  */
-  if (open_table(thd, table_list, thd->mem_root, &ot_ctx))
+  if (thd->locked_tables_list.locked_tables())
   {
-    error= send_check_errmsg(thd, table_list, "repair",
-                             "Failed to open partially repaired table");
-    goto end;
+    if (thd->locked_tables_list.reopen_tables(thd))
+      goto end;
+    /* Restore the table in the table list with the new opened table */
+    table_list->table= pos_in_locked_tables->table;
+  }
+  else
+  {
+    /*
+      Now we should be able to open the partially repaired table
+      to finish the repair in the handler later on.
+    */
+    if (open_table(thd, table_list, thd->mem_root, &ot_ctx))
+    {
+      error= send_check_errmsg(thd, table_list, "repair",
+                               "Failed to open partially repaired table");
+      goto end;
+    }
   }
 
 end:

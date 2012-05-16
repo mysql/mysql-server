@@ -1097,7 +1097,7 @@ bool close_cached_tables(THD *thd, TABLE_LIST *tables,
     TABLE_LIST *tables_to_reopen= (tables ? tables :
                                   thd->locked_tables_list.locked_tables());
 
-    /* Close open HANLER instances to avoid self-deadlock. */
+    /* Close open HANDLER instances to avoid self-deadlock. */
     mysql_ha_flush_tables(thd, tables_to_reopen);
 
     for (TABLE_LIST *table_list= tables_to_reopen; table_list;
@@ -1111,12 +1111,13 @@ bool close_cached_tables(THD *thd, TABLE_LIST *tables,
       if (! table)
         continue;
 
-      if (wait_while_table_is_used(thd, table, HA_EXTRA_FORCE_REOPEN))
+      if (wait_while_table_is_used(thd, table,
+                                   HA_EXTRA_PREPARE_FOR_FORCED_CLOSE))
       {
         result= TRUE;
         goto err_with_reopen;
       }
-      close_all_tables_for_name(thd, table->s, HA_EXTRA_NORMAL);
+      close_all_tables_for_name(thd, table->s, HA_EXTRA_NOT_USED);
     }
   }
 
@@ -1382,9 +1383,11 @@ static void close_open_tables(THD *thd)
   @param[in] share   table share, but is just a handy way to
                      access the table cache key
 
-  @param[in] remove_from_locked_tables
-                     TRUE if the table is being dropped or renamed.
-                     In that case the documented behaviour is to
+  @param[in] extra
+                     HA_EXTRA_PREPRE_FOR_DROP if the table is being dropped
+                     HA_EXTRA_PREPARE_FOR_REANME if the table is being renamed
+                     HA_EXTRA_NOT_USED           no drop/rename
+                     In case of drop/reanme the documented behaviour is to
                      implicitly remove the table from LOCK TABLES
                      list.
 
@@ -1412,10 +1415,13 @@ close_all_tables_for_name(THD *thd, TABLE_SHARE *share,
     {
       thd->locked_tables_list.unlink_from_list(thd,
                                                table->pos_in_locked_tables,
-                                               extra != HA_EXTRA_NORMAL);
-      /* Inform handler that there is a drop table or rename going on */
-      if (extra != HA_EXTRA_NORMAL && table->db_stat)
+                                               extra != HA_EXTRA_NOT_USED);
+      /* Inform handler that there is a drop table or a rename going on */
+      if (extra != HA_EXTRA_NOT_USED && table->db_stat)
+      {
         table->file->extra(extra);
+        extra= HA_EXTRA_NOT_USED;               // Call extra once!
+      }
 
       /*
         Does nothing if the table is not locked.
@@ -2312,7 +2318,7 @@ bool rename_temporary_table(THD* thd, TABLE *table, const char *db,
    @param function HA_EXTRA_PREPARE_FOR_DROP if table is to be deleted
                    HA_EXTRA_FORCE_REOPEN if table is not be used
                    HA_EXTRA_PREPARE_FOR_RENAME if table is to be renamed
-                   HA_EXTRA_NORMAL             Don't call extra()
+                   HA_EXTRA_NOT_USED             Don't call extra()
 
    @note When returning, the table will be unusable for other threads
          until metadata lock is downgraded.
@@ -2337,7 +2343,7 @@ bool wait_while_table_is_used(THD *thd, TABLE *table,
                    table->s->db.str, table->s->table_name.str,
                    FALSE);
   /* extra() call must come only after all instances above are closed */
-  if (function != HA_EXTRA_NORMAL)
+  if (function != HA_EXTRA_NOT_USED)
     (void) table->file->extra(function);
   DBUG_RETURN(FALSE);
 }
@@ -3386,7 +3392,6 @@ Locked_tables_list::init_locked_tables(THD *thd)
 
 void
 Locked_tables_list::unlock_locked_tables(THD *thd)
-
 {
   if (thd)
   {
@@ -3408,7 +3413,8 @@ Locked_tables_list::unlock_locked_tables(THD *thd)
         Clear the position in the list, the TABLE object will be
         returned to the table cache.
       */
-      table_list->table->pos_in_locked_tables= NULL;
+      if (table_list->table)                    // If not closed
+        table_list->table->pos_in_locked_tables= NULL;
     }
     thd->leave_locked_tables_mode();
 
