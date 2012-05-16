@@ -50,6 +50,7 @@
 #include "lex_symbol.h"
 #include "item_create.h"
 #include "sp_head.h"
+#include "sp_instr.h"
 #include "sp_pcontext.h"
 #include "sp_rcontext.h"
 #include "sp.h"
