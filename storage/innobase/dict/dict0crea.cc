@@ -653,7 +653,6 @@ dict_create_index_tree_step(
 	dtuple_t*	search_tuple;
 	btr_pcur_t	pcur;
 	mtr_t		mtr;
-	dberr_t		err	= DB_SUCCESS;
 
 	ut_ad(mutex_own(&(dict_sys->mutex)));
 
@@ -680,9 +679,9 @@ dict_create_index_tree_step(
 
 	btr_pcur_move_to_next_user_rec(&pcur, &mtr);
 
-	zip_size = dict_table_zip_size(index->table);
 
 	dberr_t		err = DB_SUCCESS;
+	ulint		zip_size = dict_table_zip_size(index->table);
 
 	if (node->index->table->ibd_file_missing
 	    || dict_table_is_discarded(node->index->table)) {
