@@ -6451,6 +6451,16 @@ void Dbtc::execLQHKEYREF(Signal* signal)
           if (errCode == ZNOT_FOUND)
           {
             jam();
+            if (regTcPtr->isIndexOp(regTcPtr->m_special_op_flags))
+            {
+              jam();
+              /**
+               * execTCINDXREQ adds an extra regApiPtr->lqhkeyreqrec++
+               *   undo this...
+               */
+              ndbassert(regApiPtr->lqhkeyreqrec > 0);
+              regApiPtr->lqhkeyreqrec--;
+            }
             goto do_ignore;
           }
           else
@@ -14520,7 +14530,7 @@ void Dbtc::execTCINDXREQ(Signal* signal)
     handle.clear();
 
     /* All data received, process */
-    readIndexTable(signal, regApiPtr, indexOp);
+    readIndexTable(signal, regApiPtr, indexOp, 0);
     return;
   }
   else
@@ -14547,7 +14557,7 @@ void Dbtc::execTCINDXREQ(Signal* signal)
     {
       jam();
       /* All KI + no AI received, process */
-      readIndexTable(signal, regApiPtr, indexOp);
+      readIndexTable(signal, regApiPtr, indexOp, 0);
       return;
     }
     else if (ret == -1)
@@ -14564,7 +14574,7 @@ void Dbtc::execTCINDXREQ(Signal* signal)
                          includedAttrLength) == 0) {
       jam();
       /* All KI and AI received, process */
-      readIndexTable(signal, regApiPtr, indexOp);
+      readIndexTable(signal, regApiPtr, indexOp, 0);
       return;
     }
   }
@@ -14613,7 +14623,7 @@ void Dbtc::execINDXKEYINFO(Signal* signal)
 			keyInfoLength) == 0) {
       jam();
       /* All KI + AI received, process */
-      readIndexTable(signal, regApiPtr, indexOp);
+      readIndexTable(signal, regApiPtr, indexOp, 0);
     }
   }
 }
@@ -14661,7 +14671,7 @@ void Dbtc::execINDXATTRINFO(Signal* signal)
 			 attrInfoLength) == 0) {
       jam();
       /* All KI + AI received, process */
-      readIndexTable(signal, regApiPtr, indexOp);
+      readIndexTable(signal, regApiPtr, indexOp, 0);
       return;
     }
     return;
@@ -15245,7 +15255,8 @@ void Dbtc::execTCROLLBACKREP(Signal* signal)
  */
 void Dbtc::readIndexTable(Signal* signal, 
 			  ApiConnectRecord* regApiPtr,
-			  TcIndexOperation* indexOp) 
+			  TcIndexOperation* indexOp,
+                          Uint32 special_op_flags)
 {
   TcKeyReq * const tcKeyReq = (TcKeyReq *)signal->getDataPtrSend();
   Uint32 tcKeyRequestInfo = indexOp->tcIndxReq.requestInfo; 
@@ -15285,7 +15296,8 @@ void Dbtc::readIndexTable(Signal* signal,
   indexOp->indexOpState = IOS_INDEX_ACCESS;
   regApiPtr->executingIndexOp = regApiPtr->accumulatingIndexOp;
   regApiPtr->accumulatingIndexOp = RNIL;
-  regApiPtr->m_special_op_flags = TcConnectRecord::SOF_INDEX_TABLE_READ;
+  regApiPtr->m_special_op_flags =
+    TcConnectRecord::SOF_INDEX_TABLE_READ | special_op_flags;
 
   if (ERROR_INSERTED(8037))
   {
@@ -15479,6 +15491,8 @@ void Dbtc::executeIndexOperation(Signal* signal,
   tmp.i = indexOp->indexReadTcConnect;
   ptrCheckGuard(tmp, ctcConnectFilesize, tcConnectRecord);
   const Uint32 currSavePointId = regApiPtr->currSavePointId;
+  const Uint32 triggeringOp = tmp.p->triggeringOperation;
+  const Uint32 triggerId = tmp.p->currentTriggerId;
   regApiPtr->currSavePointId = tmp.p->savePointId;
 
 #ifdef ERROR_INSERT
@@ -15488,6 +15502,19 @@ void Dbtc::executeIndexOperation(Signal* signal,
     CLEAR_ERROR_INSERT_VALUE;
   }
 #endif
+
+  if (triggeringOp != RNIL)
+  {
+    jam();
+    /**
+     * Carry forward info that this was caused by trigger
+     *   (used by FK)
+     */
+    ndbassert(triggerId != RNIL);
+    ndbassert(tcIndxReq->senderData == triggeringOp);
+    regApiPtr->m_special_op_flags = TcConnectRecord::SOF_TRIGGER;
+    regApiPtr->immediateTriggerId = triggerId;
+  }
 
   /* Execute TCKEYREQ now - it is now responsible for freeing
    * the KeyInfo and AttrInfo sections 
@@ -15510,7 +15537,7 @@ void Dbtc::executeIndexOperation(Signal* signal,
   }
 
   regApiPtr->currSavePointId = currSavePointId;
-  
+  regApiPtr->immediateTriggerId = RNIL;
 }
 
 bool Dbtc::seizeIndexOperation(ApiConnectRecord* regApiPtr,
@@ -15978,6 +16005,7 @@ Dbtc::fk_readFromChildTable(Signal* signal,
   Uint16 flags = TcConnectRecord::SOF_TRIGGER;
   const Uint32 currSavePointId = regApiPtr->currSavePointId;
   Uint32 usedSavePointId = currSavePointId;
+  Uint32 gsn = GSN_TCKEYREQ;
   if (op == ZREAD)
   {
     jam();
@@ -15992,6 +16020,11 @@ Dbtc::fk_readFromChildTable(Signal* signal,
      *   as original DML...but ZREAD reads latest
      */
     usedSavePointId = opRecord->savePointId;
+    if (fkData->childTableId != fkData->childIndexId)
+    {
+      jam();
+      gsn = GSN_TCINDXREQ;
+    }
   }
   TcKeyReq::setKeyLength(tcKeyRequestInfo, 0);
   TcKeyReq::setAIInTcKeyReq(tcKeyRequestInfo, 0);
@@ -16023,7 +16056,14 @@ Dbtc::fk_readFromChildTable(Signal* signal,
   /* Pass trigger Id via ApiConnectRecord (nasty) */
   ndbrequire(regApiPtr->immediateTriggerId == RNIL);
   regApiPtr->immediateTriggerId= firedTriggerData->triggerId;
-  EXECUTE_DIRECT(DBTC, GSN_TCKEYREQ, signal, TcKeyReq::StaticLength);
+  if (gsn == GSN_TCKEYREQ)
+  {
+    EXECUTE_DIRECT(DBTC, GSN_TCKEYREQ, signal, TcKeyReq::StaticLength);
+  }
+  else
+  {
+    fk_execTCINDXREQ(signal, * transPtr, * opPtr, op);
+  }
   jamEntry();
 
   /*
@@ -16031,6 +16071,80 @@ Dbtc::fk_readFromChildTable(Signal* signal,
    */
   regApiPtr->immediateTriggerId = RNIL;
   regApiPtr->currSavePointId = currSavePointId;
+}
+
+void
+Dbtc::fk_execTCINDXREQ(Signal* signal,
+                       ApiConnectRecordPtr transPtr,
+                       TcConnectRecordPtr opPtr,
+                       Uint32 operation)
+{
+  jam();
+  SectionHandle handle(this, signal);
+  const TcKeyReq * tcIndxReq =  CAST_CONSTPTR(TcKeyReq,
+                                              signal->getDataPtr());
+
+  /**
+   * this is a mockup of execTCINDXREQ...
+   */
+  TcIndexOperationPtr indexOpPtr;
+  if (unlikely(!seizeIndexOperation(transPtr.p, indexOpPtr)))
+  {
+    releaseSections(handle);
+    abortTransFromTrigger(signal, transPtr, 288);
+    return;
+  }
+
+  indexOpPtr.p->indexOpId = indexOpPtr.i;
+
+  // Save original signal
+  indexOpPtr.p->tcIndxReq = *tcIndxReq;
+  indexOpPtr.p->connectionIndex = transPtr.i;
+  transPtr.p->accumulatingIndexOp = indexOpPtr.i;
+
+  /* KeyInfo and AttrInfo already received into sections */
+  SegmentedSectionPtr keyInfoSection, attrInfoSection;
+
+  /* Store i value for first long section of KeyInfo
+   * and AttrInfo in Index operation
+   */
+  handle.getSection(keyInfoSection, TcKeyReq::KeyInfoSectionNum);
+  indexOpPtr.p->keyInfoSectionIVal = keyInfoSection.i;
+
+  if (handle.m_cnt == 2)
+  {
+    handle.getSection(attrInfoSection, TcKeyReq::AttrInfoSectionNum);
+    indexOpPtr.p->attrInfoSectionIVal = attrInfoSection.i;
+  }
+
+  /* Detach sections from the handle
+   * Success path code, or index operation cleanup is
+   * now responsible for freeing the sections
+   */
+  handle.clear();
+
+  /* All data received, process */
+  readIndexTable(signal, transPtr.p, indexOpPtr.p,
+                 transPtr.p->m_special_op_flags);
+
+  if (unlikely(transPtr.p->apiConnectstate == CS_ABORTING))
+  {
+    jam();
+  }
+  else
+  {
+    /**
+     * readIndexTable() sets senderData to indexOpPtr.i
+     * and SOF_TRIGGER assumes triggerOperation is stored in senderData
+     *   so set it correct afterwards...
+     */
+    jam();
+    TcConnectRecordPtr tcPtr;
+    tcPtr.i = indexOpPtr.p->indexReadTcConnect;
+    ptrCheckGuard(tcPtr, ctcConnectFilesize, tcConnectRecord);
+    tcPtr.p->triggeringOperation = opPtr.i;
+  }
+  return;
 }
 
 Uint32

@@ -34,3 +34,56 @@ select * from emp order by 1;
 alter table emp drop foreign key fkname;
 
 drop table emp;
+
+create table tree (
+  id int primary key,
+  value varchar(256) not null,
+  parent int null,
+  left_child int null,
+  right_child int null,
+  index (parent),
+  unique (left_child),
+  unique (right_child)) engine = ndb;
+
+#
+# insert following tree
+#          3
+#      1       5
+#    0   2   4    6
+insert into tree values (0, '3-root',  null, 1,2);
+insert into tree values (1, '1-inner',    0, 3,4);
+insert into tree values (2, '5-inner',    0, 5,6);
+insert into tree values (3, '0-leaf',     1, null, null);
+insert into tree values (4, '2-leaf',     1, null, null);
+insert into tree values (5, '4-leaf',     2, null, null);
+insert into tree values (6, '6-leaf',     2, null, null);
+
+select * from tree order by 1;
+
+--let $parentname=parent
+--let $leftname=left_child\$unique
+--let $rightname=left_child\$unique
+--exec $CREATE_FK --database=test --parent=tree --child=tree --child-index='$parentname' --on-update-action=restrict --on-delete-action=cascade fk_parent  > /dev/null
+--exec $CREATE_FK --database=test --parent=tree --child=tree --child-index='$leftname' --on-update-action=restrict --on-delete-action=cascade fk_left  > /dev/null
+--exec $CREATE_FK --database=test --parent=tree --child=tree --child-index='$rightname' --on-update-action=restrict --on-delete-action=cascade fk_right  > /dev/null
+
+begin;
+delete from tree where value = '5-inner';
+select * from tree order by 1;
+rollback;
+
+begin;
+delete from tree where value = '4-leaf';
+select * from tree order by 1;
+rollback;
+
+begin;
+delete from tree where value = '3-root';
+select * from tree order by 1;
+commit;
+
+--exec $DROP_FK --database=test fk_parent > /dev/null
+--exec $DROP_FK --database=test fk_left > /dev/null
+--exec $DROP_FK --database=test fk_right > /dev/null
+
+drop table tree;
