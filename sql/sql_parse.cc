@@ -112,7 +112,7 @@ using std::min;
 
 /* Used in error handling only */
 #define SP_TYPE_STRING(LP) \
-  ((LP)->sphead->m_type == TYPE_ENUM_FUNCTION ? "FUNCTION" : "PROCEDURE")
+  ((LP)->sphead->m_type == SP_TYPE_FUNCTION ? "FUNCTION" : "PROCEDURE")
 #define SP_COM_STRING(LP) \
   ((LP)->sql_command == SQLCOM_CREATE_SPFUNCTION || \
    (LP)->sql_command == SQLCOM_ALTER_FUNCTION || \
@@ -4228,7 +4228,7 @@ end_with_restore_list:
 
     name= lex->sphead->name(&namelen);
 #ifdef HAVE_DLOPEN
-    if (lex->sphead->m_type == TYPE_ENUM_FUNCTION)
+    if (lex->sphead->m_type == SP_TYPE_FUNCTION)
     {
       udf_func *udf = find_udf(name, namelen);
 
@@ -4243,7 +4243,7 @@ end_with_restore_list:
     if (sp_process_definer(thd))
       goto create_sp_error;
 
-    res= (sp_result= sp_create_routine(thd, lex->sphead->m_type, lex->sphead));
+    res= (sp_result= sp_create_routine(thd, lex->sphead));
     switch (sp_result) {
     case SP_OK: {
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
@@ -4362,7 +4362,7 @@ create_sp_error:
         By this moment all needed SPs should be in cache so no need to look 
         into DB. 
       */
-      if (!(sp= sp_find_routine(thd, TYPE_ENUM_PROCEDURE, lex->spname,
+      if (!(sp= sp_find_routine(thd, SP_TYPE_PROCEDURE, lex->spname,
                                 &thd->sp_proc_cache, TRUE)))
       {
 	my_error(ER_SP_DOES_NOT_EXIST, MYF(0), "PROCEDURE",
@@ -4444,15 +4444,14 @@ create_sp_error:
   case SQLCOM_ALTER_PROCEDURE:
   case SQLCOM_ALTER_FUNCTION:
     {
-      int sp_result;
-      int type= (lex->sql_command == SQLCOM_ALTER_PROCEDURE ?
-                 TYPE_ENUM_PROCEDURE : TYPE_ENUM_FUNCTION);
-
       if (check_routine_access(thd, ALTER_PROC_ACL, lex->spname->m_db.str,
                                lex->spname->m_name.str,
-                               lex->sql_command == SQLCOM_ALTER_PROCEDURE, 0))
+                               lex->sql_command == SQLCOM_ALTER_PROCEDURE,
+                               false))
         goto error;
 
+      enum_sp_type sp_type= (lex->sql_command == SQLCOM_ALTER_PROCEDURE) ?
+                            SP_TYPE_PROCEDURE : SP_TYPE_FUNCTION;
       /*
         Note that if you implement the capability of ALTER FUNCTION to
         alter the body of the function, this command should be made to
@@ -4460,7 +4459,8 @@ create_sp_error:
         already puts on CREATE FUNCTION.
       */
       /* Conditionally writes to binlog */
-      sp_result= sp_update_routine(thd, type, lex->spname, &lex->sp_chistics);
+      int sp_result= sp_update_routine(thd, sp_type, lex->spname,
+                                       &lex->sp_chistics);
       switch (sp_result)
       {
       case SP_OK:
@@ -4521,18 +4521,19 @@ create_sp_error:
       }
 #endif
 
-      int sp_result;
-      int type= (lex->sql_command == SQLCOM_DROP_PROCEDURE ?
-                 TYPE_ENUM_PROCEDURE : TYPE_ENUM_FUNCTION);
       char *db= lex->spname->m_db.str;
       char *name= lex->spname->m_name.str;
 
       if (check_routine_access(thd, ALTER_PROC_ACL, db, name,
-                               lex->sql_command == SQLCOM_DROP_PROCEDURE, 0))
+                               lex->sql_command == SQLCOM_DROP_PROCEDURE,
+                               false))
         goto error;
 
+      enum_sp_type sp_type= (lex->sql_command == SQLCOM_DROP_PROCEDURE) ?
+                            SP_TYPE_PROCEDURE : SP_TYPE_FUNCTION;
+
       /* Conditionally writes to binlog */
-      sp_result= sp_drop_routine(thd, type, lex->spname);
+      int sp_result= sp_drop_routine(thd, sp_type, lex->spname);
 
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
       /*
@@ -4594,13 +4595,13 @@ create_sp_error:
     }
   case SQLCOM_SHOW_CREATE_PROC:
     {
-      if (sp_show_create_routine(thd, TYPE_ENUM_PROCEDURE, lex->spname))
+      if (sp_show_create_routine(thd, SP_TYPE_PROCEDURE, lex->spname))
         goto error;
       break;
     }
   case SQLCOM_SHOW_CREATE_FUNC:
     {
-      if (sp_show_create_routine(thd, TYPE_ENUM_FUNCTION, lex->spname))
+      if (sp_show_create_routine(thd, SP_TYPE_FUNCTION, lex->spname))
 	goto error;
       break;
     }
@@ -4609,10 +4610,10 @@ create_sp_error:
     {
 #ifndef DBUG_OFF
       sp_head *sp;
-      int type= (lex->sql_command == SQLCOM_SHOW_PROC_CODE ?
-                 TYPE_ENUM_PROCEDURE : TYPE_ENUM_FUNCTION);
+      enum_sp_type sp_type= (lex->sql_command == SQLCOM_SHOW_PROC_CODE) ?
+                            SP_TYPE_PROCEDURE : SP_TYPE_FUNCTION;
 
-      if (sp_cache_routine(thd, type, lex->spname, FALSE, &sp))
+      if (sp_cache_routine(thd, sp_type, lex->spname, false, &sp))
         goto error;
       if (!sp || sp->show_routine_code(thd))
       {

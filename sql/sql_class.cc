@@ -74,6 +74,7 @@ char internal_table_name[2]= "*";
 char empty_c_string[1]= {0};    /* used for not defined db */
 
 LEX_STRING EMPTY_STR= { (char *) "", 0 };
+LEX_STRING NULL_STR=  { NULL, 0 };
 
 const char * const THD::DEFAULT_WHERE= "field list";
 
@@ -786,6 +787,41 @@ bool Drop_table_error_handler::handle_condition(THD *thd,
 }
 
 
+void Open_tables_state::set_open_tables_state(Open_tables_state *state)
+{
+  this->open_tables= state->open_tables;
+
+  this->temporary_tables= state->temporary_tables;
+  this->derived_tables= state->derived_tables;
+
+  this->lock= state->lock;
+  this->extra_lock= state->extra_lock;
+
+  this->locked_tables_mode= state->locked_tables_mode;
+  this->current_tablenr= state->current_tablenr;
+
+  this->state_flags= state->state_flags;
+
+  this->reset_reprepare_observers();
+  for (int i= 0; i < state->m_reprepare_observers.elements(); ++i)
+    this->push_reprepare_observer(state->m_reprepare_observers.at(i));
+}
+
+
+void Open_tables_state::reset_open_tables_state()
+{
+  open_tables= NULL;
+  temporary_tables= NULL;
+  derived_tables= NULL;
+  lock= NULL;
+  extra_lock= NULL;
+  locked_tables_mode= LTM_NONE;
+  // JOH: What about resetting current_tablenr?
+  state_flags= 0U;
+  reset_reprepare_observers();
+}
+
+
 THD::THD(bool enable_plugins)
    :Statement(&main_lex, &main_mem_root, STMT_CONVENTIONAL_EXECUTION,
               /* statement id */ 0),
@@ -901,7 +937,7 @@ THD::THD(bool enable_plugins)
   *scramble= '\0';
 
   /* Call to init() below requires fully initialized Open_tables_state. */
-  reset_open_tables_state(this);
+  reset_open_tables_state();
 
   init();
 #if defined(ENABLED_PROFILING)
@@ -3820,7 +3856,7 @@ void THD::reset_n_backup_open_tables_state(Open_tables_backup *backup)
   DBUG_ENTER("reset_n_backup_open_tables_state");
   backup->set_open_tables_state(this);
   backup->mdl_system_tables_svp= mdl_context.mdl_savepoint();
-  reset_open_tables_state(this);
+  reset_open_tables_state();
   state_flags|= Open_tables_state::BACKUPS_AVAIL;
   DBUG_VOID_RETURN;
 }
@@ -3838,7 +3874,7 @@ void THD::restore_backup_open_tables_state(Open_tables_backup *backup)
               derived_tables == 0 &&
               lock == 0 &&
               locked_tables_mode == LTM_NONE &&
-              m_reprepare_observer == NULL);
+              get_reprepare_observer() == NULL);
 
   set_open_tables_state(backup);
   DBUG_VOID_RETURN;

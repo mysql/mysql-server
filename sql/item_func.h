@@ -1638,8 +1638,8 @@ class Item_func_set_user_var :public Item_var_func
   } save_result;
 
 public:
-  NameString name; // keep it public
-  Item_func_set_user_var(NameString a, Item *b)
+  Name_string name; // keep it public
+  Item_func_set_user_var(Name_string a, Item *b)
     :Item_var_func(b), cached_result_type(INT_RESULT),
      entry(NULL), entry_thread_id(0), name(a)
   {}
@@ -1693,8 +1693,8 @@ class Item_func_get_user_var :public Item_var_func,
   Item_result m_cached_result_type;
 
 public:
-  NameString name; // keep it public
-  Item_func_get_user_var(NameString a):
+  Name_string name; // keep it public
+  Item_func_get_user_var(Name_string a):
     Item_var_func(), m_cached_result_type(STRING_RESULT), name(a) {}
   enum Functype functype() const { return GUSERVAR_FUNC; }
   double val_real();
@@ -1735,10 +1735,10 @@ public:
 */
 class Item_user_var_as_out_param :public Item
 {
-  NameString name;
+  Name_string name;
   user_var_entry *entry;
 public:
-  Item_user_var_as_out_param(NameString a) :name(a)
+  Item_user_var_as_out_param(Name_string a) :name(a)
   { item_name.copy(a); }
   /* We should return something different from FIELD_ITEM here */
   enum Type type() const { return STRING_ITEM;}
