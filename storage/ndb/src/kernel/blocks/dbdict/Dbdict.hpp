@@ -3821,7 +3821,9 @@ private:
   typedef RecordPool<DropFKRec,ArenaPool> DropFKRec_pool;
 
   struct DropFKRec : public OpRec {
-    bool m_parsed, m_prepared;
+    bool m_parsed;
+    bool m_prepared;
+    Uint32 m_sub_drop_trigger;
     DropFKImplReq m_request;
 
     // reflection
@@ -3836,6 +3838,7 @@ private:
       OpRec(g_opInfo, (Uint32*)&m_request) {
       memset(&m_request, 0, sizeof(m_request));
       m_parsed = m_prepared = false;
+      m_sub_drop_trigger = 0;
     }
   };
 
@@ -3851,6 +3854,10 @@ private:
   bool dropFK_subOps(Signal*, SchemaOpPtr);
   void dropFK_reply(Signal*, SchemaOpPtr, ErrorInfo);
   //
+  void dropFK_toDropTrigger(Signal* signal, SchemaOpPtr, Uint32);
+  void dropFK_fromDropTrigger(Signal* signal, Uint32 op_key, Uint32 ret);
+
+  //
   void dropFK_prepare(Signal*, SchemaOpPtr);
   void dropFK_commit(Signal*, SchemaOpPtr);
   void dropFK_complete(Signal*, SchemaOpPtr);
@@ -3858,6 +3865,7 @@ private:
   void dropFK_abortParse(Signal*, SchemaOpPtr);
   void dropFK_abortPrepare(Signal*, SchemaOpPtr);
 
+  void send_drop_fk_req(Signal*, SchemaOpPtr);
   void dropFK_fromLocal(Signal*, Uint32, Uint32);
   void dropFK_fromWriteObjInfo(Signal*, Uint32, Uint32);
 

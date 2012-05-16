@@ -25379,13 +25379,57 @@ Dbdict::dropFK_release(SchemaOpPtr op_ptr)
 
 void
 Dbdict::dropFK_parse(Signal* signal, bool master,
-                          SchemaOpPtr op_ptr,
-                          SectionHandle& handle, ErrorInfo& error)
+                     SchemaOpPtr op_ptr,
+                     SectionHandle& handle, ErrorInfo& error)
 {
   SchemaTransPtr trans_ptr = op_ptr.p->m_trans_ptr;
   DropFKRecPtr dropFKRecPtr;
   getOpRec(op_ptr, dropFKRecPtr);
-  //DropFKImplReq* impl_req = &dropFKRecPtr.p->m_request;
+  DropFKImplReq* impl_req = &dropFKRecPtr.p->m_request;
+
+  Ptr<ForeignKeyRec> fk_ptr;
+  if (!find_object(fk_ptr, impl_req->fkId))
+  {
+    jam();
+    setError(error, DropFKRef::FKNotFound, __LINE__);
+    return;
+  }
+
+  if (fk_ptr.p->m_version != impl_req->fkVersion)
+  {
+    jam();
+    setError(error, DropFKRef::InvalidFKVersion, __LINE__);
+    return;
+  }
+
+  if (check_write_obj(impl_req->fkId, trans_ptr.p->m_transId,
+                      SchemaFile::SF_DROP, error))
+  {
+    jam();
+    return;
+  }
+
+  SchemaFile::TableEntry te; te.init();
+  te.m_tableState = SchemaFile::SF_DROP;
+  te.m_transId = trans_ptr.p->m_transId;
+  Uint32 err = trans_log_schema_op(op_ptr, impl_req->fkId, &te);
+  if (err)
+  {
+    jam();
+    setError(error, err, __LINE__);
+    return;
+  }
+
+#if defined VM_TRACE || defined ERROR_INSERT
+  {
+    char buf[1024];
+    LocalRope name(c_rope_pool, fk_ptr.p->m_name);
+    name.copy(buf);
+    ndbout_c("Dbdict: drop name=%s,id=%u,obj_id=%u", buf,
+             impl_req->fkId,
+             fk_ptr.p->m_obj_ptr_i);
+  }
+#endif
 }
 
 void
@@ -25398,7 +25442,131 @@ Dbdict::dropFK_abortParse(Signal* signal, SchemaOpPtr op_ptr)
 bool
 Dbdict::dropFK_subOps(Signal* signal, SchemaOpPtr op_ptr)
 {
+  DropFKRecPtr dropFKRecPtr;
+  getOpRec(op_ptr, dropFKRecPtr);
+
+  if (dropFKRecPtr.p->m_sub_drop_trigger < 2)
+  {
+    jam();
+
+    /**
+     * 0 - trigger on parent table
+     * 1 - trigger on child table
+     */
+    Callback c = {
+      safe_cast(&Dbdict::dropFK_fromDropTrigger),
+      op_ptr.p->op_key
+    };
+    op_ptr.p->m_callback = c;
+
+    dropFK_toDropTrigger(signal, op_ptr, dropFKRecPtr.p->m_sub_drop_trigger);
+    return true;
+  }
+
   return false;
+}
+
+void
+Dbdict::dropFK_toDropTrigger(Signal* signal,
+                             SchemaOpPtr op_ptr,
+                             Uint32 no)
+{
+  jam();
+
+  SchemaTransPtr trans_ptr = op_ptr.p->m_trans_ptr;
+  DropFKRecPtr dropFKPtr;
+  getOpRec(op_ptr, dropFKPtr);
+  const DropFKImplReq* impl_req = &dropFKPtr.p->m_request;
+
+  Ptr<ForeignKeyRec> fk_ptr;
+  ndbrequire(find_object(fk_ptr, impl_req->fkId));
+
+  Uint32 triggerId = RNIL;
+  TableRecordPtr tablePtr;
+  if (no == 0)
+  {
+    jam();
+    ndbrequire(find_object(tablePtr, fk_ptr.p->m_parentTableId));
+    triggerId = fk_ptr.p->m_parentTriggerId;
+  }
+  else if (no == 1)
+  {
+    jam();
+    ndbrequire(find_object(tablePtr, fk_ptr.p->m_childTableId));
+    triggerId = fk_ptr.p->m_childTriggerId;
+  }
+  else
+  {
+    ndbrequire(false);
+  }
+
+  DropTrigReq* req = (DropTrigReq*)signal->getDataPtrSend();
+
+  Uint32 requestInfo = 0;
+  DictSignal::setRequestType(requestInfo, 0);
+  DictSignal::addRequestFlagsGlobal(requestInfo, op_ptr.p->m_requestInfo);
+
+  req->clientRef = reference();
+  req->clientData = op_ptr.p->op_key;
+  req->transId = trans_ptr.p->m_transId;
+  req->transKey = trans_ptr.p->trans_key;
+  req->requestInfo = requestInfo;
+  req->tableId = tablePtr.p->tableId;
+  req->tableVersion = tablePtr.p->tableVersion;
+  req->indexId = impl_req->fkId;
+  req->indexVersion = impl_req->fkVersion;
+  req->triggerNo = 0;
+  req->triggerId = triggerId;
+
+  sendSignal(reference(), GSN_DROP_TRIG_REQ, signal,
+             DropTrigReq::SignalLength, JBB);
+}
+
+void
+Dbdict::dropFK_fromDropTrigger(Signal* signal, Uint32 op_key, Uint32 ret)
+{
+  jamEntry();
+
+  SchemaOpPtr op_ptr;
+  DropFKRecPtr dropFKRecPtr;
+
+  findSchemaOp(op_ptr, dropFKRecPtr, op_key);
+  ndbrequire(!op_ptr.isNull());
+  SchemaTransPtr trans_ptr = op_ptr.p->m_trans_ptr;
+  DropFKImplReq* impl_req = &dropFKRecPtr.p->m_request;
+
+  if (ret == 0)
+  {
+    jam();
+
+    const DropTrigConf* conf = CAST_CONSTPTR(DropTrigConf,
+                                             signal->getDataPtr());
+    (void)conf;
+    Ptr<ForeignKeyRec> fk_ptr;
+    ndbrequire(find_object(fk_ptr, impl_req->fkId));
+    switch(dropFKRecPtr.p->m_sub_drop_trigger) {
+    case 0:
+      fk_ptr.p->m_parentTriggerId = RNIL;
+      break;
+    case 1:
+      fk_ptr.p->m_childTriggerId = RNIL;
+      break;
+    default:
+      ndbrequire(false);
+    }
+
+    dropFKRecPtr.p->m_sub_drop_trigger++;
+    createSubOps(signal, op_ptr);
+  }
+  else
+  {
+    jam();
+    const DropTrigRef* ref = CAST_CONSTPTR(DropTrigRef,
+                                             signal->getDataPtr());
+    ErrorInfo error;
+    setError(error, ref);
+    abortSubOps(signal, op_ptr, error);
+  }
 }
 
 void
@@ -25466,6 +25634,33 @@ Dbdict::dropFK_abortPrepare(Signal* signal, SchemaOpPtr op_ptr)
 // DropFK: COMMIT
 
 void
+Dbdict::dropFK_fromLocal(Signal* signal, Uint32 op_key, Uint32 ret)
+{
+  jamEntry();
+
+  SchemaOpPtr op_ptr;
+  DropFKRecPtr dropFKRecPtr;
+  findSchemaOp(op_ptr, dropFKRecPtr, op_key);
+  ndbrequire(!op_ptr.isNull());
+
+  if (ret == 0)
+  {
+    jam();
+    DropFKImplReq* impl_req = &dropFKRecPtr.p->m_request;
+    Ptr<ForeignKeyRec> fk_ptr;
+    ndbrequire(find_object(fk_ptr, impl_req->fkId));
+
+    release_object(fk_ptr.p->m_obj_ptr_i);
+
+    sendTransConf(signal, op_ptr);
+  } else {
+    jam();
+    setError(op_ptr, ret, __LINE__);
+    sendTransRef(signal, op_ptr);
+  }
+}
+
+void
 Dbdict::dropFK_commit(Signal* signal, SchemaOpPtr op_ptr)
 {
   jam();
@@ -25475,6 +25670,25 @@ Dbdict::dropFK_commit(Signal* signal, SchemaOpPtr op_ptr)
   DropFKImplReq* impl_req = &dropFKRecPtr.p->m_request;
   impl_req->requestType = DropFKImplReq::RT_COMMIT;
   sendTransConf(signal, trans_ptr);
+}
+
+void
+Dbdict::send_drop_fk_req(Signal* signal, SchemaOpPtr op_ptr)
+{
+  DropFKRecPtr dropFKPtr;
+  getOpRec(op_ptr, dropFKPtr);
+  const DropFKImplReq* impl_req = &dropFKPtr.p->m_request;
+
+  DropFKImplReq* req = (DropFKImplReq*)signal->getDataPtrSend();
+
+  req->senderRef = reference();
+  req->senderData = op_ptr.p->op_key;
+  req->requestType = impl_req->requestType;
+  req->fkId = impl_req->fkId;
+  req->fkVersion = impl_req->fkVersion;
+
+  sendSignal(DBTC_REF, GSN_DROP_FK_IMPL_REQ, signal,
+             DropFKImplReq::SignalLength, JBB);
 }
 
 // DropFK: COMPLETE
@@ -25490,7 +25704,15 @@ Dbdict::dropFK_complete(Signal* signal, SchemaOpPtr op_ptr)
   DropFKImplReq* impl_req = &dropFKRecPtr.p->m_request;
 
   impl_req->requestType = DropFKImplReq::RT_COMPLETE;
-  sendTransConf(signal, trans_ptr);
+
+  /**
+   * drop the FK in complete...as it needs to be done after
+   *   triggers are dropped...which they are in commit
+   */
+  Callback c =  { safe_cast(&Dbdict::dropFK_fromLocal), op_ptr.p->op_key };
+  op_ptr.p->m_callback = c;
+
+  send_drop_fk_req(signal, op_ptr);
 }
 
 void
