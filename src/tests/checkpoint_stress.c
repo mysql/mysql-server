@@ -285,7 +285,7 @@ test_main (int argc, char * const argv[]) {
 
     int c;
     int crash = 0;
-    while ((c = getopt(argc, (char * const *)argv, "cChi:qvn:l")) != -1) {
+    while ((c = getopt(argc, (char * const *)argv, "cChi:qvn:lX:")) != -1) {
 	switch(c) {
         case 'c':
             crash = 1;
@@ -309,6 +309,13 @@ test_main (int argc, char * const argv[]) {
 	    verbose--;
 	    if (verbose<0) verbose=0;
             break;
+        case 'X':
+            if (strcmp(optarg, "novalgrind") == 0) {
+                // provide a way for the shell script runner to pass an
+                // arg that suppresses valgrind on this child process
+                break;
+            }
+            // otherwise, fall through to an error
 	case 'h':
         case '?':
             usage(argv[0]);

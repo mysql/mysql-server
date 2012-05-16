@@ -607,8 +607,11 @@ if(BUILD_TESTING)
     test_txn_abort5a.tdb
     test_txn_abort6.tdb
     test_txn_nested2.tdb
+    test_txn_nested4.tdb
+    test_txn_nested5.tdb
     recovery_fileops_stress.tdb
     recovery_fileops_unit.tdb
+    hotindexer-with-queries.tdb
     )
   if (BDB_FOUND)
     list(APPEND long_tests
@@ -624,9 +627,9 @@ if(BUILD_TESTING)
   set_tests_properties(${long_tests} PROPERTIES TIMEOUT 3600)
   ## some take even longer, with valgrind
   set(extra_long_tests
-    drd_test_4015.tdb
     checkpoint_stress.tdb
     recover_stress.tdb
+    drd_test_4015.tdb
     test3039.tdb
     loader-dup-test0.tdb
     loader-stress-del.p.loader
