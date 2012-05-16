@@ -44,13 +44,20 @@ show create table child;
 --disable_result_log
 
 --error 1005
-alter table child add constraint fk7 foreign key (a) references parent(c);
+alter offline table child add constraint fk7 foreign key (a) references parent(c);
 --error 1005
-alter table child add constraint fk8 foreign key (a) references parent(c);
+alter offline table child add constraint fk8 foreign key (a) references parent(c);
 --error 1005
-alter table child add constraint fk9 foreign key (a) references parent(c);
+alter offline table child add constraint fk9 foreign key (a) references parent(c);
 
 --enable_result_log
+
+--error 700
+alter online table child add constraint fk7 foreign key (a) references parent(c);
+--error 700
+alter online table child add constraint fk8 foreign key (a) references parent(c);
+--error 700
+alter online table child add constraint fk9 foreign key (a) references parent(c);
 
 drop table parent, child;
 
