@@ -4546,7 +4546,7 @@ longlong Item_func_sleep::val_int()
 
 #define extra_size sizeof(double)
 
-static user_var_entry *get_variable(HASH *hash, NameString &name,
+static user_var_entry *get_variable(HASH *hash, Name_string &name,
 				    bool create_if_not_exists)
 {
   user_var_entry *entry;
@@ -5363,7 +5363,7 @@ longlong Item_func_get_user_var::val_int()
 
 static int
 get_var_with_binlog(THD *thd, enum_sql_command sql_command,
-                    NameString &name, user_var_entry **out_entry)
+                    Name_string &name, user_var_entry **out_entry)
 {
   BINLOG_USER_VAR_EVENT *user_var_event;
   user_var_entry *var_entry;
