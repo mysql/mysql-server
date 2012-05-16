@@ -69,9 +69,10 @@ static int walk_and_match(FT_WORD *word, uint32 count, ALL_IN_ONE *aio)
   TREE_ELEMENT *selem;
   double       gweight=1;
   MI_INFO      *info=aio->info;
+  MYISAM_SHARE *share= info->s;
   uchar        *keybuff=aio->keybuff;
   MI_KEYDEF    *keyinfo=info->s->keyinfo+aio->keynr;
-  my_off_t     key_root=info->s->state.key_root[aio->keynr];
+  my_off_t     key_root;
   uint         extra= HA_FT_WLEN + info->s->rec_reflength;
 #if HA_FT_WTYPE == HA_KEYTYPE_FLOAT
   float tmp_weight;
@@ -87,6 +88,11 @@ static int walk_and_match(FT_WORD *word, uint32 count, ALL_IN_ONE *aio)
   keylen-=HA_FT_WLEN;
   doc_cnt=0;
 
+  if (share->concurrent_insert)
+    mysql_rwlock_rdlock(&share->key_root_lock[aio->keynr]);
+
+  key_root= share->state.key_root[aio->keynr];
+
   /* Skip rows inserted by current inserted */
   for (r=_mi_search(info, keyinfo, keybuff, keylen, SEARCH_FIND, key_root) ;
        !r &&
@@ -95,6 +101,9 @@ static int walk_and_match(FT_WORD *word, uint32 count, ALL_IN_ONE *aio)
        r= _mi_search_next(info, keyinfo, info->lastkey,
                           info->lastkey_length, SEARCH_BIGGER, key_root))
     ;
+
+  if (share->concurrent_insert)
+    mysql_rwlock_unlock(&share->key_root_lock[aio->keynr]);
 
   info->update|= HA_STATE_AKTIV;              /* for _mi_test_if_changed() */
 
@@ -119,6 +128,8 @@ static int walk_and_match(FT_WORD *word, uint32 count, ALL_IN_ONE *aio)
       keyinfo=& info->s->ft2_keyinfo;
       key_root=info->lastpos;
       keylen=0;
+      if (share->concurrent_insert)
+        mysql_rwlock_rdlock(&share->key_root_lock[aio->keynr]);
       r=_mi_search_first(info, keyinfo, key_root);
       goto do_skip;
     }
@@ -153,6 +164,9 @@ static int walk_and_match(FT_WORD *word, uint32 count, ALL_IN_ONE *aio)
     if (gweight < 0 || doc_cnt > 2000000)
       gweight=0;
 
+    if (share->concurrent_insert)
+      mysql_rwlock_rdlock(&share->key_root_lock[aio->keynr]);
+
     if (_mi_test_if_changed(info) == 0)
 	r=_mi_search_next(info, keyinfo, info->lastkey, info->lastkey_length,
                           SEARCH_BIGGER, key_root);
@@ -165,6 +179,8 @@ do_skip:
       r= _mi_search_next(info, keyinfo, info->lastkey, info->lastkey_length,
                          SEARCH_BIGGER, key_root);
 
+    if (share->concurrent_insert)
+      mysql_rwlock_unlock(&share->key_root_lock[aio->keynr]);
   }
   word->weight=gweight;
 
