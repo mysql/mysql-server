@@ -2352,9 +2352,14 @@ bool sp_lex_instr::reset_lex_and_exec_core(THD *thd,
 
   /*
     Use our own lex.
-    We should not save old value since it is saved/restored in
-    sp_head::execute() when we are entering/leaving routine.
+
+    Although it is saved/restored in sp_head::execute() when we are
+    entering/leaving routine, it's still should be saved/restored here,
+    in order to properly behave in case of ER_NEED_REPREPARE error
+    (when ER_NEED_REPREPARE happened, and we failed to re-parse the query).
   */
+
+  LEX *lex_saved= thd->lex;
   thd->lex= m_lex;
 
   /* Set new query id. */
@@ -2488,6 +2493,10 @@ bool sp_lex_instr::reset_lex_and_exec_core(THD *thd,
 
   thd->transaction.stmt.add_unsafe_rollback_flags(parent_unsafe_rollback_flags);
 
+  /* Restore original lex. */
+
+  thd->lex= lex_saved;
+
   /*
     Unlike for PS we should not call Item's destructors for newly created
     items after execution of each instruction in stored routine. This is
@@ -2501,6 +2510,206 @@ bool sp_lex_instr::reset_lex_and_exec_core(THD *thd,
   return rc || thd->is_error();
 }
 
+LEX *sp_lex_instr::parse_expr(THD *thd, sp_head *sp)
+{
+  String sql_query;
+  sql_query.set_charset(system_charset_info);
+
+  get_query(&sql_query);
+
+  if (sql_query.length() == 0)
+  {
+    // The instruction has returned zero-length query string. That means, the
+    // re-preparation of the instruction is not possible. We should not come
+    // here in the normal life.
+    DBUG_ASSERT(false);
+    my_error(ER_UNKNOWN_ERROR, MYF(0));
+    return NULL;
+  }
+
+  // Prepare parser state. It can be done just before parse_sql(), do it here
+  // only to simplify exit in case of failure (out-of-memory error).
+
+  Parser_state parser_state;
+
+  if (parser_state.init(thd, sql_query.c_ptr(), sql_query.length()))
+    return NULL;
+
+  // Cleanup current THD from previously held objects before new parsing.
+
+  cleanup_before_parsing(thd);
+
+  // Switch mem-roots. We need to store new LEX and its Items in the persistent
+  // SP-memory (memory which is not freed between executions).
+
+  MEM_ROOT *execution_mem_root= thd->mem_root;
+
+  thd->mem_root= thd->sp_runtime_ctx->sp->get_persistent_mem_root();
+
+  // Switch THD::free_list. It's used to remember the newly created set of Items
+  // during parsing. We should clean those items after each execution.
+
+  Item *execution_free_list= thd->free_list;
+  thd->free_list= NULL;
+
+  // Create a new LEX and intialize it.
+
+  LEX *lex_saved= thd->lex;
+
+  thd->lex= new (thd->mem_root) st_lex_local;
+  lex_start(thd);
+
+  thd->lex->sphead= sp;
+  thd->lex->set_sp_current_parsing_ctx(get_parsing_ctx());
+  sp->m_parser_data.set_current_stmt_start_ptr(sql_query.c_ptr());
+
+  // Parse the just constructed SELECT-statement.
+
+  bool parsing_failed= parse_sql(thd, &parser_state, NULL);
+
+  if (!parsing_failed)
+  {
+    thd->lex->set_trg_event_type_for_tables();
+
+    if (sp->m_type == SP_TYPE_TRIGGER)
+    {
+      /*
+        Also let us bind these objects to Field objects in table being opened.
+
+        We ignore errors of setup_field() here, because if even something is
+        wrong we still will be willing to open table to perform some operations
+        (e.g.  SELECT)... Anyway some things can be checked only during trigger
+        execution.
+      */
+
+      Table_triggers_list *ttl= sp->m_trg_list;
+      int event= sp->m_trg_chistics.event;
+      int action_time= sp->m_trg_chistics.action_time;
+      GRANT_INFO *grant_table= &ttl->subject_table_grants[event][action_time];
+
+      for (Item_trigger_field *trg_field= sp->m_trg_table_fields.first;
+           trg_field;
+           trg_field= trg_field->next_trg_field)
+      {
+        trg_field->setup_field(thd, ttl->trigger_table, grant_table);
+      }
+    }
+
+    // Call after-parsing callback.
+
+    parsing_failed= on_after_expr_parsing(thd);
+
+    // Append newly created Items to the list of Items, owned by this
+    // instruction.
+
+    free_list= thd->free_list;
+  }
+
+  // Restore THD::lex.
+
+  thd->lex->sphead= NULL;
+  thd->lex->set_sp_current_parsing_ctx(NULL);
+
+  LEX *expr_lex= thd->lex;
+  thd->lex= lex_saved;
+
+  // Restore execution mem-root and THD::free_list.
+
+  thd->mem_root= execution_mem_root;
+  thd->free_list= execution_free_list;
+
+  // That's it.
+
+  return parsing_failed ? NULL : expr_lex;
+}
+
+bool sp_lex_instr::validate_lex_and_execute_core(THD *thd,
+                                                 uint *nextp,
+                                                 bool open_tables)
+{
+  Reprepare_observer reprepare_observer;
+  int reprepare_attempt= 0;
+
+  while (true)
+  {
+    if (is_invalid())
+    {
+      LEX *lex= parse_expr(thd, thd->sp_runtime_ctx->sp);
+
+      if (!lex)
+        return true;
+
+      set_lex(lex, true);
+
+      m_first_execution= true;
+    }
+
+    /*
+      Install the metadata observer. If some metadata version is
+      different from prepare time and an observer is installed,
+      the observer method will be invoked to push an error into
+      the error stack.
+    */
+    Reprepare_observer *stmt_reprepare_observer= NULL;
+
+    /*
+      Meta-data versions are stored in the LEX-object on the first execution.
+      Thus, the reprepare observer should not be installed for the first
+      execution, because it will always be triggered.
+
+      Then, the reprepare observer should be installed for the statements, which
+      are marked by CF_REEXECUTION_FRAGILE (@sa CF_REEXECUTION_FRAGILE) or if
+      the SQL-command is SQLCOM_END, which means that the LEX-object is
+      representing an expression, so the exact SQL-command does not matter.
+    */
+
+    if (!m_first_execution &&
+        (sql_command_flags[m_lex->sql_command] & CF_REEXECUTION_FRAGILE ||
+         m_lex->sql_command == SQLCOM_END))
+    {
+      reprepare_observer.reset_reprepare_observer();
+      stmt_reprepare_observer= &reprepare_observer;
+    }
+
+    thd->push_reprepare_observer(stmt_reprepare_observer);
+
+    bool rc= reset_lex_and_exec_core(thd, nextp, open_tables);
+
+    thd->pop_reprepare_observer();
+
+    m_first_execution= false;
+
+    if (!rc)
+      return false;
+
+    /*
+      Here is why we need all the checks below:
+        - if the reprepare observer is not set, we've got an error, which should
+          be raised to the user;
+        - if we've got fatal error, it should be raised to the user;
+        - if our thread got killed during execution, the error should be raised
+          to the user;
+        - if we've got an error, different from ER_NEED_REPREPARE, we need to
+          raise it to the user;
+        - we take only 3 attempts to reprepare the query, otherwise we might end
+          up in the endless loop.
+    */
+    if (stmt_reprepare_observer &&
+        !thd->is_fatal_error &&
+        !thd->killed &&
+        thd->get_stmt_da()->sql_errno() == ER_NEED_REPREPARE &&
+        reprepare_attempt++ < 3)
+    {
+      DBUG_ASSERT(stmt_reprepare_observer->is_invalidated());
+
+      thd->clear_error();
+      free_lex();
+      invalidate();
+    }
+    else
+      return true;
+  }
+}
 
 
 void sp_lex_instr::set_lex(LEX *lex, bool is_lex_owner)
@@ -2530,6 +2739,46 @@ void sp_lex_instr::free_lex()
   m_is_lex_owner= false;
   m_lex_query_tables_own_last= NULL;
 }
+
+
+void sp_lex_instr::cleanup_before_parsing(THD *thd)
+{
+  /*
+    Destroy items in the instruction's free list before re-parsing the
+    statement query string (and thus, creating new items).
+  */
+  Item *p= free_list;
+  while (p)
+  {
+    Item *next= p->next;
+    p->delete_self();
+    p= next;
+  }
+
+  free_list= NULL;
+
+  // Remove previously stored trigger-field items.
+  sp_head *sp= thd->sp_runtime_ctx->sp;
+
+  if (sp->m_type == SP_TYPE_TRIGGER)
+    sp->m_trg_table_fields.empty();
+}
+
+
+void sp_lex_instr::get_query(String *sql_query) const
+{
+  LEX_STRING expr_query= this->get_expr_query();
+
+  if (!expr_query.str)
+  {
+    sql_query->length(0);
+    return;
+  }
+
+  sql_query->append("SELECT ");
+  sql_query->append(expr_query.str, expr_query.length);
+}
+
 ///////////////////////////////////////////////////////////////////////////
 // sp_instr_stmt implementation.
 ///////////////////////////////////////////////////////////////////////////
@@ -2600,7 +2849,7 @@ bool sp_instr_stmt::execute(THD *thd, uint *nextp)
   if (query_cache_send_result_to_client(thd, thd->query(),
                                         thd->query_length()) <= 0)
   {
-    rc= reset_lex_and_exec_core(thd, nextp, false);
+    rc= validate_lex_and_execute_core(thd, nextp, false);
 
     if (thd->get_stmt_da()->is_eof())
     {
@@ -2760,6 +3009,31 @@ void sp_instr_set_trigger_field::print(String *str)
   m_value_item->print(str, QT_ORDINARY);
 }
 
+bool sp_instr_set_trigger_field::on_after_expr_parsing(THD *thd)
+{
+  DBUG_ASSERT(thd->lex->select_lex.item_list.elements == 1);
+
+  m_value_item= thd->lex->select_lex.item_list.head();
+
+  DBUG_ASSERT(!m_trigger_field);
+
+  m_trigger_field=
+    new (thd->mem_root) Item_trigger_field(thd->lex->current_context(),
+                                           Item_trigger_field::NEW_ROW,
+                                           m_trigger_field_name.str,
+                                           UPDATE_ACL,
+                                           false);
+
+  return m_value_item == NULL || m_trigger_field == NULL;
+}
+
+void sp_instr_set_trigger_field::cleanup_before_parsing(THD *thd)
+{
+  sp_lex_instr::cleanup_before_parsing(thd);
+
+  m_trigger_field= NULL;
+}
+
 ///////////////////////////////////////////////////////////////////////////
 // sp_instr_jump implementation.
 ///////////////////////////////////////////////////////////////////////////
@@ -2895,6 +3169,80 @@ void sp_lex_branch_instr::opt_move(uint dst, List<sp_branch_instr> *bp)
   else if (m_optdest)
     m_dest= m_optdest->get_ip();  // Backward
   m_ip= dst;
+}
+
+///////////////////////////////////////////////////////////////////////////
+// sp_instr_jump_case_when implementation.
+///////////////////////////////////////////////////////////////////////////
+
+bool sp_instr_jump_case_when::exec_core(THD *thd, uint *nextp)
+{
+  DBUG_ASSERT(m_eq_item);
+
+  Item *item= sp_prepare_func_item(thd, &m_eq_item);
+
+  if (!item)
+    return true;
+
+  *nextp= item->val_bool() ? get_ip() + 1 : m_dest;
+
+  return false;
+}
+
+
+void sp_instr_jump_case_when::print(String *str)
+{
+  /* jump_if_not dest(cont) ... */
+  if (str->reserve(2*SP_INSTR_UINT_MAXLEN+14+32)) // Add some for the expr. too
+    return;
+  str->qs_append(STRING_WITH_LEN("jump_if_not_case_when "));
+  str->qs_append(m_dest);
+  str->qs_append('(');
+  str->qs_append(m_cont_dest);
+  str->qs_append(STRING_WITH_LEN(") "));
+  m_eq_item->print(str, QT_ORDINARY);
+}
+
+bool sp_instr_jump_case_when::build_expr_items(THD *thd)
+{
+  // Setup CASE-expression item (m_case_expr_item).
+
+  m_case_expr_item= new Item_case_expr(m_case_expr_id);
+
+  if (!m_case_expr_item)
+    return true;
+
+#ifndef DBUG_OFF
+  m_case_expr_item->m_sp= thd->lex->sphead;
+#endif
+
+  // Setup WHEN-expression item (m_expr_item) if it is not already set.
+  //
+  // This function can be called in two cases:
+  //
+  //   - during initial (regular) parsing of SP. In this case we don't have
+  //     lex->select_lex (because it's not a SELECT statement), but
+  //     m_expr_item is already set in constructor.
+  //
+  //   - during re-parsing after meta-data change. In this case we've just
+  //     parsed aux-SELECT statement, so we need to take 1st (and the only one)
+  //     item from its list.
+
+  if (!m_expr_item)
+  {
+    DBUG_ASSERT(thd->lex->select_lex.item_list.elements == 1);
+
+    m_expr_item= thd->lex->select_lex.item_list.head();
+  }
+
+  // Setup main expression item (m_expr_item).
+
+  m_eq_item= new Item_func_eq(m_case_expr_item, m_expr_item);
+
+  if (!m_eq_item)
+    return true;
+
+  return false;
 }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -3114,7 +3462,7 @@ void sp_instr_cpush::print(String *str)
 {
   const LEX_STRING *cursor_name= m_parsing_ctx->find_cursor(m_cursor_idx);
 
-  uint rsrv= SP_INSTR_UINT_MAXLEN + 7;
+  uint rsrv= SP_INSTR_UINT_MAXLEN + 7 + m_cursor_query.length + 1;
 
   if (cursor_name)
     rsrv+= cursor_name->length;
@@ -3127,6 +3475,9 @@ void sp_instr_cpush::print(String *str)
     str->qs_append('@');
   }
   str->qs_append(m_cursor_idx);
+
+  str->qs_append(':');
+  str->qs_append(m_cursor_query.str, m_cursor_query.length);
 }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -3182,7 +3533,7 @@ bool sp_instr_copen::execute(THD *thd, uint *nextp)
   // sp_instr_cpush::execute(). sp_instr_cpush::exec_core() is intended to be
   // executed on cursor opening.
 
-  bool rc= push_instr->reset_lex_and_exec_core(thd, nextp, false);
+  bool rc= push_instr->validate_lex_and_execute_core(thd, nextp, false);
 
   // Cleanup the query's items.
 

@@ -427,7 +427,8 @@ set_system_variable(THD *thd, struct sys_var_with_base *tmp,
 
 static bool set_trigger_new_row(THD *thd,
                                 LEX_STRING trigger_field_name,
-                                Item *expr_item)
+                                Item *expr_item,
+                                LEX_STRING expr_query)
 {
   LEX *lex= thd->lex;
   sp_head *sp= lex->sphead;
@@ -450,7 +451,9 @@ static bool set_trigger_new_row(THD *thd,
     new (thd->mem_root)
       sp_instr_set_trigger_field(sp->instructions(),
                                  lex,
-                                 trg_fld, expr_item);
+                                 trigger_field_name,
+                                 trg_fld, expr_item,
+                                 expr_query);
 
   if (!i)
     return true;
@@ -776,8 +779,29 @@ static void sp_create_assignment_lex(THD *thd, const char *option_ptr)
   LEX *lex= thd->lex;
   sp_head *sp= lex->sphead;
 
-  if (!sp)
+  /*
+    We can come here in the following cases:
+
+      1. it's a regular SET statement outside stored programs
+        (lex->sphead is NULL);
+
+      2. we're parsing a stored program normally (loading from mysql.proc, ...);
+
+      3. we're re-parsing SET-statement with a user variable after meta-data
+        change. It's guaranteed, that:
+        - this SET-statement deals with a user/system variable (otherwise, it
+          would be a different SP-instruction, and we would parse an expression);
+        - this SET-statement has a single user/system variable assignment
+          (that's how we generate sp_instr_stmt-instructions for SET-statements).
+        So, in this case, even if lex->sphead is set, we should not process
+        further.
+  */
+
+  if (!sp ||            // case #1
+      sp->is_invoked()) // case #3
+  {
     return;
+  }
 
   LEX *old_lex= lex;
   sp->reset_lex(thd);
@@ -822,8 +846,29 @@ static bool sp_create_assignment_instr(THD *thd, const char *expr_end_ptr)
   LEX *lex= thd->lex;
   sp_head *sp= lex->sphead;
 
-  if (!sp)
+  /*
+    We can come here in the following cases:
+
+      1. it's a regular SET statement outside stored programs
+        (lex->sphead is NULL);
+
+      2. we're parsing a stored program normally (loading from mysql.proc, ...);
+
+      3. we're re-parsing SET-statement with a user variable after meta-data
+        change. It's guaranteed, that:
+        - this SET-statement deals with a user/system variable (otherwise, it
+          would be a different SP-instruction, and we would parse an expression);
+        - this SET-statement has a single user/system variable assignment
+          (that's how we generate sp_instr_stmt-instructions for SET-statements).
+        So, in this case, even if lex->sphead is set, we should not process
+        further.
+  */
+
+  if (!sp ||            // case #1
+      sp->is_invoked()) // case #3
+  {
     return false;
+  }
 
   if (!lex->var_list.is_empty())
   {
@@ -2926,10 +2971,20 @@ sp_decl:
             uint num_vars= pctx->context_var_count();
             enum enum_field_types var_type= (enum enum_field_types) $4;
             Item *dflt_value_item= $5;
-            
+            LEX_STRING dflt_value_query= EMPTY_STR;
+
             if (dflt_value_item)
             {
-              (void) sp->m_parser_data.pop_expr_start_ptr();
+              // sp_opt_default only pushes start ptr for DEFAULT clause.
+              const char *expr_start_ptr=
+                sp->m_parser_data.pop_expr_start_ptr();
+              if (lex->is_metadata_used())
+              {
+                dflt_value_query= make_string(thd, expr_start_ptr,
+                                              YY_TOKEN_END);
+                if (!dflt_value_query.str)
+                  MYSQL_YYABORT;
+              }
             }
             else
             {
@@ -2967,6 +3022,7 @@ sp_decl:
                                lex,
                                var_idx,
                                dflt_value_item,
+                               dflt_value_query,
                                (i == num_vars - 1));
 
               if (!is || sp->add_instr(thd, is))
@@ -3110,10 +3166,23 @@ sp_decl:
               MYSQL_YYABORT;
             }
 
+            LEX_STRING cursor_query= EMPTY_STR;
+
+            if (cursor_lex->is_metadata_used())
+            {
+              cursor_query=
+                make_string(thd,
+                            sp->m_parser_data.get_current_stmt_start_ptr(),
+                            YY_TOKEN_END);
+
+              if (!cursor_query.str)
+                MYSQL_YYABORT;
+            }
+
             sp_instr_cpush *i=
               new (thd->mem_root)
                 sp_instr_cpush(sp->instructions(), pctx,
-                               cursor_lex,
+                               cursor_lex, cursor_query,
                                pctx->current_cursor_count());
 
             if (i == NULL ||
@@ -3720,7 +3789,18 @@ sp_proc_stmt_return:
             LEX *lex= thd->lex;
             sp_head *sp= lex->sphead;
 
-            (void) sp->m_parser_data.pop_expr_start_ptr();
+            /* Extract expression string. */
+
+            LEX_STRING expr_query= EMPTY_STR;
+            const char *expr_start_ptr= sp->m_parser_data.pop_expr_start_ptr();
+
+            if (lex->is_metadata_used())
+            {
+              expr_query= make_string(thd, expr_start_ptr, YY_TOKEN_END);
+              if (!expr_query.str)
+                MYSQL_YYABORT;
+            }
+
             /* Check that this is a stored function. */
 
             if (sp->m_type != SP_TYPE_FUNCTION)
@@ -3737,7 +3817,7 @@ sp_proc_stmt_return:
 
             sp_instr_freturn *i=
               new (thd->mem_root)
-                sp_instr_freturn(sp->instructions(), lex, $3,
+                sp_instr_freturn(sp->instructions(), lex, $3, expr_query,
                                  sp->m_return_field_def.sql_type);
 
             if (i == NULL ||
@@ -4015,11 +4095,22 @@ sp_if:
             sp_head *sp= lex->sphead;
             sp_pcontext *pctx= lex->get_sp_current_parsing_ctx();
 
-            (void) sp->m_parser_data.pop_expr_start_ptr();
+            /* Extract expression string. */
+
+            LEX_STRING expr_query= EMPTY_STR;
+            const char *expr_start_ptr= sp->m_parser_data.pop_expr_start_ptr();
+
+            if (lex->is_metadata_used())
+            {
+              expr_query= make_string(thd, expr_start_ptr, YY_TOKEN_END);
+              if (!expr_query.str)
+                MYSQL_YYABORT;
+            }
 
             sp_instr_jump_if_not *i =
               new (thd->mem_root)
-                sp_instr_jump_if_not(sp->instructions(), lex, $2);
+                sp_instr_jump_if_not(sp->instructions(), lex,
+                                     $2, expr_query);
 
             /* Add jump instruction. */
 
@@ -4092,7 +4183,17 @@ simple_case_stmt:
             LEX *lex= Lex;
             sp_head *sp= lex->sphead;
 
-            (void) sp->m_parser_data.pop_expr_start_ptr();
+            /* Extract CASE-expression string. */
+
+            LEX_STRING case_expr_query= EMPTY_STR;
+            const char *expr_start_ptr= sp->m_parser_data.pop_expr_start_ptr();
+
+            if (lex->is_metadata_used())
+            {
+              case_expr_query= make_string(thd, expr_start_ptr, YY_TOKEN_END);
+              if (!case_expr_query.str)
+                MYSQL_YYABORT;
+            }
 
             /* Register new CASE-expression and get its id. */
 
@@ -4107,7 +4208,7 @@ simple_case_stmt:
             sp_instr_set_case_expr *i=
               new (thd->mem_root)
                 sp_instr_set_case_expr(sp->instructions(), lex,
-                                       case_expr_id, $3);
+                                       case_expr_id, $3, case_expr_query);
 
             if (i == NULL ||
                 sp->m_parser_data.add_cont_backpatch_entry(i) ||
@@ -4169,23 +4270,28 @@ simple_when_clause:
             sp_head *sp= lex->sphead;
             sp_pcontext *pctx= lex->get_sp_current_parsing_ctx();
 
+            /* Extract expression string. */
+
+            LEX_STRING when_expr_query= EMPTY_STR;
+            const char *expr_start_ptr= sp->m_parser_data.pop_expr_start_ptr();
+
+            if (lex->is_metadata_used())
+            {
+              when_expr_query= make_string(thd, expr_start_ptr, YY_TOKEN_END);
+              if (!when_expr_query.str)
+                MYSQL_YYABORT;
+            }
+
             /* Add CASE-when-jump instruction. */
 
-            (void) sp->m_parser_data.pop_expr_start_ptr();
-
-            Item_case_expr *var=
-              new Item_case_expr(pctx->get_current_case_expr_id());
-
-#ifndef DBUG_OFF
-            if (var)
-              var->m_sp= sp;
-#endif
-
-            sp_instr_jump_if_not *i=
-              new sp_instr_jump_if_not(sp->instructions(), lex,
-                                       new Item_func_eq(var, $3));
+            sp_instr_jump_case_when *i =
+              new (thd->mem_root)
+                sp_instr_jump_case_when(sp->instructions(), lex,
+                                        pctx->get_current_case_expr_id(),
+                                        $3, when_expr_query);
 
             if (i == NULL ||
+                i->on_after_expr_parsing(thd) ||
                 sp->m_parser_data.add_backpatch_entry(
                   i, pctx->push_label(thd, EMPTY_STR, 0)) ||
                 sp->m_parser_data.add_cont_backpatch_entry(i) ||
@@ -4220,13 +4326,23 @@ searched_when_clause:
             sp_head *sp= lex->sphead;
             sp_pcontext *pctx= lex->get_sp_current_parsing_ctx();
 
-            (void) sp->m_parser_data.pop_expr_start_ptr();
+            /* Extract expression string. */
+
+            LEX_STRING when_query= EMPTY_STR;
+            const char *expr_start_ptr= sp->m_parser_data.pop_expr_start_ptr();
+
+            if (lex->is_metadata_used())
+            {
+              when_query= make_string(thd, expr_start_ptr, YY_TOKEN_END);
+              if (!when_query.str)
+                MYSQL_YYABORT;
+            }
 
             /* Add jump instruction. */
 
             sp_instr_jump_if_not *i=
               new (thd->mem_root)
-                sp_instr_jump_if_not(sp->instructions(), lex, $3);
+                sp_instr_jump_if_not(sp->instructions(), lex, $3, when_query);
 
             if (i == NULL ||
                 sp->m_parser_data.add_backpatch_entry(
@@ -4443,13 +4559,23 @@ sp_unlabeled_control:
             sp_head *sp= lex->sphead;
             sp_pcontext *pctx= lex->get_sp_current_parsing_ctx();
 
-            (void) sp->m_parser_data.pop_expr_start_ptr();
+            /* Extract expression string. */
+
+            LEX_STRING expr_query= EMPTY_STR;
+            const char *expr_start_ptr= sp->m_parser_data.pop_expr_start_ptr();
+
+            if (lex->is_metadata_used())
+            {
+              expr_query= make_string(thd, expr_start_ptr, YY_TOKEN_END);
+              if (!expr_query.str)
+                MYSQL_YYABORT;
+            }
 
             /* Add jump instruction. */
 
             sp_instr_jump_if_not *i=
               new (thd->mem_root)
-                sp_instr_jump_if_not(sp->instructions(), lex, $3);
+                sp_instr_jump_if_not(sp->instructions(), lex, $3, expr_query);
 
             if (i == NULL ||
                 /* Jumping forward */
@@ -4497,13 +4623,24 @@ sp_unlabeled_control:
             sp_pcontext *pctx= lex->get_sp_current_parsing_ctx();
             uint ip= sp->instructions();
 
-            (void) sp->m_parser_data.pop_expr_start_ptr();
+            /* Extract expression string. */
+
+            LEX_STRING expr_query= EMPTY_STR;
+            const char *expr_start_ptr= sp->m_parser_data.pop_expr_start_ptr();
+
+            if (lex->is_metadata_used())
+            {
+              expr_query= make_string(thd, expr_start_ptr, YY_TOKEN_END);
+              if (!expr_query.str)
+                MYSQL_YYABORT;
+            }
 
             /* Add jump instruction. */
 
             sp_instr_jump_if_not *i=
               new (thd->mem_root)
-                sp_instr_jump_if_not(ip, lex, $5, pctx->last_label()->ip);
+                sp_instr_jump_if_not(ip, lex, $5, expr_query,
+                                     pctx->last_label()->ip);
 
             if (i == NULL ||
                 sp->add_instr(thd, i) ||
@@ -14166,6 +14303,8 @@ option_value_no_option_type:
 
               /* We are parsing trigger and this is a trigger NEW-field. */
 
+              LEX_STRING expr_query= EMPTY_STR;
+
               if (!$4)
               {
                 // This is: SET NEW.x = DEFAULT
@@ -14178,8 +14317,15 @@ option_value_no_option_type:
                 if (!$4)
                   MYSQL_YYABORT;
               }
+              else if (lex->is_metadata_used())
+              {
+                expr_query= make_string(thd, expr_start_ptr, YY_TOKEN_END);
 
-              if (set_trigger_new_row(thd, $1.base_name, $4))
+                if (!expr_query.str)
+                  MYSQL_YYABORT;
+              }
+
+              if (set_trigger_new_row(thd, $1.base_name, $4, expr_query))
                 MYSQL_YYABORT;
             }
             else if ($1.var)
@@ -14199,12 +14345,21 @@ option_value_no_option_type:
               sp_pcontext *pctx= lex->get_sp_current_parsing_ctx();
               sp_variable *spv= pctx->find_variable($1.base_name, false);
 
+              LEX_STRING expr_query= EMPTY_STR;
+
               if (!$4)
               {
                 // This is: SET x = DEFAULT
                 // See also WL#6230.
 
                 $4= spv->default_value;
+              }
+              else if (lex->is_metadata_used())
+              {
+                expr_query= make_string(thd, expr_start_ptr, YY_TOKEN_END);
+
+                if (!expr_query.str)
+                  MYSQL_YYABORT;
               }
 
               /*
@@ -14220,7 +14375,7 @@ option_value_no_option_type:
 
               sp_instr_set *i=
                 new sp_instr_set(sp->instructions(), lex,
-                                 spv->offset, $4,
+                                 spv->offset, $4, expr_query,
                                  true); // The instruction owns its lex.
 
               if (!i || sp->add_instr(thd, i))

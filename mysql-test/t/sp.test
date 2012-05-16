@@ -7303,8 +7303,10 @@ show create view test.v1;
 select column_name from information_schema.columns
 where table_name='v1' and table_schema='test';
 
-connection default;
 disconnect bug29408;
+--source include/wait_until_disconnected.inc
+connection default;
+
 drop view v1;
 drop function f1;
 
@@ -8482,25 +8484,7 @@ create table t1 (a int);
 insert into t1 (a) values (1), (2), (3), (4), (5);
 --echo #
 --echo # Do we correctly resolve identifiers in LIMIT?
---echo # Since DROP and CREATE did not invalidate
---echo # the SP cache, we can't test until
---echo # we drop and re-create the procedure.
 --echo #
---error ER_BAD_FIELD_ERROR
-call p1();
---echo # 
---echo # Drop and recreate the procedure, then repeat
---echo #
-drop procedure p1;
-delimiter |;
-create procedure p1()
-begin
-  declare a integer;
-  declare b integer;
-  select * from t1 limit a, b;
-end|
-delimiter ;|
---echo # Stored procedure variables are resolved correctly in the LIMIT
 call p1();
 drop table t1;
 create table t1 (c1 int);
