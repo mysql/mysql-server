@@ -1896,7 +1896,6 @@ void Dbtc::execKEYINFO(Signal* signal)
     jam();
     /*empty*/;
     break;
-                /* OK */
   case CS_ABORTING:
     jam();
     return;     /* IGNORE */
@@ -1939,16 +1938,19 @@ void Dbtc::execKEYINFO(Signal* signal)
   cachePtr.i = TcachePtr;
   cachePtr.p = regCachePtr;
 
+  if (apiConnectptr.p->apiConnectstate == CS_START_SCAN)
+  {
+    jam();
+    scanKeyinfoLab(signal);
+    return;
+  }
+
   tcConnectptr.i = apiConnectptr.p->lastTcConnect;
   ptrCheckGuard(tcConnectptr, ctcConnectFilesize, tcConnectRecord);
   switch (tcConnectptr.p->tcConnectstate) {
   case OS_WAIT_KEYINFO:
     jam();
     tckeyreq020Lab(signal);
-    return;
-  case OS_WAIT_SCAN:
-    jam();
-    scanKeyinfoLab(signal);
     return;
   default:
     jam();
@@ -10510,7 +10512,6 @@ void Dbtc::execSCAN_TABREQ(Signal* signal)
   if ((aiLength == 0) ||
       (!tabptr.p->checkTable(schemaVersion)) ||
       (scanConcurrency == 0) ||
-      (cfirstfreeTcConnect == RNIL) ||
       (cfirstfreeScanrec == RNIL)) {
     goto SCAN_error_check;
   }
@@ -10541,11 +10542,6 @@ void Dbtc::execSCAN_TABREQ(Signal* signal)
     errCode = ZCLUSTER_IN_SINGLEUSER_MODE;
     goto SCAN_TAB_error;
   }
-
-  seizeTcConnect(signal);
-  tcConnectptr.p->apiConnect = apiConnectptr.i;
-  tcConnectptr.p->tcConnectstate = OS_WAIT_SCAN;
-  apiConnectptr.p->lastTcConnect = tcConnectptr.i;
 
   seizeCacheRecord(signal);
 
@@ -10637,11 +10633,6 @@ void Dbtc::execSCAN_TABREQ(Signal* signal)
     errCode = ZNO_CONCURRENCY_ERROR;
     goto SCAN_TAB_error;
   }//if
-  if (cfirstfreeTcConnect == RNIL) {
-    jam();
-    errCode = ZNO_FREE_TC_CONNECTION;
-    goto SCAN_TAB_error;
-  }//if
   ndbrequire(cfirstfreeScanrec == RNIL);
   jam();
   errCode = ZNO_SCANREC_ERROR;
@@ -10682,7 +10673,6 @@ Dbtc::initScanrec(ScanRecordPtr scanptr,
                   const Uint32 apiPtr[])
 {
   const UintR ri = scanTabReq->requestInfo;
-  scanptr.p->scanTcrec = tcConnectptr.i;
   scanptr.p->scanApiRec = apiConnectptr.i;
   scanptr.p->scanAiLength = aiLength;
   scanptr.p->scanKeyLen = keyLength;
@@ -10811,8 +10801,6 @@ void Dbtc::scanAttrinfoLab(Signal* signal, UintR Tlen)
   ScanRecordPtr scanptr;
   scanptr.i = apiConnectptr.p->apiScanRec;
   ptrCheckGuard(scanptr, cscanrecFileSize, scanRecord);
-  tcConnectptr.i = scanptr.p->scanTcrec;
-  ptrCheckGuard(tcConnectptr, ctcConnectFilesize, tcConnectRecord);
   cachePtr.i = apiConnectptr.p->cachePtr;
   ptrCheckGuard(cachePtr, ccacheFilesize, cacheRecord);
   CacheRecord * const regCachePtr = cachePtr.p;
@@ -10874,7 +10862,7 @@ void Dbtc::diFcountReqLab(Signal* signal, ScanRecordPtr scanptr)
    ***************************************************/
   DihScanTabReq * req = (DihScanTabReq*)signal->getDataPtrSend();
   req->senderRef = reference();
-  req->senderData = tcConnectptr.i;
+  req->senderData = scanptr.p->scanApiRec;
   req->tableId = scanptr.p->scanTableref;
   req->schemaTransId = 0;
   sendSignal(cdihblockref, GSN_DIH_SCAN_TAB_REQ, signal,
@@ -10895,10 +10883,8 @@ void Dbtc::execDIH_SCAN_TAB_CONF(Signal* signal)
 {
   jamEntry();
   DihScanTabConf * conf = (DihScanTabConf*)signal->getDataPtr();
-  tcConnectptr.i = conf->senderData;
   Uint32 tfragCount = conf->fragmentCount;
-  ptrCheckGuard(tcConnectptr, ctcConnectFilesize, tcConnectRecord);
-  apiConnectptr.i = tcConnectptr.p->apiConnect;
+  apiConnectptr.i = conf->senderData;
   ptrCheckGuard(apiConnectptr, capiConnectFilesize, apiConnectRecord);
   ApiConnectRecord * const regApiPtr = apiConnectptr.p;
   ScanRecordPtr scanptr;
@@ -11034,10 +11020,8 @@ void Dbtc::execDIH_SCAN_TAB_REF(Signal* signal)
 {
   jamEntry();
   DihScanTabRef * ref = (DihScanTabRef*)signal->getDataPtr();
-  tcConnectptr.i = ref->senderData;
-  ptrCheckGuard(tcConnectptr, ctcConnectFilesize, tcConnectRecord);
   const Uint32 errCode = ref->error;
-  apiConnectptr.i = tcConnectptr.p->apiConnect;
+  apiConnectptr.i = ref->senderData;
   ptrCheckGuard(apiConnectptr, capiConnectFilesize, apiConnectRecord);
   ScanRecordPtr scanptr;
   scanptr.i = apiConnectptr.p->apiScanRec;
@@ -11069,9 +11053,6 @@ void Dbtc::releaseScanResources(Signal* signal,
     releaseKeys();
     releaseAttrinfo();
   }//if
-  tcConnectptr.i = scanPtr.p->scanTcrec;
-  ptrCheckGuard(tcConnectptr, ctcConnectFilesize, tcConnectRecord);
-  releaseTcCon();
 
   if (not_started)
   {
@@ -11098,7 +11079,6 @@ void Dbtc::releaseScanResources(Signal* signal,
   // link into free list
   scanPtr.p->nextScan = cfirstfreeScanrec;
   scanPtr.p->scanState = ScanRecord::IDLE;
-  scanPtr.p->scanTcrec = RNIL;
   scanPtr.p->scanApiRec = RNIL;
   cfirstfreeScanrec = scanPtr.i;
   
@@ -11191,8 +11171,6 @@ void Dbtc::execDIH_SCAN_GET_NODES_CONF(Signal* signal)
     }
   }
   
-  tcConnectptr.i = scanptr.p->scanTcrec;
-  ptrCheckGuard(tcConnectptr, ctcConnectFilesize, tcConnectRecord);
   apiConnectptr.i = scanptr.p->scanApiRec;
   ptrCheckGuard(apiConnectptr, capiConnectFilesize, apiConnectRecord);
   cachePtr.i = apiConnectptr.p->cachePtr;
@@ -11267,7 +11245,6 @@ void Dbtc::execDIH_SCAN_GET_NODES_CONF(Signal* signal)
 void Dbtc::execDIH_SCAN_GET_NODES_REF(Signal* signal)
 {
   jamEntry();
-  // tcConnectptr.i in theData[0] is not used.
   scanFragptr.i = signal->theData[1];
   const Uint32 errCode = signal->theData[2];
   c_scan_frag_pool.getPtr(scanFragptr);
@@ -11447,8 +11424,6 @@ void Dbtc::execSCAN_FRAGCONF(Signal* signal)
     scanFragptr.p->scanFragState = ScanFragRec::WAIT_GET_PRIMCONF; 
     scanFragptr.p->startFragTimer(ctcTimer);
 
-    tcConnectptr.i = scanptr.p->scanTcrec;
-    ptrCheckGuard(tcConnectptr, ctcConnectFilesize, tcConnectRecord);
     scanFragptr.p->scanFragId = scanptr.p->scanNextFragId++;
     DihScanGetNodesReq* req = (DihScanGetNodesReq*)signal->getDataPtrSend();
     req->senderRef = reference();
@@ -11662,8 +11637,6 @@ void Dbtc::execSCAN_NEXTREQ(Signal* signal)
       scanptr.p->m_booked_fragments_count--;
       scanFragptr.p->scanFragState = ScanFragRec::WAIT_GET_PRIMCONF; 
       
-      tcConnectptr.i = scanptr.p->scanTcrec;
-      ptrCheckGuard(tcConnectptr, ctcConnectFilesize, tcConnectRecord);
       scanFragptr.p->scanFragId = scanptr.p->scanNextFragId++;
 
       DihScanGetNodesReq* req = (DihScanGetNodesReq*)signal->getDataPtrSend();
@@ -12003,7 +11976,6 @@ void Dbtc::sendScanFragReq(Signal* signal,
     if(reqKeyLen > 0)
     {
       jam();
-      tcConnectptr.i = scanFragptr.i;
       /* Build KeyInfo train from KeyInfo long signal section */
       sendKeyInfoTrain(signal,
                        scanFragP->lqhBlockref,
