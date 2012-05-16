@@ -3671,13 +3671,15 @@ void assign_new_table_id(TABLE_SHARE *share)
 /* Cause a spurious statement reprepare for debug purposes. */
 static bool inject_reprepare(THD *thd)
 {
-  if (thd->m_reprepare_observer && thd->stmt_arena->is_reprepared == FALSE)
+  Reprepare_observer *reprepare_observer= thd->get_reprepare_observer();
+
+  if (reprepare_observer && !thd->stmt_arena->is_reprepared)
   {
-    thd->m_reprepare_observer->report_error(thd);
-    return TRUE;
+    (void)reprepare_observer->report_error(thd);
+    return true;
   }
 
-  return FALSE;
+  return false;
 }
 #endif
 
@@ -3719,8 +3721,10 @@ check_and_update_table_version(THD *thd,
 {
   if (! tables->is_table_ref_id_equal(table_share))
   {
-    if (thd->m_reprepare_observer &&
-        thd->m_reprepare_observer->report_error(thd))
+    Reprepare_observer *reprepare_observer= thd->get_reprepare_observer();
+
+    if (reprepare_observer &&
+        reprepare_observer->report_error(thd))
     {
       /*
         Version of the table share is different from the
@@ -3781,8 +3785,10 @@ check_and_update_routine_version(THD *thd, Sroutine_hash_entry *rt,
   if (rt->m_sp_cache_version != version ||
       (version != spc_version && !sp->is_invoked()))
   {
-    if (thd->m_reprepare_observer &&
-        thd->m_reprepare_observer->report_error(thd))
+    Reprepare_observer *reprepare_observer= thd->get_reprepare_observer();
+
+    if (reprepare_observer &&
+        reprepare_observer->report_error(thd))
     {
       /*
         Version of the sp cache is different from the
@@ -4542,7 +4548,7 @@ open_and_process_table(THD *thd, LEX *lex, TABLE_LIST *tables,
         If HA_ATTACH_CHILDREN is not called, these attributes are not set.
         Then, during the first EXECUTE, those attributes need to be updated.
         That would cause statement re-preparing (because changing those
-        attributes during EXECUTE is caught by THD::m_reprepare_observer).
+        attributes during EXECUTE is caught by THD::m_reprepare_observers).
         The problem is that since those attributes are not set in merge
         children, another round of PREPARE will not help.
     */

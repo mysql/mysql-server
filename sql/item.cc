@@ -22,7 +22,8 @@
 #include <m_ctype.h>
 #include "my_dir.h"
 #include "sp_rcontext.h"
-#include "sp_head.h"
+#include "sp_head.h"                  // sp_prepare_func_item
+#include "sp.h"                       // sp_map_item_type
 #include "sql_trigger.h"
 #include "sql_select.h"
 #include "sql_show.h"                           // append_identifier

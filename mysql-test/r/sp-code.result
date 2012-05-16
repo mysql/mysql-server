@@ -55,12 +55,12 @@ Pos	Instruction
 13	set nulls@2 (nulls@2 + 1)
 14	jump 17
 15	set count@3 (count@3 + 1)
-16	stmt 4 "update t2 set idx = count where name=n"
+16	stmt "update t2 set idx = count where name=n"
 17	hpop 1
 18	jump 7
 19	hpop 1
 20	cpop 1
-21	stmt 0 "select t.name, t.idx from t2 t order ..."
+21	stmt "select t.name, t.idx from t2 t order ..."
 drop procedure code_sample;
 drop procedure if exists sudoku_solve;
 create procedure sudoku_solve(p_naive boolean, p_all boolean)
@@ -152,52 +152,52 @@ drop temporary table sudoku_work, sudoku_schedule;
 end//
 show procedure code sudoku_solve;
 Pos	Instruction
-0	stmt 9 "drop temporary table if exists sudoku..."
-1	stmt 1 "create temporary table sudoku_work ( ..."
-2	stmt 1 "create temporary table sudoku_schedul..."
-3	stmt 88 "call sudoku_init()"
+0	stmt "drop temporary table if exists sudoku..."
+1	stmt "create temporary table sudoku_work ( ..."
+2	stmt "create temporary table sudoku_schedul..."
+3	stmt "call sudoku_init()"
 4	jump_if_not 7(8) p_naive@0
-5	stmt 4 "update sudoku_work set cnt = 0 where ..."
+5	stmt "update sudoku_work set cnt = 0 where ..."
 6	jump 8
-7	stmt 88 "call sudoku_count()"
-8	stmt 6 "insert into sudoku_schedule (row,col)..."
+7	stmt "call sudoku_count()"
+8	stmt "insert into sudoku_schedule (row,col)..."
 9	set v_scounter@2 0
 10	set v_i@3 1
 11	set v_dig@4 NULL
 12	set v_schedmax@5 NULL
-13	stmt 0 "select count(*) into v_schedmax from ..."
+13	stmt "select count(*) into v_schedmax from ..."
 14	set v_tcounter@6 0
 15	jump_if_not 39(39) (v_i@3 <= v_schedmax@5)
 16	set v_row@7 NULL
 17	set v_col@8 NULL
-18	stmt 0 "select row,col into v_row,v_col from ..."
-19	stmt 0 "select dig into v_dig from sudoku_wor..."
+18	stmt "select row,col into v_row,v_col from ..."
+19	stmt "select dig into v_dig from sudoku_wor..."
 20	set_case_expr (34) 0 v_dig@4
 21	jump_if_not 25(34) (case_expr@0 = 0)
 22	set v_dig@4 1
-23	stmt 4 "update sudoku_work set dig = 1 where ..."
+23	stmt "update sudoku_work set dig = 1 where ..."
 24	jump 34
 25	jump_if_not 32(34) (case_expr@0 = 9)
 26	jump_if_not 30(34) (v_i@3 > 0)
-27	stmt 4 "update sudoku_work set dig = 0 where ..."
+27	stmt "update sudoku_work set dig = 0 where ..."
 28	set v_i@3 (v_i@3 - 1)
 29	jump 15
-30	stmt 0 "select v_scounter as 'Solutions'"
+30	stmt "select v_scounter as 'Solutions'"
 31	jump 45
 32	set v_dig@4 (v_dig@4 + 1)
-33	stmt 4 "update sudoku_work set dig = v_dig wh..."
+33	stmt "update sudoku_work set dig = v_dig wh..."
 34	set v_tcounter@6 (v_tcounter@6 + 1)
 35	jump_if_not 37(37) (not(`sudoku_digit_ok`(v_row@7,v_col@8,v_dig@4)))
 36	jump 15
 37	set v_i@3 (v_i@3 + 1)
 38	jump 15
-39	stmt 0 "select dig from sudoku_work"
-40	stmt 0 "select v_tcounter as 'Tests'"
+39	stmt "select dig from sudoku_work"
+40	stmt "select v_tcounter as 'Tests'"
 41	set v_scounter@2 (v_scounter@2 + 1)
 42	jump_if_not 45(14) (p_all@1 and (v_i@3 > 0))
 43	set v_i@3 (v_i@3 - 1)
 44	jump 14
-45	stmt 9 "drop temporary table sudoku_work, sud..."
+45	stmt "drop temporary table sudoku_work, sud..."
 drop procedure sudoku_solve;
 DROP PROCEDURE IF EXISTS proc_19194_simple;
 DROP PROCEDURE IF EXISTS proc_19194_searched;
@@ -333,7 +333,7 @@ Pos	Instruction
 9	set str@1 '3'
 10	jump 12
 11	set str@1 'unknown'
-12	stmt 0 "SELECT str"
+12	stmt "SELECT str"
 SHOW PROCEDURE CODE proc_19194_searched;
 Pos	Instruction
 0	set str@1 NULL
@@ -347,7 +347,7 @@ Pos	Instruction
 8	set str@1 '3'
 9	jump 11
 10	set str@1 'unknown'
-11	stmt 0 "SELECT str"
+11	stmt "SELECT str"
 SHOW PROCEDURE CODE proc_19194_nested_1;
 Pos	Instruction
 0	set str_i@2 NULL
@@ -368,7 +368,7 @@ Pos	Instruction
 15	set str_j@3 '3'
 16	jump 18
 17	set str_j@3 'unknown'
-18	stmt 0 "select "i was 20""
+18	stmt "select "i was 20""
 19	jump 27
 20	jump_if_not 23(27) (case_expr@0 = 30)
 21	set str_i@2 '30'
@@ -377,7 +377,7 @@ Pos	Instruction
 24	set str_i@2 '40'
 25	jump 27
 26	set str_i@2 'unknown'
-27	stmt 0 "SELECT str_i, str_j"
+27	stmt "SELECT str_i, str_j"
 SHOW PROCEDURE CODE proc_19194_nested_2;
 Pos	Instruction
 0	set str_i@2 NULL
@@ -398,7 +398,7 @@ Pos	Instruction
 15	set str_j@3 '3'
 16	jump 18
 17	set str_j@3 'unknown'
-18	stmt 0 "select "i was 20""
+18	stmt "select "i was 20""
 19	jump 27
 20	jump_if_not 23(27) (i@0 = 30)
 21	set str_i@2 '30'
@@ -407,7 +407,7 @@ Pos	Instruction
 24	set str_i@2 '40'
 25	jump 27
 26	set str_i@2 'unknown'
-27	stmt 0 "SELECT str_i, str_j"
+27	stmt "SELECT str_i, str_j"
 SHOW PROCEDURE CODE proc_19194_nested_3;
 Pos	Instruction
 0	set str_i@2 NULL
@@ -429,7 +429,7 @@ Pos	Instruction
 16	set str_j@3 '3'
 17	jump 19
 18	set str_j@3 'unknown'
-19	stmt 0 "select "i was 20""
+19	stmt "select "i was 20""
 20	jump 28
 21	jump_if_not 24(28) (case_expr@0 = 30)
 22	set str_i@2 '30'
@@ -438,7 +438,7 @@ Pos	Instruction
 25	set str_i@2 '40'
 26	jump 28
 27	set str_i@2 'unknown'
-28	stmt 0 "SELECT str_i, str_j"
+28	stmt "SELECT str_i, str_j"
 SHOW PROCEDURE CODE proc_19194_nested_4;
 Pos	Instruction
 0	set str_i@2 NULL
@@ -458,7 +458,7 @@ Pos	Instruction
 14	set str_j@3 '3'
 15	jump 17
 16	set str_j@3 'unknown'
-17	stmt 0 "select "i was 20""
+17	stmt "select "i was 20""
 18	jump 26
 19	jump_if_not 22(26) (i@0 = 30)
 20	set str_i@2 '30'
@@ -467,7 +467,7 @@ Pos	Instruction
 23	set str_i@2 '40'
 24	jump 26
 25	set str_i@2 'unknown'
-26	stmt 0 "SELECT str_i, str_j"
+26	stmt "SELECT str_i, str_j"
 CALL proc_19194_nested_1(10, 1);
 str_i	str_j
 10	NULL
@@ -618,7 +618,7 @@ DROP PROCEDURE IF EXISTS p1;
 CREATE PROCEDURE p1() CREATE INDEX idx ON t1 (c1);
 SHOW PROCEDURE CODE p1;
 Pos	Instruction
-0	stmt 2 "CREATE INDEX idx ON t1 (c1)"
+0	stmt "CREATE INDEX idx ON t1 (c1)"
 DROP PROCEDURE p1;
 drop table if exists t1;
 drop procedure if exists proc_26977_broken;
@@ -667,32 +667,32 @@ show procedure code proc_26977_broken;
 Pos	Instruction
 0	set i@1 5
 1	hpush_jump 8 2 CONTINUE
-2	stmt 0 "select 'caught something'"
+2	stmt "select 'caught something'"
 3	jump_if_not 7(7) (i@1 > 0)
 4	set i@1 (i@1 - 1)
-5	stmt 0 "select 'looping', i"
+5	stmt "select 'looping', i"
 6	jump 3
 7	hreturn 2
-8	stmt 0 "select 'do something'"
-9	stmt 5 "insert into t1 values (v)"
-10	stmt 0 "select 'do something again'"
-11	stmt 5 "insert into t1 values (v)"
+8	stmt "select 'do something'"
+9	stmt "insert into t1 values (v)"
+10	stmt "select 'do something again'"
+11	stmt "insert into t1 values (v)"
 12	hpop 1
 show procedure code proc_26977_works;
 Pos	Instruction
 0	set i@1 5
 1	hpush_jump 9 2 CONTINUE
-2	stmt 0 "select 'caught something'"
+2	stmt "select 'caught something'"
 3	jump_if_not 7(7) (i@1 > 0)
 4	set i@1 (i@1 - 1)
-5	stmt 0 "select 'looping', i"
+5	stmt "select 'looping', i"
 6	jump 3
-7	stmt 0 "select 'optimizer: keep hreturn'"
+7	stmt "select 'optimizer: keep hreturn'"
 8	hreturn 2
-9	stmt 0 "select 'do something'"
-10	stmt 5 "insert into t1 values (v)"
-11	stmt 0 "select 'do something again'"
-12	stmt 5 "insert into t1 values (v)"
+9	stmt "select 'do something'"
+10	stmt "insert into t1 values (v)"
+11	stmt "select 'do something again'"
+12	stmt "insert into t1 values (v)"
 13	hpop 1
 call proc_26977_broken(1);
 do something
@@ -847,8 +847,8 @@ drop procedure if exists p_20906_b;
 create procedure p_20906_a() SET @a=@a+1, @b=@b+1;
 show procedure code p_20906_a;
 Pos	Instruction
-0	stmt 31 "SET  @a=@a+1"
-1	stmt 31 "SET  @b=@b+1"
+0	stmt "SET @a=@a+1"
+1	stmt "SET @b=@b+1"
 set @a=1;
 set @b=1;
 call p_20906_a();
@@ -858,9 +858,9 @@ select @a, @b;
 create procedure p_20906_b() SET @a=@a+1, @b=@b+1, @c=@c+1;
 show procedure code p_20906_b;
 Pos	Instruction
-0	stmt 31 "SET  @a=@a+1"
-1	stmt 31 "SET  @b=@b+1"
-2	stmt 31 "SET  @c=@c+1"
+0	stmt "SET @a=@a+1"
+1	stmt "SET @b=@b+1"
+2	stmt "SET @c=@c+1"
 set @a=1;
 set @b=1;
 set @c=1;
@@ -963,10 +963,10 @@ Pos	Instruction
 0	freturn 3 0
 SHOW PROCEDURE CODE testp_bug11763507;
 Pos	Instruction
-0	stmt 0 "SELECT "PROCEDURE testp_bug11763507""
+0	stmt "SELECT "PROCEDURE testp_bug11763507""
 SHOW PROCEDURE CODE TESTP_bug11763507;
 Pos	Instruction
-0	stmt 0 "SELECT "PROCEDURE testp_bug11763507""
+0	stmt "SELECT "PROCEDURE testp_bug11763507""
 DROP PROCEDURE testp_bug11763507;
 DROP FUNCTION testf_bug11763507;
 #END OF BUG#11763507 test.
