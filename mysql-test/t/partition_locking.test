@@ -1687,14 +1687,19 @@ eval $get_handler_status_counts;
 --echo # 28 locks (1 tables, 13 partitions lock/unlock)
 
 SELECT * FROM t1 ORDER BY a;
+DROP TABLE t1, t2, t3;
 
 --echo #
 --echo # Test of BEFORE UPDATE triggers and multi UPDATE
 --echo #
-DROP TRIGGER t1_before_insert;
-DROP TRIGGER t1_before_update;
-TRUNCATE TABLE t1;
-TRUNCATE TABLE t2;
+CREATE TABLE t1 (a int, b varchar(128), KEY (b))
+ENGINE = InnoDB
+PARTITION BY HASH (a) PARTITIONS 13;
+
+CREATE TABLE t2 (a int PRIMARY KEY, b varchar(128))
+ENGINE = InnoDB
+PARTITION BY HASH (a) PARTITIONS 13;
+
 INSERT INTO t1 VALUES (1, "MultiUpdate1");
 INSERT INTO t1 VALUES (2, "MultiUpdate2");
 INSERT INTO t2 VALUES (1, "MultiUpdate1");
@@ -1709,16 +1714,51 @@ ON t2 FOR EACH ROW
 SET NEW.b = CONCAT("new2 a: ", NEW.a, " new2 b: ", NEW.b);
 
 FLUSH STATUS;
+EXPLAIN EXTENDED UPDATE t1, t2
+SET t1.b = CONCAT(t1.b, ",(1) t2.b:", t2.b),
+    t2.b = CONCAT(t2.b, ",(1) t1.b:", t1.b)
+WHERE t2.b = t1.b and t1.a = 1;
+eval $get_handler_status_counts;
+--echo # 32 locks (2 table, 13 + 1 partitions lock/unlock)
+
+FLUSH STATUS;
+EXPLAIN PARTITIONS UPDATE t1, t2
+SET t1.b = CONCAT(t1.b, ",(1) t2.b:", t2.b),
+    t2.b = CONCAT(t2.b, ",(1) t1.b:", t1.b)
+WHERE t2.b = t1.b and t1.a = 1;
+eval $get_handler_status_counts;
+--echo # 32 locks (2 table, 13 + 1 partitions lock/unlock)
+
+FLUSH STATUS;
 UPDATE t1, t2
 SET t1.b = CONCAT(t1.b, ",(1) t2.b:", t2.b),
     t2.b = CONCAT(t2.b, ",(1) t1.b:", t1.b)
 WHERE t2.b = t1.b and t1.a = 1;
 eval $get_handler_status_counts;
 --echo # 32 locks (2 table, 13 + 1 partitions lock/unlock)
---echo # 15 read_key
---echo # 1 read_next, read_rnd
---echo # 2 rean_rnd_next
+--echo # 14 read_first
+--echo # 16 read_key
+--echo # 2 read_rnd
+--echo # 21 rean_rnd_next
 --echo # 2 update
+
+FLUSH STATUS;
+EXPLAIN EXTENDED UPDATE t1, t2
+SET t1.b = CONCAT(t1.b, ",(2) t2.b:", t2.b),
+    t2.b = CONCAT(t2.b, ",(2) t1.b:", t1.b)
+WHERE t1.b = t2.b and t2.a = 2;
+eval $get_handler_status_counts;
+--echo # Trigger touches partitioning column, unable to prune locks
+--echo # 56 locks (2 tables + 2 * 13 partitions lock/unlock)
+
+FLUSH STATUS;
+EXPLAIN PARTITIONS UPDATE t1, t2
+SET t1.b = CONCAT(t1.b, ",(2) t2.b:", t2.b),
+    t2.b = CONCAT(t2.b, ",(2) t1.b:", t1.b)
+WHERE t1.b = t2.b and t2.a = 2;
+eval $get_handler_status_counts;
+--echo # Trigger touches partitioning column, unable to prune locks
+--echo # 56 locks (2 tables + 2 * 13 partitions lock/unlock)
 
 FLUSH STATUS;
 UPDATE t1, t2
@@ -1726,17 +1766,17 @@ SET t1.b = CONCAT(t1.b, ",(2) t2.b:", t2.b),
     t2.b = CONCAT(t2.b, ",(2) t1.b:", t1.b)
 WHERE t1.b = t2.b and t2.a = 2;
 eval $get_handler_status_counts;
---echo # 32 locks (2 table, 13 + 1 partitions lock/unlock)
+--echo # Due to the BEFORE UPDATE trigger on t2 that looks at 'a',
+--echo # no locks can be pruned.
+--echo # 56 locks (2 table, 2 * 13 partitions lock/unlock)
 --echo # 15 read_key
 --echo # 1 read_next, read_rnd
---echo # 2 rean_rnd_next
+--echo # 2 read_rnd_next
 --echo # 2 update
 
 SELECT * FROM t1 ORDER BY a;
---echo # TODO: FIXME: Why is the first row in t2 also affected by t1 trigger?
 SELECT * FROM t2 ORDER BY a;
-
-DROP TABLE t1, t2, t3;
+DROP TABLE t1, t2;
 
 --echo #
 --echo # DO is not supported by WL#4443 !!!

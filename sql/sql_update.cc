@@ -1680,6 +1680,8 @@ int multi_update::prepare(List<Item> &not_used_values,
         */
         bitmap_union(table->read_set, table->write_set);
       }
+      /* All needed columns must be marked before prune_partitions(). */
+      table->mark_columns_needed_for_update();
     }
   }
 
