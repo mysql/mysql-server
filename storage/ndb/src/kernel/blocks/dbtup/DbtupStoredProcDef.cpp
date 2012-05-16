@@ -89,10 +89,8 @@ void Dbtup::storedProcCountNonAPI(BlockReference apiBlockref, int add_del)
 {
   BlockNumber apiBlockno = refToBlock(apiBlockref);
   if (apiBlockno < MIN_API_BLOCK_NO) {
-    ndbassert(blockToMain(apiBlockno) == BACKUP ||
-              blockToMain(apiBlockno) == SUMA ||
-              blockToMain(apiBlockno) == DBLQH ||
-              blockToMain(apiBlockno) == DBSPJ);
+    ndbassert(blockToMain(apiBlockno) >= MIN_BLOCK_NO &&
+              blockToMain(apiBlockno) <= MAX_BLOCK_NO);
     if (add_del == +1) {
       jam();
       c_storedProcCountNonAPI++;

@@ -131,4 +131,65 @@ delete from parent;
 
 alter table child drop foreign key fkname;
 
+###
+### PK vs OI
+###
+alter table child add constraint fkname foreign key (c) references parent(a);
+
+insert into parent values (1,1,1);
+insert into child values (1,1,1);
+
+--error 1452
+update child set c = 2 where a = 1;
+
+--error 1452
+insert into child values (2,2,2);
+
+begin;
+delete from parent;
+delete from child;
+commit;
+
+begin;
+insert into child values (2,2,2);
+insert into parent values (2,2,2);
+commit;
+
+delete from child;
+delete from parent;
+
+alter table child drop foreign key fkname;
+
+###
+### UK vs OI
+###
+alter table child add constraint fkname foreign key (c) references parent(b);
+
+insert into parent values (1,1,1);
+insert into child values (1,1,1);
+
+--error 1452
+update child set c = 2 where a = 1;
+
+--error 1452
+insert into child values (2,2,2);
+
+--error 1451
+update parent set b = 2 where a = 1;
+
+begin;
+delete from parent;
+delete from child;
+commit;
+
+begin;
+insert into child values (2,2,2);
+insert into parent values (2,2,2);
+commit;
+
+delete from child;
+delete from parent;
+
+alter table child drop foreign key fkname;
+
 drop table parent, child;

@@ -92,6 +92,8 @@
 
 #include <signaldata/CreateFKImpl.hpp>
 #include <signaldata/DropFKImpl.hpp>
+#include <kernel/Interpreter.hpp>
+#include <signaldata/TuxBound.hpp>
 
 // Use DEBUG to print messages that should be
 // seen only when we debug the product
@@ -15592,12 +15594,21 @@ Dbtc::trigger_op_finished(Signal* signal,
     c_theDefinedTriggers.getPtr(trigPtr, trigPtrI);
     switch(trigPtr.p->triggerType){
     case TriggerType::FK_PARENT:
+      if (errCode == ZNOT_FOUND)
+      {
+        break; // good!
+      }
       if (errCode == 0)
       {
         terrorCode = ZFK_CHILD_ROW_EXISTS;
-        abortErrorLab(signal);
-        return;
       }
+      else
+      {
+        terrorCode = errCode;
+      }
+      apiConnectptr = regApiPtr;
+      abortErrorLab(signal);
+      return;
     default:
       (void)1;
     }
@@ -15824,7 +15835,18 @@ Dbtc::executeFKParentTrigger(Signal* signal,
 
   Uint32 op = ZREAD;
   Uint32 attrValuesPtrI = RNIL; // for cascascade update/setnull
-  fk_readFromChildTable(signal, firedTriggerData, transPtr, opPtr, fkPtr.p, op, attrValuesPtrI);
+  if (! (fkPtr.p->bits & CreateFKImplReq::FK_CHILD_OI))
+  {
+    jam();
+    fk_readFromChildTable(signal, firedTriggerData, transPtr, opPtr,
+                          fkPtr.p, op, attrValuesPtrI);
+  }
+  else
+  {
+    jam();
+    fk_scanFromChildTable(signal, firedTriggerData, transPtr, opPtr,
+                          fkPtr.p, op, attrValuesPtrI);
+  }
 }
 
 void
@@ -15991,6 +16013,403 @@ Dbtc::fk_buildKeyInfo(Uint32& keyIVal, bool& hasNull,
     }
   }
 
+  return 0;
+}
+
+#define SCAN_FROM_CHILD_PARALLELISM 4
+
+void
+Dbtc::fk_scanFromChildTable(Signal* signal,
+                            TcFiredTriggerData* firedTriggerData,
+                            ApiConnectRecordPtr* transPtr,
+                            TcConnectRecordPtr* opPtr,
+                            TcFKData* fkData,
+                            Uint32 op,
+                            Uint32 attrValuesPtrI)
+{
+  ApiConnectRecord* regApiPtr = transPtr->p;
+
+  if (unlikely(cfirstfreeScanrec == RNIL))
+  {
+    jam();
+    abortTransFromTrigger(signal, *transPtr, ZNO_SCANREC_ERROR);
+    return;
+  }
+
+  if (unlikely(cfirstfreeTcConnect == RNIL))
+  {
+    jam();
+    abortTransFromTrigger(signal, *transPtr, ZNO_FREE_TC_CONNECTION);
+    return;
+  }
+
+  seizeApiConnect(signal);
+  if (unlikely(terrorCode != ZOK))
+  {
+    jam();
+    abortTransFromTrigger(signal, *transPtr, terrorCode);
+    return;
+  }
+
+  // seize a TcConnectRecord to keep track of trigger stuff
+  seizeTcConnect(0);
+  TcConnectRecordPtr tcPtr = tcConnectptr;
+
+  ApiConnectRecordPtr scanApiConnectPtr = apiConnectptr;
+  scanApiConnectPtr.p->ndbapiBlockref = reference();
+  scanApiConnectPtr.p->ndbapiConnect = tcPtr.i;
+
+  tcPtr.p->apiConnect = scanApiConnectPtr.i;
+  tcPtr.p->triggeringOperation = opPtr->i;
+  tcPtr.p->currentTriggerId = firedTriggerData->triggerId;
+  tcPtr.p->triggerErrorCode = ZNOT_FOUND;
+  tcPtr.p->operation = op;
+
+  TableRecordPtr childIndexPtr;
+  childIndexPtr.i = fkData->childIndexId;
+  ptrCheckGuard(childIndexPtr, ctabrecFilesize, tableRecord);
+
+  /**
+   * Construct a index-scan
+   */
+  const Uint32 parallelism = SCAN_FROM_CHILD_PARALLELISM;
+  ScanTabReq * req = CAST_PTR(ScanTabReq, signal->getDataPtrSend());
+  Uint32 ri = 0;
+  ScanTabReq::setParallelism(ri, parallelism);
+  ScanTabReq::setScanBatch(ri, 1);
+  ScanTabReq::setLockMode(ri, 0);
+  ScanTabReq::setHoldLockFlag(ri, 0);
+  ScanTabReq::setReadCommittedFlag(ri, 1);
+  ScanTabReq::setRangeScanFlag(ri, 1);
+  ScanTabReq::setDescendingFlag(ri, 0);
+  ScanTabReq::setTupScanFlag(ri, 0);
+  ScanTabReq::setKeyinfoFlag(ri, 0);
+  ScanTabReq::setDistributionKeyFlag(ri, 0);
+  ScanTabReq::setNoDiskFlag(ri, 1);
+  ScanTabReq::setViaSPJFlag(ri, 0);
+  ScanTabReq::setPassAllConfsFlag(ri, 0);
+  ScanTabReq::set4WordConf(ri, 0);
+  req->requestInfo = ri;
+  req->transId1 = regApiPtr->transid[0];
+  req->transId2 = regApiPtr->transid[1];
+  req->buddyConPtr = transPtr->i;
+  req->tableId = childIndexPtr.i;
+  req->tableSchemaVersion = childIndexPtr.p->currentSchemaVersion;
+  req->apiConnectPtr = scanApiConnectPtr.i;
+  req->storedProcId = 0xFFFF;
+  req->batch_byte_size = 0;
+  req->first_batch_size = 0;
+
+  SegmentedSectionPtr ptr[3];
+  Uint32 optrs[parallelism];
+  for (Uint32 i = 0; i<parallelism; i++)
+    optrs[i] = tcPtr.i;
+
+  Uint32 program[] = {
+    0, 1, 0, 0, 0, Interpreter::ExitLastOK()
+  };
+
+  Uint32 errorCode = ZGET_DATAREC_ERROR;
+  if (unlikely( !import(ptr[0], optrs, NDB_ARRAY_SIZE(optrs))))
+  {
+    jam();
+    goto oom;
+  }
+
+  if (unlikely( !import(ptr[1], program, NDB_ARRAY_SIZE(program))))
+  {
+    jam();
+    goto oom;
+  }
+
+  {
+    AttributeBuffer::DataBufferPool & pool = c_theAttributeBufferPool;
+    LocalDataBuffer<11> beforeValues(pool, firedTriggerData->beforeValues);
+    if (unlikely((errorCode=fk_buildBounds(ptr[2], beforeValues, fkData)) != 0))
+    {
+      jam();
+      goto oom;
+    }
+  }
+
+  signal->header.m_noOfSections= 3;
+  signal->m_sectionPtrI[0] = ptr[0].i;
+  signal->m_sectionPtrI[1] = ptr[1].i;
+  signal->m_sectionPtrI[2] = ptr[2].i;
+  execSCAN_TABREQ(signal);
+
+  transPtr->p->lqhkeyreqrec++; // Make sure that execution is stalled
+  return;
+
+oom:
+  for (Uint32 i = 0; i < 3; i++)
+  {
+    if (ptr[i].i != RNIL)
+    {
+      release(ptr[i]);
+    }
+  }
+  releaseApiCon(signal, scanApiConnectPtr.i);
+  abortTransFromTrigger(signal, *transPtr, errorCode);
+  return;
+}
+
+void
+Dbtc::execSCAN_TABCONF(Signal* signal)
+{
+  jamEntry();
+  const ScanTabConf * conf = CAST_CONSTPTR(ScanTabConf, signal->getDataPtr());
+
+  // TODO validate transid
+
+  TcConnectRecordPtr tcPtr;
+  tcPtr.i = conf->apiConnectPtr;
+  ptrCheckGuard(tcPtr, ctcConnectFilesize, tcConnectRecord);
+
+  Ptr<TcDefinedTriggerData> trigPtr;
+  c_theDefinedTriggers.getPtr(trigPtr, tcPtr.p->currentTriggerId);
+
+  Uint32 rows = 0;
+  const Uint32 ops = (conf->requestInfo >> OPERATIONS_SHIFT) & OPERATIONS_MASK;
+  for (Uint32 i = 0; i<ops; i++)
+  {
+    jam();
+    ScanTabConf::OpData * op = (ScanTabConf::OpData*)
+      (signal->getDataPtr() + ScanTabConf::SignalLength + 3 * i);
+    rows += ScanTabConf::getRows(op->rows);
+  }
+
+  if (rows)
+  {
+    jam();
+    tcPtr.p->triggerErrorCode = ZFK_CHILD_ROW_EXISTS;
+  }
+
+  if (conf->requestInfo & ScanTabConf::EndOfData)
+  {
+    jam();
+    fk_scanFromChildTable_done(signal, tcPtr);
+  }
+  else if (rows)
+  {
+    jam();
+    /**
+     * Abort scan...we already know that ZFK_CHILD_ROW_EXISTS
+     */
+    fk_scanFromChildTable_abort(signal, tcPtr);
+  }
+  else
+  {
+    jam();
+    /**
+     * Continue scanning...
+     */
+    ApiConnectRecordPtr scanApiConnectPtr;
+    scanApiConnectPtr.i = tcPtr.p->apiConnect;
+    ptrCheckGuard(scanApiConnectPtr, capiConnectFilesize, apiConnectRecord);
+
+    const Uint32 parallelism = SCAN_FROM_CHILD_PARALLELISM;
+    Uint32 cnt = 0;
+    Uint32 operations[parallelism];
+    for (Uint32 i = 0; i<ops; i++)
+    {
+      jam();
+      ScanTabConf::OpData * op = (ScanTabConf::OpData*)
+        (signal->getDataPtr() + ScanTabConf::SignalLength + 3 * i);
+      if (op->tcPtrI != RNIL)
+      {
+        ndbrequire(cnt < NDB_ARRAY_SIZE(operations));
+        operations[cnt++] = op->tcPtrI;
+      }
+    }
+    if (cnt)
+    {
+      jam();
+      ScanNextReq* req = CAST_PTR(ScanNextReq, signal->getDataPtrSend());
+      req->apiConnectPtr = scanApiConnectPtr.i;
+      req->stopScan = 0;
+      req->transId1 = scanApiConnectPtr.p->transid[0];
+      req->transId2 = scanApiConnectPtr.p->transid[1];
+      memcpy(signal->getDataPtrSend() + ScanNextReq::SignalLength,
+             operations, 4 * cnt);
+      sendSignal(reference(), GSN_SCAN_NEXTREQ, signal,
+                 ScanNextReq::SignalLength + cnt, JBB);
+    }
+  }
+}
+
+void
+Dbtc::fk_scanFromChildTable_abort(Signal* signal, TcConnectRecordPtr tcPtr)
+{
+  ApiConnectRecordPtr scanApiConnectPtr;
+  scanApiConnectPtr.i = tcPtr.p->apiConnect;
+  ptrCheckGuard(scanApiConnectPtr, capiConnectFilesize, apiConnectRecord);
+
+  /**
+   * Check that the scan has not already completed
+   * - so we can abort aggresively
+   */
+  if (scanApiConnectPtr.p->apiConnectstate != CS_START_SCAN)
+  {
+    jam();
+    /**
+     * Scan has already completed...we just haven't received the EOD yet
+     *
+     *   wait for it...
+     */
+    return;
+  }
+
+  ScanNextReq* req = CAST_PTR(ScanNextReq, signal->getDataPtrSend());
+  req->apiConnectPtr = scanApiConnectPtr.i;
+  req->stopScan = 1;
+  req->transId1 = scanApiConnectPtr.p->transid[0];
+  req->transId2 = scanApiConnectPtr.p->transid[1];
+
+  /**
+   * Here we need to use EXECUTE_DIRECT
+   *   or this signal will race with state-changes in scan-record
+   *
+   * NOTE: A better alternative would be to fix Dbtc/protocol to handle
+   *       these races...
+   */
+  EXECUTE_DIRECT(DBTC, GSN_SCAN_NEXTREQ, signal, ScanNextReq::SignalLength);
+}
+
+void
+Dbtc::fk_scanFromChildTable_done(Signal* signal, TcConnectRecordPtr tcPtr)
+{
+  ApiConnectRecordPtr scanApiConnectPtr;
+  scanApiConnectPtr.i = tcPtr.p->apiConnect;
+  ptrCheckGuard(scanApiConnectPtr, capiConnectFilesize, apiConnectRecord);
+
+  ndbrequire(scanApiConnectPtr.p->ndbapiConnect == tcPtr.i);
+
+  /**
+   * save things needed to finish this trigger op
+   */
+  Uint32 transId[] = {
+    scanApiConnectPtr.p->transid[0],
+    scanApiConnectPtr.p->transid[1]
+  };
+
+  Uint32 errCode = tcPtr.p->triggerErrorCode;
+  Uint32 triggerId = tcPtr.p->currentTriggerId;
+
+  TcConnectRecordPtr opPtr; // triggering operation
+  opPtr.i = tcPtr.p->triggeringOperation;
+  ptrCheckGuard(opPtr, ctcConnectFilesize, tcConnectRecord);
+
+  /**
+   * release extra allocated resources
+   */
+  tcConnectptr = tcPtr;
+  releaseTcCon();
+  releaseApiCon(signal, scanApiConnectPtr.i);
+
+  ApiConnectRecordPtr orgApiConnectPtr;
+  orgApiConnectPtr.i = opPtr.p->apiConnect;
+  ptrCheckGuard(orgApiConnectPtr, capiConnectFilesize, apiConnectRecord);
+  ndbrequire(orgApiConnectPtr.p->lqhkeyreqrec > 0);
+  ndbrequire(orgApiConnectPtr.p->lqhkeyreqrec > orgApiConnectPtr.p->lqhkeyconfrec);
+  orgApiConnectPtr.p->lqhkeyreqrec--;
+
+  trigger_op_finished(signal, orgApiConnectPtr, triggerId, opPtr.p, errCode);
+}
+
+void
+Dbtc::execSCAN_TABREF(Signal* signal)
+{
+  jamEntry();
+
+  const ScanTabRef * ref = CAST_CONSTPTR(ScanTabRef, signal->getDataPtr());
+
+  // TODO validate transid
+
+  TcConnectRecordPtr tcPtr;
+  tcPtr.i = ref->apiConnectPtr;
+  ptrCheckGuard(tcPtr, ctcConnectFilesize, tcConnectRecord);
+
+  tcPtr.p->triggerErrorCode = ref->errorCode;
+  if (ref->closeNeeded)
+  {
+    jam();
+    fk_scanFromChildTable_abort(signal, tcPtr);
+  }
+  else
+  {
+    jam();
+    fk_scanFromChildTable_done(signal, tcPtr);
+  }
+}
+
+Uint32
+Dbtc::fk_buildBounds(SegmentedSectionPtr & dst,
+                     LocalDataBuffer<11> & src,
+                     TcFKData* fkData)
+{
+  dst.i = RNIL;
+  Uint32 dstPtrI = RNIL;
+
+  IndexAttributeList * list = &fkData->parentTableColumns;
+
+  AttributeBuffer::DataBufferIterator iter;
+  bool eof = !src.first(iter);
+  for (Uint32 i = 0; i < list->sz; i++)
+  {
+    Uint32 col = list->id[i];
+    if (!eof && AttributeHeader(* iter.data).getAttributeId() == col)
+    {
+  found:
+      Uint32 byteSize = AttributeHeader(* iter.data).getByteSize();
+      Uint32 len32 = (byteSize + 3) / 4;
+      if (len32 == 0)
+      {
+        // ?? TODO what to do
+      }
+      eof = !src.next(iter);
+
+      Uint32 data[2];
+      data[0] = TuxBoundInfo::BoundEQ;
+      AttributeHeader::init(data+1, i, byteSize);
+      if (unlikely(!appendToSection(dstPtrI, data, NDB_ARRAY_SIZE(data))))
+      {
+        dst.i = dstPtrI;
+        return ZGET_DATAREC_ERROR;
+      }
+
+      Uint32 err = appendDataToSection(dstPtrI, src, iter,
+                                       len32);
+      if (unlikely(err != 0))
+      {
+        dst.i = dstPtrI;
+        return err;
+      }
+
+      eof = iter.isNull();
+    }
+    else
+    {
+      /**
+       * Search for column...
+       */
+      eof = !src.first(iter);
+      while (!eof && AttributeHeader(* iter.data).getAttributeId() != col)
+      {
+        eof = !src.next(iter,
+                           1 + AttributeHeader(* iter.data).getDataSize());
+      }
+      if (unlikely(eof))
+      {
+        dst.i = dstPtrI;
+        return ZMISSING_TRIGGER_DATA;
+      }
+      ndbassert(AttributeHeader(* iter.data).getAttributeId() == col);
+      goto found;
+    }
+  }
+
+  dst.i = dstPtrI;
   return 0;
 }
 
