@@ -2484,6 +2484,17 @@ Dbtc::seizeCacheRecord(Signal* signal)
   return 0;
 }//Dbtc::seizeCacheRecord()  
 
+void
+Dbtc::releaseCacheRecord(ApiConnectRecordPtr transPtr, CacheRecord* regCachePtr)
+{
+  ApiConnectRecord * const regApiPtr = transPtr.p;
+  UintR TfirstfreeCacheRec = cfirstfreeCacheRec;
+  UintR TCacheIndex = transPtr.p->cachePtr;
+  regCachePtr->nextCacheRec = TfirstfreeCacheRec;
+  cfirstfreeCacheRec = TCacheIndex;
+  regApiPtr->cachePtr = RNIL;
+}
+
 /*****************************************************************************/
 /*                               T C K E Y R E Q                             */
 /* AFTER HAVING ESTABLISHED THE CONNECT, THE APPLICATION BLOCK SENDS AN      */
@@ -10469,7 +10480,6 @@ void Dbtc::execSCAN_TABREQ(Signal* signal)
     keyLen = scanTabReq->attrLenKeyLen >> 16;
   }
 
-
   apiConnectptr.i = scanTabReq->apiConnectPtr;
   tabptr.i = scanTabReq->tableId;
 
@@ -10543,35 +10553,42 @@ void Dbtc::execSCAN_TABREQ(Signal* signal)
     goto SCAN_TAB_error;
   }
 
-  seizeCacheRecord(signal);
-
-  if (likely(isLongReq))
-  {
-    /* We keep the AttrInfo and KeyInfo sections */
-    cachePtr.p->attrInfoSectionI= handle.m_ptr[ScanTabReq::AttrInfoSectionNum].i;
-    if (keyLen)
-      cachePtr.p->keyInfoSectionI= handle.m_ptr[ScanTabReq::KeyInfoSectionNum].i;
-  }
-
-  releaseSection(handle.m_ptr[ScanTabReq::ReceiverIdSectionNum].i);
-  handle.clear();
-
-  cachePtr.p->keylen = keyLen;
-  cachePtr.p->save1 = 0;
-  cachePtr.p->distributionKey = scanTabReq->distributionKey;
-  cachePtr.p->distributionKeyIndicator= ScanTabReq::getDistributionKeyFlag(ri);
   scanptr = seizeScanrec(signal);
-
   ndbrequire(transP->apiScanRec == RNIL);
   ndbrequire(scanptr.p->scanApiRec == RNIL);
 
   errCode = initScanrec(scanptr, scanTabReq, scanParallel, noOprecPerFrag,
-                        aiLength, keyLen, apiPtr);
+                        apiPtr);
   if (unlikely(errCode))
   {
     jam();
     goto SCAN_TAB_error;
   }
+
+  releaseSection(handle.m_ptr[ScanTabReq::ReceiverIdSectionNum].i);
+  if (likely(isLongReq))
+  {
+    jam();
+    /* We keep the AttrInfo and KeyInfo sections */
+    scanptr.p->scanAttrInfoPtr = handle.m_ptr[ScanTabReq::AttrInfoSectionNum].i;
+    if (keyLen)
+    {
+      jam();
+      scanptr.p->scanKeyInfoPtr = handle.m_ptr[ScanTabReq::KeyInfoSectionNum].i;
+    }
+  }
+  else
+  {
+    jam();
+    seizeCacheRecord(signal);
+    cachePtr.p->attrlength = aiLength;
+    cachePtr.p->keylen = keyLen;
+    cachePtr.p->save1 = 0;
+  }
+  handle.clear();
+
+  scanptr.p->m_scan_dist_key = scanTabReq->distributionKey;
+  scanptr.p->m_scan_dist_key_flag = ScanTabReq::getDistributionKeyFlag(ri);
 
   transP->apiScanRec = scanptr.i;
   transP->returncode = 0;
@@ -10668,14 +10685,10 @@ Dbtc::initScanrec(ScanRecordPtr scanptr,
 		  const ScanTabReq * scanTabReq,
 		  UintR scanParallel,
 		  UintR noOprecPerFrag,
-		  Uint32 aiLength,
-		  Uint32 keyLength,
                   const Uint32 apiPtr[])
 {
   const UintR ri = scanTabReq->requestInfo;
   scanptr.p->scanApiRec = apiConnectptr.i;
-  scanptr.p->scanAiLength = aiLength;
-  scanptr.p->scanKeyLen = keyLength;
   scanptr.p->scanTableref = tabptr.i;
   scanptr.p->scanSchemaVersion = scanTabReq->tableSchemaVersion;
   scanptr.p->scanParallel = scanParallel;
@@ -10683,6 +10696,7 @@ Dbtc::initScanrec(ScanRecordPtr scanptr,
   scanptr.p->batch_byte_size = scanTabReq->batch_byte_size;
   scanptr.p->batch_size_rows = noOprecPerFrag;
   scanptr.p->m_scan_block_no = DBLQH;
+  scanptr.p->m_scan_dist_key_flag = 0;
 
   Uint32 tmp = 0;
   ScanFragReq::setLockMode(tmp, ScanTabReq::getLockMode(ri));
@@ -10703,10 +10717,13 @@ Dbtc::initScanrec(ScanRecordPtr scanptr,
   scanptr.p->scanStoredProcId = scanTabReq->storedProcId;
   scanptr.p->scanState = ScanRecord::RUNNING;
   scanptr.p->m_queued_count = 0;
+  scanptr.p->m_booked_fragments_count = 0;
   scanptr.p->m_scan_cookie = RNIL;
   scanptr.p->m_close_scan_req = false;
   scanptr.p->m_pass_all_confs =  ScanTabReq::getPassAllConfsFlag(ri);
   scanptr.p->m_4word_conf = ScanTabReq::get4WordConf(ri);
+  scanptr.p->scanKeyInfoPtr = RNIL;
+  scanptr.p->scanAttrInfoPtr = RNIL;
 
   ScanFragList list(c_scan_frag_pool, 
 		    scanptr.p->m_running_scan_frags);
@@ -10816,16 +10833,19 @@ void Dbtc::scanAttrinfoLab(Signal* signal, UintR Tlen)
     abortScanLab(signal, scanptr, ZGET_ATTRBUF_ERROR, true);
     return;
   }
-  
-  if (regCachePtr->currReclenAi == scanptr.p->scanAiLength)
+
+  if (regCachePtr->currReclenAi == regCachePtr->attrlength)
   {
+    jam();
     /* We have now received all the signals defining this
      * scan.  We are ready to start executing the scan
      */
+    scanptr.p->scanAttrInfoPtr = regCachePtr->attrInfoSectionI;
+    releaseCacheRecord(apiConnectptr, regCachePtr);
     diFcountReqLab(signal, scanptr);
     return;
   }
-  else if (unlikely (regCachePtr->currReclenAi > scanptr.p->scanAiLength))
+  else if (unlikely (regCachePtr->currReclenAi > regCachePtr->attrlength))
   {
     jam();
     abortScanLab(signal, scanptr, ZLENGTH_ERROR, true);
@@ -10925,17 +10945,7 @@ void Dbtc::execDIH_SCAN_TAB_CONF(Signal* signal)
     return;
   }
 
-  cachePtr.i = regApiPtr->cachePtr;
-  ptrCheckGuard(cachePtr, ccacheFilesize, cacheRecord);
-  CacheRecord * regCachePtrP = cachePtr.p;
-
-  Uint32 version = getNodeInfo(refToNode(regApiPtr->ndbapiBlockref)).m_version;
-  if (unlikely(!ndb_scan_distributionkey(version)))
-  {
-    jam();
-    regCachePtrP->distributionKeyIndicator = 0;
-  }
-  if (regCachePtrP->distributionKeyIndicator)
+  if (scanptr.p->m_scan_dist_key_flag)
   {
     jam();
     ndbrequire(DictTabInfo::isOrderedIndex(tabPtr.p->tableType) ||
@@ -10944,7 +10954,7 @@ void Dbtc::execDIH_SCAN_TAB_CONF(Signal* signal)
     DiGetNodesReq * req = (DiGetNodesReq *)&signal->theData[0];
     const DiGetNodesConf * get_conf = (DiGetNodesConf *)&signal->theData[0];
     req->tableId = tabPtr.i;
-    req->hashValue = cachePtr.p->distributionKey;
+    req->hashValue = scanptr.p->m_scan_dist_key;
     req->distr_key_indicator = tabPtr.p->get_user_defined_partitioning();
     req->jamBufferPtr = jamBuffer();
     EXECUTE_DIRECT(DBDIH, GSN_DIGETNODESREQ, signal,
@@ -11062,7 +11072,19 @@ void Dbtc::releaseScanResources(Signal* signal,
     run.release();
     queue.release();
   }
-  
+
+  if (scanPtr.p->scanKeyInfoPtr != RNIL)
+  {
+    releaseSection(scanPtr.p->scanKeyInfoPtr);
+    scanPtr.p->scanKeyInfoPtr = RNIL;
+  }
+
+  if (scanPtr.p->scanAttrInfoPtr != RNIL)
+  {
+    releaseSection(scanPtr.p->scanAttrInfoPtr);
+    scanPtr.p->scanAttrInfoPtr = RNIL;
+  }
+
   ndbrequire(scanPtr.p->m_running_scan_frags.isEmpty());
   ndbrequire(scanPtr.p->m_queued_scan_frags.isEmpty());
   ndbrequire(scanPtr.p->m_delivered_scan_frags.isEmpty());
@@ -11173,8 +11195,6 @@ void Dbtc::execDIH_SCAN_GET_NODES_CONF(Signal* signal)
   
   apiConnectptr.i = scanptr.p->scanApiRec;
   ptrCheckGuard(apiConnectptr, capiConnectFilesize, apiConnectRecord);
-  cachePtr.i = apiConnectptr.p->cachePtr;
-  ptrCheckGuard(cachePtr, ccacheFilesize, cacheRecord);
   switch (scanptr.p->scanState) {
   case ScanRecord::CLOSING_SCAN:
     jam();
@@ -11871,21 +11891,17 @@ void Dbtc::sendScanFragReq(Signal* signal,
   bool longFragReq= ((version >= NDBD_LONG_SCANFRAGREQ) &&
                      (! ERROR_INSERTED(8070) &&
 		      ! ERROR_INSERTED(8088)));
-  cachePtr.i = apiConnectptr.p->cachePtr;
-  ptrCheckGuard(cachePtr, ccacheFilesize, cacheRecord);
-
-  Uint32 reqKeyLen = scanP->scanKeyLen;
 
   SectionHandle sections(this);
-  sections.m_ptr[0].i = cachePtr.p->attrInfoSectionI;
-  sections.m_cnt = 1;
-    
-  if (reqKeyLen > 0)
+  sections.m_ptr[0].i = scanP->scanAttrInfoPtr;
+  sections.m_ptr[1].i = scanP->scanKeyInfoPtr;
+
+  sections.m_cnt = 1; // there is always attrInfo
+
+  if (scanP->scanKeyInfoPtr != RNIL)
   {
     jam();
-    ndbassert(cachePtr.p->keyInfoSectionI != RNIL);
-    sections.m_ptr[1].i = cachePtr.p->keyInfoSectionI;
-    sections.m_cnt = 2;
+    sections.m_cnt = 2; // and sometimes keyinfo
   }
 
   if (isLastReq)
@@ -11893,10 +11909,10 @@ void Dbtc::sendScanFragReq(Signal* signal,
     /* This send will release these sections, remove our
      * references to them
      */
-    cachePtr.p->attrInfoSectionI = RNIL;
-    cachePtr.p->keyInfoSectionI = RNIL;
+    scanP->scanKeyInfoPtr = RNIL;
+    scanP->scanAttrInfoPtr = RNIL;
   }
-    
+
   getSections(sections.m_cnt, sections.m_ptr);
 
   ScanFragReq * const req = (ScanFragReq *)&signal->theData[0];
@@ -11970,10 +11986,14 @@ void Dbtc::sendScanFragReq(Signal* signal,
      */
     Uint32 reqAttrLen = sections.m_ptr[0].sz;
     ScanFragReq::setAttrLen(req->requestInfo, reqAttrLen);
-    req->fragmentNoKeyLen |= reqKeyLen;
+    if (sections.m_cnt > 1)
+    {
+      jam();
+      req->fragmentNoKeyLen |= sections.m_ptr[1].sz;
+    }
     sendSignal(scanFragP->lqhBlockref, GSN_SCAN_FRAGREQ, signal,
                ScanFragReq::SignalLength, JBB);
-    if(reqKeyLen > 0)
+    if (sections.m_cnt > 1)
     {
       jam();
       /* Build KeyInfo train from KeyInfo long signal section */
@@ -12902,8 +12922,7 @@ Dbtc::execDUMP_STATE_ORD(Signal* signal)
 	      sp.p->scanState,
 	      sp.p->scanNextFragId,
 	      sp.p->scanNoFrag);
-    infoEvent(" ailen=%d, para=%d, receivedop=%d, noOprePperFrag=%d",
-	      sp.p->scanAiLength,
+    infoEvent(" para=%d, receivedop=%d, noOprePperFrag=%d",
 	      sp.p->scanParallel,
 	      sp.p->scanReceivedOperations,
 	      sp.p->batch_size_rows);
