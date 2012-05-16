@@ -651,9 +651,9 @@ dict_create_index_tree_step(
 	dict_index_t*	index;
 	dict_table_t*	sys_indexes;
 	dtuple_t*	search_tuple;
-	ulint		zip_size;
 	btr_pcur_t	pcur;
 	mtr_t		mtr;
+	dberr_t		err	= DB_SUCCESS;
 
 	ut_ad(mutex_own(&(dict_sys->mutex)));
 
