@@ -2772,13 +2772,14 @@ private:
 
   struct TriggerTmpl {
     const char* nameFormat; // contains one %u for index id
-    const TriggerInfo triggerInfo;
+    TriggerInfo triggerInfo;
   };
 
   static const TriggerTmpl g_hashIndexTriggerTmpl[1];
   static const TriggerTmpl g_orderedIndexTriggerTmpl[1];
   static const TriggerTmpl g_buildIndexConstraintTmpl[1];
   static const TriggerTmpl g_reorgTriggerTmpl[1];
+  static const TriggerTmpl g_fkTriggerTmpl[2];
 
   struct AlterIndexRec;
   typedef RecordPool<AlterIndexRec,ArenaPool> AlterIndexRec_pool;
@@ -3709,7 +3710,10 @@ private:
   typedef RecordPool<CreateFKRec,ArenaPool> CreateFKRec_pool;
 
   struct CreateFKRec : public OpRec {
-    bool m_parsed, m_prepared;
+    bool m_parsed;
+    bool m_prepared;
+    Uint32 m_sub_create_trigger;
+    bool m_sub_build_fk;
     CreateFKImplReq m_request;
 
     // reflection
@@ -3724,6 +3728,8 @@ private:
       OpRec(g_opInfo, (Uint32*)&m_request) {
       memset(&m_request, 0, sizeof(m_request));
       m_parsed = m_prepared = false;
+      m_sub_create_trigger = 0;
+      m_sub_build_fk = false;
     }
   };
 
@@ -3735,16 +3741,23 @@ private:
   void createFK_release(SchemaOpPtr);
   //
   void createFK_parse(Signal*, bool master,
-                         SchemaOpPtr, SectionHandle&, ErrorInfo&);
+                      SchemaOpPtr, SectionHandle&, ErrorInfo&);
   bool createFK_subOps(Signal*, SchemaOpPtr);
   void createFK_reply(Signal*, SchemaOpPtr, ErrorInfo);
+
+  void createFK_toCreateTrigger(Signal* signal, SchemaOpPtr);
+  void createFK_fromCreateTrigger(Signal* signal, Uint32 op_key, Uint32 ret);
+  void createFK_fromBuildFK(Signal* signal, Uint32 op_key, Uint32 ret);
   //
   void createFK_prepare(Signal*, SchemaOpPtr);
+  void createFK_prepareFromLocal(Signal* signal, Uint32 op_key, Uint32 ret);
+
   void createFK_commit(Signal*, SchemaOpPtr);
   void createFK_complete(Signal*, SchemaOpPtr);
   //
   void createFK_abortParse(Signal*, SchemaOpPtr);
   void createFK_abortPrepare(Signal*, SchemaOpPtr);
+  void createFK_abortPrepareFromLocal(Signal*, Uint32 op_key, Uint32 ret);
 
   void createFK_fromLocal(Signal*, Uint32, Uint32);
   void createFK_fromWriteObjInfo(Signal*, Uint32, Uint32);
@@ -3852,6 +3865,59 @@ private:
   void execDROP_FK_IMPL_REF(Signal*);
   void execDROP_FK_IMPL_CONF(Signal*);
 
+  /**
+   * Foreign Key representation
+   */
+  struct ForeignKeyRec
+  {
+    ForeignKeyRec() { }
+
+    static bool isCompatible(Uint32 type) {
+      return DictTabInfo::isForeignKey(type);
+    }
+
+    Uint32 m_magic;
+    union {
+      Uint32 key;
+      Uint32 m_fk_id;
+    };
+
+    Uint32 m_obj_ptr_i;
+    Uint32 m_version;
+    RopeHandle m_name;
+    Uint32 m_parentTableId;
+    Uint32 m_childTableId;
+    Uint32 m_parentIndexId;
+    Uint32 m_childIndexId;
+    Uint32 m_bits; // CreateFKImplReq::Bits
+
+    Uint32 m_parentTriggerId;
+    Uint32 m_childTriggerId;
+
+    Uint32 m_columnCount;
+    Uint32 m_parentColumns[MAX_ATTRIBUTES_IN_INDEX];
+    Uint32 m_childColumns[MAX_ATTRIBUTES_IN_INDEX];
+
+    Uint32 nextPool;
+    Uint32 nextHash;
+    Uint32 prevHash;
+
+    Uint32 hashValue() const {
+      return key;
+    }
+
+    Uint32 equal(const ForeignKeyRec& obj) const {
+      return key == obj.key;
+    }
+  };
+
+  typedef Ptr<ForeignKeyRec> ForeignKeyRecPtr;
+  typedef RecordPool<ForeignKeyRec, RWPool> ForeignKeyRec_pool;
+
+  ForeignKeyRec_pool c_fk_pool;
+
+  ForeignKeyRec_pool& get_pool(ForeignKeyRecPtr) { return c_fk_pool; }
+  void packFKIntoPages(SimpleProperties::Writer &, Ptr<ForeignKeyRec>);
 
   /**
    * Only used at coordinator/master

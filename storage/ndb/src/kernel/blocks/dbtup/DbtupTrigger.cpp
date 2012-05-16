@@ -114,6 +114,34 @@ Dbtup::findTriggerList(Tablerec* table,
       break;
     }
     break;
+  case TriggerType::FK_PARENT:
+  case TriggerType::FK_CHILD:
+    switch (tevent) {
+    case TriggerEvent::TE_INSERT:
+      jam();
+      if (ttime == TriggerActionTime::TA_DEFERRED)
+        tlist = &table->deferredInsertTriggers;
+      else if (ttime == TriggerActionTime::TA_AFTER)
+        tlist = &table->afterInsertTriggers;
+      break;
+    case TriggerEvent::TE_UPDATE:
+      jam();
+      if (ttime == TriggerActionTime::TA_DEFERRED)
+        tlist = &table->deferredUpdateTriggers;
+      else if (ttime == TriggerActionTime::TA_AFTER)
+        tlist = &table->afterUpdateTriggers;
+      break;
+    case TriggerEvent::TE_DELETE:
+      jam();
+      if (ttime == TriggerActionTime::TA_DEFERRED)
+        tlist = &table->deferredDeleteTriggers;
+      else if (ttime == TriggerActionTime::TA_AFTER)
+        tlist = &table->afterDeleteTriggers;
+      break;
+    default:
+      break;
+    }
+    break;
   default:
     break;
   }
@@ -326,6 +354,20 @@ Dbtup::createTrigger(Tablerec* table,
     tmp[1].event = TriggerEvent::TE_UPDATE;
     tmp[2].event = TriggerEvent::TE_DELETE;
   }
+  else if (ttype == TriggerType::FK_PARENT)
+  {
+    jam();
+    cnt = 2;
+    tmp[0].event = TriggerEvent::TE_UPDATE;
+    tmp[1].event = TriggerEvent::TE_DELETE;
+  }
+  else if (ttype == TriggerType::FK_CHILD)
+  {
+    jam();
+    cnt = 2;
+    tmp[0].event = TriggerEvent::TE_INSERT;
+    tmp[1].event = TriggerEvent::TE_UPDATE;
+  }
   else
   {
     jam();
@@ -470,6 +512,20 @@ Dbtup::dropTrigger(Tablerec* table, const DropTrigImplReq* req, BlockNumber rece
     tmp[0].event = TriggerEvent::TE_INSERT;
     tmp[1].event = TriggerEvent::TE_UPDATE;
     tmp[2].event = TriggerEvent::TE_DELETE;
+  }
+  else if (ttype == TriggerType::FK_PARENT)
+  {
+    jam();
+    cnt = 2;
+    tmp[0].event = TriggerEvent::TE_UPDATE;
+    tmp[1].event = TriggerEvent::TE_DELETE;
+  }
+  else if (ttype == TriggerType::FK_CHILD)
+  {
+    jam();
+    cnt = 2;
+    tmp[0].event = TriggerEvent::TE_INSERT;
+    tmp[1].event = TriggerEvent::TE_UPDATE;
   }
   else
   {
@@ -1321,6 +1377,8 @@ out:
     // fall-through
   }
   case (TriggerType::REORG_TRIGGER):
+  case (TriggerType::FK_PARENT):
+  case (TriggerType::FK_CHILD):
     jam();
     ref = req_struct->TC_ref;
     executeDirect = false;
@@ -1502,6 +1560,8 @@ out:
   switch(trigPtr->triggerType) {
   case (TriggerType::SECONDARY_INDEX):
   case (TriggerType::REORG_TRIGGER):
+  case (TriggerType::FK_PARENT):
+  case (TriggerType::FK_CHILD):
     jam();
     fireTrigOrd->m_triggerType = trigPtr->triggerType;
     fireTrigOrd->m_transId1 = req_struct->trans_id1;

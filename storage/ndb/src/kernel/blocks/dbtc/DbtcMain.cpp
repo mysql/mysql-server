@@ -90,6 +90,9 @@
 
 #include <TransporterRegistry.hpp> // error 8035
 
+#include <signaldata/CreateFKImpl.hpp>
+#include <signaldata/DropFKImpl.hpp>
+
 // Use DEBUG to print messages that should be
 // seen only when we debug the product
 #ifdef VM_TRACE
@@ -13722,6 +13725,9 @@ ref:
     jam();
     triggerData->tableId = req->tableId;
     break;
+  case TriggerType::FK_PARENT:
+  case TriggerType::FK_CHILD:
+    break;
   default:
     c_theDefinedTriggers.release(triggerPtr);
     goto ref;
@@ -13928,6 +13934,44 @@ void Dbtc::execALTER_INDX_IMPL_REQ(Signal* signal)
   conf->senderData = senderData;
   sendSignal(senderRef, GSN_ALTER_INDX_IMPL_CONF, 
 	     signal, AlterIndxImplConf::SignalLength, JBB);
+}
+
+void
+Dbtc::execCREATE_FK_IMPL_REQ(Signal* signal)
+{
+  jamEntry();
+  CreateFKImplReq reqCopy = * CAST_CONSTPTR(CreateFKImplReq,
+                                            signal->getDataPtr());
+  CreateFKImplReq * req = &reqCopy;
+
+  SectionHandle handle(this, signal);
+  releaseSections(handle);
+
+  CreateFKImplConf * conf = CAST_PTR(CreateFKImplConf,
+                                     signal->getDataPtrSend());
+  conf->senderRef = reference();
+  conf->senderData = req->senderData;
+  sendSignal(req->senderRef, GSN_CREATE_FK_IMPL_CONF,
+             signal, CreateFKImplConf::SignalLength, JBB);
+}
+
+void
+Dbtc::execDROP_FK_IMPL_REQ(Signal* signal)
+{
+  jamEntry();
+  DropFKImplReq reqCopy = * CAST_CONSTPTR(DropFKImplReq,
+                                          signal->getDataPtr());
+  DropFKImplReq * req = &reqCopy;
+
+  SectionHandle handle(this, signal);
+  releaseSections(handle);
+
+  DropFKImplConf * conf = CAST_PTR(DropFKImplConf,
+                                   signal->getDataPtrSend());
+  conf->senderRef = reference();
+  conf->senderData = req->senderData;
+  sendSignal(req->senderRef, GSN_DROP_FK_IMPL_CONF,
+             signal, DropFKImplConf::SignalLength, JBB);
 }
 
 void Dbtc::execFIRE_TRIG_ORD(Signal* signal)
