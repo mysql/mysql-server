@@ -12915,8 +12915,8 @@ innobase_xa_prepare(
 					false - the current SQL statement
 					ended */
 {
-	int error = 0;
-	trx_t* trx = check_trx_exists(thd);
+	int		error = 0;
+	trx_t*		trx = check_trx_exists(thd);
 
 	DBUG_ASSERT(hton == innodb_hton_ptr);
 
