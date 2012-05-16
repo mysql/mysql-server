@@ -836,26 +836,31 @@ extern const GlobalSignalNumber NO_OF_SIGNAL_NAMES;
 
 #define GSN_SYNC_PATH_REQ               613
 #define GSN_SYNC_PATH_CONF              614
-#define GSN_615
-#define GSN_616
-#define GSN_617
 
-#define GSN_618
-#define GSN_619
-#define GSN_620
-#define GSN_621
-#define GSN_622
-#define GSN_623
+#define GSN_CREATE_FK_REQ               615
+#define GSN_CREATE_FK_REF               616
+#define GSN_CREATE_FK_CONF              617
 
-#define GSN_627
-#define GSN_628
-#define GSN_629
-#define GSN_630
-#define GSN_631
-#define GSN_632
-#define GSN_633
-#define GSN_634
-#define GSN_635
+#define GSN_DROP_FK_REQ                 618
+#define GSN_DROP_FK_REF                 619
+#define GSN_DROP_FK_CONF                620
+
+#define GSN_CREATE_FK_IMPL_REQ          621
+#define GSN_CREATE_FK_IMPL_REF          622
+#define GSN_CREATE_FK_IMPL_CONF         623
+
+#define GSN_DROP_FK_IMPL_REQ            627
+#define GSN_DROP_FK_IMPL_REF            628
+#define GSN_DROP_FK_IMPL_CONF           629
+
+#define GSN_BUILD_FK_REQ                630
+#define GSN_BUILD_FK_REF                631
+#define GSN_BUILD_FK_CONF               632
+
+#define GSN_BUILD_FK_IMPL_REQ           633
+#define GSN_BUILD_FK_IMPL_REF           634
+#define GSN_BUILD_FK_IMPL_CONF          635
+
 #define GSN_636
 #define GSN_637
 #define GSN_638

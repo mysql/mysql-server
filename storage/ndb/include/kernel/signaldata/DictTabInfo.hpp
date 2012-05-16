@@ -222,6 +222,10 @@ public:
     Undofile = 23,          ///< Undofile
     HashMap = 24,
 
+    ForeignKey = 25,        // The definition
+    FKParentTrigger = 26,
+    FKChildTrigger = 27,
+
     SchemaTransaction = 30
   };
 

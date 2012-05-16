@@ -569,6 +569,16 @@ void Dbdict::packTableIntoPages(Signal* signal)
     packHashMapIntoPages(w, hm_ptr);
     break;
   }
+  case DictTabInfo::ForeignKey: {
+#if 0
+    Ptr<ForeignKeyRecord> fk_ptr;
+    ndbrequire(c_fk_hash.find(fk_ptr, tableId));
+    packFKIntoPages(w, fk_ptr);
+    break;
+#else
+    ndbrequire(false);
+#endif
+  }
   case DictTabInfo::UndefTableType:
   case DictTabInfo::HashIndexTrigger:
   case DictTabInfo::SubscriptionTrigger:
@@ -576,6 +586,8 @@ void Dbdict::packTableIntoPages(Signal* signal)
   case DictTabInfo::IndexTrigger:
   case DictTabInfo::SchemaTransaction:
   case DictTabInfo::ReorgTrigger:
+  case DictTabInfo::FKParentTrigger:
+  case DictTabInfo::FKChildTrigger:
     ndbrequire(false);
   }
 

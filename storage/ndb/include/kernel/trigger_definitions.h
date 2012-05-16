@@ -29,8 +29,9 @@
 struct TriggerType {
   enum Value {
     //CONSTRAINT            = 0,
-    SECONDARY_INDEX       = DictTabInfo::HashIndexTrigger,
-    //FOREIGN_KEY           = 2,
+    SECONDARY_INDEX         = DictTabInfo::HashIndexTrigger,
+    FK_PARENT               = DictTabInfo::FKParentTrigger,
+    FK_CHILD                = DictTabInfo::FKChildTrigger,
     //SCHEMA_UPGRADE        = 3,
     //API_TRIGGER           = 4,
     //SQL_TRIGGER           = 5,
