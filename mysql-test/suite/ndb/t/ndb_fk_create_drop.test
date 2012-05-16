@@ -27,11 +27,15 @@ create table child (
 --exec $CREATE_FK --database=test --parent=parent --child=child --child-index='$ukname' fk2 > /dev/null
 --exec $CREATE_FK --database=test --parent=parent --child=child --child-index='$oiname' fk3 > /dev/null
 
+show create table child;
+
 # Parent uk
 # child pk, uk, oi
 --exec $CREATE_FK --database=test --parent=parent --parent-index='$ukname' --child=child fk4 > /dev/null
 --exec $CREATE_FK --database=test --parent=parent --parent-index='$ukname' --child=child --child-index='$ukname' fk5 > /dev/null
 --exec $CREATE_FK --database=test --parent=parent --parent-index='$ukname' --child=child --child-index='$oiname' fk6 > /dev/null
+
+show create table child;
 
 # Parent oi
 # child pk, uk, oi
@@ -46,3 +50,32 @@ create table child (
 --exec $DROP_FK --database=test fk1 fk2 fk3 fk4 fk5 fk6 > /dev/null
 
 drop table parent, child;
+
+#
+# Test using SQL
+#
+create table parent (
+  a int primary key,
+  b int not null,
+  c int not null,
+  unique(b) using hash,
+  index(c)) engine = ndb;
+
+create table child (
+  a int not null,
+  b int not null,
+  c int not null,
+  primary key (a),
+  unique key (b) using hash,
+  key (c),
+  constraint fk1 foreign key(a) references parent (a),
+  constraint fk2 foreign key(b) references parent (a),
+  constraint fk3 foreign key(c) references parent (a),
+  constraint fk4 foreign key(a) references parent (b),
+  constraint fk5 foreign key(b) references parent (b),
+  constraint fk6 foreign key(c) references parent (b)
+) engine=ndbcluster;
+
+show create table child;
+drop table parent, child;
+
