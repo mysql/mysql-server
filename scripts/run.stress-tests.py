@@ -53,9 +53,10 @@ class Killed(Exception):
     pass
 
 class TestRunnerBase(object):
-    def __init__(self, scheduler, tokudb, rev, jemalloc, execf, tsize, csize, test_time, savedir):
+    def __init__(self, scheduler, builddir, installdir, rev, jemalloc, execf, tsize, csize, test_time, savedir):
         self.scheduler = scheduler
-        self.tokudb = tokudb
+        self.builddir = builddir
+        self.installdir = installdir
         self.rev = rev
         self.execf = execf
         self.tsize = tsize
@@ -64,7 +65,7 @@ class TestRunnerBase(object):
         self.savedir = savedir
 
         self.env = os.environ
-        libpath = os.path.join(self.tokudb, 'lib')
+        libpath = os.path.join(self.installdir, 'lib')
         if 'LD_LIBRARY_PATH' in self.env:
             self.env['LD_LIBRARY_PATH'] = '%s:%s' % (libpath, self.env['LD_LIBRARY_PATH'])
         else:
@@ -145,7 +146,7 @@ class TestRunnerBase(object):
         copytree(self.envdir, self.prepareloc)
 
     def run(self):
-        srctests = os.path.join(self.tokudb, 'src', 'tests')
+        srctests = os.path.join(self.builddir, 'src', 'tests')
         self.rundir = mkdtemp(dir=srctests)
 
         try:
@@ -185,9 +186,9 @@ class TestRunnerBase(object):
                 copytree(f, targetfor(f))
             else:
                 copy(f, targetfor(f))
-        fullexecf = os.path.join(self.tokudb, 'src', 'tests', self.execf)
+        fullexecf = os.path.join(self.builddir, 'src', 'tests', self.execf)
         copy(fullexecf, targetfor(fullexecf))
-        for lib in glob(os.path.join(self.tokudb, 'lib', '*.so')):
+        for lib in glob(os.path.join(self.installdir, 'lib', '*.so')):
             copy(lib, targetfor(lib))
 
         return savedir
@@ -412,10 +413,7 @@ def compiler_works(cc):
         exception('Error running %s.', cc)
         return False
 
-def rebuild(tokudb, cc, tests):
-    env = os.environ
-    env['CC'] = cc
-    env['DEBUG'] = '0'
+def rebuild(tokudb, builddir, installdir, cc, tests):
     info('Updating from svn.')
     devnull = open(os.devnull, 'w')
     call(['svn', 'up'], stdout=devnull, stderr=STDOUT, cwd=tokudb)
@@ -423,19 +421,20 @@ def rebuild(tokudb, cc, tests):
     if not compiler_works(cc):
         error('Cannot find working compiler named "%s".  Try sourcing the icc env script or providing another compiler with --cc.', cc)
         sys.exit(r)
+    if cc == 'icc':
+        iccstr = 'ON'
+    else:
+        iccstr = 'OFF'
     info('Building tokudb.')
-    r = call(['make', '-s', 'clean'],
-             cwd=tokudb, env=env)
-    if r != 0:
-        error('Cleaning the source tree failed.')
-        sys.exit(r)
-    r = call(['make', '-s', 'fastbuild'],
-             cwd=tokudb, env=env)
-    if r != 0:
-        error('Building the fractal tree failed.')
-        sys.exit(r)
-    r = call(['make', '-s'] + tests,
-             cwd=os.path.join(tokudb, 'src', 'tests'), env=env)
+    if not os.path.exists(builddir):
+        os.mkdir(builddir)
+    r = call(['cmake',
+              '-DCMAKE_BUILD_TYPE=Debug',
+              '-DINTELCC=%s' % iccstr,
+              '-DCMAKE_INSTALL_DIR=%s' % installdir,
+              tokudb]
+             cwd=builddir)
+    r = call(['make', '-s'] + tests, cwd=builddir)
     if r != 0:
         error('Building the tests failed.')
         sys.exit(r)
@@ -449,8 +448,10 @@ def revfor(tokudb):
     return rev
 
 def main(opts):
+    builddir = os.path.join(opts.tokudb, 'build')
+    installdir = os.path.join(opts.tokudb, 'install')
     if opts.build:
-        rebuild(opts.tokudb, opts.cc, opts.testnames + opts.recover_testnames)
+        rebuild(opts.tokudb, builddir, installdir, opts.cc, opts.testnames + opts.recover_testnames)
     rev = revfor(opts.tokudb)
 
     if not os.path.exists(opts.savedir):
@@ -471,7 +472,8 @@ def main(opts):
         for csize in [50 * tsize, 1000 ** 3]:
             kwargs = {
                 'scheduler': scheduler,
-                'tokudb': opts.tokudb,
+                'builddir': builddir,
+                'installdir': installdir,
                 'rev': rev,
                 'jemalloc': opts.jemalloc,
                 'tsize': tsize,
@@ -534,7 +536,7 @@ def main(opts):
             if scheduler.error is not None:
                 error('Scheduler reported an error.')
                 raise scheduler.error
-            rebuild(opts.tokudb, opts.cc, opts.testnames + opts.recover_testnames)
+            rebuild(opts.tokudb, builddir, installdir, opts.cc, opts.testnames + opts.recover_testnames)
             rev = revfor(opts.tokudb)
             for runner in runners:
                 runner.rev = rev
