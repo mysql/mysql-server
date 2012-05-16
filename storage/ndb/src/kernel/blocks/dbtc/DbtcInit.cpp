@@ -305,6 +305,9 @@ Dbtc::Dbtc(Block_context& ctx, Uint32 instanceNo):
   addRecSignal(GSN_CREATE_FK_IMPL_REQ, &Dbtc::execCREATE_FK_IMPL_REQ);
   addRecSignal(GSN_DROP_FK_IMPL_REQ, &Dbtc::execDROP_FK_IMPL_REQ);
 
+  addRecSignal(GSN_SCAN_TABREF, &Dbtc::execSCAN_TABREF);
+  addRecSignal(GSN_SCAN_TABCONF, &Dbtc::execSCAN_TABCONF);
+
   cacheRecord = 0;
   apiConnectRecord = 0;
   tcConnectRecord = 0;

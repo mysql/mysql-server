@@ -969,7 +969,10 @@ public:
     // Index data
     UintR indexOp;
     UintR currentTriggerId;
-    UintR attrInfoLen;
+    union {
+      Uint32 attrInfoLen;
+      Uint32 triggerErrorCode;
+    };
   };
   
   friend struct TcConnectRecord;
@@ -1725,6 +1728,22 @@ private:
                          LocalDataBuffer<11>& values,
                          TcFKData* fkData,
                          bool parent);
+
+  void fk_scanFromChildTable(Signal* signal,
+                             TcFiredTriggerData* firedTriggerData,
+                             ApiConnectRecordPtr* transPtr,
+                             TcConnectRecordPtr* opPtr,
+                             TcFKData* fkData,
+                             Uint32 op, Uint32 attrValuesPtrI);
+  void fk_scanFromChildTable_done(Signal* signal, TcConnectRecordPtr);
+  void fk_scanFromChildTable_abort(Signal* signal, TcConnectRecordPtr);
+
+  void execSCAN_TABREF(Signal*);
+  void execSCAN_TABCONF(Signal*);
+
+  Uint32 fk_buildBounds(SegmentedSectionPtr & dst,
+                        LocalDataBuffer<11> & src,
+                        TcFKData* fkData);
 
   void releaseFiredTriggerData(DLFifoList<TcFiredTriggerData>* triggers);
   void abortTransFromTrigger(Signal* signal, const ApiConnectRecordPtr& transPtr, 
