@@ -77,6 +77,12 @@ struct ListTablesData
   void setListIndexes(Uint32 val) {
     BitmaskImpl::setField(1, &requestData, 29, 1, val);
   }
+  Uint32 getListObjects() const {
+    return BitmaskImpl::getField(1, &requestData, 30, 1);
+  }
+  void setListObjects(Uint32 val) {
+    BitmaskImpl::setField(1, &requestData, 30, 1, val);
+  }
 };
 
 /**
@@ -180,6 +186,12 @@ public:
   }
   void setListIndexes(Uint32 val) {
     data.setListIndexes(val);
+  }
+  Uint32 getListObjects() const {
+    return data.getListObjects();
+  }
+  void setListObjects(Uint32 val) {
+    data.setListObjects(val);
   }
 
 
