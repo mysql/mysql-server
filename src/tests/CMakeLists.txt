@@ -591,6 +591,7 @@ if(BUILD_TESTING)
     env-put-multiple.tdb
     loader-cleanup-test0.tdb
     loader-cleanup-test2.tdb
+    loader-stress-test4.tdb
     manyfiles.tdb
     root_fifo_1.tdb
     root_fifo_2.tdb
