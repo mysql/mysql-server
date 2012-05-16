@@ -184,8 +184,6 @@ trx_allocate_for_mysql(void)
 
 	mutex_enter(&trx_sys->mutex);
 
-	trx_sys->n_mysql_trx++;
-
 	ut_d(trx->in_mysql_trx_list = TRUE);
 	UT_LIST_ADD_FIRST(mysql_trx_list, trx_sys->mysql_trx_list, trx);
 
@@ -328,8 +326,6 @@ trx_free_for_mysql(
 	UT_LIST_REMOVE(mysql_trx_list, trx_sys->mysql_trx_list, trx);
 
 	ut_ad(trx_sys_validate_trx_list());
-
-	trx_sys->n_mysql_trx--;
 
 	mutex_exit(&trx_sys->mutex);
 
