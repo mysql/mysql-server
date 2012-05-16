@@ -2270,37 +2270,6 @@ select bug2772()|
 drop function bug2772|
 
 #
-# BUG#2776
-#
---disable_warnings ONCE
-drop procedure if exists bug2776_1|
-create procedure bug2776_1(out x int)
-begin
-  declare v int;
-
-  set v = default;
-  set x = v;
-end|
-
---disable_warnings ONCE
-drop procedure if exists bug2776_2|
-create procedure bug2776_2(out x int)
-begin
-  declare v int default 42;
-
-  set v = default;
-  set x = v;
-end|
-
-set @x = 1|
-call bug2776_1(@x)|
-select @x|
-call bug2776_2(@x)|
-select @x|
-drop procedure bug2776_1|
-drop procedure bug2776_2|
-
-#
 # BUG#2780
 #
 create table t3 (s1 smallint)|
@@ -8971,5 +8940,69 @@ DROP FUNCTION f3;
 DROP FUNCTION f4;
 
 --echo #
+
+--echo #
+--echo # WL#6230: Remove 'SET = DEFAULT'
+--echo #
+
+CREATE TABLE t1(a INT);
+
+delimiter |;
+
+--error ER_PARSE_ERROR
+CREATE PROCEDURE p(p INT)
+  SET p = DEFAULT|
+
+--error ER_PARSE_ERROR
+CREATE PROCEDURE p()
+BEGIN
+  DECLARE v INT;
+  SET v = DEFAULT;
+END|
+
+--error ER_PARSE_ERROR
+CREATE PROCEDURE p()
+BEGIN
+  DECLARE v INT DEFAULT 1;
+  SET v = DEFAULT;
+END|
+
+--error ER_PARSE_ERROR
+CREATE PROCEDURE p()
+BEGIN
+  DECLARE v INT DEFAULT (SELECT * FROM t1);
+  SET v = DEFAULT;
+END|
+
+--error ER_PARSE_ERROR
+CREATE TRIGGER t1_bu BEFORE UPDATE ON t1 FOR EACH ROW
+BEGIN
+  SET NEW.a = DEFAULT;
+END|
+
+delimiter ;|
+
+--echo
+--echo # Check that setting system variables to DEFAULT still works in SP.
+--echo
+
+CREATE PROCEDURE p1()
+  SET @@default_storage_engine = DEFAULT;
+
+SET @default_storage_engine_saved = @@default_storage_engine;
+
+SELECT @@default_storage_engine;
+SET @@default_storage_engine = InnoDB;
+SELECT @@default_storage_engine;
+
+CALL p1();
+
+SELECT @@default_storage_engine;
+
+SET @@default_storage_engine = @default_storage_engine_saved;
+
+DROP PROCEDURE p1;
+
+DROP TABLE t1;
 
 --echo # End of 5.6 tests
