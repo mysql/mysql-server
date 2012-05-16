@@ -41,24 +41,24 @@ test_main (int argc __attribute__((__unused__)),
     assert(r == 0);
 
     {
-	r = ml_lock(&logger->input_lock);	                        assert(r==0);
+	ml_lock(&logger->input_lock);
 	int lsize=LSIZE-12-2;
 	r = toku_logger_make_space_in_inbuf(logger, lsize);           assert(r==0);
 	snprintf(logger->inbuf.buf+logger->inbuf.n_in_buf, lsize, "a%*d", lsize-1, 0);
 	logger->inbuf.n_in_buf += lsize;
 	logger->lsn.lsn++;
 	logger->inbuf.max_lsn_in_buf = logger->lsn;
-	r = ml_unlock(&logger->input_lock);                              assert(r == 0);
+	ml_unlock(&logger->input_lock);
     }
 
     {
-	r = ml_lock(&logger->input_lock);                                assert(r==0);
+	ml_lock(&logger->input_lock);
 	r = toku_logger_make_space_in_inbuf(logger, 2);                  assert(r==0);
 	memcpy(logger->inbuf.buf+logger->inbuf.n_in_buf, "b1", 2);
 	logger->inbuf.n_in_buf += 2;
 	logger->lsn.lsn++;
 	logger->inbuf.max_lsn_in_buf = logger->lsn;
-	r = ml_unlock(&logger->input_lock);                              assert(r == 0);
+	ml_unlock(&logger->input_lock);
     }
 
     r = toku_logger_close(&logger);

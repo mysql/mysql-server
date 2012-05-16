@@ -7,7 +7,7 @@ set(tokuportability_srcs
   portability.c
   toku_assert.c
   toku_pthread.c
-  toku_rwlock.c
+  toku_fair_rwlock.c
   )
 
 add_library(${LIBTOKUPORTABILITY} SHARED ${tokuportability_srcs})

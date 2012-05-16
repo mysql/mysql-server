@@ -30,8 +30,8 @@ extern "C" {
 struct minicron {
     toku_pthread_t thread;
     toku_timespec_t time_of_last_call_to_f;
-    toku_pthread_mutex_t mutex;
-    toku_pthread_cond_t  condvar;
+    toku_mutex_t mutex;
+    toku_cond_t  condvar;
     int (*f)(void*);
     void *arg;
     u_int32_t period_in_seconds;

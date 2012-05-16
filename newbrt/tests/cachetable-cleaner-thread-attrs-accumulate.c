@@ -8,7 +8,7 @@
 // nothing needs flushing.
 //
 
-toku_pthread_mutex_t attr_mutex;
+toku_mutex_t attr_mutex;
 
 // used to access engine status variables 
 #define STATUS_VALUE(x) ct_status.status[x].value.num
@@ -41,15 +41,13 @@ flush (CACHEFILE f __attribute__((__unused__)),
        ) {
     PAIR_ATTR *expect = e;
     if (!keep) {
-        int r = toku_pthread_mutex_lock(&attr_mutex);   // purpose is to make this function single-threaded
-        resource_assert_zero(r);
+        toku_mutex_lock(&attr_mutex);   // purpose is to make this function single-threaded
         expect->size -= s.size;
         expect->nonleaf_size -= s.nonleaf_size;
         expect->leaf_size -= s.leaf_size;
         expect->rollback_size -= s.rollback_size;
         expect->cache_pressure_size -= s.cache_pressure_size;
-        r = toku_pthread_mutex_unlock(&attr_mutex);
-        resource_assert_zero(r);
+        toku_mutex_unlock(&attr_mutex);
     }
 }
 
@@ -58,7 +56,7 @@ run_test (void) {
     const int test_limit = 1000;
     int r;
     CACHETABLE ct;
-    r = toku_pthread_mutex_init(&attr_mutex, NULL); resource_assert_zero(r);
+    toku_mutex_init(&attr_mutex, NULL);
     r = toku_create_cachetable(&ct, test_limit, ZERO_LSN, NULL_LOGGER); assert(r == 0);
 
     char fname1[] = __SRCFILE__ "test1.dat";

@@ -152,7 +152,7 @@ static void arg_init(struct arg *arg, int num_elements, DB **dbp, DB_ENV *env, s
 
 struct worker_extra {
     struct arg* thread_arg;
-    toku_pthread_mutex_t *operation_lock_mutex;
+    toku_mutex_t *operation_lock_mutex;
     struct rwlock *operation_lock;
     int64_t num_operations_completed;
     int64_t pad[4]; // pad to 64 bytes
@@ -161,7 +161,7 @@ struct worker_extra {
 static void lock_worker_op(struct worker_extra* we) {
     ARG arg = we->thread_arg;
     if (arg->lock_type != STRESS_LOCK_NONE) {
-        toku_pthread_mutex_lock(we->operation_lock_mutex);
+        toku_mutex_lock(we->operation_lock_mutex);
         if (arg->lock_type == STRESS_LOCK_SHARED) {
             rwlock_read_lock(we->operation_lock, we->operation_lock_mutex);
         } else if (arg->lock_type == STRESS_LOCK_EXCL) {
@@ -169,14 +169,14 @@ static void lock_worker_op(struct worker_extra* we) {
         } else {
             assert(false);
         }
-        toku_pthread_mutex_unlock(we->operation_lock_mutex);
+        toku_mutex_unlock(we->operation_lock_mutex);
     }
 }
 
 static void unlock_worker_op(struct worker_extra* we) {
     ARG arg = we->thread_arg;
     if (arg->lock_type != STRESS_LOCK_NONE) {
-        toku_pthread_mutex_lock(we->operation_lock_mutex);
+        toku_mutex_lock(we->operation_lock_mutex);
         if (arg->lock_type == STRESS_LOCK_SHARED) {
             rwlock_read_unlock(we->operation_lock);
         } else if (arg->lock_type == STRESS_LOCK_EXCL) {
@@ -184,7 +184,7 @@ static void unlock_worker_op(struct worker_extra* we) {
         } else {
             assert(false);
         }
-        toku_pthread_mutex_unlock(we->operation_lock_mutex);
+        toku_mutex_unlock(we->operation_lock_mutex);
     }
 }
 
@@ -831,8 +831,8 @@ static int run_workers(
     ) 
 {
     int r;
-    toku_pthread_mutex_t mutex;
-    toku_pthread_mutex_init(&mutex, NULL);
+    toku_mutex_t mutex;
+    toku_mutex_init(&mutex, NULL);
     struct rwlock rwlock;
     rwlock_init(&rwlock);
     toku_pthread_t tids[num_threads];
@@ -872,7 +872,7 @@ static int run_workers(
     if (verbose) 
         printf("ending test, pthreads have joined\n");
     rwlock_destroy(&rwlock);
-    toku_pthread_mutex_destroy(&mutex);
+    toku_mutex_destroy(&mutex);
     toku_free(worker_extra);
     return r;
 }

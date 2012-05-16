@@ -13,12 +13,12 @@ extern "C" {
 #endif
 #endif
 
-static toku_pthread_mutex_t event_mutex = TOKU_PTHREAD_MUTEX_INITIALIZER;
+static toku_mutex_t event_mutex = { PTHREAD_MUTEX_INITIALIZER };
 static void lock_events(void) {
-    int r = toku_pthread_mutex_lock(&event_mutex); assert(r == 0);
+    toku_mutex_lock(&event_mutex);
 }
 static void unlock_events(void) {
-    int r = toku_pthread_mutex_unlock(&event_mutex); assert(r == 0);
+    toku_mutex_unlock(&event_mutex);
 }
 static int event_count, event_count_trigger;
 

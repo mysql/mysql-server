@@ -1,1 +1,0 @@
-../../portability/tests/test-pthread-rwlock-rdlock.c

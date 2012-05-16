@@ -30,8 +30,7 @@ struct __toku_ltm {
     /** The panic function */
     int               (*panic)(DB*, int);
 
-    toku_pthread_mutex_t mutex;
-    bool mutex_locked;
+    toku_mutex_t mutex;
 
     struct timeval lock_wait_time;
 };
@@ -57,8 +56,7 @@ struct __toku_lock_tree {
     DICTIONARY_ID      dict_id;
     OMT                lock_requests;
 
-    toku_pthread_mutex_t mutex;
-    bool mutex_locked;
+    toku_mutex_t mutex;
 
     /** A temporary area where we store the results of various find on 
         the range trees that this lock tree owns 

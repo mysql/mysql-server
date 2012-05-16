@@ -32,13 +32,13 @@
 #include <toku_pthread.h>
 #include <toku_portability.h>
 #include <toku_time.h>
-#include <pthread.h>
 #include <toku_assert.h>
 #include <sys/time.h>
 #include <string.h>
 #include <stdlib.h>
 #include <errno.h>
 #include "../../newbrt/rwlock.h"
+#include "toku_fair_rwlock.h"
 #include <sys/types.h>
 
 #include "rwlock_condvar.h"
@@ -192,24 +192,24 @@ void time_pthread_rwlock (void) {
     { int r = pthread_rwlock_destroy(&mutex);    assert(r==0); }
 }
 
-static void newbrt_rwlock_lock (RWLOCK rwlock, toku_pthread_mutex_t *mutex) {
-    { int r = toku_pthread_mutex_lock(mutex); assert(r==0); }
+static void newbrt_rwlock_lock (RWLOCK rwlock, toku_mutex_t *mutex) {
+    toku_mutex_lock(mutex);
     rwlock_read_lock(rwlock, mutex);
-    { int r = toku_pthread_mutex_unlock(mutex); assert(r==0); }
+    toku_mutex_unlock(mutex);
 }
 
-static void newbrt_rwlock_unlock (RWLOCK rwlock, toku_pthread_mutex_t *mutex) {
-    { int r = toku_pthread_mutex_lock(mutex); assert(r==0); }
+static void newbrt_rwlock_unlock (RWLOCK rwlock, toku_mutex_t *mutex) {
+    toku_mutex_lock(mutex);
     rwlock_read_unlock(rwlock);
-    { int r = toku_pthread_mutex_unlock(mutex); assert(r==0); }
+    toku_mutex_unlock(mutex);
 }
 
 // Time the read lock that's in newbrt/rwlock.h
 static
 void time_newbrt_rwlock (void) {
     struct rwlock rwlock;
-    toku_pthread_mutex_t external_mutex;
-    { int r = pthread_mutex_init(&external_mutex, NULL); assert(r==0); }
+    toku_mutex_t external_mutex;
+    toku_mutex_init(&external_mutex, NULL);
     rwlock_init(&rwlock);
     struct timeval start,end;
     
@@ -228,16 +228,16 @@ void time_newbrt_rwlock (void) {
 	best_newbrt_time=mind(best_newbrt_time,diff);
     }
     rwlock_destroy(&rwlock);
-    { int r = pthread_mutex_destroy(&external_mutex);    assert(r==0); }
+    toku_mutex_destroy(&external_mutex);
 }
 
 // Time the read lock that's in newbrt/rwlock.h, assuming the mutex is already held.
 static
 void time_newbrt_prelocked_rwlock (void) {
     struct rwlock rwlock;
-    toku_pthread_mutex_t external_mutex;
-    { int r = pthread_mutex_init(&external_mutex, NULL); assert(r==0); }
-    { int r = toku_pthread_mutex_lock(&external_mutex); assert(r==0); }
+    toku_mutex_t external_mutex;
+    toku_mutex_init(&external_mutex, NULL);
+    toku_mutex_lock(&external_mutex);
     rwlock_init(&rwlock);
     struct timeval start,end;
     
@@ -256,14 +256,14 @@ void time_newbrt_prelocked_rwlock (void) {
 	best_prelocked_time=mind(best_prelocked_time,diff);
     }
     rwlock_destroy(&rwlock);
-    { int r = toku_pthread_mutex_unlock(&external_mutex); assert(r==0); }
-    { int r = pthread_mutex_destroy(&external_mutex);    assert(r==0); }
+    toku_mutex_unlock(&external_mutex);
+    toku_mutex_destroy(&external_mutex);
 }
 
 static
 void time_toku_fair_rwlock (void) {
     toku_fair_rwlock_t mutex;
-    { int r = toku_fair_rwlock_init(&mutex);                  assert(r==0); }
+    toku_fair_rwlock_init(&mutex);
     struct timeval start,end;
     toku_fair_rwlock_rdlock(&mutex);
     toku_fair_rwlock_unlock(&mutex);
@@ -279,13 +279,13 @@ void time_toku_fair_rwlock (void) {
 	    fprintf(stderr, "pthread_fair(r)   = %.6fns/(lock+unlock)\n", diff);
 	best_fair_rwlock_time=mind(best_fair_rwlock_time,diff);
     }
-    { int r = toku_fair_rwlock_destroy(&mutex);                  assert(r==0); }
+    toku_fair_rwlock_destroy(&mutex);
 }
 
 static
 void time_toku_cv_fair_rwlock (void) {
     toku_cv_fair_rwlock_t mutex;
-    { int r = toku_cv_fair_rwlock_init(&mutex);                  assert(r==0); }
+    toku_cv_fair_rwlock_init(&mutex);
     struct timeval start,end;
     toku_cv_fair_rwlock_rdlock(&mutex);
     toku_cv_fair_rwlock_unlock(&mutex);
@@ -301,7 +301,7 @@ void time_toku_cv_fair_rwlock (void) {
 	    fprintf(stderr, "pthread_fair(r)   = %.6fns/(lock+unlock)\n", diff);
 	best_cv_fair_rwlock_time=mind(best_cv_fair_rwlock_time,diff);
     }
-    { int r = toku_cv_fair_rwlock_destroy(&mutex);                  assert(r==0); }
+    toku_cv_fair_rwlock_destroy(&mutex);
 }
 
 #define N 6
@@ -474,10 +474,7 @@ static void test_rwlock_internal (void *(*start_th)(void*), int max_wr, int min_
     log_counter=0;
     pthread_t threads[N];
     int v[N];
-    {
-	int r = toku_fair_rwlock_init(&rwlock);
-	assert(r==0);
-    }
+	toku_fair_rwlock_init(&rwlock);
     for (int i=0; i<N; i++) {
 	v[i]=i;
 	int r = pthread_create(&threads[i], NULL, start_th, &v[i]);
@@ -495,10 +492,7 @@ static void test_rwlock_internal (void *(*start_th)(void*), int max_wr, int min_
 	}
     }
     check_actionlog(max_wr, min_rd, max_rd);
-    {
-	int r = toku_fair_rwlock_destroy(&rwlock);
-	assert(r==0);
-    }
+    toku_fair_rwlock_destroy(&rwlock);
     if (verbose>2) printf("OK\n");
 }
 

@@ -211,8 +211,8 @@ struct cachetable {
     int64_t size_evicting;            // the sum of the sizes of the pairs being written
     int64_t size_max;                // high water mark of size_current (max value size_current ever had)
     TOKULOGGER logger;
-    toku_pthread_mutex_t *mutex;  // coarse lock that protects the cachetable, the cachefiles, and the pairs
-    toku_pthread_mutex_t cachefiles_mutex;  // lock that protects the cachefiles list
+    toku_mutex_t *mutex;  // coarse lock that protects the cachetable, the cachefiles, and the pairs
+    toku_mutex_t cachefiles_mutex;  // lock that protects the cachefiles list
     struct workqueue wq;          // async work queue 
     THREADPOOL threadpool;        // pool of worker threads
     struct workqueue checkpoint_wq;          
@@ -238,7 +238,7 @@ struct cachetable {
                                   // more frequent cleaner runs you must
                                   // use this)
     // TODO: review the removal of this mutex, since it is only ever held when the ydb lock is held
-    toku_pthread_mutex_t openfd_mutex;  // make toku_cachetable_openfd() single-threaded
+    toku_mutex_t openfd_mutex;  // make toku_cachetable_openfd() single-threaded
     OMT reserved_filenums;
     char *env_dir;
 
@@ -258,7 +258,7 @@ struct cachetable {
     // n_checkpoint_clones_running to go to zero, it knows that
     // the checkpoint is complete
     u_int32_t n_checkpoint_clones_running;
-    toku_pthread_cond_t clones_background_wait;    
+    toku_cond_t clones_background_wait;    
 };
 
 
@@ -307,22 +307,22 @@ toku_cachetable_get_status(CACHETABLE ct, CACHETABLE_STATUS statp) {
 // Lock the cachefiles. Any function that traverses or modifies the
 // list of cachefiles must hold this lock.
 static inline void cachefiles_lock(CACHETABLE ct) {
-    int r = toku_pthread_mutex_lock(&ct->cachefiles_mutex); resource_assert_zero(r);
+    toku_mutex_lock(&ct->cachefiles_mutex);
 }
 
 // Unlock the cachefiles
 static inline void cachefiles_unlock(CACHETABLE ct) {
-    int r = toku_pthread_mutex_unlock(&ct->cachefiles_mutex); resource_assert_zero(r);
+    toku_mutex_unlock(&ct->cachefiles_mutex);
 }
 
 // Lock the cachetable. Used for a variety of purposes. TODO: like what?
 static inline void cachetable_lock(CACHETABLE ct __attribute__((unused))) {
-    int r = toku_pthread_mutex_lock(ct->mutex); resource_assert_zero(r);;
+    toku_mutex_lock(ct->mutex);
 }
 
 // Unlock the cachetable
 static inline void cachetable_unlock(CACHETABLE ct __attribute__((unused))) {
-    int r = toku_pthread_mutex_unlock(ct->mutex); resource_assert_zero(r);
+    toku_mutex_unlock(ct->mutex);
 }
 
 // Wait for cache table space to become available 
@@ -381,7 +381,7 @@ struct cachefile {
                            // this variable, and broadcast the
                            // kibbutz_wait condition variable to let
                            // anyone else know it's happened.
-    toku_pthread_cond_t background_wait;  // Any job that finishes a
+    toku_cond_t background_wait;  // Any job that finishes a
                                           // background job should
                                           // broadcast on this cond
                                           // variable (holding the
@@ -411,7 +411,7 @@ void remove_background_job(CACHEFILE cf, bool already_locked)
     }
     assert(cf->n_background_jobs>0);
     cf->n_background_jobs--;
-    { int r = toku_pthread_cond_broadcast(&cf->background_wait); assert(r==0); }
+    toku_cond_broadcast(&cf->background_wait);
     if (!already_locked) {
         cachetable_unlock(cf->cachetable);
     }
@@ -428,8 +428,7 @@ void cachefile_kibbutz_enq (CACHEFILE cf, void (*f)(void*), void *extra)
 static void wait_on_background_jobs_to_finish (CACHEFILE cf) {
     cachetable_lock(cf->cachetable);
     while (cf->n_background_jobs>0) {
-        int r = toku_pthread_cond_wait(&cf->background_wait, cf->cachetable->mutex);
-        assert(r==0);
+        toku_cond_wait(&cf->background_wait, cf->cachetable->mutex);
     }
     cachetable_unlock(cf->cachetable);
 }
@@ -515,17 +514,17 @@ int toku_create_cachetable(CACHETABLE *result, long size_limit, LSN UU(initial_l
     toku_init_workers(&ct->checkpoint_wq, &ct->checkpoint_threadpool, 8);
     ct->mutex = workqueue_lock_ref(&ct->wq);
     // TODO: review the removal of this mutex, since it is only ever held when the ydb lock is held
-    int r = toku_pthread_mutex_init(&ct->openfd_mutex, NULL); resource_assert_zero(r);
-    r = toku_pthread_mutex_init(&ct->cachefiles_mutex, 0); resource_assert_zero(r);
+    toku_mutex_init(&ct->openfd_mutex, NULL);
+    toku_mutex_init(&ct->cachefiles_mutex, 0);
 
     ct->kibbutz = toku_kibbutz_create(toku_os_get_number_active_processors());
 
     toku_minicron_setup(&ct->checkpointer, 0, checkpoint_thread, ct); // default is no checkpointing
     toku_minicron_setup(&ct->cleaner, 0, toku_cleaner_thread, ct); // default is no cleaner, for now
     ct->cleaner_iterations = 1; // default is one iteration
-    r = toku_omt_create(&ct->reserved_filenums);  assert(r==0);
+    int r = toku_omt_create(&ct->reserved_filenums);  assert(r==0);
     ct->env_dir = toku_xstrdup(".");
-    r = toku_pthread_cond_init(&ct->clones_background_wait, NULL); resource_assert_zero(r);
+    toku_cond_init(&ct->clones_background_wait, NULL);
     *result = ct;
     return 0;
 }
@@ -744,8 +743,7 @@ int toku_cachetable_openfd_with_filenum (CACHEFILE *cfptr, CACHETABLE ct, int fd
         return r;
     }
     // TODO: review the removal of this mutex, since it is only ever held when the ydb lock is held
-    r = toku_pthread_mutex_lock(&ct->openfd_mutex);   // purpose is to make this function single-threaded
-    resource_assert_zero(r);
+    toku_mutex_lock(&ct->openfd_mutex);   // purpose is to make this function single-threaded
     cachetable_lock(ct);
     cachefiles_lock(ct);
     for (extant = ct->cachefiles; extant; extant=extant->next) {
@@ -809,18 +807,15 @@ int toku_cachetable_openfd_with_filenum (CACHEFILE *cfptr, CACHETABLE ct, int fd
         newcf->for_local_checkpoint = ZERO_LSN;
         newcf->checkpoint_state = CS_NOT_IN_PROGRESS;
 
-        r = toku_pthread_cond_init(&newcf->background_wait, NULL); resource_assert_zero(r);
+        toku_cond_init(&newcf->background_wait, NULL);
         toku_list_init(&newcf->pairs_for_cachefile);
 	*cfptr = newcf;
 	r = 0;
     }
  exit:
     cachefiles_unlock(ct);
-    {
-        // TODO: review the removal of this mutex, since it is only ever held when the ydb lock is held
-	int rm = toku_pthread_mutex_unlock(&ct->openfd_mutex);
-	resource_assert_zero(rm);
-    } 
+    // TODO: review the removal of this mutex, since it is only ever held when the ydb lock is held
+    toku_mutex_unlock(&ct->openfd_mutex);
     cachetable_unlock(ct);
     return r;
 }
@@ -993,10 +988,7 @@ int toku_cachefile_close (CACHEFILE *cfp, char **error_string, BOOL oplsn_valid,
 	cf->end_checkpoint_userdata = NULL;
 	cf->userdata = NULL;
         remove_cf_from_cachefiles_list(cf);
-        {
-            int rd = toku_pthread_cond_destroy(&cf->background_wait);
-            resource_assert_zero(rd);
-        }
+        toku_cond_destroy(&cf->background_wait);
         rwlock_write_lock(&cf->fdlock, ct->mutex); //Just make sure we can get it.
 
         if (!toku_cachefile_is_dev_null_unlocked(cf)) {
@@ -1814,8 +1806,7 @@ static void checkpoint_cloned_pair(WORKITEM wi) {
     nb_mutex_write_unlock(&p->disk_nb_mutex);
     ct->n_checkpoint_clones_running--;
     if (ct->n_checkpoint_clones_running == 0) {
-        int r = toku_pthread_cond_broadcast(&ct->clones_background_wait); 
-        assert(r==0);
+        toku_cond_broadcast(&ct->clones_background_wait); 
     }
     cachetable_unlock(ct);
 }
@@ -3212,14 +3203,14 @@ toku_cachetable_close (CACHETABLE *ctp) {
     assert(ct->size_evicting == 0);
     rwlock_destroy(&ct->pending_lock);
     // TODO: review the removal of this mutex, since it is only ever held when the ydb lock is held
-    int r = toku_pthread_mutex_destroy(&ct->openfd_mutex); resource_assert_zero(r);
+    toku_mutex_destroy(&ct->openfd_mutex);
     cachetable_unlock(ct);
     toku_destroy_workers(&ct->wq, &ct->threadpool);
     toku_destroy_workers(&ct->checkpoint_wq, &ct->checkpoint_threadpool);
     toku_kibbutz_destroy(ct->kibbutz);
     toku_omt_destroy(&ct->reserved_filenums);
-    r = toku_pthread_mutex_destroy(&ct->cachefiles_mutex); resource_assert_zero(r);
-    r = toku_pthread_cond_destroy(&ct->clones_background_wait); resource_assert_zero(r);
+    toku_mutex_destroy(&ct->cachefiles_mutex);
+    toku_cond_destroy(&ct->clones_background_wait);
     toku_free(ct->table);
     toku_free(ct->env_dir);
     toku_free(ct);
@@ -3703,8 +3694,7 @@ toku_cachetable_end_checkpoint(CACHETABLE ct, TOKULOGGER logger,
     }
     assert(!ct->pending_head);    
     while (ct->n_checkpoint_clones_running > 0) {
-        int r = toku_pthread_cond_wait(&ct->clones_background_wait, ct->mutex);
-        assert(r==0);
+        toku_cond_wait(&ct->clones_background_wait, ct->mutex);
     }
     assert(ct->n_checkpoint_clones_running == 0);
 

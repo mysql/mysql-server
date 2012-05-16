@@ -381,8 +381,7 @@ generate_log_writer (void) {
 			fprintf(cf, "    ml_lock(&logger->input_lock);\n");
 			fprintf(cf, "    logger->lsn.lsn += toku_lsn_increment;\n");
 			fprintf(cf, "    if (lsnp) *lsnp=logger->lsn;\n");
-			fprintf(cf, "    r = ml_unlock(&logger->input_lock);\n");
-			fprintf(cf, "    if (r!=0) goto panic;\n");
+			fprintf(cf, "    ml_unlock(&logger->input_lock);\n");
 			fprintf(cf, "    return 0;\n");
 			fprintf(cf, "  }\n");
 			fprintf(cf, "  const unsigned int buflen= (+4 // len at the beginning\n");
@@ -393,8 +392,7 @@ generate_log_writer (void) {
 			fprintf(cf, "                              +8 // crc + len\n");
 			fprintf(cf, "                     );\n");
 			fprintf(cf, "  struct wbuf wbuf;\n");
-			fprintf(cf, "  r = ml_lock(&logger->input_lock);\n");
-			fprintf(cf, "  if (r!=0) goto panic;\n");
+			fprintf(cf, "  ml_lock(&logger->input_lock);\n");
 			fprintf(cf, "  r = toku_logger_make_space_in_inbuf(logger, buflen);\n");
 			fprintf(cf, "  if (r!=0) goto panic;\n");
 			fprintf(cf, "  wbuf_nocrc_init(&wbuf, logger->inbuf.buf+logger->inbuf.n_in_buf, buflen);\n");

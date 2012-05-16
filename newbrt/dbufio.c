@@ -39,8 +39,8 @@ struct dbufio_fileset {
     //   in each file:
     //     the second_buf_ready boolean (which says the second buffer is full of data).
     //     the swapping of the buf[], n_in_buf[], and error_code[] values.
-    toku_pthread_mutex_t mutex;
-    toku_pthread_cond_t  cond;
+    toku_mutex_t mutex;
+    toku_cond_t  cond;
     int N; // How many files.  This is constant once established.
     int n_not_done; // how many of the files require more I/O?  Owned by the i/o thread.
     struct dbufio_file *files;     // an array of length N.
@@ -80,23 +80,19 @@ static void* io_thread (void *v)
 // The dbuf_thread does all the asynchronous I/O.
 {
     DBUFIO_FILESET bfs = (DBUFIO_FILESET)v;
-    {
-	int r = toku_pthread_mutex_lock(&bfs->mutex);
-	if (r!=0) { panic(bfs, r); return 0; }
-    }
+    toku_mutex_lock(&bfs->mutex);
     //printf("%s:%d Locked\n", __FILE__, __LINE__);
     while (1) {
 
 	if (paniced(bfs)) {
-	    toku_pthread_mutex_unlock(&bfs->mutex); // ignore any error
+	    toku_mutex_unlock(&bfs->mutex); // ignore any error
 	    return 0;
 	}
 	//printf("n_not_done=%d\n", bfs->n_not_done);
 	if (bfs->n_not_done==0) {
 	    // all done (meaning we stored EOF (or another error) in error_code[0] for the file.
 	    //printf("unlocked\n");
-	    int r = toku_pthread_mutex_unlock(&bfs->mutex);
-	    if (r!=0) { panic(bfs, r); }
+	    toku_mutex_unlock(&bfs->mutex);
 	    return 0;
 	}
 
@@ -104,10 +100,9 @@ static void* io_thread (void *v)
 	if (dbf==NULL) {
 	    // No I/O needs to be done yet. 
 	    // Wait until something happens that will wake us up.
-	    int r = toku_pthread_cond_wait(&bfs->cond, &bfs->mutex);
-	    if (r!=0) { panic(bfs, r); return 0; }
+	    toku_cond_wait(&bfs->cond, &bfs->mutex);
 	    if (paniced(bfs)) {
-		toku_pthread_mutex_unlock(&bfs->mutex); // ignore any error
+		toku_mutex_unlock(&bfs->mutex); // ignore any error
 		return 0;
 	    }
 	    // Have the lock so go around.
@@ -121,10 +116,7 @@ static void* io_thread (void *v)
 
 	    // Unlock the mutex now that we have ownership of dbf to allow consumers to get the mutex and perform swaps.  They won't swap
 	    // this buffer because second_buf_ready is false.
-	    {
-		int r = toku_pthread_mutex_unlock(&bfs->mutex);
-		if (r!=0) { panic(bfs, r); return 0; }
-	    }
+            toku_mutex_unlock(&bfs->mutex);
 	    //printf("%s:%d Doing read fd=%d\n", __FILE__, __LINE__, dbf->fd);
 	    {
 		ssize_t readcode = toku_os_read(dbf->fd, dbf->buf[1], bfs->bufsize);
@@ -148,10 +140,9 @@ static void* io_thread (void *v)
 
 		//printf("%s:%d locking mutex again=%ld\n", __FILE__, __LINE__, readcode);
 		{
-		    int r = toku_pthread_mutex_lock(&bfs->mutex);
-		    if (r!=0) { panic(bfs, r); return 0; }
+		    toku_mutex_lock(&bfs->mutex);
 		    if (paniced(bfs)) {
-                        toku_pthread_mutex_unlock(&bfs->mutex); // ignore any error
+                        toku_mutex_unlock(&bfs->mutex); // ignore any error
                         return 0;
                     }
 		}
@@ -161,14 +152,7 @@ static void* io_thread (void *v)
 		}
 		//printf("%s:%d n_not_done=%d\n", __FILE__, __LINE__, bfs->n_not_done);
 		dbf->second_buf_ready = TRUE;
-		{
-		    int r = toku_pthread_cond_broadcast(&bfs->cond);
-		    if (r!=0) {
-			panic(bfs, r);
-			toku_pthread_mutex_unlock(&bfs->mutex); // ignore any error
-			return 0;
-		    }
-		}
+                toku_cond_broadcast(&bfs->cond);
 		//printf("%s:%d did broadcast=%d\n", __FILE__, __LINE__, bfs->n_not_done);
 		// Still have the lock so go around the loop
 	    }
@@ -193,12 +177,12 @@ int create_dbufio_fileset (DBUFIO_FILESET *bfsp, int N, int fds[/*N*/], size_t b
     }
     //printf("%s:%d here\n", __FILE__, __LINE__);
     if (result==0) {
-	result = toku_pthread_mutex_init(&bfs->mutex, NULL);
-	if (result==0) mutex_inited = TRUE;
+	toku_mutex_init(&bfs->mutex, NULL);
+	mutex_inited = TRUE;
     }
     if (result==0) {
-	result = toku_pthread_cond_init(&bfs->cond, NULL);
-	if (result==0) cond_inited = TRUE;
+	toku_cond_init(&bfs->cond, NULL);
+	cond_inited = TRUE;
     }
     if (result==0) {
 	bfs->N = N;
@@ -261,10 +245,10 @@ int create_dbufio_fileset (DBUFIO_FILESET *bfsp, int N, int fds[/*N*/], size_t b
 	    bfs->files=NULL;
 	}
 	if (cond_inited) {
-	    toku_pthread_cond_destroy(&bfs->cond);  // don't check error status
+	    toku_cond_destroy(&bfs->cond);  // don't check error status
 	}
 	if (mutex_inited) {
-	    toku_pthread_mutex_destroy(&bfs->mutex); // don't check error status
+	    toku_mutex_destroy(&bfs->mutex); // don't check error status
 	}
 	toku_free(bfs);
     }
@@ -272,11 +256,10 @@ int create_dbufio_fileset (DBUFIO_FILESET *bfsp, int N, int fds[/*N*/], size_t b
 }
 
 int panic_dbufio_fileset(DBUFIO_FILESET bfs, int error) {
-    int r;
-    r = toku_pthread_mutex_lock(&bfs->mutex); assert(r==0);
+    toku_mutex_lock(&bfs->mutex);
     panic(bfs, error);
-    r = toku_pthread_cond_broadcast(&bfs->cond); assert(r==0);
-    r = toku_pthread_mutex_unlock(&bfs->mutex); assert(r==0);
+    toku_cond_broadcast(&bfs->cond);
+    toku_mutex_unlock(&bfs->mutex);
     return 0;
 }
 
@@ -289,12 +272,10 @@ int destroy_dbufio_fileset (DBUFIO_FILESET bfs) {
 	assert(retval==NULL);
     }
     {
-	int r = toku_pthread_mutex_destroy(&bfs->mutex);
-	if (result==0 && r!=0) result=r;
+	toku_mutex_destroy(&bfs->mutex);
     }
     {
-	int r = toku_pthread_cond_destroy(&bfs->cond);
-	if (result==0 && r!=0) result=r;
+	toku_cond_destroy(&bfs->cond);
     }
     if (bfs->files) {
 	for (int i=0; i<bfs->N; i++) {
@@ -339,7 +320,7 @@ int dbufio_fileset_read (DBUFIO_FILESET bfs, int filenum, void *buf_v, size_t co
 	}
     } else {
 	// There is nothing in buf[0].  So we need to swap buffers
-	{ int r = toku_pthread_mutex_lock(&bfs->mutex); assert(r==0);  }
+	toku_mutex_lock(&bfs->mutex);
 	while (1) {
 	    if (dbf->second_buf_ready) {
 		dbf->n_in_buf[0] = dbf->n_in_buf[1];
@@ -356,8 +337,8 @@ int dbufio_fileset_read (DBUFIO_FILESET bfs, int filenum, void *buf_v, size_t co
 		    //printf("%s:%d enq [%ld]\n", __FILE__, __LINE__, dbf-&bfs->files[0]);
 		    enq(bfs, dbf);
 		}
-		{ int r = toku_pthread_cond_broadcast(&bfs->cond); assert(r==0); }
-		{ int r = toku_pthread_mutex_unlock(&bfs->mutex); assert(r==0); }
+		toku_cond_broadcast(&bfs->cond);
+		toku_mutex_unlock(&bfs->mutex);
 		if (dbf->error_code[0]==0) {
 		    assert(dbf->n_in_buf[0]>0);
 		    return dbufio_fileset_read(bfs, filenum, buf_v, count, n_read);
@@ -366,7 +347,7 @@ int dbufio_fileset_read (DBUFIO_FILESET bfs, int filenum, void *buf_v, size_t co
 		    return dbf->error_code[0];
 		}
 	    } else {
-		{ int r = toku_pthread_cond_wait(&bfs->cond, &bfs->mutex); assert(r==0); }
+		toku_cond_wait(&bfs->cond, &bfs->mutex);
 	    }
 	}
 	assert(0); // cannot get here.

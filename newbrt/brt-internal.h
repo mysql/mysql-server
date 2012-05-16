@@ -343,7 +343,7 @@ struct brt_header {
     // the tree. This lock protects the blocknum of the root node (root_blocknum). Any 
     // thread that wants to descend down the tree starting at the root 
     // must grab this lock before pinning the root.
-    toku_pthread_mutex_t tree_lock; 
+    toku_mutex_t tree_lock; 
     u_int64_t checkpoint_count; // Free-running counter incremented once per checkpoint (toggling LSB).
                                 // LSB indicates which header location is used on disk so this
                                 // counter is effectively a boolean which alternates with each checkpoint.

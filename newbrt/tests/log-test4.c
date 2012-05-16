@@ -32,13 +32,13 @@ test_main (int argc __attribute__((__unused__)),
     r = toku_logger_open(dname, logger);                             assert(r == 0);
 
     {
-	r = ml_lock(&logger->input_lock);                                assert(r == 0);
+	ml_lock(&logger->input_lock);
 	r = toku_logger_make_space_in_inbuf(logger, 5);                  assert(r == 0);
 	snprintf(logger->inbuf.buf+logger->inbuf.n_in_buf, 5, "a1234");
 	logger->inbuf.n_in_buf+=5;
 	logger->lsn.lsn++;
 	logger->inbuf.max_lsn_in_buf = logger->lsn;
-	r = ml_unlock(&logger->input_lock);                              assert(r == 0);
+	ml_unlock(&logger->input_lock);
     }
 
     r = toku_logger_close(&logger);                                  assert(r == 0);

@@ -80,22 +80,22 @@ toku_brtheader_free (struct brt_header *h) {
 
 void
 toku_brtheader_init_treelock(struct brt_header* h) {
-    int r = toku_pthread_mutex_init(&h->tree_lock, NULL); assert(r == 0);
+    toku_mutex_init(&h->tree_lock, NULL);
 }
 
 void
 toku_brtheader_destroy_treelock(struct brt_header* h) {
-    int r = toku_pthread_mutex_destroy(&h->tree_lock); assert(r == 0);
+    toku_mutex_destroy(&h->tree_lock);
 }
 
 void
 toku_brtheader_grab_treelock(struct brt_header* h) {
-    int r = toku_pthread_mutex_lock(&h->tree_lock); assert(r == 0);
+    toku_mutex_lock(&h->tree_lock);
 }
 
 void
 toku_brtheader_release_treelock(struct brt_header* h) {
-    int r = toku_pthread_mutex_unlock(&h->tree_lock); assert(r == 0);
+    toku_mutex_unlock(&h->tree_lock);
 }
 
 /////////////////////////////////////////////////////////////////////////

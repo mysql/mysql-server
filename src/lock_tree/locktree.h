@@ -353,7 +353,7 @@ typedef struct {
     toku_lock_tree *tree;
     int complete_r;
     toku_lock_request_state state;
-    toku_pthread_cond_t wait;
+    toku_cond_t wait;
     bool wait_initialized;
 } toku_lock_request;
 

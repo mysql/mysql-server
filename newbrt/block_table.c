@@ -69,8 +69,7 @@ struct block_table {
     // The in-memory data structure for block allocation.  There is no on-disk data structure for block allocation.
     // Note: This is *allocation* not *translation*.  The block_allocator is unaware of which blocks are used for which translation, but simply allocates and deallocates blocks.
     BLOCK_ALLOCATOR block_allocator;
-    toku_pthread_mutex_t mutex;
-    int is_locked;
+    toku_mutex_t mutex;
     BOOL checkpoint_skipped;
     BOOL checkpoint_failed;
 };
@@ -85,7 +84,7 @@ static inline void unlock_for_blocktable (BLOCK_TABLE bt);
 
 static void 
 brtheader_set_dirty(struct brt_header *h, BOOL for_checkpoint){
-    assert(h->blocktable->is_locked);
+    assert(toku_mutex_is_locked(&h->blocktable->mutex));
     assert(h->type == BRTHEADER_CURRENT);
     if (for_checkpoint) {
 	assert(h->checkpoint_header->type == BRTHEADER_CHECKPOINT_INPROGRESS);
@@ -99,7 +98,7 @@ brtheader_set_dirty(struct brt_header *h, BOOL for_checkpoint){
 //fd is protected (must be holding fdlock)
 static void
 maybe_truncate_cachefile(BLOCK_TABLE bt, int fd, struct brt_header *h, u_int64_t size_needed_before) {
-    assert(bt->is_locked);
+    assert(toku_mutex_is_locked(&bt->mutex));
     u_int64_t new_size_needed = block_allocator_allocated_limit(bt->block_allocator);
     //Save a call to toku_os_get_file_size (kernel call) if unlikely to be useful.
     if (new_size_needed < size_needed_before)
@@ -194,7 +193,7 @@ maybe_optimize_translation(struct translation *t) {
 // block table must be locked by caller of this function
 void
 toku_block_translation_note_start_checkpoint_unlocked (BLOCK_TABLE bt) {
-    assert(bt->is_locked);
+    assert(toku_mutex_is_locked(&bt->mutex));
     // Copy current translation to inprogress translation.
     assert(bt->inprogress.block_translation == NULL);
     //We're going to do O(n) work to copy the translation, so we
@@ -314,28 +313,23 @@ verify_valid_freeable_blocknum (struct translation *t, BLOCKNUM b) {
 static void
 blocktable_lock_init (BLOCK_TABLE bt) {
     memset(&bt->mutex, 0, sizeof(bt->mutex));
-    int r = toku_pthread_mutex_init(&bt->mutex, NULL); assert(r == 0);
-    bt->is_locked = 0;
+    toku_mutex_init(&bt->mutex, NULL);
 }
 
 static void
 blocktable_lock_destroy (BLOCK_TABLE bt) {
-    int r = toku_pthread_mutex_destroy(&bt->mutex); assert(r == 0);
+    toku_mutex_destroy(&bt->mutex);
 }
 
 static inline void
 lock_for_blocktable (BLOCK_TABLE bt) {
     // Locks the blocktable_mutex. 
-    int r = toku_pthread_mutex_lock(&bt->mutex);
-    assert(r==0);
-    bt->is_locked = 1;
+    toku_mutex_lock(&bt->mutex);
 }
 
 static inline void
 unlock_for_blocktable (BLOCK_TABLE bt) {
-    bt->is_locked = 0;
-    int r = toku_pthread_mutex_unlock(&bt->mutex);
-    assert(r==0);
+    toku_mutex_unlock(&bt->mutex);
 }
 
 void
@@ -347,7 +341,7 @@ toku_brtheader_lock (struct brt_header *h) {
 void
 toku_brtheader_unlock (struct brt_header *h) {
     BLOCK_TABLE bt = h->blocktable;
-    assert(bt->is_locked);
+    assert(toku_mutex_is_locked(&bt->mutex));
     unlock_for_blocktable(bt);
 }
 
@@ -391,7 +385,7 @@ translation_prevents_freeing(struct translation *t, BLOCKNUM b, struct block_tra
 
 static void
 blocknum_realloc_on_disk_internal (BLOCK_TABLE bt, BLOCKNUM b, DISKOFF size, DISKOFF *offset, struct brt_header * h, BOOL for_checkpoint) {
-    assert(bt->is_locked);
+    assert(toku_mutex_is_locked(&bt->mutex));
     brtheader_set_dirty(h, for_checkpoint);
 
     struct translation *t = &bt->current;
@@ -433,7 +427,7 @@ toku_blocknum_realloc_on_disk (BLOCK_TABLE bt, BLOCKNUM b, DISKOFF size, DISKOFF
 // Purpose of this function is to figure out where to put the inprogress btt on disk, allocate space for it there.
 static void
 blocknum_alloc_translation_on_disk_unlocked (BLOCK_TABLE bt) {
-    assert(bt->is_locked);
+    assert(toku_mutex_is_locked(&bt->mutex));
 
     struct translation *t = &bt->inprogress;
     assert(t->block_translation);
@@ -456,7 +450,7 @@ PRNTF("blokAllokator", 1L, size, offset, bt);
 void
 toku_serialize_translation_to_wbuf_unlocked(BLOCK_TABLE bt, struct wbuf *w,
                                             int64_t *address, int64_t *size) {
-    assert(bt->is_locked);
+    assert(toku_mutex_is_locked(&bt->mutex));
     struct translation *t = &bt->inprogress;
 
     BLOCKNUM b = make_blocknum(RESERVED_BLOCKNUM_TRANSLATION);
@@ -523,7 +517,7 @@ maybe_expand_translation (struct translation *t) {
 
 void
 toku_allocate_blocknum_unlocked(BLOCK_TABLE bt, BLOCKNUM *res, struct brt_header * h) {
-    assert(bt->is_locked);
+    assert(toku_mutex_is_locked(&bt->mutex));
     BLOCKNUM result;
     struct translation * t = &bt->current;
     if (t->blocknum_freelist_head.b == freelist_null.b) {
@@ -571,7 +565,7 @@ static void
 free_blocknum_unlocked(BLOCK_TABLE bt, BLOCKNUM *bp, struct brt_header * h, BOOL for_checkpoint) {
 // Effect: Free a blocknum.
 // If the blocknum holds the only reference to a block on disk, free that block
-    assert(bt->is_locked);
+    assert(toku_mutex_is_locked(&bt->mutex));
     BLOCKNUM b = *bp;
     bp->b = 0; //Remove caller's reference.
 
@@ -899,7 +893,7 @@ toku_blocktable_internal_fragmentation (BLOCK_TABLE bt, int64_t *total_sizep, in
 
 void
 toku_realloc_descriptor_on_disk_unlocked(BLOCK_TABLE bt, DISKOFF size, DISKOFF *offset, struct brt_header * h) {
-    invariant(bt->is_locked);
+    assert(toku_mutex_is_locked(&bt->mutex));
     BLOCKNUM b = make_blocknum(RESERVED_BLOCKNUM_DESCRIPTOR);
     blocknum_realloc_on_disk_internal(bt, b, size, offset, h, FALSE);
 }

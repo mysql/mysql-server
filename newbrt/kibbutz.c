@@ -22,8 +22,8 @@ struct kid {
 };
 
 struct kibbutz {
-    toku_pthread_mutex_t mutex;
-    toku_pthread_cond_t  cond;
+    toku_mutex_t mutex;
+    toku_cond_t  cond;
     bool please_shutdown;
     struct todo *head, *tail; // head is the next thing to do.
     int n_workers;
@@ -35,8 +35,8 @@ static void *work_on_kibbutz (void *);
 
 KIBBUTZ toku_kibbutz_create (int n_workers) {
     KIBBUTZ XMALLOC(k);
-    { int r = toku_pthread_mutex_init(&k->mutex, NULL); assert(r==0); }
-    { int r = toku_pthread_cond_init(&k->cond, NULL);   assert(r==0); }
+    toku_mutex_init(&k->mutex, NULL);
+    toku_cond_init(&k->cond, NULL);
     k->please_shutdown = false;
     k->head = NULL;
     k->tail = NULL;
@@ -52,20 +52,16 @@ KIBBUTZ toku_kibbutz_create (int n_workers) {
 }
 
 static void klock (KIBBUTZ k) {
-    int r = toku_pthread_mutex_lock(&k->mutex);
-    assert(r==0);
+    toku_mutex_lock(&k->mutex);
 }
 static void kunlock (KIBBUTZ k) {
-    int r = toku_pthread_mutex_unlock(&k->mutex);
-    assert(r==0);
+    toku_mutex_unlock(&k->mutex);
 }
 static void kwait (KIBBUTZ k) {
-    int r = toku_pthread_cond_wait(&k->cond, &k->mutex);
-    assert(r==0);
+    toku_cond_wait(&k->cond, &k->mutex);
 }
 static void ksignal (KIBBUTZ k) {
-    int r = toku_pthread_cond_signal(&k->cond);
-    assert(r==0);
+    toku_cond_signal(&k->cond);
 }
 
 //
@@ -146,7 +142,7 @@ void toku_kibbutz_destroy (KIBBUTZ k)
     }
     toku_free(k->workers);
     toku_free(k->ids);
-    { int r = toku_pthread_cond_destroy(&k->cond);  assert(r==0); }
-    { int r = toku_pthread_mutex_destroy(&k->mutex);  assert(r==0); }
+    toku_cond_destroy(&k->cond);
+    toku_mutex_destroy(&k->mutex);
     toku_free(k);
 }

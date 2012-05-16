@@ -31,10 +31,10 @@ typedef struct rwlock *RWLOCK;
 struct rwlock {
     int reader;                  // the number of readers
     int want_read;                // the number of blocked readers
-    toku_pthread_cond_t wait_read;
+    toku_cond_t wait_read;
     int writer;                  // the number of writers
     int want_write;              // the number of blocked writers
-    toku_pthread_cond_t wait_write;
+    toku_cond_t wait_write;
 };
 
 // initialize a read write lock
@@ -42,11 +42,10 @@ struct rwlock {
 static __attribute__((__unused__))
 void
 rwlock_init(RWLOCK rwlock) {
-    int r;
     rwlock->reader = rwlock->want_read = 0;
-    r = toku_pthread_cond_init(&rwlock->wait_read, 0); assert(r == 0);
+    toku_cond_init(&rwlock->wait_read, 0);
     rwlock->writer = rwlock->want_write = 0;
-    r = toku_pthread_cond_init(&rwlock->wait_write, 0); assert(r == 0);
+    toku_cond_init(&rwlock->wait_write, 0);
 }
 
 // destroy a read write lock
@@ -54,28 +53,27 @@ rwlock_init(RWLOCK rwlock) {
 static __attribute__((__unused__))
 void
 rwlock_destroy(RWLOCK rwlock) {
-    int r;
     assert(rwlock->reader == 0 && rwlock->want_read == 0);
     assert(rwlock->writer == 0 && rwlock->want_write == 0);
-    r = toku_pthread_cond_destroy(&rwlock->wait_read); assert(r == 0);
-    r = toku_pthread_cond_destroy(&rwlock->wait_write); assert(r == 0);
+    toku_cond_destroy(&rwlock->wait_read);
+    toku_cond_destroy(&rwlock->wait_write);
 }
 
 // obtain a read lock
 // expects: mutex is locked
 
-static inline void rwlock_read_lock(RWLOCK rwlock, toku_pthread_mutex_t *mutex) {
+static inline void rwlock_read_lock(RWLOCK rwlock, toku_mutex_t *mutex) {
     if (rwlock->writer || rwlock->want_write) {
         rwlock->want_read++;
         while (rwlock->writer || rwlock->want_write) {
-            int r = toku_pthread_cond_wait(&rwlock->wait_read, mutex); assert(r == 0);
+            toku_cond_wait(&rwlock->wait_read, mutex);
         }
         rwlock->want_read--;
     }
     rwlock->reader++;
 }
 
-static inline void rwlock_read_lock_and_unlock (RWLOCK rwlock, toku_pthread_mutex_t *mutex)
+static inline void rwlock_read_lock_and_unlock (RWLOCK rwlock, toku_mutex_t *mutex)
 // Effect: Has the effect of obtaining a read lock and then unlocking it.
 // Implementation note: This can be done faster than actually doing the lock/unlock
 // Usage note:  This is useful when we are waiting on someone who has the write lock, but then we are just going to try again from the top.  (E.g., when releasing the ydb lock).
@@ -83,7 +81,7 @@ static inline void rwlock_read_lock_and_unlock (RWLOCK rwlock, toku_pthread_mute
     if (rwlock->writer || rwlock->want_write) {
 	rwlock->want_read++;
         while (rwlock->writer || rwlock->want_write) {
-            int r = toku_pthread_cond_wait(&rwlock->wait_read, mutex); assert(r == 0);
+            toku_cond_wait(&rwlock->wait_read, mutex);
         }
         rwlock->want_read--;
     }
@@ -93,7 +91,7 @@ static inline void rwlock_read_lock_and_unlock (RWLOCK rwlock, toku_pthread_mute
 // preferentially obtain a read lock (ignore request for write lock)
 // expects: mutex is locked
 
-static inline void rwlock_prefer_read_lock(RWLOCK rwlock, toku_pthread_mutex_t *mutex) {
+static inline void rwlock_prefer_read_lock(RWLOCK rwlock, toku_mutex_t *mutex) {
     if (rwlock->reader)
 	rwlock->reader++;
     else
@@ -106,7 +104,7 @@ static inline void rwlock_prefer_read_lock(RWLOCK rwlock, toku_pthread_mutex_t *
 
 //Bug in ICL compiler prevents the UU definition from propogating to this header. Redefine UU here.
 #define UU(x) x __attribute__((__unused__))
-static inline int rwlock_try_prefer_read_lock(RWLOCK rwlock, toku_pthread_mutex_t *UU(mutex)) {
+static inline int rwlock_try_prefer_read_lock(RWLOCK rwlock, toku_mutex_t *UU(mutex)) {
     int r = EBUSY;
     if (!rwlock->writer) {
 	rwlock->reader++;
@@ -125,18 +123,18 @@ static inline void rwlock_read_unlock(RWLOCK rwlock) {
     assert(rwlock->writer == 0);
     rwlock->reader--;
     if (rwlock->reader == 0 && rwlock->want_write) {
-        int r = toku_pthread_cond_signal(&rwlock->wait_write); assert(r == 0);
+        toku_cond_signal(&rwlock->wait_write);
     }
 }
 
 // obtain a write lock
 // expects: mutex is locked
 
-static inline void rwlock_write_lock(RWLOCK rwlock, toku_pthread_mutex_t *mutex) {
+static inline void rwlock_write_lock(RWLOCK rwlock, toku_mutex_t *mutex) {
     if (rwlock->reader || rwlock->writer) {
         rwlock->want_write++;
         while (rwlock->reader || rwlock->writer) {
-            int r = toku_pthread_cond_wait(&rwlock->wait_write, mutex); assert(r == 0);
+            toku_cond_wait(&rwlock->wait_write, mutex);
         }
         rwlock->want_write--;
     }
@@ -152,9 +150,9 @@ static inline void rwlock_write_unlock(RWLOCK rwlock) {
     rwlock->writer--;
     if (rwlock->writer == 0) {
         if (rwlock->want_write) {
-            int r = toku_pthread_cond_signal(&rwlock->wait_write); assert(r == 0);
+            toku_cond_signal(&rwlock->wait_write);
         } else if (rwlock->want_read) {
-            int r = toku_pthread_cond_broadcast(&rwlock->wait_read); assert(r == 0);
+            toku_cond_broadcast(&rwlock->wait_read);
         }
     }
 }
