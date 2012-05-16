@@ -15856,6 +15856,21 @@ void Dbtc::executeIndexTrigger(Signal* signal,
   }
 }
 
+Uint32
+Dbtc::fk_constructAttrInfoSetNull(const TcFKData * fkPtrP)
+{
+  Uint32 attrInfo[MAX_ATTRIBUTES_IN_INDEX];
+  for (Uint32 i = 0; i<fkPtrP->childTableColumns.sz; i++)
+  {
+    AttributeHeader::init(attrInfo + i, fkPtrP->childTableColumns.id[i],
+                          0 /* setNull */);
+  }
+
+  Uint32 tmp = RNIL;
+  appendToSection(tmp, attrInfo, fkPtrP->childTableColumns.sz);
+  return tmp;
+}
+
 void
 Dbtc::executeFKParentTrigger(Signal* signal,
                              TcDefinedTriggerData* definedTriggerData,
@@ -15926,8 +15941,12 @@ Dbtc::executeFKParentTrigger(Signal* signal,
     break;
   default:
     ndbrequire(false);
-  setnull:
-    ndbrequire(false); // TODO
+  setnull:{
+      op = ZUPDATE;
+      attrValuesPtrI = fk_constructAttrInfoSetNull(fkPtr.p);
+      if (unlikely(attrValuesPtrI == RNIL))
+        goto oom;
+    }
   }
 
   if (! (fkPtr.p->bits & CreateFKImplReq::FK_CHILD_OI))
@@ -15942,6 +15961,9 @@ Dbtc::executeFKParentTrigger(Signal* signal,
     fk_scanFromChildTable(signal, firedTriggerData, transPtr, opPtr,
                           fkPtr.p, op, attrValuesPtrI);
   }
+  return;
+oom:
+  abortTransFromTrigger(signal, *transPtr, ZGET_DATAREC_ERROR);
 }
 
 void
@@ -16258,6 +16280,7 @@ Dbtc::fk_scanFromChildTable(Signal* signal,
   tcPtr.p->currentTriggerId = firedTriggerData->triggerId;
   tcPtr.p->triggerErrorCode = ZNOT_FOUND;
   tcPtr.p->operation = op;
+  tcPtr.p->indexOp = attrValuesPtrI;
 
   TableRecordPtr childIndexPtr;
   childIndexPtr.i = fkData->childIndexId;
@@ -16419,7 +16442,7 @@ Dbtc::execKEYINFO20(Signal* signal)
    * Construct a DELETE/UPDATE
    * NOTE: on table...not index
    */
-  Uint32 op = ZDELETE;
+  Uint32 op = tcPtr.p->operation;
   TcKeyReq * const tcKeyReq =  CAST_PTR(TcKeyReq, signal->getDataPtrSend());
   TableRecordPtr childTabPtr;
 
@@ -16449,6 +16472,17 @@ Dbtc::execKEYINFO20(Signal* signal)
   }
   signal->m_sectionPtrI[ TcKeyReq::KeyInfoSectionNum ] = keyInfoPtrI;
   signal->header.m_noOfSections= 1;
+
+  if (tcPtr.p->indexOp != RNIL)
+  {
+    /**
+     * attrValues save in indexOp
+     */
+    Uint32 tmp = RNIL;
+    ndbrequire(dupSection(tmp, tcPtr.p->indexOp)); // TODO handle error
+    signal->m_sectionPtrI[ TcKeyReq::AttrInfoSectionNum ] = tmp;
+    signal->header.m_noOfSections= 2;
+  }
 
   /**
    * Fix savepoint id -
@@ -16506,10 +16540,13 @@ Dbtc::execSCAN_TABCONF(Signal* signal)
     rows += ScanTabConf::getRows(op->rows);
   }
 
-  if (rows)
+  if (rows && tcPtr.p->operation != ZREAD)
   {
     jam();
-    TcConnectRecord * triggeringOp = tcPtr.p;
+    TcConnectRecordPtr opPtr; // triggering operation
+    opPtr.i = tcPtr.p->triggeringOperation;
+    ptrCheckGuard(opPtr, ctcConnectFilesize, tcConnectRecord);
+    TcConnectRecord * triggeringOp = opPtr.p;
     if (triggeringOp->operation == ZDELETE &&
         (fkPtr.p->bits & (CreateFKImplReq::FK_DELETE_CASCADE | CreateFKImplReq::FK_DELETE_SET_NULL)))
     {
@@ -16654,6 +16691,10 @@ Dbtc::fk_scanFromChildTable_done(Signal* signal, TcConnectRecordPtr tcPtr)
   /**
    * release extra allocated resources
    */
+  if (tcPtr.p->indexOp != RNIL)
+  {
+    releaseSection(tcPtr.p->indexOp);
+  }
   tcConnectptr = tcPtr;
   releaseTcCon();
   releaseApiCon(signal, scanApiConnectPtr.i);

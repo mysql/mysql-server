@@ -1745,6 +1745,7 @@ private:
   Uint32 fk_buildBounds(SegmentedSectionPtr & dst,
                         LocalDataBuffer<11> & src,
                         TcFKData* fkData);
+  Uint32 fk_constructAttrInfoSetNull(const TcFKData*);
 
   void releaseFiredTriggerData(DLFifoList<TcFiredTriggerData>* triggers);
   void abortTransFromTrigger(Signal* signal, const ApiConnectRecordPtr& transPtr, 
