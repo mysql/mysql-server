@@ -28,6 +28,7 @@
 #include <signaldata/DictTabInfo.hpp>
 #include <signaldata/CopyData.hpp>
 #include <signaldata/BuildIndxImpl.hpp>
+#include <signaldata/BuildFKImpl.hpp>
 #include <signaldata/SumaImpl.hpp>
 #include <signaldata/UtilPrepare.hpp>
 #include <signaldata/UtilExecute.hpp>
@@ -41,6 +42,8 @@
 #include <signaldata/WaitGCP.hpp>
 
 #define CONSTRAINT_VIOLATION 893
+#define TUPLE_NOT_FOUND 626
+#define FK_NO_PARENT_ROW_EXISTS 255
 
 static
 bool
@@ -87,6 +90,7 @@ Trix::Trix(Block_context& ctx) :
   addRecSignal(GSN_BUILD_INDX_IMPL_REF, &Trix::execBUILD_INDX_IMPL_REF);
 
   addRecSignal(GSN_COPY_DATA_IMPL_REQ, &Trix::execCOPY_DATA_IMPL_REQ);
+  addRecSignal(GSN_BUILD_FK_IMPL_REQ, &Trix::execBUILD_FK_IMPL_REQ);
 
   addRecSignal(GSN_UTIL_PREPARE_CONF, &Trix::execUTIL_PREPARE_CONF);
   addRecSignal(GSN_UTIL_PREPARE_REF, &Trix::execUTIL_PREPARE_REF);
@@ -774,6 +778,13 @@ void Trix::execUTIL_EXECUTE_REF(Signal* signal)
     jam();
     buildFailed(signal, subRecPtr, BuildIndxRef::DeadlockError);
   }
+  else if (subRec->requestType == FK_BUILD &&
+           utilExecuteRef->TCErrorCode == TUPLE_NOT_FOUND)
+  {
+    jam();
+    buildFailed(signal, subRecPtr,
+                (BuildIndxRef::ErrorCode)FK_NO_PARENT_ROW_EXISTS);
+  }
   else
   {
     jam();
@@ -922,6 +933,9 @@ void Trix::execSUB_TABLE_DATA(Signal* signal)
   case REORG_DELETE:
     executeReorgTransaction(signal, subRecPtr, subTableData->takeOver);
     break;
+  case FK_BUILD:
+    executeBuildFKTransaction(signal, subRecPtr);
+    break;
   case STAT_UTIL:
     ndbrequire(false);
     break;
@@ -976,19 +990,26 @@ void Trix::startTableScan(Signal* signal, SubscriptionRecPtr subRecPtr)
   Uint32 attributeList[MAX_ATTRIBUTES_IN_TABLE * 2];
   SubscriptionRecord* subRec = subRecPtr.p;
   AttrOrderBuffer::DataBufferIterator iter;
-  Uint32 i = 0;
 
+  Uint32 cnt = 0;
   bool moreAttributes = subRec->attributeOrder.first(iter);
-  while (moreAttributes) {
-    attributeList[i++] = *iter.data;
-    moreAttributes = subRec->attributeOrder.next(iter);
-
+  if (subRec->requestType == FK_BUILD)
+  {
+    jam();
+    // skip over key columns
+    ndbrequire(subRec->attributeOrder.position(iter, subRec->noOfKeyColumns));
   }
+
+  while (moreAttributes) {
+    attributeList[cnt++] = *iter.data;
+    moreAttributes = subRec->attributeOrder.next(iter);
+  }
+
   // Merge index and key column segments
   struct LinearSectionPtr orderPtr[3];
   Uint32 noOfSections;
   orderPtr[0].p = attributeList;
-  orderPtr[0].sz = subRec->attributeOrder.getSize();
+  orderPtr[0].sz = cnt;
   noOfSections = 1;
 
   SubSyncReq * subSyncReq = (SubSyncReq *)signal->getDataPtrSend();
@@ -1396,6 +1417,38 @@ Trix::execUTIL_RELEASE_CONF(Signal* signal){
                  BuildIndxRef::SignalLength , JBB);
     }
     break;
+  case FK_BUILD:
+    if (subRecPtr.p->errorCode == BuildIndxRef::NoError)
+    {
+      jam();
+      // Build is complete, reply to original sender
+      BuildFKImplConf* buildFKConf =
+        CAST_PTR(BuildFKImplConf, signal->getDataPtrSend());
+      buildFKConf->senderRef = reference();
+      buildFKConf->senderData = subRecPtr.p->connectionPtr;
+
+      sendSignal(subRecPtr.p->userReference, GSN_BUILD_FK_IMPL_CONF, signal,
+                 BuildFKImplConf::SignalLength , JBB);
+
+      infoEvent("fk-build parent table: %u child table: %u processed %llu rows",
+                subRecPtr.p->targetTableId,
+                subRecPtr.p->sourceTableId,
+                subRecPtr.p->m_rows_processed);
+    }
+    else
+    {
+      jam();
+      // Build failed, reply to original sender
+      BuildFKImplRef* buildFKRef =
+        (BuildFKImplRef*)signal->getDataPtrSend();
+      buildFKRef->senderRef = reference();
+      buildFKRef->senderData = subRecPtr.p->connectionPtr;
+      buildFKRef->errorCode = subRecPtr.p->errorCode;
+
+      sendSignal(subRecPtr.p->userReference, GSN_BUILD_FK_IMPL_REF, signal,
+                 BuildFKImplRef::SignalLength , JBB);
+    }
+    break;
   case STAT_UTIL:
     ndbrequire(subRecPtr.p->errorCode == BuildIndxRef::NoError);
     statUtilReleaseConf(signal, subRecPtr.p->m_statPtrI);
@@ -1566,6 +1619,170 @@ Trix::execCOPY_DATA_IMPL_REQ(Signal* signal)
                UtilPrepareReq::SignalLength, JBB,
                sectionsPtr, UtilPrepareReq::NoOfSections);
   }
+}
+
+// BuildFK
+void
+Trix::execBUILD_FK_IMPL_REQ(Signal* signal)
+{
+  jamEntry();
+
+  const BuildFKImplReq reqData = *(const BuildFKImplReq*)signal->getDataPtr();
+  const BuildFKImplReq *req = &reqData;
+
+  // Seize a subscription record
+  SubscriptionRecPtr subRecPtr;
+  SectionHandle handle(this, signal);
+
+  if (!c_theSubscriptions.seize(subRecPtr))
+  {
+    jam();
+    // Failed to allocate subscription record
+    releaseSections(handle);
+
+    BuildFKImplRef* ref = (BuildFKImplRef*)signal->getDataPtrSend();
+
+    ref->errorCode = -1; // XXX BuildFKImplRef::AllocationFailure;
+    ref->senderData = req->senderData;
+    sendSignal(req->senderRef, GSN_BUILD_FK_IMPL_REF, signal,
+               BuildFKImplRef::SignalLength, JBB);
+    return;
+  }
+
+  SubscriptionRecord* subRec = subRecPtr.p;
+  subRec->errorCode = BuildIndxRef::NoError;
+  subRec->userReference = req->senderRef;
+  subRec->connectionPtr = req->senderData;
+  subRec->schemaTransId = req->transId;
+  subRec->subscriptionId = rand();
+  subRec->subscriptionKey = rand();
+  subRec->indexType = RNIL;
+  subRec->sourceTableId = req->childTableId;
+  subRec->targetTableId = req->parentTableId;
+  subRec->parallelism = 16;
+  subRec->expectedConf = 0;
+  subRec->subscriptionCreated = false;
+  subRec->pendingSubSyncContinueConf = false;
+  subRec->prepareId = req->transId;
+  subRec->fragCount = 0; // all
+  subRec->fragId = ZNIL;
+  subRec->m_rows_processed = 0;
+  subRec->m_flags = 0;
+  subRec->m_gci = 0;
+  subRec->requestType = FK_BUILD;
+
+  // TODO...check if there is a scenario where this is not optimal
+  subRec->m_flags |= SubscriptionRecord::RF_TUP_ORDER;
+
+  // as we don't support index on disk...
+  subRec->m_flags |= SubscriptionRecord::RF_NO_DISK;
+
+  // Get parent columns...
+  {
+    SegmentedSectionPtr ptr;
+    handle.getSection(ptr, 0);
+    append(subRec->attributeOrder, ptr, getSectionSegmentPool());
+    subRec->noOfKeyColumns = ptr.sz;
+  }
+
+  {
+    // Get child columns...
+    SegmentedSectionPtr ptr;
+    handle.getSection(ptr, 1);
+    append(subRec->attributeOrder, ptr, getSectionSegmentPool());
+    subRec->noOfIndexColumns = ptr.sz;
+  }
+
+  ndbrequire(subRec->noOfKeyColumns == subRec->noOfIndexColumns);
+
+  releaseSections(handle);
+
+  {
+    UtilPrepareReq * utilPrepareReq =
+      (UtilPrepareReq *)signal->getDataPtrSend();
+
+    utilPrepareReq->senderRef = reference();
+    utilPrepareReq->senderData = subRecPtr.i;
+    utilPrepareReq->schemaTransId = subRec->schemaTransId;
+
+    const Uint32 pageSizeInWords = 128;
+    Uint32 propPage[pageSizeInWords];
+    LinearWriter w(&propPage[0],128);
+    w.first();
+    w.add(UtilPrepareReq::NoOfOperations, 1);
+    w.add(UtilPrepareReq::OperationType, UtilPrepareReq::Probe);
+    w.add(UtilPrepareReq::TableId, subRec->targetTableId);
+
+    // key is always in 0
+    AttrOrderBuffer::DataBufferIterator iter;
+    ndbrequire(subRec->attributeOrder.first(iter));
+    for(Uint32 i = 0; i < subRec->noOfKeyColumns; i++)
+    {
+      w.add(UtilPrepareReq::AttributeId, * iter.data);
+      subRec->attributeOrder.next(iter);
+    }
+
+    struct LinearSectionPtr sectionsPtr[UtilPrepareReq::NoOfSections];
+    sectionsPtr[UtilPrepareReq::PROPERTIES_SECTION].p = propPage;
+    sectionsPtr[UtilPrepareReq::PROPERTIES_SECTION].sz = w.getWordsUsed();
+    sendSignal(DBUTIL_REF, GSN_UTIL_PREPARE_REQ, signal,
+               UtilPrepareReq::SignalLength, JBB,
+               sectionsPtr, UtilPrepareReq::NoOfSections);
+  }
+}
+
+void
+Trix::executeBuildFKTransaction(Signal* signal,
+                                SubscriptionRecPtr subRecPtr)
+{
+  jam();
+  SubscriptionRecord* subRec = subRecPtr.p;
+  UtilExecuteReq * utilExecuteReq =
+    CAST_PTR(UtilExecuteReq, signal->getDataPtrSend());
+
+  utilExecuteReq->senderRef = reference();
+  utilExecuteReq->senderData = subRecPtr.i;
+  utilExecuteReq->prepareId = subRec->prepareId;
+
+  // Save scan result in linear buffers
+  SectionHandle handle(this, signal);
+  SegmentedSectionPtr headerPtr, dataPtr;
+
+  handle.getSection(headerPtr, 0);
+  handle.getSection(dataPtr, 1);
+
+  Uint32* headerBuffer = signal->theData + 25;
+  Uint32* dataBuffer = headerBuffer + headerPtr.sz;
+
+  copy(headerBuffer, headerPtr);
+  copy(dataBuffer, dataPtr);
+  releaseSections(handle);
+
+  for(Uint32 i = 0; i < headerPtr.sz; i++)
+  {
+    AttributeHeader* keyAttrHead = (AttributeHeader *) headerBuffer + i;
+
+    // Filter out NULL attributes
+    if (keyAttrHead->isNULL())
+      return;
+
+    /**
+     * Renumber index attributes in consequtive order
+     *   i.e in order given in UtilPrepareReq
+     */
+    keyAttrHead->setAttributeId(i);
+  }
+  // Increase expected CONF count
+  subRec->expectedConf++;
+
+  struct LinearSectionPtr sectionsPtr[UtilExecuteReq::NoOfSections];
+  sectionsPtr[UtilExecuteReq::HEADER_SECTION].p = headerBuffer;
+  sectionsPtr[UtilExecuteReq::HEADER_SECTION].sz = subRec->noOfKeyColumns;
+  sectionsPtr[UtilExecuteReq::DATA_SECTION].p = dataBuffer;
+  sectionsPtr[UtilExecuteReq::DATA_SECTION].sz = dataPtr.sz;
+  sendSignal(DBUTIL_REF, GSN_UTIL_EXECUTE_REQ, signal,
+	     UtilExecuteReq::SignalLength, JBB,
+	     sectionsPtr, UtilExecuteReq::NoOfSections);
 }
 
 // index stats

@@ -33,7 +33,9 @@ struct BuildFKImplReq
    */
   friend bool printBUILD_FK_IMPL_REQ(FILE*, const Uint32*, Uint32, Uint16);
 
-  STATIC_CONST( SignalLength = 6 );
+  STATIC_CONST( SignalLength = 8 );
+  STATIC_CONST( PARENT_COLUMNS_SEC = 0 );
+  STATIC_CONST( CHILD_COLUMNS_SEC = 1 );
 
   enum {
     RT_PARSE    = 0x1,
@@ -45,9 +47,11 @@ struct BuildFKImplReq
 
   Uint32 senderData;
   Uint32 senderRef;
+  Uint32 transId;
   Uint32 requestType;
-  Uint32 parentTableId;
-  Uint32 parentIndexId;
+  Uint32 fkId;
+  Uint32 fkVersion;
+  Uint32 parentTableId; // could be unique index...
   Uint32 childTableId;
 };
 

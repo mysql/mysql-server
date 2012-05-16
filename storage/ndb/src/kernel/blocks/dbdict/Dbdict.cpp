@@ -15391,6 +15391,8 @@ Dbdict::prepareTransactionEventSysTable (Callback *pcallback,
     jam();
     noAttr = 1; // only involves Primary key which should be the first
     break;
+  case UtilPrepareReq::Probe:
+    ndbrequire(false);
   }
   prepareUtilTransaction(pcallback, signal, senderData, tableId, NULL,
 		      prepReq, noAttr, NULL, NULL);
@@ -25123,6 +25125,9 @@ Dbdict::execBUILD_FK_REQ(Signal* signal)
       break;
     }
 
+    impl_req->fkId = req->fkId;
+    impl_req->fkVersion = req->fkVersion;
+
     handleClientReq(signal, op_ptr, handle);
     return;
   } while (0);
@@ -25164,6 +25169,21 @@ Dbdict::buildFK_parse(Signal* signal, bool master,
   BuildFKImplReq* impl_req = &buildFKRecPtr.p->m_request;
 
   jam();
+
+  Ptr<ForeignKeyRec> fk_ptr;
+  if (!find_object(fk_ptr, impl_req->fkId))
+  {
+    jam();
+    setError(error, BuildFKRef::FKNotFound, __LINE__);
+    return;
+  }
+
+  if (fk_ptr.p->m_version != impl_req->fkVersion)
+  {
+    jam();
+    setError(error, BuildFKRef::InvalidFKVersion, __LINE__);
+    return;
+  }
  }
 
 void
@@ -25192,7 +25212,7 @@ Dbdict::buildFK_reply(Signal* signal, SchemaOpPtr op_ptr, ErrorInfo error)
   SchemaTransPtr trans_ptr = op_ptr.p->m_trans_ptr;
   BuildFKRecPtr buildFKRecPtr;
   getOpRec(op_ptr, buildFKRecPtr);
-  BuildFKImplReq* impl_req = &buildFKRecPtr.p->m_request;
+  //BuildFKImplReq* impl_req = &buildFKRecPtr.p->m_request;
 
   if (!hasError(error))
   {
@@ -25231,9 +25251,80 @@ Dbdict::buildFK_prepare(Signal* signal, SchemaOpPtr op_ptr)
   getOpRec(op_ptr, buildFKRecPtr);
   BuildFKImplReq* impl_req = &buildFKRecPtr.p->m_request;
 
-  sendTransConf(signal, op_ptr);
+  Ptr<ForeignKeyRec> fk_ptr;
+  ndbrequire(find_object(fk_ptr, impl_req->fkId));
+
+  BuildFKImplReq* req = CAST_PTR(BuildFKImplReq, signal->getDataPtrSend());
+  * req = * impl_req;
+  req->senderRef = reference();
+  req->senderData = op_ptr.p->op_key;
+  req->transId = trans_ptr.p->m_transId;
+  req->parentTableId = fk_ptr.p->m_parentTableId;
+  req->childTableId = fk_ptr.p->m_childTableId;
+  if (fk_ptr.p->m_parentIndexId != RNIL)
+  {
+    jam();
+    req->parentTableId = fk_ptr.p->m_parentIndexId;
+  }
+
+  Callback c = {
+    safe_cast(&Dbdict::buildFK_fromLocal),
+    op_ptr.p->op_key
+  };
+  op_ptr.p->m_callback = c;
+
+  IndexAttributeList parentColumns;
+  if (fk_ptr.p->m_parentIndexId == RNIL)
+  {
+    jam();
+    TableRecordPtr parentPtr;
+    ndbrequire(find_object(parentPtr, req->parentTableId));
+    getIndexAttrList(parentPtr, parentColumns);
+  }
+  else
+  {
+    jam();
+    /**
+     * Unique index has key columns 0...N
+     */
+    TableRecordPtr parentPtr;
+    ndbrequire(find_object(parentPtr, req->parentTableId));
+    parentColumns.sz = fk_ptr.p->m_columnCount;
+    for (Uint32 i = 0; i < parentColumns.sz ; i++)
+      parentColumns.id[i] = i;
+  }
+
+  LinearSectionPtr ptr[3];
+  ptr[0].p = parentColumns.id;
+  ptr[0].sz = parentColumns.sz;
+  ptr[1].p = fk_ptr.p->m_childColumns;
+  ptr[1].sz = fk_ptr.p->m_columnCount;
+
+  sendSignal(TRIX_REF, GSN_BUILD_FK_IMPL_REQ, signal,
+             BuildFKImplReq::SignalLength, JBB, ptr, 2);
 }
 
+void
+Dbdict::buildFK_fromLocal(Signal* signal, Uint32 op_key, Uint32 ret)
+{
+  jam();
+  SchemaOpPtr op_ptr;
+  BuildFKRecPtr buildFKPtr;
+  findSchemaOp(op_ptr, buildFKPtr, op_key);
+  ndbrequire(!op_ptr.isNull());
+
+  if (ret == 0)
+  {
+    jam();
+    sendTransConf(signal, op_ptr);
+  }
+  else
+  {
+    jam();
+    setError(op_ptr, ret, __LINE__);
+    sendTransRef(signal, op_ptr);
+  }
+}
 
 void
 Dbdict::buildFK_abortPrepare(Signal* signal, SchemaOpPtr op_ptr)

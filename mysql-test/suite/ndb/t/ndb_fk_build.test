@@ -1,0 +1,63 @@
+-- source include/have_ndb.inc
+-- source have_ndb_fk.inc
+
+create table parent (
+  a int primary key,
+  b int not null,
+  c int not null,
+  unique(b) using hash,
+  index(c)) engine = ndb;
+
+create table child (
+  a int primary key,
+  b int not null,
+  c int not null,
+  unique(b) using hash,
+  index(c)) engine = ndb;
+
+###
+# Test that you can't create a FK that violates constraint to start off
+#
+# NOTE: these tests use ndb_tools to create/drop FK
+#       as doing it by alter table, would currently mean an offline alter
+#       which doesnt test the same code path
+#
+insert into parent values (1,2,3);
+insert into child values (3,4,5);
+
+--let ukname=b\$unique
+--let oiname=c
+
+--error 1
+--exec $CREATE_FK --database=test --parent=parent --child=child fkname > /dev/null
+--error 1
+--exec $CREATE_FK --database=test --parent=parent --child=child --child-index='$ukname' fkname > /dev/null
+--error 1
+--exec $CREATE_FK --database=test --parent=parent --child=child --child-index='$oiname' fkname > /dev/null
+
+--error 1
+--exec $CREATE_FK --database=test --parent=parent --parent-index='$ukname' --child=child fkname > /dev/null
+--error 1
+--exec $CREATE_FK --database=test --parent=parent --parent-index='$ukname' --child=child --child-index='$ukname' fkname > /dev/null
+--error 1
+--exec $CREATE_FK --database=test --parent=parent --parent-index='$ukname' --child=child --child-index='$oiname' fkname > /dev/null
+
+#
+# Now it should work...
+#
+insert into parent values (2,3,4);
+insert into parent values (3,4,5);
+insert into parent values (4,5,6);
+insert into parent values (5,6,7);
+
+--exec $CREATE_FK --database=test --parent=parent --child=child fk1 > /dev/null
+--exec $CREATE_FK --database=test --parent=parent --child=child --child-index='$ukname' fk2 > /dev/null
+--exec $CREATE_FK --database=test --parent=parent --child=child --child-index='$oiname' fk3 > /dev/null
+
+--exec $CREATE_FK --database=test --parent=parent --parent-index='$ukname' --child=child fk4 > /dev/null
+--exec $CREATE_FK --database=test --parent=parent --parent-index='$ukname' --child=child --child-index='$ukname' fk5 > /dev/null
+--exec $CREATE_FK --database=test --parent=parent --parent-index='$ukname' --child=child --child-index='$oiname' fk6 > /dev/null
+
+--exec $DROP_FK fk1 fk2 fk3 fk4 fk5 fk6 > /dev/null
+
+drop table parent, child;
