@@ -2664,3 +2664,61 @@ error:
   result_field->set_null();
   return true;
 }
+
+
+/**
+  Return a string representation of the Item value.
+
+  @param thd  Thread context.
+  @param str  String buffer for representation of the value.
+
+  @note
+    If the item has a string result type, the string is escaped
+    according to its character set.
+
+  @retval NULL      on error
+  @retval non-NULL  a pointer to valid a valid string on success
+*/
+String *sp_get_item_value(THD *thd, Item *item, String *str)
+{
+  switch (item->result_type()) {
+  case REAL_RESULT:
+  case INT_RESULT:
+  case DECIMAL_RESULT:
+    if (item->field_type() != MYSQL_TYPE_BIT)
+      return item->val_str(str);
+    else {/* Bit type is handled as binary string */}
+  case STRING_RESULT:
+    {
+      String *result= item->val_str(str);
+
+      if (!result)
+        return NULL;
+
+      {
+        char buf_holder[STRING_BUFFER_USUAL_SIZE];
+        String buf(buf_holder, sizeof(buf_holder), result->charset());
+        const CHARSET_INFO *cs= thd->variables.character_set_client;
+
+        /* We must reset length of the buffer, because of String specificity. */
+        buf.length(0);
+
+        buf.append('_');
+        buf.append(result->charset()->csname);
+        if (cs->escape_with_backslash_is_dangerous)
+          buf.append(' ');
+        append_query_string(thd, cs, result, &buf);
+        buf.append(" COLLATE '");
+        buf.append(item->collation.collation->name);
+        buf.append('\'');
+        str->copy(buf);
+
+        return str;
+      }
+    }
+
+  case ROW_RESULT:
+  default:
+    return NULL;
+  }
+}

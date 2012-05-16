@@ -21,6 +21,7 @@
 #include "sp_rcontext.h"
 #include "sp_pcontext.h"
 #include "sql_tmp_table.h"                     // create_virtual_tmp_table
+#include "sp_instr.h"
 
 
 ///////////////////////////////////////////////////////////////////////////
