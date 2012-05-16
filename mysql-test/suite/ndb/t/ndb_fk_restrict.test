@@ -1,6 +1,9 @@
 -- source include/have_ndb.inc
 -- source have_ndb_fk.inc
 
+connect (con1,localhost,root,,test);
+connect (con2,localhost,root,,test);
+
 ###
 ### PK vs PK
 ###
@@ -42,6 +45,26 @@ rollback;
 delete from child;
 delete from parent;
 
+insert into parent values (1,1,1);
+
+connection con1;
+begin;
+insert into child values (1,1,1);
+
+connection con2;
+begin;
+--error ER_LOCK_WAIT_TIMEOUT
+delete from parent;
+
+connection con1;
+commit;
+
+connection con2;
+commit;
+
+delete from child;
+delete from parent;
+
 alter table child drop foreign key fkname;
 
 ###
@@ -74,6 +97,26 @@ rollback;
 delete from child;
 delete from parent;
 
+insert into parent values (1,1,1);
+
+connection con1;
+begin;
+insert into child values (1,1,1);
+
+connection con2;
+begin;
+--error ER_LOCK_WAIT_TIMEOUT
+delete from parent;
+
+connection con1;
+commit;
+
+connection con2;
+commit;
+
+delete from child;
+delete from parent;
+
 alter table child drop foreign key fkname;
 
 ###
@@ -102,6 +145,26 @@ begin;
 --error 1452
 insert into child values (2,2,2);
 rollback;
+
+delete from child;
+delete from parent;
+
+insert into parent values (1,1,1);
+
+connection con1;
+begin;
+insert into child values (1,1,1);
+
+connection con2;
+begin;
+--error ER_LOCK_WAIT_TIMEOUT
+delete from parent;
+
+connection con1;
+commit;
+
+connection con2;
+commit;
 
 delete from child;
 delete from parent;
@@ -141,6 +204,26 @@ rollback;
 delete from child;
 delete from parent;
 
+insert into parent values (1,1,1);
+
+connection con1;
+begin;
+insert into child values (1,1,1);
+
+connection con2;
+begin;
+--error ER_LOCK_WAIT_TIMEOUT
+delete from parent;
+
+connection con1;
+commit;
+
+connection con2;
+commit;
+
+delete from child;
+delete from parent;
+
 alter table child drop foreign key fkname;
 
 ###
@@ -169,6 +252,26 @@ begin;
 --error 1452
 insert into child values (2,2,2);
 rollback;
+
+delete from child;
+delete from parent;
+
+insert into parent values (1,1,1);
+
+connection con1;
+begin;
+insert into child values (1,1,1);
+
+connection con2;
+begin;
+--error ER_LOCK_WAIT_TIMEOUT
+delete from parent;
+
+connection con1;
+commit;
+
+connection con2;
+commit;
 
 delete from child;
 delete from parent;
@@ -204,6 +307,26 @@ begin;
 --error 1452
 insert into child values (2,2,2);
 rollback;
+
+delete from child;
+delete from parent;
+
+insert into parent values (1,1,1);
+
+connection con1;
+begin;
+insert into child values (1,1,1);
+
+connection con2;
+begin;
+--error ER_LOCK_WAIT_TIMEOUT
+delete from parent;
+
+connection con1;
+commit;
+
+connection con2;
+commit;
 
 delete from child;
 delete from parent;

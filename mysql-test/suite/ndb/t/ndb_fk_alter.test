@@ -40,3 +40,29 @@ show create table child;
 
 drop table parent, child;
 
+#
+#
+#
+CREATE TABLE bug46599a (
+	b VARCHAR(2), PRIMARY KEY(b)) ENGINE=ndb;
+
+CREATE TABLE bug46599b (b VARCHAR(2),
+       FOREIGN KEY (b) REFERENCES bug46599a (b)) ENGINE=Ndb;
+
+INSERT INTO bug46599a VALUES ('b');
+INSERT INTO bug46599b VALUES ('b'), (NULL);
+--error ER_NO_REFERENCED_ROW_2
+INSERT INTO bug46599b VALUES ('');
+
+--sorted_result
+SELECT * FROM bug46599a;
+--sorted_result
+SELECT * FROM bug46599b;
+
+--error ER_NO_REFERENCED_ROW_2
+ALTER TABLE bug46599b MODIFY COLUMN b VARCHAR(2) NOT NULL DEFAULT '';
+
+--sorted_result
+SELECT * FROM bug46599b;
+
+DROP TABLE bug46599b,bug46599a;

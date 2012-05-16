@@ -63,3 +63,25 @@ child	CREATE TABLE `child` (
   KEY `c` (`c`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1
 drop table parent, child;
+CREATE TABLE bug46599a (
+b VARCHAR(2), PRIMARY KEY(b)) ENGINE=ndb;
+CREATE TABLE bug46599b (b VARCHAR(2),
+FOREIGN KEY (b) REFERENCES bug46599a (b)) ENGINE=Ndb;
+INSERT INTO bug46599a VALUES ('b');
+INSERT INTO bug46599b VALUES ('b'), (NULL);
+INSERT INTO bug46599b VALUES ('');
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (Unknown error code)
+SELECT * FROM bug46599a;
+b
+b
+SELECT * FROM bug46599b;
+b
+NULL
+b
+ALTER TABLE bug46599b MODIFY COLUMN b VARCHAR(2) NOT NULL DEFAULT '';
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (Unknown error code)
+SELECT * FROM bug46599b;
+b
+NULL
+b
+DROP TABLE bug46599b,bug46599a;
