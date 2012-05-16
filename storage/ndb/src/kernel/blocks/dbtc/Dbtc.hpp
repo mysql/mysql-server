@@ -1417,6 +1417,9 @@ private:
   void execFIRE_TRIG_REF(Signal*);
   void execFIRE_TRIG_CONF(Signal*);
 
+  void execCREATE_FK_IMPL_REQ(Signal* signal);
+  void execDROP_FK_IMPL_REQ(Signal* signal);
+
   // Index table lookup
   void execTCKEYCONF(Signal* signal);
   void execTCKEYREF(Signal* signal);

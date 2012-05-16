@@ -73,7 +73,18 @@ struct CreateFKRef
     Busy = 701,
     NotMaster = 702,
     NoMoreObjectRecords = 710,
-    InvalidFormat = 740
+    InvalidFormat = 740,
+    ParentTableIsNotATable = 700,
+    InvalidParentTableVersion = 700,
+    ChildTableIsNotATable = 700,
+    InvalidChildTableVersion = 700,
+    ParentIndexIsNotAnUniqueIndex = 700,
+    InvalidParentIndexVersion = 700,
+    ChildIndexIsNotAnIndex = 700,
+    InvalidChildIndexVersion = 700,
+    NoMoreTableRecords = 707,
+    ObjectAlreadyExist = 721,
+    OutOfStringBuffer = 773
   };
 
   Uint32 senderData;
