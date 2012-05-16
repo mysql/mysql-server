@@ -1,0 +1,42 @@
+-- source include/have_ndb.inc
+-- source have_ndb_fk.inc
+
+###
+### PK vs PK
+###
+create table parent (
+  a int primary key auto_increment,
+  b int not null,
+  c int not null,
+  unique(b) using hash,
+  index(c)) engine = ndb;
+
+create table child (
+  a int primary key auto_increment,
+  b int not null,
+  c int not null,
+  unique(b) using hash,
+  index(c)) engine = ndb;
+
+# Parent pk
+# child pk, uk, oi
+alter table child add constraint fk1 foreign key (a) references parent(a);
+alter table child add constraint fk2 foreign key (b) references parent(a);
+alter table child add constraint fk3 foreign key (c) references parent(a);
+
+show create table child;
+
+alter table child drop foreign key fk1;
+
+show create table child;
+
+alter table child drop foreign key fk2;
+
+show create table child;
+
+alter table child drop foreign key fk3;
+
+show create table child;
+
+drop table parent, child;
+

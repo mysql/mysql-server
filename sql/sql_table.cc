@@ -6312,6 +6312,7 @@ mysql_prepare_alter_table(THD *thd, TABLE *table,
   uint used_fields= create_info->used_fields;
   KEY *key_info=table->key_info;
   bool rc= TRUE;
+  uint drop_fk_count= 0;
 
   DBUG_ENTER("mysql_prepare_alter_table");
 
@@ -6635,7 +6636,22 @@ mysql_prepare_alter_table(THD *thd, TABLE *table,
     }
   }
 
-  if (alter_info->drop_list.elements)
+#ifndef MCP_WL6244
+  {
+    /*
+      Count the no of DROP FOREIGN KEY
+    */
+    drop_it.rewind();
+    Alter_drop *drop;
+    while ((drop=drop_it++))
+    {
+      if (drop->type == Alter_drop::FOREIGN_KEY)
+        drop_fk_count++;
+    }
+  }
+#endif
+
+  if (alter_info->drop_list.elements > drop_fk_count)
   {
     my_error(ER_CANT_DROP_FIELD_OR_KEY, MYF(0),
              alter_info->drop_list.head()->name);

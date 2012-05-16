@@ -6806,6 +6806,16 @@ alter_list_item:
           }
         | DROP FOREIGN KEY_SYM opt_ident
           {
+#ifndef MCP_WL6244
+#if MYSQL_VERSION_ID >= 50501
+            Alter_drop *ad= new Alter_drop(Alter_drop::FOREIGN_KEY, $4.str);
+#else
+            Alter_drop *ad= new Alter_drop(Alter_drop::FOREIGN_KEY, $4);
+#endif
+            if (ad == NULL)
+              MYSQL_YYABORT;
+            Lex->alter_info.drop_list.push_back(ad);
+#endif
             Lex->alter_info.flags|= ALTER_DROP_INDEX | ALTER_FOREIGN_KEY;
           }
         | DROP PRIMARY_SYM KEY_SYM

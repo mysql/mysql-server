@@ -9308,6 +9308,7 @@ int ha_ndbcluster::create(const char *name,
   uchar *data= NULL, *pack_data= NULL;
   bool create_temporary= (create_info->options & HA_LEX_CREATE_TMP_TABLE);
   bool create_from_engine= (create_info->table_options & HA_OPTION_CREATE_FROM_ENGINE);
+  bool is_alter= (thd->lex->sql_command == SQLCOM_ALTER_TABLE);
   bool is_truncate= (thd->lex->sql_command == SQLCOM_TRUNCATE);
   bool use_disk= FALSE;
   NdbDictionary::Table::SingleUserMode single_user_mode= NdbDictionary::Table::SingleUserModeLocked;
@@ -9779,6 +9780,15 @@ int ha_ndbcluster::create(const char *name,
   if (!is_truncate && my_errno == 0)
   {
     my_errno= create_fks(thd, ndb, form);
+  }
+
+  if ((is_alter || is_truncate) && my_errno == 0)
+  {
+    /**
+     * mysql doesnt know/care about FK (buhhh)
+     *   so we need to copy the old ones ourselves
+     */
+    my_errno= copy_fk_for_offline_alter(thd, ndb, &tab);
   }
 
   m_table= 0;
