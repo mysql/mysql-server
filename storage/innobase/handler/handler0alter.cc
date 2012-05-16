@@ -708,6 +708,10 @@ ha_innobase::add_index(
 
 	ut_a(indexed_table == prebuilt->table);
 
+	if (indexed_table->tablespace_discarded) {
+		DBUG_RETURN(-1);
+	}
+
 	/* Check that index keys are sensible */
 	error = innobase_check_index_keys(key_info, num_of_keys, prebuilt->table);
 
