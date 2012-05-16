@@ -9586,9 +9586,8 @@ ha_innobase::delete_table(
 	++trx->will_lock;
 
 	/* Drop the table in InnoDB */
-	error = row_drop_table_for_mysql(norm_name, trx,
-					 thd_sql_command(thd)
-					 == SQLCOM_DROP_DB);
+	error = row_drop_table_for_mysql(
+		norm_name, trx, thd_sql_command(thd) == SQLCOM_DROP_DB);
 
 
 	if (error == DB_TABLE_NOT_FOUND
@@ -9617,9 +9616,9 @@ ha_innobase::delete_table(
 			not being normalized to lower case */
 			normalize_table_name_low(par_case_name, name, FALSE);
 #endif
-			error = row_drop_table_for_mysql(par_case_name, trx,
-							 thd_sql_command(thd)
-							 == SQLCOM_DROP_DB);
+			error = row_drop_table_for_mysql(
+				par_case_name, trx,
+				thd_sql_command(thd) == SQLCOM_DROP_DB);
 		}
 	}
 

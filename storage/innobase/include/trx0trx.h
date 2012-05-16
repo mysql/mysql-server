@@ -132,9 +132,22 @@ trx_start_if_not_started_xa(
 Starts the transaction if it is not yet started. */
 UNIV_INTERN
 void
-trx_start_if_not_started(
-/*=====================*/
+trx_start_if_not_started_low(
+/*=========================*/
 	trx_t*	trx);	/*!< in: transaction */
+
+#ifdef UNIV_DEBUG
+#define trx_start_if_not_started(t)				\
+	{							\
+	(t)->start_line = __LINE__;				\
+	(t)->start_file = __FILE__;				\
+	trx_start_if_not_started_low((t));			\
+	}
+#else
+#define trx_start_if_not_started(t)				\
+	trx_start_if_not_started_low((t))
+#endif /* UNIV_DEBUG */
+
 /****************************************************************//**
 Commits a transaction. */
 UNIV_INTERN
@@ -946,6 +959,13 @@ struct trx_struct{
 	/*------------------------------*/
 	ulint		flush_tables;	/*!< if "covering" the FLUSH TABLES",
 					count of tables being flushed. */
+
+	/*------------------------------*/
+#ifdef UNIV_DEBUG
+	ulint		start_line;	/*!< Track where it was started from */
+	const char*	start_file;	/*!< Filename where it was started */
+#endif /* UNIV_DEBUG */
+
 	/*------------------------------*/
 	char detailed_error[256];	/*!< detailed error message for last
 					error, or empty. */
