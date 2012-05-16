@@ -72,6 +72,16 @@ struct CreateFKImplReq
 
     FK_ACTION_MASK = (FK_UPDATE_MASK | FK_DELETE_MASK),
 
+    FK_UPDATE_ACTION = (FK_UPDATE_CASCADE  |
+                        FK_UPDATE_SET_NULL |
+                        FK_UPDATE_SET_DEFAULT),
+
+    FK_DELETE_ACTION = (FK_DELETE_CASCADE  |
+                        FK_DELETE_SET_NULL |
+                        FK_DELETE_SET_DEFAULT),
+
+    FK_ON_ACTION = (FK_UPDATE_ACTION | FK_DELETE_ACTION),
+
     FK_END = 0 // marker
   };
 

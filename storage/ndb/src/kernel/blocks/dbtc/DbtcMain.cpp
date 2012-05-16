@@ -15598,8 +15598,33 @@ Dbtc::trigger_op_finished(Signal* signal,
       {
         break; // good!
       }
-      if (errCode == 0)
+
+      Ptr<TcFKData> fkPtr;
+      // TODO make it a pool.getPtr() instead
+      // by also adding fk_ptr_i to definedTriggerData
+      ndbrequire(c_fk_hash.find(fkPtr, trigPtr.p->fkId));
+      if (errCode == 0 && ((fkPtr.p->bits&CreateFKImplReq::FK_ON_ACTION) == 0))
       {
+        // Only restrict
+        terrorCode = ZFK_CHILD_ROW_EXISTS;
+      }
+      else if (errCode == 0)
+      {
+        /**
+         * Check action performed against expected result...
+         */
+        if (triggeringOp->operation == ZDELETE &&
+            (fkPtr.p->bits & CreateFKImplReq::FK_DELETE_ACTION))
+        {
+          // the on action succeeded, good!
+          break;
+        }
+        else if ((triggeringOp->operation == ZUPDATE || triggeringOp->operation == ZWRITE) &&
+                 (fkPtr.p->bits & CreateFKImplReq::FK_UPDATE_ACTION))
+        {
+          // the on action succeeded, good!
+          break;
+        }
         terrorCode = ZFK_CHILD_ROW_EXISTS;
       }
       else
@@ -15835,6 +15860,49 @@ Dbtc::executeFKParentTrigger(Signal* signal,
 
   Uint32 op = ZREAD;
   Uint32 attrValuesPtrI = RNIL; // for cascascade update/setnull
+  switch(firedTriggerData->triggerEvent){
+  case TriggerEvent::TE_UPDATE:
+    if (fkPtr.p->bits & CreateFKImplReq::FK_UPDATE_CASCADE)
+    {
+      jam();
+      /**
+       * Update child table with after values of parent
+       */
+      ndbrequire(false); // TODO
+    }
+    else if (fkPtr.p->bits & CreateFKImplReq::FK_UPDATE_SET_NULL)
+    {
+      jam();
+      /**
+       * Update child table set null
+       */
+      goto setnull;
+    }
+    break;
+  case TriggerEvent::TE_DELETE:
+    if (fkPtr.p->bits & CreateFKImplReq::FK_DELETE_CASCADE)
+    {
+      jam();
+      /**
+       * Delete from child table
+       */
+      op = ZDELETE;
+    }
+    else if (fkPtr.p->bits & CreateFKImplReq::FK_DELETE_SET_NULL)
+    {
+      jam();
+      /**
+       * Update child table set null
+       */
+      goto setnull;
+    }
+    break;
+  default:
+    ndbrequire(false);
+  setnull:
+    ndbrequire(false); // TODO
+  }
+
   if (! (fkPtr.p->bits & CreateFKImplReq::FK_CHILD_OI))
   {
     jam();
@@ -15908,11 +15976,22 @@ Dbtc::fk_readFromChildTable(Signal* signal,
    *   as parent is read with lock
    */
   Uint16 flags = TcConnectRecord::SOF_TRIGGER;
+  const Uint32 currSavePointId = regApiPtr->currSavePointId;
+  Uint32 usedSavePointId = currSavePointId;
   if (op == ZREAD)
   {
     jam();
     flags |= TcConnectRecord::SOF_FK_READ_COMMITTED;
     TcKeyReq::setSimpleFlag(tcKeyRequestInfo, 1);
+  }
+  else
+  {
+    jam();
+    /**
+     * Let any DML be made with same save point
+     *   as original DML...but ZREAD reads latest
+     */
+    usedSavePointId = opRecord->savePointId;
   }
   TcKeyReq::setKeyLength(tcKeyRequestInfo, 0);
   TcKeyReq::setAIInTcKeyReq(tcKeyRequestInfo, 0);
@@ -15937,9 +16016,9 @@ Dbtc::fk_readFromChildTable(Signal* signal,
   }
 
   /**
-   * Don't fix savepoint id -
-   *   read latest copy??
+   * Handle savepoint id - (see above)
    */
+  regApiPtr->currSavePointId = usedSavePointId;
   regApiPtr->m_special_op_flags = flags;
   /* Pass trigger Id via ApiConnectRecord (nasty) */
   ndbrequire(regApiPtr->immediateTriggerId == RNIL);
@@ -15951,6 +16030,7 @@ Dbtc::fk_readFromChildTable(Signal* signal,
    * Restore ApiConnectRecord state
    */
   regApiPtr->immediateTriggerId = RNIL;
+  regApiPtr->currSavePointId = currSavePointId;
 }
 
 Uint32
@@ -16076,16 +16156,27 @@ Dbtc::fk_scanFromChildTable(Signal* signal,
   ScanTabReq * req = CAST_PTR(ScanTabReq, signal->getDataPtrSend());
   Uint32 ri = 0;
   ScanTabReq::setParallelism(ri, parallelism);
-  ScanTabReq::setScanBatch(ri, 1);
-  ScanTabReq::setLockMode(ri, 0);
-  ScanTabReq::setHoldLockFlag(ri, 0);
-  ScanTabReq::setReadCommittedFlag(ri, 1);
-  ScanTabReq::setRangeScanFlag(ri, 1);
   ScanTabReq::setDescendingFlag(ri, 0);
+  ScanTabReq::setRangeScanFlag(ri, 1);
   ScanTabReq::setTupScanFlag(ri, 0);
-  ScanTabReq::setKeyinfoFlag(ri, 0);
-  ScanTabReq::setDistributionKeyFlag(ri, 0);
   ScanTabReq::setNoDiskFlag(ri, 1);
+  if (op == ZREAD)
+  {
+    ScanTabReq::setScanBatch(ri, 1);
+    ScanTabReq::setLockMode(ri, 0);
+    ScanTabReq::setHoldLockFlag(ri, 0);
+    ScanTabReq::setReadCommittedFlag(ri, 1);
+    ScanTabReq::setKeyinfoFlag(ri, 0);
+  }
+  else
+  {
+    ScanTabReq::setScanBatch(ri, 16);
+    ScanTabReq::setLockMode(ri, 1);
+    ScanTabReq::setHoldLockFlag(ri, 1);
+    ScanTabReq::setReadCommittedFlag(ri, 0);
+    ScanTabReq::setKeyinfoFlag(ri, 1);
+  }
+  ScanTabReq::setDistributionKeyFlag(ri, 0);
   ScanTabReq::setViaSPJFlag(ri, 0);
   ScanTabReq::setPassAllConfsFlag(ri, 0);
   ScanTabReq::set4WordConf(ri, 0);
@@ -16108,6 +16199,11 @@ Dbtc::fk_scanFromChildTable(Signal* signal,
   Uint32 program[] = {
     0, 1, 0, 0, 0, Interpreter::ExitLastOK()
   };
+
+  if (op != ZREAD)
+  {
+    program[5] = Interpreter::ExitOK();
+  }
 
   Uint32 errorCode = ZGET_DATAREC_ERROR;
   if (unlikely( !import(ptr[0], optrs, NDB_ARRAY_SIZE(optrs))))
@@ -16155,6 +16251,118 @@ oom:
 }
 
 void
+Dbtc::execKEYINFO20(Signal* signal)
+{
+  jamEntry();
+  const KeyInfo20 * conf = CAST_CONSTPTR(KeyInfo20, signal->getDataPtr());
+
+  // TODO verify transid
+  Uint32 keyLen = conf->keyLen;
+  Uint32 scanInfo = conf->scanInfo_Node;
+
+  TcConnectRecordPtr tcPtr;
+  tcPtr.i = conf->clientOpPtr;
+  ptrCheckGuard(tcPtr, ctcConnectFilesize, tcConnectRecord);
+
+  Ptr<TcDefinedTriggerData> trigPtr;
+  c_theDefinedTriggers.getPtr(trigPtr, tcPtr.p->currentTriggerId);
+
+  TcConnectRecordPtr opPtr; // triggering operation
+  opPtr.i = tcPtr.p->triggeringOperation;
+  ptrCheckGuard(opPtr, ctcConnectFilesize, tcConnectRecord);
+
+  ApiConnectRecordPtr transPtr;
+  transPtr.i = opPtr.p->apiConnect;
+  ptrCheckGuard(transPtr, capiConnectFilesize, apiConnectRecord);
+
+  /* Extract KeyData */
+  Uint32 keyInfoPtrI = RNIL;
+  if (signal->header.m_noOfSections == 0)
+  {
+    jam();
+    Ptr<SectionSegment> keyInfo;
+    if (unlikely(! import(keyInfo, conf->keyData, keyLen)))
+    {
+      abortTransFromTrigger(signal, transPtr, ZGET_DATAREC_ERROR);
+      return;
+    }
+    keyInfoPtrI = keyInfo.i;
+  }
+  else
+  {
+    jam();
+    ndbrequire(signal->header.m_noOfSections == 1); // key is already here...
+    keyInfoPtrI = signal->m_sectionPtrI[0];
+    signal->header.m_noOfSections = 0;
+  }
+
+  Ptr<TcFKData> fkPtr;
+  // TODO make it a pool.getPtr() instead
+  // by also adding fk_ptr_i to definedTriggerData
+  ndbrequire(c_fk_hash.find(fkPtr, trigPtr.p->fkId));
+
+  /**
+   * Construct a DELETE/UPDATE
+   * NOTE: on table...not index
+   */
+  Uint32 op = ZDELETE;
+  TcKeyReq * const tcKeyReq =  CAST_PTR(TcKeyReq, signal->getDataPtrSend());
+  TableRecordPtr childTabPtr;
+
+  childTabPtr.i = fkPtr.p->childTableId;
+  ptrCheckGuard(childTabPtr, ctabrecFilesize, tableRecord);
+  tcKeyReq->apiConnectPtr = opPtr.p->apiConnect;
+  tcKeyReq->senderData = opPtr.i;
+
+  tcKeyReq->attrLen = 0;
+  tcKeyReq->tableId = childTabPtr.i;
+  tcKeyReq->tableSchemaVersion = childTabPtr.p->currentSchemaVersion;
+  tcKeyReq->transId1 = transPtr.p->transid[0];
+  tcKeyReq->transId2 = transPtr.p->transid[1];
+  Uint32 tcKeyRequestInfo = 0;
+  TcKeyReq::setKeyLength(tcKeyRequestInfo, 0);
+  TcKeyReq::setAIInTcKeyReq(tcKeyRequestInfo, 0);
+  TcKeyReq::setOperationType(tcKeyRequestInfo, op);
+  const bool use_scan_takeover = false;
+  if (use_scan_takeover)
+  {
+    TcKeyReq::setScanIndFlag(tcKeyRequestInfo, 1);
+  }
+  tcKeyReq->requestInfo = tcKeyRequestInfo;
+  if (use_scan_takeover)
+  {
+    tcKeyReq->scanInfo = (scanInfo << 1) + 1; // TODO cleanup
+  }
+  signal->m_sectionPtrI[ TcKeyReq::KeyInfoSectionNum ] = keyInfoPtrI;
+  signal->header.m_noOfSections= 1;
+
+  /**
+   * Fix savepoint id -
+   *   fix so that op has same savepoint id as triggering operation
+   */
+  Uint32 currSavePointId = transPtr.p->currSavePointId;
+  transPtr.p->currSavePointId = opPtr.p->savePointId;
+  transPtr.p->m_special_op_flags = TcConnectRecord::SOF_TRIGGER;
+  /* Pass trigger Id via ApiConnectRecord (nasty) */
+  ndbrequire(transPtr.p->immediateTriggerId == RNIL);
+  transPtr.p->immediateTriggerId = tcPtr.p->currentTriggerId;
+  EXECUTE_DIRECT(DBTC, GSN_TCKEYREQ, signal, TcKeyReq::StaticLength +
+                 use_scan_takeover ? 1 : 0);
+  jamEntry();
+
+  /*
+   * Restore ApiConnectRecord state
+   */
+  transPtr.p->immediateTriggerId = RNIL;
+  transPtr.p->currSavePointId = currSavePointId;
+
+  /**
+   * Update counter of how many trigger executed...
+   */
+  opPtr.p->triggerExecutionCount++;
+ }
+
+void
 Dbtc::execSCAN_TABCONF(Signal* signal)
 {
   jamEntry();
@@ -16169,6 +16377,11 @@ Dbtc::execSCAN_TABCONF(Signal* signal)
   Ptr<TcDefinedTriggerData> trigPtr;
   c_theDefinedTriggers.getPtr(trigPtr, tcPtr.p->currentTriggerId);
 
+  Ptr<TcFKData> fkPtr;
+  // TODO make it a pool.getPtr() instead
+  // by also adding fk_ptr_i to definedTriggerData
+  ndbrequire(c_fk_hash.find(fkPtr, trigPtr.p->fkId));
+
   Uint32 rows = 0;
   const Uint32 ops = (conf->requestInfo >> OPERATIONS_SHIFT) & OPERATIONS_MASK;
   for (Uint32 i = 0; i<ops; i++)
@@ -16177,6 +16390,30 @@ Dbtc::execSCAN_TABCONF(Signal* signal)
     ScanTabConf::OpData * op = (ScanTabConf::OpData*)
       (signal->getDataPtr() + ScanTabConf::SignalLength + 3 * i);
     rows += ScanTabConf::getRows(op->rows);
+  }
+
+  if (rows)
+  {
+    jam();
+    TcConnectRecord * triggeringOp = tcPtr.p;
+    if (triggeringOp->operation == ZDELETE &&
+        (fkPtr.p->bits & (CreateFKImplReq::FK_DELETE_CASCADE | CreateFKImplReq::FK_DELETE_SET_NULL)))
+    {
+      /**
+       * don't abort scan
+       */
+      jam();
+      rows = 0;
+    }
+    else if ((triggeringOp->operation == ZUPDATE || triggeringOp->operation == ZWRITE) &&
+             (fkPtr.p->bits & (CreateFKImplReq::FK_UPDATE_CASCADE | CreateFKImplReq::FK_UPDATE_SET_NULL)))
+    {
+      /**
+       * don't abort scan
+       */
+      jam();
+      rows = 0;
+    }
   }
 
   if (rows)
