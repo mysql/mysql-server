@@ -1746,6 +1746,8 @@ private:
                         LocalDataBuffer<11> & src,
                         TcFKData* fkData);
   Uint32 fk_constructAttrInfoSetNull(const TcFKData*);
+  Uint32 fk_constructAttrInfoUpdateCascade(const TcFKData*,
+                                           DataBuffer<11>::Head&);
 
   void releaseFiredTriggerData(DLFifoList<TcFiredTriggerData>* triggers);
   void abortTransFromTrigger(Signal* signal, const ApiConnectRecordPtr& transPtr, 
