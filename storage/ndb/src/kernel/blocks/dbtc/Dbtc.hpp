@@ -1740,6 +1740,7 @@ private:
 
   void execSCAN_TABREF(Signal*);
   void execSCAN_TABCONF(Signal*);
+  void execKEYINFO20(Signal*);
 
   Uint32 fk_buildBounds(SegmentedSectionPtr & dst,
                         LocalDataBuffer<11> & src,
