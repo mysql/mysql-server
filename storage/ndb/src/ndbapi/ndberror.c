@@ -121,6 +121,8 @@ ErrorBundle ErrorCodes[] = {
   { 839,  DMEC, CV, "Illegal null attribute" },
   { 840,  DMEC, CV, "Trying to set a NOT NULL attribute to NULL" },
   { 893,  HA_ERR_FOUND_DUPP_KEY, CV, "Constraint violation e.g. duplicate value in unique index" },
+  { 255,  HA_ERR_NO_REFERENCED_ROW, CV, "Foreign key constaint violated: No parent row found" },
+  { 256,  HA_ERR_ROW_IS_REFERENCED, CV, "Foreign key constaint violated: Referenced row exists" },
 
   /**
    * Node recovery errors

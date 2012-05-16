@@ -1246,6 +1246,7 @@ DbUtil::prepareOperation(Signal* signal,
   ndbrequire(prepPagesReader.next());
   ndbrequire(prepPagesReader.getKey() == UtilPrepareReq::OperationType);
   const Uint32 operationType = prepPagesReader.getUint32();
+  prepOpPtr.p->operationType =(UtilPrepareReq::OperationTypeValue)operationType;
   
   ndbrequire(prepPagesReader.next());
   
@@ -1537,7 +1538,7 @@ DbUtil::prepareOperation(Signal* signal,
   
   TcKeyReq::setAbortOption(requestInfo, TcKeyReq::AbortOnError);
   TcKeyReq::setKeyLength(requestInfo, tableDesc.KeyLength);  
-  switch(operationType) {
+  switch((UtilPrepareReq::OperationTypeValue)operationType) {
   case(UtilPrepareReq::Read):
     prepOpPtr.p->rsLen =
       attrLength + 
@@ -1566,6 +1567,14 @@ DbUtil::prepareOperation(Signal* signal,
     prepOpPtr.p->noOfAttr = tableDesc.NoOfKeyAttr;
     prepOpPtr.p->tckey.attrLen = 0;
     TcKeyReq::setOperationType(requestInfo, ZDELETE);
+    break;
+  case(UtilPrepareReq::Probe):
+    // The number of attributes should equal the size of the primary key
+    ndbrequire(tableDesc.KeyLength == attrLength);
+    prepOpPtr.p->rsLen = 0;
+    prepOpPtr.p->noOfAttr = tableDesc.NoOfKeyAttr;
+    prepOpPtr.p->tckey.attrLen = 0;
+    TcKeyReq::setOperationType(requestInfo, ZREAD);
     break;
   case(UtilPrepareReq::Write):
     prepOpPtr.p->rsLen = 0; 
@@ -2121,14 +2130,17 @@ DbUtil::execUTIL_EXECUTE_REQ(Signal* signal)
       res = keyInfo->append(bufStart + header.getHeaderSize(), 
 			    header.getDataSize());
 
-    switch (TcKeyReq::getOperationType(prepOpPtr.p->tckey.requestInfo)) {
-    case ZREAD:
+    switch (prepOpPtr.p->operationType) {
+    case UtilPrepareReq::Read:
       res &= attrInfo->append(bufStart, header.getHeaderSize());
       break;
-    case ZDELETE:
+    case UtilPrepareReq::Delete:
+    case UtilPrepareReq::Probe:
       // no attrinfo for Delete
       break;
-    default:
+    case UtilPrepareReq::Insert:
+    case UtilPrepareReq::Update:
+    case UtilPrepareReq::Write:
       res &= attrInfo->append(bufStart,
 			      header.getHeaderSize() + header.getDataSize());
     }

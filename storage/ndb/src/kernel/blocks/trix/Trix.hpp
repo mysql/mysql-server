@@ -53,6 +53,7 @@ public:
     ,STAT_UTIL = 3  // PK op of HEAD table directly via DBUTIL
     ,STAT_CLEAN = 4
     ,STAT_SCAN = 5
+    ,FK_BUILD = 6
     //ALTER_TABLE
   };
   typedef DataBuffer<11> AttrOrderBuffer;
@@ -305,6 +306,9 @@ private:
 
   void execCOPY_DATA_IMPL_REQ(Signal* signal);
 
+  // Build FK
+  void execBUILD_FK_IMPL_REQ(Signal*);
+
   void execUTIL_PREPARE_CONF(Signal* signal);
   void execUTIL_PREPARE_REF(Signal* signal);
   void execUTIL_EXECUTE_CONF(Signal* signal);
@@ -332,6 +336,7 @@ private:
   void prepareInsertTransactions(Signal* signal, SubscriptionRecPtr subRecPtr);
   void executeBuildInsertTransaction(Signal* signal, SubscriptionRecPtr);
   void executeReorgTransaction(Signal*, SubscriptionRecPtr, Uint32);
+  void executeBuildFKTransaction(Signal* signal, SubscriptionRecPtr);
   void buildComplete(Signal* signal, SubscriptionRecPtr subRecPtr);
   void wait_gcp(Signal*, SubscriptionRecPtr subRecPtr, Uint32 delay = 0);
   void buildFailed(Signal* signal, 

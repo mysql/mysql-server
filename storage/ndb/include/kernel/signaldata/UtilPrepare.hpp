@@ -59,8 +59,8 @@ public:
     Update             = 1,
     Insert             = 2,
     Delete             = 3,
-    Write	       = 4
-
+    Write	       = 4,
+    Probe              = 5  // check existance...
   };
 
   enum KeyValue {
