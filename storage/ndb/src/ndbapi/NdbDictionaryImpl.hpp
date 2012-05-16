@@ -933,7 +933,7 @@ public:
   int listObjects(List& list, NdbDictionary::Object::Type type, 
                   bool fullyQualified);
   int listIndexes(List& list, Uint32 indexId);
-  int listObjects(List& list, Uint32 tableId);
+  int listDependentObjects(List& list, Uint32 tableId);
 
   NdbTableImpl * getTableGlobal(const char * tableName);
   NdbIndexImpl * getIndexGlobal(const char * indexName,

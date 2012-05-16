@@ -2294,7 +2294,7 @@ public:
      * @param table  Reference to table that object belongs to.
      * @return  0 if successful, otherwise -1
      */
-    int listObjects(List & list, const Table &table) const;
+    int listDependentObjects(List & list, const Table &table) const;
 #endif
 
     /** @} *******************************************************************/

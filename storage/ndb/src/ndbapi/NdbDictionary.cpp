@@ -3085,10 +3085,11 @@ NdbDictionary::Dictionary::listIndexes(List& list,
 }
 
 int
-NdbDictionary::Dictionary::listObjects(List& list,
-				       const NdbDictionary::Table &table) const
+NdbDictionary::Dictionary::listDependentObjects(List& list,
+                                                const NdbDictionary::Table&tab)
+  const
 {
-  return m_impl.listObjects(list, table.getTableId());
+  return m_impl.listDependentObjects(list, tab.getTableId());
 }
 
 const struct NdbError & 
