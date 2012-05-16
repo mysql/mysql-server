@@ -9775,6 +9775,12 @@ int ha_ndbcluster::create(const char *name,
   tab.assignObjId(objId);
   m_table= &tab;
   my_errno= create_indexes(thd, ndb, form);
+
+  if (!is_truncate && my_errno == 0)
+  {
+    my_errno= create_fks(thd, ndb, form);
+  }
+
   m_table= 0;
 
   if (!my_errno)
@@ -17503,5 +17509,7 @@ ndbinfo_plugin, /* ndbinfo plugin */
 /* IS plugin table which maps between mysql connection id and ndb trans-id */
 i_s_ndb_transid_mysql_connection_map_plugin
 mysql_declare_plugin_end;
+
+#include "ha_ndb_ddl_fk.cc"
 
 #endif

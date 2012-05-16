@@ -10,4 +10,70 @@ b int not null,
 c int not null,
 unique(b) using hash,
 index(c)) engine = ndb;
+show create table child;
+Table	Create Table
+child	CREATE TABLE `child` (
+  `a` int(11) NOT NULL,
+  `b` int(11) NOT NULL,
+  `c` int(11) NOT NULL,
+  PRIMARY KEY (`a`),
+  UNIQUE KEY `b` (`b`) USING HASH,
+  KEY `c` (`c`),
+ CONSTRAINT `fk1` FOREIGN KEY(`a`) REFERENCES `parent` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION,
+ CONSTRAINT `fk2` FOREIGN KEY(`b`) REFERENCES `parent` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION,
+ CONSTRAINT `fk3` FOREIGN KEY(`c`) REFERENCES `parent` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+show create table child;
+Table	Create Table
+child	CREATE TABLE `child` (
+  `a` int(11) NOT NULL,
+  `b` int(11) NOT NULL,
+  `c` int(11) NOT NULL,
+  PRIMARY KEY (`a`),
+  UNIQUE KEY `b` (`b`) USING HASH,
+  KEY `c` (`c`),
+ CONSTRAINT `fk1` FOREIGN KEY(`a`) REFERENCES `parent` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION,
+ CONSTRAINT `fk2` FOREIGN KEY(`b`) REFERENCES `parent` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION,
+ CONSTRAINT `fk3` FOREIGN KEY(`c`) REFERENCES `parent` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION,
+ CONSTRAINT `fk4` FOREIGN KEY(`a`) REFERENCES `parent` (`b`) ON DELETE NO ACTION ON UPDATE NO ACTION,
+ CONSTRAINT `fk5` FOREIGN KEY(`b`) REFERENCES `parent` (`b`) ON DELETE NO ACTION ON UPDATE NO ACTION,
+ CONSTRAINT `fk6` FOREIGN KEY(`c`) REFERENCES `parent` (`b`) ON DELETE NO ACTION ON UPDATE NO ACTION
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+drop table parent, child;
+create table parent (
+a int primary key,
+b int not null,
+c int not null,
+unique(b) using hash,
+index(c)) engine = ndb;
+create table child (
+a int not null,
+b int not null,
+c int not null,
+primary key (a),
+unique key (b) using hash,
+key (c),
+constraint fk1 foreign key(a) references parent (a),
+constraint fk2 foreign key(b) references parent (a),
+constraint fk3 foreign key(c) references parent (a),
+constraint fk4 foreign key(a) references parent (b),
+constraint fk5 foreign key(b) references parent (b),
+constraint fk6 foreign key(c) references parent (b)
+) engine=ndbcluster;
+show create table child;
+Table	Create Table
+child	CREATE TABLE `child` (
+  `a` int(11) NOT NULL,
+  `b` int(11) NOT NULL,
+  `c` int(11) NOT NULL,
+  PRIMARY KEY (`a`),
+  UNIQUE KEY `b` (`b`) USING HASH,
+  KEY `c` (`c`),
+ CONSTRAINT `fk1` FOREIGN KEY(`a`) REFERENCES `parent` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION,
+ CONSTRAINT `fk2` FOREIGN KEY(`b`) REFERENCES `parent` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION,
+ CONSTRAINT `fk3` FOREIGN KEY(`c`) REFERENCES `parent` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION,
+ CONSTRAINT `fk4` FOREIGN KEY(`a`) REFERENCES `parent` (`b`) ON DELETE NO ACTION ON UPDATE NO ACTION,
+ CONSTRAINT `fk5` FOREIGN KEY(`b`) REFERENCES `parent` (`b`) ON DELETE NO ACTION ON UPDATE NO ACTION,
+ CONSTRAINT `fk6` FOREIGN KEY(`c`) REFERENCES `parent` (`b`) ON DELETE NO ACTION ON UPDATE NO ACTION
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1
 drop table parent, child;
