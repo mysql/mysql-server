@@ -4318,7 +4318,8 @@ void Dbtc::execLQHKEYCONF(Signal* signal)
   UintR Ttrans1 = lqhKeyConf->transId1;
   UintR Ttrans2 = lqhKeyConf->transId2;
   Uint32 noFired = LqhKeyConf::getFiredCount(lqhKeyConf->noFiredTriggers);
-  Uint32 deferred = LqhKeyConf::getDeferredUKBit(lqhKeyConf->noFiredTriggers);
+  Uint32 deferreduk = LqhKeyConf::getDeferredUKBit(lqhKeyConf->noFiredTriggers);
+  Uint32 deferredfk = LqhKeyConf::getDeferredFKBit(lqhKeyConf->noFiredTriggers);
 
   if (TapiConnectptrIndex >= TapiConnectFilesize) {
     TCKEY_abort(signal, 29);
@@ -4374,10 +4375,12 @@ void Dbtc::execLQHKEYCONF(Signal* signal)
   regTcPtr->lastLqhCon = tlastLqhConnect;
   regTcPtr->lastLqhNodeId = refToNode(tlastLqhBlockref);
   regTcPtr->noFiredTriggers = noFired;
-  regTcPtr->m_special_op_flags |= (deferred) ?
-    TcConnectRecord::SOF_DEFERRED_UK_TRIGGER : 0;
-  regApiPtr.p->m_flags |= (deferred) ?
-    ApiConnectRecord::TF_DEFERRED_UK_TRIGGERS : 0;
+  regTcPtr->m_special_op_flags |=
+    ((deferreduk) ? TcConnectRecord::SOF_DEFERRED_UK_TRIGGER : 0 ) |
+    ((deferredfk) ? TcConnectRecord::SOF_DEFERRED_FK_TRIGGER : 0 );
+  regApiPtr.p->m_flags |=
+    ((deferreduk) ? ApiConnectRecord::TF_DEFERRED_UK_TRIGGERS : 0) |
+    ((deferredfk) ? ApiConnectRecord::TF_DEFERRED_FK_TRIGGERS : 0);
 
   UintR Ttckeyrec = (UintR)regApiPtr.p->tckeyrec;
   UintR TclientData = regTcPtr->clientData;
@@ -4942,6 +4945,30 @@ void Dbtc::sendPackedTCKEYCONF(Signal* signal,
   sendSignal(TBref, GSN_TCKEYCONF, signal, TnoOfWords, JBB);
 }//Dbtc::sendPackedTCKEYCONF()
 
+void
+Dbtc::startSendFireTrigReq(Signal* signal, Ptr<ApiConnectRecord> regApiPtr)
+{
+  regApiPtr.p->pendingTriggers = 0;
+  if (tc_testbit(regApiPtr.p->m_flags,
+                 ApiConnectRecord::TF_DEFERRED_UK_TRIGGERS))
+  {
+    tc_clearbit(regApiPtr.p->m_flags,
+                ApiConnectRecord::TF_DEFERRED_UK_TRIGGERS);
+  }
+  else
+  {
+    ndbassert(tc_testbit(regApiPtr.p->m_flags,
+                         ApiConnectRecord::TF_DEFERRED_FK_TRIGGERS));
+    tc_clearbit(regApiPtr.p->m_flags,
+                ApiConnectRecord::TF_DEFERRED_FK_TRIGGERS);
+    Uint32 pass = regApiPtr.p->m_pre_commit_pass;
+    pass = (pass & ~Uint32(TriggerPreCommitPass::TPCP_PASS_MAX));
+    pass = pass + TriggerPreCommitPass::FK_PASS_0;
+    regApiPtr.p->m_pre_commit_pass = pass;
+  }
+  sendFireTrigReq(signal, regApiPtr, regApiPtr.p->firstTcConnect);
+}
+
 /*
 4.3.11 DIVERIFY 
 ---------------
@@ -4961,16 +4988,13 @@ void Dbtc::diverify010Lab(Signal* signal)
     systemErrorLab(signal, __LINE__);
   }//if
 
-  if (tc_testbit(regApiPtr->m_flags, ApiConnectRecord::TF_DEFERRED_UK_TRIGGERS))
+  if (tc_testbit(regApiPtr->m_flags, ApiConnectRecord::TF_DEFERRED_TRIGGERS))
   {
-    jam();
     /**
      * If trans has deferred triggers, let them fire just before
      *   transaction starts to commit
      */
-    regApiPtr->pendingTriggers = 0;
-    tc_clearbit(regApiPtr->m_flags, ApiConnectRecord::TF_DEFERRED_UK_TRIGGERS);
-    sendFireTrigReq(signal, apiConnectptr, regApiPtr->firstTcConnect);
+    startSendFireTrigReq(signal, apiConnectptr);
     return;
   }
 
@@ -5756,6 +5780,40 @@ Dbtc::sendCompleteLqh(Signal* signal,
   return ret;
 }
 
+static
+inline
+Uint32
+getTcConnectRecordDeferredFlag(Uint32 pass)
+{
+  switch(pass & TriggerPreCommitPass::TPCP_PASS_MAX){
+  case TriggerPreCommitPass::UK_PASS_0:
+  case TriggerPreCommitPass::UK_PASS_1:
+    return Dbtc::TcConnectRecord::SOF_DEFERRED_UK_TRIGGER;
+  case TriggerPreCommitPass::FK_PASS_0:
+    return Dbtc::TcConnectRecord::SOF_DEFERRED_FK_TRIGGER;
+  }
+  assert(false);
+  return 0;
+}
+
+static
+inline
+Uint8
+getNextDeferredPass(Uint32 pass)
+{
+  Uint32 loop = (pass & ~Uint32(TriggerPreCommitPass::TPCP_PASS_MAX));
+  switch(pass & TriggerPreCommitPass::TPCP_PASS_MAX){
+  case TriggerPreCommitPass::UK_PASS_0:
+    return loop + TriggerPreCommitPass::UK_PASS_1;
+  case TriggerPreCommitPass::UK_PASS_1:
+    return loop + TriggerPreCommitPass::FK_PASS_0;
+  case TriggerPreCommitPass::FK_PASS_0:
+    return loop + Uint32(TriggerPreCommitPass::TPCP_PASS_MAX) + 1;
+  }
+  assert(false);
+  return 255;
+}
+
 void
 Dbtc::sendFireTrigReq(Signal* signal,
                       Ptr<ApiConnectRecord> regApiPtr,
@@ -5771,7 +5829,8 @@ Dbtc::sendFireTrigReq(Signal* signal,
   localTcConnectptr.i = TopPtrI;
   ndbassert(TopPtrI != RNIL);
   Uint32 Tlqhkeyreqrec = regApiPtr.p->lqhkeyreqrec;
-  Uint32 pass = regApiPtr.p->m_pre_commit_pass;
+  const Uint32 pass = regApiPtr.p->m_pre_commit_pass;
+  const Uint32 passflag = getTcConnectRecordDeferredFlag(pass);
   for (Uint32 i = 0; localTcConnectptr.i != RNIL && i < 16; i++)
   {
     ptrCheckGuard(localTcConnectptr,
@@ -5779,10 +5838,10 @@ Dbtc::sendFireTrigReq(Signal* signal,
 
     const Uint32 nextTcConnect = localTcConnectptr.p->nextTcConnect;
     Uint32 flags = localTcConnectptr.p->m_special_op_flags;
-    if (flags & TcConnectRecord::SOF_DEFERRED_UK_TRIGGER)
+    if (flags & passflag)
     {
       jam();
-      tc_clearbit(flags, TcConnectRecord::SOF_DEFERRED_UK_TRIGGER);
+      tc_clearbit(flags, passflag);
       ndbrequire(localTcConnectptr.p->tcConnectstate == OS_PREPARED);
       localTcConnectptr.p->tcConnectstate = OS_FIRE_TRIG_REQ;
       localTcConnectptr.p->m_special_op_flags = flags;
@@ -5801,7 +5860,7 @@ Dbtc::sendFireTrigReq(Signal* signal,
     jam();
     regApiPtr.p->apiConnectstate = CS_WAIT_FIRE_TRIG_REQ;
     ndbrequire(pass < 255);
-    regApiPtr.p->m_pre_commit_pass = (Uint8)(pass + 1);
+    regApiPtr.p->m_pre_commit_pass = getNextDeferredPass(pass);
 
     /**
      * Check if we are already finished...
@@ -5937,12 +5996,15 @@ Dbtc::execFIRE_TRIG_CONF(Signal* signal)
 
   Uint32 noFired  = FireTrigConf::getFiredCount(conf->noFiredTriggers);
   Uint32 deferreduk = FireTrigConf::getDeferredUKBit(conf->noFiredTriggers);
+  Uint32 deferredfk = FireTrigConf::getDeferredFKBit(conf->noFiredTriggers);
 
   regApiPtr.p->pendingTriggers += noFired;
-  regApiPtr.p->m_flags |= (deferreduk) ?
-    ApiConnectRecord::TF_DEFERRED_UK_TRIGGERS : 0;
-  localTcConnectptr.p->m_special_op_flags |= (deferreduk) ?
-    TcConnectRecord::SOF_DEFERRED_UK_TRIGGER : 0;
+  regApiPtr.p->m_flags |=
+    ((deferreduk) ? ApiConnectRecord::TF_DEFERRED_UK_TRIGGERS : 0) |
+    ((deferredfk) ? ApiConnectRecord::TF_DEFERRED_FK_TRIGGERS : 0);
+  localTcConnectptr.p->m_special_op_flags |=
+    ((deferreduk) ? TcConnectRecord::SOF_DEFERRED_UK_TRIGGER : 0) |
+    ((deferredfk) ? TcConnectRecord::SOF_DEFERRED_FK_TRIGGER : 0);
 
   if (regApiPtr.p->pendingTriggers == 0)
   {

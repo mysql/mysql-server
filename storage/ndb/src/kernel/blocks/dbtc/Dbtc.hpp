@@ -789,6 +789,10 @@ public:
       TF_COMMIT_ACK_MARKER_RECEIVED = 8,
       TF_DEFERRED_CONSTRAINTS = 16, // check constraints in deferred fashion
       TF_DEFERRED_UK_TRIGGERS = 32, // trans has deferred UK triggers
+      TF_DEFERRED_FK_TRIGGERS = 64, // trans has deferred FK triggers
+
+      TF_DEFERRED_TRIGGERS    = (32 + 64),
+
       TF_END = 0
     };
     Uint32 m_flags;
@@ -931,7 +935,8 @@ public:
       SOF_REORG_COPY = 32,
       SOF_REORG_DELETE = 64,
       SOF_DEFERRED_UK_TRIGGER = 128,  // Op has deferred trigger
-      SOF_FK_READ_COMMITTED = 256     // reply to TC even for dirty read
+      SOF_DEFERRED_FK_TRIGGER = 256,
+      SOF_FK_READ_COMMITTED = 512     // reply to TC even for dirty read
     };
     
     static inline bool isIndexOp(Uint16 flags) {
@@ -1510,6 +1515,7 @@ private:
   Uint32 sendCompleteLqh(Signal* signal,
                          TcConnectRecord * const regTcPtr);
 
+  void startSendFireTrigReq(Signal*, Ptr<ApiConnectRecord>);
   void sendFireTrigReq(Signal*, Ptr<ApiConnectRecord>, Uint32 firstTcConnect);
   Uint32 sendFireTrigReqLqh(Signal*, Ptr<TcConnectRecord>, Uint32 pass);
 

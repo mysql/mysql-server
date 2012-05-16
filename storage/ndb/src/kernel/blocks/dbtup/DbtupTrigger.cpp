@@ -590,7 +590,9 @@ Dbtup::execFIRE_TRIG_REQ(Signal* signal)
   FragrecordPtr regFragPtr;
   OperationrecPtr regOperPtr;
   TablerecPtr regTabPtr;
-  KeyReqStruct req_struct(this, (When)(KRS_PRE_COMMIT0 + pass));
+  KeyReqStruct req_struct(this,
+                          (When)(KRS_PRE_COMMIT_BASE +
+                                 (pass % TriggerPreCommitPass::TPCP_PASS_MAX)));
 
   regOperPtr.i = opPtrI;
 
@@ -794,8 +796,19 @@ Dbtup::checkDeferredTriggersDuringPrepare(KeyReqStruct *req_struct,
         trigPtr.p->attributeMask.overlaps(req_struct->changeMask))
     {
       jam();
-      NoOfFiredTriggers::setDeferredBit(req_struct->no_fired_triggers);
-      return;
+      switch(trigPtr.p->triggerType){
+      case TriggerType::SECONDARY_INDEX:
+        NoOfFiredTriggers::setDeferredUKBit(req_struct->no_fired_triggers);
+        break;
+      case TriggerType::FK_PARENT:
+      case TriggerType::FK_CHILD:
+        NoOfFiredTriggers::setDeferredFKBit(req_struct->no_fired_triggers);
+        break;
+      default:
+        ndbassert(false);
+      }
+      if (NoOfFiredTriggers::getDeferredAllSet(req_struct->no_fired_triggers))
+        return;
     }
     triggerList.next(trigPtr);
   }
@@ -1028,7 +1041,10 @@ static
 bool
 is_constraint(const Dbtup::TupTriggerData * trigPtr)
 {
-  return trigPtr->triggerType == TriggerType::SECONDARY_INDEX;
+  return
+    (trigPtr->triggerType == TriggerType::SECONDARY_INDEX) ||
+    (trigPtr->triggerType == TriggerType::FK_PARENT) ||
+    (trigPtr->triggerType == TriggerType::FK_CHILD);
 }
 
 void 
@@ -1049,7 +1065,17 @@ Dbtup::fireImmediateTriggers(KeyReqStruct *req_struct,
           req_struct->m_deferred_constraints &&
           is_constraint(trigPtr.p))
       {
-        NoOfFiredTriggers::setDeferredBit(req_struct->no_fired_triggers);
+        switch(trigPtr.p->triggerType){
+        case TriggerType::SECONDARY_INDEX:
+          NoOfFiredTriggers::setDeferredUKBit(req_struct->no_fired_triggers);
+          break;
+        case TriggerType::FK_PARENT:
+        case TriggerType::FK_CHILD:
+          NoOfFiredTriggers::setDeferredFKBit(req_struct->no_fired_triggers);
+          break;
+        default:
+          ndbassert(false);
+        }
       }
       else
       {
@@ -1416,15 +1442,15 @@ out:
       req_struct->m_when != KRS_PREPARE)
   {
     ndbrequire(req_struct->m_deferred_constraints);
-    if (req_struct->m_when == KRS_PRE_COMMIT0)
+    if (req_struct->m_when == KRS_UK_PRE_COMMIT0)
     {
       switch(regOperPtr->op_struct.op_type){
       case ZINSERT:
-        NoOfFiredTriggers::setDeferredBit(req_struct->no_fired_triggers);
+        NoOfFiredTriggers::setDeferredUKBit(req_struct->no_fired_triggers);
         return;
         break;
       case ZUPDATE:
-        NoOfFiredTriggers::setDeferredBit(req_struct->no_fired_triggers);
+        NoOfFiredTriggers::setDeferredUKBit(req_struct->no_fired_triggers);
         noAfterWords = 0;
         break;
       case ZDELETE:
@@ -1433,9 +1459,8 @@ out:
         ndbrequire(false);
       }
     }
-    else
+    else if (req_struct->m_when == KRS_UK_PRE_COMMIT1)
     {
-      ndbrequire(req_struct->m_when == KRS_PRE_COMMIT1);
       switch(regOperPtr->op_struct.op_type){
       case ZINSERT:
         break;
@@ -1447,6 +1472,21 @@ out:
       default:
         ndbrequire(false);
       }
+    }
+    else
+    {
+      ndbassert(req_struct->m_when == KRS_FK_PRE_COMMIT);
+      return;
+    }
+  }
+
+  if ((triggerType == TriggerType::FK_PARENT ||
+       triggerType == TriggerType::FK_CHILD) &&
+      req_struct->m_when != KRS_PREPARE)
+  {
+    if (req_struct->m_when != KRS_FK_PRE_COMMIT)
+    {
+      return;
     }
   }
 
