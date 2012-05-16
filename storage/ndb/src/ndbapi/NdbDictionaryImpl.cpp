@@ -3941,9 +3941,10 @@ NdbDictionaryImpl::dropTable(NdbTableImpl & impl)
   }
 
   List list;
-  if ((res = listObjects(list, impl.m_id)) == -1){
+  if ((res = listDependentObjects(list, impl.m_id)) == -1){
     return -1;
   }
+
   for (unsigned i = 0; i < list.count; i++) {
     const List::Element& element = list.elements[i];
     if (DictTabInfo::isIndex(element.type))
@@ -4000,26 +4001,44 @@ NdbDictionaryImpl::dropTableGlobal(NdbTableImpl & impl)
   DBUG_ASSERT(impl.m_indexType == NdbDictionary::Object::TypeUndefined);
 
   List list;
-  if ((res = listIndexes(list, impl.m_id)) == -1){
+  if ((res = listDependentObjects(list, impl.m_id)) == -1){
     ERR_RETURN(getNdbError(), -1);
   }
   for (unsigned i = 0; i < list.count; i++) {
     const List::Element& element = list.elements[i];
-    NdbIndexImpl *idx= getIndexGlobal(element.name, impl);
-    if (idx == NULL)
+    if (DictTabInfo::isIndex(element.type))
     {
-      ERR_RETURN(getNdbError(), -1);
-    }
-    // note can also return -2 in error case(INCOMPATIBLE_VERSION),
-    // hence compare with != 0
-    if ((res = dropIndexGlobal(*idx)) != 0)
-    {
+      // note can also return -2 in error case(INCOMPATIBLE_VERSION),
+      // hence compare with != 0
+      NdbIndexImpl *idx= getIndexGlobal(element.name, impl);
+      if (idx == NULL)
+      {
+        ERR_RETURN(getNdbError(), -1);
+      }
+
+      // note can also return -2 in error case(INCOMPATIBLE_VERSION),
+      // hence compare with != 0
+      if ((res = dropIndexGlobal(*idx)) != 0)
+      {
+        releaseIndexGlobal(*idx, 1);
+        ERR_RETURN(getNdbError(), -1);
+      }
       releaseIndexGlobal(*idx, 1);
-      ERR_RETURN(getNdbError(), -1);
     }
-    releaseIndexGlobal(*idx, 1);
+    else if (DictTabInfo::isForeignKey(element.type))
+    {
+      NdbDictionary::ForeignKey fk;
+      if ((res = getForeignKey(fk, element.name)) != 0)
+      {
+        ERR_RETURN(getNdbError(), -1);
+      }
+      if ((res = dropForeignKey(fk)) != 0)
+      {
+        ERR_RETURN(getNdbError(), -1);
+      }
+    }
   }
-  
+
   if (impl.m_noOfBlobs != 0) {
     if (dropBlobTables(impl) != 0){
       ERR_RETURN(getNdbError(), -1);
@@ -5644,14 +5663,14 @@ NdbDictionaryImpl::listIndexes(List& list, Uint32 indexId)
 }
 
 int
-NdbDictionaryImpl::listObjects(List& list, Uint32 tableId)
+NdbDictionaryImpl::listDependentObjects(List& list, Uint32 tableId)
 {
   ListTablesReq req;
   req.init();
   req.setTableId(tableId);
   req.setTableType(0);
   req.setListNames(true);
-  req.setListObjects(true);
+  req.setListDependent(true);
   return m_receiver.listObjects(list, req, m_ndb.usingFullyQualifiedNames());
 }
 

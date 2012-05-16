@@ -10428,6 +10428,7 @@ void Dbdict::sendLIST_TABLES_CONF(Signal* signal, ListTablesReq* req)
   const Uint32 reqTableType = req->getTableType();
   const bool reqListNames = req->getListNames();
   const bool reqListIndexes = req->getListIndexes();
+  const bool reqListDependent = req->getListDependent();
   XSchemaFile * xsf = &c_schemaFile[SchemaRecord::NEW_SCHEMA_FILE];
   NodeReceiverGroup rg(senderRef);
 
@@ -10482,6 +10483,9 @@ void Dbdict::sendLIST_TABLES_CONF(Signal* signal, ListTablesReq* req)
 
       if(reqListIndexes && (reqTableId != tablePtr.p->primaryTableId))
 	goto flush;
+
+      if (reqListDependent && (reqTableId != tablePtr.p->primaryTableId))
+        goto flush;
 
       ltd.requestData = 0; // clear
       ltd.setTableId(iter.curr.p->m_id); // id
@@ -10558,6 +10562,9 @@ void Dbdict::sendLIST_TABLES_CONF(Signal* signal, ListTablesReq* req)
       TriggerRecordPtr triggerPtr;
       bool ok = find_object(triggerPtr, iter.curr.p->m_id);
 
+      if (reqListDependent && (reqTableId != triggerPtr.p->tableId))
+        goto flush;
+
       ltd.requestData = 0;
       ltd.setTableId(iter.curr.p->m_id);
       ltd.setTableType(type);
@@ -10586,6 +10593,10 @@ void Dbdict::sendLIST_TABLES_CONF(Signal* signal, ListTablesReq* req)
     }
     if (DictTabInfo::isFilegroup(type)){
       jam();
+
+      if (reqListDependent)
+        goto flush;
+
       ltd.requestData = 0;
       ltd.setTableId(iter.curr.p->m_id);
       ltd.setTableType(type); // type
@@ -10593,6 +10604,10 @@ void Dbdict::sendLIST_TABLES_CONF(Signal* signal, ListTablesReq* req)
     }
     if (DictTabInfo::isFile(type)){
       jam();
+
+      if (reqListDependent)
+        goto flush;
+
       ltd.requestData = 0;
       ltd.setTableId(iter.curr.p->m_id);
       ltd.setTableType(type); // type
@@ -10601,13 +10616,29 @@ void Dbdict::sendLIST_TABLES_CONF(Signal* signal, ListTablesReq* req)
     if (DictTabInfo::isHashMap(type))
     {
       jam();
+
+      if (reqListDependent)
+        goto flush;
+
       ltd.setTableId(iter.curr.p->m_id);
       ltd.setTableType(type); // type
       ltd.setTableState(DictTabInfo::StateOnline); // XXX todo
     }
+
     if (DictTabInfo::isForeignKey(type))
     {
       jam();
+
+      Ptr<ForeignKeyRec> fk_ptr;
+      ndbrequire(find_object(fk_ptr, iter.curr.p->m_id));
+
+      if (reqListDependent &&
+          (reqTableId != fk_ptr.p->m_parentTableId &&
+           reqTableId != fk_ptr.p->m_parentIndexId &&
+           reqTableId != fk_ptr.p->m_childTableId  &&
+           reqTableId != fk_ptr.p->m_childIndexId ))
+        goto flush;
+
       ltd.setTableId(iter.curr.p->m_id);
       ltd.setTableType(type); // type
       ltd.setTableState(DictTabInfo::StateOnline); // XXX todo
