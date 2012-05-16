@@ -24904,8 +24904,21 @@ Dbdict::createFK_reply(Signal* signal, SchemaOpPtr op_ptr, ErrorInfo error)
   }
 }
 
-// CreateFK: PREPARE
+static
+int
+cmp_uint(const void * _p1, const void * _p2)
+{
+  Uint32 * p1 = (Uint32*)_p1;
+  Uint32 * p2 = (Uint32*)_p2;
 
+  if (* p1 < * p2)
+    return -1;
+  else if (* p2 < * p1)
+    return 1;
+  return 0;
+}
+
+// CreateFK: PREPARE
 void
 Dbdict::createFK_prepare(Signal* signal, SchemaOpPtr op_ptr)
 {
@@ -24937,12 +24950,64 @@ Dbdict::createFK_prepare(Signal* signal, SchemaOpPtr op_ptr)
   req->parentIndexId = fk_ptr.p->m_parentIndexId;
   req->childIndexId = fk_ptr.p->m_childIndexId;
 
+  /**
+   * How do I transform input data from a parent row
+   *  into access on a child row
+   */
+  Uint32 parent_to_child[MAX_ATTRIBUTES_IN_INDEX];
+  memcpy(parent_to_child, fk_ptr.p->m_parentColumns, 4*fk_ptr.p->m_columnCount);
+  if ((fk_ptr.p->m_bits & CreateFKImplReq::FK_CHILD_OI) == 0)
+  {
+    jam();
+    Uint32 tmp[MAX_ATTRIBUTES_IN_INDEX];
+    memcpy(tmp, fk_ptr.p->m_childColumns, 4*fk_ptr.p->m_columnCount);
+    qsort(tmp, fk_ptr.p->m_columnCount, sizeof(Uint32), cmp_uint);
+    for (Uint32 i = 0; i < fk_ptr.p->m_columnCount; i++)
+    {
+      Uint32 col = tmp[i];
+      for (Uint32 j = 0; j < fk_ptr.p->m_columnCount; j++)
+      {
+        if (fk_ptr.p->m_childColumns[j] == col)
+        {
+          parent_to_child[i] = fk_ptr.p->m_parentColumns[j];
+          break;
+        }
+      }
+    }
+  }
+
+  Uint32 child_to_parent[MAX_ATTRIBUTES_IN_INDEX];
+  memcpy(child_to_parent, fk_ptr.p->m_childColumns, 4*fk_ptr.p->m_columnCount);
+  if ((fk_ptr.p->m_bits & CreateFKImplReq::FK_PARENT_OI) == 0)
+  {
+    jam();
+    /**
+     * PK/UI are stored in attribute id order...so sort child columns
+     *   in parent order...
+     */
+    Uint32 tmp[MAX_ATTRIBUTES_IN_INDEX];
+    memcpy(tmp, fk_ptr.p->m_parentColumns, 4*fk_ptr.p->m_columnCount);
+    qsort(tmp, fk_ptr.p->m_columnCount, sizeof(Uint32), cmp_uint);
+    for (Uint32 i = 0; i < fk_ptr.p->m_columnCount; i++)
+    {
+      Uint32 col = tmp[i];
+      for (Uint32 j = 0; j < fk_ptr.p->m_columnCount; j++)
+      {
+        if (fk_ptr.p->m_parentColumns[j] == col)
+        {
+          child_to_parent[i] = fk_ptr.p->m_childColumns[j];
+          break;
+        }
+      }
+    }
+  }
+
   BlockReference ref = DBTC_REF;
   LinearSectionPtr ptr[3];
-  ptr[CreateFKImplReq::PARENT_COLUMNS].p = fk_ptr.p->m_parentColumns;
+  ptr[CreateFKImplReq::PARENT_COLUMNS].p = parent_to_child;
   ptr[CreateFKImplReq::PARENT_COLUMNS].sz = fk_ptr.p->m_columnCount;
 
-  ptr[CreateFKImplReq::CHILD_COLUMNS].p = fk_ptr.p->m_childColumns;
+  ptr[CreateFKImplReq::CHILD_COLUMNS].p = child_to_parent;
   ptr[CreateFKImplReq::CHILD_COLUMNS].sz = fk_ptr.p->m_columnCount;
   sendSignal(ref, GSN_CREATE_FK_IMPL_REQ, signal,
              CreateFKImplReq::SignalLength, JBB,
