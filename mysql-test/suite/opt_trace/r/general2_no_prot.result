@@ -1895,7 +1895,7 @@ set_case_expr (15) 0 (select count(`a`) from `test`.`t1` where (`a` > 1))	{
     }
   ] /* steps */
 }	0	0
-jump_if_not 11(15) (case_expr@0 = 2)	{
+jump_if_not_case_when 11(15) (case_expr@0 = 2)	{
   "steps": [
   ] /* steps */
 }	0	0

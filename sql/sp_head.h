@@ -1172,6 +1172,29 @@ public:
 
   virtual ~sp_lex_instr()
   { free_lex(); }
+
+  /**
+    Make a few attempts to execute the instruction.
+
+    Basically, this operation does the following things:
+      - install Reprepare_observer to catch metadata changes (if any);
+      - calls reset_lex_and_exec_core() to execute the instruction;
+      - if the execution fails due to a change in metadata, re-parse the
+        instruction's SQL-statement and repeat execution.
+
+    @param      thd           Thread context.
+    @param[out] nextp         Next instruction pointer
+    @param      open_tables   Flag to specify if the function should check read
+                              access to tables in LEX's table list and open and
+                              lock them (used in instructions which need to
+                              calculate some expression and don't execute
+                              complete statement).
+
+    @return Error status.
+  */
+  bool validate_lex_and_execute_core(THD *thd, uint *nextp, bool open_tables);
+
+private:
   /**
     Prepare LEX and thread for execution of instruction, if requested open
     and lock LEX's tables, execute instruction's core function, perform
@@ -1192,7 +1215,17 @@ public:
   */
   bool reset_lex_and_exec_core(THD *thd, uint *nextp, bool open_tables);
 
-private:
+  /**
+    (Re-)parse the query corresponding to this instruction and return a new
+    LEX-object.
+
+    @param thd  Thread context.
+    @param sp   The stored program.
+
+    @return new LEX-object or NULL in case of failure.
+  */
+  LEX *parse_expr(THD *thd, sp_head *sp);
+
   /**
      Set LEX-object.
 
@@ -1216,7 +1249,7 @@ public:
   /////////////////////////////////////////////////////////////////////////
 
   virtual bool execute(THD *thd, uint *nextp)
-  { return reset_lex_and_exec_core(thd, nextp, true); }
+  { return validate_lex_and_execute_core(thd, nextp, true); }
 
 protected:
   /////////////////////////////////////////////////////////////////////////
@@ -1233,6 +1266,63 @@ protected:
     @return Error flag.
   */
   virtual bool exec_core(THD *thd, uint *nextp) = 0;
+
+  /**
+    @retval false if the object (i.e. LEX-object) is valid and exec_core() can be
+    just called.
+
+    @retval true if the object is not valid any longer, exec_core() can not be
+    called. The original query string should be re-parsed and a new LEX-object
+    should be used.
+  */
+  virtual bool is_invalid() const = 0;
+
+  /**
+    Invalidate the object.
+  */
+  virtual void invalidate() = 0;
+
+  /**
+    Return the query string, which can be passed to the parser. I.e. the
+    operation should return a valid SQL-statement query string.
+
+    @param[out] sql_query SQL-statement query string.
+  */
+  virtual void get_query(String *sql_query) const;
+
+  /**
+    @return the expression query string. This string can not be passed directly
+    to the parser as it is most likely not a valid SQL-statement.
+
+    @note as it can be seen in the get_query() implementation, get_expr_query()
+    might return EMPTY_STR. EMPTY_STR means that no query-expression is
+    available. That happens when class provides different implementation of
+    get_query(). Strictly speaking, this is a drawback of the current class
+    hierarchy.
+  */
+  virtual LEX_STRING get_expr_query() const
+  { return EMPTY_STR; }
+
+  /**
+    Callback function which is called after the statement query string is
+    successfully parsed, and the thread context has not been switched to the
+    outer context. The thread context contains new LEX-object corresponding to
+    the parsed query string.
+
+    @param thd  Thread context.
+
+    @return Error flag.
+  */
+  virtual bool on_after_expr_parsing(THD *thd)
+  { return false; }
+
+  /**
+    Destroy items in the free list before re-parsing the statement query
+    string (and thus, creating new items).
+
+    @param thd  Thread context.
+  */
+  virtual void cleanup_before_parsing(THD *thd);
 
 private:
   /// LEX-object.
@@ -1286,7 +1376,8 @@ public:
                 LEX *lex,
                 LEX_STRING query)
    :sp_lex_instr(ip, lex->get_sp_current_parsing_ctx(), lex, true),
-    m_query(query)
+    m_query(query),
+    m_valid(true)
   { }
 
   /////////////////////////////////////////////////////////////////////////
@@ -1307,9 +1398,21 @@ public:
 
   virtual bool exec_core(THD *thd, uint *nextp);
 
+  virtual bool is_invalid() const
+  { return !m_valid; }
+
+  virtual void invalidate()
+  { m_valid= false; }
+
+  virtual void get_query(String *sql_query) const
+  { sql_query->append(m_query.str, m_query.length); }
+
 private:
   /// Complete query of the SQL-statement.
   LEX_STRING m_query;
+
+  /// Specify if the stored LEX-object is up-to-date.
+  bool m_valid;
 };
 
 ///////////////////////////////////////////////////////////////////////////
@@ -1324,10 +1427,12 @@ public:
                LEX *lex,
 	       uint offset,
                Item *value_item,
+               LEX_STRING value_query,
                bool is_lex_owner)
    :sp_lex_instr(ip, lex->get_sp_current_parsing_ctx(), lex, is_lex_owner),
     m_offset(offset),
-    m_value_item(value_item)
+    m_value_item(value_item),
+    m_value_query(value_query)
   { }
 
   /////////////////////////////////////////////////////////////////////////
@@ -1342,12 +1447,33 @@ public:
 
   virtual bool exec_core(THD *thd, uint *nextp);
 
+  virtual bool is_invalid() const
+  { return m_value_item == NULL; }
+
+  virtual void invalidate()
+  { m_value_item= NULL; }
+
+  virtual bool on_after_expr_parsing(THD *thd)
+  {
+    DBUG_ASSERT(thd->lex->select_lex.item_list.elements == 1);
+
+    m_value_item= thd->lex->select_lex.item_list.head();
+
+    return false;
+  }
+
+  virtual LEX_STRING get_expr_query() const
+  { return m_value_query; }
+
 private:
   /// Frame offset.
   uint m_offset;
 
   /// Value expression item of the SET-statement.
   Item *m_value_item;
+
+  /// SQL-query corresponding to the value expression.
+  LEX_STRING m_value_query;
 };
 
 ///////////////////////////////////////////////////////////////////////////
@@ -1361,11 +1487,15 @@ class sp_instr_set_trigger_field : public sp_lex_instr
 public:
   sp_instr_set_trigger_field(uint ip,
                              LEX *lex,
+                             LEX_STRING trigger_field_name,
                              Item_trigger_field *trigger_field,
-                             Item *value_item)
+                             Item *value_item,
+                             LEX_STRING value_query)
    :sp_lex_instr(ip, lex->get_sp_current_parsing_ctx(), lex, true),
+    m_trigger_field_name(trigger_field_name),
     m_trigger_field(trigger_field),
-    m_value_item(value_item)
+    m_value_item(value_item),
+    m_value_query(value_query)
   { }
 
   /////////////////////////////////////////////////////////////////////////
@@ -1380,11 +1510,31 @@ public:
 
   virtual bool exec_core(THD *thd, uint *nextp);
 
+  virtual bool is_invalid() const
+  { return m_value_item == NULL; }
+
+  virtual void invalidate()
+  { m_value_item= NULL; }
+
+  virtual bool on_after_expr_parsing(THD *thd);
+
+  virtual void cleanup_before_parsing(THD *thd);
+
+  virtual LEX_STRING get_expr_query() const
+  { return m_value_query; }
+
 private:
+  /// Trigger field name ("field_name" of the "NEW.field_name").
+  LEX_STRING m_trigger_field_name;
+
   /// Item corresponding to the NEW/OLD trigger field.
   Item_trigger_field *m_trigger_field;
+
   /// Value expression item of the SET-statement.
   Item *m_value_item;
+
+  /// SQL-query corresponding to the value expression.
+  LEX_STRING m_value_query;
 };
 
 ///////////////////////////////////////////////////////////////////////////
@@ -1398,9 +1548,11 @@ public:
   sp_instr_freturn(uint ip,
                    LEX *lex,
 		   Item *expr_item,
+                   LEX_STRING expr_query,
                    enum enum_field_types return_field_type)
    :sp_lex_instr(ip, lex->get_sp_current_parsing_ctx(), lex, true),
     m_expr_item(expr_item),
+    m_expr_query(expr_query),
     m_return_field_type(return_field_type)
   { }
 
@@ -1426,9 +1578,33 @@ public:
 
   virtual bool exec_core(THD *thd, uint *nextp);
 
+  virtual bool is_invalid() const
+  { return m_expr_item == NULL; }
+
+  virtual void invalidate()
+  {
+    // it's already deleted.
+    m_expr_item= NULL;
+  }
+
+  virtual bool on_after_expr_parsing(THD *thd)
+  {
+    DBUG_ASSERT(thd->lex->select_lex.item_list.elements == 1);
+
+    m_expr_item= thd->lex->select_lex.item_list.head();
+
+    return false;
+  }
+
+  virtual LEX_STRING get_expr_query() const
+  { return m_expr_query; }
+
 private:
   /// RETURN-expression item.
   Item *m_expr_item;
+
+  /// SQL-query corresponding to the RETURN-expression.
+  LEX_STRING m_expr_query;
 
   /// RETURN-field type code.
   enum enum_field_types m_return_field_type;
@@ -1444,6 +1620,7 @@ private:
 
   @todo later we will consider introducing a new class, which will be the base
   for sp_instr_jump, sp_instr_set_case_expr and sp_instr_jump_case_when.
+  Something like sp_regular_branch_instr (similar to sp_lex_branch_instr).
 */
 class sp_instr_jump : public sp_instr,
                       public sp_branch_instr
@@ -1519,24 +1696,26 @@ class sp_lex_branch_instr : public sp_lex_instr,
 {
 protected:
   sp_lex_branch_instr(uint ip, sp_pcontext *ctx, LEX *lex,
-                      Item *expr_item)
+                      Item *expr_item, LEX_STRING expr_query)
    :sp_lex_instr(ip, ctx, lex, true),
     m_dest(0),
     m_cont_dest(0),
     m_optdest(NULL),
     m_cont_optdest(NULL),
-    m_expr_item(expr_item)
+    m_expr_item(expr_item),
+    m_expr_query(expr_query)
   { }
 
   sp_lex_branch_instr(uint ip, sp_pcontext *ctx, LEX *lex,
-                      Item *expr_item,
+                      Item *expr_item, LEX_STRING expr_query,
                       uint dest)
    :sp_lex_instr(ip, ctx, lex, true),
     m_dest(dest),
     m_cont_dest(0),
     m_optdest(NULL),
     m_cont_optdest(NULL),
-    m_expr_item(expr_item)
+    m_expr_item(expr_item),
+    m_expr_query(expr_query)
   { }
 
 public:
@@ -1553,6 +1732,19 @@ public:
 
   virtual uint get_cont_dest() const
   { return m_cont_dest; }
+
+  /////////////////////////////////////////////////////////////////////////
+  // sp_lex_instr implementation.
+  /////////////////////////////////////////////////////////////////////////
+
+  virtual bool is_invalid() const
+  { return m_expr_item == NULL; }
+
+  virtual void invalidate()
+  { m_expr_item= NULL; /* it's already deleted. */ }
+
+  virtual LEX_STRING get_expr_query() const
+  { return m_expr_query; }
 
   /////////////////////////////////////////////////////////////////////////
   // sp_branch_instr implementation.
@@ -1587,6 +1779,9 @@ protected:
 
   /// Expression item.
   Item *m_expr_item;
+
+  /// SQL-query corresponding to the expression.
+  LEX_STRING m_expr_query;
 };
 
 ///////////////////////////////////////////////////////////////////////////
@@ -1600,17 +1795,19 @@ class sp_instr_jump_if_not : public sp_lex_branch_instr
 public:
   sp_instr_jump_if_not(uint ip,
                        LEX *lex,
-                       Item *expr_item)
+                       Item *expr_item,
+                       LEX_STRING expr_query)
    :sp_lex_branch_instr(ip, lex->get_sp_current_parsing_ctx(), lex,
-                        expr_item)
+                        expr_item, expr_query)
   { }
 
   sp_instr_jump_if_not(uint ip,
                        LEX *lex,
                        Item *expr_item,
+                       LEX_STRING expr_query,
                        uint dest)
    :sp_lex_branch_instr(ip, lex->get_sp_current_parsing_ctx(), lex,
-                        expr_item, dest)
+                        expr_item, expr_query, dest)
   { }
 
   /////////////////////////////////////////////////////////////////////////
@@ -1624,6 +1821,15 @@ public:
   /////////////////////////////////////////////////////////////////////////
 
   virtual bool exec_core(THD *thd, uint *nextp);
+
+  virtual bool on_after_expr_parsing(THD *thd)
+  {
+    DBUG_ASSERT(thd->lex->select_lex.item_list.elements == 1);
+
+    m_expr_item= thd->lex->select_lex.item_list.head();
+
+    return false;
+  }
 };
 
 ///////////////////////////////////////////////////////////////////////////
@@ -1640,9 +1846,10 @@ public:
   sp_instr_set_case_expr(uint ip,
                          LEX *lex,
                          uint case_expr_id,
-                         Item *case_expr_item)
+                         Item *case_expr_item,
+                         LEX_STRING case_expr_query)
    :sp_lex_branch_instr(ip, lex->get_sp_current_parsing_ctx(), lex,
-                        case_expr_item),
+                        case_expr_item, case_expr_query),
     m_case_expr_id(case_expr_id)
   { }
 
@@ -1704,6 +1911,89 @@ public:
 private:
   /// Identifier (index) of the CASE-expression in the runtime context.
   uint m_case_expr_id;
+};
+
+///////////////////////////////////////////////////////////////////////////
+
+/**
+  sp_instr_jump_case_when instruction is used in the "simple CASE"
+  implementation. It's a jump instruction with the following condition:
+    (CASE-expression = WHEN-expression)
+  CASE-expression is retrieved from sp_rcontext;
+  WHEN-expression is kept by this instruction.
+*/
+class sp_instr_jump_case_when : public sp_lex_branch_instr
+{
+public:
+  sp_instr_jump_case_when(uint ip,
+                          LEX *lex,
+                          int case_expr_id,
+                          Item *when_expr_item,
+                          LEX_STRING when_expr_query)
+   :sp_lex_branch_instr(ip, lex->get_sp_current_parsing_ctx(), lex,
+                        when_expr_item, when_expr_query),
+    m_case_expr_id(case_expr_id)
+  { }
+
+  /////////////////////////////////////////////////////////////////////////
+  // sp_printable implementation.
+  /////////////////////////////////////////////////////////////////////////
+
+  virtual void print(String *str);
+
+  /////////////////////////////////////////////////////////////////////////
+  // sp_lex_instr implementation.
+  /////////////////////////////////////////////////////////////////////////
+
+  virtual bool exec_core(THD *thd, uint *nextp);
+
+  virtual void invalidate()
+  {
+    // Items should be already deleted in lex-keeper.
+    m_case_expr_item= NULL;
+    m_eq_item= NULL;
+    m_expr_item= NULL; // it's a WHEN-expression.
+  }
+
+  virtual bool on_after_expr_parsing(THD *thd)
+  { return build_expr_items(thd); }
+
+private:
+  /**
+    Build CASE-expression item tree:
+      Item_func_eq(case-expression, when-i-expression)
+
+    This function is used for the following form of CASE statement:
+      CASE case-expression
+        WHEN when-1-expression THEN ...
+        WHEN when-2-expression THEN ...
+        ...
+        WHEN when-n-expression THEN ...
+      END CASE
+
+    The thing is that after the parsing we have an item (item tree) for the
+    case-expression and for each when-expression. Here we build jump
+    conditions: expressions like (case-expression = when-i-expression).
+
+    @param thd  Thread context.
+
+    @return Error flag.
+  */
+  bool build_expr_items(THD *thd);
+
+private:
+  /// Identifier (index) of the CASE-expression in the runtime context.
+  int m_case_expr_id;
+
+  /// Item representing the CASE-expression.
+  Item_case_expr *m_case_expr_item;
+
+  /**
+    Item corresponding to the main item of the jump-condition-expression:
+    it's the equal function (=) in the (case-expression = when-i-expression)
+    expression.
+  */
+  Item *m_eq_item;
 };
 
 ///////////////////////////////////////////////////////////////////////////
@@ -1866,8 +2156,11 @@ public:
   sp_instr_cpush(uint ip,
                  sp_pcontext *ctx,
                  LEX *cursor_lex,
+                 LEX_STRING cursor_query,
                  int cursor_idx)
    :sp_lex_instr(ip, ctx, cursor_lex, true),
+    m_cursor_query(cursor_query),
+    m_valid(true),
     m_cursor_idx(cursor_idx)
   {
     // Cursor can't be stored in Query Cache, so we should prevent opening QC
@@ -1905,7 +2198,24 @@ public:
   /////////////////////////////////////////////////////////////////////////
 
   virtual bool exec_core(THD *thd, uint *nextp);
+
+  virtual bool is_invalid() const
+  { return !m_valid; }
+
+  virtual void invalidate()
+  { m_valid= false; }
+
+  virtual void get_query(String *sql_query) const
+  { sql_query->append(m_cursor_query.str, m_cursor_query.length); }
+
 private:
+  /// This attribute keeps the cursor SELECT statement.
+  LEX_STRING m_cursor_query;
+
+  /// Flag if the LEX-object of this instruction is valid or not.
+  /// The LEX-object is not valid when metadata have changed.
+  bool m_valid;
+
   /// Used to identify the cursor in the sp_rcontext.
   int m_cursor_idx;
 };

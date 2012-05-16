@@ -2317,6 +2317,11 @@ public:
   void set_sp_current_parsing_ctx(sp_pcontext *ctx)
   { sp_current_parsing_ctx= ctx; }
 
+  /// Check if the current statement uses meta-data (uses a table or a stored
+  /// routine).
+  bool is_metadata_used() const
+  { return query_tables != NULL || sroutines.records > 0; }
+
 public:
   st_sp_chistics sp_chistics;
 

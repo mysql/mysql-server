@@ -6790,7 +6790,7 @@ call p1$
 a
 alter table t1 add b integer;
 call p1$
-a
+a	b
 drop table t1;
 drop procedure p1;
 # ------------------------------------------------------------------
@@ -7256,23 +7256,7 @@ create table t1 (a int);
 insert into t1 (a) values (1), (2), (3), (4), (5);
 #
 # Do we correctly resolve identifiers in LIMIT?
-# Since DROP and CREATE did not invalidate
-# the SP cache, we can't test until
-# we drop and re-create the procedure.
 #
-call p1();
-ERROR 42S22: Unknown column 'test.t1.c1' in 'field list'
-# 
-# Drop and recreate the procedure, then repeat
-#
-drop procedure p1;
-create procedure p1()
-begin
-declare a integer;
-declare b integer;
-select * from t1 limit a, b;
-end|
-# Stored procedure variables are resolved correctly in the LIMIT
 call p1();
 a
 drop table t1;

@@ -309,9 +309,6 @@ drop function f1;
 deallocate prepare stmt;
 # Test 7-c: dependent VIEW has changed
 #
-# Note, this scenario is not functioning correctly, see
-# Bug#33255 Trigger using views and view ddl : corrupted triggers
-# and Bug #33000 Triggers do not detect changes in meta-data.
 #
 drop trigger t1_ai;
 create table t2 (a int unique);
@@ -329,9 +326,6 @@ select * from t3;
 a
 drop view v1;
 create view v1 as select a from t3;
-insert into t1 (a) values (6);
-ERROR 42S02: Table 'test.t2' doesn't exist
-flush table t1;
 insert into t1 (a) values (6);
 select * from t2;
 a
@@ -355,33 +349,6 @@ a
 drop view v1;
 create view v1 as select a from t2;
 set @var=8;
-# View in the INSERT-statement in the trigger is still pointing to
-# table 't3', because the trigger hasn't noticed the change
-# in view definition. This will be fixed by WL#4179.
-#
-# The prepared INSERT-statement however does notice the change,
-# but repreparation of the main statement doesn't cause repreparation
-# of trigger statements.
-#
-# The following EXECUTE results in ER_NO_SUCH_TABLE (t3) error, because
-# pre-locking list of the prepared statement has been changed
-# (the prepared statement has noticed the meta-data change),
-# but the trigger still tries to deal with 't3', which is not opened.
-# That's why '8' is not inserted neither into 't2', nor into 't3'.
-execute stmt using @var;
-ERROR 42S02: Table 'test.t3' doesn't exist
-call p_verify_reprepare_count(1);
-SUCCESS
-
-select * from t2;
-a
-5
-select * from t3;
-a
-6
-7
-flush table t1;
-set @var=9;
 execute stmt using @var;
 call p_verify_reprepare_count(1);
 SUCCESS
@@ -389,7 +356,7 @@ SUCCESS
 select * from t2;
 a
 5
-9
+8
 select * from t3;
 a
 6
