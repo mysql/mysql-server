@@ -15871,6 +15871,57 @@ Dbtc::fk_constructAttrInfoSetNull(const TcFKData * fkPtrP)
   return tmp;
 }
 
+Uint32
+Dbtc::fk_constructAttrInfoUpdateCascade(const TcFKData * fkPtrP,
+                                        DataBuffer<11>::Head & srchead)
+{
+  Uint32 tmp = RNIL;
+  /**
+   * Construct an update based on the src-data
+   *
+   * NOTE: this assumes same order...
+   */
+  Uint32 pos = 0;
+  AttributeBuffer::DataBufferIterator iter;
+  LocalDataBuffer<11> src(c_theAttributeBufferPool, srchead);
+  bool moreData= src.first(iter);
+  const Uint32 segSize= src.getSegmentSize(); // 11
+
+  while (moreData)
+  {
+    AttributeHeader* attrHeader = (AttributeHeader *) iter.data;
+    Uint32 dataSize = attrHeader->getDataSize();
+
+    AttributeHeader ah(*iter.data);
+    ah.setAttributeId(fkPtrP->childTableColumns.id[pos++]);// Renumber AttrIds
+    if (unlikely(!appendToSection(tmp, &ah.m_value, 1)))
+    {
+      releaseSection(tmp);
+      return RNIL;
+    }
+
+    moreData = src.next(iter, 1);
+    while (dataSize)
+    {
+      ndbrequire(moreData);
+      /* Copy as many contiguous words as possible */
+      Uint32 contigLeft = segSize - iter.ind;
+      ndbassert(contigLeft);
+      Uint32 contigValid = MIN(dataSize, contigLeft);
+
+      if (unlikely(!appendToSection(tmp, iter.data, contigValid)))
+      {
+        releaseSection(tmp);
+        return tmp;
+      }
+      moreData = src.next(iter, contigValid);
+      dataSize -= contigValid;
+    }
+  }
+
+  return tmp;
+}
+
 void
 Dbtc::executeFKParentTrigger(Signal* signal,
                              TcDefinedTriggerData* definedTriggerData,
@@ -15910,7 +15961,13 @@ Dbtc::executeFKParentTrigger(Signal* signal,
       /**
        * Update child table with after values of parent
        */
-      ndbrequire(false); // TODO
+      op = ZUPDATE;
+      attrValuesPtrI =
+        fk_constructAttrInfoUpdateCascade(fkPtr.p,
+                                          firedTriggerData->afterValues);
+
+      if (unlikely(attrValuesPtrI == RNIL))
+        goto oom;
     }
     else if (fkPtr.p->bits & CreateFKImplReq::FK_UPDATE_SET_NULL)
     {
