@@ -215,7 +215,6 @@ public:
     OS_WAIT_COMMIT_CONF = 15,
     OS_WAIT_ABORT_CONF = 16,
     OS_WAIT_COMPLETE_CONF = 17,
-    OS_WAIT_SCAN = 18,
 
     OS_FIRE_TRIG_REQ = 19,
   };
@@ -1145,7 +1144,6 @@ public:
     }
 
     Uint32 m_ops;
-    Uint32 m_chksum;
     Uint32 m_apiPtr;
     Uint32 m_totalLen;
     union {
@@ -1253,9 +1251,6 @@ public:
 
     // Reference to ApiConnectRecord
     Uint32 scanApiRec;
-
-    // Reference to TcConnectRecord
-    Uint32 scanTcrec;
 
     // Number of scan frag processes that belong to this scan 
     Uint32 scanParallel;
