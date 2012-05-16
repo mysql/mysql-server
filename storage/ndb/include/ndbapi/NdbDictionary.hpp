@@ -122,7 +122,10 @@ public:
       Datafile = 22,          ///< Datafile
       Undofile = 23,          ///< Undofile
       ReorgTrigger = 19,
-      HashMap = 24
+      HashMap = 24,
+      ForeignKey = 25,
+      FKParentTrigger = 26,
+      FKChildTrigger = 27
     };
 
     /**
@@ -2050,6 +2053,94 @@ public:
   };
 
   /**
+   * @class HashMap
+   * @brief Represents a HashMap in an NDB Cluster
+   *
+   */
+  class ForeignKey : public Object {
+  public:
+    ForeignKey();
+    ForeignKey(const ForeignKey&);
+    virtual ~ForeignKey();
+
+    enum FkAction
+    {
+      NoAction = NDB_FK_NO_ACTION, // deferred check
+      Restrict = NDB_FK_RESTRICT,
+      Cascade = NDB_FK_CASCADE,
+      SetNull = NDB_FK_SET_NULL,
+      SetDefault = NDB_FK_SET_DEFAULT
+    };
+
+    const char * getName() const;
+    const char * getParentTable() const;
+    const char * getChildTable() const;
+    unsigned getParentColumnCount() const;
+    unsigned getChildColumnCount() const;
+    int getParentColumnNo(unsigned no) const;
+    int getChildColumnNo(unsigned no) const;
+
+    /**
+     * return 0 if child referes to parent PK
+     */
+    const char * getParentIndex() const;
+
+    /**
+     * return 0 if child references are resolved using child PK
+     */
+    const char * getChildIndex() const;
+
+    FkAction getOnUpdateAction() const;
+    FkAction getOnDeleteAction() const;
+
+    /**
+     *
+     */
+    void setName(const char *);
+
+    /**
+     * specify parent/child table
+     * optionally an index
+     * and columns in parent/child table (optionally)
+     *
+     * if index is not specified primary key is used
+     *
+     * if columns is not specified, index order is used
+     *
+     * if columns and index is specified, and index is ordered index
+     *   column order must match given column order
+     *
+     */
+    void setParent(const Table&, const Index * index = 0,
+                   const Column * cols[] = 0);
+    void setChild(const Table&, const Index * index = 0,
+                  const Column * cols[] = 0);
+
+    void setOnUpdateAction(FkAction);
+    void setOnDeleteAction(FkAction);
+
+    /**
+     * Get object status
+     */
+    virtual Object::Status getObjectStatus() const;
+
+    /**
+     * Get object id
+     */
+    virtual int getObjectId() const;
+
+    /**
+     * Get object version
+     */
+    virtual int getObjectVersion() const;
+
+  private:
+    friend class NdbForeignKeyImpl;
+    class NdbForeignKeyImpl & m_impl;
+    ForeignKey(NdbForeignKeyImpl&);
+  };
+
+  /**
    * @class Dictionary
    * @brief Dictionary for defining and retreiving meta data
    */
@@ -2196,6 +2287,14 @@ public:
      * @return  0 if successful, otherwise -1
      */
     int listIndexes(List & list, const Table &table) const;
+
+    /**
+     * Fetch list object that table depend on
+     * @param list  Reference to list where to store the listed indexes
+     * @param table  Reference to table that object belongs to.
+     * @return  0 if successful, otherwise -1
+     */
+    int listObjects(List & list, const Table &table) const;
 #endif
 
     /** @} *******************************************************************/
@@ -2478,6 +2577,29 @@ public:
      * NOTE: Requires a started schema transaction
      */
     int prepareHashMap(const Table& oldTable, Table& newTable);
+
+    /** @} *******************************************************************/
+
+    /** @} *******************************************************************/
+    /**
+     * @name ForeignKey
+     * @{
+     */
+
+    /**
+     * Create a ForeignKey in database
+     */
+    int createForeignKey(const ForeignKey&, ObjectId* = 0);
+
+    /**
+     * Get a ForeignKey by name
+     */
+    int getForeignKey(ForeignKey& dst, const char* name);
+
+    /**
+     * Drop a ForeignKey
+     */
+    int dropForeignKey(const ForeignKey&);
 
     /** @} *******************************************************************/
 
