@@ -3232,8 +3232,8 @@ btr_cur_add_path_info(
 	ulint		root_height)	/*!< in: root node height in tree */
 {
 	btr_path_t*	slot;
-	rec_t*		rec;
-	page_t*		page;
+	const rec_t*	rec;
+	const page_t*	page;
 
 	ut_a(cursor->path_arr);
 
