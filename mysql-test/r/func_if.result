@@ -186,3 +186,20 @@ MAX(IFNULL(CAST(c AS UNSIGNED), 0))
 12345678901234567890
 DROP TABLE t1;
 End of 5.0 tests
+#
+# LP bug#998321 Simple query with IF expression causes an
+# assertion abort (see also mysql Bug#12620084)
+#
+SELECT if(0, (SELECT min('hello')), NULL);
+if(0, (SELECT min('hello')), NULL)
+NULL
+SELECT if(1, (SELECT min('hello')), NULL);
+if(1, (SELECT min('hello')), NULL)
+hello
+SELECT if(0, NULL, (SELECT min('hello')));
+if(0, NULL, (SELECT min('hello')))
+hello
+SELECT if(1, NULL, (SELECT min('hello')));
+if(1, NULL, (SELECT min('hello')))
+NULL
+End of 5.2 tests
