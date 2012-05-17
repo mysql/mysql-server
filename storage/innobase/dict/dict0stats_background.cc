@@ -72,7 +72,7 @@ dict_stats_enqueue_table_for_auto_recalc(
 /*=====================================*/
 	const dict_table_t*	table)	/*!< in: table */
 {
-#if 0 /* background stats gathering currently disabled due to locking issues */
+#if 1 /* background stats gathering currently disabled due to locking issues */
 	mutex_enter(&auto_recalc_mutex);
 
 	/* search if already in the list */
