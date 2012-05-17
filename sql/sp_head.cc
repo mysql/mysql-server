@@ -459,10 +459,9 @@ bool sp_head::execute(THD *thd, bool merge_da_on_success)
     14k bytes accordingly. Hence, here we book the stack with some
     reasonable margin.
 
-    Reverting back to 8 * STACK_MIN_SIZE until further fix.
-    8 * STACK_MIN_SIZE is required on some exotic platforms.
+    9 * STACK_MIN_SIZE is required on some exotic platforms.
   */
-  if (check_stack_overrun(thd, 8 * STACK_MIN_SIZE, (uchar*)&old_packet))
+  if (check_stack_overrun(thd, 9 * STACK_MIN_SIZE, (uchar*)&old_packet))
     return true;
 
   opt_trace_disable_if_no_security_context_access(thd);
