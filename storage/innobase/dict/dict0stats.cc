@@ -2563,7 +2563,10 @@ dict_stats_update(
 	switch (stats_upd_option) {
 	case DICT_STATS_RECALC_PERSISTENT:
 		/* Persistent recalculation requested, called from
-		ANALYZE TABLE */
+		+ ANALYZE TABLE
+		+ the auto recalculation background thread
+		+ open table if stats do not exist on disk and auto recalc
+		  is enabled */
 
 		/* InnoDB internal tables (e.g. SYS_TABLES) cannot have
 		persistent stats enabled */
@@ -2690,21 +2693,48 @@ dict_stats_update(
 
 		ret = dict_stats_fetch_from_ps(table, caller_has_dict_sys_mutex);
 
-		if (ret == DB_SUCCESS) {
+		switch (ret) {
+		case DB_SUCCESS:
 			return(DB_SUCCESS);
+		case DB_STATS_DO_NOT_EXIST:
+			if (dict_stats_auto_recalc_is_enabled(table)) {
+				return(dict_stats_update(
+						table,
+						DICT_STATS_RECALC_PERSISTENT,
+						caller_has_dict_sys_mutex));
+			}
+			/* else */
+
+			ut_format_name(table->name, TRUE, buf, sizeof(buf));
+			ut_print_timestamp(stderr);
+			fprintf(stderr,
+				" InnoDB: Trying to use table %s which has "
+				"persistent statistics enabled, but auto "
+				"recalculation turned off and the statistics "
+				"do not exist in %s and %s. Please either run "
+				"\"ANALYZE TABLE %s;\" manually or enable the "
+				"auto recalculation with "
+				"\"ALTER TABLE %s STATS_AUTO_RECALC=1;\". "
+				"InnoDB will now use transient statistics for "
+				"%s.\n",
+				buf, TABLE_STATS_NAME, INDEX_STATS_NAME, buf,
+				buf, buf);
+
+			goto transient;
+		default:
+			ut_print_timestamp(stderr);
+			fprintf(stderr,
+				" InnoDB: Error fetching persistent statistics "
+				"for table %s from %s and %s: %s. "
+				"Using transient stats method instead.\n",
+				ut_format_name(table->name, TRUE, buf,
+					       sizeof(buf)),
+				TABLE_STATS_NAME,
+				INDEX_STATS_NAME,
+				ut_strerr(ret));
+
+			goto transient;
 		}
-		/* else */
-
-		ut_print_timestamp(stderr);
-		fprintf(stderr,
-			" InnoDB: Fetch of persistent statistics "
-			"requested for table %s but the statistics do not "
-			"exist. Please ANALYZE the table. "
-			"Using transient stats instead.\n",
-			ut_format_name(table->name, TRUE, buf, sizeof(buf)));
-
-		goto transient;
-
 	/* no "default:" in order to produce a compilation warning
 	about unhandled enumeration value */
 	}
