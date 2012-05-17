@@ -1433,61 +1433,6 @@ row_upd_changes_fts_column(
 }
 
 /***********************************************************//**
-Checks if an update vector changes the table's FTS-indexed columns.
-NOTE: must not be called for tables which do not have an FTS-index.
-Also, the vector returned must be explicitly freed as it's allocated
-using the ut_malloc() allocator.
-@return vector of FTS indexes that were affected by the update */
-UNIV_INTERN
-ib_vector_t*
-row_upd_changes_fts_columns(
-/*========================*/
-	dict_table_t*	table,		/*!< in: table */
-	upd_t*		update)		/*!< in: update vector for the row */
-{
-	ulint		i;
-	ulint		offset;
-	fts_t*		fts = table->fts;
-	ib_vector_t*	updated_fts_indexes = NULL;
-
-	for (i = 0; i < upd_get_n_fields(update); ++i) {
-		upd_field_t*	upd_field = upd_get_nth_field(update, i);
-
-		offset = row_upd_changes_fts_column(table, upd_field);
-
-		if (offset != ULINT_UNDEFINED) {
-
-			dict_index_t*	index;
-
-			/* TODO: Investigate if we can check whether the
-			existing set of affected indexes matches the new
-			affected set. If matched then we don't need to
-			do the extra malloc()/free(). */
-
-			/* This vector is created from the ut_malloc()
-			allocator because we only want to keep one instance
-			around not matter how many times this row is
-			updated. The old entry should be deleted when
-			we update the FTS row info with this new vector. */
-			if (updated_fts_indexes == NULL) {
-				ib_alloc_t*	ut_alloc;
-
-				ut_alloc = ib_ut_allocator_create();
-
-				updated_fts_indexes = ib_vector_create(
-					ut_alloc, sizeof(dict_index_t*), 2);
-			}
-
-			index = static_cast<dict_index_t*>(
-				ib_vector_getp(fts->indexes, offset));
-			ib_vector_push(updated_fts_indexes, &index);
-		}
-	}
-
-	return(updated_fts_indexes);
-}
-
-/***********************************************************//**
 Checks if an update vector changes some of the first ordering fields of an
 index record. This is only used in foreign key checks and we can assume
 that index does not contain column prefixes.

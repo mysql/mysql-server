@@ -325,18 +325,6 @@ row_upd_changes_doc_id(
 	upd_field_t*	upd_field)	/*!< in: field to check */
 	__attribute__((nonnull, warn_unused_result));
 /***********************************************************//**
-Checks if an update vector changes the table's FTS-indexed columns.
-NOTE: must not be called for tables which do not have an FTS-index.
-Also, the vector returned must be explicitly freed as it's allocated
-using the ut_malloc() allocator.
-@return vector of FTS indexes that were affected by the update else NULL */
-UNIV_INTERN
-ib_vector_t*
-row_upd_changes_fts_columns(
-/*========================*/
-	dict_table_t*	table,		/*!< in: table */
-	upd_t*		update);	/*!< in: update vector for the row */
-/***********************************************************//**
 Checks if an update vector changes an ordering field of an index record.
 This function is fast if the update vector is short or the number of ordering
 fields in the index is small. Otherwise, this can be quadratic.
