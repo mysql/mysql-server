@@ -3662,7 +3662,10 @@ retry:
 		}
 	}
 
-	while (table->in_bg_stat_processing) {
+	/* Wait for background stats to finish using the table and
+	instruct it to do so earlier */
+	while (table->stats_bg_flag & BG_STAT_IN_PROGRESS) {
+		table->stats_bg_flag |= BG_STAT_SHOULD_QUIT;
 		row_mysql_unlock_data_dictionary(trx);
 		os_thread_sleep(250000);
 		row_mysql_lock_data_dictionary(trx);

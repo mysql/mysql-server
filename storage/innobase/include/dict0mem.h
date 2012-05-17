@@ -794,11 +794,21 @@ struct dict_table_struct{
 				calculation; this counter is not protected by
 				any latch, because this is only used for
 				heuristics */
-	ibool		in_bg_stat_processing;
-				/*!< This is set to TRUE when the background
+#define BG_STAT_NONE		0
+#define BG_STAT_IN_PROGRESS	(1 << 0)
+				/*!< BG_STAT_IN_PROGRESS is set in
+				stats_bg_flag when the background
 				stats code is working on this table. The DROP
-				table code waits for this to become FALSE
+				TABLE code waits for this to be cleared
 				before proceeding. */
+#define BG_STAT_SHOULD_QUIT	(1 << 1)
+				/*!< BG_STAT_SHOULD_QUIT is set in
+				stats_bg_flag when DROP TABLE starts
+				waiting on BG_STAT_IN_PROGRESS to be cleared,
+				the background stats thread will detect this
+				and will eventually quit sooner */
+	char		stats_bg_flag;
+				/*!< see BG_STAT_* above */
 				/* @} */
 	/*----------------------*/
 				/**!< The following fields are used by the
