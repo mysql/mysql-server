@@ -445,7 +445,7 @@ void lex_start(THD *thd)
   lex->sphead= NULL;
   lex->set_sp_current_parsing_ctx(NULL);
   lex->m_sql_cmd= NULL;
-  lex->proc_list.first= 0;
+  lex->proc_analyse= NULL;
   lex->escape_used= FALSE;
   lex->query_tables= 0;
   lex->reset_query_tables_list(FALSE);

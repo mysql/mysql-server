@@ -115,6 +115,7 @@ When one supplies long data for a placeholder:
 #endif
 #include "lock.h"                               // MYSQL_OPEN_FORCE_SHARED_MDL
 #include "opt_trace.h"                          // Opt_trace_object
+#include "sql_analyse.h"
 
 #include <algorithm>
 using std::max;
@@ -1507,17 +1508,27 @@ static int mysql_test_select(Prepared_statement *stmt,
     /* Make copy of item list, as change_columns may change it */
     List<Item> fields(lex->select_lex.item_list);
 
-    /* Change columns if a procedure like analyse() */
-    if (unit->last_procedure && unit->last_procedure->change_columns(fields))
-      goto error;
+    select_result *result= lex->result;
+    select_result *analyse_result= NULL;
+    if (lex->proc_analyse)
+    {
+      /*
+        We need proper output recordset metadata for SELECT ... PROCEDURE ANALUSE()
+      */
+      if ((result= analyse_result=
+             new select_analyse(result, lex->proc_analyse)) == NULL)
+        goto error; // OOM
+    }
 
     /*
-      We can use lex->result as it should've been prepared in
+      We can use "result" as it should've been prepared in
       unit->prepare call above.
     */
-    if (send_prep_stmt(stmt, lex->result->field_count(fields)) ||
-        lex->result->send_result_set_metadata(fields, Protocol::SEND_EOF) ||
-        thd->protocol->flush())
+    bool rc= (send_prep_stmt(stmt, result->field_count(fields)) ||
+              result->send_result_set_metadata(fields, Protocol::SEND_EOF) ||
+              thd->protocol->flush());
+    delete analyse_result;
+    if (rc)
       goto error;
     DBUG_RETURN(2);
   }
