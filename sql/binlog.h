@@ -470,7 +470,7 @@ private:
   std::pair<int,my_off_t> flush_thread_caches(THD *thd);
   int flush_cache_to_file(my_off_t *flush_end_pos);
   int finish_commit(THD *thd);
-  int sync_binlog_file(my_off_t end_pos, bool *synced_var);
+  int sync_binlog_file(bool force, bool *synced);
   void process_commit_stage_queue(THD *thd, THD *queue, int flush_error);
   int process_flush_stage_queue(my_off_t *total_bytes_var, bool *rotate_var,
                                 THD **out_queue_var);
@@ -489,7 +489,6 @@ public:
   void update_thd_next_event_pos(THD *thd);
   int flush_and_set_pending_rows_event(THD *thd, Rows_log_event* event,
                                        bool is_transactional);
-  int remove_pending_rows_event(THD *thd, bool is_transactional);
 
 #endif /* !defined(MYSQL_CLIENT) */
   void add_bytes_written(ulonglong inc)
@@ -588,7 +587,7 @@ public:
      @retval 0 Success
      @retval other Failure
   */
-  bool flush_and_sync(bool *synced, const bool force=FALSE);
+  bool flush_and_sync(const bool force= false);
   int purge_logs(const char *to_log, bool included,
                  bool need_mutex, bool need_update_threads,
                  ulonglong *decrease_log_space);
