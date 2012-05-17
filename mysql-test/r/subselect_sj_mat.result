@@ -1197,8 +1197,8 @@ set @@optimizer_switch=@optimizer_switch_local_default;
 set @@optimizer_switch='materialization=off,in_to_exists=on';
 explain select min(a1) from t1 where 7 in (select max(b1) from t2 group by b1);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	
-2	DEPENDENT SUBQUERY	t2	system	NULL	NULL	NULL	NULL	0	const row not found
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 select min(a1) from t1 where 7 in (select max(b1) from t2 group by b1);
 min(a1)
 NULL
@@ -1206,8 +1206,8 @@ set @@optimizer_switch=@optimizer_switch_local_default;
 set @@optimizer_switch='semijoin=off';
 explain select min(a1) from t1 where 7 in (select b1 from t2);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	
-2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 select min(a1) from t1 where 7 in (select b1 from t2);
 min(a1)
 NULL
@@ -1223,8 +1223,8 @@ NULL
 # but when we go around MWL#90 code, the problem still shows up:
 explain select min(a1) from t1 where 7 in (select b1 from t2) or 2> 4;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	
-2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 select min(a1) from t1 where 7 in (select b1 from t2) or 2> 4;
 min(a1)
 NULL
@@ -1971,7 +1971,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	
 1	PRIMARY	t2	index	c	c	5	NULL	8	Using index
 1	PRIMARY	<subquery2>	eq_ref	distinct_key	distinct_key	8	func,func	1	
-2	MATERIALIZED	s2	ref	d	d	4	const	1	Using where; Using index
+2	MATERIALIZED	s2	ref	d	d	4	const	2	Using where; Using index
 2	MATERIALIZED	s1	ALL	c	NULL	NULL	NULL	8	Using where; Using join buffer (flat, BNL join)
 3	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	8	
 SELECT a, c FROM t1, t2
@@ -1991,8 +1991,8 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	
 1	PRIMARY	t2	index	c	c	5	NULL	8	Using index
 1	PRIMARY	<subquery2>	eq_ref	distinct_key	distinct_key	8	func,func	1	
-2	MATERIALIZED	s2	ref	d	d	4	const	1	Using where; Using index
-2	MATERIALIZED	s1	hash_ALL	c	#hash#$hj	10	const,test.s2.d	8	Using where; Using join buffer (flat, BNLH join)
+2	MATERIALIZED	s2	ref	d	d	4	const	2	Using where; Using index
+2	MATERIALIZED	s1	hash_ALL	c	#hash#$hj	5	const	8	Using where; Using join buffer (flat, BNLH join)
 3	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	8	
 SELECT a, c FROM t1, t2
 WHERE (a, c) IN (SELECT s1.b, s1.c FROM t2 AS s1, t2 AS s2

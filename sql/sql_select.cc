@@ -986,7 +986,10 @@ JOIN::optimize()
   }
   
   eval_select_list_used_tables();
-  
+
+  if (optimize_constant_subqueries())
+    DBUG_RETURN(1);
+
   table_count= select_lex->leaf_tables.elements;
 
   if (setup_ftfuncs(select_lex)) /* should be after having->fix_fields */
@@ -1273,6 +1276,12 @@ JOIN::optimize()
   {
     conds= substitute_for_best_equal_field(NO_PARTICULAR_TAB, conds, 
                                            cond_equal, map2table);
+    if (thd->is_error())
+    {
+      error= 1;
+      DBUG_PRINT("error",("Error from substitute_for_best_equal"));
+      DBUG_RETURN(1);
+    }
     conds->update_used_tables();
     DBUG_EXECUTE("where",
                  print_where(conds,
@@ -1293,6 +1302,12 @@ JOIN::optimize()
                                                          *tab->on_expr_ref,
                                                          tab->cond_equal,
                                                          map2table);
+      if (thd->is_error())
+      {
+        error= 1;
+        DBUG_PRINT("error",("Error from substitute_for_best_equal"));
+        DBUG_RETURN(1);
+      }
       (*tab->on_expr_ref)->update_used_tables();
     }
   }
@@ -6592,6 +6607,33 @@ void JOIN::get_prefix_cost_and_fanout(uint n_tables,
 
 
 /**
+  Estimate the number of rows that query execution will read.
+
+  @todo This is a very pessimistic upper bound. Use join selectivity
+  when available to produce a more realistic number.
+*/
+
+double JOIN::get_examined_rows()
+{
+  /* Each constant table examines one row, and the result is at most one row. */
+  ha_rows examined_rows= const_tables;
+  uint i= const_tables;
+  double prev_fanout= 1;
+
+  if (table_count == const_tables)
+    return examined_rows;
+
+  examined_rows+= join_tab[i++].get_examined_rows();
+  for (; i < table_count ; i++)
+  {
+    prev_fanout *= best_positions[i-1].records_read;
+    examined_rows+= join_tab[i].get_examined_rows() * prev_fanout;
+  }
+  return examined_rows;
+}
+
+
+/**
   Find a good, possibly optimal, query execution plan (QEP) by a possibly
   exhaustive search.
 
@@ -8011,36 +8053,15 @@ JOIN::make_simple_join(JOIN *parent, TABLE *temp_table)
   row_limit= unit->select_limit_cnt;
   do_send_rows= row_limit ? 1 : 0;
 
-  join_tab->use_join_cache= FALSE;
-  join_tab->cache=0;			        /* No caching */
+  bzero(join_tab, sizeof(JOIN_TAB));
   join_tab->table=temp_table;
-  join_tab->cache_select= 0;
-  join_tab->select=0;
-  join_tab->select_cond= 0;                     // Avoid valgrind warning
   join_tab->set_select_cond(NULL, __LINE__);
-  join_tab->quick=0;
   join_tab->type= JT_ALL;			/* Map through all records */
   join_tab->keys.init();
   join_tab->keys.set_all();                     /* test everything in quick */
-  join_tab->info=0;
-  join_tab->on_expr_ref=0;
-  join_tab->last_inner= 0;
-  join_tab->first_unmatched= 0;
   join_tab->ref.key = -1;
-  join_tab->not_used_in_distinct=0;
   join_tab->read_first_record= join_init_read_record;
-  join_tab->preread_init_done= FALSE;
   join_tab->join= this;
-  join_tab->ref.key_parts= 0;
-  join_tab->keep_current_rowid= FALSE;
-  join_tab->flush_weedout_table= join_tab->check_weed_out_table= NULL;
-  join_tab->do_firstmatch= NULL;
-  join_tab->loosescan_match_tab= NULL;
-  join_tab->emb_sj_nest= NULL;
-  join_tab->pre_idx_push_select_cond= NULL;
-  join_tab->bush_root_tab= NULL;
-  join_tab->bush_children= NULL;
-  join_tab->last_leaf_in_bush= FALSE;
   bzero((char*) &join_tab->read_record,sizeof(join_tab->read_record));
   temp_table->status=0;
   temp_table->null_row=0;
@@ -10225,6 +10246,51 @@ double JOIN_TAB::scan_time()
   return res;
 }
 
+
+/**
+  Estimate the number of rows that a an access method will read from a table.
+
+  @todo: why not use JOIN_TAB::found_records
+*/
+
+ha_rows JOIN_TAB::get_examined_rows()
+{
+  ha_rows examined_rows;
+
+  if (select && select->quick)
+    examined_rows= select->quick->records;
+  else if (type == JT_NEXT || type == JT_ALL ||
+           type == JT_HASH || type ==JT_HASH_NEXT)
+  {
+    if (limit)
+    {
+      /*
+        @todo This estimate is wrong, a LIMIT query may examine much more rows
+        than the LIMIT itself.
+      */
+      examined_rows= limit;
+    }
+    else
+    {
+      if (table->is_filled_at_execution())
+        examined_rows= records;
+      else
+      {
+        /*
+          handler->info(HA_STATUS_VARIABLE) has been called in
+          make_join_statistics()
+        */
+        examined_rows= table->file->stats.records;
+      }
+    }
+  }
+  else
+    examined_rows= (ha_rows) records_read; 
+
+  return examined_rows;
+}
+
+
 /**
   Initialize the join_tab before reading.
   Currently only derived table/view materialization is done here.
@@ -11204,9 +11270,9 @@ static bool check_simple_equality(Item *left_item, Item *right_item,
         if (!item)
         {
           Item_func_eq *eq_item;
-          if ((eq_item= new Item_func_eq(orig_left_item, orig_right_item)))
+          if (!(eq_item= new Item_func_eq(orig_left_item, orig_right_item)) ||
+              eq_item->set_cmp_func())
             return FALSE;
-          eq_item->set_cmp_func();
           eq_item->quick_fix_field();
           item= eq_item;
         }  
@@ -11299,9 +11365,9 @@ static bool check_row_equality(THD *thd, Item *left_row, Item_row *right_row,
     if (!is_converted)
     {
       Item_func_eq *eq_item;
-      if (!(eq_item= new Item_func_eq(left_item, right_item)))
+      if (!(eq_item= new Item_func_eq(left_item, right_item)) ||
+          eq_item->set_cmp_func())
         return FALSE;
-      eq_item->set_cmp_func();
       eq_item->quick_fix_field();
       eq_list->push_back(eq_item);
     }
@@ -11987,9 +12053,8 @@ Item *eliminate_item_equal(COND *cond, COND_EQUAL *upper_levels,
       
       eq_item= new Item_func_eq(field_item->real_item(), head_item);
 
-      if (!eq_item)
+      if (!eq_item || eq_item->set_cmp_func())
         return 0;
-      eq_item->set_cmp_func();
       eq_item->quick_fix_field();
     }
     current_sjm= field_sjm;
@@ -12076,7 +12141,7 @@ Item *eliminate_item_equal(COND *cond, COND_EQUAL *upper_levels,
        Item_equal::get_first() for details.
 
   @return
-    The transformed condition
+    The transformed condition, or NULL in case of error
 */
 
 static COND* substitute_for_best_equal_field(JOIN_TAB *context_tab,
@@ -18544,6 +18609,7 @@ check_reverse_order:
           tab->ref.key_parts= 0;
           if (select_limit < table->file->stats.records)
             tab->limit= select_limit;
+          table->disable_keyread();
         }
       }
       else if (tab->type != JT_ALL)
@@ -21269,10 +21335,17 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
       }
       else
       {
-        TABLE_LIST *real_table= table->pos_in_table_list; 
-	item_list.push_back(new Item_string(real_table->alias,
-					    strlen(real_table->alias),
-					    cs));
+        TABLE_LIST *real_table= table->pos_in_table_list;
+        /*
+          Internal temporary tables have no corresponding table reference
+          object. Such a table may appear in EXPLAIN when a subquery that needs
+          a temporary table has been executed, and JOIN::exec replaced the
+          original JOIN with a plan to access the data in the temp table
+          (made by JOIN::make_simple_join).
+        */
+        const char *tab_name= real_table ? real_table->alias :
+                                           "internal_tmp_table";
+	item_list.push_back(new Item_string(tab_name, strlen(tab_name), cs));
       }
       /* "partitions" column */
       if (join->thd->lex->describe & DESCRIBE_PARTITIONS)
@@ -21430,32 +21503,8 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
       }
       else
       {
-        ha_rows examined_rows;
-        if (tab->select && tab->select->quick)
-          examined_rows= tab->select->quick->records;
-        else if (tab->type == JT_NEXT || tab->type == JT_ALL || is_hj)
-        {
-          if (tab->limit)
-            examined_rows= tab->limit;
-          else
-          {
-            if (tab->table->is_filled_at_execution())
-            {
-              examined_rows= tab->records;
-            }
-            else
-            {
-              /*
-                handler->info(HA_STATUS_VARIABLE) has been called in
-                make_join_statistics()
-              */
-              examined_rows= tab->table->file->stats.records;
-            }
-          }
-        }
-        else
-          examined_rows=(ha_rows)tab->records_read; 
- 
+        ha_rows examined_rows= tab->get_examined_rows();
+
         item_list.push_back(new Item_int((longlong) (ulonglong) examined_rows, 
                                          MY_INT64_NUM_DECIMAL_DIGITS));
 

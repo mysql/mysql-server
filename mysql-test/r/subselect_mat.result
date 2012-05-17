@@ -1152,8 +1152,8 @@ create table t2 (b1 int);
 insert into t1 values (5);
 explain select min(a1) from t1 where 7 in (select max(b1) from t2 group by b1);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	
-2	MATERIALIZED	t2	system	NULL	NULL	NULL	NULL	0	const row not found
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+2	MATERIALIZED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 select min(a1) from t1 where 7 in (select max(b1) from t2 group by b1);
 min(a1)
 NULL
@@ -1162,8 +1162,8 @@ set @@optimizer_switch=@optimizer_switch_local_default;
 set @@optimizer_switch='materialization=off,in_to_exists=on';
 explain select min(a1) from t1 where 7 in (select max(b1) from t2 group by b1);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	
-2	DEPENDENT SUBQUERY	t2	system	NULL	NULL	NULL	NULL	0	const row not found
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 select min(a1) from t1 where 7 in (select max(b1) from t2 group by b1);
 min(a1)
 NULL
@@ -1171,8 +1171,8 @@ set @@optimizer_switch=@optimizer_switch_local_default;
 set @@optimizer_switch='semijoin=off';
 explain select min(a1) from t1 where 7 in (select b1 from t2);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	
-2	MATERIALIZED	t2	system	NULL	NULL	NULL	NULL	0	const row not found
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+2	MATERIALIZED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 select min(a1) from t1 where 7 in (select b1 from t2);
 min(a1)
 NULL
@@ -1181,16 +1181,16 @@ set @@optimizer_switch='materialization=off,in_to_exists=on';
 # with MariaDB and MWL#90, this particular case is solved:
 explain select min(a1) from t1 where 7 in (select b1 from t2);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	
-2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 select min(a1) from t1 where 7 in (select b1 from t2);
 min(a1)
 NULL
 # but when we go around MWL#90 code, the problem still shows up:
 explain select min(a1) from t1 where 7 in (select b1 from t2) or 2> 4;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	
-2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 select min(a1) from t1 where 7 in (select b1 from t2) or 2> 4;
 min(a1)
 NULL
@@ -1932,7 +1932,7 @@ WHERE s2.d = s1.e AND s1.e = (SELECT MAX(e) FROM t2));
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	
 1	PRIMARY	t2	index	NULL	c	5	NULL	8	Using where; Using index
-2	MATERIALIZED	s2	ref	d	d	4	const	1	Using where; Using index
+2	MATERIALIZED	s2	ref	d	d	4	const	2	Using where; Using index
 2	MATERIALIZED	s1	ALL	NULL	NULL	NULL	NULL	8	Using where; Using join buffer (flat, BNL join)
 3	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	8	
 SELECT a, c FROM t1, t2
@@ -1951,8 +1951,8 @@ WHERE s2.d = s1.e AND s1.e = (SELECT MAX(e) FROM t2));
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	
 1	PRIMARY	t2	index	NULL	c	5	NULL	8	Using where; Using index
-2	MATERIALIZED	s2	ref	d	d	4	const	1	Using where; Using index
-2	MATERIALIZED	s1	hash_ALL	NULL	#hash#$hj	5	test.s2.d	8	Using where; Using join buffer (flat, BNLH join)
+2	MATERIALIZED	s2	ref	d	d	4	const	2	Using where; Using index
+2	MATERIALIZED	s1	ALL	NULL	NULL	NULL	NULL	8	Using where; Using join buffer (flat, BNL join)
 3	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	8	
 SELECT a, c FROM t1, t2
 WHERE (a, c) IN (SELECT s1.b, s1.c FROM t2 AS s1, t2 AS s2
@@ -2153,7 +2153,7 @@ set @@optimizer_switch='materialization=on,partial_match_rowid_merge=on,partial_
 EXPLAIN
 SELECT * FROM t2 WHERE (SELECT f3a FROM t3) NOT IN (SELECT f1a FROM t1);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	2	
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 3	MATERIALIZED	t1	ALL	NULL	NULL	NULL	NULL	2	
 2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 SELECT * FROM t2 WHERE (SELECT f3a FROM t3) NOT IN (SELECT f1a FROM t1);
@@ -2222,10 +2222,10 @@ NULL
 EXPLAIN EXTENDED
 SELECT MAX(t1.b) AS max_res FROM t1 WHERE (9) IN (SELECT a FROM t2);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1	index	NULL	b	5	NULL	2	100.00	Using index
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
 2	MATERIALIZED	t2	ALL	NULL	NULL	NULL	NULL	2	100.00	
 Warnings:
-Note	1003	select max(`test`.`t1`.`b`) AS `max_res` from `test`.`t1` where <expr_cache><9>(<in_optimizer>(9,9 in ( <materialize> (select `test`.`t2`.`a` from `test`.`t2` ), <primary_index_lookup>(9 in <temporary table> on distinct_key where ((9 = `<subquery2>`.`a`))))))
+Note	1003	select max(`test`.`t1`.`b`) AS `max_res` from `test`.`t1` where 0
 set @@optimizer_switch='materialization=off,in_to_exists=on,semijoin=off';
 SELECT MAX(t1.b) AS max_res FROM t1 WHERE (9) IN (SELECT a FROM t2);
 max_res
@@ -2233,10 +2233,10 @@ NULL
 EXPLAIN EXTENDED
 SELECT MAX(t1.b) AS max_res FROM t1 WHERE (9) IN (SELECT a FROM t2);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1	index	NULL	b	5	NULL	2	100.00	Using index
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
 2	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
 Warnings:
-Note	1003	select max(`test`.`t1`.`b`) AS `max_res` from `test`.`t1` where <expr_cache><9>(<in_optimizer>(9,<exists>(select `test`.`t2`.`a` from `test`.`t2` where (9 = `test`.`t2`.`a`))))
+Note	1003	select max(`test`.`t1`.`b`) AS `max_res` from `test`.`t1` where 0
 DROP TABLE t1,t2;
 #
 # LPBUG#825095: Wrong result with materialization and NOT IN with 2 expressions

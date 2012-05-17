@@ -159,6 +159,10 @@ The following options may be given as the first argument:
  Enable the event scheduler. Possible values are ON, OFF,
  and DISABLED (keep the event scheduler completely
  deactivated, it cannot be activated run-time)
+ --expensive-subquery-limit=# 
+ The maximum number of rows a subquery may examine in
+ order to be executed during optimization and used for
+ constant optimization
  --expire-logs-days=# 
  If non-zero, binary logs will be purged after
  expire_logs_days days; possible purges happen at startup
@@ -885,6 +889,7 @@ delayed-queue-size 1000
 div-precision-increment 4
 engine-condition-pushdown FALSE
 event-scheduler OFF
+expensive-subquery-limit 100
 expire-logs-days 0
 external-locking FALSE
 extra-max-connections 1

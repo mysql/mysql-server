@@ -3405,7 +3405,23 @@ bool st_select_lex::add_index_hint (THD *thd, char *str, uint length)
 }
 
 
-bool st_select_lex::optimize_unflattened_subqueries()
+/**
+  Optimize all subqueries that have not been flattened into semi-joins.
+
+  @details
+  This functionality is a method of SELECT_LEX instead of JOIN because
+  SQL statements as DELETE/UPDATE do not have a corresponding JOIN object.
+
+  @see JOIN::optimize_unflattened_subqueries
+
+  @param const_only  Restrict subquery optimization to constant subqueries
+
+  @return Operation status
+  @retval FALSE     success.
+  @retval TRUE      error occurred.
+*/
+
+bool st_select_lex::optimize_unflattened_subqueries(bool const_only)
 {
   for (SELECT_LEX_UNIT *un= first_inner_unit(); un; un= un->next_unit())
   {
@@ -3415,9 +3431,15 @@ bool st_select_lex::optimize_unflattened_subqueries()
     {
       if (subquery_predicate->substype() == Item_subselect::IN_SUBS)
       {
-        Item_in_subselect *in_subs=(Item_in_subselect*)subquery_predicate;
+        Item_in_subselect *in_subs= (Item_in_subselect*) subquery_predicate;
         if (in_subs->is_jtbm_merged)
           continue;
+      }
+
+      if (const_only && !subquery_predicate->const_item())
+      {
+        /* Skip non-constant subqueries if the caller asked so. */
+        continue;
       }
 
       bool empty_union_result= true;

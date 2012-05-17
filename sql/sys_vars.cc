@@ -3780,4 +3780,9 @@ static Sys_var_ulong Sys_debug_binlog_fsync_sleep(
        CMD_LINE(REQUIRED_ARG),
        VALID_RANGE(0, UINT_MAX), DEFAULT(0), BLOCK_SIZE(1));
 #endif
-
+static Sys_var_harows Sys_expensive_subquery_limit(
+       "expensive_subquery_limit",
+       "The maximum number of rows a subquery may examine in order to be "
+       "executed during optimization and used for constant optimization",
+       SESSION_VAR(expensive_subquery_limit), CMD_LINE(REQUIRED_ARG),
+       VALID_RANGE(0, HA_POS_ERROR), DEFAULT(100), BLOCK_SIZE(1));
