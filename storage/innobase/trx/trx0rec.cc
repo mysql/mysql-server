@@ -1205,6 +1205,7 @@ trx_undo_report_row_operation(
 	const rec_t*	rec,		/*!< in: in case of an update or delete
 					marking, the record in the clustered
 					index, otherwise NULL */
+	const ulint*	offsets,	/*!< in: rec_get_offsets(rec) */
 	roll_ptr_t*	roll_ptr)	/*!< out: rollback pointer to the
 					inserted undo log record,
 					0 if BTR_NO_UNDO_LOG
@@ -1217,15 +1218,12 @@ trx_undo_report_row_operation(
 	trx_rseg_t*	rseg;
 	mtr_t		mtr;
 	dberr_t		err		= DB_SUCCESS;
-	mem_heap_t*	heap		= NULL;
-	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
-	ulint*		offsets		= offsets_;
 #ifdef UNIV_DEBUG
 	int		loop_count	= 0;
 #endif /* UNIV_DEBUG */
-	rec_offs_init(offsets_);
 
 	ut_a(dict_index_is_clust(index));
+	ut_ad(!rec || rec_offs_validate(rec, index, offsets));
 
 	if (flags & BTR_NO_UNDO_LOG_FLAG) {
 
@@ -1291,8 +1289,6 @@ trx_undo_report_row_operation(
 		}
 
 		ut_ad(err == DB_SUCCESS);
-		offsets = rec_get_offsets(rec, index, offsets,
-					  ULINT_UNDEFINED, &heap);
 	}
 
 	page_no = undo->last_page_no;
@@ -1371,8 +1367,7 @@ trx_undo_report_row_operation(
 			*roll_ptr = trx_undo_build_roll_ptr(
 				op_type == TRX_UNDO_INSERT_OP,
 				rseg->id, page_no, offset);
-			err = DB_SUCCESS;
-			goto func_exit;
+			return(DB_SUCCESS);
 		}
 
 		ut_ad(page_no == undo->last_page_no);
@@ -1399,10 +1394,6 @@ trx_undo_report_row_operation(
 err_exit:
 	mutex_exit(&trx->undo_mutex);
 	mtr_commit(&mtr);
-func_exit:
-	if (UNIV_LIKELY_NULL(heap)) {
-		mem_heap_free(heap);
-	}
 	return(err);
 }
 

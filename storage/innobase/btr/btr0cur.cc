@@ -1139,7 +1139,7 @@ btr_cur_ins_lock_and_undo(
 
 	err = trx_undo_report_row_operation(flags, TRX_UNDO_INSERT_OP,
 					    thr, index, entry,
-					    NULL, 0, NULL,
+					    NULL, 0, NULL, NULL,
 					    &roll_ptr);
 	if (err != DB_SUCCESS) {
 
@@ -1626,23 +1626,19 @@ btr_cur_upd_lock_and_undo(
 	/* Check if we have to wait for a lock: enqueue an explicit lock
 	request if yes */
 
-	err = DB_SUCCESS;
+	mem_heap_t*	heap		= NULL;
+	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
+	ulint*		offsets;
+	rec_offs_init(offsets_);
+	offsets = rec_get_offsets(rec, index, offsets_,
+				  ULINT_UNDEFINED, &heap);
 
 	if (!(flags & BTR_NO_LOCKING_FLAG)) {
-		mem_heap_t*	heap		= NULL;
-		ulint		offsets_[REC_OFFS_NORMAL_SIZE];
-		rec_offs_init(offsets_);
-
 		err = lock_clust_rec_modify_check_and_lock(
 			flags, btr_cur_get_block(cursor), rec, index,
-			rec_get_offsets(rec, index, offsets_,
-					ULINT_UNDEFINED, &heap), thr);
-		if (UNIV_LIKELY_NULL(heap)) {
-			mem_heap_free(heap);
-		}
+			offsets, thr);
 		if (err != DB_SUCCESS) {
-
-			return(err);
+			goto func_exit;
 		}
 	}
 
@@ -1650,7 +1646,12 @@ btr_cur_upd_lock_and_undo(
 
 	err = trx_undo_report_row_operation(flags, TRX_UNDO_MODIFY_OP, thr,
 					    index, NULL, update,
-					    cmpl_info, rec, roll_ptr);
+					    cmpl_info, rec, offsets, roll_ptr);
+func_exit:
+	if (UNIV_LIKELY_NULL(heap)) {
+		mem_heap_free(heap);
+	}
+
 	return(err);
 }
 
@@ -2750,7 +2751,7 @@ btr_cur_del_mark_set_clust_rec(
 	}
 
 	err = trx_undo_report_row_operation(0, TRX_UNDO_MODIFY_OP, thr,
-					    index, NULL, NULL, 0, rec,
+					    index, NULL, NULL, 0, rec, offsets,
 					    &roll_ptr);
 	if (err != DB_SUCCESS) {
 
