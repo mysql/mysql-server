@@ -234,7 +234,7 @@ dict_stats_thread_init()
 
 	/* The auto_recalc_mutex is acquired from:
 	+ the background stats gathering thread before any other latch
- 	  and released without latching anything else in between (thus any
+	  and released without latching anything else in between (thus any
 	  level would do here)
 	+ from row_update_statistics_if_needed()
 	  and released without latching anything else in between. We know
