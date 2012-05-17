@@ -7108,3 +7108,42 @@ DROP FUNCTION f1;
 # ------------------------------------------------------------------
 # -- End of 5.1 tests
 # ------------------------------------------------------------------
+#
+# LP bug#993459 Execution of PS for a query with GROUP BY
+# returns wrong result (see also mysql bug#13805127)
+#
+CREATE PROCEDURE p1(x INT UNSIGNED)
+BEGIN
+SELECT c1, t2.c2, count(c3)
+FROM
+(
+SELECT 3 as c2 FROM dual WHERE x = 1
+UNION
+SELECT 2       FROM dual WHERE x = 1 OR x = 2
+) AS t1,
+(
+SELECT '2012-03-01 01:00:00' AS c1, 3 as c2, 1 as c3 FROM dual
+UNION
+SELECT '2012-03-01 02:00:00',       3,       2       FROM dual
+UNION
+SELECT '2012-03-01 01:00:00',       2,       1       FROM dual
+) AS t2
+WHERE t2.c2 = t1.c2
+GROUP BY c1, c2
+;
+END|
+
+CALL p1(1);
+c1	c2	count(c3)
+2012-03-01 01:00:00	2	1
+2012-03-01 01:00:00	3	1
+2012-03-01 02:00:00	3	1
+CALL p1(2);
+c1	c2	count(c3)
+2012-03-01 01:00:00	2	1
+CALL p1(1);
+c1	c2	count(c3)
+2012-03-01 01:00:00	2	1
+2012-03-01 01:00:00	3	1
+2012-03-01 02:00:00	3	1
+DROP PROCEDURE p1;
