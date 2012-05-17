@@ -650,9 +650,9 @@ dict_create_index_tree_step(
 	dict_index_t*	index;
 	dict_table_t*	sys_indexes;
 	dtuple_t*	search_tuple;
-	ulint		zip_size;
 	btr_pcur_t	pcur;
 	mtr_t		mtr;
+	dberr_t		err	= DB_SUCCESS;
 
 	ut_ad(mutex_own(&(dict_sys->mutex)));
 
@@ -679,12 +679,19 @@ dict_create_index_tree_step(
 
 	btr_pcur_move_to_next_user_rec(&pcur, &mtr);
 
-	zip_size = dict_table_zip_size(index->table);
-
-	node->page_no = btr_create(index->type, index->space, zip_size,
-				   index->id, index, &mtr);
-	/* printf("Created a new index tree in space %lu root page %lu\n",
-	index->space, node->page_no); */
+	if (index->table->ibd_file_missing
+	    || index->table->tablespace_discarded) {
+		node->page_no = FIL_NULL;
+		err = DB_TABLESPACE_DELETED;
+	} else {
+		ulint zip_size = dict_table_zip_size(index->table);
+		node->page_no = btr_create(index->type, index->space,
+					   zip_size, index->id,
+					   index, &mtr);
+		if (node->page_no == FIL_NULL) {
+			err = DB_OUT_OF_FILE_SPACE;
+		}
+	}
 
 	page_rec_write_field(btr_pcur_get_rec(&pcur),
 			     DICT_FLD__SYS_INDEXES__PAGE_NO,
@@ -692,12 +699,7 @@ dict_create_index_tree_step(
 	btr_pcur_close(&pcur);
 	mtr_commit(&mtr);
 
-	if (node->page_no == FIL_NULL) {
-
-		return(DB_OUT_OF_FILE_SPACE);
-	}
-
-	return(DB_SUCCESS);
+	return(err);
 }
 
 /*******************************************************************//**

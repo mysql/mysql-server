@@ -2817,7 +2817,8 @@ int SQL_SELECT::test_quick_select(THD *thd, key_map keys_to_use,
       {
         // Cannot return rows in descending order.
         if (thd->optimizer_switch_flag(OPTIMIZER_SWITCH_INDEX_MERGE) &&
-            interesting_order != ORDER::ORDER_DESC)
+            interesting_order != ORDER::ORDER_DESC &&
+            param.table->file->stats.records)
         {
           /* Try creating index_merge/ROR-union scan. */
           SEL_IMERGE *imerge;
@@ -4217,6 +4218,8 @@ TABLE_READ_PLAN *get_best_disjunct_quick(PARAM *param, SEL_IMERGE *imerge,
   double roru_intersect_part= 1.0;
   DBUG_ENTER("get_best_disjunct_quick");
   DBUG_PRINT("info", ("Full table scan cost: %g", read_time));
+
+  DBUG_ASSERT(param->table->file->stats.records);
 
   Opt_trace_context * const trace= &param->thd->opt_trace;
   Opt_trace_object trace_best_disjunct(trace);

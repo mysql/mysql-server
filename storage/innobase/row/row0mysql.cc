@@ -57,6 +57,8 @@ Created 9/17/2000 Heikki Tuuri
 #include "ibuf0ibuf.h"
 #include "fts0fts.h"
 #include "fts0types.h"
+#include "m_string.h"
+#include "my_sys.h"
 
 /** Provide optional 4.x backwards compatibility for 5.0 and above */
 UNIV_INTERN ibool	row_rollback_on_timeout	= FALSE;
@@ -1369,7 +1371,7 @@ error_exit:
 
 	que_thr_stop_for_mysql_no_error(thr, trx);
 
-	srv_stats.n_rows_inserted.add(trx->id, 1);
+	srv_stats.n_rows_inserted.add((size_t)trx->id, 1);
 
 	/* Not protected by dict_table_stats_lock() for performance
 	reasons, we would rather get garbage in stat_n_rows (which is
@@ -1644,6 +1646,8 @@ row_update_for_mysql(
 		return(DB_ERROR);
 	}
 
+	DEBUG_SYNC_C("innodb_row_update_for_mysql_begin");
+
 	trx->op_info = "updating or deleting";
 
 	row_mysql_delay_if_needed();
@@ -1739,9 +1743,9 @@ run_again:
 		with a latch. */
 		dict_table_n_rows_dec(prebuilt->table);
 
-		srv_stats.n_rows_deleted.add(trx->id, 1);
+		srv_stats.n_rows_deleted.add((size_t)trx->id, 1);
 	} else {
-		srv_stats.n_rows_updated.add(trx->id, 1);
+		srv_stats.n_rows_updated.add((size_t)trx->id, 1);
 	}
 
 	/* We update table statistics only if it is a DELETE or UPDATE
@@ -1963,9 +1967,9 @@ run_again:
 		with a latch. */
 		dict_table_n_rows_dec(table);
 
-		srv_stats.n_rows_deleted.add(trx->id, 1);
+		srv_stats.n_rows_deleted.add((size_t)trx->id, 1);
 	} else {
-		srv_stats.n_rows_updated.add(trx->id, 1);
+		srv_stats.n_rows_updated.add((size_t)trx->id, 1);
 	}
 
 	row_update_statistics_if_needed(table);
@@ -4296,6 +4300,7 @@ row_rename_table_for_mysql(
 	ulint		n_constraints_to_drop	= 0;
 	ibool		old_is_tmp, new_is_tmp;
 	pars_info_t*	info			= NULL;
+	int		retry;
 
 	ut_a(old_name != NULL);
 	ut_a(new_name != NULL);
@@ -4378,6 +4383,25 @@ row_rename_table_for_mysql(
 		if (err != DB_SUCCESS) {
 			goto funct_exit;
 		}
+	}
+
+	/* Is a foreign key check running on this table? */
+	for (retry = 0; retry < 100
+	     && table->n_foreign_key_checks_running > 0; ++retry) {
+		row_mysql_unlock_data_dictionary(trx);
+		os_thread_yield();
+		row_mysql_lock_data_dictionary(trx);
+	}
+
+	if (table->n_foreign_key_checks_running > 0) {
+		ut_print_timestamp(stderr);
+		fputs(" InnoDB: Error: in ALTER TABLE ", stderr);
+		ut_print_name(stderr, trx, TRUE, old_name);
+		fprintf(stderr, "\n"
+			"InnoDB: a FOREIGN KEY check is running.\n"
+			"InnoDB: Cannot rename table.\n");
+		err = DB_TABLE_IN_FK_CHECK;
+		goto funct_exit;
 	}
 
 	/* We use the private SQL parser of Innobase to generate the query

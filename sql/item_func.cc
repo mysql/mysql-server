@@ -55,10 +55,6 @@
 using std::min;
 using std::max;
 
-#ifdef NO_EMBEDDED_ACCESS_CHECKS
-#define sp_restore_security_context(A,B) while (0) {}
-#endif
-
 bool check_reserved_words(LEX_STRING *name)
 {
   if (!my_strcasecmp(system_charset_info, name->str, "GLOBAL") ||
@@ -4546,7 +4542,7 @@ longlong Item_func_sleep::val_int()
 
 #define extra_size sizeof(double)
 
-static user_var_entry *get_variable(HASH *hash, NameString &name,
+static user_var_entry *get_variable(HASH *hash, Name_string &name,
 				    bool create_if_not_exists)
 {
   user_var_entry *entry;
@@ -5363,7 +5359,7 @@ longlong Item_func_get_user_var::val_int()
 
 static int
 get_var_with_binlog(THD *thd, enum_sql_command sql_command,
-                    NameString &name, user_var_entry **out_entry)
+                    Name_string &name, user_var_entry **out_entry)
 {
   BINLOG_USER_VAR_EVENT *user_var_event;
   user_var_entry *var_entry;
@@ -6614,7 +6610,7 @@ Item_func_sp::init_result_field(THD *thd)
   DBUG_ASSERT(m_sp == NULL);
   DBUG_ASSERT(sp_result_field == NULL);
 
-  if (!(m_sp= sp_find_routine(thd, TYPE_ENUM_FUNCTION, m_name,
+  if (!(m_sp= sp_find_routine(thd, SP_TYPE_FUNCTION, m_name,
                                &thd->sp_func_cache, TRUE)))
   {
     my_missing_function_error (m_name->m_name, m_name->m_qname.str);
@@ -6946,7 +6942,7 @@ Item_func_sp::fix_fields(THD *thd, Item **ref)
       Try to set and restore the security context to see whether it's valid
     */
     Security_context *save_secutiry_ctx;
-    res= set_routine_security_ctx(thd, m_sp, false, &save_secutiry_ctx);
+    res= m_sp->set_security_ctx(thd, &save_secutiry_ctx);
     if (!res)
       m_sp->m_security_ctx.restore_security_context(thd, save_secutiry_ctx);
     

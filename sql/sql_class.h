@@ -135,6 +135,7 @@ enum enum_filetype { FILETYPE_CSV, FILETYPE_XML };
 extern char internal_table_name[2];
 extern char empty_c_string[1];
 extern LEX_STRING EMPTY_STR;
+extern LEX_STRING NULL_STR;
 extern MYSQL_PLUGIN_IMPORT const char **errmesg;
 
 extern bool volatile shutdown_in_progress;
@@ -1749,21 +1750,48 @@ enum enum_locked_tables_mode
 
 class Open_tables_state
 {
-public:
+private:
   /**
-    As part of class THD, this member is set during execution
-    of a prepared statement. When it is set, it is used
-    by the locking subsystem to report a change in table metadata.
+    A stack of Reprepare_observer-instances. The top most instance is the
+    currently active one. This stack is used during execution of prepared
+    statements and stored programs in order to detect metadata changes.
+    The locking subsystem reports a metadata change if the top-most item is not
+    NULL.
 
-    When Open_tables_state part of THD is reset to open
-    a system or INFORMATION_SCHEMA table, the member is cleared
-    to avoid spurious ER_NEED_REPREPARE errors -- system and
-    INFORMATION_SCHEMA tables are not subject to metadata version
-    tracking.
+    When Open_tables_state part of THD is reset to open a system or
+    INFORMATION_SCHEMA table, NULL is temporarily pushed to avoid spurious
+    ER_NEED_REPREPARE errors -- system and INFORMATION_SCHEMA tables are not
+    subject to metadata version tracking.
+
+    A stack is used here for the convenience -- in some cases we need to
+    temporarily override/disable current Reprepare_observer-instance.
+
+    NOTE: This is not a list of observers, only the top-most element will be
+    notified in case of a metadata change.
+
     @sa check_and_update_table_version()
   */
-  Reprepare_observer *m_reprepare_observer;
+  Dynamic_array<Reprepare_observer *> m_reprepare_observers;
 
+public:
+  Reprepare_observer *get_reprepare_observer() const
+  {
+    return
+      m_reprepare_observers.elements() > 0 ?
+      *m_reprepare_observers.back() :
+      NULL;
+  }
+
+  void push_reprepare_observer(Reprepare_observer *o)
+  { m_reprepare_observers.append(o); }
+
+  Reprepare_observer *pop_reprepare_observer()
+  { return m_reprepare_observers.pop(); }
+
+  void reset_reprepare_observers()
+  { m_reprepare_observers.clear(); }
+
+public:
   /**
     List of regular tables in use by this thread. Contains temporary and
     base tables that were opened with @see open_tables().
@@ -1848,19 +1876,9 @@ public:
   */
   Open_tables_state() : state_flags(0U) { }
 
-  void set_open_tables_state(Open_tables_state *state)
-  {
-    *this= *state;
-  }
+  void set_open_tables_state(Open_tables_state *state);
 
-  void reset_open_tables_state(THD *thd)
-  {
-    open_tables= temporary_tables= derived_tables= 0;
-    extra_lock= lock= 0;
-    locked_tables_mode= LTM_NONE;
-    state_flags= 0U;
-    m_reprepare_observer= NULL;
-  }
+  void reset_open_tables_state();
 };
 
 
@@ -3361,14 +3379,14 @@ public:
       my_micro_time_to_timeval(start_utime, &start_time);
 
 #ifdef HAVE_PSI_THREAD_INTERFACE
-    PSI_CALL(set_thread_start_time)(start_time.tv_sec);
+    PSI_THREAD_CALL(set_thread_start_time)(start_time.tv_sec);
 #endif
   }
   inline void set_current_time()
   {
     my_micro_time_to_timeval(my_micro_time(), &start_time);
 #ifdef HAVE_PSI_THREAD_INTERFACE
-    PSI_CALL(set_thread_start_time)(start_time.tv_sec);
+    PSI_THREAD_CALL(set_thread_start_time)(start_time.tv_sec);
 #endif
   }
   inline void set_time(const struct timeval *t)
@@ -3376,7 +3394,7 @@ public:
     start_time= user_time= *t;
     start_utime= utime_after_lock= my_micro_time();
 #ifdef HAVE_PSI_THREAD_INTERFACE
-    PSI_CALL(set_thread_start_time)(start_time.tv_sec);
+    PSI_THREAD_CALL(set_thread_start_time)(start_time.tv_sec);
 #endif
   }
   /*TODO: this will be obsolete when we have support for 64 bit my_time_t */
@@ -3823,7 +3841,7 @@ public:
     result= new_db && !db;
 #ifdef HAVE_PSI_THREAD_INTERFACE
     if (result)
-      PSI_CALL(set_thread_db)(new_db, static_cast<int>(new_db_len));
+      PSI_THREAD_CALL(set_thread_db)(new_db, static_cast<int>(new_db_len));
 #endif
     return result;
   }
@@ -3844,7 +3862,7 @@ public:
     db= new_db;
     db_length= new_db_len;
 #ifdef HAVE_PSI_THREAD_INTERFACE
-    PSI_CALL(set_thread_db)(new_db, static_cast<int>(new_db_len));
+    PSI_THREAD_CALL(set_thread_db)(new_db, static_cast<int>(new_db_len));
 #endif
   }
   /*
@@ -4970,6 +4988,7 @@ public:
 
 class select_dumpvar :public select_result_interceptor {
   ha_rows row_count;
+  Item_func_set_user_var **set_var_items;
 public:
   List<my_var> var_list;
   select_dumpvar()  { var_list.empty(); row_count= 0;}

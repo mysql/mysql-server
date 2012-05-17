@@ -2415,7 +2415,7 @@ static bool block_until_new_connection()
       Delete the instrumentation for the job that just completed,
       before blocking this pthread (blocked on COND_thread_cache).
     */
-    PSI_CALL(delete_current_thread)();
+    PSI_THREAD_CALL(delete_current_thread)();
 #endif
 
     // Block pthread
@@ -2442,9 +2442,9 @@ static bool block_until_new_connection()
         Create new instrumentation for the new THD job,
         and attach it to this running pthread.
       */
-      PSI_thread *psi= PSI_CALL(new_thread)(key_thread_one_connection,
-                                            thd, thd->thread_id);
-      PSI_CALL(set_thread)(psi);
+      PSI_thread *psi= PSI_THREAD_CALL(new_thread)
+        (key_thread_one_connection, thd, thd->thread_id);
+      PSI_THREAD_CALL(set_thread)(psi);
 #endif
 
       /*
@@ -2935,7 +2935,7 @@ pthread_handler_t signal_hand(void *arg __attribute__((unused)))
         abort_loop=1;       // mark abort for threads
 #ifdef HAVE_PSI_THREAD_INTERFACE
         /* Delete the instrumentation for the signal thread */
-        PSI_CALL(delete_current_thread)();
+        PSI_THREAD_CALL(delete_current_thread)();
 #endif
 #ifdef USE_ONE_SIGNAL_HAND
         pthread_t tmp;
@@ -4938,8 +4938,8 @@ int mysqld_main(int argc, char **argv)
       */
       init_server_psi_keys();
       /* Instrument the main thread */
-      PSI_thread *psi= PSI_CALL(new_thread)(key_thread_main, NULL, 0);
-      PSI_CALL(set_thread)(psi);
+      PSI_thread *psi= PSI_THREAD_CALL(new_thread)(key_thread_main, NULL, 0);
+      PSI_THREAD_CALL(set_thread)(psi);
 
       /*
         Now that some instrumentation is in place,
@@ -5327,7 +5327,7 @@ int mysqld_main(int argc, char **argv)
     Disable the main thread instrumentation,
     to avoid recording events during the shutdown.
   */
-  PSI_CALL(delete_current_thread)();
+  PSI_THREAD_CALL(delete_current_thread)();
 #endif
 
   /* Wait until cleanup is done */

@@ -111,9 +111,10 @@ dict_stats_init(
 /*============*/
 	dict_table_t*	table,	/*!< in/out: table */
 	ibool		ps_on,	/*!< in: persistent stats explicitly enabled */
-	ibool		ps_off,	/*!< in: persistent stats explicitly disabled */
-	ibool		dict_locked)/*!< in: TRUE=data dictionary locked */
+	ibool		ps_off)	/*!< in: persistent stats explicitly disabled */
 {
+	ut_ad(!mutex_own(&dict_sys->mutex));
+
 	dict_stats_set_persistent(table, ps_on, ps_off);
 
 	if (table->stat_initialized) {
@@ -128,7 +129,7 @@ dict_stats_init(
 		opt = DICT_STATS_RECALC_TRANSIENT;
 	}
 
-	dict_stats_update(table, opt, dict_locked);
+	dict_stats_update(table, opt, FALSE);
 }
 /* @} */
 
