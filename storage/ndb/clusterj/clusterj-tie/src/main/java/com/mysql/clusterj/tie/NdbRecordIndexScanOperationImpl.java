@@ -93,6 +93,9 @@ public class NdbRecordIndexScanOperationImpl extends NdbRecordScanOperationImpl 
     /** The single index bound for a single range scan */
     NdbIndexScanOperation.IndexBound ndbIndexBound = null;
 
+    /** The buffers used for bounds; held here to prevent garbage collection */
+    List<ByteBuffer> buffers = new ArrayList<ByteBuffer>();
+
     public NdbRecordIndexScanOperationImpl(ClusterTransactionImpl clusterTransaction,
             Index storeIndex, Table storeTable, int lockMode) {
         this(clusterTransaction, storeIndex, storeTable, false, lockMode);
@@ -108,7 +111,11 @@ public class NdbRecordIndexScanOperationImpl extends NdbRecordScanOperationImpl 
         ndbRecordKeys = clusterTransaction.getCachedNdbRecordImpl(storeIndex, storeTable);
         keyBufferSize = ndbRecordKeys.bufferSize;
         indexBoundLowBuffer = ndbRecordKeys.newBuffer();
+        // hold a reference to the buffer to prevent garbage collection
+        buffers.add(indexBoundLowBuffer);
         indexBoundHighBuffer = ndbRecordKeys.newBuffer();
+        // hold a reference to the buffer to prevent garbage collection
+        buffers.add(indexBoundHighBuffer);
     }
 
     public void endDefinition() {
@@ -351,8 +358,12 @@ public class NdbRecordIndexScanOperationImpl extends NdbRecordScanOperationImpl 
                 ndbRecordKeys.initializeBuffer(reclaimed);
             } else {
                 indexBoundLowBuffer = ndbRecordKeys.newBuffer();
+                // hold a reference to the buffer to prevent garbage collection
+                buffers.add(indexBoundLowBuffer);
             }
             indexBoundHighBuffer = ndbRecordKeys.newBuffer();
+            // hold a reference to the buffer to prevent garbage collection
+            buffers.add(indexBoundHighBuffer);
             indexBoundLowCount = 0;
             indexBoundHighCount = 0;
             indexBoundLowStrict = false;
@@ -370,6 +381,8 @@ public class NdbRecordIndexScanOperationImpl extends NdbRecordScanOperationImpl 
      */
     public void freeResourcesAfterExecute() {
         super.freeResourcesAfterExecute();
+        // allow garbage collection for buffers used in IndexBound
+        buffers = null;
         if (ndbIndexBound != null) {
             db.delete(ndbIndexBound);
             ndbIndexBound = null;
