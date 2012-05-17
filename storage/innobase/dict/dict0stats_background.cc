@@ -311,7 +311,7 @@ pop_from_auto_recalc_list_and_recalc()
 	}
 	/* else */
 
-	table->in_bg_stat_processing = TRUE;
+	table->stats_bg_flag = BG_STAT_IN_PROGRESS;
 
 	mutex_exit(&dict_sys->mutex);
 
@@ -327,7 +327,7 @@ pop_from_auto_recalc_list_and_recalc()
 
 	mutex_enter(&dict_sys->mutex);
 
-	table->in_bg_stat_processing = FALSE;
+	table->stats_bg_flag = BG_STAT_NONE;
 
 	dict_table_close(table, TRUE, FALSE);
 

@@ -1621,8 +1621,6 @@ dict_stats_update_persistent(
 
 	DEBUG_PRINTF("%s(table=%s)\n", __func__, table->name);
 
-	/* XXX quit if interrupted, e.g. SIGTERM */
-
 	dict_table_stats_lock(table, RW_X_LATCH);
 
 	/* analyze the clustered index first */
@@ -1650,7 +1648,7 @@ dict_stats_update_persistent(
 	table->stat_sum_of_other_index_sizes = 0;
 
 	for (index = dict_table_get_next_index(index);
-	     index != NULL;
+	     index != NULL && !(table->stats_bg_flag & BG_STAT_SHOULD_QUIT);
 	     index = dict_table_get_next_index(index)) {
 
 		if (dict_index_is_online_ddl(index)
