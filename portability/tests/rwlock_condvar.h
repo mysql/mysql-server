@@ -88,9 +88,7 @@ int toku_cv_fair_rwlock_destroy (toku_cv_fair_rwlock_t *rwlock) {
 
 int toku_cv_fair_rwlock_rdlock (toku_cv_fair_rwlock_t *rwlock) {
     struct toku_cv_fair_rwlock_waiter_state *GET_WAITSTATE(waitstate);
-    int r;
     toku_mutex_lock(&rwlock->mutex);
-    assert(r==0);
     if (rwlock->waiters_head!=NULL || rwlock->state<0) {
 	// Someone is ahead of me in the queue, or someone has a lock.
 	// We use per-thread-state for the condition variable.  A thread cannot get control and try to reuse the waiter state for something else.
