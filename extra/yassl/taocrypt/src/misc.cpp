@@ -14,7 +14,7 @@
    along with this program; see the file COPYING. If not, write to the
    Free Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston,
    MA  02110-1301  USA.
-*/
+ */
 
 /* based on Wei Dai's misc.cpp from CryptoPP */
 
@@ -41,28 +41,28 @@ namespace STL = STL_NAMESPACE;
 
     void* operator new(size_t sz, TaoCrypt::new_t)
     {
-    void* ptr = malloc(sz ? sz : 1);
-    if (!ptr) abort();
+        void* ptr = malloc(sz ? sz : 1);
+        if (!ptr) abort();
 
-    return ptr;
+        return ptr;
     }
 
 
     void operator delete(void* ptr, TaoCrypt::new_t)
     {
-    if (ptr) free(ptr);
+        if (ptr) free(ptr);
     }
 
 
     void* operator new[](size_t sz, TaoCrypt::new_t nt)
     {
-    return ::operator new(sz, nt);
+        return ::operator new(sz, nt);
     }
 
 
     void operator delete[](void* ptr, TaoCrypt::new_t nt)
     {
-    ::operator delete(ptr, nt);
+        ::operator delete(ptr, nt);
     }
 
 
@@ -89,7 +89,6 @@ namespace STL = STL_NAMESPACE;
 // Handler for pure virtual functions
 namespace __Crun {
     void pure_error() {
-      assert(!"Aborted: pure virtual method called.");
     }
 }
 
@@ -100,7 +99,6 @@ namespace __Crun {
 extern "C" {
 
     int __cxa_pure_virtual() {
-      assert(!"Aborted: pure virtual method called.");
       return 0;
     }
 
@@ -196,8 +194,8 @@ bool HaveCpuId()
     return true;
 #else
     word32 eax, ebx;
-        __asm__ __volatile
-        (
+    __asm__ __volatile
+    (
         /* Put EFLAGS in eax and ebx */
         "pushf;"
         "pushf;"
@@ -214,9 +212,9 @@ bool HaveCpuId()
         "pop %0;"
         "popf"
         : "=r" (eax), "=r" (ebx)
-            :
+        :
         : "cc"
-        );
+    );
 
     if (eax == ebx)
         return false;

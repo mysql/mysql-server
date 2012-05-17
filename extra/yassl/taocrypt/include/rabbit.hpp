@@ -1,5 +1,5 @@
 /*
-   Copyright (C) 2000-2007 MySQL AB
+   Copyright (c) 2005, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -14,45 +14,52 @@
    along with this program; see the file COPYING. If not, write to the
    Free Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston,
    MA  02110-1301  USA.
- */
+*/
 
-/* arc4.hpp defines ARC4
+/* rabbit.hpp defines Rabbit
 */
 
 
-#ifndef TAO_CRYPT_ARC4_HPP
-#define TAO_CRYPT_ARC4_HPP
+#ifndef TAO_CRYPT_RABBIT_HPP
+#define TAO_CRYPT_RABBIT_HPP
 
 #include "misc.hpp"
 
 namespace TaoCrypt {
 
 
-// ARC4 encryption and decryption
-class ARC4 {
+// Rabbit encryption and decryption
+class Rabbit {
 public:
-    enum { STATE_SIZE = 256 };
 
-    typedef ARC4 Encryption;
-    typedef ARC4 Decryption;
+    typedef Rabbit Encryption;
+    typedef Rabbit Decryption;
 
-    ARC4() {}
+    enum RabbitCtx { Master = 0, Work = 1 };
+
+    Rabbit() {}
 
     void Process(byte*, const byte*, word32);
-    void SetKey(const byte*, word32);
+    void SetKey(const byte*, const byte*);
 private:
-    byte x_;
-    byte y_;
-    byte state_[STATE_SIZE];
+    struct Ctx {
+        word32 x[8];
+        word32 c[8];
+        word32 carry;
+    };
 
-    ARC4(const ARC4&);                  // hide copy
-    const ARC4 operator=(const ARC4&);  // and assign
+    Ctx masterCtx_;
+    Ctx workCtx_;
 
-    void AsmProcess(byte*, const byte*, word32);
+    void NextState(RabbitCtx);
+    void SetIV(const byte*);
+
+    Rabbit(const Rabbit&);                  // hide copy
+    const Rabbit operator=(const Rabbit&);  // and assign
 };
 
 } // namespace
 
 
-#endif // TAO_CRYPT_ARC4_HPP
+#endif // TAO_CRYPT_RABBIT_HPP
 

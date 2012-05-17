@@ -14,7 +14,7 @@
    along with this program; see the file COPYING. If not, write to the
    Free Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston,
    MA  02110-1301  USA.
-*/
+ */
 
 
 /* random.cpp implements a crypto secure Random Number Generator using an OS
@@ -96,13 +96,13 @@ void OS_Seed::GenerateSeed(byte* output, word32 sz)
 
 /* The default OS_Seed implementation */
 
-OS_Seed::OS_Seed() 
+OS_Seed::OS_Seed()
 {
     fd_ = open("/dev/urandom",O_RDONLY);
     if (fd_ == -1) {
         fd_ = open("/dev/random",O_RDONLY);
-    if (fd_ == -1)
-        error_.SetError(OPEN_RAN_E);
+        if (fd_ == -1)
+            error_.SetError(OPEN_RAN_E);
     }
 }
 
