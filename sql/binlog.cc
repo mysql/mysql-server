@@ -4416,7 +4416,7 @@ bool MYSQL_BIN_LOG::append_event(Log_event* ev)
   }
   bytes_written+= ev->data_written;
   DBUG_PRINT("info",("max_size: %lu",max_size));
-  if (flush_and_sync(0))
+  if (flush_and_sync())
     goto err;
   if ((uint) my_b_append_tell(&log_file) >
       DBUG_EVALUATE_IF("rotate_slave_debug_group", 500, max_size))
@@ -4444,7 +4444,7 @@ bool MYSQL_BIN_LOG::append_buffer(const char* buf, uint len)
   bytes_written += len;
 
   DBUG_PRINT("info",("max_size: %lu",max_size));
-  if (flush_and_sync(0))
+  if (flush_and_sync())
     goto err;
   if ((uint) my_b_append_tell(&log_file) >
       DBUG_EVALUATE_IF("rotate_slave_debug_group", 500, max_size))
@@ -4455,24 +4455,14 @@ err:
   DBUG_RETURN(error);
 }
 
-bool MYSQL_BIN_LOG::flush_and_sync(bool *synced, const bool force)
+bool MYSQL_BIN_LOG::flush_and_sync(const bool force)
 {
-  int err=0, fd=log_file.file;
-  if (synced)
-    *synced= 0;
   mysql_mutex_assert_owner(&LOCK_log);
+
   if (flush_io_cache(&log_file))
     return 1;
-  uint sync_period= get_sync_period();
-  if (force || 
-      (sync_period && ++sync_counter >= sync_period))
-  {
-    sync_counter= 0;
-    err= mysql_file_sync(fd, MYF(MY_WME));
-    if (synced)
-      *synced= 1;
-  }
-  return err;
+
+  return sync_binlog_file(true, 0);
 }
 
 void MYSQL_BIN_LOG::start_union_events(THD *thd, query_id_t query_id_param)
@@ -4494,37 +4484,6 @@ bool MYSQL_BIN_LOG::is_query_in_union(THD *thd, query_id_t query_id_param)
 {
   return (thd->binlog_evt_union.do_union && 
           query_id_param >= thd->binlog_evt_union.first_query_id);
-}
-
-
-/**
-  This function removes the pending rows event, discarding any outstanding
-  rows. If there is no pending rows event available, this is effectively a
-  no-op.
-
-  @param thd               a pointer to the user thread.
-  @param is_transactional  @c true indicates a transactional cache,
-                           otherwise @c false a non-transactional.
-*/
-int
-MYSQL_BIN_LOG::remove_pending_rows_event(THD *thd, bool is_transactional)
-{
-  DBUG_ENTER("MYSQL_BIN_LOG::remove_pending_rows_event");
-
-  binlog_cache_mngr *const cache_mngr= thd_get_cache_mngr(thd);
-
-  DBUG_ASSERT(cache_mngr);
-
-  binlog_cache_data *cache_data=
-    cache_mngr->get_binlog_cache_data(is_transactional);
-
-  if (Rows_log_event* pending= cache_data->pending())
-  {
-    delete pending;
-    cache_data->set_pending(NULL);
-  }
-
-  DBUG_RETURN(0);
 }
 
 /*
@@ -4790,7 +4749,7 @@ int MYSQL_BIN_LOG::rotate(bool force_rotate, bool* check_purge)
         to the current log. 
       */
       if (!write_incident(current_thd, FALSE))
-        flush_and_sync(0);
+        flush_and_sync();
 
     *check_purge= true;
   }
@@ -4895,7 +4854,6 @@ uint MYSQL_BIN_LOG::next_file_id()
     do_write_cache()
     cache    Cache to write to the binary log
     lock_log True if the LOCK_log mutex should be aquired, false otherwise
-    sync_log True if the log should be flushed and synced
 
   DESCRIPTION
     Write the contents of the cache to the binary log. The cache will
@@ -5155,7 +5113,7 @@ bool MYSQL_BIN_LOG::write_incident(Incident_log_event *ev, bool lock)
 
   if (lock)
   {
-    if (!error && !(error= flush_and_sync(0)))
+    if (!error && !(error= flush_and_sync()))
     {
       bool check_purge= false;
       signal_update();
@@ -5239,7 +5197,7 @@ bool MYSQL_BIN_LOG::write_cache(THD *thd, binlog_cache_data *cache_data)
                         if ((write_error= do_write_cache(cache)))
                           DBUG_PRINT("info", ("error writing binlog cache: %d",
                                                write_error));
-                        flush_and_sync(0, true);
+                        flush_and_sync(true);
                         DBUG_PRINT("info", ("crashing before writing xid"));
                         DBUG_SUICIDE();
                       });
@@ -6054,16 +6012,18 @@ MYSQL_BIN_LOG::flush_cache_to_file(my_off_t *end_pos_var)
   Call fsync() to sync the file to disk.
 */
 int
-MYSQL_BIN_LOG::sync_binlog_file(my_off_t flush_end_pos, bool *synced_var)
+MYSQL_BIN_LOG::sync_binlog_file(bool force, bool *synced)
 {
   unsigned int sync_period= get_sync_period();
-  *synced_var= false;
-  if (sync_period && ++sync_counter >= sync_period)
+  if (synced)
+    *synced= false;
+  if (force || (sync_period && ++sync_counter >= sync_period))
   {
     sync_counter= 0;
     if (mysql_file_sync(log_file.file, MYF(MY_WME)))
       return ER_ERROR_ON_WRITE;
-    *synced_var= true;
+    if (synced)
+      *synced= true;
   }
   return 0;
 }
@@ -6222,7 +6182,7 @@ int MYSQL_BIN_LOG::ordered_commit(THD *thd, bool all, bool skip_commit)
   THD *final_queue= stage_manager.fetch_queue_for(Stage_manager::SYNC_STAGE);
   bool synced= false;
   if (flush_error == 0 && total_bytes > 0)
-    flush_error= sync_binlog_file(flush_end_pos, &synced);
+    flush_error= sync_binlog_file(false, &synced);
   
   /*
     If the sync finished successfully, we can call the after_flush
@@ -7919,28 +7879,6 @@ int THD::binlog_query(THD::enum_binlog_query_type qtype, char const *query_arg,
 }
 
 #endif /* !defined(MYSQL_CLIENT) */
-
-#ifdef INNODB_COMPATIBILITY_HOOKS
-/**
-  Get the file name of the MySQL binlog.
-  @return the name of the binlog file
-*/
-extern "C"
-const char* mysql_bin_log_file_name(void)
-{
-  return mysql_bin_log.get_log_fname();
-}
-/**
-  Get the current position of the MySQL binlog.
-  @return byte offset from the beginning of the binlog
-*/
-extern "C"
-ulonglong mysql_bin_log_file_pos(void)
-{
-  return (ulonglong) mysql_bin_log.get_log_file()->pos_in_file;
-}
-#endif /* INNODB_COMPATIBILITY_HOOKS */
-
 
 struct st_mysql_storage_engine binlog_storage_engine=
 { MYSQL_HANDLERTON_INTERFACE_VERSION };
