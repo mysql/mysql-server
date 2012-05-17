@@ -3441,6 +3441,22 @@ ha_innobase::commit_inplace_alter_table(
 	or lock waits can happen in it during the data dictionary operation. */
 	row_mysql_lock_data_dictionary(trx);
 
+	/* Wait for background stats processing to stop using the
+	indexes that we are going to drop. We know bg stats will not
+	start using any of those indexes after this loop because
+	it sets the in_bg_stat_processing table flag under
+	dict_sys->mutex and we are holding it here for the whole
+	duration of the drop. */
+	if (ctx != NULL && ctx->num_to_drop > 0) {
+		dict_table_t*	table = ctx->drop[0]->table;
+
+		while (table->in_bg_stat_processing) {
+			row_mysql_unlock_data_dictionary(trx);
+			os_thread_sleep(250000);
+			row_mysql_lock_data_dictionary(trx);
+		}
+	}
+
 	if (new_clustered) {
 		dberr_t	error;
 		char*	tmp_name;

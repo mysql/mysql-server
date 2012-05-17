@@ -1655,7 +1655,8 @@ dict_stats_update_persistent(
 
 		if (dict_index_is_online_ddl(index)
 		    || (index->type & DICT_FTS)
-		    || dict_index_is_corrupted(index)) {
+		    || dict_index_is_corrupted(index)
+		    || index->to_be_dropped) {
 			continue;
 		}
 
