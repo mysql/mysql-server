@@ -10080,12 +10080,14 @@ make_join_readinfo(JOIN *join, ulonglong options, uint no_jbuf_after)
       {
         join->need_tmp= 1;
         join->simple_order= join->simple_group= 0;
-        if (sort_by_tab->type == JT_NEXT)
+        if (sort_by_tab->type == JT_NEXT && 
+            !sort_by_tab->table->covering_keys.is_set(sort_by_tab->index))
         {
           sort_by_tab->type= JT_ALL;
           sort_by_tab->read_first_record= join_init_read_record;
         }
-        else if (sort_by_tab->type == JT_HASH_NEXT)
+        else if (sort_by_tab->type == JT_HASH_NEXT &&
+                 !sort_by_tab->table->covering_keys.is_set(sort_by_tab->index))
         {
           sort_by_tab->type= JT_HASH;
           sort_by_tab->read_first_record= join_init_read_record;
