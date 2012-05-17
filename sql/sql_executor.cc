@@ -47,8 +47,7 @@ static void disable_sorted_access(JOIN_TAB* join_tab);
 static void return_zero_rows(JOIN *join, List<Item> &fields);
 static void save_const_null_info(JOIN *join, table_map *save_nullinfo);
 static void restore_const_null_info(JOIN *join, table_map save_nullinfo);
-static int do_select(JOIN *join,List<Item> *fields,TABLE *tmp_table,
-		     Procedure *proc);
+static int do_select(JOIN *join, List<Item> *fields, TABLE *tmp_table);
 
 static enum_nested_loop_state
 evaluate_join_record(JOIN *join, JOIN_TAB *join_tab,
@@ -168,9 +167,7 @@ JOIN::exec()
       */
       if (((select_lex->having_value != Item::COND_FALSE) &&
            (!having || having->val_int())) 
-          && do_send_rows &&
-          (procedure ? (procedure->send_row(procedure_fields_list) ||
-           procedure->end_of_records()) : result->send_data(fields_list)))
+          && do_send_rows && result->send_data(fields_list))
         error= 1;
       else
       {
@@ -230,7 +227,7 @@ JOIN::exec()
       init_items_ref_array();
 
       ORDER_with_src tmp_group;
-      if (!simple_group && !procedure && !(test_flags & TEST_NO_KEY_GROUP))
+      if (!simple_group && !(test_flags & TEST_NO_KEY_GROUP))
         tmp_group= group_list;
       
       tmp_table_param.hidden_field_count= 
@@ -308,9 +305,7 @@ JOIN::execute(JOIN *parent)
         best_positions[const_tables].sj_strategy != SJ_OPT_LOOSE_SCAN)
       disable_sorted_access(&join_tab[const_tables]);
 
-    Procedure *save_proc= procedure;
-    tmp_error= do_select(this, (List<Item> *) NULL, curr_tmp_table, NULL);
-    procedure= save_proc;
+    tmp_error= do_select(this, (List<Item> *) NULL, curr_tmp_table);
     if (tmp_error)
     {
       error= tmp_error;
@@ -364,10 +359,6 @@ JOIN::execute(JOIN *parent)
       tmp_table_param.field_count+= tmp_table_param.func_count;
       tmp_table_param.func_count= 0;
     }
-    
-    // procedure can't be used inside subselect => we do nothing special for it
-    if (procedure)
-      procedure->update_refs();
     
     if (curr_tmp_table->group)
     {						// Already grouped
@@ -480,7 +471,7 @@ JOIN::execute(JOIN *parent)
       if (!sort_and_group && const_tables != tables)
         disable_sorted_access(&join_tab[const_tables]);
       if (setup_sum_funcs(thd, sum_funcs) ||
-          (tmp_error= do_select(this, (List<Item> *)NULL, curr_tmp_table, NULL)))
+          (tmp_error= do_select(this, (List<Item> *)NULL, curr_tmp_table)))
       {
 	error= tmp_error;
 	DBUG_VOID_RETURN;
@@ -541,11 +532,7 @@ JOIN::execute(JOIN *parent)
     count_field_types(select_lex, &tmp_table_param, *curr_all_fields, false);
     
   }
-  if (procedure)
-    count_field_types(select_lex, &tmp_table_param, *curr_all_fields, false);
-  
-  if (group || implicit_grouping || tmp_table_param.sum_func_count ||
-      (procedure && (procedure->flags & PROC_GROUP)))
+  if (group || implicit_grouping || tmp_table_param.sum_func_count)
   {
     if (make_group_fields(main_join, this))
       DBUG_VOID_RETURN;
@@ -764,10 +751,9 @@ JOIN::execute(JOIN *parent)
 
   THD_STAGE_INFO(thd, stage_sending_data);
   DBUG_PRINT("info", ("%s", thd->proc_info));
-  result->send_result_set_metadata((procedure ? procedure_fields_list :
-                                    *curr_fields_list),
+  result->send_result_set_metadata(*curr_fields_list,
                                    Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF);
-  error= do_select(this, curr_fields_list, NULL, procedure);
+  error= do_select(this, curr_fields_list, NULL);
   thd->limit_found_rows= send_records;
   // Ensure that all flags were handled.
   DBUG_ASSERT(exec_flags.any(ESP_CHECKED) ||
@@ -1548,9 +1534,7 @@ static Next_select_func setup_end_select_func(JOIN *join)
        more aggregate functions). Use end_send if the query should not
        be grouped.
      */
-    if ((join->sort_and_group ||
-         (join->procedure && join->procedure->flags & PROC_GROUP)) &&
-        !tmp_tbl->precomputed_group_by)
+    if (join->sort_and_group && !tmp_tbl->precomputed_group_by)
     {
       DBUG_PRINT("info",("Using end_send_group"));
       end_select= end_send_group;
@@ -1577,14 +1561,13 @@ static Next_select_func setup_end_select_func(JOIN *join)
 */
 
 static int
-do_select(JOIN *join,List<Item> *fields,TABLE *table,Procedure *procedure)
+do_select(JOIN *join,List<Item> *fields,TABLE *table)
 {
   int rc= 0;
   enum_nested_loop_state error= NESTED_LOOP_OK;
   JOIN_TAB *join_tab= NULL;
   DBUG_ENTER("do_select");
   
-  join->procedure=procedure;
   join->tmp_table= table;			/* Save for easy recursion */
   join->fields= fields;
 
@@ -1651,8 +1634,7 @@ do_select(JOIN *join,List<Item> *fields,TABLE *table,Procedure *procedure)
       join->clear();
 
       // Calculate aggregate functions for no rows
-      List<Item> *columns_list= (procedure ? &join->procedure_fields_list :
-                                 fields);
+      List<Item> *columns_list= fields;
       List_iterator_fast<Item> it(*columns_list);
       Item *item;
       while ((item= it++))
@@ -3440,12 +3422,6 @@ end_send(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
     }
     if (join->having && join->having->val_int() == 0)
       DBUG_RETURN(NESTED_LOOP_OK);               // Didn't match having
-    if (join->procedure)
-    {
-      if (join->procedure->send_row(join->procedure_fields_list))
-        DBUG_RETURN(NESTED_LOOP_ERROR);
-      DBUG_RETURN(NESTED_LOOP_OK);
-    }
     error=0;
     if (join->do_send_rows)
       error=join->result->send_data(*join->fields);
@@ -3520,11 +3496,6 @@ end_send(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
       DBUG_RETURN(NESTED_LOOP_CURSOR_LIMIT);
     }
   }
-  else
-  {
-    if (join->procedure && join->procedure->end_of_records())
-      DBUG_RETURN(NESTED_LOOP_ERROR);
-  }
   DBUG_RETURN(NESTED_LOOP_OK);
 }
 
@@ -3544,25 +3515,9 @@ end_send_group(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
     if (join->first_record || 
         (end_of_records && !join->group && !join->group_optimized_away))
     {
-      if (join->procedure)
-	join->procedure->end_group();
       if (idx < (int) join->send_group_parts)
       {
 	int error=0;
-	if (join->procedure)
-	{
-	  if (join->having && join->having->val_int() == 0)
-	    error= -1;				// Didn't satisfy having
- 	  else
-	  {
-	    if (join->do_send_rows)
-	      error=join->procedure->send_row(*join->fields) ? 1 : 0;
-	    join->send_records++;
-	  }
-	  if (end_of_records && join->procedure->end_of_records())
-	    error= 1;				// Fatal error
-	}
-	else
 	{
           table_map save_nullinfo= 0;
           if (!join->first_record)
@@ -3646,15 +3601,11 @@ end_send_group(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
       copy_fields(&join->tmp_table_param);
       if (init_sum_functions(join->sum_funcs, join->sum_funcs_end[idx+1]))
 	DBUG_RETURN(NESTED_LOOP_ERROR);
-      if (join->procedure)
-	join->procedure->add();
       DBUG_RETURN(ok_code);
     }
   }
   if (update_sum_func(join->sum_funcs))
     DBUG_RETURN(NESTED_LOOP_ERROR);
-  if (join->procedure)
-    join->procedure->add();
   DBUG_RETURN(NESTED_LOOP_OK);
 }
 
@@ -3860,8 +3811,6 @@ end_write_group(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
   {
     if (join->first_record || (end_of_records && !join->group))
     {
-      if (join->procedure)
-	join->procedure->end_group();
       int send_group_parts= join->send_group_parts;
       if (idx < send_group_parts)
       {
@@ -3884,9 +3833,7 @@ end_write_group(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
           join->clear();
 
           // Calculate aggregate functions for no rows
-          List<Item> *columns_list= (join->procedure ?
-                                     &join->procedure_fields_list :
-                                     join->fields);
+          List<Item> *columns_list= join->fields;
           List_iterator_fast<Item> it(*columns_list);
           Item *item;
           while ((item= it++))
@@ -3931,15 +3878,11 @@ end_write_group(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
 	DBUG_RETURN(NESTED_LOOP_ERROR);
       if (init_sum_functions(join->sum_funcs, join->sum_funcs_end[idx+1]))
 	DBUG_RETURN(NESTED_LOOP_ERROR);
-      if (join->procedure)
-	join->procedure->add();
       DBUG_RETURN(NESTED_LOOP_OK);
     }
   }
   if (update_sum_func(join->sum_funcs))
     DBUG_RETURN(NESTED_LOOP_ERROR);
-  if (join->procedure)
-    join->procedure->add();
   DBUG_RETURN(NESTED_LOOP_OK);
 }
 

@@ -65,7 +65,8 @@ static SYMBOL symbols[] = {
   { "ALL",		SYM(ALL)},
   { "ALGORITHM",	SYM(ALGORITHM_SYM)},
   { "ALTER",		SYM(ALTER)},
-  { "ANALYZE",		SYM(ANALYZE_SYM)},
+  { "ANALYSE",          SYM(ANALYSE_SYM)}, // this one is for PROCEDURE ANALYSE
+  { "ANALYZE",          SYM(ANALYZE_SYM)}, // this one is for ANALYZE TABLE etc
   { "AND",		SYM(AND_SYM)},
   { "ANY",              SYM(ANY_SYM)},
   { "AS",		SYM(AS)},
