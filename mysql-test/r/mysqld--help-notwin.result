@@ -74,7 +74,9 @@ The following options may be given as the first argument:
  depending on the value of sync_binlog).
  --binlog-order-commits 
  Issue internal commit calls in the same order as
- transactions are written to the binary log.
+ transactions are written to the binary log. Default is to
+ order commits.
+ (Defaults to on; use --skip-binlog-order-commits to disable.)
  --binlog-row-event-max-size=# 
  The maximum size of a row-based binary log event in
  bytes. Rows will be grouped into events smaller than this
@@ -932,7 +934,7 @@ binlog-checksum NONE
 binlog-direct-non-transactional-updates FALSE
 binlog-format STATEMENT
 binlog-max-flush-queue-time 0
-binlog-order-commits FALSE
+binlog-order-commits TRUE
 binlog-row-event-max-size 1024
 binlog-row-image FULL
 binlog-rows-query-log-events FALSE
