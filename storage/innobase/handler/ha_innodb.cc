@@ -8302,7 +8302,7 @@ err_col:
 		my_error(ER_TABLE_EXISTS_ERROR, MYF(0), display_name);
 	}
 
-	if (flags2 & DICT_TF2_FTS) {
+	if (err == DB_SUCCESS && (flags2 & DICT_TF2_FTS)) {
 		fts_optimize_add_table(table);
 	}
 
