@@ -84,6 +84,12 @@ INSERT INTO foo VALUES
 INSERT INTO bar SELECT * FROM foo;
 INSERT INTO foo2 SELECT * FROM foo;
 
+-- disable_result_log
+ANALYZE TABLE bar;
+ANALYZE TABLE foo;
+ANALYZE TABLE foo2;
+-- enable_result_log
+
 --query_vertical EXPLAIN SELECT c FROM bar WHERE b>2;
 --query_vertical EXPLAIN SELECT c FROM foo WHERE b>2;
 --query_vertical EXPLAIN SELECT c FROM foo2 WHERE b>2;
@@ -573,6 +579,8 @@ INSERT INTO t1 VALUES (1,1,1,1,1,1), (2,2,2,2,2,2), (3,3,3,3,3,3),
                       (4,4,4,4,4,4), (5,5,5,5,5,5), (6,6,6,6,6,6),
 		      (7,7,7,7,7,7), (8,8,8,8,8,8), (9,9,9,9,9,9),
 		      (11,11,11,11,11,11);
+
+ANALYZE TABLE t1;
 
 --query_vertical EXPLAIN SELECT COUNT(*) FROM t1
 
