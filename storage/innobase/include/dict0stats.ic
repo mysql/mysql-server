@@ -104,9 +104,9 @@ dict_stats_is_persistent_enabled(
 
 /*********************************************************************//**
 Set the auto recalc flag for a given table (only honored for a persistent
-stats enabled table). This is set only in the in-memory table object and is
-not saved on disk. It will be read from the .frm file upon first open from
-MySQL after a server restart.
+stats enabled table). The flag is set only in the in-memory table object
+and is not saved in InnoDB files. It will be read from the .frm file upon
+first open from MySQL after a server restart.
 dict_stats_auto_recalc_set() @{ */
 UNIV_INLINE
 void
