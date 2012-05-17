@@ -2194,6 +2194,8 @@ double handler::keyread_time(uint index, uint ranges, ha_rows rows)
     The model counts in the time to read index entries from cache.
   */
   ulong len= table->key_info[index].key_length + ref_length;
+  if (index == table->s->primary_key && table->file->primary_key_is_clustered())
+    len= table->s->stored_rec_length;
   double keys_per_block= (stats.block_size/2.0/len+1);
   return (rows + keys_per_block-1)/ keys_per_block +
          len*rows/(stats.block_size+1)/TIME_FOR_COMPARE ;
