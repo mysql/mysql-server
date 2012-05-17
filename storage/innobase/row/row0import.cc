@@ -1473,6 +1473,7 @@ PageConverter::update_index_page(
 		to any known index. */
 
 		if (index == 0) {
+
 			return(DB_SUCCESS);
 		}
 
@@ -1480,11 +1481,17 @@ PageConverter::update_index_page(
 		m_index = index;
 	}
 
-	page_set_max_trx_id(block, m_page_zip_ptr, m_trx->id, 0);
-
-	/* This has to be written to uncompressed index header. */
+	/* This has to be written to uncompressed index header. Set it to
+	the current index id. */
 	btr_page_set_index_id(
 		page, m_page_zip_ptr, m_index->m_srv_index->id, 0);
+
+	/* Page is empty, it could be a deleted page too. Igore it. */
+	if (page_get_n_recs(block->frame) == 0) {
+		return(DB_SUCCESS);
+	}
+
+	page_set_max_trx_id(block, m_page_zip_ptr, m_trx->id, 0);
 
 	return(update_records(block));
 }
@@ -1561,11 +1568,6 @@ PageConverter::update_page(
 		mach_write_to_4(
 			get_frame(block)
 			+ FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID, get_space_id());
-
-		/* Page is empty, it could be a deleted page too. Igore it. */
-		if (page_get_n_recs(block->frame) == 0) {
-			return(DB_SUCCESS);
-		}
 
 		/* Only update the Btree nodes. */
 		return(update_index_page(block));
