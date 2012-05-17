@@ -106,7 +106,7 @@ CALL p1;
 f1
 ALTER TABLE t2 CHANGE COLUMN f1 my_column INT;
 CALL p1;
-ERROR 42S22: Unknown column 'f1' in 'where clause'
+f1
 DROP PROCEDURE p1;
 DROP TABLE t1, t2;
 SET SESSION optimizer_switch = 'default';

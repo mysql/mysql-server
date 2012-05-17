@@ -2088,5 +2088,10 @@ MAX(a)
 1
 DROP TABLE t1;
 #
+# BUG#13463397 - 63562: UNKNOWN DATABASE INFORMATION_SCHEMA 
+#
+CREATE PROCEDURE information_schema.is() BEGIN END;
+ERROR 42000: Access denied for user 'root'@'localhost' to database 'information_schema'
+#
 # End of 5.6 tests
 #

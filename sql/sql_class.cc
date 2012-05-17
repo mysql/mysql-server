@@ -74,6 +74,7 @@ char internal_table_name[2]= "*";
 char empty_c_string[1]= {0};    /* used for not defined db */
 
 LEX_STRING EMPTY_STR= { (char *) "", 0 };
+LEX_STRING NULL_STR=  { NULL, 0 };
 
 const char * const THD::DEFAULT_WHERE= "field list";
 
@@ -128,9 +129,9 @@ Key::Key(const Key &rhs, MEM_ROOT *mem_root)
 */
 
 Foreign_key::Foreign_key(const Foreign_key &rhs, MEM_ROOT *mem_root)
-  :Key(rhs),
+  :Key(rhs, mem_root),
   ref_table(rhs.ref_table),
-  ref_columns(rhs.ref_columns),
+  ref_columns(rhs.ref_columns, mem_root),
   delete_opt(rhs.delete_opt),
   update_opt(rhs.update_opt),
   match_opt(rhs.match_opt)
@@ -355,9 +356,8 @@ void thd_new_connection_setup(THD *thd, char *stack_start)
   mysql_mutex_assert_owner(&LOCK_thread_count);
 #ifdef HAVE_PSI_INTERFACE
   thd_set_psi(thd,
-              PSI_CALL(new_thread)(key_thread_one_connection,
-                                   thd,
-                                   thd->thread_id));
+              PSI_THREAD_CALL(new_thread)
+                (key_thread_one_connection, thd, thd->thread_id));
 #endif
   thd->set_time();
   thd->prior_thr_create_utime= thd->thr_create_utime= thd->start_utime=
@@ -571,7 +571,7 @@ void THD::enter_stage(const PSI_stage_info *new_stage,
     proc_info= msg;
 
 #ifdef HAVE_PSI_THREAD_INTERFACE
-    PSI_CALL(set_thread_state)(msg);
+    PSI_THREAD_CALL(set_thread_state)(msg);
     MYSQL_SET_STAGE(m_current_stage_key, calling_file, calling_line);
 #endif
   }
@@ -795,6 +795,41 @@ bool Drop_table_error_handler::handle_condition(THD *thd,
 }
 
 
+void Open_tables_state::set_open_tables_state(Open_tables_state *state)
+{
+  this->open_tables= state->open_tables;
+
+  this->temporary_tables= state->temporary_tables;
+  this->derived_tables= state->derived_tables;
+
+  this->lock= state->lock;
+  this->extra_lock= state->extra_lock;
+
+  this->locked_tables_mode= state->locked_tables_mode;
+  this->current_tablenr= state->current_tablenr;
+
+  this->state_flags= state->state_flags;
+
+  this->reset_reprepare_observers();
+  for (int i= 0; i < state->m_reprepare_observers.elements(); ++i)
+    this->push_reprepare_observer(state->m_reprepare_observers.at(i));
+}
+
+
+void Open_tables_state::reset_open_tables_state()
+{
+  open_tables= NULL;
+  temporary_tables= NULL;
+  derived_tables= NULL;
+  lock= NULL;
+  extra_lock= NULL;
+  locked_tables_mode= LTM_NONE;
+  // JOH: What about resetting current_tablenr?
+  state_flags= 0U;
+  reset_reprepare_observers();
+}
+
+
 THD::THD(bool enable_plugins)
    :Statement(&main_lex, &main_mem_root, STMT_CONVENTIONAL_EXECUTION,
               /* statement id */ 0),
@@ -915,7 +950,7 @@ THD::THD(bool enable_plugins)
   *scramble= '\0';
 
   /* Call to init() below requires fully initialized Open_tables_state. */
-  reset_open_tables_state(this);
+  reset_open_tables_state();
 
   init();
 #if defined(ENABLED_PROFILING)
@@ -3076,13 +3111,42 @@ bool select_exists_subselect::send_data(List<Item> &items)
 int select_dumpvar::prepare(List<Item> &list, SELECT_LEX_UNIT *u)
 {
   unit= u;
+  List_iterator_fast<my_var> var_li(var_list);
+  List_iterator_fast<Item> it(list);
+  Item *item;
+  my_var *mv;
+  Item_func_set_user_var **suv;
   
   if (var_list.elements != list.elements)
   {
     my_message(ER_WRONG_NUMBER_OF_COLUMNS_IN_SELECT,
                ER(ER_WRONG_NUMBER_OF_COLUMNS_IN_SELECT), MYF(0));
     return 1;
-  }               
+  }
+
+  /*
+    Iterate over the destination variables and mark them as being
+    updated in this query.
+    We need to do this at JOIN::prepare time to ensure proper
+    const detection of Item_func_get_user_var that is determined
+    by the presence of Item_func_set_user_vars
+  */
+
+  suv= set_var_items= (Item_func_set_user_var **) 
+    sql_alloc(sizeof(Item_func_set_user_var *) * list.elements);
+
+  while ((mv= var_li++) && (item= it++))
+  {
+    if (!mv->local)
+    {
+      *suv= new Item_func_set_user_var(mv->s, item);
+      (*suv)->fix_fields(thd, 0);
+    }
+    else
+      *suv= NULL;
+    suv++;
+  }
+
   return 0;
 }
 
@@ -3399,6 +3463,7 @@ bool select_dumpvar::send_data(List<Item> &items)
   List_iterator<Item> it(items);
   Item *item;
   my_var *mv;
+  Item_func_set_user_var **suv;
   DBUG_ENTER("select_dumpvar::send_data");
 
   if (unit->offset_limit_cnt)
@@ -3411,20 +3476,19 @@ bool select_dumpvar::send_data(List<Item> &items)
     my_message(ER_TOO_MANY_ROWS, ER(ER_TOO_MANY_ROWS), MYF(0));
     DBUG_RETURN(1);
   }
-  while ((mv= var_li++) && (item= it++))
+  for (suv= set_var_items; ((mv= var_li++) && (item= it++)); suv++)
   {
     if (mv->local)
     {
+      DBUG_ASSERT(!*suv);
       if (thd->sp_runtime_ctx->set_variable(thd, mv->offset, &item))
 	    DBUG_RETURN(1);
     }
     else
     {
-      Item_func_set_user_var *suv= new Item_func_set_user_var(mv->s, item);
-      if (suv->fix_fields(thd, 0))
-        DBUG_RETURN (1);
-      suv->save_item_result(item);
-      if (suv->update())
+      DBUG_ASSERT(*suv);
+      (*suv)->save_item_result(item);
+      if ((*suv)->update())
         DBUG_RETURN (1);
     }
   }
@@ -3813,7 +3877,7 @@ void THD::reset_n_backup_open_tables_state(Open_tables_backup *backup)
   DBUG_ENTER("reset_n_backup_open_tables_state");
   backup->set_open_tables_state(this);
   backup->mdl_system_tables_svp= mdl_context.mdl_savepoint();
-  reset_open_tables_state(this);
+  reset_open_tables_state();
   state_flags|= Open_tables_state::BACKUPS_AVAIL;
   DBUG_VOID_RETURN;
 }
@@ -3831,7 +3895,7 @@ void THD::restore_backup_open_tables_state(Open_tables_backup *backup)
               derived_tables == 0 &&
               lock == 0 &&
               locked_tables_mode == LTM_NONE &&
-              m_reprepare_observer == NULL);
+              get_reprepare_observer() == NULL);
 
   set_open_tables_state(backup);
   DBUG_VOID_RETURN;
@@ -4162,7 +4226,7 @@ void THD::inc_status_created_tmp_disk_tables()
 {
   status_var_increment(status_var.created_tmp_disk_tables);
 #ifdef HAVE_PSI_STATEMENT_INTERFACE
-  PSI_CALL(inc_statement_created_tmp_disk_tables)(m_statement_psi, 1);
+  PSI_STATEMENT_CALL(inc_statement_created_tmp_disk_tables)(m_statement_psi, 1);
 #endif
 }
 
@@ -4170,7 +4234,7 @@ void THD::inc_status_created_tmp_tables()
 {
   status_var_increment(status_var.created_tmp_tables);
 #ifdef HAVE_PSI_STATEMENT_INTERFACE
-  PSI_CALL(inc_statement_created_tmp_tables)(m_statement_psi, 1);
+  PSI_STATEMENT_CALL(inc_statement_created_tmp_tables)(m_statement_psi, 1);
 #endif
 }
 
@@ -4178,7 +4242,7 @@ void THD::inc_status_select_full_join()
 {
   status_var_increment(status_var.select_full_join_count);
 #ifdef HAVE_PSI_STATEMENT_INTERFACE
-  PSI_CALL(inc_statement_select_full_join)(m_statement_psi, 1);
+  PSI_STATEMENT_CALL(inc_statement_select_full_join)(m_statement_psi, 1);
 #endif
 }
 
@@ -4186,7 +4250,7 @@ void THD::inc_status_select_full_range_join()
 {
   status_var_increment(status_var.select_full_range_join_count);
 #ifdef HAVE_PSI_STATEMENT_INTERFACE
-  PSI_CALL(inc_statement_select_full_range_join)(m_statement_psi, 1);
+  PSI_STATEMENT_CALL(inc_statement_select_full_range_join)(m_statement_psi, 1);
 #endif
 }
 
@@ -4194,7 +4258,7 @@ void THD::inc_status_select_range()
 {
   status_var_increment(status_var.select_range_count);
 #ifdef HAVE_PSI_STATEMENT_INTERFACE
-  PSI_CALL(inc_statement_select_range)(m_statement_psi, 1);
+  PSI_STATEMENT_CALL(inc_statement_select_range)(m_statement_psi, 1);
 #endif
 }
 
@@ -4202,7 +4266,7 @@ void THD::inc_status_select_range_check()
 {
   status_var_increment(status_var.select_range_check_count);
 #ifdef HAVE_PSI_STATEMENT_INTERFACE
-  PSI_CALL(inc_statement_select_range_check)(m_statement_psi, 1);
+  PSI_STATEMENT_CALL(inc_statement_select_range_check)(m_statement_psi, 1);
 #endif
 }
 
@@ -4210,7 +4274,7 @@ void THD::inc_status_select_scan()
 {
   status_var_increment(status_var.select_scan_count);
 #ifdef HAVE_PSI_STATEMENT_INTERFACE
-  PSI_CALL(inc_statement_select_scan)(m_statement_psi, 1);
+  PSI_STATEMENT_CALL(inc_statement_select_scan)(m_statement_psi, 1);
 #endif
 }
 
@@ -4218,7 +4282,7 @@ void THD::inc_status_sort_merge_passes()
 {
   status_var_increment(status_var.filesort_merge_passes);
 #ifdef HAVE_PSI_STATEMENT_INTERFACE
-  PSI_CALL(inc_statement_sort_merge_passes)(m_statement_psi, 1);
+  PSI_STATEMENT_CALL(inc_statement_sort_merge_passes)(m_statement_psi, 1);
 #endif
 }
 
@@ -4226,7 +4290,7 @@ void THD::inc_status_sort_range()
 {
   status_var_increment(status_var.filesort_range_count);
 #ifdef HAVE_PSI_STATEMENT_INTERFACE
-  PSI_CALL(inc_statement_sort_range)(m_statement_psi, 1);
+  PSI_STATEMENT_CALL(inc_statement_sort_range)(m_statement_psi, 1);
 #endif
 }
 
@@ -4234,7 +4298,7 @@ void THD::inc_status_sort_rows(ha_rows count)
 {
   statistic_add(status_var.filesort_rows, count, &LOCK_status);
 #ifdef HAVE_PSI_STATEMENT_INTERFACE
-  PSI_CALL(inc_statement_sort_rows)(m_statement_psi, count);
+  PSI_STATEMENT_CALL(inc_statement_sort_rows)(m_statement_psi, count);
 #endif
 }
 
@@ -4242,7 +4306,7 @@ void THD::inc_status_sort_scan()
 {
   status_var_increment(status_var.filesort_scan_count);
 #ifdef HAVE_PSI_STATEMENT_INTERFACE
-  PSI_CALL(inc_statement_sort_scan)(m_statement_psi, 1);
+  PSI_STATEMENT_CALL(inc_statement_sort_scan)(m_statement_psi, 1);
 #endif
 }
 
@@ -4250,7 +4314,7 @@ void THD::set_status_no_index_used()
 {
   server_status|= SERVER_QUERY_NO_INDEX_USED;
 #ifdef HAVE_PSI_STATEMENT_INTERFACE
-  PSI_CALL(set_statement_no_index_used)(m_statement_psi);
+  PSI_STATEMENT_CALL(set_statement_no_index_used)(m_statement_psi);
 #endif
 }
 
@@ -4258,7 +4322,7 @@ void THD::set_status_no_good_index_used()
 {
   server_status|= SERVER_QUERY_NO_GOOD_INDEX_USED;
 #ifdef HAVE_PSI_STATEMENT_INTERFACE
-  PSI_CALL(set_statement_no_good_index_used)(m_statement_psi);
+  PSI_STATEMENT_CALL(set_statement_no_good_index_used)(m_statement_psi);
 #endif
 }
 
@@ -4266,7 +4330,7 @@ void THD::set_command(enum enum_server_command command)
 {
   m_command= command;
 #ifdef HAVE_PSI_THREAD_INTERFACE
-  PSI_CALL(set_thread_command)(m_command);
+  PSI_STATEMENT_CALL(set_thread_command)(m_command);
 #endif
 }
 
@@ -4280,7 +4344,7 @@ void THD::set_query(const CSET_STRING &string_arg)
   mysql_mutex_unlock(&LOCK_thd_data);
 
 #ifdef HAVE_PSI_THREAD_INTERFACE
-  PSI_CALL(set_thread_info)(query(), query_length());
+  PSI_THREAD_CALL(set_thread_info)(query(), query_length());
 #endif
 }
 

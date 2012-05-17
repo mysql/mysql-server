@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1205,11 +1205,13 @@ my_bool acl_reload(THD *thd)
   {
     /*
       Execution might have been interrupted; only print the error message
-      if an error condition has been raised.
+      if a user error condition has been raised.
     */
     if (thd->get_stmt_da()->is_error())
+    {
       sql_print_error("Fatal error: Can't open and lock privilege tables: %s",
                       thd->get_stmt_da()->message());
+    }
     goto end;
   }
 
@@ -3421,7 +3423,7 @@ static int replace_routine_table(THD *thd, GRANT_NAME *grant_name,
   table->field[3]->store(routine_name,(uint) strlen(routine_name),
                          &my_charset_latin1);
   table->field[4]->store((longlong)(is_proc ?
-                                    TYPE_ENUM_PROCEDURE : TYPE_ENUM_FUNCTION),
+                                    SP_TYPE_PROCEDURE : SP_TYPE_FUNCTION),
                          TRUE);
   store_record(table,record[1]);			// store at pos 1
 
@@ -4283,12 +4285,12 @@ static my_bool grant_load_procs_priv(TABLE *p_table)
           continue;
         }
       }
-      if (p_table->field[4]->val_int() == TYPE_ENUM_PROCEDURE)
+      if (p_table->field[4]->val_int() == SP_TYPE_PROCEDURE)
       {
         hash= &proc_priv_hash;
       }
       else
-      if (p_table->field[4]->val_int() == TYPE_ENUM_FUNCTION)
+      if (p_table->field[4]->val_int() == SP_TYPE_FUNCTION)
       {
         hash= &func_priv_hash;
       }
@@ -9719,10 +9721,9 @@ acl_authenticate(THD *thd, uint com_change_user_pkt_len)
     my_ok(thd);
 
 #ifdef HAVE_PSI_THREAD_INTERFACE
-  PSI_CALL(set_thread_user_host)(thd->main_security_ctx.user,
-                                 strlen(thd->main_security_ctx.user),
-                                 thd->main_security_ctx.host_or_ip,
-                                 strlen(thd->main_security_ctx.host_or_ip));
+  PSI_THREAD_CALL(set_thread_user_host)
+    (thd->main_security_ctx.user, strlen(thd->main_security_ctx.user),
+    thd->main_security_ctx.host_or_ip, strlen(thd->main_security_ctx.host_or_ip));
 #endif
 
   /* Ready to handle queries */
