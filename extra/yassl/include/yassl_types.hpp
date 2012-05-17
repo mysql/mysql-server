@@ -15,7 +15,7 @@
    along with this program; see the file COPYING. If not, write to the
    Free Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston,
    MA  02110-1301  USA.
-*/
+ */
 
 /*  yaSSL types  header defines all constants, enums, and typedefs
  *  from the SSL.v3 specification "draft-freier-ssl-version3-02.txt"
@@ -26,8 +26,14 @@
 #define yaSSL_TYPES_HPP
 
 #include <stddef.h>
-#include <assert.h>
 #include "type_traits.hpp"
+
+
+#ifdef _MSC_VER
+    // disable conversion warning
+    // 4996 warning to use MS extensions e.g., strcpy_s instead of strncpy
+    #pragma warning(disable:4244 4996)
+#endif
 
 
 #ifdef _MSC_VER
@@ -63,34 +69,33 @@ namespace yaSSL {
     template<typename T>
     void ysDelete(T* ptr)
     {
-    if (ptr) ptr->~T();
-    ::operator delete(ptr, yaSSL::ys);
+        if (ptr) ptr->~T();
+        ::operator delete(ptr, yaSSL::ys);
     }
 
     template<typename T>
     void ysArrayDelete(T* ptr)
     {
-    // can't do array placement destruction since not tracking size in
-    // allocation, only allow builtins to use array placement since they
-    // don't need destructors called
-    typedef char builtin[TaoCrypt::IsFundamentalType<T>::Yes ? 1 : -1];
-    (void)sizeof(builtin);
+        // can't do array placement destruction since not tracking size in
+        // allocation, only allow builtins to use array placement since they
+        // don't need destructors called
+        typedef char builtin[TaoCrypt::IsFundamentalType<T>::Yes ? 1 : -1];
+        (void)sizeof(builtin);
 
-    ::operator delete[](ptr, yaSSL::ys);
+        ::operator delete[](ptr, yaSSL::ys);
     }
 
     #define NEW_YS new (yaSSL::ys)
 
     // to resolve compiler generated operator delete on base classes with
-    // virtual destructors (when on stack), make sure doesn't get called
+    // virtual destructors (when on stack)
     class virtual_base {
     public:
-    static void operator delete(void*) { assert(0); }
+        static void operator delete(void*) { }
     };
 
 
 #else   // YASSL_PURE_C
-
 
     template<typename T>
     void ysDelete(T* ptr)
@@ -124,7 +129,7 @@ typedef opaque byte;
 
 typedef unsigned int uint;
 
- 
+
 #ifdef USE_SYS_STL
     // use system STL
     #define STL_VECTOR_FILE    <vector>

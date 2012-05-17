@@ -15763,8 +15763,44 @@ view_select:
         ;
 
 view_select_aux:
-          SELECT_SYM select_init2
-        | '(' select_paren ')' union_opt
+          create_view_select
+          {
+            if (Lex->current_select->set_braces(0))
+            {
+              my_parse_error(ER(ER_SYNTAX_ERROR));
+              MYSQL_YYABORT;
+            }
+            /*
+              For statment as "CREATE VIEW v1 AS SELECT1 UNION SELECT2",
+              parsing of Select query (SELECT1) is completed and UNION_CLAUSE
+              is not yet parsed. So check for
+              Lex->current_select->master_unit()->first_select()->braces
+              (as its done in "select_init2" for "select_part2" rule) is not
+              done here.
+            */
+          }
+          union_clause
+        | '(' create_view_select_paren ')' union_opt
+        ;
+
+create_view_select_paren:
+          create_view_select 
+          {
+            if (setup_select_in_parentheses(Lex))
+              MYSQL_YYABORT;
+          }
+        | '(' create_view_select_paren ')' 
+        ;
+
+create_view_select:
+          SELECT_SYM
+          {
+            Lex->current_select->table_list.save_and_clear(&Lex->save_list);
+          }
+          select_part2
+          {
+            Lex->current_select->table_list.push_front(&Lex->save_list);
+          }
         ;
 
 view_check_option:

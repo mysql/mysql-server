@@ -14,7 +14,7 @@
    along with this program; see the file COPYING. If not, write to the
    Free Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston,
    MA  02110-1301  USA.
-*/
+ */
 
 /* based on Wei Dai's arc4.cpp from CryptoPP */
 
@@ -104,7 +104,7 @@ void ARC4::Process(byte* out, const byte* in, word32 length)
 #ifdef DO_ARC4_ASM
 
 #ifdef _MSC_VER
-    __declspec(naked) 
+    __declspec(naked)
 #else
     __attribute__ ((noinline))
 #endif
