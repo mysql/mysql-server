@@ -2203,6 +2203,8 @@ void wait_for_condition(THD *thd, pthread_mutex_t *mutex, pthread_cond_t *cond)
   */
     
   pthread_mutex_unlock(mutex);
+  DEBUG_SYNC(thd, "waiting_for_table_unlock");
+  DBUG_EXECUTE_IF("sleep_after_waiting_for_table", my_sleep(1000000););
   pthread_mutex_lock(&thd->mysys_var->mutex);
   thd->mysys_var->current_mutex= 0;
   thd->mysys_var->current_cond= 0;
