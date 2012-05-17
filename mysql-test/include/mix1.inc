@@ -860,6 +860,11 @@ CREATE TABLE t1 (a int, b int, PRIMARY KEY (a), KEY bkey (b)) ENGINE=InnoDB;
 INSERT INTO t1 VALUES (1,2),(3,2),(2,2),(4,2),(5,2),(6,2),(7,2),(8,2);
 INSERT INTO t1 SELECT a + 8, 2 FROM t1;
 INSERT INTO t1 SELECT a + 16, 1 FROM t1;
+-- disable_query_log
+-- disable_result_log
+ANALYZE TABLE t1;
+-- enable_result_log
+-- enable_query_log
 query_vertical EXPLAIN SELECT * FROM t1 WHERE b=2 ORDER BY a;
 SELECT * FROM t1 WHERE b=2 ORDER BY a;
 query_vertical EXPLAIN SELECT * FROM t1 WHERE b BETWEEN 1 AND 2 ORDER BY a;
@@ -872,6 +877,12 @@ CREATE TABLE t2 (a int, b int, c int, PRIMARY KEY (a), KEY bkey (b,c))
 INSERT INTO t2 VALUES (1,1,1),(3,1,1),(2,1,1),(4,1,1);
 INSERT INTO t2 SELECT a + 4, 1, 1 FROM t2;
 INSERT INTO t2 SELECT a + 8, 1, 1 FROM t2;
+
+-- disable_query_log
+-- disable_result_log
+ANALYZE TABLE t2;
+-- enable_result_log
+-- enable_query_log
 
 query_vertical EXPLAIN SELECT * FROM t2 WHERE b=1 ORDER BY a;
 SELECT * FROM t2 WHERE b=1 ORDER BY a;
@@ -1091,6 +1102,12 @@ drop table t1;
 CREATE TABLE t1 (id int, type char(6), d int, INDEX idx(id,d)) ENGINE=InnoDB;
 INSERT INTO t1 VALUES 
   (191, 'member', 1), (NULL, 'member', 3), (NULL, 'member', 4), (201, 'member', 2); 
+
+-- disable_query_log
+-- disable_result_log
+ANALYZE TABLE t1;
+-- enable_result_log
+-- enable_query_log
 
 EXPLAIN SELECT * FROM t1 WHERE id=191 OR id IS NULL ORDER BY d;
 SELECT * FROM t1 WHERE id=191 OR id IS NULL ORDER BY d;
@@ -1512,6 +1529,12 @@ INSERT INTO t1 VALUES
   (4,1,2,'c2',NULL),(5,1,2,'c1',NULL),(2,1,3,'c2',NULL),(3,1,3,'c2',NULL),
   (4,1,3,'pk',NULL),(5,1,3,'c2',NULL),
   (2,1,4,'c_extra',NULL),(3,1,4,'c_extra',NULL);
+
+-- disable_query_log
+-- disable_result_log
+ANALYZE TABLE t1;
+-- enable_result_log
+-- enable_query_log
 
 EXPLAIN SELECT * FROM t1 FORCE INDEX (PRIMARY) WHERE tid = 1 AND vid = 3 ORDER BY idx DESC;
 
