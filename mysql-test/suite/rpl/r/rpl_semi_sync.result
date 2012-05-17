@@ -412,8 +412,8 @@ Rpl_semi_sync_slave_status	OFF
 # Test non-semi-sync slave connect to semi-sync master
 #
 INSTALL PLUGIN rpl_semi_sync_master SONAME 'SEMISYNC_MASTER_PLUGIN';
-set global rpl_semi_sync_master_timeout= 5000;
-/* 5s */
+set global rpl_semi_sync_master_timeout= 10000;
+/* 10s */
 set global rpl_semi_sync_master_enabled= 1;
 [ on slave ]
 include/stop_slave.inc
