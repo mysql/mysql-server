@@ -1,12 +1,12 @@
 SET @start_value = @@global.binlog_order_commits;
 SELECT @start_value;
 @start_value
-0
+1
 '#---------------------FN_DYNVARS_004_01-------------------------#'
 SET @@global.binlog_order_commits = DEFAULT;
 SELECT @@global.binlog_order_commits = FALSE;
 @@global.binlog_order_commits = FALSE
-1
+0
 '#--------------------FN_DYNVARS_004_02------------------------#'
 SET @@global.binlog_order_commits = ON;
 SELECT @@global.binlog_order_commits;
@@ -91,4 +91,4 @@ ERROR 42S22: Unknown column 'binlog_order_commits' in 'field list'
 SET @@global.binlog_order_commits = @start_value;
 SELECT @@global.binlog_order_commits;
 @@global.binlog_order_commits
-0
+1
