@@ -14,7 +14,7 @@
    along with this program; see the file COPYING. If not, write to the
    Free Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston,
    MA  02110-1301  USA.
-*/
+ */
 
 
 /* mySTL vector implements simple vector, w/ swap
@@ -26,7 +26,6 @@
 
 #include "helpers.hpp"    // construct, destory, fill, etc.
 #include "algorithm.hpp"  // swap
-#include <assert.h>       // assert
 
 
 namespace mySTL {
@@ -141,9 +140,9 @@ private:
     // for growing, n must be bigger than other size
     vector(size_t n, const vector& other) : vec_(n)
     {
-        assert(n > other.size());
-        vec_.finish_ = uninit_copy(other.vec_.start_, other.vec_.finish_,
-                                   vec_.start_);   
+        if (n > other.size())
+            vec_.finish_ = uninit_copy(other.vec_.start_, other.vec_.finish_,
+                                       vec_.start_);
     }
 };
 

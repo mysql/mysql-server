@@ -14,7 +14,7 @@
    along with this program; see the file COPYING. If not, write to the
    Free Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston,
    MA  02110-1301  USA.
-*/
+ */
 
 
 /* yaSSL internal header defines SSL supporting types not specified in the
@@ -168,7 +168,7 @@ private:
 
 // openSSL X509 names
 class X509_NAME {
-    char* name_;
+    char*       name_;
     size_t      sz_;
     ASN1_STRING entry_;
 public:
@@ -246,11 +246,11 @@ public:
     SSL_SESSION(const SSL&, RandomPool&);
     ~SSL_SESSION();
 
-    const opaque* GetID()      const;
-    const opaque* GetSecret()  const;
-    const Cipher* GetSuite()   const;
-          uint    GetBornOn()  const;
-          uint    GetTimeOut() const;
+    const opaque* GetID()       const;
+    const opaque* GetSecret()   const;
+    const Cipher* GetSuite()    const;
+          uint    GetBornOn()   const;
+          uint    GetTimeOut()  const;
           X509*   GetPeerX509() const;
           void    SetTimeOut(uint);
 
@@ -417,33 +417,33 @@ class SSL_CTX {
 public:
     typedef STL::list<x509*> CertList;
 private:
-    SSL_METHOD* method_;
-    x509*       certificate_;
-    x509*       privateKey_;
-    CertList    caList_;
-    Ciphers     ciphers_;
-    DH_Parms    dhParms_;
+    SSL_METHOD*     method_;
+    x509*           certificate_;
+    x509*           privateKey_;
+    CertList        caList_;
+    Ciphers         ciphers_;
+    DH_Parms        dhParms_;
     pem_password_cb passwordCb_;
     void*           userData_;
     bool            sessionCacheOff_;
     bool            sessionCacheFlushOff_;
-    Stats       stats_;
-    Mutex       mutex_;         // for Stats
+    Stats           stats_;
+    Mutex           mutex_;         // for Stats
     VerifyCallback  verifyCallback_;
 public:
     explicit SSL_CTX(SSL_METHOD* meth);
     ~SSL_CTX();
 
-    const x509*       getCert()     const;
-    const x509*       getKey()      const;
-    const SSL_METHOD* getMethod()   const;
-    const Ciphers&    GetCiphers()  const;
-    const DH_Parms&   GetDH_Parms() const;
-    const Stats&      GetStats()    const;
-    VerifyCallback    getVerifyCallback() const;
+    const x509*       getCert()       const;
+    const x509*       getKey()        const;
+    const SSL_METHOD* getMethod()     const;
+    const Ciphers&    GetCiphers()    const;
+    const DH_Parms&   GetDH_Parms()   const;
+    const Stats&      GetStats()      const;
+    const VerifyCallback getVerifyCallback() const;
     pem_password_cb   GetPasswordCb() const;
           void*       GetUserData()   const;
-          bool        GetSessionCacheOff() const;
+          bool        GetSessionCacheOff()      const;
           bool        GetSessionCacheFlushOff() const;
 
     void setVerifyPeer();
@@ -532,10 +532,13 @@ class Buffers {
 public: 
     typedef STL::list<input_buffer*>  inputList;
     typedef STL::list<output_buffer*> outputList;
+    int prevSent;     // previous plain text bytes sent when got WANT_WRITE
+    int plainSz;      // plain text bytes in buffer to send when got WANT_WRITE 
 private:
-    inputList  dataList_;                // list of users app data / handshake
-    outputList handShakeList_;           // buffered handshake msgs
-    input_buffer* rawInput_;             // buffered raw input yet to process
+    inputList      dataList_;             // list of users app data / handshake
+    outputList     handShakeList_;        // buffered handshake msgs
+    input_buffer*  rawInput_;             // buffered raw input yet to process
+    output_buffer* output_;               // WANT_WRITE buffered output 
 public:
     Buffers();
     ~Buffers();
@@ -546,11 +549,13 @@ public:
     inputList&  useData();
     outputList& useHandShake();
 
-    void          SetRawInput(input_buffer*);  // takes ownership
-    input_buffer* TakeRawInput();              // takes ownership 
+    void           SetRawInput(input_buffer*);  // takes ownership
+    input_buffer*  TakeRawInput();              // takes ownership 
+    void           SetOutput(output_buffer*);   // takes ownership
+    output_buffer* TakeOutput();                // takes ownership 
 private:
     Buffers(const Buffers&);             // hide copy
-    Buffers& operator=(const Buffers&); // and assign   
+    Buffers& operator=(const Buffers&);  // and assign   
 };
 
 
@@ -652,6 +657,7 @@ public:
     void deriveKeys();
     void deriveTLSKeys();
     void Send(const byte*, uint);
+    void SendWriteBuffered();
 
     uint bufferedData();
     uint get_SEQIncrement(bool);
