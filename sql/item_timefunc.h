@@ -1196,11 +1196,12 @@ public:
   const char *func_name() const { return "sysdate"; }
   void fix_length_and_dec();
   bool get_date(MYSQL_TIME *res, uint fuzzy_date);
-  void update_used_tables()
-  {
-    Item_datetime_func::update_used_tables();
-    used_tables_cache|= RAND_TABLE_BIT;
-  }
+  /**
+    This function is non-deterministic and hence depends on the 'RAND' pseudo-table.
+
+    @retval Always RAND_TABLE_BIT
+  */
+  table_map get_initial_pseudo_tables() const { return RAND_TABLE_BIT; }
 };
 
 
