@@ -5,8 +5,14 @@ Note	####	Storing MySQL user name or password information in the master.info rep
 [connection master]
 create table t1(a int not null primary key) engine=myisam;
 insert delayed into t1 values (1);
+Warnings:
+Warning	1287	'INSERT DELAYED' is deprecated and will be removed in a future release. Please use INSERT instead
 insert delayed into t1 values (2);
+Warnings:
+Warning	1287	'INSERT DELAYED' is deprecated and will be removed in a future release. Please use INSERT instead
 insert delayed into t1 values (3);
+Warnings:
+Warning	1287	'INSERT DELAYED' is deprecated and will be removed in a future release. Please use INSERT instead
 flush tables;
 SELECT * FROM t1 ORDER BY a;
 a
