@@ -44,6 +44,7 @@ list(APPEND CTEST_CUSTOM_MEMCHECK_IGNORE
   try-leak-reachable
   try-leak-uninit
   drd_test_4015.tdb
+  upgrade_test_simple
   )
 
 ## tests that are supposed to crash will generate memcheck failures
