@@ -18,8 +18,11 @@ CREATE TABLE autorecalc (a INT, PRIMARY KEY (a)) ENGINE=INNODB;
 INSERT INTO autorecalc VALUES (1);
 INSERT INTO autorecalc VALUES (2);
 
-# wait for the bg stats thread to update the stats
-let $wait_condition = SELECT n_rows = 2 FROM mysql.innodb_table_stats WHERE table_name = 'autorecalc';
+# wait for the bg stats thread to update the stats, notice we wait on
+# innodb_index_stats because innodb_table_stats gets updated first and
+# it is possible that (if we wait on innodb_table_stats) the wait cond
+# gets satisfied before innodb_index_stats is updated
+let $wait_condition = SELECT stat_value = 2 FROM mysql.innodb_index_stats WHERE table_name = 'autorecalc' AND index_name = 'PRIMARY' AND stat_name = 'n_diff_pfx01';
 -- source include/wait_condition.inc
 
 # the second INSERT from above should have triggered an auto-recalc

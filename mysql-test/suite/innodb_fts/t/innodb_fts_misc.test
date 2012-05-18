@@ -839,6 +839,10 @@ INSERT INTO articles (title,body) VALUES
         ('MySQL vs. YourSQL','In the following database comparison ...'),
         ('MySQL Security','When configured properly, MySQL ...');
 
+-- disable_result_log
+ANALYZE TABLE articles;
+-- enable_result_log
+
 SELECT *,  MATCH(title, body) AGAINST ('-database +MySQL' IN BOOLEAN MODE) AS score from articles;
 
 SELECT *, MATCH(title, body) AGAINST ('+MySQL -database' IN BOOLEAN MODE) AS score  FROM articles;
