@@ -324,7 +324,7 @@ call mtr.add_suppression("Slave SQL.*Request to stop slave SQL Thread received w
 let $slave_errno= ER_DUP_ENTRY
 --source include/wait_for_slave_sql_error.inc
 let $rcvd_heartbeats_before= query_get_value(SHOW STATUS LIKE 'slave_received_heartbeats', Value, 1);
-sleep 2;
+sleep 4;
 let $rcvd_heartbeats_after= query_get_value(SHOW STATUS LIKE 'slave_received_heartbeats', Value, 1);
 let $result= query_get_value(SELECT ($rcvd_heartbeats_after - $rcvd_heartbeats_before) > 0 AS Result, Result, 1);
 --echo Heartbeat events are received while sql thread stopped (1 means 'yes'): $result

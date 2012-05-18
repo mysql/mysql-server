@@ -763,6 +763,8 @@ static int collect_tables(LEX_STRING *str, LSN checkpoint_start_log_horizon)
   PAGECACHE_FLUSH_FILTER filter;
   DBUG_ENTER("collect_tables");
 
+  LINT_INIT(state_copies_horizon);
+
   /* let's make a list of distinct shares */
   mysql_mutex_lock(&THR_LOCK_maria);
   for (nb= 0, pos= maria_open_list; pos; pos= pos->next)

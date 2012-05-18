@@ -36,7 +36,8 @@ int func1()
   DBUG_RETURN(10);
 }
 
-int main (int argc, char *argv[])
+int main (int argc __attribute__((unused)),
+          char *argv[] __attribute__((unused)))
 {
 #ifdef DBUG_OFF
   return 1;

@@ -739,15 +739,14 @@ static st_plugin_dl *plugin_dl_add(const LEX_STRING *dl, int report)
   }
   bzero(&plugin_dl, sizeof(plugin_dl));
   /* Compile dll path */
-  dlpathlen=
-    strxnmov(dlpath, sizeof(dlpath) - 1, opt_plugin_dir, "/", dl->str, NullS) -
-    dlpath;
+  strxnmov(dlpath, sizeof(dlpath) - 1, opt_plugin_dir, "/", dl->str, NullS);
   (void) unpack_filename(dlpath, dlpath);
   plugin_dl.ref_count= 1;
   /* Open new dll handle */
   if (!(plugin_dl.handle= dlopen(dlpath, RTLD_NOW)))
   {
     const char *errmsg=dlerror();
+    dlpathlen= strlen(dlpath);
     if (!strncmp(dlpath, errmsg, dlpathlen))
     { // if errmsg starts from dlpath, trim this prefix.
       errmsg+=dlpathlen;

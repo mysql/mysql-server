@@ -24,7 +24,7 @@
 #define BASE64_ROWS 4                           /* Number of ok(..) */
 
 int
-main(int argc,char *argv[])
+main(int argc __attribute__((unused)),char *argv[])
 {
   int i, cmp;
   size_t j, k, l, dst_len, needed_length;
