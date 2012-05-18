@@ -1664,6 +1664,19 @@ EXECUTE ps;
 DROP VIEW v2;
 DROP TABLE t1, t2;
 
+--echo #
+--echo # BUG#1000269: Wrong result (extra rows) with semijoin+materialization, IN subqueries, join_cache_level>0
+--echo #
+CREATE TABLE t1 (a1 VARCHAR(1), a2 VARCHAR(1)) ENGINE=MyISAM;
+INSERT INTO t1 VALUES ('b','b'),('e','e');
+
+CREATE TABLE t2 (b1 VARCHAR(1), b2 VARCHAR(1), KEY(b1)) ENGINE=MyISAM;
+INSERT INTO t2 VALUES ('v','v'),('s','s'),('l','l'), ('y','y'),('c','c'),('i','i');
+
+SELECT * FROM t1, t2 WHERE b1 IN ( SELECT b2 FROM t2 WHERE b1 > 'o' ) AND ( b1 < 'l' OR a1 IN ('b','c') );
+
+DROP TABLE t1,t2;
+
 --echo # This must be at the end:
 set optimizer_switch=@subselect_sj_mat_tmp;
 set join_cache_level=@save_join_cache_level;

@@ -93,7 +93,8 @@ static store_key *get_store_key(THD *thd,
 				uint maybe_null);
 static bool make_outerjoin_info(JOIN *join);
 static Item*
-make_cond_after_sjm(Item *root_cond, Item *cond, table_map tables, table_map sjm_tables);
+make_cond_after_sjm(Item *root_cond, Item *cond, table_map tables, 
+                    table_map sjm_tables, bool inside_or_clause);
 static bool make_join_select(JOIN *join,SQL_SELECT *select,COND *item);
 static void revise_cache_usage(JOIN_TAB *join_tab);
 static bool make_join_readinfo(JOIN *join, ulonglong options, uint no_jbuf_after);
@@ -8423,7 +8424,8 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
         if (tab->bush_children)
         {
           // Reached the materialization tab
-          tmp= make_cond_after_sjm(cond, cond, save_used_tables, used_tables);
+          tmp= make_cond_after_sjm(cond, cond, save_used_tables, used_tables, 
+                                   /*inside_or_clause=*/FALSE);
           used_tables= save_used_tables | used_tables;
           save_used_tables= 0;
         }
@@ -17458,13 +17460,14 @@ make_cond_for_table_from_pred(THD *thd, Item *root_cond, Item *cond,
 */
 static COND *
 make_cond_after_sjm(Item *root_cond, Item *cond, table_map tables, 
-                    table_map sjm_tables)
+                    table_map sjm_tables, bool inside_or_clause)
 {
   /*
     We assume that conditions that refer to only join prefix tables or 
     sjm_tables have already been checked.
   */
-  if ((!(cond->used_tables() & ~tables) || 
+  if (!inside_or_clause && 
+      (!(cond->used_tables() & ~tables) || 
        !(cond->used_tables() & ~sjm_tables)))
     return (COND*) 0;				// Already checked
 
@@ -17481,7 +17484,8 @@ make_cond_after_sjm(Item *root_cond, Item *cond, table_map tables,
       Item *item;
       while ((item=li++))
       {
-	Item *fix=make_cond_after_sjm(root_cond, item, tables, sjm_tables);
+	Item *fix=make_cond_after_sjm(root_cond, item, tables, sjm_tables, 
+                                      inside_or_clause);
 	if (fix)
 	  new_cond->argument_list()->push_back(fix);
       }
@@ -17511,7 +17515,8 @@ make_cond_after_sjm(Item *root_cond, Item *cond, table_map tables,
       Item *item;
       while ((item=li++))
       {
-	Item *fix= make_cond_after_sjm(root_cond, item, tables, 0L);
+	Item *fix= make_cond_after_sjm(root_cond, item, tables, sjm_tables,
+                                       /*inside_or_clause= */TRUE);
 	if (!fix)
 	  return (COND*) 0;			// Always true
 	new_cond->argument_list()->push_back(fix);
