@@ -2757,7 +2757,7 @@ fil_make_ibd_name(
 /*==============*/
 	const char*	name,		/*!< in: table name or a dir path of a
 					TEMPORARY table */
-	ibool		is_temp)	/*!< in: TRUE if it is a dir path */
+	bool		is_temp)	/*!< in: TRUE if it is a dir path */
 {
 	char*	filename;
 	ulint	namelen		= strlen(name);
@@ -5341,4 +5341,35 @@ PageCallback::set_zip_size(const buf_frame_t* page) UNIV_NOTHROW
 	}
 
 	return(DB_SUCCESS);
+}
+
+/********************************************************************//**
+Delete the tablespace file and any temporary files. */
+UNIV_INTERN
+void
+fil_delete_file(
+/*============*/
+	const char*	name)	/*!< in: table name */
+{
+	/* Force a delete of any stale .ibd files that are lying around. */
+
+	char*	ibd_name = fil_make_ibd_name(name, false);
+
+	ib_logf(IB_LOG_LEVEL_INFO, "Deleting %s", ibd_name);
+
+	os_file_delete_if_exists(ibd_name);
+
+	mem_free(ibd_name);
+
+	char*	cfg_name = fil_make_cfg_name(name);
+
+	os_file_delete_if_exists(cfg_name);
+
+	mem_free(cfg_name);
+
+	char*	ibt_name = fil_make_ibt_name(name);
+
+	os_file_delete_if_exists(ibt_name);
+
+	mem_free(ibt_name);
 }

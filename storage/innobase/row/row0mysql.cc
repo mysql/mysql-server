@@ -3975,6 +3975,12 @@ check_next_foreign:
 						"InnoDB's data dictionary",
 						table_name);
 				}
+
+				/* Force a delete of any discarded
+				or temporary files. */
+
+				fil_delete_file(name);
+
 			} else if (fil_delete_tablespace(space_id, FALSE)
 				   != DB_SUCCESS) {
 				fprintf(stderr,
