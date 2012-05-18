@@ -1923,4 +1923,11 @@ CREATE TEMPORARY TABLE t1 (a INT);
 SELECT * FROM t1 PARTITION(pNonexisting);
 ERROR HY000: PARTITION () clause on non partitioned table
 DROP TEMPORARY TABLE t1;
+#
+# Test CREATE LIKE does not take PARTITION clause
+#
+CREATE TABLE t1 (a INT) PARTITION BY HASH (a) PARTITIONS 3;
+CREATE TABLE t2 LIKE t1 PARTITION (p0, p2);
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'PARTITION (p0, p2)' at line 1
+DROP TABLE t1;
 SET @@default_storage_engine = @old_default_storage_engine;

@@ -843,4 +843,12 @@ CREATE TEMPORARY TABLE t1 (a INT);
 SELECT * FROM t1 PARTITION(pNonexisting);
 DROP TEMPORARY TABLE t1;
 
+--echo #
+--echo # Test CREATE LIKE does not take PARTITION clause
+--echo #
+CREATE TABLE t1 (a INT) PARTITION BY HASH (a) PARTITIONS 3;
+--error ER_PARSE_ERROR
+CREATE TABLE t2 LIKE t1 PARTITION (p0, p2);
+DROP TABLE t1;
+
 SET @@default_storage_engine = @old_default_storage_engine;
