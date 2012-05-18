@@ -1,6 +1,11 @@
 --source include/have_innodb.inc
 --source include/have_debug_sync.inc
 
+if (`select plugin_auth_version <= "1.0.17-13.0" from information_schema.plugins where plugin_name='innodb'`)
+{
+  --skip Not fixed in XtraDB 1.0.17-13.0 or earlier
+}
+
 --echo #
 --echo #Bug#11759688 52020: InnoDB can still deadlock
 --echo #on just INSERT...ON DUPLICATE KEY

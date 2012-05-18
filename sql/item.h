@@ -1828,7 +1828,7 @@ public:
   */
   void (*set_param_func)(Item_param *param, uchar **pos, ulong len);
 
-  const String *query_val_str(String *str) const;
+  const String *query_val_str(THD *thd, String *str) const;
 
   bool convert_str_value(THD *thd);
 

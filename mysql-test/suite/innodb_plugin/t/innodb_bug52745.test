@@ -2,6 +2,11 @@
 let collation=utf8_persian_ci;
 --source include/have_collation.inc
 
+if (`select plugin_auth_version <= "1.0.17-13.0" from information_schema.plugins where plugin_name='innodb'`)
+{
+  --skip Not fixed in XtraDB 1.0.17-13.0 or earlier
+}
+
 let $file_format=`select @@innodb_file_format`;
 let $file_per_table=`select @@innodb_file_per_table`;
 SET GLOBAL innodb_file_format='Barracuda';

@@ -79,5 +79,8 @@ static const char *handler_error_messages[]=
   "File too short; Expected more data in file",
   "Read page with wrong checksum",
   "Too many active concurrent transactions",
-  "Row is not visible by the current transaction"
+  "",
+  "",
+  "Row is not visible by the current transaction",
+  "Table is being used in foreign key check" /* HA_ERR_TABLE_IN_FK_CHECK */
 };

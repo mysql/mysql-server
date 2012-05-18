@@ -97,6 +97,8 @@ enum db_err {
 	DB_FOREIGN_EXCEED_MAX_CASCADE,	/* Foreign key constraint related
 					cascading delete/update exceeds
 					maximum allowed depth */
+	DB_TABLE_IN_FK_CHECK,		/* table is being used in foreign
+					key check */
 
 	/* The following are partial failure codes */
 	DB_FAIL = 1000,
