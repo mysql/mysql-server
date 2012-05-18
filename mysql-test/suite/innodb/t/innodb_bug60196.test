@@ -41,6 +41,7 @@ INSERT INTO Bug_60196 VALUES (99, 1);
 
 SELECT * FROM bug_60196_FK1;
 SELECT * FROM bug_60196_FK2;
+--sorted_result
 SELECT * FROM bug_60196;
 
 --echo # Stop server
