@@ -1805,7 +1805,11 @@ insert into t1 values (1);
 lock table t1 write concurrent;
 # should be fixed with fully implemented versioning
 --error ER_CHECK_NOT_IMPLEMENTED
+delete from t1 where a>0;
+--error ER_CHECK_NOT_IMPLEMENTED
 delete from t1;
+--error ER_TABLE_NOT_LOCKED_FOR_WRITE
+truncate t1;
 unlock tables;
 drop table t1;
 

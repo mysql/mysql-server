@@ -2537,9 +2537,10 @@ int ha_maria::extra_opt(enum ha_extra_function operation, ulong cache_size)
 
 int ha_maria::delete_all_rows()
 {
-#ifdef EXTRA_DEBUG
   THD *thd= table->in_use;
   TRN *trn= file->trn;
+  CHECK_UNTIL_WE_FULLY_IMPLEMENTED_VERSIONING("TRUNCATE in WRITE CONCURRENT");
+#ifdef EXTRA_DEBUG
   if (trn && ! (trnman_get_flags(trn) & TRN_STATE_INFO_LOGGED))
   {
     trnman_set_flags(trn, trnman_get_flags(trn) | TRN_STATE_INFO_LOGGED |
@@ -2548,16 +2549,19 @@ int ha_maria::delete_all_rows()
                                    (uchar*) thd->query(), thd->query_length());
   }
 #endif
-  if (file->s->now_transactional &&
-      ((table->in_use->variables.option_bits & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN)) ||
-       table->in_use->locked_tables_mode))
+  /*
+    If we are under LOCK TABLES, we have to do a commit as
+    delete_all_rows() can't be rolled back
+  */
+  if (table->in_use->locked_tables_mode && trn &&
+      trnman_has_locked_tables(trn))
   {
-    /*
-      We are not in autocommit mode or user have done LOCK TABLES.
-      We must do the delete row by row to be able to rollback the command
-    */
-    return HA_ERR_WRONG_COMMAND;
+    int error;
+    if ((error= implicit_commit(thd, 1)))
+      return error;
   }
+
+  /* Note that this can't be rolled back */
   return maria_delete_all_rows(file);
 }
 
@@ -2775,10 +2779,11 @@ int ha_maria::implicit_commit(THD *thd, bool new_trn)
 #error this method should be removed
 #endif
   TRN *trn;
-  int error= 0;
+  int error;
+  uint locked_tables;
   TABLE *table;
   DBUG_ENTER("ha_maria::implicit_commit");
-  if (!maria_hton)
+  if (!maria_hton || !(trn= THD_TRN))
     DBUG_RETURN(0);
   if (!new_trn && (thd->locked_tables_mode == LTM_LOCK_TABLES ||
                    thd->locked_tables_mode == LTM_PRELOCKED_UNDER_LOCK_TABLES))
@@ -2792,60 +2797,59 @@ int ha_maria::implicit_commit(THD *thd, bool new_trn)
     DBUG_PRINT("info", ("locked_tables, skipping"));
     DBUG_RETURN(0);
   }
-  if ((trn= THD_TRN) != NULL)
+  locked_tables= trnman_has_locked_tables(trn);
+  error= 0;
+  if (unlikely(ma_commit(trn)))
+    error= 1;
+  if (!new_trn)
   {
-    uint locked_tables= trnman_has_locked_tables(trn);
-    if (unlikely(ma_commit(trn)))
-      error= 1;
-    if (!new_trn)
-    {
-      /*
-        To be extra safe, we should also reset file->trn for all open
-        tables as some calls, like extra() may access it. We take care
-        of this in extra() by resetting file->trn if THD_TRN is 0.
-      */
-      THD_TRN= NULL;
-      goto end;
-    }
     /*
-      We need to create a new transaction and put it in THD_TRN. Indeed,
-      tables may be under LOCK TABLES, and so they will start the next
-      statement assuming they have a trn (see ha_maria::start_stmt()).
+      To be extra safe, we should also reset file->trn for all open
+      tables as some calls, like extra() may access it. We take care
+      of this in extra() by resetting file->trn if THD_TRN is 0.
     */
-    trn= trnman_new_trn(& thd->transaction.wt);
-    THD_TRN= trn;
-    if (unlikely(trn == NULL))
+    THD_TRN= NULL;
+    goto end;
+  }
+  /*
+    We need to create a new transaction and put it in THD_TRN. Indeed,
+    tables may be under LOCK TABLES, and so they will start the next
+    statement assuming they have a trn (see ha_maria::start_stmt()).
+  */
+  trn= trnman_new_trn(& thd->transaction.wt);
+  THD_TRN= trn;
+  if (unlikely(trn == NULL))
+  {
+    error= HA_ERR_OUT_OF_MEM;
+    goto end;
+  }
+  /*
+    Move all locked tables to the new transaction
+    We must do it here as otherwise file->thd and file->state may be
+    stale pointers. We can't do this in start_stmt() as we don't know
+    when we should call _ma_setup_live_state() and in some cases, like
+    in check table, we use the table without calling start_stmt().
+  */
+  for (table=thd->open_tables; table ; table=table->next)
+  {
+    if (table->db_stat && table->file->ht == maria_hton)
     {
-      error= HA_ERR_OUT_OF_MEM;
-      goto end;
-    }
-    /*
-      Move all locked tables to the new transaction
-      We must do it here as otherwise file->thd and file->state may be
-      stale pointers. We can't do this in start_stmt() as we don't know
-      when we should call _ma_setup_live_state() and in some cases, like
-      in check table, we use the table without calling start_stmt().
-     */
-    for (table=thd->open_tables; table ; table=table->next)
-    {
-      if (table->db_stat && table->file->ht == maria_hton)
+      MARIA_HA *handler= ((ha_maria*) table->file)->file;
+      if (handler->s->base.born_transactional)
       {
-        MARIA_HA *handler= ((ha_maria*) table->file)->file;
-        if (handler->s->base.born_transactional)
+        _ma_set_trn_for_table(handler, trn);
+        /* If handler uses versioning */
+        if (handler->s->lock_key_trees)
         {
-          _ma_set_trn_for_table(handler, trn);
-          /* If handler uses versioning */
-          if (handler->s->lock_key_trees)
-          {
-            if (_ma_setup_live_state(handler))
-              error= HA_ERR_OUT_OF_MEM;
-          }
+          if (_ma_setup_live_state(handler))
+            error= HA_ERR_OUT_OF_MEM;
         }
       }
     }
-    /* This is just a commit, tables stay locked if they were: */
-    trnman_reset_locked_tables(trn, locked_tables);
   }
+  /* This is just a commit, tables stay locked if they were: */
+  trnman_reset_locked_tables(trn, locked_tables);
+
 end:
   DBUG_RETURN(error);
 }

@@ -2542,8 +2542,12 @@ drop table t1;
 create table t1 (a int) engine=aria transactional=1;
 insert into t1 values (1);
 lock table t1 write concurrent;
-delete from t1;
+delete from t1 where a>0;
 ERROR 42000: The storage engine for the table doesn't support DELETE in WRITE CONCURRENT
+delete from t1;
+ERROR 42000: The storage engine for the table doesn't support TRUNCATE in WRITE CONCURRENT
+truncate t1;
+ERROR HY000: Table 't1' was locked with a READ lock and can't be updated
 unlock tables;
 drop table t1;
 create table t1 (p int primary key, i int, a char(10), key k1(i), key k2(a))
