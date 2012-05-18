@@ -4,25 +4,25 @@ file(GLOB_RECURSE all_srcs
   toku_include/*.c
   buildheader/*.c
   portability/*.c
-  newbrt/*.c
+  ft/*.c
   src/*.c
   utils/*.c
   db-benchmark-test/*.c
-  ${CMAKE_CURRENT_BINARY_DIR}/newbrt/log_code.c
-  ${CMAKE_CURRENT_BINARY_DIR}/newbrt/log_print.c
+  ${CMAKE_CURRENT_BINARY_DIR}/ft/log_code.c
+  ${CMAKE_CURRENT_BINARY_DIR}/ft/log_print.c
   )
 file(GLOB_RECURSE all_hdrs
   include/*.h
   toku_include/*.h
   buildheader/*.h
   portability/*.h
-  newbrt/*.h
+  ft/*.h
   src/*.h
   utils/*.h
   db-benchmark-test/*.h
   ${CMAKE_CURRENT_BINARY_DIR}/toku_include/config.h
   ${CMAKE_CURRENT_BINARY_DIR}/buildheader/db.h
-  ${CMAKE_CURRENT_BINARY_DIR}/newbrt/log_header.h
+  ${CMAKE_CURRENT_BINARY_DIR}/ft/log_header.h
   )
 
 option(USE_CTAGS "Build the ctags database." ON)

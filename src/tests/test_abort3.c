@@ -1,7 +1,7 @@
 /* -*- mode: C; c-basic-offset: 4 -*- */
 #ident "Copyright (c) 2007 Tokutek Inc.  All rights reserved."
 #include "test.h"
-/* Try to exercise all the cases for the leafcommands in brt.c
+/* Try to exercise all the cases for the leafcommands in ft-ops.c
  */
 
 

@@ -1,0 +1,121 @@
+include_directories(${CMAKE_CURRENT_SOURCE_DIR})
+
+## generate log_code.c, log_print.c, log_header.c
+## TODO: generate these in the build directory instead
+set_source_files_properties(${CMAKE_CURRENT_SOURCE_DIR}/log_code.c PROPERTIES GENERATED TRUE)
+set_source_files_properties(${CMAKE_CURRENT_SOURCE_DIR}/log_print.c PROPERTIES GENERATED TRUE)
+set_source_files_properties(${CMAKE_CURRENT_SOURCE_DIR}/log_header.h PROPERTIES GENERATED TRUE)
+
+add_executable(logformat logformat.c)
+target_link_libraries(logformat ${LIBTOKUPORTABILITY})
+
+add_custom_command(
+  OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/log_code.c"
+  OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/log_print.c"
+  OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/log_header.h"
+  COMMAND $<TARGET_FILE:logformat> .
+  DEPENDS logformat
+  )
+
+set(FT_SOURCES
+  block_allocator.c
+  block_table.c
+  cachetable.c
+  checkpoint.c
+  compress.c
+  dbufio.c
+  fifo.c
+  ft.c
+  ft-cachetable-wrappers.c
+  ft-flusher.c
+  ft-hot-flusher.c
+  ftloader.c
+  ftloader-callback.c
+  ft_msg.c
+  ft-ops.c
+  ft-serialize.c
+  ft-test-helpers.c
+  ft-verify.c
+  key.c
+  kibbutz.c
+  leafentry.c
+  le-cursor.c
+  logcursor.c
+  logfilemgr.c
+  logger.c
+  log_upgrade.c
+  memarena.c
+  mempool.c
+  minicron.c
+  omt.c
+  pqueue.c
+  queue.c
+  quicklz.c
+  recover.c
+  rollback.c
+  roll.c
+  sort.c
+  sub_block.c
+  threadpool.c
+  txn.c
+  ule.c
+  workqueue.c
+  x1764.c
+  xids.c
+  ybt.c
+  "${CMAKE_CURRENT_BINARY_DIR}/log_code.c"
+  "${CMAKE_CURRENT_BINARY_DIR}/log_header.h"
+  "${CMAKE_CURRENT_BINARY_DIR}/log_print.c"
+  )
+
+add_library(ft SHARED ${FT_SOURCES})
+add_library(ft_static STATIC ${FT_SOURCES})
+## we're going to link this into libtokudb.so so it needs to have PIC
+set_property(TARGET ft_static APPEND PROPERTY COMPILE_FLAGS "-fPIC")
+maybe_add_gcov_to_libraries(ft ft_static)
+
+## depend on other generated targets
+add_dependencies(ft install_tdb_h build_lzma)
+add_dependencies(ft_static install_tdb_h build_lzma)
+
+## link with tokuportability, and lzma (which should be static)
+target_link_libraries(ft ${LIBTOKUPORTABILITY} lzma)
+target_link_libraries(ft_static ${LIBTOKUPORTABILITY} lzma)
+
+if (CMAKE_C_COMPILER_ID STREQUAL Intel)
+  ## don't link with default libs, those come with tokuportability, but we
+  ## do need libc and we need the intel libirc (and it should be static to
+  ## be redistributable)
+  target_link_libraries(ft -nodefaultlibs c -Bstatic irc -Bdynamic)
+endif ()
+
+## conditionally use cilk
+if (USE_CILK)
+  set_property(TARGET ft APPEND PROPERTY COMPILE_DEFINITIONS HAVE_CILK=1)
+  set_property(TARGET ft_static APPEND PROPERTY COMPILE_DEFINITIONS HAVE_CILK=1)
+  target_link_libraries(ft cilkrts)
+  target_link_libraries(ft_static cilkrts)
+endif (USE_CILK)
+
+## build the bins in this directory
+set(bins
+  ftdump
+  tdb_logprint
+  tdb-recover
+  )
+foreach(bin ${bins})
+  add_executable(${bin} ${bin}.c)
+  add_dependencies(${bin} install_tdb_h)
+  target_link_libraries(${bin} ft ${LIBTOKUPORTABILITY})
+
+  add_executable(${bin}_static ${bin}.c)
+  add_dependencies(${bin} install_tdb_h)
+  target_link_libraries(${bin}_static ft_static ${LIBTOKUPORTABILITY_STATIC})
+endforeach(bin)
+
+install(
+  TARGETS ftdump_static
+  DESTINATION bin
+  )
+
+add_subdirectory(tests)

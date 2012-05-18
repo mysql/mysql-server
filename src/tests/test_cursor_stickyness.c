@@ -38,7 +38,7 @@ test_cursor_sticky (int n, int dup_mode) {
     if (verbose) printf("test_cursor_sticky:%d %d\n", n, dup_mode);
 
     DB_TXN * const null_txn = 0;
-    const char * const fname = "test_cursor_sticky.brt";
+    const char * const fname = "test_cursor_sticky.ft_handle";
     int r;
 
     r = system("rm -rf " ENVDIR); assert(r == 0);

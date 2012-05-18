@@ -24,7 +24,7 @@ test_cursor_current (void) {
     if (verbose) printf("test_cursor_current\n");
 
     DB_TXN * const null_txn = 0;
-    const char * const fname = "test.cursor.current.brt";
+    const char * const fname = "test.cursor.current.ft_handle";
     int r;
 
     DB_ENV *env;
@@ -94,7 +94,7 @@ test_reopen (void) {
     if (verbose) printf("test_reopen\n");
 
     DB_TXN * const null_txn = 0;
-    const char * const fname = "test.cursor.current.brt";
+    const char * const fname = "test.cursor.current.ft_handle";
     int r;
 
     DB_ENV *env;

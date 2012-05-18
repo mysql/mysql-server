@@ -1,7 +1,0 @@
-ROOT = ../
-build: newbrt.builddir
-check: newbrt.checkdir
-include $(ROOT)Makefile.include
-
-
-

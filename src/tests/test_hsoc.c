@@ -37,7 +37,7 @@ test_hsoc (int pagesize) {
     int n = npp + 13*npp/2;
 
     DB_TXN * const null_txn = 0;
-    const char * const fname = "test.hsoc.brt";
+    const char * const fname = "test.hsoc.ft_handle";
     int r;
 
     r = system("rm -rf " ENVDIR);

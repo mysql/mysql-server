@@ -22,19 +22,19 @@ const char *toku_copyright_string = "Copyright (c) 2007-2009 Tokutek Inc.  All r
 #include "toku_assert.h"
 #include "ydb.h"
 #include "ydb-internal.h"
-#include <newbrt/brt-internal.h>
-#include <newbrt/brt-flusher.h>
-#include <newbrt/cachetable.h>
-#include <newbrt/log.h>
+#include <ft/ft-internal.h>
+#include <ft/ft-flusher.h>
+#include <ft/cachetable.h>
+#include <ft/log.h>
 #include "memory.h"
-#include <newbrt/checkpoint.h>
-#include <newbrt/key.h>
+#include <ft/checkpoint.h>
+#include <ft/key.h>
 #include "loader.h"
 #include "indexer.h"
 #include "ydb_load.h"
-#include <newbrt/brtloader.h>
-#include <newbrt/log_header.h>
-#include <newbrt/brt_header.h>
+#include <ft/ftloader.h>
+#include <ft/log_header.h>
+#include <ft/ft.h>
 #include "ydb_cursor.h"
 #include "ydb_row_lock.h"
 #include "ydb_env_func.h"
@@ -194,7 +194,7 @@ toku_ydb_init(void) {
     int r = 0;
     //Lower level must be initialized first.
     if (r==0) 
-        r = toku_brt_init(toku_ydb_lock, toku_ydb_unlock);
+        r = toku_ft_layer_init(toku_ydb_lock, toku_ydb_unlock);
     if (r==0) 
         toku_ydb_lock_init();
     return r;
@@ -206,7 +206,7 @@ toku_ydb_destroy(void) {
     int r = 0;
     if (env_is_panicked == 0) {
         toku_ydb_lock_destroy();
-        r = toku_brt_destroy();
+        r = toku_ft_layer_destroy();
     }
     return r;
 }
@@ -431,11 +431,11 @@ db_use_builtin_key_cmp(DB *db) {
         r = toku_ydb_do_error(db->dbenv, EINVAL, "Key comparison function already set.\n");
     else {
         u_int32_t tflags;
-        r = toku_brt_get_flags(db->i->brt, &tflags);
+        r = toku_ft_get_flags(db->i->ft_handle, &tflags);
         if (r!=0) return r;
 
         tflags |= TOKU_DB_KEYCMP_BUILTIN;
-        r = toku_brt_set_flags(db->i->brt, tflags);
+        r = toku_ft_set_flags(db->i->ft_handle, tflags);
         if (!r)
             db->i->key_compare_was_set = TRUE;
     }
@@ -518,12 +518,12 @@ maybe_upgrade_persistent_environment_dictionary(DB_ENV * env, DB_TXN * txn, LSN 
     assert(r == 0);
     uint32_t stored_env_version = toku_dtoh32(*(uint32_t*)val.data);
     PERSISTENT_UPGRADE_STATUS_VALUE(PERSISTENT_UPGRADE_STORED_ENV_VERSION_AT_STARTUP) = stored_env_version;
-    if (stored_env_version > BRT_LAYOUT_VERSION)
+    if (stored_env_version > FT_LAYOUT_VERSION)
 	r = TOKUDB_DICTIONARY_TOO_NEW;
-    else if (stored_env_version < BRT_LAYOUT_MIN_SUPPORTED_VERSION)
+    else if (stored_env_version < FT_LAYOUT_MIN_SUPPORTED_VERSION)
 	r = TOKUDB_DICTIONARY_TOO_OLD;
-    else if (stored_env_version < BRT_LAYOUT_VERSION) {
-        const uint32_t curr_env_ver_d = toku_htod32(BRT_LAYOUT_VERSION);
+    else if (stored_env_version < FT_LAYOUT_VERSION) {
+        const uint32_t curr_env_ver_d = toku_htod32(FT_LAYOUT_VERSION);
         toku_fill_dbt(&key, curr_env_ver_key, strlen(curr_env_ver_key));
         toku_fill_dbt(&val, &curr_env_ver_d, sizeof(curr_env_ver_d));
         r = toku_db_put(persistent_environment, txn, &key, &val, 0, TRUE);
@@ -566,7 +566,7 @@ capture_persistent_env_contents (DB_ENV * env, DB_TXN * txn) {
     r = toku_db_get(persistent_environment, txn, &key, &val, 0);
     assert(r == 0);
     uint32_t curr_env_version = toku_dtoh32(*(uint32_t*)val.data);
-    assert(curr_env_version == BRT_LAYOUT_VERSION);
+    assert(curr_env_version == FT_LAYOUT_VERSION);
 
     toku_fill_dbt(&key, orig_env_ver_key, strlen(orig_env_ver_key));
     toku_init_dbt(&val);
@@ -577,7 +577,7 @@ capture_persistent_env_contents (DB_ENV * env, DB_TXN * txn) {
     assert(persistent_original_env_version <= curr_env_version);
 
     // make no assertions about timestamps, clock may have been reset
-    if (persistent_original_env_version >= BRT_LAYOUT_VERSION_14) {
+    if (persistent_original_env_version >= FT_LAYOUT_VERSION_14) {
 	toku_fill_dbt(&key, creation_time_key, strlen(creation_time_key));
 	toku_init_dbt(&val);
 	r = toku_db_get(persistent_environment, txn, &key, &val, 0);
@@ -927,7 +927,7 @@ toku_env_open(DB_ENV * env, const char *home, u_int32_t flags, int mode) {
 
     if (env->i->cachetable==NULL) {
         // If we ran recovery then the cachetable should be set here.
-        r = toku_brt_create_cachetable(&env->i->cachetable, env->i->cachetable_size, ZERO_LSN, env->i->logger);
+        r = toku_create_cachetable(&env->i->cachetable, env->i->cachetable_size, ZERO_LSN, env->i->logger);
         if (r!=0) goto died2;
     }
 
@@ -962,7 +962,7 @@ toku_env_open(DB_ENV * env, const char *home, u_int32_t flags, int mode) {
 	if (newenv) {
 	    // create new persistent_environment
 	    DBT key, val;
-	    uint32_t persistent_original_env_version = BRT_LAYOUT_VERSION;
+	    uint32_t persistent_original_env_version = FT_LAYOUT_VERSION;
 	    const uint32_t environment_version = toku_htod32(persistent_original_env_version);
 
 	    toku_fill_dbt(&key, orig_env_ver_key, strlen(orig_env_ver_key));
@@ -2036,9 +2036,9 @@ env_get_engine_status_num_rows (DB_ENV * UU(env), uint64_t * num_rowsp) {
     num_rows += CP_STATUS_NUM_ROWS;
     num_rows += CT_STATUS_NUM_ROWS;
     num_rows += LTM_STATUS_NUM_ROWS;
-    num_rows += BRT_STATUS_NUM_ROWS;
-    num_rows += BRT_FLUSHER_STATUS_NUM_ROWS;
-    num_rows += BRT_HOT_STATUS_NUM_ROWS;
+    num_rows += FT_STATUS_NUM_ROWS;
+    num_rows += FT_FLUSHER_STATUS_NUM_ROWS;
+    num_rows += FT_HOT_STATUS_NUM_ROWS;
     num_rows += TXN_STATUS_NUM_ROWS;
     num_rows += LOGGER_STATUS_NUM_ROWS;
     num_rows += MEMORY_STATUS_NUM_ROWS;
@@ -2047,7 +2047,7 @@ env_get_engine_status_num_rows (DB_ENV * UU(env), uint64_t * num_rowsp) {
     num_rows += LOADER_STATUS_NUM_ROWS;
 #if 0
     // enable when upgrade is supported
-    num_rows += BRT_UPGRADE_STATUS_NUM_ROWS;
+    num_rows += FT_UPGRADE_STATUS_NUM_ROWS;
     num_rows += PERSISTENT_UPGRADE_STATUS_NUM_ROWS;
 #endif
     *num_rowsp = num_rows;
@@ -2139,23 +2139,23 @@ env_get_engine_status (DB_ENV * env, TOKU_ENGINE_STATUS_ROW engstat, uint64_t ma
 	    }
 	}
         {
-            BRT_STATUS_S brtstat;
-            toku_brt_get_status(&brtstat);
-            for (int i = 0; i < BRT_STATUS_NUM_ROWS && row < maxrows; i++) {
-                engstat[row++] = brtstat.status[i];
+            FT_STATUS_S ftstat;
+            toku_ft_get_status(&ftstat);
+            for (int i = 0; i < FT_STATUS_NUM_ROWS && row < maxrows; i++) {
+                engstat[row++] = ftstat.status[i];
             }
         }
         {
-            BRT_FLUSHER_STATUS_S flusherstat;
-            toku_brt_flusher_get_status(&flusherstat);
-            for (int i = 0; i < BRT_FLUSHER_STATUS_NUM_ROWS && row < maxrows; i++) {
+            FT_FLUSHER_STATUS_S flusherstat;
+            toku_ft_flusher_get_status(&flusherstat);
+            for (int i = 0; i < FT_FLUSHER_STATUS_NUM_ROWS && row < maxrows; i++) {
                 engstat[row++] = flusherstat.status[i];
             }
         }
         {
-            BRT_HOT_STATUS_S hotstat;
-            toku_brt_hot_get_status(&hotstat);
-            for (int i = 0; i < BRT_HOT_STATUS_NUM_ROWS && row < maxrows; i++) {
+            FT_HOT_STATUS_S hotstat;
+            toku_ft_hot_get_status(&hotstat);
+            for (int i = 0; i < FT_HOT_STATUS_NUM_ROWS && row < maxrows; i++) {
                 engstat[row++] = hotstat.status[i];
             }
         }
@@ -2210,10 +2210,10 @@ env_get_engine_status (DB_ENV * env, TOKU_ENGINE_STATUS_ROW engstat, uint64_t ma
             for (int i = 0; i < PERSISTENT_UPGRADE_STATUS_NUM_ROWS && row < maxrows; i++) {
                 engstat[row++] = persistent_upgrade_status.status[i];
             }
-            BRT_UPGRADE_STATUS_S brt_upgradestat;
-	    toku_brt_upgrade_get_status(&brt_upgradestat);
-            for (int i = 0; i < BRT_UPGRADE_STATUS_NUM_ROWS && row < maxrows; i++) {
-                engstat[row++] = brt_upgradestat.status[i];
+            FT_UPGRADE_STATUS_S ft_upgradestat;
+	    toku_ft_upgrade_get_status(&ft_upgradestat);
+            for (int i = 0; i < FT_UPGRADE_STATUS_NUM_ROWS && row < maxrows; i++) {
+                engstat[row++] = ft_upgradestat.status[i];
             }
 
 	}
@@ -2680,7 +2680,7 @@ toku_env_dbremove(DB_ENV * env, DB_TXN *txn, const char *fname, const char *dbna
             if (using_txns) {
                 // this writes an fdelete to the transaction's rollback log.
                 // it is removed if the child txn aborts after any error case below
-                r = toku_brt_remove_on_commit(db_txn_struct_i(child)->tokutxn, &iname_dbt);
+                r = toku_ft_remove_on_commit(db_txn_struct_i(child)->tokutxn, &iname_dbt);
 		assert_zero(r);
                 //Now that we have a writelock on dname, verify that there are still no handles open. (to prevent race conditions)
                 if (r==0 && env_is_db_with_dname_open(env, dname))
@@ -2690,7 +2690,7 @@ toku_env_dbremove(DB_ENV * env, DB_TXN *txn, const char *fname, const char *dbna
                     //
                     // if the lock tree still exists, try to get a full table
                     // lock. if we can't get it, then some txn still needs
-                    // the brtheader and we should return lock not granted.
+                    // the ft and we should return lock not granted.
                     // otherwise, we're okay in marking this brt as remove on
                     // commit. no new handles can open for this dictionary
                     // because the txn has directory write locks on the dname
@@ -2700,7 +2700,7 @@ toku_env_dbremove(DB_ENV * env, DB_TXN *txn, const char *fname, const char *dbna
                 }
             }
             else {
-                r = toku_brt_remove_now(env->i->cachetable, &iname_dbt);
+                r = toku_ft_remove_now(env->i->cachetable, &iname_dbt);
 		assert_zero(r);
             }
 	}
@@ -2923,7 +2923,7 @@ toku_test_db_redirect_dictionary(DB * db, char * dname_of_new_file, DB_TXN *dbtx
     DBT iname_dbt;
     char * new_iname_in_env;
 
-    BRT brt = db->i->brt;
+    FT_HANDLE brt = db->i->ft_handle;
     TOKUTXN tokutxn = db_txn_struct_i(dbtxn)->tokutxn;
 
     toku_fill_dbt(&dname_dbt, dname_of_new_file, strlen(dname_of_new_file)+1);

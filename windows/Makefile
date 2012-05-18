@@ -2,7 +2,7 @@
 
 .DEFAULT_GOAL=install
 TOKUROOT=../
-INCLUDEDIRS=-I. -I$(TOKUROOT)newbrt
+INCLUDEDIRS=-I. -I$(TOKUROOT)ft
 SKIP_LIBPORTABILITYRULE=1
 include $(TOKUROOT)toku_include/Makefile.include
 

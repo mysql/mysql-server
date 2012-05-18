@@ -19,12 +19,12 @@
 #include <stdio.h>
 #include <string.h>
 #include "ydb-internal.h"
-#include <newbrt/brtloader.h>
+#include <ft/ftloader.h>
 #include "loader.h"
 #include "ydb_load.h"
-#include <newbrt/checkpoint.h>
-#include <newbrt/brt-internal.h>
-#include <newbrt/brt_header.h>
+#include <ft/checkpoint.h>
+#include <ft/ft-internal.h>
+#include <ft/ft.h>
 #include "ydb_db.h"
 
 
@@ -78,7 +78,7 @@ toku_loader_get_status(LOADER_STATUS statp) {
 struct __toku_loader_internal {
     DB_ENV *env;
     DB_TXN *txn;
-    BRTLOADER brt_loader;
+    FTLOADER ft_loader;
     int N;
     DB **dbs; /* [N] */
     DB *src_db;
@@ -122,7 +122,7 @@ loader_release_refs(DB_LOADER *loader) {
  *  free_loader_resources() frees all of the resources associated with
  *      struct __toku_loader_internal 
  *  assumes any previously freed items set the field pointer to NULL
- *  Requires that the brt_loader is closed or destroyed before calling this function.
+ *  Requires that the ft_loader is closed or destroyed before calling this function.
  */
 static void free_loader_resources(DB_LOADER *loader) 
 {
@@ -169,18 +169,18 @@ static void free_loader(DB_LOADER *loader)
 static const char *loader_temp_prefix = "tokuld"; // #2536
 static const char *loader_temp_suffix = "XXXXXX";
 
-static int brt_loader_close_and_redirect(DB_LOADER *loader) {
+static int ft_loader_close_and_redirect(DB_LOADER *loader) {
     int r;
     // use the bulk loader
     // in case you've been looking - here is where the real work is done!
-    r = toku_brt_loader_close(loader->i->brt_loader,
+    r = toku_ft_loader_close(loader->i->ft_loader,
                               loader->i->error_callback, loader->i->error_extra,
                               loader->i->poll_func,      loader->i->poll_extra);
     if ( r==0 ) {
         for (int i=0; i<loader->i->N; i++) {
             toku_ydb_lock(); //Must hold ydb lock for dictionary_redirect.
             r = toku_dictionary_redirect(loader->i->inames_in_env[i],
-                                         loader->i->dbs[i]->i->brt,
+                                         loader->i->dbs[i]->i->ft_handle,
                                          db_txn_struct_i(loader->i->txn)->tokutxn);
             toku_ydb_unlock();
             if ( r!=0 ) break;
@@ -206,7 +206,7 @@ int toku_loader_create_loader(DB_ENV *env,
                               uint32_t loader_flags)
 {
     int rval;
-    BOOL use_brt_loader = (loader_flags == 0); 
+    BOOL use_ft_loader = (loader_flags == 0); 
 
     *blp = NULL;           // set later when created
 
@@ -248,7 +248,7 @@ int toku_loader_create_loader(DB_ENV *env,
             r = toku_db_pre_acquire_table_lock(dbs[i], txn);
             if (r!=0) break;
         }
-        r = !toku_brt_is_empty_fast(dbs[i]->i->brt);
+        r = !toku_ft_is_empty_fast(dbs[i]->i->ft_handle);
         if (r!=0) break;
     }
     if ( r!=0 ) {
@@ -257,21 +257,21 @@ int toku_loader_create_loader(DB_ENV *env,
     }
 
     {
-        brt_compare_func compare_functions[N];
+        ft_compare_func compare_functions[N];
         for (int i=0; i<N; i++) {
             compare_functions[i] = env->i->bt_compare;
         }
 
         // time to open the big kahuna
         char **XMALLOC_N(N, new_inames_in_env);
-        BRT *XMALLOC_N(N, brts);
+        FT_HANDLE *XMALLOC_N(N, brts);
         for (int i=0; i<N; i++) {
-            brts[i] = dbs[i]->i->brt;
+            brts[i] = dbs[i]->i->ft_handle;
         }
         loader->i->ekeys = NULL;
         loader->i->evals = NULL;
         LSN load_lsn;
-        r = ydb_load_inames(env, txn, N, dbs, new_inames_in_env, &load_lsn, use_brt_loader);
+        r = ydb_load_inames(env, txn, N, dbs, new_inames_in_env, &load_lsn, use_ft_loader);
         if ( r!=0 ) {
             toku_free(new_inames_in_env);
             toku_free(brts);
@@ -279,7 +279,7 @@ int toku_loader_create_loader(DB_ENV *env,
             goto create_exit;
         }
         TOKUTXN ttxn = txn ? db_txn_struct_i(txn)->tokutxn : NULL;
-        r = toku_brt_loader_open(&loader->i->brt_loader,
+        r = toku_ft_loader_open(&loader->i->ft_loader,
                                  loader->i->env->i->cachetable,
                                  loader->i->env->i->generate_row_for_put,
                                  src_db,
@@ -305,16 +305,16 @@ int toku_loader_create_loader(DB_ENV *env,
             toku_ydb_unlock();
             // the following function grabs the ydb lock, so we
             // first unlock before calling it
-            rval = brt_loader_close_and_redirect(loader);
+            rval = ft_loader_close_and_redirect(loader);
             toku_ydb_lock();
             assert_zero(rval);
             for (int i=0; i<N; i++) {
                 loader->i->ekeys[i].flags = DB_DBT_REALLOC;
                 loader->i->evals[i].flags = DB_DBT_REALLOC;
-                toku_brt_suppress_recovery_logs(dbs[i]->i->brt, db_txn_struct_i(txn)->tokutxn);
+                toku_ft_suppress_recovery_logs(dbs[i]->i->ft_handle, db_txn_struct_i(txn)->tokutxn);
             }
-            loader->i->brt_loader = NULL;
-            // close the brtloader and skip to the redirection
+            loader->i->ft_loader = NULL;
+            // close the ft_loader and skip to the redirection
             rval = 0;
         }
 
@@ -361,7 +361,7 @@ int toku_loader_put(DB_LOADER *loader, DBT *key, DBT *val)
     int r = 0;
     int i = 0;
     //      err_i is unused now( always 0).  How would we know which dictionary
-    //      the error happens in?  (put_multiple and toku_brt_loader_put do NOT report
+    //      the error happens in?  (put_multiple and toku_ft_loader_put do NOT report
     //      which dictionary). 
 
     // skip put if error already found
@@ -382,10 +382,10 @@ int toku_loader_put(DB_LOADER *loader, DBT *key, DBT *val)
                                          loader->i->db_flags); // flags_array
     }
     else {
-        // calling toku_brt_loader_put without a lock assumes that the 
+        // calling toku_ft_loader_put without a lock assumes that the 
         //  handlerton is guaranteeing single access to the loader
         // future multi-threaded solutions may need to protect this call
-        r = toku_brt_loader_put(loader->i->brt_loader, key, val);
+        r = toku_ft_loader_put(loader->i->ft_loader, key, val);
     }
     if ( r != 0 ) {
         // spec says errors all happen on close
@@ -422,7 +422,7 @@ int toku_loader_close(DB_LOADER *loader)
             loader->i->error_callback(loader->i->dbs[loader->i->err_i], loader->i->err_i, loader->i->err_errno, &loader->i->err_key, &loader->i->err_val, loader->i->error_extra);
         }
         if (!(loader->i->loader_flags & LOADER_USE_PUTS ) ) {
-            r = toku_brt_loader_abort(loader->i->brt_loader, TRUE);
+            r = toku_ft_loader_abort(loader->i->ft_loader, TRUE);
         }
         else {
             r = loader->i->err_errno;
@@ -430,7 +430,7 @@ int toku_loader_close(DB_LOADER *loader)
     } 
     else { // no error outstanding 
         if (!(loader->i->loader_flags & LOADER_USE_PUTS ) ) {
-            r = brt_loader_close_and_redirect(loader);
+            r = ft_loader_close_and_redirect(loader);
         }
     }
     toku_ydb_lock();
@@ -455,7 +455,7 @@ int toku_loader_abort(DB_LOADER *loader)
     }
 
     if (!(loader->i->loader_flags & LOADER_USE_PUTS) ) {
-        r = toku_brt_loader_abort(loader->i->brt_loader, TRUE);
+        r = toku_ft_loader_abort(loader->i->ft_loader, TRUE);
     }
     toku_ydb_lock();
     free_loader(loader);

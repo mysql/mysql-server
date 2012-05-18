@@ -6,11 +6,11 @@
 #include <ctype.h>
 #include <db.h>
 #include "ydb-internal.h"
-#include <newbrt/brt-flusher.h>
-#include <newbrt/checkpoint.h>
+#include <ft/ft-flusher.h>
+#include <ft/checkpoint.h>
 #include "indexer.h"
 #include "ydb_load.h"
-#include <newbrt/log_header.h>
+#include <ft/log_header.h>
 #include "ydb_cursor.h"
 #include "ydb_row_lock.h"
 #include "ydb_db.h"
@@ -93,12 +93,12 @@ create_iname(DB_ENV *env, u_int64_t id, char *hint, char *mark, int n) {
     if (n < 0)
 	bytes = snprintf(inamebase, sizeof(inamebase),
                          "%s_%"PRIx64"_%"PRIx32            ".tokudb",
-                         hint, id, BRT_LAYOUT_VERSION);
+                         hint, id, FT_LAYOUT_VERSION);
     else {
 	invariant(strlen(mark) == 1);
 	bytes = snprintf(inamebase, sizeof(inamebase),
                          "%s_%"PRIx64"_%"PRIx32"_%s_%"PRIx32".tokudb",
-                         hint, id, BRT_LAYOUT_VERSION, mark, n);
+                         hint, id, FT_LAYOUT_VERSION, mark, n);
     }
     assert(bytes>0);
     assert(bytes<=(int)sizeof(inamebase)-1);
@@ -143,7 +143,7 @@ toku_db_close(DB * db) {
         if (!toku_list_empty(&db->i->dbs_that_must_close_before_abort))
             toku_list_remove(&db->i->dbs_that_must_close_before_abort);
 
-        r = toku_brt_close(db->i->brt, FALSE, ZERO_LSN);
+        r = toku_ft_handle_close(db->i->ft_handle, FALSE, ZERO_LSN);
         if (r == 0) {
             // go ahead and close this DB handle right away.
             if (db->i->lt) {
@@ -241,7 +241,7 @@ db_open_subdb(DB * db, DB_TXN * txn, const char *fname, const char *dbname, DBTY
 // algorithm:
 //  begin txn
 //  convert dname to iname (possibly creating new iname)
-//  open file (toku_brt_open() will handle logging)
+//  open file (toku_ft_handle_open() will handle logging)
 //  close txn
 //  if created a new iname, take full range lock
 static int 
@@ -276,7 +276,7 @@ toku_db_open(DB * db, DB_TXN * txn, const char *fname, const char *dbname, DBTYP
 
     /* tokudb supports no duplicates and sorted duplicates only */
     unsigned int tflags;
-    r = toku_brt_get_flags(db->i->brt, &tflags);
+    r = toku_ft_get_flags(db->i->ft_handle, &tflags);
     if (r != 0) 
         return r;
 
@@ -359,7 +359,7 @@ toku_db_open(DB * db, DB_TXN * txn, const char *fname, const char *dbname, DBTYP
 // the descriptor via db->descriptor, because
 // a redirect may be happening underneath the covers.
 // Need to investigate further.
-static void db_on_redirect_callback(BRT brt, void* extra) {
+static void db_on_redirect_callback(FT_HANDLE brt, void* extra) {
     DB* db = extra;
     db->descriptor = &brt->h->descriptor;
     db->cmp_descriptor = &brt->h->cmp_descriptor;
@@ -371,16 +371,16 @@ db_open_iname(DB * db, DB_TXN * txn, const char *iname_in_env, u_int32_t flags, 
 
     //Set comparison functions if not yet set.
     if (!db->i->key_compare_was_set && db->dbenv->i->bt_compare) {
-        r = toku_brt_set_bt_compare(db->i->brt, db->dbenv->i->bt_compare);
+        r = toku_ft_set_bt_compare(db->i->ft_handle, db->dbenv->i->bt_compare);
         assert(r==0);
         db->i->key_compare_was_set = TRUE;
     }
     if (db->dbenv->i->update_function) {
-        r = toku_brt_set_update(db->i->brt,db->dbenv->i->update_function);
+        r = toku_ft_set_update(db->i->ft_handle,db->dbenv->i->update_function);
         assert(r==0);
     }
-    toku_brt_set_redirect_callback(
-        db->i->brt,
+    toku_ft_set_redirect_callback(
+        db->i->ft_handle,
         db_on_redirect_callback,
         db
         );
@@ -400,7 +400,7 @@ db_open_iname(DB * db, DB_TXN * txn, const char *iname_in_env, u_int32_t flags, 
 
     /* tokudb supports no duplicates and sorted duplicates only */
     unsigned int tflags;
-    r = toku_brt_get_flags(db->i->brt, &tflags);
+    r = toku_ft_get_flags(db->i->ft_handle, &tflags);
     if (r != 0) 
         return r;
 
@@ -410,8 +410,8 @@ db_open_iname(DB * db, DB_TXN * txn, const char *iname_in_env, u_int32_t flags, 
     db->i->open_flags = flags;
     db->i->open_mode = mode;
 
-    BRT brt = db->i->brt;
-    r = toku_brt_open(brt, iname_in_env,
+    FT_HANDLE brt = db->i->ft_handle;
+    r = toku_ft_handle_open(brt, iname_in_env,
 		      is_db_create, is_db_excl,
 		      db->dbenv->i->cachetable,
 		      txn ? db_txn_struct_i(txn)->tokutxn : NULL_TXN);
@@ -423,13 +423,13 @@ db_open_iname(DB * db, DB_TXN * txn, const char *iname_in_env, u_int32_t flags, 
     // now that the brt has successfully opened, a valid descriptor
     // is in the brt header. we need a copy of the pointer in the DB.
     // TODO: there may be a cleaner way to do this. 
-    // toku_brt_get_descriptor(db, &cmp_desc, &desc); ??
+    // toku_ft_get_descriptor(db, &cmp_desc, &desc); ??
     db->descriptor = &brt->h->descriptor;
     db->cmp_descriptor = &brt->h->cmp_descriptor;
 
     if (need_locktree) {
-	db->i->dict_id = toku_brt_get_dictionary_id(db->i->brt);
-        r = toku_ltm_get_lt(db->dbenv->i->ltm, &db->i->lt, db->i->dict_id, db->cmp_descriptor, toku_brt_get_bt_compare(db->i->brt));
+	db->i->dict_id = toku_ft_get_dictionary_id(db->i->ft_handle);
+        r = toku_ltm_get_lt(db->dbenv->i->ltm, &db->i->lt, db->i->dict_id, db->cmp_descriptor, toku_ft_get_bt_compare(db->i->ft_handle));
         if (r!=0) { goto error_cleanup; }
     }
     //Add to transaction's list of 'must close' if necessary.
@@ -457,7 +457,7 @@ static void
 toku_db_get_max_row_size(DB * UU(db), uint32_t * max_key_size, uint32_t * max_val_size) {
     *max_key_size = 0;
     *max_val_size = 0;
-    toku_brt_get_maximum_advised_key_value_lengths(max_key_size, max_val_size);
+    toku_ft_get_maximum_advised_key_value_lengths(max_key_size, max_val_size);
 }
 
 int toku_db_pre_acquire_fileops_lock(DB *db, DB_TXN *txn) {
@@ -505,8 +505,8 @@ toku_db_change_descriptor(DB *db, DB_TXN* txn, const DBT* descriptor, u_int32_t 
 
     old_descriptor.size = db->descriptor->dbt.size;
     old_descriptor.data = toku_memdup(db->descriptor->dbt.data, db->descriptor->dbt.size);
-    r = toku_brt_change_descriptor(
-        db->i->brt, 
+    r = toku_ft_change_descriptor(
+        db->i->ft_handle, 
         &old_descriptor, 
         descriptor, 
         TRUE, 
@@ -547,42 +547,42 @@ toku_db_get_flags(DB *db, u_int32_t *pflags) {
 static int 
 toku_db_set_pagesize(DB *db, u_int32_t pagesize) {
     HANDLE_PANICKED_DB(db);
-    int r = toku_brt_set_nodesize(db->i->brt, pagesize);
+    int r = toku_ft_set_nodesize(db->i->ft_handle, pagesize);
     return r;
 }
 
 static int 
 toku_db_get_pagesize(DB *db, u_int32_t *pagesize_ptr) {
     HANDLE_PANICKED_DB(db);
-    int r = toku_brt_get_nodesize(db->i->brt, pagesize_ptr);
+    int r = toku_ft_get_nodesize(db->i->ft_handle, pagesize_ptr);
     return r;
 }
 
 static int 
 toku_db_set_readpagesize(DB *db, u_int32_t readpagesize) {
     HANDLE_PANICKED_DB(db);
-    int r = toku_brt_set_basementnodesize(db->i->brt, readpagesize);
+    int r = toku_ft_set_basementnodesize(db->i->ft_handle, readpagesize);
     return r;
 }
 
 static int 
 toku_db_get_readpagesize(DB *db, u_int32_t *readpagesize_ptr) {
     HANDLE_PANICKED_DB(db);
-    int r = toku_brt_get_basementnodesize(db->i->brt, readpagesize_ptr);
+    int r = toku_ft_get_basementnodesize(db->i->ft_handle, readpagesize_ptr);
     return r;
 }
 
 static int 
 toku_db_set_compression_method(DB *db, enum toku_compression_method compression_method) {
     HANDLE_PANICKED_DB(db);
-    int r = toku_brt_set_compression_method(db->i->brt, compression_method);
+    int r = toku_ft_set_compression_method(db->i->ft_handle, compression_method);
     return r;
 }
 
 static int 
 toku_db_get_compression_method(DB *db, enum toku_compression_method *compression_method_ptr) {
     HANDLE_PANICKED_DB(db);
-    int r = toku_brt_get_compression_method(db->i->brt, compression_method_ptr);
+    int r = toku_ft_get_compression_method(db->i->ft_handle, compression_method_ptr);
     return r;
 }
 
@@ -590,21 +590,21 @@ static int
 toku_db_stat64(DB * db, DB_TXN *txn, DB_BTREE_STAT64 *s) {
     HANDLE_PANICKED_DB(db);
     HANDLE_DB_ILLEGAL_WORKING_PARENT_TXN(db, txn);
-    struct brtstat64_s brtstat;
+    struct ftstat64_s ftstat;
     TOKUTXN tokutxn = NULL;
     if (txn != NULL) {
         tokutxn = db_txn_struct_i(txn)->tokutxn;
     }
-    int r = toku_brt_stat64(db->i->brt, tokutxn, &brtstat);
+    int r = toku_ft_handle_stat64(db->i->ft_handle, tokutxn, &ftstat);
     if (r==0) {
-        s->bt_nkeys = brtstat.nkeys;
-        s->bt_ndata = brtstat.ndata;
-        s->bt_dsize = brtstat.dsize;
-        s->bt_fsize = brtstat.fsize;
+        s->bt_nkeys = ftstat.nkeys;
+        s->bt_ndata = ftstat.ndata;
+        s->bt_dsize = ftstat.dsize;
+        s->bt_fsize = ftstat.fsize;
         // 4018
-        s->bt_create_time_sec = brtstat.create_time_sec;
-        s->bt_modify_time_sec = brtstat.modify_time_sec;
-        s->bt_verify_time_sec = brtstat.verify_time_sec;
+        s->bt_create_time_sec = ftstat.create_time_sec;
+        s->bt_modify_time_sec = ftstat.modify_time_sec;
+        s->bt_verify_time_sec = ftstat.verify_time_sec;
     }
     return r;
 }
@@ -614,13 +614,13 @@ toku_db_key_range64(DB* db, DB_TXN* txn __attribute__((__unused__)), DBT* key, u
     HANDLE_PANICKED_DB(db);
     HANDLE_DB_ILLEGAL_WORKING_PARENT_TXN(db, txn);
 
-    // note that toku_brt_keyrange does not have a txn param
+    // note that toku_ft_keyrange does not have a txn param
     // this will be fixed later
     // temporarily, because the caller, locked_db_keyrange, 
     // has the ydb lock, we are ok
-    int r = toku_brt_keyrange(db->i->brt, key, less, equal, greater);
+    int r = toku_ft_keyrange(db->i->ft_handle, key, less, equal, greater);
     if (r != 0) { goto cleanup; }
-    // temporarily set is_exact to 0 because brt_keyrange does not have this parameter
+    // temporarily set is_exact to 0 because ft_keyrange does not have this parameter
     *is_exact = 0;
 cleanup:
     return r;
@@ -715,7 +715,7 @@ toku_db_dbt_neg_infty(void) {
 static int
 toku_db_optimize(DB *db) {
     HANDLE_PANICKED_DB(db);
-    int r = toku_brt_optimize(db->i->brt);
+    int r = toku_ft_optimize(db->i->ft_handle);
     return r;
 }
 
@@ -727,7 +727,7 @@ toku_db_hot_optimize(DB *db,
     HANDLE_PANICKED_DB(db);
     int r = 0;
     // If we areunable to get a directory read lock, do nothing.
-    r = toku_brt_hot_optimize(db->i->brt,
+    r = toku_ft_hot_optimize(db->i->ft_handle,
                               progress_callback,
                               progress_extra);
 
@@ -749,7 +749,7 @@ db_get_fragmentation(DB * db, TOKU_DB_FRAGMENTATION report) {
     if (!db_opened(db))
         r = toku_ydb_do_error(db->dbenv, EINVAL, "Fragmentation report available only on open DBs.\n");
     else
-        r = toku_brt_get_fragmentation(db->i->brt, report);
+        r = toku_ft_get_fragmentation(db->i->ft_handle, report);
     return r;
 }
 
@@ -802,11 +802,11 @@ ydb_verify_progress_callback(void *extra, float progress) {
 static int
 toku_db_verify_with_progress(DB *db, int (*progress_callback)(void *extra, float progress), void *progress_extra, int verbose, int keep_going) {
     struct ydb_verify_context context = { progress_callback, progress_extra };
-    int r = toku_verify_brt_with_progress(db->i->brt, ydb_verify_progress_callback, &context, verbose, keep_going);
+    int r = toku_verify_ft_with_progress(db->i->ft_handle, ydb_verify_progress_callback, &context, verbose, keep_going);
     return r;
 }
 
-int toku_setup_db_internal (DB **dbp, DB_ENV *env, u_int32_t flags, BRT brt, bool is_open) {
+int toku_setup_db_internal (DB **dbp, DB_ENV *env, u_int32_t flags, FT_HANDLE brt, bool is_open) {
     if (flags || env == NULL) 
         return EINVAL;
 
@@ -826,7 +826,7 @@ int toku_setup_db_internal (DB **dbp, DB_ENV *env, u_int32_t flags, BRT brt, boo
     }
     memset(result->i, 0, sizeof *result->i);
     toku_list_init(&result->i->dbs_that_must_close_before_abort);
-    result->i->brt = brt;
+    result->i->ft_handle = brt;
     result->i->refs = 1;
     result->i->opened = is_open;
     *dbp = result;
@@ -842,9 +842,9 @@ toku_db_create(DB ** db, DB_ENV * env, u_int32_t flags) {
         return EINVAL;
     
 
-    BRT brt;
+    FT_HANDLE brt;
     int r;
-    r = toku_brt_create(&brt);
+    r = toku_ft_handle_create(&brt);
     if (r!=0) return r;
 
     r = toku_setup_db_internal(db, env, flags, brt, false);
@@ -966,13 +966,13 @@ ydb_load_inames(DB_ENV * env, DB_TXN * txn, int N, DB * dbs[N], char * new_iname
         int do_fsync = 0;
         LSN *get_lsn = NULL;
         for (i = 0; i < N; i++) {
-            BRT brt  = dbs[i]->i->brt;
+            FT_HANDLE brt  = dbs[i]->i->ft_handle;
             //Fsync is necessary for the last one only.
             if (i==N-1) {
                 do_fsync = 1; //We only need a single fsync of logs.
                 get_lsn  = load_lsn; //Set pointer to capture the last lsn.
             }
-            rval = toku_brt_load(brt, ttxn, new_inames_in_env[i], do_fsync, get_lsn);
+            rval = toku_ft_load(brt, ttxn, new_inames_in_env[i], do_fsync, get_lsn);
             if (rval) break;
         }
     }

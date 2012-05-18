@@ -43,7 +43,7 @@ test_txn_nested(int do_commit) {
     DB_ENV *env;
     DB *db;
     DB_TXN * const null_txn = 0;
-    const char * const fname = "test.txn.nested.abort.brt";
+    const char * const fname = "test.txn.nested.abort.ft_handle";
 
     /* create the dup database file */
     r = db_env_create(&env, 0);        assert(r == 0);

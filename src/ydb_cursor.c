@@ -56,7 +56,7 @@ get_nonmain_cursor_flags(u_int32_t flags) {
 
 static inline BOOL 
 toku_c_uninitialized(DBC* c) {
-    return toku_brt_cursor_uninitialized(dbc_struct_i(c)->c);
+    return toku_ft_cursor_uninitialized(dbc_struct_i(c)->c);
 }            
 
 typedef struct query_context_wrapped_t {
@@ -107,7 +107,7 @@ get_cursor_prelocked_flags(u_int32_t flags, DBC* dbc) {
 //toku_c_getf_first
 
 typedef struct query_context_base_t {
-    BRT_CURSOR  c;
+    FT_CURSOR  c;
     DB_TXN     *txn;
     DB         *db;
     YDB_CALLBACK_FUNCTION f;
@@ -197,8 +197,8 @@ toku_c_getf_first(DBC *c, u_int32_t flag, YDB_CALLBACK_FUNCTION f, void *extra) 
     QUERY_CONTEXT_S context; //Describes the context of this query.
     c_query_context_init(&context, c, flag, f, extra);
     while (r == 0) {
-        //toku_brt_cursor_first will call c_getf_first_callback(..., context) (if query is successful)
-        r = toku_brt_cursor_first(dbc_struct_i(c)->c, c_getf_first_callback, &context);
+        //toku_ft_cursor_first will call c_getf_first_callback(..., context) (if query is successful)
+        r = toku_ft_cursor_first(dbc_struct_i(c)->c, c_getf_first_callback, &context);
         if (r == DB_LOCK_NOTGRANTED)
             r = toku_lock_request_wait_with_default_timeout(&context.base.lock_request, c->dbp->i->lt);
         else {
@@ -235,7 +235,7 @@ c_getf_first_callback(ITEMLEN keylen, bytevec key, ITEMLEN vallen, bytevec val, 
         r = context->r_user_callback;
     }
 
-    //Give brt-layer an error (if any) to return from toku_brt_cursor_first
+    //Give brt-layer an error (if any) to return from toku_ft_cursor_first
     return r;
 }
 
@@ -249,8 +249,8 @@ toku_c_getf_last(DBC *c, u_int32_t flag, YDB_CALLBACK_FUNCTION f, void *extra) {
     QUERY_CONTEXT_S context; //Describes the context of this query.
     c_query_context_init(&context, c, flag, f, extra); 
     while (r == 0) {
-        //toku_brt_cursor_last will call c_getf_last_callback(..., context) (if query is successful)
-        r = toku_brt_cursor_last(dbc_struct_i(c)->c, c_getf_last_callback, &context);
+        //toku_ft_cursor_last will call c_getf_last_callback(..., context) (if query is successful)
+        r = toku_ft_cursor_last(dbc_struct_i(c)->c, c_getf_last_callback, &context);
         if (r == DB_LOCK_NOTGRANTED)
             r = toku_lock_request_wait_with_default_timeout(&context.base.lock_request, c->dbp->i->lt);
         else {
@@ -287,7 +287,7 @@ c_getf_last_callback(ITEMLEN keylen, bytevec key, ITEMLEN vallen, bytevec val, v
         r = context->r_user_callback;
     }
 
-    //Give brt-layer an error (if any) to return from toku_brt_cursor_last
+    //Give brt-layer an error (if any) to return from toku_ft_cursor_last
     return r;
 }
 
@@ -305,8 +305,8 @@ toku_c_getf_next(DBC *c, u_int32_t flag, YDB_CALLBACK_FUNCTION f, void *extra) {
         QUERY_CONTEXT_S context; //Describes the context of this query.
         c_query_context_init(&context, c, flag, f, extra); 
         while (r == 0) {
-            //toku_brt_cursor_next will call c_getf_next_callback(..., context) (if query is successful)
-            r = toku_brt_cursor_next(dbc_struct_i(c)->c, c_getf_next_callback, &context);
+            //toku_ft_cursor_next will call c_getf_next_callback(..., context) (if query is successful)
+            r = toku_ft_cursor_next(dbc_struct_i(c)->c, c_getf_next_callback, &context);
             if (r == DB_LOCK_NOTGRANTED)
                 r = toku_lock_request_wait_with_default_timeout(&context.base.lock_request, c->dbp->i->lt);
             else {
@@ -332,7 +332,7 @@ c_getf_next_callback(ITEMLEN keylen, bytevec key, ITEMLEN vallen, bytevec val, v
 
     if (context->do_locking) {
         const DBT *prevkey, *prevval;
-        toku_brt_cursor_peek(context->c, &prevkey, &prevval);
+        toku_ft_cursor_peek(context->c, &prevkey, &prevval);
         const DBT *left_key = prevkey;
         const DBT *right_key = key != NULL ? &found_key : toku_lt_infinity;
         r = start_range_lock(context->db, context->txn, left_key, right_key, 
@@ -347,7 +347,7 @@ c_getf_next_callback(ITEMLEN keylen, bytevec key, ITEMLEN vallen, bytevec val, v
         r = context->r_user_callback;
     }
 
-    //Give brt-layer an error (if any) to return from toku_brt_cursor_next
+    //Give brt-layer an error (if any) to return from toku_ft_cursor_next
     return r;
 }
 
@@ -365,8 +365,8 @@ toku_c_getf_prev(DBC *c, u_int32_t flag, YDB_CALLBACK_FUNCTION f, void *extra) {
         QUERY_CONTEXT_S context; //Describes the context of this query.
         c_query_context_init(&context, c, flag, f, extra);
         while (r == 0) {
-            //toku_brt_cursor_prev will call c_getf_prev_callback(..., context) (if query is successful)
-            r = toku_brt_cursor_prev(dbc_struct_i(c)->c, c_getf_prev_callback, &context);
+            //toku_ft_cursor_prev will call c_getf_prev_callback(..., context) (if query is successful)
+            r = toku_ft_cursor_prev(dbc_struct_i(c)->c, c_getf_prev_callback, &context);
             if (r == DB_LOCK_NOTGRANTED)
                 r = toku_lock_request_wait_with_default_timeout(&context.base.lock_request, c->dbp->i->lt);
             else {
@@ -391,7 +391,7 @@ c_getf_prev_callback(ITEMLEN keylen, bytevec key, ITEMLEN vallen, bytevec val, v
 
     if (context->do_locking) {
         const DBT *prevkey, *prevval;
-        toku_brt_cursor_peek(context->c, &prevkey, &prevval);
+        toku_ft_cursor_peek(context->c, &prevkey, &prevval);
         const DBT *left_key = key != NULL ? &found_key : toku_lt_neg_infinity;
         const DBT *right_key = prevkey;
         r = start_range_lock(context->db, context->txn, left_key, right_key, 
@@ -406,7 +406,7 @@ c_getf_prev_callback(ITEMLEN keylen, bytevec key, ITEMLEN vallen, bytevec val, v
         r = context->r_user_callback;
     }
 
-    //Give brt-layer an error (if any) to return from toku_brt_cursor_prev
+    //Give brt-layer an error (if any) to return from toku_ft_cursor_prev
     return r;
 }
 
@@ -419,8 +419,8 @@ toku_c_getf_current(DBC *c, u_int32_t flag, YDB_CALLBACK_FUNCTION f, void *extra
 
     QUERY_CONTEXT_S context; //Describes the context of this query.
     c_query_context_init(&context, c, flag, f, extra); 
-    //toku_brt_cursor_current will call c_getf_current_callback(..., context) (if query is successful)
-    int r = toku_brt_cursor_current(dbc_struct_i(c)->c, DB_CURRENT, c_getf_current_callback, &context);
+    //toku_ft_cursor_current will call c_getf_current_callback(..., context) (if query is successful)
+    int r = toku_ft_cursor_current(dbc_struct_i(c)->c, DB_CURRENT, c_getf_current_callback, &context);
     if (r == TOKUDB_USER_CALLBACK_ERROR) r = context.base.r_user_callback;
     c_query_context_destroy(&context);
     return r;
@@ -443,7 +443,7 @@ c_getf_current_callback(ITEMLEN keylen, bytevec key, ITEMLEN vallen, bytevec val
     } else
         r = 0;
 
-    //Give brt-layer an error (if any) to return from toku_brt_cursor_current
+    //Give brt-layer an error (if any) to return from toku_ft_cursor_current
     return r;
 }
 
@@ -454,8 +454,8 @@ toku_c_getf_current_binding(DBC *c, u_int32_t flag, YDB_CALLBACK_FUNCTION f, voi
 
     QUERY_CONTEXT_S context; //Describes the context of this query.
     c_query_context_init(&context, c, flag, f, extra); 
-    //toku_brt_cursor_current will call c_getf_current_callback(..., context) (if query is successful)
-    int r = toku_brt_cursor_current(dbc_struct_i(c)->c, DB_CURRENT_BINDING, c_getf_current_callback, &context);
+    //toku_ft_cursor_current will call c_getf_current_callback(..., context) (if query is successful)
+    int r = toku_ft_cursor_current(dbc_struct_i(c)->c, DB_CURRENT_BINDING, c_getf_current_callback, &context);
     if (r == TOKUDB_USER_CALLBACK_ERROR) r = context.base.r_user_callback;
     c_query_context_destroy(&context);
     return r;
@@ -472,8 +472,8 @@ toku_c_getf_set(DBC *c, u_int32_t flag, DBT *key, YDB_CALLBACK_FUNCTION f, void 
     QUERY_CONTEXT_WITH_INPUT_S context; //Describes the context of this query.
     query_context_with_input_init(&context, c, flag, key, NULL, f, extra); 
     while (r == 0) {
-        //toku_brt_cursor_set will call c_getf_set_callback(..., context) (if query is successful)
-        r = toku_brt_cursor_set(dbc_struct_i(c)->c, key, c_getf_set_callback, &context);
+        //toku_ft_cursor_set will call c_getf_set_callback(..., context) (if query is successful)
+        r = toku_ft_cursor_set(dbc_struct_i(c)->c, key, c_getf_set_callback, &context);
         if (r == DB_LOCK_NOTGRANTED)
             r = toku_lock_request_wait_with_default_timeout(&context.base.lock_request, c->dbp->i->lt);
         else {
@@ -511,7 +511,7 @@ c_getf_set_callback(ITEMLEN keylen, bytevec key, ITEMLEN vallen, bytevec val, vo
         r = context->r_user_callback;
     }
 
-    //Give brt-layer an error (if any) to return from toku_brt_cursor_set
+    //Give brt-layer an error (if any) to return from toku_ft_cursor_set
     return r;
 }
 
@@ -526,8 +526,8 @@ toku_c_getf_set_range(DBC *c, u_int32_t flag, DBT *key, YDB_CALLBACK_FUNCTION f,
     QUERY_CONTEXT_WITH_INPUT_S context; //Describes the context of this query.
     query_context_with_input_init(&context, c, flag, key, NULL, f, extra); 
     while (r == 0) {
-        //toku_brt_cursor_set_range will call c_getf_set_range_callback(..., context) (if query is successful)
-        r = toku_brt_cursor_set_range(dbc_struct_i(c)->c, key, c_getf_set_range_callback, &context);
+        //toku_ft_cursor_set_range will call c_getf_set_range_callback(..., context) (if query is successful)
+        r = toku_ft_cursor_set_range(dbc_struct_i(c)->c, key, c_getf_set_range_callback, &context);
         if (r == DB_LOCK_NOTGRANTED)
             r = toku_lock_request_wait_with_default_timeout(&context.base.lock_request, c->dbp->i->lt);
         else {
@@ -568,7 +568,7 @@ c_getf_set_range_callback(ITEMLEN keylen, bytevec key, ITEMLEN vallen, bytevec v
         r = context->r_user_callback;
     }
 
-    //Give brt-layer an error (if any) to return from toku_brt_cursor_set_range
+    //Give brt-layer an error (if any) to return from toku_ft_cursor_set_range
     return r;
 }
 
@@ -583,8 +583,8 @@ toku_c_getf_set_range_reverse(DBC *c, u_int32_t flag, DBT *key, YDB_CALLBACK_FUN
     QUERY_CONTEXT_WITH_INPUT_S context; //Describes the context of this query.
     query_context_with_input_init(&context, c, flag, key, NULL, f, extra); 
     while (r == 0) {
-        //toku_brt_cursor_set_range_reverse will call c_getf_set_range_reverse_callback(..., context) (if query is successful)
-        r = toku_brt_cursor_set_range_reverse(dbc_struct_i(c)->c, key, c_getf_set_range_reverse_callback, &context);
+        //toku_ft_cursor_set_range_reverse will call c_getf_set_range_reverse_callback(..., context) (if query is successful)
+        r = toku_ft_cursor_set_range_reverse(dbc_struct_i(c)->c, key, c_getf_set_range_reverse_callback, &context);
         if (r == DB_LOCK_NOTGRANTED)
             r = toku_lock_request_wait_with_default_timeout(&context.base.lock_request, c->dbp->i->lt);
         else {
@@ -625,7 +625,7 @@ c_getf_set_range_reverse_callback(ITEMLEN keylen, bytevec key, ITEMLEN vallen, b
         r = context->r_user_callback;
     }
 
-    //Give brt-layer an error (if any) to return from toku_brt_cursor_set_range_reverse
+    //Give brt-layer an error (if any) to return from toku_ft_cursor_set_range_reverse
     return r;
 }
 
@@ -635,7 +635,7 @@ int
 toku_c_close(DBC * c) {
     HANDLE_PANICKED_DB(c->dbp);
     HANDLE_CURSOR_ILLEGAL_WORKING_PARENT_TXN(c);
-    int r = toku_brt_cursor_close(dbc_struct_i(c)->c);
+    int r = toku_ft_cursor_close(dbc_struct_i(c)->c);
     toku_sdbt_cleanup(&dbc_struct_i(c)->skey_s);
     toku_sdbt_cleanup(&dbc_struct_i(c)->sval_s);
 #if !TOKUDB_NATIVE_H
@@ -709,7 +709,7 @@ toku_c_pre_acquire_range_lock(DBC *dbc, const DBT *key_left, const DBT *key_righ
     DB *db = dbc->dbp;
     DB_TXN *txn = dbc_struct_i(dbc)->txn;
     HANDLE_PANICKED_DB(db);
-    toku_brt_cursor_set_range_lock(dbc_struct_i(dbc)->c, key_left, key_right,
+    toku_ft_cursor_set_range_lock(dbc_struct_i(dbc)->c, key_left, key_right,
                                    (key_left == toku_lt_neg_infinity),
                                    (key_right == toku_lt_infinity));
     if (!db->i->lt || !txn)
@@ -857,8 +857,8 @@ toku_db_cursor_internal(DB * db, DB_TXN * txn, DBC ** c, u_int32_t flags, int is
         is_snapshot_read = (dbc_struct_i(result)->iso == TOKU_ISO_READ_COMMITTED || 
                             dbc_struct_i(result)->iso == TOKU_ISO_SNAPSHOT);
     }
-    r = toku_brt_cursor(
-        db->i->brt, 
+    r = toku_ft_cursor(
+        db->i->ft_handle, 
         &dbc_struct_i(result)->c,
         txn ? db_txn_struct_i(txn)->tokutxn : NULL,
         is_snapshot_read,
@@ -870,7 +870,7 @@ toku_db_cursor_internal(DB * db, DB_TXN * txn, DBC ** c, u_int32_t flags, int is
         // that a query only needing one cursor will not perform
         // unecessary malloc calls.
         if (is_temporary_cursor) {
-            toku_brt_cursor_set_temporary(dbc_struct_i(result)->c);
+            toku_ft_cursor_set_temporary(dbc_struct_i(result)->c);
         }
 
         *c = result;

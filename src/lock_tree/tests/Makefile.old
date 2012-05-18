@@ -2,15 +2,15 @@
 
 .DEFAULT_GOAL= build
 TOKUROOT=../../../
-INCLUDEDIRS=-I. -I../ -I$(TOKUROOT)newbrt -I$(TOKUROOT)src/range_tree -I$(TOKUROOT)include
+INCLUDEDIRS=-I. -I../ -I$(TOKUROOT)ft -I$(TOKUROOT)src/range_tree -I$(TOKUROOT)include
 DEPEND_COMPILE += \
 	../*.h \
 	test.h \
 #end
-DEPEND_COMPILE+= $(NEWBRT)
+DEPEND_COMPILE+= $(FT)
 
 include $(TOKUROOT)toku_include/Makefile.include
-LDLIBS+=-lnewbrt -ltokuportability
+LDLIBS+=-lft -ltokuportability
 LDFLAGS+=-L$(TOKUROOT)lib -Wl,-rpath,$(shell pwd)/$(TOKUROOT)lib
 
 ifeq ($(CC),icc)

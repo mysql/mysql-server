@@ -2,7 +2,7 @@
 
 .DEFAULT_GOAL= build
 TOKUROOT=../../
-INCLUDEDIRS=-I. -I../ -I$(TOKUROOT)newbrt -I../range_tree -I../lock_tree
+INCLUDEDIRS=-I. -I../ -I$(TOKUROOT)ft -I../range_tree -I../lock_tree
 DEPEND_COMPILE += \
 	../*.h \
 	../range_tree/*.h \
@@ -31,7 +31,7 @@ STATIC_LIBS_NEEDED= \
 	$(LIBTDB) \
 	$(LOCKTREE) \
 	$(RANGETREE) \
-	../../lib/libnewbrt.$(AEXT) \
+	../../lib/libft.$(AEXT) \
 # last line
 TLIBTDB=../libtokudbtrace.$(SOEXT)
 %.tdb$(BINSUF):  LINK_FILES+=$(STATIC_LIBS_NEEDED)
@@ -214,16 +214,16 @@ BDB_DONTRUN_TESTS = \
         recover-descriptor12 \
         recover-fclose-in-checkpoint \
         recover-fcreate-basementnodesize \
-	recover-ft1 \
-	recover-ft2 \
-	recover-ft3 \
-	recover-ft4 \
-	recover-ft5 \
-	recover-ft6 \
-	recover-ft7 \
-	recover-ft8 \
-	recover-ft9 \
-	recover-ft10 \
+	recover-flt1 \
+	recover-flt2 \
+	recover-flt3 \
+	recover-flt4 \
+	recover-flt5 \
+	recover-flt6 \
+	recover-flt7 \
+	recover-flt8 \
+	recover-flt9 \
+	recover-flt10 \
         recover-loader-test \
         recover-lsn-filter-multiple \
 	recover-put-multiple \
@@ -296,7 +296,6 @@ BDB_DONTRUN_TESTS = \
         test_db_descriptor \
         test_db_descriptor_named_db \
 	test_db_txn_locks_read_uncommitted \
-        test_dbremove_old \
         test_dupsort_get_both_range_reverse \
         test_dupsort_set_range_reverse \
 	test_get_max_row_size \
@@ -383,14 +382,14 @@ DEPENDS_ON_STRESS_HELPERS = \
  perf_ptquery \
  perf_xmalloc_free \
  perf_checkpoint_var \
- recover-ft1 \
- recover-ft2 \
- recover-ft3 \
- recover-ft4 \
- recover-ft5 \
- recover-ft6 \
- recover-ft7 \
- recover-ft8 \
+ recover-flt1 \
+ recover-flt2 \
+ recover-flt3 \
+ recover-flt4 \
+ recover-flt5 \
+ recover-flt6 \
+ recover-flt7 \
+ recover-flt8 \
  recover-test_stress1 \
  recover-test_stress2 \
  test_stress1 \
@@ -554,7 +553,7 @@ TDBVGRIND=$(VGRIND)
 
 ifeq ($(OS_CHOICE),windows)
 ifdef BDBDIR
-%.bdb$(BINSUF): INCLUDEDIRS=-I$(BDBDIR)/include -I$(TOKUROOT)newbrt
+%.bdb$(BINSUF): INCLUDEDIRS=-I$(BDBDIR)/include -I$(TOKUROOT)ft
 %.bdb$(BINSUF): RPATH_DIRS=$(BDBDIR)/lib
 endif
 ifeq ($(DEBUG),0)
@@ -593,10 +592,10 @@ else
     TDBDUMP=$(TOKUROOT)utils/tokudb_dump_static$(BINSUF)
     TDBLOAD=$(TOKUROOT)utils/tokudb_load_static$(BINSUF)
 endif
-TDBRECOVER=$(TOKUROOT)newbrt/tdb-recover$(BINSUF)
-TDBBRTDUMP=$(TOKUROOT)newbrt/brtdump$(BINSUF)
+TDBRECOVER=$(TOKUROOT)ft/tdb-recover$(BINSUF)
+TDBFTDUMP=$(TOKUROOT)ft/ftdump$(BINSUF)
 
-$(TDBBRTDUMP) $(TDBLOAD) $(TDBDUMP) $(TDBRECOVER):
+$(TDBFTDUMP) $(TDBLOAD) $(TDBDUMP) $(TDBRECOVER):
 	cd $(@D) && $(MAKE) $(@F)
 
 %.recover: %.tdb$(BINSUF) $(PTHREAD_LOCAL) $(TDBRECOVER) $(TDBDUMP)
@@ -617,7 +616,7 @@ $(TDBBRTDUMP) $(TDBLOAD) $(TDBDUMP) $(TDBRECOVER):
 	$(MAYBEINVERTER) $(SUMMARIZE_CMD)
 
 %.recoverwc: %.tdb$(BINSUF) $(PTHREAD_LOCAL)
-	 (cd dir.$*.c.tdb;pwd;cat log*| ../../../newbrt/tdb_logprint |wc -c)
+	 (cd dir.$*.c.tdb;pwd;cat log*| ../../../ft/tdb_logprint |wc -c)
 
 ABORTCODE=137
 %.abortrecover: %.tdb$(BINSUF) $(PTHREAD_LOCAL)
@@ -926,8 +925,8 @@ filesize.tdbrun: VGRIND=
 powerfail.tdbrun:
 	@echo must run powerfail by hand $(SUMMARIZE_CMD)
 
-dumpit: $(TDBBRTDUMP)
-	$(TDBBRTDUMP)  dir.test_log5.c.tdb.recover/foo.db > dump.r && $(TDBBRTDUMP) dir.test_log5.c.tdb/foo.db > dump.o && diff -q dump.o dump.r
+dumpit: $(TDBFTDUMP)
+	$(TDBFTDUMP)  dir.test_log5.c.tdb.recover/foo.db > dump.r && $(TDBFTDUMP) dir.test_log5.c.tdb/foo.db > dump.o && diff -q dump.o dump.r
 
 # test on small stacks
 test_thread_stack.%run: test_thread_stack.%$(BINSUF) $(PTHREAD_LOCAL)

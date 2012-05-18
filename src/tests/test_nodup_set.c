@@ -87,7 +87,7 @@ test_icdi_search (int n, int dup_mode) {
     if (verbose) printf("test_icdi_search:%d %d\n", n, dup_mode);
 
     DB_TXN * const null_txn = 0;
-    const char * const fname = "test_icdi_search.brt";
+    const char * const fname = "test_icdi_search.ft_handle";
     int r;
 
     r = system("rm -rf " ENVDIR); CKERR(r);

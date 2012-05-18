@@ -5,7 +5,7 @@
 #include <lth.h>
 #include <rth.h>
 #include <idlth.h>
-#include <newbrt/omt.h>
+#include <ft/omt.h>
 
 #define TOKU_LT_USE_BORDERWRITE 1
 

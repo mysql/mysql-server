@@ -14,14 +14,14 @@
 #include <toku_portability.h>
 #include "toku_assert.h"
 #include "ydb-internal.h"
-#include <newbrt/le-cursor.h>
+#include <ft/le-cursor.h>
 #include "indexer.h"
-#include <newbrt/brt-internal.h>
-#include <newbrt/tokuconst.h>
-#include <newbrt/brt.h>
-#include <newbrt/leafentry.h>
-#include <newbrt/ule.h>
-#include <newbrt/xids.h>
+#include <ft/ft-internal.h>
+#include <ft/tokuconst.h>
+#include <ft/ft-ops.h>
+#include <ft/leafentry.h>
+#include <ft/ule.h>
+#include <ft/xids.h>
 #include "ydb_row_lock.h"
 
 #include "indexer-internal.h"
@@ -75,11 +75,11 @@ static int indexer_append_xid(DB_INDEXER *indexer, TXNID xid, XIDS *xids_result)
 static BOOL indexer_find_prev_xr(DB_INDEXER *indexer, ULEHANDLE ule, uint64_t xrindex, uint64_t *prev_xrindex);
 
 static int indexer_generate_hot_key_val(DB_INDEXER *indexer, DB *hotdb, ULEHANDLE ule, UXRHANDLE uxr, DBT *hotkey, DBT *hotval);
-static int indexer_brt_delete_provisional(DB_INDEXER *indexer, DB *hotdb, DBT *hotkey, XIDS xids);
-static int indexer_brt_delete_committed(DB_INDEXER *indexer, DB *hotdb, DBT *hotkey, XIDS xids);
-static int indexer_brt_insert_provisional(DB_INDEXER *indexer, DB *hotdb, DBT *hotkey, DBT *hotval, XIDS xids);
-static int indexer_brt_insert_committed(DB_INDEXER *indexer, DB *hotdb, DBT *hotkey, DBT *hotval, XIDS xids);
-static int indexer_brt_commit(DB_INDEXER *indexer, DB *hotdb, DBT *hotkey, XIDS xids);
+static int indexer_ft_delete_provisional(DB_INDEXER *indexer, DB *hotdb, DBT *hotkey, XIDS xids);
+static int indexer_ft_delete_committed(DB_INDEXER *indexer, DB *hotdb, DBT *hotkey, XIDS xids);
+static int indexer_ft_insert_provisional(DB_INDEXER *indexer, DB *hotdb, DBT *hotkey, DBT *hotval, XIDS xids);
+static int indexer_ft_insert_committed(DB_INDEXER *indexer, DB *hotdb, DBT *hotkey, DBT *hotval, XIDS xids);
+static int indexer_ft_commit(DB_INDEXER *indexer, DB *hotdb, DBT *hotkey, XIDS xids);
 static int indexer_lock_key(DB_INDEXER *indexer, DB *hotdb, DBT *key, TXNID outermost_live_xid);
 static TOKUTXN_STATE indexer_xid_state(DB_INDEXER *indexer, TXNID xid);
 
@@ -137,7 +137,7 @@ indexer_undo_do_committed(DB_INDEXER *indexer, DB *hotdb, ULEHANDLE ule) {
                 result = indexer_generate_hot_key_val(indexer, hotdb, ule, prevuxr, &indexer->i->hotkey, NULL);
                 if (result == 0) {
                     // send the delete message
-                    result = indexer_brt_delete_committed(indexer, hotdb, &indexer->i->hotkey, xids);
+                    result = indexer_ft_delete_committed(indexer, hotdb, &indexer->i->hotkey, xids);
                     if (result == 0) 
                         indexer_commit_keys_add(&indexer->i->commit_keys, indexer->i->hotkey.size, indexer->i->hotkey.data);
                 }
@@ -155,7 +155,7 @@ indexer_undo_do_committed(DB_INDEXER *indexer, DB *hotdb, ULEHANDLE ule) {
             result = indexer_generate_hot_key_val(indexer, hotdb, ule, uxr, &indexer->i->hotkey, &indexer->i->hotval);
             if (result == 0) {
                 // send the insert message
-                result = indexer_brt_insert_committed(indexer, hotdb, &indexer->i->hotkey, &indexer->i->hotval, xids);
+                result = indexer_ft_insert_committed(indexer, hotdb, &indexer->i->hotkey, &indexer->i->hotval, xids);
                 if (result == 0)
                     indexer_commit_keys_add(&indexer->i->commit_keys, indexer->i->hotkey.size, indexer->i->hotkey.data);
             }
@@ -164,7 +164,7 @@ indexer_undo_do_committed(DB_INDEXER *indexer, DB *hotdb, ULEHANDLE ule) {
 
         // send commit messages if needed
         for (int i = 0; result == 0 && i < indexer_commit_keys_valid(&indexer->i->commit_keys); i++) 
-            result = indexer_brt_commit(indexer, hotdb, &indexer->i->commit_keys.keys[i], xids);
+            result = indexer_ft_commit(indexer, hotdb, &indexer->i->commit_keys.keys[i], xids);
 
         if (result != 0)
             break;
@@ -245,13 +245,13 @@ indexer_undo_do_provisional(DB_INDEXER *indexer, DB *hotdb, ULEHANDLE ule) {
                     case TOKUTXN_LIVE:
                     case TOKUTXN_PREPARING:
                         assert(this_xid_state != TOKUTXN_ABORTING);
-                        result = indexer_brt_delete_provisional(indexer, hotdb, &indexer->i->hotkey, xids);
+                        result = indexer_ft_delete_provisional(indexer, hotdb, &indexer->i->hotkey, xids);
                         if (result == 0)
                             result = indexer_lock_key(indexer, hotdb, &indexer->i->hotkey, outermost_xid);
                         break;
                     case TOKUTXN_COMMITTING:
                     case TOKUTXN_RETIRED:
-                        result = indexer_brt_delete_committed(indexer, hotdb, &indexer->i->hotkey, xids);
+                        result = indexer_ft_delete_committed(indexer, hotdb, &indexer->i->hotkey, xids);
                         if (result == 0)
                             indexer_commit_keys_add(&indexer->i->commit_keys, indexer->i->hotkey.size, indexer->i->hotkey.data);
                         break;
@@ -277,13 +277,13 @@ indexer_undo_do_provisional(DB_INDEXER *indexer, DB *hotdb, ULEHANDLE ule) {
                 case TOKUTXN_LIVE:
                 case TOKUTXN_PREPARING:
                     assert(this_xid_state != TOKUTXN_ABORTING);
-                    result = indexer_brt_insert_provisional(indexer, hotdb, &indexer->i->hotkey, &indexer->i->hotval, xids);
+                    result = indexer_ft_insert_provisional(indexer, hotdb, &indexer->i->hotkey, &indexer->i->hotval, xids);
                     if (result == 0) 
                         result = indexer_lock_key(indexer, hotdb, &indexer->i->hotkey, outermost_xid);
                     break;
                 case TOKUTXN_COMMITTING:
                 case TOKUTXN_RETIRED:
-                    result = indexer_brt_insert_committed(indexer, hotdb, &indexer->i->hotkey, &indexer->i->hotval, xids);
+                    result = indexer_ft_insert_committed(indexer, hotdb, &indexer->i->hotkey, &indexer->i->hotval, xids);
                     // no need to do this because we do implicit commits on inserts
                     if (0 && result == 0)
                         indexer_commit_keys_add(&indexer->i->commit_keys, indexer->i->hotkey.size, indexer->i->hotkey.data);
@@ -301,7 +301,7 @@ indexer_undo_do_provisional(DB_INDEXER *indexer, DB *hotdb, ULEHANDLE ule) {
 
     // send commits if the outermost provisional transaction is committed
     for (int i = 0; result == 0 && i < indexer_commit_keys_valid(&indexer->i->commit_keys); i++) 
-        result = indexer_brt_commit(indexer, hotdb, &indexer->i->commit_keys.keys[i], xids);
+        result = indexer_ft_commit(indexer, hotdb, &indexer->i->commit_keys.keys[i], xids);
 
     xids_destroy(&xids);
 
@@ -451,7 +451,7 @@ indexer_get_innermost_live_txn(DB_INDEXER *indexer, XIDS xids) {
 // inject "delete" message into brt with logging in recovery and rollback logs,
 // and making assocation between txn and brt
 static int 
-indexer_brt_delete_provisional(DB_INDEXER *indexer, DB *hotdb, DBT *hotkey, XIDS xids) {
+indexer_ft_delete_provisional(DB_INDEXER *indexer, DB *hotdb, DBT *hotkey, XIDS xids) {
     int result = 0;
     // TEST
     if (indexer->i->test_delete_provisional) {
@@ -461,7 +461,7 @@ indexer_brt_delete_provisional(DB_INDEXER *indexer, DB *hotdb, DBT *hotkey, XIDS
         if (result == 0) {
             TOKUTXN txn = indexer_get_innermost_live_txn(indexer, xids);
             assert(txn != NULL);
-            result = toku_brt_maybe_delete (hotdb->i->brt, hotkey, txn, FALSE, ZERO_LSN, TRUE);
+            result = toku_ft_maybe_delete (hotdb->i->ft_handle, hotkey, txn, FALSE, ZERO_LSN, TRUE);
         }
     }
     return result;	
@@ -469,7 +469,7 @@ indexer_brt_delete_provisional(DB_INDEXER *indexer, DB *hotdb, DBT *hotkey, XIDS
 
 // send a delete message into the tree without rollback or recovery logging
 static int 
-indexer_brt_delete_committed(DB_INDEXER *indexer, DB *hotdb, DBT *hotkey, XIDS xids) {
+indexer_ft_delete_committed(DB_INDEXER *indexer, DB *hotdb, DBT *hotkey, XIDS xids) {
     int result = 0;
     // TEST
     if (indexer->i->test_delete_committed) {
@@ -477,7 +477,7 @@ indexer_brt_delete_committed(DB_INDEXER *indexer, DB *hotdb, DBT *hotkey, XIDS x
     } else {
         result = toku_ydb_check_avail_fs_space(indexer->i->env);
         if (result == 0) 
-            result = toku_brt_send_delete(db_struct_i(hotdb)->brt, hotkey, xids);
+            result = toku_ft_send_delete(db_struct_i(hotdb)->ft_handle, hotkey, xids);
     }
     return result;
 }
@@ -485,7 +485,7 @@ indexer_brt_delete_committed(DB_INDEXER *indexer, DB *hotdb, DBT *hotkey, XIDS x
 // inject "insert" message into brt with logging in recovery and rollback logs,
 // and making assocation between txn and brt
 static int 
-indexer_brt_insert_provisional(DB_INDEXER *indexer, DB *hotdb, DBT *hotkey, DBT *hotval, XIDS xids) {
+indexer_ft_insert_provisional(DB_INDEXER *indexer, DB *hotdb, DBT *hotkey, DBT *hotval, XIDS xids) {
     int result = 0;
     // TEST
     if (indexer->i->test_insert_provisional) {
@@ -495,7 +495,7 @@ indexer_brt_insert_provisional(DB_INDEXER *indexer, DB *hotdb, DBT *hotkey, DBT 
         if (result == 0) {
             TOKUTXN txn = indexer_get_innermost_live_txn(indexer, xids);
             assert(txn != NULL);
-            result = toku_brt_maybe_insert (hotdb->i->brt, hotkey, hotval, txn, FALSE, ZERO_LSN, TRUE, BRT_INSERT);
+            result = toku_ft_maybe_insert (hotdb->i->ft_handle, hotkey, hotval, txn, FALSE, ZERO_LSN, TRUE, FT_INSERT);
         }
     }
     return result;	
@@ -504,7 +504,7 @@ indexer_brt_insert_provisional(DB_INDEXER *indexer, DB *hotdb, DBT *hotkey, DBT 
 // send an insert message into the tree without rollback or recovery logging
 // and without associating the txn and the brt
 static int 
-indexer_brt_insert_committed(DB_INDEXER *indexer, DB *hotdb, DBT *hotkey, DBT *hotval, XIDS xids) {
+indexer_ft_insert_committed(DB_INDEXER *indexer, DB *hotdb, DBT *hotkey, DBT *hotval, XIDS xids) {
     int result = 0;
     // TEST
     if (indexer->i->test_insert_committed) {
@@ -512,7 +512,7 @@ indexer_brt_insert_committed(DB_INDEXER *indexer, DB *hotdb, DBT *hotkey, DBT *h
     } else {
         result = toku_ydb_check_avail_fs_space(indexer->i->env);
         if (result == 0)
-            result  = toku_brt_send_insert(db_struct_i(hotdb)->brt, hotkey, hotval, xids, BRT_INSERT);
+            result  = toku_ft_send_insert(db_struct_i(hotdb)->ft_handle, hotkey, hotval, xids, FT_INSERT);
     }
     return result;
 }
@@ -522,7 +522,7 @@ indexer_brt_insert_committed(DB_INDEXER *indexer, DB *hotdb, DBT *hotkey, DBT *h
 //       record and no commit message is needed.  (A commit message with xid of zero is
 //       illegal anyway.)
 static int 
-indexer_brt_commit(DB_INDEXER *indexer, DB *hotdb, DBT *hotkey, XIDS xids) {
+indexer_ft_commit(DB_INDEXER *indexer, DB *hotdb, DBT *hotkey, XIDS xids) {
     int result = 0;
     if (xids_get_num_xids(xids) > 0) {// send commit only when not the root xid
         // TEST
@@ -531,7 +531,7 @@ indexer_brt_commit(DB_INDEXER *indexer, DB *hotdb, DBT *hotkey, XIDS xids) {
         } else {
             result = toku_ydb_check_avail_fs_space(indexer->i->env);
             if (result == 0)
-                result = toku_brt_send_commit_any(db_struct_i(hotdb)->brt, hotkey, xids);
+                result = toku_ft_send_commit_any(db_struct_i(hotdb)->ft_handle, hotkey, xids);
         }
     }
     return result;

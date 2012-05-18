@@ -29,33 +29,33 @@ static void checkpoint_callback_1(void * extra) {
     u_int64_t old_num_pivots_fetched = num_pivots_fetched;
 
     num_basements_decompressed = 
-        get_engine_status_val(env, "BRT_NUM_BASEMENTS_DECOMPRESSED_NORMAL") +
-        get_engine_status_val(env, "BRT_NUM_BASEMENTS_DECOMPRESSED_AGGRESSIVE") +
-        get_engine_status_val(env, "BRT_NUM_BASEMENTS_DECOMPRESSED_PREFETCH") +
-        get_engine_status_val(env, "BRT_NUM_BASEMENTS_DECOMPRESSED_WRITE");
+        get_engine_status_val(env, "FT_NUM_BASEMENTS_DECOMPRESSED_NORMAL") +
+        get_engine_status_val(env, "FT_NUM_BASEMENTS_DECOMPRESSED_AGGRESSIVE") +
+        get_engine_status_val(env, "FT_NUM_BASEMENTS_DECOMPRESSED_PREFETCH") +
+        get_engine_status_val(env, "FT_NUM_BASEMENTS_DECOMPRESSED_WRITE");
         
     num_buffers_decompressed = 
-        get_engine_status_val(env, "BRT_NUM_MSG_BUFFER_DECOMPRESSED_NORMAL") +
-        get_engine_status_val(env, "BRT_NUM_MSG_BUFFER_DECOMPRESSED_AGGRESSIVE") +
-        get_engine_status_val(env, "BRT_NUM_MSG_BUFFER_DECOMPRESSED_PREFETCH") +
-        get_engine_status_val(env, "BRT_NUM_MSG_BUFFER_DECOMPRESSED_WRITE");
+        get_engine_status_val(env, "FT_NUM_MSG_BUFFER_DECOMPRESSED_NORMAL") +
+        get_engine_status_val(env, "FT_NUM_MSG_BUFFER_DECOMPRESSED_AGGRESSIVE") +
+        get_engine_status_val(env, "FT_NUM_MSG_BUFFER_DECOMPRESSED_PREFETCH") +
+        get_engine_status_val(env, "FT_NUM_MSG_BUFFER_DECOMPRESSED_WRITE");
 
     num_basements_fetched = 
-        get_engine_status_val(env, "BRT_NUM_BASEMENTS_FETCHED_NORMAL") +
-        get_engine_status_val(env, "BRT_NUM_BASEMENTS_FETCHED_AGGRESSIVE") +
-        get_engine_status_val(env, "BRT_NUM_BASEMENTS_FETCHED_PREFETCH") +
-        get_engine_status_val(env, "BRT_NUM_BASEMENTS_FETCHED_WRITE");
+        get_engine_status_val(env, "FT_NUM_BASEMENTS_FETCHED_NORMAL") +
+        get_engine_status_val(env, "FT_NUM_BASEMENTS_FETCHED_AGGRESSIVE") +
+        get_engine_status_val(env, "FT_NUM_BASEMENTS_FETCHED_PREFETCH") +
+        get_engine_status_val(env, "FT_NUM_BASEMENTS_FETCHED_WRITE");
 
     num_buffers_fetched = 
-        get_engine_status_val(env, "BRT_NUM_MSG_BUFFER_FETCHED_NORMAL") +
-        get_engine_status_val(env, "BRT_NUM_MSG_BUFFER_FETCHED_AGGRESSIVE") +
-        get_engine_status_val(env, "BRT_NUM_MSG_BUFFER_FETCHED_PREFETCH") +
-        get_engine_status_val(env, "BRT_NUM_MSG_BUFFER_FETCHED_WRITE");
+        get_engine_status_val(env, "FT_NUM_MSG_BUFFER_FETCHED_NORMAL") +
+        get_engine_status_val(env, "FT_NUM_MSG_BUFFER_FETCHED_AGGRESSIVE") +
+        get_engine_status_val(env, "FT_NUM_MSG_BUFFER_FETCHED_PREFETCH") +
+        get_engine_status_val(env, "FT_NUM_MSG_BUFFER_FETCHED_WRITE");
 
     num_pivots_fetched = 
-        get_engine_status_val(env, "BRT_NUM_PIVOTS_FETCHED_QUERY") +
-        get_engine_status_val(env, "BRT_NUM_PIVOTS_FETCHED_PREFETCH") +
-        get_engine_status_val(env, "BRT_NUM_PIVOTS_FETCHED_WRITE");
+        get_engine_status_val(env, "FT_NUM_PIVOTS_FETCHED_QUERY") +
+        get_engine_status_val(env, "FT_NUM_PIVOTS_FETCHED_PREFETCH") +
+        get_engine_status_val(env, "FT_NUM_PIVOTS_FETCHED_WRITE");
         
     printf("basements decompressed %"PRIu64" \n", num_basements_decompressed - old_num_basements_decompressed);
     printf("buffers   decompressed %"PRIu64" \n", num_buffers_decompressed- old_num_buffers_decompressed);
@@ -68,33 +68,33 @@ static void checkpoint_callback_1(void * extra) {
 static void checkpoint_callback_2(void * extra) {
     DB_ENV* env = extra;
     num_basements_decompressed = 
-        get_engine_status_val(env, "BRT_NUM_BASEMENTS_DECOMPRESSED_NORMAL") +
-        get_engine_status_val(env, "BRT_NUM_BASEMENTS_DECOMPRESSED_AGGRESSIVE") +
-        get_engine_status_val(env, "BRT_NUM_BASEMENTS_DECOMPRESSED_PREFETCH") +
-        get_engine_status_val(env, "BRT_NUM_BASEMENTS_DECOMPRESSED_WRITE");
+        get_engine_status_val(env, "FT_NUM_BASEMENTS_DECOMPRESSED_NORMAL") +
+        get_engine_status_val(env, "FT_NUM_BASEMENTS_DECOMPRESSED_AGGRESSIVE") +
+        get_engine_status_val(env, "FT_NUM_BASEMENTS_DECOMPRESSED_PREFETCH") +
+        get_engine_status_val(env, "FT_NUM_BASEMENTS_DECOMPRESSED_WRITE");
         
     num_buffers_decompressed = 
-        get_engine_status_val(env, "BRT_NUM_MSG_BUFFER_DECOMPRESSED_NORMAL") +
-        get_engine_status_val(env, "BRT_NUM_MSG_BUFFER_DECOMPRESSED_AGGRESSIVE") +
-        get_engine_status_val(env, "BRT_NUM_MSG_BUFFER_DECOMPRESSED_PREFETCH") +
-        get_engine_status_val(env, "BRT_NUM_MSG_BUFFER_DECOMPRESSED_WRITE");
+        get_engine_status_val(env, "FT_NUM_MSG_BUFFER_DECOMPRESSED_NORMAL") +
+        get_engine_status_val(env, "FT_NUM_MSG_BUFFER_DECOMPRESSED_AGGRESSIVE") +
+        get_engine_status_val(env, "FT_NUM_MSG_BUFFER_DECOMPRESSED_PREFETCH") +
+        get_engine_status_val(env, "FT_NUM_MSG_BUFFER_DECOMPRESSED_WRITE");
     
     num_basements_fetched = 
-        get_engine_status_val(env, "BRT_NUM_BASEMENTS_FETCHED_NORMAL") +
-        get_engine_status_val(env, "BRT_NUM_BASEMENTS_FETCHED_AGGRESSIVE") +
-        get_engine_status_val(env, "BRT_NUM_BASEMENTS_FETCHED_PREFETCH") +
-        get_engine_status_val(env, "BRT_NUM_BASEMENTS_FETCHED_WRITE");
+        get_engine_status_val(env, "FT_NUM_BASEMENTS_FETCHED_NORMAL") +
+        get_engine_status_val(env, "FT_NUM_BASEMENTS_FETCHED_AGGRESSIVE") +
+        get_engine_status_val(env, "FT_NUM_BASEMENTS_FETCHED_PREFETCH") +
+        get_engine_status_val(env, "FT_NUM_BASEMENTS_FETCHED_WRITE");
     
     num_buffers_fetched = 
-        get_engine_status_val(env, "BRT_NUM_MSG_BUFFER_FETCHED_NORMAL") +
-        get_engine_status_val(env, "BRT_NUM_MSG_BUFFER_FETCHED_AGGRESSIVE") +
-        get_engine_status_val(env, "BRT_NUM_MSG_BUFFER_FETCHED_PREFETCH") +
-        get_engine_status_val(env, "BRT_NUM_MSG_BUFFER_FETCHED_WRITE");
+        get_engine_status_val(env, "FT_NUM_MSG_BUFFER_FETCHED_NORMAL") +
+        get_engine_status_val(env, "FT_NUM_MSG_BUFFER_FETCHED_AGGRESSIVE") +
+        get_engine_status_val(env, "FT_NUM_MSG_BUFFER_FETCHED_PREFETCH") +
+        get_engine_status_val(env, "FT_NUM_MSG_BUFFER_FETCHED_WRITE");
     
     num_pivots_fetched = 
-        get_engine_status_val(env, "BRT_NUM_PIVOTS_FETCHED_QUERY") +
-        get_engine_status_val(env, "BRT_NUM_PIVOTS_FETCHED_PREFETCH") +
-        get_engine_status_val(env, "BRT_NUM_PIVOTS_FETCHED_WRITE");
+        get_engine_status_val(env, "FT_NUM_PIVOTS_FETCHED_QUERY") +
+        get_engine_status_val(env, "FT_NUM_PIVOTS_FETCHED_PREFETCH") +
+        get_engine_status_val(env, "FT_NUM_PIVOTS_FETCHED_WRITE");
 }
 
 

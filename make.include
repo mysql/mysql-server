@@ -188,7 +188,7 @@ ifneq ($(CYGWIN),)
 endif
 
 # TODO: 1398 Get rid of this hack.
-CPPFLAGS+=-DBRT_LEVEL_STRADDLE_CALLBACK_LOGIC_NOT_READY=1
+CPPFLAGS+=-DFT_LEVEL_STRADDLE_CALLBACK_LOGIC_NOT_READY=1
 
 CPPFLAGS+=$(CPP_DIRECTORIES)
 
@@ -200,8 +200,8 @@ else
     SRCDIRS_CXX = cxx db-benchmark-test-cxx
 endif
 
-//SRCDIRS = $(OS) newbrt src utils db-benchmark-test $(SRCDIRS_CXX)
-SRCDIRS = $(OS) buildheader newbrt
+//SRCDIRS = $(OS) ft src utils db-benchmark-test $(SRCDIRS_CXX)
+SRCDIRS = $(OS) buildheader ft
 
 %.$(OEXT):%.c
 	$(CC) $< -c $(CPPFLAGS) $(CPPFLAGS_DIRECTORY) $(CFLAGS) $(OOUTPUT)$@
@@ -212,7 +212,7 @@ SRCDIRS = $(OS) buildheader newbrt
 VALGRIND=valgrind
 SUPPRESSIONS=no
 VGRIND=$(VALGRIND) --quiet --error-exitcode=1 --leak-check=full --show-reachable=yes \
-       --suppressions=$(TOKUROOT)newbrt/valgrind.suppressions \
+       --suppressions=$(TOKUROOT)ft/valgrind.suppressions \
        --suppressions=$(TOKUROOT)src/tests/bdb.suppressions \
        --gen-suppressions=$(SUPPRESSIONS)
 
@@ -246,6 +246,6 @@ LOADLIBES += $(LOADLIBES_DIRECTORY)
 
 include $(patsubst %,%/make.include,$(SRCDIRS))
 
-build: buildheader/build $(OS)/build newbrt/build
-check: $(OS)/check newbrt/check
+build: buildheader/build $(OS)/build ft/build
+check: $(OS)/check ft/check
 

@@ -4,7 +4,7 @@
 
 .DEFAULT_GOAL= build
 TOKUROOT=../
-INCLUDEDIRS=-I. -I$(TOKUROOT)toku_include -I$(TOKUROOT)include -I$(TOKUROOT)newbrt -I$(TOKUROOT)src
+INCLUDEDIRS=-I. -I$(TOKUROOT)toku_include -I$(TOKUROOT)include -I$(TOKUROOT)ft -I$(TOKUROOT)src
 DEPEND_COMPILE += \
 	./*.h \
 #end
@@ -44,13 +44,13 @@ $(UTILS): $(WIN_YDB)
 else
 YDB_OBJS=$(wildcard ../src/*.$(OEXT))
  ifeq ($(PROF),1)
-$(STATIC_UTILS) $(UTILS): LINK_FILES=$(YDB_OBJS) $(TOKUROOT)lib/libtokudb.$(AEXT) $(LOCKTREE) $(RANGETREE) $(TOKUROOT)lib/libnewbrt.$(AEXT) $(LIBPORTABILITY_A)
+$(STATIC_UTILS) $(UTILS): LINK_FILES=$(YDB_OBJS) $(TOKUROOT)lib/libtokudb.$(AEXT) $(LOCKTREE) $(RANGETREE) $(TOKUROOT)lib/libft.$(AEXT) $(LIBPORTABILITY_A)
  else
 $(UTILS): DLINK_FILES=$(TOKUROOT)lib/libtokudb.$(SOEXT) $(TOKUROOT)lib/libtokuportability.$(SOEXT)
-$(STATIC_UTILS): LINK_FILES+= $(YDB_OBJS) ../src/lock_tree/locktree.a ../src/range_tree/rangetree.a ../lib/libnewbrt.a ../lib/libtokuportability.a $(LZMA_A)
+$(STATIC_UTILS): LINK_FILES+= $(YDB_OBJS) ../src/lock_tree/locktree.a ../src/range_tree/rangetree.a ../lib/libft.a ../lib/libtokuportability.a $(LZMA_A)
  endif
 
-ifeq ($(BRTLOADER),cilk)
+ifeq ($(FTLOADER),cilk)
 	DLINK_FILES += cilkrts stdc++
 	RPATH_DIRS +=  $(CILKROOT)lib64
 endif

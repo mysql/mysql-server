@@ -16,14 +16,14 @@
 #include <toku_portability.h>
 #include "toku_assert.h"
 #include "ydb-internal.h"
-#include <newbrt/le-cursor.h>
+#include <ft/le-cursor.h>
 #include "indexer.h"
-#include <newbrt/tokuconst.h>
-#include <newbrt/brt.h>
-#include <newbrt/leafentry.h>
-#include <newbrt/ule.h>
-#include <newbrt/xids.h>
-#include <newbrt/log-internal.h>
+#include <ft/tokuconst.h>
+#include <ft/ft-ops.h>
+#include <ft/leafentry.h>
+#include <ft/ule.h>
+#include <ft/xids.h>
+#include <ft/log-internal.h>
 
 ///////////////////////////////////////////////////////////////////////////////////
 // Engine status
@@ -181,7 +181,7 @@ toku_indexer_create_indexer(DB_ENV *env,
     XCALLOC_N(N, indexer->i->fnums);
     if ( !indexer->i->fnums ) { rval = ENOMEM; goto create_exit; }
     for(int i=0;i<indexer->i->N;i++) {
-        indexer->i->fnums[i]       = toku_cachefile_filenum(db_struct_i(dest_dbs[i])->brt->h->cf);
+        indexer->i->fnums[i]       = toku_cachefile_filenum(db_struct_i(dest_dbs[i])->ft_handle->h->cf);
     }
     indexer->i->filenums.num       = N;
     indexer->i->filenums.filenums  = indexer->i->fnums;
@@ -194,14 +194,14 @@ toku_indexer_create_indexer(DB_ENV *env,
     indexer->abort                 = abort_indexer;
     
     // create and initialize the leafentry cursor
-    rval = le_cursor_create(&indexer->i->lec, db_struct_i(src_db)->brt, db_txn_struct_i(txn)->tokutxn);
+    rval = le_cursor_create(&indexer->i->lec, db_struct_i(src_db)->ft_handle, db_txn_struct_i(txn)->tokutxn);
     if ( !indexer->i->lec ) { goto create_exit; }
     
     // 2954: add recovery and rollback entries
     LSN hot_index_lsn; // not used (yet)
     TOKUTXN      ttxn = db_txn_struct_i(txn)->tokutxn;
     FILENUMS filenums = indexer->i->filenums;
-    rval = toku_brt_hot_index(NULL, ttxn, filenums, 1, &hot_index_lsn);
+    rval = toku_ft_hot_index(NULL, ttxn, filenums, 1, &hot_index_lsn);
 
     if (rval == 0) {
         rval = associate_indexer_with_hot_dbs(indexer, dest_dbs, N);
@@ -335,7 +335,7 @@ close_indexer(DB_INDEXER *indexer) {
         //DB *db;
         for (int which_db = 0; which_db < indexer->i->N ; which_db++) {
             //db = indexer->i->dest_dbs[which_db];
-            //brt = db_struct_i(db)->brt;
+            //brt = db_struct_i(db)->ft_handle;
             toku_txn_require_checkpoint_on_commit(tokutxn);
         }
 

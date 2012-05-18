@@ -155,11 +155,11 @@ cleanup:
 }
 
 static void
-convert_filetime_timeval(FILETIME ft, struct timeval *tv) {
+convert_filetime_timeval(FILETIME filetime, struct timeval *tv) {
     ULARGE_INTEGER t;
     
-    t.u.HighPart = ft.dwHighDateTime;
-    t.u.LowPart = ft.dwLowDateTime;
+    t.u.HighPart = filetime.dwHighDateTime;
+    t.u.LowPart = filetime.dwLowDateTime;
     t.QuadPart /= 10;
     if (tv) {
         tv->tv_sec = t.QuadPart / 1000000;

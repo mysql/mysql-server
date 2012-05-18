@@ -19,7 +19,7 @@
 */
 
 #include <toku_portability.h>
-#include <newbrt/brttypes.h>
+#include <ft/fttypes.h>
 #include <db.h>
 
 #if defined(__cplusplus)

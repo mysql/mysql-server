@@ -30,7 +30,7 @@ static inline int toku_pthread_cond_broadcast(toku_pthread_cond_t *cond);
 typedef pthread_rwlock_t        toku_pthread_rwlock_t;
 typedef pthread_rwlockattr_t    toku_pthread_rwlockattr_t;
 #else
-#include "../newbrt/rwlock.h"
+#include "../ft/rwlock.h"
 typedef struct toku_pthread_rwlock_struct {
     struct rwlock rwlock;
     toku_pthread_mutex_t mutex;

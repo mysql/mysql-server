@@ -84,7 +84,7 @@ include_directories(
   ${CMAKE_CURRENT_SOURCE_DIR}/include
   ${CMAKE_CURRENT_SOURCE_DIR}/toku_include
   ${CMAKE_CURRENT_SOURCE_DIR}/portability
-  ${CMAKE_CURRENT_SOURCE_DIR}  ## so you can include <newbrt/brt.h> from inside src/
+  ${CMAKE_CURRENT_SOURCE_DIR}  ## so you can include <ft/ft-ops.h> from inside src/
   ${CMAKE_CURRENT_BINARY_DIR}  ## for logging code
   )
 ## include where config.h will be generated
@@ -96,7 +96,7 @@ include_directories(BEFORE ${CMAKE_CURRENT_BINARY_DIR}/buildheader)
 
 ## add subdirectories
 add_subdirectory(portability)
-add_subdirectory(newbrt)
+add_subdirectory(ft)
 add_subdirectory(src)
 add_subdirectory(utils)
 add_subdirectory(db-benchmark-test)

@@ -16,7 +16,7 @@ test_rand_insert (int n, int dup_mode) {
     if (verbose) printf("test_rand_insert:%d %d\n", n, dup_mode);
 
     DB_TXN * const null_txn = 0;
-    const char * const fname = "test.rand.insert.brt";
+    const char * const fname = "test.rand.insert.ft_handle";
     int r;
 
     r = system("rm -rf " ENVDIR);

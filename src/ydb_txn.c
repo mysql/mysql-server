@@ -5,8 +5,8 @@
 
 #include <db.h>
 #include "ydb-internal.h"
-#include <newbrt/checkpoint.h>
-#include <newbrt/log_header.h>
+#include <ft/checkpoint.h>
+#include <ft/log_header.h>
 #include "ydb_txn.h"
 #include <lock_tree/lth.h>
 #include <valgrind/helgrind.h>

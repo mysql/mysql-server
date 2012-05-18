@@ -16,7 +16,7 @@ test_insert (int n, int dup_mode) {
     if (verbose) printf("test_insert:%d %d\n", n, dup_mode);
 
     DB_TXN * const null_txn = 0;
-    const char * const fname = "test.insert.brt";
+    const char * const fname = "test.insert.ft_handle";
     int r;
 
     /* create the dup database file */

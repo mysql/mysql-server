@@ -1,4 +1,4 @@
-#include <newbrt/omt.h>
+#include <ft/omt.h>
 
 struct wfg {
     OMT nodes; // private: set of nodes

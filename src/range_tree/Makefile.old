@@ -2,7 +2,7 @@
 
 .DEFAULT_GOAL= build
 TOKUROOT=../../
-INCLUDEDIRS=-I. -I$(TOKUROOT)newbrt
+INCLUDEDIRS=-I. -I$(TOKUROOT)ft
 DEPEND_COMPILE+= \
 	*.h \
 #end

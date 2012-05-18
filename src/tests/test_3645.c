@@ -139,7 +139,7 @@ test_evictions (void) {
     if (verbose) printf("test_3645:%d \n", n);
 
     DB_TXN * const null_txn = 0;
-    const char * const fname = "test.bulk_fetch.brt";
+    const char * const fname = "test.bulk_fetch.ft_handle";
     int r;
 
     r = system("rm -rf " ENVDIR);

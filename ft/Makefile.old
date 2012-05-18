@@ -1,0 +1,189 @@
+# -*- Mode: Makefile -*-
+
+.DEFAULT_GOAL= build
+TOKUROOT=../
+INCLUDEDIRS=-I. -I../include
+ifneq ($(COMBINE),0)
+COMBINE=1
+endif
+
+#TODO: Replace DEPEND_COMPILE with auto-dependancy generation.
+DEPEND_COMPILE += \
+  $(wildcard *.h) \
+  log_header.h \
+# keep this line so I can have a \ on the previous line
+
+FT_SO        = $(TOKUROOT)lib/libft.$(SOEXT)
+FT_A       = $(TOKUROOT)lib/libft.$(AEXT)
+
+SKIP_FTRULE=1
+include $(TOKUROOT)toku_include/Makefile.include
+LDFLAGS+=-L$(TOKUROOT)lib -Wl,-rpath,$(shell pwd)/$(TOKUROOT)lib
+LDLIBS+=-lft -l$(LIBTOKUPORTABILITY)
+
+# When debugging, try: valgrind --show-reachable=yes --leak-check=full ./brt-test
+
+BINS_RAW= \
+  ftdump \
+  ftdump_static \
+  tdb_logprint \
+  tdb-recover \
+# Intentionally left blank
+# BINS will be defined automatically.
+
+.PHONY: build default bins libs local
+
+build default: local
+	cd tests;$(MAKE) build
+
+local: bins libs $(TEST_FT);
+
+
+FT_SOURCES = \
+  block_allocator \
+  block_table \
+  ft_loader-callback \
+  brt-serialize \
+  brt-verify \
+  brt \
+  brt-cachetable-wrappers \
+  brt-flusher \
+  brt-hot-flusher \
+  ft_msg \
+  brt-test-helpers \
+  cachetable \
+  checkpoint \
+  dbufio \
+  fifo \
+  key \
+  kibbutz \
+  leafentry \
+  le-cursor \
+  logfilemgr \
+  logger \
+  log_code \
+  log_upgrade \
+  log_print \
+  logcursor \
+  memarena \
+  mempool \
+  minicron \
+  omt \
+  pqueue \
+  queue \
+  recover \
+  roll \
+  rollback \
+  sort \
+  sub_block \
+  ule \
+  threadpool \
+  txn \
+  workqueue \
+  x1764 \
+  xids \
+  ybt \
+# keep this line so I can have a \ on the previous line
+ifneq ($(OS_CHOICE),windows)
+    FT_SOURCES += trace_mem #Windows does not handle 'empty' file
+endif
+
+
+TEST_FT = brt-test-helpers.$(OEXT)
+
+FT_C_FILES = $(patsubst %,%.c,$(FT_SOURCES))
+FT_O_FILES = $(patsubst %,%.$(OEXT),$(FT_SOURCES))
+
+ft.$(OEXT): $(FT_C_FILES) $(DEPEND_COMPILE)
+	$(CC) -c $(FT_C_FILES) $(COMBINE_C) $(CPPFLAGS) $(CFLAGS) $(OOUTPUT)$@
+
+brt-serialize.$(OEXT): $(wildcard backwards_*.c)
+
+ifneq ($(CYGWIN),)
+FT_O_FILES = $(FT_O_FILES)
+else ifeq ($(CC),icc)
+FT_O_FILES = $(FT_O_FILES)
+else ifeq ($(COMBINE),0)
+FT_O_FILES = $(FT_O_FILES)
+else
+FT_O_FILES = ft.o
+endif
+
+FT_O_FILES += ft_loader.$(OEXT) quicklz.$(OEXT) compress.$(OEXT)
+
+ft_loader.$(OEXT): $(DEPEND_COMPILE)
+
+$(FT_O_FILES): VISIBILITY=
+$(FT_O_FILES): $(LZMA_H)
+$(FT_SO): DISABLE_WARNING += 10237 # Do not complain about -lcilkrts being linked in dynamically, static library not available
+$(FT_SO): $(FT_O_FILES) $(LZMA_A)
+	$(TOKULINKER) $(SHARED) $(SYMBOLS) $(GCOV_FLAGS) $(SKIP_WARNING) $(FT_O_FILES) $(LZMA_A) -o$(FT_SO) $(LINUX_NOSTDLIB) $(LCILKRTS)
+$(FT_A): $(FT_O_FILES)
+
+log_code.$(OEXT): log_header.h wbuf.h log-internal.h rbuf.h
+
+# This version runs logformat twice.  There is something screwing in make that if you have a pattern form with two outputs
+# then it runs the thing only once, but if it has no % symbols it runs it twice.
+## log_header.h log_code.c: logformat$(BINSUF)
+##	./logformat
+# So we do it this way
+log_code.c: logformat$(BINSUF)
+	./logformat .
+log_print.c log_header.h: log_code.c
+	test 1 = 1
+
+#Needs to be done manually since it does not include ft.
+logformat$(BINSUF): logformat.c $(LIBPORTABILITY_SO)
+	$(CC) $< $(BIN_FROM_O_FLAGS_NOLIB) $(LDFLAGS) $(ALWAYS_LINK) $(LINK_MUST_BE_LAST) $(LIBPORTABILITY_SO)
+
+
+ifeq ($(PROF),1)
+libs: $(FT_A)
+else
+libs: $(FT_SO) $(FT_A)
+endif
+bins: $(BINS)
+
+# Put the benchmarktest_256 first since it takes the longest (and we want to use parallelism in the make)
+
+# Put check_benchmarktest_256 first because it is long-running (and therefore on the critical path, so get it started)
+check: bins
+	cd tests;$(MAKE) check
+
+ifeq ($(PROF),1)
+$(BINS): $(FT_A) $(LIBPORTABILITY_A)
+else
+$(BINS): $(FT_SO) $(LIBPORTABILITY_SO)
+endif
+
+foo2:
+	echo $(BINS)
+
+checko2: SHELL=/bin/bash
+checko2:
+	@shopt -s compat31; if [[ "$(OPTFLAGS)" =~ "-O([2-3x])" ]] ; then \
+		echo OPTFLAGS=$(OPTFLAGS) ok; \
+	else \
+		echo OPTFLAGS=$(OPTFLAGS) bad; exit 1; \
+	fi
+
+clean: clean-local clean-tests
+clean-tests:
+	cd tests;$(MAKE) clean
+clean-local:
+	$(RM) $(TOKUROOT)lib/libft.$(AEXT) $(TOKUROOT)lib/libft.$(SOEXT)
+	rm -rf $(FT)
+	rm -rf test_oexcl.c.tmp *.ft_handle
+	rm -rf log_code.c log_header.h log_print.c logformat
+
+ftdump_static$(BINSUF): DEPEND_LINK = -lpthread -ldl -lz
+ftdump_static$(BINSUF): ftdump.$(OEXT) $(FT_A) $(LZMA_A) $(LIBPORTABILITY_A) $(DEPEND_COMPILE) $(DEPEND_LINK)
+	$(CC) $< $(FT_A) $(LZMA_A) $(LIBPORTABILITY_A) $(BIN_FROM_O_FLAGS_NOLIB) $(ALWAYS_LINK) $(LINK_MUST_BE_LAST)
+
+# After doing (cd ../src/tests;make test_log5.recover), run these.  The files should have no differences.
+testdump: ftdump$(BINSUF)
+	./ftdump  ../src/tests/dir.test_log5.c.tdb.recover/foo.db > dump.r && ./ftdump  ../src/tests/dir.test_log5.c.tdb/foo.db > dump.$(OEXT) && diff dump.$(OEXT) dump.r
+
+foo:
+	@echo FTLOADER $(FTLOADER)
+	@echo BDBDIR $(BDBDIR)

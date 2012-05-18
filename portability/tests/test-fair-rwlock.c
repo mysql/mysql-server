@@ -11,7 +11,7 @@
 //  Best cas           time=  8.595600ns
 //  Best mutex         time= 19.340201ns
 //  Best rwlock        time= 34.024799ns
-//  Best newbrt rwlock time= 38.680500ns
+//  Best ft rwlock time= 38.680500ns
 //  Best prelocked     time=  2.148700ns
 //  Best fair rwlock   time= 45.127600ns
 // On laptop
@@ -19,7 +19,7 @@
 //  Best cas           time= 15.362500ns
 //  Best mutex         time= 51.951498ns
 //  Best rwlock        time= 97.721201ns
-//  Best newbrt rwlock time=110.456800ns
+//  Best ft rwlock time=110.456800ns
 //  Best prelocked     time=  4.240100ns
 //  Best fair rwlock   time=113.119102ns
 //
@@ -37,7 +37,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <errno.h>
-#include "../../newbrt/rwlock.h"
+#include "../../ft/rwlock.h"
 #include "toku_fair_rwlock.h"
 #include <sys/types.h>
 
@@ -72,7 +72,7 @@ static double best_fcall_time=1e12;
 static double best_cas_time=1e12;
 static double best_mutex_time=1e12;
 static double best_rwlock_time=1e12;
-static double best_newbrt_time=1e12;
+static double best_ft_time=1e12;
 static double best_prelocked_time=1e12;
 static double best_cv_fair_rwlock_time=1e12; // fair from condition variables
 static double best_fair_rwlock_time=1e12;
@@ -192,48 +192,48 @@ void time_pthread_rwlock (void) {
     { int r = pthread_rwlock_destroy(&mutex);    assert(r==0); }
 }
 
-static void newbrt_rwlock_lock (RWLOCK rwlock, toku_mutex_t *mutex) {
+static void ft_rwlock_lock (RWLOCK rwlock, toku_mutex_t *mutex) {
     toku_mutex_lock(mutex);
     rwlock_read_lock(rwlock, mutex);
     toku_mutex_unlock(mutex);
 }
 
-static void newbrt_rwlock_unlock (RWLOCK rwlock, toku_mutex_t *mutex) {
+static void ft_rwlock_unlock (RWLOCK rwlock, toku_mutex_t *mutex) {
     toku_mutex_lock(mutex);
     rwlock_read_unlock(rwlock);
     toku_mutex_unlock(mutex);
 }
 
-// Time the read lock that's in newbrt/rwlock.h
+// Time the read lock that's in ft/rwlock.h
 static
-void time_newbrt_rwlock (void) {
+void time_ft_rwlock (void) {
     struct rwlock rwlock;
     toku_mutex_t external_mutex;
     toku_mutex_init(&external_mutex, NULL);
     rwlock_init(&rwlock);
     struct timeval start,end;
     
-    newbrt_rwlock_lock(&rwlock, &external_mutex);
-    newbrt_rwlock_unlock(&rwlock, &external_mutex);
+    ft_rwlock_lock(&rwlock, &external_mutex);
+    ft_rwlock_unlock(&rwlock, &external_mutex);
     for (int t=0; t<T; t++) {
 	gettimeofday(&start, NULL);
 	for (int i=0; i<N; i++) {
-	    newbrt_rwlock_lock(&rwlock, &external_mutex);
-	    newbrt_rwlock_unlock(&rwlock, &external_mutex);
+	    ft_rwlock_lock(&rwlock, &external_mutex);
+	    ft_rwlock_unlock(&rwlock, &external_mutex);
 	}
 	gettimeofday(&end,   NULL);
 	double diff = 1e9*toku_tdiff(&end, &start)/N;
 	if (verbose>1)
-	    fprintf(stderr, "newbrt_rwlock(r) = %.6fns/(lock+unlock)\n", diff);
-	best_newbrt_time=mind(best_newbrt_time,diff);
+	    fprintf(stderr, "ft_rwlock(r) = %.6fns/(lock+unlock)\n", diff);
+	best_ft_time=mind(best_ft_time,diff);
     }
     rwlock_destroy(&rwlock);
     toku_mutex_destroy(&external_mutex);
 }
 
-// Time the read lock that's in newbrt/rwlock.h, assuming the mutex is already held.
+// Time the read lock that's in ft/rwlock.h, assuming the mutex is already held.
 static
-void time_newbrt_prelocked_rwlock (void) {
+void time_ft_prelocked_rwlock (void) {
     struct rwlock rwlock;
     toku_mutex_t external_mutex;
     toku_mutex_init(&external_mutex, NULL);
@@ -252,7 +252,7 @@ void time_newbrt_prelocked_rwlock (void) {
 	gettimeofday(&end,   NULL);
 	double diff = 1e9*toku_tdiff(&end, &start)/N;
 	if (verbose>1)
-	    fprintf(stderr, "newbrt_rwlock(r) = %.6fns/(lock+unlock)\n", diff);
+	    fprintf(stderr, "ft_rwlock(r) = %.6fns/(lock+unlock)\n", diff);
 	best_prelocked_time=mind(best_prelocked_time,diff);
     }
     rwlock_destroy(&rwlock);
@@ -510,8 +510,8 @@ int main (int argc, const char *argv[]) {
 	time_cas();
 	time_pthread_mutex();
 	time_pthread_rwlock();
-	time_newbrt_rwlock();
-	time_newbrt_prelocked_rwlock();
+	time_ft_rwlock();
+	time_ft_prelocked_rwlock();
 	time_toku_cv_fair_rwlock();
 	time_toku_fair_rwlock();
 	if (verbose>0) {
@@ -520,7 +520,7 @@ int main (int argc, const char *argv[]) {
 	    printf("//  Best cas              time=%10.6fns\n", best_cas_time);
 	    printf("//  Best mutex            time=%10.6fns\n", best_mutex_time);
 	    printf("//  Best rwlock           time=%10.6fns\n", best_rwlock_time);
-	    printf("//  Best newbrt rwlock    time=%10.6fns\n", best_newbrt_time);
+	    printf("//  Best ft rwlock    time=%10.6fns\n", best_ft_time);
 	    printf("//  Best prelocked        time=%10.6fns\n", best_prelocked_time);
 	    printf("//  Best fair cv rwlock   time=%10.6fns\n", best_cv_fair_rwlock_time);
 	    printf("//  Best fair fast rwlock time=%10.6fns\n", best_fair_rwlock_time);
