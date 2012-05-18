@@ -471,6 +471,9 @@ CREATE TABLE t1 (a VARCHAR(255), b INT, FULLTEXT(a), KEY(b)) ENGINE = InnoDB;
 INSERT INTO t1 VALUES('test', 1),('test', 1),('test', 1),('test', 1),
                      ('test', 1),('test', 2),('test', 3),('test', 4);
 
+-- disable_result_log
+ANALYZE TABLE t1;
+-- enable_result_log
 EXPLAIN SELECT * FROM t1
 WHERE MATCH(a) AGAINST('test' IN BOOLEAN MODE) AND b=1;
 
