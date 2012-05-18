@@ -2464,7 +2464,7 @@ CREATE TABLE t1 (
   PRIMARY KEY (pk), INDEX idx1(i), INDEX idx2 (v,i)
 ) COLLATE latin1_bin;
 INSERT INTO t1 VALUES
-  (10,8,'v'), (11,8,'f'), (12,5,'v'), (13,8,'s'), (14,8,'a'),
+  (10,8,'v'), (11,8,'f'), (13,8,'s'), (14,8,'a'),
   (15,6,'p'), (16,7,'z'), (17,2,'a'), (18,5,'h'), (19,7,'h'),
   (25,3,'m'), (26,5,'a'), (27,9,'n'), (28,1,'d'), (29,107,'a');
 INSERT INTO t1 VALUES
