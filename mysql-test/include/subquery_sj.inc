@@ -4213,6 +4213,13 @@ WHERE outr.col_varchar_key IN (SELECT innr.col_varchar_key
   AND outr.col_varchar_nokey < 't'
 ORDER BY outr.col_varchar_key, outr.pk;
 
+-- disable_query_log
+-- disable_result_log
+ANALYZE TABLE t1;
+ANALYZE TABLE t2;
+-- enable_result_log
+-- enable_query_log
+
 eval EXPLAIN $query;
 eval $query;
 
@@ -4691,6 +4698,13 @@ let $query=
 eval CREATE TABLE t2
   $query
 ;
+
+-- disable_query_log
+-- disable_result_log
+ANALYZE TABLE t1;
+ANALYZE TABLE t2;
+-- enable_result_log
+-- enable_query_log
 
 eval EXPLAIN SELECT *
 FROM t2
