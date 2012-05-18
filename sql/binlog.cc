@@ -4462,7 +4462,9 @@ bool MYSQL_BIN_LOG::flush_and_sync(const bool force)
   if (flush_io_cache(&log_file))
     return 1;
 
-  return sync_binlog_file(true, 0);
+  std::pair<bool, bool> result= sync_binlog_file(true);
+
+  return result.first;
 }
 
 void MYSQL_BIN_LOG::start_union_events(THD *thd, query_id_t query_id_param)
@@ -6011,21 +6013,19 @@ MYSQL_BIN_LOG::flush_cache_to_file(my_off_t *end_pos_var)
 /**
   Call fsync() to sync the file to disk.
 */
-int
-MYSQL_BIN_LOG::sync_binlog_file(bool force, bool *synced)
+std::pair<bool, bool>
+MYSQL_BIN_LOG::sync_binlog_file(bool force)
 {
+  bool synced= false;
   unsigned int sync_period= get_sync_period();
-  if (synced)
-    *synced= false;
   if (force || (sync_period && ++sync_counter >= sync_period))
   {
     sync_counter= 0;
     if (mysql_file_sync(log_file.file, MYF(MY_WME)))
-      return ER_ERROR_ON_WRITE;
-    if (synced)
-      *synced= true;
+      return std::make_pair(true, synced);
+    synced= true;
   }
-  return 0;
+  return std::make_pair(false, synced);
 }
 
 
@@ -6182,7 +6182,11 @@ int MYSQL_BIN_LOG::ordered_commit(THD *thd, bool all, bool skip_commit)
   THD *final_queue= stage_manager.fetch_queue_for(Stage_manager::SYNC_STAGE);
   bool synced= false;
   if (flush_error == 0 && total_bytes > 0)
-    flush_error= sync_binlog_file(false, &synced);
+  {
+    std::pair<bool, bool> result= sync_binlog_file(false);
+    flush_error= result.first;
+    synced= result.second;
+  }
   
   /*
     If the sync finished successfully, we can call the after_flush

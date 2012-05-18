@@ -470,7 +470,7 @@ private:
   std::pair<int,my_off_t> flush_thread_caches(THD *thd);
   int flush_cache_to_file(my_off_t *flush_end_pos);
   int finish_commit(THD *thd);
-  int sync_binlog_file(bool force, bool *synced);
+  std::pair<bool, bool> sync_binlog_file(bool force);
   void process_commit_stage_queue(THD *thd, THD *queue, int flush_error);
   int process_flush_stage_queue(my_off_t *total_bytes_var, bool *rotate_var,
                                 THD **out_queue_var);
