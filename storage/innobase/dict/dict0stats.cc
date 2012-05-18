@@ -3182,12 +3182,14 @@ dict_stats_rename_table(
 		if (ret != DB_SUCCESS) {
 			os_thread_sleep(200000 /* 0.2 sec */);
 		}
-	} while ((ret == DB_DUPLICATE_KEY || ret == DB_LOCK_WAIT_TIMEOUT)
+	} while ((ret == DB_DEADLOCK
+		  || ret == DB_DUPLICATE_KEY
+		  || ret == DB_LOCK_WAIT_TIMEOUT)
 		 && n_attempts < 5);
 
 	if (ret != DB_SUCCESS) {
 		ut_snprintf(errstr, errstr_sz,
-			    "Unable rename statistics from "
+			    "Unable to rename statistics from "
 			    "%s.%s to %s.%s in %s: %s. "
 			    "They can be renamed later using "
 
@@ -3227,12 +3229,14 @@ dict_stats_rename_table(
 		if (ret != DB_SUCCESS) {
 			os_thread_sleep(200000 /* 0.2 sec */);
 		}
-	} while ((ret == DB_DUPLICATE_KEY || ret == DB_LOCK_WAIT_TIMEOUT)
+	} while ((ret == DB_DEADLOCK
+		  || ret == DB_DUPLICATE_KEY
+		  || ret == DB_LOCK_WAIT_TIMEOUT)
 		 && n_attempts < 5);
 
 	if (ret != DB_SUCCESS) {
 		ut_snprintf(errstr, errstr_sz,
-			    "Unable rename statistics from "
+			    "Unable to rename statistics from "
 			    "%s.%s to %s.%s in %s: %s. "
 			    "They can be renamed later using "
 
