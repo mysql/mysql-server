@@ -7474,6 +7474,8 @@ static void translog_force_current_buffer_to_finish()
   uint16 left= TRANSLOG_PAGE_SIZE - log_descriptor.bc.current_page_fill;
   uint16 current_page_fill, write_counter, previous_offset;
   DBUG_ENTER("translog_force_current_buffer_to_finish");
+  LINT_INIT(current_page_fill);
+
   DBUG_PRINT("enter", ("Buffer #%u 0x%lx  "
                        "Buffer addr: (%lu,0x%lx)  "
                        "Page addr: (%lu,0x%lx)  "

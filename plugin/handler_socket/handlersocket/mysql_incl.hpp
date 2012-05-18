@@ -36,6 +36,9 @@
 #include <sql_base.h>
 // FIXME FIXME FIXME
 #define safeFree(X) my_free(X)
+#undef pthread_cond_timedwait
+#undef pthread_mutex_lock
+#undef pthread_mutex_unlock
 #define pthread_cond_timedwait  mysql_cond_timedwait
 #define  pthread_mutex_lock  mysql_mutex_lock
 #define  pthread_mutex_unlock  mysql_mutex_unlock

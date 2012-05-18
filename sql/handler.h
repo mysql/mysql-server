@@ -1063,7 +1063,7 @@ inline LEX_STRING *hton_name(const handlerton *hton)
 #define HTON_NO_FLAGS                 0
 #define HTON_CLOSE_CURSORS_AT_COMMIT (1 << 0)
 #define HTON_ALTER_NOT_SUPPORTED     (1 << 1) //Engine does not support alter
-#define HTON_CAN_RECREATE            (1 << 2) //Delete all is used fro truncate
+#define HTON_CAN_RECREATE            (1 << 2) //Delete all is used for truncate
 #define HTON_HIDDEN                  (1 << 3) //Engine does not appear in lists
 #define HTON_NOT_USER_SELECTABLE     (1 << 5)
 #define HTON_TEMPORARY_NOT_SUPPORTED (1 << 6) //Having temporary tables not supported

@@ -13,7 +13,7 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netdb.h>
-
+#include <string.h>
 #include "util.hpp"
 
 typedef SOCKET_SIZE_TYPE size_socket;
@@ -34,8 +34,9 @@ struct auto_addrinfo : private noncopyable {
   const addrinfo *get() const { return addr; }
   int resolve(const char *node, const char *service, int flags = 0,
     int family = AF_UNSPEC, int socktype = SOCK_STREAM, int protocol = 0) {
+    addrinfo hints;
     reset();
-    addrinfo hints = { };
+    memset(&hints, 0, sizeof(hints));
     hints.ai_flags = flags;
     hints.ai_family = family;
     hints.ai_socktype = socktype;

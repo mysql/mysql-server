@@ -17,7 +17,7 @@
 #include <my_sys.h>
 #include "tap.h"
 
-int main(int argc,char *argv[])
+int main(int argc __attribute__((unused)),char *argv[])
 {
   void *p;
   MY_INIT(argv[0]);

@@ -197,20 +197,20 @@ static SHOW_VAR daemon_handlersocket_status_variables[] = {
 };
 
 
-mysql_declare_plugin(handlersocket)
+maria_declare_plugin(handlersocket)
 {
   MYSQL_DAEMON_PLUGIN,
   &daemon_handlersocket_plugin,
   "handlersocket",
   "higuchi dot akira at dena dot jp",
-  "",
+  "Direct access into InnoDB",
   PLUGIN_LICENSE_BSD,
   daemon_handlersocket_init,
   daemon_handlersocket_deinit,
   0x0100 /* 1.0 */,
   daemon_handlersocket_status_variables,
   daemon_handlersocket_system_variables,
-  0
+  "1.0",
+  MariaDB_PLUGIN_MATURITY_BETA
 }
-mysql_declare_plugin_end;
-
+maria_declare_plugin_end;
