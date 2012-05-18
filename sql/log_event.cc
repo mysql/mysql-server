@@ -2835,24 +2835,34 @@ Query_log_event::Query_log_event(const char* buf, uint event_len,
       pos= (const uchar*) end;                         // Break loop
     }
   }
-  
+
+  /**
+    Layout for the data buffer is as follows
+    +--------+-----------+------+------+---------+----+-------+
+    | catlog | time_zone | user | host | db name | \0 | Query |
+    +--------+-----------+------+------+---------+----+-------+
+
+    To support the query cache we append the following buffer to the above
+    +-------+----------------------------------------+-------+
+    |db len | uninitiatlized space of size of db len | FLAGS |
+    +-------+----------------------------------------+-------+
+
+    The area of buffer starting from Query field all the way to the end belongs
+    to the Query buffer and its structure is described in alloc_query() in
+    sql_parse.cc
+    */
+
+  if (!(start= data_buf = (Log_event::Byte*) my_malloc(catalog_len + 1
+                                                    +  time_zone_len + 1
+                                                    +  user.length + 1
+                                                    +  host.length + 1
+                                                    +  data_len + 1
 #if !defined(MYSQL_CLIENT) && defined(HAVE_QUERY_CACHE)
-  if (!(start= data_buf = (Log_event::Byte*) my_malloc(catalog_len + 1 +
-                                              time_zone_len + 1 +
-                                              data_len + 1 +
-                                              QUERY_CACHE_FLAGS_SIZE +
-                                              user.length + 1 +
-                                              host.length + 1 +
-                                              db_len + 1,
-                                              MYF(MY_WME))))
-#else
-  if (!(start= data_buf = (Log_event::Byte*) my_malloc(catalog_len + 1 +
-                                             time_zone_len + 1 +
-                                             data_len + 1 +
-                                             user.length + 1 +
-                                             host.length + 1,
-                                             MYF(MY_WME))))
+                                                    + sizeof(size_t)//for db_len
+                                                    + db_len + 1
+                                                    + QUERY_CACHE_FLAGS_SIZE
 #endif
+                                                    , MYF(MY_WME))))
       DBUG_VOID_RETURN;
   if (catalog_len)                                  // If catalog is given
   {
@@ -2891,6 +2901,14 @@ Query_log_event::Query_log_event(const char* buf, uint event_len,
   db= (char *)start;
   query= (char *)(start + db_len + 1);
   q_len= data_len - db_len -1;
+  /**
+    Append the db length at the end of the buffer. This will be used by
+    Query_cache::send_result_to_client() in case the query cache is On.
+   */
+#if !defined(MYSQL_CLIENT) && defined(HAVE_QUERY_CACHE)
+  size_t db_length= (size_t)db_len;
+  memcpy(start + data_len + 1, &db_length, sizeof(size_t));
+#endif
   DBUG_VOID_RETURN;
 }
 
