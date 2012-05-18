@@ -1916,7 +1916,7 @@ void Item_in_optimizer::fix_after_pullout(st_select_lex *parent_select,
                                           st_select_lex *removed_select,
                                           Item **ref)
 {
-  used_tables_cache=0;
+  used_tables_cache= get_initial_pseudo_tables();
   not_null_tables_cache= 0;
   const_item_cache= 1;
 
@@ -4817,7 +4817,7 @@ void Item_cond::fix_after_pullout(st_select_lex *parent_select,
   List_iterator<Item> li(list);
   Item *item;
 
-  used_tables_cache= 0;
+  used_tables_cache= get_initial_pseudo_tables();
   const_item_cache= true;
 
   if (functype() == COND_AND_FUNC && abort_on_null)
@@ -5183,22 +5183,19 @@ longlong Item_is_not_null_test::val_int()
 */
 void Item_is_not_null_test::update_used_tables()
 {
+  const table_map initial_pseudo_tables= get_initial_pseudo_tables();
+  used_tables_cache= initial_pseudo_tables;
   if (!args[0]->maybe_null)
   {
-    used_tables_cache= 0;			/* is always true */
-    cached_value= (longlong) 1;
+    cached_value= 1;
+    return;
   }
-  else
-  {
-    args[0]->update_used_tables();
-    with_subselect= args[0]->has_subquery();
-
-    if (!(used_tables_cache=args[0]->used_tables()) && !with_subselect)
-    {
-      /* Remember if the value is always NULL or never NULL */
-      cached_value= (longlong) !args[0]->is_null();
-    }
-  }
+  args[0]->update_used_tables();
+  with_subselect= args[0]->has_subquery();
+  used_tables_cache|= args[0]->used_tables();
+  if (used_tables_cache == initial_pseudo_tables && !with_subselect)
+    /* Remember if the value is always NULL or never NULL */
+    cached_value= !args[0]->is_null();
 }
 
 

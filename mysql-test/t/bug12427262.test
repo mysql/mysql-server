@@ -20,15 +20,15 @@ create table t9 (c1 int);
 create table t10 (c1 int);
 --enable_warnings
 
-# Query PS to know initial read count for frm file.
+--echo # Query PS to know initial read count for frm file.
 select Sum(ALL(COUNT_READ)) from performance_schema.file_summary_by_instance where FILE_NAME 
 like "%show_table_lw_db%" AND FILE_NAME like "%.frm%" AND EVENT_NAME='wait/io/file/sql/FRM'
 into @count_read_before;
 
 show tables;
 
-# Query PS to know read count for frm file after above query. It should
-# not be changed as FRM file will not be opened for above query.
+--echo # Query PS to know read count for frm file after above query. It should
+--echo # not be changed as FRM file will not be opened for above query.
 select Sum(ALL(COUNT_READ)) from performance_schema.file_summary_by_instance where FILE_NAME 
 like "%show_table_lw_db%" AND FILE_NAME like "%.frm%" AND EVENT_NAME='wait/io/file/sql/FRM'
 into @count_read_after;
@@ -37,8 +37,8 @@ select @count_read_after-@count_read_before;
 
 show full tables;
 
-# Query PS to know read count for frm file after above query. COUNT_READ
-# will be incremented by 1 as FRM file will be opened for above query.
+--echo # Query PS to know read count for frm file after above query. COUNT_READ
+--echo # will be incremented by 1 as FRM file will be opened for above query.
 select Sum(ALL(COUNT_READ)) from performance_schema.file_summary_by_instance where FILE_NAME 
 like "%show_table_lw_db%" AND FILE_NAME like "%.frm%" AND EVENT_NAME='wait/io/file/sql/FRM'
 into @count_read_after;

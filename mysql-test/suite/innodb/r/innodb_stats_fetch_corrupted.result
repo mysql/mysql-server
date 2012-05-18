@@ -1,4 +1,4 @@
-call mtr.add_suppression("InnoDB: Error: Table \"mysql\".\"innodb_index_stats\" not found or its tablespace is missing");
+call mtr.add_suppression("InnoDB: Error: Table \"mysql\".\"innodb_index_stats\" not found");
 call mtr.add_suppression("InnoDB: Error: Fetch of persistent statistics requested for table \"test\".\"test_ps_fetch_corrupted\" but the required system tables mysql.innodb_table_stats and mysql.innodb_index_stats are not present or have unexpected st");
 CREATE TABLE test_ps_fetch_corrupted
 (a INT, PRIMARY KEY (a))

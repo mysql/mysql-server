@@ -5765,13 +5765,25 @@ dict_table_schema_check(
 
 	table = dict_table_get_low(req_schema->table_name);
 
-	if (table == NULL || table->ibd_file_missing) {
-		/* no such table or missing tablespace */
+	if (table == NULL) {
+		/* no such table */
 
 		ut_snprintf(errstr, errstr_sz,
-			    "Table %s not found or its tablespace is missing.",
+			    "Table %s not found.",
 			    ut_format_name(req_schema->table_name,
 					   TRUE, buf, sizeof(buf)));
+
+		return(DB_TABLE_NOT_FOUND);
+	}
+
+	if (table->ibd_file_missing) {
+		/* missing tablespace */
+
+		ut_snprintf(errstr, errstr_sz,
+			    "Tablespace for table %s is missing.",
+			    ut_format_name(req_schema->table_name,
+					   TRUE, buf, sizeof(buf)));
+
 		return(DB_TABLE_NOT_FOUND);
 	}
 

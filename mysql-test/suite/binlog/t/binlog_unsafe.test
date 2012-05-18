@@ -161,6 +161,7 @@ while ($unsafe_type < 9) {
     --let $sel_sidef_0=
     --let $sel_retval_0= SELECT UUID()
     --let $CRC_ARG_expected_number_of_warnings= 1
+    --let $CRC_ARG_expected_number_of_deprecation_warnings= 0
   }
 
   if ($unsafe_type == 1) {
@@ -174,6 +175,7 @@ while ($unsafe_type < 9) {
     # to empty instead of SELECT @@hostname.
     --let $sel_retval_0=
     --let $CRC_ARG_expected_number_of_warnings= 1
+    --let $CRC_ARG_expected_number_of_deprecation_warnings= 0
   }
 
   if ($unsafe_type == 2) {
@@ -184,6 +186,7 @@ while ($unsafe_type < 9) {
     --let $sel_sidef_0=
     --let $sel_retval_0= SELECT * FROM data_table LIMIT 1
     --let $CRC_ARG_expected_number_of_warnings= 1
+    --let $CRC_ARG_expected_number_of_deprecation_warnings= 0
   }
 
   if ($unsafe_type == 3) {
@@ -194,6 +197,7 @@ while ($unsafe_type < 9) {
     --let $sel_sidef_0=
     --let $sel_retval_0=
     --let $CRC_ARG_expected_number_of_warnings= 0
+    --let $CRC_ARG_expected_number_of_deprecation_warnings= 1
   }
 
   if ($unsafe_type == 4) {
@@ -204,6 +208,7 @@ while ($unsafe_type < 9) {
     --let $sel_sidef_0=
     --let $sel_retval_0=
     --let $CRC_ARG_expected_number_of_warnings= 1
+    --let $CRC_ARG_expected_number_of_deprecation_warnings= 0
   }
 
   if ($unsafe_type == 5) {
@@ -214,6 +219,7 @@ while ($unsafe_type < 9) {
     --let $sel_sidef_0= SELECT myfunc_int(10)
     --let $sel_retval_0=
     --let $CRC_ARG_expected_number_of_warnings= 1
+    --let $CRC_ARG_expected_number_of_deprecation_warnings= 0
   }
 
   if ($unsafe_type == 6) {
@@ -224,6 +230,7 @@ while ($unsafe_type < 9) {
     --let $sel_sidef_0=
     --let $sel_retval_0= SELECT COUNT(*) FROM mysql.general_log
     --let $CRC_ARG_expected_number_of_warnings= 1
+    --let $CRC_ARG_expected_number_of_deprecation_warnings= 0
   }
 
   if ($unsafe_type == 7) {
@@ -236,6 +243,7 @@ while ($unsafe_type < 9) {
     --let $sel_sidef_0=
     --let $sel_retval_0=
     --let $CRC_ARG_expected_number_of_warnings= 7
+    --let $CRC_ARG_expected_number_of_deprecation_warnings= 1
   }
 
   if ($unsafe_type == 8) {
@@ -246,6 +254,7 @@ while ($unsafe_type < 9) {
     --let $sel_sidef_0= SELECT multi_unsafe_func()
     --let $sel_retval_0=
     --let $CRC_ARG_expected_number_of_warnings= 2
+    --let $CRC_ARG_expected_number_of_deprecation_warnings= 0
   }
 
   # In each iteration of the following loop, we select one way to

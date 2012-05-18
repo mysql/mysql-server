@@ -11126,6 +11126,8 @@ SELECT COUNT(auto) FROM t2;
 COUNT(auto)
 1213
 INSERT DELAYED INTO t2 VALUES (99999,011403,37,'the','delayed','insert','');
+Warnings:
+Warning	1287	'INSERT DELAYED' is deprecated and will be removed in a future release. Please use INSERT instead
 INSERT INTO t2 VALUES (100000,000001,00,'after','delayed','insert','');
 SELECT COUNT(auto) FROM t2;
 COUNT(auto)
