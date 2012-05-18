@@ -3,7 +3,6 @@
 # columns are stored off-page.
 
 --source include/have_innodb_plugin.inc
-skip Not fixed in XtraDB yet;
 
 # DEBUG_SYNC must be compiled in.
 --source include/have_debug_sync.inc

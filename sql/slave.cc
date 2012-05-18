@@ -1451,7 +1451,9 @@ Waiting for the slave SQL thread to free enough relay log space");
 #endif
     if (rli->sql_force_rotate_relay)
     {
+      pthread_mutex_lock(&active_mi->data_lock);
       rotate_relay_log(rli->mi);
+      pthread_mutex_unlock(&active_mi->data_lock);
       rli->sql_force_rotate_relay= false;
     }
 
@@ -4531,7 +4533,6 @@ int rotate_relay_log(Master_info* mi)
   DBUG_ENTER("rotate_relay_log");
   Relay_log_info* rli= &mi->rli;
   int error= 0;
-  safe_mutex_assert_owner(&mi->data_lock);
 
   /*
      We need to test inited because otherwise, new_file() will attempt to lock
@@ -4559,7 +4560,10 @@ int rotate_relay_log(Master_info* mi)
     output in SHOW SLAVE STATUS meanwhile. So we harvest now.
     If the log is closed, then this will just harvest the last writes, probably
     0 as they probably have been harvested.
+
+    Note that it needs to be protected by mi->data_lock.
   */
+  safe_mutex_assert_owner(&mi->data_lock);
   rli->relay_log.harvest_bytes_written(&rli->log_space_total);
 end:
   DBUG_RETURN(error);
