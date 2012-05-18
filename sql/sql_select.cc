@@ -788,7 +788,8 @@ bool JOIN::prepare_result(List<Item> **columns_list)
       select_lex->handle_derived(thd->lex, &mysql_derived_create))
     goto err;
 
-  (void) result->prepare2(); // Currently, this cannot fail.
+  if (result->prepare2())
+    goto err;
 
   if ((select_lex->options & OPTION_SCHEMA_TABLE) &&
       get_schema_tables_result(this, PROCESSED_BY_JOIN_EXEC))

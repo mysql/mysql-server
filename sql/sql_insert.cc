@@ -3897,9 +3897,7 @@ void select_insert::abort_result_set() {
 static TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
                                       TABLE_LIST *create_table,
                                       Alter_info *alter_info,
-                                      List<Item> *items,
-                                      MYSQL_LOCK **lock,
-                                      TABLEOP_HOOKS *hooks)
+                                      List<Item> *items)
 {
   TABLE tmp_table;		// Used during 'Create_field()'
   TABLE_SHARE share;
@@ -4017,38 +4015,63 @@ static TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
     if (!table)                                   // open failed
       DBUG_RETURN(0);
   }
-
-  DEBUG_SYNC(thd,"create_table_select_before_lock");
-
-  table->reginfo.lock_type=TL_WRITE;
-  hooks->prelock(&table, 1);                    // Call prelock hooks
-  /*
-    mysql_lock_tables() below should never fail with request to reopen table
-    since it won't wait for the table lock (we have exclusive metadata lock on
-    the table) and thus can't get aborted.
-  */
-  if (! ((*lock)= mysql_lock_tables(thd, &table, 1, 0)) ||
-        hooks->postlock(&table, 1))
-  {
-    if (*lock)
-    {
-      mysql_unlock_tables(thd, *lock);
-      *lock= 0;
-    }
-    drop_open_table(thd, table, create_table->db, create_table->table_name);
-    DBUG_RETURN(0);
-  }
   DBUG_RETURN(table);
 }
 
 
+/**
+  Create the new table from the selected items.
+
+  @param values  List of items to be used as new columns
+  @param u       Select
+
+  @return Operation status.
+    @retval 0   Success
+    @retval !=0 Failure
+*/
+
 int
 select_create::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
 {
-  MYSQL_LOCK *extra_lock= NULL;
   DBUG_ENTER("select_create::prepare");
 
-  TABLEOP_HOOKS *hook_ptr= NULL;
+  unit= u;
+  DBUG_ASSERT(create_table->table == NULL);
+
+  DEBUG_SYNC(thd,"create_table_select_before_check_if_exists");
+
+  if (!(table= create_table_from_items(thd, create_info, create_table,
+                                       alter_info, &values)))
+    /* abort() deletes table */
+    DBUG_RETURN(-1);
+
+  if (table->s->fields < values.elements)
+  {
+    my_error(ER_WRONG_VALUE_COUNT_ON_ROW, MYF(0), 1L);
+    DBUG_RETURN(-1);
+  }
+  /* First field to copy */
+  field= table->field+table->s->fields - values.elements;
+
+  DBUG_RETURN(0);
+}
+
+
+/**
+  Lock the newly created table.
+
+  @return Operation status.
+    @retval 0   Success
+    @retval !=0 Failure
+*/
+
+int
+select_create::prepare2()
+{
+  DBUG_ENTER("select_create::prepare2");
+  DEBUG_SYNC(thd,"create_table_select_before_lock");
+
+  MYSQL_LOCK *extra_lock= NULL;
   /*
     For row-based replication, the CREATE-SELECT statement is written
     in two pieces: the first one contain the CREATE TABLE statement
@@ -4108,19 +4131,25 @@ select_create::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
   };
 
   MY_HOOKS hooks(this, create_table, select_tables);
-  hook_ptr= &hooks;
-
-  unit= u;
-  DBUG_ASSERT(create_table->table == NULL);
-
-  DEBUG_SYNC(thd,"create_table_select_before_check_if_exists");
-
-  if (!(table= create_table_from_items(thd, create_info, create_table,
-                                       alter_info, &values,
-                                       &extra_lock, hook_ptr)))
-    /* abort() deletes table */
-    DBUG_RETURN(-1);
-
+ 
+  table->reginfo.lock_type=TL_WRITE;
+  hooks.prelock(&table, 1);                    // Call prelock hooks
+  /*
+    mysql_lock_tables() below should never fail with request to reopen table
+    since it won't wait for the table lock (we have exclusive metadata lock on
+    the table) and thus can't get aborted.
+  */
+  if (! (extra_lock= mysql_lock_tables(thd, &table, 1, 0)) ||
+        hooks.postlock(&table, 1))
+  {
+    if (extra_lock)
+    {
+      mysql_unlock_tables(thd, extra_lock);
+      extra_lock= 0;
+    }
+    drop_open_table(thd, table, create_table->db, create_table->table_name);
+    DBUG_RETURN(1);
+  }
   if (extra_lock)
   {
     DBUG_ASSERT(m_plock == NULL);
@@ -4132,23 +4161,13 @@ select_create::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
 
     *m_plock= extra_lock;
   }
-
-  if (table->s->fields < values.elements)
-  {
-    my_error(ER_WRONG_VALUE_COUNT_ON_ROW, MYF(0), 1L);
-    DBUG_RETURN(-1);
-  }
-
- /* First field to copy */
-  field= table->field+table->s->fields - values.elements;
-
   /* Mark all fields that are given values */
   for (Field **f= field ; *f ; f++)
     bitmap_set_bit(table->write_set, (*f)->field_index);
 
   // Set up an empty bitmap of function defaults
   if (info.add_function_default_columns(table, table->write_set))
-    DBUG_RETURN(TRUE);
+    DBUG_RETURN(1);
 
   table->next_number_field=table->found_next_number_field;
 
