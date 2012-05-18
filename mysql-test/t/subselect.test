@@ -5561,5 +5561,24 @@ WHERE alias1.a = alias2.a OR ('Moscow') IN ( SELECT a FROM t1 );
 
 drop table t1;
 
+--echo #
+--echo # MDEV-277 CHEAP SQ: Server crashes in st_join_table::get_examined_rows
+--echo # with semijoin+materialization, IN and = subqueries
+--echo #
+
+CREATE TABLE t1 (a1 INT);
+INSERT INTO t1 VALUES (4),(6);
+CREATE TABLE t2 (b1 INT);
+INSERT INTO t2 VALUES (1),(7);
+
+EXPLAIN
+SELECT * FROM t1
+WHERE a1 = (SELECT COUNT(*) FROM t1 WHERE a1 IN (SELECT a1 FROM t1, t2));
+
+SELECT * FROM t1
+WHERE a1 = (SELECT COUNT(*) FROM t1 WHERE a1 IN (SELECT a1 FROM t1, t2));
+
+drop table t1, t2;
+
 --echo # return optimizer switch changed in the beginning of this test
 set optimizer_switch=@subselect_tmp;

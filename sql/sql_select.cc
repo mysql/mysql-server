@@ -270,6 +270,8 @@ Item_equal *find_item_equal(COND_EQUAL *cond_equal, Field *field,
                             bool *inherited_fl);
 JOIN_TAB *first_depth_first_tab(JOIN* join);
 JOIN_TAB *next_depth_first_tab(JOIN* join, JOIN_TAB* tab);
+JOIN_TAB *first_breadth_first_tab(JOIN *join);
+JOIN_TAB *next_breadth_first_tab(JOIN *join, JOIN_TAB *tab);
 
 /**
   This handles SELECT with and without UNION.
@@ -6615,19 +6617,18 @@ void JOIN::get_prefix_cost_and_fanout(uint n_tables,
 
 double JOIN::get_examined_rows()
 {
-  /* Each constant table examines one row, and the result is at most one row. */
-  ha_rows examined_rows= const_tables;
-  uint i= const_tables;
+  ha_rows examined_rows;
   double prev_fanout= 1;
+  JOIN_TAB *tab= first_breadth_first_tab(this);
+  JOIN_TAB *prev_tab= tab;
 
-  if (table_count == const_tables)
-    return examined_rows;
+  examined_rows= tab->get_examined_rows();
 
-  examined_rows+= join_tab[i++].get_examined_rows();
-  for (; i < table_count ; i++)
+  while ((tab= next_breadth_first_tab(this, tab)))
   {
-    prev_fanout *= best_positions[i-1].records_read;
-    examined_rows+= join_tab[i].get_examined_rows() * prev_fanout;
+    prev_fanout *= prev_tab->records_read;
+    examined_rows+= tab->get_examined_rows() * prev_fanout;
+    prev_tab= tab;
   }
   return examined_rows;
 }
