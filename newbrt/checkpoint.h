@@ -57,9 +57,9 @@ void toku_multi_operation_client_unlock(void);
 
 // Initialize the checkpoint mechanism, must be called before any client operations.
 // Must pass in function pointers to take/release ydb lock.
-int toku_checkpoint_init(void (*ydb_lock_callback)(void), void (*ydb_unlock_callback)(void));
+void toku_checkpoint_init(void (*ydb_lock_callback)(void), void (*ydb_unlock_callback)(void));
 
-int toku_checkpoint_destroy(void);
+void toku_checkpoint_destroy(void);
 
 typedef enum {SCHEDULED_CHECKPOINT  = 0,   // "normal" checkpoint taken on checkpoint thread
 	      CLIENT_CHECKPOINT     = 1,   // induced by client, such as FLUSH LOGS or SAVEPOINT

@@ -5460,7 +5460,7 @@ int toku_brt_init(void (*ydb_lock_callback)(void),
     if (r==0)
         r = toku_portability_init();
     if (r==0)
-        r = toku_checkpoint_init(ydb_lock_callback, ydb_unlock_callback);
+        toku_checkpoint_init(ydb_lock_callback, ydb_unlock_callback);
     if (r == 0)
         r = toku_brt_serialize_init();
     return r;
@@ -5471,7 +5471,7 @@ int toku_brt_destroy(void) {
     if (r == 0)
         r = toku_brt_serialize_destroy();
     if (r==0)
-        r = toku_checkpoint_destroy();
+        toku_checkpoint_destroy();
     //Portability must be cleaned up last
     if (r==0)
         r = toku_portability_destroy();
