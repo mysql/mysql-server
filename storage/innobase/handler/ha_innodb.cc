@@ -14717,10 +14717,13 @@ static MYSQL_SYSVAR_ULONG(lru_scan_depth, srv_LRU_scan_depth,
   "How deep to scan LRU to keep it clean",
   NULL, NULL, 1024, 100, ~0UL, 0);
 
-static MYSQL_SYSVAR_BOOL(flush_neighbors, srv_flush_neighbors,
-  PLUGIN_VAR_NOCMDARG,
-  "Flush neighbors from buffer pool when flushing a block.",
-  NULL, NULL, TRUE);
+static MYSQL_SYSVAR_ULONG(flush_neighbors, srv_flush_neighbors,
+  PLUGIN_VAR_OPCMDARG,
+  "Set to 0 (don't flush neighbors from buffer pool),"
+  " 1 (flush contiguous neighbors from buffer pool)"
+  " or 2 (flush neighbors from buffer pool),"
+  " when flushing a block",
+  NULL, NULL, 1, 0, 2, 0);
 
 static MYSQL_SYSVAR_ULONG(commit_concurrency, innobase_commit_concurrency,
   PLUGIN_VAR_RQCMDARG,
