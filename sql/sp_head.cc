@@ -452,18 +452,24 @@ bool sp_head::execute(THD *thd, bool merge_da_on_success)
     an SQL statement, or, heaviest of all, a CALL, which involves
     parsing and loading of another stored procedure into the cache
     (@sa db_load_routine() and Bug#10100).
-    At the time of measuring, a recursive SP invocation required
-    3232 bytes of stack on 32 bit Linux, 6016 bytes on 64 bit Mac
-    and 11152 on 64 bit Solaris sparc.
-    The same with db_load_routine() required circa 7k bytes and
-    14k bytes accordingly. Hence, here we book the stack with some
-    reasonable margin.
 
-    Reverting back to 8 * STACK_MIN_SIZE until further fix.
-    8 * STACK_MIN_SIZE is required on some exotic platforms.
+    TODO: that should be replaced by proper handling of stack overrun error.
+
+    Stack size depends on the platform:
+      - for most platforms (8 * STACK_MIN_SIZE) is enough;
+      - for Solaris SPARC 64 (10 * STACK_MIN_SIZE) is required.
   */
-  if (check_stack_overrun(thd, 8 * STACK_MIN_SIZE, (uchar*)&old_packet))
-    return true;
+
+  {
+#if defined(__sparcv9) && defined(__sun)
+    const int sp_stack_size= 10 * STACK_MIN_SIZE;
+#else
+    const int sp_stack_size=  8 * STACK_MIN_SIZE;
+#endif
+
+    if (check_stack_overrun(thd, sp_stack_size, (uchar*) &old_packet))
+      return true;
+  }
 
   opt_trace_disable_if_no_security_context_access(thd);
 

@@ -1528,6 +1528,7 @@ bool MYSQL_LOG::open(
 {
   char buff[FN_REFLEN];
   File file= -1;
+  my_off_t pos= 0;
   int open_flags= O_CREAT | O_BINARY;
   DBUG_ENTER("MYSQL_LOG::open");
   DBUG_PRINT("enter", ("log_type: %d", (int) log_type_arg));
@@ -1558,9 +1559,18 @@ bool MYSQL_LOG::open(
 
   if ((file= mysql_file_open(log_file_key,
                              log_file_name, open_flags,
-                             MYF(MY_WME | ME_WAITTANG))) < 0 ||
-      init_io_cache(&log_file, file, IO_SIZE, io_cache_type,
-                    mysql_file_tell(file, MYF(MY_WME)), 0,
+                             MYF(MY_WME | ME_WAITTANG))) < 0)
+    goto err;
+
+  if ((pos= mysql_file_tell(file, MYF(MY_WME))) == MY_FILEPOS_ERROR)
+  {
+    if (my_errno == ESPIPE)
+      pos= 0;
+    else
+      goto err;
+  }
+
+  if (init_io_cache(&log_file, file, IO_SIZE, io_cache_type, pos, 0,
                     MYF(MY_WME | MY_NABP |
                         ((log_type == LOG_BIN) ? MY_WAIT_IF_FULL : 0))))
     goto err;
@@ -1655,7 +1665,7 @@ void MYSQL_LOG::close(uint exiting)
     {
       char errbuf[MYSYS_STRERROR_SIZE];
       write_error= 1;
-      sql_print_error(ER(ER_ERROR_ON_WRITE), name, errno,
+      sql_print_error(ER_DEFAULT(ER_ERROR_ON_WRITE), name, errno,
                       my_strerror(errbuf, sizeof(errbuf), errno));
     }
 
@@ -1663,7 +1673,7 @@ void MYSQL_LOG::close(uint exiting)
     {
       char errbuf[MYSYS_STRERROR_SIZE];
       write_error= 1;
-      sql_print_error(ER(ER_ERROR_ON_WRITE), name, errno,
+      sql_print_error(ER_DEFAULT(ER_ERROR_ON_WRITE), name, errno,
                       my_strerror(errbuf, sizeof(errbuf), errno));
     }
   }

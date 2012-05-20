@@ -4617,6 +4617,13 @@ a file name for --log-bin-index option", opt_binlog_index_name);
     unireg_abort(1);
   }
 
+  if (gtid_mode >= 1 && opt_bootstrap)
+  {
+    sql_print_warning("Bootstrap mode disables GTIDs. Bootstrap mode "
+    "should only be used by mysql_install_db which initializes the MySQL "
+    "data directory and creates system tables.");
+    gtid_mode= 0;
+  }
   if (gtid_mode >= 1 && !(opt_bin_log && opt_log_slave_updates))
   {
     sql_print_error("--gtid-mode=ON or UPGRADE_STEP_1 or UPGRADE_STEP_2 requires --log-bin and --log-slave-updates");
@@ -5215,7 +5222,8 @@ int mysqld_main(int argc, char **argv)
   }
 
   init_status_vars();
-  if (opt_bootstrap) /* If running with bootstrap, do not start replication. */
+  /* If running with bootstrap, do not start replication. */
+  if (opt_bootstrap)
     opt_skip_slave_start= 1;
 
   check_binlog_cache_size(NULL);
@@ -5223,14 +5231,18 @@ int mysqld_main(int argc, char **argv)
 
   binlog_unsafe_map_init();
 
-  // Make @@slave_skip_errors show the nice human-readable value.
-  set_slave_skip_errors(&opt_slave_skip_errors);
+  /* If running with bootstrap, do not start replication. */
+  if (!opt_bootstrap)
+  {
+    // Make @@slave_skip_errors show the nice human-readable value.
+    set_slave_skip_errors(&opt_slave_skip_errors);
 
-  /*
-    init_slave() must be called after the thread keys are created.
-  */
-  if (server_id != 0)
-    init_slave(); /* Ignoring errors while configuring replication. */
+    /*
+      init_slave() must be called after the thread keys are created.
+    */
+    if (server_id != 0)
+      init_slave(); /* Ignoring errors while configuring replication. */
+  }
 
 #ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
   initialize_performance_schema_acl(opt_bootstrap);
