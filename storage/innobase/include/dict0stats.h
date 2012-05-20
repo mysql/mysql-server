@@ -173,6 +173,55 @@ dict_stats_rename_table(
 					is returned */
 	size_t		errstr_sz);	/*!< in: errstr size */
 
+/*********************************************************************//**
+Duplicate the stats of a table and its indexes.
+This function creates a dummy dict_table_t object and copies the input
+table's stats into it. The returned table object is not in the dictionary
+cache, cannot be accessed by any other threads and has only the following
+members initialized:
+dict_table_t::id
+dict_table_t::heap
+dict_table_t::name
+dict_table_t::indexes<>
+dict_table_t::stat_initialized
+dict_table_t::stat_persistent
+dict_table_t::stat_n_rows
+dict_table_t::stat_clustered_index_size
+dict_table_t::stat_sum_of_other_index_sizes
+dict_table_t::stat_modified_counter
+dict_table_t::magic_n
+for each entry in dict_table_t::indexes, the following are initialized:
+dict_index_t::id
+dict_index_t::name
+dict_index_t::table_name
+dict_index_t::table (points to the above semi-initialized object)
+dict_index_t::n_uniq
+dict_index_t::fields[] (only first n_uniq and only fields[i].name)
+dict_index_t::indexes<>
+dict_index_t::stat_n_diff_key_vals[]
+dict_index_t::stat_n_sample_sizes[]
+dict_index_t::stat_n_non_null_key_vals[]
+dict_index_t::stat_index_size
+dict_index_t::stat_n_leaf_pages
+dict_index_t::magic_n
+The returned object should be freed with dict_stats_dup_free() when no
+longer needed.
+@return incomplete table object */
+UNIV_INTERN
+dict_table_t*
+dict_stats_snapshot_create(
+/*=======================*/
+	const dict_table_t*	table);	/*!< in: table whose stats to copy */
+
+/*********************************************************************//**
+Free the resources occupied by an object returned by
+dict_stats_snapshot_create(). */
+UNIV_INTERN
+void
+dict_stats_snapshot_free(
+/*=====================*/
+	dict_table_t*	t);	/*!< in: dummy table object to free */
+
 #ifndef UNIV_NONINL
 #include "dict0stats.ic"
 #endif
