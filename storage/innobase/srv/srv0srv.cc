@@ -212,7 +212,7 @@ UNIV_INTERN ulong	srv_n_page_hash_locks = 16;
 /** Scan depth for LRU flush batch i.e.: number of blocks scanned*/
 UNIV_INTERN ulong	srv_LRU_scan_depth	= 1024;
 /** whether or not to flush neighbors of a block */
-UNIV_INTERN my_bool	srv_flush_neighbors	= TRUE;
+UNIV_INTERN ulong	srv_flush_neighbors	= 1;
 /* previously requested size */
 UNIV_INTERN ulint	srv_buf_pool_old_size;
 /* current size in kilobytes */

@@ -1854,6 +1854,8 @@ UNLOCK TABLES;
 INSERT DELAYED INTO t4 VALUES(44);
 DELETE FROM t4 WHERE c1 = 44;
 INSERT DELAYED INTO t3 VALUES(33);
+Warnings:
+Warning	1287	'INSERT DELAYED' is deprecated and will be removed in a future release. Please use INSERT instead
 SELECT * FROM t4 ORDER BY c1;
 c1
 1

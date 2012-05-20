@@ -178,7 +178,8 @@ Item_func::fix_fields(THD *thd, Item **ref)
     save_resolve= thd->lex->current_select->resolve_place;
     thd->lex->current_select->resolve_place= st_select_lex::RESOLVE_NONE;
   }
-  used_tables_cache= not_null_tables_cache= 0;
+  used_tables_cache= get_initial_pseudo_tables();
+  not_null_tables_cache= 0;
   const_item_cache=1;
 
   /*
@@ -242,7 +243,8 @@ void Item_func::fix_after_pullout(st_select_lex *parent_select,
 {
   Item **arg,**arg_end;
 
-  used_tables_cache= not_null_tables_cache= 0;
+  used_tables_cache= get_initial_pseudo_tables();
+  not_null_tables_cache= 0;
   const_item_cache=1;
 
   if (arg_count)
@@ -412,7 +414,7 @@ void Item_func::split_sum_func(THD *thd, Ref_ptr_array ref_pointer_array,
 
 void Item_func::update_used_tables()
 {
-  used_tables_cache=0;
+  used_tables_cache= get_initial_pseudo_tables();
   const_item_cache=1;
   with_subselect= false;
   for (uint i=0 ; i < arg_count ; i++)
@@ -2618,7 +2620,7 @@ bool Item_func_rand::fix_fields(THD *thd,Item **ref)
 {
   if (Item_real_func::fix_fields(thd, ref))
     return TRUE;
-  used_tables_cache|= RAND_TABLE_BIT;
+
   if (arg_count)
   {					// Only use argument once in query
     /*
@@ -2649,12 +2651,6 @@ bool Item_func_rand::fix_fields(THD *thd,Item **ref)
     rand= &thd->rand;
   }
   return FALSE;
-}
-
-void Item_func_rand::update_used_tables()
-{
-  Item_real_func::update_used_tables();
-  used_tables_cache|= RAND_TABLE_BIT;
 }
 
 
@@ -6573,6 +6569,12 @@ Item_func_sp::func_name() const
 }
 
 
+table_map Item_func_sp::get_initial_pseudo_tables() const
+{
+  return m_sp->m_chistics->detistic ? 0 : RAND_TABLE_BIT;
+}
+
+
 void my_missing_function_error(const LEX_STRING &token, const char *func_name)
 {
   if (token.length && is_lex_native_function (&token))
@@ -6950,10 +6952,7 @@ Item_func_sp::fix_fields(THD *thd, Item **ref)
   }
 
   if (!m_sp->m_chistics->detistic)
-  {
-    used_tables_cache |= RAND_TABLE_BIT;
-    const_item_cache= FALSE;
-  }
+    const_item_cache= false;
 
   DBUG_RETURN(res);
 }
@@ -6964,10 +6963,7 @@ void Item_func_sp::update_used_tables()
   Item_func::update_used_tables();
 
   if (!m_sp->m_chistics->detistic)
-  {
-    used_tables_cache |= RAND_TABLE_BIT;
-    const_item_cache= FALSE;
-  }
+    const_item_cache= false;
 }
 
 

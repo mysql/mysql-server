@@ -124,6 +124,12 @@ public:
   void fix_after_pullout(st_select_lex *parent_select,
                          st_select_lex *removed_select, Item **ref);
   table_map used_tables() const;
+  /**
+     Returns the pseudo tables depended upon in order to evaluate this
+     function expression. The default implementation returns the empty
+     set.
+  */
+  virtual table_map get_initial_pseudo_tables() const { return 0; }
   table_map not_null_tables() const;
   void update_used_tables();
   void set_used_tables(table_map map) { used_tables_cache= map; }
@@ -908,7 +914,13 @@ public:
   double val_real();
   const char *func_name() const { return "rand"; }
   bool const_item() const { return 0; }
-  void update_used_tables();
+  /**
+    This function is non-deterministic and hence depends on the
+    'RAND' pseudo-table.
+    
+    @retval RAND_TABLE_BIT
+  */
+  table_map get_initial_pseudo_tables() const { return RAND_TABLE_BIT; }
   bool fix_fields(THD *thd, Item **ref);
   void cleanup() { first_eval= TRUE; Item_real_func::cleanup(); }
 private:
@@ -1244,11 +1256,13 @@ public:
   Item_func_sleep(Item *a) :Item_int_func(a) {}
   bool const_item() const { return 0; }
   const char *func_name() const { return "sleep"; }
-  void update_used_tables()
-  {
-    Item_int_func::update_used_tables();
-    used_tables_cache|= RAND_TABLE_BIT;
-  }
+  /**
+    This function is non-deterministic and hence depends on the
+    'RAND' pseudo-table.
+    
+    @retval RAND_TABLE_BIT
+  */
+  table_map get_initial_pseudo_tables() const { return RAND_TABLE_BIT; }
   longlong val_int();
 };
 
@@ -2033,6 +2047,11 @@ public:
   virtual ~Item_func_sp()
   {}
 
+  /**
+    Must not be called before the procedure is resolved,
+    i.e. ::init_result_field().
+  */
+  table_map get_initial_pseudo_tables() const;
   void update_used_tables();
 
   void cleanup();

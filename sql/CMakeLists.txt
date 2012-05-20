@@ -127,6 +127,7 @@ SET(SQL_SHARED_SOURCES
   sql_connect.cc
   sql_crypt.cc
   sql_cursor.cc
+  sql_data_change.cc
   sql_db.cc
   sql_delete.cc
   sql_derived.cc

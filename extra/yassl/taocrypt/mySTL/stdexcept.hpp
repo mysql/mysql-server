@@ -14,7 +14,7 @@
    along with this program; see the file COPYING. If not, write to the
    Free Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston,
    MA  02110-1301  USA.
-*/
+ */
 
 
 /* mySTL memory implements exception, runtime_error
@@ -26,7 +26,6 @@
 
 
 #include <string.h>  // strncpy
-#include <assert.h>  // assert
 #include <stdlib.h>  // size_t
 
 
@@ -41,7 +40,7 @@ public:
     virtual const char* what() const { return ""; }
 
     // for compiler generated call, never used
-    static void operator delete(void*) { assert(0); }
+    static void operator delete(void*) { }
 private:
     // don't allow dynamic creation of exceptions
     static void* operator new(size_t);
