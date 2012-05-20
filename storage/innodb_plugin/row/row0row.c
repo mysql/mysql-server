@@ -245,15 +245,11 @@ row_build(
 #if defined UNIV_DEBUG || defined UNIV_BLOB_LIGHT_DEBUG
 	if (rec_offs_any_null_extern(rec, offsets)) {
 		/* This condition can occur during crash recovery
-		before trx_rollback_active() has completed execution.
-
-		This condition is possible if the server crashed
-		during an insert or update-by-delete-and-insert before
-		btr_store_big_rec_extern_fields() did mtr_commit() all
-		BLOB pointers to the freshly inserted clustered index
-		record. */
-		ut_a(trx_assert_recovered(
-			     row_get_rec_trx_id(rec, index, offsets)));
+		before trx_rollback_active() has completed execution,
+		or when a concurrently executing
+		row_ins_index_entry_low() has committed the B-tree
+		mini-transaction but has not yet managed to restore
+		the cursor position for writing the big_rec. */
 		ut_a(trx_undo_roll_ptr_is_insert(
 			     row_get_rec_roll_ptr(rec, index, offsets)));
 	}

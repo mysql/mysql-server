@@ -447,11 +447,12 @@ enum ha_base_keytype {
 #define HA_ERR_INITIALIZATION     174    /* Error during initialization */
 #define HA_ERR_FILE_TOO_SHORT	  175	 /* File too short */
 #define HA_ERR_WRONG_CRC	  176	 /* Wrong CRC on page */
-#define HA_ERR_ROW_NOT_VISIBLE    177
-#define HA_ERR_TOO_MANY_CONCURRENT_TRXS 178 /*Too many active concurrent transactions */
-#define HA_ERR_ABORTED_BY_USER    179
-#define HA_ERR_DISK_FULL          180
-#define HA_ERR_LAST               180    /* Copy of last error nr */
+#define HA_ERR_TOO_MANY_CONCURRENT_TRXS 177 /*Too many active concurrent transactions */
+#define HA_ERR_ABORTED_BY_USER    178
+#define HA_ERR_DISK_FULL          179
+#define HA_ERR_ROW_NOT_VISIBLE    180 /*Too many active concurrent transactions */
+#define HA_ERR_TABLE_IN_FK_CHECK  181	 /* Table being used in foreign key check */
+#define HA_ERR_LAST               181    /* Copy of last error nr */
 
 /* Number of different errors */
 #define HA_ERR_ERRORS            (HA_ERR_LAST - HA_ERR_FIRST + 1)

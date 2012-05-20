@@ -724,6 +724,15 @@ SELECT length(CONVERT(repeat('a',2048), CHAR(2049)));
 length(CONVERT(repeat('a',2048), CHAR(2049)))
 2048
 SET @@GLOBAL.max_allowed_packet=default;
+#
+# Bug#13519724 63793: CRASH IN DTCOLLATION::SET(DTCOLLATION &SET)
+#
+CREATE TABLE t1 (a VARCHAR(50));
+SELECT a FROM t1 
+WHERE CAST(a as BINARY)=x'62736D697468' 
+AND CAST(a AS BINARY)=x'65736D697468';
+a
+DROP TABLE t1;
 End of 5.1 tests
 select cast("2101-00-01 02:03:04" as datetime);
 cast("2101-00-01 02:03:04" as datetime)

@@ -7648,16 +7648,19 @@ static bool create_ref_for_key(JOIN *join, JOIN_TAB *j,
       }
       keyuse++;
     } while (keyuse->table == table && keyuse->key == key);
+
+    if (!keyparts && allow_full_scan)
+    {
+      /* It's a LooseIndexScan strategy scanning whole index */
+      j->type= JT_ALL;
+      j->index= key;
+      DBUG_RETURN(FALSE);
+    }
+
+    DBUG_ASSERT(length > 0);
+    DBUG_ASSERT(keyparts != 0);
   } /* not ftkey */
   
-  if (!keyparts && allow_full_scan)
-  {
-    /* It's a LooseIndexScan strategy scanning whole index */
-    j->type= JT_ALL;
-    j->index= key;
-    DBUG_RETURN(FALSE);
-  }
-
   /* set up fieldref */
   j->ref.key_parts= keyparts;
   j->ref.key_length= length;
@@ -12138,10 +12141,10 @@ change_cond_ref_to_const(THD *thd, I_List<COND_CMP> *save_list,
        left_item->collation.collation == value->collation.collation))
   {
     Item *tmp=value->clone_item();
-    tmp->collation.set(right_item->collation);
     
     if (tmp)
     {
+      tmp->collation.set(right_item->collation);
       thd->change_item_tree(args + 1, tmp);
       func->update_used_tables();
       if ((functype == Item_func::EQ_FUNC || functype == Item_func::EQUAL_FUNC)
@@ -12162,10 +12165,10 @@ change_cond_ref_to_const(THD *thd, I_List<COND_CMP> *save_list,
             right_item->collation.collation == value->collation.collation))
   {
     Item *tmp= value->clone_item();
-    tmp->collation.set(left_item->collation);
     
     if (tmp)
     {
+      tmp->collation.set(left_item->collation);
       thd->change_item_tree(args, tmp);
       value= tmp;
       func->update_used_tables();
@@ -18015,6 +18018,9 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit_arg,
   LINT_INIT(ref_key_parts);
   LINT_INIT(best_select_limit);
 
+  /* Check that we are always called with first non-const table */
+  DBUG_ASSERT(tab == tab->join->join_tab + tab->join->const_tables);
+
   /*
     Keys disabled by ALTER TABLE ... DISABLE KEYS should have already
     been taken into account.
@@ -18100,9 +18106,9 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit_arg,
           KEYUSE *keyuse= tab->keyuse;
           while (keyuse->key != new_ref_key && keyuse->table == tab->table)
             keyuse++;
-
           if (create_ref_for_key(tab->join, tab, keyuse, FALSE,
-                                 tab->join->const_table_map))
+                                 (tab->join->const_table_map |
+                                  OUTER_REF_TABLE_BIT)))
             goto use_filesort;
 
           pick_table_access_method(tab);
