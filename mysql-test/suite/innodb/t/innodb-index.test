@@ -66,6 +66,9 @@ show create table t1;
 alter table t1 add unique index (d(10));
 show create table t1;
 insert into t1 values(5,1,'ggg','ggg');
+-- disable_result_log
+analyze table t1;
+-- enable_result_log
 select * from t1;
 select * from t1 force index(c) order by c;
 select * from t1 force index(d) order by d;

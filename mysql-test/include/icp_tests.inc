@@ -1031,6 +1031,13 @@ CREATE TABLE t2 (
 
 INSERT INTO t2 VALUES (4,1);
 
+-- disable_query_log
+-- disable_result_log
+ANALYZE TABLE t1;
+ANALYZE TABLE t2;
+-- enable_result_log
+-- enable_query_log
+
 let query=
 SELECT t1.d1, t2.pk, t2.i1
 FROM t1 STRAIGHT_JOIN t2 ON t2.i1
@@ -1060,6 +1067,13 @@ CREATE TABLE t2 (
   KEY (col_int_key)
 );
 INSERT INTO t2 VALUES (0,9),(3,10),(4,6),(6,1),(100,3),(200,5);
+
+-- disable_query_log
+-- disable_result_log
+ANALYZE TABLE t1;
+ANALYZE TABLE t2;
+-- enable_result_log
+-- enable_query_log
 
 let $query=
 SELECT t2.col_int_key AS field1
