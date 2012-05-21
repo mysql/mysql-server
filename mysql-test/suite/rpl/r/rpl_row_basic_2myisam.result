@@ -1,5 +1,8 @@
 include/master-slave.inc
 [connection master]
+create temporary table stats
+select variable_name as n, -variable_value as v from information_schema.global_status
+where variable_name in ('com_commit','com_insert','com_delete','com_update');
 CREATE TABLE t1 (C1 CHAR(1), C2 CHAR(1), INDEX (C1)) ENGINE = 'MYISAM'  ;
 SELECT * FROM t1;
 C1	C2
@@ -49,6 +52,15 @@ A	B
 A	I
 X	Y
 X	Z
+insert stats
+select variable_name, variable_value from information_schema.global_status
+where variable_name in ('com_commit','com_insert','com_delete','com_update');
+select n, sum(v) from stats group by n;
+n	sum(v)
+COM_COMMIT	4
+COM_DELETE	1
+COM_INSERT	2
+COM_UPDATE	1
 UPDATE t1 SET c2 = 'Q' WHERE c1 = 'A' AND c2 = 'N';
 SELECT * FROM t1 ORDER BY c1,c2;
 C1	C2

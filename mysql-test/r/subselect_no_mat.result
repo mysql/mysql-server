@@ -5599,6 +5599,15 @@ SELECT 1 FROM
 ERROR 21000: Operand should contain 1 column(s)
 DROP TABLE t1;
 #
+# Bug#13721076 CRASH WITH TIME TYPE/TIMESTAMP() AND WARNINGS IN SUBQUERY
+#
+CREATE TABLE t1(a TIME NOT NULL);
+INSERT INTO t1 VALUES ('00:00:32');
+SELECT 1 FROM t1 WHERE a >
+(SELECT timestamp(a) AS a FROM t1);
+1
+DROP TABLE t1;
+#
 # No BUG#, a case brought from 5.2's innodb_mysql_lock.test
 #
 create table t1 (i int  not null primary key);

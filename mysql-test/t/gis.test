@@ -1295,6 +1295,24 @@ WHERE ST_Contains(ST_Buffer(bridges.position, 15.0), buildings.footprint) = 1;
 DROP DATABASE gis_ogs;
 USE test;
 
+
+--echo #
+--echo # BUG#12414917 - ISCLOSED() CRASHES ON 64-BIT BUILDS
+--echo #
+SELECT ISCLOSED(CONVERT(CONCAT('     ', 0x2), BINARY(20)));
+
+--echo #
+--echo # BUG#12537203 - CRASH WHEN SUBSELECTING GLOBAL VARIABLES IN 
+--echo # GEOMETRY FUNCTION ARGUMENTS
+--echo #
+--replace_regex /non geometric .* value/non geometric '' value/
+--error ER_ILLEGAL_VALUE_FOR_TYPE
+SELECT GEOMETRYCOLLECTION((SELECT @@OLD));
+
+
+--echo End of 5.1 tests
+
+
 --echo #
 --echo # Bug#11908153: CRASH AND/OR VALGRIND ERRORS IN FIELD_BLOB::GET_KEY_IMAGE
 --echo #

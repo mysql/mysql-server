@@ -69,7 +69,7 @@ static int copy_data_between_tables(THD *thd, TABLE *,TABLE *,
                                     enum enum_enable_or_disable, bool);
 
 static bool prepare_blob_field(THD *thd, Create_field *sql_field);
-static bool check_engine(THD *, const char *, HA_CREATE_INFO *);
+static bool check_engine(THD *, const char *, const char *, HA_CREATE_INFO *);
 static int mysql_prepare_create_table(THD *, HA_CREATE_INFO *, Alter_info *,
                                       bool, uint *, handler *, KEY **, uint *,
                                       int);
@@ -4049,7 +4049,7 @@ bool mysql_create_table_no_lock(THD *thd,
                MYF(0));
     DBUG_RETURN(TRUE);
   }
-  if (check_engine(thd, table_name, create_info))
+  if (check_engine(thd, db, table_name, create_info))
     DBUG_RETURN(TRUE);
 
   set_table_default_charset(thd, create_info, (char*) db);
@@ -6100,7 +6100,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
       create_info->db_type= old_db_type;
   }
 
-  if (check_engine(thd, new_name, create_info))
+  if (check_engine(thd, new_db, new_name, create_info))
     goto err;
   new_db_type= create_info->db_type;
 
@@ -7571,16 +7571,32 @@ err:
   DBUG_RETURN(TRUE);
 }
 
-static bool check_engine(THD *thd, const char *table_name,
-                         HA_CREATE_INFO *create_info)
+/**
+  @brief Check if the table can be created in the specified storage engine.
+
+  Checks if the storage engine is enabled and supports the given table
+  type (e.g. normal, temporary, system). May do engine substitution
+  if the requested engine is disabled.
+
+  @param thd          Thread descriptor.
+  @param db_name      Database name.
+  @param table_name   Name of table to be created.
+  @param create_info  Create info from parser, including engine.
+
+  @retval true  Engine not available/supported, error has been reported.
+  @retval false Engine available/supported.
+*/
+static bool check_engine(THD *thd, const char *db_name,
+                         const char *table_name, HA_CREATE_INFO *create_info)
 {
+  DBUG_ENTER("check_engine");
   handlerton **new_engine= &create_info->db_type;
   handlerton *req_engine= *new_engine;
   bool no_substitution=
         test(thd->variables.sql_mode & MODE_NO_ENGINE_SUBSTITUTION);
   if (!(*new_engine= ha_checktype(thd, ha_legacy_type(req_engine),
                                   no_substitution, 1)))
-    return TRUE;
+    DBUG_RETURN(true);
 
   if (req_engine && req_engine != *new_engine)
   {
@@ -7598,9 +7614,10 @@ static bool check_engine(THD *thd, const char *table_name,
       my_error(ER_ILLEGAL_HA_CREATE_OPTION, MYF(0),
                hton_name(*new_engine)->str, "TEMPORARY");
       *new_engine= 0;
-      return TRUE;
+      DBUG_RETURN(true);
     }
     *new_engine= myisam_hton;
   }
-  return FALSE;
+
+  DBUG_RETURN(false);
 }

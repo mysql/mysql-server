@@ -13,6 +13,15 @@ call mtr.add_suppression("Can't find record in 't.'");
 # First we test tables with only an index.
 #
 
+#BUG#12662190 - COM_COMMIT IS NOT INCREMENTED FROM THE BINARY LOGS ON SLAVE, COM_BEGIN IS
+#Testing command counters -BEFORE 
+#Storing the before counts of Slave
+sync_slave_with_master;
+connection slave;
+create temporary table stats
+select variable_name as n, -variable_value as v from information_schema.global_status
+  where variable_name in ('com_commit','com_insert','com_delete','com_update');
+
 connection master;
 eval CREATE TABLE t1 (C1 CHAR(1), C2 CHAR(1), INDEX (C1)$extra_index_t1) ENGINE = $type ;
 SELECT * FROM t1;
@@ -46,6 +55,16 @@ UPDATE t1 SET C2 = 'I' WHERE C1 = 'A' AND C2 = 'C';
 SELECT * FROM t1 ORDER BY C1,C2;
 sync_slave_with_master;
 SELECT * FROM t1 ORDER BY C1,C2;
+
+#BUG#12662190 - COM_COMMIT IS NOT INCREMENTED FROM THE BINARY LOGS ON SLAVE, COM_BEGIN IS
+#Testing command counters -AFTER 
+#Storing the after counts of Slave
+connection slave;
+
+insert stats
+select variable_name, variable_value from information_schema.global_status
+  where variable_name in ('com_commit','com_insert','com_delete','com_update');
+select n, sum(v) from stats group by n;
 
 # Testing update with a condition that does not match any rows, but
 # which has a match for the index.

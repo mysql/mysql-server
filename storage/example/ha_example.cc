@@ -380,7 +380,6 @@ const char **ha_example::bas_ext() const
   return ha_example_exts;
 }
 
-
 /**
   @brief
   Used for opening tables. The name will be the name of the file.

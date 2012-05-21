@@ -1345,13 +1345,13 @@ static void close_connections(void)
   {
     if (base_ip_sock != INVALID_SOCKET)
     {
-      (void) shutdown(base_ip_sock, SHUT_RDWR);
+      (void) mysql_socket_shutdown(base_ip_sock, SHUT_RDWR);
       (void) closesocket(base_ip_sock);
       base_ip_sock= INVALID_SOCKET;
     }
     if (extra_ip_sock != INVALID_SOCKET)
     {
-      (void) shutdown(extra_ip_sock, SHUT_RDWR);
+      (void) mysql_socket_shutdown(extra_ip_sock, SHUT_RDWR);
       (void) closesocket(extra_ip_sock);
       extra_ip_sock= INVALID_SOCKET;
     }
@@ -1383,7 +1383,7 @@ static void close_connections(void)
 #ifdef HAVE_SYS_UN_H
   if (unix_sock != INVALID_SOCKET)
   {
-    (void) shutdown(unix_sock, SHUT_RDWR);
+    (void) mysql_socket_shutdown(unix_sock, SHUT_RDWR);
     (void) closesocket(unix_sock);
     (void) unlink(mysqld_unix_port);
     unix_sock= INVALID_SOCKET;
@@ -1498,7 +1498,7 @@ static void close_socket(my_socket sock, const char *info)
   if (sock != INVALID_SOCKET)
   {
     DBUG_PRINT("info", ("calling shutdown on %s socket", info));
-    (void) shutdown(sock, SHUT_RDWR);
+    (void) mysql_socket_shutdown(sock, SHUT_RDWR);
 #if defined(__NETWARE__)
     /*
       The following code is disabled for normal systems as it causes MySQL
@@ -2233,7 +2233,10 @@ static void network_init(void)
   {
     report_port= mysqld_port;
   }
-  DBUG_ASSERT(report_port != 0);
+#ifndef DBUG_OFF
+  if (!opt_disable_networking)
+    DBUG_ASSERT(report_port != 0);
+#endif
   if (!opt_disable_networking && !opt_bootstrap)
   {
     if (mysqld_port)
@@ -5614,7 +5617,7 @@ void handle_connections_sockets()
 	  if (req.sink)
 	    ((void (*)(int))req.sink)(req.fd);
 
-	  (void) shutdown(new_sock, SHUT_RDWR);
+	  (void) mysql_socket_shutdown(new_sock, SHUT_RDWR);
 	  (void) closesocket(new_sock);
 	  continue;
 	}
@@ -5630,7 +5633,7 @@ void handle_connections_sockets()
                   (SOCKET_SIZE_TYPE *)&dummyLen) < 0  )
       {
 	sql_perror("Error on new connection socket");
-	(void) shutdown(new_sock, SHUT_RDWR);
+	(void) mysql_socket_shutdown(new_sock, SHUT_RDWR);
 	(void) closesocket(new_sock);
 	continue;
       }
@@ -5642,7 +5645,7 @@ void handle_connections_sockets()
 
     if (!(thd= new THD))
     {
-      (void) shutdown(new_sock, SHUT_RDWR);
+      (void) mysql_socket_shutdown(new_sock, SHUT_RDWR);
       (void) closesocket(new_sock);
       continue;
     }
@@ -5661,7 +5664,7 @@ void handle_connections_sockets()
         vio_delete(vio_tmp);
       else
       {
-	(void) shutdown(new_sock, SHUT_RDWR);
+	(void) mysql_socket_shutdown(new_sock, SHUT_RDWR);
 	(void) closesocket(new_sock);
       }
       delete thd;

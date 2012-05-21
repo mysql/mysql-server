@@ -2177,6 +2177,7 @@ static int myisam_init(void *p)
   myisam_hton->panic= myisam_panic;
   myisam_hton->flags= HTON_CAN_RECREATE | HTON_SUPPORT_LOG_TABLES;
   mi_killed= mi_killed_in_mariadb;
+
   return 0;
 }
 

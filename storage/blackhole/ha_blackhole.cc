@@ -289,7 +289,6 @@ int ha_blackhole::index_first(uchar * buf)
   DBUG_ENTER("ha_blackhole::index_first");
   rc= HA_ERR_END_OF_FILE;
   DBUG_RETURN(rc);
-  DBUG_RETURN(HA_ERR_END_OF_FILE);
 }
 
 

@@ -1230,3 +1230,4 @@ rename table t2 to t1;
 execute stmt1;
 deallocate prepare stmt1;
 drop table t2;
+

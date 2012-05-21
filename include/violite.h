@@ -59,6 +59,9 @@ Vio* vio_new_win32shared_memory(HANDLE handle_file_map,
 #define HANDLE void *
 #endif /* __WIN__ */
 
+/* backport from 5.6 where it is part of PSI, not vio_*() */
+int	mysql_socket_shutdown(my_socket mysql_socket, int how);
+
 void	vio_delete(Vio* vio);
 int	vio_close(Vio* vio);
 void    vio_reset(Vio* vio, enum enum_vio_type type,
