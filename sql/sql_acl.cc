@@ -10845,7 +10845,8 @@ int init_rsa_keys(void)
      If a fully qualified path is entered use that, else assume the keys are 
      stored in the data directory.
   */
-  if (strchr(auth_rsa_private_key_path, FN_LIBCHAR) != NULL)
+  if (strchr(auth_rsa_private_key_path, FN_LIBCHAR) != NULL ||
+      strchr(auth_rsa_private_key_path, FN_LIBCHAR2) != NULL)
     priv_keypath.set_quick(auth_rsa_private_key_path,
                            auth_rsa_private_key_path_len, 
                            system_charset_info);
@@ -10866,7 +10867,8 @@ int init_rsa_keys(void)
     return 0;
   }
 
-  if (strchr(auth_rsa_public_key_path, FN_LIBCHAR) != NULL)
+  if (strchr(auth_rsa_public_key_path, FN_LIBCHAR) != NULL ||
+      strchr(auth_rsa_public_key_path, FN_LIBCHAR2) != NULL)
     pub_keypath.set_quick(auth_rsa_public_key_path,
                           auth_rsa_public_key_path_len, 
                           system_charset_info);
@@ -10887,8 +10889,10 @@ int init_rsa_keys(void)
     return 0;
   }
 
+  RSA *rsa_private_key= RSA_new();
   if (g_rsa_keys.set_private_key(PEM_read_RSAPrivateKey(priv_key_file,
-                                                        0, 0, 0)))
+                                                        &rsa_private_key,
+                                                        0, 0)))
   {
     sql_print_error("Failure to parse RSA private key (file exists): %s",
                     auth_rsa_private_key_path);
@@ -10914,7 +10918,10 @@ int init_rsa_keys(void)
   }
   fseek(public_key_file, 0, SEEK_SET);
 
-  if (g_rsa_keys.set_public_key(PEM_read_RSA_PUBKEY(public_key_file, 0, 0, 0)))
+  RSA *rsa_public_key= RSA_new();
+  if (g_rsa_keys.set_public_key(PEM_read_RSA_PUBKEY(public_key_file,
+                                                    &rsa_public_key,
+                                                    0, 0)))
   {
      sql_print_error("Failure to parse RSA public key (file exists): %s",
                     auth_rsa_public_key_path);
