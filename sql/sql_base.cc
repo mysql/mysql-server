@@ -862,8 +862,10 @@ void free_io_cache(TABLE *table)
           and tables must be NULL.
 */
 
-bool close_cached_tables(THD *thd, TABLE_LIST *tables, bool have_lock,
-                         bool wait_for_refresh, bool wait_for_placeholders)
+static bool int_close_cached_tables(THD *thd, TABLE_LIST *tables,
+                         bool have_lock,
+                         bool wait_for_refresh, bool wait_for_placeholders,
+                         bool set_readonly_mode)
 {
   bool result=0;
   DBUG_ENTER("close_cached_tables");
@@ -873,7 +875,10 @@ bool close_cached_tables(THD *thd, TABLE_LIST *tables, bool have_lock,
     VOID(pthread_mutex_lock(&LOCK_open));
   if (!tables)
   {
-    refresh_version++;				// Force close of open tables
+    /* No need to close the open tables if we just set the readonly state */
+    if (!set_readonly_mode)
+      refresh_version++;			// Force close of open tables
+
     while (unused_tables)
     {
 #ifdef EXTRA_DEBUG
@@ -933,7 +938,16 @@ bool close_cached_tables(THD *thd, TABLE_LIST *tables, bool have_lock,
       for (uint idx=0 ; idx < open_cache.records ; idx++)
       {
         TABLE *table=(TABLE*) hash_element(&open_cache,idx);
-        if (table->in_use)
+        /*
+          We don't increment the refresh_version when set_readonly_mode,
+          but we still need non-transactional tables to be reopened.
+          So we set their versions as 'refresh_version - 1', which marks
+          them for the 'needs_reopen_or_table_lock()'
+        */
+        if (set_readonly_mode && !table->file->has_transactions())
+          table->s->version= 0;
+        if (table->in_use &&
+            (!set_readonly_mode || !table->file->has_transactions()))
           table->in_use->some_tables_deleted= 1;
       }
     }
@@ -1035,6 +1049,20 @@ bool close_cached_tables(THD *thd, TABLE_LIST *tables, bool have_lock,
     pthread_mutex_unlock(&thd->mysys_var->mutex);
   }
   DBUG_RETURN(result);
+}
+
+
+bool close_cached_tables(THD *thd, TABLE_LIST *tables, bool have_lock,
+                         bool wait_for_refresh, bool wait_for_placeholders)
+{
+  return int_close_cached_tables(thd, tables, have_lock, wait_for_refresh,
+                                  wait_for_placeholders, FALSE);
+}
+
+
+bool close_cached_tables_set_readonly(THD *thd)
+{
+  return int_close_cached_tables(thd, NULL, FALSE, TRUE, TRUE, TRUE);
 }
 
 

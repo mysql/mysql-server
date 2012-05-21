@@ -75,7 +75,36 @@ BEGIN;
 SELECT * FROM t1;
 COMMIT;
 
+#
+# Tests that LOCK TABLE doesn't block the SET READ_ONLY=1 for the InnoDB tables
+#
+
 connection default;
+UNLOCK TABLES;
+FLUSH STATUS;
+--echo # Expected 0 at the beginning of the test
+show status like 'Opened_tables';
+
+--echo connection con1;
+connection con1;
+lock table t1 write;
+
+--echo connection default;
+connection default;
+set global read_only=1;
+--echo # Expected 1 as the slow_log was reopened
+show status like 'Opened_tables';
+
+--echo connection con1;
+connection con1;
+unlock tables;
+
+--echo connection default;
+connection default;
+SET GLOBAL read_only=0;
+--echo # Expected 2 as the slow_log was reopened
+show status like 'Opened_tables';
+
 UNLOCK TABLES;
 DROP TABLE t1;
 DROP USER test@localhost;
