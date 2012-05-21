@@ -2304,7 +2304,7 @@ row_merge_insert_index_tuples(
 				ut_ad(dict_index_is_clust(index));
 				ut_ad(error == DB_SUCCESS);
 				error = row_ins_index_entry_big_rec(
-					dtuple, big_rec, NULL, &tuple_heap,
+					dtuple, big_rec, offsets, &tuple_heap,
 					index, NULL, __FILE__, __LINE__);
 				dtuple_convert_back_big_rec(
 					index, dtuple, big_rec);

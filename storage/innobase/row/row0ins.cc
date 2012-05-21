@@ -243,7 +243,7 @@ row_ins_sec_index_entry_by_modify(
 	mem_heap_t*	heap;
 	upd_t*		update;
 	rec_t*		rec;
-	const ulint*	offsets;
+	ulint*		offsets;
 	dberr_t		err;
 
 	rec = btr_cur_get_rec(cursor);
@@ -270,9 +270,11 @@ row_ins_sec_index_entry_by_modify(
 		/* Try an optimistic updating of the record, keeping changes
 		within the page */
 
-		err = btr_cur_optimistic_update(BTR_KEEP_SYS_FLAG, cursor,
-						update, 0, thr,
-						thr_get_trx(thr)->id, mtr);
+		/* TODO: pass only offsets, no &offsets, &heap */
+		err = btr_cur_optimistic_update(
+			BTR_KEEP_SYS_FLAG, cursor,
+			&offsets, &heap, update, 0, thr,
+			thr_get_trx(thr)->id, mtr);
 		switch (err) {
 		case DB_OVERFLOW:
 		case DB_UNDERFLOW:
@@ -290,10 +292,10 @@ row_ins_sec_index_entry_by_modify(
 			goto func_exit;
 		}
 
-		err = btr_cur_pessimistic_update(BTR_KEEP_SYS_FLAG, cursor,
-						 &heap, &dummy_big_rec, update,
-						 0, thr,
-						 thr_get_trx(thr)->id, mtr);
+		err = btr_cur_pessimistic_update(
+			BTR_KEEP_SYS_FLAG, cursor,
+			&offsets, &heap, &dummy_big_rec, update, 0, thr,
+			thr_get_trx(thr)->id, mtr);
 		ut_ad(!dummy_big_rec);
 	}
 func_exit:
@@ -315,6 +317,7 @@ row_ins_clust_index_entry_by_modify(
 				depending on whether mtr holds just a leaf
 				latch or also a tree latch */
 	btr_cur_t*	cursor,	/*!< in: B-tree cursor */
+	ulint**		offsets,/*!< out: offsets on cursor->page_cur.rec */
 	mem_heap_t**	heap,	/*!< in/out: pointer to memory heap, or NULL */
 	big_rec_t**	big_rec,/*!< out: possible big rec vector of fields
 				which have to be stored externally by the
@@ -351,8 +354,9 @@ row_ins_clust_index_entry_by_modify(
 		/* Try optimistic updating of the record, keeping changes
 		within the page */
 
-		err = btr_cur_optimistic_update(0, cursor, update, 0, thr,
-						thr_get_trx(thr)->id, mtr);
+		err = btr_cur_optimistic_update(
+			0, cursor, offsets, heap, update, 0, thr,
+			thr_get_trx(thr)->id, mtr);
 		switch (err) {
 		case DB_OVERFLOW:
 		case DB_UNDERFLOW:
@@ -369,7 +373,8 @@ row_ins_clust_index_entry_by_modify(
 
 		}
 		err = btr_cur_pessimistic_update(
-			BTR_KEEP_POS_FLAG, cursor, heap, big_rec, update,
+			BTR_KEEP_POS_FLAG,
+			cursor, offsets, heap, big_rec, update,
 			0, thr, thr_get_trx(thr)->id, mtr);
 	}
 
@@ -2142,12 +2147,12 @@ row_ins_clust_index_entry_low(
 {
 	btr_cur_t	cursor;
 	rec_t*		rec;
-	ulint*		offsets;
+	ulint*		offsets		= NULL;
 	dberr_t		err;
 	ulint		n_unique;
-	big_rec_t*	big_rec			= NULL;
+	big_rec_t*	big_rec		= NULL;
 	mtr_t		mtr;
-	mem_heap_t*	heap			= NULL;
+	mem_heap_t*	heap		= NULL;
 
 	ut_ad(dict_index_is_clust(index));
 
@@ -2199,7 +2204,7 @@ err_exit:
 		existing record */
 
 		err = row_ins_clust_index_entry_by_modify(
-			mode, &cursor, &heap, &big_rec, entry,
+			mode, &cursor, &offsets, &heap, &big_rec, entry,
 			thr, &mtr);
 
 		if (big_rec) {
@@ -2229,9 +2234,6 @@ err_exit:
 			truncated in the crash. */
 
 			rec = btr_cur_get_rec(&cursor);
-			offsets = rec_get_offsets(
-				rec, index, NULL,
-				ULINT_UNDEFINED, &heap);
 
 			DEBUG_SYNC_C_IF_THD(
 				thr_get_trx(thr)->mysql_thd,
@@ -2292,7 +2294,7 @@ err_exit:
 				log_make_checkpoint_at(
 					IB_ULONGLONG_MAX, TRUE););
 			err = row_ins_index_entry_big_rec(
-				entry, big_rec, NULL, &heap, index,
+				entry, big_rec, offsets, &heap, index,
 				thr_get_trx(thr)->mysql_thd,
 				__FILE__, __LINE__);
 			dtuple_convert_back_big_rec(index, entry, big_rec);

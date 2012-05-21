@@ -2038,6 +2038,7 @@ err_exit:
 		offsets = rec_get_offsets(rec, index, offsets,
 					  ULINT_UNDEFINED, &heap);
 		ut_ad(page_rec_is_user_rec(rec));
+		ut_ad(rec_get_deleted_flag(rec, rec_offs_comp(offsets)));
 
 		btr_cur_disown_inherited_fields(
 			btr_cur_get_page_zip(btr_cur),
@@ -2065,11 +2066,12 @@ row_upd_clust_rec(
 	que_thr_t*	thr,	/*!< in: query thread */
 	mtr_t*		mtr)	/*!< in: mtr; gets committed here */
 {
-	mem_heap_t*	heap	= NULL;
+	mem_heap_t*	heap;
 	big_rec_t*	big_rec	= NULL;
 	btr_pcur_t*	pcur;
 	btr_cur_t*	btr_cur;
 	dberr_t		err;
+	ulint*		offsets	= NULL;
 
 	ut_ad(node);
 	ut_ad(dict_index_is_clust(index));
@@ -2077,20 +2079,30 @@ row_upd_clust_rec(
 	pcur = node->pcur;
 	btr_cur = btr_pcur_get_btr_cur(pcur);
 
+	ut_ad(btr_cur_get_index(btr_cur) == index);
 	ut_ad(!rec_get_deleted_flag(btr_pcur_get_rec(pcur),
 				    dict_table_is_comp(index->table)));
+
+	heap = mem_heap_create(1024);
 
 	/* Try optimistic updating of the record, keeping changes within
 	the page; we do not check locks because we assume the x-lock on the
 	record to update */
 
 	if (node->cmpl_info & UPD_NODE_NO_SIZE_CHANGE) {
+		/* TODO: reuse offsets from caller */
+		offsets = rec_get_offsets(
+			btr_cur_get_rec(btr_cur),
+			index, offsets, ULINT_UNDEFINED, &heap);
+
 		err = btr_cur_update_in_place(
-			BTR_NO_LOCKING_FLAG, btr_cur, node->update,
+			BTR_NO_LOCKING_FLAG, btr_cur,
+			offsets, node->update,
 			node->cmpl_info, thr, thr_get_trx(thr)->id, mtr);
 	} else {
 		err = btr_cur_optimistic_update(
-			BTR_NO_LOCKING_FLAG, btr_cur, node->update,
+			BTR_NO_LOCKING_FLAG, btr_cur,
+			&offsets, &heap, node->update,
 			node->cmpl_info, thr, thr_get_trx(thr)->id, mtr);
 	}
 
@@ -2098,12 +2110,13 @@ row_upd_clust_rec(
 
 	if (UNIV_LIKELY(err == DB_SUCCESS)) {
 
-		return(DB_SUCCESS);
+		goto func_exit;
 	}
 
 	if (buf_LRU_buf_pool_running_out()) {
 
-		return(DB_LOCK_TABLE_FULL);
+		err = DB_LOCK_TABLE_FULL;
+		goto func_exit;
 	}
 	/* We may have to modify the tree structure: do a pessimistic descent
 	down the index tree */
@@ -2123,13 +2136,9 @@ row_upd_clust_rec(
 
 	err = btr_cur_pessimistic_update(
 		BTR_NO_LOCKING_FLAG | BTR_KEEP_POS_FLAG, btr_cur,
-		&heap, &big_rec, node->update, node->cmpl_info,
+		&offsets, &heap, &big_rec, node->update, node->cmpl_info,
 		thr, thr_get_trx(thr)->id, mtr);
 	if (big_rec) {
-		ulint	offsets_[REC_OFFS_NORMAL_SIZE];
-		rec_t*	rec;
-		rec_offs_init(offsets_);
-
 		ut_a(err == DB_SUCCESS);
 		/* Write out the externally stored
 		columns while still x-latching
@@ -2152,12 +2161,10 @@ row_upd_clust_rec(
 		portion of the file, in case the file was somehow
 		truncated in the crash. */
 
-		rec = btr_cur_get_rec(btr_cur);
 		DEBUG_SYNC_C("before_row_upd_extern");
 		err = btr_store_big_rec_extern_fields(
-			index, btr_cur_get_block(btr_cur), rec,
-			rec_get_offsets(rec, index, offsets_,
-					ULINT_UNDEFINED, &heap),
+			index, btr_cur_get_block(btr_cur),
+			btr_cur_get_rec(btr_cur), offsets,
 			big_rec, mtr, BTR_STORE_UPDATE);
 		DEBUG_SYNC_C("after_row_upd_extern");
 		/* If writing big_rec fails (for example, because of
@@ -2177,10 +2184,8 @@ row_upd_clust_rec(
 	}
 
 	mtr_commit(mtr);
-
-	if (UNIV_LIKELY_NULL(heap)) {
-		mem_heap_free(heap);
-	}
+func_exit:
+	mem_heap_free(heap);
 
 	if (big_rec) {
 		dtuple_big_rec_free(big_rec);

@@ -121,7 +121,7 @@ row_ins_index_entry_big_rec_func(
 	const void*		thd,	/*!< in: connection, or NULL */
 #endif /* DBUG_OFF */
 	ulint			line)	/*!< in: line number of caller */
-	__attribute__((nonnull(1,2,4,5,6), warn_unused_result));
+	__attribute__((nonnull(1,2,3,4,5,6), warn_unused_result));
 #ifdef DBUG_OFF
 # define row_ins_index_entry_big_rec(e,big,ofs,heap,index,thd,file,line) \
 	row_ins_index_entry_big_rec_func(e,big,ofs,heap,index,file,line)
