@@ -63,7 +63,7 @@ bool Explain_format_traditional::send_headers(select_result *result)
           current_thd->send_explain_fields(output));
 }
 
-static bool push(List<Item> *items, const qep_row::mem_root_str &s,
+static bool push(List<Item> *items, qep_row::mem_root_str &s,
                  Item_null *nil)
 {
   if (s.is_empty())

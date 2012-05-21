@@ -745,13 +745,12 @@ emb_transfer_connect_attrs(MYSQL *mysql)
     uchar *buf, *ptr;
     THD *thd= (THD*)mysql->thd;
     size_t length= mysql->options.extension->connection_attributes_length;
-    size_t length_length;
 
     /* 9 = max length of the serialized length */
     ptr= buf= (uchar *) my_alloca(length + 9);
     send_client_connect_attrs(mysql, buf);
     net_field_length_ll(&ptr);
-    PSI_CALL(set_thread_connect_attrs)((char *) ptr, length, thd->charset());
+    PSI_THREAD_CALL(set_thread_connect_attrs)((char *) ptr, length, thd->charset());
     my_afree(buf);
   }
 #endif

@@ -718,6 +718,12 @@ t1	CREATE TABLE `t1` (
   `f1` bit(2) NOT NULL DEFAULT b'10',
   `f2` bit(14) NOT NULL DEFAULT b'11110000111100'
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1 COLLATE=latin1_general_ci
+INSERT INTO t1 (f1) VALUES (DEFAULT);
+INSERT INTO t1 VALUES (b'', b'');
+SELECT HEX(f1), HEX(f2) FROM t1;
+HEX(f1)	HEX(f2)
+2	3C3C
+0	0
 DROP TABLE t1;
 CREATE TABLE IF NOT EXISTS t1 (
 f1 bit(2) NOT NULL default b''
@@ -801,3 +807,14 @@ SUM(a)
 NULL
 DROP TABLE t1;
 End of 5.1 tests
+#
+# Test insert of no bits. Should be treated as 0.
+#
+CREATE TABLE IF NOT EXISTS t1 (
+f1 bit(2) NOT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1 COLLATE=latin1_general_ci;
+INSERT INTO t1 VALUES (b'');
+SELECT bin(f1) FROM t1;
+bin(f1)
+0
+DROP TABLE t1;

@@ -332,7 +332,7 @@ read_ahead:
 	buf_LRU_stat_inc_io();
 
 	buf_pool->stat.n_ra_pages_read_rnd += count;
-	srv_buf_pool_reads += count;
+	srv_stats.buf_pool_reads.add(count);
 	return(count);
 }
 
@@ -362,7 +362,7 @@ buf_read_page(
 	count = buf_read_page_low(&err, TRUE, BUF_READ_ANY_PAGE, space,
 				  zip_size, FALSE,
 				  tablespace_version, offset);
-	srv_buf_pool_reads += count;
+	srv_stats.buf_pool_reads.add(count);
 	if (err == DB_TABLESPACE_DELETED) {
 		ut_print_timestamp(stderr);
 		fprintf(stderr,
@@ -410,7 +410,7 @@ buf_read_page_async(
 				  | BUF_READ_IGNORE_NONEXISTENT_PAGES,
 				  space, zip_size, FALSE,
 				  tablespace_version, offset);
-	srv_buf_pool_reads += count;
+	srv_stats.buf_pool_reads.add(count);
 
 	/* We do not increment number of I/O operations used for LRU policy
 	here (buf_LRU_stat_inc_io()). We use this in heuristics to decide

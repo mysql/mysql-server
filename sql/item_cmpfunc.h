@@ -1520,11 +1520,12 @@ public:
   longlong val_int();
   const char *func_name() const { return "<is_not_null_test>"; }
   void update_used_tables();
-  /*
-    we add RAND_TABLE_BIT to prevent moving this item from HAVING to WHERE
+  /**
+    We add RAND_TABLE_BIT to prevent moving this item from HAVING to WHERE.
+     
+    @retval Always RAND_TABLE_BIT
   */
-  table_map used_tables() const
-    { return used_tables_cache | RAND_TABLE_BIT; }
+  table_map get_initial_pseudo_tables() const { return RAND_TABLE_BIT; }
 };
 
 

@@ -52,6 +52,7 @@ class Fake_TABLE: public TABLE
     null_row= '\0';
     write_set= &write_set_struct;
     read_set= NULL;
+    next_number_field= NULL; // No autoinc column
 
     EXPECT_EQ(0, bitmap_init(write_set, &write_set_buf, s->fields, false));
 

@@ -458,40 +458,15 @@ bool Rpl_info_factory::decide_repository(Rpl_info *info,
   {
     /*
       If there is an error, we cannot proceed with the normal operation.
-      In this case, we just pick the dest repository if check_info() has
-      not failed to execute against it in order to give users the chance
-      to fix the problem and restart the server. One particular case can
-      happen when there is an inplace upgrade: no source table (it did 
-      not exist in 5.5) and the default destination is a file.
-
-      Notice that migration will not take place and the destination may
-      be empty.
+      One particular case can happen when there is an inplace upgrade:
+      no source table (it did not exist in 5.5) and the default
+      destination is a file.
     */
-    if (opt_skip_slave_start && return_check_dst != ERROR_CHECKING_REPOSITORY)
-    {
-      sql_print_warning("Error while checking replication metadata. "
-                        "Setting the requested repository in order to "
-                        "give users the chance to fix the problem and "
-                        "restart the server. If this is a live upgrade "
-                        "please consider using mysql_upgrade to fix the "
-                        "problem.");
-      delete (*handler_src);
-      *handler_src= NULL;
-      info->set_rpl_info_handler(*handler_dest);
-      info->set_rpl_info_type(option);
-      error= FALSE;
-      goto err;
-    }
-    else
-    {
-      *msg= "Error while checking replication metadata. This might also happen "
-            "when doing a live upgrade from a version that did not make use "
-            "of the replication metadata tables. If that was the case, consider "
-            "starting the server with the option --skip-slave-start which "
-            "causes the server to bypass the replication metadata tables check "
-            "while it is starting up";
-      goto err;
-    }
+    *msg= "Error while checking replication metadata. This might also happen "
+          "when doing a live upgrade from a version that did not make use "
+          "of the replication metadata tables. If that was the case, consider "
+          "finishing the upgrade before starting replication.";
+    goto err;
   }
   else
   {
@@ -506,7 +481,7 @@ bool Rpl_info_factory::decide_repository(Rpl_info *info,
       *msg= "Multiple replication metadata repository instances "
             "found with data in them. Unable to decide which is "
             "the correct one to choose";
-      DBUG_RETURN(error);
+      goto err;
     }
 
     if (return_check_src == REPOSITORY_EXISTS &&

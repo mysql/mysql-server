@@ -226,9 +226,7 @@ dict_mem_table_create(
 /*==================*/
 	const char*	name,		/*!< in: table name */
 	ulint		space,		/*!< in: space where the clustered index
-					of the table is placed; this parameter
-					is ignored if the table is made
-					a member of a cluster */
+					of the table is placed */
 	ulint		n_cols,		/*!< in: number of columns */
 	ulint		flags,		/*!< in: table flags */
 	ulint		flags2);	/*!< in: table flags2 */
@@ -485,6 +483,8 @@ struct dict_index_struct{
 	unsigned	n_nullable:10;/*!< number of nullable fields */
 	unsigned	cached:1;/*!< TRUE if the index object is in the
 				dictionary cache */
+	unsigned	to_be_dropped:1;
+				/*!< TRUE if the index is to be dropped */
 	unsigned	online_status:2;
 				/*!< enum online_index_status */
 	dict_field_t*	fields;	/*!< array of field descriptions */

@@ -1,0 +1,23 @@
+CREATE TABLE t1 (c1 INT PRIMARY KEY, c2 INT, INDEX(c2)) ENGINE = InnoDB;
+CREATE TABLE t2 (
+c2 INT PRIMARY KEY,
+CONSTRAINT t2c2 FOREIGN KEY (c2) REFERENCES t1 (c2))
+ENGINE = InnoDB;
+DROP INDEX c2 ON t1;
+ERROR HY000: Cannot drop index 'c2': needed in a foreign key constraint
+DROP TABLE t2;
+SET DEBUG_SYNC = 'innodb_after_inplace_alter_table SIGNAL drop WAIT_FOR fk';
+DROP INDEX c2 ON t1;
+SET DEBUG_SYNC = 'now WAIT_FOR drop';
+CREATE TABLE t2 (
+c2 INT PRIMARY KEY,
+CONSTRAINT t2c2 FOREIGN KEY (c2) REFERENCES t1 (c2))
+ENGINE = InnoDB;
+ERROR HY000: Can't create table 'test.t2' (errno: 150)
+SET DEBUG_SYNC = 'now SIGNAL fk';
+CREATE TABLE t2 (
+c2 INT PRIMARY KEY,
+CONSTRAINT t2c2 FOREIGN KEY (c2) REFERENCES t1 (c2))
+ENGINE = InnoDB;
+ERROR HY000: Can't create table 'test.t2' (errno: 150)
+DROP TABLE t1;

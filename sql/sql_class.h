@@ -41,6 +41,7 @@
 #include <mysql/psi/mysql_statement.h>
 #include <mysql/psi/mysql_idle.h>
 #include <mysql_com_server.h>
+#include "sql_data_change.h"
 
 /**
   The meat of thd_proc_info(THD*, char*), a macro that packs the last
@@ -80,7 +81,7 @@ class User_level_lock;
 class user_var_entry;
 
 enum enum_ha_read_modes { RFIRST, RNEXT, RPREV, RLAST, RKEY, RNEXT_SAME };
-enum enum_duplicates { DUP_ERROR, DUP_REPLACE, DUP_UPDATE };
+
 enum enum_delay_key_write { DELAY_KEY_WRITE_NONE, DELAY_KEY_WRITE_ON,
 			    DELAY_KEY_WRITE_ALL };
 enum enum_slave_exec_mode { SLAVE_EXEC_MODE_STRICT,
@@ -88,6 +89,10 @@ enum enum_slave_exec_mode { SLAVE_EXEC_MODE_STRICT,
                             SLAVE_EXEC_MODE_LAST_BIT };
 enum enum_slave_type_conversions { SLAVE_TYPE_CONVERSIONS_ALL_LOSSY,
                                    SLAVE_TYPE_CONVERSIONS_ALL_NON_LOSSY};
+enum enum_slave_rows_search_algorithms { SLAVE_ROWS_TABLE_SCAN = (1U << 0),
+                                         SLAVE_ROWS_INDEX_SCAN = (1U << 1),
+                                         SLAVE_ROWS_HASH_SCAN  = (1U << 2)};
+
 enum enum_mark_columns
 { MARK_COLUMNS_NONE, MARK_COLUMNS_READ, MARK_COLUMNS_WRITE};
 enum enum_filetype { FILETYPE_CSV, FILETYPE_XML };
@@ -129,6 +134,7 @@ enum enum_filetype { FILETYPE_CSV, FILETYPE_XML };
 extern char internal_table_name[2];
 extern char empty_c_string[1];
 extern LEX_STRING EMPTY_STR;
+extern LEX_STRING NULL_STR;
 extern MYSQL_PLUGIN_IMPORT const char **errmesg;
 
 extern bool volatile shutdown_in_progress;
@@ -184,315 +190,6 @@ typedef struct st_user_var_events
   uint charset_number;
   bool unsigned_flag;
 } BINLOG_USER_VAR_EVENT;
-
-
-/**
-   This class encapsulates a data change operation. There are three such
-   operations.
-
-   -# Insert statements, i.e. INSERT INTO .. VALUES
-
-   -# Update statements. UPDATE <table> SET ...
-
-   -# Delete statements. Currently this class is not used for delete statements
-      and thus has not yet been adapted to handle it.
-
-   @todo Rename this class.
-
-  The COPY_INFO structure is used by INSERT/REPLACE code.
-  The schema of the row counting by the INSERT/INSERT ... ON DUPLICATE KEY
-  UPDATE code:
-    If a row is inserted then the copied variable is incremented.
-    If a row is updated by the INSERT ... ON DUPLICATE KEY UPDATE and the
-      new data differs from the old one then the copied and the updated
-      variables are incremented.
-    The touched variable is incremented if a row was touched by the update part
-      of the INSERT ... ON DUPLICATE KEY UPDATE no matter whether the row
-      was actually changed or not.
-*/
-class COPY_INFO: public Sql_alloc
-{
-public:
-  class Statistics
-  {
-  public:
-    Statistics() :
-      records(0), deleted(0), updated(0), copied(0), error_count(0), touched(0)
-    {}
-
-    ha_rows records; /**< Number of processed records */
-    ha_rows deleted; /**< Number of deleted records */
-    ha_rows updated; /**< Number of updated records */
-    ha_rows copied;  /**< Number of copied records */
-    ha_rows error_count;
-    ha_rows touched; /* Number of touched records */
-  };
-
-  enum operation_type { INSERT_OPERATION, UPDATE_OPERATION };
-
-private:
-  COPY_INFO(const COPY_INFO &other);            ///< undefined
-  void operator=(COPY_INFO &);                  ///< undefined
-
-  /// Describes the data change operation that this object represents.
-  const operation_type m_optype;
-
-  /**
-     The columns of the target table for which new data is to be inserted or
-     updated.
-  */
-  List<Item> *m_changed_columns;
-
-  /**
-     A second list of columns to be inserted or updated. See the constructor
-     specific of LOAD DATA INFILE, below.
-  */
-  List<Item> *m_changed_columns2;
-
-
-  /** Whether this object must manage function defaults */
-  const bool m_manage_defaults;
-  /** Bitmap: bit is set if we should set column #i to its function default */
-  MY_BITMAP *m_function_default_columns;
-
-protected:
-
-  /**
-     Policy for handling insertion of duplicate values. Protected for legacy
-     reasons.
-
-     @see Delayable_insert_operation::set_dup_and_ignore()
-  */
-  enum enum_duplicates handle_duplicates;
-
-  /**
-     Policy for whether certain errors should be ignored. Protected for legacy
-     reasons.
-
-     @see Delayable_insert_operation::set_dup_and_ignore()
-  */
-  bool ignore;
-
-  /**
-     This function will, unless done already, calculate and keep the set of
-     function default columns.
-
-     Function default columns are those columns declared DEFAULT <function>
-     and/or ON UPDATE <function>. These will store the return value of
-     <function> when the relevant operation is applied on the table.
-
-     Calling this function, without error, is a prerequisite for calling
-     COPY_INFO::set_function_defaults().
-     
-     @param table The table to be used for instantiating the column set.
-
-     @retval false Success.
-     @retval true Memory allocation error.
-  */
-  bool get_function_default_columns(TABLE *table);
-
-  /**
-     The column bitmap which has been cached for this data change operation.
-     @see COPY_INFO::get_function_default_columns()
-
-     @return The cached bitmap, or NULL if no bitmap was cached.
-   */
-  MY_BITMAP *get_cached_bitmap() const { return m_function_default_columns; }
-
-public:
-  Statistics stats;
-  int escape_char, last_errno;
-  /** Values for UPDATE; needed by write_record() if INSERT with DUP_UPDATE */
-  List<Item> *update_values;
-
-  /**
-     Initializes this data change operation as an SQL @c INSERT (with all
-     possible syntaxes and variants).
-
-     @param optype           The data change operation type.
-     @param inserted_columns The columns to inserted. Note that these columns
-                             must belong to the table. May be NULL, which is
-                             interpreted as all columns in the order they
-                             appear in the table definition.
-     @param manage_defaults  Whether this object should manage function
-                             defaults.
-     @param duplicate_handling The policy for handling duplicates.
-     @param ignore_errors    Whether certain ignorable errors should be
-                             ignored. A proper documentation has never existed
-                             for this member, so the following has been
-                             compiled by examining how clients actually use
-                             the member.
-
-     - Ignore non-fatal errors, except duplicate key error, during this insert
-       operation (this constructor can only construct an insert operation).
-     - If the insert operation spawns an update operation (as in ON DUPLICATE
-       KEY UPDATE), tell the layer below
-       (fill_record_n_invoke_before_triggers) to 'ignore errors'. (More
-       detailed documentation is not available).
-     - Let @i v be a view for which WITH CHECK OPTION applies. This can happen
-       either if @i v is defined with WITH ... CHECK OPTION, or if @i v is
-       being inserted into by a cascaded insert and an outer view is defined
-       with "WITH CASCADED CHECK OPTION".
-       If the insert operation on @i v spawns an update operation (as in ON
-       DUPLICATE KEY UPDATE) for a certain row, and hence the @i v is being
-       updated, ignore whether the WHERE clause was true for this row or
-       not. I.e. if ignore is true, WITH CHECK OPTION can be ignored.
-     - If the insert operation spawns an update operation (as in ON DUPLICATE
-       KEY UPDATE) that fails, ignore this error.
-  */
-  COPY_INFO(operation_type optype,
-            List<Item> *inserted_columns,
-            bool manage_defaults,
-            enum_duplicates duplicate_handling,
-            bool ignore_errors) :
-    m_optype(optype),
-    m_changed_columns(inserted_columns),
-    m_changed_columns2(NULL),
-    m_manage_defaults(manage_defaults),
-    m_function_default_columns(NULL),
-    handle_duplicates(duplicate_handling),
-    ignore(ignore_errors),
-    stats(),
-    escape_char(0),
-    last_errno(0),
-    update_values(NULL)
-  {
-    DBUG_ASSERT(optype == INSERT_OPERATION);
-  }
-
-  /**
-     Initializes this data change operation as an SQL @c LOAD @c DATA @c
-     INFILE.
-     Note that this statement has its inserted columns spread over two
-     lists:
-@verbatim
-     LOAD DATA INFILE a_file
-     INTO TABLE a_table (col1, col2)   < first list (col1, col2)
-     SET col3=val;                     < second list (col3)
-@endverbatim
-
-     @param optype            The data change operation type.
-     @param inserted_columns  Columns for which values are to be inserted.
-     @param inserted_columns2 A second list of columns for which values are to
-                              be inserted.
-     @param manage_defaults   Whether this object should manage function
-                              defaults.
-     @param ignore_duplicates   Whether duplicate rows are ignored.
-     @param duplicates_handling How to handle duplicates.
-     @param escape_character    The escape character.
-  */
-  COPY_INFO(operation_type optype,
-            List<Item> *inserted_columns,
-            List<Item> *inserted_columns2,
-            bool manage_defaults,
-            enum_duplicates duplicates_handling,
-            bool ignore_duplicates,
-            int escape_character) :
-    m_optype(optype),
-    m_changed_columns(inserted_columns),
-    m_changed_columns2(inserted_columns2),
-    m_manage_defaults(manage_defaults),
-    m_function_default_columns(NULL),
-    handle_duplicates(duplicates_handling),
-    ignore(ignore_duplicates),
-    stats(),
-    escape_char(escape_character),
-    last_errno(0),
-    update_values(NULL)
-  {
-    DBUG_ASSERT(optype == INSERT_OPERATION);
-  }
-
-  /**
-     Initializes this data change operation as an SQL @c UPDATE (multi- or
-     not).
-
-     @param fields  The column objects that are to be updated.
-     @param values  The values to be assigned to the fields.
-     @note that UPDATE always lists columns, so non-listed columns may need a
-     default thus m_manage_defaults is always true.
-  */
-  COPY_INFO(operation_type optype, List<Item> *fields, List<Item> *values) :
-    m_optype(optype),
-    m_changed_columns(fields),
-    m_changed_columns2(NULL),
-    m_manage_defaults(true),
-    m_function_default_columns(NULL),
-    handle_duplicates(DUP_ERROR),
-    ignore(false),
-    stats(),
-    escape_char(0),
-    last_errno(0),
-    update_values(values)
-  {
-    DBUG_ASSERT(optype == UPDATE_OPERATION);
-  }
-
-  operation_type get_operation_type() const { return m_optype; }
-
-  List<Item> *get_changed_columns() const { return m_changed_columns; }
-
-  const List<Item> *get_changed_columns2() const { return m_changed_columns2; }
-
-  bool get_manage_defaults() const { return m_manage_defaults; }
-
-  enum_duplicates get_duplicate_handling() const { return handle_duplicates; }
-
-  bool get_ignore_errors() const { return ignore; }
-
-  /**
-     Assigns function default values to columns of the supplied table. This
-     function cannot fail, but COPY_INFO::get_function_default_columns() must
-     be called beforehand.
-
-     @note COPY_INFO::add_function_default_columns() must be called prior to
-     invoking this function.
-
-     @param table  The table to which columns belong.
-
-     @note It is assumed that all columns in this COPY_INFO are resolved to the
-     table.
-  */
-  virtual void set_function_defaults(TABLE *table);
-
-  /**
-     Adds the columns that are bound to receive default values from a function
-     (e.g. CURRENT_TIMESTAMP) to the set columns. Uses lazy instantiation of the set
-     of function default columns.
-
-     @param      table    The table on which the operation is performed.
-     @param[out] columns  The function default columns are added to this set.
-
-     @retval false Success.
-     @retval true Memory allocation error during lazy instantiation.
-  */
-  bool add_function_default_columns(TABLE *table, MY_BITMAP *columns)
-  {
-    if (get_function_default_columns(table))
-      return true;
-    bitmap_union(columns, m_function_default_columns);
-    return false;
-  }
-
-  /**
-     True if this operation will set some fields to function default result
-     values when invoked on the table.
-
-     @note COPY_INFO::add_function_default_columns() must be called prior to
-     invoking this function.
-  */
-  bool function_defaults_apply(const TABLE *table) const
-  {
-    DBUG_ASSERT(m_function_default_columns != NULL);
-    return !bitmap_is_clear_all(m_function_default_columns);
-  }
-
-  /**
-     This class allocates its memory in a MEM_ROOT, so there's nothing to
-     delete.
-  */
-  virtual ~COPY_INFO() {}
-};
 
 
 class Key_part_spec :public Sql_alloc {
@@ -1695,21 +1392,48 @@ enum enum_locked_tables_mode
 
 class Open_tables_state
 {
-public:
+private:
   /**
-    As part of class THD, this member is set during execution
-    of a prepared statement. When it is set, it is used
-    by the locking subsystem to report a change in table metadata.
+    A stack of Reprepare_observer-instances. The top most instance is the
+    currently active one. This stack is used during execution of prepared
+    statements and stored programs in order to detect metadata changes.
+    The locking subsystem reports a metadata change if the top-most item is not
+    NULL.
 
-    When Open_tables_state part of THD is reset to open
-    a system or INFORMATION_SCHEMA table, the member is cleared
-    to avoid spurious ER_NEED_REPREPARE errors -- system and
-    INFORMATION_SCHEMA tables are not subject to metadata version
-    tracking.
+    When Open_tables_state part of THD is reset to open a system or
+    INFORMATION_SCHEMA table, NULL is temporarily pushed to avoid spurious
+    ER_NEED_REPREPARE errors -- system and INFORMATION_SCHEMA tables are not
+    subject to metadata version tracking.
+
+    A stack is used here for the convenience -- in some cases we need to
+    temporarily override/disable current Reprepare_observer-instance.
+
+    NOTE: This is not a list of observers, only the top-most element will be
+    notified in case of a metadata change.
+
     @sa check_and_update_table_version()
   */
-  Reprepare_observer *m_reprepare_observer;
+  Dynamic_array<Reprepare_observer *> m_reprepare_observers;
 
+public:
+  Reprepare_observer *get_reprepare_observer() const
+  {
+    return
+      m_reprepare_observers.elements() > 0 ?
+      *m_reprepare_observers.back() :
+      NULL;
+  }
+
+  void push_reprepare_observer(Reprepare_observer *o)
+  { m_reprepare_observers.append(o); }
+
+  Reprepare_observer *pop_reprepare_observer()
+  { return m_reprepare_observers.pop(); }
+
+  void reset_reprepare_observers()
+  { m_reprepare_observers.clear(); }
+
+public:
   /**
     List of regular tables in use by this thread. Contains temporary and
     base tables that were opened with @see open_tables().
@@ -1794,19 +1518,9 @@ public:
   */
   Open_tables_state() : state_flags(0U) { }
 
-  void set_open_tables_state(Open_tables_state *state)
-  {
-    *this= *state;
-  }
+  void set_open_tables_state(Open_tables_state *state);
 
-  void reset_open_tables_state(THD *thd)
-  {
-    open_tables= temporary_tables= derived_tables= 0;
-    extra_lock= lock= 0;
-    locked_tables_mode= LTM_NONE;
-    state_flags= 0U;
-    m_reprepare_observer= NULL;
-  }
+  void reset_open_tables_state();
 };
 
 
@@ -2357,6 +2071,15 @@ public:
   void set_next_event_pos(const char* _filename, ulonglong _pos);
   void clear_next_event_pos();
 
+  /*
+     Ptr to row event extra data to be written to Binlog /
+     received from Binlog.
+
+   */
+  uchar* binlog_row_event_extra_data;
+  static bool binlog_row_event_extra_data_eq(const uchar* a,
+                                             const uchar* b);
+
 #ifndef MYSQL_CLIENT
   int binlog_setup_trx_data();
 
@@ -2366,11 +2089,14 @@ public:
   int binlog_write_table_map(TABLE *table, bool is_transactional,
                              bool binlog_rows_query);
   int binlog_write_row(TABLE* table, bool is_transactional,
-                       const uchar *new_data);
+                       const uchar *new_data,
+                       const uchar* extra_row_info);
   int binlog_delete_row(TABLE* table, bool is_transactional,
-                        const uchar *old_data);
+                        const uchar *old_data,
+                        const uchar* extra_row_info);
   int binlog_update_row(TABLE* table, bool is_transactional,
-                        const uchar *old_data, const uchar *new_data);
+                        const uchar *old_data, const uchar *new_data,
+                        const uchar* extra_row_info);
   void binlog_prepare_row_images(TABLE* table);
 
   void set_server_id(uint32 sid) { server_id = sid; }
@@ -2382,7 +2108,8 @@ public:
     binlog_prepare_pending_rows_event(TABLE* table, uint32 serv_id,
                                       size_t needed,
                                       bool is_transactional,
-				      RowsEventT* hint);
+				      RowsEventT* hint,
+                                      const uchar* extra_row_info);
   Rows_log_event* binlog_get_pending_rows_event(bool is_transactional) const;
   void binlog_set_pending_rows_event(Rows_log_event* ev, bool is_transactional);
   inline int binlog_flush_pending_rows_event(bool stmt_end)
@@ -3209,14 +2936,14 @@ public:
       my_micro_time_to_timeval(start_utime, &start_time);
 
 #ifdef HAVE_PSI_THREAD_INTERFACE
-    PSI_CALL(set_thread_start_time)(start_time.tv_sec);
+    PSI_THREAD_CALL(set_thread_start_time)(start_time.tv_sec);
 #endif
   }
   inline void set_current_time()
   {
     my_micro_time_to_timeval(my_micro_time(), &start_time);
 #ifdef HAVE_PSI_THREAD_INTERFACE
-    PSI_CALL(set_thread_start_time)(start_time.tv_sec);
+    PSI_THREAD_CALL(set_thread_start_time)(start_time.tv_sec);
 #endif
   }
   inline void set_time(const struct timeval *t)
@@ -3224,7 +2951,7 @@ public:
     start_time= user_time= *t;
     start_utime= utime_after_lock= my_micro_time();
 #ifdef HAVE_PSI_THREAD_INTERFACE
-    PSI_CALL(set_thread_start_time)(start_time.tv_sec);
+    PSI_THREAD_CALL(set_thread_start_time)(start_time.tv_sec);
 #endif
   }
   /*TODO: this will be obsolete when we have support for 64 bit my_time_t */
@@ -3671,7 +3398,7 @@ public:
     result= new_db && !db;
 #ifdef HAVE_PSI_THREAD_INTERFACE
     if (result)
-      PSI_CALL(set_thread_db)(new_db, static_cast<int>(new_db_len));
+      PSI_THREAD_CALL(set_thread_db)(new_db, static_cast<int>(new_db_len));
 #endif
     return result;
   }
@@ -3692,7 +3419,7 @@ public:
     db= new_db;
     db_length= new_db_len;
 #ifdef HAVE_PSI_THREAD_INTERFACE
-    PSI_CALL(set_thread_db)(new_db, static_cast<int>(new_db_len));
+    PSI_THREAD_CALL(set_thread_db)(new_db, static_cast<int>(new_db_len));
 #endif
   }
   /*
@@ -4818,6 +4545,7 @@ public:
 
 class select_dumpvar :public select_result_interceptor {
   ha_rows row_count;
+  Item_func_set_user_var **set_var_items;
 public:
   List<my_var> var_list;
   select_dumpvar()  { var_list.empty(); row_count= 0;}
