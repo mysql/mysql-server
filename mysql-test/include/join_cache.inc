@@ -1787,6 +1787,13 @@ CREATE TABLE t2 (
 
 INSERT INTO t2 VALUES ('2003-08-21 00:00:00','b');
 
+-- disable_query_log
+-- disable_result_log
+ANALYZE TABLE t1;
+ANALYZE TABLE t2;
+-- enable_query_log
+-- enable_result_log
+
 # need to force the index, or it picks BNL for t2 (lower cost),
 # whereas we want to test BKA
 let $query=

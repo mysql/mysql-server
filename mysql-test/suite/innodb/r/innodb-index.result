@@ -207,6 +207,7 @@ t1	CREATE TABLE `t1` (
   KEY `c` (`c`(2))
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 insert into t1 values(5,1,'ggg','ggg');
+analyze table t1;
 select * from t1;
 a	b	c	d
 1	1	ab	ab
