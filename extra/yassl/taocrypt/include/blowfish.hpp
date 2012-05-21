@@ -14,7 +14,7 @@
    along with this program; see the file COPYING. If not, write to the
    Free Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston,
    MA  02110-1301  USA.
-*/
+ */
 
 /* blowfish.hpp defines Blowfish
 */
@@ -59,11 +59,11 @@ public:
     void SetKey(const byte* key, word32 sz, CipherDir fake = ENCRYPTION);
     void SetIV(const byte* iv) { memcpy(r_, iv, BLOCK_SIZE); }
 private:
-	static const word32 p_init_[ROUNDS + 2];
-	static const word32 s_init_[4 * 256];
+    static const word32 p_init_[ROUNDS + 2];
+    static const word32 s_init_[4 * 256];
 
-	word32 pbox_[ROUNDS + 2 + 4 * 256];
-	word32* sbox_;
+    word32 pbox_[ROUNDS + 2 + 4 * 256];
+    word32* sbox_;
 
     void crypt_block(const word32 in[2], word32 out[2]) const;
     void AsmProcess(const byte* in, byte* out) const;

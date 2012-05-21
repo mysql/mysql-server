@@ -1115,3 +1115,8 @@ DROP TABLE t1;
 
 DO maketime(~0, 49, 0.123456789);
 
+--echo #
+--echo # Bug#14042545 ASSERTION FAILED: DEC <= 6 IN MY_USECONDS_TO_STR()
+--echo #
+
+DO is_used_lock(ifnull(now(), CASE 1 WHEN 1 THEN NULL END));

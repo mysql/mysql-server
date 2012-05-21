@@ -3837,7 +3837,6 @@ row_search_for_mysql(
 
 			prebuilt->n_rows_fetched++;
 
-			srv_n_rows_read++;
 			err = DB_SUCCESS;
 			goto func_exit;
 		}
@@ -3994,8 +3993,6 @@ row_search_for_mysql(
 
 				/* ut_print_name(stderr, index->name);
 				fputs(" shortcut\n", stderr); */
-
-				srv_n_rows_read++;
 
 				err = DB_SUCCESS;
 				goto release_search_latch_if_needed;
@@ -4332,6 +4329,9 @@ wrong_offs:
 	/*-------------------------------------------------------------*/
 
 	/* Calculate the 'offsets' associated with 'rec' */
+
+	ut_ad(fil_page_get_type(btr_pcur_get_page(pcur)) == FIL_PAGE_INDEX);
+	ut_ad(btr_page_get_index_id(btr_pcur_get_page(pcur)) == index->id);
 
 	offsets = rec_get_offsets(rec, index, offsets, ULINT_UNDEFINED, &heap);
 
@@ -5142,9 +5142,6 @@ normal_return:
 	dict_index_name_print(stderr, index);
 	fprintf(stderr, " cnt %lu ret value %lu err\n", cnt, err); */
 #endif /* UNIV_SEARCH_DEBUG */
-	if (err == DB_SUCCESS) {
-		srv_n_rows_read++;
-	}
 
 func_exit:
 	trx->op_info = "";

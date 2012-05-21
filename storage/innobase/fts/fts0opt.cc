@@ -3000,7 +3000,7 @@ fts_optimize_thread(
 				ib_vector_get(tables, i));
 
 			if (slot->state != FTS_STATE_EMPTY) {
-				dict_table_t*	table;
+				dict_table_t*	table = NULL;
 
 			        table = dict_table_open_on_name(
 					slot->table->name, FALSE, FALSE,
@@ -3012,7 +3012,10 @@ fts_optimize_thread(
 						fts_sync_table(table);
 					}
 
-					fts_free(table);
+					if (table->fts) {
+						fts_free(table);
+					}
+
 					dict_table_close(table, FALSE, FALSE);
 				}
 			}

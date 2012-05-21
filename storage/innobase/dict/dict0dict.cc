@@ -67,6 +67,10 @@ UNIV_INTERN dict_index_t*	dict_ind_compact;
 #include "row0merge.h"
 #include "row0log.h"
 #include "ut0ut.h" /* ut_format_name() */
+#include "m_string.h"
+#include "my_sys.h"
+
+#include <ctype.h>
 
 /** the dictionary system */
 UNIV_INTERN dict_sys_t*	dict_sys	= NULL;
@@ -2949,6 +2953,8 @@ dict_foreign_free(
 /*==============*/
 	dict_foreign_t*	foreign)	/*!< in, own: foreign key struct */
 {
+	ut_a(foreign->foreign_table->n_foreign_key_checks_running == 0);
+
 	mem_heap_free(foreign->heap);
 }
 
@@ -3045,12 +3051,15 @@ dict_foreign_find_index(
 {
 	dict_index_t*	index;
 
+	ut_ad(mutex_own(&dict_sys->mutex));
+
 	index = dict_table_get_first_index(table);
 
 	while (index != NULL) {
 		/* Ignore matches that refer to the same instance
 		(or the index is to be dropped) */
-		if (types_idx == index || index->type & DICT_FTS) {
+		if (types_idx == index || index->type & DICT_FTS
+		    || index->to_be_dropped) {
 
 			goto next_rec;
 
@@ -5575,7 +5584,6 @@ dict_table_get_index_on_name(
 
 }
 
-#if 1 /* TODO: enable this in WL#6049 (MDL for FK lookups) */
 /**********************************************************************//**
 Replace the index passed in with another equivalent index in the
 foreign key lists of the table. */
@@ -5588,6 +5596,8 @@ dict_foreign_replace_index(
 	const trx_t*		trx)	/*!< in: transaction handle */
 {
 	dict_foreign_t*	foreign;
+
+	ut_ad(index->to_be_dropped);
 
 	for (foreign = UT_LIST_GET_FIRST(table->foreign_list);
 	     foreign;
@@ -5607,6 +5617,7 @@ dict_foreign_replace_index(
 			since this must have been checked earlier. */
 			ut_a(new_index || !trx->check_foreigns);
 			ut_ad(!new_index || new_index->table == index->table);
+			ut_ad(!new_index || !new_index->to_be_dropped);
 
 			foreign->foreign_index = new_index;
 		}
@@ -5630,12 +5641,12 @@ dict_foreign_replace_index(
 			since this must have been checked earlier. */
 			ut_a(new_index || !trx->check_foreigns);
 			ut_ad(!new_index || new_index->table == index->table);
+			ut_ad(!new_index || !new_index->to_be_dropped);
 
 			foreign->referenced_index = new_index;
 		}
 	}
 }
-#endif
 
 /**********************************************************************//**
 In case there is more than one index with the same name return the index
@@ -5754,13 +5765,25 @@ dict_table_schema_check(
 
 	table = dict_table_get_low(req_schema->table_name);
 
-	if (table == NULL || table->ibd_file_missing) {
-		/* no such table or missing tablespace */
+	if (table == NULL) {
+		/* no such table */
 
 		ut_snprintf(errstr, errstr_sz,
-			    "Table %s not found or its tablespace is missing.",
+			    "Table %s not found.",
 			    ut_format_name(req_schema->table_name,
 					   TRUE, buf, sizeof(buf)));
+
+		return(DB_TABLE_NOT_FOUND);
+	}
+
+	if (table->ibd_file_missing) {
+		/* missing tablespace */
+
+		ut_snprintf(errstr, errstr_sz,
+			    "Tablespace for table %s is missing.",
+			    ut_format_name(req_schema->table_name,
+					   TRUE, buf, sizeof(buf)));
+
 		return(DB_TABLE_NOT_FOUND);
 	}
 

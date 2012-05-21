@@ -2528,7 +2528,7 @@ innobase_shutdown_for_mysql(void)
 		HERE OR EARLIER */
 
 		/* a. Let the lock timeout thread exit */
-		os_event_set(srv_timeout_event);
+		os_event_set(lock_sys->timeout_event);
 
 		/* b. srv error monitor thread exits automatically, no need
 		to do anything here */

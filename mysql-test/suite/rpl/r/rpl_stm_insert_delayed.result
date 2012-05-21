@@ -19,6 +19,8 @@ COUNT(*)
 5000
 truncate table t1;
 insert delayed into t1 values(10, "my name");
+Warnings:
+Warning	1287	'INSERT DELAYED' is deprecated and will be removed in a future release. Please use INSERT instead
 flush table t1;
 insert delayed into t1 values(10, "is Bond"), (20, "James Bond");
 ERROR 23000: Duplicate entry '10' for key 'PRIMARY'
@@ -48,7 +50,11 @@ FLUSH LOGS;
 FLUSH LOGS;
 CREATE TABLE t1(a int, UNIQUE(a));
 INSERT DELAYED IGNORE INTO t1 VALUES(1);
+Warnings:
+Warning	1287	'INSERT DELAYED' is deprecated and will be removed in a future release. Please use INSERT instead
 INSERT DELAYED IGNORE INTO t1 VALUES(1);
+Warnings:
+Warning	1287	'INSERT DELAYED' is deprecated and will be removed in a future release. Please use INSERT instead
 flush table t1;
 use `test`; INSERT  IGNORE INTO t1 VALUES(1)
 use `test`; INSERT  IGNORE INTO t1 VALUES(1)

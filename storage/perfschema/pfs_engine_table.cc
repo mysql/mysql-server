@@ -1334,12 +1334,78 @@ bool pfs_show_status(handlerton *hton, THD *thd,
       name= "events_statements_summary_by_digest.memory";
       size= digest_max * sizeof(PFS_statements_digest_stat);
       total_memory+= size;
-      break;    
+      break;
+
+    case 137:
+      name= "(account_hash).count";
+      size= account_hash.count;
+      break;
+    case 138:
+      name= "(account_hash).size";
+      size= account_hash.size;
+      break;
+    case 139:
+      name= "(digest_hash).count";
+      size= digest_hash.count;
+      break;
+    case 140:
+      name= "(digest_hash).size";
+      size= digest_hash.size;
+      break;
+    case 141:
+      name= "(filename_hash).count";
+      size= filename_hash.count;
+      break;
+    case 142:
+      name= "(filename_hash).size";
+      size= filename_hash.size;
+      break;
+    case 143:
+      name= "(host_hash).count";
+      size= host_hash.count;
+      break;
+    case 144:
+      name= "(host_hash).size";
+      size= host_hash.size;
+      break;
+    case 145:
+      name= "(setup_actor_hash).count";
+      size= setup_actor_hash.count;
+      break;
+    case 146:
+      name= "(setup_actor_hash).size";
+      size= setup_actor_hash.size;
+      break;
+    case 147:
+      name= "(setup_object_hash).count";
+      size= setup_object_hash.count;
+      break;
+    case 148:
+      name= "(setup_object_hash).size";
+      size= setup_object_hash.size;
+      break;
+    case 149:
+      name= "(table_share_hash).count";
+      size= table_share_hash.count;
+      break;
+    case 150:
+      name= "(table_share_hash).size";
+      size= table_share_hash.size;
+      break;
+    case 151:
+      name= "(user_hash).count";
+      size= user_hash.count;
+      break;
+    case 152:
+      name= "(user_hash).size";
+      size= user_hash.size;
+      break;
+
     /*
       This case must be last,
       for aggregation in total_memory.
     */
-    case 137:
+    case 153:
       name= "performance_schema.memory";
       size= total_memory;
       /* This will fail if something is not advertised here */

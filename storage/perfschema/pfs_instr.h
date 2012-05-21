@@ -34,6 +34,8 @@ struct PFS_socket_class;
 #else
 #include <arpa/inet.h>
 #endif
+#include "my_global.h"
+#include "my_compiler.h"
 #include "pfs_lock.h"
 #include "pfs_stat.h"
 #include "pfs_instr_class.h"
@@ -68,7 +70,7 @@ struct PFS_instr
 };
 
 /** Instrumented mutex implementation. @see PSI_mutex. */
-struct PFS_mutex : public PFS_instr
+struct PFS_ALIGNED PFS_mutex : public PFS_instr
 {
   /** Mutex identity, typically a pthread_mutex_t. */
   const void *m_identity;
@@ -91,7 +93,7 @@ struct PFS_mutex : public PFS_instr
 };
 
 /** Instrumented rwlock implementation. @see PSI_rwlock. */
-struct PFS_rwlock : public PFS_instr
+struct PFS_ALIGNED PFS_rwlock : public PFS_instr
 {
   /** RWLock identity, typically a pthread_rwlock_t. */
   const void *m_identity;
@@ -126,7 +128,7 @@ struct PFS_rwlock : public PFS_instr
 };
 
 /** Instrumented cond implementation. @see PSI_cond. */
-struct PFS_cond : public PFS_instr
+struct PFS_ALIGNED PFS_cond : public PFS_instr
 {
   /** Condition identity, typically a pthread_cond_t. */
   const void *m_identity;
@@ -139,7 +141,7 @@ struct PFS_cond : public PFS_instr
 };
 
 /** Instrumented File and FILE implementation. @see PSI_file. */
-struct PFS_file : public PFS_instr
+struct PFS_ALIGNED PFS_file : public PFS_instr
 {
   uint32 get_version()
   { return m_lock.get_version(); }
@@ -159,7 +161,7 @@ struct PFS_file : public PFS_instr
 };
 
 /** Instrumented table implementation. @see PSI_table. */
-struct PFS_table
+struct PFS_ALIGNED PFS_table
 {
   /**
     True if table io instrumentation is enabled.
@@ -196,24 +198,21 @@ public:
   */
   void aggregate(void)
   {
-    if (likely(m_thread_owner != NULL))
+    if (m_has_io_stats && m_has_lock_stats)
     {
-      if (m_has_io_stats && m_has_lock_stats)
-      {
-        safe_aggregate(& m_table_stat, m_share, m_thread_owner);
-        m_has_io_stats= false;
-        m_has_lock_stats= false;
-      }
-      else if (m_has_io_stats)
-      {
-        safe_aggregate_io(& m_table_stat, m_share, m_thread_owner);
-        m_has_io_stats= false;
-      }
-      else if (m_has_lock_stats)
-      {
-        safe_aggregate_lock(& m_table_stat, m_share, m_thread_owner);
-        m_has_lock_stats= false;
-      }
+      safe_aggregate(& m_table_stat, m_share);
+      m_has_io_stats= false;
+      m_has_lock_stats= false;
+    }
+    else if (m_has_io_stats)
+    {
+      safe_aggregate_io(& m_table_stat, m_share);
+      m_has_io_stats= false;
+    }
+    else if (m_has_lock_stats)
+    {
+      safe_aggregate_lock(& m_table_stat, m_share);
+      m_has_lock_stats= false;
     }
   }
 
@@ -251,18 +250,15 @@ public:
 
 private:
   static void safe_aggregate(PFS_table_stat *stat,
-                             PFS_table_share *safe_share,
-                             PFS_thread *safe_thread);
+                             PFS_table_share *safe_share);
   static void safe_aggregate_io(PFS_table_stat *stat,
-                                PFS_table_share *safe_share,
-                                PFS_thread *safe_thread);
+                                PFS_table_share *safe_share);
   static void safe_aggregate_lock(PFS_table_stat *stat,
-                                  PFS_table_share *safe_share,
-                                  PFS_thread *safe_thread);
+                                  PFS_table_share *safe_share);
 };
 
 /** Instrumented socket implementation. @see PSI_socket. */
-struct PFS_socket : public PFS_instr
+struct PFS_ALIGNED PFS_socket : public PFS_instr
 {
   uint32 get_version()
   { return m_lock.get_version(); }
@@ -391,7 +387,7 @@ private:
 
 
 /** Instrumented thread implementation. @see PSI_thread. */
-struct PFS_thread : PFS_connection_slice
+struct PFS_ALIGNED PFS_thread : PFS_connection_slice
 {
   static PFS_thread* get_current_thread(void);
 
@@ -650,6 +646,8 @@ void update_table_derived_flags();
 void update_socket_derived_flags();
 /** Update derived flags for all instruments. */
 void update_instruments_derived_flags();
+
+extern LF_HASH filename_hash;
 
 /** @} */
 #endif

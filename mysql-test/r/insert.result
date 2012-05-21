@@ -75,6 +75,8 @@ create table t1 (email varchar(50));
 insert into t1 values ('sasha@mysql.com'),('monty@mysql.com'),('foo@hotmail.com'),('foo@aol.com'),('bar@aol.com');
 create table t2(id int not null auto_increment primary key, t2 varchar(50), unique(t2));
 insert delayed into t2 (t2) select distinct substring(email, locate('@', email)+1) from t1;
+Warnings:
+Warning	1287	'INSERT DELAYED' is deprecated and will be removed in a future release. Please use INSERT instead
 select * from t2;
 id	t2
 1	mysql.com
@@ -398,6 +400,8 @@ BEGIN
 INSERT DELAYED INTO t1 VALUES (2);
 RETURN 1;
 END |
+Warnings:
+Warning	1287	'INSERT DELAYED' is deprecated and will be removed in a future release. Please use INSERT instead
 SELECT f1();
 f1()
 1
@@ -406,6 +410,8 @@ f2()
 1
 INSERT INTO t1 VALUES (3);
 INSERT DELAYED INTO t1 VALUES (4);
+Warnings:
+Warning	1287	'INSERT DELAYED' is deprecated and will be removed in a future release. Please use INSERT instead
 INSERT INTO t1 VALUES (f1());
 ERROR HY000: Can't update table 't1' in stored function/trigger because it is already used by statement which invoked this stored function/trigger.
 INSERT DELAYED INTO t1 VALUES (f1());
@@ -434,12 +440,20 @@ CREATE TABLE t1 (i INT);
 CREATE TABLE t2 (i INT);
 CREATE TRIGGER t1_bi BEFORE INSERT ON t1 FOR EACH ROW
 INSERT DELAYED INTO t2 VALUES (NEW.i);
+Warnings:
+Warning	1287	'INSERT DELAYED' is deprecated and will be removed in a future release. Please use INSERT instead
 CREATE TRIGGER t1_bu BEFORE UPDATE ON t1 FOR EACH ROW
 INSERT DELAYED INTO t2 VALUES (NEW.i);
+Warnings:
+Warning	1287	'INSERT DELAYED' is deprecated and will be removed in a future release. Please use INSERT instead
 CREATE TRIGGER t1_bd BEFORE DELETE ON t1 FOR EACH ROW
 INSERT DELAYED INTO t2 VALUES (OLD.i);
+Warnings:
+Warning	1287	'INSERT DELAYED' is deprecated and will be removed in a future release. Please use INSERT instead
 INSERT INTO t1 VALUES (1);
 INSERT DELAYED INTO t1 VALUES (2);
+Warnings:
+Warning	1287	'INSERT DELAYED' is deprecated and will be removed in a future release. Please use INSERT instead
 SELECT * FROM t1;
 i
 1
@@ -466,10 +480,14 @@ CREATE TRIGGER t1_bi BEFORE INSERT ON t1 FOR EACH ROW
 SET @a= NEW.i;
 SET @a= 0;
 INSERT DELAYED INTO t1 VALUES (1);
+Warnings:
+Warning	1287	'INSERT DELAYED' is deprecated and will be removed in a future release. Please use INSERT instead
 SELECT @a;
 @a
 1
 INSERT DELAYED INTO t1 VALUES (2);
+Warnings:
+Warning	1287	'INSERT DELAYED' is deprecated and will be removed in a future release. Please use INSERT instead
 SELECT @a;
 @a
 2
@@ -480,9 +498,15 @@ CREATE TRIGGER t1_ai AFTER INSERT ON t1 FOR EACH ROW
 INSERT INTO t2 VALUES (NEW.i);
 CREATE TRIGGER t1_au AFTER UPDATE ON t1 FOR EACH ROW
 INSERT DELAYED INTO t2 VALUES (NEW.i);
+Warnings:
+Warning	1287	'INSERT DELAYED' is deprecated and will be removed in a future release. Please use INSERT instead
 CREATE TRIGGER t1_ad AFTER DELETE ON t1 FOR EACH ROW
 INSERT DELAYED INTO t2 VALUES (OLD.i);
+Warnings:
+Warning	1287	'INSERT DELAYED' is deprecated and will be removed in a future release. Please use INSERT instead
 INSERT DELAYED INTO t1 VALUES (1);
+Warnings:
+Warning	1287	'INSERT DELAYED' is deprecated and will be removed in a future release. Please use INSERT instead
 SELECT * FROM t1;
 i
 1

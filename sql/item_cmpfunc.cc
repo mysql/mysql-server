@@ -451,7 +451,8 @@ static bool convert_constant_item(THD *thd, Item_field *field_item,
       orig_field_val= field->val_int();
     int rc;
     if (!(*item)->is_null() &&
-        (((rc= (*item)->save_in_field(field, 1)) == 0) || rc == 3)) // TS-TODO
+        (((rc= (*item)->save_in_field(field, 1)) == TYPE_OK) ||
+         rc == TYPE_NOTE_TIME_TRUNCATED)) // TS-TODO
     {
       int field_cmp= 0;
       /*
@@ -532,23 +533,13 @@ void Item_bool_func2::fix_length_and_dec()
 
   DBUG_ENTER("Item_bool_func2::fix_length_and_dec");
 
-  /* 
-    We allow to convert to Unicode character sets in some cases.
-    The conditions when conversion is possible are:
-    - arguments A and B have different charsets
-    - A wins according to coercibility rules
-    - character set of A is superset for character set of B
-   
-    If all of the above is true, then it's possible to convert
-    B into the character set of A, and then compare according
-    to the collation of A.
+  /*
+    See agg_item_charsets() in item.cc for comments
+    on character set and collation aggregation.
   */
-
-  
-  DTCollation coll;
   if (args[0]->result_type() == STRING_RESULT &&
       args[1]->result_type() == STRING_RESULT &&
-      agg_arg_charsets_for_comparison(coll, args, 2))
+      agg_arg_charsets_for_comparison(cmp.cmp_collation, args, 2))
     DBUG_VOID_RETURN;
     
   args[0]->cmp_context= args[1]->cmp_context=
@@ -1925,7 +1916,7 @@ void Item_in_optimizer::fix_after_pullout(st_select_lex *parent_select,
                                           st_select_lex *removed_select,
                                           Item **ref)
 {
-  used_tables_cache=0;
+  used_tables_cache= get_initial_pseudo_tables();
   not_null_tables_cache= 0;
   const_item_cache= 1;
 
@@ -2759,6 +2750,7 @@ Item_func_ifnull::fix_length_and_dec()
 {
   uint32 char_length;
   agg_result_type(&hybrid_type, args, 2);
+  cached_field_type= agg_field_type(args, 2);
   maybe_null=args[1]->maybe_null;
   decimals= max(args[0]->decimals, args[1]->decimals);
   unsigned_flag= args[0]->unsigned_flag && args[1]->unsigned_flag;
@@ -2778,7 +2770,7 @@ Item_func_ifnull::fix_length_and_dec()
 
   switch (hybrid_type) {
   case STRING_RESULT:
-    if (agg_arg_charsets_for_comparison(collation, args, arg_count))
+    if (count_string_result_length(cached_field_type, args, arg_count))
       return;
     break;
   case DECIMAL_RESULT:
@@ -2792,7 +2784,6 @@ Item_func_ifnull::fix_length_and_dec()
     DBUG_ASSERT(0);
   }
   fix_char_length(char_length);
-  cached_field_type= agg_field_type(args, 2);
 }
 
 
@@ -4826,7 +4817,7 @@ void Item_cond::fix_after_pullout(st_select_lex *parent_select,
   List_iterator<Item> li(list);
   Item *item;
 
-  used_tables_cache= 0;
+  used_tables_cache= get_initial_pseudo_tables();
   const_item_cache= true;
 
   if (functype() == COND_AND_FUNC && abort_on_null)
@@ -5192,22 +5183,19 @@ longlong Item_is_not_null_test::val_int()
 */
 void Item_is_not_null_test::update_used_tables()
 {
+  const table_map initial_pseudo_tables= get_initial_pseudo_tables();
+  used_tables_cache= initial_pseudo_tables;
   if (!args[0]->maybe_null)
   {
-    used_tables_cache= 0;			/* is always true */
-    cached_value= (longlong) 1;
+    cached_value= 1;
+    return;
   }
-  else
-  {
-    args[0]->update_used_tables();
-    with_subselect= args[0]->has_subquery();
-
-    if (!(used_tables_cache=args[0]->used_tables()) && !with_subselect)
-    {
-      /* Remember if the value is always NULL or never NULL */
-      cached_value= (longlong) !args[0]->is_null();
-    }
-  }
+  args[0]->update_used_tables();
+  with_subselect= args[0]->has_subquery();
+  used_tables_cache|= args[0]->used_tables();
+  if (used_tables_cache == initial_pseudo_tables && !with_subselect)
+    /* Remember if the value is always NULL or never NULL */
+    cached_value= !args[0]->is_null();
 }
 
 
@@ -5368,8 +5356,8 @@ bool Item_func_like::fix_fields(THD *thd, Item **ref)
       }
       if (canDoTurboBM)
       {
-        pattern     = first + 1;
         pattern_len = (int) len - 2;
+        pattern     = thd->strmake(first + 1, pattern_len);
         DBUG_PRINT("info", ("Initializing pattern: '%s'", first));
         int *suff = (int*) thd->alloc((int) (sizeof(int)*
                                       ((pattern_len + 1)*2+

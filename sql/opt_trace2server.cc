@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -111,7 +111,7 @@ Opt_trace_start::Opt_trace_start(THD *thd, TABLE_LIST *tbl,
                                  enum enum_sql_command sql_command,
                                  List<set_var_base> *set_vars,
                                  const char *query, size_t query_length,
-                                 sp_instr *instr,
+                                 sp_printable *instr,
                                  const CHARSET_INFO *query_charset)
   : ctx(&thd->opt_trace)
 {
@@ -358,7 +358,7 @@ void opt_trace_disable_if_no_stored_proc_func_access(THD *thd, sp_head *sp)
   Security_context * const backup_thd_sctx= thd->security_ctx;
   DBUG_PRINT("opt", ("routine: '%s'", sp->m_name.str));
   thd->security_ctx= &thd->main_security_ctx;
-  const bool rc= check_show_routine_access(thd, sp, &full_access) ||
+  const bool rc= sp->check_show_access(thd, &full_access) ||
     !full_access;
   thd->security_ctx= backup_thd_sctx;
   if (rc)

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -54,10 +54,6 @@
 
 using std::min;
 using std::max;
-
-#ifdef NO_EMBEDDED_ACCESS_CHECKS
-#define sp_restore_security_context(A,B) while (0) {}
-#endif
 
 bool check_reserved_words(LEX_STRING *name)
 {
@@ -182,7 +178,8 @@ Item_func::fix_fields(THD *thd, Item **ref)
     save_resolve= thd->lex->current_select->resolve_place;
     thd->lex->current_select->resolve_place= st_select_lex::RESOLVE_NONE;
   }
-  used_tables_cache= not_null_tables_cache= 0;
+  used_tables_cache= get_initial_pseudo_tables();
+  not_null_tables_cache= 0;
   const_item_cache=1;
 
   /*
@@ -246,7 +243,8 @@ void Item_func::fix_after_pullout(st_select_lex *parent_select,
 {
   Item **arg,**arg_end;
 
-  used_tables_cache= not_null_tables_cache= 0;
+  used_tables_cache= get_initial_pseudo_tables();
+  not_null_tables_cache= 0;
   const_item_cache=1;
 
   if (arg_count)
@@ -416,7 +414,7 @@ void Item_func::split_sum_func(THD *thd, Ref_ptr_array ref_pointer_array,
 
 void Item_func::update_used_tables()
 {
-  used_tables_cache=0;
+  used_tables_cache= get_initial_pseudo_tables();
   const_item_cache=1;
   with_subselect= false;
   for (uint i=0 ; i < arg_count ; i++)
@@ -2622,7 +2620,7 @@ bool Item_func_rand::fix_fields(THD *thd,Item **ref)
 {
   if (Item_real_func::fix_fields(thd, ref))
     return TRUE;
-  used_tables_cache|= RAND_TABLE_BIT;
+
   if (arg_count)
   {					// Only use argument once in query
     /*
@@ -2653,12 +2651,6 @@ bool Item_func_rand::fix_fields(THD *thd,Item **ref)
     rand= &thd->rand;
   }
   return FALSE;
-}
-
-void Item_func_rand::update_used_tables()
-{
-  Item_real_func::update_used_tables();
-  used_tables_cache|= RAND_TABLE_BIT;
 }
 
 
@@ -4546,7 +4538,7 @@ longlong Item_func_sleep::val_int()
 
 #define extra_size sizeof(double)
 
-static user_var_entry *get_variable(HASH *hash, NameString &name,
+static user_var_entry *get_variable(HASH *hash, Name_string &name,
 				    bool create_if_not_exists)
 {
   user_var_entry *entry;
@@ -5239,12 +5231,13 @@ void Item_func_set_user_var::make_field(Send_field *tmp_field)
     TRUE        Error
 */
 
-int Item_func_set_user_var::save_in_field(Field *field, bool no_conversions,
-                                          bool can_use_result_field)
+type_conversion_status
+Item_func_set_user_var::save_in_field(Field *field, bool no_conversions,
+                                      bool can_use_result_field)
 {
   bool use_result_field= (!can_use_result_field ? 0 :
                           (result_field && result_field != field));
-  int error;
+  type_conversion_status error;
 
   /* Update the value of the user variable */
   check(use_result_field);
@@ -5362,7 +5355,7 @@ longlong Item_func_get_user_var::val_int()
 
 static int
 get_var_with_binlog(THD *thd, enum_sql_command sql_command,
-                    NameString &name, user_var_entry **out_entry)
+                    Name_string &name, user_var_entry **out_entry)
 {
   BINLOG_USER_VAR_EVENT *user_var_event;
   user_var_entry *var_entry;
@@ -6576,6 +6569,12 @@ Item_func_sp::func_name() const
 }
 
 
+table_map Item_func_sp::get_initial_pseudo_tables() const
+{
+  return m_sp->m_chistics->detistic ? 0 : RAND_TABLE_BIT;
+}
+
+
 void my_missing_function_error(const LEX_STRING &token, const char *func_name)
 {
   if (token.length && is_lex_native_function (&token))
@@ -6613,7 +6612,7 @@ Item_func_sp::init_result_field(THD *thd)
   DBUG_ASSERT(m_sp == NULL);
   DBUG_ASSERT(sp_result_field == NULL);
 
-  if (!(m_sp= sp_find_routine(thd, TYPE_ENUM_FUNCTION, m_name,
+  if (!(m_sp= sp_find_routine(thd, SP_TYPE_FUNCTION, m_name,
                                &thd->sp_func_cache, TRUE)))
   {
     my_missing_function_error (m_name->m_name, m_name->m_qname.str);
@@ -6945,7 +6944,7 @@ Item_func_sp::fix_fields(THD *thd, Item **ref)
       Try to set and restore the security context to see whether it's valid
     */
     Security_context *save_secutiry_ctx;
-    res= set_routine_security_ctx(thd, m_sp, false, &save_secutiry_ctx);
+    res= m_sp->set_security_ctx(thd, &save_secutiry_ctx);
     if (!res)
       m_sp->m_security_ctx.restore_security_context(thd, save_secutiry_ctx);
     
@@ -6953,10 +6952,7 @@ Item_func_sp::fix_fields(THD *thd, Item **ref)
   }
 
   if (!m_sp->m_chistics->detistic)
-  {
-    used_tables_cache |= RAND_TABLE_BIT;
-    const_item_cache= FALSE;
-  }
+    const_item_cache= false;
 
   DBUG_RETURN(res);
 }
@@ -6967,10 +6963,7 @@ void Item_func_sp::update_used_tables()
   Item_func::update_used_tables();
 
   if (!m_sp->m_chistics->detistic)
-  {
-    used_tables_cache |= RAND_TABLE_BIT;
-    const_item_cache= FALSE;
-  }
+    const_item_cache= false;
 }
 
 
