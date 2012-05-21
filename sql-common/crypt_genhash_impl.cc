@@ -423,7 +423,7 @@ my_crypt_genhash(char *ctbuffer,
 extern "C"
 void generate_user_salt(char *buffer, int buffer_len)
 {
-  char *end= buffer + buffer_len;
+  char *end= buffer + buffer_len - 1;
 #ifdef HAVE_YASSL
   yaSSL::RAND_bytes((unsigned char *) buffer, buffer_len);
 #else

@@ -8,24 +8,26 @@
 
 #include <string.h>
 #include <stdarg.h>
-#include <pthread.h>
 #include <openssl/rsa.h>
 #include <openssl/pem.h>
 #include <openssl/err.h>
+#if defined(_WIN32) && !defined(_OPENSSL_Applink)
+#include <openssl/applink.c>
+#endif
 #include "mysql/service_my_plugin_log.h"
 
 #define MAX_CIPHER_LENGTH 1024
-pthread_mutex_t g_public_key_mutex;
+mysql_mutex_t g_public_key_mutex;
 
 int sha256_password_init(char *a, size_t b, int c, va_list d)
 {
-  pthread_mutex_init(&g_public_key_mutex, 0);
+  mysql_mutex_init(0,&g_public_key_mutex, MY_MUTEX_INIT_SLOW);
   return 0;
 }
 
 int sha256_password_deinit(void)
 {
-  pthread_mutex_destroy(&g_public_key_mutex);
+  mysql_mutex_destroy(&g_public_key_mutex);
   return 0;
 }
 
@@ -43,9 +45,9 @@ RSA *rsa_init(MYSQL *mysql)
   static RSA *g_public_key= NULL;
   RSA *key= NULL;
 
-  pthread_mutex_lock(&g_public_key_mutex);
+  mysql_mutex_lock(&g_public_key_mutex);
   key= g_public_key;
-  pthread_mutex_unlock(&g_public_key_mutex);
+  mysql_mutex_unlock(&g_public_key_mutex);
 
   if (key != NULL)
     return key;
@@ -75,9 +77,9 @@ RSA *rsa_init(MYSQL *mysql)
     return 0;
   }
   
-  pthread_mutex_lock(&g_public_key_mutex);
+  mysql_mutex_lock(&g_public_key_mutex);
   key= g_public_key= PEM_read_RSA_PUBKEY(pub_key_file, 0, 0, 0);
-  pthread_mutex_unlock(&g_public_key_mutex);
+  mysql_mutex_unlock(&g_public_key_mutex);
   fclose(pub_key_file);
   if (g_public_key == NULL)
   {
