@@ -5863,6 +5863,8 @@ MYSQL_BIN_LOG::process_flush_stage_queue(my_off_t *total_bytes_var,
       if (flush_error == 0)
         flush_error= result.first;
     }
+    if (first_seen == NULL)
+      first_seen= queue;
   }
 
   *out_queue_var= first_seen;
@@ -6163,7 +6165,7 @@ int MYSQL_BIN_LOG::ordered_commit(THD *thd, bool all, bool skip_commit)
     DBUG_RETURN(finish_commit(thd));
   }
 
-  THD *wait_queue;
+  THD *wait_queue= NULL;
   flush_error= process_flush_stage_queue(&total_bytes, &do_rotate, &wait_queue);
 
   my_off_t flush_end_pos= 0;
