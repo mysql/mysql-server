@@ -1,0 +1,3 @@
+--source suite/sys_vars/inc/slave_max_allowed_packet_basic.inc
+
+
