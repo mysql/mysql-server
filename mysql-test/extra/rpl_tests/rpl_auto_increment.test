@@ -230,6 +230,7 @@ connection slave;
 source include/start_slave.inc;
 connection master;
 --exec $MYSQL_BINLOG $MYSQLD_DATADIR/master-bin.saved | $MYSQL test
+--remove_file $MYSQLD_DATADIR/master-bin.saved;
 sync_slave_with_master;
 
 let $diff_tables= master:t1, slave:t1;

@@ -385,10 +385,6 @@ JOIN::prepare(TABLE_LIST *tables_init,
     TABLE_LIST *tbl;
     for (tbl= select_lex->leaf_tables; tbl; tbl= tbl->next_leaf)
     {
-#ifdef TODO_INVESTIGATE
-      if (tbl->embedding)
-        continue;
-#endif
       /* 
         This will only prune constant conditions, which will be used for
         lock pruning.
