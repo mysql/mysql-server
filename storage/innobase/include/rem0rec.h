@@ -356,7 +356,8 @@ rec_get_offsets_func(
 					 (ULINT_UNDEFINED if all fields) */
 	mem_heap_t**		heap,	/*!< in/out: memory heap */
 	const char*		file,	/*!< in: file name where called */
-	ulint			line);	/*!< in: line number where called */
+	ulint			line)	/*!< in: line number where called */
+	__attribute__((nonnull(1,2,5,6),warn_unused_result));
 
 #define rec_get_offsets(rec,index,offsets,n,heap)	\
 	rec_get_offsets_func(rec,index,offsets,n,heap,__FILE__,__LINE__)
