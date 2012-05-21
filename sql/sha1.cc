@@ -18,15 +18,14 @@
   @file
 
   @brief
-  Wrapper functions for OpenSSL, YaSSL and MySQL's SHA1
-  implementations. Also provides a Compatibility layer
-  to make available YaSSL's SHA1 implementation.
+  Wrapper functions for OpenSSL, YaSSL implementations. Also provides a
+  Compatibility layer to make available YaSSL's SHA1 implementation.
 */
 
 #include <my_global.h>
 #include <sha1.h>
 
-#ifdef HAVE_YASSL
+#if defined(HAVE_YASSL)
 #include "sha.hpp"
 
 /**
@@ -66,8 +65,29 @@ void mysql_sha1_multi_yassl(uint8 *digest, const char *buf1, int len1,
   hasher.Final((TaoCrypt::byte *) digest);
 }
 
-#endif /* HAVE_YASSL */
+#elif defined(HAVE_OPENSSL)
+#include <openssl/sha.h>
 
+int mysql_sha1_reset(SHA_CTX *context)
+{
+    return SHA1_Init(context);
+}
+
+
+int mysql_sha1_input(SHA_CTX *context, const uint8 *message_array,
+                     unsigned length)
+{
+    return SHA1_Update(context, message_array, length);
+}
+
+
+int mysql_sha1_result(SHA_CTX *context,
+                      uint8 Message_Digest[SHA1_HASH_SIZE])
+{
+    return SHA1_Final(Message_Digest, context);
+}
+
+#endif /* HAVE_YASSL */
 
 /**
   Wrapper function to compute SHA1 message digest.
@@ -80,10 +100,10 @@ void mysql_sha1_multi_yassl(uint8 *digest, const char *buf1, int len1,
 */
 void compute_sha1_hash(uint8 *digest, const char *buf, int len)
 {
-#ifdef HAVE_YASSL
+#if defined(HAVE_YASSL)
   mysql_sha1_yassl(digest, buf, len);
-#else
-  SHA1_CONTEXT sha1_context;
+#elif defined(HAVE_OPENSSL)
+  SHA_CTX sha1_context;
 
   mysql_sha1_reset(&sha1_context);
   mysql_sha1_input(&sha1_context, (const uint8 *) buf, len);
@@ -107,10 +127,10 @@ void compute_sha1_hash(uint8 *digest, const char *buf, int len)
 void compute_sha1_hash_multi(uint8 *digest, const char *buf1, int len1,
                              const char *buf2, int len2)
 {
-#ifdef HAVE_YASSL
+#if defined(HAVE_YASSL)
   mysql_sha1_multi_yassl(digest, buf1, len1, buf2, len2);
-#else
-  SHA1_CONTEXT sha1_context;
+#elif defined(HAVE_OPENSSL)
+  SHA_CTX sha1_context;
 
   mysql_sha1_reset(&sha1_context);
   mysql_sha1_input(&sha1_context, (const uint8 *) buf1, len1);
