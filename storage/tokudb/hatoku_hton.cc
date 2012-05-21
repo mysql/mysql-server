@@ -504,7 +504,7 @@ static int tokudb_init_func(void *p) {
     assert(!r);
     r = db_env->set_generate_row_callback_for_del(db_env,generate_row_for_del);
     assert(!r);
-#if defined(HA_GENERAL_ONLINE)
+#if TOKU_INCLUDE_UPDATE_FUN
     db_env->set_update(db_env, tokudb_update_fun);
 #endif
     r = db_env->open(db_env, tokudb_home, tokudb_init_flags, S_IRUSR|S_IWUSR|S_IRGRP|S_IWGRP|S_IROTH|S_IWOTH);
