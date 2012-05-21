@@ -57,6 +57,7 @@
 #ifdef  __WIN__
 #include <io.h>
 #endif
+#include "sql_test.h" // lock_descriptions[]
 
 
 bool
@@ -158,15 +159,45 @@ Repair_mrg_table_error_handler::handle_condition(THD *,
 */
 
 /**
-  Protects table_def_hash, used and unused lists in the
-  TABLE_SHARE object, LRU lists of used TABLEs and used
-  TABLE_SHAREs, refresh_version and the table id counter.
+  LOCK_open protects the following variables/objects:
+
+  1) The table_def_cache
+     This is the hash table mapping table name to a table
+     share object. The hash table can only be manipulated
+     while holding LOCK_open.
+  2) last_table_id
+     Generation of a new unique table_map_id for a table
+     share is done through incrementing last_table_id, a
+     global variable used for this purpose.
+  3) LOCK_open protects the initialisation of the table share
+     object and all its members and also protects reading the
+     .frm file from where the table share is initialised.
+  4) In particular the share->ref_count is updated each time
+     a new table object is created that refers to a table share.
+     This update is protected by LOCK_open.
+  5) oldest_unused_share, end_of_unused_share and share->next
+     and share->prev are variables to handle the lists of table
+     share objects, these can only be read and manipulated while
+     holding the LOCK_open mutex.
+  6) table_def_shutdown_in_progress can be updated only while
+     holding LOCK_open and ALL table cache mutexes.
+  7) refresh_version
+     This variable can only be updated while holding LOCK_open AND
+     all table cache mutexes.
+  8) share->version
+     This variable is initialised while holding LOCK_open. It can only
+     be updated while holding LOCK_open AND all table cache mutexes.
+     So if a table share is found through a reference its version won't
+     change if any of those mutexes are held.
+  9) share->m_flush_tickets
 */
 mysql_mutex_t LOCK_open;
 
 #ifdef HAVE_PSI_INTERFACE
 static PSI_mutex_key key_LOCK_open;
+static PSI_mutex_key key_LOCK_table_cache;
 static PSI_mutex_info all_tdc_mutexes[]= {
+  { &key_LOCK_table_cache, "LOCK_table_cache", 0},
   { &key_LOCK_open, "LOCK_open", PSI_FLAG_GLOBAL }
 };
 
@@ -199,69 +230,344 @@ static void modify_slave_open_temp_tables(THD *thd, int inc)
   }
 }
 
+
 /**
-   Total number of TABLE instances for tables in the table definition cache
-   (both in use by threads and not in use). This value is accessible to user
-   as "Open_tables" status variable.
+  Container for all table cache instances in the system.
 */
-uint  table_cache_count= 0;
+Table_cache_manager table_cache_manager;
+
+
 /**
-   List that contains all TABLE instances for tables in the table definition
-   cache that are not in use by any thread. Recently used TABLE instances are
-   appended to the end of the list. Thus the beginning of the list contains
-   tables which have been least recently used.
+  Element that represents the table in the specific table cache.
+  Plays for table cache instance role similar to role of TABLE_SHARE
+  for table definition cache.
 */
-TABLE *unused_tables;
+
+struct Table_cache_element
+{
+  /*
+    Doubly-linked (back-linked) lists of used and unused TABLE objects
+    for this table in this table cache (one such list per table cache).
+  */
+  typedef I_P_List <TABLE,
+                    I_P_List_adapter<TABLE,
+                                     &TABLE::cache_next,
+                                     &TABLE::cache_prev> > TABLE_list;
+
+  TABLE_list used_tables;
+  TABLE_list free_tables;
+  TABLE_SHARE *share;
+
+  Table_cache_element(TABLE_SHARE *share_arg)
+    : share(share_arg)
+  {
+  }
+};
+
+
+extern "C" uchar *table_cache_key(const uchar *record,
+                                  size_t *length,
+                                  my_bool not_used __attribute__((unused)))
+{
+  Table_cache_element *entry= (Table_cache_element*) record;
+  *length= entry->share->table_cache_key.length;
+  return (uchar*) entry->share->table_cache_key.str;
+}
+
+
+static void table_cache_free_entry(Table_cache_element *element)
+{
+  delete element;
+}
+
+
+/**
+  Initialize instance of table cache.
+
+  @retval false - success.
+  @retval true  - failure.
+*/
+
+bool Table_cache::init()
+{
+  mysql_mutex_init(key_LOCK_table_cache, &m_lock, MY_MUTEX_INIT_FAST);
+  m_unused_tables= NULL;
+  m_table_count= 0;
+
+  if (my_hash_init(&m_cache, &my_charset_bin,
+                   table_cache_size_per_instance, 0, 0,
+                   table_cache_key, (my_hash_free_key) table_cache_free_entry,
+                   0))
+  {
+    mysql_mutex_destroy(&m_lock);
+    return true;
+  }
+  return false;
+}
+
+
+/** Destroy instance of table cache. */
+
+void Table_cache::destroy()
+{
+  my_hash_free(&m_cache);
+  mysql_mutex_destroy(&m_lock);
+}
+
+
+/**
+  Initialize all instances of table cache to be used by server.
+
+  @retval false - success.
+  @retval true  - failure.
+*/
+
+bool Table_cache_manager::init()
+{
+  for (uint i= 0; i < table_cache_instances; i++)
+  {
+    if (m_table_cache[i].init())
+    {
+      for (uint j= 0; j < i; j++)
+        m_table_cache[i].destroy();
+      return true;
+    }
+  }
+
+  return false;
+}
+
+
+/** Destroy all instances of table cache which were used by server. */
+
+void Table_cache_manager::destroy()
+{
+  for (uint i= 0; i < table_cache_instances; i++)
+    m_table_cache[i].destroy();
+}
+
+
+/**
+  Get total number of used and unused TABLE objects in all table caches.
+
+  @note Doesn't require acquisition of table cache locks if inexact number
+        of tables is acceptable.
+*/
+
+uint Table_cache_manager::cached_tables()
+{
+  uint result= 0;
+
+  for (uint i= 0; i < table_cache_instances; i++)
+    result+= m_table_cache[i].cached_tables();
+
+  return result;
+}
+
+
+/**
+  Acquire locks on all instances of table cache and table definition
+  cache (i.e. LOCK_open).
+*/
+
+void Table_cache_manager::lock_all_and_tdc()
+{
+  for (uint i= 0; i < table_cache_instances; i++)
+    m_table_cache[i].lock();
+
+  mysql_mutex_lock(&LOCK_open);
+}
+
+
+/**
+  Release locks on all instances of table cache and table definition
+  cache.
+*/
+
+void Table_cache_manager::unlock_all_and_tdc()
+{
+  mysql_mutex_unlock(&LOCK_open);
+
+  for (uint i= 0; i < table_cache_instances; i++)
+    m_table_cache[i].unlock();
+}
+
+
+/**
+  Assert that caller owns locks on all instances of table cache.
+*/
+
+void Table_cache_manager::assert_owner_all()
+{
+  for (uint i= 0; i < table_cache_instances; i++)
+    m_table_cache[i].assert_owner();
+}
+
+
+/**
+  Assert that caller owns locks on all instances of table cache
+  and table definition cache.
+*/
+
+void Table_cache_manager::assert_owner_all_and_tdc()
+{
+  assert_owner_all();
+
+  mysql_mutex_assert_owner(&LOCK_open);
+}
+
+
+/**
+  Construct iterator over all used TABLE objects for the table share.
+
+  @note Assumes that caller owns locks on all table caches.
+*/
+
+Table_cache_iterator::Table_cache_iterator(const TABLE_SHARE *share_arg)
+  : share(share_arg), current_cache_index(0), current_table(NULL)
+{
+  table_cache_manager.assert_owner_all();
+
+  move_to_next_table();
+}
+
+
+/** Helper that moves iterator to the next used TABLE for the table share. */
+
+void Table_cache_iterator::move_to_next_table()
+{
+  for (; current_cache_index < table_cache_instances; ++current_cache_index)
+  {
+    Table_cache_element *el;
+
+    if ((el= share->cache_element[current_cache_index]))
+    {
+      if ((current_table= el->used_tables.front()))
+        break;
+    }
+  }
+}
+
+
+/**
+  Get current used TABLE instance and move iterator to the next one.
+
+  @note Assumes that caller owns locks on all table caches.
+*/
+
+TABLE* Table_cache_iterator::operator ++(int)
+{
+  table_cache_manager.assert_owner_all();
+
+  TABLE *result= current_table;
+
+  if (current_table)
+  {
+    Table_cache_element::TABLE_list::Iterator
+      it(share->cache_element[current_cache_index]->used_tables, current_table);
+
+    current_table= ++it;
+
+    if (!current_table)
+    {
+      ++current_cache_index;
+      move_to_next_table();
+    }
+  }
+
+  return result;
+}
+
+
+void Table_cache_iterator::rewind()
+{
+  current_cache_index= 0;
+  current_table= NULL;
+  move_to_next_table();
+}
+
+
 HASH table_def_cache;
 static TABLE_SHARE *oldest_unused_share, end_of_unused_share;
-static bool table_def_inited= 0;
-static bool table_def_shutdown_in_progress= 0;
+static bool table_def_inited= false;
+static bool table_def_shutdown_in_progress= false;
 
 static bool check_and_update_table_version(THD *thd, TABLE_LIST *tables,
                                            TABLE_SHARE *table_share);
 static bool open_table_entry_fini(THD *thd, TABLE_SHARE *share, TABLE *entry);
 static bool auto_repair_table(THD *thd, TABLE_LIST *table_list);
-static void free_cache_entry(TABLE *entry);
 static bool
 has_write_table_with_auto_increment(TABLE_LIST *tables);
 static bool
 has_write_table_with_auto_increment_and_select(TABLE_LIST *tables);
 static bool has_write_table_auto_increment_not_first_in_pk(TABLE_LIST *tables);
 
-uint cached_open_tables(void)
+
+/**
+  Add table to the tail of unused tables list for table cache
+  (i.e. as the most recently used table in this list).
+*/
+
+void Table_cache::link_unused_table(TABLE *table)
 {
-  return table_cache_count;
+  if (m_unused_tables)
+  {
+    table->next= m_unused_tables;
+    table->prev= m_unused_tables->prev;
+    m_unused_tables->prev= table;
+    table->prev->next= table;
+  }
+  else
+    m_unused_tables= table->next= table->prev= table;
+  check_unused();
+}
+
+
+/** Remove table from the unused tables list for table cache. */
+
+void Table_cache::unlink_unused_table(TABLE *table)
+{
+  table->next->prev= table->prev;
+  table->prev->next= table->next;
+  if (table == m_unused_tables)
+  {
+    m_unused_tables= m_unused_tables->next;
+    if (table == m_unused_tables)
+      m_unused_tables= NULL;
+  }
+  check_unused();
 }
 
 
 #ifdef EXTRA_DEBUG
-static void check_unused(void)
+void Table_cache::check_unused()
 {
-  uint count= 0, open_files= 0, idx= 0;
-  TABLE *cur_link, *start_link, *entry;
-  TABLE_SHARE *share;
+  uint count= 0;
 
-  if ((start_link=cur_link=unused_tables))
+  if (m_unused_tables != NULL)
   {
+    TABLE *cur_link= m_unused_tables;
+    TABLE *start_link= m_unused_tables;
     do
     {
       if (cur_link != cur_link->next->prev || cur_link != cur_link->prev->next)
       {
-	DBUG_PRINT("error",("Unused_links aren't linked properly")); /* purecov: inspected */
-	return; /* purecov: inspected */
+	DBUG_PRINT("error",("Unused_links aren't linked properly"));
+	return;
       }
-    } while (count++ < table_cache_count &&
-	     (cur_link=cur_link->next) != start_link);
+    } while (count++ < m_table_count &&
+	     (cur_link= cur_link->next) != start_link);
     if (cur_link != start_link)
-    {
-      DBUG_PRINT("error",("Unused_links aren't connected")); /* purecov: inspected */
-    }
+      DBUG_PRINT("error",("Unused_links aren't connected"));
   }
-  for (idx=0 ; idx < table_def_cache.records ; idx++)
-  {
-    share= (TABLE_SHARE*) my_hash_element(&table_def_cache, idx);
 
-    TABLE_SHARE::TABLE_list::Iterator it(share->free_tables);
+  for (uint idx= 0; idx < m_cache.records; idx++)
+  {
+    Table_cache_element *el=
+      (Table_cache_element*) my_hash_element(&m_cache, idx);
+
+    Table_cache_element::TABLE_list::Iterator it(el->free_tables);
+    TABLE *entry;
     while ((entry= it++))
     {
       /* We must not have TABLEs in the free list that have their file closed. */
@@ -270,35 +576,100 @@ static void check_unused(void)
       DBUG_ASSERT(! entry->file->extra(HA_EXTRA_IS_ATTACHED_CHILDREN));
 
       if (entry->in_use)
-      {
-        DBUG_PRINT("error",("Used table is in share's list of unused tables")); /* purecov: inspected */
-      }
+        DBUG_PRINT("error",("Used table is in share's list of unused tables"));
       count--;
-      open_files++;
     }
-    it.init(share->used_tables);
+    it.init(el->used_tables);
     while ((entry= it++))
     {
       if (!entry->in_use)
-      {
-        DBUG_PRINT("error",("Unused table is in share's list of used tables")); /* purecov: inspected */
-      }
-      open_files++;
+        DBUG_PRINT("error",("Unused table is in share's list of used tables"));
     }
   }
+
   if (count != 0)
-  {
-    DBUG_PRINT("error",("Unused_links doesn't match open_cache: diff: %d", /* purecov: inspected */
-			count)); /* purecov: inspected */
-  }
+    DBUG_PRINT("error",("Unused_links doesn't match open_cache: diff: %d",
+                        count));
 }
-#else
-#define check_unused()
+#endif
+
+
+#ifndef DBUG_OFF
+
+/**
+  Print debug information for the contents of all table cache instances.
+*/
+
+void Table_cache_manager::print_tables()
+{
+  puts("DB             Table                            Version  Thread  Open  Lock");
+
+  for (uint i= 0; i < table_cache_instances; i++)
+    m_table_cache[i].print_tables();
+}
+
+
+/**
+  Print debug information for the contents of the table cache.
+*/
+
+void Table_cache::print_tables()
+{
+  uint unused= 0;
+  uint count=0;
+
+  compile_time_assert(TL_WRITE_ONLY+1 == array_elements(lock_descriptions));
+
+  for (uint idx= 0; idx < m_cache.records; idx++)
+  {
+    Table_cache_element *el=
+      (Table_cache_element*) my_hash_element(&m_cache, idx);
+
+    Table_cache_element::TABLE_list::Iterator it(el->used_tables);
+    TABLE *entry;
+    while ((entry= it++))
+    {
+      printf("%-14.14s %-32s%6ld%8ld%6d  %s\n",
+             entry->s->db.str, entry->s->table_name.str, entry->s->version,
+             entry->in_use->thread_id, entry->db_stat ? 1 : 0,
+             lock_descriptions[(int)entry->reginfo.lock_type]);
+    }
+    it.init(el->free_tables);
+    while ((entry= it++))
+    {
+      unused++;
+      printf("%-14.14s %-32s%6ld%8ld%6d  %s\n",
+             entry->s->db.str, entry->s->table_name.str, entry->s->version,
+             0L, entry->db_stat ? 1 : 0, "Not in use");
+    }
+  }
+
+  if (m_unused_tables != NULL)
+  {
+    TABLE *start_link= m_unused_tables;
+    TABLE *lnk= m_unused_tables;
+    do
+    {
+      if (lnk != lnk->next->prev || lnk != lnk->prev->next)
+      {
+	printf("unused_links isn't linked properly\n");
+	return;
+      }
+    } while (count++ < m_table_count && (lnk= lnk->next) != start_link);
+    if (lnk != start_link)
+      printf("Unused_links aren't connected\n");
+  }
+
+  if (count != unused)
+    printf("Unused_links (%d) doesn't match table_def_cache: %d\n", count,
+           unused);
+}
+
 #endif
 
 
 /**
-  Create a table cache key
+  Create a table cache/table definition cache key
 
   @param thd        Thread context
   @param key        Buffer for the key to be created (must be of
@@ -403,7 +774,6 @@ static void table_def_free_entry(TABLE_SHARE *share)
 
 bool table_def_init(void)
 {
-  table_def_inited= 1;
 #ifdef HAVE_PSI_INTERFACE
   init_tdc_psi_keys();
 #endif
@@ -411,6 +781,17 @@ bool table_def_init(void)
   oldest_unused_share= &end_of_unused_share;
   end_of_unused_share.prev= &oldest_unused_share;
 
+  if (table_cache_manager.init())
+  {
+    mysql_mutex_destroy(&LOCK_open);
+    return true;
+  }
+
+  /*
+    It is safe to destroy zero-initialized HASH even if its
+    initialization has failed.
+  */
+  table_def_inited= true;
 
   return my_hash_init(&table_def_cache, &my_charset_bin, table_def_size,
                       0, 0, table_def_key,
@@ -428,15 +809,15 @@ void table_def_start_shutdown(void)
 {
   if (table_def_inited)
   {
-    mysql_mutex_lock(&LOCK_open);
+    table_cache_manager.lock_all_and_tdc();
     /*
       Ensure that TABLE and TABLE_SHARE objects which are created for
       tables that are open during process of plugins' shutdown are
       immediately released. This keeps number of references to engine
       plugins minimal and allows shutdown to proceed smoothly.
     */
-    table_def_shutdown_in_progress= TRUE;
-    mysql_mutex_unlock(&LOCK_open);
+    table_def_shutdown_in_progress= true;
+    table_cache_manager.unlock_all_and_tdc();
     /* Free all cached but unused TABLEs and TABLE_SHAREs. */
     close_cached_tables(NULL, NULL, FALSE, LONG_TIMEOUT);
   }
@@ -448,9 +829,10 @@ void table_def_free(void)
   DBUG_ENTER("table_def_free");
   if (table_def_inited)
   {
-    table_def_inited= 0;
+    table_def_inited= false;
     /* Free table definitions. */
     my_hash_free(&table_def_cache);
+    table_cache_manager.destroy();
     mysql_mutex_destroy(&LOCK_open);
   }
   DBUG_VOID_RETURN;
@@ -463,120 +845,249 @@ uint cached_table_definitions(void)
 }
 
 
-/*
-  Auxiliary routines for manipulating with per-share used/unused and
-  global unused lists of TABLE objects and table_cache_count counter.
-  Responsible for preserving invariants between those lists, counter
-  and TABLE::in_use member.
-  In fact those routines implement sort of implicit table cache as
-  part of table definition cache.
+/**
+  Free unused TABLE instances if total number of TABLE objects
+  in table cache has exceeded table_cache_size_per_instance
+  limit.
+
+  @note That we might need to free more than one instance during
+        this call if table_cache_size was changed dynamically.
 */
+
+void Table_cache::free_unused_tables_if_necessary(THD *thd)
+{
+  /*
+    We have too many TABLE instances around let us try to get rid of them.
+
+    Note that we might need to free more than one TABLE object, and thus
+    need the below loop, in case when table_cache_size is changed dynamically,
+    at server run time.
+  */
+  if (m_table_count > table_cache_size_per_instance && m_unused_tables)
+  {
+    mysql_mutex_lock(&LOCK_open);
+    while (m_table_count > table_cache_size_per_instance &&
+           m_unused_tables)
+    {
+      TABLE *table_to_free= m_unused_tables;
+      remove_table(table_to_free);
+      intern_close_table(table_to_free);
+      thd->status_var.table_open_cache_overflows++;
+    }
+    mysql_mutex_unlock(&LOCK_open);
+  }
+}
 
 
 /**
-   Add newly created TABLE object for table share which is going
-   to be used right away.
+   Add newly created TABLE object which is going to be used right away
+   to the table cache.
+
+   @note Caller should own lock on the table cache.
+
+   @note Sets TABLE::in_use member as side effect.
+
+   @retval false - success.
+   @retval true  - failure.
 */
 
-static void table_def_add_used_table(THD *thd, TABLE *table)
+bool Table_cache::add_used_table(THD *thd, TABLE *table)
 {
+  Table_cache_element *el;
+
+  assert_owner();
+
   DBUG_ASSERT(table->in_use == thd);
-  table->s->used_tables.push_front(table);
-  table_cache_count++;
+
+  /*
+    Try to get Table_cache_element representing this table in the cache
+    from array in the TABLE_SHARE.
+  */
+  el= table->s->cache_element[table_cache_manager.cache_index(this)];
+
+  if (!el)
+  {
+    /*
+      If TABLE_SHARE doesn't have pointer to the element representing table
+      in this cache, the element for the table must be absent from table the
+      cache.
+
+      Allocate new Table_cache_element object and add it to the cache
+      and array in TABLE_SHARE.
+    */
+    DBUG_ASSERT(! my_hash_search(&m_cache,
+                                 (uchar*)table->s->table_cache_key.str,
+                                 table->s->table_cache_key.length));
+
+    if (!(el= new Table_cache_element(table->s)))
+      return true;
+
+    if (my_hash_insert(&m_cache, (uchar*)el))
+    {
+      delete el;
+      return true;
+    }
+
+    table->s->cache_element[table_cache_manager.cache_index(this)]= el;
+  }
+
+  /* Add table to the used tables list */
+  el->used_tables.push_front(table);
+
+  m_table_count++;
+
+  free_unused_tables_if_necessary(thd);
+
+  return false;
 }
 
 
 /**
    Prepare used or unused TABLE instance for destruction by removing
-   it from share's and global list.
+   it from the table cache.
+
+   @note Caller should own lock on the table cache.
 */
 
-static void table_def_remove_table(TABLE *table)
+void Table_cache::remove_table(TABLE *table)
 {
+  Table_cache_element *el=
+    table->s->cache_element[table_cache_manager.cache_index(this)];
+
+  assert_owner();
+
   if (table->in_use)
   {
-    /* Remove from per-share chain of used TABLE objects. */
-    table->s->used_tables.remove(table);
+    /* Remove from per-table chain of used TABLE objects. */
+    el->used_tables.remove(table);
   }
   else
   {
-    /* Remove from per-share chain of unused TABLE objects. */
-    table->s->free_tables.remove(table);
+    /* Remove from per-table chain of unused TABLE objects. */
+    el->free_tables.remove(table);
 
-    /* And global unused chain. */
-    table->next->prev=table->prev;
-    table->prev->next=table->next;
-    if (table == unused_tables)
-    {
-      unused_tables=unused_tables->next;
-      if (table == unused_tables)
-	unused_tables=0;
-    }
-    check_unused();
+    /* And per-cache unused chain. */
+    unlink_unused_table(table);
   }
-  table_cache_count--;
+
+  m_table_count--;
+
+  if (el->used_tables.is_empty() && el->free_tables.is_empty())
+  {
+    (void) my_hash_delete(&m_cache, (uchar*) el);
+    /*
+      Remove reference to deleted cache element from array
+      in the TABLE_SHARE.
+    */
+    table->s->cache_element[table_cache_manager.cache_index(this)]= NULL;
+  }
 }
 
 
 /**
-   Mark already existing TABLE instance as used.
+  Get an unused TABLE instance from the table cache.
+
+  @param      thd         Thread context.
+  @param      hash_value  Hash value for the key identifying table.
+  @param      key         Key identifying table.
+  @param      key_length  Length of key for the table.
+  @param[out] share       NULL - if table cache doesn't contain any
+                          information about the table (i.e. doesn't have
+                          neither used nor unused TABLE objects for it).
+                          Pointer to TABLE_SHARE for the table otherwise.
+
+  @note Caller should own lock on the table cache.
+  @note Sets TABLE::in_use member as side effect.
+
+  @retval non-NULL - pointer to unused TABLE object, "share" out-parameter
+                     contains pointer to TABLE_SHARE for this table.
+  @retval NULL     - no unused TABLE object was found, "share" parameter
+                     contains pointer to TABLE_SHARE for this table if there
+                     are used TABLE objects in cache and NULL otherwise.
 */
 
-static void table_def_use_table(THD *thd, TABLE *table)
+TABLE* Table_cache::get_table(THD *thd, my_hash_value_type hash_value,
+                              const char *key, uint key_length,
+                              TABLE_SHARE **share)
 {
-  DBUG_ASSERT(!table->in_use);
+  Table_cache_element *el;
+  TABLE *table;
 
-  /* Unlink table from list of unused tables for this share. */
-  table->s->free_tables.remove(table);
-  /* Unlink able from global unused tables list. */
-  if (table == unused_tables)
-  {						// First unused
-    unused_tables=unused_tables->next;	        // Remove from link
-    if (table == unused_tables)
-      unused_tables=0;
+  assert_owner();
+
+  *share= NULL;
+
+  if (!(el= (Table_cache_element*) my_hash_search_using_hash_value(&m_cache,
+                                     hash_value, (uchar*) key, key_length)))
+    return NULL;
+
+  *share= el->share;
+
+  if ((table= el->free_tables.front()))
+  {
+    DBUG_ASSERT(!table->in_use);
+
+    /*
+      Unlink table from list of unused TABLE objects for this
+      table in this cache.
+    */
+    el->free_tables.remove(table);
+
+    /* Unlink table from unused tables list for this cache. */
+    unlink_unused_table(table);
+
+    /*
+      Add table to list of used TABLE objects for this table
+      in the table cache.
+    */
+    el->used_tables.push_front(table);
+
+    table->in_use= thd;
+    /* The ex-unused table must be fully functional. */
+    DBUG_ASSERT(table->db_stat && table->file);
+    /* The children must be detached from the table. */
+    DBUG_ASSERT(! table->file->extra(HA_EXTRA_IS_ATTACHED_CHILDREN));
   }
-  table->prev->next=table->next;		/* Remove from unused list */
-  table->next->prev=table->prev;
-  check_unused();
-  /* Add table to list of used tables for this share. */
-  table->s->used_tables.push_front(table);
-  table->in_use= thd;
-  /* The ex-unused table must be fully functional. */
-  DBUG_ASSERT(table->db_stat && table->file);
-  /* The children must be detached from the table. */
-  DBUG_ASSERT(! table->file->extra(HA_EXTRA_IS_ATTACHED_CHILDREN));
+
+  return table;
 }
 
 
 /**
-   Mark already existing used TABLE instance as unused.
+  Put used TABLE instance back to the table cache and mark
+  it as unused.
+
+  @note Caller should own lock on the table cache.
+  @note Sets TABLE::in_use member as side effect.
 */
 
-static void table_def_unuse_table(TABLE *table)
+void Table_cache::release_table(THD *thd, TABLE *table)
 {
+  Table_cache_element *el=
+    table->s->cache_element[table_cache_manager.cache_index(this)];
+
+  assert_owner();
+
   DBUG_ASSERT(table->in_use);
   DBUG_ASSERT(table->file);
 
   /* We shouldn't put the table to 'unused' list if the share is old. */
   DBUG_ASSERT(! table->s->has_old_version());
 
-  table->in_use= 0;
+  table->in_use= NULL;
 
-  /* Remove table from the list of tables used in this share. */
-  table->s->used_tables.remove(table);
-  /* Add table to the list of unused TABLE objects for this share. */
-  table->s->free_tables.push_front(table);
-  /* Also link it last in the global list of unused TABLE objects. */
-  if (unused_tables)
-  {
-    table->next=unused_tables;
-    table->prev=unused_tables->prev;
-    unused_tables->prev=table;
-    table->prev->next=table;
-  }
-  else
-    unused_tables=table->next=table->prev=table;
-  check_unused();
+  /* Remove TABLE from the list of used objects for the table in this cache. */
+  el->used_tables.remove(table);
+  /* Add TABLE to the list of unused objects for the table in this cache. */
+  el->free_tables.push_front(table);
+  /* Also link it last in the list of unused TABLE objects for the cache. */
+  link_unused_table(table);
+
+  /*
+    We free the least used tables, not the subject table, to keep the LRU order.
+    Note that in most common case the below call won't free anything.
+  */
+  free_unused_tables_if_necessary(thd);
 }
 
 
@@ -906,10 +1417,11 @@ OPEN_TABLE_LIST *list_open_tables(THD *thd, const char *db, const char *wild)
   TABLE_LIST table_list;
   DBUG_ENTER("list_open_tables");
 
-  mysql_mutex_lock(&LOCK_open);
   memset(&table_list, 0, sizeof(table_list));
   start_list= &open_list;
   open_list=0;
+
+  table_cache_manager.lock_all_and_tdc();
 
   for (uint idx=0 ; result == 0 && idx < table_def_cache.records; idx++)
   {
@@ -939,14 +1451,14 @@ OPEN_TABLE_LIST *list_open_tables(THD *thd, const char *db, const char *wild)
 		  share->db.str)+1,
 	   share->table_name.str);
     (*start_list)->in_use= 0;
-    TABLE_SHARE::TABLE_list::Iterator it(share->used_tables);
+    Table_cache_iterator it(share);
     while (it++)
       ++(*start_list)->in_use;
     (*start_list)->locked= 0;                   /* Obsolete. */
     start_list= &(*start_list)->next;
     *start_list=0;
   }
-  mysql_mutex_unlock(&LOCK_open);
+  table_cache_manager.unlock_all_and_tdc();
   DBUG_RETURN(open_list);
 }
 
@@ -967,32 +1479,10 @@ void intern_close_table(TABLE *table)
   delete table->triggers;
   if (table->file)                              // Not true if placeholder
     (void) closefrm(table, 1);			// close file
-  DBUG_VOID_RETURN;
-}
-
-/*
-  Remove table from the open table cache
-
-  SYNOPSIS
-    free_cache_entry()
-    table		Table to remove
-
-  NOTE
-    We need to have a lock on LOCK_open when calling this
-*/
-
-static void free_cache_entry(TABLE *table)
-{
-  DBUG_ENTER("free_cache_entry");
-
-  /* This should be done before releasing table share. */
-  table_def_remove_table(table);
-
-  intern_close_table(table);
-
   my_free(table);
   DBUG_VOID_RETURN;
 }
+
 
 /* Free resources allocated by filesort() and read_record() */
 
@@ -1015,15 +1505,15 @@ void free_io_cache(TABLE *table)
 
    @param share Table share.
 
-   @pre Caller should have LOCK_open mutex.
+   @pre Caller should own locks on all Table_cache instances.
 */
 
 static void kill_delayed_threads_for_table(TABLE_SHARE *share)
 {
-  TABLE_SHARE::TABLE_list::Iterator it(share->used_tables);
-  TABLE *tab;
+  table_cache_manager.assert_owner_all();
 
-  mysql_mutex_assert_owner(&LOCK_open);
+  Table_cache_iterator it(share);
+  TABLE *tab;
 
   while ((tab= it++))
   {
@@ -1043,6 +1533,32 @@ static void kill_delayed_threads_for_table(TABLE_SHARE *share)
       mysql_mutex_unlock(&in_use->mysys_var->mutex);
     }
   }
+}
+
+
+/** Free all unused TABLE objects in the table cache. */
+
+void Table_cache::free_all_unused_tables()
+{
+  assert_owner();
+
+  while (m_unused_tables)
+  {
+    TABLE *table_to_free= m_unused_tables;
+    remove_table(table_to_free);
+    intern_close_table(table_to_free);
+  }
+}
+
+
+/** Free all unused TABLE objects in all table cache instances. */
+
+void Table_cache_manager::free_all_unused_tables()
+{
+  assert_owner_all_and_tdc();
+
+  for (uint i= 0; i < table_cache_instances; i++)
+    m_table_cache[i].free_all_unused_tables();
 }
 
 
@@ -1074,7 +1590,7 @@ bool close_cached_tables(THD *thd, TABLE_LIST *tables,
   DBUG_ENTER("close_cached_tables");
   DBUG_ASSERT(thd || (!wait_for_refresh && !tables));
 
-  mysql_mutex_lock(&LOCK_open);
+  table_cache_manager.lock_all_and_tdc();
   if (!tables)
   {
     /*
@@ -1094,8 +1610,7 @@ bool close_cached_tables(THD *thd, TABLE_LIST *tables,
       Get rid of all unused TABLE and TABLE_SHARE instances. By doing
       this we automatically close all tables which were marked as "old".
     */
-    while (unused_tables)
-      free_cache_entry(unused_tables);
+    table_cache_manager.free_all_unused_tables();
     /* Free table shares which were not freed implicitly by loop above. */
     while (oldest_unused_share->next)
       (void) my_hash_delete(&table_def_cache, (uchar*) oldest_unused_share);
@@ -1120,7 +1635,7 @@ bool close_cached_tables(THD *thd, TABLE_LIST *tables,
       wait_for_refresh=0;			// Nothing to wait for
   }
 
-  mysql_mutex_unlock(&LOCK_open);
+  table_cache_manager.unlock_all_and_tdc();
 
   if (!wait_for_refresh)
     DBUG_RETURN(result);
@@ -1409,7 +1924,7 @@ static void close_open_tables(THD *thd)
   DBUG_PRINT("info", ("thd->open_tables: 0x%lx", (long) thd->open_tables));
 
   while (thd->open_tables)
-    (void) close_thread_table(thd, &thd->open_tables);
+    close_thread_table(thd, &thd->open_tables);
 }
 
 
@@ -1624,9 +2139,8 @@ void close_thread_tables(THD *thd)
 
 /* move one table to free list */
 
-bool close_thread_table(THD *thd, TABLE **table_ptr)
+void close_thread_table(THD *thd, TABLE **table_ptr)
 {
-  bool found_old_table= 0;
   TABLE *table= *table_ptr;
   DBUG_ENTER("close_thread_table");
   DBUG_ASSERT(table->key_read == 0);
@@ -1659,27 +2173,23 @@ bool close_thread_table(THD *thd, TABLE **table_ptr)
   if (table->file != NULL)
     table->file->unbind_psi();
 
-  mysql_mutex_lock(&LOCK_open);
+  Table_cache *tc= table_cache_manager.get_cache(thd);
+
+  tc->lock();
 
   if (table->s->has_old_version() || table->needs_reopen() ||
       table_def_shutdown_in_progress)
   {
-    free_cache_entry(table);
-    found_old_table= 1;
+    tc->remove_table(table);
+    mysql_mutex_lock(&LOCK_open);
+    intern_close_table(table);
+    mysql_mutex_unlock(&LOCK_open);
   }
   else
-  {
-    DBUG_ASSERT(table->file);
-    table_def_unuse_table(table);
-    /*
-      We free the least used table, not the subject table,
-      to keep the LRU order.
-    */
-    if (table_cache_count > table_cache_size)
-      free_cache_entry(unused_tables);
-  }
-  mysql_mutex_unlock(&LOCK_open);
-  DBUG_RETURN(found_old_table);
+    tc->release_table(thd, table);
+
+  tc->unlock();
+  DBUG_VOID_RETURN;
 }
 
 
@@ -2736,7 +3246,6 @@ bool open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
   int error;
   TABLE_SHARE *share;
   my_hash_value_type hash_value;
-  bool recycled_free_table;
 
   DBUG_ENTER("open_table");
 
@@ -2971,6 +3480,90 @@ bool open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
     DBUG_RETURN(FALSE);
 
 retry_share:
+  {
+    Table_cache *tc= table_cache_manager.get_cache(thd);
+
+    tc->lock();
+
+    /*
+      Try to get unused TABLE object or at least pointer to
+      TABLE_SHARE from the table cache.
+    */
+    table= tc->get_table(thd, hash_value, key, key_length, &share);
+
+    if (table)
+    {
+      /* We have found an unused TABLE object. */
+
+      if (!(flags & MYSQL_OPEN_IGNORE_FLUSH))
+      {
+        /*
+          TABLE_SHARE::version can only be initialised while holding the
+          LOCK_open and in this case no one has a reference to the share
+          object, if a reference exists to the share object it is necessary
+          to lock both LOCK_open AND all table caches in order to update
+          TABLE_SHARE::version. The same locks are required to increment
+          refresh_version global variable.
+
+          As result it is safe to compare TABLE_SHARE::version and
+          refresh_version values while having only lock on the table
+          cache for this thread.
+
+          Table cache should not contain any unused TABLE objects with
+          old versions.
+        */
+        DBUG_ASSERT(!share->has_old_version());
+
+        /*
+          Still some of already opened might become outdated (e.g. due to
+          concurrent table flush). So we need to compare version of opened
+          tables with version of TABLE object we just have got.
+        */
+        if (thd->open_tables &&
+            thd->open_tables->s->version != share->version)
+        {
+          tc->release_table(thd, table);
+          tc->unlock();
+          (void)ot_ctx->request_backoff_action(
+                          Open_table_context::OT_REOPEN_TABLES,
+                          NULL);
+          DBUG_RETURN(TRUE);
+        }
+      }
+      tc->unlock();
+
+      /* Call rebind_psi outside of the critical section. */
+      DBUG_ASSERT(table->file != NULL);
+      table->file->rebind_psi();
+
+      thd->status_var.table_open_cache_hits++;
+      goto table_found;
+    }
+    else if (share)
+    {
+      /*
+        We weren't able to get an unused TABLE object. Still we have
+        found TABLE_SHARE for it. So let us try to create new TABLE
+        for it. We start by incrementing share's reference count and
+        checking its version.
+      */
+      mysql_mutex_lock(&LOCK_open);
+      tc->unlock();
+      share->ref_count++;
+      goto share_found;
+    }
+    else
+    {
+      /*
+        We have not found neither TABLE nor TABLE_SHARE object in
+        table cache (this means that there are no TABLE objects for
+        it in it).
+        Let us try to get TABLE_SHARE from table definition cache or
+        from disk and then to create TABLE object for it.
+      */
+      tc->unlock();
+    }
+  }
 
   mysql_mutex_lock(&LOCK_open);
 
@@ -3056,6 +3649,7 @@ retry_share:
     goto err_unlock;
   }
 
+share_found:
   if (!(flags & MYSQL_OPEN_IGNORE_FLUSH))
   {
     if (share->has_old_version())
@@ -3069,11 +3663,11 @@ retry_share:
         Release our reference to share, wait until old version of
         share goes away and then try to get new version of table share.
       */
-      MDL_deadlock_handler mdl_deadlock_handler(ot_ctx);
-      bool wait_result;
-
       release_table_share(share);
       mysql_mutex_unlock(&LOCK_open);
+
+      MDL_deadlock_handler mdl_deadlock_handler(ot_ctx);
+      bool wait_result;
 
       thd->push_internal_handler(&mdl_deadlock_handler);
       wait_result= tdc_wait_for_old_version(thd, table_list->db,
@@ -3104,71 +3698,55 @@ retry_share:
     }
   }
 
-  if (!share->free_tables.is_empty())
-  {
-    table= share->free_tables.front();
-    table_def_use_table(thd, table);
-    recycled_free_table= true;
-    /* We need to release share as we have EXTRA reference to it in our hands. */
-    release_table_share(share);
-  }
-  else
-  {
-    /* We have too many TABLE instances around let us try to get rid of them. */
-    while (table_cache_count > table_cache_size && unused_tables)
-      free_cache_entry(unused_tables);
-
-    mysql_mutex_unlock(&LOCK_open);
-
-    recycled_free_table= false;
-    /* make a new table */
-    if (!(table=(TABLE*) my_malloc(sizeof(*table),MYF(MY_WME))))
-      goto err_lock;
-
-    error= open_table_from_share(thd, share, alias,
-                                 (uint) (HA_OPEN_KEYFILE |
-                                         HA_OPEN_RNDFILE |
-                                         HA_GET_INDEX |
-                                         HA_TRY_READ_ONLY),
-                                 (READ_KEYINFO | COMPUTE_TYPES |
-                                  EXTRA_RECORD),
-                                 thd->open_options, table, FALSE);
-
-    if (error)
-    {
-      my_free(table);
-
-      if (error == 7)
-        (void) ot_ctx->request_backoff_action(Open_table_context::OT_DISCOVER,
-                                              table_list);
-      else if (share->crashed)
-        (void) ot_ctx->request_backoff_action(Open_table_context::OT_REPAIR,
-                                              table_list);
-
-      goto err_lock;
-    }
-
-    if (open_table_entry_fini(thd, share, table))
-    {
-      closefrm(table, 0);
-      my_free(table);
-      goto err_lock;
-    }
-
-    mysql_mutex_lock(&LOCK_open);
-    /* Add table to the share's used tables list. */
-    table_def_add_used_table(thd, table);
-  }
-
   mysql_mutex_unlock(&LOCK_open);
 
-  /* Call rebind_psi outside of the LOCK_open critical section. */
-  if (recycled_free_table)
-  {
-    DBUG_ASSERT(table->file != NULL);
-    table->file->rebind_psi();
-  }
+  /* make a new table */
+  if (!(table= (TABLE*) my_malloc(sizeof(*table), MYF(MY_WME))))
+    goto err_lock;
 
+  error= open_table_from_share(thd, share, alias,
+                               (uint) (HA_OPEN_KEYFILE |
+                                       HA_OPEN_RNDFILE |
+                                       HA_GET_INDEX |
+                                       HA_TRY_READ_ONLY),
+                               (READ_KEYINFO | COMPUTE_TYPES |
+                                EXTRA_RECORD),
+                               thd->open_options, table, FALSE);
+
+  if (error)
+  {
+    my_free(table);
+
+    if (error == 7)
+      (void) ot_ctx->request_backoff_action(Open_table_context::OT_DISCOVER,
+                                            table_list);
+    else if (share->crashed)
+      (void) ot_ctx->request_backoff_action(Open_table_context::OT_REPAIR,
+                                            table_list);
+    goto err_lock;
+  }
+  if (open_table_entry_fini(thd, share, table))
+  {
+    closefrm(table, 0);
+    my_free(table);
+    goto err_lock;
+  }
+  {
+    /* Add new TABLE object to table cache for this connection. */
+    Table_cache *tc= table_cache_manager.get_cache(thd);
+
+    tc->lock();
+
+    if (tc->add_used_table(thd, table))
+    {
+      tc->unlock();
+      goto err_lock;
+    }
+    tc->unlock();
+  }
+  thd->status_var.table_open_cache_misses++;
+
+table_found:
   table->mdl_ticket= mdl_ticket;
 
   table->next= thd->open_tables;		/* Link into simple list */
@@ -3179,7 +3757,7 @@ retry_share:
  reset:
   table->created= TRUE;
   /*
-    Check that there is no reference to a condtion from an earlier query
+    Check that there is no reference to a condition from an earlier query
     (cf. Bug#58553). 
   */
   DBUG_ASSERT(table->file->pushed_cond == NULL);
@@ -4002,12 +4580,14 @@ static bool auto_repair_table(THD *thd, TABLE_LIST *table_list)
   }
   my_free(entry);
 
-  mysql_mutex_lock(&LOCK_open);
+  table_cache_manager.lock_all_and_tdc();
   release_table_share(share);
   /* Remove the repaired share from the table cache. */
   tdc_remove_table(thd, TDC_RT_REMOVE_ALL,
                    table_list->db, table_list->table_name,
                    TRUE);
+  table_cache_manager.unlock_all_and_tdc();
+  return result;
 end_unlock:
   mysql_mutex_unlock(&LOCK_open);
   return result;
@@ -9206,10 +9786,69 @@ my_bool mysql_rm_tmp_tables(void)
 
 void tdc_flush_unused_tables()
 {
-  mysql_mutex_lock(&LOCK_open);
-  while (unused_tables)
-    free_cache_entry(unused_tables);
-  mysql_mutex_unlock(&LOCK_open);
+  table_cache_manager.lock_all_and_tdc();
+  table_cache_manager.free_all_unused_tables();
+  table_cache_manager.unlock_all_and_tdc();
+}
+
+
+/**
+   Remove and free all or some (depending on parameter) TABLE objects
+   for the table from all table cache instances.
+
+   @param  thd          Thread context
+   @param  remove_type  Type of removal. @sa tdc_remove_table().
+   @param  share        TABLE_SHARE for the table to be removed.
+
+   @note Caller should own LOCK_open and locks on all table cache
+         instances.
+*/
+void Table_cache_manager::free_table(THD *thd,
+                                     enum_tdc_remove_table_type remove_type,
+                                     TABLE_SHARE *share)
+{
+  Table_cache_element *cache_el[MAX_TABLE_CACHES];
+
+  assert_owner_all_and_tdc();
+
+  /*
+    Freeing last TABLE instance for the share will destroy the share
+    and corresponding TABLE_SHARE::cache_element[] array. To make
+    iteration over this array safe, even when share is destroyed in
+    the middle of iteration, we create copy of this array on the stack
+    and iterate over it.
+  */
+  memcpy(&cache_el, share->cache_element,
+         table_cache_instances * sizeof(Table_cache_element *));
+
+  for (uint i= 0; i < table_cache_instances; i++)
+  {
+    if (cache_el[i])
+    {
+      Table_cache_element::TABLE_list::Iterator it(cache_el[i]->free_tables);
+      TABLE *table;
+
+#ifndef DBUG_OFF
+      if (remove_type == TDC_RT_REMOVE_ALL)
+        DBUG_ASSERT(cache_el[i]->used_tables.is_empty());
+      else if (remove_type == TDC_RT_REMOVE_NOT_OWN)
+      {
+        Table_cache_element::TABLE_list::Iterator it2(cache_el[i]->used_tables);
+        while ((table= it2++))
+        {
+          if (table->in_use != thd)
+            DBUG_ASSERT(0);
+        }
+      }
+#endif
+
+      while ((table= it++))
+      {
+        m_table_cache[i].remove_table(table);
+        intern_close_table(table);
+      }
+    }
+  }
 }
 
 
@@ -9249,15 +9888,12 @@ void tdc_remove_table(THD *thd, enum_tdc_remove_table_type remove_type,
 {
   char key[MAX_DBKEY_LENGTH];
   uint key_length;
-  TABLE *table;
   TABLE_SHARE *share;
 
   if (! has_lock)
-    mysql_mutex_lock(&LOCK_open);
+    table_cache_manager.lock_all_and_tdc();
   else
-  {
-    mysql_mutex_assert_owner(&LOCK_open);
-  }
+    table_cache_manager.assert_owner_all_and_tdc();
 
   DBUG_ASSERT(remove_type == TDC_RT_REMOVE_UNUSED ||
               thd->mdl_context.is_lock_owner(MDL_key::TABLE, db, table_name,
@@ -9270,22 +9906,6 @@ void tdc_remove_table(THD *thd, enum_tdc_remove_table_type remove_type,
   {
     if (share->ref_count)
     {
-      TABLE_SHARE::TABLE_list::Iterator it(share->free_tables);
-#ifndef DBUG_OFF
-      if (remove_type == TDC_RT_REMOVE_ALL)
-      {
-        DBUG_ASSERT(share->used_tables.is_empty());
-      }
-      else if (remove_type == TDC_RT_REMOVE_NOT_OWN)
-      {
-        TABLE_SHARE::TABLE_list::Iterator it2(share->used_tables);
-        while ((table= it2++))
-          if (table->in_use != thd)
-          {
-            DBUG_ASSERT(0);
-          }
-      }
-#endif
       /*
         Set share's version to zero in order to ensure that it gets
         automatically deleted once it is no longer referenced.
@@ -9298,16 +9918,14 @@ void tdc_remove_table(THD *thd, enum_tdc_remove_table_type remove_type,
         used.
       */
       share->version= 0;
-
-      while ((table= it++))
-        free_cache_entry(table);
+      table_cache_manager.free_table(thd, remove_type, share);
     }
     else
       (void) my_hash_delete(&table_def_cache, (uchar*) share);
   }
 
   if (! has_lock)
-    mysql_mutex_unlock(&LOCK_open);
+    table_cache_manager.unlock_all_and_tdc();
 }
 
 

@@ -41,7 +41,7 @@
 
 #include "global_threads.h"
 
-static const char *lock_descriptions[] =
+const char *lock_descriptions[TL_WRITE_ONLY + 1] =
 {
   /* TL_UNLOCK                  */  "No lock",
   /* TL_READ_DEFAULT            */  NULL,
@@ -82,61 +82,16 @@ print_where(Item *cond,const char *info, enum_query_type query_type)
 
 static void print_cached_tables(void)
 {
-  uint idx,count,unused;
-  TABLE_SHARE *share;
-  TABLE *start_link, *lnk, *entry;
-
-  compile_time_assert(TL_WRITE_ONLY+1 == array_elements(lock_descriptions));
-
   /* purecov: begin tested */
-  mysql_mutex_lock(&LOCK_open);
-  puts("DB             Table                            Version  Thread  Open  Lock");
+  table_cache_manager.lock_all_and_tdc();
 
-  for (idx=unused=0 ; idx < table_def_cache.records ; idx++)
-  {
-    share= (TABLE_SHARE*) my_hash_element(&table_def_cache, idx);
+  table_cache_manager.print_tables();
 
-    TABLE_SHARE::TABLE_list::Iterator it(share->used_tables);
-    while ((entry= it++))
-    {
-      printf("%-14.14s %-32s%6ld%8ld%6d  %s\n",
-             entry->s->db.str, entry->s->table_name.str, entry->s->version,
-             entry->in_use->thread_id, entry->db_stat ? 1 : 0,
-             lock_descriptions[(int)entry->reginfo.lock_type]);
-    }
-    it.init(share->free_tables);
-    while ((entry= it++))
-    {
-      unused++;
-      printf("%-14.14s %-32s%6ld%8ld%6d  %s\n",
-             entry->s->db.str, entry->s->table_name.str, entry->s->version,
-             0L, entry->db_stat ? 1 : 0, "Not in use");
-    }
-  }
-  count=0;
-  if ((start_link=lnk=unused_tables))
-  {
-    do
-    {
-      if (lnk != lnk->next->prev || lnk != lnk->prev->next)
-      {
-	printf("unused_links isn't linked properly\n");
-	return;
-      }
-    } while (count++ < cached_open_tables() && (lnk=lnk->next) != start_link);
-    if (lnk != start_link)
-    {
-      printf("Unused_links aren't connected\n");
-    }
-  }
-  if (count != unused)
-    printf("Unused_links (%d) doesn't match table_def_cache: %d\n", count,
-           unused);
   printf("\nCurrent refresh version: %ld\n",refresh_version);
   if (my_hash_check(&table_def_cache))
     printf("Error: Table definition hash table is corrupted\n");
   fflush(stdout);
-  mysql_mutex_unlock(&LOCK_open);
+  table_cache_manager.unlock_all_and_tdc();
   /* purecov: end */
   return;
 }
@@ -435,7 +390,8 @@ static void display_table_locks(void)
   void *saved_base;
   DYNAMIC_ARRAY saved_table_locks;
 
-  (void) my_init_dynamic_array(&saved_table_locks,sizeof(TABLE_LOCK_INFO), cached_open_tables() + 20,50);
+  (void) my_init_dynamic_array(&saved_table_locks,sizeof(TABLE_LOCK_INFO),
+                               table_cache_manager.cached_tables() + 20,50);
   mysql_mutex_lock(&THR_LOCK_lock);
   for (list= thr_lock_thread_list; list; list= list_rest(list))
   {
@@ -557,7 +513,7 @@ Open tables:   %10lu\n\
 Open files:    %10lu\n\
 Open streams:  %10lu\n",
 	 (ulong) tmp.opened_tables,
-	 (ulong) cached_open_tables(),
+	 (ulong) table_cache_manager.cached_tables(),
 	 (ulong) my_file_opened,
 	 (ulong) my_stream_opened);
 

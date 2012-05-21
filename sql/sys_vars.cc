@@ -2752,10 +2752,29 @@ static Sys_var_ulong Sys_table_def_size(
        VALID_RANGE(TABLE_DEF_CACHE_MIN, 512*1024),
        DEFAULT(TABLE_DEF_CACHE_DEFAULT), BLOCK_SIZE(1));
 
+static bool fix_table_cache_size(sys_var *self, THD *thd, enum_var_type type)
+{
+  /*
+    table_open_cache parameter is a soft limit for total number of objects
+    in all table cache instances. Once this value is updated we need to
+    update value of a per-instance soft limit on table cache size.
+  */
+  table_cache_size_per_instance= table_cache_size / table_cache_instances;
+  return false;
+}
+
 static Sys_var_ulong Sys_table_cache_size(
-       "table_open_cache", "The number of cached open tables",
+       "table_open_cache", "The number of cached open tables "
+       "(total for all table cache instances)",
        GLOBAL_VAR(table_cache_size), CMD_LINE(REQUIRED_ARG),
        VALID_RANGE(1, 512*1024), DEFAULT(TABLE_OPEN_CACHE_DEFAULT),
+       BLOCK_SIZE(1), NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(NULL),
+       ON_UPDATE(fix_table_cache_size));
+
+static Sys_var_ulong Sys_table_cache_instances(
+       "table_open_cache_instances", "The number of table cache instances",
+       READ_ONLY GLOBAL_VAR(table_cache_instances), CMD_LINE(REQUIRED_ARG),
+       VALID_RANGE(1, Table_cache_manager::MAX_TABLE_CACHES), DEFAULT(1),
        BLOCK_SIZE(1));
 
 static Sys_var_ulong Sys_thread_cache_size(

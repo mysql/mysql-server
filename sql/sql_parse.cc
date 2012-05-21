@@ -1576,7 +1576,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
                         current_global_status_var.long_query_count,
                         current_global_status_var.opened_tables,
                         refresh_version,
-                        cached_open_tables(),
+                        table_cache_manager.cached_tables(),
                         (uint) (queries_per_second1000 / 1000),
                         (uint) (queries_per_second1000 % 1000));
 #ifdef EMBEDDED_LIBRARY
