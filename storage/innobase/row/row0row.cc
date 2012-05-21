@@ -437,6 +437,7 @@ row_rec_to_index_entry(
 {
 	dtuple_t*	entry;
 	byte*		buf;
+	const rec_t*	copy_rec;
 
 	ut_ad(rec && heap && index);
 	ut_ad(rec_offs_validate(rec, index, offsets));
@@ -446,16 +447,18 @@ row_rec_to_index_entry(
 		buf = static_cast<byte*>(
 			mem_heap_alloc(heap, rec_offs_size(offsets)));
 
-		rec = rec_copy(buf, rec, offsets);
-		/* Avoid a debug assertion in rec_offs_validate(). */
-		rec_offs_make_valid(rec, index, offsets);
-#if defined UNIV_DEBUG || defined UNIV_BLOB_LIGHT_DEBUG
+		copy_rec = rec_copy(buf, rec, offsets);
 	} else {
+#if defined UNIV_DEBUG || defined UNIV_BLOB_LIGHT_DEBUG
 		ut_a(!rec_offs_any_null_extern(rec, offsets));
 #endif /* UNIV_DEBUG || UNIV_BLOB_LIGHT_DEBUG */
+		copy_rec = rec;
 	}
 
-	entry = row_rec_to_index_entry_low(rec, index, offsets, n_ext, heap);
+	rec_offs_make_valid(copy_rec, index, offsets);
+	entry = row_rec_to_index_entry_low(
+		copy_rec, index, offsets, n_ext, heap);
+	rec_offs_make_valid(rec, index, offsets);
 
 	dtuple_set_info_bits(entry,
 			     rec_get_info_bits(rec, rec_offs_comp(offsets)));
