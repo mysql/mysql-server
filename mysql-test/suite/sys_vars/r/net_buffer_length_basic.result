@@ -63,12 +63,14 @@ SELECT @@global.net_buffer_length;
 SET @@global.net_buffer_length = 1048577;
 Warnings:
 Warning	1292	Truncated incorrect net_buffer_length value: '1048577'
+Warning	1105	The value of 'max_allowed_packet' should be no less than the value of 'net_buffer_length'
 SELECT @@global.net_buffer_length;
 @@global.net_buffer_length
 1048576
 SET @@global.net_buffer_length = 104857633;
 Warnings:
 Warning	1292	Truncated incorrect net_buffer_length value: '104857633'
+Warning	1105	The value of 'max_allowed_packet' should be no less than the value of 'net_buffer_length'
 SELECT @@global.net_buffer_length;
 @@global.net_buffer_length
 1048576
