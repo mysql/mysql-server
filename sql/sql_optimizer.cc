@@ -270,12 +270,9 @@ JOIN::optimize()
         This will try to prune non-static conditions, which can
         be used after the tables are locked.
       */
-      //DBUG_ASSERT(!tbl->embedding);
-#ifndef TODO_INVESTIGATE
       if (!tbl->embedding)
-#endif
       {
-        Item *prune_cond= tbl->join_cond()? tbl->join_cond() : conds;
+        Item *prune_cond= tbl->join_cond() ? tbl->join_cond() : conds;
         if (prune_partitions(thd, tbl->table, prune_cond))
         {
           error= 1;
