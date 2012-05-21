@@ -266,7 +266,7 @@ extern ulong	srv_n_page_hash_locks;	/*!< number of locks to
 					protect buf_pool->page_hash */
 extern ulong	srv_LRU_scan_depth;	/*!< Scan depth for LRU
 					flush batch */
-extern my_bool	srv_flush_neighbors;	/*!< whether or not to flush
+extern ulong	srv_flush_neighbors;	/*!< whether or not to flush
 					neighbors of a block */
 extern ulint	srv_buf_pool_old_size;	/*!< previously requested size */
 extern ulint	srv_buf_pool_curr_size;	/*!< current size in bytes */
