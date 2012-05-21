@@ -2255,8 +2255,7 @@ row_upd_clust_step(
 	btr_pcur_t*	pcur;
 	ibool		success;
 	dberr_t		err;
-	mtr_t*		mtr;
-	mtr_t		mtr_buf;
+	mtr_t		mtr;
 	rec_t*		rec;
 	mem_heap_t*	heap		= NULL;
 	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
@@ -2271,9 +2270,8 @@ row_upd_clust_step(
 	pcur = node->pcur;
 
 	/* We have to restore the cursor to its position */
-	mtr = &mtr_buf;
 
-	mtr_start(mtr);
+	mtr_start(&mtr);
 
 	/* If the restoration does not succeed, then the same
 	transaction has deleted the record on which the cursor was,
@@ -2285,12 +2283,12 @@ row_upd_clust_step(
 
 	ut_a(pcur->rel_pos == BTR_PCUR_ON);
 
-	success = btr_pcur_restore_position(BTR_MODIFY_LEAF, pcur, mtr);
+	success = btr_pcur_restore_position(BTR_MODIFY_LEAF, pcur, &mtr);
 
 	if (!success) {
 		err = DB_RECORD_NOT_FOUND;
 
-		mtr_commit(mtr);
+		mtr_commit(&mtr);
 
 		return(err);
 	}
@@ -2301,18 +2299,18 @@ row_upd_clust_step(
 
 	if (node->is_delete && node->table->id == DICT_INDEXES_ID) {
 
-		dict_drop_index_tree(btr_pcur_get_rec(pcur), mtr);
+		dict_drop_index_tree(btr_pcur_get_rec(pcur), &mtr);
 
-		mtr_commit(mtr);
+		mtr_commit(&mtr);
 
-		mtr_start(mtr);
+		mtr_start(&mtr);
 
 		success = btr_pcur_restore_position(BTR_MODIFY_LEAF, pcur,
-						    mtr);
+						    &mtr);
 		if (!success) {
 			err = DB_ERROR;
 
-			mtr_commit(mtr);
+			mtr_commit(&mtr);
 
 			return(err);
 		}
@@ -2327,7 +2325,7 @@ row_upd_clust_step(
 			0, btr_pcur_get_block(pcur),
 			rec, index, offsets, thr);
 		if (err != DB_SUCCESS) {
-			mtr_commit(mtr);
+			mtr_commit(&mtr);
 			goto exit_func;
 		}
 	}
@@ -2336,7 +2334,7 @@ row_upd_clust_step(
 
 	if (node->is_delete) {
 		err = row_upd_del_mark_clust_rec(
-			node, index, offsets, thr, referenced, mtr);
+			node, index, offsets, thr, referenced, &mtr);
 
 		if (err == DB_SUCCESS) {
 			node->state = UPD_NODE_UPDATE_ALL_SEC;
@@ -2366,7 +2364,7 @@ exit_func:
 
 	if (node->cmpl_info & UPD_NODE_NO_ORD_CHANGE) {
 
-		return(row_upd_clust_rec(node, index, thr, mtr));
+		return(row_upd_clust_rec(node, index, thr, &mtr));
 	}
 
 	row_upd_store_row(node);
@@ -2386,7 +2384,7 @@ exit_func:
 		externally! */
 
 		err = row_upd_clust_rec_by_insert(
-			node, index, thr, referenced, mtr);
+			node, index, thr, referenced, &mtr);
 
 		if (err != DB_SUCCESS) {
 
@@ -2395,7 +2393,7 @@ exit_func:
 
 		node->state = UPD_NODE_UPDATE_ALL_SEC;
 	} else {
-		err = row_upd_clust_rec(node, index, thr, mtr);
+		err = row_upd_clust_rec(node, index, thr, &mtr);
 
 		if (err != DB_SUCCESS) {
 
