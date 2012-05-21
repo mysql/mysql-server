@@ -33,7 +33,7 @@
   Maximum number of characters that can be entered
   on single line in the console (including \r\n).
 */
-#define MAX_NUM_OF_CHARS_TO_READ 26600
+#define MAX_NUM_OF_CHARS_TO_READ 24530
 
 /**
   Determine if a file is a windows console

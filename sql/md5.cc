@@ -18,35 +18,36 @@
   @file
 
   @brief
-  Wrapper functions for OpenSSL, YaSSL and MySQL's MD5
-  implementations. Also provides a Compatibility layer
+  Wrapper functions for OpenSSL and YaSSL. Also provides a Compatibility layer
   to make available YaSSL's MD5 implementation.
 */
 
+#include <my_global.h>
 #include <my_md5.h>
 
-#ifdef HAVE_YASSL
-
+#if defined(HAVE_YASSL)
 #include "my_config.h"
 #include "md5.hpp"
 
-/**
-  Compute MD5 message digest.
-
-  @param digest [out]  Computed MD5 digest
-  @param buf    [in]   Message to be computed
-  @param len    [in]   Length of the message
-
-  @return              void
-*/
-void my_md5_hash(char *digest, const char *buf, int len)
+static void my_md5_hash(char *digest, const char *buf, int len)
 {
   TaoCrypt::MD5 hasher;
   hasher.Update((TaoCrypt::byte *) buf, len);
   hasher.Final((TaoCrypt::byte *) digest);
 }
-#endif /* HAVE_YASSL */
 
+#elif defined(HAVE_OPENSSL)
+#include <openssl/md5.h>
+
+static void my_md5_hash(unsigned char* digest, unsigned const char *buf, int len)
+{
+  MD5_CTX ctx;
+  MD5_Init (&ctx);
+  MD5_Update (&ctx, buf, len);
+  MD5_Final (digest, &ctx);
+}
+
+#endif /* HAVE_YASSL */
 
 /**
     Wrapper function to compute MD5 message digest.
@@ -59,10 +60,9 @@ void my_md5_hash(char *digest, const char *buf, int len)
 */
 void compute_md5_hash(char *digest, const char *buf, int len)
 {
-#ifdef HAVE_YASSL
+#if defined(HAVE_YASSL)
   my_md5_hash(digest, buf, len);
-#else
-  MY_MD5_HASH((unsigned char *) digest, (unsigned char const *) buf, len);
+#elif defined(HAVE_OPENSSL)
+  my_md5_hash((unsigned char*)digest, (unsigned const char*)buf, len);
 #endif /* HAVE_YASSL */
 }
-
