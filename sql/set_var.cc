@@ -366,6 +366,8 @@ static sys_var_const    sys_lower_case_table_names(&vars,
 static sys_var_thd_ulong_session_readonly sys_max_allowed_packet(&vars, "max_allowed_packet",
 					       &SV::max_allowed_packet,
                                                check_max_allowed_packet);
+static sys_var_long_ptr sys_slave_max_allowed_packet(&vars, "slave_max_allowed_packet",
+                                              &slave_max_allowed_packet); 
 static sys_var_ulonglong_ptr sys_max_binlog_cache_size(&vars, "max_binlog_cache_size",
                                                        &max_binlog_cache_size);
 static sys_var_long_ptr	sys_max_binlog_size(&vars, "max_binlog_size",
