@@ -331,6 +331,7 @@ row_log_apply_op_low(
 {
 	mtr_t		mtr;
 	btr_cur_t	cursor;
+	ulint*		offsets = NULL;
 
 	ut_ad(!dict_index_is_clust(index));
 #ifdef UNIV_SYNC_DEBUG
@@ -362,7 +363,6 @@ row_log_apply_op_low(
 		rec_t*		rec	= btr_cur_get_rec(&cursor);
 		ulint		deleted	= rec_get_deleted_flag(
 			rec, page_rec_is_comp(rec));
-		const ulint*	offsets;
 		upd_t*		update;
 		big_rec_t*	big_rec;
 
@@ -469,13 +469,14 @@ update_the_rec:
 				| entry->info_bits;
 
 			if (!has_index_lock) {
+				/* TODO: pass offsets, not &offsets */
 				*error = btr_cur_optimistic_update(
 					BTR_NO_UNDO_LOG_FLAG
 					| BTR_NO_LOCKING_FLAG
 					| BTR_CREATE_FLAG
 					| BTR_KEEP_SYS_FLAG,
-					&cursor, update, 0, NULL,
-					trx_id, &mtr);
+					&cursor, &offsets, &heap,
+					update, 0, NULL, trx_id, &mtr);
 
 				if (*error != DB_FAIL) {
 					break;
@@ -505,7 +506,7 @@ update_the_rec:
 				| BTR_NO_LOCKING_FLAG
 				| BTR_CREATE_FLAG
 				| BTR_KEEP_SYS_FLAG,
-				&cursor, &heap, &big_rec,
+				&cursor, &offsets, &heap, &big_rec,
 				update, 0, NULL, trx_id, &mtr);
 			ut_ad(!big_rec);
 			break;
@@ -549,7 +550,8 @@ insert_the_rec:
 					BTR_NO_UNDO_LOG_FLAG
 					| BTR_NO_LOCKING_FLAG
 					| BTR_CREATE_FLAG,
-					&cursor, const_cast<dtuple_t*>(entry),
+					&cursor,
+					const_cast<dtuple_t*>(entry),
 					&rec, &big_rec,
 					0, NULL, &mtr);
 				ut_ad(!big_rec);
@@ -575,7 +577,8 @@ insert_the_rec:
 				BTR_NO_UNDO_LOG_FLAG
 				| BTR_NO_LOCKING_FLAG
 				| BTR_CREATE_FLAG,
-				&cursor, const_cast<dtuple_t*>(entry),
+				&cursor,
+				const_cast<dtuple_t*>(entry),
 				&rec, &big_rec,
 				0, NULL, &mtr);
 			ut_ad(!big_rec);

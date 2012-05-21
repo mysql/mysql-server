@@ -106,6 +106,8 @@ dberr_t
 row_undo_mod_clust_low(
 /*===================*/
 	undo_node_t*	node,	/*!< in: row undo node */
+	ulint**		offsets,/*!< out: rec_get_offsets() on the record */
+	mem_heap_t*	heap,	/*!< in/out: memory heap */
 	que_thr_t*	thr,	/*!< in: query thread */
 	mtr_t*		mtr,	/*!< in: mtr; must be committed before
 				latching any further pages */
@@ -118,7 +120,7 @@ row_undo_mod_clust_low(
 	ibool		success;
 #endif /* UNIV_DEBUG */
 
-	pcur = &(node->pcur);
+	pcur = &node->pcur;
 	btr_cur = btr_pcur_get_btr_cur(pcur);
 
 #ifdef UNIV_DEBUG
@@ -133,15 +135,14 @@ row_undo_mod_clust_low(
 	      == thr_get_trx(thr)->id);
 
 	if (mode == BTR_MODIFY_LEAF) {
-
 		err = btr_cur_optimistic_update(BTR_NO_LOCKING_FLAG
 						| BTR_NO_UNDO_LOG_FLAG
 						| BTR_KEEP_SYS_FLAG,
-						btr_cur, node->update,
+						btr_cur,
+						offsets, &heap, node->update,
 						node->cmpl_info, thr,
 						thr_get_trx(thr)->id, mtr);
 	} else {
-		mem_heap_t*	heap		= NULL;
 		big_rec_t*	dummy_big_rec;
 
 		ut_ad(mode == BTR_MODIFY_TREE);
@@ -150,13 +151,10 @@ row_undo_mod_clust_low(
 			BTR_NO_LOCKING_FLAG
 			| BTR_NO_UNDO_LOG_FLAG
 			| BTR_KEEP_SYS_FLAG,
-			btr_cur, &heap, &dummy_big_rec, node->update,
+			btr_cur, offsets, &heap, &dummy_big_rec, node->update,
 			node->cmpl_info, thr, thr_get_trx(thr)->id, mtr);
 
 		ut_a(!dummy_big_rec);
-		if (UNIV_LIKELY_NULL(heap)) {
-			mem_heap_free(heap);
-		}
 	}
 
 	return(err);
@@ -256,10 +254,14 @@ row_undo_mod_clust(
 
 	mtr_start(&mtr);
 
+	mem_heap_t*	heap	= mem_heap_create(1024);
+	ulint*		offsets	= NULL;
+
 	/* Try optimistic processing of the record, keeping changes within
 	the index page */
 
-	err = row_undo_mod_clust_low(node, thr, &mtr, BTR_MODIFY_LEAF);
+	err = row_undo_mod_clust_low(node, &offsets, heap, thr, &mtr,
+				     BTR_MODIFY_LEAF);
 
 	if (err != DB_SUCCESS) {
 		btr_pcur_commit_specify_mtr(pcur, &mtr);
@@ -269,7 +271,9 @@ row_undo_mod_clust(
 
 		mtr_start(&mtr);
 
-		err = row_undo_mod_clust_low(node, thr, &mtr, BTR_MODIFY_TREE);
+		err = row_undo_mod_clust_low(node, &offsets, heap, thr, &mtr,
+					     BTR_MODIFY_TREE);
+		ut_ad(err == DB_SUCCESS || err == DB_OUT_OF_FILE_SPACE);
 	}
 
 	btr_pcur_commit_specify_mtr(pcur, &mtr);
@@ -278,8 +282,8 @@ row_undo_mod_clust(
 
 		mtr_start(&mtr);
 
-		err = row_undo_mod_remove_clust_low(node, thr, &mtr,
-						    BTR_MODIFY_LEAF);
+		err = row_undo_mod_remove_clust_low(
+			node, thr, &mtr, BTR_MODIFY_LEAF);
 		if (err != DB_SUCCESS) {
 			btr_pcur_commit_specify_mtr(pcur, &mtr);
 
@@ -290,6 +294,9 @@ row_undo_mod_clust(
 
 			err = row_undo_mod_remove_clust_low(node, thr, &mtr,
 							    BTR_MODIFY_TREE);
+
+			ut_ad(err == DB_SUCCESS
+			      || err == DB_OUT_OF_FILE_SPACE);
 		}
 
 		btr_pcur_commit_specify_mtr(pcur, &mtr);
@@ -313,6 +320,7 @@ row_undo_mod_clust(
 		}
 	}
 
+	mem_heap_free(heap);
 	return(err);
 }
 
@@ -509,7 +517,7 @@ row_undo_mod_del_unmark_sec_and_undo_update(
 
 	switch (search_result) {
 		mem_heap_t*	heap;
-		const ulint*	offsets;
+		ulint*		offsets;
 	case ROW_BUFFERED:
 	case ROW_NOT_DELETED_REF:
 		/* These are invalid outcomes, because the mode passed
@@ -555,9 +563,10 @@ row_undo_mod_del_unmark_sec_and_undo_update(
 			/* Try an optimistic updating of the record, keeping
 			changes within the page */
 
+			/* TODO: pass offsets, not &offsets */
 			err = btr_cur_optimistic_update(
 				BTR_KEEP_SYS_FLAG | BTR_NO_LOCKING_FLAG,
-				btr_cur, update, 0, thr,
+				btr_cur, &offsets, &heap, update, 0, thr,
 				thr_get_trx(thr)->id, &mtr);
 			switch (err) {
 			case DB_OVERFLOW:
@@ -571,7 +580,7 @@ row_undo_mod_del_unmark_sec_and_undo_update(
 			ut_a(mode == BTR_MODIFY_TREE);
 			err = btr_cur_pessimistic_update(
 				BTR_KEEP_SYS_FLAG | BTR_NO_LOCKING_FLAG,
-				btr_cur, &heap, &dummy_big_rec,
+				btr_cur, &offsets, &heap, &dummy_big_rec,
 				update, 0, thr, thr_get_trx(thr)->id, &mtr);
 			ut_a(!dummy_big_rec);
 		}
@@ -910,6 +919,8 @@ row_undo_mod(
 	dict_locked = thr_get_trx(thr)->dict_operation_lock_mode == RW_X_LATCH;
 
 	row_undo_mod_parse_undo_rec(node, thr, dict_locked);
+
+	ut_ad(thr_get_trx(thr) == node->trx);
 
 	if (node->table == NULL) {
 		/* It is already undone, or will be undone by another query
