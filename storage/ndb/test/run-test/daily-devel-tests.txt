@@ -73,3 +73,8 @@ max-time: 1800
 cmd: testDict
 args: -n SchemaTrans -l 1
 
+# LCP Frag watchdog
+max-time: 600
+cmd: testNodeRestart
+args: -n LCPScanFragWatchdog T2
+
