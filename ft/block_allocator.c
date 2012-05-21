@@ -377,4 +377,3 @@ block_allocator_get_unused_statistics(BLOCK_ALLOCATOR ba, TOKU_DB_FRAGMENTATION 
         }
     }
 }
-
