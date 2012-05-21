@@ -44,7 +44,7 @@
 #include "sql_acl.h"      // acl_free, grant_free, acl_init,
                           // grant_init
 #include "sql_base.h"     // table_def_free, table_def_init,
-                          // cached_open_tables,
+                          // Table_cache,
                           // cached_table_definitions
 #include "sql_test.h"     // mysql_print_status
 #include "item_create.h"  // item_create_cleanup, item_create_init
@@ -493,6 +493,8 @@ int32 thread_running;
 ulong thread_created;
 ulong back_log, connect_timeout, concurrency, server_id;
 ulong table_cache_size, table_def_size;
+ulong table_cache_instances;
+ulong table_cache_size_per_instance;
 ulong what_to_log;
 ulong slow_launch_time;
 int32 slave_open_temp_tables;
@@ -3666,6 +3668,7 @@ int init_common_variables()
     }
     open_files_limit= files;
   }
+  table_cache_size_per_instance= table_cache_size / table_cache_instances;
   unireg_init(opt_specialflag); /* Set up extern variabels */
   if (!(my_default_lc_messages=
         my_locale_by_name(lc_messages)))
@@ -6957,7 +6960,7 @@ static int show_open_tables(THD *thd, SHOW_VAR *var, char *buff)
 {
   var->type= SHOW_LONG;
   var->value= buff;
-  *((long *)buff)= (long)cached_open_tables();
+  *((long *)buff)= (long)table_cache_manager.cached_tables();
   return 0;
 }
 
@@ -7475,6 +7478,9 @@ SHOW_VAR status_vars[]= {
 #endif /* HAVE_OPENSSL */
   {"Table_locks_immediate",    (char*) &locks_immediate,        SHOW_LONG},
   {"Table_locks_waited",       (char*) &locks_waited,           SHOW_LONG},
+  {"Table_open_cache_hits",    (char*) offsetof(STATUS_VAR, table_open_cache_hits), SHOW_LONGLONG_STATUS},
+  {"Table_open_cache_misses",  (char*) offsetof(STATUS_VAR, table_open_cache_misses), SHOW_LONGLONG_STATUS},
+  {"Table_open_cache_overflows",(char*) offsetof(STATUS_VAR, table_open_cache_overflows), SHOW_LONGLONG_STATUS},
 #ifdef HAVE_MMAP
   {"Tc_log_max_pages_used",    (char*) &tc_log_max_pages_used,  SHOW_LONG},
   {"Tc_log_page_size",         (char*) &tc_log_page_size,       SHOW_LONG},
