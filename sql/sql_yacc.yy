@@ -11780,6 +11780,11 @@ insert_lock_option:
           Lex->keyword_delayed_end_offset= Lex->keyword_delayed_begin_offset +
                                            YYLIP->yyLength() + 1;
           $$= TL_WRITE_DELAYED;
+
+          push_warning_printf(YYTHD, Sql_condition::WARN_LEVEL_WARN,
+                              ER_WARN_DEPRECATED_SYNTAX,
+                              ER(ER_WARN_DEPRECATED_SYNTAX),
+                              "INSERT DELAYED", "INSERT");
         }
         | HIGH_PRIORITY { $$= TL_WRITE; }
         ;
@@ -11793,6 +11798,11 @@ replace_lock_option:
           Lex->keyword_delayed_end_offset= Lex->keyword_delayed_begin_offset +
                                            YYLIP->yyLength() + 1;
           $$= TL_WRITE_DELAYED;
+
+          push_warning_printf(YYTHD, Sql_condition::WARN_LEVEL_WARN,
+                              ER_WARN_DEPRECATED_SYNTAX,
+                              ER(ER_WARN_DEPRECATED_SYNTAX),
+                              "REPLACE DELAYED", "REPLACE");
         }
         ;
 

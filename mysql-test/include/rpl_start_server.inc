@@ -8,6 +8,7 @@
 # --let $rpl_server_number= N
 # [--let $rpl_start_with_gtids= 1]
 # [--let $rpl_server_parameters= --flag1 --flag2 ...]
+# [--let $rpl_omit_print_server_parameters= 0]
 # [--let $rpl_debug_trace= 1]
 # [--let $rpl_debug= 1]
 # --source include/rpl_start_server.inc
@@ -28,6 +29,9 @@
 #   $rpl_server_parameters
 #     If set, extra parameters given by this variable are passed to
 #     mysqld.
+#
+#   $rpl_omit_print_server_parameters
+#     If set, server parameters are not printed.
 #
 #   $rpl_debug_trace
 #     Start the server with debug traces enabled, as with mtr --debug.
@@ -57,7 +61,10 @@ if ($rpl_start_with_gtids)
 }
 if ($rpl_server_parameters != '')
 {
-  --let $_rpl_start_server_info= $_rpl_start_server_info parameters: $rpl_server_parameters
+  if (!$rpl_omit_print_server_parameters)
+  {
+    --let $_rpl_start_server_info= $_rpl_start_server_info parameters: $rpl_server_parameters
+  }
 }
 if ($rpl_debug)
 {
