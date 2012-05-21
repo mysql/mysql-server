@@ -223,4 +223,110 @@ struct EndLcpConf
   STATIC_CONST( SignalLength = 2 );
 };
 
+struct LcpStatusReq
+{
+  /** 
+   * Sender(s)
+   */
+  friend class Dblqh;
+  
+  /**
+   * Sender(s) / Receiver(s)
+   */
+
+  /**
+   * Receiver(s)
+   */
+  friend class Backup;
+
+  friend bool printLCP_STATUS_REQ(FILE *, const Uint32 *, Uint32, Uint16);
+public:
+  
+  STATIC_CONST( SignalLength = 2 );
+
+private:
+  Uint32 senderRef;
+  Uint32 reqData;
+};
+
+struct LcpStatusConf
+{
+  /** 
+   * Sender(s)
+   */
+  friend class Backup;
+  
+  /**
+   * Sender(s) / Receiver(s)
+   */
+
+  /**
+   * Receiver(s)
+   */
+  friend class Dblqh;
+
+  friend bool printLCP_STATUS_CONF(FILE *, const Uint32 *, Uint32, Uint16);  
+public:
+  STATIC_CONST( SignalLength = 11 );
+
+  enum LcpState
+  {
+    LCP_IDLE       = 0,
+    LCP_PREPARED   = 1,
+    LCP_SCANNING   = 2,
+    LCP_SCANNED    = 3
+  };
+private:
+  Uint32 senderRef;
+  Uint32 reqData;
+  /* Backup stuff */
+  Uint32 lcpState;
+  /* In lcpState == LCP_IDLE, refers to prev LCP
+   * otherwise, refers to current running LCP
+   */
+  Uint32 lcpDoneRowsHi;
+  Uint32 lcpDoneRowsLo;
+  Uint32 lcpDoneBytesHi;
+  Uint32 lcpDoneBytesLo;
+  
+  /* Backup stuff valid iff lcpState == LCP_SCANNING */
+  Uint32 tableId;
+  Uint32 fragId;
+  Uint32 replicaDoneRowsHi;
+  Uint32 replicaDoneRowsLo;
+};
+
+struct LcpStatusRef
+{
+  /** 
+   * Sender(s)
+   */
+  friend class Backup;
+  
+  /**
+   * Sender(s) / Receiver(s)
+   */
+
+  /**
+   * Receiver(s)
+   */
+  friend class Dblqh;
+
+  friend bool printLCP_STATUS_REF(FILE *, const Uint32 *, Uint32, Uint16);  
+public:
+  STATIC_CONST( SignalLength = 3 );
+  
+  enum StatusFailCodes
+  {
+    NoLCPRecord    = 1,
+    NoTableRecord  = 2,
+    NoFileRecord   = 3
+  };
+
+private:
+  Uint32 senderRef;
+  Uint32 reqData;
+  Uint32 error;
+};
+
 #endif

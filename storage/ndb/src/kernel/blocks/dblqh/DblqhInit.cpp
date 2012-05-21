@@ -90,6 +90,9 @@ void Dblqh::initData()
   c_max_redo_lag_counter = 3; // 3 strikes and you're out
 
   c_max_parallel_scans_per_frag = 32;
+
+  c_lcpFragWatchdog.reset();
+  c_lcpFragWatchdog.thread_active = false;
 }//Dblqh::initData()
 
 void Dblqh::initRecords() 
@@ -425,6 +428,9 @@ Dblqh::Dblqh(Block_context& ctx, Uint32 instanceNumber):
   addRecSignal(GSN_DBINFO_SCANREQ, &Dblqh::execDBINFO_SCANREQ);
 
   addRecSignal(GSN_FIRE_TRIG_REQ, &Dblqh::execFIRE_TRIG_REQ);
+
+  addRecSignal(GSN_LCP_STATUS_CONF, &Dblqh::execLCP_STATUS_CONF);
+  addRecSignal(GSN_LCP_STATUS_REF, &Dblqh::execLCP_STATUS_REF);
 
   initData();
 

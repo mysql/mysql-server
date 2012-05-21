@@ -4471,6 +4471,10 @@ Backup::fragmentCompleted(Signal* signal, BackupFilePtr filePtr)
   
   if (ptr.p->is_lcp())
   {
+    /* Maintain LCP totals */
+    ptr.p->noOfRecords+= op.noOfRecords;
+    ptr.p->noOfBytes+= op.noOfBytes;
+    
     ptr.p->slaveState.setState(STOPPING);
     filePtr.p->operation.dataBuffer.eof();
   }
@@ -5682,7 +5686,14 @@ Backup::execLCP_PREPARE_REQ(Signal* signal)
   fragPtr.p->scanned = 0;
   fragPtr.p->scanning = 0;
   fragPtr.p->tableId = req.tableId;
-  
+
+  if (req.backupId != ptr.p->backupId)
+  {
+    jam();
+    /* New LCP, reset per-LCP counters */
+    ptr.p->noOfBytes = 0;
+    ptr.p->noOfRecords = 0;
+  }
   ptr.p->backupId= req.backupId;
   lcp_open_file(signal, ptr);
 }
@@ -5842,4 +5853,128 @@ Backup::execEND_LCPREQ(Signal* signal)
   conf->senderRef = reference();
   sendSignal(ptr.p->masterRef, GSN_END_LCPCONF,
 	     signal, EndLcpConf::SignalLength, JBB);
+}
+
+inline
+static 
+void setWords(const Uint64 src, Uint32& hi, Uint32& lo)
+{
+  hi = (Uint32) (src >> 32);
+  lo = (Uint32) (src & 0xffffffff);
+}
+
+void
+Backup::execLCP_STATUS_REQ(Signal* signal)
+{
+  jamEntry();
+  const LcpStatusReq* req = (const LcpStatusReq*) signal->getDataPtr();
+  
+  const Uint32 senderRef = req->senderRef;
+  const Uint32 reqData = req->reqData;
+  Uint32 failCode = LcpStatusRef::NoLCPRecord;
+
+  /* Find LCP backup, if there is one */
+  BackupRecordPtr ptr;
+  bool found_lcp = false;
+  for (c_backups.first(ptr); ptr.i != RNIL; c_backups.next(ptr))
+  {
+    jam();
+    if (ptr.p->is_lcp())
+    {
+      jam();
+      ndbrequire(found_lcp == false); /* Just one LCP */
+      found_lcp = true;
+      
+      LcpStatusConf::LcpState state = LcpStatusConf::LCP_IDLE;
+      switch (ptr.p->slaveState.getState())
+      {
+      case STARTED:
+        state = LcpStatusConf::LCP_PREPARED;
+        break;
+      case SCANNING:
+        state = LcpStatusConf::LCP_SCANNING;
+        break;
+      case STOPPING:
+        state = LcpStatusConf::LCP_SCANNED;
+        break;
+      case DEFINED:
+        state = LcpStatusConf::LCP_IDLE;
+        break;
+      default:
+        ndbout_c("Unusual LCP state in LCP_STATUS_REQ() : %u",
+                 ptr.p->slaveState.getState());
+        state = LcpStatusConf::LCP_IDLE;
+      };
+        
+      /* Not all values are set here */
+      const Uint32 UnsetConst = ~0;
+      
+      LcpStatusConf* conf = (LcpStatusConf*) signal->getDataPtr();
+      conf->senderRef = reference();
+      conf->reqData = reqData;
+      conf->lcpState = state;
+      conf->tableId = UnsetConst;
+      conf->fragId = UnsetConst;
+      conf->replicaDoneRowsHi = UnsetConst;
+      conf->replicaDoneRowsLo = UnsetConst;
+      setWords(ptr.p->noOfRecords,
+               conf->lcpDoneRowsHi,
+               conf->lcpDoneRowsLo);
+      setWords(ptr.p->noOfBytes,
+               conf->lcpDoneBytesHi,
+               conf->lcpDoneBytesLo);
+      
+      if (state == LcpStatusConf::LCP_SCANNING)
+      {
+        /* Actually scanning a fragment, let's grab the details */
+        TablePtr tabPtr;
+        FragmentPtr fragPtr;
+        BackupFilePtr filePtr;
+        
+        ptr.p->tables.first(tabPtr);
+        if (tabPtr.i == RNIL)
+        {
+          jam();
+          failCode = LcpStatusRef::NoTableRecord;
+          break;
+        }
+        tabPtr.p->fragments.getPtr(fragPtr, 0);
+        ndbrequire(fragPtr.p->tableId == tabPtr.p->tableId);
+        if (ptr.p->dataFilePtr == RNIL)
+        {
+          jam();
+          failCode = LcpStatusRef::NoFileRecord;
+          break;
+        }
+        c_backupFilePool.getPtr(filePtr, ptr.p->dataFilePtr);
+        ndbrequire(filePtr.p->backupPtr == ptr.i);
+        conf->tableId = tabPtr.p->tableId;
+        conf->fragId = fragPtr.p->fragmentId;
+        setWords(filePtr.p->operation.noOfRecords,
+                 conf->replicaDoneRowsHi,
+                 conf->replicaDoneRowsLo);
+      }
+      
+      failCode = 0;
+    }
+  }
+
+  if (failCode == 0)
+  {
+    jam();
+    sendSignal(senderRef, GSN_LCP_STATUS_CONF, 
+               signal, LcpStatusConf::SignalLength, JBB);
+    return;
+  }
+
+  jam();
+  LcpStatusRef* ref = (LcpStatusRef*) signal->getDataPtr();
+  
+  ref->senderRef = reference();
+  ref->reqData = reqData;
+  ref->error = failCode;
+  
+  sendSignal(senderRef, GSN_LCP_STATUS_REF, 
+             signal, LcpStatusRef::SignalLength, JBB);
+  return;
 }
