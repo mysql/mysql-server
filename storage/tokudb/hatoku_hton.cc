@@ -1574,16 +1574,9 @@ static struct st_mysql_sys_var *tokudb_system_variables[] = {
     MYSQL_SYSVAR(log_dir),
     MYSQL_SYSVAR(debug),
     MYSQL_SYSVAR(commit_sync),
-
-    // XXX: implmement a new mysql system variable in our handlerton
-    // called tokudb_lock_timeout. this variable defines the maximum
-    // time that threads will wait for a lock to be acquired
     MYSQL_SYSVAR(lock_timeout),
     MYSQL_SYSVAR(cleaner_period),
     MYSQL_SYSVAR(cleaner_iterations),
-
-    // XXX remove the old tokudb_read_lock_wait session variable
-    // XXX remove the old tokudb_write_lock_wait session variable
     MYSQL_SYSVAR(pk_insert_mode),
     MYSQL_SYSVAR(load_save_space),
     MYSQL_SYSVAR(disable_slow_alter),
