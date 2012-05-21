@@ -24,6 +24,7 @@
 #include "sql_db.h"      // my_dbopt_cleanup
 #include "hostname.h"    // hostname_cache_refresh
 #include "sql_repl.h"    // reset_master, reset_slave
+#include "rpl_mi.h"      // Master_info::data_lock
 #include "debug_sync.h"
 
 static void disable_checkpoints(THD *thd);
@@ -156,10 +157,10 @@ bool reload_acl_and_cache(THD *thd, unsigned long options,
   if (options & REFRESH_RELAY_LOG)
   {
 #ifdef HAVE_REPLICATION
-    mysql_mutex_lock(&LOCK_active_mi);
+    mysql_mutex_lock(&active_mi->data_lock);
     if (rotate_relay_log(active_mi))
       *write_to_binlog= -1;
-    mysql_mutex_unlock(&LOCK_active_mi);
+    mysql_mutex_unlock(&active_mi->data_lock);
 #endif
   }
 #ifdef HAVE_QUERY_CACHE

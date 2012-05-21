@@ -1442,6 +1442,25 @@ DROP TABLE t1,t2;
 --echo End of 5.1 tests
 
 --echo #
+--echo # LP BUG#994392: Wrong result with RIGHT/LEFT JOIN and ALL subquery
+--echo # predicate in WHERE condition.
+--echo #
+
+CREATE TABLE t1(a INT);
+INSERT INTO t1 VALUES(9);
+CREATE TABLE t2(b INT);
+INSERT INTO t2 VALUES(8);
+CREATE TABLE t3(c INT);
+INSERT INTO t3 VALUES(3);
+SELECT * FROM t2 RIGHT JOIN t3 ON(c = b) WHERE b < ALL(SELECT a FROM t1 WHERE a <= 7);
+SELECT * FROM t3 LEFT JOIN t2 ON(c = b) WHERE b < ALL(SELECT a FROM t1 WHERE a <= 7);
+SELECT * FROM t2 RIGHT JOIN t3 ON(c = b) WHERE b not in (SELECT a FROM t1 WHERE a <= 7);
+SELECT * FROM t3 LEFT JOIN t2 ON(c = b) WHERE b not in (SELECT a FROM t1 WHERE a <= 7);
+drop table t1,t2,t3;
+
+--echo End of 5.2 tests
+
+--echo #
 --echo # LP bug #813447: LEFT JOIN with single-row inner table and
 --echo #                 a subquery in ON expression
 --echo #

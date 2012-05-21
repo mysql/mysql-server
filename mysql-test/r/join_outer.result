@@ -1855,6 +1855,30 @@ f1	f1	f2
 DROP TABLE t1,t2;
 End of 5.1 tests
 #
+# LP BUG#994392: Wrong result with RIGHT/LEFT JOIN and ALL subquery
+# predicate in WHERE condition.
+#
+CREATE TABLE t1(a INT);
+INSERT INTO t1 VALUES(9);
+CREATE TABLE t2(b INT);
+INSERT INTO t2 VALUES(8);
+CREATE TABLE t3(c INT);
+INSERT INTO t3 VALUES(3);
+SELECT * FROM t2 RIGHT JOIN t3 ON(c = b) WHERE b < ALL(SELECT a FROM t1 WHERE a <= 7);
+b	c
+NULL	3
+SELECT * FROM t3 LEFT JOIN t2 ON(c = b) WHERE b < ALL(SELECT a FROM t1 WHERE a <= 7);
+c	b
+3	NULL
+SELECT * FROM t2 RIGHT JOIN t3 ON(c = b) WHERE b not in (SELECT a FROM t1 WHERE a <= 7);
+b	c
+NULL	3
+SELECT * FROM t3 LEFT JOIN t2 ON(c = b) WHERE b not in (SELECT a FROM t1 WHERE a <= 7);
+c	b
+3	NULL
+drop table t1,t2,t3;
+End of 5.2 tests
+#
 # LP bug #813447: LEFT JOIN with single-row inner table and
 #                 a subquery in ON expression
 #

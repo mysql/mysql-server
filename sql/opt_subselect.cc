@@ -3176,6 +3176,25 @@ at_sjmat_pos(const JOIN *join, table_map remaining_tables, const JOIN_TAB *tab,
 }
 
 
+/*
+  Re-calculate values of join->best_positions[start..end].prefix_record_count
+*/
+
+static void recalculate_prefix_record_count(JOIN *join, uint start, uint end)
+{
+  for (uint j= start; j < end ;j++)
+  {
+    double prefix_count;
+    if (j == join->const_tables)
+      prefix_count= 1.0;
+    else
+      prefix_count= join->best_positions[j-1].prefix_record_count *
+                    join->best_positions[j-1].records_read;
+
+    join->best_positions[j].prefix_record_count= prefix_count;
+  }
+}
+
 
 /*
   Fix semi-join strategies for the picked join order
@@ -3245,6 +3264,8 @@ void fix_semijoin_strategies_for_picked_join_order(JOIN *join)
       sjm->is_sj_scan= FALSE;
       memcpy(pos - sjm->tables + 1, sjm->positions, 
              sizeof(POSITION) * sjm->tables);
+      recalculate_prefix_record_count(join, tablenr - sjm->tables + 1,
+                                      tablenr);
       first= tablenr - sjm->tables + 1;
       join->best_positions[first].n_sj_tables= sjm->tables;
       join->best_positions[first].sj_strategy= SJ_OPT_MATERIALIZE;
@@ -3258,6 +3279,7 @@ void fix_semijoin_strategies_for_picked_join_order(JOIN *join)
       first= pos->sjmat_picker.sjm_scan_last_inner - sjm->tables + 1;
       memcpy(join->best_positions + first, 
              sjm->positions, sizeof(POSITION) * sjm->tables);
+      recalculate_prefix_record_count(join, first, first + sjm->tables);
       join->best_positions[first].sj_strategy= SJ_OPT_MATERIALIZE_SCAN;
       join->best_positions[first].n_sj_tables= sjm->tables;
       /* 

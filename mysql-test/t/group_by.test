@@ -1374,9 +1374,81 @@ t2_1.b + 1 > 0 OR
 a = t2_1.c
 GROUP BY zzz;
 
---echo #TODO: in merge with 5.3 add original test suite
+SET @save_optimizer_switch967242=@@optimizer_switch;
+SET optimizer_switch = 'in_to_exists=on';
+
+SELECT t2_1.b
+FROM t1 JOIN t2 AS t2_1 JOIN t2 AS t2_2
+    ON (t2_2.b = t2_1.b ) AND (t2_2.c = t2_1.c )
+WHERE
+  ( SELECT COUNT(*) FROM t2 ) IS NOT NULL
+  OR a = t2_1.c
+GROUP BY t2_1.b;
+SET optimizer_switch=@save_optimizer_switch967242;
 
 drop table t1, t2;
+
+--echo #
+--echo # Bug#12578908: SELECT SQL_BUFFER_RESULT OUTPUTS TOO MANY 
+--echo #               ROWS WHEN GROUP IS OPTIMIZED AWAY
+--echo #
+
+CREATE TABLE t1 (col1 int, col2 int) ;
+INSERT INTO t1 VALUES (10,1),(11,7);
+
+CREATE TABLE t2 (col1 int, col2 int) ;
+INSERT INTO t2 VALUES (10,8);
+
+let $q_body=t2.col2 FROM t2 JOIN t1 ON t1.col1 GROUP BY t2.col2;
+
+--echo
+--eval EXPLAIN SELECT SQL_BUFFER_RESULT $q_body
+--eval SELECT SQL_BUFFER_RESULT $q_body
+--echo
+--eval EXPLAIN SELECT $q_body
+--eval SELECT $q_body
+
+--echo
+DROP TABLE t1,t2;
+
+--echo #
+--echo # BUG#12640437: USING SQL_BUFFER_RESULT RESULTS IN A
+--echo #               DIFFERENT QUERY OUTPUT
+--echo #
+
+CREATE TABLE t1 (
+  a int,
+  b varchar(1),
+  KEY (b,a)
+);
+
+INSERT INTO t1 VALUES (1,NULL),(0,'a');
+
+let $query=
+  SELECT SQL_BUFFER_RESULT MIN(a), b FROM t1 WHERE t1.b = 'a' GROUP BY b;
+
+--echo
+--eval EXPLAIN $query
+--echo
+--eval $query
+
+let $query= SELECT MIN(a), b FROM t1 WHERE t1.b = 'a' GROUP BY b;
+--echo
+--eval EXPLAIN $query
+--echo
+--eval $query
+
+--echo
+DROP TABLE t1;
+
+--echo #
+--echo # LP bug#993726 Wrong result from a query with ALL subquery predicate in WHERE
+--echo #
+CREATE TABLE t1(a INT);
+INSERT INTO t1 VALUES (0);
+SELECT 1 FROM t1 WHERE 1 > ALL(SELECT 1 FROM t1 WHERE a!=0);
+SELECT max(1) FROM t1 WHERE a!=0;
+drop table t1;
 
 --echo # End of 5.2 tests
 

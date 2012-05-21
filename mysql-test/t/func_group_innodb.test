@@ -86,6 +86,19 @@ drop table t1m, t1i, t2m, t2i;
 
 
 --echo #
+--echo # Bug#13723054 CRASH WITH MIN/MAX AFTER QUICK_GROUP_MIN_MAX_SELECT::NEXT_MIN
+--echo #
+
+CREATE TABLE t1(a BLOB, b VARCHAR(255) CHARSET LATIN1, c INT,
+                KEY(b, c, a(765))) ENGINE=INNODB;
+INSERT INTO t1(a, b, c) VALUES ('', 'a', 0), ('', 'a', null), ('', 'a', 0);
+
+SELECT MIN(c) FROM t1 GROUP BY b;
+EXPLAIN SELECT MIN(c) FROM t1 GROUP BY b;
+
+DROP TABLE t1;
+
+--echo #
 --echo # Bug #57954: BIT_AND function returns incorrect results when 
 --echo #   semijoin=on
 

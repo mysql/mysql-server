@@ -2097,6 +2097,24 @@ a	b
 drop table t1;
 set optimizer_switch=@save978847_optimizer_switch;
 #
+# LP bug998516 Server hangs on INSERT .. SELECT with derived_merge,
+# FROM subquery, UNION 
+#
+CREATE TABLE t1 (a INT);
+INSERT INTO t1 VALUES (1),(2);
+CREATE TABLE t2 (b INT);
+INSERT INTO t2 VALUES (3),(4);
+INSERT INTO t1 SELECT * FROM ( SELECT * FROM t1 ) AS alias UNION SELECT * FROM t2;
+select * from t1;
+a
+1
+2
+1
+2
+3
+4
+drop table t1,t2;
+#
 # end of 5.3 tests
 #
 set optimizer_switch=@exit_optimizer_switch;

@@ -1829,7 +1829,9 @@ Waiting for the slave SQL thread to free enough relay log space");
 #endif
     if (rli->sql_force_rotate_relay)
     {
+      mysql_mutex_lock(&active_mi->data_lock);
       rotate_relay_log(rli->mi);
+      mysql_mutex_unlock(&active_mi->data_lock);
       rli->sql_force_rotate_relay= false;
     }
 
@@ -5396,7 +5398,10 @@ int rotate_relay_log(Master_info* mi)
     output in SHOW SLAVE STATUS meanwhile. So we harvest now.
     If the log is closed, then this will just harvest the last writes, probably
     0 as they probably have been harvested.
+
+    Note that it needs to be protected by mi->data_lock.
   */
+  mysql_mutex_assert_owner(&mi->data_lock);
   rli->relay_log.harvest_bytes_written(&rli->log_space_total);
 end:
   DBUG_RETURN(error);

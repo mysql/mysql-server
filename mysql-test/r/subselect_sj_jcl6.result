@@ -2725,6 +2725,48 @@ DROP VIEW v1;
 DROP TABLE t1;
 set @@join_cache_level= @tmp_jcl_978479;
 set @@optimizer_switch= @tmp_os_978479;
+#
+# BUG#998236: Assertion failure or valgrind errors at best_access_path ...
+#
+CREATE TABLE t1 (a1 VARCHAR(3), a2 VARCHAR(35), KEY(a1,a2)) ENGINE=MyISAM;
+INSERT INTO t1 VALUES
+('USA','Arvada'),('USA','Athens'),('USA','Atlanta'),('USA','Augusta'),
+('USA','Aurora'),('USA','Aurora'),('USA','Austin'),('USA','Bakersfield'),
+('USA','Baltimore'),('USA','Baton'),('USA','Beaumont'),('USA','Bellevue'),
+('USA','Berkeley'),('USA','Billings'),('USA','Birmingham'),('USA','Boise'),
+('USA','Boston'),('USA','Boulder'),('USA','Bridgeport'),('USA','Brockton'),
+('USA','Brownsville'),('USA','Buffalo'),('USA','Burbank'),('USA','Cambridge'),
+('USA','Cape'),('USA','Carrollton'),('USA','Carson'),('USA','Cary'),
+('USA','Cedar'),('USA','Chandler'),('USA','Charleston'),('USA','Charlotte'),
+('USA','Chattanooga'),('USA','Chesapeake'),('USA','Chicago'),('USA','Chula'),
+('USA','Cincinnati'),('USA','Citrus'),('USA','Clarksville'),('USA','Clearwater'),
+('USA','Cleveland'),('USA','Colorado'),('USA','Columbia'),('USA','Columbus'),
+('USA','Columbus'),('USA','Compton'),('USA','Concord'),('USA','Coral'),
+('USA','Corona'),('USA','Corpus'),('USA','Costa'),('USA','Dallas'),('USA','Daly'),
+('USA','Davenport'),('USA','Dayton'),('USA','Denver'),('USA','DesMoines'),
+('USA','Detroit'),('USA','Downey'),('USA','Durham'),('USA','East'),('USA','ElCajon'),
+('USA','ElMonte'),('USA','ElPaso'),('USA','Elgin'),('USA','Elizabeth'),
+('USA','Erie'),('USA','Escondido'),('USA','Eugene'),('USA','Evansville'),
+('USA','Fairfield'),('USA','Fall'),('USA','Fayetteville'),('USA','Flint'),
+('USA','Fontana'),('USA','FortCollins'),('USA','FortLauderdale'),('USA','FortWayne'),
+('USA','FortWorth'),('USA','Fremont'),('USA','Fresno'),('USA','Fullerton'),
+('USA','Gainesville'),('USA','GardenGrove'),('USA','Garland'),('USA','Gary'),
+('USA','Gilbert'),('USA','Glendale'),('USA','Glendale'),('USA','GrandPrairie'),
+('USA','GrandRapids'),('USA','Green Bay'),('USA','Greensboro'),('USA','Hampton'),
+('USA','Hartford'),('USA','Hayward'),('USA','Henderson'),('USA','Hialeah'),
+('USA','Inglewood'),('USA','Livonia');
+CREATE TABLE t3 (c1 VARCHAR(3), c2 VARCHAR(16), PRIMARY KEY (c1,c2)) ENGINE=MyISAM;
+INSERT INTO t3 VALUES ('USA','Chinese'), ('USA','English');
+CREATE TABLE t2 (b1 INT) ENGINE=MyISAM;
+INSERT INTO t2 VALUES (1);
+SELECT alias1.a1 AS field1
+FROM t1 AS alias1, t1 AS alias2
+WHERE alias1.a2 IN ( SELECT a1 FROM t1, t2 )
+AND alias1.a1 IS NULL
+AND ( alias1.a1, alias2.a1 ) IN ( SELECT c1, c1 FROM t3 )
+GROUP BY field1;
+field1
+DROP TABLE t1,t3,t2;
 set optimizer_switch=@subselect_sj_tmp;
 #
 # BUG#49129: Wrong result with IN-subquery with join_cache_level=6 and firstmatch=off

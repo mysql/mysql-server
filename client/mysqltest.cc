@@ -816,6 +816,9 @@ void handle_error(struct st_command*,
 void handle_no_error(struct st_command*);
 void revert_properties();
 
+static void handle_no_active_connection(struct st_command* command, 
+  struct st_connection *cn, DYNAMIC_STRING *ds);
+
 #ifdef EMBEDDED_LIBRARY
 
 #define EMB_SEND_QUERY 1
@@ -2562,6 +2565,19 @@ void var_query_set(VAR *var, const char *query, const char** query_end)
   DBUG_ENTER("var_query_set");
   LINT_INIT(res);
 
+  if (!mysql)
+  {
+    struct st_command command;
+    memset(&command, 0, sizeof(command));
+    command.query= (char*)query;
+    command.first_word_len= (*query_end - query);
+    command.first_argument= command.query + command.first_word_len;
+    command.end= (char*)*query_end;
+    command.abort_on_error= 1; /* avoid uninitialized variables */
+    handle_no_active_connection(&command, cur_con, &ds_res);
+    DBUG_VOID_RETURN;
+  }
+
   /* Only white space or ) allowed past ending ` */
   while (end > query && *end != '`')
   {
@@ -2741,6 +2757,12 @@ void var_set_query_get_value(struct st_command *command, VAR *var)
   DBUG_ENTER("var_set_query_get_value");
   LINT_INIT(res);
 
+  if (!mysql)
+  {
+    handle_no_active_connection(command, cur_con, &ds_res);
+    DBUG_VOID_RETURN;
+  }
+
   strip_parentheses(command);
   DBUG_PRINT("info", ("query: %s", command->query));
   check_command_args(command, command->first_argument, query_get_value_args,
@@ -2911,6 +2933,7 @@ void eval_expr(VAR *v, const char *p, const char **p_end,
       command.first_word_len= len;
       command.first_argument= command.query + len;
       command.end= (char*)*p_end;
+      command.abort_on_error= 1; /* avoid uninitialized variables */
       var_set_query_get_value(&command, v);
       DBUG_VOID_RETURN;
     }
@@ -7591,6 +7614,22 @@ int append_warnings(DYNAMIC_STRING *ds, MYSQL* mysql)
 
 
 /*
+  Handle situation where query is sent but there is no active connection 
+  (e.g directly after disconnect).
+
+  We emulate MySQL-compatible behaviour of sending something on a closed
+  connection.
+*/
+static void handle_no_active_connection(struct st_command *command, 
+  struct st_connection *cn, DYNAMIC_STRING *ds)
+{
+  handle_error(command, 2006, "MySQL server has gone away", "000000", ds);
+  cn->pending= FALSE;
+  var_set_errno(2006);
+}
+
+
+/*
   Run query using MySQL C API
 
   SYNOPSIS
@@ -7616,11 +7655,7 @@ void run_query_normal(struct st_connection *cn, struct st_command *command,
 
   if (!mysql)
   {
-    /* Emulate old behaviour of sending something on a closed connection */
-    handle_error(command, 2006, "MySQL server has gone away",
-                 "000000", ds);
-    cn->pending= FALSE;
-    var_set_errno(2006);
+    handle_no_active_connection(command, cn, ds);
     DBUG_VOID_RETURN;
   }
 

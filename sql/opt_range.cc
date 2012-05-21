@@ -13271,7 +13271,7 @@ int QUICK_GROUP_MIN_MAX_SELECT::next_min()
     if (min_max_arg_part && min_max_arg_part->field->is_null())
     {
       /* Find the first subsequent record without NULL in the MIN/MAX field. */
-      key_copy(tmp_record, record, index_info, 0);
+      key_copy(tmp_record, record, index_info, max_used_key_length);
       result= file->ha_index_read_map(record, tmp_record,
                                       make_keypart_map(real_key_parts),
                                       HA_READ_AFTER_KEY);

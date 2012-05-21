@@ -193,3 +193,20 @@ sum(distinct(if('a',
                 (select adddate(elt(convert($nines,decimal(64,0)),count(*)),
                                 interval 1 day))
                 , .1))) as foo;
+
+--echo #
+--echo # LP bug#998321 Simple query with IF expression causes an
+--echo # assertion abort (see also mysql Bug#12620084)
+--echo #
+
+SELECT if(0, (SELECT min('hello')), NULL);
+SELECT if(1, (SELECT min('hello')), NULL);
+SELECT if(0, NULL, (SELECT min('hello')));
+SELECT if(1, NULL, (SELECT min('hello')));
+
+--echo End of 5.2 tests
+
+--disable_query_log
+# Restore timezone to default
+set time_zone= @@global.time_zone;
+--enable_query_log

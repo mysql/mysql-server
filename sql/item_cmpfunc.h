@@ -252,6 +252,7 @@ public:
   { with_subselect= true; }
   bool fix_fields(THD *, Item **);
   bool fix_left(THD *thd, Item **ref);
+  table_map not_null_tables() const { return 0; }
   bool is_null();
   longlong val_int();
   void cleanup();
@@ -503,6 +504,7 @@ public:
     {}
   virtual void top_level_item() { abort_on_null= 1; }
   bool is_top_level_item() { return abort_on_null; }
+  table_map not_null_tables() const { return 0; }
   longlong val_int();
   enum Functype functype() const { return NOT_ALL_FUNC; }
   const char *func_name() const { return "<not>"; }

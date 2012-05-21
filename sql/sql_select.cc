@@ -114,7 +114,8 @@ static store_key *get_store_key(THD *thd,
 				uint maybe_null);
 static bool make_outerjoin_info(JOIN *join);
 static Item*
-make_cond_after_sjm(Item *root_cond, Item *cond, table_map tables, table_map sjm_tables);
+make_cond_after_sjm(Item *root_cond, Item *cond, table_map tables, 
+                    table_map sjm_tables, bool inside_or_clause);
 static bool make_join_select(JOIN *join,SQL_SELECT *select,COND *item);
 static void revise_cache_usage(JOIN_TAB *join_tab);
 static bool make_join_readinfo(JOIN *join, ulonglong options, uint no_jbuf_after);
@@ -1333,8 +1334,19 @@ JOIN::optimize()
         store_key *key_copy= tab->ref.key_copy[key_copy_index];
         if (key_copy->type() == store_key::FIELD_STORE_KEY)
         {
-          store_key_field *field_copy= ((store_key_field *)key_copy);
-          field_copy->change_source_field((Item_field *) item);
+          if (item->basic_const_item())
+          {
+            /* It is constant propagated here */
+            tab->ref.key_copy[key_copy_index]=
+              new store_key_const_item(*tab->ref.key_copy[key_copy_index],
+                                       item);
+          }
+          else
+          {
+            store_key_field *field_copy= ((store_key_field *)key_copy);
+            DBUG_ASSERT(item->type() == Item::FIELD_ITEM);
+            field_copy->change_source_field((Item_field *) item);
+          }
         }
       }
       key_copy_index++;
@@ -1523,7 +1535,6 @@ JOIN::optimize()
     simple_order=1;
     select_distinct= 0;                       // No need in distinct for 1 row
     group_optimized_away= 1;
-    implicit_grouping= TRUE;
   }
 
   calc_group_buffer(this, group_list);
@@ -8009,7 +8020,31 @@ JOIN::make_simple_join(JOIN *parent, TABLE *temp_table)
   tmp_table_param.copy_field= tmp_table_param.copy_field_end=0;
   first_record= sort_and_group=0;
   send_records= (ha_rows) 0;
-  group= 0;
+
+  if (group_optimized_away && !tmp_table_param.precomputed_group_by)
+  {
+    /*
+      If grouping has been optimized away, a temporary table is
+      normally not needed unless we're explicitly requested to create
+      one (e.g. due to a SQL_BUFFER_RESULT hint or INSERT ... SELECT).
+
+      In this case (grouping was optimized away), temp_table was
+      created without a grouping expression and JOIN::exec() will not
+      perform the necessary grouping (by the use of end_send_group()
+      or end_write_group()) if JOIN::group is set to false.
+
+      There is one exception: if the loose index scan access method is
+      used to read into the temporary table, grouping and aggregate
+      functions are handled.
+    */
+    // the temporary table was explicitly requested
+    DBUG_ASSERT(test(select_options & OPTION_BUFFER_RESULT));
+    // the temporary table does not have a grouping expression
+    DBUG_ASSERT(!temp_table->group); 
+  }
+  else
+    group= false;
+
   row_limit= unit->select_limit_cnt;
   do_send_rows= row_limit ? 1 : 0;
 
@@ -8138,6 +8173,16 @@ static void add_not_null_conds(JOIN *join)
           Item *item= tab->ref.items[keypart];
           Item *notnull;
           Item *real= item->real_item();
+          if (real->basic_const_item())
+          {
+            /*
+              It could be constant instead of field after constant
+              propagation.
+            */
+            DBUG_ASSERT(real->is_expensive() || // prevent early expensive eval
+                        !real->is_null()); // NULLs are not propagated
+            continue;
+          }
           DBUG_ASSERT(real->type() == Item::FIELD_ITEM);
           Item_field *not_null_item= (Item_field*)real;
           JOIN_TAB *referred_tab= not_null_item->field->table->reginfo.join_tab;
@@ -8519,7 +8564,8 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
         if (tab->bush_children)
         {
           // Reached the materialization tab
-          tmp= make_cond_after_sjm(cond, cond, save_used_tables, used_tables);
+          tmp= make_cond_after_sjm(cond, cond, save_used_tables, used_tables, 
+                                   /*inside_or_clause=*/FALSE);
           used_tables= save_used_tables | used_tables;
           save_used_tables= 0;
         }
@@ -17732,13 +17778,14 @@ make_cond_for_table_from_pred(THD *thd, Item *root_cond, Item *cond,
 */
 static COND *
 make_cond_after_sjm(Item *root_cond, Item *cond, table_map tables, 
-                    table_map sjm_tables)
+                    table_map sjm_tables, bool inside_or_clause)
 {
   /*
     We assume that conditions that refer to only join prefix tables or 
     sjm_tables have already been checked.
   */
-  if ((!(cond->used_tables() & ~tables) || 
+  if (!inside_or_clause && 
+      (!(cond->used_tables() & ~tables) || 
        !(cond->used_tables() & ~sjm_tables)))
     return (COND*) 0;				// Already checked
 
@@ -17755,7 +17802,8 @@ make_cond_after_sjm(Item *root_cond, Item *cond, table_map tables,
       Item *item;
       while ((item=li++))
       {
-	Item *fix=make_cond_after_sjm(root_cond, item, tables, sjm_tables);
+	Item *fix=make_cond_after_sjm(root_cond, item, tables, sjm_tables, 
+                                      inside_or_clause);
 	if (fix)
 	  new_cond->argument_list()->push_back(fix);
       }
@@ -17785,7 +17833,8 @@ make_cond_after_sjm(Item *root_cond, Item *cond, table_map tables,
       Item *item;
       while ((item=li++))
       {
-	Item *fix= make_cond_after_sjm(root_cond, item, tables, 0L);
+	Item *fix= make_cond_after_sjm(root_cond, item, tables, sjm_tables,
+                                       /*inside_or_clause= */TRUE);
 	if (!fix)
 	  return (COND*) 0;			// Always true
 	new_cond->argument_list()->push_back(fix);
@@ -18373,7 +18422,6 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
           KEYUSE *keyuse= tab->keyuse;
           while (keyuse->key != new_ref_key && keyuse->table == tab->table)
             keyuse++;
-
           if (create_ref_for_key(tab->join, tab, keyuse, FALSE,
                                  (tab->join->const_table_map |
                                   OUTER_REF_TABLE_BIT)))

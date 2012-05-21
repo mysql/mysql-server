@@ -4447,3 +4447,17 @@ DROP VIEW view_t1;
 
 SET optimizer_switch=@save_optimizer_switch;
 
+--echo #
+--echo # LP bug#994275 Assertion `real->type() == Item::FIELD_ITEM' failed
+--echo # in add_not_null_conds(JOIN*) with JOIN, ZEROFILL column, PK
+--echo #
+
+CREATE TABLE t1 ( a INT(6) ZEROFILL );
+INSERT INTO t1 VALUES (1),(2);
+
+CREATE TABLE t2 ( b INT PRIMARY KEY );
+INSERT INTO t2 VALUES (3),(4);
+SELECT * FROM t1, t2 WHERE a=3 AND a=b;
+drop table t1,t2;
+
+--echo End of 5.3 tests
