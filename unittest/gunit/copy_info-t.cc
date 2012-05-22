@@ -21,7 +21,7 @@
 #include "mock_field_timestamp.h"
 #include "fake_table.h"
 #include "test_utils.h"
-#include "sql_class.h"
+#include "sql_data_change.h"
 
 namespace {
 

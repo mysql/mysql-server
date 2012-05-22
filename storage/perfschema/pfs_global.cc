@@ -26,6 +26,10 @@
 #include <stdlib.h>
 #include <string.h>
 
+#ifdef HAVE_UNISTD_H
+#include <unistd.h>
+#endif
+
 #ifdef __WIN__
   #include <winsock2.h>
 #else
@@ -45,18 +49,61 @@ void *pfs_malloc(size_t size, myf flags)
   DBUG_ASSERT(! pfs_initialized);
   DBUG_ASSERT(size > 0);
 
-  void *ptr= malloc(size);
-  if (likely(ptr != NULL))
-    pfs_allocated_memory+= size;
-  if (likely((ptr != NULL) && (flags & MY_ZEROFILL)))
+  void *ptr;
+
+#ifdef HAVE_POSIX_MEMALIGN
+  /* Linux */
+  if (unlikely(posix_memalign(& ptr, PFS_ALIGNEMENT, size)))
+    return NULL;
+#else
+#ifdef HAVE_MEMALIGN
+  /* Solaris */
+  ptr= memalign(PFS_ALIGNEMENT, size);
+  if (unlikely(ptr == NULL))
+    return NULL;
+#else
+#ifdef HAVE_ALIGNED_MALLOC
+  /* Windows */
+  ptr= _aligned_malloc(size, PFS_ALIGNEMENT);
+  if (unlikely(ptr == NULL))
+    return NULL;
+#else
+  /* Everything else */
+  ptr= malloc(size);
+  if (unlikely(ptr == NULL))
+    return NULL;
+#endif /* HAVE_ALIGNED_MALLOC */
+#endif /* HAVE_MEMALIGN */
+#endif /* HAVE_POSIX_MEMALIGN */
+
+  pfs_allocated_memory+= size;
+  if (flags & MY_ZEROFILL)
     memset(ptr, 0, size);
   return ptr;
 }
 
 void pfs_free(void *ptr)
 {
-  if (ptr != NULL)
-    free(ptr);
+  if (ptr == NULL)
+    return;
+
+#ifdef HAVE_POSIX_MEMALIGN
+  /* Allocated with posix_memalign() */
+  free(ptr);
+#else
+#ifdef HAVE_MEMALIGN
+  /* Allocated with memalign() */
+  free(ptr);
+#else
+#ifdef HAVE_ALIGNED_MALLOC
+  /* Allocated with _aligned_malloc() */
+  _aligned_free(ptr);
+#else
+  /* Allocated with malloc() */
+  free(ptr);
+#endif /* HAVE_ALIGNED_MALLOC */
+#endif /* HAVE_MEMALIGN */
+#endif /* HAVE_POSIX_MEMALIGN */
 }
 
 void pfs_print_error(const char *format, ...)

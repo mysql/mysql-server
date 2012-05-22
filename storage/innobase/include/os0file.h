@@ -217,10 +217,10 @@ used to register actual file read, write and flush */
 # define register_pfs_file_open_begin(state, locker, key, op, name,	\
 				      src_file, src_line)		\
 do {									\
-	locker = PSI_CALL(get_thread_file_name_locker)(			\
+	locker = PSI_FILE_CALL(get_thread_file_name_locker)(		\
 		state, key, op, name, &locker);				\
 	if (UNIV_LIKELY(locker != NULL)) {				\
-		PSI_CALL(start_file_open_wait)(				\
+		PSI_FILE_CALL(start_file_open_wait)(			\
 			locker, src_file, src_line);			\
 	}								\
 } while (0)
@@ -228,7 +228,7 @@ do {									\
 # define register_pfs_file_open_end(locker, file)			\
 do {									\
 	if (UNIV_LIKELY(locker != NULL)) {				\
-		PSI_CALL(end_file_open_wait_and_bind_to_descriptor)(	\
+		PSI_FILE_CALL(end_file_open_wait_and_bind_to_descriptor)(\
 			locker, file);					\
 	}								\
 } while (0)
@@ -236,10 +236,10 @@ do {									\
 # define register_pfs_file_io_begin(state, locker, file, count, op,	\
 				    src_file, src_line)			\
 do {									\
-	locker = PSI_CALL(get_thread_file_descriptor_locker)(		\
+	locker = PSI_FILE_CALL(get_thread_file_descriptor_locker)(	\
 		state, file, op);					\
 	if (UNIV_LIKELY(locker != NULL)) {				\
-		PSI_CALL(start_file_wait)(				\
+		PSI_FILE_CALL(start_file_wait)(				\
 			locker, count, src_file, src_line);		\
 	}								\
 } while (0)
@@ -247,7 +247,7 @@ do {									\
 # define register_pfs_file_io_end(locker, count)			\
 do {									\
 	if (UNIV_LIKELY(locker != NULL)) {				\
-		PSI_CALL(end_file_wait)(locker, count);			\
+		PSI_FILE_CALL(end_file_wait)(locker, count);		\
 	}								\
 } while (0)
 #endif /* UNIV_PFS_IO  */

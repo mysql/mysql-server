@@ -2729,10 +2729,13 @@ void LEX::cleanup_lex_after_parse_error(THD *thd)
     Sic: we must nullify the member of the main lex, not the
     current one that will be thrown away
   */
-  if (thd->lex->sphead)
+  sp_head *sp= thd->lex->sphead;
+
+  if (sp)
   {
-    thd->lex->sphead->restore_thd_mem_root(thd);
-    delete thd->lex->sphead;
+    sp->m_parser_data.finish_parsing_sp_body(thd);
+    delete sp;
+
     thd->lex->sphead= NULL;
   }
 }

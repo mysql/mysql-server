@@ -14,7 +14,7 @@
    along with this program; see the file COPYING. If not, write to the
    Free Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston,
    MA  02110-1301  USA.
-*/
+ */
 
 
 /* based on Wei Dai's ripemd.cpp from CryptoPP */
@@ -110,14 +110,14 @@ void RIPEMD160::Update(const byte* data, word32 len)
 
     // all at once for asm
     if (buffLen_ == 0) {
-            word32 times = len / BLOCK_SIZE;
-            if (times) {
-                AsmTransform(data, times);
-                const word32 add = BLOCK_SIZE * times;
-                AddLength(add);
-                len  -= add;
-                data += add;
-            }
+        word32 times = len / BLOCK_SIZE;
+        if (times) {
+            AsmTransform(data, times);
+            const word32 add = BLOCK_SIZE * times;
+            AddLength(add);
+            len  -= add;
+            data += add;
+        }
     }
 
     // cache any data left

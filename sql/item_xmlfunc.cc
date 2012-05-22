@@ -2485,7 +2485,7 @@ my_xpath_parse_VariableReference(MY_XPATH *xpath)
   name.str= (char*) xpath->prevtok.beg;
   
   if (user_var)
-    xpath->item= new Item_func_get_user_var(NameString(name, false));
+    xpath->item= new Item_func_get_user_var(Name_string(name, false));
   else
   {
     sp_variable *spv;
@@ -2495,7 +2495,7 @@ my_xpath_parse_VariableReference(MY_XPATH *xpath)
         (spc= lex->get_sp_current_parsing_ctx()) &&
         (spv= spc->find_variable(name, false)))
     {
-      Item_splocal *splocal= new Item_splocal(NameString(name, false),
+      Item_splocal *splocal= new Item_splocal(Name_string(name, false),
                                               spv->offset, spv->type, 0);
 #ifndef DBUG_OFF
       if (splocal)

@@ -354,7 +354,7 @@ static int _ftb_no_dupes_cmp(const void* not_used __attribute__((unused)),
 
   returns 1 if the search was finished (must-word wasn't found)
 */
-static int _ft2_search(FTB *ftb, FTB_WORD *ftbw, my_bool init_search)
+static int _ft2_search_no_lock(FTB *ftb, FTB_WORD *ftbw, my_bool init_search)
 {
   int r;
   int subkeys=1;
@@ -454,7 +454,7 @@ static int _ft2_search(FTB *ftb, FTB_WORD *ftbw, my_bool init_search)
     ftbw->key_root=info->s->state.key_root[ftb->keynr];
     ftbw->keyinfo=info->s->keyinfo+ftb->keynr;
     ftbw->off=0;
-    return _ft2_search(ftb, ftbw, 0);
+    return _ft2_search_no_lock(ftb, ftbw, 0);
   }
 
   /* matching key found */
@@ -480,6 +480,18 @@ static int _ft2_search(FTB *ftb, FTB_WORD *ftbw, my_bool init_search)
   if (ftbw->flags & FTB_FLAG_YES && !(ftbw->flags & FTB_FLAG_TRUNC))
     ftbw->max_docid_expr->max_docid= info->lastpos;
   return 0;
+}
+
+static int _ft2_search(FTB *ftb, FTB_WORD *ftbw, my_bool init_search)
+{
+  int r;
+  MYISAM_SHARE *share= ftb->info->s;
+  if (share->concurrent_insert)
+    mysql_rwlock_rdlock(&share->key_root_lock[ftb->keynr]);
+  r= _ft2_search_no_lock(ftb, ftbw, init_search);
+  if (share->concurrent_insert)
+    mysql_rwlock_unlock(&share->key_root_lock[ftb->keynr]);
+  return r;
 }
 
 static void _ftb_init_index_search(FT_INFO *ftb)

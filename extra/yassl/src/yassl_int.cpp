@@ -1126,8 +1126,28 @@ void SSL::flushBuffer()
 
 void SSL::Send(const byte* buffer, uint sz)
 {
-    if (socket_.send(buffer, sz) != sz)
-        SetError(send_error);
+    unsigned int sent = 0;
+
+    if (socket_.send(buffer, sz, sent) != sz) {
+        if (socket_.WouldBlock()) {
+            buffers_.SetOutput(NEW_YS output_buffer(sz - sent, buffer + sent,
+                                                    sz - sent));
+            SetError(YasslError(SSL_ERROR_WANT_WRITE));
+        }
+        else
+            SetError(send_error);
+    }
+}
+
+
+void SSL::SendWriteBuffered()
+{
+    output_buffer* out = buffers_.TakeOutput();
+
+    if (out) {
+        mySTL::auto_ptr<output_buffer> tmp(out);
+        Send(out->get_buffer(), out->get_size());
+    }
 }
 
 
@@ -1289,7 +1309,6 @@ void SSL::matchSuite(const opaque* peer, uint length)
             if (secure_.use_parms().suites_[i] == peer[j]) {
                 secure_.use_parms().suite_[0] = 0x00;
                 secure_.use_parms().suite_[1] = peer[j];
-
                 return;
             }
 
@@ -1433,7 +1452,6 @@ void SSL::addBuffer(output_buffer* b)
 
 void SSL_SESSION::CopyX509(X509* x)
 {
-    assert(peerX509_ == 0);
     if (x == 0) return;
 
     X509_NAME* issuer   = x->GetIssuer();
@@ -1869,7 +1887,7 @@ SSL_CTX::GetCA_List() const
 }
 
 
-VerifyCallback SSL_CTX::getVerifyCallback() const
+const VerifyCallback SSL_CTX::getVerifyCallback() const
 {
     return verifyCallback_;
 }
@@ -2268,7 +2286,7 @@ Hashes& sslHashes::use_certVerify()
 }
 
 
-Buffers::Buffers() : rawInput_(0)
+Buffers::Buffers() : prevSent(0), plainSz(0), rawInput_(0), output_(0)
 {}
 
 
@@ -2279,12 +2297,18 @@ Buffers::~Buffers()
     STL::for_each(dataList_.begin(), dataList_.end(),
                   del_ptr_zero()) ;
     ysDelete(rawInput_);
+    ysDelete(output_);
+}
+
+
+void Buffers::SetOutput(output_buffer* ob)
+{
+    output_ = ob;
 }
 
 
 void Buffers::SetRawInput(input_buffer* ib)
 {
-    assert(rawInput_ == 0);
     rawInput_ = ib;
 }
 
@@ -2293,6 +2317,15 @@ input_buffer* Buffers::TakeRawInput()
 {
     input_buffer* ret = rawInput_;
     rawInput_ = 0;
+
+    return ret;
+}
+
+
+output_buffer* Buffers::TakeOutput()
+{
+    output_buffer* ret = output_;
+    output_ = 0;
 
     return ret;
 }
@@ -2573,14 +2606,12 @@ ASN1_STRING* StringHolder::GetString()
     // these versions should never get called
     int Compress(const byte* in, int sz, input_buffer& buffer)
     {
-        assert(0);  
         return -1;
     } 
 
 
     int DeCompress(input_buffer& in, int sz, input_buffer& out)
     {
-        assert(0);  
         return -1;
     } 
 

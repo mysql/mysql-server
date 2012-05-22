@@ -469,7 +469,7 @@ void TABLE_SHARE::destroy()
   }
 
 #ifdef HAVE_PSI_TABLE_INTERFACE
-  PSI_CALL(release_table_share)(m_psi);
+  PSI_TABLE_CALL(release_table_share)(m_psi);
 #endif
 
   /*

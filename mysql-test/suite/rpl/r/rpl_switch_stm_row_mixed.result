@@ -251,11 +251,21 @@ set NEW.data = concat(NEW.data,UUID());
 end|
 insert into t11 values("try_560_");
 insert delayed into t2 values("delay_1_");
+Warnings:
+Warning	1287	'INSERT DELAYED' is deprecated and will be removed in a future release. Please use INSERT instead
 insert delayed into t2 values(concat("delay_2_",UUID()));
+Warnings:
+Warning	1287	'INSERT DELAYED' is deprecated and will be removed in a future release. Please use INSERT instead
 insert delayed into t2 values("delay_6_");
+Warnings:
+Warning	1287	'INSERT DELAYED' is deprecated and will be removed in a future release. Please use INSERT instead
 insert delayed into t2 values(rand());
+Warnings:
+Warning	1287	'INSERT DELAYED' is deprecated and will be removed in a future release. Please use INSERT instead
 set @a=2.345;
 insert delayed into t2 values(@a);
+Warnings:
+Warning	1287	'INSERT DELAYED' is deprecated and will be removed in a future release. Please use INSERT instead
 create table t20 select * from t1;
 create table t21 select * from t2;
 create table t22 select * from t3;
