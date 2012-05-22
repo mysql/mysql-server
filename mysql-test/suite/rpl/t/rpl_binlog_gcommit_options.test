@@ -16,8 +16,8 @@ source include/master-slave.inc;
 let $loop_counter= 100;
 
 --disable_query_log
-# Create table and put 1st row
-echo # Create table and put 1st row;
+# Create table
+echo # Create table;
 CREATE TABLE t (a INT NOT NULL, b VARCHAR(200), c TEXT, d DATETIME NOT NULL, e BIGINT NOT NULL, KEY(d,e)) ENGINE=InnoDB;
 
 # Create connections
