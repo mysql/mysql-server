@@ -1043,6 +1043,19 @@ int start_slave_threads(bool need_slave_mutex, bool wait_for_start,
   int error=0;
   DBUG_ENTER("start_slave_threads");
 
+  if (!mi->inited || !mi->rli->inited)
+  {
+    if (!mi->inited)
+      mi->report(ERROR_LEVEL, ER_SLAVE_FATAL_ERROR,
+                 ER(ER_SLAVE_FATAL_ERROR),
+                 "Failed to initialize the master info structure");
+    else
+      mi->rli->report(ERROR_LEVEL, ER_SLAVE_FATAL_ERROR,
+                      ER(ER_SLAVE_FATAL_ERROR),
+                      "Failed to initialize the master info structure");
+    DBUG_RETURN(ER_SLAVE_FATAL_ERROR);
+  }
+
   if (need_slave_mutex)
   {
     lock_io = &mi->run_lock;
