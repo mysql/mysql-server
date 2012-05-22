@@ -92,11 +92,10 @@ int toku_cachetable_openfd (CACHEFILE *,CACHETABLE, int /*fd*/,
 			    const char *fname_relative_to_env); /*(used for logging)*/
 int toku_cachetable_openfd_with_filenum (CACHEFILE *,CACHETABLE, int /*fd*/, 
 					 const char *fname_in_env,
-					 BOOL with_filenum, FILENUM filenum, BOOL reserved);
+					 FILENUM filenum);
 
-int toku_cachetable_reserve_filenum (CACHETABLE ct, FILENUM *reserved_filenum, BOOL with_filenum, FILENUM filenum);
-
-void toku_cachetable_unreserve_filenum (CACHETABLE ct, FILENUM reserved_filenum);
+// reserve a unique filenum
+FILENUM toku_cachetable_reserve_filenum(CACHETABLE ct);
 
 // Effect: Reserve a fraction of the cachetable memory.
 // Returns the amount reserved.
