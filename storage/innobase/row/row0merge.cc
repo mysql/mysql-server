@@ -1690,12 +1690,6 @@ wait_again:
 }
 
 /** Write a record via buffer 2 and read the next record to buffer N.
-@param M	FTS merge info structure
-@param N	index into array of merge info structure
-@param INDEX	the FTS index */
-
-
-/** Write a record via buffer 2 and read the next record to buffer N.
 @param N	number of the buffer (0 or 1)
 @param AT_END	statement to execute at end of input */
 #define ROW_MERGE_WRITE_GET_NEXT(N, AT_END)				\
