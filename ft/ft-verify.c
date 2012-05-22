@@ -19,7 +19,7 @@
 static int 
 compare_pairs (FT_HANDLE brt, const DBT *a, const DBT *b) {
     FAKE_DB(db, &brt->h->cmp_descriptor);
-    int cmp = brt->compare_fun(&db, a, b);
+    int cmp = brt->h->compare_fun(&db, a, b);
     return cmp;
 }
 
@@ -27,7 +27,7 @@ static int
 compare_leafentries (FT_HANDLE brt, LEAFENTRY a, LEAFENTRY b) {
     DBT x,y;
     FAKE_DB(db, &brt->h->cmp_descriptor);
-    int cmp = brt->compare_fun(&db,
+    int cmp = brt->h->compare_fun(&db,
                                toku_fill_dbt(&x, le_key(a), le_keylen(a)),
                                toku_fill_dbt(&y, le_key(b), le_keylen(b)));
     return cmp;
@@ -37,7 +37,7 @@ static int
 compare_pair_to_leafentry (FT_HANDLE brt, const DBT *a, LEAFENTRY b) {
     DBT y;
     FAKE_DB(db, &brt->h->cmp_descriptor);
-    int cmp = brt->compare_fun(&db, a, toku_fill_dbt(&y, le_key(b), le_keylen(b)));
+    int cmp = brt->h->compare_fun(&db, a, toku_fill_dbt(&y, le_key(b), le_keylen(b)));
     return cmp;
 }
 
@@ -45,7 +45,7 @@ static int
 compare_pair_to_key (FT_HANDLE brt, const DBT *a, bytevec key, ITEMLEN keylen) {
     DBT y;
     FAKE_DB(db, &brt->h->cmp_descriptor);
-    int cmp = brt->compare_fun(&db, a, toku_fill_dbt(&y, key, keylen));
+    int cmp = brt->h->compare_fun(&db, a, toku_fill_dbt(&y, key, keylen));
     return cmp;
 }
 
@@ -171,7 +171,7 @@ verify_sorted_by_key_msn(FT_HANDLE brt, FIFO fifo, OMT mt) {
         assert_zero(r);
         size_t offset = (size_t) v;
         if (i > 0) {
-            struct toku_fifo_entry_key_msn_cmp_extra extra = { .desc = &brt->h->cmp_descriptor, .cmp = brt->compare_fun, .fifo = fifo };
+            struct toku_fifo_entry_key_msn_cmp_extra extra = { .desc = &brt->h->cmp_descriptor, .cmp = brt->h->compare_fun, .fifo = fifo };
             if (toku_fifo_entry_key_msn_cmp(&extra, &last_offset, &offset) >= 0) {
                 result = TOKUDB_NEEDS_REPAIR;
                 break;
@@ -185,7 +185,7 @@ verify_sorted_by_key_msn(FT_HANDLE brt, FIFO fifo, OMT mt) {
 static int
 count_eq_key_msn(FT_HANDLE brt, FIFO fifo, OMT mt, const DBT *key, MSN msn) {
     struct toku_fifo_entry_key_msn_heaviside_extra extra = { 
-        .desc = &brt->h->cmp_descriptor, .cmp = brt->compare_fun, .fifo = fifo, .key = key, .msn = msn 
+        .desc = &brt->h->cmp_descriptor, .cmp = brt->h->compare_fun, .fifo = fifo, .key = key, .msn = msn 
     };
     OMTVALUE v; u_int32_t idx;
     int r = toku_omt_find_zero(mt, toku_fifo_entry_key_msn_heaviside, &extra, &v, &idx);
@@ -311,7 +311,7 @@ toku_verify_ftnode (FT_HANDLE brt,
                              }
                              struct count_msgs_extra extra = { .count = 0, .key = &keydbt,
                                                                .msn = msn, .fifo = bnc->buffer,
-                                                               .desc = &brt->h->cmp_descriptor, .cmp = brt->compare_fun };
+                                                               .desc = &brt->h->cmp_descriptor, .cmp = brt->h->compare_fun };
                              extra.count = 0;
                              toku_omt_iterate(bnc->broadcast_list, count_msgs, &extra);
                              if (ft_msg_type_applies_all(type) || ft_msg_type_does_nothing(type)) {

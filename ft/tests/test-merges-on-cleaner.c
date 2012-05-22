@@ -58,7 +58,7 @@ doit (void) {
     assert(r==0);
     toku_free(fname);
 
-    brt->update_fun = update_func;
+    brt->options.update_fun = update_func;
     brt->h->update_fun = update_func;
     
     toku_testsetup_initialize();  // must precede any other toku_testsetup calls

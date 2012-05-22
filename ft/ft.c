@@ -254,7 +254,7 @@ ft_close (CACHEFILE cachefile, int fd, void *header_v, char **malloced_error_str
     int r = 0;
     if (h->panic) {
         r = h->panic;
-    } else if (h->dictionary_opened) { //Otherwise header has never fully been created.
+    } else {
         assert(h->cf == cachefile);
         TOKULOGGER logger = toku_cachefile_logger(cachefile);
         LSN lsn = ZERO_LSN;
@@ -357,33 +357,40 @@ static int setup_initial_ft_root_node (FT h, BLOCKNUM blocknum) {
     return r;
 }
 
-// TODO: (Zardosht) move this functionality to ft_init
-// No need in having ft_init call this function
 static int
-ft_init_partial (FT_HANDLE t, CACHEFILE cf, TOKUTXN txn) {
-    int r;
-    t->h->flags = t->flags;
-    if (t->h->cf!=NULL) assert(t->h->cf == cf);
-    t->h->cf = cf;
-    t->h->nodesize = t->nodesize;
-    t->h->basementnodesize = t->basementnodesize;
-    t->h->compression_method = t->compression_method;
-    t->h->root_xid_that_created = txn ? txn->ancestor_txnid64 : TXNID_NONE;
-    t->h->compare_fun = t->compare_fun;
-    t->h->update_fun = t->update_fun;
-    t->h->in_memory_stats          = ZEROSTATS;
-    t->h->on_disk_stats            = ZEROSTATS;
-    t->h->checkpoint_staging_stats = ZEROSTATS;
-    t->h->highest_unused_msn_for_upgrade.msn = MIN_MSN.msn - 1;
+ft_init (FT ft, FT_OPTIONS options, CACHEFILE cf, TOKUTXN txn) {
+    ft->type = FT_CURRENT;
+    ft->checkpoint_header = NULL;
+    toku_ft_init_treelock(ft);
+    toku_blocktable_create_new(&ft->blocktable);
+    //Assign blocknum for root block, also dirty the header
+    toku_allocate_blocknum(ft->blocktable, &ft->root_blocknum, ft);
 
-    BLOCKNUM root = t->h->root_blocknum;
-    r = setup_initial_ft_root_node(t->h, root);
+    toku_list_init(&ft->live_ft_handles);
+    int r = toku_omt_create(&ft->txns);
+    assert_zero(r);
+    ft->flags = options->flags;
+    ft->nodesize = options->nodesize;
+    ft->basementnodesize = options->basementnodesize;
+    ft->compression_method = options->compression_method;
+    ft->compare_fun = options->compare_fun;
+    ft->update_fun = options->update_fun;
+
+    if (ft->cf!=NULL) assert(ft->cf == cf);
+    ft->cf = cf;
+    ft->root_xid_that_created = txn ? txn->ancestor_txnid64 : TXNID_NONE;
+    ft->in_memory_stats          = ZEROSTATS;
+    ft->on_disk_stats            = ZEROSTATS;
+    ft->checkpoint_staging_stats = ZEROSTATS;
+    ft->highest_unused_msn_for_upgrade.msn = MIN_MSN.msn - 1;
+
+    r = setup_initial_ft_root_node(ft, ft->root_blocknum);
     if (r != 0) { 
         goto exit; 
     }
-    //printf("%s:%d putting %p (%d)\n", __FILE__, __LINE__, t->h, 0);
-    toku_cachefile_set_userdata(t->h->cf,
-                                t->h,
+    //printf("%s:%d putting %p (%d)\n", __FILE__, __LINE__, ft, 0);
+    toku_cachefile_set_userdata(ft->cf,
+                                ft,
                                 ft_log_fassociate_during_checkpoint,
                                 ft_log_suppress_rollback_during_checkpoint,
                                 ft_close,
@@ -392,67 +399,51 @@ ft_init_partial (FT_HANDLE t, CACHEFILE cf, TOKUTXN txn) {
                                 ft_end_checkpoint,
                                 ft_note_pin_by_checkpoint,
                                 ft_note_unpin_by_checkpoint);
+
+    toku_block_verify_no_free_blocknums(ft->blocktable);
+    r = 0;
 exit:
-    return r;
-}
-
-static int
-ft_init (FT_HANDLE t, CACHEFILE cf, TOKUTXN txn) {
-    t->h->type = FT_CURRENT;
-    t->h->checkpoint_header = NULL;
-    toku_ft_init_treelock(t->h);
-    toku_blocktable_create_new(&t->h->blocktable);
-    BLOCKNUM root;
-    //Assign blocknum for root block, also dirty the header
-    toku_allocate_blocknum(t->h->blocktable, &root, t->h);
-    t->h->root_blocknum = root;
-
-    toku_list_init(&t->h->live_ft_handles);
-    int r = toku_omt_create(&t->h->txns);
-    assert_zero(r);
-    r = ft_init_partial(t, cf, txn);
-    if (r==0) toku_block_verify_no_free_blocknums(t->h->blocktable);
     return r;
 }
 
 
 // allocate and initialize a brt header.
 // t->h->cf is not set to anything.
-// TODO: (Zardosht) make this function return a header and set
-// it to t->h in the caller
 int 
-toku_create_new_ft(FT_HANDLE t, CACHEFILE cf, TOKUTXN txn) {
+toku_create_new_ft(FT *ftp, FT_OPTIONS options, CACHEFILE cf, TOKUTXN txn) {
     int r;
+    invariant(ftp);
+
+    FT XCALLOC(ft);
     
-    assert (!t->h);
-    XCALLOC(t->h);
 
-    t->h->layout_version = FT_LAYOUT_VERSION;
-    t->h->layout_version_original = FT_LAYOUT_VERSION;
-    t->h->layout_version_read_from_disk = FT_LAYOUT_VERSION;             // fake, prevent unnecessary upgrade logic
+    ft->layout_version = FT_LAYOUT_VERSION;
+    ft->layout_version_original = FT_LAYOUT_VERSION;
+    ft->layout_version_read_from_disk = FT_LAYOUT_VERSION;             // fake, prevent unnecessary upgrade logic
 
-    t->h->build_id = BUILD_ID;
-    t->h->build_id_original = BUILD_ID;
+    ft->build_id = BUILD_ID;
+    ft->build_id_original = BUILD_ID;
 
     uint64_t now = (uint64_t) time(NULL);
-    t->h->time_of_creation = now;
-    t->h->time_of_last_modification = now;
-    t->h->time_of_last_verification = 0;
+    ft->time_of_creation = now;
+    ft->time_of_last_modification = now;
+    ft->time_of_last_verification = 0;
 
-    memset(&t->h->descriptor, 0, sizeof(t->h->descriptor));
-    memset(&t->h->cmp_descriptor, 0, sizeof(t->h->cmp_descriptor));
+    memset(&ft->descriptor, 0, sizeof(ft->descriptor));
+    memset(&ft->cmp_descriptor, 0, sizeof(ft->cmp_descriptor));
 
-    r = ft_init(t, cf, txn);
+    r = ft_init(ft, options, cf, txn);
     if (r != 0) {
         goto exit;
     }
 
+    *ftp = ft;
     r = 0;
 exit:
     if (r != 0) {
-        if (t->h) {
-            toku_free(t->h);
-            t->h = NULL;
+        if (ft) {
+            toku_free(ft);
+            ft = NULL;
         }
         return r;
     }
@@ -470,8 +461,8 @@ int toku_read_ft_and_store_in_cachefile (FT_HANDLE brt, CACHEFILE cf, LSN max_ac
         if ((h=toku_cachefile_get_userdata(cf))!=0) {
             *header = h;
             *was_open = TRUE;
-            assert(brt->update_fun == h->update_fun);
-            assert(brt->compare_fun == h->compare_fun);
+            assert(brt->options.update_fun == h->update_fun);
+            assert(brt->options.compare_fun == h->compare_fun);
             return 0;
         }
     }
@@ -495,8 +486,8 @@ int toku_read_ft_and_store_in_cachefile (FT_HANDLE brt, CACHEFILE cf, LSN max_ac
     }
     if (r!=0) return r;
     h->cf = cf;
-    h->compare_fun = brt->compare_fun;
-    h->update_fun = brt->update_fun;
+    h->compare_fun = brt->options.compare_fun;
+    h->update_fun = brt->options.update_fun;
     toku_cachefile_set_userdata(cf,
                                 (void*)h,
                                 ft_log_fassociate_during_checkpoint,
@@ -512,12 +503,11 @@ int toku_read_ft_and_store_in_cachefile (FT_HANDLE brt, CACHEFILE cf, LSN max_ac
 }
 
 void
-toku_ft_note_ft_handle_open(FT_HANDLE live) {
-    FT h = live->h;
-    toku_ft_lock(h);
-    toku_list_push(&h->live_ft_handles, &live->live_ft_handle_link);
-    h->dictionary_opened = TRUE;
-    toku_ft_unlock(h);
+toku_ft_note_ft_handle_open(FT ft, FT_HANDLE live) {
+    toku_ft_lock(ft);
+    live->h = ft;
+    toku_list_push(&ft->live_ft_handles, &live->live_ft_handle_link);
+    toku_ft_unlock(ft);
 }
 
 int
@@ -674,18 +664,16 @@ dictionary_redirect_internal(const char *dst_fname_in_env, FT src_h, TOKUTXN txn
     // we want to change it to dummy_dst
     while (!toku_list_empty(&src_h->live_ft_handles)) {
         list = src_h->live_ft_handles.next;
-        FT_HANDLE src_ft = NULL;
-        src_ft = toku_list_struct(list, struct ft_handle, live_ft_handle_link);
+        FT_HANDLE src_handle = NULL;
+        src_handle = toku_list_struct(list, struct ft_handle, live_ft_handle_link);
 
         toku_ft_lock(src_h);
-        toku_list_remove(&src_ft->live_ft_handle_link);
+        toku_list_remove(&src_handle->live_ft_handle_link);
         toku_ft_unlock(src_h);
         
-        src_ft->h = dst_h;
-        
-        toku_ft_note_ft_handle_open(src_ft);
-        if (src_ft->redirect_callback) {
-            src_ft->redirect_callback(src_ft, src_ft->redirect_callback_extra);
+        toku_ft_note_ft_handle_open(dst_h, src_handle);
+        if (src_handle->redirect_callback) {
+            src_handle->redirect_callback(src_handle, src_handle->redirect_callback_extra);
         }
     }
     assert(dst_h);

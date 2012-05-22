@@ -203,7 +203,7 @@ int toku_testsetup_insert_to_nonleaf (FT_HANDLE brt, BLOCKNUM blocknum, enum ft_
     DBT k;
     int childnum = toku_ftnode_which_child(node,
                                             toku_fill_dbt(&k, key, keylen),
-                                            &brt->h->cmp_descriptor, brt->compare_fun);
+                                            &brt->h->cmp_descriptor, brt->h->compare_fun);
 
     XIDS xids_0 = xids_get_root_xids();
     MSN msn = next_dummymsn();

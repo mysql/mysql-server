@@ -3062,20 +3062,20 @@ static int ft_open_file(const char *fname, int *fdp) {
 int
 toku_ft_set_compression_method(FT_HANDLE t, enum toku_compression_method method)
 {
-    t->compression_method = method;
+    t->options.compression_method = method;
     return 0;
 }
 
 int
 toku_ft_get_compression_method(FT_HANDLE t, enum toku_compression_method *methodp)
 {
-    *methodp = t->compression_method;
+    *methodp = t->options.compression_method;
     return 0;
 }
 
 static int
 verify_builtin_comparisons_consistent(FT_HANDLE t, u_int32_t flags) {
-    if ((flags & TOKU_DB_KEYCMP_BUILTIN) && (t->compare_fun != toku_builtin_compare_fun))
+    if ((flags & TOKU_DB_KEYCMP_BUILTIN) && (t->options.compare_fun != toku_builtin_compare_fun))
         return EINVAL;
     return 0;
 }
@@ -3141,6 +3141,20 @@ cleanup:
     return r;
 }
 
+static void
+toku_ft_handle_inherit_options(FT_HANDLE t, FT ft) {
+    struct ft_options options = {
+        .nodesize = ft->nodesize,
+        .basementnodesize = ft->basementnodesize,
+        .compression_method = ft->compression_method,
+        .flags = ft->flags,
+        .compare_fun = ft->compare_fun,
+        .update_fun = ft->update_fun
+    };
+    t->options = options;
+    t->did_set_flags = TRUE;
+}
+
 // This is the actual open, used for various purposes, such as normal use, recovery, and redirect.
 // fname_in_env is the iname, relative to the env_dir  (data_dir is already in iname as prefix).
 // The checkpointed version (checkpoint_lsn) of the dictionary must be no later than max_acceptable_lsn .
@@ -3150,10 +3164,11 @@ ft_handle_open(FT_HANDLE t, const char *fname_in_env, int is_create, int only_cr
     BOOL txn_created = FALSE;
     char *fname_in_cwd = NULL;
     CACHEFILE cf = NULL;
+    FT ft = NULL;
     BOOL did_create = FALSE;
 
     if (t->did_set_flags) {
-        r = verify_builtin_comparisons_consistent(t, t->flags);
+        r = verify_builtin_comparisons_consistent(t, t->options.flags);
         if (r!=0) { goto exit; }
     }
     if (txn && txn->logger->is_panicked) {
@@ -3179,7 +3194,7 @@ ft_handle_open(FT_HANDLE t, const char *fname_in_env, int is_create, int only_cr
                 assert_zero(r);
             }
             txn_created = (BOOL)(txn!=NULL);
-            r = toku_logger_log_fcreate(txn, fname_in_env, reserved_filenum, mode, t->flags, t->nodesize, t->basementnodesize, t->compression_method);
+            r = toku_logger_log_fcreate(txn, fname_in_env, reserved_filenum, mode, t->options.flags, t->options.nodesize, t->options.basementnodesize, t->options.compression_method);
             assert_zero(r); // only possible failure is panic, which we check above
             r = ft_create_file(t, fname_in_cwd, &fd);
             assert_zero(r);
@@ -3188,12 +3203,12 @@ ft_handle_open(FT_HANDLE t, const char *fname_in_env, int is_create, int only_cr
         r=toku_cachetable_openfd_with_filenum(&cf, cachetable, fd, fname_in_env, reserved_filenum);
         if (r) { goto exit; }
     }
-    assert(t->nodesize>0);
+    assert(t->options.nodesize>0);
     BOOL was_already_open;
     if (is_create) {
-        r = toku_read_ft_and_store_in_cachefile(t, cf, max_acceptable_lsn, &t->h, &was_already_open);
+        r = toku_read_ft_and_store_in_cachefile(t, cf, max_acceptable_lsn, &ft, &was_already_open);
         if (r==TOKUDB_DICTIONARY_NO_HEADER) {
-            r = toku_create_new_ft(t, cf, txn);
+            r = toku_create_new_ft(&ft, &t->options, cf, txn);
             if (r) { goto exit; }
         }
         else if (r!=0) {
@@ -3208,27 +3223,21 @@ ft_handle_open(FT_HANDLE t, const char *fname_in_env, int is_create, int only_cr
         // so it is ok for toku_read_ft_and_store_in_cachefile to have read
         // the header via toku_read_ft_and_store_in_cachefile
     } else {
-        r = toku_read_ft_and_store_in_cachefile(t, cf, max_acceptable_lsn, &t->h, &was_already_open);
+        r = toku_read_ft_and_store_in_cachefile(t, cf, max_acceptable_lsn, &ft, &was_already_open);
         if (r) { goto exit; }
     }
-    t->nodesize = t->h->nodesize;                      /* inherit the pagesize from the file */
-    t->basementnodesize = t->h->basementnodesize;
-    t->compression_method = t->h->compression_method;
     if (!t->did_set_flags) {
-        r = verify_builtin_comparisons_consistent(t, t->flags);
+        r = verify_builtin_comparisons_consistent(t, t->options.flags);
         if (r) { goto exit; }
-        t->flags = t->h->flags;
-        t->did_set_flags = TRUE;
-    } else {
-        if (t->flags != t->h->flags) {                  /* if flags have been set then flags must match */
-            r = EINVAL;
-            goto exit;
-        }
+    } else if (t->options.flags != ft->flags) {                  /* if flags have been set then flags must match */
+        r = EINVAL;
+        goto exit;
     }
+    toku_ft_handle_inherit_options(t, ft);
 
     if (!was_already_open) {
         if (!did_create) { //Only log the fopen that OPENs the file.  If it was already open, don't log.
-            r = toku_logger_log_fopen(txn, fname_in_env, toku_cachefile_filenum(cf), t->flags);
+            r = toku_logger_log_fopen(txn, fname_in_env, toku_cachefile_filenum(cf), t->options.flags);
             assert_zero(r);
         }
     }
@@ -3241,36 +3250,36 @@ ft_handle_open(FT_HANDLE t, const char *fname_in_env, int is_create, int only_cr
         else {
             dict_id = next_dict_id();
         }
-        t->h->dict_id = dict_id;
+        ft->dict_id = dict_id;
     }
     else {
         // dict_id is already in header
         if (use_reserved_dict_id) {
-            assert(t->h->dict_id.dictid == use_dictionary_id.dictid);
+            assert(ft->dict_id.dictid == use_dictionary_id.dictid);
         }
     }
-    assert(t->h);
-    assert(t->h->dict_id.dictid != DICTIONARY_ID_NONE.dictid);
-    assert(t->h->dict_id.dictid < dict_id_serial);
+    assert(ft);
+    assert(ft->dict_id.dictid != DICTIONARY_ID_NONE.dictid);
+    assert(ft->dict_id.dictid < dict_id_serial);
 
     // important note here,
     // after this point, where we associate the header
     // with the brt, the function is not allowed to fail
     // Code that handles failure (located below "exit"),
     // depends on this
-    toku_ft_note_ft_handle_open(t);
+    toku_ft_note_ft_handle_open(ft, t);
     if (txn_created) {
         assert(txn);
-        toku_ft_suppress_rollbacks(t->h, txn);
-        r = toku_txn_note_ft(txn, t->h);
+        toku_ft_suppress_rollbacks(ft, txn);
+        r = toku_txn_note_ft(txn, ft);
         assert_zero(r);
     }
 
     //Opening a brt may restore to previous checkpoint.         Truncate if necessary.
     {
-        int fd = toku_cachefile_get_and_pin_fd (t->h->cf);
-        toku_maybe_truncate_cachefile_on_open(t->h->blocktable, fd, t->h);
-        toku_cachefile_unpin_fd(t->h->cf);
+        int fd = toku_cachefile_get_and_pin_fd (ft->cf);
+        toku_maybe_truncate_cachefile_on_open(ft->blocktable, fd, ft);
+        toku_cachefile_unpin_fd(ft->cf);
     }
 
     r = 0;
@@ -3279,17 +3288,17 @@ exit:
         toku_free(fname_in_cwd);
     }
     if (r != 0 && cf) {
-        if (t->h) {
+        if (ft) {
             // we only call toku_ft_note_ft_handle_open
             // when the function succeeds, so if we are here,
             // then that means we have a reference to the header
             // but we have not linked it to this brt. So,
             // we can simply try to remove the header.
             // We don't need to unlink this brt from the header
-            if (!toku_ft_needed(t->h)) {
+            if (!toku_ft_needed(ft)) {
                 //Close immediately.
                 char *error_string = NULL;
-                r = toku_remove_ft(t->h, &error_string, false, ZERO_LSN);
+                r = toku_remove_ft(ft, &error_string, false, ZERO_LSN);
                 lazy_assert_zero(r);
             }
         }
@@ -3357,24 +3366,24 @@ toku_ft_get_dictionary_id(FT_HANDLE brt) {
 int toku_ft_set_flags(FT_HANDLE brt, unsigned int flags) {
     assert(flags==(flags&TOKU_DB_KEYCMP_BUILTIN)); // make sure there are no extraneous flags
     brt->did_set_flags = TRUE;
-    brt->flags = flags;
+    brt->options.flags = flags;
     return 0;
 }
 
 int toku_ft_get_flags(FT_HANDLE brt, unsigned int *flags) {
-    *flags = brt->flags;
-    assert(brt->flags==(brt->flags&TOKU_DB_KEYCMP_BUILTIN)); // make sure there are no extraneous flags
+    *flags = brt->options.flags;
+    assert(brt->options.flags==(brt->options.flags&TOKU_DB_KEYCMP_BUILTIN)); // make sure there are no extraneous flags
     return 0;
 }
 
 
 int toku_ft_set_nodesize(FT_HANDLE brt, unsigned int nodesize) {
-    brt->nodesize = nodesize;
+    brt->options.nodesize = nodesize;
     return 0;
 }
 
 int toku_ft_get_nodesize(FT_HANDLE brt, unsigned int *nodesize) {
-    *nodesize = brt->nodesize;
+    *nodesize = brt->options.nodesize;
     return 0;
 }
 
@@ -3386,17 +3395,17 @@ void toku_ft_get_maximum_advised_key_value_lengths (unsigned int *max_key_len, u
 }
 
 int toku_ft_set_basementnodesize(FT_HANDLE brt, unsigned int basementnodesize) {
-    brt->basementnodesize = basementnodesize;
+    brt->options.basementnodesize = basementnodesize;
     return 0;
 }
 
 int toku_ft_get_basementnodesize(FT_HANDLE brt, unsigned int *basementnodesize) {
-    *basementnodesize = brt->basementnodesize;
+    *basementnodesize = brt->options.basementnodesize;
     return 0;
 }
 
 int toku_ft_set_bt_compare(FT_HANDLE brt, int (*bt_compare)(DB*, const DBT*, const DBT*)) {
-    brt->compare_fun = bt_compare;
+    brt->options.compare_fun = bt_compare;
     return 0;
 }
 
@@ -3407,12 +3416,12 @@ void toku_ft_set_redirect_callback(FT_HANDLE brt, on_redirect_callback redir_cb,
 
 
 int toku_ft_set_update(FT_HANDLE brt, ft_update_func update_fun) {
-    brt->update_fun = update_fun;
+    brt->options.update_fun = update_fun;
     return 0;
 }
 
 ft_compare_func toku_ft_get_bt_compare (FT_HANDLE brt) {
-    return brt->compare_fun;
+    return brt->options.compare_fun;
 }
 
 int
@@ -3455,13 +3464,13 @@ int toku_ft_handle_create(FT_HANDLE *ft_handle_ptr) {
         return ENOMEM;
     memset(brt, 0, sizeof *brt);
     toku_list_init(&brt->live_ft_handle_link);
-    brt->flags = 0;
+    brt->options.flags = 0;
     brt->did_set_flags = FALSE;
-    brt->nodesize = FT_DEFAULT_NODE_SIZE;
-    brt->basementnodesize = FT_DEFAULT_BASEMENT_NODE_SIZE;
-    brt->compression_method = TOKU_DEFAULT_COMPRESSION_METHOD;
-    brt->compare_fun = toku_builtin_compare_fun;
-    brt->update_fun = NULL;
+    brt->options.nodesize = FT_DEFAULT_NODE_SIZE;
+    brt->options.basementnodesize = FT_DEFAULT_BASEMENT_NODE_SIZE;
+    brt->options.compression_method = TOKU_DEFAULT_COMPRESSION_METHOD;
+    brt->options.compare_fun = toku_builtin_compare_fun;
+    brt->options.update_fun = NULL;
     *ft_handle_ptr = brt;
     return 0;
 }
@@ -3729,7 +3738,7 @@ copy_to_stale(OMTVALUE v, u_int32_t UU(idx), void *extrap)
     entry->is_fresh = false;
     DBT keydbt;
     DBT *key = fill_dbt_for_fifo_entry(&keydbt, entry);
-    struct toku_fifo_entry_key_msn_heaviside_extra heaviside_extra = { .desc = &extra->ft_handle->h->cmp_descriptor, .cmp = extra->ft_handle->compare_fun, .fifo = extra->bnc->buffer, .key = key, .msn = entry->msn };
+    struct toku_fifo_entry_key_msn_heaviside_extra heaviside_extra = { .desc = &extra->ft_handle->h->cmp_descriptor, .cmp = extra->ft_handle->h->compare_fun, .fifo = extra->bnc->buffer, .key = key, .msn = entry->msn };
     int r = toku_omt_insert(extra->bnc->stale_message_tree, (OMTVALUE) offset, toku_fifo_entry_key_msn_heaviside, &heaviside_extra, NULL);
     assert_zero(r);
     return r;
@@ -3798,8 +3807,8 @@ do_bn_apply_cmd(FT_HANDLE t, BASEMENTNODE bn, FTNODE ancestor, int childnum, con
         DBT hv;
         FT_MSG_S ftcmd = { type, msn, xids, .u.id = { &hk, toku_fill_dbt(&hv, val, vallen) } };
         toku_ft_bn_apply_cmd(
-            t->compare_fun,
-            t->update_fun,
+            t->h->compare_fun,
+            t->h->update_fun,
             &t->h->cmp_descriptor,
             bn,
             &ftcmd,
@@ -3956,13 +3965,13 @@ bnc_apply_messages_to_basement_node(
     STAT64INFO_S stats_delta = {0,0};
     u_int32_t stale_lbi, stale_ube;
     if (!bn->stale_ancestor_messages_applied) {
-        find_bounds_within_message_tree(&t->h->cmp_descriptor, t->compare_fun, bnc->stale_message_tree, bnc->buffer, bounds, &stale_lbi, &stale_ube);
+        find_bounds_within_message_tree(&t->h->cmp_descriptor, t->h->compare_fun, bnc->stale_message_tree, bnc->buffer, bounds, &stale_lbi, &stale_ube);
     } else {
         stale_lbi = 0;
         stale_ube = 0;
     }
     u_int32_t fresh_lbi, fresh_ube;
-    find_bounds_within_message_tree(&t->h->cmp_descriptor, t->compare_fun, bnc->fresh_message_tree, bnc->buffer, bounds, &fresh_lbi, &fresh_ube);
+    find_bounds_within_message_tree(&t->h->cmp_descriptor, t->h->compare_fun, bnc->fresh_message_tree, bnc->buffer, bounds, &fresh_lbi, &fresh_ube);
 
     // We now know where all the messages we must apply are, so one of the
     // following 4 cases will do the application, depending on which of
@@ -4033,7 +4042,7 @@ bnc_apply_messages_to_basement_node(
         assert_zero(r);
 
         // This comparison extra struct won't change during iteration.
-        struct toku_fifo_entry_key_msn_cmp_extra extra = { .desc= &t->h->cmp_descriptor, .cmp = t->compare_fun, .fifo = bnc->buffer };
+        struct toku_fifo_entry_key_msn_cmp_extra extra = { .desc= &t->h->cmp_descriptor, .cmp = t->h->compare_fun, .fifo = bnc->buffer };
 
         // Iterate over both lists, applying the smaller (in (key, msn)
         // order) message at each step
@@ -4826,7 +4835,7 @@ ft_cursor_search(FT_CURSOR cursor, ft_search_t *search, FT_GET_CALLBACK_FUNCTION
 
 static inline int compare_k_x(FT_HANDLE brt, const DBT *k, const DBT *x) {
     FAKE_DB(db, &brt->h->cmp_descriptor);
-    return brt->compare_fun(&db, k, x);
+    return brt->h->compare_fun(&db, k, x);
 }
 
 static int
@@ -5172,7 +5181,7 @@ keyrange_compare (OMTVALUE lev, void *extra) {
     struct keyrange_compare_s *s = extra;
     // TODO: maybe put a const fake_db in the header
     FAKE_DB(db, &s->ft_handle->h->cmp_descriptor);
-    return s->ft_handle->compare_fun(&db, &omt_dbt, s->key);
+    return s->ft_handle->h->compare_fun(&db, &omt_dbt, s->key);
 }
 
 static void
@@ -5217,7 +5226,7 @@ toku_ft_keyrange_internal (FT_HANDLE brt, FTNODE node,
 {
     int r = 0;
     // if KEY is NULL then use the leftmost key.
-    int child_number = key ? toku_ftnode_which_child (node, key, &brt->h->cmp_descriptor, brt->compare_fun) : 0;
+    int child_number = key ? toku_ftnode_which_child (node, key, &brt->h->cmp_descriptor, brt->h->compare_fun) : 0;
     uint64_t rows_per_child = estimated_num_rows / node->n_children;
     if (node->height == 0) {
 

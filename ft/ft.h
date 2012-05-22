@@ -22,11 +22,11 @@ void toku_ft_destroy_treelock(FT h);
 void toku_ft_grab_treelock(FT h);
 void toku_ft_release_treelock(FT h);
 
-int toku_create_new_ft(FT_HANDLE t, CACHEFILE cf, TOKUTXN txn);
+int toku_create_new_ft(FT *ftp, FT_OPTIONS options, CACHEFILE cf, TOKUTXN txn);
 void toku_ft_free (FT h);
 
 int toku_read_ft_and_store_in_cachefile (FT_HANDLE brt, CACHEFILE cf, LSN max_acceptable_lsn, FT *header, BOOL* was_open);
-void toku_ft_note_ft_handle_open(FT_HANDLE live);
+void toku_ft_note_ft_handle_open(FT ft, FT_HANDLE live);
 
 int toku_ft_needed(FT h);
 int toku_remove_ft (FT h, char **error_string, BOOL oplsn_valid, LSN oplsn)  __attribute__ ((warn_unused_result));

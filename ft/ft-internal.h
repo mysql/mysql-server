@@ -350,7 +350,6 @@ struct ft {
                                 // counter is effectively a boolean which alternates with each checkpoint.
     LSN checkpoint_lsn;         // LSN of creation of "checkpoint-begin" record in log.  
     int dirty;
-    BOOL dictionary_opened;     // True once this header has been associated with a dictionary (a brt fully opened)
     DICTIONARY_ID dict_id;      // unique id for dictionary
     int panic;                  // If nonzero there was a write error.  Don't write any more, because it probably only gets worse.  This is the error code.
     char *panic_string;         // A malloced string that can indicate what went wrong.
@@ -409,21 +408,25 @@ static inline void setup_fake_db (DB *fake_db, DESCRIPTOR orig_desc) {
 }
 #define FAKE_DB(db, desc) struct __toku_db db; setup_fake_db(&db, (desc))
 
-struct ft_handle {
-    // The header is shared.  It is also ephemeral.
-    FT h;
-
+struct ft_options {
     unsigned int nodesize;
     unsigned int basementnodesize;
     enum toku_compression_method compression_method;
     unsigned int flags;
-    BOOL did_set_flags;
     ft_compare_func compare_fun;
     ft_update_func update_fun;
-    on_redirect_callback redirect_callback;
-    void* redirect_callback_extra;
+};
 
+struct ft_handle {
+    // The header is shared.  It is also ephemeral.
+    FT h;
+
+    on_redirect_callback redirect_callback;
+    void *redirect_callback_extra;
     struct toku_list live_ft_handle_link;
+    BOOL did_set_flags;
+
+    struct ft_options options;
 };
 
 // FIXME needs toku prefix
