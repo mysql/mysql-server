@@ -1791,6 +1791,7 @@ bool Item_in_optimizer::fix_fields(THD *thd, Item **ref)
   }
   if (args[1]->maybe_null)
     maybe_null=1;
+  with_subselect= 1;
   with_sum_func= with_sum_func || args[1]->with_sum_func;
   used_tables_cache|= args[1]->used_tables();
   not_null_tables_cache|= args[1]->not_null_tables();
@@ -4907,6 +4908,7 @@ Item_func_regex::fix_fields(THD *thd, Item **ref)
        args[1]->fix_fields(thd, args + 1)) || args[1]->check_cols(1))
     return TRUE;				/* purecov: inspected */
   with_sum_func=args[0]->with_sum_func || args[1]->with_sum_func;
+  with_subselect|= args[0]->with_subselect | args[1]->with_subselect;
   max_length= 1;
   decimals= 0;
 
@@ -5597,6 +5599,7 @@ bool Item_equal::fix_fields(THD *thd, Item **ref)
     used_tables_cache|= item->used_tables();
     tmp_table_map= item->not_null_tables();
     not_null_tables_cache|= tmp_table_map;
+    DBUG_ASSERT(!item->with_sum_func && !item->with_subselect);
     if (item->maybe_null)
       maybe_null=1;
   }
