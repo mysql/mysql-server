@@ -98,6 +98,7 @@
 #include "opt_explain.h"
 #include "sql_rewrite.h"
 #include "global_threads.h"
+#include "table_cache.h" // table_cache_manager
 
 #include <algorithm>
 using std::max;

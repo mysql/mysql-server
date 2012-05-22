@@ -46,7 +46,7 @@ class ACL_internal_schema_access;
 class ACL_internal_table_access;
 class Field;
 class Field_temporal_with_date_and_time;
-struct Table_cache_element;
+class Table_cache_element;
 
 /*
   Used to identify NESTED_JOIN structures within a join (applicable only to
@@ -934,7 +934,7 @@ private:
     Give Table_cache_element access to the above two members to allow
     using them for linking TABLE objects in a list.
   */
-  friend struct Table_cache_element;
+  friend class Table_cache_element;
 
   Field_temporal_with_date_and_time *timestamp_field;
 

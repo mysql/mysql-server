@@ -111,6 +111,7 @@
 #ifdef HAVE_FESETROUND
 #include <fenv.h>
 #endif
+#include "table_cache.h" // table_cache_manager
 
 using std::min;
 using std::max;
