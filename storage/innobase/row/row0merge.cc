@@ -1619,11 +1619,7 @@ write_buffers:
 					       buf, fts_index, psort_info,
 					       row, ext, &doc_id)))) {
 					/* An empty buffer should have enough
-					room for at least one record.
-					TODO: for FTS index building, we'll
-					need to prepared for coping with very
-					large text/blob data in a single row
-					that could fill up the merge file */
+					room for at least one record. */
 					ut_error;
 				}
 
