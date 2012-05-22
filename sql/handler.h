@@ -231,6 +231,12 @@ enum enum_alter_inplace_result {
  */
 #define HA_READ_OUT_OF_SYNC              (LL(1) << 40)
 
+/*
+  The handler don't want accesses to this table to 
+  be const-table optimized
+*/
+#define HA_BLOCK_CONST_TABLE          (LL(1) << 41)
+
 /* bits in index_flags(index_number) for what you can do with index */
 #define HA_READ_NEXT            1       /* TODO really use this flag */
 #define HA_READ_PREV            2       /* supports ::index_prev */
@@ -479,6 +485,10 @@ typedef ulonglong my_xid; // this line is the same as in log_event.h
 
 #define COMPATIBLE_DATA_YES 0
 #define COMPATIBLE_DATA_NO  1
+
+namespace AQP {
+  class Join_plan;
+};
 
 /**
   struct xid_t is binary compatible with the XID structure as
@@ -886,6 +896,8 @@ struct handlerton
                      const char *wild, bool dir, List<LEX_STRING> *files);
    int (*table_exists_in_engine)(handlerton *hton, THD* thd, const char *db,
                                  const char *name);
+   int (*make_pushed_join)(handlerton *hton, THD* thd, 
+                           const AQP::Join_plan* plan);
 
   /**
     List of all system tables specific to the SE.
@@ -2525,6 +2537,34 @@ public:
    in_range_check_pushed_down= false;
  }
 
+  /**
+    Reports #tables included in pushed join which this
+    handler instance is part of. ==0 -> Not pushed
+  */
+  virtual uint number_of_pushed_joins() const
+  { return 0; }
+
+  /**
+    If this handler instance is part of a pushed join sequence
+    returned TABLE instance being root of the pushed query?
+  */
+  virtual const TABLE* root_of_pushed_join() const
+  { return NULL; }
+
+  /**
+    If this handler instance is a child in a pushed join sequence
+    returned TABLE instance being my parent?
+  */
+  virtual const TABLE* parent_of_pushed_join() const
+  { return NULL; }
+
+  virtual int index_read_pushed(uchar * buf, const uchar * key,
+                             key_part_map keypart_map)
+  { return  HA_ERR_WRONG_COMMAND; }
+
+  virtual int index_next_pushed(uchar * buf)
+  { return  HA_ERR_WRONG_COMMAND; }
+
  /**
    Part of old, deprecated in-place ALTER API.
  */
@@ -3202,6 +3242,9 @@ int ha_enable_transaction(THD *thd, bool on);
 int ha_rollback_to_savepoint(THD *thd, SAVEPOINT *sv);
 int ha_savepoint(THD *thd, SAVEPOINT *sv);
 int ha_release_savepoint(THD *thd, SAVEPOINT *sv);
+
+/* Build pushed joins in handlers implementing this feature */
+int ha_make_pushed_joins(THD *thd, const AQP::Join_plan* plan);
 
 /* these are called by storage engines */
 void trans_register_ha(THD *thd, bool all, handlerton *ht);

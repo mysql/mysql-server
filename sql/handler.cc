@@ -3122,18 +3122,18 @@ int handler::update_auto_increment()
         Note that in prelocked mode no estimation is given.
       */
 
-      /*
-        For multi-row inserts, if the bulk inserts cannot be started, the
-        handler::estimation_rows_to_insert will not be set. Set it here.
-      */
-      if ((estimation_rows_to_insert == 0) &&
-          (thd->lex->many_values.elements > 0))
-      {
-        estimation_rows_to_insert= thd->lex->many_values.elements;
-      }
-
       if ((auto_inc_intervals_count == 0) && (estimation_rows_to_insert > 0))
         nb_desired_values= estimation_rows_to_insert;
+      else if ((auto_inc_intervals_count == 0) &&
+               (thd->lex->many_values.elements > 0))
+      {
+        /*
+          For multi-row inserts, if the bulk inserts cannot be started, the
+          handler::estimation_rows_to_insert will not be set. But we still
+          want to reserve the autoinc values.
+        */
+        nb_desired_values= thd->lex->many_values.elements;
+      }
       else /* go with the increasing defaults */
       {
         /* avoid overflow in formula, with this if() */
@@ -5139,6 +5139,44 @@ int ha_table_exists_in_engine(THD* thd, const char* db, const char* name)
   DBUG_PRINT("enter", ("db: %s, name: %s", db, name));
   st_table_exists_in_engine_args args= {db, name, HA_ERR_NO_SUCH_TABLE};
   plugin_foreach(thd, table_exists_in_engine_handlerton,
+                 MYSQL_STORAGE_ENGINE_PLUGIN, &args);
+  DBUG_PRINT("exit", ("error: %d", args.err));
+  DBUG_RETURN(args.err);
+}
+
+/**
+  Prepare (sub-) sequences of joins in this statement 
+  which may be pushed to each storage engine for execution.
+*/
+struct st_make_pushed_join_args
+{
+  const AQP::Join_plan* plan; // Query plan provided by optimizer
+  int err;                    // Error code to return.
+};
+
+static my_bool make_pushed_join_handlerton(THD *thd, plugin_ref plugin,
+                                   void *arg)
+{
+  st_make_pushed_join_args *vargs= (st_make_pushed_join_args *)arg;
+  handlerton *hton= plugin_data(plugin, handlerton *);
+
+  if (hton && hton->make_pushed_join)
+  {
+    const int error= hton->make_pushed_join(hton, thd, vargs->plan);
+    if (unlikely(error))
+    {
+      vargs->err = error;
+      return TRUE;
+    }
+  }
+  return FALSE;
+}
+
+int ha_make_pushed_joins(THD *thd, const AQP::Join_plan* plan)
+{
+  DBUG_ENTER("ha_make_pushed_joins");
+  st_make_pushed_join_args args= {plan, 0};
+  plugin_foreach(thd, make_pushed_join_handlerton,
                  MYSQL_STORAGE_ENGINE_PLUGIN, &args);
   DBUG_PRINT("exit", ("error: %d", args.err));
   DBUG_RETURN(args.err);
