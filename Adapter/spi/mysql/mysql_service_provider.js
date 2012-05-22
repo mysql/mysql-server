@@ -18,29 +18,29 @@
  02110-1301  USA
 */
 
-var ndbconnection = require("./NdbConnection.js");
+var mysqlconnection = require("./MysqlConnection.js");
 
-var NdbDefaultConnectionProperties = {  
-  "implementation" : "ndb",
-  "database" : "test",
+var MysqlDefaultConnectionProperties = {  
+  "implementation" : "mysql",
+  "database"       : "test",
   
-  "ndb_connectstring" : "localhost:1186",
-  "ndb_connect_retries" : 4, 
-  "ndb_connect_delay" : 5,
-  "ndb_connect_verbose" : 0,
-  "ndb_connect_timeout_before" : 30,
-  "ndb_connect_timeout_after" : 20
+  "mysql_host"     : "localhost",
+  "mysql_port"     : 3306,
+  "mysql_user"     : null,
+  "mysql_password" : null,
+  "mysql_socket"   : null,
+  "mysql_debug"    : false, 
 };
 
 
 exports.getDefaultConnectionProperties = function() {
-  return NdbDefaultConnectionProperties;
+  return MysqlDefaultConnectionProperties;
 }
 
 
 exports.connectSync = function(properties) {
-  var dbconn = new ndbconnection.DBConnection(properties);
-  dbconn.connectSync();
-  return dbconn;
+  var conn = new mysqlconnection.DBConnection(properties);
+  conn.connectSync();
+  return conn;
 }
 
