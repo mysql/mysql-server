@@ -919,6 +919,12 @@ CREATE TABLE t3 (
 
 INSERT INTO t3 VALUES (NULL,'w'), (1,NULL), (2,'d');
 
+-- disable_query_log
+-- disable_result_log
+ANALYZE TABLE t3;
+-- enable_result_log
+-- enable_query_log
+
 # Bug was specific of IN->EXISTS:
 set @old_opt_switch=@@optimizer_switch;
 --disable_query_log

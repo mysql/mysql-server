@@ -805,6 +805,12 @@ INSERT INTO t1 SELECT  a + 16, MOD(a + 16, 20), 1 FROM t1;
 INSERT INTO t1 SELECT  a + 32, MOD(a + 32, 20), 1 FROM t1;
 INSERT INTO t1 SELECT  a + 64, MOD(a + 64, 20), 1 FROM t1;
 
+-- disable_query_log
+-- disable_result_log
+ANALYZE TABLE t1;
+-- enable_result_log
+-- enable_query_log
+
 EXPLAIN SELECT b, SUM(c) FROM t1 GROUP BY b;
 EXPLAIN SELECT SQL_BIG_RESULT b, SUM(c) FROM t1 GROUP BY b;
 DROP TABLE t1;
