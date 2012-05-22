@@ -458,7 +458,7 @@ EXPLAIN
       "access_type": "ALL",
       "rows": 3,
       "filtered": 100,
-      "attached_condition": "<in_optimizer>(1,<exists>(select 1 from `test`.`t2` where ((`test`.`t2`.`b` < 3) and (<cache>(1) = 1))))",
+      "attached_condition": "<in_optimizer>(1,<exists>(select 1 from `test`.`t2` where (`test`.`t2`.`b` < 3)))",
       "attached_subqueries": [
         {
           "dependent": true,
@@ -5818,7 +5818,7 @@ EXPLAIN
       "access_type": "ALL",
       "rows": 3,
       "filtered": 100,
-      "attached_condition": "<in_optimizer>(`test`.`t1`.`a`,<exists>(select 1 from (select `test`.`t2`.`b` AS `b` from `test`.`t2` order by `test`.`t2`.`b` limit 2,2) `x` where (<cache>(`test`.`t1`.`a`) = `x`.`b`)))",
+      "attached_condition": "<in_optimizer>(`test`.`t1`.`a`,<exists>(<index_lookup>(<cache>(`test`.`t1`.`a`) in x on auto_key0)))",
       "attached_subqueries": [
         {
           "dependent": true,
@@ -5913,7 +5913,7 @@ EXPLAIN
           "access_type": "ALL",
           "rows": 3,
           "filtered": 100,
-          "attached_condition": "<in_optimizer>(`test`.`t1`.`a`,<exists>(select 1 from (select `test`.`t2`.`b` AS `b` from `test`.`t2` order by `test`.`t2`.`b` limit 2,2) `x` where (<cache>(`test`.`t1`.`a`) = `x`.`b`)))",
+          "attached_condition": "<in_optimizer>(`test`.`t1`.`a`,<exists>(<index_lookup>(<cache>(`test`.`t1`.`a`) in x on auto_key0)))",
           "attached_subqueries": [
             {
               "dependent": true,
@@ -5993,7 +5993,7 @@ EXPLAIN
           "access_type": "ALL",
           "rows": 3,
           "filtered": 100,
-          "attached_condition": "<in_optimizer>(`test`.`t1`.`a`,<exists>(select 1 from (select `test`.`t2`.`b` AS `b` from `test`.`t2` order by `test`.`t2`.`b` limit 2,2) `x` where (<cache>(`test`.`t1`.`a`) = `x`.`b`)))",
+          "attached_condition": "<in_optimizer>(`test`.`t1`.`a`,<exists>(<index_lookup>(<cache>(`test`.`t1`.`a`) in x on auto_key0)))",
           "attached_subqueries": [
             {
               "dependent": true,
@@ -6101,7 +6101,7 @@ EXPLAIN
           "access_type": "ALL",
           "rows": 3,
           "filtered": 100,
-          "attached_condition": "<in_optimizer>(`test`.`t1`.`a`,<exists>(select 1 from (select `test`.`t2`.`b` AS `b` from `test`.`t2` order by `test`.`t2`.`b` limit 2,2) `x` where (<cache>(`test`.`t1`.`a`) = `x`.`b`)))",
+          "attached_condition": "<in_optimizer>(`test`.`t1`.`a`,<exists>(<index_lookup>(<cache>(`test`.`t1`.`a`) in x on auto_key0)))",
           "attached_subqueries": [
             {
               "dependent": true,
@@ -6196,7 +6196,7 @@ EXPLAIN
           "access_type": "ALL",
           "rows": 3,
           "filtered": 100,
-          "attached_condition": "<in_optimizer>(`test`.`t1`.`a`,<exists>(select 1 from (select `test`.`t2`.`b` AS `b` from `test`.`t2` order by `test`.`t2`.`b` limit 2,2) `x` where (<cache>(`test`.`t1`.`a`) = `x`.`b`)))",
+          "attached_condition": "<in_optimizer>(`test`.`t1`.`a`,<exists>(<index_lookup>(<cache>(`test`.`t1`.`a`) in x on auto_key0)))",
           "attached_subqueries": [
             {
               "dependent": true,

@@ -479,7 +479,7 @@ EXPLAIN
       "access_type": "ALL",
       "rows": 3,
       "filtered": 100,
-      "attached_condition": "<in_optimizer>(1,<exists>(select 1 from `test`.`t2` where ((`test`.`t2`.`b` < 3) and (<cache>(1) = 1))))",
+      "attached_condition": "<in_optimizer>(1,<exists>(select 1 from `test`.`t2` where (`test`.`t2`.`b` < 3)))",
       "attached_subqueries": [
         {
           "dependent": true,

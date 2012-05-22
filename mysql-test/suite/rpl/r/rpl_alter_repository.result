@@ -46,10 +46,12 @@ call mtr.add_suppression(" Error while checking replication metadata.");
 INSERT INTO t_innodb VALUES (1), (2), (3);
 ALTER TABLE mysql.slave_relay_log_info DROP COLUMN Number_of_workers;
 INSERT INTO t_innodb VALUES (1), (2), (3);
-include/wait_for_slave_sql_error.inc [errno=1727]
+include/wait_for_slave_sql_error.inc [errno=1805]
 Last_SQL_Error = 'Column count of mysql.slave_relay_log_info is wrong. Expected 8, found 7. The table is probably corrupted'
 include/stop_slave_io.inc
-include/rpl_restart_server.inc [server_number=2 parameters: --relay-log-info-repository=FILE --skip-slave-start]
+include/rpl_restart_server.inc [server_number=2 parameters: --sync-master-info=1 --master-info-repository=TABLE --relay-log-info-repository=TABLE]
+START SLAVE SQL_THREAD;
+ERROR HY000: Slave is not configured or failed to initialize properly. You must at least set --server-id to enable either a master or a slave. Additional error messages can be found in the MySQL error log.
 ALTER TABLE mysql.slave_relay_log_info ADD COLUMN (Number_of_workers INTEGER UNSIGNED NOT NULL);
 UPDATE mysql.slave_relay_log_info SET Number_of_workers= 0;
 include/rpl_restart_server.inc [server_number=2 parameters: --sync-master-info=1 --master-info-repository=TABLE --relay-log-info-repository=TABLE]
@@ -57,7 +59,7 @@ include/start_slave.inc
 INSERT INTO t_innodb VALUES (1), (2), (3);
 ALTER TABLE mysql.slave_relay_log_info DROP COLUMN Number_of_workers;
 INSERT INTO t_innodb VALUES (1), (2), (3);
-include/wait_for_slave_sql_error.inc [errno=1727]
+include/wait_for_slave_sql_error.inc [errno=1805]
 Last_SQL_Error = 'Column count of mysql.slave_relay_log_info is wrong. Expected 8, found 7. The table is probably corrupted'
 include/stop_slave_io.inc
 START SLAVE SQL_THREAD;
@@ -79,7 +81,9 @@ INSERT INTO t_innodb VALUES (1), (2), (3);
 include/wait_for_slave_io_error.inc [errno=1593]
 Last_IO_Error = 'Fatal error: Failed to flush master info.'
 include/stop_slave_sql.inc
-include/rpl_restart_server.inc [server_number=2 parameters: --master-info-repository=FILE --skip-slave-start]
+include/rpl_restart_server.inc [server_number=2 parameters: --sync-master-info=1 --master-info-repository=TABLE --relay-log-info-repository=TABLE]
+START SLAVE SQL_THREAD;
+ERROR HY000: Slave is not configured or failed to initialize properly. You must at least set --server-id to enable either a master or a slave. Additional error messages can be found in the MySQL error log.
 ALTER TABLE mysql.slave_master_info ADD COLUMN (Enabled_auto_position BOOLEAN NOT NULL COMMENT 'Indicates whether GTIDs will be used to retrieve events from the master.');
 UPDATE mysql.slave_master_info SET Enabled_auto_position= 0;
 include/rpl_restart_server.inc [server_number=2 parameters: --sync-master-info=1 --master-info-repository=TABLE --relay-log-info-repository=TABLE]

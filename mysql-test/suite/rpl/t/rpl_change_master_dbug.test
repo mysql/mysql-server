@@ -16,7 +16,7 @@
 
 -- connection slave
 -- source include/stop_slave.inc
-CHANGE MASTER TO master_retry_count=3, master_host='dummy', master_connect_retry=1;
+CHANGE MASTER TO master_retry_count=3, master_host='300.1.1.1', master_connect_retry=1;
 START SLAVE io_thread;
 
 # We wait for slave to stop and inspect the number of retries in 
