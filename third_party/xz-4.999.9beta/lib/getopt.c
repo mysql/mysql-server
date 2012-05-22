@@ -1,3 +1,5 @@
+/* -*- mode: C; c-basic-offset: 4; indent-tabs-mode: nil -*- */
+// vim: expandtab:ts=8:sw=4:softtabstop=4:
 /* Getopt for GNU.
    NOTE: getopt is now part of the C library, so if you don't know what
    "Keep this file name-space clean" means, talk to drepper@gnu.org

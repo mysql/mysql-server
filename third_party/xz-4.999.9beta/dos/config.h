@@ -1,3 +1,5 @@
+/* -*- mode: C; c-basic-offset: 4; indent-tabs-mode: nil -*- */
+// vim: expandtab:ts=8:sw=4:softtabstop=4:
 /* Define to 1 if using x86 assembler optimizations. */
 #define HAVE_ASM_X86 1
 
