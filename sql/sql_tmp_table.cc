@@ -1927,7 +1927,7 @@ bool create_myisam_from_heap(THD *thd, TABLE *table,
   TABLE new_table;
   TABLE_SHARE share;
   const char *save_proc_info;
-  int write_err= 0;
+  int write_err;
   DBUG_ENTER("create_myisam_from_heap");
 
   if (table->s->db_type() != heap_hton || 

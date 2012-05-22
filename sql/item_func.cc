@@ -6954,6 +6954,8 @@ Item_func_sp::fix_fields(THD *thd, Item **ref)
   if (!m_sp->m_chistics->detistic)
     const_item_cache= false;
 
+  if (!tables_locked_cache)
+    const_item_cache= false;
   DBUG_RETURN(res);
 }
 
@@ -6964,6 +6966,27 @@ void Item_func_sp::update_used_tables()
 
   if (!m_sp->m_chistics->detistic)
     const_item_cache= false;
+}
+
+
+/**
+  Check if it is OK to evaluate the item now.
+
+  @return true if the item can be evaluated in the current statement state.
+    @retval true  The item can be evaluated now.
+    @retval false The item can not be evaluated now,
+                  (i.e. depend on non locked table).
+
+  @note Stored procedures can only be evaluated after tables are locked.
+*/
+
+bool Item_func_sp::can_be_evaluated_now() const
+{
+  if (tables_locked_cache)
+    return true;
+  if (current_thd->lex->is_query_tables_locked())
+    const_cast<Item_func_sp*>(this)->tables_locked_cache= true;
+  return tables_locked_cache;
 }
 
 
