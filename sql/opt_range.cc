@@ -3064,46 +3064,62 @@ static void dbug_print_singlepoint_range(SEL_ARG **start, uint num);
 #endif
 
 
-/*
+/**
   Perform partition pruning for a given table and condition.
 
-  SYNOPSIS
-    prune_partitions()
-      thd           Thread handle
-      table         Table to perform partition pruning for
-      pprune_cond   Condition to use for partition pruning
+  @param      thd            Thread handle
+  @param      table          Table to perform partition pruning for
+  @param      pprune_cond    Condition to use for partition pruning
   
-  DESCRIPTION
-    This function assumes that all partitions are marked as unused when it
-    is invoked. The function analyzes the condition, finds partitions that
-    need to be used to retrieve the records that match the condition, and 
-    marks them as used by setting appropriate bit in part_info->read_partitions
-    In the worst case all partitions are marked as used.
+  @note This function assumes that lock_partitions are setup when it
+  is invoked. The function analyzes the condition, finds partitions that
+  need to be used to retrieve the records that match the condition, and 
+  marks them as used by setting appropriate bit in part_info->read_partitions
+  In the worst case all partitions are marked as used. If the table is not
+  yet locked, it will also unset bits in part_info->lock_partitions that is
+  not set in read_partitions.
 
-  NOTE
-    This function returns promptly if called for non-partitioned table.
+  This function returns promptly if called for non-partitioned table.
 
-  RETURN
-    TRUE   We've inferred that no partitions need to be used (i.e. no table
-           records will satisfy pprune_cond)
-    FALSE  Otherwise
+  @return Operation status
+    @retval true  Failure
+    @retval false Success
 */
 
 bool prune_partitions(THD *thd, TABLE *table, Item *pprune_cond)
 {
-  bool retval= FALSE;
   partition_info *part_info = table->part_info;
   DBUG_ENTER("prune_partitions");
+  table->all_partitions_pruned_away= false;
 
   if (!part_info)
     DBUG_RETURN(FALSE); /* not a partitioned table */
-  
+
   if (!pprune_cond)
   {
     mark_all_partitions_as_used(part_info);
     DBUG_RETURN(FALSE);
   }
   
+  /* No need to continue pruning if there is no more partitions to prune! */
+  if (bitmap_is_clear_all(&part_info->lock_partitions))
+    bitmap_clear_all(&part_info->read_partitions);
+  if (bitmap_is_clear_all(&part_info->read_partitions))
+  {
+    table->all_partitions_pruned_away= true;
+    DBUG_RETURN(false);
+  }
+
+  /*
+    If the prepare stage only had constant items and no subqueries are used,
+    it is no use of running prune_partitions() twice on the same statement.
+    Since it will not be able to prune anything more than the previous call
+    from the prepare step.
+  */
+  if (part_info->is_const_item_pruned &&
+      !pprune_cond->has_subquery())
+    DBUG_RETURN(false);
+
   PART_PRUNE_PARAM prune_param;
   MEM_ROOT alloc;
   RANGE_OPT_PARAM  *range_par= &prune_param.range_param;
@@ -3149,10 +3165,7 @@ bool prune_partitions(THD *thd, TABLE *table, Item *pprune_cond)
     goto all_used;
 
   if (tree->type == SEL_TREE::IMPOSSIBLE)
-  {
-    retval= TRUE;
     goto end;
-  }
 
   if (tree->type != SEL_TREE::KEY && tree->type != SEL_TREE::KEY_SMALLER)
     goto all_used;
@@ -3205,28 +3218,40 @@ bool prune_partitions(THD *thd, TABLE *table, Item *pprune_cond)
     }
   }
   
-  /*
-    res == 0 => no used partitions => retval=TRUE
-    res == 1 => some used partitions => retval=FALSE
-    res == -1 - we jump over this line to all_used:
-  */
-  retval= test(!res);
   goto end;
 
 all_used:
-  retval= FALSE; // some partitions are used
   mark_all_partitions_as_used(prune_param.part_info);
 end:
   dbug_tmp_restore_column_maps(table->read_set, table->write_set, old_sets);
   thd->no_errors=0;
   thd->mem_root= range_par->old_root;
   free_root(&alloc,MYF(0));			// Return memory & allocator
-  /* Must be a subset of the locked partitions */
-  bitmap_intersect(&(prune_param.part_info->read_partitions),
-                   &(prune_param.part_info->lock_partitions));
+  /*
+    Must be a subset of the locked partitions.
+    lock_partitions contains the partitions marked by explicit partition
+    selection (... t PARTITION (pX) ...) and we must only use partitions
+    within that set.
+  */
+  bitmap_intersect(&prune_param.part_info->read_partitions,
+                   &prune_param.part_info->lock_partitions);
+  /*
+    If not yet locked, also prune partitions to lock if not UPDATEing
+    partition key fields.
+    TODO: enhance this prune locking to also allow pruning of
+    'UPDATE t SET part_key = const WHERE cond_is_prunable' so it adds
+    a lock for part_key partition.
+  */
+  if (table->file->get_lock_type() == F_UNLCK &&
+      !partition_key_modified(table, table->write_set))
+  {
+    bitmap_copy(&prune_param.part_info->lock_partitions,
+                &prune_param.part_info->read_partitions);
+  }
   if (bitmap_is_clear_all(&(prune_param.part_info->read_partitions)))
-    retval= TRUE;
-  DBUG_RETURN(retval);
+    table->all_partitions_pruned_away= true;
+  part_info->is_const_item_pruned= pprune_cond->const_item();
+  DBUG_RETURN(false);
 }
 
 
@@ -6602,23 +6627,30 @@ get_mm_leaf(RANGE_OPT_PARAM *param, Item *conf_func, Field *field,
        field->type() == MYSQL_TYPE_DATETIME))
     field->table->in_use->variables.sql_mode|= MODE_INVALID_DATES;
 
-  /*
-    We want to change "field > value" to "field OP V"
-    where:
-    * V is what is in "field" after we stored "value" in it via
-    save_in_field_no_warning() (such store operation may have done
-    rounding...)
-    * OP is > or >=, depending on what's correct.
-    For example, if c is an INT column,
-    "c > 2.9" is changed to "c OP 3"
-    where OP is ">=" (">" would not be correct, as 3 > 2.9, a comparison
-    done with stored_field_cmp_to_item()). And
-    "c > 3.1" is changed to "c OP 3" where OP is ">" (3 < 3.1...).
-  */
+  if (!value->can_be_evaluated_now())
+  {
+    field->table->in_use->variables.sql_mode= orig_sql_mode;
+    goto end;
+  }
+  else
+  {
+    /*
+      We want to change "field > value" to "field OP V"
+      where:
+      * V is what is in "field" after we stored "value" in it via
+      save_in_field_no_warning() (such store operation may have done
+      rounding...)
+      * OP is > or >=, depending on what's correct.
+      For example, if c is an INT column,
+      "c > 2.9" is changed to "c OP 3"
+      where OP is ">=" (">" would not be correct, as 3 > 2.9, a comparison
+      done with stored_field_cmp_to_item()). And
+      "c > 3.1" is changed to "c OP 3" where OP is ">" (3 < 3.1...).
+    */
 
-  // Note that value may be a stored function call, executed here.
-  err= value->save_in_field_no_warnings(field, 1);
-
+    // Note that value may be a stored function call, executed here.
+    err= value->save_in_field_no_warnings(field, 1);
+  }
   if (err != TYPE_OK && err != TYPE_ERR_NULL_CONSTRAINT_VIOLATION)
   {
     if (field->cmp_type() != value->result_type())
