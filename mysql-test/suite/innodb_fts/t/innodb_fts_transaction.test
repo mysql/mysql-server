@@ -458,7 +458,7 @@ SELECT * FROM t1
 # all records expected except with 'request' 
 SELECT * FROM t1
         WHERE MATCH (a,b)
-        AGAINST ('tutorial' WITH QUERY EXPANSION);
+        AGAINST ('tutorial' WITH QUERY EXPANSION) ORDER BY 1;
 
 --echo "In connection 1"
 --connection con1
