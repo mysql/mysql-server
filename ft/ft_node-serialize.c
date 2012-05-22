@@ -1168,10 +1168,11 @@ static void read_ftnode_header_from_fd_into_rbuf_if_small_enough (int fd, BLOCKN
 // read the compressed partition into the sub_block,
 // validate the checksum of the compressed data
 //
-static enum deserialize_error_code
+static int
 read_compressed_sub_block(struct rbuf *rb, struct sub_block *sb)
 {
-    enum deserialize_error_code e = DS_OK;
+    // TODO: REMOVE: enum deserialize_error_code e = DS_OK;
+    int r = 0;
     sb->compressed_size = rbuf_int(rb);
     sb->uncompressed_size = rbuf_int(rb);
     bytevec* cp = (bytevec*)&sb->compressed_ptr;
@@ -1180,18 +1181,19 @@ read_compressed_sub_block(struct rbuf *rb, struct sub_block *sb)
     // let's check the checksum
     u_int32_t actual_xsum = x1764_memory((char *)sb->compressed_ptr-8, 8+sb->compressed_size);
     if (sb->xsum != actual_xsum) {
-        e = DS_XSUM_FAIL;
+        r = TOKUDB_BAD_CHECKSUM;
     }
-    return e;
+
+    return r;
 }
 
-static enum deserialize_error_code
+static int
 read_and_decompress_sub_block(struct rbuf *rb, struct sub_block *sb)
 {
-    enum deserialize_error_code e = DS_OK;
-
-    e = read_compressed_sub_block(rb, sb);
-    if (e != DS_OK) {
+    // TODO: REMOVE: enum deserialize_error_code e = DS_OK;
+    int r = 0;
+    r = read_compressed_sub_block(rb, sb);
+    if (r ==  TOKUDB_BAD_CHECKSUM) {
         goto exit;
     }
 
@@ -1205,27 +1207,28 @@ read_and_decompress_sub_block(struct rbuf *rb, struct sub_block *sb)
         sb->compressed_size
         );
 exit:
-    return e;
+    return r;
 }
 
 // verify the checksum
-static enum deserialize_error_code
+static int
 verify_ftnode_sub_block (struct sub_block *sb)
 {
-    enum deserialize_error_code e = DS_OK;
+    // TODO: REMOVE: enum deserialize_error_code e = DS_OK;
+    int r = 0;
     // first verify the checksum
     u_int32_t data_size = sb->uncompressed_size - 4; // checksum is 4 bytes at end
     u_int32_t stored_xsum = toku_dtoh32(*((u_int32_t *)((char *)sb->uncompressed_ptr + data_size)));
     u_int32_t actual_xsum = x1764_memory(sb->uncompressed_ptr, data_size);
     if (stored_xsum != actual_xsum) {
         dump_bad_block(sb->uncompressed_ptr, sb->uncompressed_size);
-        e = DS_XSUM_FAIL;
+        r = TOKUDB_BAD_CHECKSUM;
     }
-    return e;
+    return r;
 }
 
 // This function deserializes the data stored by serialize_ftnode_info
-static enum deserialize_error_code
+static int
 deserialize_ftnode_info(
     struct sub_block *sb, 
     FTNODE node
@@ -1235,9 +1238,10 @@ deserialize_ftnode_info(
     // this function puts that information into node
 
     // first verify the checksum
-    enum deserialize_error_code e = DS_OK;
-    e = verify_ftnode_sub_block(sb);
-    if (e != DS_OK) {
+    // TODO: REMOVE: enum deserialize_error_code e = DS_OK;
+    int r = 0;
+    r = verify_ftnode_sub_block(sb);
+    if (r == TOKUDB_BAD_CHECKSUM) {
         goto exit;
     }
 
@@ -1297,7 +1301,7 @@ deserialize_ftnode_info(
         assert(FALSE);
     }
 exit:
-    return e;
+    return r;
 }
 
 static void
@@ -1403,7 +1407,7 @@ static void setup_ftnode_partitions(FTNODE node, struct ftnode_fetch_extra* bfe,
 /* deserialize the partition from the sub-block's uncompressed buffer
  * and destroy the uncompressed buffer
  */
-static enum deserialize_error_code
+static int
 deserialize_ftnode_partition(
     struct sub_block *sb,
     FTNODE node,
@@ -1412,9 +1416,10 @@ deserialize_ftnode_partition(
     ft_compare_func cmp
     )
 {
-    enum deserialize_error_code e = DS_OK;
-    e = verify_ftnode_sub_block(sb);
-    if (e != DS_OK) {
+    // TODO: REMOVE: enum deserialize_error_code e = DS_OK;
+    int r = 0; 
+    r  = verify_ftnode_sub_block(sb);
+    if (r == TOKUDB_BAD_CHECKSUM) {
         goto exit;
     }
     u_int32_t data_size = sb->uncompressed_size - 4; // checksum is 4 bytes at end
@@ -1457,35 +1462,37 @@ deserialize_ftnode_partition(
 
         // destroy old omt (bn.buffer) that was created by toku_create_empty_bn(), so we can create a new one
         toku_omt_destroy(&BLB_BUFFER(node, childnum));
-        int r = toku_omt_create_steal_sorted_array(&BLB_BUFFER(node, childnum), &array, num_entries, num_entries);
+        r = toku_omt_create_steal_sorted_array(&BLB_BUFFER(node, childnum), &array, num_entries, num_entries);
         invariant_zero(r);
     }
     assert(rb.ndone == rb.size);
     toku_free(sb->uncompressed_ptr);
 exit:
-    return e;
+    return r;
 }
 
-static enum deserialize_error_code
+static int
 decompress_and_deserialize_worker(struct rbuf curr_rbuf, struct sub_block curr_sb, FTNODE node, int child, DESCRIPTOR desc, ft_compare_func cmp)
 {
-    enum deserialize_error_code e = DS_OK;
-    e = read_and_decompress_sub_block(&curr_rbuf, &curr_sb);
-    if (e != DS_OK) {
+    //TODO: REMOVE: enum deserialize_error_code e = DS_OK;
+    int r = 0;
+    r = read_and_decompress_sub_block(&curr_rbuf, &curr_sb);
+    if (r == TOKUDB_BAD_CHECKSUM) {
         goto exit;
     }
     // at this point, sb->uncompressed_ptr stores the serialized node partition
-    e = deserialize_ftnode_partition(&curr_sb, node, child, desc, cmp);
+    r = deserialize_ftnode_partition(&curr_sb, node, child, desc, cmp);
 exit:
-    return e;
+    return r;
 }
 
-static enum deserialize_error_code
+static int
 check_and_copy_compressed_sub_block_worker(struct rbuf curr_rbuf, struct sub_block curr_sb, FTNODE node, int child)
 {
-    enum deserialize_error_code e = DS_OK;
-    e = read_compressed_sub_block(&curr_rbuf, &curr_sb);
-    if (e != DS_OK) {
+    // TODO: REMOVE: enum deserialize_error_code e = DS_OK;
+    int r = 0;
+    r = read_compressed_sub_block(&curr_rbuf, &curr_sb);
+    if (r == TOKUDB_BAD_CHECKSUM) {
         goto exit;
     }
 
@@ -1495,7 +1502,7 @@ check_and_copy_compressed_sub_block_worker(struct rbuf curr_rbuf, struct sub_blo
     bp_sb->compressed_ptr = toku_xmalloc(bp_sb->compressed_size);
     memcpy(bp_sb->compressed_ptr, curr_sb.compressed_ptr, bp_sb->compressed_size);
 exit:
-    return e;
+    return r;
 }
 
 static enum deserialize_error_code
@@ -2157,7 +2164,7 @@ exit:
     return r;
 }
 
-static enum deserialize_error_code
+static int
 deserialize_ftnode_from_rbuf(
     FTNODE *ftnode,
     FTNODE_DISK_DATA* ndd,
@@ -2171,7 +2178,7 @@ deserialize_ftnode_from_rbuf(
 // Effect: deserializes a ftnode that is in rb (with pointer of rb just past the magic) into a FTNODE.
 {
     int r = 0;
-    enum deserialize_error_code e = DS_OK;
+    // TODO: REMOVE: enum deserialize_error_code e = DS_OK;
     FTNODE node = toku_xmalloc(sizeof(*node));
     struct sub_block sb_node_info;
     // fill in values that are known and not stored in rb
@@ -2242,14 +2249,14 @@ deserialize_ftnode_from_rbuf(
 
     //now we read and decompress the pivot and child information
     sub_block_init(&sb_node_info);
-    e = read_and_decompress_sub_block(rb, &sb_node_info);
-    if (e != DS_OK) {
+    r = read_and_decompress_sub_block(rb, &sb_node_info);
+    if (r == TOKUDB_BAD_CHECKSUM) {
         goto cleanup;
     }
 
     // at this point, sb->uncompressed_ptr stores the serialized node info
-    e = deserialize_ftnode_info(&sb_node_info, node);
-    if (e != DS_OK) {
+    r = deserialize_ftnode_info(&sb_node_info, node);
+    if (r == TOKUDB_BAD_CHECKSUM) {
         goto cleanup;
     }
     toku_free(sb_node_info.uncompressed_ptr);
@@ -2299,15 +2306,15 @@ deserialize_ftnode_from_rbuf(
 	switch (BP_STATE(node,i)) {
 	case PT_AVAIL:
 	    //  case where we read and decompress the partition
-            e = decompress_and_deserialize_worker(curr_rbuf, curr_sb, node, i, &bfe->h->cmp_descriptor, bfe->h->compare_fun);
-            if (e != DS_OK) {
+            r = decompress_and_deserialize_worker(curr_rbuf, curr_sb, node, i, &bfe->h->cmp_descriptor, bfe->h->compare_fun);
+            if (r != 0) {
                 goto cleanup;
             }
 	    continue;
 	case PT_COMPRESSED:
 	    // case where we leave the partition in the compressed state
-            e = check_and_copy_compressed_sub_block_worker(curr_rbuf, curr_sb, node, i);
-            if (e != DS_OK) {
+            r = check_and_copy_compressed_sub_block_worker(curr_rbuf, curr_sb, node, i);
+            if (r == TOKUDB_BAD_CHECKSUM) {
                 goto cleanup;
             }
 	    continue;
@@ -2322,7 +2329,6 @@ deserialize_ftnode_from_rbuf(
     r = 0;
 cleanup:
     if (r != 0) {
-        e = DS_ERRNO;
         // NOTE: Right now, callers higher in the stack will assert on
         // failure, so this is OK for production.  However, if we
         // create tools that use this function to search for errors in
@@ -2330,7 +2336,7 @@ cleanup:
         if (node) toku_free(node);
     }
 
-    return e;
+    return r;
 }
 
 enum deserialize_error_code
