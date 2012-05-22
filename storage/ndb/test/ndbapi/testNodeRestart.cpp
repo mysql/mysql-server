@@ -26,6 +26,7 @@
 #include <Bitmask.hpp>
 #include <RefConvert.hpp>
 #include <NdbEnv.h>
+#include <NdbMgmd.hpp>
 
 int runLoadTable(NDBT_Context* ctx, NDBT_Step* step){
 
@@ -5015,6 +5016,129 @@ runLCPTakeOver(NDBT_Context* ctx, NDBT_Step* step)
   return NDBT_OK;
 }
 
+int
+runTestScanFragWatchdog(NDBT_Context* ctx, NDBT_Step* step)
+{
+  /* Setup an error insert, then start a checkpoint */
+  NdbRestarter restarter;
+  if (restarter.getNumDbNodes() < 2)
+  {
+    g_err << "Insufficient nodes for test." << endl;
+    ctx->stopTest();
+    return NDBT_OK;
+  }
+  
+  do
+  {
+    g_err << "Injecting fault to suspend LCP frag scan..." << endl;
+    Uint32 victim = restarter.getNode(NdbRestarter::NS_RANDOM);
+    Uint32 otherNode = 0;
+    do
+    {
+      otherNode = restarter.getNode(NdbRestarter::NS_RANDOM);
+    } while (otherNode == victim);
+
+    if (restarter.insertErrorInNode(victim, 10039) != 0) /* Cause LCP/backup frag scan to halt */
+    {
+      g_err << "Error insert failed." << endl;
+      break;
+    }
+    if (restarter.insertErrorInNode(victim, 5075) != 0) /* Treat watchdog fail as test success */
+    {
+      g_err << "Error insert failed." << endl;
+      break;
+    }
+    
+    g_err << "Triggering LCP..." << endl;
+    /* Now trigger LCP, in case the concurrent updates don't */
+    {
+      int startLcpDumpCode = 7099;
+      if (restarter.dumpStateOneNode(victim, &startLcpDumpCode, 1))
+      {
+        g_err << "Dump state failed." << endl;
+        break;
+      }
+    }
+    
+    g_err << "Subscribing to MGMD events..." << endl;
+
+    NdbMgmd mgmd;
+    
+    if (!mgmd.connect())
+    {
+      g_err << "Failed to connect to MGMD" << endl;
+      break;
+    }
+
+    if (!mgmd.subscribe_to_events())
+    {
+      g_err << "Failed to subscribe to events" << endl;
+      break;
+    }
+
+    g_err << "Waiting to hear of LCP completion..." << endl;
+    Uint32 completedLcps = 0;
+    Uint64 maxWaitSeconds = 240;
+    Uint64 endTime = NdbTick_CurrentMillisecond() + 
+      (maxWaitSeconds * 1000);
+    
+    while (NdbTick_CurrentMillisecond() < endTime)
+    {
+      char buff[512];
+      
+      if (!mgmd.get_next_event_line(buff,
+                                    sizeof(buff),
+                                    10 * 1000))
+      {
+        g_err << "Failed to get event line " << endl;
+        break;
+      }
+
+      // g_err << "Event : " << buff;
+
+      if (strstr(buff, "Local checkpoint") &&
+          strstr(buff, "completed"))
+      {
+        completedLcps++;
+        g_err << "LCP " << completedLcps << " completed." << endl;
+        
+        if (completedLcps == 2)
+          break;
+
+        /* Request + wait for another... */
+        {
+          int startLcpDumpCode = 7099;
+          if (restarter.dumpStateOneNode(otherNode, &startLcpDumpCode, 1))
+          {
+            g_err << "Dump state failed." << endl;
+            break;
+          }
+        }
+      } 
+    }
+    
+    if (completedLcps != 2)
+    {
+      g_err << "Some problem while waiting for LCP completion" << endl;
+      break;
+    }
+
+    /* Now wait for the node to recover */
+    if (restarter.waitNodesStarted((const int*) &victim, 1, 120) != 0)
+    {
+      g_err << "Failed waiting for node " << victim << "to start" << endl;
+      break;
+    }
+    
+    ctx->stopTest();
+    return NDBT_OK;
+  } while (0);
+  
+  ctx->stopTest();
+  return NDBT_FAILED;
+}
+
+
 NDBT_TESTSUITE(testNodeRestart);
 TESTCASE("NoLoad", 
 	 "Test that one node at a time can be stopped and then restarted "\
@@ -5574,6 +5698,13 @@ TESTCASE("LCPTakeOver", "")
   STEP(runLCPTakeOver);
   STEP(runPkUpdateUntilStopped);
   STEP(runScanUpdateUntilStopped);
+}
+TESTCASE("LCPScanFragWatchdog", 
+         "Test LCP scan watchdog")
+{
+  INITIALIZER(runLoadTable);
+  STEP(runPkUpdateUntilStopped);
+  STEP(runTestScanFragWatchdog);
 }
 
 NDBT_TESTSUITE_END(testNodeRestart);
