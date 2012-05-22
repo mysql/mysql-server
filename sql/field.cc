@@ -7710,7 +7710,7 @@ Field_blob::store(const char *from,uint length,const CHARSET_INFO *cs)
 
     Field_blob::store_length(new_length);
     bmove(ptr + packlength, (uchar*) &tmp, sizeof(char*));
-    return 0;
+    return TYPE_OK;
   }
 
   /*
