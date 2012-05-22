@@ -489,13 +489,13 @@ toku_txn_begin(DB_ENV *env, DB_TXN * stxn, DB_TXN ** txn, u_int32_t flags, bool 
                             );
     if (r != 0)
         return r;
-    if (!holds_ydb_lock) 
+    if (!holds_ydb_lock) {
         toku_ydb_lock();
-    r = toku_txn_start_txn(db_txn_struct_i(result)->tokutxn);
-    if (!holds_ydb_lock) 
+    }
+    toku_txn_start_txn(db_txn_struct_i(result)->tokutxn);
+    if (!holds_ydb_lock) {
         toku_ydb_unlock();
-    if (r != 0)
-        return r;
+    }
 
     //Add to the list of children for the parent.
     if (result->parent) {

@@ -84,7 +84,7 @@ toku_txn_begin_with_xid (
 {
     int r = toku_txn_create_txn(tokutxn, parent_tokutxn, logger, xid, snapshot_type, container_db_txn);
     if (r == 0)
-        r = toku_txn_start_txn(*tokutxn);
+        toku_txn_start_txn(*tokutxn);
     return r;
 }
 
@@ -238,7 +238,7 @@ toku_txn_create_txn (
     return 0;
 }
 
-int
+void
 toku_txn_start_txn(TOKUTXN txn) {
     TOKULOGGER logger = txn->logger;
     TOKUTXN parent = txn->parent;
@@ -322,7 +322,6 @@ toku_txn_start_txn(TOKUTXN txn) {
         }
     }
     toku_mutex_unlock(&logger->txn_list_lock);
-    return 0;
 }
 
 //Used on recovery to recover a transaction.
