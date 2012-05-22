@@ -904,6 +904,46 @@ bool Explain_table_base::explain_extra_common(const SQL_SELECT *select,
     return true;
   }
 
+  const TABLE* pushed_root= table->file->root_of_pushed_join();
+  if (pushed_root)
+  {
+    char buf[128];
+    int len;
+    int pushed_id= 0;
+
+    for (JOIN_TAB* prev= join->join_tab; prev <= tab; prev++)
+    {
+      const TABLE* prev_root= prev->table->file->root_of_pushed_join();
+      if (prev_root == prev->table)
+      {
+        pushed_id++;
+        if (prev_root == pushed_root)
+          break;
+      }
+    }
+    if (pushed_root == table)
+    {
+      uint pushed_count= tab->table->file->number_of_pushed_joins();
+      len= my_snprintf(buf, sizeof(buf)-1,
+                       "Parent of %d pushed join@%d",
+                       pushed_count, pushed_id);
+    }
+    else
+    {
+      len= my_snprintf(buf, sizeof(buf)-1,
+                       "Child of '%s' in pushed join@%d",
+                       tab->table->file->parent_of_pushed_join()->alias,
+                       pushed_id);
+    }
+
+    {
+      StringBuffer<128> buff(cs);
+      buff.append(buf,len);
+      if (push_extra(ET_PUSHED_JOIN, buff))
+        return true;
+    }
+  }
+
   switch (quick_type) {
   case QUICK_SELECT_I::QS_TYPE_ROR_UNION:
   case QUICK_SELECT_I::QS_TYPE_ROR_INTERSECT:

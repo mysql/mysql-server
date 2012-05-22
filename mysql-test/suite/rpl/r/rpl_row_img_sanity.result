@@ -52,8 +52,12 @@ CREATE TABLE t (c1 int NOT NULL, c2 int, c3 blob, unique key(c1));
 INSERT INTO t VALUES (1,2,"a");
 INSERT INTO t(c1,c3) VALUES (10,"a");
 INSERT DELAYED INTO t(c1,c3) VALUES (100,"a");
+Warnings:
+Warning	1287	'INSERT DELAYED' is deprecated and will be removed in a future release. Please use INSERT instead
 INSERT INTO t(c1) VALUES (1000);
 INSERT DELAYED INTO t(c1) VALUES (10000);
+Warnings:
+Warning	1287	'INSERT DELAYED' is deprecated and will be removed in a future release. Please use INSERT instead
 UPDATE t SET c1=2 WHERE c1=1;
 DELETE FROM t WHERE c2=2;
 DROP TABLE t;
@@ -64,8 +68,12 @@ CREATE TABLE t (c1 int, c2 int, c3 blob, primary key(c1));
 INSERT INTO t VALUES (1,2,"a");
 INSERT INTO t(c1,c3) VALUES (10,"a");
 INSERT DELAYED INTO t(c1,c3) VALUES (100,"a");
+Warnings:
+Warning	1287	'INSERT DELAYED' is deprecated and will be removed in a future release. Please use INSERT instead
 INSERT INTO t(c1) VALUES (1000);
 INSERT DELAYED INTO t(c1) VALUES (10000);
+Warnings:
+Warning	1287	'INSERT DELAYED' is deprecated and will be removed in a future release. Please use INSERT instead
 UPDATE t SET c1=2 WHERE c1=1;
 DELETE FROM t WHERE c2=2;
 DROP TABLE t;
@@ -76,8 +84,12 @@ CREATE TABLE t (c1 int, c2 int, c3 blob, unique key(c1));
 INSERT INTO t VALUES (1,2,"a");
 INSERT INTO t(c1,c3) VALUES (10,"a");
 INSERT DELAYED INTO t(c1,c3) VALUES (100,"a");
+Warnings:
+Warning	1287	'INSERT DELAYED' is deprecated and will be removed in a future release. Please use INSERT instead
 INSERT INTO t(c1) VALUES (1000);
 INSERT DELAYED INTO t(c1) VALUES (10000);
+Warnings:
+Warning	1287	'INSERT DELAYED' is deprecated and will be removed in a future release. Please use INSERT instead
 UPDATE t SET c1=2 WHERE c1=1;
 DELETE FROM t WHERE c2=2;
 DROP TABLE t;
@@ -88,8 +100,12 @@ CREATE TABLE t (c1 int, c2 int, c3 blob, key(c1));
 INSERT INTO t VALUES (1,2,"a");
 INSERT INTO t(c1,c3) VALUES (10,"a");
 INSERT DELAYED INTO t(c1,c3) VALUES (100,"a");
+Warnings:
+Warning	1287	'INSERT DELAYED' is deprecated and will be removed in a future release. Please use INSERT instead
 INSERT INTO t(c1) VALUES (1000);
 INSERT DELAYED INTO t(c1) VALUES (10000);
+Warnings:
+Warning	1287	'INSERT DELAYED' is deprecated and will be removed in a future release. Please use INSERT instead
 UPDATE t SET c1=2 WHERE c1=1;
 DELETE FROM t WHERE c2=2;
 DROP TABLE t;
@@ -100,8 +116,12 @@ CREATE TABLE t (c1 int, c2 int, c3 blob);
 INSERT INTO t VALUES (1,2,"a");
 INSERT INTO t(c1,c3) VALUES (10,"a");
 INSERT DELAYED INTO t(c1,c3) VALUES (100,"a");
+Warnings:
+Warning	1287	'INSERT DELAYED' is deprecated and will be removed in a future release. Please use INSERT instead
 INSERT INTO t(c1) VALUES (1000);
 INSERT DELAYED INTO t(c1) VALUES (10000);
+Warnings:
+Warning	1287	'INSERT DELAYED' is deprecated and will be removed in a future release. Please use INSERT instead
 UPDATE t SET c1=2 WHERE c1=1;
 DELETE FROM t WHERE c2=2;
 DROP TABLE t;
@@ -120,8 +140,12 @@ CREATE TABLE t (c1 int NOT NULL, c2 int, c3 blob, unique key(c1));
 INSERT INTO t VALUES (1,2,"a");
 INSERT INTO t(c1,c3) VALUES (10,"a");
 INSERT DELAYED INTO t(c1,c3) VALUES (100,"a");
+Warnings:
+Warning	1287	'INSERT DELAYED' is deprecated and will be removed in a future release. Please use INSERT instead
 INSERT INTO t(c1) VALUES (1000);
 INSERT DELAYED INTO t(c1) VALUES (10000);
+Warnings:
+Warning	1287	'INSERT DELAYED' is deprecated and will be removed in a future release. Please use INSERT instead
 UPDATE t SET c1=2 WHERE c1=1;
 DELETE FROM t WHERE c2=2;
 DROP TABLE t;
@@ -132,8 +156,12 @@ CREATE TABLE t (c1 int, c2 int, c3 blob, primary key(c1));
 INSERT INTO t VALUES (1,2,"a");
 INSERT INTO t(c1,c3) VALUES (10,"a");
 INSERT DELAYED INTO t(c1,c3) VALUES (100,"a");
+Warnings:
+Warning	1287	'INSERT DELAYED' is deprecated and will be removed in a future release. Please use INSERT instead
 INSERT INTO t(c1) VALUES (1000);
 INSERT DELAYED INTO t(c1) VALUES (10000);
+Warnings:
+Warning	1287	'INSERT DELAYED' is deprecated and will be removed in a future release. Please use INSERT instead
 UPDATE t SET c1=2 WHERE c1=1;
 DELETE FROM t WHERE c2=2;
 DROP TABLE t;
@@ -144,8 +172,12 @@ CREATE TABLE t (c1 int, c2 int, c3 blob, unique key(c1));
 INSERT INTO t VALUES (1,2,"a");
 INSERT INTO t(c1,c3) VALUES (10,"a");
 INSERT DELAYED INTO t(c1,c3) VALUES (100,"a");
+Warnings:
+Warning	1287	'INSERT DELAYED' is deprecated and will be removed in a future release. Please use INSERT instead
 INSERT INTO t(c1) VALUES (1000);
 INSERT DELAYED INTO t(c1) VALUES (10000);
+Warnings:
+Warning	1287	'INSERT DELAYED' is deprecated and will be removed in a future release. Please use INSERT instead
 UPDATE t SET c1=2 WHERE c1=1;
 DELETE FROM t WHERE c2=2;
 DROP TABLE t;
@@ -156,8 +188,12 @@ CREATE TABLE t (c1 int, c2 int, c3 blob, key(c1));
 INSERT INTO t VALUES (1,2,"a");
 INSERT INTO t(c1,c3) VALUES (10,"a");
 INSERT DELAYED INTO t(c1,c3) VALUES (100,"a");
+Warnings:
+Warning	1287	'INSERT DELAYED' is deprecated and will be removed in a future release. Please use INSERT instead
 INSERT INTO t(c1) VALUES (1000);
 INSERT DELAYED INTO t(c1) VALUES (10000);
+Warnings:
+Warning	1287	'INSERT DELAYED' is deprecated and will be removed in a future release. Please use INSERT instead
 UPDATE t SET c1=2 WHERE c1=1;
 DELETE FROM t WHERE c2=2;
 DROP TABLE t;
@@ -168,8 +204,12 @@ CREATE TABLE t (c1 int, c2 int, c3 blob);
 INSERT INTO t VALUES (1,2,"a");
 INSERT INTO t(c1,c3) VALUES (10,"a");
 INSERT DELAYED INTO t(c1,c3) VALUES (100,"a");
+Warnings:
+Warning	1287	'INSERT DELAYED' is deprecated and will be removed in a future release. Please use INSERT instead
 INSERT INTO t(c1) VALUES (1000);
 INSERT DELAYED INTO t(c1) VALUES (10000);
+Warnings:
+Warning	1287	'INSERT DELAYED' is deprecated and will be removed in a future release. Please use INSERT instead
 UPDATE t SET c1=2 WHERE c1=1;
 DELETE FROM t WHERE c2=2;
 DROP TABLE t;
@@ -188,8 +228,12 @@ CREATE TABLE t (c1 int NOT NULL, c2 int, c3 blob, unique key(c1));
 INSERT INTO t VALUES (1,2,"a");
 INSERT INTO t(c1,c3) VALUES (10,"a");
 INSERT DELAYED INTO t(c1,c3) VALUES (100,"a");
+Warnings:
+Warning	1287	'INSERT DELAYED' is deprecated and will be removed in a future release. Please use INSERT instead
 INSERT INTO t(c1) VALUES (1000);
 INSERT DELAYED INTO t(c1) VALUES (10000);
+Warnings:
+Warning	1287	'INSERT DELAYED' is deprecated and will be removed in a future release. Please use INSERT instead
 UPDATE t SET c1=2 WHERE c1=1;
 DELETE FROM t WHERE c2=2;
 DROP TABLE t;
@@ -200,8 +244,12 @@ CREATE TABLE t (c1 int, c2 int, c3 blob, primary key(c1));
 INSERT INTO t VALUES (1,2,"a");
 INSERT INTO t(c1,c3) VALUES (10,"a");
 INSERT DELAYED INTO t(c1,c3) VALUES (100,"a");
+Warnings:
+Warning	1287	'INSERT DELAYED' is deprecated and will be removed in a future release. Please use INSERT instead
 INSERT INTO t(c1) VALUES (1000);
 INSERT DELAYED INTO t(c1) VALUES (10000);
+Warnings:
+Warning	1287	'INSERT DELAYED' is deprecated and will be removed in a future release. Please use INSERT instead
 UPDATE t SET c1=2 WHERE c1=1;
 DELETE FROM t WHERE c2=2;
 DROP TABLE t;
@@ -212,8 +260,12 @@ CREATE TABLE t (c1 int, c2 int, c3 blob, unique key(c1));
 INSERT INTO t VALUES (1,2,"a");
 INSERT INTO t(c1,c3) VALUES (10,"a");
 INSERT DELAYED INTO t(c1,c3) VALUES (100,"a");
+Warnings:
+Warning	1287	'INSERT DELAYED' is deprecated and will be removed in a future release. Please use INSERT instead
 INSERT INTO t(c1) VALUES (1000);
 INSERT DELAYED INTO t(c1) VALUES (10000);
+Warnings:
+Warning	1287	'INSERT DELAYED' is deprecated and will be removed in a future release. Please use INSERT instead
 UPDATE t SET c1=2 WHERE c1=1;
 DELETE FROM t WHERE c2=2;
 DROP TABLE t;
@@ -224,8 +276,12 @@ CREATE TABLE t (c1 int, c2 int, c3 blob, key(c1));
 INSERT INTO t VALUES (1,2,"a");
 INSERT INTO t(c1,c3) VALUES (10,"a");
 INSERT DELAYED INTO t(c1,c3) VALUES (100,"a");
+Warnings:
+Warning	1287	'INSERT DELAYED' is deprecated and will be removed in a future release. Please use INSERT instead
 INSERT INTO t(c1) VALUES (1000);
 INSERT DELAYED INTO t(c1) VALUES (10000);
+Warnings:
+Warning	1287	'INSERT DELAYED' is deprecated and will be removed in a future release. Please use INSERT instead
 UPDATE t SET c1=2 WHERE c1=1;
 DELETE FROM t WHERE c2=2;
 DROP TABLE t;
@@ -236,8 +292,12 @@ CREATE TABLE t (c1 int, c2 int, c3 blob);
 INSERT INTO t VALUES (1,2,"a");
 INSERT INTO t(c1,c3) VALUES (10,"a");
 INSERT DELAYED INTO t(c1,c3) VALUES (100,"a");
+Warnings:
+Warning	1287	'INSERT DELAYED' is deprecated and will be removed in a future release. Please use INSERT instead
 INSERT INTO t(c1) VALUES (1000);
 INSERT DELAYED INTO t(c1) VALUES (10000);
+Warnings:
+Warning	1287	'INSERT DELAYED' is deprecated and will be removed in a future release. Please use INSERT instead
 UPDATE t SET c1=2 WHERE c1=1;
 DELETE FROM t WHERE c2=2;
 DROP TABLE t;
@@ -303,8 +363,12 @@ CREATE TABLE t (c1 int, c2 int, c3 blob, primary key(c1,c3(512)));
 INSERT INTO t VALUES (1,2,"a");
 INSERT INTO t(c1,c3) VALUES (10,"a");
 INSERT DELAYED INTO t(c1,c3) VALUES (100,"a");
+Warnings:
+Warning	1287	'INSERT DELAYED' is deprecated and will be removed in a future release. Please use INSERT instead
 INSERT INTO t(c1) VALUES (1000);
 INSERT DELAYED INTO t(c1) VALUES (10000);
+Warnings:
+Warning	1287	'INSERT DELAYED' is deprecated and will be removed in a future release. Please use INSERT instead
 UPDATE t SET c1=2 WHERE c1=1;
 DELETE FROM t WHERE c2=2;
 DROP TABLE t;
@@ -316,8 +380,12 @@ CREATE TABLE t (c1 int, c2 int, c3 blob, primary key(c1,c2));
 INSERT INTO t VALUES (1,2,"a");
 INSERT INTO t(c1,c3) VALUES (10,"a");
 INSERT DELAYED INTO t(c1,c3) VALUES (100,"a");
+Warnings:
+Warning	1287	'INSERT DELAYED' is deprecated and will be removed in a future release. Please use INSERT instead
 INSERT INTO t(c1) VALUES (1000);
 INSERT DELAYED INTO t(c1) VALUES (10000);
+Warnings:
+Warning	1287	'INSERT DELAYED' is deprecated and will be removed in a future release. Please use INSERT instead
 UPDATE t SET c3='b' WHERE c1=1;
 DELETE FROM t WHERE c2=2;
 DROP TABLE t;

@@ -81,6 +81,8 @@ static int join_ft_read_next(READ_RECORD *info);
 static int join_read_always_key_or_null(JOIN_TAB *tab);
 static int join_read_next_same_or_null(READ_RECORD *info);
 static int join_read_record_no_init(JOIN_TAB *tab);
+static int join_read_linked_first(JOIN_TAB *tab);
+static int join_read_linked_next(READ_RECORD *info);
 // Create list for using with tempory table
 static bool change_to_use_tmp_fields(THD *thd, Ref_ptr_array ref_pointer_array,
 				     List<Item> &new_list1,
@@ -2972,6 +2974,76 @@ join_read_key_unlock_row(st_join_table *tab)
     tab->ref.use_count--;
 }
 
+/**
+  Read a table *assumed* to be included in execution of a pushed join.
+  This is the counterpart of join_read_key() / join_read_always_key()
+  for child tables in a pushed join.
+
+  When the table access is performed as part of the pushed join,
+  all 'linked' child colums are prefetched together with the parent row.
+  The handler will then only format the row as required by MySQL and set
+  'table->status' accordingly.
+
+  However, there may be situations where the prepared pushed join was not
+  executed as assumed. It is the responsibility of the handler to handle
+  these situation by letting ::index_read_pushed() then effectively do a 
+  plain old' index_read_map(..., HA_READ_KEY_EXACT);
+  
+  @param tab			Table to read
+
+  @retval
+    0	Row was found
+  @retval
+    -1   Row was not found
+  @retval
+    1   Got an error (other than row not found) during read
+*/
+static int
+join_read_linked_first(JOIN_TAB *tab)
+{
+  TABLE *table= tab->table;
+  DBUG_ENTER("join_read_linked_first");
+
+  DBUG_ASSERT(!tab->sorted); // Pushed child can't be sorted
+  if (!table->file->inited)
+    table->file->ha_index_init(tab->ref.key, tab->sorted);
+
+  if (cp_buffer_from_ref(tab->join->thd, table, &tab->ref))
+  {
+    table->status=STATUS_NOT_FOUND;
+    DBUG_RETURN(-1);
+  }
+
+  // 'read' itself is a NOOP: 
+  //  handler::index_read_pushed() only unpack the prefetched row and set 'status'
+  int error=table->file->index_read_pushed(table->record[0],
+                                      tab->ref.key_buff,
+                                      make_prev_keypart_map(tab->ref.key_parts));
+  if (unlikely(error && error != HA_ERR_KEY_NOT_FOUND && error != HA_ERR_END_OF_FILE))
+    DBUG_RETURN(report_error(table, error));
+
+  table->null_row=0;
+  int rc= table->status ? -1 : 0;
+  DBUG_RETURN(rc);
+}
+
+static int
+join_read_linked_next(READ_RECORD *info)
+{
+  TABLE *table= info->table;
+  DBUG_ENTER("join_read_linked_next");
+
+  int error=table->file->index_next_pushed(table->record[0]);
+  if (error)
+  {
+    if (unlikely(error != HA_ERR_END_OF_FILE))
+      DBUG_RETURN(report_error(table, error));
+    table->status= STATUS_GARBAGE;
+    DBUG_RETURN(-1);
+  }
+  DBUG_RETURN(error);
+}
+
 /*
   ref access method implementation: "read_first" function
 
@@ -3353,6 +3425,36 @@ join_read_next_same_or_null(READ_RECORD *info)
 void
 pick_table_access_method(JOIN_TAB *tab)
 {
+  /**
+    Set up modified access function for pushed joins.
+  */
+  uint pushed_joins= tab->table->file->number_of_pushed_joins();
+  if (pushed_joins > 0)
+  {
+    if (tab->table->file->root_of_pushed_join() != tab->table)
+    {
+      /*
+        Is child of a pushed join operation:
+        Replace access functions with its linked counterpart.
+        ... Which is effectively a NOOP as the row is already fetched 
+        together with the root of the linked operation.
+      */
+      DBUG_ASSERT(tab->type != JT_REF_OR_NULL);
+      tab->read_first_record= join_read_linked_first;
+      tab->read_record.read_record= join_read_linked_next;
+      tab->read_record.unlock_row= rr_unlock_row;
+      return;
+    }
+  }
+
+  /**
+    Already set to some non-default value in sql_select.cc
+    TODO: Move these settings into pick_table_access_method() also
+  */
+  else if (tab->read_first_record != NULL)
+    return;  
+
+  // Fall through to set default access functions:
   switch (tab->type) 
   {
   case JT_REF:
@@ -3993,6 +4095,14 @@ create_sort_index(THD *thd, JOIN *join, ORDER *order,
   table=  tab->table;
   select= tab->select;
 
+  /* 
+    If we have a select->quick object that is created outside of
+    create_sort_index() and this is part of a subquery that
+    potentially can be executed multiple times then we should not
+    delete the quick object on exit from this function.
+  */
+  bool keep_quick= select && select->quick && join->join_tab_save;
+
   /*
     JOIN::optimize may have prepared an access path which makes
     either the GROUP BY or ORDER BY sorting obsolete by using an
@@ -4050,6 +4160,7 @@ create_sort_index(THD *thd, JOIN *join, ORDER *order,
 			    get_quick_select_for_ref(thd, table, &tab->ref, 
                                                      tab->found_records))))
 	goto err;
+      DBUG_ASSERT(!keep_quick);
     }
   }
 
@@ -4092,9 +4203,25 @@ create_sort_index(THD *thd, JOIN *join, ORDER *order,
     tablesort_result_cache= table->sort.io_cache;
     table->sort.io_cache= NULL;
 
-    select->cleanup();				// filesort did select
-    tab->select= 0;
-    table->quick_keys.clear_all();  // as far as we cleanup select->quick
+    /*
+      If a quick object was created outside of create_sort_index()
+      that might be reused, then do not call select->cleanup() since
+      it will delete the quick object.
+    */
+    if (!keep_quick)
+    {
+      select->cleanup();
+      /*
+        The select object should now be ready for the next use. If it
+        is re-used then there exists a backup copy of this join tab
+        which has the pointer to it. The join tab will be restored in
+        JOIN::reset(). So here we just delete the pointer to it.
+      */
+      tab->select= NULL;
+      // If we deleted the quick select object we need to clear quick_keys
+      table->quick_keys.clear_all();
+    }
+    // Restore the output resultset
     table->sort.io_cache= tablesort_result_cache;
   }
   tab->set_condition(NULL, __LINE__);

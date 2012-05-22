@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License
@@ -19,7 +19,7 @@
 #include "sql_acl.h"    // append_user
 #include "sql_parse.h"  // get_current_user
 #include "sql_show.h"   // append_identifier
-#include "sp_head.h"    // TYPE_ENUM_(FUNCTION|PROCEDURE)
+#include "sp_head.h"    // struct set_var_base
 #include "rpl_slave.h"  // SLAVE_SQL, SLAVE_IO
 
 

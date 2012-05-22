@@ -2221,8 +2221,8 @@ int ha_delete_table(THD *thd, handlerton *table_type, const char *path,
   if (likely(error == 0))
   {
     my_bool temp_table= (my_bool)is_prefix(alias, tmp_file_prefix);
-    PSI_CALL(drop_table_share)(temp_table, db, strlen(db),
-                               alias, strlen(alias));
+    PSI_TABLE_CALL(drop_table_share)
+      (temp_table, db, strlen(db), alias, strlen(alias));
   }
 #endif
 
@@ -2289,7 +2289,7 @@ void handler::unbind_psi()
     Notify the instrumentation that this table is not owned
     by this thread any more.
   */
-  PSI_CALL(unbind_table)(m_psi);
+  PSI_TABLE_CALL(unbind_table)(m_psi);
 #endif
 }
 
@@ -2301,7 +2301,7 @@ void handler::rebind_psi()
     by this thread.
   */
   PSI_table_share *share_psi= ha_table_share_psi(table_share);
-  m_psi= PSI_CALL(rebind_table)(share_psi, this, m_psi);
+  m_psi= PSI_TABLE_CALL(rebind_table)(share_psi, this, m_psi);
 #endif
 }
 
@@ -2353,7 +2353,7 @@ int handler::ha_open(TABLE *table_arg, const char *name, int mode,
     DBUG_ASSERT(table_share != NULL);
 #ifdef HAVE_PSI_TABLE_INTERFACE
     PSI_table_share *share_psi= ha_table_share_psi(table_share);
-    m_psi= PSI_CALL(open_table)(share_psi, this);
+    m_psi= PSI_TABLE_CALL(open_table)(share_psi, this);
 #endif
 
     if (table->s->db_options_in_use & HA_OPTION_READ_ONLY_DATA)
@@ -2383,7 +2383,7 @@ int handler::ha_close(void)
 {
   DBUG_ENTER("handler::ha_close");
 #ifdef HAVE_PSI_TABLE_INTERFACE
-  PSI_CALL(close_table)(m_psi);
+  PSI_TABLE_CALL(close_table)(m_psi);
   m_psi= NULL; /* instrumentation handle, invalid after close_table() */
 #endif
   DBUG_ASSERT(m_psi == NULL);
@@ -3046,8 +3046,19 @@ int handler::update_auto_increment()
         reservation means potentially losing unused values).
         Note that in prelocked mode no estimation is given.
       */
+
       if ((auto_inc_intervals_count == 0) && (estimation_rows_to_insert > 0))
         nb_desired_values= estimation_rows_to_insert;
+      else if ((auto_inc_intervals_count == 0) &&
+               (thd->lex->many_values.elements > 0))
+      {
+        /*
+          For multi-row inserts, if the bulk inserts cannot be started, the
+          handler::estimation_rows_to_insert will not be set. But we still
+          want to reserve the autoinc values.
+        */
+        nb_desired_values= thd->lex->many_values.elements;
+      }
       else /* go with the increasing defaults */
       {
         /* avoid overflow in formula, with this if() */
@@ -4481,7 +4492,7 @@ int ha_create_table(THD *thd, const char *path,
     goto err;
 
 #ifdef HAVE_PSI_TABLE_INTERFACE
-  share.m_psi= PSI_CALL(get_table_share)(temp_table, &share);
+  share.m_psi= PSI_TABLE_CALL(get_table_share)(temp_table, &share);
 #endif
 
   if (open_table_from_share(thd, &share, "", 0, (uint) READ_ALL, 0, &table,
@@ -4500,8 +4511,8 @@ int ha_create_table(THD *thd, const char *path,
     strxmov(name_buff, db, ".", table_name, NullS);
     my_error(ER_CANT_CREATE_TABLE, MYF(ME_BELL+ME_WAITTANG), name_buff, error);
 #ifdef HAVE_PSI_TABLE_INTERFACE
-    PSI_CALL(drop_table_share)(temp_table, db, strlen(db), table_name,
-                               strlen(table_name));
+    PSI_TABLE_CALL(drop_table_share)
+      (temp_table, db, strlen(db), table_name, strlen(table_name));
 #endif
   }
 err:
@@ -5053,6 +5064,44 @@ int ha_table_exists_in_engine(THD* thd, const char* db, const char* name)
   DBUG_PRINT("enter", ("db: %s, name: %s", db, name));
   st_table_exists_in_engine_args args= {db, name, HA_ERR_NO_SUCH_TABLE};
   plugin_foreach(thd, table_exists_in_engine_handlerton,
+                 MYSQL_STORAGE_ENGINE_PLUGIN, &args);
+  DBUG_PRINT("exit", ("error: %d", args.err));
+  DBUG_RETURN(args.err);
+}
+
+/**
+  Prepare (sub-) sequences of joins in this statement 
+  which may be pushed to each storage engine for execution.
+*/
+struct st_make_pushed_join_args
+{
+  const AQP::Join_plan* plan; // Query plan provided by optimizer
+  int err;                    // Error code to return.
+};
+
+static my_bool make_pushed_join_handlerton(THD *thd, plugin_ref plugin,
+                                   void *arg)
+{
+  st_make_pushed_join_args *vargs= (st_make_pushed_join_args *)arg;
+  handlerton *hton= plugin_data(plugin, handlerton *);
+
+  if (hton && hton->make_pushed_join)
+  {
+    const int error= hton->make_pushed_join(hton, thd, vargs->plan);
+    if (unlikely(error))
+    {
+      vargs->err = error;
+      return TRUE;
+    }
+  }
+  return FALSE;
+}
+
+int ha_make_pushed_joins(THD *thd, const AQP::Join_plan* plan)
+{
+  DBUG_ENTER("ha_make_pushed_joins");
+  st_make_pushed_join_args args= {plan, 0};
+  plugin_foreach(thd, make_pushed_join_handlerton,
                  MYSQL_STORAGE_ENGINE_PLUGIN, &args);
   DBUG_PRINT("exit", ("error: %d", args.err));
   DBUG_RETURN(args.err);
@@ -6887,6 +6936,8 @@ int handler::ha_write_row(uchar *buf)
 
   if (unlikely(error= binlog_log_row(table, 0, buf, log_func)))
     DBUG_RETURN(error); /* purecov: inspected */
+
+  DEBUG_SYNC_C("ha_write_row_end");
   DBUG_RETURN(0);
 }
 
