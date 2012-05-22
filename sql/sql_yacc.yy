@@ -5998,6 +5998,10 @@ create_table_option:
           }
         | STATS_SAMPLE_PAGES_SYM opt_equal ulong_num
           {
+            /* From user point of view STATS_SAMPLE_PAGES can be specified as
+            STATS_SAMPLE_PAGES=N (where N>0, it does not make sense to scan
+            0 pages) or STATS_SAMPLE_PAGES=default. Internally we record
+            =default as 0. */
             if ($3 == 0)
             {
               my_parse_error(ER(ER_SYNTAX_ERROR));
