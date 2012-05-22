@@ -34,7 +34,7 @@ deserialize_descriptor_size(const DESCRIPTOR desc, int layout_version) {
     //Checksum NOT included in this.  Checksum only exists in header's version.
     u_int32_t size = 4; // four bytes for size of descriptor
     if (layout_version == FT_LAYOUT_VERSION_13)
-	size += 4;   // for version 13, include four bytes of "version"
+        size += 4;   // for version 13, include four bytes of "version"
     size += desc->dbt.size;
     return size;
 }
@@ -64,7 +64,7 @@ toku_serialize_descriptor_contents_to_fd(int fd, const DESCRIPTOR desc, DISKOFF 
     {
         toku_lock_for_pwrite();
         //Actual Write translation table
-	toku_full_pwrite_extend(fd, w.buf, size, offset);
+        toku_full_pwrite_extend(fd, w.buf, size, offset);
         toku_unlock_for_pwrite();
     }
     toku_free(w.buf);
@@ -687,19 +687,19 @@ int toku_serialize_ft_to (int fd, FT h) {
     struct wbuf w_main;
     unsigned int size_main = toku_serialize_ft_size (h);
     {
-	wbuf_init(&w_main, toku_xmalloc(size_main), size_main);
-	{
-	    int r=toku_serialize_ft_to_wbuf(&w_main, h, address_translation, size_translation);
-	    lazy_assert_zero(r);
-	}
-	lazy_assert(w_main.ndone==size_main);
+        wbuf_init(&w_main, toku_xmalloc(size_main), size_main);
+        {
+            int r=toku_serialize_ft_to_wbuf(&w_main, h, address_translation, size_translation);
+            lazy_assert_zero(r);
+        }
+        lazy_assert(w_main.ndone==size_main);
     }
     toku_ft_unlock(h);
     toku_lock_for_pwrite();
     {
         //Actual Write translation table
-	toku_full_pwrite_extend(fd, w_translation.buf,
-				size_translation, address_translation);
+        toku_full_pwrite_extend(fd, w_translation.buf,
+                                size_translation, address_translation);
     }
     {
         //Everything but the header MUST be on disk before header starts.
