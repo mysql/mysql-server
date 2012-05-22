@@ -1828,15 +1828,12 @@ rec_get_trx_id(
 	trx_id = rec_get_nth_field(rec, offsets, trx_id_col, &len);
 
 	ut_ad(len == DATA_TRX_ID_LEN);
-#  if DATA_TRX_ID_LEN != 6
-#   error
-#  endif
 
 	if (heap) {
 		mem_heap_free(heap);
 	}
 
-	return(mach_read_from_6(trx_id));
+	return(trx_read_trx_id(trx_id));
 }
 # endif /* UNIV_DEBUG */
 #endif /* !UNIV_HOTBACKUP */
