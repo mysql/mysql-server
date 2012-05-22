@@ -40,19 +40,19 @@ void toku_txn_start_txn(TOKUTXN txn);
 int toku_txn_load_txninfo (TOKUTXN txn, TXNINFO info);
 
 int toku_txn_commit_txn (TOKUTXN txn, int nosync, YIELDF yield, void *yieldv,
-			 TXN_PROGRESS_POLL_FUNCTION poll, void *poll_extra,
-			 bool release_multi_operation_client_lock);
+                         TXN_PROGRESS_POLL_FUNCTION poll, void *poll_extra,
+                         bool release_multi_operation_client_lock);
 BOOL toku_txn_requires_checkpoint(TOKUTXN txn);
 int toku_txn_commit_with_lsn(TOKUTXN txn, int nosync, YIELDF yield, void *yieldv, LSN oplsn,
-			     TXN_PROGRESS_POLL_FUNCTION poll, void *poll_extra,
-			     bool release_multi_operation_client_lock);
+                             TXN_PROGRESS_POLL_FUNCTION poll, void *poll_extra,
+                             bool release_multi_operation_client_lock);
 
 int toku_txn_abort_txn(TOKUTXN txn, YIELDF yield, void *yieldv,
                        TXN_PROGRESS_POLL_FUNCTION poll, void *poll_extra,
-		       bool release_multi_operation_client_lock);
+                       bool release_multi_operation_client_lock);
 int toku_txn_abort_with_lsn(TOKUTXN txn, YIELDF yield, void *yieldv, LSN oplsn,
                             TXN_PROGRESS_POLL_FUNCTION poll, void *poll_extra,
-			    bool release_multi_operation_client_lock);
+                            bool release_multi_operation_client_lock);
 
 int toku_txn_prepare_txn (TOKUTXN txn, TOKU_XA_XID *xid) __attribute__((warn_unused_result));
 // Effect: Do the internal work of preparing a transaction (does not log the prepare record).
@@ -77,15 +77,6 @@ void toku_txn_complete_txn(TOKUTXN txn);
 void toku_txn_destroy_txn(TOKUTXN txn);
 
 XIDS toku_txn_get_xids (TOKUTXN);
-
-// Returns TRUE if a is older than b
-BOOL toku_txnid_older(TXNID a, TXNID b);
-
-// Returns TRUE if a == b
-BOOL toku_txnid_eq(TXNID a, TXNID b);
-
-// Returns TRUE if a is newer than b
-BOOL toku_txnid_newer(TXNID a, TXNID b);
 
 // Force fsync on commit
 void toku_txn_force_fsync_on_commit(TOKUTXN txn);
