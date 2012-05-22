@@ -459,16 +459,19 @@ include/my_base.h. It is possible to distinguish whether
 STATS_PERSISTENT=default has been specified or no STATS_PERSISTENT= is
 given at all. */
 #define HA_CREATE_USED_STATS_PERSISTENT (1L << 22)
-/** This is set whenever STATS_AUTO_RECALC=0|1|default has been
-specified in CREATE/ALTER TABLE. See also HA_OPTION_STATS_AUTO_RECALC in
-include/my_base.h. It is possible to distinguish whether
-STATS_AUTO_RECALC=default has been specified or no STATS_AUTO_RECALC= is
-given at all. */
+/**
+   This is set whenever STATS_AUTO_RECALC=0|1|default has been
+   specified in CREATE/ALTER TABLE. See enum_stats_auto_recalc.
+   It is possible to distinguish whether STATS_AUTO_RECALC=default
+   has been specified or no STATS_AUTO_RECALC= is given at all.
+*/
 #define HA_CREATE_USED_STATS_AUTO_RECALC (1L << 23)
-/** This is set whenever STATS_SAMPLE_PAGES=N|default has been
-specified in CREATE/ALTER TABLE. It is possible to distinguish whether
-STATS_SAMPLE_PAGES=default has been specified or no STATS_SAMPLE_PAGES= is
-given at all. */
+/**
+   This is set whenever STATS_SAMPLE_PAGES=N|default has been
+   specified in CREATE/ALTER TABLE. It is possible to distinguish whether
+   STATS_SAMPLE_PAGES=default has been specified or no STATS_SAMPLE_PAGES= is
+   given at all.
+*/
 #define HA_CREATE_USED_STATS_SAMPLE_PAGES (1L << 24)
 
 
@@ -1005,6 +1008,10 @@ struct st_partition_iter;
 
 enum enum_ha_unused { HA_CHOICE_UNDEF, HA_CHOICE_NO, HA_CHOICE_YES };
 
+enum enum_stats_auto_recalc { HA_STATS_AUTO_RECALC_DEFAULT= 0,
+                              HA_STATS_AUTO_RECALC_ON,
+                              HA_STATS_AUTO_RECALC_OFF };
+
 typedef struct st_ha_create_information
 {
   const CHARSET_INFO *table_charset, *default_table_charset;
@@ -1021,6 +1028,7 @@ typedef struct st_ha_create_information
   ulong key_block_size;
   uint stats_sample_pages;		/* number of pages to sample during
 					stats estimation, if used, otherwise 0. */
+  enum_stats_auto_recalc stats_auto_recalc;
   SQL_I_List<TABLE_LIST> merge_list;
   handlerton *db_type;
   /**

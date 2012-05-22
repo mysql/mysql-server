@@ -584,15 +584,25 @@ system clustered index when there is no primary key. */
 extern const char innobase_index_reserve_name[];
 
 /*********************************************************************//**
-Copy flags from MySQL into an InnoDB table object. Those flags are stored
-in .frm file and end up in the MySQL table object, but are frequently used
-inside InnoDB so we keep their copies into the InnoDB table object. */
+Copy table flags from MySQL's HA_CREATE_INFO into an InnoDB table object.
+Those flags are stored in .frm file and end up in the MySQL table object,
+but are frequently used inside InnoDB so we keep their copies into the
+InnoDB table object. */
 UNIV_INTERN
 void
-innobase_copy_frm_flags_into_innodb(
-/*================================*/
+innobase_copy_frm_flags_from_create_info(
+/*=====================================*/
 	dict_table_t*	innodb_table,		/*!< in/out: InnoDB table */
-	uint		mysql_opts,		/*!< in: MySQL table options */
-	ulint		stats_sample_pages);	/*!< in: number of pages to
-						sample during stats estimation,
-						if used, otherwise 0. */
+	HA_CREATE_INFO*	create_info);		/*!< in: create info */
+
+/*********************************************************************//**
+Copy table flags from MySQL's TABLE_SHARE into an InnoDB table object.
+Those flags are stored in .frm file and end up in the MySQL table object,
+but are frequently used inside InnoDB so we keep their copies into the
+InnoDB table object. */
+UNIV_INTERN
+void
+innobase_copy_frm_flags_from_table_share(
+/*=====================================*/
+	dict_table_t*	innodb_table,		/*!< in/out: InnoDB table */
+	TABLE_SHARE*	table_share);		/*!< in: table share */

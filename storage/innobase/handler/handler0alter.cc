@@ -3839,10 +3839,9 @@ trx_commit:
 				if (!(index->type & DICT_FTS)) {
 
 					if (!stats_init_called) {
-						innobase_copy_frm_flags_into_innodb(
+						innobase_copy_frm_flags_from_table_share(
 							index->table,
-							altered_table->s->db_create_options,
-							altered_table->s->stats_sample_pages);
+							altered_table->s);
 
 						dict_stats_init(index->table);
 
