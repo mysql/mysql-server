@@ -3277,25 +3277,23 @@ exit:
     if (fname_in_cwd) {
         toku_free(fname_in_cwd);
     }
-    if (r) {
-        if (cf) {
-            if (t->h) {
-                // we only call toku_ft_note_ft_handle_open
-                // when the function succeeds, so if we are here,
-                // then that means we have a reference to the header
-                // but we have not linked it to this brt. So,
-                // we can simply try to remove the header.
-                // We don't need to unlink this brt from the header
-                if (!toku_ft_needed(t->h)) {
-                    //Close immediately.
-                    char *error_string = NULL;
-                    r = toku_remove_ft(t->h, &error_string, false, ZERO_LSN);
-                    lazy_assert_zero(r);
-                }
+    if (r != 0 && cf) {
+        if (t->h) {
+            // we only call toku_ft_note_ft_handle_open
+            // when the function succeeds, so if we are here,
+            // then that means we have a reference to the header
+            // but we have not linked it to this brt. So,
+            // we can simply try to remove the header.
+            // We don't need to unlink this brt from the header
+            if (!toku_ft_needed(t->h)) {
+                //Close immediately.
+                char *error_string = NULL;
+                r = toku_remove_ft(t->h, &error_string, false, ZERO_LSN);
+                lazy_assert_zero(r);
             }
-            else {
-                toku_cachefile_close(&cf, 0, FALSE, ZERO_LSN);
-            }
+        }
+        else {
+            toku_cachefile_close(&cf, 0, FALSE, ZERO_LSN);
         }
     }
     return r;

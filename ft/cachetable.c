@@ -195,7 +195,6 @@ static inline void ctpair_destroy(PAIR p) {
 // The cachetable is as close to an ENV as we get.
 // There are 3 locks, must be taken in this order
 // TODO: review the removal of this mutex, since it is only ever held when the ydb lock is held
-//      openfd_mutex
 //      cachetable_mutex
 //      cachefiles_mutex
 struct cachetable {
@@ -238,8 +237,6 @@ struct cachetable {
                                   // minimum period of 1s so if you want
                                   // more frequent cleaner runs you must
                                   // use this)
-    // TODO: review the removal of this mutex, since it is only ever held when the ydb lock is held
-    toku_mutex_t openfd_mutex;  // make toku_cachetable_openfd() single-threaded
     char *env_dir;
 
     // variables for engine status
@@ -516,8 +513,6 @@ int toku_create_cachetable(CACHETABLE *result, long size_limit, LSN UU(initial_l
     toku_init_workers(&ct->wq, &ct->threadpool, 1);
     toku_init_workers(&ct->checkpoint_wq, &ct->checkpoint_threadpool, 8);
     ct->mutex = workqueue_lock_ref(&ct->wq);
-    // TODO: review the removal of this mutex, since it is only ever held when the ydb lock is held
-    toku_mutex_init(&ct->openfd_mutex, NULL);
     toku_mutex_init(&ct->cachefiles_mutex, 0);
 
     ct->kibbutz = toku_kibbutz_create(toku_os_get_number_active_processors());
@@ -620,7 +615,6 @@ toku_cachetable_reserve_filenum(CACHETABLE ct) {
     CACHEFILE extant;
     FILENUM filenum;
     invariant(ct);
-    toku_mutex_lock(&ct->openfd_mutex);   // purpose is to make this function single-threaded
     cachetable_lock(ct);
     cachefiles_lock(ct);
 try_again:
@@ -634,7 +628,6 @@ try_again:
     next_filenum_to_use.fileid++;
     cachefiles_unlock(ct);
     cachetable_unlock(ct);
-    toku_mutex_unlock(&ct->openfd_mutex);   // purpose is to make this function single-threaded
     return filenum;
 }
 
@@ -651,8 +644,6 @@ int toku_cachetable_openfd_with_filenum (CACHEFILE *cfptr, CACHETABLE ct, int fd
         r=errno; close(fd); // no change for t:2444
         return r;
     }
-    // TODO: review the removal of this mutex, since it is only ever held when the ydb lock is held
-    toku_mutex_lock(&ct->openfd_mutex);   // purpose is to make this function single-threaded
     cachetable_lock(ct);
     cachefiles_lock(ct);
     for (extant = ct->cachefiles; extant; extant=extant->next) {
@@ -695,8 +686,6 @@ int toku_cachetable_openfd_with_filenum (CACHEFILE *cfptr, CACHETABLE ct, int fd
     }
  exit:
     cachefiles_unlock(ct);
-    // TODO: review the removal of this mutex, since it is only ever held when the ydb lock is held
-    toku_mutex_unlock(&ct->openfd_mutex);
     cachetable_unlock(ct);
     return r;
 }
@@ -3083,8 +3072,6 @@ toku_cachetable_close (CACHETABLE *ctp) {
     }
     assert(ct->size_evicting == 0);
     rwlock_destroy(&ct->pending_lock);
-    // TODO: review the removal of this mutex, since it is only ever held when the ydb lock is held
-    toku_mutex_destroy(&ct->openfd_mutex);
     cachetable_unlock(ct);
     toku_destroy_workers(&ct->wq, &ct->threadpool);
     toku_destroy_workers(&ct->checkpoint_wq, &ct->checkpoint_threadpool);
