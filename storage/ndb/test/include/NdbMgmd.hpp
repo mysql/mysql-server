@@ -28,12 +28,16 @@
 
 #include "../../src/mgmsrv/Config.hpp"
 
+#include <InputStream.hpp>
+
 class NdbMgmd {
   BaseString m_connect_str;
   NdbMgmHandle m_handle;
   Uint32 m_nodeid;
   bool m_verbose;
   unsigned int m_timeout;
+  NDB_SOCKET_TYPE m_event_socket;
+  
   void error(const char* msg, ...) ATTRIBUTE_FORMAT(printf, 2, 3)
   {
     if (!m_verbose)
@@ -390,6 +394,74 @@ public:
     }
     return true;
   }
+
+  bool subscribe_to_events(void)
+  {
+    if (!is_connected())
+    {
+      error("subscribe_to_events: not connected");
+      return false;
+    }
+    
+    int filter[] = 
+    {
+      15, NDB_MGM_EVENT_CATEGORY_STARTUP,
+      15, NDB_MGM_EVENT_CATEGORY_SHUTDOWN,
+      15, NDB_MGM_EVENT_CATEGORY_STATISTIC,
+      15, NDB_MGM_EVENT_CATEGORY_CHECKPOINT,
+      15, NDB_MGM_EVENT_CATEGORY_NODE_RESTART,
+      15, NDB_MGM_EVENT_CATEGORY_CONNECTION,
+      15, NDB_MGM_EVENT_CATEGORY_BACKUP,
+      15, NDB_MGM_EVENT_CATEGORY_CONGESTION,
+      15, NDB_MGM_EVENT_CATEGORY_DEBUG,
+      15, NDB_MGM_EVENT_CATEGORY_INFO,
+      0
+    };
+
+#ifdef NDB_WIN
+    m_event_socket.s = ndb_mgm_listen_event(m_handle, filter); 
+#else
+    m_event_socket.fd = ndb_mgm_listen_event(m_handle, filter);
+#endif
+    
+    return my_socket_valid(m_event_socket);
+  }
+
+  bool get_next_event_line(char* buff, int bufflen,
+                          int timeout_millis)
+  {
+    if (!is_connected())
+    {
+      error("get_next_event_line: not connected");
+      return false;
+    }
+    
+    if (!my_socket_valid(m_event_socket))
+    {
+      error("get_next_event_line: not subscribed");
+      return false;
+    }
+
+    SocketInputStream stream(m_event_socket, timeout_millis);
+    
+    const char* result = stream.gets(buff, bufflen);
+    if (result && strlen(result))
+    {
+      return true;
+    }
+    else
+    {
+      if (stream.timedout())
+      {
+        error("get_next_event_line: stream.gets timed out");
+        return false;
+      }
+    }
+    
+    error("get_next_event_line: error from stream.gets()");
+    return false;
+  }
+  
 
   // Pretty printer for 'ndb_mgm_node_type'
   class NodeType {

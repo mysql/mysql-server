@@ -45,6 +45,8 @@ import com.mysql.ndbjtie.ndbapi.NdbDictionary.Dictionary;
 
 /**
  * Implementation of store operation that uses NdbRecord.
+ * Operations of the "equal" variety delegate to the key NdbRecordImpl.
+ * Operations of the "set" and "get" varieties delegate to the value NdbRecordImpl.
  */
 public class NdbRecordOperationImpl implements Operation {
 
@@ -68,7 +70,11 @@ public class NdbRecordOperationImpl implements Operation {
     /** The NdbRecord for values */
     protected NdbRecordImpl ndbRecordValues = null;
 
-    /** The mask for this operation, which contains a bit set for each column accessed */
+    /** The mask for this operation, which contains a bit set for each column referenced.
+     * For insert, this contains a bit for each column to be inserted.
+     * For update, this contains a bit for each column to be updated.
+     * For read/scan operations, this contains a bit for each column to be read.
+     */
     byte[] mask;
 
     /** The ByteBuffer containing keys */
@@ -89,14 +95,14 @@ public class NdbRecordOperationImpl implements Operation {
     /** The size of the value buffer for this operation */
     protected int valueBufferSize;
 
-    /** The size of the null indicator byte array */
-    protected int nullIndicatorSize;
-
     /** The buffer manager for string encode and decode */
     protected BufferManager bufferManager;
 
     /** The table name */
     protected String tableName;
+
+    /** The store table */
+    protected Table storeTable;
 
     /** The store columns. */
     protected Column[] storeColumns;
@@ -104,12 +110,21 @@ public class NdbRecordOperationImpl implements Operation {
     /** The number of columns */
     int numberOfColumns;
 
-    /** Constructor used for smart value handler.
+    /** The db for this operation */
+    protected DbImpl db;
+
+    /** Constructor used for smart value handler for new instances,
+     * and the cluster transaction is not yet known. There is only one
+     * NdbRecord and one buffer, so all operations result in using
+     * the same buffer.
      * 
      * @param clusterConnection the cluster connection
+     * @param db the Db
      * @param storeTable the store table
      */
     public NdbRecordOperationImpl(ClusterConnectionImpl clusterConnection, Db db, Table storeTable) {
+        this.db = (DbImpl)db;
+        this.storeTable = storeTable;
         this.tableName = storeTable.getName();
         this.ndbRecordValues = clusterConnection.getCachedNdbRecordImpl(storeTable);
         this.ndbRecordKeys = ndbRecordValues;
@@ -124,18 +139,42 @@ public class NdbRecordOperationImpl implements Operation {
         resetMask();
     }
 
-    protected void resetMask() {
-        this.mask = new byte[1 + (numberOfColumns/8)];
-    }
-
-    /** Constructor used for insert and delete operations that do not need to read data.
+    /** Constructor used when the transaction is known.
      * 
      * @param clusterTransaction the cluster transaction
      */
     public NdbRecordOperationImpl(ClusterTransactionImpl clusterTransaction, Table storeTable) {
-        this.tableName = storeTable.getName();
         this.clusterTransaction = clusterTransaction;
+        this.db = clusterTransaction.db;
         this.bufferManager = clusterTransaction.getBufferManager();
+        this.tableName = storeTable.getName();
+        this.ndbRecordValues = clusterTransaction.getCachedNdbRecordImpl(storeTable);
+        this.valueBufferSize = ndbRecordValues.getBufferSize();
+        this.valueBuffer = ndbRecordValues.newBuffer();
+        this.numberOfColumns = ndbRecordValues.getNumberOfColumns();
+        this.blobs = new NdbRecordBlobImpl[this.numberOfColumns];
+        resetMask();
+    }
+
+    /** Constructor used to copy an existing NdbRecordOperationImpl for use with a SmartValueHandler.
+     * The value buffer is copied and cannot be used by the existing NdbRecordOperationImpl.
+     * 
+     * @param ndbRecordOperationImpl2 the existing NdbRecordOperationImpl with value buffer
+     */
+    public NdbRecordOperationImpl(NdbRecordOperationImpl ndbRecordOperationImpl2) {
+        this.ndbRecordValues = ndbRecordOperationImpl2.ndbRecordValues;
+        this.valueBufferSize = ndbRecordOperationImpl2.valueBufferSize;
+        this.ndbRecordKeys = ndbRecordValues;
+        this.keyBufferSize = ndbRecordKeys.bufferSize;
+        this.valueBuffer = ndbRecordOperationImpl2.valueBuffer;
+        this.keyBuffer = this.valueBuffer;
+        this.bufferManager = ndbRecordOperationImpl2.bufferManager;
+        this.tableName = ndbRecordOperationImpl2.tableName;
+        this.storeColumns = ndbRecordOperationImpl2.ndbRecordValues.storeColumns;
+        this.numberOfColumns = this.storeColumns.length;
+        this.blobs = new NdbRecordBlobImpl[this.numberOfColumns];
+        this.activeBlobs = ndbRecordOperationImpl2.activeBlobs;
+        resetMask();
     }
 
     public NdbOperationConst insert(ClusterTransactionImpl clusterTransactionImpl) {
@@ -206,6 +245,20 @@ public class NdbRecordOperationImpl implements Operation {
         }
     }
 
+    protected void resetMask() {
+        this.mask = new byte[1 + (numberOfColumns/8)];
+    }
+
+    public void allocateValueBuffer() {
+        this.valueBuffer = ndbRecordValues.newBuffer();
+    }
+
+    protected void activateBlobs() {
+        for (NdbRecordBlobImpl blob: activeBlobs) {
+            blob.setNdbBlob();
+        }
+    }
+
     public void equalBigInteger(Column storeColumn, BigInteger value) {
         int columnId = ndbRecordKeys.setBigInteger(keyBuffer, storeColumn, value);
         columnSet(columnId);
@@ -262,8 +315,7 @@ public class NdbRecordOperationImpl implements Operation {
     }
 
     public void getBlob(Column storeColumn) {
-        throw new ClusterJFatalInternalException(local.message("ERR_Method_Not_Implemented",
-                "NdbRecordOperationImpl.getBlob(Column)"));
+        getBlobHandle(storeColumn);
     }
 
     /**
@@ -285,11 +337,10 @@ public class NdbRecordOperationImpl implements Operation {
     }
 
     /** Specify the columns to be used for the operation.
-     * This is implemented by a subclass.
      */
     public void getValue(Column storeColumn) {
-        throw new ClusterJFatalInternalException(local.message("ERR_Method_Not_Implemented",
-                "NdbRecordOperationImpl.getValue(Column)"));
+        int columnId = storeColumn.getColumnId();
+        columnSet(columnId);
     }
 
     public void postExecuteCallback(Runnable callback) {
@@ -297,19 +348,20 @@ public class NdbRecordOperationImpl implements Operation {
     }
 
     /** Construct a new ResultData using the saved column data and then execute the operation.
-     * This is implemented by a subclass.
      */
     public ResultData resultData() {
-        throw new ClusterJFatalInternalException(local.message("ERR_Method_Not_Implemented",
-                "NdbRecordOperationImpl.resultData()"));
+        return resultData(true);
     }
 
     /** Construct a new ResultData and if requested, execute the operation.
-     * This is implemented by a subclass.
      */
     public ResultData resultData(boolean execute) {
-        throw new ClusterJFatalInternalException(local.message("ERR_Method_Not_Implemented",
-                "NdbRecordOperationImpl.resultData(boolean)"));
+        NdbRecordResultDataImpl result =
+            new NdbRecordResultDataImpl(this);
+        if (execute) {
+            clusterTransaction.executeNoCommit(false, true);
+        }
+        return result;
     }
 
     public void setBigInteger(Column storeColumn, BigInteger value) {
@@ -594,10 +646,6 @@ public class NdbRecordOperationImpl implements Operation {
         return ndbRecordValues.getLong(valueBuffer, columnId);
     }
 
-    public long getLong(Column storeColumn) {
-        return getLong(storeColumn.getColumnId());
-     }
-
     public float getFloat(int columnId) {
         return ndbRecordValues.getFloat(valueBuffer, columnId);
     }
@@ -718,17 +766,23 @@ public class NdbRecordOperationImpl implements Operation {
     }
 
     public void beginDefinition() {
-        throw new ClusterJFatalInternalException(local.message("ERR_Method_Not_Implemented",
-        "NdbRecordResultDataImpl.beginDefinition()"));
+        // by default, nothing to do
     }
 
     public void endDefinition() {
-        throw new ClusterJFatalInternalException(local.message("ERR_Method_Not_Implemented",
-        "NdbRecordResultDataImpl.endDefinition()"));
+        // by default, nothing to do
+    }
+
+    public void freeResourcesAfterExecute() {
+        // by default, nothing to do
     }
 
     public String dumpValues() {
         return ndbRecordValues.dumpValues(valueBuffer, mask);
+    }
+
+    public String dumpKeys() {
+        return ndbRecordKeys.dumpValues(keyBuffer, null);
     }
 
     public boolean isModified(int columnId) {
@@ -779,6 +833,18 @@ public class NdbRecordOperationImpl implements Operation {
         for (NdbRecordBlobImpl ndbRecordBlobImpl: activeBlobs) {
             ndbRecordBlobImpl.readData();
         }
+    }
+
+    /** Transform this NdbRecordOperationImpl into one that can be used to back a SmartValueHandler.
+     * For instances that are used in primary key or unique key operations, the same instance is used.
+     * Scans are handled by a subclass that overrides this method.
+     * 
+     * @return this NdbRecordOperationImpl
+     */
+    public NdbRecordOperationImpl transformNdbRecordOperationImpl() {
+        this.keyBuffer = valueBuffer;
+        resetModified();
+        return this;
     }
 
 }

@@ -71,7 +71,12 @@ void init_pool_header(allocation_reference *head, int slab_class);
 
 /* The public API */
 
-/* initialize a new pipeline for an NDB engine thread */
+/* Attach a new pipeline to an NDB worker thread. 
+   Some initialization has already occured when the main single-thread startup
+   called get_request_pipeline().  But this is the first call into a pipeline
+   from its worker thread.  It will initialize the thread's identifier, and 
+   attach the pipeline to its scheduler.
+*/
 ndb_pipeline * ndb_pipeline_initialize(struct ndb_engine *engine) {
   bool did_inc;
   unsigned int id;
@@ -85,14 +90,13 @@ ndb_pipeline * ndb_pipeline_initialize(struct ndb_engine *engine) {
   
   /* Fetch the partially initialized pipeline */
   ndb_pipeline * self = (ndb_pipeline *) engine->pipelines[id];
-  
+
+  /* Sanity checks */
   assert(self->id == id);
+  assert(self->engine == engine);
   
-  /* Set the pointer back to the engine */
-  self->engine = engine;
-  
-  /* And the thread id */
-  self->engine_thread_id = pthread_self(); 
+  /* Set the pthread id */
+  self->worker_thread_id = pthread_self(); 
 
   /* Create and set a thread identity */
   tid = (thread_identifier *) memory_pool_alloc(self->pool, sizeof(thread_identifier));
@@ -108,16 +112,20 @@ ndb_pipeline * ndb_pipeline_initialize(struct ndb_engine *engine) {
 }
 
 
-/* Allocate and initialize a generic request pipeline */
-ndb_pipeline * get_request_pipeline(int thd_id) { 
+/* Allocate and initialize a generic request pipeline.
+   In unit test code, this can be called with a NULL engine pointer -- 
+   it will still initialize a usable slab allocator and memory pool 
+   which can be tested.  
+*/
+ndb_pipeline * get_request_pipeline(int thd_id, struct ndb_engine *engine) { 
   /* Allocate the pipeline */
   ndb_pipeline *self = (ndb_pipeline *) malloc(sizeof(ndb_pipeline)); 
   
   /* Initialize */  
-  self->engine = 0;
+  self->engine = engine;
   self->id = thd_id;
   self->nworkitems = 0;
-
+    
   /* Say hi to the alligator */  
   init_allocator(self);
   
@@ -160,27 +168,27 @@ ENGINE_ERROR_CODE pipeline_flush_all(ndb_pipeline *self) {
 
 /* The scheduler API */
 
-void * scheduler_initialize(const char *cf, int nthreads, int athread) {
+void * scheduler_initialize(ndb_pipeline *self, scheduler_options *options) {
   Scheduler *s = 0;
-  const char *sched_options = 0;
+  const char *cf = self->engine->startup_options.scheduler;
+  options->config_string = 0;
   
   if(cf == 0 || *cf == 0) {
     s = new DEFAULT_SCHEDULER;
   }
   else if(!strncasecmp(cf, "stockholm", 9)) {
     s = new Scheduler_stockholm;
-    sched_options = & cf[9];
+    options->config_string = & cf[9];
   }
   else if(!strncasecmp(cf,"S", 1)) {
     s = new S::SchedulerWorker;
-    sched_options = & cf[1];
+    options->config_string = & cf[1];
   }
   else {
     return NULL;
   }
-    
-  s->init(athread, nthreads, sched_options);
-  s->pipeline = 0;
+  
+  s->init(self->id, options);
 
   return (void *) s;
 }

@@ -21,6 +21,7 @@ import com.mysql.clusterj.core.metadata.DomainTypeHandlerImpl;
 import com.mysql.clusterj.core.spi.ValueHandler;
 import com.mysql.clusterj.core.spi.ValueHandlerFactory;
 import com.mysql.clusterj.core.store.Db;
+import com.mysql.clusterj.core.store.ResultData;
 
 public class NdbRecordSmartValueHandlerFactoryImpl implements ValueHandlerFactory {
 
@@ -32,6 +33,13 @@ public class NdbRecordSmartValueHandlerFactoryImpl implements ValueHandlerFactor
             Object keyValues) {
         NdbRecordSmartValueHandlerImpl result = new NdbRecordSmartValueHandlerImpl(domainTypeHandler, db);
         domainTypeHandler.objectSetKeys(keyValues, result);
+        return result;
+    }
+
+    public <T> ValueHandler getValueHandler(
+            DomainTypeHandlerImpl<T> domainTypeHandler, Db db, ResultData resultData) {
+        NdbRecordSmartValueHandlerImpl result;
+        result = new NdbRecordSmartValueHandlerImpl(domainTypeHandler, db, resultData);
         return result;
     }
 

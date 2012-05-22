@@ -880,7 +880,7 @@ void worker_close(NdbTransaction *tx, workitem *wqitem) {
   nwaits_post = ndb->getClientStat(Ndb::WaitExecCompleteCount);
 
   if(nwaits_post > nwaits_pre) 
-    log_app_error(& AppError9003_SyncClose);
+    log_app_error(& AppError29023_SyncClose);
  
   if(wqitem->ext_val) 
     delete wqitem->ext_val;
@@ -1089,9 +1089,13 @@ void build_hash_item(workitem *wqitem, Operation &op, ExpireTime & exp_time) {
     memcpy(hash_item_get_key(item), wqitem->key, wqitem->base.nkey); // the key
     char * data_ptr = hash_item_get_data(item);
     
-    if(wqitem->plan->dup_numbers && op.isNull(COL_STORE_VALUE)
-       && ! (op.isNull(COL_STORE_MATH))) {
-      /* in dup_numbers mode, copy the math value */
+    /* Maybe use the math column as the value */
+    if(    wqitem->plan->hasMathColumn() 
+        && (! op.isNull(COL_STORE_MATH))
+        && ( (op.nValues() == 0)
+             || (wqitem->plan->dup_numbers && op.isNull(COL_STORE_VALUE)) 
+           )  
+       ) {
       ncopied = op.copyValue(COL_STORE_MATH, data_ptr);
     }
     else {

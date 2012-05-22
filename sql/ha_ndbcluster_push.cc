@@ -315,8 +315,8 @@ ndb_pushed_builder_ctx::ndb_pushed_builder_ctx(const AQP::Join_plan& plan)
       const AQP::Table_access* const table = m_plan.get_table_access(i);
       if (table->get_table()->file->ht != ndbcluster_hton)
       {
-        EXPLAIN_NO_PUSH("Table '%s' not in ndb engine, not pushable", 
-                        table->get_table()->alias);
+        DBUG_PRINT("info", ("Table '%s' not in ndb engine, not pushable", 
+                            table->get_table()->alias));
         continue;
       }
 
@@ -352,7 +352,7 @@ ndb_pushed_builder_ctx::ndb_pushed_builder_ctx(const AQP::Join_plan& plan)
         {
           m_tables[i].m_maybe_pushable= PUSHABLE_AS_CHILD | PUSHABLE_AS_PARENT;
         }
-        else
+        else if (reason != NULL)
         {
           EXPLAIN_NO_PUSH("Table '%s' is not pushable: %s",
                           table->get_table()->alias, reason);
@@ -950,12 +950,38 @@ bool ndb_pushed_builder_ctx::is_field_item_pushable(
     // This key item is const. and did not cause the set of possible parents
     // to be recalculated. Reuse what we had before this key item.
     DBUG_ASSERT(field_parents.is_clear_all());
-    /** 
-     * Scan queries cannot be pushed if the pushed query may refer column 
-     * values (paramValues) from rows stored in a join cache.  
+
+    /**
+     * Field referrence is a 'paramValue' to a column value evaluated
+     * prior to the root of this pushed join candidate. Some restrictions
+     * applies to when a field reference is allowed in a pushed join:
      */
-    if (!ndbcluster_is_lookup_operation(m_join_root->get_access_type()))
+    if (ndbcluster_is_lookup_operation(m_join_root->get_access_type()))
     {
+      /**
+       * The 'eq_ref' access function join_read_key(), may optimize away
+       * key reads if the key for a requested row is the same as the
+       * previous. Thus, iff this is the root of a pushed lookup join
+       * we do not want it to contain childs with references to columns 
+       * 'outside' the the pushed joins, as these may still change
+       * between calls to join_read_key() independent of the root key
+       * itself being the same.
+       */
+      EXPLAIN_NO_PUSH("Cannot push table '%s' as child of '%s', since "
+                      "it referes to column '%s.%s' prior to a "
+                      "potential 'const' root.",
+                      table->get_table()->alias, 
+                      m_join_root->get_table()->alias,
+                      get_referred_table_access_name(key_item_field),
+                      get_referred_field_name(key_item_field));
+      DBUG_RETURN(false);
+    }
+    else  
+    {
+      /** 
+       * Scan queries cannot be pushed if the pushed query may refer column 
+       * values (paramValues) from rows stored in a join cache.  
+       */
       const TABLE* const referred_tab = key_item_field->field->table;
       uint access_no = tab_no;
       do

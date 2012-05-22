@@ -17,8 +17,7 @@
 
 package testsuite.clusterj.tie;
 
-import org.junit.Ignore;
-
+@org.junit.Ignore
 public class ConnectionPoolTest extends testsuite.clusterj.ConnectionPoolTest {
 
 }

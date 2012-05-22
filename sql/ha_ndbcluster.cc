@@ -4445,11 +4445,7 @@ bool ha_ndbcluster::isManualBinlogExec(THD *thd)
 static inline bool
 thd_allow_batch(const THD* thd)
 {
-#ifndef OPTION_ALLOW_BATCH
-  return false;
-#else
   return (thd_options(thd) & OPTION_ALLOW_BATCH);
-#endif
 }
 
 
@@ -6493,21 +6489,6 @@ check_null_in_key(const KEY* key_info, const uchar *key, uint key_len)
   return 0;
 }
 
-
-int ha_ndbcluster::index_read_idx_map(uchar* buf, uint index,
-                                      const uchar* key,
-                                      key_part_map keypart_map,
-                                      enum ha_rkey_function find_flag)
-{
-  DBUG_ENTER("ha_ndbcluster::index_read_idx_map");
-  int error= index_init(index, 0);
-  if (unlikely(error))
-    DBUG_RETURN(error);
-
-  DBUG_RETURN(index_read_map(buf, key, keypart_map, find_flag));
-}
-
-
 int ha_ndbcluster::index_read(uchar *buf,
                               const uchar *key, uint key_len, 
                               enum ha_rkey_function find_flag)
@@ -6585,46 +6566,6 @@ int ha_ndbcluster::index_read_last(uchar * buf, const uchar * key, uint key_len)
 {
   DBUG_ENTER("ha_ndbcluster::index_read_last");
   DBUG_RETURN(index_read(buf, key, key_len, HA_READ_PREFIX_LAST));
-}
-
-
-/**
-  Read first row (only) from a table.
-
-  This is actually (yet) never called for ndbcluster tables, as these table types
-  does not set HA_STATS_RECORDS_IS_EXACT.
-
-  UPDATE: Might be called if the predicate contain '<column> IS NULL', and
-          <column> is defined as 'NOT NULL' (or is part of primary key)
-
-  Implemented regardless of this as the default implememtation would break 
-  any pushed joins as it calls ha_rnd_end() / ha_index_end() at end of execution.
-  */
-int ha_ndbcluster::read_first_row(uchar * buf, uint primary_key)
-{
-  register int error;
-  DBUG_ENTER("ha_ndbcluster::read_first_row");
-
-  ha_statistic_increment(&SSV::ha_read_first_count);
-
-  /*
-    If there is very few deleted rows in the table, find the first row by
-    scanning the table.
-    TODO remove the test for HA_READ_ORDER
-  */
-  if (stats.deleted < 10 || primary_key >= MAX_KEY ||
-      !(index_flags(primary_key, 0, 0) & HA_READ_ORDER))
-  {
-    (void) ha_rnd_init(1);
-    while ((error= rnd_next(buf)) == HA_ERR_RECORD_DELETED) ;
-  }
-  else
-  {
-    /* Find the first row through the primary key */
-    (void) ha_index_init(primary_key, 0);
-    error=index_first(buf);
-  }
-  DBUG_RETURN(error);
 }
 
 
@@ -7935,6 +7876,7 @@ int ha_ndbcluster::external_lock(THD *thd, int lock_type)
     */
     m_thd_ndb= NULL;    
 
+    DBUG_ASSERT(m_active_query == NULL);
     if (m_active_query)
       DBUG_PRINT("warning", ("m_active_query != NULL"));
     m_active_query= NULL;
@@ -12515,6 +12457,14 @@ ulonglong ha_ndbcluster::table_flags(void) const
   */
   if (thd->variables.binlog_format == BINLOG_FORMAT_STMT)
     f= (f | HA_BINLOG_STMT_CAPABLE) & ~HA_HAS_OWN_BINLOGGING;
+
+  /**
+   * To maximize join pushability we want const-table 
+   * optimization blocked if 'ndb_join_pushdown= on'
+   */
+  if (THDVAR(thd, join_pushdown))
+    f= f | HA_BLOCK_CONST_TABLE;
+
   return f;
 }
 
@@ -14402,7 +14352,7 @@ ha_ndbcluster::read_multi_range_fetch_next()
       {
         /* We have fetched the last row from the scan. */
         m_active_query->close(FALSE);
-        m_active_query= 0;
+        m_active_query= NULL;
         m_next_row= 0;
         DBUG_RETURN(0);
       }
@@ -14461,8 +14411,10 @@ int ndbcluster_make_pushed_join(handlerton *hton,
   DBUG_ENTER("ndbcluster_make_pushed_join");
   (void)ha_ndb_ext; // prevents compiler warning.
   *pushed= 0;
-
-  if (THDVAR(thd, join_pushdown))
+  
+  if (THDVAR(thd, join_pushdown) &&
+      // Check for online upgrade/downgrade.
+      ndb_join_pushdown(g_ndb_cluster_connection->get_min_db_version()))
   {
     ndb_pushed_builder_ctx pushed_builder(*plan);
 
@@ -14544,7 +14496,7 @@ ha_ndbcluster::assign_pushed_join(const ndb_pushed_join* pushed_join)
 bool
 ha_ndbcluster::maybe_pushable_join(const char*& reason) const
 {
-  reason= "";
+  reason= NULL;
   if (uses_blob_value(table->read_set))
   {
     reason= "select list can't contain BLOB columns";
@@ -14692,62 +14644,11 @@ ha_ndbcluster::parent_of_pushed_join() const
     uint parent_ix= m_pushed_join_member
                     ->get_query_def().getQueryOperation(m_pushed_join_operation)
                     ->getParentOperation(0)
-                    ->getQueryOperationIx();
+                    ->getOpNo();
     return m_pushed_join_member->get_table(parent_ix);
   }
   return NULL;
 }
-
-bool
-ha_ndbcluster::test_push_flag(enum ha_push_flag flag) const
-{
-  DBUG_ENTER("test_push_flag");
-  switch (flag) {
-  case HA_PUSH_BLOCK_CONST_TABLE:
-  {
-    /**
-     * We don't support join push down if...
-     *   - not LM_CommittedRead
-     *   - uses blobs
-     */
-    THD *thd= current_thd;
-    if (unlikely(!THDVAR(thd, join_pushdown)))
-      DBUG_RETURN(false);
-
-    if (table->read_set != NULL && uses_blob_value(table->read_set))
-    {
-      DBUG_RETURN(false);
-    }
-
-    NdbOperation::LockMode lm= get_ndb_lock_mode(m_lock.type);
-
-    if (lm != NdbOperation::LM_CommittedRead)
-    {
-      DBUG_RETURN(false);
-    }
-
-    DBUG_RETURN(true);
-  }
-  case HA_PUSH_MULTIPLE_DEPENDENCY:
-    /**
-     * If any child operation within this pushed join refer 
-     * column values (paramValues), the pushed join has dependencies
-     * in addition to the root operation itself.
-     */
-    if (m_pushed_join_operation==PUSHED_ROOT &&
-        m_pushed_join_member->get_field_referrences_count() > 0)  // Childs has field refs
-    {
-      DBUG_RETURN(true);
-    }
-    DBUG_RETURN(false);
-
-  default:
-    DBUG_ASSERT(0);
-    DBUG_RETURN(false);
-  }
-  DBUG_RETURN(false);
-}
-
 
 /**
   @param[in] comment  table comment defined by user

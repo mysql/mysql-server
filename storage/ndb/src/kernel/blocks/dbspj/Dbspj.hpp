@@ -1087,8 +1087,6 @@ private:
   void releaseRow(Ptr<Request>, RowRef ref);
   void registerActiveCursor(Ptr<Request>, Ptr<TreeNode>);
   void nodeFail_checkRequests(Signal*);
-
-  void cleanupChildBranch(Ptr<Request>, Ptr<TreeNode>);
   void cleanup_common(Ptr<Request>, Ptr<TreeNode>);
 
   /**
@@ -1267,8 +1265,8 @@ private:
   /**
    * Scratch buffers...
    */
-  Uint32 m_buffer0[8192]; // 32k
-  Uint32 m_buffer1[8192]; // 32k
+  Uint32 m_buffer0[16*1024]; // 64k
+  Uint32 m_buffer1[16*1024]; // 64k
 };
 
 #endif

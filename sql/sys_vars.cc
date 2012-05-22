@@ -2496,6 +2496,13 @@ static Sys_var_mybool Sys_log_binlog(
        DEFAULT(TRUE), NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(check_sql_log_bin),
        ON_UPDATE(fix_sql_log_bin_after_update));
 
+#ifndef MCP_WL3733
+static Sys_var_bit Sys_transaction_allow_batching(
+       "transaction_allow_batching", "transaction_allow_batching",
+       SESSION_ONLY(option_bits), NO_CMD_LINE, OPTION_ALLOW_BATCH,
+       DEFAULT(FALSE));
+#endif
+
 static Sys_var_bit Sys_sql_warnings(
        "sql_warnings", "sql_warnings",
        SESSION_VAR(option_bits), NO_CMD_LINE, OPTION_WARNINGS,
