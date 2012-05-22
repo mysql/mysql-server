@@ -1,3 +1,5 @@
+/* -*- mode: C; c-basic-offset: 4; indent-tabs-mode: nil -*- */
+// vim: expandtab:ts=8:sw=4:softtabstop=4:
 // test that the toku_rt_clear function works
 
 #include "test.h"

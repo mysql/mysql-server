@@ -1,3 +1,5 @@
+/* -*- mode: C; c-basic-offset: 4; indent-tabs-mode: nil -*- */
+// vim: expandtab:ts=8:sw=4:softtabstop=4:
 // verify that cursor first with a write lock suspends the conflicting threads.
 
 #include "test.h"

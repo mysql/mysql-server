@@ -1,3 +1,5 @@
+/* -*- mode: C; c-basic-offset: 4; indent-tabs-mode: nil -*- */
+// vim: expandtab:ts=8:sw=4:softtabstop=4:
 // this test demonstrates that the lock manager can detect a simple deadlock with 2 transactions on 2 threads
 // the threads do:
 // T(a) put 0, grabs write lock on 0

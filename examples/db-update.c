@@ -1,3 +1,5 @@
+/* -*- mode: C; c-basic-offset: 4; indent-tabs-mode: nil -*- */
+// vim: expandtab:ts=8:sw=4:softtabstop=4:
 // measure the performance of a simulated "insert on duplicate key update" operation
 // the table schema is t(a int, b int, c int, d int, primary key(a, b))
 // a and b are random

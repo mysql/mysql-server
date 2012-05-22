@@ -1,3 +1,5 @@
+/* -*- mode: C; c-basic-offset: 4; indent-tabs-mode: nil -*- */
+// vim: expandtab:ts=8:sw=4:softtabstop=4:
 // this test verifies that db creation after a checkpoint works for nodup and dupsort dictionaries
 
 #include <sys/stat.h>

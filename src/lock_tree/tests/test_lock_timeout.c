@@ -1,3 +1,5 @@
+/* -*- mode: C; c-basic-offset: 4; indent-tabs-mode: nil -*- */
+// vim: expandtab:ts=8:sw=4:softtabstop=4:
 // T(A) gets W(L)
 // T(B) tries W(L) with timeout, gets DB_LOCK_NOTGRANTED
 // T(B) releases locks

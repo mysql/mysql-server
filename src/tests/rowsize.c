@@ -1,4 +1,5 @@
-/* -*- mode: C; c-basic-offset: 4 -*- */
+/* -*- mode: C; c-basic-offset: 4; indent-tabs-mode: nil -*- */
+// vim: expandtab:ts=8:sw=4:softtabstop=4:
 #ident "$Id: ft-ops.c 38079 2011-12-21 20:23:22Z leifwalsh $"
 #ident "Copyright (c) 2011 Tokutek Inc.  All rights reserved."
 

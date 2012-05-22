@@ -1,3 +1,5 @@
+/* -*- mode: C; c-basic-offset: 4; indent-tabs-mode: nil -*- */
+// vim: expandtab:ts=8:sw=4:softtabstop=4:
 // verify that point write locks are exclusive for multiple threads. 
 //
 // run multiple transactionss with conflicting locks and verify that any lock that is granted is

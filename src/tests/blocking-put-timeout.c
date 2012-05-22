@@ -1,3 +1,5 @@
+/* -*- mode: C; c-basic-offset: 4; indent-tabs-mode: nil -*- */
+// vim: expandtab:ts=8:sw=4:softtabstop=4:
 // verify that blocking lock waits eventually time out if the lock owner never releases the lock.
 
 // A begin txn

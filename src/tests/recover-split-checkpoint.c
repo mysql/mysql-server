@@ -1,3 +1,5 @@
+/* -*- mode: C; c-basic-offset: 4; indent-tabs-mode: nil -*- */
+// vim: expandtab:ts=8:sw=4:softtabstop=4:
 // force a checkpoint to span multiple tokulog files.  in other words, the begin checkpoint log entry and the
 // end checkpoint log entry for the same checkpoint are in different log files.
 

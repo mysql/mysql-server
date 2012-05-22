@@ -1,3 +1,5 @@
+/* -*- mode: C; c-basic-offset: 4; indent-tabs-mode: nil -*- */
+// vim: expandtab:ts=8:sw=4:softtabstop=4:
 // test that an update doesn't infringe on other txns started with
 // TXN_SNAPSHOT, when the update deletes elements
 

@@ -1,4 +1,5 @@
-/* -*- mode: C; c-basic-offset: 4 -*- */
+/* -*- mode: C; c-basic-offset: 4; indent-tabs-mode: nil -*- */
+// vim: expandtab:ts=8:sw=4:softtabstop=4:
 #ident "Copyright (c) 2007 Tokutek Inc.  All rights reserved."
 #include "test.h"
 /* Test to see if a medium-size nested transaction (the nested pieces are not too big, but the whole thing is so big that it's rollbacks spill into a file)

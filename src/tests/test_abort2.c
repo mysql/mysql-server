@@ -1,4 +1,5 @@
-/* -*- mode: C; c-basic-offset: 4 -*- */
+/* -*- mode: C; c-basic-offset: 4; indent-tabs-mode: nil -*- */
+// vim: expandtab:ts=8:sw=4:softtabstop=4:
 #ident "Copyright (c) 2007 Tokutek Inc.  All rights reserved."
 #include "test.h"
 /* Put some insert messages into an internal buffer (by first creating a DB, filling it up, then closing it, and reopening, and inserting a few things)

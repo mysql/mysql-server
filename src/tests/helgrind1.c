@@ -1,4 +1,5 @@
-/* -*- mode: C; c-basic-offset: 4 -*- */
+/* -*- mode: C; c-basic-offset: 4; indent-tabs-mode: nil -*- */
+// vim: expandtab:ts=8:sw=4:softtabstop=4:
 #ident "Copyright (c) 2007 Tokutek Inc.  All rights reserved."
 #include "test.h"
 // The helgrind1.tdbrun test should fail.  This is merely a check to verify that helgrind actually notices a race.

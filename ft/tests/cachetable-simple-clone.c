@@ -1,3 +1,5 @@
+/* -*- mode: C; c-basic-offset: 4; indent-tabs-mode: nil -*- */
+// vim: expandtab:ts=8:sw=4:softtabstop=4:
 #ident "$Id: cachetable-simple-verify.c 39504 2012-02-03 16:19:33Z zardosht $"
 #ident "Copyright (c) 2007-2011 Tokutek Inc.  All rights reserved."
 #include "includes.h"

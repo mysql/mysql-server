@@ -1,3 +1,5 @@
+/* -*- mode: C; c-basic-offset: 4; indent-tabs-mode: nil -*- */
+// vim: expandtab:ts=8:sw=4:softtabstop=4:
 // measure the lock tree memory footprint while acquiring range lwrite locks.
 // this test assumes that the lock tree lock limits and lock memory limites are big enough to store the locks
 // without the need for lock escalation.
