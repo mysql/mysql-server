@@ -408,7 +408,7 @@ exit:
 
 
 // allocate and initialize a brt header.
-// t->h->cf is not set to anything.
+// t->ft->cf is not set to anything.
 int 
 toku_create_new_ft(FT *ftp, FT_OPTIONS options, CACHEFILE cf, TOKUTXN txn) {
     int r;
@@ -505,7 +505,7 @@ int toku_read_ft_and_store_in_cachefile (FT_HANDLE brt, CACHEFILE cf, LSN max_ac
 void
 toku_ft_note_ft_handle_open(FT ft, FT_HANDLE live) {
     toku_ft_lock(ft);
-    live->h = ft;
+    live->ft = ft;
     toku_list_push(&ft->live_ft_handles, &live->live_ft_handle_link);
     toku_ft_unlock(ft);
 }
@@ -548,7 +548,7 @@ FT_HANDLE toku_ft_get_some_existing_ft_handle(FT h) {
 //       convenient here for keeping the HOT variables threadsafe.)
 void
 toku_ft_note_hot_begin(FT_HANDLE brt) {
-    FT h = brt->h;
+    FT h = brt->ft;
     time_t now = time(NULL);
 
     // hold lock around setting and clearing of dirty bit
@@ -565,7 +565,7 @@ toku_ft_note_hot_begin(FT_HANDLE brt) {
 // Note: See note for toku_ft_note_hot_begin().
 void
 toku_ft_note_hot_complete(FT_HANDLE brt, BOOL success, MSN msn_at_start_of_hot) {
-    FT h = brt->h;
+    FT h = brt->ft;
     time_t now = time(NULL);
 
     toku_ft_lock(h);
@@ -629,7 +629,7 @@ ft_handle_open_for_redirect(FT_HANDLE *new_ftp, const char *fname_in_env, TOKUTX
     CACHETABLE ct = toku_cachefile_get_cachetable(old_h->cf);
     r = toku_ft_handle_open_with_dict_id(t, fname_in_env, 0, 0, ct, txn, old_h->dict_id);
     assert_zero(r);
-    assert(t->h->dict_id.dictid == old_h->dict_id.dictid);
+    assert(t->ft->dict_id.dictid == old_h->dict_id.dictid);
 
     *new_ftp = t;
     return r;
@@ -653,14 +653,14 @@ dictionary_redirect_internal(const char *dst_fname_in_env, FT src_h, TOKUTXN txn
     FT_HANDLE tmp_dst_ft = NULL;
     r = ft_handle_open_for_redirect(&tmp_dst_ft, dst_fname_in_env, txn, src_h);
     assert_zero(r);
-    dst_h = tmp_dst_ft->h;
+    dst_h = tmp_dst_ft->ft;
 
     // some sanity checks on dst_filenum
     dst_filenum = toku_cachefile_filenum(dst_h->cf);
     assert(dst_filenum.fileid!=FILENUM_NONE.fileid);
     assert(dst_filenum.fileid!=src_filenum.fileid); //Cannot be same file.
 
-    // for each live brt, brt->h is currently src_h
+    // for each live brt, brt->ft is currently src_h
     // we want to change it to dummy_dst
     while (!toku_list_empty(&src_h->live_ft_handles)) {
         list = src_h->live_ft_handles.next;
@@ -758,7 +758,7 @@ toku_dictionary_redirect (const char *dst_fname_in_env, FT_HANDLE old_ft, TOKUTX
 //   If the txn aborts, then this operation will be undone
     int r;
 
-    FT old_h = old_ft->h;
+    FT old_h = old_ft->ft;
 
     // dst file should not be open.  (implies that dst and src are different because src must be open.)
     {

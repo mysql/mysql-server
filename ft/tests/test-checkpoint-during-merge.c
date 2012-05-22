@@ -152,18 +152,18 @@ doit (int state) {
     FTNODE node = NULL;
     toku_pin_node_with_min_bfe(&node, node_leaves[0], t);
     BLB_SEQINSERT(node, node->n_children-1) = FALSE;
-    toku_unpin_ftnode(t->h, node);
+    toku_unpin_ftnode(t->ft, node);
     toku_pin_node_with_min_bfe(&node, node_leaves[1], t);
     BLB_SEQINSERT(node, node->n_children-1) = FALSE;
-    toku_unpin_ftnode(t->h, node);
+    toku_unpin_ftnode(t->ft, node);
 
     
     struct ftnode_fetch_extra bfe;
-    fill_bfe_for_min_read(&bfe, t->h);
+    fill_bfe_for_min_read(&bfe, t->ft);
     toku_pin_ftnode_off_client_thread(
-        t->h, 
+        t->ft, 
         node_root,
-        toku_cachetable_hash(t->h->cf, node_root),
+        toku_cachetable_hash(t->ft->cf, node_root),
         &bfe,
         TRUE, 
         0,
@@ -174,14 +174,14 @@ doit (int state) {
     assert(node->n_children == 2);
 
     // do the flush
-    flush_some_child(t->h, node, &fa);
+    flush_some_child(t->ft, node, &fa);
     assert(checkpoint_callback_called);
 
     // now let's pin the root again and make sure it is has merged
     toku_pin_ftnode_off_client_thread(
-        t->h, 
+        t->ft, 
         node_root,
-        toku_cachetable_hash(t->h->cf, node_root),
+        toku_cachetable_hash(t->ft->cf, node_root),
         &bfe,
         TRUE, 
         0,
@@ -190,7 +190,7 @@ doit (int state) {
         );
     assert(node->height == 1);
     assert(node->n_children == 1);
-    toku_unpin_ftnode(t->h, node);
+    toku_unpin_ftnode(t->ft, node);
 
     void *ret;
     r = toku_pthread_join(checkpoint_tid, &ret); 
@@ -216,11 +216,11 @@ doit (int state) {
     //
     // now pin the root, verify that the state is what we expect
     //
-    fill_bfe_for_full_read(&bfe, c_ft->h);
+    fill_bfe_for_full_read(&bfe, c_ft->ft);
     toku_pin_ftnode_off_client_thread(
-        c_ft->h, 
+        c_ft->ft, 
         node_root,
-        toku_cachetable_hash(c_ft->h->cf, node_root),
+        toku_cachetable_hash(c_ft->ft->cf, node_root),
         &bfe,
         TRUE, 
         0,
@@ -243,14 +243,14 @@ doit (int state) {
     else {
         assert(false);
     }
-    toku_unpin_ftnode_off_client_thread(c_ft->h, node);
+    toku_unpin_ftnode_off_client_thread(c_ft->ft, node);
 
     // now let's verify the leaves are what we expect
     if (state == flt_flush_before_merge || state == flt_flush_before_pin_second_node_for_merge) {
         toku_pin_ftnode_off_client_thread(
-            c_ft->h, 
+            c_ft->ft, 
             left_child,
-            toku_cachetable_hash(c_ft->h->cf, left_child),
+            toku_cachetable_hash(c_ft->ft->cf, left_child),
             &bfe,
             TRUE, 
             0,
@@ -261,12 +261,12 @@ doit (int state) {
         assert(!node->dirty);
         assert(node->n_children == 1);
         assert(toku_omt_size(BLB_BUFFER(node,0)) == 1);
-        toku_unpin_ftnode_off_client_thread(c_ft->h, node);
+        toku_unpin_ftnode_off_client_thread(c_ft->ft, node);
 
         toku_pin_ftnode_off_client_thread(
-            c_ft->h, 
+            c_ft->ft, 
             right_child,
-            toku_cachetable_hash(c_ft->h->cf, right_child),
+            toku_cachetable_hash(c_ft->ft->cf, right_child),
             &bfe,
             TRUE, 
             0,
@@ -277,13 +277,13 @@ doit (int state) {
         assert(!node->dirty);
         assert(node->n_children == 1);
         assert(toku_omt_size(BLB_BUFFER(node,0)) == 1);
-        toku_unpin_ftnode_off_client_thread(c_ft->h, node);
+        toku_unpin_ftnode_off_client_thread(c_ft->ft, node);
     }
     else if (state == ft_flush_aflter_merge || state == flt_flush_before_unpin_remove) {
         toku_pin_ftnode_off_client_thread(
-            c_ft->h, 
+            c_ft->ft, 
             left_child,
-            toku_cachetable_hash(c_ft->h->cf, left_child),
+            toku_cachetable_hash(c_ft->ft->cf, left_child),
             &bfe,
             TRUE, 
             0,
@@ -294,7 +294,7 @@ doit (int state) {
         assert(!node->dirty);
         assert(node->n_children == 1);
         assert(toku_omt_size(BLB_BUFFER(node,0)) == 2);
-        toku_unpin_ftnode_off_client_thread(c_ft->h, node);
+        toku_unpin_ftnode_off_client_thread(c_ft->ft, node);
     }
     else {
         assert(FALSE);

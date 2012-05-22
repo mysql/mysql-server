@@ -193,11 +193,11 @@ toku_logger_open_rollback(TOKULOGGER logger, CACHETABLE cachetable, BOOL create)
     assert_zero(r);
     r = toku_ft_handle_open(t, ROLLBACK_CACHEFILE_NAME, create, create, cachetable, NULL_TXN);
     assert_zero(r);
-    logger->rollback_cachefile = t->h->cf;
+    logger->rollback_cachefile = t->ft->cf;
     //Verify it is empty
-    assert(!t->h->panic);
+    assert(!t->ft->panic);
     //Must have no data blocks (rollback logs or otherwise).
-    toku_block_verify_no_data_blocks_except_root_unlocked(t->h->blocktable, t->h->root_blocknum);
+    toku_block_verify_no_data_blocks_except_root_unlocked(t->ft->blocktable, t->ft->root_blocknum);
     BOOL is_empty;
     is_empty = toku_ft_is_empty_fast(t);
     assert(is_empty);

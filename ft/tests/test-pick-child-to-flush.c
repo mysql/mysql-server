@@ -185,7 +185,7 @@ doit (void) {
         );
     curr_child_to_flush = 0;
     num_flushes_called = 0;
-    flush_some_child(t->h, node, &fa);
+    flush_some_child(t->ft, node, &fa);
     assert(num_flushes_called == 1);
 
     toku_pin_node_with_min_bfe(&node, node_internal, t);
@@ -196,14 +196,14 @@ doit (void) {
     // child 1 should still have message in buffer
     assert(toku_bnc_n_entries(node->bp[0].ptr.u.nonleaf) == 0);
     assert(toku_bnc_n_entries(node->bp[1].ptr.u.nonleaf) > 0);
-    toku_unpin_ftnode(t->h, node);
+    toku_unpin_ftnode(t->ft, node);
     r = toku_checkpoint(ct, NULL, NULL, NULL, NULL, NULL, CLIENT_CHECKPOINT);
     assert_zero(r);    
     toku_pin_node_with_min_bfe(&node, node_internal, t);
     assert(!node->dirty);
     curr_child_to_flush = 1;
     num_flushes_called = 0;
-    flush_some_child(t->h, node, &fa);
+    flush_some_child(t->ft, node, &fa);
     assert(num_flushes_called == 1);
     
     toku_pin_node_with_min_bfe(&node, node_internal, t);
@@ -214,14 +214,14 @@ doit (void) {
     assert(toku_bnc_n_entries(node->bp[0].ptr.u.nonleaf) == 0);
     assert(toku_bnc_n_entries(node->bp[1].ptr.u.nonleaf) == 0);
     // now let's do a flush with an empty buffer, make sure it is ok
-    toku_unpin_ftnode(t->h, node);
+    toku_unpin_ftnode(t->ft, node);
     r = toku_checkpoint(ct, NULL, NULL, NULL, NULL, NULL, CLIENT_CHECKPOINT);
     assert_zero(r);    
     toku_pin_node_with_min_bfe(&node, node_internal, t);
     assert(!node->dirty);
     curr_child_to_flush = 0;
     num_flushes_called = 0;
-    flush_some_child(t->h, node, &fa);
+    flush_some_child(t->ft, node, &fa);
     assert(num_flushes_called == 1);
 
     toku_pin_node_with_min_bfe(&node, node_internal, t);
@@ -231,7 +231,7 @@ doit (void) {
     // both buffers should be empty now
     assert(toku_bnc_n_entries(node->bp[0].ptr.u.nonleaf) == 0);
     assert(toku_bnc_n_entries(node->bp[1].ptr.u.nonleaf) == 0);
-    toku_unpin_ftnode(t->h, node);
+    toku_unpin_ftnode(t->ft, node);
 
     // now let's start a flush from the root, that always recursively flushes    
     flusher_advice_init(
@@ -250,18 +250,18 @@ doit (void) {
         toku_assert_entire_node_in_memory(node); // entire root is in memory
         curr_child_to_flush = i;
         num_flushes_called = 0;
-        flush_some_child(t->h, node, &fa);
+        flush_some_child(t->ft, node, &fa);
         assert(num_flushes_called == 2);
     
         toku_pin_node_with_min_bfe(&node, node_internal, t);
         assert(!node->dirty); // nothing was flushed, so node better not be dirty
-        toku_unpin_ftnode(t->h, node);
+        toku_unpin_ftnode(t->ft, node);
         toku_pin_node_with_min_bfe(&node, node_leaf[0], t);
         assert(!node->dirty); // nothing was flushed, so node better not be dirty
-        toku_unpin_ftnode(t->h, node);
+        toku_unpin_ftnode(t->ft, node);
         toku_pin_node_with_min_bfe(&node, node_leaf[1], t);
         assert(!node->dirty); // nothing was flushed, so node better not be dirty
-        toku_unpin_ftnode(t->h, node);
+        toku_unpin_ftnode(t->ft, node);
     }
 
     // now one more test to show a bug was fixed
@@ -286,17 +286,17 @@ doit (void) {
     toku_pin_node_with_min_bfe(&node, node_internal, t);
     for (int i = 0; i < 20; i++) {
         PAIR_ATTR attr;
-        toku_ftnode_pe_callback(node, make_pair_attr(0xffffffff), &attr, t->h);
+        toku_ftnode_pe_callback(node, make_pair_attr(0xffffffff), &attr, t->ft);
     }
     assert(BP_STATE(node,0) == PT_COMPRESSED);
-    toku_unpin_ftnode(t->h, node);
+    toku_unpin_ftnode(t->ft, node);
 
     //now let's do the same test as above
     toku_pin_node_with_min_bfe(&node, node_root, t);
     toku_assert_entire_node_in_memory(node); // entire root is in memory
     curr_child_to_flush = 0;
     num_flushes_called = 0;
-    flush_some_child(t->h, node, &fa);
+    flush_some_child(t->ft, node, &fa);
     assert(num_flushes_called == 2);
     
     r = toku_close_ft_handle_nolsn(t, 0);    assert(r==0);

@@ -70,7 +70,7 @@ insert_into_child_buffer(FT_HANDLE brt, FTNODE node, int childnum, int minkey, i
         unsigned int key = htonl(val);
         DBT thekey; toku_fill_dbt(&thekey, &key, sizeof key);
         DBT theval; toku_fill_dbt(&theval, &val, sizeof val);
-        toku_ft_append_to_child_buffer(brt->h->compare_fun, NULL, node, childnum, FT_INSERT, msn, xids_get_root_xids(), true, &thekey, &theval);
+        toku_ft_append_to_child_buffer(brt->ft->compare_fun, NULL, node, childnum, FT_INSERT, msn, xids_get_root_xids(), true, &thekey, &theval);
 
 	// Create bad tree (don't do following):
 	// node->max_msn_applied_to_node = msn;
@@ -96,7 +96,7 @@ make_tree(FT_HANDLE brt, int height, int fanout, int nperleaf, int *seq, int *mi
                 DBT pivotkey;
                 toku_ft_nonleaf_append_child(node, child, toku_fill_dbt(&pivotkey, toku_xmemdup(&k, sizeof k), sizeof k));
             }
-            toku_unpin_ftnode(brt->h, child);
+            toku_unpin_ftnode(brt->ft, child);
             insert_into_child_buffer(brt, node, childnum, minkeys[childnum], maxkeys[childnum]);
         }
         *minkey = minkeys[0];
@@ -140,13 +140,13 @@ test_make_tree(int height, int fanout, int nperleaf, int do_verify) {
     FTNODE newroot = make_tree(brt, height, fanout, nperleaf, &seq, &minkey, &maxkey);
 
     // set the new root to point to the new tree
-    toku_ft_set_new_root_blocknum(brt->h, newroot->thisnodename);
+    toku_ft_set_new_root_blocknum(brt->ft, newroot->thisnodename);
 
     // Create bad tree (don't do following):
     // newroot->max_msn_applied_to_node = last_dummymsn(); // capture msn of last message injected into tree
 
     // unpin the new root
-    toku_unpin_ftnode(brt->h, newroot);
+    toku_unpin_ftnode(brt->ft, newroot);
 
     if (do_verify) {
         r = toku_verify_ft(brt);

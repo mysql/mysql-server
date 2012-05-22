@@ -362,8 +362,8 @@ toku_db_open(DB * db, DB_TXN * txn, const char *fname, const char *dbname, DBTYP
 // Need to investigate further.
 static void db_on_redirect_callback(FT_HANDLE brt, void* extra) {
     DB* db = extra;
-    db->descriptor = &brt->h->descriptor;
-    db->cmp_descriptor = &brt->h->cmp_descriptor;
+    db->descriptor = &brt->ft->descriptor;
+    db->cmp_descriptor = &brt->ft->cmp_descriptor;
 }
 
 int 
@@ -425,8 +425,8 @@ db_open_iname(DB * db, DB_TXN * txn, const char *iname_in_env, u_int32_t flags, 
     // is in the brt header. we need a copy of the pointer in the DB.
     // TODO: there may be a cleaner way to do this. 
     // toku_ft_get_descriptor(db, &cmp_desc, &desc); ??
-    db->descriptor = &brt->h->descriptor;
-    db->cmp_descriptor = &brt->h->cmp_descriptor;
+    db->descriptor = &brt->ft->descriptor;
+    db->cmp_descriptor = &brt->ft->cmp_descriptor;
 
     if (need_locktree) {
 	db->i->dict_id = toku_ft_get_dictionary_id(db->i->ft_handle);

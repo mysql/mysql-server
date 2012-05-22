@@ -186,14 +186,14 @@ static void write_sn_to_disk(int fd, FT_HANDLE brt, FTNODE sn, FTNODE_DISK_DATA*
     if (do_clone) {
         void* cloned_node_v = NULL;
         PAIR_ATTR attr;
-        toku_ftnode_clone_callback(sn, &cloned_node_v, &attr, FALSE, brt->h);
+        toku_ftnode_clone_callback(sn, &cloned_node_v, &attr, FALSE, brt->ft);
         FTNODE cloned_node = cloned_node_v;
-        r = toku_serialize_ftnode_to(fd, make_blocknum(20), cloned_node, src_ndd, FALSE, brt->h, 1, 1, FALSE);
+        r = toku_serialize_ftnode_to(fd, make_blocknum(20), cloned_node, src_ndd, FALSE, brt->ft, 1, 1, FALSE);
         assert(r==0);        
         toku_ftnode_free(&cloned_node);
     }
     else {
-        r = toku_serialize_ftnode_to(fd, make_blocknum(20), sn, src_ndd, TRUE, brt->h, 1, 1, FALSE);
+        r = toku_serialize_ftnode_to(fd, make_blocknum(20), sn, src_ndd, TRUE, brt->ft, 1, 1, FALSE);
         assert(r==0);
     }
 }
@@ -250,7 +250,7 @@ test_serialize_leaf_check_msn(enum ftnode_verify_type bft, BOOL do_clone) {
 
     FT_HANDLE XMALLOC(brt);
     FT XCALLOC(brt_h);
-    brt->h = brt_h;
+    brt->ft = brt_h;
     brt_h->type = FT_CURRENT;
     brt_h->panic = 0; brt_h->panic_string = 0;
     brt_h->basementnodesize = 128*1024;
@@ -392,7 +392,7 @@ test_serialize_leaf_with_large_pivots(enum ftnode_verify_type bft, BOOL do_clone
 
     FT_HANDLE XMALLOC(brt);
     FT XCALLOC(brt_h);
-    brt->h = brt_h;
+    brt->ft = brt_h;
     brt_h->type = FT_CURRENT;
     brt_h->panic = 0; brt_h->panic_string = 0;
     brt_h->basementnodesize = 128*1024;
@@ -531,7 +531,7 @@ test_serialize_leaf_with_many_rows(enum ftnode_verify_type bft, BOOL do_clone) {
 
     FT_HANDLE XMALLOC(brt);
     FT XCALLOC(brt_h);
-    brt->h = brt_h;
+    brt->ft = brt_h;
     brt_h->type = FT_CURRENT;
     brt_h->panic = 0; brt_h->panic_string = 0;
     brt_h->basementnodesize = 128*1024;
@@ -675,7 +675,7 @@ test_serialize_leaf_with_large_rows(enum ftnode_verify_type bft, BOOL do_clone) 
 
     FT_HANDLE XMALLOC(brt);
     FT XCALLOC(brt_h);
-    brt->h = brt_h;
+    brt->ft = brt_h;
     brt_h->type = FT_CURRENT;
     brt_h->panic = 0; brt_h->panic_string = 0;
     brt_h->basementnodesize = 128*1024;
@@ -835,7 +835,7 @@ test_serialize_leaf_with_empty_basement_nodes(enum ftnode_verify_type bft, BOOL 
 
     FT_HANDLE XMALLOC(brt);
     FT XCALLOC(brt_h);
-    brt->h = brt_h;
+    brt->ft = brt_h;
     brt_h->type = FT_CURRENT;
     brt_h->panic = 0; brt_h->panic_string = 0;
     brt_h->basementnodesize = 128*1024;
@@ -959,7 +959,7 @@ test_serialize_leaf_with_multiple_empty_basement_nodes(enum ftnode_verify_type b
 
     FT_HANDLE XMALLOC(brt);
     FT XCALLOC(brt_h);
-    brt->h = brt_h;
+    brt->ft = brt_h;
     brt_h->type = FT_CURRENT;
     brt_h->panic = 0; brt_h->panic_string = 0;
     brt_h->basementnodesize = 128*1024;
@@ -1088,7 +1088,7 @@ test_serialize_leaf(enum ftnode_verify_type bft, BOOL do_clone) {
 
     FT_HANDLE XMALLOC(brt);
     FT XCALLOC(brt_h);
-    brt->h = brt_h;
+    brt->ft = brt_h;
     brt_h->type = FT_CURRENT;
     brt_h->panic = 0; brt_h->panic_string = 0;
     brt_h->basementnodesize = 128*1024;
@@ -1230,7 +1230,7 @@ test_serialize_nonleaf(enum ftnode_verify_type bft, BOOL do_clone) {
 
     FT_HANDLE XMALLOC(brt);
     FT XCALLOC(brt_h);
-    brt->h = brt_h;
+    brt->ft = brt_h;
     brt_h->type = FT_CURRENT;
     brt_h->panic = 0; brt_h->panic_string = 0;
     brt_h->basementnodesize = 128*1024;

@@ -25,7 +25,7 @@ static void test_header (void) {
     r = toku_open_ft_handle(fname, 1, &t, 1024, 256, TOKU_DEFAULT_COMPRESSION_METHOD, ct, null_txn, toku_builtin_compare_fun);
     assert(r==0);
     // now insert some info into the header
-    FT h = t->h;
+    FT h = t->ft;
     h->dirty = 1;
     h->layout_version_original = 13;
     h->layout_version_read_from_disk = 14;
@@ -43,7 +43,7 @@ static void test_header (void) {
     r = toku_open_ft_handle(fname, 0, &t, 1024, 256, TOKU_DEFAULT_COMPRESSION_METHOD, ct, null_txn, toku_builtin_compare_fun);
     assert(r==0);
 
-    h = t->h;
+    h = t->ft;
     STAT64INFO_S expected_stats = {20, 21};  // on checkpoint, on_disk_stats copied to checkpoint_staging_stats 
     assert(h->layout_version == FT_LAYOUT_VERSION);
     assert(h->layout_version_original == 13);

@@ -48,7 +48,7 @@ int toku_testsetup_leaf(FT_HANDLE brt, BLOCKNUM *blocknum, int n_children, char 
     }
 
     *blocknum = node->thisnodename;
-    toku_unpin_ftnode(brt->h, node);
+    toku_unpin_ftnode(brt->ft, node);
     return 0;
 }
 
@@ -68,13 +68,13 @@ int toku_testsetup_nonleaf (FT_HANDLE brt, int height, BLOCKNUM *blocknum, int n
         node->totalchildkeylens += keylens[i];
     }
     *blocknum = node->thisnodename;
-    toku_unpin_ftnode(brt->h, node);
+    toku_unpin_ftnode(brt->ft, node);
     return 0;
 }
 
 int toku_testsetup_root(FT_HANDLE brt, BLOCKNUM blocknum) {
     assert(testsetup_initialized);
-    brt->h->root_blocknum = blocknum;
+    brt->ft->root_blocknum = blocknum;
     return 0;
 }
 
@@ -83,13 +83,13 @@ int toku_testsetup_get_sersize(FT_HANDLE brt, BLOCKNUM diskoff) // Return the si
     assert(testsetup_initialized);
     void *node_v;
     struct ftnode_fetch_extra bfe;
-    fill_bfe_for_full_read(&bfe, brt->h);
+    fill_bfe_for_full_read(&bfe, brt->ft);
     int r  = toku_cachetable_get_and_pin(
-        brt->h->cf, diskoff,
-        toku_cachetable_hash(brt->h->cf, diskoff),
+        brt->ft->cf, diskoff,
+        toku_cachetable_hash(brt->ft->cf, diskoff),
         &node_v,
         NULL,
-        get_write_callbacks_for_node(brt->h),
+        get_write_callbacks_for_node(brt->ft),
         toku_ftnode_fetch_callback,
         toku_ftnode_pf_req_callback,
         toku_ftnode_pf_callback,
@@ -98,7 +98,7 @@ int toku_testsetup_get_sersize(FT_HANDLE brt, BLOCKNUM diskoff) // Return the si
         );
     assert(r==0);
     int size = toku_serialize_ftnode_size(node_v);
-    toku_unpin_ftnode(brt->h, node_v);
+    toku_unpin_ftnode(brt->ft, node_v);
     return size;
 }
 
@@ -109,14 +109,14 @@ int toku_testsetup_insert_to_leaf (FT_HANDLE brt, BLOCKNUM blocknum, char *key, 
     assert(testsetup_initialized);
 
     struct ftnode_fetch_extra bfe;
-    fill_bfe_for_full_read(&bfe, brt->h);
+    fill_bfe_for_full_read(&bfe, brt->ft);
     r = toku_cachetable_get_and_pin(
-        brt->h->cf,
+        brt->ft->cf,
         blocknum,
-        toku_cachetable_hash(brt->h->cf, blocknum),
+        toku_cachetable_hash(brt->ft->cf, blocknum),
         &node_v,
         NULL,
-        get_write_callbacks_for_node(brt->h),
+        get_write_callbacks_for_node(brt->ft),
 	toku_ftnode_fetch_callback,
         toku_ftnode_pf_req_callback,
         toku_ftnode_pf_callback,
@@ -135,9 +135,9 @@ int toku_testsetup_insert_to_leaf (FT_HANDLE brt, BLOCKNUM blocknum, char *key, 
                             toku_fill_dbt(&valdbt, val, vallen)}};
 
     toku_ft_node_put_cmd (
-        brt->h->compare_fun,
-        brt->h->update_fun,
-        &brt->h->cmp_descriptor,
+        brt->ft->compare_fun,
+        brt->ft->update_fun,
+        &brt->ft->cmp_descriptor,
         node,
         &cmd,
         true,
@@ -146,7 +146,7 @@ int toku_testsetup_insert_to_leaf (FT_HANDLE brt, BLOCKNUM blocknum, char *key, 
 
     toku_verify_or_set_counts(node);
 
-    toku_unpin_ftnode(brt->h, node_v);
+    toku_unpin_ftnode(brt->ft, node_v);
     return 0;
 }
 
@@ -162,11 +162,11 @@ void
 toku_pin_node_with_min_bfe(FTNODE* node, BLOCKNUM b, FT_HANDLE t)
 {
     struct ftnode_fetch_extra bfe;
-    fill_bfe_for_min_read(&bfe, t->h);
+    fill_bfe_for_min_read(&bfe, t->ft);
     toku_pin_ftnode_off_client_thread(
-        t->h, 
+        t->ft, 
         b,
-        toku_cachetable_hash(t->h->cf, b),
+        toku_cachetable_hash(t->ft->cf, b),
         &bfe,
         TRUE,
         0,
@@ -182,14 +182,14 @@ int toku_testsetup_insert_to_nonleaf (FT_HANDLE brt, BLOCKNUM blocknum, enum ft_
     assert(testsetup_initialized);
 
     struct ftnode_fetch_extra bfe;
-    fill_bfe_for_full_read(&bfe, brt->h);
+    fill_bfe_for_full_read(&bfe, brt->ft);
     r = toku_cachetable_get_and_pin(
-        brt->h->cf,
+        brt->ft->cf,
         blocknum,
-        toku_cachetable_hash(brt->h->cf, blocknum),
+        toku_cachetable_hash(brt->ft->cf, blocknum),
         &node_v,
         NULL,
-        get_write_callbacks_for_node(brt->h),
+        get_write_callbacks_for_node(brt->ft),
 	toku_ftnode_fetch_callback,
         toku_ftnode_pf_req_callback,
         toku_ftnode_pf_callback,
@@ -203,7 +203,7 @@ int toku_testsetup_insert_to_nonleaf (FT_HANDLE brt, BLOCKNUM blocknum, enum ft_
     DBT k;
     int childnum = toku_ftnode_which_child(node,
                                             toku_fill_dbt(&k, key, keylen),
-                                            &brt->h->cmp_descriptor, brt->h->compare_fun);
+                                            &brt->ft->cmp_descriptor, brt->ft->compare_fun);
 
     XIDS xids_0 = xids_get_root_xids();
     MSN msn = next_dummymsn();
@@ -215,6 +215,6 @@ int toku_testsetup_insert_to_nonleaf (FT_HANDLE brt, BLOCKNUM blocknum, enum ft_
     node->max_msn_applied_to_node_on_disk = msn;
     node->dirty = 1;
 
-    toku_unpin_ftnode(brt->h, node_v);
+    toku_unpin_ftnode(brt->ft, node_v);
     return 0;
 }

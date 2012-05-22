@@ -418,8 +418,8 @@ struct ft_options {
 };
 
 struct ft_handle {
-    // The header is shared.  It is also ephemeral.
-    FT h;
+    // The fractal tree.
+    FT ft;
 
     on_redirect_callback redirect_callback;
     void *redirect_callback_extra;

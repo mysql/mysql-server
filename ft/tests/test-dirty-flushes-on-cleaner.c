@@ -59,8 +59,8 @@ doit (void) {
     assert(r==0);
     toku_free(fname);
 
-    brt->h->update_fun = update_func;
-    brt->h->update_fun = update_func;
+    brt->ft->update_fun = update_func;
+    brt->ft->update_fun = update_func;
     
     toku_testsetup_initialize();  // must precede any other toku_testsetup calls
 
@@ -161,11 +161,11 @@ doit (void) {
     // now lock and release the leaf node to make sure it is what we expect it to be.
     FTNODE node = NULL;
     struct ftnode_fetch_extra bfe;
-    fill_bfe_for_min_read(&bfe, brt->h);
+    fill_bfe_for_min_read(&bfe, brt->ft);
     toku_pin_ftnode_off_client_thread(
-        brt->h, 
+        brt->ft, 
         node_leaf,
-        toku_cachetable_hash(brt->h->cf, node_leaf),
+        toku_cachetable_hash(brt->ft->cf, node_leaf),
         &bfe,
         TRUE, 
         0,
@@ -176,7 +176,7 @@ doit (void) {
     assert(node->n_children == 2);
     assert(BP_STATE(node,0) == PT_AVAIL);
     assert(BP_STATE(node,1) == PT_AVAIL);
-    toku_unpin_ftnode_off_client_thread(brt->h, node);
+    toku_unpin_ftnode_off_client_thread(brt->ft, node);
 
     // now do a lookup on one of the keys, this should bring a leaf node up to date 
     DBT k;
@@ -190,11 +190,11 @@ doit (void) {
     // node is in memory and another is
     // on disk
     //
-    fill_bfe_for_min_read(&bfe, brt->h);
+    fill_bfe_for_min_read(&bfe, brt->ft);
     toku_pin_ftnode_off_client_thread(
-        brt->h, 
+        brt->ft, 
         node_leaf,
-        toku_cachetable_hash(brt->h->cf, node_leaf),
+        toku_cachetable_hash(brt->ft->cf, node_leaf),
         &bfe,
         TRUE, 
         0,
@@ -205,16 +205,16 @@ doit (void) {
     assert(node->n_children == 2);
     assert(BP_STATE(node,0) == PT_AVAIL);
     assert(BP_STATE(node,1) == PT_AVAIL);
-    toku_unpin_ftnode_off_client_thread(brt->h, node);
+    toku_unpin_ftnode_off_client_thread(brt->ft, node);
     
     //
     // now let us induce a clean on the internal node
     //    
-    fill_bfe_for_min_read(&bfe, brt->h);
+    fill_bfe_for_min_read(&bfe, brt->ft);
     toku_pin_ftnode_off_client_thread(
-        brt->h, 
+        brt->ft, 
         node_internal,
-        toku_cachetable_hash(brt->h->cf, node_internal),
+        toku_cachetable_hash(brt->ft->cf, node_internal),
         &bfe,
         TRUE, 
         0,
@@ -229,16 +229,16 @@ doit (void) {
     r = toku_ftnode_cleaner_callback(
         node,
         node_internal,
-        toku_cachetable_hash(brt->h->cf, node_internal),
-        brt->h
+        toku_cachetable_hash(brt->ft->cf, node_internal),
+        brt->ft
         );
 
     // verify that node_internal's buffer is empty
-    fill_bfe_for_min_read(&bfe, brt->h);
+    fill_bfe_for_min_read(&bfe, brt->ft);
     toku_pin_ftnode_off_client_thread(
-        brt->h, 
+        brt->ft, 
         node_internal,
-        toku_cachetable_hash(brt->h->cf, node_internal),
+        toku_cachetable_hash(brt->ft->cf, node_internal),
         &bfe,
         TRUE, 
         0,
@@ -247,7 +247,7 @@ doit (void) {
         );
     // check that buffers are empty
     assert(toku_bnc_nbytesinbuf(BNC(node, 0)) == 0);
-    toku_unpin_ftnode_off_client_thread(brt->h, node);
+    toku_unpin_ftnode_off_client_thread(brt->ft, node);
     
     //
     // now run a checkpoint to get everything clean,

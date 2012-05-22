@@ -70,10 +70,10 @@ test_dup_in_leaf(int do_verify) {
     populate_leaf(newroot, htonl(2), 2);
 
     // set the new root to point to the new tree
-    toku_ft_set_new_root_blocknum(brt->h, newroot->thisnodename);
+    toku_ft_set_new_root_blocknum(brt->ft, newroot->thisnodename);
 
     // unpin the new root
-    toku_unpin_ftnode(brt->h, newroot);
+    toku_unpin_ftnode(brt->ft, newroot);
 
     if (do_verify) {
         r = toku_verify_ft(brt);

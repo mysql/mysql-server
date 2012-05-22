@@ -266,14 +266,14 @@ toku_ft_hot_optimize(FT_HANDLE brt,
         u_int32_t fullhash;
 
         {
-            toku_ft_grab_treelock(brt->h);
+            toku_ft_grab_treelock(brt->ft);
 
             // Get root node (the first parent of each successive HOT
             // call.)
-            toku_calculate_root_offset_pointer(brt->h, &root_key, &fullhash);
+            toku_calculate_root_offset_pointer(brt->ft, &root_key, &fullhash);
             struct ftnode_fetch_extra bfe;
-            fill_bfe_for_full_read(&bfe, brt->h);
-            toku_pin_ftnode_off_client_thread(brt->h,
+            fill_bfe_for_full_read(&bfe, brt->ft);
+            toku_pin_ftnode_off_client_thread(brt->ft,
                                                (BLOCKNUM) root_key,
                                                fullhash,
                                                &bfe,
@@ -283,7 +283,7 @@ toku_ft_hot_optimize(FT_HANDLE brt,
                                                &root);
             toku_assert_entire_node_in_memory(root);
 
-            toku_ft_release_treelock(brt->h);
+            toku_ft_release_treelock(brt->ft);
         }
 
         // Prepare HOT diagnostics.
@@ -311,12 +311,12 @@ toku_ft_hot_optimize(FT_HANDLE brt,
         // This should recurse to the bottom of the tree and then
         // return.
         if (root->height > 0) {
-            flush_some_child(brt->h, root, &advice);
+            flush_some_child(brt->ft, root, &advice);
         } else {
             // Since there are no children to flush, we should abort
             // the HOT call.
             flusher.rightmost_leaf_seen = 1;
-            toku_unpin_ftnode_off_client_thread(brt->h, root);
+            toku_unpin_ftnode_off_client_thread(brt->ft, root);
         }
 
         // Set the highest pivot key seen here, since the parent may

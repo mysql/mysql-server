@@ -59,7 +59,7 @@ doit (void) {
     toku_free(fname);
 
     brt->options.update_fun = update_func;
-    brt->h->update_fun = update_func;
+    brt->ft->update_fun = update_func;
     
     toku_testsetup_initialize();  // must precede any other toku_testsetup calls
 
@@ -144,7 +144,7 @@ doit (void) {
     toku_pin_node_with_min_bfe(&node, node_leaf[1], brt);
     // hack to get merge going
     BLB_SEQINSERT(node, node->n_children-1) = FALSE;
-    toku_unpin_ftnode(brt->h, node);
+    toku_unpin_ftnode(brt->ft, node);
 
     // now do a lookup on one of the keys, this should bring a leaf node up to date 
     DBT k;
@@ -153,11 +153,11 @@ doit (void) {
     assert(r==0);
 
     struct ftnode_fetch_extra bfe;
-    fill_bfe_for_min_read(&bfe, brt->h);
+    fill_bfe_for_min_read(&bfe, brt->ft);
     toku_pin_ftnode_off_client_thread(
-        brt->h, 
+        brt->ft, 
         node_internal,
-        toku_cachetable_hash(brt->h->cf, node_internal),
+        toku_cachetable_hash(brt->ft->cf, node_internal),
         &bfe,
         TRUE, 
         0,
@@ -171,16 +171,16 @@ doit (void) {
     r = toku_ftnode_cleaner_callback(
         node,
         node_internal,
-        toku_cachetable_hash(brt->h->cf, node_internal),
-        brt->h
+        toku_cachetable_hash(brt->ft->cf, node_internal),
+        brt->ft
         );
 
     // verify that node_internal's buffer is empty
-    fill_bfe_for_min_read(&bfe, brt->h);
+    fill_bfe_for_min_read(&bfe, brt->ft);
     toku_pin_ftnode_off_client_thread(
-        brt->h, 
+        brt->ft, 
         node_internal,
-        toku_cachetable_hash(brt->h->cf, node_internal),
+        toku_cachetable_hash(brt->ft->cf, node_internal),
         &bfe,
         TRUE, 
         0,
@@ -191,7 +191,7 @@ doit (void) {
     assert(node->n_children == 1);
     // check that buffers are empty
     assert(toku_bnc_nbytesinbuf(BNC(node, 0)) == 0);
-    toku_unpin_ftnode_off_client_thread(brt->h, node);
+    toku_unpin_ftnode_off_client_thread(brt->ft, node);
 
     //
     // now run a checkpoint to get everything clean,
