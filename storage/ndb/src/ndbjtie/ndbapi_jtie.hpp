@@ -6566,7 +6566,7 @@ JNIEXPORT jobject JNICALL
 Java_com_mysql_ndbjtie_ndbapi_NdbInterpretedCode_create(JNIEnv * env, jclass cls, jobject p0, jintArray p1, jint p2)
 {
     TRACE("jobject Java_com_mysql_ndbjtie_ndbapi_NdbInterpretedCode_create(JNIEnv *, jclass, jobject, jintArray, jint)");
-    return gcreate< ttrait_c_m_n_n_NdbInterpretedCode_r, ttrait_c_m_n_n_NdbDictionary_Table_cp, ttrait_Uint32_0p_a, ttrait_Uint32 >(env, cls, p0, p1, p2);
+    return gcreate< ttrait_c_m_n_n_NdbInterpretedCode_r, ttrait_c_m_n_n_NdbDictionary_Table_cp, ttrait_Uint32_0p_bb, ttrait_Uint32 >(env, cls, p0, p1, p2);
 }
 
 /*
