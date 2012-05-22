@@ -892,9 +892,17 @@ void Item_maxmin_subselect::print(String *str, enum_query_type query_type)
 
 void Item_maxmin_subselect::no_rows_in_result()
 {
-  value= 0;
+  value= Item_cache::get_cache(new Item_null());
   null_value= 0;
   was_values= 0;
+  make_const();
+}
+
+
+void Item_singlerow_subselect::no_rows_in_result()
+{
+  value= Item_cache::get_cache(new Item_null());
+  reset();
   make_const();
 }
 
