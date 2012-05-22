@@ -2612,9 +2612,6 @@ start_table_lock_wait_v1(PSI_table_locker_state *state,
 
   PFS_thread *pfs_thread= pfs_table->m_thread_owner;
 
-  DBUG_ASSERT(pfs_thread ==
-              my_pthread_getspecific_ptr(PFS_thread*, THR_PFS));
-
   PFS_TL_LOCK_TYPE lock_type;
 
   switch (op)
@@ -3015,14 +3012,6 @@ start_socket_wait_v1(PSI_socket_locker_state *state,
 
     if (unlikely(pfs_thread == NULL))
       return NULL;
-
-#ifdef LATER
-    /*
-      Needs refinement, because of KILL.
-    */
-    DBUG_ASSERT(pfs_thread ==
-                my_pthread_getspecific_ptr(PFS_thread*, THR_PFS));
-#endif
 
     if (!pfs_thread->m_enabled)
       return NULL;
