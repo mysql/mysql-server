@@ -241,6 +241,13 @@ typedef Bitmap<HA_MAX_ALTER_FLAGS> HA_ALTER_FLAGS;
 #define HA_READ_BEFORE_WRITE_REMOVAL  (LL(1) << 38)
 #endif
 
+#ifndef MCP_WL4784
+/*
+  The handler don't want accesses to this table to 
+  be const-table optimized
+*/
+#define HA_BLOCK_CONST_TABLE          (LL(1) << 39)
+#endif
 
 /* bits in index_flags(index_number) for what you can do with index */
 #define HA_READ_NEXT            1       /* TODO really use this flag */
@@ -486,21 +493,6 @@ typedef ulonglong my_xid; // this line is the same as in log_event.h
 #ifndef MCP_WL4784
 namespace AQP {
   class Join_plan;
-};
-
-/* Flag used for for test_push_flag() */
-enum ha_push_flag {
-
-  /* Handler want to block const table optimization */
-  HA_PUSH_BLOCK_CONST_TABLE
-
-  /* Handler reports a pushed join as having multiple dependencies 
-     if its results does not only depend on the root operation:
-     ie. results from some child operations does not only depend
-     on results from the root operation and/or other child operations
-     within this pushed join 
-   */
-  ,HA_PUSH_MULTIPLE_DEPENDENCY
 };
 #endif
 
@@ -2105,11 +2097,6 @@ public:
   */
   virtual const TABLE* parent_of_pushed_join() const
   { return NULL; }
-
-  virtual bool test_push_flag(enum ha_push_flag flag) const
-  {
-    return FALSE;
-  }
 
   virtual int index_read_pushed(uchar * buf, const uchar * key,
                              key_part_map keypart_map)

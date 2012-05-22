@@ -51,7 +51,6 @@ Transporter::Transporter(TransporterRegistry &t_reg,
   DBUG_ENTER("Transporter::Transporter");
   if (rHostName && strlen(rHostName) > 0){
     strncpy(remoteHostName, rHostName, sizeof(remoteHostName));
-    Ndb_getInAddr(&remoteHostAddress, rHostName);
   }
   else
   {

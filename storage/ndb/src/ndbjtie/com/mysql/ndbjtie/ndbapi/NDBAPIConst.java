@@ -26,6 +26,8 @@ import com.mysql.jtie.Wrapper;
 
 public interface NDBAPIConst
 {
+// these limits are subject to change; don't map as constants
+/*
     int NDB_MAX_NO_OF_ATTRIBUTES_IN_KEY = 32,
         NDB_MAX_ATTRIBUTES_IN_INDEX = NDB_MAX_NO_OF_ATTRIBUTES_IN_KEY,
         NDB_MAX_ATTRIBUTES_IN_TABLE = 512,
@@ -35,4 +37,5 @@ public interface NDBAPIConst
         NDB_MAX_TUPLE_SIZE = (NDB_MAX_TUPLE_SIZE_IN_WORDS*4),
         NDB_MAX_ACTIVE_EVENTS = 100,
         NDB_MAX_SCANFILTER_SIZE_IN_WORDS = (16384 - 1 - 1024);
+*/
 }

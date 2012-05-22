@@ -46,14 +46,15 @@ extern "C" {
 }
 
 
-void Scheduler_stockholm::init(int my_thread, int nthreads, const char *config_string) {
+void Scheduler_stockholm::init(int my_thread, 
+                               const scheduler_options *options) {
   const Configuration & conf = get_Configuration();
 
   /* How many NDB instances are needed per cluster? */
   for(unsigned int c = 0 ; c < conf.nclusters ; c++) {
     ClusterConnectionPool *pool = conf.getConnectionPoolById(c);
     double total_ndb_objects = conf.figureInFlightTransactions(c);
-    cluster[c].nInst = (int) total_ndb_objects / nthreads;
+    cluster[c].nInst = (int) total_ndb_objects / options->nthreads;
     DEBUG_PRINT("cluster %d: %d TPS @ %d usec RTT ==> %d NDB instances.",
                 c, conf.max_tps, pool->usec_rtt, cluster[c].nInst);
   }

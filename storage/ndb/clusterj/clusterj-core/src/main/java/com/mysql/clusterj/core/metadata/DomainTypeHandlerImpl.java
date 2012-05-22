@@ -18,6 +18,7 @@
 package com.mysql.clusterj.core.metadata;
 
 import com.mysql.clusterj.core.spi.DomainFieldHandler;
+import com.mysql.clusterj.core.spi.SmartValueHandler;
 import com.mysql.clusterj.core.spi.ValueHandlerFactory;
 import com.mysql.clusterj.core.spi.ValueHandler;
 import com.mysql.clusterj.ClusterJException;
@@ -36,6 +37,7 @@ import com.mysql.clusterj.core.store.Db;
 import com.mysql.clusterj.core.store.Index;
 import com.mysql.clusterj.core.store.Dictionary;
 import com.mysql.clusterj.core.store.Operation;
+import com.mysql.clusterj.core.store.ResultData;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationHandler;
@@ -422,11 +424,22 @@ public class DomainTypeHandlerImpl<T> extends AbstractDomainTypeHandlerImpl<T> {
     @Override
     public T newInstance(Db db) {
         ValueHandler valueHandler = valueHandlerFactory.getValueHandler(this, db);
-        return newInstance(valueHandler, db);
+        return newInstance(valueHandler);
+    }
+
+    /** Create a new domain type instance from the result.
+     * @param resultData the results from a database query
+     * @param db the Db
+     * @return the domain type instance
+     */
+    public T newInstance(ResultData resultData, Db db) {
+        ValueHandler valueHandler = valueHandlerFactory.getValueHandler(this, db, resultData);
+        T result = newInstance(valueHandler);
+        return result;
     }
 
     @Override
-    public T newInstance(ValueHandler valueHandler, Db db) {
+    public T newInstance(ValueHandler valueHandler) {
         T instance;
         try {
             if (dynamic) {
@@ -608,7 +621,7 @@ public class DomainTypeHandlerImpl<T> extends AbstractDomainTypeHandlerImpl<T> {
         Object[] result = new Object[numberOfFields];
         int i = 0;
         for (Integer idFieldNumber: idFieldNumbers) {
-            result[idFieldNumber] = keyValues[i];
+            result[idFieldNumber] = keyValues[i++];
         }
         return result;
     }
@@ -624,6 +637,7 @@ public class DomainTypeHandlerImpl<T> extends AbstractDomainTypeHandlerImpl<T> {
 
     /** Factory for default InvocationHandlerImpl */
     protected ValueHandlerFactory defaultInvocationHandlerFactory = new ValueHandlerFactory()  {
+
         public <V> ValueHandler getValueHandler(DomainTypeHandlerImpl<V> domainTypeHandler, Db db) {
             return new InvocationHandlerImpl<V>(domainTypeHandler);
         }
@@ -632,6 +646,13 @@ public class DomainTypeHandlerImpl<T> extends AbstractDomainTypeHandlerImpl<T> {
                 DomainTypeHandlerImpl<V> domainTypeHandler, Db db, Object keyValues) {
             Object[] expandedKeyValues = expandKeyValues(keyValues);
             return new KeyValueHandlerImpl(expandedKeyValues);
+        }
+
+        public <V> ValueHandler getValueHandler(
+                DomainTypeHandlerImpl<V> domainTypeHandler, Db db, ResultData resultData) {
+            ValueHandler result = new InvocationHandlerImpl<V>(domainTypeHandler);
+            objectSetValues(resultData, result);
+            return result;
         }
     };
 

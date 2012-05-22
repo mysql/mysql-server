@@ -29,6 +29,7 @@ int fetch_core_settings(struct ndb_engine *, struct default_engine *);
 
 void release_and_free(struct workitem *);
 
+ENGINE_ERROR_CODE stats_menu(ADD_STAT add_stat, const void *cookie);
 
 /*************** Declarations of functions that implement 
                  the engine interface 

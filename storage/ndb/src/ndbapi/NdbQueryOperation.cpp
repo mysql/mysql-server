@@ -47,8 +47,10 @@
  */
 #define UNUSED(x) ((void)(x))
 
-// To force usage of SCAN_NEXTREQ even for small scans resultsets
-static const bool testNextReq = false;
+// To force usage of SCAN_NEXTREQ even for small scans resultsets:
+// - '0' is default (production) value
+// - '4' is normally a good value for testing batch related problems
+static const int enforcedBatchSize = 0;
 
 // Use double buffered ResultSets, may later change 
 // to be more adaptive based on query type
@@ -274,7 +276,7 @@ public:
   NdbResultStream& getResultStream(Uint32 operationNo) const;
 
   NdbResultStream& getResultStream(const NdbQueryOperationImpl& op) const
-  { return getResultStream(op.getQueryOperationDef().getQueryOperationIx()); }
+  { return getResultStream(op.getQueryOperationDef().getOpNo()); }
 
   Uint32 getReceiverId() const;
   Uint32 getReceiverTcPtrI() const;
@@ -509,7 +511,7 @@ public:
      * operation will have two distincts nodes in the tree used by the
      * SPJ block, this number may be different from 'opNo'.
      */
-    const Uint32 internalOpNo = m_operation.getQueryOperationDef().getQueryOperationId();
+    const Uint32 internalOpNo = m_operation.getInternalOpNo();
 
     const bool complete = !((remainingScans >> internalOpNo) & 1);
     return complete; 
@@ -1005,7 +1007,7 @@ NdbResultStream::prepareResultSet(Uint32 remainingScans)
     NdbResultStream& childStream = m_rootFrag.getResultStream(child);
     const bool allSubScansComplete = childStream.prepareResultSet(remainingScans);
 
-    Uint32 childId = child.getQueryOperationDef().getQueryOperationIx();
+    Uint32 childId = child.getQueryOperationDef().getOpNo();
 
     /* Condition 1) & 2) calc'ed outside loop, see comments further below: */
     const bool skipNonMatches = !allSubScansComplete ||      // 1)
@@ -1907,6 +1909,12 @@ NdbQueryImpl::buildQuery(NdbTransaction& trans,
                          const NdbQueryDefImpl& queryDef)
 {
   assert(queryDef.getNoOfOperations() > 0);
+  // Check for online upgrade/downgrade.
+  if (unlikely(!ndb_join_pushdown(trans.getNdb()->getMinDbNodeVersion())))
+  {
+    trans.setOperationErrorCodeAbort(Err_FunctionNotImplemented);
+    return NULL;
+  }
   NdbQueryImpl* const query = new NdbQueryImpl(trans, queryDef);
   if (unlikely(query==NULL)) {
     trans.setOperationErrorCodeAbort(Err_MemoryAlloc);
@@ -1915,7 +1923,7 @@ NdbQueryImpl::buildQuery(NdbTransaction& trans,
   if (unlikely(query->m_error.code != 0))
   {
     // Transaction error code set already.
-    delete query;
+    query->release();
     return NULL;
   }
   assert(query->m_state==Initial);
@@ -3788,7 +3796,7 @@ NdbQueryOperationImpl::NdbQueryOperationImpl(
   m_queryImpl(queryImpl),
   m_operationDef(def),
   m_parent(NULL),
-  m_children(def.getNoOfChildOperations()),
+  m_children(0),
   m_maxBatchRows(0),   // >0: User specified prefered value, ==0: Use default CFG values
   m_params(),
   m_resultBuffer(NULL),
@@ -3801,13 +3809,13 @@ NdbQueryOperationImpl::NdbQueryOperationImpl(
   m_ordering(NdbQueryOptions::ScanOrdering_unordered),
   m_interpretedCode(NULL),
   m_diskInUserProjection(false),
-  m_parallelism(def.getQueryOperationIx() == 0
+  m_parallelism(def.getOpNo() == 0
                 ? Parallelism_max : Parallelism_adaptive),
   m_rowSize(0xffffffff)
 { 
-  if (errno == ENOMEM)
+  if (m_children.expand(def.getNoOfChildOperations()))
   {
-    // Memory allocation in Vector() (for m_children) assumed to have failed.
+    // Memory allocation during Vector::expand() failed.
     queryImpl.setErrorCode(Err_MemoryAlloc);
     return;
   }
@@ -3815,7 +3823,7 @@ NdbQueryOperationImpl::NdbQueryOperationImpl(
   const NdbQueryOperationDefImpl* parent = def.getParentOperation();
   if (parent != NULL)
   { 
-    const Uint32 ix = parent->getQueryOperationIx();
+    const Uint32 ix = parent->getOpNo();
     assert (ix < m_queryImpl.getNoOfOperations());
     m_parent = &m_queryImpl.getQueryOperation(ix);
     const int res = m_parent->m_children.push_back(this);
@@ -4368,11 +4376,18 @@ NdbQueryOperationImpl
   Uint32 maxBatchRows = 0;
   if (myClosestScan != NULL)
   {
-
     // To force usage of SCAN_NEXTREQ even for small scans resultsets
-    if (testNextReq)
+    if (DBUG_EVALUATE_IF("max_4rows_in_spj_batches", true, false))
     {
-      m_maxBatchRows = 1;
+      m_maxBatchRows = 4;
+    }
+    else if (DBUG_EVALUATE_IF("max_64rows_in_spj_batches", true, false))
+    {
+      m_maxBatchRows = 64;
+    }
+    else if (enforcedBatchSize)
+    {
+      m_maxBatchRows = enforcedBatchSize;
     }
 
     const Ndb& ndb = *getQuery().getNdbTransaction().getNdb();
@@ -4488,7 +4503,7 @@ NdbQueryOperationImpl::prepareAttrInfo(Uint32Buffer& attrInfo)
 
 #ifdef __TRACE_SERIALIZATION
     ndbout << "Serialized params for index node " 
-           << m_operationDef.getQueryOperationId()-1 << " : ";
+           << getInternalOpNo()-1 << " : ";
     for(Uint32 i = startPos; i < attrInfo.getSize(); i++){
       char buf[12];
       sprintf(buf, "%.8x", attrInfo.get(i));
@@ -4502,7 +4517,7 @@ NdbQueryOperationImpl::prepareAttrInfo(Uint32Buffer& attrInfo)
   // 'length' and 'requestInfo' has been calculated.
   Uint32 startPos = attrInfo.getSize();
   Uint32 requestInfo = 0;
-  bool isRoot = (def.getQueryOperationIx()==0);
+  bool isRoot = (def.getOpNo()==0);
 
   QueryNodeParameters::OpType paramType =
        !def.isScanOperation() ? QueryNodeParameters::QN_LOOKUP
@@ -4622,7 +4637,7 @@ NdbQueryOperationImpl::prepareAttrInfo(Uint32Buffer& attrInfo)
 
 #ifdef __TRACE_SERIALIZATION
   ndbout << "Serialized params for node " 
-         << m_operationDef.getQueryOperationId() << " : ";
+         << getInternalOpNo() << " : ";
   for(Uint32 i = startPos; i < attrInfo.getSize(); i++){
     char buf[12];
     sprintf(buf, "%.8x", attrInfo.get(i));
@@ -4948,7 +4963,7 @@ NdbQueryOperationImpl::execTRANSID_AI(const Uint32* ptr, Uint32 len)
   if (traceSignals) {
     ndbout << "NdbQueryOperationImpl::execTRANSID_AI()" 
            << ", fragment no: " << rootFrag->getFragNo()
-           << ", operation no: " << getQueryOperationDef().getQueryOperationIx()
+           << ", operation no: " << getQueryOperationDef().getOpNo()
            << endl;
   }
 
@@ -5185,7 +5200,7 @@ int NdbQueryOperationImpl::setParallelism(Uint32 parallelism){
     getQuery().setErrorCode(QRY_SEQUENTIAL_SCAN_SORTED);
     return -1;
   }
-  else if (getQueryOperationDef().getQueryOperationIx() > 0)
+  else if (getQueryOperationDef().getOpNo() > 0)
   {
     getQuery().setErrorCode(Err_FunctionNotImplemented);
     return -1;
@@ -5215,7 +5230,7 @@ int NdbQueryOperationImpl::setAdaptiveParallelism(){
     getQuery().setErrorCode(QRY_WRONG_OPERATION_TYPE);
     return -1;
   }
-  else if (getQueryOperationDef().getQueryOperationIx() == 0)
+  else if (getQueryOperationDef().getOpNo() == 0)
   {
     getQuery().setErrorCode(Err_FunctionNotImplemented);
     return -1;
@@ -5299,8 +5314,8 @@ Uint32 NdbQueryOperationImpl::getRowSize() const
 NdbOut& operator<<(NdbOut& out, const NdbQueryOperationImpl& op){
   out << "[ this: " << &op
       << "  m_magic: " << op.m_magic;
-  out << " op.operationDef.getQueryOperationIx()" 
-      << op.m_operationDef.getQueryOperationIx();
+  out << " op.operationDef.getOpNo()"
+      << op.m_operationDef.getOpNo();
   if (op.getParentOperation()){
     out << "  m_parent: " << op.getParentOperation(); 
   }

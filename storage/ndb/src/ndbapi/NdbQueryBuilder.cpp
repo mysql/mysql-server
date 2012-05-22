@@ -181,8 +181,8 @@ protected:
                            const NdbQueryOperand* const keys[],
                            const NdbQueryOptionsImpl& options,
                            const char* ident,
-                           Uint32      ix,
-                           Uint32      id,
+                           Uint32      opNo,
+                           Uint32      internalOpNo,
                            int& error);
 
   virtual const NdbQueryLookupOperationDef& getInterface() const
@@ -214,10 +214,11 @@ private:
                            const NdbQueryOperand* const keys[],
                            const NdbQueryOptionsImpl& options,
                            const char* ident,
-                           Uint32      ix,
-                           Uint32      id,
+                           Uint32      opNo,
+                           Uint32      internalOpNo,
                            int& error)
-    : NdbQueryLookupOperationDefImpl(table,keys,options,ident,ix,id,error)
+    : NdbQueryLookupOperationDefImpl(table, keys, options, ident, opNo,
+                                     internalOpNo, error)
   {}
 
   virtual NdbQueryOperationDef::Type getType() const
@@ -244,11 +245,12 @@ private:
                            const NdbQueryOperand* const keys[],
                            const NdbQueryOptionsImpl& options,
                            const char* ident,
-                           Uint32      ix,
-                           Uint32      id,
+                           Uint32      opNo,
+                           Uint32      internalOpNo,
                            int& error)
     // Add 1 to 'id' since index lookup is serialized as two operations.
-    : NdbQueryLookupOperationDefImpl(table,keys,options,ident,ix,id+1,error),
+    : NdbQueryLookupOperationDefImpl(table, keys, options, ident, opNo,
+                                     internalOpNo+1, error),
     m_index(index)
   {}
 
@@ -280,10 +282,11 @@ private:
                            const NdbTableImpl& table,
                            const NdbQueryOptionsImpl& options,
                            const char* ident,
-                           Uint32      ix,
-                           Uint32      id,
+                           Uint32      opNo,
+                           Uint32      internalOpNo,
                            int& error)
-    : NdbQueryScanOperationDefImpl(table,options,ident,ix,id,error),
+    : NdbQueryScanOperationDefImpl(table, options, ident, opNo, 
+                                   internalOpNo, error),
       m_interface(*this) 
   {}
 
@@ -626,9 +629,9 @@ NdbQueryIndexScanOperationDefImpl& getImpl(const NdbQueryIndexScanOperationDef& 
 
 
 Uint32
-NdbQueryOperationDef::getQueryOperationIx() const
+NdbQueryOperationDef::getOpNo() const
 {
-  return ::getImpl(*this).getQueryOperationIx();
+  return ::getImpl(*this).getOpNo();
 }
 
 Uint32
@@ -699,24 +702,7 @@ NdbQueryOperationDef::getIndex() const
 NdbQueryBuilder* NdbQueryBuilder::create()
 {
   NdbQueryBuilderImpl* const impl = new NdbQueryBuilderImpl();
-  if (likely (impl != NULL))
-  {
-    if (likely(impl->getNdbError().code == 0))
-    {
-      return &impl->m_interface;
-    }
-    else
-    {
-      // Probably failed to create Vector instances.
-      assert(impl->getNdbError().code == Err_MemoryAlloc);
-      delete impl;
-      return NULL;
-    }
-  }
-  else
-  {
-    return NULL;
-  }
+  return (likely(impl!=NULL)) ? &impl->m_interface : NULL;
 }
 
 void NdbQueryBuilder::destroy()
@@ -884,7 +870,7 @@ NdbQueryBuilder::readTuple(const NdbDictionary::Table* table,    // Primary key 
                                        options ? options->getImpl() : defaultOptions,
                                        ident,
                                        m_impl.m_operations.size(),
-                                       m_impl.getNextId(),
+                                       m_impl.getNextInternalOpNo(),
                                        error);
 
   returnErrIf(m_impl.takeOwnership(op)!=0, Err_MemoryAlloc);
@@ -958,7 +944,7 @@ NdbQueryBuilder::readTuple(const NdbDictionary::Index* index,    // Unique key l
                                        options ? options->getImpl() : defaultOptions,
                                        ident,
                                        m_impl.m_operations.size(),
-                                       m_impl.getNextId(),
+                                       m_impl.getNextInternalOpNo(),
                                        error);
 
   returnErrIf(m_impl.takeOwnership(op)!=0, Err_MemoryAlloc);
@@ -999,7 +985,7 @@ NdbQueryBuilder::scanTable(const NdbDictionary::Table* table,
                                           options ? options->getImpl() : defaultOptions,
                                           ident,
                                           m_impl.m_operations.size(),
-                                          m_impl.getNextId(),
+                                          m_impl.getNextInternalOpNo(),
                                           error);
 
   returnErrIf(m_impl.takeOwnership(op)!=0, Err_MemoryAlloc);
@@ -1065,7 +1051,7 @@ NdbQueryBuilder::scanIndex(const NdbDictionary::Index* index,
                                           options ? options->getImpl() : defaultOptions,
                                           ident,
                                           m_impl.m_operations.size(),
-                                          m_impl.getNextId(),
+                                          m_impl.getNextInternalOpNo(),
                                           error);
 
   returnErrIf(m_impl.takeOwnership(op)!=0, Err_MemoryAlloc);
@@ -1113,17 +1099,11 @@ NdbQueryBuilder::prepare()
 NdbQueryBuilderImpl::NdbQueryBuilderImpl()
 : m_interface(*this),
   m_error(),
-  m_operations(),
-  m_operands(),
+  m_operations(0),
+  m_operands(0),
   m_paramCnt(0),
   m_hasError(false)
-{
-  if (errno == ENOMEM)
-  {
-    // ENOMEM probably comes from Vector().
-    setErrorCode(Err_MemoryAlloc);
-  }
-}
+{}
 
 NdbQueryBuilderImpl::~NdbQueryBuilderImpl()
 {
@@ -1239,12 +1219,12 @@ NdbQueryDefImpl(const Vector<NdbQueryOperationDefImpl*>& operations,
                 const Vector<NdbQueryOperandImpl*>& operands,
                 int& error)
  : m_interface(*this), 
-   m_operations(operations),
-   m_operands(operands)
+   m_operations(0),
+   m_operands(0)
 {
-  if (errno == ENOMEM)
+  if (m_operations.assign(operations) || m_operands.assign(operands))
   {
-    // Failed to allocate memory for m_operations or m_operands.
+    // Failed to allocate memory in Vector::assign().
     error = Err_MemoryAlloc;
     return;
   }
@@ -1264,7 +1244,7 @@ NdbQueryDefImpl(const Vector<NdbQueryOperationDefImpl*>& operations,
   // Set length and number of nodes in tree.
   Uint32 cntLen;
   QueryTree::setCntLen(cntLen, 
-		       m_operations[m_operations.size()-1]->getQueryOperationId()+1,
+		       m_operations[m_operations.size()-1]->getInternalOpNo()+1,
 		       m_serializedDef.getSize());
   m_serializedDef.put(0,cntLen);
 
@@ -1629,10 +1609,11 @@ NdbQueryLookupOperationDefImpl::NdbQueryLookupOperationDefImpl (
                            const NdbQueryOperand* const keys[],
                            const NdbQueryOptionsImpl& options,
                            const char* ident,
-                           Uint32      ix,
-                           Uint32      id,
+                           Uint32      opNo,
+                           Uint32      internalOpNo,
                            int& error)
-  : NdbQueryOperationDefImpl(table,options,ident,ix,id,error),
+  : NdbQueryOperationDefImpl(table, options, ident, opNo,
+                             internalOpNo, error),
    m_interface(*this)
 {
   int i;
@@ -1652,10 +1633,11 @@ NdbQueryIndexScanOperationDefImpl::NdbQueryIndexScanOperationDefImpl (
                            const NdbQueryIndexBound* bound,
                            const NdbQueryOptionsImpl& options,
                            const char* ident,
-                           Uint32      ix,
-                           Uint32      id,
+                           Uint32      opNo,
+                           Uint32      internalOpNo,
                            int& error)
-  : NdbQueryScanOperationDefImpl(table,options,ident,ix,id,error),
+  : NdbQueryScanOperationDefImpl(table, options, ident, opNo, internalOpNo, 
+                                 error),
   m_interface(*this), 
   m_index(index),
   m_paramInPruneKey(false)
@@ -1894,27 +1876,21 @@ NdbQueryOperationDefImpl::NdbQueryOperationDefImpl (
                                      const NdbTableImpl& table,
                                      const NdbQueryOptionsImpl& options,
                                      const char* ident,
-                                     Uint32      ix,
-                                     Uint32      id,
+                                     Uint32      opNo,
+                                     Uint32      internalOpNo,
                                      int& error)
   :m_isPrepared(false), 
    m_diskInChildProjection(false), 
    m_table(table), 
    m_ident(ident), 
-   m_ix(ix), m_id(id),
+   m_opNo(opNo), m_internalOpNo(internalOpNo),
    m_options(options),
    m_parent(NULL), 
-   m_children(), 
-   m_params(),
-   m_spjProjection() 
+   m_children(0), 
+   m_params(0),
+   m_spjProjection(0) 
 {
-  if (unlikely(errno == ENOMEM))
-  {
-    // Heap allocation in Vector() must have failed.
-    error = Err_MemoryAlloc;
-    return;
-  }
-  if (unlikely(m_id >= NDB_SPJ_MAX_TREE_NODES))
+  if (unlikely(m_internalOpNo >= NDB_SPJ_MAX_TREE_NODES))
   {
     error = QRY_DEFINITION_TOO_LARGE;
     return;
@@ -2120,8 +2096,8 @@ NdbQueryOperationDefImpl::appendParentList(Uint32Buffer& serializedDef) const
   if (getParentOperation() != NULL)
   {
     Uint16Sequence parentSeq(serializedDef, 1);
-    assert (getParentOperation()->getQueryOperationId() < getQueryOperationId());
-    parentSeq.append(getParentOperation()->getQueryOperationId());
+    assert (getParentOperation()->getInternalOpNo() < getInternalOpNo());
+    parentSeq.append(getParentOperation()->getInternalOpNo());
     parentSeq.finish();
     return DABits::NI_HAS_PARENT;
   }
@@ -2205,7 +2181,8 @@ NdbQueryOperationDefImpl::printTree(Uint32 depth,
   ndbout << NdbQueryOperationDef::getTypeName(getType()) << endl;
   printMargin(depth, hasMoreSiblingsMask, false);
   // Print attributes.
-  ndbout << " opNo: " << getQueryOperationIx() << endl;
+  ndbout << " opNo: " << getOpNo()
+         << " (internal: " << getInternalOpNo() << ")" << endl;
   printMargin(depth, hasMoreSiblingsMask, false);
   ndbout << " table: " << getTable().getName() << endl;
   if (getIndex() != NULL)
@@ -2244,7 +2221,7 @@ NdbQueryLookupOperationDefImpl::appendKeyPattern(Uint32Buffer& serializedDef) co
    * Key value for root operation is constructed when query is instantiated with
    * NdbQueryOperationImpl::prepareIndexKeyInfo()
    */
-  if (getQueryOperationIx() == 0)
+  if (getOpNo() == 0)
     return 0;
 
   if (m_keys[0]!=NULL)
@@ -2321,7 +2298,7 @@ NdbQueryIndexScanOperationDefImpl::appendPrunePattern(Uint32Buffer& serializedDe
    * Bound value for root operation is constructed when query is instantiated with
    * NdbQueryOperationImpl::prepareIndexKeyInfo()
    */
-  if (getQueryOperationIx() == 0)
+  if (getOpNo() == 0)
     return 0;
 
   if (m_bound.lowKeys>0 || m_bound.highKeys>0)
@@ -2505,7 +2482,7 @@ NdbQueryIndexScanOperationDefImpl::appendBoundPattern(Uint32Buffer& serializedDe
    * Bound value for root operation is constructed when query is instantiated with
    * NdbQueryOperationImpl::prepareIndexKeyInfo()
    */
-  if (getQueryOperationIx() == 0)
+  if (getOpNo() == 0)
     return 0;
 
   if (m_bound.lowKeys>0 || m_bound.highKeys>0)
@@ -2614,7 +2591,7 @@ NdbQueryPKLookupOperationDefImpl
   }
 
 #ifdef __TRACE_SERIALIZATION
-  ndbout << "Serialized node " << getQueryOperationId() << " : ";
+  ndbout << "Serialized node " << getInternalOpNo() << " : ";
   for (Uint32 i = startPos; i < serializedDef.getSize(); i++) {
     char buf[12];
     sprintf(buf, "%.8x", serializedDef.get(i));
@@ -2647,7 +2624,7 @@ NdbQueryIndexOperationDefImpl
     Uint32 requestInfo = QN_LookupNode::L_UNIQUE_INDEX;
 
     // Optional part1: Make list of parent nodes.
-    assert (getQueryOperationId() > 0);
+    assert (getInternalOpNo() > 0);
     requestInfo |= appendParentList (serializedDef);
 
     // Part2: m_keys[] are the keys to be used for index
@@ -2679,7 +2656,7 @@ NdbQueryIndexOperationDefImpl
     }
 
 #ifdef __TRACE_SERIALIZATION
-    ndbout << "Serialized index " << getQueryOperationId()-1 << " : ";
+    ndbout << "Serialized index " << getInternalOpNo()-1 << " : ";
     for (Uint32 i = startPos; i < serializedDef.getSize(); i++){
       char buf[12];
       sprintf(buf, "%.8x", serializedDef.get(i));
@@ -2705,7 +2682,7 @@ NdbQueryIndexOperationDefImpl
   // Optional part1: Append index as (single) parent op..
   { requestInfo |= DABits::NI_HAS_PARENT;
     Uint16Sequence parentSeq(serializedDef,1);
-    parentSeq.append(getQueryOperationId()-1);
+    parentSeq.append(getInternalOpNo()-1);
     parentSeq.finish();
   }
 
@@ -2735,7 +2712,7 @@ NdbQueryIndexOperationDefImpl
   }
 
 #ifdef __TRACE_SERIALIZATION
-  ndbout << "Serialized node " << getQueryOperationId() << " : ";
+  ndbout << "Serialized node " << getInternalOpNo() << " : ";
   for (Uint32 i = startPos; i < serializedDef.getSize(); i++) {
     char buf[12];
     sprintf(buf, "%.8x", serializedDef.get(i));
@@ -2752,17 +2729,17 @@ NdbQueryScanOperationDefImpl::NdbQueryScanOperationDefImpl (
                            const NdbTableImpl& table,
                            const NdbQueryOptionsImpl& options,
                            const char* ident,
-                           Uint32      ix,
-                           Uint32      id,
+                           Uint32      opNo,
+                           Uint32      internalOpNo,
                            int& error)
-  : NdbQueryOperationDefImpl(table,options,ident,ix,id,error)
+  : NdbQueryOperationDefImpl(table, options, ident, opNo, internalOpNo, error)
 {}
 
 int
 NdbQueryScanOperationDefImpl::serialize(Uint32Buffer& serializedDef,
                                         const NdbTableImpl& tableOrIndex)
 {
-  bool isRoot = (getQueryOperationIx()==0);
+  bool isRoot = (getOpNo()==0);
 
   // This method should only be invoked once.
   assert (!m_isPrepared);
@@ -2817,7 +2794,7 @@ NdbQueryScanOperationDefImpl::serialize(Uint32Buffer& serializedDef,
   }
 
 #ifdef __TRACE_SERIALIZATION
-  ndbout << "Serialized node " << getQueryOperationId() << " : ";
+  ndbout << "Serialized node " << getInternalOpNo() << " : ";
   for(Uint32 i = startPos; i < serializedDef.getSize(); i++){
     char buf[12];
     sprintf(buf, "%.8x", serializedDef.get(i));

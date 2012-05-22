@@ -595,6 +595,12 @@ void Dblqh::execCONTINUEB(Signal* signal)
     wait_readonly(signal);
     return;
   }
+  case ZLCP_FRAG_WATCHDOG:
+  {
+    jam();
+    checkLcpFragWatchdog(signal);
+    return;
+  }
   default:
     ndbrequire(false);
     break;
@@ -9777,6 +9783,10 @@ void Dblqh::execSCAN_NEXTREQ(Signal* signal)
   const Uint32 transid2 = nextReq->transId2;
   const Uint32 senderData = nextReq->senderData;
   Uint32 hashHi = signal->getSendersBlockRef();
+  // bug#13834481 hashHi!=0 caused timeout (tx not found)
+  const NodeInfo& senderInfo = getNodeInfo(refToNode(hashHi));
+  if (unlikely(senderInfo.m_version < NDBD_LONG_SCANFRAGREQ))
+    hashHi = 0;
 
   if (findTransaction(transid1, transid2, senderData, hashHi) != ZOK){
     jam();
@@ -10291,8 +10301,10 @@ void Dblqh::execSCAN_FRAGREQ(Signal* signal)
   Uint32 hashIndex;
   TcConnectionrecPtr nextHashptr;
   Uint32 senderHi = signal->getSendersBlockRef();
-
-  const Uint32 reqinfo = scanFragReq->requestInfo;
+  // bug#13834481 hashHi!=0 caused timeout (tx not found)
+  const NodeInfo& senderInfo = getNodeInfo(refToNode(senderHi));
+  if (unlikely(senderInfo.m_version < NDBD_LONG_SCANFRAGREQ))
+    senderHi = 0;
 
   /* Short SCANFRAGREQ has no sections, Long SCANFRAGREQ has 1 or 2
    * Section 0 : Mandatory ATTRINFO section
@@ -10322,9 +10334,17 @@ void Dblqh::execSCAN_FRAGREQ(Signal* signal)
   else
   {
     /* Short request, get Attr + Key len from signal */
-    aiLen= ScanFragReq::getAttrLen(reqinfo);
+    aiLen= ScanFragReq::getAttrLen(scanFragReq->requestInfo);
     keyLen= (scanFragReq->fragmentNoKeyLen >> 16);
+    /*
+     * bug#13834481.  Clear attribute length so that it is not
+     * re-interpreted as new 7.x bits.  initScanrec() uses signal
+     * data so we must modify signal data.
+     */
+    ScanFragReq::clearAttrLen(scanFragReq->requestInfo);
   }
+
+  const Uint32 reqinfo = scanFragReq->requestInfo;
   
   const Uint32 fragId = (scanFragReq->fragmentNoKeyLen & 0xFFFF);
   tabptr.i = scanFragReq->tableId;
@@ -10341,6 +10361,14 @@ void Dblqh::execSCAN_FRAGREQ(Signal* signal)
     goto error_handler_early_1;
   }
   
+  if (table_version_major(scanFragReq->schemaVersion) !=
+      table_version_major(tabptr.p->schemaVersion))
+  {
+    errorCode = ZINVALID_SCHEMA_VERSION;
+    senderData = scanFragReq->senderData;
+    goto error_handler_early;
+  }
+
   if (cfirstfreeTcConrec != RNIL && !ERROR_INSERTED_CLEAR(5055)) {
     seizeTcrec();
     tcConnectptr.p->clientConnectrec = scanFragReq->senderData;
@@ -13691,7 +13719,9 @@ void Dblqh::execLCP_PREPARE_REF(Signal* signal)
    */
   ndbrequire(refToMain(signal->getSendersBlockRef()) == BACKUP);
   lcpPtr.p->m_error = ref->errorCode;
-  
+
+  stopLcpFragWatchdog();
+
   if (lcpPtr.p->m_outstanding == 0)
   {
     jam();
@@ -13902,6 +13932,8 @@ void Dblqh::execBACKUP_FRAGMENT_CONF(Signal* signal)
   ndbrequire(lcpPtr.p->lcpState == LcpRecord::LCP_START_CHKP);
   lcpPtr.p->lcpState = LcpRecord::LCP_COMPLETED;
 
+  stopLcpFragWatchdog();
+
   /* ------------------------------------------------------------------------
    *   THE LOCAL CHECKPOINT HAS BEEN COMPLETED. IT IS NOW TIME TO START 
    *   A LOCAL CHECKPOINT ON THE NEXT FRAGMENT OR COMPLETE THIS LCP ROUND.
@@ -14050,6 +14082,9 @@ void Dblqh::sendLCP_FRAGIDREQ(Signal* signal)
   BlockReference backupRef = calcInstanceBlockRef(BACKUP);
   sendSignal(backupRef, GSN_LCP_PREPARE_REQ, signal, 
 	     LcpPrepareReq::SignalLength, JBB);
+
+  /* Now start the LCP fragment watchdog */
+  startLcpFragWatchdog(signal);
 
 }//Dblqh::sendLCP_FRAGIDREQ()
 
@@ -22788,7 +22823,7 @@ Dblqh::execDUMP_STATE_ORD(Signal* signal)
 
     ScanRecordPtr sp;
     sp.i = recordNo;
-    c_scanRecordPool.getPtr(sp);
+    c_scanRecordPool.getPtrIgnoreAlloc(sp);
     infoEvent("Dblqh::ScanRecord[%d]: state=%d, type=%d, "
 	      "complStatus=%d, scanNodeId=%d",
 	      sp.i,
@@ -22818,6 +22853,10 @@ Dblqh::execDUMP_STATE_ORD(Signal* signal)
 	      sp.p->scanTcWaiting,
 	      sp.p->scanTcrec,
 	      sp.p->scanKeyinfoFlag);
+    infoEvent(" LcpScan=%d  RowId(%u:%u)",
+              sp.p->lcpScan,
+              sp.p->m_row_id.m_page_no,
+              sp.p->m_row_id.m_page_idx);
     return;
   }
   if(dumpState->args[0] == DumpStateOrd::LqhDumpLcpState){
@@ -22845,6 +22884,28 @@ Dblqh::execDUMP_STATE_ORD(Signal* signal)
     infoEvent(" m_EMPTY_LCP_REQ=%s",
 	      TlcpPtr.p->m_EMPTY_LCP_REQ.getText(buf));
     
+    if ((signal->length() == 2) &&
+        (dumpState->args[1] == 0))
+    {
+      /* Dump reserved LCP scan rec */
+      /* As there's only one, we'll do a tight loop here */
+      infoEvent(" dumping reserved scan records");
+      for (Uint32 rec=0; rec < cscanrecFileSize; rec++)
+      {
+        ScanRecordPtr sp;
+        sp.i = rec;
+        c_scanRecordPool.getPtrIgnoreAlloc(sp);
+
+        if (sp.p->m_reserved &&
+            sp.p->lcpScan)
+        {
+          dumpState->args[0] = DumpStateOrd::LqhDumpOneScanRec;
+          dumpState->args[1] = rec;
+          execDUMP_STATE_ORD(signal);
+        }
+      }
+    }
+
     return;
   }
   if (dumpState->args[0] == DumpStateOrd::LQHLogFileInitStatus){
@@ -23429,6 +23490,30 @@ Dblqh::execDUMP_STATE_ORD(Signal* signal)
     }
   }
 
+  if (arg == 2397)
+  {
+    /* Send LCP_STATUS_REQ to BACKUP */
+    LcpStatusReq* req = (LcpStatusReq*) signal->getDataPtr();
+    req->senderRef = reference();
+    req->reqData = 0;
+    
+    BlockReference backupRef = calcInstanceBlockRef(BACKUP);
+    sendSignal(backupRef, GSN_LCP_STATUS_REQ, signal,
+               LcpStatusReq::SignalLength, JBB);
+  }
+
+
+  if(arg == 2309)
+  {
+    CRASH_INSERTION(5075);
+
+    progError(__LINE__, NDBD_EXIT_SYSTEM_ERROR, 
+              "Please report this as a bug. "
+              "Provide as much info as possible, expecially all the "
+              "ndb_*_out.log files, Thanks. "
+              "Shutting down node due to lack of LCP fragment scan progress");  
+  }
+
   if (arg == 5050)
   {
 #ifdef ERROR_INSERT
@@ -23656,6 +23741,195 @@ Dblqh::ndbinfo_write_op(Ndbinfo::Row & row, TcConnectionrecPtr tcPtr)
 }
 
 
+void
+Dblqh::startLcpFragWatchdog(Signal* signal)
+{
+  jam();
+  /* Must not already be running */
+  /* Thread could still be active from a previous run */
+  ndbrequire(c_lcpFragWatchdog.scan_running == false);
+  c_lcpFragWatchdog.scan_running = true;
+  
+  /* If thread is not already active, start it */
+  if (! c_lcpFragWatchdog.thread_active)
+  {
+    jam();
+    invokeLcpFragWatchdogThread(signal);
+  }
+
+  ndbrequire(c_lcpFragWatchdog.thread_active == true);
+}
+
+void
+Dblqh::invokeLcpFragWatchdogThread(Signal* signal)
+{
+  jam();
+  ndbrequire(c_lcpFragWatchdog.scan_running);
+  
+  c_lcpFragWatchdog.thread_active = true;
+  
+  signal->getDataPtrSend()[0] = ZLCP_FRAG_WATCHDOG;
+  sendSignalWithDelay(cownref, GSN_CONTINUEB, signal,
+                      LCPFragWatchdog::PollingPeriodMillis, 1);
+  
+  LcpStatusReq* req = (LcpStatusReq*)signal->getDataPtr();
+  req->senderRef = cownref;
+  req->reqData = 1;
+  BlockReference backupRef = calcInstanceBlockRef(BACKUP);
+  sendSignal(backupRef, GSN_LCP_STATUS_REQ, signal,
+             LcpStatusReq::SignalLength, JBB);
+}
+
+void
+Dblqh::execLCP_STATUS_CONF(Signal* signal)
+{
+  jamEntry();
+  LcpStatusConf* conf = (LcpStatusConf*) signal->getDataPtr();
+  
+  if (conf->reqData == 0)
+  {
+    /* DUMP STATE variant */
+    ndbout_c("Received LCP_STATUS_CONF from %x", conf->senderRef);
+    ndbout_c("  Status = %u, Table = %u, Frag = %u",
+             conf->lcpState,
+             conf->tableId,
+             conf->fragId);
+    ndbout_c("  Replica done rows %llu",
+             (((Uint64)conf->replicaDoneRowsHi) << 32) + conf->replicaDoneRowsLo);
+    ndbout_c("  Lcp done rows %llu, done bytes %llu",
+             (((Uint64)conf->lcpDoneRowsHi) << 32) + conf->lcpDoneRowsLo,
+             (((Uint64)conf->lcpDoneBytesHi) << 32) + conf->lcpDoneBytesLo);
+  }
+  
+  /* We can ignore the LCP status as if it's complete then we should
+   * promptly stop watching
+   */
+  c_lcpFragWatchdog.handleLcpStatusRep(conf->tableId,
+                                       conf->fragId,
+                                       (((Uint64)conf->replicaDoneRowsHi) << 32) + 
+                                       conf->replicaDoneRowsLo);
+}
+
+void
+Dblqh::execLCP_STATUS_REF(Signal* signal)
+{
+  jamEntry();
+  LcpStatusRef* ref = (LcpStatusRef*) signal->getDataPtr();
+
+  ndbout_c("Received LCP_STATUS_REF from %x, reqData = %u with error code %u",
+           ref->senderRef, ref->reqData, ref->error);
+
+  ndbrequire(false);
+}
+
+/**
+ * checkLcpFragWatchdog
+ *
+ * This method implements the LCP Frag watchdog 'thread', periodically
+ * checking for progress in the current LCP fragment scan
+ */
+void
+Dblqh::checkLcpFragWatchdog(Signal* signal)
+{
+  jam();
+  ndbrequire(c_lcpFragWatchdog.thread_active == true);
+
+  if (!c_lcpFragWatchdog.scan_running)
+  {
+    jam();
+    /* We've been asked to stop */
+    c_lcpFragWatchdog.thread_active = false;
+    return;
+  }
+
+  c_lcpFragWatchdog.pollCount++;
+
+  /* Check how long we've been waiting for progress on this scan */
+  if (c_lcpFragWatchdog.pollCount >=
+      LCPFragWatchdog::WarnPeriodsWithNoProgress)
+  {
+    jam();
+    warningEvent("LCP Frag watchdog : No progress on table %u, frag %u for %u s."
+                 "  %llu rows completed",
+                 c_lcpFragWatchdog.tableId,
+                 c_lcpFragWatchdog.fragId,
+                 (LCPFragWatchdog::PollingPeriodMillis * 
+                  c_lcpFragWatchdog.pollCount) / 1000,
+                 c_lcpFragWatchdog.rowCount);
+    ndbout_c("LCP Frag watchdog : No progress on table %u, frag %u for %u s."
+             "  %llu rows completed",
+             c_lcpFragWatchdog.tableId,
+             c_lcpFragWatchdog.fragId,
+             (LCPFragWatchdog::PollingPeriodMillis * 
+              c_lcpFragWatchdog.pollCount) / 1000,
+             c_lcpFragWatchdog.rowCount);
+    
+    if (c_lcpFragWatchdog.pollCount >= 
+        LCPFragWatchdog::MaxPeriodsWithNoProgress)
+    {
+      jam();
+      /* Too long with no progress... */
+      
+      warningEvent("LCP Frag watchdog : Checkpoint of table %u fragment %u "
+                   "too slow (no progress for > %u s).",
+                   c_lcpFragWatchdog.tableId,
+                   c_lcpFragWatchdog.fragId,
+                   (LCPFragWatchdog::PollingPeriodMillis * 
+                    LCPFragWatchdog::MaxPeriodsWithNoProgress) / 1000);
+      ndbout_c("LCP Frag watchdog : Checkpoint of table %u fragment %u "
+               "too slow (no progress for > %u s).",
+               c_lcpFragWatchdog.tableId,
+               c_lcpFragWatchdog.fragId,
+               (LCPFragWatchdog::PollingPeriodMillis * 
+                LCPFragWatchdog::MaxPeriodsWithNoProgress) / 1000);
+      
+      /* Dump some LCP state for debugging... */
+      {
+        DumpStateOrd* ds = (DumpStateOrd*) signal->getDataPtrSend();
+
+        /* DIH : */
+        ds->args[0] = DumpStateOrd::DihDumpLCPState;
+        sendSignal(DBDIH_REF, GSN_DUMP_STATE_ORD, signal, 1, JBA);
+        
+        ds->args[0] = 7012;
+        sendSignal(DBDIH_REF, GSN_DUMP_STATE_ORD, signal, 1, JBA);
+        
+        /* BACKUP : */
+        ds->args[0] = 23;
+        sendSignal(BACKUP_REF, GSN_DUMP_STATE_ORD, signal, 1, JBA);
+        
+        ds->args[0] = 24;
+        ds->args[1] = 2424;
+        sendSignal(BACKUP_REF, GSN_DUMP_STATE_ORD, signal, 2, JBA);
+
+        /* LQH : */
+        ds->args[0] = DumpStateOrd::LqhDumpLcpState;
+        sendSignal(cownref, GSN_DUMP_STATE_ORD, signal, 1, JBA);
+        
+        /* Delay self-execution to give time for dump output */
+        ds->args[0] = 2309;
+        sendSignalWithDelay(cownref, GSN_DUMP_STATE_ORD, signal, 5*1000, 1);
+      }
+      
+      return;
+    }
+  }
+  
+  invokeLcpFragWatchdogThread(signal);
+}
+
+void
+Dblqh::stopLcpFragWatchdog()
+{
+  jam();
+  /* Mark watchdog as no longer running, 
+   * If the 'thread' is active then it will 
+   * stop at the next wakeup
+   */
+  ndbrequire(c_lcpFragWatchdog.scan_running);
+  c_lcpFragWatchdog.reset();
+};
+    
 /* **************************************************************** */
 /* ---------------------------------------------------------------- */
 /* ---------------------- TRIGGER HANDLING ------------------------ */
