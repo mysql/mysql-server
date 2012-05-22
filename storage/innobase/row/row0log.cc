@@ -41,7 +41,7 @@ static bool row_log_apply_print;
 #endif /* ROW_LOG_APPLY_PRINT */
 
 /** Size of the modification log entry header, in bytes */
-#define ROW_LOG_HEADER_SIZE (2 + DATA_TRX_ID_LEN)/*op, trx_id, extra_size*/
+#define ROW_LOG_HEADER_SIZE 2/*op, extra_size*/
 
 /** Log block for modifications during online index creation */
 struct row_log_buf_struct {
@@ -143,9 +143,22 @@ op_ok:
 	ut_ad(extra_size >= REC_N_NEW_EXTRA_BYTES);
 	extra_size -= REC_N_NEW_EXTRA_BYTES;
 	size -= REC_N_NEW_EXTRA_BYTES;
-	mrec_size = size + ROW_LOG_HEADER_SIZE + (extra_size >= 0x80);
-
 	ut_ad(size <= sizeof log->tail.buf);
+
+	switch (op) {
+	case ROW_OP_INSERT:
+	case ROW_OP_DELETE_MARK:
+	case ROW_OP_DELETE_UNMARK:
+	case ROW_OP_DELETE_PURGE:
+		mrec_size = ROW_LOG_HEADER_SIZE + DATA_TRX_ID_LEN
+			+ (extra_size >= 0x80) + size;
+		break;
+	case ROW_OP_PURGE:
+		mrec_size = ROW_LOG_HEADER_SIZE
+			+ (extra_size >= 0x80) + size;
+		break;
+	}
+
 	ut_ad(log->tail.bytes < srv_sort_buf_size);
 	avail_size = srv_sort_buf_size - log->tail.bytes;
 
@@ -156,8 +169,17 @@ op_ok:
 	}
 
 	*b++ = op;
-	trx_write_trx_id(b, trx_id);
-	b += DATA_TRX_ID_LEN;
+
+	switch (op) {
+	case ROW_OP_INSERT:
+	case ROW_OP_DELETE_MARK:
+	case ROW_OP_DELETE_UNMARK:
+	case ROW_OP_DELETE_PURGE:
+		trx_write_trx_id(b, trx_id);
+		b += DATA_TRX_ID_LEN;
+	case ROW_OP_PURGE:
+		break;
+	}
 
 	if (extra_size < 0x80) {
 		*b++ = (byte) extra_size;
@@ -648,9 +670,18 @@ row_log_apply_op(
 	case ROW_OP_INSERT:
 	case ROW_OP_DELETE_MARK:
 	case ROW_OP_DELETE_UNMARK:
-	case ROW_OP_PURGE:
 	case ROW_OP_DELETE_PURGE:
+		if (ROW_LOG_HEADER_SIZE + DATA_TRX_ID_LEN + mrec >= mrec_end) {
+			return(NULL);
+		}
+
 		op = static_cast<enum row_op>(*mrec++);
+		trx_id = trx_read_trx_id(mrec);
+		mrec += DATA_TRX_ID_LEN;
+		break;
+	case ROW_OP_PURGE:
+		op = static_cast<enum row_op>(*mrec++);
+		trx_id = 0;
 		break;
 	default:
 corrupted:
@@ -658,9 +689,6 @@ corrupted:
 		*error = DB_CORRUPTION;
 		return(NULL);
 	}
-
-	trx_id = trx_read_trx_id(mrec);
-	mrec += DATA_TRX_ID_LEN;
 
 	extra_size = *mrec++;
 
