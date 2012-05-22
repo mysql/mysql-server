@@ -73,7 +73,6 @@ show variables like 'rpl_semi_sync_master_enabled';
 
 echo [ enable semi-sync on master ];
 set global rpl_semi_sync_master_enabled = 1;
-set global rpl_semi_sync_master_trace_level= 16;
 show variables like 'rpl_semi_sync_master_enabled';
 
 echo [ status of semi-sync on master should be ON even without any semi-sync slaves ];
@@ -137,7 +136,6 @@ show variables like 'rpl_semi_sync_slave_enabled';
 
 echo [ enable semi-sync on slave ];
 set global rpl_semi_sync_slave_enabled = 1;
-set global rpl_semi_sync_slave_trace_level= 16;
 show variables like 'rpl_semi_sync_slave_enabled';
 source include/start_slave.inc;
 
@@ -566,7 +564,6 @@ replace_result $SEMISYNC_MASTER_PLUGIN SEMISYNC_MASTER_PLUGIN;
 eval INSTALL PLUGIN rpl_semi_sync_master SONAME '$SEMISYNC_MASTER_PLUGIN';
 set global rpl_semi_sync_master_timeout= 10000; /* 10s */
 set global rpl_semi_sync_master_enabled= 1;
-set global rpl_semi_sync_master_trace_level= 16;
 
 connection slave;
 echo [ on slave ];
@@ -584,7 +581,6 @@ echo [ reinstall semi-sync slave plugin and disable semi-sync ];
 replace_result $SEMISYNC_SLAVE_PLUGIN SEMISYNC_SLAVE_PLUGIN;
 eval INSTALL PLUGIN rpl_semi_sync_slave SONAME '$SEMISYNC_SLAVE_PLUGIN';
 set global rpl_semi_sync_slave_enabled= 0;
-set global rpl_semi_sync_slave_trace_level= 16;
 SHOW VARIABLES LIKE 'rpl_semi_sync_slave_enabled';
 SHOW STATUS LIKE 'Rpl_semi_sync_slave_status';
 source include/start_slave.inc;
