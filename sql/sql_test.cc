@@ -40,6 +40,7 @@
 #endif
 
 #include "global_threads.h"
+#include "table_cache.h" // table_cache_manager
 
 const char *lock_descriptions[TL_WRITE_ONLY + 1] =
 {
