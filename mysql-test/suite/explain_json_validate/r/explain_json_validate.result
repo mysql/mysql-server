@@ -13,29 +13,29 @@ ok at line 389
 ok at line 447
 ok at line 509
 ok at line 548
-ok at line 597
-ok at line 651
-ok at line 692
-ok at line 731
-ok at line 803
-ok at line 892
-ok at line 1000
-ok at line 1109
-ok at line 1143
-ok at line 1191
-ok at line 1225
-ok at line 1256
-ok at line 1312
-ok at line 1377
-ok at line 1452
-ok at line 1497
-ok at line 1536
-ok at line 1575
-ok at line 1606
-ok at line 1658
-ok at line 1684
-ok at line 1726
-ok at line 1773
+ok at line 599
+ok at line 653
+ok at line 694
+ok at line 733
+ok at line 805
+ok at line 894
+ok at line 1002
+ok at line 1111
+ok at line 1145
+ok at line 1193
+ok at line 1227
+ok at line 1258
+ok at line 1314
+ok at line 1379
+ok at line 1454
+ok at line 1499
+ok at line 1538
+ok at line 1577
+ok at line 1608
+ok at line 1660
+ok at line 1686
+ok at line 1728
+ok at line 1775
 
 Validation: mysql-test/r/explain_json_none.result
 
@@ -52,29 +52,29 @@ ok at line 378
 ok at line 448
 ok at line 510
 ok at line 549
-ok at line 598
-ok at line 652
-ok at line 693
-ok at line 732
-ok at line 805
-ok at line 892
-ok at line 1000
-ok at line 1099
-ok at line 1133
-ok at line 1181
-ok at line 1215
-ok at line 1246
-ok at line 1302
-ok at line 1367
-ok at line 1442
-ok at line 1487
-ok at line 1526
-ok at line 1565
-ok at line 1596
-ok at line 1648
-ok at line 1674
-ok at line 1716
-ok at line 1763
+ok at line 600
+ok at line 654
+ok at line 695
+ok at line 734
+ok at line 807
+ok at line 894
+ok at line 1002
+ok at line 1101
+ok at line 1135
+ok at line 1183
+ok at line 1217
+ok at line 1248
+ok at line 1304
+ok at line 1369
+ok at line 1444
+ok at line 1489
+ok at line 1528
+ok at line 1567
+ok at line 1598
+ok at line 1650
+ok at line 1676
+ok at line 1718
+ok at line 1765
 
 Validation: mysql-test/r/innodb_explain_json_non_select_all.result
 
@@ -204,16 +204,16 @@ ok at line 5733
 ok at line 5752
 ok at line 5791
 ok at line 5813
-ok at line 5870
-ok at line 5929
-ok at line 6022
-ok at line 6097
-ok at line 6200
-ok at line 6290
-ok at line 6442
-ok at line 6472
-ok at line 6516
-ok at line 6548
+ok at line 5872
+ok at line 5931
+ok at line 6024
+ok at line 6099
+ok at line 6202
+ok at line 6292
+ok at line 6444
+ok at line 6474
+ok at line 6518
+ok at line 6550
 
 Validation: mysql-test/r/innodb_explain_json_non_select_none.result
 
@@ -343,16 +343,16 @@ ok at line 5748
 ok at line 5767
 ok at line 5806
 ok at line 5828
-ok at line 5885
-ok at line 5944
-ok at line 6039
-ok at line 6120
-ok at line 6229
-ok at line 6325
-ok at line 6483
-ok at line 6513
-ok at line 6557
-ok at line 6589
+ok at line 5887
+ok at line 5946
+ok at line 6041
+ok at line 6122
+ok at line 6231
+ok at line 6327
+ok at line 6485
+ok at line 6515
+ok at line 6559
+ok at line 6591
 
 Validation: mysql-test/r/myisam_explain_json_non_select_all.result
 
@@ -482,16 +482,16 @@ ok at line 5602
 ok at line 5621
 ok at line 5662
 ok at line 5687
-ok at line 5743
-ok at line 5802
-ok at line 5892
-ok at line 5967
-ok at line 6068
-ok at line 6158
-ok at line 6306
-ok at line 6336
-ok at line 6380
-ok at line 6412
+ok at line 5745
+ok at line 5804
+ok at line 5894
+ok at line 5969
+ok at line 6070
+ok at line 6160
+ok at line 6308
+ok at line 6338
+ok at line 6382
+ok at line 6414
 
 Validation: mysql-test/r/myisam_explain_json_non_select_none.result
 
@@ -621,16 +621,16 @@ ok at line 5613
 ok at line 5632
 ok at line 5673
 ok at line 5698
-ok at line 5754
-ok at line 5813
-ok at line 5905
-ok at line 5986
-ok at line 6093
-ok at line 6189
-ok at line 6343
-ok at line 6373
-ok at line 6417
-ok at line 6449
+ok at line 5756
+ok at line 5815
+ok at line 5907
+ok at line 5988
+ok at line 6095
+ok at line 6191
+ok at line 6345
+ok at line 6375
+ok at line 6419
+ok at line 6451
 
 
 ALL OK

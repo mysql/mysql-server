@@ -638,7 +638,6 @@ bool Table_triggers_list::create_trigger(THD *thd, TABLE_LIST *tables,
   sql_mode_t *trg_sql_mode;
   char trg_definer_holder[USER_HOST_BUFF_SIZE];
   LEX_STRING *trg_definer;
-  Item_trigger_field *trg_field;
   struct st_trigname trigname;
   LEX_STRING *trg_client_cs_name;
   LEX_STRING *trg_connection_cl_name;
@@ -655,8 +654,12 @@ bool Table_triggers_list::create_trigger(THD *thd, TABLE_LIST *tables,
     return 1;
   }
 
+  sp_head *trg= lex->sphead;
+  int trg_event= trg->m_trg_chistics.event;
+  int trg_action_time= trg->m_trg_chistics.action_time;
+
   /* We don't allow creation of several triggers of the same type yet */
-  if (bodies[lex->trg_chistics.event][lex->trg_chistics.action_time] != 0)
+  if (bodies[trg_event][trg_action_time] != NULL)
   {
     my_error(ER_NOT_SUPPORTED_YET, MYF(0),
              "multiple triggers with the same action time"
@@ -724,7 +727,7 @@ bool Table_triggers_list::create_trigger(THD *thd, TABLE_LIST *tables,
   */
   old_field= new_field= table->field;
 
-  for (trg_field= lex->sphead->m_trg_table_fields.first;
+  for (Item_trigger_field *trg_field= lex->sphead->m_trg_table_fields.first;
        trg_field; trg_field= trg_field->next_trg_field)
   {
     /*
@@ -1361,7 +1364,6 @@ bool Table_triggers_list::check_n_load(THD *thd, const char *db,
       thd->reset_db((char*) db, strlen(db));
       while ((trg_create_str= it++))
       {
-        sp_head *sp;
         trg_sql_mode= itm++;
         LEX_STRING *trg_definer= it_definer++;
 
@@ -1402,7 +1404,7 @@ bool Table_triggers_list::check_n_load(THD *thd, const char *db,
           if (!triggers->m_has_unparseable_trigger)
             triggers->set_parse_error_message(error_handler.get_error_message());
           /* Currently sphead is always set to NULL in case of a parse error */
-          DBUG_ASSERT(lex.sphead == 0);
+          DBUG_ASSERT(lex.sphead == NULL);
           if (error_handler.get_trigger_name())
           {
             LEX_STRING *trigger_name;
@@ -1443,12 +1445,14 @@ bool Table_triggers_list::check_n_load(THD *thd, const char *db,
           continue;
         }
 
-        lex.sphead->set_info(0, 0, &lex.sp_chistics, (ulong) *trg_sql_mode);
+        sp_head *sp= lex.sphead;
+        sp->set_info(0, 0, &lex.sp_chistics, *trg_sql_mode);
+        sp->m_trg_list= triggers;
 
-        int event= lex.trg_chistics.event;
-        int action_time= lex.trg_chistics.action_time;
+        int trg_event= sp->m_trg_chistics.event;
+        int trg_action_time= sp->m_trg_chistics.action_time;
 
-        sp= triggers->bodies[event][action_time]= lex.sphead;
+        triggers->bodies[trg_event][trg_action_time]= sp;
         lex.sphead= NULL; /* Prevent double cleanup. */
 
         sp->set_info(0, 0, &lex.sp_chistics, *trg_sql_mode);
@@ -1523,14 +1527,6 @@ bool Table_triggers_list::check_n_load(THD *thd, const char *db,
         }
 
         /*
-          Gather all Item_trigger_field objects representing access to fields
-          in old/new versions of row in trigger into lists containing all such
-          objects for the triggers with same action and timing.
-        */
-        triggers->trigger_fields[lex.trg_chistics.event]
-                                [lex.trg_chistics.action_time]=
-          sp->m_trg_table_fields.first;
-        /*
           Also let us bind these objects to Field objects in table being
           opened.
 
@@ -1544,8 +1540,7 @@ bool Table_triggers_list::check_n_load(THD *thd, const char *db,
              trg_field= trg_field->next_trg_field)
         {
           trg_field->setup_field(thd, table,
-            &triggers->subject_table_grants[lex.trg_chistics.event]
-                                           [lex.trg_chistics.action_time]);
+            &triggers->subject_table_grants[trg_event][trg_action_time]);
         }
 
         lex_end(&lex);
@@ -2232,7 +2227,12 @@ void Table_triggers_list::mark_fields_used(trg_event_type event)
 
   for (action_time= 0; action_time < (int)TRG_ACTION_MAX; action_time++)
   {
-    for (trg_field= trigger_fields[event][action_time]; trg_field;
+    sp_head *sp= bodies[event][action_time];
+
+    if (!sp)
+      continue;
+
+    for (trg_field= sp->m_trg_table_fields.first; trg_field;
          trg_field= trg_field->next_trg_field)
     {
       /* We cannot mark fields which does not present in table. */

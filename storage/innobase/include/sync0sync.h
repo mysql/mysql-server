@@ -762,21 +762,15 @@ struct mutex_struct {
 #endif /* UNIV_SYNC_DEBUG */
 	const char*	cfile_name;/*!< File name where mutex created */
 	ulint		cline;	/*!< Line where created */
+	ulong		count_os_wait;	/*!< count of os_wait */
 #ifdef UNIV_DEBUG
+
+/** Value of mutex_struct::magic_n */
+# define MUTEX_MAGIC_N	979585UL
+
 	os_thread_id_t thread_id; /*!< The thread id of the thread
 				which locked the mutex. */
 	ulint		magic_n;	/*!< MUTEX_MAGIC_N */
-/** Value of mutex_struct::magic_n */
-# define MUTEX_MAGIC_N	(ulint)979585
-#endif /* UNIV_DEBUG */
-	ulong		count_os_wait;	/*!< count of os_wait */
-#ifdef UNIV_DEBUG
-	ulong		count_using;	/*!< count of times mutex used */
-	ulong		count_spin_loop; /*!< count of spin loops */
-	ulong		count_spin_rounds;/*!< count of spin rounds */
-	ulong		count_os_yield;	/*!< count of os_wait */
-	ulonglong	lspent_time;	/*!< mutex os_wait timer msec */
-	ulonglong	lmax_spent_time;/*!< mutex os_wait timer msec */
 	const char*	cmutex_name;	/*!< mutex name */
 	ulint		mutex_type;	/*!< 0=usual mutex, 1=rw_lock mutex */
 #endif /* UNIV_DEBUG */

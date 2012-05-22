@@ -15,7 +15,7 @@ perl mysql-test-run.pl --force --timer  --big-test --testcase-timeout=60 --debug
 perl mysql-test-run.pl --force --timer  --debug-server --parallel=auto --experimental=collections/default.experimental --comment=n_mix-debug  --vardir=var-n_mix-debug  --mysqld=--binlog-format=mixed --skip-test-list=collections/disabled-daily.list
 perl mysql-test-run.pl --force --timer  --debug-server --parallel=auto --experimental=collections/default.experimental --comment=row-debug  --vardir=var-row-debug  --mysqld=--binlog-format=row --skip-test-list=collections/disabled-daily.list
 perl mysql-test-run.pl --force --timer   --debug-server --parallel=auto --experimental=collections/default.experimental --comment=ps_row-debug  --vardir=var-ps_row-debug  --mysqld=--binlog-format=row     --ps-protocol --skip-test-list=collections/disabled-daily.list
-perl mysql-test-run.pl --force --timer  --debug-server --parallel=auto --experimental=collections/default.experimental --comment=embedded-debug  --vardir=var-embedded-debug  --embedded
+perl mysql-test-run.pl --force --timer --big-test --debug-server --parallel=auto --experimental=collections/default.experimental --comment=embedded-debug  --vardir=var-embedded-debug  --embedded
 perl mysql-test-run.pl --force --timer  --debug-server --parallel=auto --experimental=collections/default.experimental --comment=ps-debug  --vardir=var-ps-debug  --ps-protocol --skip-test-list=collections/disabled-daily.list
 
 # Run the suites that are not part of the default - funcs_2, parts, stress, jp, nist
@@ -52,7 +52,7 @@ perl mysql-test-run.pl --force --timer  --big-test --testcase-timeout=60 --paral
 perl mysql-test-run.pl --force --timer  --parallel=auto --experimental=collections/default.experimental --comment=n_mix  --vardir=var-n_mix  --mysqld=--binlog-format=mixed --skip-test-list=collections/disabled-daily.list
 perl mysql-test-run.pl --force --timer  --parallel=auto --experimental=collections/default.experimental --comment=row  --vardir=var-row  --mysqld=--binlog-format=row --skip-test-list=collections/disabled-daily.list
 perl mysql-test-run.pl --force --timer   --parallel=auto --experimental=collections/default.experimental --comment=ps_row  --vardir=var-ps_row  --mysqld=--binlog-format=row     --ps-protocol --skip-test-list=collections/disabled-daily.list
-perl mysql-test-run.pl --force --timer  --parallel=auto --experimental=collections/default.experimental --comment=embedded  --vardir=var-embedded  --embedded
+perl mysql-test-run.pl --force --timer  --big-test --parallel=auto --experimental=collections/default.experimental --comment=embedded  --vardir=var-embedded  --embedded
 perl mysql-test-run.pl --force --timer  --parallel=auto --experimental=collections/default.experimental --comment=ps  --vardir=var-ps  --ps-protocol --skip-test-list=collections/disabled-daily.list
 
 # Run the suites that are not part of the default - funcs_2, parts, stress, jp, nist
@@ -95,3 +95,7 @@ perl mysql-test-run.pl --timer --force --parallel=auto --comment=innodb_4k_size 
 
 # Run InnoDB with 8k page size
 perl mysql-test-run.pl --timer --force --parallel=auto --comment=innodb_8k_size --vardir=var-innodb-8k --experimental=collections/default.experimental --skip-ndb --suite=innodb --mysqld=--innodb-page-size=8k
+
+# Additional run to test rpl HASH_SCAN & INDEX_SCAN
+perl mysql-test-run.pl --force --timer --parallel=auto --experimental=collections/default.experimental --comment=binlog_rpl_row_hash_scan --vardir=var-binlog_rpl_row_hash_scan --mysqld=--binlog-format=row --suite=binlog,rpl --mysqld=--slave-rows-search-algorithms=HASH_SCAN,INDEX_SCAN --big-test --testcase-timeout=60
+perl mysql-test-run.pl --timer --force --parallel=auto --comment=rpl_binlog_row_hash_MTS --vardir=var-mts-rpl-binlog-hash-n_mix --mysqld=--binlog-format=row --experimental=collections/default.experimental --skip-ndb  --unit-tests --mysqld=--slave-parallel-workers=4 --mysqld=--slave-transaction-retries=0 --suite=rpl,binlog  -mysqld=--slave-rows-search-algorithms=HASH_SCAN,INDEX_SCAN

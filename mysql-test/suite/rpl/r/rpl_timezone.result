@@ -128,6 +128,8 @@ SET @@session.time_zone='+01:00';
 insert into t1 values('2008-12-23 19:39:39',1);
 SET @@session.time_zone='+02:00';
 insert delayed into t1 values ('2008-12-23 19:39:39',2);
+Warnings:
+Warning	1287	'INSERT DELAYED' is deprecated and will be removed in a future release. Please use INSERT instead
 flush table t1;
 flush logs;
 select * from t1;

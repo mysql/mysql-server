@@ -40,10 +40,31 @@ struct _ft_vft
   void      (*reinit_search)(FT_INFO *);
 };
 
+typedef struct st_ft_info_ext FT_INFO_EXT;
+struct _ft_vft_ext
+{
+  uint      (*get_version)();        // Extended API version
+  ulonglong (*get_flags)();
+  ulonglong (*get_docid)(FT_INFO_EXT *);
+  ulonglong (*count_matches)(FT_INFO_EXT *);
+};
+
+/* Flags for extended FT API */
+#define FTS_ORDERED_RESULT                (LL(1) << 1)
+#define FTS_DOCID_IN_RESULT               (LL(1) << 2)
+
+#define FTS_DOC_ID_COL_NAME "FTS_DOC_ID"
+
 #ifndef FT_CORE
 struct st_ft_info
 {
   struct _ft_vft *please; /* INTERCAL style :-) */
+};
+
+struct st_ft_info_ext
+{
+  struct _ft_vft     *please; /* INTERCAL style :-) */
+  struct _ft_vft_ext *could_you;
 };
 #endif
 

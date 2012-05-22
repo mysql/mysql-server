@@ -29,6 +29,7 @@ Created 1/8/1996 Heikki Tuuri
 #include "rem0types.h"
 #include "fsp0fsp.h"
 #include "srv0srv.h"
+#include "sync0rw.h" /* RW_S_LATCH */
 
 /*********************************************************************//**
 Gets the minimum number of bytes per character.
@@ -363,6 +364,56 @@ dict_table_get_n_cols(
 	ut_ad(table->magic_n == DICT_TABLE_MAGIC_N);
 
 	return(table->n_cols);
+}
+
+/********************************************************************//**
+Gets the approximately estimated number of rows in the table.
+@return	estimated number of rows */
+UNIV_INLINE
+ib_uint64_t
+dict_table_get_n_rows(
+/*==================*/
+	const dict_table_t*	table)	/*!< in: table */
+{
+	ut_ad(table->stat_initialized);
+
+	return(table->stat_n_rows);
+}
+
+/********************************************************************//**
+Increment the number of rows in the table by one.
+Notice that this operation is not protected by any latch, the number is
+approximate. */
+UNIV_INLINE
+void
+dict_table_n_rows_inc(
+/*==================*/
+	dict_table_t*	table)	/*!< in/out: table */
+{
+	if (table->stat_initialized) {
+		ib_uint64_t	n_rows = table->stat_n_rows;
+		if (n_rows < 0xFFFFFFFFFFFFFFFFULL) {
+			table->stat_n_rows = n_rows + 1;
+		}
+	}
+}
+
+/********************************************************************//**
+Decrement the number of rows in the table by one.
+Notice that this operation is not protected by any latch, the number is
+approximate. */
+UNIV_INLINE
+void
+dict_table_n_rows_dec(
+/*==================*/
+	dict_table_t*	table)	/*!< in/out: table */
+{
+	if (table->stat_initialized) {
+		ib_uint64_t	n_rows = table->stat_n_rows;
+		if (n_rows > 0) {
+			table->stat_n_rows = n_rows - 1;
+		}
+	}
 }
 
 #ifdef UNIV_DEBUG

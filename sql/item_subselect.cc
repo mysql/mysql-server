@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1239,18 +1239,23 @@ Item_in_subselect::single_value_transformer(JOIN *join,
   THD * const thd= unit->thd;
 
   /*
-    If this is an ALL/ANY single-value subselect, try to rewrite it with
-    a MIN/MAX subselect. We can do that if a possible NULL result of the
-    subselect can be ignored.
+    If this is an ALL/ANY single-value subquery predicate, try to rewrite
+    it with a MIN/MAX subquery.
+
     E.g. SELECT * FROM t1 WHERE b > ANY (SELECT a FROM t2) can be rewritten
-    with SELECT * FROM t1 WHERE b > (SELECT MAX(a) FROM t2).
-    We can't check that this optimization is safe if it's not a top-level
-    item of the WHERE clause (e.g. because the WHERE clause can contain IS
-    NULL/IS NOT NULL functions). If so, we rewrite ALL/ANY with NOT EXISTS
-    later in this method.
+    with SELECT * FROM t1 WHERE b > (SELECT MIN(a) FROM t2).
+
+    A predicate may be transformed to use a MIN/MAX subquery if it:
+    1. has a greater than/less than comparison operator, and
+    2. is not correlated with the outer query, and
+    3. UNKNOWN results are treated as FALSE, or can never be generated, and
+    4. is not an ALL query where expression from subquery is nullable
   */
-  if ((abort_on_null || (upper_item && upper_item->top_level())) &&
-      !select_lex->master_unit()->uncacheable && !func->eqne_op())
+  if (!func->eqne_op() &&                                             // 1
+      !select_lex->master_unit()->uncacheable &&                      // 2
+      (abort_on_null || (upper_item && upper_item->top_level()) ||    // 3
+       (!left_expr->maybe_null && !join->ref_ptrs[0]->maybe_null)) &&
+      !(substype() == ALL_SUBS && join->ref_ptrs[0]->maybe_null))     // 4
   {
     if (substitution)
     {
@@ -2597,10 +2602,18 @@ bool subselect_indexsubquery_engine::scan_table()
   // We never need to do a table scan of the materialized table.
   DBUG_ASSERT(engine_type() != HASH_SJ_ENGINE);
 
-  if (table->file->inited)
-    table->file->ha_index_end();
+  if (table->file->inited &&
+      (error= table->file->ha_index_end()))
+  {
+    (void) report_error(table, error);
+    DBUG_RETURN(true);
+  }
  
-  table->file->ha_rnd_init(1);
+  if ((error= table->file->ha_rnd_init(1)))
+  {
+    (void) report_error(table, error);
+    DBUG_RETURN(true);
+  }
   table->file->extra_opt(HA_EXTRA_CACHE,
                          current_thd->variables.read_buff_size);
   table->null_row= 0;
@@ -2841,8 +2854,12 @@ bool subselect_indexsubquery_engine::exec()
     DBUG_RETURN(scan_result);
   }
 
-  if (!table->file->inited)
-    table->file->ha_index_init(tab->ref.key, !unique /* sorted */);
+  if (!table->file->inited &&
+      (error= table->file->ha_index_init(tab->ref.key, !unique /* sorted */)))
+  {
+    (void) report_error(table, error);
+    DBUG_RETURN(true);
+  }
   error= table->file->ha_index_read_map(table->record[0],
                                         tab->ref.key_buff,
                                         make_prev_keypart_map(tab->ref.key_parts),

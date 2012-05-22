@@ -226,9 +226,7 @@ dict_mem_table_create(
 /*==================*/
 	const char*	name,		/*!< in: table name */
 	ulint		space,		/*!< in: space where the clustered index
-					of the table is placed; this parameter
-					is ignored if the table is made
-					a member of a cluster */
+					of the table is placed */
 	ulint		n_cols,		/*!< in: number of columns */
 	ulint		flags,		/*!< in: table flags */
 	ulint		flags2);	/*!< in: table flags2 */
@@ -250,7 +248,19 @@ dict_mem_table_add_col(
 	const char*	name,	/*!< in: column name, or NULL */
 	ulint		mtype,	/*!< in: main datatype */
 	ulint		prtype,	/*!< in: precise type */
-	ulint		len);	/*!< in: precision */
+	ulint		len)	/*!< in: precision */
+	__attribute__((nonnull(1)));
+/**********************************************************************//**
+Renames a column of a table in the data dictionary cache. */
+UNIV_INTERN
+void
+dict_mem_table_col_rename(
+/*======================*/
+	dict_table_t*	table,	/*!< in/out: table */
+	unsigned	nth_col,/*!< in: column index */
+	const char*	from,	/*!< in: old column name */
+	const char*	to)	/*!< in: new column name */
+	__attribute__((nonnull));
 /**********************************************************************//**
 This function populates a dict_col_t memory structure with
 supplied information. */
@@ -473,6 +483,8 @@ struct dict_index_struct{
 	unsigned	n_nullable:10;/*!< number of nullable fields */
 	unsigned	cached:1;/*!< TRUE if the index object is in the
 				dictionary cache */
+	unsigned	to_be_dropped:1;
+				/*!< TRUE if the index is to be dropped */
 	unsigned	online_status:2;
 				/*!< enum online_index_status */
 	dict_field_t*	fields;	/*!< array of field descriptions */
@@ -715,7 +727,26 @@ struct dict_table_struct{
 	unsigned	stat_initialized:1; /*!< TRUE if statistics have
 				been calculated the first time
 				after database startup or table creation */
-	ib_int64_t	stat_n_rows;
+	ib_uint32_t	stat_persistent;
+				/*!< The two bits below are set in the
+				::stat_persistent member and have the following
+				meaning:
+				1. _ON=0, _OFF=0, no explicit persistent stats
+				setting for this table, the value of the global
+				srv_stats_persistent is used to determine
+				whether the table has persistent stats enabled
+				or not
+				2. _ON=0, _OFF=1, persistent stats are
+				explicitly disabled for this table, regardless
+				of the value of the global srv_stats_persistent
+				3. _ON=1, _OFF=0, persistent stats are
+				explicitly enabled for this table, regardless
+				of the value of the global srv_stats_persistent
+				4. _ON=1, _OFF=1, not allowed, we assert if
+				this ever happens. */
+#define DICT_STATS_PERSISTENT_ON	(1 << 1)
+#define DICT_STATS_PERSISTENT_OFF	(1 << 2)
+	ib_uint64_t	stat_n_rows;
 				/*!< approximate number of rows in the table;
 				we periodically calculate new estimates */
 	ulint		stat_clustered_index_size;
@@ -723,14 +754,14 @@ struct dict_table_struct{
 				database pages */
 	ulint		stat_sum_of_other_index_sizes;
 				/*!< other indexes in database pages */
-	ulint		stat_modified_counter;
+	ib_uint64_t	stat_modified_counter;
 				/*!< when a row is inserted, updated,
 				or deleted,
 				we add 1 to this number; we calculate new
 				estimates for the stat_... values for the
-				table and the indexes at an interval of 2 GB
-				or when about 1 / 16 of table has been
-				modified; also when the estimate operation is
+				table and the indexes when about 1 / 16 of
+				table has been modified;
+				also when the estimate operation is
 				called for MySQL SHOW TABLE STATUS; the
 				counter is reset to zero at statistics
 				calculation; this counter is not protected by

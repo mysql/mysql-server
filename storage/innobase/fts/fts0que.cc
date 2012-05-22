@@ -24,6 +24,7 @@ Created 2007/03/27 Sunny Bains
 Completed 2011/7/10 Sunny and Jimmy Yang
 *******************************************************/
 
+#include "dict0dict.h" /* dict_table_get_n_rows() */
 #include "ut0rbt.h"
 #include "row0sel.h"
 #include "fts0fts.h"
@@ -126,7 +127,7 @@ struct fts_query_struct {
 					position info for each matched word
 					in the word list */
 
-	ib_int64_t	total_docs;	/*!< The total number of documents */
+	ib_uint64_t	total_docs;	/*!< The total number of documents */
 
 	ulint		total_words;	/*!< The total number of words */
 
@@ -204,7 +205,7 @@ struct fts_word_freq_struct {
 	ib_rbt_t*	doc_freqs;	/*!< RB Tree for storing per document
 					word frequencies. The elements are
 					of type fts_doc_freq_t */
-	ulint		doc_count;	/*!< Total number of documents that
+	ib_uint64_t	doc_count;	/*!< Total number of documents that
 					contain this word */
 	double		idf;		/*!< Inverse document frequency */
 };
@@ -2485,6 +2486,7 @@ fts_ast_visit_sub_exp(
 	ib_rbt_t*		subexpr_doc_ids;
 	dberr_t			error = DB_SUCCESS;
 	ibool			inited = query->inited;
+	bool			will_be_ignored = false;
 
 	ut_a(node->type == FTS_AST_SUBEXP_LIST);
 
@@ -2512,7 +2514,8 @@ fts_ast_visit_sub_exp(
 
 	/* Process nodes in current sub-expression and store its
 	result set in query->doc_ids we created above. */
-	error = fts_ast_visit(FTS_NONE, node->next, visitor, arg);
+	error = fts_ast_visit(FTS_NONE, node->next, visitor,
+			      arg, &will_be_ignored);
 
 	/* Reinstate parent node state and prepare for merge. */
 	query->inited = inited;
@@ -2870,8 +2873,8 @@ fts_query_calculate_idf(
 /*====================*/
 	fts_query_t*	query)	/*!< in: Query state */
 {
-	const ib_rbt_node_t* node;
-	double		total_docs = query->total_docs;
+	const ib_rbt_node_t*	node;
+	ib_uint64_t		total_docs = query->total_docs;
 
 	/* We need to free any instances of fts_doc_freq_t that we
 	may have allocated. */
@@ -2884,7 +2887,7 @@ fts_query_calculate_idf(
 		word_freq = rbt_value(fts_word_freq_t, node);
 
 		if (word_freq->doc_count > 0) {
-			if (total_docs == (double) word_freq->doc_count) {
+			if (total_docs == word_freq->doc_count) {
 				/* QP assume ranking > 0 if we find
 				a match. Since Log10(1) = 0, we cannot
 				make IDF a zero value if do find a
@@ -2898,7 +2901,7 @@ fts_query_calculate_idf(
 			}
 		}
 
-		fprintf(stderr,"'%s' -> " INT64PF "/%lu %6.5lf\n",
+		fprintf(stderr,"'%s' -> " UINT64PF "/" UINT64PF " %6.5lf\n",
 		       word_freq->word,
 		       query->total_docs, word_freq->doc_count,
 		       word_freq->idf);
@@ -3195,6 +3198,7 @@ fts_query(
 	trx_t*		query_trx;
 	CHARSET_INFO*	charset;
 	ulint		start_time_ms;
+	bool		will_be_ignored = false;
 
 	boolean_mode = flags & FTS_BOOL;
 
@@ -3230,7 +3234,7 @@ fts_query(
 	query.word_freqs = rbt_create_arg_cmp(
 		sizeof(fts_word_freq_t), innobase_fts_string_cmp, charset);
 
-	query.total_docs = fts_get_total_document_count(index->table);
+	query.total_docs = dict_table_get_n_rows(index->table);
 
 	error = fts_get_total_word_count(trx, query.index, &query.total_words);
 
@@ -3239,7 +3243,7 @@ fts_query(
 	}
 
 #ifdef	FTS_INTERNAL_DIAG_PRINT
-	fprintf(stderr, "Total docs: " INT64PF " Total words: %lu\n",
+	fprintf(stderr, "Total docs: " UINT64PF " Total words: %lu\n",
 		query.total_docs, query.total_words);
 #endif
 
@@ -3296,7 +3300,8 @@ fts_query(
 		/* Traverse the Abstract Syntax Tree (AST) and execute
 		the query. */
 		query.error = fts_ast_visit(
-			FTS_NONE, ast, fts_query_visitor, &query);
+			FTS_NONE, ast, fts_query_visitor,
+			&query, &will_be_ignored);
 
 		/* If query expansion is requested, extend the search
 		with first search pass result */

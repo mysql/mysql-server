@@ -1,5 +1,4 @@
-/* -*- C++ -*- */
-/* Copyright (c) 2002, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,6 +17,8 @@
 #define _SP_H_
 
 #include "sql_string.h"                         // LEX_STRING
+#include "sp_head.h"                            // enum_sp_type
+
 
 class Field;
 class Open_tables_backup;
@@ -27,8 +28,6 @@ class Query_tables_list;
 class Sroutine_hash_entry;
 class THD;
 class sp_cache;
-class sp_head;
-class sp_name;
 struct st_sp_chistics;
 struct LEX;
 struct TABLE;
@@ -81,8 +80,7 @@ enum
 };
 
 /* Drop all routines in database 'db' */
-int
-sp_drop_db_routines(THD *thd, char *db);
+int sp_drop_db_routines(THD *thd, char *db);
 
 /**
    Acquires exclusive metadata lock on all stored routines in the
@@ -96,33 +94,25 @@ sp_drop_db_routines(THD *thd, char *db);
  */
 bool lock_db_routines(THD *thd, char *db);
 
-sp_head *
-sp_find_routine(THD *thd, int type, sp_name *name,
-                sp_cache **cp, bool cache_only);
+sp_head *sp_find_routine(THD *thd, enum_sp_type type, sp_name *name,
+                         sp_cache **cp, bool cache_only);
 
-int
-sp_cache_routine(THD *thd, Sroutine_hash_entry *rt,
-                 bool lookup_only, sp_head **sp);
+int sp_cache_routine(THD *thd, Sroutine_hash_entry *rt,
+                     bool lookup_only, sp_head **sp);
 
+int sp_cache_routine(THD *thd, enum_sp_type type, sp_name *name,
+                     bool lookup_only, sp_head **sp);
 
-int
-sp_cache_routine(THD *thd, int type, sp_name *name,
-                 bool lookup_only, sp_head **sp);
+bool sp_exist_routines(THD *thd, TABLE_LIST *procs, bool is_proc);
 
-bool
-sp_exist_routines(THD *thd, TABLE_LIST *procs, bool is_proc);
+bool sp_show_create_routine(THD *thd, enum_sp_type type, sp_name *name);
 
-bool
-sp_show_create_routine(THD *thd, int type, sp_name *name);
+int sp_create_routine(THD *thd, sp_head *sp);
 
-int
-sp_create_routine(THD *thd, int type, sp_head *sp);
+int sp_update_routine(THD *thd, enum_sp_type type, sp_name *name,
+                      st_sp_chistics *chistics);
 
-int
-sp_update_routine(THD *thd, int type, sp_name *name, st_sp_chistics *chistics);
-
-int
-sp_drop_routine(THD *thd, int type, sp_name *name);
+int sp_drop_routine(THD *thd, enum_sp_type type, sp_name *name);
 
 
 /**
@@ -166,11 +156,10 @@ public:
   Procedures for handling sets of stored routines used by statement or routine.
 */
 void sp_add_used_routine(Query_tables_list *prelocking_ctx, Query_arena *arena,
-                         sp_name *rt, char rt_type);
+                         sp_name *rt, enum_sp_type rt_type);
 bool sp_add_used_routine(Query_tables_list *prelocking_ctx, Query_arena *arena,
                          const MDL_key *key, TABLE_LIST *belong_to_view);
 void sp_remove_not_own_routines(Query_tables_list *prelocking_ctx);
-bool sp_update_sp_used_routines(HASH *dst, HASH *src);
 void sp_update_stmt_used_routines(THD *thd, Query_tables_list *prelocking_ctx,
                                   HASH *src, TABLE_LIST *belong_to_view);
 void sp_update_stmt_used_routines(THD *thd, Query_tables_list *prelocking_ctx,
@@ -186,11 +175,11 @@ extern "C" uchar* sp_sroutine_key(const uchar *ptr, size_t *plen,
 */
 TABLE *open_proc_table_for_read(THD *thd, Open_tables_backup *backup);
 
-sp_head *
-sp_load_for_information_schema(THD *thd, TABLE *proc_table, String *db,
-                               String *name, sql_mode_t sql_mode, int type,
-                               const char *returns, const char *params,
-                               bool *free_sp_head);
+sp_head *sp_load_for_information_schema(THD *thd, TABLE *proc_table, String *db,
+                                        String *name, sql_mode_t sql_mode,
+                                        enum_sp_type type,
+                                        const char *returns, const char *params,
+                                        bool *free_sp_head);
 
 bool load_charset(MEM_ROOT *mem_root,
                   Field *field,
@@ -201,5 +190,36 @@ bool load_collation(MEM_ROOT *mem_root,
                     Field *field,
                     const CHARSET_INFO *dflt_cl,
                     const CHARSET_INFO **cl);
+
+///////////////////////////////////////////////////////////////////////////
+
+sp_head *sp_start_parsing(THD *thd,
+                          enum_sp_type sp_type,
+                          sp_name *sp_name);
+
+void sp_finish_parsing(THD *thd);
+
+///////////////////////////////////////////////////////////////////////////
+
+Item_result sp_map_result_type(enum enum_field_types type);
+Item::Type sp_map_item_type(enum enum_field_types type);
+uint sp_get_flags_for_command(LEX *lex);
+
+bool sp_check_name(LEX_STRING *ident);
+
+TABLE_LIST *sp_add_to_query_tables(THD *thd, LEX *lex,
+                                   const char *db, const char *name,
+                                   thr_lock_type locktype,
+                                   enum_mdl_type mdl_type);
+
+bool sp_check_show_access(THD *thd, sp_head *sp, bool *full_access);
+
+Item *sp_prepare_func_item(THD* thd, Item **it_addr);
+
+bool sp_eval_expr(THD *thd, Field *result_field, Item **expr_item_ptr);
+
+String *sp_get_item_value(THD *thd, Item *item, String *str);
+
+///////////////////////////////////////////////////////////////////////////
 
 #endif /* _SP_H_ */

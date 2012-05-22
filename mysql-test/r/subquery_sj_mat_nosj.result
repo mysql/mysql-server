@@ -5594,7 +5594,7 @@ EXPLAIN
       "access_type": "ALL",
       "rows": 16,
       "filtered": 100,
-      "attached_condition": "(<in_optimizer>(`test`.`t2`.`Code`,`test`.`t2`.`Code` in ( <materialize> (select `test`.`t1`.`Country` from `test`.`t1` where (`test`.`t1`.`Population` > 5000000) ), <primary_index_lookup>(`test`.`t2`.`Code` in <temporary table> on distinct_key where ((`test`.`t2`.`Code` = `materialized subselect`.`Country`))))) and <in_optimizer>(`test`.`t2`.`Code`,<exists>(select 1 from `test`.`t3` where ((`test`.`t3`.`Language` = 'English') and (`test`.`t3`.`Percentage` > 10) and (`test`.`t2`.`Population` > 100000) and (<cache>(`test`.`t2`.`Code`) = `test`.`t3`.`Country`)))))",
+      "attached_condition": "(<in_optimizer>(`test`.`t2`.`Code`,`test`.`t2`.`Code` in ( <materialize> (select `test`.`t1`.`Country` from `test`.`t1` where (`test`.`t1`.`Population` > 5000000) ), <primary_index_lookup>(`test`.`t2`.`Code` in <temporary table> on distinct_key where ((`test`.`t2`.`Code` = `materialized subselect`.`Country`))))) and <in_optimizer>(`test`.`t2`.`Code`,<exists>(<primary_index_lookup>(<cache>(`test`.`t2`.`Code`) in t3 on PRIMARY where ((`test`.`t3`.`Language` = 'English') and (`test`.`t3`.`Percentage` > 10) and (`test`.`t2`.`Population` > 100000) and (<cache>(`test`.`t2`.`Code`) = `test`.`t3`.`Country`))))))",
       "attached_subqueries": [
         {
           "dependent": true,
@@ -7374,7 +7374,7 @@ EXPLAIN
             ],
             "rows": 11,
             "filtered": 100,
-            "attached_condition": "(<in_optimizer>((`test`.`grandparent1`.`col_int_nokey`,`test`.`grandparent1`.`col_int_key`),(`test`.`grandparent1`.`col_int_nokey`,`test`.`grandparent1`.`col_int_key`) in ( <materialize> (select `test`.`parent1`.`col_int_key` AS `p1`,`test`.`parent1`.`col_int_key` AS `p2` from (`test`.`t1` `parent1` left join `test`.`t2` `parent2` on((`test`.`parent1`.`col_int_nokey` = `test`.`parent2`.`col_int_key`))) ), <primary_index_lookup>(`test`.`grandparent1`.`col_int_nokey` in <temporary table> on distinct_key where ((`test`.`grandparent1`.`col_int_nokey` = `materialized subselect`.`p1`) and (`test`.`grandparent1`.`col_int_key` = `materialized subselect`.`p2`))))) and (`test`.`grandparent1`.`col_int_key` <> 3))",
+            "attached_condition": "(<in_optimizer>((`test`.`grandparent1`.`col_int_nokey`,`test`.`grandparent1`.`col_int_key`),(`test`.`grandparent1`.`col_int_nokey`,`test`.`grandparent1`.`col_int_key`) in ( <materialize> (select `test`.`parent1`.`col_int_key` AS `p1`,`test`.`parent1`.`col_int_key` AS `p2` from `test`.`t1` `parent1` left join `test`.`t2` `parent2` on((`test`.`parent1`.`col_int_nokey` = `test`.`parent2`.`col_int_key`)) where 1 ), <primary_index_lookup>(`test`.`grandparent1`.`col_int_nokey` in <temporary table> on distinct_key where ((`test`.`grandparent1`.`col_int_nokey` = `materialized subselect`.`p1`) and (`test`.`grandparent1`.`col_int_key` = `materialized subselect`.`p2`))))) and (`test`.`grandparent1`.`col_int_key` <> 3))",
             "attached_subqueries": [
               {
                 "using_temporary_table": true,

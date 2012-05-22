@@ -553,6 +553,50 @@ ut_print_namel(
 }
 
 /**********************************************************************//**
+Formats a table or index name, quoted as an SQL identifier. If the name
+contains a slash '/', the result will contain two identifiers separated by
+a period (.), as in SQL database_name.identifier.
+@return pointer to 'formatted' */
+UNIV_INTERN
+char*
+ut_format_name(
+/*===========*/
+	const char*	name,		/*!< in: table or index name, must be
+					'\0'-terminated */
+	ibool		is_table,	/*!< in: if TRUE then 'name' is a table
+					name */
+	char*		formatted,	/*!< out: formatted result, will be
+					'\0'-terminated */
+	ulint		formatted_size)	/*!< out: no more than this number of
+					bytes will be written to 'formatted' */
+{
+	switch (formatted_size) {
+	case 1:
+		formatted[0] = '\0';
+		/* FALL-THROUGH */
+	case 0:
+		return(formatted);
+	}
+
+	char*	end;
+
+	end = innobase_convert_name(formatted, formatted_size,
+				    name, strlen(name), NULL, is_table);
+
+	/* If the space in 'formatted' was completely used, then sacrifice
+	the last character in order to write '\0' at the end. */
+	if ((ulint) (end - formatted) == formatted_size) {
+		end--;
+	}
+
+	ut_a((ulint) (end - formatted) < formatted_size);
+
+	*end = '\0';
+
+	return(formatted);
+}
+
+/**********************************************************************//**
 Catenate files. */
 UNIV_INTERN
 void
@@ -745,6 +789,8 @@ ut_strerr(
 		return("Undo record too big");
 	case DB_END_OF_INDEX:
 		return("End of index");
+	case DB_TABLE_IN_FK_CHECK:
+		return("Table is being used in foreign key check");
 	case DB_DATA_MISMATCH:
 		return("data mismatch");
 	case DB_SCHEMA_NOT_LOCKED:

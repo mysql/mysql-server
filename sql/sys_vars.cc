@@ -536,7 +536,7 @@ static Sys_var_charptr Sys_basedir(
 static Sys_var_charptr Sys_my_bind_addr(
        "bind_address", "IP address to bind to.",
        READ_ONLY GLOBAL_VAR(my_bind_addr_str), CMD_LINE(REQUIRED_ARG),
-       IN_FS_CHARSET, DEFAULT(0));
+       IN_FS_CHARSET, DEFAULT("0.0.0.0"));
 
 static bool fix_binlog_cache_size(sys_var *self, THD *thd, enum_var_type type)
 {
@@ -1411,6 +1411,15 @@ static Sys_var_mybool Sys_trust_function_creators(
        "exist and the binary logging cannot break, so you can safely set "
        "this to TRUE",
        GLOBAL_VAR(trust_function_creators),
+       CMD_LINE(OPT_ARG), DEFAULT(FALSE));
+
+static Sys_var_mybool Sys_use_v1_row_events(
+       "log_bin_use_v1_row_events",
+       "If equal to 1 then version 1 row events are written to a row based "
+       "binary log.  If equal to 0, then the latest version of events are "
+       "written.  "
+       "This option is useful during some upgrades.",
+       GLOBAL_VAR(log_bin_use_v1_row_events),
        CMD_LINE(OPT_ARG), DEFAULT(FALSE));
 
 static Sys_var_charptr Sys_log_error(
@@ -2472,6 +2481,36 @@ static Sys_var_mybool Sys_slave_sql_verify_checksum(
        "receiving them from the network before writing them to the relay "
        "log. Enabled by default.",
        GLOBAL_VAR(opt_slave_sql_verify_checksum), CMD_LINE(OPT_ARG), DEFAULT(TRUE));
+
+static bool slave_rows_search_algorithms_check(sys_var *self, THD *thd, set_var *var)
+{
+  String str, *res;
+
+  if(!var->value)
+    return false;
+
+  /** empty value ('') is not allowed */
+  res= var->value->val_str(&str);
+  if (res->is_empty())
+    return true;
+
+  return false;
+}
+
+static const char *slave_rows_search_algorithms_names[]= {"TABLE_SCAN", "INDEX_SCAN", "HASH_SCAN", 0};
+static Sys_var_set Slave_rows_search_algorithms(
+       "slave_rows_search_algorithms", 
+       "Set of searching algorithms that the slave will use while "
+       "searching for records from the storage engine to either "
+       "updated or deleted them. Possible values are: INDEX_SCAN, "
+       "TABLE_SCAN and HASH_SCAN. Any combination is allowed, and "
+       "the slave will always pick the most suitable algorithm for "
+       "any given scenario. "
+       "(Default: INDEX_SCAN, TABLE_SCAN).",
+       GLOBAL_VAR(slave_rows_search_algorithms_options), CMD_LINE(REQUIRED_ARG),
+       slave_rows_search_algorithms_names,
+       DEFAULT(SLAVE_ROWS_INDEX_SCAN | SLAVE_ROWS_TABLE_SCAN),  NO_MUTEX_GUARD,
+       NOT_IN_BINLOG, ON_CHECK(slave_rows_search_algorithms_check), ON_UPDATE(NULL));
 #endif
 
 bool Sys_var_enum_binlog_checksum::global_update(THD *thd, set_var *var)

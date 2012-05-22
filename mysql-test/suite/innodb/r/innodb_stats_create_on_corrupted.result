@@ -1,0 +1,20 @@
+call mtr.add_suppression("InnoDB: Error: Table \"mysql\".\"innodb_index_stats\" not found");
+call mtr.add_suppression("InnoDB: Error: Fetch of persistent statistics requested for table \"test\".\"test_ps_create_on_corrupted\" but the required system tables mysql.innodb_table_stats and mysql.innodb_index_stats are not present or have unexpected st");
+ALTER TABLE mysql.innodb_index_stats RENAME TO mysql.innodb_index_stats_;
+CREATE TABLE test_ps_create_on_corrupted
+(a INT, PRIMARY KEY (a))
+ENGINE=INNODB STATS_PERSISTENT=1;
+SELECT seq_in_index, column_name, cardinality
+FROM information_schema.statistics WHERE table_name = 'test_ps_create_on_corrupted'
+ORDER BY index_name, seq_in_index;
+seq_in_index	1
+column_name	a
+cardinality	0
+SELECT table_rows, avg_row_length, max_data_length, index_length
+FROM information_schema.tables WHERE table_name = 'test_ps_create_on_corrupted';
+table_rows	0
+avg_row_length	0
+max_data_length	0
+index_length	0
+ALTER TABLE mysql.innodb_index_stats_ RENAME TO mysql.innodb_index_stats;
+DROP TABLE test_ps_create_on_corrupted;

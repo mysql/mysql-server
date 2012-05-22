@@ -356,6 +356,14 @@ dict_table_change_id_in_cache(
 	table_id_t	new_id)	/*!< in: new id to set */
 	__attribute__((nonnull));
 /**********************************************************************//**
+Removes a foreign constraint struct from the dictionary cache. */
+UNIV_INTERN
+void
+dict_foreign_remove_from_cache(
+/*===========================*/
+	dict_foreign_t*	foreign)	/*!< in, own: foreign constraint */
+	__attribute__((nonnull));
+/**********************************************************************//**
 Adds a foreign key constraint object to the dictionary cache. May free
 the object if there already is an object with the same identifier in.
 At least one of foreign table or referenced table must already be in
@@ -390,7 +398,6 @@ dict_table_is_referenced_by_foreign_key(
 /*====================================*/
 	const dict_table_t*	table)	/*!< in: InnoDB table */
 	__attribute__((nonnull, warn_unused_result));
-#if 1 /* TODO: enable this in WL#6049 (MDL for FK lookups) */
 /**********************************************************************//**
 Replace the index passed in with another equivalent index in the
 foreign key lists of the table. */
@@ -402,7 +409,6 @@ dict_foreign_replace_index(
 	const dict_index_t*	index,	/*!< in: index to be replaced */
 	const trx_t*		trx)	/*!< in: transaction handle */
 	__attribute__((nonnull));
-#endif
 /**********************************************************************//**
 Determines whether a string starts with the specified keyword.
 @return TRUE if str starts with keyword */
@@ -485,22 +491,6 @@ dict_table_open_on_name(
 /*====================*/
 	const char*	table_name,	/*!< in: table name */
 	ibool		dict_locked,	/*!< in: TRUE=data dictionary locked */
-	ibool		try_drop)	/*!< in: TRUE=try to drop any orphan
-					indexes after an aborted online
-					index creation */
-	__attribute__((nonnull, warn_unused_result));
-
-/**********************************************************************//**
-Returns a table object and increment its open handle count. Table
-statistics will not be updated if they are not initialized.
-Call this function when dropping a table.
-@return	table, NULL if does not exist */
-UNIV_INTERN
-dict_table_t*
-dict_table_open_on_name_no_stats(
-/*=============================*/
-	const char*	table_name,	/*!< in: table name */
-	ibool		dict_locked,	/*!< in: TRUE=data dictionary locked */
 	ibool		try_drop,	/*!< in: TRUE=try to drop any orphan
 					indexes after an aborted online
 					index creation */
@@ -533,19 +523,6 @@ dict_foreign_find_index(
 					the columns must be declared
 					NOT NULL */
 	__attribute__((nonnull(1,2), warn_unused_result));
-/**********************************************************************//**
-Returns an index object by matching on the name and column names and
-if more than one index matches return the index with the max id
-@return	matching index, NULL if not found */
-UNIV_INTERN
-dict_index_t*
-dict_table_get_index_by_max_id(
-/*===========================*/
-	dict_table_t*	table,	/*!< in: table */
-	const char*	name,	/*!< in: the index name to find */
-	const char**	columns,/*!< in: array of column names */
-	ulint		n_cols)	/*!< in: number of columns */
-	__attribute__((nonnull, warn_unused_result));
 /**********************************************************************//**
 Returns a column's name.
 @return column name. NOTE: not guaranteed to stay valid if table is
@@ -732,6 +709,35 @@ dict_table_get_n_cols(
 /*==================*/
 	const dict_table_t*	table)	/*!< in: table */
 	__attribute__((nonnull, pure, warn_unused_result));
+/********************************************************************//**
+Gets the approximately estimated number of rows in the table.
+@return	estimated number of rows */
+UNIV_INLINE
+ib_uint64_t
+dict_table_get_n_rows(
+/*==================*/
+	const dict_table_t*	table)	/*!< in: table */
+	__attribute__((nonnull, warn_unused_result));
+/********************************************************************//**
+Increment the number of rows in the table by one.
+Notice that this operation is not protected by any latch, the number is
+approximate. */
+UNIV_INLINE
+void
+dict_table_n_rows_inc(
+/*==================*/
+	dict_table_t*	table)	/*!< in/out: table */
+	__attribute__((nonnull));
+/********************************************************************//**
+Decrement the number of rows in the table by one.
+Notice that this operation is not protected by any latch, the number is
+approximate. */
+UNIV_INLINE
+void
+dict_table_n_rows_dec(
+/*==================*/
+	dict_table_t*	table)	/*!< in/out: table */
+	__attribute__((nonnull));
 #ifdef UNIV_DEBUG
 /********************************************************************//**
 Gets the nth column of a table.
@@ -806,7 +812,7 @@ ulint
 dict_tf_get_format(
 /*===============*/
 	ulint		flags)		/*!< in: dict_table_t::flags */
-	__attribute__((nonnull, warn_unused_result));
+	__attribute__((warn_unused_result));
 /********************************************************************//**
 Set the various values in a dict_table_t::flags pointer. */
 UNIV_INLINE

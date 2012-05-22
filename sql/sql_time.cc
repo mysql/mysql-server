@@ -528,7 +528,7 @@ static bool lldiv_t_to_time(lldiv_t lld, MYSQL_TIME *ltime, int *warnings)
     Both lld.quot and lld.rem can give negative result value,
     thus combine them using "|=".
   */
-  if (ltime->neg|= (lld.rem < 0))
+  if ((ltime->neg|= (lld.rem < 0)))
     lld.rem= -lld.rem;
   ltime->second_part= lld.rem / 1000;
   return time_add_nanoseconds_with_round(ltime, lld.rem % 1000, warnings);

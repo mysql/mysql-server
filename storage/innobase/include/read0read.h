@@ -57,12 +57,14 @@ read_view_purge_open(
 	mem_heap_t*	heap);		/*!< in: memory heap from which
 					allocated */
 /*********************************************************************//**
-Remove read view from the trx_sys->view_list. */
-UNIV_INTERN
+Remove a read view from the trx_sys->view_list. */
+UNIV_INLINE
 void
 read_view_remove(
 /*=============*/
-	read_view_t*	view);	/*!< in: read view */
+	read_view_t*	view,		/*!< in: read view, can be 0 */
+	bool		own_mutex);	/*!< in: true if caller owns the
+					trx_sys_t::mutex */
 /*********************************************************************//**
 Closes a consistent read view for MySQL. This function is called at an SQL
 statement end if the trx isolation level is <= TRX_ISO_READ_COMMITTED. */
@@ -146,7 +148,7 @@ struct read_view_struct{
 	trx_id_t*	trx_ids;/*!< Additional trx ids which the read should
 				not see: typically, these are the read-write
 				active transactions at the time when the read
-			       	is serialized, except the reading transaction
+				is serialized, except the reading transaction
 				itself; the trx ids in this array are in a
 				descending order. These trx_ids should be
 				between the "low" and "high" water marks,

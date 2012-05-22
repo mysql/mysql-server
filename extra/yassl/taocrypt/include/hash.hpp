@@ -14,7 +14,7 @@
    along with this program; see the file COPYING. If not, write to the
    Free Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston,
    MA  02110-1301  USA.
-*/
+ */
 
 /* hash.hpp provides a base for digest types
 */
@@ -63,8 +63,8 @@ protected:
     word32          buffLen_;   // in bytes
     HashLengthType  loLen_;     // length in bytes
     HashLengthType  hiLen_;     // length in bytes
-    word32  digest_[MaxDigestSz];
-    word32  buffer_[MaxBufferSz / sizeof(word32)];
+    word32          digest_[MaxDigestSz];
+    word32          buffer_[MaxBufferSz / sizeof(word32)];
 
     virtual void Transform() = 0;
 

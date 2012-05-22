@@ -135,9 +135,11 @@ static PFS_thread_class *thread_class_array= NULL;
 */
 PFS_table_share *table_share_array= NULL;
 
-PFS_instr_class global_table_io_class;
-PFS_instr_class global_table_lock_class;
-PFS_instr_class global_idle_class;
+PFS_ALIGNED PFS_table_io_stat global_table_io_stat;
+PFS_ALIGNED PFS_table_lock_stat global_table_lock_stat;
+PFS_ALIGNED PFS_instr_class global_table_io_class;
+PFS_ALIGNED PFS_instr_class global_table_lock_class;
+PFS_ALIGNED PFS_instr_class global_idle_class;
 
 /** Class-timer map */
 enum_timer_name *class_timers[] =
@@ -165,7 +167,7 @@ enum_timer_name *class_timers[] =
   @sa table_share_hash_get_key
   @sa get_table_share_hash_pins
 */
-static LF_HASH table_share_hash;
+LF_HASH table_share_hash;
 /** True if table_share_hash is initialized. */
 static bool table_share_hash_inited= false;
 
@@ -193,19 +195,17 @@ uint mutex_class_start= 0;
 uint rwlock_class_start= 0;
 uint cond_class_start= 0;
 uint file_class_start= 0;
-uint table_class_start= 0;
 uint wait_class_max= 0;
 uint socket_class_start= 0;
 
 void init_event_name_sizing(const PFS_global_param *param)
 {
-  mutex_class_start= 0;
+  mutex_class_start= 3; /* global table io, table lock, idle */
   rwlock_class_start= mutex_class_start + param->m_mutex_class_sizing;
   cond_class_start= rwlock_class_start + param->m_rwlock_class_sizing;
   file_class_start= cond_class_start + param->m_cond_class_sizing;
   socket_class_start= file_class_start + param->m_file_class_sizing;
-  table_class_start= socket_class_start + param->m_socket_class_sizing;
-  wait_class_max= table_class_start + 3; /* global table io, lock, idle */
+  wait_class_max= socket_class_start + param->m_socket_class_sizing;
 }
 
 void register_global_classes()
@@ -213,19 +213,19 @@ void register_global_classes()
   /* Table IO class */
   init_instr_class(&global_table_io_class, "wait/io/table/sql/handler", 25,
                    0, PFS_CLASS_TABLE_IO);
-  global_table_io_class.m_event_name_index= table_class_start;
+  global_table_io_class.m_event_name_index= GLOBAL_TABLE_IO_EVENT_INDEX;
   configure_instr_class(&global_table_io_class);
 
   /* Table lock class */
   init_instr_class(&global_table_lock_class, "wait/lock/table/sql/handler", 27,
                    0, PFS_CLASS_TABLE_LOCK);
-  global_table_lock_class.m_event_name_index= table_class_start + 1;
+  global_table_lock_class.m_event_name_index= GLOBAL_TABLE_LOCK_EVENT_INDEX;
   configure_instr_class(&global_table_lock_class);
   
   /* Idle class */
   init_instr_class(&global_idle_class, "idle", 4,
                    0, PFS_CLASS_IDLE);
-  global_idle_class.m_event_name_index= table_class_start + 2;
+  global_idle_class.m_event_name_index= GLOBAL_IDLE_EVENT_INDEX;
   configure_instr_class(&global_idle_class);
 }
 
@@ -384,6 +384,7 @@ int init_table_share_hash(void)
   {
     lf_hash_init(&table_share_hash, sizeof(PFS_table_share*), LF_HASH_UNIQUE,
                  0, 0, table_share_hash_get_key, &my_charset_bin);
+    table_share_hash.size= table_share_max;
     table_share_hash_inited= true;
   }
   return 0;
@@ -1256,7 +1257,7 @@ PFS_table_share* find_or_create_table_share(PFS_thread *thread,
   const uint retry_max= 3;
   bool enabled= true;
   bool timed= true;
-  static uint table_share_monotonic_index= 0;
+  static uint PFS_ALIGNED table_share_monotonic_index= 0;
   uint index;
   uint attempts= 0;
   PFS_table_share *pfs;
@@ -1299,8 +1300,7 @@ search:
   while (++attempts <= table_share_max)
   {
     /* See create_mutex() */
-    PFS_atomic::add_u32(& table_share_monotonic_index, 1);
-    index= table_share_monotonic_index % table_share_max;
+    index= PFS_atomic::add_u32(& table_share_monotonic_index, 1) % table_share_max;
     pfs= table_share_array + index;
 
     if (pfs->m_lock.is_free())
@@ -1354,17 +1354,27 @@ search:
 void PFS_table_share::aggregate_io(void)
 {
   uint safe_key_count= sanitize_index_count(m_key_count);
-  uint index= global_table_io_class.m_event_name_index;
-  PFS_single_stat *table_io_total= & global_instr_class_waits_array[index];
-  m_table_stat.sum_io(table_io_total, safe_key_count);
+  PFS_table_io_stat *from_stat;
+  PFS_table_io_stat *from_stat_last;
+  PFS_table_io_stat sum_io;
+
+  /* Aggregate stats for each index, if any */
+  from_stat= & m_table_stat.m_index_stat[0];
+  from_stat_last= from_stat + safe_key_count;
+  for ( ; from_stat < from_stat_last ; from_stat++)
+    sum_io.aggregate(from_stat);
+
+  /* Aggregate stats for the table */
+  sum_io.aggregate(& m_table_stat.m_index_stat[MAX_INDEXES]);
+
+  /* Add this table stats to the global sink. */
+  global_table_io_stat.aggregate(& sum_io);
   m_table_stat.fast_reset_io();
 }
 
 void PFS_table_share::aggregate_lock(void)
 {
-  uint index= global_table_lock_class.m_event_name_index;
-  PFS_single_stat *table_lock_total= & global_instr_class_waits_array[index];
-  m_table_stat.sum_lock(table_lock_total);
+  global_table_lock_stat.aggregate(& m_table_stat.m_lock_stat);
   m_table_stat.fast_reset_lock();
 }
 

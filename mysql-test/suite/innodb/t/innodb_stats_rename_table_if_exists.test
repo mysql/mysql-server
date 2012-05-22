@@ -1,0 +1,58 @@
+#
+# Test what happens during RENAME TABLE if there are already rows in the stats
+# tables for the new table. This cannot happen normally, one have to insert
+# manually like what we do here.
+#
+# The RENAME should succeed and existent rows should be overwritten.
+#
+
+-- source include/have_innodb.inc
+
+-- vertical_results
+
+CREATE TABLE stats_rename1 (a INT, PRIMARY KEY (a))
+ENGINE=INNODB STATS_PERSISTENT=1;
+
+INSERT INTO mysql.innodb_table_stats
+SELECT
+database_name,
+'stats_rename2' AS table_name,
+last_update,
+123 AS n_rows,
+clustered_index_size,
+sum_of_other_index_sizes
+FROM mysql.innodb_table_stats
+WHERE table_name = 'stats_rename1';
+
+INSERT INTO mysql.innodb_index_stats 
+SELECT
+database_name,
+'stats_rename2' AS table_name,
+index_name,
+last_update,
+stat_name,
+567 AS stat_value,
+sample_size,
+stat_description
+FROM mysql.innodb_index_stats
+WHERE table_name = 'stats_rename1';
+
+SELECT table_name, n_rows
+FROM mysql.innodb_table_stats
+WHERE table_name IN ('stats_rename1', 'stats_rename2');
+
+SELECT table_name, index_name, stat_name, stat_value
+FROM mysql.innodb_index_stats
+WHERE table_name IN ('stats_rename1', 'stats_rename2');
+
+RENAME TABLE stats_rename1 TO stats_rename2;
+
+SELECT table_name, n_rows
+FROM mysql.innodb_table_stats
+WHERE table_name IN ('stats_rename1', 'stats_rename2');
+
+SELECT table_name, index_name, stat_name, stat_value
+FROM mysql.innodb_index_stats
+WHERE table_name IN ('stats_rename1', 'stats_rename2');
+
+DROP TABLE stats_rename2;

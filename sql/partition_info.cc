@@ -1395,10 +1395,17 @@ bool partition_info::check_partition_info(THD *thd, handlerton **eng_type,
           num_parts_not_set++;
           part_elem->engine_type= default_engine_type;
         }
-        if (check_table_name(part_elem->partition_name,
-                             strlen(part_elem->partition_name), FALSE))
+        enum_ident_name_check ident_check_status=
+          check_table_name(part_elem->partition_name,
+                           strlen(part_elem->partition_name), FALSE);
+        if (ident_check_status == IDENT_NAME_WRONG)
         {
           my_error(ER_WRONG_PARTITION_NAME, MYF(0));
+          goto end;
+        }
+        else if (ident_check_status == IDENT_NAME_TOO_LONG)
+        {
+          my_error(ER_TOO_LONG_IDENT, MYF(0));
           goto end;
         }
         DBUG_PRINT("info", ("part = %d engine = %s",
@@ -1414,10 +1421,17 @@ bool partition_info::check_partition_info(THD *thd, handlerton **eng_type,
         {
           sub_elem= sub_it++;
           warn_if_dir_in_part_elem(thd, sub_elem);
-          if (check_table_name(sub_elem->partition_name,
-                               strlen(sub_elem->partition_name), FALSE))
+          enum_ident_name_check ident_check_status=
+            check_table_name(sub_elem->partition_name,
+                             strlen(sub_elem->partition_name), FALSE);
+          if (ident_check_status == IDENT_NAME_WRONG)
           {
             my_error(ER_WRONG_PARTITION_NAME, MYF(0));
+            goto end;
+          }
+          else if (ident_check_status == IDENT_NAME_TOO_LONG)
+          {
+            my_error(ER_TOO_LONG_IDENT, MYF(0));
             goto end;
           }
           if (sub_elem->engine_type == NULL)

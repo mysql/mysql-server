@@ -137,6 +137,7 @@ sub collect_test_cases ($$$$) {
     {
       push(@$cases, collect_one_suite($suite, $opt_cases, $opt_skip_test_list));
       last if $some_test_found;
+      push(@$cases, collect_one_suite("i_".$suite, $opt_cases, $opt_skip_test_list));
     }
   }
 
@@ -288,13 +289,15 @@ sub collect_one_suite($)
       $suitedir= my_find_dir($::basedir,
 			     ["share/mysql-test/suite",
 			      "mysql-test/suite",
+			      "internal/mysql-test/suite",
 			      "mysql-test",
 			      # Look in storage engine specific suite dirs
 			      "storage/*/mtr",
 			      # Look in plugin specific suite dir
 			      "plugin/$suite/tests",
 			     ],
-			     [$suite, "mtr"]);
+			     [$suite, "mtr"], ($suite =~ /^i_/));
+      return unless $suitedir;
     }
     mtr_verbose("suitedir: $suitedir");
   }
@@ -1090,6 +1093,13 @@ sub collect_one_test_case {
     }
   }
 
+  if ( $tinfo->{'not_windows'} && IS_WINDOWS )
+  {
+    $tinfo->{'skip'}= 1;
+    $tinfo->{'comment'}= "Test not supported on Windows";
+    return $tinfo;
+  }
+
   # ----------------------------------------------------------------------
   # Find config file to use if not already selected in <testname>.opt file
   # ----------------------------------------------------------------------
@@ -1172,6 +1182,7 @@ my @tags=
  ["include/not_embedded.inc", "not_embedded", 1],
  ["include/have_ssl.inc", "need_ssl", 1],
  ["include/have_ssl_communication.inc", "need_ssl", 1],
+ ["include/not_windows.inc", "not_windows", 1],
 );
 
 

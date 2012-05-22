@@ -184,7 +184,7 @@ dict_print(void)
 
 	os_increment_counter_by_amount(
 		server_mutex,
-		srv_fatal_semaphore_wait_threshold, 7200/*2 hours*/);
+		srv_fatal_semaphore_wait_threshold, SRV_SEMAPHORE_WAIT_EXTENSION);
 
 	heap = mem_heap_create(1000);
 	mutex_enter(&(dict_sys->mutex));
@@ -222,7 +222,7 @@ dict_print(void)
 	/* Restore the fatal semaphore wait timeout */
 	os_decrement_counter_by_amount(
 		server_mutex,
-		srv_fatal_semaphore_wait_threshold, 7200/*2 hours*/);
+		srv_fatal_semaphore_wait_threshold, SRV_SEMAPHORE_WAIT_EXTENSION);
 }
 
 /********************************************************************//**
@@ -369,7 +369,16 @@ dict_process_sys_tables_rec_and_mtr_commit(
 		/* Update statistics member fields in *table if
 		DICT_TABLE_UPDATE_STATS is set */
 		ut_ad(mutex_own(&dict_sys->mutex));
-		dict_stats_update(*table, DICT_STATS_FETCH, TRUE);
+
+		dict_stats_upd_option_t	opt;
+
+		if (dict_stats_is_persistent_enabled(*table)) {
+			opt = DICT_STATS_FETCH_ONLY_IF_NOT_IN_MEMORY;
+		} else {
+			opt = DICT_STATS_RECALC_TRANSIENT;
+		}
+
+		dict_stats_update(*table, opt, TRUE);
 	}
 
 	return(NULL);
@@ -1980,6 +1989,14 @@ func_exit:
 	ut_ad(!table || ignore_err != DICT_ERR_IGNORE_NONE
 	      || !table->corrupted);
 
+	if (table && table->fts) {
+		ut_ad(dict_table_has_fts_index(table)
+		      || DICT_TF2_FLAG_IS_SET(table, DICT_TF2_FTS_HAS_DOC_ID)
+		      || DICT_TF2_FLAG_IS_SET(table, DICT_TF2_FTS_ADD_DOC_ID));
+
+		fts_optimize_add_table(table);
+	}
+
 	return(table);
 }
 
@@ -2020,6 +2037,7 @@ dict_load_table_on_id(
 	sys_table_ids = dict_table_get_next_index(
 		dict_table_get_first_index(sys_tables));
 	ut_ad(!dict_table_is_comp(sys_tables));
+	ut_ad(!dict_index_is_clust(sys_table_ids));
 	heap = mem_heap_create(256);
 
 	tuple  = dtuple_create(heap, 1);
@@ -2415,6 +2433,7 @@ dict_load_foreigns(
 
 	sec_index = dict_table_get_next_index(
 		dict_table_get_first_index(sys_foreign));
+	ut_ad(!dict_index_is_clust(sec_index));
 start_load:
 
 	tuple = dtuple_create_from_mem(tuple_buf, sizeof(tuple_buf), 1);

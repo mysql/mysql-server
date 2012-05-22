@@ -95,6 +95,9 @@ int
 table_esgs_global_by_event_name::delete_all_rows(void)
 {
   reset_events_stages_by_thread();
+  reset_events_stages_by_account();
+  reset_events_stages_by_user();
+  reset_events_stages_by_host();
   reset_events_stages_global();
   return 0;
 }

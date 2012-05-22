@@ -1,0 +1,36 @@
+#
+# Test fetching from stats tables while there are no stats
+#
+
+-- source include/have_innodb.inc
+
+-- vertical_results
+
+CREATE TABLE test_ps_fetch_nonexistent
+(a INT, PRIMARY KEY (a))
+ENGINE=INNODB STATS_PERSISTENT=1;
+
+# write stats to mysql.innodb_table_stats
+ANALYZE TABLE test_ps_fetch_nonexistent;
+
+# check that indeed stats were written by ANALYZE above
+SELECT COUNT(*)
+FROM mysql.innodb_table_stats WHERE table_name = 'test_ps_fetch_nonexistent';
+
+# delete the stats
+DELETE FROM mysql.innodb_index_stats WHERE table_name = 'test_ps_fetch_nonexistent';
+DELETE FROM mysql.innodb_table_stats WHERE table_name = 'test_ps_fetch_nonexistent';
+
+# reopen the table, this will attept to read the stats
+FLUSH TABLE test_ps_fetch_nonexistent;
+
+# check the stats (should have been generated using the old transient stats
+# method)
+SELECT seq_in_index, column_name, cardinality
+FROM information_schema.statistics WHERE table_name = 'test_ps_fetch_nonexistent'
+ORDER BY index_name, seq_in_index;
+
+SELECT table_rows, avg_row_length, max_data_length, index_length
+FROM information_schema.tables WHERE table_name = 'test_ps_fetch_nonexistent';
+
+DROP TABLE test_ps_fetch_nonexistent;

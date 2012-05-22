@@ -218,6 +218,8 @@ row_upd_check_references_constraints(
 
 	mtr_commit(mtr);
 
+	DEBUG_SYNC_C("foreign_constraint_check_for_update");
+
 	mtr_start(mtr);
 
 	if (trx->dict_operation_lock_mode == 0) {
@@ -246,7 +248,7 @@ row_upd_check_references_constraints(
 
 				ref_table = dict_table_open_on_name(
 					foreign->foreign_table_name_lookup,
-					FALSE, FALSE);
+					FALSE, FALSE, DICT_ERR_IGNORE_NONE);
 			}
 
 			if (foreign->foreign_table) {

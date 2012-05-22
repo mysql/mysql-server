@@ -166,9 +166,9 @@ int copy_event_to_schema_table(THD *thd, TABLE *sch_table, TABLE *event_table);
 
 void append_identifier(THD *thd, String *packet, const char *name,
 		       uint length);
-inline void append_identifier(THD *thd, String *packet, SimpleCString str)
+inline void append_identifier(THD *thd, String *packet, Simple_cstring str)
 {
-  append_identifier(thd, packet, str.ptr(), str.length());
+  append_identifier(thd, packet, str.ptr(), static_cast<uint>(str.length()));
 }
 void mysqld_list_fields(THD *thd,TABLE_LIST *table, const char *wild);
 bool mysqld_show_create(THD *thd, TABLE_LIST *table_list);

@@ -72,7 +72,8 @@ Query_tables_list::binlog_stmt_unsafe_errcode[BINLOG_STMT_UNSAFE_COUNT] =
   ER_BINLOG_UNSAFE_CREATE_REPLACE_SELECT,
   ER_BINLOG_UNSAFE_CREATE_SELECT_AUTOINC,
   ER_BINLOG_UNSAFE_UPDATE_IGNORE,
-  ER_BINLOG_UNSAFE_INSERT_TWO_KEYS
+  ER_BINLOG_UNSAFE_INSERT_TWO_KEYS,
+  ER_BINLOG_UNSAFE_AUTOINC_NOT_FIRST
 };
 
 
@@ -172,6 +173,16 @@ st_parsing_options::reset()
   allows_derived= TRUE;
 }
 
+/**
+ Cleans slave connection info.
+*/
+void struct_slave_connection::reset()
+{
+  user= 0;
+  password= 0;
+  plugin_auth= 0;
+  plugin_dir= 0;
+}
 
 /**
   Perform initialization of Lex_input_stream instance.
@@ -2718,10 +2729,13 @@ void LEX::cleanup_lex_after_parse_error(THD *thd)
     Sic: we must nullify the member of the main lex, not the
     current one that will be thrown away
   */
-  if (thd->lex->sphead)
+  sp_head *sp= thd->lex->sphead;
+
+  if (sp)
   {
-    thd->lex->sphead->restore_thd_mem_root(thd);
-    delete thd->lex->sphead;
+    sp->m_parser_data.finish_parsing_sp_body(thd);
+    delete sp;
+
     thd->lex->sphead= NULL;
   }
 }

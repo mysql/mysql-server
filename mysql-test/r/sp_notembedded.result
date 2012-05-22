@@ -330,3 +330,40 @@ Event	sql_mode	time_zone	Create Event	character_set_client	collation_connection	
 teste_bug11763507		SYSTEM	#	latin1	latin1_swedish_ci	latin1_swedish_ci
 DROP EVENT teste_bug11763507;
 #END OF BUG#11763507 test.
+
+# WL#4179: Stored programs: validation of stored program statements
+#
+# Test handle of metadata changes with events.
+
+CREATE TABLE t1 (a INT, b INT);
+CREATE TABLE t2 (a INT, b INT);
+CREATE TABLE t3 (a INT);
+INSERT INTO t1 VALUES (1, 2);
+SET GLOBAL EVENT_SCHEDULER = ON;
+SELECT GET_LOCK('e1_lock', 60);
+GET_LOCK('e1_lock', 60)
+1
+CREATE EVENT e1 ON SCHEDULE EVERY 1 SECOND STARTS NOW() DO
+BEGIN
+DECLARE EXIT HANDLER FOR 1136 BEGIN
+INSERT INTO t3 VALUES (1);
+END; -- ER_WRONG_VALUE_COUNT_ON_ROW
+SELECT GET_LOCK('e1_lock', 60);
+SELECT RELEASE_LOCK('e1_lock');
+INSERT INTO t2 SELECT * FROM t1;
+END|
+SELECT RELEASE_LOCK('e1_lock');
+RELEASE_LOCK('e1_lock')
+1
+SELECT GET_LOCK('e1_lock', 60);
+GET_LOCK('e1_lock', 60)
+1
+ALTER TABLE t1 ADD COLUMN (c INT);
+SELECT RELEASE_LOCK('e1_lock');
+RELEASE_LOCK('e1_lock')
+1
+# Wait for new rows in t3. That means, the even has been executed,
+# and INSERT INTO t2 failed because now t1 has 3 columns.
+DROP EVENT e1;
+DROP TABLE t1, t2, t3;
+SET GLOBAL EVENT_SCHEDULER = OFF;
