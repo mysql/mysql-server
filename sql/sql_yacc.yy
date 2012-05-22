@@ -5958,10 +5958,10 @@ create_table_option:
           {
             switch($3) {
             case 0:
-                Lex->create_info.table_options|= HA_OPTION_NO_STATS_AUTO_RECALC;
+                Lex->create_info.stats_auto_recalc= HA_STATS_AUTO_RECALC_OFF;
                 break;
             case 1:
-                Lex->create_info.table_options|= HA_OPTION_STATS_AUTO_RECALC;
+                Lex->create_info.stats_auto_recalc= HA_STATS_AUTO_RECALC_ON;
                 break;
             default:
                 my_parse_error(ER(ER_SYNTAX_ERROR));
@@ -5971,8 +5971,7 @@ create_table_option:
           }
         | STATS_AUTO_RECALC_SYM opt_equal DEFAULT
           {
-            Lex->create_info.table_options&=
-              ~(HA_OPTION_STATS_AUTO_RECALC | HA_OPTION_NO_STATS_AUTO_RECALC);
+            Lex->create_info.stats_auto_recalc= HA_STATS_AUTO_RECALC_DEFAULT;
             Lex->create_info.used_fields|= HA_CREATE_USED_STATS_AUTO_RECALC;
           }
         | STATS_PERSISTENT_SYM opt_equal ulong_num

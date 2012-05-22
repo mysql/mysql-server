@@ -1790,15 +1790,15 @@ int store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
       packet->append(STRING_WITH_LEN(" STATS_PERSISTENT=1"));
     if (share->db_create_options & HA_OPTION_NO_STATS_PERSISTENT)
       packet->append(STRING_WITH_LEN(" STATS_PERSISTENT=0"));
-    if (share->db_create_options & HA_OPTION_STATS_AUTO_RECALC)
+    if (share->stats_auto_recalc == HA_STATS_AUTO_RECALC_ON)
       packet->append(STRING_WITH_LEN(" STATS_AUTO_RECALC=1"));
-    if (share->db_create_options & HA_OPTION_NO_STATS_AUTO_RECALC)
+    else if (share->stats_auto_recalc == HA_STATS_AUTO_RECALC_OFF)
       packet->append(STRING_WITH_LEN(" STATS_AUTO_RECALC=0"));
-    if (table->s->stats_sample_pages != 0)
+    if (share->stats_sample_pages != 0)
     {
       char *end;
       packet->append(STRING_WITH_LEN(" STATS_SAMPLE_PAGES="));
-      end= longlong10_to_str(table->s->stats_sample_pages, buff, 10);
+      end= longlong10_to_str(share->stats_sample_pages, buff, 10);
       packet->append(buff, (uint) (end - buff));
     }
     /* We use CHECKSUM, instead of TABLE_CHECKSUM, for backward compability */
@@ -4329,10 +4329,9 @@ static int get_schema_tables_record(THD *thd, TABLE_LIST *tables,
     if (share->db_create_options & HA_OPTION_NO_STATS_PERSISTENT)
       ptr=strmov(ptr," stats_persistent=0");
 
-    if (share->db_create_options & HA_OPTION_STATS_AUTO_RECALC)
+    if (share->stats_auto_recalc == HA_STATS_AUTO_RECALC_ON)
       ptr=strmov(ptr," stats_auto_recalc=1");
-
-    if (share->db_create_options & HA_OPTION_NO_STATS_AUTO_RECALC)
+    else if (share->stats_auto_recalc == HA_STATS_AUTO_RECALC_OFF)
       ptr=strmov(ptr," stats_auto_recalc=0");
 
     if (share->stats_sample_pages != 0)

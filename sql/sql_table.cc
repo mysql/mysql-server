@@ -6323,6 +6323,9 @@ mysql_prepare_alter_table(THD *thd, TABLE *table,
   if (!(used_fields & HA_CREATE_USED_STATS_SAMPLE_PAGES))
     create_info->stats_sample_pages= table->s->stats_sample_pages;
 
+  if (!(used_fields & HA_CREATE_USED_STATS_AUTO_RECALC))
+    create_info->stats_auto_recalc= table->s->stats_auto_recalc;
+
   if (!create_info->tablespace)
     create_info->tablespace= table->s->tablespace;
 
@@ -6677,10 +6680,6 @@ mysql_prepare_alter_table(THD *thd, TABLE *table,
        (HA_OPTION_STATS_PERSISTENT | HA_OPTION_NO_STATS_PERSISTENT)) ||
       (used_fields & HA_CREATE_USED_STATS_PERSISTENT))
     db_create_options&= ~(HA_OPTION_STATS_PERSISTENT | HA_OPTION_NO_STATS_PERSISTENT);
-  if ((create_info->table_options &
-       (HA_OPTION_STATS_AUTO_RECALC | HA_OPTION_NO_STATS_AUTO_RECALC)) ||
-      (used_fields & HA_CREATE_USED_STATS_AUTO_RECALC))
-    db_create_options&= ~(HA_OPTION_STATS_AUTO_RECALC | HA_OPTION_NO_STATS_AUTO_RECALC);
   if (create_info->table_options &
       (HA_OPTION_CHECKSUM | HA_OPTION_NO_CHECKSUM))
     db_create_options&= ~(HA_OPTION_CHECKSUM | HA_OPTION_NO_CHECKSUM);

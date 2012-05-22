@@ -2120,30 +2120,53 @@ trx_is_started(
 }
 
 /*********************************************************************//**
-Copy flags from MySQL into an InnoDB table object. Those flags are stored
-in .frm file and end up in the MySQL table object, but are frequently used
-inside InnoDB so we keep their copies into the InnoDB table object. */
+Copy table flags from MySQL's HA_CREATE_INFO into an InnoDB table object.
+Those flags are stored in .frm file and end up in the MySQL table object,
+but are frequently used inside InnoDB so we keep their copies into the
+InnoDB table object. */
 UNIV_INTERN
 void
-innobase_copy_frm_flags_into_innodb(
-/*================================*/
+innobase_copy_frm_flags_from_create_info(
+/*=====================================*/
 	dict_table_t*	innodb_table,		/*!< in/out: InnoDB table */
-	uint		mysql_opts,		/*!< in: MySQL table options */
-	ulint		stats_sample_pages)	/*!< in: number of pages to
-						sample during stats estimation,
-						if used, otherwise 0. */
+	HA_CREATE_INFO*	create_info)		/*!< in: create info */
 {
 	dict_stats_set_persistent(
 		innodb_table,
-		mysql_opts & HA_OPTION_STATS_PERSISTENT,
-		mysql_opts & HA_OPTION_NO_STATS_PERSISTENT);
+		create_info->table_options & HA_OPTION_STATS_PERSISTENT,
+		create_info->table_options & HA_OPTION_NO_STATS_PERSISTENT);
 
 	dict_stats_auto_recalc_set(
 		innodb_table,
-		mysql_opts & HA_OPTION_STATS_AUTO_RECALC,
-		mysql_opts & HA_OPTION_NO_STATS_AUTO_RECALC);
+		create_info->stats_auto_recalc == HA_STATS_AUTO_RECALC_ON,
+		create_info->stats_auto_recalc == HA_STATS_AUTO_RECALC_OFF);
 
-	innodb_table->stats_sample_pages = stats_sample_pages;
+	innodb_table->stats_sample_pages = create_info->stats_sample_pages;
+}
+
+/*********************************************************************//**
+Copy table flags from MySQL's TABLE_SHARE into an InnoDB table object.
+Those flags are stored in .frm file and end up in the MySQL table object,
+but are frequently used inside InnoDB so we keep their copies into the
+InnoDB table object. */
+UNIV_INTERN
+void
+innobase_copy_frm_flags_from_table_share(
+/*=====================================*/
+	dict_table_t*	innodb_table,		/*!< in/out: InnoDB table */
+	TABLE_SHARE*	table_share)		/*!< in: table share */
+{
+	dict_stats_set_persistent(
+		innodb_table,
+		table_share->db_create_options & HA_OPTION_STATS_PERSISTENT,
+		table_share->db_create_options & HA_OPTION_NO_STATS_PERSISTENT);
+
+	dict_stats_auto_recalc_set(
+		innodb_table,
+		table_share->stats_auto_recalc == HA_STATS_AUTO_RECALC_ON,
+		table_share->stats_auto_recalc == HA_STATS_AUTO_RECALC_OFF);
+
+	innodb_table->stats_sample_pages = table_share->stats_sample_pages;
 }
 
 /*********************************************************************//**
@@ -4672,10 +4695,7 @@ retry:
 
 table_opened:
 
-	innobase_copy_frm_flags_into_innodb(
-		ib_table,
-		table->s->db_create_options,
-		table->s->stats_sample_pages);
+	innobase_copy_frm_flags_from_table_share(ib_table, table->s);
 
 	dict_stats_init(ib_table);
 
@@ -9378,10 +9398,7 @@ ha_innobase::create(
 
 	DBUG_ASSERT(innobase_table != 0);
 
-	innobase_copy_frm_flags_into_innodb(
-		innobase_table,
-		create_info->table_options,
-		create_info->stats_sample_pages);
+	innobase_copy_frm_flags_from_create_info(innobase_table, create_info);
 
 	dict_stats_update(innobase_table, DICT_STATS_EMPTY_TABLE, FALSE);
 
@@ -13262,10 +13279,7 @@ ha_innobase::check_if_incompatible_data(
 	HA_CREATE_INFO*	info,
 	uint		table_changes)
 {
-	innobase_copy_frm_flags_into_innodb(
-		prebuilt->table,
-		info->table_options,
-		info->stats_sample_pages);
+	innobase_copy_frm_flags_from_create_info(prebuilt->table, info);
 
 	if (table_changes != IS_EQUAL_YES) {
 
