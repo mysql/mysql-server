@@ -1,4 +1,5 @@
 /* -*- mode: C; c-basic-offset: 4; indent-tabs-mode: nil -*- */
+// vim: expandtab:ts=8:sw=4:softtabstop=4:
 #ident "$Id$"
 #ident "Copyright (c) 2007-2010 Tokutek Inc.  All rights reserved."
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
@@ -23,9 +24,9 @@ static void verify_snapshot_system(TOKULOGGER logger);
 static TXN_STATUS_S txn_status;
 
 #define STATUS_INIT(k,t,l) { \
-	txn_status.status[k].keyname = #k; \
-	txn_status.status[k].type    = t;  \
-	txn_status.status[k].legend  = "txn: " l; \
+    txn_status.status[k].keyname = #k; \
+    txn_status.status[k].type    = t;  \
+    txn_status.status[k].legend  = "txn: " l; \
     }
 
 static void
@@ -49,7 +50,7 @@ status_init(void) {
 void 
 toku_txn_get_status(TOKULOGGER logger, TXN_STATUS s) {
     if (!txn_status.initialized)
-	status_init();
+        status_init();
     {
         time_t oldest_starttime;
         STATUS_VALUE(TXN_OLDEST_LIVE) = toku_logger_get_oldest_living_xid(logger, &oldest_starttime);
@@ -229,7 +230,7 @@ toku_txn_create_txn (
     STATUS_VALUE(TXN_BEGIN)++;
     STATUS_VALUE(TXN_NUM_OPEN)++;
     if (STATUS_VALUE(TXN_NUM_OPEN) > STATUS_VALUE(TXN_MAX_OPEN))
-	STATUS_VALUE(TXN_MAX_OPEN) = STATUS_VALUE(TXN_NUM_OPEN);
+        STATUS_VALUE(TXN_MAX_OPEN) = STATUS_VALUE(TXN_NUM_OPEN);
 
     if (garbage_collection_debug) {
         verify_snapshot_system(logger);
@@ -357,13 +358,13 @@ toku_txn_load_txninfo (TOKUTXN txn, TXNINFO info) {
 
 int toku_txn_commit_txn(TOKUTXN txn, int nosync, YIELDF yield, void *yieldv,
                         TXN_PROGRESS_POLL_FUNCTION poll, void *poll_extra,
-			bool release_multi_operation_client_lock)
+                        bool release_multi_operation_client_lock)
 // Effect: Doesn't close the txn, just performs the commit operations.
 //  If release_multi_operation_client_lock is true, then unlock that lock (even if an error path is taken)
 {
     return toku_txn_commit_with_lsn(txn, nosync, yield, yieldv, ZERO_LSN,
-				    poll, poll_extra,
-				    release_multi_operation_client_lock);
+                                    poll, poll_extra,
+                                    release_multi_operation_client_lock);
 }
 
 
@@ -391,7 +392,7 @@ log_xcommit(void *thunk) {
 
 int toku_txn_commit_with_lsn(TOKUTXN txn, int nosync, YIELDF yield, void *yieldv, LSN oplsn,
                              TXN_PROGRESS_POLL_FUNCTION poll, void *poll_extra,
-			     bool release_multi_operation_client_lock) 
+                             bool release_multi_operation_client_lock) 
 // Effect: Among other things: if release_multi_operation_client_lock is true, then unlock that lock (even if an error path is taken)
 {
     if (txn->state==TOKUTXN_PREPARING) {
@@ -428,8 +429,8 @@ int toku_txn_commit_with_lsn(TOKUTXN txn, int nosync, YIELDF yield, void *yieldv
         r = info.r;
     }
     if (r==0) {
-	r = toku_rollback_commit(txn, yield, yieldv, oplsn);
-	STATUS_VALUE(TXN_COMMIT)++;
+        r = toku_rollback_commit(txn, yield, yieldv, oplsn);
+        STATUS_VALUE(TXN_COMMIT)++;
     }
     // Make sure we release that lock (even if there was an error)
     if (release_multi_operation_client_lock) toku_multi_operation_client_unlock();
@@ -438,7 +439,7 @@ int toku_txn_commit_with_lsn(TOKUTXN txn, int nosync, YIELDF yield, void *yieldv
 
 int toku_txn_abort_txn(TOKUTXN txn, YIELDF yield, void *yieldv,
                        TXN_PROGRESS_POLL_FUNCTION poll, void *poll_extra,
-		       bool release_multi_operation_client_lock)
+                       bool release_multi_operation_client_lock)
 // Effect: Doesn't close the txn, just performs the abort operations.
 // If release_multi_operation_client_lock is true, then unlock that lock (even if an error path is taken)
 {
@@ -447,7 +448,7 @@ int toku_txn_abort_txn(TOKUTXN txn, YIELDF yield, void *yieldv,
 
 int toku_txn_abort_with_lsn(TOKUTXN txn, YIELDF yield, void *yieldv, LSN oplsn,
                             TXN_PROGRESS_POLL_FUNCTION poll, void *poll_extra,
-			    bool release_multi_operation_client_lock)
+                            bool release_multi_operation_client_lock)
 // Effect: Ammong other things, if release_multi_operation_client_lock is true, then unlock that lock (even if an error path is taken)
 {
     if (txn->state==TOKUTXN_PREPARING) {
@@ -469,8 +470,8 @@ int toku_txn_abort_with_lsn(TOKUTXN txn, YIELDF yield, void *yieldv, LSN oplsn,
     txn->do_fsync = FALSE;
     r = toku_log_xabort(txn->logger, &txn->do_fsync_lsn, 0, txn->txnid64);
     if (r==0)  {
-	r = toku_rollback_abort(txn, yield, yieldv, oplsn);
-	STATUS_VALUE(TXN_ABORT)++;
+        r = toku_rollback_abort(txn, yield, yieldv, oplsn);
+        STATUS_VALUE(TXN_ABORT)++;
     }
     // Make sure we multi_operation_client_unlock release will happen even if there is an error
     if (release_multi_operation_client_lock) toku_multi_operation_client_unlock();
@@ -523,28 +524,28 @@ int toku_logger_get_txn_from_xid (TOKULOGGER logger, TOKU_XA_XID *xid, DB_TXN **
 
 int toku_logger_recover_txn (TOKULOGGER logger, struct tokulogger_preplist preplist[/*count*/], long count, /*out*/ long *retp, u_int32_t flags) {
     if (flags==DB_FIRST) {
-	// Anything in the returned list goes back on the prepared list.
-	while (!toku_list_empty(&logger->prepared_and_returned_txns)) {
-	    struct toku_list *h = toku_list_head(&logger->prepared_and_returned_txns);
-	    toku_list_remove(h);
-	    toku_list_push(&logger->prepared_txns, h);
-	}
+        // Anything in the returned list goes back on the prepared list.
+        while (!toku_list_empty(&logger->prepared_and_returned_txns)) {
+            struct toku_list *h = toku_list_head(&logger->prepared_and_returned_txns);
+            toku_list_remove(h);
+            toku_list_push(&logger->prepared_txns, h);
+        }
     } else if (flags!=DB_NEXT) { 
-	return EINVAL;
+        return EINVAL;
     }
     long i;
     for (i=0; i<count; i++) {
-	if (!toku_list_empty(&logger->prepared_txns)) {
-	    struct toku_list *h = toku_list_head(&logger->prepared_txns);
-	    toku_list_remove(h);
-	    toku_list_push(&logger->prepared_and_returned_txns, h);
-	    TOKUTXN txn = toku_list_struct(h, struct tokutxn, prepared_txns_link);
-	    assert(txn->container_db_txn);
-	    preplist[i].txn = txn->container_db_txn;
+        if (!toku_list_empty(&logger->prepared_txns)) {
+            struct toku_list *h = toku_list_head(&logger->prepared_txns);
+            toku_list_remove(h);
+            toku_list_push(&logger->prepared_and_returned_txns, h);
+            TOKUTXN txn = toku_list_struct(h, struct tokutxn, prepared_txns_link);
+            assert(txn->container_db_txn);
+            preplist[i].txn = txn->container_db_txn;
             preplist[i].xid = txn->xa_xid;
-	} else {
-	    break;
-	}
+        } else {
+            break;
+        }
     }
     *retp = i;
     return 0;
