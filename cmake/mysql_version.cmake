@@ -80,14 +80,9 @@ ELSEIF(MYSQL_TCP_PORT EQUAL MYSQL_TCP_PORT_DEFAULT)
   SET(MYSQL_TCP_PORT_DEFAULT "0")
 ENDIF()
 
-
-IF(NOT MYSQL_UNIX_ADDR)
-  SET(MYSQL_UNIX_ADDR "/tmp/mysql.sock")
-ENDIF()
 IF(NOT COMPILATION_COMMENT)
   SET(COMPILATION_COMMENT "Source distribution")
 ENDIF()
-
 
 INCLUDE(package_name)
 IF(NOT CPACK_PACKAGE_FILE_NAME)
@@ -104,7 +99,6 @@ ENDIF()
 SET(CPACK_PACKAGE_CONTACT "MariaDB team <info@montyprogram.com>")
 SET(CPACK_PACKAGE_VENDOR "Monty Program AB")
 SET(CPACK_SOURCE_GENERATOR "TGZ")
-INCLUDE(cpack_source_ignore_files)
 
 # Defintions for windows version resources
 SET(PRODUCTNAME "MariaDB Server")

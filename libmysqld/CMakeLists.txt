@@ -134,7 +134,7 @@ FOREACH(LIB ${LIBS})
 ENDFOREACH()
 
 MERGE_LIBRARIES(mysqlserver STATIC ${EMBEDDED_LIBS} 
-  OUTPUT_NAME ${MYSQLSERVER_OUTPUT_NAME} COMPONENT Embedded)
+  OUTPUT_NAME ${MYSQLSERVER_OUTPUT_NAME} COMPONENT Development)
 
 # Visual Studio users need debug  static library 
 IF(MSVC)
@@ -148,7 +148,7 @@ ENDIF()
 
 IF(NOT DISABLE_SHARED)
   MERGE_LIBRARIES(libmysqld SHARED mysqlserver EXPORTS ${CLIENT_API_FUNCTIONS}
-  COMPONENT Embedded) 
+    COMPONENT Server) 
   IF(UNIX)
     # Name the shared library, handle versioning (provides same api as client
     # library hence the same version)

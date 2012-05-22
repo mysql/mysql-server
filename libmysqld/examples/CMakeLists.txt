@@ -26,7 +26,7 @@ ADD_DEFINITIONS(-DEMBEDDED_LIBRARY -UMYSQL_CLIENT)
 
 MYSQL_ADD_EXECUTABLE(mysql_embedded ../../client/completion_hash.cc
                ../../client/mysql.cc ../../client/readline.cc
-               COMPONENT Test)
+               COMPONENT Client)
 TARGET_LINK_LIBRARIES(mysql_embedded mysqlserver)
 IF(UNIX)
   TARGET_LINK_LIBRARIES(mysql_embedded ${MY_READLINE_LIBRARY})

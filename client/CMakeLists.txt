@@ -49,7 +49,7 @@ TARGET_LINK_LIBRARIES(mysqldump mysqlclient)
 MYSQL_ADD_EXECUTABLE(mysqlimport mysqlimport.c)
 TARGET_LINK_LIBRARIES(mysqlimport mysqlclient)
 
-MYSQL_ADD_EXECUTABLE(mysql_upgrade mysql_upgrade.c)
+MYSQL_ADD_EXECUTABLE(mysql_upgrade mysql_upgrade.c COMPONENT Server)
 TARGET_LINK_LIBRARIES(mysql_upgrade mysqlclient)
 ADD_DEPENDENCIES(mysql_upgrade GenFixPrivs)
 

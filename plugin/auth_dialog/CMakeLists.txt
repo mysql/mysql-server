@@ -15,4 +15,4 @@
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 MYSQL_ADD_PLUGIN(dialog dialog.c ${CMAKE_SOURCE_DIR}/libmysql/get_password.c
-  MODULE_ONLY)
+  MODULE_ONLY COMPONENT SharedLibraries)

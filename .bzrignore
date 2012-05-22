@@ -1141,3 +1141,6 @@ sql/share/errmsg.sys
 sql/share/mysql
 install_manifest.txt
 sql/db.opt
+./_CPack_Packages
+./install_manifest_*.txt
+typescript

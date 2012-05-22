@@ -25,6 +25,7 @@ SET(HEADERS
   mysql.h 
   mysql_com.h
   mysql_time.h 
+  ma_dyncol.h
   my_list.h
   my_alloc.h
   typelib.h 
@@ -33,6 +34,7 @@ SET(HEADERS
   my_sys.h 
   my_xml.h
   mysql_embed.h
+  my_decimal_limits.h
   my_pthread.h
   decimal.h
   errmsg.h

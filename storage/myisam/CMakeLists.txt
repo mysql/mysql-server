@@ -34,16 +34,16 @@ MYSQL_ADD_PLUGIN(myisam ${MYISAM_SOURCES}
 
 TARGET_LINK_LIBRARIES(myisam mysys)
 
-MYSQL_ADD_EXECUTABLE(myisam_ftdump myisam_ftdump.c)
+MYSQL_ADD_EXECUTABLE(myisam_ftdump myisam_ftdump.c COMPONENT Server)
 TARGET_LINK_LIBRARIES(myisam_ftdump myisam)
 
-MYSQL_ADD_EXECUTABLE(myisamchk myisamchk.c)
+MYSQL_ADD_EXECUTABLE(myisamchk myisamchk.c COMPONENT Server)
 TARGET_LINK_LIBRARIES(myisamchk myisam)
 
-MYSQL_ADD_EXECUTABLE(myisamlog myisamlog.c)
+MYSQL_ADD_EXECUTABLE(myisamlog myisamlog.c COMPONENT Server)
 TARGET_LINK_LIBRARIES(myisamlog myisam)
 
-MYSQL_ADD_EXECUTABLE(myisampack myisampack.c)
+MYSQL_ADD_EXECUTABLE(myisampack myisampack.c COMPONENT Server)
 TARGET_LINK_LIBRARIES(myisampack myisam)
 
 IF(WITH_UNIT_TESTS AND FALSE)

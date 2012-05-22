@@ -216,7 +216,7 @@ ADD_CUSTOM_COMMAND(
   DEPENDS gen_lex_hash
 )
 
-MYSQL_ADD_EXECUTABLE(mysql_tzinfo_to_sql tztime.cc)
+MYSQL_ADD_EXECUTABLE(mysql_tzinfo_to_sql tztime.cc COMPONENT Server)
 SET_TARGET_PROPERTIES(mysql_tzinfo_to_sql PROPERTIES COMPILE_FLAGS "-DTZINFO2SQL")
 TARGET_LINK_LIBRARIES(mysql_tzinfo_to_sql mysys)
 
@@ -311,8 +311,8 @@ IF(WIN32 AND MYSQLD_EXECUTABLE)
 ELSE()
   # Not windows or cross compiling, just install an empty directory
   INSTALL(FILES ${DUMMY_FILE} DESTINATION data/mysql COMPONENT DataFiles)
-ENDIF()
-ENDIF()
+ENDIF(WIN32 AND MYSQLD_EXECUTABLE)
+ENDIF(INSTALL_LAYOUT STREQUAL "STANDALONE")
 
 IF(WIN32)
   SET(my_bootstrap_sql ${CMAKE_CURRENT_BINARY_DIR}/my_bootstrap.sql)

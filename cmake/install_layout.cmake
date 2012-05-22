@@ -41,6 +41,7 @@
 # - INSTALL_BINDIR          (directory with client executables and scripts)
 # - INSTALL_SBINDIR         (directory with mysqld)
 # - INSTALL_SCRIPTDIR       (several scripts, rarely used)
+# - INSTALL_SYSCONFDIR	    (config files. Usually /etc or nothing)
 #
 # - INSTALL_LIBDIR          (directory with client end embedded libraries)
 # - INSTALL_PLUGINDIR       (directory for plugins)
@@ -60,14 +61,16 @@
 #
 # - INSTALL_MYSQLDATADIR    (data directory)
 #
+# - INSTALL_UNIX_ADDRDIR    (path to mysql.sock)
+#
 # When changing this page,  _please_ do not forget to update public Wiki
 # http://forge.mysql.com/wiki/CMake#Fine-tuning_installation_paths
 
 IF(NOT INSTALL_LAYOUT)
-  SET(DEFAULT_INSTALL_LAYOUT "STANDALONE")
+  SET(INSTALL_LAYOUT "STANDALONE")
 ENDIF()
 
-SET(INSTALL_LAYOUT "${DEFAULT_INSTALL_LAYOUT}"
+SET(INSTALL_LAYOUT "${INSTALL_LAYOUT}"
 CACHE STRING "Installation directory layout. Options are: STANDALONE (as in zip or tar.gz installer) RPM DEB SVR4")
 
 IF(UNIX)
@@ -92,10 +95,6 @@ IF(UNIX)
     MESSAGE(FATAL_ERROR "Invalid INSTALL_LAYOUT parameter:${INSTALL_LAYOUT}."
     " Choose between ${VALID_INSTALL_LAYOUTS}" )
   ENDIF()
-
-  SET(SYSCONFDIR "${CMAKE_INSTALL_PREFIX}/etc"
-    CACHE PATH "config directory (for my.cnf)")
-  MARK_AS_ADVANCED(SYSCONFDIR)
 ENDIF()
 
 #
@@ -131,12 +130,14 @@ SET(INSTALL_SUPPORTFILESDIR_STANDALONE  "support-files")
 SET(INSTALL_MYSQLDATADIR_STANDALONE     "data")
 SET(INSTALL_PLUGINTESTDIR_STANDALONE    ${plugin_tests})
 
+SET(INSTALL_UNIX_ADDRDIR_STANDALONE     "/tmp/mysql.sock")
 #
 # RPM layout
 #
 SET(INSTALL_BINDIR_RPM                  "bin")
 SET(INSTALL_SBINDIR_RPM                 "sbin")
 SET(INSTALL_SCRIPTDIR_RPM               "bin")
+SET(INSTALL_SYSCONFDIR_RPM		"/etc")
 #
 IF(CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64")
   SET(INSTALL_LIBDIR_RPM                "lib64")
@@ -148,8 +149,8 @@ ENDIF()
 #
 SET(INSTALL_INCLUDEDIR_RPM              "include/mysql")
 #
-#SET(INSTALL_DOCDIR_RPM                 unset - installed directly by RPM)
-#SET(INSTALL_DOCREADMEDIR_RPM           unset - installed directly by RPM)
+SET(INSTALL_DOCDIR_RPM                  "share/doc/${CPACK_SOURCE_PACKAGE_FILE_NAME}")
+SET(INSTALL_DOCREADMEDIR_RPM            "share/doc/${CPACK_SOURCE_PACKAGE_FILE_NAME}")
 SET(INSTALL_INFODIR_RPM                 "share/info")
 SET(INSTALL_MANDIR_RPM                  "share/man")
 #
@@ -161,6 +162,8 @@ SET(INSTALL_SUPPORTFILESDIR_RPM         "share/mysql")
 #
 SET(INSTALL_MYSQLDATADIR_RPM            "/var/lib/mysql")
 SET(INSTALL_PLUGINTESTDIR_RPM           ${plugin_tests})
+
+SET(INSTALL_UNIX_ADDRDIR_RPM            "${INSTALL_MYSQLDATADIR_RPM}/mysql.sock")
 
 #
 # DEB layout
@@ -188,6 +191,7 @@ SET(INSTALL_SUPPORTFILESDIR_DEB         "support-files")
 SET(INSTALL_MYSQLDATADIR_DEB            "/var/lib/mysql")
 SET(INSTALL_PLUGINTESTDIR_DEB           ${plugin_tests})
 
+SET(INSTALL_UNIX_ADDRDIR_DEB            "/tmp/mysql.sock")
 #
 # SVR4 layout
 #
@@ -214,6 +218,7 @@ SET(INSTALL_SUPPORTFILESDIR_SVR4        "support-files")
 SET(INSTALL_MYSQLDATADIR_SVR4           "/var/lib/mysql")
 SET(INSTALL_PLUGINTESTDIR_SVR4          ${plugin_tests})
 
+SET(INSTALL_UNIX_ADDRDIR_SVR            "/tmp/mysql.sock")
 
 # Clear cached variables if install layout was changed
 IF(OLD_INSTALL_LAYOUT)
@@ -226,9 +231,14 @@ SET(OLD_INSTALL_LAYOUT ${INSTALL_LAYOUT} CACHE INTERNAL "")
 # Set INSTALL_FOODIR variables for chosen layout (for example, INSTALL_BINDIR
 # will be defined  as ${INSTALL_BINDIR_STANDALONE} by default if STANDALONE
 # layout is chosen)
-FOREACH(var BIN SBIN LIB MYSQLSHARE SHARE PLUGIN INCLUDE SCRIPT DOC MAN
-  INFO MYSQLTEST SQLBENCH DOCREADME SUPPORTFILES MYSQLDATA PLUGINTEST)
+FOREACH(var BIN SBIN LIB MYSQLSHARE SHARE PLUGIN INCLUDE SCRIPT DOC MAN SYSCONF
+    INFO MYSQLTEST SQLBENCH DOCREADME SUPPORTFILES MYSQLDATA PLUGINTEST UNIX_ADDR)
   SET(INSTALL_${var}DIR  ${INSTALL_${var}DIR_${INSTALL_LAYOUT}}
   CACHE STRING "${var} installation directory" ${FORCE})
   MARK_AS_ADVANCED(INSTALL_${var}DIR)
 ENDFOREACH()
+
+IF(NOT MYSQL_UNIX_ADDR)
+  SET(MYSQL_UNIX_ADDR ${INSTALL_UNIX_ADDRDIR})
+ENDIF()
+

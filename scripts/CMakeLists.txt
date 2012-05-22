@@ -280,6 +280,9 @@ SET(LIBDL)
 
 SET(NON_THREADED_LIBS ${CLIENT_LIBS})
 SET(mysql_config_COMPONENT COMPONENT Development)
+SET(msql2mysql_COMPONENT COMPONENT Client)
+SET(mysqlaccess_COMPONENT COMPONENT Client)
+SET(mysql_find_rows_COMPONENT COMPONENT Client)
 
 IF(WIN32)
   # On Windows, some .sh and some .pl.in files are configured 
@@ -317,7 +320,6 @@ ELSE()
     mysql_secure_installation
     mysql_zap
     mysqlaccess
-    mysqlaccess.conf
     mysql_convert_table_format
     mysql_find_rows
     mysqlhotcopy

@@ -1,4 +1,5 @@
-# Copyright (c) 2006, 2010, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2010, Oracle and/or its affiliates.
+# Copyright (c) 2012, Monty Program Ab
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -65,6 +66,7 @@ IF(UNIX)
   ENDFOREACH()
   IF(INSTALL_SUPPORTFILESDIR)
     INSTALL(FILES magic DESTINATION ${inst_location} COMPONENT SupportFiles)
+    INSTALL(DIRECTORY RHEL4-SElinux/ DESTINATION ${inst_location}/SELinux/RHEL4 COMPONENT SupportFiles)
   ENDIF()
 
   INSTALL(FILES mysql.m4 DESTINATION ${INSTALL_SHAREDIR}/aclocal COMPONENT Development)
@@ -91,4 +93,20 @@ IF(UNIX)
     DESTINATION ${inst_location} COMPONENT SupportFiles
     PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE GROUP_READ 
     GROUP_EXECUTE WORLD_READ WORLD_EXECUTE)
+
+  IF (INSTALL_SYSCONFDIR)
+    INSTALL(FILES ${CMAKE_CURRENT_BINARY_DIR}/mysql-log-rotate DESTINATION ${INSTALL_SYSCONFDIR}/logrotate.d
+            RENAME mysql COMPONENT SupportFiles)
+    INSTALL(FILES ${CMAKE_CURRENT_BINARY_DIR}/mysql.server
+            DESTINATION  ${INSTALL_SYSCONFDIR}/init.d
+            RENAME mysql COMPONENT SupportFiles
+            PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE GROUP_READ 
+            GROUP_EXECUTE WORLD_READ WORLD_EXECUTE)
+    # This is for SuSE:
+    INSTALL(CODE "EXECUTE_PROCESS(COMMAND ${CMAKE_COMMAND} -E create_symlink
+                   ${INSTALL_SYSCONFDIR}/init.d/mysql
+                   ${INSTALL_SBINDIR}/rcmysql
+                   WORKING_DIRECTORY \$ENV{DESTDIR}${prefix})"
+                   COMPONENT SupportFiles)
+  ENDIF(INSTALL_SYSCONFDIR)
 ENDIF()
