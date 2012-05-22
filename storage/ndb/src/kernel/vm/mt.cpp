@@ -3739,7 +3739,7 @@ mt_job_thread_main(void *thr_arg)
 
     /**
      * prefill our thread local send buffers
-     *   up to THR_MINIMUM_SEND_BUFFERS (1Mb)
+     *   up to THR_SEND_BUFFER_PRE_ALLOC (1Mb)
      *
      * and if this doesnt work pack buffers before start to execute signals
      */
