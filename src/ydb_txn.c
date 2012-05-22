@@ -1,4 +1,5 @@
 /* -*- mode: C; c-basic-offset: 4; indent-tabs-mode: nil -*- */
+// vim: expandtab:ts=8:sw=4:softtabstop=4:
 #ident "Copyright (c) 2007-2009 Tokutek Inc.  All rights reserved."
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
 #ident "$Id$"
@@ -71,7 +72,7 @@ toku_txn_commit_only(DB_TXN * txn, u_int32_t flags,
         //commit of child sets the child pointer to NULL
         int r_child = toku_txn_commit(db_txn_struct_i(txn)->child, flags, NULL, NULL, false);
         if (r_child !=0 && !toku_env_is_panicked(txn->mgrp)) {
-	    env_panic(txn->mgrp, r_child, "Recursive child commit failed during parent commit.\n");
+            env_panic(txn->mgrp, r_child, "Recursive child commit failed during parent commit.\n");
         }
         //In a panicked env, the child may not be removed from the list.
         HANDLE_PANICKED_ENV(txn->mgrp);
@@ -93,19 +94,19 @@ toku_txn_commit_only(DB_TXN * txn, u_int32_t flags,
 
     int r;
     if (flags!=0) {
-	// frees the tokutxn
-	// Calls ydb_yield(NULL) occasionally
+        // frees the tokutxn
+        // Calls ydb_yield(NULL) occasionally
         r = toku_txn_abort_txn(db_txn_struct_i(txn)->tokutxn, ydb_yield, NULL, poll, poll_extra,
-			       release_multi_operation_client_lock);
+                               release_multi_operation_client_lock);
     } else {
-	// frees the tokutxn
-	// Calls ydb_yield(NULL) occasionally
+        // frees the tokutxn
+        // Calls ydb_yield(NULL) occasionally
         r = toku_txn_commit_txn(db_txn_struct_i(txn)->tokutxn, nosync, ydb_yield, NULL,
-				poll, poll_extra, release_multi_operation_client_lock);
+                                poll, poll_extra, release_multi_operation_client_lock);
     }
 
     if (r!=0 && !toku_env_is_panicked(txn->mgrp)) {
-	env_panic(txn->mgrp, r, "Error during commit.\n");
+        env_panic(txn->mgrp, r, "Error during commit.\n");
     }
     //If panicked, we're done.
     HANDLE_PANICKED_ENV(txn->mgrp);
@@ -192,7 +193,7 @@ toku_txn_abort_only(DB_TXN * txn,
         //commit of child sets the child pointer to NULL
         int r_child = toku_txn_commit(db_txn_struct_i(txn)->child, DB_TXN_NOSYNC, NULL, NULL, false);
         if (r_child !=0 && !toku_env_is_panicked(txn->mgrp)) {
-	    env_panic(txn->mgrp, r_child, "Recursive child commit failed during parent abort.\n");
+            env_panic(txn->mgrp, r_child, "Recursive child commit failed during parent abort.\n");
         }
         //In a panicked env, the child may not be removed from the list.
         HANDLE_PANICKED_ENV(txn->mgrp);
@@ -209,7 +210,7 @@ toku_txn_abort_only(DB_TXN * txn,
 
     int r = toku_txn_abort_txn(db_txn_struct_i(txn)->tokutxn, ydb_yield, NULL, poll, poll_extra, release_multi_operation_client_lock);
     if (r!=0 && !toku_env_is_panicked(txn->mgrp)) {
-	env_panic(txn->mgrp, r, "Error during abort.\n");
+        env_panic(txn->mgrp, r, "Error during abort.\n");
     }
     HANDLE_PANICKED_ENV(txn->mgrp);
     assert_zero(r);
@@ -228,7 +229,7 @@ toku_txn_xa_prepare (DB_TXN *txn, TOKU_XA_XID *xid) {
         //commit of child sets the child pointer to NULL
         int r_child = toku_txn_commit(db_txn_struct_i(txn)->child, 0, NULL, NULL, false);
         if (r_child !=0 && !toku_env_is_panicked(txn->mgrp)) {
-	    env_panic(txn->mgrp, r_child, "Recursive child commit failed during parent commit.\n");
+            env_panic(txn->mgrp, r_child, "Recursive child commit failed during parent commit.\n");
         }
         //In a panicked env, the child may not be removed from the list.
         HANDLE_PANICKED_ENV(txn->mgrp);
@@ -538,8 +539,8 @@ void toku_keep_prepared_txn_callback (DB_ENV *env, TOKUTXN tokutxn) {
     toku_list_init(&db_txn_struct_i(result)->dbs_that_must_close_before_abort);
 
     {
-	int r = toku_lth_create(&db_txn_struct_i(result)->lth);
-	assert(r==0);
+        int r = toku_lth_create(&db_txn_struct_i(result)->lth);
+        assert(r==0);
     }
 
     db_txn_struct_i(result)->tokutxn = tokutxn;
