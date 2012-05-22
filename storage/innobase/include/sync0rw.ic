@@ -325,58 +325,6 @@ rw_lock_s_lock_low(
 }
 
 /******************************************************************//**
-Low-level function which locks an rw-lock in s-mode when we know that it
-is possible and none else is currently accessing the rw-lock structure.
-Then we can do the locking without reserving the mutex. */
-UNIV_INLINE
-void
-rw_lock_s_lock_direct(
-/*==================*/
-	rw_lock_t*	lock,		/*!< in/out: rw-lock */
-	const char*	file_name,	/*!< in: file name where requested */
-	ulint		line)		/*!< in: line where lock requested */
-{
-	ut_ad(lock->lock_word == X_LOCK_DECR);
-
-	/* Indicate there is a new reader by decrementing lock_word */
-	lock->lock_word--;
-
-	lock->last_s_file_name = file_name;
-	lock->last_s_line = line;
-
-#ifdef UNIV_SYNC_DEBUG
-	rw_lock_add_debug_info(lock, 0, RW_LOCK_SHARED, file_name, line);
-#endif
-}
-
-/******************************************************************//**
-Low-level function which locks an rw-lock in x-mode when we know that it
-is not locked and none else is currently accessing the rw-lock structure.
-Then we can do the locking without reserving the mutex. */
-UNIV_INLINE
-void
-rw_lock_x_lock_direct(
-/*==================*/
-	rw_lock_t*	lock,		/*!< in/out: rw-lock */
-	const char*	file_name,	/*!< in: file name where requested */
-	ulint		line)		/*!< in: line where lock requested */
-{
-	ut_ad(rw_lock_validate(lock));
-	ut_ad(lock->lock_word == X_LOCK_DECR);
-
-	lock->lock_word -= X_LOCK_DECR;
-	lock->writer_thread = os_thread_get_curr_id();
-	lock->recursive = TRUE;
-
-	lock->last_x_file_name = file_name;
-	lock->last_x_line = line;
-
-#ifdef UNIV_SYNC_DEBUG
-	rw_lock_add_debug_info(lock, 0, RW_LOCK_EX, file_name, line);
-#endif
-}
-
-/******************************************************************//**
 NOTE! Use the corresponding macro, not directly this function! Lock an
 rw-lock in shared mode for the current thread. If the rw-lock is locked
 in exclusive mode, or there is an exclusive lock request waiting, the
