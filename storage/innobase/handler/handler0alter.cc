@@ -3831,10 +3831,24 @@ trx_commit:
 		}
 
 		if (ctx) {
+			bool	stats_init_called = false;
+
 			for (uint i = 0; i < ctx->num_to_add; i++) {
 				dict_index_t*	index = ctx->add[i];
 
 				if (!(index->type & DICT_FTS)) {
+
+					if (!stats_init_called) {
+						innobase_copy_frm_flags_into_innodb(
+							index->table,
+							altered_table->s->db_create_options,
+							altered_table->s->stats_sample_pages);
+
+						dict_stats_init(index->table);
+
+						stats_init_called = true;
+					}
+
 					dict_stats_update_for_index(index);
 				}
 			}

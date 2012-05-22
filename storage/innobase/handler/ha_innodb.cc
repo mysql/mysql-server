@@ -2123,10 +2123,10 @@ trx_is_started(
 Copy flags from MySQL into an InnoDB table object. Those flags are stored
 in .frm file and end up in the MySQL table object, but are frequently used
 inside InnoDB so we keep their copies into the InnoDB table object. */
-static
+UNIV_INTERN
 void
-copy_frm_flags_into_innodb(
-/*=======================*/
+innobase_copy_frm_flags_into_innodb(
+/*================================*/
 	dict_table_t*	innodb_table,		/*!< in/out: InnoDB table */
 	uint		mysql_opts,		/*!< in: MySQL table options */
 	ulint		stats_sample_pages)	/*!< in: number of pages to
@@ -4672,9 +4672,10 @@ retry:
 
 table_opened:
 
-	copy_frm_flags_into_innodb(ib_table,
-				   table->s->db_create_options,
-				   table->s->stats_sample_pages);
+	innobase_copy_frm_flags_into_innodb(
+		ib_table,
+		table->s->db_create_options,
+		table->s->stats_sample_pages);
 
 	dict_stats_init(ib_table);
 
@@ -9377,9 +9378,10 @@ ha_innobase::create(
 
 	DBUG_ASSERT(innobase_table != 0);
 
-	copy_frm_flags_into_innodb(innobase_table,
-				   create_info->table_options,
-				   create_info->stats_sample_pages);
+	innobase_copy_frm_flags_into_innodb(
+		innobase_table,
+		create_info->table_options,
+		create_info->stats_sample_pages);
 
 	dict_stats_update(innobase_table, DICT_STATS_EMPTY_TABLE, FALSE);
 
@@ -13260,9 +13262,10 @@ ha_innobase::check_if_incompatible_data(
 	HA_CREATE_INFO*	info,
 	uint		table_changes)
 {
-	copy_frm_flags_into_innodb(prebuilt->table,
-				   info->table_options,
-				   info->stats_sample_pages);
+	innobase_copy_frm_flags_into_innodb(
+		prebuilt->table,
+		info->table_options,
+		info->stats_sample_pages);
 
 	if (table_changes != IS_EQUAL_YES) {
 
