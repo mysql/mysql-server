@@ -25,7 +25,7 @@ EOF
 
 call mtr.add_suppression("InnoDB: Error: trying to open a table, but could not$");
 call mtr.add_suppression("MySQL is trying to open a table handle but the \.ibd file for$");
-call mtr.add_suppression("InnoDB: Error: table 'test/t'$");
+call mtr.add_suppression("InnoDB: Table 'test/t'$");
 
 # The ER_NO_SUCH_TABLE is being thrown by ha_innobase::open().
 # The table does exist, only the tablespace does not exist.
