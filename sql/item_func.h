@@ -1,7 +1,7 @@
 #ifndef ITEM_FUNC_INCLUDED
 #define ITEM_FUNC_INCLUDED
 
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1673,9 +1673,9 @@ public:
   virtual void print(String *str, enum_query_type query_type);
   void print_assignment(String *str, enum_query_type query_type);
   const char *func_name() const { return "set_user_var"; }
-  int save_in_field(Field *field, bool no_conversions,
-                    bool can_use_result_field);
-  int save_in_field(Field *field, bool no_conversions)
+  type_conversion_status save_in_field(Field *field, bool no_conversions,
+                                       bool can_use_result_field);
+  type_conversion_status save_in_field(Field *field, bool no_conversions)
   {
     return save_in_field(field, no_conversions, 1);
   }

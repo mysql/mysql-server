@@ -263,14 +263,14 @@ struct sql_ex_info
 #define FORMAT_DESCRIPTION_HEADER_LEN (START_V3_HEADER_LEN+1+LOG_EVENT_TYPES)
 #define XID_HEADER_LEN         0
 #define BEGIN_LOAD_QUERY_HEADER_LEN APPEND_BLOCK_HEADER_LEN
-#define ROWS_HEADER_LEN        8
+#define ROWS_HEADER_LEN_V1     8
 #define TABLE_MAP_HEADER_LEN   8
 #define EXECUTE_LOAD_QUERY_EXTRA_HEADER_LEN (4 + 4 + 4 + 1)
 #define EXECUTE_LOAD_QUERY_HEADER_LEN  (QUERY_HEADER_LEN + EXECUTE_LOAD_QUERY_EXTRA_HEADER_LEN)
 #define INCIDENT_HEADER_LEN    2
 #define HEARTBEAT_HEADER_LEN   0
 #define IGNORABLE_HEADER_LEN   0
-#define RESERVED_HEADER_LEN    0
+#define ROWS_HEADER_LEN_V2     10
 
 /*
    The maximum number of updated databases that a status of
@@ -438,6 +438,9 @@ struct sql_ex_info
 /* RW = "RoWs" */
 #define RW_MAPID_OFFSET    0
 #define RW_FLAGS_OFFSET    6
+#define RW_VHLEN_OFFSET    8
+#define RW_V_TAG_LEN       1
+#define RW_V_EXTRAINFO_TAG 0
 
 /* ELQ = "Execute Load Query" */
 #define ELQ_FILE_ID_OFFSET QUERY_HEADER_LEN
@@ -667,11 +670,11 @@ enum Log_event_type
   PRE_GA_DELETE_ROWS_EVENT = 22,
 
   /*
-    These event numbers are used from 5.1.16 and forward
+    These event numbers are used from 5.1.16 until mysql-trunk-xx
    */
-  WRITE_ROWS_EVENT = 23,
-  UPDATE_ROWS_EVENT = 24,
-  DELETE_ROWS_EVENT = 25,
+  WRITE_ROWS_EVENT_V1 = 23,
+  UPDATE_ROWS_EVENT_V1 = 24,
+  DELETE_ROWS_EVENT_V1 = 25,
 
   /*
     Something out of the ordinary happened on the master
@@ -693,10 +696,10 @@ enum Log_event_type
   IGNORABLE_LOG_EVENT= 28,
   ROWS_QUERY_LOG_EVENT= 29,
 
-  /* Following event numbers reserved for WL#5917 */
-  RESERVED_EVENT_NUM_1 = 30,
-  RESERVED_EVENT_NUM_2 = 31,
-  RESERVED_EVENT_NUM_3 = 32,
+  /* Version 2 of the Row events */
+  WRITE_ROWS_EVENT = 30,
+  UPDATE_ROWS_EVENT = 31,
+  DELETE_ROWS_EVENT = 32,
 
   GTID_LOG_EVENT= 33,
   ANONYMOUS_GTID_LOG_EVENT= 34,
@@ -3894,6 +3897,9 @@ public:
   void clear_flags(flag_set flags_arg) { m_flags &= ~flags_arg; }
   flag_set get_flags(flag_set flags_arg) const { return m_flags & flags_arg; }
 
+  Log_event_type get_type_code() { return m_type; } /* Specific type (_V1 etc) */
+  virtual Log_event_type get_general_type_code() = 0; /* General rows op type, no version */
+
 #if defined(MYSQL_SERVER) && defined(HAVE_REPLICATION)
   virtual int pack_info(Protocol *protocol);
 #endif
@@ -3949,7 +3955,7 @@ public:
   {
     bool res= FALSE;
 
-    switch (get_type_code())
+    switch (get_general_type_code())
     {
       case DELETE_ROWS_EVENT:
         res= bitmap_cmp(get_cols(), table->read_set);
@@ -3990,6 +3996,8 @@ public:
 
   uint     m_row_count;         /* The number of rows added to the event */
 
+  const uchar* get_extra_row_data() const   { return m_extra_row_data; }
+
 protected:
   /* 
      The constructors are protected since you're supposed to inherit
@@ -3997,10 +4005,11 @@ protected:
   */
 #ifdef MYSQL_SERVER
   Rows_log_event(THD*, TABLE*, ulong table_id, 
-		 MY_BITMAP const *cols, bool is_transactional);
+		 MY_BITMAP const *cols, bool is_transactional,
+                 Log_event_type event_type,
+                 const uchar* extra_row_info);
 #endif
   Rows_log_event(const char *row_data, uint event_len, 
-		 Log_event_type event_type,
 		 const Format_description_log_event *description_event);
 
 #ifdef MYSQL_CLIENT
@@ -4050,6 +4059,11 @@ protected:
   uchar    *m_rows_end;		/* One-after the end of the allocated space */
 
   flag_set m_flags;		/* Flags for row-level events */
+
+  Log_event_type m_type;        /* Actual event type */
+
+  uchar    *m_extra_row_data;   /* Pointer to extra row data if any */
+                                /* If non null, first byte is length */
 
   /* helper functions */
 
@@ -4270,7 +4284,8 @@ public:
 
 #if defined(MYSQL_SERVER)
   Write_rows_log_event(THD*, TABLE*, ulong table_id, 
-		       bool is_transactional);
+		       bool is_transactional,
+                       const uchar* extra_row_info);
 #endif
 #ifdef HAVE_REPLICATION
   Write_rows_log_event(const char *buf, uint event_len, 
@@ -4284,7 +4299,7 @@ public:
                                           const uchar *after_record)
   {
     return thd->binlog_write_row(table, is_transactional,
-                                 after_record);
+                                 after_record, NULL);
   }
 #endif
 
@@ -4292,7 +4307,7 @@ protected:
   int write_row(const Relay_log_info *const, const bool);
 
 private:
-  virtual Log_event_type get_type_code() { return (Log_event_type)TYPE_CODE; }
+  virtual Log_event_type get_general_type_code() { return (Log_event_type)TYPE_CODE; }
 
 #ifdef MYSQL_CLIENT
   void print(FILE *file, PRINT_EVENT_INFO *print_event_info);
@@ -4331,10 +4346,12 @@ public:
   Update_rows_log_event(THD*, TABLE*, ulong table_id,
 			MY_BITMAP const *cols_bi,
 			MY_BITMAP const *cols_ai,
-                        bool is_transactional);
+                        bool is_transactional,
+                        const uchar* extra_row_info);
 
   Update_rows_log_event(THD*, TABLE*, ulong table_id,
-                        bool is_transactional);
+                        bool is_transactional,
+                        const uchar* extra_row_info);
 
   void init(MY_BITMAP const *cols);
 #endif
@@ -4353,7 +4370,7 @@ public:
                                           const uchar *after_record)
   {
     return thd->binlog_update_row(table, is_transactional,
-                                  before_record, after_record);
+                                  before_record, after_record, NULL);
   }
 #endif
 
@@ -4363,7 +4380,7 @@ public:
   }
 
 protected:
-  virtual Log_event_type get_type_code() { return (Log_event_type)TYPE_CODE; }
+  virtual Log_event_type get_general_type_code() { return (Log_event_type)TYPE_CODE; }
 
 #ifdef MYSQL_CLIENT
   void print(FILE *file, PRINT_EVENT_INFO *print_event_info);
@@ -4407,7 +4424,7 @@ public:
 
 #ifdef MYSQL_SERVER
   Delete_rows_log_event(THD*, TABLE*, ulong, 
-			bool is_transactional);
+			bool is_transactional, const uchar* extra_row_info);
 #endif
 #ifdef HAVE_REPLICATION
   Delete_rows_log_event(const char *buf, uint event_len, 
@@ -4421,12 +4438,12 @@ public:
                                           __attribute__((unused)))
   {
     return thd->binlog_delete_row(table, is_transactional,
-                                  before_record);
+                                  before_record, NULL);
   }
 #endif
   
 protected:
-  virtual Log_event_type get_type_code() { return (Log_event_type)TYPE_CODE; }
+  virtual Log_event_type get_general_type_code() { return (Log_event_type)TYPE_CODE; }
 
 #ifdef MYSQL_CLIENT
   void print(FILE *file, PRINT_EVENT_INFO *print_event_info);

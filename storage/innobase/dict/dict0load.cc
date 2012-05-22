@@ -1989,6 +1989,14 @@ func_exit:
 	ut_ad(!table || ignore_err != DICT_ERR_IGNORE_NONE
 	      || !table->corrupted);
 
+	if (table && table->fts) {
+		ut_ad(dict_table_has_fts_index(table)
+		      || DICT_TF2_FLAG_IS_SET(table, DICT_TF2_FTS_HAS_DOC_ID)
+		      || DICT_TF2_FLAG_IS_SET(table, DICT_TF2_FTS_ADD_DOC_ID));
+
+		fts_optimize_add_table(table);
+	}
+
 	return(table);
 }
 

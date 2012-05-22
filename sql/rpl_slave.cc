@@ -7617,7 +7617,7 @@ int start_slave(THD* thd , Master_info* mi,  bool net_report)
                               "not retry the transaction and will stop.");
         }
       }
-      else if (thd->lex->mi.pos || thd->lex->mi.relay_log_pos)
+      else if (thd->lex->mi.pos || thd->lex->mi.relay_log_pos || thd->lex->mi.gtid)
         push_warning(thd, Sql_condition::WARN_LEVEL_NOTE, ER_UNTIL_COND_IGNORED,
                      ER(ER_UNTIL_COND_IGNORED));
 

@@ -792,6 +792,7 @@ THD::THD(bool enable_plugins)
               /* statement id */ 0),
    rli_fake(0), rli_slave(NULL),
    in_sub_stmt(0),
+   binlog_row_event_extra_data(NULL),
    binlog_unsafe_warning_flags(0),
    binlog_table_maps(0),
    binlog_accessed_db_names(NULL),
@@ -1270,6 +1271,7 @@ void THD::init(void)
   update_charset();
   reset_current_stmt_binlog_format_row();
   memset(&status_var, 0, sizeof(status_var));
+  binlog_row_event_extra_data= 0;
 
   if (variables.sql_log_bin)
     variables.option_bits|= OPTION_BIN_LOG;
@@ -3053,13 +3055,42 @@ bool select_exists_subselect::send_data(List<Item> &items)
 int select_dumpvar::prepare(List<Item> &list, SELECT_LEX_UNIT *u)
 {
   unit= u;
+  List_iterator_fast<my_var> var_li(var_list);
+  List_iterator_fast<Item> it(list);
+  Item *item;
+  my_var *mv;
+  Item_func_set_user_var **suv;
   
   if (var_list.elements != list.elements)
   {
     my_message(ER_WRONG_NUMBER_OF_COLUMNS_IN_SELECT,
                ER(ER_WRONG_NUMBER_OF_COLUMNS_IN_SELECT), MYF(0));
     return 1;
-  }               
+  }
+
+  /*
+    Iterate over the destination variables and mark them as being
+    updated in this query.
+    We need to do this at JOIN::prepare time to ensure proper
+    const detection of Item_func_get_user_var that is determined
+    by the presence of Item_func_set_user_vars
+  */
+
+  suv= set_var_items= (Item_func_set_user_var **) 
+    sql_alloc(sizeof(Item_func_set_user_var *) * list.elements);
+
+  while ((mv= var_li++) && (item= it++))
+  {
+    if (!mv->local)
+    {
+      *suv= new Item_func_set_user_var(mv->s, item);
+      (*suv)->fix_fields(thd, 0);
+    }
+    else
+      *suv= NULL;
+    suv++;
+  }
+
   return 0;
 }
 
@@ -3376,6 +3407,7 @@ bool select_dumpvar::send_data(List<Item> &items)
   List_iterator<Item> it(items);
   Item *item;
   my_var *mv;
+  Item_func_set_user_var **suv;
   DBUG_ENTER("select_dumpvar::send_data");
 
   if (unit->offset_limit_cnt)
@@ -3388,20 +3420,19 @@ bool select_dumpvar::send_data(List<Item> &items)
     my_message(ER_TOO_MANY_ROWS, ER(ER_TOO_MANY_ROWS), MYF(0));
     DBUG_RETURN(1);
   }
-  while ((mv= var_li++) && (item= it++))
+  for (suv= set_var_items; ((mv= var_li++) && (item= it++)); suv++)
   {
     if (mv->local)
     {
+      DBUG_ASSERT(!*suv);
       if (thd->sp_runtime_ctx->set_variable(thd, mv->offset, &item))
 	    DBUG_RETURN(1);
     }
     else
     {
-      Item_func_set_user_var *suv= new Item_func_set_user_var(mv->s, item);
-      if (suv->fix_fields(thd, 0))
-        DBUG_RETURN (1);
-      suv->save_item_result(item);
-      if (suv->update())
+      DBUG_ASSERT(*suv);
+      (*suv)->save_item_result(item);
+      if ((*suv)->update())
         DBUG_RETURN (1);
     }
   }

@@ -2361,6 +2361,15 @@ public:
   void set_next_event_pos(const char* _filename, ulonglong _pos);
   void clear_next_event_pos();
 
+  /*
+     Ptr to row event extra data to be written to Binlog /
+     received from Binlog.
+
+   */
+  uchar* binlog_row_event_extra_data;
+  static bool binlog_row_event_extra_data_eq(const uchar* a,
+                                             const uchar* b);
+
 #ifndef MYSQL_CLIENT
   int binlog_setup_trx_data();
 
@@ -2370,11 +2379,14 @@ public:
   int binlog_write_table_map(TABLE *table, bool is_transactional,
                              bool binlog_rows_query);
   int binlog_write_row(TABLE* table, bool is_transactional,
-                       const uchar *new_data);
+                       const uchar *new_data,
+                       const uchar* extra_row_info);
   int binlog_delete_row(TABLE* table, bool is_transactional,
-                        const uchar *old_data);
+                        const uchar *old_data,
+                        const uchar* extra_row_info);
   int binlog_update_row(TABLE* table, bool is_transactional,
-                        const uchar *old_data, const uchar *new_data);
+                        const uchar *old_data, const uchar *new_data,
+                        const uchar* extra_row_info);
   void binlog_prepare_row_images(TABLE* table);
 
   void set_server_id(uint32 sid) { server_id = sid; }
@@ -2386,7 +2398,8 @@ public:
     binlog_prepare_pending_rows_event(TABLE* table, uint32 serv_id,
                                       size_t needed,
                                       bool is_transactional,
-				      RowsEventT* hint);
+				      RowsEventT* hint,
+                                      const uchar* extra_row_info);
   Rows_log_event* binlog_get_pending_rows_event(bool is_transactional) const;
   void binlog_set_pending_rows_event(Rows_log_event* ev, bool is_transactional);
   inline int binlog_flush_pending_rows_event(bool stmt_end)
@@ -4822,6 +4835,7 @@ public:
 
 class select_dumpvar :public select_result_interceptor {
   ha_rows row_count;
+  Item_func_set_user_var **set_var_items;
 public:
   List<my_var> var_list;
   select_dumpvar()  { var_list.empty(); row_count= 0;}

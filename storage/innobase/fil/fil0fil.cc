@@ -1538,7 +1538,7 @@ fil_space_get_flags(
 
 	ut_ad(fil_system);
 
-	if (UNIV_UNLIKELY(!id)) {
+	if (!id) {
 		return(0);
 	}
 
@@ -1898,7 +1898,7 @@ fil_read_first_page(
 
 	*flags = fsp_header_get_flags(page);
 
-	flushed_lsn = mach_read_from_8(page+ FIL_PAGE_FILE_FLUSH_LSN);
+	flushed_lsn = mach_read_from_8(page + FIL_PAGE_FILE_FLUSH_LSN);
 
 	ut_free(buf);
 
@@ -2220,8 +2220,8 @@ fil_op_log_parse_or_replay(
 
 			if (fil_get_space_id_for_table(new_name)
 			    == ULINT_UNDEFINED) {
-				/* We do not care of the old name, that is
-				why we pass NULL as the first argument */
+				/* We do not care about the old name, that
+				is why we pass NULL as the first argument. */
 				if (!fil_rename_tablespace(NULL, space_id,
 							   new_name)) {
 					ut_error;
@@ -2663,6 +2663,8 @@ retry:
 
 	space->stop_ios = TRUE;
 
+	/* The following code must change when InnoDB supports
+	multiple datafiles per tablespace. */
 	ut_a(UT_LIST_GET_LEN(space->chain) == 1);
 	node = UT_LIST_GET_FIRST(space->chain);
 
@@ -3370,7 +3372,7 @@ fil_load_single_table_tablespace(
 
 	size = os_file_get_size(file);
 
-	if (UNIV_UNLIKELY(size == (os_offset_t) -1)) {
+	if (size == (os_offset_t) -1) {
 		/* The following call prints an error message */
 		os_file_get_last_error(TRUE);
 
@@ -3538,10 +3540,10 @@ fil_load_single_table_tablespace(
 
 		if (srv_force_recovery > 0) {
 			fprintf(stderr,
-				"InnoDB: innodb_force_recovery"
-				" was set to %lu. Continuing crash recovery\n"
-				"InnoDB: even though the tablespace creation"
-				" of this table failed.\n",
+				"InnoDB: innodb_force_recovery was set"
+				" to %lu. Continuing crash recovery\n"
+				"InnoDB: even though the tablespace"
+				" creation of this table failed.\n",
 				srv_force_recovery);
 			goto func_exit;
 		}
@@ -4467,9 +4469,9 @@ fil_io(
 #endif /* !UNIV_HOTBACKUP */
 
 	if (type == OS_FILE_READ) {
-		srv_data_read+= len;
+		srv_stats.data_read.add(len);
 	} else if (type == OS_FILE_WRITE) {
-		srv_data_written+= len;
+		srv_stats.data_written.add(len);
 	}
 
 	/* Reserve the fil_system mutex and make sure that we can open at

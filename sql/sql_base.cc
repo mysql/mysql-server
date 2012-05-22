@@ -6174,7 +6174,12 @@ TABLE *open_table_uncached(THD *thd, const char *path, const char *db,
                                     HA_GET_INDEX) : 0,
                             READ_KEYINFO | COMPUTE_TYPES | EXTRA_RECORD,
                             ha_open_options,
-                            tmp_table, FALSE))
+                            tmp_table,
+                            /*
+                              Set "is_create_table" if the table does not
+                              exist in SE
+                            */
+                            open_in_engine ? false : true))
   {
     /* No need to lock share->mutex as this is not needed for tmp tables */
     free_table_share(share);
@@ -9060,7 +9065,7 @@ fill_record(THD *thd, Field **ptr, List<Item> &values, bool ignore_errors)
     table= field->table;
     if (field == table->next_number_field)
       table->auto_increment_field_not_null= TRUE;
-    if (value->save_in_field(field, 0) < 0)
+    if (value->save_in_field(field, 0) == TYPE_ERR_NULL_CONSTRAINT_VIOLATION)
       goto err;
   }
   DBUG_RETURN(thd->is_error());

@@ -100,8 +100,6 @@ def	mysql	PRIMARY	def	mysql	innodb_index_stats	database_name
 def	mysql	PRIMARY	def	mysql	innodb_index_stats	table_name
 def	mysql	PRIMARY	def	mysql	innodb_index_stats	index_name
 def	mysql	PRIMARY	def	mysql	innodb_index_stats	stat_name
-def	mysql	innodb_index_stats_ibfk_1	def	mysql	innodb_index_stats	database_name
-def	mysql	innodb_index_stats_ibfk_1	def	mysql	innodb_index_stats	table_name
 def	mysql	PRIMARY	def	mysql	innodb_table_stats	database_name
 def	mysql	PRIMARY	def	mysql	innodb_table_stats	table_name
 def	mysql	PRIMARY	def	mysql	ndb_binlog_index	epoch

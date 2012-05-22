@@ -451,7 +451,8 @@ static bool convert_constant_item(THD *thd, Item_field *field_item,
       orig_field_val= field->val_int();
     int rc;
     if (!(*item)->is_null() &&
-        (((rc= (*item)->save_in_field(field, 1)) == 0) || rc == 3)) // TS-TODO
+        (((rc= (*item)->save_in_field(field, 1)) == TYPE_OK) ||
+         rc == TYPE_NOTE_TIME_TRUNCATED)) // TS-TODO
     {
       int field_cmp= 0;
       /*
@@ -2749,6 +2750,7 @@ Item_func_ifnull::fix_length_and_dec()
 {
   uint32 char_length;
   agg_result_type(&hybrid_type, args, 2);
+  cached_field_type= agg_field_type(args, 2);
   maybe_null=args[1]->maybe_null;
   decimals= max(args[0]->decimals, args[1]->decimals);
   unsigned_flag= args[0]->unsigned_flag && args[1]->unsigned_flag;
@@ -2768,7 +2770,7 @@ Item_func_ifnull::fix_length_and_dec()
 
   switch (hybrid_type) {
   case STRING_RESULT:
-    if (agg_arg_charsets_for_comparison(collation, args, arg_count))
+    if (count_string_result_length(cached_field_type, args, arg_count))
       return;
     break;
   case DECIMAL_RESULT:
@@ -2782,7 +2784,6 @@ Item_func_ifnull::fix_length_and_dec()
     DBUG_ASSERT(0);
   }
   fix_char_length(char_length);
-  cached_field_type= agg_field_type(args, 2);
 }
 
 
