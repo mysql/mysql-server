@@ -128,6 +128,8 @@
 #cmakedefine FIONREAD_IN_SYS_FILIO 1
 
 /* Functions we may want to use. */
+#cmakedefine HAVE_ALIGNED_MALLOC 1
+#cmakedefine HAVE_ALIGNED_FREE 1
 #cmakedefine HAVE_AIOWAIT 1
 #cmakedefine HAVE_ALARM 1
 #cmakedefine HAVE_ALLOCA 1
@@ -203,6 +205,7 @@
 #cmakedefine HAVE_POLL 1
 #cmakedefine HAVE_PORT_CREATE 1
 #cmakedefine HAVE_POSIX_FALLOCATE 1
+#cmakedefine HAVE_POSIX_MEMALIGN 1
 #cmakedefine HAVE_PREAD 1
 #cmakedefine HAVE_PAUSE_INSTRUCTION 1
 #cmakedefine HAVE_FAKE_PAUSE_INSTRUCTION 1
@@ -489,7 +492,7 @@
 #cmakedefine STACK_DIRECTION @STACK_DIRECTION@
 
 #define SYSTEM_TYPE "@SYSTEM_TYPE@"
-#define MACHINE_TYPE "@CMAKE_SYSTEM_PROCESSOR@"
+#define MACHINE_TYPE "@MYSQL_MACHINE_TYPE@"
 #cmakedefine HAVE_DTRACE 1
 
 #cmakedefine SIGNAL_WITH_VIO_CLOSE 1

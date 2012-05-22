@@ -1,0 +1,51 @@
+--echo #
+--echo # Bug#12427262 : 60961: SHOW TABLES VERY SLOW WHEN NOT IN SYSTEM DISK CACHE. 
+--echo #
+
+--source include/not_embedded.inc
+--source include/have_perfschema.inc
+
+--disable_warnings
+create database show_table_lw_db;
+use show_table_lw_db;
+create table t1 (c1 int);
+create table t2 (c1 int);
+create table t3 (c1 int);
+create table t4 (c1 int);
+create table t5 (c1 int);
+create table t6 (c1 int);
+create table t7 (c1 int);
+create table t8 (c1 int);
+create table t9 (c1 int);
+create table t10 (c1 int);
+--enable_warnings
+
+--echo # Query PS to know initial read count for frm file.
+select Sum(ALL(COUNT_READ)) from performance_schema.file_summary_by_instance where FILE_NAME 
+like "%show_table_lw_db%" AND FILE_NAME like "%.frm%" AND EVENT_NAME='wait/io/file/sql/FRM'
+into @count_read_before;
+
+show tables;
+
+--echo # Query PS to know read count for frm file after above query. It should
+--echo # not be changed as FRM file will not be opened for above query.
+select Sum(ALL(COUNT_READ)) from performance_schema.file_summary_by_instance where FILE_NAME 
+like "%show_table_lw_db%" AND FILE_NAME like "%.frm%" AND EVENT_NAME='wait/io/file/sql/FRM'
+into @count_read_after;
+
+select @count_read_after-@count_read_before;
+
+show full tables;
+
+--echo # Query PS to know read count for frm file after above query. COUNT_READ
+--echo # will be incremented by 1 as FRM file will be opened for above query.
+select Sum(ALL(COUNT_READ)) from performance_schema.file_summary_by_instance where FILE_NAME 
+like "%show_table_lw_db%" AND FILE_NAME like "%.frm%" AND EVENT_NAME='wait/io/file/sql/FRM'
+into @count_read_after;
+
+select @count_read_after-@count_read_before;
+
+--disable_warnings
+drop table t1;
+drop database show_table_lw_db;
+--enable_warnings

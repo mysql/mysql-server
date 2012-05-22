@@ -29,21 +29,21 @@
   in m_str is always in sync with m_length.
 
   This class must stay as small as possible as we often 
-  pass it and its descendants (such as NameString) into functions
+  pass it and its descendants (such as Name_string) into functions
   using call-by-value evaluation.
 
   Don't add new members or virual methods into this class!
 */
-class SimpleCString
+class Simple_cstring
 {
 private:
   const char *m_str;
-  uint m_length;
+  size_t m_length;
 protected:
   /**
     Initialize from a C string whose length is already known.
   */
-  void set(const char *str_arg, uint length_arg)
+  void set(const char *str_arg, size_t length_arg)
   {
     // NULL is allowed only with length==0
     DBUG_ASSERT(str_arg || length_arg == 0);
@@ -53,15 +53,15 @@ protected:
     m_length= length_arg;
   }
 public:
-  SimpleCString()
+  Simple_cstring()
   {
     set(NULL, 0);
   }
-  SimpleCString(const char *str_arg, uint length_arg)
+  Simple_cstring(const char *str_arg, size_t length_arg)
   {
     set(str_arg, length_arg);
   }
-  SimpleCString(const LEX_STRING arg)
+  Simple_cstring(const LEX_STRING arg)
   {
     set(arg.str, arg.length);
   }
@@ -87,11 +87,11 @@ public:
   /**
     Return name length.
   */
-  uint length() const { return m_length; }
+  size_t length() const { return m_length; }
   /**
-    Compare to another SimpleCString.
+    Compare to another Simple_cstring.
   */
-  bool eq_bin(const SimpleCString other) const
+  bool eq_bin(const Simple_cstring other) const
   {
     return m_length == other.m_length &&
            memcmp(m_str, other.m_str, m_length) == 0;
@@ -373,11 +373,11 @@ public:
   bool append(const char *s);
   bool append(LEX_STRING *ls)
   {
-    return append(ls->str, ls->length);
+    return append(ls->str, (uint32) ls->length);
   }
-  bool append(SimpleCString str)
+  bool append(Simple_cstring str)
   {
-    return append(str.ptr(), str.length());
+    return append(str.ptr(), static_cast<uint>(str.length()));
   }
   bool append(const char *s, uint32 arg_length);
   bool append(const char *s, uint32 arg_length, const CHARSET_INFO *cs);

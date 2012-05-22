@@ -3198,9 +3198,8 @@ bool Delayed_insert::handle_inserts(void)
   DBUG_RETURN(0);
 
  err:
-#ifndef DBUG_OFF
-  max_rows= 0;                                  // For DBUG output
-#endif
+  max_rows= 0;
+  mysql_mutex_lock(&mutex);
   /* Remove all not used rows */
   while ((row=rows.get()))
   {
@@ -3210,13 +3209,13 @@ bool Delayed_insert::handle_inserts(void)
       free_delayed_insert_blobs(table);
     }
     delete row;
-    thread_safe_increment(delayed_insert_errors,&LOCK_delayed_status);
     stacked_inserts--;
-#ifndef DBUG_OFF
     max_rows++;
-#endif
   }
+  mysql_mutex_unlock(&mutex);
   DBUG_PRINT("error", ("dropped %lu rows after an error", max_rows));
+  for (; max_rows > 0; max_rows--)
+    thread_safe_increment(delayed_insert_errors, &LOCK_delayed_status);
   thread_safe_increment(delayed_insert_errors, &LOCK_delayed_status);
   mysql_mutex_lock(&mutex);
   DBUG_RETURN(1);

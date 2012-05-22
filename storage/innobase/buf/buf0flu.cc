@@ -1090,6 +1090,56 @@ buf_flush_page_try(
 }
 # endif /* UNIV_DEBUG || UNIV_IBUF_DEBUG */
 /***********************************************************//**
+Check the page is in buffer pool and can be flushed.
+@return	true if the page can be flushed. */
+static
+bool
+buf_flush_check_neighbor(
+/*=====================*/
+	ulint		space,		/*!< in: space id */
+	ulint		offset,		/*!< in: page offset */
+	enum buf_flush	flush_type)	/*!< in: BUF_FLUSH_LRU or
+					BUF_FLUSH_LIST */
+{
+	buf_page_t*	bpage;
+	buf_pool_t*	buf_pool = buf_pool_get(space, offset);
+	bool		ret;
+
+	ut_ad(flush_type == BUF_FLUSH_LRU
+	      || flush_type == BUF_FLUSH_LIST);
+
+	buf_pool_mutex_enter(buf_pool);
+
+	/* We only want to flush pages from this buffer pool. */
+	bpage = buf_page_hash_get(buf_pool, space, offset);
+
+	if (!bpage) {
+
+		buf_pool_mutex_exit(buf_pool);
+		return(false);
+	}
+
+	ut_a(buf_page_in_file(bpage));
+
+	/* We avoid flushing 'non-old' blocks in an LRU flush,
+	because the flushed blocks are soon freed */
+
+	ret = false;
+	if (flush_type != BUF_FLUSH_LRU || buf_page_is_old(bpage)) {
+		mutex_t* block_mutex = buf_page_get_mutex(bpage);
+
+		mutex_enter(block_mutex);
+		if (buf_flush_ready_for_flush(bpage, flush_type)) {
+			ret = true;
+		}
+		mutex_exit(block_mutex);
+	}
+	buf_pool_mutex_exit(buf_pool);
+
+	return(ret);
+}
+
+/***********************************************************//**
 Flushes to disk all flushable pages within the flush area.
 @return	number of pages flushed */
 static
@@ -1114,7 +1164,7 @@ buf_flush_try_neighbors(
 	ut_ad(flush_type == BUF_FLUSH_LRU || flush_type == BUF_FLUSH_LIST);
 
 	if (UT_LIST_GET_LEN(buf_pool->LRU) < BUF_LRU_OLD_MIN_LEN
-	    || !srv_flush_neighbors) {
+	    || srv_flush_neighbors == 0) {
 		/* If there is little space or neighbor flushing is
 		not enabled then just flush the victim. */
 		low = offset;
@@ -1132,6 +1182,30 @@ buf_flush_try_neighbors(
 
 		low = (offset / buf_flush_area) * buf_flush_area;
 		high = (offset / buf_flush_area + 1) * buf_flush_area;
+
+		if (srv_flush_neighbors == 1) {
+			/* adjust 'low' and 'high' to limit
+			   for contiguous dirty area */
+			if (offset > low) {
+				for (i = offset - 1;
+				     i >= low
+				     && buf_flush_check_neighbor(
+						space, i, flush_type);
+				     i--) {
+					/* do nothing */
+				}
+				low = i + 1;
+			}
+
+			for (i = offset + 1;
+			     i < high
+			     && buf_flush_check_neighbor(
+						space, i, flush_type);
+			     i++) {
+				/* do nothing */
+			}
+			high = i;
+		}
 	}
 
 	/* fprintf(stderr, "Flush area: low %lu high %lu\n", low, high); */
@@ -1631,8 +1705,6 @@ buf_flush_batch(
 	}
 #endif /* UNIV_DEBUG */
 
-	srv_buf_pool_flushed += count;
-
 	return(count);
 }
 
@@ -1658,14 +1730,7 @@ buf_flush_common(
 	}
 #endif /* UNIV_DEBUG */
 
-	srv_buf_pool_flushed += page_count;
-
-	if (flush_type == BUF_FLUSH_LRU) {
-		/* We keep track of all flushes happening as part of LRU
-		flush. When estimating the desired rate at which flush_list
-		should be flushed we factor in this value. */
-		buf_lru_flush_page_count += page_count;
-	}
+	srv_stats.buf_pool_flushed.add(page_count);
 }
 
 /******************************************************************//**

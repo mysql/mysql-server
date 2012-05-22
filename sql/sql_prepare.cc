@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -3476,8 +3476,6 @@ Prepared_statement::execute_loop(String *expanded_query,
     return TRUE;
 
 reexecute:
-  reprepare_observer.reset_reprepare_observer();
-
   /*
     If the free_list is not empty, we'll wrongly free some externally
     allocated items when cleaning up after validation of the prepared
@@ -3491,18 +3489,22 @@ reexecute:
     the observer method will be invoked to push an error into
     the error stack.
   */
-  if (sql_command_flags[lex->sql_command] &
-      CF_REEXECUTION_FRAGILE)
+  Reprepare_observer *stmt_reprepare_observer= NULL;
+
+  if (sql_command_flags[lex->sql_command] & CF_REEXECUTION_FRAGILE)
   {
-    DBUG_ASSERT(thd->m_reprepare_observer == NULL);
-    thd->m_reprepare_observer = &reprepare_observer;
+    reprepare_observer.reset_reprepare_observer();
+    stmt_reprepare_observer = &reprepare_observer;
   }
+
+  thd->push_reprepare_observer(stmt_reprepare_observer);
 
   error= execute(expanded_query, open_cursor) || thd->is_error();
 
-  thd->m_reprepare_observer= NULL;
+  thd->pop_reprepare_observer();
 
-  if (error && !thd->is_fatal_error && !thd->killed &&
+  if ((sql_command_flags[lex->sql_command] & CF_REEXECUTION_FRAGILE) &&
+      error && !thd->is_fatal_error && !thd->killed &&
       reprepare_observer.is_invalidated() &&
       reprepare_attempt++ < MAX_REPREPARE_ATTEMPTS)
   {

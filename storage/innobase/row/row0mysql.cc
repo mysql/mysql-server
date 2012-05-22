@@ -31,6 +31,7 @@ Created 9/17/2000 Heikki Tuuri
 #endif
 
 #include <debug_sync.h>
+#include <my_dbug.h>
 
 #include "row0ins.h"
 #include "row0merge.h"
@@ -56,6 +57,8 @@ Created 9/17/2000 Heikki Tuuri
 #include "ibuf0ibuf.h"
 #include "fts0fts.h"
 #include "fts0types.h"
+#include "m_string.h"
+#include "my_sys.h"
 
 /** Provide optional 4.x backwards compatibility for 5.0 and above */
 UNIV_INTERN ibool	row_rollback_on_timeout	= FALSE;
@@ -1002,23 +1005,36 @@ row_update_statistics_if_needed(
 /*============================*/
 	dict_table_t*	table)	/*!< in: table */
 {
-	ulint	counter;
+	ib_uint64_t	counter;
 
-	counter = table->stat_modified_counter;
+	if (!table->stat_initialized) {
+		DBUG_EXECUTE_IF(
+			"test_upd_stats_if_needed_not_inited",
+			fprintf(stderr, "test_upd_stats_if_needed_not_inited "
+				"was executed\n");
+		);
+		return;
+	}
 
-	table->stat_modified_counter = counter + 1;
+	/* Update the counter even for persistent stats enabled table
+	because it is displayed in INFORMATION_SCHEMA */
+	counter = table->stat_modified_counter++;
+
+	if (dict_stats_is_persistent_enabled(table)) {
+		return;
+	}
+	/* else */
 
 	/* Calculate new statistics if 1 / 16 of table has been modified
-	since the last time a statistics batch was run, or if
-	stat_modified_counter > 2 000 000 000 (to avoid wrap-around).
+	since the last time a statistics batch was run.
 	We calculate statistics at most every 16th round, since we may have
 	a counter table which is very small and updated very often. */
 
-	if (counter > 2000000000
-	    || ((ib_int64_t) counter > 16 + table->stat_n_rows / 16)) {
+	if (counter > 16 + table->stat_n_rows / 16) {
 
 		ut_ad(!mutex_own(&dict_sys->mutex));
-		dict_stats_update(table, DICT_STATS_FETCH, FALSE);
+		/* this will reset table->stat_modified_counter to 0 */
+		dict_stats_update(table, DICT_STATS_RECALC_TRANSIENT, FALSE);
 	}
 }
 
@@ -1355,14 +1371,13 @@ error_exit:
 
 	que_thr_stop_for_mysql_no_error(thr, trx);
 
-	table->stat_n_rows++;
+	srv_stats.n_rows_inserted.add((size_t)trx->id, 1);
 
-	srv_n_rows_inserted++;
-
-	if (prebuilt->table->stat_n_rows == 0) {
-		/* Avoid wrap-over */
-		table->stat_n_rows--;
-	}
+	/* Not protected by dict_table_stats_lock() for performance
+	reasons, we would rather get garbage in stat_n_rows (which is
+	just an estimate anyway) than protecting the following code
+	with a latch. */
+	dict_table_n_rows_inc(table);
 
 	row_update_statistics_if_needed(table);
 	trx->op_info = "";
@@ -1631,6 +1646,8 @@ row_update_for_mysql(
 		return(DB_ERROR);
 	}
 
+	DEBUG_SYNC_C("innodb_row_update_for_mysql_begin");
+
 	trx->op_info = "updating or deleting";
 
 	row_mysql_delay_if_needed();
@@ -1720,13 +1737,15 @@ run_again:
 	}
 
 	if (node->is_delete) {
-		if (prebuilt->table->stat_n_rows > 0) {
-			prebuilt->table->stat_n_rows--;
-		}
+		/* Not protected by dict_table_stats_lock() for performance
+		reasons, we would rather get garbage in stat_n_rows (which is
+		just an estimate anyway) than protecting the following code
+		with a latch. */
+		dict_table_n_rows_dec(prebuilt->table);
 
-		srv_n_rows_deleted++;
+		srv_stats.n_rows_deleted.add((size_t)trx->id, 1);
 	} else {
-		srv_n_rows_updated++;
+		srv_stats.n_rows_updated.add((size_t)trx->id, 1);
 	}
 
 	/* We update table statistics only if it is a DELETE or UPDATE
@@ -1942,13 +1961,15 @@ run_again:
 	}
 
 	if (node->is_delete) {
-		if (table->stat_n_rows > 0) {
-			table->stat_n_rows--;
-		}
+		/* Not protected by dict_table_stats_lock() for performance
+		reasons, we would rather get garbage in stat_n_rows (which is
+		just an estimate anyway) than protecting the following code
+		with a latch. */
+		dict_table_n_rows_dec(table);
 
-		srv_n_rows_deleted++;
+		srv_stats.n_rows_deleted.add((size_t)trx->id, 1);
 	} else {
-		srv_n_rows_updated++;
+		srv_stats.n_rows_updated.add((size_t)trx->id, 1);
 	}
 
 	row_update_statistics_if_needed(table);
@@ -2122,23 +2143,23 @@ err_exit:
 		/* The lock timeout monitor thread also takes care
 		of InnoDB monitor prints */
 
-		os_event_set(srv_timeout_event);
+		os_event_set(lock_sys->timeout_event);
 	} else if (STR_EQ(table_name, table_name_len,
 			  S_innodb_lock_monitor)) {
 
 		srv_print_innodb_monitor = TRUE;
 		srv_print_innodb_lock_monitor = TRUE;
-		os_event_set(srv_timeout_event);
+		os_event_set(lock_sys->timeout_event);
 	} else if (STR_EQ(table_name, table_name_len,
 			  S_innodb_tablespace_monitor)) {
 
 		srv_print_innodb_tablespace_monitor = TRUE;
-		os_event_set(srv_timeout_event);
+		os_event_set(lock_sys->timeout_event);
 	} else if (STR_EQ(table_name, table_name_len,
 			  S_innodb_table_monitor)) {
 
 		srv_print_innodb_table_monitor = TRUE;
-		os_event_set(srv_timeout_event);
+		os_event_set(lock_sys->timeout_event);
 #ifdef UNIV_MEM_DEBUG
 	} else if (STR_EQ(table_name, table_name_len,
 			  S_innodb_mem_validate)) {
@@ -2196,8 +2217,8 @@ err_exit:
 		ut_print_name(stderr, trx, TRUE, table->name);
 		fputs(" because tablespace full\n", stderr);
 
-		if (dict_table_open_on_name_no_stats(
-			    table->name, FALSE, FALSE, DICT_ERR_IGNORE_NONE)) {
+		if (dict_table_open_on_name(table->name, FALSE, FALSE,
+					    DICT_ERR_IGNORE_NONE)) {
 
 			/* Make things easy for the drop table code. */
 
@@ -2290,8 +2311,8 @@ row_create_index_for_mysql(
 
 	is_fts = (index->type == DICT_FTS);
 
-	table = dict_table_open_on_name_no_stats(table_name, TRUE, TRUE,
-						 DICT_ERR_IGNORE_NONE);
+	table = dict_table_open_on_name(table_name, TRUE, TRUE,
+					DICT_ERR_IGNORE_NONE);
 
 	trx_start_if_not_started_xa(trx);
 
@@ -2511,8 +2532,8 @@ loop:
 		return(n_tables + n_tables_dropped);
 	}
 
-	table = dict_table_open_on_name_no_stats(
-		drop->table_name, FALSE, FALSE, DICT_ERR_IGNORE_NONE);
+	table = dict_table_open_on_name(drop->table_name, FALSE, FALSE,
+					DICT_ERR_IGNORE_NONE);
 
 	if (table == NULL) {
 		/* If for some reason the table has already been dropped
@@ -2685,8 +2706,8 @@ row_discard_tablespace_for_mysql(
 
 	row_mysql_lock_data_dictionary(trx);
 
-	table = dict_table_open_on_name_no_stats(name, TRUE, FALSE,
-						 DICT_ERR_IGNORE_NONE);
+	table = dict_table_open_on_name(name, TRUE, FALSE,
+					DICT_ERR_IGNORE_NONE);
 
 	if (!table) {
 		err = DB_TABLE_NOT_FOUND;
@@ -2882,8 +2903,8 @@ row_import_tablespace_for_mysql(
 
 	row_mysql_lock_data_dictionary(trx);
 
-	table = dict_table_open_on_name_no_stats(name, TRUE, FALSE,
-						 DICT_ERR_IGNORE_NONE);
+	table = dict_table_open_on_name(name, TRUE, FALSE,
+					DICT_ERR_IGNORE_NONE);
 
 	if (!table) {
 		ut_print_timestamp(stderr);
@@ -3377,10 +3398,7 @@ funct_exit:
 
 	row_mysql_unlock_data_dictionary(trx);
 
-	/* We are supposed to recalc and save the stats only
-	on ANALYZE, but it also makes sense to do so on TRUNCATE */
-	dict_stats_update(table, DICT_STATS_RECALC_PERSISTENT_SILENT,
-			  FALSE);
+	dict_stats_update(table, DICT_STATS_EMPTY_TABLE, FALSE);
 
 	trx->op_info = "";
 
@@ -3491,7 +3509,7 @@ retry:
 	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_EX));
 #endif /* UNIV_SYNC_DEBUG */
 
-	table = dict_table_open_on_name_no_stats(
+	table = dict_table_open_on_name(
 		name, TRUE, FALSE,
 		static_cast<dict_err_ignore_t>(
 			DICT_ERR_IGNORE_INDEX_ROOT | DICT_ERR_IGNORE_CORRUPT));
@@ -4123,9 +4141,8 @@ loop:
 	while ((table_name = dict_get_first_table_name_in_db(name))) {
 		ut_a(memcmp(table_name, name, namelen) == 0);
 
-		table = dict_table_open_on_name_no_stats(
-			table_name, TRUE, FALSE,
-			DICT_ERR_IGNORE_NONE);
+		table = dict_table_open_on_name(table_name, TRUE, FALSE,
+						DICT_ERR_IGNORE_NONE);
 
 		ut_a(table);
 		ut_a(!table->can_be_evicted);
@@ -4283,6 +4300,7 @@ row_rename_table_for_mysql(
 	ulint		n_constraints_to_drop	= 0;
 	ibool		old_is_tmp, new_is_tmp;
 	pars_info_t*	info			= NULL;
+	int		retry;
 
 	ut_a(old_name != NULL);
 	ut_a(new_name != NULL);
@@ -4317,8 +4335,8 @@ row_rename_table_for_mysql(
 
 	dict_locked = trx->dict_operation_lock_mode == RW_X_LATCH;
 
-	table = dict_table_open_on_name_no_stats(
-		old_name, dict_locked, FALSE, DICT_ERR_IGNORE_NONE);
+	table = dict_table_open_on_name(old_name, dict_locked, FALSE,
+					DICT_ERR_IGNORE_NONE);
 
 	if (!table) {
 		err = DB_TABLE_NOT_FOUND;
@@ -4365,6 +4383,25 @@ row_rename_table_for_mysql(
 		if (err != DB_SUCCESS) {
 			goto funct_exit;
 		}
+	}
+
+	/* Is a foreign key check running on this table? */
+	for (retry = 0; retry < 100
+	     && table->n_foreign_key_checks_running > 0; ++retry) {
+		row_mysql_unlock_data_dictionary(trx);
+		os_thread_yield();
+		row_mysql_lock_data_dictionary(trx);
+	}
+
+	if (table->n_foreign_key_checks_running > 0) {
+		ut_print_timestamp(stderr);
+		fputs(" InnoDB: Error: in ALTER TABLE ", stderr);
+		ut_print_name(stderr, trx, TRUE, old_name);
+		fprintf(stderr, "\n"
+			"InnoDB: a FOREIGN KEY check is running.\n"
+			"InnoDB: Cannot rename table.\n");
+		err = DB_TABLE_IN_FK_CHECK;
+		goto funct_exit;
 	}
 
 	/* We use the private SQL parser of Innobase to generate the query

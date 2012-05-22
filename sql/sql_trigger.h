@@ -2,7 +2,7 @@
 #define SQL_TRIGGER_INCLUDED
 
 /*
-   Copyright (c) 2004, 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2004, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -60,17 +60,14 @@ class Table_triggers_list: public Sql_alloc
 {
   /** Triggers as SPs grouped by event, action_time */
   sp_head *bodies[TRG_EVENT_MAX][TRG_ACTION_MAX];
-  /**
-    Heads of the lists linking items for all fields used in triggers
-    grouped by event and action_time.
-  */
-  Item_trigger_field *trigger_fields[TRG_EVENT_MAX][TRG_ACTION_MAX];
+
   /**
     Copy of TABLE::Field array with field pointers set to TABLE::record[1]
     buffer instead of TABLE::record[0] (used for OLD values in on UPDATE
     trigger and DELETE trigger when it is called for REPLACE).
   */
   Field             **record1_field;
+
   /**
     During execution of trigger new_field and old_field should point to the
     array of fields representing new or old version of row correspondingly
@@ -79,25 +76,31 @@ class Table_triggers_list: public Sql_alloc
   Field             **new_field;
   Field             **old_field;
 
-  /* TABLE instance for which this triggers list object was created */
+public:
+  /** TABLE instance for which this triggers list object was created. */
   TABLE *trigger_table;
+
+private:
   /**
     Names of triggers.
     Should correspond to order of triggers on definitions_list,
     used in CREATE/DROP TRIGGER for looking up trigger by name.
   */
   List<LEX_STRING>  names_list;
+
   /**
     List of "ON table_name" parts in trigger definitions, used for
     updating trigger definitions during RENAME TABLE.
   */
   List<LEX_STRING>  on_table_names_list;
 
+public:
   /**
     Grant information for each trigger (pair: subject table, trigger definer).
   */
   GRANT_INFO        subject_table_grants[TRG_EVENT_MAX][TRG_ACTION_MAX];
 
+private:
   /**
      This flag indicates that one of the triggers was not parsed successfully,
      and as a precaution the object has entered a state where all trigger
@@ -125,6 +128,7 @@ public:
     It have to be public because we are using it directly from parser.
   */
   List<LEX_STRING>  definitions_list;
+
   /**
     List of sql modes for triggers
   */
@@ -145,9 +149,9 @@ public:
     m_has_unparseable_trigger(false)
   {
     memset(bodies, 0, sizeof(bodies));
-    memset(trigger_fields, 0, sizeof(trigger_fields));
     memset(&subject_table_grants, 0, sizeof(subject_table_grants));
   }
+
   ~Table_triggers_list();
 
   bool create_trigger(THD *thd, TABLE_LIST *table, String *stmt_query);

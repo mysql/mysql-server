@@ -45,7 +45,7 @@ struct PFS_setup_object_key
 };
 
 /** A setup_object record. */
-struct PFS_setup_object
+struct PFS_ALIGNED PFS_setup_object
 {
   enum_object_type get_object_type()
   {
@@ -95,6 +95,8 @@ extern ulong setup_object_max;
 /* Exposing the data directly, for iterators. */
 
 extern PFS_setup_object *setup_object_array;
+
+extern LF_HASH setup_object_hash;
 
 /** @} */
 #endif

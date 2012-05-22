@@ -14,7 +14,7 @@
    along with this program; see the file COPYING. If not, write to the
    Free Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston,
    MA  02110-1301  USA.
-*/
+ */
 
 
 /* The socket wrapper header defines a Socket class that hides the differences
@@ -26,7 +26,6 @@
 #ifndef yaSSL_SOCKET_WRAPPER_HPP
 #define yaSSL_SOCKET_WRAPPER_HPP
 
-#include <assert.h>
 
 #ifdef _WIN32
     #include <winsock2.h>
@@ -82,9 +81,10 @@ public:
     void set_transport_recv_function(yaSSL_recv_func_t recv_func);
     void set_transport_send_function(yaSSL_send_func_t send_func);
 
-    uint send(const byte* buf, unsigned int len) const;
+    uint send(const byte* buf, unsigned int len, unsigned int& sent);
     uint receive(byte* buf, unsigned int len);
 
+    bool wait();
     bool WouldBlock() const;
     bool IsNonBlocking() const;
 

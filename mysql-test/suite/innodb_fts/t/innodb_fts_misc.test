@@ -813,7 +813,43 @@ SELECT * FROM articles
 
 DROP TABLE articles;
 
-# Test for bug Bug 13940669 - 64901: INNODB: ASSERTION FAILURE IN
+# Test for Bug #13907075 - DIFFERENT RESULTS FOR DIFFERENT TERM ORDER
+# WITH INNODB BOOLEAN FULLTEXT SEARCH. The FTS_IGNORE ("-") operation
+# is orderless
+# Create FTS table
+CREATE TABLE articles (
+        id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
+        title VARCHAR(200),
+        body TEXT,
+        FULLTEXT (title,body)
+        ) ENGINE=InnoDB;
+
+# Insert six rows
+INSERT INTO articles (title,body) VALUES
+        ('MySQL Tutorial','DBMS stands for DataBase ...')  ,
+        ('How To Use MySQL Well','After you went through a ...'),
+        ('Optimizing MySQL','In this tutorial we will show ...'),
+        ('1001 MySQL Tricks','1. Never run mysqld as root. 2. ...'),
+        ('MySQL vs. YourSQL','In the following database comparison ...'),
+        ('MySQL Security','When configured properly, MySQL ...');
+
+SELECT *,  MATCH(title, body) AGAINST ('-database +MySQL' IN BOOLEAN MODE) AS score from articles;
+
+SELECT *, MATCH(title, body) AGAINST ('+MySQL -database' IN BOOLEAN MODE) AS score  FROM articles;
+
+# With subquery
+SELECT * FROM articles where  MATCH(title, body) AGAINST ('MySQL - (database - tutorial)' IN BOOLEAN MODE);
+
+SELECT * FROM articles where MATCH(title, body) AGAINST ('MySQL - (- tutorial database)' IN BOOLEAN MODE);
+
+# More complex query
+SELECT * FROM articles where MATCH(title, body) AGAINST ('MySQL - (- tutorial database) -Tricks' IN BOOLEAN MODE);
+
+SELECT * FROM articles where MATCH(title, body) AGAINST ('-Tricks MySQL - (- tutorial database)' IN BOOLEAN MODE);
+
+DROP TABLE articles;
+
+# Test for Bug 13940669 - 64901: INNODB: ASSERTION FAILURE IN
 # THREAD 34387022112 IN FILE REM0CMP.CC LINE 5
 
 drop table if exists t1;
@@ -830,3 +866,49 @@ select * from t1 where match(title,body) against('%');
 select * from t1 where match(title,body) against('%%%%');
 
 drop table t1;
+
+# Test for Bug 13881758 - 64745: CREATE FULLTEXT INDEX CAUSES CRASH
+# Create a database with empty space in its name
+CREATE DATABASE `benu database`;
+
+USE `benu database`;
+
+# Create FTS table
+CREATE TABLE t1 (
+        id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
+        a VARCHAR(200),
+        b TEXT
+        ) ENGINE = InnoDB;
+
+# Insert rows
+INSERT INTO t1 (a,b) VALUES
+        ('MySQL Tutorial','DBMS stands for DataBase ...')  ,
+        ('How To Use MySQL Well','After you went through a ...'),
+        ('Optimizing MySQL','In this tutorial we will show ...');
+
+# Create the FTS index Using Alter Table
+ALTER TABLE t1 ADD FULLTEXT INDEX idx (a,b);
+EVAL SHOW CREATE TABLE t1;
+
+# Insert rows
+INSERT INTO t1 (a,b) VALUES
+        ('1001 MySQL Tricks','1. Never run mysqld as root. 2. ...'),
+        ('MySQL vs. YourSQL','In the following database comparison ...'),
+        ('MySQL Security','When configured properly, MySQL ...');
+
+# Select word "tutorial" in the table
+SELECT id FROM t1 WHERE MATCH (a,b)
+        AGAINST ('Tutorial' IN NATURAL LANGUAGE MODE);
+
+# boolean mode
+select id from t1 where MATCH(a,b) AGAINST("+support +collections" IN BOOLEAN MODE);
+select id from t1 where MATCH(a,b) AGAINST("+search" IN BOOLEAN MODE);
+select id from t1 where MATCH(a,b) AGAINST("+search +(support vector)" IN BOOLEAN MODE);
+select id from t1 where MATCH(a,b) AGAINST("+search -(support vector)" IN BOOLEAN MODE);
+select id, MATCH(a,b) AGAINST("support collections" IN BOOLEAN MODE) as x from t1;
+select id, MATCH(a,b) AGAINST("collections support" IN BOOLEAN MODE) as x from t1;
+select id from t1 where MATCH a,b AGAINST ("+call* +coll*" IN BOOLEAN MODE);
+select id from t1 where MATCH a,b AGAINST ('"support now"' IN BOOLEAN MODE);
+select id from t1 where MATCH a,b AGAINST ('"Now sUPPort"' IN BOOLEAN MODE);
+
+DROP DATABASE `benu database`;

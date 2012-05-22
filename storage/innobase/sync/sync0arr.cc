@@ -39,6 +39,7 @@ Created 9/5/1995 Heikki Tuuri
 #include "sync0rw.h"
 #include "os0sync.h"
 #include "os0file.h"
+#include "lock0lock.h"
 #include "srv0srv.h"
 #include "ha_prototypes.h"
 
@@ -902,6 +903,11 @@ sync_array_print_long_waits_low(
 	ibool		fatal = FALSE;
 	double		longest_diff = 0;
 
+	/* For huge tables, skip the check during CHECK TABLE etc... */
+	if (fatal_timeout > SRV_SEMAPHORE_WAIT_EXTENSION) {
+		return(FALSE);
+	}
+
 #ifdef UNIV_DEBUG_VALGRIND
 	/* Increase the timeouts if running under valgrind because it executes
 	extremely slowly. UNIV_DEBUG_VALGRIND does not necessary mean that
@@ -1000,7 +1006,7 @@ sync_array_print_long_waits(
 			(ulong) os_file_n_pending_pwrites);
 
 		srv_print_innodb_monitor = TRUE;
-		os_event_set(srv_timeout_event);
+		os_event_set(lock_sys->timeout_event);
 
 		os_thread_sleep(30000000);
 

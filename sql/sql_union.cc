@@ -379,6 +379,10 @@ bool st_select_lex_unit::prepare(THD *thd_arg, select_result *sel_result,
     /*
       Check that it was possible to aggregate
       all collations together for UNION.
+      We need this in case of UNION DISTINCT, to filter
+      out duplicates using the proper collation.
+
+      TODO: consider removing this test in case of UNION ALL.
     */
     List_iterator_fast<Item> tp(types);
     Item *type;

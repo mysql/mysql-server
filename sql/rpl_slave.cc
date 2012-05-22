@@ -3394,7 +3394,11 @@ int apply_event_and_update_pos(Log_event** ptr_ev, THD* thd, Relay_log_info* rli
     }
     else
     {
-      DBUG_ASSERT(*ptr_ev == ev || rli->is_parallel_exec());
+      DBUG_ASSERT(*ptr_ev == ev || rli->is_parallel_exec() ||
+		  (!ev->worker &&
+		   (ev->get_type_code() == INTVAR_EVENT ||
+		    ev->get_type_code() == RAND_EVENT ||
+		    ev->get_type_code() == USER_VAR_EVENT)));
 
       rli->inc_event_relay_log_pos();
     }
@@ -3619,8 +3623,9 @@ static int exec_relay_log_event(THD* thd, Relay_log_info* rli)
     if (slave_trans_retries)
     {
       int UNINIT_VAR(temp_err);
+      bool silent= false;
       if (exec_res && !is_mts_worker(thd) /* no reexecution in MTS mode */ &&
-          (temp_err= rli->has_temporary_error(thd)) &&
+          (temp_err= rli->has_temporary_error(thd, 0, &silent)) &&
           !thd->transaction.all.cannot_safely_rollback())
       {
         const char *errmsg;
@@ -3659,7 +3664,9 @@ static int exec_relay_log_event(THD* thd, Relay_log_info* rli)
             slave_sleep(thd, min<ulong>(rli->trans_retries, MAX_SLAVE_RETRY_PAUSE),
                         sql_slave_killed, rli);
             mysql_mutex_lock(&rli->data_lock); // because of SHOW STATUS
-            rli->trans_retries++;
+            if (!silent)
+              rli->trans_retries++;
+            
             rli->retried_trans++;
             mysql_mutex_unlock(&rli->data_lock);
             DBUG_PRINT("info", ("Slave retries transaction "
@@ -4280,7 +4287,7 @@ pthread_handler_t handle_slave_worker(void *arg)
     sql_print_error("Failed during slave worker initialization");
     goto err;
   }
-  thd->init_for_queries();
+  thd->init_for_queries(w);
 
   mysql_mutex_lock(&LOCK_thread_count);
   add_global_thread(thd);
@@ -4335,6 +4342,15 @@ pthread_handler_t handle_slave_worker(void *arg)
 
   mysql_mutex_unlock(&rli->pending_jobs_lock);
 
+  /* 
+     In MTS case cleanup_after_session() has be called explicitly.
+     TODO: to make worker thd be deleted before Slave_worker instance.
+  */
+  if (thd->rli_slave)
+  {
+    w->cleanup_after_session();
+    thd->rli_slave= NULL;
+  }
   mysql_mutex_lock(&w->jobs_lock);
 
   w->running_status= Slave_worker::NOT_RUNNING;
@@ -5170,7 +5186,7 @@ pthread_handler_t handle_slave_sql(void *arg)
                 "Failed during slave thread initialization");
     goto err;
   }
-  thd->init_for_queries();
+  thd->init_for_queries(rli);
   thd->temporary_tables = rli->save_temporary_tables; // restore temp tables
   set_thd_in_use_temporary_tables(rli);   // (re)set sql_thd in use for saved temp tables
 
@@ -6980,17 +6996,9 @@ static Log_event* next_event(Relay_log_info* rli)
           }
           else
           {
-            if (rli->mts_group_status != Relay_log_info::MTS_IN_GROUP)
-            {
-              /*
-                Before to let the current relay log be purged Workers
-                have to finish off their current assignments.
-              */
-              (void) wait_for_workers_to_finish(rli);
-              rli->sql_force_rotate_relay= true;
-            }
+            rli->sql_force_rotate_relay=
+              (rli->mts_group_status != Relay_log_info::MTS_IN_GROUP);
           }
-
           /* ask for one more event */
           rli->ignore_log_space_limit= true;
         }
@@ -7609,7 +7617,7 @@ int start_slave(THD* thd , Master_info* mi,  bool net_report)
                               "not retry the transaction and will stop.");
         }
       }
-      else if (thd->lex->mi.pos || thd->lex->mi.relay_log_pos)
+      else if (thd->lex->mi.pos || thd->lex->mi.relay_log_pos || thd->lex->mi.gtid)
         push_warning(thd, Sql_condition::WARN_LEVEL_NOTE, ER_UNTIL_COND_IGNORED,
                      ER(ER_UNTIL_COND_IGNORED));
 

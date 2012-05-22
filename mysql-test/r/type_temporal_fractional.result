@@ -16026,7 +16026,6 @@ CONCAT_WS('-', '%V', '%H' ));
 c1
 Warnings:
 Warning	1411	Incorrect datetime value: 'May:Mon:2009:00:124' for function str_to_date
-Warning	1411	Incorrect datetime value: 'May:Mon:2009:00:124' for function str_to_date
 DROP TABLE t1;
 SET @@timestamp=DEFAULT;
 SET @@timestamp= UNIX_TIMESTAMP('2011-09-21 08:20:30.123456');
@@ -16897,7 +16896,6 @@ col_timestamp_3_not_null_key < col_datetime;
 c1	c2
 Warnings:
 Warning	1411	Incorrect datetime value: '00-0' for function str_to_date
-Warning	1411	Incorrect datetime value: '00-0' for function str_to_date
 DROP TABLE t1;
 #
 # Bug#13399082 - ASSERTION `MON > 0 && MON < 13' FAILED IN TZTIME.CC | SEC_SINCE_EPOCH
@@ -17256,4 +17254,16 @@ SELECT GREATEST(a,10), LEAST(a,10) FROM t1;
 GREATEST(a,10)	LEAST(a,10)
 20010101010101.123456	10.000000
 DROP TABLE t1;
+#
+# Bug#13976233 ASSERTION FAILED: !CHECK_TIME_MMSSFF_RANGE(LTIME), FILE SQL_TIME.CC, LINE 304
+#
+SELECT SECOND(4.99999999991e0);
+SECOND(4.99999999991e0)
+5
+SELECT SECOND(-4.99999999991e0);
+SECOND(-4.99999999991e0)
+5
+SELECT SECOND(TRUNCATE('5',180));
+SECOND(TRUNCATE('5',180))
+5
 # End of 5.6 tests

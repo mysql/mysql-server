@@ -1,0 +1,321 @@
+--source include/have_innodb.inc
+
+SET NAMES utf8;
+
+CREATE TABLE t1 (
+ c1 INT PRIMARY KEY, c2 INT DEFAULT 1, ct TEXT,
+ INDEX(c2))
+ENGINE=InnoDB;
+
+INSERT INTO t1 SET c1=1;
+
+CREATE TABLE sys_tables SELECT * FROM INFORMATION_SCHEMA.INNODB_SYS_TABLES
+WHERE NAME LIKE 'test/t%';
+CREATE TABLE sys_indexes SELECT i.* FROM INFORMATION_SCHEMA.INNODB_SYS_INDEXES i
+INNER JOIN sys_tables st ON i.TABLE_ID=st.TABLE_ID;
+
+CREATE TABLE t1p LIKE t1;
+
+CREATE TABLE t1c (c1 INT PRIMARY KEY, c2 INT, c3 INT, INDEX(c2), INDEX(c3),
+                  CONSTRAINT t1c2 FOREIGN KEY (c2) REFERENCES t1(c2),
+		  CONSTRAINT t1c3 FOREIGN KEY (c3) REFERENCES t1p(c2))
+ENGINE=InnoDB;
+
+CREATE TABLE sys_foreign SELECT i.*
+FROM INFORMATION_SCHEMA.INNODB_SYS_FOREIGN i
+WHERE FOR_NAME LIKE 'test/t%';
+
+SELECT i.* FROM INFORMATION_SCHEMA.INNODB_SYS_FOREIGN_COLS i
+INNER JOIN sys_foreign sf ON i.ID = sf.ID;
+
+-- source suite/innodb/include/innodb_dict.inc
+
+SHOW CREATE TABLE t1;
+ALTER TABLE t1 ALTER c2 DROP DEFAULT;
+SHOW CREATE TABLE t1;
+
+-- source suite/innodb/include/innodb_dict.inc
+
+# These should be no-op.
+ALTER TABLE t1 CHANGE c2 c2 INT AFTER c1;
+ALTER TABLE t1 CHANGE c1 c1 INT FIRST;
+
+-- source suite/innodb/include/innodb_dict.inc
+
+ALTER TABLE t1 CHANGE C2 c3 INT;
+
+-- source suite/innodb/include/innodb_dict.inc
+
+ALTER TABLE t1 CHANGE c3 C INT;
+
+-- source suite/innodb/include/innodb_dict.inc
+
+ALTER TABLE t1 CHANGE C Cöŀumň_TWO INT;
+
+SELECT i.* FROM INFORMATION_SCHEMA.INNODB_SYS_FOREIGN_COLS i
+INNER JOIN sys_foreign sf ON i.ID = sf.ID;
+
+-- source suite/innodb/include/innodb_dict.inc
+
+-- error ER_BAD_FIELD_ERROR
+ALTER TABLE t1 CHANGE cöĿǖmň_two c3 INT;
+
+ALTER TABLE t1 CHANGE cÖĿUMŇ_two c3 INT, RENAME TO t3;
+
+SELECT st.NAME, i.NAME
+FROM sys_tables st INNER JOIN INFORMATION_SCHEMA.INNODB_SYS_TABLES i
+ON i.TABLE_ID=st.TABLE_ID;
+
+SHOW CREATE TABLE t3;
+SHOW CREATE TABLE t1c;
+
+# The maximum column name length should be 64 characters.
+--error ER_TOO_LONG_IDENT
+ALTER TABLE t3 CHANGE c3
+`12345678901234567890123456789012345678901234567890123456789012345` INT;
+ALTER TABLE t3 CHANGE c3
+`1234567890123456789012345678901234567890123456789012345678901234` INT;
+SHOW CREATE TABLE t3;
+
+# Test the length limit with non-ASCII utf-8 characters.
+--error ER_TOO_LONG_IDENT
+ALTER TABLE t3 CHANGE
+`1234567890123456789012345678901234567890123456789012345678901234`
+`倀倁倂倃倄倅倆倇倈倉倊個倌倍倎倏倐們倒倓倔倕倖倗倘候倚倛倜倝倞借倠倡倢倣値倥倦倧倨倩倪倫倬倭倮倯倰倱倲倳倴倵倶倷倸倹债倻值倽倾倿偀` INT;
+--error ER_TOO_LONG_IDENT
+ALTER TABLE t3 CHANGE
+`1234567890123456789012345678901234567890123456789012345678901234`
+`倀倁倂倃倄倅倆倇倈倉倊個倌倍倎倏倐們倒倓倔倕倖倗倘候倚倛倜倝倞借倠倡倢倣値倥倦倧倨倩倪倫倬倭倮倯倰倱倲倳倴倵倶倷倸倹债倻值倽倾倿ä` INT;
+ALTER TABLE t3 CHANGE
+`1234567890123456789012345678901234567890123456789012345678901234`
+`倀倁倂倃倄倅倆倇倈倉倊個倌倍倎倏倐們倒倓倔倕倖倗倘候倚倛倜倝倞借倠倡倢倣値倥倦倧倨倩倪倫倬倭倮倯倰倱倲倳倴倵倶倷倸倹债倻值倽倾ä` INT;
+
+# check that the rename is case-insensitive (note the upper-case ä at end)
+ALTER TABLE t3 CHANGE
+`倀倁倂倃倄倅倆倇倈倉倊個倌倍倎倏倐們倒倓倔倕倖倗倘候倚倛倜倝倞借倠倡倢倣値倥倦倧倨倩倪倫倬倭倮倯倰倱倲倳倴倵倶倷倸倹债倻值倽倾Ä`
+c3 INT;
+
+# test with 4-byte UTF-8 (should be disallowed)
+--error ER_INVALID_CHARACTER_STRING
+ALTER TABLE t3 CHANGE c3 𐌀𐌁𐌂𐌃𐌄𐌅𐌆𐌇𐌈𐌉𐌊𐌋𐌌𐌍𐌎𐌏𐌐𐌑𐌒𐌓𐌔𐌕𐌖𐌗𐌘𐌙𐌚𐌛𐌜 INT;
+--error ER_INVALID_CHARACTER_STRING
+ALTER TABLE t3 CHANGE c3 😲 INT;
+
+ALTER TABLE t3 RENAME TO t2;
+
+SELECT st.NAME, i.NAME
+FROM sys_tables st INNER JOIN INFORMATION_SCHEMA.INNODB_SYS_TABLES i
+ON i.TABLE_ID=st.TABLE_ID;
+
+SHOW CREATE TABLE t2;
+
+RENAME TABLE t2 TO t1;
+
+SELECT st.NAME, i.NAME
+FROM sys_tables st INNER JOIN INFORMATION_SCHEMA.INNODB_SYS_TABLES i
+ON i.TABLE_ID=st.TABLE_ID;
+
+-- source suite/innodb/include/innodb_dict.inc
+
+--error ER_DROP_INDEX_FK
+ALTER TABLE t1 DROP INDEX c2;
+
+--error ER_CANT_DROP_FIELD_OR_KEY
+ALTER TABLE t1 DROP INDEX c4;
+
+--error ER_CANT_DROP_FIELD_OR_KEY
+ALTER TABLE t1c DROP FOREIGN KEY c2;
+
+--error ER_CANT_DROP_FIELD_OR_KEY
+ALTER TABLE t1c DROP FOREIGN KEY t1c2, DROP FOREIGN KEY c2;
+
+--error ER_CANT_DROP_FIELD_OR_KEY
+ALTER TABLE t1c DROP FOREIGN KEY t1c2, DROP FOREIGN KEY c2, DROP INDEX c2;
+
+--error ER_DROP_INDEX_FK
+ALTER TABLE t1c DROP INDEX c2;
+
+--error ER_CANT_DROP_FIELD_OR_KEY
+ALTER TABLE t1c DROP FOREIGN KEY ẗ1C2;
+
+SHOW CREATE TABLE t1c;
+
+SET foreign_key_checks=0;
+DROP TABLE t1p;
+SET foreign_key_checks=1;
+
+SHOW CREATE TABLE t1c;
+
+-- source suite/innodb/include/innodb_dict.inc
+
+CREATE TABLE t1p (c1 INT PRIMARY KEY, c2 INT, INDEX(c2)) ENGINE=InnoDB;
+
+--error ER_DROP_INDEX_FK
+ALTER TABLE t1c DROP INDEX C2, DROP INDEX C3;
+--error ER_DROP_INDEX_FK
+ALTER TABLE t1c DROP INDEX C3;
+
+SET foreign_key_checks=0;
+ALTER TABLE t1c DROP INDEX C3;
+SET foreign_key_checks=1;
+
+SHOW CREATE TABLE t1c;
+-- source suite/innodb/include/innodb_dict.inc
+
+ALTER TABLE t1c DROP FOREIGN KEY t1C3;
+
+SHOW CREATE TABLE t1c;
+-- source suite/innodb/include/innodb_dict.inc
+
+ALTER TABLE t1c DROP INDEX c2, DROP FOREIGN KEY t1C2;
+
+SHOW CREATE TABLE t1c;
+
+-- source suite/innodb/include/innodb_dict.inc
+
+ALTER TABLE t1 DROP INDEX c2, CHANGE c3 c2 INT;
+
+-- source suite/innodb/include/innodb_dict.inc
+
+CREATE TABLE t1o LIKE t1;
+
+# This will implicitly add a DOC_ID column, copying the table while
+# holding an exclusive lock. The LOCK=SHARED should thus fail.
+--error ER_NOT_SUPPORTED_YET
+ALTER TABLE t1 ADD FULLTEXT INDEX (ct),
+CHANGE c1 pk INT, ALTER c2 SET DEFAULT 42, RENAME TO tt,
+ALGORITHM=INPLACE, LOCK=SHARED;
+
+# Retry with LOCK=EXCLUSIVE.
+ALTER TABLE t1 ADD FULLTEXT INDEX (ct),
+CHANGE c1 pk INT, ALTER c2 SET DEFAULT 42, RENAME TO tt,
+ALGORITHM=INPLACE, LOCK=EXCLUSIVE;
+
+# The output should be empty, because index->id was reassigned.
+-- source suite/innodb/include/innodb_dict.inc
+
+SHOW CREATE TABLE tt;
+
+# DB_ROW_ID, DB_TRX_ID, DB_ROLL_PTR are reserved InnoDB system column names.
+--error ER_WRONG_COLUMN_NAME
+ALTER TABLE t1o CHANGE c1 dB_row_Id INT, ALGORITHM=COPY;
+--error ER_WRONG_COLUMN_NAME
+ALTER TABLE t1o CHANGE c1 dB_row_Id INT, ALGORITHM=INPLACE;
+--error ER_WRONG_COLUMN_NAME
+ALTER TABLE t1o CHANGE c1 DB_TRX_ID INT;
+--error ER_WRONG_COLUMN_NAME
+ALTER TABLE t1o CHANGE c1 db_roll_ptr INT;
+
+# FTS_DOC_ID is the internal row identifier for full-text search.
+# It should be of type BIGINT UNSIGNED NOT NULL.
+--error ER_WRONG_COLUMN_NAME
+ALTER TABLE t1o ADD FULLTEXT INDEX(ct), CHANGE c1 FTS_DOC_ID INT,
+ALGORITHM=COPY;
+
+--error ER_INNODB_FT_WRONG_DOCID_COLUMN
+ALTER TABLE t1o ADD FULLTEXT INDEX(ct), CHANGE c1 FTS_DOC_ID INT,
+ALGORITHM=INPLACE;
+--error ER_WRONG_COLUMN_NAME
+ALTER TABLE t1o ADD FULLTEXT INDEX(ct), CHANGE c1 FTS_Doc_ID INT,
+ALGORITHM=INPLACE;
+--error ER_NOT_SUPPORTED_YET
+ALTER TABLE t1o ADD FULLTEXT INDEX(ct),
+CHANGE c1 FTS_DOC_ID BIGINT UNSIGNED NOT NULL,
+ALGORITHM=INPLACE;
+
+CREATE TABLE t1n LIKE t1o;
+
+ALTER TABLE t1n ADD FULLTEXT INDEX(ct);
+--error ER_WRONG_COLUMN_NAME
+ALTER TABLE t1n CHANGE c1 Fts_DOC_ID INT, ALGORITHM=INPLACE;
+--error ER_WRONG_COLUMN_NAME
+ALTER TABLE t1n CHANGE c1 Fts_DOC_ID INT, ALGORITHM=COPY;
+--error ER_BAD_FIELD_ERROR
+ALTER TABLE t1n CHANGE FTS_DOC_ID c11 INT, ALGORITHM=INPLACE;
+ALTER TABLE t1n CHANGE c1 FTS_DOC_ïD INT, ALGORITHM=INPLACE;
+
+ALTER TABLE t1n CHANGE FTS_DOC_ÏD c1 INT, ALGORITHM=INPLACE;
+ALTER TABLE t1n CHANGE c1 c2 INT, CHANGE c2 ct INT, CHANGE ct c1 TEXT,
+ALGORITHM=INPLACE;
+SHOW CREATE TABLE t1n;
+ALTER TABLE t1n CHANGE c2 c1 INT, CHANGE ct c2 INT, CHANGE c1 ct TEXT,
+ALGORITHM=COPY;
+SHOW CREATE TABLE t1n;
+
+--error ER_KEY_COLUMN_DOES_NOT_EXITS
+ALTER TABLE t1n ADD INDEX(c2), CHANGE c2 c4 INT, ALGORITHM=INPLACE;
+--error ER_KEY_COLUMN_DOES_NOT_EXITS
+ALTER TABLE t1n ADD INDEX(c2), CHANGE c2 c4 INT, ALGORITHM=COPY;
+ALTER TABLE t1n ADD INDEX(c4), CHANGE c2 c4 INT, ALGORITHM=INPLACE;
+SHOW CREATE TABLE t1n;
+ALTER TABLE t1n DROP INDEX c4;
+--error ER_DUP_FIELDNAME
+ALTER TABLE t1n CHANGE c4 c1 INT, ADD INDEX(c1), ALGORITHM=INPLACE;
+ALTER TABLE t1n CHANGE c4 c11 INT, ADD INDEX(c11), ALGORITHM=INPLACE;
+
+SHOW CREATE TABLE t1n;
+DROP TABLE t1n;
+
+ALTER TABLE t1o MODIFY c1 BIGINT UNSIGNED NOT NULL;
+
+ALTER TABLE t1o ADD FULLTEXT INDEX(ct),
+CHANGE c1 FTS_DOC_ID BIGINT UNSIGNED NOT NULL,
+ALGORITHM=INPLACE;
+
+--error ER_INNODB_FT_WRONG_DOCID_COLUMN
+ALTER TABLE t1o CHANGE FTS_DOC_ID foo_id BIGINT UNSIGNED NOT NULL;
+
+# This should not show duplicates.
+SELECT sc.pos FROM information_schema.innodb_sys_columns sc
+INNER JOIN information_schema.innodb_sys_tables st
+ON sc.TABLE_ID=st.TABLE_ID
+WHERE st.NAME='test/t1o' AND sc.NAME='FTS_DOC_ID';
+
+SHOW CREATE TABLE t1o;
+
+ALTER TABLE t1o CHANGE FTS_DOC_ID foo_id BIGINT UNSIGNED NOT NULL,
+DROP INDEX ct, ALGORITHM=INPLACE;
+
+SHOW CREATE TABLE t1o;
+
+DROP TABLE t1c, t1p, sys_tables, sys_indexes, sys_foreign;
+
+# Check the internal schemata of tt, t1o.
+
+CREATE TABLE sys_tables SELECT * FROM INFORMATION_SCHEMA.INNODB_SYS_TABLES
+WHERE NAME='test/t1o';
+CREATE TABLE sys_indexes SELECT i.* FROM INFORMATION_SCHEMA.INNODB_SYS_INDEXES i
+INNER JOIN sys_tables st ON i.TABLE_ID=st.TABLE_ID;
+CREATE TABLE sys_foreign SELECT i.*
+FROM INFORMATION_SCHEMA.INNODB_SYS_FOREIGN i WHERE FOR_NAME='test/t1o';
+
+-- source suite/innodb/include/innodb_dict.inc
+
+# Ensure that there exists no hidden FTS_DOC_ID_INDEX on foo_id.
+
+# Renaming the FTS_DOC_ID column and creating a FULLTEXT index
+# does not work in one go.
+--error ER_INNODB_FT_WRONG_DOCID_INDEX
+ALTER TABLE t1o ADD UNIQUE INDEX FTS_DOC_ID_INDEX(FTS_DOC_ID),
+ADD FULLTEXT INDEX(ct),
+CHANGE foo_id FTS_DOC_ID BIGINT UNSIGNED NOT NULL;
+
+ALTER TABLE t1o ADD UNIQUE INDEX FTS_DOC_ID_INDEX(foo_id);
+
+--error ER_INNODB_FT_WRONG_DOCID_INDEX
+ALTER TABLE t1o CHANGE foo_id FTS_DOC_ID BIGINT UNSIGNED NOT NULL,
+ADD FULLTEXT INDEX(ct);
+
+ALTER TABLE t1o CHANGE foo_id FTS_DOC_ID BIGINT UNSIGNED NOT NULL;
+CREATE FULLTEXT INDEX ct ON t1o (ct);
+
+--error ER_INNODB_FT_WRONG_DOCID_COLUMN
+ALTER TABLE t1o CHANGE FTS_DOC_ID foo_id BIGINT UNSIGNED NOT NULL;
+
+DROP TABLE sys_indexes;
+CREATE TABLE sys_indexes SELECT i.* FROM INFORMATION_SCHEMA.INNODB_SYS_INDEXES i
+INNER JOIN sys_tables st ON i.TABLE_ID=st.TABLE_ID;
+
+-- source suite/innodb/include/innodb_dict.inc
+
+DROP TABLE tt, t1o, sys_tables, sys_indexes, sys_foreign;
