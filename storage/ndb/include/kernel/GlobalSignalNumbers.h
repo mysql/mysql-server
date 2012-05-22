@@ -836,9 +836,10 @@ extern const GlobalSignalNumber NO_OF_SIGNAL_NAMES;
 
 #define GSN_SYNC_PATH_REQ               613
 #define GSN_SYNC_PATH_CONF              614
-#define GSN_615
-#define GSN_616
-#define GSN_617
+
+#define GSN_LCP_STATUS_REQ              615
+#define GSN_LCP_STATUS_CONF             616
+#define GSN_LCP_STATUS_REF              617
 
 #define GSN_618
 #define GSN_619

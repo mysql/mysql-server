@@ -160,6 +160,8 @@ protected:
 
   void execDBINFO_SCANREQ(Signal *signal);
 
+  void execLCP_STATUS_REQ(Signal* signal);
+
 private:
   void defineBackupMutex_locked(Signal* signal, Uint32 ptrI,Uint32 retVal);
   void dictCommitTableMutex_locked(Signal* signal, Uint32 ptrI,Uint32 retVal);
