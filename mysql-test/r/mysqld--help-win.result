@@ -595,7 +595,7 @@ The following options may be given as the first argument:
  master during slave registration
  --rpl-recovery-rank=# 
  Unused, will be removed
- --safe-mode         Skip some optimize stages (for testing).
+ --safe-mode         Skip some optimize stages (for testing). Deprecated.
  --safe-user-create  Don't allow new user creation by the user who has no
  write privileges to the mysql.user table.
  --secure-auth       Disallow authentication for accounts that have old
