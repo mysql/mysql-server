@@ -47,19 +47,37 @@ class NdbRecordScanResultDataImpl extends NdbRecordResultDataImpl {
     /** The NdbScanOperation */
     private NdbScanOperation ndbScanOperation = null;
 
+    /** The number to skip */
+    protected long skip = 0;
+
+    /** The limit */
+    protected long limit = Long.MAX_VALUE;
+
+    /** The record counter during the scan */
+    protected long recordCounter = 0;
+
     /** Construct the ResultDataImpl based on an NdbRecordOperationImpl.
      * When used with the compatibility operations, delegate to the NdbRecordOperation
      * to copy data.
      * @param operation the NdbRecordOperationImpl
+     * @param skip the number of rows to skip
+     * @param limit the last row number
      */
-    public NdbRecordScanResultDataImpl(NdbRecordScanOperationImpl scanOperation) {
+    public NdbRecordScanResultDataImpl(NdbRecordScanOperationImpl scanOperation, long skip, long limit) {
         super(scanOperation);
         this.scanOperation = scanOperation;
         this.ndbScanOperation = (NdbScanOperation)scanOperation.ndbOperation;
+        this.skip = skip;
+        this.limit = limit;
     }
 
     @Override
     public boolean next() {
+        if (recordCounter >= limit) {
+            // the next record is past the limit; we have delivered all the rows
+            ndbScanOperation.close(true, true);
+            return false;
+        }
         // NdbScanOperation may have many results.
         boolean done = false;
         boolean fetch = false;
@@ -68,9 +86,15 @@ class NdbRecordScanResultDataImpl extends NdbRecordResultDataImpl {
             int result = scanOperation.nextResultCopyOut(fetch, force);
             switch (result) {
                 case RESULT_READY:
-                    // if scanning with locks, grab the lock for the current transaction
-                    scanOperation.lockCurrentTuple();
-                    return true;
+                    if (++recordCounter > skip) {
+                        // this record is past the skip
+                        // if scanning with locks, grab the lock for the current transaction
+                        scanOperation.lockCurrentTuple();
+                        return true;
+                    } else {
+                        // skip this record
+                        break;
+                    }
                 case SCAN_FINISHED:
                     ndbScanOperation.close(true, true);
                     return false;
