@@ -1033,6 +1033,12 @@ DROP TABLE t1;
 CREATE TABLE t1 (a INT, b INT, PRIMARY KEY (a), INDEX b (b)) ENGINE=InnoDB;
 INSERT INTO t1(a,b) VALUES (1,1), (2,2), (3,2);
 
+-- disable_query_log
+-- disable_result_log
+ANALYZE TABLE t1;
+-- enable_result_log
+-- enable_query_log
+
 #The two queries below should produce different results, but they don't.
 query_vertical EXPLAIN SELECT * FROM t1 WHERE b=2 ORDER BY a ASC;
 SELECT * FROM t1 WHERE b=2 ORDER BY a ASC;

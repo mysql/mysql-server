@@ -19,7 +19,8 @@ SET GLOBAL innodb_file_per_table = on;
 # Save the initial number of concurrent sessions.
 --source include/count_sessions.inc
 
-CREATE TABLE t1 (c1 INT PRIMARY KEY, c2 INT, c3 TEXT) ENGINE = InnoDB;
+CREATE TABLE t1 (c1 INT PRIMARY KEY, c2 INT, c3 TEXT)
+ENGINE=InnoDB STATS_PERSISTENT=0;
 INSERT INTO t1 VALUES (1,1,''), (2,2,''), (3,3,''), (4,4,''), (5,5,'');
 
 SET GLOBAL innodb_monitor_enable = module_ddl;
