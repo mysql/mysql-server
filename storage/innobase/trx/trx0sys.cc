@@ -1251,7 +1251,7 @@ trx_sys_any_active_transactions(void)
 	mutex_enter(&trx_sys->mutex);
 
 	total_trx = UT_LIST_GET_LEN(trx_sys->rw_trx_list)
-		+ trx_sys->n_mysql_trx;
+		  + UT_LIST_GET_LEN(trx_sys->mysql_trx_list);
 
 	ut_a(total_trx >= trx_sys->n_prepared_trx);
 	total_trx -= trx_sys->n_prepared_trx;

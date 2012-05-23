@@ -282,18 +282,6 @@ namespace AQP
     JOIN* const join= join_tab->join;
 
     /**
-     * There are some JOIN arguments we don't fully understand or has 
-     * not yet invested time into exploring pushability of:
-     */
-    if (join->procedure)
-    {
-      m_access_type= AT_OTHER;
-      m_other_access_reason = 
-        "'PROCEDURE'-clause post processing cannot be pushed.";
-      DBUG_VOID_RETURN;
-    }
-
-    /**
      * OLEJA: I think this restriction can be removed
      * now as WL5558 and other changes has cleaned up the 
      * ORDER/GROUP BY optimize + execute path.

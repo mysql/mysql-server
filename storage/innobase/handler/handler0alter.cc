@@ -1677,7 +1677,7 @@ col_fail:
 		    && !(ha_alter_info->handler_flags
 			 & ~INNOBASE_ONLINE_OPERATIONS)
 		    && !user_table->ibd_file_missing
-		    && !user_table->tablespace_discarded) {
+		    && !dict_table_is_discarded(user_table)) {
 			DBUG_EXECUTE_IF("innodb_OOM_prepare_inplace_alter",
 					error = DB_OUT_OF_MEMORY;
 					goto error_handling;);
@@ -2393,7 +2393,7 @@ ok_exit:
 	DBUG_ASSERT(ctx->trx);
 
 	if (prebuilt->table->ibd_file_missing
-	    || prebuilt->table->tablespace_discarded) {
+	    || dict_table_is_discarded(prebuilt->table)) {
 		goto all_done;
 	}
 

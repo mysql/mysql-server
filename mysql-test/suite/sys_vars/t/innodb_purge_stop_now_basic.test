@@ -1,0 +1,53 @@
+#
+# Basic test for innodb_purge_run_now, note it is a duplicate of
+# innodb_purge_stop_now.
+#
+
+-- source include/have_innodb.inc
+
+# The config variable is a debug variable for now
+-- source include/have_debug.inc
+
+--disable_query_log
+# Enable metrics for the counters we are going to use
+set global innodb_monitor_enable = purge_stop_count;
+set global innodb_monitor_enable = purge_resume_count;
+--enable_query_log
+
+# Should be 0 for both
+SELECT name, count
+  FROM information_schema.innodb_metrics
+  WHERE name = 'purge_stop_count' OR name = 'purge_resume_count';
+
+# Check the default value
+SET @orig = @@global.innodb_purge_run_now;
+SELECT @orig;
+
+# Stop of purge
+SET GLOBAL innodb_purge_stop_now = ON;
+
+# Stop count should now be 1
+SELECT name, count
+  FROM information_schema.innodb_metrics
+  WHERE name = 'purge_stop_count' OR name = 'purge_resume_count';
+
+SET GLOBAL innodb_purge_run_now = ON;
+
+# Should always be OFF
+SELECT @@global.innodb_purge_run_now;
+
+# Both should be 1 now
+SELECT name, count
+  FROM information_schema.innodb_metrics
+  WHERE name = 'purge_stop_count' OR name = 'purge_resume_count';
+
+--disable_query_log
+set global innodb_monitor_disable = all;
+set global innodb_monitor_reset_all = all;
+
+-- disable_warnings
+set global innodb_monitor_enable = default;
+set global innodb_monitor_disable = default;
+set global innodb_monitor_reset = default;
+set global innodb_monitor_reset_all = default;
+-- enable_warnings

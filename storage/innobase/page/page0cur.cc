@@ -1787,9 +1787,9 @@ UNIV_INLINE
 void
 page_cur_delete_rec_write_log(
 /*==========================*/
-	rec_t*		rec,	/*!< in: record to be deleted */
-	dict_index_t*	index,	/*!< in: record descriptor */
-	mtr_t*		mtr)	/*!< in: mini-transaction handle */
+	rec_t*			rec,	/*!< in: record to be deleted */
+	const dict_index_t*	index,	/*!< in: record descriptor */
+	mtr_t*			mtr)	/*!< in: mini-transaction handle */
 {
 	byte*	log_ptr;
 
@@ -1871,10 +1871,11 @@ UNIV_INTERN
 void
 page_cur_delete_rec(
 /*================*/
-	page_cur_t*	cursor,	/*!< in/out: a page cursor */
-	dict_index_t*	index,	/*!< in: record descriptor */
-	const ulint*	offsets,/*!< in: rec_get_offsets(cursor->rec, index) */
-	mtr_t*		mtr)	/*!< in: mini-transaction handle */
+	page_cur_t*		cursor,	/*!< in/out: a page cursor */
+	const dict_index_t*	index,	/*!< in: record descriptor */
+	const ulint*		offsets,/*!< in: rec_get_offsets(
+					cursor->rec, index) */
+	mtr_t*			mtr)	/*!< in: mini-transaction handle */
 {
 	page_dir_slot_t* cur_dir_slot;
 	page_dir_slot_t* prev_slot;
@@ -1886,8 +1887,6 @@ page_cur_delete_rec(
 	ulint		cur_slot_no;
 	ulint		cur_n_owned;
 	rec_t*		rec;
-
-	ut_ad(cursor && mtr);
 
 	page = page_cur_get_page(cursor);
 	page_zip = page_cur_get_page_zip(cursor);
@@ -1916,7 +1915,9 @@ page_cur_delete_rec(
 	cur_n_owned = page_dir_slot_get_n_owned(cur_dir_slot);
 
 	/* 0. Write the log record */
-	page_cur_delete_rec_write_log(current_rec, index, mtr);
+	if (mtr != 0) {
+		page_cur_delete_rec_write_log(current_rec, index, mtr);
+	}
 
 	/* 1. Reset the last insert info in the page header and increment
 	the modify clock for the frame */
@@ -1924,9 +1925,13 @@ page_cur_delete_rec(
 	page_header_set_ptr(page, page_zip, PAGE_LAST_INSERT, NULL);
 
 	/* The page gets invalid for optimistic searches: increment the
-	frame modify clock */
+	frame modify clock only if there is an mini-transaction covering
+	the change. During IMPORT we allocate local blocks that are not
+	part of the buffer pool. */
 
-	buf_block_modify_clock_inc(page_cur_get_block(cursor));
+	if (mtr != 0) {
+		buf_block_modify_clock_inc(page_cur_get_block(cursor));
+	}
 
 	/* 2. Find the next and the previous record. Note that the cursor is
 	left at the next record. */
@@ -1977,7 +1982,7 @@ page_cur_delete_rec(
 	If the number drops below PAGE_DIR_SLOT_MIN_N_OWNED, we balance the
 	slots. */
 
-	if (UNIV_UNLIKELY(cur_n_owned <= PAGE_DIR_SLOT_MIN_N_OWNED)) {
+	if (cur_n_owned <= PAGE_DIR_SLOT_MIN_N_OWNED) {
 		page_dir_balance_slot(page, page_zip, cur_slot_no);
 	}
 

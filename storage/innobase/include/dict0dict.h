@@ -591,7 +591,7 @@ void
 dict_index_name_print(
 /*==================*/
 	FILE*			file,	/*!< in: output stream */
-	trx_t*			trx,	/*!< in: transaction */
+	const trx_t*		trx,	/*!< in: transaction */
 	const dict_index_t*	index)	/*!< in: index to print */
 	__attribute__((nonnull(1,3)));
 #ifdef UNIV_DEBUG
@@ -1640,6 +1640,26 @@ ibool
 dict_set_corrupted_by_space(
 /*========================*/
 	ulint		space_id);	/*!< in: space ID */
+
+/********************************************************************//**
+Validate the table flags.
+@return	true if valid. */
+UNIV_INLINE
+bool
+dict_tf_is_valid(
+/*=============*/
+	ulint		flags)		/*!< in: table flags */
+	__attribute__((warn_unused_result));
+
+/********************************************************************//**
+Check if the tablespace for the table has been discarded.
+@return	true if the tablespace has been discarded. */
+UNIV_INLINE
+bool
+dict_table_is_discarded(
+/*====================*/
+	const dict_table_t*	table)	/*!< in: table to check */
+	__attribute__((nonnull, pure, warn_unused_result));
 
 #ifndef UNIV_NONINL
 #include "dict0dict.ic"

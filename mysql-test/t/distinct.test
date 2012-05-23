@@ -84,12 +84,23 @@ insert into t4 select * from t3;
 insert into t3 select * from t4;
 
 explain select distinct t1.a from t1,t3 where t1.a=t3.a;
-#flush status;
+# This query uses the "not used in distinct" optimization (search for
+# not_used_in_distinct in code); it means that when we have a partial
+# record for t1, and we find a match in t3, we have a combination
+# rec_t1|rec_t3_a, and thus (DISTINCT is used and the SELECT list does
+# not contain columns of t2) we have rec_t1 in the result set; we don't
+# need to explore more records of t3, as all it would do is producing
+# more rec_t1|rec_t3_x, which would all be eliminated (due to
+# DISTINCT).
+# Without this optimization, the first query does ~200 read_next instead
+# of 4.
+flush status;
 select distinct t1.a from t1,t3 where t1.a=t3.a;
-#show status like 'Handler%';
-#flush status;
+show status like 'Handler_read%';
+flush status;
+# This one does ~200 reads, filed as Bug #13622058
 select distinct 1 from t1,t3 where t1.a=t3.a;
-#show status like 'Handler%';
+show status like 'Handler_read%';
 
 explain SELECT distinct t1.a from t1;
 explain SELECT distinct t1.a from t1 order by a desc;
