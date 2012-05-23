@@ -105,32 +105,11 @@ row_log_online_op(
 	      == (op == ROW_OP_PURGE));
 #endif /* UNIV_SYNC_DEBUG */
 
-#ifdef UNIV_DEBUG
-	switch (op) {
-	case ROW_OP_INSERT:
-	case ROW_OP_DELETE_MARK:
-	case ROW_OP_DELETE_UNMARK:
-	case ROW_OP_DELETE_PURGE:
-		ut_ad(trx_id);
-		/* fall through */
-	case ROW_OP_PURGE:
-		goto op_ok;
-	}
-op_ok:
-#endif /* UNIV_DEBUG */
 	if (dict_index_is_corrupted(index)) {
 		return;
 	}
 
 	ut_ad(dict_index_is_online_ddl(index));
-	mutex_enter(&index->online_log->mutex);
-
-	if (trx_id > index->online_log->max_trx) {
-		index->online_log->max_trx = trx_id;
-	}
-
-	log = index->online_log;
-	UNIV_MEM_INVALID(log->tail.buf, sizeof log->tail.buf);
 
 	/* Compute the size of the record. This differs from
 	row_merge_buf_encode(), because here we do not encode
@@ -150,14 +129,32 @@ op_ok:
 	case ROW_OP_DELETE_MARK:
 	case ROW_OP_DELETE_UNMARK:
 	case ROW_OP_DELETE_PURGE:
+#ifdef UNIV_SYNC_DEBUG
+		ut_ad(rw_lock_own(dict_index_get_lock(index), RW_LOCK_SHARED));
+#endif /* UNIV_SYNC_DEBUG */
+		ut_ad(trx_id);
 		mrec_size = ROW_LOG_HEADER_SIZE + DATA_TRX_ID_LEN
 			+ (extra_size >= 0x80) + size;
-		break;
+		goto op_ok;
 	case ROW_OP_PURGE:
+#ifdef UNIV_SYNC_DEBUG
+		ut_ad(rw_lock_own(dict_index_get_lock(index), RW_LOCK_EX));
+#endif /* UNIV_SYNC_DEBUG */
 		mrec_size = ROW_LOG_HEADER_SIZE
 			+ (extra_size >= 0x80) + size;
-		break;
+		goto op_ok;
 	}
+
+	ut_error;
+op_ok:
+	log = index->online_log;
+	mutex_enter(&log->mutex);
+
+	if (trx_id > log->max_trx) {
+		log->max_trx = trx_id;
+	}
+
+	UNIV_MEM_INVALID(log->tail.buf, sizeof log->tail.buf);
 
 	ut_ad(log->tail.bytes < srv_sort_buf_size);
 	avail_size = srv_sort_buf_size - log->tail.bytes;
@@ -215,7 +212,7 @@ op_ok:
 		UNIV_MEM_ASSERT_RW(log->tail.block, srv_sort_buf_size);
 		ret = os_file_write(
 			"(modification log)",
-			OS_FILE_FROM_FD(index->online_log->fd),
+			OS_FILE_FROM_FD(log->fd),
 			log->tail.block, byte_offset, srv_sort_buf_size);
 		log->tail.blocks++;
 		if (!ret) {
@@ -235,7 +232,7 @@ write_failed:
 	}
 
 	UNIV_MEM_INVALID(log->tail.buf, sizeof log->tail.buf);
-	mutex_exit(&index->online_log->mutex);
+	mutex_exit(&log->mutex);
 }
 
 /******************************************************//**
