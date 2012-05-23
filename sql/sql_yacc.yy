@@ -5998,10 +5998,14 @@ create_table_option:
         | STATS_SAMPLE_PAGES_SYM opt_equal ulong_num
           {
             /* From user point of view STATS_SAMPLE_PAGES can be specified as
-            STATS_SAMPLE_PAGES=N (where N>0, it does not make sense to scan
-            0 pages) or STATS_SAMPLE_PAGES=default. Internally we record
-            =default as 0. */
-            if ($3 == 0)
+            STATS_SAMPLE_PAGES=N (where 0<N<=65535, it does not make sense to
+            scan 0 pages) or STATS_SAMPLE_PAGES=default. Internally we record
+            =default as 0. See create_frm() in sql/table.cc, we use only two
+            bytes for stats_sample_pages and this is why we do not allow
+            larger values. 65535 pages, 16kb each means to sample 1GB, which
+            is impractical. If at some point this needs to be extended, then
+            we can store the higher bits from stats_sample_pages in .frm too. */
+            if ($3 == 0 || $3 > 0xffff)
             {
               my_parse_error(ER(ER_SYNTAX_ERROR));
               MYSQL_YYABORT;
