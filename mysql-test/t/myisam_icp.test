@@ -262,5 +262,22 @@ SET optimizer_switch=@save_optimizer_switch;
 
 DROP TABLE t1,t2,t3,t4;
 
+--echo #
+--echo # BUG#1000051: Query with simple join and ORDER BY takes thousands times longer when run with ICP
+--echo #
+create table t0 (a int);
+insert into t0 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
+
+create table t1 (a int, col int, filler char(100), key(a, col));
+insert into t1 select A.a + 10*B.a +100*C.a, 1234, 'filler' from t0 A, t0 B, t0 C;
+
+--echo # Must not use ICP:
+explain select * from t1 where a between 10 and 20 order by a, col desc;
+
+--echo # Must not use ICP:
+explain select * from t0,t1 where t1.a=t0.a and t1.col<123;
+
+drop table t0, t1;
+
 set optimizer_switch=@myisam_icp_tmp;
 

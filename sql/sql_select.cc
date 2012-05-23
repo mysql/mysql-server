@@ -18548,6 +18548,15 @@ check_reverse_order:
           tab->limit= 0;
           goto use_filesort;           // Reverse sort failed -> filesort
         }
+        /*
+          Cancel Pushed Index Condition, as it doesn't work for reverse scans.
+        */
+        if (tab->select && tab->select->pre_idx_push_select_cond)
+	{
+          tab->set_cond(tab->select->pre_idx_push_select_cond);
+           tab->table->file->cancel_pushed_idx_cond();
+        }
+
         select->quick= tmp;
       }
       else if (tab->type != JT_NEXT && tab->type != JT_REF_OR_NULL &&
@@ -18561,6 +18570,14 @@ check_reverse_order:
         */
         tab->read_first_record= join_read_last_key;
         tab->read_record.read_record= join_read_prev_same;
+        /*
+          Cancel Pushed Index Condition, as it doesn't work for reverse scans.
+        */
+        if (tab->select && tab->select->pre_idx_push_select_cond)
+	{
+          tab->set_cond(tab->select->pre_idx_push_select_cond);
+           tab->table->file->cancel_pushed_idx_cond();
+        }
       }
     }
     else if (select && select->quick)
