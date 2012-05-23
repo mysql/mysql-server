@@ -251,7 +251,8 @@ int fill_schema_schema_privileges(THD *thd, TABLE_LIST *tables, Item *cond);
 int fill_schema_table_privileges(THD *thd, TABLE_LIST *tables, Item *cond);
 int fill_schema_column_privileges(THD *thd, TABLE_LIST *tables, Item *cond);
 int wild_case_compare(CHARSET_INFO *cs, const char *str,const char *wildstr);
-
+int check_password_strength(String *password);
+void check_password_policy(String *password);
 #ifdef NO_EMBEDDED_ACCESS_CHECKS
 #define check_grant(A,B,C,D,E,F) 0
 #define check_grant_db(A,B) 0

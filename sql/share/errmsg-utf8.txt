@@ -6798,6 +6798,8 @@ ER_INNODB_IMPORT_ERROR
 ER_INNODB_INDEX_CORRUPT
   eng "Index corrupt: %s"
 
+ER_NOT_VALID_PASSWORD
+  eng "Your password does not satisfy the current policy requirements"
 #
 #  End of 5.6 error messages.
 #
