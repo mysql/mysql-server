@@ -189,7 +189,7 @@ row_rec_to_index_entry(
 					s-latched and the latch held
 					as long as the dtuple is used! */
 	const dict_index_t*	index,	/*!< in: index */
-	ulint*			offsets,/*!< in/out: rec_get_offsets(rec) */
+	const ulint*		offsets,/*!< in/out: rec_get_offsets(rec) */
 	ulint*			n_ext,	/*!< out: number of externally
 					stored columns */
 	mem_heap_t*		heap)	/*!< in: memory heap from which
