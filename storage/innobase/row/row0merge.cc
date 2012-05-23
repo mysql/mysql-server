@@ -2155,6 +2155,7 @@ row_merge_insert_index_tuples(
 	const byte*		b;
 	mem_heap_t*		heap;
 	mem_heap_t*		tuple_heap;
+	mem_heap_t*		ins_heap;
 	dberr_t			error = DB_SUCCESS;
 	ulint			foffs = 0;
 	ulint*			offsets;
@@ -2170,6 +2171,7 @@ row_merge_insert_index_tuples(
 		ulint i	= 1 + REC_OFFS_HEADER_SIZE
 			+ dict_index_get_n_fields(index);
 		heap = mem_heap_create(sizeof *buf + i * sizeof *offsets);
+		ins_heap = mem_heap_create(sizeof *buf + i * sizeof *offsets);
 		offsets = static_cast<ulint*>(
 			mem_heap_alloc(heap, i * sizeof *offsets));
 		offsets[0] = i;
@@ -2246,12 +2248,13 @@ row_merge_insert_index_tuples(
 				      > 0);
 			}
 #endif /* UNIV_DEBUG */
+			ulint*	ins_offsets = NULL;
 
 			error = btr_cur_optimistic_insert(
 				BTR_NO_UNDO_LOG_FLAG | BTR_NO_LOCKING_FLAG
 				| BTR_KEEP_SYS_FLAG | BTR_CREATE_FLAG,
-				&cursor, dtuple, &rec, &big_rec,
-				0, NULL, &mtr);
+				&cursor, &ins_offsets, &ins_heap,
+				dtuple, &rec, &big_rec, 0, NULL, &mtr);
 
 			if (error == DB_FAIL) {
 				ut_ad(!big_rec);
@@ -2270,8 +2273,8 @@ row_merge_insert_index_tuples(
 					BTR_NO_UNDO_LOG_FLAG
 					| BTR_NO_LOCKING_FLAG
 					| BTR_KEEP_SYS_FLAG | BTR_CREATE_FLAG,
-					&cursor, dtuple, &rec, &big_rec,
-					0, NULL, &mtr);
+					&cursor, &ins_offsets, &ins_heap,
+					dtuple, &rec, &big_rec, 0, NULL, &mtr);
 			}
 
 			if (!dict_index_is_clust(index)) {
@@ -2294,7 +2297,8 @@ row_merge_insert_index_tuples(
 				ut_ad(dict_index_is_clust(index));
 				ut_ad(error == DB_SUCCESS);
 				error = row_ins_index_entry_big_rec(
-					dtuple, big_rec, offsets, &tuple_heap,
+					dtuple, big_rec,
+					ins_offsets, &ins_heap,
 					index, NULL, __FILE__, __LINE__);
 				dtuple_convert_back_big_rec(
 					index, dtuple, big_rec);
@@ -2305,11 +2309,13 @@ row_merge_insert_index_tuples(
 			}
 
 			mem_heap_empty(tuple_heap);
+			mem_heap_empty(ins_heap);
 		}
 	}
 
 err_exit:
 	mem_heap_free(tuple_heap);
+	mem_heap_free(ins_heap);
 	mem_heap_free(heap);
 
 	return(error);
