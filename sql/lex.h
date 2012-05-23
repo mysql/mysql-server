@@ -212,6 +212,7 @@ static SYMBOL symbols[] = {
   { "EXISTS",		SYM(EXISTS)},
   { "EXIT",             SYM(EXIT_SYM)},
   { "EXPANSION",	SYM(EXPANSION_SYM)},
+  { "EXPORT",	        SYM(EXPORT_SYM)},
   { "EXCHANGE",         SYM(EXCHANGE_SYM)},
   { "EXPLAIN",		SYM(DESCRIBE)},
   { "EXTENDED",		SYM(EXTENDED_SYM)},

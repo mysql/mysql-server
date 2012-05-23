@@ -96,11 +96,37 @@ innobase_shutdown_for_mysql(void);
 /********************************************************************
 Signal all per-table background threads to shutdown, and wait for them to do
 so. */
-
+UNIV_INTERN
 void
 srv_shutdown_table_bg_threads(void);
-
 /*=============================*/
+
+/*************************************************************//**
+Copy the file path component of the physical file to parameter. It will
+copy up to and including the terminating path separator.
+@return number of bytes copied or ULINT_UNDEFINED if destination buffer
+	is smaller than the path to be copied. */
+UNIV_INTERN
+ulint
+srv_path_copy(
+/*==========*/
+	char*		dest,		/*!< out: destination buffer */
+	ulint		dest_len,	/*!< in: max bytes to copy */
+	const char*	basedir,	/*!< in: base directory */
+	const char*	table_name)	/*!< in: source table name */
+        __attribute__((nonnull, warn_unused_result));
+
+/*****************************************************************//**
+Get the meta-data filename from the table name. */
+UNIV_INTERN
+void
+srv_get_meta_data_filename(
+/*======================*/
+	const dict_table_t*	table,		/*!< in: table */
+	char*			filename,	/*!< out: filename */
+	ulint			max_len)	/*!< in: filename max length */
+        __attribute__((nonnull));
+
 /** Log sequence number at shutdown */
 extern	lsn_t	srv_shutdown_lsn;
 /** Log sequence number immediately after startup */
