@@ -2545,9 +2545,9 @@ bool Sys_var_enum_binlog_checksum::global_update(THD *thd, set_var *var)
 static Sys_var_enum_binlog_checksum Binlog_checksum_enum(
        "binlog_checksum", "Type of BINLOG_CHECKSUM_ALG. Include checksum for "
        "log events in the binary log. Possible values are NONE and CRC32; "
-       "default is NONE.",
+       "default is CRC32.",
        GLOBAL_VAR(binlog_checksum_options), CMD_LINE(REQUIRED_ARG),
-       binlog_checksum_type_names, DEFAULT(BINLOG_CHECKSUM_ALG_OFF),
+       binlog_checksum_type_names, DEFAULT(BINLOG_CHECKSUM_ALG_CRC32),
        NO_MUTEX_GUARD, NOT_IN_BINLOG);
 
 static Sys_var_mybool Sys_master_verify_checksum(
@@ -3788,16 +3788,16 @@ static Sys_var_ulonglong Sys_relay_log_space_limit(
 
 static Sys_var_uint Sys_sync_relaylog_period(
        "sync_relay_log", "Synchronously flush relay log to disk after "
-       "every #th event. Use 0 (default) to disable synchronous flushing",
+       "every #th event. Use 0 to disable synchronous flushing",
        GLOBAL_VAR(sync_relaylog_period), CMD_LINE(REQUIRED_ARG),
-       VALID_RANGE(0, UINT_MAX), DEFAULT(0), BLOCK_SIZE(1));
+       VALID_RANGE(0, UINT_MAX), DEFAULT(10000), BLOCK_SIZE(1));
 
 static Sys_var_uint Sys_sync_relayloginfo_period(
        "sync_relay_log_info", "Synchronously flush relay log info "
-       "to disk after every #th transaction. Use 0 (default) to disable "
+       "to disk after every #th transaction. Use 0 to disable "
        "synchronous flushing",
        GLOBAL_VAR(sync_relayloginfo_period), CMD_LINE(REQUIRED_ARG),
-       VALID_RANGE(0, UINT_MAX), DEFAULT(0), BLOCK_SIZE(1));
+       VALID_RANGE(0, UINT_MAX), DEFAULT(10000), BLOCK_SIZE(1));
 
 static Sys_var_uint Sys_checkpoint_mts_period(
        "slave_checkpoint_period", "Gather workers' activities to "
@@ -3830,9 +3830,9 @@ static Sys_var_uint Sys_sync_binlog_period(
 
 static Sys_var_uint Sys_sync_masterinfo_period(
        "sync_master_info", "Synchronously flush master info to disk "
-       "after every #th event. Use 0 (default) to disable synchronous flushing",
+       "after every #th event. Use 0 to disable synchronous flushing",
        GLOBAL_VAR(sync_masterinfo_period), CMD_LINE(REQUIRED_ARG),
-       VALID_RANGE(0, UINT_MAX), DEFAULT(0), BLOCK_SIZE(1));
+       VALID_RANGE(0, UINT_MAX), DEFAULT(10000), BLOCK_SIZE(1));
 
 #ifdef HAVE_REPLICATION
 static Sys_var_ulong Sys_slave_trans_retries(
