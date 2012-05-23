@@ -2134,12 +2134,6 @@ any_extern:
 
 	btr_search_update_hash_on_delete(cursor);
 
-	/* The call to row_rec_to_index_entry(ROW_COPY_DATA, ...) above
-	invokes rec_offs_make_valid() to point to the copied record that
-	the fields of new_entry point to.  We have to undo it here. */
-	ut_ad(rec_offs_validate(NULL, index, *offsets));
-	rec_offs_make_valid(page_cur_get_rec(page_cursor), index, *offsets);
-
 	page_cur_delete_rec(page_cursor, index, *offsets, mtr);
 
 	page_cur_move_to_prev(page_cursor);
@@ -2340,11 +2334,6 @@ btr_cur_pessimistic_update(
 
 	new_entry = row_rec_to_index_entry(ROW_COPY_DATA, rec, index, *offsets,
 					   &n_ext, *heap);
-	/* The call to row_rec_to_index_entry(ROW_COPY_DATA, ...) above
-	invokes rec_offs_make_valid() to point to the copied record that
-	the fields of new_entry point to.  We have to undo it here. */
-	ut_ad(rec_offs_validate(NULL, index, *offsets));
-	rec_offs_make_valid(rec, index, *offsets);
 
 	/* The page containing the clustered index record
 	corresponding to new_entry is latched in mtr.  If the
