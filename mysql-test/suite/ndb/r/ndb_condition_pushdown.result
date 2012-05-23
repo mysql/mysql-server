@@ -2416,3 +2416,11 @@ test_data@test.org	1
 drop table escapetest;
 set engine_condition_pushdown = @old_ecpd;
 DROP TABLE t1,t2,t3,t4,t5;
+#
+# Bug#14106592  DEBUG BUILD CRASH IN NDB_SERIALIZE_COND()
+#
+create table t1(a time) engine=ndbcluster;
+insert into t1 values ('00:00:00'),('01:01:01');
+select 1 from t1 where a >= geomfromtext('1');
+1
+drop table t1;
