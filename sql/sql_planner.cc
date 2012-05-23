@@ -388,13 +388,6 @@ void Optimize_table_order::best_access_path(
   double best=              DBL_MAX;
   double best_time=         DBL_MAX;
   double records=           DBL_MAX;
-  /* Holds the current number of records from the range optimizer, if any */
-  double quick_records=     DBL_MAX;
-  /* 
-     When a key from the range optimizer matches more parts than a ref key, the
-     estimates from these sources are not comparable.
-  */
-  double best_quick_records= DBL_MAX;
   table_map best_ref_depends_map= 0;
   double tmp;
   bool best_uses_jbuf= false;
@@ -477,12 +470,6 @@ void Optimize_table_order::best_access_path(
       trace_access_idx.add_alnum("access_type", "ref").
         add_utf8("index", keyinfo->name);
 
-      /* 
-         True if we find some keys from the range optimizer that match more
-         key parts than the best ref key. We then choose the best range key.
-      */
-      bool quick_matches_more_parts= false;
-      
       do /* For each keypart */
       {
         const uint keypart= keyuse->keypart;
@@ -716,6 +703,14 @@ void Optimize_table_order::best_access_path(
                   Then 
                     We'll use E(#rows) from quick select.
 
+                  One observation is that when there are multiple
+                  indexes with a common prefix (eg (b) and (b, c)) we
+                  are not always selecting (b, c) even when this can
+                  use more keyparts. Inaccuracies in statistics from
+                  the storage engines can cause the record estimate
+                  for the quick object for (b) to be lower than the
+                  record estimate for the quick object for (b,c).
+
                   Q: Why do we choose to use 'ref'? Won't quick select be
                   cheaper in some cases ?
                   TODO: figure this out and adjust the plan choice if needed.
@@ -723,10 +718,7 @@ void Optimize_table_order::best_access_path(
                 if (!found_ref && table->quick_keys.is_set(key) &&    // (1)
                     table->quick_key_parts[key] > max_key_part &&     // (2)
                     records < (double)table->quick_rows[key])         // (3)
-                {
-                  records= quick_records= (double)table->quick_rows[key];
-                  quick_matches_more_parts= true;                  
-                }
+                  records= (double)table->quick_rows[key];
 
                 tmp= records;
               }
@@ -819,10 +811,8 @@ void Optimize_table_order::best_access_path(
       {
         const double idx_time= tmp + records * ROW_EVALUATE_COST;
         trace_access_idx.add("rows", records).add("cost", idx_time);
-        if (idx_time < best_time ||
-            (quick_matches_more_parts && quick_records < best_quick_records))
+        if (idx_time < best_time)
         {
-          best_quick_records = quick_records;
           best_time= idx_time;
           best= tmp;
           best_records= records;
