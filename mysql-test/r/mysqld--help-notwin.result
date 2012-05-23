@@ -40,7 +40,7 @@ The following options may be given as the first argument:
  --binlog-checksum=name 
  Type of BINLOG_CHECKSUM_ALG. Include checksum for log
  events in the binary log. Possible values are NONE and
- CRC32; default is NONE.
+ CRC32; default is CRC32.
  --binlog-direct-non-transactional-updates 
  Causes updates to non-transactional engines using
  statement format to be written directly to binary log.
@@ -850,13 +850,12 @@ The following options may be given as the first argument:
  (Defaults to on; use --skip-sync-frm to disable.)
  --sync-master-info=# 
  Synchronously flush master info to disk after every #th
- event. Use 0 (default) to disable synchronous flushing
+ event. Use 0 to disable synchronous flushing
  --sync-relay-log=#  Synchronously flush relay log to disk after every #th
- event. Use 0 (default) to disable synchronous flushing
+ event. Use 0 to disable synchronous flushing
  --sync-relay-log-info=# 
  Synchronously flush relay log info to disk after every
- #th transaction. Use 0 (default) to disable synchronous
- flushing
+ #th transaction. Use 0 to disable synchronous flushing
  --sysdate-is-now    Non-default option to alias SYSDATE() to NOW() to make it
  safe-replicable. Since 5.0, SYSDATE() returns a `dynamic'
  value different for different invocations, even within
@@ -919,10 +918,10 @@ back-log 50
 big-tables FALSE
 bind-address 0.0.0.0
 binlog-cache-size 32768
-binlog-checksum NONE
+binlog-checksum CRC32
 binlog-direct-non-transactional-updates FALSE
 binlog-format STATEMENT
-binlog-row-event-max-size 1024
+binlog-row-event-max-size 8192
 binlog-row-image FULL
 binlog-rows-query-log-events FALSE
 binlog-stmt-cache-size 32768
@@ -1163,9 +1162,9 @@ stored-program-cache 256
 symbolic-links FALSE
 sync-binlog 0
 sync-frm TRUE
-sync-master-info 0
-sync-relay-log 0
-sync-relay-log-info 0
+sync-master-info 10000
+sync-relay-log 10000
+sync-relay-log-info 10000
 sysdate-is-now FALSE
 table-cache 400
 table-definition-cache 400
