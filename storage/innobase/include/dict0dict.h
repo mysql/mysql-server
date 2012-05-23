@@ -1308,7 +1308,7 @@ enum online_index_status
 dict_index_get_online_status(
 /*=========================*/
 	const dict_index_t*	index)	/*!< in: secondary index */
-	__attribute__((nonnull, pure, warn_unused_result));
+	__attribute__((nonnull, warn_unused_result));
 /********************************************************************//**
 Sets the status of online index creation. */
 UNIV_INLINE
@@ -1597,7 +1597,7 @@ ulint
 dict_table_is_corrupted(
 /*====================*/
 	const dict_table_t*	table)	/*!< in: table */
-	__attribute__((nonnull, pure, warn_unused_result));
+	__attribute__((nonnull, warn_unused_result));
 
 /**********************************************************************//**
 Check whether the index is corrupted.
@@ -1607,7 +1607,7 @@ ulint
 dict_index_is_corrupted(
 /*====================*/
 	const dict_index_t*	index)	/*!< in: index */
-	__attribute__((nonnull, pure, warn_unused_result));
+	__attribute__((nonnull, warn_unused_result));
 
 /**********************************************************************//**
 Flags an index and table corrupted both in the data dictionary cache
