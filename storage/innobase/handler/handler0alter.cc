@@ -3450,7 +3450,9 @@ ha_innobase::commit_inplace_alter_table(
 	if (ctx != NULL && ctx->num_to_drop > 0) {
 		dict_table_t*	table = ctx->drop[0]->table;
 
-		while (table->stats_bg_flag & BG_STAT_IN_PROGRESS) {
+		while (prebuilt->table->stats_bg_flag & BG_STAT_IN_PROGRESS
+		       || table->stats_bg_flag & BG_STAT_IN_PROGRESS) {
+
 			row_mysql_unlock_data_dictionary(trx);
 			os_thread_sleep(250000);
 			row_mysql_lock_data_dictionary(trx);
