@@ -1451,7 +1451,6 @@ row_merge_read_clustered_index(
 		if (UNIV_LIKELY_NULL(rec_offs_any_null_extern(rec, offsets))) {
 #if defined UNIV_DEBUG || defined UNIV_BLOB_LIGHT_DEBUG
 			trx_id_t	trx_id;
-			roll_ptr_t	roll_ptr;
 			ulint		trx_id_offset;
 
 			/* It is possible that the record was
@@ -1468,10 +1467,8 @@ row_merge_read_clustered_index(
 			}
 
 			trx_id = trx_read_trx_id(rec + trx_id_offset);
-			roll_ptr = trx_read_roll_ptr(rec + trx_id_offset
-						     + DATA_TRX_ID_LEN);
 			ut_a(trx_rw_is_active(trx_id, NULL));
-			ut_a(trx_undo_roll_ptr_is_insert(roll_ptr));
+			ut_a(trx_undo_trx_id_is_insert(rec + trx_id_offset));
 #endif /* UNIV_DEBUG || UNIV_BLOB_LIGHT_DEBUG */
 
 			/* When !online, we are holding an X-lock on
