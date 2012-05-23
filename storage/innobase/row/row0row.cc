@@ -435,7 +435,7 @@ row_rec_to_index_entry(
 					s-latched and the latch held
 					as long as the dtuple is used! */
 	const dict_index_t*	index,	/*!< in: index */
-	ulint*			offsets,/*!< in/out: rec_get_offsets(rec) */
+	const ulint*		offsets,/*!< in: rec_get_offsets(rec) */
 	ulint*			n_ext,	/*!< out: number of externally
 					stored columns */
 	mem_heap_t*		heap)	/*!< in: memory heap from which
@@ -461,10 +461,10 @@ row_rec_to_index_entry(
 		copy_rec = rec;
 	}
 
-	rec_offs_make_valid(copy_rec, index, offsets);
+	rec_offs_make_valid(copy_rec, index, const_cast<ulint*>(offsets));
 	entry = row_rec_to_index_entry_low(
 		copy_rec, index, offsets, n_ext, heap);
-	rec_offs_make_valid(rec, index, offsets);
+	rec_offs_make_valid(rec, index, const_cast<ulint*>(offsets));
 
 	dtuple_set_info_bits(entry,
 			     rec_get_info_bits(rec, rec_offs_comp(offsets)));
