@@ -1501,7 +1501,8 @@ bool create_ref_for_key(JOIN *join, JOIN_TAB *j, Key_use *org_keyuse,
     j->type= null_ref_key ? JT_REF_OR_NULL : JT_REF;
     j->ref.null_ref_key= null_ref_key;
   }
-  else if (keyuse_uses_no_tables)
+  else if (keyuse_uses_no_tables &&
+           !(table->file->ha_table_flags() & HA_BLOCK_CONST_TABLE))
   {
     /*
       This happen if we are using a constant expression in the ON part
@@ -2628,7 +2629,9 @@ make_join_readinfo(JOIN *join, ulonglong options, uint no_jbuf_after)
     tab->sorted= (tab->type != JT_EQ_REF) ? sorted : false;
     sorted= false;                              // only first must be sorted
     table->status= STATUS_GARBAGE | STATUS_NOT_FOUND;
-    pick_table_access_method (tab);
+    tab->read_first_record= NULL; // Access methods not set yet
+    tab->read_record.read_record= NULL;
+    tab->read_record.unlock_row= rr_unlock_row;
 
     Opt_trace_object trace_refine_table(trace);
     trace_refine_table.add_utf8_table(table);
@@ -3973,7 +3976,6 @@ check_reverse_order:
         goto use_filesort;
 
       DBUG_ASSERT(tab->type != JT_REF_OR_NULL && tab->type != JT_FT);
-      pick_table_access_method(tab);
     }
     else if (best_key >= 0)
     {

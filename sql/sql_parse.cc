@@ -4033,6 +4033,17 @@ end_with_restore_list:
       my_ok(thd);
       break;
     }
+    else if (first_table && lex->type & REFRESH_FOR_EXPORT)
+    {
+      /* Check table-level privileges. */
+      if (check_table_access(thd, LOCK_TABLES_ACL | SELECT_ACL, all_tables,
+                             FALSE, UINT_MAX, FALSE))
+        goto error;
+      if (flush_tables_for_export(thd, all_tables))
+        goto error;
+      my_ok(thd);
+      break;
+    }
 
     /*
       reload_acl_and_cache() will tell us if we are allowed to write to the

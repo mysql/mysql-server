@@ -2510,11 +2510,6 @@ innobase_shutdown_for_mysql(void)
 			srv_conc_get_active_threads());
 	}
 
-	/* This functionality will be used by WL#5522. */
-	ut_a(trx_purge_state() == PURGE_STATE_RUN
-	     || trx_purge_state() == PURGE_STATE_EXIT
-	     || srv_force_recovery >= SRV_FORCE_NO_BACKGROUND);
-
 	/* 2. Make all threads created by InnoDB to exit */
 
 	srv_shutdown_state = SRV_SHUTDOWN_EXIT_THREADS;
@@ -2741,4 +2736,35 @@ srv_shutdown_table_bg_threads(void)
 
 		table = next;
 	}
+}
+
+/*****************************************************************//**
+Get the meta-data filename from the table name. */
+UNIV_INTERN
+void
+srv_get_meta_data_filename(
+/*=======================*/
+	const dict_table_t*	table,		/*!< in: table */
+	char*			filename,	/*!< out: filename */
+	ulint			max_len)	/*!< in: filename max length */
+{
+	ulint			len;
+	char*			path;
+	static const ulint	suffix_len = strlen(".cfg");
+
+	path = fil_make_ibd_name(table->name, FALSE);
+	len = ut_strlen(path);
+
+	ut_a(max_len >= len);
+	ut_ad(strncmp(path + (len - suffix_len), ".ibd", suffix_len) == 0);
+
+	strncpy(filename, path, len - suffix_len);
+
+	mem_free(path);
+
+	filename += len - suffix_len;
+
+	strcpy(filename, ".cfg");
+
+	srv_normalize_path_for_win(filename);
 }
