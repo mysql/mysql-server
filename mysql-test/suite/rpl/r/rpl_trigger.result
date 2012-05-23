@@ -29,7 +29,7 @@ a	b
 1	2
 3	0
 4	0
-5	0
+6	0
 500	0
 select a,name, old_a, old_b, truncate(rand_value,4) from t3;
 a	name	old_a	old_b	truncate(rand_value,4)
@@ -39,7 +39,7 @@ a	name	old_a	old_b	truncate(rand_value,4)
 103	t2	1	2	0.9164
 104	t2	3	0	0.8826
 105	t2	4	0	0.6635
-106	t2	5	0	0.6699
+106	t2	6	0	0.6699
 107	t2	500	0	0.3593
 
 --- On slave --
@@ -52,7 +52,7 @@ a	b
 1	2
 3	0
 4	0
-5	0
+6	0
 500	0
 select a,name, old_a, old_b, truncate(rand_value,4) from t3;
 a	name	old_a	old_b	truncate(rand_value,4)
@@ -62,7 +62,7 @@ a	name	old_a	old_b	truncate(rand_value,4)
 103	t2	1	2	0.9164
 104	t2	3	0	0.8826
 105	t2	4	0	0.6635
-106	t2	5	0	0.6699
+106	t2	6	0	0.6699
 107	t2	500	0	0.3593
 drop table t1,t2,t3;
 select get_lock("bug12480",2);
