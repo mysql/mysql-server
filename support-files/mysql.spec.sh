@@ -283,11 +283,13 @@ documentation and the manual for more information.
 Summary:        MySQL: a very fast and reliable SQL database server
 Group:          Applications/Databases
 Requires:       %{distro_requires}
-Provides:       MySQL-Cluster-server
+Provides:       MySQL-Cluster-server msqlormysql mysql MySQL mysql-server MySQL-server
 Obsoletes:      MySQL-Cluster-server
 Obsoletes:      MySQL-Cluster-management MySQL-Cluster-storage
 Obsoletes:      MySQL-Cluster-extra MySQL-Cluster-tools
-Conflicts:      MySQL mysql mysql-server MySQL-server
+Obsoletes:      mysql MySQL mysql-server MySQL-server
+Obsoletes:      MySQL-server-classic MySQL-server-community MySQL-server-enterprise
+Obsoletes:      MySQL-server-advanced MySQL-server-advanced-gpl MySQL-server-enterprise-gpl
 
 %description -n MySQL-Cluster-server%{product_suffix}
 The MySQL(TM) software delivers a very fast, multi-threaded, multi-user,
@@ -1009,6 +1011,7 @@ echo "====="                                                       >> $STATUS_HI
 %doc %attr(644, root, man) %{_mandir}/man1/ndb_drop_index.1*
 %doc %attr(644, root, man) %{_mandir}/man1/ndb_drop_table.1*
 %doc %attr(644, root, man) %{_mandir}/man1/ndb_error_reporter.1*
+%doc %attr(644, root, man) %{_mandir}/man1/ndb_index_stat.1*
 %doc %attr(644, root, man) %{_mandir}/man1/ndb_mgm.1*
 %doc %attr(644, root, man) %{_mandir}/man1/ndb_print_backup_file.1*
 %doc %attr(644, root, man) %{_mandir}/man1/ndb_print_schema_file.1*
@@ -1023,6 +1026,7 @@ echo "====="                                                       >> $STATUS_HI
 %doc %attr(644, root, man) %{_mandir}/man8/ndb_mgmd.8*
 %doc %attr(644, root, man) %{_mandir}/man8/ndbd.8*
 %doc %attr(644, root, man) %{_mandir}/man8/ndbmtd.8*
+%doc %attr(644, root, man) %{_mandir}/man1/ndbinfo_select_all.1*
 %doc %attr(644, root, man) %{_mandir}/man1/perror.1*
 %doc %attr(644, root, man) %{_mandir}/man1/replace.1*
 %doc %attr(644, root, man) %{_mandir}/man1/resolve_stack_dump.1*
