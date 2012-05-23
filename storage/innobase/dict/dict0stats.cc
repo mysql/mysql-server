@@ -3516,11 +3516,15 @@ dict_stats_snapshot_create(
 	}
 
 	t->stat_initialized = table->stat_initialized;
+	t->stats_last_recalc = table->stats_last_recalc;
 	t->stat_persistent = table->stat_persistent;
+	t->stats_auto_recalc = table->stats_auto_recalc;
+	t->stats_sample_pages = table->stats_sample_pages;
 	t->stat_n_rows = table->stat_n_rows;
 	t->stat_clustered_index_size = table->stat_clustered_index_size;
 	t->stat_sum_of_other_index_sizes = table->stat_sum_of_other_index_sizes;
 	t->stat_modified_counter = table->stat_modified_counter;
+	t->stats_bg_flag = table->stats_bg_flag;
 #ifdef UNIV_DEBUG
 	t->magic_n = DICT_TABLE_MAGIC_N;
 #endif /* UNIV_DEBUG */
