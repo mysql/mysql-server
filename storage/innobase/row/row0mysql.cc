@@ -1040,7 +1040,9 @@ row_update_statistics_if_needed(
 	n_rows = dict_table_get_n_rows(table);
 
 	if (dict_stats_is_persistent_enabled(table)) {
-		if (counter > n_rows / 10 /* 10% */) {
+		if (counter > n_rows / 10 /* 10% */
+		    && dict_stats_auto_recalc_is_enabled(table)) {
+
 			dict_stats_enqueue_table_for_auto_recalc(table);
 			table->stat_modified_counter = 0;
 		}
