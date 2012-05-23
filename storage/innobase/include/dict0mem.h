@@ -175,7 +175,7 @@ ROW_FORMAT=REDUNDANT.  InnoDB engines do not check these flags
 for unknown bits in order to protect backward incompatibility. */
 /* @{ */
 /** Total number of bits in table->flags2. */
-#define DICT_TF2_BITS			5
+#define DICT_TF2_BITS			6
 #define DICT_TF2_BIT_MASK		~(~0 << DICT_TF2_BITS)
 
 /** TEMPORARY; TRUE for tables from CREATE TEMPORARY TABLE. */
@@ -190,6 +190,9 @@ This is a transient bit for index build */
 /** This bit is used during table creation to indicate that it will
 use its own tablespace instead of the system tablespace. */
 #define DICT_TF2_USE_TABLESPACE		16
+
+/** Set when we discard/detach the tablespace */
+#define DICT_TF2_DISCARDED		32
 /* @} */
 
 #define DICT_TF2_FLAG_SET(table, flag)				\
@@ -644,11 +647,6 @@ struct dict_table_struct{
 				tablespace and the .ibd file is missing; then
 				we must return in ha_innodb.cc an error if the
 				user tries to query such an orphaned table */
-	unsigned	tablespace_discarded:1;
-				/*!< this flag is set TRUE when the user
-				calls DISCARD TABLESPACE on this
-				table, and reset to FALSE in IMPORT
-				TABLESPACE */
 	unsigned	cached:1;/*!< TRUE if the table object has been added
 				to the dictionary cache */
 	unsigned	n_def:10;/*!< number of columns defined so far */
@@ -812,6 +810,14 @@ struct dict_table_struct{
 				Protected by lock_sys->mutex. */
 	fts_t*		fts;	/* FTS specific state variables */
 				/* @} */
+	/*----------------------*/
+
+	ib_quiesce_t	 quiesce;/*!< Quiescing states, protected by the
+				dict_index_t::lock. ie. we can only change
+				the state if we acquire all the latches
+				(dict_index_t::lock) in X mode of this table's
+				indexes. */
+
 	/*----------------------*/
 	ulint		n_rec_locks;
 				/*!< Count of the number of record locks on

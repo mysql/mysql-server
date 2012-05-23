@@ -389,7 +389,6 @@ row_undo_ins(
 	dberr_t	err;
 	ibool	dict_locked;
 
-	ut_ad(node);
 	ut_ad(node->state == UNDO_NODE_INSERT);
 
 	dict_locked = node->trx->dict_operation_lock_mode == RW_X_LATCH;
@@ -412,15 +411,28 @@ row_undo_ins(
 
 	err = row_undo_ins_remove_sec_rec(node);
 
-	if (UNIV_UNLIKELY(err != DB_SUCCESS)) {
-		goto func_exit;
+	if (err == DB_SUCCESS) {
+
+		log_free_check();
+
+		if (node->table->id == DICT_INDEXES_ID) {
+
+			if (!dict_locked) {
+				mutex_enter(&dict_sys->mutex);
+			}
+		}
+
+		// FIXME: We need to update the dict_index_t::space and
+		// page number fields too.
+		err = row_undo_ins_remove_clust_rec(node);
+
+		if (node->table->id == DICT_INDEXES_ID
+		    && !dict_locked) {
+
+			mutex_exit(&dict_sys->mutex);
+		}
 	}
 
-	log_free_check();
-
-	err = row_undo_ins_remove_clust_rec(node);
-
-func_exit:
 	dict_table_close(node->table, dict_locked, FALSE);
 
 	node->table = NULL;
