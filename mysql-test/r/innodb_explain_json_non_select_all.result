@@ -4864,7 +4864,7 @@ EXPLAIN
           "rows": 1,
           "filtered": 100,
           "using_join_buffer": "Block Nested Loop",
-          "attached_condition": "trigcond_if(is_not_null_compl(t2), (`test`.`t1`.`c1` = `test`.`t2`.`c1`), true)"
+          "attached_condition": "<if>(is_not_null_compl(t2), (`test`.`t1`.`c1` = `test`.`t2`.`c1`), true)"
         } /* table */
       }
     ] /* nested_loop */
@@ -4901,7 +4901,7 @@ EXPLAIN
           "rows": 1,
           "filtered": 100,
           "using_join_buffer": "Block Nested Loop",
-          "attached_condition": "trigcond_if(is_not_null_compl(t2), (`test`.`t1`.`c1` = `test`.`t2`.`c1`), true)"
+          "attached_condition": "<if>(is_not_null_compl(t2), (`test`.`t1`.`c1` = `test`.`t2`.`c1`), true)"
         } /* table */
       }
     ] /* nested_loop */
@@ -4959,7 +4959,7 @@ EXPLAIN
           "rows": 1,
           "filtered": 100,
           "using_join_buffer": "Block Nested Loop",
-          "attached_condition": "trigcond_if(is_not_null_compl(t2), (`test`.`t2`.`c1` = `test`.`t1`.`c1`), true)"
+          "attached_condition": "<if>(is_not_null_compl(t2), (`test`.`t2`.`c1` = `test`.`t1`.`c1`), true)"
         } /* table */
       }
     ] /* nested_loop */
@@ -4997,7 +4997,7 @@ EXPLAIN
           "rows": 1,
           "filtered": 100,
           "using_join_buffer": "Block Nested Loop",
-          "attached_condition": "trigcond_if(is_not_null_compl(t2), (`test`.`t2`.`c1` = `test`.`t1`.`c1`), true)"
+          "attached_condition": "<if>(is_not_null_compl(t2), (`test`.`t2`.`c1` = `test`.`t1`.`c1`), true)"
         } /* table */
       }
     ] /* nested_loop */

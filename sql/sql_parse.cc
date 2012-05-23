@@ -98,6 +98,7 @@
 #include "opt_explain.h"
 #include "sql_rewrite.h"
 #include "global_threads.h"
+#include "sql_analyse.h"
 
 #include <algorithm>
 using std::max;
@@ -3505,7 +3506,6 @@ end_with_restore_list:
                           select_lex->item_list,
                           select_lex->where,
                           0, (ORDER *)NULL, (ORDER *)NULL, (Item *)NULL,
-                          (ORDER *)NULL,
                           (select_lex->options | thd->variables.option_bits |
                           SELECT_NO_JOIN_CACHE | SELECT_NO_UNLOCK |
                           OPTION_SETUP_TABLES_DONE) & ~OPTION_BUFFER_RESULT,
@@ -4062,6 +4062,17 @@ end_with_restore_list:
                              FALSE, UINT_MAX, FALSE))
         goto error;
       if (flush_tables_with_read_lock(thd, all_tables))
+        goto error;
+      my_ok(thd);
+      break;
+    }
+    else if (first_table && lex->type & REFRESH_FOR_EXPORT)
+    {
+      /* Check table-level privileges. */
+      if (check_table_access(thd, LOCK_TABLES_ACL | SELECT_ACL, all_tables,
+                             FALSE, UINT_MAX, FALSE))
+        goto error;
+      if (flush_tables_for_export(thd, all_tables))
         goto error;
       my_ok(thd);
       break;
@@ -4968,10 +4979,19 @@ static bool execute_sqlcom_select(THD *thd, TABLE_LIST *all_tables)
     {
       if (!result && !(result= new select_send()))
         return 1;                               /* purecov: inspected */
+      select_result *save_result= result;
+      select_result *analyse_result= NULL;
+      if (lex->proc_analyse)
+      {
+        if ((result= analyse_result=
+               new select_analyse(result, lex->proc_analyse)) == NULL)
+          return true;
+      }
       query_cache_store_query(thd, all_tables);
       res= handle_select(thd, lex, result, 0);
-      if (result != lex->result)
-        delete result;
+      delete analyse_result;
+      if (save_result != lex->result)
+        delete save_result;
     }
   }
   return res;
@@ -6128,6 +6148,7 @@ bool mysql_test_parse_for_slave(THD *thd, char *rawbuf, uint length)
 {
   LEX *lex= thd->lex;
   bool error= 0;
+  PSI_statement_locker *parent_locker= thd->m_statement_psi;
   DBUG_ENTER("mysql_test_parse_for_slave");
 
   Parser_state parser_state;
@@ -6136,9 +6157,11 @@ bool mysql_test_parse_for_slave(THD *thd, char *rawbuf, uint length)
     lex_start(thd);
     mysql_reset_thd_for_next_command(thd);
 
+    thd->m_statement_psi= NULL;
     if (!parse_sql(thd, & parser_state, NULL) &&
         all_tables_not_ok(thd, lex->select_lex.table_list.first))
       error= 1;                  /* Ignore question */
+    thd->m_statement_psi= parent_locker;
     thd->end_statement();
   }
   thd->cleanup_after_query();
@@ -6256,22 +6279,6 @@ bool add_field_to_list(THD *thd, LEX_STRING *field_name, enum_field_types type,
 void store_position_for_column(const char *name)
 {
   current_thd->lex->last_field->after=(char*) (name);
-}
-
-bool
-add_proc_to_list(THD* thd, Item *item)
-{
-  ORDER *order;
-  Item	**item_ptr;
-
-  if (!(order = (ORDER *) thd->alloc(sizeof(ORDER)+sizeof(Item*))))
-    return 1;
-  item_ptr = (Item**) (order+1);
-  *item_ptr= item;
-  order->item=item_ptr;
-  order->used_alias= false;
-  thd->lex->proc_list.link_in_list(order, &order->next);
-  return 0;
 }
 
 

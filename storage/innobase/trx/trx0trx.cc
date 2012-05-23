@@ -184,8 +184,6 @@ trx_allocate_for_mysql(void)
 
 	mutex_enter(&trx_sys->mutex);
 
-	trx_sys->n_mysql_trx++;
-
 	ut_d(trx->in_mysql_trx_list = TRUE);
 	UT_LIST_ADD_FIRST(mysql_trx_list, trx_sys->mysql_trx_list, trx);
 
@@ -234,8 +232,10 @@ trx_free(
 	/* We allocated a dedicated heap for the vector. */
 	ib_vector_free(trx->autoinc_locks);
 
-	/* We allocated a dedicated heap for the vector. */
-	ib_vector_free(trx->lock.table_locks);
+	if (trx->lock.table_locks != NULL) {
+		/* We allocated a dedicated heap for the vector. */
+		ib_vector_free(trx->lock.table_locks);
+	}
 
 	mutex_free(&trx->mutex);
 
@@ -250,11 +250,12 @@ trx_free_for_background(
 /*====================*/
 	trx_t*	trx)	/*!< in, own: trx object */
 {
-	if (UNIV_UNLIKELY(trx->declared_to_be_inside_innodb)) {
-		ut_print_timestamp(stderr);
-		fputs("  InnoDB: Error: Freeing a trx which is declared"
-		      " to be processing\n"
-		      "InnoDB: inside InnoDB.\n", stderr);
+	if (trx->declared_to_be_inside_innodb) {
+
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"Freeing a trx (%p, " TRX_ID_FMT ") which is declared "
+			"to be processing inside InnoDB", trx, trx->id);
+
 		trx_print(stderr, trx, 600);
 		putc('\n', stderr);
 
@@ -263,16 +264,16 @@ trx_free_for_background(
 		srv_conc_force_exit_innodb(trx);
 	}
 
-	if (UNIV_UNLIKELY(trx->n_mysql_tables_in_use != 0
-			  || trx->mysql_n_tables_locked != 0)) {
+	if (trx->n_mysql_tables_in_use != 0
+	    || trx->mysql_n_tables_locked != 0) {
 
-		ut_print_timestamp(stderr);
-		fprintf(stderr,
-			"  InnoDB: Error: MySQL is freeing a thd\n"
-			"InnoDB: though trx->n_mysql_tables_in_use is %lu\n"
-			"InnoDB: and trx->mysql_n_tables_locked is %lu.\n",
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"MySQL is freeing a thd though "
+			"trx->n_mysql_tables_in_use is %lu and "
+			"trx->mysql_n_tables_locked is %lu.",
 			(ulong) trx->n_mysql_tables_in_use,
 			(ulong) trx->mysql_n_tables_locked);
+
 		trx_print(stderr, trx, 600);
 		ut_print_buf(stderr, trx, sizeof(trx_t));
 		putc('\n', stderr);
@@ -326,8 +327,6 @@ trx_free_for_mysql(
 	UT_LIST_REMOVE(mysql_trx_list, trx_sys->mysql_trx_list, trx);
 
 	ut_ad(trx_sys_validate_trx_list());
-
-	trx_sys->n_mysql_trx--;
 
 	mutex_exit(&trx_sys->mutex);
 
@@ -1004,7 +1003,7 @@ trx_commit(
 	ut_ad(!trx_state_eq(trx, TRX_STATE_COMMITTED_IN_MEMORY));
 
 	/* undo_no is non-zero if we're doing the final commit. */
-	if (trx->fts_trx && (trx->undo_no != 0)) {
+	if (trx->fts_trx && trx->undo_no != 0) {
 		ulint   error;
 
 		ut_a(!trx_is_autocommit_non_locking(trx));
@@ -2073,8 +2072,8 @@ trx_start_if_not_started_xa(
 Starts the transaction if it is not yet started. */
 UNIV_INTERN
 void
-trx_start_if_not_started(
-/*=====================*/
+trx_start_if_not_started_low(
+/*=========================*/
 	trx_t*	trx)	/*!< in: transaction */
 {
 	switch (trx->state) {

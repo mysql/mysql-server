@@ -2599,3 +2599,60 @@ page_find_rec_with_heap_no(
 	}
 }
 #endif /* !UNIV_HOTBACKUP */
+
+/*******************************************************//**
+Removes the record from a leaf page. This function does not log
+any changes. It is used by the IMPORT tablespace functions.
+The cursor is moved to the next record after the deleted one.
+@return	true if success, i.e., the page did not become too empty */
+UNIV_INTERN
+bool
+page_delete_rec(
+/*============*/
+	const dict_index_t*	index,	/*!< in: The index that the record
+					belongs to */
+	page_cur_t*		pcur,	/*!< in/out: page cursor on record
+					to delete */
+	page_zip_des_t*		page_zip,/*!< in: compressed page descriptor */
+	const ulint*		offsets)/*!< in: offsets for record */
+{
+	bool		no_compress_needed;
+	buf_block_t*	block = pcur->block;
+	page_t*		page = buf_block_get_frame(block);
+
+	ut_ad(page_is_leaf(page));
+
+	if (!rec_offs_any_extern(offsets)
+	    && ((page_get_data_size(page) - rec_offs_size(offsets)
+		< BTR_CUR_PAGE_COMPRESS_LIMIT)
+		|| (mach_read_from_4(page + FIL_PAGE_NEXT) == FIL_NULL
+		    && mach_read_from_4(page + FIL_PAGE_PREV) == FIL_NULL)
+		|| (page_get_n_recs(page) < 2))) {
+
+		ulint	root_page_no = dict_index_get_page(index);
+
+		/* The page fillfactor will drop below a predefined
+		minimum value, OR the level in the B-tree contains just
+		one page, OR the page will become empty: we recommend
+		compression if this is not the root page. */
+
+		no_compress_needed = page_get_page_no(page) == root_page_no;
+	} else {
+		no_compress_needed = true;
+	}
+
+	if (no_compress_needed) {
+#ifdef UNIV_ZIP_DEBUG
+		ut_a(page_zip == 0 || page_zip_validate(page_zip, page));
+#endif /* UNIV_ZIP_DEBUG */
+
+		page_cur_delete_rec(pcur, index, offsets, 0);
+
+#ifdef UNIV_ZIP_DEBUG
+		ut_a(page_zip == 0 || page_zip_validate(page_zip, page));
+#endif /* UNIV_ZIP_DEBUG */
+	}
+
+	return(no_compress_needed);
+}
+

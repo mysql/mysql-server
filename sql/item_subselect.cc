@@ -2365,7 +2365,7 @@ bool subselect_single_select_engine::prepare()
 		    select_lex->order_list.first,
 		    select_lex->group_list.first,
 		    select_lex->having,
-		    NULL, select_lex,
+		    select_lex,
 		    select_lex->master_unit()))
     return 1;
   thd->lex->current_select= save_select;

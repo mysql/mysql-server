@@ -397,8 +397,8 @@ void upgrade_lock_type(THD *thd, thr_lock_type *lock_type,
   {
     /*
       We do not use delayed threads if:
-      - we're running in the safe mode or skip-new mode -- the
-        feature is disabled in these modes
+      - we're running in skip-new mode -- the feature is disabled
+        in this mode
       - we're executing this statement on a replication slave --
         we need to ensure serial execution of queries on the
         slave
@@ -418,7 +418,7 @@ void upgrade_lock_type(THD *thd, thr_lock_type *lock_type,
         client connection and the delayed thread.
       - we're running the EXPLAIN INSERT command
     */
-    if (specialflag & (SPECIAL_NO_NEW_FUNC | SPECIAL_SAFE_MODE) ||
+    if (specialflag & SPECIAL_NO_NEW_FUNC ||
         thd->variables.max_insert_delayed_threads == 0 ||
         thd->locked_tables_mode > LTM_LOCK_TABLES ||
         thd->lex->uses_stored_routines() || thd->lex->describe)
