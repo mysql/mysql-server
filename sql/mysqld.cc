@@ -5948,7 +5948,7 @@ struct my_option my_long_options[]=
    "will not do updates to tables in databases that start with foo and whose "
    "table names start with bar.",
    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"safe-mode", OPT_SAFE, "Skip some optimize stages (for testing).",
+  {"safe-mode", OPT_SAFE, "Skip some optimize stages (for testing). Deprecated.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"safe-user-create", 0,
    "Don't allow new user creation by the user who has no write privileges to the mysql.user table.",
@@ -7081,6 +7081,8 @@ mysqld_get_one_option(int optid,
     delay_key_write_options= DELAY_KEY_WRITE_NONE;
     myisam_recover_options= HA_RECOVER_DEFAULT;
     ha_open_options&= ~(HA_OPEN_DELAY_KEY_WRITE);
+    sql_print_warning("The syntax '--safe-mode' is deprecated and will be "
+                      "removed in a future release.");
     break;
   case (int) OPT_SKIP_PRIOR:
     opt_specialflag|= SPECIAL_NO_PRIOR;
