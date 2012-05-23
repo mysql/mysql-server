@@ -6291,13 +6291,13 @@ void Item_func_trig_cond::print(String *str, enum_query_type query_type)
 {
   /*
     Print:
-    trigcond_if(<property><(optional list of source tables)>, condition, TRUE)
+    <if>(<property><(optional list of source tables)>, condition, TRUE)
     which means: if a certain property (<property>) is true, then return
     the value of <condition>, else return TRUE. If source tables are
     present, they are the owner of the property.
   */
   str->append(func_name());
-  str->append("_if(");
+  str->append("(");
   switch(trig_type)
   {
   case IS_NOT_NULL_COMPL:
