@@ -145,7 +145,7 @@ public:
 		const char* 		name) const UNIV_NOTHROW;
 
 	/**
-	Get the number of rows for which purge failed uding the convert phase.
+	Get the number of rows for which purge failed during the convert phase.
 	@param name - index name
 	@return number of rows for which purge failed. */
 	ulint	get_n_purge_failed(const char* name) const UNIV_NOTHROW;
@@ -470,7 +470,7 @@ private:
 		return(false);
 	}
 	#else
-# define trigger_corruption()	(false)
+#define trigger_corruption()	(false)
 #endif /* UNIV_DEBUG */
 
 	/**
@@ -501,7 +501,7 @@ private:
 	dberr_t	update_header(buf_block_t* block) UNIV_NOTHROW;
 
 	/**
-	Adjst the BLOB reference for a single column that is externally stored
+	Adjust the BLOB reference for a single column that is externally stored
 	@param rec - record to update
 	@param offsets - column offsets for the record
 	@param i - column ordinal value
@@ -522,9 +522,8 @@ private:
 		const ulint*	offsets) UNIV_NOTHROW;
 
 	/**
-	In the clustered index, adjusts DB_TRX_ID, DB_ROLL_PTR and
-	BLOB pointers as needed. Also update the BLOB reference, write
-	the new space id.
+	In the clustered index, adjist the BLOB pointers as needed.
+	Also update the BLOB reference, write the new space id.
 	@param rec - record to update
 	@param offsets - column offsets for the record
 	@return DB_SUCCESS or error code */
@@ -1221,7 +1220,7 @@ PageConverter::periodic_check(
 }
 
 /**
-Adjst the BLOB reference for a single column that is externally stored
+Adjust the BLOB reference for a single column that is externally stored
 @param rec - record to update
 @param offsets - column offsets for the record
 @param i - column ordinal value
@@ -1305,8 +1304,8 @@ PageConverter::adjust_cluster_index_blob_columns(
 }
 
 /**
-In the clustered index, adjusts DB_TRX_ID, DB_ROLL_PTR and BLOB pointers as
-needed. Also update the BLOB reference, write the new space id.
+In the clustered index, adjust BLOB pointers as needed. Also update the
+BLOB reference, write the new space id.
 @param rec - record to update
 @param offsets - column offsets for the record
 @return DB_SUCCESS or error code */
@@ -1332,7 +1331,7 @@ PageConverter::adjust_cluster_index_blob_ref(
 Purge delete-marked records, only if it is possible to do so without
 re-organising the B+tree.
 @param offsets - current row offsets.
-@return true if dpurge succeeded */
+@return true if purge succeeded */
 bool
 PageConverter::purge(const ulint* offsets) UNIV_NOTHROW
 {

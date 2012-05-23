@@ -5144,6 +5144,9 @@ fil_iterate(
 
 		n_bytes = ut_min(n_bytes, iter.end - offset);
 
+		ut_ad(n_bytes > 0);
+		ut_ad(!(n_bytes % iter.page_size));
+
 		if (!os_file_read(iter.file, io_buffer, offset, n_bytes)) {
 
 			ib_logf(IB_LOG_LEVEL_ERROR, "os_file_read() failed");
@@ -5263,7 +5266,9 @@ fil_tablespace_iterate(
 	memset(&block, 0x0, sizeof(block));
 
 	/* Allocate a page to read in the tablespace header, so that we
-	can determine the page size and zip_size (if it is compressed). */
+	can determine the page size and zip_size (if it is compressed).
+	We allocate an extra page in case it is a compressed table. One
+	page is to ensure alignement. */
 
 	void*	page_ptr = mem_alloc(3 * UNIV_PAGE_SIZE);
 	byte*	page = static_cast<byte*>(ut_align(page_ptr, UNIV_PAGE_SIZE));
