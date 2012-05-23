@@ -43,7 +43,7 @@ extern ulong tokudb_debug;
     printf("%d:%s:%d:" f, my_tid(), __FILE__, __LINE__, ##__VA_ARGS__);
 
 
-inline unsigned int my_tid() {
+static inline unsigned int my_tid() {
     return (unsigned int)toku_os_gettid();
 }
 

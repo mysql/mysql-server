@@ -23,12 +23,12 @@ pkgplugin_LTLIBRARIES =	@plugin_tokudb_shared_target@
 ha_tokudb_la_LIBADD =   -L$(TOKUFRACTALTREE)/lib -l$(TOKUFRACTALTREE_LIBNAME) -l$(TOKUPORTABILITY_LIBNAME)
 ha_tokudb_la_LDFLAGS =	-module -rpath $(pkgplugindir)
 ha_tokudb_la_CXXFLAGS =	$(AM_CXXFLAGS) -DMYSQL_DYNAMIC_PLUGIN -DTOKUDB_VERSION=\"$(TOKUDB_VERSION)\" -Wall
-ha_tokudb_la_SOURCES =	hatoku_hton.cc hatoku_cmp.cc ha_tokudb.cc
+ha_tokudb_la_SOURCES =	ha_tokudb.cc
 
 EXTRA_LIBRARIES =	libtokudb.a
 noinst_LIBRARIES =	@plugin_tokudb_static_target@
 libtokudb_a_CXXFLAGS =	$(AM_CXXFLAGS) -Wall
-libtokudb_a_SOURCES =	hatoku_hton.cc hatoku_cmp.cc ha_tokudb.cc
+libtokudb_a_SOURCES =	ha_tokudb.cc
 
 EXTRA_DIST =		CMakeLists.txt plug.in
 # Don't update the files from bitkeeper
