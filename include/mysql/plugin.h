@@ -73,7 +73,7 @@ typedef struct st_mysql_xid MYSQL_XID;
   Plugin API. Common for all plugin types.
 */
 
-#define MYSQL_PLUGIN_INTERFACE_VERSION 0x0103
+#define MYSQL_PLUGIN_INTERFACE_VERSION 0x0104
 
 /*
   The allowable types of plugins
@@ -86,7 +86,8 @@ typedef struct st_mysql_xid MYSQL_XID;
 #define MYSQL_AUDIT_PLUGIN           5  /* The Audit plugin type        */
 #define MYSQL_REPLICATION_PLUGIN     6	/* The replication plugin type */
 #define MYSQL_AUTHENTICATION_PLUGIN  7  /* The authentication plugin type */
-#define MYSQL_MAX_PLUGIN_TYPE_NUM    8  /* The number of plugin types   */
+#define MYSQL_VALIDATE_PASSWORD_PLUGIN  8   /* validate password plugin type */
+#define MYSQL_MAX_PLUGIN_TYPE_NUM    9  /* The number of plugin types   */
 
 /* We use the following strings to define licenses for plugins */
 #define PLUGIN_LICENSE_PROPRIETARY 0

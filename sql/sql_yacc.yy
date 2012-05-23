@@ -15201,6 +15201,9 @@ grant_user:
             $$=$1; $1->password=$4;
             if (Lex->sql_command == SQLCOM_REVOKE)
               MYSQL_YYABORT;
+            String *password = new (YYTHD->mem_root) String((const char*)$4.str,
+                                    YYTHD->variables.character_set_client);
+            check_password_policy(password);
             if ($4.length)
             {
               if (YYTHD->variables.old_passwords)
