@@ -269,13 +269,16 @@ create table t0 (a int);
 insert into t0 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
 
 create table t1 (a int, col int, filler char(100), key(a, col));
-insert into t1 select A.a + 10*B.a +100*C.a, 1234, 'filler' from t0 A, t0 B, t0 C;
+insert into t1 select A.a + 10*B.a, 1234, 'filler' from t0 A, t0 B, t0 C;
+
+set @tmp_10000051= @@optimizer_switch;
+set optimizer_switch='mrr=off';
+--echo # Must not use ICP:
+explain select * from t1 where a between 5 and 8 order by a desc, col desc;
+set optimizer_switch= @tmp_10000051;
 
 --echo # Must not use ICP:
-explain select * from t1 where a between 10 and 20 order by a, col desc;
-
---echo # Must not use ICP:
-explain select * from t0,t1 where t1.a=t0.a and t1.col<123;
+explain select * from t1 where a=3 and col > 500 order by a desc, col desc;
 
 drop table t0, t1;
 
