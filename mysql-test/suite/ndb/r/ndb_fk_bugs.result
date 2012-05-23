@@ -1,0 +1,19 @@
+drop table if exists t2, t1;
+create table t1 (
+a int not null,
+b int not null,
+primary key using hash (a),
+unique key using hash (b)
+) engine ndb;
+create table t2 (
+a int not null,
+b int not null,
+primary key using hash (a),
+key (b)
+) engine ndb;
+alter table t2
+add constraint foreign key (b) references t1 (b);
+alter table t2
+drop foreign key;
+ERROR 42000: Drop foreign key must specify key name
+drop table t2, t1;

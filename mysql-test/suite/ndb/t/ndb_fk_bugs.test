@@ -1,0 +1,31 @@
+-- source include/have_ndb.inc
+-- source have_ndb_fk.inc
+
+# BUG 14095785 - DROPPING FK WITHOUT LABEL CAUSED MYSQLD TO CRASH
+
+-- disable_warnings
+drop table if exists t2, t1;
+-- enable_warnings
+
+create table t1 (
+  a int not null,
+  b int not null,
+  primary key using hash (a),
+  unique key using hash (b)
+) engine ndb;
+
+create table t2 (
+  a int not null,
+  b int not null,
+  primary key using hash (a),
+  key (b)
+) engine ndb;
+
+alter table t2
+  add constraint foreign key (b) references t1 (b);
+
+-- error ER_SYNTAX_ERROR
+alter table t2
+  drop foreign key;
+
+drop table t2, t1;
