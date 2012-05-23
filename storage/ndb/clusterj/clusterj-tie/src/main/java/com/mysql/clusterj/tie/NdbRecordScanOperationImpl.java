@@ -69,8 +69,14 @@ public abstract class NdbRecordScanOperationImpl extends NdbRecordOperationImpl 
      */
     @Override
     public ResultData resultData(boolean execute) {
+        return resultData(execute, 0, Long.MAX_VALUE);
+    }
+
+    /** Construct a new ResultData and if requested, execute the operation.
+     */
+    public ResultData resultData(boolean execute, long skip, long limit) {
         NdbRecordResultDataImpl result =
-            new NdbRecordScanResultDataImpl(this);
+            new NdbRecordScanResultDataImpl(this, skip, limit);
         if (execute) {
             clusterTransaction.executeNoCommit(false, true);
         }
@@ -167,7 +173,7 @@ public abstract class NdbRecordScanOperationImpl extends NdbRecordOperationImpl 
      */
     public ScanFilter getScanFilter(QueryExecutionContext context) {
         
-        ndbInterpretedCode = db.createInterpretedCode(ndbRecordValues.getNdbTable(), null, 0);
+        ndbInterpretedCode = db.createInterpretedCode(ndbRecordValues.getNdbTable(), 0);
         handleError(ndbInterpretedCode, ndbOperation);
         ndbScanFilter = db.createScanFilter(ndbInterpretedCode);
         handleError(ndbScanFilter, ndbOperation);

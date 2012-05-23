@@ -18,6 +18,7 @@
 package com.mysql.clusterj.core.query;
 
 
+import com.mysql.clusterj.ClusterJUserException;
 import com.mysql.clusterj.Results;
 import com.mysql.clusterj.core.*;
 import com.mysql.clusterj.Query;
@@ -45,10 +46,47 @@ public class QueryImpl<E> implements Query<E> {
     /** My query execution context. */
     protected QueryExecutionContextImpl context = null;
 
+    /** The number to skip */
+    protected long skip = 0;
+
+    /** The limit */
+    protected long limit = Long.MAX_VALUE;
+
     public QueryImpl(SessionImpl session, QueryDomainTypeImpl<E> dobj) {
         this.session = session;
         context = new QueryExecutionContextImpl(session);
         this.dobj = dobj;
+    }
+
+    /**
+     * Set limits on results to return. The execution of the query is
+     * modified to return only a subset of results. If the filter would
+     * normally return 100 instances, skip is set to 50, and
+     * limit is set to 40, then the first 50 results that would have 
+     * been returned are skipped, the next 40 results are returned and the
+     * remaining 10 results are ignored.
+     * <p>
+     * Skip must be greater than or equal to 0. Limit must be greater than or equal to 0.
+     * Limits may not be used with deletePersistentAll.
+     * <p>
+     * The limits as specified by the user are converted here into an internal form
+     * where the limit is the last record to deliver instead of the number of records
+     * to deliver. So if the user specifies limits of (10, 20) we convert this 
+     * to limits of (10, 30) for the lower layers of the implementation.
+     * @param skip the number of results to skip
+     * @param limit the number of results to return after skipping;
+     * use Long.MAX_VALUE for no limit.
+     */
+    public void setLimits(long skip, long limit) {
+        if (skip < 0 || limit < 0) {
+            throw new ClusterJUserException(local.message("ERR_Invalid_Limits", skip, limit));
+        }
+        this.skip = skip;
+        if (Long.MAX_VALUE - skip < limit) {
+            limit = Long.MAX_VALUE;
+        } else {
+            this.limit = limit + skip;
+        }
     }
 
     public Results<E> execute(Object arg0) {
@@ -71,7 +109,7 @@ public class QueryImpl<E> implements Query<E> {
     }
 
     public List<E> getResultList() {
-        List<E> results = dobj.getResultList(context);
+        List<E> results = dobj.getResultList(context, skip, limit);
         // create new context, copying the parameters, for another execution
         context = new QueryExecutionContextImpl(context);
         return results;
@@ -81,6 +119,9 @@ public class QueryImpl<E> implements Query<E> {
      * @return the number of instances deleted
      */
     public int deletePersistentAll() {
+        if (skip != 0 || limit != Long.MAX_VALUE) {
+            throw new ClusterJUserException(local.message("ERR_Invalid_Limits", skip, limit));
+        }
         int result = dobj.deletePersistentAll(context);
         return result;
     }
