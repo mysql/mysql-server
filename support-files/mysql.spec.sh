@@ -283,11 +283,13 @@ documentation and the manual for more information.
 Summary:        MySQL: a very fast and reliable SQL database server
 Group:          Applications/Databases
 Requires:       %{distro_requires}
-Provides:       MySQL-Cluster-server
+Provides:       MySQL-Cluster-server msqlormysql mysql MySQL mysql-server MySQL-server
 Obsoletes:      MySQL-Cluster-server
 Obsoletes:      MySQL-Cluster-management MySQL-Cluster-storage
 Obsoletes:      MySQL-Cluster-extra MySQL-Cluster-tools
-Conflicts:      MySQL mysql mysql-server MySQL-server
+Obsoletes:      mysql MySQL mysql-server MySQL-server
+Obsoletes:      MySQL-server-classic MySQL-server-community MySQL-server-enterprise
+Obsoletes:      MySQL-server-advanced MySQL-server-advanced-gpl MySQL-server-enterprise-gpl
 
 %description -n MySQL-Cluster-server%{product_suffix}
 The MySQL(TM) software delivers a very fast, multi-threaded, multi-user,
