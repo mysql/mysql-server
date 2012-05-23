@@ -737,11 +737,14 @@ UNIV_INLINE
 void
 page_mem_free(
 /*==========*/
-	page_t*		page,	/*!< in/out: index page */
-	page_zip_des_t*	page_zip,/*!< in/out: compressed page, or NULL */
-	rec_t*		rec,	/*!< in: pointer to the (origin of) record */
-	dict_index_t*	index,	/*!< in: index of rec */
-	const ulint*	offsets);/*!< in: array returned by rec_get_offsets() */
+	page_t*			page,	/*!< in/out: index page */
+	page_zip_des_t*		page_zip,/*!< in/out: compressed page,
+					 or NULL */
+	rec_t*			rec,	/*!< in: pointer to the (origin of)
+					record */
+	const dict_index_t*	index,	/*!< in: index of rec */
+	const ulint*		offsets);/*!< in: array returned by
+					 rec_get_offsets() */
 /**********************************************************//**
 Create an uncompressed B-tree index page.
 @return	pointer to the page */
@@ -1031,7 +1034,6 @@ page_find_rec_with_heap_no(
 /*=======================*/
 	const page_t*	page,	/*!< in: index page */
 	ulint		heap_no);/*!< in: heap number */
-
 #ifdef UNIV_MATERIALIZE
 #undef UNIV_INLINE
 #define UNIV_INLINE  UNIV_INLINE_ORIGINAL

@@ -165,4 +165,4 @@ where event_name like "%MYSQL_RELAY_LOG%"
   and event_name not like "%MYSQL_RELAY_LOG::update_cond"
   order by event_name;
 EVENT_NAME	COUNT_STAR
-include/stop_slave.inc
+include/rpl_end.inc

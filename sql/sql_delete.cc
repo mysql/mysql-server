@@ -128,8 +128,7 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, Item *conds,
     handler::delete_all_rows() method.
 
     We can use delete_all_rows() if and only if:
-    - We allow new functions (not using option --skip-new), and are
-      not in safe mode (not using option --safe-mode)
+    - We allow new functions (not using option --skip-new)
     - There is no limit clause
     - The condition is constant
     - If there is a condition, then it it produces a non-zero value
@@ -138,7 +137,7 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, Item *conds,
       - there should be no delete triggers associated with the table.
   */
   if (!using_limit && const_cond_result &&
-      !(specialflag & (SPECIAL_NO_NEW_FUNC | SPECIAL_SAFE_MODE)) &&
+      !(specialflag & SPECIAL_NO_NEW_FUNC) &&
        (!thd->is_current_stmt_binlog_format_row() &&
         !(table->triggers && table->triggers->has_delete_triggers())))
   {
