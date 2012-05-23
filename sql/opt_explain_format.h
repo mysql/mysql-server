@@ -98,6 +98,7 @@ enum Extra_tag
   ET_CONST_ROW_NOT_FOUND,
   ET_UNIQUE_ROW_NOT_FOUND,
   ET_IMPOSSIBLE_ON_CONDITION,
+  ET_PUSHED_JOIN,
   //------------------------------------
   ET_total
 };
