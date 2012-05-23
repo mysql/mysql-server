@@ -170,5 +170,5 @@ select
   and event_name not like "%MYSQL_RELAY_LOG::update_cond"
   order by event_name;
 
---source include/stop_slave.inc
+--source include/rpl_end.inc
 
