@@ -728,7 +728,13 @@ loop:
 
 		field = rec_get_nth_field_old(
 			rec, DICT_FLD__SYS_TABLES__NAME, &len);
+
 		name = mem_strdupl((char*) field, len);
+
+		char	table_name[MAX_FULL_NAME_LEN + 1];
+
+		innobase_format_name(
+			table_name, sizeof(table_name), name, FALSE);
 
 		flags = dict_sys_tables_get_flags(rec);
 		if (UNIV_UNLIKELY(flags == ULINT_UNDEFINED)) {
@@ -738,13 +744,9 @@ loop:
 			ut_ad(len == 4); /* this was checked earlier */
 			flags = mach_read_from_4(field);
 
-			ut_print_timestamp(stderr);
-			fputs("  InnoDB: Error: table ", stderr);
-			ut_print_filename(stderr, name);
-			fprintf(stderr, "\n"
-				"InnoDB: in InnoDB data dictionary"
-				" has unknown type %lx.\n",
-				(ulong) flags);
+			ib_logf(IB_LOG_LEVEL_ERROR,
+				"Table '%s' in InnoDB data dictionary"
+				" has unknown type %lx", table_name, flags);
 
 			goto loop;
 		}
@@ -759,43 +761,62 @@ loop:
 
 		mtr_commit(&mtr);
 
+		/* For tables created with old versions of InnoDB,
+		SYS_TABLES.MIX_LEN may contain garbage.  Such tables
+		would always be in ROW_FORMAT=REDUNDANT. Pretend that
+		all such tables are non-temporary. That is, do not
+		suppress error printouts about temporary or discarded
+		tablespaces not being found. */
+
+		field = rec_get_nth_field_old(
+			rec, DICT_FLD__SYS_TABLES__MIX_LEN, &len);
+
+		bool		is_temp = false;
+		bool		discarded = false;
+		ib_uint32_t	flags2 = mach_read_from_4(field);
+
+		/* Check that the tablespace (the .ibd file) really
+		exists; print a warning to the .err log if not.
+		Do not print warnings for temporary tables or for
+		tablespaces that have been discarded. */
+
+		field = rec_get_nth_field_old(
+			rec, DICT_FLD__SYS_TABLES__N_COLS, &len);
+
+		/* MIX_LEN valid only for ROW_FORMAT > REDUNDANT. */
+		if (mach_read_from_4(field) & DICT_N_COLS_COMPACT) {
+
+			is_temp = !!(flags2 & DICT_TF2_TEMPORARY);
+			discarded = !!(flags2 & DICT_TF2_DISCARDED);
+		}
+
 		if (space_id == 0) {
 			/* The system tablespace always exists. */
+			ut_ad(!discarded);
 		} else if (in_crash_recovery) {
-			/* Check that the tablespace (the .ibd file) really
-			exists; print a warning to the .err log if not.
-			Do not print warnings for temporary tables. */
-			ibool	is_temp;
-
-			field = rec_get_nth_field_old(
-				rec, DICT_FLD__SYS_TABLES__N_COLS, &len);
-			if (mach_read_from_4(field) & DICT_N_COLS_COMPACT) {
-				/* ROW_FORMAT=COMPACT: read the is_temp
-				flag from SYS_TABLES.MIX_LEN. */
-				field = rec_get_nth_field_old(
-					rec, 7/*MIX_LEN*/, &len);
-				is_temp = !!(mach_read_from_4(field)
-					     & DICT_TF2_TEMPORARY);
-			} else {
-				/* For tables created with old versions
-				of InnoDB, SYS_TABLES.MIX_LEN may contain
-				garbage.  Such tables would always be
-				in ROW_FORMAT=REDUNDANT.  Pretend that
-				all such tables are non-temporary.  That is,
-				do not suppress error printouts about
-				temporary tables not being found. */
-				is_temp = FALSE;
-			}
 
 			fil_space_for_table_exists_in_mem(
-				space_id, name, TRUE, !is_temp);
-		} else {
+				space_id, name, TRUE, !(is_temp || discarded));
+
+		} else if (!discarded) {
+
 			/* It is a normal database startup: create the space
 			object and check that the .ibd file exists. */
 
-			fil_open_single_table_tablespace(
-				FALSE, space_id,
+			dberr_t	err = fil_open_single_table_tablespace(
+				NULL, space_id,
 				dict_tf_to_fsp_flags(flags), name);
+
+			if (err != DB_SUCCESS) {
+				ib_logf(IB_LOG_LEVEL_ERROR,
+					"Tablespace open failed for '%s', "
+					"ignored.", table_name);
+			}
+
+		} else {
+			ib_logf(IB_LOG_LEVEL_INFO,
+				"DISCARD flag set for table '%s', ignored.",
+				table_name);
 		}
 
 		mem_free(name);
@@ -1529,6 +1550,7 @@ dict_load_indexes(
 			dict_mem_index_free(index);
 			goto func_exit;
 		} else if (index->page == FIL_NULL
+			   && !table->ibd_file_missing
 			   && (!(index->type & DICT_FTS))) {
 
 			fprintf(stderr,
@@ -1580,8 +1602,10 @@ corrupted:
 			dict_mem_index_free(index);
 		} else {
 			dict_load_fields(index, heap);
-			error = dict_index_add_to_cache(table, index,
-							index->page, FALSE);
+
+			error = dict_index_add_to_cache(
+				table, index, index->page, FALSE);
+
 			/* The data dictionary tables should never contain
 			invalid index definitions.  If we ignored this error
 			and simply did not load this index definition, the
@@ -1780,6 +1804,7 @@ dict_load_table(
 				/*!< in: error to be ignored when loading
 				table and its indexes' definition */
 {
+	dberr_t		err;
 	dict_table_t*	table;
 	dict_table_t*	sys_tables;
 	btr_pcur_t	pcur;
@@ -1790,7 +1815,6 @@ dict_load_table(
 	const rec_t*	rec;
 	const byte*	field;
 	ulint		len;
-	dberr_t		err;
 	const char*	err_msg;
 	mtr_t		mtr;
 
@@ -1853,8 +1877,20 @@ err_exit:
 		goto err_exit;
 	}
 
+	char	table_name[MAX_FULL_NAME_LEN + 1];
+
+	innobase_format_name(table_name, sizeof(table_name), name, FALSE);
+
 	if (table->space == 0) {
 		/* The system tablespace is always available. */
+	} else if (table->flags2 & DICT_TF2_DISCARDED) {
+
+		ib_logf(IB_LOG_LEVEL_WARN,
+			"Table '%s' tablespace is set as discarded.",
+			table_name);
+
+		table->ibd_file_missing = TRUE;
+
 	} else if (!fil_space_for_table_exists_in_mem(
 			table->space, name, FALSE, FALSE)) {
 
@@ -1862,19 +1898,18 @@ err_exit:
 			/* Do not bother to retry opening temporary tables. */
 			table->ibd_file_missing = TRUE;
 		} else {
-			ut_print_timestamp(stderr);
-			fprintf(stderr,
-				"  InnoDB: error: space object of table ");
-			ut_print_filename(stderr, name);
-			fprintf(stderr, ",\n"
-				"InnoDB: space id %lu did not exist in memory."
-				" Retrying an open.\n",
-				(ulong) table->space);
+			ib_logf(IB_LOG_LEVEL_ERROR,
+				"Failed to find tablespace for table '%s' "
+				"in the cache. Attempting to load the "
+				"tablespace with space id %lu.",
+				table_name, (ulong) table->space);
+
 			/* Try to open the tablespace */
-			if (!fil_open_single_table_tablespace(
-				TRUE, table->space,
-				dict_tf_to_fsp_flags(table->flags),
-				name)) {
+			err = fil_open_single_table_tablespace(
+				table, table->space,
+				dict_tf_to_fsp_flags(table->flags), name);
+
+			if (err != DB_SUCCESS) {
 				/* We failed to find a sensible
 				tablespace file */
 
@@ -1896,7 +1931,15 @@ err_exit:
 
 	mem_heap_empty(heap);
 
-	err = dict_load_indexes(table, heap, ignore_err);
+	/* If there is no tablespace for the table then we only need to
+	load the index definitions. So that we can IMPORT the tablespace
+	later. */
+	if (table->ibd_file_missing) {
+		err = dict_load_indexes(
+			table, heap, DICT_ERR_IGNORE_ALL);
+	} else {
+		err = dict_load_indexes(table, heap, ignore_err);
+	}
 
 	if (err == DB_INDEX_CORRUPT) {
 		/* Refuse to load the table if the table has a corrupted
@@ -1930,7 +1973,8 @@ err_exit:
 	of the error condition, since the user may want to dump data from the
 	clustered index. However we load the foreign key information only if
 	all indexes were loaded. */
-	if (!cached) {
+	if (!cached || table->ibd_file_missing) {
+		/* Don't attempt to load the indexes from disk. */
 	} else if (err == DB_SUCCESS) {
 		err = dict_load_foreigns(table->name, TRUE, TRUE);
 
@@ -1947,11 +1991,15 @@ err_exit:
 		Otherwise refuse to load the table */
 		index = dict_table_get_first_index(table);
 
-		if (!srv_force_recovery || !index
+		if (!srv_force_recovery
+		    || !index
 		    || !dict_index_is_clust(index)) {
+
 			dict_table_remove_from_cache(table);
 			table = NULL;
-		} else if (dict_index_is_corrupted(index)) {
+
+		} else if (dict_index_is_corrupted(index)
+			   && !table->ibd_file_missing) {
 
 			/* It is possible we force to load a corrupted
 			clustered index if srv_load_corrupted is set.
@@ -1959,34 +2007,13 @@ err_exit:
 			table->corrupted = TRUE;
 		}
 	}
-#if 0
-	if (err != DB_SUCCESS && table != NULL) {
 
-		mutex_enter(&dict_foreign_err_mutex);
-
-		ut_print_timestamp(stderr);
-
-		fprintf(stderr,
-			"  InnoDB: Error: could not make a foreign key"
-			" definition to match\n"
-			"InnoDB: the foreign key table"
-			" or the referenced table!\n"
-			"InnoDB: The data dictionary of InnoDB is corrupt."
-			" You may need to drop\n"
-			"InnoDB: and recreate the foreign key table"
-			" or the referenced table.\n"
-			"InnoDB: Submit a detailed bug report"
-			" to http://bugs.mysql.com\n"
-			"InnoDB: Latest foreign key error printout:\n%s\n",
-			dict_foreign_err_buf);
-
-		mutex_exit(&dict_foreign_err_mutex);
-	}
-#endif /* 0 */
 func_exit:
 	mem_heap_free(heap);
 
-	ut_ad(!table || ignore_err != DICT_ERR_IGNORE_NONE
+	ut_ad(!table
+	      || ignore_err != DICT_ERR_IGNORE_NONE
+	      || table->ibd_file_missing
 	      || !table->corrupted);
 
 	if (table && table->fts) {

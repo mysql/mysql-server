@@ -339,7 +339,7 @@ sub mtr_report_stats ($) {
 
                 # test case for Bug#bug29807 copies a stray frm into database
                 /InnoDB: Error: table `test`.`bug29807` does not exist in the InnoDB internal/ or
-                /Cannot find or open table test\/bug29807 from/ or
+                /InnoDB: Cannot open table test\/bug29807 from/ or
 
                 # innodb foreign key tests that fail in ALTER or RENAME produce this
                 /InnoDB: Error: in ALTER TABLE `test`.`t[12]`/ or
@@ -400,7 +400,7 @@ sub mtr_report_stats ($) {
 
                 # lowercase_table3 using case sensitive option on
                 # case insensitive filesystem (InnoDB error).
-                /Cannot find or open table test\/BUG29839 from/ or
+                /InnoDB: Cannot open table test\/BUG29839 from/ or
 
                 # When trying to set lower_case_table_names = 2
                 # on a case sensitive file system. Bug#37402.

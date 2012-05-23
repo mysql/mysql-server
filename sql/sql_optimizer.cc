@@ -669,25 +669,6 @@ JOIN::optimize()
   calc_group_buffer(this, group_list);
   send_group_parts= tmp_table_param.group_parts; /* Save org parts */
 
-  if (procedure && procedure->group)
-  {
-    /*
-      Dead code since PROCEDURE ANALYSE() always has procedure->group == 0
-    */
-    DBUG_ASSERT(0);
-    procedure->group= group_list=
-      ORDER_with_src(remove_const(this, procedure->group, conds,
-                                  1, &simple_group, "PROCEDURE"),
-                     group_list.src); // should be procedure->group.src
-    if (thd->is_error())
-    {
-      error= 1;
-      DBUG_PRINT("error",("Error from remove_const"));
-      DBUG_RETURN(1);
-    }   
-    calc_group_buffer(this, group_list);
-  }
-
   if (test_if_subpart(group_list, order) ||
       (!group_list && tmp_table_param.sum_func_count))
   {
@@ -931,7 +912,7 @@ JOIN::optimize()
         }
 
         if ((ordered_index_usage != ordered_index_group_by) &&
-            tmp_table_param.quick_group && !procedure)
+            tmp_table_param.quick_group)
         {
           need_tmp=1;
           simple_order= simple_group= false; // Force tmp table without sort
@@ -7806,8 +7787,6 @@ static bool
 only_eq_ref_tables(JOIN *join, ORDER *order, table_map tables,
                    table_map *cached_eq_ref_tables, table_map *eq_ref_tables)
 {
-  if (specialflag &  SPECIAL_SAFE_MODE)
-    return false;               // skip this optimize /* purecov: inspected */
   tables&= ~PSEUDO_TABLE_BITS;
   for (JOIN_TAB **tab=join->map2table ; tables ; tab++, tables>>=1)
   {
