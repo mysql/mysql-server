@@ -2437,10 +2437,12 @@ make_external:
 				page_zip, rec, index, *offsets, mtr);
 		}
 
-		btr_cur_compress_if_useful(
-			cursor,
-			big_rec_vec != NULL && (flags & BTR_KEEP_POS_FLAG),
-			mtr);
+		bool adjust = big_rec_vec && (flags & BTR_KEEP_POS_FLAG);
+
+		if (btr_cur_compress_if_useful(cursor, adjust, mtr)
+		    && adjust) {
+			rec_offs_make_valid(page_cursor->rec, index, *offsets);
+		}
 
 		if (page_zip && !dict_index_is_clust(index)
 		    && page_is_leaf(page)) {
@@ -2454,8 +2456,7 @@ make_external:
 		ut_a(optim_err != DB_UNDERFLOW);
 
 		/* Out of space: reset the free bits. */
-		if (!dict_index_is_clust(index)
-		    && page_is_leaf(page)) {
+		if (!dict_index_is_clust(index) && page_is_leaf(page)) {
 			ibuf_reset_free_bits(block);
 		}
 	}
