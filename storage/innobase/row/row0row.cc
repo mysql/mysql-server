@@ -223,6 +223,7 @@ row_build(
 	mem_heap_t*		heap)	/*!< in: memory heap from which
 					the memory needed is allocated */
 {
+	const byte*		copy;
 	dtuple_t*		row;
 	const dict_table_t*	table;
 	ulint			n_fields;
@@ -266,9 +267,9 @@ row_build(
 		buf = static_cast<byte*>(
 			mem_heap_alloc(heap, rec_offs_size(offsets)));
 
-		rec = rec_copy(buf, rec, offsets);
-		/* Avoid a debug assertion in rec_offs_validate(). */
-		rec_offs_make_valid(rec, index, (ulint*) offsets);
+		copy = rec_copy(buf, rec, offsets);
+	} else {
+		copy = rec;
 	}
 
 	table = index->table;
@@ -288,6 +289,9 @@ row_build(
 			mem_heap_alloc(heap, n_ext_cols * sizeof *ext_cols));
 	}
 
+	/* Avoid a debug assertion in rec_offs_validate(). */
+	rec_offs_make_valid(copy, index, const_cast<ulint*>(offsets));
+
 	for (i = j = 0; i < n_fields; i++) {
 		dict_field_t*		ind_field
 			= dict_index_get_nth_field(index, i);
@@ -301,7 +305,7 @@ row_build(
 		if (ind_field->prefix_len == 0) {
 
 			const byte*	field = rec_get_nth_field(
-				rec, offsets, i, &len);
+				copy, offsets, i, &len);
 
 			dfield_set_data(dfield, field, len);
 		}
@@ -324,6 +328,8 @@ row_build(
 			}
 		}
 	}
+
+	rec_offs_make_valid(rec, index, const_cast<ulint*>(offsets));
 
 	ut_ad(dtuple_check_typed(row));
 
