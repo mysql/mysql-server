@@ -1054,7 +1054,7 @@ be freed by reorganizing. Differs from btr_cur_optimistic_insert because
 no heuristics is applied to whether it pays to use CPU time for
 reorganizing the page or not.
 @return	pointer to inserted record if succeed, else NULL */
-static
+static __attribute__((nonnull, warn_unused_result))
 rec_t*
 btr_cur_insert_if_possible(
 /*=======================*/
@@ -1062,6 +1062,8 @@ btr_cur_insert_if_possible(
 				cursor stays valid */
 	const dtuple_t*	tuple,	/*!< in: tuple to insert; the size info need not
 				have been stored to tuple */
+	ulint**		offsets,/*!< out: offsets on *rec */
+	mem_heap_t**	heap,	/*!< in/out: pointer to memory heap, or NULL */
 	ulint		n_ext,	/*!< in: number of externally stored columns */
 	mtr_t*		mtr)	/*!< in: mtr */
 {
@@ -1077,8 +1079,8 @@ btr_cur_insert_if_possible(
 	page_cursor = btr_cur_get_page_cur(cursor);
 
 	/* Now, try the insert */
-	rec = page_cur_tuple_insert(page_cursor, tuple,
-				    cursor->index, n_ext, mtr);
+	rec = page_cur_tuple_insert(page_cursor, tuple, cursor->index,
+				    offsets, heap, n_ext, mtr);
 
 	if (UNIV_UNLIKELY(!rec)) {
 		/* If record did not fit, reorganize */
@@ -1088,11 +1090,13 @@ btr_cur_insert_if_possible(
 			page_cur_search(block, cursor->index, tuple,
 					PAGE_CUR_LE, page_cursor);
 
-			rec = page_cur_tuple_insert(page_cursor, tuple,
-						    cursor->index, n_ext, mtr);
+			rec = page_cur_tuple_insert(
+				page_cursor, tuple, cursor->index,
+				offsets, heap, n_ext, mtr);
 		}
 	}
 
+	ut_ad(!rec || rec_offs_validate(rec, cursor->index, *offsets));
 	return(rec);
 }
 
@@ -1191,6 +1195,8 @@ btr_cur_optimistic_insert(
 				specified */
 	btr_cur_t*	cursor,	/*!< in: cursor on page after which to insert;
 				cursor stays valid */
+	ulint**		offsets,/*!< out: offsets on *rec */
+	mem_heap_t**	heap,	/*!< in/out: pointer to memory heap, or NULL */
 	dtuple_t*	entry,	/*!< in/out: entry to insert */
 	rec_t**		rec,	/*!< out: pointer to inserted record if
 				succeed */
@@ -1346,7 +1352,7 @@ fail_err:
 	{
 		const rec_t* page_cursor_rec = page_cur_get_rec(page_cursor);
 		*rec = page_cur_tuple_insert(page_cursor, entry, index,
-					     n_ext, mtr);
+					     offsets, heap, n_ext, mtr);
 		reorg = page_cursor_rec != page_cur_get_rec(page_cursor);
 
 		if (UNIV_UNLIKELY(reorg)) {
@@ -1371,7 +1377,7 @@ fail_err:
 		page_cur_search(block, index, entry, PAGE_CUR_LE, page_cursor);
 
 		*rec = page_cur_tuple_insert(page_cursor, entry, index,
-					     n_ext, mtr);
+					     offsets, heap, n_ext, mtr);
 
 		if (UNIV_UNLIKELY(!*rec)) {
 			if (zip_size != 0) {
@@ -1457,6 +1463,8 @@ btr_cur_pessimistic_insert(
 				insertion will certainly succeed */
 	btr_cur_t*	cursor,	/*!< in: cursor after which to insert;
 				cursor stays valid */
+	ulint**		offsets,/*!< out: offsets on *rec */
+	mem_heap_t**	heap,	/*!< in/out: pointer to memory heap, or NULL */
 	dtuple_t*	entry,	/*!< in/out: entry to insert */
 	rec_t**		rec,	/*!< out: pointer to inserted record if
 				succeed */
@@ -1470,7 +1478,6 @@ btr_cur_pessimistic_insert(
 	dict_index_t*	index		= cursor->index;
 	ulint		zip_size	= dict_table_zip_size(index->table);
 	big_rec_t*	big_rec_vec	= NULL;
-	mem_heap_t*	heap		= NULL;
 	dberr_t		err;
 	ibool		dummy_inh;
 	ibool		success;
@@ -1493,8 +1500,9 @@ btr_cur_pessimistic_insert(
 
 	cursor->flag = BTR_CUR_BINARY;
 
-	err = btr_cur_optimistic_insert(flags, cursor, entry, rec,
-					big_rec, n_ext, thr, mtr);
+	err = btr_cur_optimistic_insert(
+		flags, cursor, offsets, heap, entry, rec,
+		big_rec, n_ext, thr, mtr);
 	if (err != DB_FAIL) {
 
 		return(err);
@@ -1556,14 +1564,10 @@ btr_cur_pessimistic_insert(
 
 		/* The page is the root page */
 		*rec = btr_root_raise_and_insert(
-			flags, cursor, entry, n_ext, mtr);
+			flags, cursor, offsets, heap, entry, n_ext, mtr);
 	} else {
 		*rec = btr_page_split_and_insert(
-			flags, cursor, entry, n_ext, mtr);
-	}
-
-	if (UNIV_LIKELY_NULL(heap)) {
-		mem_heap_free(heap);
+			flags, cursor, offsets, heap, entry, n_ext, mtr);
 	}
 
 	ut_ad(page_rec_get_next(btr_cur_get_rec(cursor)) == *rec);
@@ -2148,7 +2152,8 @@ any_extern:
 	}
 
 	/* There are no externally stored columns in new_entry */
-	rec = btr_cur_insert_if_possible(cursor, new_entry, 0/*n_ext*/, mtr);
+	rec = btr_cur_insert_if_possible(
+		cursor, new_entry, offsets, heap, 0/*n_ext*/, mtr);
 	ut_a(rec); /* <- We calculated above the insert would fit */
 
 	if (page_zip && !dict_index_is_clust(index)
@@ -2427,16 +2432,14 @@ make_external:
 
 	page_cur_move_to_prev(page_cursor);
 
-	rec = btr_cur_insert_if_possible(cursor, new_entry, n_ext, mtr);
+	rec = btr_cur_insert_if_possible(cursor, new_entry,
+					 offsets, heap, n_ext, mtr);
 
 	if (rec) {
 		page_cursor->rec = rec;
 
 		lock_rec_restore_from_page_infimum(btr_cur_get_block(cursor),
 						   rec, block);
-
-		*offsets = rec_get_offsets(rec, index, *offsets,
-					   ULINT_UNDEFINED, heap);
 
 		if (!rec_get_deleted_flag(rec, rec_offs_comp(*offsets))) {
 			/* The new inserted record owns its possible externally
@@ -2493,11 +2496,13 @@ make_external:
 	err = btr_cur_pessimistic_insert(BTR_NO_UNDO_LOG_FLAG
 					 | BTR_NO_LOCKING_FLAG
 					 | BTR_KEEP_SYS_FLAG,
-					 cursor, new_entry, &rec,
+					 cursor, offsets, heap,
+					 new_entry, &rec,
 					 &dummy_big_rec, n_ext, NULL, mtr);
 	ut_a(rec);
 	ut_a(err == DB_SUCCESS);
 	ut_a(dummy_big_rec == NULL);
+	ut_ad(rec_offs_validate(rec, cursor->index, *offsets));
 	page_cursor->rec = rec;
 
 	if (dict_index_is_sec_or_ibuf(index)) {
@@ -2524,8 +2529,6 @@ make_external:
 #endif /* UNIV_ZIP_DEBUG */
 		page_zip = buf_block_get_page_zip(rec_block);
 
-		*offsets = rec_get_offsets(rec, index, *offsets,
-					   ULINT_UNDEFINED, heap);
 		btr_cur_unmark_extern_fields(page_zip,
 					     rec, index, *offsets, mtr);
 	}
@@ -3167,8 +3170,8 @@ btr_cur_pessimistic_delete(
 				index, next_rec, buf_block_get_page_no(block),
 				heap, level);
 
-			btr_insert_on_non_leaf_level(flags, index,
-						     level + 1, node_ptr, mtr);
+			btr_insert_on_non_leaf_level(
+				flags, index, level + 1, node_ptr, mtr);
 		}
 	}
 

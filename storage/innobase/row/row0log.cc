@@ -569,7 +569,7 @@ insert_the_rec:
 					BTR_NO_UNDO_LOG_FLAG
 					| BTR_NO_LOCKING_FLAG
 					| BTR_CREATE_FLAG,
-					&cursor,
+					&cursor, &offsets, &heap,
 					const_cast<dtuple_t*>(entry),
 					&rec, &big_rec,
 					0, NULL, &mtr);
@@ -596,7 +596,7 @@ insert_the_rec:
 				BTR_NO_UNDO_LOG_FLAG
 				| BTR_NO_LOCKING_FLAG
 				| BTR_CREATE_FLAG,
-				&cursor,
+				&cursor, &offsets, &heap,
 				const_cast<dtuple_t*>(entry),
 				&rec, &big_rec,
 				0, NULL, &mtr);

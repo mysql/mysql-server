@@ -212,6 +212,8 @@ btr_cur_optimistic_insert(
 				specified */
 	btr_cur_t*	cursor,	/*!< in: cursor on page after which to insert;
 				cursor stays valid */
+	ulint**		offsets,/*!< out: offsets on *rec */
+	mem_heap_t**	heap,	/*!< in/out: pointer to memory heap, or NULL */
 	dtuple_t*	entry,	/*!< in/out: entry to insert */
 	rec_t**		rec,	/*!< out: pointer to inserted record if
 				succeed */
@@ -225,7 +227,7 @@ btr_cur_optimistic_insert(
 				index in a compressed tablespace, the
 				mtr must be committed before latching
 				any further pages */
-	__attribute__((nonnull(2,3,4,5,8), warn_unused_result));
+	__attribute__((nonnull(2,3,4,5,6,7,10), warn_unused_result));
 /*************************************************************//**
 Performs an insert on a page of an index tree. It is assumed that mtr
 holds an x-latch on the tree and on the cursor page. If the insert is
@@ -244,6 +246,8 @@ btr_cur_pessimistic_insert(
 				insertion will certainly succeed */
 	btr_cur_t*	cursor,	/*!< in: cursor after which to insert;
 				cursor stays valid */
+	ulint**		offsets,/*!< out: offsets on *rec */
+	mem_heap_t**	heap,	/*!< in/out: pointer to memory heap, or NULL */
 	dtuple_t*	entry,	/*!< in/out: entry to insert */
 	rec_t**		rec,	/*!< out: pointer to inserted record if
 				succeed */
@@ -253,7 +257,7 @@ btr_cur_pessimistic_insert(
 	ulint		n_ext,	/*!< in: number of externally stored columns */
 	que_thr_t*	thr,	/*!< in: query thread or NULL */
 	mtr_t*		mtr)	/*!< in: mtr */
-	__attribute__((nonnull(2,3,4,5,8), warn_unused_result));
+	__attribute__((nonnull(2,3,4,5,6,7,10), warn_unused_result));
 /*************************************************************//**
 See if there is enough place in the page modification log to log
 an update-in-place.

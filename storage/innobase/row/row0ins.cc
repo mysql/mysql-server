@@ -234,16 +234,16 @@ row_ins_sec_index_entry_by_modify(
 				depending on whether mtr holds just a leaf
 				latch or also a tree latch */
 	btr_cur_t*	cursor,	/*!< in: B-tree cursor */
+	ulint**		offsets,/*!< in/out: offsets on cursor->page_cur.rec */
+	mem_heap_t*	heap,	/*!< in/out: memory heap */
 	const dtuple_t*	entry,	/*!< in: index entry to insert */
 	que_thr_t*	thr,	/*!< in: query thread */
 	mtr_t*		mtr)	/*!< in: mtr; must be committed before
 				latching any further pages */
 {
 	big_rec_t*	dummy_big_rec;
-	mem_heap_t*	heap;
 	upd_t*		update;
 	rec_t*		rec;
-	ulint*		offsets;
 	dberr_t		err;
 
 	rec = btr_cur_get_rec(cursor);
@@ -251,29 +251,23 @@ row_ins_sec_index_entry_by_modify(
 	ut_ad(!dict_index_is_clust(cursor->index));
 	ut_ad(rec_get_deleted_flag(rec,
 				   dict_table_is_comp(cursor->index->table)));
+	ut_ad(rec_offs_validate(rec, cursor->index, *offsets));
 
 	/* We know that in the alphabetical ordering, entry and rec are
 	identified. But in their binary form there may be differences if
 	there are char fields in them. Therefore we have to calculate the
 	difference. */
 
-	heap = mem_heap_create(
-		sizeof(upd_t)
-		+ REC_OFFS_HEADER_SIZE * sizeof(*offsets)
-		+ dtuple_get_n_fields(entry)
-		* (sizeof(upd_field_t) + sizeof *offsets));
-	offsets = rec_get_offsets(rec, cursor->index, NULL,
-				  ULINT_UNDEFINED, &heap);
 	update = row_upd_build_sec_rec_difference_binary(
-		rec, cursor->index, offsets, entry, heap);
+		rec, cursor->index, *offsets, entry, heap);
 	if (mode == BTR_MODIFY_LEAF) {
 		/* Try an optimistic updating of the record, keeping changes
 		within the page */
 
-		/* TODO: pass only offsets, no &offsets, &heap */
+		/* TODO: pass only *offsets */
 		err = btr_cur_optimistic_update(
 			BTR_KEEP_SYS_FLAG, cursor,
-			&offsets, &heap, update, 0, thr,
+			offsets, &heap, update, 0, thr,
 			thr_get_trx(thr)->id, mtr);
 		switch (err) {
 		case DB_OVERFLOW:
@@ -287,19 +281,15 @@ row_ins_sec_index_entry_by_modify(
 		ut_a(mode == BTR_MODIFY_TREE);
 		if (buf_LRU_buf_pool_running_out()) {
 
-			err = DB_LOCK_TABLE_FULL;
-
-			goto func_exit;
+			return(DB_LOCK_TABLE_FULL);
 		}
 
 		err = btr_cur_pessimistic_update(
 			BTR_KEEP_SYS_FLAG, cursor,
-			&offsets, &heap, &dummy_big_rec, update, 0, thr,
+			offsets, &heap, &dummy_big_rec, update, 0, thr,
 			thr_get_trx(thr)->id, mtr);
 		ut_ad(!dummy_big_rec);
 	}
-func_exit:
-	mem_heap_free(heap);
 
 	return(err);
 }
@@ -2273,7 +2263,8 @@ err_exit:
 		if (mode != BTR_MODIFY_TREE) {
 			ut_ad(mode == BTR_MODIFY_LEAF);
 			err = btr_cur_optimistic_insert(
-				0, &cursor, entry, &insert_rec, &big_rec,
+				0, &cursor, &offsets, &heap,
+				entry, &insert_rec, &big_rec,
 				n_ext, thr, &mtr);
 		} else {
 			if (buf_LRU_buf_pool_running_out()) {
@@ -2282,7 +2273,8 @@ err_exit:
 				goto err_exit;
 			}
 			err = btr_cur_pessimistic_insert(
-				0, &cursor, entry, &insert_rec, &big_rec,
+				0, &cursor, &offsets, &heap,
+				entry, &insert_rec, &big_rec,
 				n_ext, thr, &mtr);
 		}
 
@@ -2301,9 +2293,10 @@ err_exit:
 		}
 	}
 
-	if (UNIV_LIKELY_NULL(heap)) {
+	if (heap) {
 		mem_heap_free(heap);
 	}
+
 	return(err);
 }
 
@@ -2321,6 +2314,7 @@ row_ins_sec_index_entry_low(
 				depending on whether we wish optimistic or
 				pessimistic descent down the index tree */
 	dict_index_t*	index,	/*!< in: secondary index */
+	mem_heap_t*	heap,	/*!< in/out: memory heap */
 	dtuple_t*	entry,	/*!< in/out: index entry to insert */
 	que_thr_t*	thr)	/*!< in: query thread */
 {
@@ -2329,6 +2323,7 @@ row_ins_sec_index_entry_low(
 	dberr_t		err;
 	ulint		n_unique;
 	mtr_t		mtr;
+	ulint*		offsets	= NULL;
 
 	ut_ad(!dict_index_is_clust(index));
 	ut_ad(!dict_index_is_online_ddl(index));
@@ -2403,16 +2398,20 @@ row_ins_sec_index_entry_low(
 		/* There is already an index entry with a long enough common
 		prefix, we must convert the insert into a modify of an
 		existing record */
+		offsets = rec_get_offsets(
+			btr_cur_get_rec(&cursor), index, offsets,
+			ULINT_UNDEFINED, &heap);
 
 		err = row_ins_sec_index_entry_by_modify(
-			mode, &cursor, entry, thr, &mtr);
+			mode, &cursor, &offsets, heap, entry, thr, &mtr);
 	} else {
 		rec_t*		insert_rec;
 		big_rec_t*	big_rec;
 
 		if (mode == BTR_MODIFY_LEAF) {
 			err = btr_cur_optimistic_insert(
-				0, &cursor, entry, &insert_rec,
+				0, &cursor, &offsets, &heap,
+				entry, &insert_rec,
 				&big_rec, 0, thr, &mtr);
 		} else {
 			ut_ad(mode == BTR_MODIFY_TREE);
@@ -2421,7 +2420,8 @@ row_ins_sec_index_entry_low(
 				err = DB_LOCK_TABLE_FULL;
 			} else {
 				err = btr_cur_pessimistic_insert(
-					0, &cursor, entry, &insert_rec,
+					0, &cursor, &offsets, &heap,
+					entry, &insert_rec,
 					&big_rec, 0, thr, &mtr);
 			}
 		}
@@ -2536,7 +2536,8 @@ row_ins_sec_index_entry(
 	dtuple_t*	entry,	/*!< in/out: index entry to insert */
 	que_thr_t*	thr)	/*!< in: query thread */
 {
-	dberr_t	err;
+	dberr_t		err;
+	mem_heap_t*	heap;
 
 	if (UT_LIST_GET_FIRST(index->table->foreign_list)) {
 		err = row_ins_check_foreign_constraints(index->table, index,
@@ -2552,18 +2553,23 @@ row_ins_sec_index_entry(
 		return(DB_SUCCESS);
 	}
 
+	heap = mem_heap_create(1024);
+
 	/* Try first optimistic descent to the B-tree */
 
-	err = row_ins_sec_index_entry_low(BTR_MODIFY_LEAF, index, entry, thr);
-	if (err != DB_FAIL) {
+	err = row_ins_sec_index_entry_low(BTR_MODIFY_LEAF, index, heap,
+					  entry, thr);
+	if (err == DB_FAIL) {
+		mem_heap_empty(heap);
 
-		return(err);
+		/* Try then pessimistic descent to the B-tree */
+
+		err = row_ins_sec_index_entry_low(
+			BTR_MODIFY_TREE, index, heap, entry, thr);
 	}
 
-	/* Try then pessimistic descent to the B-tree */
-
-	return(row_ins_sec_index_entry_low(
-		       BTR_MODIFY_TREE, index, entry, thr));
+	mem_heap_free(heap);
+	return(err);
 }
 
 /***************************************************************//**
