@@ -964,7 +964,6 @@ dict_stats_analyze_index_below_cur(
 	ulint*		offsets1;
 	ulint*		offsets2;
 	ulint*		offsets_rec;
-	ulint		root_height;
 	ib_uint64_t	n_diff; /* the result */
 	ulint		size;
 
@@ -990,8 +989,6 @@ dict_stats_analyze_index_below_cur(
 
 	rec_offs_set_n_alloc(offsets1, size);
 	rec_offs_set_n_alloc(offsets2, size);
-
-	root_height = btr_page_get_level(btr_root_get(index, mtr), mtr);
 
 	space = dict_index_get_space(index);
 	zip_size = dict_table_zip_size(index->table);
