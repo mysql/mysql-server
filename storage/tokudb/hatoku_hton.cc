@@ -1053,6 +1053,30 @@ cleanup:
     TOKUDB_DBUG_RETURN(error);    
 }
 
+static int store_dbname_tablename_size(TABLE *table, char *name, u_int64_t size, THD *thd) {
+    char *tp = strrchr(name, '/');
+    assert(tp);
+    char *tablename = tp + 1;
+    size_t tablename_length = strlen(tablename);
+
+    char *dp = strchr(name, '/');
+    char *dbname;
+    size_t dbname_length;
+    if (dp == tp) {
+        dbname = name;
+        dbname_length = tp - dbname;
+    } else {
+        dbname = dp + 1;
+        dbname_length = tp - dbname;
+    }
+
+    table->field[0]->store(dbname, dbname_length, system_charset_info);
+    table->field[1]->store(tablename, tablename_length, system_charset_info);
+    table->field[2]->store(size, false);
+    int error = schema_table_store_record(thd, table);
+    return error;
+}
+
 static int tokudb_get_user_data_size(TABLE *table, THD *thd, bool exact) {
     int error;
     DB* curr_db = NULL;
@@ -1099,25 +1123,23 @@ static int tokudb_get_user_data_size(TABLE *table, THD *thd, bool exact) {
             );
         if (!error) {
             char* name = (char *)curr_key.data;
-            char* newname = NULL;
+            char* newname;
             u_int64_t curr_num_bytes = 0;
             DB_BTREE_STAT64 dict_stats;
 
-            newname = (char *)my_malloc(
-                get_max_dict_name_path_length(name),
-                MYF(MY_WME|MY_ZEROFILL)
-                );
-            if (newname == NULL) { 
-                error = ENOMEM;
-                goto cleanup;
-            }
-
-            make_name(newname, name, "main");
-
             error = db_create(&curr_db, db_env, 0);
             if (error) { goto cleanup; }
+
+            newname = (char *)my_malloc(
+                get_max_dict_name_path_length(name),
+                MYF(MY_WME|MY_ZEROFILL|MY_FAE));
+
+            make_name(newname, name, "main");
             
             error = curr_db->open(curr_db, tmp_txn, newname, NULL, DB_BTREE, DB_THREAD, 0);
+
+            my_free(newname, MYF(0));
+
             if (error == ENOENT) { error = 0; continue; }
             if (error) { goto cleanup; }
 
@@ -1173,20 +1195,7 @@ static int tokudb_get_user_data_size(TABLE *table, THD *thd, bool exact) {
                 curr_num_bytes = (inf_byte_space > curr_num_bytes) ? 0 : curr_num_bytes - inf_byte_space;
             }
 
-            char *tablename = strrchr(name, '/');
-            if (tablename == NULL) goto cleanup;
-            *tablename++ = 0;
-
-            char *dbname = strchr(name, '/');
-            if (dbname == NULL)
-                dbname = name;
-            else
-                dbname++;
-
-            table->field[0]->store(dbname, strlen(dbname), system_charset_info);
-            table->field[1]->store(tablename, strlen(tablename), system_charset_info);
-            table->field[2]->store(curr_num_bytes, false);
-            error = schema_table_store_record(thd, table);
+            error = store_dbname_tablename_size(table, name, curr_num_bytes, thd);
             if (error) goto cleanup;
 
             {
@@ -1194,7 +1203,6 @@ static int tokudb_get_user_data_size(TABLE *table, THD *thd, bool exact) {
                 assert(r==0);
                 curr_db = NULL;
             }
-            my_free(newname,MYF(MY_ALLOW_ZERO_PTR));
         }
 
         if (tmp_txn) {
