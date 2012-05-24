@@ -28,7 +28,6 @@ int read_bootstrap_query(char *query, int *query_length,
   int len;
   int query_len= 0;
   int fgets_error= 0;
-  int bootstrap_error= 0;
   *error= 0;
 
   for ( ; ; )
