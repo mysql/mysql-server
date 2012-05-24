@@ -9,6 +9,8 @@ CREATE TABLE t3(a int, b int);
 CREATE TABLE t4(a int, b int);
 CREATE TABLE t5(a int, b int, c int);
 CREATE TABLE t6(a int, b int, c int, d int);
+CREATE TABLE t11 (c CHAR(4));
+CREATE TABLE t12 (c CHAR(4));
 TRUNCATE TABLE performance_schema.events_statements_summary_by_digest;
 ####################################
 # EXECUTION
@@ -71,14 +73,39 @@ CREATE SCHEMA statements_digest_temp;
 DROP SCHEMA statements_digest_temp;
 CREATE DATABASE statements_digest_temp;
 DROP DATABASE statements_digest_temp;
-SELECT 1 from t11;
-ERROR 42S02: Table 'statements_digest.t11' doesn't exist
-create table t11 (c char(4));
-create table t11 (c char(4));
-ERROR 42S01: Table 't11' already exists
-insert into t11 values("MySQL");
+SELECT 1 FROM no_such_table;
+ERROR 42S02: Table 'statements_digest.no_such_table' doesn't exist
+CREATE TABLE dup_table (c char(4));
+CREATE TABLE dup_table (c char(4));
+ERROR 42S01: Table 'dup_table' already exists
+DROP TABLE dup_table;
+INSERT INTO t11 VALUES("MySQL");
 Warnings:
 Warning	1265	Data truncated for column 'c' at row 1
+PREPARE stmt FROM "SELECT * FROM t12";
+EXECUTE stmt;
+c
+EXECUTE stmt;
+c
+DEALLOCATE PREPARE stmt;
+CREATE PROCEDURE p1() BEGIN SELECT * FROM t12; END//
+CALL p1();
+c
+CALL p1();
+c
+DROP PROCEDURE p1;
+CREATE FUNCTION `func`(a INT, b INT) RETURNS int(11) RETURN a+b //
+select func(3,4);
+func(3,4)
+7
+select func(13,42);
+func(13,42)
+55
+DROP FUNCTION func;
+CREATE TRIGGER trg BEFORE INSERT ON t12 FOR EACH ROW SET @a:=1;
+INSERT INTO t12 VALUES ("abc");
+INSERT INTO t12 VALUES ("def");
+DROP TRIGGER trg;
 ####################################
 # QUERYING PS STATEMENT DIGEST
 ####################################
@@ -105,10 +132,23 @@ bcb3fc3aa0ea73f20809e6525d41b95b	SELECT ? + ?  	3	0	0	0
 651e639ea4fee3b3dbee7f6f9fd44ca0	SELECT ?  	1	0	0	0
 7d2a54e6edd2117b661078941415d492	CREATE SCHEMA statements_digest_temp  	2	2	0	0
 131870b25daddd214b5c200444364bd2	DROP SCHEMA statements_digest_temp  	2	0	0	0
-249a5f8b104c00dedcc50d71449bba0d	SELECT ? FROM t11  	1	0	0	1
-72c49981fce5ac1ee4f4877119b825f5	CREATE TABLE t11 ( c CHARACTER (?) )  	2	0	0	1
+b0fd38c8c8ba0c583fbb4ba8f1700913	SELECT ? FROM no_such_table  	1	0	0	1
+82405affe63462139756f46ea36e519d	CREATE TABLE dup_table ( c CHARACTER (?) )  	2	0	0	1
+de657b9e0f2a65bbbfe94547ebcfebe5	DROP TABLE dup_table  	1	0	0	0
 21ccf832feb3cd3581d472f7225ec046	INSERT INTO t11 VALUES (?)  	1	1	1	0
 1965b72c3916198861e7286faeece568	SHOW WARNINGS  	1	0	0	0
+9e2523c476f7dadd9300cceb882f434b	PREPARE stmt FROM ?  	1	0	0	0
+6d8939f45fc7420164ce88e58a78968e	EXECUTE stmt  	2	0	0	0
+3233cf3d73bf0cd5c5cc69fab5b30ddf	DEALLOCATE PREPARE stmt  	1	0	0	0
+c11611c72fd535d2491e30c92a46dba2	CREATE PROCEDURE p1 ( ) BEGIN SELECT * FROM t12 ; END  	1	0	0	0
+594360f7221c898fb58af64d2867dea5	CALL p1 ( )  	2	0	0	0
+ec4a8c0368967dd4d9e4979d63204870	DROP PROCEDURE p1  	1	0	0	0
+22af63e8a85ae33a51d39946fa74c537	CREATE FUNCTION `func` ( a INTEGER , b INTEGER ) RETURNS INTEGER (?) RETURN a + b  	1	0	0	0
+c08a61e1b30bd73d60a0291fbf80cff0	SELECT func (...)  	2	0	0	0
+3df78ea379365800dd19ab9e35c7f8a5	DROP FUNCTION func  	1	0	0	0
+5499b14bde826af68fdf34c3c1310f47	CREATE TRIGGER trg BEFORE INSERT ON t12 FOR EACH ROW SET @ ? := ?  	1	0	0	0
+8ec19a492733284c1444a7a804286800	INSERT INTO t12 VALUES (?)  	2	2	0	0
+25abe6e665794bc331965c048ea0bf5e	DROP TRIGGER trg  	1	0	0	0
 ####################################
 # CLEANUP
 ####################################
@@ -118,4 +158,6 @@ DROP TABLE IF EXISTS t3;
 DROP TABLE IF EXISTS t4;
 DROP TABLE IF EXISTS t5;
 DROP TABLE IF EXISTS t6;
+DROP TABLE IF EXISTS t11;
+DROP TABLE IF EXISTS t12;
 DROP DATABASE IF EXISTS statements_digest;
