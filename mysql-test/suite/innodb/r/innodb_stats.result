@@ -33,7 +33,7 @@ stat_name	size
 stat_value	1
 sample_size	NULL
 stat_description	Number of pages in the index
-INSERT INTO test_innodb_stats SELECT * FROM test_innodb_stats;
+FLUSH TABLE test_innodb_stats;
 SELECT * FROM information_schema.statistics
 WHERE table_name = 'test_innodb_stats';
 TABLE_CATALOG	def
@@ -85,7 +85,7 @@ stat_name	size
 stat_value	1
 sample_size	NULL
 stat_description	Number of pages in the index
-INSERT INTO test_innodb_stats SELECT * FROM test_innodb_stats;
+FLUSH TABLE test_innodb_stats;
 SELECT * FROM information_schema.statistics
 WHERE table_name = 'test_innodb_stats';
 TABLE_CATALOG	def
@@ -137,7 +137,7 @@ stat_name	size
 stat_value	1
 sample_size	NULL
 stat_description	Number of pages in the index
-INSERT INTO test_innodb_stats SELECT * FROM test_innodb_stats;
+FLUSH TABLE test_innodb_stats;
 SELECT * FROM information_schema.statistics
 WHERE table_name = 'test_innodb_stats';
 TABLE_CATALOG	def
@@ -189,7 +189,7 @@ stat_name	size
 stat_value	1
 sample_size	NULL
 stat_description	Number of pages in the index
-INSERT INTO test_innodb_stats SELECT * FROM test_innodb_stats;
+FLUSH TABLE test_innodb_stats;
 SELECT * FROM information_schema.statistics
 WHERE table_name = 'test_innodb_stats';
 TABLE_CATALOG	def
@@ -241,7 +241,7 @@ stat_name	size
 stat_value	1
 sample_size	NULL
 stat_description	Number of pages in the index
-INSERT INTO test_innodb_stats SELECT * FROM test_innodb_stats;
+FLUSH TABLE test_innodb_stats;
 SELECT * FROM information_schema.statistics
 WHERE table_name = 'test_innodb_stats';
 TABLE_CATALOG	def
@@ -293,7 +293,7 @@ stat_name	size
 stat_value	1
 sample_size	NULL
 stat_description	Number of pages in the index
-INSERT INTO test_innodb_stats SELECT * FROM test_innodb_stats;
+FLUSH TABLE test_innodb_stats;
 SELECT * FROM information_schema.statistics
 WHERE table_name = 'test_innodb_stats';
 TABLE_CATALOG	def
@@ -345,7 +345,7 @@ stat_name	size
 stat_value	1
 sample_size	NULL
 stat_description	Number of pages in the index
-INSERT INTO test_innodb_stats SELECT * FROM test_innodb_stats;
+FLUSH TABLE test_innodb_stats;
 SELECT * FROM information_schema.statistics
 WHERE table_name = 'test_innodb_stats';
 TABLE_CATALOG	def
@@ -397,7 +397,7 @@ stat_name	size
 stat_value	1
 sample_size	NULL
 stat_description	Number of pages in the index
-INSERT INTO test_innodb_stats SELECT * FROM test_innodb_stats;
+FLUSH TABLE test_innodb_stats;
 SELECT * FROM information_schema.statistics
 WHERE table_name = 'test_innodb_stats';
 TABLE_CATALOG	def
@@ -449,7 +449,7 @@ stat_name	size
 stat_value	1
 sample_size	NULL
 stat_description	Number of pages in the index
-INSERT INTO test_innodb_stats SELECT * FROM test_innodb_stats;
+FLUSH TABLE test_innodb_stats;
 SELECT * FROM information_schema.statistics
 WHERE table_name = 'test_innodb_stats';
 TABLE_CATALOG	def
@@ -501,7 +501,7 @@ stat_name	size
 stat_value	1
 sample_size	NULL
 stat_description	Number of pages in the index
-INSERT INTO test_innodb_stats SELECT * FROM test_innodb_stats;
+FLUSH TABLE test_innodb_stats;
 SELECT * FROM information_schema.statistics
 WHERE table_name = 'test_innodb_stats';
 TABLE_CATALOG	def

@@ -3,7 +3,7 @@ SET session default_storage_engine=MEMORY;
 # Test for warnings on column creation
 CREATE TABLE t1 (y YEAR(5) NOT NULL);
 Warnings:
-Warning	1804	YEAR(5) column type is deprecated. Creating YEAR(4) column instead.
+Warning	1818	YEAR(5) column type is deprecated. Creating YEAR(4) column instead.
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -23,7 +23,7 @@ CREATE TABLE t1 (y YEAR(-4) NOT NULL);
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '-4) NOT NULL)' at line 1
 CREATE TABLE t1 (y YEAR(3) NOT NULL);
 Warnings:
-Warning	1804	YEAR(3) column type is deprecated. Creating YEAR(4) column instead.
+Warning	1818	YEAR(3) column type is deprecated. Creating YEAR(4) column instead.
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -34,7 +34,7 @@ CREATE TABLE t1 (y YEAR(-3) NOT NULL);
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '-3) NOT NULL)' at line 1
 CREATE TABLE t1 (y YEAR(2) NOT NULL);
 Warnings:
-Warning	1804	YEAR(2) column type is deprecated. Creating YEAR(4) column instead.
+Warning	1818	YEAR(2) column type is deprecated. Creating YEAR(4) column instead.
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -45,7 +45,7 @@ CREATE TABLE t1 (y YEAR(-2) NOT NULL);
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '-2) NOT NULL)' at line 1
 CREATE TABLE t1 (y YEAR(1) NOT NULL);
 Warnings:
-Warning	1804	YEAR(1) column type is deprecated. Creating YEAR(4) column instead.
+Warning	1818	YEAR(1) column type is deprecated. Creating YEAR(4) column instead.
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -56,7 +56,7 @@ CREATE TABLE t1 (y YEAR(-1) NOT NULL);
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '-1) NOT NULL)' at line 1
 CREATE TABLE t1 (y YEAR(0) NOT NULL);
 Warnings:
-Warning	1804	YEAR(0) column type is deprecated. Creating YEAR(4) column instead.
+Warning	1818	YEAR(0) column type is deprecated. Creating YEAR(4) column instead.
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -81,7 +81,7 @@ CREATE TABLE t1 (y YEAR(4294967296) NOT NULL);
 ERROR 42000: Display width out of range for column 'y' (max = 4294967295)
 CREATE TABLE t1 (y YEAR(4294967295) NOT NULL);
 Warnings:
-Warning	1804	YEAR(4294967295) column type is deprecated. Creating YEAR(4) column instead.
+Warning	1818	YEAR(4294967295) column type is deprecated. Creating YEAR(4) column instead.
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -103,7 +103,7 @@ CREATE TABLE t1 (i INT NOT NULL);
 # Try to create new YEAR(2) column with ALTER TABLE
 ALTER TABLE t1 ADD COLUMN y YEAR(2) NOT NULL;
 Warnings:
-Warning	1804	YEAR(2) column type is deprecated. Creating YEAR(4) column instead.
+Warning	1818	YEAR(2) column type is deprecated. Creating YEAR(4) column instead.
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -113,7 +113,7 @@ t1	CREATE TABLE `t1` (
 # Try to convert YEAR(4) column to YEAR(2) with ALTER TABLE
 ALTER TABLE t1 MODIFY COLUMN y YEAR(2) NOT NULL;
 Warnings:
-Warning	1804	YEAR(2) column type is deprecated. Creating YEAR(4) column instead.
+Warning	1818	YEAR(2) column type is deprecated. Creating YEAR(4) column instead.
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -122,7 +122,7 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=MEMORY DEFAULT CHARSET=latin1
 ALTER TABLE t1 MODIFY COLUMN i YEAR(2) NOT NULL;
 Warnings:
-Warning	1804	YEAR(2) column type is deprecated. Creating YEAR(4) column instead.
+Warning	1818	YEAR(2) column type is deprecated. Creating YEAR(4) column instead.
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (

@@ -466,6 +466,19 @@ public:
     The timestamp is set and reset in @c sql_slave_killed().
   */
   time_t last_event_start_time;
+  /*
+    A container to hold on Intvar-, Rand-, Uservar- log-events in case
+    the slave is configured with table filtering rules.
+    The withhold events are executed when their parent Query destiny is
+    determined for execution as well.
+  */
+  Deferred_log_events *deferred_events;
+
+  /*
+    State of the container: true stands for IRU events gathering, 
+    false does for execution, either deferred or direct.
+  */
+  bool deferred_events_collecting;
 
   /*****************************************************************************
     WL#5569 MTS
@@ -638,7 +651,27 @@ public:
   /*
    * End of MTS section ******************************************************/
 
-
+  /* 
+     Returns true if the argument event resides in the containter;
+     more specifically, the checking is done against the last added event.
+  */
+  bool is_deferred_event(Log_event * ev)
+  {
+    return deferred_events_collecting ? deferred_events->is_last(ev) : false;
+  };
+  /* The general cleanup that slave applier may need at the end of query. */
+  inline void cleanup_after_query()
+  {
+    if (deferred_events)
+      deferred_events->rewind();
+  };
+  /* The general cleanup that slave applier may need at the end of session. */
+  void cleanup_after_session()
+  {
+    if (deferred_events)
+      delete deferred_events;
+  };
+   
   /**
     Helper function to do after statement completion.
 
@@ -896,6 +929,13 @@ private:
    */
   time_t row_stmt_start_timestamp;
   bool long_find_row_note_printed;
+
+  /*
+    If on init_info() call error_on_rli_init_info is true that means
+    that previous call to init_info() terminated with an error, RESET
+    SLAVE must be executed and the problem fixed manually.
+   */
+  bool error_on_rli_init_info;
 };
 
 bool mysql_show_relaylog_events(THD* thd);

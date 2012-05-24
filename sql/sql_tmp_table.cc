@@ -177,8 +177,17 @@ static Field *create_tmp_field_from_item(THD *thd, Item *item, TABLE *table,
   }
   if (new_field)
     new_field->init(table);
-    
-  if (copy_func && item->is_result_field())
+
+  /*
+    If the item is a function, a pointer to the item is stored in
+    copy_func. We separate fields from functions by checking if the
+    item is a result field item. The real_item() must be checked to
+    avoid falsely identifying Item_ref and its subclasses as functions
+    when they refer to field-like items, such as Item_copy and
+    subclasses. References to true fields have already been untangled
+    in the beginning of create_tmp_field().
+   */
+  if (copy_func && item->real_item()->is_result_field())
     *((*copy_func)++) = item;			// Save for copy_funcs
   if (modify_item)
     item->set_result_field(new_field);
@@ -1918,7 +1927,7 @@ bool create_myisam_from_heap(THD *thd, TABLE *table,
   TABLE new_table;
   TABLE_SHARE share;
   const char *save_proc_info;
-  int write_err;
+  int write_err= 0;
   DBUG_ENTER("create_myisam_from_heap");
 
   if (table->s->db_type() != heap_hton || 
@@ -1974,7 +1983,12 @@ bool create_myisam_from_heap(THD *thd, TABLE *table,
   if (table->file->indexes_are_disabled())
     new_table.file->ha_disable_indexes(HA_KEY_SWITCH_ALL);
   table->file->ha_index_or_rnd_end();
-  table->file->ha_rnd_init(1);
+  if ((write_err= table->file->ha_rnd_init(1)))
+  {
+    table->file->print_error(write_err, MYF(ME_FATALERROR));
+    write_err= 0;
+    goto err;
+  }
   if (table->no_rows)
   {
     new_table.file->extra(HA_EXTRA_NO_ROWS);
@@ -2053,9 +2067,13 @@ bool create_myisam_from_heap(THD *thd, TABLE *table,
   DBUG_RETURN(0);
 
  err:
-  DBUG_PRINT("error",("Got error: %d",write_err));
-  table->file->print_error(write_err, MYF(0));
-  (void) table->file->ha_rnd_end();
+  if (write_err)
+  {
+    DBUG_PRINT("error",("Got error: %d",write_err));
+    new_table.file->print_error(write_err, MYF(0));
+  }
+  if (table->file->inited)
+    (void) table->file->ha_rnd_end();
   (void) new_table.file->ha_close();
  err1:
   new_table.file->ha_delete_table(new_table.s->table_name.str);

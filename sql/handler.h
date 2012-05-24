@@ -96,7 +96,7 @@ enum enum_alter_inplace_result {
 */
 #define HA_REQUIRES_KEY_COLUMNS_FOR_DELETE (1 << 6)
 #define HA_NULL_IN_KEY         (1 << 7) /* One can have keys with NULL */
-#define HA_DUPLICATE_POS       (1 << 8)    /* ha_position() gives dup row */
+#define HA_DUPLICATE_POS       (1 << 8)    /* position() gives dup row */
 #define HA_NO_BLOBS            (1 << 9) /* Doesn't support blobs */
 #define HA_CAN_INDEX_BLOBS     (1 << 10)
 #define HA_AUTO_PART_KEY       (1 << 11) /* auto-increment in multi-part key */
@@ -184,8 +184,37 @@ enum enum_alter_inplace_result {
  */
 #define HA_BINLOG_FLAGS (HA_BINLOG_ROW_CAPABLE | HA_BINLOG_STMT_CAPABLE)
 
-/*
+/**
   The handler supports read before write removal optimization
+
+  Read before write removal may be used for storage engines which support
+  write without previous read of the row to be updated. Handler returning
+  this flag must implement start_read_removal() and end_read_removal().
+  The handler may return "fake" rows constructed from the key of the row
+  asked for. This is used to optimize UPDATE and DELETE by reducing the
+  numer of roundtrips between handler and storage engine.
+  
+  Example:
+  UPDATE a=1 WHERE pk IN (<keys>)
+
+  mysql_update()
+  {
+    if (<conditions for starting read removal>)
+      start_read_removal()
+      -> handler returns true if read removal supported for this table/query
+
+    while(read_record("pk=<key>"))
+      -> handler returns fake row with column "pk" set to <key>
+
+      ha_update_row()
+      -> handler sends write "a=1" for row with "pk=<key>"
+
+    end_read_removal()
+    -> handler returns the number of rows actually written
+  }
+
+  @note This optimization in combination with batching may be used to
+        remove even more roundtrips.
 */
 #define HA_READ_BEFORE_WRITE_REMOVAL  (LL(1) << 38)
 
@@ -193,6 +222,26 @@ enum enum_alter_inplace_result {
   Engine supports extended fulltext API
  */
 #define HA_CAN_FULLTEXT_EXT              (LL(1) << 39)
+
+/*
+  Storage engine doesn't synchronize result set with expected table contents.
+  Used by replication slave to check if it is possible to retrieve rows from
+  the table when deciding whether to do a full table scan, index scan or hash
+  scan while applying a row event.
+ */
+#define HA_READ_OUT_OF_SYNC              (LL(1) << 40)
+
+/*
+  Storage engine supports table export using the
+  FLUSH TABLE <table_list> FOR EXPORT statement.
+ */
+#define HA_CAN_EXPORT                 (LL(1) << 41)
+
+/*
+  The handler don't want accesses to this table to 
+  be const-table optimized
+*/
+#define HA_BLOCK_CONST_TABLE          (LL(1) << 42)
 
 /* bits in index_flags(index_number) for what you can do with index */
 #define HA_READ_NEXT            1       /* TODO really use this flag */
@@ -404,6 +453,12 @@ enum enum_binlog_command {
 #define HA_CREATE_USED_TRANSACTIONAL    (1L << 20)
 /** Unused. Reserved for future versions. */
 #define HA_CREATE_USED_PAGE_CHECKSUM    (1L << 21)
+/** This is set whenever STATS_PERSISTENT=0|1|default has been
+specified in CREATE/ALTER TABLE. See also HA_OPTION_STATS_PERSISTENT in
+include/my_base.h. It is possible to distinguish whether
+STATS_PERSISTENT=default has been specified or no STATS_PERSISTENT= is
+given at all. */
+#define HA_CREATE_USED_STATS_PERSISTENT (1L << 22)
 
 
 /*
@@ -436,6 +491,10 @@ typedef ulonglong my_xid; // this line is the same as in log_event.h
 
 #define COMPATIBLE_DATA_YES 0
 #define COMPATIBLE_DATA_NO  1
+
+namespace AQP {
+  class Join_plan;
+};
 
 /**
   struct xid_t is binary compatible with the XID structure as
@@ -843,6 +902,8 @@ struct handlerton
                      const char *wild, bool dir, List<LEX_STRING> *files);
    int (*table_exists_in_engine)(handlerton *hton, THD* thd, const char *db,
                                  const char *name);
+   int (*make_pushed_join)(handlerton *hton, THD* thd, 
+                           const AQP::Join_plan* plan);
 
   /**
     List of all system tables specific to the SE.
@@ -1766,41 +1827,10 @@ public:
 
   int ha_open(TABLE *table, const char *name, int mode, int test_if_locked);
   int ha_close(void);
-  int ha_index_init(uint idx, bool sorted)
-  {
-    int result;
-    DBUG_ENTER("ha_index_init");
-    DBUG_ASSERT(inited==NONE);
-    if (!(result= index_init(idx, sorted)))
-      inited=INDEX;
-    end_range= NULL;
-    DBUG_RETURN(result);
-  }
-  int ha_index_end()
-  {
-    DBUG_ENTER("ha_index_end");
-    DBUG_ASSERT(inited==INDEX);
-    inited=NONE;
-    end_range= NULL;
-    DBUG_RETURN(index_end());
-  }
-  int ha_rnd_init(bool scan)
-  {
-    int result;
-    DBUG_ENTER("ha_rnd_init");
-    DBUG_ASSERT(inited==NONE || (inited==RND && scan));
-    inited= (result= rnd_init(scan)) ? NONE: RND;
-    end_range= NULL;
-    DBUG_RETURN(result);
-  }
-  int ha_rnd_end()
-  {
-    DBUG_ENTER("ha_rnd_end");
-    DBUG_ASSERT(inited==RND);
-    inited=NONE;
-    end_range= NULL;
-    DBUG_RETURN(rnd_end());
-  }
+  int ha_index_init(uint idx, bool sorted);
+  int ha_index_end();
+  int ha_rnd_init(bool scan);
+  int ha_rnd_end();
   int ha_rnd_next(uchar *buf);
   int ha_rnd_pos(uchar * buf, uchar *pos);
   int ha_index_read_map(uchar *buf, const uchar *key,
@@ -1844,16 +1874,8 @@ public:
   /** to be actually called to get 'check()' functionality*/
   int ha_check(THD *thd, HA_CHECK_OPT *check_opt);
   int ha_repair(THD* thd, HA_CHECK_OPT* check_opt);
-  void ha_start_bulk_insert(ha_rows rows)
-  {
-    estimation_rows_to_insert= rows;
-    start_bulk_insert(rows);
-  }
-  int ha_end_bulk_insert()
-  {
-    estimation_rows_to_insert= 0;
-    return end_bulk_insert();
-  }
+  void ha_start_bulk_insert(ha_rows rows);
+  int ha_end_bulk_insert();
   int ha_bulk_update_row(const uchar *old_data, uchar *new_data,
                          uint *dup_key_found);
   int ha_delete_all_rows();
@@ -2164,6 +2186,21 @@ public:
   { return extra(operation); }
 
   /**
+    Start read (before write) removal on the current table.
+    @see HA_READ_BEFORE_WRITE_REMOVAL
+  */
+  virtual bool start_read_removal(void)
+  { DBUG_ASSERT(0); return false; }
+
+  /**
+    End read (before write) removal and return the number of rows
+    really written
+    @see HA_READ_BEFORE_WRITE_REMOVAL
+  */
+  virtual ha_rows end_read_removal(void)
+  { DBUG_ASSERT(0); return (ha_rows) 0; }
+
+  /**
     In an UPDATE or DELETE, if the row under the cursor was locked by another
     transaction, and the engine used an optimistic read of the last
     committed row value under the cursor, then the engine returns 1 from this
@@ -2294,6 +2331,17 @@ public:
 
   virtual int get_default_no_partitions(HA_CREATE_INFO *info) { return 1;}
   virtual void set_auto_partitions(partition_info *part_info) { return; }
+
+  /**
+    Get number of partitions for table in SE
+
+    @param name normalized path(same as open) to the table
+
+    @param[out] no_parts Number of partitions
+
+    @retval false for success
+    @retval true for failure, for example table didn't exist in engine
+  */
   virtual bool get_no_parts(const char *name,
                             uint *no_parts)
   {
@@ -2494,6 +2542,34 @@ public:
    pushed_idx_cond_keyno= MAX_KEY;
    in_range_check_pushed_down= false;
  }
+
+  /**
+    Reports #tables included in pushed join which this
+    handler instance is part of. ==0 -> Not pushed
+  */
+  virtual uint number_of_pushed_joins() const
+  { return 0; }
+
+  /**
+    If this handler instance is part of a pushed join sequence
+    returned TABLE instance being root of the pushed query?
+  */
+  virtual const TABLE* root_of_pushed_join() const
+  { return NULL; }
+
+  /**
+    If this handler instance is a child in a pushed join sequence
+    returned TABLE instance being my parent?
+  */
+  virtual const TABLE* parent_of_pushed_join() const
+  { return NULL; }
+
+  virtual int index_read_pushed(uchar * buf, const uchar * key,
+                             key_part_map keypart_map)
+  { return  HA_ERR_WRONG_COMMAND; }
+
+  virtual int index_next_pushed(uchar * buf)
+  { return  HA_ERR_WRONG_COMMAND; }
 
  /**
    Part of old, deprecated in-place ALTER API.
@@ -3164,6 +3240,9 @@ int ha_enable_transaction(THD *thd, bool on);
 int ha_rollback_to_savepoint(THD *thd, SAVEPOINT *sv);
 int ha_savepoint(THD *thd, SAVEPOINT *sv);
 int ha_release_savepoint(THD *thd, SAVEPOINT *sv);
+
+/* Build pushed joins in handlers implementing this feature */
+int ha_make_pushed_joins(THD *thd, const AQP::Join_plan* plan);
 
 /* these are called by storage engines */
 void trans_register_ha(THD *thd, bool all, handlerton *ht);

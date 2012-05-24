@@ -171,16 +171,16 @@ Q.E.D. */
 
 /** The number of iterations in the mutex_spin_wait() spin loop.
 Intended for performance monitoring. */
-static ib_int64_t	mutex_spin_round_count		= 0;
+static ib_counter_t<ib_int64_t, IB_N_SLOTS>	mutex_spin_round_count;
 /** The number of mutex_spin_wait() calls.  Intended for
 performance monitoring. */
-static ib_int64_t	mutex_spin_wait_count		= 0;
+static ib_counter_t<ib_int64_t, IB_N_SLOTS>	mutex_spin_wait_count;
 /** The number of OS waits in mutex_spin_wait().  Intended for
 performance monitoring. */
-static ib_int64_t	mutex_os_wait_count		= 0;
+static ib_counter_t<ib_int64_t, IB_N_SLOTS>	mutex_os_wait_count;
 /** The number of mutex_exit() calls. Intended for performance
 monitoring. */
-UNIV_INTERN ib_int64_t	mutex_exit_count		= 0;
+UNIV_INTERN ib_int64_t			mutex_exit_count;
 
 /** This variable is set to TRUE when sync_init is called */
 UNIV_INTERN ibool	sync_initialized	= FALSE;
@@ -293,16 +293,6 @@ mutex_create_func(
 	mutex->cfile_name = cfile_name;
 	mutex->cline = cline;
 	mutex->count_os_wait = 0;
-#ifdef UNIV_DEBUG
-	mutex->cmutex_name=	  cmutex_name;
-	mutex->count_using=	  0;
-	mutex->mutex_type=	  0;
-	mutex->lspent_time=	  0;
-	mutex->lmax_spent_time=     0;
-	mutex->count_spin_loop= 0;
-	mutex->count_spin_rounds=   0;
-	mutex->count_os_yield=  0;
-#endif /* UNIV_DEBUG */
 
 	/* Check that lock_word is aligned; this is important on Intel */
 	ut_ad(((ulint)(&(mutex->lock_word))) % 4 == 0);
@@ -487,6 +477,9 @@ mutex_spin_wait(
 	ulint		i;		/* spin round count */
 	ulint		index;		/* index of the reserved wait cell */
 	sync_array_t*	sync_arr;
+	size_t		counter_index;
+
+	counter_index = (size_t) os_thread_get_curr_id();
 
 	ut_ad(mutex);
 
@@ -494,7 +487,7 @@ mutex_spin_wait(
 	isn't exact. Moved out of ifdef that follows because we are willing
 	to sacrifice the cost of counting this as the data is valuable.
 	Count the number of calls to mutex_spin_wait. */
-	mutex_spin_wait_count++;
+	mutex_spin_wait_count.add(counter_index, 1);
 
 mutex_loop:
 
@@ -507,7 +500,6 @@ mutex_loop:
 	a memory word. */
 
 spin_loop:
-	ut_d(mutex->count_spin_loop++);
 
 	while (mutex_get_lock_word(mutex) != 0 && i < SYNC_SPIN_ROUNDS) {
 		if (srv_spin_wait_delay) {
@@ -518,24 +510,10 @@ spin_loop:
 	}
 
 	if (i == SYNC_SPIN_ROUNDS) {
-#ifdef UNIV_DEBUG
-		mutex->count_os_yield++;
-#endif /* UNIV_DEBUG */
 		os_thread_yield();
 	}
 
-#ifdef UNIV_SRV_PRINT_LATCH_WAITS
-	fprintf(stderr,
-		"Thread %lu spin wait mutex at %p"
-		" cfile %s cline %lu rnds %lu\n",
-		(ulong) os_thread_pf(os_thread_get_curr_id()), (void*) mutex,
-		innobase_basename(mutex->cfile_name),
-		(ulong) mutex->cline, (ulong) i);
-#endif
-
-	mutex_spin_round_count += i;
-
-	ut_d(mutex->count_spin_rounds += i);
+	mutex_spin_round_count.add(counter_index, i);
 
 	if (mutex_test_and_set(mutex) == 0) {
 		/* Succeeded! */
@@ -585,13 +563,6 @@ spin_loop:
 			mutex_set_debug_info(mutex, file_name, line);
 #endif
 
-#ifdef UNIV_SRV_PRINT_LATCH_WAITS
-			fprintf(stderr, "Thread %lu spin wait succeeds at 2:"
-				" mutex at %p\n",
-				(ulong) os_thread_pf(os_thread_get_curr_id()),
-				(void*) mutex);
-#endif
-
 			return;
 
 			/* Note that in this case we leave the waiters field
@@ -604,19 +575,12 @@ spin_loop:
 	after the change in the wait array and the waiters field was made.
 	Now there is no risk of infinite wait on the event. */
 
-#ifdef UNIV_SRV_PRINT_LATCH_WAITS
-	fprintf(stderr,
-		"Thread %lu OS wait mutex at %p cfile %s cline %lu rnds %lu\n",
-		(ulong) os_thread_pf(os_thread_get_curr_id()), (void*) mutex,
-		innobase_basename(mutex->cfile_name),
-		(ulong) mutex->cline, (ulong) i);
-#endif
-
-	mutex_os_wait_count++;
+	mutex_os_wait_count.add(counter_index, 1);
 
 	mutex->count_os_wait++;
 
 	sync_array_wait_event(sync_arr, index);
+
 	goto mutex_loop;
 }
 
@@ -1570,7 +1534,7 @@ sync_close(void)
 
 		mutex_free(mutex);
 
-	        mutex = UT_LIST_GET_FIRST(mutex_list);
+		mutex = UT_LIST_GET_FIRST(mutex_list);
 	}
 
 	mutex_free(&mutex_list_mutex);
@@ -1594,13 +1558,6 @@ sync_print_wait_info(
 /*=================*/
 	FILE*	file)		/*!< in: file where to print */
 {
-#ifdef UNIV_SYNC_DEBUG
-	fprintf(file,
-		"Mutex exits "UINT64PF", "
-		"rws exits "UINT64PF",  rwx exits "UINT64PF"\n",
-		mutex_exit_count, rw_s_exit_count, rw_x_exit_count);
-#endif
-
 	fprintf(file,
 		"Mutex spin waits "UINT64PF", rounds "UINT64PF", "
 		"OS waits "UINT64PF"\n"
@@ -1608,25 +1565,27 @@ sync_print_wait_info(
 		"OS waits "UINT64PF"\n"
 		"RW-excl spins "UINT64PF", rounds "UINT64PF", "
 		"OS waits "UINT64PF"\n",
-		mutex_spin_wait_count,
-		mutex_spin_round_count,
-		mutex_os_wait_count,
-		rw_s_spin_wait_count,
-		rw_s_spin_round_count,
-		rw_s_os_wait_count,
-		rw_x_spin_wait_count,
-		rw_x_spin_round_count,
-		rw_x_os_wait_count);
+		(ib_uint64_t) mutex_spin_wait_count,
+		(ib_uint64_t) mutex_spin_round_count,
+		(ib_uint64_t) mutex_os_wait_count,
+		(ib_uint64_t) rw_lock_stats.rw_s_spin_wait_count,
+		(ib_uint64_t) rw_lock_stats.rw_s_spin_round_count,
+		(ib_uint64_t) rw_lock_stats.rw_s_os_wait_count,
+		(ib_uint64_t) rw_lock_stats.rw_x_spin_wait_count,
+		(ib_uint64_t) rw_lock_stats.rw_x_spin_round_count,
+		(ib_uint64_t) rw_lock_stats.rw_x_os_wait_count);
 
 	fprintf(file,
 		"Spin rounds per wait: %.2f mutex, %.2f RW-shared, "
 		"%.2f RW-excl\n",
 		(double) mutex_spin_round_count /
 		(mutex_spin_wait_count ? mutex_spin_wait_count : 1),
-		(double) rw_s_spin_round_count /
-		(rw_s_spin_wait_count ? rw_s_spin_wait_count : 1),
-		(double) rw_x_spin_round_count /
-		(rw_x_spin_wait_count ? rw_x_spin_wait_count : 1));
+		(double) rw_lock_stats.rw_s_spin_round_count /
+		(rw_lock_stats.rw_s_spin_wait_count
+		 ? rw_lock_stats.rw_s_spin_wait_count : 1),
+		(double) rw_lock_stats.rw_x_spin_round_count /
+		(rw_lock_stats.rw_x_spin_wait_count
+		 ? rw_lock_stats.rw_x_spin_wait_count : 1));
 }
 
 /*******************************************************************//**

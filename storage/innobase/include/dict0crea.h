@@ -99,7 +99,7 @@ dict_drop_index_tree(
 	mtr_t*	mtr);	/*!< in: mtr having the latch on the record page */
 /****************************************************************//**
 Creates the foreign key constraints system tables inside InnoDB
-at database creation or database start if they are not found or are
+at server bootstrap or server start if they are not found or are
 not of the right form.
 @return	DB_SUCCESS or error code */
 UNIV_INTERN
@@ -131,7 +131,6 @@ dict_create_add_foreigns_to_dictionary(
 	__attribute__((nonnull, warn_unused_result));
 
 /* Table create node structure */
-
 struct tab_node_struct{
 	que_common_t	common;	/*!< node type: QUE_NODE_TABLE_CREATE */
 	dict_table_t*	table;	/*!< table to create, built as a memory data

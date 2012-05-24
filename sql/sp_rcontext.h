@@ -1,5 +1,4 @@
-/* -*- C++ -*- */
-/* Copyright (c) 2002, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -25,7 +24,6 @@
 ///////////////////////////////////////////////////////////////////////////
 
 class sp_cursor;
-class sp_lex_keeper;
 class sp_instr_cpush;
 class Query_arena;
 class sp_head;
@@ -182,17 +180,14 @@ public:
   /// of the client/server protocol.
   bool end_partial_result_set;
 
-#ifndef DBUG_OFF
-  /// The stored program for which this runtime context is created. Used for
-  /// checking if correct runtime context is used for variable handling.
+  /// The stored program for which this runtime context is created.
   sp_head *sp;
-#endif
 
   /////////////////////////////////////////////////////////////////////////
   // SP-variables.
   /////////////////////////////////////////////////////////////////////////
 
-  int set_variable(THD *thd, uint var_idx, Item **value)
+  bool set_variable(THD *thd, uint var_idx, Item **value)
   { return set_variable(thd, m_var_table->field[var_idx], value); }
 
   Item *get_item(uint var_idx) const
@@ -270,13 +265,12 @@ public:
 
   /// Create a new sp_cursor instance and push it to the cursor stack.
   ///
-  /// @param lex_keeper SP-instruction execution helper.
   /// @param i          Cursor-push instruction.
   ///
   /// @return error flag.
   /// @retval false on success.
   /// @retval true on error.
-  bool push_cursor(sp_lex_keeper *lex_keeper, sp_instr_cpush *i);
+  bool push_cursor(sp_instr_cpush *i);
 
   /// Pop and delete given number of sp_cursor instance from the cursor stack.
   ///
@@ -364,7 +358,7 @@ private:
   /// @return Pointer to valid object on success, or NULL in case of error.
   Item_cache *create_case_expr_holder(THD *thd, const Item *item) const;
 
-  int set_variable(THD *thd, Field *field, Item **value);
+  bool set_variable(THD *thd, Field *field, Item **value);
 
 private:
   /// Top-level (root) parsing context for this runtime context.
@@ -433,36 +427,34 @@ private:
 };
 
 public:
-  sp_cursor(sp_lex_keeper *lex_keeper, sp_instr_cpush *i)
-   :m_lex_keeper(lex_keeper),
-    server_side_cursor(NULL),
-    m_i(i)
+  sp_cursor(sp_instr_cpush *i)
+   :m_server_side_cursor(NULL),
+    m_push_instr(i)
   { }
 
   virtual ~sp_cursor()
   { destroy(); }
 
-  sp_lex_keeper *get_lex_keeper() { return m_lex_keeper; }
+  bool open(THD *thd);
 
-  int open(THD *thd);
+  bool close(THD *thd);
 
-  int close(THD *thd);
+  bool is_open() const
+  { return test(m_server_side_cursor); }
 
-  my_bool is_open()
-  { return test(server_side_cursor); }
+  bool fetch(THD *thd, List<sp_variable> *vars);
 
-  int fetch(THD *, List<sp_variable> *vars);
-
-  sp_instr_cpush *get_instr()
-  { return m_i; }
+  sp_instr_cpush *get_push_instr()
+  { return m_push_instr; }
 
 private:
-  Select_fetch_into_spvars result;
-  sp_lex_keeper *m_lex_keeper;
-  Server_side_cursor *server_side_cursor;
-  sp_instr_cpush *m_i;		// My push instruction
-  void destroy();
+  Select_fetch_into_spvars m_result;
 
+  Server_side_cursor *m_server_side_cursor;
+  sp_instr_cpush *m_push_instr;
+
+private:
+  void destroy();
 }; // class sp_cursor : public Sql_alloc
 
 #endif /* _SP_RCONTEXT_H_ */

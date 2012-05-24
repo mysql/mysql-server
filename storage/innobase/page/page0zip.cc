@@ -386,7 +386,7 @@ page_zip_get_n_prev_extern(
 					compressed page */
 	const rec_t*		rec,	/*!< in: compact physical record
 					on a B-tree leaf page */
-	dict_index_t*		index)	/*!< in: record descriptor */
+	const dict_index_t*	index)	/*!< in: record descriptor */
 {
 	const page_t*	page	= page_align(rec);
 	ulint		n_ext	= 0;
@@ -3924,6 +3924,7 @@ page_zip_write_trx_id_and_roll_ptr(
 	ulint	len;
 
 	ut_ad(PAGE_ZIP_MATCH(rec, page_zip));
+
 	ut_ad(page_simple_validate_new(page));
 	ut_ad(page_zip_simple_validate(page_zip));
 	ut_ad(page_zip_get_size(page_zip)
@@ -3976,10 +3977,10 @@ static
 void
 page_zip_clear_rec(
 /*===============*/
-	page_zip_des_t*	page_zip,/*!< in/out: compressed page */
-	byte*		rec,	/*!< in: record to clear */
-	dict_index_t*	index,	/*!< in: index of rec */
-	const ulint*	offsets)/*!< in: rec_get_offsets(rec, index) */
+	page_zip_des_t*	page_zip,	/*!< in/out: compressed page */
+	byte*		rec,		/*!< in: record to clear */
+	const dict_index_t*	index,	/*!< in: index of rec */
+	const ulint*	offsets)	/*!< in: rec_get_offsets(rec, index) */
 {
 	ulint	heap_no;
 	page_t*	page	= page_align(rec);
@@ -4190,11 +4191,12 @@ UNIV_INTERN
 void
 page_zip_dir_delete(
 /*================*/
-	page_zip_des_t*	page_zip,/*!< in/out: compressed page */
-	byte*		rec,	/*!< in: record to delete */
-	dict_index_t*	index,	/*!< in: index of rec */
-	const ulint*	offsets,/*!< in: rec_get_offsets(rec) */
-	const byte*	free)	/*!< in: previous start of the free list */
+	page_zip_des_t*		page_zip,	/*!< in/out: compressed page */
+	byte*			rec,		/*!< in: deleted record */
+	const dict_index_t*	index,		/*!< in: index of rec */
+	const ulint*		offsets,	/*!< in: rec_get_offsets(rec) */
+	const byte*		free)		/*!< in: previous start of
+						the free list */
 {
 	byte*	slot_rec;
 	byte*	slot_free;

@@ -13,7 +13,7 @@ PRIMARY KEY (id)
 PARTITION BY HASH (id)
 PARTITIONS 2;
 Warnings:
-Warning	1804	YEAR(2) column type is deprecated. Creating YEAR(4) column instead.
+Warning	1818	YEAR(2) column type is deprecated. Creating YEAR(4) column instead.
 CREATE TABLE t2 LIKE t1;
 ALTER TABLE t2 REMOVE PARTITIONING;
 SHOW CREATE TABLE t1;
@@ -89,7 +89,7 @@ PRIMARY KEY (id)
 ) ENGINE=InnoDB;
 Warnings:
 Level	Warning
-Code	1804
+Code	1818
 Message	YEAR(2) column type is deprecated. Creating YEAR(4) column instead.
 ALTER TABLE t1 EXCHANGE PARTITION p1 WITH TABLE t2;
 SHOW CREATE TABLE t1;
@@ -135,7 +135,7 @@ PARTITION BY HASH (id)
 PARTITIONS 2;
 Warnings:
 Level	Warning
-Code	1804
+Code	1818
 Message	YEAR(2) column type is deprecated. Creating YEAR(4) column instead.
 CREATE TABLE t2 (
 id int(11) NOT NULL AUTO_INCREMENT,
@@ -145,7 +145,7 @@ PRIMARY KEY (id)
 ) ENGINE=InnoDB ROW_FORMAT = COMPACT;
 Warnings:
 Level	Warning
-Code	1804
+Code	1818
 Message	YEAR(2) column type is deprecated. Creating YEAR(4) column instead.
 ALTER TABLE t1 EXCHANGE PARTITION p1 WITH TABLE t2;
 SHOW CREATE TABLE t1;
@@ -191,7 +191,7 @@ PARTITION BY HASH (id)
 PARTITIONS 2;
 Warnings:
 Level	Warning
-Code	1804
+Code	1818
 Message	YEAR(2) column type is deprecated. Creating YEAR(4) column instead.
 CREATE TABLE t2 (
 id int(11) NOT NULL AUTO_INCREMENT,
@@ -201,7 +201,7 @@ PRIMARY KEY (id)
 ) ENGINE=InnoDB;
 Warnings:
 Level	Warning
-Code	1804
+Code	1818
 Message	YEAR(2) column type is deprecated. Creating YEAR(4) column instead.
 ALTER TABLE t1 EXCHANGE PARTITION p1 WITH TABLE t2;
 SHOW CREATE TABLE t1;
@@ -247,7 +247,7 @@ PARTITION BY HASH (id)
 PARTITIONS 2;
 Warnings:
 Level	Warning
-Code	1804
+Code	1818
 Message	YEAR(2) column type is deprecated. Creating YEAR(4) column instead.
 CREATE TABLE t2 (
 id int(11) NOT NULL AUTO_INCREMENT,
@@ -257,7 +257,7 @@ PRIMARY KEY (id)
 ) ENGINE=InnoDB ROW_FORMAT = REDUNDANT;
 Warnings:
 Level	Warning
-Code	1804
+Code	1818
 Message	YEAR(2) column type is deprecated. Creating YEAR(4) column instead.
 ALTER TABLE t1 EXCHANGE PARTITION p1 WITH TABLE t2;
 SHOW CREATE TABLE t1;
@@ -303,7 +303,7 @@ PARTITION BY HASH (id)
 PARTITIONS 2;
 Warnings:
 Level	Warning
-Code	1804
+Code	1818
 Message	YEAR(2) column type is deprecated. Creating YEAR(4) column instead.
 CREATE TABLE t2 (
 id int(11) NOT NULL AUTO_INCREMENT,
@@ -313,7 +313,7 @@ PRIMARY KEY (id)
 ) ENGINE=InnoDB ROW_FORMAT = REDUNDANT;
 Warnings:
 Level	Warning
-Code	1804
+Code	1818
 Message	YEAR(2) column type is deprecated. Creating YEAR(4) column instead.
 ALTER TABLE t1 EXCHANGE PARTITION p1 WITH TABLE t2;
 ERROR HY000: Non matching attribute 'ROW_FORMAT' between partition and table
@@ -360,7 +360,7 @@ PARTITION BY HASH (id)
 PARTITIONS 2;
 Warnings:
 Level	Warning
-Code	1804
+Code	1818
 Message	YEAR(2) column type is deprecated. Creating YEAR(4) column instead.
 CREATE TABLE t2 (
 id int(11) NOT NULL AUTO_INCREMENT,
@@ -370,7 +370,7 @@ PRIMARY KEY (id)
 ) ENGINE=InnoDB ROW_FORMAT = REDUNDANT;
 Warnings:
 Level	Warning
-Code	1804
+Code	1818
 Message	YEAR(2) column type is deprecated. Creating YEAR(4) column instead.
 ALTER TABLE t1 EXCHANGE PARTITION p1 WITH TABLE t2;
 ERROR HY000: Non matching attribute 'ROW_FORMAT' between partition and table
@@ -940,8 +940,8 @@ ALTER TABLE tp EXCHANGE PARTITION p0 WITH TABLE t;
 ERROR HY000: Non matching attribute 'MAX_ROWS' between partition and table
 SHOW WARNINGS;
 Level	Code	Message
-Error	1730	Non matching attribute 'MAX_ROWS' between partition and table
-Error	1730	Non matching attribute 'MIN_ROWS' between partition and table
+Error	1731	Non matching attribute 'MAX_ROWS' between partition and table
+Error	1731	Non matching attribute 'MIN_ROWS' between partition and table
 DROP TABLE t;
 RENAME TABLE tmp2 TO t;
 ALTER TABLE t ADD KEY ba_key (b, a);

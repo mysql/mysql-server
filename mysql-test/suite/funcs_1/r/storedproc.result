@@ -7498,12 +7498,12 @@ declare x, y, z year(3) default 2005;
 SELECT x, y, z;
 END//
 Warnings:
-Warning	1804	YEAR(3) column type is deprecated. Creating YEAR(4) column instead.
+Warning	1818	YEAR(3) column type is deprecated. Creating YEAR(4) column instead.
 CALL sp1();
 x	y	z
 2005	2005	2005
 Warnings:
-Warning	1804	YEAR(3) column type is deprecated. Creating YEAR(4) column instead.
+Warning	1818	YEAR(3) column type is deprecated. Creating YEAR(4) column instead.
 DROP PROCEDURE IF EXISTS sp1;
 CREATE PROCEDURE sp1( )
 BEGIN

@@ -295,4 +295,27 @@ connection default;
 disconnect newconn;
 SET @@GLOBAL.max_allowed_packet=default;
 
+--echo #
+--echo # Bug#13519724 63793: CRASH IN DTCOLLATION::SET(DTCOLLATION &SET)
+--echo #
+
+CREATE TABLE t1 (a VARCHAR(50));
+
+SELECT a FROM t1 
+WHERE CAST(a as BINARY)=x'62736D697468' 
+  AND CAST(a AS BINARY)=x'65736D697468';
+
+DROP TABLE t1;
+
 --echo End of 5.1 tests
+
+--echo #
+--echo # Bug#13581962 HIGH MEMORY USAGE ATTEMPT, THEN CRASH WITH LONGTEXT, UNION, USER VARIABLE
+--echo #
+
+CREATE TABLE t1 AS SELECT CONCAT(CAST(REPEAT('9', 1000) AS SIGNED)),
+                          CONCAT(CAST(REPEAT('9', 1000) AS UNSIGNED));
+SHOW CREATE TABLE t1;
+DROP TABLE t1;
+
+--echo End of 5.5 tests

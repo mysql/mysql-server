@@ -202,8 +202,7 @@ EXPLAIN EXTENDED SELECT 1 FROM t1
 WHERE f1 > ALL( SELECT t.f1 FROM t1,t1 AS t );
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
-2	SUBQUERY	t1	system	NULL	NULL	NULL	NULL	0	0.00	const row not found
-2	SUBQUERY	t	system	NULL	NULL	NULL	NULL	0	0.00	const row not found
+2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 Warnings:
 Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t1` where 0
 SET SESSION sql_mode=@old_sql_mode;
@@ -419,8 +418,8 @@ EXPLAIN EXTENDED SELECT * FROM t1 WHERE url=1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	index	PRIMARY	PRIMARY	1	NULL	5	100.00	Using where; Using index
 Warnings:
-Warning	1738	Cannot use ref access on index 'PRIMARY' due to type or collation conversion on field 'url'
-Warning	1738	Cannot use range access on index 'PRIMARY' due to type or collation conversion on field 'url'
+Warning	1739	Cannot use ref access on index 'PRIMARY' due to type or collation conversion on field 'url'
+Warning	1739	Cannot use range access on index 'PRIMARY' due to type or collation conversion on field 'url'
 Note	1003	/* select#1 */ select `test`.`t1`.`url` AS `url` from `test`.`t1` where (`test`.`t1`.`url` = 1)
 
 # Test that index can't be used for lookup due to collation mismatch
@@ -431,8 +430,8 @@ EXPLAIN EXTENDED SELECT * FROM t1 WHERE url='1' collate latin1_german2_ci;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	index	PRIMARY	PRIMARY	1	NULL	5	100.00	Using where; Using index
 Warnings:
-Warning	1738	Cannot use ref access on index 'PRIMARY' due to type or collation conversion on field 'url'
-Warning	1738	Cannot use range access on index 'PRIMARY' due to type or collation conversion on field 'url'
+Warning	1739	Cannot use ref access on index 'PRIMARY' due to type or collation conversion on field 'url'
+Warning	1739	Cannot use range access on index 'PRIMARY' due to type or collation conversion on field 'url'
 Note	1003	/* select#1 */ select `test`.`t1`.`url` AS `url` from `test`.`t1` where (`test`.`t1`.`url` = <cache>(('1' collate latin1_german2_ci)))
 
 # Normally, range access on primary key is done
@@ -452,7 +451,7 @@ EXPLAIN EXTENDED SELECT * FROM t1 WHERE url>3;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	index	PRIMARY	PRIMARY	1	NULL	5	100.00	Using where; Using index
 Warnings:
-Warning	1738	Cannot use range access on index 'PRIMARY' due to type or collation conversion on field 'url'
+Warning	1739	Cannot use range access on index 'PRIMARY' due to type or collation conversion on field 'url'
 Note	1003	/* select#1 */ select `test`.`t1`.`url` AS `url` from `test`.`t1` where (`test`.`t1`.`url` > 3)
 
 # Test that range access on index can't be done due to collation mismatch
@@ -464,7 +463,7 @@ EXPLAIN EXTENDED SELECT * FROM t1 WHERE url>'3' collate latin1_german2_ci;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	index	PRIMARY	PRIMARY	1	NULL	5	100.00	Using where; Using index
 Warnings:
-Warning	1738	Cannot use range access on index 'PRIMARY' due to type or collation conversion on field 'url'
+Warning	1739	Cannot use range access on index 'PRIMARY' due to type or collation conversion on field 'url'
 Note	1003	/* select#1 */ select `test`.`t1`.`url` AS `url` from `test`.`t1` where (`test`.`t1`.`url` > <cache>(('3' collate latin1_german2_ci)))
 
 DROP TABLE t1;

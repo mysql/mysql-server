@@ -270,7 +270,8 @@ ib_open_table_by_name(
 {
 	dict_table_t*	table;
 
-	table = dict_table_open_on_name(name, FALSE, FALSE);
+	table = dict_table_open_on_name(name, FALSE, FALSE,
+					DICT_ERR_IGNORE_NONE);
 
 	if (table != NULL && table->ibd_file_missing) {
 		table = NULL;
@@ -1143,7 +1144,7 @@ ib_cursor_open_index_using_name(
 {
 	dict_table_t*	table;
 	dict_index_t*	index;
-	ib_id_u64_t	index_id = 0;
+	index_id_t	index_id = 0;
 	ib_err_t	err = DB_TABLE_NOT_FOUND;
 	ib_cursor_t*	cursor = (ib_cursor_t*) ib_open_crsr;
 
@@ -1472,9 +1473,9 @@ ib_execute_insert_query_graph(
 	if (err == DB_SUCCESS) {
 		que_thr_stop_for_mysql_no_error(thr, trx);
 
-		table->stat_n_rows++;
+		dict_table_n_rows_inc(table);
 
-		srv_n_rows_inserted++;
+		srv_stats.n_rows_inserted.inc();
 	}
 
 	trx->op_info = "";
@@ -1824,13 +1825,11 @@ ib_execute_update_query_graph(
 
 		if (node->is_delete) {
 
-			if (table->stat_n_rows > 0) {
-				table->stat_n_rows--;
-			}
+			dict_table_n_rows_dec(table);
 
-			srv_n_rows_deleted++;
+			srv_stats.n_rows_deleted.inc();
 		} else {
-			srv_n_rows_updated++;
+			srv_stats.n_rows_updated.inc();
 		}
 
 	} else if (err == DB_RECORD_NOT_FOUND) {
@@ -2001,7 +2000,7 @@ ib_cursor_delete_row(
 
 		if (rec && !rec_get_deleted_flag(rec, page_format)) {
 			err = ib_delete_row(cursor, pcur, rec);
-		} else{
+		} else {
 			err = DB_RECORD_NOT_FOUND;
 		}
 	} else {
@@ -3672,7 +3671,8 @@ ib_table_truncate(
 
 	dict_mutex_enter_for_mysql();
 
-	table = dict_table_open_on_name(table_name, TRUE, FALSE);
+	table = dict_table_open_on_name(table_name, TRUE, FALSE,
+					DICT_ERR_IGNORE_NONE);
 
 	if (table != NULL && dict_table_get_first_index(table)) {
 		err = ib_create_cursor(&ib_crsr, table, 0, (trx_t*) ib_trx);

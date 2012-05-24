@@ -36,6 +36,9 @@ Created 9/17/2000 Heikki Tuuri
 #include "btr0pcur.h"
 #include "trx0types.h"
 
+// Forward declaration
+struct SysIndexCallback;
+
 extern ibool row_rollback_on_timeout;
 
 typedef struct row_prebuilt_struct row_prebuilt_t;
@@ -434,6 +437,19 @@ ulint
 row_get_background_drop_list_len_low(void);
 /*======================================*/
 /*********************************************************************//**
+Sets an exclusive lock on a table.
+@return	error code or DB_SUCCESS */
+UNIV_INTERN
+dberr_t
+row_mysql_lock_table(
+/*=================*/
+	trx_t*		trx,		/*!< in/out: transaction */
+	dict_table_t*	table,		/*!< in: table to lock */
+	enum lock_mode	mode,		/*!< in: LOCK_X or LOCK_S */
+	const char*	op_info)	/*!< in: string for trx->op_info */
+	__attribute__((nonnull, warn_unused_result));
+
+/*********************************************************************//**
 Truncates a table for MySQL.
 @return	error code or DB_SUCCESS */
 UNIV_INTERN
@@ -456,7 +472,7 @@ dberr_t
 row_drop_table_for_mysql(
 /*=====================*/
 	const char*	name,	/*!< in: table name */
-	trx_t*		trx,	/*!< in: transaction handle */
+	trx_t*		trx,	/*!< in: dictionary transaction handle */
 	bool		drop_db)/*!< in: true=dropping whole database */
 	__attribute__((nonnull));
 /*********************************************************************//**
@@ -486,9 +502,9 @@ UNIV_INTERN
 dberr_t
 row_import_tablespace_for_mysql(
 /*============================*/
-	const char*	name,	/*!< in: table name */
-	trx_t*		trx)	/*!< in: transaction handle */
-	__attribute__((nonnull, warn_unused_result));
+	dict_table_t*	table,		/*!< in/out: table */
+	row_prebuilt_t*	prebuilt)	/*!< in: prebuilt struct in MySQL */
+        __attribute__((nonnull, warn_unused_result));
 /*********************************************************************//**
 Drops a database for MySQL.
 @return	error code or DB_SUCCESS */
@@ -549,6 +565,18 @@ UNIV_INTERN
 void
 row_mysql_close(void);
 /*=================*/
+
+/*********************************************************************//**
+Reassigns the table identifier of a table.
+@return	error code or DB_SUCCESS */
+UNIV_INTERN
+dberr_t
+row_mysql_table_id_reassign(
+/*========================*/
+	dict_table_t*	table,	/*!< in/out: table */
+	trx_t*		trx,	/*!< in/out: transaction */
+	table_id_t*	new_id) /*!< out: new table id */
+        __attribute__((nonnull, warn_unused_result));
 
 /* A struct describing a place for an individual column in the MySQL
 row format which is presented to the table handler in ha_innobase.
@@ -826,6 +854,16 @@ struct row_prebuilt_struct {
 	const rec_t*	innodb_api_rec;	/*!< InnoDB API search result */
 };
 
+/** Callback for row_mysql_sys_index_iterate() */
+struct SysIndexCallback {
+	virtual ~SysIndexCallback() { }
+
+	/** Callback method
+	@param mtr - current mini transaction
+	@param pcur - persistent cursor. */
+	virtual void operator()(mtr_t* mtr, btr_pcur_t* pcur) throw() = 0;
+};
+
 #define ROW_PREBUILT_FETCH_MAGIC_N	465765687
 
 #define ROW_MYSQL_WHOLE_ROW	0
@@ -847,4 +885,4 @@ struct row_prebuilt_struct {
 #include "row0mysql.ic"
 #endif
 
-#endif
+#endif /* row0mysql.h */

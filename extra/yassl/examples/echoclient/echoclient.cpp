@@ -74,10 +74,10 @@ void echoclient_test(void* args)
 
     char send[1024];
     char reply[1024];
- 
+
     while (fgets(send, sizeof(send), fin)) {
 
-        int sendSz = strlen(send) + 1;
+        int sendSz = (int)strlen(send) + 1;
         if (SSL_write(ssl, send, sendSz) != sendSz)
             EchoClientError(ctx, ssl, sockfd, "SSL_write failed");
 
@@ -86,7 +86,7 @@ void echoclient_test(void* args)
             break;
         }
 
-        if (SSL_read(ssl, reply, sizeof(reply)) > 0) 
+        if (SSL_read(ssl, reply, sizeof(reply)) > 0)
             fputs(reply, fout);
     }
 

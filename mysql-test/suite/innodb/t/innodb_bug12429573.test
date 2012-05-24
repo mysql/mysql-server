@@ -6,9 +6,8 @@
 -- source include/have_innodb.inc
 -- source include/not_embedded.inc
 
-SET innodb_analyze_is_persistent=1;
-
-CREATE TABLE bug12429573 (i INTEGER PRIMARY KEY, j INTEGER, KEY(j));
+CREATE TABLE bug12429573 (i INTEGER PRIMARY KEY, j INTEGER, KEY(j))
+ENGINE=INNODB STATS_PERSISTENT=1;
 
 ANALYZE TABLE bug12429573;
 

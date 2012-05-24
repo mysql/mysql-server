@@ -59,6 +59,20 @@ protected:
   JOIN::ORDER_with_src group_list; //< GROUP BY item tee list
 
 protected:
+  class Lazy_condition: public Lazy
+  {
+    Item *const condition;
+  public:
+    Lazy_condition(Item *condition_arg): condition(condition_arg) {}
+    virtual bool eval(String *ret)
+    {
+      ret->length(0);
+      if (condition)
+        condition->print(ret, QT_ORDINARY);
+      return false;
+    }
+  };
+
   explicit Explain(Explain_context_enum context_type_arg,
                    THD *thd_arg, JOIN *join_arg= NULL)
   : thd(thd_arg),
@@ -890,6 +904,46 @@ bool Explain_table_base::explain_extra_common(const SQL_SELECT *select,
     return true;
   }
 
+  const TABLE* pushed_root= table->file->root_of_pushed_join();
+  if (pushed_root)
+  {
+    char buf[128];
+    int len;
+    int pushed_id= 0;
+
+    for (JOIN_TAB* prev= join->join_tab; prev <= tab; prev++)
+    {
+      const TABLE* prev_root= prev->table->file->root_of_pushed_join();
+      if (prev_root == prev->table)
+      {
+        pushed_id++;
+        if (prev_root == pushed_root)
+          break;
+      }
+    }
+    if (pushed_root == table)
+    {
+      uint pushed_count= tab->table->file->number_of_pushed_joins();
+      len= my_snprintf(buf, sizeof(buf)-1,
+                       "Parent of %d pushed join@%d",
+                       pushed_count, pushed_id);
+    }
+    else
+    {
+      len= my_snprintf(buf, sizeof(buf)-1,
+                       "Child of '%s' in pushed join@%d",
+                       tab->table->file->parent_of_pushed_join()->alias,
+                       pushed_id);
+    }
+
+    {
+      StringBuffer<128> buff(cs);
+      buff.append(buf,len);
+      if (push_extra(ET_PUSHED_JOIN, buff))
+        return true;
+    }
+  }
+
   switch (quick_type) {
   case QUICK_SELECT_I::QS_TYPE_ROR_UNION:
   case QUICK_SELECT_I::QS_TYPE_ROR_INTERSECT:
@@ -945,15 +999,11 @@ bool Explain_table_base::explain_extra_common(const SQL_SELECT *select,
       {
         if (fmt->is_hierarchical())
         {
-          StringBuffer<160> buff(cs);
-          if (tab)
-          {
-            if (tab->condition())
-              tab->condition()->print(&buff, QT_ORDINARY);
-          }
-          else
-            select->cond->print(&buff, QT_ORDINARY);
-          fmt->entry()->col_attached_condition.set(buff);
+          Lazy_condition *c= new Lazy_condition(tab ? tab->condition()
+                                                    : select->cond);
+          if (c == NULL)
+            return true;
+          fmt->entry()->col_attached_condition.set(c);
         }
         else if (push_extra(ET_USING_WHERE))
           return true;
@@ -1304,10 +1354,10 @@ bool Explain_join::explain_extra()
     {
       if (fmt->is_hierarchical())
       {
-        StringBuffer<160> buff(cs);
-        if (tab &&  tab->condition())
-          tab->condition()->print(&buff, QT_ORDINARY);
-        fmt->entry()->col_attached_condition.set(buff);
+        Lazy_condition *c= new Lazy_condition(tab->condition());
+        if (c == NULL)
+          return true;
+        fmt->entry()->col_attached_condition.set(c);
       }
       else if (push_extra(ET_USING_WHERE))
         return true;
@@ -1980,7 +2030,6 @@ bool mysql_explain_unit(THD *thd, SELECT_LEX_UNIT *unit, select_result *result)
                       first->order_list.first,
                       first->group_list.first,
                       first->having,
-                      thd->lex->proc_list.first,
                       first->options | thd->variables.option_bits | SELECT_DESCRIBE,
                       result, unit, first);
   }

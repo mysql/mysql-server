@@ -98,6 +98,7 @@
 #include "opt_explain.h"
 #include "sql_rewrite.h"
 #include "global_threads.h"
+#include "sql_analyse.h"
 
 #include <algorithm>
 using std::max;
@@ -112,7 +113,7 @@ using std::min;
 
 /* Used in error handling only */
 #define SP_TYPE_STRING(LP) \
-  ((LP)->sphead->m_type == TYPE_ENUM_FUNCTION ? "FUNCTION" : "PROCEDURE")
+  ((LP)->sphead->m_type == SP_TYPE_FUNCTION ? "FUNCTION" : "PROCEDURE")
 #define SP_COM_STRING(LP) \
   ((LP)->sql_command == SQLCOM_CREATE_SPFUNCTION || \
    (LP)->sql_command == SQLCOM_ALTER_FUNCTION || \
@@ -1382,10 +1383,17 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     }
     thd->convert_string(&table_name, system_charset_info,
 			packet, arg_length, thd->charset());
-    if (check_table_name(table_name.str, table_name.length, FALSE))
+    enum_ident_name_check ident_check_status=
+      check_table_name(table_name.str, table_name.length, FALSE);
+    if (ident_check_status == IDENT_NAME_WRONG)
     {
       /* this is OK due to convert_string() null-terminating the string */
       my_error(ER_WRONG_TABLE_NAME, MYF(0), table_name.str);
+      break;
+    }
+    else if (ident_check_status == IDENT_NAME_TOO_LONG)
+    {
+      my_error(ER_TOO_LONG_IDENT, MYF(0), table_name.str);
       break;
     }
     packet= arg_end + 1;
@@ -1859,11 +1867,8 @@ int prepare_schema_table(THD *thd, LEX *lex, Table_ident *table_ident,
       schema_select_lex->table_list.first= NULL;
       db.length= strlen(db.str);
 
-      if (check_and_convert_db_name(&db, FALSE))
-      {
-        my_error(ER_WRONG_DB_NAME, MYF(0), db.str);
+      if (check_and_convert_db_name(&db, FALSE) != IDENT_NAME_OK)
         DBUG_RETURN(1);
-      }
       break;
     }
 #endif
@@ -2347,6 +2352,11 @@ mysql_execute_command(THD *thd)
       }
       DBUG_RETURN(0);
     }
+    /* 
+       Execute deferred events first
+    */
+    if (slave_execute_deferred_events(thd))
+      DBUG_RETURN(-1);
   }
   else
   {
@@ -3463,7 +3473,6 @@ end_with_restore_list:
                           select_lex->item_list,
                           select_lex->where,
                           0, (ORDER *)NULL, (ORDER *)NULL, (Item *)NULL,
-                          (ORDER *)NULL,
                           (select_lex->options | thd->variables.option_bits |
                           SELECT_NO_JOIN_CACHE | SELECT_NO_UNLOCK |
                           OPTION_SETUP_TABLES_DONE) & ~OPTION_BUFFER_RESULT,
@@ -3666,11 +3675,8 @@ end_with_restore_list:
     HA_CREATE_INFO create_info(lex->create_info);
     char *alias;
     if (!(alias=thd->strmake(lex->name.str, lex->name.length)) ||
-        check_and_convert_db_name(&lex->name, FALSE))
-    {
-      my_error(ER_WRONG_DB_NAME, MYF(0), lex->name.str);
+        (check_and_convert_db_name(&lex->name, FALSE) != IDENT_NAME_OK))
       break;
-    }
     /*
       If in a slave thread :
       CREATE DATABASE DB was certainly not preceded by USE DB.
@@ -3693,11 +3699,8 @@ end_with_restore_list:
   }
   case SQLCOM_DROP_DB:
   {
-    if (check_and_convert_db_name(&lex->name, FALSE))
-    {
-      my_error(ER_WRONG_DB_NAME, MYF(0), lex->name.str);
+    if (check_and_convert_db_name(&lex->name, FALSE) != IDENT_NAME_OK)
       break;
-    }
     /*
       If in a slave thread :
       DROP DATABASE DB may not be preceded by USE DB.
@@ -3728,11 +3731,8 @@ end_with_restore_list:
       break;
     }
 #endif
-    if (check_and_convert_db_name(db, FALSE))
-    {
-      my_error(ER_WRONG_DB_NAME, MYF(0), db->str);
+    if (check_and_convert_db_name(db, FALSE) != IDENT_NAME_OK)
       break;
-    }
     if (check_access(thd, ALTER_ACL, db->str, NULL, NULL, 1, 0) ||
         check_access(thd, DROP_ACL, db->str, NULL, NULL, 1, 0) ||
         check_access(thd, CREATE_ACL, db->str, NULL, NULL, 1, 0))
@@ -3749,11 +3749,8 @@ end_with_restore_list:
   {
     LEX_STRING *db= &lex->name;
     HA_CREATE_INFO create_info(lex->create_info);
-    if (check_and_convert_db_name(db, FALSE))
-    {
-      my_error(ER_WRONG_DB_NAME, MYF(0), db->str);
+    if (check_and_convert_db_name(db, FALSE) != IDENT_NAME_OK)
       break;
-    }
     /*
       If in a slave thread :
       ALTER DATABASE DB may not be preceded by USE DB.
@@ -3777,11 +3774,8 @@ end_with_restore_list:
   {
     DBUG_EXECUTE_IF("4x_server_emul",
                     my_error(ER_UNKNOWN_ERROR, MYF(0)); goto error;);
-    if (check_and_convert_db_name(&lex->name, TRUE))
-    {
-      my_error(ER_WRONG_DB_NAME, MYF(0), lex->name.str);
+    if (check_and_convert_db_name(&lex->name, TRUE) != IDENT_NAME_OK)
       break;
-    }
     res= mysqld_show_create_db(thd, lex->name.str, &lex->create_info);
     break;
   }
@@ -4039,6 +4033,17 @@ end_with_restore_list:
       my_ok(thd);
       break;
     }
+    else if (first_table && lex->type & REFRESH_FOR_EXPORT)
+    {
+      /* Check table-level privileges. */
+      if (check_table_access(thd, LOCK_TABLES_ACL | SELECT_ACL, all_tables,
+                             FALSE, UINT_MAX, FALSE))
+        goto error;
+      if (flush_tables_for_export(thd, all_tables))
+        goto error;
+      my_ok(thd);
+      break;
+    }
 
     /*
       reload_acl_and_cache() will tell us if we are allowed to write to the
@@ -4203,11 +4208,8 @@ end_with_restore_list:
       Verify that the database name is allowed, optionally
       lowercase it.
     */
-    if (check_and_convert_db_name(&lex->sphead->m_db, FALSE))
-    {
-      my_error(ER_WRONG_DB_NAME, MYF(0), lex->sphead->m_db.str);
+    if (check_and_convert_db_name(&lex->sphead->m_db, FALSE) != IDENT_NAME_OK)
       goto create_sp_error;
-    }
 
     if (check_access(thd, CREATE_PROC_ACL, lex->sphead->m_db.str,
                      NULL, NULL, 0, 0))
@@ -4226,7 +4228,7 @@ end_with_restore_list:
 
     name= lex->sphead->name(&namelen);
 #ifdef HAVE_DLOPEN
-    if (lex->sphead->m_type == TYPE_ENUM_FUNCTION)
+    if (lex->sphead->m_type == SP_TYPE_FUNCTION)
     {
       udf_func *udf = find_udf(name, namelen);
 
@@ -4241,7 +4243,7 @@ end_with_restore_list:
     if (sp_process_definer(thd))
       goto create_sp_error;
 
-    res= (sp_result= sp_create_routine(thd, lex->sphead->m_type, lex->sphead));
+    res= (sp_result= sp_create_routine(thd, lex->sphead));
     switch (sp_result) {
     case SP_OK: {
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
@@ -4360,7 +4362,7 @@ create_sp_error:
         By this moment all needed SPs should be in cache so no need to look 
         into DB. 
       */
-      if (!(sp= sp_find_routine(thd, TYPE_ENUM_PROCEDURE, lex->spname,
+      if (!(sp= sp_find_routine(thd, SP_TYPE_PROCEDURE, lex->spname,
                                 &thd->sp_proc_cache, TRUE)))
       {
 	my_error(ER_SP_DOES_NOT_EXIST, MYF(0), "PROCEDURE",
@@ -4442,15 +4444,14 @@ create_sp_error:
   case SQLCOM_ALTER_PROCEDURE:
   case SQLCOM_ALTER_FUNCTION:
     {
-      int sp_result;
-      int type= (lex->sql_command == SQLCOM_ALTER_PROCEDURE ?
-                 TYPE_ENUM_PROCEDURE : TYPE_ENUM_FUNCTION);
-
       if (check_routine_access(thd, ALTER_PROC_ACL, lex->spname->m_db.str,
                                lex->spname->m_name.str,
-                               lex->sql_command == SQLCOM_ALTER_PROCEDURE, 0))
+                               lex->sql_command == SQLCOM_ALTER_PROCEDURE,
+                               false))
         goto error;
 
+      enum_sp_type sp_type= (lex->sql_command == SQLCOM_ALTER_PROCEDURE) ?
+                            SP_TYPE_PROCEDURE : SP_TYPE_FUNCTION;
       /*
         Note that if you implement the capability of ALTER FUNCTION to
         alter the body of the function, this command should be made to
@@ -4458,7 +4459,8 @@ create_sp_error:
         already puts on CREATE FUNCTION.
       */
       /* Conditionally writes to binlog */
-      sp_result= sp_update_routine(thd, type, lex->spname, &lex->sp_chistics);
+      int sp_result= sp_update_routine(thd, sp_type, lex->spname,
+                                       &lex->sp_chistics);
       switch (sp_result)
       {
       case SP_OK:
@@ -4519,18 +4521,19 @@ create_sp_error:
       }
 #endif
 
-      int sp_result;
-      int type= (lex->sql_command == SQLCOM_DROP_PROCEDURE ?
-                 TYPE_ENUM_PROCEDURE : TYPE_ENUM_FUNCTION);
       char *db= lex->spname->m_db.str;
       char *name= lex->spname->m_name.str;
 
       if (check_routine_access(thd, ALTER_PROC_ACL, db, name,
-                               lex->sql_command == SQLCOM_DROP_PROCEDURE, 0))
+                               lex->sql_command == SQLCOM_DROP_PROCEDURE,
+                               false))
         goto error;
 
+      enum_sp_type sp_type= (lex->sql_command == SQLCOM_DROP_PROCEDURE) ?
+                            SP_TYPE_PROCEDURE : SP_TYPE_FUNCTION;
+
       /* Conditionally writes to binlog */
-      sp_result= sp_drop_routine(thd, type, lex->spname);
+      int sp_result= sp_drop_routine(thd, sp_type, lex->spname);
 
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
       /*
@@ -4592,13 +4595,13 @@ create_sp_error:
     }
   case SQLCOM_SHOW_CREATE_PROC:
     {
-      if (sp_show_create_routine(thd, TYPE_ENUM_PROCEDURE, lex->spname))
+      if (sp_show_create_routine(thd, SP_TYPE_PROCEDURE, lex->spname))
         goto error;
       break;
     }
   case SQLCOM_SHOW_CREATE_FUNC:
     {
-      if (sp_show_create_routine(thd, TYPE_ENUM_FUNCTION, lex->spname))
+      if (sp_show_create_routine(thd, SP_TYPE_FUNCTION, lex->spname))
 	goto error;
       break;
     }
@@ -4607,10 +4610,10 @@ create_sp_error:
     {
 #ifndef DBUG_OFF
       sp_head *sp;
-      int type= (lex->sql_command == SQLCOM_SHOW_PROC_CODE ?
-                 TYPE_ENUM_PROCEDURE : TYPE_ENUM_FUNCTION);
+      enum_sp_type sp_type= (lex->sql_command == SQLCOM_SHOW_PROC_CODE) ?
+                            SP_TYPE_PROCEDURE : SP_TYPE_FUNCTION;
 
-      if (sp_cache_routine(thd, type, lex->spname, FALSE, &sp))
+      if (sp_cache_routine(thd, sp_type, lex->spname, false, &sp))
         goto error;
       if (!sp || sp->show_routine_code(thd))
       {
@@ -4943,10 +4946,19 @@ static bool execute_sqlcom_select(THD *thd, TABLE_LIST *all_tables)
     {
       if (!result && !(result= new select_send()))
         return 1;                               /* purecov: inspected */
+      select_result *save_result= result;
+      select_result *analyse_result= NULL;
+      if (lex->proc_analyse)
+      {
+        if ((result= analyse_result=
+               new select_analyse(result, lex->proc_analyse)) == NULL)
+          return true;
+      }
       query_cache_store_query(thd, all_tables);
       res= handle_select(thd, lex, result, 0);
-      if (result != lex->result)
-        delete result;
+      delete analyse_result;
+      if (save_result != lex->result)
+        delete save_result;
     }
   }
   return res;
@@ -6233,22 +6245,6 @@ void store_position_for_column(const char *name)
   current_thd->lex->last_field->after=(char*) (name);
 }
 
-bool
-add_proc_to_list(THD* thd, Item *item)
-{
-  ORDER *order;
-  Item	**item_ptr;
-
-  if (!(order = (ORDER *) thd->alloc(sizeof(ORDER)+sizeof(Item*))))
-    return 1;
-  item_ptr = (Item**) (order+1);
-  *item_ptr= item;
-  order->item=item_ptr;
-  order->used_alias= false;
-  thd->lex->proc_list.link_in_list(order, &order->next);
-  return 0;
-}
-
 
 /**
   save order by and tables in own lists.
@@ -6311,19 +6307,24 @@ TABLE_LIST *st_select_lex::add_table_to_list(THD *thd,
   if (!table)
     DBUG_RETURN(0);				// End of memory
   alias_str= alias ? alias->str : table->table.str;
-  if (!test(table_options & TL_OPTION_ALIAS) && 
-      check_table_name(table->table.str, table->table.length, FALSE))
+  if (!test(table_options & TL_OPTION_ALIAS))
   {
-    my_error(ER_WRONG_TABLE_NAME, MYF(0), table->table.str);
-    DBUG_RETURN(0);
+    enum_ident_name_check ident_check_status=
+      check_table_name(table->table.str, table->table.length, FALSE);
+    if (ident_check_status == IDENT_NAME_WRONG)
+    {
+      my_error(ER_WRONG_TABLE_NAME, MYF(0), table->table.str);
+      DBUG_RETURN(0);
+    }
+    else if (ident_check_status == IDENT_NAME_TOO_LONG)
+    {
+      my_error(ER_TOO_LONG_IDENT, MYF(0), table->table.str);
+      DBUG_RETURN(0);
+    }
   }
-
   if (table->is_derived_table() == FALSE && table->db.str &&
-      check_and_convert_db_name(&table->db, FALSE))
-  {
-    my_error(ER_WRONG_DB_NAME, MYF(0), table->db.str);
+      (check_and_convert_db_name(&table->db, FALSE) != IDENT_NAME_OK))
     DBUG_RETURN(0);
-  }
 
   if (!alias)					/* Alias is case sensitive */
   {

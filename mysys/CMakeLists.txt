@@ -20,7 +20,7 @@ ADD_DEFINITIONS(${SSL_DEFINES})
 ENDIF()
 
 SET(MYSYS_SOURCES  array.c charset-def.c charset.c checksum.c default.c
-				errors.c hash.c list.c md5.c mf_cache.c mf_dirname.c mf_fn_ext.c
+				errors.c hash.c list.c mf_cache.c mf_dirname.c mf_fn_ext.c
 				mf_format.c mf_getdate.c mf_iocache.c mf_iocache2.c mf_keycache.c 
 				mf_keycaches.c mf_loadpath.c mf_pack.c mf_path.c mf_qsort.c mf_qsort2.c
 				mf_radix.c mf_same.c mf_sort.c mf_soundex.c mf_arr_appstr.c mf_tempdir.c
@@ -35,7 +35,7 @@ SET(MYSYS_SOURCES  array.c charset-def.c charset.c checksum.c default.c
 				my_quick.c my_read.c my_redel.c my_rename.c my_seek.c my_sleep.c
 				my_static.c my_symlink.c my_symlink2.c my_sync.c my_thr_init.c 
 				my_write.c ptr_cmp.c queues.c stacktrace.c
-				rijndael.c sha1.c string.c thr_alarm.c thr_lock.c thr_mutex.c
+				rijndael.c string.c thr_alarm.c thr_lock.c thr_mutex.c
 				thr_rwlock.c tree.c typelib.c base64.c my_memmem.c my_getpagesize.c
 				lf_alloc-pin.c lf_dynarray.c lf_hash.c
 				my_atomic.c my_getncpus.c

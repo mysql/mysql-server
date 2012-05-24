@@ -1786,6 +1786,10 @@ int store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
       packet->append(STRING_WITH_LEN(" PACK_KEYS=1"));
     if (share->db_create_options & HA_OPTION_NO_PACK_KEYS)
       packet->append(STRING_WITH_LEN(" PACK_KEYS=0"));
+    if (share->db_create_options & HA_OPTION_STATS_PERSISTENT)
+      packet->append(STRING_WITH_LEN(" STATS_PERSISTENT=1"));
+    if (share->db_create_options & HA_OPTION_NO_STATS_PERSISTENT)
+      packet->append(STRING_WITH_LEN(" STATS_PERSISTENT=0"));
     /* We use CHECKSUM, instead of TABLE_CHECKSUM, for backward compability */
     if (share->db_create_options & HA_OPTION_CHECKSUM)
       packet->append(STRING_WITH_LEN(" CHECKSUM=1"));
@@ -4308,6 +4312,12 @@ static int get_schema_tables_record(THD *thd, TABLE_LIST *tables,
     if (share->db_create_options & HA_OPTION_NO_PACK_KEYS)
       ptr=strmov(ptr," pack_keys=0");
 
+    if (share->db_create_options & HA_OPTION_STATS_PERSISTENT)
+      ptr=strmov(ptr," stats_persistent=1");
+
+    if (share->db_create_options & HA_OPTION_NO_STATS_PERSISTENT)
+      ptr=strmov(ptr," stats_persistent=0");
+
     /* We use CHECKSUM, instead of TABLE_CHECKSUM, for backward compability */
     if (share->db_create_options & HA_OPTION_CHECKSUM)
       ptr=strmov(ptr," checksum=1");
@@ -4937,7 +4947,7 @@ bool store_schema_params(THD *thd, TABLE *table, TABLE *proc_table,
   String sp_name(sp_name_buff, sizeof(sp_name_buff), cs);
   String definer(definer_buff, sizeof(definer_buff), cs);
   sp_head *sp;
-  uint routine_type;
+  enum_sp_type routine_type;
   bool free_sp_head;
   DBUG_ENTER("store_schema_params");
 
@@ -4948,20 +4958,20 @@ bool store_schema_params(THD *thd, TABLE *table, TABLE *proc_table,
   get_field(thd->mem_root, proc_table->field[MYSQL_PROC_FIELD_DB], &sp_db);
   get_field(thd->mem_root, proc_table->field[MYSQL_PROC_FIELD_NAME], &sp_name);
   get_field(thd->mem_root,proc_table->field[MYSQL_PROC_FIELD_DEFINER],&definer);
-  routine_type= (uint) proc_table->field[MYSQL_PROC_MYSQL_TYPE]->val_int();
+  routine_type= (enum_sp_type) proc_table->field[MYSQL_PROC_MYSQL_TYPE]->val_int();
 
   if (!full_access)
     full_access= !strcmp(sp_user, definer.ptr());
   if (!full_access &&
       check_some_routine_access(thd, sp_db.ptr(),sp_name.ptr(),
-                                routine_type == TYPE_ENUM_PROCEDURE))
+                                routine_type == SP_TYPE_PROCEDURE))
     DBUG_RETURN(0);
 
   params.length(0);
   get_field(thd->mem_root, proc_table->field[MYSQL_PROC_FIELD_PARAM_LIST],
             &params);
   returns.length(0);
-  if (routine_type == TYPE_ENUM_FUNCTION)
+  if (routine_type == SP_TYPE_FUNCTION)
     get_field(thd->mem_root, proc_table->field[MYSQL_PROC_FIELD_RETURNS],
               &returns);
 
@@ -4978,7 +4988,7 @@ bool store_schema_params(THD *thd, TABLE *table, TABLE *proc_table,
     Field *field;
     Create_field *field_def;
     String tmp_string;
-    if (routine_type == TYPE_ENUM_FUNCTION)
+    if (routine_type == SP_TYPE_FUNCTION)
     {
       restore_record(table, s->default_values);
       table->field[IS_PARAMETERS_SPECIFIC_CATALOG]->store(STRING_WITH_LEN
@@ -5097,20 +5107,20 @@ bool store_schema_proc(THD *thd, TABLE *table, TABLE *proc_table,
   proc_table->field[MYSQL_PROC_FIELD_NAME]->val_str(&sp_name);
   proc_table->field[MYSQL_PROC_FIELD_DEFINER]->val_str(&definer);
 
+  enum_sp_type sp_type=
+    (enum_sp_type) proc_table->field[MYSQL_PROC_MYSQL_TYPE]->val_int();
+
   if (!full_access)
     full_access= !strcmp(sp_user, definer.c_ptr_safe());
   if (!full_access &&
       check_some_routine_access(thd, sp_db.c_ptr_safe(), sp_name.c_ptr_safe(),
-                                proc_table->field[MYSQL_PROC_MYSQL_TYPE]->
-                                val_int() == TYPE_ENUM_PROCEDURE))
+                                sp_type == SP_TYPE_PROCEDURE))
     return 0;
 
   if ((lex->sql_command == SQLCOM_SHOW_STATUS_PROC &&
-      proc_table->field[MYSQL_PROC_MYSQL_TYPE]->val_int() ==
-      TYPE_ENUM_PROCEDURE) ||
+      sp_type == SP_TYPE_PROCEDURE) ||
       (lex->sql_command == SQLCOM_SHOW_STATUS_FUNC &&
-      proc_table->field[MYSQL_PROC_MYSQL_TYPE]->val_int() ==
-      TYPE_ENUM_FUNCTION) ||
+      sp_type == SP_TYPE_FUNCTION) ||
       (sql_command_flags[lex->sql_command] & CF_STATUS_COMMAND) == 0)
   {
     restore_record(table, s->default_values);
@@ -5129,8 +5139,7 @@ bool store_schema_proc(THD *thd, TABLE *table, TABLE *proc_table,
       copy_field_as_string(table->field[IS_ROUTINES_ROUTINE_TYPE],
                            proc_table->field[MYSQL_PROC_MYSQL_TYPE]);
 
-      if (proc_table->field[MYSQL_PROC_MYSQL_TYPE]->val_int() ==
-          TYPE_ENUM_FUNCTION)
+      if (sp_type == SP_TYPE_FUNCTION)
       {
         sp_head *sp;
         bool free_sp_head;
@@ -5139,7 +5148,7 @@ bool store_schema_proc(THD *thd, TABLE *table, TABLE *proc_table,
                                            (sql_mode_t) proc_table->
                                            field[MYSQL_PROC_FIELD_SQL_MODE]->
                                            val_int(),
-                                           TYPE_ENUM_FUNCTION,
+                                           SP_TYPE_FUNCTION,
                                            returns.c_ptr_safe(),
                                            "", &free_sp_head);
 
@@ -5244,7 +5253,11 @@ int fill_schema_proc(THD *thd, TABLE_LIST *tables, Item *cond)
   {
     DBUG_RETURN(1);
   }
-  proc_table->file->ha_index_init(0, 1);
+  if (proc_table->file->ha_index_init(0, 1))
+  {
+    res= 1;
+    goto err;
+  }
   if ((res= proc_table->file->ha_index_first(proc_table->record[0])))
   {
     res= (res == HA_ERR_END_OF_FILE) ? 0 : 1;
@@ -5270,7 +5283,8 @@ int fill_schema_proc(THD *thd, TABLE_LIST *tables, Item *cond)
   }
 
 err:
-  proc_table->file->ha_index_end();
+  if (proc_table->file->inited)
+    (void) proc_table->file->ha_index_end();
   close_system_tables(thd, &open_tables_state_backup);
   DBUG_RETURN(res);
 }
@@ -6720,17 +6734,18 @@ TABLE *create_schema_table(THD *thd, TABLE_LIST *table_list)
     case MYSQL_TYPE_TIME:
     case MYSQL_TYPE_TIMESTAMP:
     case MYSQL_TYPE_DATETIME:
-      if (!(item=new Item_return_date_time(fields_info->field_name,
-                                           fields_info->field_type)))
-      {
+    {
+      const Name_string field_name(fields_info->field_name,
+                                   strlen(fields_info->field_name));
+      if (!(item=new Item_temporal(fields_info->field_type, field_name, 0, 0)))
         DBUG_RETURN(0);
-      }
       break;
+    }
     case MYSQL_TYPE_FLOAT:
     case MYSQL_TYPE_DOUBLE:
     {
-      const NameString field_name(fields_info->field_name,
-                                  strlen(fields_info->field_name));
+      const Name_string field_name(fields_info->field_name,
+                                   strlen(fields_info->field_name));
       if ((item= new Item_float(field_name, 0.0, NOT_FIXED_DEC, 
                                 fields_info->field_length)) == NULL)
         DBUG_RETURN(NULL);
@@ -7214,6 +7229,10 @@ bool get_schema_tables_result(JOIN *join,
   LEX *lex= thd->lex;
   bool result= 0;
   DBUG_ENTER("get_schema_tables_result");
+
+  /* Check if the schema table is optimized away */
+  if (!join->join_tab)
+    DBUG_RETURN(result);
 
   for (JOIN_TAB *tab= join->join_tab; tab < tmp_join_tab; tab++)
   {  

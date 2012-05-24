@@ -397,8 +397,8 @@ void upgrade_lock_type(THD *thd, thr_lock_type *lock_type,
   {
     /*
       We do not use delayed threads if:
-      - we're running in the safe mode or skip-new mode -- the
-        feature is disabled in these modes
+      - we're running in skip-new mode -- the feature is disabled
+        in this mode
       - we're executing this statement on a replication slave --
         we need to ensure serial execution of queries on the
         slave
@@ -418,7 +418,7 @@ void upgrade_lock_type(THD *thd, thr_lock_type *lock_type,
         client connection and the delayed thread.
       - we're running the EXPLAIN INSERT command
     */
-    if (specialflag & (SPECIAL_NO_NEW_FUNC | SPECIAL_SAFE_MODE) ||
+    if (specialflag & SPECIAL_NO_NEW_FUNC ||
         thd->variables.max_insert_delayed_threads == 0 ||
         thd->locked_tables_mode > LTM_LOCK_TABLES ||
         thd->lex->uses_stored_routines() || thd->lex->describe)
@@ -3198,9 +3198,8 @@ bool Delayed_insert::handle_inserts(void)
   DBUG_RETURN(0);
 
  err:
-#ifndef DBUG_OFF
-  max_rows= 0;                                  // For DBUG output
-#endif
+  max_rows= 0;
+  mysql_mutex_lock(&mutex);
   /* Remove all not used rows */
   while ((row=rows.get()))
   {
@@ -3210,13 +3209,13 @@ bool Delayed_insert::handle_inserts(void)
       free_delayed_insert_blobs(table);
     }
     delete row;
-    thread_safe_increment(delayed_insert_errors,&LOCK_delayed_status);
     stacked_inserts--;
-#ifndef DBUG_OFF
     max_rows++;
-#endif
   }
+  mysql_mutex_unlock(&mutex);
   DBUG_PRINT("error", ("dropped %lu rows after an error", max_rows));
+  for (; max_rows > 0; max_rows--)
+    thread_safe_increment(delayed_insert_errors, &LOCK_delayed_status);
   thread_safe_increment(delayed_insert_errors, &LOCK_delayed_status);
   mysql_mutex_lock(&mutex);
   DBUG_RETURN(1);

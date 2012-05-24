@@ -57,6 +57,7 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, Item *conds,
   bool          const_cond_result;
   ha_rows	deleted= 0;
   bool          reverse= FALSE;
+  bool          read_removal= false;
   bool          skip_record;
   bool          need_sort= FALSE;
   bool          err= true;
@@ -127,8 +128,7 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, Item *conds,
     handler::delete_all_rows() method.
 
     We can use delete_all_rows() if and only if:
-    - We allow new functions (not using option --skip-new), and are
-      not in safe mode (not using option --safe-mode)
+    - We allow new functions (not using option --skip-new)
     - There is no limit clause
     - The condition is constant
     - If there is a condition, then it it produces a non-zero value
@@ -137,7 +137,7 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, Item *conds,
       - there should be no delete triggers associated with the table.
   */
   if (!using_limit && const_cond_result &&
-      !(specialflag & (SPECIAL_NO_NEW_FUNC | SPECIAL_SAFE_MODE)) &&
+      !(specialflag & SPECIAL_NO_NEW_FUNC) &&
        (!thd->is_current_stmt_binlog_format_row() &&
         !(table->triggers && table->triggers->has_delete_triggers())))
   {
@@ -342,8 +342,12 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, Item *conds,
   else
     will_batch= !table->file->start_bulk_delete();
 
-
   table->mark_columns_needed_for_delete();
+
+  if ((table->file->ha_table_flags() & HA_READ_BEFORE_WRITE_REMOVAL) &&
+      !using_limit &&
+      select && select->quick && select->quick->index != MAX_KEY)
+    read_removal= table->check_read_removal(select->quick->index);
 
   while (!(error=info.read_record(&info)) && !thd->killed &&
 	 ! thd->is_error())
@@ -403,6 +407,11 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, Item *conds,
     if (error != 1)
       table->file->print_error(loc_error,MYF(0));
     error=1;
+  }
+  if (read_removal)
+  {
+    /* Only handler knows how many records were really written */
+    deleted= table->file->end_read_removal();
   }
   THD_STAGE_INFO(thd, stage_end);
   end_read_record(&info);

@@ -89,8 +89,6 @@ extern ibool		buf_debug_prints;/*!< If this is set TRUE, the program
 					prints info whenever read or flush
 					occurs */
 #endif /* UNIV_DEBUG */
-extern ulint srv_buf_pool_write_requests; /*!< variable to count write request
-					  issued */
 extern ulint srv_buf_pool_instances;
 extern ulint srv_buf_pool_curr_size;
 #else /* !UNIV_HOTBACKUP */
@@ -629,9 +627,12 @@ UNIV_INTERN
 ibool
 buf_page_is_corrupted(
 /*==================*/
+	bool		check_lsn,	/*!< in: true if we need to check the
+					and complain about the LSN */
 	const byte*	read_buf,	/*!< in: a database page */
-	ulint		zip_size);	/*!< in: size of compressed page;
+	ulint		zip_size)	/*!< in: size of compressed page;
 					0 for uncompressed pages */
+	__attribute__((nonnull, warn_unused_result));
 #ifndef UNIV_HOTBACKUP
 /**********************************************************************//**
 Gets the space id, page offset, and byte offset within page of a
@@ -1383,6 +1384,16 @@ buf_get_nth_chunk_block(
 	const buf_pool_t* buf_pool,	/*!< in: buffer pool instance */
 	ulint		n,		/*!< in: nth chunk in the buffer pool */
 	ulint*		chunk_size);	/*!< in: chunk size */
+
+/********************************************************************//**
+Calculate the checksum of a page from compressed table and update the page. */
+UNIV_INTERN
+void
+buf_flush_update_zip_checksum(
+/*==========================*/
+	buf_frame_t*	page,		/*!< in/out: Page to update */
+	ulint		zip_size,	/*!< in: Compressed page size */
+	lsn_t		lsn);		/*!< in: Lsn to stamp on the page */
 
 #endif /* !UNIV_HOTBACKUP */
 

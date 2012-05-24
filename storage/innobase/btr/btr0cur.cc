@@ -713,6 +713,7 @@ retry_page_get:
 			? SYNC_IBUF_TREE_NODE : SYNC_TREE_NODE);
 	}
 
+	ut_ad(fil_page_get_type(page) == FIL_PAGE_INDEX);
 	ut_ad(index->id == btr_page_get_index_id(page));
 
 	if (UNIV_UNLIKELY(height == ULINT_UNDEFINED)) {
@@ -911,6 +912,7 @@ btr_cur_open_at_index_side_func(
 					 RW_NO_LATCH, NULL, BUF_GET,
 					 file, line, mtr);
 		page = buf_block_get_frame(block);
+		ut_ad(fil_page_get_type(page) == FIL_PAGE_INDEX);
 		ut_ad(index->id == btr_page_get_index_id(page));
 
 		block->check_index_page_at_flush = TRUE;
@@ -1040,6 +1042,7 @@ btr_cur_open_at_rnd_pos_func(
 					 RW_NO_LATCH, NULL, BUF_GET,
 					 file, line, mtr);
 		page = buf_block_get_frame(block);
+		ut_ad(fil_page_get_type(page) == FIL_PAGE_INDEX);
 		ut_ad(index->id == btr_page_get_index_id(page));
 
 		if (height == ULINT_UNDEFINED) {
@@ -1915,6 +1918,8 @@ btr_cur_update_in_place(
 	ut_ad(!thr || thr_get_trx(thr)->id == trx_id);
 	ut_ad(thr || flags == (BTR_NO_UNDO_LOG_FLAG | BTR_NO_LOCKING_FLAG
 			       | BTR_CREATE_FLAG | BTR_KEEP_SYS_FLAG));
+	ut_ad(fil_page_get_type(btr_cur_get_page(cursor)) == FIL_PAGE_INDEX);
+	ut_ad(btr_page_get_index_id(btr_cur_get_page(cursor)) == index->id);
 
 	offsets = rec_get_offsets(rec, index, offsets, ULINT_UNDEFINED, &heap);
 #ifdef UNIV_DEBUG
@@ -2062,6 +2067,8 @@ btr_cur_optimistic_update(
 	ut_ad(!thr || thr_get_trx(thr)->id == trx_id);
 	ut_ad(thr || flags == (BTR_NO_UNDO_LOG_FLAG | BTR_NO_LOCKING_FLAG
 			       | BTR_CREATE_FLAG | BTR_KEEP_SYS_FLAG));
+	ut_ad(fil_page_get_type(page) == FIL_PAGE_INDEX);
+	ut_ad(btr_page_get_index_id(page) == index->id);
 
 	heap = mem_heap_create(1024);
 	offsets = rec_get_offsets(rec, index, NULL, ULINT_UNDEFINED, &heap);
@@ -3474,6 +3481,9 @@ btr_estimate_n_rows_in_range(
 	ibool		is_n_rows_exact;
 	ulint		i;
 	mtr_t		mtr;
+	ib_int64_t	table_n_rows;
+
+	table_n_rows = dict_table_get_n_rows(index->table);
 
 	mtr_start(&mtr);
 
@@ -3538,20 +3548,21 @@ btr_estimate_n_rows_in_range(
 				n_rows = n_rows * 2;
 			}
 
+			DBUG_EXECUTE_IF("bug14007649", return(n_rows););
+
 			/* Do not estimate the number of rows in the range
 			to over 1 / 2 of the estimated rows in the whole
 			table */
 
-			if (n_rows > index->table->stat_n_rows / 2
-			    && !is_n_rows_exact) {
+			if (n_rows > table_n_rows / 2 && !is_n_rows_exact) {
 
-				n_rows = index->table->stat_n_rows / 2;
+				n_rows = table_n_rows / 2;
 
 				/* If there are just 0 or 1 rows in the table,
 				then we estimate all rows are in the range */
 
 				if (n_rows == 0) {
-					n_rows = index->table->stat_n_rows;
+					n_rows = table_n_rows;
 				}
 			}
 
@@ -5150,6 +5161,7 @@ btr_copy_zblob_prefix(
 				" page %lu space %lu\n",
 				(ulong) fil_page_get_type(bpage->zip.data),
 				(ulong) page_no, (ulong) space_id);
+			ut_ad(0);
 			goto end_of_blob;
 		}
 

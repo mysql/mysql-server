@@ -794,36 +794,6 @@ row_merge_heap_create(
 	return(heap);
 }
 
-/**********************************************************************//**
-Search an index object by name and column names.  If several indexes match,
-return the index with the max id.
-@return	matching index, NULL if not found */
-static
-dict_index_t*
-row_merge_dict_table_get_index(
-/*===========================*/
-	dict_table_t*		table,		/*!< in: table */
-	const merge_index_def_t*index_def)	/*!< in: index definition */
-{
-	ulint		i;
-	dict_index_t*	index;
-	const char**	column_names;
-
-	column_names = static_cast<const char**>(
-		mem_alloc(index_def->n_fields * sizeof *column_names));
-
-	for (i = 0; i < index_def->n_fields; ++i) {
-		column_names[i] = index_def->fields[i].field_name;
-	}
-
-	index = dict_table_get_index_by_max_id(
-		table, index_def->name, column_names, index_def->n_fields);
-
-	mem_free((void*) column_names);
-
-	return(index);
-}
-
 /********************************************************************//**
 Read a merge block from the file system.
 @return	TRUE if request was successful, FALSE if fail */
@@ -2473,7 +2443,7 @@ row_merge_drop_index_dict(
 	if (error != DB_SUCCESS) {
 		/* Even though we ensure that DDL transactions are WAIT
 		and DEADLOCK free, we could encounter other errors e.g.,
-		DB_TOO_MANY_TRANSACTIONS. */
+		DB_TOO_MANY_CONCURRENT_TRXS. */
 		trx->error_state = DB_SUCCESS;
 
 		ut_print_timestamp(stderr);
@@ -2518,6 +2488,7 @@ row_merge_drop_indexes_dict(
 		"    DELETE FROM SYS_INDEXES WHERE CURRENT OF index_cur;\n"
 		"  END IF;\n"
 		"END LOOP;\n"
+		"CLOSE index_cur;\n"
 
 		"END;\n";
 	dberr_t		error;
@@ -2545,7 +2516,7 @@ row_merge_drop_indexes_dict(
 	if (error != DB_SUCCESS) {
 		/* Even though we ensure that DDL transactions are WAIT
 		and DEADLOCK free, we could encounter other errors e.g.,
-		DB_TOO_MANY_TRANSACTIONS. */
+		DB_TOO_MANY_CONCURRENT_TRXS. */
 		trx->error_state = DB_SUCCESS;
 
 		ut_print_timestamp(stderr);
@@ -2718,6 +2689,7 @@ row_merge_drop_temp_indexes(void)
 		"    DELETE FROM SYS_INDEXES WHERE CURRENT OF index_cur;\n"
 		"  END IF;\n"
 		"END LOOP;\n"
+		"CLOSE index_cur;\n"
 		"END;\n";
 	trx_t*	trx;
 	dberr_t	error;
@@ -2739,7 +2711,7 @@ row_merge_drop_temp_indexes(void)
 	if (error != DB_SUCCESS) {
 		/* Even though we ensure that DDL transactions are WAIT
 		and DEADLOCK free, we could encounter other errors e.g.,
-		DB_TOO_MANY_TRANSACTIONS. */
+		DB_TOO_MANY_CONCURRENT_TRXS. */
 		trx->error_state = DB_SUCCESS;
 
 		ut_print_timestamp(stderr);
@@ -2871,7 +2843,7 @@ row_merge_rename_index_to_add(
 	if (err != DB_SUCCESS) {
 		/* Even though we ensure that DDL transactions are WAIT
 		and DEADLOCK free, we could encounter other errors e.g.,
-		DB_TOO_MANY_TRANSACTIONS. */
+		DB_TOO_MANY_CONCURRENT_TRXS. */
 		trx->error_state = DB_SUCCESS;
 
 		ut_print_timestamp(stderr);
@@ -2926,7 +2898,7 @@ row_merge_rename_index_to_drop(
 	if (err != DB_SUCCESS) {
 		/* Even though we ensure that DDL transactions are WAIT
 		and DEADLOCK free, we could encounter other errors e.g.,
-		DB_TOO_MANY_TRANSACTIONS. */
+		DB_TOO_MANY_CONCURRENT_TRXS. */
 		trx->error_state = DB_SUCCESS;
 
 		ut_print_timestamp(stderr);
@@ -3093,8 +3065,9 @@ row_merge_create_index(
 	for (i = 0; i < n_fields; i++) {
 		merge_index_field_t*	ifield = &index_def->fields[i];
 
-		dict_mem_index_add_field(index, ifield->field_name,
-					 ifield->prefix_len);
+		dict_mem_index_add_field(
+			index, dict_table_get_col_name(table, ifield->col_no),
+			ifield->prefix_len);
 	}
 
 	/* Add the index to SYS_INDEXES, using the index prototype. */
@@ -3102,8 +3075,7 @@ row_merge_create_index(
 
 	if (err == DB_SUCCESS) {
 
-		index = row_merge_dict_table_get_index(
-			table, index_def);
+		index = dict_table_get_index_on_name(table, index_def->name);
 
 		ut_a(index);
 

@@ -12,6 +12,8 @@ SET TIME_ZONE = "+00:00";
 SET TIMESTAMP = 1303200160.123456;
 CREATE TABLE t1 ( a INT, b TIMESTAMP );
 INSERT DELAYED INTO t1 SET a = 1;
+Warnings:
+Warning	1287	'INSERT DELAYED' is deprecated and will be removed in a future release. Please use INSERT instead
 FLUSH TABLE t1;
 SELECT * FROM t1;
 a	b
@@ -19,6 +21,8 @@ a	b
 SELECT * FROM t1 WHERE b = 0;
 a	b
 INSERT DELAYED INTO t1 SET a = 2, b = '1980-01-02 10:20:30.405060';
+Warnings:
+Warning	1287	'INSERT DELAYED' is deprecated and will be removed in a future release. Please use INSERT instead
 FLUSH TABLE t1;
 SELECT * FROM t1;
 a	b
@@ -32,11 +36,15 @@ DROP TABLE t1;
 SET TIMESTAMP = 1303200241.234567;
 CREATE TABLE t1 ( a INT, b TIMESTAMP );
 INSERT DELAYED INTO t1 ( a ) VALUES (1);
+Warnings:
+Warning	1287	'INSERT DELAYED' is deprecated and will be removed in a future release. Please use INSERT instead
 FLUSH TABLE t1;
 SELECT * FROM t1;
 a	b
 1	2011-04-19 08:04:01
 INSERT DELAYED INTO t1 VALUES (2, '1977-12-19 12:34:56.789123');
+Warnings:
+Warning	1287	'INSERT DELAYED' is deprecated and will be removed in a future release. Please use INSERT instead
 FLUSH TABLE t1;
 SELECT * FROM t1;
 a	b
@@ -73,8 +81,12 @@ DROP TABLE t1;
 CREATE TABLE t1 ( a INT, b TIMESTAMP );
 SET TIMESTAMP = 1317235172.987654;
 INSERT DELAYED INTO t1 ( a ) VALUES (1), (2), (3);
+Warnings:
+Warning	1287	'INSERT DELAYED' is deprecated and will be removed in a future release. Please use INSERT instead
 SET TIMESTAMP = 385503754.876543;
 INSERT DELAYED INTO t1 ( a ) VALUES (4), (5), (6);
+Warnings:
+Warning	1287	'INSERT DELAYED' is deprecated and will be removed in a future release. Please use INSERT instead
 FLUSH TABLE t1;
 SELECT * FROM t1;
 a	b
@@ -96,6 +108,8 @@ SET TIME_ZONE = "+00:00";
 SET TIMESTAMP = 1303200160.123456;
 CREATE TABLE t1 ( a INT, b TIMESTAMP(6) );
 INSERT DELAYED INTO t1 SET a = 1;
+Warnings:
+Warning	1287	'INSERT DELAYED' is deprecated and will be removed in a future release. Please use INSERT instead
 FLUSH TABLE t1;
 SELECT * FROM t1;
 a	b
@@ -103,6 +117,8 @@ a	b
 SELECT * FROM t1 WHERE b = 0;
 a	b
 INSERT DELAYED INTO t1 SET a = 2, b = '1980-01-02 10:20:30.405060';
+Warnings:
+Warning	1287	'INSERT DELAYED' is deprecated and will be removed in a future release. Please use INSERT instead
 FLUSH TABLE t1;
 SELECT * FROM t1;
 a	b
@@ -116,11 +132,15 @@ DROP TABLE t1;
 SET TIMESTAMP = 1303200241.234567;
 CREATE TABLE t1 ( a INT, b TIMESTAMP(6) );
 INSERT DELAYED INTO t1 ( a ) VALUES (1);
+Warnings:
+Warning	1287	'INSERT DELAYED' is deprecated and will be removed in a future release. Please use INSERT instead
 FLUSH TABLE t1;
 SELECT * FROM t1;
 a	b
 1	2011-04-19 08:04:01.234567
 INSERT DELAYED INTO t1 VALUES (2, '1977-12-19 12:34:56.789123');
+Warnings:
+Warning	1287	'INSERT DELAYED' is deprecated and will be removed in a future release. Please use INSERT instead
 FLUSH TABLE t1;
 SELECT * FROM t1;
 a	b
@@ -157,8 +177,12 @@ DROP TABLE t1;
 CREATE TABLE t1 ( a INT, b TIMESTAMP(6) );
 SET TIMESTAMP = 1317235172.987654;
 INSERT DELAYED INTO t1 ( a ) VALUES (1), (2), (3);
+Warnings:
+Warning	1287	'INSERT DELAYED' is deprecated and will be removed in a future release. Please use INSERT instead
 SET TIMESTAMP = 385503754.876543;
 INSERT DELAYED INTO t1 ( a ) VALUES (4), (5), (6);
+Warnings:
+Warning	1287	'INSERT DELAYED' is deprecated and will be removed in a future release. Please use INSERT instead
 FLUSH TABLE t1;
 SELECT * FROM t1;
 a	b

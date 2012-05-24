@@ -555,6 +555,17 @@ fseg_free_page(
 	ulint		page,	/*!< in: page offset */
 	mtr_t*		mtr);	/*!< in/out: mini-transaction */
 /**********************************************************************//**
+Checks if a single page of a segment is free.
+@return	true if free */
+UNIV_INTERN
+bool
+fseg_page_is_free(
+/*==============*/
+	fseg_header_t*	seg_header,	/*!< in: segment header */
+	ulint		space,		/*!< in: space id */
+	ulint		page)		/*!< in: page offset */
+	__attribute__((nonnull, warn_unused_result));
+/**********************************************************************//**
 Frees part of a segment. This function can be used to free a segment
 by repeatedly calling this function in different mini-transactions.
 Doing the freeing in a single mini-transaction might result in
@@ -643,12 +654,13 @@ tablespace header at offset FSP_SPACE_FLAGS.  They should be 0 for
 ROW_FORMAT=COMPACT and ROW_FORMAT=REDUNDANT. The newer row formats,
 COMPRESSED and DYNAMIC, use a file format > Antelope so they should
 have a file format number plus the DICT_TF_COMPACT bit set.
-@return	ulint containing the validated tablespace flags. */
+@return	true if check ok */
 UNIV_INLINE
-ulint
-fsp_flags_validate(
+bool
+fsp_flags_is_valid(
 /*===============*/
-	ulint	flags);		/*!< in: tablespace flags */
+	ulint	flags)		/*!< in: tablespace flags */
+	__attribute__((warn_unused_result, const));
 /********************************************************************//**
 Determine if the tablespace is compressed from dict_table_t::flags.
 @return	TRUE if compressed, FALSE if not compressed */

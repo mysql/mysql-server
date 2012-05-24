@@ -3691,48 +3691,33 @@ row_search_for_mysql(
 	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
 	ulint*		offsets				= offsets_;
 	ibool		table_lock_waited		= FALSE;
+	byte*		next_buf			= 0;
 
 	rec_offs_init(offsets_);
 
 	ut_ad(index && pcur && search_tuple);
 
-	if (UNIV_UNLIKELY(prebuilt->table->ibd_file_missing)) {
-		ut_print_timestamp(stderr);
-		fprintf(stderr, "  InnoDB: Error:\n"
-			"InnoDB: MySQL is trying to use a table handle"
-			" but the .ibd file for\n"
-			"InnoDB: table %s does not exist.\n"
-			"InnoDB: Have you deleted the .ibd file"
-			" from the database directory under\n"
-			"InnoDB: the MySQL datadir, or have you used"
-			" DISCARD TABLESPACE?\n"
-			"InnoDB: Look from\n"
-			"InnoDB: " REFMAN "innodb-troubleshooting.html\n"
-			"InnoDB: how you can resolve the problem.\n",
-			prebuilt->table->name);
-
 #ifdef UNIV_SYNC_DEBUG
-		ut_ad(!sync_thread_levels_nonempty_trx(trx->has_search_latch));
+	ut_ad(!sync_thread_levels_nonempty_trx(trx->has_search_latch));
 #endif /* UNIV_SYNC_DEBUG */
-		return(DB_ERROR);
-	}
 
-	if (UNIV_UNLIKELY(!prebuilt->index_usable)) {
+	if (dict_table_is_discarded(prebuilt->table)) {
 
-#ifdef UNIV_SYNC_DEBUG
-		ut_ad(!sync_thread_levels_nonempty_trx(trx->has_search_latch));
-#endif /* UNIV_SYNC_DEBUG */
+		return(DB_TABLESPACE_DELETED);
+
+	} else if (prebuilt->table->ibd_file_missing) {
+
+		return(DB_TABLESPACE_NOT_FOUND);
+
+	} else if (!prebuilt->index_usable) {
+
 		return(DB_MISSING_HISTORY);
-	}
 
-	if (dict_index_is_corrupted(index)) {
-#ifdef UNIV_SYNC_DEBUG
-		ut_ad(!sync_thread_levels_nonempty_trx(trx->has_search_latch));
-#endif /* UNIV_SYNC_DEBUG */
+	} else if (dict_index_is_corrupted(index)) {
+
 		return(DB_CORRUPTION);
-	}
 
-	if (prebuilt->magic_n != ROW_PREBUILT_ALLOCATED) {
+	} else if (prebuilt->magic_n != ROW_PREBUILT_ALLOCATED) {
 		fprintf(stderr,
 			"InnoDB: Error: trying to free a corrupt\n"
 			"InnoDB: table handle. Magic n %lu, table name ",
@@ -3836,7 +3821,6 @@ row_search_for_mysql(
 
 			prebuilt->n_rows_fetched++;
 
-			srv_n_rows_read++;
 			err = DB_SUCCESS;
 			goto func_exit;
 		}
@@ -3993,8 +3977,6 @@ row_search_for_mysql(
 
 				/* ut_print_name(stderr, index->name);
 				fputs(" shortcut\n", stderr); */
-
-				srv_n_rows_read++;
 
 				err = DB_SUCCESS;
 				goto release_search_latch_if_needed;
@@ -4168,12 +4150,12 @@ wait_table_again:
 
 			/* Try to place a gap lock on the next index record
 			to prevent phantoms in ORDER BY ... DESC queries */
-			const rec_t*	next = page_rec_get_next_const(rec);
+			const rec_t*	next_rec = page_rec_get_next_const(rec);
 
-			offsets = rec_get_offsets(next, index, offsets,
+			offsets = rec_get_offsets(next_rec, index, offsets,
 						  ULINT_UNDEFINED, &heap);
 			err = sel_set_rec_lock(btr_pcur_get_block(pcur),
-					       next, index, offsets,
+					       next_rec, index, offsets,
 					       prebuilt->select_lock_type,
 					       LOCK_GAP, thr);
 
@@ -4331,6 +4313,9 @@ wrong_offs:
 	/*-------------------------------------------------------------*/
 
 	/* Calculate the 'offsets' associated with 'rec' */
+
+	ut_ad(fil_page_get_type(btr_pcur_get_page(pcur)) == FIL_PAGE_INDEX);
+	ut_ad(btr_page_get_index_id(btr_pcur_get_page(pcur)) == index->id);
 
 	offsets = rec_get_offsets(rec, index, offsets, ULINT_UNDEFINED, &heap);
 
@@ -4829,29 +4814,58 @@ requires_clust_rec:
 		/* We only convert from InnoDB row format to MySQL row
 		format when ICP is disabled. */
 
-		if (!prebuilt->idx_cond
-		    && !row_sel_store_mysql_rec(
-			    row_sel_fetch_last_buf(prebuilt),
-			    prebuilt, result_rec,
-			    result_rec != rec,
-			    result_rec != rec ? clust_index : index,
-			    offsets)) {
+		if (!prebuilt->idx_cond) {
 
-			/* Only fresh inserts may contain incomplete
-			externally stored columns. Pretend that such
-			records do not exist. Such records may only be
-			accessed at the READ UNCOMMITTED isolation
-			level or when rolling back a recovered
-			transaction. Rollback happens at a lower
-			level, not here. */
-			goto next_rec;
+			/* We use next_buf to track the allocation of buffers
+			where we store and enqueue the buffers for our
+			pre-fetch optimisation.
+
+			If next_buf == 0 then we store the converted record
+			directly into the MySQL record buffer (buf). If it is
+			!= 0 then we allocate a pre-fetch buffer and store the
+			converted record there.
+
+			If the conversion fails and the MySQL record buffer
+			was not written to then we reset next_buf so that
+			we can re-use the MySQL record buffer in the next
+			iteration. */
+
+			next_buf = next_buf
+				 ? row_sel_fetch_last_buf(prebuilt) : buf;
+
+			if (!row_sel_store_mysql_rec(
+				next_buf, prebuilt, result_rec,
+				result_rec != rec,
+				result_rec != rec ? clust_index : index,
+				offsets)) {
+
+				if (next_buf == buf) {
+					ut_a(prebuilt->n_fetch_cached == 0);
+					next_buf = 0;
+				}
+
+				/* Only fresh inserts may contain incomplete
+				externally stored columns. Pretend that such
+				records do not exist. Such records may only be
+				accessed at the READ UNCOMMITTED isolation
+				level or when rolling back a recovered
+				transaction. Rollback happens at a lower
+				level, not here. */
+				goto next_rec;
+			}
+
+			if (next_buf != buf) {
+				row_sel_enqueue_cache_row_for_mysql(
+					next_buf, prebuilt);
+			}
+		} else {
+			row_sel_enqueue_cache_row_for_mysql(buf, prebuilt);
 		}
-
-		row_sel_enqueue_cache_row_for_mysql(buf, prebuilt);
 
 		if (prebuilt->n_fetch_cached < MYSQL_FETCH_CACHE_SIZE) {
 			goto next_rec;
 		}
+
 	} else {
 		if (UNIV_UNLIKELY
 		    (prebuilt->template_type == ROW_MYSQL_DUMMY_TEMPLATE)) {
@@ -5086,8 +5100,23 @@ normal_return:
 
 	mtr_commit(&mtr);
 
-	if (prebuilt->n_fetch_cached > 0) {
-		row_sel_dequeue_cached_row_for_mysql(buf, prebuilt);
+	if (prebuilt->idx_cond != 0) {
+
+		/* When ICP is active we don't write to the MySQL buffer
+		directly, only to buffers that are enqueued in the pre-fetch
+		queue. We need to dequeue the first buffer and copy the contents
+		to the record buffer that was passed in by MySQL. */
+
+		if (prebuilt->n_fetch_cached > 0) {
+			row_sel_dequeue_cached_row_for_mysql(buf, prebuilt);
+			err = DB_SUCCESS;
+		}
+
+	} else if (next_buf != 0) {
+
+		/* We may or may not have enqueued some buffers to the
+		pre-fetch queue, but we definitely wrote to the record
+		buffer passed to use by MySQL. */
 
 		err = DB_SUCCESS;
 	}
@@ -5097,9 +5126,6 @@ normal_return:
 	dict_index_name_print(stderr, index);
 	fprintf(stderr, " cnt %lu ret value %lu err\n", cnt, err); */
 #endif /* UNIV_SEARCH_DEBUG */
-	if (err == DB_SUCCESS) {
-		srv_n_rows_read++;
-	}
 
 func_exit:
 	trx->op_info = "";
@@ -5142,7 +5168,8 @@ row_search_check_if_query_cache_permitted(
 	dict_table_t*	table;
 	ibool		ret	= FALSE;
 
-	table = dict_table_open_on_name(norm_name, FALSE, FALSE);
+	table = dict_table_open_on_name(norm_name, FALSE, FALSE,
+					DICT_ERR_IGNORE_NONE);
 
 	if (table == NULL) {
 

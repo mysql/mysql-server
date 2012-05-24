@@ -335,11 +335,12 @@ UNIV_INTERN
 void
 page_zip_dir_delete(
 /*================*/
-	page_zip_des_t*	page_zip,/*!< in/out: compressed page */
-	byte*		rec,	/*!< in: deleted record */
-	dict_index_t*	index,	/*!< in: index of rec */
-	const ulint*	offsets,/*!< in: rec_get_offsets(rec) */
-	const byte*	free)	/*!< in: previous start of the free list */
+	page_zip_des_t*		page_zip,	/*!< in/out: compressed page */
+	byte*			rec,		/*!< in: deleted record */
+	const dict_index_t*	index,		/*!< in: index of rec */
+	const ulint*		offsets,	/*!< in: rec_get_offsets(rec) */
+	const byte*		free)		/*!< in: previous start of
+						the free list */
 	__attribute__((nonnull(1,2,3,4)));
 
 /**********************************************************************//**
@@ -462,11 +463,15 @@ page_zip_verify_checksum(
 
 #ifndef UNIV_HOTBACKUP
 /** Check if a pointer to an uncompressed page matches a compressed page.
+When we IMPORT a tablespace the blocks and accompanying frames are allocted
+from outside the buffer pool.
 @param ptr	pointer to an uncompressed page frame
 @param page_zip	compressed page descriptor
 @return		TRUE if ptr and page_zip refer to the same block */
-# define PAGE_ZIP_MATCH(ptr, page_zip)			\
-	(buf_frame_get_page_zip(ptr) == (page_zip))
+# define PAGE_ZIP_MATCH(ptr, page_zip)					\
+	(((page_zip)->m_external					\
+	  && (page_align(ptr) + UNIV_PAGE_SIZE == (page_zip)->data))	\
+	  || buf_frame_get_page_zip(ptr) == (page_zip))
 #else /* !UNIV_HOTBACKUP */
 /** Check if a pointer to an uncompressed page matches a compressed page.
 @param ptr	pointer to an uncompressed page frame
