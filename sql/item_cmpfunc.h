@@ -513,7 +513,8 @@ public:
   {}
   longlong val_int() { return *trig_var ? args[0]->val_int() : 1; }
   enum Functype functype() const { return TRIG_COND_FUNC; };
-  const char *func_name() const { return "trigcond"; };
+  /// '<if>', to distinguish from the if() SQL function
+  const char *func_name() const { return "<if>"; };
   bool const_item() const { return FALSE; }
   bool *get_trig_var() { return trig_var; }
   /* The following is needed for ICP: */
