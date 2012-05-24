@@ -4736,7 +4736,7 @@ longlong Item_func_like::val_int()
 
 Item_func::optimize_type Item_func_like::select_optimize() const
 {
-  if (args[1]->const_item())
+  if (args[1]->const_item() && !args[1]->is_expensive())
   {
     String* res2= args[1]->val_str((String *)&cmp.value2);
     const char *ptr2;
