@@ -1464,7 +1464,8 @@ btr_cur_pessimistic_insert(
 	btr_cur_t*	cursor,	/*!< in: cursor after which to insert;
 				cursor stays valid */
 	ulint**		offsets,/*!< out: offsets on *rec */
-	mem_heap_t**	heap,	/*!< in/out: pointer to memory heap, or NULL */
+	mem_heap_t**	heap,	/*!< in/out: pointer to memory heap
+				that can be emptied, or NULL */
 	dtuple_t*	entry,	/*!< in/out: entry to insert */
 	rec_t**		rec,	/*!< out: pointer to inserted record if
 				succeed */
@@ -2230,7 +2231,12 @@ btr_cur_pessimistic_update(
 				cursor may become invalid if *big_rec == NULL
 				|| !(flags & BTR_KEEP_POS_FLAG) */
 	ulint**		offsets,/*!< out: offsets on cursor->page_cur.rec */
-	mem_heap_t**	heap,	/*!< in/out: pointer to memory heap, or NULL */
+	mem_heap_t**	offsets_heap,
+				/*!< in/out: pointer to memory heap
+				that can be emptied, or NULL */
+	mem_heap_t*	entry_heap,
+				/*!< in/out: memory heap for allocating
+				big_rec and the index tuple */
 	big_rec_t**	big_rec,/*!< out: big rec vector whose fields have to
 				be stored externally by the caller, or NULL */
 	const upd_t*	update,	/*!< in: update vector; this is allowed also
@@ -2283,7 +2289,7 @@ btr_cur_pessimistic_update(
 			       | BTR_CREATE_FLAG | BTR_KEEP_SYS_FLAG));
 
 	optim_err = btr_cur_optimistic_update(
-		flags, cursor, offsets, heap, update,
+		flags, cursor, offsets, offsets_heap, update,
 		cmpl_info, thr, trx_id, mtr);
 
 	switch (optim_err) {
@@ -2326,13 +2332,10 @@ btr_cur_pessimistic_update(
 	}
 
 	*offsets = rec_get_offsets(
-		rec, index, *offsets, ULINT_UNDEFINED, heap);
+		rec, index, *offsets, ULINT_UNDEFINED, offsets_heap);
 
-	mem_heap_t*	new_entry_heap = mem_heap_create(
-		rec_offs_size(*offsets)
-		+ DTUPLE_EST_ALLOC(rec_offs_n_fields(*offsets)));
 	dtuple_t*	new_entry = row_rec_to_index_entry(
-		ROW_COPY_DATA, rec, index, *offsets, &n_ext, new_entry_heap);
+		ROW_COPY_DATA, rec, index, *offsets, &n_ext, entry_heap);
 
 	/* The page containing the clustered index record
 	corresponding to new_entry is latched in mtr.  If the
@@ -2341,7 +2344,7 @@ btr_cur_pessimistic_update(
 	purge would also have removed the clustered index record
 	itself.  Thus the following call is safe. */
 	row_upd_index_replace_new_col_vals_index_pos(new_entry, index, update,
-						     FALSE, *heap);
+						     FALSE, entry_heap);
 	if (!(flags & BTR_KEEP_SYS_FLAG)) {
 		row_upd_index_entry_sys_field(new_entry, index, DATA_ROLL_PTR,
 					      roll_ptr);
@@ -2370,7 +2373,7 @@ btr_cur_pessimistic_update(
 
 	ut_ad(!page_is_comp(page) || !rec_get_node_ptr_flag(rec));
 	ut_ad(rec_offs_validate(rec, index, *offsets));
-	n_ext += btr_push_update_extern_fields(new_entry, update, *heap);
+	n_ext += btr_push_update_extern_fields(new_entry, update, entry_heap);
 
 	if (page_zip) {
 		ut_ad(page_is_comp(page));
@@ -2421,7 +2424,7 @@ make_external:
 	page_cur_move_to_prev(page_cursor);
 
 	rec = btr_cur_insert_if_possible(cursor, new_entry,
-					 offsets, heap, n_ext, mtr);
+					 offsets, offsets_heap, n_ext, mtr);
 
 	if (rec) {
 		page_cursor->rec = rec;
@@ -2485,7 +2488,7 @@ make_external:
 	err = btr_cur_pessimistic_insert(BTR_NO_UNDO_LOG_FLAG
 					 | BTR_NO_LOCKING_FLAG
 					 | BTR_KEEP_SYS_FLAG,
-					 cursor, offsets, heap,
+					 cursor, offsets, offsets_heap,
 					 new_entry, &rec,
 					 &dummy_big_rec, n_ext, NULL, mtr);
 	ut_a(rec);
@@ -2536,7 +2539,6 @@ make_external:
 	}
 
 return_after_reservations:
-	mem_heap_free(new_entry_heap);
 #ifdef UNIV_ZIP_DEBUG
 	ut_a(!page_zip || page_zip_validate(page_zip, page));
 #endif /* UNIV_ZIP_DEBUG */

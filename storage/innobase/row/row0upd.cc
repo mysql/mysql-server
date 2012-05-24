@@ -2066,6 +2066,7 @@ row_upd_clust_rec(
 	que_thr_t*	thr,	/*!< in: query thread */
 	mtr_t*		mtr)	/*!< in: mtr; gets committed here */
 {
+	mem_heap_t*	offsets_heap;
 	mem_heap_t*	heap;
 	big_rec_t*	big_rec	= NULL;
 	btr_pcur_t*	pcur;
@@ -2083,7 +2084,7 @@ row_upd_clust_rec(
 	ut_ad(!rec_get_deleted_flag(btr_pcur_get_rec(pcur),
 				    dict_table_is_comp(index->table)));
 
-	heap = mem_heap_create(1024);
+	offsets_heap = NULL;
 
 	/* Try optimistic updating of the record, keeping changes within
 	the page; we do not check locks because we assume the x-lock on the
@@ -2093,7 +2094,7 @@ row_upd_clust_rec(
 		/* TODO: reuse offsets from caller */
 		offsets = rec_get_offsets(
 			btr_cur_get_rec(btr_cur),
-			index, offsets, ULINT_UNDEFINED, &heap);
+			index, offsets, ULINT_UNDEFINED, &offsets_heap);
 
 		err = btr_cur_update_in_place(
 			BTR_NO_LOCKING_FLAG, btr_cur,
@@ -2102,7 +2103,7 @@ row_upd_clust_rec(
 	} else {
 		err = btr_cur_optimistic_update(
 			BTR_NO_LOCKING_FLAG, btr_cur,
-			&offsets, &heap, node->update,
+			&offsets, &offsets_heap, node->update,
 			node->cmpl_info, thr, thr_get_trx(thr)->id, mtr);
 	}
 
@@ -2134,9 +2135,12 @@ row_upd_clust_rec(
 	ut_ad(!rec_get_deleted_flag(btr_pcur_get_rec(pcur),
 				    dict_table_is_comp(index->table)));
 
+	heap = mem_heap_create(1024);
+
 	err = btr_cur_pessimistic_update(
 		BTR_NO_LOCKING_FLAG | BTR_KEEP_POS_FLAG, btr_cur,
-		&offsets, &heap, &big_rec, node->update, node->cmpl_info,
+		&offsets, &offsets_heap, heap, &big_rec,
+		node->update, node->cmpl_info,
 		thr, thr_get_trx(thr)->id, mtr);
 	if (big_rec) {
 		ut_a(err == DB_SUCCESS);
@@ -2184,8 +2188,11 @@ row_upd_clust_rec(
 	}
 
 	mtr_commit(mtr);
-func_exit:
 	mem_heap_free(heap);
+func_exit:
+	if (offsets_heap) {
+		mem_heap_free(offsets_heap);
+	}
 
 	if (big_rec) {
 		dtuple_big_rec_free(big_rec);
