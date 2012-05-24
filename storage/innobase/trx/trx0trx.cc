@@ -1194,8 +1194,6 @@ trx_commit(
 	ut_ad(!trx->in_ro_trx_list);
 	ut_ad(!trx->in_rw_trx_list);
 
-	trx->dict_operation = TRX_DICT_OP_NONE;
-
 	trx->error_state = DB_SUCCESS;
 
 	/* trx->in_mysql_trx_list would hold between
