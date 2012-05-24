@@ -177,6 +177,7 @@ public:
 
 // Google Test recommends DeathTest suffix for classes used in death tests.
 typedef TableCacheBasicTest TableCacheBasicDeathTest;
+typedef TableCacheDoubleCacheTest TableCacheDoubleCacheDeathTest;
 
 /*
   Test initilization/destruction of Table_cache.
@@ -191,7 +192,6 @@ TEST_F(TableCacheBasicDeathTest, CacheCreateAndDestroy)
   // Cache should be empty after creation
   EXPECT_EQ(0U, table_cache.cached_tables());
 
-  ::testing::FLAGS_gtest_death_test_style = "threadsafe";
   // Cache should be not locked after creation
 #ifdef SAFE_MUTEX
   EXPECT_DEATH_IF_SUPPORTED(table_cache.assert_owner(),
@@ -205,15 +205,17 @@ TEST_F(TableCacheBasicDeathTest, CacheCreateAndDestroy)
   Test locking for Table_cache object.
 */
 
-TEST_F(TableCacheBasicTest, CacheLockAndUnlock)
+TEST_F(TableCacheBasicDeathTest, CacheLockAndUnlock)
 {
   Table_cache table_cache;
 
   ASSERT_FALSE(table_cache.init());
 
+#ifdef SAFE_MUTEX
   // Cache should not be locked after creation
   EXPECT_DEATH_IF_SUPPORTED(table_cache.assert_owner(),
                             ".*Assertion.*count > 0.*pthread_equal.*");
+#endif
 
   // And get locked after we call its lock() method
   table_cache.lock();
@@ -221,8 +223,10 @@ TEST_F(TableCacheBasicTest, CacheLockAndUnlock)
 
   // And get unlocked after we call its unlock() method
   table_cache.unlock();
+#ifdef SAFE_MUTEX
   EXPECT_DEATH_IF_SUPPORTED(table_cache.assert_owner(),
                             ".*Assertion.*count > 0.*pthread_equal.*");
+#endif
 
   table_cache.destroy();
 }
@@ -236,7 +240,7 @@ TEST_F(TableCacheBasicTest, CacheLockAndUnlock)
   Table_cache_manager::get_cache() method.
 */
 
-TEST_F(TableCacheBasicTest, ManagerCreateAndDestroy)
+TEST_F(TableCacheBasicDeathTest, ManagerCreateAndDestroy)
 {
   // Request two instances of Table_cache
   table_cache_instances= 2;
@@ -260,10 +264,12 @@ TEST_F(TableCacheBasicTest, ManagerCreateAndDestroy)
   EXPECT_EQ(0U, cache_2->cached_tables());
 
   // And not locked
+#ifdef SAFE_MUTEX
   EXPECT_DEATH_IF_SUPPORTED(cache_1->assert_owner(),
                             ".*Assertion.*count > 0.*pthread_equal.*");
   EXPECT_DEATH_IF_SUPPORTED(cache_2->assert_owner(),
                             ".*Assertion.*count > 0.*pthread_equal.*");
+#endif
 
   table_cache_manager.destroy();
 }
@@ -726,13 +732,15 @@ TEST_F(TableCacheDoubleCacheTest, ManagerCachedTables)
   Coverage for lock and unlock methods of Table_cache_manager class.
 */
 
-TEST_F(TableCacheDoubleCacheTest, ManagerLockAndUnlock)
+TEST_F(TableCacheDoubleCacheDeathTest, ManagerLockAndUnlock)
 {
   // Nor caches nor LOCK_open should not be locked after initialization
+#ifdef SAFE_MUTEX
   EXPECT_DEATH_IF_SUPPORTED(table_cache_manager.assert_owner_all(),
                             ".*Assertion.*count > 0.*pthread_equal.*");
   EXPECT_DEATH_IF_SUPPORTED(table_cache_manager.assert_owner_all_and_tdc(),
                             ".*Assertion.*count > 0.*pthread_equal.*");
+#endif
 
   // And get locked after we call its lock_all_and_tdc() method.
   table_cache_manager.lock_all_and_tdc();
@@ -751,10 +759,12 @@ TEST_F(TableCacheDoubleCacheTest, ManagerLockAndUnlock)
   // Locks should be unlocked after we call unlock method
   table_cache_manager.unlock_all_and_tdc();
 
+#ifdef SAFE_MUTEX
   EXPECT_DEATH_IF_SUPPORTED(table_cache_manager.assert_owner_all(),
                             ".*Assertion.*count > 0.*pthread_equal.*");
   EXPECT_DEATH_IF_SUPPORTED(table_cache_manager.assert_owner_all_and_tdc(),
                             ".*Assertion.*count > 0.*pthread_equal.*");
+#endif
 }
 
 
@@ -762,7 +772,7 @@ TEST_F(TableCacheDoubleCacheTest, ManagerLockAndUnlock)
   Coverage for Table_cache_manager::free_table();
 */
 
-TEST_F(TableCacheDoubleCacheTest, ManagerFreeTable)
+TEST_F(TableCacheDoubleCacheDeathTest, ManagerFreeTable)
 {
   THD *thd_1= get_thd(0);
   THD *thd_2= get_thd(1);
@@ -795,10 +805,12 @@ TEST_F(TableCacheDoubleCacheTest, ManagerFreeTable)
   // There should be assert failure since we are trying
   // to free all tables for share_1, while some tables
   // are in use.
+#ifndef DBUG_OFF
   EXPECT_DEATH_IF_SUPPORTED(table_cache_manager.free_table(thd_1,
                                                            TDC_RT_REMOVE_ALL,
                                                            &share_1),
                             ".*Assertion.*is_empty.*");
+#endif
 
   table_cache_1->release_table(thd_1, table_1);
   table_cache_2->release_table(thd_2, table_4);
@@ -827,10 +839,12 @@ TEST_F(TableCacheDoubleCacheTest, ManagerFreeTable)
   // There should be assert failure since we are trying
   // to free all not own TABLEs for share_1, while thd_2
   // has a TABLE object for it in used
+#ifndef DBUG_OFF
   EXPECT_DEATH_IF_SUPPORTED(table_cache_manager.free_table(thd_1,
                                                            TDC_RT_REMOVE_NOT_OWN,
                                                            &share_1),
                             ".*Assertion.*0.*");
+#endif
 
   table_cache_2->release_table(thd_2, table_4);
 
