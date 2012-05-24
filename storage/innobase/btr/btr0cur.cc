@@ -2252,7 +2252,6 @@ btr_cur_pessimistic_update(
 	page_zip_des_t*	page_zip;
 	rec_t*		rec;
 	page_cur_t*	page_cursor;
-	dtuple_t*	new_entry;
 	dberr_t		err;
 	dberr_t		optim_err;
 	roll_ptr_t	roll_ptr;
@@ -2326,14 +2325,14 @@ btr_cur_pessimistic_update(
 		}
 	}
 
-	if (!*heap) {
-		*heap = mem_heap_create(1024);
-	}
 	*offsets = rec_get_offsets(
 		rec, index, *offsets, ULINT_UNDEFINED, heap);
 
-	new_entry = row_rec_to_index_entry(ROW_COPY_DATA, rec, index, *offsets,
-					   &n_ext, *heap);
+	mem_heap_t*	new_entry_heap = mem_heap_create(
+		rec_offs_size(*offsets)
+		+ DTUPLE_EST_ALLOC(rec_offs_n_fields(*offsets)));
+	dtuple_t*	new_entry = row_rec_to_index_entry(
+		ROW_COPY_DATA, rec, index, *offsets, &n_ext, new_entry_heap);
 
 	/* The page containing the clustered index record
 	corresponding to new_entry is latched in mtr.  If the
@@ -2537,6 +2536,7 @@ make_external:
 	}
 
 return_after_reservations:
+	mem_heap_free(new_entry_heap);
 #ifdef UNIV_ZIP_DEBUG
 	ut_a(!page_zip || page_zip_validate(page_zip, page));
 #endif /* UNIV_ZIP_DEBUG */
@@ -3058,7 +3058,6 @@ btr_cur_pessimistic_delete(
 	page_zip_des_t*	page_zip;
 	dict_index_t*	index;
 	rec_t*		rec;
-	dtuple_t*	node_ptr;
 	ulint		n_extents	= 0;
 	ulint		n_reserved;
 	ibool		success;
@@ -3156,7 +3155,7 @@ btr_cur_pessimistic_delete(
 
 			btr_node_ptr_delete(index, block, mtr);
 
-			node_ptr = dict_index_build_node_ptr(
+			dtuple_t*	node_ptr = dict_index_build_node_ptr(
 				index, next_rec, buf_block_get_page_no(block),
 				heap, level);
 
