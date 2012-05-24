@@ -50,8 +50,7 @@ static void restore_const_null_info(JOIN *join, table_map save_nullinfo);
 static int do_select(JOIN *join, List<Item> *fields, TABLE *tmp_table);
 
 static enum_nested_loop_state
-evaluate_join_record(JOIN *join, JOIN_TAB *join_tab,
-                     int error);
+evaluate_join_record(JOIN *join, JOIN_TAB *join_tab);
 static enum_nested_loop_state
 evaluate_null_complemented_join_record(JOIN *join, JOIN_TAB *join_tab);
 static enum_nested_loop_state
@@ -992,13 +991,15 @@ int JOIN::rollup_write_data(uint idx, TABLE *table_arg)
 void
 JOIN::optimize_distinct()
 {
-  JOIN_TAB *last_join_tab= join_tab+tables-1;
-  do
+  for (JOIN_TAB *last_join_tab= join_tab + tables - 1 ; ;)
   {
     if (select_lex->select_list_tables & last_join_tab->table->map)
       break;
     last_join_tab->not_used_in_distinct= true;
-  } while (last_join_tab-- != join_tab);
+    if (last_join_tab == join_tab)
+      break;
+    --last_join_tab;
+  }
 
   /* Optimize "select distinct b from t1 order by key_part_1 limit #" */
   if (order && skip_sort_order)
@@ -1660,14 +1661,11 @@ do_select(JOIN *join,List<Item> *fields,TABLE *table)
   {
     DBUG_ASSERT(join->tables);
     error= join->first_select(join,join_tab,0);
-    if (error == NESTED_LOOP_OK || error == NESTED_LOOP_NO_MORE_ROWS)
+    if (error == NESTED_LOOP_OK)
       error= join->first_select(join,join_tab,1);
     if (error == NESTED_LOOP_QUERY_LIMIT)
       error= NESTED_LOOP_OK;                    /* select_limit used */
   }
-  if (error == NESTED_LOOP_NO_MORE_ROWS)
-    error= NESTED_LOOP_OK;
-
 
   if (table)
   {
@@ -1918,7 +1916,7 @@ sub_select_cache(JOIN *join, JOIN_TAB *join_tab, bool end_of_records)
   if (end_of_records)
   {
     rc= cache->join_records(FALSE);
-    if (rc == NESTED_LOOP_OK || rc == NESTED_LOOP_NO_MORE_ROWS)
+    if (rc == NESTED_LOOP_OK)
       rc= sub_select(join, join_tab, end_of_records);
     DBUG_RETURN(rc);
   }
@@ -1957,7 +1955,7 @@ sub_select_cache(JOIN *join, JOIN_TAB *join_tab, bool end_of_records)
      disables join buffering if QS_DYNAMIC_RANGE is enabled.
   */
   rc= cache->join_records(TRUE);
-  if (rc == NESTED_LOOP_OK || rc == NESTED_LOOP_NO_MORE_ROWS)
+  if (rc == NESTED_LOOP_OK)
     rc= sub_select(join, join_tab, end_of_records);
   DBUG_RETURN(rc);
 }
@@ -2102,8 +2100,6 @@ sub_select(JOIN *join,JOIN_TAB *join_tab,bool end_of_records)
       (*join_tab->next_select)(join,join_tab+1,end_of_records);
     DBUG_RETURN(nls);
   }
-  int error= 0;
-  enum_nested_loop_state rc;
   READ_RECORD *info= &join_tab->read_record;
 
   if (join_tab->flush_weedout_table)
@@ -2140,40 +2136,48 @@ sub_select(JOIN *join,JOIN_TAB *join_tab,bool end_of_records)
   if (join_tab->materialize_table &&
       !join_tab->table->pos_in_table_list->materialized)
   {
-    error= (*join_tab->materialize_table)(join_tab);
+    if ((*join_tab->materialize_table)(join_tab))
+      DBUG_RETURN(NESTED_LOOP_ERROR);
     // Bind to the rowid buffer managed by the TABLE object.
     if (join_tab->copy_current_rowid)
       join_tab->copy_current_rowid->bind_buffer(join_tab->table->file->ref);
   }
 
-  if (!error)
-    error= (*join_tab->read_first_record)(join_tab);
-
-  if (join_tab->keep_current_rowid)
-    join_tab->table->file->position(join_tab->table->record[0]);
-  
-  rc= evaluate_join_record(join, join_tab, error);
-  
-  /* 
-    Note: psergey has added the 2nd part of the following condition; the 
-    change should probably be made in 5.1, too.
-  */
+  enum_nested_loop_state rc= NESTED_LOOP_OK;
+  bool in_first_read= true;
   while (rc == NESTED_LOOP_OK && join->return_tab >= join_tab)
   {
-    error= info->read_record(info);
+    int error;
+    if (in_first_read)
+    {
+      in_first_read= false;
+      error= (*join_tab->read_first_record)(join_tab);
+    }
+    else
+      error= info->read_record(info);
 
-    if (join_tab->keep_current_rowid)
-      join_tab->table->file->position(join_tab->table->record[0]);
-    
-    rc= evaluate_join_record(join, join_tab, error);
+    DBUG_EXECUTE_IF("bug13822652_1", join->thd->killed= THD::KILL_QUERY;);
+
+    if (error > 0 || (join->thd->is_error()))   // Fatal error
+      rc= NESTED_LOOP_ERROR;
+    else if (error < 0)
+      break;
+    else if (join->thd->killed)			// Aborted by user
+    {
+      join->thd->send_kill_message();
+      rc= NESTED_LOOP_KILLED;
+    }
+    else
+    {
+      if (join_tab->keep_current_rowid)
+        join_tab->table->file->position(join_tab->table->record[0]);
+      rc= evaluate_join_record(join, join_tab);
+    }
   }
 
-  if (rc == NESTED_LOOP_NO_MORE_ROWS &&
-      join_tab->last_inner && !join_tab->found)
+  if (rc == NESTED_LOOP_OK && join_tab->last_inner && !join_tab->found)
     rc= evaluate_null_complemented_join_record(join, join_tab);
 
-  if (rc == NESTED_LOOP_NO_MORE_ROWS)
-    rc= NESTED_LOOP_OK;
   DBUG_RETURN(rc);
 }
 
@@ -2297,41 +2301,27 @@ static int do_sj_reset(SJ_TMP_TABLE *sj_tbl)
   This function will evaluate parts of WHERE/ON clauses that are
   applicable to the partial row on hand and in case of success
   submit this row to the next level of the nested loop.
+  join_tab->return_tab may be modified to cause a return to a previous
+  join_tab.
 
   @param  join     - The join object
   @param  join_tab - The most inner join_tab being processed
-  @param  error > 0: Error, terminate processing
-                = 0: (Partial) row is available
-                < 0: No more rows available at this level
-  @return Nested loop state (Ok, No_more_rows, Error, Killed)
+
+  @return Nested loop state
 */
 
 static enum_nested_loop_state
-evaluate_join_record(JOIN *join, JOIN_TAB *join_tab,
-                     int error)
+evaluate_join_record(JOIN *join, JOIN_TAB *join_tab)
 {
   bool not_used_in_distinct=join_tab->not_used_in_distinct;
   ha_rows found_records=join->found_records;
   Item *condition= join_tab->condition();
   bool found= TRUE;
-
   DBUG_ENTER("evaluate_join_record");
-
   DBUG_PRINT("enter",
-             ("join: %p join_tab index: %d table: %s cond: %p error: %d",
+             ("join: %p join_tab index: %d table: %s cond: %p",
               join, static_cast<int>(join_tab - join_tab->join->join_tab),
-              join_tab->table->alias, condition, error));
-  if (error > 0 || (join->thd->is_error()))     // Fatal error
-    DBUG_RETURN(NESTED_LOOP_ERROR);
-  if (error < 0)
-    DBUG_RETURN(NESTED_LOOP_NO_MORE_ROWS);
-  DBUG_EXECUTE_IF("bug13822652_1", join->thd->killed= THD::KILL_QUERY;);
-  if (join->thd->killed)			// Aborted by user
-  {
-    join->thd->send_kill_message();
-    DBUG_RETURN(NESTED_LOOP_KILLED);            /* purecov: inspected */
-  }
-  DBUG_PRINT("info", ("condition %p", condition));
+              join_tab->table->alias, condition));
 
   if (condition)
   {
@@ -2390,11 +2380,14 @@ evaluate_join_record(JOIN *join, JOIN_TAB *join_tab,
             /*
               When not_exists_optimizer is set and a matching row is found, the
               outer row should be excluded from the result set: no need to
-              explore this record and other records of 'tab', so we return "no
-              records". But as we set 'found' above, evaluate_join_record() at
-              the upper level will not yield a NULL-complemented record.
+              explore this record, thus we don't call the next_select.
+              And, no need to explore other following records of 'tab', so we
+              set join_tab->return_tab.
+              As we set join_tab->found above, evaluate_join_record() at the
+              upper level will not yield a NULL-complemented record.
             */
-            DBUG_RETURN(NESTED_LOOP_NO_MORE_ROWS);
+            join->return_tab= join_tab - 1;
+            DBUG_RETURN(NESTED_LOOP_OK);
           }
 
           if (tab == join_tab)
@@ -2475,7 +2468,7 @@ evaluate_join_record(JOIN *join, JOIN_TAB *join_tab,
       /* A match from join_tab is found for the current partial join. */
       rc= (*join_tab->next_select)(join, join_tab+1, 0);
       join->thd->get_stmt_da()->inc_current_row_for_warning();
-      if (rc != NESTED_LOOP_OK && rc != NESTED_LOOP_NO_MORE_ROWS)
+      if (rc != NESTED_LOOP_OK)
         DBUG_RETURN(rc);
 
       if (join_tab->loosescan_match_tab && 
@@ -2491,18 +2484,15 @@ evaluate_join_record(JOIN *join, JOIN_TAB *join_tab,
                  join_tab->loosescan_key_len);
       }
 
-      if (return_tab < join->return_tab)
-        join->return_tab= return_tab;
-
-      if (join->return_tab < join_tab)
-        DBUG_RETURN(NESTED_LOOP_OK);
       /*
         Test if this was a SELECT DISTINCT query on a table that
         was not in the field list;  In this case we can abort if
         we found a row, as no new rows can be added to the result.
       */
       if (not_used_in_distinct && found_records != join->found_records)
-        DBUG_RETURN(NESTED_LOOP_NO_MORE_ROWS);
+        set_if_smaller(return_tab, join_tab - 1);
+
+      set_if_smaller(join->return_tab, return_tab);
     }
     else
     {
@@ -2580,7 +2570,7 @@ evaluate_null_complemented_join_record(JOIN *join, JOIN_TAB *join_tab)
     to the last inner table of the current outer join. This is not deemed to
     have a significant performance impact.
   */
-  const enum_nested_loop_state rc= evaluate_join_record(join, join_tab, 0);
+  const enum_nested_loop_state rc= evaluate_join_record(join, join_tab);
   DBUG_RETURN(rc);
 }
 
@@ -3488,23 +3478,8 @@ pick_table_access_method(JOIN_TAB *tab)
     are used to support GROUP BY clause and to redirect records
     to a table (e.g. in case of SELECT into a temporary table) or to the
     network client.
-
-  RETURN VALUES
-    NESTED_LOOP_OK           - the record has been successfully handled
-    NESTED_LOOP_ERROR        - a fatal error (like table corruption)
-                               was detected
-    NESTED_LOOP_KILLED       - thread shutdown was requested while processing
-                               the record
-    NESTED_LOOP_QUERY_LIMIT  - the record has been successfully handled;
-                               additionally, the nested loop produced the
-                               number of rows specified in the LIMIT clause
-                               for the query
-    NESTED_LOOP_CURSOR_LIMIT - the record has been successfully handled;
-                               additionally, there is a cursor and the nested
-                               loop algorithm produced the number of rows
-                               that is specified for current cursor fetch
-                               operation.
-   All return values except NESTED_LOOP_OK abort the nested loop.
+    See the enum_nested_loop_state enumeration for the description of return
+    values.
 *****************************************************************************/
 
 /* ARGSUSED */

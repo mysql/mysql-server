@@ -173,4 +173,4 @@ where event_name like "%MYSQL_RELAY_LOG%"
   order by event_name;
 EVENT_NAME	COUNT_STAR
 wait/synch/mutex/sql/MYSQL_RELAY_LOG::LOCK_index	MANY
-include/stop_slave.inc
+include/rpl_end.inc

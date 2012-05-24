@@ -12484,12 +12484,7 @@ ha_innobase::innobase_peek_autoinc(void)
 }
 
 /*********************************************************************//**
-This function initializes the auto-inc counter if it has not been
-initialized yet. This function does not change the value of the auto-inc
-counter if it already has been initialized. Returns the value of the
-auto-inc counter in *first_value, and ULONGLONG_MAX in *nb_reserved_values (as
-we have a table-level lock). offset, increment, nb_desired_values are ignored.
-*first_value is set to -1 if error (deadlock or lock wait timeout) */
+Returns the value of the auto-inc counter in *first_value and ~0 on failure. */
 UNIV_INTERN
 void
 ha_innobase::get_auto_increment(
