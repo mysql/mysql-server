@@ -5114,7 +5114,7 @@ fil_iterate(
 	os_offset_t		offset;
 	ulint			page_no = 0;
 	ulint			space_id = callback.get_space_id();
-	ulint			n_bytes = iter.n_io_buffers * iter.page_size;
+	os_offset_t		n_bytes = iter.n_io_buffers * iter.page_size;
 
 	/* TODO: For compressed tables we do a lot of useless
 	copying for non-index pages. Unfortunately, it is

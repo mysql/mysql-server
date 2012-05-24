@@ -443,6 +443,7 @@ bool sp_lex_instr::reset_lex_and_exec_core(THD *thd,
 LEX *sp_lex_instr::parse_expr(THD *thd, sp_head *sp)
 {
   String sql_query;
+  PSI_statement_locker *parent_locker= thd->m_statement_psi;
   sql_query.set_charset(system_charset_info);
 
   get_query(&sql_query);
@@ -495,7 +496,9 @@ LEX *sp_lex_instr::parse_expr(THD *thd, sp_head *sp)
 
   // Parse the just constructed SELECT-statement.
 
+  thd->m_statement_psi= NULL;
   bool parsing_failed= parse_sql(thd, &parser_state, NULL);
+  thd->m_statement_psi= parent_locker;
 
   if (!parsing_failed)
   {
