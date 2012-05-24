@@ -37,7 +37,7 @@ bool read_nth_attr(const char *connect_attrs, uint connect_attrs_length,
 void test_blob_parser()
 {
   char name[100], value[4096];
-  unsigned char packet[8192], *ptr;
+  unsigned char packet[10000], *ptr;
   uint name_len, value_len, idx, packet_length;
   bool result;
   const CHARSET_INFO *cs= &my_charset_utf8_bin;
@@ -140,6 +140,16 @@ void test_blob_parser()
                           name, 32, &name_len, value, 1024, &value_len);
     ok(result == false, "invalid string length %d", idx);
   }
+
+  memset(packet, 0, sizeof(packet));
+  for (idx=0; idx < 1660 /* *6 = 9960 */; idx++)
+    memcpy(packet + idx * 6, "\x2k1\x2v1", 6);
+  result= read_nth_attr((char *) packet, 8192, cs, 1364,
+                        name, 32, &name_len, value, 1024, &value_len);
+  ok(result == true, "last valid attribute %d", 1364);
+  result= read_nth_attr((char *) packet, 8192, cs, 1365,
+                        name, 32, &name_len, value, 1024, &value_len);
+  ok(result == false, "first attribute that's cut %d", 1365);
 }
 
 void test_multibyte_lengths()
@@ -329,7 +339,7 @@ int main(int, char **)
   cs_cp1251= get_charset_by_csname("cp1251", MY_CS_PRIMARY, MYF(0));
   if (!cs_cp1251)
     diag("skipping the cp1251 tests : missing character set");
-  plan(57 + (cs_cp1251 ? 10 : 0));
+  plan(59 + (cs_cp1251 ? 10 : 0));
   do_all_tests();
   return 0;
 }
