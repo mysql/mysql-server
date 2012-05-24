@@ -5069,6 +5069,44 @@ int ha_table_exists_in_engine(THD* thd, const char* db, const char* name)
   DBUG_RETURN(args.err);
 }
 
+/**
+  Prepare (sub-) sequences of joins in this statement 
+  which may be pushed to each storage engine for execution.
+*/
+struct st_make_pushed_join_args
+{
+  const AQP::Join_plan* plan; // Query plan provided by optimizer
+  int err;                    // Error code to return.
+};
+
+static my_bool make_pushed_join_handlerton(THD *thd, plugin_ref plugin,
+                                   void *arg)
+{
+  st_make_pushed_join_args *vargs= (st_make_pushed_join_args *)arg;
+  handlerton *hton= plugin_data(plugin, handlerton *);
+
+  if (hton && hton->make_pushed_join)
+  {
+    const int error= hton->make_pushed_join(hton, thd, vargs->plan);
+    if (unlikely(error))
+    {
+      vargs->err = error;
+      return TRUE;
+    }
+  }
+  return FALSE;
+}
+
+int ha_make_pushed_joins(THD *thd, const AQP::Join_plan* plan)
+{
+  DBUG_ENTER("ha_make_pushed_joins");
+  st_make_pushed_join_args args= {plan, 0};
+  plugin_foreach(thd, make_pushed_join_handlerton,
+                 MYSQL_STORAGE_ENGINE_PLUGIN, &args);
+  DBUG_PRINT("exit", ("error: %d", args.err));
+  DBUG_RETURN(args.err);
+}
+
 #ifdef HAVE_NDB_BINLOG
 /*
   TODO: change this into a dynamic struct

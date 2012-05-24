@@ -65,7 +65,8 @@ static SYMBOL symbols[] = {
   { "ALL",		SYM(ALL)},
   { "ALGORITHM",	SYM(ALGORITHM_SYM)},
   { "ALTER",		SYM(ALTER)},
-  { "ANALYZE",		SYM(ANALYZE_SYM)},
+  { "ANALYSE",          SYM(ANALYSE_SYM)}, // this one is for PROCEDURE ANALYSE
+  { "ANALYZE",          SYM(ANALYZE_SYM)}, // this one is for ANALYZE TABLE etc
   { "AND",		SYM(AND_SYM)},
   { "ANY",              SYM(ANY_SYM)},
   { "AS",		SYM(AS)},
@@ -211,6 +212,7 @@ static SYMBOL symbols[] = {
   { "EXISTS",		SYM(EXISTS)},
   { "EXIT",             SYM(EXIT_SYM)},
   { "EXPANSION",	SYM(EXPANSION_SYM)},
+  { "EXPORT",	        SYM(EXPORT_SYM)},
   { "EXCHANGE",         SYM(EXCHANGE_SYM)},
   { "EXPLAIN",		SYM(DESCRIBE)},
   { "EXTENDED",		SYM(EXTENDED_SYM)},
