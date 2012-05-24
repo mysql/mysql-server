@@ -2691,6 +2691,12 @@ dict_stats_update(
 		}
 		/* else */
 
+		/* Initialize all the table's stats, because
+		dict_stats_fetch_from_ps() may leave some of the stats
+		members untouched if mysql.innodb_index_stats contains
+		less rows than expected. */
+		dict_stats_empty_table(table);
+
 		ret = dict_stats_fetch_from_ps(table, caller_has_dict_sys_mutex);
 
 		switch (ret) {
