@@ -31,4 +31,18 @@ let $wait_condition = SELECT stat_value = 2 FROM mysql.innodb_index_stats WHERE 
 -- eval $check_stats1
 -- eval $check_stats2
 
+# now DELETE the rows and trigger a second auto-recalc, InnoDB may wait a
+# few seconds before triggering an auto-recalc again (it tries not to be too
+# aggressive)
+
+DELETE FROM autorecalc;
+
+let $wait_timeout = 25;
+let $wait_condition = SELECT stat_value = 0 FROM mysql.innodb_index_stats WHERE table_name = 'autorecalc' AND index_name = 'PRIMARY' AND stat_name = 'n_diff_pfx01';
+-- source include/wait_condition.inc
+
+# the DELETE from above should have triggered an auto-recalc
+-- eval $check_stats1
+-- eval $check_stats2
+
 DROP TABLE autorecalc;
