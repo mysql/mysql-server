@@ -340,6 +340,8 @@ row_log_apply_op_low(
 	row_merge_dup_t*dup,		/*!< in/out: for reporting
 					duplicate key errors */
 	dberr_t*	error,		/*!< out: DB_SUCCESS or error code */
+	mem_heap_t*	offsets_heap,	/*!< in/out: memory heap for
+					allocating offsets; can be emptied */
 	mem_heap_t*	heap,		/*!< in/out: memory heap for
 					allocating data tuples */
 	ibool		has_index_lock, /*!< in: TRUE if holding index->lock
@@ -388,7 +390,7 @@ row_log_apply_op_low(
 		ut_ad(page_rec_is_user_rec(rec));
 
 		offsets = rec_get_offsets(rec, index, NULL,
-					  ULINT_UNDEFINED, &heap);
+					  ULINT_UNDEFINED, &offsets_heap);
 		update = row_upd_build_sec_rec_difference_binary(
 			rec, index, offsets, entry, heap);
 
@@ -494,7 +496,7 @@ update_the_rec:
 					| BTR_NO_LOCKING_FLAG
 					| BTR_CREATE_FLAG
 					| BTR_KEEP_SYS_FLAG,
-					&cursor, &offsets, &heap,
+					&cursor, &offsets, &offsets_heap,
 					update, 0, NULL, trx_id, &mtr);
 
 				if (*error != DB_FAIL) {
@@ -525,8 +527,9 @@ update_the_rec:
 				| BTR_NO_LOCKING_FLAG
 				| BTR_CREATE_FLAG
 				| BTR_KEEP_SYS_FLAG,
-				&cursor, &offsets, &heap, &big_rec,
-				update, 0, NULL, trx_id, &mtr);
+				&cursor, &offsets, &offsets_heap,
+				heap, &big_rec, update,
+				0, NULL, trx_id, &mtr);
 			ut_ad(!big_rec);
 			break;
 
@@ -569,7 +572,7 @@ insert_the_rec:
 					BTR_NO_UNDO_LOG_FLAG
 					| BTR_NO_LOCKING_FLAG
 					| BTR_CREATE_FLAG,
-					&cursor, &offsets, &heap,
+					&cursor, &offsets, &offsets_heap,
 					const_cast<dtuple_t*>(entry),
 					&rec, &big_rec,
 					0, NULL, &mtr);
@@ -596,7 +599,7 @@ insert_the_rec:
 				BTR_NO_UNDO_LOG_FLAG
 				| BTR_NO_LOCKING_FLAG
 				| BTR_CREATE_FLAG,
-				&cursor, &offsets, &heap,
+				&cursor, &offsets, &offsets_heap,
 				const_cast<dtuple_t*>(entry),
 				&rec, &big_rec,
 				0, NULL, &mtr);
@@ -614,6 +617,7 @@ insert_the_rec:
 func_exit:
 	mtr_commit(&mtr);
 	mem_heap_empty(heap);
+	mem_heap_empty(offsets_heap);
 }
 
 /******************************************************//**
@@ -628,6 +632,8 @@ row_log_apply_op(
 	row_merge_dup_t*dup,		/*!< in/out: for reporting
 					duplicate key errors */
 	dberr_t*	error,		/*!< out: DB_SUCCESS or error code */
+	mem_heap_t*	offsets_heap,	/*!< in/out: memory heap for
+					allocating offsets; can be emptied */
 	mem_heap_t*	heap,		/*!< in/out: memory heap for
 					allocating data tuples */
 	ibool		has_index_lock, /*!< in: TRUE if holding index->lock
@@ -742,8 +748,8 @@ corrupted:
 		putc('\n', stderr);
 	}
 #endif /* ROW_LOG_APPLY_PRINT */
-	row_log_apply_op_low(index, dup, error, heap, has_index_lock,
-			     op, trx_id, entry);
+	row_log_apply_op_low(index, dup, error, offsets_heap, heap,
+			     has_index_lock, op, trx_id, entry);
 	return(mrec);
 }
 
@@ -765,6 +771,7 @@ row_log_apply_ops(
 	const mrec_t*	next_mrec;
 	const mrec_t*	mrec_end= NULL; /* silence bogus warning */
 	const mrec_t*	next_mrec_end;
+	mem_heap_t*	offsets_heap;
 	mem_heap_t*	heap;
 	ulint*		offsets;
 	ibool		has_index_lock;
@@ -783,6 +790,7 @@ row_log_apply_ops(
 	offsets[0] = i;
 	offsets[1] = dict_index_get_n_fields(index);
 
+	offsets_heap = mem_heap_create(UNIV_PAGE_SIZE);
 	heap = mem_heap_create(UNIV_PAGE_SIZE);
 	has_index_lock = TRUE;
 
@@ -892,8 +900,8 @@ all_done:
 		memcpy((mrec_t*) mrec_end, next_mrec,
 		       (&index->online_log->head.buf)[1] - mrec_end);
 		mrec = row_log_apply_op(
-			index, dup, &error, heap, has_index_lock,
-			index->online_log->head.buf,
+			index, dup, &error, offsets_heap, heap,
+			has_index_lock, index->online_log->head.buf,
 			(&index->online_log->head.buf)[1], offsets);
 		if (error != DB_SUCCESS) {
 			goto func_exit;
@@ -980,8 +988,8 @@ all_done:
 		}
 
 		next_mrec = row_log_apply_op(
-			index, dup, &error, heap, has_index_lock,
-			mrec, mrec_end, offsets);
+			index, dup, &error, offsets_heap, heap,
+			has_index_lock, mrec, mrec_end, offsets);
 
 		if (error != DB_SUCCESS) {
 			goto func_exit;
@@ -1048,6 +1056,7 @@ func_exit:
 	}
 
 	mem_heap_free(heap);
+	mem_heap_free(offsets_heap);
 	ut_free(offsets);
 	return(error);
 }

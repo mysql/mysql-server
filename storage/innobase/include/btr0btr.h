@@ -428,7 +428,8 @@ btr_root_raise_and_insert(
 				the cursor is positioned on the predecessor
 				of the inserted record */
 	ulint**		offsets,/*!< out: offsets on inserted record */
-	mem_heap_t**	heap,	/*!< in/out: pointer to memory heap, or NULL */
+	mem_heap_t**	heap,	/*!< in/out: pointer to memory heap
+				that can be emptied, or NULL */
 	const dtuple_t*	tuple,	/*!< in: tuple to insert */
 	ulint		n_ext,	/*!< in: number of externally stored columns */
 	mtr_t*		mtr)	/*!< in: mtr */
@@ -492,7 +493,8 @@ btr_page_split_and_insert(
 				function returns, the cursor is positioned
 				on the predecessor of the inserted record */
 	ulint**		offsets,/*!< out: offsets on inserted record */
-	mem_heap_t**	heap,	/*!< in/out: pointer to memory heap, or NULL */
+	mem_heap_t**	heap,	/*!< in/out: pointer to memory heap
+				that can be emptied, or NULL */
 	const dtuple_t*	tuple,	/*!< in: tuple to insert */
 	ulint		n_ext,	/*!< in: number of externally stored columns */
 	mtr_t*		mtr)	/*!< in: mtr */

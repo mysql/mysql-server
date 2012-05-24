@@ -107,6 +107,8 @@ row_undo_mod_clust_low(
 /*===================*/
 	undo_node_t*	node,	/*!< in: row undo node */
 	ulint**		offsets,/*!< out: rec_get_offsets() on the record */
+	mem_heap_t**	offsets_heap,
+				/*!< in/out: memory heap that can be emptied */
 	mem_heap_t*	heap,	/*!< in/out: memory heap */
 	que_thr_t*	thr,	/*!< in: query thread */
 	mtr_t*		mtr,	/*!< in: mtr; must be committed before
@@ -135,13 +137,12 @@ row_undo_mod_clust_low(
 	      == thr_get_trx(thr)->id);
 
 	if (mode == BTR_MODIFY_LEAF) {
-		err = btr_cur_optimistic_update(BTR_NO_LOCKING_FLAG
-						| BTR_NO_UNDO_LOG_FLAG
-						| BTR_KEEP_SYS_FLAG,
-						btr_cur,
-						offsets, &heap, node->update,
-						node->cmpl_info, thr,
-						thr_get_trx(thr)->id, mtr);
+		err = btr_cur_optimistic_update(
+			BTR_NO_LOCKING_FLAG | BTR_NO_UNDO_LOG_FLAG
+			| BTR_KEEP_SYS_FLAG,
+			btr_cur, offsets, offsets_heap,
+			node->update, node->cmpl_info,
+			thr, thr_get_trx(thr)->id, mtr);
 	} else {
 		big_rec_t*	dummy_big_rec;
 
@@ -151,7 +152,8 @@ row_undo_mod_clust_low(
 			BTR_NO_LOCKING_FLAG
 			| BTR_NO_UNDO_LOG_FLAG
 			| BTR_KEEP_SYS_FLAG,
-			btr_cur, offsets, &heap, &dummy_big_rec, node->update,
+			btr_cur, offsets, offsets_heap, heap,
+			&dummy_big_rec, node->update,
 			node->cmpl_info, thr, thr_get_trx(thr)->id, mtr);
 
 		ut_a(!dummy_big_rec);
@@ -254,14 +256,15 @@ row_undo_mod_clust(
 
 	mtr_start(&mtr);
 
-	mem_heap_t*	heap	= mem_heap_create(1024);
-	ulint*		offsets	= NULL;
+	mem_heap_t*	heap		= mem_heap_create(1024);
+	mem_heap_t*	offsets_heap	= NULL;
+	ulint*		offsets		= NULL;
 
 	/* Try optimistic processing of the record, keeping changes within
 	the index page */
 
-	err = row_undo_mod_clust_low(node, &offsets, heap, thr, &mtr,
-				     BTR_MODIFY_LEAF);
+	err = row_undo_mod_clust_low(node, &offsets, &offsets_heap,
+				     heap, thr, &mtr, BTR_MODIFY_LEAF);
 
 	if (err != DB_SUCCESS) {
 		btr_pcur_commit_specify_mtr(pcur, &mtr);
@@ -271,8 +274,9 @@ row_undo_mod_clust(
 
 		mtr_start(&mtr);
 
-		err = row_undo_mod_clust_low(node, &offsets, heap, thr, &mtr,
-					     BTR_MODIFY_TREE);
+		err = row_undo_mod_clust_low(
+			node, &offsets, &offsets_heap, heap, thr, &mtr,
+			BTR_MODIFY_TREE);
 		ut_ad(err == DB_SUCCESS || err == DB_OUT_OF_FILE_SPACE);
 	}
 
@@ -320,6 +324,9 @@ row_undo_mod_clust(
 		}
 	}
 
+	if (offsets_heap) {
+		mem_heap_free(offsets_heap);
+	}
 	mem_heap_free(heap);
 	return(err);
 }
@@ -517,6 +524,7 @@ row_undo_mod_del_unmark_sec_and_undo_update(
 
 	switch (search_result) {
 		mem_heap_t*	heap;
+		mem_heap_t*	offsets_heap;
 		ulint*		offsets;
 	case ROW_BUFFERED:
 	case ROW_NOT_DELETED_REF:
@@ -548,11 +556,11 @@ row_undo_mod_del_unmark_sec_and_undo_update(
 		ut_a(err == DB_SUCCESS);
 		heap = mem_heap_create(
 			sizeof(upd_t)
-			+ REC_OFFS_HEADER_SIZE * sizeof(*offsets)
-			+ dtuple_get_n_fields(entry)
-			* (sizeof(upd_field_t) + sizeof *offsets));
-		offsets = rec_get_offsets(btr_cur_get_rec(btr_cur),
-					  index, NULL, ULINT_UNDEFINED, &heap);
+			+ dtuple_get_n_fields(entry) * sizeof(upd_field_t));
+		offsets_heap = NULL;
+		offsets = rec_get_offsets(
+			btr_cur_get_rec(btr_cur),
+			index, NULL, ULINT_UNDEFINED, &offsets_heap);
 		update = row_upd_build_sec_rec_difference_binary(
 			btr_cur_get_rec(btr_cur), index, offsets, entry, heap);
 		if (upd_get_n_fields(update) == 0) {
@@ -566,8 +574,8 @@ row_undo_mod_del_unmark_sec_and_undo_update(
 			/* TODO: pass offsets, not &offsets */
 			err = btr_cur_optimistic_update(
 				BTR_KEEP_SYS_FLAG | BTR_NO_LOCKING_FLAG,
-				btr_cur, &offsets, &heap, update, 0, thr,
-				thr_get_trx(thr)->id, &mtr);
+				btr_cur, &offsets, &offsets_heap,
+				update, 0, thr, thr_get_trx(thr)->id, &mtr);
 			switch (err) {
 			case DB_OVERFLOW:
 			case DB_UNDERFLOW:
@@ -580,12 +588,14 @@ row_undo_mod_del_unmark_sec_and_undo_update(
 			ut_a(mode == BTR_MODIFY_TREE);
 			err = btr_cur_pessimistic_update(
 				BTR_KEEP_SYS_FLAG | BTR_NO_LOCKING_FLAG,
-				btr_cur, &offsets, &heap, &dummy_big_rec,
+				btr_cur, &offsets, &offsets_heap,
+				heap, &dummy_big_rec,
 				update, 0, thr, thr_get_trx(thr)->id, &mtr);
 			ut_a(!dummy_big_rec);
 		}
 
 		mem_heap_free(heap);
+		mem_heap_free(offsets_heap);
 	}
 
 	btr_pcur_close(&pcur);

@@ -3238,6 +3238,7 @@ ibuf_insert_low(
 	btr_pcur_t	pcur;
 	btr_cur_t*	cursor;
 	dtuple_t*	ibuf_entry;
+	mem_heap_t*	offsets_heap	= NULL;
 	mem_heap_t*	heap;
 	ulint*		offsets		= NULL;
 	ulint		buffered;
@@ -3459,7 +3460,7 @@ fail_exit:
 	if (mode == BTR_MODIFY_PREV) {
 		err = btr_cur_optimistic_insert(
 			BTR_NO_LOCKING_FLAG,
-			cursor, &offsets, &heap,
+			cursor, &offsets, &offsets_heap,
 			ibuf_entry, &ins_rec,
 			&dummy_big_rec, 0, thr, &mtr);
 		block = btr_cur_get_block(cursor);
@@ -3486,11 +3487,11 @@ fail_exit:
 
 		root = ibuf_tree_root_get(&mtr);
 
-		err = btr_cur_pessimistic_insert(BTR_NO_LOCKING_FLAG
-						 | BTR_NO_UNDO_LOG_FLAG,
-						 cursor, &offsets, &heap,
-						 ibuf_entry, &ins_rec,
-						 &dummy_big_rec, 0, thr, &mtr);
+		err = btr_cur_pessimistic_insert(
+			BTR_NO_LOCKING_FLAG | BTR_NO_UNDO_LOG_FLAG,
+			cursor, &offsets, &offsets_heap,
+			ibuf_entry, &ins_rec,
+			&dummy_big_rec, 0, thr, &mtr);
 		mutex_exit(&ibuf_pessimistic_insert_mutex);
 		ibuf_size_update(root, &mtr);
 		mutex_exit(&ibuf_mutex);
@@ -3498,6 +3499,10 @@ fail_exit:
 
 		block = btr_cur_get_block(cursor);
 		ut_ad(buf_block_get_space(block) == IBUF_SPACE_ID);
+	}
+
+	if (offsets_heap) {
+		mem_heap_free(offsets_heap);
 	}
 
 	if (err == DB_SUCCESS && op != IBUF_OP_DELETE) {

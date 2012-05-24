@@ -235,6 +235,8 @@ row_ins_sec_index_entry_by_modify(
 				latch or also a tree latch */
 	btr_cur_t*	cursor,	/*!< in: B-tree cursor */
 	ulint**		offsets,/*!< in/out: offsets on cursor->page_cur.rec */
+	mem_heap_t*	offsets_heap,
+				/*!< in/out: memory heap that can be emptied */
 	mem_heap_t*	heap,	/*!< in/out: memory heap */
 	const dtuple_t*	entry,	/*!< in: index entry to insert */
 	que_thr_t*	thr,	/*!< in: query thread */
@@ -267,7 +269,7 @@ row_ins_sec_index_entry_by_modify(
 		/* TODO: pass only *offsets */
 		err = btr_cur_optimistic_update(
 			BTR_KEEP_SYS_FLAG, cursor,
-			offsets, &heap, update, 0, thr,
+			offsets, &offsets_heap, update, 0, thr,
 			thr_get_trx(thr)->id, mtr);
 		switch (err) {
 		case DB_OVERFLOW:
@@ -286,8 +288,9 @@ row_ins_sec_index_entry_by_modify(
 
 		err = btr_cur_pessimistic_update(
 			BTR_KEEP_SYS_FLAG, cursor,
-			offsets, &heap, &dummy_big_rec, update, 0, thr,
-			thr_get_trx(thr)->id, mtr);
+			offsets, &offsets_heap,
+			heap, &dummy_big_rec, update, 0,
+			thr, thr_get_trx(thr)->id, mtr);
 		ut_ad(!dummy_big_rec);
 	}
 
@@ -308,7 +311,10 @@ row_ins_clust_index_entry_by_modify(
 				latch or also a tree latch */
 	btr_cur_t*	cursor,	/*!< in: B-tree cursor */
 	ulint**		offsets,/*!< out: offsets on cursor->page_cur.rec */
-	mem_heap_t**	heap,	/*!< in/out: pointer to memory heap, or NULL */
+	mem_heap_t**	offsets_heap,
+				/*!< in/out: pointer to memory heap that can
+				be emptied, or NULL */
+	mem_heap_t*	heap,	/*!< in/out: memory heap */
 	big_rec_t**	big_rec,/*!< out: possible big rec vector of fields
 				which have to be stored externally by the
 				caller */
@@ -330,22 +336,18 @@ row_ins_clust_index_entry_by_modify(
 	ut_ad(rec_get_deleted_flag(rec,
 				   dict_table_is_comp(cursor->index->table)));
 
-	if (!*heap) {
-		*heap = mem_heap_create(1024);
-	}
-
 	/* Build an update vector containing all the fields to be modified;
 	NOTE that this vector may NOT contain system columns trx_id or
 	roll_ptr */
 
 	update = row_upd_build_difference_binary(cursor->index, entry, rec,
-						 thr_get_trx(thr), *heap);
+						 thr_get_trx(thr), heap);
 	if (mode == BTR_MODIFY_LEAF) {
 		/* Try optimistic updating of the record, keeping changes
 		within the page */
 
 		err = btr_cur_optimistic_update(
-			0, cursor, offsets, heap, update, 0, thr,
+			0, cursor, offsets, offsets_heap, update, 0, thr,
 			thr_get_trx(thr)->id, mtr);
 		switch (err) {
 		case DB_OVERFLOW:
@@ -364,8 +366,8 @@ row_ins_clust_index_entry_by_modify(
 		}
 		err = btr_cur_pessimistic_update(
 			BTR_KEEP_POS_FLAG,
-			cursor, offsets, heap, big_rec, update,
-			0, thr, thr_get_trx(thr)->id, mtr);
+			cursor, offsets, offsets_heap, heap,
+			big_rec, update, 0, thr, thr_get_trx(thr)->id, mtr);
 	}
 
 	return(err);
@@ -2142,7 +2144,7 @@ row_ins_clust_index_entry_low(
 	ulint		n_unique;
 	big_rec_t*	big_rec		= NULL;
 	mtr_t		mtr;
-	mem_heap_t*	heap		= NULL;
+	mem_heap_t*	offsets_heap	= NULL;
 
 	ut_ad(dict_index_is_clust(index));
 
@@ -2192,10 +2194,11 @@ err_exit:
 		/* There is already an index entry with a long enough common
 		prefix, we must convert the insert into a modify of an
 		existing record */
+		mem_heap_t*	entry_heap = mem_heap_create(1024);
 
 		err = row_ins_clust_index_entry_by_modify(
-			mode, &cursor, &offsets, &heap, &big_rec, entry,
-			thr, &mtr);
+			mode, &cursor, &offsets, &offsets_heap,
+			entry_heap, &big_rec, entry, thr, &mtr);
 
 		if (big_rec) {
 			ut_a(err == DB_SUCCESS);
@@ -2257,13 +2260,14 @@ err_exit:
 		}
 
 		mtr_commit(&mtr);
+		mem_heap_free(entry_heap);
 	} else {
 		rec_t*	insert_rec;
 
 		if (mode != BTR_MODIFY_TREE) {
 			ut_ad(mode == BTR_MODIFY_LEAF);
 			err = btr_cur_optimistic_insert(
-				0, &cursor, &offsets, &heap,
+				0, &cursor, &offsets, &offsets_heap,
 				entry, &insert_rec, &big_rec,
 				n_ext, thr, &mtr);
 		} else {
@@ -2273,7 +2277,7 @@ err_exit:
 				goto err_exit;
 			}
 			err = btr_cur_pessimistic_insert(
-				0, &cursor, &offsets, &heap,
+				0, &cursor, &offsets, &offsets_heap,
 				entry, &insert_rec, &big_rec,
 				n_ext, thr, &mtr);
 		}
@@ -2286,15 +2290,15 @@ err_exit:
 				log_make_checkpoint_at(
 					IB_ULONGLONG_MAX, TRUE););
 			err = row_ins_index_entry_big_rec(
-				entry, big_rec, offsets, &heap, index,
+				entry, big_rec, offsets, &offsets_heap, index,
 				thr_get_trx(thr)->mysql_thd,
 				__FILE__, __LINE__);
 			dtuple_convert_back_big_rec(index, entry, big_rec);
 		}
 	}
 
-	if (heap) {
-		mem_heap_free(heap);
+	if (offsets_heap) {
+		mem_heap_free(offsets_heap);
 	}
 
 	return(err);
@@ -2314,6 +2318,8 @@ row_ins_sec_index_entry_low(
 				depending on whether we wish optimistic or
 				pessimistic descent down the index tree */
 	dict_index_t*	index,	/*!< in: secondary index */
+	mem_heap_t*	offsets_heap,
+				/*!< in/out: memory heap that can be emptied */
 	mem_heap_t*	heap,	/*!< in/out: memory heap */
 	dtuple_t*	entry,	/*!< in/out: index entry to insert */
 	que_thr_t*	thr)	/*!< in: query thread */
@@ -2403,7 +2409,8 @@ row_ins_sec_index_entry_low(
 			ULINT_UNDEFINED, &heap);
 
 		err = row_ins_sec_index_entry_by_modify(
-			mode, &cursor, &offsets, heap, entry, thr, &mtr);
+			mode, &cursor, &offsets,
+			offsets_heap, heap, entry, thr, &mtr);
 	} else {
 		rec_t*		insert_rec;
 		big_rec_t*	big_rec;
@@ -2537,6 +2544,7 @@ row_ins_sec_index_entry(
 	que_thr_t*	thr)	/*!< in: query thread */
 {
 	dberr_t		err;
+	mem_heap_t*	offsets_heap;
 	mem_heap_t*	heap;
 
 	if (UT_LIST_GET_FIRST(index->table->foreign_list)) {
@@ -2553,22 +2561,25 @@ row_ins_sec_index_entry(
 		return(DB_SUCCESS);
 	}
 
+	offsets_heap = mem_heap_create(1024);
 	heap = mem_heap_create(1024);
 
 	/* Try first optimistic descent to the B-tree */
 
-	err = row_ins_sec_index_entry_low(BTR_MODIFY_LEAF, index, heap,
-					  entry, thr);
+	err = row_ins_sec_index_entry_low(BTR_MODIFY_LEAF, index,
+					  offsets_heap, heap, entry, thr);
 	if (err == DB_FAIL) {
 		mem_heap_empty(heap);
 
 		/* Try then pessimistic descent to the B-tree */
 
 		err = row_ins_sec_index_entry_low(
-			BTR_MODIFY_TREE, index, heap, entry, thr);
+			BTR_MODIFY_TREE, index,
+			offsets_heap, heap, entry, thr);
 	}
 
 	mem_heap_free(heap);
+	mem_heap_free(offsets_heap);
 	return(err);
 }
 
