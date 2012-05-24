@@ -175,12 +175,14 @@ public:
   }
 };
 
+// Google Test recommends DeathTest suffix for classes used in death tests.
+typedef TableCacheBasicTest TableCacheBasicDeathTest;
 
 /*
   Test initilization/destruction of Table_cache.
 */
 
-TEST_F(TableCacheBasicTest, CacheCreateAndDestroy)
+TEST_F(TableCacheBasicDeathTest, CacheCreateAndDestroy)
 {
   Table_cache table_cache;
 
@@ -189,10 +191,12 @@ TEST_F(TableCacheBasicTest, CacheCreateAndDestroy)
   // Cache should be empty after creation
   EXPECT_EQ(0U, table_cache.cached_tables());
 
+  ::testing::FLAGS_gtest_death_test_style = "threadsafe";
   // Cache should be not locked after creation
+#ifdef SAFE_MUTEX
   EXPECT_DEATH_IF_SUPPORTED(table_cache.assert_owner(),
                             ".*Assertion.*count > 0.*pthread_equal.*");
-
+#endif
   table_cache.destroy();
 }
 
@@ -826,7 +830,7 @@ TEST_F(TableCacheDoubleCacheTest, ManagerFreeTable)
   EXPECT_DEATH_IF_SUPPORTED(table_cache_manager.free_table(thd_1,
                                                            TDC_RT_REMOVE_NOT_OWN,
                                                            &share_1),
-                            ".*Assertion.*`0'.*");
+                            ".*Assertion.*0.*");
 
   table_cache_2->release_table(thd_2, table_4);
 
