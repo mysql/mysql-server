@@ -2743,4 +2743,18 @@ AND ( alias1.a1, alias2.a1 ) IN ( SELECT c1, c1 FROM t3 )
 GROUP BY field1;
 field1
 DROP TABLE t1,t3,t2;
+#
+#  BUG#1002630: Valgrind warnings 'Invalid read' in subselect_engine::calc_const_tables with SELECT
+#
+CREATE TABLE t1 (a INT);
+INSERT INTO t1 VALUES (1),(7);
+CREATE TABLE t2 (b INT);
+INSERT INTO t2 VALUES (4),(6);
+SELECT ( SELECT SUM(a) FROM t1 ) AS t1sum, b
+FROM t2
+WHERE (1,1) IN ( SELECT MAX(a), MIN(a) FROM t1 )
+GROUP BY b
+HAVING t1sum <> 1;
+t1sum	b
+DROP TABLE t1, t2;
 set optimizer_switch=@subselect_sj_tmp;
