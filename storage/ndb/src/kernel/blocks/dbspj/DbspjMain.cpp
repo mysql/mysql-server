@@ -37,6 +37,7 @@
 
 #include <signaldata/NodeFailRep.hpp>
 #include <signaldata/ReadNodesConf.hpp>
+#include <signaldata/SignalDroppedRep.hpp>
 
 // Use DEBUG to print messages that should be
 // seen only when we debug the product
@@ -64,6 +65,50 @@
 
 const Ptr<Dbspj::TreeNode> Dbspj::NullTreeNodePtr = { 0, RNIL };
 const Dbspj::RowRef Dbspj::NullRowRef = { RNIL, GLOBAL_PAGE_SIZE_WORDS, { 0 } };
+
+
+void Dbspj::execSIGNAL_DROPPED_REP(Signal* signal)
+{
+  /* An incoming signal was dropped, handle it.
+   * Dropped signal really means that we ran out of
+   * long signal buffering to store its sections.
+   */
+  jamEntry();
+
+  if (!assembleDroppedFragments(signal))
+  {
+    jam();
+    return;
+  }
+
+  const SignalDroppedRep* rep = (SignalDroppedRep*) &signal->theData[0];
+  Uint32 originalGSN= rep->originalGsn;
+
+  DEBUG("SignalDroppedRep received for GSN " << originalGSN);
+
+  switch(originalGSN) {
+  case GSN_SCAN_FRAGREQ:
+  {
+    jam();
+    /* Get information necessary to send SCAN_FRAGREF back to TC */
+    // TODO : Handle dropped signal fragments
+
+    const ScanFragReq * const truncatedScanFragReq = 
+      (ScanFragReq *) &rep->originalData[0];
+
+    handle_early_scanfrag_ref(signal, truncatedScanFragReq,
+                              DbspjErr::OutOfSectionMemory);
+    break;
+  }
+  default:
+    jam();
+    /* Don't expect dropped signals for other GSNs
+     */
+    SimulatedBlock::execSIGNAL_DROPPED_REP(signal);
+  };
+
+  return;
+}
 
 /** A noop for now.*/
 void Dbspj::execREAD_CONFIG_REQ(Signal* signal)
@@ -6673,6 +6718,26 @@ Dbspj::appendParamToPattern(Local_pattern_store& dst,
   return dst.append(&info,1) && dst.append(ptr,len) ? 0 : DbspjErr::OutOfQueryMemory;
 }
 
+#ifdef ERROR_INSERT
+static int fi_cnt = 0;
+bool
+Dbspj::appendToSection(Uint32& firstSegmentIVal,
+                         const Uint32* src, Uint32 len)
+{
+  if (fi_cnt++ % 13 == 0 && ERROR_INSERTED(17510))
+  {
+    jam();
+    ndbout_c("Injecting appendToSection error 17510 at line %d file %s",
+             __LINE__,  __FILE__);
+    return false;
+  }
+  else
+  {
+    return SimulatedBlock::appendToSection(firstSegmentIVal, src, len);
+  }
+}
+#endif
+
 Uint32
 Dbspj::appendParamHeadToPattern(Local_pattern_store& dst,
                                 const RowPtr::Linear & row, Uint32 col)
@@ -7820,18 +7885,20 @@ Dbspj::parseDA(Build_context& ctx,
           {
             SectionReader r0(ptr, getSectionSegmentPool());
             err = appendTreeToSection(attrInfoPtrI, r0, ptr.sz);
-            sectionptrs[4] = ptr.sz;
             if (unlikely(err != 0))
             {
               jam();
               break;
             }
+            sectionptrs[4] = ptr.sz;
           }
           releaseSection(attrParamPtrI);
+          attrParamPtrI = RNIL;
         }
       }
 
       treeNodePtr.p->m_send.m_attrInfoPtrI = attrInfoPtrI;
+      attrInfoPtrI = RNIL;
     } // if (((treeBits & mask) | (paramBits & DABits::PI_ATTR_LIST)) != 0)
 
     // Empty attrinfo would cause node crash.
@@ -7851,6 +7918,18 @@ Dbspj::parseDA(Build_context& ctx,
 
     return 0;
   } while (0);
+
+  if (attrInfoPtrI != RNIL)
+  {
+    jam();
+    releaseSection(attrInfoPtrI);
+  }
+
+  if (attrParamPtrI != RNIL)
+  {
+    jam();
+    releaseSection(attrParamPtrI);
+  }
 
   return err;
 }
