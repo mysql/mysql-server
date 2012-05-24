@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -83,25 +83,24 @@ public:
                             for the rows fetched from the cursor
   @param[out] pcursor       a pointer to store a pointer to cursor in
 
-  @retval
-    0                 the query has been successfully executed; in this
-    case pcursor may or may not contain
-    a pointer to an open cursor.
-  @retval
-    non-zero          an error, 'pcursor' has been left intact.
+  @return Error status
+
+  @retval false -- the query has been successfully executed; in this case
+  pcursor may or may not contain a pointer to an open cursor.
+
+  @retval true -- an error, 'pcursor' has been left intact.
 */
 
-int mysql_open_cursor(THD *thd, select_result *result,
-                      Server_side_cursor **pcursor)
+bool mysql_open_cursor(THD *thd, select_result *result,
+                       Server_side_cursor **pcursor)
 {
   PSI_statement_locker *parent_locker;
   select_result *save_result;
   Select_materialize *result_materialize;
   LEX *lex= thd->lex;
-  int rc;
 
   if (! (result_materialize= new (thd->mem_root) Select_materialize(result)))
-    return 1;
+    return true;
 
   save_result= lex->result;
 
@@ -115,7 +114,7 @@ int mysql_open_cursor(THD *thd, select_result *result,
                          2);
   parent_locker= thd->m_statement_psi;
   thd->m_statement_psi= NULL;
-  rc= mysql_execute_command(thd);
+  bool rc= mysql_execute_command(thd);
   thd->m_statement_psi= parent_locker;
   MYSQL_QUERY_EXEC_DONE(rc);
 
@@ -385,7 +384,13 @@ Materialized_cursor::~Materialized_cursor()
 bool Select_materialize::send_result_set_metadata(List<Item> &list, uint flags)
 {
   DBUG_ASSERT(table == 0);
-  if (create_result_table(unit->thd, unit->get_unit_column_types(),
+  /*
+    PROCEDURE ANALYSE installs a result filter that has a different set
+    of input and output column Items:
+  */
+  List<Item> *column_types= (unit->first_select()->parent_lex->proc_analyse ?
+                             &list : unit->get_unit_column_types());
+  if (create_result_table(unit->thd, column_types,
                           FALSE,
                           thd->variables.option_bits | TMP_TABLE_ALL_COLUMNS,
                           "", FALSE, TRUE))

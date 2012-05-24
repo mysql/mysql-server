@@ -25,11 +25,33 @@ typedef struct st_join_table JOIN_TAB;
 typedef struct st_table_ref TABLE_REF;
 typedef struct st_position POSITION;
 
+/**
+   Possible status of a "nested loop" operation (Next_select_func family of
+   functions).
+   All values except NESTED_LOOP_OK abort the nested loop.
+*/
 enum enum_nested_loop_state
 {
-  NESTED_LOOP_KILLED= -2, NESTED_LOOP_ERROR= -1,
-  NESTED_LOOP_OK= 0, NESTED_LOOP_NO_MORE_ROWS= 1,
-  NESTED_LOOP_QUERY_LIMIT= 3, NESTED_LOOP_CURSOR_LIMIT= 4
+  /**
+     Thread shutdown was requested while processing the record
+     @todo could it be merged with NESTED_LOOP_ERROR? Why two distinct states?
+  */
+  NESTED_LOOP_KILLED= -2,
+  /// A fatal error (like table corruption) was detected
+  NESTED_LOOP_ERROR= -1,
+  /// Record has been successfully handled
+  NESTED_LOOP_OK= 0,
+  /**
+     Record has been successfully handled; additionally, the nested loop
+     produced the number of rows specified in the LIMIT clause for the query.
+  */
+  NESTED_LOOP_QUERY_LIMIT= 3,
+  /**
+     Record has been successfully handled; additionally, there is a cursor and
+     the nested loop algorithm produced the number of rows that is specified
+     for current cursor fetch operation.
+  */
+  NESTED_LOOP_CURSOR_LIMIT= 4
 };
 
 

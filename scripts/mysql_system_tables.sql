@@ -182,7 +182,7 @@ CREATE TABLE IF NOT EXISTS innodb_table_stats (
 	clustered_index_size		BIGINT UNSIGNED NOT NULL,
 	sum_of_other_index_sizes	BIGINT UNSIGNED NOT NULL,
 	PRIMARY KEY (database_name, table_name)
-) ENGINE=INNODB DEFAULT CHARSET=utf8 COLLATE=utf8_bin;
+) ENGINE=INNODB DEFAULT CHARSET=utf8 COLLATE=utf8_bin STATS_PERSISTENT=0;
 
 CREATE TABLE IF NOT EXISTS innodb_index_stats (
 	database_name			VARCHAR(64) NOT NULL,
@@ -197,10 +197,8 @@ CREATE TABLE IF NOT EXISTS innodb_index_stats (
 	stat_value			BIGINT UNSIGNED NOT NULL,
 	sample_size			BIGINT UNSIGNED,
 	stat_description		VARCHAR(1024) NOT NULL,
-	PRIMARY KEY (database_name, table_name, index_name, stat_name),
-	FOREIGN KEY (database_name, table_name)
-	  REFERENCES innodb_table_stats (database_name, table_name)
-) ENGINE=INNODB DEFAULT CHARSET=utf8 COLLATE=utf8_bin;
+	PRIMARY KEY (database_name, table_name, index_name, stat_name)
+) ENGINE=INNODB DEFAULT CHARSET=utf8 COLLATE=utf8_bin STATS_PERSISTENT=0;
 
 SET SESSION sql_mode=@sql_mode_orig;
 

@@ -860,7 +860,7 @@ pars_retrieve_table_def(
 		sym_node->token_type = SYM_TABLE_REF_COUNTED;
 
 		sym_node->table = dict_table_open_on_name(
-			sym_node->name, TRUE, FALSE);
+			sym_node->name, TRUE, FALSE, DICT_ERR_IGNORE_NONE);
 
 		ut_a(sym_node->table != NULL);
 	}
@@ -1116,8 +1116,8 @@ pars_function_declaration(
 	sym_node->token_type = SYM_FUNCTION;
 
 	/* Check that the function exists. */
-	ut_a(pars_info_get_user_func(pars_sym_tab_global->info,
-				     sym_node->name));
+	ut_a(pars_info_lookup_user_func(
+		pars_sym_tab_global->info, sym_node->name));
 
 	return(sym_node);
 }
@@ -1783,8 +1783,9 @@ pars_fetch_statement(
 	} else {
 		pars_resolve_exp_variables_and_types(NULL, user_func);
 
-		node->func = pars_info_get_user_func(pars_sym_tab_global->info,
-						     user_func->name);
+		node->func = pars_info_lookup_user_func(
+			pars_sym_tab_global->info, user_func->name);
+
 		ut_a(node->func);
 
 		node->into_list = NULL;
@@ -2479,7 +2480,7 @@ pars_info_bind_int8_literal(
 	const char*		name,	/* in: name */
 	const ib_uint64_t*	val)	/* in: value */
 {
-        pars_bound_lit_t*	pbl;
+	pars_bound_lit_t*	pbl;
 
 	pbl = pars_info_lookup_bound_lit(info, name);
 
@@ -2517,6 +2518,33 @@ pars_info_add_ull_literal(
 	mach_write_to_8(buf, val);
 
 	pars_info_add_literal(info, name, buf, 8, DATA_FIXBINARY, 0);
+}
+
+/****************************************************************//**
+If the literal value already exists then it rebinds otherwise it
+creates a new entry. */
+UNIV_INTERN
+void
+pars_info_bind_ull_literal(
+/*=======================*/
+	pars_info_t*		info,		/*!< in: info struct */
+	const char*		name,		/*!< in: name */
+	const ib_uint64_t*	val)		/*!< in: value */
+{
+	pars_bound_lit_t*	pbl;
+
+	pbl = pars_info_lookup_bound_lit(info, name);
+
+	if (!pbl) {
+		pars_info_add_literal(
+			info, name, val, sizeof(*val), DATA_FIXBINARY, 0);
+	} else {
+
+		pbl->address = val;
+		pbl->length = sizeof(*val);
+
+		sym_tab_rebind_lit(pbl->node, val, sizeof(*val));
+	}
 }
 
 /****************************************************************//**
@@ -2603,19 +2631,6 @@ pars_info_get_bound_id(
 	const char*		name)	/* in: bound id name to find */
 {
 	return(pars_info_lookup_bound_id(info, name));
-}
-
-/****************************************************************//**
-Get user function with the given name.
-@return	user func, or NULL if not found */
-UNIV_INTERN
-pars_user_func_t*
-pars_info_get_user_func(
-/*====================*/
-	pars_info_t*		info,	/*!< in: info struct */
-	const char*		name)	/*!< in: function name to find*/
-{
-	return(pars_info_lookup_user_func(info, name));
 }
 
 /****************************************************************//**

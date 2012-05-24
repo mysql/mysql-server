@@ -42,7 +42,7 @@ static PFS_single_stat *user_instr_class_waits_array= NULL;
 static PFS_stage_stat *user_instr_class_stages_array= NULL;
 static PFS_statement_stat *user_instr_class_statements_array= NULL;
 
-static LF_HASH user_hash;
+LF_HASH user_hash;
 static bool user_hash_inited= false;
 
 /**
@@ -146,10 +146,11 @@ C_MODE_END
 */
 int init_user_hash(void)
 {
-  if (! user_hash_inited)
+  if ((! user_hash_inited) && (user_max > 0))
   {
     lf_hash_init(&user_hash, sizeof(PFS_user*), LF_HASH_UNIQUE,
                  0, 0, user_hash_get_key, &my_charset_bin);
+    user_hash.size= user_max;
     user_hash_inited= true;
   }
   return 0;

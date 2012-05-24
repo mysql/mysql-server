@@ -489,8 +489,7 @@ buf_dblwr_init_or_restore_pages(
 
 			/* Check if the page is corrupt */
 
-			if (UNIV_UNLIKELY
-			    (buf_page_is_corrupted(read_buf, zip_size))) {
+			if (buf_page_is_corrupted(true, read_buf, zip_size)) {
 
 				fprintf(stderr,
 					"InnoDB: Warning: database page"
@@ -501,7 +500,8 @@ buf_dblwr_init_or_restore_pages(
 					" the doublewrite buffer.\n",
 					(ulong) space_id, (ulong) page_no);
 
-				if (buf_page_is_corrupted(page, zip_size)) {
+				if (buf_page_is_corrupted(true,
+							  page, zip_size)) {
 					fprintf(stderr,
 						"InnoDB: Dump of the page:\n");
 					buf_page_print(
@@ -845,8 +845,8 @@ try_again:
 
 flush:
 	/* increment the doublewrite flushed pages counter */
-	srv_dblwr_pages_written += buf_dblwr->first_free;
-	srv_dblwr_writes++;
+	srv_stats.dblwr_pages_written.add(buf_dblwr->first_free);
+	srv_stats.dblwr_writes.inc();
 
 	/* Now flush the doublewrite buffer data to disk */
 	fil_flush(TRX_SYS_SPACE);
@@ -1077,8 +1077,8 @@ retry:
 	buf_dblwr->in_use[i] = FALSE;
 
 	/* increment the doublewrite flushed pages counter */
-	srv_dblwr_pages_written += buf_dblwr->first_free;
-	srv_dblwr_writes++;
+	srv_stats.dblwr_pages_written.add(buf_dblwr->first_free);
+	srv_stats.dblwr_writes.inc();
 
 	mutex_exit(&(buf_dblwr->mutex));
 

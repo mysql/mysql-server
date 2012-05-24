@@ -546,6 +546,30 @@ public:
   void set_sum_test(Item_sum_hybrid *item) { test_sum_item= item; };
   void set_sub_test(Item_maxmin_subselect *item) { test_sub_item= item; };
   void set_subselect(Item_subselect *item) { subselect= item; }
+  table_map not_null_tables() const
+  {
+    /*
+      See handling of not_null_tables_cache in
+      Item_in_optimizer::fix_fields().
+
+      This item is the result of a transformation from an ALL clause
+      such as
+          left-expr < ALL(subquery)
+      into
+          <not>(left-expr >= (subquery)
+
+      An inequality usually rejects NULLs from both operands, so the
+      not_null_tables() of the inequality is the union of the
+      null-rejecting tables of both operands. However, since this is a
+      transformed ALL clause that should return true if the subquery
+      is empty (even if left-expr is NULL), it is not null rejecting
+      for left-expr. The not null tables mask for left-expr should be
+      removed, leaving only the null-rejecting tables of the
+      subquery. Item_subselect::not_null_tables() always returns 0 (no
+      null-rejecting tables). Therefore, always return 0.
+    */
+    return 0;
+  }
   bool empty_underlying_subquery();
   Item *neg_transformer(THD *thd);
 };
@@ -558,6 +582,7 @@ public:
   Item_func_nop_all(Item *a) :Item_func_not_all(a) {}
   longlong val_int();
   const char *func_name() const { return "<nop>"; }
+  table_map not_null_tables() const { return not_null_tables_cache; }
   Item *neg_transformer(THD *thd);
 };
 
@@ -1495,11 +1520,12 @@ public:
   longlong val_int();
   const char *func_name() const { return "<is_not_null_test>"; }
   void update_used_tables();
-  /*
-    we add RAND_TABLE_BIT to prevent moving this item from HAVING to WHERE
+  /**
+    We add RAND_TABLE_BIT to prevent moving this item from HAVING to WHERE.
+     
+    @retval Always RAND_TABLE_BIT
   */
-  table_map used_tables() const
-    { return used_tables_cache | RAND_TABLE_BIT; }
+  table_map get_initial_pseudo_tables() const { return RAND_TABLE_BIT; }
 };
 
 

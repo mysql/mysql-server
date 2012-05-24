@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -30,12 +30,7 @@ using my_testing::Mock_error_handler;
 class CreateFieldTest : public ::testing::Test
 {
 protected:
-  static void SetUpTestCase() { Server_initializer::SetUpTestCase(); }
-
-  static void TearDownTestCase() { Server_initializer::TearDownTestCase(); }
-
   virtual void SetUp() { initializer.SetUp(); }
-
   virtual void TearDown() { initializer.TearDown(); }
 
   Server_initializer initializer;

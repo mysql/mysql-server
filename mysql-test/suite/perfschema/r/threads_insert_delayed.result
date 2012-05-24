@@ -10,6 +10,8 @@ expect_1
 INSERT INTO t2 SELECT thread_id
 FROM performance_schema.threads;
 INSERT DELAYED INTO t1 SET f1 = SLEEP(3);
+Warnings:
+Warning	1287	'INSERT DELAYED' is deprecated and will be removed in a future release. Please use INSERT instead
 SELECT name, type, instrumented, processlist_user, processlist_host
 FROM performance_schema.threads
 WHERE thread_id NOT IN (SELECT thread_id FROM t2);

@@ -455,11 +455,14 @@ update_the_rec:
 					goto insert_the_rec;
 				}
 
-				/* Duplicate key found. Complain if
-				the record was not delete-marked or we
-				are trying to insert a non-matching
-				delete-marked record. */
-				if (!deleted || entry->info_bits) {
+				/* Duplicate key found. This is OK if
+				any of the key columns are NULL.
+				Complain if the record was not
+				delete-marked or we are trying to
+				insert a non-matching delete-marked
+				record. */
+				if ((!deleted || entry->info_bits)
+				    && !dtuple_contains_null(entry)) {
 					row_merge_dup_report(
 						dup, entry->fields);
 					goto func_exit;
@@ -523,7 +526,8 @@ update_the_rec:
 
 			if (update->n_fields > 0
 			    && cursor.low_match
-			    < dict_index_get_n_fields(index)) {
+			    < dict_index_get_n_fields(index)
+			    && !dtuple_contains_null(entry)) {
 				/* Duplicate key error */
 				ut_ad(dict_index_is_unique(index));
 				row_merge_dup_report(dup, entry->fields);
@@ -1054,9 +1058,14 @@ row_log_apply(
 
 	rw_lock_x_lock(dict_index_get_lock(index));
 
-	error = row_log_apply_ops(trx, index, &dup);
+	if (!dict_table_is_corrupted(index->table)) {
+		error = row_log_apply_ops(trx, index, &dup);
+	} else {
+		error = DB_SUCCESS;
+	}
 
 	if (error != DB_SUCCESS || dup.n_dup) {
+		ut_a(!dict_table_is_discarded(index->table));
 		/* We set the flag directly instead of invoking
 		dict_set_corrupted_index_cache_only(index) here,
 		because the index is not "public" yet. */

@@ -46,7 +46,7 @@ DROP TABLE t1;
 # ALTER TABLE ... FORCE should convert YEAR(2) to YEAR(4)
 ALTER TABLE t1 FORCE;
 Warnings:
-Warning	1804	YEAR(2) column type is deprecated. Creating YEAR(4) column instead.
+Warning	1818	YEAR(2) column type is deprecated. Creating YEAR(4) column instead.
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -105,7 +105,7 @@ DROP TABLE t1;
 # ALTER TABLE ... FORCE should convert YEAR(2) to YEAR(4)
 ALTER TABLE t1 FORCE;
 Warnings:
-Warning	1804	YEAR(2) column type is deprecated. Creating YEAR(4) column instead.
+Warning	1818	YEAR(2) column type is deprecated. Creating YEAR(4) column instead.
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -122,7 +122,7 @@ DROP TABLE t1;
 # Create InnoDB table with YEAR(4) columns
 ALTER TABLE t1 ENGINE=InnoDB;
 Warnings:
-Warning	1804	YEAR(2) column type is deprecated. Creating YEAR(4) column instead.
+Warning	1818	YEAR(2) column type is deprecated. Creating YEAR(4) column instead.
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -150,7 +150,7 @@ test.t1	check	error	Table rebuild required. Please do "ALTER TABLE `t1` FORCE" o
 # Run ALTER TABLE ... FORCE to alter the table and repair the YEAR(2) fields
 ALTER TABLE t1 FORCE;
 Warnings:
-Warning	1804	YEAR(2) column type is deprecated. Creating YEAR(4) column instead.
+Warning	1818	YEAR(2) column type is deprecated. Creating YEAR(4) column instead.
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (

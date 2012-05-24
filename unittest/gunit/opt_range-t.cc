@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -28,16 +28,6 @@ using my_testing::Server_initializer;
 class SelArgTest : public ::testing::Test
 {
 protected:
-  static void SetUpTestCase()
-  {
-    Server_initializer::SetUpTestCase();
-  }
-
-  static void TearDownTestCase()
-  {
-    Server_initializer::TearDownTestCase();
-  }
-
   SelArgTest()
   {
     memset(&m_opt_param, 0, sizeof(m_opt_param));

@@ -145,7 +145,7 @@ f116 VARBINARY(64) null,
 f117 VARBINARY(192) null
 ) engine = myisam;
 Warnings:
-Warning	1804	YEAR(3) column type is deprecated. Creating YEAR(4) column instead.
+Warning	1818	YEAR(3) column type is deprecated. Creating YEAR(4) column instead.
 load data infile '<MYSQLTEST_VARDIR>/std_data/funcs_1/myisam_tb2.txt'
 into table tb2;
 drop table if exists tb3 ;
@@ -286,7 +286,7 @@ f241 char(100),
 f242 bit(30)
 ) engine = myisam;
 Warnings:
-Warning	1804	YEAR(3) column type is deprecated. Creating YEAR(4) column instead.
+Warning	1818	YEAR(3) column type is deprecated. Creating YEAR(4) column instead.
 load data infile '<MYSQLTEST_VARDIR>/std_data/funcs_1/myisam_tb4.txt'
 into table tb4;
 USE test1;
@@ -353,7 +353,7 @@ f116 VARBINARY(64) null,
 f117 VARBINARY(192) null
 ) engine = myisam;
 Warnings:
-Warning	1804	YEAR(3) column type is deprecated. Creating YEAR(4) column instead.
+Warning	1818	YEAR(3) column type is deprecated. Creating YEAR(4) column instead.
 load data infile '<MYSQLTEST_VARDIR>/std_data/funcs_1/myisam_tb2.txt'
 into table tb2;
 USE test;

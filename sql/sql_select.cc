@@ -80,6 +80,12 @@ bool handle_select(THD *thd, LEX *lex, select_result *result,
   DBUG_ENTER("handle_select");
   MYSQL_SELECT_START(thd->query());
 
+  if (lex->proc_analyse && lex->sql_command != SQLCOM_SELECT)
+  {
+    my_error(ER_WRONG_USAGE, MYF(0), "PROCEDURE", "non-SELECT");
+    DBUG_RETURN(true);
+  }
+
   if (select_lex->master_unit()->is_union() || 
       select_lex->master_unit()->fake_select_lex)
     res= mysql_union(thd, lex, result, &lex->unit, setup_tables_done_option);
@@ -101,7 +107,6 @@ bool handle_select(THD *thd, LEX *lex, select_result *result,
 		      select_lex->order_list.first,
 		      select_lex->group_list.first,
 		      select_lex->having,
-		      lex->proc_list.first,
 		      select_lex->options | thd->variables.option_bits |
                       setup_tables_done_option,
 		      result, unit, select_lex);
@@ -795,19 +800,6 @@ bool JOIN::prepare_result(List<Item> **columns_list)
       get_schema_tables_result(this, PROCESSED_BY_JOIN_EXEC))
     goto err;
 
-  if (procedure)
-  {
-    procedure_fields_list= fields_list;
-    if (procedure->change_columns(procedure_fields_list) ||
-	result->prepare(procedure_fields_list, unit))
-    {
-      thd->set_examined_row_count(0);
-      thd->limit_found_rows= 0;
-      goto err;
-    }
-    *columns_list= &procedure_fields_list;
-  }
-
   DBUG_RETURN(FALSE);
 
 err:
@@ -921,7 +913,6 @@ bool JOIN::destroy()
     sj_nest->sj_mat_exec= NULL;
 
   keyuse.clear();
-  delete procedure;
   DBUG_RETURN(test(error));
 }
 
@@ -961,7 +952,6 @@ void JOIN::cleanup_item_list(List<Item> &items) const
   @param order                linked list of ORDER BY agruments
   @param group                linked list of GROUP BY arguments
   @param having               top level item of HAVING expression
-  @param proc_param           list of PROCEDUREs
   @param select_options       select options (BIG_RESULT, etc)
   @param result               an instance of result set handling class.
                               This object is responsible for send result
@@ -985,7 +975,7 @@ bool
 mysql_select(THD *thd, 
 	     TABLE_LIST *tables, uint wild_num, List<Item> &fields,
 	     Item *conds, uint og_num,  ORDER *order, ORDER *group,
-	     Item *having, ORDER *proc_param, ulonglong select_options,
+             Item *having, ulonglong select_options,
 	     select_result *result, SELECT_LEX_UNIT *unit,
 	     SELECT_LEX *select_lex)
 {
@@ -1023,7 +1013,7 @@ mysql_select(THD *thd,
       else
       {
         err= join->prepare(tables, wild_num,
-                           conds, og_num, order, group, having, proc_param,
+                           conds, og_num, order, group, having,
                            select_lex, unit);
         if (err)
 	{
@@ -1041,7 +1031,7 @@ mysql_select(THD *thd,
     THD_STAGE_INFO(thd, stage_init);
     thd->lex->used_tables=0;                         // Updated by setup_fields
     err= join->prepare(tables, wild_num,
-                       conds, og_num, order, group, having, proc_param,
+                       conds, og_num, order, group, having,
                        select_lex, unit);
     if (err)
     {
@@ -1268,7 +1258,8 @@ bool JOIN::set_access_methods()
       */
       const table_map available_tables=
         sj_is_materialize_strategy(tab->get_sj_strategy()) ?
-          used_tables & tab->emb_sj_nest->sj_inner_tables : used_tables;
+        (used_tables & tab->emb_sj_nest->sj_inner_tables) |
+        OUTER_REF_TABLE_BIT : used_tables;
       if (create_ref_for_key(this, tab, keyuse, available_tables))
         DBUG_RETURN(true);
     }
@@ -1396,6 +1387,7 @@ bool create_ref_for_key(JOIN *join, JOIN_TAB *j, Key_use *org_keyuse,
       }
       keyuse++;
     } while (keyuse->table == table && keyuse->key == key);
+    DBUG_ASSERT(length > 0 && keyparts != 0);
   } /* not ftkey */
 
   /* set up fieldref */
@@ -1509,7 +1501,8 @@ bool create_ref_for_key(JOIN *join, JOIN_TAB *j, Key_use *org_keyuse,
     j->type= null_ref_key ? JT_REF_OR_NULL : JT_REF;
     j->ref.null_ref_key= null_ref_key;
   }
-  else if (keyuse_uses_no_tables)
+  else if (keyuse_uses_no_tables &&
+           !(table->file->ha_table_flags() & HA_BLOCK_CONST_TABLE))
   {
     /*
       This happen if we are using a constant expression in the ON part
@@ -2636,7 +2629,9 @@ make_join_readinfo(JOIN *join, ulonglong options, uint no_jbuf_after)
     tab->sorted= (tab->type != JT_EQ_REF) ? sorted : false;
     sorted= false;                              // only first must be sorted
     table->status= STATUS_GARBAGE | STATUS_NOT_FOUND;
-    pick_table_access_method (tab);
+    tab->read_first_record= NULL; // Access methods not set yet
+    tab->read_record.read_record= NULL;
+    tab->read_record.unlock_row= rr_unlock_row;
 
     Opt_trace_object trace_refine_table(trace);
     trace_refine_table.add_utf8_table(table);
@@ -3713,11 +3708,14 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
   QUICK_SELECT_I *save_quick= select ? select->quick : NULL;
   int best_key= -1;
   Item *orig_cond;
-  bool orig_cond_saved= false, ret;
+  bool orig_cond_saved= false, ret, set_up_ref_access_to_key= false;
   int changed_key= -1;
   DBUG_ENTER("test_if_skip_sort_order");
   LINT_INIT(ref_key_parts);
   LINT_INIT(orig_cond);
+
+  /* Check that we are always called with first non-const table */
+  DBUG_ASSERT(tab == tab->join->join_tab + tab->join->const_tables); 
 
   Plan_change_watchdog watchdog(tab, no_changes);
 
@@ -3815,26 +3813,13 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
       {
 	/* Found key that can be used to retrieve data in sorted order */
 	if (tab->ref.key >= 0)
-	{
+        {
           /*
-            We'll use ref access method on key new_ref_key. In general case 
-            the index search tuple for new_ref_key will be different (e.g.
-            when one index is defined as (part1, part2, ...) and another as
-            (part1, part2(N), ...) and the WHERE clause contains 
-            "part1 = const1 AND part2=const2". 
-            So we build tab->ref from scratch here.
+            We'll use ref access method on key new_ref_key. The actual change
+            is done further down in this function where we update the plan.
           */
-          Key_use *keyuse= tab->keyuse;
-          while (keyuse->key != new_ref_key && keyuse->table == tab->table)
-            keyuse++;
-
-          if (create_ref_for_key(tab->join, tab, keyuse, 
-                                 tab->join->const_table_map))
-            goto use_filesort;
-
-          DBUG_ASSERT(tab->type != JT_REF_OR_NULL && tab->type != JT_FT);
-          pick_table_access_method(tab);
-	}
+          set_up_ref_access_to_key= true;
+        }
 	else
 	{
           /*
@@ -3934,6 +3919,8 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
       used_key_parts= (order_direction == -1) ?
         saved_best_key_parts :  best_key_parts;
       changed_key= best_key;
+      // We will use index scan or range scan:
+      set_up_ref_access_to_key= false;
     }
     else
       goto use_filesort; 
@@ -3969,7 +3956,28 @@ check_reverse_order:
   */
   if (!no_changes) // We are allowed to update QEP
   {
-    if (best_key >= 0)
+    if (set_up_ref_access_to_key)
+    {
+      /*
+        We'll use ref access method on key changed_key. In general case 
+        the index search tuple for changed_ref_key will be different (e.g.
+        when one index is defined as (part1, part2, ...) and another as
+        (part1, part2(N), ...) and the WHERE clause contains 
+        "part1 = const1 AND part2=const2". 
+        So we build tab->ref from scratch here.
+      */
+      Key_use *keyuse= tab->keyuse;
+      while (keyuse->key != (uint)changed_key && keyuse->table == tab->table)
+        keyuse++;
+
+      if (create_ref_for_key(tab->join, tab, keyuse, 
+                             tab->join->const_table_map |
+                             OUTER_REF_TABLE_BIT))
+        goto use_filesort;
+
+      DBUG_ASSERT(tab->type != JT_REF_OR_NULL && tab->type != JT_FT);
+    }
+    else if (best_key >= 0)
     {
       bool quick_created= 
         (select && select->quick && select->quick!=save_quick);
@@ -3993,6 +4001,10 @@ check_reverse_order:
         table->file->ha_index_or_rnd_end();
         if (tab->join->select_options & SELECT_DESCRIBE)
         {
+          /*
+            @todo this neutralizes add_ref_to_table_cond(); as a result
+            EXPLAIN shows no "using where" though real SELECT has one.
+          */
           tab->ref.key= -1;
           tab->ref.key_parts= 0;
           if (select_limit < table->file->stats.records) 
@@ -4621,8 +4633,8 @@ bool JOIN::change_result(select_result *res)
 {
   DBUG_ENTER("JOIN::change_result");
   result= res;
-  if (!procedure && (result->prepare(fields_list, select_lex->master_unit()) ||
-                     result->prepare2()))
+  if (result->prepare(fields_list, select_lex->master_unit()) ||
+      result->prepare2())
   {
     DBUG_RETURN(TRUE);
   }

@@ -33,7 +33,7 @@
   Maximum number of characters that can be entered
   on single line in the console (including \r\n).
 */
-#define MAX_NUM_OF_CHARS_TO_READ 26600
+#define MAX_NUM_OF_CHARS_TO_READ 24530
 
 /**
   Determine if a file is a windows console
@@ -276,7 +276,7 @@ my_win_translate_command_line_args(const CHARSET_INFO *cs, int *argc, char ***ar
   /* Allocate new command line parameter */
   av= (char **) my_once_alloc(nbytes, MYF(MY_ZEROFILL));
 
-  for(i= 0; i < *argc; i++)
+  for(i= 0; i < ac; i++)
   {
     uint dummy_errors;
     size_t arg_len= wcslen(wargs[i]);

@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -115,6 +115,7 @@ When one supplies long data for a placeholder:
 #endif
 #include "lock.h"                               // MYSQL_OPEN_FORCE_SHARED_MDL
 #include "opt_trace.h"                          // Opt_trace_object
+#include "sql_analyse.h"
 
 #include <algorithm>
 using std::max;
@@ -1507,17 +1508,27 @@ static int mysql_test_select(Prepared_statement *stmt,
     /* Make copy of item list, as change_columns may change it */
     List<Item> fields(lex->select_lex.item_list);
 
-    /* Change columns if a procedure like analyse() */
-    if (unit->last_procedure && unit->last_procedure->change_columns(fields))
-      goto error;
+    select_result *result= lex->result;
+    select_result *analyse_result= NULL;
+    if (lex->proc_analyse)
+    {
+      /*
+        We need proper output recordset metadata for SELECT ... PROCEDURE ANALUSE()
+      */
+      if ((result= analyse_result=
+             new select_analyse(result, lex->proc_analyse)) == NULL)
+        goto error; // OOM
+    }
 
     /*
-      We can use lex->result as it should've been prepared in
+      We can use "result" as it should've been prepared in
       unit->prepare call above.
     */
-    if (send_prep_stmt(stmt, lex->result->field_count(fields)) ||
-        lex->result->send_result_set_metadata(fields, Protocol::SEND_EOF) ||
-        thd->protocol->flush())
+    bool rc= (send_prep_stmt(stmt, result->field_count(fields)) ||
+              result->send_result_set_metadata(fields, Protocol::SEND_EOF) ||
+              thd->protocol->flush());
+    delete analyse_result;
+    if (rc)
       goto error;
     DBUG_RETURN(2);
   }
@@ -3476,8 +3487,6 @@ Prepared_statement::execute_loop(String *expanded_query,
     return TRUE;
 
 reexecute:
-  reprepare_observer.reset_reprepare_observer();
-
   /*
     If the free_list is not empty, we'll wrongly free some externally
     allocated items when cleaning up after validation of the prepared
@@ -3491,18 +3500,22 @@ reexecute:
     the observer method will be invoked to push an error into
     the error stack.
   */
-  if (sql_command_flags[lex->sql_command] &
-      CF_REEXECUTION_FRAGILE)
+  Reprepare_observer *stmt_reprepare_observer= NULL;
+
+  if (sql_command_flags[lex->sql_command] & CF_REEXECUTION_FRAGILE)
   {
-    DBUG_ASSERT(thd->m_reprepare_observer == NULL);
-    thd->m_reprepare_observer = &reprepare_observer;
+    reprepare_observer.reset_reprepare_observer();
+    stmt_reprepare_observer = &reprepare_observer;
   }
+
+  thd->push_reprepare_observer(stmt_reprepare_observer);
 
   error= execute(expanded_query, open_cursor) || thd->is_error();
 
-  thd->m_reprepare_observer= NULL;
+  thd->pop_reprepare_observer();
 
-  if (error && !thd->is_fatal_error && !thd->killed &&
+  if ((sql_command_flags[lex->sql_command] & CF_REEXECUTION_FRAGILE) &&
+      error && !thd->is_fatal_error && !thd->killed &&
       reprepare_observer.is_invalidated() &&
       reprepare_attempt++ < MAX_REPREPARE_ATTEMPTS)
   {

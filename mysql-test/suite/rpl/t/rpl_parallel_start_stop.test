@@ -68,7 +68,7 @@ let $count= 0;
 let $table= worker_proc_list;
 source include/wait_until_rows_count.inc;
 
-let $slave_sql_errno= 1755; # ER_MTS_PARALLEL_INCONSISTENT_DATA
+let $slave_sql_errno= 1756; # ER_MTS_PARALLEL_INCONSISTENT_DATA
 source include/wait_for_slave_sql_error.inc;
 
 source include/start_slave.inc;
@@ -149,6 +149,7 @@ begin;
 # set up a deadlock
 update t1 set a=31 where a=3;
 insert into t1 values (5),(6),(7);
+update t1 set a=a+10;
 
 connection master;
 

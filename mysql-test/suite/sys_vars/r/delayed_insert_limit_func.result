@@ -59,6 +59,8 @@ SELECT COUNT(*) FROM t1;
 UNLOCK TABLES;
 ** Connection con1 **
 Asynchronous "reap" result
+Warnings:
+Warning	1287	'INSERT DELAYED' is deprecated and will be removed in a future release. Please use INSERT instead
 ** Connection con0 **
 Asynchronous "reap" result
 The next result suffers from
@@ -108,6 +110,8 @@ SELECT COUNT(*) BETWEEN 6 AND 22 FROM t1;
 ** Wait till con0 is blocked **
 UNLOCK TABLES;
 ** Connection con1 **
+Warnings:
+Warning	1287	'INSERT DELAYED' is deprecated and will be removed in a future release. Please use INSERT instead
 ** Connection con0 **
 Asynchronous "reap" result
 COUNT(*) BETWEEN 6 AND 22

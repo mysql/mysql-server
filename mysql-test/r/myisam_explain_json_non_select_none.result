@@ -458,7 +458,7 @@ EXPLAIN
       "access_type": "ALL",
       "rows": 3,
       "filtered": 100,
-      "attached_condition": "<in_optimizer>(1,<exists>(select 1 from `test`.`t2` where ((`test`.`t2`.`b` < 3) and (<cache>(1) = 1))))",
+      "attached_condition": "<in_optimizer>(1,<exists>(select 1 from `test`.`t2` where (`test`.`t2`.`b` < 3)))",
       "attached_subqueries": [
         {
           "dependent": true,
@@ -2769,8 +2769,8 @@ EXPLAIN EXTENDED DELETE   FROM t1 WHERE i > 10 AND i <= 18 ORDER BY i LIMIT 5;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	ALL	i	NULL	NULL	NULL	26	100.00	Using where; Using filesort
 Warnings:
-Warning	1738	Cannot use range access on index 'i' due to type or collation conversion on field 'i'
-Warning	1738	Cannot use range access on index 'i' due to type or collation conversion on field 'i'
+Warning	1739	Cannot use range access on index 'i' due to type or collation conversion on field 'i'
+Warning	1739	Cannot use range access on index 'i' due to type or collation conversion on field 'i'
 # Status of EXPLAIN EXTENDED query
 Variable_name	Value
 EXPLAIN FORMAT=JSON DELETE   FROM t1 WHERE i > 10 AND i <= 18 ORDER BY i LIMIT 5;;
@@ -2795,18 +2795,18 @@ EXPLAIN
   } /* query_block */
 }
 Warnings:
-Warning	1738	Cannot use range access on index 'i' due to type or collation conversion on field 'i'
-Warning	1738	Cannot use range access on index 'i' due to type or collation conversion on field 'i'
+Warning	1739	Cannot use range access on index 'i' due to type or collation conversion on field 'i'
+Warning	1739	Cannot use range access on index 'i' due to type or collation conversion on field 'i'
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED SELECT * FROM t1 WHERE i > 10 AND i <= 18 ORDER BY i LIMIT 5;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	ALL	i	NULL	NULL	NULL	26	100.00	Using where; Using filesort
 Warnings:
-Warning	1738	Cannot use range access on index 'i' due to type or collation conversion on field 'i'
-Warning	1738	Cannot use range access on index 'i' due to type or collation conversion on field 'i'
-Warning	1738	Cannot use range access on index 'i' due to type or collation conversion on field 'i'
-Warning	1738	Cannot use range access on index 'i' due to type or collation conversion on field 'i'
+Warning	1739	Cannot use range access on index 'i' due to type or collation conversion on field 'i'
+Warning	1739	Cannot use range access on index 'i' due to type or collation conversion on field 'i'
+Warning	1739	Cannot use range access on index 'i' due to type or collation conversion on field 'i'
+Warning	1739	Cannot use range access on index 'i' due to type or collation conversion on field 'i'
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`i` AS `i` from `test`.`t1` where ((`test`.`t1`.`i` > 10) and (`test`.`t1`.`i` <= 18)) order by `test`.`t1`.`i` limit 5
 # Status of EXPLAIN EXTENDED "equivalent" SELECT query execution
 Variable_name	Value
@@ -2831,10 +2831,10 @@ EXPLAIN
   } /* query_block */
 }
 Warnings:
-Warning	1738	Cannot use range access on index 'i' due to type or collation conversion on field 'i'
-Warning	1738	Cannot use range access on index 'i' due to type or collation conversion on field 'i'
-Warning	1738	Cannot use range access on index 'i' due to type or collation conversion on field 'i'
-Warning	1738	Cannot use range access on index 'i' due to type or collation conversion on field 'i'
+Warning	1739	Cannot use range access on index 'i' due to type or collation conversion on field 'i'
+Warning	1739	Cannot use range access on index 'i' due to type or collation conversion on field 'i'
+Warning	1739	Cannot use range access on index 'i' due to type or collation conversion on field 'i'
+Warning	1739	Cannot use range access on index 'i' due to type or collation conversion on field 'i'
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`i` AS `i` from `test`.`t1` where ((`test`.`t1`.`i` > 10) and (`test`.`t1`.`i` <= 18)) order by `test`.`t1`.`i` limit 5
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
@@ -3040,7 +3040,7 @@ EXPLAIN EXTENDED DELETE   FROM t2 WHERE b = 10 ORDER BY a, c LIMIT 5;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	ALL	a	NULL	NULL	NULL	26	100.00	Using where; Using filesort
 Warnings:
-Warning	1738	Cannot use range access on index 'a' due to type or collation conversion on field 'b'
+Warning	1739	Cannot use range access on index 'a' due to type or collation conversion on field 'b'
 # Status of EXPLAIN EXTENDED query
 Variable_name	Value
 EXPLAIN FORMAT=JSON DELETE   FROM t2 WHERE b = 10 ORDER BY a, c LIMIT 5;;
@@ -3065,7 +3065,7 @@ EXPLAIN
   } /* query_block */
 }
 Warnings:
-Warning	1738	Cannot use range access on index 'a' due to type or collation conversion on field 'b'
+Warning	1739	Cannot use range access on index 'a' due to type or collation conversion on field 'b'
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED SELECT * FROM t2 WHERE b = 10 ORDER BY a, c LIMIT 5;
@@ -3129,7 +3129,7 @@ EXPLAIN EXTENDED DELETE   FROM t2 WHERE b = 10 ORDER BY a, c LIMIT 5;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	ALL	a	NULL	NULL	NULL	26	100.00	Using where; Using filesort
 Warnings:
-Warning	1738	Cannot use range access on index 'a' due to type or collation conversion on field 'b'
+Warning	1739	Cannot use range access on index 'a' due to type or collation conversion on field 'b'
 # Status of EXPLAIN EXTENDED query
 Variable_name	Value
 EXPLAIN FORMAT=JSON DELETE   FROM t2 WHERE b = 10 ORDER BY a, c LIMIT 5;;
@@ -3154,7 +3154,7 @@ EXPLAIN
   } /* query_block */
 }
 Warnings:
-Warning	1738	Cannot use range access on index 'a' due to type or collation conversion on field 'b'
+Warning	1739	Cannot use range access on index 'a' due to type or collation conversion on field 'b'
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED SELECT * FROM t2 WHERE b = 10 ORDER BY a, c LIMIT 5;
@@ -3658,8 +3658,8 @@ EXPLAIN EXTENDED UPDATE t2 SET a = 10 WHERE i > 10 AND i <= 18 ORDER BY i LIMIT 
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	ALL	i	NULL	NULL	NULL	26	100.00	Using where; Using filesort
 Warnings:
-Warning	1738	Cannot use range access on index 'i' due to type or collation conversion on field 'i'
-Warning	1738	Cannot use range access on index 'i' due to type or collation conversion on field 'i'
+Warning	1739	Cannot use range access on index 'i' due to type or collation conversion on field 'i'
+Warning	1739	Cannot use range access on index 'i' due to type or collation conversion on field 'i'
 # Status of EXPLAIN EXTENDED query
 Variable_name	Value
 EXPLAIN FORMAT=JSON UPDATE t2 SET a = 10 WHERE i > 10 AND i <= 18 ORDER BY i LIMIT 5;;
@@ -3684,18 +3684,18 @@ EXPLAIN
   } /* query_block */
 }
 Warnings:
-Warning	1738	Cannot use range access on index 'i' due to type or collation conversion on field 'i'
-Warning	1738	Cannot use range access on index 'i' due to type or collation conversion on field 'i'
+Warning	1739	Cannot use range access on index 'i' due to type or collation conversion on field 'i'
+Warning	1739	Cannot use range access on index 'i' due to type or collation conversion on field 'i'
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED SELECT * FROM t2     WHERE i > 10 AND i <= 18 ORDER BY i LIMIT 5;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	ALL	i	NULL	NULL	NULL	26	100.00	Using where; Using filesort
 Warnings:
-Warning	1738	Cannot use range access on index 'i' due to type or collation conversion on field 'i'
-Warning	1738	Cannot use range access on index 'i' due to type or collation conversion on field 'i'
-Warning	1738	Cannot use range access on index 'i' due to type or collation conversion on field 'i'
-Warning	1738	Cannot use range access on index 'i' due to type or collation conversion on field 'i'
+Warning	1739	Cannot use range access on index 'i' due to type or collation conversion on field 'i'
+Warning	1739	Cannot use range access on index 'i' due to type or collation conversion on field 'i'
+Warning	1739	Cannot use range access on index 'i' due to type or collation conversion on field 'i'
+Warning	1739	Cannot use range access on index 'i' due to type or collation conversion on field 'i'
 Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`i` AS `i` from `test`.`t2` where ((`test`.`t2`.`i` > 10) and (`test`.`t2`.`i` <= 18)) order by `test`.`t2`.`i` limit 5
 # Status of EXPLAIN EXTENDED "equivalent" SELECT query execution
 Variable_name	Value
@@ -3720,10 +3720,10 @@ EXPLAIN
   } /* query_block */
 }
 Warnings:
-Warning	1738	Cannot use range access on index 'i' due to type or collation conversion on field 'i'
-Warning	1738	Cannot use range access on index 'i' due to type or collation conversion on field 'i'
-Warning	1738	Cannot use range access on index 'i' due to type or collation conversion on field 'i'
-Warning	1738	Cannot use range access on index 'i' due to type or collation conversion on field 'i'
+Warning	1739	Cannot use range access on index 'i' due to type or collation conversion on field 'i'
+Warning	1739	Cannot use range access on index 'i' due to type or collation conversion on field 'i'
+Warning	1739	Cannot use range access on index 'i' due to type or collation conversion on field 'i'
+Warning	1739	Cannot use range access on index 'i' due to type or collation conversion on field 'i'
 Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`i` AS `i` from `test`.`t2` where ((`test`.`t2`.`i` > 10) and (`test`.`t2`.`i` <= 18)) order by `test`.`t2`.`i` limit 5
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
@@ -3931,7 +3931,7 @@ EXPLAIN EXTENDED UPDATE t2 SET d = 10 WHERE b = 10 ORDER BY a, c LIMIT 5;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	ALL	a	NULL	NULL	NULL	26	100.00	Using where; Using filesort
 Warnings:
-Warning	1738	Cannot use range access on index 'a' due to type or collation conversion on field 'b'
+Warning	1739	Cannot use range access on index 'a' due to type or collation conversion on field 'b'
 # Status of EXPLAIN EXTENDED query
 Variable_name	Value
 EXPLAIN FORMAT=JSON UPDATE t2 SET d = 10 WHERE b = 10 ORDER BY a, c LIMIT 5;;
@@ -3956,7 +3956,7 @@ EXPLAIN
   } /* query_block */
 }
 Warnings:
-Warning	1738	Cannot use range access on index 'a' due to type or collation conversion on field 'b'
+Warning	1739	Cannot use range access on index 'a' due to type or collation conversion on field 'b'
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED SELECT * FROM t2     WHERE b = 10 ORDER BY a, c LIMIT 5;
@@ -4019,7 +4019,7 @@ EXPLAIN EXTENDED UPDATE t2 SET d = 10 WHERE b = 10 ORDER BY a, c LIMIT 5;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	ALL	a	NULL	NULL	NULL	26	100.00	Using where; Using filesort
 Warnings:
-Warning	1738	Cannot use range access on index 'a' due to type or collation conversion on field 'b'
+Warning	1739	Cannot use range access on index 'a' due to type or collation conversion on field 'b'
 # Status of EXPLAIN EXTENDED query
 Variable_name	Value
 EXPLAIN FORMAT=JSON UPDATE t2 SET d = 10 WHERE b = 10 ORDER BY a, c LIMIT 5;;
@@ -4044,7 +4044,7 @@ EXPLAIN
   } /* query_block */
 }
 Warnings:
-Warning	1738	Cannot use range access on index 'a' due to type or collation conversion on field 'b'
+Warning	1739	Cannot use range access on index 'a' due to type or collation conversion on field 'b'
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED SELECT * FROM t2     WHERE b = 10 ORDER BY a, c LIMIT 5;
@@ -5725,6 +5725,8 @@ CREATE TABLE t1 (i INT);
 EXPLAIN INSERT DELAYED INTO t1 VALUES (1);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+Warnings:
+Warning	1287	'INSERT DELAYED' is deprecated and will be removed in a future release. Please use INSERT instead
 DROP TABLE t1;
 #69
 CREATE TABLE t1 (a INT);
@@ -5818,7 +5820,7 @@ EXPLAIN
       "access_type": "ALL",
       "rows": 3,
       "filtered": 100,
-      "attached_condition": "<in_optimizer>(`test`.`t1`.`a`,<exists>(select 1 from (select `test`.`t2`.`b` AS `b` from `test`.`t2` order by `test`.`t2`.`b` limit 2,2) `x` where (<cache>(`test`.`t1`.`a`) = `x`.`b`)))",
+      "attached_condition": "<in_optimizer>(`test`.`t1`.`a`,<exists>(<index_lookup>(<cache>(`test`.`t1`.`a`) in x on auto_key0)))",
       "attached_subqueries": [
         {
           "dependent": true,
@@ -5913,7 +5915,7 @@ EXPLAIN
           "access_type": "ALL",
           "rows": 3,
           "filtered": 100,
-          "attached_condition": "<in_optimizer>(`test`.`t1`.`a`,<exists>(select 1 from (select `test`.`t2`.`b` AS `b` from `test`.`t2` order by `test`.`t2`.`b` limit 2,2) `x` where (<cache>(`test`.`t1`.`a`) = `x`.`b`)))",
+          "attached_condition": "<in_optimizer>(`test`.`t1`.`a`,<exists>(<index_lookup>(<cache>(`test`.`t1`.`a`) in x on auto_key0)))",
           "attached_subqueries": [
             {
               "dependent": true,
@@ -5993,7 +5995,7 @@ EXPLAIN
           "access_type": "ALL",
           "rows": 3,
           "filtered": 100,
-          "attached_condition": "<in_optimizer>(`test`.`t1`.`a`,<exists>(select 1 from (select `test`.`t2`.`b` AS `b` from `test`.`t2` order by `test`.`t2`.`b` limit 2,2) `x` where (<cache>(`test`.`t1`.`a`) = `x`.`b`)))",
+          "attached_condition": "<in_optimizer>(`test`.`t1`.`a`,<exists>(<index_lookup>(<cache>(`test`.`t1`.`a`) in x on auto_key0)))",
           "attached_subqueries": [
             {
               "dependent": true,
@@ -6101,7 +6103,7 @@ EXPLAIN
           "access_type": "ALL",
           "rows": 3,
           "filtered": 100,
-          "attached_condition": "<in_optimizer>(`test`.`t1`.`a`,<exists>(select 1 from (select `test`.`t2`.`b` AS `b` from `test`.`t2` order by `test`.`t2`.`b` limit 2,2) `x` where (<cache>(`test`.`t1`.`a`) = `x`.`b`)))",
+          "attached_condition": "<in_optimizer>(`test`.`t1`.`a`,<exists>(<index_lookup>(<cache>(`test`.`t1`.`a`) in x on auto_key0)))",
           "attached_subqueries": [
             {
               "dependent": true,
@@ -6196,7 +6198,7 @@ EXPLAIN
           "access_type": "ALL",
           "rows": 3,
           "filtered": 100,
-          "attached_condition": "<in_optimizer>(`test`.`t1`.`a`,<exists>(select 1 from (select `test`.`t2`.`b` AS `b` from `test`.`t2` order by `test`.`t2`.`b` limit 2,2) `x` where (<cache>(`test`.`t1`.`a`) = `x`.`b`)))",
+          "attached_condition": "<in_optimizer>(`test`.`t1`.`a`,<exists>(<index_lookup>(<cache>(`test`.`t1`.`a`) in x on auto_key0)))",
           "attached_subqueries": [
             {
               "dependent": true,

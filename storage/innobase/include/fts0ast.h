@@ -58,7 +58,12 @@ enum fts_ast_oper_enum {
 	FTS_DECR_RATING,			/*!< Decrease the rank for this
 						word*/
 
-	FTS_DISTANCE				/*!< Proximity distance */
+	FTS_DISTANCE,				/*!< Proximity distance */
+	FTS_IGNORE_SKIP				/*!< Transient node operator
+						signifies that this is a
+						FTS_IGNORE node, and ignored in
+						the first pass of
+						fts_ast_visit() */
 };
 
 /* Enum types used by the FTS parser */
@@ -190,7 +195,11 @@ fts_ast_visit(
 	fts_ast_oper_t		oper,		/*!< in: FTS operator */
 	fts_ast_node_t*		node,		/*!< in: instance to traverse*/
 	fts_ast_callback	visitor,	/*!< in: callback */
-	void*			arg)		/*!< in: callback arg */
+	void*			arg,		/*!< in: callback arg */
+	bool*			has_ignore)	/*!< out: whether we encounter
+						and ignored processing an
+						operator, currently we only
+						ignore FTS_IGNORE operator */
 	__attribute__((nonnull, warn_unused_result));
 /*****************************************************************//**
 Process (nested) sub-expression, create a new result set to store the
@@ -253,6 +262,8 @@ struct fts_ast_node_struct {
 	fts_ast_list_t	list;			/*!< Expression list */
 	fts_ast_node_t*	next;			/*!< Link for expr list */
 	fts_ast_node_t*	next_alloc;		/*!< For tracking allocations */
+	bool		visited;		/*!< whether this node is
+						already processed */
 };
 
 /* To track state during parsing */

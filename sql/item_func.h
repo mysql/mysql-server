@@ -1,7 +1,7 @@
 #ifndef ITEM_FUNC_INCLUDED
 #define ITEM_FUNC_INCLUDED
 
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -124,6 +124,12 @@ public:
   void fix_after_pullout(st_select_lex *parent_select,
                          st_select_lex *removed_select, Item **ref);
   table_map used_tables() const;
+  /**
+     Returns the pseudo tables depended upon in order to evaluate this
+     function expression. The default implementation returns the empty
+     set.
+  */
+  virtual table_map get_initial_pseudo_tables() const { return 0; }
   table_map not_null_tables() const;
   void update_used_tables();
   void set_used_tables(table_map map) { used_tables_cache= map; }
@@ -528,12 +534,18 @@ public:
 class Item_func_signed :public Item_int_func
 {
 public:
-  Item_func_signed(Item *a) :Item_int_func(a) {}
+  Item_func_signed(Item *a) :Item_int_func(a) 
+  {
+    unsigned_flag= 0;
+  }
   const char *func_name() const { return "cast_as_signed"; }
   longlong val_int();
   longlong val_int_from_str(int *error);
   void fix_length_and_dec()
-  { fix_char_length(args[0]->max_char_length()); unsigned_flag=0; }
+  {
+    fix_char_length(std::min<uint32>(args[0]->max_char_length(),
+                                     MY_INT64_NUM_DECIMAL_DIGITS));
+  }
   virtual void print(String *str, enum_query_type query_type);
   uint decimal_precision() const { return args[0]->decimal_precision(); }
 };
@@ -542,14 +554,11 @@ public:
 class Item_func_unsigned :public Item_func_signed
 {
 public:
-  Item_func_unsigned(Item *a) :Item_func_signed(a) {}
-  const char *func_name() const { return "cast_as_unsigned"; }
-  void fix_length_and_dec()
+  Item_func_unsigned(Item *a) :Item_func_signed(a)
   {
-    fix_char_length(std::min<uint32>(args[0]->max_char_length(),
-                                     DECIMAL_MAX_PRECISION + 2));
-    unsigned_flag=1;
+    unsigned_flag= 1;
   }
+  const char *func_name() const { return "cast_as_unsigned"; }
   longlong val_int();
   virtual void print(String *str, enum_query_type query_type);
 };
@@ -905,7 +914,13 @@ public:
   double val_real();
   const char *func_name() const { return "rand"; }
   bool const_item() const { return 0; }
-  void update_used_tables();
+  /**
+    This function is non-deterministic and hence depends on the
+    'RAND' pseudo-table.
+    
+    @retval RAND_TABLE_BIT
+  */
+  table_map get_initial_pseudo_tables() const { return RAND_TABLE_BIT; }
   bool fix_fields(THD *thd, Item **ref);
   void cleanup() { first_eval= TRUE; Item_real_func::cleanup(); }
 private:
@@ -1034,6 +1049,7 @@ public:
     /* The item could be a NULL constant. */
     null_value= args[0]->is_null();
   }
+  enum_field_types field_type() const { return args[0]->field_type(); }
 };
 
 
@@ -1240,11 +1256,13 @@ public:
   Item_func_sleep(Item *a) :Item_int_func(a) {}
   bool const_item() const { return 0; }
   const char *func_name() const { return "sleep"; }
-  void update_used_tables()
-  {
-    Item_int_func::update_used_tables();
-    used_tables_cache|= RAND_TABLE_BIT;
-  }
+  /**
+    This function is non-deterministic and hence depends on the
+    'RAND' pseudo-table.
+    
+    @retval RAND_TABLE_BIT
+  */
+  table_map get_initial_pseudo_tables() const { return RAND_TABLE_BIT; }
   longlong val_int();
 };
 
@@ -1634,8 +1652,8 @@ class Item_func_set_user_var :public Item_var_func
   } save_result;
 
 public:
-  NameString name; // keep it public
-  Item_func_set_user_var(NameString a, Item *b)
+  Name_string name; // keep it public
+  Item_func_set_user_var(Name_string a, Item *b)
     :Item_var_func(b), cached_result_type(INT_RESULT),
      entry(NULL), entry_thread_id(0), name(a)
   {}
@@ -1669,9 +1687,9 @@ public:
   virtual void print(String *str, enum_query_type query_type);
   void print_assignment(String *str, enum_query_type query_type);
   const char *func_name() const { return "set_user_var"; }
-  int save_in_field(Field *field, bool no_conversions,
-                    bool can_use_result_field);
-  int save_in_field(Field *field, bool no_conversions)
+  type_conversion_status save_in_field(Field *field, bool no_conversions,
+                                       bool can_use_result_field);
+  type_conversion_status save_in_field(Field *field, bool no_conversions)
   {
     return save_in_field(field, no_conversions, 1);
   }
@@ -1689,8 +1707,8 @@ class Item_func_get_user_var :public Item_var_func,
   Item_result m_cached_result_type;
 
 public:
-  NameString name; // keep it public
-  Item_func_get_user_var(NameString a):
+  Name_string name; // keep it public
+  Item_func_get_user_var(Name_string a):
     Item_var_func(), m_cached_result_type(STRING_RESULT), name(a) {}
   enum Functype functype() const { return GUSERVAR_FUNC; }
   double val_real();
@@ -1731,10 +1749,10 @@ public:
 */
 class Item_user_var_as_out_param :public Item
 {
-  NameString name;
+  Name_string name;
   user_var_entry *entry;
 public:
-  Item_user_var_as_out_param(NameString a) :name(a)
+  Item_user_var_as_out_param(Name_string a) :name(a)
   { item_name.copy(a); }
   /* We should return something different from FIELD_ITEM here */
   enum Type type() const { return STRING_ITEM;}
@@ -2029,6 +2047,11 @@ public:
   virtual ~Item_func_sp()
   {}
 
+  /**
+    Must not be called before the procedure is resolved,
+    i.e. ::init_result_field().
+  */
+  table_map get_initial_pseudo_tables() const;
   void update_used_tables();
 
   void cleanup();

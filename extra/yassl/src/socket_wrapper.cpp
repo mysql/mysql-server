@@ -14,7 +14,7 @@
    along with this program; see the file COPYING. If not, write to the
    Free Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston,
    MA  02110-1301  USA.
-*/
+ */
 
 
 /* The socket wrapper source implements a Socket class that hides the 
@@ -129,6 +129,7 @@ uint Socket::get_ready() const
     return ready;
 }
 
+
 void Socket::set_transport_ptr(void *ptr)
 {
   ptr_ = ptr;
@@ -147,19 +148,27 @@ void Socket::set_transport_send_function(yaSSL_send_func_t send_func)
 }
 
 
-uint Socket::send(const byte* buf, unsigned int sz) const
+uint Socket::send(const byte* buf, unsigned int sz, unsigned int& written)
 {
     const byte* pos = buf;
     const byte* end = pos + sz;
 
+    wouldBlock_ = false;
+
     /* Remove send()/recv() hooks once non-blocking send is implemented. */
     while (pos != end) {
         int sent = send_func_(ptr_, pos, static_cast<int>(end - pos));
-
-    if (sent == -1)
-        return 0;
-
+        if (sent == -1) {
+            if (get_lastError() == SOCKET_EWOULDBLOCK || 
+                get_lastError() == SOCKET_EAGAIN) {
+                wouldBlock_  = true; // would have blocked this time only
+                nonBlocking_ = true; // nonblocking, win32 only way to tell 
+                return 0;
+            }
+            return static_cast<uint>(-1);
+        }
         pos += sent;
+        written += sent;
     }
 
     return sz;
@@ -178,8 +187,8 @@ uint Socket::receive(byte* buf, unsigned int sz)
             get_lastError() == SOCKET_EAGAIN) {
             wouldBlock_  = true; // would have blocked this time only
             nonBlocking_ = true; // socket nonblocking, win32 only way to tell
-        return 0;
-    }
+            return 0;
+        }
     }
     else if (recvd == 0)
         return static_cast<uint>(-1);

@@ -1836,10 +1836,33 @@ select TABLE_NAME,COLUMN_NAME,DATA_TYPE,DATETIME_PRECISION from information_sche
 --echo #
 --echo # Clean-up.
 drop database mysqltest;
+use test;
 
 
 --echo #
 --echo # End of 5.5 tests
+--echo #
+
+--echo #
+--echo # Bug #13966514 : CRASH IN GET_SCHEMA_TABLES_RESULT WITH MIN/MAX, 
+--echo #   LEFT/RIGHT JOIN ON I_S TABLE
+--echo #
+
+CREATE TABLE t1(a INT PRIMARY KEY);
+INSERT INTO t1 VALUES (1);
+--echo # must not crash
+SELECT MAX(a) FROM information_schema.engines RIGHT JOIN t1 ON 1;
+DROP TABLE t1;
+
+--echo #
+--echo # BUG#13463397 - 63562: UNKNOWN DATABASE INFORMATION_SCHEMA 
+--echo #
+
+--error ER_DBACCESS_DENIED_ERROR
+CREATE PROCEDURE information_schema.is() BEGIN END;
+
+--echo #
+--echo # End of 5.6 tests
 --echo #
 
 # Wait till all disconnects are completed
