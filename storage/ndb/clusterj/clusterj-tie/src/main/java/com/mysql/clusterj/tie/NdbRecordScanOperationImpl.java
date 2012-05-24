@@ -122,25 +122,19 @@ public abstract class NdbRecordScanOperationImpl extends NdbRecordOperationImpl 
     protected void getScanOptions() {
         long options = (long)Type.SO_SCANFLAGS;
         int flags = ScanFlag.SF_OrderBy;
-        if (multiRange | (ndbScanFilter != null) | 
-                (lockMode != com.mysql.ndbjtie.ndbapi.NdbOperationConst.LockMode.LM_CommittedRead)) {
-
-            scanOptions = db.createScanOptions();
-            if (multiRange) {
-                flags |= ScanFlag.SF_MultiRange;
-                scanOptions.scan_flags(flags);
-            }
-            if (lockMode != com.mysql.ndbjtie.ndbapi.NdbOperationConst.LockMode.LM_CommittedRead) {
-                flags |= ScanFlag.SF_KeyInfo;
-                scanOptions.scan_flags(flags);
-            }
-            if (ndbScanFilter != null) {
-                options |= (long)Type.SO_INTERPRETED;
-                scanOptions.interpretedCode(ndbScanFilter.getInterpretedCode());
-            }
-            
-            scanOptions.optionsPresent(options);
+        scanOptions = db.createScanOptions();
+        if (multiRange) {
+            flags |= ScanFlag.SF_MultiRange;
         }
+        if (lockMode != com.mysql.ndbjtie.ndbapi.NdbOperationConst.LockMode.LM_CommittedRead) {
+            flags |= ScanFlag.SF_KeyInfo;
+        }
+        if (ndbScanFilter != null) {
+            options |= (long)Type.SO_INTERPRETED;
+            scanOptions.interpretedCode(ndbScanFilter.getInterpretedCode());
+        }
+        scanOptions.scan_flags(flags);
+        scanOptions.optionsPresent(options);
         if (logger.isDebugEnabled()) logger.debug("ScanOptions: " + dumpScanOptions(options, flags));
     }
 
