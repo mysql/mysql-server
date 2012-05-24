@@ -1009,7 +1009,7 @@ EXECUTE prep_1;
 DROP PREPARE prep_1;
 
 Invoking unsafe INSERT DELAYED statement.
-* binlog_format = STATEMENT: expect 1 warnings.
+* binlog_format = STATEMENT: expect 1 warnings. 0 with ps-protocol.
 INSERT DELAYED INTO t0 VALUES (1), (2);
 Warnings:
 Warning	1287	'INSERT DELAYED' is deprecated and will be removed in a future release. Please use INSERT instead
@@ -2061,7 +2061,7 @@ Note	1592	Unsafe statement written to the binary log using statement format sinc
 DROP PREPARE prep_1;
 
 Invoking statement that is unsafe in many ways.
-* binlog_format = STATEMENT: expect 8 warnings.
+* binlog_format = STATEMENT: expect 8 warnings. 7 with ps-protocol.
 INSERT DELAYED INTO double_autoinc_table SELECT CONCAT(UUID(), @@hostname, myfunc_int(), NULL) FROM mysql.general_log LIMIT 1;
 Warnings:
 Warning	1287	'INSERT DELAYED' is deprecated and will be removed in a future release. Please use INSERT instead
