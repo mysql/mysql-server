@@ -47,12 +47,10 @@ static void disable_sorted_access(JOIN_TAB* join_tab);
 static void return_zero_rows(JOIN *join, List<Item> &fields);
 static void save_const_null_info(JOIN *join, table_map *save_nullinfo);
 static void restore_const_null_info(JOIN *join, table_map save_nullinfo);
-static int do_select(JOIN *join,List<Item> *fields,TABLE *tmp_table,
-		     Procedure *proc);
+static int do_select(JOIN *join, List<Item> *fields, TABLE *tmp_table);
 
 static enum_nested_loop_state
-evaluate_join_record(JOIN *join, JOIN_TAB *join_tab,
-                     int error);
+evaluate_join_record(JOIN *join, JOIN_TAB *join_tab);
 static enum_nested_loop_state
 evaluate_null_complemented_join_record(JOIN *join, JOIN_TAB *join_tab);
 static enum_nested_loop_state
@@ -81,6 +79,8 @@ static int join_ft_read_next(READ_RECORD *info);
 static int join_read_always_key_or_null(JOIN_TAB *tab);
 static int join_read_next_same_or_null(READ_RECORD *info);
 static int join_read_record_no_init(JOIN_TAB *tab);
+static int join_read_linked_first(JOIN_TAB *tab);
+static int join_read_linked_next(READ_RECORD *info);
 // Create list for using with tempory table
 static bool change_to_use_tmp_fields(THD *thd, Ref_ptr_array ref_pointer_array,
 				     List<Item> &new_list1,
@@ -168,9 +168,7 @@ JOIN::exec()
       */
       if (((select_lex->having_value != Item::COND_FALSE) &&
            (!having || having->val_int())) 
-          && do_send_rows &&
-          (procedure ? (procedure->send_row(procedure_fields_list) ||
-           procedure->end_of_records()) : result->send_data(fields_list)))
+          && do_send_rows && result->send_data(fields_list))
         error= 1;
       else
       {
@@ -230,7 +228,7 @@ JOIN::exec()
       init_items_ref_array();
 
       ORDER_with_src tmp_group;
-      if (!simple_group && !procedure && !(test_flags & TEST_NO_KEY_GROUP))
+      if (!simple_group && !(test_flags & TEST_NO_KEY_GROUP))
         tmp_group= group_list;
       
       tmp_table_param.hidden_field_count= 
@@ -308,9 +306,7 @@ JOIN::execute(JOIN *parent)
         best_positions[const_tables].sj_strategy != SJ_OPT_LOOSE_SCAN)
       disable_sorted_access(&join_tab[const_tables]);
 
-    Procedure *save_proc= procedure;
-    tmp_error= do_select(this, (List<Item> *) NULL, curr_tmp_table, NULL);
-    procedure= save_proc;
+    tmp_error= do_select(this, (List<Item> *) NULL, curr_tmp_table);
     if (tmp_error)
     {
       error= tmp_error;
@@ -364,10 +360,6 @@ JOIN::execute(JOIN *parent)
       tmp_table_param.field_count+= tmp_table_param.func_count;
       tmp_table_param.func_count= 0;
     }
-    
-    // procedure can't be used inside subselect => we do nothing special for it
-    if (procedure)
-      procedure->update_refs();
     
     if (curr_tmp_table->group)
     {						// Already grouped
@@ -480,7 +472,7 @@ JOIN::execute(JOIN *parent)
       if (!sort_and_group && const_tables != tables)
         disable_sorted_access(&join_tab[const_tables]);
       if (setup_sum_funcs(thd, sum_funcs) ||
-          (tmp_error= do_select(this, (List<Item> *)NULL, curr_tmp_table, NULL)))
+          (tmp_error= do_select(this, (List<Item> *)NULL, curr_tmp_table)))
       {
 	error= tmp_error;
 	DBUG_VOID_RETURN;
@@ -541,11 +533,7 @@ JOIN::execute(JOIN *parent)
     count_field_types(select_lex, &tmp_table_param, *curr_all_fields, false);
     
   }
-  if (procedure)
-    count_field_types(select_lex, &tmp_table_param, *curr_all_fields, false);
-  
-  if (group || implicit_grouping || tmp_table_param.sum_func_count ||
-      (procedure && (procedure->flags & PROC_GROUP)))
+  if (group || implicit_grouping || tmp_table_param.sum_func_count)
   {
     if (make_group_fields(main_join, this))
       DBUG_VOID_RETURN;
@@ -764,10 +752,9 @@ JOIN::execute(JOIN *parent)
 
   THD_STAGE_INFO(thd, stage_sending_data);
   DBUG_PRINT("info", ("%s", thd->proc_info));
-  result->send_result_set_metadata((procedure ? procedure_fields_list :
-                                    *curr_fields_list),
+  result->send_result_set_metadata(*curr_fields_list,
                                    Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF);
-  error= do_select(this, curr_fields_list, NULL, procedure);
+  error= do_select(this, curr_fields_list, NULL);
   thd->limit_found_rows= send_records;
   // Ensure that all flags were handled.
   DBUG_ASSERT(exec_flags.any(ESP_CHECKED) ||
@@ -1004,13 +991,15 @@ int JOIN::rollup_write_data(uint idx, TABLE *table_arg)
 void
 JOIN::optimize_distinct()
 {
-  JOIN_TAB *last_join_tab= join_tab+tables-1;
-  do
+  for (JOIN_TAB *last_join_tab= join_tab + tables - 1 ; ;)
   {
     if (select_lex->select_list_tables & last_join_tab->table->map)
       break;
     last_join_tab->not_used_in_distinct= true;
-  } while (last_join_tab-- != join_tab);
+    if (last_join_tab == join_tab)
+      break;
+    --last_join_tab;
+  }
 
   /* Optimize "select distinct b from t1 order by key_part_1 limit #" */
   if (order && skip_sort_order)
@@ -1548,9 +1537,7 @@ static Next_select_func setup_end_select_func(JOIN *join)
        more aggregate functions). Use end_send if the query should not
        be grouped.
      */
-    if ((join->sort_and_group ||
-         (join->procedure && join->procedure->flags & PROC_GROUP)) &&
-        !tmp_tbl->precomputed_group_by)
+    if (join->sort_and_group && !tmp_tbl->precomputed_group_by)
     {
       DBUG_PRINT("info",("Using end_send_group"));
       end_select= end_send_group;
@@ -1577,14 +1564,13 @@ static Next_select_func setup_end_select_func(JOIN *join)
 */
 
 static int
-do_select(JOIN *join,List<Item> *fields,TABLE *table,Procedure *procedure)
+do_select(JOIN *join,List<Item> *fields,TABLE *table)
 {
   int rc= 0;
   enum_nested_loop_state error= NESTED_LOOP_OK;
   JOIN_TAB *join_tab= NULL;
   DBUG_ENTER("do_select");
   
-  join->procedure=procedure;
   join->tmp_table= table;			/* Save for easy recursion */
   join->fields= fields;
 
@@ -1651,8 +1637,7 @@ do_select(JOIN *join,List<Item> *fields,TABLE *table,Procedure *procedure)
       join->clear();
 
       // Calculate aggregate functions for no rows
-      List<Item> *columns_list= (procedure ? &join->procedure_fields_list :
-                                 fields);
+      List<Item> *columns_list= fields;
       List_iterator_fast<Item> it(*columns_list);
       Item *item;
       while ((item= it++))
@@ -1676,14 +1661,11 @@ do_select(JOIN *join,List<Item> *fields,TABLE *table,Procedure *procedure)
   {
     DBUG_ASSERT(join->tables);
     error= join->first_select(join,join_tab,0);
-    if (error == NESTED_LOOP_OK || error == NESTED_LOOP_NO_MORE_ROWS)
+    if (error == NESTED_LOOP_OK)
       error= join->first_select(join,join_tab,1);
     if (error == NESTED_LOOP_QUERY_LIMIT)
       error= NESTED_LOOP_OK;                    /* select_limit used */
   }
-  if (error == NESTED_LOOP_NO_MORE_ROWS)
-    error= NESTED_LOOP_OK;
-
 
   if (table)
   {
@@ -1934,7 +1916,7 @@ sub_select_cache(JOIN *join, JOIN_TAB *join_tab, bool end_of_records)
   if (end_of_records)
   {
     rc= cache->join_records(FALSE);
-    if (rc == NESTED_LOOP_OK || rc == NESTED_LOOP_NO_MORE_ROWS)
+    if (rc == NESTED_LOOP_OK)
       rc= sub_select(join, join_tab, end_of_records);
     DBUG_RETURN(rc);
   }
@@ -1973,7 +1955,7 @@ sub_select_cache(JOIN *join, JOIN_TAB *join_tab, bool end_of_records)
      disables join buffering if QS_DYNAMIC_RANGE is enabled.
   */
   rc= cache->join_records(TRUE);
-  if (rc == NESTED_LOOP_OK || rc == NESTED_LOOP_NO_MORE_ROWS)
+  if (rc == NESTED_LOOP_OK)
     rc= sub_select(join, join_tab, end_of_records);
   DBUG_RETURN(rc);
 }
@@ -2118,8 +2100,6 @@ sub_select(JOIN *join,JOIN_TAB *join_tab,bool end_of_records)
       (*join_tab->next_select)(join,join_tab+1,end_of_records);
     DBUG_RETURN(nls);
   }
-  int error= 0;
-  enum_nested_loop_state rc;
   READ_RECORD *info= &join_tab->read_record;
 
   if (join_tab->flush_weedout_table)
@@ -2156,40 +2136,48 @@ sub_select(JOIN *join,JOIN_TAB *join_tab,bool end_of_records)
   if (join_tab->materialize_table &&
       !join_tab->table->pos_in_table_list->materialized)
   {
-    error= (*join_tab->materialize_table)(join_tab);
+    if ((*join_tab->materialize_table)(join_tab))
+      DBUG_RETURN(NESTED_LOOP_ERROR);
     // Bind to the rowid buffer managed by the TABLE object.
     if (join_tab->copy_current_rowid)
       join_tab->copy_current_rowid->bind_buffer(join_tab->table->file->ref);
   }
 
-  if (!error)
-    error= (*join_tab->read_first_record)(join_tab);
-
-  if (join_tab->keep_current_rowid)
-    join_tab->table->file->position(join_tab->table->record[0]);
-  
-  rc= evaluate_join_record(join, join_tab, error);
-  
-  /* 
-    Note: psergey has added the 2nd part of the following condition; the 
-    change should probably be made in 5.1, too.
-  */
+  enum_nested_loop_state rc= NESTED_LOOP_OK;
+  bool in_first_read= true;
   while (rc == NESTED_LOOP_OK && join->return_tab >= join_tab)
   {
-    error= info->read_record(info);
+    int error;
+    if (in_first_read)
+    {
+      in_first_read= false;
+      error= (*join_tab->read_first_record)(join_tab);
+    }
+    else
+      error= info->read_record(info);
 
-    if (join_tab->keep_current_rowid)
-      join_tab->table->file->position(join_tab->table->record[0]);
-    
-    rc= evaluate_join_record(join, join_tab, error);
+    DBUG_EXECUTE_IF("bug13822652_1", join->thd->killed= THD::KILL_QUERY;);
+
+    if (error > 0 || (join->thd->is_error()))   // Fatal error
+      rc= NESTED_LOOP_ERROR;
+    else if (error < 0)
+      break;
+    else if (join->thd->killed)			// Aborted by user
+    {
+      join->thd->send_kill_message();
+      rc= NESTED_LOOP_KILLED;
+    }
+    else
+    {
+      if (join_tab->keep_current_rowid)
+        join_tab->table->file->position(join_tab->table->record[0]);
+      rc= evaluate_join_record(join, join_tab);
+    }
   }
 
-  if (rc == NESTED_LOOP_NO_MORE_ROWS &&
-      join_tab->last_inner && !join_tab->found)
+  if (rc == NESTED_LOOP_OK && join_tab->last_inner && !join_tab->found)
     rc= evaluate_null_complemented_join_record(join, join_tab);
 
-  if (rc == NESTED_LOOP_NO_MORE_ROWS)
-    rc= NESTED_LOOP_OK;
   DBUG_RETURN(rc);
 }
 
@@ -2313,41 +2301,27 @@ static int do_sj_reset(SJ_TMP_TABLE *sj_tbl)
   This function will evaluate parts of WHERE/ON clauses that are
   applicable to the partial row on hand and in case of success
   submit this row to the next level of the nested loop.
+  join_tab->return_tab may be modified to cause a return to a previous
+  join_tab.
 
   @param  join     - The join object
   @param  join_tab - The most inner join_tab being processed
-  @param  error > 0: Error, terminate processing
-                = 0: (Partial) row is available
-                < 0: No more rows available at this level
-  @return Nested loop state (Ok, No_more_rows, Error, Killed)
+
+  @return Nested loop state
 */
 
 static enum_nested_loop_state
-evaluate_join_record(JOIN *join, JOIN_TAB *join_tab,
-                     int error)
+evaluate_join_record(JOIN *join, JOIN_TAB *join_tab)
 {
   bool not_used_in_distinct=join_tab->not_used_in_distinct;
   ha_rows found_records=join->found_records;
   Item *condition= join_tab->condition();
   bool found= TRUE;
-
   DBUG_ENTER("evaluate_join_record");
-
   DBUG_PRINT("enter",
-             ("join: %p join_tab index: %d table: %s cond: %p error: %d",
+             ("join: %p join_tab index: %d table: %s cond: %p",
               join, static_cast<int>(join_tab - join_tab->join->join_tab),
-              join_tab->table->alias, condition, error));
-  if (error > 0 || (join->thd->is_error()))     // Fatal error
-    DBUG_RETURN(NESTED_LOOP_ERROR);
-  if (error < 0)
-    DBUG_RETURN(NESTED_LOOP_NO_MORE_ROWS);
-  DBUG_EXECUTE_IF("bug13822652_1", join->thd->killed= THD::KILL_QUERY;);
-  if (join->thd->killed)			// Aborted by user
-  {
-    join->thd->send_kill_message();
-    DBUG_RETURN(NESTED_LOOP_KILLED);            /* purecov: inspected */
-  }
-  DBUG_PRINT("info", ("condition %p", condition));
+              join_tab->table->alias, condition));
 
   if (condition)
   {
@@ -2406,11 +2380,14 @@ evaluate_join_record(JOIN *join, JOIN_TAB *join_tab,
             /*
               When not_exists_optimizer is set and a matching row is found, the
               outer row should be excluded from the result set: no need to
-              explore this record and other records of 'tab', so we return "no
-              records". But as we set 'found' above, evaluate_join_record() at
-              the upper level will not yield a NULL-complemented record.
+              explore this record, thus we don't call the next_select.
+              And, no need to explore other following records of 'tab', so we
+              set join_tab->return_tab.
+              As we set join_tab->found above, evaluate_join_record() at the
+              upper level will not yield a NULL-complemented record.
             */
-            DBUG_RETURN(NESTED_LOOP_NO_MORE_ROWS);
+            join->return_tab= join_tab - 1;
+            DBUG_RETURN(NESTED_LOOP_OK);
           }
 
           if (tab == join_tab)
@@ -2491,7 +2468,7 @@ evaluate_join_record(JOIN *join, JOIN_TAB *join_tab,
       /* A match from join_tab is found for the current partial join. */
       rc= (*join_tab->next_select)(join, join_tab+1, 0);
       join->thd->get_stmt_da()->inc_current_row_for_warning();
-      if (rc != NESTED_LOOP_OK && rc != NESTED_LOOP_NO_MORE_ROWS)
+      if (rc != NESTED_LOOP_OK)
         DBUG_RETURN(rc);
 
       if (join_tab->loosescan_match_tab && 
@@ -2507,18 +2484,15 @@ evaluate_join_record(JOIN *join, JOIN_TAB *join_tab,
                  join_tab->loosescan_key_len);
       }
 
-      if (return_tab < join->return_tab)
-        join->return_tab= return_tab;
-
-      if (join->return_tab < join_tab)
-        DBUG_RETURN(NESTED_LOOP_OK);
       /*
         Test if this was a SELECT DISTINCT query on a table that
         was not in the field list;  In this case we can abort if
         we found a row, as no new rows can be added to the result.
       */
       if (not_used_in_distinct && found_records != join->found_records)
-        DBUG_RETURN(NESTED_LOOP_NO_MORE_ROWS);
+        set_if_smaller(return_tab, join_tab - 1);
+
+      set_if_smaller(join->return_tab, return_tab);
     }
     else
     {
@@ -2596,7 +2570,7 @@ evaluate_null_complemented_join_record(JOIN *join, JOIN_TAB *join_tab)
     to the last inner table of the current outer join. This is not deemed to
     have a significant performance impact.
   */
-  const enum_nested_loop_state rc= evaluate_join_record(join, join_tab, 0);
+  const enum_nested_loop_state rc= evaluate_join_record(join, join_tab);
   DBUG_RETURN(rc);
 }
 
@@ -2970,6 +2944,76 @@ join_read_key_unlock_row(st_join_table *tab)
   DBUG_ASSERT(tab->ref.use_count);
   if (tab->ref.use_count)
     tab->ref.use_count--;
+}
+
+/**
+  Read a table *assumed* to be included in execution of a pushed join.
+  This is the counterpart of join_read_key() / join_read_always_key()
+  for child tables in a pushed join.
+
+  When the table access is performed as part of the pushed join,
+  all 'linked' child colums are prefetched together with the parent row.
+  The handler will then only format the row as required by MySQL and set
+  'table->status' accordingly.
+
+  However, there may be situations where the prepared pushed join was not
+  executed as assumed. It is the responsibility of the handler to handle
+  these situation by letting ::index_read_pushed() then effectively do a 
+  plain old' index_read_map(..., HA_READ_KEY_EXACT);
+  
+  @param tab			Table to read
+
+  @retval
+    0	Row was found
+  @retval
+    -1   Row was not found
+  @retval
+    1   Got an error (other than row not found) during read
+*/
+static int
+join_read_linked_first(JOIN_TAB *tab)
+{
+  TABLE *table= tab->table;
+  DBUG_ENTER("join_read_linked_first");
+
+  DBUG_ASSERT(!tab->sorted); // Pushed child can't be sorted
+  if (!table->file->inited)
+    table->file->ha_index_init(tab->ref.key, tab->sorted);
+
+  if (cp_buffer_from_ref(tab->join->thd, table, &tab->ref))
+  {
+    table->status=STATUS_NOT_FOUND;
+    DBUG_RETURN(-1);
+  }
+
+  // 'read' itself is a NOOP: 
+  //  handler::index_read_pushed() only unpack the prefetched row and set 'status'
+  int error=table->file->index_read_pushed(table->record[0],
+                                      tab->ref.key_buff,
+                                      make_prev_keypart_map(tab->ref.key_parts));
+  if (unlikely(error && error != HA_ERR_KEY_NOT_FOUND && error != HA_ERR_END_OF_FILE))
+    DBUG_RETURN(report_error(table, error));
+
+  table->null_row=0;
+  int rc= table->status ? -1 : 0;
+  DBUG_RETURN(rc);
+}
+
+static int
+join_read_linked_next(READ_RECORD *info)
+{
+  TABLE *table= info->table;
+  DBUG_ENTER("join_read_linked_next");
+
+  int error=table->file->index_next_pushed(table->record[0]);
+  if (error)
+  {
+    if (unlikely(error != HA_ERR_END_OF_FILE))
+      DBUG_RETURN(report_error(table, error));
+    table->status= STATUS_GARBAGE;
+    DBUG_RETURN(-1);
+  }
+  DBUG_RETURN(error);
 }
 
 /*
@@ -3353,6 +3397,36 @@ join_read_next_same_or_null(READ_RECORD *info)
 void
 pick_table_access_method(JOIN_TAB *tab)
 {
+  /**
+    Set up modified access function for pushed joins.
+  */
+  uint pushed_joins= tab->table->file->number_of_pushed_joins();
+  if (pushed_joins > 0)
+  {
+    if (tab->table->file->root_of_pushed_join() != tab->table)
+    {
+      /*
+        Is child of a pushed join operation:
+        Replace access functions with its linked counterpart.
+        ... Which is effectively a NOOP as the row is already fetched 
+        together with the root of the linked operation.
+      */
+      DBUG_ASSERT(tab->type != JT_REF_OR_NULL);
+      tab->read_first_record= join_read_linked_first;
+      tab->read_record.read_record= join_read_linked_next;
+      tab->read_record.unlock_row= rr_unlock_row;
+      return;
+    }
+  }
+
+  /**
+    Already set to some non-default value in sql_select.cc
+    TODO: Move these settings into pick_table_access_method() also
+  */
+  else if (tab->read_first_record != NULL)
+    return;  
+
+  // Fall through to set default access functions:
   switch (tab->type) 
   {
   case JT_REF:
@@ -3404,23 +3478,8 @@ pick_table_access_method(JOIN_TAB *tab)
     are used to support GROUP BY clause and to redirect records
     to a table (e.g. in case of SELECT into a temporary table) or to the
     network client.
-
-  RETURN VALUES
-    NESTED_LOOP_OK           - the record has been successfully handled
-    NESTED_LOOP_ERROR        - a fatal error (like table corruption)
-                               was detected
-    NESTED_LOOP_KILLED       - thread shutdown was requested while processing
-                               the record
-    NESTED_LOOP_QUERY_LIMIT  - the record has been successfully handled;
-                               additionally, the nested loop produced the
-                               number of rows specified in the LIMIT clause
-                               for the query
-    NESTED_LOOP_CURSOR_LIMIT - the record has been successfully handled;
-                               additionally, there is a cursor and the nested
-                               loop algorithm produced the number of rows
-                               that is specified for current cursor fetch
-                               operation.
-   All return values except NESTED_LOOP_OK abort the nested loop.
+    See the enum_nested_loop_state enumeration for the description of return
+    values.
 *****************************************************************************/
 
 /* ARGSUSED */
@@ -3440,12 +3499,6 @@ end_send(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
     }
     if (join->having && join->having->val_int() == 0)
       DBUG_RETURN(NESTED_LOOP_OK);               // Didn't match having
-    if (join->procedure)
-    {
-      if (join->procedure->send_row(join->procedure_fields_list))
-        DBUG_RETURN(NESTED_LOOP_ERROR);
-      DBUG_RETURN(NESTED_LOOP_OK);
-    }
     error=0;
     if (join->do_send_rows)
       error=join->result->send_data(*join->fields);
@@ -3520,11 +3573,6 @@ end_send(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
       DBUG_RETURN(NESTED_LOOP_CURSOR_LIMIT);
     }
   }
-  else
-  {
-    if (join->procedure && join->procedure->end_of_records())
-      DBUG_RETURN(NESTED_LOOP_ERROR);
-  }
   DBUG_RETURN(NESTED_LOOP_OK);
 }
 
@@ -3544,25 +3592,9 @@ end_send_group(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
     if (join->first_record || 
         (end_of_records && !join->group && !join->group_optimized_away))
     {
-      if (join->procedure)
-	join->procedure->end_group();
       if (idx < (int) join->send_group_parts)
       {
 	int error=0;
-	if (join->procedure)
-	{
-	  if (join->having && join->having->val_int() == 0)
-	    error= -1;				// Didn't satisfy having
- 	  else
-	  {
-	    if (join->do_send_rows)
-	      error=join->procedure->send_row(*join->fields) ? 1 : 0;
-	    join->send_records++;
-	  }
-	  if (end_of_records && join->procedure->end_of_records())
-	    error= 1;				// Fatal error
-	}
-	else
 	{
           table_map save_nullinfo= 0;
           if (!join->first_record)
@@ -3646,15 +3678,11 @@ end_send_group(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
       copy_fields(&join->tmp_table_param);
       if (init_sum_functions(join->sum_funcs, join->sum_funcs_end[idx+1]))
 	DBUG_RETURN(NESTED_LOOP_ERROR);
-      if (join->procedure)
-	join->procedure->add();
       DBUG_RETURN(ok_code);
     }
   }
   if (update_sum_func(join->sum_funcs))
     DBUG_RETURN(NESTED_LOOP_ERROR);
-  if (join->procedure)
-    join->procedure->add();
   DBUG_RETURN(NESTED_LOOP_OK);
 }
 
@@ -3860,8 +3888,6 @@ end_write_group(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
   {
     if (join->first_record || (end_of_records && !join->group))
     {
-      if (join->procedure)
-	join->procedure->end_group();
       int send_group_parts= join->send_group_parts;
       if (idx < send_group_parts)
       {
@@ -3884,9 +3910,7 @@ end_write_group(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
           join->clear();
 
           // Calculate aggregate functions for no rows
-          List<Item> *columns_list= (join->procedure ?
-                                     &join->procedure_fields_list :
-                                     join->fields);
+          List<Item> *columns_list= join->fields;
           List_iterator_fast<Item> it(*columns_list);
           Item *item;
           while ((item= it++))
@@ -3931,15 +3955,11 @@ end_write_group(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
 	DBUG_RETURN(NESTED_LOOP_ERROR);
       if (init_sum_functions(join->sum_funcs, join->sum_funcs_end[idx+1]))
 	DBUG_RETURN(NESTED_LOOP_ERROR);
-      if (join->procedure)
-	join->procedure->add();
       DBUG_RETURN(NESTED_LOOP_OK);
     }
   }
   if (update_sum_func(join->sum_funcs))
     DBUG_RETURN(NESTED_LOOP_ERROR);
-  if (join->procedure)
-    join->procedure->add();
   DBUG_RETURN(NESTED_LOOP_OK);
 }
 

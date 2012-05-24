@@ -49,6 +49,7 @@ IF(HAVE_VISIBILITY_HIDDEN)
 ENDIF()
 
 SET(SQL_SHARED_SOURCES
+  abstract_query_plan.cc
   datadict.cc
   debug_sync.cc
   derror.cc

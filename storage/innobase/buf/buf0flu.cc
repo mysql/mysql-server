@@ -709,6 +709,27 @@ buf_flush_write_complete(
 #endif /* !UNIV_HOTBACKUP */
 
 /********************************************************************//**
+Calculate the checksum of a page from compressed table and update the page. */
+UNIV_INTERN
+void
+buf_flush_update_zip_checksum(
+/*==========================*/
+	buf_frame_t*	page,		/*!< in/out: Page to update */
+	ulint		zip_size,	/*!< in: Compressed page size */
+	lsn_t		lsn)		/*!< in: Lsn to stamp on the page */
+{
+	ut_a(zip_size > 0);
+
+	ib_uint32_t	checksum = page_zip_calc_checksum(
+		page, zip_size,
+		static_cast<srv_checksum_algorithm_t>(srv_checksum_algorithm));
+
+	mach_write_to_8(page + FIL_PAGE_LSN, lsn);
+	memset(page + FIL_PAGE_FILE_FLUSH_LSN, 0, 8);
+	mach_write_to_4(page + FIL_PAGE_SPACE_OR_CHKSUM, checksum);
+}
+
+/********************************************************************//**
 Initializes a page for writing to the tablespace. */
 UNIV_INTERN
 void
@@ -746,17 +767,10 @@ buf_flush_init_for_writing(
 		case FIL_PAGE_TYPE_ZBLOB:
 		case FIL_PAGE_TYPE_ZBLOB2:
 		case FIL_PAGE_INDEX:
-			checksum = page_zip_calc_checksum(
-				page_zip->data, zip_size,
-				static_cast<srv_checksum_algorithm_t>(
-					srv_checksum_algorithm));
 
-			mach_write_to_8(page_zip->data
-					+ FIL_PAGE_LSN, newest_lsn);
-			memset(page_zip->data + FIL_PAGE_FILE_FLUSH_LSN, 0, 8);
-			mach_write_to_4(page_zip->data
-					+ FIL_PAGE_SPACE_OR_CHKSUM,
-					checksum);
+			buf_flush_update_zip_checksum(
+				page_zip->data, zip_size, newest_lsn);
+
 			return;
 		}
 
@@ -864,7 +878,7 @@ buf_flush_write_block_low(
 #endif
 
 #ifdef UNIV_LOG_DEBUG
-	static ibool univ_log_debug_warned;
+	static ibool	univ_log_debug_warned;
 #endif /* UNIV_LOG_DEBUG */
 
 	ut_ad(buf_page_in_file(bpage));
@@ -948,13 +962,13 @@ os_aio_simulated_wake_handler_threads after we have posted a batch of
 writes! NOTE: buf_pool->mutex and buf_page_get_mutex(bpage) must be
 held upon entering this function, and they will be released by this
 function. */
-static
+UNIV_INTERN
 void
 buf_flush_page(
 /*===========*/
 	buf_pool_t*	buf_pool,	/*!< in: buffer pool instance */
 	buf_page_t*	bpage,		/*!< in: buffer control block */
-	enum buf_flush	flush_type)	/*!< in: type of flush */
+	buf_flush	flush_type)	/*!< in: type of flush */
 {
 	mutex_t*	block_mutex;
 	ibool		is_uncompressed;
@@ -2585,3 +2599,64 @@ buf_flush_validate(
 }
 #endif /* UNIV_DEBUG || UNIV_BUF_DEBUG */
 #endif /* !UNIV_HOTBACKUP */
+
+#ifdef UNIV_DEBUG
+/******************************************************************//**
+Check if there are any dirty pages that belong to a space id in the flush
+list in a particular buffer pool.
+@return	number of dirty pages present in a single buffer pool */
+UNIV_INTERN
+ulint
+buf_pool_get_dirty_pages_count(
+/*===========================*/
+	buf_pool_t*	buf_pool,	/*!< in: buffer pool */
+	ulint		id)		/*!< in: space id to check */
+
+{
+	ulint		count = 0;
+
+	buf_flush_list_mutex_enter(buf_pool);
+
+	buf_page_t*	bpage;
+
+	for (bpage = UT_LIST_GET_FIRST(buf_pool->flush_list);
+	     bpage != 0;
+	     bpage = UT_LIST_GET_NEXT(list, bpage)) {
+
+		ut_ad(buf_page_in_file(bpage));
+		ut_ad(bpage->in_flush_list);
+		ut_ad(bpage->oldest_modification > 0);
+
+		if (buf_page_get_space(bpage) == id) {
+			++count;
+		}
+	}
+
+	buf_flush_list_mutex_exit(buf_pool);
+
+	return(count);
+}
+
+/******************************************************************//**
+Check if there are any dirty pages that belong to a space id in the flush list.
+@return	number of dirty pages present in all the buffer pools */
+UNIV_INTERN
+ulint
+buf_flush_get_dirty_pages_count(
+/*============================*/
+	ulint		id)		/*!< in: space id to check */
+
+{
+	ulint		count = 0;
+
+	for (ulint i = 0; i < srv_buf_pool_instances; ++i) {
+		buf_pool_t*	buf_pool;
+
+		buf_pool = buf_pool_from_array(i);
+
+		count += buf_pool_get_dirty_pages_count(buf_pool, id);
+	}
+
+	return(count);
+}
+#endif /* UNIV_DEBUG */

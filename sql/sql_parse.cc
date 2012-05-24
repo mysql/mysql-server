@@ -98,6 +98,7 @@
 #include "opt_explain.h"
 #include "sql_rewrite.h"
 #include "global_threads.h"
+#include "sql_analyse.h"
 #include "table_cache.h" // table_cache_manager
 
 #include <algorithm>
@@ -667,10 +668,13 @@ void execute_init_command(THD *thd, LEX_STRING *init_command,
 #endif
 }
 
-static char *fgets_fn(char *buffer, size_t size, fgets_input_t input)
+static char *fgets_fn(char *buffer, size_t size, fgets_input_t input, int *error)
 {
   MYSQL_FILE *in= static_cast<MYSQL_FILE*> (input);
-  return mysql_file_fgets(buffer, size, in);
+  char *line= mysql_file_fgets(buffer, size, in);
+  if (error)
+    *error= (line == NULL) ? ferror(in->m_file) : 0;
+  return line;
 }
 
 static void handle_bootstrap_impl(THD *thd)
@@ -680,6 +684,7 @@ static void handle_bootstrap_impl(THD *thd)
   char *query;
   int length;
   int rc;
+  int error= 0;
 
   DBUG_ENTER("handle_bootstrap");
 
@@ -699,22 +704,51 @@ static void handle_bootstrap_impl(THD *thd)
 
   thd->init_for_queries();
 
+  buffer[0]= '\0';
+
   for ( ; ; )
   {
-    rc= read_bootstrap_query(buffer, &length, file, fgets_fn);
+    rc= read_bootstrap_query(buffer, &length, file, fgets_fn, &error);
 
-    if (rc == READ_BOOTSTRAP_ERROR)
+    if (rc == READ_BOOTSTRAP_EOF)
+      break;
+    /*
+      Check for bootstrap file errors. SQL syntax errors will be
+      caught below.
+    */
+    if (rc != READ_BOOTSTRAP_SUCCESS)
     {
-      thd->raise_error(ER_SYNTAX_ERROR);
+      /*
+        mysql_parse() may have set a successful error status for the previous
+        query. We must clear the error status to report the bootstrap error.
+      */
+      thd->get_stmt_da()->reset_diagnostics_area();
+
+      /* Get the nearest query text for reference. */
+      char *err_ptr= buffer + (length <= MAX_BOOTSTRAP_ERROR_LEN ?
+                                        0 : (length - MAX_BOOTSTRAP_ERROR_LEN));
+      switch (rc)
+      {
+      case READ_BOOTSTRAP_ERROR:
+        my_printf_error(ER_UNKNOWN_ERROR, "Bootstrap file error, return code (%d). "
+                        "Nearest query: '%s'", MYF(0), error, err_ptr);
+        break;
+
+      case READ_BOOTSTRAP_QUERY_SIZE:
+        my_printf_error(ER_UNKNOWN_ERROR, "Boostrap file error. Query size "
+                        "exceeded %d bytes near '%s'.", MYF(0),
+                        MAX_BOOTSTRAP_LINE_SIZE, err_ptr);
+        break;
+
+      default:
+        DBUG_ASSERT(false);
+        break;
+      }
+
       thd->protocol->end_statement();
       bootstrap_error= 1;
       break;
     }
-
-    if (rc == READ_BOOTSTRAP_EOF)
-      break;
-
-    DBUG_ASSERT(rc == 0);
 
     query= (char *) thd->memdup_w_gap(buffer, length + 1,
                                       thd->db_length + 1 +
@@ -3473,7 +3507,6 @@ end_with_restore_list:
                           select_lex->item_list,
                           select_lex->where,
                           0, (ORDER *)NULL, (ORDER *)NULL, (Item *)NULL,
-                          (ORDER *)NULL,
                           (select_lex->options | thd->variables.option_bits |
                           SELECT_NO_JOIN_CACHE | SELECT_NO_UNLOCK |
                           OPTION_SETUP_TABLES_DONE) & ~OPTION_BUFFER_RESULT,
@@ -4030,6 +4063,17 @@ end_with_restore_list:
                              FALSE, UINT_MAX, FALSE))
         goto error;
       if (flush_tables_with_read_lock(thd, all_tables))
+        goto error;
+      my_ok(thd);
+      break;
+    }
+    else if (first_table && lex->type & REFRESH_FOR_EXPORT)
+    {
+      /* Check table-level privileges. */
+      if (check_table_access(thd, LOCK_TABLES_ACL | SELECT_ACL, all_tables,
+                             FALSE, UINT_MAX, FALSE))
+        goto error;
+      if (flush_tables_for_export(thd, all_tables))
         goto error;
       my_ok(thd);
       break;
@@ -4936,10 +4980,19 @@ static bool execute_sqlcom_select(THD *thd, TABLE_LIST *all_tables)
     {
       if (!result && !(result= new select_send()))
         return 1;                               /* purecov: inspected */
+      select_result *save_result= result;
+      select_result *analyse_result= NULL;
+      if (lex->proc_analyse)
+      {
+        if ((result= analyse_result=
+               new select_analyse(result, lex->proc_analyse)) == NULL)
+          return true;
+      }
       query_cache_store_query(thd, all_tables);
       res= handle_select(thd, lex, result, 0);
-      if (result != lex->result)
-        delete result;
+      delete analyse_result;
+      if (save_result != lex->result)
+        delete save_result;
     }
   }
   return res;
@@ -6096,6 +6149,7 @@ bool mysql_test_parse_for_slave(THD *thd, char *rawbuf, uint length)
 {
   LEX *lex= thd->lex;
   bool error= 0;
+  PSI_statement_locker *parent_locker= thd->m_statement_psi;
   DBUG_ENTER("mysql_test_parse_for_slave");
 
   Parser_state parser_state;
@@ -6104,9 +6158,11 @@ bool mysql_test_parse_for_slave(THD *thd, char *rawbuf, uint length)
     lex_start(thd);
     mysql_reset_thd_for_next_command(thd);
 
+    thd->m_statement_psi= NULL;
     if (!parse_sql(thd, & parser_state, NULL) &&
         all_tables_not_ok(thd, lex->select_lex.table_list.first))
       error= 1;                  /* Ignore question */
+    thd->m_statement_psi= parent_locker;
     thd->end_statement();
   }
   thd->cleanup_after_query();
@@ -6224,22 +6280,6 @@ bool add_field_to_list(THD *thd, LEX_STRING *field_name, enum_field_types type,
 void store_position_for_column(const char *name)
 {
   current_thd->lex->last_field->after=(char*) (name);
-}
-
-bool
-add_proc_to_list(THD* thd, Item *item)
-{
-  ORDER *order;
-  Item	**item_ptr;
-
-  if (!(order = (ORDER *) thd->alloc(sizeof(ORDER)+sizeof(Item*))))
-    return 1;
-  item_ptr = (Item**) (order+1);
-  *item_ptr= item;
-  order->item=item_ptr;
-  order->used_alias= false;
-  thd->lex->proc_list.link_in_list(order, &order->next);
-  return 0;
 }
 
 
