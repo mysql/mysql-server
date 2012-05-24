@@ -200,10 +200,10 @@ toku_db_put(DB *db, DB_TXN *txn, DBT *key, DBT *val, u_int32_t flags, BOOL holds
 
     if (r == 0) {
         // helgrind flags a race on this status update.  we increment it atomically to satisfy helgrind.
-	// STATUS_VALUE(YDB_LAYER_NUM_INSERTS)++;  // accountability 
+        // STATUS_VALUE(YDB_LAYER_NUM_INSERTS)++;  // accountability 
         (void) __sync_fetch_and_add(&STATUS_VALUE(YDB_LAYER_NUM_INSERTS), 1);
     } else {
-	// STATUS_VALUE(YDB_LAYER_NUM_INSERTS_FAIL)++;  // accountability 
+        // STATUS_VALUE(YDB_LAYER_NUM_INSERTS_FAIL)++;  // accountability 
         (void) __sync_fetch_and_add(&STATUS_VALUE(YDB_LAYER_NUM_INSERTS_FAIL), 1);
     }
 
@@ -239,9 +239,9 @@ toku_db_update(DB *db, DB_TXN *txn,
 
 cleanup:
     if (r == 0) 
-	STATUS_VALUE(YDB_LAYER_NUM_UPDATES)++;  // accountability 
+        STATUS_VALUE(YDB_LAYER_NUM_UPDATES)++;  // accountability 
     else
-	STATUS_VALUE(YDB_LAYER_NUM_UPDATES_FAIL)++;  // accountability 
+        STATUS_VALUE(YDB_LAYER_NUM_UPDATES_FAIL)++;  // accountability 
     return r;
 }
 
@@ -294,9 +294,9 @@ toku_db_update_broadcast(DB *db, DB_TXN *txn,
 
 cleanup:
     if (r == 0) 
-	STATUS_VALUE(YDB_LAYER_NUM_UPDATES_BROADCAST)++;  // accountability 
+        STATUS_VALUE(YDB_LAYER_NUM_UPDATES_BROADCAST)++;  // accountability 
     else
-	STATUS_VALUE(YDB_LAYER_NUM_UPDATES_BROADCAST_FAIL)++;  // accountability 
+        STATUS_VALUE(YDB_LAYER_NUM_UPDATES_BROADCAST_FAIL)++;  // accountability 
     return r;
 }
 
@@ -351,9 +351,9 @@ do_del_multiple(DB_TXN *txn, uint32_t num_dbs, DB *db_array[], DBT keys[], DB *s
 
         // if db is being indexed by an indexer, then insert a delete message into the db if the src key is to the left or equal to the 
         // indexers cursor.  we have to get the src_db from the indexer and find it in the db_array.
-	int do_delete = TRUE;
-	DB_INDEXER *indexer = toku_db_get_indexer(db);
-	if (indexer) { // if this db is the index under construction
+        int do_delete = TRUE;
+        DB_INDEXER *indexer = toku_db_get_indexer(db);
+        if (indexer) { // if this db is the index under construction
             DB *indexer_src_db = toku_indexer_get_src_db(indexer);
             invariant(indexer_src_db != NULL);
             const DBT *indexer_src_key;
@@ -366,7 +366,7 @@ do_del_multiple(DB_TXN *txn, uint32_t num_dbs, DB *db_array[], DBT keys[], DB *s
             }
             do_delete = !toku_indexer_is_key_right_of_le_cursor(indexer, indexer_src_db, indexer_src_key);
         }
-	if (r == 0 && do_delete) {
+        if (r == 0 && do_delete) {
             r = toku_ft_maybe_delete(db->i->ft_handle, &keys[which_db], ttxn, FALSE, ZERO_LSN, FALSE);
         }
     }
@@ -455,9 +455,9 @@ env_del_multiple(
 
 cleanup:
     if (r == 0)
-	STATUS_VALUE(YDB_LAYER_NUM_MULTI_DELETES) += num_dbs;  // accountability 
+        STATUS_VALUE(YDB_LAYER_NUM_MULTI_DELETES) += num_dbs;  // accountability 
     else
-	STATUS_VALUE(YDB_LAYER_NUM_MULTI_DELETES_FAIL) += num_dbs;  // accountability 
+        STATUS_VALUE(YDB_LAYER_NUM_MULTI_DELETES_FAIL) += num_dbs;  // accountability 
     return r;
 }
 
@@ -488,9 +488,9 @@ do_put_multiple(DB_TXN *txn, uint32_t num_dbs, DB *db_array[], DBT keys[], DBT v
 
         // if db is being indexed by an indexer, then put into that db if the src key is to the left or equal to the 
         // indexers cursor.  we have to get the src_db from the indexer and find it in the db_array.
-	int do_put = TRUE;
-	DB_INDEXER *indexer = toku_db_get_indexer(db);
-	if (indexer) { // if this db is the index under construction
+        int do_put = TRUE;
+        DB_INDEXER *indexer = toku_db_get_indexer(db);
+        if (indexer) { // if this db is the index under construction
             DB *indexer_src_db = toku_indexer_get_src_db(indexer);
             invariant(indexer_src_db != NULL);
             const DBT *indexer_src_key;
@@ -600,9 +600,9 @@ env_put_multiple_internal(
 
 cleanup:
     if (r == 0)
-	STATUS_VALUE(YDB_LAYER_NUM_MULTI_INSERTS) += num_dbs;  // accountability 
+        STATUS_VALUE(YDB_LAYER_NUM_MULTI_INSERTS) += num_dbs;  // accountability 
     else
-	STATUS_VALUE(YDB_LAYER_NUM_MULTI_INSERTS_FAIL) += num_dbs;  // accountability 
+        STATUS_VALUE(YDB_LAYER_NUM_MULTI_INSERTS_FAIL) += num_dbs;  // accountability 
     return r;
 }
 
@@ -755,9 +755,9 @@ env_update_multiple(DB_ENV *env, DB *src_db, DB_TXN *txn,
 
 cleanup:
     if (r == 0)
-	STATUS_VALUE(YDB_LAYER_NUM_MULTI_UPDATES) += num_dbs;  // accountability 
+        STATUS_VALUE(YDB_LAYER_NUM_MULTI_UPDATES) += num_dbs;  // accountability 
     else
-	STATUS_VALUE(YDB_LAYER_NUM_MULTI_UPDATES_FAIL) += num_dbs;  // accountability 
+        STATUS_VALUE(YDB_LAYER_NUM_MULTI_UPDATES_FAIL) += num_dbs;  // accountability 
     return r;
 }
 

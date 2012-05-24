@@ -43,9 +43,9 @@ enum {MAX_FILE_SIZE=256};
 static LOADER_STATUS_S loader_status;
 
 #define STATUS_INIT(k,t,l) { \
-	loader_status.status[k].keyname = #k; \
-	loader_status.status[k].type    = t;  \
-	loader_status.status[k].legend  = "loader: " l; \
+        loader_status.status[k].keyname = #k; \
+        loader_status.status[k].type    = t;  \
+        loader_status.status[k].legend  = "loader: " l; \
     }
 
 static void
@@ -68,7 +68,7 @@ status_init(void) {
 void
 toku_loader_get_status(LOADER_STATUS statp) {
     if (!loader_status.initialized)
-	status_init();
+        status_init();
     *statp = loader_status;
 }
 
@@ -338,7 +338,7 @@ int toku_loader_create_loader(DB_ENV *env,
 
 int toku_loader_set_poll_function(DB_LOADER *loader,
                                   int (*poll_func)(void *extra, float progress),
-				  void *poll_extra) 
+                                  void *poll_extra) 
 {
     invariant(loader != NULL);
     loader->i->poll_func = poll_func;
@@ -348,7 +348,7 @@ int toku_loader_set_poll_function(DB_LOADER *loader,
 
 int toku_loader_set_error_callback(DB_LOADER *loader, 
                                    void (*error_cb)(DB *db, int i, int err, DBT *key, DBT *val, void *extra),
-				   void *error_extra) 
+                                   void *error_extra) 
 {
     invariant(loader != NULL);
     loader->i->error_callback = error_cb;
@@ -367,7 +367,7 @@ int toku_loader_put(DB_LOADER *loader, DBT *key, DBT *val)
     // skip put if error already found
     if ( loader->i->err_errno != 0 ) {
         r = -1;
-	goto cleanup;
+        goto cleanup;
     }
 
     if (loader->i->loader_flags & LOADER_USE_PUTS) {
@@ -407,9 +407,9 @@ int toku_loader_put(DB_LOADER *loader, DBT *key, DBT *val)
     }
  cleanup:
     if (r==0)
-	STATUS_VALUE(LOADER_PUT)++;  // executed too often to be worth making threadsafe
+        STATUS_VALUE(LOADER_PUT)++;  // executed too often to be worth making threadsafe
     else
-	STATUS_VALUE(LOADER_PUT_FAIL)++;
+        STATUS_VALUE(LOADER_PUT_FAIL)++;
     return r;
 }
 
@@ -437,9 +437,9 @@ int toku_loader_close(DB_LOADER *loader)
     free_loader(loader);
     toku_ydb_unlock();
     if (r==0)
-	(void) __sync_fetch_and_add(&STATUS_VALUE(LOADER_CLOSE), 1);
+        (void) __sync_fetch_and_add(&STATUS_VALUE(LOADER_CLOSE), 1);
     else
-	(void) __sync_fetch_and_add(&STATUS_VALUE(LOADER_CLOSE_FAIL), 1);
+        (void) __sync_fetch_and_add(&STATUS_VALUE(LOADER_CLOSE_FAIL), 1);
     return r;
 }
 

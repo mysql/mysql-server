@@ -35,9 +35,9 @@
 static INDEXER_STATUS_S indexer_status;
 
 #define STATUS_INIT(k,t,l) { \
-	indexer_status.status[k].keyname = #k; \
-	indexer_status.status[k].type    = t;  \
-	indexer_status.status[k].legend  = "indexer: " l; \
+        indexer_status.status[k].keyname = #k; \
+        indexer_status.status[k].type    = t;  \
+        indexer_status.status[k].legend  = "indexer: " l; \
     }
 
 static void
@@ -60,7 +60,7 @@ status_init(void) {
 void
 toku_indexer_get_status(INDEXER_STATUS statp) {
     if (!indexer_status.initialized)
-	status_init();
+        status_init();
     *statp = indexer_status;
 }
 
@@ -84,14 +84,14 @@ static int
 associate_indexer_with_hot_dbs(DB_INDEXER *indexer, DB *dest_dbs[], int N) {
     int result =0;
     for (int i = 0; i < N; i++) {
-	result = toku_db_set_indexer(dest_dbs[i], indexer);
-	if (result != 0) {
-	    for (int j = 0; j < i; j++) {
-		int result2 = toku_db_set_indexer(dest_dbs[j], NULL);
-		lazy_assert(result2 == 0);
-	    }
+        result = toku_db_set_indexer(dest_dbs[i], indexer);
+        if (result != 0) {
+            for (int j = 0; j < i; j++) {
+                int result2 = toku_db_set_indexer(dest_dbs[j], NULL);
+                lazy_assert(result2 == 0);
+            }
             break;
-	}
+        }
     }
     return result;
 }
@@ -99,8 +99,8 @@ associate_indexer_with_hot_dbs(DB_INDEXER *indexer, DB *dest_dbs[], int N) {
 static void
 disassociate_indexer_from_hot_dbs(DB_INDEXER *indexer) {
     for (int i = 0; i < indexer->i->N; i++) {
-	int result = toku_db_set_indexer(indexer->i->dest_dbs[i], NULL);
-	lazy_assert(result == 0);
+        int result = toku_db_set_indexer(indexer->i->dest_dbs[i], NULL);
+        lazy_assert(result == 0);
     }
 }
 
@@ -215,13 +215,13 @@ create_exit:
         
         *indexerp = indexer;
 
-	(void) __sync_fetch_and_add(&STATUS_VALUE(INDEXER_CREATE), 1);
-	(void) __sync_fetch_and_add(&STATUS_VALUE(INDEXER_CURRENT), 1);
+        (void) __sync_fetch_and_add(&STATUS_VALUE(INDEXER_CREATE), 1);
+        (void) __sync_fetch_and_add(&STATUS_VALUE(INDEXER_CURRENT), 1);
         if ( STATUS_VALUE(INDEXER_CURRENT) > STATUS_VALUE(INDEXER_MAX) )
-	    STATUS_VALUE(INDEXER_MAX) = STATUS_VALUE(INDEXER_CURRENT);   // NOT WORTH A LOCK TO MAKE THREADSAFE), may be inaccurate
+            STATUS_VALUE(INDEXER_MAX) = STATUS_VALUE(INDEXER_CURRENT);   // NOT WORTH A LOCK TO MAKE THREADSAFE), may be inaccurate
         
     } else {
-	(void) __sync_fetch_and_add(&STATUS_VALUE(INDEXER_CREATE_FAIL), 1);
+        (void) __sync_fetch_and_add(&STATUS_VALUE(INDEXER_CREATE_FAIL), 1);
         free_indexer(indexer);
     }
 
@@ -271,11 +271,11 @@ build_index(DB_INDEXER *indexer) {
         toku_ydb_lock();
 
         result = le_cursor_next(indexer->i->lec, &le);
-	if (result != 0) {
-	    done = TRUE;
-	    if (result == DB_NOTFOUND)
-		result = 0;  // all done, normal way to exit loop successfully
-	}
+        if (result != 0) {
+            done = TRUE;
+            if (result == DB_NOTFOUND)
+                result = 0;  // all done, normal way to exit loop successfully
+        }
         else {
             // this code may be faster ule malloc/free is not done every time
             ULEHANDLE ule = toku_ule_create(le.data);
@@ -297,8 +297,8 @@ build_index(DB_INDEXER *indexer) {
         
         if (result == 0) 
             result = maybe_call_poll_func(indexer, loop_count);
-	if (result != 0)
-	    done = TRUE;
+        if (result != 0)
+            done = TRUE;
     }
 
     toku_destroy_dbt(&key);
@@ -312,7 +312,7 @@ build_index(DB_INDEXER *indexer) {
     if ( result == 0 ) {
         (void) __sync_fetch_and_add(&STATUS_VALUE(INDEXER_BUILD), 1);
     } else {
-	(void) __sync_fetch_and_add(&STATUS_VALUE(INDEXER_BUILD_FAIL), 1);
+        (void) __sync_fetch_and_add(&STATUS_VALUE(INDEXER_BUILD_FAIL), 1);
     }
 
 
@@ -349,7 +349,7 @@ close_indexer(DB_INDEXER *indexer) {
     if ( r == 0 ) {
         (void) __sync_fetch_and_add(&STATUS_VALUE(INDEXER_CLOSE), 1);
     } else {
-	(void) __sync_fetch_and_add(&STATUS_VALUE(INDEXER_CLOSE_FAIL), 1);
+        (void) __sync_fetch_and_add(&STATUS_VALUE(INDEXER_CLOSE_FAIL), 1);
     }
     return r;
 }
