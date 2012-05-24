@@ -117,22 +117,21 @@ public abstract class NdbRecordScanOperationImpl extends NdbRecordOperationImpl 
     /** Create scan options for this scan. 
      * Scan options are used to set a filter into the NdbScanOperation,
      * set the key info flag if using a lock mode that requires lock takeover, and set the multi range flag.
+     * always set SF_OrderBy to get ordered scans.
      */
     protected void getScanOptions() {
-        long options = 0L;
-        int flags = 0;
+        long options = (long)Type.SO_SCANFLAGS;
+        int flags = ScanFlag.SF_OrderBy;
         if (multiRange | (ndbScanFilter != null) | 
                 (lockMode != com.mysql.ndbjtie.ndbapi.NdbOperationConst.LockMode.LM_CommittedRead)) {
 
             scanOptions = db.createScanOptions();
             if (multiRange) {
                 flags |= ScanFlag.SF_MultiRange;
-                options |= (long)Type.SO_SCANFLAGS;
                 scanOptions.scan_flags(flags);
             }
             if (lockMode != com.mysql.ndbjtie.ndbapi.NdbOperationConst.LockMode.LM_CommittedRead) {
                 flags |= ScanFlag.SF_KeyInfo;
-                options |= (long)Type.SO_SCANFLAGS;
                 scanOptions.scan_flags(flags);
             }
             if (ndbScanFilter != null) {
