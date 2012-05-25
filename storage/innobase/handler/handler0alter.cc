@@ -1290,14 +1290,11 @@ online_retry_drop_indexes(
 	THD*		user_thd)	/*!< in/out: MySQL connection */
 {
 	if (table->drop_aborted) {
-		trx_t*	trx	= innobase_trx_allocate(user_thd);
-		trx_start_if_not_started(trx);
-		trx->will_lock = 1;
+		trx_t*	trx = innobase_trx_allocate(user_thd);
+
+		trx_start_for_ddl(trx, TRX_DICT_OP_INDEX);
 
 		row_mysql_lock_data_dictionary(trx);
-		/* Flag this transaction as a dictionary operation, so that
-		the data dictionary will be locked in crash recovery. */
-		trx_set_dict_operation(trx, TRX_DICT_OP_INDEX);
 		online_retry_drop_indexes_low(table, trx);
 		trx_commit_for_mysql(trx);
 		row_mysql_unlock_data_dictionary(trx);
@@ -1329,13 +1326,11 @@ online_retry_drop_indexes_with_trx(
 	drop any incompletely created indexes that may have been left
 	behind in rollback_inplace_alter_table() earlier. */
 	if (table->drop_aborted) {
-		/* Re-use the dictionary transaction object
-		to avoid some memory allocation overhead. */
-		ut_ad(trx_get_dict_operation(trx) == TRX_DICT_OP_TABLE);
-		trx->dict_operation = TRX_DICT_OP_INDEX;
+
 		trx->table_id = 0;
-		trx_start_if_not_started(trx);
-		trx->will_lock = 1;
+
+		trx_start_for_ddl(trx, TRX_DICT_OP_INDEX);
+
 		online_retry_drop_indexes_low(table, trx);
 		trx_commit_for_mysql(trx);
 	}
@@ -1404,8 +1399,9 @@ prepare_inplace_alter_table_dict(
 	/* Create a background transaction for the operations on
 	the data dictionary tables. */
 	trx = innobase_trx_allocate(user_thd);
-	trx_start_if_not_started(trx);
-	trx->will_lock = 1;
+
+	trx_start_for_ddl(trx, TRX_DICT_OP_INDEX);
+
 	if (!heap) {
 		heap = mem_heap_create(1024);
 	}
@@ -1443,9 +1439,10 @@ prepare_inplace_alter_table_dict(
 	add_key_nums = (ulint*) mem_heap_alloc(
 		heap, n_add_index * sizeof *add_key_nums);
 
-	/* Flag this transaction as a dictionary operation, so that
-	the data dictionary will be locked in crash recovery. */
-	trx_set_dict_operation(trx, TRX_DICT_OP_INDEX);
+	/* This transaction should be dictionary operation, so that
+	the data dictionary will be locked during crash recovery. */
+
+	ut_ad(trx->dict_operation == TRX_DICT_OP_INDEX);
 
 	const bool exclusive = ha_alter_info->alter_info->requested_lock
 		== Alter_info::ALTER_TABLE_LOCK_EXCLUSIVE;
@@ -1716,11 +1713,16 @@ op_ok:
 
 		DICT_TF2_FLAG_SET(indexed_table, DICT_TF2_FTS);
 
+		/* This function will commit the transaction and reset
+		the trx_t::dict_operation flag on success. */
+
 		error = fts_create_index_tables(trx, fts_index);
 
 		if (error != DB_SUCCESS) {
 			goto error_handling;
 		}
+
+		trx_start_for_ddl(trx, op);
 
 		if (!indexed_table->fts
 		    || ib_vector_size(indexed_table->fts->indexes) == 0) {
@@ -2525,6 +2527,9 @@ rollback_inplace_alter_table(
 	} else {
 		DBUG_ASSERT(!(ha_alter_info->handler_flags
 			      & Alter_inplace_info::ADD_PK_INDEX));
+
+		trx_start_for_ddl(ctx->trx, TRX_DICT_OP_INDEX);
+
 		row_merge_drop_indexes(ctx->trx, prebuilt->table, FALSE);
 	}
 
@@ -2841,15 +2846,20 @@ ha_innobase::commit_inplace_alter_table(
 		/* Create a background transaction for the operations on
 		the data dictionary tables. */
 		trx = innobase_trx_allocate(user_thd);
-		trx_start_if_not_started(trx);
-		trx->will_lock = 1;
-		/* Flag this transaction as a dictionary operation, so that
-		the data dictionary will be locked in crash recovery. */
-		trx_set_dict_operation(trx, TRX_DICT_OP_INDEX);
+
+		trx_start_for_ddl(trx, TRX_DICT_OP_INDEX);
+
 		new_clustered = false;
 	} else {
+		trx_dict_op_t	op;
+
 		trx = ctx->trx;
+
 		new_clustered = ctx->indexed_table != prebuilt->table;
+
+		op = (new_clustered) ? TRX_DICT_OP_TABLE : TRX_DICT_OP_INDEX;
+
+		trx_start_for_ddl(trx, op);
 	}
 
 	/* Latch the InnoDB data dictionary exclusively so that no deadlocks
@@ -2914,10 +2924,10 @@ ha_innobase::commit_inplace_alter_table(
 		}
 	} else if (ctx) {
 		dberr_t	error;
+
 		/* We altered the table in place. */
-		ulint	i;
 		/* Lose the TEMP_INDEX_PREFIX. */
-		for (i = 0; i < ctx->num_to_add; i++) {
+		for (ulint i = 0; i < ctx->num_to_add; i++) {
 			dict_index_t*	index = ctx->add[i];
 			DBUG_ASSERT(*index->name
 				    == TEMP_INDEX_PREFIX);
@@ -2939,7 +2949,7 @@ ha_innobase::commit_inplace_alter_table(
 		index->name in the dictionary cache, because the index
 		is about to be freed after row_merge_drop_indexes_dict(). */
 
-		for (i = 0; i < ctx->num_to_drop; i++) {
+		for (ulint i = 0; i < ctx->num_to_drop; i++) {
 			dict_index_t*	index = ctx->drop[i];
 			DBUG_ASSERT(*index->name != TEMP_INDEX_PREFIX);
 			DBUG_ASSERT(index->table == prebuilt->table);
@@ -3035,6 +3045,7 @@ trx_commit:
 		}
 
 		if (!new_clustered && ha_alter_info->index_drop_count) {
+
 			/* Really drop the indexes that were dropped.
 			The transaction had to be committed first
 			(after renaming the indexes), so that in the
@@ -3044,10 +3055,7 @@ trx_commit:
 			have started dropping an index tree, there is
 			no way to roll it back. */
 
-			trx_start_if_not_started(trx);
-			DBUG_ASSERT(trx_get_dict_operation(trx)
-				    == TRX_DICT_OP_INDEX);
-			trx->will_lock = 1;
+			trx_start_for_ddl(trx, TRX_DICT_OP_INDEX);
 
 			for (ulint i = 0; i < ctx->num_to_drop; i++) {
 				dict_index_t*	index = ctx->drop[i];
