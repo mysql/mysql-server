@@ -4271,6 +4271,22 @@ Item_cond::fix_fields(THD *thd, Item **ref)
     if (abort_on_null)
       item->top_level_item();
 
+    /*
+      replace degraded condition:
+        was:    <field>
+        become: <field> = 1
+    */
+    if (item->type() == FIELD_ITEM)
+    {
+      Query_arena backup, *arena;
+      Item *new_item;
+      arena= thd->activate_stmt_arena_if_needed(&backup);
+      if ((new_item= new Item_func_ne(item, new Item_int(0, 1))))
+        li.replace(item= new_item);
+      if (arena)
+        thd->restore_active_arena(arena, &backup);
+    }
+
     // item can be substituted in fix_fields
     if ((!item->fixed &&
 	 item->fix_fields(thd, li.ref())) ||
@@ -5280,6 +5296,28 @@ longlong Item_cond_xor::val_int()
 Item *Item_func_not::neg_transformer(THD *thd)	/* NOT(x)  ->  x */
 {
   return args[0];
+}
+
+
+bool Item_func_not::fix_fields(THD *thd, Item **ref)
+{
+  if (args[0]->type() == FIELD_ITEM)
+  {
+    /* replace  "NOT <field>" with "<filed> == 0" */
+    Query_arena backup, *arena;
+    Item *new_item;
+    bool rc= TRUE;
+    arena= thd->activate_stmt_arena_if_needed(&backup);
+    if ((new_item= new Item_func_eq(args[0], new Item_int(0, 1))))
+    {
+      new_item->name= name;
+      rc= (*ref= new_item)->fix_fields(thd, ref);
+    }
+    if (arena)
+      thd->restore_active_arena(arena, &backup);
+    return rc;
+  }
+  return Item_func::fix_fields(thd, ref);
 }
 
 

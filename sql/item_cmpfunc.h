@@ -413,6 +413,7 @@ public:
   enum Functype functype() const { return NOT_FUNC; }
   const char *func_name() const { return "not"; }
   Item *neg_transformer(THD *thd);
+  bool fix_fields(THD *, Item **);
   virtual void print(String *str, enum_query_type query_type);
 };
 
@@ -479,6 +480,8 @@ public:
   longlong val_int();
   enum Functype functype() const { return NOT_ALL_FUNC; }
   const char *func_name() const { return "<not>"; }
+  bool fix_fields(THD *thd, Item **ref)
+    {return Item_func::fix_fields(thd, ref);}
   virtual void print(String *str, enum_query_type query_type);
   void set_sum_test(Item_sum_hybrid *item) { test_sum_item= item; };
   void set_sub_test(Item_maxmin_subselect *item) { test_sub_item= item; };
