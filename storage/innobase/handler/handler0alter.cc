@@ -1785,14 +1785,6 @@ op_ok:
 
 	ut_a(trx->lock.n_active_thrs == 0);
 
-	if (new_clustered) {
-		/* A clustered index is to be built.  Acquire a shared
-		table lock also on the table that is being created. */
-		DBUG_ASSERT(indexed_table != user_table);
-
-		error = row_merge_lock_table(user_trx, indexed_table, LOCK_S);
-	}
-
 error_handling:
 	/* After an error, remove all those index definitions from the
 	dictionary which were defined. */
