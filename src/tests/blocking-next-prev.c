@@ -76,21 +76,21 @@ static void blocking_next(DB_ENV *db_env, DB *db, uint64_t nrows UU(), long slee
         if (r != 0)
             break;
         if (verbose)
-            printf("%lu next %"PRIu64"\n", (unsigned long)(void *) toku_pthread_self(), get_key(&context.key));
+            printf("%lu next %"PRIu64"\n", (unsigned long) toku_pthread_self(), get_key(&context.key));
         usleep(sleeptime);
     }
 
     if (verbose)
-        printf("%lu next=%d\n", (unsigned long)(void *) toku_pthread_self(), r);
+        printf("%lu next=%d\n", (unsigned long) toku_pthread_self(), r);
     assert(r == DB_NOTFOUND || r == DB_LOCK_DEADLOCK);
 
     int rr = cursor->c_close(cursor); assert(rr == 0);
 
     if (r == DB_NOTFOUND) {
-        if (verbose) printf("%lu commit\n", (unsigned long)(void *) toku_pthread_self());
+        if (verbose) printf("%lu commit\n", (unsigned long) toku_pthread_self());
         r = txn->commit(txn, 0); 
     } else {
-        if (verbose) printf("%lu abort\n", (unsigned long)(void *) toku_pthread_self());
+        if (verbose) printf("%lu abort\n", (unsigned long) toku_pthread_self());
         r = txn->abort(txn);
     }
     assert(r == 0);
@@ -122,21 +122,21 @@ static void blocking_prev(DB_ENV *db_env, DB *db, uint64_t nrows UU(), long slee
         if (r != 0)
             break;
         if (verbose)
-            printf("%lu prev %"PRIu64"\n", (unsigned long)(void *) toku_pthread_self(), get_key(&context.key));
+            printf("%lu prev %"PRIu64"\n", (unsigned long) toku_pthread_self(), get_key(&context.key));
         usleep(sleeptime);
     }
 
     if (verbose)
-        printf("%lu prev=%d\n", (unsigned long)(void *) toku_pthread_self(), r);
+        printf("%lu prev=%d\n", (unsigned long) toku_pthread_self(), r);
     assert(r == DB_NOTFOUND);
 
     int rr = cursor->c_close(cursor); assert(rr == 0);
 
     if (r == DB_NOTFOUND) {
-        if (verbose) printf("%lu commit\n", (unsigned long)(void *) toku_pthread_self());
+        if (verbose) printf("%lu commit\n", (unsigned long) toku_pthread_self());
         r = txn->commit(txn, 0); 
     } else {
-        if (verbose) printf("%lu abort\n", (unsigned long)(void *) toku_pthread_self());
+        if (verbose) printf("%lu abort\n", (unsigned long) toku_pthread_self());
         r = txn->abort(txn);
     }
     assert(r == 0);
