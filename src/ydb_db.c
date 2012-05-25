@@ -649,20 +649,20 @@ int
 autotxn_db_get(DB* db, DB_TXN* txn, DBT* key, DBT* data, u_int32_t flags) {
     BOOL changed; int r;
     // ydb lock is NOT held here
-    r = toku_db_construct_autotxn(db, &txn, &changed, FALSE, FALSE);
+    r = toku_db_construct_autotxn(db, &txn, &changed, FALSE);
     if (r!=0) return r;
     r = toku_db_get(db, txn, key, data, flags);
-    return toku_db_destruct_autotxn(txn, r, changed, FALSE);
+    return toku_db_destruct_autotxn(txn, r, changed);
 }
 
 static inline int 
 autotxn_db_getf_set (DB *db, DB_TXN *txn, u_int32_t flags, DBT *key, YDB_CALLBACK_FUNCTION f, void *extra) {
     BOOL changed; int r;
     // ydb lock is NOT held here
-    r = toku_db_construct_autotxn(db, &txn, &changed, FALSE, FALSE);
+    r = toku_db_construct_autotxn(db, &txn, &changed, FALSE);
     if (r!=0) return r;
     r = db_getf_set(db, txn, flags, key, f, extra);
-    return toku_db_destruct_autotxn(txn, r, changed, FALSE);
+    return toku_db_destruct_autotxn(txn, r, changed);
 }
 
 static int 
