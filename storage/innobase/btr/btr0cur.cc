@@ -470,7 +470,9 @@ btr_cur_search_to_nth_level(
 	/* Turn the flags unrelated to the latch mode off. */
 	latch_mode = BTR_LATCH_MODE_WITHOUT_FLAGS(latch_mode);
 
-	ut_ad(!s_latch_by_caller || latch_mode == BTR_SEARCH_LEAF);
+	ut_ad(!s_latch_by_caller
+	      || latch_mode == BTR_SEARCH_LEAF
+	      || latch_mode == BTR_MODIFY_LEAF);
 
 	cursor->flag = BTR_CUR_BINARY;
 	cursor->index = index;
