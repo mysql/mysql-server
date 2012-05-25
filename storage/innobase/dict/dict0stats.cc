@@ -1249,6 +1249,14 @@ dict_stats_analyze_index_for_n_prefix(
 			break;
 		}
 
+		/* it could be that the tree has changed in such a way that
+		the record under dive_below_idx is the supremum record, in
+		this case rec_idx == dive_below_idx and pcur is positioned
+		on the supremum, we do not want to dive below it */
+		if (!btr_pcur_is_on_user_rec(&pcur)) {
+			break;
+		}
+
 		ut_a(rec_idx == dive_below_idx);
 
 		ib_uint64_t	n_diff_on_leaf_page;
