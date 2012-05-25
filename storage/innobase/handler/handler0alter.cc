@@ -3145,7 +3145,6 @@ trx_commit:
 
 			ret = dict_stats_drop_index(
 				prebuilt->table->name, key->name,
-				prebuilt->trx,
 				errstr, sizeof(errstr));
 
 			if (ret != DB_SUCCESS) {
