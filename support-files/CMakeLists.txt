@@ -102,6 +102,16 @@ IF(UNIX)
             RENAME mysql COMPONENT SupportFiles
             PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE GROUP_READ 
             GROUP_EXECUTE WORLD_READ WORLD_EXECUTE)
+
+    INSTALL(FILES rpm/my.cnf DESTINATION ${INSTALL_SYSCONFDIR}
+            COMPONENT Common)
+    INSTALL(FILES rpm/client.cnf DESTINATION ${INSTALL_SYSCONFDIR}/my.cnf.d
+            COMPONENT SharedLibraries)
+    INSTALL(FILES rpm/mysql-clients.cnf DESTINATION ${INSTALL_SYSCONFDIR}/my.cnf.d
+            COMPONENT Client)
+    INSTALL(FILES rpm/server.cnf DESTINATION ${INSTALL_SYSCONFDIR}/my.cnf.d
+            COMPONENT IniFiles)
+
     # This is for SuSE:
     INSTALL(CODE "EXECUTE_PROCESS(COMMAND ${CMAKE_COMMAND} -E create_symlink
                    ${INSTALL_SYSCONFDIR}/init.d/mysql
