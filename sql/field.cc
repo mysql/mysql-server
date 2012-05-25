@@ -10315,6 +10315,16 @@ Create_field::Create_field(Field *old_field,Field *orig_field) :
     geom_type= ((Field_geom*)old_field)->geom_type;
     break;
 #endif
+  case MYSQL_TYPE_YEAR:
+    if (length != 4)
+    {
+      push_warning_printf(current_thd, Sql_condition::WARN_LEVEL_WARN,
+                          ER_INVALID_YEAR_COLUMN_LENGTH,
+                          ER(ER_INVALID_YEAR_COLUMN_LENGTH),
+                          length);
+      length= 4; // convert obsolete YEAR(2) to YEAR(4)
+    }
+    break;
   default:
     break;
   }
