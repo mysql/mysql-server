@@ -5930,13 +5930,14 @@ MYSQL_BIN_LOG::process_commit_stage_queue(THD *thd, THD *first,
   }
 }
 
-
+#ifndef DBUG_OFF
 /** Names for the stages. */
 static const char* g_stage_name[] = {
   "FLUSH",
   "SYNC",
   "COMMIT",
 };
+#endif
 
 
 /**
