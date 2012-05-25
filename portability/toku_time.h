@@ -18,6 +18,7 @@ static inline float toku_tdiff (struct timeval *a, struct timeval *b) {
 }
 
 #if !defined(HAVE_CLOCK_REALTIME) // OS X does not have clock_gettime, use clock_get_time
+# include <errno.h>
 # include <mach/clock.h>
 # include <mach/mach.h>
 typedef int clockid_t;
