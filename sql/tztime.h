@@ -19,7 +19,7 @@
 
 #include "my_time.h"                            /* my_time_t */
 #include "mysql_time.h"                         /* MYSQL_TIME */
-#include "sql_list.h"                           /* Sql_alloc */
+#include "sql_alloc.h"
 #include "sql_string.h"                         /* String */
 
 class THD;
