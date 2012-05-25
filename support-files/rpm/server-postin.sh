@@ -4,8 +4,10 @@ mysql_datadir=%{mysqldatadir}
 mkdir -p $mysql_datadir/{mysql,test}
 
 # Make MySQL start/shutdown automatically when the machine does it.
-if [ -x /sbin/chkconfig ] ; then
-	/sbin/chkconfig --add mysql
+if [ $1 = 1 ] ; then
+  if [ -x /sbin/chkconfig ] ; then
+          /sbin/chkconfig --add mysql
+  fi
 fi
 
 # Create a MySQL user and group. Do not report any problems if it already
@@ -64,14 +66,4 @@ fi
 if [ -x sbin/restorecon ] ; then
 	sbin/restorecon -R var/lib/mysql
 fi
-
-# Restart in the same way that mysqld will be started normally.
-if [ -x %{_sysconfdir}/init.d/mysql ] ; then
-	%{_sysconfdir}/init.d/mysql start
-	echo "Giving mysqld 2 seconds to start"
-	sleep 2
-fi
-
-# Allow safe_mysqld to start mysqld and print a message before we exit
-sleep 2
 

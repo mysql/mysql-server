@@ -64,10 +64,3 @@ HERE
   fi
 fi
 
-# Shut down a previously installed server first
-if [ -x %{_sysconfdir}/init.d/mysql ] ; then
-	%{_sysconfdir}/init.d/mysql stop > /dev/null 2>&1
-	echo "Giving mysqld 5 seconds to exit nicely"
-	sleep 5
-fi
-
