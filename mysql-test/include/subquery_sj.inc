@@ -5133,6 +5133,12 @@ INSERT INTO t2 VALUES
  (3,'d'), (8,'s'), (1,'r'), (8,'m'), (8,'b'), (5,'x'), (7,'g'), (5,'p'),
  (1,'q'), (6,'w'), (2,'d'), (9,'e');
 
+-- disable_query_log
+-- disable_result_log
+ANALYZE TABLE t2;
+-- enable_result_log
+-- enable_query_log
+
 let $query=
 SELECT col_varchar_nokey
 FROM t2 AS ot

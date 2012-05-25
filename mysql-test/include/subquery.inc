@@ -5937,6 +5937,7 @@ INSERT INTO t0 VALUES (7);
 
 -- disable_query_log
 -- disable_result_log
+ANALYZE TABLE t0;
 ANALYZE TABLE t1;
 ANALYZE TABLE t2;
 -- enable_result_log
