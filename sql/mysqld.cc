@@ -924,7 +924,7 @@ void init_net_server_extension(THD *thd)
   for parsing performance schema options, this code is not needed
   when the performance schema is not compiled in.
 */
-#ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
+// #ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
 /**
   A log message for the error log, buffered in memory.
   Log messages are temporarily buffered when generated before the error log
@@ -1080,7 +1080,7 @@ static void buffered_option_error_reporter(enum loglevel level,
 }
 C_MODE_END
 #endif /* !EMBEDDED_LIBRARY */
-#endif /* WITH_PERFSCHEMA_STORAGE_ENGINE */
+// #endif /* WITH_PERFSCHEMA_STORAGE_ENGINE */
 
 static MYSQL_SOCKET unix_sock, ip_sock;
 struct rand_struct sql_rand; ///< used by sql_class.cc:THD::THD()
@@ -4852,7 +4852,6 @@ int mysqld_main(int argc, char **argv)
 
   sys_var_init();
 
-#ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
   /*
     The performance schema needs to be initialized as early as possible,
     before to-be-instrumented objects of the server are initialized.
@@ -4877,16 +4876,19 @@ int mysqld_main(int argc, char **argv)
   my_getopt_error_reporter= buffered_option_error_reporter;
   my_charset_error_reporter= buffered_option_error_reporter;
 
+#ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
   /*
     Initialize the array of performance schema instrument configurations.
   */
   init_pfs_instrument_array();
+#endif /* WITH_PERFSCHEMA_STORAGE_ENGINE */
 
   ho_error= handle_options(&remaining_argc, &remaining_argv,
                            &all_early_options[0], mysqld_get_one_option);
   // Swap with an empty vector, i.e. delete elements and free allocated space.
   vector<my_option>().swap(all_early_options);
 
+#ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
   if (ho_error == 0)
   {
     /* Add back the program name handle_options removes */
@@ -4894,6 +4896,10 @@ int mysqld_main(int argc, char **argv)
     remaining_argv--;
     if (pfs_param.m_enabled)
     {
+      /* Add sizing hints from the server sizing parameters. */
+      pfs_param.m_hints.m_table_definition_cache= table_def_size;
+      pfs_param.m_hints.m_table_open_cache= 0;
+      pfs_param.m_hints.m_max_connections= 0;
       PSI_hook= initialize_performance_schema(&pfs_param);
       if (PSI_hook == NULL)
       {
