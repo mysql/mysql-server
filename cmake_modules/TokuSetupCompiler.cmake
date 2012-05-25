@@ -127,8 +127,12 @@ else()
     -Wmissing-declarations
     -Wpointer-arith
     -Wmissing-format-attribute
-    -Wshadow
     )
+  if (CMAKE_SYSTEM_NAME STREQUAL Darwin)
+    message(WARNING "Disabling -Wshadow on osx.  TODO: fix shadowed declarations and re-enable it.")
+  else ()
+    list(APPEND WARN_CFLAGS -Wshadow)
+  endif ()
 endif()
 
 set_cflags_if_supported(${WARN_CFLAGS})
