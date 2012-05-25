@@ -183,7 +183,7 @@ innobase_need_rebuild(
 by ALTER TABLE and holding data used during in-place alter.
 
 @retval HA_ALTER_INPLACE_NOT_SUPPORTED	Not supported
-@retval HA_ALTER_INPLACE_EXCLUSIVE_LOCK	Supported, but requires X-lock
+@retval HA_ALTER_INPLACE_SHARED_LOCK	Supported, but requires S-lock
 @retval HA_ALTER_INPLACE_NO_LOCK Supported
 @retval HA_ALTER_INPLACE_NO_LOCK_AFTER_PREPARE	Supported, prepare phase
 (any transactions that have modified the table must commit or roll back
@@ -277,16 +277,16 @@ ha_innobase::check_if_supported_inplace_alter(
 
 	prebuilt->trx->will_lock++;
 
-	/* Rebuilding the clustered index requires an exclusive lock on the
+	/* Rebuilding the clustered index requires a shared lock on the
 	table during the whole copying operation. */
 	if (innobase_need_rebuild(ha_alter_info)) {
-		DBUG_RETURN(HA_ALTER_INPLACE_EXCLUSIVE_LOCK);
+		DBUG_RETURN(HA_ALTER_INPLACE_SHARED_LOCK);
 	}
 
 	if (ha_alter_info->handler_flags
 	    & (Alter_inplace_info::ADD_INDEX
 	       | Alter_inplace_info::ADD_UNIQUE_INDEX)) {
-		/* Building a full-text index requires an exclusive lock. */
+		/* Building a full-text index requires a shared lock. */
 
 		for (uint i = 0; i < ha_alter_info->index_add_count; i++) {
 			const KEY* key =
@@ -298,7 +298,7 @@ ha_innobase::check_if_supported_inplace_alter(
 						  | HA_PACK_KEY
 						  | HA_GENERATED_KEY
 						  | HA_BINARY_PACK_KEY)));
-				DBUG_RETURN(HA_ALTER_INPLACE_EXCLUSIVE_LOCK);
+				DBUG_RETURN(HA_ALTER_INPLACE_SHARED_LOCK);
 			}
 		}
 	}
@@ -1443,8 +1443,8 @@ prepare_inplace_alter_table_dict(
 	DBUG_ASSERT(!add_fts_doc_id || new_clustered);
 
 	/* A primary key index cannot be created online. The table
-	should be exclusively locked in this case. It should also
-	be exclusively locked when a full-text index is being created. */
+	should be locked in this case. It should also be locked when a
+	full-text index is being created. */
 	DBUG_ASSERT(!!new_clustered
 		    == ((ha_alter_info->handler_flags
 			 & INNOBASE_INPLACE_REBUILD)
@@ -1461,13 +1461,20 @@ prepare_inplace_alter_table_dict(
 	the data dictionary will be locked in crash recovery. */
 	trx_set_dict_operation(trx, TRX_DICT_OP_INDEX);
 
-	const bool exclusive = ha_alter_info->alter_info->requested_lock
-		== Alter_info::ALTER_TABLE_LOCK_EXCLUSIVE;
+	const bool locked = ha_alter_info->alter_info->requested_lock
+		== Alter_info::ALTER_TABLE_LOCK_EXCLUSIVE
+		|| ha_alter_info->alter_info->requested_lock
+		== Alter_info::ALTER_TABLE_LOCK_SHARED;
+
+	/* For now, rebuilding the clustered index requires a lock. */
+	ut_ad(!new_clustered || locked
+	      || ha_alter_info->alter_info->requested_lock
+	      == Alter_info::ALTER_TABLE_LOCK_DEFAULT);
 
 	/* Acquire a lock on the table before creating any indexes. */
-	if (new_clustered) {
+	if (new_clustered || locked) {
 		error = row_merge_lock_table(
-			user_trx, indexed_table, LOCK_X);
+			user_trx, indexed_table, LOCK_S);
 
 		if (error != DB_SUCCESS) {
 
@@ -1685,9 +1692,9 @@ col_fail:
 
 		/* If only online ALTER TABLE operations have been
 		requested, allocate a modification log. If the table
-		will be exclusively locked anyway, the modification
-		log is unnecessary. */
-		if (!exclusive && !num_fts_index
+		will be locked anyway, the modification log is
+		unnecessary. */
+		if (!locked && !num_fts_index
 		    && !innobase_need_rebuild(ha_alter_info)
 		    && !user_table->ibd_file_missing
 		    && !user_table->tablespace_discarded) {
@@ -1779,11 +1786,11 @@ op_ok:
 	ut_a(trx->lock.n_active_thrs == 0);
 
 	if (new_clustered) {
-		/* A clustered index is to be built.  Acquire an exclusive
+		/* A clustered index is to be built.  Acquire a shared
 		table lock also on the table that is being created. */
 		DBUG_ASSERT(indexed_table != user_table);
 
-		error = row_merge_lock_table(user_trx, indexed_table, LOCK_X);
+		error = row_merge_lock_table(user_trx, indexed_table, LOCK_S);
 	}
 
 error_handling:
@@ -1802,7 +1809,7 @@ error_handling:
 			add_index, add_key_nums, n_add_index,
 			drop_index, n_drop_index,
 			drop_foreign, n_drop_foreign,
-			!exclusive && !new_clustered && !num_fts_index,
+			!locked && !new_clustered && !num_fts_index,
 			heap, trx, indexed_table);
 		DBUG_RETURN(false);
 	case DB_TABLESPACE_ALREADY_EXISTS:
@@ -2285,14 +2292,16 @@ index_needed:
 
 	if (!(ha_alter_info->handler_flags & INNOBASE_INPLACE_CREATE)) {
 		if (heap) {
-			const bool exclusive
+			const bool locked
 				= ha_alter_info->alter_info->requested_lock
-				== Alter_info::ALTER_TABLE_LOCK_EXCLUSIVE;
+				== Alter_info::ALTER_TABLE_LOCK_EXCLUSIVE
+				|| ha_alter_info->alter_info->requested_lock
+				== Alter_info::ALTER_TABLE_LOCK_SHARED;
 			ha_alter_info->handler_ctx
 				= new ha_innobase_inplace_ctx(
 					NULL, NULL, 0,
 					drop_index, n_drop_index,
-					drop_fk, n_drop_fk, !exclusive,
+					drop_fk, n_drop_fk, !locked,
 					heap, NULL, indexed_table);
 		}
 
