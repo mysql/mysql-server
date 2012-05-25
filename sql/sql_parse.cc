@@ -5746,6 +5746,8 @@ void mysql_reset_thd_for_next_command(THD *thd)
 
 void THD::reset_for_next_command()
 {
+  // TODO: Why on earth is this here?! We should probably fix this
+  // function and move it to the proper file. /Matz
   THD *thd= this;
   DBUG_ENTER("mysql_reset_thd_for_next_command");
   DBUG_ASSERT(!thd->sp_runtime_ctx); /* not for substatements of routines */
@@ -5795,6 +5797,11 @@ void THD::reset_for_next_command()
 
   thd->reset_current_stmt_binlog_format_row();
   thd->binlog_unsafe_warning_flags= 0;
+
+  thd->m_trans_end_pos= 0;
+  thd->m_trans_log_file= NULL;
+  thd->commit_error= 0;
+  thd->durability_property= HA_REGULAR_DURABILITY;
 
   DBUG_PRINT("debug",
              ("is_current_stmt_binlog_format_row(): %d",

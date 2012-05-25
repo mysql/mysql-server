@@ -179,6 +179,7 @@ UNIV_INTERN ib_uint64_t	srv_log_file_size	= IB_UINT64_MAX;
 /* size in database pages */
 UNIV_INTERN ulint	srv_log_buffer_size	= ULINT_MAX;
 UNIV_INTERN ulong	srv_flush_log_at_trx_commit = 1;
+UNIV_INTERN uint	srv_flush_log_at_timeout = 1;
 UNIV_INTERN ulong	srv_page_size		= UNIV_PAGE_SIZE_DEF;
 UNIV_INTERN ulong	srv_page_size_shift	= UNIV_PAGE_SIZE_SHIFT_DEF;
 
@@ -1864,7 +1865,8 @@ srv_sync_log_buffer_in_background(void)
 	time_t	current_time = time(NULL);
 
 	srv_main_thread_op_info = "flushing log";
-	if (difftime(current_time, srv_last_log_flush_time) >= 1) {
+	if (difftime(current_time, srv_last_log_flush_time)
+	    >= srv_flush_log_at_timeout) {
 		log_buffer_sync_in_background(TRUE);
 		srv_last_log_flush_time = current_time;
 		srv_log_writes_and_flush++;
