@@ -2563,10 +2563,10 @@ dict_stats_update(
 	switch (stats_upd_option) {
 	case DICT_STATS_RECALC_PERSISTENT:
 		/* Persistent recalculation requested, called from
-		+ ANALYZE TABLE
-		+ the auto recalculation background thread
-		+ open table if stats do not exist on disk and auto recalc
-		  is enabled */
+		1) ANALYZE TABLE, or
+		2) the auto recalculation background thread, or
+		3) open table if stats do not exist on disk and auto recalc
+		   is enabled */
 
 		/* InnoDB internal tables (e.g. SYS_TABLES) cannot have
 		persistent stats enabled */
