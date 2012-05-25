@@ -19,6 +19,7 @@
 */
 
 #include "my_global.h"
+#include "sql_const.h"
 #include "pfs_server.h"
 
 static const ulong fixed_mutex_instances= 500;

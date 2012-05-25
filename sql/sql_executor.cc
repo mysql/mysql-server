@@ -2327,6 +2327,12 @@ evaluate_join_record(JOIN *join, JOIN_TAB *join_tab)
   {
     found= test(condition->val_int());
 
+    if (join->thd->killed)
+    {
+      join->thd->send_kill_message();
+      DBUG_RETURN(NESTED_LOOP_KILLED);
+    }
+
     /* check for errors evaluating the condition */
     if (join->thd->is_error())
       DBUG_RETURN(NESTED_LOOP_ERROR);
