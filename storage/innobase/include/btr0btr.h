@@ -92,8 +92,8 @@ insert/delete buffer when the record is not in the buffer pool. */
 buffer when the record is not in the buffer pool. */
 #define BTR_DELETE		8192
 
-/** In the case of BTR_SEARCH_LEAF, the caller is already holding an S latch
-on the index tree */
+/** In the case of BTR_SEARCH_LEAF or BTR_MODIFY_LEAF, the caller is
+already holding an S latch on the index tree */
 #define BTR_ALREADY_S_LATCHED	16384
 
 #define BTR_LATCH_MODE_WITHOUT_FLAGS(latch_mode)	\
