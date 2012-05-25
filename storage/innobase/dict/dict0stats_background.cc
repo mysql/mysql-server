@@ -72,7 +72,6 @@ dict_stats_enqueue_table_for_auto_recalc(
 /*=====================================*/
 	const dict_table_t*	table)	/*!< in: table */
 {
-#if 1 /* background stats gathering currently disabled due to locking issues */
 	mutex_enter(&auto_recalc_mutex);
 
 	/* search if already in the list */
@@ -109,15 +108,6 @@ dict_stats_enqueue_table_for_auto_recalc(
 	mutex_exit(&auto_recalc_mutex);
 
 	os_event_set(dict_stats_event);
-#else
-	ut_ad(!mutex_own(&dict_sys->mutex));
-
-	if (ut_difftime(ut_time(), table->stats_last_recalc)
-	    >= MIN_RECALC_INTERVAL) {
-		dict_stats_update((dict_table_t*) table,
-				  DICT_STATS_RECALC_PERSISTENT, FALSE);
-	}
-#endif
 }
 /* @} */
 
