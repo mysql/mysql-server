@@ -119,7 +119,7 @@ DROP DATABASE db1;
 CREATE TABLE t1(a INT NOT NULL, b INT NOT NULL) engine=innodb;
 SET DEBUG_SYNC= "alter_table_inplace_after_lock_downgrade SIGNAL manage WAIT_FOR query";
 # Sending:
-ALTER TABLE t1 ADD UNIQUE INDEX(a);
+ALTER TABLE t1 ADD UNIQUE INDEX(a), LOCK=SHARED;
 # Connection con1
 SET DEBUG_SYNC= "now WAIT_FOR manage";
 USE test;
@@ -139,7 +139,7 @@ SET DEBUG_SYNC= "now SIGNAL query";
 ALTER TABLE t1 DROP INDEX a;
 SET DEBUG_SYNC= "alter_table_inplace_after_lock_downgrade SIGNAL manage WAIT_FOR query";
 # Sending:
-ALTER TABLE t1 ADD PRIMARY KEY (a);
+ALTER TABLE t1 ADD PRIMARY KEY (a), LOCK=SHARED;
 # Connection con1
 SET DEBUG_SYNC= "now WAIT_FOR manage";
 SELECT * FROM t1;
