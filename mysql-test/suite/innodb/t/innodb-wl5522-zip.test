@@ -11,7 +11,6 @@
 DROP TABLE IF EXISTS t1;
 --enable_warnings
 
-let MYSQLD_DATADIR =`SELECT @@datadir`;
 let $innodb_file_per_table = `SELECT @@innodb_file_per_table`;
 let $innodb_file_format = `SELECT @@innodb_file_format`;
 let $innodb_strict_mode_orig=`select @@session.innodb_strict_mode`;
@@ -25,6 +24,7 @@ SELECT @@innodb_file_format;
 SET SESSION innodb_strict_mode=1;
 SELECT @@SESSION.innodb_strict_mode;
 
+let $MYSQLD_TMPDIR = `SELECT @@tmpdir`;
 let $MYSQLD_DATADIR = `SELECT @@datadir`;
 
 CREATE TABLE t1
@@ -55,8 +55,8 @@ SELECT * FROM t1 ORDER BY a DESC LIMIT 3;
 FLUSH TABLE t1 FOR EXPORT;
 --echo # List before copying files
 --list_files $MYSQLD_DATADIR/test
---copy_file $MYSQLD_DATADIR/test/t1.cfg $MYSQLD_DATADIR/test/Dt1.cfg
---copy_file $MYSQLD_DATADIR/test/t1.ibd $MYSQLD_DATADIR/test/Dt1.ibd
+--copy_file $MYSQLD_DATADIR/test/t1.cfg $MYSQLD_TMPDIR/t1.cfg
+--copy_file $MYSQLD_DATADIR/test/t1.ibd $MYSQLD_TMPDIR/t1.ibd
 UNLOCK TABLES;
 INSERT INTO t1 (b, c) SELECT b,c FROM t1 ORDER BY a;
 SELECT COUNT(*) FROM t1;
@@ -71,8 +71,8 @@ ALTER TABLE t1 DISCARD TABLESPACE;
 --echo # List after t1 DISCARD
 --list_files $MYSQLD_DATADIR/test
 --remove_file $MYSQLD_DATADIR/test/t1.ibt
---copy_file $MYSQLD_DATADIR/test/Dt1.cfg $MYSQLD_DATADIR/test/t1.cfg
---copy_file $MYSQLD_DATADIR/test/Dt1.ibd $MYSQLD_DATADIR/test/t1.ibd
+--copy_file $MYSQLD_TMPDIR/t1.cfg $MYSQLD_DATADIR/test/t1.cfg
+--copy_file $MYSQLD_TMPDIR/t1.ibd $MYSQLD_DATADIR/test/t1.ibd
 ALTER TABLE t1 IMPORT TABLESPACE;
 ALTER TABLE t1 ENGINE InnoDB;
 SELECT COUNT(*) FROM t1;
@@ -82,8 +82,9 @@ SELECT * FROM t1 ORDER BY a DESC LIMIT 3;
 SELECT COUNT(*) FROM t1;
 SELECT * FROM t1 ORDER BY b,a DESC LIMIT 3;
 SELECT * FROM t1 ORDER BY a DESC LIMIT 3;
---remove_file $MYSQLD_DATADIR/test/t1.cfg
 DROP TABLE t1;
+--remove_file $MYSQLD_TMPDIR/t1.cfg
+--remove_file $MYSQLD_TMPDIR/t1.ibd
 
 SET GLOBAL innodb_file_per_table = 1;
 SELECT @@innodb_file_per_table;
@@ -95,6 +96,7 @@ SELECT @@innodb_file_format;
 SET SESSION innodb_strict_mode=1;
 SELECT @@SESSION.innodb_strict_mode;
 
+let MYSQLD_DATADIR =`SELECT @@datadir`;
 
 # Try importing when tablespace already exists
 CREATE TABLE t1(
@@ -535,8 +537,6 @@ call mtr.add_suppression("InnoDB: Error: tablespace id and flags in file '.*'.*"
 call mtr.add_suppression("InnoDB: The table .* doesn't have a corresponding tablespace, it was discarded");
 
 # cleanup
---remove_file $MYSQLD_DATADIR/test/Dt1.cfg
---remove_file $MYSQLD_DATADIR/test/Dt1.ibd
 --remove_file $MYSQLTEST_VARDIR/tmp/t1.cfg
 --remove_file $MYSQLTEST_VARDIR/tmp/t1.ibd
 
