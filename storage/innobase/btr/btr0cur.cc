@@ -1131,7 +1131,9 @@ btr_cur_ins_lock_and_undo(
 	rec = btr_cur_get_rec(cursor);
 	index = cursor->index;
 
-	ut_ad(!dict_index_is_online_ddl(index) || (flags & BTR_CREATE_FLAG));
+	ut_ad(!dict_index_is_online_ddl(index)
+	      || dict_index_is_clust(index)
+	      || (flags & BTR_CREATE_FLAG));
 
 	err = lock_rec_insert_check_and_lock(flags, rec,
 					     btr_cur_get_block(cursor),
@@ -1232,7 +1234,9 @@ btr_cur_optimistic_insert(
 	block = btr_cur_get_block(cursor);
 	page = buf_block_get_frame(block);
 	index = cursor->index;
-	ut_ad(!dict_index_is_online_ddl(index) || (flags & BTR_CREATE_FLAG));
+	ut_ad(!dict_index_is_online_ddl(index)
+	      || dict_index_is_clust(index)
+	      || (flags & BTR_CREATE_FLAG));
 	zip_size = buf_block_get_zip_size(block);
 #ifdef UNIV_DEBUG_VALGRIND
 	if (zip_size) {
@@ -1496,7 +1500,9 @@ btr_cur_pessimistic_insert(
 				MTR_MEMO_X_LOCK));
 	ut_ad(mtr_memo_contains(mtr, btr_cur_get_block(cursor),
 				MTR_MEMO_PAGE_X_FIX));
-	ut_ad(!dict_index_is_online_ddl(index) || (flags & BTR_CREATE_FLAG));
+	ut_ad(!dict_index_is_online_ddl(index)
+	      || dict_index_is_clust(index)
+	      || (flags & BTR_CREATE_FLAG));
 
 	/* Try first an optimistic insert; reset the cursor flag: we do not
 	assume anything of how it was positioned */
@@ -1621,10 +1627,12 @@ btr_cur_upd_lock_and_undo(
 	rec = btr_cur_get_rec(cursor);
 	index = cursor->index;
 
-	ut_ad(dict_index_is_online_ddl(index) == !!(flags & BTR_CREATE_FLAG));
 	ut_ad(rec_offs_validate(rec, index, offsets));
 
 	if (!dict_index_is_clust(index)) {
+		ut_ad(dict_index_is_online_ddl(index)
+		      == !!(flags & BTR_CREATE_FLAG));
+
 		/* We do undo logging only when we update a clustered index
 		record */
 		return(lock_sec_rec_modify_check_and_lock(
@@ -1877,7 +1885,8 @@ btr_cur_update_in_place(
 	ut_ad(!!page_rec_is_comp(rec) == dict_table_is_comp(index->table));
 	/* The insert buffer tree should never be updated in place. */
 	ut_ad(!dict_index_is_ibuf(index));
-	ut_ad(dict_index_is_online_ddl(index) == !!(flags & BTR_CREATE_FLAG));
+	ut_ad(dict_index_is_online_ddl(index) == !!(flags & BTR_CREATE_FLAG)
+	      || dict_index_is_clust(index));
 	ut_ad(!thr || thr_get_trx(thr)->id == trx_id);
 	ut_ad(thr || flags == (BTR_NO_UNDO_LOG_FLAG | BTR_NO_LOCKING_FLAG
 			       | BTR_CREATE_FLAG | BTR_KEEP_SYS_FLAG));
@@ -2018,7 +2027,8 @@ btr_cur_optimistic_update(
 	ut_ad(mtr_memo_contains(mtr, block, MTR_MEMO_PAGE_X_FIX));
 	/* The insert buffer tree should never be updated in place. */
 	ut_ad(!dict_index_is_ibuf(index));
-	ut_ad(dict_index_is_online_ddl(index) == !!(flags & BTR_CREATE_FLAG));
+	ut_ad(dict_index_is_online_ddl(index) == !!(flags & BTR_CREATE_FLAG)
+	      || dict_index_is_clust(index));
 	ut_ad(!thr || thr_get_trx(thr)->id == trx_id);
 	ut_ad(thr || flags == (BTR_NO_UNDO_LOG_FLAG | BTR_NO_LOCKING_FLAG
 			       | BTR_CREATE_FLAG | BTR_KEEP_SYS_FLAG));
@@ -2285,7 +2295,8 @@ btr_cur_pessimistic_update(
 #endif /* UNIV_ZIP_DEBUG */
 	/* The insert buffer tree should never be updated in place. */
 	ut_ad(!dict_index_is_ibuf(index));
-	ut_ad(dict_index_is_online_ddl(index) == !!(flags & BTR_CREATE_FLAG));
+	ut_ad(dict_index_is_online_ddl(index) == !!(flags & BTR_CREATE_FLAG)
+	      || dict_index_is_clust(index));
 	ut_ad(!thr || thr_get_trx(thr)->id == trx_id);
 	ut_ad(thr || flags == (BTR_NO_UNDO_LOG_FLAG | BTR_NO_LOCKING_FLAG
 			       | BTR_CREATE_FLAG | BTR_KEEP_SYS_FLAG));
@@ -2974,6 +2985,7 @@ btr_cur_optimistic_delete_func(
 
 	ut_ad(page_is_leaf(buf_block_get_frame(block)));
 	ut_ad(!dict_index_is_online_ddl(cursor->index)
+	      || dict_index_is_clust(cursor->index)
 	      || (flags & BTR_CREATE_FLAG));
 
 	rec = btr_cur_get_rec(cursor);
@@ -3075,7 +3087,9 @@ btr_cur_pessimistic_delete(
 	index = btr_cur_get_index(cursor);
 
 	ut_ad(flags == 0 || flags == BTR_CREATE_FLAG);
-	ut_ad(!dict_index_is_online_ddl(index) || (flags & BTR_CREATE_FLAG));
+	ut_ad(!dict_index_is_online_ddl(index)
+	      || dict_index_is_clust(index)
+	      || (flags & BTR_CREATE_FLAG));
 	ut_ad(mtr_memo_contains(mtr, dict_index_get_lock(index),
 				MTR_MEMO_X_LOCK));
 	ut_ad(mtr_memo_contains(mtr, block, MTR_MEMO_PAGE_X_FIX));

@@ -3092,7 +3092,8 @@ row_merge_is_index_usable(
 	const trx_t*		trx,	/*!< in: transaction */
 	const dict_index_t*	index)	/*!< in: index to check */
 {
-	if (dict_index_is_online_ddl(index)) {
+	if (!dict_index_is_clust(index)
+	    && dict_index_is_online_ddl(index)) {
 		/* Indexes that are being created are not useable. */
 		return(FALSE);
 	}
