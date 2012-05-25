@@ -1938,6 +1938,10 @@ do { \
 	     index != NULL;
 	     index = dict_table_get_next_index(index)) {
 
+		if (index->type & DICT_FTS) {
+			continue;
+		}
+
 		ret = dict_stats_save_index_stat(index, now, "size",
 						 index->stat_index_size,
 						 NULL,
@@ -3393,6 +3397,7 @@ dict_index_t::id
 dict_index_t::name
 dict_index_t::table_name
 dict_index_t::table (points to the above semi-initialized object)
+dict_index_t::type
 dict_index_t::n_uniq
 dict_index_t::fields[] (only first n_uniq and only fields[i].name)
 dict_index_t::indexes<>
@@ -3482,6 +3487,8 @@ dict_stats_snapshot_create(
 		idx->table_name = t->name;
 
 		idx->table = t;
+
+		idx->type = index->type;
 
 		idx->n_uniq = index->n_uniq;
 
