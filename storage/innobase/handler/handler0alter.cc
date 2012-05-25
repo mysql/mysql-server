@@ -2005,6 +2005,20 @@ prepare_inplace_alter_table_dict(
 	row_mysql_lock_data_dictionary(trx);
 	dict_locked = TRUE;
 
+	/* Wait for background stats processing to stop using the
+	table that we are going to alter. We know bg stats will not
+	start using it again after this loop because it sets the
+	BG_STAT_IN_PROGRESS bit in table->stats_bg_flag under
+	dict_sys->mutex and we are holding it here at least until
+	checking ut_ad(user_table->n_ref_count == 1); below.
+	XXX what may happen if bg stats opens the table after we
+	have unlocked data dictionary below? */
+	while (user_table->stats_bg_flag & BG_STAT_IN_PROGRESS) {
+		row_mysql_unlock_data_dictionary(trx);
+		os_thread_sleep(250000);
+		row_mysql_lock_data_dictionary(trx);
+	}
+
 	online_retry_drop_indexes_low(indexed_table, trx);
 
 	ut_d(dict_table_check_for_dup_indexes(
