@@ -4898,8 +4898,8 @@ int mysqld_main(int argc, char **argv)
     {
       /* Add sizing hints from the server sizing parameters. */
       pfs_param.m_hints.m_table_definition_cache= table_def_size;
-      pfs_param.m_hints.m_table_open_cache= 0;
-      pfs_param.m_hints.m_max_connections= 0;
+      pfs_param.m_hints.m_table_open_cache= table_cache_size;
+      pfs_param.m_hints.m_max_connections= max_connections;
       PSI_hook= initialize_performance_schema(&pfs_param);
       if (PSI_hook == NULL)
       {
