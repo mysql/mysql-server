@@ -1147,7 +1147,9 @@ trx_commit(
 		if (trx->flush_log_later) {
 			/* Do nothing yet */
 			trx->must_flush_log_later = TRUE;
-		} else if (srv_flush_log_at_trx_commit == 0) {
+		} else if (srv_flush_log_at_trx_commit == 0
+			   || thd_requested_durability(trx->mysql_thd)
+			   == HA_IGNORE_DURABILITY) {
 			/* Do nothing */
 		} else if (srv_flush_log_at_trx_commit == 1) {
 			if (srv_unix_file_flush_method == SRV_UNIX_NOSYNC) {
@@ -1442,7 +1444,9 @@ trx_commit_complete_for_mysql(
 
 	if (!trx->must_flush_log_later) {
 		/* Do nothing */
-	} else if (srv_flush_log_at_trx_commit == 0) {
+	} else if (srv_flush_log_at_trx_commit == 0
+		   || thd_requested_durability(trx->mysql_thd)
+		   == HA_IGNORE_DURABILITY) {
 		/* Do nothing */
 	} else if (srv_flush_log_at_trx_commit == 1) {
 		if (srv_unix_file_flush_method == SRV_UNIX_NOSYNC) {

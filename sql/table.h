@@ -18,7 +18,7 @@
 
 #include "my_global.h"                          /* NO_EMBEDDED_ACCESS_CHECKS */
 #include "sql_plist.h"
-#include "sql_list.h"                           /* Sql_alloc */
+#include "sql_alloc.h"
 #include "mdl.h"
 #include "datadict.h"
 

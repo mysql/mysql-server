@@ -1,4 +1,4 @@
-/* Copyright (c) 2009, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2009, 2011, 2012 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -590,6 +590,16 @@ static Sys_var_ulong Sys_binlog_stmt_cache_size(
        NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0),
        ON_UPDATE(fix_binlog_stmt_cache_size));
 
+static Sys_var_int32 Sys_binlog_max_flush_queue_time(
+       "binlog_max_flush_queue_time",
+       "The maximum time that the binary log group commit will keep reading"
+       " transactions before it flush the transactions to the binary log (and"
+       " optionally sync, depending on the value of sync_binlog).",
+       GLOBAL_VAR(opt_binlog_max_flush_queue_time),
+       CMD_LINE(REQUIRED_ARG),
+       VALID_RANGE(0, 100000), DEFAULT(0), BLOCK_SIZE(1),
+       NO_MUTEX_GUARD, NOT_IN_BINLOG);
+
 static bool check_has_super(sys_var *self, THD *thd, set_var *var)
 {
   DBUG_ASSERT(self->scope() != sys_var::GLOBAL);// don't abuse check_has_super()
@@ -869,6 +879,13 @@ static Sys_var_mybool Sys_binlog_rows_query(
        "Allow writing of Rows_query_log events into binary log.",
        SESSION_VAR(binlog_rows_query_log_events),
        CMD_LINE(OPT_ARG), DEFAULT(FALSE));
+
+static Sys_var_mybool Sys_binlog_order_commits(
+       "binlog_order_commits",
+       "Issue internal commit calls in the same order as transactions are"
+       " written to the binary log. Default is to order commits.",
+       GLOBAL_VAR(opt_binlog_order_commits),
+       CMD_LINE(OPT_ARG), DEFAULT(TRUE));
 
 static Sys_var_ulong Sys_bulk_insert_buff_size(
        "bulk_insert_buffer_size", "Size of tree cache used in bulk "
@@ -3862,8 +3879,9 @@ static Sys_var_uint Sys_checkpoint_mts_group(
 #endif /* HAVE_REPLICATION */
 
 static Sys_var_uint Sys_sync_binlog_period(
-       "sync_binlog", "Synchronously flush binary log to disk after "
-       "every #th event. Use 0 (default) to disable synchronous flushing",
+       "sync_binlog", "Synchronously flush binary log to disk after"
+       " every #th write to the file. Use 0 (default) to disable synchronous"
+       " flushing",
        GLOBAL_VAR(sync_binlog_period), CMD_LINE(REQUIRED_ARG),
        VALID_RANGE(0, UINT_MAX), DEFAULT(0), BLOCK_SIZE(1));
 

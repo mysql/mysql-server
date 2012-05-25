@@ -97,7 +97,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #  define MYSQL_PLUGIN_IMPORT /* nothing */
 # endif /* MYSQL_PLUGIN_IMPORT */
 /** to force correct commit order in binlog */
-static mysql_mutex_t prepare_commit_mutex;
 static ulong commit_threads = 0;
 static mysql_mutex_t commit_threads_m;
 static mysql_cond_t commit_cond;
@@ -258,7 +257,6 @@ const struct _ft_vft_ext ft_vft_ext_result = {innobase_fts_get_version,
 #ifdef HAVE_PSI_INTERFACE
 /* Keys to register pthread mutexes/cond in the current file with
 performance schema */
-static mysql_pfs_key_t	prepare_commit_mutex_key;
 static mysql_pfs_key_t	commit_threads_m_key;
 static mysql_pfs_key_t	commit_cond_mutex_key;
 static mysql_pfs_key_t	commit_cond_key;
@@ -266,7 +264,6 @@ static mysql_pfs_key_t	commit_cond_key;
 static PSI_mutex_info	all_pthread_mutexes[] = {
 	{&commit_threads_m_key, "commit_threads_m", 0},
 	{&commit_cond_mutex_key, "commit_cond_mutex", 0},
-	{&prepare_commit_mutex_key, "prepare_commit_mutex", 0}
 };
 
 static PSI_cond_info	all_innodb_conds[] = {
@@ -1018,6 +1015,19 @@ thd_is_replication_slave_thread(
 	THD*	thd)	/*!< in: thread handle */
 {
 	return((ibool) thd_slave_thread(thd));
+}
+
+/******************************************************************//**
+Gets information on the durability property requested by thread.
+Used when writing either a prepare or commit record to the log
+buffer. @return the durability property. */
+UNIV_INTERN
+enum durability_properties
+thd_requested_durability(
+/*=====================*/
+	const THD* thd)	/*!< in: thread handle (THD*) */
+{
+	return(thd_get_durability_property(thd));
 }
 
 /******************************************************************//**
@@ -2045,18 +2055,6 @@ trx_is_registered_for_2pc(
 }
 
 /*********************************************************************//**
-Note that a transaction owns the prepare_commit_mutex. */
-static inline
-void
-trx_owns_prepare_commit_mutex_set(
-/*==============================*/
-	trx_t*	trx)	/* in: transaction */
-{
-	ut_a(trx_is_registered_for_2pc(trx));
-	trx->owns_prepare_mutex = 1;
-}
-
-/*********************************************************************//**
 Note that a transaction has been registered with MySQL 2PC coordinator. */
 static inline
 void
@@ -2080,17 +2078,6 @@ trx_deregister_from_2pc(
 	trx->owns_prepare_mutex = 0;
 }
 
-/*********************************************************************//**
-Check whether atransaction owns the prepare_commit_mutex.
-@return true if transaction owns the prepare commit mutex */
-static inline
-bool
-trx_has_prepare_commit_mutex(
-/*=========================*/
-	const trx_t*	trx)	/* in: transaction */
-{
-	return(trx->owns_prepare_mutex == 1);
-}
 
 /*********************************************************************//**
 Check if transaction is started.
@@ -3101,8 +3088,6 @@ innobase_change_buffering_inited_ok:
 
 	ibuf_max_size_update(innobase_change_buffer_max_size);
 
-	mysql_mutex_init(prepare_commit_mutex_key,
-			 &prepare_commit_mutex, MY_MUTEX_INIT_FAST);
 	mysql_mutex_init(commit_threads_m_key,
 			 &commit_threads_m, MY_MUTEX_INIT_FAST);
 	mysql_mutex_init(commit_cond_mutex_key,
@@ -3166,7 +3151,6 @@ innobase_end(
 		}
 		srv_free_paths_and_sizes();
 		my_free(internal_innobase_data_file_path);
-		mysql_mutex_destroy(&prepare_commit_mutex);
 		mysql_mutex_destroy(&commit_threads_m);
 		mysql_mutex_destroy(&commit_cond_m);
 		mysql_cond_destroy(&commit_cond);
@@ -3304,9 +3288,7 @@ innobase_commit(
 		/* We were instructed to commit the whole transaction, or
 		this is an SQL statement end and autocommit is on */
 
-		/* We need current binlog position for ibbackup to work.
-		Note, the position is current because of
-		prepare_commit_mutex */
+		/* We need current binlog position for ibbackup to work. */
 retry:
 		if (innobase_commit_concurrency > 0) {
 			mysql_mutex_lock(&commit_cond_m);
@@ -3324,25 +3306,23 @@ retry:
 			}
 		}
 
-		/* The following calls to read the MySQL binary log
-		file name and the position return consistent results:
-		1) Other InnoDB transactions cannot intervene between
-		these calls as we are holding prepare_commit_mutex.
-		2) Binary logging of other engines is not relevant
-		to InnoDB as all InnoDB requires is that committing
-		InnoDB transactions appear in the same order in the
-		MySQL binary log as they appear in InnoDB logs.
-		3) A MySQL log file rotation cannot happen because
-		MySQL protects against this by having a counter of
-		transactions in prepared state and it only allows
-		a rotation when the counter drops to zero. See
-		LOCK_prep_xids and COND_prep_xids in log.cc. */
-		trx->mysql_log_file_name = mysql_bin_log_file_name();
-		trx->mysql_log_offset = (ib_int64_t) mysql_bin_log_file_pos();
+		/* The following call read the binary log position of
+		the transaction being committed.
 
+                Binary logging of other engines is not relevant to
+		InnoDB as all InnoDB requires is that committing
+		InnoDB transactions appear in the same order in the
+		MySQL binary log as they appear in InnoDB logs, which
+		is guaranteed by the server.
+
+                If the binary log is not enabled, or the transaction
+                is not written to the binary log, the file name will
+                be a NULL pointer. */
+                unsigned long long pos;
+                thd_binlog_pos(thd, &trx->mysql_log_file_name, &pos);
+                trx->mysql_log_offset= static_cast<ib_int64_t>(pos);
 		/* Don't do write + flush right now. For group commit
-		to work we want to do the flush after releasing the
-		prepare_commit_mutex. */
+		to work we want to do the flush later. */
 		trx->flush_log_later = TRUE;
 		innobase_commit_low(trx);
 		trx->flush_log_later = FALSE;
@@ -3352,11 +3332,6 @@ retry:
 			commit_threads--;
 			mysql_cond_signal(&commit_cond);
 			mysql_mutex_unlock(&commit_cond_m);
-		}
-
-		if (trx_has_prepare_commit_mutex(trx)) {
-
-			mysql_mutex_unlock(&prepare_commit_mutex);
 		}
 
 		trx_deregister_from_2pc(trx);
@@ -12984,18 +12959,9 @@ innobase_xa_prepare(
 		  thread2> prepare; write to binlog; commit
 		  thread1>			     ... commit
 
-		To ensure this will not happen we're taking the mutex on
-		prepare, and releasing it on commit.
-
-		Note: only do it for normal commits, done via ha_commit_trans.
-		If 2pc protocol is executed by external transaction
-		coordinator, it will be just a regular MySQL client
-		executing XA PREPARE and XA COMMIT commands.
-		In this case we cannot know how many minutes or hours
-		will be between XA PREPARE and XA COMMIT, and we don't want
-		to block for undefined period of time. */
-		mysql_mutex_lock(&prepare_commit_mutex);
-		trx_owns_prepare_commit_mutex_set(trx);
+                The server guarantees that writes to the binary log
+                and commits are in the same order, so we do not have
+                to handle this case. */
 	}
 
 	return(error);
@@ -14810,6 +14776,11 @@ static MYSQL_SYSVAR_STR(ft_server_stopword_table, innobase_server_stopword_table
   innodb_stopword_table_update,
   NULL);
 
+static MYSQL_SYSVAR_UINT(flush_log_at_timeout, srv_flush_log_at_timeout,
+  PLUGIN_VAR_OPCMDARG,
+  "Write and flush logs every (n) second.",
+  NULL, NULL, 1, 0, 2700, 0);
+
 static MYSQL_SYSVAR_ULONG(flush_log_at_trx_commit, srv_flush_log_at_trx_commit,
   PLUGIN_VAR_OPCMDARG,
   "Set to 0 (write and flush once per second),"
@@ -15372,6 +15343,7 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(file_format),
   MYSQL_SYSVAR(file_format_check),
   MYSQL_SYSVAR(file_format_max),
+  MYSQL_SYSVAR(flush_log_at_timeout),
   MYSQL_SYSVAR(flush_log_at_trx_commit),
   MYSQL_SYSVAR(flush_method),
   MYSQL_SYSVAR(force_recovery),
