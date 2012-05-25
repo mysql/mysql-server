@@ -2706,10 +2706,7 @@ transient:
 /*********************************************************************//**
 Removes the information for a particular index's stats from the persistent
 storage if it exists and if there is data stored for this index.
-The transaction is not committed, it must not be committed in this
-function because this is the user trx that is running DROP INDEX.
-The transaction will be committed at the very end when dropping an
-index.
+This function creates its own trx and commits it.
 A note from Marko why we cannot edit user and sys_* tables in one trx:
 marko: The problem is that ibuf merges should be disabled while we are
 rolling back dict transactions.
@@ -2724,7 +2721,6 @@ dict_stats_drop_index(
 /*==================*/
 	const char*	tname,	/*!< in: table name, e.g. 'db/table' */
 	const char*	iname,	/*!< in: index name */
-	trx_t*		trx,	/*!< in/out: user transaction */
 	char*		errstr, /*!< out: error message if != DB_SUCCESS
 				is returned */
 	ulint		errstr_sz)/*!< in: size of the errstr buffer */
@@ -2734,7 +2730,6 @@ dict_stats_drop_index(
 	pars_info_t*	pinfo;
 	dberr_t		ret;
 	dict_stats_t*	dict_stats;
-	THD*		mysql_thd;
 
 	ut_ad(!mutex_own(&dict_sys->mutex));
 
@@ -2769,11 +2764,10 @@ dict_stats_drop_index(
 
 	pars_info_add_str_literal(pinfo, "index_name", iname);
 
-	/* Force lock wait timeout to be instantaneous because the incoming
-	transaction was created via MySQL. */
+	trx_t*	trx;
 
-	mysql_thd = trx->mysql_thd;
-	trx->mysql_thd = NULL;
+	trx = trx_allocate_for_background();
+	trx_start_if_not_started(trx);
 
 	mutex_enter(&dict_sys->mutex);
 
@@ -2791,11 +2785,13 @@ dict_stats_drop_index(
 
 	mutex_exit(&dict_sys->mutex);
 
-	trx->mysql_thd = mysql_thd;
-
-	/* do not to commit here, see the function's comment */
-
-	if (ret != DB_SUCCESS) {
+	if (ret == DB_SUCCESS) {
+		trx_commit_for_mysql(trx);
+	} else {
+		trx->op_info = "rollback of internal trx on stats tables";
+		trx_rollback_to_savepoint(trx, NULL);
+		trx->op_info = "";
+		ut_a(trx->error_state == DB_SUCCESS);
 
 		ut_snprintf(errstr, errstr_sz,
 			    "Unable to delete statistics for index %s "
@@ -2817,9 +2813,8 @@ dict_stats_drop_index(
 
 		ut_print_timestamp(stderr);
 		fprintf(stderr, " InnoDB: %s\n", errstr);
-
-		trx->error_state = DB_SUCCESS;
 	}
+	trx_free_for_background(trx);
 
 	dict_stats_close(dict_stats);
 
