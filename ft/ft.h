@@ -22,13 +22,19 @@ void toku_ft_destroy_treelock(FT h);
 void toku_ft_grab_treelock(FT h);
 void toku_ft_release_treelock(FT h);
 
+void toku_ft_init_reflock(FT ft);
+void toku_ft_destroy_reflock(FT ft);
+void toku_ft_grab_reflock(FT ft);
+void toku_ft_release_reflock(FT ft);
+
 int toku_create_new_ft(FT *ftp, FT_OPTIONS options, CACHEFILE cf, TOKUTXN txn);
 void toku_ft_free (FT h);
 
 int toku_read_ft_and_store_in_cachefile (FT_HANDLE brt, CACHEFILE cf, LSN max_acceptable_lsn, FT *header, BOOL* was_open);
 void toku_ft_note_ft_handle_open(FT ft, FT_HANDLE live);
 
-int toku_ft_needed(FT h);
+int toku_ft_needed_unlocked(FT h);
+BOOL toku_ft_has_one_reference_unlocked(FT ft);
 int toku_remove_ft (FT h, char **error_string, BOOL oplsn_valid, LSN oplsn)  __attribute__ ((warn_unused_result));
 
 FT_HANDLE toku_ft_get_some_existing_ft_handle(FT h);
@@ -36,14 +42,14 @@ FT_HANDLE toku_ft_get_some_existing_ft_handle(FT h);
 void toku_ft_note_hot_begin(FT_HANDLE brt);
 void toku_ft_note_hot_complete(FT_HANDLE brt, BOOL success, MSN msn_at_start_of_hot);
 
-void 
+void
 toku_ft_init(
     FT h,
-    BLOCKNUM root_blocknum_on_disk, 
-    LSN checkpoint_lsn, 
-    TXNID root_xid_that_created, 
-    uint32_t target_nodesize, 
-    uint32_t target_basementnodesize, 
+    BLOCKNUM root_blocknum_on_disk,
+    LSN checkpoint_lsn,
+    TXNID root_xid_that_created,
+    uint32_t target_nodesize,
+    uint32_t target_basementnodesize,
     enum toku_compression_method compression_method
     );
 
@@ -71,5 +77,8 @@ void toku_ft_update_cmp_descriptor(FT h);
 void toku_ft_update_stats(STAT64INFO headerstats, STAT64INFO_S delta);
 void toku_ft_decrease_stats(STAT64INFO headerstats, STAT64INFO_S delta);
 
+void toku_ft_remove_reference(FT ft,
+                              bool oplsn_valid, LSN oplsn,
+                              remove_ft_ref_callback remove_ref, void *extra);
 
 #endif

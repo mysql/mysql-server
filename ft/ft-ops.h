@@ -241,6 +241,8 @@ toku_ft_handle_stat64 (FT_HANDLE, TOKUTXN, struct ftstat64_s *stat) __attribute_
 int toku_ft_layer_init(void (*ydb_lock_callback)(void),
                   void (*ydb_unlock_callback)(void))
      __attribute__ ((warn_unused_result));
+void toku_ft_open_close_lock(void);
+void toku_ft_open_close_unlock(void);
 int toku_ft_layer_destroy(void)  __attribute__ ((warn_unused_result));
 int toku_ft_serialize_layer_init(void) __attribute__ ((warn_unused_result));
 int toku_ft_serialize_layer_destroy(void) __attribute__ ((warn_unused_result));
@@ -258,10 +260,6 @@ void toku_ft_suppress_recovery_logs (FT_HANDLE brt, TOKUTXN txn);
 //           implies: toku_txn_note_ft(brt, txn) has been called
 
 int toku_ft_get_fragmentation(FT_HANDLE brt, TOKU_DB_FRAGMENTATION report) __attribute__ ((warn_unused_result));
-
-BOOL toku_ft_is_empty_fast (FT_HANDLE brt);
-// Effect: Return TRUE if there are no messages or leaf entries in the tree.  If so, it's empty.  If there are messages  or leaf entries, we say it's not empty
-// even though if we were to optimize the tree it might turn out that they are empty.
 
 BOOL toku_ft_is_empty_fast (FT_HANDLE brt) __attribute__ ((warn_unused_result));
 // Effect: Return TRUE if there are no messages or leaf entries in the tree.  If so, it's empty.  If there are messages  or leaf entries, we say it's not empty

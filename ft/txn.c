@@ -658,7 +658,6 @@ static int remove_txn (OMTVALUE hv, u_int32_t UU(idx), void *txnv)
 
     if (txn->txnid64==h->txnid_that_created_or_locked_when_empty) {
         h->txnid_that_created_or_locked_when_empty = TXNID_NONE;
-        h->root_that_created_or_locked_when_empty  = TXNID_NONE;
     }
     if (txn->txnid64==h->txnid_that_suppressed_recovery_logs) {
         h->txnid_that_suppressed_recovery_logs = TXNID_NONE;

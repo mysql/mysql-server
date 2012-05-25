@@ -65,7 +65,7 @@ cachetable_put_empty_node_with_dep_nodes(
 
 void
 create_new_ftnode_with_dep_nodes(
-    FT h,
+    FT ft,
     FTNODE *result,
     int height,
     int n_children,
@@ -76,15 +76,15 @@ create_new_ftnode_with_dep_nodes(
     BLOCKNUM name;
 
     cachetable_put_empty_node_with_dep_nodes(
-        h,
+        ft,
         num_dependent_nodes,
         dependent_nodes,
         &name,
         &fullhash,
         result);
 
-    assert(h->nodesize > 0);
-    assert(h->basementnodesize > 0);
+    assert(ft->h->nodesize > 0);
+    assert(ft->h->basementnodesize > 0);
     if (height == 0) {
         assert(n_children > 0);
     }
@@ -94,9 +94,9 @@ create_new_ftnode_with_dep_nodes(
         name,
         height,
         n_children,
-        h->layout_version,
-        h->nodesize,
-        h->flags);
+        ft->h->layout_version,
+        ft->h->nodesize,
+        ft->h->flags);
 
     assert((*result)->nodesize > 0);
     (*result)->fullhash = fullhash;
@@ -208,10 +208,10 @@ toku_pin_ftnode_off_client_thread(
 }
 
 void
-toku_unpin_ftnode_off_client_thread(FT h, FTNODE node)
+toku_unpin_ftnode_off_client_thread(FT ft, FTNODE node)
 {
     int r = toku_cachetable_unpin(
-        h->cf,
+        ft->cf,
         node->thisnodename,
         node->fullhash,
         (enum cachetable_dirty) node->dirty,
@@ -221,11 +221,11 @@ toku_unpin_ftnode_off_client_thread(FT h, FTNODE node)
 }
 
 void
-toku_unpin_ftnode(FT h, FTNODE node)
+toku_unpin_ftnode(FT ft, FTNODE node)
 {
     // printf("%*sUnpin %ld\n", 8-node->height, "", node->thisnodename.b);
     //VERIFY_NODE(brt,node);
-    toku_unpin_ftnode_off_client_thread(h, node);
+    toku_unpin_ftnode_off_client_thread(ft, node);
 }
 
 void

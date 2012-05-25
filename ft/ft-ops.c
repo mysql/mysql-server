@@ -150,6 +150,8 @@ static volatile FT_STATUS_S ft_status;
         ft_status.status[k].legend  = "brt: " l;       \
     }
 
+static toku_mutex_t ft_open_close_lock;
+
 static void
 status_init(void)
 {
@@ -307,8 +309,8 @@ toku_ft_nonleaf_is_gorged (FTNODE node) {
             (!buffers_are_empty));
 }
 
-static void ft_verify_flags(FT h, FTNODE node) {
-    assert(h->flags == node->flags);
+static void ft_verify_flags(FT ft, FTNODE node) {
+    assert(ft->h->flags == node->flags);
 }
 
 int toku_ft_debug_mode = 0;
@@ -599,16 +601,25 @@ static void ft_status_update_flush_reason(FTNODE node, BOOL for_checkpoint) {
 
 static void ftnode_update_disk_stats(
     FTNODE ftnode,
-    FT h,
+    FT ft,
     BOOL for_checkpoint
     )
 {
     STAT64INFO_S deltas = ZEROSTATS;
     // capture deltas before rebalancing basements for serialization
     deltas = toku_get_and_clear_basement_stats(ftnode);
-    toku_ft_update_stats(&h->on_disk_stats, deltas);
+    // locking not necessary here with respect to checkpointing
+    // in Clayface (because of the pending lock and cachetable lock
+    // in toku_cachetable_begin_checkpoint)
+    // essentially, if we are dealing with a for_checkpoint 
+    // parameter in a function that is called by the flush_callback,
+    // then the cachetable needs to ensure that this is called in a safe
+    // manner that does not interfere with the beginning
+    // of a checkpoint, which it does with the cachetable lock
+    // and pending lock
+    toku_ft_update_stats(&ft->h->on_disk_stats, deltas);
     if (for_checkpoint) {
-        toku_ft_update_stats(&h->checkpoint_staging_stats, deltas);
+        toku_ft_update_stats(&ft->checkpoint_header->on_disk_stats, deltas);
     }
 }
 
@@ -637,15 +648,15 @@ void toku_ftnode_clone_callback(
 {
     FTNODE node = value_data;
     toku_assert_entire_node_in_memory(node);
-    FT h = write_extraargs;
+    FT ft = write_extraargs;
     FTNODE XMALLOC(cloned_node);
     //FTNODE cloned_node = (FTNODE)toku_xmalloc(sizeof(*FTNODE));
     memset(cloned_node, 0, sizeof(*cloned_node));
     if (node->height == 0) {
         // set header stats, must be done before rebalancing
-        ftnode_update_disk_stats(node, h, for_checkpoint);
+        ftnode_update_disk_stats(node, ft, for_checkpoint);
         // rebalance the leaf node
-        rebalance_ftnode_leaf(node, h->basementnodesize);
+        rebalance_ftnode_leaf(node, ft->h->basementnodesize);
     }
 
     cloned_node->max_msn_applied_to_node_on_disk = node->max_msn_applied_to_node_on_disk;
@@ -870,7 +881,7 @@ void toku_evict_bn_from_memory(FTNODE node, int childnum, FT h) {
 // callback for partially evicting a node
 int toku_ftnode_pe_callback (void *ftnode_pv, PAIR_ATTR UU(old_attr), PAIR_ATTR* new_attr, void* extraargs) {
     FTNODE node = (FTNODE)ftnode_pv;
-    FT h = extraargs;
+    FT ft = extraargs;
     // Don't partially evict dirty nodes
     if (node->dirty) {
         goto exit;
@@ -888,7 +899,7 @@ int toku_ftnode_pe_callback (void *ftnode_pv, PAIR_ATTR UU(old_attr), PAIR_ATTR*
             if (BP_STATE(node,i) == PT_AVAIL) {
                 if (BP_SHOULD_EVICT(node,i)) {
                     STATUS_VALUE(FT_PARTIAL_EVICTIONS_NONLEAF)++;
-                    cilk_spawn compress_internal_node_partition(node, i, h->compression_method);
+                    cilk_spawn compress_internal_node_partition(node, i, ft->h->compression_method);
                 }
                 else {
                     BP_SWEEP_CLOCK(node,i);
@@ -919,7 +930,7 @@ int toku_ftnode_pe_callback (void *ftnode_pv, PAIR_ATTR UU(old_attr), PAIR_ATTR*
             else if (BP_STATE(node,i) == PT_AVAIL) {
                 if (BP_SHOULD_EVICT(node,i)) {
                     STATUS_VALUE(FT_PARTIAL_EVICTIONS_LEAF)++;
-                    toku_evict_bn_from_memory(node, i, h);
+                    toku_evict_bn_from_memory(node, i, ft);
                 }
                 else {
                     BP_SWEEP_CLOCK(node,i);
@@ -1272,7 +1283,7 @@ toku_initialize_empty_ftnode (FTNODE n, BLOCKNUM nodename, int height, int num_c
 }
 
 static void
-ft_init_new_root(FT h, FTNODE nodea, FTNODE nodeb, DBT splitk, CACHEKEY *rootp, FTNODE *newrootp)
+ft_init_new_root(FT ft, FTNODE nodea, FTNODE nodeb, DBT splitk, CACHEKEY *rootp, FTNODE *newrootp)
 // Effect:  Create a new root node whose two children are NODEA and NODEB, and the pivotkey is SPLITK.
 //  Store the new root's identity in *ROOTP, and the node in *NEWROOTP.
 //  Unpin nodea and nodeb.
@@ -1281,11 +1292,11 @@ ft_init_new_root(FT h, FTNODE nodea, FTNODE nodeb, DBT splitk, CACHEKEY *rootp, 
     FTNODE XMALLOC(newroot);
     int new_height = nodea->height+1;
     BLOCKNUM newroot_diskoff;
-    toku_allocate_blocknum(h->blocktable, &newroot_diskoff, h);
+    toku_allocate_blocknum(ft->blocktable, &newroot_diskoff, ft);
     assert(newroot);
     *rootp=newroot_diskoff;
     assert(new_height > 0);
-    toku_initialize_empty_ftnode (newroot, newroot_diskoff, new_height, 2, h->layout_version, h->nodesize, h->flags);
+    toku_initialize_empty_ftnode (newroot, newroot_diskoff, new_height, 2, ft->h->layout_version, ft->h->nodesize, ft->h->flags);
     //printf("new_root %lld %d %lld %lld\n", newroot_diskoff, newroot->height, nodea->thisnodename, nodeb->thisnodename);
     //printf("%s:%d Splitkey=%p %s\n", __FILE__, __LINE__, splitkey, splitkey);
     toku_copyref_dbt(&newroot->childkeys[0], splitk);
@@ -1301,12 +1312,19 @@ ft_init_new_root(FT h, FTNODE nodea, FTNODE nodeb, DBT splitk, CACHEKEY *rootp, 
     BP_STATE(newroot,0) = PT_AVAIL;
     BP_STATE(newroot,1) = PT_AVAIL;
     newroot->dirty = 1;
-    toku_unpin_ftnode(h, nodea);
-    toku_unpin_ftnode(h, nodeb);
     //printf("%s:%d put %lld\n", __FILE__, __LINE__, newroot_diskoff);
-    u_int32_t fullhash = toku_cachetable_hash(h->cf, newroot_diskoff);
+    u_int32_t fullhash = toku_cachetable_hash(ft->cf, newroot_diskoff);
     newroot->fullhash = fullhash;
-    toku_cachetable_put(h->cf, newroot_diskoff, fullhash, newroot, make_ftnode_pair_attr(newroot), get_write_callbacks_for_node(h));
+    toku_cachetable_put(ft->cf, newroot_diskoff, fullhash, newroot, make_ftnode_pair_attr(newroot), get_write_callbacks_for_node(ft));
+
+    //at this point, newroot is associated with newroot_diskoff, nodea is associated with root_blocknum
+    // make newroot_diskoff point to nodea
+    // make root_blocknum point to newroot
+    // also modify the blocknum and fullhash of nodea and newroot
+    // before doing this, assert(nodea->blocknum == ft->root_blocknum)
+    
+    toku_unpin_ftnode(ft, nodea);
+    toku_unpin_ftnode(ft, nodeb);
     *newrootp = newroot;
 }
 
@@ -2048,7 +2066,7 @@ ft_nonleaf_put_cmd (ft_compare_func compare_fun, DESCRIPTOR desc, FTNODE node, F
 
 // return TRUE if root changed, FALSE otherwise
 static BOOL
-ft_process_maybe_reactive_root (FT h, CACHEKEY *rootp, FTNODE *nodep) {
+ft_process_maybe_reactive_root (FT ft, CACHEKEY *rootp, FTNODE *nodep) {
     FTNODE node = *nodep;
     toku_assert_entire_node_in_memory(node);
     enum reactivity re = get_node_reactivity(node);
@@ -2060,18 +2078,18 @@ ft_process_maybe_reactive_root (FT h, CACHEKEY *rootp, FTNODE *nodep) {
         // The root node should split, so make a new root.
         FTNODE nodea,nodeb;
         DBT splitk;
-        assert(h->nodesize>=node->nodesize); /* otherwise we might be in trouble because the nodesize shrank. */
+        assert(ft->h->nodesize>=node->nodesize); /* otherwise we might be in trouble because the nodesize shrank. */
         //
         // This happens on the client thread with the ydb lock, so it is safe to
         // not pass in dependent nodes. Although if we wanted to, we could pass
         // in just node. That would be correct.
         //
         if (node->height==0) {
-            ftleaf_split(h, node, &nodea, &nodeb, &splitk, TRUE, 0, NULL);
+            ftleaf_split(ft, node, &nodea, &nodeb, &splitk, TRUE, 0, NULL);
         } else {
-            ft_nonleaf_split(h, node, &nodea, &nodeb, &splitk, 0, NULL);
+            ft_nonleaf_split(ft, node, &nodea, &nodeb, &splitk, 0, NULL);
         }
-        ft_init_new_root(h, nodea, nodeb, splitk, rootp, nodep);
+        ft_init_new_root(ft, nodea, nodeb, splitk, rootp, nodep);
         return TRUE;
     }
     case RE_FUSIBLE:
@@ -2695,7 +2713,7 @@ toku_ft_maybe_insert (FT_HANDLE brt, DBT *key, DBT *val, TOKUTXN txn, BOOL oplsn
             //We have transactions, and this is not 2440.  We must send the full root-to-leaf-path
             message_xids = toku_txn_get_xids(txn);
         }
-        else if (txn->ancestor_txnid64 != brt->ft->root_xid_that_created) {
+        else if (txn->ancestor_txnid64 != brt->ft->h->root_xid_that_created) {
             //We have transactions, and this is 2440, however the txn doing 2440 did not create the dictionary.         We must send the full root-to-leaf-path
             message_xids = toku_txn_get_xids(txn);
         }
@@ -2800,6 +2818,7 @@ toku_ft_maybe_update_broadcast(FT_HANDLE brt, const DBT *update_function_extra,
         if (r != 0) { goto cleanup; }
     }
 
+    //TODO(yoni): remove treelsn here and similar calls (no longer being used)
     LSN treelsn;
     if (oplsn_valid &&
         oplsn.lsn <= (treelsn = toku_ft_checkpoint_lsn(brt->ft)).lsn) {
@@ -2890,7 +2909,7 @@ toku_ft_maybe_delete(FT_HANDLE brt, DBT *key, TOKUTXN txn, BOOL oplsn_valid, LSN
             //We have transactions, and this is not 2440.  We must send the full root-to-leaf-path
             message_xids = toku_txn_get_xids(txn);
         }
-        else if (txn->ancestor_txnid64 != brt->ft->root_xid_that_created) {
+        else if (txn->ancestor_txnid64 != brt->ft->h->root_xid_that_created) {
             //We have transactions, and this is 2440, however the txn doing 2440 did not create the dictionary.         We must send the full root-to-leaf-path
             message_xids = toku_txn_get_xids(txn);
         }
@@ -3126,10 +3145,10 @@ cleanup:
 static void
 toku_ft_handle_inherit_options(FT_HANDLE t, FT ft) {
     struct ft_options options = {
-        .nodesize = ft->nodesize,
-        .basementnodesize = ft->basementnodesize,
-        .compression_method = ft->compression_method,
-        .flags = ft->flags,
+        .nodesize = ft->h->nodesize,
+        .basementnodesize = ft->h->basementnodesize,
+        .compression_method = ft->h->compression_method,
+        .flags = ft->h->flags,
         .compare_fun = ft->compare_fun,
         .update_fun = ft->update_fun
     };
@@ -3148,6 +3167,7 @@ ft_handle_open(FT_HANDLE t, const char *fname_in_env, int is_create, int only_cr
     CACHEFILE cf = NULL;
     FT ft = NULL;
     BOOL did_create = FALSE;
+    toku_ft_open_close_lock();
 
     if (t->did_set_flags) {
         r = verify_builtin_comparisons_consistent(t, t->options.flags);
@@ -3211,7 +3231,7 @@ ft_handle_open(FT_HANDLE t, const char *fname_in_env, int is_create, int only_cr
     if (!t->did_set_flags) {
         r = verify_builtin_comparisons_consistent(t, t->options.flags);
         if (r) { goto exit; }
-    } else if (t->options.flags != ft->flags) {                  /* if flags have been set then flags must match */
+    } else if (t->options.flags != ft->h->flags) {                  /* if flags have been set then flags must match */
         r = EINVAL;
         goto exit;
     }
@@ -3277,7 +3297,10 @@ exit:
             // but we have not linked it to this brt. So,
             // we can simply try to remove the header.
             // We don't need to unlink this brt from the header
-            if (!toku_ft_needed(ft)) {
+            toku_ft_grab_reflock(ft);
+            BOOL needed = toku_ft_needed_unlocked(ft);
+            toku_ft_release_reflock(ft);
+            if (!needed) {
                 //Close immediately.
                 char *error_string = NULL;
                 r = toku_remove_ft(ft, &error_string, false, ZERO_LSN);
@@ -3288,6 +3311,7 @@ exit:
             toku_cachefile_close(&cf, 0, FALSE, ZERO_LSN);
         }
     }
+    toku_ft_open_close_unlock();
     return r;
 }
 
@@ -3406,36 +3430,24 @@ ft_compare_func toku_ft_get_bt_compare (FT_HANDLE brt) {
     return brt->options.compare_fun;
 }
 
+static void
+ft_remove_handle_ref_callback(FT UU(ft), void *extra) {
+    FT_HANDLE handle = extra;
+    toku_list_remove(&handle->live_ft_handle_link);
+}
+
 int
 toku_ft_handle_close (FT_HANDLE brt, bool oplsn_valid, LSN oplsn)
 // Effect: See ft-ops.h for the specification of this function.
 {
-    int r = 0;
-    FT h = brt->ft;
-
-    // it is possible that a header was never opened
-    // for the brt
-    if (brt->ft) {
-        // TODO: figure out the proper locking here
-        // what really protects live_ft_handle_link?
-        toku_ft_lock(h);
-        toku_list_remove(&brt->live_ft_handle_link);
-        toku_ft_unlock(h);
-
-        if (!toku_ft_needed(brt->ft)) {
-            // close header
-            char *error_string = NULL;
-            r = toku_remove_ft(h, &error_string, oplsn_valid, oplsn);
-            assert_zero(r);
-            assert(error_string == NULL);
-        }
+    FT ft = brt->ft;
+    if (ft) {
+        toku_ft_remove_reference(brt->ft, oplsn_valid, oplsn, ft_remove_handle_ref_callback, brt);
     }
     toku_free(brt);
-
-    return r;
+    return 0;
 }
 
-// test function
 int toku_close_ft_handle_nolsn (FT_HANDLE brt, char** UU(error_string)) {
     return toku_ft_handle_close(brt, FALSE, ZERO_LSN);
 }
@@ -3530,7 +3542,7 @@ int toku_ft_cursor (
 {
     if (is_snapshot_read) {
         invariant(ttxn != NULL);
-        int accepted = does_txn_read_entry(brt->ft->root_xid_that_created, ttxn);
+        int accepted = does_txn_read_entry(brt->ft->h->root_xid_that_created, ttxn);
         if (accepted!=TOKUDB_ACCEPT) {
             invariant(accepted==0);
             return TOKUDB_MVCC_DICTIONARY_TOO_NEW;
@@ -5434,17 +5446,23 @@ int toku_ft_layer_init(void (*ydb_lock_callback)(void),
                   void (*ydb_unlock_callback)(void)) {
     int r = 0;
     //Portability must be initialized first
-    if (r==0)
-        r = toku_portability_init();
-    if (r==0)
-        toku_checkpoint_init(ydb_lock_callback, ydb_unlock_callback);
-    if (r == 0)
-        r = toku_ft_serialize_layer_init();
+    r = toku_portability_init();
+    if (r) { goto exit; }
+
+    toku_checkpoint_init(ydb_lock_callback, ydb_unlock_callback);
+
+    r = toku_ft_serialize_layer_init();
+    if (r) { goto exit; }
+
+    toku_mutex_init(&ft_open_close_lock, NULL);
+exit:
     return r;
 }
 
 int toku_ft_layer_destroy(void) {
-    int r = 0;
+    int r = 0;    
+    toku_mutex_destroy(&ft_open_close_lock);
+
     if (r == 0)
         r = toku_ft_serialize_layer_destroy();
     if (r==0)
@@ -5453,6 +5471,14 @@ int toku_ft_layer_destroy(void) {
     if (r==0)
         r = toku_portability_destroy();
     return r;
+}
+
+void toku_ft_open_close_lock(void) {
+    toku_mutex_lock(&ft_open_close_lock);
+}
+
+void toku_ft_open_close_unlock(void) {
+    toku_mutex_unlock(&ft_open_close_lock);
 }
 
 //Suppress both rollback and recovery logs.

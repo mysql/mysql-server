@@ -84,15 +84,15 @@ static inline void unlock_for_blocktable (BLOCK_TABLE bt);
 
 
 static void 
-ft_set_dirty(FT h, BOOL for_checkpoint){
-    assert(toku_mutex_is_locked(&h->blocktable->mutex));
-    assert(h->type == FT_CURRENT);
+ft_set_dirty(FT ft, BOOL for_checkpoint){
+    assert(toku_mutex_is_locked(&ft->blocktable->mutex));
+    assert(ft->h->type == FT_CURRENT);
     if (for_checkpoint) {
-	assert(h->checkpoint_header->type == FT_CHECKPOINT_INPROGRESS);
-	h->checkpoint_header->dirty = 1;
+        assert(ft->checkpoint_header->type == FT_CHECKPOINT_INPROGRESS);
+        ft->checkpoint_header->dirty = 1;
     }
     else {
-        h->dirty = 1;
+        ft->h->dirty = 1;
     }
 }
 
@@ -449,9 +449,9 @@ PRNTF("blokAllokator", 1L, size, offset, bt);
 //Fills wbuf with bt
 //A clean shutdown runs checkpoint start so that current and inprogress are copies.
 void
-toku_serialize_translation_to_wbuf_unlocked(BLOCK_TABLE bt, struct wbuf *w,
+toku_serialize_translation_to_wbuf(BLOCK_TABLE bt, struct wbuf *w,
                                             int64_t *address, int64_t *size) {
-    assert(toku_mutex_is_locked(&bt->mutex));
+    lock_for_blocktable(bt);
     struct translation *t = &bt->inprogress;
 
     BLOCKNUM b = make_blocknum(RESERVED_BLOCKNUM_TRANSLATION);
@@ -478,6 +478,7 @@ toku_serialize_translation_to_wbuf_unlocked(BLOCK_TABLE bt, struct wbuf *w,
     wbuf_int(w, checksum);
     *address = t->block_translation[b.b].u.diskoff;
     *size    = t->block_translation[b.b].size;
+    unlock_for_blocktable(bt);
 }
 
 

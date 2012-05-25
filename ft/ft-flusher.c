@@ -718,15 +718,15 @@ ftleaf_split(
     invariant(node->height == 0);
     STATUS_VALUE(FT_FLUSHER_SPLIT_LEAF)++;
     if (node->n_children) {
-	// First move all the accumulated stat64info deltas into the first basement.
-	// After the split, either both nodes or neither node will be included in the next checkpoint.
-	// The accumulated stats in the dictionary will be correct in either case.
-	// By moving all the deltas into one (arbitrary) basement, we avoid the need to maintain
-	// correct information for a basement that is divided between two leafnodes (i.e. when split is
-	// not on a basement boundary).
-	STAT64INFO_S delta_for_leafnode = toku_get_and_clear_basement_stats(node);
-	BASEMENTNODE bn = BLB(node,0);
-	bn->stat64_delta = delta_for_leafnode;
+        // First move all the accumulated stat64info deltas into the first basement.
+        // After the split, either both nodes or neither node will be included in the next checkpoint.
+        // The accumulated stats in the dictionary will be correct in either case.
+        // By moving all the deltas into one (arbitrary) basement, we avoid the need to maintain
+        // correct information for a basement that is divided between two leafnodes (i.e. when split is
+        // not on a basement boundary).
+        STAT64INFO_S delta_for_leafnode = toku_get_and_clear_basement_stats(node);
+        BASEMENTNODE bn = BLB(node,0);
+        bn->stat64_delta = delta_for_leafnode;
     }
 
 
@@ -807,9 +807,9 @@ ftleaf_split(
                 name,
                 0,
                 num_children_in_b,
-                h->layout_version,
-                h->nodesize,
-                h->flags);
+                h->h->layout_version,
+                h->h->nodesize,
+                h->h->flags);
             assert(B->nodesize > 0);
             B->fullhash = fullhash;
         }
@@ -1002,7 +1002,7 @@ ft_split_child(
     FTNODE nodea, nodeb;
     DBT splitk;
     // printf("%s:%d node %" PRIu64 "->u.n.n_children=%d height=%d\n", __FILE__, __LINE__, node->thisnodename.b, node->u.n.n_children, node->height);
-    assert(h->nodesize>=node->nodesize); /* otherwise we might be in trouble because the nodesize shrank. */
+    assert(h->h->nodesize>=node->nodesize); /* otherwise we might be in trouble because the nodesize shrank. */
 
     // for test
     call_flusher_thread_callback(flt_flush_before_split);

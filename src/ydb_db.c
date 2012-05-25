@@ -500,7 +500,8 @@ toku_db_change_descriptor(DB *db, DB_TXN* txn, const DBT* descriptor, u_int32_t 
         goto cleanup;
     }
     if (!is_db_hot_index) {
-        r = toku_db_pre_acquire_fileops_lock(db, txn);
+        //TODO(zardosht): why doesn't hot_index need to do locking?
+        r = toku_db_pre_acquire_table_lock(db, txn);
         if (r != 0) { goto cleanup; }    
     }
 
@@ -677,9 +678,9 @@ locked_db_open(DB *db, DB_TXN *txn, const char *fname, const char *dbname, DBTYP
 
 static int 
 locked_db_change_descriptor(DB *db, DB_TXN* txn, const DBT* descriptor, u_int32_t flags) {
-    toku_ydb_lock();
+    toku_multi_operation_client_lock(); //Cannot begin checkpoint
     int r = toku_db_change_descriptor(db, txn, descriptor, flags);
-    toku_ydb_unlock();
+    toku_multi_operation_client_unlock(); //Can now begin checkpoint
     return r;
 }
 

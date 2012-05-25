@@ -139,10 +139,10 @@ exit:
 
 // We only deserialize brt header once and then share everything with all the brts.
 static enum deserialize_error_code
-deserialize_ft_versioned(int fd, struct rbuf *rb, FT *ft, uint32_t version)
+deserialize_ft_versioned(int fd, struct rbuf *rb, FT *ftp, uint32_t version)
 {
     enum deserialize_error_code e = DS_OK;
-    FT h = NULL;
+    FT ft = NULL;
     invariant(version >= FT_LAYOUT_MIN_SUPPORTED_VERSION);
     invariant(version <= FT_LAYOUT_VERSION);
     // We already know:
@@ -155,28 +155,25 @@ deserialize_ft_versioned(int fd, struct rbuf *rb, FT *ft, uint32_t version)
     rbuf_literal_bytes(rb, &magic, 8);
     lazy_assert(memcmp(magic,"tokudata",8)==0);
 
-    CALLOC(h);
-    if (!h) {
+    XCALLOC(ft);
+    if (!ft) {
         e = DS_ERRNO;
         goto exit;
     }
-    h->type = FT_CURRENT;
-    h->checkpoint_header = NULL;
-    h->dirty = 0;
-    h->panic = 0;
-    h->panic_string = 0;
-    toku_list_init(&h->live_ft_handles);
-    int r = toku_omt_create(&h->txns);
+    ft->checkpoint_header = NULL;
+    ft->panic = 0;
+    ft->panic_string = 0;
+    toku_list_init(&ft->live_ft_handles);
+    int r = toku_omt_create(&ft->txns);
     assert_zero(r);
 
     //version MUST be in network order on disk regardless of disk order
-    h->layout_version_read_from_disk = rbuf_network_int(rb);
-    invariant(h->layout_version_read_from_disk >= FT_LAYOUT_MIN_SUPPORTED_VERSION);
-    invariant(h->layout_version_read_from_disk <= FT_LAYOUT_VERSION);
-    h->layout_version = FT_LAYOUT_VERSION;
+    ft->layout_version_read_from_disk = rbuf_network_int(rb);
+    invariant(ft->layout_version_read_from_disk >= FT_LAYOUT_MIN_SUPPORTED_VERSION);
+    invariant(ft->layout_version_read_from_disk <= FT_LAYOUT_VERSION);
 
     //build_id MUST be in network order on disk regardless of disk order
-    h->build_id = rbuf_network_int(rb);
+    uint32_t build_id = rbuf_network_int(rb);
 
     //Size MUST be in network order regardless of disk order.
     u_int32_t size = rbuf_network_int(rb);
@@ -188,16 +185,17 @@ deserialize_ft_versioned(int fd, struct rbuf *rb, FT *ft, uint32_t version)
     int64_t byte_order_stored = *(int64_t*)tmp_byte_order_check;
     lazy_assert(byte_order_stored == toku_byte_order_host);
 
-    h->checkpoint_count = rbuf_ulonglong(rb);
-    h->checkpoint_lsn = rbuf_lsn(rb);
-    h->nodesize = rbuf_int(rb);
+    uint64_t checkpoint_count = rbuf_ulonglong(rb);
+    LSN checkpoint_lsn = rbuf_lsn(rb);
+    unsigned nodesize = rbuf_int(rb);
     DISKOFF translation_address_on_disk = rbuf_diskoff(rb);
     DISKOFF translation_size_on_disk = rbuf_diskoff(rb);
     lazy_assert(translation_address_on_disk > 0);
     lazy_assert(translation_size_on_disk > 0);
 
     // initialize the tree lock
-    toku_ft_init_treelock(h);
+    toku_ft_init_treelock(ft);
+    toku_ft_init_reflock(ft);
 
     //Load translation table
     {
@@ -213,7 +211,7 @@ deserialize_ft_versioned(int fd, struct rbuf *rb, FT *ft, uint32_t version)
         }
         toku_unlock_for_pwrite();
         // Create table and read in data.
-        e = toku_blocktable_create_from_buffer(&h->blocktable,
+        e = toku_blocktable_create_from_buffer(&ft->blocktable,
                                                translation_address_on_disk,
                                                translation_size_on_disk,
                                                tbuf);
@@ -223,73 +221,69 @@ deserialize_ft_versioned(int fd, struct rbuf *rb, FT *ft, uint32_t version)
         }
     }
 
-    h->root_blocknum = rbuf_blocknum(rb);
-    h->flags = rbuf_int(rb);
-    if (h->layout_version_read_from_disk <= FT_LAYOUT_VERSION_13) {
+    BLOCKNUM root_blocknum = rbuf_blocknum(rb);
+    unsigned flags = rbuf_int(rb);
+    if (ft->layout_version_read_from_disk <= FT_LAYOUT_VERSION_13) {
         // deprecate 'TOKU_DB_VALCMP_BUILTIN'. just remove the flag
-        h->flags &= ~TOKU_DB_VALCMP_BUILTIN_13;
+        flags &= ~TOKU_DB_VALCMP_BUILTIN_13;
     }
-    h->layout_version_original = rbuf_int(rb);
-    h->build_id_original = rbuf_int(rb);
-    h->time_of_creation  = rbuf_ulonglong(rb);
-    h->time_of_last_modification = rbuf_ulonglong(rb);
-    h->time_of_last_verification = 0;
-    if (h->layout_version_read_from_disk <= FT_LAYOUT_VERSION_18) {
+    int layout_version_original = rbuf_int(rb);
+    uint32_t build_id_original = rbuf_int(rb);
+    uint64_t time_of_creation = rbuf_ulonglong(rb);
+    uint64_t time_of_last_modification = rbuf_ulonglong(rb);
+
+    if (ft->layout_version_read_from_disk <= FT_LAYOUT_VERSION_18) {
         // 17 was the last version with these fields, we no longer store
         // them, so read and discard them
         (void) rbuf_ulonglong(rb);  // num_blocks_to_upgrade_13
-        if (h->layout_version_read_from_disk >= FT_LAYOUT_VERSION_15) {
+        if (ft->layout_version_read_from_disk >= FT_LAYOUT_VERSION_15) {
             (void) rbuf_ulonglong(rb);  // num_blocks_to_upgrade_14
         }
     }
 
-    if (h->layout_version_read_from_disk >= FT_LAYOUT_VERSION_14) {
-        rbuf_TXNID(rb, &h->root_xid_that_created);
-    } else {
-        // fake creation during the last checkpoint
-        h->root_xid_that_created = h->checkpoint_lsn.lsn;
+    // fake creation during the last checkpoint
+    TXNID root_xid_that_created = checkpoint_lsn.lsn;
+    if (ft->layout_version_read_from_disk >= FT_LAYOUT_VERSION_14) {
+        rbuf_TXNID(rb, &root_xid_that_created);
     }
 
-    if (h->layout_version_read_from_disk >= FT_LAYOUT_VERSION_15) {
-        h->basementnodesize = rbuf_int(rb);
-        h->time_of_last_verification = rbuf_ulonglong(rb);
-    } else {
-        h->basementnodesize = FT_DEFAULT_BASEMENT_NODE_SIZE;
-        h->time_of_last_verification = 0;
+    // TODO(leif): get this to default to what's specified, not the
+    // hard-coded default
+    unsigned basementnodesize = FT_DEFAULT_BASEMENT_NODE_SIZE;
+    uint64_t time_of_last_verification = 0;
+    if (ft->layout_version_read_from_disk >= FT_LAYOUT_VERSION_15) {
+        basementnodesize = rbuf_int(rb);
+        time_of_last_verification = rbuf_ulonglong(rb);
     }
 
-    if (h->layout_version_read_from_disk >= FT_LAYOUT_VERSION_18) {
-        h->on_disk_stats.numrows = rbuf_ulonglong(rb);
-        h->on_disk_stats.numbytes = rbuf_ulonglong(rb);
-        h->in_memory_stats = h->on_disk_stats;
-        h->time_of_last_optimize_begin = rbuf_ulonglong(rb);
-        h->time_of_last_optimize_end = rbuf_ulonglong(rb);
-        h->count_of_optimize_in_progress = rbuf_int(rb);
-        h->count_of_optimize_in_progress_read_from_disk = h->count_of_optimize_in_progress;
-        h->msn_at_start_of_last_completed_optimize = rbuf_msn(rb);
-    } else {
-        e = toku_upgrade_subtree_estimates_to_stat64info(fd, h);
-        if (e != DS_OK) {
-            goto exit;
-        }
-        h->time_of_last_optimize_begin = 0;
-        h->time_of_last_optimize_end = 0;
-        h->count_of_optimize_in_progress = 0;
-        h->count_of_optimize_in_progress_read_from_disk = 0;
-        h->msn_at_start_of_last_completed_optimize = ZERO_MSN;
+    STAT64INFO_S on_disk_stats = ZEROSTATS;
+    uint64_t time_of_last_optimize_begin = 0;
+    uint64_t time_of_last_optimize_end = 0;
+    uint32_t count_of_optimize_in_progress = 0;
+    MSN msn_at_start_of_last_completed_optimize = ZERO_MSN;
+    if (ft->layout_version_read_from_disk >= FT_LAYOUT_VERSION_18) {
+        on_disk_stats.numrows = rbuf_ulonglong(rb);
+        on_disk_stats.numbytes = rbuf_ulonglong(rb);
+        ft->in_memory_stats = on_disk_stats;
+        time_of_last_optimize_begin = rbuf_ulonglong(rb);
+        time_of_last_optimize_end = rbuf_ulonglong(rb);
+        count_of_optimize_in_progress = rbuf_int(rb);
+        msn_at_start_of_last_completed_optimize = rbuf_msn(rb);
     }
-    if (h->layout_version_read_from_disk >= FT_LAYOUT_VERSION_19) {
+
+    enum toku_compression_method compression_method;
+    MSN highest_unused_msn_for_upgrade = (MSN) { .msn = (MIN_MSN.msn - 1) };
+    if (ft->layout_version_read_from_disk >= FT_LAYOUT_VERSION_19) {
         unsigned char method = rbuf_char(rb);
-        h->compression_method = (enum toku_compression_method) method;
-        h->highest_unused_msn_for_upgrade = rbuf_msn(rb);
+        compression_method = (enum toku_compression_method) method;
+        highest_unused_msn_for_upgrade = rbuf_msn(rb);
     } else {
         // we hard coded zlib until 5.2, then quicklz in 5.2
-        if (h->layout_version_read_from_disk < FT_LAYOUT_VERSION_18) {
-            h->compression_method = TOKU_ZLIB_METHOD;
+        if (ft->layout_version_read_from_disk < FT_LAYOUT_VERSION_18) {
+            compression_method = TOKU_ZLIB_METHOD;
         } else {
-            h->compression_method = TOKU_QUICKLZ_METHOD;
+            compression_method = TOKU_QUICKLZ_METHOD;
         }
-        h->highest_unused_msn_for_upgrade.msn = MIN_MSN.msn - 1;
     }
 
     (void) rbuf_int(rb); //Read in checksum and ignore (already verified).
@@ -300,21 +294,57 @@ deserialize_ft_versioned(int fd, struct rbuf *rb, FT *ft, uint32_t version)
         goto exit;
     }
 
-    invariant(h);
-    invariant((uint32_t) h->layout_version_read_from_disk == version);
-    e = deserialize_descriptor_from(fd, h->blocktable, &h->descriptor, version);
+    struct ft_header h = {
+        .type = FT_CURRENT,
+        .dirty = 0,
+        .checkpoint_count = checkpoint_count,
+        .checkpoint_lsn = checkpoint_lsn,
+        .layout_version = FT_LAYOUT_VERSION,
+        .layout_version_original = layout_version_original,
+        .build_id = build_id,
+        .build_id_original = build_id_original,
+        .time_of_creation = time_of_creation,
+        .root_xid_that_created = root_xid_that_created,
+        .time_of_last_modification = time_of_last_modification,
+        .time_of_last_verification = time_of_last_verification,
+        .root_blocknum = root_blocknum,
+        .flags = flags,
+        .nodesize = nodesize,
+        .basementnodesize = basementnodesize,
+        .compression_method = compression_method,
+        .highest_unused_msn_for_upgrade = highest_unused_msn_for_upgrade,
+        .time_of_last_optimize_begin = time_of_last_optimize_begin,
+        .time_of_last_optimize_end = time_of_last_optimize_end,
+        .count_of_optimize_in_progress = count_of_optimize_in_progress,
+        .count_of_optimize_in_progress_read_from_disk = count_of_optimize_in_progress,
+        .msn_at_start_of_last_completed_optimize = msn_at_start_of_last_completed_optimize,
+        .on_disk_stats = on_disk_stats
+    };
+    ft->h = toku_xmemdup(&h, sizeof h);
+
+    if (ft->layout_version_read_from_disk < FT_LAYOUT_VERSION_18) {
+        // This needs ft->h to be non-null, so we have to do it after we
+        // read everything else.
+        e = toku_upgrade_subtree_estimates_to_stat64info(fd, ft);
+        if (e != DS_OK) {
+            goto exit;
+        }
+    }
+
+    invariant((uint32_t) ft->layout_version_read_from_disk == version);
+    e = deserialize_descriptor_from(fd, ft->blocktable, &ft->descriptor, version);
     if (e != DS_OK) {
         goto exit;
     }
     // copy descriptor to cmp_descriptor for #4541
-    h->cmp_descriptor.dbt.size = h->descriptor.dbt.size;
-    h->cmp_descriptor.dbt.data = toku_xmemdup(h->descriptor.dbt.data, h->descriptor.dbt.size);
+    ft->cmp_descriptor.dbt.size = ft->descriptor.dbt.size;
+    ft->cmp_descriptor.dbt.data = toku_xmemdup(ft->descriptor.dbt.data, ft->descriptor.dbt.size);
     // Version 13 descriptors had an extra 4 bytes that we don't read
     // anymore.  Since the header is going to think it's the current
     // version if it gets written out, we need to write the descriptor in
     // the new format (without those bytes) before that happens.
     if (version <= FT_LAYOUT_VERSION_13) {
-    r = toku_update_descriptor(h, &h->cmp_descriptor, fd);
+    r = toku_update_descriptor(ft, &ft->cmp_descriptor, fd);
         if (r != 0) {
             errno = r;
             e = DS_ERRNO;
@@ -322,11 +352,11 @@ deserialize_ft_versioned(int fd, struct rbuf *rb, FT *ft, uint32_t version)
         }
     }
 exit:
-    if (e != DS_OK && h != NULL) {
-        toku_free(h);
-        h = NULL;
+    if (e != DS_OK && ft != NULL) {
+        toku_free(ft);
+        ft = NULL;
     }
-    *ft = h;
+    *ftp = ft;
     return e;
 }
 
@@ -625,7 +655,7 @@ exit:
 }
 
 
-int toku_serialize_ft_size (FT h) {
+int toku_serialize_ft_size (FT_HEADER h) {
     u_int32_t size = serialize_ft_min_size(h->layout_version);
     //There is no dynamic data.
     lazy_assert(size <= BLOCK_ALLOCATOR_HEADER_RESERVE);
@@ -633,7 +663,13 @@ int toku_serialize_ft_size (FT h) {
 }
 
 
-int toku_serialize_ft_to_wbuf (struct wbuf *wbuf, FT h, DISKOFF translation_location_on_disk, DISKOFF translation_size_on_disk) {
+int toku_serialize_ft_to_wbuf (
+    struct wbuf *wbuf, 
+    FT_HEADER h, 
+    DISKOFF translation_location_on_disk, 
+    DISKOFF translation_size_on_disk
+    ) 
+{
     wbuf_literal_bytes(wbuf, "tokudata", 8);
     wbuf_network_int  (wbuf, h->layout_version); //MUST be in network order regardless of disk order
     wbuf_network_int  (wbuf, BUILD_ID); //MUST be in network order regardless of disk order
@@ -643,7 +679,6 @@ int toku_serialize_ft_to_wbuf (struct wbuf *wbuf, FT h, DISKOFF translation_loca
     wbuf_LSN    (wbuf, h->checkpoint_lsn);
     wbuf_int    (wbuf, h->nodesize);
 
-    //printf("%s:%d bta=%lu size=%lu\n", __FILE__, __LINE__, h->block_translation_address_on_disk, 4 + 16*h->translated_blocknum_limit);
     wbuf_DISKOFF(wbuf, translation_location_on_disk);
     wbuf_DISKOFF(wbuf, translation_size_on_disk);
     wbuf_BLOCKNUM(wbuf, h->root_blocknum);
@@ -655,8 +690,8 @@ int toku_serialize_ft_to_wbuf (struct wbuf *wbuf, FT h, DISKOFF translation_loca
     wbuf_TXNID(wbuf, h->root_xid_that_created);
     wbuf_int(wbuf, h->basementnodesize);
     wbuf_ulonglong(wbuf, h->time_of_last_verification);
-    wbuf_ulonglong(wbuf, h->checkpoint_staging_stats.numrows);
-    wbuf_ulonglong(wbuf, h->checkpoint_staging_stats.numbytes);
+    wbuf_ulonglong(wbuf, h->on_disk_stats.numrows);
+    wbuf_ulonglong(wbuf, h->on_disk_stats.numbytes);
     wbuf_ulonglong(wbuf, h->time_of_last_optimize_begin);
     wbuf_ulonglong(wbuf, h->time_of_last_optimize_end);
     wbuf_int(wbuf, h->count_of_optimize_in_progress);
@@ -669,23 +704,21 @@ int toku_serialize_ft_to_wbuf (struct wbuf *wbuf, FT h, DISKOFF translation_loca
     return 0;
 }
 
-int toku_serialize_ft_to (int fd, FT h) {
+int toku_serialize_ft_to (int fd, FT_HEADER h, BLOCK_TABLE blocktable, CACHEFILE cf) {
     int rr = 0;
-    if (h->panic) return h->panic;
     lazy_assert(h->type==FT_CHECKPOINT_INPROGRESS);
-    toku_ft_lock(h);
     struct wbuf w_translation;
     int64_t size_translation;
     int64_t address_translation;
     {
         //Must serialize translation first, to get address,size for header.
-        toku_serialize_translation_to_wbuf_unlocked(h->blocktable, &w_translation,
+        toku_serialize_translation_to_wbuf(blocktable, &w_translation,
                                                    &address_translation,
                                                    &size_translation);
         lazy_assert(size_translation==w_translation.size);
     }
     struct wbuf w_main;
-    unsigned int size_main = toku_serialize_ft_size (h);
+    unsigned int size_main = toku_serialize_ft_size(h);
     {
         wbuf_init(&w_main, toku_xmalloc(size_main), size_main);
         {
@@ -694,7 +727,6 @@ int toku_serialize_ft_to (int fd, FT h) {
         }
         lazy_assert(w_main.ndone==size_main);
     }
-    toku_ft_unlock(h);
     toku_lock_for_pwrite();
     {
         //Actual Write translation table
@@ -708,8 +740,8 @@ int toku_serialize_ft_to (int fd, FT h) {
         //If the header has a cachefile we need to do cachefile fsync (to
         //prevent crash if we redirected to dev null)
         //If there is no cachefile we still need to do an fsync.
-        if (h->cf) {
-            rr = toku_cachefile_fsync(h->cf);
+        if (cf) {
+            rr = toku_cachefile_fsync(cf);
         }
         else {
             rr = toku_file_fsync(fd);
