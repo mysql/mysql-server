@@ -174,8 +174,6 @@ status_init(void)
     STATUS_INIT(FT_CREATE_NONLEAF,                         UINT64, "nonleaf nodes created");
     STATUS_INIT(FT_DESTROY_LEAF,                           UINT64, "leaf nodes destroyed");
     STATUS_INIT(FT_DESTROY_NONLEAF,                        UINT64, "nonleaf nodes destroyed");
-    STATUS_INIT(FT_DIRTY_LEAF,                             UINT64, "leaf node transitions clean -> dirty");
-    STATUS_INIT(FT_DIRTY_NONLEAF,                          UINT64, "nonleaf node transitions clean -> dirty");
     STATUS_INIT(FT_MSG_BYTES_IN,                           UINT64, "bytes of messages injected at root (all trees)");
     STATUS_INIT(FT_MSG_BYTES_OUT,                          UINT64, "bytes of messages flushed from h1 nodes to leaves");
     STATUS_INIT(FT_MSG_BYTES_CURR,                         UINT64, "bytes of messages currently in trees (estimate)");
@@ -578,22 +576,6 @@ toku_get_and_clear_basement_stats(FTNODE leafnode) {
         bn->stat64_delta = ZEROSTATS;
     }
     return deltas;
-}
-
-// This is the ONLY place where a node is marked as dirty, other than toku_initialize_empty_ftnode().
-void
-toku_mark_node_dirty(FTNODE node) {
-    // If node is a leafnode, and if it has any basements, and if it is clean, then:
-    // update the header with the aggregate of the deltas in the basements (do NOT clear the deltas).
-    if (!node->dirty) {
-        if (node->height == 0) {
-            STATUS_VALUE(FT_DIRTY_LEAF)++;
-        }
-        else {
-            STATUS_VALUE(FT_DIRTY_NONLEAF)++;
-        }
-    }
-    node->dirty = 1;
 }
 
 static void ft_status_update_flush_reason(FTNODE node, BOOL for_checkpoint) {
@@ -1318,7 +1300,7 @@ ft_init_new_root(FT h, FTNODE nodea, FTNODE nodeb, DBT splitk, CACHEKEY *rootp, 
     }
     BP_STATE(newroot,0) = PT_AVAIL;
     BP_STATE(newroot,1) = PT_AVAIL;
-    toku_mark_node_dirty(newroot);
+    newroot->dirty = 1;
     toku_unpin_ftnode(h, nodea);
     toku_unpin_ftnode(h, nodeb);
     //printf("%s:%d put %lld\n", __FILE__, __LINE__, newroot_diskoff);
@@ -1354,7 +1336,7 @@ toku_ft_nonleaf_append_child(FTNODE node, FTNODE child, const DBT *pivotkey) {
         invariant(childnum > 0);
         init_childkey(node, childnum-1, pivotkey);
     }
-    toku_mark_node_dirty(node);
+    node->dirty = 1;
 }
 
 static void
@@ -1871,7 +1853,7 @@ toku_ft_append_to_child_buffer(ft_compare_func compare_fun, DESCRIPTOR desc, FTN
     assert(BP_STATE(node,childnum) == PT_AVAIL);
     int r = toku_bnc_insert_msg(BNC(node, childnum), key->data, key->size, val->data, val->size, type, msn, xids, is_fresh, desc, compare_fun);
     invariant_zero(r);
-    toku_mark_node_dirty(node);
+    node->dirty = 1;
 }
 
 static void ft_nonleaf_cmd_once_to_child (ft_compare_func compare_fun, DESCRIPTOR desc,  FTNODE node, unsigned int childnum, FT_MSG cmd, bool is_fresh)
@@ -2371,7 +2353,7 @@ void toku_ft_leaf_apply_cmd(
     // be reapplied later), we mark the node as dirty and
     // take the opportunity to update node->max_msn_applied_to_node_on_disk.
     //
-    toku_mark_node_dirty(node);
+    node->dirty = 1;
 
     //
     // we cannot blindly update node->max_msn_applied_to_node_on_disk,

@@ -495,7 +495,7 @@ handle_split_of_child(
     }
                  )
 
-    toku_mark_node_dirty(node);
+    node->dirty = 1;
 
     XREALLOC_N(node->n_children+1, node->bp);
     XREALLOC_N(node->n_children, node->childkeys);
@@ -899,8 +899,8 @@ ftleaf_split(
     node->max_msn_applied_to_node_on_disk = max_msn_applied_to_node;
     B->max_msn_applied_to_node_on_disk = max_msn_applied_to_node;
 
-    toku_mark_node_dirty(node);
-    toku_mark_node_dirty(B);
+    node->dirty = 1;
+    B->dirty = 1;
 
     *nodea = node;
     *nodeb = B;
@@ -971,8 +971,8 @@ ft_nonleaf_split(
     node->max_msn_applied_to_node_on_disk = max_msn_applied_to_node;
     B->max_msn_applied_to_node_on_disk = max_msn_applied_to_node;
 
-    toku_mark_node_dirty(node);
-    toku_mark_node_dirty(B);
+    node->dirty = 1;
+    node->dirty = 1;
     toku_assert_entire_node_in_memory(node);
     toku_assert_entire_node_in_memory(B);
     //VERIFY_NODE(t,node);
@@ -1064,8 +1064,8 @@ flush_this_child(
     assert(child->thisnodename.b!=0);
     // VERIFY_NODE does not work off client thread as of now
     //VERIFY_NODE(t, child);
-    toku_mark_node_dirty(node);
-    toku_mark_node_dirty(child);
+    node->dirty = 1;
+    child->dirty = 1;
 
     BP_WORKDONE(node, childnum) = 0;  // this buffer is drained, no work has been done by its contents
     NONLEAF_CHILDINFO bnc = BNC(node, childnum);
@@ -1091,8 +1091,11 @@ merge_leaf_nodes(FTNODE a, FTNODE b)
     // This way, whatever deltas are accumulated in the basements are
     // applied to the in_memory_stats in the header if they have not already
     // been (if nodes are clean).
-    toku_mark_node_dirty(a);
-    toku_mark_node_dirty(b);
+    // TODO(leif): this is no longer the way in_memory_stats is
+    // maintained. verify that it's ok to move this just before the unpin
+    // and then do that.
+    a->dirty = 1;
+    b->dirty = 1;
 
     // this BOOL states if the last basement node in a has any items or not
     // If it does, then it stays in the merge. If it does not, the last basement node
@@ -1241,8 +1244,8 @@ maybe_merge_pinned_nonleaf_nodes(
     b->totalchildkeylens = 0;
     b->n_children = 0;
 
-    toku_mark_node_dirty(a);
-    toku_mark_node_dirty(b);
+    a->dirty = 1;
+    b->dirty = 1;
 
     *did_merge = TRUE;
     *did_rebalance = FALSE;
@@ -1283,7 +1286,7 @@ maybe_merge_pinned_nodes(
     toku_assert_entire_node_in_memory(parent);
     toku_assert_entire_node_in_memory(a);
     toku_assert_entire_node_in_memory(b);
-    toku_mark_node_dirty(parent);   // just to make sure
+    parent->dirty = 1;   // just to make sure
     {
         MSN msna = a->max_msn_applied_to_node_on_disk;
         MSN msnb = b->max_msn_applied_to_node_on_disk;
@@ -1415,13 +1418,13 @@ ft_merge_child(
                     (node->n_children-childnumb)*sizeof(node->childkeys[0]));
             REALLOC_N(node->n_children-1, node->childkeys);
             assert(BP_BLOCKNUM(node, childnuma).b == childa->thisnodename.b);
-            toku_mark_node_dirty(childa);  // just to make sure
-            toku_mark_node_dirty(childb);  // just to make sure
+            childa->dirty = 1;  // just to make sure
+            childb->dirty = 1;  // just to make sure
         } else {
             // If we didn't merge the nodes, then we need the correct pivot.
             toku_copyref_dbt(&node->childkeys[childnuma], splitk);
             node->totalchildkeylens += node->childkeys[childnuma].size;
-            toku_mark_node_dirty(node);
+            node->dirty = 1;
         }
     }
     //
@@ -1522,7 +1525,7 @@ flush_some_child(
     if (toku_bnc_n_entries(BNC(parent, childnum)) > 0) {
         if (!parent->dirty) {
             dirtied++;
-            toku_mark_node_dirty(parent);
+            parent->dirty = 1;
         }
         // detach buffer
         BP_WORKDONE(parent, childnum) = 0;  // this buffer is drained, no work has been done by its contents
@@ -1567,7 +1570,7 @@ flush_some_child(
     if (bnc != NULL) {
         if (!child->dirty) {
             dirtied++;
-            toku_mark_node_dirty(child);
+            child->dirty = 1;
         }
         // do the actual flush
         r = toku_bnc_flush_to_child(
@@ -1717,7 +1720,7 @@ static void flush_node_fun(void *fe_v)
     // read them back in, or just do the regular partial fetch.  If we
     // don't, that means fe->node is a parent, so we need to do this anyway.
     bring_node_fully_into_memory(fe->node,fe->h);
-    toku_mark_node_dirty(fe->node);
+    fe->node->dirty = 1;
 
     struct flusher_advice fa;
     struct flush_status_update_extra fste;
@@ -1829,7 +1832,7 @@ flush_node_on_background_thread(FT h, FTNODE parent)
             //
             // can detach buffer and unpin root here
             //
-            toku_mark_node_dirty(parent);
+            parent->dirty = 1;
             BP_WORKDONE(parent, childnum) = 0;  // this buffer is drained, no work has been done by its contents
             NONLEAF_CHILDINFO bnc = BNC(parent, childnum);
             set_BNC(parent, childnum, toku_create_empty_nl());
