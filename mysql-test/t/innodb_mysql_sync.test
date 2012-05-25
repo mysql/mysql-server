@@ -191,7 +191,7 @@ DROP DATABASE db1;
 CREATE TABLE t1(a INT NOT NULL, b INT NOT NULL) engine=innodb;
 SET DEBUG_SYNC= "alter_table_inplace_after_lock_downgrade SIGNAL manage WAIT_FOR query";
 --echo # Sending:
---send ALTER TABLE t1 ADD UNIQUE INDEX(a)
+--send ALTER TABLE t1 ADD UNIQUE INDEX(a), LOCK=SHARED
 
 --echo # Connection con1
 connection con1;
@@ -227,7 +227,7 @@ connection default;
 ALTER TABLE t1 DROP INDEX a;
 SET DEBUG_SYNC= "alter_table_inplace_after_lock_downgrade SIGNAL manage WAIT_FOR query";
 --echo # Sending:
---send ALTER TABLE t1 ADD PRIMARY KEY (a)
+--send ALTER TABLE t1 ADD PRIMARY KEY (a), LOCK=SHARED
 
 --echo # Connection con1
 connection con1;
