@@ -129,6 +129,12 @@ void enforce_range_long(long *value, long min, long max)
   }
 }
 
+static inline ulong apply_load_factor(ulong raw_value, float factor)
+{
+  float value = ((float) raw_value) / factor;
+  return (ulong) ceil(value);
+}
+
 PFS_sizing_data *estimate_hints(PFS_global_param *param)
 {
   /*
@@ -149,9 +155,9 @@ PFS_sizing_data *estimate_hints(PFS_global_param *param)
     return & tiny_data;
   }
 
-  if ((param->m_hints.m_max_connections <= MAX_CONNECTIONS_DEFAULT) &&
-      (param->m_hints.m_table_definition_cache <= TABLE_DEF_CACHE_DEFAULT) &&
-      (param->m_hints.m_table_open_cache <= TABLE_OPEN_CACHE_DEFAULT))
+  if ((param->m_hints.m_max_connections <= MAX_CONNECTIONS_DEFAULT * 5) &&
+      (param->m_hints.m_table_definition_cache <= TABLE_DEF_CACHE_DEFAULT * 5) &&
+      (param->m_hints.m_table_open_cache <= TABLE_OPEN_CACHE_DEFAULT * 5))
   {
     /* Some defaults have been increased, to "moderate" values. */
     return & medium_data;
@@ -159,7 +165,6 @@ PFS_sizing_data *estimate_hints(PFS_global_param *param)
 
   /* Looks like a server in production. */
   return & big_data;
-
 }
 
 static void apply_heuristic(PFS_global_param *p, PFS_sizing_data *h)
@@ -173,7 +178,7 @@ static void apply_heuristic(PFS_global_param *p, PFS_sizing_data *h)
     ulong count;
     count= handle;
 
-    p->m_table_sizing= ceil(((float) count) / h->m_load_factor_volatile);
+    p->m_table_sizing= apply_load_factor(count, h->m_load_factor_volatile);
   }
 
   if (p->m_table_share_sizing < 0)
@@ -181,7 +186,7 @@ static void apply_heuristic(PFS_global_param *p, PFS_sizing_data *h)
     ulong count;
     count= share;
 
-    p->m_table_share_sizing= ceil(((float) count) / h->m_load_factor_static);
+    p->m_table_share_sizing= apply_load_factor(count, h->m_load_factor_static);
   }
 
 
@@ -245,7 +250,7 @@ static void apply_heuristic(PFS_global_param *p, PFS_sizing_data *h)
       + share * mutex_per_share
       ;
 
-    p->m_mutex_sizing= ceil(((float) count) / h->m_load_factor_volatile);
+    p->m_mutex_sizing= apply_load_factor(count, h->m_load_factor_volatile);
   }
 
   if (p->m_rwlock_sizing < 0)
@@ -257,7 +262,7 @@ static void apply_heuristic(PFS_global_param *p, PFS_sizing_data *h)
       + share * rwlock_per_share
       ;
 
-    p->m_rwlock_sizing= ceil(((float) count) / h->m_load_factor_volatile);
+    p->m_rwlock_sizing= apply_load_factor(count, h->m_load_factor_volatile);
   }
 
   if (p->m_cond_sizing < 0)
@@ -269,7 +274,7 @@ static void apply_heuristic(PFS_global_param *p, PFS_sizing_data *h)
       + share * cond_per_share
       ;
 
-    p->m_cond_sizing= ceil(((float) count) / h->m_load_factor_volatile);
+    p->m_cond_sizing= apply_load_factor(count, h->m_load_factor_volatile);
   }
 
   if (p->m_file_sizing < 0)
@@ -281,7 +286,7 @@ static void apply_heuristic(PFS_global_param *p, PFS_sizing_data *h)
       + share * file_per_share
       ;
 
-    p->m_file_sizing= ceil(((float) count) / h->m_load_factor_normal);
+    p->m_file_sizing= apply_load_factor(count, h->m_load_factor_normal);
   }
 
   if (p->m_socket_sizing < 0)
@@ -293,7 +298,7 @@ static void apply_heuristic(PFS_global_param *p, PFS_sizing_data *h)
       + share * socket_per_share
       ;
 
-    p->m_socket_sizing= ceil(((float) count) / h->m_load_factor_volatile);
+    p->m_socket_sizing= apply_load_factor(count, h->m_load_factor_volatile);
   }
 
   if (p->m_thread_sizing < 0)
@@ -305,7 +310,7 @@ static void apply_heuristic(PFS_global_param *p, PFS_sizing_data *h)
       + share * thread_per_share
       ;
 
-    p->m_thread_sizing= ceil(((float) count) / h->m_load_factor_volatile);
+    p->m_thread_sizing= apply_load_factor(count, h->m_load_factor_volatile);
   }
 
 }
