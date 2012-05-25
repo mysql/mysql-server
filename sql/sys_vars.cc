@@ -1628,13 +1628,19 @@ static bool fix_max_connections(sys_var *self, THD *thd, enum_var_type type)
   return false;
 }
 
-// Default max_connections of 151 is larger than Apache's default max
-// children, to avoid "too many connections" error in a common setup
 static Sys_var_ulong Sys_max_connections(
        "max_connections", "The number of simultaneous clients allowed",
        GLOBAL_VAR(max_connections), CMD_LINE(REQUIRED_ARG),
-       VALID_RANGE(1, 100000), DEFAULT(151), BLOCK_SIZE(1), NO_MUTEX_GUARD,
-       NOT_IN_BINLOG, ON_CHECK(0), ON_UPDATE(fix_max_connections));
+       VALID_RANGE(1, 100000),
+       DEFAULT(MAX_CONNECTIONS_DEFAULT),
+       BLOCK_SIZE(1),
+       NO_MUTEX_GUARD,
+       NOT_IN_BINLOG,
+       ON_CHECK(0),
+       ON_UPDATE(fix_max_connections),
+       NULL,
+       /* max_connections is used as a sizing hint by the performance schema. */
+       sys_var::PARSE_EARLY);
 
 static Sys_var_ulong Sys_max_connect_errors(
        "max_connect_errors",
@@ -2782,7 +2788,14 @@ static Sys_var_ulong Sys_table_cache_size(
        "table_open_cache", "The number of cached open tables",
        GLOBAL_VAR(table_cache_size), CMD_LINE(REQUIRED_ARG),
        VALID_RANGE(1, 512*1024), DEFAULT(TABLE_OPEN_CACHE_DEFAULT),
-       BLOCK_SIZE(1));
+       BLOCK_SIZE(1),
+       NO_MUTEX_GUARD,
+       NOT_IN_BINLOG,
+       ON_CHECK(NULL),
+       ON_UPDATE(NULL),
+       NULL,
+       /* table_open_cache is used as a sizing hint by the performance schema. */
+       sys_var::PARSE_EARLY);
 
 static Sys_var_ulong Sys_thread_cache_size(
        "thread_cache_size",

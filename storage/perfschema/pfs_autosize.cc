@@ -79,14 +79,14 @@ PFS_sizing_data tiny_data=
   /* history sizes */
   5, 100, 5, 100, 5, 100,
   /* digests */
-  200,
+  1000,
   /* Max tables */
   200,
   /* Load factors */
   0.90, 0.90, 0.90
 };
 
-PFS_sizing_data small_data=
+PFS_sizing_data medium_data=
 {
   "HEURISTIC 2",
   /* account / user / host */
@@ -94,7 +94,7 @@ PFS_sizing_data small_data=
   /* history sizes */
   10, 1000, 10, 1000, 10, 1000,
   /* digests */
-  1000,
+  5000,
   /* Max tables */
   500,
   /* Load factors */
@@ -103,7 +103,7 @@ PFS_sizing_data small_data=
 
 PFS_sizing_data big_data=
 {
-  "BIG",
+  "HEURISTIC 3",
   /* account / user / host */
   100, 100, 100,
   /* history sizes */
@@ -130,17 +130,61 @@ void enforce_range_long(long *value, long min, long max)
 
 PFS_sizing_data *estimate_hints(PFS_global_param *param)
 {
-  /* Sanitize hints */
+  /*
+    Sanitize hints, to avoid returning extremely high or low estimates.
+    If the real configuration used is outside of these bounds,
+    manual tuning will be preferable.
+  */
 
   enforce_range_long(& param->m_hints.m_max_connections, 10, 65535);
   enforce_range_long(& param->m_hints.m_table_definition_cache, 100, 10000);
   enforce_range_long(& param->m_hints.m_table_open_cache, 100, 10000);
 
-  return & tiny_data;
+  if ((param->m_hints.m_max_connections <= MAX_CONNECTIONS_DEFAULT) &&
+      (param->m_hints.m_table_definition_cache <= TABLE_DEF_CACHE_DEFAULT) &&
+      (param->m_hints.m_table_open_cache <= TABLE_OPEN_CACHE_DEFAULT))
+  {
+    /* The my.cnf used is either unchanged, or lower that factory defaults. */
+    return & tiny_data;
+  }
+
+  if ((param->m_hints.m_max_connections <= MAX_CONNECTIONS_DEFAULT) &&
+      (param->m_hints.m_table_definition_cache <= TABLE_DEF_CACHE_DEFAULT) &&
+      (param->m_hints.m_table_open_cache <= TABLE_OPEN_CACHE_DEFAULT))
+  {
+    /* Some defaults have been increased, to "moderate" values. */
+    return & medium_data;
+  }
+
+  /* Looks like a server in production. */
+  return & big_data;
+
 }
 
 static void apply_heuristic(PFS_global_param *p, PFS_sizing_data *h)
 {
+  ulong con = p->m_hints.m_max_connections;
+  ulong handle = p->m_hints.m_table_open_cache;
+  ulong share = p->m_hints.m_table_definition_cache;
+
+  if (p->m_table_sizing < 0)
+  {
+    ulong count;
+    count= handle;
+
+    p->m_table_sizing= ceil(((float) count) / h->m_load_factor_volatile);
+  }
+
+  if (p->m_table_share_sizing < 0)
+  {
+    ulong count;
+    count= share;
+
+    p->m_table_share_sizing= ceil(((float) count) / h->m_load_factor_static);
+  }
+
+
+
   if (p->m_account_sizing < 0)
   {
     p->m_account_sizing= h->m_account_sizing;
@@ -195,9 +239,9 @@ static void apply_heuristic(PFS_global_param *p, PFS_sizing_data *h)
   {
     ulong count;
     count= fixed_mutex_instances
-      + p->m_hints.m_max_connections * mutex_per_connection
-      + p->m_hints.m_table_open_cache * mutex_per_handle
-      + p->m_hints.m_table_definition_cache * mutex_per_share
+      + con * mutex_per_connection
+      + handle * mutex_per_handle
+      + share * mutex_per_share
       ;
 
     p->m_mutex_sizing= ceil(((float) count) / h->m_load_factor_volatile);
@@ -207,9 +251,9 @@ static void apply_heuristic(PFS_global_param *p, PFS_sizing_data *h)
   {
     ulong count;
     count= fixed_rwlock_instances
-      + p->m_hints.m_max_connections * rwlock_per_connection
-      + p->m_hints.m_table_open_cache * rwlock_per_handle
-      + p->m_hints.m_table_definition_cache * rwlock_per_share
+      + con * rwlock_per_connection
+      + handle * rwlock_per_handle
+      + share * rwlock_per_share
       ;
 
     p->m_rwlock_sizing= ceil(((float) count) / h->m_load_factor_volatile);
@@ -219,9 +263,9 @@ static void apply_heuristic(PFS_global_param *p, PFS_sizing_data *h)
   {
     ulong count;
     count= fixed_cond_instances
-      + p->m_hints.m_max_connections * cond_per_connection
-      + p->m_hints.m_table_open_cache * cond_per_handle
-      + p->m_hints.m_table_definition_cache * cond_per_share
+      + con * cond_per_connection
+      + handle * cond_per_handle
+      + share * cond_per_share
       ;
 
     p->m_cond_sizing= ceil(((float) count) / h->m_load_factor_volatile);
@@ -231,9 +275,9 @@ static void apply_heuristic(PFS_global_param *p, PFS_sizing_data *h)
   {
     ulong count;
     count= fixed_file_instances
-      + p->m_hints.m_max_connections * file_per_connection
-      + p->m_hints.m_table_open_cache * file_per_handle
-      + p->m_hints.m_table_definition_cache * file_per_share
+      + con * file_per_connection
+      + handle * file_per_handle
+      + share * file_per_share
       ;
 
     p->m_file_sizing= ceil(((float) count) / h->m_load_factor_normal);
@@ -243,9 +287,9 @@ static void apply_heuristic(PFS_global_param *p, PFS_sizing_data *h)
   {
     ulong count;
     count= fixed_socket_instances
-      + p->m_hints.m_max_connections * socket_per_connection
-      + p->m_hints.m_table_open_cache * socket_per_handle
-      + p->m_hints.m_table_definition_cache * socket_per_share
+      + con * socket_per_connection
+      + handle * socket_per_handle
+      + share * socket_per_share
       ;
 
     p->m_socket_sizing= ceil(((float) count) / h->m_load_factor_volatile);
@@ -255,15 +299,13 @@ static void apply_heuristic(PFS_global_param *p, PFS_sizing_data *h)
   {
     ulong count;
     count= fixed_thread_instances
-      + p->m_hints.m_max_connections * thread_per_connection
-      + p->m_hints.m_table_open_cache * thread_per_handle
-      + p->m_hints.m_table_definition_cache * thread_per_share
+      + con * thread_per_connection
+      + handle * thread_per_handle
+      + share * thread_per_share
       ;
 
     p->m_thread_sizing= ceil(((float) count) / h->m_load_factor_volatile);
   }
-
-
 
 }
 
@@ -273,11 +315,27 @@ void pfs_automated_sizing(PFS_global_param *param)
   heuristic= estimate_hints(param);
   apply_heuristic(param, heuristic);
 
+  DBUG_ASSERT(param->m_account_sizing >= 0);
+  DBUG_ASSERT(param->m_digest_sizing >= 0);
+  DBUG_ASSERT(param->m_host_sizing >= 0);
+  DBUG_ASSERT(param->m_user_sizing >= 0);
+
   DBUG_ASSERT(param->m_events_waits_history_sizing >= 0);
   DBUG_ASSERT(param->m_events_waits_history_long_sizing >= 0);
   DBUG_ASSERT(param->m_events_stages_history_sizing >= 0);
   DBUG_ASSERT(param->m_events_stages_history_long_sizing >= 0);
   DBUG_ASSERT(param->m_events_statements_history_sizing >= 0);
   DBUG_ASSERT(param->m_events_statements_history_long_sizing >= 0);
+
+  DBUG_ASSERT(param->m_mutex_sizing >= 0);
+  DBUG_ASSERT(param->m_rwlock_sizing >= 0);
+  DBUG_ASSERT(param->m_cond_sizing >= 0);
+  DBUG_ASSERT(param->m_file_sizing >= 0);
+  DBUG_ASSERT(param->m_socket_sizing >= 0);
+  DBUG_ASSERT(param->m_thread_sizing >= 0);
+  DBUG_ASSERT(param->m_table_sizing >= 0);
+  DBUG_ASSERT(param->m_table_share_sizing >= 0);
+
+
 }
 
