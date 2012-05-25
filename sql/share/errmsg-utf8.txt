@@ -6798,6 +6798,10 @@ ER_INNODB_IMPORT_ERROR
 ER_INNODB_INDEX_CORRUPT
   eng "Index corrupt: %s"
 
+ER_INVALID_YEAR_COLUMN_LENGTH
+  eng "YEAR(%lu) column type is deprecated. Creating YEAR(4) column instead."
+  rus "Тип YEAR(%lu) более не поддерживается, вместо него будет создана колонка с типом YEAR(4)."
+
 #
 #  End of 5.6 error messages.
 #
