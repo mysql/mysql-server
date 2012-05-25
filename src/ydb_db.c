@@ -665,20 +665,12 @@ autotxn_db_getf_set (DB *db, DB_TXN *txn, u_int32_t flags, DBT *key, YDB_CALLBAC
     return toku_db_destruct_autotxn(txn, r, changed, FALSE);
 }
 
-static inline int 
-autotxn_db_open(DB* db, DB_TXN* txn, const char *fname, const char *dbname, DBTYPE dbtype, u_int32_t flags, int mode) {
-    BOOL changed; int r;
-    // YDB lock is held when this function is called
-    r = toku_db_construct_autotxn(db, &txn, &changed, (BOOL)((flags & DB_AUTO_COMMIT) != 0), TRUE);
-    if (r!=0) return r;
-    r = toku_db_open(db, txn, fname, dbname, dbtype, flags & ~DB_AUTO_COMMIT, mode);
-    return toku_db_destruct_autotxn(txn, r, changed, TRUE);
-}
-
 static int 
 locked_db_open(DB *db, DB_TXN *txn, const char *fname, const char *dbname, DBTYPE dbtype, u_int32_t flags, int mode) {
     toku_multi_operation_client_lock(); //Cannot begin checkpoint
-    toku_ydb_lock(); int r = autotxn_db_open(db, txn, fname, dbname, dbtype, flags, mode); toku_ydb_unlock();
+    toku_ydb_lock(); 
+    int r = toku_db_open(db, txn, fname, dbname, dbtype, flags & ~DB_AUTO_COMMIT, mode);
+    toku_ydb_unlock();
     toku_multi_operation_client_unlock(); //Can now begin checkpoint
     return r;
 }
