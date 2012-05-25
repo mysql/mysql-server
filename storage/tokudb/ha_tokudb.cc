@@ -398,23 +398,6 @@ static int poll_fun(void *extra, float progress) {
     return 0;
 }
 
-struct hot_poll_fun_extra {
-    uint current_table;
-    uint num_tables;
-};
-
-static int hot_poll_fun(void *extra, float progress) {
-    HOT_OPTIMIZE_CONTEXT context = (HOT_OPTIMIZE_CONTEXT)extra;
-    if (context->thd->killed) {
-        sprintf(context->write_status_msg, "The process has been killed, aborting hot optimize.");
-        return ER_ABORTING_CONNECTION;
-    }
-    sprintf(context->write_status_msg, "Optimization of index %u of %u about %.lf%% done", context->current_table + 1, context->num_tables, progress*100);
-    thd_proc_info(context->thd, context->write_status_msg);
-    return 0;
-}
-
-
 static void loader_ai_err_fun(DB *db, int i, int err, DBT *key, DBT *val, void *error_extra) {
     LOADER_CONTEXT context = (LOADER_CONTEXT)error_extra;
     assert(context->ha);
