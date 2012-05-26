@@ -230,6 +230,7 @@ static __attribute__((nonnull, warn_unused_result))
 dberr_t
 row_ins_sec_index_entry_by_modify(
 /*==============================*/
+	ulint		flags,	/*!< in: undo logging and locking flags */
 	ulint		mode,	/*!< in: BTR_MODIFY_LEAF or BTR_MODIFY_TREE,
 				depending on whether mtr holds just a leaf
 				latch or also a tree latch */
@@ -268,7 +269,7 @@ row_ins_sec_index_entry_by_modify(
 
 		/* TODO: pass only *offsets */
 		err = btr_cur_optimistic_update(
-			BTR_KEEP_SYS_FLAG, cursor,
+			flags | BTR_KEEP_SYS_FLAG, cursor,
 			offsets, &offsets_heap, update, 0, thr,
 			thr_get_trx(thr)->id, mtr);
 		switch (err) {
@@ -287,7 +288,7 @@ row_ins_sec_index_entry_by_modify(
 		}
 
 		err = btr_cur_pessimistic_update(
-			BTR_KEEP_SYS_FLAG, cursor,
+			flags | BTR_KEEP_SYS_FLAG, cursor,
 			offsets, &offsets_heap,
 			heap, &dummy_big_rec, update, 0,
 			thr, thr_get_trx(thr)->id, mtr);
@@ -306,6 +307,7 @@ static __attribute__((nonnull, warn_unused_result))
 dberr_t
 row_ins_clust_index_entry_by_modify(
 /*================================*/
+	ulint		flags,	/*!< in: undo logging and locking flags */
 	ulint		mode,	/*!< in: BTR_MODIFY_LEAF or BTR_MODIFY_TREE,
 				depending on whether mtr holds just a leaf
 				latch or also a tree latch */
@@ -347,7 +349,7 @@ row_ins_clust_index_entry_by_modify(
 		within the page */
 
 		err = btr_cur_optimistic_update(
-			0, cursor, offsets, offsets_heap, update, 0, thr,
+			flags, cursor, offsets, offsets_heap, update, 0, thr,
 			thr_get_trx(thr)->id, mtr);
 		switch (err) {
 		case DB_OVERFLOW:
@@ -365,7 +367,7 @@ row_ins_clust_index_entry_by_modify(
 
 		}
 		err = btr_cur_pessimistic_update(
-			BTR_KEEP_POS_FLAG,
+			flags | BTR_KEEP_POS_FLAG,
 			cursor, offsets, offsets_heap, heap,
 			big_rec, update, 0, thr, thr_get_trx(thr)->id, mtr);
 	}
@@ -1821,6 +1823,7 @@ static __attribute__((nonnull, warn_unused_result))
 dberr_t
 row_ins_scan_sec_index_for_duplicate(
 /*=================================*/
+	ulint		flags,	/*!< in: undo logging and locking flags */
 	dict_index_t*	index,	/*!< in: non-clustered unique index */
 	dtuple_t*	entry,	/*!< in: index entry */
 	que_thr_t*	thr)	/*!< in: query thread */
@@ -1878,7 +1881,10 @@ row_ins_scan_sec_index_for_duplicate(
 		offsets = rec_get_offsets(rec, index, offsets,
 					  ULINT_UNDEFINED, &heap);
 
-		if (allow_duplicates) {
+		if (flags & BTR_NO_LOCKING_FLAG) {
+			/* Set no locks when applying log
+			in online table rebuild. */
+		} else if (allow_duplicates) {
 
 			/* If the SQL-query will update or replace
 			duplicate key we will take X-lock for
@@ -1949,6 +1955,7 @@ static __attribute__((nonnull, warn_unused_result))
 dberr_t
 row_ins_duplicate_error_in_clust(
 /*=============================*/
+	ulint		flags,	/*!< in: undo logging and locking flags */
 	btr_cur_t*	cursor,	/*!< in: B-tree cursor */
 	const dtuple_t*	entry,	/*!< in: entry to insert */
 	que_thr_t*	thr,	/*!< in: query thread */
@@ -1996,7 +2003,10 @@ row_ins_duplicate_error_in_clust(
 			sure that in roll-forward we get the same duplicate
 			errors as in original execution */
 
-			if (trx->duplicates) {
+			if (flags & BTR_NO_LOCKING_FLAG) {
+				/* Set no locks when applying log
+				in online table rebuild. */
+			} else if (trx->duplicates) {
 
 				/* If the SQL-query will update or replace
 				duplicate key we will take X-lock for
@@ -2040,7 +2050,10 @@ row_ins_duplicate_error_in_clust(
 			offsets = rec_get_offsets(rec, cursor->index, offsets,
 						  ULINT_UNDEFINED, &heap);
 
-			if (trx->duplicates) {
+			if (flags & BTR_NO_LOCKING_FLAG) {
+				/* Set no locks when applying log
+				in online table rebuild. */
+			} else if (trx->duplicates) {
 
 				/* If the SQL-query will update or replace
 				duplicate key we will take X-lock for
@@ -2117,18 +2130,21 @@ row_ins_must_modify_rec(
 }
 
 /***************************************************************//**
-Tries to insert an entry into a clustered index. If a record with the
-same unique key is found, the other record is necessarily marked
-deleted by a committed transaction, or a unique key violation error
-occurs. The delete marked record is then updated to an existing
-record, and we must write an undo log record on the delete marked
-record.
-@return DB_SUCCESS, DB_LOCK_WAIT, DB_FAIL if pessimistic
-retry needed, or error code */
-static __attribute__((nonnull, warn_unused_result))
+Tries to insert an entry into a clustered index, ignoring foreign key
+constraints. If a record with the same unique key is found, the other
+record is necessarily marked deleted by a committed transaction, or a
+unique key violation error occurs. The delete marked record is then
+updated to an existing record, and we must write an undo log record on
+the delete marked record.
+@retval DB_SUCCESS on success
+@retval DB_LOCK_WAIT on lock wait when !(flags & BTR_NO_LOCKING_FLAG)
+@retval DB_FAIL if retry with BTR_MODIFY_TREE is needed
+@return error code */
+UNIV_INTERN
 dberr_t
 row_ins_clust_index_entry_low(
 /*==========================*/
+	ulint		flags,	/*!< in: undo logging and locking flags */
 	ulint		mode,	/*!< in: BTR_MODIFY_LEAF or BTR_MODIFY_TREE,
 				depending on whether we wish optimistic or
 				pessimistic descent down the index tree */
@@ -2182,7 +2198,7 @@ row_ins_clust_index_entry_low(
 		DB_LOCK_WAIT */
 
 		err = row_ins_duplicate_error_in_clust(
-			&cursor, entry, thr, &mtr);
+			flags, &cursor, entry, thr, &mtr);
 		if (err != DB_SUCCESS) {
 err_exit:
 			mtr_commit(&mtr);
@@ -2197,7 +2213,7 @@ err_exit:
 		mem_heap_t*	entry_heap = mem_heap_create(1024);
 
 		err = row_ins_clust_index_entry_by_modify(
-			mode, &cursor, &offsets, &offsets_heap,
+			flags, mode, &cursor, &offsets, &offsets_heap,
 			entry_heap, &big_rec, entry, thr, &mtr);
 
 		if (big_rec) {
@@ -2267,7 +2283,7 @@ err_exit:
 		if (mode != BTR_MODIFY_TREE) {
 			ut_ad(mode == BTR_MODIFY_LEAF);
 			err = btr_cur_optimistic_insert(
-				0, &cursor, &offsets, &offsets_heap,
+				flags, &cursor, &offsets, &offsets_heap,
 				entry, &insert_rec, &big_rec,
 				n_ext, thr, &mtr);
 		} else {
@@ -2277,7 +2293,7 @@ err_exit:
 				goto err_exit;
 			}
 			err = btr_cur_pessimistic_insert(
-				0, &cursor, &offsets, &offsets_heap,
+				flags, &cursor, &offsets, &offsets_heap,
 				entry, &insert_rec, &big_rec,
 				n_ext, thr, &mtr);
 		}
@@ -2308,12 +2324,15 @@ err_exit:
 Tries to insert an entry into a secondary index. If a record with exactly the
 same fields is found, the other record is necessarily marked deleted.
 It is then unmarked. Otherwise, the entry is just inserted to the index.
-@return DB_SUCCESS, DB_LOCK_WAIT, DB_FAIL if pessimistic retry needed,
-or error code */
-static __attribute__((nonnull, warn_unused_result))
+@retval DB_SUCCESS on success
+@retval DB_LOCK_WAIT on lock wait when !(flags & BTR_NO_LOCKING_FLAG)
+@retval DB_FAIL if retry with BTR_MODIFY_TREE is needed
+@return error code */
+UNIV_INTERN
 dberr_t
 row_ins_sec_index_entry_low(
 /*========================*/
+	ulint		flags,	/*!< in: undo logging and locking flags */
 	ulint		mode,	/*!< in: BTR_MODIFY_LEAF or BTR_MODIFY_TREE,
 				depending on whether we wish optimistic or
 				pessimistic descent down the index tree */
@@ -2380,7 +2399,8 @@ row_ins_sec_index_entry_low(
 					    || cursor.low_match >= n_unique)) {
 
 		mtr_commit(&mtr);
-		err = row_ins_scan_sec_index_for_duplicate(index, entry, thr);
+		err = row_ins_scan_sec_index_for_duplicate(
+			flags, index, entry, thr);
 		mtr_start(&mtr);
 
 		if (err != DB_SUCCESS) {
@@ -2409,7 +2429,7 @@ row_ins_sec_index_entry_low(
 			ULINT_UNDEFINED, &heap);
 
 		err = row_ins_sec_index_entry_by_modify(
-			mode, &cursor, &offsets,
+			flags, mode, &cursor, &offsets,
 			offsets_heap, heap, entry, thr, &mtr);
 	} else {
 		rec_t*		insert_rec;
@@ -2417,7 +2437,7 @@ row_ins_sec_index_entry_low(
 
 		if (mode == BTR_MODIFY_LEAF) {
 			err = btr_cur_optimistic_insert(
-				0, &cursor, &offsets, &heap,
+				flags, &cursor, &offsets, &heap,
 				entry, &insert_rec,
 				&big_rec, 0, thr, &mtr);
 		} else {
@@ -2427,7 +2447,7 @@ row_ins_sec_index_entry_low(
 				err = DB_LOCK_TABLE_FULL;
 			} else {
 				err = btr_cur_pessimistic_insert(
-					0, &cursor, &offsets, &heap,
+					flags, &cursor, &offsets, &heap,
 					entry, &insert_rec,
 					&big_rec, 0, thr, &mtr);
 			}
@@ -2516,7 +2536,7 @@ row_ins_clust_index_entry(
 
 	/* Try first optimistic descent to the B-tree */
 
-	err = row_ins_clust_index_entry_low(BTR_MODIFY_LEAF, index, entry,
+	err = row_ins_clust_index_entry_low(0, BTR_MODIFY_LEAF, index, entry,
 					    n_ext, thr);
 	if (err != DB_FAIL) {
 
@@ -2525,7 +2545,7 @@ row_ins_clust_index_entry(
 
 	/* Try then pessimistic descent to the B-tree */
 
-	return(row_ins_clust_index_entry_low(BTR_MODIFY_TREE, index, entry,
+	return(row_ins_clust_index_entry_low(0, BTR_MODIFY_TREE, index, entry,
 					     n_ext, thr));
 }
 
@@ -2566,15 +2586,15 @@ row_ins_sec_index_entry(
 
 	/* Try first optimistic descent to the B-tree */
 
-	err = row_ins_sec_index_entry_low(BTR_MODIFY_LEAF, index,
-					  offsets_heap, heap, entry, thr);
+	err = row_ins_sec_index_entry_low(
+		0, BTR_MODIFY_LEAF, index, offsets_heap, heap, entry, thr);
 	if (err == DB_FAIL) {
 		mem_heap_empty(heap);
 
 		/* Try then pessimistic descent to the B-tree */
 
 		err = row_ins_sec_index_entry_low(
-			BTR_MODIFY_TREE, index,
+			0, BTR_MODIFY_TREE, index,
 			offsets_heap, heap, entry, thr);
 	}
 
