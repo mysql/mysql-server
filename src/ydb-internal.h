@@ -91,7 +91,6 @@ struct __toku_db_env_internal {
     int fs_poll_time;                                   // Time in seconds between statfs calls
     struct minicron fs_poller;                          // Poll the file systems
     BOOL fs_poller_is_init;    
-    uint32_t num_open_dbs;
     int envdir_lockfd;
     int datadir_lockfd;
     int logdir_lockfd;
