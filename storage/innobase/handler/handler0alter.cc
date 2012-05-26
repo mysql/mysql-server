@@ -1690,11 +1690,11 @@ col_fail:
 	}
 
 	if (fts_index) {
-#ifdef UNIV_DEBUG
 		/* Ensure that the dictionary operation mode will
 		not change while creating the auxiliary tables. */
 		enum trx_dict_op	op = trx_get_dict_operation(trx);
 
+#ifdef UNIV_DEBUG
 		switch (op) {
 		case TRX_DICT_OP_NONE:
 			break;
