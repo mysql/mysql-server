@@ -167,7 +167,7 @@ trx_start_for_ddl_low(
 	}
 #else
 #define trx_start_for_ddl(t, o)					\
-	trx_start_for_ddl((t), (o))
+	trx_start_for_ddl_low((t), (o))
 #endif /* UNIV_DEBUG */
 
 /****************************************************************//**
