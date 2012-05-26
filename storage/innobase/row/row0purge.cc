@@ -133,6 +133,10 @@ row_purge_remove_clust_if_poss_low(
 	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
 	rec_offs_init(offsets_);
 
+#ifdef UNIV_SYNC_DEBUG
+	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_SHARED));
+#endif /* UNIV_SYNC_DEBUG */
+
 	index = dict_table_get_first_index(node->table);
 
 	pcur = &node->pcur;
@@ -545,14 +549,10 @@ row_purge_upd_exist_or_extern_func(
 	trx_undo_rec_t*	undo_rec)	/*!< in: record to purge */
 {
 	mem_heap_t*	heap;
-	ibool		is_insert;
-	ulint		rseg_id;
-	ulint		page_no;
-	ulint		offset;
-	ulint		i;
-	mtr_t		mtr;
 
-	ut_ad(node);
+#ifdef UNIV_SYNC_DEBUG
+	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_SHARED));
+#endif /* UNIV_SYNC_DEBUG */
 
 	if (node->rec_type == TRX_UNDO_UPD_DEL_REC
 	    || (node->cmpl_info & UPD_NODE_NO_ORD_CHANGE)) {
@@ -585,7 +585,7 @@ row_purge_upd_exist_or_extern_func(
 
 skip_secondaries:
 	/* Free possible externally stored fields */
-	for (i = 0; i < upd_get_n_fields(node->update); i++) {
+	for (ulint i = 0; i < upd_get_n_fields(node->update); i++) {
 
 		const upd_field_t*	ufield
 			= upd_get_nth_field(node->update, i);
@@ -596,6 +596,11 @@ skip_secondaries:
 			ulint		internal_offset;
 			byte*		data_field;
 			dict_index_t*	index;
+			ibool		is_insert;
+			ulint		rseg_id;
+			ulint		page_no;
+			ulint		offset;
+			mtr_t		mtr;
 
 			/* We use the fact that new_val points to
 			undo_rec and get thus the offset of
@@ -814,7 +819,6 @@ row_purge_record_func(
 		dict_table_close(node->table, FALSE, FALSE);
 		node->table = NULL;
 	}
-
 }
 
 #ifdef UNIV_DEBUG
