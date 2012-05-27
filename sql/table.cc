@@ -4503,16 +4503,21 @@ Item *Field_iterator_table::create_item(THD *thd)
   SELECT_LEX *select= thd->lex->current_select;
 
   Item_field *item= new Item_field(thd, &select->context, *ptr);
-  if (item && thd->variables.sql_mode & MODE_ONLY_FULL_GROUP_BY &&
-      !thd->lex->in_sum_func &&
+  /*
+    This function creates Item-s which don't go through fix_fields(); see same
+    code in Item_field::fix_fields().
+    */
+  if (item && !thd->lex->in_sum_func &&
       select->cur_pos_in_all_fields != SELECT_LEX::ALL_FIELDS_UNDEF_POS)
   {
-    /*
-      This function creates Item-s which don't go through fix_fields(), so we
-      need to:
-    */
-    item->push_to_non_agg_fields(select);
-    select->set_non_agg_field_used(true);
+    if (thd->variables.sql_mode & MODE_ONLY_FULL_GROUP_BY)
+    {
+      item->push_to_non_agg_fields(select);
+      select->set_non_agg_field_used(true);
+    }
+    if (thd->lex->current_select->with_sum_func &&
+        !thd->lex->current_select->group_list.elements)
+      item->maybe_null= true;
   }
   return item;
 }
