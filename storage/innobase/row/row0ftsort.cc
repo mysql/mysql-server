@@ -757,8 +757,7 @@ exit:
 		if (t_ctx.rows_added[i]) {
 			row_merge_buf_sort(buf[i], NULL);
 			row_merge_buf_write(
-				buf[i], (const merge_file_t*) merge_file[i],
-				block[i]);
+				buf[i], merge_file[i], block[i]);
 			row_merge_write(merge_file[i]->fd,
 					merge_file[i]->offset++, block[i]);
 
