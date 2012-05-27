@@ -45,6 +45,7 @@ Created 3/14/1997 Heikki Tuuri
 #include "row0log.h"
 #include "log0log.h"
 #include "srv0mon.h"
+#include "srv0start.h"
 
 /*************************************************************************
 IMPORTANT NOTE: Any operation that generates redo MUST check that there
@@ -537,9 +538,10 @@ row_purge_del_mark(
 
 /***********************************************************//**
 Purges an update of an existing record. Also purges an update of a delete
-marked record if that record contained an externally stored field. */
-static
-void
+marked record if that record contained an externally stored field.
+@return true if purged, false if skipped */
+static __attribute__((nonnull, warn_unused_result))
+bool
 row_purge_upd_exist_or_extern_func(
 /*===============================*/
 #ifdef UNIV_DEBUG
@@ -553,6 +555,20 @@ row_purge_upd_exist_or_extern_func(
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_SHARED));
 #endif /* UNIV_SYNC_DEBUG */
+
+	if (dict_index_get_online_status(dict_table_get_first_index(
+						 node->table))
+	    == ONLINE_INDEX_CREATION) {
+		for (ulint i = 0; i < upd_get_n_fields(node->update); i++) {
+
+			const upd_field_t*	ufield
+				= upd_get_nth_field(node->update, i);
+
+			if (dfield_is_ext(&ufield->new_val)) {
+				return(false);
+			}
+		}
+	}
 
 	if (node->rec_type == TRX_UNDO_UPD_DEL_REC
 	    || (node->cmpl_info & UPD_NODE_NO_ORD_CHANGE)) {
@@ -629,9 +645,17 @@ skip_secondaries:
 			index tree */
 
 			index = dict_table_get_first_index(node->table);
-
 			mtr_x_lock(dict_index_get_lock(index), &mtr);
-
+#ifdef UNIV_DEBUG
+			switch (dict_index_get_online_status(index)) {
+			case ONLINE_INDEX_CREATION:
+			case ONLINE_INDEX_ABORTED_DROPPED:
+				ut_ad(0);
+			case ONLINE_INDEX_COMPLETE:
+			case ONLINE_INDEX_ABORTED:
+				break;
+			}
+#endif /* UNIV_DEBUG */
 			/* NOTE: we must also acquire an X-latch to the
 			root page of the tree. We will need it when we
 			free pages from the tree. If the tree is of height 1,
@@ -661,6 +685,8 @@ skip_secondaries:
 			mtr_commit(&mtr);
 		}
 	}
+
+	return(true);
 }
 
 #ifdef UNIV_DEBUG
@@ -776,9 +802,10 @@ err_exit:
 }
 
 /***********************************************************//**
-Purges the parsed record. */
-static
-void
+Purges the parsed record.
+@return true if purged, false if skipped */
+static __attribute__((nonnull, warn_unused_result))
+bool
 row_purge_record_func(
 /*==================*/
 	purge_node_t*	node,		/*!< in: row purge node */
@@ -806,7 +833,9 @@ row_purge_record_func(
 		}
 		/* fall through */
 	case TRX_UNDO_UPD_EXIST_REC:
-		row_purge_upd_exist_or_extern(thr, node, undo_rec);
+		if (!row_purge_upd_exist_or_extern(thr, node, undo_rec)) {
+			return(false);
+		}
 		MONITOR_INC(MONITOR_N_UPD_EXIST_EXTERN);
 		break;
 	}
@@ -819,6 +848,8 @@ row_purge_record_func(
 		dict_table_close(node->table, FALSE, FALSE);
 		node->table = NULL;
 	}
+
+	return(true);
 }
 
 #ifdef UNIV_DEBUG
@@ -847,12 +878,21 @@ row_purge(
 	if (undo_rec != &trx_purge_dummy_rec) {
 		ibool	updated_extern;
 
-		if (row_purge_parse_undo_rec(
-			node, undo_rec, &updated_extern, thr)) {
+		while (row_purge_parse_undo_rec(
+			       node, undo_rec, &updated_extern, thr)) {
 
-			row_purge_record(node, undo_rec, thr, updated_extern);
+			bool purged = row_purge_record(
+				node, undo_rec, thr, updated_extern);
 
-			rw_lock_s_unlock_gen(&dict_operation_lock, 0);
+			rw_lock_s_unlock(&dict_operation_lock);
+
+			if (purged
+			    || srv_shutdown_state != SRV_SHUTDOWN_NONE) {
+				return;
+			}
+
+			/* Retry the purge in a second. */
+			os_thread_sleep(1000000);
 		}
 	}
 }
