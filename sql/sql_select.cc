@@ -2350,6 +2350,14 @@ static Item *remove_sj_conds(Item *tree)
     
   create "oe1=ie1 AND oe2=ie2 AND ..." expression, such that ie1, ie2, ..
   refer to the columns of the table that is used to materialize the subquery.
+
+  Like in subquery materialization (see subselect_hash_sj_engine::setup()),
+  such condition is needed to post-filter those rows matched by index
+  lookups that cannot be distinguished by the index lookup procedure, e.g.
+  because of truncation (if the outer column type's length is bigger than
+  the inner column type's, index lookup will use a truncated outer
+  value as search key, yielding false positives).
+
   This function will also generate proper equality predicates for
   trivially-correlated subqueries corresponding to the above IN query.
 */
