@@ -275,7 +275,9 @@ EXPLAIN
           "table": {
             "access_type": "eq_ref",
             "key": "<auto_key>",
-            "rows": 1
+            "key_length": "5",
+            "rows": 1,
+            "attached_condition": "((`test`.`t1`.`i` = `materialized subselect`.`i`))"
           } /* table */,
           "query_block": {
             "select_id": 3,
@@ -831,7 +833,9 @@ EXPLAIN
           "using_temporary_table": true,
           "access_type": "eq_ref",
           "key": "<auto_key>",
+          "key_length": "5",
           "rows": 1,
+          "attached_condition": "(`test`.`t1`.`a` = `sj-materialize`.`a`)",
           "materialized_from_subquery": {
             "query_block": {
               "nested_loop": [
@@ -1016,7 +1020,9 @@ EXPLAIN
           "using_temporary_table": true,
           "access_type": "eq_ref",
           "key": "<auto_key>",
+          "key_length": "5",
           "rows": 1,
+          "attached_condition": "(`test`.`t5`.`c` = `sj-materialize`.`c`)",
           "materialized_from_subquery": {
             "query_block": {
               "nested_loop": [
@@ -1054,7 +1060,9 @@ EXPLAIN
           "using_temporary_table": true,
           "access_type": "eq_ref",
           "key": "<auto_key>",
+          "key_length": "5",
           "rows": 1,
+          "attached_condition": "(`test`.`t5`.`c` = `sj-materialize`.`c`)",
           "materialized_from_subquery": {
             "query_block": {
               "nested_loop": [
