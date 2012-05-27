@@ -63,7 +63,7 @@ row_log_online_op() to this buffer.
 When head.blocks == tail.blocks, the reader will access tail.block
 directly. When also head.bytes == tail.bytes, both counts will be
 reset to 0 and the file will be truncated. */
-struct row_log_struct {
+struct row_log_t {
 	int		fd;	/*!< file descriptor */
 	mutex_t		mutex;	/*!< mutex protecting max_trx and tail */
 	trx_id_t	max_trx;/*!< biggest observed trx_id in
