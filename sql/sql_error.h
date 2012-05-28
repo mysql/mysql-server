@@ -16,7 +16,7 @@
 #ifndef SQL_ERROR_H
 #define SQL_ERROR_H
 
-#include "sql_list.h" /* Sql_alloc, MEM_ROOT */
+#include "sql_list.h"
 #include "m_string.h" /* LEX_STRING */
 #include "sql_string.h"                        /* String */
 #include "sql_plist.h" /* I_P_List */

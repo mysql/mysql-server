@@ -634,6 +634,11 @@ bool add_select_to_union_list(LEX *lex, bool is_union_distinct,
     my_error(ER_WRONG_USAGE, MYF(0), "UNION", "INTO");
     return TRUE;
   }
+  if (lex->proc_analyse)
+  {
+    my_error(ER_WRONG_USAGE, MYF(0), "UNION", "SELECT ... PROCEDURE ANALYSE()");
+    return TRUE;
+  }
   if (lex->current_select->linkage == GLOBAL_OPTIONS_TYPE)
   {
     my_parse_error(ER(ER_SYNTAX_ERROR));
@@ -1017,6 +1022,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  ALGORITHM_SYM
 %token  ALL                           /* SQL-2003-R */
 %token  ALTER                         /* SQL-2003-R */
+%token  ANALYSE_SYM
 %token  ANALYZE_SYM
 %token  AND_AND_SYM                   /* OPERATOR */
 %token  AND_SYM                       /* SQL-2003-R */
@@ -1173,6 +1179,8 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  EXISTS                        /* SQL-2003-R */
 %token  EXIT_SYM
 %token  EXPANSION_SYM
+%token  EXPIRE_SYM
+%token  EXPORT_SYM
 %token  EXTENDED_SYM
 %token  EXTENT_SIZE_SYM
 %token  EXTRACT_SYM                   /* SQL-2003-N */
@@ -1697,6 +1705,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 
 %type <ulonglong_number>
         ulonglong_num real_ulonglong_num size_number
+        procedure_analyse_param
 
 %type <lock_type>
         replace_lock_option opt_low_priority insert_lock_option load_data_lock
@@ -1804,7 +1813,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
         preload_list preload_list_or_parts preload_keys preload_keys_parts
         select_item_list select_item values_list no_braces
         opt_limit_clause delete_limit_clause fields opt_values values
-        procedure_list procedure_list2 procedure_item
+        opt_procedure_analyse_params
         handler
         opt_precision opt_ignore opt_column opt_restrict
         grant revoke set lock unlock string_list field_options field_option
@@ -1817,7 +1826,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
         opt_column_list grant_privileges grant_ident grant_list grant_option
         object_privilege object_privilege_list user_list rename_list
         clear_privileges flush_options flush_option
-        opt_with_read_lock flush_options_list
+        opt_flush_lock flush_options_list
         equal optional_braces
         opt_mi_check_type opt_to mi_check_types normal_join
         table_to_table_list table_to_table opt_table_list opt_as
@@ -1844,6 +1853,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
         part_column_list
         server_def server_options_list server_option
         definer_opt no_definer definer get_diagnostics
+        alter_user_list
 END_OF_INPUT
 
 %type <NONE> call sp_proc_stmts sp_proc_stmts1 sp_proc_stmt
@@ -6335,7 +6345,23 @@ type:
             $$= MYSQL_TYPE_VARCHAR;
           }
         | YEAR_SYM opt_field_length field_options
-          { $$=MYSQL_TYPE_YEAR; }
+          {
+            if (Lex->length)
+            {
+              errno= 0;
+              ulonglong length= strtoul(Lex->length, NULL, 10);
+              if (errno == 0 && length <= MAX_FIELD_BLOBLENGTH && length != 4)
+              {
+                /* Reset unsupported positive column width to default value */
+                Lex->length= NULL;
+                push_warning_printf(YYTHD, Sql_condition::WARN_LEVEL_WARN,
+                                    ER_INVALID_YEAR_COLUMN_LENGTH,
+                                    ER(ER_INVALID_YEAR_COLUMN_LENGTH),
+                                    length);
+              }
+            }
+            $$=MYSQL_TYPE_YEAR;
+          }
         | DATE_SYM
           { $$=MYSQL_TYPE_DATE; }
         | TIME_SYM type_datetime_precision
@@ -7331,6 +7357,23 @@ alter:
             lex->sql_command= SQLCOM_ALTER_SERVER;
             lex->server_options.server_name= $3.str;
             lex->server_options.server_name_length= $3.length;
+          }
+        | ALTER USER clear_privileges alter_user_list
+          {
+            Lex->sql_command= SQLCOM_ALTER_USER;
+          }
+        ;
+
+alter_user_list:
+        user PASSWORD EXPIRE_SYM
+        {
+            if (Lex->users_list.push_back($1))
+              MYSQL_YYABORT;
+        }
+        | alter_user_list ',' user PASSWORD EXPIRE_SYM
+          {
+            if (Lex->users_list.push_back($3))
+              MYSQL_YYABORT;
           }
         ;
 
@@ -8485,7 +8528,7 @@ select_into:
 
 select_from:
           FROM join_table_list where_clause group_clause having_clause
-          opt_order_clause opt_limit_clause procedure_clause
+          opt_order_clause opt_limit_clause procedure_analyse_clause
           {
             Select->context.table_list=
               Select->context.first_name_resolution_table=
@@ -11311,13 +11354,13 @@ dec_num:
         | FLOAT_NUM
         ;
 
-procedure_clause:
+procedure_analyse_clause:
           /* empty */
-        | PROCEDURE_SYM ident /* Procedure name */
+        | PROCEDURE_SYM ANALYSE_SYM
           {
-            LEX *lex=Lex;
-
-            if (! lex->parsing_options.allows_select_procedure)
+            LEX *lex= Lex;
+            
+            if (!lex->parsing_options.allows_select_procedure)
             {
               my_error(ER_VIEW_SELECT_CLAUSE, MYF(0), "PROCEDURE");
               MYSQL_YYABORT;
@@ -11328,40 +11371,47 @@ procedure_clause:
               my_error(ER_WRONG_USAGE, MYF(0), "PROCEDURE", "subquery");
               MYSQL_YYABORT;
             }
-            lex->proc_list.elements=0;
-            lex->proc_list.first=0;
-            lex->proc_list.next= &lex->proc_list.first;
-            Item_field *item= new (YYTHD->mem_root)
-                                Item_field(&lex->current_select->context,
-                                           NULL, NULL, $2.str);
-            if (item == NULL)
+
+            if (lex->result != NULL)
+            {
+              my_error(ER_WRONG_USAGE, MYF(0), "PROCEDURE", "INTO");
               MYSQL_YYABORT;
-            if (add_proc_to_list(lex->thd, item))
+            }
+
+            if ((lex->proc_analyse= new Proc_analyse_params) == NULL)
+            {
+              my_error(ER_OUTOFMEMORY, MYF(0));
               MYSQL_YYABORT;
-            Lex->uncacheable(UNCACHEABLE_SIDEEFFECT);
+            }
+            
+            lex->uncacheable(UNCACHEABLE_SIDEEFFECT);
           }
-          '(' procedure_list ')'
+          '(' opt_procedure_analyse_params ')'
         ;
 
-procedure_list:
+opt_procedure_analyse_params:
           /* empty */ {}
-        | procedure_list2 {}
-        ;
-
-procedure_list2:
-          procedure_list2 ',' procedure_item
-        | procedure_item
-        ;
-
-procedure_item:
-          remember_name expr remember_end
+        | procedure_analyse_param
           {
-            THD *thd= YYTHD;
+            Lex->proc_analyse->max_tree_elements= $1;
+          }
+        | procedure_analyse_param ',' procedure_analyse_param
+          {
+            Lex->proc_analyse->max_tree_elements= $1;
+            Lex->proc_analyse->max_treemem= $3;
+          }
+        ;
 
-            if (add_proc_to_list(thd, $2))
+procedure_analyse_param:
+          NUM
+          {
+            int error;
+            $$= (ulonglong) my_strtoll10($1.str, (char**) 0, &error);
+            if (error != 0)
+            {
+              my_error(ER_WRONG_PARAMETERS_TO_PROCEDURE, MYF(0), "ANALYSE");
               MYSQL_YYABORT;
-            if (!$2->item_name.is_set())
-              $2->item_name.copy($1, (uint) ($3 - $1), thd->charset());
+            }
           }
         ;
 
@@ -12629,16 +12679,35 @@ flush_options:
             YYPS->m_mdl_type= MDL_SHARED_HIGH_PRIO;
           }
           opt_table_list {}
-          opt_with_read_lock {}
+          opt_flush_lock {}
         | flush_options_list
         ;
 
-opt_with_read_lock:
+opt_flush_lock:
           /* empty */ {}
         | WITH READ_SYM LOCK_SYM
           {
             TABLE_LIST *tables= Lex->query_tables;
             Lex->type|= REFRESH_READ_LOCK;
+            for (; tables; tables= tables->next_global)
+            {
+              tables->mdl_request.set_type(MDL_SHARED_NO_WRITE);
+              tables->required_type= FRMTYPE_TABLE; /* Don't try to flush views. */
+              tables->open_type= OT_BASE_ONLY;      /* Ignore temporary tables. */
+            }
+          }
+        | FOR_SYM
+          {
+            if (Lex->query_tables == NULL) // Table list can't be empty
+            {
+              my_parse_error(ER(ER_NO_TABLES_USED));
+              MYSQL_YYABORT;
+            } 
+          }
+          EXPORT_SYM
+          {
+            TABLE_LIST *tables= Lex->query_tables;
+            Lex->type|= REFRESH_FOR_EXPORT;
             for (; tables; tables= tables->next_global)
             {
               tables->mdl_request.set_type(MDL_SHARED_NO_WRITE);
@@ -13843,6 +13912,7 @@ keyword_sp:
         | AGAINST                  {}
         | AGGREGATE_SYM            {}
         | ALGORITHM_SYM            {}
+        | ANALYSE_SYM              {}
         | ANY_SYM                  {}
         | AT_SYM                   {}
         | AUTHORS_SYM              {}
@@ -13918,6 +13988,8 @@ keyword_sp:
         | EVERY_SYM                {}
         | EXCHANGE_SYM             {}
         | EXPANSION_SYM            {}
+        | EXPIRE_SYM               {}
+        | EXPORT_SYM               {}
         | EXTENDED_SYM             {}
         | EXTENT_SIZE_SYM          {}
         | FAULTS_SYM               {}
@@ -14494,19 +14566,26 @@ option_value_no_option_type:
 
             lex->var_list.push_back(var);
             lex->autocommit= TRUE;
+            lex->is_change_password= TRUE;
 
             if (sp)
               sp->m_flags|= sp_head::HAS_SET_AUTOCOMMIT_STMT;
           }
         | PASSWORD FOR_SYM user equal text_or_password
           {
-            set_var_password *var= new set_var_password($3,$5);
+            LEX_USER *user= $3;
+            LEX *lex= Lex;
+            set_var_password *var;
+
+            var= new set_var_password(user,$5);
             if (var == NULL)
               MYSQL_YYABORT;
-            Lex->var_list.push_back(var);
-            Lex->autocommit= TRUE;
-            if (Lex->sphead)
-              Lex->sphead->m_flags|= sp_head::HAS_SET_AUTOCOMMIT_STMT;
+            lex->var_list.push_back(var);
+            lex->autocommit= TRUE;
+            if (lex->sphead)
+              lex->sphead->m_flags|= sp_head::HAS_SET_AUTOCOMMIT_STMT;
+            if (!user->user.str)
+              lex->is_change_password= TRUE;
           }
         ;
 
@@ -15165,6 +15244,9 @@ grant_user:
             $$=$1; $1->password=$4;
             if (Lex->sql_command == SQLCOM_REVOKE)
               MYSQL_YYABORT;
+            String *password = new (YYTHD->mem_root) String((const char*)$4.str,
+                                    YYTHD->variables.character_set_client);
+            check_password_policy(password);
             if ($4.length)
             {
               if (YYTHD->variables.old_passwords)

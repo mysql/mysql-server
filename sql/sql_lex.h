@@ -538,7 +538,6 @@ class THD;
 class select_result;
 class JOIN;
 class select_union;
-class Procedure;
 
 
 class st_select_lex_unit: public st_select_lex_node {
@@ -599,7 +598,6 @@ public:
 
   st_select_lex *union_distinct; /* pointer to the last UNION DISTINCT */
   bool describe; /* union exec() called for EXPLAIN */
-  Procedure *last_procedure;	 /* Pointer to procedure, if such exists */
 
   /**
     Marker for subqueries in WHERE, HAVING, ORDER BY, GROUP BY and
@@ -2128,6 +2126,23 @@ public:
   PSI_digest_locker* m_digest_psi;
 };
 
+
+/**
+  Argument values for PROCEDURE ANALYSE(...)
+*/
+
+struct Proc_analyse_params: public Sql_alloc
+{
+  uint max_tree_elements; //< maximum number of distinct values per column
+  uint max_treemem; //< maximum amount of memory to allocate per column
+
+  Proc_analyse_params()
+    : max_tree_elements(256),
+      max_treemem(8192)
+  {}
+};
+
+
 /* The state of the lex parsing. This is saved in the THD struct */
 
 struct LEX: public Query_tables_list
@@ -2205,7 +2220,10 @@ struct LEX: public Query_tables_list
   */
   List<Name_resolution_context> context_stack;
 
-  SQL_I_List<ORDER> proc_list;
+  /**
+    Argument values for PROCEDURE ANALYSE(); is NULL for other queries
+  */
+  Proc_analyse_params *proc_analyse;
   SQL_I_List<TABLE_LIST> auxiliary_table_list, save_list;
   Create_field	      *last_field;
   Item_sum *in_sum_func;
@@ -2304,6 +2322,7 @@ struct LEX: public Query_tables_list
   bool sp_lex_in_use;	/* Keep track on lex usage in SPs for error handling */
   bool all_privileges;
   bool proxy_priv;
+  bool is_change_password;
 
 private:
   /// Current SP parsing context.

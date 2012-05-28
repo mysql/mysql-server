@@ -245,6 +245,7 @@ extern ulint	srv_n_log_files;
 extern ib_uint64_t	srv_log_file_size;
 extern ulint	srv_log_buffer_size;
 extern ulong	srv_flush_log_at_trx_commit;
+extern uint	srv_flush_log_at_timeout;
 extern char	srv_adaptive_flushing;
 
 /* If this flag is TRUE, then we will load the indexes' (and tables') metadata
@@ -372,6 +373,10 @@ extern	ibool	srv_print_latch_waits;
 # define srv_print_log_io		FALSE
 # define srv_print_latch_waits		FALSE
 #endif /* UNIV_DEBUG */
+
+#if defined UNIV_DEBUG || defined UNIV_IBUF_DEBUG
+extern my_bool	srv_ibuf_disable_background_merge;
+#endif /* UNIV_DEBUG || UNIV_IBUF_DEBUG */
 
 extern ulint	srv_fatal_semaphore_wait_threshold;
 #define SRV_SEMAPHORE_WAIT_EXTENSION	7200

@@ -71,7 +71,7 @@ typedef struct st_ha_create_information HA_CREATE_INFO;
 #define SPECIAL_BIG_SELECTS	256		/* Don't use heap tables */
 #define SPECIAL_NO_HOST_CACHE	512		/* Don't cache hosts */
 #define SPECIAL_SHORT_LOG_FORMAT 1024
-#define SPECIAL_SAFE_MODE	2048
+/* 2048 is no longer used */
 #define SPECIAL_LOG_QUERIES_NOT_USING_INDEXES 4096 /* Obsolete */
 
 	/* Extern defines */

@@ -16,10 +16,10 @@ SELECT HEX(c1) FROM t5 WHERE c1 != b'1' ORDER BY c1;
 HEX(c1)
 0
 2
+# In the following queries the string is compared as ASCII when
+# range access is used. See BUG#13727586.
 SELECT HEX(c1) FROM t5 WHERE c1 >= '1' ORDER BY c1;
 HEX(c1)
-1
-2
 SELECT HEX(c1) FROM t5 WHERE c1 <= '1' ORDER BY c1;
 HEX(c1)
 0
@@ -29,8 +29,6 @@ HEX(c1)
 0
 SELECT HEX(c1) FROM t5 WHERE c1 > '0' ORDER BY c1;
 HEX(c1)
-1
-2
 DROP TABLE t5;
 CREATE TABLE t5(c1 FLOAT(5,2) PRIMARY KEY) ENGINE = <default_engine>;
 INSERT INTO t5 VALUES (95.95), (-10.10), (1), (0);

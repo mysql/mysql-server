@@ -66,6 +66,8 @@ struct page_zip_des_struct
 
 #ifdef UNIV_DEBUG
 	unsigned	m_start:16;	/*!< start offset of modification log */
+	bool		m_external;	/*!< Allocated externally, not from the
+					buffer pool */
 #endif /* UNIV_DEBUG */
 	unsigned	m_end:16;	/*!< end offset of modification log */
 	unsigned	m_nonempty:1;	/*!< TRUE if the modification log

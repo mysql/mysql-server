@@ -261,8 +261,7 @@ bool st_select_lex_unit::prepare(THD *thd_arg, select_result *sel_result,
         sl->join->result= result;
         select_limit_cnt= HA_POS_ERROR;
         offset_limit_cnt= 0;
-        if (!sl->join->procedure &&
-            result->prepare(sl->join->fields_list, this))
+        if (result->prepare(sl->join->fields_list, this))
         {
           DBUG_RETURN(TRUE);
         }
@@ -326,12 +325,9 @@ bool st_select_lex_unit::prepare(THD *thd_arg, select_result *sel_result,
                                NULL : sl->order_list.first,
                                sl->group_list.first,
                                sl->having,
-                               (is_union_select ? NULL :
-                                thd_arg->lex->proc_list.first),
                                sl, this);
     /* There are no * in the statement anymore (for PS) */
     sl->with_wild= 0;
-    last_procedure= join->procedure;
 
     if (saved_error || (saved_error= thd_arg->is_fatal_error))
       goto err;
@@ -474,7 +470,6 @@ bool st_select_lex_unit::prepare(THD *thd_arg, select_result *sel_result,
                   global_parameters->order_list.first,    // order
                   NULL,                                // group_init
                   NULL,                                // having_init
-                  NULL,                                // proc_param_init
                   fake_select_lex,                     // select_lex_arg
                   this);                               // unit_arg
 	fake_select_lex->table_list.empty();
@@ -613,7 +608,7 @@ void st_select_lex_unit::explain()
                           0, item_list, NULL,
                           global_parameters->order_list.elements,
                           global_parameters->order_list.first,
-                          NULL, NULL, NULL,
+                          NULL, NULL,
                           fake_select_lex->options | SELECT_NO_UNLOCK,
                           result, this, fake_select_lex);
   }
@@ -754,7 +749,6 @@ bool st_select_lex_unit::exec()
                      global_parameters->order_list.first,    // order
                      NULL,                    // group
                      NULL,                    // having
-                     NULL,                    // proc_param
                      fake_select_lex->options | SELECT_NO_UNLOCK,
                      result,                  // result
                      this,                    // unit
@@ -919,15 +913,6 @@ bool st_select_lex_unit::change_result(select_result_interceptor *new_result,
 List<Item> *st_select_lex_unit::get_unit_column_types()
 {
   SELECT_LEX *sl= first_select();
-  bool is_procedure= test(sl->join->procedure);
-
-  if (is_procedure)
-  {
-    /* Types for "SELECT * FROM t1 procedure analyse()"
-       are generated during execute */
-    return &sl->join->procedure_fields_list;
-  }
-
 
   if (is_union())
   {

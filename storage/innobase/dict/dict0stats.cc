@@ -272,7 +272,10 @@ dict_stats_update_transient(
 
 	index = dict_table_get_first_index(table);
 
-	if (index == NULL) {
+	if (dict_table_is_discarded(table)) {
+		/* Nothing to do. */
+		return;
+	} else if (index == NULL) {
 		/* Table definition is corrupt */
 
 		char	buf[MAX_FULL_NAME_LEN];
@@ -620,6 +623,20 @@ dict_stats_analyze_index_level(
 			(*total_pages)++;
 		}
 
+		/* Skip delete-marked records on the leaf level. If we
+		do not skip them, then ANALYZE quickly after DELETE
+		could count them or not (purge may have already wiped
+		them away) which brings non-determinism. We skip only
+		leaf-level delete marks because delete marks on
+		non-leaf level do not make sense. */
+		if (level == 0 &&
+		    rec_get_deleted_flag(
+			    rec,
+			    page_is_comp(btr_pcur_get_page(&pcur)))) {
+
+			continue;
+		}
+
 		offsets_rec = rec_get_offsets(rec, index, offsets_rec_onstack,
 					      n_uniq, &heap);
 
@@ -677,7 +694,7 @@ dict_stats_analyze_index_level(
 				n_diff[i]++;
 			}
 		} else {
-			/* this is the first record */
+			/* this is the first non-delete marked record */
 			for (i = 1; i <= n_uniq; i++) {
 				n_diff[i] = 1;
 			}
@@ -709,7 +726,8 @@ dict_stats_analyze_index_level(
 
 	/* if *total_pages is left untouched then the above loop was not
 	entered at all and there is one page in the whole tree which is
-	empty */
+	empty or the loop was entered but this is level 0, contains one page
+	and all records are delete-marked */
 	if (*total_pages == 0) {
 
 		ut_ad(level == 0);
@@ -791,8 +809,10 @@ dict_stats_analyze_index_level(
 
 /* aux enum for controlling the behavior of dict_stats_scan_page() @{ */
 typedef enum page_scan_method_enum {
-	COUNT_ALL_NON_BORING,	/* scan all records on the given page
-				and count the number of distinct ones */
+	COUNT_ALL_NON_BORING_AND_SKIP_DEL_MARKED,/* scan all records on
+				the given page and count the number of
+				distinct ones, also ignore delete marked
+				records */
 	QUIT_ON_FIRST_NON_BORING/* quit when the first record that differs
 				from its right neighbor is found */
 } page_scan_method_t;
@@ -837,11 +857,18 @@ dict_stats_scan_page(
 	Because offsets1,offsets2 should be big enough,
 	this memory heap should never be used. */
 	mem_heap_t*	heap			= NULL;
+	const rec_t*	(*get_next)(const rec_t*);
 
-	rec = page_rec_get_next_const(page_get_infimum_rec(page));
+	if (scan_method == COUNT_ALL_NON_BORING_AND_SKIP_DEL_MARKED) {
+		get_next = page_rec_get_next_non_del_marked;
+	} else {
+		get_next = page_rec_get_next_const;
+	}
+
+	rec = get_next(page_get_infimum_rec(page));
 
 	if (page_rec_is_supremum(rec)) {
-		/* the page is empty */
+		/* the page is empty or contains only delete-marked records */
 		*n_diff = 0;
 		*out_rec = NULL;
 		return(NULL);
@@ -850,7 +877,7 @@ dict_stats_scan_page(
 	offsets_rec = rec_get_offsets(rec, index, offsets_rec,
 				      ULINT_UNDEFINED, &heap);
 
-	next_rec = page_rec_get_next_const(rec);
+	next_rec = get_next(rec);
 
 	*n_diff = 1;
 
@@ -899,7 +926,8 @@ dict_stats_scan_page(
 			offsets_rec = offsets_next_rec;
 			offsets_next_rec = offsets_tmp;
 		}
-		next_rec = page_rec_get_next_const(next_rec);
+
+		next_rec = get_next(next_rec);
 	}
 
 func_exit:
@@ -936,7 +964,6 @@ dict_stats_analyze_index_below_cur(
 	ulint*		offsets1;
 	ulint*		offsets2;
 	ulint*		offsets_rec;
-	ulint		root_height;
 	ib_uint64_t	n_diff; /* the result */
 	ulint		size;
 
@@ -962,8 +989,6 @@ dict_stats_analyze_index_below_cur(
 
 	rec_offs_set_n_alloc(offsets1, size);
 	rec_offs_set_n_alloc(offsets2, size);
-
-	root_height = btr_page_get_level(btr_root_get(index, mtr), mtr);
 
 	space = dict_index_get_space(index);
 	zip_size = dict_table_zip_size(index->table);
@@ -1029,14 +1054,7 @@ dict_stats_analyze_index_below_cur(
 
 	offsets_rec = dict_stats_scan_page(
 		&rec, offsets1, offsets2, index, page, n_prefix,
-		COUNT_ALL_NON_BORING, &n_diff);
-
-	if (root_height > 0) {
-
-		/* empty pages are allowed only if the whole B-tree is empty
-		and contains a single empty page */
-		ut_a(offsets_rec != NULL);
-	}
+		COUNT_ALL_NON_BORING_AND_SKIP_DEL_MARKED, &n_diff);
 
 #if 0
 	DEBUG_PRINTF("      %s(): n_diff below page_no=%lu: " UINT64PF "\n",
@@ -1231,6 +1249,14 @@ dict_stats_analyze_index_for_n_prefix(
 			break;
 		}
 
+		/* it could be that the tree has changed in such a way that
+		the record under dive_below_idx is the supremum record, in
+		this case rec_idx == dive_below_idx and pcur is positioned
+		on the supremum, we do not want to dive below it */
+		if (!btr_pcur_is_on_user_rec(&pcur)) {
+			break;
+		}
+
 		ut_a(rec_idx == dive_below_idx);
 
 		ib_uint64_t	n_diff_on_leaf_page;
@@ -1259,9 +1285,10 @@ dict_stats_analyze_index_for_n_prefix(
 		n_diff_sum_of_all_analyzed_pages += n_diff_on_leaf_page;
 	}
 
-	if (n_diff_sum_of_all_analyzed_pages == 0) {
-		n_diff_sum_of_all_analyzed_pages = 1;
-	}
+	/* n_diff_sum_of_all_analyzed_pages can be 0 here if all the leaf
+	pages sampled contained only delete-marked records. In this case
+	we should assign 0 to index->stat_n_diff_key_vals[n_prefix], which
+	the formula below does. */
 
 	/* See REF01 for an explanation of the algorithm */
 	index->stat_n_diff_key_vals[n_prefix]
@@ -2687,10 +2714,7 @@ transient:
 /*********************************************************************//**
 Removes the information for a particular index's stats from the persistent
 storage if it exists and if there is data stored for this index.
-The transaction is not committed, it must not be committed in this
-function because this is the user trx that is running DROP INDEX.
-The transaction will be committed at the very end when dropping an
-index.
+This function creates its own trx and commits it.
 A note from Marko why we cannot edit user and sys_* tables in one trx:
 marko: The problem is that ibuf merges should be disabled while we are
 rolling back dict transactions.
@@ -2705,7 +2729,6 @@ dict_stats_drop_index(
 /*==================*/
 	const char*	tname,	/*!< in: table name, e.g. 'db/table' */
 	const char*	iname,	/*!< in: index name */
-	trx_t*		trx,	/*!< in/out: user transaction */
 	char*		errstr, /*!< out: error message if != DB_SUCCESS
 				is returned */
 	ulint		errstr_sz)/*!< in: size of the errstr buffer */
@@ -2715,7 +2738,6 @@ dict_stats_drop_index(
 	pars_info_t*	pinfo;
 	dberr_t		ret;
 	dict_stats_t*	dict_stats;
-	THD*		mysql_thd;
 
 	ut_ad(!mutex_own(&dict_sys->mutex));
 
@@ -2750,11 +2772,10 @@ dict_stats_drop_index(
 
 	pars_info_add_str_literal(pinfo, "index_name", iname);
 
-	/* Force lock wait timeout to be instantaneous because the incoming
-	transaction was created via MySQL. */
+	trx_t*	trx;
 
-	mysql_thd = trx->mysql_thd;
-	trx->mysql_thd = NULL;
+	trx = trx_allocate_for_background();
+	trx_start_if_not_started(trx);
 
 	mutex_enter(&dict_sys->mutex);
 
@@ -2772,11 +2793,13 @@ dict_stats_drop_index(
 
 	mutex_exit(&dict_sys->mutex);
 
-	trx->mysql_thd = mysql_thd;
-
-	/* do not to commit here, see the function's comment */
-
-	if (ret != DB_SUCCESS) {
+	if (ret == DB_SUCCESS) {
+		trx_commit_for_mysql(trx);
+	} else {
+		trx->op_info = "rollback of internal trx on stats tables";
+		trx_rollback_to_savepoint(trx, NULL);
+		trx->op_info = "";
+		ut_a(trx->error_state == DB_SUCCESS);
 
 		ut_snprintf(errstr, errstr_sz,
 			    "Unable to delete statistics for index %s "
@@ -2798,9 +2821,8 @@ dict_stats_drop_index(
 
 		ut_print_timestamp(stderr);
 		fprintf(stderr, " InnoDB: %s\n", errstr);
-
-		trx->error_state = DB_SUCCESS;
 	}
+	trx_free_for_background(trx);
 
 	dict_stats_close(dict_stats);
 

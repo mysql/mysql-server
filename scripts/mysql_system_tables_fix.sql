@@ -646,6 +646,16 @@ ALTER TABLE user ADD plugin char(64) DEFAULT '',  ADD authentication_string TEXT
 ALTER TABLE user MODIFY plugin char(64) DEFAULT '';
 ALTER TABLE user MODIFY authentication_string TEXT;
 
+-- establish if the field is already there.
+SET @hadPasswordExpired:=0;
+SELECT @hadPasswordExpired:=1 FROM user WHERE password_expired LIKE '%';
+
+ALTER TABLE user ADD password_expired ENUM('N', 'Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL;
+UPDATE user SET password_expired = 'N' WHERE @hadPasswordExpired=0;
+
+-- need to compensate for the ALTER TABLE user .. CONVERT TO CHARACTER SET above
+ALTER TABLE user MODIFY password_expired ENUM('N', 'Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL;
+
 -- Need to pre-fill mysql.proxies_priv with access for root even when upgrading from
 -- older versions
 

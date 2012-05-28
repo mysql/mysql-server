@@ -53,6 +53,7 @@ static const char *json_extra_tags[ET_total]=
   "const_row_not_found",                // ET_CONST_ROW_NOT_FOUND
   "unique_row_not_found",               // ET_UNIQUE_ROW_NOT_FOUND
   "impossible_on_condition",            // ET_IMPOSSIBLE_ON_CONDITION
+  "pushed_join"                         // ET_PUSHED_JOIN
 };
 
 
@@ -371,8 +372,21 @@ private:
           tmp_table.add_alnum(K_ACCESS_TYPE, col_join_type.str);
         if (!col_key.is_empty())
           tmp_table.add_utf8(K_KEY, col_key.str);
+        if (!col_key_len.is_empty())
+          obj->add_alnum(K_KEY_LENGTH, col_key_len.str);
         if (!col_rows.is_empty())
           tmp_table.add(K_ROWS, col_rows.value);
+        /*
+          Currently K-REF/col_ref is not shown; it would always be "func", since
+          {subquery,semijoin} materialization use store_key_item; using
+          get_store_key() instead would allow "const" and outer column's name,
+          if applicable.
+          The looked up expression can anyway be inferred from the condition:
+        */
+        if (!col_attached_condition.is_empty())
+          obj->add_utf8(K_ATTACHED_CONDITION, col_attached_condition.str);
+        if (format_where(json))
+          return true;
       }
 
       if (subquery->is_query_block())
@@ -1286,8 +1300,23 @@ private:
     if (!col_key.is_empty())
       obj->add_utf8(K_KEY, col_key.str);
 
+    if (!col_key_len.is_empty())
+      obj->add_alnum(K_KEY_LENGTH, col_key_len.str);
+
     if (!col_rows.is_empty())
       obj->add(K_ROWS, col_rows.value);
+
+    /*
+      Currently K-REF/col_ref is not shown; it would always be "func", since
+      {subquery,semijoin} materialization use store_key_item; using
+      get_store_key() instead would allow "const" and outer column's name,
+      if applicable.
+      The looked up expression can anyway be inferred from the condition:
+    */
+    if (!col_attached_condition.is_empty())
+      obj->add_utf8(K_ATTACHED_CONDITION, col_attached_condition.str);
+    if (format_where(json))
+      return true;
 
     Opt_trace_object m(json, K_MATERIALIZED_FROM_SUBQUERY);
     Opt_trace_object q(json, K_QUERY_BLOCK);

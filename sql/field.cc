@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2011, 2012 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -57,8 +57,6 @@ const char field_separator=',';
 #define DECIMAL_TO_STRING_CONVERSION_BUFFER_SIZE 128
 #define BLOB_PACK_LENGTH_TO_MAX_LENGH(arg) \
 ((ulong) ((LL(1) << MY_MIN(arg, 4) * 8) - LL(1)))
-
-#define FLAGSTR(S,F) ((S) & (F) ? #F " " : "")
 
 /*
   Rules for merging different types of fields in UNION
@@ -10336,6 +10334,16 @@ Create_field::Create_field(Field *old_field,Field *orig_field) :
     geom_type= ((Field_geom*)old_field)->geom_type;
     break;
 #endif
+  case MYSQL_TYPE_YEAR:
+    if (length != 4)
+    {
+      push_warning_printf(current_thd, Sql_condition::WARN_LEVEL_WARN,
+                          ER_INVALID_YEAR_COLUMN_LENGTH,
+                          ER(ER_INVALID_YEAR_COLUMN_LENGTH),
+                          length);
+      length= 4; // convert obsolete YEAR(2) to YEAR(4)
+    }
+    break;
   default:
     break;
   }

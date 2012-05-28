@@ -340,12 +340,24 @@ t1	CREATE TABLE `t1` (
   KEY `c2d` (`c22f`),
   KEY `c2f` (`c22f`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1 STATS_PERSISTENT=1 COMMENT='testing if c2e will be dropped'
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` int(11) NOT NULL,
+  `c22f` int(11) DEFAULT NULL,
+  `c3` text,
+  PRIMARY KEY (`c1`),
+  KEY `c2d` (`c22f`),
+  KEY `c2f` (`c22f`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1 STATS_PERSISTENT=1 COMMENT='testing if c2e will be dropped'
 ALTER TABLE t1 DROP INDEX c2d, DROP INDEX c2f;
-ERROR 42S02: Table 'test.t1' doesn't exist
+Warnings:
+Warning	1814	InnoDB: Tablespace has been discarded for table 't1'
 ALTER TABLE t1 ADD INDEX c2h(c22f), ALGORITHM = INPLACE;
-ERROR 42S02: Table 'test.t1' doesn't exist
+Warnings:
+Warning	1814	InnoDB: Tablespace has been discarded for table 't1'
 ALTER TABLE t1 ADD INDEX c2h(c22f), ALGORITHM = COPY;
-ERROR 42S02: Table 'test.t1' doesn't exist
+ERROR 42000: Duplicate key name 'c2h'
 SET DEBUG_SYNC = 'RESET';
 SET DEBUG = '';
 SET GLOBAL innodb_monitor_disable = module_ddl;

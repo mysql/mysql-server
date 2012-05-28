@@ -1399,8 +1399,6 @@ int ha_myisammrg::reset(void)
 int ha_myisammrg::extra_opt(enum ha_extra_function operation, ulong cache_size)
 {
   DBUG_ASSERT(this->file->children_attached);
-  if ((specialflag & SPECIAL_SAFE_MODE) && operation == HA_EXTRA_WRITE_CACHE)
-    return 0;
   return myrg_extra(file, operation, (void*) &cache_size);
 }
 
