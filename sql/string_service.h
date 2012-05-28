@@ -1,4 +1,4 @@
-/* Copyright (c) 2009, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright © 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,15 +13,19 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#ifdef _WIN32
-#define SERVICE_VERSION __declspec(dllexport) void *
-#else
-#define SERVICE_VERSION void *
-#endif
+#ifndef MY_STRING_SERVICE_INCLUDED
+#define MY_STRING_SERVICE_INCLUDED
 
-#define VERSION_my_snprintf     0x0100
-#define VERSION_thd_alloc       0x0100
-#define VERSION_thd_wait        0x0100
-#define VERSION_my_thread_scheduler 0x0100
-#define VERSION_my_plugin_log 0x0100
-#define VERSION_mysql_string  0x0100
+#include "sql_string.h"
+
+String temp_str;
+
+/* mysql_string_itrerator structure to provide service to plugins */
+typedef struct st_string_iterator
+{
+  String *iterator_str;
+  const char *iterator_ptr;
+  int ctype;
+} string_iterator;
+
+#endif /* MY_STRING_SERVICE_INCLUDED */
