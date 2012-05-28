@@ -344,7 +344,7 @@ row_log_apply_op_low(
 					allocating offsets; can be emptied */
 	mem_heap_t*	heap,		/*!< in/out: memory heap for
 					allocating data tuples */
-	ibool		has_index_lock, /*!< in: TRUE if holding index->lock
+	bool		has_index_lock, /*!< in: true if holding index->lock
 					in exclusive mode */
 	enum row_op	op,		/*!< in: operation being applied */
 	trx_id_t	trx_id,		/*!< in: transaction identifier */
@@ -636,7 +636,7 @@ row_log_apply_op(
 					allocating offsets; can be emptied */
 	mem_heap_t*	heap,		/*!< in/out: memory heap for
 					allocating data tuples */
-	ibool		has_index_lock, /*!< in: TRUE if holding index->lock
+	bool		has_index_lock, /*!< in: true if holding index->lock
 					in exclusive mode */
 	const mrec_t*	mrec,		/*!< in: merge record */
 	const mrec_t*	mrec_end,	/*!< in: end of buffer */
@@ -774,7 +774,7 @@ row_log_apply_ops(
 	mem_heap_t*	offsets_heap;
 	mem_heap_t*	heap;
 	ulint*		offsets;
-	ibool		has_index_lock;
+	bool		has_index_lock;
 	const ulint	i	= 1 + REC_OFFS_HEADER_SIZE
 		+ dict_index_get_n_fields(index);
 
@@ -792,7 +792,7 @@ row_log_apply_ops(
 
 	offsets_heap = mem_heap_create(UNIV_PAGE_SIZE);
 	heap = mem_heap_create(UNIV_PAGE_SIZE);
-	has_index_lock = TRUE;
+	has_index_lock = true;
 
 next_block:
 	ut_ad(has_index_lock);
@@ -851,7 +851,7 @@ all_done:
 			* srv_sort_buf_size;
 
 		if (has_index_lock) {
-			has_index_lock = FALSE;
+			has_index_lock = false;
 			rw_lock_x_unlock(dict_index_get_lock(index));
 		}
 
@@ -1005,7 +1005,7 @@ all_done:
 			mrec = NULL;
 process_next_block:
 			rw_lock_x_lock(dict_index_get_lock(index));
-			has_index_lock = TRUE;
+			has_index_lock = true;
 
 			index->online_log->head.bytes = 0;
 			index->online_log->head.blocks++;
