@@ -949,7 +949,8 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 
     uint save_db_length= thd->db_length;
     char *save_db= thd->db;
-    USER_CONN *save_user_connect= thd->user_connect;
+    USER_CONN *save_user_connect=
+      const_cast<USER_CONN*>(thd->get_user_connect());
     Security_context save_security_ctx= *thd->security_ctx;
     CHARSET_INFO *save_character_set_client=
       thd->variables.character_set_client;
@@ -964,7 +965,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     {
       my_free(thd->security_ctx->user);
       *thd->security_ctx= save_security_ctx;
-      thd->user_connect= save_user_connect;
+      thd->set_user_connect(save_user_connect);
       thd->reset_db (save_db, save_db_length);
       thd->variables.character_set_client= save_character_set_client;
       thd->variables.collation_connection= save_collation_connection;
@@ -5583,7 +5584,7 @@ void mysql_parse(THD *thd, char *rawbuf, uint length,
     if (!err)
     {
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
-      if (mqh_used && thd->user_connect &&
+      if (mqh_used && thd->get_user_connect() &&
 	  check_mqh(thd, lex->sql_command))
       {
 	thd->net.error = 0;
