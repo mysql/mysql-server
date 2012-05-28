@@ -51,6 +51,7 @@ static const Alter_inplace_info::HA_ALTER_FLAGS INNOBASE_ONLINE_CREATE
 /** Operations for rebuilding a table in place */
 static const Alter_inplace_info::HA_ALTER_FLAGS INNOBASE_INPLACE_REBUILD
 	= Alter_inplace_info::ADD_PK_INDEX
+	| Alter_inplace_info::DROP_PK_INDEX
 	| Alter_inplace_info::CHANGE_CREATE_OPTION
 	/*
 	| Alter_inplace_info::ALTER_COLUMN_NULLABLE
@@ -219,6 +220,15 @@ ha_innobase::check_if_supported_inplace_alter(
 	    && (ha_alter_info->handler_flags
 		& (Alter_inplace_info::ADD_PK_INDEX
 		   | Alter_inplace_info::ADD_UNIQUE_INDEX))) {
+		DBUG_RETURN(HA_ALTER_INPLACE_NOT_SUPPORTED);
+	}
+
+	/* DROP PRIMARY KEY is only allowed in combination with ADD
+	PRIMARY KEY. */
+	if ((ha_alter_info->handler_flags
+	     & (Alter_inplace_info::ADD_PK_INDEX
+		| Alter_inplace_info::DROP_PK_INDEX))
+	    == Alter_inplace_info::DROP_PK_INDEX) {
 		DBUG_RETURN(HA_ALTER_INPLACE_NOT_SUPPORTED);
 	}
 
@@ -2128,7 +2138,8 @@ found_fk:
 	if (ha_alter_info->index_drop_count) {
 		DBUG_ASSERT(ha_alter_info->handler_flags
 			    & (Alter_inplace_info::DROP_INDEX
-			       | Alter_inplace_info::DROP_UNIQUE_INDEX));
+			       | Alter_inplace_info::DROP_UNIQUE_INDEX
+			       | Alter_inplace_info::DROP_PK_INDEX));
 		/* Check which indexes to drop. */
 		if (!heap) {
 			heap = mem_heap_create(1024);
@@ -2152,12 +2163,11 @@ found_fk:
 					HA_ERR_WRONG_INDEX,
 					"InnoDB could not find key "
 					"with name %s", key->name);
-			} else if (dict_index_is_clust(index)) {
-				my_error(ER_REQUIRES_PRIMARY_KEY, MYF(0));
-				goto err_exit;
 			} else {
 				ut_ad(!index->to_be_dropped);
-				drop_index[n_drop_index++] = index;
+				if (!dict_index_is_clust(index)) {
+					drop_index[n_drop_index++] = index;
+				}
 			}
 		}
 
@@ -2271,10 +2281,14 @@ index_needed:
 			}
 		}
 
-		/* Flag all indexes that are to be dropped. */
-		for (ulint i = 0; i < n_drop_index; i++) {
-			ut_ad(!drop_index[i]->to_be_dropped);
-			drop_index[i]->to_be_dropped = 1;
+		if (!n_drop_index) {
+			drop_index = NULL;
+		} else {
+			/* Flag all indexes that are to be dropped. */
+			for (ulint i = 0; i < n_drop_index; i++) {
+				ut_ad(!drop_index[i]->to_be_dropped);
+				drop_index[i]->to_be_dropped = 1;
+			}
 		}
 
 		row_mysql_unlock_data_dictionary(prebuilt->trx);
