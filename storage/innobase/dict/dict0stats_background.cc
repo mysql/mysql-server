@@ -252,15 +252,15 @@ dict_stats_thread_init()
 	dict_stats_event = os_event_create("dict_stats_event");
 
 	/* The auto_recalc_mutex is acquired from:
-	+ the background stats gathering thread before any other latch
-	  and released without latching anything else in between (thus any
-	  level would do here)
-	+ from row_update_statistics_if_needed()
-	  and released without latching anything else in between. We know
-	  that dict_sys->mutex (level SYNC_DICT) is not acquired when
-	  row_update_statistics_if_needed() is called and it may be acquired
-	  inside that function. So level SYNC_DICT is appropriate for
-	  auto_recalc_mutex. */
+	1) the background stats gathering thread before any other latch
+	   and released without latching anything else in between (thus
+	   any level would do here)
+	2) from row_update_statistics_if_needed()
+	   and released without latching anything else in between. We know
+	   that dict_sys->mutex (level SYNC_DICT) is not acquired when
+	   row_update_statistics_if_needed() is called and it may be acquired
+	   inside that function. So level SYNC_DICT is appropriate for
+	   auto_recalc_mutex. */
 	mutex_create(auto_recalc_mutex_key, &auto_recalc_mutex, SYNC_DICT);
 
 	ut_ad(auto_recalc_list == NULL);
