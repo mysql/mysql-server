@@ -7982,8 +7982,6 @@ get_cached_table_access(GRANT_INTERNAL_INFO *grant_internal_info,
 #undef HAVE_OPENSSL
 #ifdef NO_EMBEDDED_ACCESS_CHECKS
 #define initialized 0
-#define decrease_user_connections(X)        /* nothing */
-#define check_for_max_user_connections(X, Y)   0
 #endif
 #endif
 #ifndef HAVE_OPENSSL
@@ -9464,7 +9462,7 @@ acl_authenticate(THD *thd, uint com_change_user_pkt_len)
     mpvio.packets_read++;    // take COM_CHANGE_USER packet into account
 
     /* Clear variables that are allocated */
-    thd->user_connect= 0;
+    thd->set_user_connect(NULL);
 
     if (parse_com_change_user_packet(&mpvio, com_change_user_pkt_len))
     {
@@ -9655,11 +9653,11 @@ acl_authenticate(THD *thd, uint com_change_user_pkt_len)
   else
     sctx->skip_grants();
 
-  if (thd->user_connect &&
-      (thd->user_connect->user_resources.conn_per_hour ||
-       thd->user_connect->user_resources.user_conn ||
+  const USER_CONN *uc;
+  if ((uc= thd->get_user_connect()) &&
+      (uc->user_resources.conn_per_hour || uc->user_resources.user_conn ||
        global_system_variables.max_user_connections) &&
-      check_for_max_user_connections(thd, thd->user_connect))
+       check_for_max_user_connections(thd, uc))
   {
     DBUG_RETURN(1); // The error is set in check_for_max_user_connections()
   }
@@ -9681,6 +9679,7 @@ acl_authenticate(THD *thd, uint com_change_user_pkt_len)
     mysql_mutex_unlock(&LOCK_connection_count);
     if (!count_ok)
     {                                         // too many connections
+      release_user_connection(thd);
       statistic_increment(connection_errors_max_connection, &LOCK_status);
       my_error(ER_CON_COUNT_ERROR, MYF(0));
       DBUG_RETURN(1);
@@ -9700,11 +9699,7 @@ acl_authenticate(THD *thd, uint com_change_user_pkt_len)
     if (mysql_change_db(thd, &mpvio.db, FALSE))
     {
       /* mysql_change_db() has pushed the error message. */
-      if (thd->user_connect)
-      {
-        decrease_user_connections(thd->user_connect);
-        thd->user_connect= 0;
-      }
+      release_user_connection(thd);
       Host_errors errors;
       errors.m_default_database= 1;
       inc_host_errors(mpvio.ip, &errors);
