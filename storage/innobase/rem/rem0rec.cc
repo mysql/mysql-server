@@ -798,7 +798,6 @@ rec_get_converted_size_comp_prefix(
 	ut_ad(fields);
 	ut_ad(n_fields > 0);
 	ut_ad(n_fields <= dict_index_get_n_fields(index));
-	ut_ad(n_null >= index->n_nullable);
 
 	extra_size = REC_N_NEW_EXTRA_BYTES + UT_BITS_IN_BYTES(n_null);
 	data_size = 0;
@@ -815,6 +814,8 @@ rec_get_converted_size_comp_prefix(
 
 		ut_ad(dict_col_type_assert_equal(col,
 						 dfield_get_type(&fields[i])));
+		/* All NULLable fields must be included in the n_null count. */
+		ut_ad((col->prtype & DATA_NOT_NULL) || n_null--);
 
 		if (dfield_is_null(&fields[i])) {
 			/* No length is stored for NULL fields. */
@@ -1114,7 +1115,6 @@ rec_convert_dtuple_to_rec_comp(
 	ut_ad(extra == 0 || dict_table_is_comp(index->table));
 	ut_ad(extra == 0 || extra == REC_N_NEW_EXTRA_BYTES);
 	ut_ad(n_fields > 0);
-	ut_ad(n_null >= index->n_nullable);
 
 	switch (UNIV_EXPECT(status, REC_STATUS_ORDINARY)) {
 	case REC_STATUS_ORDINARY:
@@ -1160,6 +1160,7 @@ rec_convert_dtuple_to_rec_comp(
 		if (!(dtype_get_prtype(type) & DATA_NOT_NULL)) {
 			/* nullable field */
 			ut_ad(index->n_nullable > 0);
+			ut_ad(n_null--);
 
 			if (UNIV_UNLIKELY(!(byte) null_mask)) {
 				nulls--;
