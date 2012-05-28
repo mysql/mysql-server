@@ -50,7 +50,17 @@ static struct my_plugin_log_service my_plugin_log_handler= {
   my_plugin_log_message
 };
 
-
+static struct mysql_string_service_st mysql_string_handler= {
+  mysql_string_convert_to_char_ptr,
+  mysql_string_get_iterator,
+  mysql_string_iterator_next,
+  mysql_string_iterator_isupper,
+  mysql_string_iterator_islower,
+  mysql_string_iterator_isdigit,
+  mysql_string_to_lowercase,
+  mysql_string_free,
+  mysql_string_iterator_free,
+};
 
 static struct st_service_ref list_of_services[]=
 {
@@ -60,5 +70,7 @@ static struct st_service_ref list_of_services[]=
   { "my_thread_scheduler_service",
     VERSION_my_thread_scheduler, &my_thread_scheduler_handler },
   { "my_plugin_log_service", VERSION_my_plugin_log, &my_plugin_log_handler },
+  { "mysql_string_service",
+    VERSION_mysql_string, &mysql_string_handler },
 };
 

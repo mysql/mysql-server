@@ -3219,6 +3219,13 @@ void Item_func_locate::print(String *str, enum_query_type query_type)
 }
 
 
+longlong Item_func_validate_password_strength::val_int()
+{
+  String *field= args[0]->val_str(&value);
+  return (check_password_strength(field));
+}
+
+
 longlong Item_func_field::val_int()
 {
   DBUG_ASSERT(fixed == 1);
