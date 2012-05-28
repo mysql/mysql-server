@@ -43,9 +43,6 @@ setup_without_group(THD *thd, Ref_ptr_array ref_pointer_array,
                     ORDER *order,
                     ORDER *group, bool *hidden_group_fields);
 static bool resolve_subquery(THD *thd, JOIN *join);
-static bool
-setup_new_fields(THD *thd, List<Item> &fields,
-		 List<Item> &all_fields, ORDER *new_field);
 static int
 setup_group(THD *thd, Ref_ptr_array ref_pointer_array, TABLE_LIST *tables,
             List<Item> &fields, List<Item> &all_fields, ORDER *order);
@@ -74,7 +71,7 @@ JOIN::prepare(TABLE_LIST *tables_init,
 	      uint wild_num, Item *conds_init, uint og_num,
 	      ORDER *order_init, ORDER *group_init,
 	      Item *having_init,
-	      ORDER *proc_param_init, SELECT_LEX *select_lex_arg,
+	      SELECT_LEX *select_lex_arg,
 	      SELECT_LEX_UNIT *unit_arg)
 {
   DBUG_ENTER("JOIN::prepare");
@@ -94,7 +91,6 @@ JOIN::prepare(TABLE_LIST *tables_init,
   order= ORDER_with_src(order_init, ESC_ORDER_BY);
   group_list= ORDER_with_src(group_init, ESC_GROUP_BY);
   having= having_init;
-  proc_param= proc_param_init;
   tables_list= tables_init;
   select_lex= select_lex_arg;
   select_lex->join= this;
@@ -315,45 +311,9 @@ JOIN::prepare(TABLE_LIST *tables_init,
     for (ORDER *group_tmp= group_list ; group_tmp ; group_tmp= group_tmp->next)
       send_group_parts++;
   }
-  
-  procedure= setup_procedure(thd, proc_param, result, fields_list, &error);
-  if (error)
-    goto err;					/* purecov: inspected */
-  if (procedure)
-  {
-    if (setup_new_fields(thd, fields_list, all_fields,
-			 procedure->param_fields))
-	goto err;				/* purecov: inspected */
-    if (procedure->group)
-    {
-      if (!test_if_subpart(procedure->group,group_list))
-      {						/* purecov: inspected */
-	my_message(ER_DIFF_GROUPS_PROC, ER(ER_DIFF_GROUPS_PROC),
-                   MYF(0));                     /* purecov: inspected */
-	goto err;				/* purecov: inspected */
-      }
-    }
-    if (order && (procedure->flags & PROC_NO_SORT))
-    {						/* purecov: inspected */
-      my_message(ER_ORDER_WITH_PROC, ER(ER_ORDER_WITH_PROC),
-                 MYF(0));                       /* purecov: inspected */
-      goto err;					/* purecov: inspected */
-    }
-    if (thd->lex->derived_tables)
-    {
-      my_error(ER_WRONG_USAGE, MYF(0), "PROCEDURE", 
-               thd->lex->derived_tables & DERIVED_VIEW ?
-               "view" : "subquery"); 
-      goto err;
-    }
-    if (thd->lex->sql_command != SQLCOM_SELECT)
-    {
-      my_error(ER_WRONG_USAGE, MYF(0), "PROCEDURE", "non-SELECT");
-      goto err;
-    }
-  }
 
-  if (!procedure && result && result->prepare(fields_list, unit_arg))
+
+  if (result && result->prepare(fields_list, unit_arg))
     goto err;					/* purecov: inspected */
 
   /* Init join struct */
@@ -383,8 +343,6 @@ JOIN::prepare(TABLE_LIST *tables_init,
   DBUG_RETURN(0); // All OK
 
 err:
-  delete procedure;				/* purecov: inspected */
-  procedure= 0;
   DBUG_RETURN(-1);				/* purecov: inspected */
 }
 
@@ -1402,41 +1360,6 @@ setup_group(THD *thd, Ref_ptr_array ref_pointer_array, TABLE_LIST *tables,
     }
   }
   return 0;
-}
-
-
-/**
-  Add fields with aren't used at start of field list.
-
-  @return
-    FALSE if ok
-*/
-
-static bool
-setup_new_fields(THD *thd, List<Item> &fields,
-		 List<Item> &all_fields, ORDER *new_field)
-{
-  Item	  **item;
-  uint counter;
-  enum_resolution_type not_used;
-  DBUG_ENTER("setup_new_fields");
-
-  thd->mark_used_columns= MARK_COLUMNS_READ;       // Not really needed, but...
-  for (; new_field ; new_field= new_field->next)
-  {
-    if ((item= find_item_in_list(*new_field->item, fields, &counter,
-				 IGNORE_ERRORS, &not_used)))
-      new_field->item=item;			/* Change to shared Item */
-    else
-    {
-      thd->where="procedure list";
-      if ((*new_field->item)->fix_fields(thd, new_field->item))
-	DBUG_RETURN(1); /* purecov: inspected */
-      all_fields.push_front(*new_field->item);
-      new_field->item=all_fields.head_ref();
-    }
-  }
-  DBUG_RETURN(0);
 }
 
 

@@ -1,4 +1,4 @@
-/* Copyright (c) 2009, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2009, 2011, 2012 Oracle and/or its affiliates. All rights reserved.
  
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License as published by
@@ -658,5 +658,9 @@
 
 #cmakedefine SIZEOF_TIME_T @SIZEOF_TIME_T@
 #cmakedefine TIME_T_UNSIGNED @TIME_T_UNSIGNED@
+
+/* CPU information */
+
+#cmakedefine CPU_LEVEL1_DCACHE_LINESIZE @CPU_LEVEL1_DCACHE_LINESIZE@
 
 #endif

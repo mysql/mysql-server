@@ -374,13 +374,12 @@ connection default;
 reap;
 
 SHOW CREATE TABLE t1;
+SHOW CREATE TABLE t1;
 # The ER_NO_SUCH_TABLE is being thrown by ha_innobase::open().
 # The table does exist, only the tablespace does not exist.
---error ER_NO_SUCH_TABLE
 ALTER TABLE t1 DROP INDEX c2d, DROP INDEX c2f;
---error ER_NO_SUCH_TABLE
 ALTER TABLE t1 ADD INDEX c2h(c22f), ALGORITHM = INPLACE;
---error ER_NO_SUCH_TABLE
+--error ER_DUP_KEYNAME
 ALTER TABLE t1 ADD INDEX c2h(c22f), ALGORITHM = COPY;
 
 SET DEBUG_SYNC = 'RESET';

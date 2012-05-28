@@ -2481,6 +2481,19 @@ protected:
 };
 
 
+class Create_func_validate_password_strength : public Create_func_arg1
+{
+public:
+  virtual Item *create(THD *thd, Item *arg1);
+
+  static Create_func_validate_password_strength s_singleton;
+
+protected:
+  Create_func_validate_password_strength() {}
+  virtual ~Create_func_validate_password_strength() {}
+};
+
+
 class Create_func_version : public Create_func_arg0
 {
 public:
@@ -5181,6 +5194,16 @@ Create_func_uuid_short::create(THD *thd)
 }
 
 
+Create_func_validate_password_strength
+                     Create_func_validate_password_strength::s_singleton;
+
+Item*
+Create_func_validate_password_strength::create(THD *thd, Item *arg1)
+{
+  return new (thd->mem_root) Item_func_validate_password_strength(arg1);
+}
+
+
 Create_func_version Create_func_version::s_singleton;
 
 Item*
@@ -5608,6 +5631,7 @@ static Native_func_registry func_array[] =
   { { C_STRING_WITH_LEN("UPPER") }, BUILDER(Create_func_ucase)},
   { { C_STRING_WITH_LEN("UUID") }, BUILDER(Create_func_uuid)},
   { { C_STRING_WITH_LEN("UUID_SHORT") }, BUILDER(Create_func_uuid_short)},
+  { { C_STRING_WITH_LEN("VALIDATE_PASSWORD_STRENGTH") }, BUILDER(Create_func_validate_password_strength)},
   { { C_STRING_WITH_LEN("VERSION") }, BUILDER(Create_func_version)},
   { { C_STRING_WITH_LEN("WEEKDAY") }, BUILDER(Create_func_weekday)},
   { { C_STRING_WITH_LEN("WEEKOFYEAR") }, BUILDER(Create_func_weekofyear)},

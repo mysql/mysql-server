@@ -53,6 +53,8 @@ Created 11/5/1995 Heikki Tuuri
 #include "srv0mon.h"
 #include "lock0lock.h"
 
+#include "ha_prototypes.h"
+
 /** The number of blocks from the LRU_old pointer onward, including
 the block pointed to, must be buf_pool->LRU_old_ratio/BUF_LRU_OLD_RATIO_DIV
 of the whole LRU list length, except that the tolerance defined below
@@ -348,7 +350,7 @@ want to hog the CPU and resources. Release the buffer pool and block
 mutex and try to force a context switch. Then reacquire the same mutexes.
 The current page is "fixed" before the release of the mutexes and then
 "unfixed" again once we have reacquired the mutexes. */
-static
+static	__attribute__((nonnull))
 void
 buf_flush_yield(
 /*============*/
@@ -388,9 +390,9 @@ buf_flush_yield(
 If we have hogged the resources for too long then release the buffer
 pool and flush list mutex and do a thread yield. Set the current page
 to "sticky" so that it is not relocated during the yield.
-@return TRUE if yielded */
-static
-ibool
+@return true if yielded */
+static	__attribute__((nonnull, warn_unused_result))
+bool
 buf_flush_try_yield(
 /*================*/
 	buf_pool_t*	buf_pool,	/*!< in/out: buffer pool instance */
@@ -403,7 +405,7 @@ buf_flush_try_yield(
 	ensures that the block stays in its position in the
 	flush_list. */
 
-	if (bpage != NULL
+	if (bpage != 0
 	    && processed >= BUF_LRU_DROP_SEARCH_SIZE
 	    && buf_page_get_io_fix(bpage) == BUF_IO_NONE) {
 
@@ -422,25 +424,28 @@ buf_flush_try_yield(
 
 		ut_ad(bpage->in_flush_list);
 
-		return(TRUE);
+		return(true);
 	}
 
-	return(FALSE);
+	return(false);
 }
 
 /******************************************************************//**
 Removes a single page from a given tablespace inside a specific
 buffer pool instance.
-@return TRUE if page was removed. */
-static
-ibool
+@return true if page was removed. */
+static	__attribute__((nonnull, warn_unused_result))
+bool
 buf_flush_or_remove_page(
 /*=====================*/
 	buf_pool_t*	buf_pool,	/*!< in/out: buffer pool instance */
-	buf_page_t*	bpage)		/*!< in/out: bpage to remove */
+	buf_page_t*	bpage,		/*!< in/out: bpage to remove */
+	bool		flush)		/*!< in: flush to disk if true but
+					don't remove else remove without
+					flushing to disk */
 {
 	mutex_t*	block_mutex;
-	ibool		processed = FALSE;
+	bool		processed = false;
 
 	ut_ad(buf_pool_mutex_own(buf_pool));
 	ut_ad(buf_flush_list_mutex_own(buf_pool));
@@ -470,14 +475,44 @@ buf_flush_or_remove_page(
 
 		ut_ad(bpage->oldest_modification != 0);
 
-		if (bpage->buf_fix_count == 0) {
+		if (bpage->buf_fix_count > 0) {
+
+			mutex_exit(block_mutex);
+
+			/* We cannot remove this page yet;
+			maybe the system is currently reading
+			it in, or flushing the modifications
+			to the file */
+
+		} else if (!flush) {
 
 			buf_flush_remove(bpage);
 
-			processed = TRUE;
-		}
+			mutex_exit(block_mutex);
 
-		mutex_exit(block_mutex);
+			processed = true;
+
+		} else if (buf_page_get_io_fix(bpage) != BUF_IO_NONE) {
+
+			/* Check the status again after releasing the flush
+			list mutex and acquiring the block mutex. The background
+			flush thread may be in the process of flushing this
+			page when we released the flush list mutex. */
+
+			/* The following call will release the buffer pool
+			and block mutex. */
+			buf_flush_page(buf_pool, bpage, BUF_FLUSH_SINGLE_PAGE);
+
+			/* Wake possible simulated aio thread to actually
+			post the writes to the operating system */
+			os_aio_simulated_wake_handler_threads();
+
+			buf_pool_mutex_enter(buf_pool);
+
+			processed = true;
+		} else {
+			mutex_exit(block_mutex);
+		}
 
 		buf_flush_list_mutex_enter(buf_pool);
 	}
@@ -492,19 +527,26 @@ Remove all dirty pages belonging to a given tablespace inside a specific
 buffer pool instance when we are deleting the data file(s) of that
 tablespace. The pages still remain a part of LRU and are evicted from
 the list as they age towards the tail of the LRU.
-@return TRUE if all freed. */
-static
-ibool
+@retval DB_SUCCESS if all freed
+@retval DB_FAIL if not all freed
+@retval DB_INTERRUPTED if the transaction was interrupted */
+static	__attribute__((nonnull(1), warn_unused_result))
+dberr_t
 buf_flush_or_remove_pages(
 /*======================*/
 	buf_pool_t*	buf_pool,	/*!< buffer pool instance */
-	ulint		id)		/*!< in: target space id for which
+	ulint		id,		/*!< in: target space id for which
 					to remove or flush pages */
+	bool		flush,		/*!< in: flush to disk if true but
+					don't remove else remove without
+					flushing to disk */
+	const trx_t*	trx)		/*!< to check if the operation must
+					be interrupted, can be 0 */
 {
 	buf_page_t*	prev;
 	buf_page_t*	bpage;
 	ulint		processed = 0;
-	ibool		all_freed = TRUE;
+	bool		all_freed = true;
 
 	buf_flush_list_mutex_enter(buf_pool);
 
@@ -513,7 +555,6 @@ buf_flush_or_remove_pages(
 	     bpage = prev) {
 
 		ut_a(buf_page_in_file(bpage));
-		ut_ad(bpage->in_flush_list);
 
 		/* Save the previous link because once we free the
 		page we can't rely on the links. */
@@ -525,12 +566,12 @@ buf_flush_or_remove_pages(
 			/* Skip this block, as it does not belong to
 			the target space. */
 
-		} else if (!buf_flush_or_remove_page(buf_pool, bpage)) {
+		} else if (!buf_flush_or_remove_page(buf_pool, bpage, flush)) {
 
 			/* Remove was unsuccessful, we have to try again
 			by scanning the entire list from the end. */
 
-			all_freed = FALSE;
+			all_freed = false;
 		}
 
 		++processed;
@@ -543,11 +584,25 @@ buf_flush_or_remove_pages(
 			processed = 0;
 		}
 
+#ifdef DBUG_OFF
+		if (flush) {
+			DBUG_EXECUTE_IF("ib_export_flush_crash",
+					static ulint	n_pages;
+					if (++n_pages == 4) {DBUG_SUICIDE();});
+		}
+#endif /* DBUG_OFF */
+
+		/* The check for trx is interrupted is expensive, we want
+		to check every N iterations. */
+		if (!processed && trx && trx_is_interrupted(trx)) {
+			buf_flush_list_mutex_exit(buf_pool);
+			return(DB_INTERRUPTED);
+		}
 	}
 
 	buf_flush_list_mutex_exit(buf_pool);
 
-	return(all_freed);
+	return(all_freed ? DB_SUCCESS : DB_FAIL);
 }
 
 /******************************************************************//**
@@ -555,35 +610,44 @@ Remove or flush all the dirty pages that belong to a given tablespace
 inside a specific buffer pool instance. The pages will remain in the LRU
 list and will be evicted from the LRU list as they age and move towards
 the tail of the LRU list. */
-static
+static __attribute__((nonnull(1)))
 void
 buf_flush_dirty_pages(
 /*==================*/
 	buf_pool_t*	buf_pool,	/*!< buffer pool instance */
-	ulint		id)		/*!< in: space id */
+	ulint		id,		/*!< in: space id */
+	bool		flush,		/*!< in: flush to disk if true otherwise
+					remove the pages without flushing */
+	const trx_t*	trx)		/*!< to check if the operation must
+					be interrupted */
 {
-	ibool	all_freed;
+	dberr_t		err;
 
 	do {
 		buf_pool_mutex_enter(buf_pool);
 
-		all_freed = buf_flush_or_remove_pages(buf_pool, id);
+		err = buf_flush_or_remove_pages(buf_pool, id, flush, trx);
 
 		buf_pool_mutex_exit(buf_pool);
 
 		ut_ad(buf_flush_validate(buf_pool));
 
-		if (!all_freed) {
+		if (err == DB_FAIL) {
 			os_thread_sleep(20000);
 		}
 
-	} while (!all_freed);
+		/* DB_FAIL is a soft error, it means that the task wasn't
+		completed, needs to be retried. */
+
+		ut_ad(buf_flush_validate(buf_pool));
+
+	} while (err == DB_FAIL);
 }
 
 /******************************************************************//**
 Remove all pages that belong to a given tablespace inside a specific
 buffer pool instance when we are DISCARDing the tablespace. */
-static
+static __attribute__((nonnull))
 void
 buf_LRU_remove_all_pages(
 /*=====================*/
@@ -602,7 +666,7 @@ scan_again:
 	     bpage != NULL;
 	     /* No op */) {
 
-		rw_lock_t*      hash_lock;
+		rw_lock_t*	hash_lock;
 		buf_page_t*	prev_bpage;
 		mutex_t*	block_mutex = NULL;
 
@@ -627,7 +691,6 @@ scan_again:
 			all_freed = FALSE;
 			goto next_page;
 		} else {
-
 			ulint	fold = buf_page_address_fold(
 				bpage->space, bpage->offset);
 
@@ -641,6 +704,8 @@ scan_again:
 			if (bpage->buf_fix_count > 0) {
 
 				mutex_exit(block_mutex);
+
+				rw_lock_x_unlock(hash_lock);
 
 				/* We cannot remove this page during
 				this scan yet; maybe the system is
@@ -689,6 +754,7 @@ scan_again:
 		}
 
 		if (bpage->oldest_modification != 0) {
+
 			buf_flush_remove(bpage);
 		}
 
@@ -711,9 +777,9 @@ scan_again:
 		ut_ad(!mutex_own(block_mutex));
 
 #ifdef UNIV_SYNC_DEBUG
-                /* buf_LRU_block_remove_hashed_page() releases the hash_lock */
-                ut_ad(!rw_lock_own(hash_lock, RW_LOCK_EX));
-                ut_ad(!rw_lock_own(hash_lock, RW_LOCK_SHARED));
+		/* buf_LRU_block_remove_hashed_page() releases the hash_lock */
+		ut_ad(!rw_lock_own(hash_lock, RW_LOCK_EX));
+		ut_ad(!rw_lock_own(hash_lock, RW_LOCK_SHARED));
 #endif /* UNIV_SYNC_DEBUG */
 
 next_page:
@@ -730,17 +796,67 @@ next_page:
 }
 
 /******************************************************************//**
-Removes all pages belonging to a given tablespace. */
+Remove pages belonging to a given tablespace inside a specific
+buffer pool instance when we are deleting the data file(s) of that
+tablespace. The pages still remain a part of LRU and are evicted from
+the list as they age towards the tail of the LRU only if buf_remove
+is BUF_REMOVE_FLUSH_NO_WRITE. */
+static	__attribute__((nonnull(1)))
+void
+buf_LRU_remove_pages(
+/*=================*/
+	buf_pool_t*	buf_pool,	/*!< buffer pool instance */
+	ulint		id,		/*!< in: space id */
+	buf_remove_t	buf_remove,	/*!< in: remove or flush strategy */
+	const trx_t*	trx)		/*!< to check if the operation must
+					be interrupted */
+{
+	switch (buf_remove) {
+	case BUF_REMOVE_ALL_NO_WRITE:
+		buf_LRU_remove_all_pages(buf_pool, id);
+		break;
+
+	case BUF_REMOVE_FLUSH_NO_WRITE:
+		ut_a(trx == 0);
+		buf_flush_dirty_pages(buf_pool, id, false, NULL);
+		ut_ad(trx_is_interrupted(trx)
+		      || buf_pool_get_dirty_pages_count(buf_pool, id) == 0);
+		break;
+
+	case BUF_REMOVE_FLUSH_WRITE:
+		ut_a(trx != 0);
+		buf_flush_dirty_pages(buf_pool, id, true, trx);
+		ut_ad(trx_is_interrupted(trx)
+		      || buf_pool_get_dirty_pages_count(buf_pool, id) == 0);
+		/* Ensure that all asynchronous IO is completed. */
+		os_aio_wait_until_no_pending_writes();
+		fil_flush(id);
+		break;
+	}
+}
+
+/******************************************************************//**
+Flushes all dirty pages or removes all pages belonging
+to a given tablespace. A PROBLEM: if readahead is being started, what
+guarantees that it will not try to read in pages after this operation
+has completed? */
 UNIV_INTERN
 void
 buf_LRU_flush_or_remove_pages(
 /*==========================*/
-	ulint			id,	/*!< in: space id */
-	enum buf_remove_t	buf_remove)/*!< in: remove or flush
-					strategy */
+	ulint		id,		/*!< in: space id */
+	buf_remove_t	buf_remove,	/*!< in: remove or flush strategy */
+	const trx_t*	trx)		/*!< to check if the operation must
+					be interrupted */
 {
 	ulint		i;
 
+	/* Before we attempt to drop pages one by one we first
+	attempt to drop page hash index entries in batches to make
+	it more efficient. The batching attempt is a best effort
+	attempt and does not guarantee that all pages hash entries
+	will be dropped. We get rid of remaining page hash entries
+	one by one below. */
 	for (i = 0; i < srv_buf_pool_instances; i++) {
 		buf_pool_t*	buf_pool;
 
@@ -748,29 +864,25 @@ buf_LRU_flush_or_remove_pages(
 
 		switch (buf_remove) {
 		case BUF_REMOVE_ALL_NO_WRITE:
-			/* A DISCARD tablespace case. Remove AHI entries
-			and evict all pages from LRU. */
-
-			/* Before we attempt to drop pages hash entries
-			one by one we first attempt to drop page hash
-			index entries in batches to make it more
-			efficient. The batching attempt is a best effort
-			attempt and does not guarantee that all pages
-			hash entries will be dropped. We get rid of
-			remaining page hash entries one by one below. */
+		case BUF_REMOVE_FLUSH_NO_WRITE:
 			buf_LRU_drop_page_hash_for_tablespace(buf_pool, id);
-			buf_LRU_remove_all_pages(buf_pool, id);
 			break;
 
-		case BUF_REMOVE_FLUSH_NO_WRITE:
-			/* A DROP table case. AHI entries are already
-			removed. No need to evict all pages from LRU
-			list. Just evict pages from flush list without
-			writing. */
-			buf_flush_dirty_pages(buf_pool, id);
+		case BUF_REMOVE_FLUSH_WRITE:
+			/* We allow read-only queries against the
+			table, there is no need to drop the AHI entries. */
 			break;
 		}
+
+		buf_LRU_remove_pages(buf_pool, id, buf_remove, trx);
 	}
+
+#ifdef UNIV_DEBUG
+	if (trx != 0 && id != 0) {
+		ut_ad(trx_is_interrupted(trx)
+		      || buf_flush_get_dirty_pages_count(id) == 0);
+	}
+#endif /* UNIV_DEBUG */
 }
 
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
