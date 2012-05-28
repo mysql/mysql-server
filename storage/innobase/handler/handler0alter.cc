@@ -1396,7 +1396,7 @@ prepare_inplace_alter_table_dict(
 	bool			add_fts_doc_id_idx)
 {
 	trx_t*			trx;
-	ibool			dict_locked	= FALSE;
+	bool			dict_locked	= false;
 	dict_index_t**		add_index;	/* indexes to be created */
 	ulint*			add_key_nums;	/* MySQL key numbers */
 	ulint			n_add_index;
@@ -1488,7 +1488,7 @@ prepare_inplace_alter_table_dict(
 	or lock waits can happen in it during an index create operation. */
 
 	row_mysql_lock_data_dictionary(trx);
-	dict_locked = TRUE;
+	dict_locked = true;
 
 	online_retry_drop_indexes_low(indexed_table, trx);
 
@@ -1781,7 +1781,7 @@ op_ok:
 	trx_commit_for_mysql(trx);
 
 	row_mysql_unlock_data_dictionary(trx);
-	dict_locked = FALSE;
+	dict_locked = false;
 
 	ut_a(trx->lock.n_active_thrs == 0);
 
