@@ -81,6 +81,27 @@ row_log_table_get_error(
 	__attribute__((nonnull, warn_unused_result));
 
 /******************************************************//**
+Notes that a transaction is being rolled back. */
+UNIV_INTERN
+void
+row_log_table_rollback(
+/*===================*/
+	dict_index_t*	index,	/*!< in/out: clustered index */
+	trx_id_t	trx_id)	/*!< in: transaction being rolled back */
+	UNIV_COLD __attribute__((nonnull));
+
+/******************************************************//**
+Check if a transaction rollback has been initiated.
+@return true if inserts of this transaction were rolled back */
+UNIV_INTERN
+bool
+row_log_table_is_rollback(
+/*======================*/
+	const dict_index_t*	index,	/*!< in: clustered index */
+	trx_id_t		trx_id)	/*!< in: transaction id */
+	__attribute__((nonnull));
+
+/******************************************************//**
 Get the latest transaction ID that has invoked row_log_online_op()
 during online creation.
 @return latest transaction ID, or 0 if nothing was logged */

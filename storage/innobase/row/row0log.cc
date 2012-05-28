@@ -281,6 +281,69 @@ row_log_table_get_error(
 }
 
 /******************************************************//**
+Notes that a transaction is being rolled back. */
+UNIV_INTERN
+void
+row_log_table_rollback(
+/*===================*/
+	dict_index_t*	index,	/*!< in/out: clustered index */
+	trx_id_t	trx_id)	/*!< in: transaction being rolled back */
+{
+	ut_ad(dict_index_is_clust(index));
+#ifdef UNIV_DEBUG
+	ibool	corrupt	= FALSE;
+	ut_ad(trx_rw_is_active(trx_id, &corrupt));
+	ut_ad(!corrupt);
+#endif /* UNIV_DEBUG */
+
+	/* Protect transitions of index->online_status and access to
+	index->online_log. */
+	rw_lock_s_lock(&index->lock);
+
+	if (dict_index_is_online_ddl(index)) {
+		ut_ad(index->online_log);
+		ut_ad(index->online_log->table);
+		mutex_enter(&index->online_log->mutex);
+		trx_id_set*	trxs = index->online_log->trx_rb;
+
+		if (!trxs) {
+			index->online_log->trx_rb = trxs = new trx_id_set();
+		}
+
+		trxs->insert(trx_id);
+
+		mutex_exit(&index->online_log->mutex);
+	}
+
+	rw_lock_s_unlock(&index->lock);
+}
+
+/******************************************************//**
+Check if a transaction rollback has been initiated.
+@return true if inserts of this transaction were rolled back */
+UNIV_INTERN
+bool
+row_log_table_is_rollback(
+/*======================*/
+	const dict_index_t*	index,	/*!< in: clustered index */
+	trx_id_t		trx_id)	/*!< in: transaction id */
+{
+	ut_ad(dict_index_is_clust(index));
+	ut_ad(dict_index_is_online_ddl(index));
+	ut_ad(index->online_log);
+
+	if (const trx_id_set* trxs = index->online_log->trx_rb) {
+		mutex_enter(&index->online_log->mutex);
+		bool is_rollback = trxs->find(trx_id) != trxs->end();
+		mutex_exit(&index->online_log->mutex);
+
+		return(is_rollback);
+	}
+
+	return(false);
+}
+
+/******************************************************//**
 Allocate the row log for an index and flag the index
 for online creation.
 @retval true if success, false if not */
