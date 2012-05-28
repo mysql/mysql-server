@@ -60,6 +60,25 @@ dict_stats_remove_table_from_auto_recalc(
 /* @} */
 
 /*****************************************************************//**
+Wait until background stats thread has stopped using the specified table(s).
+The caller must have locked the data dictionary using
+row_mysql_lock_data_dictionary() and this function may unlock it temporarily
+and restore the lock before it exits.
+The background stats thead is guaranteed not to start using the specified
+tables after this function returns and before the caller unlocks the data
+dictionary because it sets the BG_STAT_IN_PROGRESS bit in table->stats_bg_flag
+under dict_sys->mutex.
+dict_stats_wait_bg_to_stop_using_table() @{ */
+UNIV_INTERN
+void
+dict_stats_wait_bg_to_stop_using_tables(
+/*====================================*/
+	const dict_table_t*	table1,	/*!< in: table1 */
+	const dict_table_t*	table2,	/*!< in: table2, could be NULL */
+	trx_t*			trx);
+/* @} */
+
+/*****************************************************************//**
 Initialize global variables needed for the operation of dict_stats_thread().
 Must be called before dict_stats_thread() is started.
 dict_stats_thread_init() @{ */
