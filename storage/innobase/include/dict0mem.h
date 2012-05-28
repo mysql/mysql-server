@@ -491,12 +491,8 @@ struct dict_index_struct{
 				Transitions from ONLINE_INDEX_COMPLETE (to
 				ONLINE_INDEX_CREATION) are protected
 				by dict_operation_lock and
-				dict_sys->mutex. Transitions of the
-				clustered index from ONLINE_INDEX_CREATION
-				to ONLINE_INDEX_ABORTED (modification log
-				overflow or other error) are protected
-				by index->online_log->mutex. Other
-				changes are protected by index->lock. */
+				dict_sys->mutex. Other changes are
+				protected by index->lock. */
 	dict_field_t*	fields;	/*!< array of field descriptions */
 #ifndef UNIV_HOTBACKUP
 	UT_LIST_NODE_T(dict_index_t)
