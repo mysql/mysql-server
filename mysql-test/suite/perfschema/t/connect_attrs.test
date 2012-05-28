@@ -1,0 +1,74 @@
+# Session connect attributes test
+--source include/have_perfschema.inc
+
+# although the connection attributes transfer code works
+# with embedded P_S is not active, so the test won't run.
+# TODO: remove this when P_S works with embedded.
+--source include/not_embedded.inc
+
+# make sure we're alone
+let $count_sessions= 1;
+--source include/wait_until_count_sessions.inc
+
+# basic performance_schema.session_connect_attrs tests
+
+# check the presense of the pre-defined attributes
+--echo # must return 0, 6
+SELECT SUM(ISNULL(ATTR_VALUE)), COUNT(*)
+  FROM performance_schema.session_connect_attrs
+  WHERE ATTR_NAME IN ('_os', '_client_name', '_pid',
+                      '_client_version', '_platform', 'program_name')
+    AND PROCESSLIST_ID = CONNECTION_ID();
+
+# check the presense of the pre-defined attributes
+--echo # must return 1
+SELECT COUNT(DISTINCT PROCESSLIST_ID)
+  FROM performance_schema.session_connect_attrs;
+
+
+# basic performance_schema.session_account_connect_attrs tests
+
+# check the presense of the pre-defined attributes
+--echo # must return 0, 6
+SELECT SUM(ISNULL(ATTR_VALUE)), COUNT(*)
+  FROM performance_schema.session_account_connect_attrs
+  WHERE ATTR_NAME IN ('_os', '_client_name', '_pid',
+                      '_client_version', '_platform', 'program_name')
+    AND PROCESSLIST_ID = CONNECTION_ID();
+
+# check the presense of the pre-defined attributes
+--echo # must return 1
+SELECT COUNT(DISTINCT PROCESSLIST_ID)
+  FROM performance_schema.session_account_connect_attrs;
+
+
+
+CREATE USER wl5924@localhost;
+
+connect(non_privileged_user,localhost,wl5924,,test);
+connection default;
+
+--echo # must return 1
+SELECT COUNT(DISTINCT PROCESSLIST_ID)
+  FROM performance_schema.session_account_connect_attrs;
+
+--echo # must return 2
+SELECT COUNT(DISTINCT PROCESSLIST_ID)
+  FROM performance_schema.session_connect_attrs;
+
+connection non_privileged_user;
+--echo # must return 1
+SELECT COUNT(DISTINCT PROCESSLIST_ID)
+  FROM performance_schema.session_account_connect_attrs;
+
+--error ER_TABLEACCESS_DENIED_ERROR
+SELECT COUNT(DISTINCT PROCESSLIST_ID)
+  FROM performance_schema.session_connect_attrs;
+
+connection default;
+disconnect non_privileged_user;
+
+DROP USER wl5924@localhost;
+
+# Wait till all disconnects are completed
+--source include/wait_until_count_sessions.inc
