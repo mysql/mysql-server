@@ -1960,7 +1960,26 @@ public:
   */
   ha_rows    examined_row_count;
 
-  USER_CONN *user_connect;
+private:
+  USER_CONN *m_user_connect;
+
+public:
+  void set_user_connect(USER_CONN *uc);
+  const USER_CONN* get_user_connect()
+  { return m_user_connect; }
+
+  void increment_user_connections_counter();
+  void decrement_user_connections_counter();
+
+  void increment_con_per_hour_counter();
+
+  void increment_updates_counter();
+
+  void increment_questions_counter();
+
+  void time_out_user_resource_limits();
+
+public:
   CHARSET_INFO *db_charset;
   Warning_info *warning_info;
   Diagnostics_area *stmt_da;

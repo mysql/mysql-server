@@ -852,7 +852,7 @@ THD::THD()
 #if defined(ENABLED_PROFILING)
   profiling.set_thd(this);
 #endif
-  user_connect=(USER_CONN *)0;
+  m_user_connect= NULL;
   my_hash_init(&user_vars, system_charset_info, USER_VARS_HASH_SIZE, 0, 0,
                (my_hash_get_key) get_var_key,
                (my_hash_free_key) free_user_var, 0);
@@ -5009,3 +5009,87 @@ bool Discrete_intervals_list::append(Discrete_interval *new_interval)
 }
 
 #endif /* !defined(MYSQL_CLIENT) */
+
+void THD::set_user_connect(USER_CONN *uc)
+{
+  DBUG_ENTER("THD::set_user_connect");
+
+  m_user_connect= uc;
+
+  DBUG_VOID_RETURN;
+}
+
+void THD::increment_user_connections_counter()
+{
+  DBUG_ENTER("THD::increment_user_connections_counter");
+
+  m_user_connect->connections++;
+
+  DBUG_VOID_RETURN;
+}
+
+void THD::decrement_user_connections_counter()
+{
+  DBUG_ENTER("THD::decrement_user_connections_counter");
+
+  DBUG_ASSERT(m_user_connect->connections > 0);
+  m_user_connect->connections--;
+
+  DBUG_VOID_RETURN;
+}
+
+void THD::increment_con_per_hour_counter()
+{
+  DBUG_ENTER("THD::decrement_conn_per_hour_counter");
+
+  m_user_connect->conn_per_hour++;
+
+  DBUG_VOID_RETURN;
+}
+
+void THD::increment_updates_counter()
+{
+  DBUG_ENTER("THD::increment_updates_counter");
+
+  m_user_connect->updates++;
+
+  DBUG_VOID_RETURN;
+}
+
+void THD::increment_questions_counter()
+{
+  DBUG_ENTER("THD::increment_updates_counter");
+
+  m_user_connect->questions++;
+
+  DBUG_VOID_RETURN;
+}
+
+/*
+  Reset per-hour user resource limits when it has been more than
+  an hour since they were last checked
+
+  SYNOPSIS:
+    time_out_user_resource_limits()
+
+  NOTE:
+    This assumes that the LOCK_user_conn mutex has been acquired, so it is
+    safe to test and modify members of the USER_CONN structure.
+*/
+void THD::time_out_user_resource_limits()
+{
+  mysql_mutex_assert_owner(&LOCK_user_conn);
+  ulonglong check_time= start_utime;
+  DBUG_ENTER("time_out_user_resource_limits");
+
+  /* If more than a hour since last check, reset resource checking */
+  if (check_time - m_user_connect->reset_utime >= LL(3600000000))
+  {
+    m_user_connect->questions=1;
+    m_user_connect->updates=0;
+    m_user_connect->conn_per_hour=0;
+    m_user_connect->reset_utime= check_time;
+  }
+
+  DBUG_VOID_RETURN;
+}
