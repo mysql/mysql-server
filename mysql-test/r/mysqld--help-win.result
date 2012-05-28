@@ -883,7 +883,10 @@ The following options may be given as the first argument:
  --table-definition-cache=# 
  The number of cached table definitions
  --table-open-cache=# 
- The number of cached open tables
+ The number of cached open tables (total for all table
+ cache instances)
+ --table-open-cache-instances=# 
+ The number of table cache instances
  --tc-heuristic-recover=name 
  Decision to use in heuristic recover process. Possible
  values are COMMIT or ROLLBACK.
@@ -1193,6 +1196,7 @@ sysdate-is-now FALSE
 table-cache 400
 table-definition-cache 400
 table-open-cache 400
+table-open-cache-instances 1
 tc-heuristic-recover COMMIT
 thread-cache-size 0
 thread-handling one-thread-per-connection

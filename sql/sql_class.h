@@ -568,6 +568,9 @@ typedef struct system_status_var
   ulonglong ha_external_lock_count;
   ulonglong opened_tables;
   ulonglong opened_shares;
+  ulonglong table_open_cache_hits;
+  ulonglong table_open_cache_misses;
+  ulonglong table_open_cache_overflows;
   ulonglong select_full_join_count;
   ulonglong select_full_range_join_count;
   ulonglong select_range_count;
