@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2012, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -133,7 +133,7 @@ trx_rollback_to_savepoint_low(
 Rollback a transaction to a given savepoint or do a complete rollback.
 @return	error code or DB_SUCCESS */
 UNIV_INTERN
-int
+dberr_t
 trx_rollback_to_savepoint(
 /*======================*/
 	trx_t*		trx,	/*!< in: transaction handle */
@@ -157,14 +157,14 @@ trx_rollback_to_savepoint(
 
 	srv_active_wake_master_thread();
 
-	return((int) trx->error_state);
+	return(trx->error_state);
 }
 
 /*******************************************************************//**
 Rollback a transaction used in MySQL.
 @return	error code or DB_SUCCESS */
 static
-enum db_err
+dberr_t
 trx_rollback_for_mysql_low(
 /*=======================*/
 	trx_t*	trx)	/*!< in/out: transaction */
@@ -193,7 +193,7 @@ trx_rollback_for_mysql_low(
 Rollback a transaction used in MySQL.
 @return	error code or DB_SUCCESS */
 UNIV_INTERN
-int
+dberr_t
 trx_rollback_for_mysql(
 /*===================*/
 	trx_t*	trx)	/*!< in/out: transaction */
@@ -223,19 +223,19 @@ trx_rollback_for_mysql(
 	}
 
 	ut_error;
-	return((int) DB_CORRUPTION);
+	return(DB_CORRUPTION);
 }
 
 /*******************************************************************//**
 Rollback the latest SQL statement for MySQL.
 @return	error code or DB_SUCCESS */
 UNIV_INTERN
-int
+dberr_t
 trx_rollback_last_sql_stat_for_mysql(
 /*=================================*/
 	trx_t*	trx)	/*!< in/out: transaction */
 {
-	int	err;
+	dberr_t	err;
 
 	/* We are reading trx->state without holding trx_sys->mutex
 	here, because the statement rollback should be invoked for a
@@ -344,8 +344,8 @@ the row, these locks are naturally released in the rollback. Savepoints which
 were set after this savepoint are deleted.
 @return if no savepoint of the name found then DB_NO_SAVEPOINT,
 otherwise DB_SUCCESS */
-static
-ulint
+static __attribute__((nonnull, warn_unused_result))
+dberr_t
 trx_rollback_to_savepoint_for_mysql_low(
 /*====================================*/
 	trx_t*			trx,	/*!< in/out: transaction */
@@ -358,7 +358,7 @@ trx_rollback_to_savepoint_for_mysql_low(
 					binlog entries of the queries
 					executed after the savepoint */
 {
-	ulint	err;
+	dberr_t	err;
 
 	ut_ad(trx_state_eq(trx, TRX_STATE_ACTIVE));
 	ut_ad(trx->in_mysql_trx_list);
@@ -395,7 +395,7 @@ were set after this savepoint are deleted.
 @return if no savepoint of the name found then DB_NO_SAVEPOINT,
 otherwise DB_SUCCESS */
 UNIV_INTERN
-ulint
+dberr_t
 trx_rollback_to_savepoint_for_mysql(
 /*================================*/
 	trx_t*		trx,			/*!< in: transaction handle */
@@ -449,7 +449,7 @@ savepoint and replaces it with a new. Savepoints are deleted in a transaction
 commit or rollback.
 @return	always DB_SUCCESS */
 UNIV_INTERN
-ulint
+dberr_t
 trx_savepoint_for_mysql(
 /*====================*/
 	trx_t*		trx,			/*!< in: transaction handle */
@@ -495,7 +495,7 @@ savepoint are left as is.
 @return if no savepoint of the name found then DB_NO_SAVEPOINT,
 otherwise DB_SUCCESS */
 UNIV_INTERN
-ulint
+dberr_t
 trx_release_savepoint_for_mysql(
 /*============================*/
 	trx_t*		trx,			/*!< in: transaction handle */
@@ -623,19 +623,16 @@ trx_rollback_active(
 	if (trx_get_dict_operation(trx) != TRX_DICT_OP_NONE
 	    && trx->table_id != 0) {
 
-		/* If the transaction was for a dictionary operation, we
-		drop the relevant table, if it still exists */
-
-		fprintf(stderr,
-			"InnoDB: Dropping table with id "UINT64PF
-			" in recovery if it exists\n",
-			(ib_uint64_t) trx->table_id);
+		/* If the transaction was for a dictionary operation,
+		we drop the relevant table only if it is not flagged
+		as DISCARDED. If it still exists. */
 
 		table = dict_table_open_on_id(
 			trx->table_id, dictionary_locked, FALSE);
 
-		if (table) {
-			ulint	err;
+		if (table && !dict_table_is_discarded(table)) {
+
+			dberr_t	err;
 
 			/* Ensure that the table doesn't get evicted from the
 			cache, keeps things simple for drop. */
@@ -646,14 +643,15 @@ trx_rollback_active(
 
 			dict_table_close(table, dictionary_locked, FALSE);
 
-			fputs("InnoDB: Table found: dropping table ", stderr);
-			ut_print_name(stderr, trx, TRUE, table->name);
-			fputs(" in recovery\n", stderr);
+			ib_logf(IB_LOG_LEVEL_WARN,
+				"Dropping table '%s', with id " UINT64PF " "
+				"in recovery",
+				table->name, trx->table_id);
 
 			err = row_drop_table_for_mysql(table->name, trx, TRUE);
 			trx_commit_for_mysql(trx);
 
-			ut_a(err == (int) DB_SUCCESS);
+			ut_a(err == DB_SUCCESS);
 		}
 	}
 
@@ -661,9 +659,8 @@ trx_rollback_active(
 		row_mysql_unlock_data_dictionary(trx);
 	}
 
-	fprintf(stderr, "\nInnoDB: Rolling back of trx id " TRX_ID_FMT
-		" completed\n",
-		trx->id);
+	ib_logf(IB_LOG_LEVEL_INFO,
+		"Rollback of trx with id " TRX_ID_FMT " completed", trx->id);
 
 	mem_heap_free(heap);
 

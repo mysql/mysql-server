@@ -33,9 +33,10 @@
 ###  $mc->get(key)                      returns value or undef
 ###  $mc->delete(key)                   returns 1 on success, 0 on failure
 ###  $mc->stats(stat_key)               get stats; returns a hash
-###  $mc->incr(key, amount, [initial])  returns the new value or undef
-###  $mc->decr(key, amount, [initial]) like incr.  The third argument is used
-###                                     in the Binary protocol ONLY. 
+###  $mc->incr(key, amount)             returns the new value or undef
+###  $mc->decr(key, amount)             like incr. (Note: In the Binary protocol
+###                                     only, incr and decr can take a 3rd 
+###                                     argument, the initial value). 
 ###  $mc->flush()                       flush_all
 ###
 ###  $mc->set_expires(sec)              Set TTL for all store operations
@@ -49,8 +50,6 @@
 ###    Wait for NDB/Memcache to complete online reconfiguration.  
 ###    Returns the generation number of the newly running configuration, 
 ###    or zero on timeout/error. 
-
-###  TO DO: REPLACE with CAS ID.
 
 use strict;
 use lib 'lib';

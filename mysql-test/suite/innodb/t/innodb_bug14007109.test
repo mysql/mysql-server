@@ -1,0 +1,38 @@
+#
+# Bug#14007109 RECURSIVE ACQ OF BLOCK LOCK IN S MODE, STATS UPDATE ASRT !RW_LOCK_OWN(LOCK, 352)
+#
+
+-- source include/have_innodb.inc
+# The assertion only fails in debug versions, so no need to test in non-debug
+-- source include/have_debug.inc
+
+CREATE TABLE bug14007109 (
+	a VARCHAR(512), PRIMARY KEY (a)
+) ENGINE=INNODB STATS_PERSISTENT=1;
+
+BEGIN;
+-- disable_query_log
+# As of the time this test is added, 854 pages do not trigger the assert,
+# while 855 do. We use a bigger number here just in case. What is needed
+# is to have a btree with 3 levels, where the level in the middle contains
+# two (or more) pages. The persistent stats code crawls that level twice
+# in the same mtr:
+# dict_stats_analyze_index()
+#   start mtr
+#   dict_stats_analyze_index_level(mtr)
+#     traverse the level (leaves the last page in the middle level S-latched)
+#   dict_stats_analyze_index_for_n_prefix(mtr)
+#     traverse the level (would try to S-latch the last page)
+#   commit mtr
+let $i=900;
+while ($i) {
+        eval INSERT INTO bug14007109 VALUES (REPEAT(1000+$i, 128));
+        dec $i;
+}
+-- enable_query_log
+COMMIT;
+
+# We get a (debug) assertion failure here if the bug exists
+ANALYZE TABLE bug14007109;
+
+DROP TABLE bug14007109;

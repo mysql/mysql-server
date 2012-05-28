@@ -2073,6 +2073,26 @@ t6	e	timestamp	6
 #
 # Clean-up.
 drop database mysqltest;
+use test;
 #
 # End of 5.5 tests
+#
+#
+# Bug #13966514 : CRASH IN GET_SCHEMA_TABLES_RESULT WITH MIN/MAX, 
+#   LEFT/RIGHT JOIN ON I_S TABLE
+#
+CREATE TABLE t1(a INT PRIMARY KEY);
+INSERT INTO t1 VALUES (1);
+# must not crash
+SELECT MAX(a) FROM information_schema.engines RIGHT JOIN t1 ON 1;
+MAX(a)
+1
+DROP TABLE t1;
+#
+# BUG#13463397 - 63562: UNKNOWN DATABASE INFORMATION_SCHEMA 
+#
+CREATE PROCEDURE information_schema.is() BEGIN END;
+ERROR 42000: Access denied for user 'root'@'localhost' to database 'information_schema'
+#
+# End of 5.6 tests
 #

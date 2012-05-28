@@ -275,7 +275,7 @@ the query thread to the lock wait state and inserts a waiting request
 for a gap x-lock to the lock queue.
 @return	DB_SUCCESS, DB_LOCK_WAIT, DB_DEADLOCK, or DB_QUE_THR_SUSPENDED */
 UNIV_INTERN
-ulint
+dberr_t
 lock_rec_insert_check_and_lock(
 /*===========================*/
 	ulint		flags,	/*!< in: if BTR_NO_LOCKING_FLAG bit is
@@ -285,10 +285,11 @@ lock_rec_insert_check_and_lock(
 	dict_index_t*	index,	/*!< in: index */
 	que_thr_t*	thr,	/*!< in: query thread */
 	mtr_t*		mtr,	/*!< in/out: mini-transaction */
-	ibool*		inherit);/*!< out: set to TRUE if the new
+	ibool*		inherit)/*!< out: set to TRUE if the new
 				inserted record maybe should inherit
 				LOCK_GAP type locks from the successor
 				record */
+	__attribute__((nonnull, warn_unused_result));
 /*********************************************************************//**
 Checks if locks of other transactions prevent an immediate modify (update,
 delete mark, or delete unmark) of a clustered index record. If they do,
@@ -298,7 +299,7 @@ lock wait state and inserts a waiting request for a record x-lock to the
 lock queue.
 @return	DB_SUCCESS, DB_LOCK_WAIT, DB_DEADLOCK, or DB_QUE_THR_SUSPENDED */
 UNIV_INTERN
-ulint
+dberr_t
 lock_clust_rec_modify_check_and_lock(
 /*=================================*/
 	ulint			flags,	/*!< in: if BTR_NO_LOCKING_FLAG
@@ -315,7 +316,7 @@ Checks if locks of other transactions prevent an immediate modify
 (delete mark or delete unmark) of a secondary index record.
 @return	DB_SUCCESS, DB_LOCK_WAIT, DB_DEADLOCK, or DB_QUE_THR_SUSPENDED */
 UNIV_INTERN
-ulint
+dberr_t
 lock_sec_rec_modify_check_and_lock(
 /*===============================*/
 	ulint		flags,	/*!< in: if BTR_NO_LOCKING_FLAG
@@ -337,7 +338,7 @@ secondary index record.
 @return	DB_SUCCESS, DB_SUCCESS_LOCKED_REC, DB_LOCK_WAIT, DB_DEADLOCK,
 or DB_QUE_THR_SUSPENDED */
 UNIV_INTERN
-enum db_err
+dberr_t
 lock_sec_rec_read_check_and_lock(
 /*=============================*/
 	ulint			flags,	/*!< in: if BTR_NO_LOCKING_FLAG
@@ -367,7 +368,7 @@ lock on the record.
 @return	DB_SUCCESS, DB_SUCCESS_LOCKED_REC, DB_LOCK_WAIT, DB_DEADLOCK,
 or DB_QUE_THR_SUSPENDED */
 UNIV_INTERN
-enum db_err
+dberr_t
 lock_clust_rec_read_check_and_lock(
 /*===============================*/
 	ulint			flags,	/*!< in: if BTR_NO_LOCKING_FLAG
@@ -398,7 +399,7 @@ lock_clust_rec_read_check_and_lock() that does not require the parameter
 "offsets".
 @return	DB_SUCCESS, DB_LOCK_WAIT, DB_DEADLOCK, or DB_QUE_THR_SUSPENDED */
 UNIV_INTERN
-ulint
+dberr_t
 lock_clust_rec_read_check_and_lock_alt(
 /*===================================*/
 	ulint			flags,	/*!< in: if BTR_NO_LOCKING_FLAG
@@ -416,13 +417,14 @@ lock_clust_rec_read_check_and_lock_alt(
 					SELECT FOR UPDATE */
 	ulint			gap_mode,/*!< in: LOCK_ORDINARY, LOCK_GAP, or
 					LOCK_REC_NOT_GAP */
-	que_thr_t*		thr);	/*!< in: query thread */
+	que_thr_t*		thr)	/*!< in: query thread */
+	__attribute__((nonnull, warn_unused_result));
 /*********************************************************************//**
 Checks that a record is seen in a consistent read.
-@return TRUE if sees, or FALSE if an earlier version of the record
+@return true if sees, or false if an earlier version of the record
 should be retrieved */
 UNIV_INTERN
-ibool
+bool
 lock_clust_rec_cons_read_sees(
 /*==========================*/
 	const rec_t*	rec,	/*!< in: user record which should be read or
@@ -434,26 +436,27 @@ lock_clust_rec_cons_read_sees(
 Checks that a non-clustered index record is seen in a consistent read.
 
 NOTE that a non-clustered index page contains so little information on
-its modifications that also in the case FALSE, the present version of
+its modifications that also in the case false, the present version of
 rec may be the right, but we must check this from the clustered index
 record.
 
-@return TRUE if certainly sees, or FALSE if an earlier version of the
+@return true if certainly sees, or false if an earlier version of the
 clustered index record might be needed */
 UNIV_INTERN
-ulint
+bool
 lock_sec_rec_cons_read_sees(
 /*========================*/
 	const rec_t*		rec,	/*!< in: user record which
 					should be read or passed over
 					by a read cursor */
-	const read_view_t*	view);	/*!< in: consistent read view */
+	const read_view_t*	view)	/*!< in: consistent read view */
+	__attribute__((nonnull, warn_unused_result));
 /*********************************************************************//**
 Locks the specified database table in the mode given. If the lock cannot
 be granted immediately, the query thread is put to wait.
 @return	DB_SUCCESS, DB_LOCK_WAIT, DB_DEADLOCK, or DB_QUE_THR_SUSPENDED */
 UNIV_INTERN
-ulint
+dberr_t
 lock_table(
 /*=======*/
 	ulint		flags,	/*!< in: if BTR_NO_LOCKING_FLAG bit is set,
@@ -461,7 +464,8 @@ lock_table(
 	dict_table_t*	table,	/*!< in/out: database table
 				in dictionary cache */
 	enum lock_mode	mode,	/*!< in: lock mode */
-	que_thr_t*	thr);	/*!< in: query thread */
+	que_thr_t*	thr)	/*!< in: query thread */
+	__attribute__((nonnull, warn_unused_result));
 /*************************************************************//**
 Removes a granted record lock of a transaction from the queue and grants
 locks to other transactions waiting in the queue if they now are entitled
@@ -783,7 +787,7 @@ was selected as a deadlock victim, or if it has to wait then cancel
 the wait lock.
 @return DB_DEADLOCK, DB_LOCK_WAIT or DB_SUCCESS */
 UNIV_INTERN
-enum db_err
+dberr_t
 lock_trx_handle_wait(
 /*=================*/
 	trx_t*	trx)	/*!< in/out: trx lock state */
@@ -879,6 +883,16 @@ struct lock_sys_struct{
 						recovered transactions is
 						complete. Protected by
 						lock_sys->mutex */
+
+	ulint		n_lock_max_wait_time;	/*!< Max wait time */
+
+	os_event_t	timeout_event;		/*!< Set to the event that is
+						created in the lock wait monitor
+						thread. A value of 0 means the
+						thread is not active */
+
+	bool		timeout_thread_active;	/*!< True if the timeout thread
+						is running */
 };
 
 /** The lock system */
@@ -912,14 +926,6 @@ extern lock_sys_t*	lock_sys;
 #define lock_wait_mutex_exit() do {		\
 	mutex_exit(&lock_sys->wait_mutex);	\
 } while (0)
-
-// FIXME: Move these to lock_sys_t
-extern	ibool		srv_lock_timeout_active;
-extern	ulint		srv_n_lock_wait_count;
-extern	ulint		srv_n_lock_wait_current_count;
-extern	ib_int64_t	srv_n_lock_wait_time;
-extern	ulint		srv_n_lock_max_wait_time;
-extern	os_event_t	srv_lock_timeout_thread_event;
 
 #ifndef UNIV_NONINL
 #include "lock0lock.ic"

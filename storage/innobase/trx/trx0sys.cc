@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2012, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -700,7 +700,7 @@ Check for the max file format tag stored on disk. Note: If max_format_id
 is == UNIV_FORMAT_MAX + 1 then we only print a warning.
 @return	DB_SUCCESS or error code */
 UNIV_INTERN
-ulint
+dberr_t
 trx_sys_file_format_max_check(
 /*==========================*/
 	ulint	max_format_id)	/*!< in: max format id to check */
@@ -1251,7 +1251,7 @@ trx_sys_any_active_transactions(void)
 	mutex_enter(&trx_sys->mutex);
 
 	total_trx = UT_LIST_GET_LEN(trx_sys->rw_trx_list)
-		+ trx_sys->n_mysql_trx;
+		  + UT_LIST_GET_LEN(trx_sys->mysql_trx_list);
 
 	ut_a(total_trx >= trx_sys->n_prepared_trx);
 	total_trx -= trx_sys->n_prepared_trx;

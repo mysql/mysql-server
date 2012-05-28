@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -2834,7 +2834,7 @@ Create_sp_func::create(THD *thd, LEX_STRING db, LEX_STRING name,
 
   qname= new (thd->mem_root) sp_name(db, name, use_explicit_name);
   qname->init_qname(thd);
-  sp_add_used_routine(lex, thd, qname, TYPE_ENUM_FUNCTION);
+  sp_add_used_routine(lex, thd, qname, SP_TYPE_FUNCTION);
 
   if (arg_count > 0)
     func= new (thd->mem_root) Item_func_sp(lex->current_context(), qname,
@@ -4700,7 +4700,8 @@ Create_func_pi Create_func_pi::s_singleton;
 Item*
 Create_func_pi::create(THD *thd)
 {
-  return new (thd->mem_root) Item_static_float_func("pi()", M_PI, 6, 8);
+  return new (thd->mem_root) Item_static_float_func(NAME_STRING("pi()"),
+                                                    M_PI, 6, 8);
 }
 
 
@@ -4827,7 +4828,7 @@ Create_func_round::create_native(THD *thd, LEX_STRING name,
   case 1:
   {
     Item *param_1= item_list->pop();
-    Item *i0 = new (thd->mem_root) Item_int((char*)"0", 0, 1);
+    Item *i0 = new (thd->mem_root) Item_int_0();
     func= new (thd->mem_root) Item_func_round(param_1, i0, 0);
     break;
   }
@@ -5186,7 +5187,7 @@ Item*
 Create_func_version::create(THD *thd)
 {
   thd->lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_SYSTEM_FUNCTION);
-  return new (thd->mem_root) Item_static_string_func("version()",
+  return new (thd->mem_root) Item_static_string_func(NAME_STRING("version()"),
                                                      server_version,
                                                      (uint) strlen(server_version),
                                                      system_charset_info,
@@ -5208,7 +5209,7 @@ Create_func_weekofyear Create_func_weekofyear::s_singleton;
 Item*
 Create_func_weekofyear::create(THD *thd, Item *arg1)
 {
-  Item *i1= new (thd->mem_root) Item_int((char*) "0", 3, 1);
+  Item *i1= new (thd->mem_root) Item_int(NAME_STRING("0"), 3, 1);
   return new (thd->mem_root) Item_func_week(arg1, i1);
 }
 
@@ -5291,7 +5292,7 @@ Create_func_year_week::create_native(THD *thd, LEX_STRING name,
   case 1:
   {
     Item *param_1= item_list->pop();
-    Item *i0= new (thd->mem_root) Item_int((char*) "0", 0, 1);
+    Item *i0= new (thd->mem_root) Item_int_0();
     func= new (thd->mem_root) Item_func_yearweek(param_1, i0);
     break;
   }

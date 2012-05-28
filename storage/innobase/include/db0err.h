@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2012, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -27,7 +27,7 @@ Created 5/24/1996 Heikki Tuuri
 #define db0err_h
 
 
-enum db_err {
+enum dberr_t {
 	DB_SUCCESS_LOCKED_REC = 9,	/*!< like DB_SUCCESS, but a new
 					explicit record lock was created */
 	DB_SUCCESS = 10,
@@ -71,8 +71,11 @@ enum db_err {
 	DB_TABLESPACE_ALREADY_EXISTS,	/*!< we cannot create a new single-table
 					tablespace because a file of the same
 					name already exists */
-	DB_TABLESPACE_DELETED,		/*!< tablespace does not exist or is
+	DB_TABLESPACE_DELETED,		/*!< tablespace was deleted or is
 					being dropped right now */
+	DB_TABLESPACE_NOT_FOUND,	/*<! Attempt to delete a tablespace
+					instance that was not found in the
+					tablespace hash table */
 	DB_LOCK_TABLE_FULL,		/*!< lock structs have exhausted the
 					buffer pool (for big transactions,
 					InnoDB stores the lock structs in the
@@ -114,9 +117,13 @@ enum db_err {
 	DB_UNDO_RECORD_TOO_BIG,		/*!< the undo log record is too big */
 	DB_READ_ONLY,			/*!< Update operation attempted in
 					a read-only transaction */
-	DB_FTS_INVALID_DOCID,		/*!< FTS Doc ID cannot be zero */
+	DB_FTS_INVALID_DOCID,		/* FTS Doc ID cannot be zero */
+	DB_TABLE_IN_FK_CHECK,		/* table is being used in foreign
+					key check */
 	DB_ONLINE_LOG_TOO_BIG,		/*!< Modification log grew too big
 					during online index creation */
+
+	DB_IO_ERROR,			/*!< Generic IO error */
 
 	/* The following are partial failure codes */
 	DB_FAIL = 1000,

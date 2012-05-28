@@ -49,7 +49,7 @@ IF(HAVE_VISIBILITY_HIDDEN)
 ENDIF()
 
 SET(SQL_SHARED_SOURCES
-  abstract_query_plan.cc # MCP_WL4784
+  abstract_query_plan.cc
   datadict.cc
   debug_sync.cc
   derror.cc
@@ -111,6 +111,7 @@ SET(SQL_SHARED_SOURCES
   sp.cc
   sp_cache.cc
   sp_head.cc
+  sp_instr.cc
   sp_pcontext.cc 
   sp_rcontext.cc
   spatial.cc
@@ -127,6 +128,7 @@ SET(SQL_SHARED_SOURCES
   sql_connect.cc
   sql_crypt.cc
   sql_cursor.cc
+  sql_data_change.cc
   sql_db.cc
   sql_delete.cc
   sql_derived.cc

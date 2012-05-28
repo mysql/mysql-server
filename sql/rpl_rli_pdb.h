@@ -345,12 +345,13 @@ public:
   en_running_state volatile running_status;
 
   int init_worker(Relay_log_info*, ulong);
-  int init_info();
+  int init_info(bool);
   void end_info();
   int flush_info(bool force= FALSE);
-  size_t get_number_worker_fields();
+  static size_t get_number_worker_fields();
   void slave_worker_ends_group(Log_event*, int);
   bool commit_positions(Log_event *evt, Slave_job_group *ptr_g, bool force);
+  bool reset_recovery_info();
 
 protected:
 

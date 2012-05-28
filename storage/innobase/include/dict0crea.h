@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2009, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2012, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -99,11 +99,11 @@ dict_drop_index_tree(
 	mtr_t*	mtr);	/*!< in: mtr having the latch on the record page */
 /****************************************************************//**
 Creates the foreign key constraints system tables inside InnoDB
-at database creation or database start if they are not found or are
+at server bootstrap or server start if they are not found or are
 not of the right form.
 @return	DB_SUCCESS or error code */
 UNIV_INTERN
-ulint
+dberr_t
 dict_create_or_check_foreign_constraint_tables(void);
 /*================================================*/
 /********************************************************************//**
@@ -115,7 +115,7 @@ given locally for this table, that is, the number is not global, as in the
 old format constraints < 4.0.18 it used to be.
 @return	error code or DB_SUCCESS */
 UNIV_INTERN
-ulint
+dberr_t
 dict_create_add_foreigns_to_dictionary(
 /*===================================*/
 	ulint		start_id,/*!< in: if we are actually doing ALTER TABLE
@@ -127,10 +127,10 @@ dict_create_add_foreigns_to_dictionary(
 				so far has no constraints for which the name
 				was generated here */
 	dict_table_t*	table,	/*!< in: table */
-	trx_t*		trx);	/*!< in: transaction */
+	trx_t*		trx)	/*!< in: transaction */
+	__attribute__((nonnull, warn_unused_result));
 
 /* Table create node structure */
-
 struct tab_node_struct{
 	que_common_t	common;	/*!< node type: QUE_NODE_TABLE_CREATE */
 	dict_table_t*	table;	/*!< table to create, built as a memory data

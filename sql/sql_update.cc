@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -162,17 +162,13 @@ static bool check_fields(THD *thd, List<Item> &items)
 }
 
 
-#ifndef MCP_WL5906
-/*
+/**
   Check if all expressions in list are constant expressions
 
-  SYNOPSIS
-    check_constant_expressions()
-    values                       List of expressions
+  @param[in] values List of expressions
 
-  RETURN
-    TRUE                         Only constant expressions
-    FALSE                        At least one non-constant expression
+  @retval true Only constant expressions
+  @retval false At least one non-constant expression
 */
 
 static bool check_constant_expressions(List<Item> &values)
@@ -186,13 +182,12 @@ static bool check_constant_expressions(List<Item> &values)
     if (!value->const_item())
     {
       DBUG_PRINT("exit", ("expression is not constant"));
-      DBUG_RETURN(FALSE);
+      DBUG_RETURN(false);
     }
   }
   DBUG_PRINT("exit", ("expression is constant"));
-  DBUG_RETURN(TRUE);
+  DBUG_RETURN(true);
 }
-#endif
 
 
 /**
@@ -305,11 +300,9 @@ int mysql_update(THD *thd,
   bool          need_sort= TRUE;
   bool          reverse= FALSE;
   bool          using_filesort;
+  bool          read_removal= false;
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   uint		want_privilege;
-#endif
-#ifndef MCP_WL5906
-  bool read_removal= false;
 #endif
   uint          table_count= 0;
   ha_rows	updated, found;
@@ -480,37 +473,6 @@ int mysql_update(THD *thd,
       DBUG_RETURN(0);
     }
   } // Ends scope for optimizer trace wrapper
-
-#ifndef MCP_WL5906
-  /*
-    Read removal is possible if the selected quick read
-    method is using full unique index
-
-    NOTE! table->read_set currently holds the columns which are
-    used for the WHERE clause(this info is most likely already
-    available in select->quick, but where?)
-  */
-  if (select && select->quick && select->quick->index != MAX_KEY &&
-      !ignore &&
-      !using_limit &&
-      table->file->read_before_write_removal_supported())
-  {
-    const uint idx= select->quick->index;
-    DBUG_PRINT("rbwr", ("checking index: %d", idx));
-    const KEY *key= table->key_info + idx;
-    if ((key->flags & HA_NOSAME) == HA_NOSAME)
-    {
-      DBUG_PRINT("rbwr", ("index is unique"));
-      bitmap_clear_all(&table->tmp_set);
-      table->mark_columns_used_by_index_no_reset(idx, &table->tmp_set);
-      if (bitmap_cmp(&table->tmp_set, table->read_set))
-      {
-        DBUG_PRINT("rbwr", ("using full index, rbwr possible"));
-        read_removal= true;
-      }
-    }
-  }
-#endif
 
   /* If running in safe sql mode, don't allow updates without keys */
   if (table->quick_keys.is_clear_all())
@@ -697,12 +659,6 @@ int mysql_update(THD *thd,
     }
     if (used_index < MAX_KEY && old_covering_keys.is_set(used_index))
       table->set_keyread(false);
-
-#ifndef MCP_WL5906
-    /* Rows are already read -> not possible to remove */
-    DBUG_PRINT("rbwr", ("rows are already read, turning off rbwr"));
-    read_removal= false;
-#endif
   }
 
   if (ignore)
@@ -741,15 +697,11 @@ int mysql_update(THD *thd,
   else
     will_batch= !table->file->start_bulk_update();
 
-#ifndef MCP_WL5906
-  if (read_removal &&
-      will_batch &&
+  if ((table->file->ha_table_flags() & HA_READ_BEFORE_WRITE_REMOVAL) &&
+      !ignore && !using_limit &&
+      select && select->quick && select->quick->index != MAX_KEY &&
       check_constant_expressions(values))
-  {
-    assert(select && select->quick);
-    read_removal= table->file->read_before_write_removal_possible();
-  }
-#endif
+    read_removal= table->check_read_removal(select->quick->index);
 
   // For prepare_record_for_error_message():
   if (table->file->ha_table_flags() & HA_PARTIAL_COLUMN_READ)
@@ -962,21 +914,13 @@ int mysql_update(THD *thd,
     table->file->end_bulk_update();
   table->file->try_semi_consistent_read(0);
 
-#ifndef MCP_WL5906
   if (read_removal)
   {
     /* Only handler knows how many records really was written */
-    DBUG_PRINT("rbwr", ("adjusting updated: %ld, found: %ld",
-                        (long)updated, (long)found));
-
-    updated= table->file->read_before_write_removal_rows_written();
+    updated= table->file->end_read_removal();
     if (!records_are_comparable(table))
       found= updated;
-
-    DBUG_PRINT("rbwr", ("really updated: %ld, found: %ld",
-                        (long)updated, (long)found));
   }
-#endif
 
   if (!transactional_table && updated > 0)
     thd->transaction.stmt.mark_modified_non_trans_table();
@@ -1531,7 +1475,7 @@ bool mysql_multi_update(THD *thd,
     DBUG_RETURN(TRUE);
   }
 
-  thd->abort_on_warning= thd->is_strict_mode();
+  thd->abort_on_warning= (!ignore && thd->is_strict_mode());
 
   if (thd->lex->describe)
     res= explain_multi_table_modification(thd, *result);
@@ -2264,7 +2208,8 @@ int multi_update::do_updates()
     org_updated= updated;
     tmp_table= tmp_tables[cur_table->shared];
     tmp_table->file->extra(HA_EXTRA_CACHE);	// Change to read cache
-    (void) table->file->ha_rnd_init(0);
+    if ((local_error= table->file->ha_rnd_init(0)))
+      goto err;
     table->file->extra(HA_EXTRA_NO_CACHE);
 
     check_opt_it.rewind();
@@ -2389,11 +2334,16 @@ err:
   }
 
 err2:
-  (void) table->file->ha_rnd_end();
-  (void) tmp_table->file->ha_rnd_end();
+  if (table->file->inited)
+    (void) table->file->ha_rnd_end();
+  if (tmp_table->file->inited)
+    (void) tmp_table->file->ha_rnd_end();
   check_opt_it.rewind();
   while (TABLE *tbl= check_opt_it++)
-      tbl->file->ha_rnd_end();
+  {
+    if (tbl->file->inited)
+      (void) tbl->file->ha_rnd_end();
+  }
 
   if (updated != org_updated)
   {

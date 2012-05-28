@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -748,29 +748,43 @@ bool make_date_time(DATE_TIME_FORMAT *format, MYSQL_TIME *l_time,
   from the high end. This allows one to give:
   DAY_TO_SECOND as "D MM:HH:SS", "MM:HH:SS" "HH:SS" or as seconds.
 
-  @param length:         length of str
-  @param cs:             charset of str
-  @param values:         array of results
+  @param args            item expression which we convert to an ASCII string
+  @param str_value       string buffer
+  @param is_negative     set to true if interval is prefixed by '-'
   @param count:          count of elements in result array
+  @param values:         array of results
   @param transform_msec: if value is true we suppose
                          that the last part of string value is microseconds
                          and we should transform value to six digit value.
                          For example, '1.1' -> '1.100000'
 */
 
-static bool get_interval_info(const char *str, uint length,
-                              const CHARSET_INFO *cs,
+static bool get_interval_info(Item *args,
+                              String *str_value,
+                              bool *is_negative,
                               uint count, ulonglong *values,
                               bool transform_msec)
 {
-  const char *end=str+length;
-  uint i;
-  long msec_length= 0;
+  String *res;
+  if (!(res= args->val_str_ascii(str_value)))
+    return true;
 
-  while (str != end && !my_isdigit(cs,*str))
+  const CHARSET_INFO *cs= res->charset();
+  const char *str= res->ptr();
+  const char *end= str + res->length();
+
+  str+= cs->cset->scan(cs, str, end, MY_SEQ_SPACES);
+  if (str < end && *str == '-')
+  {
+    *is_negative= true;
+    str++;
+  }
+
+  while (str < end && !my_isdigit(cs,*str))
     str++;
 
-  for (i=0 ; i < count ; i++)
+  long msec_length= 0;
+  for (uint i=0 ; i < count ; i++)
   {
     longlong value;
     const char *start= str;
@@ -812,7 +826,8 @@ bool Item_temporal_func::check_precision()
 }
 
 
-int Item_temporal_hybrid_func::save_in_field(Field *field, bool no_conversions)
+type_conversion_status
+Item_temporal_hybrid_func::save_in_field(Field *field, bool no_conversions)
 {
   if (cached_field_type == MYSQL_TYPE_TIME)
     return save_time_in_field(field);
@@ -1499,14 +1514,11 @@ longlong Item_func_time_to_sec::val_int()
   To make code easy, allow interval objects without separators.
 */
 
-bool get_interval_value(Item *args,interval_type int_type,
-			       String *str_value, INTERVAL *interval)
+bool get_interval_value(Item *args, interval_type int_type,
+                        String *str_value, INTERVAL *interval)
 {
   ulonglong array[5];
   longlong UNINIT_VAR(value);
-  const char *UNINIT_VAR(str);
-  size_t UNINIT_VAR(length);
-  const CHARSET_INFO *cs=str_value->charset();
 
   memset(interval, 0, sizeof(*interval));
   if (int_type == INTERVAL_SECOND && args->decimals)
@@ -1515,50 +1527,32 @@ bool get_interval_value(Item *args,interval_type int_type,
     lldiv_t tmp;
     if (!(val= args->val_decimal(&decimal_value)) ||
         my_decimal2lldiv_t(E_DEC_FATAL_ERROR, val, &tmp))
-      return 0;
+      return false;
     
     if (tmp.quot >= 0 && tmp.rem >= 0)
     {
-      interval->neg= 0;
+      interval->neg= false;
       interval->second= tmp.quot;
       interval->second_part= tmp.rem / 1000;
     }
     else
     {
-      interval->neg= 1;
+      interval->neg= true;
       interval->second= -tmp.quot;
       interval->second_part= -tmp.rem / 1000;
     }
-    return 0;
+    return false;
   }
   else if (int_type <= INTERVAL_MICROSECOND)
   {
     value= args->val_int();
     if (args->null_value)
-      return 1;
+      return true;
     if (value < 0)
     {
-      interval->neg=1;
+      interval->neg= true;
       value= -value;
     }
-  }
-  else
-  {
-    String *res;
-    if (!(res= args->val_str_ascii(str_value)))
-      return (1);
-
-    /* record negative intervalls in interval->neg */
-    str=res->ptr();
-    const char *end=str+res->length();
-    while (str != end && my_isspace(cs,*str))
-      str++;
-    if (str != end && *str == '-')
-    {
-      interval->neg=1;
-      str++;
-    }
-    length= (size_t) (end-str);		// Set up pointers to new str
   }
 
   switch (int_type) {
@@ -1580,88 +1574,88 @@ bool get_interval_value(Item *args,interval_type int_type,
   case INTERVAL_HOUR:
     interval->hour= (ulong) value;
     break;
-  case INTERVAL_MICROSECOND:
-    interval->second_part=value;
-    break;
   case INTERVAL_MINUTE:
     interval->minute=value;
     break;
   case INTERVAL_SECOND:
     interval->second=value;
     break;
+  case INTERVAL_MICROSECOND:
+    interval->second_part=value;
+    break;
   case INTERVAL_YEAR_MONTH:			// Allow YEAR-MONTH YYYYYMM
-    if (get_interval_info(str,length,cs,2,array,0))
-      return (1);
+    if (get_interval_info(args, str_value, &interval->neg, 2, array, false))
+      return true;
     interval->year=  (ulong) array[0];
     interval->month= (ulong) array[1];
     break;
   case INTERVAL_DAY_HOUR:
-    if (get_interval_info(str,length,cs,2,array,0))
-      return (1);
+    if (get_interval_info(args, str_value, &interval->neg, 2, array, false))
+      return true;
     interval->day=  (ulong) array[0];
     interval->hour= (ulong) array[1];
     break;
+  case INTERVAL_DAY_MINUTE:
+    if (get_interval_info(args, str_value, &interval->neg, 3, array, false))
+      return true;
+    interval->day=    (ulong) array[0];
+    interval->hour=   (ulong) array[1];
+    interval->minute= array[2];
+    break;
+  case INTERVAL_DAY_SECOND:
+    if (get_interval_info(args, str_value, &interval->neg, 4, array, false))
+      return true;
+    interval->day=    (ulong) array[0];
+    interval->hour=   (ulong) array[1];
+    interval->minute= array[2];
+    interval->second= array[3];
+    break;
+  case INTERVAL_HOUR_MINUTE:
+    if (get_interval_info(args, str_value, &interval->neg, 2, array, false))
+      return true;
+    interval->hour=   (ulong) array[0];
+    interval->minute= array[1];
+    break;
+  case INTERVAL_HOUR_SECOND:
+    if (get_interval_info(args, str_value, &interval->neg, 3, array, false))
+      return true;
+    interval->hour=   (ulong) array[0];
+    interval->minute= array[1];
+    interval->second= array[2];
+    break;
+  case INTERVAL_MINUTE_SECOND:
+    if (get_interval_info(args, str_value, &interval->neg, 2, array, false))
+      return true;
+    interval->minute= array[0];
+    interval->second= array[1];
+    break;
   case INTERVAL_DAY_MICROSECOND:
-    if (get_interval_info(str,length,cs,5,array,1))
-      return (1);
+    if (get_interval_info(args, str_value, &interval->neg, 5, array, true))
+      return true;
     interval->day=    (ulong) array[0];
     interval->hour=   (ulong) array[1];
     interval->minute= array[2];
     interval->second= array[3];
     interval->second_part= array[4];
     break;
-  case INTERVAL_DAY_MINUTE:
-    if (get_interval_info(str,length,cs,3,array,0))
-      return (1);
-    interval->day=    (ulong) array[0];
-    interval->hour=   (ulong) array[1];
-    interval->minute= array[2];
-    break;
-  case INTERVAL_DAY_SECOND:
-    if (get_interval_info(str,length,cs,4,array,0))
-      return (1);
-    interval->day=    (ulong) array[0];
-    interval->hour=   (ulong) array[1];
-    interval->minute= array[2];
-    interval->second= array[3];
-    break;
   case INTERVAL_HOUR_MICROSECOND:
-    if (get_interval_info(str,length,cs,4,array,1))
-      return (1);
+    if (get_interval_info(args, str_value, &interval->neg, 4, array, true))
+      return true;
     interval->hour=   (ulong) array[0];
     interval->minute= array[1];
     interval->second= array[2];
     interval->second_part= array[3];
     break;
-  case INTERVAL_HOUR_MINUTE:
-    if (get_interval_info(str,length,cs,2,array,0))
-      return (1);
-    interval->hour=   (ulong) array[0];
-    interval->minute= array[1];
-    break;
-  case INTERVAL_HOUR_SECOND:
-    if (get_interval_info(str,length,cs,3,array,0))
-      return (1);
-    interval->hour=   (ulong) array[0];
-    interval->minute= array[1];
-    interval->second= array[2];
-    break;
   case INTERVAL_MINUTE_MICROSECOND:
-    if (get_interval_info(str,length,cs,3,array,1))
-      return (1);
+    if (get_interval_info(args, str_value, &interval->neg, 3, array, true))
+      return true;
     interval->minute= array[0];
     interval->second= array[1];
     interval->second_part= array[2];
     break;
-  case INTERVAL_MINUTE_SECOND:
-    if (get_interval_info(str,length,cs,2,array,0))
-      return (1);
-    interval->minute= array[0];
-    interval->second= array[1];
-    break;
   case INTERVAL_SECOND_MICROSECOND:
-    if (get_interval_info(str,length,cs,2,array,1))
-      return (1);
+    if (get_interval_info(args, str_value, &interval->neg, 2, array, true))
+      return true;
     interval->second= array[0];
     interval->second_part= array[1];
     break;
@@ -1669,7 +1663,7 @@ bool get_interval_value(Item *args,interval_type int_type,
     DBUG_ASSERT(0); 
     break;            /* purecov: end */
   }
-  return 0;
+  return false;
 }
 
 
@@ -1868,7 +1862,8 @@ Time_zone *Item_func_now_utc::time_zone()
 }
 
 
-int Item_func_now::save_in_field(Field *to, bool no_conversions)
+type_conversion_status
+Item_func_now::save_in_field(Field *to, bool no_conversions)
 {
   to->set_notnull();
   return to->store_time(cached_time.get_TIME_ptr(), decimals);
@@ -2792,7 +2787,7 @@ bool Item_func_timediff::get_time(MYSQL_TIME *l_time3)
   if (l_time1.neg != l_time2.neg)
     l_sign= -l_sign;
 
-  memset(l_time3, 0, sizeof(l_time3));
+  memset(l_time3, 0, sizeof(*l_time3));
   
   l_time3->neg= calc_time_diff(&l_time1, &l_time2, l_sign,
                                &seconds, &microseconds);
@@ -2865,7 +2860,7 @@ bool Item_func_maketime::get_time(MYSQL_TIME *ltime)
 
   // Return maximum value (positive or negative)
   set_max_hhmmss(ltime);
-  char buf[MAX_BIGINT_WIDTH /* hh */ + 6 /* :mm:ss */ + 10 /* .fffffffff */];
+  char buf[MAX_BIGINT_WIDTH /* hh */ + 6 /* :mm:ss */ + 10 /* .fffffffff */ +1];
   char *ptr= longlong10_to_str(hour, buf, args[0]->unsigned_flag ? 10 : -10);
   int len = (int)(ptr - buf) +
     sprintf(ptr, ":%02u:%02u", (uint) minute, (uint) second.quot);
@@ -2875,10 +2870,11 @@ bool Item_func_maketime::get_time(MYSQL_TIME *ltime)
       Display fractional part up to nanoseconds (9 digits),
       which is the maximum precision of my_decimal2lldiv_t().
     */
-    uint dec= MY_MIN(args[2]->decimals, 9);
+    int dec= MY_MIN(args[2]->decimals, 9);
     len+= sprintf(buf + len, ".%0*lld", dec,
                   second.rem / (ulong) log_10_int[9 - dec]);
   }
+  DBUG_ASSERT(strlen(buf) < sizeof(buf));
   make_truncated_value_warning(ErrConvString(buf, len), MYSQL_TIMESTAMP_TIME);
   return false;
 }

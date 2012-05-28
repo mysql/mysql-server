@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2012, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -35,8 +35,9 @@ Created 1/8/1996 Heikki Tuuri
 #include "dict0dict.h"
 #include "fts0priv.h"
 #ifndef UNIV_HOTBACKUP
-#include "ha_prototypes.h"	/* innobase_casedn_str(),
+# include "ha_prototypes.h"	/* innobase_casedn_str(),
 				innobase_get_lower_case_table_names */
+# include "mysql_com.h"		/* NAME_LEN */
 # include "lock0lock.h"
 #endif /* !UNIV_HOTBACKUP */
 #ifdef UNIV_BLOB_DEBUG
@@ -60,9 +61,7 @@ dict_mem_table_create(
 /*==================*/
 	const char*	name,	/*!< in: table name */
 	ulint		space,	/*!< in: space where the clustered index of
-				the table is placed; this parameter is
-				ignored if the table is made a member of
-				a cluster */
+				the table is placed */
 	ulint		n_cols,	/*!< in: number of columns */
 	ulint		flags,	/*!< in: table flags */
 	ulint		flags2)	/*!< in: table flags2 */
@@ -71,7 +70,7 @@ dict_mem_table_create(
 	mem_heap_t*	heap;
 
 	ut_ad(name);
-	dict_tf_validate(flags);
+	ut_a(dict_tf_is_valid(flags));
 	ut_a(!(flags2 & ~DICT_TF2_BIT_MASK));
 
 	heap = mem_heap_create(DICT_HEAP_SIZE);
@@ -115,7 +114,6 @@ dict_mem_table_create(
 	    || DICT_TF2_FLAG_IS_SET(table, DICT_TF2_FTS_ADD_DOC_ID)) {
 		table->fts = fts_create(table);
 		table->fts->cache = fts_cache_create(table);
-		fts_optimize_add_table(table);
 	} else {
 		table->fts = NULL;
 	}
@@ -243,6 +241,156 @@ dict_mem_table_add_col(
 	dict_mem_fill_column_struct(col, i, mtype, prtype, len);
 }
 
+/**********************************************************************//**
+Renames a column of a table in the data dictionary cache. */
+static __attribute__((nonnull))
+void
+dict_mem_table_col_rename_low(
+/*==========================*/
+	dict_table_t*	table,	/*!< in/out: table */
+	unsigned	i,	/*!< in: column offset corresponding to s */
+	const char*	to,	/*!< in: new column name */
+	const char*	s)	/*!< in: pointer to table->col_names */
+{
+	size_t from_len = strlen(s), to_len = strlen(to);
+
+	ut_ad(i < table->n_def);
+	ut_ad(from_len <= NAME_LEN);
+	ut_ad(to_len <= NAME_LEN);
+
+	if (from_len == to_len) {
+		/* The easy case: simply replace the column name in
+		table->col_names. */
+		strcpy(const_cast<char*>(s), to);
+	} else {
+		/* We need to adjust all affected index->field
+		pointers, as in dict_index_add_col(). First, copy
+		table->col_names. */
+		ulint	prefix_len	= s - table->col_names;
+
+		for (; i < table->n_def; i++) {
+			s += strlen(s) + 1;
+		}
+
+		ulint	full_len	= s - table->col_names;
+		char*	col_names;
+
+		if (to_len > from_len) {
+			col_names = static_cast<char*>(
+				mem_heap_alloc(
+					table->heap,
+					full_len + to_len - from_len));
+
+			memcpy(col_names, table->col_names, prefix_len);
+		} else {
+			col_names = const_cast<char*>(table->col_names);
+		}
+
+		memcpy(col_names + prefix_len, to, to_len);
+		memmove(col_names + prefix_len + to_len,
+			table->col_names + (prefix_len + from_len),
+			full_len - (prefix_len + from_len));
+
+		/* Replace the field names in every index. */
+		for (dict_index_t* index = dict_table_get_first_index(table);
+		     index != NULL;
+		     index = dict_table_get_next_index(index)) {
+			ulint	n_fields = dict_index_get_n_fields(index);
+
+			for (ulint i = 0; i < n_fields; i++) {
+				dict_field_t*	field
+					= dict_index_get_nth_field(
+						index, i);
+				ulint		name_ofs
+					= field->name - table->col_names;
+				if (name_ofs <= prefix_len) {
+					field->name = col_names + name_ofs;
+				} else {
+					ut_a(name_ofs < full_len);
+					field->name = col_names
+						+ name_ofs + to_len - from_len;
+				}
+			}
+		}
+
+		table->col_names = col_names;
+	}
+
+	/* Replace the field names in every foreign key constraint. */
+	for (dict_foreign_t* foreign = UT_LIST_GET_FIRST(table->foreign_list);
+	     foreign != NULL;
+	     foreign = UT_LIST_GET_NEXT(foreign_list, foreign)) {
+		for (unsigned f = 0; f < foreign->n_fields; f++) {
+			/* These can point straight to
+			table->col_names, because the foreign key
+			constraints will be freed at the same time
+			when the table object is freed. */
+			foreign->foreign_col_names[f]
+				= dict_index_get_nth_field(
+					foreign->foreign_index, f)->name;
+		}
+	}
+
+	for (dict_foreign_t* foreign = UT_LIST_GET_FIRST(
+		     table->referenced_list);
+	     foreign != NULL;
+	     foreign = UT_LIST_GET_NEXT(referenced_list, foreign)) {
+		for (unsigned f = 0; f < foreign->n_fields; f++) {
+			/* foreign->referenced_col_names[] need to be
+			copies, because the constraint may become
+			orphan when foreign_key_checks=0 and the
+			parent table is dropped. */
+
+			const char* col_name = dict_index_get_nth_field(
+				foreign->referenced_index, f)->name;
+
+			if (strcmp(foreign->referenced_col_names[f],
+				   col_name)) {
+				char**	rc = const_cast<char**>(
+					foreign->referenced_col_names + f);
+				size_t	col_name_len_1 = strlen(col_name) + 1;
+
+				if (col_name_len_1 <= strlen(*rc) + 1) {
+					memcpy(*rc, col_name, col_name_len_1);
+				} else {
+					*rc = static_cast<char*>(
+						mem_heap_dup(
+							foreign->heap,
+							col_name,
+							col_name_len_1));
+				}
+			}
+		}
+	}
+}
+
+/**********************************************************************//**
+Renames a column of a table in the data dictionary cache. */
+UNIV_INTERN
+void
+dict_mem_table_col_rename(
+/*======================*/
+	dict_table_t*	table,	/*!< in/out: table */
+	unsigned	nth_col,/*!< in: column index */
+	const char*	from,	/*!< in: old column name */
+	const char*	to)	/*!< in: new column name */
+{
+	const char*	s = table->col_names;
+
+	ut_ad(nth_col < table->n_def);
+
+	for (unsigned i = 0; i < nth_col; i++) {
+		size_t	len = strlen(s);
+		ut_ad(len > 0);
+		s += len + 1;
+	}
+
+	/* This could fail if the data dictionaries are out of sync.
+	Proceed with the renaming anyway. */
+	ut_ad(!strcmp(from, s));
+
+	dict_mem_table_col_rename_low(table, nth_col, to, s);
+}
 
 /**********************************************************************//**
 This function populates a dict_col_t memory structure with

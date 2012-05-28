@@ -10,8 +10,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
+   along with this program; if not, write to the Free Software Foundation,
+   Inc., 51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 /** @file handler.cc
 
@@ -39,6 +39,7 @@
 #include <mysql/psi/mysql_table.h>
 #include "debug_sync.h"         // DEBUG_SYNC
 #include <my_bit.h>
+#include <list>
 
 #ifdef WITH_PARTITION_STORAGE_ENGINE
 #include "ha_partition.h"
@@ -46,6 +47,7 @@
 
 using std::min;
 using std::max;
+using std::list;
 
 // This is a temporary backporting fix.
 #ifndef HAVE_LOG2
@@ -104,6 +106,83 @@ TYPELIB tx_isolation_typelib= {array_elements(tx_isolation_names)-1,"",
 static TYPELIB known_extensions= {0,"known_exts", NULL, NULL};
 uint known_extensions_id= 0;
 
+/**
+  Database name that hold most of mysqld system tables.
+  Current code assumes that, there exists only some
+  specific "database name" designated as system database.
+*/
+const char* mysqld_system_database= "mysql";
+
+// System tables that belong to mysqld_system_database.
+st_system_tablename mysqld_system_tables[]= {
+  {mysqld_system_database, "db"},
+  {mysqld_system_database, "user"},
+  {mysqld_system_database, "host"},
+  {mysqld_system_database, "func"},
+  {mysqld_system_database, "proc"},
+  {mysqld_system_database, "event"},
+  {mysqld_system_database, "plugin"},
+  {mysqld_system_database, "servers"},
+  {mysqld_system_database, "procs_priv"},
+  {mysqld_system_database, "tables_priv"},
+  {mysqld_system_database, "proxies_priv"},
+  {mysqld_system_database, "columns_priv"},
+  {mysqld_system_database, "time_zone"},
+  {mysqld_system_database, "time_zone_name"},
+  {mysqld_system_database, "time_zone_leap_second"},
+  {mysqld_system_database, "time_zone_transition"},
+  {mysqld_system_database, "time_zone_transition_type"},
+  {mysqld_system_database, "help_category"},
+  {mysqld_system_database, "help_keyword"},
+  {mysqld_system_database, "help_relation"},
+  {mysqld_system_database, "help_topic"},
+  {(const char *)NULL, (const char *)NULL} /* This must be at the end */
+};
+
+/**
+  This static pointer holds list of system databases from SQL layer and
+  various SE's. The required memory is allocated once, and never freed.
+*/
+static const char **known_system_databases= NULL;
+static const char **ha_known_system_databases();
+
+// Called for each SE to get SE specific system database.
+static my_bool system_databases_handlerton(THD *unused, plugin_ref plugin,
+                                           void *arg);
+
+// Called for each SE to check if given db.table_name is a system table.
+static my_bool check_engine_system_table_handlerton(THD *unused,
+                                                    plugin_ref plugin,
+                                                    void *arg);
+
+/**
+  Structure used by SE during check for system table.
+  This structure is passed to each SE handlerton and the status (OUT param)
+  is collected.
+*/
+struct st_sys_tbl_chk_params
+{
+  const char *db;                             // IN param
+  const char *table_name;                     // IN param
+  bool is_sql_layer_system_table;             // IN param
+  legacy_db_type db_type;                     // IN param
+
+  enum enum_sys_tbl_chk_status
+  {
+    // db.table_name is not a supported system table.
+    NOT_KNOWN_SYSTEM_TABLE,
+    /*
+      db.table_name is a system table,
+      but may not be supported by SE.
+    */
+    KNOWN_SYSTEM_TABLE,
+    /*
+      db.table_name is a system table,
+      and is supported by SE.
+    */
+    SUPPORTED_SYSTEM_TABLE
+  }status;                                    // OUT param
+};
 
 
 static plugin_ref ha_default_plugin(THD *thd)
@@ -406,6 +485,7 @@ int ha_init_errors(void)
   SETMSG(HA_ERR_INDEX_COL_TOO_LONG,	ER_DEFAULT(ER_INDEX_COLUMN_TOO_LONG));
   SETMSG(HA_ERR_INDEX_CORRUPT,		ER_DEFAULT(ER_INDEX_CORRUPT));
   SETMSG(HA_FTS_INVALID_DOCID,		"Invalid InnoDB FTS Doc ID");
+  SETMSG(HA_ERR_TABLE_IN_FK_CHECK,	ER_DEFAULT(ER_TABLE_IN_FK_CHECK));
 
   /* Register the error messages for use with my_error(). */
   return my_error_register(get_handler_errmsgs, HA_ERR_FIRST, HA_ERR_LAST);
@@ -635,6 +715,14 @@ int ha_init()
   */
   opt_using_transactions= total_ha>(ulong)opt_bin_log;
   savepoint_alloc_size+= sizeof(SAVEPOINT);
+
+  /*
+    Initialize system database name cache.
+    This cache is used to do a quick check if a given
+    db.tablename is a system table.
+  */
+  known_system_databases= ha_known_system_databases();
+
   DBUG_RETURN(error);
 }
 
@@ -1739,9 +1827,9 @@ bool mysql_xa_recover(THD *thd)
   XID_STATE *xs;
   DBUG_ENTER("mysql_xa_recover");
 
-  field_list.push_back(new Item_int("formatID", 0, MY_INT32_NUM_DECIMAL_DIGITS));
-  field_list.push_back(new Item_int("gtrid_length", 0, MY_INT32_NUM_DECIMAL_DIGITS));
-  field_list.push_back(new Item_int("bqual_length", 0, MY_INT32_NUM_DECIMAL_DIGITS));
+  field_list.push_back(new Item_int(NAME_STRING("formatID"), 0, MY_INT32_NUM_DECIMAL_DIGITS));
+  field_list.push_back(new Item_int(NAME_STRING("gtrid_length"), 0, MY_INT32_NUM_DECIMAL_DIGITS));
+  field_list.push_back(new Item_int(NAME_STRING("bqual_length"), 0, MY_INT32_NUM_DECIMAL_DIGITS));
   field_list.push_back(new Item_empty_string("data",XIDDATASIZE));
 
   if (protocol->send_result_set_metadata(&field_list,
@@ -2133,8 +2221,8 @@ int ha_delete_table(THD *thd, handlerton *table_type, const char *path,
   if (likely(error == 0))
   {
     my_bool temp_table= (my_bool)is_prefix(alias, tmp_file_prefix);
-    PSI_CALL(drop_table_share)(temp_table, db, strlen(db),
-                               alias, strlen(alias));
+    PSI_TABLE_CALL(drop_table_share)
+      (temp_table, db, strlen(db), alias, strlen(alias));
   }
 #endif
 
@@ -2201,7 +2289,7 @@ void handler::unbind_psi()
     Notify the instrumentation that this table is not owned
     by this thread any more.
   */
-  PSI_CALL(unbind_table)(m_psi);
+  PSI_TABLE_CALL(unbind_table)(m_psi);
 #endif
 }
 
@@ -2213,7 +2301,7 @@ void handler::rebind_psi()
     by this thread.
   */
   PSI_table_share *share_psi= ha_table_share_psi(table_share);
-  m_psi= PSI_CALL(rebind_table)(share_psi, this, m_psi);
+  m_psi= PSI_TABLE_CALL(rebind_table)(share_psi, this, m_psi);
 #endif
 }
 
@@ -2265,7 +2353,7 @@ int handler::ha_open(TABLE *table_arg, const char *name, int mode,
     DBUG_ASSERT(table_share != NULL);
 #ifdef HAVE_PSI_TABLE_INTERFACE
     PSI_table_share *share_psi= ha_table_share_psi(table_share);
-    m_psi= PSI_CALL(open_table)(share_psi, this);
+    m_psi= PSI_TABLE_CALL(open_table)(share_psi, this);
 #endif
 
     if (table->s->db_options_in_use & HA_OPTION_READ_ONLY_DATA)
@@ -2286,51 +2374,212 @@ int handler::ha_open(TABLE *table_arg, const char *name, int mode,
   DBUG_RETURN(error);
 }
 
+
+/**
+  Close handler.
+*/
+
 int handler::ha_close(void)
 {
+  DBUG_ENTER("handler::ha_close");
 #ifdef HAVE_PSI_TABLE_INTERFACE
-  PSI_CALL(close_table)(m_psi);
+  PSI_TABLE_CALL(close_table)(m_psi);
   m_psi= NULL; /* instrumentation handle, invalid after close_table() */
 #endif
   DBUG_ASSERT(m_psi == NULL);
   DBUG_ASSERT(m_lock_type == F_UNLCK);
-  return close();
+  DBUG_ASSERT(inited == NONE);
+  DBUG_RETURN(close());
 }
+
+
+/**
+  Initialize use of index.
+
+  @param idx     Index to use
+  @param sorted  Use sorted order
+
+  @return Operation status
+    @retval 0     Success
+    @retval != 0  Error (error code returned)
+*/
+
+int handler::ha_index_init(uint idx, bool sorted)
+{
+  int result;
+  DBUG_ENTER("ha_index_init");
+  DBUG_ASSERT(table_share->tmp_table != NO_TMP_TABLE ||
+              m_lock_type != F_UNLCK);
+  DBUG_ASSERT(inited == NONE);
+  if (!(result= index_init(idx, sorted)))
+    inited= INDEX;
+  end_range= NULL;
+  DBUG_RETURN(result);
+}
+
+
+/**
+  End use of index.
+
+  @return Operation status
+    @retval 0     Success
+    @retval != 0  Error (error code returned)
+*/
+
+int handler::ha_index_end()
+{
+  DBUG_ENTER("ha_index_end");
+  /* SQL HANDLER function can call this without having it locked. */
+  DBUG_ASSERT(table->open_by_handler ||
+              table_share->tmp_table != NO_TMP_TABLE ||
+              m_lock_type != F_UNLCK);
+  DBUG_ASSERT(inited == INDEX);
+  inited= NONE;
+  end_range= NULL;
+  DBUG_RETURN(index_end());
+}
+
+
+/**
+  Initialize table for random read or scan.
+
+  @param scan  if true: Initialize for random scans through rnd_next()
+               if false: Initialize for random reads through rnd_pos()
+
+  @return Operation status
+    @retval 0     Success
+    @retval != 0  Error (error code returned)
+*/
+
+int handler::ha_rnd_init(bool scan)
+{
+  int result;
+  DBUG_ENTER("ha_rnd_init");
+  DBUG_ASSERT(table_share->tmp_table != NO_TMP_TABLE ||
+              m_lock_type != F_UNLCK);
+  DBUG_ASSERT(inited == NONE || (inited == RND && scan));
+  inited= (result= rnd_init(scan)) ? NONE : RND;
+  end_range= NULL;
+  DBUG_RETURN(result);
+}
+
+
+/**
+  End use of random access.
+
+  @return Operation status
+    @retval 0     Success
+    @retval != 0  Error (error code returned)
+*/
+
+int handler::ha_rnd_end()
+{
+  DBUG_ENTER("ha_rnd_end");
+  /* SQL HANDLER function can call this without having it locked. */
+  DBUG_ASSERT(table->open_by_handler ||
+              table_share->tmp_table != NO_TMP_TABLE ||
+              m_lock_type != F_UNLCK);
+  DBUG_ASSERT(inited == RND);
+  inited= NONE;
+  end_range= NULL;
+  DBUG_RETURN(rnd_end());
+}
+
+
+/**
+  Read next row via random scan.
+
+  @param buf  Buffer to read the row into
+
+  @return Operation status
+    @retval 0     Success
+    @retval != 0  Error (error code returned)
+*/
 
 int handler::ha_rnd_next(uchar *buf)
 {
   int result;
+  DBUG_ENTER("handler::ha_rnd_next");
   DBUG_ASSERT(table_share->tmp_table != NO_TMP_TABLE ||
               m_lock_type != F_UNLCK);
+  DBUG_ASSERT(inited == RND);
 
   MYSQL_TABLE_IO_WAIT(m_psi, PSI_TABLE_FETCH_ROW, MAX_KEY, 0,
     { result= rnd_next(buf); })
-  return result;
+  DBUG_RETURN(result);
 }
+
+
+/**
+  Read row via random scan from position.
+
+  @param[out] buf  Buffer to read the row into
+  @param      pos  Position from position() call
+
+  @return Operation status
+    @retval 0     Success
+    @retval != 0  Error (error code returned)
+*/
 
 int handler::ha_rnd_pos(uchar *buf, uchar *pos)
 {
   int result;
+  DBUG_ENTER("handler::ha_rnd_pos");
   DBUG_ASSERT(table_share->tmp_table != NO_TMP_TABLE ||
               m_lock_type != F_UNLCK);
+  /* TODO: Find out how to solve ha_rnd_pos when finding duplicate update. */
+  /* DBUG_ASSERT(inited == RND); */
 
   MYSQL_TABLE_IO_WAIT(m_psi, PSI_TABLE_FETCH_ROW, MAX_KEY, 0,
     { result= rnd_pos(buf, pos); })
-  return result;
+  DBUG_RETURN(result);
 }
+
+
+/**
+  Read [part of] row via [part of] index.
+  @param[out] buf          buffer where store the data
+  @param      key          Key to search for
+  @param      keypart_map  Which part of key to use
+  @param      find_flag    Direction/condition on key usage
+
+  @returns Operation status
+    @retval  0                   Success (found a record, and function has
+                                 set table->status to 0)
+    @retval  HA_ERR_END_OF_FILE  Row not found (function has set table->status
+                                 to STATUS_NOT_FOUND)
+    @retval  != 0                Error
+
+  @note Positions an index cursor to the index specified in the handle.
+  Fetches the row if available. If the key value is null,
+  begin at the first key of the index.
+  ha_index_read_map can be restarted without calling index_end on the previous
+  index scan and without calling ha_index_init. In this case the
+  ha_index_read_map is on the same index as the previous ha_index_scan.
+  This is particularly used in conjunction with multi read ranges.
+*/
 
 int handler::ha_index_read_map(uchar *buf, const uchar *key,
                                key_part_map keypart_map,
                                enum ha_rkey_function find_flag)
 {
   int result;
+  DBUG_ENTER("handler::ha_index_read_map");
   DBUG_ASSERT(table_share->tmp_table != NO_TMP_TABLE ||
               m_lock_type != F_UNLCK);
+  DBUG_ASSERT(inited == INDEX);
 
   MYSQL_TABLE_IO_WAIT(m_psi, PSI_TABLE_FETCH_ROW, active_index, 0,
     { result= index_read_map(buf, key, keypart_map, find_flag); })
-  return result;
+  DBUG_RETURN(result);
 }
+
+
+/**
+  Initializes an index and read it.
+
+  @see handler::ha_index_read_map.
+*/
 
 int handler::ha_index_read_idx_map(uchar *buf, uint index, const uchar *key,
                                    key_part_map keypart_map,
@@ -2346,60 +2595,145 @@ int handler::ha_index_read_idx_map(uchar *buf, uint index, const uchar *key,
   return result;
 }
 
+
+/**
+  Reads the next row via index.
+
+  @param[out] buf  Row data
+
+  @return Operation status.
+    @retval  0                   Success
+    @retval  HA_ERR_END_OF_FILE  Row not found
+    @retval  != 0                Error
+*/
+
 int handler::ha_index_next(uchar * buf)
 {
   int result;
+  DBUG_ENTER("handler::ha_index_next");
   DBUG_ASSERT(table_share->tmp_table != NO_TMP_TABLE ||
               m_lock_type != F_UNLCK);
+  DBUG_ASSERT(inited == INDEX);
 
   MYSQL_TABLE_IO_WAIT(m_psi, PSI_TABLE_FETCH_ROW, active_index, 0,
     { result= index_next(buf); })
-  return result;
+  DBUG_RETURN(result);
 }
+
+
+/**
+  Reads the previous row via index.
+
+  @param[out] buf  Row data
+
+  @return Operation status.
+    @retval  0                   Success
+    @retval  HA_ERR_END_OF_FILE  Row not found
+    @retval  != 0                Error
+*/
 
 int handler::ha_index_prev(uchar * buf)
 {
   int result;
+  DBUG_ENTER("handler::ha_index_prev");
   DBUG_ASSERT(table_share->tmp_table != NO_TMP_TABLE ||
               m_lock_type != F_UNLCK);
+  DBUG_ASSERT(inited == INDEX);
 
   MYSQL_TABLE_IO_WAIT(m_psi, PSI_TABLE_FETCH_ROW, active_index, 0,
     { result= index_prev(buf); })
-  return result;
+  DBUG_RETURN(result);
 }
+
+
+/**
+  Reads the first row via index.
+
+  @param[out] buf  Row data
+
+  @return Operation status.
+    @retval  0                   Success
+    @retval  HA_ERR_END_OF_FILE  Row not found
+    @retval  != 0                Error
+*/
 
 int handler::ha_index_first(uchar * buf)
 {
   int result;
   DBUG_ASSERT(table_share->tmp_table != NO_TMP_TABLE ||
               m_lock_type != F_UNLCK);
+  DBUG_ASSERT(inited == INDEX);
 
   MYSQL_TABLE_IO_WAIT(m_psi, PSI_TABLE_FETCH_ROW, active_index, 0,
     { result= index_first(buf); })
   return result;
 }
 
+
+/**
+  Reads the last row via index.
+
+  @param[out] buf  Row data
+
+  @return Operation status.
+    @retval  0                   Success
+    @retval  HA_ERR_END_OF_FILE  Row not found
+    @retval  != 0                Error
+*/
+
 int handler::ha_index_last(uchar * buf)
 {
   int result;
   DBUG_ASSERT(table_share->tmp_table != NO_TMP_TABLE ||
               m_lock_type != F_UNLCK);
+  DBUG_ASSERT(inited == INDEX);
 
   MYSQL_TABLE_IO_WAIT(m_psi, PSI_TABLE_FETCH_ROW, active_index, 0,
     { result= index_last(buf); })
   return result;
 }
 
+
+/**
+  Reads the next same row via index.
+
+  @param[out] buf     Row data
+  @param      key     Key to search for
+  @param      keylen  Length of key
+
+  @return Operation status.
+    @retval  0                   Success
+    @retval  HA_ERR_END_OF_FILE  Row not found
+    @retval  != 0                Error
+*/
+
 int handler::ha_index_next_same(uchar *buf, const uchar *key, uint keylen)
 {
   int result;
   DBUG_ASSERT(table_share->tmp_table != NO_TMP_TABLE ||
               m_lock_type != F_UNLCK);
+  DBUG_ASSERT(inited == INDEX);
 
   MYSQL_TABLE_IO_WAIT(m_psi, PSI_TABLE_FETCH_ROW, active_index, 0,
     { result= index_next_same(buf, key, keylen); })
   return result;
 }
+
+
+
+/**
+  Read one row via index.
+
+  @param[out] buf        Row data
+  @param      key        Key to search for
+  @param      keylen     Length of key
+  @param      find_flag  Direction/condition on key usage
+
+  @return Operation status.
+    @retval  0                   Success
+    @retval  HA_ERR_END_OF_FILE  Row not found
+    @retval  != 0                Error
+*/
 
 int handler::ha_index_read(uchar *buf, const uchar *key, uint key_len,
                            enum ha_rkey_function find_flag)
@@ -2407,22 +2741,39 @@ int handler::ha_index_read(uchar *buf, const uchar *key, uint key_len,
   int result;
   DBUG_ASSERT(table_share->tmp_table != NO_TMP_TABLE ||
               m_lock_type != F_UNLCK);
+  DBUG_ASSERT(inited == INDEX);
 
   MYSQL_TABLE_IO_WAIT(m_psi, PSI_TABLE_FETCH_ROW, active_index, 0,
     { result= index_read(buf, key, key_len, find_flag); })
   return result;
 }
 
+
+/**
+  Reads the last row via index.
+
+  @param[out] buf        Row data
+  @param      key        Key to search for
+  @param      keylen     Length of key
+
+  @return Operation status.
+    @retval  0                   Success
+    @retval  HA_ERR_END_OF_FILE  Row not found
+    @retval  != 0                Error
+*/
+
 int handler::ha_index_read_last(uchar *buf, const uchar *key, uint key_len)
 {
   int result;
   DBUG_ASSERT(table_share->tmp_table != NO_TMP_TABLE ||
               m_lock_type != F_UNLCK);
+  DBUG_ASSERT(inited == INDEX);
 
   MYSQL_TABLE_IO_WAIT(m_psi, PSI_TABLE_FETCH_ROW, active_index, 0,
     { result= index_read_last(buf, key, key_len); })
   return result;
 }
+
 
 /**
   Read first row (only) from a table.
@@ -2445,16 +2796,27 @@ int handler::read_first_row(uchar * buf, uint primary_key)
   if (stats.deleted < 10 || primary_key >= MAX_KEY ||
       !(index_flags(primary_key, 0, 0) & HA_READ_ORDER))
   {
-    (void) ha_rnd_init(1);
-    while ((error= ha_rnd_next(buf)) == HA_ERR_RECORD_DELETED) ;
-    (void) ha_rnd_end();
+    if (!(error= ha_rnd_init(1)))
+    {
+      int end_error;
+      while ((error= ha_rnd_next(buf)) == HA_ERR_RECORD_DELETED)
+        /* skip deleted row */;
+      end_error= ha_rnd_end();
+      if (!error)
+        error= end_error;
+    }
   }
   else
   {
     /* Find the first row through the primary key */
-    (void) ha_index_init(primary_key, 0);
-    error= ha_index_first(buf);
-    (void) ha_index_end();
+    if (!(error= ha_index_init(primary_key, 0)))
+    {
+      int end_error;
+      error= ha_index_first(buf);
+      end_error= ha_index_end();
+      if (!error)
+        error= end_error;
+    }
   }
   DBUG_RETURN(error);
 }
@@ -2684,8 +3046,19 @@ int handler::update_auto_increment()
         reservation means potentially losing unused values).
         Note that in prelocked mode no estimation is given.
       */
+
       if ((auto_inc_intervals_count == 0) && (estimation_rows_to_insert > 0))
         nb_desired_values= estimation_rows_to_insert;
+      else if ((auto_inc_intervals_count == 0) &&
+               (thd->lex->many_values.elements > 0))
+      {
+        /*
+          For multi-row inserts, if the bulk inserts cannot be started, the
+          handler::estimation_rows_to_insert will not be set. But we still
+          want to reserve the autoinc values.
+        */
+        nb_desired_values= thd->lex->many_values.elements;
+      }
       else /* go with the increasing defaults */
       {
         /* avoid overflow in formula, with this if() */
@@ -2811,23 +3184,22 @@ void handler::column_bitmaps_signal()
 }
 
 
-/** @brief
+/**
   Reserves an interval of auto_increment values from the handler.
 
-  SYNOPSIS
-    get_auto_increment()
-    offset              
-    increment
-    nb_desired_values   how many values we want
-    first_value         (OUT) the first value reserved by the handler
-    nb_reserved_values  (OUT) how many values the handler reserved
+  @param       offset              offset (modulus increment)
+  @param       increment           increment between calls
+  @param       nb_desired_values   how many values we want
+  @param[out]  first_value         the first value reserved by the handler
+  @param[out]  nb_reserved_values  how many values the handler reserved
 
   offset and increment means that we want values to be of the form
   offset + N * increment, where N>=0 is integer.
-  If the function sets *first_value to ~(ulonglong)0 it means an error.
+  If the function sets *first_value to ULONGLONG_MAX it means an error.
   If the function sets *nb_reserved_values to ULONGLONG_MAX it means it has
   reserved to "positive infinite".
 */
+
 void handler::get_auto_increment(ulonglong offset, ulonglong increment,
                                  ulonglong nb_desired_values,
                                  ulonglong *first_value,
@@ -2835,12 +3207,20 @@ void handler::get_auto_increment(ulonglong offset, ulonglong increment,
 {
   ulonglong nr;
   int error;
+  DBUG_ENTER("handler::get_auto_increment");
 
   (void) extra(HA_EXTRA_KEYREAD);
   table->mark_columns_used_by_index_no_reset(table->s->next_number_index,
                                         table->read_set);
   column_bitmaps_signal();
-  index_init(table->s->next_number_index, 1);
+  if (ha_index_init(table->s->next_number_index, 1))
+  {
+    /* This should never happen, assert in debug, and fail in release build */
+    DBUG_ASSERT(0);
+    *first_value= ULONGLONG_MAX;
+    *nb_reserved_values= 0;
+    DBUG_VOID_RETURN;
+  }
   if (table->s->next_number_keypart == 0)
   {						// Autoincrement at key-start
     error= ha_index_last(table->record[1]);
@@ -2870,13 +3250,25 @@ void handler::get_auto_increment(ulonglong offset, ulonglong increment,
   }
 
   if (error)
-    nr=1;
+  {
+    if (error == HA_ERR_END_OF_FILE || error == HA_ERR_KEY_NOT_FOUND)
+    {
+      /* No entry found, start with 1. */
+      nr= 1;
+    }
+    else
+    {
+      DBUG_ASSERT(0);
+      nr= ULONGLONG_MAX;
+    }
+  }
   else
     nr= ((ulonglong) table->next_number_field->
          val_int_offset(table->s->rec_buff_length)+1);
-  index_end();
+  ha_index_end();
   (void) extra(HA_EXTRA_NO_KEYREAD);
   *first_value= nr;
+  DBUG_VOID_RETURN;
 }
 
 
@@ -3138,6 +3530,9 @@ void handler::print_error(int error, myf errflag)
     break;
   case HA_ERR_UNDO_REC_TOO_BIG:
     textno= ER_UNDO_RECORD_TOO_BIG;
+    break;
+  case HA_ERR_TABLE_IN_FK_CHECK:
+    textno= ER_TABLE_IN_FK_CHECK;
     break;
   default:
     {
@@ -3512,6 +3907,43 @@ int handler::ha_repair(THD* thd, HA_CHECK_OPT* check_opt)
   if (result == HA_ADMIN_OK)
     result= update_frm_version(table);
   return result;
+}
+
+
+/**
+  Start bulk insert.
+
+  Allow the handler to optimize for multiple row insert.
+
+  @param rows  Estimated rows to insert
+*/
+
+void handler::ha_start_bulk_insert(ha_rows rows)
+{
+  DBUG_ENTER("handler::ha_start_bulk_insert");
+  DBUG_ASSERT(table_share->tmp_table != NO_TMP_TABLE ||
+              m_lock_type == F_WRLCK);
+  estimation_rows_to_insert= rows;
+  start_bulk_insert(rows);
+  DBUG_VOID_RETURN;
+}
+
+
+/**
+  End bulk insert.
+
+  @return Operation status
+    @retval 0     Success
+    @retval != 0  Failure (error code returned)
+*/
+
+int handler::ha_end_bulk_insert()
+{
+  DBUG_ENTER("handler::ha_end_bulk_insert");
+  DBUG_ASSERT(table_share->tmp_table != NO_TMP_TABLE ||
+              m_lock_type == F_WRLCK);
+  estimation_rows_to_insert= 0;
+  DBUG_RETURN(end_bulk_insert());
 }
 
 
@@ -4061,7 +4493,7 @@ int ha_create_table(THD *thd, const char *path,
     goto err;
 
 #ifdef HAVE_PSI_TABLE_INTERFACE
-  share.m_psi= PSI_CALL(get_table_share)(temp_table, &share);
+  share.m_psi= PSI_TABLE_CALL(get_table_share)(temp_table, &share);
 #endif
 
   if (open_table_from_share(thd, &share, "", 0, (uint) READ_ALL, 0, &table,
@@ -4080,8 +4512,8 @@ int ha_create_table(THD *thd, const char *path,
     strxmov(name_buff, db, ".", table_name, NullS);
     my_error(ER_CANT_CREATE_TABLE, MYF(ME_BELL+ME_WAITTANG), name_buff, error);
 #ifdef HAVE_PSI_TABLE_INTERFACE
-    PSI_CALL(drop_table_share)(temp_table, db, strlen(db), table_name,
-                               strlen(table_name));
+    PSI_TABLE_CALL(drop_table_share)
+      (temp_table, db, strlen(db), table_name, strlen(table_name));
 #endif
   }
 err:
@@ -4190,6 +4622,220 @@ ha_check_if_table_exists(THD* thd, const char *db, const char *name,
   DBUG_RETURN(FALSE);
 }
 
+/**
+  @brief Check if a given table is a system table.
+
+  @details The primary purpose of introducing this function is to stop system
+  tables to be created or being moved to undesired storage engines.
+
+  @todo There is another function called is_system_table_name() used by
+        get_table_category(), which is used to set TABLE_SHARE table_category.
+        It checks only a subset of table name like proc, event and time*.
+        We cannot use below function in get_table_category(),
+        as that affects locking mechanism. If we need to
+        unify these functions, we need to fix locking issues generated.
+
+  @param   hton                  Handlerton of new engine.
+  @param   db                    Database name.
+  @param   table_name            Table name to be checked.
+
+  @return Operation status
+    @retval  true                If the table name is a valid system table
+                                 or if its a valid user table.
+
+    @retval  false               If the table name is a system table name
+                                 and does not belong to engine specified
+                                 in the command.
+*/
+bool ha_check_if_supported_system_table(handlerton *hton, const char *db,
+                                        const char *table_name)
+{
+  DBUG_ENTER("ha_check_if_supported_system_table");
+  st_sys_tbl_chk_params check_params;
+  bool is_system_database= false;
+  const char **names;
+  st_system_tablename *systab;
+
+  // Check if we have a system database name in the command.
+  DBUG_ASSERT(known_system_databases != NULL);
+  names= known_system_databases;
+  while (names && *names)
+  {
+    if (strcmp(*names, db) == 0)
+    {
+      /* Used to compare later, will be faster */
+      check_params.db= *names;
+      is_system_database= true;
+      break;
+    }
+    names++;
+  }
+  if (!is_system_database)
+    DBUG_RETURN(true); // It's a user table name.
+
+  // Check if this is SQL layer system tables.
+  systab= mysqld_system_tables;
+  check_params.is_sql_layer_system_table= false;
+  while (systab && systab->db)
+  {
+    if (systab->db == check_params.db &&
+        strcmp(systab->tablename, table_name) == 0)
+    {
+      check_params.is_sql_layer_system_table= true;
+      break;
+    }
+    systab++;
+  }
+
+  // Check if this is a system table and if some engine supports it.
+  check_params.status= check_params.is_sql_layer_system_table ?
+    st_sys_tbl_chk_params::KNOWN_SYSTEM_TABLE :
+    st_sys_tbl_chk_params::NOT_KNOWN_SYSTEM_TABLE;
+  check_params.db_type= hton->db_type;
+  check_params.table_name= table_name;
+  plugin_foreach(NULL, check_engine_system_table_handlerton,
+                 MYSQL_STORAGE_ENGINE_PLUGIN, &check_params);
+
+  // SE does not support this system table.
+  if (check_params.status == st_sys_tbl_chk_params::KNOWN_SYSTEM_TABLE)
+    DBUG_RETURN(false);
+
+  // It's a system table or a valid user table.
+  DBUG_RETURN(true);
+}
+
+/**
+  @brief Called for each SE to check if given db, tablename is a system table.
+
+  @details The primary purpose of introducing this function is to stop system
+  tables to be created or being moved to undesired storage engines.
+
+  @param   unused  unused THD*
+  @param   plugin  Points to specific SE.
+  @param   arg     Is of type struct st_sys_tbl_chk_params.
+
+  @note
+    args->status   Indicates OUT param,
+                   see struct st_sys_tbl_chk_params definition for more info.
+
+  @return Operation status
+    @retval  true  There was a match found.
+                   This will stop doing checks with other SE's.
+
+    @retval  false There was no match found.
+                   Other SE's will be checked to find a match.
+*/
+static my_bool check_engine_system_table_handlerton(THD *unused,
+                                                    plugin_ref plugin,
+                                                    void *arg)
+{
+  st_sys_tbl_chk_params *check_params= (st_sys_tbl_chk_params*) arg;
+  handlerton *hton= plugin_data(plugin, handlerton *);
+
+  // Do we already know that the table is a system table?
+  if (check_params->status == st_sys_tbl_chk_params::KNOWN_SYSTEM_TABLE)
+  {
+    /*
+      If this is the same SE specified in the command, we can
+      simply ask the SE if it supports it stop the search regardless.
+    */
+    if (hton->db_type == check_params->db_type)
+    {
+      if (hton->is_supported_system_table &&
+          hton->is_supported_system_table(check_params->db,
+                                       check_params->table_name,
+                                       check_params->is_sql_layer_system_table))
+        check_params->status= st_sys_tbl_chk_params::SUPPORTED_SYSTEM_TABLE;
+      return TRUE;
+    }
+    /*
+      If this is a different SE, there is no point in asking the SE
+      since we already know it's a system table and we don't care
+      if it is supported or not.
+    */
+    return FALSE;
+  }
+
+  /*
+    We don't yet know if the table is a system table or not.
+    We therefore must always ask the SE.
+  */
+  if (hton->is_supported_system_table &&
+      hton->is_supported_system_table(check_params->db,
+                                      check_params->table_name,
+                                      check_params->is_sql_layer_system_table))
+  {
+    /*
+      If this is the same SE specified in the command, we know it's a
+      supported system table and can stop the search.
+    */
+    if (hton->db_type == check_params->db_type)
+    {
+      check_params->status= st_sys_tbl_chk_params::SUPPORTED_SYSTEM_TABLE;
+      return TRUE;
+    }
+    else
+      check_params->status= st_sys_tbl_chk_params::KNOWN_SYSTEM_TABLE;
+  }
+
+  return FALSE;
+}
+
+/*
+  Prepare list of all known system database names
+  current we just have 'mysql' as system database name.
+
+  Later ndbcluster, innodb SE's can define some new database
+  name which can store system tables specific to SE.
+*/
+const char** ha_known_system_databases(void)
+{
+  list<const char*> found_databases;
+  const char **databases, **database;
+
+  // Get mysqld system database name.
+  found_databases.push_back((char*) mysqld_system_database);
+
+  // Get system database names from every specific storage engine.
+  plugin_foreach(NULL, system_databases_handlerton,
+                 MYSQL_STORAGE_ENGINE_PLUGIN, &found_databases);
+
+  databases= (const char **) my_once_alloc(sizeof(char *)*
+                                     (found_databases.size()+1),
+                                     MYF(MY_WME | MY_FAE));
+  DBUG_ASSERT(databases != NULL);
+
+  list<const char*>::iterator it;
+  database= databases;
+  for (it= found_databases.begin(); it != found_databases.end(); it++)
+    *database++= *it;
+  *database= 0; // Last element.
+
+  return databases;
+}
+
+/**
+  @brief Fetch system database name specific to SE.
+
+  @details This function is invoked by plugin_foreach() from
+           ha_known_system_databases(), for each storage engine.
+*/
+static my_bool system_databases_handlerton(THD *unused, plugin_ref plugin,
+                                           void *arg)
+{
+  list<const char*> *found_databases= (list<const char*> *) arg;
+  const char *db;
+
+  handlerton *hton= plugin_data(plugin, handlerton *);
+  if (hton->system_database)
+  {
+    db= hton->system_database();
+    if (db)
+      found_databases->push_back(db);
+  }
+
+  return FALSE;
+}
 
 void st_ha_check_opt::init()
 {
@@ -4424,7 +5070,6 @@ int ha_table_exists_in_engine(THD* thd, const char* db, const char* name)
   DBUG_RETURN(args.err);
 }
 
-#ifndef MCP_WL4784
 /**
   Prepare (sub-) sequences of joins in this statement 
   which may be pushed to each storage engine for execution.
@@ -4462,7 +5107,6 @@ int ha_make_pushed_joins(THD *thd, const AQP::Join_plan* plan)
   DBUG_PRINT("exit", ("error: %d", args.err));
   DBUG_RETURN(args.err);
 }
-#endif
 
 
 /*
@@ -6254,7 +6898,21 @@ int handler::ha_external_lock(THD *thd, int lock_type)
   DBUG_ASSERT(table_share->tmp_table != NO_TMP_TABLE ||
               ((lock_type != F_UNLCK && m_lock_type == F_UNLCK) ||
                lock_type == F_UNLCK));
-              
+  /* SQL HANDLER call locks/unlock while scanning (RND/INDEX). */
+  DBUG_ASSERT(inited == NONE || table->open_by_handler);
+#ifndef DBUG_OFF
+  /*
+    If this handler is cloned, then table->file is not this handler!
+    TODO: have an indicator in the handler to show that it is clone,
+    since table->file may point to ha_partition too...
+  */
+  if (table->key_read != 0 && table->file == this)
+  {
+    DBUG_PRINT("error", ("key_read != 0 (%d)", table->key_read));
+    table->key_read= 0;
+    DBUG_ASSERT(0);
+  }
+#endif
 
   if (MYSQL_HANDLER_RDLOCK_START_ENABLED() ||
       MYSQL_HANDLER_WRLOCK_START_ENABLED() ||
@@ -6370,6 +7028,8 @@ int handler::ha_write_row(uchar *buf)
 
   if (unlikely(error= binlog_log_row(table, 0, buf, log_func)))
     DBUG_RETURN(error); /* purecov: inspected */
+
+  DEBUG_SYNC_C("ha_write_row_end");
   DBUG_RETURN(0);
 }
 

@@ -8,12 +8,14 @@
 # --let $rpl_server_number= N
 # [--let $rpl_start_with_gtids= 1]
 # [--let $rpl_server_parameters= --flag1 --flag2 ...]
+# [--let $rpl_omit_print_server_parameters= 0]
 # [--let $rpl_debug= 1]
 # --source include/rpl_restart_server.inc
 #
 # Parameters:
 #
-#   $rpl_server_number, $rpl_start_with_gtids, $rpl_server_parameters
+#   $rpl_server_number, $rpl_start_with_gtids, $rpl_server_parameters,
+#   $rpl_omit_print_server_parameters
 #     See include/rpl_start_server.inc
 #
 #   $rpl_debug
@@ -32,7 +34,10 @@ if ($rpl_start_with_gtids)
 }
 if ($rpl_server_parameters)
 {
-  --let $_rpl_restart_server_args= $_rpl_restart_server_args parameters: $rpl_server_parameters
+  if (!$rpl_omit_print_server_parameters)
+  {
+    --let $_rpl_restart_server_args= $_rpl_restart_server_args parameters: $rpl_server_parameters
+  }
 }
 --let $include_filename= rpl_restart_server.inc [$_rpl_restart_server_args]
 --source include/begin_include_file.inc

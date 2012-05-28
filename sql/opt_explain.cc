@@ -59,6 +59,20 @@ protected:
   JOIN::ORDER_with_src group_list; //< GROUP BY item tee list
 
 protected:
+  class Lazy_condition: public Lazy
+  {
+    Item *const condition;
+  public:
+    Lazy_condition(Item *condition_arg): condition(condition_arg) {}
+    virtual bool eval(String *ret)
+    {
+      ret->length(0);
+      if (condition)
+        condition->print(ret, QT_ORDINARY);
+      return false;
+    }
+  };
+
   explicit Explain(Explain_context_enum context_type_arg,
                    THD *thd_arg, JOIN *join_arg= NULL)
   : thd(thd_arg),
@@ -890,11 +904,10 @@ bool Explain_table_base::explain_extra_common(const SQL_SELECT *select,
     return true;
   }
 
-#ifndef MCP_WL4784
   const TABLE* pushed_root= table->file->root_of_pushed_join();
   if (pushed_root)
   {
-    char buf[64];
+    char buf[128];
     int len;
     int pushed_id= 0;
 
@@ -930,7 +943,6 @@ bool Explain_table_base::explain_extra_common(const SQL_SELECT *select,
         return true;
     }
   }
-#endif
 
   switch (quick_type) {
   case QUICK_SELECT_I::QS_TYPE_ROR_UNION:
@@ -987,15 +999,11 @@ bool Explain_table_base::explain_extra_common(const SQL_SELECT *select,
       {
         if (fmt->is_hierarchical())
         {
-          StringBuffer<160> buff(cs);
-          if (tab)
-          {
-            if (tab->condition())
-              tab->condition()->print(&buff, QT_ORDINARY);
-          }
-          else
-            select->cond->print(&buff, QT_ORDINARY);
-          fmt->entry()->col_attached_condition.set(buff);
+          Lazy_condition *c= new Lazy_condition(tab ? tab->condition()
+                                                    : select->cond);
+          if (c == NULL)
+            return true;
+          fmt->entry()->col_attached_condition.set(c);
         }
         else if (push_extra(ET_USING_WHERE))
           return true;
@@ -1346,10 +1354,10 @@ bool Explain_join::explain_extra()
     {
       if (fmt->is_hierarchical())
       {
-        StringBuffer<160> buff(cs);
-        if (tab &&  tab->condition())
-          tab->condition()->print(&buff, QT_ORDINARY);
-        fmt->entry()->col_attached_condition.set(buff);
+        Lazy_condition *c= new Lazy_condition(tab->condition());
+        if (c == NULL)
+          return true;
+        fmt->entry()->col_attached_condition.set(c);
       }
       else if (push_extra(ET_USING_WHERE))
         return true;

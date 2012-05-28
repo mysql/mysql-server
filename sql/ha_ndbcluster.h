@@ -228,9 +228,8 @@ public:
 #endif
   void get_dynamic_partition_info(PARTITION_STATS *stat_info, uint part_id);
   uint32 calculate_key_hash_value(Field **field_array);
-  bool read_before_write_removal_supported() const { return true; }
-  bool read_before_write_removal_possible();
-  ha_rows read_before_write_removal_rows_written(void) const;
+  bool start_read_removal(void);
+  ha_rows end_read_removal(void);
   int extra(enum ha_extra_function operation);
   int extra_opt(enum ha_extra_function operation, ulong cache_size);
   int reset();

@@ -325,58 +325,6 @@ rw_lock_s_lock_low(
 }
 
 /******************************************************************//**
-Low-level function which locks an rw-lock in s-mode when we know that it
-is possible and none else is currently accessing the rw-lock structure.
-Then we can do the locking without reserving the mutex. */
-UNIV_INLINE
-void
-rw_lock_s_lock_direct(
-/*==================*/
-	rw_lock_t*	lock,		/*!< in/out: rw-lock */
-	const char*	file_name,	/*!< in: file name where requested */
-	ulint		line)		/*!< in: line where lock requested */
-{
-	ut_ad(lock->lock_word == X_LOCK_DECR);
-
-	/* Indicate there is a new reader by decrementing lock_word */
-	lock->lock_word--;
-
-	lock->last_s_file_name = file_name;
-	lock->last_s_line = line;
-
-#ifdef UNIV_SYNC_DEBUG
-	rw_lock_add_debug_info(lock, 0, RW_LOCK_SHARED, file_name, line);
-#endif
-}
-
-/******************************************************************//**
-Low-level function which locks an rw-lock in x-mode when we know that it
-is not locked and none else is currently accessing the rw-lock structure.
-Then we can do the locking without reserving the mutex. */
-UNIV_INLINE
-void
-rw_lock_x_lock_direct(
-/*==================*/
-	rw_lock_t*	lock,		/*!< in/out: rw-lock */
-	const char*	file_name,	/*!< in: file name where requested */
-	ulint		line)		/*!< in: line where lock requested */
-{
-	ut_ad(rw_lock_validate(lock));
-	ut_ad(lock->lock_word == X_LOCK_DECR);
-
-	lock->lock_word -= X_LOCK_DECR;
-	lock->writer_thread = os_thread_get_curr_id();
-	lock->recursive = TRUE;
-
-	lock->last_x_file_name = file_name;
-	lock->last_x_line = line;
-
-#ifdef UNIV_SYNC_DEBUG
-	rw_lock_add_debug_info(lock, 0, RW_LOCK_EX, file_name, line);
-#endif
-}
-
-/******************************************************************//**
 NOTE! Use the corresponding macro, not directly this function! Lock an
 rw-lock in shared mode for the current thread. If the rw-lock is locked
 in exclusive mode, or there is an exclusive lock request waiting, the
@@ -588,7 +536,7 @@ pfs_rw_lock_create_func(
 	ulint		cline)		/*!< in: file line where created */
 {
 	/* Initialize the rwlock for performance schema */
-	lock->pfs_psi = PSI_CALL(init_rwlock)(key, lock);
+	lock->pfs_psi = PSI_RWLOCK_CALL(init_rwlock)(key, lock);
 
 	/* The actual function to initialize an rwlock */
 	rw_lock_create_func(lock,
@@ -621,13 +569,13 @@ pfs_rw_lock_x_lock_func(
 		PSI_rwlock_locker_state	state;
 
 		/* Record the entry of rw x lock request in performance schema */
-		locker = PSI_CALL(start_rwlock_wrwait)(
+		locker = PSI_RWLOCK_CALL(start_rwlock_wrwait)(
 			&state, lock->pfs_psi, PSI_RWLOCK_WRITELOCK, file_name, line);
 
 		rw_lock_x_lock_func(lock, pass, file_name, line);
 
 		if (locker != NULL)
-			PSI_CALL(end_rwlock_wrwait)(locker, 0);
+			PSI_RWLOCK_CALL(end_rwlock_wrwait)(locker, 0);
 	}
 	else
 	{
@@ -657,13 +605,13 @@ pfs_rw_lock_x_lock_func_nowait(
 		PSI_rwlock_locker_state		state;
 
 		/* Record the entry of rw x lock request in performance schema */
-		locker = PSI_CALL(start_rwlock_wrwait)(
+		locker = PSI_RWLOCK_CALL(start_rwlock_wrwait)(
 			&state, lock->pfs_psi, PSI_RWLOCK_WRITELOCK, file_name, line);
 
 		ret = rw_lock_x_lock_func_nowait(lock, file_name, line);
 
 		if (locker != NULL)
-			PSI_CALL(end_rwlock_wrwait)(locker, ret);
+			PSI_RWLOCK_CALL(end_rwlock_wrwait)(locker, ret);
 	}
 	else
 	{
@@ -684,7 +632,7 @@ pfs_rw_lock_free_func(
 {
 	if (lock->pfs_psi != NULL)
 	{
-		PSI_CALL(destroy_rwlock)(lock->pfs_psi);
+		PSI_RWLOCK_CALL(destroy_rwlock)(lock->pfs_psi);
 		lock->pfs_psi = NULL;
 	}
 
@@ -712,13 +660,13 @@ pfs_rw_lock_s_lock_func(
 		PSI_rwlock_locker_state	state;
 
 		/* Instrumented to inform we are aquiring a shared rwlock */
-		locker = PSI_CALL(start_rwlock_rdwait)(
+		locker = PSI_RWLOCK_CALL(start_rwlock_rdwait)(
 			&state, lock->pfs_psi, PSI_RWLOCK_READLOCK, file_name, line);
 
 		rw_lock_s_lock_func(lock, pass, file_name, line);
 
 		if (locker != NULL)
-			PSI_CALL(end_rwlock_rdwait)(locker, 0);
+			PSI_RWLOCK_CALL(end_rwlock_rdwait)(locker, 0);
 	}
 	else
 	{
@@ -751,13 +699,13 @@ pfs_rw_lock_s_lock_low(
 		PSI_rwlock_locker_state	state;
 
 		/* Instrumented to inform we are aquiring a shared rwlock */
-		locker = PSI_CALL(start_rwlock_rdwait)(
+		locker = PSI_RWLOCK_CALL(start_rwlock_rdwait)(
 			&state, lock->pfs_psi, PSI_RWLOCK_READLOCK, file_name, line);
 
 		ret = rw_lock_s_lock_low(lock, pass, file_name, line);
 
 		if (locker != NULL)
-			PSI_CALL(end_rwlock_rdwait)(locker, ret);
+			PSI_RWLOCK_CALL(end_rwlock_rdwait)(locker, ret);
 	}
 	else
 	{
@@ -784,7 +732,7 @@ pfs_rw_lock_x_unlock_func(
 {
 	/* Inform performance schema we are unlocking the lock */
 	if (lock->pfs_psi != NULL)
-		PSI_CALL(unlock_rwlock)(lock->pfs_psi);
+		PSI_RWLOCK_CALL(unlock_rwlock)(lock->pfs_psi);
 
 	rw_lock_x_unlock_func(
 #ifdef UNIV_SYNC_DEBUG
@@ -810,7 +758,7 @@ pfs_rw_lock_s_unlock_func(
 {
 	/* Inform performance schema we are unlocking the lock */
 	if (lock->pfs_psi != NULL)
-		PSI_CALL(unlock_rwlock)(lock->pfs_psi);
+		PSI_RWLOCK_CALL(unlock_rwlock)(lock->pfs_psi);
 
 	rw_lock_s_unlock_func(
 #ifdef UNIV_SYNC_DEBUG

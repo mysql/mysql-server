@@ -413,8 +413,8 @@ trx_undo_page_init(
 Creates a new undo log segment in file.
 @return DB_SUCCESS if page creation OK possible error codes are:
 DB_TOO_MANY_CONCURRENT_TRXS DB_OUT_OF_FILE_SPACE */
-static
-ulint
+static __attribute__((nonnull, warn_unused_result))
+dberr_t
 trx_undo_seg_create(
 /*================*/
 	trx_rseg_t*	rseg __attribute__((unused)),/*!< in: rollback segment */
@@ -435,7 +435,7 @@ trx_undo_seg_create(
 	trx_usegf_t*	seg_hdr;
 	ulint		n_reserved;
 	ibool		success;
-	ulint		err = DB_SUCCESS;
+	dberr_t		err = DB_SUCCESS;
 
 	ut_ad(mtr && id && rseg_hdr);
 	ut_ad(mutex_own(&(rseg->mutex)));
@@ -1551,8 +1551,8 @@ Creates a new undo log.
 @return DB_SUCCESS if successful in creating the new undo lob object,
 possible error codes are: DB_TOO_MANY_CONCURRENT_TRXS
 DB_OUT_OF_FILE_SPACE DB_OUT_OF_MEMORY */
-static
-ulint
+static __attribute__((nonnull, warn_unused_result))
+dberr_t
 trx_undo_create(
 /*============*/
 	trx_t*		trx,	/*!< in: transaction */
@@ -1571,7 +1571,7 @@ trx_undo_create(
 	ulint		offset;
 	ulint		id;
 	page_t*		undo_page;
-	ulint		err;
+	dberr_t		err;
 
 	ut_ad(mutex_own(&(rseg->mutex)));
 
@@ -1746,7 +1746,7 @@ undo log reused.
 are: DB_TOO_MANY_CONCURRENT_TRXS DB_OUT_OF_FILE_SPACE DB_READ_ONLY
 DB_OUT_OF_MEMORY */
 UNIV_INTERN
-ulint
+dberr_t
 trx_undo_assign_undo(
 /*=================*/
 	trx_t*		trx,	/*!< in: transaction */
@@ -1755,7 +1755,7 @@ trx_undo_assign_undo(
 	trx_rseg_t*	rseg;
 	trx_undo_t*	undo;
 	mtr_t		mtr;
-	ulint		err = DB_SUCCESS;
+	dberr_t		err = DB_SUCCESS;
 
 	ut_ad(trx);
 
@@ -1775,7 +1775,7 @@ trx_undo_assign_undo(
 				     &mtr);
 	if (undo == NULL) {
 		err = trx_undo_create(trx, rseg, type, trx->id, &trx->xid,
-								&undo, &mtr);
+				      &undo, &mtr);
 		if (err != DB_SUCCESS) {
 
 			goto func_exit;

@@ -23,6 +23,7 @@ Create Full Text Index with (parallel) merge sort
 Created 10/13/2010 Jimmy Yang
 *******************************************************/
 
+#include "dict0dict.h" /* dict_table_stats_lock() */
 #include "row0merge.h"
 #include "pars0pars.h"
 #include "row0ftsort.h"
@@ -121,7 +122,7 @@ row_merge_create_fts_sort_index(
 	if (DICT_TF2_FLAG_IS_SET(table, DICT_TF2_FTS_ADD_DOC_ID)) {
 		/* If Doc ID column is being added by this create
 		index, then just check the number of rows in the table */
-		if (table->stat_n_rows < MAX_DOC_ID_OPT_VAL) {
+		if (dict_table_get_n_rows(table) < MAX_DOC_ID_OPT_VAL) {
 			*opt_doc_id_size = TRUE;
 		}
 	} else {
@@ -869,8 +870,8 @@ row_fts_start_parallel_merge(
 /********************************************************************//**
 Insert processed FTS data to auxillary index tables.
 @return	DB_SUCCESS if insertion runs fine */
-UNIV_INTERN
-ulint
+static __attribute__((nonnull))
+dberr_t
 row_merge_write_fts_word(
 /*=====================*/
 	trx_t*		trx,		/*!< in: transaction */
@@ -881,15 +882,15 @@ row_merge_write_fts_word(
 	CHARSET_INFO*	charset)	/*!< in: charset */
 {
 	ulint	selected;
-	ulint	ret = DB_SUCCESS;
+	dberr_t	ret = DB_SUCCESS;
 
 	selected = fts_select_index(
 		charset, word->text.f_str, word->text.f_len);
 	fts_table->suffix = fts_get_suffix(selected);
 
 	/* Pop out each fts_node in word->nodes write them to auxiliary table */
-	while(ib_vector_size(word->nodes) > 0) {
-		ulint		error;
+	while (ib_vector_size(word->nodes) > 0) {
+		dberr_t		error;
 		fts_node_t*	fts_node;
 
 		fts_node = static_cast<fts_node_t*>(ib_vector_pop(word->nodes));
@@ -901,8 +902,8 @@ row_merge_write_fts_word(
 		if (error != DB_SUCCESS) {
 			fprintf(stderr, "InnoDB: failed to write"
 				" word %s to FTS auxiliary index"
-				" table, error (%lu) \n",
-				word->text.f_str, error);
+				" table, error (%s) \n",
+				word->text.f_str, ut_strerr(error));
 			ret = error;
 		}
 
@@ -1227,7 +1228,7 @@ Read sorted file containing index data tuples and insert these data
 tuples to the index
 @return	DB_SUCCESS or error number */
 UNIV_INTERN
-ulint
+dberr_t
 row_fts_merge_insert(
 /*=================*/
 	dict_index_t*		index,	/*!< in: index */
@@ -1239,7 +1240,7 @@ row_fts_merge_insert(
 	const byte**		b;
 	mem_heap_t*		tuple_heap;
 	mem_heap_t*		heap;
-	ulint			error = DB_SUCCESS;
+	dberr_t			error = DB_SUCCESS;
 	ulint*			foffs;
 	ulint**			offsets;
 	fts_tokenizer_word_t	new_word;
