@@ -8601,7 +8601,7 @@ read_client_connect_attrs(char **ptr, size_t *max_bytes_available,
 #ifdef HAVE_PSI_THREAD_INTERFACE
   if (PSI_THREAD_CALL(set_thread_connect_attrs)(*ptr, length, from_cs) && log_warnings)
     sql_print_warning("Connection attributes of length %lu were truncated",
-                      length);
+                      (unsigned long) length);
 #endif
   return false;
 }
