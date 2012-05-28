@@ -51,7 +51,7 @@ static const char *traditional_extra_tags[ET_total]=
   "Using join buffer",                 // ET_USING_JOIN_BUFFER 
   "const row not found",               // ET_CONST_ROW_NOT_FOUND
   "unique row not found",              // ET_UNIQUE_ROW_NOT_FOUND
-  "Impossible ON condition"            // ET_IMPOSSIBLE_ON_CONDITION
+  "Impossible ON condition",           // ET_IMPOSSIBLE_ON_CONDITION
   ""                                   // ET_PUSHED_JOIN
 };
 
