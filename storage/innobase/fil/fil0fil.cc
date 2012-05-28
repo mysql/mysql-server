@@ -3263,7 +3263,7 @@ fil_open_single_table_tablespace(
 				REFMAN "innodb-troubleshooting-datadict.html "
 				"for how to resolve the issue.\n",
 				(ulong) space_id, (ulong) space_flags,
-				(ulong) id, (ulong) flags, table->name);
+				(ulong) id, (ulong) flags, name);
 
 			err = DB_CORRUPTION;
 		}
