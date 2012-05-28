@@ -1218,7 +1218,8 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 
     uint save_db_length= thd->db_length;
     char *save_db= thd->db;
-    USER_CONN *save_user_connect= thd->user_connect;
+    USER_CONN *save_user_connect=
+      const_cast<USER_CONN*>(thd->get_user_connect());
     Security_context save_security_ctx= *thd->security_ctx;
     const CHARSET_INFO *save_character_set_client=
       thd->variables.character_set_client;
@@ -1233,7 +1234,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     {
       my_free(thd->security_ctx->user);
       *thd->security_ctx= save_security_ctx;
-      thd->user_connect= save_user_connect;
+      thd->set_user_connect(save_user_connect);
       thd->reset_db (save_db, save_db_length);
       thd->variables.character_set_client= save_character_set_client;
       thd->variables.collation_connection= save_collation_connection;
@@ -5747,6 +5748,8 @@ void mysql_reset_thd_for_next_command(THD *thd)
 
 void THD::reset_for_next_command()
 {
+  // TODO: Why on earth is this here?! We should probably fix this
+  // function and move it to the proper file. /Matz
   THD *thd= this;
   DBUG_ENTER("mysql_reset_thd_for_next_command");
   DBUG_ASSERT(!thd->sp_runtime_ctx); /* not for substatements of routines */
@@ -5796,6 +5799,11 @@ void THD::reset_for_next_command()
 
   thd->reset_current_stmt_binlog_format_row();
   thd->binlog_unsafe_warning_flags= 0;
+
+  thd->m_trans_end_pos= 0;
+  thd->m_trans_log_file= NULL;
+  thd->commit_error= 0;
+  thd->durability_property= HA_REGULAR_DURABILITY;
 
   DBUG_PRINT("debug",
              ("is_current_stmt_binlog_format_row(): %d",
@@ -6038,7 +6046,7 @@ void mysql_parse(THD *thd, char *rawbuf, uint length,
                                                    sql_statement_info[thd->lex->sql_command].m_key);
 
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
-      if (mqh_used && thd->user_connect &&
+      if (mqh_used && thd->get_user_connect() &&
 	  check_mqh(thd, lex->sql_command))
       {
 	thd->net.error = 0;

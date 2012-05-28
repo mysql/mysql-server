@@ -171,6 +171,7 @@ SELECT c1 FROM t4;
 UPDATE t1 SET c1=1971 WHERE c2=1995;
 
 #Multi table update
+--error ER_DUP_ENTRY
 UPDATE t1,t2,t3,t4 SET t3.c1=t4.c1+t4.c2 WHERE t3.c1=61 AND t4.c2=4;
 
 # Update using various access methods

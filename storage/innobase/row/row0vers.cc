@@ -155,20 +155,8 @@ row_vers_impl_x_locked_low(
 
 		vers_del = rec_get_deleted_flag(prev_version, comp);
 
-		prev_trx_id = row_get_rec_trx_id(
-			prev_version, clust_index, clust_offsets);
-
-		/* If trx_id differs from prev_trx_id and if the
-		prev_version is marked deleted then the prev_trx_id
-		must have already committed for the trx_id to be able
-		to modify the row. Therefore, prev_trx_id cannot hold
-		any implicit lock. */
-
-		if (vers_del && trx_id != prev_trx_id) {
-
-			trx_id = 0;
-			break;
-		}
+		prev_trx_id = row_get_rec_trx_id(prev_version, clust_index,
+						 clust_offsets);
 
 		/* The stack of versions is locked by mtr.  Thus, it
 		is safe to fetch the prefixes for externally stored

@@ -3024,7 +3024,9 @@ EXPLAIN
           "using_temporary_table": true,
           "access_type": "eq_ref",
           "key": "<auto_key>",
+          "key_length": "5",
           "rows": 1,
+          "attached_condition": "(`x`.`a` = `sj-materialize`.`a`)",
           "materialized_from_subquery": {
             "query_block": {
               "table": {
@@ -7286,7 +7288,9 @@ EXPLAIN
                 "using_temporary_table": true,
                 "access_type": "eq_ref",
                 "key": "<auto_key>",
+                "key_length": "8",
                 "rows": 1,
+                "attached_condition": "((`test`.`grandparent1`.`col_int_nokey` = `sj-materialize`.`p1`) and (`test`.`grandparent1`.`col_int_key` = `sj-materialize`.`p2`))",
                 "materialized_from_subquery": {
                   "query_block": {
                     "nested_loop": [

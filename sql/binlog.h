@@ -1,5 +1,5 @@
 #ifndef BINLOG_H_INCLUDED
-/* Copyright (c) 2010, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2011, 2012 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -24,12 +24,207 @@ class Relay_log_info;
 
 class Format_description_log_event;
 
+/**
+  Class for maintaining the commit stages for binary log group commit.
+ */
+class Stage_manager {
+public:
+  class Mutex_queue {
+    friend class Stage_manager;
+  public:
+    Mutex_queue()
+      : m_first(NULL), m_last(&m_first)
+    {
+    }
+
+    void init(
+#ifdef HAVE_PSI_INTERFACE
+              PSI_mutex_key key_LOCK_queue
+#endif
+              ) {
+      mysql_mutex_init(key_LOCK_queue, &m_lock, MY_MUTEX_INIT_FAST);
+    }
+
+    void deinit() {
+      mysql_mutex_destroy(&m_lock);
+    }
+
+    bool is_empty() const {
+      return m_first == NULL;
+    }
+
+    /** Append a linked list of threads to the queue */
+    bool append(THD *first);
+
+    /**
+       Fetch the entire queue for a stage.
+
+       This will fetch the entire queue in one go.
+    */
+    THD *fetch_and_empty();
+
+    std::pair<bool,THD*> pop_front();
+
+  private:
+    void lock() { mysql_mutex_lock(&m_lock); }
+    void unlock() { mysql_mutex_unlock(&m_lock); }
+
+    /**
+       Pointer to the first thread in the queue, or NULL if the queue is
+       empty.
+    */
+    THD *m_first;
+
+    /**
+       Pointer to the location holding the end of the queue.
+
+       This is either @c &first, or a pointer to the @c next_to_commit of
+       the last thread that is enqueued.
+    */
+    THD **m_last;
+
+    /** Lock for protecting the queue. */
+    mysql_mutex_t m_lock;
+  } __attribute__((aligned(CPU_LEVEL1_DCACHE_LINESIZE)));
+
+public:
+  Stage_manager()
+  {
+  }
+
+  ~Stage_manager()
+  {
+  }
+
+  /**
+     Constants for queues for different stages.
+   */
+  enum StageID {
+    FLUSH_STAGE,
+    SYNC_STAGE,
+    COMMIT_STAGE,
+    STAGE_COUNTER
+  };
+
+  void init(
+#ifdef HAVE_PSI_INTERFACE
+            PSI_mutex_key key_LOCK_flush_queue,
+            PSI_mutex_key key_LOCK_sync_queue,
+            PSI_mutex_key key_LOCK_commit_queue,
+            PSI_mutex_key key_LOCK_done,
+            PSI_cond_key key_COND_done
+#endif
+            )
+  {
+    mysql_mutex_init(key_LOCK_done, &m_lock_done, MY_MUTEX_INIT_FAST);
+    mysql_cond_init(key_COND_done, &m_cond_done, NULL);
+    m_queue[FLUSH_STAGE].init(
+#ifdef HAVE_PSI_INTERFACE
+                              key_LOCK_flush_queue
+#endif
+                              );
+    m_queue[SYNC_STAGE].init(
+#ifdef HAVE_PSI_INTERFACE
+                             key_LOCK_sync_queue
+#endif
+                             );
+    m_queue[COMMIT_STAGE].init(
+#ifdef HAVE_PSI_INTERFACE
+                               key_LOCK_commit_queue
+#endif
+                               );
+  }
+
+  void deinit()
+  {
+    for (size_t i = 0 ; i < STAGE_COUNTER ; ++i)
+      m_queue[i].deinit();
+    mysql_cond_destroy(&m_cond_done);
+    mysql_mutex_destroy(&m_lock_done);
+  }
+
+  /**
+    Enroll a set of sessions for a stage.
+
+    This will queue the session thread for writing and flushing.
+
+    If the thread being queued is assigned as stage leader, it will
+    return immediately.
+
+    If wait_if_follower is true the thread is not the stage leader,
+    the thread will be wait for the queue to be processed by the
+    leader before it returns.
+
+    @param stage Stage identifier for the queue to append to.
+    @param first Queue to append.
+    @param stage_mutex
+                 Pointer to the currently held stage mutex, or NULL if
+                 we're not in a stage.
+
+    @retval true  Thread is stage leader.
+    @retval false Thread was not stage leader and processing has been done.
+   */
+  bool enroll_for(StageID stage, THD *first, mysql_mutex_t *stage_mutex);
+
+  std::pair<bool,THD*> pop_front(StageID stage)
+  {
+    return m_queue[stage].pop_front();
+  }
+
+
+  /**
+    Fetch the entire queue and empty it.
+
+    @return Pointer to the first session of the queue.
+   */
+  THD *fetch_queue_for(StageID stage) {
+    DBUG_PRINT("debug", ("Fetching queue for stage %d", stage));
+    return m_queue[stage].fetch_and_empty();
+  }
+
+  void signal_done(THD *queue) {
+    mysql_mutex_lock(&m_lock_done);
+    for (THD *thd= queue ; thd ; thd = thd->next_to_commit)
+      thd->transaction.flags.pending= false;
+    mysql_mutex_unlock(&m_lock_done);
+    mysql_cond_broadcast(&m_cond_done);
+  }
+
+private:
+  /**
+     Queues for sessions.
+
+     We need two queues:
+     - Waiting. Threads waiting to be processed
+     - Committing. Threads waiting to be committed.
+   */
+  Mutex_queue m_queue[STAGE_COUNTER];
+
+  /** Condition variable to indicate that the commit was processed */
+  mysql_cond_t m_cond_done;
+
+  /** Mutex used for the condition variable above */
+  mysql_mutex_t m_lock_done;
+};
+
+
 class MYSQL_BIN_LOG: public TC_LOG, private MYSQL_LOG
 {
  private:
 #ifdef HAVE_PSI_INTERFACE
   /** The instrumentation key to use for @ LOCK_index. */
   PSI_mutex_key m_key_LOCK_index;
+
+  PSI_mutex_key m_key_COND_done;
+
+  PSI_mutex_key m_key_LOCK_commit_queue;
+  PSI_mutex_key m_key_LOCK_done;
+  PSI_mutex_key m_key_LOCK_flush_queue;
+  PSI_mutex_key m_key_LOCK_sync_queue;
+  /** The instrumentation key to use for @ LOCK_commit. */
+  PSI_mutex_key m_key_LOCK_commit;
+  /** The instrumentation key to use for @ LOCK_sync. */
+  PSI_mutex_key m_key_LOCK_sync;
   /** The instrumentation key to use for @ update_cond. */
   PSI_cond_key m_key_update_cond;
   /** The instrumentation key to use for opening the log file. */
@@ -37,10 +232,10 @@ class MYSQL_BIN_LOG: public TC_LOG, private MYSQL_LOG
   /** The instrumentation key to use for opening the log index file. */
   PSI_file_key m_key_file_log_index;
 #endif
-  /* LOCK_log and LOCK_index are inited by init_pthread_objects() */
+  /* POSIX thread objects are inited by init_pthread_objects() */
   mysql_mutex_t LOCK_index;
-  mysql_mutex_t LOCK_prep_xids;
-  mysql_cond_t  COND_prep_xids;
+  mysql_mutex_t LOCK_commit;
+  mysql_mutex_t LOCK_sync;
   mysql_cond_t update_cond;
   ulonglong bytes_written;
   IO_CACHE index_file;
@@ -70,7 +265,7 @@ class MYSQL_BIN_LOG: public TC_LOG, private MYSQL_LOG
      fix_max_relay_log_size).
   */
   ulong max_size;
-  long prepared_xids; /* for tc log - number of xids to remember */
+
   // current file sequence number for load data infile binary logging
   uint file_id;
   uint open_count;				// For replication
@@ -91,6 +286,50 @@ class MYSQL_BIN_LOG: public TC_LOG, private MYSQL_LOG
   uint *sync_period_ptr;
   uint sync_counter;
 
+  my_atomic_rwlock_t m_prep_xids_lock;
+  mysql_cond_t m_prep_xids_cond;
+  volatile int32 m_prep_xids;
+
+  /**
+    Increment the prepared XID counter.
+   */
+  void inc_prep_xids() {
+    DBUG_ENTER("MYSQL_BIN_LOG::inc_prep_xids");
+    my_atomic_rwlock_wrlock(&m_prep_xids_lock);
+#ifndef DBUG_OFF
+    int result= my_atomic_add32(&m_prep_xids, 1);
+#else
+    (void) my_atomic_add32(&m_prep_xids, 1);
+#endif
+    DBUG_PRINT("debug", ("m_prep_xids: %d", result + 1));
+    my_atomic_rwlock_wrunlock(&m_prep_xids_lock);
+    DBUG_VOID_RETURN;
+  }
+
+  /**
+    Decrement the prepared XID counter.
+
+    Signal m_prep_xids_cond if the counter reaches zero.
+   */
+  void dec_prep_xids() {
+    DBUG_ENTER("MYSQL_BIN_LOG::dec_prep_xids");
+    my_atomic_rwlock_wrlock(&m_prep_xids_lock);
+    int32 result= my_atomic_add32(&m_prep_xids, -1);
+    DBUG_PRINT("debug", ("m_prep_xids: %d", result - 1));
+    my_atomic_rwlock_wrunlock(&m_prep_xids_lock);
+    /* If the old value was 1, it is zero now. */
+    if (result == 1)
+      mysql_cond_signal(&m_prep_xids_cond);
+    DBUG_VOID_RETURN;
+  }
+
+  int32 get_prep_xids() {
+    my_atomic_rwlock_rdlock(&m_prep_xids_lock);
+    int32 result= my_atomic_load32(&m_prep_xids);
+    my_atomic_rwlock_rdunlock(&m_prep_xids_lock);
+    return result;
+  }
+
   inline uint get_sync_period()
   {
     return *sync_period_ptr;
@@ -104,6 +343,10 @@ class MYSQL_BIN_LOG: public TC_LOG, private MYSQL_LOG
   */
   int new_file_without_locking();
   int new_file_impl(bool need_lock);
+
+  /** Manage the stages in ordered_commit. */
+  Stage_manager stage_manager;
+  void do_flush(THD *thd);
 
 public:
   using MYSQL_LOG::generate_name;
@@ -167,11 +410,29 @@ public:
 
 #ifdef HAVE_PSI_INTERFACE
   void set_psi_keys(PSI_mutex_key key_LOCK_index,
+                    PSI_mutex_key key_LOCK_commit,
+                    PSI_mutex_key key_LOCK_commit_queue,
+                    PSI_mutex_key key_LOCK_done,
+                    PSI_mutex_key key_LOCK_flush_queue,
+                    PSI_mutex_key key_LOCK_log,
+                    PSI_mutex_key key_LOCK_sync,
+                    PSI_mutex_key key_LOCK_sync_queue,
+                    PSI_cond_key key_COND_done,
                     PSI_cond_key key_update_cond,
                     PSI_file_key key_file_log,
                     PSI_file_key key_file_log_index)
   {
+    m_key_COND_done= key_COND_done;
+
+    m_key_LOCK_commit_queue= key_LOCK_commit_queue;
+    m_key_LOCK_done= key_LOCK_done;
+    m_key_LOCK_flush_queue= key_LOCK_flush_queue;
+    m_key_LOCK_sync_queue= key_LOCK_sync_queue;
+
     m_key_LOCK_index= key_LOCK_index;
+    m_key_LOCK_log= key_LOCK_log;
+    m_key_LOCK_commit= key_LOCK_commit;
+    m_key_LOCK_sync= key_LOCK_sync;
     m_key_update_cond= key_update_cond;
     m_key_file_log= key_file_log;
     m_key_file_log_index= key_file_log_index;
@@ -203,20 +464,31 @@ private:
   Gtid_set* previous_gtid_set;
 
   int open(const char *opt_name) { return open_binlog(opt_name); }
+  bool change_stage(THD *thd, Stage_manager::StageID stage,
+                    THD* queue, mysql_mutex_t *leave,
+                    mysql_mutex_t *enter);
+  std::pair<int,my_off_t> flush_thread_caches(THD *thd);
+  int flush_cache_to_file(my_off_t *flush_end_pos);
+  int finish_commit(THD *thd);
+  std::pair<bool, bool> sync_binlog_file(bool force);
+  void process_commit_stage_queue(THD *thd, THD *queue, int flush_error);
+  int process_flush_stage_queue(my_off_t *total_bytes_var, bool *rotate_var,
+                                THD **out_queue_var);
+  int ordered_commit(THD *thd, bool all, bool skip_commit = false);
 public:
   int open_binlog(const char *opt_name);
   void close();
-  int log_xid(THD *thd, my_xid xid);
+  enum_result commit(THD *thd, bool all);
+  int rollback(THD *thd, bool all);
+  int prepare(THD *thd, bool all);
   int recover(IO_CACHE *log, Format_description_log_event *fdle,
               my_off_t *valid_pos);
-  int unlog(ulong cookie, my_xid xid);
   int recover(IO_CACHE *log, Format_description_log_event *fdle);
 #if !defined(MYSQL_CLIENT)
 
   void update_thd_next_event_pos(THD *thd);
   int flush_and_set_pending_rows_event(THD *thd, Rows_log_event* event,
                                        bool is_transactional);
-  int remove_pending_rows_event(THD *thd, bool is_transactional);
 
 #endif /* !defined(MYSQL_CLIENT) */
   void add_bytes_written(ulonglong inc)
@@ -280,9 +552,8 @@ public:
   int new_file();
 
   bool write_event(Log_event* event_info);
-  bool write_cache(THD *thd, class binlog_cache_data *binlog_cache_data,
-                   bool prepared);
-  int  do_write_cache(IO_CACHE *cache, bool lock_log, bool flush_and_sync);
+  bool write_cache(THD *thd, class binlog_cache_data *binlog_cache_data);
+  int  do_write_cache(IO_CACHE *cache);
 
   void set_write_error(THD *thd, bool is_transactional);
   bool check_write_error(THD *thd);
@@ -316,7 +587,7 @@ public:
      @retval 0 Success
      @retval other Failure
   */
-  bool flush_and_sync(bool *synced, const bool force=FALSE);
+  bool flush_and_sync(const bool force= false);
   int purge_logs(const char *to_log, bool included,
                  bool need_mutex, bool need_update_threads,
                  ulonglong *decrease_log_space);
@@ -392,6 +663,7 @@ int gtid_empty_group_log_and_cleanup(THD *thd);
 
 extern const char *log_bin_index;
 extern const char *log_bin_basename;
+extern bool opt_binlog_order_commits;
 
 /**
   Turns a relative log binary log path into a full path, based on the

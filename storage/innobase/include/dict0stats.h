@@ -120,10 +120,7 @@ dict_stats_update(
 /*********************************************************************//**
 Removes the information for a particular index's stats from the persistent
 storage if it exists and if there is data stored for this index.
-The transaction is not committed, it must not be committed in this
-function because this is the user trx that is running DROP INDEX.
-The transaction will be committed at the very end when dropping an
-index.
+This function creates its own trx and commits it.
 @return DB_SUCCESS or error code */
 UNIV_INTERN
 dberr_t
@@ -131,7 +128,6 @@ dict_stats_drop_index(
 /*==================*/
 	const char*	tname,	/*!< in: table name */
 	const char*	iname,	/*!< in: index name */
-	trx_t*		trx,	/*!< in/out: user transaction */
 	char*		errstr, /*!< out: error message if != DB_SUCCESS
 				is returned */
 	ulint		errstr_sz);/*!< in: size of the errstr buffer */

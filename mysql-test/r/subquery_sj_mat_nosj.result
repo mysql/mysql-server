@@ -2985,7 +2985,9 @@ EXPLAIN
           "table": {
             "access_type": "eq_ref",
             "key": "<auto_key>",
-            "rows": 1
+            "key_length": "4",
+            "rows": 1,
+            "attached_condition": "((`test`.`t1`.`a` = `materialized subselect`.`a`))"
           },
           "query_block": {
             "select_id": 2,
@@ -3076,7 +3078,9 @@ EXPLAIN
           "table": {
             "access_type": "eq_ref",
             "key": "<auto_key>",
-            "rows": 1
+            "key_length": "5",
+            "rows": 1,
+            "attached_condition": "((`x`.`a` = `materialized subselect`.`a`))"
           },
           "query_block": {
             "select_id": 3,
@@ -3326,7 +3330,9 @@ EXPLAIN
               "table": {
                 "access_type": "eq_ref",
                 "key": "<auto_key>",
-                "rows": 1
+                "key_length": "5",
+                "rows": 1,
+                "attached_condition": "((`test`.`t3`.`a` = `materialized subselect`.`a`))"
               },
               "query_block": {
                 "select_id": 2,
@@ -5599,7 +5605,9 @@ EXPLAIN
           "table": {
             "access_type": "eq_ref",
             "key": "<auto_key>",
-            "rows": 1
+            "key_length": "3",
+            "rows": 1,
+            "attached_condition": "((`test`.`t2`.`Code` = `materialized subselect`.`Country`))"
           },
           "query_block": {
             "select_id": 2,
@@ -7355,7 +7363,9 @@ EXPLAIN
                 "table": {
                   "access_type": "eq_ref",
                   "key": "<auto_key>",
-                  "rows": 1
+                  "key_length": "8",
+                  "rows": 1,
+                  "attached_condition": "((`test`.`grandparent1`.`col_int_nokey` = `materialized subselect`.`p1`) and (`test`.`grandparent1`.`col_int_key` = `materialized subselect`.`p2`))"
                 },
                 "query_block": {
                   "select_id": 3,
