@@ -739,5 +739,6 @@ public:
   virtual enum_engine_type engine_type() const { return HASH_SJ_ENGINE; }
   
   const st_join_table *get_join_tab() const { return tab; }
+  Item *get_cond_for_explain() const { return cond; }
 };
 #endif /* ITEM_SUBSELECT_INCLUDED */

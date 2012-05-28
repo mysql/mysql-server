@@ -106,6 +106,76 @@ TYPELIB tx_isolation_typelib= {array_elements(tx_isolation_names)-1,"",
 static TYPELIB known_extensions= {0,"known_exts", NULL, NULL};
 uint known_extensions_id= 0;
 
+#ifndef DBUG_OFF
+
+const char *ha_legacy_type_name(legacy_db_type legacy_type)
+{
+  switch (legacy_type)
+  {
+  case DB_TYPE_UNKNOWN:
+    return "DB_TYPE_UNKNOWN";
+  case DB_TYPE_DIAB_ISAM:
+    return "DB_TYPE_DIAB_ISAM";
+  case DB_TYPE_HASH:
+    return "DB_TYPE_HASH";
+  case DB_TYPE_MISAM:
+    return "DB_TYPE_MISAM";
+  case DB_TYPE_PISAM:
+    return "DB_TYPE_PISAM";
+  case DB_TYPE_RMS_ISAM:
+    return "DB_TYPE_RMS_ISAM";
+  case DB_TYPE_HEAP:
+    return "DB_TYPE_HEAP";
+  case DB_TYPE_ISAM:
+    return "DB_TYPE_ISAM";
+  case DB_TYPE_MRG_ISAM:
+    return "DB_TYPE_MRG_ISAM";
+  case DB_TYPE_MYISAM:
+    return "DB_TYPE_MYISAM";
+  case DB_TYPE_MRG_MYISAM:
+    return "DB_TYPE_MRG_MYISAM";
+  case DB_TYPE_BERKELEY_DB:
+    return "DB_TYPE_BERKELEY_DB";
+  case DB_TYPE_INNODB:
+    return "DB_TYPE_INNODB";
+  case DB_TYPE_GEMINI:
+    return "DB_TYPE_GEMINI";
+  case DB_TYPE_NDBCLUSTER:
+    return "DB_TYPE_NDBCLUSTER";
+  case DB_TYPE_EXAMPLE_DB:
+    return "DB_TYPE_EXAMPLE_DB";
+  case DB_TYPE_ARCHIVE_DB:
+    return "DB_TYPE_ARCHIVE_DB";
+  case DB_TYPE_CSV_DB:
+    return "DB_TYPE_CSV_DB";
+  case DB_TYPE_FEDERATED_DB:
+    return "DB_TYPE_FEDERATED_DB";
+  case DB_TYPE_BLACKHOLE_DB:
+    return "DB_TYPE_BLACKHOLE_DB";
+  case DB_TYPE_PARTITION_DB:
+    return "DB_TYPE_PARTITION_DB";
+  case DB_TYPE_BINLOG:
+    return "DB_TYPE_BINLOG";
+  case DB_TYPE_SOLID:
+    return "DB_TYPE_SOLID";
+  case DB_TYPE_PBXT:
+    return "DB_TYPE_PBXT";
+  case DB_TYPE_TABLE_FUNCTION:
+    return "DB_TYPE_TABLE_FUNCTION";
+  case DB_TYPE_MEMCACHE:
+    return "DB_TYPE_MEMCACHE";
+  case DB_TYPE_FALCON:
+    return "DB_TYPE_FALCON";
+  case DB_TYPE_MARIA:
+    return "DB_TYPE_MARIA";
+  case DB_TYPE_PERFORMANCE_SCHEMA:
+    return "DB_TYPE_PERFORMANCE_SCHEMA";
+  default:
+    return "DB_TYPE_DYNAMIC";
+  }
+}
+#endif
+
 /**
   Database name that hold most of mysqld system tables.
   Current code assumes that, there exists only some
@@ -154,7 +224,6 @@ static my_bool system_databases_handlerton(THD *unused, plugin_ref plugin,
 static my_bool check_engine_system_table_handlerton(THD *unused,
                                                     plugin_ref plugin,
                                                     void *arg);
-
 /**
   Structure used by SE during check for system table.
   This structure is passed to each SE handlerton and the status (OUT param)
@@ -181,7 +250,7 @@ struct st_sys_tbl_chk_params
       and is supported by SE.
     */
     SUPPORTED_SYSTEM_TABLE
-  }status;                                    // OUT param
+  } status;                                    // OUT param
 };
 
 
@@ -1243,7 +1312,7 @@ ha_check_and_coalesce_trx_read_only(THD *thd, Ha_trx_info *ha_list,
 */
 int ha_commit_trans(THD *thd, bool all)
 {
-  int error= 0, cookie= 0;
+  int error= 0;
   /*
     'all' means that this is either an explicit commit issued by
     user, or an implicit commit issued by a DDL.
@@ -1258,7 +1327,6 @@ int ha_commit_trans(THD *thd, bool all)
   */
   bool is_real_trans= all || thd->transaction.all.ha_list == 0;
   Ha_trx_info *ha_info= trans->ha_list;
-  my_xid xid= thd->transaction.xid_state.xid.get_my_xid();
   DBUG_ENTER("ha_commit_trans");
 
   DBUG_PRINT("info", ("all=%d thd->in_sub_stmt=%d ha_info=%p is_real_trans=%d",
@@ -1293,11 +1361,13 @@ int ha_commit_trans(THD *thd, bool all)
     DBUG_RETURN(2);
   }
 
+  MDL_request mdl_request;
+  bool release_mdl= false;
+
   if (ha_info)
   {
     uint rw_ha_count;
     bool rw_trans;
-    MDL_request mdl_request;
 
     DBUG_EXECUTE_IF("crash_commit_before", DBUG_SUICIDE(););
 
@@ -1306,6 +1376,7 @@ int ha_commit_trans(THD *thd, bool all)
       thd->stmt_map.close_transient_cursors();
 
     rw_ha_count= ha_check_and_coalesce_trx_read_only(thd, ha_info, all);
+    trans->rw_ha_count= rw_ha_count;
     /* rw_trans is TRUE when we in a transaction changing data */
     rw_trans= is_real_trans && (rw_ha_count > 0);
 
@@ -1322,12 +1393,14 @@ int ha_commit_trans(THD *thd, bool all)
       mdl_request.init(MDL_key::COMMIT, "", "", MDL_INTENTION_EXCLUSIVE,
                        MDL_EXPLICIT);
 
+      DBUG_PRINT("debug", ("Acquire MDL commit lock"));
       if (thd->mdl_context.acquire_lock(&mdl_request,
                                         thd->variables.lock_wait_timeout))
       {
         ha_rollback_trans(thd, all);
         DBUG_RETURN(1);
       }
+      release_mdl= true;
 
       DEBUG_SYNC(thd, "ha_commit_trans_after_acquire_commit_lock");
     }
@@ -1344,70 +1417,41 @@ int ha_commit_trans(THD *thd, bool all)
     }
 
     if (!trans->no_2pc && (rw_ha_count > 1))
-    {
-      for (; ha_info && !error; ha_info= ha_info->next())
-      {
-        int err;
-        handlerton *ht= ha_info->ht();
-        /*
-          Do not call two-phase commit if this particular
-          transaction is read-only. This allows for simpler
-          implementation in engines that are always read-only.
-        */
-        if (! ha_info->is_trx_read_write())
-          continue;
-        /*
-          Sic: we know that prepare() is not NULL since otherwise
-          trans->no_2pc would have been set.
-        */
-        if ((err= ht->prepare(ht, thd, all)))
-        {
-          my_error(ER_ERROR_DURING_COMMIT, MYF(0), err);
-          error= 1;
-        }
-        status_var_increment(thd->status_var.ha_prepare_count);
-      }
-      DBUG_EXECUTE_IF("crash_commit_after_prepare", DBUG_SUICIDE(););
-      if (error || (is_real_trans && xid &&
-                    (error= !(cookie= tc_log->log_xid(thd, xid)))))
-      {
-        ha_rollback_trans(thd, all);
-        error= 1;
-        goto end;
-      }
-      DBUG_EXECUTE_IF("crash_commit_after_log", DBUG_SUICIDE(););
-    }
-    error=ha_commit_one_phase(thd, all) ? (cookie ? 2 : 1) : 0;
-    DBUG_EXECUTE_IF("crash_commit_before_unlog", DBUG_SUICIDE(););
-    if (cookie)
-      if(tc_log->unlog(cookie, xid))
-      {
-        error= 2;
-        goto end;
-      }
-    DBUG_EXECUTE_IF("crash_commit_after", DBUG_SUICIDE(););
-    (void) RUN_HOOK(transaction, after_commit, (thd, FALSE));
+      error= tc_log->prepare(thd, all);
+  }
+  if (error || (error= tc_log->commit(thd, all)))
+  {
+    ha_rollback_trans(thd, all);
+    error= 1;
+    goto end;
+  }
+  DBUG_EXECUTE_IF("crash_commit_after", DBUG_SUICIDE(););
 end:
-    if (rw_trans && mdl_request.ticket)
-    {
-      /*
-        We do not always immediately release transactional locks
-        after ha_commit_trans() (see uses of ha_enable_transaction()),
-        thus we release the commit blocker lock as soon as it's
-        not needed.
-      */
-      thd->mdl_context.release_lock(mdl_request.ticket);
-    }
+  if (release_mdl && mdl_request.ticket)
+  {
+    /*
+      We do not always immediately release transactional locks
+      after ha_commit_trans() (see uses of ha_enable_transaction()),
+      thus we release the commit blocker lock as soon as it's
+      not needed.
+    */
+    DBUG_PRINT("debug", ("Releasing MDL commit lock"));
+    thd->mdl_context.release_lock(mdl_request.ticket);
   }
   /* Free resources and perform other cleanup even for 'empty' transactions. */
-  else if (is_real_trans)
+  if (is_real_trans)
     thd->transaction.cleanup();
   DBUG_RETURN(error);
 }
 
 /**
-  @note
-  This function does not care about global read lock. A caller should.
+  Commit the sessions outstanding transaction.
+
+  @pre thd->transaction.flags.commit_low == true
+  @post thd->transaction.flags.commit_low == false
+
+  @note This function does not care about global read lock; the caller
+  should.
 
   @param[in]  all  Is set in case of explicit commit
                    (COMMIT statement), or implicit commit
@@ -1416,26 +1460,12 @@ end:
                    autocommit=1.
 */
 
-int ha_commit_one_phase(THD *thd, bool all)
+int ha_commit_low(THD *thd, bool all)
 {
   int error=0;
   THD_TRANS *trans=all ? &thd->transaction.all : &thd->transaction.stmt;
-  /*
-    "real" is a nick name for a transaction for which a commit will
-    make persistent changes. E.g. a 'stmt' transaction inside a 'all'
-    transaction is not 'real': even though it's possible to commit it,
-    the changes are not durable as they might be rolled back if the
-    enclosing 'all' transaction is rolled back.
-    We establish the value of 'is_real_trans' by checking
-    if it's an explicit COMMIT/BEGIN statement, or implicit
-    commit issued by DDL (all == TRUE), or if we're running
-    in autocommit mode (it's only in the autocommit mode
-    ha_commit_one_phase() can be called with an empty
-    transaction.all.ha_list, see why in trans_register_ha()).
-  */
-  bool is_real_trans=all || thd->transaction.all.ha_list == 0;
   Ha_trx_info *ha_info= trans->ha_list, *ha_info_next;
-  DBUG_ENTER("ha_commit_one_phase");
+  DBUG_ENTER("ha_commit_low");
 
   if (ha_info)
   {
@@ -1454,6 +1484,7 @@ int ha_commit_one_phase(THD *thd, bool all)
     }
     trans->ha_list= 0;
     trans->no_2pc=0;
+    trans->rw_ha_count= 0;
     if (all)
     {
 #ifdef HAVE_QUERY_CACHE
@@ -1463,10 +1494,52 @@ int ha_commit_one_phase(THD *thd, bool all)
     }
   }
   /* Free resources and perform other cleanup even for 'empty' transactions. */
-  if (is_real_trans)
+  if (all)
     thd->transaction.cleanup();
 
+  /*
+    When the transaction has been committed, we clear the commit_low
+    flag. This allow other parts of the system to check if commit_low
+    was called.
+  */
+  thd->transaction.flags.commit_low= false;
   DBUG_RETURN(error);
+}
+
+
+int ha_rollback_low(THD *thd, bool all)
+{
+  THD_TRANS *trans=all ? &thd->transaction.all : &thd->transaction.stmt;
+  Ha_trx_info *ha_info= trans->ha_list, *ha_info_next;
+  int error= 0;
+
+  if (ha_info)
+  {
+    /* Close all cursors that can not survive ROLLBACK */
+    if (all)                          /* not a statement commit */
+      thd->stmt_map.close_transient_cursors();
+
+    for (; ha_info; ha_info= ha_info_next)
+    {
+      int err;
+      handlerton *ht= ha_info->ht();
+      if ((err= ht->rollback(ht, thd, all)))
+      { // cannot happen
+        my_error(ER_ERROR_DURING_ROLLBACK, MYF(0), err);
+        error= 1;
+      }
+      status_var_increment(thd->status_var.ha_rollback_count);
+      ha_info_next= ha_info->next();
+      ha_info->reset(); /* keep it conveniently zero-filled */
+    }
+    trans->ha_list= 0;
+    trans->no_2pc=0;
+    trans->rw_ha_count= 0;
+    if (all && thd->transaction_rollback_request &&
+        thd->transaction.xid_state.xa_state != XA_NOTR)
+      thd->transaction.xid_state.rm_error= thd->get_stmt_da()->sql_errno();
+  }
+  return error;
 }
 
 
@@ -1474,21 +1547,7 @@ int ha_rollback_trans(THD *thd, bool all)
 {
   int error=0;
   THD_TRANS *trans=all ? &thd->transaction.all : &thd->transaction.stmt;
-  Ha_trx_info *ha_info= trans->ha_list, *ha_info_next;
-  /*
-    "real" is a nick name for a transaction for which a commit will
-    make persistent changes. E.g. a 'stmt' transaction inside a 'all'
-    transaction is not 'real': even though it's possible to commit it,
-    the changes are not durable as they might be rolled back if the
-    enclosing 'all' transaction is rolled back.
-    We establish the value of 'is_real_trans' by checking
-    if it's an explicit COMMIT or BEGIN statement, or implicit
-    commit issued by DDL (in these cases all == TRUE),
-    or if we're running in autocommit mode (it's only in the autocommit mode
-    ha_commit_one_phase() is called with an empty
-    transaction.all.ha_list, see why in trans_register_ha()).
-  */
-  bool is_real_trans=all || thd->transaction.all.ha_list == 0;
+
   DBUG_ENTER("ha_rollback_trans");
 
   /*
@@ -1512,33 +1571,11 @@ int ha_rollback_trans(THD *thd, bool all)
     DBUG_RETURN(1);
   }
 
-  if (ha_info)
-  {
-    /* Close all cursors that can not survive ROLLBACK */
-    if (is_real_trans)                          /* not a statement commit */
-      thd->stmt_map.close_transient_cursors();
+  if (tc_log)
+    tc_log->rollback(thd, all);
 
-    for (; ha_info; ha_info= ha_info_next)
-    {
-      int err;
-      handlerton *ht= ha_info->ht();
-      if ((err= ht->rollback(ht, thd, all)))
-      { // cannot happen
-        my_error(ER_ERROR_DURING_ROLLBACK, MYF(0), err);
-        error=1;
-      }
-      status_var_increment(thd->status_var.ha_rollback_count);
-      ha_info_next= ha_info->next();
-      ha_info->reset(); /* keep it conveniently zero-filled */
-    }
-    trans->ha_list= 0;
-    trans->no_2pc=0;
-    if (is_real_trans && thd->transaction_rollback_request &&
-        thd->transaction.xid_state.xa_state != XA_NOTR)
-      thd->transaction.xid_state.rm_error= thd->get_stmt_da()->sql_errno();
-  }
   /* Always cleanup. Even if nht==0. There may be savepoints. */
-  if (is_real_trans)
+  if (all)
     thd->transaction.cleanup();
   if (all)
     thd->transaction_rollback_request= FALSE;
@@ -1554,10 +1591,14 @@ int ha_rollback_trans(THD *thd, bool all)
     the error log; but we don't want users to wonder why they have this
     message in the error log, so we don't send it.
   */
-  if (is_real_trans && thd->transaction.all.cannot_safely_rollback() &&
+#ifndef DBUG_OFF
+  thd->transaction.stmt.dbug_unsafe_rollback_flags("stmt");
+  thd->transaction.all.dbug_unsafe_rollback_flags("all");
+#endif
+  if ((all || thd->transaction.stmt.ha_list == 0) &&
+      thd->transaction.all.cannot_safely_rollback() &&
       !thd->slave_thread && thd->killed != THD::KILL_CONNECTION)
     thd->transaction.push_unsafe_rollback_warnings(thd);
-  (void) RUN_HOOK(transaction, after_rollback, (thd, FALSE));
   DBUG_RETURN(error);
 }
 
@@ -1908,6 +1949,7 @@ int ha_rollback_to_savepoint(THD *thd, SAVEPOINT *sv)
   DBUG_ENTER("ha_rollback_to_savepoint");
 
   trans->no_2pc=0;
+  trans->rw_ha_count= 0;
   /*
     rolling back to savepoint in all storage engines that were part of the
     transaction when the savepoint was set
@@ -1946,6 +1988,39 @@ int ha_rollback_to_savepoint(THD *thd, SAVEPOINT *sv)
     ha_info->reset(); /* keep it conveniently zero-filled */
   }
   trans->ha_list= sv->ha_list;
+  DBUG_RETURN(error);
+}
+
+int ha_prepare_low(THD *thd, bool all)
+{
+  int error= 0;
+  THD_TRANS *trans=all ? &thd->transaction.all : &thd->transaction.stmt;
+  Ha_trx_info *ha_info= trans->ha_list;
+  DBUG_ENTER("ha_prepare_low");
+
+  if (ha_info)
+  {
+    for (; ha_info && !error; ha_info= ha_info->next())
+    {
+      int err= 0;
+      handlerton *ht= ha_info->ht();
+      /*
+        Do not call two-phase commit if this particular
+        transaction is read-only. This allows for simpler
+        implementation in engines that are always read-only.
+      */
+      if (!ha_info->is_trx_read_write())
+        continue;
+      if ((err= ht->prepare(ht, thd, all)))
+      {
+        my_error(ER_ERROR_DURING_COMMIT, MYF(0), err);
+        error= 1;
+      }
+      status_var_increment(thd->status_var.ha_prepare_count);
+    }
+    DBUG_EXECUTE_IF("crash_commit_after_prepare", DBUG_SUICIDE(););
+  }
+
   DBUG_RETURN(error);
 }
 
@@ -3665,12 +3740,12 @@ int handler::check_old_types()
 {
   Field** field;
 
-  if (!table->s->mysql_version)
+  for (field= table->field; (*field); field++)
   {
-    /* check for bad DECIMAL field */
-    for (field= table->field; (*field); field++)
+    if (table->s->mysql_version == 0) // prior to MySQL 5.0
     {
-      if ((*field)->type() == MYSQL_TYPE_NEWDECIMAL)
+      /* check for bad DECIMAL field */
+      if ((*field)->type() == MYSQL_TYPE_NEWDECIMAL) // TODO: error? MYSQL_TYPE_DECIMAL?
       {
         return HA_ADMIN_NEEDS_ALTER;
       }
@@ -3679,6 +3754,8 @@ int handler::check_old_types()
         return HA_ADMIN_NEEDS_ALTER;
       }
     }
+    if ((*field)->type() == MYSQL_TYPE_YEAR && (*field)->field_length == 2)
+      return HA_ADMIN_NEEDS_ALTER; // obsolete YEAR(2) type
   }
   return 0;
 }
@@ -4372,7 +4449,7 @@ int ha_enable_transaction(THD *thd, bool on)
   DBUG_ENTER("ha_enable_transaction");
   DBUG_PRINT("enter", ("on: %d", (int) on));
 
-  if ((thd->transaction.on= on))
+  if ((thd->transaction.flags.enabled= on))
   {
     /*
       Now all storage engines should have transaction handling enabled.

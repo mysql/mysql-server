@@ -3357,10 +3357,12 @@ hex(concat(a))	a
 00300030003000300030003000300030003000300030003000300030003000310030003000300030002E0031	00000000000000010000.1
 drop table t1;
 create table t1 (a year(2));
+Warnings:
+Warning	1818	YEAR(2) column type is deprecated. Creating YEAR(4) column instead.
 insert into t1 values (1);
 select hex(concat(a)) from t1;
 hex(concat(a))
-00300031
+0032003000300031
 create table t2 as select concat(a) from t1;
 show create table t2;
 Table	Create Table
@@ -3670,6 +3672,8 @@ hex(a)
 drop table t1;
 drop view v1;
 create table t1 (a year(2));
+Warnings:
+Warning	1818	YEAR(2) column type is deprecated. Creating YEAR(4) column instead.
 insert into t1 values (1);
 create view v1(a) as select concat(a) from t1;
 show columns from v1;
@@ -3677,7 +3681,7 @@ Field	Type	Null	Key	Default	Extra
 a	varchar(4)	YES		NULL	
 select hex(a) from v1;
 hex(a)
-00300031
+0032003000300031
 drop table t1;
 drop view v1;
 create table t1 (a year);

@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2011, 2012 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -581,6 +581,21 @@ int mysql_tmpfile(const char *prefix);
 */
 int thd_killed(const MYSQL_THD thd);
 
+
+/**
+  Get binary log position for latest written entry.
+
+  @note The file variable will be set to a buffer holding the name of
+  the file name currently, but this can change if a rotation
+  occur. Copy the string if you want to retain it.
+
+  @param thd Use thread connection handle
+  @param file_var Pointer to variable that will hold the file name.
+  @param pos_var Pointer to variable that will hold the file position.
+ */
+void thd_binlog_pos(const MYSQL_THD thd,
+                    const char **file_var,
+                    unsigned long long *pos_var);
 
 /**
   Return the thread id of a user thread

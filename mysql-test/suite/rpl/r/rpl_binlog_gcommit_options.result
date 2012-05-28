@@ -1,0 +1,20 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
+[connection master]
+# Create table
+# Create connections
+# Insert rows
+# Master results
+SELECT COUNT(a) FROM t;
+COUNT(a)
+200
+# Slave results
+SELECT COUNT(a) FROM t;
+COUNT(a)
+200
+# Clean up
+DROP TABLE t;
+include/stop_slave.inc
+# End of tests
