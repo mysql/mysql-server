@@ -2076,6 +2076,12 @@ any_extern:
 
 	page_cursor = btr_cur_get_page_cur(cursor);
 
+	if (!*heap) {
+		*heap = mem_heap_create(
+			rec_offs_size(*offsets)
+			+ DTUPLE_EST_ALLOC(rec_offs_n_fields(*offsets)));
+	}
+
 	new_entry = row_rec_to_index_entry(ROW_COPY_DATA, rec, index, *offsets,
 					   &n_ext, *heap);
 	/* We checked above that there are no externally stored fields. */
