@@ -32,6 +32,8 @@ ELSE()
   SET(HOSTNAME "hostname")
 ENDIF()
 
+  SET(dictionary "${CMAKE_INSTALL_PREFIX}/${INSTALL_SHAREDIR}/dictionary.txt" )
+
 # XXX: shouldn't we just have variables for all this stuff and centralise
 # XXX: their configuration in install_layout.cmake?
 IF(WIN32)
