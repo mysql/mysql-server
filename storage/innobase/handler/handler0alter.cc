@@ -40,6 +40,7 @@ Smart ALTER TABLE
 #include "handler0alter.h"
 #include "srv0mon.h"
 #include "fts0priv.h"
+#include "pars0pars.h"
 
 #include "ha_innodb.h"
 
@@ -1167,6 +1168,8 @@ innobase_create_temporary_tablename(
 class ha_innobase_inplace_ctx : public inplace_alter_handler_ctx
 {
 public:
+	/** Dummy query graph */
+	que_thr_t*	thr;
 	/** InnoDB indexes being created */
 	dict_index_t**	add;
 	/** MySQL key numbers for the InnoDB indexes that are being created */
@@ -1189,7 +1192,8 @@ public:
 	trx_t*		trx;
 	/** table where the indexes are being created or dropped */
 	dict_table_t*	indexed_table;
-	ha_innobase_inplace_ctx(dict_index_t** add_arg,
+	ha_innobase_inplace_ctx(trx_t* user_trx,
+				dict_index_t** add_arg,
 				const ulint* add_key_numbers_arg,
 				ulint num_to_add_arg,
 				dict_index_t** drop_arg,
@@ -1215,6 +1219,8 @@ public:
 			ut_ad(drop[i]->to_be_dropped);
 		}
 #endif /* UNIV_DEBUG */
+
+		thr = pars_complete_graph_for_exec(NULL, user_trx, heap);
 	}
 	~ha_innobase_inplace_ctx() {
 		mem_heap_free(heap);
@@ -1807,7 +1813,7 @@ error_handling:
 			     user_table, CHECK_PARTIAL_OK));
 		ut_d(mutex_exit(&dict_sys->mutex));
 		ha_alter_info->handler_ctx = new ha_innobase_inplace_ctx(
-			add_index, add_key_nums, n_add_index,
+			user_trx, add_index, add_key_nums, n_add_index,
 			drop_index, n_drop_index,
 			drop_foreign, n_drop_foreign,
 			!locked && !new_clustered && !num_fts_index,
@@ -2304,7 +2310,7 @@ index_needed:
 				== Alter_info::ALTER_TABLE_LOCK_SHARED;
 			ha_alter_info->handler_ctx
 				= new ha_innobase_inplace_ctx(
-					NULL, NULL, 0,
+					prebuilt->trx, NULL, NULL, 0,
 					drop_index, n_drop_index,
 					drop_fk, n_drop_fk, !locked,
 					heap, NULL, indexed_table);
