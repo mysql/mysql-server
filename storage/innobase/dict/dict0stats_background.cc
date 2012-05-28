@@ -129,7 +129,6 @@ dict_stats_dequeue_table_for_auto_recalc(
 		mutex_exit(&auto_recalc_mutex);
 		return(FALSE);
 	}
-	/* else */
 
 	*id = auto_recalc_list[0];
 
@@ -178,7 +177,6 @@ dict_stats_remove_table_from_auto_recalc(
 		mutex_exit(&auto_recalc_mutex);
 		return;
 	}
-	/* else */
 
 	ulint	i;
 
@@ -285,7 +283,6 @@ pop_from_auto_recalc_list_and_recalc()
 		/* no tables for auto recalc */
 		return;
 	}
-	/* else */
 
 	dict_table_t*	table;
 
@@ -299,12 +296,17 @@ pop_from_auto_recalc_list_and_recalc()
 		mutex_exit(&dict_sys->mutex);
 		return;
 	}
-	/* else */
 
 	table->stats_bg_flag = BG_STAT_IN_PROGRESS;
 
 	mutex_exit(&dict_sys->mutex);
 
+	/* ut_time() could be expensive, pop_from_auto_recalc_list_and_recalc()
+	is called once every time a table has been changed more than 10% and
+	on a system with lots of small tables, this could become hot. If we
+	find out that this is a problem, then the check below could eventually
+	be replaced with something else, though a time interval is the natural
+	approach. */
 	if (ut_difftime(ut_time(), table->stats_last_recalc)
 	    < MIN_RECALC_INTERVAL) {
 		/* Stats were (re)calculated not long ago. To avoid
