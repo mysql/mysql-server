@@ -2006,6 +2006,7 @@ row_ins_duplicate_error_in_clust(
 			if (flags & BTR_NO_LOCKING_FLAG) {
 				/* Set no locks when applying log
 				in online table rebuild. */
+				err = DB_SUCCESS;
 			} else if (trx->duplicates) {
 
 				/* If the SQL-query will update or replace
@@ -2053,6 +2054,7 @@ row_ins_duplicate_error_in_clust(
 			if (flags & BTR_NO_LOCKING_FLAG) {
 				/* Set no locks when applying log
 				in online table rebuild. */
+				err = DB_SUCCESS;
 			} else if (trx->duplicates) {
 
 				/* If the SQL-query will update or replace
