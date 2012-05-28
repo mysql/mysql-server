@@ -115,6 +115,7 @@ SET(SQL_SHARED_SOURCES
   sp_pcontext.cc 
   sp_rcontext.cc
   spatial.cc
+  string_service.cc
   sql_acl.cc
   sql_admin.cc
   sql_alloc_error_handler.cc
