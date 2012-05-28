@@ -33,6 +33,7 @@ void reset_mqh(LEX_USER *lu, bool get_them);
 bool check_mqh(THD *thd, uint check_command);
 void time_out_user_resource_limits(THD *thd, USER_CONN *uc);
 void decrease_user_connections(USER_CONN *uc);
+void release_user_connection(THD *thd);
 bool thd_init_client_charset(THD *thd, uint cs_number);
 bool setup_connection_thread_globals(THD *thd);
 bool thd_prepare_connection(THD *thd);
@@ -47,6 +48,6 @@ void prepare_new_connection_state(THD* thd);
 void end_connection(THD *thd);
 int get_or_create_user_conn(THD *thd, const char *user,
                             const char *host, const USER_RESOURCES *mqh);
-int check_for_max_user_connections(THD *thd, USER_CONN *uc);
+int check_for_max_user_connections(THD *thd, const USER_CONN *uc);
 
 #endif /* SQL_CONNECT_INCLUDED */

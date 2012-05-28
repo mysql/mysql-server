@@ -799,8 +799,9 @@ public:
   { }
   uchar *session_value_ptr(THD *thd, LEX_STRING *base)
   {
-    if (thd->user_connect && thd->user_connect->user_resources.user_conn)
-      return (uchar*) &(thd->user_connect->user_resources.user_conn);
+    const USER_CONN *uc= thd->get_user_connect();
+    if (uc && uc->user_resources.user_conn)
+      return (uchar*) &(uc->user_resources.user_conn);
     return global_value_ptr(thd, base);
   }
 };
