@@ -321,7 +321,7 @@ dict_mutex_exit_for_mysql(void)
 
 /** Get the latch that protects the stats of a given table */
 #define GET_TABLE_STATS_LATCH(table) \
-	(&dict_table_stats_latches[ut_fold_ull(table->id) \
+	(&dict_table_stats_latches[ut_fold_ull((ib_uint64_t) table) \
 				   % DICT_TABLE_STATS_LATCHES_SIZE])
 
 /**********************************************************************//**
