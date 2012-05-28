@@ -30,6 +30,7 @@ Smart ALTER TABLE
 #include <sql_class.h>
 
 #include "dict0stats.h"
+#include "dict0stats_background.h"
 #include "log0log.h"
 #include "row0log.h"
 #include "row0merge.h"
@@ -2005,19 +2006,13 @@ prepare_inplace_alter_table_dict(
 	row_mysql_lock_data_dictionary(trx);
 	dict_locked = TRUE;
 
-	/* Wait for background stats processing to stop using the
-	table that we are going to alter. We know bg stats will not
-	start using it again after this loop because it sets the
-	BG_STAT_IN_PROGRESS bit in table->stats_bg_flag under
-	dict_sys->mutex and we are holding it here at least until
-	checking ut_ad(user_table->n_ref_count == 1); below.
+	/* Wait for background stats processing to stop using the table that
+	we are going to alter. We know bg stats will not start using it again
+	until we are holding the data dict locked and we are holding it here
+	at least until checking ut_ad(user_table->n_ref_count == 1) below.
 	XXX what may happen if bg stats opens the table after we
 	have unlocked data dictionary below? */
-	while (user_table->stats_bg_flag & BG_STAT_IN_PROGRESS) {
-		row_mysql_unlock_data_dictionary(trx);
-		os_thread_sleep(250000);
-		row_mysql_lock_data_dictionary(trx);
-	}
+	dict_stats_wait_bg_to_stop_using_tables(user_table, NULL, trx);
 
 	online_retry_drop_indexes_low(indexed_table, trx);
 
@@ -3456,21 +3451,12 @@ ha_innobase::commit_inplace_alter_table(
 	row_mysql_lock_data_dictionary(trx);
 
 	/* Wait for background stats processing to stop using the
-	indexes that we are going to drop. We know bg stats will not
-	start using any of those indexes after this loop because
-	it sets the BG_STAT_IN_PROGRESS bit in table->stats_bg_flag under
-	dict_sys->mutex and we are holding it here for the whole
-	duration of the drop. */
+	indexes that we are going to drop (if any). */
 	if (ctx != NULL && ctx->num_to_drop > 0) {
-		dict_table_t*	table = ctx->drop[0]->table;
-
-		while (prebuilt->table->stats_bg_flag & BG_STAT_IN_PROGRESS
-		       || table->stats_bg_flag & BG_STAT_IN_PROGRESS) {
-
-			row_mysql_unlock_data_dictionary(trx);
-			os_thread_sleep(250000);
-			row_mysql_lock_data_dictionary(trx);
-		}
+		dict_stats_wait_bg_to_stop_using_tables(
+			prebuilt->table,
+			ctx->drop[0]->table,
+			trx);
 	}
 
 	if (new_clustered) {

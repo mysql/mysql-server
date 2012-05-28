@@ -33,6 +33,7 @@ Created Apr 25, 2012 Vasil Dimov
 #include "ha0storage.h" /* ha_storage_* */
 #include "os0thread.h" /* DECLARE_THREAD, os_thread_*, mysql_pfs_key_t */
 #include "os0sync.h" /* os_event_t, os_event_create() */
+#include "row0mysql.h" /* row_mysql_lock_data_dictionary() */
 #include "srv0srv.h" /* srv_dict_stats_thread_active */
 #include "srv0start.h" /* SRV_SHUTDOWN_NONE */
 #include "sync0sync.h" /* mutex_create() */
@@ -206,6 +207,36 @@ dict_stats_remove_table_from_auto_recalc(
 	mutex_exit(&auto_recalc_mutex);
 
 	return;
+}
+/* @} */
+
+/*****************************************************************//**
+Wait until background stats thread has stopped using the specified table(s).
+The caller must have locked the data dictionary using
+row_mysql_lock_data_dictionary() and this function may unlock it temporarily
+and restore the lock before it exits.
+The background stats thead is guaranteed not to start using the specified
+tables after this function returns and before the caller unlocks the data
+dictionary because it sets the BG_STAT_IN_PROGRESS bit in table->stats_bg_flag
+under dict_sys->mutex.
+dict_stats_wait_bg_to_stop_using_table() @{ */
+UNIV_INTERN
+void
+dict_stats_wait_bg_to_stop_using_tables(
+/*====================================*/
+	const dict_table_t*	table1,	/*!< in: table1 */
+	const dict_table_t*	table2,	/*!< in: table2, could be NULL */
+	trx_t*			trx)	/*!< in/out: transaction to use for
+					unlocking/locking the data dict */
+{
+	while (table1->stats_bg_flag & BG_STAT_IN_PROGRESS
+	       || (table2 != NULL &&
+		   table2->stats_bg_flag & BG_STAT_IN_PROGRESS)) {
+
+		row_mysql_unlock_data_dictionary(trx);
+		os_thread_sleep(250000);
+		row_mysql_lock_data_dictionary(trx);
+	}
 }
 /* @} */
 
