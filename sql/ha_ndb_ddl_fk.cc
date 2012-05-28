@@ -194,6 +194,8 @@ ha_ndbcluster::create_fks(THD *thd, Ndb *ndb, TABLE *tab)
 {
   DBUG_ENTER("ha_ndbcluster::create_fks");
 
+  // return real mysql error to avoid total randomness..
+  const int er_default= ER_CANNOT_ADD_FOREIGN;
   char tmpbuf[FN_REFLEN];
 
   /**
@@ -236,7 +238,7 @@ ha_ndbcluster::create_fks(THD *thd, Ndb *ndb, TABLE *tab)
                                                       tmpbuf, sizeof(tmpbuf)));
         if (ndbcol == 0)
         {
-          DBUG_RETURN(1); // TODO suitable error code
+          DBUG_RETURN(er_default); // TODO suitable error code
         }
         childcols[pos++]= ndbcol;
       }
@@ -251,7 +253,7 @@ ha_ndbcluster::create_fks(THD *thd, Ndb *ndb, TABLE *tab)
 
     if (!child_primary_key && child_index == 0)
     {
-      DBUG_RETURN(1); // TODO suitable error code
+      DBUG_RETURN(er_default); // TODO suitable error code
     }
 
     char parent_name[FN_REFLEN];
@@ -276,7 +278,7 @@ ha_ndbcluster::create_fks(THD *thd, Ndb *ndb, TABLE *tab)
                                                       tmpbuf, sizeof(tmpbuf)));
         if (ndbcol == 0)
         {
-          DBUG_RETURN(1); // TODO suitable error code
+          DBUG_RETURN(er_default); // TODO suitable error code
         }
         parentcols[pos++]= ndbcol;
       }
@@ -291,7 +293,7 @@ ha_ndbcluster::create_fks(THD *thd, Ndb *ndb, TABLE *tab)
 
     if (!parent_primary_key && parent_index == 0)
     {
-      DBUG_RETURN(1); // TODO suitable error code
+      DBUG_RETURN(er_default); // TODO suitable error code
     }
 
     NdbDictionary::ForeignKey ndbfk;
