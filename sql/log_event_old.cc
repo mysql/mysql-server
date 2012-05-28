@@ -1,4 +1,4 @@
-/* Copyright (c) 2007, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2007, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -131,8 +131,10 @@ Old_rows_log_event::do_apply_event(Old_rows_log_event *ev, const Relay_log_info 
 
     {
       RPL_TABLE_LIST *ptr= rli->tables_to_lock;
-      for ( ; ptr ; ptr= static_cast<RPL_TABLE_LIST*>(ptr->next_global))
+      for (uint i= 0 ; ptr&& (i< rli->tables_to_lock_count); 
+           ptr= static_cast<RPL_TABLE_LIST*>(ptr->next_global), i++)
       {
+        DBUG_ASSERT(ptr->m_tabledef_valid);
         TABLE *conv_table;
         if (!ptr->m_tabledef.compatible_with(thd, const_cast<Relay_log_info*>(rli),
                                              ptr->table, &conv_table))
@@ -163,10 +165,9 @@ Old_rows_log_event::do_apply_event(Old_rows_log_event *ev, const Relay_log_info 
       Old_rows_log_event, we can invalidate the query cache for the
       associated table.
      */
-    for (TABLE_LIST *ptr= rli->tables_to_lock ; ptr ; ptr= ptr->next_global)
-    {
+    TABLE_LIST *ptr= rli->tables_to_lock;
+    for (uint i=0; ptr && (i < rli->tables_to_lock_count); ptr= ptr->next_global, i++)
       const_cast<Relay_log_info*>(rli)->m_table_map.set_table(ptr->table_id, ptr->table);
-    }
 #ifdef HAVE_QUERY_CACHE
     query_cache.invalidate_locked_for_write(rli->tables_to_lock);
 #endif
@@ -729,7 +730,10 @@ static int find_and_fetch_row(TABLE *table, uchar *key)
     int error;
     /* We have a key: search the table using the index */
     if (!table->file->inited && (error= table->file->ha_index_init(0, FALSE)))
+    {
+      table->file->print_error(error, MYF(0));
       DBUG_RETURN(error);
+    }
 
   /*
     Don't print debug messages when running valgrind since they can
@@ -827,7 +831,10 @@ static int find_and_fetch_row(TABLE *table, uchar *key)
 
     /* We don't have a key: search the table using ha_rnd_next() */
     if ((error= table->file->ha_rnd_init(1)))
+    {
+      table->file->print_error(error, MYF(0));
       return error;
+    }
 
     /* Continue until we find the right record or have made a full loop */
     do
@@ -850,14 +857,20 @@ static int find_and_fetch_row(TABLE *table, uchar *key)
         goto restart_ha_rnd_next;
 
       case HA_ERR_END_OF_FILE:
-  if (++restart_count < 2)
-    table->file->ha_rnd_init(1);
-  break;
+        if (++restart_count < 2)
+        {
+          if ((error= table->file->ha_rnd_init(1)))
+          {
+            table->file->print_error(error, MYF(0));
+            DBUG_RETURN(error);
+          }
+        }
+       break;
 
       default:
   table->file->print_error(error, MYF(0));
         DBUG_PRINT("info", ("Record not found"));
-        table->file->ha_rnd_end();
+        (void) table->file->ha_rnd_end();
   DBUG_RETURN(error);
       }
     }
@@ -1529,7 +1542,8 @@ int Old_rows_log_event::do_apply_event(Relay_log_info const *rli)
 
     {
       RPL_TABLE_LIST *ptr= rli->tables_to_lock;
-      for ( ; ptr ; ptr= static_cast<RPL_TABLE_LIST*>(ptr->next_global))
+      for (uint i= 0 ; ptr&& (i< rli->tables_to_lock_count);
+           ptr= static_cast<RPL_TABLE_LIST*>(ptr->next_global), i++)
       {
         TABLE *conv_table;
         if (ptr->m_tabledef.compatible_with(thd, const_cast<Relay_log_info*>(rli),
@@ -2400,7 +2414,7 @@ int Old_rows_log_event::find_row(const Relay_log_info *rli)
           continue;
         DBUG_PRINT("info",("no record matching the given row found"));
         table->file->print_error(error, MYF(0));
-        table->file->ha_index_end();
+        (void) table->file->ha_index_end();
         DBUG_RETURN(error);
       }
     }
@@ -2441,7 +2455,13 @@ int Old_rows_log_event::find_row(const Relay_log_info *rli)
 
       case HA_ERR_END_OF_FILE:
         if (++restart_count < 2)
-          table->file->ha_rnd_init(1);
+        {
+          if ((error= table->file->ha_rnd_init(1)))
+          {
+            table->file->print_error(error, MYF(0));
+            DBUG_RETURN(error);
+          }
+        }
         break;
 
       default:

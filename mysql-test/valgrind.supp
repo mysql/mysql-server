@@ -718,9 +718,17 @@
 #
 
 {
-   missing shutdown_performance_schema 1
+   missing shutdown_performance_schema 1a
    Memcheck:Leak
    fun:malloc
+   fun:_Z10pfs_mallocmi
+}
+
+{
+   missing shutdown_performance_schema 1b
+   Memcheck:Leak
+   fun:memalign
+   fun:posix_memalign
    fun:_Z10pfs_mallocmi
 }
 
@@ -738,10 +746,19 @@
 # can't provide more stack context.
 #
 {
-   missing shutdown_performance_schema 3
+   missing shutdown_performance_schema 3a
    Memcheck:Leak
    fun:malloc
    fun:my_malloc
+   fun:initialize_bucket
+}
+
+{
+   missing shutdown_performance_schema 3b
+   Memcheck:Leak
+   fun:malloc
+   fun:my_malloc
+   fun:_lf_dynarray_lvalue
    fun:initialize_bucket
 }
 

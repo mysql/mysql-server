@@ -19,10 +19,6 @@
   The following is needed to not cause conflicts when we include mysqld.cc
 */
 
-#define main main1
-#define mysql_unix_port mysql_inix_port1
-#define mysql_port mysql_port1
-
 extern "C"
 {
   extern unsigned long max_allowed_packet, net_buffer_length;
@@ -30,24 +26,28 @@ extern "C"
 
 #include "../sql/mysqld.cc"
 
-C_MODE_START
+extern "C" {
 
 #include <mysql.h>
 #undef ER
 #include "errmsg.h"
 #include "embedded_priv.h"
 
+} // extern "C"
+
 #include <algorithm>
 
 using std::min;
 using std::max;
+
+extern "C" {
 
 extern unsigned int mysql_server_last_errno;
 extern char mysql_server_last_error[MYSQL_ERRMSG_SIZE];
 static my_bool emb_read_query_result(MYSQL *mysql);
 
 
-extern "C" void unireg_clear(int exit_code)
+void unireg_clear(int exit_code)
 {
   DBUG_ENTER("unireg_clear");
   clean_up(!opt_help && (exit_code || !opt_bootstrap)); /* purecov: inspected */
@@ -422,9 +422,12 @@ static void emb_free_embedded_thd(MYSQL *mysql)
 {
   THD *thd= (THD*)mysql->thd;
   thd->clear_data_list();
-  thread_count--;
   thd->store_globals();
-  thd->unlink();
+
+  mysql_mutex_lock(&LOCK_thread_count);
+  remove_global_thread(thd);
+  mysql_mutex_unlock(&LOCK_thread_count);
+
   delete thd;
   my_pthread_setspecific_ptr(THR_THD,  0);
   mysql->thd=0;
@@ -445,7 +448,8 @@ static MYSQL_RES * emb_store_result(MYSQL *mysql)
 int emb_read_change_user_result(MYSQL *mysql)
 {
   mysql->net.read_pos= (uchar*)""; // fake an OK packet
-  return mysql_errno(mysql) ? packet_error : 1 /* length of the OK packet */;
+  return mysql_errno(mysql) ? static_cast<int>packet_error :
+                              1 /* length of the OK packet */;
 }
 
 MYSQL_METHODS embedded_methods= 
@@ -720,8 +724,9 @@ void *create_embedded_thd(int client_flag)
   thd->data_tail= &thd->first_data;
   memset(&thd->net, 0, sizeof(thd->net));
 
-  thread_count++;
-  threads.push_front(thd);
+  mysql_mutex_lock(&LOCK_thread_count);
+  add_global_thread(thd);
+  mysql_mutex_unlock(&LOCK_thread_count);
   thd->mysys_var= 0;
   return thd;
 err:
@@ -815,7 +820,8 @@ err:
 }
 #endif
 
-C_MODE_END
+} // extern "C"
+
 
 void THD::clear_data_list()
 {

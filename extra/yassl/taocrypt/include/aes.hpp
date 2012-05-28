@@ -14,7 +14,7 @@
    along with this program; see the file COPYING. If not, write to the
    Free Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston,
    MA  02110-1301  USA.
-*/
+ */
 
 /* aes.hpp defines AES
 */
@@ -90,7 +90,6 @@ typedef BlockCipher<DECRYPTION, AES, ECB> AES_ECB_Decryption;
 
 typedef BlockCipher<ENCRYPTION, AES, CBC> AES_CBC_Encryption;
 typedef BlockCipher<DECRYPTION, AES, CBC> AES_CBC_Decryption;
-
 
 
 } // naemspace

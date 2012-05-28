@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -286,7 +286,7 @@ bool reload_acl_and_cache(THD *thd, unsigned long options,
   if (thd && (options & REFRESH_STATUS))
     refresh_status(thd);
   if (options & REFRESH_THREADS)
-    flush_thread_cache();
+    kill_blocked_pthreads();
 #ifdef HAVE_REPLICATION
   if (options & REFRESH_MASTER)
   {
@@ -454,7 +454,7 @@ bool flush_tables_with_read_lock(THD *thd, TABLE_LIST *all_tables)
   /*
     Before opening and locking tables the below call also waits
     for old shares to go away, so the fact that we don't pass
-    MYSQL_LOCK_IGNORE_FLUSH flag to it is important.
+    MYSQL_OPEN_IGNORE_FLUSH flag to it is important.
     Also we don't pass MYSQL_OPEN_HAS_MDL_LOCK flag as we want
     to open underlying tables if merge table is flushed.
     For underlying tables of the merge the below call has to
@@ -484,4 +484,79 @@ error:
 }
 
 
+/**
+  Prepare tables for export (transportable tablespaces) by
+  a) waiting until write transactions/DDL operations using these
+     tables have completed.
+  b) block new write operations/DDL operations on these tables.
 
+  Once this is done, notify the storage engines using handler::extra().
+
+  Finally, enter LOCK TABLES mode, so that locks are held
+  until UNLOCK TABLES is executed.
+
+  @param thd         Thread handler
+  @param all_tables  TABLE_LIST for tables to be exported
+
+  @retval false  Ok
+  @retval true   Error
+*/
+
+bool flush_tables_for_export(THD *thd, TABLE_LIST *all_tables)
+{
+  Lock_tables_prelocking_strategy lock_tables_prelocking_strategy;
+
+  /*
+    This is called from SQLCOM_FLUSH, the transaction has
+    been committed implicitly.
+  */
+
+  if (thd->locked_tables_mode)
+  {
+    my_error(ER_LOCK_OR_ACTIVE_TRANSACTION, MYF(0));
+    return true;
+  }
+
+  /*
+    Acquire SNW locks on tables to be exported. Don't acquire
+    global IX as this will make this statement incompatible
+    with FLUSH TABLES WITH READ LOCK.
+  */
+  if (open_and_lock_tables(thd, all_tables, false,
+                           MYSQL_OPEN_SKIP_SCOPED_MDL_LOCK,
+                           &lock_tables_prelocking_strategy))
+  {
+    return true;
+  }
+
+  // Check if all storage engines support FOR EXPORT.
+  for (TABLE_LIST *table_list= all_tables; table_list;
+       table_list= table_list->next_global)
+  {
+    if (!(table_list->table->file->ha_table_flags() & HA_CAN_EXPORT))
+    {
+      my_error(ER_ILLEGAL_HA, MYF(0), table_list->table_name);
+      return true;
+    }
+  }
+
+  // Notify the storage engines that the tables should be made ready for export.
+  for (TABLE_LIST *table_list= all_tables; table_list;
+       table_list= table_list->next_global)
+  {
+    handler *handler_file= table_list->table->file;
+    int error= handler_file->extra(HA_EXTRA_EXPORT);
+    if (error)
+    {
+      handler_file->print_error(error, MYF(0));
+      return true;
+    }
+  }
+
+  // Enter LOCKED TABLES mode.
+  if (thd->locked_tables_list.init_locked_tables(thd))
+    return true;
+  thd->variables.option_bits|= OPTION_TABLE_LOCK;
+
+  return false;
+}

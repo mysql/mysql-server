@@ -7164,10 +7164,10 @@ int ha_ndbcluster::extra(enum ha_extra_function operation)
 }
 
 
-bool ha_ndbcluster::read_before_write_removal_possible()
+bool ha_ndbcluster::start_read_removal()
 {
   THD *thd= table->in_use;
-  DBUG_ENTER("read_before_write_removal_possible");
+  DBUG_ENTER("start_read_removal");
 
   if (uses_blob_value(table->write_set))
   {
@@ -7214,9 +7214,10 @@ bool ha_ndbcluster::read_before_write_removal_possible()
 }
 
 
-ha_rows ha_ndbcluster::read_before_write_removal_rows_written(void) const
+ha_rows ha_ndbcluster::end_read_removal(void)
 {
-  DBUG_ENTER("read_before_write_removal_rows_written");
+  DBUG_ENTER("end_read_removal");
+  DBUG_ASSERT(m_read_before_write_removal_possible);
   DBUG_PRINT("info", ("updated: %llu, deleted: %llu",
                       m_rows_updated, m_rows_deleted));
   DBUG_RETURN(m_rows_updated + m_rows_deleted);

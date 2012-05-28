@@ -86,14 +86,15 @@ Relay_log_info::Relay_log_info(bool is_slave_recovery
    until_sql_gtids_first_event(true),
    retried_trans(0),
    tables_to_lock(0), tables_to_lock_count(0),
-   rows_query_ev(NULL), last_event_start_time(0),
+   rows_query_ev(NULL), last_event_start_time(0), deferred_events(NULL),
    slave_parallel_workers(0),
    recovery_parallel_workers(0), checkpoint_seqno(0),
-   checkpoint_group(opt_mts_checkpoint_group), mts_recovery_group_cnt(0),
+   checkpoint_group(opt_mts_checkpoint_group), 
+   recovery_groups_inited(false), mts_recovery_group_cnt(0),
    mts_recovery_index(0), mts_recovery_group_seen_begin(0),
    mts_group_status(MTS_NOT_IN_GROUP), reported_unsafe_warning(false),
    sql_delay(0), sql_delay_end(0), m_flags(0), row_stmt_start_timestamp(0),
-   long_find_row_note_printed(false)
+   long_find_row_note_printed(false), error_on_rli_init_info(false)
 {
   DBUG_ENTER("Relay_log_info::Relay_log_info");
 
@@ -108,7 +109,6 @@ Relay_log_info::Relay_log_info(bool is_slave_recovery
     group_master_log_name[0]= 0;
   until_log_name[0]= ign_master_log_name_end[0]= 0;
   set_timespec_nsec(last_clock, 0);
-  bitmap_init(&recovery_groups, NULL, checkpoint_group, FALSE);
   memset(&cache_buf, 0, sizeof(cache_buf));
   cached_charset_invalidate();
 
@@ -152,7 +152,8 @@ Relay_log_info::~Relay_log_info()
 {
   DBUG_ENTER("Relay_log_info::~Relay_log_info");
 
-  bitmap_free(&recovery_groups);
+  if (recovery_groups_inited)
+    bitmap_free(&recovery_groups);
   mysql_mutex_destroy(&log_space_lock);
   mysql_cond_destroy(&log_space_cond);
   mysql_mutex_destroy(&pending_jobs_lock);
@@ -247,6 +248,29 @@ void Relay_log_info::reset_notified_checkpoint(ulong shift, time_t new_ts,
     if (!locked)
       mysql_mutex_unlock(&data_lock);
   }
+}
+
+/**
+   Reset recovery info from Worker info table and 
+   mark MTS recovery is completed.
+
+   @return false on success true when @c reset_notified_checkpoint failed.
+*/
+bool Relay_log_info::mts_finalize_recovery()
+{
+  bool ret= false;
+
+  DBUG_ENTER("Relay_log_info::mts_finalize_recovery");
+
+  for (uint i= 0; !ret && i < workers.elements; i++)
+  {
+    Slave_worker *w= *(Slave_worker **) dynamic_array_ptr(&workers, i);
+    ret= w->reset_recovery_info();
+    DBUG_EXECUTE_IF("mts_debug_recovery_reset_fails", ret= true;);
+  }
+  recovery_parallel_workers= slave_parallel_workers;
+
+  DBUG_RETURN(ret);
 }
 
 static inline int add_relay_log(Relay_log_info* rli,LOG_INFO* linfo)
@@ -1251,6 +1275,35 @@ bool Relay_log_info::is_until_satisfied(THD *thd, Log_event *ev)
     DBUG_RETURN(false);
     break;
 
+  case UNTIL_SQL_AFTER_MTS_GAPS:
+#ifndef DBUG_OFF
+  case UNTIL_DONE:
+#endif
+    /*
+      TODO: this condition is actually post-execution or post-scheduling
+            so the proper place to check it before SQL thread goes
+            into next_event() where it can wait while the condition
+            has been satisfied already.
+            It's deployed here temporarily to be fixed along the regular UNTIL
+            support for MTS is provided.
+    */
+    if (mts_recovery_group_cnt == 0)
+    {
+      sql_print_information("Slave SQL thread stopped according to "
+                            "UNTIL SQL_AFTER_MTS_GAPS as it has "
+                            "processed all gap transactions left from "
+                            "the previous slave session.");
+#ifndef DBUG_OFF
+      until_condition= UNTIL_DONE;
+#endif
+      DBUG_RETURN(true);
+    }
+    else
+    {
+      DBUG_RETURN(false);
+    }
+    break;
+
   case UNTIL_NONE:
     DBUG_ASSERT(0);
     break;
@@ -1403,6 +1456,23 @@ void Relay_log_info::cleanup_context(THD *thd, bool error)
 
 void Relay_log_info::clear_tables_to_lock()
 {
+  DBUG_ENTER("Relay_log_info::clear_tables_to_lock()");
+#ifndef DBUG_OFF
+  /**
+    When replicating in RBR and MyISAM Merge tables are involved
+    open_and_lock_tables (called in do_apply_event) appends the 
+    base tables to the list of tables_to_lock. Then these are 
+    removed from the list in close_thread_tables (which is called 
+    before we reach this point).
+
+    This assertion just confirms that we get no surprises at this
+    point.
+   */
+  uint i=0;
+  for (TABLE_LIST *ptr= tables_to_lock ; ptr ; ptr= ptr->next_global, i++) ;
+  DBUG_ASSERT(i == tables_to_lock_count);
+#endif  
+
   while (tables_to_lock)
   {
     uchar* to_free= reinterpret_cast<uchar*>(tables_to_lock);
@@ -1427,11 +1497,13 @@ void Relay_log_info::clear_tables_to_lock()
     my_free(to_free);
   }
   DBUG_ASSERT(tables_to_lock == NULL && tables_to_lock_count == 0);
+  DBUG_VOID_RETURN;
 }
 
 void Relay_log_info::slave_close_thread_tables(THD *thd)
 {
   thd->get_stmt_da()->set_overwrite_status(true);
+  DBUG_ENTER("Relay_log_info::slave_close_thread_tables(THD *thd)");
   thd->is_error() ? trans_rollback_stmt(thd) : trans_commit_stmt(thd);
   thd->get_stmt_da()->set_overwrite_status(false);
 
@@ -1452,6 +1524,7 @@ void Relay_log_info::slave_close_thread_tables(THD *thd)
     thd->mdl_context.release_statement_locks();
 
   clear_tables_to_lock();
+  DBUG_VOID_RETURN;
 }
 /**
   Execute a SHOW RELAYLOG EVENTS statement.
@@ -1494,6 +1567,18 @@ int Relay_log_info::init_info()
 
   DBUG_ENTER("Relay_log_info::init_info");
 
+  /*
+    If Relay_log_info is issued again after a failed init_info(), for
+    instance because of missing relay log files, it will generate new
+    files and ignore the previous failure, to avoid that we set
+    error_on_rli_init_info as true.
+    This a consequence of the behaviour change, in the past server was
+    stopped when there were replication initialization errors, now it is
+    not and so init_info() must be aware of previous failures.
+  */
+  if (error_on_rli_init_info)
+    goto err;
+
   if (inited)
   {
     /*
@@ -1531,9 +1616,7 @@ int Relay_log_info::init_info()
 
     if (hot_log)
       mysql_mutex_unlock(log_lock);
-
-    DBUG_RETURN(recovery_parallel_workers && !is_mts_recovery() ?
-                mts_recovery_groups(this, &recovery_groups) : 0);
+    DBUG_RETURN(recovery_parallel_workers ? mts_recovery_groups(this) : 0);
   }
 
   cur_log_fd = -1;
@@ -1733,6 +1816,7 @@ a file name for --relay-log-index option.", opt_relaylog_index_name);
   }
 
   inited= 1;
+  error_on_rli_init_info= false;
   if (flush_info(TRUE))
   {
     msg= "Error reading relay log configuration";
@@ -1751,7 +1835,9 @@ a file name for --relay-log-index option.", opt_relaylog_index_name);
   DBUG_RETURN(error);
 
 err:
+  handler->end_info(uidx, nidx);
   inited= 0;
+  error_on_rli_init_info= true;
   if (msg)
     sql_print_error("%s.", msg);
   relay_log.close(LOG_CLOSE_INDEX | LOG_CLOSE_STOP_EVENT);
@@ -1762,6 +1848,7 @@ void Relay_log_info::end_info()
 {
   DBUG_ENTER("Relay_log_info::end_info");
 
+  error_on_rli_init_info= false;
   if (!inited)
     DBUG_VOID_RETURN;
 

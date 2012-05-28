@@ -5,15 +5,13 @@
 
 -- source include/have_innodb.inc
 
-call mtr.add_suppression("InnoDB: Error while trying to save table statistics for table .+bug11933790: Lock wait timeout");
+call mtr.add_suppression("InnoDB: Error while trying to save table statistics for table .+bug11933790.*: Lock wait timeout");
 
 # we are only interested that the below commands do not crash the server
 -- disable_query_log
 -- disable_result_log
 
-SET SESSION innodb_analyze_is_persistent=1;
-
-CREATE TABLE bug11933790 (c INT) ENGINE=INNODB;
+CREATE TABLE bug11933790 (c INT) ENGINE=INNODB STATS_PERSISTENT=1;
 
 # add some records to mysql.innodb_table_stats
 ANALYZE TABLE bug11933790;
@@ -26,8 +24,6 @@ SELECT * FROM mysql.innodb_table_stats FOR UPDATE;
 -- connect (con1,localhost,root,,)
 
 -- connection con1
-
-SET SESSION innodb_analyze_is_persistent=1;
 
 # this will fail with lock wait timeout; if the bug is present then mysqld
 # crashes here

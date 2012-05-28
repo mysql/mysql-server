@@ -33,7 +33,7 @@ Created Jan 06, 2010 Vasil Dimov
 #include "dict0mem.h" /* DICT_TABLE_MAGIC_N */
 #include "dict0stats.h"
 #include "data0type.h" /* dtype_t */
-#include "db0err.h" /* db_err */
+#include "db0err.h" /* dberr_t */
 #include "dyn0dyn.h" /* dyn_array* */
 #include "pars0pars.h" /* pars_info_create() */
 #include "pars0types.h" /* pars_info_t */
@@ -44,8 +44,7 @@ Created Jan 06, 2010 Vasil Dimov
 #include "trx0trx.h" /* trx_create() */
 #include "trx0roll.h" /* trx_rollback_to_savepoint() */
 #include "ut0rnd.h" /* ut_rnd_interval() */
-
-#include "ha_prototypes.h" /* innobase_strcasecmp() */
+#include "ut0ut.h" /* ut_format_name() */
 
 /* Sampling algorithm description @{
 
@@ -137,9 +136,51 @@ typedef struct dict_stats_struct {
 } dict_stats_t;
 
 /*********************************************************************//**
+Write all zeros (or 1 where it makes sense) into a table and its indexes'
+statistics members. The resulting stats correspond to an empty table.
+dict_stats_empty_table() @{ */
+static
+void
+dict_stats_empty_table(
+/*===================*/
+	dict_table_t*	table)	/*!< in/out: table */
+{
+	/* Zero the stats members */
+
+	dict_table_stats_lock(table, RW_X_LATCH);
+
+	table->stat_n_rows = 0;
+	table->stat_clustered_index_size = 1;
+	/* 1 page for each index, not counting the clustered */
+	table->stat_sum_of_other_index_sizes
+		= UT_LIST_GET_LEN(table->indexes) - 1;
+	table->stat_modified_counter = 0;
+
+	dict_index_t*	index;
+
+	for (index = dict_table_get_first_index(table);
+	     index != NULL;
+	     index = dict_table_get_next_index(index)) {
+
+		ulint	n_uniq = dict_index_get_n_unique(index);
+		for (ulint i = 1; i <= n_uniq; i++) {
+			index->stat_n_diff_key_vals[i] = 0;
+		}
+
+		index->stat_index_size = 1;
+		index->stat_n_leaf_pages = 1;
+	}
+
+	table->stat_initialized = TRUE;
+
+	dict_table_stats_unlock(table, RW_X_LATCH);
+}
+/* @} */
+
+/*********************************************************************//**
 Calculates new estimates for index statistics. This function is
 relatively quick and is used to calculate transient statistics that
-are not saved on disk.  This was the only way to calculate statistics
+are not saved on disk. This was the only way to calculate statistics
 before the Persistent Statistics feature was introduced.
 dict_stats_update_transient_for_index() @{
 @return size of the index in pages, or 0 if skipped */
@@ -231,11 +272,18 @@ dict_stats_update_transient(
 
 	index = dict_table_get_first_index(table);
 
-	if (index == NULL) {
+	if (dict_table_is_discarded(table)) {
+		/* Nothing to do. */
+		return;
+	} else if (index == NULL) {
 		/* Table definition is corrupt */
+
+		char	buf[MAX_FULL_NAME_LEN];
 		ut_print_timestamp(stderr);
 		fprintf(stderr, " InnoDB: table %s has no indexes. "
-			"Cannot calculate statistics.\n", table->name);
+			"Cannot calculate statistics.\n",
+			ut_format_name(table->name, TRUE, buf, sizeof(buf)));
+		dict_stats_empty_table(table);
 		return;
 	}
 
@@ -277,10 +325,10 @@ dict_stats_persistent_storage_check(
 	/* definition for the table TABLE_STATS_NAME */
 	dict_col_meta_t	table_stats_columns[] = {
 		{"database_name", DATA_VARMYSQL,
-			DATA_NOT_NULL, 192 /* NAME_LEN from mysql_com.h */},
+			DATA_NOT_NULL, 192},
 
 		{"table_name", DATA_VARMYSQL,
-			DATA_NOT_NULL, 192 /* NAME_LEN from mysql_com.h */},
+			DATA_NOT_NULL, 192},
 
 		{"last_update", DATA_FIXBINARY,
 			DATA_NOT_NULL, 4},
@@ -303,13 +351,13 @@ dict_stats_persistent_storage_check(
 	/* definition for the table INDEX_STATS_NAME */
 	dict_col_meta_t	index_stats_columns[] = {
 		{"database_name", DATA_VARMYSQL,
-			DATA_NOT_NULL, 192 /* NAME_LEN from mysql_com.h */},
+			DATA_NOT_NULL, 192},
 
 		{"table_name", DATA_VARMYSQL,
-			DATA_NOT_NULL, 192 /* NAME_LEN from mysql_com.h */},
+			DATA_NOT_NULL, 192},
 
 		{"index_name", DATA_VARMYSQL,
-			DATA_NOT_NULL, 192 /* NAME_LEN from mysql_com.h */},
+			DATA_NOT_NULL, 192},
 
 		{"last_update", DATA_FIXBINARY,
 			DATA_NOT_NULL, 4},
@@ -333,7 +381,7 @@ dict_stats_persistent_storage_check(
 	};
 
 	char		errstr[512];
-	enum db_err	ret;
+	dberr_t		ret;
 
 	if (!caller_has_dict_sys_mutex) {
 		mutex_enter(&(dict_sys->mutex));
@@ -354,18 +402,14 @@ dict_stats_persistent_storage_check(
 		mutex_exit(&(dict_sys->mutex));
 	}
 
-	if (ret != DB_SUCCESS && ret != DB_TABLE_NOT_FOUND) {
-
+	if (ret != DB_SUCCESS) {
 		ut_print_timestamp(stderr);
-		fprintf(stderr, " InnoDB: %s\n", errstr);
+		fprintf(stderr, " InnoDB: Error: %s\n", errstr);
+		return(FALSE);
 	}
-	/* We return silently if some of the tables are not present because
-	this code is executed during open table. By design we check if the
-	persistent statistics storage is present and whether there are stats
-	for the table being opened and if so, then we use them, otherwise we
-	silently switch back to using the transient stats. */
+	/* else */
 
-	return(ret == DB_SUCCESS);
+	return(TRUE);
 }
 /* @} */
 
@@ -386,6 +430,75 @@ dict_stats_analyze_index()
       dive below some records and analyze the leaf page there:
       dict_stats_analyze_index_below_cur()
 @} */
+
+/*********************************************************************//**
+Close the stats tables. Should always be called after successful
+dict_stats_open(). It will free the dict_stats handle.
+dict_stats_close() @{ */
+UNIV_INLINE
+void
+dict_stats_close(
+/*=============*/
+	dict_stats_t*	dict_stats)	/*!< in/own: Handle to open
+					statistics tables */
+{
+	ut_ad(!mutex_own(&dict_sys->mutex));
+
+	if (dict_stats->table_stats != NULL) {
+		dict_table_close(dict_stats->table_stats, FALSE, FALSE);
+		dict_stats->table_stats = NULL;
+	}
+
+	if (dict_stats->index_stats != NULL) {
+		dict_table_close(dict_stats->index_stats, FALSE, FALSE);
+		dict_stats->index_stats = NULL;
+	}
+
+	mem_free(dict_stats);
+}
+/* @} */
+
+/*********************************************************************//**
+Open stats tables to prevent these tables from being DROPped.
+Also check whether they have the correct structure. The caller
+must call dict_stats_close() when he has finished DMLing the tables.
+dict_stats_open() @{
+@return pointer to open tables or NULL on failure */
+UNIV_INLINE
+dict_stats_t*
+dict_stats_open(void)
+/*=================*/
+{
+	dict_stats_t*	dict_stats;
+
+	ut_ad(!mutex_own(&dict_sys->mutex));
+
+	dict_stats = static_cast<dict_stats_t*>(
+		mem_zalloc(sizeof(*dict_stats)));
+
+	dict_stats->table_stats = dict_table_open_on_name(
+		TABLE_STATS_NAME, FALSE, FALSE, DICT_ERR_IGNORE_NONE);
+
+	dict_stats->index_stats = dict_table_open_on_name(
+		INDEX_STATS_NAME, FALSE, FALSE, DICT_ERR_IGNORE_NONE);
+
+	/* Check if the tables have the correct structure, if yes then
+	after this function we can safely DELETE from them without worrying
+	that they may get DROPped or DDLed because the open will have
+	increased the reference count. */
+
+	if (dict_stats->table_stats == NULL
+	    || dict_stats->index_stats == NULL
+	    || !dict_stats_persistent_storage_check(FALSE)) {
+
+		/* There was an error, close the tables and free the handle. */
+		dict_stats_close(dict_stats);
+		dict_stats = NULL;
+	}
+
+	return(dict_stats);
+}
+/* @} */
 
 /*********************************************************************//**
 Find the total number and the number of distinct keys on a given level in
@@ -663,6 +776,10 @@ dict_stats_analyze_index_level(
 #endif
 	}
 #endif /* UNIV_STATS_DEBUG */
+
+	/* Release the latch on the last page, because that is not done by
+	btr_pcur_close(). This function works also for non-leaf pages. */
+	btr_leaf_page_release(btr_pcur_get_block(&pcur), pcur.latch_mode, mtr);
 
 	btr_pcur_close(&pcur);
 
@@ -1463,7 +1580,7 @@ will be saved on disk.
 dict_stats_update_persistent() @{
 @return DB_SUCCESS or error code */
 static
-enum db_err
+dberr_t
 dict_stats_update_persistent(
 /*=========================*/
 	dict_table_t*	table)		/*!< in/out: table */
@@ -1474,6 +1591,8 @@ dict_stats_update_persistent(
 
 	/* XXX quit if interrupted, e.g. SIGTERM */
 
+	dict_table_stats_lock(table, RW_X_LATCH);
+
 	/* analyze the clustered index first */
 
 	index = dict_table_get_first_index(table);
@@ -1482,6 +1601,8 @@ dict_stats_update_persistent(
 	    || dict_index_is_corrupted(index)
 	    || (index->type | DICT_UNIQUE) != (DICT_CLUSTERED | DICT_UNIQUE)) {
 		/* Table definition is corrupt */
+		dict_table_stats_unlock(table, RW_X_LATCH);
+		dict_stats_empty_table(table);
 		return(DB_CORRUPTION);
 	}
 
@@ -1516,6 +1637,8 @@ dict_stats_update_persistent(
 
 	table->stat_initialized = TRUE;
 
+	dict_table_stats_unlock(table, RW_X_LATCH);
+
 	return(DB_SUCCESS);
 }
 /* @} */
@@ -1526,7 +1649,7 @@ storage.
 dict_stats_save_index_stat() @{
 @return DB_SUCCESS or error code */
 static
-enum db_err
+dberr_t
 dict_stats_save_index_stat(
 /*=======================*/
 	dict_index_t*	index,		/*!< in: index */
@@ -1534,95 +1657,108 @@ dict_stats_save_index_stat(
 	const char*	stat_name,	/*!< in: name of the stat */
 	ib_uint64_t	stat_value,	/*!< in: value of the stat */
 	ib_uint64_t*	sample_size,	/*!< in: n pages sampled or NULL */
-	const char*	stat_description,/*!< in: description of the stat */
-	trx_t*		trx,		/*!< in/out: transaction to use */
-	ibool		caller_has_dict_sys_mutex)/*!< in: TRUE if the caller
-					owns dict_sys->mutex */
+	const char*	stat_description)/*!< in: description of the stat */
 {
+	trx_t*		trx;
 	pars_info_t*	pinfo;
-	enum db_err	ret;
+	dberr_t		ret;
 
-	pinfo = pars_info_create();
+	ut_ad(mutex_own(&dict_sys->mutex));
 
-	pars_info_add_literal(pinfo, "database_name", index->table->name,
-			      dict_get_db_name_len(index->table->name),
-			      DATA_VARCHAR, 0);
+#define PREPARE_PINFO_FOR_INDEX_SAVE() \
+do { \
+	pinfo = pars_info_create(); \
+	pars_info_add_literal(pinfo, "database_name", index->table->name, \
+		dict_get_db_name_len(index->table->name), \
+		DATA_VARCHAR, 0); \
+	pars_info_add_str_literal(pinfo, "table_name", \
+		dict_remove_db_name(index->table->name)); \
+	pars_info_add_str_literal(pinfo, "index_name", index->name); \
+	pars_info_add_int4_literal(pinfo, "last_update", last_update); \
+	pars_info_add_str_literal(pinfo, "stat_name", stat_name); \
+	pars_info_add_ull_literal(pinfo, "stat_value", stat_value); \
+	if (sample_size != NULL) { \
+		pars_info_add_ull_literal(pinfo, "sample_size", *sample_size); \
+	} else { \
+		pars_info_add_literal(pinfo, "sample_size", NULL, \
+				      UNIV_SQL_NULL, DATA_FIXBINARY, 0); \
+	} \
+	pars_info_add_str_literal(pinfo, "stat_description", \
+				  stat_description); \
+} while (0);
 
-	pars_info_add_str_literal(pinfo, "table_name",
-				  dict_remove_db_name(index->table->name));
-
-	pars_info_add_str_literal(pinfo, "index_name", index->name);
-
-	pars_info_add_int4_literal(pinfo, "last_update", last_update);
-
-	pars_info_add_str_literal(pinfo, "stat_name", stat_name);
-
-	pars_info_add_ull_literal(pinfo, "stat_value", stat_value);
-
-	if (sample_size != NULL) {
-		pars_info_add_ull_literal(pinfo, "sample_size", *sample_size);
-	} else {
-		pars_info_add_literal(pinfo, "sample_size", NULL,
-				      UNIV_SQL_NULL, DATA_FIXBINARY, 0);
-	}
-
-	pars_info_add_str_literal(pinfo, "stat_description",
-				  stat_description);
-
-	ret = que_eval_sql(pinfo,
-			   "PROCEDURE INDEX_STATS_SAVE () IS\n"
-			   "dummy CHAR;\n"
-			   "BEGIN\n"
-
-			   "SELECT database_name INTO dummy\n"
-			   "FROM \"" INDEX_STATS_NAME "\"\n"
-			   "WHERE\n"
-			   "database_name = :database_name AND\n"
-			   "table_name = :table_name AND\n"
-			   "index_name = :index_name AND\n"
-			   "stat_name = :stat_name\n"
-			   "FOR UPDATE;\n"
-
-			   "IF (SQL % NOTFOUND) THEN\n"
-			   "  INSERT INTO \"" INDEX_STATS_NAME "\"\n"
-			   "  VALUES\n"
-			   "  (\n"
-			   "  :database_name,\n"
-			   "  :table_name,\n"
-			   "  :index_name,\n"
-			   "  :last_update,\n"
-			   "  :stat_name,\n"
-			   "  :stat_value,\n"
-			   "  :sample_size,\n"
-			   "  :stat_description\n"
-			   "  );\n"
-			   "ELSE\n"
-			   "  UPDATE \"" INDEX_STATS_NAME "\" SET\n"
-			   "  last_update = :last_update,\n"
-			   "  stat_value = :stat_value,\n"
-			   "  sample_size = :sample_size,\n"
-			   "  stat_description = :stat_description\n"
-			   "  WHERE\n"
-			   "  database_name = :database_name AND\n"
-			   "  table_name = :table_name AND\n"
-			   "  index_name = :index_name AND\n"
-			   "  stat_name = :stat_name;\n"
-			   "END IF;\n"
-			   "END;",
-		!caller_has_dict_sys_mutex, trx);
-
+	PREPARE_PINFO_FOR_INDEX_SAVE();
+	trx = trx_allocate_for_background();
+	trx_start_if_not_started(trx);
+	ret = que_eval_sql(
+		pinfo,
+		"PROCEDURE INDEX_STATS_SAVE_INSERT () IS\n"
+		"BEGIN\n"
+		"INSERT INTO \"" INDEX_STATS_NAME "\"\n"
+		"VALUES\n"
+		"(\n"
+		":database_name,\n"
+		":table_name,\n"
+		":index_name,\n"
+		":last_update,\n"
+		":stat_name,\n"
+		":stat_value,\n"
+		":sample_size,\n"
+		":stat_description\n"
+		");\n"
+		"END;",
+		FALSE, trx);
 	/* pinfo is freed by que_eval_sql() */
 
+	if (ret == DB_SUCCESS) {
+		trx_commit_for_mysql(trx);
+	} else {
+		trx->op_info = "rollback of internal trx on stats tables";
+		mutex_exit(&dict_sys->mutex);
+		trx_rollback_to_savepoint(trx, NULL);
+		mutex_enter(&dict_sys->mutex);
+		trx->op_info = "";
+		ut_a(trx->error_state == DB_SUCCESS);
+	}
+	trx_free_for_background(trx);
+
+	if (ret == DB_DUPLICATE_KEY) {
+		PREPARE_PINFO_FOR_INDEX_SAVE();
+		trx = trx_allocate_for_background();
+		trx_start_if_not_started(trx);
+		ret = que_eval_sql(
+			pinfo,
+			"PROCEDURE INDEX_STATS_SAVE_UPDATE () IS\n"
+			"BEGIN\n"
+			"UPDATE \"" INDEX_STATS_NAME "\" SET\n"
+			"last_update = :last_update,\n"
+			"stat_value = :stat_value,\n"
+			"sample_size = :sample_size,\n"
+			"stat_description = :stat_description\n"
+			"WHERE\n"
+			"database_name = :database_name AND\n"
+			"table_name = :table_name AND\n"
+			"index_name = :index_name AND\n"
+			"stat_name = :stat_name;\n"
+			"END;",
+			FALSE, trx);
+		/* pinfo is freed by que_eval_sql() */
+		trx_commit_for_mysql(trx);
+		trx_free_for_background(trx);
+	}
+
 	if (ret != DB_SUCCESS) {
+		char	buf_table[MAX_FULL_NAME_LEN];
+		char	buf_index[MAX_FULL_NAME_LEN];
 		ut_print_timestamp(stderr);
 		fprintf(stderr,
-			" InnoDB: Error while trying to save index "
-			"statistics for table %s, index %s, "
-			"stat name %s: %s\n",
-			index->table->name, index->name,
+			" InnoDB: Cannot save index statistics for table "
+			"%s, index %s, stat name \"%s\": %s\n",
+			ut_format_name(index->table->name, TRUE,
+				       buf_table, sizeof(buf_table)),
+			ut_format_name(index->name, FALSE,
+				       buf_index, sizeof(buf_index)),
 			stat_name, ut_strerr(ret));
-
-		trx->error_state = DB_SUCCESS;
 	}
 
 	return(ret);
@@ -1634,147 +1770,160 @@ Save the table's statistics into the persistent statistics storage.
 dict_stats_save() @{
 @return DB_SUCCESS or error code */
 static
-enum db_err
+dberr_t
 dict_stats_save(
 /*============*/
 	dict_table_t*	table,		/*!< in: table */
 	ibool		caller_has_dict_sys_mutex)/*!< in: TRUE if the caller
 					owns dict_sys->mutex */
 {
+	dict_stats_t*	dict_stats;
 	trx_t*		trx;
 	pars_info_t*	pinfo;
-	dict_index_t*	index;
 	lint		now;
-	enum db_err	ret;
+	dberr_t		ret;
+
+	if (caller_has_dict_sys_mutex) {
+		mutex_exit(&dict_sys->mutex);
+	}
+
+	/* Increment table reference count to prevent the tables from
+	being DROPped just before que_eval_sql(). */
+	dict_stats = dict_stats_open();
+
+	if (dict_stats == NULL) {
+		/* stats tables do not exist or have unexpected structure */
+		if (caller_has_dict_sys_mutex) {
+			mutex_enter(&dict_sys->mutex);
+		}
+		return(DB_SUCCESS);
+	}
+
+	mutex_enter(&dict_sys->mutex);
 
 	/* MySQL's timestamp is 4 byte, so we use
 	pars_info_add_int4_literal() which takes a lint arg, so "now" is
 	lint */
 	now = (lint) ut_time();
 
+#define PREPARE_PINFO_FOR_TABLE_SAVE() \
+do { \
+	pinfo = pars_info_create(); \
+	pars_info_add_literal(pinfo, "database_name", table->name, \
+		dict_get_db_name_len(table->name), DATA_VARCHAR, 0); \
+	pars_info_add_str_literal(pinfo, "table_name", \
+		dict_remove_db_name(table->name)); \
+	pars_info_add_int4_literal(pinfo, "last_update", now); \
+	pars_info_add_ull_literal(pinfo, "n_rows", table->stat_n_rows); \
+	pars_info_add_ull_literal(pinfo, "clustered_index_size", \
+				  table->stat_clustered_index_size); \
+	pars_info_add_ull_literal(pinfo, "sum_of_other_index_sizes", \
+				  table->stat_sum_of_other_index_sizes); \
+} while (0);
+
+	PREPARE_PINFO_FOR_TABLE_SAVE();
 	trx = trx_allocate_for_background();
-
-	/* Use 'read-uncommitted' so that the SELECTs we execute
-	do not get blocked in case some user has locked the rows we
-	are SELECTing */
-
-	trx->isolation_level = TRX_ISO_READ_UNCOMMITTED;
-
 	trx_start_if_not_started(trx);
-
-	pinfo = pars_info_create();
-
-	pars_info_add_literal(pinfo, "database_name", table->name,
-			      dict_get_db_name_len(table->name),
-			      DATA_VARCHAR, 0);
-
-	pars_info_add_str_literal(pinfo, "table_name",
-				  dict_remove_db_name(table->name));
-
-	pars_info_add_int4_literal(pinfo, "last_update", now);
-
-	pars_info_add_ull_literal(pinfo, "n_rows", table->stat_n_rows);
-
-	pars_info_add_ull_literal(pinfo, "clustered_index_size",
-				     table->stat_clustered_index_size);
-
-	pars_info_add_ull_literal(pinfo, "sum_of_other_index_sizes",
-				     table->stat_sum_of_other_index_sizes);
-
-	ret = que_eval_sql(pinfo,
-			   "PROCEDURE TABLE_STATS_SAVE () IS\n"
-			   "dummy CHAR;\n"
-			   "BEGIN\n"
-
-			   "SELECT database_name INTO dummy\n"
-			   "FROM \"" TABLE_STATS_NAME "\"\n"
-			   "WHERE\n"
-			   "database_name = :database_name AND\n"
-			   "table_name = :table_name\n"
-			   "FOR UPDATE;\n"
-
-			   "IF (SQL % NOTFOUND) THEN\n"
-			   "  INSERT INTO \"" TABLE_STATS_NAME "\"\n"
-			   "  VALUES\n"
-			   "  (\n"
-			   "  :database_name,\n"
-			   "  :table_name,\n"
-			   "  :last_update,\n"
-			   "  :n_rows,\n"
-			   "  :clustered_index_size,\n"
-			   "  :sum_of_other_index_sizes\n"
-			   "  );\n"
-			   "ELSE\n"
-			   "  UPDATE \"" TABLE_STATS_NAME "\" SET\n"
-			   "  last_update = :last_update,\n"
-			   "  n_rows = :n_rows,\n"
-			   "  clustered_index_size = :clustered_index_size,\n"
-			   "  sum_of_other_index_sizes = "
-			   "    :sum_of_other_index_sizes\n"
-			   "  WHERE\n"
-			   "  database_name = :database_name AND\n"
-			   "  table_name = :table_name;\n"
-			   "END IF;\n"
-			   "END;",
-			   !caller_has_dict_sys_mutex, trx);
-
+	ret = que_eval_sql(
+		pinfo,
+		"PROCEDURE TABLE_STATS_SAVE_INSERT () IS\n"
+		"BEGIN\n"
+		"INSERT INTO \"" TABLE_STATS_NAME "\"\n"
+		"VALUES\n"
+		"(\n"
+		":database_name,\n"
+		":table_name,\n"
+		":last_update,\n"
+		":n_rows,\n"
+		":clustered_index_size,\n"
+		":sum_of_other_index_sizes\n"
+		");\n"
+		"END;",
+		FALSE, trx);
 	/* pinfo is freed by que_eval_sql() */
 
-	if (ret != DB_SUCCESS) {
+	if (ret == DB_SUCCESS) {
+		trx_commit_for_mysql(trx);
+	} else {
+		trx->op_info = "rollback of internal trx on stats tables";
+		mutex_exit(&dict_sys->mutex);
+		trx_rollback_to_savepoint(trx, NULL);
+		mutex_enter(&dict_sys->mutex);
+		trx->op_info = "";
+		ut_a(trx->error_state == DB_SUCCESS);
+	}
+	trx_free_for_background(trx);
 
+	if (ret == DB_DUPLICATE_KEY) {
+		PREPARE_PINFO_FOR_TABLE_SAVE();
+		trx = trx_allocate_for_background();
+		trx_start_if_not_started(trx);
+		ret = que_eval_sql(
+			pinfo,
+			"PROCEDURE TABLE_STATS_SAVE_UPDATE () IS\n"
+			"BEGIN\n"
+			"UPDATE \"" TABLE_STATS_NAME "\" SET\n"
+			"last_update = :last_update,\n"
+			"n_rows = :n_rows,\n"
+			"clustered_index_size = :clustered_index_size,\n"
+			"sum_of_other_index_sizes = "
+			"  :sum_of_other_index_sizes\n"
+			"WHERE\n"
+			"database_name = :database_name AND\n"
+			"table_name = :table_name;\n"
+			"END;",
+			FALSE, trx);
+		/* pinfo is freed by que_eval_sql() */
+
+		if (ret == DB_SUCCESS) {
+			trx_commit_for_mysql(trx);
+		} else {
+			trx->op_info = "rollback of internal trx on stats tables";
+			mutex_exit(&dict_sys->mutex);
+			trx_rollback_to_savepoint(trx, NULL);
+			mutex_enter(&dict_sys->mutex);
+			trx->op_info = "";
+			ut_a(trx->error_state == DB_SUCCESS);
+		}
+		trx_free_for_background(trx);
+	}
+
+	if (ret != DB_SUCCESS) {
+		char	buf[MAX_FULL_NAME_LEN];
 		ut_print_timestamp(stderr);
 		fprintf(stderr,
-			" InnoDB: Error while trying to save table "
-			"statistics for table %s: %s\n",
-			table->name, ut_strerr(ret));
-
-		goto end_rollback;
+			" InnoDB: Cannot save table statistics for table "
+			"%s: %s\n",
+			ut_format_name(table->name, TRUE, buf, sizeof(buf)),
+			ut_strerr(ret));
+		goto end;
 	}
+
+	dict_index_t*	index;
 
 	for (index = dict_table_get_first_index(table);
 	     index != NULL;
 	     index = dict_table_get_next_index(index)) {
 
-		ib_uint64_t	stat_n_diff_key_vals[REC_MAX_N_FIELDS];
-		ib_uint64_t	stat_n_sample_sizes[REC_MAX_N_FIELDS];
-		ulint		n_uniq;
-		ulint		i;
-
 		ret = dict_stats_save_index_stat(index, now, "size",
 						 index->stat_index_size,
 						 NULL,
 						 "Number of pages "
-						 "in the index",
-						 trx,
-						 caller_has_dict_sys_mutex);
+						 "in the index");
 		if (ret != DB_SUCCESS) {
-			goto end_rollback;
+			goto end;
 		}
 
 		ret = dict_stats_save_index_stat(index, now, "n_leaf_pages",
 						 index->stat_n_leaf_pages,
 						 NULL,
 						 "Number of leaf pages "
-						 "in the index",
-						 trx,
-						 caller_has_dict_sys_mutex);
+						 "in the index");
 		if (ret != DB_SUCCESS) {
-			goto end_rollback;
+			goto end;
 		}
 
-		n_uniq = dict_index_get_n_unique(index);
-
-		ut_ad(n_uniq + 1 <= UT_ARR_SIZE(stat_n_diff_key_vals));
-
-		memcpy(stat_n_diff_key_vals, index->stat_n_diff_key_vals,
-		       (n_uniq + 1) * sizeof(index->stat_n_diff_key_vals[0]));
-
-		ut_ad(n_uniq + 1 <= UT_ARR_SIZE(stat_n_sample_sizes));
-
-		memcpy(stat_n_sample_sizes, index->stat_n_sample_sizes,
-		       (n_uniq + 1) * sizeof(index->stat_n_sample_sizes[0]));
-
-		for (i = 1; i <= n_uniq; i++) {
+		for (ulint i = 1; i <= index->n_uniq; i++) {
 
 			char	stat_name[16];
 			char	stat_description[1024];
@@ -1799,31 +1948,24 @@ dict_stats_save(
 
 			ret = dict_stats_save_index_stat(
 				index, now, stat_name,
-				stat_n_diff_key_vals[i],
-				&stat_n_sample_sizes[i],
-				stat_description, trx,
-				caller_has_dict_sys_mutex);
+				index->stat_n_diff_key_vals[i],
+				&index->stat_n_sample_sizes[i],
+				stat_description);
 
 			if (ret != DB_SUCCESS) {
-				goto end_rollback;
+				goto end;
 			}
 		}
 	}
 
-	trx_commit_for_mysql(trx);
-	ret = DB_SUCCESS;
-	goto end_free;
+end:
+	mutex_exit(&dict_sys->mutex);
 
-end_rollback:
+	dict_stats_close(dict_stats);
 
-	trx->op_info = "rollback of internal transaction on stats tables";
-	trx_rollback_to_savepoint(trx, NULL);
-	trx->op_info = "";
-	ut_a(trx->error_state == DB_SUCCESS);
-
-end_free:
-
-	trx_free_for_background(trx);
+	if (caller_has_dict_sys_mutex) {
+		mutex_enter(&dict_sys->mutex);
+	}
 
 	return(ret);
 }
@@ -2167,102 +2309,11 @@ dict_stats_fetch_index_stats_step(
 /* @} */
 
 /*********************************************************************//**
-Read inedx statistics from the persistent statistics storage.
-@return DB_SUCCESS or error code */
-static
-enum db_err
-dict_stats_fetch_from_ps_for_index(
-/*===============================*/
-	dict_index_t*	index)		/*!< in/out: index */
-{
-	index_fetch_t	index_fetch_arg;
-	trx_t*		trx;
-	pars_info_t*	pinfo;
-	enum db_err	ret;
-
-	ut_ad(!mutex_own(&dict_sys->mutex));
-
-	trx = trx_allocate_for_background();
-
-	/* Use 'read-uncommitted' so that the SELECTs we execute
-	do not get blocked in case some user has locked the rows we
-	are SELECTing */
-
-	trx->isolation_level = TRX_ISO_READ_UNCOMMITTED;
-
-	trx_start_if_not_started(trx);
-
-	pinfo = pars_info_create();
-
-	pars_info_add_literal(pinfo, "database_name", index->table_name,
-			      dict_get_db_name_len(index->table_name),
-			      DATA_VARCHAR, 0);
-
-	pars_info_add_str_literal(pinfo, "table_name",
-				  dict_remove_db_name(index->table_name));
-	pars_info_add_str_literal(pinfo, "index_name", index->name);
-
-	index_fetch_arg.table = index->table;
-	index_fetch_arg.stats_were_modified = FALSE;
-	pars_info_bind_function(pinfo,
-			        "fetch_index_stats_step",
-			        dict_stats_fetch_index_stats_step,
-			        &index_fetch_arg);
-
-	ret = que_eval_sql(pinfo,
-			   "PROCEDURE FETCH_INDEX_STATS () IS\n"
-			   "found INT;\n"
-			   "DECLARE FUNCTION fetch_index_stats_step;\n"
-			   "DECLARE CURSOR index_stats_cur IS\n"
-			   "  SELECT\n"
-			   /* if you change the selected fields, be
-			   sure to adjust
-			   dict_stats_fetch_index_stats_step() */
-			   "  index_name,\n"
-			   "  stat_name,\n"
-			   "  stat_value,\n"
-			   "  sample_size\n"
-			   "  FROM \"" INDEX_STATS_NAME "\"\n"
-			   "  WHERE\n"
-			   "  database_name = :database_name AND\n"
-			   "  table_name = :table_name AND\n"
-			   "  index_name = :index_name;\n"
-
-			   "BEGIN\n"
-
-			   "OPEN index_stats_cur;\n"
-			   "found := 1;\n"
-			   "WHILE found = 1 LOOP\n"
-			   "  FETCH index_stats_cur INTO\n"
-			   "    fetch_index_stats_step();\n"
-			   "  IF (SQL % NOTFOUND) THEN\n"
-			   "    found := 0;\n"
-			   "  END IF;\n"
-			   "END LOOP;\n"
-			   "CLOSE index_stats_cur;\n"
-
-			   "END;",
-			   TRUE, trx);
-
-	/* pinfo is freed by que_eval_sql() */
-
-	trx_commit_for_mysql(trx);
-
-	trx_free_for_background(trx);
-
-	if (!index_fetch_arg.stats_were_modified) {
-		return(DB_STATS_DO_NOT_EXIST);
-	}
-
-	return(ret);
-}
-
-/*********************************************************************//**
 Read table's statistics from the persistent statistics storage.
 dict_stats_fetch_from_ps() @{
 @return DB_SUCCESS or error code */
 static
-enum db_err
+dberr_t
 dict_stats_fetch_from_ps(
 /*=====================*/
 	dict_table_t*	table,		/*!< in/out: table */
@@ -2272,7 +2323,7 @@ dict_stats_fetch_from_ps(
 	index_fetch_t	index_fetch_arg;
 	trx_t*		trx;
 	pars_info_t*	pinfo;
-	enum db_err	ret;
+	dberr_t		ret;
 
 	ut_ad(mutex_own(&dict_sys->mutex) == caller_has_dict_sys_mutex);
 
@@ -2362,7 +2413,6 @@ dict_stats_fetch_from_ps(
 
 			   "END;",
 			   !caller_has_dict_sys_mutex, trx);
-
 	/* pinfo is freed by que_eval_sql() */
 
 	/* XXX If mysql.innodb_index_stats contained less rows than the number
@@ -2387,22 +2437,48 @@ dict_stats_fetch_from_ps(
 /* @} */
 
 /*********************************************************************//**
-Fetches or calculates new estimates for index statistics. */
+Fetches or calculates new estimates for index statistics.
+dict_stats_update_for_index() @{ */
 UNIV_INTERN
 void
 dict_stats_update_for_index(
 /*========================*/
 	dict_index_t*	index)	/*!< in/out: index */
 {
-	if (dict_stats_persistent_storage_check(FALSE)
-	    && dict_stats_fetch_from_ps_for_index(index) == DB_SUCCESS) {
-		return;
+	ut_ad(!mutex_own(&dict_sys->mutex));
+
+	if (dict_stats_is_persistent_enabled(index->table)) {
+
+		if (dict_stats_persistent_storage_check(FALSE)) {
+			dict_table_stats_lock(index->table, RW_X_LATCH);
+			dict_stats_analyze_index(index);
+			dict_table_stats_unlock(index->table, RW_X_LATCH);
+			dict_stats_save(index->table, FALSE);
+			return;
+		}
+		/* else */
+
+		/* Fall back to transient stats since the persistent
+		storage is not present or is corrupted */
+		char	buf_table[MAX_FULL_NAME_LEN];
+		char	buf_index[MAX_FULL_NAME_LEN];
+		ut_print_timestamp(stderr);
+		fprintf(stderr,
+			" InnoDB: Recalculation of persistent statistics "
+			"requested for table %s index %s but the required "
+			"persistent statistics storage is not present or is "
+			"corrupted. Using transient stats instead.\n",
+			ut_format_name(index->table->name, TRUE,
+				       buf_table, sizeof(buf_table)),
+			ut_format_name(index->name, FALSE,
+				       buf_index, sizeof(buf_index)));
 	}
 
 	dict_table_stats_lock(index->table, RW_X_LATCH);
 	dict_stats_update_transient_for_index(index);
 	dict_table_stats_unlock(index->table, RW_X_LATCH);
 }
+/* @} */
 
 /*********************************************************************//**
 Calculates new estimates for table and index statistics. The statistics
@@ -2410,7 +2486,7 @@ are used in query optimization.
 dict_stats_update() @{
 @return DB_* error code or DB_SUCCESS */
 UNIV_INTERN
-enum db_err
+dberr_t
 dict_stats_update(
 /*==============*/
 	dict_table_t*		table,	/*!< in/out: table */
@@ -2423,7 +2499,8 @@ dict_stats_update(
 					/*!< in: TRUE if the caller
 					owns dict_sys->mutex */
 {
-	enum db_err	ret = DB_ERROR;
+	char	buf[MAX_FULL_NAME_LEN];
+	dberr_t	ret = DB_ERROR;
 
 	/* check whether caller_has_dict_sys_mutex is set correctly;
 	note that mutex_own() is not implemented in non-debug code so
@@ -2438,34 +2515,26 @@ dict_stats_update(
 			" InnoDB: cannot calculate statistics for table %s "
 			"because the .ibd file is missing. For help, please "
 			"refer to " REFMAN "innodb-troubleshooting.html\n",
-			table->name);
-
+			ut_format_name(table->name, TRUE, buf, sizeof(buf)));
+		dict_stats_empty_table(table);
 		return(DB_TABLESPACE_DELETED);
 	}
 
 	/* If we have set a high innodb_force_recovery level, do not calculate
 	statistics, as a badly corrupted index can cause a crash in it. */
-
 	if (srv_force_recovery >= SRV_FORCE_NO_IBUF_MERGE) {
-
+		dict_stats_empty_table(table);
 		return(DB_SUCCESS);
 	}
 
 	switch (stats_upd_option) {
 	case DICT_STATS_RECALC_PERSISTENT:
-	case DICT_STATS_RECALC_PERSISTENT_SILENT:
 		/* Persistent recalculation requested, called from
-		ANALYZE TABLE or from TRUNCATE TABLE */
+		ANALYZE TABLE */
 
-		/* FTS auxiliary tables do not need persistent stats */
-		if ((ut_strcount(table->name, "FTS") > 0
-		     && (ut_strcount(table->name, "CONFIG") > 0
-			 || ut_strcount(table->name, "INDEX") > 0
-			 || ut_strcount(table->name, "DELETED") > 0
-			 || ut_strcount(table->name, "DOC_ID") > 0
-			 || ut_strcount(table->name, "ADDED") > 0))) {
-			goto transient;
-		}
+		/* InnoDB internal tables (e.g. SYS_TABLES) cannot have
+		persistent stats enabled */
+		ut_a(strchr(table->name, '/') != NULL);
 
 		/* check if the persistent statistics storage exists
 		before calling the potentially slow function
@@ -2474,26 +2543,28 @@ dict_stats_update(
 		if (dict_stats_persistent_storage_check(
 				caller_has_dict_sys_mutex)) {
 
-			dict_table_stats_lock(table, RW_X_LATCH);
-
 			ret = dict_stats_update_persistent(table);
 
-			/* XXX Currently dict_stats_save() would read the
-			stats from the table without dict_table_stats_lock()
-			which means it could save inconsistent data on the
-			disk. This is because we must call
-			dict_table_stats_lock() after locking dict_sys->mutex.
-			A solution is to copy here the stats to a temporary
-			buffer while holding the _stats_lock(), release it,
-			and pass that buffer to dict_stats_save(). */
-
-			dict_table_stats_unlock(table, RW_X_LATCH);
-
-			if (ret == DB_SUCCESS) {
-				ret = dict_stats_save(
-					table,
-					caller_has_dict_sys_mutex);
+			if (ret != DB_SUCCESS) {
+				return(ret);
 			}
+			/* else */
+
+			if (caller_has_dict_sys_mutex) {
+				mutex_exit(&dict_sys->mutex);
+			}
+
+			dict_table_t*	t;
+
+			t = dict_stats_snapshot_create(table);
+
+			if (caller_has_dict_sys_mutex) {
+				mutex_enter(&dict_sys->mutex);
+			}
+
+			ret = dict_stats_save(t, caller_has_dict_sys_mutex);
+
+			dict_stats_snapshot_free(t);
 
 			return(ret);
 		}
@@ -2502,19 +2573,13 @@ dict_stats_update(
 		/* Fall back to transient stats since the persistent
 		storage is not present or is corrupted */
 
-		if (stats_upd_option == DICT_STATS_RECALC_PERSISTENT) {
-
-			ut_print_timestamp(stderr);
-			/* XXX add link to the doc about storage
-			creation */
-			fprintf(stderr,
-				" InnoDB: Recalculation of persistent "
-				"statistics requested but the required "
-				"persistent statistics storage is not "
-				"present or is corrupted. "
-				"Using quick transient stats "
-				"instead.\n");
-		}
+		ut_print_timestamp(stderr);
+		fprintf(stderr,
+			" InnoDB: Recalculation of persistent statistics "
+			"requested for table %s but the required persistent "
+			"statistics storage is not present or is corrupted. "
+			"Using transient stats instead.\n",
+			ut_format_name(table->name, TRUE, buf, sizeof(buf)));
 
 		goto transient;
 
@@ -2522,16 +2587,37 @@ dict_stats_update(
 
 		goto transient;
 
-	case DICT_STATS_FETCH:
+	case DICT_STATS_EMPTY_TABLE:
+
+		dict_stats_empty_table(table);
+
+		dberr_t	ret;
+
+		/* If table is using persistent stats,
+		then save the stats on disk */
+
+		if (dict_stats_is_persistent_enabled(table)) {
+			if (dict_stats_persistent_storage_check(
+					caller_has_dict_sys_mutex)) {
+
+				ret = dict_stats_save(
+					table, caller_has_dict_sys_mutex);
+			} else {
+				ret = DB_STATS_DO_NOT_EXIST;
+			}
+		} else {
+			ret = DB_SUCCESS;
+		}
+
+		return(ret);
+
 	case DICT_STATS_FETCH_ONLY_IF_NOT_IN_MEMORY:
 		/* fetch requested, either fetch from persistent statistics
 		storage or use the old method */
 
 		dict_table_stats_lock(table, RW_X_LATCH);
 
-		if (stats_upd_option == DICT_STATS_FETCH_ONLY_IF_NOT_IN_MEMORY
-		    && table->stat_initialized) {
-
+		if (table->stat_initialized) {
 			dict_table_stats_unlock(table, RW_X_LATCH);
 			return(DB_SUCCESS);
 		}
@@ -2543,49 +2629,47 @@ dict_stats_update(
 		table->stat_initialized = TRUE;
 		dict_table_stats_unlock(table, RW_X_LATCH);
 
-		if (strchr(table->name, '/') == NULL
-		    || strcmp(table->name, INDEX_STATS_NAME) == 0
-		    || strcmp(table->name, TABLE_STATS_NAME) == 0
-		    || (ut_strcount(table->name, "FTS") > 0
-		        && (ut_strcount(table->name, "CONFIG") > 0
-			    || ut_strcount(table->name, "INDEX") > 0
-			    || ut_strcount(table->name, "DELETED") > 0
-			    || ut_strcount(table->name, "DOC_ID") > 0
-			    || ut_strcount(table->name, "ADDED") > 0))) {
-			/* Use the quick transient stats method for
-			InnoDB internal tables, because we know the
-			persistent stats storage does not contain data
-			for them */
+		/* InnoDB internal tables (e.g. SYS_TABLES) cannot have
+		persistent stats enabled */
+		ut_a(strchr(table->name, '/') != NULL);
+
+		if (!dict_stats_persistent_storage_check(
+			caller_has_dict_sys_mutex)) {
+			/* persistent statistics storage does not exist
+			or is corrupted, calculate the transient stats */
+
+			ut_print_timestamp(stderr);
+			fprintf(stderr,
+				" InnoDB: Error: Fetch of persistent "
+				"statistics requested for table %s but the "
+				"required system tables %s and %s are not "
+				"present or have unexpected structure. "
+				"Using transient stats instead.\n",
+				ut_format_name(table->name, TRUE,
+					       buf, sizeof(buf)),
+				TABLE_STATS_NAME_PRINT,
+				INDEX_STATS_NAME_PRINT);
 
 			goto transient;
 		}
 		/* else */
 
-		if (dict_stats_persistent_storage_check(
-			caller_has_dict_sys_mutex)) {
+		ret = dict_stats_fetch_from_ps(table, caller_has_dict_sys_mutex);
 
-			ret = dict_stats_fetch_from_ps(table,
-				caller_has_dict_sys_mutex);
-
-			if (ret == DB_STATS_DO_NOT_EXIST
-			    || (ret != DB_SUCCESS && stats_upd_option
-				== DICT_STATS_FETCH_ONLY_IF_NOT_IN_MEMORY)) {
-				/* Stats for this particular table do not
-				exist or we have been called from open table
-				which needs to initialize the stats,
-				calculate the quick transient statistics */
-				goto transient;
-			}
-			/* else */
-
-			return(ret);
-		} else {
-			/* persistent statistics storage does not exist,
-			calculate the transient stats */
-			goto transient;
+		if (ret == DB_SUCCESS) {
+			return(DB_SUCCESS);
 		}
+		/* else */
 
-		break;
+		ut_print_timestamp(stderr);
+		fprintf(stderr,
+			" InnoDB: Fetch of persistent statistics "
+			"requested for table %s but the statistics do not "
+			"exist. Please ANALYZE the table. "
+			"Using transient stats instead.\n",
+			ut_format_name(table->name, TRUE, buf, sizeof(buf)));
+
+		goto transient;
 
 	/* no "default:" in order to produce a compilation warning
 	about unhandled enumeration value */
@@ -2604,71 +2688,6 @@ transient:
 /* @} */
 
 /*********************************************************************//**
-Close the stats tables. Should always be called after successful
-dict_stats_open(). It will free the dict_stats handle.
-dict_stats_close() @{ */
-UNIV_INLINE
-void
-dict_stats_close(
-/*=============*/
-	dict_stats_t*	dict_stats)	/*!< in/own: Handle to open
-					statistics tables */
-{
-	if (dict_stats->table_stats != NULL) {
-		dict_table_close(dict_stats->table_stats, FALSE, FALSE);
-		dict_stats->table_stats = NULL;
-	}
-
-	if (dict_stats->index_stats != NULL) {
-		dict_table_close(dict_stats->index_stats, FALSE, FALSE);
-		dict_stats->index_stats = NULL;
-	}
-
-	mem_free(dict_stats);
-}
-/* @} */
-
-/*********************************************************************//**
-Open stats tables to prevent these tables from being DROPped.
-Also check whether they have the correct structure. The caller
-must call dict_stats_close() when he has finished DMLing the tables.
-dict_stats_open() @{
-@return pointer to open tables or NULL on failure */
-UNIV_INLINE
-dict_stats_t*
-dict_stats_open(void)
-/*=================*/
-{
-	dict_stats_t*	dict_stats;
-
-	dict_stats = static_cast<dict_stats_t*>(
-		mem_zalloc(sizeof(*dict_stats)));
-
-	dict_stats->table_stats = dict_table_open_on_name_no_stats(
-		TABLE_STATS_NAME, FALSE, FALSE, DICT_ERR_IGNORE_NONE);
-
-	dict_stats->index_stats = dict_table_open_on_name_no_stats(
-		INDEX_STATS_NAME, FALSE, FALSE, DICT_ERR_IGNORE_NONE);
-
-	/* Check if the tables have the correct structure, if yes then
-	after this function we can safely DELETE from them without worrying
-	that they may get DROPped or DDLed because the open will have
-	increased the reference count. */
-
-	if (dict_stats->table_stats == NULL
-	    || dict_stats->index_stats == NULL
-	    || !dict_stats_persistent_storage_check(FALSE)) {
-
-		/* There was an error, close the tables and free the handle. */
-		dict_stats_close(dict_stats);
-		dict_stats = NULL;
-	}
-
-	return(dict_stats);
-}
-/* @} */
-
-/*********************************************************************//**
 Removes the information for a particular index's stats from the persistent
 storage if it exists and if there is data stored for this index.
 The transaction is not committed, it must not be committed in this
@@ -2681,13 +2700,13 @@ rolling back dict transactions.
 marko: If ibuf merges are not disabled, we need to scan the *.ibd files.
 But we shouldn't open *.ibd files before we have rolled back dict
 transactions and opened the SYS_* records for the *.ibd files.
-dict_stats_delete_index_stats() @{
+dict_stats_drop_index() @{
 @return DB_SUCCESS or error code */
 UNIV_INTERN
-enum db_err
-dict_stats_delete_index_stats(
-/*==========================*/
-	const char*	tname,	/*!< in: table name */
+dberr_t
+dict_stats_drop_index(
+/*==================*/
+	const char*	tname,	/*!< in: table name, e.g. 'db/table' */
 	const char*	iname,	/*!< in: index name */
 	trx_t*		trx,	/*!< in/out: user transaction */
 	char*		errstr, /*!< out: error message if != DB_SUCCESS
@@ -2697,9 +2716,11 @@ dict_stats_delete_index_stats(
 	char		database_name[MAX_DATABASE_NAME_LEN + 1];
 	const char*	table_name;
 	pars_info_t*	pinfo;
-	enum db_err	ret;
+	dberr_t		ret;
 	dict_stats_t*	dict_stats;
-	void*		mysql_thd;
+	THD*		mysql_thd;
+
+	ut_ad(!mutex_own(&dict_sys->mutex));
 
 	/* skip indexes whose table names do not contain a database name
 	e.g. if we are dropping an index from SYS_TABLES */
@@ -2738,6 +2759,8 @@ dict_stats_delete_index_stats(
 	mysql_thd = trx->mysql_thd;
 	trx->mysql_thd = NULL;
 
+	mutex_enter(&dict_sys->mutex);
+
 	ret = que_eval_sql(pinfo,
 			   "PROCEDURE DROP_INDEX_STATS () IS\n"
 			   "BEGIN\n"
@@ -2746,12 +2769,13 @@ dict_stats_delete_index_stats(
 			   "table_name = :table_name AND\n"
 			   "index_name = :index_name;\n"
 			   "END;\n",
-			   TRUE,
+			   FALSE,
 			   trx);
+	/* pinfo is freed by que_eval_sql() */
+
+	mutex_exit(&dict_sys->mutex);
 
 	trx->mysql_thd = mysql_thd;
-
-	/* pinfo is freed by que_eval_sql() */
 
 	/* do not to commit here, see the function's comment */
 
@@ -2759,7 +2783,7 @@ dict_stats_delete_index_stats(
 
 		ut_snprintf(errstr, errstr_sz,
 			    "Unable to delete statistics for index %s "
-			    "from %s%s. They can be deleted later using "
+			    "from %s%s: %s. They can be deleted later using "
 			    "DELETE FROM %s WHERE "
 			    "database_name = '%s' AND "
 			    "table_name = '%s' AND "
@@ -2769,6 +2793,7 @@ dict_stats_delete_index_stats(
 			    (ret == DB_LOCK_WAIT_TIMEOUT
 			     ? " because the rows are locked"
 			     : ""),
+			    ut_strerr(ret),
 			    INDEX_STATS_NAME_PRINT,
 			    database_name,
 			    table_name,
@@ -2787,26 +2812,140 @@ dict_stats_delete_index_stats(
 /* @} */
 
 /*********************************************************************//**
+Executes
+DELETE FROM mysql.innodb_table_stats
+WHERE database_name = '...' AND table_name = '...';
+Creates its own transaction and commits it.
+mysql.innodb_table_stats should be protected from DDL with dict_stats_open().
+dict_stats_delete_from_table_stats() @{
+@return DB_SUCCESS or error code */
+UNIV_INLINE
+dberr_t
+dict_stats_delete_from_table_stats(
+/*===============================*/
+	const char*	database_name,	/*!< in: database name, e.g. 'db' */
+	const char*	table_name)	/*!< in: table name, e.g. 'table' */
+{
+	pars_info_t*	pinfo;
+	trx_t*		trx;
+	dberr_t		ret;
+
+	ut_ad(mutex_own(&dict_sys->mutex));
+
+	pinfo = pars_info_create();
+
+	pars_info_add_str_literal(pinfo, "database_name", database_name);
+	pars_info_add_str_literal(pinfo, "table_name", table_name);
+
+	trx = trx_allocate_for_background();
+	trx_start_if_not_started(trx);
+
+	ret = que_eval_sql(
+		pinfo,
+		"PROCEDURE DELETE_FROM_TABLE_STATS () IS\n"
+		"BEGIN\n"
+		"DELETE FROM \"" TABLE_STATS_NAME "\" WHERE\n"
+		"database_name = :database_name AND\n"
+		"table_name = :table_name;\n"
+		"END;\n",
+		FALSE, trx);
+	/* pinfo is freed by que_eval_sql() */
+
+	if (ret == DB_SUCCESS) {
+		trx_commit_for_mysql(trx);
+	} else {
+		trx->op_info = "rollback of internal trx on stats tables";
+		mutex_exit(&dict_sys->mutex);
+		trx_rollback_to_savepoint(trx, NULL);
+		mutex_enter(&dict_sys->mutex);
+		trx->op_info = "";
+		ut_a(trx->error_state == DB_SUCCESS);
+	}
+
+	trx_free_for_background(trx);
+
+	return(ret);
+}
+/* @} */
+
+/*********************************************************************//**
+Executes
+DELETE FROM mysql.innodb_index_stats
+WHERE database_name = '...' AND table_name = '...';
+Creates its own transaction and commits it.
+mysql.innodb_index_stats should be protected from DDL with dict_stats_open().
+dict_stats_delete_from_index_stats() @{
+@return DB_SUCCESS or error code */
+UNIV_INLINE
+dberr_t
+dict_stats_delete_from_index_stats(
+/*===============================*/
+	const char*	database_name,	/*!< in: database name, e.g. 'db' */
+	const char*	table_name)	/*!< in: table name, e.g. 'table' */
+{
+	pars_info_t*	pinfo;
+	trx_t*		trx;
+	dberr_t		ret;
+
+	ut_ad(mutex_own(&dict_sys->mutex));
+
+	pinfo = pars_info_create();
+
+	pars_info_add_str_literal(pinfo, "database_name", database_name);
+	pars_info_add_str_literal(pinfo, "table_name", table_name);
+
+	trx = trx_allocate_for_background();
+	trx_start_if_not_started(trx);
+
+	ret = que_eval_sql(
+		pinfo,
+		"PROCEDURE DELETE_FROM_INDEX_STATS () IS\n"
+		"BEGIN\n"
+		"DELETE FROM \"" INDEX_STATS_NAME "\" WHERE\n"
+		"database_name = :database_name AND\n"
+		"table_name = :table_name;\n"
+		"END;\n",
+		FALSE, trx);
+	/* pinfo is freed by que_eval_sql() */
+
+	if (ret == DB_SUCCESS) {
+		trx_commit_for_mysql(trx);
+	} else {
+		trx->op_info = "rollback of internal trx on stats tables";
+		mutex_exit(&dict_sys->mutex);
+		trx_rollback_to_savepoint(trx, NULL);
+		mutex_enter(&dict_sys->mutex);
+		trx->op_info = "";
+		ut_a(trx->error_state == DB_SUCCESS);
+	}
+
+	trx_free_for_background(trx);
+
+	return(ret);
+}
+/* @} */
+
+/*********************************************************************//**
 Removes the statistics for a table and all of its indexes from the
 persistent statistics storage if it exists and if there is data stored for
-the table.  This function creates its own transaction and commits it.
-dict_stats_delete_table_stats() @{
+the table. This function creates its own transaction and commits it.
+dict_stats_drop_table() @{
 @return DB_SUCCESS or error code */
 UNIV_INTERN
-enum db_err
-dict_stats_delete_table_stats(
-/*==========================*/
-	const char*	table_name,	/*!< in: table name */
+dberr_t
+dict_stats_drop_table(
+/*==================*/
+	const char*	table_name,	/*!< in: table name, e.g. 'db/table' */
 	char*		errstr,		/*!< out: error message
 					if != DB_SUCCESS is returned */
 	ulint		errstr_sz)	/*!< in: size of errstr buffer */
 {
 	char		database_name[MAX_DATABASE_NAME_LEN + 1];
 	const char*	table_name_strip; /* without leading db name */
-	trx_t*		trx;
-	pars_info_t*	pinfo;
-	enum db_err	ret = DB_ERROR;
+	dberr_t		ret;
 	dict_stats_t*	dict_stats;
+
+	ut_ad(!mutex_own(&dict_sys->mutex));
 
 	/* skip tables that do not contain a database name
 	e.g. if we are dropping SYS_TABLES */
@@ -2822,26 +2961,13 @@ dict_stats_delete_table_stats(
 		return(DB_SUCCESS);
 	}
 
-	/* Create a new private trx */
-
-	trx = trx_allocate_for_background();
-
-	/* Use 'read-uncommitted' so that the SELECTs we execute
-	do not get blocked in case some user has locked the rows we
-	are SELECTing */
-
-	trx->isolation_level = TRX_ISO_READ_UNCOMMITTED;
-
-	trx_start_if_not_started(trx);
-
 	/* Increment table reference count to prevent the tables from
 	being DROPped just before que_eval_sql(). */
 	dict_stats = dict_stats_open();
 
 	if (dict_stats == NULL) {
 		/* stats tables do not exist or have unexpected structure */
-		ret = DB_SUCCESS;
-		goto commit_and_return;
+		return(DB_SUCCESS);
 	}
 
 	ut_snprintf(database_name, sizeof(database_name), "%.*s",
@@ -2850,35 +2976,22 @@ dict_stats_delete_table_stats(
 
 	table_name_strip = dict_remove_db_name(table_name);
 
-	pinfo = pars_info_create();
+	mutex_enter(&dict_sys->mutex);
 
-	pars_info_add_str_literal(pinfo, "database_name", database_name);
+	ret = dict_stats_delete_from_table_stats(database_name,
+						 table_name_strip);
 
-	pars_info_add_str_literal(pinfo, "table_name", table_name_strip);
+	if (ret == DB_SUCCESS) {
+		ret = dict_stats_delete_from_index_stats(database_name,
+							 table_name_strip);
+	}
 
-	ret = que_eval_sql(pinfo,
-			   "PROCEDURE DROP_TABLE_STATS () IS\n"
-			   "BEGIN\n"
-
-			   "DELETE FROM \"" INDEX_STATS_NAME "\" WHERE\n"
-			   "database_name = :database_name AND\n"
-			   "table_name = :table_name;\n"
-
-			   "DELETE FROM \"" TABLE_STATS_NAME "\" WHERE\n"
-			   "database_name = :database_name AND\n"
-			   "table_name = :table_name;\n"
-
-			   "END;\n",
-			   TRUE,
-			   trx);
-
-	/* pinfo is freed by que_eval_sql() */
+	mutex_exit(&dict_sys->mutex);
 
 	if (ret != DB_SUCCESS) {
 
 		ut_snprintf(errstr, errstr_sz,
-			    "Unable to delete statistics for table %s.%s "
-			    "from %s or %s%s. "
+			    "Unable to delete statistics for table %s.%s: %s. "
 			    "They can be deleted later using "
 
 			    "DELETE FROM %s WHERE "
@@ -2890,31 +3003,488 @@ dict_stats_delete_table_stats(
 			    "table_name = '%s';",
 
 			    database_name, table_name_strip,
-			    TABLE_STATS_NAME_PRINT, INDEX_STATS_NAME_PRINT,
-
-			    (ret == DB_LOCK_WAIT_TIMEOUT
-			     ? " because the rows are locked"
-			     : ""),
+			    ut_strerr(ret),
 
 			    INDEX_STATS_NAME_PRINT,
 			    database_name, table_name_strip,
 
 			    TABLE_STATS_NAME_PRINT,
 			    database_name, table_name_strip);
-
-		ut_print_timestamp(stderr);
-		fprintf(stderr, " InnoDB: %s\n", errstr);
 	}
 
 	dict_stats_close(dict_stats);
 
-commit_and_return:
+	return(ret);
+}
+/* @} */
 
-	trx_commit_for_mysql(trx);
+/*********************************************************************//**
+Executes
+UPDATE mysql.innodb_table_stats SET
+database_name = '...', table_name = '...'
+WHERE database_name = '...' AND table_name = '...';
+Creates its own transaction and commits it.
+mysql.innodb_table_stats should be protected from DDL with dict_stats_open().
+dict_stats_rename_in_table_stats() @{
+@return DB_SUCCESS or error code */
+UNIV_INLINE
+dberr_t
+dict_stats_rename_in_table_stats(
+/*=============================*/
+	const char*	old_database_name,/*!< in: database name, e.g. 'olddb' */
+	const char*	old_table_name,	/*!< in: table name, e.g. 'oldtable' */
+	const char*	new_database_name,/*!< in: database name, e.g. 'newdb' */
+	const char*	new_table_name)	/*!< in: table name, e.g. 'newtable' */
+{
+	pars_info_t*	pinfo;
+	trx_t*		trx;
+	dberr_t		ret;
+
+	ut_ad(mutex_own(&dict_sys->mutex));
+
+	pinfo = pars_info_create();
+
+	pars_info_add_str_literal(pinfo, "old_database_name", old_database_name);
+	pars_info_add_str_literal(pinfo, "old_table_name", old_table_name);
+	pars_info_add_str_literal(pinfo, "new_database_name", new_database_name);
+	pars_info_add_str_literal(pinfo, "new_table_name", new_table_name);
+
+	trx = trx_allocate_for_background();
+	trx_start_if_not_started(trx);
+
+	ret = que_eval_sql(
+		pinfo,
+		"PROCEDURE RENAME_IN_TABLE_STATS () IS\n"
+		"BEGIN\n"
+		"UPDATE \"" TABLE_STATS_NAME "\" SET\n"
+		"database_name = :new_database_name,\n"
+		"table_name = :new_table_name\n"
+		"WHERE\n"
+		"database_name = :old_database_name AND\n"
+		"table_name = :old_table_name;\n"
+		"END;\n",
+		FALSE, trx);
+	/* pinfo is freed by que_eval_sql() */
+
+	if (ret == DB_SUCCESS) {
+		trx_commit_for_mysql(trx);
+	} else {
+		trx->op_info = "rollback of internal trx on stats tables";
+		mutex_exit(&dict_sys->mutex);
+		trx_rollback_to_savepoint(trx, NULL);
+		mutex_enter(&dict_sys->mutex);
+		trx->op_info = "";
+		ut_a(trx->error_state == DB_SUCCESS);
+	}
 
 	trx_free_for_background(trx);
 
 	return(ret);
+}
+/* @} */
+
+/*********************************************************************//**
+Executes
+UPDATE mysql.innodb_index_stats SET
+database_name = '...', table_name = '...'
+WHERE database_name = '...' AND table_name = '...';
+Creates its own transaction and commits it.
+mysql.innodb_index_stats should be protected from DDL with dict_stats_open().
+dict_stats_rename_in_index_stats() @{
+@return DB_SUCCESS or error code */
+UNIV_INLINE
+dberr_t
+dict_stats_rename_in_index_stats(
+/*=============================*/
+	const char*	old_database_name,/*!< in: database name, e.g. 'olddb' */
+	const char*	old_table_name,	/*!< in: table name, e.g. 'oldtable' */
+	const char*	new_database_name,/*!< in: database name, e.g. 'newdb' */
+	const char*	new_table_name)	/*!< in: table name, e.g. 'newtable' */
+{
+	pars_info_t*	pinfo;
+	trx_t*		trx;
+	dberr_t		ret;
+
+	ut_ad(mutex_own(&dict_sys->mutex));
+
+	pinfo = pars_info_create();
+
+	pars_info_add_str_literal(pinfo, "old_database_name", old_database_name);
+	pars_info_add_str_literal(pinfo, "old_table_name", old_table_name);
+	pars_info_add_str_literal(pinfo, "new_database_name", new_database_name);
+	pars_info_add_str_literal(pinfo, "new_table_name", new_table_name);
+
+	trx = trx_allocate_for_background();
+	trx_start_if_not_started(trx);
+
+	ret = que_eval_sql(
+		pinfo,
+		"PROCEDURE RENAME_IN_INDEX_STATS () IS\n"
+		"BEGIN\n"
+		"UPDATE \"" INDEX_STATS_NAME "\" SET\n"
+		"database_name = :new_database_name,\n"
+		"table_name = :new_table_name\n"
+		"WHERE\n"
+		"database_name = :old_database_name AND\n"
+		"table_name = :old_table_name;\n"
+		"END;\n",
+		FALSE, trx);
+	/* pinfo is freed by que_eval_sql() */
+
+	if (ret == DB_SUCCESS) {
+		trx_commit_for_mysql(trx);
+	} else {
+		trx->op_info = "rollback of internal trx on stats tables";
+		mutex_exit(&dict_sys->mutex);
+		trx_rollback_to_savepoint(trx, NULL);
+		mutex_enter(&dict_sys->mutex);
+		trx->op_info = "";
+		ut_a(trx->error_state == DB_SUCCESS);
+	}
+
+	trx_free_for_background(trx);
+
+	return(ret);
+}
+/* @} */
+
+/*********************************************************************//**
+Renames a table in InnoDB persistent stats storage.
+This function creates its own transaction and commits it.
+dict_stats_rename_table() @{
+@return DB_SUCCESS or error code */
+UNIV_INTERN
+dberr_t
+dict_stats_rename_table(
+/*====================*/
+	const char*	old_name,	/*!< in: old name, e.g. 'db/table' */
+	const char*	new_name,	/*!< in: new name, e.g. 'db/table' */
+	char*		errstr,		/*!< out: error string if != DB_SUCCESS
+					is returned */
+	size_t		errstr_sz)	/*!< in: errstr size */
+{
+	ut_ad(!mutex_own(&dict_sys->mutex));
+
+	char		old_database_name[MAX_DATABASE_NAME_LEN + 1];
+	char		new_database_name[MAX_DATABASE_NAME_LEN + 1];
+	const char*	old_table_name; /* without leading db name */
+	const char*	new_table_name; /* without leading db name */
+	dberr_t		ret;
+	dict_stats_t*	dict_stats;
+
+	/* skip innodb_table_stats and innodb_index_stats themselves */
+	if (strcmp(old_name, TABLE_STATS_NAME) == 0
+	    || strcmp(old_name, INDEX_STATS_NAME) == 0
+	    || strcmp(new_name, TABLE_STATS_NAME) == 0
+	    || strcmp(new_name, INDEX_STATS_NAME) == 0) {
+
+		return(DB_SUCCESS);
+	}
+
+	/* Increment table reference count to prevent the tables from
+	being DROPped just before que_eval_sql(). */
+	dict_stats = dict_stats_open();
+
+	if (dict_stats == NULL) {
+		/* stats tables do not exist or have unexpected structure */
+		return(DB_SUCCESS);
+	}
+
+	ut_snprintf(old_database_name, sizeof(old_database_name), "%.*s",
+		    (int) dict_get_db_name_len(old_name), old_name);
+
+	old_table_name = dict_remove_db_name(old_name);
+
+	ut_snprintf(new_database_name, sizeof(new_database_name), "%.*s",
+		    (int) dict_get_db_name_len(new_name), new_name);
+
+	new_table_name = dict_remove_db_name(new_name);
+
+	mutex_enter(&dict_sys->mutex);
+
+	ulint	n_attempts = 0;
+	do {
+		n_attempts++;
+
+		ret = dict_stats_rename_in_table_stats(
+			old_database_name, old_table_name,
+			new_database_name, new_table_name);
+
+		if (ret == DB_DUPLICATE_KEY) {
+			dict_stats_delete_from_table_stats(
+				new_database_name, new_table_name);
+		}
+
+		if (ret != DB_SUCCESS) {
+			mutex_exit(&dict_sys->mutex);
+			os_thread_sleep(200000 /* 0.2 sec */);
+			mutex_enter(&dict_sys->mutex);
+		}
+	} while ((ret == DB_DEADLOCK
+		  || ret == DB_DUPLICATE_KEY
+		  || ret == DB_LOCK_WAIT_TIMEOUT)
+		 && n_attempts < 5);
+
+	if (ret != DB_SUCCESS) {
+		ut_snprintf(errstr, errstr_sz,
+			    "Unable to rename statistics from "
+			    "%s.%s to %s.%s in %s: %s. "
+			    "They can be renamed later using "
+
+			    "UPDATE %s SET "
+			    "database_name = '%s', "
+			    "table_name = '%s' "
+			    "WHERE "
+			    "database_name = '%s' AND "
+			    "table_name = '%s';",
+
+			    old_database_name, old_table_name,
+			    new_database_name, new_table_name,
+			    TABLE_STATS_NAME_PRINT,
+			    ut_strerr(ret),
+
+			    TABLE_STATS_NAME_PRINT,
+			    new_database_name, new_table_name,
+			    old_database_name, old_table_name);
+		mutex_exit(&dict_sys->mutex);
+		dict_stats_close(dict_stats);
+		return(ret);
+	}
+	/* else */
+
+	n_attempts = 0;
+	do {
+		n_attempts++;
+
+		ret = dict_stats_rename_in_index_stats(
+			old_database_name, old_table_name,
+			new_database_name, new_table_name);
+
+		if (ret == DB_DUPLICATE_KEY) {
+			dict_stats_delete_from_index_stats(
+				new_database_name, new_table_name);
+		}
+
+		if (ret != DB_SUCCESS) {
+			mutex_exit(&dict_sys->mutex);
+			os_thread_sleep(200000 /* 0.2 sec */);
+			mutex_enter(&dict_sys->mutex);
+		}
+	} while ((ret == DB_DEADLOCK
+		  || ret == DB_DUPLICATE_KEY
+		  || ret == DB_LOCK_WAIT_TIMEOUT)
+		 && n_attempts < 5);
+
+	mutex_exit(&dict_sys->mutex);
+
+	if (ret != DB_SUCCESS) {
+		ut_snprintf(errstr, errstr_sz,
+			    "Unable to rename statistics from "
+			    "%s.%s to %s.%s in %s: %s. "
+			    "They can be renamed later using "
+
+			    "UPDATE %s SET "
+			    "database_name = '%s', "
+			    "table_name = '%s' "
+			    "WHERE "
+			    "database_name = '%s' AND "
+			    "table_name = '%s';",
+
+			    old_database_name, old_table_name,
+			    new_database_name, new_table_name,
+			    INDEX_STATS_NAME_PRINT,
+			    ut_strerr(ret),
+
+			    INDEX_STATS_NAME_PRINT,
+			    new_database_name, new_table_name,
+			    old_database_name, old_table_name);
+	}
+
+	dict_stats_close(dict_stats);
+
+	return(ret);
+}
+/* @} */
+
+/*********************************************************************//**
+Duplicate the stats of a table and its indexes.
+This function creates a dummy dict_table_t object and copies the input
+table's stats into it. The returned table object is not in the dictionary
+cache, cannot be accessed by any other threads and has only the following
+members initialized:
+dict_table_t::id
+dict_table_t::heap
+dict_table_t::name
+dict_table_t::indexes<>
+dict_table_t::stat_initialized
+dict_table_t::stat_persistent
+dict_table_t::stat_n_rows
+dict_table_t::stat_clustered_index_size
+dict_table_t::stat_sum_of_other_index_sizes
+dict_table_t::stat_modified_counter
+dict_table_t::magic_n
+for each entry in dict_table_t::indexes, the following are initialized:
+dict_index_t::id
+dict_index_t::name
+dict_index_t::table_name
+dict_index_t::table (points to the above semi-initialized object)
+dict_index_t::n_uniq
+dict_index_t::fields[] (only first n_uniq and only fields[i].name)
+dict_index_t::indexes<>
+dict_index_t::stat_n_diff_key_vals[]
+dict_index_t::stat_n_sample_sizes[]
+dict_index_t::stat_n_non_null_key_vals[]
+dict_index_t::stat_index_size
+dict_index_t::stat_n_leaf_pages
+dict_index_t::magic_n
+The returned object should be freed with dict_stats_snapshot_free()
+when no longer needed.
+dict_stats_snapshot_create() @{
+@return incomplete table object */
+UNIV_INTERN
+dict_table_t*
+dict_stats_snapshot_create(
+/*=======================*/
+	const dict_table_t*	table)	/*!< in: table whose stats to copy */
+{
+	size_t		heap_size;
+	dict_index_t*	index;
+
+	ut_ad(!mutex_own(&dict_sys->mutex));
+
+	mutex_enter(&dict_sys->mutex);
+
+	dict_table_stats_lock(table, RW_X_LATCH);
+
+	/* Estimate the size needed for the table and all of its indexes */
+
+	heap_size = 0;
+	heap_size += sizeof(dict_table_t);
+	heap_size += strlen(table->name) + 1;
+
+	for (index = dict_table_get_first_index(table);
+	     index != NULL;
+	     index = dict_table_get_next_index(index)) {
+
+		ulint	n_uniq = dict_index_get_n_unique(index);
+
+		heap_size += sizeof(dict_index_t);
+		heap_size += strlen(index->name) + 1;
+		heap_size += n_uniq * sizeof(index->fields[0]);
+		for (ulint i = 0; i < n_uniq; i++) {
+			heap_size += strlen(index->fields[i].name) + 1;
+		}
+		heap_size += (n_uniq + 1)
+			* sizeof(index->stat_n_diff_key_vals[0]);
+		heap_size += (n_uniq + 1)
+			* sizeof(index->stat_n_sample_sizes[0]);
+		heap_size += (n_uniq + 1)
+			* sizeof(index->stat_n_non_null_key_vals[0]);
+	}
+
+	/* Allocate the memory and copy the members */
+
+	mem_heap_t*	heap;
+
+	heap = mem_heap_create(heap_size);
+
+	dict_table_t*	t;
+
+	t = (dict_table_t*) mem_heap_alloc(heap, sizeof(*t));
+
+	t->id = table->id;
+
+	t->heap = heap;
+
+	t->name = (char*) mem_heap_dup(
+		heap, table->name, strlen(table->name) + 1);
+
+	UT_LIST_INIT(t->indexes);
+
+	for (index = dict_table_get_first_index(table);
+	     index != NULL;
+	     index = dict_table_get_next_index(index)) {
+
+		dict_index_t*	idx;
+
+		idx = (dict_index_t*) mem_heap_alloc(heap, sizeof(*idx));
+
+		idx->id = index->id;
+
+		idx->name = (char*) mem_heap_dup(
+			heap, index->name, strlen(index->name) + 1);
+
+		idx->table_name = t->name;
+
+		idx->table = t;
+
+		idx->n_uniq = index->n_uniq;
+
+		idx->fields = (dict_field_t*) mem_heap_alloc(
+			heap, idx->n_uniq * sizeof(idx->fields[0]));
+
+		for (ulint i = 0; i < idx->n_uniq; i++) {
+			idx->fields[i].name = (char*) mem_heap_dup(
+				heap, index->fields[i].name,
+				strlen(index->fields[i].name) + 1);
+		}
+
+		/* hook idx into t->indexes */
+		UT_LIST_ADD_LAST(indexes, t->indexes, idx);
+
+		idx->stat_n_diff_key_vals = (ib_uint64_t*) mem_heap_dup(
+			heap, index->stat_n_diff_key_vals,
+			(idx->n_uniq + 1)
+			* sizeof(idx->stat_n_diff_key_vals[0]));
+
+		idx->stat_n_sample_sizes = (ib_uint64_t*) mem_heap_dup(
+			heap, index->stat_n_sample_sizes,
+			(idx->n_uniq + 1)
+			* sizeof(idx->stat_n_sample_sizes[0]));
+
+		idx->stat_n_non_null_key_vals = (ib_uint64_t*) mem_heap_dup(
+			heap, index->stat_n_non_null_key_vals,
+			(idx->n_uniq + 1)
+			* sizeof(idx->stat_n_non_null_key_vals[0]));
+
+		idx->stat_index_size = index->stat_index_size;
+
+		idx->stat_n_leaf_pages = index->stat_n_leaf_pages;
+
+#ifdef UNIV_DEBUG
+		idx->magic_n = DICT_INDEX_MAGIC_N;
+#endif /* UNIV_DEBUG */
+	}
+
+	t->stat_initialized = table->stat_initialized;
+	t->stat_persistent = table->stat_persistent;
+	t->stat_n_rows = table->stat_n_rows;
+	t->stat_clustered_index_size = table->stat_clustered_index_size;
+	t->stat_sum_of_other_index_sizes = table->stat_sum_of_other_index_sizes;
+	t->stat_modified_counter = table->stat_modified_counter;
+#ifdef UNIV_DEBUG
+	t->magic_n = DICT_TABLE_MAGIC_N;
+#endif /* UNIV_DEBUG */
+
+	dict_table_stats_unlock(table, RW_X_LATCH);
+
+	mutex_exit(&dict_sys->mutex);
+
+	return(t);
+}
+/* @} */
+
+/*********************************************************************//**
+Free the resources occupied by an object returned by
+dict_stats_snapshot_create().
+dict_stats_snapshot_free() @{ */
+UNIV_INTERN
+void
+dict_stats_snapshot_free(
+/*=====================*/
+	dict_table_t*	t)	/*!< in: dummy table object to free */
+{
+	mem_heap_free(t->heap);
 }
 /* @} */
 
@@ -3088,7 +3658,7 @@ test_dict_stats_save()
 	dict_field_t	index2_fields[4];
 	ib_uint64_t	index2_stat_n_diff_key_vals[5];
 	ib_uint64_t	index2_stat_n_sample_sizes[5];
-	enum db_err	ret;
+	dberr_t		ret;
 
 	/* craft a dummy dict_table_t */
 	table.name = (char*) (TEST_DATABASE_NAME "/" TEST_TABLE_NAME);
@@ -3244,7 +3814,7 @@ test_dict_stats_fetch_from_ps()
 	dict_index_t	index2;
 	ib_uint64_t	index2_stat_n_diff_key_vals[5];
 	ib_uint64_t	index2_stat_n_sample_sizes[5];
-	enum db_err	ret;
+	dberr_t		ret;
 
 	/* craft a dummy dict_table_t */
 	table.name = (char*) (TEST_DATABASE_NAME "/" TEST_TABLE_NAME);

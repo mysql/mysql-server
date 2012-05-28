@@ -1,3 +1,5 @@
+#Want to skip this test from daily Valgrind execution
+--source include/no_valgrind_without_big.inc
 #
 # This file contains tests for WL#5096.
 #

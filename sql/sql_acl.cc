@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1209,11 +1209,13 @@ my_bool acl_reload(THD *thd)
   {
     /*
       Execution might have been interrupted; only print the error message
-      if an error condition has been raised.
+      if a user error condition has been raised.
     */
     if (thd->get_stmt_da()->is_error())
+    {
       sql_print_error("Fatal error: Can't open and lock privilege tables: %s",
                       thd->get_stmt_da()->message());
+    }
     goto end;
   }
 
@@ -2761,7 +2763,13 @@ replace_proxies_priv_table(THD *thd, TABLE *table, const LEX_USER *user,
 
   get_grantor(thd, grantor);
 
-  table->file->ha_index_init(0, 1);
+  if ((error= table->file->ha_index_init(0, 1)))
+  {
+    table->file->print_error(error, MYF(0));
+    DBUG_PRINT("info", ("ha_index_init error"));
+    DBUG_RETURN(-1);
+  }
+
   if (table->file->ha_index_read_map(table->record[0], user_key,
                                      HA_WHOLE_KEY,
                                      HA_READ_KEY_EXACT))
@@ -3001,7 +3009,12 @@ GRANT_TABLE::GRANT_TABLE(TABLE *form, TABLE *col_privs)
     key_copy(key, col_privs->record[0], col_privs->key_info, key_prefix_len);
     col_privs->field[4]->store("",0, &my_charset_latin1);
 
-    col_privs->file->ha_index_init(0, 1);
+    if (col_privs->file->ha_index_init(0, 1))
+    {
+      cols= 0;
+      return;
+    }
+
     if (col_privs->file->ha_index_read_map(col_privs->record[0], (uchar*) key,
                                            (key_part_map)15, HA_READ_KEY_EXACT))
     {
@@ -3159,7 +3172,11 @@ static int replace_column_table(GRANT_TABLE *g_t,
 
   List_iterator <LEX_COLUMN> iter(columns);
   class LEX_COLUMN *column;
-  table->file->ha_index_init(0, 1);
+  if ((error= table->file->ha_index_init(0, 1)))
+  {
+    table->file->print_error(error, MYF(0));
+    DBUG_RETURN(-1);
+  }
   while ((column= iter++))
   {
     ulong privileges= column->rights;
@@ -3492,7 +3509,7 @@ static int replace_routine_table(THD *thd, GRANT_NAME *grant_name,
   table->field[3]->store(routine_name,(uint) strlen(routine_name),
                          &my_charset_latin1);
   table->field[4]->store((longlong)(is_proc ?
-                                    TYPE_ENUM_PROCEDURE : TYPE_ENUM_FUNCTION),
+                                    SP_TYPE_PROCEDURE : SP_TYPE_FUNCTION),
                          TRUE);
   store_record(table,record[1]);			// store at pos 1
 
@@ -4408,7 +4425,8 @@ static my_bool grant_load_procs_priv(TABLE *p_table)
   (void) my_hash_init(&func_priv_hash, &my_charset_utf8_bin,
                       0,0,0, (my_hash_get_key) get_grant_table,
                       0,0);
-  p_table->file->ha_index_init(0, 1);
+  if (p_table->file->ha_index_init(0, 1))
+    DBUG_RETURN(TRUE);
   p_table->use_all_columns();
 
   if (!p_table->file->ha_index_first(p_table->record[0]))
@@ -4437,12 +4455,12 @@ static my_bool grant_load_procs_priv(TABLE *p_table)
           continue;
         }
       }
-      if (p_table->field[4]->val_int() == TYPE_ENUM_PROCEDURE)
+      if (p_table->field[4]->val_int() == SP_TYPE_PROCEDURE)
       {
         hash= &proc_priv_hash;
       }
       else
-      if (p_table->field[4]->val_int() == TYPE_ENUM_FUNCTION)
+      if (p_table->field[4]->val_int() == SP_TYPE_FUNCTION)
       {
         hash= &func_priv_hash;
       }
@@ -4509,7 +4527,8 @@ static my_bool grant_load(THD *thd, TABLE_LIST *tables)
 
   t_table = tables[0].table;
   c_table = tables[1].table;
-  t_table->file->ha_index_init(0, 1);
+  if (t_table->file->ha_index_init(0, 1))
+    goto end_index_init;
   t_table->use_all_columns();
   c_table->use_all_columns();
 
@@ -4554,9 +4573,10 @@ static my_bool grant_load(THD *thd, TABLE_LIST *tables)
   return_val=0;					// Return ok
 
 end_unlock:
-  thd->variables.sql_mode= old_sql_mode;
   t_table->file->ha_index_end();
   my_pthread_setspecific_ptr(THR_MALLOC, save_mem_root_ptr);
+end_index_init:
+  thd->variables.sql_mode= old_sql_mode;
   DBUG_RETURN(return_val);
 }
 
@@ -10039,10 +10059,9 @@ acl_authenticate(THD *thd, uint com_change_user_pkt_len)
     my_ok(thd);
 
 #ifdef HAVE_PSI_THREAD_INTERFACE
-  PSI_CALL(set_thread_user_host)(thd->main_security_ctx.user,
-                                 strlen(thd->main_security_ctx.user),
-                                 thd->main_security_ctx.host_or_ip,
-                                 strlen(thd->main_security_ctx.host_or_ip));
+  PSI_THREAD_CALL(set_thread_user_host)
+    (thd->main_security_ctx.user, strlen(thd->main_security_ctx.user),
+    thd->main_security_ctx.host_or_ip, strlen(thd->main_security_ctx.host_or_ip));
 #endif
 
   /* Ready to handle queries */

@@ -49,7 +49,7 @@ struct PFS_setup_actor_key
 };
 
 /** A setup_actor record. */
-struct PFS_setup_actor
+struct PFS_ALIGNED PFS_setup_actor
 {
   /** Internal lock. */
   pfs_lock m_lock;
@@ -91,6 +91,8 @@ extern ulong setup_actor_max;
 /* Exposing the data directly, for iterators. */
 
 extern PFS_setup_actor *setup_actor_array;
+
+extern LF_HASH setup_actor_hash;
 
 /** @} */
 #endif

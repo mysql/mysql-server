@@ -101,8 +101,8 @@ row_undo_mod_undo_also_prev_vers(
 /***********************************************************//**
 Undoes a modify in a clustered index record.
 @return	DB_SUCCESS, DB_FAIL, or error code: we may run out of file space */
-static
-ulint
+static __attribute__((nonnull, warn_unused_result))
+dberr_t
 row_undo_mod_clust_low(
 /*===================*/
 	undo_node_t*	node,	/*!< in: row undo node */
@@ -113,7 +113,7 @@ row_undo_mod_clust_low(
 {
 	btr_pcur_t*	pcur;
 	btr_cur_t*	btr_cur;
-	ulint		err;
+	dberr_t		err;
 #ifdef UNIV_DEBUG
 	ibool		success;
 #endif /* UNIV_DEBUG */
@@ -165,8 +165,8 @@ delete-marked record and there no longer exist transactions
 that would see the delete-marked record.  In other words, we
 roll back the insert by purging the record.
 @return	DB_SUCCESS, DB_FAIL, or error code: we may run out of file space */
-static
-ulint
+static __attribute__((nonnull, warn_unused_result))
+dberr_t
 row_undo_mod_remove_clust_low(
 /*==========================*/
 	undo_node_t*	node,	/*!< in: row undo node */
@@ -175,7 +175,7 @@ row_undo_mod_remove_clust_low(
 	ulint		mode)	/*!< in: BTR_MODIFY_LEAF or BTR_MODIFY_TREE */
 {
 	btr_cur_t*	btr_cur;
-	ulint		err;
+	dberr_t		err;
 
 	ut_ad(node->rec_type == TRX_UNDO_UPD_DEL_REC);
 
@@ -217,8 +217,8 @@ row_undo_mod_remove_clust_low(
 Undoes a modify in a clustered index record. Sets also the node state for the
 next round of undo.
 @return	DB_SUCCESS or error code: we may run out of file space */
-static
-ulint
+static __attribute__((nonnull, warn_unused_result))
+dberr_t
 row_undo_mod_clust(
 /*===============*/
 	undo_node_t*	node,	/*!< in: row undo node */
@@ -226,7 +226,7 @@ row_undo_mod_clust(
 {
 	btr_pcur_t*	pcur;
 	mtr_t		mtr;
-	ulint		err;
+	dberr_t		err;
 	ibool		success;
 	ibool		more_vers;
 	undo_no_t	new_undo_no;
@@ -307,8 +307,8 @@ row_undo_mod_clust(
 /***********************************************************//**
 Delete marks or removes a secondary index entry if found.
 @return	DB_SUCCESS, DB_FAIL, or DB_OUT_OF_FILE_SPACE */
-static
-ulint
+static __attribute__((nonnull, warn_unused_result))
+dberr_t
 row_undo_mod_del_mark_or_remove_sec_low(
 /*====================================*/
 	undo_node_t*	node,	/*!< in: row undo node */
@@ -322,7 +322,7 @@ row_undo_mod_del_mark_or_remove_sec_low(
 	btr_cur_t*		btr_cur;
 	ibool			success;
 	ibool			old_has;
-	ulint			err;
+	dberr_t			err;
 	mtr_t			mtr;
 	mtr_t			mtr_vers;
 	enum row_search_result	search_result;
@@ -425,8 +425,8 @@ not cause problems because in row0sel.cc, in queries we always retrieve the
 clustered index record or an earlier version of it, if the secondary index
 record through which we do the search is delete-marked.
 @return	DB_SUCCESS or DB_OUT_OF_FILE_SPACE */
-static
-ulint
+static __attribute__((nonnull, warn_unused_result))
+dberr_t
 row_undo_mod_del_mark_or_remove_sec(
 /*================================*/
 	undo_node_t*	node,	/*!< in: row undo node */
@@ -434,7 +434,7 @@ row_undo_mod_del_mark_or_remove_sec(
 	dict_index_t*	index,	/*!< in: index */
 	dtuple_t*	entry)	/*!< in: index entry */
 {
-	ulint	err;
+	dberr_t	err;
 
 	if (dict_index_online_trylog(
 		    index, entry, thr_get_trx(thr)->id, ROW_OP_DELETE_MARK)) {
@@ -461,8 +461,8 @@ delete-marked at the moment, but it does not harm to unmark it anyway. We also
 need to update the fields of the secondary index record if we updated its
 fields but alphabetically they stayed the same, e.g., 'abc' -> 'aBc'.
 @return	DB_FAIL or DB_SUCCESS or DB_OUT_OF_FILE_SPACE */
-static
-ulint
+static __attribute__((nonnull, warn_unused_result))
+dberr_t
 row_undo_mod_del_unmark_sec_and_undo_update(
 /*========================================*/
 	ulint		mode,	/*!< in: search mode: BTR_MODIFY_LEAF or
@@ -474,7 +474,7 @@ row_undo_mod_del_unmark_sec_and_undo_update(
 	btr_pcur_t		pcur;
 	btr_cur_t*		btr_cur;
 	upd_t*			update;
-	ulint			err		= DB_SUCCESS;
+	dberr_t			err		= DB_SUCCESS;
 	big_rec_t*		dummy_big_rec;
 	mtr_t			mtr;
 	trx_t*			trx		= thr_get_trx(thr);
@@ -552,6 +552,8 @@ row_undo_mod_del_unmark_sec_and_undo_update(
 			case DB_UNDERFLOW:
 			case DB_ZIP_OVERFLOW:
 				err = DB_FAIL;
+			default:
+				break;
 			}
 		} else {
 			ut_a(mode == BTR_MODIFY_TREE);
@@ -574,15 +576,15 @@ row_undo_mod_del_unmark_sec_and_undo_update(
 /***********************************************************//**
 Undoes a modify in secondary indexes when undo record type is UPD_DEL.
 @return	DB_SUCCESS or DB_OUT_OF_FILE_SPACE */
-static
-ulint
+static __attribute__((nonnull, warn_unused_result))
+dberr_t
 row_undo_mod_upd_del_sec(
 /*=====================*/
 	undo_node_t*	node,	/*!< in: row undo node */
 	que_thr_t*	thr)	/*!< in: query thread */
 {
 	mem_heap_t*	heap;
-	ulint		err	= DB_SUCCESS;
+	dberr_t		err	= DB_SUCCESS;
 
 	ut_ad(node->rec_type == TRX_UNDO_UPD_DEL_REC);
 
@@ -640,15 +642,15 @@ row_undo_mod_upd_del_sec(
 /***********************************************************//**
 Undoes a modify in secondary indexes when undo record type is DEL_MARK.
 @return	DB_SUCCESS or DB_OUT_OF_FILE_SPACE */
-static
-ulint
+static __attribute__((nonnull, warn_unused_result))
+dberr_t
 row_undo_mod_del_mark_sec(
 /*======================*/
 	undo_node_t*	node,	/*!< in: row undo node */
 	que_thr_t*	thr)	/*!< in: query thread */
 {
 	mem_heap_t*	heap;
-	ulint		err	= DB_SUCCESS;
+	dberr_t		err	= DB_SUCCESS;
 
 	heap = mem_heap_create(1024);
 
@@ -697,15 +699,15 @@ row_undo_mod_del_mark_sec(
 /***********************************************************//**
 Undoes a modify in secondary indexes when undo record type is UPD_EXIST.
 @return	DB_SUCCESS or DB_OUT_OF_FILE_SPACE */
-static
-ulint
+static __attribute__((nonnull, warn_unused_result))
+dberr_t
 row_undo_mod_upd_exist_sec(
 /*=======================*/
 	undo_node_t*	node,	/*!< in: row undo node */
 	que_thr_t*	thr)	/*!< in: query thread */
 {
 	mem_heap_t*	heap;
-	ulint		err	= DB_SUCCESS;
+	dberr_t		err	= DB_SUCCESS;
 
 	if (node->index == NULL
 	    || ((node->cmpl_info & UPD_NODE_NO_ORD_CHANGE))) {
@@ -881,14 +883,14 @@ row_undo_mod_parse_undo_rec(
 Undoes a modify operation on a row of a table.
 @return	DB_SUCCESS or error code */
 UNIV_INTERN
-ulint
+dberr_t
 row_undo_mod(
 /*=========*/
 	undo_node_t*	node,	/*!< in: row undo node */
 	que_thr_t*	thr)	/*!< in: query thread */
 {
-	ulint		err;
-	ibool		dict_locked;
+	dberr_t	err;
+	ibool	dict_locked;
 
 	ut_ad(node && thr);
 	ut_ad(node->state == UNDO_NODE_MODIFY);

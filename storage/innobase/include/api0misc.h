@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2008, 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2008, 2012, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -52,7 +52,7 @@ UNIV_INTERN
 ibool
 ib_handle_errors(
 /*=============*/
-	enum db_err*	new_err,	/*!< out: possible new error
+	dberr_t*	new_err,	/*!< out: possible new error
 					encountered in lock wait, or if
 					no new error, the value of
 					trx->error_state at the entry of this
@@ -65,7 +65,7 @@ ib_handle_errors(
 Sets a lock on a table.
 @return	error code or DB_SUCCESS */
 UNIV_INTERN
-enum db_err
+dberr_t
 ib_trx_lock_table_with_retry(
 /*=========================*/
 	trx_t*		trx,		/*!< in/out: transaction */

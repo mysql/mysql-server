@@ -33,14 +33,6 @@ Created 25/5/2010 Sunny Bains
 #include "ha_prototypes.h"
 #include "lock0priv.h"
 
-UNIV_INTERN ibool	srv_lock_timeout_active 	= FALSE;
-UNIV_INTERN ulint	srv_n_lock_wait_count		= 0;
-UNIV_INTERN ulint	srv_n_lock_wait_current_count	= 0;
-UNIV_INTERN ib_int64_t	srv_n_lock_wait_time		= 0;
-UNIV_INTERN ulint	srv_n_lock_max_wait_time	= 0;
-
-UNIV_INTERN os_event_t	srv_timeout_event;
-
 /*********************************************************************//**
 Print the contents of the lock_sys_t::waiting_threads array. */
 static
@@ -257,8 +249,8 @@ lock_wait_suspend_thread(
 	slot = lock_wait_table_reserve_slot(thr, lock_wait_timeout);
 
 	if (thr->lock_state == QUE_THR_LOCK_ROW) {
-		srv_n_lock_wait_count++;
-		srv_n_lock_wait_current_count++;
+		srv_stats.n_lock_wait_count.inc();
+		srv_stats.n_lock_wait_current_count.inc();
 
 		if (ut_usectime(&sec, &ms) == -1) {
 			start_time = -1;
@@ -269,7 +261,7 @@ lock_wait_suspend_thread(
 
 	/* Wake the lock timeout monitor thread, if it is suspended */
 
-	os_event_set(srv_timeout_event);
+	os_event_set(lock_sys->timeout_event);
 
 	lock_wait_mutex_exit();
 	trx_mutex_exit(trx);
@@ -341,14 +333,16 @@ lock_wait_suspend_thread(
 
 		diff_time = (ulint) (finish_time - start_time);
 
-		srv_n_lock_wait_current_count--;
-		srv_n_lock_wait_time = srv_n_lock_wait_time + diff_time;
+		srv_stats.n_lock_wait_current_count.dec();
+		srv_stats.n_lock_wait_time.add(diff_time);
 
-		if (diff_time > srv_n_lock_max_wait_time &&
-		    /* only update the variable if we successfully
-		    retrieved the start and finish times. See Bug#36819. */
-		    start_time != -1 && finish_time != -1) {
-			srv_n_lock_max_wait_time = diff_time;
+		/* Only update the variable if we successfully
+		retrieved the start and finish times. See Bug#36819. */
+		if (diff_time > lock_sys->n_lock_max_wait_time
+		    && start_time != -1
+		    && finish_time != -1) {
+
+			lock_sys->n_lock_max_wait_time = diff_time;
 		}
 	}
 
@@ -463,11 +457,13 @@ DECLARE_THREAD(lock_wait_timeout_thread)(
 			os_thread_create */
 {
 	ib_int64_t	sig_count = 0;
+	os_event_t	event = lock_sys->timeout_event;
 
 #ifdef UNIV_PFS_THREAD
 	pfs_register_thread(srv_lock_timeout_thread_key);
 #endif
-	srv_lock_timeout_active = TRUE;
+
+	lock_sys->timeout_thread_active = true;
 
 	do {
 		srv_slot_t*	slot;
@@ -475,7 +471,8 @@ DECLARE_THREAD(lock_wait_timeout_thread)(
 		/* When someone is waiting for a lock, we wake up every second
 		and check if a timeout has passed for a lock wait */
 
-		os_event_wait_time_low(srv_timeout_event, 1000000, sig_count);
+		os_event_wait_time_low(event, 1000000, sig_count);
+		sig_count = os_event_reset(event);
 
 		if (srv_shutdown_state >= SRV_SHUTDOWN_CLEANUP) {
 			break;
@@ -500,13 +497,13 @@ DECLARE_THREAD(lock_wait_timeout_thread)(
 			}
 		}
 
-		sig_count = os_event_reset(srv_timeout_event);
+		sig_count = os_event_reset(event);
 
 		lock_wait_mutex_exit();
 
 	} while (srv_shutdown_state < SRV_SHUTDOWN_CLEANUP);
 
-	srv_lock_timeout_active = FALSE;
+	lock_sys->timeout_thread_active = false;
 
 	/* We count the number of threads in os_thread_exit(). A created
 	thread should always use that to exit and not use return() to exit. */

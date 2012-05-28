@@ -1,14 +1,7 @@
 --source include/master-slave.inc
 --source include/have_debug.inc
 --source include/have_binlog_format_row.inc
---source include/have_binlog_row_v2.inc
 
-#
-# Test Binlog row extra data added as part of WL5353
-# Test depends on functionality added to server code within
-# #ifndef MCP_WL5353
-#
-#
 --echo Basic insert, update, delete from Master->Slave
 --echo DBUG code will set + check transfer of extra
 --echo row data in RBR

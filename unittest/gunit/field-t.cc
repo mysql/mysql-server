@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, Oracle and/or its affiliates. All rights reserved. 
+/* Copyright (c) 2011, 2012, Oracle and/or its affiliates. All rights reserved. 
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,9 +18,11 @@
 #include <gtest/gtest.h>
 
 #include "test_utils.h"
+#include "fake_table.h"
 
 #include "field.h"
 #include "sql_time.h"
+#include <my_decimal.h>
 
 namespace {
 
@@ -30,29 +32,14 @@ using my_testing::Mock_error_handler;
 class FieldTest : public ::testing::Test
 {
 protected:
-  static void SetUpTestCase()
-  {
-    Server_initializer::SetUpTestCase();
-  }
-
-  static void TearDownTestCase()
-  {
-    Server_initializer::TearDownTestCase();
-  }
-
-  virtual void SetUp()
-  {
-    initializer.SetUp();
-  }
-
-  virtual void TearDown()
-  {
-    initializer.TearDown();
-  }
+  virtual void SetUp() { initializer.SetUp(); }
+  virtual void TearDown() { initializer.TearDown(); }
 
   THD *thd() { return initializer.thd(); }
 
   Server_initializer initializer;
+
+  Field_set *create_field_set(TYPELIB *tl);
 };
 
 
@@ -233,31 +220,31 @@ TEST_F(FieldTest, FieldTimef)
   
   // Not testing make_field, it also needs a mock TABLE object
   
-  EXPECT_EQ(0, field->store("12:23:12.123456", 15, &my_charset_numeric));
+  EXPECT_EQ(TYPE_OK, field->store("12:23:12.123456", 15, &my_charset_numeric));
   EXPECT_DOUBLE_EQ(122312.1235, field->val_real());
 
-  EXPECT_EQ(0, field->store_decimal(dec));
+  EXPECT_EQ(TYPE_OK, field->store_decimal(dec));
   EXPECT_DOUBLE_EQ(122312.1234, field->val_real());
 
-  EXPECT_EQ(0, field->store(-234545, false));
+  EXPECT_EQ(TYPE_OK, field->store(-234545, false));
   EXPECT_DOUBLE_EQ(-234545.0, field->val_real());
   
   {
     // Test that store() with a to big number gives right error
     Mock_error_handler error_handler(thd(), ER_TRUNCATED_WRONG_VALUE);
-    EXPECT_EQ(1, field->store(0x80000000, true));
+    EXPECT_EQ(TYPE_WARN_OUT_OF_RANGE, field->store(0x80000000, true));
     // Test that error handler was actually called
     EXPECT_EQ(1, error_handler.handle_called());
     // Test that field contains expecte max time value
     EXPECT_DOUBLE_EQ(8385959, field->val_real());  // Max time value
   }
 
-  EXPECT_EQ(0, field->store(1234545.555555));
+  EXPECT_EQ(TYPE_OK, field->store(1234545.555555));
   EXPECT_DOUBLE_EQ(1234545.5556, field->val_real());
 
   // Some of the functions inherited from Field
   Field *f= field;
-  EXPECT_EQ(0, f->store_time(&time, MYSQL_TIMESTAMP_TIME)); 
+  EXPECT_EQ(TYPE_OK, f->store_time(&time, MYSQL_TIMESTAMP_TIME));
   EXPECT_DOUBLE_EQ(122312.1234, f->val_real());  // Why decimals  here?
   EXPECT_STREQ("12:23:12.1234", f->val_str(&timeStr)->c_ptr());
   EXPECT_STREQ("122312", f->val_int_as_str(&timeStr, false)->c_ptr());
@@ -361,4 +348,67 @@ TEST_F(FieldTest, FieldTime)
 }
 
 
+const char *type_names3[]= { "one", "two", "three", NULL };
+unsigned int type_lengths3[]= { 3U, 3U, 5U, 0U };
+TYPELIB tl3= { 3, "tl3", type_names3, type_lengths3 };
+
+const char *type_names4[]= { "one", "two", "three", "four", NULL };
+unsigned int type_lengths4[]= { 3U, 3U, 5U, 4U, 0U };
+TYPELIB tl4= { 4, "tl4", type_names4, type_lengths4 };
+
+
+Field_set *FieldTest::create_field_set(TYPELIB *tl)
+{
+  Field_set *f= new (thd()->mem_root)
+    Field_set(NULL,                             // ptr_arg
+              42,                               // len_arg
+              NULL,                             // null_ptr_arg
+              '\0',                             // null_bit_arg
+              Field::NONE,                      // unireg_check_arg
+              "f1",                             // field_name_arg
+              1,                                // packlength_arg
+              tl,                               // typelib_arg
+              &my_charset_latin1);              // charset_arg
+  f->table= new Fake_TABLE(f);
+  return f;
 }
+
+
+// Bug#13871079 RQG_MYISAM_DML_ALTER_VALGRIND FAILS ON VALGRIND PN PB2
+TEST_F(FieldTest, CopyFieldSet)
+{
+  int err;
+  char fields[]= "one,two";
+  my_ulonglong typeset= find_typeset(fields, &tl3, &err);
+  EXPECT_EQ(0, err);
+
+  // Using two different TYPELIBs will set cf->do_copy to do_field_string().
+  Field_set *f_to= create_field_set(&tl3);
+  bitmap_set_all(f_to->table->write_set);
+  uchar to_fieldval= 0;
+  f_to->ptr= &to_fieldval;
+
+  Field_set *f_from= create_field_set(&tl4);
+  bitmap_set_all(f_from->table->write_set);
+  uchar from_fieldval= static_cast<uchar>(typeset);
+  f_from->ptr= &from_fieldval;
+
+  Copy_field *cf= new (thd()->mem_root) Copy_field;
+  cf->set(f_to, f_from, false);
+  cf->do_copy(cf);
+
+  // Copy_field DTOR is not invoked in all contexts, so we may leak memory.
+  EXPECT_FALSE(cf->tmp.is_alloced());
+
+  delete f_to->table;
+  delete f_from->table;
+}
+
+
+}
+
+#include "field_date-t.cc"
+#include "field_datetime-t.cc"
+#include "field_long-t.cc"
+#include "field_newdecimal-t.cc"
+#include "field_timestamp-t.cc"

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2012, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -428,7 +428,7 @@ trx_sys_file_format_max_get(void);
 Check for the max file format tag stored on disk.
 @return	DB_SUCCESS or error code */
 UNIV_INTERN
-ulint
+dberr_t
 trx_sys_file_format_max_check(
 /*==========================*/
 	ulint		max_format_id);	/*!< in: the max format id to check */
@@ -607,8 +607,6 @@ struct trx_sys_struct{
 	mutex_t		mutex;		/*!< mutex protecting most fields in
 					this structure except when noted
 					otherwise */
-	ulint		n_mysql_trx;	/*!< Number of transactions currently
-					allocated for MySQL */
 	ulint		n_prepared_trx;	/*!< Number of transactions currently
 					in the XA PREPARED state */
 	trx_id_t	max_trx_id;	/*!< The smallest number not yet

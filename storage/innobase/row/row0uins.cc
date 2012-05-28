@@ -60,15 +60,15 @@ introduced where a call to log_free_check() is bypassed. */
 Removes a clustered index record. The pcur in node was positioned on the
 record, now it is detached.
 @return	DB_SUCCESS or DB_OUT_OF_FILE_SPACE */
-static
-ulint
+static  __attribute__((nonnull, warn_unused_result))
+dberr_t
 row_undo_ins_remove_clust_rec(
 /*==========================*/
 	undo_node_t*	node)	/*!< in: undo node */
 {
 	btr_cur_t*	btr_cur;
 	ibool		success;
-	ulint		err;
+	dberr_t		err;
 	ulint		n_tries		= 0;
 	mtr_t		mtr;
 
@@ -142,8 +142,8 @@ func_exit:
 /***************************************************************//**
 Removes a secondary index entry if found.
 @return	DB_SUCCESS, DB_FAIL, or DB_OUT_OF_FILE_SPACE */
-static
-ulint
+static __attribute__((nonnull, warn_unused_result))
+dberr_t
 row_undo_ins_remove_sec_low(
 /*========================*/
 	ulint		mode,	/*!< in: BTR_MODIFY_LEAF or BTR_MODIFY_TREE,
@@ -154,7 +154,7 @@ row_undo_ins_remove_sec_low(
 {
 	btr_pcur_t		pcur;
 	btr_cur_t*		btr_cur;
-	ulint			err;
+	dberr_t			err;
 	mtr_t			mtr;
 	enum row_search_result	search_result;
 
@@ -207,14 +207,14 @@ func_exit:
 Removes a secondary index entry from the index if found. Tries first
 optimistic, then pessimistic descent down the tree.
 @return	DB_SUCCESS or DB_OUT_OF_FILE_SPACE */
-static
-ulint
+static __attribute__((nonnull, warn_unused_result))
+dberr_t
 row_undo_ins_remove_sec(
 /*====================*/
 	dict_index_t*	index,	/*!< in: index */
 	dtuple_t*	entry)	/*!< in: index entry to insert */
 {
-	ulint	err;
+	dberr_t	err;
 	ulint	n_tries	= 0;
 
 	/* Try first optimistic descent to the B-tree */
@@ -311,13 +311,13 @@ row_undo_ins_parse_undo_rec(
 /***************************************************************//**
 Removes secondary index records.
 @return	DB_SUCCESS or DB_OUT_OF_FILE_SPACE */
-static
-ulint
+static __attribute__((nonnull, warn_unused_result))
+dberr_t
 row_undo_ins_remove_sec_rec(
 /*========================*/
 	undo_node_t*	node)	/*!< in/out: row undo node */
 {
-	ulint		err	= DB_SUCCESS;
+	dberr_t		err	= DB_SUCCESS;
 	dict_index_t*	index	= node->index;
 	mem_heap_t*	heap;
 
@@ -381,15 +381,14 @@ if it figures out that an index record will be removed in the purge
 anyway, it will remove it in the rollback.
 @return	DB_SUCCESS or DB_OUT_OF_FILE_SPACE */
 UNIV_INTERN
-ulint
+dberr_t
 row_undo_ins(
 /*=========*/
 	undo_node_t*	node)	/*!< in: row undo node */
 {
-	ulint		err;
-	ibool		dict_locked;
+	dberr_t	err;
+	ibool	dict_locked;
 
-	ut_ad(node);
 	ut_ad(node->state == UNDO_NODE_INSERT);
 
 	dict_locked = node->trx->dict_operation_lock_mode == RW_X_LATCH;
@@ -412,15 +411,28 @@ row_undo_ins(
 
 	err = row_undo_ins_remove_sec_rec(node);
 
-	if (UNIV_UNLIKELY(err != DB_SUCCESS)) {
-		goto func_exit;
+	if (err == DB_SUCCESS) {
+
+		log_free_check();
+
+		if (node->table->id == DICT_INDEXES_ID) {
+
+			if (!dict_locked) {
+				mutex_enter(&dict_sys->mutex);
+			}
+		}
+
+		// FIXME: We need to update the dict_index_t::space and
+		// page number fields too.
+		err = row_undo_ins_remove_clust_rec(node);
+
+		if (node->table->id == DICT_INDEXES_ID
+		    && !dict_locked) {
+
+			mutex_exit(&dict_sys->mutex);
+		}
 	}
 
-	log_free_check();
-
-	err = row_undo_ins_remove_clust_rec(node);
-
-func_exit:
 	dict_table_close(node->table, dict_locked, FALSE);
 
 	node->table = NULL;

@@ -174,59 +174,6 @@ The order does not matter. No new transactions can be created and no running
 transaction can commit or rollback (or free views).
 */
 
-#ifdef UNIV_DEBUG
-/*********************************************************************//**
-Validates a read view object. */
-static
-ibool
-read_view_validate(
-/*===============*/
-	const read_view_t*	view)	/*!< in: view to validate */
-{
-	ulint	i;
-
-	ut_ad(mutex_own(&trx_sys->mutex));
-
-	/* Check that the view->trx_ids array is in descending order. */
-	for (i = 1; i < view->n_trx_ids; ++i) {
-
-		ut_a(view->trx_ids[i] < view->trx_ids[i - 1]);
-	}
-
-	return(TRUE);
-}
-
-/** Functor to validate the view list. */
-struct	Check {
-
-	Check() : m_prev_view(0) { }
-
-	void	operator()(const read_view_t* view)
-	{
-		ut_a(m_prev_view == NULL
-		     || m_prev_view->low_limit_no >= view->low_limit_no);
-
-		m_prev_view = view;
-	}
-
-	const read_view_t*	m_prev_view;
-};
-
-/*********************************************************************//**
-Validates a read view list. */
-static
-ibool
-read_view_list_validate(void)
-/*=========================*/
-{
-	ut_ad(mutex_own(&trx_sys->mutex));
-
-	ut_list_map(trx_sys->view_list, &read_view_t::view_list, Check());
-
-	return(TRUE);
-}
-#endif
-
 /*********************************************************************//**
 Creates a read view object.
 @return	own: read view struct */
@@ -530,25 +477,6 @@ read_view_purge_open(
 }
 
 /*********************************************************************//**
-Remove a read view from the trx_sys->view_list. */
-UNIV_INTERN
-void
-read_view_remove(
-/*=============*/
-	read_view_t*	view)	/*!< in: read view */
-{
-	mutex_enter(&trx_sys->mutex);
-
-	ut_ad(read_view_validate(view));
-
-	UT_LIST_REMOVE(view_list, trx_sys->view_list, view);
-
-	ut_ad(read_view_list_validate());
-
-	mutex_exit(&trx_sys->mutex);
-}
-
-/*********************************************************************//**
 Closes a consistent read view for MySQL. This function is called at an SQL
 statement end if the trx isolation level is <= TRX_ISO_READ_COMMITTED. */
 UNIV_INTERN
@@ -559,7 +487,7 @@ read_view_close_for_mysql(
 {
 	ut_a(trx->global_read_view);
 
-	read_view_remove(trx->global_read_view);
+	read_view_remove(trx->global_read_view, false);
 
 	mem_heap_empty(trx->global_read_view_heap);
 
@@ -692,7 +620,7 @@ read_cursor_view_close_for_mysql(
 	belong to this transaction */
 	trx->n_mysql_tables_in_use += curview->n_mysql_tables_in_use;
 
-	read_view_remove(curview->read_view);
+	read_view_remove(curview->read_view, false);
 
 	trx->read_view = trx->global_read_view;
 

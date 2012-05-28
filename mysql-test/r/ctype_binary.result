@@ -2895,5 +2895,11 @@ SELECT inet6_ntoa(inet_ntoa('1'));
 inet6_ntoa(inet_ntoa('1'))
 NULL
 #
+# Bug#14040277 UNINITIALIZED VALUE REFERENCED IN STR_TO_IPV6
+#
+SELECT inet6_aton(soundex('a'));
+inet6_aton(soundex('a'))
+NULL
+#
 # End of 5.6 tests
 #

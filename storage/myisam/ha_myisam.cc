@@ -38,6 +38,11 @@ using std::max;
 ulonglong myisam_recover_options;
 static ulong opt_myisam_block_size;
 
+/* Interface to mysqld, to check system tables supported by SE */
+static bool myisam_is_supported_system_table(const char *db,
+                                      const char *table_name,
+                                      bool is_sql_layer_system_table);
+
 /* bits in myisam_recover_options */
 const char *myisam_recover_names[] =
 { "DEFAULT", "BACKUP", "FORCE", "QUICK", "OFF", NullS};
@@ -666,6 +671,42 @@ const char **ha_myisam::bas_ext() const
   return ha_myisam_exts;
 }
 
+/**
+  @brief Check if the given db.tablename is a system table for this SE.
+
+  @param db                         Database name to check.
+  @param table_name                 table name to check.
+  @param is_sql_layer_system_table  if the supplied db.table_name is a SQL
+                                    layer system table.
+
+  @note Currently, only MYISAM engine supports all the SQL layer
+        system tables, and hence it returns true, when
+        is_sql_layer_system_table is set.
+
+  @note In case there is a need to define MYISAM specific system
+        database, then please see reference implementation in
+        ha_example.cc.
+
+  @return
+    @retval TRUE   Given db.table_name is supported system table.
+    @retval FALSE  Given db.table_name is not a supported system table.
+*/
+static bool myisam_is_supported_system_table(const char *db,
+                                      const char *table_name,
+                                      bool is_sql_layer_system_table)
+{
+  // Does MYISAM support "ALL" SQL layer system tables ?
+  if (is_sql_layer_system_table)
+    return true;
+
+  /*
+    Currently MYISAM does not support any other SE specific
+    system tables. If in future it does, please see ha_example.cc
+    for reference implementation
+  */
+
+  return false;
+}
 
 const char *ha_myisam::index_type(uint key_number)
 {
@@ -988,6 +1029,7 @@ int ha_myisam::repair(THD *thd, MI_CHECK &param, bool do_optimize)
   int error=0;
   uint local_testflag=param.testflag;
   bool optimize_done= !do_optimize, statistics_done=0;
+  bool has_old_locks= thd->locked_tables_mode || file->lock_type != F_UNLCK;
   const char *old_proc_info=thd->proc_info;
   char fixed_name[FN_REFLEN];
   MYISAM_SHARE* share = file->s;
@@ -1006,8 +1048,8 @@ int ha_myisam::repair(THD *thd, MI_CHECK &param, bool do_optimize)
   // Release latches since this can take a long time
   ha_release_temporary_latches(thd);
 
-  // Don't lock tables if we have used LOCK TABLE
-  if (! thd->locked_tables_mode &&
+  // Don't lock tables if we have used LOCK TABLE or already locked.
+  if (!has_old_locks &&
       mi_lock_database(file, table->s->tmp_table ? F_EXTRA_LCK : F_WRLCK))
   {
     char errbuf[MYSYS_STRERROR_SIZE];
@@ -1135,7 +1177,7 @@ int ha_myisam::repair(THD *thd, MI_CHECK &param, bool do_optimize)
     update_state_info(&param, file, 0);
   }
   thd_proc_info(thd, old_proc_info);
-  if (! thd->locked_tables_mode)
+  if (!has_old_locks)
     mi_lock_database(file,F_UNLCK);
   DBUG_RETURN(error ? HA_ADMIN_FAILED :
 	      !optimize_done ? HA_ADMIN_ALREADY_DONE : HA_ADMIN_OK);
@@ -2144,6 +2186,8 @@ static int myisam_init(void *p)
   myisam_hton->create= myisam_create_handler;
   myisam_hton->panic= myisam_panic;
   myisam_hton->flags= HTON_CAN_RECREATE | HTON_SUPPORT_LOG_TABLES;
+  myisam_hton->is_supported_system_table= myisam_is_supported_system_table;
+
   return 0;
 }
 

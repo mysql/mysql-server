@@ -1,0 +1,45 @@
+#Bug#13955083 ALLOW IN-PLACE DDL OPERATIONS ON MISSING OR DISCARDED TABLESPACES
+
+--source include/not_embedded.inc
+--source include/have_innodb.inc
+
+let $MYSQLD_DATADIR=`select @@datadir`;
+SET GLOBAL innodb_file_per_table=1;
+CREATE TABLE t(a INT)ENGINE=InnoDB;
+
+# Shut down the server
+-- exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+-- shutdown_server
+-- source include/wait_until_disconnected.inc
+
+# Remove the tablespace file.
+let IBD=$MYSQLD_DATADIR/test/t.ibd;
+perl;
+unlink "$ENV{IBD}" || die "Unable to unlink $ENV{IBD}\n";
+EOF
+
+# Restart the server.
+-- exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+-- enable_reconnect
+-- source include/wait_until_connected_again.inc
+
+call mtr.add_suppression("InnoDB: Error: trying to open a table, but could not$");
+call mtr.add_suppression("MySQL is trying to open a table handle but the \.ibd file for$");
+call mtr.add_suppression("InnoDB: Table 'test/t'$");
+
+# The ER_NO_SUCH_TABLE is being thrown by ha_innobase::open().
+# The table does exist, only the tablespace does not exist.
+--error ER_NO_SUCH_TABLE
+SELECT * FROM t;
+
+--error ER_NO_SUCH_TABLE
+ALTER TABLE t ADD INDEX (a), ALGORITHM=INPLACE;
+--error ER_NO_SUCH_TABLE
+ALTER TABLE t1 ADD INDEX (a), ALGORITHM=COPY;
+
+call mtr.add_suppression("InnoDB: Tablespace open failed for '\"test\"\.\"t\"', ignored");
+call mtr.add_suppression("InnoDB: Failed to find tablespace for table '\"test\"\.\"t\"' in the cache");
+call mtr.add_suppression("InnoDB: Cannot delete tablespace [0-9]+.*not found");
+
+ALTER TABLE t DISCARD TABLESPACE;
+DROP TABLE t;

@@ -14,7 +14,7 @@
    along with this program; see the file COPYING. If not, write to the
    Free Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston,
    MA  02110-1301  USA.
-*/
+ */
 
 
 /* yaSSL implements external API
@@ -69,13 +69,13 @@ void SetUpBase(Base& base, ConnectionEnd end, SOCKET_T s)
 
     if (base.ca_)
         if (SSL_CTX_load_verify_locations(base.ctx_,
-            base.ca_, 0) != SSL_SUCCESS) assert(0);
+            base.ca_, 0) != SSL_SUCCESS) throw(0);
     if (base.cert_)
         if (SSL_CTX_use_certificate_file(base.ctx_,
-            base.cert_, SSL_FILETYPE_PEM) != SSL_SUCCESS) assert(0);
+            base.cert_, SSL_FILETYPE_PEM) != SSL_SUCCESS) throw(0);
     if (base.key_)
         if (SSL_CTX_use_PrivateKey_file(base.ctx_, base.key_,
-            SSL_FILETYPE_PEM) != SSL_SUCCESS) assert(0);
+            SSL_FILETYPE_PEM) != SSL_SUCCESS) throw(0);
 
     if (end == server_end) SetDH(base);
 

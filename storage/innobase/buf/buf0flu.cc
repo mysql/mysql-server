@@ -709,6 +709,27 @@ buf_flush_write_complete(
 #endif /* !UNIV_HOTBACKUP */
 
 /********************************************************************//**
+Calculate the checksum of a page from compressed table and update the page. */
+UNIV_INTERN
+void
+buf_flush_update_zip_checksum(
+/*==========================*/
+	buf_frame_t*	page,		/*!< in/out: Page to update */
+	ulint		zip_size,	/*!< in: Compressed page size */
+	lsn_t		lsn)		/*!< in: Lsn to stamp on the page */
+{
+	ut_a(zip_size > 0);
+
+	ib_uint32_t	checksum = page_zip_calc_checksum(
+		page, zip_size,
+		static_cast<srv_checksum_algorithm_t>(srv_checksum_algorithm));
+
+	mach_write_to_8(page + FIL_PAGE_LSN, lsn);
+	memset(page + FIL_PAGE_FILE_FLUSH_LSN, 0, 8);
+	mach_write_to_4(page + FIL_PAGE_SPACE_OR_CHKSUM, checksum);
+}
+
+/********************************************************************//**
 Initializes a page for writing to the tablespace. */
 UNIV_INTERN
 void
@@ -746,17 +767,10 @@ buf_flush_init_for_writing(
 		case FIL_PAGE_TYPE_ZBLOB:
 		case FIL_PAGE_TYPE_ZBLOB2:
 		case FIL_PAGE_INDEX:
-			checksum = page_zip_calc_checksum(
-				page_zip->data, zip_size,
-				static_cast<srv_checksum_algorithm_t>(
-					srv_checksum_algorithm));
 
-			mach_write_to_8(page_zip->data
-					+ FIL_PAGE_LSN, newest_lsn);
-			memset(page_zip->data + FIL_PAGE_FILE_FLUSH_LSN, 0, 8);
-			mach_write_to_4(page_zip->data
-					+ FIL_PAGE_SPACE_OR_CHKSUM,
-					checksum);
+			buf_flush_update_zip_checksum(
+				page_zip->data, zip_size, newest_lsn);
+
 			return;
 		}
 
@@ -864,7 +878,7 @@ buf_flush_write_block_low(
 #endif
 
 #ifdef UNIV_LOG_DEBUG
-	static ibool univ_log_debug_warned;
+	static ibool	univ_log_debug_warned;
 #endif /* UNIV_LOG_DEBUG */
 
 	ut_ad(buf_page_in_file(bpage));
@@ -948,13 +962,13 @@ os_aio_simulated_wake_handler_threads after we have posted a batch of
 writes! NOTE: buf_pool->mutex and buf_page_get_mutex(bpage) must be
 held upon entering this function, and they will be released by this
 function. */
-static
+UNIV_INTERN
 void
 buf_flush_page(
 /*===========*/
 	buf_pool_t*	buf_pool,	/*!< in: buffer pool instance */
 	buf_page_t*	bpage,		/*!< in: buffer control block */
-	enum buf_flush	flush_type)	/*!< in: type of flush */
+	buf_flush	flush_type)	/*!< in: type of flush */
 {
 	mutex_t*	block_mutex;
 	ibool		is_uncompressed;
@@ -1090,32 +1104,32 @@ buf_flush_page_try(
 }
 # endif /* UNIV_DEBUG || UNIV_IBUF_DEBUG */
 /***********************************************************//**
-Attempts to flush a given neighbor of a page to disk.
-@return	true if flushed. */
+Check the page is in buffer pool and can be flushed.
+@return	true if the page can be flushed. */
 static
 bool
-buf_flush_try_one_neighbor(
-/*=======================*/
+buf_flush_check_neighbor(
+/*=====================*/
 	ulint		space,		/*!< in: space id */
 	ulint		offset,		/*!< in: page offset */
-	ulint		neighbor_offset,/*!< in: neigbor page offset to try */
 	enum buf_flush	flush_type)	/*!< in: BUF_FLUSH_LRU or
 					BUF_FLUSH_LIST */
 {
 	buf_page_t*	bpage;
-	buf_pool_t*	buf_pool = buf_pool_get(space, neighbor_offset);
+	buf_pool_t*	buf_pool = buf_pool_get(space, offset);
+	bool		ret;
 
-	ut_ad(flush_type == BUF_FLUSH_LRU || flush_type == BUF_FLUSH_LIST);
+	ut_ad(flush_type == BUF_FLUSH_LRU
+	      || flush_type == BUF_FLUSH_LIST);
 
 	buf_pool_mutex_enter(buf_pool);
 
 	/* We only want to flush pages from this buffer pool. */
-	bpage = buf_page_hash_get(buf_pool, space, neighbor_offset);
+	bpage = buf_page_hash_get(buf_pool, space, offset);
 
 	if (!bpage) {
 
 		buf_pool_mutex_exit(buf_pool);
-		/* not contiguous */
 		return(false);
 	}
 
@@ -1124,41 +1138,23 @@ buf_flush_try_one_neighbor(
 	/* We avoid flushing 'non-old' blocks in an LRU flush,
 	because the flushed blocks are soon freed */
 
-	if (flush_type != BUF_FLUSH_LRU
-	    || neighbor_offset == offset
-	    || buf_page_is_old(bpage)) {
+	ret = false;
+	if (flush_type != BUF_FLUSH_LRU || buf_page_is_old(bpage)) {
 		mutex_t* block_mutex = buf_page_get_mutex(bpage);
 
 		mutex_enter(block_mutex);
-
-		if (buf_flush_ready_for_flush(bpage, flush_type)
-		    && (neighbor_offset == offset || !bpage->buf_fix_count)) {
-			/* We only try to flush those
-			neighbors != offset where the buf fix
-			count is zero, as we then know that we
-			probably can latch the page without a
-			semaphore wait. Semaphore waits are
-			expensive because we must flush the
-			doublewrite buffer before we start
-			waiting. */
-
-			buf_flush_page(buf_pool, bpage, flush_type);
-			ut_ad(!mutex_own(block_mutex));
-			ut_ad(!buf_pool_mutex_own(buf_pool));
-			/* contiguous */
-			return(true);
-		} else {
-			mutex_exit(block_mutex);
+		if (buf_flush_ready_for_flush(bpage, flush_type)) {
+			ret = true;
 		}
+		mutex_exit(block_mutex);
 	}
 	buf_pool_mutex_exit(buf_pool);
 
-	/* not contiguous */
-	return(false);
+	return(ret);
 }
 
 /***********************************************************//**
-Flushes to disk contiguous flushable pages within the flush area.
+Flushes to disk all flushable pages within the flush area.
 @return	number of pages flushed */
 static
 ulint
@@ -1180,10 +1176,9 @@ buf_flush_try_neighbors(
 	buf_pool_t*	buf_pool = buf_pool_get(space, offset);
 
 	ut_ad(flush_type == BUF_FLUSH_LRU || flush_type == BUF_FLUSH_LIST);
-	ut_ad(n_flushed < n_to_flush);
 
 	if (UT_LIST_GET_LEN(buf_pool->LRU) < BUF_LRU_OLD_MIN_LEN
-	    || !srv_flush_neighbors) {
+	    || srv_flush_neighbors == 0) {
 		/* If there is little space or neighbor flushing is
 		not enabled then just flush the victim. */
 		low = offset;
@@ -1201,6 +1196,30 @@ buf_flush_try_neighbors(
 
 		low = (offset / buf_flush_area) * buf_flush_area;
 		high = (offset / buf_flush_area + 1) * buf_flush_area;
+
+		if (srv_flush_neighbors == 1) {
+			/* adjust 'low' and 'high' to limit
+			   for contiguous dirty area */
+			if (offset > low) {
+				for (i = offset - 1;
+				     i >= low
+				     && buf_flush_check_neighbor(
+						space, i, flush_type);
+				     i--) {
+					/* do nothing */
+				}
+				low = i + 1;
+			}
+
+			for (i = offset + 1;
+			     i < high
+			     && buf_flush_check_neighbor(
+						space, i, flush_type);
+			     i++) {
+				/* do nothing */
+			}
+			high = i;
+		}
 	}
 
 	/* fprintf(stderr, "Flush area: low %lu high %lu\n", low, high); */
@@ -1209,26 +1228,71 @@ buf_flush_try_neighbors(
 		high = fil_space_get_size(space);
 	}
 
-	/* Do a backward scan until one of the following becomes true:
-	(1) We reach the end of the extent
-	(2) We have flushed enough pages requested by the caller
-	(3) We reach the end of contiguously present flushable pages */
+	for (i = low; i < high; i++) {
 
-	for (i = offset;
-	     i >= low
-	     && (count + n_flushed) < n_to_flush
-	     && buf_flush_try_one_neighbor(space, offset, i, flush_type);
-	     i--) {
-		++count;
-	}
+		buf_page_t*	bpage;
 
-	/* Do a forward scan in same way, if need */
-	for (i = offset + 1;
-	     i < high
-	     && (count + n_flushed) < n_to_flush
-	     && buf_flush_try_one_neighbor(space, offset, i, flush_type);
-	     i++) {
-		++count;
+		if ((count + n_flushed) >= n_to_flush) {
+
+			/* We have already flushed enough pages and
+			should call it a day. There is, however, one
+			exception. If the page whose neighbors we
+			are flushing has not been flushed yet then
+			we'll try to flush the victim that we
+			selected originally. */
+			if (i <= offset) {
+				i = offset;
+			} else {
+				break;
+			}
+		}
+
+		buf_pool = buf_pool_get(space, i);
+
+		buf_pool_mutex_enter(buf_pool);
+
+		/* We only want to flush pages from this buffer pool. */
+		bpage = buf_page_hash_get(buf_pool, space, i);
+
+		if (!bpage) {
+
+			buf_pool_mutex_exit(buf_pool);
+			continue;
+		}
+
+		ut_a(buf_page_in_file(bpage));
+
+		/* We avoid flushing 'non-old' blocks in an LRU flush,
+		because the flushed blocks are soon freed */
+
+		if (flush_type != BUF_FLUSH_LRU
+		    || i == offset
+		    || buf_page_is_old(bpage)) {
+			mutex_t* block_mutex = buf_page_get_mutex(bpage);
+
+			mutex_enter(block_mutex);
+
+			if (buf_flush_ready_for_flush(bpage, flush_type)
+			    && (i == offset || !bpage->buf_fix_count)) {
+				/* We only try to flush those
+				neighbors != offset where the buf fix
+				count is zero, as we then know that we
+				probably can latch the page without a
+				semaphore wait. Semaphore waits are
+				expensive because we must flush the
+				doublewrite buffer before we start
+				waiting. */
+
+				buf_flush_page(buf_pool, bpage, flush_type);
+				ut_ad(!mutex_own(block_mutex));
+				ut_ad(!buf_pool_mutex_own(buf_pool));
+				count++;
+				continue;
+			} else {
+				mutex_exit(block_mutex);
+			}
+		}
+		buf_pool_mutex_exit(buf_pool);
 	}
 
 	if (count > 0) {
@@ -1655,8 +1719,6 @@ buf_flush_batch(
 	}
 #endif /* UNIV_DEBUG */
 
-	srv_buf_pool_flushed += count;
-
 	return(count);
 }
 
@@ -1682,14 +1744,7 @@ buf_flush_common(
 	}
 #endif /* UNIV_DEBUG */
 
-	srv_buf_pool_flushed += page_count;
-
-	if (flush_type == BUF_FLUSH_LRU) {
-		/* We keep track of all flushes happening as part of LRU
-		flush. When estimating the desired rate at which flush_list
-		should be flushed we factor in this value. */
-		buf_lru_flush_page_count += page_count;
-	}
+	srv_stats.buf_pool_flushed.add(page_count);
 }
 
 /******************************************************************//**
@@ -2544,3 +2599,64 @@ buf_flush_validate(
 }
 #endif /* UNIV_DEBUG || UNIV_BUF_DEBUG */
 #endif /* !UNIV_HOTBACKUP */
+
+#ifdef UNIV_DEBUG
+/******************************************************************//**
+Check if there are any dirty pages that belong to a space id in the flush
+list in a particular buffer pool.
+@return	number of dirty pages present in a single buffer pool */
+UNIV_INTERN
+ulint
+buf_pool_get_dirty_pages_count(
+/*===========================*/
+	buf_pool_t*	buf_pool,	/*!< in: buffer pool */
+	ulint		id)		/*!< in: space id to check */
+
+{
+	ulint		count = 0;
+
+	buf_flush_list_mutex_enter(buf_pool);
+
+	buf_page_t*	bpage;
+
+	for (bpage = UT_LIST_GET_FIRST(buf_pool->flush_list);
+	     bpage != 0;
+	     bpage = UT_LIST_GET_NEXT(list, bpage)) {
+
+		ut_ad(buf_page_in_file(bpage));
+		ut_ad(bpage->in_flush_list);
+		ut_ad(bpage->oldest_modification > 0);
+
+		if (buf_page_get_space(bpage) == id) {
+			++count;
+		}
+	}
+
+	buf_flush_list_mutex_exit(buf_pool);
+
+	return(count);
+}
+
+/******************************************************************//**
+Check if there are any dirty pages that belong to a space id in the flush list.
+@return	number of dirty pages present in all the buffer pools */
+UNIV_INTERN
+ulint
+buf_flush_get_dirty_pages_count(
+/*============================*/
+	ulint		id)		/*!< in: space id to check */
+
+{
+	ulint		count = 0;
+
+	for (ulint i = 0; i < srv_buf_pool_instances; ++i) {
+		buf_pool_t*	buf_pool;
+
+		buf_pool = buf_pool_from_array(i);
+
+		count += buf_pool_get_dirty_pages_count(buf_pool, id);
+	}
+
+	return(count);
+}
+#endif /* UNIV_DEBUG */

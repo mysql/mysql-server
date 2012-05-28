@@ -14,7 +14,7 @@
    along with this program; see the file COPYING. If not, write to the
    Free Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston,
    MA  02110-1301  USA.
-*/
+ */
 
 /* based on Wei Dai's aestables.cpp from CryptoPP */
 
@@ -31,8 +31,6 @@ const word32 AES::rcon_[] = {
     0x1B000000, 0x36000000, 
     /* for 128-bit blocks, Rijndael never uses more than 10 rcon values */
 };
-
-
 
 
 } // namespace

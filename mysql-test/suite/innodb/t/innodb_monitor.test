@@ -373,6 +373,10 @@ drop table monitor_test;
 set global innodb_monitor_disable = all;
 set global innodb_monitor_reset_all = all;
 
+# Test for bug #13966091
+select 1 from `information_schema`.`INNODB_METRICS`
+where case (1) when (1) then (AVG_COUNT_RESET) else (1) end;
+
 -- disable_warnings
 set global innodb_monitor_enable = default;
 set global innodb_monitor_disable = default;

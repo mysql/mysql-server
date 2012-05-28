@@ -81,10 +81,8 @@ static int join_ft_read_next(READ_RECORD *info);
 static int join_read_always_key_or_null(JOIN_TAB *tab);
 static int join_read_next_same_or_null(READ_RECORD *info);
 static int join_read_record_no_init(JOIN_TAB *tab);
-#ifndef MCP_WL4784
 static int join_read_linked_first(JOIN_TAB *tab);
 static int join_read_linked_next(READ_RECORD *info);
-#endif
 // Create list for using with tempory table
 static bool change_to_use_tmp_fields(THD *thd, Ref_ptr_array ref_pointer_array,
 				     List<Item> &new_list1,
@@ -1598,7 +1596,13 @@ do_select(JOIN *join,List<Item> *fields,TABLE *table,Procedure *procedure)
     empty_record(table);
     if (table->group && join->tmp_table_param.sum_func_count &&
         table->s->keys && !table->file->inited)
-      table->file->ha_index_init(0, 0);
+    {
+      if ((rc= table->file->ha_index_init(0, 0)))
+      {
+        table->file->print_error(rc, MYF(0));
+        DBUG_RETURN(-1);
+      }
+    }
   }
   /* Set up select_end */
   Next_select_func end_select= setup_end_select_func(join);
@@ -2903,7 +2907,11 @@ join_read_key2(JOIN_TAB *tab, TABLE *table, TABLE_REF *table_ref)
   if (!table->file->inited)
   {
     DBUG_ASSERT(!tab->sorted);  // Don't expect sort req. for single row.
-    table->file->ha_index_init(table_ref->key, tab->sorted);
+    if ((error= table->file->ha_index_init(table_ref->key, tab->sorted)))
+    {
+      (void) report_error(table, error);
+      return 1;
+    }
   }
 
   /*
@@ -2966,21 +2974,20 @@ join_read_key_unlock_row(st_join_table *tab)
     tab->ref.use_count--;
 }
 
-#ifndef MCP_WL4784
 /**
   Read a table *assumed* to be included in execution of a pushed join.
   This is the counterpart of join_read_key() / join_read_always_key()
   for child tables in a pushed join.
 
-    When the table access is performed as part of the pushed join,
-    all 'linked' child colums are prefetched together with the parent row.
-    The handler will then only format the row as required by MySQL and set
-    'table->status' accordingly.
+  When the table access is performed as part of the pushed join,
+  all 'linked' child colums are prefetched together with the parent row.
+  The handler will then only format the row as required by MySQL and set
+  'table->status' accordingly.
 
-    However, there may be situations where the prepared pushed join was not
-    executed as assumed. It is the responsibility of the handler to handle
-    these situation by letting ::index_read_pushed() then effectively do a 
-    plain old' index_read_map(..., HA_READ_KEY_EXACT);
+  However, there may be situations where the prepared pushed join was not
+  executed as assumed. It is the responsibility of the handler to handle
+  these situation by letting ::index_read_pushed() then effectively do a 
+  plain old' index_read_map(..., HA_READ_KEY_EXACT);
   
   @param tab			Table to read
 
@@ -3020,7 +3027,6 @@ join_read_linked_first(JOIN_TAB *tab)
   DBUG_RETURN(rc);
 }
 
-
 static int
 join_read_linked_next(READ_RECORD *info)
 {
@@ -3037,7 +3043,6 @@ join_read_linked_next(READ_RECORD *info)
   }
   DBUG_RETURN(error);
 }
-#endif
 
 /*
   ref access method implementation: "read_first" function
@@ -3065,8 +3070,12 @@ join_read_always_key(JOIN_TAB *tab)
   TABLE *table= tab->table;
 
   /* Initialize the index first */
-  if (!table->file->inited)
-    table->file->ha_index_init(tab->ref.key, tab->sorted);
+  if (!table->file->inited &&
+      (error= table->file->ha_index_init(tab->ref.key, tab->sorted)))
+  {
+    (void) report_error(table, error);
+    return 1;
+  }
 
   /* Perform "Late NULLs Filtering" (see internals manual for explanations) */
   TABLE_REF *ref= &tab->ref;
@@ -3102,8 +3111,12 @@ join_read_last_key(JOIN_TAB *tab)
   int error;
   TABLE *table= tab->table;
 
-  if (!table->file->inited)
-    table->file->ha_index_init(tab->ref.key, tab->sorted);
+  if (!table->file->inited &&
+      (error= table->file->ha_index_init(tab->ref.key, tab->sorted)))
+  {
+    (void) report_error(table, error);
+    return 1;
+  }
   if (cp_buffer_from_ref(tab->join->thd, table, &tab->ref))
     return -1;
   if ((error=table->file->index_read_last_map(table->record[0],
@@ -3222,6 +3235,18 @@ int join_init_read_record(JOIN_TAB *tab)
   if (init_read_record(&tab->read_record, tab->join->thd, tab->table,
                        tab->select, 1, 1, FALSE))
     return 1;
+  /*
+    set keyread to TRUE if quick index is covering.
+    @todo: Call set_keyread only from access functions. Currently this is
+    also done in make_join_readinfo.
+  */
+  if (tab->select && tab->select->quick)
+  {
+    TABLE *table= tab->table;
+    if(!table->no_keyread && tab->select->quick->index != MAX_KEY //not index merge
+       && table->covering_keys.is_set(tab->select->quick->index))
+      table->set_keyread(true);
+  }
   return (*tab->read_record.read_record)(&tab->read_record);
 }
 
@@ -3264,8 +3289,12 @@ join_read_first(JOIN_TAB *tab)
   tab->read_record.record=table->record[0];
   tab->read_record.read_record=join_read_next;
 
-  if (!table->file->inited)
-    table->file->ha_index_init(tab->index, tab->sorted);
+  if (!table->file->inited &&
+      (error= table->file->ha_index_init(tab->index, tab->sorted)))
+  {
+    (void) report_error(table, error);
+    return 1;
+  }
   if ((error= tab->table->file->ha_index_first(tab->table->record[0])))
   {
     if (error != HA_ERR_KEY_NOT_FOUND && error != HA_ERR_END_OF_FILE)
@@ -3298,8 +3327,12 @@ join_read_last(JOIN_TAB *tab)
   tab->read_record.table=table;
   tab->read_record.index=tab->index;
   tab->read_record.record=table->record[0];
-  if (!table->file->inited)
-    table->file->ha_index_init(tab->index, tab->sorted);
+  if (!table->file->inited &&
+      (error= table->file->ha_index_init(tab->index, tab->sorted)))
+  {
+    (void) report_error(table, error);
+    return 1;
+  }
   if ((error= tab->table->file->ha_index_last(tab->table->record[0])))
     return report_error(table, error);
   return 0;
@@ -3322,8 +3355,12 @@ join_ft_read_first(JOIN_TAB *tab)
   int error;
   TABLE *table= tab->table;
 
-  if (!table->file->inited)
-    table->file->ha_index_init(tab->ref.key, tab->sorted);
+  if (!table->file->inited &&
+      (error= table->file->ha_index_init(tab->ref.key, tab->sorted)))
+  {
+    (void) report_error(table, error);
+    return 1;
+  }
   table->file->ft_init();
 
   if ((error= table->file->ft_read(table->record[0])))
@@ -3388,13 +3425,10 @@ join_read_next_same_or_null(READ_RECORD *info)
 void
 pick_table_access_method(JOIN_TAB *tab)
 {
-
-#ifndef MCP_WL4784
-  uint pushed_joins= tab->table->file->number_of_pushed_joins();
-
   /**
     Set up modified access function for pushed joins.
   */
+  uint pushed_joins= tab->table->file->number_of_pushed_joins();
   if (pushed_joins > 0)
   {
     if (tab->table->file->root_of_pushed_join() != tab->table)
@@ -3413,7 +3447,7 @@ pick_table_access_method(JOIN_TAB *tab)
     }
   }
 
-  /*
+  /**
     Already set to some non-default value in sql_select.cc
     TODO: Move these settings into pick_table_access_method() also
   */
@@ -3421,9 +3455,6 @@ pick_table_access_method(JOIN_TAB *tab)
     return;  
 
   // Fall through to set default access functions:
-
-#endif // MCP_WL4784
-
   switch (tab->type) 
   {
   case JT_REF:
@@ -3850,7 +3881,11 @@ end_update(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
 				error, FALSE, NULL))
       DBUG_RETURN(NESTED_LOOP_ERROR);            // Not a table_is_full error
     /* Change method to update rows */
-    table->file->ha_index_init(0, 0);
+    if ((error= table->file->ha_index_init(0, 0)))
+    {
+      table->file->print_error(error, MYF(0));
+      DBUG_RETURN(NESTED_LOOP_ERROR);
+    }
     join->join_tab[join->tables-1].next_select=end_unique_update;
   }
   join->send_records++;
@@ -4060,6 +4095,14 @@ create_sort_index(THD *thd, JOIN *join, ORDER *order,
   table=  tab->table;
   select= tab->select;
 
+  /* 
+    If we have a select->quick object that is created outside of
+    create_sort_index() and this is part of a subquery that
+    potentially can be executed multiple times then we should not
+    delete the quick object on exit from this function.
+  */
+  bool keep_quick= select && select->quick && join->join_tab_save;
+
   /*
     JOIN::optimize may have prepared an access path which makes
     either the GROUP BY or ORDER BY sorting obsolete by using an
@@ -4117,6 +4160,7 @@ create_sort_index(THD *thd, JOIN *join, ORDER *order,
 			    get_quick_select_for_ref(thd, table, &tab->ref, 
                                                      tab->found_records))))
 	goto err;
+      DBUG_ASSERT(!keep_quick);
     }
   }
 
@@ -4159,9 +4203,25 @@ create_sort_index(THD *thd, JOIN *join, ORDER *order,
     tablesort_result_cache= table->sort.io_cache;
     table->sort.io_cache= NULL;
 
-    select->cleanup();				// filesort did select
-    tab->select= 0;
-    table->quick_keys.clear_all();  // as far as we cleanup select->quick
+    /*
+      If a quick object was created outside of create_sort_index()
+      that might be reused, then do not call select->cleanup() since
+      it will delete the quick object.
+    */
+    if (!keep_quick)
+    {
+      select->cleanup();
+      /*
+        The select object should now be ready for the next use. If it
+        is re-used then there exists a backup copy of this join tab
+        which has the pointer to it. The join tab will be restored in
+        JOIN::reset(). So here we just delete the pointer to it.
+      */
+      tab->select= NULL;
+      // If we deleted the quick select object we need to clear quick_keys
+      table->quick_keys.clear_all();
+    }
+    // Restore the output resultset
     table->sort.io_cache= tablesort_result_cache;
   }
   tab->set_condition(NULL, __LINE__);
@@ -4279,7 +4339,8 @@ static int remove_dup_with_compare(THD *thd, TABLE *table, Field **first_field,
   org_record=(char*) (record=table->record[0])+offset;
   new_record=(char*) table->record[1]+offset;
 
-  file->ha_rnd_init(1);
+  if ((error= file->ha_rnd_init(1)))
+    goto err;
   error=file->ha_rnd_next(record);
   for (;;)
   {
@@ -4407,7 +4468,8 @@ static int remove_dup_with_hash_index(THD *thd, TABLE *table,
     DBUG_RETURN(1);
   }
 
-  file->ha_rnd_init(1);
+  if ((error= file->ha_rnd_init(1)))
+    goto err;
   key_pos=key_buffer;
   for (;;)
   {
@@ -4465,7 +4527,8 @@ err:
   my_free(key_buffer);
   my_hash_free(&hash);
   file->extra(HA_EXTRA_NO_CACHE);
-  (void) file->ha_rnd_end();
+  if (file->inited)
+    (void) file->ha_rnd_end();
   if (error)
     file->print_error(error,MYF(0));
   DBUG_RETURN(1);
@@ -4952,7 +5015,7 @@ change_to_use_tmp_fields(THD *thd, Ref_ptr_array ref_pointer_array,
         ifield->db_name= iref->db_name;
       }
 #ifndef DBUG_OFF
-      if (!item_field->item_name.ptr())
+      if (!item_field->item_name.is_set())
       {
         char buff[256];
         String str(buff,sizeof(buff),&my_charset_bin);

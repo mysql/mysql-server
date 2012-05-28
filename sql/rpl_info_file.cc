@@ -192,6 +192,37 @@ int Rpl_info_file::do_remove_info(const ulong *uidx __attribute__((unused)),
   DBUG_RETURN(error);
 }
 
+int Rpl_info_file::do_reset_info(const int nparam, const char* param_info_fname)
+{
+  uint i= 0;
+  struct st_my_dir *dir_info= NULL;
+  struct fileinfo *file_info= NULL;
+  const char* file_name= NULL;
+  size_t file_len= 0;
+  int error= FALSE;
+
+  DBUG_ENTER("Rpl_info_file::do_reset_info");
+
+  file_name= param_info_fname;
+  file_len= strlen(file_name);
+  if (!(dir_info= my_dir(mysql_data_home, MYF(MY_DONT_SORT))))
+    DBUG_RETURN(TRUE);
+
+  file_info= dir_info->dir_entry;
+  for (i= dir_info->number_off_files ; i-- ; file_info++)
+  {
+    if (!strncmp(file_info->name, file_name, file_len))
+    {
+      DBUG_PRINT("info", ("Deleting %s\n", file_info->name));
+      if (my_delete(file_info->name, MYF(MY_WME)))
+        error= TRUE;
+    }
+  }
+  my_dirend(dir_info);
+ 
+  DBUG_RETURN(error);
+}
+
 bool Rpl_info_file::do_set_info(const int pos, const char *value)
 {
   return (my_b_printf(&info_file, "%s\n", value) > (size_t) 0 ?

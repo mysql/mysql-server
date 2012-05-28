@@ -76,7 +76,11 @@ static int copy_data_between_tables(TABLE *from,TABLE *to,
                                     bool error_if_not_empty);
 
 static bool prepare_blob_field(THD *thd, Create_field *sql_field);
-static bool check_engine(THD *, const char *, HA_CREATE_INFO *);
+static void sp_prepare_create_field(THD *thd, Create_field *sql_field);
+static bool check_engine(THD *thd, const char *db_name,
+                         const char *table_name,
+                         HA_CREATE_INFO *create_info);
+
 static int
 mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
                            Alter_info *alter_info,
@@ -492,7 +496,7 @@ uint tablename_to_filename(const char *from, char *to, uint to_length)
       a lot of places don't check the return value and expect 
       a zero terminated string.
     */  
-    if (check_table_name(to, length, TRUE))
+    if (check_table_name(to, length, TRUE) != IDENT_NAME_OK)
     {
       to[0]= 0;
       length= 0;
@@ -2482,8 +2486,8 @@ int mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
                                     table->table_name););
 #ifdef HAVE_PSI_TABLE_INTERFACE
     if (drop_temporary && likely(error == 0))
-      PSI_CALL(drop_table_share)(true, table->db, table->db_length,
-                                 table->table_name, table->table_name_length);
+      PSI_TABLE_CALL(drop_table_share)
+        (true, table->db, table->db_length, table->table_name, table->table_name_length);
 #endif
   }
   DEBUG_SYNC(thd, "rm_table_no_locks_before_binlog");
@@ -2750,8 +2754,10 @@ bool check_duplicates_in_interval(const char *set_or_name,
   RETURN VALUES
     void
 */
-void calculate_interval_lengths(const CHARSET_INFO *cs, TYPELIB *interval,
-                                uint32 *max_length, uint32 *tot_length)
+static void calculate_interval_lengths(const CHARSET_INFO *cs,
+                                       TYPELIB *interval,
+                                       uint32 *max_length,
+                                       uint32 *tot_length)
 {
   const char **pos;
   uint *len;
@@ -2928,6 +2934,101 @@ int prepare_create_field(Create_field *sql_field,
   DBUG_RETURN(0);
 }
 
+
+static TYPELIB *create_typelib(MEM_ROOT *mem_root,
+                               Create_field *field_def,
+                               List<String> *src)
+{
+  const CHARSET_INFO *cs= field_def->charset;
+
+  if (!src->elements)
+    return NULL;
+
+  TYPELIB *result= (TYPELIB*) alloc_root(mem_root, sizeof(TYPELIB));
+  result->count= src->elements;
+  result->name= "";
+  if (!(result->type_names=(const char **)
+        alloc_root(mem_root,(sizeof(char *)+sizeof(int))*(result->count+1))))
+    return NULL;
+  result->type_lengths= (uint*)(result->type_names + result->count+1);
+  List_iterator<String> it(*src);
+  String conv;
+  for (uint i=0; i < result->count; i++)
+  {
+    uint32 dummy;
+    uint length;
+    String *tmp= it++;
+
+    if (String::needs_conversion(tmp->length(), tmp->charset(),
+                                 cs, &dummy))
+    {
+      uint cnv_errs;
+      conv.copy(tmp->ptr(), tmp->length(), tmp->charset(), cs, &cnv_errs);
+
+      length= conv.length();
+      result->type_names[i]= (char*) strmake_root(mem_root, conv.ptr(),
+                                                  length);
+    }
+    else
+    {
+      length= tmp->length();
+      result->type_names[i]= strmake_root(mem_root, tmp->ptr(), length);
+    }
+
+    // Strip trailing spaces.
+    length= cs->cset->lengthsp(cs, result->type_names[i], length);
+    result->type_lengths[i]= length;
+    ((uchar *)result->type_names[i])[length]= '\0';
+  }
+  result->type_names[result->count]= 0;
+  result->type_lengths[result->count]= 0;
+
+  return result;
+}
+
+
+/**
+  Prepare an instance of Create_field for field creation
+  (fill all necessary attributes).
+
+  @param[in]  thd          Thread handle
+  @param[in]  sp           The current SP
+  @param[in]  field_type   Field type
+  @param[out] field_def    An instance of create_field to be filled
+
+  @return Error status.
+*/
+
+bool fill_field_definition(THD *thd,
+                           sp_head *sp,
+                           enum enum_field_types field_type,
+                           Create_field *field_def)
+{
+  LEX *lex= thd->lex;
+  LEX_STRING cmt = { 0, 0 };
+  uint unused1= 0;
+
+  if (field_def->init(thd, (char*) "", field_type, lex->length, lex->dec,
+                      lex->type, (Item*) 0, (Item*) 0, &cmt, 0,
+                      &lex->interval_list,
+                      lex->charset ? lex->charset :
+                                     thd->variables.collation_database,
+                      lex->uint_geom_type))
+  {
+    return true;
+  }
+
+  if (field_def->interval_list.elements)
+  {
+    field_def->interval= create_typelib(sp->get_current_mem_root(),
+                                        field_def,
+                                        &field_def->interval_list);
+  }
+
+  sp_prepare_create_field(thd, field_def);
+
+  return prepare_create_field(field_def, &unused1, HA_CAN_GEOMETRY);
+}
 
 /*
   Get character set from field object generated by parser using
@@ -4066,7 +4167,7 @@ static bool prepare_blob_field(THD *thd, Create_field *sql_field)
 
 */
 
-void sp_prepare_create_field(THD *thd, Create_field *sql_field)
+static void sp_prepare_create_field(THD *thd, Create_field *sql_field)
 {
   if (sql_field->sql_type == MYSQL_TYPE_SET ||
       sql_field->sql_type == MYSQL_TYPE_ENUM)
@@ -4166,7 +4267,7 @@ bool create_table_impl(THD *thd,
                MYF(0));
     DBUG_RETURN(TRUE);
   }
-  if (check_engine(thd, table_name, create_info))
+  if (check_engine(thd, db, table_name, create_info))
     DBUG_RETURN(TRUE);
 
   set_table_default_charset(thd, create_info, (char*) db);
@@ -4862,8 +4963,8 @@ mysql_rename_table(handlerton *base, const char *old_db,
   if (likely(error == 0))
   {
     my_bool temp_table= (my_bool)is_prefix(old_name, tmp_file_prefix);
-    PSI_CALL(drop_table_share)(temp_table, old_db, strlen(old_db),
-                               old_name, strlen(old_name));
+    PSI_TABLE_CALL(drop_table_share)
+      (temp_table, old_db, strlen(old_db), old_name, strlen(old_name));
   }
 #endif
 
@@ -6609,9 +6710,20 @@ mysql_prepare_alter_table(THD *thd, TABLE *table,
 
   if (alter_info->drop_list.elements)
   {
-    my_error(ER_CANT_DROP_FIELD_OR_KEY, MYF(0),
-             alter_info->drop_list.head()->name);
-    goto err;
+    Alter_drop *drop;
+    drop_it.rewind();
+    while ((drop=drop_it++)) {
+      switch (drop->type) {
+      case Alter_drop::KEY:
+      case Alter_drop::COLUMN:
+        my_error(ER_CANT_DROP_FIELD_OR_KEY, MYF(0),
+                 alter_info->drop_list.head()->name);
+        goto err;
+      case Alter_drop::FOREIGN_KEY:
+        // Leave the DROP FOREIGN KEY names in the alter_info->drop_list.
+        break;
+      }
+    }
   }
   if (alter_info->alter_list.elements)
   {
@@ -6631,6 +6743,10 @@ mysql_prepare_alter_table(THD *thd, TABLE *table,
        (HA_OPTION_PACK_KEYS | HA_OPTION_NO_PACK_KEYS)) ||
       (used_fields & HA_CREATE_USED_PACK_KEYS))
     db_create_options&= ~(HA_OPTION_PACK_KEYS | HA_OPTION_NO_PACK_KEYS);
+  if ((create_info->table_options &
+       (HA_OPTION_STATS_PERSISTENT | HA_OPTION_NO_STATS_PERSISTENT)) ||
+      (used_fields & HA_CREATE_USED_STATS_PERSISTENT))
+    db_create_options&= ~(HA_OPTION_STATS_PERSISTENT | HA_OPTION_NO_STATS_PERSISTENT);
   if (create_info->table_options &
       (HA_OPTION_CHECKSUM | HA_OPTION_NO_CHECKSUM))
     db_create_options&= ~(HA_OPTION_CHECKSUM | HA_OPTION_NO_CHECKSUM);
@@ -7006,7 +7122,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
       create_info->db_type= table->s->db_type();
   }
 
-  if (check_engine(thd, alter_ctx.new_name, create_info))
+  if (check_engine(thd, alter_ctx.new_db, alter_ctx.new_name, create_info))
     DBUG_RETURN(true);
 
   if ((create_info->db_type != table->s->db_type() ||
@@ -7935,6 +8051,20 @@ copy_data_between_tables(TABLE *from,TABLE *to,
       copy_ptr->do_copy(copy_ptr);
     }
     prev_insert_id= to->file->next_insert_id;
+
+    /* Set the function defaults. */
+    List_iterator<Create_field> iter(create);
+    for (uint i= 0; i < to->s->fields; ++i)
+    {
+      const Create_field *definition= iter++;
+      if (definition->field == NULL) // this column didn't exist in old table.
+      {
+        Field *column= to->field[i];
+        if (column->has_insert_default_function())
+          column->evaluate_insert_default_function();
+      }            
+    }
+
     error=to->file->ha_write_row(to->record[0]);
     to->auto_increment_field_not_null= FALSE;
     if (error)
@@ -8043,7 +8173,8 @@ bool mysql_checksum_table(THD *thd, TABLE_LIST *tables,
 
   field_list.push_back(item = new Item_empty_string("Table", NAME_LEN*2));
   item->maybe_null= 1;
-  field_list.push_back(item= new Item_int("Checksum", (longlong) 1,
+  field_list.push_back(item= new Item_int(NAME_STRING("Checksum"),
+                                          (longlong) 1,
                                           MY_INT64_NUM_DECIMAL_DIGITS));
   item->maybe_null= 1;
   if (protocol->send_result_set_metadata(&field_list,
@@ -8193,16 +8324,32 @@ err:
   DBUG_RETURN(TRUE);
 }
 
-static bool check_engine(THD *thd, const char *table_name,
-                         HA_CREATE_INFO *create_info)
+/**
+  @brief Check if the table can be created in the specified storage engine.
+
+  Checks if the storage engine is enabled and supports the given table
+  type (e.g. normal, temporary, system). May do engine substitution
+  if the requested engine is disabled.
+
+  @param thd          Thread descriptor.
+  @param db_name      Database name.
+  @param table_name   Name of table to be created.
+  @param create_info  Create info from parser, including engine.
+
+  @retval true  Engine not available/supported, error has been reported.
+  @retval false Engine available/supported.
+*/
+static bool check_engine(THD *thd, const char *db_name,
+                         const char *table_name, HA_CREATE_INFO *create_info)
 {
+  DBUG_ENTER("check_engine");
   handlerton **new_engine= &create_info->db_type;
   handlerton *req_engine= *new_engine;
   bool no_substitution=
         test(thd->variables.sql_mode & MODE_NO_ENGINE_SUBSTITUTION);
   if (!(*new_engine= ha_checktype(thd, ha_legacy_type(req_engine),
                                   no_substitution, 1)))
-    return TRUE;
+    DBUG_RETURN(true);
 
   if (req_engine && req_engine != *new_engine)
   {
@@ -8220,9 +8367,23 @@ static bool check_engine(THD *thd, const char *table_name,
       my_error(ER_ILLEGAL_HA_CREATE_OPTION, MYF(0),
                ha_resolve_storage_engine_name(*new_engine), "TEMPORARY");
       *new_engine= 0;
-      return TRUE;
+      DBUG_RETURN(true);
     }
     *new_engine= myisam_hton;
   }
-  return FALSE;
+
+  /*
+    Check, if the given table name is system table, and if the storage engine 
+    does supports it.
+  */
+  if ((create_info->used_fields & HA_CREATE_USED_ENGINE) &&
+      !ha_check_if_supported_system_table(*new_engine, db_name, table_name))
+  {
+    my_error(ER_UNSUPPORTED_ENGINE, MYF(0),
+             ha_resolve_storage_engine_name(*new_engine), db_name, table_name);
+    *new_engine= NULL;
+    DBUG_RETURN(true);
+  }
+
+  DBUG_RETURN(false);
 }

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2012, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -146,8 +146,8 @@ trx_create(void)
 	trx->lock.table_locks = ib_vector_create(
 		heap_alloc, sizeof(void**), 32);
 
-	/* For non-locking selects we avoid calling ut_time() too frequently.
-	Set the time here for new transactions. */
+	/* Avoid calling ut_time() too frequently. Set the time here
+	for new transactions. */
 	trx->start_time = ut_time();
 
 	return(trx);
@@ -184,8 +184,6 @@ trx_allocate_for_mysql(void)
 
 	mutex_enter(&trx_sys->mutex);
 
-	trx_sys->n_mysql_trx++;
-
 	ut_d(trx->in_mysql_trx_list = TRUE);
 	UT_LIST_ADD_FIRST(mysql_trx_list, trx_sys->mysql_trx_list, trx);
 
@@ -205,6 +203,7 @@ trx_free(
 	ut_a(trx->magic_n == TRX_MAGIC_N);
 	ut_ad(!trx->in_ro_trx_list);
 	ut_ad(!trx->in_rw_trx_list);
+	ut_ad(!trx->in_mysql_trx_list);
 
 	mutex_free(&trx->undo_mutex);
 
@@ -233,8 +232,10 @@ trx_free(
 	/* We allocated a dedicated heap for the vector. */
 	ib_vector_free(trx->autoinc_locks);
 
-	/* We allocated a dedicated heap for the vector. */
-	ib_vector_free(trx->lock.table_locks);
+	if (trx->lock.table_locks != NULL) {
+		/* We allocated a dedicated heap for the vector. */
+		ib_vector_free(trx->lock.table_locks);
+	}
 
 	mutex_free(&trx->mutex);
 
@@ -249,11 +250,12 @@ trx_free_for_background(
 /*====================*/
 	trx_t*	trx)	/*!< in, own: trx object */
 {
-	if (UNIV_UNLIKELY(trx->declared_to_be_inside_innodb)) {
-		ut_print_timestamp(stderr);
-		fputs("  InnoDB: Error: Freeing a trx which is declared"
-		      " to be processing\n"
-		      "InnoDB: inside InnoDB.\n", stderr);
+	if (trx->declared_to_be_inside_innodb) {
+
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"Freeing a trx (%p, " TRX_ID_FMT ") which is declared "
+			"to be processing inside InnoDB", trx, trx->id);
+
 		trx_print(stderr, trx, 600);
 		putc('\n', stderr);
 
@@ -262,16 +264,16 @@ trx_free_for_background(
 		srv_conc_force_exit_innodb(trx);
 	}
 
-	if (UNIV_UNLIKELY(trx->n_mysql_tables_in_use != 0
-			  || trx->mysql_n_tables_locked != 0)) {
+	if (trx->n_mysql_tables_in_use != 0
+	    || trx->mysql_n_tables_locked != 0) {
 
-		ut_print_timestamp(stderr);
-		fprintf(stderr,
-			"  InnoDB: Error: MySQL is freeing a thd\n"
-			"InnoDB: though trx->n_mysql_tables_in_use is %lu\n"
-			"InnoDB: and trx->mysql_n_tables_locked is %lu.\n",
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"MySQL is freeing a thd though "
+			"trx->n_mysql_tables_in_use is %lu and "
+			"trx->mysql_n_tables_locked is %lu.",
 			(ulong) trx->n_mysql_tables_in_use,
 			(ulong) trx->mysql_n_tables_locked);
+
 		trx_print(stderr, trx, 600);
 		ut_print_buf(stderr, trx, sizeof(trx_t));
 		putc('\n', stderr);
@@ -325,8 +327,6 @@ trx_free_for_mysql(
 	UT_LIST_REMOVE(mysql_trx_list, trx_sys->mysql_trx_list, trx);
 
 	ut_ad(trx_sys_validate_trx_list());
-
-	trx_sys->n_mysql_trx--;
 
 	mutex_exit(&trx_sys->mutex);
 
@@ -692,9 +692,8 @@ trx_start_low(
 /*==========*/
 	trx_t*	trx)		/*!< in: transaction */
 {
-	static ulint	n_start_times;
-
 	ut_ad(trx->rseg == NULL);
+	ut_ad(trx->start_time != 0);
 
 	ut_ad(!trx->is_recovered);
 	ut_ad(trx_state_eq(trx, TRX_STATE_NOT_STARTED));
@@ -714,12 +713,6 @@ trx_start_low(
 	if (!trx->read_only) {
 		trx->rseg = trx_assign_rseg_low(
 			srv_undo_logs, srv_undo_tablespaces);
-	}
-
-	/* Avoid making an unnecessary system call, for non-locking
-	auto-commit selects we reuse the start_time for every 32  starts. */
-	if (!trx_is_autocommit_non_locking(trx) || !(n_start_times++ % 32)) {
-		trx->start_time = ut_time();
 	}
 
 	/* The initial value for trx->no: IB_ULONGLONG_MAX is used in
@@ -767,6 +760,12 @@ trx_start_low(
 	ut_ad(trx_sys_validate_trx_list());
 
 	mutex_exit(&trx_sys->mutex);
+
+	/* Avoid making an unnecessary system call, we reuse the start_time
+	for every 32  starts. */
+	if (!(trx->id % 32)) {
+		trx->start_time = ut_time();
+	}
 
 	MONITOR_INC(MONITOR_TRX_ACTIVE);
 }
@@ -1004,7 +1003,7 @@ trx_commit(
 	ut_ad(!trx_state_eq(trx, TRX_STATE_COMMITTED_IN_MEMORY));
 
 	/* undo_no is non-zero if we're doing the final commit. */
-	if (trx->fts_trx && (trx->undo_no != 0)) {
+	if (trx->fts_trx && trx->undo_no != 0) {
 		ulint   error;
 
 		ut_a(!trx_is_autocommit_non_locking(trx));
@@ -1060,6 +1059,8 @@ trx_commit(
 
 		trx->state = TRX_STATE_NOT_STARTED;
 
+		read_view_remove(trx->global_read_view, false);
+
 		MONITOR_INC(MONITOR_TRX_NL_RO_COMMIT);
 	} else {
 		lock_trx_release_locks(trx);
@@ -1091,13 +1092,16 @@ trx_commit(
 
 		trx->state = TRX_STATE_NOT_STARTED;
 
+		/* We already own the trx_sys_t::mutex, by doing it here we
+		avoid a potential context switch later. */
+		read_view_remove(trx->global_read_view, true);
+
 		ut_ad(trx_sys_validate_trx_list());
 
 		mutex_exit(&trx_sys->mutex);
 	}
 
 	if (trx->global_read_view != NULL) {
-		read_view_remove(trx->global_read_view);
 
 		mem_heap_empty(trx->global_read_view_heap);
 
@@ -1380,7 +1384,7 @@ trx_commit_step(
 Does the transaction commit for MySQL.
 @return	DB_SUCCESS or error number */
 UNIV_INTERN
-ulint
+dberr_t
 trx_commit_for_mysql(
 /*=================*/
 	trx_t*	trx)	/*!< in/out: transaction */
@@ -1946,12 +1950,12 @@ trx_recover_for_mysql(
 	if (count > 0){
 		ut_print_timestamp(stderr);
 		fprintf(stderr,
-			"  InnoDB: %lu transactions in prepared state"
+			"  InnoDB: %d transactions in prepared state"
 			" after recovery\n",
-			(ulong) count);
+			int (count));
 	}
 
-	return ((int) count);
+	return(int (count));
 }
 
 /*******************************************************************//**
@@ -2068,8 +2072,8 @@ trx_start_if_not_started_xa(
 Starts the transaction if it is not yet started. */
 UNIV_INTERN
 void
-trx_start_if_not_started(
-/*=====================*/
+trx_start_if_not_started_low(
+/*=========================*/
 	trx_t*	trx)	/*!< in: transaction */
 {
 	switch (trx->state) {

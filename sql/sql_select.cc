@@ -1268,7 +1268,8 @@ bool JOIN::set_access_methods()
       */
       const table_map available_tables=
         sj_is_materialize_strategy(tab->get_sj_strategy()) ?
-          used_tables & tab->emb_sj_nest->sj_inner_tables : used_tables;
+        (used_tables & tab->emb_sj_nest->sj_inner_tables) |
+        OUTER_REF_TABLE_BIT : used_tables;
       if (create_ref_for_key(this, tab, keyuse, available_tables))
         DBUG_RETURN(true);
     }
@@ -1396,6 +1397,7 @@ bool create_ref_for_key(JOIN *join, JOIN_TAB *j, Key_use *org_keyuse,
       }
       keyuse++;
     } while (keyuse->table == table && keyuse->key == key);
+    DBUG_ASSERT(length > 0 && keyparts != 0);
   } /* not ftkey */
 
   /* set up fieldref */
@@ -1509,12 +1511,8 @@ bool create_ref_for_key(JOIN *join, JOIN_TAB *j, Key_use *org_keyuse,
     j->type= null_ref_key ? JT_REF_OR_NULL : JT_REF;
     j->ref.null_ref_key= null_ref_key;
   }
-#ifndef MCP_WL4784
   else if (keyuse_uses_no_tables &&
            !(table->file->ha_table_flags() & HA_BLOCK_CONST_TABLE))
-#else
-  else if (keyuse_uses_no_tables)
-#endif
   {
     /*
       This happen if we are using a constant expression in the ON part
@@ -2641,13 +2639,9 @@ make_join_readinfo(JOIN *join, ulonglong options, uint no_jbuf_after)
     tab->sorted= (tab->type != JT_EQ_REF) ? sorted : false;
     sorted= false;                              // only first must be sorted
     table->status= STATUS_GARBAGE | STATUS_NOT_FOUND;
-#ifndef MCP_WL4784
     tab->read_first_record= NULL; // Access methods not set yet
     tab->read_record.read_record= NULL;
     tab->read_record.unlock_row= rr_unlock_row;
-#else
-    pick_table_access_method (tab);
-#endif
 
     Opt_trace_object trace_refine_table(trace);
     trace_refine_table.add_utf8_table(table);
@@ -3312,7 +3306,6 @@ const_expression_in_where(Item *cond, Item *comp_item, Field *comp_field,
 }
 
 
-
 /**
   Test if one can use the key to resolve ORDER BY.
 
@@ -3725,11 +3718,14 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
   QUICK_SELECT_I *save_quick= select ? select->quick : NULL;
   int best_key= -1;
   Item *orig_cond;
-  bool orig_cond_saved= false, ret;
+  bool orig_cond_saved= false, ret, set_up_ref_access_to_key= false;
   int changed_key= -1;
   DBUG_ENTER("test_if_skip_sort_order");
   LINT_INIT(ref_key_parts);
   LINT_INIT(orig_cond);
+
+  /* Check that we are always called with first non-const table */
+  DBUG_ASSERT(tab == tab->join->join_tab + tab->join->const_tables); 
 
   Plan_change_watchdog watchdog(tab, no_changes);
 
@@ -3827,28 +3823,13 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
       {
 	/* Found key that can be used to retrieve data in sorted order */
 	if (tab->ref.key >= 0)
-	{
+        {
           /*
-            We'll use ref access method on key new_ref_key. In general case 
-            the index search tuple for new_ref_key will be different (e.g.
-            when one index is defined as (part1, part2, ...) and another as
-            (part1, part2(N), ...) and the WHERE clause contains 
-            "part1 = const1 AND part2=const2". 
-            So we build tab->ref from scratch here.
+            We'll use ref access method on key new_ref_key. The actual change
+            is done further down in this function where we update the plan.
           */
-          Key_use *keyuse= tab->keyuse;
-          while (keyuse->key != new_ref_key && keyuse->table == tab->table)
-            keyuse++;
-
-          if (create_ref_for_key(tab->join, tab, keyuse, 
-                                 tab->join->const_table_map))
-            goto use_filesort;
-
-          DBUG_ASSERT(tab->type != JT_REF_OR_NULL && tab->type != JT_FT);
-#ifdef MCP_WL4784
-          pick_table_access_method(tab);
-#endif
-	}
+          set_up_ref_access_to_key= true;
+        }
 	else
 	{
           /*
@@ -3948,6 +3929,8 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
       used_key_parts= (order_direction == -1) ?
         saved_best_key_parts :  best_key_parts;
       changed_key= best_key;
+      // We will use index scan or range scan:
+      set_up_ref_access_to_key= false;
     }
     else
       goto use_filesort; 
@@ -3983,22 +3966,38 @@ check_reverse_order:
   */
   if (!no_changes) // We are allowed to update QEP
   {
-    if (best_key >= 0)
+    if (set_up_ref_access_to_key)
+    {
+      /*
+        We'll use ref access method on key changed_key. In general case 
+        the index search tuple for changed_ref_key will be different (e.g.
+        when one index is defined as (part1, part2, ...) and another as
+        (part1, part2(N), ...) and the WHERE clause contains 
+        "part1 = const1 AND part2=const2". 
+        So we build tab->ref from scratch here.
+      */
+      Key_use *keyuse= tab->keyuse;
+      while (keyuse->key != (uint)changed_key && keyuse->table == tab->table)
+        keyuse++;
+
+      if (create_ref_for_key(tab->join, tab, keyuse, 
+                             tab->join->const_table_map |
+                             OUTER_REF_TABLE_BIT))
+        goto use_filesort;
+
+      DBUG_ASSERT(tab->type != JT_REF_OR_NULL && tab->type != JT_FT);
+    }
+    else if (best_key >= 0)
     {
       bool quick_created= 
         (select && select->quick && select->quick!=save_quick);
 
-      /* 
-         If 'best_key' has changed from  prev. 'ref_key':
-         Update strategy for using index tree reading only
-         ('Using index' in EXPLAIN)
+      /*
+        If ref_key used index tree reading only ('Using index' in EXPLAIN),
+        and best_key doesn't, then revert the decision.
       */
-      if (best_key != ref_key)
-      {
-        const bool using_index= 
-          (table->covering_keys.is_set(best_key) && !table->no_keyread);
-        table->set_keyread(using_index);
-      }
+      if(!table->covering_keys.is_set(best_key))
+        table->set_keyread(false);
       if (!quick_created)
       {
         if (select)                  // Throw any existing quick select
@@ -4012,6 +4011,10 @@ check_reverse_order:
         table->file->ha_index_or_rnd_end();
         if (tab->join->select_options & SELECT_DESCRIBE)
         {
+          /*
+            @todo this neutralizes add_ref_to_table_cond(); as a result
+            EXPLAIN shows no "using where" though real SELECT has one.
+          */
           tab->ref.key= -1;
           tab->ref.key_parts= 0;
           if (select_limit < table->file->stats.records) 
