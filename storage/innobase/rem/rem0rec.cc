@@ -272,7 +272,6 @@ rec_init_offsets_comp_ordinary(
 	offsets[2] = (ulint) rec;
 	offsets[3] = (ulint) index;
 #endif /* UNIV_DEBUG */
-	ut_ad(n_null >= index->n_nullable);
 
 	/* read the lengths of fields 0..n */
 	do {
@@ -282,6 +281,7 @@ rec_init_offsets_comp_ordinary(
 		if (!(dict_field_get_col(field)->prtype
 		      & DATA_NOT_NULL)) {
 			/* nullable field => read the null flag */
+			ut_ad(n_null--);
 
 			if (UNIV_UNLIKELY(!(byte) null_mask)) {
 				nulls--;
