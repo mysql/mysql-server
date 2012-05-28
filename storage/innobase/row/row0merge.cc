@@ -1232,7 +1232,6 @@ row_merge_read_clustered_index(
 						index */
 	mtr_t			mtr;		/* Mini transaction */
 	dberr_t			err = DB_SUCCESS;/* Return code */
-	ulint			i;
 	ulint			n_nonnull = 0;	/* number of columns
 						changed to NOT NULL */
 	ulint*			nonnull = NULL;	/* NOT NULL columns */
@@ -1258,7 +1257,7 @@ row_merge_read_clustered_index(
 		mem_alloc(n_index * sizeof *merge_buf));
 
 
-	for (i = 0; i < n_index; i++) {
+	for (ulint i = 0; i < n_index; i++) {
 		if (index[i]->type & DICT_FTS) {
 
 			/* We are building a FT index, make sure
@@ -1316,7 +1315,7 @@ row_merge_read_clustered_index(
 		nonnull = static_cast<ulint*>(
 			mem_alloc(n_cols * sizeof *nonnull));
 
-		for (i = 0; i < n_cols; i++) {
+		for (ulint i = 0; i < n_cols; i++) {
 			if (dict_table_get_nth_col(old_table, i)->prtype
 			    & DATA_NOT_NULL) {
 
@@ -1483,7 +1482,7 @@ row_merge_read_clustered_index(
 				rec, offsets, new_table, &ext, row_heap);
 		ut_ad(row);
 
-		for (i = 0; i < n_nonnull; i++) {
+		for (ulint i = 0; i < n_nonnull; i++) {
 			dfield_t*	field
 				= &row->fields[nonnull[i]];
 			dtype_t*	field_type
@@ -1511,7 +1510,7 @@ write_buffers:
 		/* Build all entries for all the indexes to be created
 		in a single scan of the clustered index. */
 
-		for (i = 0; i < n_index; i++) {
+		for (ulint i = 0; i < n_index; i++) {
 			row_merge_buf_t*	buf	= merge_buf[i];
 			merge_file_t*		file	= &files[i];
 			ulint			rows_added = 0;
@@ -1644,14 +1643,14 @@ all_done:
 	DEBUG_FTS_SORT_PRINT("FTS_SORT: Complete Scan Table\n");
 #endif
 	if (fts_pll_sort) {
-		for (i = 0; i < fts_sort_pll_degree; i++) {
+		for (ulint i = 0; i < fts_sort_pll_degree; i++) {
 			psort_info[i].state = FTS_PARENT_COMPLETE;
 		}
 wait_again:
 		os_event_wait_time_low(fts_parallel_sort_event,
 				       1000000, sig_count);
 
-		for (i = 0; i < fts_sort_pll_degree; i++) {
+		for (ulint i = 0; i < fts_sort_pll_degree; i++) {
 			if (psort_info[i].child_status != FTS_CHILD_COMPLETE) {
 				sig_count = os_event_reset(
 					fts_parallel_sort_event);
@@ -1663,7 +1662,7 @@ wait_again:
 #ifdef FTS_INTERNAL_DIAG_PRINT
 	DEBUG_FTS_SORT_PRINT("FTS_SORT: Complete Tokenization\n");
 #endif
-	for (i = 0; i < n_index; i++) {
+	for (ulint i = 0; i < n_index; i++) {
 		row_merge_buf_free(merge_buf[i]);
 	}
 
