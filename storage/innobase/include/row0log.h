@@ -18,7 +18,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 /**************************************************//**
 @file include/row0log.h
-Modification log for online index creation
+Modification log for online index creation and online table rebuild
 
 Created 2011-05-26 Marko Makela
 *******************************************************/
@@ -28,9 +28,11 @@ Created 2011-05-26 Marko Makela
 
 #include "univ.i"
 #include "row0types.h"
+#include "rem0types.h"
 #include "data0types.h"
 #include "dict0types.h"
 #include "trx0types.h"
+#include "que0types.h"
 
 /******************************************************//**
 Allocate the row log for an index and flag the index
@@ -40,8 +42,12 @@ UNIV_INTERN
 bool
 row_log_allocate(
 /*=============*/
-	dict_index_t*	index)	/*!< in/out: index */
-	__attribute__((nonnull));
+	dict_index_t*	index,	/*!< in/out: index */
+	dict_table_t*	table,	/*!< in/out: new table being rebuilt,
+				or NULL when creating a secondary index */
+	bool		same_pk)/*!< in: whether the definition of the
+				PRIMARY KEY has remained the same */
+	__attribute__((nonnull(1), warn_unused_result));
 /******************************************************//**
 Free the row log for an index on which online creation was aborted. */
 UNIV_INTERN
@@ -62,6 +68,17 @@ row_log_online_op(
 	trx_id_t	trx_id,	/*!< in: transaction ID or 0 if not known */
 	enum row_op	op)	/*!< in: operation */
 	UNIV_COLD __attribute__((nonnull));
+
+/******************************************************//**
+Gets the error status of the online index rebuild log.
+@return DB_SUCCESS or error code */
+UNIV_INTERN
+dberr_t
+row_log_table_get_error(
+/*====================*/
+	const dict_index_t*	index)	/*!< in: clustered index of a table
+					that is being rebuilt online */
+	__attribute__((nonnull, warn_unused_result));
 
 /******************************************************//**
 Get the latest transaction ID that has invoked row_log_online_op()

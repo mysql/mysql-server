@@ -1717,7 +1717,8 @@ col_fail:
 					error = DB_OUT_OF_MEMORY;
 					goto error_handling;);
 			rw_lock_x_lock(&add_index[num_created]->lock);
-			bool ok = row_log_allocate(add_index[num_created]);
+			bool ok = row_log_allocate(add_index[num_created],
+						   NULL, true);
 			rw_lock_x_unlock(&add_index[num_created]->lock);
 
 			if (!ok) {

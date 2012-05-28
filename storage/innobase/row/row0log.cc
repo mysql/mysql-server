@@ -18,7 +18,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 /**************************************************//**
 @file row/row0log.cc
-Modification log for online index creation
+Modification log for online index creation and online table rebuild
 
 Created 2011-05-26 Marko Makela
 *******************************************************/
@@ -29,6 +29,20 @@ Created 2011-05-26 Marko Makela
 #include "row0upd.h"
 #include "row0merge.h"
 #include "data0data.h"
+#include "que0que.h"
+
+#include<set>
+
+/** Table row modification operations during online table rebuild.
+Delete-marked records are not copied to the rebuilt table. */
+enum row_tab_op {
+	/** Insert a record */
+	ROW_T_INSERT,
+	/** Update a record in place */
+	ROW_T_UPDATE,
+	/** Delete (purge) a record */
+	ROW_T_DELETE
+};
 
 #ifdef UNIV_DEBUG
 /** Write information about the applied record to the error log */
@@ -44,7 +58,7 @@ static bool row_log_apply_print;
 #define ROW_LOG_HEADER_SIZE 2/*op, extra_size*/
 
 /** Log block for modifications during online index creation */
-struct row_log_buf_struct {
+struct row_log_buf_t {
 	byte*		block;	/*!< file block buffer */
 	mrec_buf_t	buf;	/*!< buffer for accessing a record
 				that spans two blocks */
@@ -52,20 +66,36 @@ struct row_log_buf_struct {
 	ulint		bytes;	/*!< current position within buf */
 };
 
-/** Log block for modifications during online index creation */
-typedef struct row_log_buf_struct row_log_buf_t;
+/** Set of transactions that rolled back inserts of BLOBs during
+online table rebuild */
+typedef std::set<trx_id_t> trx_id_set;
 
 /** @brief Buffer for logging modifications during online index creation
 
 All modifications to an index that is being created will be logged by
 row_log_online_op() to this buffer.
 
+All modifications to a table that is being rebuilt will be logged by
+row_log_table_delete(), row_log_table_update(), row_log_table_insert()
+to this buffer.
+
 When head.blocks == tail.blocks, the reader will access tail.block
 directly. When also head.bytes == tail.bytes, both counts will be
 reset to 0 and the file will be truncated. */
 struct row_log_t {
 	int		fd;	/*!< file descriptor */
-	mutex_t		mutex;	/*!< mutex protecting max_trx and tail */
+	mutex_t		mutex;	/*!< mutex protecting trx_log, error,
+				max_trx and tail */
+	trx_id_set*	trx_rb;	/*!< set of transactions that rolled back
+				inserts of BLOBs during online table rebuild;
+				protected by mutex */
+	dict_table_t*	table;	/*!< table that is being rebuilt,
+				or NULL when this is a secondary
+				index that is being created online */
+	bool		same_pk;/*!< whether the definition of the PRIMARY KEY
+				has remained the same */
+	dberr_t		error;	/*!< error that occurred during online
+				table rebuild */
 	trx_id_t	max_trx;/*!< biggest observed trx_id in
 				row_log_online_op();
 				protected by mutex and index->lock S-latch,
@@ -236,6 +266,21 @@ write_failed:
 }
 
 /******************************************************//**
+Gets the error status of the online index rebuild log.
+@return DB_SUCCESS or error code */
+UNIV_INTERN
+dberr_t
+row_log_table_get_error(
+/*====================*/
+	const dict_index_t*	index)	/*!< in: clustered index of a table
+					that is being rebuilt online */
+{
+	ut_ad(dict_index_is_clust(index));
+	ut_ad(dict_index_is_online_ddl(index));
+	return(index->online_log->error);
+}
+
+/******************************************************//**
 Allocate the row log for an index and flag the index
 for online creation.
 @retval true if success, false if not */
@@ -243,13 +288,20 @@ UNIV_INTERN
 bool
 row_log_allocate(
 /*=============*/
-	dict_index_t*	index)	/*!< in/out: index */
+	dict_index_t*	index,	/*!< in/out: index */
+	dict_table_t*	table,	/*!< in/out: new table being rebuilt,
+				or NULL when creating a secondary index */
+	bool		same_pk)/*!< in: whether the definition of the
+				PRIMARY KEY has remained the same */
 {
 	byte*		buf;
 	row_log_t*	log;
 	ulint		size;
 
 	ut_ad(!dict_index_is_online_ddl(index));
+	ut_ad(dict_index_is_clust(index) == !!table);
+	ut_ad(!table || index->table != table);
+	ut_ad(same_pk || table);
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(rw_lock_own(dict_index_get_lock(index), RW_LOCK_EX));
 #endif /* UNIV_SYNC_DEBUG */
@@ -264,6 +316,9 @@ row_log_allocate(
 	log->fd = row_merge_file_create_low();
 	mutex_create(index_online_log_key, &log->mutex,
 		     SYNC_INDEX_ONLINE_LOG);
+	log->table = table;
+	log->same_pk = same_pk;
+	log->error = DB_SUCCESS;
 	log->max_trx = 0;
 	log->head.block = buf;
 	log->tail.block = buf + srv_sort_buf_size;
@@ -290,6 +345,7 @@ row_log_free_low(
 {
 	MONITOR_ATOMIC_DEC(MONITOR_ONLINE_CREATE_INDEX);
 
+	delete log->trx_rb;
 	row_merge_file_destroy_low(log->fd);
 	mutex_free(&log->mutex);
 	os_mem_free_large(log->head.block, log->size);
