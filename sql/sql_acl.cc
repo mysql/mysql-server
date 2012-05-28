@@ -49,6 +49,7 @@
 #include "sql_connect.h"
 #include "hostname.h"
 #include "sql_db.h"
+#include <mysql/plugin_validate_password.h>
 
 using std::min;
 using std::max;
@@ -180,6 +181,10 @@ static LEX_STRING old_password_plugin_name= {
   C_STRING_WITH_LEN("mysql_old_password")
 };
   
+static LEX_STRING validate_password_plugin_name= {
+  C_STRING_WITH_LEN("validate_password")
+};
+
 /// @todo make it configurable
 LEX_STRING *default_auth_plugin_name= &native_password_plugin_name;
 
@@ -9919,3 +9924,41 @@ mysql_declare_plugin(mysql_password)
 }
 mysql_declare_plugin_end;
 
+/*  
+ PASSWORD_VALIDATION_CODE, invoking appropriate plugin to validate
+ the password strength.
+*/
+
+/* for validate_password_strength SQL function */
+int check_password_strength(String *password)
+{
+  int res= 0;
+  plugin_ref plugin= my_plugin_lock_by_name(0, &validate_password_plugin_name,
+                                            MYSQL_VALIDATE_PASSWORD_PLUGIN);
+  if (plugin)
+  {
+    st_mysql_validate_password *password_strength=
+                      (st_mysql_validate_password *) plugin_decl(plugin)->info;
+
+    res= password_strength->get_password_strength(password);
+    plugin_unlock(0, plugin);
+  }
+  return(res);
+}
+
+/* called when new user is created or exsisting password is changed */
+void check_password_policy(String *password)
+{
+  plugin_ref plugin= my_plugin_lock_by_name(0, &validate_password_plugin_name,
+                                            MYSQL_VALIDATE_PASSWORD_PLUGIN);
+  if (plugin)
+  {
+    st_mysql_validate_password *password_validate=
+                      (st_mysql_validate_password *) plugin_decl(plugin)->info;
+
+    if (!password_validate->validate_password(password))
+      my_error(ER_NOT_VALID_PASSWORD, MYF(0));
+
+    plugin_unlock(0, plugin);
+  }
+}

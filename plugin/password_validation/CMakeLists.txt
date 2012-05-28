@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2011, Oracle and/or its affiliates. All rights reserved.
+# Copyright © 2012, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -13,15 +13,5 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
 
-INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/include)
-
-SET(MYSQLSERVICES_SOURCES
-  my_snprintf_service.c
-  thd_alloc_service.c
-  thd_wait_service.c
-  my_plugin_log_service.c
-  my_thread_scheduler_service.c
-  mysql_string_service.c)
-
-ADD_LIBRARY(mysqlservices ${MYSQLSERVICES_SOURCES})
-INSTALL(TARGETS mysqlservices DESTINATION ${INSTALL_LIBDIR} COMPONENT Development)
+MYSQL_ADD_PLUGIN(validate_password validate_password.cc
+    MODULE_ONLY)
