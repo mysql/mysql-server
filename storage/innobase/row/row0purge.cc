@@ -240,21 +240,21 @@ is newer than the purge view.
 NOTE: This function should only be called by the purge thread, only
 while holding a latch on the leaf page of the secondary index entry
 (or keeping the buffer pool watch on the page).  It is possible that
-this function first returns TRUE and then FALSE, if a user transaction
+this function first returns true and then false, if a user transaction
 inserts a record that the secondary index entry would refer to.
 However, in that case, the user transaction would also re-insert the
 secondary index entry after purge has removed it and released the leaf
 page latch.
-@return	TRUE if the secondary index record can be purged */
+@return	true if the secondary index record can be purged */
 UNIV_INTERN
-ibool
+bool
 row_purge_poss_sec(
 /*===============*/
 	purge_node_t*	node,	/*!< in/out: row purge node */
 	dict_index_t*	index,	/*!< in: secondary index */
 	const dtuple_t*	entry)	/*!< in: secondary index entry */
 {
-	ibool	can_delete;
+	bool	can_delete;
 	mtr_t	mtr;
 
 	ut_ad(!dict_index_is_clust(index));
