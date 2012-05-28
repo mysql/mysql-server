@@ -78,9 +78,8 @@ static const Alter_inplace_info::HA_ALTER_FLAGS INNOBASE_INPLACE_IGNORE
 /** Operations that InnoDB can perform online */
 static const Alter_inplace_info::HA_ALTER_FLAGS INNOBASE_ONLINE_OPERATIONS
 	= INNOBASE_INPLACE_IGNORE
-	| Alter_inplace_info::ADD_INDEX
+	| INNOBASE_ONLINE_CREATE
 	| Alter_inplace_info::DROP_INDEX
-	| Alter_inplace_info::ADD_UNIQUE_INDEX
 	| Alter_inplace_info::DROP_UNIQUE_INDEX
 	| Alter_inplace_info::DROP_INDEX
 	| Alter_inplace_info::DROP_FOREIGN_KEY
