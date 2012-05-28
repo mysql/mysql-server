@@ -16063,12 +16063,8 @@ int ha_ndbcluster::alter_table_phase1(THD *thd,
     int res= create_fks(thd, ndb, 0);
     if (res != 0)
     {
-      const NdbError err= dict->getNdbError();
-#if MYSQL_VERSION_ID < 50501
-      set_ndb_err(thd, err);
-#endif
-      my_errno= error= ndb_to_mysql_error(&err);
-      error= ndb_to_mysql_error(&err);
+      /* dict error has been mapped already by create_fks */
+      my_errno= error= res;
       my_error(error, MYF(0), 0);
       goto abort;
     }
