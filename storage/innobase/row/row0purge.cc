@@ -445,7 +445,7 @@ row_purge_remove_sec_if_poss(
 	}
 
 	if (dict_index_is_online_ddl(index)) {
-		ibool	online = FALSE;
+		bool	online = false;
 
 		/* Exclusively latch the index tree to prevent DML
 		threads from making changes. Otherwise, the return
@@ -462,7 +462,7 @@ row_purge_remove_sec_if_poss(
 			/* fall through */
 		case ONLINE_INDEX_ABORTED:
 		case ONLINE_INDEX_ABORTED_DROPPED:
-			online = TRUE;
+			online = true;
 			break;
 		case ONLINE_INDEX_COMPLETE:
 			/* The index was just completed. We must
