@@ -469,8 +469,9 @@ dict_table_close(
 	if they have been manually modified. We reset table->stat_initialized
 	only if table reference count is 0 because we do not want too frequent
 	stats re-reads (e.g. in other cases than FLUSH TABLE). */
-	if (dict_stats_is_persistent_enabled(table)
-	    && table->n_ref_count == 0) {
+	if (strchr(table->name, '/') != NULL
+	    && table->n_ref_count == 0
+	    && dict_stats_is_persistent_enabled(table)) {
 
 		dict_stats_deinit(table);
 	}
