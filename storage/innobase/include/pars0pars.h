@@ -618,6 +618,18 @@ pars_info_add_ull_literal(
 	ib_uint64_t	val);		/*!< in: value */
 
 /****************************************************************//**
+If the literal value already exists then it rebinds otherwise it
+creates a new entry. */
+UNIV_INTERN
+void
+pars_info_bind_ull_literal(
+/*=======================*/
+	pars_info_t*		info,	/*!< in: info struct */
+	const char*		name,	/*!< in: name */
+	const ib_uint64_t*	val)	/*!< in: value */
+	__attribute__((nonnull));
+
+/****************************************************************//**
 Add bound id. */
 UNIV_INTERN
 void
@@ -626,16 +638,6 @@ pars_info_add_id(
 	pars_info_t*	info,		/*!< in: info struct */
 	const char*	name,		/*!< in: name */
 	const char*	id);		/*!< in: id */
-
-/****************************************************************//**
-Get user function with the given name.
-@return	user func, or NULL if not found */
-UNIV_INTERN
-pars_user_func_t*
-pars_info_get_user_func(
-/*====================*/
-	pars_info_t*		info,	/*!< in: info struct */
-	const char*		name);	/*!< in: function name to find*/
 
 /****************************************************************//**
 Get bound literal with the given name.

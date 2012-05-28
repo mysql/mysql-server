@@ -776,6 +776,30 @@ page_rec_get_next_const(
 }
 
 /************************************************************//**
+Gets the pointer to the next non delete-marked record on the page.
+If all subsequent records are delete-marked, then this function
+will return the supremum record.
+@return	pointer to next non delete-marked record or pointer to supremum */
+UNIV_INLINE
+const rec_t*
+page_rec_get_next_non_del_marked(
+/*=============================*/
+	const rec_t*	rec)	/*!< in: pointer to record */
+{
+	const rec_t*	r;
+	ulint		page_is_compact = page_rec_is_comp(rec);
+
+	for (r = page_rec_get_next_const(rec);
+	     !page_rec_is_supremum(r)
+	     && rec_get_deleted_flag(r, page_is_compact);
+	     r = page_rec_get_next_const(r)) {
+		/* noop */
+	}
+
+	return(r);
+}
+
+/************************************************************//**
 Sets the pointer to the next record on the page. */
 UNIV_INLINE
 void
@@ -1085,11 +1109,14 @@ UNIV_INLINE
 void
 page_mem_free(
 /*==========*/
-	page_t*		page,	/*!< in/out: index page */
-	page_zip_des_t*	page_zip,/*!< in/out: compressed page, or NULL */
-	rec_t*		rec,	/*!< in: pointer to the (origin of) record */
-	dict_index_t*	index,	/*!< in: index of rec */
-	const ulint*	offsets)/*!< in: array returned by rec_get_offsets() */
+	page_t*			page,		/*!< in/out: index page */
+	page_zip_des_t*		page_zip,	/*!< in/out: compressed page,
+						or NULL */
+	rec_t*			rec,		/*!< in: pointer to the
+						(origin of) record */
+	const dict_index_t*	index,		/*!< in: index of rec */
+	const ulint*		offsets)	/*!< in: array returned by
+						rec_get_offsets() */
 {
 	rec_t*		free;
 	ulint		garbage;

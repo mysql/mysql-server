@@ -10,12 +10,10 @@ CREATE TABLE t2(a LONGBLOB) ENGINE=MYISAM;
 INSERT INTO t2 (a) VALUES (REPEAT('a',1));
 BEGIN;
 INSERT INTO t1 (a) VALUES (REPEAT('a',1));
-SET SESSION debug="d,fault_injection_crc_value";
 INSERT INTO t1 (a) VALUES (REPEAT('a',2));
 COMMIT;
 BEGIN;
 INSERT INTO t1 (a) VALUES (REPEAT('a',3));
-SET SESSION debug="d,crash_commit_after_prepare";
 COMMIT;
 ERROR HY000: Lost connection to MySQL server during query
 # Restart the master server

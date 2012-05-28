@@ -4279,6 +4279,7 @@ bool mysql_unpack_partition(THD *thd,
     thd->variables.character_set_client;
   LEX *old_lex= thd->lex;
   LEX lex;
+  PSI_statement_locker *parent_locker= thd->m_statement_psi;
   DBUG_ENTER("mysql_unpack_partition");
 
   thd->variables.character_set_client= system_charset_info;
@@ -4308,12 +4309,16 @@ bool mysql_unpack_partition(THD *thd,
   }
   part_info= lex.part_info;
   DBUG_PRINT("info", ("Parse: %s", part_buf));
+
+  thd->m_statement_psi= NULL;
   if (parse_sql(thd, & parser_state, NULL) ||
       part_info->fix_parser_data(thd))
   {
     thd->free_items();
+    thd->m_statement_psi= parent_locker;
     goto end;
   }
+  thd->m_statement_psi= parent_locker;
   /*
     The parsed syntax residing in the frm file can still contain defaults.
     The reason is that the frm file is sometimes saved outside of this
@@ -6552,7 +6557,6 @@ void handle_alter_part_error(ALTER_PARTITION_PARAM_TYPE *lpt,
       }
     }
     /* Ensure the share is destroyed and reopened. */
-    table->s->version= 0;
     part_info= lpt->part_info->get_clone();
     close_all_tables_for_name(thd, table->s, false);
   }

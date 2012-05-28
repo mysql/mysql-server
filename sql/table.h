@@ -18,7 +18,7 @@
 
 #include "my_global.h"                          /* NO_EMBEDDED_ACCESS_CHECKS */
 #include "sql_plist.h"
-#include "sql_list.h"                           /* Sql_alloc */
+#include "sql_alloc.h"
 #include "mdl.h"
 #include "datadict.h"
 
@@ -46,6 +46,7 @@ class ACL_internal_schema_access;
 class ACL_internal_table_access;
 class Field;
 class Field_temporal_with_date_and_time;
+class Table_cache_element;
 
 /*
   Used to identify NESTED_JOIN structures within a join (applicable only to
@@ -503,8 +504,6 @@ TABLE_CATEGORY get_table_category(const LEX_STRING *db,
                                   const LEX_STRING *name);
 
 
-struct TABLE_share;
-
 extern ulong refresh_version;
 
 typedef struct st_table_field_type
@@ -595,14 +594,15 @@ struct TABLE_SHARE
   TYPELIB *intervals;			/* pointer to interval info */
   mysql_mutex_t LOCK_ha_data;           /* To protect access to ha_data */
   TABLE_SHARE *next, **prev;            /* Link to unused shares */
-
-  /*
-    Doubly-linked (back-linked) lists of used and unused TABLE objects
-    for this share.
+  /**
+    Array of table_cache_instances pointers to elements of table caches
+    respresenting this table in each of Table_cache instances.
+    Allocated along with the share itself in alloc_table_share().
+    Each element of the array is protected by Table_cache::m_lock in the
+    corresponding Table_cache. False sharing should not be a problem in
+    this case as elements of this array are supposed to be updated rarely.
   */
-  typedef I_P_List <TABLE, TABLE_share> TABLE_list;
-  TABLE_list used_tables;
-  TABLE_list free_tables;
+  Table_cache_element **cache_element;
 
   /* The following is copied to each TABLE on OPEN */
   Field **field;
@@ -640,7 +640,8 @@ struct TABLE_SHARE
   key_map keys_for_keyread;
   ha_rows min_rows, max_rows;		/* create information */
   ulong   avg_row_length;		/* create information */
-  ulong   version, mysql_version;
+  ulong   version;
+  ulong   mysql_version;		/* 0 if .frm is created before 5.0 */
   ulong   reclength;			/* Recordlength */
 
   plugin_ref db_plugin;			/* storage engine plugin */
@@ -922,13 +923,19 @@ struct TABLE
 
 private:
   /**
-     Links for the lists of used/unused TABLE objects for this share.
+     Links for the lists of used/unused TABLE objects for the particular
+     table in the specific instance of Table_cache (in other words for
+     specific Table_cache_element object).
      Declared as private to avoid direct manipulation with those objects.
      One should use methods of I_P_List template instead.
   */
-  TABLE *share_next, **share_prev;
+  TABLE *cache_next, **cache_prev;
 
-  friend struct TABLE_share;
+  /*
+    Give Table_cache_element access to the above two members to allow
+    using them for linking TABLE objects in a list.
+  */
+  friend class Table_cache_element;
 
   Field_temporal_with_date_and_time *timestamp_field;
 
@@ -1173,24 +1180,6 @@ public:
   bool update_const_key_parts(Item *conds);
 
   bool check_read_removal(uint index);
-};
-
-
-/**
-   Helper class which specifies which members of TABLE are used for
-   participation in the list of used/unused TABLE objects for the share.
-*/
-
-struct TABLE_share
-{
-  static inline TABLE **next_ptr(TABLE *l)
-  {
-    return &l->share_next;
-  }
-  static inline TABLE ***prev_ptr(TABLE *l)
-  {
-    return &l->share_prev;
-  }
 };
 
 

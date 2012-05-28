@@ -455,6 +455,8 @@ UNIV_INTERN
 ibool
 buf_page_is_corrupted(
 /*==================*/
+	bool		check_lsn,	/*!< in: true if we need to check
+					and complain about the LSN */
 	const byte*	read_buf,	/*!< in: a database page */
 	ulint		zip_size)	/*!< in: size of compressed page;
 					0 for uncompressed pages */
@@ -479,14 +481,17 @@ buf_page_is_corrupted(
 	if (recv_lsn_checks_on) {
 		lsn_t	current_lsn;
 
-		if (log_peek_lsn(&current_lsn)
-		    && UNIV_UNLIKELY
-		    (current_lsn
-		     < mach_read_from_8(read_buf + FIL_PAGE_LSN))) {
+		/* Since we are going to reset the page LSN during the import
+		phase it makes no sense to spam the log with error messages. */
+
+		if (check_lsn
+		    && log_peek_lsn(&current_lsn)
+		    && current_lsn
+		    < mach_read_from_8(read_buf + FIL_PAGE_LSN)) {
 			ut_print_timestamp(stderr);
 
 			fprintf(stderr,
-				"  InnoDB: Error: page %lu log sequence number"
+				" InnoDB: Error: page %lu log sequence number"
 				" " LSN_PF "\n"
 				"InnoDB: is in the future! Current system "
 				"log sequence number " LSN_PF ".\n"
@@ -671,6 +676,8 @@ buf_page_is_corrupted(
 	/* no default so the compiler will emit a warning if new enum
 	is added and not handled here */
 	}
+
+	DBUG_EXECUTE_IF("buf_page_is_corrupt_failure", return(TRUE); );
 
 	return(FALSE);
 }
@@ -2371,6 +2378,28 @@ buf_block_is_uncompressed(
 	return(buf_pointer_is_block_field_instance(buf_pool, (void*) block));
 }
 
+#if defined UNIV_DEBUG || defined UNIV_IBUF_DEBUG
+/********************************************************************//**
+Return true if probe is enabled.
+@return true if probe enabled. */
+static
+bool
+buf_debug_execute_is_force_flush()
+/*==============================*/
+{
+	DBUG_EXECUTE_IF("ib_buf_force_flush", return(true); );
+
+	/* This is used during queisce testing, we want to ensure maximum
+	buffering by the change buffer. */
+
+	if (srv_ibuf_disable_background_merge) {
+		return(true);
+	}
+
+	return(false);
+}
+#endif /* UNIV_DEBUG || UNIV_IBUF_DEBUG */
+
 /********************************************************************//**
 This is the general function used to get access to a database page.
 @return	pointer to the block or NULL */
@@ -2722,8 +2751,9 @@ wait_until_unfixed:
 	UNIV_MEM_ASSERT_RW(&block->page, sizeof block->page);
 #endif
 #if defined UNIV_DEBUG || defined UNIV_IBUF_DEBUG
+
 	if ((mode == BUF_GET_IF_IN_POOL || mode == BUF_GET_IF_IN_POOL_OR_WATCH)
-	    && ibuf_debug) {
+	    && (ibuf_debug || buf_debug_execute_is_force_flush())) {
 		/* Try to evict the block from the buffer pool, to use the
 		insert buffer (change buffer) as much as possible. */
 
@@ -3949,8 +3979,20 @@ buf_page_io_complete(
 		/* From version 3.23.38 up we store the page checksum
 		to the 4 first bytes of the page end lsn field */
 
-		if (buf_page_is_corrupted(frame,
+		if (buf_page_is_corrupted(true, frame,
 					  buf_page_get_zip_size(bpage))) {
+
+			/* Not a real corruption if it was triggered by
+			error injection */
+			DBUG_EXECUTE_IF("buf_page_is_corrupt_failure",
+				if (bpage->space > TRX_SYS_SPACE
+				    && buf_mark_space_corrupt(bpage)) {
+					ib_logf(IB_LOG_LEVEL_INFO,
+						"Simulated page corruption");
+					return;
+				}
+				goto page_not_corrupt;
+				;);
 corrupt:
 			fprintf(stderr,
 				"InnoDB: Database page corruption on disk"
@@ -4004,6 +4046,9 @@ corrupt:
 				}
 			}
 		}
+
+		DBUG_EXECUTE_IF("buf_page_is_corrupt_failure",
+				page_not_corrupt:  bpage = bpage; );
 
 		if (recv_recovery_is_on()) {
 			/* Pages must be uncompressed for crash recovery. */

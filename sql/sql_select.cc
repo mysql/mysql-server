@@ -80,6 +80,12 @@ bool handle_select(THD *thd, LEX *lex, select_result *result,
   DBUG_ENTER("handle_select");
   MYSQL_SELECT_START(thd->query());
 
+  if (lex->proc_analyse && lex->sql_command != SQLCOM_SELECT)
+  {
+    my_error(ER_WRONG_USAGE, MYF(0), "PROCEDURE", "non-SELECT");
+    DBUG_RETURN(true);
+  }
+
   if (select_lex->master_unit()->is_union() || 
       select_lex->master_unit()->fake_select_lex)
     res= mysql_union(thd, lex, result, &lex->unit, setup_tables_done_option);
@@ -101,7 +107,6 @@ bool handle_select(THD *thd, LEX *lex, select_result *result,
 		      select_lex->order_list.first,
 		      select_lex->group_list.first,
 		      select_lex->having,
-		      lex->proc_list.first,
 		      select_lex->options | thd->variables.option_bits |
                       setup_tables_done_option,
 		      result, unit, select_lex);
@@ -795,19 +800,6 @@ bool JOIN::prepare_result(List<Item> **columns_list)
       get_schema_tables_result(this, PROCESSED_BY_JOIN_EXEC))
     goto err;
 
-  if (procedure)
-  {
-    procedure_fields_list= fields_list;
-    if (procedure->change_columns(procedure_fields_list) ||
-	result->prepare(procedure_fields_list, unit))
-    {
-      thd->set_examined_row_count(0);
-      thd->limit_found_rows= 0;
-      goto err;
-    }
-    *columns_list= &procedure_fields_list;
-  }
-
   DBUG_RETURN(FALSE);
 
 err:
@@ -921,7 +913,6 @@ bool JOIN::destroy()
     sj_nest->sj_mat_exec= NULL;
 
   keyuse.clear();
-  delete procedure;
   DBUG_RETURN(test(error));
 }
 
@@ -961,7 +952,6 @@ void JOIN::cleanup_item_list(List<Item> &items) const
   @param order                linked list of ORDER BY agruments
   @param group                linked list of GROUP BY arguments
   @param having               top level item of HAVING expression
-  @param proc_param           list of PROCEDUREs
   @param select_options       select options (BIG_RESULT, etc)
   @param result               an instance of result set handling class.
                               This object is responsible for send result
@@ -985,7 +975,7 @@ bool
 mysql_select(THD *thd, 
 	     TABLE_LIST *tables, uint wild_num, List<Item> &fields,
 	     Item *conds, uint og_num,  ORDER *order, ORDER *group,
-	     Item *having, ORDER *proc_param, ulonglong select_options,
+             Item *having, ulonglong select_options,
 	     select_result *result, SELECT_LEX_UNIT *unit,
 	     SELECT_LEX *select_lex)
 {
@@ -1023,7 +1013,7 @@ mysql_select(THD *thd,
       else
       {
         err= join->prepare(tables, wild_num,
-                           conds, og_num, order, group, having, proc_param,
+                           conds, og_num, order, group, having,
                            select_lex, unit);
         if (err)
 	{
@@ -1041,7 +1031,7 @@ mysql_select(THD *thd,
     THD_STAGE_INFO(thd, stage_init);
     thd->lex->used_tables=0;                         // Updated by setup_fields
     err= join->prepare(tables, wild_num,
-                       conds, og_num, order, group, having, proc_param,
+                       conds, og_num, order, group, having,
                        select_lex, unit);
     if (err)
     {
@@ -2360,6 +2350,14 @@ static Item *remove_sj_conds(Item *tree)
     
   create "oe1=ie1 AND oe2=ie2 AND ..." expression, such that ie1, ie2, ..
   refer to the columns of the table that is used to materialize the subquery.
+
+  Like in subquery materialization (see subselect_hash_sj_engine::setup()),
+  such condition is needed to post-filter those rows matched by index
+  lookups that cannot be distinguished by the index lookup procedure, e.g.
+  because of truncation (if the outer column type's length is bigger than
+  the inner column type's, index lookup will use a truncated outer
+  value as search key, yielding false positives).
+
   This function will also generate proper equality predicates for
   trivially-correlated subqueries corresponding to the above IN query.
 */
@@ -4643,8 +4641,8 @@ bool JOIN::change_result(select_result *res)
 {
   DBUG_ENTER("JOIN::change_result");
   result= res;
-  if (!procedure && (result->prepare(fields_list, select_lex->master_unit()) ||
-                     result->prepare2()))
+  if (result->prepare(fields_list, select_lex->master_unit()) ||
+      result->prepare2())
   {
     DBUG_RETURN(TRUE);
   }

@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2011, 2012 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -94,12 +94,20 @@ Relay_log_info::Relay_log_info(bool is_slave_recovery
    mts_recovery_index(0), mts_recovery_group_seen_begin(0),
    mts_group_status(MTS_NOT_IN_GROUP), reported_unsafe_warning(false),
    sql_delay(0), sql_delay_end(0), m_flags(0), row_stmt_start_timestamp(0),
-   long_find_row_note_printed(false)
+   long_find_row_note_printed(false), error_on_rli_init_info(false)
 {
   DBUG_ENTER("Relay_log_info::Relay_log_info");
 
 #ifdef HAVE_PSI_INTERFACE
   relay_log.set_psi_keys(key_RELAYLOG_LOCK_index,
+                         key_RELAYLOG_LOCK_log,
+                         key_RELAYLOG_LOCK_flush_queue,
+                         key_RELAYLOG_LOCK_commit,
+                         key_RELAYLOG_LOCK_commit_queue,
+                         key_RELAYLOG_LOCK_sync,
+                         key_RELAYLOG_LOCK_sync_queue,
+                         key_RELAYLOG_LOCK_done,
+                         key_RELAYLOG_COND_done,
                          key_RELAYLOG_update_cond,
                          key_file_relaylog,
                          key_file_relaylog_index);
@@ -1567,6 +1575,18 @@ int Relay_log_info::init_info()
 
   DBUG_ENTER("Relay_log_info::init_info");
 
+  /*
+    If Relay_log_info is issued again after a failed init_info(), for
+    instance because of missing relay log files, it will generate new
+    files and ignore the previous failure, to avoid that we set
+    error_on_rli_init_info as true.
+    This a consequence of the behaviour change, in the past server was
+    stopped when there were replication initialization errors, now it is
+    not and so init_info() must be aware of previous failures.
+  */
+  if (error_on_rli_init_info)
+    goto err;
+
   if (inited)
   {
     /*
@@ -1804,6 +1824,7 @@ a file name for --relay-log-index option.", opt_relaylog_index_name);
   }
 
   inited= 1;
+  error_on_rli_init_info= false;
   if (flush_info(TRUE))
   {
     msg= "Error reading relay log configuration";
@@ -1824,6 +1845,7 @@ a file name for --relay-log-index option.", opt_relaylog_index_name);
 err:
   handler->end_info(uidx, nidx);
   inited= 0;
+  error_on_rli_init_info= true;
   if (msg)
     sql_print_error("%s.", msg);
   relay_log.close(LOG_CLOSE_INDEX | LOG_CLOSE_STOP_EVENT);
@@ -1834,6 +1856,7 @@ void Relay_log_info::end_info()
 {
   DBUG_ENTER("Relay_log_info::end_info");
 
+  error_on_rli_init_info= false;
   if (!inited)
     DBUG_VOID_RETURN;
 

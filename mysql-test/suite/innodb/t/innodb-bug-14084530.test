@@ -1,0 +1,52 @@
+-- source include/have_innodb.inc
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+let MYSQLD_DATADIR =`SELECT @@datadir`;
+let $innodb_file_per_table = `SELECT @@innodb_file_per_table`;
+let $innodb_file_format = `SELECT @@innodb_file_format`;
+
+SET GLOBAL innodb_file_per_table = 1;
+SELECT @@innodb_file_per_table;
+
+SET AUTOCOMMIT = 0;
+
+# Export/import on the same instance, with --innodb-file-per-table=1
+CREATE DATABASE testdb_wl5522;
+CREATE TABLE testdb_wl5522.t1 (c1 int ) engine = Innodb;
+
+BEGIN;
+INSERT INTO testdb_wl5522.t1 VALUES (1),(123),(331);
+ROLLBACK;
+
+SELECT c1 FROM testdb_wl5522.t1;
+
+FLUSH TABLES testdb_wl5522.t1 FOR EXPORT;
+perl;
+do 'include/innodb-util.inc';
+ib_backup_tablespaces("testdb_wl5522", "t1");
+EOF
+UNLOCK TABLES;
+
+DROP TABLE testdb_wl5522.t1;
+
+CREATE TABLE testdb_wl5522.t1 (c1 int ) ENGINE = Innodb;
+ALTER TABLE testdb_wl5522.t1 DISCARD TABLESPACE;
+
+perl;
+do 'include/innodb-util.inc';
+ib_discard_tablespaces("testdb_wl5522", "t1");
+ib_restore_tablespaces("testdb_wl5522", "t1");
+EOF
+
+ALTER TABLE testdb_wl5522.t1 IMPORT TABLESPACE;
+CHECK TABLE testdb_wl5522.t1;
+SELECT c1 FROM testdb_wl5522.t1;
+
+SET AUTOCOMMIT = 1;
+DROP TABLE testdb_wl5522.t1;
+DROP DATABASE testdb_wl5522;
+eval SET GLOBAL INNODB_FILE_FORMAT=$innodb_file_format;
+eval SET GLOBAL INNODB_FILE_PER_TABLE=$innodb_file_per_table;

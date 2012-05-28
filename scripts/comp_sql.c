@@ -63,9 +63,12 @@ static void die(const char *fmt, ...)
   exit(1);
 }
 
-char *fgets_fn(char *buffer, size_t size, fgets_input_t input)
+char *fgets_fn(char *buffer, size_t size, fgets_input_t input, int *error)
 {
-  return fgets(buffer, size, (FILE*) input);
+  char *line= fgets(buffer, size, (FILE*) input);
+  if (error)
+    *error= (line == NULL) ? ferror((FILE*)input) : 0;
+  return line;
 }
 
 static void print_query(FILE *out, const char *query)
@@ -117,6 +120,8 @@ int main(int argc, char *argv[])
   char* outfile_name= argv[3];
   int rc;
   int query_length;
+  int error= 0;
+  char *err_ptr;
 
   if (argc != 4)
     die("Usage: comp_sql <struct_name> <sql_filename> <c_filename>");
@@ -136,13 +141,33 @@ int main(int argc, char *argv[])
   for ( ; ; )
   {
     rc= read_bootstrap_query(query, &query_length,
-                             (fgets_input_t) in, fgets_fn);
+                             (fgets_input_t) in, fgets_fn, &error);
 
-    if (rc == READ_BOOTSTRAP_ERROR)
-      die("Failed to read the bootstrap input file.\n");
-    
     if (rc == READ_BOOTSTRAP_EOF)
       break;
+
+    if (rc != READ_BOOTSTRAP_SUCCESS)
+    {
+      /* Get the most recent query text for reference. */
+      err_ptr= query + (query_length <= MAX_BOOTSTRAP_ERROR_LEN ?
+                                 0 : (query_length - MAX_BOOTSTRAP_ERROR_LEN));
+      switch (rc)
+      {
+      case READ_BOOTSTRAP_ERROR:
+        die("Failed to read the bootstrap input file. Return code (%d).\n"
+            "Last query: '%s'\n", error, err_ptr);
+        break;
+
+      case READ_BOOTSTRAP_QUERY_SIZE:
+        die("Failed to read the boostrap input file. Query size exceeded %d bytes.\n"
+            "Last query: '%s'.\n", MAX_BOOTSTRAP_LINE_SIZE, err_ptr);
+        break;
+    
+      default:
+        die("Failed to read the boostrap input file. Unknown error.\n");
+        break;
+      }
+    }
 
     print_query(out, query);
   }

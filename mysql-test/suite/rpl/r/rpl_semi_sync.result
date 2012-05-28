@@ -151,7 +151,7 @@ Variable_name	Value
 Rpl_semi_sync_master_no_tx	0
 show status like 'Rpl_semi_sync_master_yes_tx';
 Variable_name	Value
-Rpl_semi_sync_master_yes_tx	304
+Rpl_semi_sync_master_yes_tx	305
 show status like 'Rpl_semi_sync_master_clients';
 Variable_name	Value
 Rpl_semi_sync_master_clients	1
@@ -166,7 +166,7 @@ Variable_name	Value
 Rpl_semi_sync_master_no_tx	1
 show status like 'Rpl_semi_sync_master_yes_tx';
 Variable_name	Value
-Rpl_semi_sync_master_yes_tx	304
+Rpl_semi_sync_master_yes_tx	305
 insert into t1 values (100);
 [ master status should be OFF ]
 show status like 'Rpl_semi_sync_master_status';
@@ -177,7 +177,7 @@ Variable_name	Value
 Rpl_semi_sync_master_no_tx	302
 show status like 'Rpl_semi_sync_master_yes_tx';
 Variable_name	Value
-Rpl_semi_sync_master_yes_tx	304
+Rpl_semi_sync_master_yes_tx	305
 #
 # Test semi-sync status on master will be ON again when slave catches up
 #
@@ -210,7 +210,7 @@ Variable_name	Value
 Rpl_semi_sync_master_no_tx	302
 show status like 'Rpl_semi_sync_master_yes_tx';
 Variable_name	Value
-Rpl_semi_sync_master_yes_tx	304
+Rpl_semi_sync_master_yes_tx	305
 show status like 'Rpl_semi_sync_master_clients';
 Variable_name	Value
 Rpl_semi_sync_master_clients	1
@@ -229,7 +229,7 @@ Variable_name	Value
 Rpl_semi_sync_master_no_tx	302
 SHOW STATUS LIKE 'Rpl_semi_sync_master_yes_tx';
 Variable_name	Value
-Rpl_semi_sync_master_yes_tx	305
+Rpl_semi_sync_master_yes_tx	306
 FLUSH NO_WRITE_TO_BINLOG STATUS;
 [ Semi-sync master status variables after FLUSH STATUS ]
 SHOW STATUS LIKE 'Rpl_semi_sync_master_no_tx';
@@ -412,8 +412,8 @@ Rpl_semi_sync_slave_status	OFF
 # Test non-semi-sync slave connect to semi-sync master
 #
 INSTALL PLUGIN rpl_semi_sync_master SONAME 'SEMISYNC_MASTER_PLUGIN';
-set global rpl_semi_sync_master_timeout= 5000;
-/* 5s */
+set global rpl_semi_sync_master_timeout= 10000;
+/* 10s */
 set global rpl_semi_sync_master_enabled= 1;
 [ on slave ]
 include/stop_slave.inc
