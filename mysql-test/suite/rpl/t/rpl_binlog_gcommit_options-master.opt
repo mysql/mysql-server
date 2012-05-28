@@ -1,0 +1,1 @@
+--binlog-max-flush-queue-time=1 --skip-binlog-order-commits

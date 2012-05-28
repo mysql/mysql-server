@@ -179,6 +179,7 @@ UNIV_INTERN ib_uint64_t	srv_log_file_size	= IB_UINT64_MAX;
 /* size in database pages */
 UNIV_INTERN ulint	srv_log_buffer_size	= ULINT_MAX;
 UNIV_INTERN ulong	srv_flush_log_at_trx_commit = 1;
+UNIV_INTERN uint	srv_flush_log_at_timeout = 1;
 UNIV_INTERN ulong	srv_page_size		= UNIV_PAGE_SIZE_DEF;
 UNIV_INTERN ulong	srv_page_size_shift	= UNIV_PAGE_SIZE_SHIFT_DEF;
 
@@ -1864,7 +1865,8 @@ srv_sync_log_buffer_in_background(void)
 	time_t	current_time = time(NULL);
 
 	srv_main_thread_op_info = "flushing log";
-	if (difftime(current_time, srv_last_log_flush_time) >= 1) {
+	if (difftime(current_time, srv_last_log_flush_time)
+	    >= srv_flush_log_at_timeout) {
 		log_buffer_sync_in_background(TRUE);
 		srv_last_log_flush_time = current_time;
 		srv_log_writes_and_flush++;
@@ -1981,7 +1983,7 @@ srv_master_do_active_tasks(void)
 	/* Do an ibuf merge */
 	srv_main_thread_op_info = "doing insert buffer merge";
 	counter_time = ut_time_us(NULL);
-	ibuf_contract_in_background(FALSE);
+	ibuf_contract_in_background(0, FALSE);
 	MONITOR_INC_TIME_IN_MICRO_SECS(
 		MONITOR_SRV_IBUF_MERGE_MICROSECOND, counter_time);
 
@@ -2073,7 +2075,7 @@ srv_master_do_idle_tasks(void)
 	/* Do an ibuf merge */
 	counter_time = ut_time_us(NULL);
 	srv_main_thread_op_info = "doing insert buffer merge";
-	ibuf_contract_in_background(TRUE);
+	ibuf_contract_in_background(0, TRUE);
 	MONITOR_INC_TIME_IN_MICRO_SECS(
 		MONITOR_SRV_IBUF_MERGE_MICROSECOND, counter_time);
 
@@ -2147,7 +2149,7 @@ srv_master_do_shutdown_tasks(
 
 	/* Do an ibuf merge */
 	srv_main_thread_op_info = "doing insert buffer merge";
-	n_bytes_merged = ibuf_contract_in_background(TRUE);
+	n_bytes_merged = ibuf_contract_in_background(0, TRUE);
 
 	/* Flush logs if needed */
 	srv_sync_log_buffer_in_background();

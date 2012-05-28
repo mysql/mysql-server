@@ -49,6 +49,7 @@
 #include "sql_connect.h"
 #include "hostname.h"
 #include "sql_db.h"
+#include <mysql/plugin_validate_password.h>
 
 using std::min;
 using std::max;
@@ -180,6 +181,10 @@ static LEX_STRING old_password_plugin_name= {
   C_STRING_WITH_LEN("mysql_old_password")
 };
   
+static LEX_STRING validate_password_plugin_name= {
+  C_STRING_WITH_LEN("validate_password")
+};
+
 /// @todo make it configurable
 LEX_STRING *default_auth_plugin_name= &native_password_plugin_name;
 
@@ -7982,8 +7987,6 @@ get_cached_table_access(GRANT_INTERNAL_INFO *grant_internal_info,
 #undef HAVE_OPENSSL
 #ifdef NO_EMBEDDED_ACCESS_CHECKS
 #define initialized 0
-#define decrease_user_connections(X)        /* nothing */
-#define check_for_max_user_connections(X, Y)   0
 #endif
 #endif
 #ifndef HAVE_OPENSSL
@@ -9464,7 +9467,7 @@ acl_authenticate(THD *thd, uint com_change_user_pkt_len)
     mpvio.packets_read++;    // take COM_CHANGE_USER packet into account
 
     /* Clear variables that are allocated */
-    thd->user_connect= 0;
+    thd->set_user_connect(NULL);
 
     if (parse_com_change_user_packet(&mpvio, com_change_user_pkt_len))
     {
@@ -9655,11 +9658,11 @@ acl_authenticate(THD *thd, uint com_change_user_pkt_len)
   else
     sctx->skip_grants();
 
-  if (thd->user_connect &&
-      (thd->user_connect->user_resources.conn_per_hour ||
-       thd->user_connect->user_resources.user_conn ||
+  const USER_CONN *uc;
+  if ((uc= thd->get_user_connect()) &&
+      (uc->user_resources.conn_per_hour || uc->user_resources.user_conn ||
        global_system_variables.max_user_connections) &&
-      check_for_max_user_connections(thd, thd->user_connect))
+       check_for_max_user_connections(thd, uc))
   {
     DBUG_RETURN(1); // The error is set in check_for_max_user_connections()
   }
@@ -9681,6 +9684,7 @@ acl_authenticate(THD *thd, uint com_change_user_pkt_len)
     mysql_mutex_unlock(&LOCK_connection_count);
     if (!count_ok)
     {                                         // too many connections
+      release_user_connection(thd);
       statistic_increment(connection_errors_max_connection, &LOCK_status);
       my_error(ER_CON_COUNT_ERROR, MYF(0));
       DBUG_RETURN(1);
@@ -9700,11 +9704,7 @@ acl_authenticate(THD *thd, uint com_change_user_pkt_len)
     if (mysql_change_db(thd, &mpvio.db, FALSE))
     {
       /* mysql_change_db() has pushed the error message. */
-      if (thd->user_connect)
-      {
-        decrease_user_connections(thd->user_connect);
-        thd->user_connect= 0;
-      }
+      release_user_connection(thd);
       Host_errors errors;
       errors.m_default_database= 1;
       inc_host_errors(mpvio.ip, &errors);
@@ -9924,3 +9924,41 @@ mysql_declare_plugin(mysql_password)
 }
 mysql_declare_plugin_end;
 
+/*  
+ PASSWORD_VALIDATION_CODE, invoking appropriate plugin to validate
+ the password strength.
+*/
+
+/* for validate_password_strength SQL function */
+int check_password_strength(String *password)
+{
+  int res= 0;
+  plugin_ref plugin= my_plugin_lock_by_name(0, &validate_password_plugin_name,
+                                            MYSQL_VALIDATE_PASSWORD_PLUGIN);
+  if (plugin)
+  {
+    st_mysql_validate_password *password_strength=
+                      (st_mysql_validate_password *) plugin_decl(plugin)->info;
+
+    res= password_strength->get_password_strength(password);
+    plugin_unlock(0, plugin);
+  }
+  return(res);
+}
+
+/* called when new user is created or exsisting password is changed */
+void check_password_policy(String *password)
+{
+  plugin_ref plugin= my_plugin_lock_by_name(0, &validate_password_plugin_name,
+                                            MYSQL_VALIDATE_PASSWORD_PLUGIN);
+  if (plugin)
+  {
+    st_mysql_validate_password *password_validate=
+                      (st_mysql_validate_password *) plugin_decl(plugin)->info;
+
+    if (!password_validate->validate_password(password))
+      my_error(ER_NOT_VALID_PASSWORD, MYF(0));
+
+    plugin_unlock(0, plugin);
+  }
+}

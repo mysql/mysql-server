@@ -992,5 +992,17 @@ void my_init_mysys_psi_keys(void);
 struct st_mysql_file;
 extern struct st_mysql_file *mysql_stdin;
 
+enum durability_properties
+{
+  /*
+    Preserves the durability properties defined by the engine */
+  HA_REGULAR_DURABILITY= 0,
+  /* 
+     Ignore the durability properties defined by the engine and
+     write only in-memory entries.
+  */
+  HA_IGNORE_DURABILITY= 1
+};
+
 C_MODE_END
 #endif /* _my_sys_h */

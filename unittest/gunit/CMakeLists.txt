@@ -192,6 +192,7 @@ INCLUDE_DIRECTORIES(
   ${CMAKE_SOURCE_DIR}/regex
   ${CMAKE_SOURCE_DIR}/sql
   ${CMAKE_SOURCE_DIR}/unittest/mytap
+  ${CMAKE_SOURCE_DIR}/storage/example
 )
 
 # main-wrapper library (with tap-compatible option).
@@ -267,6 +268,7 @@ SET(SERVER_TESTS
   opt_trace
   segfault
   sql_table
+  table_cache
 )
 
 FOREACH(test ${TESTS})
@@ -282,11 +284,18 @@ FOREACH(test ${TESTS})
 ENDFOREACH()
 
 FOREACH(test ${SERVER_TESTS})
+  SET(SRC_FILES ${test}-t.cc)
   IF(WIN32)
-    ADD_EXECUTABLE(${test}-t ${test}-t.cc ../../sql/nt_servc.cc)
-  ELSE()
-    ADD_EXECUTABLE(${test}-t ${test}-t.cc)
+    LIST(APPEND SRC_FILES ../../sql/nt_servc.cc)
   ENDIF()
+  IF(test MATCHES "table_cache")
+    LIST(APPEND SRC_FILES ../../storage/example/ha_example.cc)
+    SET_SOURCE_FILES_PROPERTIES(
+      ../../storage/example/ha_example.cc
+      PROPERTIES COMPILE_FLAGS "-DDISABLE_DTRACE"
+    )
+  ENDIF()
+  ADD_EXECUTABLE(${test}-t ${SRC_FILES})
   TARGET_LINK_LIBRARIES(${test}-t sql binlog rpl master slave sql)
   TARGET_LINK_LIBRARIES(${test}-t gunit_large strings dbug regex mysys)
   TARGET_LINK_LIBRARIES(${test}-t sql binlog rpl master slave sql)

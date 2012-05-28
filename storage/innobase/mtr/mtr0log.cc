@@ -240,8 +240,8 @@ mlog_parse_nbytes(
 }
 
 /********************************************************//**
-Writes 1 - 4 bytes to a file page buffered in the buffer pool.
-Writes the corresponding log record to the mini-transaction log. */
+Writes 1, 2 or 4 bytes to a file page. Writes the corresponding log
+record to the mini-transaction log if mtr is not NULL. */
 UNIV_INTERN
 void
 mlog_write_ulint(
@@ -251,8 +251,6 @@ mlog_write_ulint(
 	byte	type,	/*!< in: MLOG_1BYTE, MLOG_2BYTES, MLOG_4BYTES */
 	mtr_t*	mtr)	/*!< in: mini-transaction handle */
 {
-	byte*	log_ptr;
-
 	switch (type) {
 	case MLOG_1BYTE:
 		mach_write_to_1(ptr, val);
@@ -267,27 +265,29 @@ mlog_write_ulint(
 		ut_error;
 	}
 
-	log_ptr = mlog_open(mtr, 11 + 2 + 5);
+	if (mtr != 0) {
+		byte*	log_ptr = mlog_open(mtr, 11 + 2 + 5);
 
-	/* If no logging is requested, we may return now */
-	if (log_ptr == NULL) {
+		/* If no logging is requested, we may return now */
 
-		return;
+		if (log_ptr != 0) {
+
+			log_ptr = mlog_write_initial_log_record_fast(
+				ptr, type, log_ptr, mtr);
+
+			mach_write_to_2(log_ptr, page_offset(ptr));
+			log_ptr += 2;
+
+			log_ptr += mach_write_compressed(log_ptr, val);
+
+			mlog_close(mtr, log_ptr);
+		}
 	}
-
-	log_ptr = mlog_write_initial_log_record_fast(ptr, type, log_ptr, mtr);
-
-	mach_write_to_2(log_ptr, page_offset(ptr));
-	log_ptr += 2;
-
-	log_ptr += mach_write_compressed(log_ptr, val);
-
-	mlog_close(mtr, log_ptr);
 }
 
 /********************************************************//**
-Writes 8 bytes to a file page buffered in the buffer pool.
-Writes the corresponding log record to the mini-transaction log. */
+Writes 8 bytes to a file page. Writes the corresponding log
+record to the mini-transaction log, only if mtr is not NULL */
 UNIV_INTERN
 void
 mlog_write_ull(
@@ -296,29 +296,25 @@ mlog_write_ull(
 	ib_uint64_t	val,	/*!< in: value to write */
 	mtr_t*		mtr)	/*!< in: mini-transaction handle */
 {
-	byte*	log_ptr;
-
-	ut_ad(ptr && mtr);
-
 	mach_write_to_8(ptr, val);
 
-	log_ptr = mlog_open(mtr, 11 + 2 + 9);
+	if (mtr != 0) {
+		byte*	log_ptr = mlog_open(mtr, 11 + 2 + 9);
 
-	/* If no logging is requested, we may return now */
-	if (log_ptr == NULL) {
+		/* If no logging is requested, we may return now */
+		if (log_ptr != 0) {
 
-		return;
+			log_ptr = mlog_write_initial_log_record_fast(
+				ptr, MLOG_8BYTES, log_ptr, mtr);
+
+			mach_write_to_2(log_ptr, page_offset(ptr));
+			log_ptr += 2;
+
+			log_ptr += mach_ull_write_compressed(log_ptr, val);
+
+			mlog_close(mtr, log_ptr);
+		}
 	}
-
-	log_ptr = mlog_write_initial_log_record_fast(ptr, MLOG_8BYTES,
-						     log_ptr, mtr);
-
-	mach_write_to_2(log_ptr, page_offset(ptr));
-	log_ptr += 2;
-
-	log_ptr += mach_ull_write_compressed(log_ptr, val);
-
-	mlog_close(mtr, log_ptr);
 }
 
 #ifndef UNIV_HOTBACKUP
@@ -439,12 +435,13 @@ UNIV_INTERN
 byte*
 mlog_open_and_write_index(
 /*======================*/
-	mtr_t*		mtr,	/*!< in: mtr */
-	const byte*	rec,	/*!< in: index record or page */
-	dict_index_t*	index,	/*!< in: record descriptor */
-	byte		type,	/*!< in: log item type */
-	ulint		size)	/*!< in: requested buffer size in bytes
-				(if 0, calls mlog_close() and returns NULL) */
+	mtr_t*			mtr,	/*!< in: mtr */
+	const byte*		rec,	/*!< in: index record or page */
+	const dict_index_t*	index,	/*!< in: record descriptor */
+	byte			type,	/*!< in: log item type */
+	ulint			size)	/*!< in: requested buffer size in bytes
+					(if 0, calls mlog_close() and
+					returns NULL) */
 {
 	byte*		log_ptr;
 	const byte*	log_start;

@@ -27,9 +27,6 @@
 #include "sql_class.h"                          /* select_result, set_var.h: THD */
 #include "set_var.h"                            /* Item */
 
-#define PROC_NO_SORT 1				/**< Bits in flags */
-#define PROC_GROUP   2				/**< proc must have group */
-
 /* Procedure items used by procedures to store values for send_result_set_metadata */
 
 class Item_proc :public Item
@@ -40,54 +37,13 @@ public:
      this->item_name.set(name_par);
   }
   enum Type type() const { return Item::PROC_ITEM; }
-  virtual void set(double nr)=0;
   virtual void set(const char *str,uint length, const CHARSET_INFO *cs)=0;
   virtual void set(longlong nr)=0;
   virtual enum_field_types field_type() const=0;
   void set(const char *str) { set(str,(uint) strlen(str), default_charset()); }
-  void make_field(Send_field *tmp_field)
-  {
-    init_make_field(tmp_field,field_type());
-  }
   unsigned int size_of() { return sizeof(*this);}  
 };
 
-class Item_proc_real :public Item_proc
-{
-  double value;
-public:
-  Item_proc_real(const char *name_par,uint dec) : Item_proc(name_par)
-  {
-     decimals=dec; max_length=float_length(dec);
-  }
-  enum Item_result result_type () const { return REAL_RESULT; }
-  enum_field_types field_type() const { return MYSQL_TYPE_DOUBLE; }
-  void set(double nr) { value=nr; }
-  void set(longlong nr) { value=(double) nr; }
-  void set(const char *str,uint length,const CHARSET_INFO *cs)
-  {
-    int err_not_used;
-    char *end_not_used;
-    value= my_strntod(cs,(char*) str,length, &end_not_used, &err_not_used);
-  }
-  double val_real() { return value; }
-  longlong val_int() { return (longlong) value; }
-  String *val_str(String *s)
-  {
-    s->set_real(value,decimals,default_charset());
-    return s;
-  }
-  my_decimal *val_decimal(my_decimal *);
-  bool get_date(MYSQL_TIME *ltime, uint fuzzydate)
-  {
-    return get_date_from_real(ltime, fuzzydate);
-  }
-  bool get_time(MYSQL_TIME *ltime)
-  {
-    return get_time_from_real(ltime);
-  }
-  unsigned int size_of() { return sizeof(*this);}
-};
 
 class Item_proc_int :public Item_proc
 {
@@ -97,7 +53,6 @@ public:
   { max_length=11; }
   enum Item_result result_type () const { return INT_RESULT; }
   enum_field_types field_type() const { return MYSQL_TYPE_LONGLONG; }
-  void set(double nr) { value=(longlong) nr; }
   void set(longlong nr) { value=nr; }
   void set(const char *str,uint length, const CHARSET_INFO *cs)
   { int err; value=my_strntoll(cs,str,length,10,NULL,&err); }
@@ -124,7 +79,6 @@ public:
     { this->max_length=length; }
   enum Item_result result_type () const { return STRING_RESULT; }
   enum_field_types field_type() const { return MYSQL_TYPE_VARCHAR; }
-  void set(double nr) { str_value.set_real(nr, 2, default_charset()); }
   void set(longlong nr) { str_value.set(nr, default_charset()); }
   void set(const char *str, uint length, const CHARSET_INFO *cs)
   { str_value.copy(str,length,cs); }
@@ -159,26 +113,5 @@ public:
 };
 
 /* The procedure class definitions */
-
-class Procedure {
-protected:
-  List<Item> *fields;
-  select_result *result;
-public:
-  const uint flags;
-  ORDER *group,*param_fields;
-  Procedure(select_result *res,uint flags_par) :result(res),flags(flags_par),
-    group(0),param_fields(0) {}
-  virtual ~Procedure() {group=param_fields=0; fields=0; }
-  virtual void add(void)=0;
-  virtual void end_group(void)=0;
-  virtual int send_row(List<Item> &fields)=0;
-  virtual bool change_columns(List<Item> &fields)=0;
-  virtual void update_refs(void) {}
-  virtual int end_of_records() { return 0; }
-};
-
-Procedure *setup_procedure(THD *thd,ORDER *proc_param,select_result *result,
-			   List<Item> &field_list,int *error);
 
 #endif /* PROCEDURE_INCLUDED */

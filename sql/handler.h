@@ -232,10 +232,16 @@ enum enum_alter_inplace_result {
 #define HA_READ_OUT_OF_SYNC              (LL(1) << 40)
 
 /*
+  Storage engine supports table export using the
+  FLUSH TABLE <table_list> FOR EXPORT statement.
+ */
+#define HA_CAN_EXPORT                 (LL(1) << 41)
+
+/*
   The handler don't want accesses to this table to 
   be const-table optimized
 */
-#define HA_BLOCK_CONST_TABLE          (LL(1) << 41)
+#define HA_BLOCK_CONST_TABLE          (LL(1) << 42)
 
 /* bits in index_flags(index_number) for what you can do with index */
 #define HA_READ_NEXT            1       /* TODO really use this flag */
@@ -3221,11 +3227,19 @@ int ha_release_temporary_latches(THD *thd);
 /* transactions: interface to handlerton functions */
 int ha_start_consistent_snapshot(THD *thd);
 int ha_commit_or_rollback_by_xid(THD *thd, XID *xid, bool commit);
-int ha_commit_one_phase(THD *thd, bool all);
 int ha_commit_trans(THD *thd, bool all);
 int ha_rollback_trans(THD *thd, bool all);
 int ha_prepare(THD *thd);
 int ha_recover(HASH *commit_list);
+
+/*
+ transactions: interface to low-level handlerton functions. These are
+ intended to be used by the transaction coordinators to
+ commit/prepare/rollback transactions in the engines.
+*/
+int ha_commit_low(THD *thd, bool all);
+int ha_prepare_low(THD *thd, bool all);
+int ha_rollback_low(THD *thd, bool all);
 
 /* transactions: these functions never call handlerton functions directly */
 int ha_enable_transaction(THD *thd, bool on);
@@ -3268,6 +3282,7 @@ int ha_binlog_end(THD *thd);
 #define ha_binlog_end(a)  do {} while (0)
 #endif
 
+const char *ha_legacy_type_name(legacy_db_type legacy_type);
 const char *get_canonical_filename(handler *file, const char *path,
                                    char *tmp_path);
 bool mysql_xa_recover(THD *thd);

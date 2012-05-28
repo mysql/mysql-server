@@ -144,7 +144,6 @@ public:
   Item_sum  **sum_funcs, ***sum_funcs_end;
   /** second copy of sumfuncs (for queries with 2 temporary tables */
   Item_sum  **sum_funcs2, ***sum_funcs_end2;
-  Procedure *procedure;
   ulonglong  select_options;
   select_result *result;
   TMP_TABLE_PARAM tmp_table_param;
@@ -234,8 +233,6 @@ public:
   List<Item> &fields_list; ///< hold field list passed to mysql_select
   List<Item> procedure_fields_list;
   int error;
-
-  ORDER *proc_param; //hold parameters of mysql_select
 
   /**
     Wrapper for ORDER* pointer to trace origins of ORDER list 
@@ -436,7 +433,6 @@ public:
     join_tab_reexec= 0;
     thd= thd_arg;
     sum_funcs= sum_funcs2= 0;
-    procedure= 0;
     having= tmp_having= 0;
     select_options= select_options_arg;
     result= result_arg;
@@ -479,8 +475,8 @@ public:
 
   int prepare(TABLE_LIST *tables, uint wind_num,
 	      Item *conds, uint og_num, ORDER *order, ORDER *group,
-	      Item *having, ORDER *proc_param, SELECT_LEX *select,
-	      SELECT_LEX_UNIT *unit);
+              Item *having,
+              SELECT_LEX *select, SELECT_LEX_UNIT *unit);
   int optimize();
   void reset();
   void exec();
