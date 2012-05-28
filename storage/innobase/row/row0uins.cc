@@ -38,6 +38,7 @@ Created 2/25/1997 Heikki Tuuri
 #include "mach0data.h"
 #include "row0undo.h"
 #include "row0vers.h"
+#include "row0log.h"
 #include "trx0trx.h"
 #include "trx0rec.h"
 #include "row0row.h"
@@ -408,9 +409,18 @@ row_undo_ins(
 
 	/* Iterate over all the indexes and undo the insert.*/
 
+	node->index = dict_table_get_first_index(node->table);
+	ut_ad(dict_index_is_clust(node->index));
+
+	if (dict_index_is_online_ddl(node->index)) {
+		/* Note that we are rolling back this transaction, so
+		that all inserts and updates with this DB_TRX_ID can
+		be skipped. */
+		row_log_table_rollback(node->index, node->trx->id);
+	}
+
 	/* Skip the clustered index (the first index) */
-	node->index = dict_table_get_next_index(
-		dict_table_get_first_index(node->table));
+	node->index = dict_table_get_next_index(node->index);
 
 	dict_table_skip_corrupt_index(node->index);
 
