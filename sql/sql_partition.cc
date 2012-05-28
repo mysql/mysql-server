@@ -6557,7 +6557,6 @@ void handle_alter_part_error(ALTER_PARTITION_PARAM_TYPE *lpt,
       }
     }
     /* Ensure the share is destroyed and reopened. */
-    table->s->version= 0;
     part_info= lpt->part_info->get_clone();
     close_all_tables_for_name(thd, table->s, false);
   }

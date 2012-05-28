@@ -177,6 +177,7 @@ SET(SQL_SHARED_SOURCES
   strfunc.cc
   sys_vars.cc
   table.cc
+  table_cache.cc
   thr_malloc.cc 
   transaction.cc
   tztime.cc

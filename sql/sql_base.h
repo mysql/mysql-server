@@ -76,7 +76,6 @@ bool table_def_init(void);
 void table_def_free(void);
 void table_def_start_shutdown(void);
 void assign_new_table_id(TABLE_SHARE *share);
-uint cached_open_tables(void);
 uint cached_table_definitions(void);
 uint get_table_def_key(const TABLE_LIST *table_list, const char **key);
 TABLE_SHARE *get_table_share(THD *thd, TABLE_LIST *table_list,
@@ -252,7 +251,7 @@ bool open_normal_and_derived_tables(THD *thd, TABLE_LIST *tables, uint flags);
 bool lock_tables(THD *thd, TABLE_LIST *tables, uint counter, uint flags);
 void free_io_cache(TABLE *entry);
 void intern_close_table(TABLE *entry);
-bool close_thread_table(THD *thd, TABLE **table_ptr);
+void close_thread_table(THD *thd, TABLE **table_ptr);
 bool close_temporary_tables(THD *thd);
 TABLE_LIST *unique_table(THD *thd, TABLE_LIST *table, TABLE_LIST *table_list,
                          bool check_alias);
@@ -298,7 +297,6 @@ TABLE *find_table_for_mdl_upgrade(THD *thd, const char *db,
 void mark_tmp_table_for_reuse(TABLE *table);
 bool check_if_table_exists(THD *thd, TABLE_LIST *table, bool *exists);
 
-extern TABLE *unused_tables;
 extern Item **not_found_item;
 extern Field *not_found_field;
 extern Field *view_ref_found;
@@ -610,6 +608,5 @@ private:
   int m_handled_errors;
   int m_unhandled_errors;
 };
-
 
 #endif /* SQL_BASE_INCLUDED */
