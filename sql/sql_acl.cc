@@ -309,6 +309,7 @@ public:
   const char *ssl_cipher, *x509_issuer, *x509_subject;
   LEX_STRING plugin;
   LEX_STRING auth_string;
+  bool password_expired;
 
   ACL_USER *copy(MEM_ROOT *root)
   {
@@ -615,7 +616,8 @@ static ACL_USER *find_acl_user(const char *host, const char *user,
                                my_bool exact);
 static bool update_user_table(THD *thd, TABLE *table,
                               const char *host, const char *user,
-			      const char *new_password, uint new_password_len);
+			      const char *new_password, uint new_password_len,
+                              const char must_expire);
 static my_bool acl_load(THD *thd, TABLE_LIST *tables);
 static my_bool grant_load(THD *thd, TABLE_LIST *tables);
 static inline void get_grantor(THD *thd, char* grantor);
@@ -641,6 +643,12 @@ set_user_salt(ACL_USER *acl_user, const char *password, uint password_len)
   }
   else
     acl_user->salt_len= 0;
+
+  /*
+    Since we're changing the password for the user we need to reset the
+    expiration flag.
+  */
+  acl_user->password_expired= false;
 }
 
 /*
@@ -999,6 +1007,15 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
               user.auth_string.str= const_cast<char*>("");
             user.auth_string.length= strlen(user.auth_string.str);
           }
+          else /* skip auth_string if there's no plugin */
+            next_field++;
+        }
+
+        if (table->s->fields >= 43)
+        {
+          char *tmpstr= get_field(&mem, table->field[next_field++]);
+          if (tmpstr && (*tmpstr == 'Y' || *tmpstr == 'y'))
+            user.password_expired= true;
         }
       }
       else
@@ -1444,6 +1461,8 @@ bool acl_getroot(Security_context *sctx, char *user, char *host,
       strmake(sctx->priv_host, acl_user->host.get_host(), MAX_HOSTNAME - 1);
     else
       *sctx->priv_host= 0;
+
+    sctx->password_expired= acl_user->password_expired;
   }
   mysql_mutex_unlock(&acl_cache->lock);
   DBUG_RETURN(res);
@@ -1508,7 +1527,7 @@ static void acl_update_user(const char *user, const char *host,
 				   strdup_root(&mem,x509_subject) : 0);
 	}
 	if (password)
-	  set_user_salt(acl_user, password, password_len);
+          set_user_salt(acl_user, password, password_len);
         /* search complete: */
 	break;
       }
@@ -1880,6 +1899,11 @@ int check_change_password(THD *thd, const char *host, const char *user,
 /*
   Change a password for a user
 
+  Note : it will also reset the change_password flag.
+  This is safe to do unconditionally since the simple userless form
+  SET PASSWORD = PASSWORD('text') will be the only allowed form when
+  this flag is on. So we don't need to check user names here.
+
   SYNOPSIS
     change_password()
     thd			Thread handle
@@ -1952,6 +1976,7 @@ bool change_password(THD *thd, const char *host, const char *user,
 
   /* update loaded acl entry: */
   set_user_salt(acl_user, new_password, new_password_len);
+  thd->security_ctx->password_expired= false;
 
   if (my_strcasecmp(system_charset_info, acl_user->plugin.str,
                     native_password_plugin_name.str) &&
@@ -1965,7 +1990,7 @@ bool change_password(THD *thd, const char *host, const char *user,
   if (update_user_table(thd, table,
 			acl_user->host.get_host() ? acl_user->host.get_host() : "",
 			acl_user->user ? acl_user->user : "",
-			new_password, new_password_len))
+			new_password, new_password_len, 'N'))
   {
     mysql_mutex_unlock(&acl_cache->lock); /* purecov: deadcode */
     goto end;
@@ -2148,13 +2173,15 @@ bool hostname_requires_resolving(const char *hostname)
       table             Pointer to TABLE object for open mysql.user table
       host/user         Hostname/username pair identifying user for which
                         new password should be set
-      new_password      New password
+      new_password      New password. Can be NULL to flag no new password
       new_password_len  Length of new password
+      password_expired  password expiration flag
 */
 
 static bool update_user_table(THD *thd, TABLE *table,
                               const char *host, const char *user,
-			      const char *new_password, uint new_password_len)
+			      const char *new_password, uint new_password_len,
+                              const char password_expired)
 {
   char user_key[MAX_KEY_LENGTH];
   int error;
@@ -2176,10 +2203,16 @@ static bool update_user_table(THD *thd, TABLE *table,
     DBUG_RETURN(1);				/* purecov: deadcode */
   }
   store_record(table,record[1]);
-  table->field[2]->store(new_password, new_password_len, system_charset_info);
+  if (new_password)
+  {
+    table->field[2]->store(new_password, new_password_len, system_charset_info);
 
-  if (new_password_len == SCRAMBLED_PASSWORD_CHAR_LENGTH_323)
-    WARN_DEPRECATED_41_PWD_HASH(thd);
+    if (new_password_len == SCRAMBLED_PASSWORD_CHAR_LENGTH_323)
+      WARN_DEPRECATED_41_PWD_HASH(thd);
+  }
+
+  /* password_expired */
+  table->field[42]->store(&password_expired, 1, system_charset_info);
 
   if ((error=table->file->ha_update_row(table->record[1],table->record[0])) &&
       error != HA_ERR_RECORD_IS_THE_SAME)
@@ -6814,6 +6847,123 @@ bool mysql_rename_user(THD *thd, List <LEX_USER> &list)
 
 
 /*
+  Mark user's password as expired.
+
+  SYNOPSIS
+    mysql_user_password_expire()
+    thd                         The current thread.
+    list                        The user names.
+
+  RETURN
+    FALSE       OK.
+    TRUE        Error.
+*/
+
+bool mysql_user_password_expire(THD *thd, List <LEX_USER> &list)
+{
+  bool result= false;
+  String wrong_users;
+  LEX_USER *user_from, *tmp_user_from;
+  List_iterator <LEX_USER> user_list(list);
+  TABLE_LIST tables;
+  TABLE *table;
+  bool some_passwords_expired= false;
+  bool save_binlog_row_based;
+  DBUG_ENTER("mysql_user_password_expire");
+
+  tables.init_one_table("mysql", 5, "user", 4, "user", TL_WRITE);
+
+#ifdef HAVE_REPLICATION
+  /*
+    GRANT and REVOKE are applied the slave in/exclusion rules as they are
+    some kind of updates to the mysql.% tables.
+  */
+  if (thd->slave_thread && rpl_filter->is_on())
+  {
+    /*
+      The tables must be marked "updating" so that tables_ok() takes them into
+      account in tests.  It's ok to leave 'updating' set after tables_ok.
+    */
+    tables.updating= 1;
+    /* Thanks to memset, tables.next==0 */
+    if (!(thd->sp_runtime_ctx || rpl_filter->tables_ok(0, &tables)))
+      DBUG_RETURN(false);
+  }
+#endif
+  if (!(table= open_ltable(thd, &tables, TL_WRITE, MYSQL_LOCK_IGNORE_TIMEOUT)))
+    DBUG_RETURN(true);
+
+  /*
+    This statement will be replicated as a statement, even when using
+    row-based replication.  The flag will be reset at the end of the
+    statement.
+  */
+  if ((save_binlog_row_based= thd->is_current_stmt_binlog_format_row()))
+    thd->clear_current_stmt_binlog_format_row();
+
+  mysql_rwlock_wrlock(&LOCK_grant);
+  mysql_mutex_lock(&acl_cache->lock);
+
+  while ((tmp_user_from= user_list++))
+  {
+    ACL_USER *acl_user;
+
+    if (!(user_from= get_current_user(thd, tmp_user_from)))
+    {
+      result= true;
+      append_user(thd, &wrong_users, tmp_user_from, wrong_users.length() > 0,
+                  false);
+      continue;
+    }
+
+    if ((!(acl_user= find_acl_user(user_from->host.str,
+                                   user_from->user.str, TRUE))) ||
+        update_user_table(thd, table,
+                          acl_user->host.get_host() ?
+                            acl_user->host.get_host() : "",
+                          acl_user->user ? acl_user->user : "",
+                          NULL, 0, 'Y'))
+    {
+      result= true;
+      append_user(thd, &wrong_users, user_from, wrong_users.length() > 0,
+                  false);
+      continue;
+    }
+
+    acl_user->password_expired= true;
+
+    some_passwords_expired= true;
+  }
+
+  acl_cache->clear(1);				// Clear locked hostname cache
+  mysql_mutex_unlock(&acl_cache->lock);
+
+  if (!result && some_passwords_expired && mysql_bin_log.is_open())
+  {
+    const char *query= thd->rewritten_query.length() ?
+      thd->rewritten_query.c_ptr_safe() : thd->query();
+    const size_t query_length= thd->rewritten_query.length() ?
+      thd->rewritten_query.length() : thd->query_length();
+    result= (write_bin_log(thd, false, query, query_length) != 0);
+  }
+
+  mysql_rwlock_unlock(&LOCK_grant);
+
+  close_mysql_tables(thd);
+
+  /* Restore the state of binlog format */
+  DBUG_ASSERT(!thd->is_current_stmt_binlog_format_row());
+  if (save_binlog_row_based)
+    thd->set_current_stmt_binlog_format_row();
+
+  if (result)
+    my_error(ER_CANNOT_USER, MYF(0), "ALTER USER", wrong_users.c_ptr_safe());
+
+  DBUG_RETURN(result);
+}
+
+
+/*
   Revoke all privileges from a list of users.
 
   SYNOPSIS
@@ -9648,6 +9798,7 @@ acl_authenticate(THD *thd, uint com_change_user_pkt_len)
           &acl_user->user_resource))
       DBUG_RETURN(1); // The error is set by get_or_create_user_conn()
 
+    sctx->password_expired= acl_user->password_expired;
 #endif
   }
   else
@@ -9709,6 +9860,7 @@ acl_authenticate(THD *thd, uint com_change_user_pkt_len)
 
   if (mpvio.auth_info.external_user[0])
     sctx->external_user= my_strdup(mpvio.auth_info.external_user, MYF(0));
+
 
   if (res == CR_OK_HANDSHAKE_COMPLETE)
     thd->get_stmt_da()->disable_status();

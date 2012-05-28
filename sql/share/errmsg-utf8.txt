@@ -1,4 +1,4 @@
-languages czech=cze latin2, danish=dan latin1, dutch=nla latin1, english=eng latin1, estonian=est latin7, french=fre latin1, german=ger latin1, greek=greek greek, hungarian=hun latin2, italian=ita latin1, japanese=jpn ujis, japanese-sjis=jps sjis, korean=kor euckr, norwegian-ny=norwegian-ny latin1, norwegian=nor latin1, polish=pol latin2, portuguese=por latin1, romanian=rum latin2, russian=rus koi8r, serbian=serbian cp1250, slovak=slo latin2, spanish=spa latin1, swedish=swe latin1, ukrainian=ukr koi8u;
+languages czech=cze latin2, danish=dan latin1, dutch=nla latin1, english=eng latin1, estonian=est latin7, french=fre latin1, german=ger latin1, greek=greek greek, hungarian=hun latin2, italian=ita latin1, japanese=jpn ujis, japanese-sjis=jps sjis, korean=kor euckr, norwegian-ny=norwegian-ny latin1, norwegian=nor latin1, polish=pol latin2, portuguese=por latin1, romanian=rum latin2, russian=rus koi8r, serbian=serbian cp1250, slovak=slo latin2, spanish=spa latin1, swedish=swe latin1, ukrainian=ukr koi8u, bulgarian=bgn cp1251;
 
 default-language eng
 
@@ -6801,6 +6801,10 @@ ER_INNODB_INDEX_CORRUPT
 ER_INVALID_YEAR_COLUMN_LENGTH
   eng "YEAR(%lu) column type is deprecated. Creating YEAR(4) column instead."
   rus "Тип YEAR(%lu) более не поддерживается, вместо него будет создана колонка с типом YEAR(4)."
+
+ER_MUST_CHANGE_PASSWORD
+  eng "You must SET PASSWORD before executing this statement"
+  bgn "Трябва първо да си смените паролата със SET PASSWORD за да можете да изпълните тази команда"
 
 #
 #  End of 5.6 error messages.
