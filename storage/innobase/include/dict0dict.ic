@@ -1185,8 +1185,38 @@ dict_index_is_online_ddl(
 /*=====================*/
 	const dict_index_t*	index)	/*!< in: index */
 {
+#ifdef UNIV_DEBUG
+	if (dict_index_is_clust(index)) {
+		switch (dict_index_get_online_status(index)) {
+		case ONLINE_INDEX_CREATION:
+			return(true);
+		case ONLINE_INDEX_COMPLETE:
+			return(false);
+		case ONLINE_INDEX_ABORTED:
+		case ONLINE_INDEX_ABORTED_DROPPED:
+			break;
+		}
+		ut_ad(0);
+		return(false);
+	}
+#endif /* UNIV_DEBUG */
+
 	return(UNIV_UNLIKELY(dict_index_get_online_status(index)
 			     != ONLINE_INDEX_COMPLETE));
+}
+
+/********************************************************************//**
+Determines if a table is being rebuilt online,
+allowing concurrent modifications to the table.
+@retval true if the table is being rebuilt online
+@retval false otherwise */
+UNIV_INLINE
+bool
+dict_table_is_online_rebuild(
+/*=========================*/
+	const dict_table_t*	table)	/*!< in: table */
+{
+	return(dict_index_is_online_ddl(dict_table_get_first_index(table)));
 }
 
 /*********************************************************************//**
