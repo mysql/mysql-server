@@ -3237,12 +3237,13 @@ end:
                    &prune_param.part_info->lock_partitions);
   /*
     If not yet locked, also prune partitions to lock if not UPDATEing
-    partition key fields.
+    partition key fields. This will also prune lock_partitions if we are under
+    LOCK TABLES, so prune away calls to start_stmt().
     TODO: enhance this prune locking to also allow pruning of
     'UPDATE t SET part_key = const WHERE cond_is_prunable' so it adds
     a lock for part_key partition.
   */
-  if (table->file->get_lock_type() == F_UNLCK &&
+  if (!thd->lex->is_query_tables_locked() &&
       !partition_key_modified(table, table->write_set))
   {
     bitmap_copy(&prune_param.part_info->lock_partitions,

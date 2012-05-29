@@ -48,6 +48,11 @@
 #define HA_OPEN_COPY			256     /* Open copy (for repair) */
 /* Internal temp table, used for temporary results */
 #define HA_OPEN_INTERNAL_TABLE          512
+/**
+  Don't connect any share_psi to the handler, since it is a partition.
+  It would not be used, since partitions don't call unbind_psi()/rebind_psi().
+*/
+#define HA_OPEN_NO_PSI_CALL             1024    /* Don't call/connect PSI */
 
 /* The following is parameter to ha_rkey() how to use key */
 
