@@ -264,7 +264,10 @@ IF(INSTALL_LAYOUT STREQUAL "STANDALONE")
 # We need to create empty directories (data/test) the installation.  
 # This does not work with current CPack due to http://www.cmake.org/Bug/view.php?id=8767
 # Avoid completely empty directories and install dummy file instead.
-SET(DUMMY_FILE ${CMAKE_CURRENT_BINARY_DIR}/.empty ) 
+# Use a file extension so that it will be deleted in case someone does
+#   'drop database test'
+# See deletable_extentions.
+SET(DUMMY_FILE ${CMAKE_CURRENT_BINARY_DIR}/dummy.bak ) 
 FILE(WRITE ${DUMMY_FILE} "")
 INSTALL(FILES ${DUMMY_FILE} DESTINATION data/test COMPONENT DataFiles)
 
