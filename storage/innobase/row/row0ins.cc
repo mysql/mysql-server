@@ -325,8 +325,8 @@ row_ins_clust_index_entry_by_modify(
 	mtr_t*		mtr)	/*!< in: mtr; must be committed before
 				latching any further pages */
 {
-	rec_t*		rec;
-	upd_t*		update;
+	const rec_t*	rec;
+	const upd_t*	update;
 	dberr_t		err;
 
 	ut_ad(dict_index_is_clust(cursor->index));
@@ -342,8 +342,9 @@ row_ins_clust_index_entry_by_modify(
 	NOTE that this vector may NOT contain system columns trx_id or
 	roll_ptr */
 
-	update = row_upd_build_difference_binary(cursor->index, entry, rec,
-						 thr_get_trx(thr), heap);
+	update = row_upd_build_difference_binary(
+		cursor->index, entry, rec, NULL, true,
+		thr_get_trx(thr), heap);
 	if (mode == BTR_MODIFY_LEAF) {
 		/* Try optimistic updating of the record, keeping changes
 		within the page */
