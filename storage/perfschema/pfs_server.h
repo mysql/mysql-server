@@ -60,6 +60,7 @@ struct PFS_sizing_hints
   long m_table_definition_cache;
   long m_table_open_cache;
   long m_max_connections;
+  long m_open_files_limit;
 };
 
 /** Performance schema global sizing parameters. */
