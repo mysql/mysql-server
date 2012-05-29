@@ -251,12 +251,6 @@ extern char *master_ssl_cipher, *master_ssl_key;
 int mts_recovery_groups(Relay_log_info *rli);
 bool mts_checkpoint_routine(Relay_log_info *rli, ulonglong period,
                             bool force, bool locked);
-#ifndef MCP_WL5353
-#ifdef HAVE_NDB_BINLOG
-#define SLAVE_SILENT_RETRY_MSG "Slave transaction rollback requested"
-#endif
-#endif
-
 #endif /* HAVE_REPLICATION */
 
 /* masks for start/stop operations on io and sql slave threads */

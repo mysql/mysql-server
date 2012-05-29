@@ -8187,7 +8187,7 @@ int ndbcluster_commit(handlerton *hton, THD *thd, bool all)
         */
         push_warning(thd, Sql_condition::WARN_LEVEL_WARN,
                      ER_GET_TEMPORARY_ERRMSG,
-                     SLAVE_SILENT_RETRY_MSG);
+                     "Slave transaction rollback requested");
         /*
           Set retry count to zero to:
           1) Avoid consuming slave-temp-error retry attempts
