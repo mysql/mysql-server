@@ -6256,12 +6256,13 @@ bool DsMrr_impl::get_disk_sweep_mrr_cost(uint keynr, ha_rows rows, uint flags,
                                          uint *buffer_size, 
                                          Cost_estimate *cost)
 {
-  ulong max_buff_entries, elem_size;
+  ulong max_buff_entries;
   ha_rows rows_in_last_step;
   uint n_full_steps;
   double index_read_cost;
 
-  elem_size= h->ref_length + sizeof(void*) * (!test(flags & HA_MRR_NO_ASSOCIATION));
+  const uint elem_size= h->ref_length + 
+                        sizeof(void*) * (!test(flags & HA_MRR_NO_ASSOCIATION));
   max_buff_entries = *buffer_size / elem_size;
 
   if (!max_buff_entries)
@@ -6277,7 +6278,7 @@ bool DsMrr_impl::get_disk_sweep_mrr_cost(uint keynr, ha_rows rows, uint flags,
   rows_in_last_step= rows % max_buff_entries;
   
   DBUG_ASSERT(cost->is_zero());
-  /* Adjust buffer size if we expect to use only part of the buffer */
+
   if (n_full_steps)
   {
     get_sort_and_sweep_cost(table, rows, cost);
@@ -6285,9 +6286,18 @@ bool DsMrr_impl::get_disk_sweep_mrr_cost(uint keynr, ha_rows rows, uint flags,
   }
   else
   {
-    *buffer_size= max<ulong>(*buffer_size,
-                             (size_t)(1.2*rows_in_last_step) * elem_size +
-                             h->ref_length + table->key_info[keynr].key_length);
+    /* 
+      Adjust buffer size since only parts of the buffer will be used:
+      1. Adjust record estimate for the last scan to reduce likelyhood
+         of needing more than one scan by adding 20 percent to the
+         record estimate and by ensuring this is at least 100 records.
+      2. If the estimated needed buffer size is lower than suggested by 
+         the caller then set it to the estimated buffer size.
+    */
+    const ha_rows keys_in_buffer=
+      max<ha_rows>(static_cast<ha_rows>(1.2 * rows_in_last_step), 100);
+    *buffer_size= min<ulong>(*buffer_size,
+                             static_cast<ulong>(keys_in_buffer) * elem_size);
   }
 
   Cost_estimate last_step_cost;
