@@ -167,6 +167,22 @@ row_log_table_is_rollback(
 	__attribute__((nonnull));
 
 /******************************************************//**
+Apply the row_log_table log to a table upon completing rebuild.
+@return DB_SUCCESS, or error code on failure */
+UNIV_INTERN
+dberr_t
+row_log_table_apply(
+/*================*/
+	que_thr_t*	thr,	/*!< in: query graph */
+	dict_table_t*	old_table,
+				/*!< in: old table */
+	struct TABLE*	table,	/*!< in/out: MySQL table
+				(for reporting duplicates) */
+	struct TABLE*	altered_table)
+				/*!< in: new MySQL table definition */
+	__attribute__((nonnull, warn_unused_result));
+
+/******************************************************//**
 Get the latest transaction ID that has invoked row_log_online_op()
 during online creation.
 @return latest transaction ID, or 0 if nothing was logged */
