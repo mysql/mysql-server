@@ -63,6 +63,40 @@ dict_get_db_name_len(
 	const char*	name)	/*!< in: table name in the form
 				dbname '/' tablename */
 	__attribute__((nonnull, warn_unused_result));
+/*********************************************************************//**
+Open a table from its database and table name, this is currently used by
+foreign constraint parser to get the referenced table.
+@return complete table name with database and table name, allocated from
+heap memory passed in */
+UNIV_INTERN
+char*
+dict_get_referenced_table(
+/*======================*/
+	const char*	name,		/*!< in: foreign key table name */
+	const char*	database_name,	/*!< in: table db name */
+	ulint		database_name_len,/*!< in: db name length */
+	const char*	table_name,	/*!< in: table name */
+	ulint		table_name_len,	/*!< in: table name length */
+	dict_table_t**	table,		/*!< out: table object or NULL */
+	mem_heap_t*	heap);		/*!< in: heap memory */
+/*********************************************************************//**
+Frees a foreign key struct. */
+UNIV_INTERN
+void
+dict_foreign_free(
+/*==============*/
+	dict_foreign_t*	foreign);	/*!< in, own: foreign key struct */
+/*********************************************************************//**
+Finds the highest [number] for foreign key constraints of the table. Looks
+only at the >= 4.0.18-format id's, which are of the form
+databasename/tablename_ibfk_[number].
+@return highest number, 0 if table has no new format foreign key constraints */
+UNIV_INTERN
+ulint
+dict_table_get_highest_foreign_id(
+/*==============================*/
+	dict_table_t*	table);		/*!< in: table in the dictionary
+					memory cache */
 /********************************************************************//**
 Return the end of table name where we have removed dbname and '/'.
 @return	table name */
@@ -498,6 +532,7 @@ dict_table_open_on_name(
 			ignore_err)	/*!< in: error to be ignored when
 					loading the table */
 	__attribute__((nonnull, warn_unused_result));
+
 /*********************************************************************//**
 Tries to find an index whose first fields are the columns in the array,
 in the same order and is not marked for deletion and is not the same
@@ -594,6 +629,32 @@ dict_index_name_print(
 	const trx_t*		trx,	/*!< in: transaction */
 	const dict_index_t*	index)	/*!< in: index to print */
 	__attribute__((nonnull(1,3)));
+/*********************************************************************//**
+Tries to find an index whose first fields are the columns in the array,
+in the same order and is not marked for deletion and is not the same
+as types_idx.
+@return	matching index, NULL if not found */
+UNIV_INTERN
+bool
+dict_foreign_qualify_index(
+/*====================*/
+	const dict_table_t*	table,	/*!< in: table */
+	const char**		columns,/*!< in: array of column names */
+	ulint			n_cols,	/*!< in: number of columns */
+	const dict_index_t*	index,	/*!< in: index to check */
+	const dict_index_t*	types_idx,
+					/*!< in: NULL or an index
+					whose types the column types
+					must match */
+	ibool			check_charsets,
+					/*!< in: whether to check
+					charsets.  only has an effect
+					if types_idx != NULL */
+	ulint			check_null)
+					/*!< in: nonzero if none of
+					the columns must be declared
+					NOT NULL */
+	__attribute__((nonnull(1,2), warn_unused_result));
 #ifdef UNIV_DEBUG
 /********************************************************************//**
 Gets the first index on the table (the clustered index).
@@ -1472,6 +1533,12 @@ dict_move_to_mru(
 /*=============*/
 	dict_table_t*	table)	/*!< in: table to move to MRU */
 	__attribute__((nonnull));
+
+/** Maximum number of columns in a foreign key constraint. Please Note MySQL
+has a much lower limit on the number of columns allowed in a foreign key
+constraint */
+#define MAX_NUM_FK_COLUMNS		500
+
 /* Buffers for storing detailed information about the latest foreign key
 and unique key errors */
 extern FILE*	dict_foreign_err_file;
