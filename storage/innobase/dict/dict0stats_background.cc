@@ -205,7 +205,7 @@ dict_stats_remove_table_from_auto_recalc(
 
 	dict_stats_remove_table_id(id);
 
-	ut_ad(auto_recalc_used >= 0);
+	ut_ad(auto_recalc_used <= auto_recalc_size);
 
 	mutex_exit(&auto_recalc_mutex);
 }
