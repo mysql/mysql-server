@@ -525,7 +525,10 @@ row_log_table_update(
 	ut_ad(rw_lock_own(&index->lock, RW_LOCK_SHARED)
 	      || rw_lock_own(&index->lock, RW_LOCK_EX));
 #endif /* UNIV_SYNC_DEBUG */
+	ut_ad(!old_pk || old_pk->n_fields == 2 + old_pk->n_fields_cmp);
 	ut_ad(!old_pk || DATA_TRX_ID_LEN == dtuple_get_nth_field(
+		      old_pk, old_pk->n_fields - 2)->len);
+	ut_ad(!old_pk || DATA_ROLL_PTR_LEN == dtuple_get_nth_field(
 		      old_pk, old_pk->n_fields - 1)->len);
 
 	if (dict_index_is_corrupted(index)
@@ -545,7 +548,7 @@ row_log_table_update(
 	extra_size = rec_offs_extra_size(offsets) - omit_size;
 
 	mrec_size = rec_offs_size(offsets) - omit_size
-		+ (ROW_LOG_HEADER_SIZE + 1) + (extra_size >= 0x80);
+		+ ROW_LOG_HEADER_SIZE + (extra_size >= 0x80);
 
 	if (index->online_log->same_pk) {
 		ut_ad(!old_pk);
@@ -566,7 +569,7 @@ row_log_table_update(
 					 mrec_size, &avail_size)) {
 		*b++ = ROW_T_UPDATE;
 
-		if (old_pk_extra_size) {
+		if (old_pk_size) {
 			*b++ = old_pk_extra_size;
 
 			rec_convert_dtuple_to_rec_comp(
@@ -611,6 +614,8 @@ row_log_table_get_pk(
 	const ulint*	offsets,/*!< in: rec_get_offsets(rec,index) */
 	mem_heap_t**	heap)	/*!< in/out: memory heap where allocated */
 {
+	dtuple_t*	tuple	= NULL;
+
 	ut_ad(dict_index_is_clust(index));
 	ut_ad(dict_index_is_online_ddl(index));
 	ut_ad(!offsets || rec_offs_validate(rec, index, offsets));
@@ -626,8 +631,6 @@ row_log_table_get_pk(
 		/* The PRIMARY KEY columns are unchanged. */
 		return(NULL);
 	}
-
-	dtuple_t*	tuple;
 
 	mutex_enter(&index->online_log->mutex);
 
