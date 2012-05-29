@@ -3491,13 +3491,27 @@ THR_LOCK_DATA **ha_partition::store_lock(THD *thd,
 {
   uint i;
   DBUG_ENTER("ha_partition::store_lock");
+  DBUG_ASSERT(thd == current_thd);
 
-  for (i= bitmap_get_first_set(&(m_part_info->lock_partitions));
-       i < m_tot_parts;
-       i= bitmap_get_next_set(&m_part_info->lock_partitions, i))
+  /*
+    This can be called from get_lock_data() in mysql_lock_abort_for_thread(),
+    even when thd != table->in_use. In that case don't use partition pruning,
+    but use all partitions instead to avoid using another threads structures.
+  */
+  if (thd != table->in_use)
   {
-    DBUG_PRINT("info", ("store lock %d iteration", i));
-    to= m_file[i]->store_lock(thd, to, lock_type);
+    for (i= 0; i < m_tot_parts; i++)
+      to= m_file[i]->store_lock(thd, to, lock_type);
+  }
+  else
+  {
+    for (i= bitmap_get_first_set(&(m_part_info->lock_partitions));
+         i < m_tot_parts;
+         i= bitmap_get_next_set(&m_part_info->lock_partitions, i))
+    {
+      DBUG_PRINT("info", ("store lock %d iteration", i));
+      to= m_file[i]->store_lock(thd, to, lock_type);
+    }
   }
   DBUG_RETURN(to);
 }
@@ -3563,13 +3577,16 @@ int ha_partition::start_stmt(THD *thd, thr_lock_type lock_type)
 uint ha_partition::lock_count() const
 {
   DBUG_ENTER("ha_partition::lock_count");
-  DBUG_PRINT("info", ("m_num_locks %d total %d", m_num_locks,
-             bitmap_bits_set(&m_part_info->lock_partitions) * m_num_locks));
   /*
-    We choose to return the exact count to avoid allocating unused memory,
-    even if the cpu cost of bitmap_bits_set is linear: O(number of partitions).
+    The caller want to know the upper bound, to allocate enough memory.
+    There is no performance lost if we simply return maximum number locks
+    needed, only some minor over allocation of memory in get_lock_data().
+
+    Also notice that this may be called for another thread != table->in_use,
+    when mysql_lock_abort_for_thread() is called. So this is more safe, then
+    using number of partitions after pruning.
   */
-  DBUG_RETURN(bitmap_bits_set(&m_part_info->lock_partitions) * m_num_locks);
+  DBUG_RETURN(m_tot_parts * m_num_locks);
 }
 
 

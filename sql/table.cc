@@ -5063,8 +5063,6 @@ void TABLE::mark_columns_needed_for_update()
 
   DBUG_ENTER("mark_columns_needed_for_update");
   mark_columns_per_binlog_row_image();
-  if (triggers)
-    triggers->mark_fields_used(TRG_EVENT_UPDATE);
   if (file->ha_table_flags() & HA_REQUIRES_KEY_COLUMNS_FOR_DELETE)
   {
     /* Mark all used key columns for read */
