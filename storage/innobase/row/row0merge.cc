@@ -281,8 +281,8 @@ ulint
 row_merge_buf_add(
 /*==============*/
 	row_merge_buf_t*	buf,	/*!< in/out: sort buffer */
-	dict_index_t*		fts_index,/*!< fts index to be
-					created */
+	dict_index_t*		fts_index,/*!< in: fts index to be created */
+	const dict_table_t*	old_table,/*!< in: original table */
 	fts_psort_t*		psort_info, /*!< in: parallel sort info */
 	const dtuple_t*		row,	/*!< in: row in clustered index */
 	const row_ext_t*	ext,	/*!< in: cache of externally stored
@@ -347,10 +347,15 @@ row_merge_buf_add(
 
 		/* If we are creating a FTS index, a new Doc
 		ID column is being added, so we need to adjust
-		any column number positioned after this Doc ID */
+		any column number positioned after this Doc ID.
+		However, if we are rebuilding the table for adding
+		new primary, and if the old table already has
+		FTS_DOC_ID, such adjustment is not needed */
 		if (*doc_id > 0
 		    && DICT_TF2_FLAG_IS_SET(index->table,
-                    			    DICT_TF2_FTS_ADD_DOC_ID)
+					    DICT_TF2_FTS_ADD_DOC_ID)
+		    && !DICT_TF2_FLAG_IS_SET(old_table,
+					     DICT_TF2_FTS_HAS_DOC_ID)
 		    && col_no > index->table->fts->doc_col) {
 
 			ut_ad(index->table->fts);
@@ -1521,8 +1526,8 @@ write_buffers:
 
 			if (UNIV_LIKELY
 			    (row && (rows_added = row_merge_buf_add(
-					     buf, fts_index, psort_info,
-					     row, ext, &doc_id)))) {
+					buf, fts_index, old_table,
+					psort_info, row, ext, &doc_id)))) {
 
 				/* If we are creating FTS index,
 				a single row can generate more
@@ -1616,8 +1621,9 @@ write_buffers:
 
 				if (UNIV_UNLIKELY
 				    (!(rows_added = row_merge_buf_add(
-					       buf, fts_index, psort_info,
-					       row, ext, &doc_id)))) {
+						buf, fts_index, old_table,
+						psort_info, row, ext,
+						&doc_id)))) {
 					/* An empty buffer should have enough
 					room for at least one record.
 					TODO: for FTS index building, we'll

@@ -912,3 +912,139 @@ select id from t1 where MATCH a,b AGAINST ('"support now"' IN BOOLEAN MODE);
 select id from t1 where MATCH a,b AGAINST ('"Now sUPPort"' IN BOOLEAN MODE);
 
 DROP DATABASE `benu database`;
+
+USE test;
+
+# Test for Bug #14101706 - CRASH WITH DDL IN ROW_MERGE_BUILD_INDEXES
+# WHEN FULLTEXT INDEXES EXIST
+
+CREATE TABLE `t21` (`a` text, `b` int not null,
+fulltext key (`a`), fulltext key (`a`)
+) ENGINE=INNODB DEFAULT CHARSET=LATIN1;
+
+--error ER_INNODB_FT_LIMIT
+ALTER  TABLE `t21` ADD UNIQUE INDEX (`b`);
+
+DROP TABLE t21;
+
+CREATE TABLE `t21` (`a` text, `b` int not null,
+fulltext key (`a`)) ENGINE=INNODB DEFAULT CHARSET=LATIN1;
+
+ALTER  TABLE `t21` ADD UNIQUE INDEX (`b`);
+
+DROP TABLE t21;
+
+# Test primary index rebuild
+CREATE TABLE t1 (
+        id INT NOT NULL,
+        a VARCHAR(200),
+        b TEXT
+        ) ENGINE = InnoDB;
+
+# Insert rows
+INSERT INTO t1 VALUES
+        (1, 'MySQL Tutorial','DBMS stands for DataBase ...')  ,
+        (2, 'How To Use MySQL Well','After you went through a ...'),
+        (3, 'Optimizing MySQL','In this tutorial we will show ...');
+
+ALTER TABLE t1 ADD FULLTEXT INDEX idx (a,b);
+
+ALTER  TABLE t1 ADD UNIQUE INDEX (`id`);
+
+# Select word "tutorial" in the table
+SELECT id FROM t1 WHERE MATCH (a,b)
+        AGAINST ('Tutorial' IN NATURAL LANGUAGE MODE);
+
+# boolean mode
+select id from t1 where MATCH(a,b) AGAINST("+support +collections" IN BOOLEAN MODE);
+select id from t1 where MATCH(a,b) AGAINST("+search" IN BOOLEAN MODE);
+select id from t1 where MATCH(a,b) AGAINST("+search +(support vector)" IN BOOLEAN MODE);
+select id from t1 where MATCH(a,b) AGAINST("+search -(support vector)" IN BOOLEAN MODE);
+select id, MATCH(a,b) AGAINST("support collections" IN BOOLEAN MODE) as x from t1;
+
+DROP TABLE t1;
+
+# Test create the FTS and primary index in the same clause
+CREATE TABLE t1 (
+        id INT NOT NULL,
+        a VARCHAR(200),
+        b TEXT
+        ) ENGINE = InnoDB;
+
+# Insert rows
+INSERT INTO t1 VALUES
+        (1, 'MySQL Tutorial','DBMS stands for DataBase ...')  ,
+        (2, 'How To Use MySQL Well','After you went through a ...'),
+        (3, 'Optimizing MySQL','In this tutorial we will show ...');
+
+ALTER  TABLE t1 ADD UNIQUE INDEX (`id`), ADD FULLTEXT INDEX idx (a,b);
+
+# Select word "tutorial" in the table
+SELECT id FROM t1 WHERE MATCH (a,b)
+        AGAINST ('Tutorial' IN NATURAL LANGUAGE MODE);
+
+# boolean mode
+select id from t1 where MATCH(a,b) AGAINST("+support +collections" IN BOOLEAN MODE);
+select id from t1 where MATCH(a,b) AGAINST("+search" IN BOOLEAN MODE);
+select id from t1 where MATCH(a,b) AGAINST("+search +(support vector)" IN BOOLEAN MODE);
+select id from t1 where MATCH(a,b) AGAINST("+search -(support vector)" IN BOOLEAN MODE);
+
+DROP TABLE t1;
+
+# Create FTS table with FTS_DOC_ID already existed
+CREATE TABLE t1 (
+        FTS_DOC_ID BIGINT UNSIGNED NOT NULL,
+        a VARCHAR(200),
+        b TEXT
+        ) ENGINE = InnoDB;
+
+# Insert rows
+INSERT INTO t1 VALUES
+        (1, 'MySQL Tutorial','DBMS stands for DataBase ...')  ,
+        (2, 'How To Use MySQL Well','After you went through a ...'),
+        (3, 'Optimizing MySQL','In this tutorial we will show ...');
+
+ALTER TABLE t1 ADD FULLTEXT INDEX idx (a,b);
+
+ALTER  TABLE t1 ADD UNIQUE INDEX (`FTS_DOC_ID`);
+
+# Select word "tutorial" in the table
+SELECT FTS_DOC_ID FROM t1 WHERE MATCH (a,b)
+        AGAINST ('Tutorial' IN NATURAL LANGUAGE MODE);
+
+# boolean mode
+select FTS_DOC_ID from t1 where MATCH(a,b) AGAINST("+support +collections" IN BOOLEAN MODE);
+select FTS_DOC_ID from t1 where MATCH(a,b) AGAINST("+search" IN BOOLEAN MODE);
+select FTS_DOC_ID from t1 where MATCH(a,b) AGAINST("+search +(support vector)" IN BOOLEAN MODE);
+select FTS_DOC_ID from t1 where MATCH(a,b) AGAINST("+search -(support vector)" IN BOOLEAN MODE);
+select FTS_DOC_ID, MATCH(a,b) AGAINST("support collections" IN BOOLEAN MODE) as x from t1;
+
+DROP TABLE t1;
+
+# Create FTS table with FTS_DOC_ID and FTS_DOC_ID_INDEX
+CREATE TABLE t1 (
+        FTS_DOC_ID BIGINT UNSIGNED NOT NULL,
+        a VARCHAR(200),
+        b TEXT
+        ) ENGINE = InnoDB;
+
+# Insert rows
+INSERT INTO t1 VALUES
+        (1, 'MySQL Tutorial','DBMS stands for DataBase ...')  ,
+        (2, 'How To Use MySQL Well','After you went through a ...'),
+        (3, 'Optimizing MySQL','In this tutorial we will show ...');
+
+ALTER TABLE t1 ADD FULLTEXT INDEX idx (a,b), ADD UNIQUE INDEX FTS_DOC_ID_INDEX (FTS_DOC_ID);
+
+# Select word "tutorial" in the table
+SELECT FTS_DOC_ID FROM t1 WHERE MATCH (a,b)
+        AGAINST ('Tutorial' IN NATURAL LANGUAGE MODE);
+
+# boolean mode
+select FTS_DOC_ID from t1 where MATCH(a,b) AGAINST("+support +collections" IN BOOLEAN MODE);
+select FTS_DOC_ID from t1 where MATCH(a,b) AGAINST("+search" IN BOOLEAN MODE);
+select FTS_DOC_ID from t1 where MATCH(a,b) AGAINST("+search +(support vector)" IN BOOLEAN MODE);
+select FTS_DOC_ID from t1 where MATCH(a,b) AGAINST("+search -(support vector)" IN BOOLEAN MODE);
+select FTS_DOC_ID, MATCH(a,b) AGAINST("support collections" IN BOOLEAN MODE) as x from t1;
+
+DROP TABLE t1;
