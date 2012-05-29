@@ -80,7 +80,7 @@ t1.ibt
 ALTER TABLE t1 IMPORT TABLESPACE;
 ALTER TABLE t1 ENGINE InnoDB;
 Warnings:
-Warning	1478	InnoDB: ROW_FORMAT=COMPRESSED requires innodb_file_per_table.
+Warning	1478	InnoDB: ROW_FORMAT=COMPRESSED requires innodb_file_format > Antelope.
 Warning	1478	InnoDB: assuming ROW_FORMAT=COMPACT.
 SELECT COUNT(*) FROM t1;
 COUNT(*)
@@ -99,6 +99,7 @@ Dt1.cfg
 Dt1.ibd
 t1.cfg
 t1.frm
+t1.ibd
 SELECT COUNT(*) FROM t1;
 COUNT(*)
 640
@@ -521,5 +522,5 @@ call mtr.add_suppression("Got error -1 when reading table '.*'");
 call mtr.add_suppression("InnoDB: Error: tablespace id and flags in file '.*'.*");
 call mtr.add_suppression("InnoDB: The table .* doesn't have a corresponding tablespace, it was discarded");
 SET GLOBAL INNODB_FILE_FORMAT=Antelope;
-SET GLOBAL INNODB_FILE_PER_TABLE=0;
+SET GLOBAL INNODB_FILE_PER_TABLE=1;
 SET SESSION innodb_strict_mode=0;

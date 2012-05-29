@@ -335,6 +335,8 @@ a	b
 100	`p100-99999`(-subp6)
 101	`p100-99999`(-subp7)
 1000	`p100-99999`(-subp6)
+SET @save_innodb_stats_on_metadata=@@global.innodb_stats_on_metadata;
+SET @@global.innodb_stats_on_metadata=ON;
 SELECT PARTITION_NAME, SUBPARTITION_NAME, TABLE_ROWS
 FROM INFORMATION_SCHEMA.PARTITIONS
 WHERE TABLE_SCHEMA = 'test'
@@ -348,6 +350,7 @@ p10-99	subp4	1
 p10-99	subp5	0
 p100-99999	subp6	2
 p100-99999	subp7	1
+SET @@global.innodb_stats_on_metadata=@save_innodb_stats_on_metadata;
 FLUSH STATUS;
 SELECT * FROM t1 PARTITION (pNonexistent);
 ERROR HY000: partition 'pNonexistent' doesn't exist

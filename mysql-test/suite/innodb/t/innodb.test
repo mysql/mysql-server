@@ -1370,7 +1370,7 @@ set global innodb_concurrency_tickets=1000;
 show variables like "innodb_concurrency_tickets";
 set global innodb_concurrency_tickets=0;
 show variables like "innodb_concurrency_tickets";
-set global innodb_concurrency_tickets=500;
+set global innodb_concurrency_tickets=5000;
 show variables like "innodb_concurrency_tickets";
 
 # Test for innodb_thread_sleep_delay variable
