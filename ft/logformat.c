@@ -44,9 +44,7 @@ struct logtype {
 
 const struct logtype rollbacks[] = {
     //TODO: #2037 Add dname
-    {"fdelete", 'U', FA{{"u_int8_t",   "file_was_open", 0},
-			{"FILENUM",    "filenum", 0},
-			{"BYTESTRING", "iname", 0},
+    {"fdelete", 'U', FA{{"FILENUM",    "filenum", 0},
 			NULLFIELD}},
     //TODO: #2037 Add dname
     {"fcreate", 'F', FA{{"FILENUM", "filenum", 0},
@@ -68,7 +66,7 @@ const struct logtype rollbacks[] = {
                             {"BLOCKNUM",  "spilled_tail", 0},
                             {"u_int32_t", "spilled_tail_hash", 0},
                             NULLFIELD}},
-    {"load", 'l', FA{{"BYTESTRING", "old_iname", 0},
+    {"load", 'l', FA{{"FILENUM",    "old_filenum", 0},
                      {"BYTESTRING", "new_iname", 0},
                      NULLFIELD}},
     // #2954
@@ -104,6 +102,7 @@ const struct logtype logtypes[] = {
     {"fassociate",  'f', FA{{"FILENUM", "filenum", 0},
                             {"u_int32_t",  "treeflags", 0},
 			    {"BYTESTRING", "iname", 0},   // pathname of file
+			    {"u_int8_t", "unlink_on_close", 0},
 			    NULLFIELD}},
     //We do not use a TXNINFO struct since recovery log has
     //FILENUMS and TOKUTXN has FTs (for open_fts)
@@ -159,7 +158,7 @@ const struct logtype logtypes[] = {
                          NULLFIELD}},
     //TODO: #2037 Add dname
     {"fdelete", 'U', FA{{"TXNID",      "xid", 0},
-			{"BYTESTRING", "iname", 0},
+			{"FILENUM", "filenum", 0},
 			NULLFIELD}},
     {"enq_insert", 'I', FA{{"FILENUM",    "filenum", 0},
                            {"TXNID",      "xid", 0},
@@ -193,7 +192,7 @@ const struct logtype logtypes[] = {
     {"shutdown", 'Q', FA{{"u_int64_t", "timestamp", 0},
                          NULLFIELD}},
     {"load", 'l', FA{{"TXNID",      "xid", 0},
-                     {"BYTESTRING", "old_iname", 0},
+                     {"FILENUM",    "old_filenum", 0},
                      {"BYTESTRING", "new_iname", 0},
                      NULLFIELD}},
     // #2954

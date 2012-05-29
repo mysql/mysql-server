@@ -697,7 +697,6 @@ void toku_ftnode_clone_callback(
 }
 
 
-//fd is protected (must be holding fdlock)
 void toku_ftnode_flush_callback (
     CACHEFILE cachefile,
     int fd,
@@ -765,7 +764,6 @@ toku_ft_status_update_pivot_fetch_reason(struct ftnode_fetch_extra *bfe)
     }
 }
 
-//fd is protected (must be holding fdlock)
 int toku_ftnode_fetch_callback (CACHEFILE UU(cachefile), int fd, BLOCKNUM nodename, u_int32_t fullhash,
                                  void **ftnode_pv,  void** disk_data, PAIR_ATTR *sizep, int *dirtyp, void *extraargs) {
     assert(extraargs);
@@ -2568,19 +2566,18 @@ int toku_ft_insert (FT_HANDLE brt, DBT *key, DBT *val, TOKUTXN txn) {
 }
 
 int
-toku_ft_load_recovery(TOKUTXN txn, char const * old_iname, char const * new_iname, int do_fsync, int do_log, LSN *load_lsn) {
+toku_ft_load_recovery(TOKUTXN txn, FILENUM old_filenum, char const * new_iname, int do_fsync, int do_log, LSN *load_lsn) {
     int r = 0;
     assert(txn);
     toku_txn_force_fsync_on_commit(txn);  //If the txn commits, the commit MUST be in the log
                                           //before the (old) file is actually unlinked
     TOKULOGGER logger = toku_txn_logger(txn);
 
-    BYTESTRING old_iname_bs = {.len=strlen(old_iname), .data=(char*)old_iname};
     BYTESTRING new_iname_bs = {.len=strlen(new_iname), .data=(char*)new_iname};
-    r = toku_logger_save_rollback_load(txn, &old_iname_bs, &new_iname_bs);
+    r = toku_logger_save_rollback_load(txn, old_filenum, &new_iname_bs);
     if (r==0 && do_log && logger) {
         TXNID xid = toku_txn_get_txnid(txn);
-        r = toku_log_load(logger, load_lsn, do_fsync, xid, old_iname_bs, new_iname_bs);
+        r = toku_log_load(logger, load_lsn, do_fsync, xid, old_filenum, new_iname_bs);
     }
     return r;
 }
@@ -2637,9 +2634,9 @@ toku_ft_optimize (FT_HANDLE brt) {
 int
 toku_ft_load(FT_HANDLE brt, TOKUTXN txn, char const * new_iname, int do_fsync, LSN *load_lsn) {
     int r = 0;
-    char const * old_iname = toku_cachefile_fname_in_env(brt->ft->cf);
+    FILENUM old_filenum = toku_cachefile_filenum(brt->ft->cf);
     int do_log = 1;
-    r = toku_ft_load_recovery(txn, old_iname, new_iname, do_fsync, do_log, load_lsn);
+    r = toku_ft_load_recovery(txn, old_filenum, new_iname, do_fsync, do_log, load_lsn);
     return r;
 }
 
@@ -3126,13 +3123,12 @@ toku_ft_change_descriptor(
 
     // write new_descriptor to header
     new_d.dbt = *new_descriptor;
-    fd = toku_cachefile_get_and_pin_fd (t->ft->cf);
+    fd = toku_cachefile_get_fd (t->ft->cf);
     r = toku_update_descriptor(t->ft, &new_d, fd);
     // very infrequent operation, worth precise threadsafe count
     if (r == 0) {
         STATUS_VALUE(FT_DESCRIPTOR_SET)++;
     }
-    toku_cachefile_unpin_fd(t->ft->cf);
     if (r!=0) goto cleanup;
 
     if (update_cmp_descriptor) {
@@ -3279,9 +3275,8 @@ ft_handle_open(FT_HANDLE t, const char *fname_in_env, int is_create, int only_cr
 
     //Opening a brt may restore to previous checkpoint.         Truncate if necessary.
     {
-        int fd = toku_cachefile_get_and_pin_fd (ft->cf);
+        int fd = toku_cachefile_get_fd (ft->cf);
         toku_maybe_truncate_cachefile_on_open(ft->blocktable, fd, ft);
-        toku_cachefile_unpin_fd(ft->cf);
     }
 
     r = 0;
@@ -5494,91 +5489,74 @@ int toku_ft_handle_set_panic(FT_HANDLE brt, int panic, char *panic_string) {
     return toku_ft_set_panic(brt->ft, panic, panic_string);
 }
 
-#if 0
-
-int toku_logger_save_rollback_fdelete (TOKUTXN txn, u_int8_t file_was_open, FILENUM filenum, BYTESTRING iname)
-
-int toku_logger_log_fdelete (TOKUTXN txn, const char *fname, FILENUM filenum, u_int8_t was_open)
-#endif
-
 // Prepare to remove a dictionary from the database when this transaction is committed:
-//  - if cachetable has file open, mark it as in use so that cf remains valid until we're done
 //  - mark transaction as NEED fsync on commit
 //  - make entry in rollback log
 //  - make fdelete entry in recovery log
-int toku_ft_remove_on_commit(TOKUTXN txn, DBT* iname_in_env_dbt_p) {
-    assert(txn);
+//
+// Effect: when the txn commits, the ft's cachefile will be marked as unlink
+//         on close. see toku_commit_fdelete and how unlink on close works
+//         in toku_cachefile_close();
+// Requires: serialized with begin checkpoint
+//           this does not need to take the open close lock because
+//           1.) the ft/cf cannot go away because we have a live handle.
+//           2.) we're not setting the unlink on close bit _here_. that
+//           happens on txn commit (as the name suggests).
+//           3.) we're already holding the multi operation lock to 
+//           synchronize with begin checkpoint.
+// Contract: the iname of the ft should never be reused.
+int 
+toku_ft_remove_on_commit(FT_HANDLE handle, TOKUTXN txn) {
     int r;
-    const char *iname_in_env = iname_in_env_dbt_p->data;
-    CACHEFILE cf = NULL;
-    u_int8_t was_open = 0;
-    FILENUM filenum   = {0};
+    CACHEFILE cf;
 
-    r = toku_cachefile_of_iname_in_env(txn->logger->ct, iname_in_env, &cf);
-    if (r == 0) {
-        was_open = TRUE;
-        filenum = toku_cachefile_filenum(cf);
-        FT h = toku_cachefile_get_userdata(cf);
-        r = toku_txn_note_ft(txn, h);
-        if (r!=0) return r;
-    }
-    else {
-        assert(r==ENOENT);
-    }
+    assert(txn);
+    cf = handle->ft->cf;
+    FT ft = toku_cachefile_get_userdata(cf);
 
-    toku_txn_force_fsync_on_commit(txn);  // If the txn commits, the commit MUST be in the log
-                                          // before the file is actually unlinked
-    {
-        BYTESTRING iname_in_env_bs = { .len=strlen(iname_in_env), .data = (char*)iname_in_env };
-        // make entry in rollback log
-        r = toku_logger_save_rollback_fdelete(txn, was_open, filenum, &iname_in_env_bs);
-        assert_zero(r); //On error we would need to remove the CF reference, which is complicated.
-    }
-    if (r==0)
-        // make entry in recovery log
-        r = toku_logger_log_fdelete(txn, iname_in_env);
+    // TODO: toku_txn_note_ft should return void
+    // Assert success here because note_ft also asserts success internally.
+    r = toku_txn_note_ft(txn, ft);
+    assert(r == 0);
+    
+    // If the txn commits, the commit MUST be in the log before the file is actually unlinked
+    toku_txn_force_fsync_on_commit(txn); 
+    // make entry in rollback log
+    FILENUM filenum = toku_cachefile_filenum(cf);
+    r = toku_logger_save_rollback_fdelete(txn, filenum);
+    assert_zero(r);
+    // make entry in recovery log
+    r = toku_logger_log_fdelete(txn, filenum);
     return r;
 }
 
-
-// Non-transaction version of fdelete
-int toku_ft_remove_now(CACHETABLE ct, DBT* iname_in_env_dbt_p) {
-    int r;
-    const char *iname_in_env = iname_in_env_dbt_p->data;
+// Non-transactional version of fdelete
+//
+// Effect: The ft file is unlinked when the handle closes and it's ft is not
+//         pinned by checkpoint. see toku_remove_ft_ref() and how unlink on
+//         close works in toku_cachefile_close();
+// Requires: serialized with begin checkpoint
+void 
+toku_ft_remove(FT_HANDLE handle) {
     CACHEFILE cf;
-    r = toku_cachefile_of_iname_in_env(ct, iname_in_env, &cf);
-    if (r == 0) {
-        r = toku_cachefile_redirect_nullfd(cf);
-        assert_zero(r);
-    }
-    else
-        assert(r==ENOENT);
-    char *iname_in_cwd = toku_cachetable_get_fname_in_cwd(ct, iname_in_env_dbt_p->data);
-
-    r = unlink(iname_in_cwd);  // we need a pathname relative to cwd
-    assert_zero(r);
-    toku_free(iname_in_cwd);
-    return r;
+    cf = handle->ft->cf;
+    toku_cachefile_unlink_on_close(cf);
 }
 
 int
 toku_ft_get_fragmentation(FT_HANDLE brt, TOKU_DB_FRAGMENTATION report) {
     int r;
 
-    int fd = toku_cachefile_get_and_pin_fd(brt->ft->cf);
+    int fd = toku_cachefile_get_fd(brt->ft->cf);
     toku_ft_lock(brt->ft);
 
     int64_t file_size;
-    if (toku_cachefile_is_dev_null_unlocked(brt->ft->cf))
-        r = EINVAL;
-    else
-        r = toku_os_get_file_size(fd, &file_size);
+    r = toku_os_get_file_size(fd, &file_size);
     if (r==0) {
         report->file_size_bytes = file_size;
         toku_block_table_get_fragmentation_unlocked(brt->ft->blocktable, report);
     }
     toku_ft_unlock(brt->ft);
-    toku_cachefile_unpin_fd(brt->ft->cf);
     return r;
 }
 

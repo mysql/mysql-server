@@ -413,14 +413,11 @@ int toku_cachefile_flush (CACHEFILE);
 // Get the file descriptor associated with the cachefile
 // Return the file descriptor
 // Grabs a read lock protecting the fd
-int toku_cachefile_get_and_pin_fd (CACHEFILE);
+int toku_cachefile_get_fd (CACHEFILE);
 
 // Get the iname (within the environment) associated with the cachefile
 // Return the filename
 char * toku_cachefile_fname_in_env (CACHEFILE cf);
-
-// Releases the read lock (taken by toku_cachefile_get_and_pin_fd) protecting the fd
-void toku_cachefile_unpin_fd (CACHEFILE);
 
 // For test programs only.
 // Set the cachefile's fd and fname.
@@ -428,16 +425,14 @@ void toku_cachefile_unpin_fd (CACHEFILE);
 // Returns: 0 if success, otherwise an error number
 int toku_cachefile_set_fd (CACHEFILE cf, int fd, const char *fname_relative_to_env);
 
-// Equivalent to toku_cachefile_set_fd to /dev/null but without
-// closing the user data.
-int toku_cachefile_redirect_nullfd (CACHEFILE cf);
+// Make it so when the cachefile closes, the underlying file is unlinked
+void toku_cachefile_unlink_on_close(CACHEFILE cf);
+
+// is this cachefile marked as unlink on close?
+bool toku_cachefile_is_unlink_on_close(CACHEFILE cf);
 
 // Truncate a cachefile
 int toku_cachefile_truncate (CACHEFILE cf, toku_off_t new_size);
-
-//has it been redirected to dev null?
-//Must have called toku_cachefile_get_and_pin_fd to hold a lock around this function
-BOOL toku_cachefile_is_dev_null_unlocked (CACHEFILE cf);
 
 // Return the logger associated with the cachefile
 TOKULOGGER toku_cachefile_logger (CACHEFILE);

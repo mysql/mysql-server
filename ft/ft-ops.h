@@ -133,7 +133,7 @@ int toku_ft_maybe_update(FT_HANDLE brt, const DBT *key, const DBT *update_functi
 // Returns 0 if successful
 int toku_ft_maybe_update_broadcast(FT_HANDLE brt, const DBT *update_function_extra, TOKUTXN txn, BOOL oplsn_valid, LSN oplsn, BOOL do_logging, BOOL is_resetting_op) __attribute__ ((warn_unused_result));
 
-int toku_ft_load_recovery(TOKUTXN txn, char const * old_iname, char const * new_iname, int do_fsync, int do_log, LSN *load_lsn)  __attribute__ ((warn_unused_result));
+int toku_ft_load_recovery(TOKUTXN txn, FILENUM old_filenum, char const * new_iname, int do_fsync, int do_log, LSN *load_lsn)  __attribute__ ((warn_unused_result));
 int toku_ft_load(FT_HANDLE brt, TOKUTXN txn, char const * new_iname, int do_fsync, LSN *get_lsn)  __attribute__ ((warn_unused_result));
 // 2954
 int toku_ft_hot_index_recovery(TOKUTXN txn, FILENUMS filenums, int do_fsync, int do_log, LSN *hot_index_lsn);
