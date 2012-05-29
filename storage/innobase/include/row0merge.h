@@ -290,9 +290,11 @@ row_merge_build_indexes(
 	dict_index_t**	indexes,	/*!< in: indexes to be created */
 	const ulint*	key_numbers,	/*!< in: MySQL key numbers */
 	ulint		n_indexes,	/*!< in: size of indexes[] */
-	struct TABLE*	table)		/*!< in/out: MySQL table, for
+	struct TABLE*	table,		/*!< in/out: MySQL table, for
 					reporting erroneous key value
 					if applicable */
+	struct TABLE*	altered_table)	/*!< in/out: new MySQL table
+					definition */
 	__attribute__((nonnull, warn_unused_result));
 /********************************************************************//**
 Write a buffer to a block. */
@@ -302,7 +304,8 @@ row_merge_buf_write(
 /*================*/
 	const row_merge_buf_t*	buf,	/*!< in: sorted buffer */
 	const merge_file_t*	of,	/*!< in: output file */
-	row_merge_block_t*	block);	/*!< out: buffer for writing to file */
+	row_merge_block_t*	block)	/*!< out: buffer for writing to file */
+	__attribute__((nonnull));
 /********************************************************************//**
 Sort a buffer. */
 UNIV_INTERN

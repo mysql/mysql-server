@@ -1456,10 +1456,6 @@ prepare_inplace_alter_table_dict(
 	column is to be added, and the primary index definition
 	is just copied from old table and stored in indexdefs[0] */
 	DBUG_ASSERT(!add_fts_doc_id || new_clustered);
-
-	/* A primary key index cannot be created online. The table
-	should be locked in this case. It should also be locked when a
-	full-text index is being created. */
 	DBUG_ASSERT(!!new_clustered
 		    == ((ha_alter_info->handler_flags
 			 & INNOBASE_INPLACE_REBUILD)
@@ -1481,13 +1477,8 @@ prepare_inplace_alter_table_dict(
 		|| ha_alter_info->alter_info->requested_lock
 		== Alter_info::ALTER_TABLE_LOCK_SHARED;
 
-	/* For now, rebuilding the clustered index requires a lock. */
-	ut_ad(!new_clustered || locked
-	      || ha_alter_info->alter_info->requested_lock
-	      == Alter_info::ALTER_TABLE_LOCK_DEFAULT);
-
 	/* Acquire a lock on the table before creating any indexes. */
-	if (new_clustered || locked) {
+	if (locked) {
 		error = row_merge_lock_table(
 			user_trx, indexed_table, LOCK_S);
 
@@ -1707,12 +1698,20 @@ col_fail:
 
 		/* If only online ALTER TABLE operations have been
 		requested, allocate a modification log. If the table
-		will be locked anyway, the modification log is
-		unnecessary. */
-		if (!locked && !num_fts_index
-		    && !innobase_need_rebuild(ha_alter_info)
-		    && !user_table->ibd_file_missing
-		    && !user_table->tablespace_discarded) {
+		will be locked anyway, the modification
+		log is unnecessary. When rebuilding the table
+		(new_clustered), we will allocate the log for the
+		clustered index of the old table, later. */
+		if (new_clustered
+		    || locked
+		    || user_table->ibd_file_missing
+		    || user_table->tablespace_discarded) {
+			/* No need to allocate a modification log. */
+			ut_ad(!add_index[num_created]->online_log);
+		} else if (add_index[num_created]->type & DICT_FTS) {
+			/* Fulltext indexes are not covered
+			by a modification log. */
+		} else {
 			DBUG_EXECUTE_IF("innodb_OOM_prepare_inplace_alter",
 					error = DB_OUT_OF_MEMORY;
 					goto error_handling;);
@@ -1725,6 +1724,29 @@ col_fail:
 				error = DB_OUT_OF_MEMORY;
 				goto error_handling;
 			}
+		}
+	}
+
+	ut_ad(new_clustered == (indexed_table != user_table));
+
+	if (new_clustered && !locked) {
+		/* Allocate a log for online table rebuild. */
+		dict_index_t* clust_index = dict_table_get_first_index(
+			user_table);
+
+		DBUG_EXECUTE_IF("innodb_OOM_prepare_inplace_alter_rebuild",
+				error = DB_OUT_OF_MEMORY;
+				goto error_handling;);
+		rw_lock_x_lock(&clust_index->lock);
+		bool ok = row_log_allocate(
+			clust_index, indexed_table,
+			!!(ha_alter_info->handler_flags
+			   & Alter_inplace_info::ADD_PK_INDEX));
+		rw_lock_x_unlock(&clust_index->lock);
+
+		if (!ok) {
+			error = DB_OUT_OF_MEMORY;
+			goto error_handling;
 		}
 	}
 
@@ -1817,8 +1839,7 @@ error_handling:
 			user_trx, add_index, add_key_nums, n_add_index,
 			drop_index, n_drop_index,
 			drop_foreign, n_drop_foreign,
-			!locked && !new_clustered && !num_fts_index,
-			heap, trx, indexed_table);
+			!locked, heap, trx, indexed_table);
 		DBUG_RETURN(false);
 	case DB_TABLESPACE_ALREADY_EXISTS:
 		my_error(ER_TABLE_EXISTS_ERROR, MYF(0), "(unknown)");
@@ -1841,13 +1862,30 @@ error_handling:
 		if (indexed_table != user_table) {
 			dict_table_close(indexed_table, TRUE, FALSE);
 			row_merge_drop_table(trx, indexed_table);
+
+			/* Free the log for online table rebuild, if
+			one was allocated. */
+
+			dict_index_t* clust_index = dict_table_get_first_index(
+				user_table);
+
+			rw_lock_x_lock(&clust_index->lock);
+
+			if (clust_index->online_log) {
+				ut_ad(!locked);
+				row_log_free(clust_index);
+				clust_index->online_status
+					= ONLINE_INDEX_COMPLETE;
+			}
+
+			rw_lock_x_unlock(&clust_index->lock);
 		}
 
 		trx_commit_for_mysql(trx);
 		/* n_ref_count must be 1, because purge cannot
 		be executing on this very table as we are
 		holding dict_operation_lock X-latch. */
-		DBUG_ASSERT(user_table->n_ref_count == 1);
+		DBUG_ASSERT(user_table->n_ref_count == 1 || !locked);
 
 		online_retry_drop_indexes_with_trx(user_table, trx);
 	} else {
@@ -2460,10 +2498,17 @@ ok_exit:
 		prebuilt->trx,
 		prebuilt->table, ctx->indexed_table,
 		ctx->online,
-		ctx->add, ctx->add_key_numbers, ctx->num_to_add, table);
+		ctx->add, ctx->add_key_numbers, ctx->num_to_add,
+		table, altered_table);
 #ifndef DBUG_OFF
 oom:
 #endif /* !DBUG_OFF */
+	if (error == DB_SUCCESS && ctx->online
+	    && ctx->indexed_table != prebuilt->table) {
+		DEBUG_SYNC_C("row_log_table_apply1_before");
+		error = row_log_table_apply(
+			ctx->thr, prebuilt->table, table, altered_table);
+	}
 
 	/* After an error, remove all those index definitions
 	from the dictionary which were defined. */
@@ -2524,6 +2569,31 @@ oom:
 	DBUG_RETURN(true);
 }
 
+/** Free the modification log for online table rebuild.
+@param table	table that was being rebuilt online */
+static
+void
+innobase_online_rebuild_log_free(
+/*=============================*/
+	dict_table_t*	table)
+{
+	dict_index_t* clust_index = dict_table_get_first_index(table);
+
+	rw_lock_x_lock(&clust_index->lock);
+
+	if (clust_index->online_log) {
+		ut_ad(dict_index_get_online_status(clust_index)
+		      == ONLINE_INDEX_CREATION);
+		clust_index->online_status = ONLINE_INDEX_COMPLETE;
+		row_log_free(clust_index);
+		clust_index->online_status = ONLINE_INDEX_COMPLETE;
+	}
+
+	DBUG_ASSERT(dict_index_get_online_status(clust_index)
+		    == ONLINE_INDEX_COMPLETE);
+	rw_lock_x_unlock(&clust_index->lock);
+}
+
 /** Roll back the changes made during prepare_inplace_alter_table()
 and inplace_alter_table() inside the storage engine. Note that the
 allowed level of concurrency during this operation will be the same as
@@ -2576,6 +2646,8 @@ rollback_inplace_alter_table(
 					prebuilt->table->flags);
 			fail = true;
 		}
+
+		innobase_online_rebuild_log_free(prebuilt->table);
 	} else {
 		DBUG_ASSERT(!(ha_alter_info->handler_flags
 			      & Alter_inplace_info::ADD_PK_INDEX));
@@ -2587,6 +2659,14 @@ rollback_inplace_alter_table(
 	trx_free_for_mysql(ctx->trx);
 
 func_exit:
+#ifndef DBUG_OFF
+	dict_index_t* clust_index = dict_table_get_first_index(
+		prebuilt->table);
+	DBUG_ASSERT(!clust_index->online_log);
+	DBUG_ASSERT(dict_index_get_online_status(clust_index)
+		    == ONLINE_INDEX_COMPLETE);
+#endif /* !DBUG_OFF */
+
 	if (ctx && prebuilt->table == ctx->indexed_table) {
 		/* Clear the to_be_dropped flag in the data dictionary. */
 		for (ulint i = 0; i < ctx->num_to_drop; i++) {
@@ -2872,6 +2952,8 @@ ha_innobase::commit_inplace_alter_table(
 	DBUG_ENTER("commit_inplace_alter_table");
 
 	if (!(ha_alter_info->handler_flags & ~INNOBASE_INPLACE_IGNORE)) {
+		DBUG_ASSERT(!ctx);
+
 		/* Nothing to do */
 		if (!commit) {
 			goto ret;
@@ -2916,7 +2998,61 @@ ha_innobase::commit_inplace_alter_table(
 
 		/* We copied the table. Any indexes that were
 		requested to be dropped were not created in the copy
-		of the table. */
+		of the table. Apply any last bit of the rebuild log
+		and then rename the tables. */
+
+		if (ctx->online) {
+			DEBUG_SYNC_C("row_log_table_apply2_before");
+			error = row_log_table_apply(
+				ctx->thr, prebuilt->table,
+				table, altered_table);
+
+			switch (error) {
+				KEY*	dup_key;
+			case DB_SUCCESS:
+				break;
+			case DB_DUPLICATE_KEY:
+				if (prebuilt->trx->error_key_num
+				    == ULINT_UNDEFINED) {
+					/* This should be the hidden index on
+					FTS_DOC_ID. */
+					dup_key = NULL;
+				} else {
+					DBUG_ASSERT(
+						prebuilt->trx->error_key_num
+						< ha_alter_info->key_count);
+					dup_key = &ha_alter_info
+						->key_info_buffer[
+							prebuilt->trx
+							->error_key_num];
+				}
+				print_keydup_error(dup_key);
+				break;
+			case DB_ONLINE_LOG_TOO_BIG:
+				my_error(ER_INNODB_ONLINE_LOG_TOO_BIG, MYF(0),
+					 ha_alter_info->key_info_buffer[0]
+					 .name);
+				break;
+			case DB_INDEX_CORRUPT:
+				my_error(ER_INDEX_CORRUPT, MYF(0),
+					 (prebuilt->trx->error_key_num
+					  == ULINT_UNDEFINED)
+					 ? FTS_DOC_ID_INDEX_NAME
+					 : ha_alter_info->key_info_buffer[
+						 prebuilt->trx->error_key_num]
+					 .name);
+				break;
+			default:
+				my_error_innodb(error,
+						table_share->table_name.str,
+						prebuilt->table->flags);
+			}
+
+			if (error != DB_SUCCESS) {
+				err = -1;
+				goto drop_new_clustered;
+			}
+		}
 
 		/* A new clustered index was defined for the table
 		and there was no error at this point. We can
@@ -2935,17 +3071,24 @@ ha_innobase::commit_inplace_alter_table(
 		holding dict_operation_lock X-latch. */
 		ut_a(prebuilt->table->n_ref_count == 1);
 
-		if (error == DB_SUCCESS) {
-			dict_table_t*	old_table = prebuilt->table;
+		switch (error) {
+			dict_table_t*	old_table;
+			trx_id_t	trx_id;
+		case DB_SUCCESS:
+			old_table = prebuilt->table;
+			trx_id = prebuilt->trx->id;
 			trx_commit_for_mysql(prebuilt->trx);
 			row_prebuilt_free(prebuilt, TRUE);
 			error = row_merge_drop_table(trx, old_table);
 			prebuilt = row_create_prebuilt(
 				ctx->indexed_table, table->s->reclength);
-		}
-
-		switch (error) {
-		case DB_SUCCESS:
+			/* Prevent old transactions from accessing the
+			rebuilt table, because the history is missing. */
+			for (dict_index_t* index = dict_table_get_first_index(
+				     ctx->indexed_table);
+			     index; index = dict_table_get_next_index(index)) {
+				index->trx_id = trx_id;
+			}
 			err = 0;
 			break;
 		case DB_TABLESPACE_ALREADY_EXISTS:
@@ -3065,6 +3208,10 @@ trx_commit:
 		trx_commit_for_mysql(trx);
 	} else {
 		trx_rollback_for_mysql(trx);
+	}
+
+	if (new_clustered) {
+		innobase_online_rebuild_log_free(prebuilt->table);
 	}
 
 	if (err == 0 && ctx) {
@@ -3247,8 +3394,17 @@ func_exit:
 	}
 
 ret:
+#ifndef DBUG_OFF
+	dict_index_t* clust_index = dict_table_get_first_index(
+		prebuilt->table);
+	DBUG_ASSERT(!clust_index->online_log);
+	DBUG_ASSERT(dict_index_get_online_status(clust_index)
+		    == ONLINE_INDEX_COMPLETE);
+#endif /* !DBUG_OFF */
+
 	if (err == 0) {
 		MONITOR_ATOMIC_DEC(MONITOR_PENDING_ALTER_TABLE);
 	}
+
 	DBUG_RETURN(err != 0);
 }
