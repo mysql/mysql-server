@@ -1198,7 +1198,7 @@ set @@optimizer_switch='materialization=off,in_to_exists=on';
 explain select min(a1) from t1 where 7 in (select max(b1) from t2 group by b1);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
-2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 select min(a1) from t1 where 7 in (select max(b1) from t2 group by b1);
 min(a1)
 NULL
@@ -1207,7 +1207,7 @@ set @@optimizer_switch='semijoin=off';
 explain select min(a1) from t1 where 7 in (select b1 from t2);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
-2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 select min(a1) from t1 where 7 in (select b1 from t2);
 min(a1)
 NULL
@@ -1224,7 +1224,7 @@ NULL
 explain select min(a1) from t1 where 7 in (select b1 from t2) or 2> 4;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
-2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 select min(a1) from t1 where 7 in (select b1 from t2) or 2> 4;
 min(a1)
 NULL

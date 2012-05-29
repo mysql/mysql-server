@@ -5580,5 +5580,49 @@ WHERE a1 = (SELECT COUNT(*) FROM t1 WHERE a1 IN (SELECT a1 FROM t1, t2));
 
 drop table t1, t2;
 
+--echo #
+--echo # MDEV-287 CHEAP SQ: A query with subquery in SELECT list, EXISTS,
+--echo # inner joins takes hundreds times longer
+--echo #
+
+CREATE TABLE t1 (a INT);
+INSERT INTO t1 VALUES (1),(7);
+
+CREATE TABLE t2 (b INT);
+INSERT INTO t2 VALUES (4),(5);
+
+CREATE TABLE t3 (c INT);
+INSERT INTO t3 VALUES (8),(3);
+
+set @@expensive_subquery_limit= 0;
+
+EXPLAIN
+SELECT (SELECT MIN(b) FROM t1, t2 WHERE b = a AND (b = alias1.b OR EXISTS (SELECT * FROM t3)))
+FROM t2 alias1, t1 alias2, t1 alias3;
+
+flush status;
+
+SELECT (SELECT MIN(b) FROM t1, t2 WHERE b = a AND (b = alias1.b OR EXISTS (SELECT * FROM t3)))
+FROM t2 alias1, t1 alias2, t1 alias3;
+
+show status like "subquery_cache%";
+show status like '%Handler_read%';
+
+set @@expensive_subquery_limit= default;
+
+EXPLAIN
+SELECT (SELECT MIN(b) FROM t1, t2 WHERE b = a AND (b = alias1.b OR EXISTS (SELECT * FROM t3)))
+FROM t2 alias1, t1 alias2, t1 alias3;
+
+flush status;
+
+SELECT (SELECT MIN(b) FROM t1, t2 WHERE b = a AND (b = alias1.b OR EXISTS (SELECT * FROM t3)))
+FROM t2 alias1, t1 alias2, t1 alias3;
+
+show status like "subquery_cache%";
+show status like '%Handler_read%';
+
+drop table t1, t2, t3;
+
 --echo # return optimizer switch changed in the beginning of this test
 set optimizer_switch=@subselect_tmp;

@@ -1163,7 +1163,7 @@ set @@optimizer_switch='materialization=off,in_to_exists=on';
 explain select min(a1) from t1 where 7 in (select max(b1) from t2 group by b1);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
-2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 select min(a1) from t1 where 7 in (select max(b1) from t2 group by b1);
 min(a1)
 NULL
@@ -1182,7 +1182,7 @@ set @@optimizer_switch='materialization=off,in_to_exists=on';
 explain select min(a1) from t1 where 7 in (select b1 from t2);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
-2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 select min(a1) from t1 where 7 in (select b1 from t2);
 min(a1)
 NULL
@@ -1190,7 +1190,7 @@ NULL
 explain select min(a1) from t1 where 7 in (select b1 from t2) or 2> 4;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
-2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 select min(a1) from t1 where 7 in (select b1 from t2) or 2> 4;
 min(a1)
 NULL
@@ -2162,7 +2162,7 @@ EXPLAIN
 SELECT (SELECT f3a FROM t3) NOT IN (SELECT f1a FROM t1);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
-3	DEPENDENT SUBQUERY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
+3	SUBQUERY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
 2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 SELECT (SELECT f3a FROM t3) NOT IN (SELECT f1a FROM t1);
 (SELECT f3a FROM t3) NOT IN (SELECT f1a FROM t1)
@@ -2179,7 +2179,7 @@ EXPLAIN
 SELECT (SELECT f3a, f3b FROM t3) NOT IN (SELECT f1a, f1b FROM t1);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
-3	DEPENDENT SUBQUERY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
+3	SUBQUERY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
 2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 SELECT (SELECT f3a, f3b FROM t3) NOT IN (SELECT f1a, f1b FROM t1);
 (SELECT f3a, f3b FROM t3) NOT IN (SELECT f1a, f1b FROM t1)
@@ -2234,7 +2234,7 @@ EXPLAIN EXTENDED
 SELECT MAX(t1.b) AS max_res FROM t1 WHERE (9) IN (SELECT a FROM t2);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
-2	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
 Warnings:
 Note	1003	select max(`test`.`t1`.`b`) AS `max_res` from `test`.`t1` where 0
 DROP TABLE t1,t2;

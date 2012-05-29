@@ -58,12 +58,12 @@ ERROR 42S22: Reference 'a' not supported (forward reference in item list)
 EXPLAIN EXTENDED SELECT 1 FROM (SELECT 1 as a) as b  HAVING (SELECT a)=1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	<derived2>	system	NULL	NULL	NULL	NULL	1	100.00	
-3	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+3	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 2	DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
 Note	1276	Field or reference 'b.a' of SELECT #3 was resolved in SELECT #1
 Note	1276	Field or reference 'b.a' of SELECT #3 was resolved in SELECT #1
-Note	1003	select 1 AS `1` from dual having (<expr_cache><1>((select 1)) = 1)
+Note	1003	select 1 AS `1` from dual having ((select 1) = 1)
 SELECT 1 FROM (SELECT 1 as a) as b HAVING (SELECT a)=1;
 1
 1
@@ -911,7 +911,7 @@ a	t1.a in (select t2.a from t2)
 explain extended SELECT t1.a, t1.a in (select t2.a from t2) FROM t1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	index	NULL	PRIMARY	4	NULL	4	100.00	Using index
-2	DEPENDENT SUBQUERY	t2	index_subquery	a	a	5	func	2	100.00	Using index
+2	SUBQUERY	t2	index_subquery	a	a	5	func	2	100.00	Using index
 Warnings:
 Note	1003	select `test`.`t1`.`a` AS `a`,<expr_cache><`test`.`t1`.`a`>(<in_optimizer>(`test`.`t1`.`a`,<exists>(<index_lookup>(<cache>(`test`.`t1`.`a`) in t2 on a checking NULL having <is_not_null_test>(`test`.`t2`.`a`))))) AS `t1.a in (select t2.a from t2)` from `test`.`t1`
 CREATE TABLE t3 (a int(11) default '0');
@@ -1324,7 +1324,7 @@ SELECT 0 IN (SELECT 1 FROM t1 a);
 EXPLAIN EXTENDED SELECT 0 IN (SELECT 1 FROM t1 a);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
-2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 Warnings:
 Note	1003	select <in_optimizer>(0,<exists>(select 1 from dual where (0 = 1))) AS `0 IN (SELECT 1 FROM t1 a)`
 INSERT INTO t1 (pseudo) VALUES ('test1');
@@ -1334,7 +1334,7 @@ SELECT 0 IN (SELECT 1 FROM t1 a);
 EXPLAIN EXTENDED SELECT 0 IN (SELECT 1 FROM t1 a);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
-2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 Warnings:
 Note	1003	select <in_optimizer>(0,<exists>(select 1 from `test`.`t1` `a` where (0 = 1))) AS `0 IN (SELECT 1 FROM t1 a)`
 drop table t1;
@@ -1612,25 +1612,25 @@ a3	1
 explain extended select s1, s1 NOT IN (SELECT s1 FROM t2) from t1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	index	NULL	s1	6	NULL	3	100.00	Using index
-2	DEPENDENT SUBQUERY	t2	index_subquery	s1	s1	6	func	2	100.00	Using index; Full scan on NULL key
+2	SUBQUERY	t2	index_subquery	s1	s1	6	func	2	100.00	Using index; Full scan on NULL key
 Warnings:
 Note	1003	select `test`.`t1`.`s1` AS `s1`,(not(<expr_cache><`test`.`t1`.`s1`>(<in_optimizer>(`test`.`t1`.`s1`,<exists>(<index_lookup>(<cache>(`test`.`t1`.`s1`) in t2 on s1 checking NULL having trigcond(<is_not_null_test>(`test`.`t2`.`s1`)))))))) AS `s1 NOT IN (SELECT s1 FROM t2)` from `test`.`t1`
 explain extended select s1, s1 = ANY (SELECT s1 FROM t2) from t1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	index	NULL	s1	6	NULL	3	100.00	Using index
-2	DEPENDENT SUBQUERY	t2	index_subquery	s1	s1	6	func	2	100.00	Using index; Full scan on NULL key
+2	SUBQUERY	t2	index_subquery	s1	s1	6	func	2	100.00	Using index; Full scan on NULL key
 Warnings:
 Note	1003	select `test`.`t1`.`s1` AS `s1`,<expr_cache><`test`.`t1`.`s1`>(<in_optimizer>(`test`.`t1`.`s1`,<exists>(<index_lookup>(<cache>(`test`.`t1`.`s1`) in t2 on s1 checking NULL having trigcond(<is_not_null_test>(`test`.`t2`.`s1`)))))) AS `s1 = ANY (SELECT s1 FROM t2)` from `test`.`t1`
 explain extended select s1, s1 <> ALL (SELECT s1 FROM t2) from t1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	index	NULL	s1	6	NULL	3	100.00	Using index
-2	DEPENDENT SUBQUERY	t2	index_subquery	s1	s1	6	func	2	100.00	Using index; Full scan on NULL key
+2	SUBQUERY	t2	index_subquery	s1	s1	6	func	2	100.00	Using index; Full scan on NULL key
 Warnings:
 Note	1003	select `test`.`t1`.`s1` AS `s1`,(not(<expr_cache><`test`.`t1`.`s1`>(<in_optimizer>(`test`.`t1`.`s1`,<exists>(<index_lookup>(<cache>(`test`.`t1`.`s1`) in t2 on s1 checking NULL having trigcond(<is_not_null_test>(`test`.`t2`.`s1`)))))))) AS `s1 <> ALL (SELECT s1 FROM t2)` from `test`.`t1`
 explain extended select s1, s1 NOT IN (SELECT s1 FROM t2 WHERE s1 < 'a2') from t1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	index	NULL	s1	6	NULL	3	100.00	Using index
-2	DEPENDENT SUBQUERY	t2	index_subquery	s1	s1	6	func	2	100.00	Using index; Using where; Full scan on NULL key
+2	SUBQUERY	t2	index_subquery	s1	s1	6	func	2	100.00	Using index; Using where; Full scan on NULL key
 Warnings:
 Note	1003	select `test`.`t1`.`s1` AS `s1`,(not(<expr_cache><`test`.`t1`.`s1`>(<in_optimizer>(`test`.`t1`.`s1`,<exists>(<index_lookup>(<cache>(`test`.`t1`.`s1`) in t2 on s1 checking NULL where (`test`.`t2`.`s1` < 'a2') having trigcond(<is_not_null_test>(`test`.`t2`.`s1`)))))))) AS `s1 NOT IN (SELECT s1 FROM t2 WHERE s1 < 'a2')` from `test`.`t1`
 drop table t1,t2;
@@ -3103,7 +3103,7 @@ ON r.a = (SELECT t2.a FROM t2 WHERE t2.c = t1.a AND t2.b <= '359899'
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	system	PRIMARY	NULL	NULL	NULL	1	
 1	PRIMARY	r	const	PRIMARY	PRIMARY	4	const	1	
-2	DEPENDENT SUBQUERY	t2	range	b	b	40	NULL	2	Using index condition
+2	SUBQUERY	t2	range	b	b	40	NULL	2	Using index condition
 SELECT sql_no_cache t1.a, r.a, r.b FROM t1 LEFT JOIN t2 r
 ON r.a = (SELECT t2.a FROM t2 WHERE t2.c = t1.a AND t2.b <= '359899'
             ORDER BY t2.c DESC, t2.b DESC LIMIT 1) WHERE t1.a = 10;
@@ -3115,7 +3115,7 @@ ON r.a = (SELECT t2.a FROM t2 WHERE t2.c = t1.a AND t2.b <= '359899'
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	system	PRIMARY	NULL	NULL	NULL	1	
 1	PRIMARY	r	const	PRIMARY	PRIMARY	4	const	1	
-2	DEPENDENT SUBQUERY	t2	range	b	b	40	NULL	2	Using index condition
+2	SUBQUERY	t2	range	b	b	40	NULL	2	Using index condition
 SELECT sql_no_cache t1.a, r.a, r.b FROM t1 LEFT JOIN t2 r
 ON r.a = (SELECT t2.a FROM t2 WHERE t2.c = t1.a AND t2.b <= '359899'
             ORDER BY t2.c, t2.b LIMIT 1) WHERE t1.a = 10;
@@ -3166,7 +3166,7 @@ INSERT INTO t2 VALUES (1),(2),(3);
 EXPLAIN SELECT a, a IN (SELECT a FROM t1) FROM t2;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	3	
-2	DEPENDENT SUBQUERY	t1	index_subquery	a	a	5	func	2	Using index; Full scan on NULL key
+2	SUBQUERY	t1	index_subquery	a	a	5	func	2	Using index; Full scan on NULL key
 SELECT a, a IN (SELECT a FROM t1) FROM t2;
 a	a IN (SELECT a FROM t1)
 1	1
@@ -3700,7 +3700,7 @@ ORDER BY t1.t DESC LIMIT 1);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t2	system	NULL	NULL	NULL	NULL	1	
 1	PRIMARY	t1	index	NULL	PRIMARY	16	NULL	11	Using where; Using index
-2	DEPENDENT SUBQUERY	t1	range	PRIMARY	PRIMARY	16	NULL	5	Using where; Using index
+2	SUBQUERY	t1	range	PRIMARY	PRIMARY	16	NULL	5	Using where; Using index
 SELECT * FROM t1,t2
 WHERE t1.t = (SELECT t1.t FROM t1
 WHERE t1.t < t2.t  AND t1.i2=1 AND t2.i1=t1.i1
@@ -4526,13 +4526,13 @@ SET join_cache_level=0;
 EXPLAIN EXTENDED SELECT 1 FROM t1 WHERE 1 IN (SELECT min(a) FROM t1 GROUP BY a);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	
-2	DEPENDENT SUBQUERY	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	Using temporary
+2	SUBQUERY	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	Using temporary
 Warnings:
 Note	1003	select 1 AS `1` from `test`.`t1` where 1
 EXPLAIN EXTENDED SELECT 1 FROM t1 WHERE 1 IN (SELECT min(a) FROM t1 WHERE a > 3 GROUP BY a);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
-2	DEPENDENT SUBQUERY	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Using temporary
+2	SUBQUERY	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Using temporary
 Warnings:
 Note	1003	select 1 AS `1` from `test`.`t1` where 0
 SET join_cache_level=@save_join_cache_level;
@@ -4579,7 +4579,7 @@ FROM t1
 WHERE a = 230;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
-2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 SELECT MAX(b), (SELECT COUNT(*) FROM st1,st2 WHERE st2.b <= t1.b)
 FROM t1 
 WHERE a = 230;
@@ -5714,7 +5714,7 @@ WHERE ('0') IN ( SELECT a  FROM t1 GROUP BY a )
 GROUP BY b;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using temporary; Using filesort
-2	DEPENDENT SUBQUERY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
+2	SUBQUERY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
 SELECT b FROM t1
 WHERE ('0') IN ( SELECT a  FROM t1 GROUP BY a )
 GROUP BY b;
@@ -6529,7 +6529,7 @@ EXPLAIN
 SELECT COUNT(f1), (SELECT f1 FROM t1 WHERE f2 > 0 limit 1) AS f4 FROM t2, t1 WHERE 'v'= f3;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
-2	DEPENDENT SUBQUERY	t1	ALL	NULL	NULL	NULL	NULL	2	
+2	SUBQUERY	t1	ALL	NULL	NULL	NULL	NULL	2	
 SELECT COUNT(f1), (SELECT f1 FROM t1 WHERE f2 > 0 limit 1) AS f4 FROM t2, t1 WHERE 'v'= f3;
 COUNT(f1)	f4
 0	NULL
@@ -6537,7 +6537,7 @@ EXPLAIN
 SELECT COUNT(f1), exists(SELECT f1 FROM t1 WHERE f2 > 0 limit 1) AS f4 FROM t2, t1 WHERE 'v'= f3;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
-2	DEPENDENT SUBQUERY	t1	ALL	NULL	NULL	NULL	NULL	2	
+2	SUBQUERY	t1	ALL	NULL	NULL	NULL	NULL	2	
 SELECT COUNT(f1), exists(SELECT f1 FROM t1 WHERE f2 > 0 limit 1) AS f4 FROM t2, t1 WHERE 'v'= f3;
 COUNT(f1)	f4
 0	0
@@ -6572,7 +6572,7 @@ WHERE alias1.a = alias2.a OR alias1.a = 'y'
 HAVING field>'B' AND ( 'Moscow' ) IN ( SELECT a FROM t1 );
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible HAVING
-2	DEPENDENT SUBQUERY	t1	index_subquery	a	a	19	const	1	Using index; Using where
+2	SUBQUERY	t1	index_subquery	a	a	19	const	1	Using index; Using where
 SELECT MAX( alias2.a ) AS field
 FROM t1 AS alias1, t1 AS alias2, t1 AS alias3
 WHERE alias1.a = alias2.a OR alias1.a = 'y'
@@ -6586,7 +6586,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	alias1	index	a	a	19	NULL	11	Using where; Using index
 1	PRIMARY	alias2	ref	a	a	19	test.alias1.a	2	Using index
 1	PRIMARY	alias3	index	NULL	a	19	NULL	11	Using index; Using join buffer (flat, BNL join)
-2	DEPENDENT SUBQUERY	t1	index_subquery	a	a	19	const	1	Using index; Using where
+2	SUBQUERY	t1	index_subquery	a	a	19	const	1	Using index; Using where
 SELECT MAX( alias2.a )
 FROM t1 AS alias1, t1 AS alias2, t1 AS alias3
 WHERE alias1.a = alias2.a OR ('Moscow') IN ( SELECT a FROM t1 );
@@ -6613,6 +6613,91 @@ SELECT * FROM t1
 WHERE a1 = (SELECT COUNT(*) FROM t1 WHERE a1 IN (SELECT a1 FROM t1, t2));
 a1
 drop table t1, t2;
+#
+# MDEV-287 CHEAP SQ: A query with subquery in SELECT list, EXISTS,
+# inner joins takes hundreds times longer
+#
+CREATE TABLE t1 (a INT);
+INSERT INTO t1 VALUES (1),(7);
+CREATE TABLE t2 (b INT);
+INSERT INTO t2 VALUES (4),(5);
+CREATE TABLE t3 (c INT);
+INSERT INTO t3 VALUES (8),(3);
+set @@expensive_subquery_limit= 0;
+EXPLAIN
+SELECT (SELECT MIN(b) FROM t1, t2 WHERE b = a AND (b = alias1.b OR EXISTS (SELECT * FROM t3)))
+FROM t2 alias1, t1 alias2, t1 alias3;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	alias1	ALL	NULL	NULL	NULL	NULL	2	
+1	PRIMARY	alias2	ALL	NULL	NULL	NULL	NULL	2	Using join buffer (flat, BNL join)
+1	PRIMARY	alias3	ALL	NULL	NULL	NULL	NULL	2	Using join buffer (flat, BNL join)
+2	DEPENDENT SUBQUERY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
+2	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	Using where; Using join buffer (flat, BNL join)
+3	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	2	
+flush status;
+SELECT (SELECT MIN(b) FROM t1, t2 WHERE b = a AND (b = alias1.b OR EXISTS (SELECT * FROM t3)))
+FROM t2 alias1, t1 alias2, t1 alias3;
+(SELECT MIN(b) FROM t1, t2 WHERE b = a AND (b = alias1.b OR EXISTS (SELECT * FROM t3)))
+NULL
+NULL
+NULL
+NULL
+NULL
+NULL
+NULL
+NULL
+show status like "subquery_cache%";
+Variable_name	Value
+Subquery_cache_hit	6
+Subquery_cache_miss	2
+show status like '%Handler_read%';
+Variable_name	Value
+Handler_read_first	0
+Handler_read_key	8
+Handler_read_last	0
+Handler_read_next	0
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_deleted	0
+Handler_read_rnd_next	22
+set @@expensive_subquery_limit= default;
+EXPLAIN
+SELECT (SELECT MIN(b) FROM t1, t2 WHERE b = a AND (b = alias1.b OR EXISTS (SELECT * FROM t3)))
+FROM t2 alias1, t1 alias2, t1 alias3;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	alias1	ALL	NULL	NULL	NULL	NULL	2	
+1	PRIMARY	alias2	ALL	NULL	NULL	NULL	NULL	2	Using join buffer (flat, BNL join)
+1	PRIMARY	alias3	ALL	NULL	NULL	NULL	NULL	2	Using join buffer (flat, BNL join)
+2	SUBQUERY	t1	ALL	NULL	NULL	NULL	NULL	2	
+2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	Using where; Using join buffer (flat, BNL join)
+3	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	2	
+flush status;
+SELECT (SELECT MIN(b) FROM t1, t2 WHERE b = a AND (b = alias1.b OR EXISTS (SELECT * FROM t3)))
+FROM t2 alias1, t1 alias2, t1 alias3;
+(SELECT MIN(b) FROM t1, t2 WHERE b = a AND (b = alias1.b OR EXISTS (SELECT * FROM t3)))
+NULL
+NULL
+NULL
+NULL
+NULL
+NULL
+NULL
+NULL
+show status like "subquery_cache%";
+Variable_name	Value
+Subquery_cache_hit	0
+Subquery_cache_miss	0
+show status like '%Handler_read%';
+Variable_name	Value
+Handler_read_first	0
+Handler_read_key	0
+Handler_read_last	0
+Handler_read_next	0
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_deleted	0
+Handler_read_rnd_next	16
+drop table t1, t2, t3;
 # return optimizer switch changed in the beginning of this test
 set optimizer_switch=@subselect_tmp;
 set optimizer_switch=default;

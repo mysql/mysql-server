@@ -496,7 +496,7 @@ from City
 where City.population > 10000000;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	City	range	Population	Population	5	NULL	4	Using index condition; Rowid-ordered scan
-2	DEPENDENT SUBQUERY	Country	index_subquery	CountryCapital	CountryCapital	5	func	2	Using index; Using where
+2	SUBQUERY	Country	index_subquery	CountryCapital	CountryCapital	5	func	2	Using index; Using where
 select Name, City.id in (select capital from Country where capital is not null) as is_capital
 from City
 where City.population > 10000000;
