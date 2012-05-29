@@ -1648,7 +1648,7 @@ log_preflush_pool_modified_pages(
 	buf_flush_wait_batch_end(NULL, BUF_FLUSH_LIST);
 
 	if (n_pages == ULINT_UNDEFINED) {
-
+		MONITOR_INC(MONITOR_FLUSH_SYNC_WAITS);
 		return(FALSE);
 	}
 
@@ -2078,38 +2078,6 @@ log_make_checkpoint_at(
 	while (!log_checkpoint(TRUE, write_always)) {
 		/* Force a checkpoint */
 	}
-}
-
-/****************************************************************//**
-Checks if an asynchronous flushing of dirty pages is required in the
-background. This function is only called from the page cleaner thread.
-@return lsn to which the flushing should happen or LSN_MAX
-if flushing is not required */
-UNIV_INTERN
-lsn_t
-log_async_flush_lsn(void)
-/*=====================*/
-{
-	lsn_t	age;
-	lsn_t	oldest_lsn;
-	lsn_t	new_lsn = LSN_MAX;
-
-	mutex_enter(&log_sys->mutex);
-
-	oldest_lsn = log_buf_pool_get_oldest_modification();
-
-	ut_a(log_sys->lsn >= oldest_lsn);
-	age = log_sys->lsn - oldest_lsn;
-
-	if (age > log_sys->max_modified_age_async) {
-		/* An asynchronous preflush is required */
-		ut_a(log_sys->lsn >= log_sys->max_modified_age_async);
-		new_lsn = log_sys->lsn - log_sys->max_modified_age_async;
-	}
-
-	mutex_exit(&log_sys->mutex);
-
-	return(new_lsn);
 }
 
 /****************************************************************//**
