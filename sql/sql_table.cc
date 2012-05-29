@@ -7662,10 +7662,7 @@ end_inplace:
                                  alter_ctx.new_db, alter_ctx.new_name,
                                  false, true);
     if (t_table)
-    {
       intern_close_table(t_table);
-      my_free(t_table);
-    }
     else
       sql_print_warning("Could not open table %s.%s after rename\n",
                         alter_ctx.new_db, alter_ctx.table_name);

@@ -3492,6 +3492,13 @@ Prepared_statement::execute_loop(String *expanded_query,
   if (set_parameters(expanded_query, packet, packet_end))
     return TRUE;
 
+  if (unlikely(thd->security_ctx->password_expired && 
+               !lex->is_change_password))
+  {
+    my_error(ER_MUST_CHANGE_PASSWORD, MYF(0));
+    return true;
+  }
+
 reexecute:
   /*
     If the free_list is not empty, we'll wrongly free some externally

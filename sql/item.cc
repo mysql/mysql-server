@@ -5440,11 +5440,23 @@ bool Item_field::fix_fields(THD *thd, Item **reference)
   }
 #endif
   fixed= 1;
-  if (thd->variables.sql_mode & MODE_ONLY_FULL_GROUP_BY &&
-      !outer_fixed && !thd->lex->in_sum_func &&
+  if (!outer_fixed && !thd->lex->in_sum_func &&
       thd->lex->current_select->cur_pos_in_all_fields !=
       SELECT_LEX::ALL_FIELDS_UNDEF_POS)
-    push_to_non_agg_fields(thd->lex->current_select);
+  {
+    // See same code in Field_iterator_table::create_item()
+    if (thd->variables.sql_mode & MODE_ONLY_FULL_GROUP_BY)
+      push_to_non_agg_fields(thd->lex->current_select);
+    /*
+      If (1) aggregation (2) without grouping, we may have to return a result
+      row even if the nested loop finds nothing; in this result row,
+      non-aggregated table columns present in the SELECT list will show a NULL
+      value even if the table column itself is not nullable.
+    */
+    if (thd->lex->current_select->with_sum_func && // (1)
+        !thd->lex->current_select->group_list.elements) // (2)
+      maybe_null= true;
+  }
 
 mark_non_agg_field:
   if (fixed && thd->variables.sql_mode & MODE_ONLY_FULL_GROUP_BY)

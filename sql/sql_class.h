@@ -568,6 +568,9 @@ typedef struct system_status_var
   ulonglong ha_external_lock_count;
   ulonglong opened_tables;
   ulonglong opened_shares;
+  ulonglong table_open_cache_hits;
+  ulonglong table_open_cache_misses;
+  ulonglong table_open_cache_overflows;
   ulonglong select_full_join_count;
   ulonglong select_full_range_join_count;
   ulonglong select_range_count;
@@ -1232,6 +1235,7 @@ public:
   const char *host_or_ip;
   ulong master_access;                 /* Global privileges from mysql.user */
   ulong db_access;                     /* Privileges for current db */
+  bool password_expired;               /* password expiration flag */
 
   void init();
   void destroy();
@@ -2585,6 +2589,25 @@ private:
   */
   ha_rows m_examined_row_count;
 
+private:
+  USER_CONN *m_user_connect;
+
+public:
+  void set_user_connect(USER_CONN *uc);
+  const USER_CONN* get_user_connect()
+  { return m_user_connect; }
+
+  void increment_user_connections_counter();
+  void decrement_user_connections_counter();
+
+  void increment_con_per_hour_counter();
+
+  void increment_updates_counter();
+
+  void increment_questions_counter();
+
+  void time_out_user_resource_limits();
+
 public:
   ha_rows get_sent_row_count() const
   { return m_sent_row_count; }
@@ -2613,7 +2636,6 @@ public:
   void set_status_no_index_used();
   void set_status_no_good_index_used();
 
-  USER_CONN *user_connect;
   const CHARSET_INFO *db_charset;
 #if defined(ENABLED_PROFILING)
   PROFILING  profiling;

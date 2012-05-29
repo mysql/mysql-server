@@ -4246,6 +4246,12 @@ void Query_log_event::print(FILE* file, PRINT_EVENT_INFO* print_event_info)
 {
   IO_CACHE *const head= &print_event_info->head_cache;
 
+  /**
+    reduce the size of io cache so that the write function is called
+    for every call to my_b_write().
+   */
+  DBUG_EXECUTE_IF ("simulate_file_write_error",
+                   {head->write_pos= head->write_end- 500;});
   print_query_header(head, print_event_info);
   my_b_write(head, (uchar*) query, q_len);
   my_b_printf(head, "\n%s\n", print_event_info->delimiter);

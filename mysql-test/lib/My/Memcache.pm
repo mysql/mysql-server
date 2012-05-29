@@ -34,7 +34,9 @@
 ###  $mc->delete(key)                   returns 1 on success, 0 on failure
 ###  $mc->stats(stat_key)               get stats; returns a hash
 ###  $mc->incr(key, amount)             returns the new value or undef
-###  $mc->decr(key, amount)             like incr
+###  $mc->decr(key, amount)             like incr. (Note: In the Binary protocol
+###                                     only, incr and decr can take a 3rd 
+###                                     argument, the initial value). 
 ###  $mc->flush()                       flush_all
 ###
 ###  $mc->set_expires(sec)              Set TTL for all store operations
@@ -461,7 +463,11 @@ sub get_binary_response {
 
 sub bin_math {
   my $self = shift;
-  my ($cmd, $key, $delta, $initial, $expires) = @_;
+  my ($cmd, $key, $delta, $initial) = @_;
+  my $expires = 0xffffffff;  # 0xffffffff means the create flag is NOT set
+  if(defined($initial))  { $expires = $self->{exptime};   }
+  else                   { $initial = 0;                  }
+  my $value = undef;
   
   my $extra_header = pack "NNNNN", 
   ($delta   / (2 ** 32)),   # delta hi
@@ -469,9 +475,14 @@ sub bin_math {
   ($initial / (2 ** 32)),   # initial hi
   ($initial % (2 ** 32)),   # initial lo
   $expires;
-  $self->send_binary_request($cmd, $key, '', $extra_header);  
-  my ($status, $value) = $self->get_binary_response();
-  return ($status == 0) ? $value : undef;
+  $self->send_binary_request($cmd, $key, '', $extra_header);
+
+  my ($status, $packed_val) = $self->get_binary_response();
+  if($status == 0) {
+    my ($val_hi, $val_lo) = unpack("NN", $packed_val);
+    $value = ($val_hi * (2 ** 32)) + $val_lo;
+  }
+  return $value;
 }
 
 
@@ -558,13 +569,13 @@ sub delete {
 }
   
 sub incr {
-  my ($self, $key, $delta) = @_;
-  return $self->bin_math(BIN_CMD_INCR, $key, $delta, 0, 0xffffffff);
+  my ($self, $key, $delta, $initial) = @_;
+  return $self->bin_math(BIN_CMD_INCR, $key, $delta, $initial);
 }
 
 sub decr {
-  my ($self, $key, $delta) = @_;
-  return $self->bin_math(BIN_CMD_DECR, $key, $delta, 0, 0xffffffff);
+  my ($self, $key, $delta, $initial) = @_;
+  return $self->bin_math(BIN_CMD_DECR, $key, $delta, $initial);
 }
 
 

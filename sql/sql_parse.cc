@@ -99,6 +99,7 @@
 #include "sql_rewrite.h"
 #include "global_threads.h"
 #include "sql_analyse.h"
+#include "table_cache.h" // table_cache_manager
 
 #include <algorithm>
 using std::max;
@@ -442,6 +443,7 @@ void init_update_queries(void)
   sql_command_flags[SQLCOM_CREATE_USER]=       CF_CHANGES_DATA;
   sql_command_flags[SQLCOM_RENAME_USER]=       CF_CHANGES_DATA;
   sql_command_flags[SQLCOM_DROP_USER]=         CF_CHANGES_DATA;
+  sql_command_flags[SQLCOM_ALTER_USER]=        CF_CHANGES_DATA;
   sql_command_flags[SQLCOM_GRANT]=             CF_CHANGES_DATA;
   sql_command_flags[SQLCOM_REVOKE]=            CF_CHANGES_DATA;
   sql_command_flags[SQLCOM_REVOKE_ALL]=        CF_CHANGES_DATA;
@@ -480,6 +482,7 @@ void init_update_queries(void)
   sql_command_flags[SQLCOM_CREATE_USER]|=       CF_AUTO_COMMIT_TRANS;
   sql_command_flags[SQLCOM_DROP_USER]|=         CF_AUTO_COMMIT_TRANS;
   sql_command_flags[SQLCOM_RENAME_USER]|=       CF_AUTO_COMMIT_TRANS;
+  sql_command_flags[SQLCOM_ALTER_USER]|=        CF_AUTO_COMMIT_TRANS;
   sql_command_flags[SQLCOM_REVOKE]|=            CF_AUTO_COMMIT_TRANS;
   sql_command_flags[SQLCOM_REVOKE_ALL]|=        CF_AUTO_COMMIT_TRANS;
   sql_command_flags[SQLCOM_GRANT]|=             CF_AUTO_COMMIT_TRANS;
@@ -570,6 +573,7 @@ void init_update_queries(void)
   sql_command_flags[SQLCOM_DROP_EVENT]|=       CF_DISALLOW_IN_RO_TRANS;
   sql_command_flags[SQLCOM_CREATE_USER]|=      CF_DISALLOW_IN_RO_TRANS;
   sql_command_flags[SQLCOM_RENAME_USER]|=      CF_DISALLOW_IN_RO_TRANS;
+  sql_command_flags[SQLCOM_ALTER_USER]|=       CF_DISALLOW_IN_RO_TRANS;
   sql_command_flags[SQLCOM_DROP_USER]|=        CF_DISALLOW_IN_RO_TRANS;
   sql_command_flags[SQLCOM_CREATE_SERVER]|=    CF_DISALLOW_IN_RO_TRANS;
   sql_command_flags[SQLCOM_ALTER_SERVER]|=     CF_DISALLOW_IN_RO_TRANS;
@@ -1217,7 +1221,8 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 
     uint save_db_length= thd->db_length;
     char *save_db= thd->db;
-    USER_CONN *save_user_connect= thd->user_connect;
+    USER_CONN *save_user_connect=
+      const_cast<USER_CONN*>(thd->get_user_connect());
     Security_context save_security_ctx= *thd->security_ctx;
     const CHARSET_INFO *save_character_set_client=
       thd->variables.character_set_client;
@@ -1232,7 +1237,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     {
       my_free(thd->security_ctx->user);
       *thd->security_ctx= save_security_ctx;
-      thd->user_connect= save_user_connect;
+      thd->set_user_connect(save_user_connect);
       thd->reset_db (save_db, save_db_length);
       thd->variables.character_set_client= save_character_set_client;
       thd->variables.collation_connection= save_collation_connection;
@@ -1610,7 +1615,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
                         current_global_status_var.long_query_count,
                         current_global_status_var.opened_tables,
                         refresh_version,
-                        cached_open_tables(),
+                        table_cache_manager.cached_tables(),
                         (uint) (queries_per_second1000 / 1000),
                         (uint) (queries_per_second1000 % 1000));
 #ifdef EMBEDDED_LIBRARY
@@ -4852,6 +4857,17 @@ create_sp_error:
     DBUG_ASSERT(lex->m_sql_cmd != NULL);
     res= lex->m_sql_cmd->execute(thd);
     break;
+
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
+  case SQLCOM_ALTER_USER:
+    if (check_access(thd, UPDATE_ACL, "mysql", NULL, NULL, 1, 1) &&
+        check_global_access(thd, CREATE_USER_ACL))
+      break;
+    /* Conditionally writes to binlog */
+    if (!(res= mysql_user_password_expire(thd, lex->users_list)))
+      my_ok(thd);
+    break;
+#endif
   default:
 #ifndef EMBEDDED_LIBRARY
     DBUG_ASSERT(0);                             /* Impossible */
@@ -6044,7 +6060,7 @@ void mysql_parse(THD *thd, char *rawbuf, uint length,
                                                    sql_statement_info[thd->lex->sql_command].m_key);
 
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
-      if (mqh_used && thd->user_connect &&
+      if (mqh_used && thd->get_user_connect() &&
 	  check_mqh(thd, lex->sql_command))
       {
 	thd->net.error = 0;
@@ -6082,8 +6098,14 @@ void mysql_parse(THD *thd, char *rawbuf, uint length,
                                  &thd->security_ctx->priv_user[0],
                                  (char *) thd->security_ctx->host_or_ip,
                                  0);
-
-          error= mysql_execute_command(thd);
+          if (unlikely(thd->security_ctx->password_expired && 
+                       !lex->is_change_password))
+          {
+            my_error(ER_MUST_CHANGE_PASSWORD, MYF(0));
+            error= 1;
+          }
+          else
+            error= mysql_execute_command(thd);
           if (error == 0 &&
               thd->variables.gtid_next.type == GTID_GROUP &&
               thd->owned_gtid.sidno != 0 &&
