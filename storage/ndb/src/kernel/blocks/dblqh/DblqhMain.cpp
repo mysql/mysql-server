@@ -23507,7 +23507,7 @@ Dblqh::execDUMP_STATE_ORD(Signal* signal)
   {
     CRASH_INSERTION(5075);
 
-    progError(__LINE__, NDBD_EXIT_SYSTEM_ERROR, 
+    progError(__LINE__, NDBD_EXIT_LCP_SCAN_WATCHDOG_FAIL,
               "Please report this as a bug. "
               "Provide as much info as possible, expecially all the "
               "ndb_*_out.log files, Thanks. "
