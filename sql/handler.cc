@@ -4121,12 +4121,11 @@ handler::ha_discard_or_import_tablespace(my_bool discard)
 bool handler::ha_prepare_inplace_alter_table(TABLE *altered_table,
                                              Alter_inplace_info *ha_alter_info)
 {
-  DBUG_ENTER("handler::ha_prepare_inplace_alter_table");
   DBUG_ASSERT(table_share->tmp_table != NO_TMP_TABLE ||
               m_lock_type != F_UNLCK);
   mark_trx_read_write();
 
-  DBUG_RETURN(prepare_inplace_alter_table(altered_table, ha_alter_info));
+  return prepare_inplace_alter_table(altered_table, ha_alter_info);
 }
 
 
@@ -4159,7 +4158,7 @@ enum_alter_inplace_result
 handler::check_if_supported_inplace_alter(TABLE *altered_table,
                                           Alter_inplace_info *ha_alter_info)
 {
-  DBUG_ENTER("handler::check_if_supported_inplace_alter");
+  DBUG_ENTER("check_if_supported_alter");
 
   HA_CREATE_INFO *create_info= ha_alter_info->create_info;
 
