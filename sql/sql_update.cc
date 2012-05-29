@@ -412,7 +412,8 @@ int mysql_update(THD *thd,
     This must be done before partitioning pruning, since prune_partitions()
     uses the table->write_set to determine may prune locks too.
   */
-  table->mark_columns_needed_for_update();
+  if (table->triggers)
+    table->triggers->mark_fields_used(TRG_EVENT_UPDATE);
 
 #ifdef WITH_PARTITION_STORAGE_ENGINE
   if (table->part_info)
@@ -439,6 +440,7 @@ int mysql_update(THD *thd,
   /* Update the table->file->stats.records number */
   table->file->info(HA_STATUS_VARIABLE | HA_STATUS_NO_LOCK);
 
+  table->mark_columns_needed_for_update();
   select= make_select(table, 0, 0, conds, 0, &error);
 
   { // Enter scope for optimizer trace wrapper
@@ -1680,7 +1682,8 @@ int multi_update::prepare(List<Item> &not_used_values,
         bitmap_union(table->read_set, table->write_set);
       }
       /* All needed columns must be marked before prune_partitions(). */
-      table->mark_columns_needed_for_update();
+      if (table->triggers)
+        table->triggers->mark_fields_used(TRG_EVENT_UPDATE);
     }
   }
 

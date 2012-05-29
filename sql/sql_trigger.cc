@@ -2218,9 +2218,9 @@ add_tables_and_routines_for_triggers(THD *thd,
   @param action_time  Type of trigger action time we are going to inspect
 */
 
-bool Table_triggers_list::is_fields_used_in_trigger(MY_BITMAP *used_fields,
-                                                    trg_event_type event_type,
-                                                    trg_action_time_type action_time)
+bool Table_triggers_list::is_fields_updated_in_trigger(MY_BITMAP *used_fields,
+                                                       trg_event_type event_type,
+                                                       trg_action_time_type action_time)
 {
   Item_trigger_field *trg_field;
   sp_head *sp= bodies[event_type][action_time];
@@ -2232,7 +2232,8 @@ bool Table_triggers_list::is_fields_used_in_trigger(MY_BITMAP *used_fields,
     /* We cannot check fields which does not present in table. */
     if (trg_field->field_idx != (uint)-1)
     {
-      if (bitmap_is_set(used_fields, trg_field->field_idx))
+      if (bitmap_is_set(used_fields, trg_field->field_idx) &&
+          trg_field->get_settable_routine_parameter())
         return true;
     }
   }

@@ -210,9 +210,9 @@ public:
   bool add_tables_and_routines_for_triggers(THD *thd,
                                             Query_tables_list *prelocking_ctx,
                                             TABLE_LIST *table_list);
-  bool is_fields_used_in_trigger(MY_BITMAP *used_fields,
-                                 trg_event_type event_type,
-                                 trg_action_time_type action_time);
+  bool is_fields_updated_in_trigger(MY_BITMAP *used_fields,
+                                    trg_event_type event_type,
+                                    trg_action_time_type action_time);
 private:
   bool prepare_record1_accessors();
   LEX_STRING* change_table_name_in_trignames(const char *old_db_name,

@@ -1606,7 +1606,7 @@ FLUSH STATUS;
 INSERT INTO t1 VALUES (0, "2nd p0")
 ON DUPLICATE KEY UPDATE b = CONCAT(b, ", dup key");
 eval $get_handler_status_counts;
---echo # 28 locks (1 tables, 13 partitions lock/unlock)
+--echo # 4 locks (1 tables, 1 partitions lock/unlock)
 
 FLUSH STATUS;
 UPDATE t1 SET b = CONCAT(b, ", Updated") WHERE a = 0;
