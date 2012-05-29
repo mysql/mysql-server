@@ -93,7 +93,9 @@ dict_stats_enqueue_table_for_auto_recalc(
 		table_id_t*	p;
 
 		p = reinterpret_cast<table_id_t*>(
-			ut_realloc(auto_recalc_list, auto_recalc_size * 2));
+			ut_realloc(auto_recalc_list,
+				   auto_recalc_size * 2
+				   * sizeof(auto_recalc_list[0])));
 
 		if (p == 0) {
 			/* auto_recalc_list is still valid, just quit without
