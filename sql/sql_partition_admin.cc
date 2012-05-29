@@ -741,7 +741,6 @@ bool Sql_cmd_alter_table_truncate_partition::execute(THD *thd)
   ulong timeout= thd->variables.lock_wait_timeout;
   TABLE_LIST *first_table= thd->lex->select_lex.table_list.first;
   Alter_info *alter_info= &thd->lex->alter_info;
-  MDL_savepoint mdl_savepoint;
   uint table_counter, i;
   List<String> partition_names_list;
   bool binlog_stmt;
@@ -768,7 +767,6 @@ bool Sql_cmd_alter_table_truncate_partition::execute(THD *thd)
   if (check_one_table_access(thd, DROP_ACL, first_table))
     DBUG_RETURN(TRUE);
 
-  mdl_savepoint= thd->mdl_context.mdl_savepoint();
   if (open_tables(thd, &first_table, &table_counter, 0))
     DBUG_RETURN(true);
 
@@ -783,7 +781,10 @@ bool Sql_cmd_alter_table_truncate_partition::execute(THD *thd)
   }
 
   
-  /* Prune all, but named partitions */
+  /*
+    Prune all, but named partitions,
+    to avoid excessive calls to external_lock().
+  */
   List_iterator<char> partition_names_it(alter_info->partition_names);
   uint num_names= alter_info->partition_names.elements;
   for (i= 0; i < num_names; i++)

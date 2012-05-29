@@ -724,6 +724,14 @@ public:
                                            subselect. Computed by fix_fields
                                            and updated by update_used_tables. */
 
+  /**
+    This variable is a cache of 'Needed tables are locked'. True if either
+    'No tables locks is needed' or 'Needed tables are locked'.
+    If tables are used, then it will be set to
+    current_thd->lex->is_query_tables_locked().
+
+    It is used when checking const_item()/can_be_evaluated_now().
+  */
   bool tables_locked_cache;
  public:
   // alloc & destruct is done as start of select using sql_alloc

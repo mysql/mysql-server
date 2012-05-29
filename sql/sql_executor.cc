@@ -4410,6 +4410,8 @@ static int remove_dup_with_compare(THD *thd, TABLE *table, Field **first_field,
   DBUG_RETURN(0);
 err:
   file->extra(HA_EXTRA_NO_CACHE);
+  if (file->inited)
+    (void) file->ha_rnd_end();
   if (error)
     file->print_error(error,MYF(0));
   DBUG_RETURN(1);

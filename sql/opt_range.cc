@@ -3111,13 +3111,13 @@ bool prune_partitions(THD *thd, TABLE *table, Item *pprune_cond)
   }
 
   /*
-    If the prepare stage only had constant items and no subqueries are used,
-    it is no use of running prune_partitions() twice on the same statement.
+    If the prepare stage only had constant items (also true when no subqueries
+    are used before locking), it is no use of running prune_partitions() twice
+    on the same statement.
     Since it will not be able to prune anything more than the previous call
     from the prepare step.
   */
-  if (part_info->is_const_item_pruned &&
-      !pprune_cond->has_subquery())
+  if (part_info->is_const_item_pruned)
     DBUG_RETURN(false);
 
   PART_PRUNE_PARAM prune_param;

@@ -25,7 +25,6 @@
 #include "sql_acl.h"                          // *_ACL
 #include "table.h"                            // TABLE_LIST
 #include "my_bitmap.h"                        // bitmap*
-#include "sql_insert.h"                       // default_record
 #include "sql_base.h"                         // fill_record
 
 #ifdef WITH_PARTITION_STORAGE_ENGINE
@@ -346,7 +345,6 @@ bool partition_info::can_prune_insert(THD* thd,
     If not all partitioning fields are given,
     we also must set all non given partitioning fields
     to get correct defaults.
-    we do this by copy the full default record in default_record().
     TODO: If any gain, we could enhance this by only copy the needed default
     fields by
       1) check which fields needs to be set.
