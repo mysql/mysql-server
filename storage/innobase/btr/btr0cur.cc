@@ -57,6 +57,7 @@ Created 10/16/1994 Heikki Tuuri
 #include "buf0lru.h"
 #include "btr0btr.h"
 #include "btr0sea.h"
+#include "row0log.h"
 #include "row0purge.h"
 #include "row0upd.h"
 #include "trx0rec.h"
@@ -2760,6 +2761,13 @@ btr_cur_del_mark_set_clust_rec(
 	btr_rec_set_deleted_flag(rec, page_zip, TRUE);
 
 	trx = thr_get_trx(thr);
+
+	if (dict_index_is_online_ddl(index)) {
+		row_log_table_delete(
+			rec, index, offsets,
+			trx_read_trx_id(row_get_trx_id_offset(index, offsets)
+					+ rec));
+	}
 
 	row_upd_rec_sys_fields(rec, page_zip, index, offsets, trx, roll_ptr);
 

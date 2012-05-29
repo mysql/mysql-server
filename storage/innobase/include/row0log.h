@@ -81,6 +81,71 @@ row_log_table_get_error(
 	__attribute__((nonnull, warn_unused_result));
 
 /******************************************************//**
+Logs a delete operation to a table that is being rebuilt.
+This will be merged in row_log_table_apply_delete(). */
+UNIV_INTERN
+void
+row_log_table_delete(
+/*=================*/
+	const rec_t*	rec,	/*!< in: clustered index leaf page record,
+				page X-latched */
+	dict_index_t*	index,	/*!< in/out: clustered index, S-latched
+				or X-latched */
+	const ulint*	offsets,/*!< in: rec_get_offsets(rec,index) */
+	trx_id_t	trx_id)	/*!< in: DB_TRX_ID of the record before
+				it was deleted */
+	UNIV_COLD __attribute__((nonnull));
+
+/******************************************************//**
+Logs an update operation to a table that is being rebuilt.
+This will be merged in row_log_table_apply_update(). */
+UNIV_INTERN
+void
+row_log_table_update(
+/*=================*/
+	const rec_t*	rec,	/*!< in: clustered index leaf page record,
+				page X-latched */
+	dict_index_t*	index,	/*!< in/out: clustered index, S-latched
+				or X-latched */
+	const ulint*	offsets,/*!< in: rec_get_offsets(rec,index) */
+	const dtuple_t*	old_pk)	/*!< in: row_log_table_get_pk()
+				before the update */
+	UNIV_COLD __attribute__((nonnull(1,2,3)));
+
+/******************************************************//**
+Constructs the old PRIMARY KEY and DB_TRX_ID,DB_ROLL_PTR
+of a table that is being rebuilt.
+@return tuple of PRIMARY KEY,DB_TRX_ID,DB_ROLL_PTR in the rebuilt table,
+or NULL if not being rebuilt online or the PRIMARY KEY definition
+does not change */
+UNIV_INTERN
+const dtuple_t*
+row_log_table_get_pk(
+/*=================*/
+	const rec_t*	rec,	/*!< in: clustered index leaf page record,
+				page X-latched */
+	dict_index_t*	index,	/*!< in/out: clustered index, S-latched
+				or X-latched */
+	const ulint*	offsets,/*!< in: rec_get_offsets(rec,index),
+				or NULL */
+	mem_heap_t**	heap)	/*!< in/out: memory heap where allocated */
+	UNIV_COLD __attribute__((nonnull(1,2,4), warn_unused_result));
+
+/******************************************************//**
+Logs an insert to a table that is being rebuilt.
+This will be merged in row_log_table_apply_insert(). */
+UNIV_INTERN
+void
+row_log_table_insert(
+/*=================*/
+	const rec_t*	rec,	/*!< in: clustered index leaf page record,
+				page X-latched */
+	dict_index_t*	index,	/*!< in/out: clustered index, S-latched
+				or X-latched */
+	const ulint*	offsets)/*!< in: rec_get_offsets(rec,index) */
+	UNIV_COLD __attribute__((nonnull));
+
+/******************************************************//**
 Notes that a transaction is being rolled back. */
 UNIV_INTERN
 void

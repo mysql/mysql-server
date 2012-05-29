@@ -42,6 +42,7 @@ Created 4/20/1996 Heikki Tuuri
 #include "row0upd.h"
 #include "row0sel.h"
 #include "row0row.h"
+#include "row0log.h"
 #include "rem0cmp.h"
 #include "lock0lock.h"
 #include "log0log.h"
@@ -345,7 +346,9 @@ row_ins_clust_index_entry_by_modify(
 	update = row_upd_build_difference_binary(
 		cursor->index, entry, rec, NULL, true,
 		thr_get_trx(thr), heap);
-	if (mode == BTR_MODIFY_LEAF) {
+	if (mode != BTR_MODIFY_TREE) {
+		ut_ad((mode & ~BTR_ALREADY_S_LATCHED) == BTR_MODIFY_LEAF);
+
 		/* Try optimistic updating of the record, keeping changes
 		within the page */
 
@@ -361,7 +364,6 @@ row_ins_clust_index_entry_by_modify(
 			break;
 		}
 	} else {
-		ut_a(mode == BTR_MODIFY_TREE);
 		if (buf_LRU_buf_pool_running_out()) {
 
 			return(DB_LOCK_TABLE_FULL);
@@ -2169,6 +2171,11 @@ row_ins_clust_index_entry_low(
 
 	mtr_start(&mtr);
 
+	if (mode == BTR_MODIFY_LEAF && dict_index_is_online_ddl(index)) {
+		mode = BTR_MODIFY_LEAF | BTR_ALREADY_S_LATCHED;
+		mtr_s_lock(dict_index_get_lock(index), &mtr);
+	}
+
 	cursor.thr = thr;
 
 	/* Note that we use PAGE_CUR_LE as the search mode, because then
@@ -2276,13 +2283,18 @@ err_exit:
 			dtuple_big_rec_free(big_rec);
 		}
 
+		if (dict_index_is_online_ddl(index)) {
+			row_log_table_insert(rec, index, offsets);
+		}
+
 		mtr_commit(&mtr);
 		mem_heap_free(entry_heap);
 	} else {
 		rec_t*	insert_rec;
 
 		if (mode != BTR_MODIFY_TREE) {
-			ut_ad(mode == BTR_MODIFY_LEAF);
+			ut_ad((mode & ~BTR_ALREADY_S_LATCHED)
+			      == BTR_MODIFY_LEAF);
 			err = btr_cur_optimistic_insert(
 				flags, &cursor, &offsets, &offsets_heap,
 				entry, &insert_rec, &big_rec,
@@ -2299,9 +2311,14 @@ err_exit:
 				n_ext, thr, &mtr);
 		}
 
-		mtr_commit(&mtr);
-
 		if (UNIV_LIKELY_NULL(big_rec)) {
+			mtr_commit(&mtr);
+
+			/* Online table rebuild could read (and
+			ignore) the incomplete record at this point.
+			If online rebuild is in progress, the
+			row_ins_index_entry_big_rec() will write log. */
+
 			DBUG_EXECUTE_IF(
 				"row_ins_extern_checkpoint",
 				log_make_checkpoint_at(
@@ -2311,6 +2328,14 @@ err_exit:
 				thr_get_trx(thr)->mysql_thd,
 				__FILE__, __LINE__);
 			dtuple_convert_back_big_rec(index, entry, big_rec);
+		} else {
+			if (err == DB_SUCCESS
+			    && dict_index_is_online_ddl(index)) {
+				row_log_table_insert(
+					insert_rec, index, offsets);
+			}
+
+			mtr_commit(&mtr);
 		}
 	}
 
@@ -2503,6 +2528,11 @@ row_ins_index_entry_big_rec_func(
 		index, btr_cur_get_block(&cursor),
 		rec, offsets, big_rec, &mtr, BTR_STORE_INSERT);
 	DEBUG_SYNC_C_IF_THD(thd, "after_row_ins_extern");
+
+	if (error == DB_SUCCESS
+	    && dict_index_is_online_ddl(index)) {
+		row_log_table_insert(rec, index, offsets);
+	}
 
 	mtr_commit(&mtr);
 
