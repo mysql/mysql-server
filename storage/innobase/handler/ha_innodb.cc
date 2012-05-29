@@ -2933,6 +2933,29 @@ innobase_change_buffering_inited_ok:
 	innobase_change_buffering = (char*)
 		innobase_change_buffering_values[ibuf_use];
 
+	/* Check that interdependent parameters have sane values. */
+	if (srv_max_buf_pool_modified_pct < srv_max_dirty_pages_pct_lwm) {
+		sql_print_warning("InnoDB: innodb_max_dirty_pages_pct_lwm"
+				  " cannot be set higher than"
+				  " innodb_max_dirty_pages_pct.\n"
+				  "InnoDB: Setting"
+				  " innodb_max_dirty_pages_pct_lwm to %lu\n",
+				  srv_max_buf_pool_modified_pct);
+
+		srv_max_dirty_pages_pct_lwm = srv_max_buf_pool_modified_pct;
+	}
+
+	if (srv_max_io_capacity < srv_io_capacity) {
+		sql_print_warning("InnoDB: innodb_io_capacity"
+				  " cannot be set higher than"
+				  " innodb_max_io_capacity.\n"
+				  "InnoDB: Setting"
+				  " innodb_io_capacity to %lu\n",
+				  srv_max_io_capacity);
+
+		srv_io_capacity = srv_max_io_capacity;
+	}
+
 	/* --------------------------------------------------*/
 
 	srv_file_flush_method_str = innobase_file_flush_method;
@@ -13239,6 +13262,135 @@ ha_innobase::check_if_incompatible_data(
 	return(COMPATIBLE_DATA_YES);
 }
 
+/****************************************************************//**
+Update the system variable innodb_max_io_capacity using the "saved"
+value. This function is registered as a callback with MySQL. */
+static
+void
+innodb_max_io_capacity_update(
+/*===========================*/
+	THD*				thd,	/*!< in: thread handle */
+	struct st_mysql_sys_var*	var,	/*!< in: pointer to
+						system variable */
+	void*				var_ptr,/*!< out: where the
+						formal string goes */
+	const void*			save)	/*!< in: immediate result
+						from check function */
+{
+	ulong	in_val = *static_cast<const ulong*>(save);
+	if (in_val < srv_io_capacity) {
+		in_val = srv_io_capacity;
+		push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
+				    ER_WRONG_ARGUMENTS,
+				    "innodb_max_io_capacity cannot be"
+				    " set lower than innodb_io_capacity.");
+		push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
+				    ER_WRONG_ARGUMENTS,
+				    "Setting innodb_max_io_capacity to %lu",
+				    srv_io_capacity);
+	}
+
+	srv_max_io_capacity = in_val;
+}
+
+/****************************************************************//**
+Update the system variable innodb_io_capacity using the "saved"
+value. This function is registered as a callback with MySQL. */
+static
+void
+innodb_io_capacity_update(
+/*======================*/
+	THD*				thd,	/*!< in: thread handle */
+	struct st_mysql_sys_var*	var,	/*!< in: pointer to
+						system variable */
+	void*				var_ptr,/*!< out: where the
+						formal string goes */
+	const void*			save)	/*!< in: immediate result
+						from check function */
+{
+	ulong	in_val = *static_cast<const ulong*>(save);
+	if (in_val > srv_max_io_capacity) {
+		in_val = srv_max_io_capacity;
+		push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
+				    ER_WRONG_ARGUMENTS,
+				    "innodb_io_capacity cannot be set"
+				    " higher than innodb_max_io_capacity.");
+		push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
+				    ER_WRONG_ARGUMENTS,
+				    "Setting innodb_io_capacity to %lu",
+				    srv_max_io_capacity);
+	}
+
+	srv_io_capacity = in_val;
+}
+
+/****************************************************************//**
+Update the system variable innodb_max_dirty_pages_pct using the "saved"
+value. This function is registered as a callback with MySQL. */
+static
+void
+innodb_max_dirty_pages_pct_update(
+/*==============================*/
+	THD*				thd,	/*!< in: thread handle */
+	struct st_mysql_sys_var*	var,	/*!< in: pointer to
+						system variable */
+	void*				var_ptr,/*!< out: where the
+						formal string goes */
+	const void*			save)	/*!< in: immediate result
+						from check function */
+{
+	ulong	in_val = *static_cast<const ulong*>(save);
+	if (in_val < srv_max_dirty_pages_pct_lwm) {
+		push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
+				    ER_WRONG_ARGUMENTS,
+				    "innodb_max_dirty_pages_pct cannot be"
+				    " set lower than"
+				    " innodb_max_dirty_pages_pct_lwm.");
+		push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
+				    ER_WRONG_ARGUMENTS,
+				    "Lowering"
+				    " innodb_max_dirty_page_pct_lwm to %lu",
+				    in_val);
+
+		srv_max_dirty_pages_pct_lwm = in_val;
+	}
+
+	srv_max_buf_pool_modified_pct = in_val;
+}
+
+/****************************************************************//**
+Update the system variable innodb_max_dirty_pages_pct_lwm using the
+"saved" value. This function is registered as a callback with MySQL. */
+static
+void
+innodb_max_dirty_pages_pct_lwm_update(
+/*==================================*/
+	THD*				thd,	/*!< in: thread handle */
+	struct st_mysql_sys_var*	var,	/*!< in: pointer to
+						system variable */
+	void*				var_ptr,/*!< out: where the
+						formal string goes */
+	const void*			save)	/*!< in: immediate result
+						from check function */
+{
+	ulong	in_val = *static_cast<const ulong*>(save);
+	if (in_val > srv_max_buf_pool_modified_pct) {
+		in_val = srv_max_buf_pool_modified_pct;
+		push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
+				    ER_WRONG_ARGUMENTS,
+				    "innodb_max_dirty_pages_pct_lwm"
+				    " cannot be set higher than"
+				    " innodb_max_dirty_pages_pct.");
+		push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
+				    ER_WRONG_ARGUMENTS,
+				    "Setting innodb_max_dirty_page_pct_lwm"
+				    " to %lu",
+				    in_val);
+	}
+
+	srv_max_dirty_pages_pct_lwm = in_val;
+}
+
 /************************************************************//**
 Validate the file format name and return its corresponding id.
 @return	valid file format id */
@@ -14793,7 +14945,12 @@ static MYSQL_SYSVAR_BOOL(doublewrite, innobase_use_doublewrite,
 static MYSQL_SYSVAR_ULONG(io_capacity, srv_io_capacity,
   PLUGIN_VAR_RQCMDARG,
   "Number of IOPs the server can do. Tunes the background IO rate",
-  NULL, NULL, 200, 100, ~0UL, 0);
+  NULL, innodb_io_capacity_update, 200, 100, ~0UL, 0);
+
+static MYSQL_SYSVAR_ULONG(max_io_capacity, srv_max_io_capacity,
+  PLUGIN_VAR_RQCMDARG,
+  "Limit to which innodb_io_capacity can be inflated.",
+  NULL, innodb_max_io_capacity_update, 400, 100, ~0UL, 0);
 
 #ifdef UNIV_DEBUG
 static MYSQL_SYSVAR_BOOL(purge_run_now, innodb_purge_run_now,
@@ -14926,12 +15083,30 @@ static MYSQL_SYSVAR_STR(log_group_home_dir, innobase_log_group_home_dir,
 static MYSQL_SYSVAR_ULONG(max_dirty_pages_pct, srv_max_buf_pool_modified_pct,
   PLUGIN_VAR_RQCMDARG,
   "Percentage of dirty pages allowed in bufferpool.",
-  NULL, NULL, 75, 0, 99, 0);
+  NULL, innodb_max_dirty_pages_pct_update, 75, 0, 99, 0);
+
+static MYSQL_SYSVAR_ULONG(max_dirty_pages_pct_lwm,
+  srv_max_dirty_pages_pct_lwm,
+  PLUGIN_VAR_RQCMDARG,
+  "Percentage of dirty pages at which flushing kicks in.",
+  NULL, innodb_max_dirty_pages_pct_lwm_update, 0, 0, 99, 0);
+
+static MYSQL_SYSVAR_ULONG(adaptive_flushing_lwm,
+  srv_adaptive_flushing_lwm,
+  PLUGIN_VAR_RQCMDARG,
+  "Percentage of log capacity below which no adaptive flushing happens.",
+  NULL, NULL, 10, 0, 70, 0);
 
 static MYSQL_SYSVAR_BOOL(adaptive_flushing, srv_adaptive_flushing,
   PLUGIN_VAR_NOCMDARG,
   "Attempt flushing dirty pages to avoid IO bursts at checkpoints.",
   NULL, NULL, TRUE);
+
+static MYSQL_SYSVAR_ULONG(flushing_avg_loops,
+  srv_flushing_avg_loops,
+  PLUGIN_VAR_RQCMDARG,
+  "Number of iterations over which the background flushing is averaged.",
+  NULL, NULL, 30, 1, 1000, 0);
 
 static MYSQL_SYSVAR_ULONG(max_purge_lag, srv_max_purge_lag,
   PLUGIN_VAR_RQCMDARG,
@@ -15467,7 +15642,10 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(log_files_in_group),
   MYSQL_SYSVAR(log_group_home_dir),
   MYSQL_SYSVAR(max_dirty_pages_pct),
+  MYSQL_SYSVAR(max_dirty_pages_pct_lwm),
+  MYSQL_SYSVAR(adaptive_flushing_lwm),
   MYSQL_SYSVAR(adaptive_flushing),
+  MYSQL_SYSVAR(flushing_avg_loops),
   MYSQL_SYSVAR(max_purge_lag),
   MYSQL_SYSVAR(max_purge_lag_delay),
   MYSQL_SYSVAR(mirrored_log_groups),
@@ -15515,6 +15693,7 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(random_read_ahead),
   MYSQL_SYSVAR(read_ahead_threshold),
   MYSQL_SYSVAR(io_capacity),
+  MYSQL_SYSVAR(max_io_capacity),
   MYSQL_SYSVAR(monitor_enable),
   MYSQL_SYSVAR(monitor_disable),
   MYSQL_SYSVAR(monitor_reset),

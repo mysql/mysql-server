@@ -257,7 +257,8 @@ UNIV_INTERN ulint	srv_win_file_flush_method = SRV_WIN_IO_UNBUFFERED;
 UNIV_INTERN ulint	srv_max_n_open_files	  = 300;
 
 /* Number of IO operations per second the server can do */
-UNIV_INTERN ulong	srv_io_capacity         = 400;
+UNIV_INTERN ulong	srv_io_capacity         = 200;
+UNIV_INTERN ulong	srv_max_io_capacity     = 400;
 
 /* The InnoDB main thread tries to keep the ratio of modified pages
 in the buffer pool to all database pages in the buffer pool smaller than
@@ -265,6 +266,14 @@ the following number. But it is not guaranteed that the value stays below
 that during a time of heavy update/insert activity. */
 
 UNIV_INTERN ulong	srv_max_buf_pool_modified_pct	= 75;
+UNIV_INTERN ulong	srv_max_dirty_pages_pct_lwm	= 50;
+
+/* This is the percentage of log capacity at which adaptive flushing,
+if enabled, will kick in. */
+UNIV_INTERN ulong	srv_adaptive_flushing_lwm	= 10;
+
+/* Number of iterations over which adaptive flushing is averaged. */
+UNIV_INTERN ulong	srv_flushing_avg_loops		= 30;
 
 /* The number of purge threads to use.*/
 UNIV_INTERN ulong	srv_n_purge_threads = 1;
@@ -1624,9 +1633,6 @@ loop:
 	/* Update the statistics collected for deciding LRU
 	eviction policy. */
 	buf_LRU_stat_update();
-
-	/* Update the statistics collected for flush rate policy. */
-	buf_flush_stat_update();
 
 	/* In case mutex_exit is not a memory barrier, it is
 	theoretically possible some threads are left waiting though

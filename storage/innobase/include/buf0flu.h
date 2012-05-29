@@ -176,31 +176,6 @@ buf_flush_ready_for_replace(
 /*========================*/
 	buf_page_t*	bpage);	/*!< in: buffer control block, must be
 				buf_page_in_file(bpage) and in the LRU list */
-
-/** @brief Statistics for selecting flush rate based on redo log
-generation speed.
-
-These statistics are generated for heuristics used in estimating the
-rate at which we should flush the dirty blocks to avoid bursty IO
-activity. Note that the rate of flushing not only depends on how many
-dirty pages we have in the buffer pool but it is also a fucntion of
-how much redo the workload is generating and at what rate. */
-
-struct buf_flush_stat_struct
-{
-	lsn_t	redo;		/**< amount of redo generated. */
-	ulint	n_flushed;	/**< number of pages flushed. */
-};
-
-/** Statistics for selecting flush rate of dirty pages. */
-typedef struct buf_flush_stat_struct buf_flush_stat_t;
-/*********************************************************************
-Update the historical stats that we are collecting for flush rate
-heuristics at the end of each interval. */
-UNIV_INTERN
-void
-buf_flush_stat_update(void);
-/*=======================*/
 /******************************************************************//**
 page_cleaner thread tasked with flushing dirty pages from the buffer
 pools. As of now we'll have only one instance of this thread.
