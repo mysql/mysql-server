@@ -75,6 +75,8 @@ dict_stats_enqueue_table_for_auto_recalc(
 {
 	mutex_enter(&auto_recalc_mutex);
 
+	ut_a(auto_recalc_used <= auto_recalc_size);
+
 	/* search if already in the list */
 	for (ulint i = 0; i < auto_recalc_used; i++) {
 		if (auto_recalc_list[i] == table->id) {
@@ -89,22 +91,23 @@ dict_stats_enqueue_table_for_auto_recalc(
 	/* enlarge if no more space */
 	if (auto_recalc_used == auto_recalc_size) {
 		table_id_t*	p;
-		p = (table_id_t*)
-			ut_realloc(auto_recalc_list, auto_recalc_size * 2);
-		if (p == NULL) {
+
+		p = reinterpret_cast<table_id_t*>(
+			ut_realloc(auto_recalc_list, auto_recalc_size * 2));
+
+		if (p == 0) {
 			/* auto_recalc_list is still valid, just quit without
 			adding the table to the list, maybe allocation will
 			succeed in the next enqueue operation */
 			mutex_exit(&auto_recalc_mutex);
 			return;
 		}
+
 		auto_recalc_list = p;
 		auto_recalc_size *= 2;
 	}
 
-	auto_recalc_list[auto_recalc_used] = table->id;
-
-	auto_recalc_used++;
+	auto_recalc_list[auto_recalc_used++] = table->id;
 
 	mutex_exit(&auto_recalc_mutex);
 
@@ -115,40 +118,70 @@ dict_stats_enqueue_table_for_auto_recalc(
 /*****************************************************************//**
 Pop a table from the auto recalc list.
 dict_stats_dequeue_table_for_auto_recalc() @{
-@return TRUE if list was non-empty and "id" was set, FALSE otherwise */
+@return true if list was non-empty and "id" was set, false otherwise */
 static
-ibool
+bool
 dict_stats_dequeue_table_for_auto_recalc(
 /*=====================================*/
 	table_id_t*	id)	/*!< out: table id, or unmodified if list is
 				empty */
 {
+	*id = UINT64_UNDEFINED;
+
 	mutex_enter(&auto_recalc_mutex);
 
-	if (auto_recalc_used == 0) {
-		/* empty list */
-		mutex_exit(&auto_recalc_mutex);
-		return(FALSE);
+	if (auto_recalc_used > 0) {
+
+		*id = auto_recalc_list[0];
+
+		ut_a(auto_recalc_used > 0);
+
+		--auto_recalc_used;
+
+		ut_memmove(
+			&auto_recalc_list[0],
+			&auto_recalc_list[1],
+			auto_recalc_used * sizeof(auto_recalc_list[0]));
 	}
-
-	*id = auto_recalc_list[0];
-
-	auto_recalc_used--;
-
-	ut_memmove(
-		&auto_recalc_list[0],
-		&auto_recalc_list[1],
-		auto_recalc_used * sizeof(auto_recalc_list[0]));
 
 	mutex_exit(&auto_recalc_mutex);
 
-	return(TRUE);
+	return(*id != UINT64_UNDEFINED);
 }
 /* @} */
 
 /*****************************************************************//**
+Remove a table id from the auto recalc list. */
+static
+void
+dict_stats_remove_table_id(
+/*=======================*/
+	table_id_t	id)	/*!< in: table id to remove */
+{
+	ut_ad(mutex_own(&auto_recalc_mutex));
+
+	ut_ad(id > 0);
+
+	for (ulint i = 0; i < auto_recalc_used; ++i) {
+
+		if (auto_recalc_list[i] == id) {
+
+			ut_memmove(
+				&auto_recalc_list[i],
+				&auto_recalc_list[i + 1],
+				(auto_recalc_used - i - 1)
+				* sizeof(auto_recalc_list[0]));
+
+			--auto_recalc_used;
+
+			break;
+		}
+	}
+}
+
+/*****************************************************************//**
 Remove a table from the auto recalc list.
-dict_stats_remove_table_from_auto_recalc() @{ */
+dict_stats_remove_table_from_auto_recalc() */
 UNIV_INTERN
 void
 dict_stats_remove_table_from_auto_recalc(
@@ -156,59 +189,26 @@ dict_stats_remove_table_from_auto_recalc(
 	const char*	table_name)	/*!< in: table name, e.g. "db/table" */
 {
 	dict_table_t*	table;
-	table_id_t	id;
 
-	/* fetch table id from table name */
-	table = dict_table_open_on_name(table_name, FALSE, FALSE,
-					DICT_ERR_IGNORE_NONE);
+	table = dict_table_open_on_name(
+		table_name, FALSE, FALSE, DICT_ERR_IGNORE_NONE);
 
 	if (table == NULL) {
-		/* table does not exist */
 		return;
 	}
 
-	id = table->id;
+	table_id_t	id = table->id;
 
 	dict_table_close(table, FALSE, FALSE);
 
 	mutex_enter(&auto_recalc_mutex);
 
-	if (auto_recalc_used == 0) {
-		/* empty list */
-		mutex_exit(&auto_recalc_mutex);
-		return;
-	}
+	dict_stats_remove_table_id(id);
 
-	ulint	i;
-
-	/* search the list */
-	for (i = 0; i < auto_recalc_used; i++) {
-		if (auto_recalc_list[i] == id) {
-			/* found */
-			break;
-		}
-	}
-
-	if (i == auto_recalc_used) {
-		/* was not in the list */
-		mutex_exit(&auto_recalc_mutex);
-		return;
-	}
-
-	if (i < auto_recalc_used - 1) {
-		ut_memmove(
-			&auto_recalc_list[i],
-			&auto_recalc_list[i + 1],
-			(auto_recalc_used - i - 1) * sizeof(auto_recalc_list[0]));
-	}
-
-	auto_recalc_used--;
+	ut_ad(auto_recalc_used >= 0);
 
 	mutex_exit(&auto_recalc_mutex);
-
-	return;
 }
-/* @} */
 
 /*****************************************************************//**
 Wait until background stats thread has stopped using the specified table(s).
@@ -229,9 +229,9 @@ dict_stats_wait_bg_to_stop_using_tables(
 	trx_t*			trx)	/*!< in/out: transaction to use for
 					unlocking/locking the data dict */
 {
-	while (table1->stats_bg_flag & BG_STAT_IN_PROGRESS
-	       || (table2 != NULL &&
-		   table2->stats_bg_flag & BG_STAT_IN_PROGRESS)) {
+	while ((table1->stats_bg_flag & BG_STAT_IN_PROGRESS)
+	       || (table2 != NULL
+		   && (table2->stats_bg_flag & BG_STAT_IN_PROGRESS))) {
 
 		row_mysql_unlock_data_dictionary(trx);
 		os_thread_sleep(250000);
@@ -338,13 +338,18 @@ pop_from_auto_recalc_list_and_recalc()
 	find out that this is a problem, then the check below could eventually
 	be replaced with something else, though a time interval is the natural
 	approach. */
+
 	if (ut_difftime(ut_time(), table->stats_last_recalc)
 	    < MIN_RECALC_INTERVAL) {
+
 		/* Stats were (re)calculated not long ago. To avoid
 		too frequent stats updates we put back the table on
 		the auto recalc list and do nothing. */
+
 		dict_stats_enqueue_table_for_auto_recalc(table);
+
 	} else {
+
 		dict_stats_update(table, DICT_STATS_RECALC_PERSISTENT, FALSE);
 	}
 
@@ -380,8 +385,8 @@ DECLARE_THREAD(dict_stats_thread)(
 		pop_from_auto_recalc_list_and_recalc() puts the entry back
 		in the list, the os_event_set() will be lost by the subsequent
 		os_event_reset(). */
-		os_event_wait_time(dict_stats_event,
-				   MIN_RECALC_INTERVAL * 1000000);
+		os_event_wait_time(
+			dict_stats_event, MIN_RECALC_INTERVAL * 1000000);
 
 		if (SHUTTING_DOWN()) {
 			break;
