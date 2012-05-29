@@ -205,14 +205,19 @@ the equal ordering fields. NOTE: we compare the fields as binary strings!
 @return own: update vector of differing fields, excluding roll ptr and
 trx id */
 UNIV_INTERN
-upd_t*
+const upd_t*
 row_upd_build_difference_binary(
 /*============================*/
 	dict_index_t*	index,	/*!< in: clustered index */
 	const dtuple_t*	entry,	/*!< in: entry to insert */
 	const rec_t*	rec,	/*!< in: clustered index record */
-	trx_t*		trx,	/*!< in: transaction */
-	mem_heap_t*	heap);	/*!< in: memory heap from which allocated */
+	const ulint*	offsets,/*!< in: rec_get_offsets(rec,index), or NULL */
+	bool		no_sys,	/*!< in: skip the system columns
+				DB_TRX_ID and DB_ROLL_PTR */
+	trx_t*		trx,	/*!< in: transaction (for diagnostics),
+				or NULL */
+	mem_heap_t*	heap)	/*!< in: memory heap from which allocated */
+	__attribute__((nonnull(1,2,3,7), warn_unused_result));
 /***********************************************************//**
 Replaces the new column values stored in the update vector to the index entry
 given. */

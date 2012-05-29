@@ -848,12 +848,15 @@ the equal ordering fields. NOTE: we compare the fields as binary strings!
 @return own: update vector of differing fields, excluding roll ptr and
 trx id */
 UNIV_INTERN
-upd_t*
+const upd_t*
 row_upd_build_difference_binary(
 /*============================*/
 	dict_index_t*	index,	/*!< in: clustered index */
 	const dtuple_t*	entry,	/*!< in: entry to insert */
 	const rec_t*	rec,	/*!< in: clustered index record */
+	const ulint*	offsets,/*!< in: rec_get_offsets(rec,index), or NULL */
+	bool		no_sys,	/*!< in: skip the system columns
+				DB_TRX_ID and DB_ROLL_PTR */
 	trx_t*		trx,	/*!< in: transaction */
 	mem_heap_t*	heap)	/*!< in: memory heap from which allocated */
 {
@@ -863,11 +866,9 @@ row_upd_build_difference_binary(
 	ulint		len;
 	upd_t*		update;
 	ulint		n_diff;
-	ulint		roll_ptr_pos;
 	ulint		trx_id_pos;
 	ulint		i;
 	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
-	const ulint*	offsets;
 	rec_offs_init(offsets_);
 
 	/* This function is used only for a clustered index */
@@ -877,11 +878,16 @@ row_upd_build_difference_binary(
 
 	n_diff = 0;
 
-	roll_ptr_pos = dict_index_get_sys_col_pos(index, DATA_ROLL_PTR);
 	trx_id_pos = dict_index_get_sys_col_pos(index, DATA_TRX_ID);
+	ut_ad(dict_index_get_sys_col_pos(index, DATA_ROLL_PTR)
+	      == trx_id_pos + 1);
 
-	offsets = rec_get_offsets(rec, index, offsets_,
-				  ULINT_UNDEFINED, &heap);
+	if (!offsets) {
+		offsets = rec_get_offsets(rec, index, offsets_,
+					  ULINT_UNDEFINED, &heap);
+	} else {
+		ut_ad(rec_offs_validate(rec, index, offsets));
+	}
 
 	for (i = 0; i < dtuple_get_n_fields(entry); i++) {
 
@@ -892,9 +898,9 @@ row_upd_build_difference_binary(
 		/* NOTE: we compare the fields as binary strings!
 		(No collation) */
 
-		if (i == trx_id_pos || i == roll_ptr_pos) {
+		if (no_sys && (i == trx_id_pos || i == trx_id_pos + 1)) {
 
-			goto skip_compare;
+			continue;
 		}
 
 		if (!dfield_is_ext(dfield)
@@ -909,8 +915,6 @@ row_upd_build_difference_binary(
 
 			n_diff++;
 		}
-skip_compare:
-		;
 	}
 
 	update->n_fields = n_diff;
