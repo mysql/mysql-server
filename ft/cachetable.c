@@ -3348,8 +3348,12 @@ toku_cachetable_begin_checkpoint (CACHETABLE ct, TOKULOGGER logger) {
             }
             // Log all the open transactions MUST BE AFTER OPEN FILES
             {
-                ct->checkpoint_num_txns = toku_omt_size(logger->live_txns);
-                int r = toku_omt_iterate(logger->live_txns, log_open_txn, NULL);
+                ct->checkpoint_num_txns = toku_txn_manager_num_live_txns(logger->txn_manager);
+                int r = toku_txn_manager_iter_over_live_txns(
+                    logger->txn_manager,
+                    log_open_txn,
+                    NULL
+                    );
                 assert(r==0);
             }
             // Log rollback suppression for all the open files MUST BE AFTER TXNS

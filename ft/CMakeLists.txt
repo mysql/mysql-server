@@ -60,6 +60,7 @@ set(FT_SOURCES
   sub_block.c
   threadpool.c
   txn.c
+  txn_manager.c
   ule.c
   workqueue.c
   x1764.c

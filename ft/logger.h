@@ -97,7 +97,6 @@ TXNID toku_txn_get_root_txnid (TOKUTXN txn);
 LSN toku_logger_last_lsn(TOKULOGGER logger);
 TOKULOGGER toku_txn_logger (TOKUTXN txn);
 
-BOOL is_txnid_live(TOKULOGGER logger, TXNID txnid);
 int toku_txnid2txn (TOKULOGGER logger, TXNID txnid, TOKUTXN *result);
 //int toku_logger_log_checkpoint (TOKULOGGER);
 //int toku_set_func_fsync (int (*fsync_function)(int));
@@ -106,7 +105,6 @@ int toku_logger_log_archive (TOKULOGGER logger, char ***logs_p, int flags);
 TOKUTXN toku_logger_txn_parent (TOKUTXN txn);
 void toku_logger_note_checkpoint(TOKULOGGER logger, LSN lsn);
 
-TXNID toku_logger_get_oldest_living_xid(TOKULOGGER logger, time_t * oldest_living_starttime);
 LSN toku_logger_get_next_lsn(TOKULOGGER logger);
 void toku_logger_set_remove_finalize_callback(TOKULOGGER logger, void (*funcp)(DICTIONARY_ID, void *), void * extra);
 void toku_logger_call_remove_finalize_callback(TOKULOGGER logger, DICTIONARY_ID dict_id);
@@ -190,6 +188,9 @@ void toku_logger_get_status(TOKULOGGER logger, LOGGER_STATUS s);
 
 int toku_get_version_of_logs_on_disk(const char *log_dir, BOOL *found_any_logs, uint32_t *version_found);
 int toku_delete_all_logs_of_version(const char *log_dir, uint32_t version_to_delete);
+
+TXN_MANAGER toku_logger_get_txn_manager(TOKULOGGER logger);
+
 
 static const TOKULOGGER NULL_logger __attribute__((__unused__)) = NULL;
 

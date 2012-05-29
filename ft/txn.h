@@ -35,9 +35,6 @@ int toku_txn_begin_with_xid (
 // Allocate and initialize a txn
 int toku_txn_create_txn(TOKUTXN *txn_ptr, TOKUTXN parent, TOKULOGGER logger, TXNID xid, TXN_SNAPSHOT_TYPE snapshot_type, DB_TXN *container_db_txn);
 
-// Assign a txnid. Log the txn begin in the recovery log. Initialize the txn live lists.
-void toku_txn_start_txn(TOKUTXN txn);
-
 int toku_txn_load_txninfo (TOKUTXN txn, TXNINFO info);
 
 int toku_txn_commit_txn (TOKUTXN txn, int nosync, YIELDF yield, void *yieldv,
@@ -95,7 +92,7 @@ typedef struct {
     TOKU_ENGINE_STATUS_ROW_S status[TXN_STATUS_NUM_ROWS];
 } TXN_STATUS_S, *TXN_STATUS;
 
-void toku_txn_get_status(TOKULOGGER logger, TXN_STATUS s);
+void toku_txn_get_status(TXN_STATUS s);
 
 BOOL toku_is_txn_in_live_root_txn_list(OMT live_root_txn_list, TXNID xid);
 
@@ -106,18 +103,6 @@ typedef struct {
     TXNID xid2;
 } XID_PAIR_S, *XID_PAIR;
 
-// 2954
-typedef struct tokutxn_filenum_ignore_errors {
-    uint32_t fns_allocated;
-    FILENUMS filenums;
-} TXN_IGNORE_S, *TXN_IGNORE;
-
-void toku_txn_ignore_init(TOKUTXN txn);
-void toku_txn_ignore_free(TOKUTXN txn);
-int  toku_txn_ignore_add(TOKUTXN txn, FILENUM filenum);
-int  toku_txn_ignore_remove(TOKUTXN txn, FILENUM filenum);
-int  toku_txn_ignore_contains(TOKUTXN txn, FILENUM filenum);
-
 #include "txn_state.h"
 
 TOKUTXN_STATE toku_txn_get_state(TOKUTXN txn);
@@ -127,7 +112,6 @@ struct tokulogger_preplist {
     DB_TXN *txn;
 };
 int toku_logger_recover_txn (TOKULOGGER logger, struct tokulogger_preplist preplist[/*count*/], long count, /*out*/ long *retp, u_int32_t flags);
-int toku_logger_get_txn_from_xid (TOKULOGGER logger, TOKU_XA_XID *xid, DB_TXN **txnp);
 
 #if defined(__cplusplus) || defined(__cilkplusplus)
 }

@@ -41,6 +41,7 @@ const char *toku_copyright_string = "Copyright (c) 2007-2009 Tokutek Inc.  All r
 #include "ydb_db.h"
 #include "ydb_write.h"
 #include "ydb_txn.h"
+#include "ft/txn_manager.h"
 
 #ifdef TOKUTRACE
  #define DB_ENV_CREATE_FUN db_env_create_toku10
@@ -1510,7 +1511,7 @@ locked_env_txn_xa_recover (DB_ENV *env, TOKU_XA_XID xids[/*count*/], long count,
 
 static int
 toku_env_get_txn_from_xid (DB_ENV *env, /*in*/ TOKU_XA_XID *xid, /*out*/ DB_TXN **txnp) {
-    return toku_logger_get_txn_from_xid(env->i->logger, xid, txnp);
+    return toku_txn_manager_get_txn_from_xid(toku_logger_get_txn_manager(env->i->logger), xid, txnp);
 }
 
 static int
@@ -2159,7 +2160,7 @@ env_get_engine_status (DB_ENV * env, TOKU_ENGINE_STATUS_ROW engstat, uint64_t ma
         }
         {
             TXN_STATUS_S txnstat;
-            toku_txn_get_status(env->i->logger, &txnstat);
+            toku_txn_get_status(&txnstat);
             for (int i = 0; i < TXN_STATUS_NUM_ROWS && row < maxrows; i++) {
                 engstat[row++] = txnstat.status[i];
             }
