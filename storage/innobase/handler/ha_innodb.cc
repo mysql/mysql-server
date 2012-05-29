@@ -10511,9 +10511,6 @@ ha_innobase::info(
 
 		n_rows = ib_table->stat_n_rows;
 
-		// Q&D HACK - INVESTIGATE
-		if (n_rows == 3) ++n_rows;
-
 		stat_clustered_index_size
 			= ib_table->stat_clustered_index_size;
 
