@@ -429,14 +429,18 @@ dict_table_try_drop_aborted_and_mutex_exit(
 					drop indexes whose online creation
 					was aborted */
 {
-	if (try_drop && table != NULL && table->drop_aborted
+	if (try_drop
+	    && table != NULL
+	    && table->drop_aborted
 	    && table->n_ref_count == 1
 	    && dict_table_get_first_index(table)) {
+
 		/* Attempt to drop the indexes whose online creation
 		was aborted. */
 		table_id_t	table_id = table->id;
 
 		mutex_exit(&dict_sys->mutex);
+
 		dict_table_try_drop_aborted(table, table_id, 1);
 	} else {
 		mutex_exit(&dict_sys->mutex);

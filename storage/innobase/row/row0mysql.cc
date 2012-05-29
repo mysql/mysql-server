@@ -1048,7 +1048,6 @@ row_update_statistics_if_needed(
 		}
 		return;
 	}
-	/* else */
 
 	/* Calculate new statistics if 1 / 16 of table has been modified
 	since the last time a statistics batch was run.
