@@ -3564,6 +3564,7 @@ void Security_context::init()
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   db_access= NO_ACCESS;
 #endif
+  password_expired= false; 
 }
 
 
