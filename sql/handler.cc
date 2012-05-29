@@ -6256,14 +6256,13 @@ bool DsMrr_impl::get_disk_sweep_mrr_cost(uint keynr, ha_rows rows, uint flags,
                                          uint *buffer_size, 
                                          Cost_estimate *cost)
 {
-  ulong max_buff_entries;
   ha_rows rows_in_last_step;
   uint n_full_steps;
   double index_read_cost;
 
   const uint elem_size= h->ref_length + 
                         sizeof(void*) * (!test(flags & HA_MRR_NO_ASSOCIATION));
-  max_buff_entries = *buffer_size / elem_size;
+  const ha_rows max_buff_entries= *buffer_size / elem_size;
 
   if (!max_buff_entries)
     return TRUE; /* Buffer has not enough space for even 1 rowid */
@@ -6281,7 +6280,7 @@ bool DsMrr_impl::get_disk_sweep_mrr_cost(uint keynr, ha_rows rows, uint flags,
 
   if (n_full_steps)
   {
-    get_sort_and_sweep_cost(table, rows, cost);
+    get_sort_and_sweep_cost(table, max_buff_entries, cost);
     cost->multiply(n_full_steps);
   }
   else
