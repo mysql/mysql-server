@@ -409,20 +409,28 @@ row_log_table_delete(
 		return;
 	}
 
+	dict_table_t* new_table = index->online_log->table;
+	dict_index_t* new_index = dict_table_get_first_index(new_table);
+
+	ut_ad(dict_index_is_clust(new_index));
+	ut_ad(!dict_index_is_online_ddl(new_index));
+
 	/* Create the tuple PRIMARY KEY, DB_TRX_ID in the new_table. */
 	if (index->online_log->same_pk) {
 		byte*		db_trx_id;
 		dtuple_t*	tuple;
+		ut_ad(new_index->n_uniq == index->n_uniq);
 
 		/* The PRIMARY KEY and DB_TRX_ID are in the first
 		fields of the record. */
-		heap = mem_heap_create(DATA_TRX_ID_LEN
-				       + DTUPLE_EST_ALLOC(index->n_uniq + 1));
-		old_pk = tuple = dtuple_create(heap, index->n_uniq + 1);
-		dtuple_set_n_fields_cmp(tuple, index->n_uniq);
-		dict_index_copy_types(tuple, index, index->n_uniq + 1);
+		heap = mem_heap_create(
+			DATA_TRX_ID_LEN
+			+ DTUPLE_EST_ALLOC(new_index->n_uniq + 1));
+		old_pk = tuple = dtuple_create(heap, new_index->n_uniq + 1);
+		dict_index_copy_types(tuple, new_index, tuple->n_fields);
+		dtuple_set_n_fields_cmp(tuple, new_index->n_uniq);
 
-		for (ulint i = 0; i < index->n_uniq; i++) {
+		for (ulint i = 0; i < new_index->n_uniq; i++) {
 			ulint		len;
 			const void*	field	= rec_get_nth_field(
 				rec, offsets, i, &len);
@@ -437,14 +445,10 @@ row_log_table_delete(
 			mem_heap_alloc(heap, DATA_TRX_ID_LEN));
 		trx_write_trx_id(db_trx_id, trx_id);
 
-		dfield_set_data(dtuple_get_nth_field(tuple, index->n_uniq),
+		dfield_set_data(dtuple_get_nth_field(tuple, new_index->n_uniq),
 				db_trx_id, DATA_TRX_ID_LEN);
 	} else {
 		/* The PRIMARY KEY has changed. Translate the tuple. */
-		dict_table_t*	new_table
-			= index->online_log->table;
-		dict_index_t*	new_index
-			= dict_table_get_first_index(new_table);
 		dfield_t*	dfield;
 
 		old_pk = row_log_table_get_pk(rec, index, offsets, &heap);
@@ -468,7 +472,7 @@ row_log_table_delete(
 	ut_ad(DATA_TRX_ID_LEN == dtuple_get_nth_field(
 		      old_pk, old_pk->n_fields - 1)->len);
 	old_pk_size = rec_get_converted_size_comp_prefix(
-		index, old_pk->fields, old_pk->n_fields,
+		new_index, old_pk->fields, old_pk->n_fields,
 		0, &old_pk_extra_size) - REC_N_NEW_EXTRA_BYTES;
 	ut_ad(old_pk_extra_size >= REC_N_NEW_EXTRA_BYTES);
 	old_pk_extra_size -= REC_N_NEW_EXTRA_BYTES;
@@ -482,7 +486,7 @@ row_log_table_delete(
 		*b++ = old_pk_extra_size;
 
 		rec_convert_dtuple_to_rec_comp(
-			b + old_pk_extra_size, 0, index,
+			b + old_pk_extra_size, 0, new_index,
 			REC_STATUS_ORDINARY,
 			old_pk->fields, old_pk->n_fields, 0);
 
@@ -537,6 +541,12 @@ row_log_table_update(
 		return;
 	}
 
+	dict_table_t* new_table = index->online_log->table;
+	dict_index_t* new_index = dict_table_get_first_index(new_table);
+
+	ut_ad(dict_index_is_clust(new_index));
+	ut_ad(!dict_index_is_online_ddl(new_index));
+
 	if (rec_offs_comp(offsets)) {
 		ut_ad(rec_get_status(rec) == REC_STATUS_ORDINARY);
 
@@ -557,7 +567,7 @@ row_log_table_update(
 		ut_ad(old_pk);
 		ut_ad(dtuple_get_n_fields(old_pk) > 1);
 		old_pk_size = rec_get_converted_size_comp_prefix(
-			index, old_pk->fields, old_pk->n_fields,
+			new_index, old_pk->fields, old_pk->n_fields,
 			0, &old_pk_extra_size) - REC_N_NEW_EXTRA_BYTES;
 		ut_ad(old_pk_extra_size >= REC_N_NEW_EXTRA_BYTES);
 		old_pk_extra_size -= REC_N_NEW_EXTRA_BYTES;
@@ -573,7 +583,7 @@ row_log_table_update(
 			*b++ = old_pk_extra_size;
 
 			rec_convert_dtuple_to_rec_comp(
-				b + old_pk_extra_size, 0, index,
+				b + old_pk_extra_size, 0, new_index,
 				REC_STATUS_ORDINARY,
 				old_pk->fields, old_pk->n_fields, 0);
 			b += old_pk_size;
@@ -667,8 +677,8 @@ row_log_table_get_pk(
 		}
 
 		tuple = dtuple_create(*heap, new_n_uniq + 2);
+		dict_index_copy_types(tuple, new_index, tuple->n_fields);
 		dtuple_set_n_fields_cmp(tuple, new_n_uniq);
-		dict_index_copy_types(tuple, new_index, new_n_uniq + 2);
 
 		for (ulint new_i = 0; new_i < new_n_uniq; new_i++) {
 			dict_field_t*		ifield;
@@ -1129,6 +1139,9 @@ row_log_table_apply_delete(
 	que_thr_t*		thr,		/*!< in: query graph */
 	ulint			trx_id_col,	/*!< in: position of
 						DB_TRX_ID in the
+						old clustered index */
+	ulint			new_trx_id_col,	/*!< in: position of
+						DB_TRX_ID in the new
 						clustered index */
 	const mrec_t*		mrec,		/*!< in: merge record */
 	const ulint*		moffsets,	/*!< in: offsets of mrec */
@@ -1149,7 +1162,7 @@ row_log_table_apply_delete(
 
 	/* Convert the row to a search tuple. */
 	old_pk = dtuple_create(heap, index->n_uniq + 1);
-	dict_table_copy_types(old_pk, new_table);
+	dict_index_copy_types(old_pk, index, old_pk->n_fields);
 	dtuple_set_n_fields_cmp(old_pk, index->n_uniq);
 
 	for (ulint i = 0; i <= index->n_uniq; i++) {
@@ -1205,7 +1218,7 @@ all_done:
 		ut_ad(len == DATA_TRX_ID_LEN);
 		const void*	rec_trx_id
 			= rec_get_nth_field(btr_pcur_get_rec(&pcur), offsets,
-					    trx_id_col, &len);
+					    new_trx_id_col, &len);
 		ut_ad(len == DATA_TRX_ID_LEN);
 		if (memcmp(mrec_trx_id, rec_trx_id, DATA_TRX_ID_LEN)) {
 			goto all_done;
@@ -1225,6 +1238,9 @@ row_log_table_apply_update(
 	que_thr_t*		thr,		/*!< in: query graph */
 	ulint			trx_id_col,	/*!< in: position of
 						DB_TRX_ID in the
+						old clustered index */
+	ulint			new_trx_id_col,	/*!< in: position of
+						DB_TRX_ID in the new
 						clustered index */
 	const mrec_t*		mrec,		/*!< in: merge record */
 	const ulint*		offsets,	/*!< in: offsets of mrec */
@@ -1318,8 +1334,8 @@ delete_insert:
 		goto insert;
 	}
 
-	if (upd_get_nth_field(update, 0)->field_no < trx_id_col) {
-		if (!dup->index->online_log->same_pk) {
+	if (upd_get_nth_field(update, 0)->field_no < new_trx_id_col) {
+		if (dup->index->online_log->same_pk) {
 			ut_ad(0);
 			error = DB_CORRUPTION;
 			goto func_exit;
@@ -1334,17 +1350,17 @@ delete_insert:
 			mrec, offsets, trx_id_col, &len);
 		ut_ad(len == DATA_TRX_ID_LEN);
 		const dfield_t*	new_trx_roll	= dtuple_get_nth_field(
-			old_pk, trx_id_col);
+			old_pk, new_trx_id_col);
 		/* We assume that DB_TRX_ID,DB_ROLL_PTR are stored
 		in one contiguous block. */
 		ut_ad(rec_get_nth_field(mrec, offsets, trx_id_col + 1, &len)
 		      == cur_trx_roll + DATA_TRX_ID_LEN);
 		ut_ad(len == DATA_ROLL_PTR_LEN);
 		ut_ad(new_trx_roll->len == DATA_TRX_ID_LEN);
-		ut_ad(dtuple_get_nth_field(old_pk, trx_id_col + 1)
+		ut_ad(dtuple_get_nth_field(old_pk, new_trx_id_col + 1)
 		      -> len == DATA_ROLL_PTR_LEN);
 		ut_ad(static_cast<const byte*>(
-			      dtuple_get_nth_field(old_pk, trx_id_col + 1)
+			      dtuple_get_nth_field(old_pk, new_trx_id_col + 1)
 			      ->data)
 		      == static_cast<const byte*>(new_trx_roll->data)
 		      + DATA_TRX_ID_LEN);
@@ -1460,7 +1476,9 @@ row_log_table_apply_op(
 /*===================*/
 	que_thr_t*		thr,		/*!< in: query graph */
 	ulint			trx_id_col,	/*!< in: position of
-						DB_TRX_ID in index */
+						DB_TRX_ID in old index */
+	ulint			new_trx_id_col,	/*!< in: position of
+						DB_TRX_ID in new index */
 	dict_table_t*		new_table,	/*!< in/out: table
 						being rebuilt */
 	const struct TABLE*	altered_table,	/*!< in: new MySQL
@@ -1553,7 +1571,8 @@ row_log_table_apply_op(
 		next_mrec = mrec + rec_offs_data_size(offsets);
 
 		*error = row_log_table_apply_delete(
-			thr, trx_id_col, mrec, offsets, offsets_heap, heap,
+			thr, trx_id_col, new_trx_id_col,
+			mrec, offsets, offsets_heap, heap,
 			new_table);
 		break;
 	case ROW_T_UPDATE:
@@ -1595,7 +1614,8 @@ row_log_table_apply_op(
 			}
 
 			old_pk = dtuple_create(heap, new_index->n_uniq);
-			dict_table_copy_types(old_pk, new_table);
+			dict_index_copy_types(
+				old_pk, new_index, old_pk->n_fields);
 
 			/* Copy the PRIMARY KEY fields from mrec to old_pk. */
 			for (ulint i = 0; i < new_index->n_uniq; i++) {
@@ -1633,7 +1653,8 @@ row_log_table_apply_op(
 			/* Copy the PRIMARY KEY fields and
 			DB_TRX_ID, DB_ROLL_PTR from mrec to old_pk. */
 			old_pk = dtuple_create(heap, new_index->n_uniq + 2);
-			dict_table_copy_types(old_pk, new_table);
+			dict_index_copy_types(old_pk, new_index,
+					      old_pk->n_fields);
 
 			for (ulint i = 0;
 			     i < dict_index_get_n_unique(new_index) + 2;
@@ -1694,7 +1715,7 @@ row_log_table_apply_op(
 				    dup->index,
 				    trx_read_trx_id(db_trx_id))) {
 				*error = row_log_table_apply_update(
-					thr, trx_id_col,
+					thr, trx_id_col, new_trx_id_col,
 					mrec, offsets, offsets_heap, heap,
 					new_table, altered_table, dup, old_pk);
 			}
@@ -1732,11 +1753,15 @@ row_log_table_apply_ops(
 	bool		has_index_lock;
 	dict_index_t*	index		= const_cast<dict_index_t*>(
 		dup->index);
+	dict_table_t*	new_table	= index->online_log->table;
+	dict_index_t*	new_index	= dict_table_get_first_index(
+		new_table);
 	const ulint	i		= 1 + REC_OFFS_HEADER_SIZE
 		+ dict_index_get_n_fields(index);
 	const ulint	trx_id_col	= dict_col_get_clust_pos(
-		dict_table_get_sys_col(index->table, DATA_TRX_ID),
-		index);
+		dict_table_get_sys_col(index->table, DATA_TRX_ID), index);
+	const ulint	new_trx_id_col	= dict_col_get_clust_pos(
+		dict_table_get_sys_col(new_table, DATA_TRX_ID), new_index);
 	trx_t*		trx		= thr_get_trx(thr);
 
 	ut_ad(dict_index_is_clust(index));
@@ -1745,12 +1770,11 @@ row_log_table_apply_ops(
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(rw_lock_own(dict_index_get_lock(index), RW_LOCK_EX));
 #endif /* UNIV_SYNC_DEBUG */
-	ut_ad(index->online_log);
-	ut_ad(index->online_log->table);
-	ut_ad(!dict_index_is_online_ddl(
-		      dict_table_get_first_index(index->online_log->table)));
+	ut_ad(!dict_index_is_online_ddl(new_index));
 	ut_ad(trx_id_col > 0);
 	ut_ad(trx_id_col != ULINT_UNDEFINED);
+	ut_ad(new_trx_id_col > 0);
+	ut_ad(new_trx_id_col != ULINT_UNDEFINED);
 
 	UNIV_MEM_INVALID(&mrec_end, sizeof mrec_end);
 
@@ -1888,7 +1912,7 @@ all_done:
 		memcpy((mrec_t*) mrec_end, next_mrec,
 		       (&index->online_log->head.buf)[1] - mrec_end);
 		mrec = row_log_table_apply_op(
-			thr, trx_id_col,
+			thr, trx_id_col, new_trx_id_col,
 			index->online_log->table, altered_table,
 			dup, &error, offsets_heap, heap,
 			index->online_log->head.buf,
@@ -1987,7 +2011,7 @@ all_done:
 		}
 
 		next_mrec = row_log_table_apply_op(
-			thr, trx_id_col,
+			thr, trx_id_col, new_trx_id_col,
 			index->online_log->table, altered_table,
 			dup, &error, offsets_heap, heap,
 			mrec, mrec_end, offsets);
