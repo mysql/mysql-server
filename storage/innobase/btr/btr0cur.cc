@@ -3144,13 +3144,15 @@ btr_cur_pessimistic_delete(
 
 		btr_discard_page(cursor, mtr);
 
-		*err = DB_SUCCESS;
 		ret = TRUE;
 
 		goto return_after_reservations;
 	}
 
-	lock_update_delete(block, rec);
+	if (UNIV_LIKELY(flags == 0)) {
+		lock_update_delete(block, rec);
+	}
+
 	level = btr_page_get_level(page, mtr);
 
 	if (level > 0
@@ -3197,9 +3199,9 @@ btr_cur_pessimistic_delete(
 
 	ut_ad(btr_check_node_ptr(index, block, mtr));
 
+return_after_reservations:
 	*err = DB_SUCCESS;
 
-return_after_reservations:
 	mem_heap_free(heap);
 
 	if (ret == FALSE) {
