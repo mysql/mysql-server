@@ -3920,6 +3920,13 @@ NdbDictionary::Dictionary::createForeignKey(const ForeignKey& fk,
   if (dst == 0)
     dst = &tmp;
 
+  if (fk.getParentIndex() == 0 // primary key
+      && fk.getOnUpdateAction() == NdbDictionary::ForeignKey::Cascade)
+  {
+    m_impl.m_error.code = 21001;
+    return -1;
+  }
+
   int ret;
   DO_TRANS(ret,
            m_impl.m_receiver.create_fk(NdbForeignKeyImpl::getImpl(fk),

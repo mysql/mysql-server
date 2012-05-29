@@ -99,6 +99,7 @@ static const char* empty_string = "";
  * 4800 - API, QueryBuilder
  * 5000 - Management server
  * 20000 - SPJ
+ * 21000 - DICT FK
  */
 
 static
@@ -167,6 +168,12 @@ ErrorBundle ErrorCodes[] = {
   { 20016, DMEC, NR, "Query aborted due to node failure" },
   { 20017, DMEC, IE, "Query aborted due to invalid node count" },
   { 20018, DMEC, IE, "Query aborted due to index fragment not found" },
+
+  /**
+   * DICT FK kernel and ndbapi error codes
+   */
+  { 21001, HA_ERR_CANNOT_ADD_FOREIGN, AE, "Foreign key create failed: parent key is primary key: on-update-cascade is currently not allowed" },
+
   
   /**
    * Node shutdown
