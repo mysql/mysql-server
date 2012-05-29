@@ -6215,7 +6215,8 @@ key_def:
           {
             LEX *lex=Lex;
             Key *key= new Foreign_key($4.str ? $4 : $1, lex->col_list,
-                                      $8,
+                                      $8->db,
+                                      $8->table,
                                       lex->ref_list,
                                       lex->fk_delete_opt,
                                       lex->fk_update_opt,

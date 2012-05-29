@@ -897,6 +897,57 @@ struct TABLE_SHARE
 };
 
 
+/**
+   Class is used as a BLOB field value storage for
+   intermediate GROUP_CONCAT results. Used only for
+   GROUP_CONCAT with  DISTINCT or ORDER BY options.
+ */
+
+class Blob_mem_storage: public Sql_alloc
+{
+private:
+  MEM_ROOT storage;
+  /**
+    Sign that some values were cut
+    during saving into the storage.
+  */
+  bool truncated_value;
+public:
+  Blob_mem_storage() :truncated_value(false)
+  {
+    init_alloc_root(&storage, MAX_FIELD_VARCHARLENGTH, 0);
+  }
+  ~ Blob_mem_storage()
+  {
+    free_root(&storage, MYF(0));
+  }
+  void reset()
+  {
+    free_root(&storage, MYF(MY_MARK_BLOCKS_FREE));
+    truncated_value= false;
+  }
+  /**
+     Fuction creates duplicate of 'from'
+     string in 'storage' MEM_ROOT.
+
+     @param from           string to copy
+     @param length         string length
+
+     @retval Pointer to the copied string.
+     @retval 0 if an error occured.
+  */
+  char *store(const char *from, uint length)
+  {
+    return (char*) memdup_root(&storage, from, length);
+  }
+  void set_truncated_value(bool is_truncated_value)
+  {
+    truncated_value= is_truncated_value;
+  }
+  bool is_truncated_value() { return truncated_value; }
+};
+
+
 /* Information for one open table */
 enum index_hint_type
 {
@@ -1109,6 +1160,12 @@ public:
      reference to a TABLE object.
    */
   MEM_ROOT mem_root;
+  /**
+     Initialized in Item_func_group_concat::setup for appropriate
+     temporary table if GROUP_CONCAT is used with ORDER BY | DISTINCT
+     and BLOB field count > 0.
+   */
+  Blob_mem_storage *blob_storage;
   GRANT_INFO grant;
   Filesort_info sort;
 #ifdef WITH_PARTITION_STORAGE_ENGINE
