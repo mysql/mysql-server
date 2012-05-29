@@ -6809,6 +6809,24 @@ ER_MUST_CHANGE_PASSWORD
   eng "You must SET PASSWORD before executing this statement"
   bgn "Трябва първо да си смените паролата със SET PASSWORD за да можете да изпълните тази команда"
 
+ER_FK_NO_INDEX_CHILD
+        eng "Failed to add the foreign key constaint. Missing index for constraint '%s' in the foreign table '%s'"
+
+ER_FK_NO_INDEX_PARENT
+        eng "Failed to add the foreign key constaint. Missing index for constraint '%s' in the referenced table '%s'"
+
+ER_FK_FAIL_ADD_SYSTEM
+        eng "Failed to add the foreign key constraint '%s' to system tables"
+
+ER_FK_CANNOT_OPEN_PARENT
+        eng "Failed to open the referenced table '%s'"
+
+ER_FK_INCORRECT_OPTION
+        eng "Failed to add the foreign key constraint on table '%s'. Incorrect options in FOREIGN KEY constraint '%s'"
+
+ER_FK_DUP_NAME
+	eng "Duplicate foreign key constraint name '%s'"
+
 #
 #  End of 5.6 error messages.
 #

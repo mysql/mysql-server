@@ -184,13 +184,6 @@ void
 dict_field_print_low(
 /*=================*/
 	const dict_field_t*	field);	/*!< in: field */
-/*********************************************************************//**
-Frees a foreign key struct. */
-static
-void
-dict_foreign_free(
-/*==============*/
-	dict_foreign_t*	foreign);	/*!< in, own: foreign key struct */
 
 /**********************************************************************//**
 Removes an index from the dictionary cache. */
@@ -2947,13 +2940,14 @@ dict_table_get_foreign_constraint(
 
 /*********************************************************************//**
 Frees a foreign key struct. */
-static
+UNIV_INTERN
 void
 dict_foreign_free(
 /*==============*/
 	dict_foreign_t*	foreign)	/*!< in, own: foreign key struct */
 {
-	ut_a(foreign->foreign_table->n_foreign_key_checks_running == 0);
+	ut_a(!foreign->foreign_table
+	     || foreign->foreign_table->n_foreign_key_checks_running == 0);
 
 	mem_heap_free(foreign->heap);
 }
@@ -3024,6 +3018,7 @@ dict_foreign_find(
 	return(NULL);
 }
 
+
 /*********************************************************************//**
 Tries to find an index whose first fields are the columns in the array,
 in the same order and is not marked for deletion and is not the same
@@ -3063,51 +3058,10 @@ dict_foreign_find_index(
 
 			goto next_rec;
 
-		} else if (dict_index_get_n_fields(index) >= n_cols) {
-			ulint		i;
-
-			for (i = 0; i < n_cols; i++) {
-				dict_field_t*	field;
-				const char*	col_name;
-
-				field = dict_index_get_nth_field(index, i);
-
-				col_name = dict_table_get_col_name(
-					table, dict_col_get_no(field->col));
-
-				if (field->prefix_len != 0) {
-					/* We do not accept column prefix
-					indexes here */
-
-					break;
-				}
-
-				if (0 != innobase_strcasecmp(columns[i],
-							     col_name)) {
-					break;
-				}
-
-				if (check_null
-				    && (field->col->prtype & DATA_NOT_NULL)) {
-
-					return(NULL);
-				}
-
-				if (types_idx && !cmp_cols_are_equal(
-					    dict_index_get_nth_col(index, i),
-					    dict_index_get_nth_col(types_idx,
-								   i),
-					    check_charsets)) {
-
-					break;
-				}
-			}
-
-			if (i == n_cols) {
-				/* We found a matching index */
-
-				return(index);
-			}
+		} else if (dict_foreign_qualify_index(
+			table, columns, n_cols, index, types_idx,
+			check_charsets, check_null)) {
+			return(index);
 		}
 
 next_rec:
@@ -3548,6 +3502,67 @@ dict_scan_col(
 	return(ptr);
 }
 
+
+/*********************************************************************//**
+Open a table from its database and table name, this is currently used by
+foreign constraint parser to get the referenced table.
+@return complete table name with database and table name, allocated from
+heap memory passed in */
+UNIV_INTERN
+char*
+dict_get_referenced_table(
+/*======================*/
+	const char*	name,		/*!< in: foreign key table name */
+	const char*	database_name,	/*!< in: table db name */
+	ulint		database_name_len, /*!< in: db name length */
+	const char*	table_name,	/*!< in: table name */
+	ulint		table_name_len, /*!< in: table name length */
+	dict_table_t**	table,		/*!< out: table object or NULL */
+	mem_heap_t*	heap)		/*!< in/out: heap memory */
+{
+	char*		ref;
+	const char*	db_name;
+
+	if (!database_name) {
+		/* Use the database name of the foreign key table */
+
+		db_name = name;
+		database_name_len = dict_get_db_name_len(name);
+	} else {
+		db_name = database_name;
+	}
+
+	/* Copy database_name, '/', table_name, '\0' */
+	ref = static_cast<char*>(
+		mem_heap_alloc(heap, database_name_len + table_name_len + 2));
+
+	memcpy(ref, db_name, database_name_len);
+	ref[database_name_len] = '/';
+	memcpy(ref + database_name_len + 1, table_name, table_name_len + 1);
+
+	/* Values;  0 = Store and compare as given; case sensitive
+	            1 = Store and compare in lower; case insensitive
+	            2 = Store as given, compare in lower; case semi-sensitive */
+	if (innobase_get_lower_case_table_names() == 2) {
+		innobase_casedn_str(ref);
+		*table = dict_table_get_low(ref);
+		memcpy(ref, db_name, database_name_len);
+		ref[database_name_len] = '/';
+		memcpy(ref + database_name_len + 1, table_name, table_name_len + 1);
+
+	} else {
+#ifndef __WIN__
+		if (innobase_get_lower_case_table_names() == 1) {
+			innobase_casedn_str(ref);
+		}
+#else
+		innobase_casedn_str(ref);
+#endif /* !__WIN__ */
+		*table = dict_table_get_low(ref);
+	}
+
+	return(ref);
+}
 /*********************************************************************//**
 Scans a table name from an SQL string.
 @return	scanned to */
@@ -3567,9 +3582,7 @@ dict_scan_table_name(
 	const char*	database_name	= NULL;
 	ulint		database_name_len = 0;
 	const char*	table_name	= NULL;
-	ulint		table_name_len;
 	const char*	scan_name;
-	char*		ref;
 
 	*success = FALSE;
 	*table = NULL;
@@ -3617,46 +3630,11 @@ dict_scan_table_name(
 		table_name = scan_name;
 	}
 
-	if (database_name == NULL) {
-		/* Use the database name of the foreign key table */
-
-		database_name = name;
-		database_name_len = dict_get_db_name_len(name);
-	}
-
-	table_name_len = strlen(table_name);
-
-	/* Copy database_name, '/', table_name, '\0' */
-	ref = static_cast<char*>(
-		mem_heap_alloc(heap, database_name_len + table_name_len + 2));
-
-	memcpy(ref, database_name, database_name_len);
-	ref[database_name_len] = '/';
-	memcpy(ref + database_name_len + 1, table_name, table_name_len + 1);
-
-	/* Values;  0 = Store and compare as given; case sensitive
-	            1 = Store and compare in lower; case insensitive
-	            2 = Store as given, compare in lower; case semi-sensitive */
-	if (innobase_get_lower_case_table_names() == 2) {
-		innobase_casedn_str(ref);
-		*table = dict_table_get_low(ref);
-		memcpy(ref, database_name, database_name_len);
-		ref[database_name_len] = '/';
-		memcpy(ref + database_name_len + 1, table_name, table_name_len + 1);
-
-	} else {
-#ifndef __WIN__
-		if (innobase_get_lower_case_table_names() == 1) {
-			innobase_casedn_str(ref);
-		}
-#else
-		innobase_casedn_str(ref);
-#endif /* !__WIN__ */
-		*table = dict_table_get_low(ref);
-	}
+	*ref_name = dict_get_referenced_table(
+		name, database_name, database_name_len,
+		table_name, strlen(table_name), table, heap);
 
 	*success = TRUE;
-	*ref_name = ref;
 	return(ptr);
 }
 
@@ -3784,7 +3762,7 @@ Finds the highest [number] for foreign key constraints of the table. Looks
 only at the >= 4.0.18-format id's, which are of the form
 databasename/tablename_ibfk_[number].
 @return	highest number, 0 if table has no new format foreign key constraints */
-static
+UNIV_INTERN
 ulint
 dict_table_get_highest_foreign_id(
 /*==============================*/
@@ -6056,4 +6034,76 @@ dict_non_lru_find_table(
 	return(FALSE);
 }
 # endif /* UNIV_DEBUG */
+/*********************************************************************//**
+Check an index to see whether its first fields are the columns in the array,
+in the same order and is not marked for deletion and is not the same
+as types_idx.
+@return true if the index qualifies, otherwise false */
+UNIV_INTERN
+bool
+dict_foreign_qualify_index(
+/*=======================*/
+        const dict_table_t*     table,  /*!< in: table */
+        const char**            columns,/*!< in: array of column names */
+        ulint                   n_cols, /*!< in: number of columns */
+        const dict_index_t*     index,  /*!< in: index to check */
+        const dict_index_t*     types_idx,
+                                        /*!< in: NULL or an index
+                                        whose types the column types
+                                        must match */
+        ibool                   check_charsets,
+                                        /*!< in: whether to check
+                                        charsets.  only has an effect
+                                        if types_idx != NULL */
+        ulint                   check_null)
+                                        /*!< in: nonzero if none of
+                                        the columns must be declared
+                                        NOT NULL */
+{
+        ulint   i;
+
+        if (dict_index_get_n_fields(index) < n_cols) {
+                return(false);
+        }
+
+        for (i= 0; i < n_cols; i++) {
+                dict_field_t*   field;
+                const char*     col_name;
+
+                field = dict_index_get_nth_field(index, i);
+
+                col_name = dict_table_get_col_name(
+                        table, dict_col_get_no(field->col));
+
+                if (field->prefix_len != 0) {
+                        /* We do not accept column prefix
+                        indexes here */
+
+                        break;
+                }
+
+                if (0 != innobase_strcasecmp(columns[i],
+                                             col_name)) {
+                        break;
+                }
+
+                if (check_null
+                    && (field->col->prtype & DATA_NOT_NULL)) {
+
+                        break;
+                }
+
+                if (types_idx && !cmp_cols_are_equal(
+                            dict_index_get_nth_col(index, i),
+                            dict_index_get_nth_col(types_idx,
+                                                   i),
+                            check_charsets)) {
+
+                        break;
+                }
+        }
+
+        return((i == n_cols) ? true : false);
+}
+
 #endif /* !UNIV_HOTBACKUP */

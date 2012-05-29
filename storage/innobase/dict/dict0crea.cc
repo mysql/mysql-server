@@ -1491,7 +1491,7 @@ databasename/tablename_ibfk_NUMBER, where the numbers start from 1, and
 are given locally for this table, that is, the number is not global, as in
 the old format constraints < 4.0.18 it used to be.
 @return	error code or DB_SUCCESS */
-static __attribute__((nonnull, warn_unused_result))
+UNIV_INTERN
 dberr_t
 dict_create_add_foreign_to_dictionary(
 /*==================================*/
@@ -1499,7 +1499,7 @@ dict_create_add_foreign_to_dictionary(
 				incremented if used */
 	dict_table_t*	table,	/*!< in: table */
 	dict_foreign_t*	foreign,/*!< in: foreign */
-	trx_t*		trx)	/*!< in: transaction */
+	trx_t*		trx)	/*!< in/out: dictionary transaction */
 {
 	dberr_t		error;
 	ulint		i;
@@ -1552,12 +1552,6 @@ dict_create_add_foreign_to_dictionary(
 		}
 	}
 
-	trx->op_info = "committing foreign key definitions";
-
-	trx_commit(trx);
-
-	trx->op_info = "";
-
 	return(error);
 }
 
@@ -1605,6 +1599,12 @@ dict_create_add_foreigns_to_dictionary(
 			return(error);
 		}
 	}
+
+	trx->op_info = "committing foreign key definitions";
+
+	trx_commit(trx);
+
+	trx->op_info = "";
 
 	return(DB_SUCCESS);
 }
