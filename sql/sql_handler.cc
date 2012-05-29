@@ -683,18 +683,23 @@ retry:
         error= table->file->ha_rnd_next(table->record[0]);
         break;
       }
-      /* else fall through */
+      /*
+        Fall through to HANDLER ... READ ... FIRST case if we are trying
+        to read next row in index order after starting reading rows in
+        natural order, or, vice versa, trying to read next row in natural
+        order after reading previous rows in index order.
+      */
     case RFIRST:
       if (m_key_name)
       {
-        table->file->ha_index_or_rnd_end();
-        if (!(error= table->file->ha_index_init(keyno, 1)))
+        if (!(error= table->file->ha_index_or_rnd_end()) &&
+            !(error= table->file->ha_index_init(keyno, 1)))
           error= table->file->ha_index_first(table->record[0]);
       }
       else
       {
-        table->file->ha_index_or_rnd_end();
-	if (!(error= table->file->ha_rnd_init(1)))
+        if (!(error= table->file->ha_index_or_rnd_end()) &&
+            !(error= table->file->ha_rnd_init(1)))
           error= table->file->ha_rnd_next(table->record[0]);
       }
       mode=RNEXT;
@@ -708,7 +713,7 @@ retry:
         error= table->file->ha_index_prev(table->record[0]);
         break;
       }
-      /* else fall through */
+      /* else fall through, for more info, see comment before 'case RFIRST'. */
     case RLAST:
       DBUG_ASSERT(m_key_name != 0);
       if (!(error= table->file->ha_index_or_rnd_end()) &&
@@ -718,15 +723,8 @@ retry:
       break;
     case RNEXT_SAME:
       /* Continue scan on "(keypart1,keypart2,...)=(c1, c2, ...)  */
-      DBUG_ASSERT(m_key_name != 0);
-      /* Continue scan, or start a new scan if no previous index scan */
-      if (table->file->inited == handler::INDEX ||
-          (!(error= table->file->ha_index_or_rnd_end()) &&
-           !(error= table->file->ha_index_init(keyno, 1))))
-      {
-        DBUG_ASSERT((uint) keyno == table->file->get_index());
-        error= table->file->ha_index_next_same(table->record[0], key, key_len);
-      }
+      DBUG_ASSERT(table->file->inited == handler::INDEX);
+      error= table->file->ha_index_next_same(table->record[0], key, key_len);
       break;
     case RKEY:
     {

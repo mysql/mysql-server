@@ -2886,7 +2886,7 @@ case SQLCOM_PREPARE:
         goto end_with_restore_list;
       }
 
-      if (!(res= open_and_lock_tables(thd, lex->query_tables, TRUE, 0)))
+      if (!(res= open_normal_and_derived_tables(thd, all_tables, 0)))
       {
         /* The table already exists */
         if (create_table->table || create_table->view)
@@ -2941,7 +2941,7 @@ case SQLCOM_PREPARE:
             CREATE from SELECT give its SELECT_LEX for SELECT,
             and item_list belong to SELECT
           */
-          res= handle_select(thd, lex, result, 0);
+          res= handle_select(thd, result, 0);
           delete result;
         }
 
@@ -3400,7 +3400,7 @@ end_with_restore_list:
 
     unit->set_limit(select_lex);
 
-    if (!(res= open_and_lock_tables(thd, all_tables, TRUE, 0)))
+    if (!(res= open_normal_and_derived_tables(thd, all_tables, 0)))
     {
       MYSQL_INSERT_SELECT_START(thd->query());
       /* Skip first table, which is the table we are inserting in */
@@ -3422,7 +3422,7 @@ end_with_restore_list:
           res= explain_multi_table_modification(thd, sel_result);
         else
         {
-          res= handle_select(thd, lex, sel_result, OPTION_SETUP_TABLES_DONE);
+          res= handle_select(thd, sel_result, OPTION_SETUP_TABLES_DONE);
           /*
             Invalidate the table in the query cache if something changed
             after unlocking when changes become visible.
@@ -3476,6 +3476,7 @@ end_with_restore_list:
   {
     DBUG_ASSERT(first_table == all_tables && first_table != 0);
     TABLE_LIST *aux_tables= thd->lex->auxiliary_table_list.first;
+    uint del_table_count;
     multi_delete *del_result;
 
     if ((res= multi_delete_precheck(thd, all_tables)))
@@ -3488,18 +3489,18 @@ end_with_restore_list:
       goto error;
 
     THD_STAGE_INFO(thd, stage_init);
-    if ((res= open_and_lock_tables(thd, all_tables, TRUE, 0)))
+    if ((res= open_normal_and_derived_tables(thd, all_tables, 0)))
       break;
 
     MYSQL_MULTI_DELETE_START(thd->query());
-    if ((res= mysql_multi_delete_prepare(thd)))
+    if ((res= mysql_multi_delete_prepare(thd, &del_table_count)))
     {
       MYSQL_MULTI_DELETE_DONE(1, 0);
       goto error;
     }
 
     if (!thd->is_fatal_error &&
-        (del_result= new multi_delete(aux_tables, lex->table_count)))
+        (del_result= new multi_delete(aux_tables, del_table_count)))
     {
       if (lex->describe)
         res= explain_multi_table_modification(thd, del_result);
@@ -3510,7 +3511,8 @@ end_with_restore_list:
                           select_lex->with_wild,
                           select_lex->item_list,
                           select_lex->where,
-                          0, (ORDER *)NULL, (ORDER *)NULL, (Item *)NULL,
+                          (SQL_I_List<ORDER> *)NULL, (SQL_I_List<ORDER> *)NULL,
+                          (Item *)NULL,
                           (select_lex->options | thd->variables.option_bits |
                           SELECT_NO_JOIN_CACHE | SELECT_NO_UNLOCK |
                           OPTION_SETUP_TABLES_DONE) & ~OPTION_BUFFER_RESULT,
@@ -4978,7 +4980,7 @@ static bool execute_sqlcom_select(THD *thd, TABLE_LIST *all_tables)
       param->select_limit=
         new Item_int((ulonglong) thd->variables.select_limit);
   }
-  if (!(res= open_and_lock_tables(thd, all_tables, TRUE, 0)))
+  if (!(res= open_normal_and_derived_tables(thd, all_tables, 0)))
   {
     if (lex->describe)
     {
@@ -5005,8 +5007,7 @@ static bool execute_sqlcom_select(THD *thd, TABLE_LIST *all_tables)
                new select_analyse(result, lex->proc_analyse)) == NULL)
           return true;
       }
-      query_cache_store_query(thd, all_tables);
-      res= handle_select(thd, lex, result, 0);
+      res= handle_select(thd, result, 0);
       delete analyse_result;
       if (save_result != lex->result)
         delete save_result;
@@ -7399,12 +7400,9 @@ bool multi_delete_set_locks_and_link_aux_tables(LEX *lex)
   TABLE_LIST *target_tbl;
   DBUG_ENTER("multi_delete_set_locks_and_link_aux_tables");
 
-  lex->table_count= 0;
-
   for (target_tbl= lex->auxiliary_table_list.first;
        target_tbl; target_tbl= target_tbl->next_local)
   {
-    lex->table_count++;
     /* All tables in aux_tables must be found in FROM PART */
     TABLE_LIST *walk= multi_delete_table_match(lex, target_tbl, tables);
     if (!walk)

@@ -6027,19 +6027,6 @@ bool TABLE::update_const_key_parts(Item *conds)
 }
 
 
-void TABLE::set_timestamp_field(Field *field_arg)
-{
-  DBUG_ASSERT(!field_arg || field_arg->is_temporal_with_date_and_time());
-  timestamp_field= (Field_temporal_with_date_and_time *) field_arg;
-}
-
-
-Field *TABLE::get_timestamp_field()
-{
-  return (Field *) timestamp_field;
-}
-
-
 /**
   Read removal is possible if the selected quick read
   method is using full unique index

@@ -146,7 +146,7 @@ static bool check_fields(THD *thd, List<Item> &items)
 
   while ((item= it++))
   {
-    if (!(field= item->filed_for_view_update()))
+    if (!(field= item->field_for_view_update()))
     {
       /* item has name, because it comes from VIEW SELECT list */
       my_error(ER_NONUPDATEABLE_COLUMN, MYF(0), item->item_name.ptr());
@@ -304,7 +304,6 @@ int mysql_update(THD *thd,
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   uint		want_privilege;
 #endif
-  uint          table_count= 0;
   ha_rows	updated, found;
   key_map	old_covering_keys;
   TABLE		*table;
@@ -318,29 +317,15 @@ int mysql_update(THD *thd,
 
   DBUG_ENTER("mysql_update");
 
-  if (open_tables(thd, &table_list, &table_count, 0))
+  if (open_normal_and_derived_tables(thd, table_list, 0))
     DBUG_RETURN(1);
 
   if (table_list->multitable_view)
   {
     DBUG_ASSERT(table_list->view != 0);
     DBUG_PRINT("info", ("Switch to multi-update"));
-    /* pass counter value */
-    thd->lex->table_count= table_count;
     /* convert to multiupdate */
     DBUG_RETURN(2);
-  }
-  if (lock_tables(thd, table_list, table_count, 0))
-    DBUG_RETURN(1);
-
-  if (mysql_handle_derived(thd->lex, &mysql_derived_prepare))
-    DBUG_RETURN(1);
-
-  if (thd->fill_derived_tables() &&
-      mysql_handle_derived(thd->lex, &mysql_derived_create))
-  {
-    mysql_handle_derived(thd->lex, &mysql_derived_cleanup);
-    DBUG_RETURN(1);
   }
 
   THD_STAGE_INFO(thd, stage_init);
@@ -423,25 +408,37 @@ int mysql_update(THD *thd,
   // Don't count on usage of 'only index' when calculating which key to use
   table->covering_keys.clear_all();
 
-#ifdef WITH_PARTITION_STORAGE_ENGINE
-  if (prune_partitions(thd, table, conds))
-  { // No matching records
-    if (thd->lex->describe)
-    {
-      error= explain_no_table(thd,
-                              "No matching rows after partition pruning");
-      goto exit_without_my_ok;
-    }
+  /*
+    This must be done before partitioning pruning, since prune_partitions()
+    uses the table->write_set to determine may prune locks too.
+  */
+  table->mark_columns_needed_for_update();
 
-    free_underlaid_joins(thd, select_lex);
-    my_ok(thd);				// No matching records
-    DBUG_RETURN(0);
+#ifdef WITH_PARTITION_STORAGE_ENGINE
+  if (table->part_info)
+  {
+    if (prune_partitions(thd, table, conds))
+      DBUG_RETURN(1);
+    if (table->all_partitions_pruned_away)
+    {
+      /* No matching records */
+      if (thd->lex->describe)
+      {
+        error= explain_no_table(thd,
+                                "No matching rows after partition pruning");
+        goto exit_without_my_ok;
+      }
+      my_ok(thd);                            // No matching records
+      DBUG_RETURN(0);
+    }
   }
 #endif
+  if (lock_tables(thd, table_list, thd->lex->table_count, 0))
+    DBUG_RETURN(1);
+
   /* Update the table->file->stats.records number */
   table->file->info(HA_STATUS_VARIABLE | HA_STATUS_NO_LOCK);
 
-  table->mark_columns_needed_for_update();
   select= make_select(table, 0, 0, conds, 0, &error);
 
   { // Enter scope for optimizer trace wrapper
@@ -1280,12 +1277,6 @@ int mysql_multi_update_prepare(THD *thd)
   List<Item> *fields= &lex->select_lex.item_list;
   table_map tables_for_update;
   bool update_view= 0;
-  /*
-    if this multi-update was converted from usual update, here is table
-    counter else junk will be assigned here, but then replaced with real
-    count in open_tables()
-  */
-  uint  table_count= lex->table_count;
   const bool using_lock_tables= thd->locked_tables_mode != LTM_NONE;
   bool original_multiupdate= (thd->lex->sql_command == SQLCOM_UPDATE_MULTI);
   DBUG_ENTER("mysql_multi_update_prepare");
@@ -1300,11 +1291,10 @@ int mysql_multi_update_prepare(THD *thd)
     keep prepare of multi-UPDATE compatible with concurrent LOCK TABLES WRITE
     and global read lock.
   */
-  if ((original_multiupdate &&
-       open_tables(thd, &table_list, &table_count,
-                   (thd->stmt_arena->is_stmt_prepare() ?
-                    MYSQL_OPEN_FORCE_SHARED_MDL : 0))) ||
-      mysql_handle_derived(lex, &mysql_derived_prepare))
+  if (original_multiupdate &&
+      open_normal_and_derived_tables(thd, table_list,
+                                     (thd->stmt_arena->is_stmt_prepare() ?
+                                      MYSQL_OPEN_FORCE_SHARED_MDL : 0)))
     DBUG_RETURN(TRUE);
   /*
     setup_tables() need for VIEWs. JOIN::prepare() will call setup_tables()
@@ -1413,12 +1403,6 @@ int mysql_multi_update_prepare(THD *thd)
     }
   }
 
-  /* now lock and fill tables */
-  if (!thd->stmt_arena->is_stmt_prepare() &&
-      lock_tables(thd, table_list, table_count, 0))
-  {
-    DBUG_RETURN(TRUE);
-  }
   /* @todo: downgrade the metadata locks here. */
 
   /*
@@ -1486,7 +1470,8 @@ bool mysql_multi_update(THD *thd,
     res= mysql_select(thd,
                       table_list, select_lex->with_wild,
                       total_list,
-                      conds, 0, (ORDER *) NULL, (ORDER *)NULL, (Item *) NULL,
+                      conds, (SQL_I_List<ORDER> *) NULL,
+                      (SQL_I_List<ORDER> *)NULL, (Item *) NULL,
                       options | SELECT_NO_JOIN_CACHE | SELECT_NO_UNLOCK |
                       OPTION_SETUP_TABLES_DONE,
                       *result, unit, select_lex);
@@ -1694,6 +1679,8 @@ int multi_update::prepare(List<Item> &not_used_values,
         */
         bitmap_union(table->read_set, table->write_set);
       }
+      /* All needed columns must be marked before prune_partitions(). */
+      table->mark_columns_needed_for_update();
     }
   }
 
@@ -2103,7 +2090,7 @@ bool multi_update::send_data(List<Item> &not_used_values)
       /* Store regular updated fields in the row. */
       fill_record(thd,
                   tmp_table->field + 1 + unupdated_check_opt_tables.elements,
-                  *values_for_table[offset], 1);
+                  *values_for_table[offset], 1, NULL);
 
       /* Write row, ignoring duplicated updates to a row */
       error= tmp_table->file->ha_write_row(tmp_table->record[0]);

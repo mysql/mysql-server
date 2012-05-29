@@ -724,6 +724,15 @@ public:
                                            subselect. Computed by fix_fields
                                            and updated by update_used_tables. */
 
+  /**
+    This variable is a cache of 'Needed tables are locked'. True if either
+    'No tables locks is needed' or 'Needed tables are locked'.
+    If tables are used, then it will be set to
+    current_thd->lex->is_query_tables_locked().
+
+    It is used when checking const_item()/can_be_evaluated_now().
+  */
+  bool tables_locked_cache;
  public:
   // alloc & destruct is done as start of select using sql_alloc
   Item();
@@ -1209,7 +1218,12 @@ public:
     When the default implementation of used_tables() is effective, this
     function will always return true (because used_tables() is empty).
   */
-  virtual bool const_item() const { return used_tables() == 0; }
+  virtual bool const_item() const
+  {
+    if (used_tables() == 0)
+      return can_be_evaluated_now();
+    return false;
+  }
   /* 
     Returns true if this is constant but its value may be not known yet.
     (Can be used for parameters of prep. stmts or of stored procedures.)
@@ -1524,7 +1538,7 @@ public:
   virtual void bring_value() {}
 
   Field *tmp_table_field_from_field_type(TABLE *table, bool fixed_length);
-  virtual Item_field *filed_for_view_update() { return 0; }
+  virtual Item_field *field_for_view_update() { return 0; }
 
   virtual Item *neg_transformer(THD *thd) { return NULL; }
   virtual Item *update_value_transformer(uchar *select_arg) { return this; }
@@ -1610,6 +1624,7 @@ public:
       is_expensive_cache= walk(&Item::is_expensive_processor, 0, (uchar*)0);
     return test(is_expensive_cache);
   }
+  virtual bool can_be_evaluated_now() const;
   uint32 max_char_length() const
   { return max_length / collation.collation->mbmaxlen; }
   void fix_length_and_charset(uint32 max_char_length_arg,
@@ -2196,7 +2211,7 @@ public:
   bool set_no_const_sub(uchar *arg);
   Item *replace_equal_field(uchar *arg);
   inline uint32 max_disp_length() { return field->max_display_length(); }
-  Item_field *filed_for_view_update() { return this; }
+  Item_field *field_for_view_update() { return this; }
   Item *safe_charset_converter(const CHARSET_INFO *tocs);
   int fix_outer_field(THD *thd, Field **field, Item **reference);
   virtual Item *update_value_transformer(uchar *select_arg);
@@ -3172,8 +3187,8 @@ public:
   }
   virtual void print(String *str, enum_query_type query_type);
   void cleanup();
-  Item_field *filed_for_view_update()
-    { return (*ref)->filed_for_view_update(); }
+  Item_field *field_for_view_update()
+    { return (*ref)->field_for_view_update(); }
   virtual Ref_Type ref_type() { return REF; }
 
   // Row emulation: forwarding of ROW-related calls to ref
