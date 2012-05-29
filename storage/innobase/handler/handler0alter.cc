@@ -1740,8 +1740,8 @@ col_fail:
 		rw_lock_x_lock(&clust_index->lock);
 		bool ok = row_log_allocate(
 			clust_index, indexed_table,
-			!!(ha_alter_info->handler_flags
-			   & Alter_inplace_info::ADD_PK_INDEX));
+			!(ha_alter_info->handler_flags
+			  & Alter_inplace_info::ADD_PK_INDEX));
 		rw_lock_x_unlock(&clust_index->lock);
 
 		if (!ok) {
@@ -2561,7 +2561,8 @@ oom:
 
 	/* n_ref_count must be 1, or 2 when purge
 	happens to be executing on this very table. */
-	DBUG_ASSERT(ctx->indexed_table == prebuilt->table
+	DBUG_ASSERT(ctx->online
+		    || ctx->indexed_table == prebuilt->table
 		    || prebuilt->table->n_ref_count - 1 <= 1);
 	prebuilt->trx->error_info = NULL;
 	ctx->trx->error_state = DB_SUCCESS;
