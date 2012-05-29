@@ -7678,13 +7678,36 @@ Field_blob::store(const char *from,uint length,const CHARSET_INFO *cs)
   uint copy_length, new_length;
   const char *well_formed_error_pos;
   const char *cannot_convert_error_pos;
-  const char *from_end_pos, *tmp;
-  char buff[STRING_BUFFER_USUAL_SIZE];
+  const char *from_end_pos;
+  char buff[STRING_BUFFER_USUAL_SIZE], *tmp;
   String tmpstr(buff,sizeof(buff), &my_charset_bin);
 
   if (!length)
   {
     memset(ptr, 0, Field_blob::pack_length());
+    return TYPE_OK;
+  }
+
+  if (table->blob_storage)    // GROUP_CONCAT with ORDER BY | DISTINCT
+  {
+    DBUG_ASSERT(!f_is_hex_escape(flags));
+    DBUG_ASSERT(field_charset == cs);
+    DBUG_ASSERT(length <= max_data_length());
+    
+    new_length= length;
+    copy_length= table->in_use->variables.group_concat_max_len;
+    if (new_length > copy_length)
+    {
+      int well_formed_error;
+      new_length= cs->cset->well_formed_len(cs, from, from + copy_length,
+                                            new_length, &well_formed_error);
+      table->blob_storage->set_truncated_value(true);
+    }
+    if (!(tmp= table->blob_storage->store(from, new_length)))
+      goto oom_error;
+
+    Field_blob::store_length(new_length);
+    bmove(ptr + packlength, (uchar*) &tmp, sizeof(char*));
     return TYPE_OK;
   }
 
@@ -7715,15 +7738,14 @@ Field_blob::store(const char *from,uint length,const CHARSET_INFO *cs)
   new_length= min(max_data_length(), field_charset->mbmaxlen * length);
   if (value.alloc(new_length))
     goto oom_error;
-
+  tmp= const_cast<char*>(value.ptr());
 
   if (f_is_hex_escape(flags))
   {
     copy_length= my_copy_with_hex_escaping(field_charset,
-                                           (char*) value.ptr(), new_length,
-                                            from, length);
+                                           tmp, new_length,
+                                           from, length);
     Field_blob::store_length(copy_length);
-    tmp= value.ptr();
     bmove(ptr + packlength, (uchar*) &tmp, sizeof(char*));
     return TYPE_OK;
   }
@@ -7733,7 +7755,7 @@ Field_blob::store(const char *from,uint length,const CHARSET_INFO *cs)
     is done with the new_length value.
   */
   copy_length= well_formed_copy_nchars(field_charset,
-                                       (char*) value.ptr(), new_length,
+                                       tmp, new_length,
                                        cs, from, length,
                                        length,
                                        &well_formed_error_pos,
@@ -7741,7 +7763,6 @@ Field_blob::store(const char *from,uint length,const CHARSET_INFO *cs)
                                        &from_end_pos);
 
   Field_blob::store_length(copy_length);
-  tmp= value.ptr();
   bmove(ptr+packlength,(uchar*) &tmp,sizeof(char*));
 
   return check_string_copy_error(well_formed_error_pos,

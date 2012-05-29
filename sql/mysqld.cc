@@ -406,7 +406,7 @@ ulong slow_start_timeout;
   SQL commands in the init file and in --bootstrap mode.
 */
 bool in_bootstrap= FALSE;
-my_bool opt_bootstrap;
+my_bool opt_bootstrap= 0;
 
 /**
    @brief 'grant_option' is used to indicate if privileges needs
@@ -465,7 +465,7 @@ my_bool opt_old_style_user_limits= 0, trust_function_creators= 0;
   changed). False otherwise.
 */
 volatile bool mqh_used = 0;
-my_bool opt_noacl;
+my_bool opt_noacl= 0;
 my_bool sp_automatic_privileges= 1;
 
 ulong opt_binlog_rows_event_max_size;
@@ -4829,6 +4829,35 @@ static void test_lc_time_sz()
 }
 #endif//DBUG_OFF
 
+struct my_option my_long_early_options[]=
+{
+#ifndef DISABLE_GRANT_OPTIONS
+  {"bootstrap", OPT_BOOTSTRAP, "Used by mysql installation scripts.", 0, 0, 0,
+   GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+#endif
+#ifndef DISABLE_GRANT_OPTIONS
+  {"skip-grant-tables", 0,
+   "Start without grant tables. This gives all users FULL ACCESS to all tables.",
+   &opt_noacl, &opt_noacl, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0,
+   0},
+#endif
+  {"help", '?', "Display this help and exit.",
+   &opt_help, &opt_help, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0,
+   0, 0},
+  {"verbose", 'v', "Used with --help option for detailed help.",
+   &opt_verbose, &opt_verbose, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"version", 'V', "Output version information and exit.", 0, 0, 0, GET_NO_ARG,
+   NO_ARG, 0, 0, 0, 0, 0, 0},
+  {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
+};
+
+static void adjust_related_options()
+{
+  /* In bootstrap, disable grant tables (we are about to create them) */
+  if (opt_bootstrap)
+    opt_noacl= 1;
+}
+
 #ifdef __WIN__
 int win_main(int argc, char **argv)
 #else
@@ -4869,6 +4898,12 @@ int mysqld_main(int argc, char **argv)
   sys_var_init();
 
   /*
+    Some components needs to be initialized as early as possible,
+    because the rest of the server initialization depends on them.
+    Options that needs to be parsed early includes:
+    - the performance schema, when compiled in,
+    - options related to the help,
+    - options related to the bootstrap
     The performance schema needs to be initialized as early as possible,
     before to-be-instrumented objects of the server are initialized.
   */
@@ -4880,8 +4915,15 @@ int mysqld_main(int argc, char **argv)
   /* Skip unknown options so that they may be processed later */
   my_getopt_skip_unknown= TRUE;
 
-  /* prepare all_early_options array */
+  /* Add the system variables parsed early */
   sys_var_add_options(&all_early_options, sys_var::PARSE_EARLY);
+
+  /* Add the command line options parsed early */
+  for (my_option *opt= my_long_early_options;
+       opt < my_long_early_options + array_elements(my_long_early_options) - 1;
+       opt++)
+    all_early_options.push_back(*opt);
+
   add_terminator(&all_early_options);
 
   /*
@@ -4904,13 +4946,16 @@ int mysqld_main(int argc, char **argv)
   // Swap with an empty vector, i.e. delete elements and free allocated space.
   vector<my_option>().swap(all_early_options);
 
-#ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
+  adjust_related_options();
+
   if (ho_error == 0)
   {
     /* Add back the program name handle_options removes */
     remaining_argc++;
     remaining_argv--;
-    if (pfs_param.m_enabled)
+
+#ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
+    if (pfs_param.m_enabled && !opt_help && !opt_bootstrap)
     {
       /* Add sizing hints from the server sizing parameters. */
       pfs_param.m_hints.m_table_definition_cache= table_def_size;
@@ -4924,18 +4969,18 @@ int mysqld_main(int argc, char **argv)
                              "Performance schema disabled (reason: init failed).");
       }
     }
-  }
 #else
-  /*
-    Other provider of the instrumentation interface should
-    initialize PSI_hook here:
-    - HAVE_PSI_INTERFACE is for the instrumentation interface
-    - WITH_PERFSCHEMA_STORAGE_ENGINE is for one implementation
-      of the interface,
-    but there could be alternate implementations, which is why
-    these two defines are kept separate.
-  */
+    /*
+      Other provider of the instrumentation interface should
+      initialize PSI_hook here:
+      - HAVE_PSI_INTERFACE is for the instrumentation interface
+      - WITH_PERFSCHEMA_STORAGE_ENGINE is for one implementation
+        of the interface,
+      but there could be alternate implementations, which is why
+      these two defines are kept separate.
+    */
 #endif /* WITH_PERFSCHEMA_STORAGE_ENGINE */
+  }
 
 #ifdef HAVE_PSI_INTERFACE
   /*
@@ -4987,7 +5032,6 @@ int mysqld_main(int argc, char **argv)
   */
   logger.init_base();
 
-#ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
   if (ho_error)
   {
     /*
@@ -5007,7 +5051,6 @@ int mysqld_main(int argc, char **argv)
     */
     exit (ho_error);
   }
-#endif /* WITH_PERFSCHEMA_STORAGE_ENGINE */
 
 #ifdef _CUSTOMSTARTUPCONFIG_
   if (_cust_check_startup())
@@ -6452,9 +6495,6 @@ vector<my_option> all_options;
 
 struct my_option my_long_options[]=
 {
-  {"help", '?', "Display this help and exit.",
-   &opt_help, &opt_help, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0,
-   0, 0},
 #ifdef HAVE_REPLICATION
   {"abort-slave-event-count", 0,
    "Option used by mysql-test for debugging and testing of replication.",
@@ -6495,10 +6535,6 @@ struct my_option my_long_options[]=
    /* sub_size */     0, /* block_size */ 256,
    /* app_type */ 0
   },
-#ifndef DISABLE_GRANT_OPTIONS
-  {"bootstrap", OPT_BOOTSTRAP, "Used by mysql installation scripts.", 0, 0, 0,
-   GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
-#endif
   {"character-set-client-handshake", 0,
    "Don't ignore client side character set value sent during handshake.",
    &opt_character_set_client_handshake,
@@ -6719,12 +6755,6 @@ struct my_option my_long_options[]=
    "Show user and password in SHOW SLAVE HOSTS on this master.",
    &opt_show_slave_auth_info, &opt_show_slave_auth_info, 0,
    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
-#ifndef DISABLE_GRANT_OPTIONS
-  {"skip-grant-tables", 0,
-   "Start without grant tables. This gives all users FULL ACCESS to all tables.",
-   &opt_noacl, &opt_noacl, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0,
-   0},
-#endif
   {"skip-host-cache", OPT_SKIP_HOST_CACHE, "Don't cache host names.", 0, 0, 0,
    GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"skip-new", OPT_SKIP_NEW, "Don't use new, possibly wrong routines.",
@@ -6808,10 +6838,6 @@ struct my_option my_long_options[]=
    GET_BOOL, OPT_ARG, 0, 0, 0, 0, 0, 0},
   {"user", 'u', "Run mysqld daemon as user.", 0, 0, 0, GET_STR, REQUIRED_ARG,
    0, 0, 0, 0, 0, 0},
-  {"verbose", 'v', "Used with --help option for detailed help.",
-   &opt_verbose, &opt_verbose, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
-  {"version", 'V', "Output version information and exit.", 0, 0, 0, GET_NO_ARG,
-   NO_ARG, 0, 0, 0, 0, 0, 0},
   {"plugin-load", OPT_PLUGIN_LOAD,
    "Optional semicolon-separated list of plugins to load, where each plugin is "
    "identified as name=library, where name is the plugin name and library "
@@ -7563,6 +7589,12 @@ static void print_help()
 
   all_options.pop_back();
   sys_var_add_options(&all_options, sys_var::PARSE_EARLY);
+  for (my_option *opt= my_long_early_options;
+       opt < my_long_early_options + array_elements(my_long_early_options) - 1;
+       opt++)
+  {
+    all_options.push_back(*opt);
+  }
   add_plugin_options(&all_options, &mem_root);
   std::sort(all_options.begin(), all_options.end(), std::less<my_option>());
   add_terminator(&all_options);
@@ -7654,7 +7686,7 @@ static int mysql_init_variables(void)
   opt_tc_log_file= (char *)"tc.log";      // no hostname in tc_log file name !
   opt_secure_auth= 0;
   opt_secure_file_priv= NULL;
-  opt_bootstrap= opt_myisam_log= 0;
+  opt_myisam_log= 0;
   mqh_used= 0;
   kill_in_progress= 0;
   cleanup_done= 0;
@@ -8024,7 +8056,7 @@ mysqld_get_one_option(int optid,
       opt_error_log= 0;     // Force logs to stdout
     break;
   case OPT_BOOTSTRAP:
-    opt_noacl=opt_bootstrap=1;
+    opt_bootstrap=1;
     break;
   case OPT_SERVER_ID:
     server_id_supplied = 1;
@@ -8241,7 +8273,9 @@ static int get_options(int *argc_ptr, char ***argv_ptr)
   for (my_option *opt= my_long_options;
        opt < my_long_options + array_elements(my_long_options) - 1;
        opt++)
+  {
     all_options.push_back(*opt);
+  }
   sys_var_add_options(&all_options, sys_var::PARSE_NORMAL);
   add_terminator(&all_options);
 
