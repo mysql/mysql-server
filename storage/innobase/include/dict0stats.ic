@@ -116,12 +116,7 @@ dict_stats_auto_recalc_set(
 	ibool		auto_recalc_on,		/*!< in: explicitly enabled */
 	ibool		auto_recalc_off)	/*!< in: explicitly disabled */
 {
-	/* Not allowed to have both flags set, but a CREATE or ALTER
-	statement that contains "STATS_AUTO_RECALC=0 STATS_AUTO_RECALC=1"
-	would end up having both set. In this case we clear the OFF flag. */
-	if (auto_recalc_on && auto_recalc_off) {
-		auto_recalc_off = FALSE;
-	}
+	ut_ad(!auto_recalc_on || !auto_recalc_off);
 
 	ib_uint32_t	stats_auto_recalc = 0;
 
