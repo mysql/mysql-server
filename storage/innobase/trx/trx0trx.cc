@@ -1196,6 +1196,8 @@ trx_commit(
 	ut_ad(!trx->in_ro_trx_list);
 	ut_ad(!trx->in_rw_trx_list);
 
+	trx->dict_operation = TRX_DICT_OP_NONE;
+
 	trx->error_state = DB_SUCCESS;
 
 	/* trx->in_mysql_trx_list would hold between
@@ -2093,3 +2095,24 @@ trx_start_if_not_started_low(
 
 	ut_error;
 }
+
+/*************************************************************//**
+Starts the transaction for a DDL operation. */
+UNIV_INTERN
+void
+trx_start_for_ddl_low(
+/*==================*/
+	trx_t*		trx,	/*!< in/out: transaction */
+	trx_dict_op_t	op)	/*!< in: dictionary operation type */
+{
+	/* Flag this transaction as a dictionary operation, so that
+	the data dictionary will be locked in crash recovery. */
+
+	trx_set_dict_operation(trx, op);
+
+	/* Ensure it is not flagged as an auto-commit-non-locking transation. */
+	trx->will_lock = 1;
+
+	trx_start_low(trx);
+}
+

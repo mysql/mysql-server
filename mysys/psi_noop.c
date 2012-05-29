@@ -622,6 +622,14 @@ digest_add_token_noop(PSI_digest_locker *locker NNN,
   return NULL;
 }
 
+static int
+set_thread_connect_attrs_noop(const char *buffer __attribute__((unused)),
+                             uint length  __attribute__((unused)),
+                             const void *from_cs __attribute__((unused)))
+{
+  return 0;
+}
+
 static PSI PSI_noop=
 {
   register_mutex_noop,
@@ -717,7 +725,8 @@ static PSI PSI_noop=
   set_socket_info_noop,
   set_socket_thread_owner_noop,
   digest_start_noop,
-  digest_add_token_noop
+  digest_add_token_noop,
+  set_thread_connect_attrs_noop
 };
 
 /**

@@ -113,7 +113,7 @@ SELECT DIGEST, DIGEST_TEXT, COUNT_STAR, SUM_ROWS_AFFECTED, SUM_WARNINGS,
 SUM_ERRORS FROM performance_schema.events_statements_summary_by_digest;
 DIGEST	DIGEST_TEXT	COUNT_STAR	SUM_ROWS_AFFECTED	SUM_WARNINGS	SUM_ERRORS
 NULL	NULL	55	32	1	2
-6c4650f18d00d7f69763f7c1836e872e	TRUNCATE TABLE performance_schema . events_statements_summary_by_digest  	1	0	0	0
+f179ae2f3568daafdf95e8d26286df40	TRUNCATE TABLE performance_schema . events_statements_summary_by_digest  	1	0	0	0
 SHOW VARIABLES LIKE "performance_schema_digests_size";
 Variable_name	Value
 performance_schema_digests_size	2

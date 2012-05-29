@@ -770,6 +770,10 @@ innobase_fts_check_doc_id_col(
 		return(true);
 	}
 
+	if (!table) {
+		return(false);
+	}
+
 	for (; i + DATA_N_SYS_COLS < (uint) table->n_cols; i++) {
 		const char*     name = dict_table_get_col_name(table, i);
 
@@ -811,6 +815,37 @@ innobase_fts_check_doc_id_index(
 	const dict_index_t*	index;
 	const dict_field_t*	field;
 
+	if (ha_alter_info) {
+		/* Check if a unique index with the name of
+		FTS_DOC_ID_INDEX_NAME is being created. */
+		for (uint i = 0; i < ha_alter_info->index_add_count; i++) {
+			const KEY& key = ha_alter_info->key_info_buffer[
+				ha_alter_info->index_add_buffer[i]];
+
+			if (innobase_strcasecmp(
+				    key.name, FTS_DOC_ID_INDEX_NAME)) {
+				continue;
+			}
+
+			if ((key.flags & HA_NOSAME)
+			    && key.key_parts == 1
+			    && !strcmp(key.name, FTS_DOC_ID_INDEX_NAME)
+			    && !strcmp(key.key_part[0].field->field_name,
+				       FTS_DOC_ID_COL_NAME)) {
+				if (fts_doc_col_no) {
+					*fts_doc_col_no = ULINT_UNDEFINED;
+				}
+				return(FTS_EXIST_DOC_ID_INDEX);
+			} else {
+				return(FTS_INCORRECT_DOC_ID_INDEX);
+			}
+		}
+	}
+
+	if (!table) {
+		return(FTS_NOT_EXIST_DOC_ID_INDEX);
+	}
+
 	for (index = dict_table_get_first_index(table);
 	     index; index = dict_table_get_next_index(index)) {
 
@@ -844,32 +879,6 @@ innobase_fts_check_doc_id_index(
 		}
 	}
 
-	if (ha_alter_info) {
-		/* Check if a unique index with the name of
-		FTS_DOC_ID_INDEX_NAME is being created. */
-		for (uint i = 0; i < ha_alter_info->index_add_count; i++) {
-			const KEY& key = ha_alter_info->key_info_buffer[
-				ha_alter_info->index_add_buffer[i]];
-
-			if (innobase_strcasecmp(
-				    key.name, FTS_DOC_ID_INDEX_NAME)) {
-				continue;
-			}
-
-			if ((key.flags & HA_NOSAME)
-			    && key.key_parts == 1
-			    && !strcmp(key.name, FTS_DOC_ID_INDEX_NAME)
-			    && !strcmp(key.key_part[0].field->field_name,
-				       FTS_DOC_ID_COL_NAME)) {
-				if (fts_doc_col_no) {
-					*fts_doc_col_no = ULINT_UNDEFINED;
-				}
-				return(FTS_EXIST_DOC_ID_INDEX);
-			} else {
-				return(FTS_INCORRECT_DOC_ID_INDEX);
-			}
-		}
-	}
 
 	/* Not found */
 	return(FTS_NOT_EXIST_DOC_ID_INDEX);
@@ -934,18 +943,20 @@ innobase_create_key_defs(
 			definitions are allocated */
 	const Alter_inplace_info*	ha_alter_info,
 			/*!< in: alter operation */
-	const TABLE*		altered_table,
+	const TABLE*			altered_table,
 			/*!< in: MySQL table that is being altered */
 	ulint&				n_add,
 			/*!< in/out: number of indexes to be created */
+	unsigned&			n_fts_add,
+			/*!< in/out: number of FTS indexes to be created */
 	bool				got_default_clust,
 			/*!< in: whether the table lacks a primary key */
-	ulint				fts_doc_id_col,
+	ulint&				fts_doc_id_col,
 			/*!< in: The column number for Doc ID */
-	bool				add_fts_doc_id,
+	bool&				add_fts_doc_id,
 			/*!< in: whether we need to add new DOC ID
 			column for FTS index */
-	bool				add_fts_doc_idx)
+	bool&				add_fts_doc_idx)
 			/*!< in: whether we need to add new DOC ID
 			index for FTS index */
 {
@@ -960,12 +971,6 @@ innobase_create_key_defs(
 	DBUG_ENTER("innobase_create_key_defs");
 	DBUG_ASSERT(!add_fts_doc_id || add_fts_doc_idx);
 	DBUG_ASSERT(ha_alter_info->index_add_count == n_add);
-
-	indexdef = indexdefs = static_cast<merge_index_def_t*>(
-		mem_heap_alloc(
-			heap, sizeof *indexdef
-			* (ha_alter_info->key_count
-			   + add_fts_doc_idx + got_default_clust)));
 
 	/* If there is a primary key, it is always the first index
 	defined for the innodb_table. */
@@ -999,6 +1004,15 @@ innobase_create_key_defs(
 			}
 		}
 	}
+
+	/* Reserve one more space if new_primary is true, and we might
+	need to add the FTS_DOC_ID_INDEX */
+	indexdef = indexdefs = static_cast<merge_index_def_t*>(
+		mem_heap_alloc(
+			heap, sizeof *indexdef
+			* (ha_alter_info->key_count
+			   + (add_fts_doc_idx || new_primary)
+			   + got_default_clust)));
 
 	if (new_primary || add_fts_doc_id) {
 		ulint	primary_key_number;
@@ -1036,6 +1050,10 @@ innobase_create_key_defs(
 created_clustered:
 		n_add = 1;
 
+		if (new_primary) {
+			n_fts_add = 0;
+		}
+
 		for (ulint i = 0; i < ha_alter_info->key_count; i++) {
 			if (i == primary_key_number) {
 				continue;
@@ -1043,7 +1061,13 @@ created_clustered:
 			/* Copy the index definitions. */
 			innobase_create_index_def(
 				altered_table, key_info, i, TRUE, FALSE,
-				indexdef++, heap);
+				indexdef, heap);
+
+			if (new_primary && indexdef->ind_type & DICT_FTS) {
+				n_fts_add++;
+			}
+
+			indexdef++;
 			n_add++;
 		}
 	} else {
@@ -1053,6 +1077,35 @@ created_clustered:
 			innobase_create_index_def(
 				altered_table, key_info, add[i], FALSE, FALSE,
 				indexdef++, heap);
+		}
+	}
+
+	if (new_primary && n_fts_add > 0) {
+		if (!add_fts_doc_id && (fts_doc_id_col == ULINT_UNDEFINED)
+		    && !innobase_fts_check_doc_id_col(
+					NULL, altered_table,
+					&fts_doc_id_col)) {
+			fts_doc_id_col = altered_table->s->fields;
+			add_fts_doc_id = true;
+		}
+
+		if (!add_fts_doc_idx) {
+			fts_doc_id_index_enum	ret;
+			ulint			doc_col_no;
+
+			ret = innobase_fts_check_doc_id_index(
+				NULL, ha_alter_info, &doc_col_no);
+
+			/* This should have been checked before */
+			ut_ad(ret != FTS_INCORRECT_DOC_ID_INDEX);
+
+			if (ret == FTS_NOT_EXIST_DOC_ID_INDEX) {
+				add_fts_doc_idx = true;
+			} else {
+				ut_ad(ret == FTS_EXIST_DOC_ID_INDEX);
+				ut_ad(doc_col_no == fts_doc_id_col
+				      || doc_col_no == ULINT_UNDEFINED);
+			}
 		}
 	}
 
@@ -1071,7 +1124,8 @@ created_clustered:
 		if (new_primary || add_fts_doc_id) {
 			index->name = mem_heap_strdup(
 				heap, FTS_DOC_ID_INDEX_NAME);
-			ut_ad(fts_doc_id_col == altered_table->s->fields);
+			ut_ad(!add_fts_doc_id
+			      || fts_doc_id_col == altered_table->s->fields);
 		} else {
 			char*	index_name;
 			index->name = index_name = static_cast<char*>(
@@ -1290,14 +1344,11 @@ online_retry_drop_indexes(
 	THD*		user_thd)	/*!< in/out: MySQL connection */
 {
 	if (table->drop_aborted) {
-		trx_t*	trx	= innobase_trx_allocate(user_thd);
-		trx_start_if_not_started(trx);
-		trx->will_lock = 1;
+		trx_t*	trx = innobase_trx_allocate(user_thd);
+
+		trx_start_for_ddl(trx, TRX_DICT_OP_INDEX);
 
 		row_mysql_lock_data_dictionary(trx);
-		/* Flag this transaction as a dictionary operation, so that
-		the data dictionary will be locked in crash recovery. */
-		trx_set_dict_operation(trx, TRX_DICT_OP_INDEX);
 		online_retry_drop_indexes_low(table, trx);
 		trx_commit_for_mysql(trx);
 		row_mysql_unlock_data_dictionary(trx);
@@ -1329,13 +1380,11 @@ online_retry_drop_indexes_with_trx(
 	drop any incompletely created indexes that may have been left
 	behind in rollback_inplace_alter_table() earlier. */
 	if (table->drop_aborted) {
-		/* Re-use the dictionary transaction object
-		to avoid some memory allocation overhead. */
-		ut_ad(trx_get_dict_operation(trx) == TRX_DICT_OP_TABLE);
-		trx->dict_operation = TRX_DICT_OP_INDEX;
+
 		trx->table_id = 0;
-		trx_start_if_not_started(trx);
-		trx->will_lock = 1;
+
+		trx_start_for_ddl(trx, TRX_DICT_OP_INDEX);
+
 		online_retry_drop_indexes_low(table, trx);
 		trx_commit_for_mysql(trx);
 	}
@@ -1393,6 +1442,9 @@ prepare_inplace_alter_table_dict(
 	dberr_t			error;
 	THD*			user_thd	= user_trx->mysql_thd;
 
+	const bool exclusive = ha_alter_info->alter_info->requested_lock
+		== Alter_info::ALTER_TABLE_LOCK_EXCLUSIVE;
+
 	DBUG_ENTER("prepare_inplace_alter_table_dict");
 	DBUG_ASSERT(!n_drop_index == !drop_index);
 	DBUG_ASSERT(!n_drop_foreign == !drop_foreign);
@@ -1404,8 +1456,9 @@ prepare_inplace_alter_table_dict(
 	/* Create a background transaction for the operations on
 	the data dictionary tables. */
 	trx = innobase_trx_allocate(user_thd);
-	trx_start_if_not_started(trx);
-	trx->will_lock = 1;
+
+	trx_start_for_ddl(trx, TRX_DICT_OP_INDEX);
+
 	if (!heap) {
 		heap = mem_heap_create(1024);
 	}
@@ -1418,10 +1471,16 @@ prepare_inplace_alter_table_dict(
 
 	index_defs = innobase_create_key_defs(
 		heap, ha_alter_info, altered_table, n_add_index,
-		row_table_got_default_clust_index(indexed_table),
+		num_fts_index, row_table_got_default_clust_index(indexed_table),
 		fts_doc_id_col, add_fts_doc_id, add_fts_doc_id_idx);
 
 	new_clustered = DICT_CLUSTERED & index_defs[0].ind_type;
+
+	if (num_fts_index > 1) {
+		ut_ad(new_clustered);
+		my_error(ER_INNODB_FT_LIMIT, MYF(0));
+		goto error_handled;
+	}
 
 	/* The primary index would be rebuilt if a FTS Doc ID
 	column is to be added, and the primary index definition
@@ -1443,12 +1502,11 @@ prepare_inplace_alter_table_dict(
 	add_key_nums = (ulint*) mem_heap_alloc(
 		heap, n_add_index * sizeof *add_key_nums);
 
-	/* Flag this transaction as a dictionary operation, so that
-	the data dictionary will be locked in crash recovery. */
-	trx_set_dict_operation(trx, TRX_DICT_OP_INDEX);
+	/* This transaction should be dictionary operation, so that
+	the data dictionary will be locked during crash recovery. */
 
-	const bool exclusive = ha_alter_info->alter_info->requested_lock
-		== Alter_info::ALTER_TABLE_LOCK_EXCLUSIVE;
+	ut_ad(trx->dict_operation == TRX_DICT_OP_INDEX);
+
 
 	/* Acquire a lock on the table before creating any indexes. */
 	if (new_clustered) {
@@ -1505,7 +1563,6 @@ prepare_inplace_alter_table_dict(
 
 		if (add_fts_doc_id_idx) {
 			DBUG_ASSERT(flags2 & DICT_TF2_FTS);
-			DBUG_ASSERT(flags2 & DICT_TF2_FTS_HAS_DOC_ID);
 		}
 
 		/* Create the table. */
@@ -1693,11 +1750,11 @@ col_fail:
 	}
 
 	if (fts_index) {
-#ifdef UNIV_DEBUG
 		/* Ensure that the dictionary operation mode will
 		not change while creating the auxiliary tables. */
 		enum trx_dict_op	op = trx_get_dict_operation(trx);
 
+#ifdef UNIV_DEBUG
 		switch (op) {
 		case TRX_DICT_OP_NONE:
 			break;
@@ -1716,11 +1773,16 @@ op_ok:
 
 		DICT_TF2_FLAG_SET(indexed_table, DICT_TF2_FTS);
 
+		/* This function will commit the transaction and reset
+		the trx_t::dict_operation flag on success. */
+
 		error = fts_create_index_tables(trx, fts_index);
 
 		if (error != DB_SUCCESS) {
 			goto error_handling;
 		}
+
+		trx_start_for_ddl(trx, op);
 
 		if (!indexed_table->fts
 		    || ib_vector_size(indexed_table->fts->indexes) == 0) {
@@ -1801,6 +1863,8 @@ error_handling:
 	default:
 		my_error_innodb(error, table_name, user_table->flags);
 	}
+
+error_handled:
 
 	user_trx->error_info = NULL;
 	trx->error_state = DB_SUCCESS;
@@ -2525,6 +2589,9 @@ rollback_inplace_alter_table(
 	} else {
 		DBUG_ASSERT(!(ha_alter_info->handler_flags
 			      & Alter_inplace_info::ADD_PK_INDEX));
+
+		trx_start_for_ddl(ctx->trx, TRX_DICT_OP_INDEX);
+
 		row_merge_drop_indexes(ctx->trx, prebuilt->table, FALSE);
 	}
 
@@ -2841,15 +2908,20 @@ ha_innobase::commit_inplace_alter_table(
 		/* Create a background transaction for the operations on
 		the data dictionary tables. */
 		trx = innobase_trx_allocate(user_thd);
-		trx_start_if_not_started(trx);
-		trx->will_lock = 1;
-		/* Flag this transaction as a dictionary operation, so that
-		the data dictionary will be locked in crash recovery. */
-		trx_set_dict_operation(trx, TRX_DICT_OP_INDEX);
+
+		trx_start_for_ddl(trx, TRX_DICT_OP_INDEX);
+
 		new_clustered = false;
 	} else {
+		trx_dict_op_t	op;
+
 		trx = ctx->trx;
+
 		new_clustered = ctx->indexed_table != prebuilt->table;
+
+		op = (new_clustered) ? TRX_DICT_OP_TABLE : TRX_DICT_OP_INDEX;
+
+		trx_start_for_ddl(trx, op);
 	}
 
 	/* Latch the InnoDB data dictionary exclusively so that no deadlocks
@@ -2914,10 +2986,10 @@ ha_innobase::commit_inplace_alter_table(
 		}
 	} else if (ctx) {
 		dberr_t	error;
+
 		/* We altered the table in place. */
-		ulint	i;
 		/* Lose the TEMP_INDEX_PREFIX. */
-		for (i = 0; i < ctx->num_to_add; i++) {
+		for (ulint i = 0; i < ctx->num_to_add; i++) {
 			dict_index_t*	index = ctx->add[i];
 			DBUG_ASSERT(*index->name
 				    == TEMP_INDEX_PREFIX);
@@ -2939,7 +3011,7 @@ ha_innobase::commit_inplace_alter_table(
 		index->name in the dictionary cache, because the index
 		is about to be freed after row_merge_drop_indexes_dict(). */
 
-		for (i = 0; i < ctx->num_to_drop; i++) {
+		for (ulint i = 0; i < ctx->num_to_drop; i++) {
 			dict_index_t*	index = ctx->drop[i];
 			DBUG_ASSERT(*index->name != TEMP_INDEX_PREFIX);
 			DBUG_ASSERT(index->table == prebuilt->table);
@@ -3035,6 +3107,7 @@ trx_commit:
 		}
 
 		if (!new_clustered && ha_alter_info->index_drop_count) {
+
 			/* Really drop the indexes that were dropped.
 			The transaction had to be committed first
 			(after renaming the indexes), so that in the
@@ -3044,10 +3117,7 @@ trx_commit:
 			have started dropping an index tree, there is
 			no way to roll it back. */
 
-			trx_start_if_not_started(trx);
-			DBUG_ASSERT(trx_get_dict_operation(trx)
-				    == TRX_DICT_OP_INDEX);
-			trx->will_lock = 1;
+			trx_start_for_ddl(trx, TRX_DICT_OP_INDEX);
 
 			for (ulint i = 0; i < ctx->num_to_drop; i++) {
 				dict_index_t*	index = ctx->drop[i];

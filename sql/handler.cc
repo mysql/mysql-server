@@ -1546,7 +1546,9 @@ int ha_rollback_low(THD *thd, bool all)
 int ha_rollback_trans(THD *thd, bool all)
 {
   int error=0;
+#ifndef DBUG_OFF
   THD_TRANS *trans=all ? &thd->transaction.all : &thd->transaction.stmt;
+#endif
 
   DBUG_ENTER("ha_rollback_trans");
 

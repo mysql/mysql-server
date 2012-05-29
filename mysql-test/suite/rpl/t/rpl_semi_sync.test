@@ -169,7 +169,7 @@ replace_result $_connections_semisync_slave CONNECTIONS_SEMISYNC_SLAVE;
 replace_result $_connections_normal_slave CONNECTIONS_NORMAL_SLAVE;
 eval select $_connections_semisync_slave - $_connections_normal_slave as 'Should be 0';
 
-let $i=300;
+let $i=50;
 echo [ insert records to table ];
 disable_query_log;
 while ($i)
@@ -259,7 +259,7 @@ show status like 'Rpl_semi_sync_master_yes_tx';
 
 # Semi-sync status on master is now OFF, so all these transactions
 # will be replicated asynchronously.
-let $i=300;
+let $i=50;
 disable_query_log;
 while ($i)
 {
