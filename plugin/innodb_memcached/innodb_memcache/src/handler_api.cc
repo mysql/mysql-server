@@ -180,13 +180,11 @@ handler_binlog_flush(
 	void*		my_table)	/*!< in: TABLE structure */
 {
 	THD*		thd = static_cast<THD*>(my_thd);
-	int		ret;
 
 	thd->binlog_write_table_map(static_cast<TABLE*>(my_table), 1, 0);
-	ret = tc_log->log_xid(thd, 0);
 
-	if (ret) {
-		tc_log->unlog(ret, 0);
+	if (tc_log) {
+		tc_log->commit(thd, true);
 	}
 	trans_commit_stmt(thd);
 }
