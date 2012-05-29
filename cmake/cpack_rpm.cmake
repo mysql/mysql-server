@@ -66,7 +66,7 @@ SET(CPACK_RPM_PACKAGE_REQUIRES "MariaDB-common")
 
 SET(CPACK_RPM_server_USER_FILELIST "%ignore /etc" "%ignore /etc/init.d")
 
-SET(CPACK_RPM_client_PACKAGE_OBSOLETES "mysql-client MariaDB-client MySQL-client MySQL-OurDelta-client")
+SET(CPACK_RPM_client_PACKAGE_OBSOLETES "mysql-client MySQL-client MySQL-OurDelta-client")
 SET(CPACK_RPM_client_PACKAGE_PROVIDES "MariaDB-client MySQL-client mysql-client")
 
 # this is a workaround for CPackRPM.cmake (as of 2.8.8) bug.
@@ -75,21 +75,21 @@ SET(CPACK_RPM_client_PACKAGE_PROVIDES "MariaDB-client MySQL-client mysql-client"
 SET(CPACK_RPM_common_PACKAGE_OBSOLETES "MySQL-common")
 SET(CPACK_RPM_common_PACKAGE_PROVIDES "MariaDB-common")
 
-SET(CPACK_RPM_devel_PACKAGE_OBSOLETES "mysql-devel MariaDB-devel MySQL-devel MySQL-OurDelta-devel")
+SET(CPACK_RPM_devel_PACKAGE_OBSOLETES "mysql-devel MySQL-devel MySQL-OurDelta-devel")
 SET(CPACK_RPM_devel_PACKAGE_PROVIDES "MariaDB-devel MySQL-devel mysql-devel")
 
-SET(CPACK_RPM_server_PACKAGE_OBSOLETES "MariaDB mysql mysql-server MariaDB-server MySQL-server MySQL-OurDelta-server")
+SET(CPACK_RPM_server_PACKAGE_OBSOLETES "MariaDB mysql mysql-server MySQL-server MySQL-OurDelta-server")
 SET(CPACK_RPM_server_PACKAGE_PROVIDES "MariaDB MariaDB-server MySQL-server config(MariaDB-server) msqlormysql mysql mysql-server")
 SET(CPACK_RPM_server_PRE_INSTALL_SCRIPT_FILE ${CMAKE_SOURCE_DIR}/support-files/rpm/server-prein.sh)
 SET(CPACK_RPM_server_PRE_UNINSTALL_SCRIPT_FILE ${CMAKE_SOURCE_DIR}/support-files/rpm/server-preun.sh)
 SET(CPACK_RPM_server_POST_INSTALL_SCRIPT_FILE ${CMAKE_SOURCE_DIR}/support-files/rpm/server-postin.sh)
 
-SET(CPACK_RPM_shared_PACKAGE_OBSOLETES "mysql-shared MySQL-shared-standard MySQL-shared-pro MySQL-shared-pro-cert MySQL-shared-pro-gpl MySQL-shared-pro-gpl-cert MariaDB-shared MySQL-shared MySQL-OurDelta-shared")
+SET(CPACK_RPM_shared_PACKAGE_OBSOLETES "mysql-shared MySQL-shared-standard MySQL-shared-pro MySQL-shared-pro-cert MySQL-shared-pro-gpl MySQL-shared-pro-gpl-cert MySQL-shared MySQL-OurDelta-shared")
 SET(CPACK_RPM_shared_PACKAGE_PROVIDES "MariaDB-shared MySQL-shared mysql-shared libmysqlclient.so.${SHARED_LIB_MAJOR_VERSION} libmysqlclient.so.${SHARED_LIB_MAJOR_VERSION}(libmysqlclient_${SHARED_LIB_MAJOR_VERSION}) libmysqlclient_r.so.${SHARED_LIB_MAJOR_VERSION} libmysqlclient_r.so.${SHARED_LIB_MAJOR_VERSION}(libmysqlclient_${SHARED_LIB_MAJOR_VERSION})")
 SET(CPACK_RPM_shared_POST_INSTALL_SCRIPT_FILE ${CMAKE_SOURCE_DIR}/support-files/rpm/shared-post.sh)
 SET(CPACK_RPM_shared_POST_UNINSTALL_SCRIPT_FILE ${CMAKE_SOURCE_DIR}/support-files/rpm/shared-post.sh)
 
-SET(CPACK_RPM_test_PACKAGE_OBSOLETES "mysql-test MariaDB-test MySQL-test MySQL-OurDelta-test")
+SET(CPACK_RPM_test_PACKAGE_OBSOLETES "mysql-test MySQL-test MySQL-OurDelta-test")
 SET(CPACK_RPM_test_PACKAGE_PROVIDES "MariaDB-test MySQL-test mysql-test")
 
 # workaround for lots of perl dependencies added by rpmbuild
