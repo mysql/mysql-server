@@ -6961,6 +6961,8 @@ Item_func_sp::fix_fields(THD *thd, Item **ref)
   if (!m_sp->m_chistics->detistic)
     const_item_cache= false;
 
+  if (!tables_locked_cache)
+    const_item_cache= false;
   DBUG_RETURN(res);
 }
 
