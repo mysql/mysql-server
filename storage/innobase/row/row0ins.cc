@@ -2159,7 +2159,6 @@ row_ins_clust_index_entry_low(
 	que_thr_t*	thr)	/*!< in: query thread */
 {
 	btr_cur_t	cursor;
-	rec_t*		rec;
 	ulint*		offsets		= NULL;
 	dberr_t		err;
 	ulint		n_unique;
@@ -2218,11 +2217,13 @@ err_exit:
 		/* There is already an index entry with a long enough common
 		prefix, we must convert the insert into a modify of an
 		existing record */
-		mem_heap_t*	entry_heap = mem_heap_create(1024);
+		mem_heap_t*	entry_heap	= mem_heap_create(1024);
 
 		err = row_ins_clust_index_entry_by_modify(
 			flags, mode, &cursor, &offsets, &offsets_heap,
 			entry_heap, &big_rec, entry, thr, &mtr);
+
+		rec_t*		rec		= btr_cur_get_rec(&cursor);
 
 		if (big_rec) {
 			ut_a(err == DB_SUCCESS);
@@ -2249,8 +2250,6 @@ err_exit:
 			written to the extended portion of the
 			file, in case the file was somehow
 			truncated in the crash. */
-
-			rec = btr_cur_get_rec(&cursor);
 
 			DEBUG_SYNC_C_IF_THD(
 				thr_get_trx(thr)->mysql_thd,
