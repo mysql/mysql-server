@@ -40,6 +40,11 @@ size_t my_write(File Filedes, const uchar *Buffer, size_t Count, myf MyFlags)
 #else
     writtenbytes= write(Filedes, Buffer, Count);
 #endif
+    DBUG_EXECUTE_IF("simulate_file_write_error",
+                    {
+                      errno= ENOSPC;
+                      writtenbytes= (size_t) -1;
+                    });
     if (writtenbytes == Count)
       break;
     if (writtenbytes != (size_t) -1)

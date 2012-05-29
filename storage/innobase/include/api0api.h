@@ -690,6 +690,15 @@ ib_cursor_last(
 	ib_crsr_t	ib_crsr);	/*!< in: InnoDB cursor instance */
 
 /*****************************************************************//**
+Move cursor to the next record in the table.
+@return	DB_SUCCESS or err code */
+
+ib_err_t
+ib_cursor_next(
+/*===========*/
+	ib_crsr_t	ib_crsr);	/*!< in: InnoDB cursor instance */
+
+/*****************************************************************//**
 Search for key.
 @return	DB_SUCCESS or err code */
 
@@ -1193,6 +1202,16 @@ Get a column type, length and attributes from the tuple.
 const char*
 ib_col_get_name(
 /*============*/
+	ib_crsr_t	ib_crsr,	/*!< in: InnoDB cursor instance */
+	ib_ulint_t	i);		/*!< in: column index in tuple */
+
+/*****************************************************************//**
+Get an index field name from the cursor.
+@return name of the field */
+
+const char*
+ib_get_idx_field_name(
+/*==================*/
 	ib_crsr_t	ib_crsr,	/*!< in: InnoDB cursor instance */
 	ib_ulint_t	i);		/*!< in: column index in tuple */
 
