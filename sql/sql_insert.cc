@@ -85,8 +85,6 @@
 
 #include "debug_sync.h"
 
-#include "debug_sync.h"
-
 #ifndef EMBEDDED_LIBRARY
 static bool delayed_get_table(THD *thd, MDL_request *grl_protection_request,
                               TABLE_LIST *table_list);
