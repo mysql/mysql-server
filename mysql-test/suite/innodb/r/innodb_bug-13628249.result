@@ -1,3 +1,7 @@
+call mtr.add_suppression('InnoDB: Failed to find tablespace for table \'"mysql"."slave_master_info"\' in the cache');
+call mtr.add_suppression('InnoDB: Failed to find tablespace for table \'"mysql"."slave_relay_log_info"\' in the cache');
+call mtr.add_suppression('InnoDB: Failed to find tablespace for table \'"test"."t1"\' in the cache');
+call mtr.add_suppression('InnoDB: Allocated tablespace 2, old maximum was 0');
 # Stop server
 # Restart server.
 # Restart server.

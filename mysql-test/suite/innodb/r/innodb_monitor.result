@@ -504,7 +504,7 @@ max_count_reset, min_count_reset, count_reset, status
 from information_schema.innodb_metrics
 where name like "file_num_open_files";
 name	max_count	min_count	count	max_count_reset	min_count_reset	count_reset	status
-file_num_open_files	3	3	3	3	3	3	enabled
+file_num_open_files	#	#	#	#	#	#	enabled
 set global innodb_monitor_disable = file_num_open_files;
 set global innodb_monitor_enable = "icp%";
 create table monitor_test(a char(3), b int, c char(2),

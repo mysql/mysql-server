@@ -184,10 +184,15 @@ INSERT INTO t1 PARTITION (`p100-99999`) VALUES (1000000, "error"), (9999999, "er
 INSERT INTO t1 PARTITION (pNeg, subp4) VALUES (-7, "pNeg(-subp1)"), (-10, "pNeg(-subp0)"), (-1, "pNeg(-subp1)"), (-99, "pNeg(-subp1)");
 
 SELECT * FROM t1 ORDER BY a;
+
+SET @save_innodb_stats_on_metadata=@@global.innodb_stats_on_metadata;
+SET @@global.innodb_stats_on_metadata=ON;
 SELECT PARTITION_NAME, SUBPARTITION_NAME, TABLE_ROWS
 FROM INFORMATION_SCHEMA.PARTITIONS
 WHERE TABLE_SCHEMA = 'test'
 AND TABLE_NAME = 't1' ORDER BY SUBPARTITION_NAME;
+SET @@global.innodb_stats_on_metadata=@save_innodb_stats_on_metadata;
+
 FLUSH STATUS;
 --error ER_NO_SUCH_PARTITION
 SELECT * FROM t1 PARTITION (pNonexistent);

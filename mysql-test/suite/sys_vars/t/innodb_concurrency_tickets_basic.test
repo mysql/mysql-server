@@ -4,7 +4,7 @@
 # Scope: GLOBAL                                                               #
 # Access Type: Dynamic                                                        #
 # Data Type: Numeric                                                          #
-# Default Value: 500                                                          #
+# Default Value: 5000                                                         #
 # Range: 1-4294967295                                                         #
 #                                                                             #
 #                                                                             #

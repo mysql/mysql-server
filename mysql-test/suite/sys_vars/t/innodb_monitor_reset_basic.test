@@ -337,6 +337,8 @@ drop table monitor_test;
 
 set global innodb_monitor_enable = file_num_open_files;
 
+# Counters are unpredictable when innodb-file-per-table is on
+--replace_column 2 # 3 # 4 # 5 # 6 # 7 #
 select name, max_count, min_count, count,
        max_count_reset, min_count_reset, count_reset, status
 from information_schema.innodb_metrics
