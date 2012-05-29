@@ -2521,10 +2521,8 @@ oom:
 		ut_d(dict_table_check_for_dup_indexes(
 			     prebuilt->table, CHECK_PARTIAL_OK));
 		ut_d(mutex_exit(&dict_sys->mutex));
-		/* n_ref_count must be 1, or 2 when purge
-		happens to be executing on this very table. */
-		DBUG_ASSERT(ctx->indexed_table == prebuilt->table
-			    || prebuilt->table->n_ref_count - 1 <= 1);
+		/* prebuilt->table->n_ref_count can be anything here,
+		given that we hold at most a shared lock on the table. */
 		goto ok_exit;
 	case DB_DUPLICATE_KEY:
 		if (prebuilt->trx->error_key_num == ULINT_UNDEFINED) {
