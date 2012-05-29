@@ -175,6 +175,13 @@ int rtree_find_first(MI_INFO *info, uint keynr, uchar *key, uint key_length,
   uint nod_cmp_flag;
   MI_KEYDEF *keyinfo = info->s->keyinfo + keynr;
 
+  /*
+    At the moment index can only properly handle the
+    MBR_INTERSECT, so we use it for all sorts of queries.
+    TODO: better searsh for CONTAINS/WITHIN.
+  */
+  search_flag= nod_cmp_flag= MBR_INTERSECT;
+
   if ((root = info->s->state.key_root[keynr]) == HA_OFFSET_ERROR)
   {
     my_errno= HA_ERR_END_OF_FILE;
@@ -192,8 +199,11 @@ int rtree_find_first(MI_INFO *info, uint keynr, uchar *key, uint key_length,
   info->rtree_recursion_depth = -1;
   info->buff_used = 1;
   
-  nod_cmp_flag = ((search_flag & (MBR_EQUAL | MBR_WITHIN)) ? 
-        MBR_WITHIN : MBR_INTERSECT);
+  /*
+    TODO better search for CONTAINS/WITHIN.
+    nod_cmp_flag= ((search_flag & (MBR_EQUAL | MBR_WITHIN)) ?
+                   MBR_WITHIN : MBR_INTERSECT);
+  */
   return rtree_find_req(info, keyinfo, search_flag, nod_cmp_flag, root, 0);
 }
 
@@ -218,6 +228,12 @@ int rtree_find_next(MI_INFO *info, uint keynr, uint search_flag)
   my_off_t root;
   uint nod_cmp_flag;
   MI_KEYDEF *keyinfo = info->s->keyinfo + keynr;
+  /*
+    At the moment index can only properly handle the
+    MBR_INTERSECT, so we use it for all sorts of queries.
+    TODO: better searsh for CONTAINS/WITHIN.
+  */
+  search_flag= nod_cmp_flag= MBR_INTERSECT;
 
   if (info->update & HA_STATE_DELETED)
     return rtree_find_first(info, keynr, info->lastkey, info->lastkey_length,
@@ -252,8 +268,11 @@ int rtree_find_next(MI_INFO *info, uint keynr, uint search_flag)
     return -1;
   }
   
-  nod_cmp_flag = ((search_flag & (MBR_EQUAL | MBR_WITHIN)) ? 
-        MBR_WITHIN : MBR_INTERSECT);
+  /*
+    TODO better search for CONTAINS/WITHIN.
+    nod_cmp_flag= (((search_flag & (MBR_EQUAL | MBR_WITHIN)) ?
+                    MBR_WITHIN : MBR_INTERSECT));
+  */
   return rtree_find_req(info, keyinfo, search_flag, nod_cmp_flag, root, 0);
 }
 
