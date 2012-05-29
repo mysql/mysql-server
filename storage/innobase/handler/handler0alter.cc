@@ -2559,11 +2559,8 @@ oom:
 				prebuilt->table->flags);
 	}
 
-	/* n_ref_count must be 1, or 2 when purge
-	happens to be executing on this very table. */
-	DBUG_ASSERT(ctx->online
-		    || ctx->indexed_table == prebuilt->table
-		    || prebuilt->table->n_ref_count - 1 <= 1);
+	/* prebuilt->table->n_ref_count can be anything here, given
+	that we hold at most a shared lock on the table. */
 	prebuilt->trx->error_info = NULL;
 	ctx->trx->error_state = DB_SUCCESS;
 
