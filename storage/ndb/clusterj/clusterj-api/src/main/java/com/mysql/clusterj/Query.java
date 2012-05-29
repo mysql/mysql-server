@@ -103,4 +103,20 @@ public interface Query<E> {
      */
     Map<String, Object> explain();
 
+    /**
+     * Set limits on results to return. The execution of the query is
+     * modified to return only a subset of results. If the filter would
+     * normally return 100 instances, skip is set to 50, and
+     * limit is set to 40, then the first 50 results that would have 
+     * been returned are skipped, the next 40 results are returned and the
+     * remaining 10 results are ignored.
+     * <p>
+     * Skip must be greater than or equal to 0. Limit must be greater than or equal to 0.
+     * Limits may not be used with deletePersistentAll.
+     * @param skip the number of results to skip
+     * @param limit the number of results to return after skipping;
+     * use Long.MAX_VALUE for no limit.
+     */
+    void setLimits (long skip, long limit);
+
 }

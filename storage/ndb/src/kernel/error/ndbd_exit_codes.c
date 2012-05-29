@@ -144,6 +144,10 @@ static const ErrStruct errArray[] =
    {NDBD_EXIT_SR_OUT_OF_DATAMEMORY, XCR,
     "Out of data memory during system restart, please increase DataMemory"},
 
+   /* LQH */
+   {NDBD_EXIT_LCP_SCAN_WATCHDOG_FAIL, XIE,
+    "LCP fragment scan watchdog detected a problem.  Please report a bug."},
+
    /* Ndbfs error messages */
    /* Most codes will have additional info, such as OS error code */
    {NDBD_EXIT_AFS_NOPATH,       XIE, "No file system path"},
