@@ -5,5 +5,10 @@ show variables like "max_connections";
 show variables like "%performance_schema%";
 show status like "%performance_schema%";
 
+# Each test script should provide a different test.cnf file,
+# with different settings.
+# This output will show the sizes computed automatically.
+# Note that this output is very dependent on the platform.
+
 show engine performance_schema status;
 

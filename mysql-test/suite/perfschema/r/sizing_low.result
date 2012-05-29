@@ -204,7 +204,7 @@ performance_schema	events_statements_summary_by_digest.row_count	1000
 performance_schema	events_statements_summary_by_digest.memory	1280000
 performance_schema	(account_hash).count	2
 performance_schema	(account_hash).size	10
-performance_schema	(digest_hash).count	6
+performance_schema	(digest_hash).count	11
 performance_schema	(digest_hash).size	1000
 performance_schema	(filename_hash).count	135
 performance_schema	(filename_hash).size	1112
