@@ -111,6 +111,10 @@ row_undo_mod_clust_low(
 	mem_heap_t**	offsets_heap,
 				/*!< in/out: memory heap that can be emptied */
 	mem_heap_t*	heap,	/*!< in/out: memory heap */
+	const dtuple_t**rebuilt_old_pk,
+				/*!< out: row_log_table_get_pk()
+				before the update, or NULL if
+				the table is not being rebuilt online */
 	que_thr_t*	thr,	/*!< in: query thread */
 	mtr_t*		mtr,	/*!< in: mtr; must be committed before
 				latching any further pages */
@@ -132,12 +136,22 @@ row_undo_mod_clust_low(
 	btr_pcur_restore_position(mode, pcur, mtr);
 
 	ut_ad(success);
-
 	ut_ad(rec_get_trx_id(btr_cur_get_rec(btr_cur),
 			     btr_cur_get_index(btr_cur))
 	      == thr_get_trx(thr)->id);
 
-	if (mode == BTR_MODIFY_LEAF) {
+	if (mode != BTR_MODIFY_LEAF
+	    && dict_index_is_online_ddl(btr_cur_get_index(btr_cur))) {
+		*rebuilt_old_pk = row_log_table_get_pk(
+			btr_cur_get_rec(btr_cur),
+			btr_cur_get_index(btr_cur), NULL, &heap);
+	} else {
+		*rebuilt_old_pk = NULL;
+	}
+
+	if (mode != BTR_MODIFY_TREE) {
+		ut_ad((mode & ~BTR_ALREADY_S_LATCHED) == BTR_MODIFY_LEAF);
+
 		err = btr_cur_optimistic_update(
 			BTR_NO_LOCKING_FLAG | BTR_NO_UNDO_LOG_FLAG
 			| BTR_KEEP_SYS_FLAG,
@@ -146,8 +160,6 @@ row_undo_mod_clust_low(
 			thr, thr_get_trx(thr)->id, mtr);
 	} else {
 		big_rec_t*	dummy_big_rec;
-
-		ut_ad(mode == BTR_MODIFY_TREE);
 
 		err = btr_cur_pessimistic_update(
 			BTR_NO_LOCKING_FLAG
@@ -238,11 +250,18 @@ row_undo_mod_clust(
 	btr_pcur_t*	pcur;
 	mtr_t		mtr;
 	dberr_t		err;
+	dict_index_t*	index;
+	bool		online;
 	ibool		success;
 	ibool		more_vers;
 	undo_no_t	new_undo_no;
 
-	ut_ad(node && thr);
+	ut_ad(thr_get_trx(thr) == node->trx);
+	ut_ad(node->trx->dict_operation_lock_mode);
+#ifdef UNIV_SYNC_DEBUG
+	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_SHARED)
+	      || rw_lock_own(&dict_operation_lock, RW_LOCK_EX));
+#endif /* UNIV_SYNC_DEBUG */
 
 	log_free_check();
 
@@ -251,19 +270,31 @@ row_undo_mod_clust(
 
 	more_vers = row_undo_mod_undo_also_prev_vers(node, &new_undo_no);
 
-	pcur = &(node->pcur);
+	pcur = &node->pcur;
+
+	index = btr_cur_get_index(btr_pcur_get_btr_cur(pcur));
 
 	mtr_start(&mtr);
+
+	online = dict_index_is_online_ddl(index);
+	if (online) {
+		ut_ad(node->trx->dict_operation_lock_mode != RW_X_LATCH);
+		mtr_s_lock(dict_index_get_lock(index), &mtr);
+	}
 
 	mem_heap_t*	heap		= mem_heap_create(1024);
 	mem_heap_t*	offsets_heap	= NULL;
 	ulint*		offsets		= NULL;
+	const dtuple_t*	rebuilt_old_pk;
 
 	/* Try optimistic processing of the record, keeping changes within
 	the index page */
 
 	err = row_undo_mod_clust_low(node, &offsets, &offsets_heap,
-				     heap, thr, &mtr, BTR_MODIFY_LEAF);
+				     heap, &rebuilt_old_pk,
+				     thr, &mtr, online
+				     ? BTR_MODIFY_LEAF | BTR_ALREADY_S_LATCHED
+				     : BTR_MODIFY_LEAF);
 
 	if (err != DB_SUCCESS) {
 		btr_pcur_commit_specify_mtr(pcur, &mtr);
@@ -274,9 +305,39 @@ row_undo_mod_clust(
 		mtr_start(&mtr);
 
 		err = row_undo_mod_clust_low(
-			node, &offsets, &offsets_heap, heap, thr, &mtr,
-			BTR_MODIFY_TREE);
+			node, &offsets, &offsets_heap, heap, &rebuilt_old_pk,
+			thr, &mtr, BTR_MODIFY_TREE);
 		ut_ad(err == DB_SUCCESS || err == DB_OUT_OF_FILE_SPACE);
+	}
+
+	/* Online rebuild cannot be initiated while we are holding
+	dict_operation_lock and index->lock. (It can be aborted.) */
+	ut_ad(online || !dict_index_is_online_ddl(index));
+
+	if (err == DB_SUCCESS && online) {
+#ifdef UNIV_SYNC_DEBUG
+		ut_ad(rw_lock_own(&index->lock, RW_LOCK_SHARED)
+		      || rw_lock_own(&index->lock, RW_LOCK_EX));
+#endif /* UNIV_SYNC_DEBUG */
+		switch (node->rec_type) {
+		case TRX_UNDO_UPD_DEL_REC:
+			row_log_table_insert(
+				btr_pcur_get_rec(pcur), index, offsets);
+			break;
+		case TRX_UNDO_UPD_EXIST_REC:
+			row_log_table_update(
+				btr_pcur_get_rec(pcur), index, offsets,
+				rebuilt_old_pk);
+			break;
+		case TRX_UNDO_DEL_MARK_REC:
+			row_log_table_delete(
+				btr_pcur_get_rec(pcur), index, offsets,
+				node->trx->id);
+			break;
+		default:
+			ut_ad(0);
+			break;
+		}
 	}
 
 	btr_pcur_commit_specify_mtr(pcur, &mtr);
@@ -285,6 +346,9 @@ row_undo_mod_clust(
 
 		mtr_start(&mtr);
 
+		/* It is not necessary to call row_log_table,
+		because the record is delete-marked and would thus
+		be omitted from the rebuilt copy of the table. */
 		err = row_undo_mod_remove_clust_low(
 			node, thr, &mtr, BTR_MODIFY_LEAF);
 		if (err != DB_SUCCESS) {

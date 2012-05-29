@@ -2048,6 +2048,11 @@ err_exit:
 			btr_cur_get_page_zip(btr_cur),
 			rec, index, offsets, node->update, mtr);
 
+		/* It is not necessary to call row_log_table for
+		this, because during online table rebuild, purge will
+		not free any BLOBs in the table, whether or not they
+		are owned by the clustered index record. */
+
 		mtr_commit(mtr);
 	}
 
@@ -2067,16 +2072,18 @@ row_upd_clust_rec(
 /*==============*/
 	upd_node_t*	node,	/*!< in: row update node */
 	dict_index_t*	index,	/*!< in: clustered index */
+	ulint*		offsets,/*!< in: rec_get_offsets() on node->pcur */
+	mem_heap_t**	offsets_heap,
+				/*!< in/out: memory heap, can be emptied */
 	que_thr_t*	thr,	/*!< in: query thread */
 	mtr_t*		mtr)	/*!< in: mtr; gets committed here */
 {
-	mem_heap_t*	offsets_heap;
-	mem_heap_t*	heap;
-	big_rec_t*	big_rec	= NULL;
+	mem_heap_t*	heap		= NULL;
+	big_rec_t*	big_rec		= NULL;
 	btr_pcur_t*	pcur;
 	btr_cur_t*	btr_cur;
 	dberr_t		err;
-	ulint*		offsets	= NULL;
+	const dtuple_t*	rebuilt_old_pk	= NULL;
 
 	ut_ad(node);
 	ut_ad(dict_index_is_clust(index));
@@ -2085,21 +2092,20 @@ row_upd_clust_rec(
 	btr_cur = btr_pcur_get_btr_cur(pcur);
 
 	ut_ad(btr_cur_get_index(btr_cur) == index);
-	ut_ad(!rec_get_deleted_flag(btr_pcur_get_rec(pcur),
+	ut_ad(!rec_get_deleted_flag(btr_cur_get_rec(btr_cur),
 				    dict_table_is_comp(index->table)));
+	ut_ad(rec_offs_validate(btr_cur_get_rec(btr_cur), index, offsets));
 
-	offsets_heap = NULL;
+	if (dict_index_is_online_ddl(index)) {
+		rebuilt_old_pk = row_log_table_get_pk(
+			btr_cur_get_rec(btr_cur), index, offsets, &heap);
+	}
 
 	/* Try optimistic updating of the record, keeping changes within
 	the page; we do not check locks because we assume the x-lock on the
 	record to update */
 
 	if (node->cmpl_info & UPD_NODE_NO_SIZE_CHANGE) {
-		/* TODO: reuse offsets from caller */
-		offsets = rec_get_offsets(
-			btr_cur_get_rec(btr_cur),
-			index, offsets, ULINT_UNDEFINED, &offsets_heap);
-
 		err = btr_cur_update_in_place(
 			BTR_NO_LOCKING_FLAG, btr_cur,
 			offsets, node->update,
@@ -2107,8 +2113,14 @@ row_upd_clust_rec(
 	} else {
 		err = btr_cur_optimistic_update(
 			BTR_NO_LOCKING_FLAG, btr_cur,
-			&offsets, &offsets_heap, node->update,
+			&offsets, offsets_heap, node->update,
 			node->cmpl_info, thr, thr_get_trx(thr)->id, mtr);
+	}
+
+	if (err == DB_SUCCESS && rebuilt_old_pk
+	    && dict_index_is_online_ddl(index)) {
+		row_log_table_update(btr_cur_get_rec(btr_cur),
+				     index, offsets, rebuilt_old_pk);
 	}
 
 	mtr_commit(mtr);
@@ -2139,11 +2151,13 @@ row_upd_clust_rec(
 	ut_ad(!rec_get_deleted_flag(btr_pcur_get_rec(pcur),
 				    dict_table_is_comp(index->table)));
 
-	heap = mem_heap_create(1024);
+	if (!heap) {
+		heap = mem_heap_create(1024);
+	}
 
 	err = btr_cur_pessimistic_update(
 		BTR_NO_LOCKING_FLAG | BTR_KEEP_POS_FLAG, btr_cur,
-		&offsets, &offsets_heap, heap, &big_rec,
+		&offsets, offsets_heap, heap, &big_rec,
 		node->update, node->cmpl_info,
 		thr, thr_get_trx(thr)->id, mtr);
 	if (big_rec) {
@@ -2191,11 +2205,16 @@ row_upd_clust_rec(
 		ut_a(err == DB_SUCCESS);
 	}
 
+	if (err == DB_SUCCESS && rebuilt_old_pk
+	    && dict_index_is_online_ddl(index)) {
+		row_log_table_update(btr_cur_get_rec(btr_cur),
+				     index, offsets, rebuilt_old_pk);
+	}
+
 	mtr_commit(mtr);
-	mem_heap_free(heap);
 func_exit:
-	if (offsets_heap) {
-		mem_heap_free(offsets_heap);
+	if (heap) {
+		mem_heap_free(heap);
 	}
 
 	if (big_rec) {
@@ -2273,7 +2292,7 @@ row_upd_clust_step(
 	dberr_t		err;
 	mtr_t		mtr;
 	rec_t*		rec;
-	mem_heap_t*	heap		= NULL;
+	mem_heap_t*	heap	= NULL;
 	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
 	ulint*		offsets;
 	ibool		referenced;
@@ -2299,7 +2318,17 @@ row_upd_clust_step(
 
 	ut_a(pcur->rel_pos == BTR_PCUR_ON);
 
-	success = btr_pcur_restore_position(BTR_MODIFY_LEAF, pcur, &mtr);
+	ulint	mode;
+
+	if (dict_index_is_online_ddl(index)) {
+		ut_ad(node->table->id != DICT_INDEXES_ID);
+		mode = BTR_MODIFY_LEAF | BTR_ALREADY_S_LATCHED;
+		mtr_s_lock(dict_index_get_lock(index), &mtr);
+	} else {
+		mode = BTR_MODIFY_LEAF;
+	}
+
+	success = btr_pcur_restore_position(mode, pcur, &mtr);
 
 	if (!success) {
 		err = DB_RECORD_NOT_FOUND;
@@ -2314,6 +2343,8 @@ row_upd_clust_step(
 	with the index */
 
 	if (node->is_delete && node->table->id == DICT_INDEXES_ID) {
+
+		ut_ad(!dict_index_is_online_ddl(index));
 
 		dict_drop_index_tree(btr_pcur_get_rec(pcur), &mtr);
 
@@ -2356,11 +2387,8 @@ row_upd_clust_step(
 			node->state = UPD_NODE_UPDATE_ALL_SEC;
 			node->index = dict_table_get_next_index(index);
 		}
-exit_func:
-		if (UNIV_LIKELY_NULL(heap)) {
-			mem_heap_free(heap);
-		}
-		return(err);
+
+		goto exit_func;
 	}
 
 	/* If the update is made for MySQL, we already have the update vector
@@ -2374,13 +2402,11 @@ exit_func:
 		row_upd_eval_new_vals(node->update);
 	}
 
-	if (UNIV_LIKELY_NULL(heap)) {
-		mem_heap_free(heap);
-	}
-
 	if (node->cmpl_info & UPD_NODE_NO_ORD_CHANGE) {
 
-		return(row_upd_clust_rec(node, index, thr, &mtr));
+		err = row_upd_clust_rec(
+			node, index, offsets, &heap, thr, &mtr);
+		goto exit_func;
 	}
 
 	row_upd_store_row(node);
@@ -2404,16 +2430,17 @@ exit_func:
 
 		if (err != DB_SUCCESS) {
 
-			return(err);
+			goto exit_func;
 		}
 
 		node->state = UPD_NODE_UPDATE_ALL_SEC;
 	} else {
-		err = row_upd_clust_rec(node, index, thr, &mtr);
+		err = row_upd_clust_rec(
+			node, index, offsets, &heap, thr, &mtr);
 
 		if (err != DB_SUCCESS) {
 
-			return(err);
+			goto exit_func;
 		}
 
 		node->state = UPD_NODE_UPDATE_SOME_SEC;
@@ -2421,6 +2448,10 @@ exit_func:
 
 	node->index = dict_table_get_next_index(index);
 
+exit_func:
+	if (heap) {
+		mem_heap_free(heap);
+	}
 	return(err);
 }
 
