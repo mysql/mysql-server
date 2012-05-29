@@ -1218,7 +1218,7 @@ all_done:
 /******************************************************//**
 Replays an update operation on a table that was rebuilt.
 @return DB_SUCCESS or error code */
-static __attribute__((nonnull(1,3,4,5,6,7,8), warn_unused_result))
+static __attribute__((nonnull, warn_unused_result))
 dberr_t
 row_log_table_apply_update(
 /*=======================*/
@@ -1240,7 +1240,7 @@ row_log_table_apply_update(
 	const dtuple_t*		old_pk)		/*!< in: PRIMARY KEY and
 						DB_TRX_ID,DB_ROLL_PTR
 						of the old value,
-						or NULL if same_pk */
+						or PRIMARY KEY if same_pk */
 {
 	const dtuple_t*	row;
 	dict_index_t*	index = dict_table_get_first_index(new_table);
@@ -1250,8 +1250,8 @@ row_log_table_apply_update(
 	ut_ad(dtuple_get_n_fields_cmp(old_pk)
 	      == dict_index_get_n_unique(index));
 	ut_ad(dtuple_get_n_fields(old_pk)
-	      == dict_index_get_n_unique(index) + 1);
-	ut_ad(!!old_pk == dup->index->online_log->same_pk);
+	      == dict_index_get_n_unique(index)
+	      + (dup->index->online_log->same_pk ? 0 : 2));
 
 	row = row_log_table_apply_convert_mrec(
 		mrec, offsets, heap, new_table, altered_table, dup);
@@ -1565,22 +1565,8 @@ row_log_table_apply_op(
 		is not changed, the log will only contain
 		DB_TRX_ID,new_row. */
 
-		old_pk = dtuple_create(heap, new_index->n_uniq + 1);
-
 		if (dup->index->online_log->same_pk) {
 			ut_ad(new_index->n_uniq == dup->index->n_uniq);
-
-			if (DATA_TRX_ID_LEN + 2 + mrec > mrec_end) {
-				return(NULL);
-			}
-
-			/* Set DB_TRX_ID */
-			dfield_set_data(
-				dtuple_get_nth_field(old_pk,
-						     new_index->n_uniq),
-				mrec, DATA_TRX_ID_LEN);
-
-			mrec += DATA_TRX_ID_LEN;
 
 			extra_size = *mrec++;
 
@@ -1608,6 +1594,9 @@ row_log_table_apply_op(
 				return(NULL);
 			}
 
+			old_pk = dtuple_create(heap, new_index->n_uniq);
+			dict_table_copy_types(old_pk, new_table);
+
 			/* Copy the PRIMARY KEY fields from mrec to old_pk. */
 			for (ulint i = 0; i < new_index->n_uniq; i++) {
 				const void*	field;
@@ -1632,7 +1621,7 @@ row_log_table_apply_op(
 				return(NULL);
 			}
 
-			rec_offs_set_n_fields(offsets, new_index->n_uniq + 1);
+			rec_offs_set_n_fields(offsets, new_index->n_uniq + 2);
 			rec_init_offsets_comp_ordinary(
 				mrec, 0, new_index, 0, offsets);
 
@@ -1641,9 +1630,14 @@ row_log_table_apply_op(
 				return(NULL);
 			}
 
-			/* Copy the PRIMARY KEY fields and DB_TRX_ID
-			from mrec to old_pk. */
-			for (ulint i = 0; i <= new_index->n_uniq; i++) {
+			/* Copy the PRIMARY KEY fields and
+			DB_TRX_ID, DB_ROLL_PTR from mrec to old_pk. */
+			old_pk = dtuple_create(heap, new_index->n_uniq + 2);
+			dict_table_copy_types(old_pk, new_table);
+
+			for (ulint i = 0;
+			     i < dict_index_get_n_unique(new_index) + 2;
+			     i++) {
 				const void*	field;
 				ulint		len;
 				dfield_t*	dfield;
@@ -1688,6 +1682,7 @@ row_log_table_apply_op(
 		}
 
 		ut_ad(next_mrec <= mrec_end);
+		dtuple_set_n_fields_cmp(old_pk, new_index->n_uniq);
 
 		{
 			ulint		len;
