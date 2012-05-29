@@ -189,6 +189,7 @@ public:
   // Type of ALTER TABLE lock.
   enum_alter_table_lock         requested_lock;
 
+
   Alter_info() :
     flags(0),
     keys_onoff(LEAVE_AS_IS),
