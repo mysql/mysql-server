@@ -1787,6 +1787,7 @@ void st_select_lex::init_query()
   select_list_tables= 0;
   m_non_agg_field_used= false;
   m_agg_func_used= false;
+  with_sum_func= false;
 }
 
 void st_select_lex::init_select()
