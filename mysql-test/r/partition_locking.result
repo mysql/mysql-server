@@ -3307,7 +3307,6 @@ HANDLER_WRITE	18
 #
 # Test of views
 #
-# Found bug#13559657 (partition selection does not work with views)
 FLUSH STATUS;
 CREATE VIEW v1_25 AS SELECT a, b FROM t1 PARTITION (p2, p5);
 SELECT * FROM INFORMATION_SCHEMA.SESSION_STATUS
@@ -3396,7 +3395,6 @@ HANDLER_COMMIT	1
 HANDLER_EXTERNAL_LOCK	4
 HANDLER_WRITE	18
 # 4 locks (1 table, 1 partition lock/unlock)
-# Bug#13559657, this should fail!
 FLUSH STATUS;
 INSERT INTO v1_25_check VALUES (30, "Insert in v1_25_check fail");
 ERROR HY000: Found a row not matching the given partition set

@@ -617,39 +617,6 @@ create_insert_stmt_from_insert_delayed(THD *thd, String *buf)
 
 
 /**
-  Set default values of record.
-
-  @param copy_default_values  Copy default row
-                              (otherwise only delete marker + null bits)
-  @param table                Table the record belongs to
-*/
-
-void default_record(bool copy_default_values, TABLE *table)
-{
-  if (copy_default_values)
-    restore_record(table,s->default_values); // Get empty record
-  else
-  {
-    TABLE_SHARE *share= table->s;
-
-    /*
-      Fix delete marker. No need to restore rest of record since it will
-      be overwritten by fill_record() anyway (and fill_record() does not
-      use default values in this case).
-    */
-    table->record[0][0]= share->default_values[0];
-
-    /* Fix undefined null_bits. */
-    if (share->null_bytes > 1 && share->last_null_bit_pos)
-    {
-      table->record[0][share->null_bytes - 1]= 
-        share->default_values[share->null_bytes - 1];
-    }
-  }
-}
-
-
-/**
   INSERT statement implementation
 
   @note Like implementations of other DDL/DML in MySQL, this function
@@ -817,6 +784,10 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
         Check the first INSERT value.
         Do not fail here, since that would break MyISAM behavior of inserting
         all rows before the failing row.
+
+        PRUNE_DEFAULTS means the partitioning fields are only set to DEFAULT
+        values, so we only need to check the first INSERT value, since all the
+        rest will be in the same partition.
       */
       if (table->part_info->set_used_partition(fields,
                                                *values,
@@ -1006,7 +977,26 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
     }
     else
     {
-      default_record(thd->lex->used_tables, table);
+      if (thd->lex->used_tables)               // Column used in values()
+        restore_record(table,s->default_values); // Get empty record
+      else
+      {
+        TABLE_SHARE *share= table->s;
+
+        /*
+          Fix delete marker. No need to restore rest of record since it will
+          be overwritten by fill_record() anyway (and fill_record() does not
+          use default values in this case).
+        */
+        table->record[0][0]= share->default_values[0];
+
+        /* Fix undefined null_bits. */
+        if (share->null_bytes > 1 && share->last_null_bit_pos)
+        {
+          table->record[0][share->null_bytes - 1]= 
+            share->default_values[share->null_bytes - 1];
+        }
+      }
       if (fill_record_n_invoke_before_triggers(thd, table->field, *values, 0,
                                                table->triggers,
                                                TRG_EVENT_INSERT))
@@ -4058,7 +4048,7 @@ select_create::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
 
 
 /**
-  Lock the newly created table.
+  Lock the newly created table and prepare it for insertion.
 
   @return Operation status.
     @retval 0   Success

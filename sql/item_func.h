@@ -2136,7 +2136,6 @@ public:
   }
 
   virtual void update_null_value();
-  virtual bool can_be_evaluated_now() const;
 };
 
 

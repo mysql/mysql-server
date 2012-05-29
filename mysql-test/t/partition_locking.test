@@ -1057,7 +1057,6 @@ eval $get_handler_status_counts;
 --echo #
 --echo # Test of views
 --echo #
---echo # Found bug#13559657 (partition selection does not work with views)
 FLUSH STATUS;
 CREATE VIEW v1_25 AS SELECT a, b FROM t1 PARTITION (p2, p5);
 eval $get_handler_status_counts;
@@ -1108,7 +1107,6 @@ INSERT INTO v1_25_check VALUES (31, "Insert in v1_25_check");
 eval $get_handler_status_counts;
 --echo # 4 locks (1 table, 1 partition lock/unlock)
 
---echo # Bug#13559657, this should fail!
 FLUSH STATUS;
 --error ER_ROW_DOES_NOT_MATCH_GIVEN_PARTITION_SET
 INSERT INTO v1_25_check VALUES (30, "Insert in v1_25_check fail");

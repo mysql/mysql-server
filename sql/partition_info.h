@@ -323,6 +323,15 @@ public:
                           COPY_INFO &info,
                           bool copy_default_values,
                           MY_BITMAP *used_partitions);
+  /**
+    PRUNE_NO - Unable to prune.
+    PRUNE_DEFAULTS - Partitioning field is only set to
+                     DEFAULT values, only need to check
+                     pruning for one row where the DEFAULTS
+                     values are set.
+    PRUNE_YES - Pruning is possible, calculate the used partition set
+                by evaluate the partition_id on row by row basis.
+  */
   enum enum_can_prune {PRUNE_NO=0, PRUNE_DEFAULTS, PRUNE_YES};
   bool can_prune_insert(THD *thd,
                         enum_duplicates duplic,
