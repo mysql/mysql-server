@@ -1,11 +1,12 @@
 -- source include/have_ndb.inc
 -- source have_ndb_fk.inc
 
-# BUG 14095785 - DROPPING FK WITHOUT LABEL CAUSED MYSQLD TO CRASH
-
 -- disable_warnings
 drop table if exists t2, t1;
 -- enable_warnings
+
+# BUG 14095785 - DROPPING FK WITHOUT LABEL CAUSED MYSQLD TO CRASH
+-- echo # bug#14095785
 
 create table t1 (
   a int not null,
@@ -27,5 +28,31 @@ alter table t2
 -- error ER_SYNTAX_ERROR
 alter table t2
   drop foreign key;
+
+drop table t2, t1;
+
+# BUG 14095838 - CHANGING PK CAUSES CASCADE FK TO DELETE ROWS
+-- echo # bug#14095838
+
+create table t1 (
+  a int not null,
+  primary key using hash (a)
+) engine ndb;
+
+create table t2 (
+  a int not null,
+  b int not null,
+  primary key using hash (a),
+  key (b)
+) engine ndb;
+
+-- error 150
+alter table t2
+  add constraint fk1 foreign key (b) references t1 (a)
+  on delete cascade on update cascade;
+
+alter table t2
+  add constraint fk1 foreign key (b) references t1 (a)
+  on delete cascade on update restrict;
 
 drop table t2, t1;
