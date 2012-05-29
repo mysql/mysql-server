@@ -2167,8 +2167,6 @@ row_ins_clust_index_entry_low(
 
 	ut_ad(dict_index_is_clust(index));
 
-	log_free_check();
-
 	mtr_start(&mtr);
 
 	cursor.thr = thr;
@@ -2539,6 +2537,8 @@ row_ins_clust_index_entry(
 
 	/* Try first optimistic descent to the B-tree */
 
+	log_free_check();
+
 	err = row_ins_clust_index_entry_low(0, BTR_MODIFY_LEAF, index, entry,
 					    n_ext, thr);
 	if (err != DB_FAIL) {
@@ -2547,6 +2547,8 @@ row_ins_clust_index_entry(
 	}
 
 	/* Try then pessimistic descent to the B-tree */
+
+	log_free_check();
 
 	return(row_ins_clust_index_entry_low(0, BTR_MODIFY_TREE, index, entry,
 					     n_ext, thr));
