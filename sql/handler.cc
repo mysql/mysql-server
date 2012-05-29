@@ -2359,11 +2359,9 @@ int handler::ha_open(TABLE *table_arg, const char *name, int mode,
     /*
       Do not call this for partitions handlers, since it may take too much
       resources.
-      If a table is partitioned it's main handler will be ha_partition and
-      its partitions handlers will be the normal handlers, like ha_innobase.
       So only use the m_psi on table level, not for individual partitions.
     */
-    if (ht == table->file->ht)
+    if (test_if_locked & HA_OPEN_NO_PSI_CALL)
     {
       PSI_table_share *share_psi= ha_table_share_psi(table_share);
       m_psi= PSI_TABLE_CALL(open_table)(share_psi, this);

@@ -1464,7 +1464,8 @@ int ha_partition::prepare_new_partition(TABLE *tbl,
     goto error_create;
   }
   DBUG_PRINT("info", ("partition %s created", part_name));
-  if ((error= file->ha_open(tbl, part_name, m_mode, m_open_test_lock)))
+  if ((error= file->ha_open(tbl, part_name, m_mode,
+                            m_open_test_lock | HA_OPEN_NO_PSI_CALL)))
     goto error_open;
   DBUG_PRINT("info", ("partition %s opened", part_name));
   /*
@@ -3115,7 +3116,8 @@ int ha_partition::open(const char *name, int mode, uint test_if_locked)
    {
       create_partition_name(name_buff, name, name_buffer_ptr, NORMAL_PART_NAME,
                             FALSE);
-      if ((error= (*file)->ha_open(table, name_buff, mode, test_if_locked)))
+      if ((error= (*file)->ha_open(table, name_buff, mode,
+                                   test_if_locked | HA_OPEN_NO_PSI_CALL)))
         goto err_handler;
       if (m_file == file)
         m_num_locks= (*file)->lock_count();
@@ -3274,7 +3276,8 @@ handler *ha_partition::clone(const char *name, MEM_ROOT *mem_root)
     goto err;
 
   if (new_handler->ha_open(table, name,
-                           table->db_stat, HA_OPEN_IGNORE_IF_LOCKED))
+                           table->db_stat,
+                           HA_OPEN_IGNORE_IF_LOCKED | HA_OPEN_NO_PSI_CALL))
     goto err;
 
   DBUG_RETURN((handler*) new_handler);
@@ -3384,14 +3387,8 @@ int ha_partition::external_lock(THD *thd, int lock_type)
   if (lock_type == F_UNLCK)
     used_partitions= &m_locked_partitions;
   else
-  {
-    /*
-      Only clear this when a new lock is taken or start_stmt is called,
-      leave it as is after unlocking to be able to prune ::reset() calls.
-    */
-    DBUG_ASSERT(bitmap_is_clear_all(&m_partitions_to_reset));
     used_partitions= &(m_part_info->lock_partitions);
-  }
+
   first_used_partition= bitmap_get_first_set(used_partitions);
 
   for (i= first_used_partition;
@@ -3414,7 +3411,8 @@ int ha_partition::external_lock(THD *thd, int lock_type)
   }
   else
   {
-    bitmap_copy(&m_partitions_to_reset, used_partitions);
+    /* Add touched partitions to be included in reset(). */
+    bitmap_union(&m_partitions_to_reset, used_partitions);
   }
 
   if (m_added_file && m_added_file[0])
@@ -3437,7 +3435,6 @@ err_handler:
     (void) m_file[j]->ha_external_lock(thd, F_UNLCK);
   }
   bitmap_clear_all(&m_locked_partitions);
-  bitmap_clear_all(&m_partitions_to_reset);
   DBUG_RETURN(error);
 }
 
@@ -3538,14 +3535,13 @@ int ha_partition::start_stmt(THD *thd, thr_lock_type lock_type)
                                &m_locked_partitions));
   DBUG_ENTER("ha_partition::start_stmt");
 
-  /* Needed to clear all bits from the LOCK TABLES statement. */
-  bitmap_clear_all(&m_partitions_to_reset);
-  for (i= bitmap_get_first_set(&(m_part_info->read_partitions));
+  for (i= bitmap_get_first_set(&(m_part_info->lock_partitions));
        i < m_tot_parts;
-       i= bitmap_get_next_set(&m_part_info->read_partitions, i))
+       i= bitmap_get_next_set(&m_part_info->lock_partitions, i))
   {
     if ((error= m_file[i]->start_stmt(thd, lock_type)))
       break;
+    /* Add partition to be called in reset(). */
     bitmap_set_bit(&m_partitions_to_reset, i);
   }
   DBUG_RETURN(error);
@@ -6523,40 +6519,34 @@ int ha_partition::extra(enum ha_extra_function operation)
 }
 
 
-/*
+/**
   Special extra call to reset extra parameters
 
-  SYNOPSIS
-    reset()
+  @return Operation status.
+    @retval >0 Error code
+    @retval 0  Success
 
-  RETURN VALUE
-    >0                   Error code
-    0                    Success
-
-  DESCRIPTION
-    Called at end of each statement to reset buffers
+  @note Called at end of each statement to reset buffers.
+  To avoid excessive calls, the m_partitions_to_reset bitmap keep records
+  of which partitions that have been used in external_lock() or start_stmt()
+  and is needed to be called.
 */
 
 int ha_partition::reset(void)
 {
   int result= 0;
+  int tmp;
+  uint i;
   DBUG_ENTER("ha_partition::reset");
 
-  /* May not have m_part_info set (in case of failed open or prune). */
-  if (m_part_info && m_part_info->bitmaps_are_initialized)
+  for (i= bitmap_get_first_set(&m_partitions_to_reset);
+       i < m_tot_parts;
+       i= bitmap_get_next_set(&m_partitions_to_reset, i))
   {
-    int tmp;
-    uint i;
-
-    for (i= bitmap_get_first_set(&m_partitions_to_reset);
-         i < m_tot_parts;
-         i= bitmap_get_next_set(&m_partitions_to_reset, i))
-    {
-      if ((tmp= m_file[i]->ha_reset()))
-        result= tmp;
-    }
-    bitmap_clear_all(&m_partitions_to_reset);
+    if ((tmp= m_file[i]->ha_reset()))
+      result= tmp;
   }
+  bitmap_clear_all(&m_partitions_to_reset);
   DBUG_RETURN(result);
 }
 
@@ -6603,6 +6593,9 @@ void ha_partition::prepare_extra_cache(uint cachesize)
   m_extra_cache_size= cachesize;
   if (m_part_spec.start_part != NO_CURRENT_PART_ID)
   {
+    DBUG_ASSERT(bitmap_is_set(&m_partitions_to_reset,
+                              m_part_spec.start_part));
+    bitmap_set_bit(&m_partitions_to_reset, m_part_spec.start_part);
     late_extra_cache(m_part_spec.start_part);
   }
   DBUG_VOID_RETURN;
@@ -6669,6 +6662,8 @@ int ha_partition::loop_extra(enum ha_extra_function operation)
     if ((tmp= m_file[i]->extra(operation)))
       result= tmp;
   }
+  /* Add all used partitions to be called in reset(). */
+  bitmap_union(&m_partitions_to_reset, &m_part_info->lock_partitions);
   DBUG_RETURN(result);
 }
 
