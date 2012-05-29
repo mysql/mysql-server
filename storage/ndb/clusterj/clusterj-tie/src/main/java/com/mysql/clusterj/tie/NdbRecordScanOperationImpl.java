@@ -69,8 +69,14 @@ public abstract class NdbRecordScanOperationImpl extends NdbRecordOperationImpl 
      */
     @Override
     public ResultData resultData(boolean execute) {
+        return resultData(execute, 0, Long.MAX_VALUE);
+    }
+
+    /** Construct a new ResultData and if requested, execute the operation.
+     */
+    public ResultData resultData(boolean execute, long skip, long limit) {
         NdbRecordResultDataImpl result =
-            new NdbRecordScanResultDataImpl(this);
+            new NdbRecordScanResultDataImpl(this, skip, limit);
         if (execute) {
             clusterTransaction.executeNoCommit(false, true);
         }
@@ -111,31 +117,24 @@ public abstract class NdbRecordScanOperationImpl extends NdbRecordOperationImpl 
     /** Create scan options for this scan. 
      * Scan options are used to set a filter into the NdbScanOperation,
      * set the key info flag if using a lock mode that requires lock takeover, and set the multi range flag.
+     * always set SF_OrderBy to get ordered scans.
      */
     protected void getScanOptions() {
-        long options = 0L;
-        int flags = 0;
-        if (multiRange | (ndbScanFilter != null) | 
-                (lockMode != com.mysql.ndbjtie.ndbapi.NdbOperationConst.LockMode.LM_CommittedRead)) {
-
-            scanOptions = db.createScanOptions();
-            if (multiRange) {
-                flags |= ScanFlag.SF_MultiRange;
-                options |= (long)Type.SO_SCANFLAGS;
-                scanOptions.scan_flags(flags);
-            }
-            if (lockMode != com.mysql.ndbjtie.ndbapi.NdbOperationConst.LockMode.LM_CommittedRead) {
-                flags |= ScanFlag.SF_KeyInfo;
-                options |= (long)Type.SO_SCANFLAGS;
-                scanOptions.scan_flags(flags);
-            }
-            if (ndbScanFilter != null) {
-                options |= (long)Type.SO_INTERPRETED;
-                scanOptions.interpretedCode(ndbScanFilter.getInterpretedCode());
-            }
-            
-            scanOptions.optionsPresent(options);
+        long options = (long)Type.SO_SCANFLAGS;
+        int flags = ScanFlag.SF_OrderBy;
+        scanOptions = db.createScanOptions();
+        if (multiRange) {
+            flags |= ScanFlag.SF_MultiRange;
         }
+        if (lockMode != com.mysql.ndbjtie.ndbapi.NdbOperationConst.LockMode.LM_CommittedRead) {
+            flags |= ScanFlag.SF_KeyInfo;
+        }
+        if (ndbScanFilter != null) {
+            options |= (long)Type.SO_INTERPRETED;
+            scanOptions.interpretedCode(ndbScanFilter.getInterpretedCode());
+        }
+        scanOptions.scan_flags(flags);
+        scanOptions.optionsPresent(options);
         if (logger.isDebugEnabled()) logger.debug("ScanOptions: " + dumpScanOptions(options, flags));
     }
 
@@ -167,7 +166,7 @@ public abstract class NdbRecordScanOperationImpl extends NdbRecordOperationImpl 
      */
     public ScanFilter getScanFilter(QueryExecutionContext context) {
         
-        ndbInterpretedCode = db.createInterpretedCode(ndbRecordValues.getNdbTable(), null, 0);
+        ndbInterpretedCode = db.createInterpretedCode(ndbRecordValues.getNdbTable(), 0);
         handleError(ndbInterpretedCode, ndbOperation);
         ndbScanFilter = db.createScanFilter(ndbInterpretedCode);
         handleError(ndbScanFilter, ndbOperation);
