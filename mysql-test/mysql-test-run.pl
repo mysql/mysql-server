@@ -2484,7 +2484,10 @@ sub environment_setup {
   my $file_mysql_fix_privilege_tables=
     mtr_file_exists("$basedir/scripts/mysql_fix_privilege_tables.sql",
 		    "$basedir/share/mysql_fix_privilege_tables.sql",
-		    "$basedir/share/mysql/mysql_fix_privilege_tables.sql");
+		    "$basedir/share/mysql/mysql_fix_privilege_tables.sql",
+                    "$bindir/scripts/mysql_fix_privilege_tables.sql",
+		    "$bindir/share/mysql_fix_privilege_tables.sql",
+		    "$bindir/share/mysql/mysql_fix_privilege_tables.sql");
   $ENV{'MYSQL_FIX_PRIVILEGE_TABLES'}=  $file_mysql_fix_privilege_tables;
 
   # ----------------------------------------------------

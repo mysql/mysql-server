@@ -983,6 +983,11 @@ int gtid_empty_group_log_and_cleanup(THD *thd)
                           FALSE, TRUE, 0, TRUE);
   DBUG_ASSERT(!qinfo.is_using_immediate_logging());
 
+  /*
+    thd->cache_mngr is uninitialized on the first empty transaction.
+  */
+  if (thd->binlog_setup_trx_data())
+    DBUG_RETURN(1);
   cache_data= &thd_get_cache_mngr(thd)->trx_cache;
   DBUG_PRINT("debug", ("Writing to trx_cache"));
   if (cache_data->write_event(thd, &qinfo) ||

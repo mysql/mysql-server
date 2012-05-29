@@ -2135,6 +2135,29 @@ ib_cursor_last(
 }
 
 /*****************************************************************//**
+Move cursor to the next user record in the table.
+@return DB_SUCCESS or err code */
+UNIV_INTERN
+ib_err_t
+ib_cursor_next(
+/*===========*/
+        ib_crsr_t       ib_crsr)        /*!< in: InnoDB cursor instance */
+{
+        ib_err_t	err;
+        ib_cursor_t*    cursor = (ib_cursor_t*) ib_crsr;
+        row_prebuilt_t* prebuilt = cursor->prebuilt;
+	byte		buf[UNIV_PAGE_SIZE_MAX];
+
+        /* We want to move to the next record */
+        dtuple_set_n_fields(prebuilt->search_tuple, 0);
+
+        err = static_cast<ib_err_t>(row_search_for_mysql(
+		buf, PAGE_CUR_G, prebuilt, 0, ROW_SEL_NEXT));
+
+        return(err);
+}
+
+/*****************************************************************//**
 Search for key.
 @return	DB_SUCCESS or err code */
 UNIV_INTERN
@@ -2531,6 +2554,31 @@ ib_col_get_name(
 	name = dict_table_get_col_name(table, col_no);
 
 	return(name);
+}
+
+/*****************************************************************//**
+Get an index field name from the cursor.
+@return	name of the field */
+UNIV_INTERN
+const char*
+ib_get_idx_field_name(
+/*==================*/
+	ib_crsr_t       ib_crsr,        /*!< in: InnoDB cursor instance */
+	ib_ulint_t	i)		/*!< in: column index in tuple */
+{
+	ib_cursor_t*    cursor = (ib_cursor_t*) ib_crsr;
+	dict_index_t*	index = cursor->prebuilt->index;
+	dict_field_t* 	field;
+
+	if (index) {
+		field = dict_index_get_nth_field(cursor->prebuilt->index, i);
+
+		if (field) {
+			return(field->name);
+		}
+	}
+
+	return(NULL);
 }
 
 /*****************************************************************//**
