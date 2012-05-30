@@ -2599,6 +2599,7 @@ func_start:
 	ut_ad(mtr_memo_contains(mtr, dict_index_get_lock(cursor->index),
 				MTR_MEMO_X_LOCK));
 	ut_ad(!dict_index_is_online_ddl(cursor->index)
+	      || (flags & BTR_CREATE_FLAG)
 	      || dict_index_is_clust(cursor->index));
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(rw_lock_own(dict_index_get_lock(cursor->index), RW_LOCK_EX));
