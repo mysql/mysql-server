@@ -3873,6 +3873,7 @@ public:
   virtual void print(String *str, enum_query_type query_type);
   type_conversion_status save_in_field(Field *field_arg, bool no_conversions);
   table_map used_tables() const { return (table_map)0L; }
+  Item *get_tmp_table_item(THD *thd) { return copy_or_same(thd); }
 
   bool walk(Item_processor processor, bool walk_subquery, uchar *args)
   {
