@@ -4424,7 +4424,7 @@ static int remove_dup_with_hash_index(THD *thd, TABLE *table,
     field_length=field_lengths;
     for (Field **ptr= first_field ; *ptr ; ptr++)
     {
-      (*ptr)->sort_string(key_pos,*field_length);
+      (*ptr)->make_sort_key(key_pos,*field_length);
       key_pos+= *field_length++;
     }
     /* Check if it exists before */
