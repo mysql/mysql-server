@@ -263,7 +263,6 @@ public:
   Gcalc_function::op_type spatial_op;
   Gcalc_heap collector;
   Gcalc_function func;
-  Gcalc_scan_iterator scan_it;
 
   Gcalc_result_receiver res_receiver;
   Gcalc_operation_reducer operation;
@@ -310,7 +309,6 @@ protected:
   };
   Gcalc_heap collector;
   Gcalc_function func;
-  Gcalc_scan_iterator scan_it;
 
   Gcalc_result_receiver res_receiver;
   Gcalc_operation_reducer operation;

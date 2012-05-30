@@ -1013,7 +1013,6 @@ String *Item_func_spatial_operation::val_str(String *str_value)
 
   
   collector.prepare_operation();
-  scan_it.init(&collector);
   if (func.alloc_states())
     goto exit;
 
@@ -1036,7 +1035,6 @@ String *Item_func_spatial_operation::val_str(String *str_value)
 exit:
   collector.reset();
   func.reset();
-  scan_it.reset();
   res_receiver.reset();
   DBUG_RETURN(null_value ? 0 : str_value);
 }
@@ -1436,7 +1434,6 @@ String *Item_func_buffer::val_str(String *str_value)
 mem_error:
   collector.reset();
   func.reset();
-  scan_it.reset();
   res_receiver.reset();
   DBUG_RETURN(str_result);
 }
