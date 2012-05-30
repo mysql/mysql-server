@@ -3059,7 +3059,7 @@ libmysql/merge_archives_mysqlclient.cmake
 libmysqld/merge_archives_mysqlserver.cmake
 libmysqld/mysqlserver_depends.c
 libmysqld/examples/mysql_embedded
-sql/.empty
+sql/dummy.bak
 mysys/thr_lock
 VERSION.dep
 info_macros.cmake
