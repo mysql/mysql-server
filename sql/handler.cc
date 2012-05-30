@@ -6335,22 +6335,12 @@ bool DsMrr_impl::get_disk_sweep_mrr_cost(uint keynr, ha_rows rows, uint flags,
   (*cost)+= last_step_cost;
 
   /*
-    With the old COST_VECT, memory cost was part of total_cost() but
-    that's not the case with Cost_estimate. Introducing Cost_estimate
-    shall not change any costs, hence the memory cost is added as if
-    it was CPU cost below. To be reconsidered when DsMRR costs are
-    refactored.
+    Cost of memory is not included in the total_cost() function and
+    thus will not be considered when comparing costs. Still, we
+    record it in the cost estimate object for future use.
   */
-  if (n_full_steps != 0)
-  {
-    cost->add_mem(*buffer_size);
-    cost->add_cpu(*buffer_size);
-  }
-  else
-  {
-    cost->add_mem(rows_in_last_step * elem_size);
-    cost->add_cpu(rows_in_last_step * elem_size);
-  }  
+  cost->add_mem(*buffer_size);
+
   /* Total cost of all index accesses */
   index_read_cost= h->index_only_read_time(keynr, rows);
   cost->add_io(index_read_cost * Cost_estimate::IO_BLOCK_READ_COST());

@@ -476,7 +476,7 @@ CountryLanguage.Country=Country.Code AND
 City.Name LIKE 'L%' AND Country.Population > 3000000 AND
 CountryLanguage.Percentage > 50;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	CountryLanguage	ALL	PRIMARY,Percentage	NULL	NULL	NULL	984	Using where
+1	SIMPLE	CountryLanguage	range	PRIMARY,Percentage	Percentage	4	NULL	188	Using index condition; Using MRR
 1	SIMPLE	Country	eq_ref	PRIMARY	PRIMARY	3	world.CountryLanguage.Country	1	Using where
 1	SIMPLE	City	ref	Country	Country	3	world.CountryLanguage.Country	18	Using where
 SELECT City.Name, Country.Name, CountryLanguage.Language
@@ -783,7 +783,7 @@ CountryLanguage.Country=Country.Code AND
 City.Name LIKE 'L%' AND Country.Population > 3000000 AND
 CountryLanguage.Percentage > 50;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	CountryLanguage	ALL	PRIMARY,Percentage	NULL	NULL	NULL	984	Using where
+1	SIMPLE	CountryLanguage	range	PRIMARY,Percentage	Percentage	4	NULL	188	Using index condition; Using MRR
 1	SIMPLE	Country	eq_ref	PRIMARY	PRIMARY	3	world.CountryLanguage.Country	1	Using where
 1	SIMPLE	City	ref	Country	Country	3	world.CountryLanguage.Country	18	Using where
 SELECT City.Name, Country.Name, CountryLanguage.Language
