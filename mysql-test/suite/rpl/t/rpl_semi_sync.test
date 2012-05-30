@@ -179,6 +179,11 @@ while ($i)
 }
 enable_query_log;
 
+# Wait for acks from slave to avoid test failures on slow platforms.
+let $status_var= Rpl_semi_sync_master_yes_tx;
+let $status_var_value= 51;
+source include/wait_for_status_var.inc;
+
 echo [ master status after inserts ];
 show status like 'Rpl_semi_sync_master_status';
 show status like 'Rpl_semi_sync_master_no_tx';
@@ -300,7 +305,12 @@ select max(a) from t1;
 connection master;
 echo [ on master ];
 
-# The master semi-sync status should be on again after slave catches up.
+# Wait until master semi-sync status is on again after slave catches up
+# to avoid test failures on slow platforms.
+let $status_var= Rpl_semi_sync_master_status;
+let $status_var_value= ON;
+source include/wait_for_status_var.inc;
+
 echo [ master status should be ON again after slave catches up ];
 show status like 'Rpl_semi_sync_master_status';
 show status like 'Rpl_semi_sync_master_no_tx';
@@ -479,6 +489,12 @@ show status like 'Rpl_semi_sync_master_no_tx';
 show status like 'Rpl_semi_sync_master_yes_tx';
 insert into t1 values (4);
 insert into t1 values (5);
+
+# Wait for acks from slave to avoid test failures on slow platforms.
+let $status_var= Rpl_semi_sync_master_yes_tx;
+let $status_var_value= 2;
+source include/wait_for_status_var.inc;
+
 echo [ master semi-sync should be ON ];
 show status like 'Rpl_semi_sync_master_clients';
 show status like 'Rpl_semi_sync_master_status';
