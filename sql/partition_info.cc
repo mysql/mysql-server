@@ -380,7 +380,8 @@ bool partition_info::can_prune_insert(THD* thd,
   /* Also clears all bits. */
   if (bitmap_init(used_partitions, bitmap_buf, num_partitions, false))
   {
-    /* Cannot happen, due to pre-alloc, purecov: begin deadcode */
+    /* purecov: begin deadcode */
+    /* Cannot happen, due to pre-alloc. */
     mem_alloc_error(bitmap_bytes);
     DBUG_RETURN(true);
     /* purecov: end */
