@@ -356,4 +356,16 @@ WHERE f2 >= (
 
 drop table t1, t2, t3;
 
+--echo #
+--echo # LP BUG#1006231 crash in select_describe
+--echo #
+
+create table t1(a1 int) ENGINE=InnoDB;
+insert into t1 values (1);
+explain
+select 1 from t1 where 1 like (select 1 from t1 where 1 <=> (select 1 from t1 group by a1));
+select 1 from t1 where 1 like (select 1 from t1 where 1 <=> (select 1 from t1 group by a1));
+drop table t1;
+
+
 set optimizer_switch=@subselect_innodb_tmp;
