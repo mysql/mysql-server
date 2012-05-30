@@ -112,6 +112,7 @@ SELECT City.Name, Country.Name FROM City,Country
   WHERE City.Country=Country.Code AND 
         Country.Name LIKE 'L%' AND City.Population > 100000;
 
+--replace_result 185 # 188 #
 EXPLAIN
 SELECT City.Name, Country.Name, CountryLanguage.Language
   FROM City,Country,CountryLanguage
@@ -165,6 +166,7 @@ SELECT City.Name, Country.Name FROM City,Country
   WHERE City.Country=Country.Code AND 
         Country.Name LIKE 'L%' AND City.Population > 100000;
 
+--replace_result 185 # 188 #
 EXPLAIN
 SELECT City.Name, Country.Name, CountryLanguage.Language
   FROM City,Country,CountryLanguage
