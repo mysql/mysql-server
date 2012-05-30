@@ -500,28 +500,31 @@ row_log_table_delete(
 }
 
 /******************************************************//**
-Logs an update to a table that is being rebuilt.
-This will be merged in row_log_table_apply_update(). */
-UNIV_INTERN
+Logs an insert or update to a table that is being rebuilt. */
+static __attribute__((nonnull(1,2,3)))
 void
-row_log_table_update(
-/*=================*/
+row_log_table_low(
+/*==============*/
 	const rec_t*	rec,	/*!< in: clustered index leaf page record,
 				page X-latched */
 	dict_index_t*	index,	/*!< in/out: clustered index, S-latched
 				or X-latched */
 	const ulint*	offsets,/*!< in: rec_get_offsets(rec,index) */
-	const dtuple_t*	old_pk)	/*!< in: row_log_table_get_pk()
-				before the update */
+	bool		insert,	/*!< in: true if insert, false if update */
+	const dtuple_t*	old_pk)	/*!< in: old PRIMARY KEY value (if !insert
+				and a PRIMARY KEY is being created) */
 {
-	ulint	omit_size;
-	ulint	old_pk_size;
-	ulint	old_pk_extra_size;
-	ulint	extra_size;
-	ulint	mrec_size;
-	ulint	avail_size;
-
+	ulint			omit_size;
+	ulint			old_pk_size;
+	ulint			old_pk_extra_size;
+	ulint			extra_size;
+	ulint			mrec_size;
+	ulint			avail_size;
+	const dict_index_t*	new_index = dict_table_get_first_index(
+		index->online_log->table);
 	ut_ad(dict_index_is_clust(index));
+	ut_ad(dict_index_is_clust(new_index));
+	ut_ad(!dict_index_is_online_ddl(new_index));
 	ut_ad(rec_offs_validate(rec, index, offsets));
 	ut_ad(rec_offs_n_fields(offsets) == dict_index_get_n_fields(index));
 	ut_ad(rec_offs_size(offsets) <= sizeof index->online_log->tail.buf);
@@ -529,23 +532,12 @@ row_log_table_update(
 	ut_ad(rw_lock_own(&index->lock, RW_LOCK_SHARED)
 	      || rw_lock_own(&index->lock, RW_LOCK_EX));
 #endif /* UNIV_SYNC_DEBUG */
-	ut_ad(!old_pk || old_pk->n_fields == 2 + old_pk->n_fields_cmp);
-	ut_ad(!old_pk || DATA_TRX_ID_LEN == dtuple_get_nth_field(
-		      old_pk, old_pk->n_fields - 2)->len);
-	ut_ad(!old_pk || DATA_ROLL_PTR_LEN == dtuple_get_nth_field(
-		      old_pk, old_pk->n_fields - 1)->len);
 
 	if (dict_index_is_corrupted(index)
 	    || !dict_index_is_online_ddl(index)
 	    || index->online_log->error != DB_SUCCESS) {
 		return;
 	}
-
-	dict_table_t* new_table = index->online_log->table;
-	dict_index_t* new_index = dict_table_get_first_index(new_table);
-
-	ut_ad(dict_index_is_clust(new_index));
-	ut_ad(!dict_index_is_online_ddl(new_index));
 
 	if (rec_offs_comp(offsets)) {
 		ut_ad(rec_get_status(rec) == REC_STATUS_ORDINARY);
@@ -560,12 +552,17 @@ row_log_table_update(
 	mrec_size = rec_offs_size(offsets) - omit_size
 		+ ROW_LOG_HEADER_SIZE + (extra_size >= 0x80);
 
-	if (index->online_log->same_pk) {
+	if (insert || index->online_log->same_pk) {
 		ut_ad(!old_pk);
 		old_pk_extra_size = old_pk_size = 0;
 	} else {
 		ut_ad(old_pk);
-		ut_ad(dtuple_get_n_fields(old_pk) > 1);
+		ut_ad(old_pk->n_fields == 2 + old_pk->n_fields_cmp);
+		ut_ad(DATA_TRX_ID_LEN == dtuple_get_nth_field(
+			      old_pk, old_pk->n_fields - 2)->len);
+		ut_ad(DATA_ROLL_PTR_LEN == dtuple_get_nth_field(
+			      old_pk, old_pk->n_fields - 1)->len);
+
 		old_pk_size = rec_get_converted_size_comp_prefix(
 			new_index, old_pk->fields, old_pk->n_fields,
 			0, &old_pk_extra_size) - REC_N_NEW_EXTRA_BYTES;
@@ -577,7 +574,7 @@ row_log_table_update(
 
 	if (byte* b = row_log_table_open(index->online_log,
 					 mrec_size, &avail_size)) {
-		*b++ = ROW_T_UPDATE;
+		*b++ = insert ? ROW_T_INSERT : ROW_T_UPDATE;
 
 		if (old_pk_size) {
 			*b++ = old_pk_extra_size;
@@ -605,6 +602,24 @@ row_log_table_update(
 		row_log_table_close(
 			index->online_log, b, mrec_size, avail_size);
 	}
+}
+
+/******************************************************//**
+Logs an update to a table that is being rebuilt.
+This will be merged in row_log_table_apply_update(). */
+UNIV_INTERN
+void
+row_log_table_update(
+/*=================*/
+	const rec_t*	rec,	/*!< in: clustered index leaf page record,
+				page X-latched */
+	dict_index_t*	index,	/*!< in/out: clustered index, S-latched
+				or X-latched */
+	const ulint*	offsets,/*!< in: rec_get_offsets(rec,index) */
+	const dtuple_t*	old_pk)	/*!< in: row_log_table_get_pk()
+				before the update */
+{
+	row_log_table_low(rec, index, offsets, false, old_pk);
 }
 
 /******************************************************//**
@@ -784,59 +799,7 @@ row_log_table_insert(
 				or X-latched */
 	const ulint*	offsets)/*!< in: rec_get_offsets(rec,index) */
 {
-	ulint	omit_size;
-	ulint	extra_size;
-	ulint	mrec_size;
-	ulint	avail_size;
-
-	ut_ad(dict_index_is_clust(index));
-	ut_ad(rec_offs_validate(rec, index, offsets));
-	ut_ad(rec_offs_n_fields(offsets) == dict_index_get_n_fields(index));
-	ut_ad(rec_offs_size(offsets) <= sizeof index->online_log->tail.buf);
-#ifdef UNIV_SYNC_DEBUG
-	ut_ad(rw_lock_own(&index->lock, RW_LOCK_SHARED)
-	      || rw_lock_own(&index->lock, RW_LOCK_EX));
-#endif /* UNIV_SYNC_DEBUG */
-
-	if (dict_index_is_corrupted(index)
-	    || !dict_index_is_online_ddl(index)
-	    || index->online_log->error != DB_SUCCESS) {
-		return;
-	}
-
-	if (rec_offs_comp(offsets)) {
-		ut_ad(rec_get_status(rec) == REC_STATUS_ORDINARY);
-
-		omit_size = REC_N_NEW_EXTRA_BYTES;
-	} else {
-		omit_size = REC_N_OLD_EXTRA_BYTES;
-	}
-
-	extra_size = rec_offs_extra_size(offsets) - omit_size;
-
-	mrec_size = rec_offs_size(offsets) - omit_size
-		+ ROW_LOG_HEADER_SIZE + (extra_size >= 0x80);
-
-	if (byte* b = row_log_table_open(index->online_log,
-					 mrec_size, &avail_size)) {
-		*b++ = ROW_T_INSERT;
-
-		if (extra_size < 0x80) {
-			*b++ = (byte) extra_size;
-		} else {
-			ut_ad(extra_size < 0x8000);
-			*b++ = (byte) (0x80 | (extra_size >> 8));
-			*b++ = (byte) extra_size;
-		}
-
-		memcpy(b, rec - rec_offs_extra_size(offsets), extra_size);
-		b += extra_size;
-		memcpy(b, rec, rec_offs_data_size(offsets));
-		b += rec_offs_data_size(offsets);
-
-		row_log_table_close(
-			index->online_log, b, mrec_size, avail_size);
-	}
+	row_log_table_low(rec, index, offsets, true, NULL);
 }
 
 /******************************************************//**
