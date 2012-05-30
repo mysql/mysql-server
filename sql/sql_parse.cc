@@ -4499,6 +4499,8 @@ create_sp_error:
       /* Conditionally writes to binlog */
       int sp_result= sp_update_routine(thd, sp_type, lex->spname,
                                        &lex->sp_chistics);
+      if (thd->killed)
+        goto error;
       switch (sp_result)
       {
       case SP_OK:

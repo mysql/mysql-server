@@ -295,14 +295,16 @@ public:
   enum fk_option { FK_OPTION_UNDEF, FK_OPTION_RESTRICT, FK_OPTION_CASCADE,
 		   FK_OPTION_SET_NULL, FK_OPTION_NO_ACTION, FK_OPTION_DEFAULT};
 
-  Table_ident *ref_table;
+  LEX_STRING ref_db;
+  LEX_STRING ref_table;
   List<Key_part_spec> ref_columns;
   uint delete_opt, update_opt, match_opt;
   Foreign_key(const LEX_STRING &name_arg, List<Key_part_spec> &cols,
-	      Table_ident *table,   List<Key_part_spec> &ref_cols,
+	      const LEX_STRING &ref_db_arg, const LEX_STRING &ref_table_arg,
+              List<Key_part_spec> &ref_cols,
 	      uint delete_opt_arg, uint update_opt_arg, uint match_opt_arg)
     :Key(FOREIGN_KEY, name_arg, &default_key_create_info, 0, cols),
-    ref_table(table), ref_columns(ref_cols),
+    ref_db(ref_db_arg), ref_table(ref_table_arg), ref_columns(ref_cols),
     delete_opt(delete_opt_arg), update_opt(update_opt_arg),
     match_opt(match_opt_arg)
   {}
@@ -4282,8 +4284,6 @@ public:
   uint	group_parts,group_length,group_null_parts;
   uint	quick_group;
   bool  using_indirect_summary_function;
-  /* If >0 convert all blob fields to varchar(convert_blob_length) */
-  uint  convert_blob_length; 
   CHARSET_INFO *table_charset; 
   bool schema_table;
   /*
@@ -4310,9 +4310,9 @@ public:
 
   TMP_TABLE_PARAM()
     :copy_field(0), group_parts(0),
-     group_length(0), group_null_parts(0), convert_blob_length(0),
-     schema_table(0), precomputed_group_by(0), force_copy_fields(0),
-     skip_create_table(FALSE), bit_fields_as_long(0)
+     group_length(0), group_null_parts(0), schema_table(0),
+     precomputed_group_by(0), force_copy_fields(0), skip_create_table(FALSE),
+     bit_fields_as_long(0)
   {}
   ~TMP_TABLE_PARAM()
   {
