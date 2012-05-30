@@ -179,17 +179,10 @@ ALTER TABLE t1 DROP INDEX c2, CHANGE c3 c2 INT;
 
 CREATE TABLE t1o LIKE t1;
 
-# This will implicitly add a DOC_ID column, copying the table while
-# holding a lock. The LOCK=NONE should thus fail.
---error ER_NOT_SUPPORTED_YET
+# This will implicitly add a FTS_DOC_ID column.
 ALTER TABLE t1 ADD FULLTEXT INDEX (ct),
 CHANGE c1 pk INT, ALTER c2 SET DEFAULT 42, RENAME TO tt,
 ALGORITHM=INPLACE, LOCK=NONE;
-
-# Retry with LOCK=SHARED.
-ALTER TABLE t1 ADD FULLTEXT INDEX (ct),
-CHANGE c1 pk INT, ALTER c2 SET DEFAULT 42, RENAME TO tt,
-ALGORITHM=INPLACE, LOCK=SHARED;
 
 # The output should be empty, because index->id was reassigned.
 -- source suite/innodb/include/innodb_dict.inc

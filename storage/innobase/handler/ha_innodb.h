@@ -235,7 +235,6 @@ class ha_innobase: public handler
 	by ALTER TABLE and holding data used during in-place alter.
 
 	@retval HA_ALTER_INPLACE_NOT_SUPPORTED	Not supported
-	@retval HA_ALTER_INPLACE_EXCLUSIVE_LOCK	Supported, but requires X-lock
 	@retval HA_ALTER_INPLACE_NO_LOCK Supported
 	@retval HA_ALTER_INPLACE_NO_LOCK_AFTER_PREPARE Supported, prepare phase
 	*/

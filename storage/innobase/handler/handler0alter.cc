@@ -184,7 +184,6 @@ innobase_need_rebuild(
 by ALTER TABLE and holding data used during in-place alter.
 
 @retval HA_ALTER_INPLACE_NOT_SUPPORTED	Not supported
-@retval HA_ALTER_INPLACE_SHARED_LOCK	Supported, but requires S-lock
 @retval HA_ALTER_INPLACE_NO_LOCK Supported
 @retval HA_ALTER_INPLACE_NO_LOCK_AFTER_PREPARE	Supported, prepare phase
 (any transactions that have modified the table must commit or roll back
@@ -286,35 +285,6 @@ ha_innobase::check_if_supported_inplace_alter(
 	}
 
 	prebuilt->trx->will_lock++;
-
-	/* Rebuilding the clustered index requires a shared lock on the
-	table during the whole copying operation. */
-	if (innobase_need_rebuild(ha_alter_info)) {
-		DBUG_RETURN(HA_ALTER_INPLACE_SHARED_LOCK);
-	}
-
-	if (ha_alter_info->handler_flags
-	    & (Alter_inplace_info::ADD_INDEX
-	       | Alter_inplace_info::ADD_UNIQUE_INDEX)) {
-		/* Building a full-text index requires a shared lock. */
-
-		for (uint i = 0; i < ha_alter_info->index_add_count; i++) {
-			const KEY* key =
-				&ha_alter_info->key_info_buffer[
-					ha_alter_info->index_add_buffer[i]];
-			if (key->flags & HA_FULLTEXT) {
-				DBUG_ASSERT(!(key->flags & HA_KEYFLAG_MASK
-					      & ~(HA_FULLTEXT
-						  | HA_PACK_KEY
-						  | HA_GENERATED_KEY
-						  | HA_BINARY_PACK_KEY)));
-				DBUG_RETURN(HA_ALTER_INPLACE_SHARED_LOCK);
-			}
-		}
-	}
-
-	/* All other operations (create index, drop index, etc.) can
-	be perfomed without blocking others in inplace_alter_table(). */
 	DBUG_RETURN(HA_ALTER_INPLACE_NO_LOCK_AFTER_PREPARE);
 }
 
