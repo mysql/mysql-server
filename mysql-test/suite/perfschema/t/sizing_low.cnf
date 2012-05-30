@@ -1,10 +1,12 @@
 
-!include include/default_mysqld.cnf
+!include include/default_mysqld_autosize.cnf
 
 [mysqld.1]
 
 table_definition_cache=400
 table_open_cache=100
+max_connections=50
+open_files_limit=1024
 
 # Automated sizing for everything
 

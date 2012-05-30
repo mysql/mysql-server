@@ -3,10 +3,9 @@
 
 [mysqld.1]
 
-# Default values used in the server, out of the box
-table_definition_cache=400
-table_open_cache=400
-max_connections=151
+table_definition_cache=401
+table_open_cache=401
+max_connections=152
 open_files_limit=1024
 
 # Automated sizing for everything
