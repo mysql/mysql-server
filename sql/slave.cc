@@ -1884,8 +1884,7 @@ static int init_slave_thread(THD* thd, SLAVE_THD_TYPE thd_type)
   slave threads, since a replication event can become this much larger
   than the corresponding packet (query) sent from client to master.
 */
-  thd->variables.max_allowed_packet= global_system_variables.max_allowed_packet
-    + MAX_LOG_EVENT_HEADER;  /* note, incr over the global not session var */
+  thd->variables.max_allowed_packet= slave_max_allowed_packet;
   thd->slave_thread = 1;
   thd->enable_slow_log= opt_log_slow_slave_statements;
   set_slave_thread_options(thd);
@@ -2630,6 +2629,7 @@ pthread_handler_t handle_slave_io(void *arg)
     thread, since a replication event can become this much larger than
     the corresponding packet (query) sent from client to master.
   */
+    thd->net.max_packet_size= slave_max_allowed_packet;
     mysql->net.max_packet_size= thd->net.max_packet_size+= MAX_LOG_EVENT_HEADER;
   }
   else
@@ -2761,12 +2761,12 @@ reading event"))
         switch (mysql_error_number) {
         case CR_NET_PACKET_TOO_LARGE:
           sql_print_error("\
-Log entry on master is longer than max_allowed_packet (%ld) on \
+Log entry on master is longer than slave_max_allowed_packet (%lu) on \
 slave. If the entry is correct, restart the server with a higher value of \
-max_allowed_packet",
-                          thd->variables.max_allowed_packet);
+slave_max_allowed_packet",
+                         slave_max_allowed_packet);
           mi->report(ERROR_LEVEL, ER_NET_PACKET_TOO_LARGE,
-                     "%s", ER(ER_NET_PACKET_TOO_LARGE));
+                     "%s", "Got a packet bigger than 'slave_max_allowed_packet' bytes");
           goto err;
         case ER_MASTER_FATAL_ERROR_READING_BINLOG:
           mi->report(ERROR_LEVEL, ER_MASTER_FATAL_ERROR_READING_BINLOG,
