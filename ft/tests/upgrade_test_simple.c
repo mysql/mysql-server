@@ -140,7 +140,7 @@ run_test(const char *prog, const char *origft) {
     {
         size_t len = 4 + strlen(fullorigft) + strlen(tempft);
         char buf[len + 1];
-        snprintf(buf, len + 1, "cp %s %s", fullorigft, tempft);
+        snprintf(buf, len + 1, "gunzip -c %s.gz > %s", fullorigft, tempft);
         r = system(buf);
         CKERR(r);
     }
