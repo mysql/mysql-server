@@ -18,7 +18,7 @@
 static const TABLE_FIELD_TYPE field_types[]=
 {
   {
-    { C_STRING_WITH_LEN("PROCESS_ID") },
+    { C_STRING_WITH_LEN("PROCESSLIST_ID") },
     { C_STRING_WITH_LEN("int(11)") },
     { NULL, 0}
   },
