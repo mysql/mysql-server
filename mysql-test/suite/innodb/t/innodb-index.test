@@ -348,7 +348,11 @@ connection a;
 CREATE TABLE t1 (a INT, b CHAR(1)) ENGINE=InnoDB;
 INSERT INTO t1 VALUES (3,'a'),(3,'b'),(1,'c'),(0,'d'),(1,'e');
 CREATE TABLE t2 (a INT, b CHAR(1)) ENGINE=InnoDB;
+CREATE TABLE t2i (a INT NOT NULL, b CHAR(1) NOT NULL) ENGINE=InnoDB;
+CREATE TABLE t2c (a INT NOT NULL, b CHAR(1) NOT NULL) ENGINE=InnoDB;
 INSERT INTO t2 SELECT * FROM t1;
+INSERT INTO t2i SELECT * FROM t1;
+INSERT INTO t2c SELECT * FROM t1;
 connection b;
 BEGIN;
 # This acquires a MDL lock on t1 until commit.
@@ -358,14 +362,35 @@ connection a;
 SET lock_wait_timeout=1;
 --error ER_LOCK_WAIT_TIMEOUT
 CREATE INDEX t1a ON t1(a);
+# InnoDB cannot change a column to NOT NULL yet
+--error ER_NOT_SUPPORTED_YET
+ALTER TABLE t2 ADD PRIMARY KEY(a,b), ADD INDEX t2a(a), ALGORITHM=INPLACE;
 CREATE INDEX t2a ON t2(a);
+ALTER TABLE t2i ADD PRIMARY KEY(a,b), ADD INDEX t2a(a), ALGORITHM=INPLACE;
+ALTER TABLE t2c ADD PRIMARY KEY(a,b), ADD INDEX t2a(a), ALGORITHM=COPY;
 connection b;
+# t2i and t2c are too new for this transaction, because they were rebuilt
+--error ER_TABLE_DEF_CHANGED
+SELECT * FROM t2i;
+--error ER_TABLE_DEF_CHANGED
+SELECT * FROM t2i FORCE INDEX(t2a) ORDER BY a;
+--error ER_TABLE_DEF_CHANGED
+SELECT * FROM t2c;
+--error ER_TABLE_DEF_CHANGED
+SELECT * FROM t2c FORCE INDEX(t2a) ORDER BY a;
+# In t2, only the new index t2a is too new for this transaction.
 SELECT * FROM t2;
 --error ER_TABLE_DEF_CHANGED
 SELECT * FROM t2 FORCE INDEX(t2a) ORDER BY a;
 SELECT * FROM t2;
 COMMIT;
+# For a new transaction, all of t2, t2i, t2c are accessible.
+SELECT * FROM t2;
 SELECT * FROM t2 FORCE INDEX(t2a) ORDER BY a;
+SELECT * FROM t2i;
+SELECT * FROM t2i FORCE INDEX(t2a) ORDER BY a;
+SELECT * FROM t2c;
+SELECT * FROM t2c FORCE INDEX(t2a) ORDER BY a;
 connection default;
 disconnect a;
 disconnect b;
@@ -374,5 +399,7 @@ disconnect b;
 alter table t2 add index t2a(b);
 alter table t2 drop index t2a, add index t2a(b);
 show create table t2;
+show create table t2i;
+show create table t2c;
 
-DROP TABLE t1,t2;
+DROP TABLE t1,t2,t2c,t2i;

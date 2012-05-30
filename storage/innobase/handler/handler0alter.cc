@@ -3039,22 +3039,13 @@ ha_innobase::commit_inplace_alter_table(
 
 		switch (error) {
 			dict_table_t*	old_table;
-			trx_id_t	trx_id;
 		case DB_SUCCESS:
 			old_table = prebuilt->table;
-			trx_id = prebuilt->trx->id;
 			trx_commit_for_mysql(prebuilt->trx);
 			row_prebuilt_free(prebuilt, TRUE);
 			error = row_merge_drop_table(trx, old_table);
 			prebuilt = row_create_prebuilt(
 				ctx->indexed_table, table->s->reclength);
-			/* Prevent old transactions from accessing the
-			rebuilt table, because the history is missing. */
-			for (dict_index_t* index = dict_table_get_first_index(
-				     ctx->indexed_table);
-			     index; index = dict_table_get_next_index(index)) {
-				index->trx_id = trx_id;
-			}
 			err = 0;
 			break;
 		case DB_TABLESPACE_ALREADY_EXISTS:
