@@ -14,8 +14,8 @@ extern "C" {
 #endif
 
 void toku_poll_txn_progress_function(TOKUTXN txn, uint8_t is_commit, uint8_t stall_for_checkpoint);
-int toku_rollback_commit(TOKUTXN txn, YIELDF yield, void*yieldv, LSN lsn);
-int toku_rollback_abort(TOKUTXN txn, YIELDF yield, void*yieldv, LSN lsn);
+int toku_rollback_commit(TOKUTXN txn, LSN lsn);
+int toku_rollback_abort(TOKUTXN txn, LSN lsn);
 
 // these functions assert internally that they succeed
 
@@ -38,9 +38,9 @@ void toku_maybe_prefetch_previous_rollback_log(TOKUTXN txn, ROLLBACK_LOG_NODE lo
 // unpin and rmove a rollback log from the cachetable
 void toku_rollback_log_unpin_and_remove(TOKUTXN txn, ROLLBACK_LOG_NODE log);
 
-typedef int(*apply_rollback_item)(TOKUTXN txn, struct roll_entry *item, YIELDF yield, void*yieldv, LSN lsn);
-int toku_commit_rollback_item (TOKUTXN txn, struct roll_entry *item, YIELDF yield, void*yieldv, LSN lsn);
-int toku_abort_rollback_item (TOKUTXN txn, struct roll_entry *item, YIELDF yield, void*yieldv, LSN lsn);
+typedef int(*apply_rollback_item)(TOKUTXN txn, struct roll_entry *item, LSN lsn);
+int toku_commit_rollback_item (TOKUTXN txn, struct roll_entry *item, LSN lsn);
+int toku_abort_rollback_item (TOKUTXN txn, struct roll_entry *item, LSN lsn);
 
 void *toku_malloc_in_rollback(ROLLBACK_LOG_NODE log, size_t size);
 void *toku_memdup_in_rollback(ROLLBACK_LOG_NODE log, const void *v, size_t len);

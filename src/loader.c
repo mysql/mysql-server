@@ -254,7 +254,7 @@ int toku_loader_create_loader(DB_ENV *env,
         loader->i->ekeys = NULL;
         loader->i->evals = NULL;
         LSN load_lsn;
-        r = ydb_load_inames(env, txn, N, dbs, new_inames_in_env, &load_lsn, use_ft_loader);
+        r = locked_load_inames(env, txn, N, dbs, new_inames_in_env, &load_lsn, use_ft_loader);
         if ( r!=0 ) {
             toku_free(new_inames_in_env);
             toku_free(brts);

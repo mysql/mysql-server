@@ -19,8 +19,8 @@
 extern "C" {
 #endif
 
-typedef void(*voidfp)(void *thunk);
-typedef void(*YIELDF)(voidfp, void *fpthunk, void *yieldthunk);
+// typedef void(*voidfp)(void *thunk);
+// typedef void(*YIELDF)(voidfp, void *fpthunk, void *yieldthunk);
 
 struct roll_entry;
 

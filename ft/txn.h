@@ -37,15 +37,15 @@ int toku_txn_create_txn(TOKUTXN *txn_ptr, TOKUTXN parent, TOKULOGGER logger, TXN
 
 int toku_txn_load_txninfo (TOKUTXN txn, TXNINFO info);
 
-int toku_txn_commit_txn (TOKUTXN txn, int nosync, YIELDF yield, void *yieldv,
+int toku_txn_commit_txn (TOKUTXN txn, int nosync,
                          TXN_PROGRESS_POLL_FUNCTION poll, void *poll_extra);
 BOOL toku_txn_requires_checkpoint(TOKUTXN txn);
-int toku_txn_commit_with_lsn(TOKUTXN txn, int nosync, YIELDF yield, void *yieldv, LSN oplsn,
+int toku_txn_commit_with_lsn(TOKUTXN txn, int nosync, LSN oplsn,
                              TXN_PROGRESS_POLL_FUNCTION poll, void *poll_extra);
 
-int toku_txn_abort_txn(TOKUTXN txn, YIELDF yield, void *yieldv,
+int toku_txn_abort_txn(TOKUTXN txn,
                        TXN_PROGRESS_POLL_FUNCTION poll, void *poll_extra);
-int toku_txn_abort_with_lsn(TOKUTXN txn, YIELDF yield, void *yieldv, LSN oplsn,
+int toku_txn_abort_with_lsn(TOKUTXN txn, LSN oplsn,
                             TXN_PROGRESS_POLL_FUNCTION poll, void *poll_extra);
 
 int toku_txn_prepare_txn (TOKUTXN txn, TOKU_XA_XID *xid) __attribute__((warn_unused_result));
@@ -54,7 +54,7 @@ int toku_txn_prepare_txn (TOKUTXN txn, TOKU_XA_XID *xid) __attribute__((warn_unu
 void toku_txn_get_prepared_xa_xid (TOKUTXN, TOKU_XA_XID *);
 // Effect: Fill in the XID information for a transaction.  The caller allocates the XID and the function fills in values.
 
-int toku_txn_maybe_fsync_log(TOKULOGGER logger, LSN do_fsync_lsn, BOOL do_fsync, YIELDF yield, void *yieldv);
+int toku_txn_maybe_fsync_log(TOKULOGGER logger, LSN do_fsync_lsn, BOOL do_fsync);
 
 void toku_txn_get_fsync_info(TOKUTXN ttxn, BOOL* do_fsync, LSN* do_fsync_lsn);
 

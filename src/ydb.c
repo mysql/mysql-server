@@ -31,7 +31,6 @@ const char *toku_copyright_string = "Copyright (c) 2007-2009 Tokutek Inc.  All r
 #include <ft/key.h>
 #include "loader.h"
 #include "indexer.h"
-#include "ydb_load.h"
 #include <ft/ftloader.h>
 #include <ft/log_header.h>
 #include <ft/ft.h>
@@ -396,7 +395,6 @@ static void keep_cachetable_callback (DB_ENV *env, CACHETABLE cachetable)
 static int 
 ydb_do_recovery (DB_ENV *env) {
     assert(env->i->real_log_dir);
-    toku_ydb_unlock();
     int r = tokudb_recover(env,
                            toku_keep_prepared_txn_callback,
                            keep_cachetable_callback,
@@ -405,7 +403,6 @@ ydb_do_recovery (DB_ENV *env) {
                            env->i->update_function,
                            env->i->generate_row_for_put, env->i->generate_row_for_del,
                            env->i->cachetable_size);
-    toku_ydb_lock();
     return r;
 }
 
@@ -726,9 +723,7 @@ static int
 ydb_maybe_upgrade_env (DB_ENV *env, LSN * last_lsn_of_clean_shutdown_read_from_log, BOOL * upgrade_in_progress) {
     int r = 0;
     if (env->i->open_flags & DB_INIT_TXN && env->i->open_flags & DB_INIT_LOG) {
-        toku_ydb_unlock();
         r = toku_maybe_upgrade_log(env->i->dir, env->i->real_log_dir, last_lsn_of_clean_shutdown_read_from_log, upgrade_in_progress);
-        toku_ydb_lock();
     }
     return r;
 }
@@ -949,7 +944,7 @@ toku_env_open(DB_ENV * env, const char *home, u_int32_t flags, int mode) {
 
     DB_TXN *txn=NULL;
     if (using_txns) {
-        r = toku_txn_begin(env, 0, &txn, 0, 1, true);
+        r = locked_txn_begin(env, 0, &txn, 0);
         assert_zero(r);
     }
 
@@ -997,13 +992,11 @@ toku_env_open(DB_ENV * env, const char *home, u_int32_t flags, int mode) {
         assert_zero(r);
     }
     if (using_txns) {
-        r = toku_txn_commit(txn, 0, NULL, NULL, false);
+        r = locked_txn_commit(txn, 0);
         assert_zero(r);
     }
-    toku_ydb_unlock();
     r = toku_checkpoint(env->i->cachetable, env->i->logger, NULL, NULL, NULL, NULL, STARTUP_CHECKPOINT);
     assert_zero(r);
-    toku_ydb_lock();
     env_fs_poller(env);          // get the file system state at startup
     env_fs_init_minicron(env); 
 cleanup:
@@ -1064,7 +1057,6 @@ toku_env_close(DB_ENV * env, u_int32_t flags) {
         }
     }
     if (env->i->cachetable) {
-        toku_ydb_unlock();  // ydb lock must not be held when shutting down minicron
         toku_cachetable_minicron_shutdown(env->i->cachetable);
         if (env->i->logger) {
             r = toku_checkpoint(env->i->cachetable, env->i->logger, NULL, NULL, NULL, NULL, SHUTDOWN_CHECKPOINT);
@@ -1093,7 +1085,6 @@ toku_env_close(DB_ENV * env, u_int32_t flags) {
                 goto panic_and_quit_early;
             }
         }
-        toku_ydb_lock();
         r=toku_cachetable_close(&env->i->cachetable);
         if (r) {
             err_msg = "Cannot close environment (cachetable close error)\n";
@@ -1136,6 +1127,7 @@ toku_env_close(DB_ENV * env, u_int32_t flags) {
         toku_free(env->i->real_tmp_dir);
     if (env->i->open_dbs)
         toku_omt_destroy(&env->i->open_dbs);
+    toku_mutex_destroy(&env->i->open_dbs_lock);
     if (env->i->dir)
         toku_free(env->i->dir);
     //Immediately before freeing internal environment unlock the directories
@@ -1189,21 +1181,59 @@ toku_env_set_cachesize(DB_ENV * env, u_int32_t gbytes, u_int32_t bytes, int ncac
 
 static int
 locked_env_dbremove(DB_ENV * env, DB_TXN *txn, const char *fname, const char *dbname, u_int32_t flags) {
-    toku_multi_operation_client_lock(); //Cannot begin checkpoint
-    toku_ydb_lock();
-    int r = toku_env_dbremove(env, txn, fname, dbname, flags);
-    toku_ydb_unlock();
-    toku_multi_operation_client_unlock(); //Can now begin checkpoint
+    int ret, r;
+    HANDLE_ILLEGAL_WORKING_PARENT_TXN(env, txn);
+
+    DB_TXN *child_txn = NULL;
+    int using_txns = env->i->open_flags & DB_INIT_TXN;
+    if (using_txns) {
+        ret = locked_txn_begin(env, txn, &child_txn, DB_TXN_NOSYNC);
+        invariant_zero(ret);
+    }
+
+    // cannot begin a checkpoint
+    toku_multi_operation_client_lock();
+    r = toku_env_dbremove(env, child_txn, fname, dbname, flags);
+    toku_multi_operation_client_unlock();
+
+    if (using_txns) {
+        if (r == 0) {  // commit
+            ret = locked_txn_commit(child_txn, DB_TXN_NOSYNC);
+            invariant_zero(ret);
+        } else {
+            ret = locked_txn_abort(child_txn);
+            invariant_zero(ret);
+        }
+    }
     return r;
 }
 
 static int
 locked_env_dbrename(DB_ENV *env, DB_TXN *txn, const char *fname, const char *dbname, const char *newname, u_int32_t flags) {
-    toku_multi_operation_client_lock(); //Cannot begin checkpoint
-    toku_ydb_lock();
-    int r = toku_env_dbrename(env, txn, fname, dbname, newname, flags);
-    toku_ydb_unlock();
-    toku_multi_operation_client_unlock(); //Can now begin checkpoint
+    int ret, r;
+    HANDLE_ILLEGAL_WORKING_PARENT_TXN(env, txn);
+
+    DB_TXN *child_txn = NULL;
+    int using_txns = env->i->open_flags & DB_INIT_TXN;
+    if (using_txns) {
+        ret = locked_txn_begin(env, txn, &child_txn, DB_TXN_NOSYNC);
+        invariant_zero(ret);
+    }
+
+    // cannot begin a checkpoint
+    toku_multi_operation_client_lock();
+    r = toku_env_dbrename(env, child_txn, fname, dbname, newname, flags);
+    toku_multi_operation_client_unlock();
+
+    if (using_txns) {
+        if (r == 0) {
+            ret = locked_txn_commit(child_txn, DB_TXN_NOSYNC);
+            invariant_zero(ret);
+        } else {
+            ret = locked_txn_abort(child_txn);
+            invariant_zero(ret);
+        }
+    }
     return r;
 }
 
@@ -1452,16 +1482,6 @@ static int
 toku_env_txn_stat(DB_ENV * env, DB_TXN_STAT ** UU(statp), u_int32_t UU(flags)) {
     HANDLE_PANICKED_ENV(env);
     return 1;
-}
-
-static int 
-locked_env_open(DB_ENV * env, const char *home, u_int32_t flags, int mode) {
-    toku_ydb_lock(); int r = toku_env_open(env, home, flags, mode); toku_ydb_unlock(); return r;
-}
-
-static int 
-locked_env_close(DB_ENV * env, u_int32_t flags) {
-    toku_ydb_lock(); int r = toku_env_close(env, flags); toku_ydb_unlock(); return r;
 }
 
 static int
@@ -2391,8 +2411,6 @@ toku_env_create(DB_ENV ** envp, u_int32_t flags) {
     SENV(cleaner_get_period);
     SENV(cleaner_set_iterations);
     SENV(cleaner_get_iterations);
-    SENV(open);
-    SENV(close);
     SENV(txn_recover);
     SENV(txn_xa_recover);
     SENV(get_txn_from_xid);
@@ -2432,6 +2450,8 @@ toku_env_create(DB_ENV ** envp, u_int32_t flags) {
     result->update_multiple = env_update_multiple;
     
     // unlocked methods
+    result->open = toku_env_open;
+    result->close = toku_env_close;
     result->txn_checkpoint = toku_env_txn_checkpoint;
     result->checkpointing_postpone = env_checkpointing_postpone;
     result->checkpointing_resume = env_checkpointing_resume;
@@ -2471,6 +2491,7 @@ toku_env_create(DB_ENV ** envp, u_int32_t flags) {
     assert(result->i->ltm);
 
     r = toku_omt_create(&result->i->open_dbs);
+    toku_mutex_init(&result->i->open_dbs_lock, NULL);
     assert_zero(r);
     assert(result->i->open_dbs);
 
@@ -2488,9 +2509,7 @@ cleanup:
 
 int 
 DB_ENV_CREATE_FUN (DB_ENV ** envp, u_int32_t flags) {
-    toku_ydb_lock(); 
     int r = toku_env_create(envp, flags); 
-    toku_ydb_unlock(); 
     return r;
 }
 
@@ -2523,7 +2542,8 @@ find_db_by_db (OMTVALUE v, void *dbv) {
 // Tell env that there is a new db handle (with non-unique dname in db->i-dname)
 void
 env_note_db_opened(DB_ENV *env, DB *db) {
-    assert(db->i->dname);  // internal (non-user) dictionary has no dname
+    toku_mutex_lock(&env->i->open_dbs_lock);
+    assert(db->i->dname); // internal (non-user) dictionary has no dname
     int r;
     OMTVALUE dbv;
     uint32_t idx;
@@ -2535,14 +2555,15 @@ env_note_db_opened(DB_ENV *env, DB *db) {
     assert(r==DB_NOTFOUND); //Must not already be there.
     r = toku_omt_insert_at(env->i->open_dbs, db, idx);
     assert_zero(r);
+    toku_mutex_unlock(&env->i->open_dbs_lock);
 }
 
-void
-env_note_db_closed(DB_ENV *env, DB *db)
 // Effect: Tell the DB_ENV that the DB is no longer in use by the user of the API.  The DB may still be in use by the fractal tree internals.
-{
-    assert(db->i->dname);
-    assert(toku_omt_size(env->i->open_dbs));
+void
+env_note_db_closed(DB_ENV *env, DB *db) {
+    toku_mutex_lock(&env->i->open_dbs_lock);
+    assert(db->i->dname); // internal (non-user) dictionary has no dname
+    assert(toku_omt_size(env->i->open_dbs) > 0);
     int r;
     OMTVALUE dbv;
     uint32_t idx;
@@ -2553,6 +2574,7 @@ env_note_db_closed(DB_ENV *env, DB *db)
     r = toku_omt_delete_at(env->i->open_dbs, idx);
     STATUS_VALUE(YDB_LAYER_NUM_OPEN_DBS) = toku_omt_size(env->i->open_dbs);
     assert_zero(r);
+    toku_mutex_unlock(&env->i->open_dbs_lock);
 }
 
 static int
@@ -2572,6 +2594,7 @@ env_is_db_with_dname_open(DB_ENV *env, const char *dname) {
     BOOL rval;
     OMTVALUE dbv;
     uint32_t idx;
+    toku_mutex_lock(&env->i->open_dbs_lock);
     r = toku_omt_find_zero(env->i->open_dbs, find_open_db_by_dname, (void*)dname, &dbv, &idx);
     if (r==0) {
         DB *db = dbv;
@@ -2582,6 +2605,7 @@ env_is_db_with_dname_open(DB_ENV *env, const char *dname) {
         assert(r==DB_NOTFOUND);
         rval = FALSE;
     }
+    toku_mutex_unlock(&env->i->open_dbs_lock);
     return rval;
 }
 
@@ -2618,8 +2642,7 @@ finalize_file_removal(DICTIONARY_ID dict_id, void * extra) {
 // returns: true if we could open, lock, and close a dictionary
 //          with the given dname, false otherwise.
 static bool
-can_acquire_table_lock(DB_ENV *env, DB_TXN *txn, const char *iname_in_env)
-{
+can_acquire_table_lock(DB_ENV *env, DB_TXN *txn, const char *iname_in_env) {
     int r;
     bool got_lock = false;
     DB *db;
@@ -2627,9 +2650,6 @@ can_acquire_table_lock(DB_ENV *env, DB_TXN *txn, const char *iname_in_env)
     r = toku_db_create(&db, env, 0);
     assert_zero(r);
     r = db_open_iname(db, txn, iname_in_env, 0, 0);
-    if (r != 0) {
-        printf("%s had db_open_iname return %d\n", __FUNCTION__, r);
-    }
     assert_zero(r);
     r = toku_db_pre_acquire_table_lock(db, txn);
     if (r == 0) {
@@ -2647,43 +2667,37 @@ int
 toku_env_dbremove(DB_ENV * env, DB_TXN *txn, const char *fname, const char *dbname, u_int32_t flags) {
     int r;
     HANDLE_PANICKED_ENV(env);
-    HANDLE_ILLEGAL_WORKING_PARENT_TXN(env, txn);
-    if (!env_opened(env)) return EINVAL;
-    if (dbname!=NULL) 
+    if (!env_opened(env) || flags != 0) {
+        return EINVAL;
+    }
+    if (dbname != NULL) {
+        // env_dbremove_subdb() converts (fname, dbname) to dname
         return env_dbremove_subdb(env, txn, fname, dbname, flags);
-    // env_dbremove_subdb() converts (fname, dbname) to dname
+    }
 
     const char * dname = fname;
     assert(dbname == NULL);
 
-    if (flags!=0) return EINVAL;
     // We check for an open db here as a "fast path" to error.
     // We'll need to check again below to be sure.
-    if (env_is_db_with_dname_open(env, dname))
+    if (env_is_db_with_dname_open(env, dname)) {
         return toku_ydb_do_error(env, EINVAL, "Cannot remove dictionary with an open handle.\n");
+    }
     
     DBT dname_dbt;  
     DBT iname_dbt;  
     toku_fill_dbt(&dname_dbt, dname, strlen(dname)+1);
     init_dbt_realloc(&iname_dbt);  // sets iname_dbt.data = NULL
 
-    int using_txns = env->i->open_flags & DB_INIT_TXN;
-    DB_TXN *child = NULL;
-    // begin child (unless transactionless)
-    if (using_txns) {
-        r = toku_txn_begin(env, txn, &child, DB_TXN_NOSYNC, 1, true);
-        assert_zero(r);
-    }
-
     // get iname
-    r = toku_db_get(env->i->directory, child, &dname_dbt, &iname_dbt, DB_SERIALIZABLE);  // allocates memory for iname
+    r = toku_db_get(env->i->directory, txn, &dname_dbt, &iname_dbt, DB_SERIALIZABLE);  // allocates memory for iname
     char *iname = iname_dbt.data;
     DB *db = NULL;
     if (r == DB_NOTFOUND) {
         r = ENOENT;
     } else if (r == 0) {
         // remove (dname,iname) from directory
-        r = toku_db_del(env->i->directory, child, &dname_dbt, DB_DELETE_ANY, TRUE);
+        r = toku_db_del(env->i->directory, txn, &dname_dbt, DB_DELETE_ANY, TRUE);
         if (r != 0) {
             goto exit;
         }
@@ -2691,7 +2705,7 @@ toku_env_dbremove(DB_ENV * env, DB_TXN *txn, const char *fname, const char *dbna
         assert_zero(r);
         r = db_open_iname(db, txn, iname, 0, 0);
         assert_zero(r);
-        if (using_txns) {
+        if (txn) {
             // Now that we have a writelock on dname, verify that there are still no handles open. (to prevent race conditions)
             if (env_is_db_with_dname_open(env, dname)) {
                 r = toku_ydb_do_error(env, EINVAL, "Cannot remove dictionary with an open handle.\n");
@@ -2707,11 +2721,11 @@ toku_env_dbremove(DB_ENV * env, DB_TXN *txn, const char *fname, const char *dbna
             // otherwise, we're okay in marking this ft as remove on
             // commit. no new handles can open for this dictionary
             // because the txn has directory write locks on the dname
-            if (toku_db_pre_acquire_table_lock(db, child) != 0) {
+            if (toku_db_pre_acquire_table_lock(db, txn) != 0) {
                 r = DB_LOCK_NOTGRANTED;
             } else {
                 // The ft will be removed when the txn commits
-                r = toku_ft_remove_on_commit(db->i->ft_handle, db_txn_struct_i(child)->tokutxn);
+                r = toku_ft_remove_on_commit(db->i->ft_handle, db_txn_struct_i(txn)->tokutxn);
                 assert_zero(r);
             }
         }
@@ -2725,17 +2739,6 @@ exit:
     if (db) {
         int ret = toku_db_close(db);
         assert(ret == 0);
-    }
-    if (using_txns) {
-        // close txn
-        if (r == 0) {  // commit
-            r = toku_txn_commit(child, DB_TXN_NOSYNC, NULL, NULL, false);
-            invariant(r==0);  // TODO panic
-        }
-        else {         // abort
-            int r2 = toku_txn_abort(child, NULL, NULL, false);
-            invariant(r2==0);  // TODO panic
-        }
     }
     if (iname) {
         toku_free(iname);
@@ -2769,22 +2772,25 @@ int
 toku_env_dbrename(DB_ENV *env, DB_TXN *txn, const char *fname, const char *dbname, const char *newname, u_int32_t flags) {
     int r;
     HANDLE_PANICKED_ENV(env);
-    HANDLE_ILLEGAL_WORKING_PARENT_TXN(env, txn);
-    if (!env_opened(env)) return EINVAL;
-    if (dbname!=NULL) 
+    if (!env_opened(env) || flags != 0) {
+        return EINVAL;
+    }
+    if (dbname != NULL) {
+        // env_dbrename_subdb() converts (fname, dbname) to dname and (fname, newname) to newdname
         return env_dbrename_subdb(env, txn, fname, dbname, newname, flags);
-    // env_dbrename_subdb() converts (fname, dbname) to dname and (fname, newname) to newdname
+    }
 
     const char * dname = fname;
     assert(dbname == NULL);
 
-    if (flags != 0) return EINVAL;
     // We check for open dnames for the old and new name as a "fast path" to error.
     // We will need to check these again later.
-    if (env_is_db_with_dname_open(env, dname))
+    if (env_is_db_with_dname_open(env, dname)) {
         return toku_ydb_do_error(env, EINVAL, "Cannot rename dictionary with an open handle.\n");
-    if (env_is_db_with_dname_open(env, newname))
+    }
+    if (env_is_db_with_dname_open(env, newname)) {
         return toku_ydb_do_error(env, EINVAL, "Cannot rename dictionary; Dictionary with target name has an open handle.\n");
+    }
     
     DBT old_dname_dbt;  
     DBT new_dname_dbt;  
@@ -2793,30 +2799,22 @@ toku_env_dbrename(DB_ENV *env, DB_TXN *txn, const char *fname, const char *dbnam
     toku_fill_dbt(&new_dname_dbt, newname, strlen(newname)+1);
     init_dbt_realloc(&iname_dbt);  // sets iname_dbt.data = NULL
 
-    int using_txns = env->i->open_flags & DB_INIT_TXN;
-    DB_TXN *child = NULL;
-    // begin child (unless transactionless)
-    if (using_txns) {
-        r = toku_txn_begin(env, txn, &child, DB_TXN_NOSYNC, 1, true);
-        assert_zero(r);
-    }
-
     // get iname
-    r = toku_db_get(env->i->directory, child, &old_dname_dbt, &iname_dbt, DB_SERIALIZABLE);  // allocates memory for iname
+    r = toku_db_get(env->i->directory, txn, &old_dname_dbt, &iname_dbt, DB_SERIALIZABLE);  // allocates memory for iname
     char *iname = iname_dbt.data;
     if (r == DB_NOTFOUND) {
         r = ENOENT;
     } else if (r == 0) {
         // verify that newname does not already exist
-        r = db_getf_set(env->i->directory, child, DB_SERIALIZABLE, &new_dname_dbt, ydb_getf_do_nothing, NULL);
+        r = db_getf_set(env->i->directory, txn, DB_SERIALIZABLE, &new_dname_dbt, ydb_getf_do_nothing, NULL);
         if (r == 0) {
             r = EEXIST;
         }
         else if (r == DB_NOTFOUND) {
             // remove old (dname,iname) and insert (newname,iname) in directory
-            r = toku_db_del(env->i->directory, child, &old_dname_dbt, DB_DELETE_ANY, TRUE);
+            r = toku_db_del(env->i->directory, txn, &old_dname_dbt, DB_DELETE_ANY, TRUE);
             if (r != 0) { goto exit; }
-            r = toku_db_put(env->i->directory, child, &new_dname_dbt, &iname_dbt, 0, TRUE);
+            r = toku_db_put(env->i->directory, txn, &new_dname_dbt, &iname_dbt, 0, TRUE);
             if (r != 0) { goto exit; }
 
             //Now that we have writelocks on both dnames, verify that there are still no handles open. (to prevent race conditions)
@@ -2839,7 +2837,7 @@ toku_env_dbrename(DB_ENV *env, DB_TXN *txn, const char *fname, const char *dbnam
             // otherwise, we're okay in marking this ft as remove on
             // commit. no new handles can open for this dictionary
             // because the txn has directory write locks on the dname
-            if (!can_acquire_table_lock(env, child, iname)) {
+            if (txn && !can_acquire_table_lock(env, txn, iname)) {
                 r = DB_LOCK_NOTGRANTED;
             }
             // We don't do anything at the ft or cachetable layer for rename.
@@ -2848,17 +2846,6 @@ toku_env_dbrename(DB_ENV *env, DB_TXN *txn, const char *fname, const char *dbnam
     }
 
 exit:
-    if (using_txns) {
-        // close txn
-        if (r == 0) {  // commit
-            r = toku_txn_commit(child, DB_TXN_NOSYNC, NULL, NULL, false);
-            invariant(r==0);  // TODO panic
-        }
-        else {         // abort
-            int r2 = toku_txn_abort(child, NULL, NULL, false);
-            invariant(r2==0);  // TODO panic
-        }
-    }
     if (iname) {
         toku_free(iname);
     }
@@ -2867,9 +2854,7 @@ exit:
 
 int 
 DB_CREATE_FUN (DB ** db, DB_ENV * env, u_int32_t flags) {
-    toku_ydb_lock(); 
     int r = toku_db_create(db, env, flags); 
-    toku_ydb_unlock(); 
     return r;
 }
 

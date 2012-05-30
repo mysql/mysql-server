@@ -18,9 +18,9 @@ poll_txn_progress_function(TOKUTXN txn, uint8_t is_commit, uint8_t stall_for_che
     }
 }
 
-int toku_commit_rollback_item (TOKUTXN txn, struct roll_entry *item, YIELDF yield, void*yieldv, LSN lsn) {
+int toku_commit_rollback_item (TOKUTXN txn, struct roll_entry *item, LSN lsn) {
     int r=0;
-    rolltype_dispatch_assign(item, toku_commit_, r, txn, yield, yieldv, lsn);
+    rolltype_dispatch_assign(item, toku_commit_, r, txn, lsn);
     txn->num_rollentries_processed++;
     if (txn->num_rollentries_processed % 1024 == 0) {
         poll_txn_progress_function(txn, TRUE, FALSE);
@@ -28,9 +28,9 @@ int toku_commit_rollback_item (TOKUTXN txn, struct roll_entry *item, YIELDF yiel
     return r;
 }
 
-int toku_abort_rollback_item (TOKUTXN txn, struct roll_entry *item, YIELDF yield, void*yieldv, LSN lsn) {
+int toku_abort_rollback_item (TOKUTXN txn, struct roll_entry *item, LSN lsn) {
     int r=0;
-    rolltype_dispatch_assign(item, toku_rollback_, r, txn, yield, yieldv, lsn);
+    rolltype_dispatch_assign(item, toku_rollback_, r, txn, lsn);
     txn->num_rollentries_processed++;
     if (txn->num_rollentries_processed % 1024 == 0) {
         poll_txn_progress_function(txn, FALSE, FALSE);
@@ -68,14 +68,13 @@ void toku_rollback_log_unpin_and_remove(TOKUTXN txn, ROLLBACK_LOG_NODE log) {
 }
 
 static int
-apply_txn (TOKUTXN txn, YIELDF yield, void*yieldv, LSN lsn,
+apply_txn (TOKUTXN txn, LSN lsn,
                 apply_rollback_item func) {
     int r = 0;
     // do the commit/abort calls and free everything
     // we do the commit/abort calls in reverse order too.
     struct roll_entry *item;
     //printf("%s:%d abort\n", __FILE__, __LINE__);
-    int count=0;
 
     BLOCKNUM next_log      = ROLLBACK_NONE;
     uint32_t next_log_hash = 0;
@@ -105,18 +104,8 @@ apply_txn (TOKUTXN txn, YIELDF yield, void*yieldv, LSN lsn,
         if (func) {
             while ((item=log->newest_logentry)) {
                 log->newest_logentry = item->prev;
-                r = func(txn, item, yield, yieldv, lsn);
+                r = func(txn, item, lsn);
                 if (r!=0) return r;
-                count++;
-                // We occassionally yield here to prevent transactions
-                // from hogging the log.  This yield will allow other
-                // threads to grab the ydb lock.  However, we don't
-                // want any transaction doing more than one log
-                // operation to always yield the ydb lock, as it must
-                // wait for the ydb lock to be released to proceed.
-                if (count % 8 == 0) {
-                    yield(NULL, NULL, yieldv);
-                }
             }
         }
         if (next_log.b == txn->spilled_rollback_head.b) {
@@ -197,7 +186,7 @@ static int note_ft_used_in_txns_parent(OMTVALUE hv, u_int32_t UU(index), void*tx
 
 //Commit each entry in the rollback log.
 //If the transaction has a parent, it just promotes its information to its parent.
-int toku_rollback_commit(TOKUTXN txn, YIELDF yield, void*yieldv, LSN lsn) {
+int toku_rollback_commit(TOKUTXN txn, LSN lsn) {
     int r=0;
     if (txn->parent!=0) {
         // First we must put a rollinclude entry into the parent if we spilled
@@ -275,16 +264,16 @@ int toku_rollback_commit(TOKUTXN txn, YIELDF yield, void*yieldv, LSN lsn) {
         txn->parent->force_fsync_on_commit |= txn->force_fsync_on_commit;
         txn->parent->num_rollentries       += txn->num_rollentries;
     } else {
-        r = apply_txn(txn, yield, yieldv, lsn, toku_commit_rollback_item);
+        r = apply_txn(txn, lsn, toku_commit_rollback_item);
         assert(r==0);
     }
 
     return r;
 }
 
-int toku_rollback_abort(TOKUTXN txn, YIELDF yield, void*yieldv, LSN lsn) {
+int toku_rollback_abort(TOKUTXN txn, LSN lsn) {
     int r;
-    r = apply_txn(txn, yield, yieldv, lsn, toku_abort_rollback_item);
+    r = apply_txn(txn, lsn, toku_abort_rollback_item);
     assert(r==0);
     return r;
 }

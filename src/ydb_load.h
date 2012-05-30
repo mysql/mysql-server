@@ -8,8 +8,6 @@
 /*  ydb functions used by loader
  */
 
-
-
 // When the loader is created, it makes this call.
 // For each dictionary to be loaded, replace old iname in directory
 // with a newly generated iname.  This will also take a write lock
@@ -22,13 +20,12 @@
 // If "mark_as_loader" is true, then include a mark in the iname
 // to indicate that the file is created by the brt loader.
 // Return 0 on success (could fail if write lock not available).
-int ydb_load_inames(DB_ENV * env,
-		    DB_TXN * txn,
-		    int N,
-		    DB * dbs[/*N*/],
-		    /*out*/ char * new_inames_in_env[N],
-                    LSN *load_lsn,
-		    BOOL mark_as_loader);
-
+int locked_load_inames(DB_ENV * env,
+                       DB_TXN * txn,
+                       int N,
+                       DB * dbs[N],
+                       char * new_inames_in_env[N], /* out */
+                       LSN *load_lsn,
+                       BOOL mark_as_loader);
 
 #endif
