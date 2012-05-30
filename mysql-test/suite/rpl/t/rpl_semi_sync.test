@@ -437,6 +437,12 @@ select * from t1;
 connection master;
 echo [ on master ];
 
+# Wait until master semi-sync status is on again after slave catches up
+# to avoid test failures on slow platforms.
+let $status_var= Rpl_semi_sync_master_status;
+let $status_var_value= ON;
+source include/wait_for_status_var.inc;
+
 echo [ master semi-sync status should be ON ];
 show status like 'Rpl_semi_sync_master_status';
 show status like 'Rpl_semi_sync_master_no_tx';
