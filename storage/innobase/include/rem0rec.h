@@ -66,6 +66,15 @@ The status is stored in the low-order bits. */
 /* Length of a B-tree node pointer, in bytes */
 #define REC_NODE_PTR_SIZE	4
 
+/** SQL null flag in a 1-byte offset of ROW_FORMAT=REDUNDANT record s*/
+#define REC_1BYTE_SQL_NULL_MASK	0x80UL
+/** SQL null flag in a 2-byte offset of ROW_FORMAT=REDUNDANT record s*/
+#define REC_2BYTE_SQL_NULL_MASK	0x8000UL
+
+/** In a 2-byte offset of ROW_FORMAT=REDUNDANT records, the second most
+significant bit denotes that the tail of a field is stored off-page. */
+#define REC_2BYTE_EXTERN_MASK	0x4000UL
+
 #ifdef UNIV_DEBUG
 /* Length of the rec_get_offsets() header */
 # define REC_OFFS_HEADER_SIZE	4
@@ -350,6 +359,55 @@ ibool
 rec_get_1byte_offs_flag(
 /*====================*/
 	const rec_t*	rec)	/*!< in: physical record */
+	__attribute__((nonnull, pure, warn_unused_result));
+
+/******************************************************//**
+The following function is used to set the 1-byte offsets flag. */
+UNIV_INLINE
+void
+rec_set_1byte_offs_flag(
+/*====================*/
+	rec_t*	rec,	/*!< in: physical record */
+	ibool	flag)	/*!< in: TRUE if 1byte form */
+	__attribute__((nonnull));
+
+/******************************************************//**
+Returns the offset of nth field end if the record is stored in the 1-byte
+offsets form. If the field is SQL null, the flag is ORed in the returned
+value.
+@return	offset of the start of the field, SQL null flag ORed */
+UNIV_INLINE
+ulint
+rec_1_get_field_end_info(
+/*=====================*/
+	const rec_t*	rec,	/*!< in: record */
+	ulint		n)	/*!< in: field index */
+	__attribute__((nonnull, pure, warn_unused_result));
+
+/******************************************************//**
+Returns the offset of nth field end if the record is stored in the 2-byte
+offsets form. If the field is SQL null, the flag is ORed in the returned
+value.
+@return offset of the start of the field, SQL null flag and extern
+storage flag ORed */
+UNIV_INLINE
+ulint
+rec_2_get_field_end_info(
+/*=====================*/
+	const rec_t*	rec,	/*!< in: record */
+	ulint		n)	/*!< in: field index */
+	__attribute__((nonnull, pure, warn_unused_result));
+
+/******************************************************//**
+Returns nonzero if the field is stored off-page.
+@retval 0 if the field is stored in-page
+@retval REC_2BYTE_EXTERN_MASK if the field is stored externally */
+UNIV_INLINE
+ulint
+rec_2_is_field_extern(
+/*==================*/
+	const rec_t*	rec,	/*!< in: record */
+	ulint		n)	/*!< in: field index */
 	__attribute__((nonnull, pure, warn_unused_result));
 
 /******************************************************//**

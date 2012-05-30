@@ -503,6 +503,134 @@ row_log_table_delete(
 Logs an insert or update to a table that is being rebuilt. */
 static __attribute__((nonnull(1,2,3)))
 void
+row_log_table_low_redundant(
+/*========================*/
+	const rec_t*		rec,	/*!< in: clustered index leaf
+					page record in ROW_FORMAT=REDUNDANT,
+					page X-latched */
+	dict_index_t*		index,	/*!< in/out: clustered index, S-latched
+					or X-latched */
+	const ulint*		offsets,/*!< in: rec_get_offsets(rec,index) */
+	bool			insert,	/*!< in: true if insert,
+					false if update */
+	const dtuple_t*		old_pk,	/*!< in: old PRIMARY KEY value
+					(if !insert and a PRIMARY KEY
+					is being created) */
+	const dict_index_t*	new_index)
+					/*!< in: clustered index of the
+					new table, not latched */
+{
+	ulint		old_pk_size;
+	ulint		old_pk_extra_size;
+	ulint		size;
+	ulint		extra_size;
+	ulint		mrec_size;
+	ulint		avail_size;
+	mem_heap_t*	heap		= NULL;
+	dtuple_t*	tuple;
+
+	ut_ad(!page_is_comp(page_align(rec)));
+	ut_ad(dict_index_get_n_fields(index) == rec_get_n_fields_old(rec));
+
+	heap = mem_heap_create(DTUPLE_EST_ALLOC(index->n_fields));
+	tuple = dtuple_create(heap, index->n_fields);
+	dict_index_copy_types(tuple, index, index->n_fields);
+	dtuple_set_n_fields_cmp(tuple, dict_index_get_n_unique(index));
+
+	if (rec_get_1byte_offs_flag(rec)) {
+		for (ulint i = 0; i < index->n_fields; i++) {
+			dfield_t*	dfield;
+			ulint		len;
+			const void*	field;
+
+			dfield = dtuple_get_nth_field(tuple, i);
+			field = rec_get_nth_field_old(rec, i, &len);
+
+			dfield_set_data(dfield, field, len);
+		}
+	} else {
+		for (ulint i = 0; i < index->n_fields; i++) {
+			dfield_t*	dfield;
+			ulint		len;
+			const void*	field;
+
+			dfield = dtuple_get_nth_field(tuple, i);
+			field = rec_get_nth_field_old(rec, i, &len);
+
+			dfield_set_data(dfield, field, len);
+
+			if (rec_2_is_field_extern(rec, i)) {
+				dfield_set_ext(dfield);
+			}
+		}
+	}
+
+	size = rec_get_converted_size_comp_prefix(
+		index, tuple->fields, tuple->n_fields,
+		index->n_nullable, &extra_size) - REC_N_NEW_EXTRA_BYTES;
+	ut_ad(extra_size >= REC_N_NEW_EXTRA_BYTES);
+	extra_size -= REC_N_NEW_EXTRA_BYTES;;
+
+	mrec_size = ROW_LOG_HEADER_SIZE + size + (extra_size >= 0x80);
+
+	if (insert || index->online_log->same_pk) {
+		ut_ad(!old_pk);
+		old_pk_extra_size = old_pk_size = 0;
+	} else {
+		ut_ad(old_pk);
+		ut_ad(old_pk->n_fields == 2 + old_pk->n_fields_cmp);
+		ut_ad(DATA_TRX_ID_LEN == dtuple_get_nth_field(
+			      old_pk, old_pk->n_fields - 2)->len);
+		ut_ad(DATA_ROLL_PTR_LEN == dtuple_get_nth_field(
+			      old_pk, old_pk->n_fields - 1)->len);
+
+		old_pk_size = rec_get_converted_size_comp_prefix(
+			new_index, old_pk->fields, old_pk->n_fields,
+			0, &old_pk_extra_size) - REC_N_NEW_EXTRA_BYTES;
+		ut_ad(old_pk_extra_size >= REC_N_NEW_EXTRA_BYTES);
+		old_pk_extra_size -= REC_N_NEW_EXTRA_BYTES;
+		ut_ad(old_pk_extra_size < 0x100);
+		mrec_size += 1/*old_pk_extra_size*/ + old_pk_size;
+	}
+
+	if (byte* b = row_log_table_open(index->online_log,
+					 mrec_size, &avail_size)) {
+		*b++ = insert ? ROW_T_INSERT : ROW_T_UPDATE;
+
+		if (old_pk_size) {
+			*b++ = old_pk_extra_size;
+
+			rec_convert_dtuple_to_rec_comp(
+				b + old_pk_extra_size, 0, new_index,
+				REC_STATUS_ORDINARY,
+				old_pk->fields, old_pk->n_fields, 0);
+			b += old_pk_size;
+		}
+
+		if (extra_size < 0x80) {
+			*b++ = (byte) extra_size;
+		} else {
+			ut_ad(extra_size < 0x8000);
+			*b++ = (byte) (0x80 | (extra_size >> 8));
+			*b++ = (byte) extra_size;
+		}
+
+		rec_convert_dtuple_to_rec_comp(
+			b + extra_size, 0, index, REC_STATUS_ORDINARY,
+			tuple->fields, tuple->n_fields, index->n_nullable);
+		b += size;
+
+		row_log_table_close(
+			index->online_log, b, mrec_size, avail_size);
+	}
+
+	mem_heap_free(heap);
+}
+
+/******************************************************//**
+Logs an insert or update to a table that is being rebuilt. */
+static __attribute__((nonnull(1,2,3)))
+void
 row_log_table_low(
 /*==============*/
 	const rec_t*	rec,	/*!< in: clustered index leaf page record,
@@ -532,6 +660,9 @@ row_log_table_low(
 	ut_ad(rw_lock_own(&index->lock, RW_LOCK_SHARED)
 	      || rw_lock_own(&index->lock, RW_LOCK_EX));
 #endif /* UNIV_SYNC_DEBUG */
+	ut_ad(fil_page_get_type(page_align(rec)) == FIL_PAGE_INDEX);
+	ut_ad(page_is_leaf(page_align(rec)));
+	ut_ad(!page_is_comp(page_align(rec)) == !rec_offs_comp(offsets));
 
 	if (dict_index_is_corrupted(index)
 	    || !dict_index_is_online_ddl(index)
@@ -539,13 +670,16 @@ row_log_table_low(
 		return;
 	}
 
-	if (rec_offs_comp(offsets)) {
-		ut_ad(rec_get_status(rec) == REC_STATUS_ORDINARY);
-
-		omit_size = REC_N_NEW_EXTRA_BYTES;
-	} else {
-		omit_size = REC_N_OLD_EXTRA_BYTES;
+	if (!rec_offs_comp(offsets)) {
+		row_log_table_low_redundant(
+			rec, index, offsets, insert, old_pk, new_index);
+		return;
 	}
+
+	ut_ad(page_is_comp(page_align(rec)));
+	ut_ad(rec_get_status(rec) == REC_STATUS_ORDINARY);
+
+	omit_size = REC_N_NEW_EXTRA_BYTES;
 
 	extra_size = rec_offs_extra_size(offsets) - omit_size;
 
