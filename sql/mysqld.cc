@@ -28,6 +28,7 @@
 #include "mysys_err.h"
 #include "events.h"
 #include "debug_sync.h"
+#include "log_event.h"
 
 #include "../storage/myisam/ha_myisam.h"
 
@@ -574,6 +575,7 @@ static const char *slave_exec_mode_str= "STRICT";
 ulong thread_cache_size=0, thread_pool_size= 0;
 ulong binlog_cache_size=0;
 ulonglong  max_binlog_cache_size=0;
+ulong slave_max_allowed_packet= 0;
 ulong query_cache_size=0;
 ulong refresh_version;  /* Increments on each reload */
 query_id_t global_query_id;
@@ -5572,6 +5574,7 @@ enum options_mysqld
   OPT_KEY_CACHE_DIVISION_LIMIT, OPT_KEY_CACHE_AGE_THRESHOLD,
   OPT_LONG_QUERY_TIME,
   OPT_LOWER_CASE_TABLE_NAMES, OPT_MAX_ALLOWED_PACKET,
+  OPT_SLAVE_MAX_ALLOWED_PACKET,
   OPT_MAX_BINLOG_CACHE_SIZE, OPT_MAX_BINLOG_SIZE,
   OPT_MAX_CONNECTIONS, OPT_MAX_CONNECT_ERRORS,
   OPT_MAX_DELAYED_THREADS, OPT_MAX_HEP_TABLE_SIZE,
@@ -6700,6 +6703,10 @@ thread is in the relay logs.",
    &global_system_variables.max_allowed_packet,
    &max_system_variables.max_allowed_packet, 0, GET_ULONG,
    REQUIRED_ARG, 1024*1024L, 1024, 1024L*1024L*1024L, MALLOC_OVERHEAD, 1024, 0},
+  {"slave_max_allowed_packet", OPT_SLAVE_MAX_ALLOWED_PACKET,
+   "The maximum packet length to sent successfully from the master to slave.",
+   &slave_max_allowed_packet, &slave_max_allowed_packet, 0, GET_ULONG,
+   REQUIRED_ARG, MAX_MAX_ALLOWED_PACKET, 1024, MAX_MAX_ALLOWED_PACKET, MALLOC_OVERHEAD, 1024, 0},
   {"max_binlog_cache_size", OPT_MAX_BINLOG_CACHE_SIZE,
    "Can be used to restrict the total size used to cache a multi-transaction query.",
    &max_binlog_cache_size, &max_binlog_cache_size, 0,
