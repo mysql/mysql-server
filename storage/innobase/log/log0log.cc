@@ -1619,15 +1619,16 @@ log_flush_margin(void)
 Advances the smallest lsn for which there are unflushed dirty blocks in the
 buffer pool. NOTE: this function may only be called if the calling thread owns
 no synchronization objects!
-@return FALSE if there was a flush batch of the same type running,
+@return false if there was a flush batch of the same type running,
 which means that we could not start this flush batch */
 static
-ibool
+bool
 log_preflush_pool_modified_pages(
 /*=============================*/
 	lsn_t	new_oldest)	/*!< in: try to advance oldest_modified_lsn
 				at least to this lsn */
 {
+	bool	success;
 	ulint	n_pages;
 
 	if (recv_recovery_on) {
@@ -1643,13 +1644,12 @@ log_preflush_pool_modified_pages(
 		recv_apply_hashed_log_recs(TRUE);
 	}
 
-	n_pages = buf_flush_list(ULINT_MAX, new_oldest);
+	success = buf_flush_list(ULINT_MAX, new_oldest, &n_pages);
 
 	buf_flush_wait_batch_end(NULL, BUF_FLUSH_LIST);
 
-	if (n_pages == ULINT_UNDEFINED) {
+	if (!success) {
 		MONITOR_INC(MONITOR_FLUSH_SYNC_WAITS);
-		return(FALSE);
 	}
 
 	MONITOR_INC_VALUE_CUMULATIVE(
@@ -1658,7 +1658,7 @@ log_preflush_pool_modified_pages(
 		MONITOR_FLUSH_SYNC_PAGES,
 		n_pages);
 
-	return(TRUE);
+	return(success);
 }
 
 /******************************************************//**
@@ -2097,7 +2097,7 @@ log_checkpoint_margin(void)
 	lsn_t		oldest_lsn;
 	ibool		checkpoint_sync;
 	ibool		do_checkpoint;
-	ibool		success;
+	bool		success;
 loop:
 	checkpoint_sync = FALSE;
 	do_checkpoint = FALSE;
