@@ -337,11 +337,7 @@ ndb_binlog_open_shadow_table(THD *thd, NDB_SHARE *share)
       (error= open_table_from_share(thd, shadow_table_share, "", 0,
                                     (uint) (OPEN_FRM_FILE_ONLY | DELAYED_OPEN | READ_ALL),
                                     0, shadow_table,
-#ifdef NDB_WITHOUT_ONLINE_ALTER
                                     false
-#else
-                                    OTM_OPEN
-#endif
                                     )))
   {
     DBUG_PRINT("error", ("failed to open shadow table, error: %d my_errno: %d",
@@ -2839,6 +2835,14 @@ class Ndb_schema_event_handler {
         mysqld_write_frm_from_ndb(schema->db, schema->name);
       }
     }
+  }
+
+
+  void
+  handle_online_alter_table_commit(Ndb_schema_op* schema)
+  {
+    assert(is_post_epoch()); // Always after epoch
+
     NDB_SHARE *share= get_share(schema);
     if (share)
     {
@@ -2888,22 +2892,6 @@ class Ndb_schema_event_handler {
           sql_print_information("NDB Binlog: handling online "
                                 "alter/rename done");
       }
-    }
-    if (share)
-    {
-      free_share(&share);
-    }
-  }
-
-
-  void
-  handle_online_alter_table_commit(Ndb_schema_op* schema)
-  {
-    assert(is_post_epoch()); // Always after epoch
-
-    NDB_SHARE *share= get_share(schema);
-    if (share)
-    {
       pthread_mutex_lock(&share->mutex);
       if (share->op && share->new_op)
       {
