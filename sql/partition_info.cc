@@ -2168,8 +2168,8 @@ bool partition_info::is_field_in_part_expr(List<Item> &fields)
 
 bool partition_info::is_full_part_expr_in_fields(List<Item> &fields)
 {
-  Field *part_field= full_part_field_array[0];
-  DBUG_ASSERT(part_field);
+  Field **part_field= full_part_field_array;
+  DBUG_ASSERT(*part_field);
   DBUG_ENTER("is_full_part_expr_in_fields");
   /*
     It is very seldom many fields in full_part_field_array, so it is OK
@@ -2194,7 +2194,7 @@ bool partition_info::is_full_part_expr_in_fields(List<Item> &fields)
       else
       {
         DBUG_ASSERT(field->field->table == table);
-        if (part_field == field->field)
+        if (*part_field == field->field)
         {
           found= true;
           break;
@@ -2203,7 +2203,7 @@ bool partition_info::is_full_part_expr_in_fields(List<Item> &fields)
     }
     if (!found)
       DBUG_RETURN(false);
-  } while (++part_field);
+  } while (*(++part_field));
   DBUG_RETURN(true);
 }
  
