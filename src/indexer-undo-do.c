@@ -180,33 +180,38 @@ indexer_undo_do_committed(DB_INDEXER *indexer, DB *hotdb, ULEHANDLE ule) {
 static int
 indexer_undo_do_provisional(DB_INDEXER *indexer, DB *hotdb, ULEHANDLE ule) {
     int result = 0;
-
+    BOOL txn_manager_suspended = FALSE;
+    TXN_MANAGER txn_manager = toku_logger_get_txn_manager(indexer->i->env->i->logger);
     indexer_commit_keys_set_empty(&indexer->i->commit_keys);
-    toku_txn_manager_suspend(toku_logger_get_txn_manager(indexer->i->env->i->logger));
+    toku_txn_manager_suspend(txn_manager);
+    txn_manager_suspended = TRUE;
 
     // init the xids to the root xid
     XIDS xids = xids_get_root_xids();
 
-    TXNID outermost_xid = TXNID_NONE;
-    TOKUTXN_STATE outermost_xid_state = TOKUTXN_RETIRED;
-
     // scan the provisional stack from the outermost to the innermost transaction record
     uint32_t num_committed = ule_get_num_committed(ule);
     uint32_t num_provisional = ule_get_num_provisional(ule);
+    TXNID outermost_xid = uxr_get_txnid(ule_get_uxr(ule, num_committed));
+    TOKUTXN_STATE outermost_xid_state = indexer_xid_state(indexer, outermost_xid);
+    BOOL outermost_retired = outermost_xid_state == TOKUTXN_RETIRED;
+    if (outermost_retired) {        
+        toku_txn_manager_resume(txn_manager);
+        txn_manager_suspended = FALSE;
+    }
     for (uint64_t xrindex = num_committed; xrindex < num_committed + num_provisional; xrindex++) {
 
         // get the ith transaction record
         UXRHANDLE uxr = ule_get_uxr(ule, xrindex);
 
         TXNID this_xid = uxr_get_txnid(uxr);
-        TOKUTXN_STATE this_xid_state = indexer_xid_state(indexer, this_xid);
+        TOKUTXN_STATE this_xid_state = outermost_retired ? TOKUTXN_RETIRED : indexer_xid_state(indexer, this_xid);
 
-        if (this_xid_state == TOKUTXN_ABORTING)
+        if (this_xid_state == TOKUTXN_ABORTING) {
             break;         // nothing to do once we reach a transaction that is aborting
-
+        }
+        
         if (xrindex == num_committed) { // if this is the outermost xr
-            outermost_xid = this_xid;
-            outermost_xid_state = this_xid_state;
             result = indexer_set_xid(indexer, this_xid, &xids);    // always add the outermost xid to the XIDS list
         } else {
             switch (this_xid_state) {
@@ -303,12 +308,13 @@ indexer_undo_do_provisional(DB_INDEXER *indexer, DB *hotdb, ULEHANDLE ule) {
     }
 
     // send commits if the outermost provisional transaction is committed
-    for (int i = 0; result == 0 && i < indexer_commit_keys_valid(&indexer->i->commit_keys); i++) 
+    for (int i = 0; result == 0 && i < indexer_commit_keys_valid(&indexer->i->commit_keys); i++) {
         result = indexer_ft_commit(indexer, hotdb, &indexer->i->commit_keys.keys[i], xids);
-
+    }
     xids_destroy(&xids);
-    
-    toku_txn_manager_resume(toku_logger_get_txn_manager(indexer->i->env->i->logger));
+    if (txn_manager_suspended) {
+        toku_txn_manager_resume(toku_logger_get_txn_manager(indexer->i->env->i->logger));
+    }
     return result;
 }
 
