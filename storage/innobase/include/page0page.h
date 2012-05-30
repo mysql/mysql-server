@@ -551,6 +551,16 @@ page_rec_get_next_const(
 /*====================*/
 	const rec_t*	rec);	/*!< in: pointer to record */
 /************************************************************//**
+Gets the pointer to the next non delete-marked record on the page.
+If all subsequent records are delete-marked, then this function
+will return the supremum record.
+@return	pointer to next non delete-marked record or pointer to supremum */
+UNIV_INLINE
+const rec_t*
+page_rec_get_next_non_del_marked(
+/*=============================*/
+	const rec_t*	rec);	/*!< in: pointer to record */
+/************************************************************//**
 Sets the pointer to the next record on the page. */
 UNIV_INLINE
 void
@@ -737,11 +747,14 @@ UNIV_INLINE
 void
 page_mem_free(
 /*==========*/
-	page_t*		page,	/*!< in/out: index page */
-	page_zip_des_t*	page_zip,/*!< in/out: compressed page, or NULL */
-	rec_t*		rec,	/*!< in: pointer to the (origin of) record */
-	dict_index_t*	index,	/*!< in: index of rec */
-	const ulint*	offsets);/*!< in: array returned by rec_get_offsets() */
+	page_t*			page,	/*!< in/out: index page */
+	page_zip_des_t*		page_zip,/*!< in/out: compressed page,
+					 or NULL */
+	rec_t*			rec,	/*!< in: pointer to the (origin of)
+					record */
+	const dict_index_t*	index,	/*!< in: index of rec */
+	const ulint*		offsets);/*!< in: array returned by
+					 rec_get_offsets() */
 /**********************************************************//**
 Create an uncompressed B-tree index page.
 @return	pointer to the page */
@@ -1031,7 +1044,6 @@ page_find_rec_with_heap_no(
 /*=======================*/
 	const page_t*	page,	/*!< in: index page */
 	ulint		heap_no);/*!< in: heap number */
-
 #ifdef UNIV_MATERIALIZE
 #undef UNIV_INLINE
 #define UNIV_INLINE  UNIV_INLINE_ORIGINAL

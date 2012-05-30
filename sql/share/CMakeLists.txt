@@ -38,10 +38,12 @@ russian
 czech
 french
 serbian
+bulgarian
 )
 
 SET(files 
  errmsg-utf8.txt
+ dictionary.txt
 )
 
 FOREACH (dir ${dirs})
@@ -51,5 +53,5 @@ ENDFOREACH()
 INSTALL(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/charsets DESTINATION ${INSTALL_MYSQLSHAREDIR} COMPONENT Server
   PATTERN "languages.html" EXCLUDE
 )
-
+CONFIGURE_FILE(dictionary.txt ${CMAKE_BINARY_DIR}/sql/share/dictionary.txt)
 INSTALL(FILES ${files} DESTINATION ${INSTALL_MYSQLSHAREDIR} COMPONENT Server)

@@ -5,8 +5,11 @@
 
 --source include/have_innodb.inc
 
-SET @start_global_value = @@global.innodb_io_capacity;
-SELECT @start_global_value;
+SET @start_io_capacity = @@global.innodb_io_capacity;
+SELECT @start_io_capacity;
+
+SET @start_max_io_capacity = @@global.innodb_max_io_capacity;
+SELECT @start_max_io_capacity;
 
 #
 # exists as global only
@@ -29,7 +32,7 @@ select @@global.innodb_io_capacity;
 select * from information_schema.global_variables where variable_name='innodb_io_capacity';
 select * from information_schema.session_variables where variable_name='innodb_io_capacity';
 --error ER_GLOBAL_VARIABLE
-set session innodb_io_capacity=444;
+set session innodb_io_capacity=233;
 
 #
 # incorrect types
@@ -53,10 +56,17 @@ select * from information_schema.global_variables where variable_name='innodb_io
 #
 set global innodb_io_capacity=100;
 select @@global.innodb_io_capacity;
+set global innodb_io_capacity=@start_max_io_capacity;
+select @@global.innodb_io_capacity;
+set global innodb_io_capacity=@start_max_io_capacity + 1;
+select @@global.innodb_io_capacity;
 
 #
 # cleanup
 #
 
-SET @@global.innodb_io_capacity = @start_global_value;
+SET @@global.innodb_io_capacity = @start_io_capacity;
 SELECT @@global.innodb_io_capacity;
+
+SET @@global.innodb_max_io_capacity = @start_max_io_capacity;
+SELECT @@global.innodb_max_io_capacity;

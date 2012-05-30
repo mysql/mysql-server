@@ -14,7 +14,7 @@
    along with this program; see the file COPYING. If not, write to the
    Free Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston,
    MA  02110-1301  USA.
-*/
+ */
 
 
 #include "runtime.hpp"
@@ -183,7 +183,8 @@ word32 DSA_Signer::Sign(const byte* sha_digest, byte* sig,
     Integer kInv = k.InverseMod(q);
     s_ = (kInv * (H + x*r_)) % q;
 
-    assert(!!r_ && !!s_);
+    if (!(!!r_ && !!s_))
+        return -1;
 
     int rSz = r_.ByteCount();
 

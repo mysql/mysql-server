@@ -14,7 +14,7 @@
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA 
 
 MACRO (CHANGE_SSL_SETTINGS string)
-  SET(WITH_SSL ${string} CACHE STRING "Options are : no, bundled, yes (prefer os library if present otherwise use bundled), system (use os library)" FORCE)
+  SET(WITH_SSL ${string} CACHE STRING "Options are : bundled, yes (prefer os library if present otherwise use bundled), system (use os library)" FORCE)
 ENDMACRO()
 
 MACRO (MYSQL_USE_BUNDLED_SSL)
@@ -42,13 +42,11 @@ ENDMACRO()
 # MYSQL_CHECK_SSL
 #
 # Provides the following configure options:
-# WITH_SSL=[yes|no|bundled]
+# WITH_SSL=[yes|bundled|system]
 MACRO (MYSQL_CHECK_SSL)
   IF(NOT WITH_SSL)
    IF(WIN32)
      CHANGE_SSL_SETTINGS("bundled")
-   ELSE()
-     CHANGE_SSL_SETTINGS("no")
    ENDIF()
   ENDIF()
 
@@ -76,7 +74,7 @@ MACRO (MYSQL_CHECK_SSL)
       ENDIF()
       MYSQL_USE_BUNDLED_SSL()
     ENDIF()
-  ELSEIF(NOT WITH_SSL STREQUAL "no")
-    MESSAGE(SEND_ERROR "Wrong option for WITH_SSL. Valid values are : yes, no, bundled")
+  ELSE()
+    MESSAGE(SEND_ERROR "Wrong option for WITH_SSL. Valid values are : yes, bundled, system")
   ENDIF()
 ENDMACRO()

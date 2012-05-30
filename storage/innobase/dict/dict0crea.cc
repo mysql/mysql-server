@@ -306,6 +306,7 @@ dict_build_table_def_step(
 			dict_tf_to_fsp_flags(table->flags),
 			table->flags2,
 			FIL_IBD_FILE_INITIAL_SIZE);
+
 		table->space = (unsigned int) space;
 
 		if (error != DB_SUCCESS) {
@@ -650,7 +651,6 @@ dict_create_index_tree_step(
 	dict_index_t*	index;
 	dict_table_t*	sys_indexes;
 	dtuple_t*	search_tuple;
-	ulint		zip_size;
 	btr_pcur_t	pcur;
 	mtr_t		mtr;
 
@@ -679,25 +679,37 @@ dict_create_index_tree_step(
 
 	btr_pcur_move_to_next_user_rec(&pcur, &mtr);
 
-	zip_size = dict_table_zip_size(index->table);
 
-	node->page_no = btr_create(index->type, index->space, zip_size,
-				   index->id, index, &mtr);
-	/* printf("Created a new index tree in space %lu root page %lu\n",
-	index->space, node->page_no); */
+	dberr_t		err = DB_SUCCESS;
+	ulint		zip_size = dict_table_zip_size(index->table);
 
-	page_rec_write_field(btr_pcur_get_rec(&pcur),
-			     DICT_FLD__SYS_INDEXES__PAGE_NO,
-			     node->page_no, &mtr);
-	btr_pcur_close(&pcur);
-	mtr_commit(&mtr);
+	if (node->index->table->ibd_file_missing
+	    || dict_table_is_discarded(node->index->table)) {
 
-	if (node->page_no == FIL_NULL) {
+		node->page_no = FIL_NULL;
+	} else {
+		node->page_no = btr_create(
+			index->type, index->space, zip_size,
+			index->id, index, &mtr);
 
-		return(DB_OUT_OF_FILE_SPACE);
+		if (node->page_no == FIL_NULL) {
+			err = DB_OUT_OF_FILE_SPACE;
+		}
+
+		DBUG_EXECUTE_IF("ib_import_create_index_failure_1",
+				node->page_no = FIL_NULL;
+				err = DB_OUT_OF_FILE_SPACE; );
 	}
 
-	return(DB_SUCCESS);
+	page_rec_write_field(
+		btr_pcur_get_rec(&pcur), DICT_FLD__SYS_INDEXES__PAGE_NO,
+		node->page_no, &mtr);
+
+	btr_pcur_close(&pcur);
+
+	mtr_commit(&mtr);
+
+	return(err);
 }
 
 /*******************************************************************//**
@@ -1479,7 +1491,7 @@ databasename/tablename_ibfk_NUMBER, where the numbers start from 1, and
 are given locally for this table, that is, the number is not global, as in
 the old format constraints < 4.0.18 it used to be.
 @return	error code or DB_SUCCESS */
-static __attribute__((nonnull, warn_unused_result))
+UNIV_INTERN
 dberr_t
 dict_create_add_foreign_to_dictionary(
 /*==================================*/
@@ -1487,7 +1499,7 @@ dict_create_add_foreign_to_dictionary(
 				incremented if used */
 	dict_table_t*	table,	/*!< in: table */
 	dict_foreign_t*	foreign,/*!< in: foreign */
-	trx_t*		trx)	/*!< in: transaction */
+	trx_t*		trx)	/*!< in/out: dictionary transaction */
 {
 	dberr_t		error;
 	ulint		i;
@@ -1540,12 +1552,6 @@ dict_create_add_foreign_to_dictionary(
 		}
 	}
 
-	trx->op_info = "committing foreign key definitions";
-
-	trx_commit(trx);
-
-	trx->op_info = "";
-
 	return(error);
 }
 
@@ -1593,6 +1599,12 @@ dict_create_add_foreigns_to_dictionary(
 			return(error);
 		}
 	}
+
+	trx->op_info = "committing foreign key definitions";
+
+	trx_commit(trx);
+
+	trx->op_info = "";
 
 	return(DB_SUCCESS);
 }

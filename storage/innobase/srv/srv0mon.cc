@@ -349,25 +349,40 @@ static monitor_info_t	innodb_counter_info[] =
 	 MONITOR_SET_MEMBER, MONITOR_FLUSH_NEIGHBOR_TOTAL_PAGE,
 	 MONITOR_FLUSH_NEIGHBOR_PAGES},
 
-	/* Cumulative counter for flush batches because of max_dirty */
-	{"buffer_flush_max_dirty_total_pages", "buffer",
-	 "Total pages flushed as part of max_dirty batches",
-	 MONITOR_SET_OWNER, MONITOR_FLUSH_MAX_DIRTY_COUNT,
-	 MONITOR_FLUSH_MAX_DIRTY_TOTAL_PAGE},
+	{"buffer_flush_n_to_flush_requested", "buffer",
+	 "Number of pages requested for flushing.",
+	 MONITOR_NONE,
+	 MONITOR_DEFAULT_START, MONITOR_FLUSH_N_TO_FLUSH_REQUESTED},
 
-	{"buffer_flush_max_dirty", "buffer",
-	 "Number of max_dirty batches",
-	 MONITOR_SET_MEMBER, MONITOR_FLUSH_MAX_DIRTY_TOTAL_PAGE,
-	 MONITOR_FLUSH_MAX_DIRTY_COUNT},
+	{"buffer_flush_avg_page_rate", "buffer",
+	 "Average number of pages at which flushing is happening",
+	 MONITOR_NONE,
+	 MONITOR_DEFAULT_START, MONITOR_FLUSH_AVG_PAGE_RATE},
 
-	{"buffer_flush_max_dirty_pages", "buffer",
-	 "Pages queued as a max_dirty batch",
-	 MONITOR_SET_MEMBER, MONITOR_FLUSH_MAX_DIRTY_TOTAL_PAGE,
-	 MONITOR_FLUSH_MAX_DIRTY_PAGES},
+	{"buffer_flush_lsn_avg_rate", "buffer",
+	 "Average redo generation rate",
+	 MONITOR_NONE,
+	 MONITOR_DEFAULT_START, MONITOR_FLUSH_LSN_AVG_RATE},
 
-	/* Cumulative counter for flush batches because of adaptive */
+	{"buffer_flush_pct_for_dirty", "buffer",
+	 "Percent of IO capacity used to avoid max dirty page limit",
+	 MONITOR_NONE,
+	 MONITOR_DEFAULT_START, MONITOR_FLUSH_PCT_FOR_DIRTY},
+
+	{"buffer_flush_pct_for_lsn", "buffer",
+	 "Percent of IO capacity used to avoid reusable redo space limit",
+	 MONITOR_NONE,
+	 MONITOR_DEFAULT_START, MONITOR_FLUSH_PCT_FOR_LSN},
+
+	{"buffer_flush_sync_waits", "buffer",
+	 "Number of times a wait happens due to sync flushing",
+	 MONITOR_NONE,
+	 MONITOR_DEFAULT_START, MONITOR_FLUSH_SYNC_WAITS},
+
+
+	/* Cumulative counter for flush batches for adaptive flushing  */
 	{"buffer_flush_adaptive_total_pages", "buffer",
-	 "Total pages flushed as part of adaptive batches",
+	 "Total pages flushed as part of adaptive flushing",
 	 MONITOR_SET_OWNER, MONITOR_FLUSH_ADAPTIVE_COUNT,
 	 MONITOR_FLUSH_ADAPTIVE_TOTAL_PAGE},
 
@@ -380,22 +395,6 @@ static monitor_info_t	innodb_counter_info[] =
 	 "Pages queued as an adaptive batch",
 	 MONITOR_SET_MEMBER, MONITOR_FLUSH_ADAPTIVE_TOTAL_PAGE,
 	 MONITOR_FLUSH_ADAPTIVE_PAGES},
-
-	/* Cumulative counter for flush batches because of async */
-	{"buffer_flush_async_total_pages", "buffer",
-	 "Total pages flushed as part of async batches",
-	 MONITOR_SET_OWNER, MONITOR_FLUSH_ASYNC_COUNT,
-	 MONITOR_FLUSH_ASYNC_TOTAL_PAGE},
-
-	{"buffer_flush_async", "buffer",
-	 "Number of async batches",
-	 MONITOR_SET_MEMBER, MONITOR_FLUSH_ASYNC_TOTAL_PAGE,
-	 MONITOR_FLUSH_ASYNC_COUNT},
-
-	{"buffer_flush_async_pages", "buffer",
-	 "Pages queued as an async batch",
-	 MONITOR_SET_MEMBER, MONITOR_FLUSH_ASYNC_TOTAL_PAGE,
-	 MONITOR_FLUSH_ASYNC_PAGES},
 
 	/* Cumulative counter for flush batches because of sync */
 	{"buffer_flush_sync_total_pages", "buffer",

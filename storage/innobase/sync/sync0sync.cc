@@ -1534,7 +1534,7 @@ sync_close(void)
 
 		mutex_free(mutex);
 
-	        mutex = UT_LIST_GET_FIRST(mutex_list);
+		mutex = UT_LIST_GET_FIRST(mutex_list);
 	}
 
 	mutex_free(&mutex_list_mutex);

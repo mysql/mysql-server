@@ -156,7 +156,7 @@ connection master;
                        f6 ENUM('a', 'b', 'c') default 'a',
 		       f7 DECIMAL(17,9) default '1000.00',
 		       f8 MEDIUMBLOB,
-		       f9 NUMERIC(6,4) default '2000.00',
+		       f9 NUMERIC(6,2) default '2000.00',
 		       f10 VARCHAR(1024),
 		       f11 BINARY(20) NOT NULL DEFAULT '\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0',
 		       f12 SET('a', 'b', 'c') default 'b')
@@ -179,7 +179,7 @@ connection master;
                        f5 DOUBLE DEFAULT '2.00', 
 		       f6 DECIMAL(17,9) default '1000.00',
 		       f7 MEDIUMBLOB,
-		       f8 NUMERIC(6,4) default '2000.00',
+		       f8 NUMERIC(6,2) default '2000.00',
 		       f9 VARCHAR(1024),
 		       f10 BINARY(20) not null default '\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0',
 		       f11 CHAR(255))

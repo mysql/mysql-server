@@ -236,6 +236,7 @@ void get_mqh(const char *user, const char *host, USER_CONN *uc);
 bool mysql_create_user(THD *thd, List <LEX_USER> &list);
 bool mysql_drop_user(THD *thd, List <LEX_USER> &list);
 bool mysql_rename_user(THD *thd, List <LEX_USER> &list);
+bool mysql_user_password_expire(THD *thd, List <LEX_USER> &list);
 bool mysql_revoke_all(THD *thd, List <LEX_USER> &list);
 void fill_effective_table_privileges(THD *thd, GRANT_INFO *grant,
                                      const char *db, const char *table);
@@ -251,7 +252,8 @@ int fill_schema_schema_privileges(THD *thd, TABLE_LIST *tables, Item *cond);
 int fill_schema_table_privileges(THD *thd, TABLE_LIST *tables, Item *cond);
 int fill_schema_column_privileges(THD *thd, TABLE_LIST *tables, Item *cond);
 int wild_case_compare(CHARSET_INFO *cs, const char *str,const char *wildstr);
-
+int check_password_strength(String *password);
+void check_password_policy(String *password);
 #ifdef NO_EMBEDDED_ACCESS_CHECKS
 #define check_grant(A,B,C,D,E,F) 0
 #define check_grant_db(A,B) 0

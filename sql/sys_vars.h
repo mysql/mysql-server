@@ -239,6 +239,7 @@ public:
   }
 };
 
+typedef Sys_var_integer<int32, GET_UINT, SHOW_INT, FALSE> Sys_var_int32;
 typedef Sys_var_integer<uint, GET_UINT, SHOW_INT, FALSE> Sys_var_uint;
 typedef Sys_var_integer<ulong, GET_ULONG, SHOW_LONG, FALSE> Sys_var_ulong;
 typedef Sys_var_integer<ha_rows, GET_HA_ROWS, SHOW_HA_ROWS, FALSE>
@@ -894,8 +895,9 @@ public:
   { }
   uchar *session_value_ptr(THD *thd, LEX_STRING *base)
   {
-    if (thd->user_connect && thd->user_connect->user_resources.user_conn)
-      return (uchar*) &(thd->user_connect->user_resources.user_conn);
+    const USER_CONN *uc= thd->get_user_connect();
+    if (uc && uc->user_resources.user_conn)
+      return (uchar*) &(uc->user_resources.user_conn);
     return global_value_ptr(thd, base);
   }
 };

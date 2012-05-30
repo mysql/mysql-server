@@ -333,9 +333,9 @@ UNIV_INTERN
 ulint
 rec_get_n_extern_new(
 /*=================*/
-	const rec_t*	rec,	/*!< in: compact physical record */
-	dict_index_t*	index,	/*!< in: record descriptor */
-	ulint		n);	/*!< in: number of columns to scan */
+	const rec_t*		rec,	/*!< in: compact physical record */
+	const dict_index_t*	index,	/*!< in: record descriptor */
+	ulint			n);	/*!< in: number of columns to scan */
 
 /******************************************************//**
 The following function determines the offsets to each field

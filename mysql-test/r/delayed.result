@@ -2,11 +2,21 @@ drop table if exists t1;
 create table t1 (a char(10), tmsp timestamp);
 insert into t1 set a = 1;
 insert delayed into t1 set a = 2;
+Warnings:
+Warning	1287	'INSERT DELAYED' is deprecated and will be removed in a future release. Please use INSERT instead
 insert into t1 set a = 3, tmsp=NULL;
 insert delayed into t1 set a = 4;
+Warnings:
+Warning	1287	'INSERT DELAYED' is deprecated and will be removed in a future release. Please use INSERT instead
 insert delayed into t1 set a = 5, tmsp = 19711006010203;
+Warnings:
+Warning	1287	'INSERT DELAYED' is deprecated and will be removed in a future release. Please use INSERT instead
 insert delayed into t1 (a, tmsp) values (6, 19711006010203);
+Warnings:
+Warning	1287	'INSERT DELAYED' is deprecated and will be removed in a future release. Please use INSERT instead
 insert delayed into t1 (a, tmsp) values (7, NULL);
+Warnings:
+Warning	1287	'INSERT DELAYED' is deprecated and will be removed in a future release. Please use INSERT instead
 FLUSH TABLE t1;
 insert into t1 set a = 8,tmsp=19711006010203;
 select * from t1 where tmsp=0;
@@ -19,8 +29,14 @@ a	tmsp
 drop table t1;
 create table t1 (a int not null auto_increment primary key, b char(10));
 insert delayed into t1 values (1,"b");
+Warnings:
+Warning	1287	'INSERT DELAYED' is deprecated and will be removed in a future release. Please use INSERT instead
 insert delayed into t1 values (null,"c");
+Warnings:
+Warning	1287	'INSERT DELAYED' is deprecated and will be removed in a future release. Please use INSERT instead
 insert delayed into t1 values (3,"d"),(null,"e");
+Warnings:
+Warning	1287	'INSERT DELAYED' is deprecated and will be removed in a future release. Please use INSERT instead
 insert delayed into t1 values (3,"this will give an","error");
 ERROR 21S01: Column count doesn't match value count at row 1
 FLUSH TABLE t1;
@@ -37,25 +53,43 @@ drop table t1;
 create table t1 (a int not null primary key);
 insert into t1 values (1);
 insert delayed into t1 values (1);
+Warnings:
+Warning	1287	'INSERT DELAYED' is deprecated and will be removed in a future release. Please use INSERT instead
 select * from t1;
 a
 1
 drop table t1;
 CREATE TABLE t1 ( a int(10) NOT NULL auto_increment, PRIMARY KEY (a));
 insert delayed into t1 values(null);
+Warnings:
+Warning	1287	'INSERT DELAYED' is deprecated and will be removed in a future release. Please use INSERT instead
 insert into t1 values(null);
 insert into t1 values(null);
 insert delayed into t1 values(null);
+Warnings:
+Warning	1287	'INSERT DELAYED' is deprecated and will be removed in a future release. Please use INSERT instead
 insert delayed into t1 values(null);
+Warnings:
+Warning	1287	'INSERT DELAYED' is deprecated and will be removed in a future release. Please use INSERT instead
 insert delayed into t1 values(null);
+Warnings:
+Warning	1287	'INSERT DELAYED' is deprecated and will be removed in a future release. Please use INSERT instead
 insert into t1 values(null);
 insert into t1 values(null);
 insert into t1 values(null);
 delete from t1 where a=6;
 insert delayed into t1 values(null);
+Warnings:
+Warning	1287	'INSERT DELAYED' is deprecated and will be removed in a future release. Please use INSERT instead
 insert delayed into t1 values(null);
+Warnings:
+Warning	1287	'INSERT DELAYED' is deprecated and will be removed in a future release. Please use INSERT instead
 insert delayed into t1 values(null);
+Warnings:
+Warning	1287	'INSERT DELAYED' is deprecated and will be removed in a future release. Please use INSERT instead
 insert delayed into t1 values(null);
+Warnings:
+Warning	1287	'INSERT DELAYED' is deprecated and will be removed in a future release. Please use INSERT instead
 FLUSH TABLE t1;
 select * from t1 order by a;
 a
@@ -100,6 +134,8 @@ c1 INT NOT NULL AUTO_INCREMENT,
 PRIMARY KEY (c1)
 );
 INSERT DELAYED INTO t1 VALUES (NULL),(NULL),(NULL);
+Warnings:
+Warning	1287	'INSERT DELAYED' is deprecated and will be removed in a future release. Please use INSERT instead
 FLUSH TABLE t1;
 SELECT * FROM t1;
 c1
@@ -188,17 +224,37 @@ PRIMARY KEY (c1)
 );
 SET insert_id= 14;
 INSERT DELAYED INTO t1 VALUES(NULL, 11), (NULL, 12), (NULL, 13);
+Warnings:
+Warning	1287	'INSERT DELAYED' is deprecated and will be removed in a future release. Please use INSERT instead
 INSERT DELAYED INTO t1 VALUES(NULL, 21), (NULL, 22), (NULL, 23);
+Warnings:
+Warning	1287	'INSERT DELAYED' is deprecated and will be removed in a future release. Please use INSERT instead
 INSERT DELAYED INTO t1 VALUES(  69, 31), (NULL, 32), (NULL, 33);
+Warnings:
+Warning	1287	'INSERT DELAYED' is deprecated and will be removed in a future release. Please use INSERT instead
 INSERT DELAYED INTO t1 VALUES(NULL, 41), (NULL, 42), (NULL, 43);
+Warnings:
+Warning	1287	'INSERT DELAYED' is deprecated and will be removed in a future release. Please use INSERT instead
 SET insert_id= 114;
 INSERT DELAYED INTO t1 VALUES(NULL, 51), (NULL, 52), (NULL, 53);
+Warnings:
+Warning	1287	'INSERT DELAYED' is deprecated and will be removed in a future release. Please use INSERT instead
 INSERT DELAYED INTO t1 VALUES(NULL, 61), (NULL, 62), (NULL, 63);
+Warnings:
+Warning	1287	'INSERT DELAYED' is deprecated and will be removed in a future release. Please use INSERT instead
 INSERT DELAYED INTO t1 VALUES(  49, 71), (NULL, 72), (NULL, 73);
+Warnings:
+Warning	1287	'INSERT DELAYED' is deprecated and will be removed in a future release. Please use INSERT instead
 INSERT DELAYED INTO t1 VALUES(NULL, 81), (NULL, 82), (NULL, 83);
+Warnings:
+Warning	1287	'INSERT DELAYED' is deprecated and will be removed in a future release. Please use INSERT instead
 SET insert_id= 114;
 INSERT DELAYED INTO t1 VALUES(NULL, 91);
+Warnings:
+Warning	1287	'INSERT DELAYED' is deprecated and will be removed in a future release. Please use INSERT instead
 INSERT DELAYED INTO t1 VALUES           (NULL, 92), (NULL, 93);
+Warnings:
+Warning	1287	'INSERT DELAYED' is deprecated and will be removed in a future release. Please use INSERT instead
 FLUSH TABLE t1;
 SELECT * FROM t1;
 c1	c2
@@ -245,6 +301,8 @@ SET             @@session.auto_increment_increment=
 @bug20830_old_session_auto_increment_increment;
 CREATE TABLE t1(a BIT);
 INSERT DELAYED INTO t1 VALUES(1);
+Warnings:
+Warning	1287	'INSERT DELAYED' is deprecated and will be removed in a future release. Please use INSERT instead
 FLUSH TABLE t1;
 SELECT HEX(a) FROM t1;
 HEX(a)
@@ -262,11 +320,15 @@ CREATE TABLE `t1` (
 `f1` varchar(10) NOT NULL UNIQUE
 );
 INSERT DELAYED INTO t1 VALUES(0,"test1");
+Warnings:
+Warning	1287	'INSERT DELAYED' is deprecated and will be removed in a future release. Please use INSERT instead
 SELECT * FROM t1;
 id	f1
 0	test1
 SET SQL_MODE='PIPES_AS_CONCAT';
 INSERT DELAYED INTO t1 VALUES(0,'a' || 'b');
+Warnings:
+Warning	1287	'INSERT DELAYED' is deprecated and will be removed in a future release. Please use INSERT instead
 SELECT * FROM t1;
 id	f1
 0	test1
@@ -331,16 +393,24 @@ DROP TABLE IF EXISTS t2;
 CREATE TABLE t1 ( f1 INTEGER AUTO_INCREMENT, PRIMARY KEY (f1));
 # The following CREATE TABLEs before gave an assert.
 INSERT DELAYED t1 VALUES (4);
+Warnings:
+Warning	1287	'INSERT DELAYED' is deprecated and will be removed in a future release. Please use INSERT instead
 CREATE TABLE t1 AS SELECT 1 AS f1;
 ERROR 42S01: Table 't1' already exists
 REPLACE DELAYED t1 VALUES (5);
+Warnings:
+Warning	1287	'REPLACE DELAYED' is deprecated and will be removed in a future release. Please use REPLACE instead
 CREATE TABLE t1 AS SELECT 1 AS f1;
 ERROR 42S01: Table 't1' already exists
 INSERT DELAYED t1 VALUES (6);
+Warnings:
+Warning	1287	'INSERT DELAYED' is deprecated and will be removed in a future release. Please use INSERT instead
 CREATE TABLE t1 (f1 INTEGER);
 ERROR 42S01: Table 't1' already exists
 CREATE TABLE t2 (f1 INTEGER);
 INSERT DELAYED t1 VALUES (7);
+Warnings:
+Warning	1287	'INSERT DELAYED' is deprecated and will be removed in a future release. Please use INSERT instead
 CREATE TABLE t1 LIKE t2;
 ERROR 42S01: Table 't1' already exists
 DROP TABLE t2;
@@ -368,6 +438,8 @@ ERROR 40001: Deadlock found when trying to get lock; try restarting transaction
 UNLOCK TABLES;
 # Connection default
 # Reaping: INSERT DELAYED INTO t1 VALUES (1)
+Warnings:
+Warning	1287	'INSERT DELAYED' is deprecated and will be removed in a future release. Please use INSERT instead
 UNLOCK TABLES;
 # Test 2: Using ALTER TABLE
 START TRANSACTION;
@@ -418,16 +490,22 @@ COMMIT;
 UNLOCK TABLES;
 # Connection con1
 # Reaping: INSERT DELAYED INTO t1 VALUES (5)
+Warnings:
+Warning	1287	'INSERT DELAYED' is deprecated and will be removed in a future release. Please use INSERT instead
 # Connection default
 # Test 5: LOCK TABLES + INSERT DELAYED in one connection.
 # This test has triggered some asserts in metadata locking
 # subsystem at some point in time..
 LOCK TABLE t1 WRITE;
 INSERT DELAYED INTO t2 VALUES (7);
+Warnings:
+Warning	1287	'INSERT DELAYED' is deprecated and will be removed in a future release. Please use INSERT instead
 UNLOCK TABLES;
 SET AUTOCOMMIT= 0;
 LOCK TABLE t1 WRITE;
 INSERT DELAYED INTO t2 VALUES (8);
+Warnings:
+Warning	1287	'INSERT DELAYED' is deprecated and will be removed in a future release. Please use INSERT instead
 UNLOCK TABLES;
 SET AUTOCOMMIT= 1;
 # Connection con2

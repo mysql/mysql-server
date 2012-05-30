@@ -169,7 +169,7 @@ INSERT INTO t1 SELECT 10 + c1, c2, c3 FROM t1;
 INSERT INTO t1 SELECT 20 + c1, c2, c3 FROM t1;
 INSERT INTO t1 SELECT 40 + c1, c2, c3 FROM t1;
 # Purge may or may not have cleaned up the DELETE FROM t1 WHERE c1 = 7;
---replace_result 6 5
+--replace_result 81 80
 EXPLAIN SELECT COUNT(*) FROM t1 WHERE c2 > 3;
 ANALYZE TABLE t1;
 
@@ -188,6 +188,8 @@ DROP TABLE t1_c2_stats;
 CREATE INDEX c2d ON t1(c2);
 # This should show the newly calculated stats by CREATE INDEX above,
 # not the faked cardinality=4 for c2d(c2).
+# Purge may or may not have cleaned up the DELETE FROM t1 WHERE c1 = 7;
+--replace_result 81 80
 SHOW INDEX FROM t1;
 EXPLAIN SELECT COUNT(*) FROM t1 WHERE c2 > 3;
 
@@ -372,13 +374,12 @@ connection default;
 reap;
 
 SHOW CREATE TABLE t1;
+SHOW CREATE TABLE t1;
 # The ER_NO_SUCH_TABLE is being thrown by ha_innobase::open().
 # The table does exist, only the tablespace does not exist.
---error ER_NO_SUCH_TABLE
 ALTER TABLE t1 DROP INDEX c2d, DROP INDEX c2f;
---error ER_NO_SUCH_TABLE
 ALTER TABLE t1 ADD INDEX c2h(c22f), ALGORITHM = INPLACE;
---error ER_NO_SUCH_TABLE
+--error ER_DUP_KEYNAME
 ALTER TABLE t1 ADD INDEX c2h(c22f), ALGORITHM = COPY;
 
 SET DEBUG_SYNC = 'RESET';

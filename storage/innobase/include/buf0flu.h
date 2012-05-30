@@ -95,23 +95,27 @@ void
 buf_flush_sync_datafiles(void);
 /*==========================*/
 /*******************************************************************//**
-This utility flushes dirty blocks from the end of the flush_list of
+This utility flushes dirty blocks from the end of the flush list of
 all buffer pool instances.
 NOTE: The calling thread is not allowed to own any latches on pages!
-@return number of blocks for which the write request was queued;
-ULINT_UNDEFINED if there was a flush of the same type already running */
+@return true if a batch was queued successfully for each buffer pool
+instance. false if another batch of same type was already running in
+at least one of the buffer pool instance */
 UNIV_INTERN
-ulint
+bool
 buf_flush_list(
-/*============*/
+/*===========*/
 	ulint		min_n,		/*!< in: wished minimum mumber of blocks
 					flushed (it is not guaranteed that the
 					actual number is that big, though) */
-	lsn_t		lsn_limit);	/*!< in the case BUF_FLUSH_LIST all
+	lsn_t		lsn_limit,	/*!< in the case BUF_FLUSH_LIST all
 					blocks whose oldest_modification is
 					smaller than this should be flushed
 					(if their number does not exceed
 					min_n), otherwise ignored */
+	ulint*		n_processed);	/*!< out: the number of pages
+					which were processed is passed
+					back to caller. Ignored if NULL */
 /******************************************************************//**
 This function picks up a single dirty page from the tail of the LRU
 list, flushes it, removes it from page_hash and LRU list and puts
@@ -176,31 +180,6 @@ buf_flush_ready_for_replace(
 /*========================*/
 	buf_page_t*	bpage);	/*!< in: buffer control block, must be
 				buf_page_in_file(bpage) and in the LRU list */
-
-/** @brief Statistics for selecting flush rate based on redo log
-generation speed.
-
-These statistics are generated for heuristics used in estimating the
-rate at which we should flush the dirty blocks to avoid bursty IO
-activity. Note that the rate of flushing not only depends on how many
-dirty pages we have in the buffer pool but it is also a fucntion of
-how much redo the workload is generating and at what rate. */
-
-struct buf_flush_stat_struct
-{
-	lsn_t	redo;		/**< amount of redo generated. */
-	ulint	n_flushed;	/**< number of pages flushed. */
-};
-
-/** Statistics for selecting flush rate of dirty pages. */
-typedef struct buf_flush_stat_struct buf_flush_stat_t;
-/*********************************************************************
-Update the historical stats that we are collecting for flush rate
-heuristics at the end of each interval. */
-UNIV_INTERN
-void
-buf_flush_stat_update(void);
-/*=======================*/
 /******************************************************************//**
 page_cleaner thread tasked with flushing dirty pages from the buffer
 pools. As of now we'll have only one instance of this thread.
@@ -238,6 +217,44 @@ UNIV_INTERN
 void
 buf_flush_free_flush_rbt(void);
 /*==========================*/
+
+/********************************************************************//**
+Writes a flushable page asynchronously from the buffer pool to a file.
+NOTE: in simulated aio we must call
+os_aio_simulated_wake_handler_threads after we have posted a batch of
+writes! NOTE: buf_pool->mutex and buf_page_get_mutex(bpage) must be
+held upon entering this function, and they will be released by this
+function. */
+UNIV_INTERN
+void
+buf_flush_page(
+/*===========*/
+	buf_pool_t*	buf_pool,	/*!< in: buffer pool instance */
+	buf_page_t*	bpage,		/*!< in: buffer control block */
+	buf_flush	flush_type)	/*!< in: type of flush */
+	__attribute__((nonnull));
+
+#ifdef UNIV_DEBUG
+/******************************************************************//**
+Check if there are any dirty pages that belong to a space id in the flush
+list in a particular buffer pool.
+@return	number of dirty pages present in a single buffer pool */
+UNIV_INTERN
+ulint
+buf_pool_get_dirty_pages_count(
+/*===========================*/
+	buf_pool_t*	buf_pool,	/*!< in: buffer pool */
+	ulint		id);		/*!< in: space id to check */
+/******************************************************************//**
+Check if there are any dirty pages that belong to a space id in the flush list.
+@return	count of dirty pages present in all the buffer pools */
+UNIV_INTERN
+ulint
+buf_flush_get_dirty_pages_count(
+/*============================*/
+	ulint		id);		/*!< in: space id to check */
+#endif /* UNIV_DEBUG */
+
 #endif /* !UNIV_HOTBACKUP */
 
 #ifndef UNIV_NONINL

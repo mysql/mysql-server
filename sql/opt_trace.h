@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -26,7 +26,7 @@ struct st_schema_table;
 struct TABLE_LIST;
 struct TABLE;
 class sp_head;
-class sp_instr;
+class sp_printable;
 class set_var_base;
 
 /**
@@ -1012,7 +1012,7 @@ public:
                   enum enum_sql_command sql_command,
                   List<set_var_base> *set_vars,
                   const char *query, size_t query_length,
-                  sp_instr *instr,
+                  sp_printable *instr,
                   const CHARSET_INFO *query_charset);
   ~Opt_trace_start();
 private:
@@ -1197,7 +1197,7 @@ public:
                   enum enum_sql_command sql_command,
                   List<set_var_base> *set_vars,
                   const char *query, size_t query_length,
-                  sp_instr *instr,
+                  sp_printable *instr,
                   const CHARSET_INFO *query_charset) {}
 };
 

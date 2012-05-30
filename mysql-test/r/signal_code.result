@@ -20,16 +20,16 @@ return 0;
 end $$
 show procedure code signal_proc;
 Pos	Instruction
-0	stmt 130 "SIGNAL foo"
-1	stmt 130 "SIGNAL foo SET MESSAGE_TEXT = "This i..."
-2	stmt 131 "RESIGNAL foo"
-3	stmt 131 "RESIGNAL foo SET MESSAGE_TEXT = "This..."
+0	stmt "SIGNAL foo"
+1	stmt "SIGNAL foo SET MESSAGE_TEXT = "This i..."
+2	stmt "RESIGNAL foo"
+3	stmt "RESIGNAL foo SET MESSAGE_TEXT = "This..."
 drop procedure signal_proc;
 show function code signal_func;
 Pos	Instruction
-0	stmt 130 "SIGNAL foo"
-1	stmt 130 "SIGNAL foo SET MESSAGE_TEXT = "This i..."
-2	stmt 131 "RESIGNAL foo"
-3	stmt 131 "RESIGNAL foo SET MESSAGE_TEXT = "This..."
+0	stmt "SIGNAL foo"
+1	stmt "SIGNAL foo SET MESSAGE_TEXT = "This i..."
+2	stmt "RESIGNAL foo"
+3	stmt "RESIGNAL foo SET MESSAGE_TEXT = "This..."
 4	freturn 3 0
 drop function signal_func;
