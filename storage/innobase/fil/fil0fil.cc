@@ -5114,7 +5114,7 @@ fil_iterate(
 	os_offset_t		offset;
 	ulint			page_no = 0;
 	ulint			space_id = callback.get_space_id();
-	os_offset_t		n_bytes = iter.n_io_buffers * iter.page_size;
+	ulint			n_bytes = iter.n_io_buffers * iter.page_size;
 
 	/* TODO: For compressed tables we do a lot of useless
 	copying for non-index pages. Unfortunately, it is
@@ -5142,7 +5142,9 @@ fil_iterate(
 		/* We have to read the exact number of bytes. Otherwise the
 		InnoDB IO functions croak on failed reads. */
 
-		n_bytes = ut_min(n_bytes, iter.end - offset);
+		n_bytes = static_cast<ulint>(
+			ut_min(static_cast<os_offset_t>(n_bytes),
+			       iter.end - offset));
 
 		ut_ad(n_bytes > 0);
 		ut_ad(!(n_bytes % iter.page_size));
