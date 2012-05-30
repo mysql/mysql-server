@@ -37,7 +37,7 @@ Created 2011-05-26 Marko Makela
 Delete-marked records are not copied to the rebuilt table. */
 enum row_tab_op {
 	/** Insert a record */
-	ROW_T_INSERT,
+	ROW_T_INSERT = 0x41,
 	/** Update a record in place */
 	ROW_T_UPDATE,
 	/** Delete (purge) a record */
@@ -1672,6 +1672,8 @@ row_log_table_apply_op(
 				dfield = dtuple_get_nth_field(old_pk, i);
 				dfield_set_data(dfield, field, len);
 			}
+
+			mrec = next_mrec;
 
 			/* Fetch the new value of the row as it was
 			in the old table definition. */
