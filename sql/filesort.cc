@@ -898,7 +898,7 @@ static void make_sortkey(register Sort_param *param,
 	else
 	  *to++=1;
       }
-      field->sort_string(to, sort_field->length);
+      field->make_sort_key(to, sort_field->length);
     }
     else
     {						// Item
