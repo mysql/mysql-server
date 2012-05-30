@@ -9,7 +9,7 @@ IF(ESSENTIALS)
  ENDIF()
 ELSE()
   SET(CPACK_COMPONENTS_USED 
-    "Server;Client;Development;SharedLibraries;Embedded;Documentation;IniFiles;Readme;Debuginfo")
+    "Server;Client;Development;SharedLibraries;Embedded;Documentation;IniFiles;Readme;Debuginfo;Common")
 ENDIF()
 
 SET( WIX_FEATURE_MySQLServer_EXTRA_FEATURES "DBInstance;SharedClientServerComponents")
@@ -34,6 +34,7 @@ SET(CPACK_COMPONENTS_ALL ${CPACK_ALL})
 # Always install (hidden), includes Readme files
 SET(CPACK_COMPONENT_GROUP_ALWAYSINSTALL_HIDDEN 1)
 SET(CPACK_COMPONENT_README_GROUP "AlwaysInstall")
+SET(CPACK_COMPONENT_COMMON_GROUP "AlwaysInstall")
 
 # Feature MySQL Server
 SET(CPACK_COMPONENT_GROUP_MYSQLSERVER_DISPLAY_NAME "MariaDB Server")
