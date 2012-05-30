@@ -115,6 +115,11 @@ TOKU_TYPE mysql_to_toku_type (Field* field) {
     case MYSQL_TYPE_FLOAT:
         ret_val = toku_type_float;
         goto exit;
+#if 50600 <= MYSQL_VERSION_ID && MYSQL_VERSION_ID <= 50699
+    case MYSQL_TYPE_DATETIME2:
+    case MYSQL_TYPE_TIMESTAMP2:
+    case MYSQL_TYPE_TIME2:
+#endif
     case MYSQL_TYPE_NEWDECIMAL:
     case MYSQL_TYPE_BIT:
         ret_val = toku_type_fixbinary;
@@ -151,7 +156,7 @@ TOKU_TYPE mysql_to_toku_type (Field* field) {
     case MYSQL_TYPE_GEOMETRY:
     case MYSQL_TYPE_DECIMAL:
     case MYSQL_TYPE_VAR_STRING:
-    default:
+    case MYSQL_TYPE_NULL:
         assert(false);
     }
 exit:
@@ -159,7 +164,7 @@ exit:
 }
 
 
-inline CHARSET_INFO* get_charset_from_num (u_int32_t charset_number) {
+static inline CHARSET_INFO* get_charset_from_num (u_int32_t charset_number) {
     //
     // patternmatched off of InnoDB, due to MySQL bug 42649
     //
@@ -179,7 +184,7 @@ inline CHARSET_INFO* get_charset_from_num (u_int32_t charset_number) {
 //
 // used to read the length of a variable sized field in a tokudb key (buf).
 //
-inline u_int32_t get_length_from_var_tokudata (uchar* buf, u_int32_t length_bytes) {
+static inline u_int32_t get_length_from_var_tokudata (uchar* buf, u_int32_t length_bytes) {
     u_int32_t length = (u_int32_t)(buf[0]);
     if (length_bytes == 2) {
         u_int32_t rest_of_length = (u_int32_t)buf[1];
@@ -192,7 +197,7 @@ inline u_int32_t get_length_from_var_tokudata (uchar* buf, u_int32_t length_byte
 // used to deduce the number of bytes used to store the length of a varstring/varbinary
 // in a key field stored in tokudb
 //
-inline u_int32_t get_length_bytes_from_max(u_int32_t max_num_bytes) {
+static inline u_int32_t get_length_bytes_from_max(u_int32_t max_num_bytes) {
     return (max_num_bytes > 255) ? 2 : 1;
 }
 
@@ -201,7 +206,7 @@ inline u_int32_t get_length_bytes_from_max(u_int32_t max_num_bytes) {
 //
 // assuming MySQL in little endian, and we are storing in little endian
 //
-inline uchar* pack_toku_int (uchar* to_tokudb, uchar* from_mysql, u_int32_t num_bytes) {
+static inline uchar* pack_toku_int (uchar* to_tokudb, uchar* from_mysql, u_int32_t num_bytes) {
     switch (num_bytes) {
     case (1):
         memcpy(to_tokudb, from_mysql, 1);
@@ -227,7 +232,7 @@ inline uchar* pack_toku_int (uchar* to_tokudb, uchar* from_mysql, u_int32_t num_
 //
 // assuming MySQL in little endian, and we are unpacking to little endian
 //
-inline uchar* unpack_toku_int(uchar* to_mysql, uchar* from_tokudb, u_int32_t num_bytes) {
+static inline uchar* unpack_toku_int(uchar* to_mysql, uchar* from_tokudb, u_int32_t num_bytes) {
     switch (num_bytes) {
     case (1):
         memcpy(to_mysql, from_tokudb, 1);
@@ -250,7 +255,7 @@ inline uchar* unpack_toku_int(uchar* to_mysql, uchar* from_tokudb, u_int32_t num
     return from_tokudb+num_bytes;
 }
 
-inline int cmp_toku_int (uchar* a_buf, uchar* b_buf, bool is_unsigned, u_int32_t num_bytes) {
+static inline int cmp_toku_int (uchar* a_buf, uchar* b_buf, bool is_unsigned, u_int32_t num_bytes) {
     int ret_val = 0;
     //
     // case for unsigned integers
@@ -356,18 +361,18 @@ exit:
     return ret_val;    
 }
 
-inline uchar* pack_toku_double (uchar* to_tokudb, uchar* from_mysql) {
+static inline uchar* pack_toku_double (uchar* to_tokudb, uchar* from_mysql) {
     memcpy(to_tokudb, from_mysql, sizeof(double));
     return to_tokudb + sizeof(double);
 }
 
 
-inline uchar* unpack_toku_double(uchar* to_mysql, uchar* from_tokudb) {
+static inline uchar* unpack_toku_double(uchar* to_mysql, uchar* from_tokudb) {
     memcpy(to_mysql, from_tokudb, sizeof(double));
     return from_tokudb + sizeof(double);
 }
 
-inline int cmp_toku_double(uchar* a_buf, uchar* b_buf) {
+static inline int cmp_toku_double(uchar* a_buf, uchar* b_buf) {
     int ret_val;
     double a_num;
     double b_num;
@@ -387,18 +392,18 @@ exit:
 }
 
 
-inline uchar* pack_toku_float (uchar* to_tokudb, uchar* from_mysql) {
+static inline uchar* pack_toku_float (uchar* to_tokudb, uchar* from_mysql) {
     memcpy(to_tokudb, from_mysql, sizeof(float));
     return to_tokudb + sizeof(float);
 }
 
 
-inline uchar* unpack_toku_float(uchar* to_mysql, uchar* from_tokudb) {
+static inline uchar* unpack_toku_float(uchar* to_mysql, uchar* from_tokudb) {
     memcpy(to_mysql, from_tokudb, sizeof(float));
     return from_tokudb + sizeof(float);
 }
 
-inline int cmp_toku_float(uchar* a_buf, uchar* b_buf) {
+static inline int cmp_toku_float(uchar* a_buf, uchar* b_buf) {
     int ret_val;
     float a_num;
     float b_num;
@@ -421,18 +426,18 @@ exit:
 }
 
 
-inline uchar* pack_toku_binary(uchar* to_tokudb, uchar* from_mysql, u_int32_t num_bytes) {
+static inline uchar* pack_toku_binary(uchar* to_tokudb, uchar* from_mysql, u_int32_t num_bytes) {
     memcpy(to_tokudb, from_mysql, num_bytes);
     return to_tokudb + num_bytes;
 }
 
-inline uchar* unpack_toku_binary(uchar* to_mysql, uchar* from_tokudb, u_int32_t num_bytes) {
+static inline uchar* unpack_toku_binary(uchar* to_mysql, uchar* from_tokudb, u_int32_t num_bytes) {
     memcpy(to_mysql, from_tokudb, num_bytes);
     return from_tokudb + num_bytes;
 }
 
 
-inline int cmp_toku_binary(
+static inline int cmp_toku_binary(
     uchar* a_buf, 
     u_int32_t a_num_bytes, 
     uchar* b_buf, 
@@ -485,7 +490,7 @@ uchar* pack_toku_varbinary_from_desc(
     return to_tokudb + length + length_bytes_in_tokudb;
 }
 
-inline uchar* pack_toku_varbinary(
+static inline uchar* pack_toku_varbinary(
     uchar* to_tokudb, 
     uchar* from_mysql, 
     u_int32_t length_bytes_in_mysql, //number of bytes used to encode the length in from_mysql
@@ -532,7 +537,7 @@ inline uchar* pack_toku_varbinary(
     return to_tokudb + length + length_bytes_in_tokudb;
 }
 
-inline uchar* unpack_toku_varbinary(
+static inline uchar* unpack_toku_varbinary(
     uchar* to_mysql, 
     uchar* from_tokudb, 
     u_int32_t length_bytes_in_tokudb, // number of bytes used to encode length in from_tokudb
@@ -569,7 +574,7 @@ inline uchar* unpack_toku_varbinary(
     return from_tokudb + length_bytes_in_tokudb+ length;
 }
 
-inline int cmp_toku_varbinary(
+static inline int cmp_toku_varbinary(
     uchar* a_buf, 
     uchar* b_buf, 
     u_int32_t length_bytes, //number of bytes used to encode length in a_buf and b_buf
@@ -591,7 +596,7 @@ inline int cmp_toku_varbinary(
     return ret_val;
 }
 
-inline uchar* pack_toku_blob(
+static inline uchar* pack_toku_blob(
     uchar* to_tokudb, 
     uchar* from_mysql, 
     u_int32_t length_bytes_in_tokudb, //number of bytes to use to encode the length in to_tokudb
@@ -658,7 +663,7 @@ inline uchar* pack_toku_blob(
 }
 
 
-inline uchar* unpack_toku_blob(
+static inline uchar* unpack_toku_blob(
     uchar* to_mysql, 
     uchar* from_tokudb, 
     u_int32_t length_bytes_in_tokudb, // number of bytes used to encode length in from_tokudb
@@ -747,7 +752,7 @@ uchar* pack_toku_varstring_from_desc(
     return to_tokudb + length + length_bytes_in_tokudb;
 }
 
-inline uchar* pack_toku_varstring(
+static inline uchar* pack_toku_varstring(
     uchar* to_tokudb, 
     uchar* from_mysql, 
     u_int32_t length_bytes_in_tokudb, //number of bytes to use to encode the length in to_tokudb
@@ -810,7 +815,7 @@ inline uchar* pack_toku_varstring(
     return to_tokudb + length + length_bytes_in_tokudb;
 }
 
-inline int cmp_toku_string(
+static inline int cmp_toku_string(
     uchar* a_buf,
     u_int32_t a_num_bytes,
     uchar* b_buf, 
@@ -834,7 +839,7 @@ inline int cmp_toku_string(
     return ret_val;
 }
 
-inline int cmp_toku_varstring(
+static inline int cmp_toku_varstring(
     uchar* a_buf, 
     uchar* b_buf, 
     u_int32_t length_bytes, //number of bytes used to encode length in a_buf and b_buf
@@ -858,7 +863,7 @@ inline int cmp_toku_varstring(
     return ret_val;
 }
 
-inline int tokudb_compare_two_hidden_keys(
+static inline int tokudb_compare_two_hidden_keys(
     const void* new_key_data, 
     const u_int32_t new_key_size, 
     const void*  saved_key_data,
@@ -1091,7 +1096,7 @@ exit:
 }
 
     
-inline int compare_toku_field(
+static inline int compare_toku_field(
     uchar* a_buf, 
     uchar* b_buf, 
     uchar* row_desc,
@@ -2908,6 +2913,11 @@ bool fields_are_same_type(
     case MYSQL_TYPE_FLOAT:
     case MYSQL_TYPE_NEWDECIMAL:
     case MYSQL_TYPE_BIT:
+#if 50600 <= MYSQL_VERSION_ID && MYSQL_VERSION_ID <= 50699
+    case MYSQL_TYPE_DATETIME2:
+    case MYSQL_TYPE_TIMESTAMP2:
+    case MYSQL_TYPE_TIME2:
+#endif
     {
         TOKU_TYPE toku_type = mysql_to_toku_type(a);
         if (toku_type == toku_type_int) {
@@ -2992,7 +3002,7 @@ bool fields_are_same_type(
     case MYSQL_TYPE_GEOMETRY:
     case MYSQL_TYPE_DECIMAL:
     case MYSQL_TYPE_VAR_STRING:
-    default:
+    case MYSQL_TYPE_NULL:
         assert(false);
     }
 
