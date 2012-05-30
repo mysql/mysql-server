@@ -6937,8 +6937,10 @@ Item_func_sp::fix_fields(THD *thd, Item **ref)
 
   res= Item_func::fix_fields(thd, ref);
 
-  /* this is reset by Item_func::fix_fields. */
+  /* These is reset/set by Item_func::fix_fields. */
   with_stored_program= true;
+  if (!m_sp->m_chistics->detistic || !tables_locked_cache)
+    const_item_cache= false;
 
   if (res)
     DBUG_RETURN(res);
@@ -6967,9 +6969,6 @@ Item_func_sp::fix_fields(THD *thd, Item **ref)
     
 #endif /* ! NO_EMBEDDED_ACCESS_CHECKS */
   }
-
-  if (!m_sp->m_chistics->detistic)
-    const_item_cache= false;
 
   DBUG_RETURN(res);
 }
