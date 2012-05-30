@@ -2956,7 +2956,9 @@ toku_test_db_redirect_dictionary(DB * db, char * dname_of_new_file, DB_TXN *dbtx
     assert_zero(r);
     new_iname_in_env = iname_dbt.data;
 
+    toku_multi_operation_client_lock(); //Must hold MO lock for dictionary_redirect.
     r = toku_dictionary_redirect(new_iname_in_env, brt, tokutxn);
+    toku_multi_operation_client_unlock();
 
     toku_free(new_iname_in_env);
     return r;
