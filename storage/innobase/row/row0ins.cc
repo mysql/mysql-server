@@ -1951,9 +1951,12 @@ end_scan:
 Checks if a unique key violation error would occur at an index entry
 insert. Sets shared locks on possible duplicate records. Works only
 for a clustered index!
-@return DB_SUCCESS if no error, DB_DUPLICATE_KEY if error,
-DB_LOCK_WAIT if we have to wait for a lock on a possible duplicate
-record */
+@retval DB_SUCCESS if no error
+@retval DB_DUPLICATE_KEY if error,
+@retval DB_LOCK_WAIT if we have to wait for a lock on a possible duplicate
+record
+@retval DB_SUCCESS_LOCKED_REC if an exact match of the record was found
+in online table rebuild (flags & (BTR_KEEP_SYS_FLAG | BTR_NO_LOCKING_FLAG)) */
 static __attribute__((nonnull, warn_unused_result))
 dberr_t
 row_ins_duplicate_error_in_clust(
@@ -2037,8 +2040,43 @@ row_ins_duplicate_error_in_clust(
 				goto func_exit;
 			}
 
-			if (row_ins_dupl_error_with_rec(
-				    rec, entry, cursor->index, offsets)) {
+			if (flags
+			    & (BTR_KEEP_SYS_FLAG | BTR_NO_LOCKING_FLAG)) {
+				/* We are inserting into the rebuilt table.
+				See if this is a real duplicate, or an
+				exact match of a previous insert. */
+				ulint	fields	= 0;
+				ulint	bytes	= 0;
+
+				/* During rebuild, there should not be any
+				delete-marked rows in the new table. */
+				ut_ad(!rec_get_deleted_flag(
+					      rec, rec_offs_comp(offsets)));
+				ut_ad(dtuple_get_n_fields_cmp(entry)
+				      == n_unique);
+
+				/* Compare the PRIMARY KEY fields and the
+				DB_TRX_ID, DB_ROLL_PTR. */
+				cmp_dtuple_rec_with_match_low(
+					entry, rec, offsets,
+					n_unique + 2, &fields, &bytes);
+
+				if (fields >= n_unique) {
+					if (fields == n_unique + 2) {
+						/* This is an exact match. */
+						ut_ad(bytes == 0);
+						/* Special return code to
+						indicate that the row was
+						already inserted. */
+						err = DB_SUCCESS_LOCKED_REC;
+						goto func_exit;
+					}
+
+					goto duplicate;
+				}
+			} else if (row_ins_dupl_error_with_rec(
+					   rec, entry, cursor->index, offsets)) {
+duplicate:
 				trx->error_info = cursor->index;
 				err = DB_DUPLICATE_KEY;
 				goto func_exit;
@@ -2087,9 +2125,7 @@ row_ins_duplicate_error_in_clust(
 
 			if (row_ins_dupl_error_with_rec(
 				    rec, entry, cursor->index, offsets)) {
-				trx->error_info = cursor->index;
-				err = DB_DUPLICATE_KEY;
-				goto func_exit;
+				goto duplicate;
 			}
 		}
 
