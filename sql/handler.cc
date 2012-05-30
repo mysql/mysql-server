@@ -6200,7 +6200,38 @@ bool DsMrr_impl::choose_mrr_impl(uint keyno, ha_rows rows, uint *flags,
     /* Use the default implementation, don't modify args: See comments  */
     return TRUE;
   }
-  
+
+  /*
+    If @@optimizer_switch has "mrr_cost_based" on, we should avoid
+    using DS-MRR for queries where it is likely that the records are
+    stored in memory. Since there is currently no way to determine
+    this, we use a heuristic:
+    a) if the storage engine has a memory buffer, DS-MRR is only
+       considered if the table size is bigger than the buffer.
+    b) if the storage engine does not have a memory buffer, DS-MRR is
+       only considered if the table size is bigger than 100MB.
+    c) Since there is an initial setup cost of DS-MRR, so it is only
+       considered if at least 50 records will be read.
+  */
+  if (thd->optimizer_switch_flag(OPTIMIZER_SWITCH_MRR_COST_BASED))
+  {
+    /*
+      If the storage engine has a database buffer we use this as the
+      minimum size the table should have before considering DS-MRR.
+    */ 
+    longlong min_file_size= table->file->get_memory_buffer_size();
+    if (min_file_size == -1)
+    {
+      // No estimate for database buffer
+      min_file_size= 100 * 1024 * 1024;    // 100 MB
+    }
+
+    if (table->file->stats.data_file_length < 
+        static_cast<ulonglong>(min_file_size) ||
+        rows <= 50)
+      return true;                 // Use the default implementation 
+  }
+
   Cost_estimate dsmrr_cost;
   if (get_disk_sweep_mrr_cost(keyno, rows, *flags, bufsz, &dsmrr_cost))
     return TRUE;
