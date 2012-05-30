@@ -2163,6 +2163,7 @@ row_log_allocate(
 	log->fd = row_merge_file_create_low();
 	mutex_create(index_online_log_key, &log->mutex,
 		     SYNC_INDEX_ONLINE_LOG);
+	log->trx_rb = NULL;
 	log->table = table;
 	log->same_pk = same_pk;
 	log->error = DB_SUCCESS;
