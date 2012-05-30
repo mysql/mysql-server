@@ -3835,6 +3835,11 @@ check_next_foreign:
 
 		is_temp = table->flags2 & DICT_TF2_TEMPORARY;
 		ut_a(table->dir_path_of_temp_table == NULL || is_temp);
+		if (table->tablespace_discarded || table->ibd_file_missing) {
+			/* Do not attempt to drop known-to-be-missing
+			tablespaces. */
+			space_id = 0;
+		}
 
 		if (dict_table_has_fts_index(table)
 		    || DICT_TF2_FLAG_IS_SET(table, DICT_TF2_FTS_HAS_DOC_ID)) {
