@@ -2490,7 +2490,7 @@ int Field_decimal::cmp(const uchar *a_ptr,const uchar *b_ptr)
 }
 
 
-void Field_decimal::sort_string(uchar *to,uint length)
+void Field_decimal::make_sort_key(uchar *to, uint length)
 {
   uchar *str,*end;
   for (str=ptr,end=ptr+length;
@@ -2889,10 +2889,9 @@ int Field_new_decimal::cmp(const uchar *a,const uchar*b)
 }
 
 
-void Field_new_decimal::sort_string(uchar *buff,
-                                    uint length __attribute__((unused)))
+void Field_new_decimal::make_sort_key(uchar *buff, uint length)
 {
-  memcpy(buff, ptr, bin_size);
+  memcpy(buff, ptr, min<uint>(length, bin_size));
 }
 
 
@@ -3199,8 +3198,9 @@ int Field_tiny::cmp(const uchar *a_ptr, const uchar *b_ptr)
   return (a < b) ? -1 : (a > b) ? 1 : 0;
 }
 
-void Field_tiny::sort_string(uchar *to,uint length __attribute__((unused)))
+void Field_tiny::make_sort_key(uchar *to, uint length)
 {
+  DBUG_ASSERT(length >= 1);
   if (unsigned_flag)
     *to= *ptr;
   else
@@ -3433,8 +3433,9 @@ int Field_short::cmp(const uchar *a_ptr, const uchar *b_ptr)
   return (a < b) ? -1 : (a > b) ? 1 : 0;
 }
 
-void Field_short::sort_string(uchar *to,uint length __attribute__((unused)))
+void Field_short::make_sort_key(uchar *to, uint length)
 {
+  DBUG_ASSERT(length >= 2);
 #ifdef WORDS_BIGENDIAN
   if (!table->s->db_low_byte_first)
   {
@@ -3637,8 +3638,9 @@ int Field_medium::cmp(const uchar *a_ptr, const uchar *b_ptr)
   return (a < b) ? -1 : (a > b) ? 1 : 0;
 }
 
-void Field_medium::sort_string(uchar *to,uint length __attribute__((unused)))
+void Field_medium::make_sort_key(uchar *to, uint length)
 {
+  DBUG_ASSERT(length >= 3);
   if (unsigned_flag)
     to[0] = ptr[2];
   else
@@ -3882,8 +3884,9 @@ int Field_long::cmp(const uchar *a_ptr, const uchar *b_ptr)
   return (a < b) ? -1 : (a > b) ? 1 : 0;
 }
 
-void Field_long::sort_string(uchar *to,uint length __attribute__((unused)))
+void Field_long::make_sort_key(uchar *to, uint length)
 {
+  DBUG_ASSERT(length >= 4);  
 #ifdef WORDS_BIGENDIAN
   if (!table->s->db_low_byte_first)
   {
@@ -4129,38 +4132,17 @@ int Field_longlong::cmp(const uchar *a_ptr, const uchar *b_ptr)
   return (a < b) ? -1 : (a > b) ? 1 : 0;
 }
 
-void Field_longlong::sort_string(uchar *to,uint length __attribute__((unused)))
+
+void Field_longlong::make_sort_key(uchar *to, uint length)
 {
+  const int from_length= PACK_LENGTH;
+  const int to_length= min<int>(from_length, length);
 #ifdef WORDS_BIGENDIAN
-  if (!table->s->db_low_byte_first)
-  {
-    if (unsigned_flag)
-      to[0] = ptr[0];
-    else
-      to[0] = (char) (ptr[0] ^ 128);		/* Revers signbit */
-    to[1]   = ptr[1];
-    to[2]   = ptr[2];
-    to[3]   = ptr[3];
-    to[4]   = ptr[4];
-    to[5]   = ptr[5];
-    to[6]   = ptr[6];
-    to[7]   = ptr[7];
-  }
+  if (table == NULL || !table->s->db_low_byte_first)
+    copy_integer<true>(to, to_length, ptr, from_length, unsigned_flag);
   else
 #endif
-  {
-    if (unsigned_flag)
-      to[0] = ptr[7];
-    else
-      to[0] = (char) (ptr[7] ^ 128);		/* Revers signbit */
-    to[1]   = ptr[6];
-    to[2]   = ptr[5];
-    to[3]   = ptr[4];
-    to[4]   = ptr[3];
-    to[5]   = ptr[2];
-    to[6]   = ptr[1];
-    to[7]   = ptr[0];
-  }
+    copy_integer<false>(to, to_length, ptr, from_length, unsigned_flag);
 }
 
 
@@ -4370,8 +4352,9 @@ int Field_float::cmp(const uchar *a_ptr, const uchar *b_ptr)
 
 #define FLT_EXP_DIG (sizeof(float)*8-FLT_MANT_DIG)
 
-void Field_float::sort_string(uchar *to,uint length __attribute__((unused)))
+void Field_float::make_sort_key(uchar *to, uint length)
 {
+  DBUG_ASSERT(length >= 4);
   float nr;
 #ifdef WORDS_BIGENDIAN
   if (table->s->db_low_byte_first)
@@ -4380,13 +4363,13 @@ void Field_float::sort_string(uchar *to,uint length __attribute__((unused)))
   }
   else
 #endif
-    memcpy(&nr, ptr, sizeof(float));
+    memcpy(&nr, ptr, min<uint>(length, sizeof(float)));
 
   uchar *tmp= to;
   if (nr == (float) 0.0)
   {						/* Change to zero string */
     tmp[0]=(uchar) 128;
-    memset(tmp+1, 0, sizeof(nr)-1);
+    memset(tmp + 1, 0, min<uint>(length, sizeof(nr) - 1));
   }
   else
   {
@@ -4706,18 +4689,25 @@ int Field_double::cmp(const uchar *a_ptr, const uchar *b_ptr)
 
 /* The following should work for IEEE */
 
-void Field_double::sort_string(uchar *to,uint length __attribute__((unused)))
+void Field_double::make_sort_key(uchar *to, uint length)
 {
   double nr;
 #ifdef WORDS_BIGENDIAN
   if (table->s->db_low_byte_first)
   {
-    float8get(nr,ptr);
+    float8get(nr, ptr);
   }
   else
 #endif
-    doubleget(nr,ptr);
-  change_double_for_sort(nr, to);
+    doubleget(nr, ptr);
+  if (length < 8)
+  {
+    uchar buff[8];
+    change_double_for_sort(nr, buff);
+    memcpy(to, buff, length);
+  }
+  else
+    change_double_for_sort(nr, to);
 }
 
 
@@ -5460,7 +5450,7 @@ int Field_timestamp::cmp(const uchar *a_ptr, const uchar *b_ptr)
 }
 
 
-void Field_timestamp::sort_string(uchar *to,uint length __attribute__((unused)))
+void Field_timestamp::make_sort_key(uchar *to,uint length __attribute__((unused)))
 {
 #ifdef WORDS_BIGENDIAN
   if (!table || !table->s->db_low_byte_first)
@@ -5805,8 +5795,9 @@ int Field_time::cmp(const uchar *a_ptr, const uchar *b_ptr)
 }
 
 
-void Field_time::sort_string(uchar *to,uint length __attribute__((unused)))
+void Field_time::make_sort_key(uchar *to, uint length)
 {
+  DBUG_ASSERT(length >= 3);
   to[0] = (uchar) (ptr[2] ^ 128);
   to[1] = ptr[1];
   to[2] = ptr[0];
@@ -6199,8 +6190,9 @@ int Field_newdate::cmp(const uchar *a_ptr, const uchar *b_ptr)
 }
 
 
-void Field_newdate::sort_string(uchar *to,uint length __attribute__((unused)))
+void Field_newdate::make_sort_key(uchar *to, uint length)
 {
+  DBUG_ASSERT(length >= 3);
   to[0] = ptr[2];
   to[1] = ptr[1];
   to[2] = ptr[0];
@@ -6382,32 +6374,16 @@ int Field_datetime::cmp(const uchar *a_ptr, const uchar *b_ptr)
     ((ulonglong) a > (ulonglong) b) ? 1 : 0;
 }
 
-void Field_datetime::sort_string(uchar *to,uint length __attribute__((unused)))
+void Field_datetime::make_sort_key(uchar *to, uint length)
 {
+  const int pack_length= PACK_LENGTH;
+  const int to_length= min<uint>(pack_length, length);
 #ifdef WORDS_BIGENDIAN
   if (!table || !table->s->db_low_byte_first)
-  {
-    to[0] = ptr[0];
-    to[1] = ptr[1];
-    to[2] = ptr[2];
-    to[3] = ptr[3];
-    to[4] = ptr[4];
-    to[5] = ptr[5];
-    to[6] = ptr[6];
-    to[7] = ptr[7];
-  }
+    copy_integer<true>(to, to_length, ptr, pack_length, true);
   else
 #endif
-  {
-    to[0] = ptr[7];
-    to[1] = ptr[6];
-    to[2] = ptr[5];
-    to[3] = ptr[4];
-    to[4] = ptr[3];
-    to[5] = ptr[2];
-    to[6] = ptr[1];
-    to[7] = ptr[0];
-  }
+  copy_integer<false>(to, to_length, ptr, pack_length, true);
 }
 
 
@@ -6850,7 +6826,7 @@ int Field_string::cmp(const uchar *a_ptr, const uchar *b_ptr)
 }
 
 
-void Field_string::sort_string(uchar *to,uint length)
+void Field_string::make_sort_key(uchar *to, uint length)
 {
   uint tmp __attribute__((unused))=
     field_charset->coll->strnxfrm(field_charset,
@@ -7296,7 +7272,7 @@ int Field_varstring::key_cmp(const uchar *a,const uchar *b)
 }
 
 
-void Field_varstring::sort_string(uchar *to,uint length)
+void Field_varstring::make_sort_key(uchar *to,uint length)
 {
   uint tot_length=  length_bytes == 1 ? (uint) *ptr : uint2korr(ptr);
 
@@ -8009,7 +7985,7 @@ uint32 Field_blob::sort_length() const
 }
 
 
-void Field_blob::sort_string(uchar *to,uint length)
+void Field_blob::make_sort_key(uchar *to,uint length)
 {
   uchar *blob;
   uint blob_length=get_length();
@@ -8496,15 +8472,14 @@ int Field_enum::cmp(const uchar *a_ptr, const uchar *b_ptr)
   return (a < b) ? -1 : (a > b) ? 1 : 0;
 }
 
-void Field_enum::sort_string(uchar *to,uint length __attribute__((unused)))
+void Field_enum::make_sort_key(uchar *to, uint length)
 {
-  ulonglong value=Field_enum::val_int();
-  to+=packlength-1;
-  for (uint i=0 ; i < packlength ; i++)
-  {
-    *to-- = (uchar) (value & 255);
-    value>>=8;
-  }
+#ifdef WORDS_BIGENDIAN
+  if (!table->s->db_low_byte_first)
+    copy_integer<true>(to, length, ptr, packlength, true);
+  else
+#endif
+  copy_integer<false>(to, length, ptr, packlength, true);
 }
 
 

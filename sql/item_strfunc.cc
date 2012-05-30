@@ -3338,7 +3338,7 @@ String *Item_func_weight_string::val_str(String *str)
   if (field)
   {
     frm_length= field->pack_length();
-    field->sort_string((uchar *) tmp_value.ptr(), tmp_length);
+    field->make_sort_key((uchar *) tmp_value.ptr(), tmp_length);
   }
   else
     frm_length= cs->coll->strnxfrm(cs,
