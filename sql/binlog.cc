@@ -1889,7 +1889,7 @@ bool mysql_show_binlog_events(THD* thd)
 
 MYSQL_BIN_LOG::MYSQL_BIN_LOG(uint *sync_period)
   :bytes_written(0), prepared_xids(0), file_id(1), open_count(1),
-   sync_period_ptr(sync_period),
+   sync_period_ptr(sync_period), sync_counter(0),
    is_relay_log(0), signal_cnt(0),
    checksum_alg_reset(BINLOG_CHECKSUM_ALG_UNDEF),
    relay_log_checksum_alg(BINLOG_CHECKSUM_ALG_UNDEF),
