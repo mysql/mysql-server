@@ -99,7 +99,7 @@ dict_drop_index_tree(
 	mtr_t*	mtr);	/*!< in: mtr having the latch on the record page */
 /****************************************************************//**
 Creates the foreign key constraints system tables inside InnoDB
-at database creation or database start if they are not found or are
+at server bootstrap or server start if they are not found or are
 not of the right form.
 @return	DB_SUCCESS or error code */
 UNIV_INTERN
@@ -130,8 +130,26 @@ dict_create_add_foreigns_to_dictionary(
 	trx_t*		trx)	/*!< in: transaction */
 	__attribute__((nonnull, warn_unused_result));
 
-/* Table create node structure */
+/********************************************************************//**
+Add a single foreign key definition to the data dictionary tables in the
+database. We also generate names to constraints that were not named by the
+user. A generated constraint has a name of the format
+databasename/tablename_ibfk_NUMBER, where the numbers start from 1, and
+are given locally for this table, that is, the number is not global, as in
+the old format constraints < 4.0.18 it used to be.
+@return error code or DB_SUCCESS */
+UNIV_INTERN
+dberr_t
+dict_create_add_foreign_to_dictionary(
+/*==================================*/
+	ulint*		id_nr,	/*!< in/out: number to use in id generation;
+				incremented if used */
+	dict_table_t*	table,	/*!< in: table */
+	dict_foreign_t*	foreign,/*!< in: foreign */
+	trx_t*		trx)	/*!< in/out: dictionary transaction */
+	__attribute__((nonnull, warn_unused_result));
 
+/* Table create node structure */
 struct tab_node_struct{
 	que_common_t	common;	/*!< node type: QUE_NODE_TABLE_CREATE */
 	dict_table_t*	table;	/*!< table to create, built as a memory data

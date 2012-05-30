@@ -267,7 +267,7 @@ EXPLAIN
       "access_type": "ALL",
       "rows": 7,
       "filtered": 100,
-      "attached_condition": "(<in_optimizer>(`test`.`t1`.`i`,<exists>(select 1 from `test`.`t2` where ((`test`.`t1`.`i` = 10) and (<cache>(`test`.`t1`.`i`) = `test`.`t2`.`i`)))) or <in_optimizer>(`test`.`t1`.`i`,<exists>(select 1 from `test`.`t4` where (<cache>(`test`.`t1`.`i`) = `test`.`t4`.`i`))))",
+      "attached_condition": "(<in_optimizer>(`test`.`t1`.`i`,<exists>(select 1 from `test`.`t2` where ((`test`.`t1`.`i` = 10) and (<cache>(`test`.`t1`.`i`) = `test`.`t2`.`i`)))) or <in_optimizer>(`test`.`t1`.`i`,<exists>(select 1 from `test`.`t4` where 0)))",
       "attached_subqueries": [
         {
           "dependent": true,
@@ -566,7 +566,7 @@ EXPLAIN
             "access_type": "ALL",
             "rows": 2,
             "filtered": 100,
-            "attached_condition": "trigcond_if(outer_field_is_not_null, ((<cache>(`test`.`t1`.`i`) >= `test`.`t2`.`i`) or isnull(`test`.`t2`.`i`)), true)"
+            "attached_condition": "<if>(outer_field_is_not_null, ((<cache>(`test`.`t1`.`i`) >= `test`.`t2`.`i`) or isnull(`test`.`t2`.`i`)), true)"
           } /* table */
         } /* query_block */
       },
@@ -580,7 +580,7 @@ EXPLAIN
             "access_type": "ALL",
             "rows": 2,
             "filtered": 100,
-            "attached_condition": "trigcond_if(outer_field_is_not_null, ((<cache>(`test`.`t1`.`i`) <= `test`.`t2`.`i`) or isnull(`test`.`t2`.`i`)), true)"
+            "attached_condition": "<if>(outer_field_is_not_null, ((<cache>(`test`.`t1`.`i`) <= `test`.`t2`.`i`) or isnull(`test`.`t2`.`i`)), true)"
           } /* table */
         } /* query_block */
       }
@@ -588,7 +588,7 @@ EXPLAIN
   } /* query_block */
 }
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` having (<not>(<in_optimizer>(`test`.`t1`.`i`,<exists>(/* select#2 */ select 1 from `test`.`t2` where trigcond_if(outer_field_is_not_null, ((<cache>(`test`.`t1`.`i`) <= `test`.`t2`.`i`) or isnull(`test`.`t2`.`i`)), true) having trigcond_if(outer_field_is_not_null, <is_not_null_test>(`test`.`t2`.`i`), true)))) or <not>(<in_optimizer>(`test`.`t1`.`i`,<exists>(/* select#3 */ select 1 from `test`.`t2` where trigcond_if(outer_field_is_not_null, ((<cache>(`test`.`t1`.`i`) >= `test`.`t2`.`i`) or isnull(`test`.`t2`.`i`)), true) having trigcond_if(outer_field_is_not_null, <is_not_null_test>(`test`.`t2`.`i`), true)))))
+Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` having (<not>(<in_optimizer>(`test`.`t1`.`i`,<exists>(/* select#2 */ select 1 from `test`.`t2` where <if>(outer_field_is_not_null, ((<cache>(`test`.`t1`.`i`) <= `test`.`t2`.`i`) or isnull(`test`.`t2`.`i`)), true) having <if>(outer_field_is_not_null, <is_not_null_test>(`test`.`t2`.`i`), true)))) or <not>(<in_optimizer>(`test`.`t1`.`i`,<exists>(/* select#3 */ select 1 from `test`.`t2` where <if>(outer_field_is_not_null, ((<cache>(`test`.`t1`.`i`) >= `test`.`t2`.`i`) or isnull(`test`.`t2`.`i`)), true) having <if>(outer_field_is_not_null, <is_not_null_test>(`test`.`t2`.`i`), true)))))
 # subquery in the GROUP BY clause
 EXPLAIN SELECT * FROM t1 GROUP BY i > ALL (SELECT i FROM t2) OR i < ALL (SELECT i FROM t2);;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
@@ -620,7 +620,7 @@ EXPLAIN
               "access_type": "ALL",
               "rows": 2,
               "filtered": 100,
-              "attached_condition": "trigcond_if(outer_field_is_not_null, ((<cache>(`test`.`t1`.`i`) >= `test`.`t2`.`i`) or isnull(`test`.`t2`.`i`)), true)"
+              "attached_condition": "<if>(outer_field_is_not_null, ((<cache>(`test`.`t1`.`i`) >= `test`.`t2`.`i`) or isnull(`test`.`t2`.`i`)), true)"
             } /* table */
           } /* query_block */
         },
@@ -634,7 +634,7 @@ EXPLAIN
               "access_type": "ALL",
               "rows": 2,
               "filtered": 100,
-              "attached_condition": "trigcond_if(outer_field_is_not_null, ((<cache>(`test`.`t1`.`i`) <= `test`.`t2`.`i`) or isnull(`test`.`t2`.`i`)), true)"
+              "attached_condition": "<if>(outer_field_is_not_null, ((<cache>(`test`.`t1`.`i`) <= `test`.`t2`.`i`) or isnull(`test`.`t2`.`i`)), true)"
             } /* table */
           } /* query_block */
         }
@@ -643,7 +643,7 @@ EXPLAIN
   } /* query_block */
 }
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` group by (<not>(<in_optimizer>(`test`.`t1`.`i`,<exists>(/* select#2 */ select 1 from `test`.`t2` where trigcond_if(outer_field_is_not_null, ((<cache>(`test`.`t1`.`i`) <= `test`.`t2`.`i`) or isnull(`test`.`t2`.`i`)), true) having trigcond_if(outer_field_is_not_null, <is_not_null_test>(`test`.`t2`.`i`), true)))) or <not>(<in_optimizer>(`test`.`t1`.`i`,<exists>(/* select#3 */ select 1 from `test`.`t2` where trigcond_if(outer_field_is_not_null, ((<cache>(`test`.`t1`.`i`) >= `test`.`t2`.`i`) or isnull(`test`.`t2`.`i`)), true) having trigcond_if(outer_field_is_not_null, <is_not_null_test>(`test`.`t2`.`i`), true)))))
+Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` group by (<not>(<in_optimizer>(`test`.`t1`.`i`,<exists>(/* select#2 */ select 1 from `test`.`t2` where <if>(outer_field_is_not_null, ((<cache>(`test`.`t1`.`i`) <= `test`.`t2`.`i`) or isnull(`test`.`t2`.`i`)), true) having <if>(outer_field_is_not_null, <is_not_null_test>(`test`.`t2`.`i`), true)))) or <not>(<in_optimizer>(`test`.`t1`.`i`,<exists>(/* select#3 */ select 1 from `test`.`t2` where <if>(outer_field_is_not_null, ((<cache>(`test`.`t1`.`i`) >= `test`.`t2`.`i`) or isnull(`test`.`t2`.`i`)), true) having <if>(outer_field_is_not_null, <is_not_null_test>(`test`.`t2`.`i`), true)))))
 # subquery in the SELECT list
 EXPLAIN SELECT (SELECT i + 1 FROM t1 ORDER BY RAND() LIMIT 1), i FROM t1;;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
@@ -739,7 +739,7 @@ EXPLAIN
       "access_type": "ALL",
       "rows": 2,
       "filtered": 100,
-      "attached_condition": "<in_optimizer>(`test`.`t1`.`a`,<exists>(select 1 from `test`.`t2` where (<nop>(<in_optimizer>((select `test`.`t3`.`e` from `test`.`t3`),<exists>(select 1 from `test`.`t3` where (`test`.`t1`.`b` and trigcond_if(outer_field_is_not_null, ((<cache>((select `test`.`t3`.`e` from `test`.`t3`)) < `test`.`t3`.`e`) or isnull(`test`.`t3`.`e`)), true)) having trigcond_if(outer_field_is_not_null, <is_not_null_test>(`test`.`t3`.`e`), true)))) and (<cache>(`test`.`t1`.`a`) = `test`.`t2`.`c`))))",
+      "attached_condition": "<in_optimizer>(`test`.`t1`.`a`,<exists>(select 1 from `test`.`t2` where (<nop>(<in_optimizer>((select `test`.`t3`.`e` from `test`.`t3`),<exists>(select 1 from `test`.`t3` where (`test`.`t1`.`b` and <if>(outer_field_is_not_null, ((<cache>((select `test`.`t3`.`e` from `test`.`t3`)) < `test`.`t3`.`e`) or isnull(`test`.`t3`.`e`)), true)) having <if>(outer_field_is_not_null, <is_not_null_test>(`test`.`t3`.`e`), true)))) and (<cache>(`test`.`t1`.`a`) = `test`.`t2`.`c`))))",
       "attached_subqueries": [
         {
           "dependent": true,
@@ -751,7 +751,7 @@ EXPLAIN
               "access_type": "ALL",
               "rows": 2,
               "filtered": 100,
-              "attached_condition": "(<nop>(<in_optimizer>((select `test`.`t3`.`e` from `test`.`t3`),<exists>(select 1 from `test`.`t3` where (`test`.`t1`.`b` and trigcond_if(outer_field_is_not_null, ((<cache>((select `test`.`t3`.`e` from `test`.`t3`)) < `test`.`t3`.`e`) or isnull(`test`.`t3`.`e`)), true)) having trigcond_if(outer_field_is_not_null, <is_not_null_test>(`test`.`t3`.`e`), true)))) and (<cache>(`test`.`t1`.`a`) = `test`.`t2`.`c`))",
+              "attached_condition": "(<nop>(<in_optimizer>((select `test`.`t3`.`e` from `test`.`t3`),<exists>(select 1 from `test`.`t3` where (`test`.`t1`.`b` and <if>(outer_field_is_not_null, ((<cache>((select `test`.`t3`.`e` from `test`.`t3`)) < `test`.`t3`.`e`) or isnull(`test`.`t3`.`e`)), true)) having <if>(outer_field_is_not_null, <is_not_null_test>(`test`.`t3`.`e`), true)))) and (<cache>(`test`.`t1`.`a`) = `test`.`t2`.`c`))",
               "attached_subqueries": [
                 {
                   "dependent": true,
@@ -763,7 +763,7 @@ EXPLAIN
                       "access_type": "ALL",
                       "rows": 2,
                       "filtered": 100,
-                      "attached_condition": "(`test`.`t1`.`b` and trigcond_if(outer_field_is_not_null, ((<cache>((select `test`.`t3`.`e` from `test`.`t3`)) < `test`.`t3`.`e`) or isnull(`test`.`t3`.`e`)), true))"
+                      "attached_condition": "(`test`.`t1`.`b` and <if>(outer_field_is_not_null, ((<cache>((select `test`.`t3`.`e` from `test`.`t3`)) < `test`.`t3`.`e`) or isnull(`test`.`t3`.`e`)), true))"
                     } /* table */
                   } /* query_block */
                 },
@@ -790,7 +790,7 @@ EXPLAIN
 }
 Warnings:
 Note	1276	Field or reference 'test.t1.b' of SELECT #4 was resolved in SELECT #1
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`a`,<exists>(/* select#2 */ select 1 from `test`.`t2` where (<nop>(<in_optimizer>((/* select#3 */ select `test`.`t3`.`e` from `test`.`t3`),<exists>(/* select#4 */ select 1 from `test`.`t3` where (`test`.`t1`.`b` and trigcond_if(outer_field_is_not_null, ((<cache>((/* select#3 */ select `test`.`t3`.`e` from `test`.`t3`)) < `test`.`t3`.`e`) or isnull(`test`.`t3`.`e`)), true)) having trigcond_if(outer_field_is_not_null, <is_not_null_test>(`test`.`t3`.`e`), true)))) and (<cache>(`test`.`t1`.`a`) = `test`.`t2`.`c`))))
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`a`,<exists>(/* select#2 */ select 1 from `test`.`t2` where (<nop>(<in_optimizer>((/* select#3 */ select `test`.`t3`.`e` from `test`.`t3`),<exists>(/* select#4 */ select 1 from `test`.`t3` where (`test`.`t1`.`b` and <if>(outer_field_is_not_null, ((<cache>((/* select#3 */ select `test`.`t3`.`e` from `test`.`t3`)) < `test`.`t3`.`e`) or isnull(`test`.`t3`.`e`)), true)) having <if>(outer_field_is_not_null, <is_not_null_test>(`test`.`t3`.`e`), true)))) and (<cache>(`test`.`t1`.`a`) = `test`.`t2`.`c`))))
 DROP TABLE t1, t2, t3, t4;
 # semi-join materialization (if enabled)
 CREATE TABLE t1 (a INT);
@@ -899,7 +899,7 @@ EXPLAIN
       "access_type": "ALL",
       "rows": 1,
       "filtered": 100,
-      "attached_condition": "exists(select `test`.`t2`.`c1` from (`test`.`t2` join `test`.`t3` on((`test`.`t3`.`c1` = `test`.`t2`.`c1`))) where ((`test`.`t2`.`c2` <> `test`.`t1`.`c1`) and (`test`.`t2`.`c2` = (select min(`test`.`t3`.`c1`) from `test`.`t3`))))",
+      "attached_condition": "exists(select `test`.`t2`.`c1` from `test`.`t2` join `test`.`t3` where ((`test`.`t2`.`c1` = `test`.`t3`.`c1`) and (`test`.`t2`.`c2` = (select min(`test`.`t3`.`c1`) from `test`.`t3`)) and ((select min(`test`.`t3`.`c1`) from `test`.`t3`) <> `test`.`t1`.`c1`)))",
       "attached_subqueries": [
         {
           "dependent": true,
@@ -1007,7 +1007,7 @@ EXPLAIN
       "access_type": "ALL",
       "rows": 3,
       "filtered": 100,
-      "attached_condition": "(<in_optimizer>(`test`.`t5`.`c`,<exists>(select 1 from (`test`.`t1` join `test`.`t2` on((`test`.`t2`.`c_key` = `test`.`t1`.`c_key`))) where (<cache>(`test`.`t5`.`c`) = `test`.`t2`.`c`))) and <in_optimizer>(`test`.`t5`.`c`,<exists>(select 1 from (`test`.`t3` join `test`.`t4` on((`test`.`t4`.`c_key` = `test`.`t3`.`c_key`))) where (<cache>(`test`.`t5`.`c`) = `test`.`t4`.`c`))))",
+      "attached_condition": "(<in_optimizer>(`test`.`t5`.`c`,<exists>(select 1 from `test`.`t1` join `test`.`t2` where ((`test`.`t1`.`c_key` = `test`.`t2`.`c_key`) and (<cache>(`test`.`t5`.`c`) = `test`.`t2`.`c`)))) and <in_optimizer>(`test`.`t5`.`c`,<exists>(select 1 from `test`.`t3` join `test`.`t4` where ((`test`.`t3`.`c_key` = `test`.`t4`.`c_key`) and (<cache>(`test`.`t5`.`c`) = `test`.`t4`.`c`)))))",
       "attached_subqueries": [
         {
           "dependent": true,
@@ -1773,7 +1773,7 @@ EXPLAIN
       "rows": 4,
       "filtered": 100,
       "using_index": true,
-      "attached_condition": "<in_optimizer>(`test`.`t2`.`a`,<exists>(select 1 from `test`.`t1` where ((`test`.`t1`.`b` <> 30) and (<cache>(`test`.`t2`.`a`) = `test`.`t1`.`a`))))",
+      "attached_condition": "<in_optimizer>(`test`.`t2`.`a`,<exists>(<primary_index_lookup>(<cache>(`test`.`t2`.`a`) in t1 on PRIMARY where ((`test`.`t1`.`b` <> 30) and (<cache>(`test`.`t2`.`a`) = `test`.`t1`.`a`)))))",
       "attached_subqueries": [
         {
           "dependent": true,

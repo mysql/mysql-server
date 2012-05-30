@@ -14,7 +14,7 @@
    along with this program; see the file COPYING. If not, write to the
    Free Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston,
    MA  02110-1301  USA.
-*/
+ */
 
 /* C++ based on Wei Dai's twofish.cpp from CryptoPP */
 /* x86 asm original */
@@ -82,7 +82,7 @@ void Twofish::Process(byte* out, const byte* in, word32 sz)
                 out += BLOCK_SIZE;
                 in  += BLOCK_SIZE;
             }
-    }
+}
 }
 
 #endif // DO_TWOFISH_ASM
@@ -140,8 +140,6 @@ inline word32 Twofish::h(word32 x, const word32* key, unsigned int kLen)
 
 void Twofish::SetKey(const byte* userKey, word32 keylen, CipherDir /*dummy*/)
 {
-	assert(keylen >= 16 && keylen <= 32);
-
 	unsigned int len = (keylen <= 16 ? 2 : (keylen <= 24 ? 3 : 4));
     word32 key[8];
 	GetUserKey(LittleEndianOrder, key, len*2, userKey, keylen);

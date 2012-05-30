@@ -184,8 +184,37 @@ enum enum_alter_inplace_result {
  */
 #define HA_BINLOG_FLAGS (HA_BINLOG_ROW_CAPABLE | HA_BINLOG_STMT_CAPABLE)
 
-/*
+/**
   The handler supports read before write removal optimization
+
+  Read before write removal may be used for storage engines which support
+  write without previous read of the row to be updated. Handler returning
+  this flag must implement start_read_removal() and end_read_removal().
+  The handler may return "fake" rows constructed from the key of the row
+  asked for. This is used to optimize UPDATE and DELETE by reducing the
+  numer of roundtrips between handler and storage engine.
+  
+  Example:
+  UPDATE a=1 WHERE pk IN (<keys>)
+
+  mysql_update()
+  {
+    if (<conditions for starting read removal>)
+      start_read_removal()
+      -> handler returns true if read removal supported for this table/query
+
+    while(read_record("pk=<key>"))
+      -> handler returns fake row with column "pk" set to <key>
+
+      ha_update_row()
+      -> handler sends write "a=1" for row with "pk=<key>"
+
+    end_read_removal()
+    -> handler returns the number of rows actually written
+  }
+
+  @note This optimization in combination with batching may be used to
+        remove even more roundtrips.
 */
 #define HA_READ_BEFORE_WRITE_REMOVAL  (LL(1) << 38)
 
@@ -201,6 +230,18 @@ enum enum_alter_inplace_result {
   scan while applying a row event.
  */
 #define HA_READ_OUT_OF_SYNC              (LL(1) << 40)
+
+/*
+  Storage engine supports table export using the
+  FLUSH TABLE <table_list> FOR EXPORT statement.
+ */
+#define HA_CAN_EXPORT                 (LL(1) << 41)
+
+/*
+  The handler don't want accesses to this table to 
+  be const-table optimized
+*/
+#define HA_BLOCK_CONST_TABLE          (LL(1) << 42)
 
 /* bits in index_flags(index_number) for what you can do with index */
 #define HA_READ_NEXT            1       /* TODO really use this flag */
@@ -450,6 +491,10 @@ typedef ulonglong my_xid; // this line is the same as in log_event.h
 
 #define COMPATIBLE_DATA_YES 0
 #define COMPATIBLE_DATA_NO  1
+
+namespace AQP {
+  class Join_plan;
+};
 
 /**
   struct xid_t is binary compatible with the XID structure as
@@ -857,6 +902,8 @@ struct handlerton
                      const char *wild, bool dir, List<LEX_STRING> *files);
    int (*table_exists_in_engine)(handlerton *hton, THD* thd, const char *db,
                                  const char *name);
+   int (*make_pushed_join)(handlerton *hton, THD* thd, 
+                           const AQP::Join_plan* plan);
 
   /**
     List of all system tables specific to the SE.
@@ -2139,6 +2186,21 @@ public:
   { return extra(operation); }
 
   /**
+    Start read (before write) removal on the current table.
+    @see HA_READ_BEFORE_WRITE_REMOVAL
+  */
+  virtual bool start_read_removal(void)
+  { DBUG_ASSERT(0); return false; }
+
+  /**
+    End read (before write) removal and return the number of rows
+    really written
+    @see HA_READ_BEFORE_WRITE_REMOVAL
+  */
+  virtual ha_rows end_read_removal(void)
+  { DBUG_ASSERT(0); return (ha_rows) 0; }
+
+  /**
     In an UPDATE or DELETE, if the row under the cursor was locked by another
     transaction, and the engine used an optimistic read of the last
     committed row value under the cursor, then the engine returns 1 from this
@@ -2269,6 +2331,17 @@ public:
 
   virtual int get_default_no_partitions(HA_CREATE_INFO *info) { return 1;}
   virtual void set_auto_partitions(partition_info *part_info) { return; }
+
+  /**
+    Get number of partitions for table in SE
+
+    @param name normalized path(same as open) to the table
+
+    @param[out] no_parts Number of partitions
+
+    @retval false for success
+    @retval true for failure, for example table didn't exist in engine
+  */
   virtual bool get_no_parts(const char *name,
                             uint *no_parts)
   {
@@ -2469,6 +2542,34 @@ public:
    pushed_idx_cond_keyno= MAX_KEY;
    in_range_check_pushed_down= false;
  }
+
+  /**
+    Reports #tables included in pushed join which this
+    handler instance is part of. ==0 -> Not pushed
+  */
+  virtual uint number_of_pushed_joins() const
+  { return 0; }
+
+  /**
+    If this handler instance is part of a pushed join sequence
+    returned TABLE instance being root of the pushed query?
+  */
+  virtual const TABLE* root_of_pushed_join() const
+  { return NULL; }
+
+  /**
+    If this handler instance is a child in a pushed join sequence
+    returned TABLE instance being my parent?
+  */
+  virtual const TABLE* parent_of_pushed_join() const
+  { return NULL; }
+
+  virtual int index_read_pushed(uchar * buf, const uchar * key,
+                             key_part_map keypart_map)
+  { return  HA_ERR_WRONG_COMMAND; }
+
+  virtual int index_next_pushed(uchar * buf)
+  { return  HA_ERR_WRONG_COMMAND; }
 
  /**
    Part of old, deprecated in-place ALTER API.
@@ -3126,11 +3227,19 @@ int ha_release_temporary_latches(THD *thd);
 /* transactions: interface to handlerton functions */
 int ha_start_consistent_snapshot(THD *thd);
 int ha_commit_or_rollback_by_xid(THD *thd, XID *xid, bool commit);
-int ha_commit_one_phase(THD *thd, bool all);
 int ha_commit_trans(THD *thd, bool all);
 int ha_rollback_trans(THD *thd, bool all);
 int ha_prepare(THD *thd);
 int ha_recover(HASH *commit_list);
+
+/*
+ transactions: interface to low-level handlerton functions. These are
+ intended to be used by the transaction coordinators to
+ commit/prepare/rollback transactions in the engines.
+*/
+int ha_commit_low(THD *thd, bool all);
+int ha_prepare_low(THD *thd, bool all);
+int ha_rollback_low(THD *thd, bool all);
 
 /* transactions: these functions never call handlerton functions directly */
 int ha_enable_transaction(THD *thd, bool on);
@@ -3139,6 +3248,9 @@ int ha_enable_transaction(THD *thd, bool on);
 int ha_rollback_to_savepoint(THD *thd, SAVEPOINT *sv);
 int ha_savepoint(THD *thd, SAVEPOINT *sv);
 int ha_release_savepoint(THD *thd, SAVEPOINT *sv);
+
+/* Build pushed joins in handlers implementing this feature */
+int ha_make_pushed_joins(THD *thd, const AQP::Join_plan* plan);
 
 /* these are called by storage engines */
 void trans_register_ha(THD *thd, bool all, handlerton *ht);
@@ -3170,6 +3282,7 @@ int ha_binlog_end(THD *thd);
 #define ha_binlog_end(a)  do {} while (0)
 #endif
 
+const char *ha_legacy_type_name(legacy_db_type legacy_type);
 const char *get_canonical_filename(handler *file, const char *path,
                                    char *tmp_path);
 bool mysql_xa_recover(THD *thd);

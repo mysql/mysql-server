@@ -1511,6 +1511,9 @@ static int connect_to_db(char *host, char *user,char *passwd)
   if (opt_default_auth && *opt_default_auth)
     mysql_options(&mysql_connection, MYSQL_DEFAULT_AUTH, opt_default_auth);
 
+  mysql_options(&mysql_connection, MYSQL_OPT_CONNECT_ATTR_RESET, 0);
+  mysql_options4(&mysql_connection, MYSQL_OPT_CONNECT_ATTR_ADD,
+                 "program_name", "mysqldump");
   if (!(mysql= mysql_real_connect(&mysql_connection,host,user,passwd,
                                   NULL,opt_mysql_port,opt_mysql_unix_port,
                                   0)))

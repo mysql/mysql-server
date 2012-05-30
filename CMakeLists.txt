@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2011, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2011, 2012 Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -179,6 +179,7 @@ ENDIF()
 
 # Add macros
 INCLUDE(character_sets)
+INCLUDE(cpu_info)
 INCLUDE(zlib)
 INCLUDE(libevent)
 INCLUDE(ssl)
@@ -218,9 +219,9 @@ ENDIF()
 OPTION(ENABLE_GCOV "Enable gcov (debug, Linux builds only)" OFF)
 IF (ENABLE_GCOV AND NOT WIN32 AND NOT APPLE)
   SET(CMAKE_CXX_FLAGS_DEBUG
-    "${CMAKE_CXX_FLAGS_DEBUG} -fprofile-arcs -ftest-coverage")
+    "${CMAKE_CXX_FLAGS_DEBUG} -fprofile-arcs -ftest-coverage -DHAVE_GCOV")
   SET(CMAKE_C_FLAGS_DEBUG
-    "${CMAKE_C_FLAGS_DEBUG} -fprofile-arcs -ftest-coverage")
+    "${CMAKE_C_FLAGS_DEBUG} -fprofile-arcs -ftest-coverage -DHAVE_GCOV")
   SET(CMAKE_EXE_LINKER_FLAGS_DEBUG
     "${CMAKE_EXE_LINKER_FLAGS_DEBUG} -fprofile-arcs -ftest-coverage -lgcov")
 ENDIF()
@@ -312,7 +313,7 @@ INCLUDE_DIRECTORIES(${CMAKE_CURRENT_BINARY_DIR}/include)
 
 # Add bundled or system zlib.
 MYSQL_CHECK_ZLIB_WITH_COMPRESS()
-# Optionally add bundled yassl/taocrypt or system openssl.
+# Add bundled yassl/taocrypt or system openssl.
 MYSQL_CHECK_SSL()
 # Add readline or libedit.
 MYSQL_CHECK_READLINE()

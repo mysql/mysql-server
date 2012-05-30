@@ -245,6 +245,7 @@ extern ulint	srv_n_log_files;
 extern ib_uint64_t	srv_log_file_size;
 extern ulint	srv_log_buffer_size;
 extern ulong	srv_flush_log_at_trx_commit;
+extern uint	srv_flush_log_at_timeout;
 extern char	srv_adaptive_flushing;
 
 /* If this flag is TRUE, then we will load the indexes' (and tables') metadata
@@ -266,7 +267,7 @@ extern ulong	srv_n_page_hash_locks;	/*!< number of locks to
 					protect buf_pool->page_hash */
 extern ulong	srv_LRU_scan_depth;	/*!< Scan depth for LRU
 					flush batch */
-extern my_bool	srv_flush_neighbors;	/*!< whether or not to flush
+extern ulong	srv_flush_neighbors;	/*!< whether or not to flush
 					neighbors of a block */
 extern ulint	srv_buf_pool_old_size;	/*!< previously requested size */
 extern ulint	srv_buf_pool_curr_size;	/*!< current size in bytes */
@@ -281,6 +282,7 @@ extern ulint	srv_n_write_io_threads;
 
 /* Number of IO operations per second the server can do */
 extern ulong    srv_io_capacity;
+extern ulong    srv_max_io_capacity;
 /* Returns the number of IO operations that is X percent of the
 capacity. PCT_IO(5) -> returns the number of IO operations that
 is 5% of the max where max is srv_io_capacity.  */
@@ -303,7 +305,11 @@ extern ulint	srv_win_file_flush_method;
 
 extern ulint	srv_max_n_open_files;
 
-extern ulint	srv_max_dirty_pages_pct;
+extern ulong	srv_max_dirty_pages_pct;
+extern ulong	srv_max_dirty_pages_pct_lwm;
+
+extern ulong	srv_adaptive_flushing_lwm;
+extern ulong	srv_flushing_avg_loops;
 
 extern ulint	srv_force_recovery;
 
@@ -373,6 +379,10 @@ extern	ibool	srv_print_latch_waits;
 # define srv_print_latch_waits		FALSE
 #endif /* UNIV_DEBUG */
 
+#if defined UNIV_DEBUG || defined UNIV_IBUF_DEBUG
+extern my_bool	srv_ibuf_disable_background_merge;
+#endif /* UNIV_DEBUG || UNIV_IBUF_DEBUG */
+
 extern ulint	srv_fatal_semaphore_wait_threshold;
 #define SRV_SEMAPHORE_WAIT_EXTENSION	7200
 extern ulint	srv_dml_needed_delay;
@@ -431,14 +441,14 @@ extern mysql_pfs_key_t	srv_purge_thread_key;
 schema */
 #  define pfs_register_thread(key)			\
 do {								\
-	struct PSI_thread* psi = PSI_CALL(new_thread)(key, NULL, 0);\
-	PSI_CALL(set_thread)(psi);				\
+	struct PSI_thread* psi = PSI_THREAD_CALL(new_thread)(key, NULL, 0);\
+	PSI_THREAD_CALL(set_thread)(psi);			\
 } while (0)
 
 /* This macro delist the current thread from performance schema */
 #  define pfs_delete_thread()				\
 do {								\
-	PSI_CALL(delete_current_thread)();			\
+	PSI_THREAD_CALL(delete_current_thread)();		\
 } while (0)
 # endif /* UNIV_PFS_THREAD */
 

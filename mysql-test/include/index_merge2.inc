@@ -346,6 +346,10 @@ alter table t1 add index i2(key2);
 alter table t1 add index i3(key3);
 update t1 set key2=key1,key3=key1;
 
+if ($index_merge_random_rows_in_EXPLAIN)
+{
+  --replace_column 9 #
+}
 # to test the bug, the following must use "sort_union":
 explain select * from t1 where (key3 > 30 and key3<35) or (key2 >32 and key2 < 40);
 select * from t1 where (key3 > 30 and key3<35) or (key2 >32 and key2 < 40);
@@ -404,62 +408,33 @@ SELECT * FROM t2;
 
 DROP TABLE t1, t2;
 
-# The test was inactive for InnoDB at the time of pushing. The following is
-# expected result for the Bug#56423 test. It can be uncommented and pasted
-# into result file when reactivating the test.
+--echo #
+--echo # BUG#13970015: ASSERT `MIN_ENDP || MAX_ENDP' FAILED IN
+--echo #               HANDLER::MULTI_RANGE_READ_INFO_CONST
+--echo #
 
-##
-## Bug#56423: Different count with SELECT and CREATE SELECT queries
-##
-#CREATE TABLE t1 (
-#a INT,
-#b INT,
-#c INT,
-#d INT,
-#PRIMARY KEY (a),
-#KEY (c),
-#KEY bd (b,d)
-#);
-#INSERT INTO t1 VALUES
-#(1, 0, 1, 0),
-#(2, 1, 1, 1),
-#(3, 1, 1, 1),
-#(4, 0, 1, 1);
-#EXPLAIN
-#SELECT a
-#FROM t1
-#WHERE c = 1 AND b = 1 AND d = 1;
-#id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-#1	SIMPLE	t1	ref	c,bd	bd	10	const,const	2	Using where
-#CREATE TABLE t2 ( a INT )
-#SELECT a
-#FROM t1
-#WHERE c = 1 AND b = 1 AND d = 1;
-#SELECT * FROM t2;
-#a
-#2
-#3
-#DROP TABLE t1, t2;
-#CREATE TABLE t1( a INT, b INT, KEY(a), KEY(b) );
-#INSERT INTO t1 VALUES (1, 2), (1, 2), (1, 2), (1, 2);
-#SELECT * FROM t1 FORCE INDEX(a, b) WHERE a = 1 AND b = 2;
-#a	b
-#1	2
-#1	2
-#1	2
-#1	2
-#DROP TABLE t1;
-## Code coverage of fix.
-#CREATE TABLE t1 ( a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b INT);
-#INSERT INTO t1 (b) VALUES (1);
-#UPDATE t1 SET b = 2 WHERE a = 1;
-#SELECT * FROM t1;
-#a	b
-#1	2
-#CREATE TABLE t2 ( a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(1) );
-#INSERT INTO t2 (b) VALUES ('a');
-#UPDATE t2 SET b = 'b' WHERE a = 1;
-#SELECT * FROM t2;
-#a	b
-#1	b
-#DROP TABLE t1, t2;
+CREATE TABLE t1 (
+  pk INT NOT NULL,
+  col_int_key INT NOT NULL,
+  col_varchar_key VARCHAR(1) NOT NULL,
+  PRIMARY KEY (pk),
+  KEY col_int_key (col_int_key),
+  KEY col_varchar_key (col_varchar_key,col_int_key)
+);
+
+INSERT INTO t1 VALUES (1,1,'a'), (2,2,'b');
+
+EXPLAIN
+SELECT col_int_key
+FROM t1
+WHERE col_varchar_key >= 'l' OR 
+      (((pk BETWEEN 141 AND 141) OR col_varchar_key <> 'l') 
+         AND ((pk BETWEEN 141 AND 141) OR (col_int_key > 141)));
+
+SELECT col_int_key
+FROM t1
+WHERE col_varchar_key >= 'l' OR 
+      (((pk BETWEEN 141 AND 141) OR col_varchar_key <> 'l') 
+         AND ((pk BETWEEN 141 AND 141) OR (col_int_key > 141)));
+
+DROP TABLE t1;

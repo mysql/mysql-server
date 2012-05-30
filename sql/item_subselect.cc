@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -2365,7 +2365,7 @@ bool subselect_single_select_engine::prepare()
 		    select_lex->order_list.first,
 		    select_lex->group_list.first,
 		    select_lex->having,
-		    NULL, select_lex,
+		    select_lex,
 		    select_lex->master_unit()))
     return 1;
   thd->lex->current_select= save_select;
@@ -3362,7 +3362,8 @@ bool subselect_hash_sj_engine::setup(List<Item> *tmp_columns)
   uchar *cur_ref_buff= tmp_tab->ref.key_buff;
 
   /*
-    Create an artificial condition to post-filter those rows matched by index
+    Like semijoin-materialization-lookup (see create_subquery_equalities()),
+    create an artificial condition to post-filter those rows matched by index
     lookups that cannot be distinguished by the index lookup procedure, e.g.
     because of truncation (if the outer column type's length is bigger than
     the inner column type's, index lookup will use a truncated outer

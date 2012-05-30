@@ -173,6 +173,16 @@ st_parsing_options::reset()
   allows_derived= TRUE;
 }
 
+/**
+ Cleans slave connection info.
+*/
+void struct_slave_connection::reset()
+{
+  user= 0;
+  password= 0;
+  plugin_auth= 0;
+  plugin_dir= 0;
+}
 
 /**
   Perform initialization of Lex_input_stream instance.
@@ -435,7 +445,7 @@ void lex_start(THD *thd)
   lex->sphead= NULL;
   lex->set_sp_current_parsing_ctx(NULL);
   lex->m_sql_cmd= NULL;
-  lex->proc_list.first= 0;
+  lex->proc_analyse= NULL;
   lex->escape_used= FALSE;
   lex->query_tables= 0;
   lex->reset_query_tables_list(FALSE);
@@ -1777,6 +1787,7 @@ void st_select_lex::init_query()
   select_list_tables= 0;
   m_non_agg_field_used= false;
   m_agg_func_used= false;
+  with_sum_func= false;
 }
 
 void st_select_lex::init_select()
@@ -2719,10 +2730,13 @@ void LEX::cleanup_lex_after_parse_error(THD *thd)
     Sic: we must nullify the member of the main lex, not the
     current one that will be thrown away
   */
-  if (thd->lex->sphead)
+  sp_head *sp= thd->lex->sphead;
+
+  if (sp)
   {
-    thd->lex->sphead->restore_thd_mem_root(thd);
-    delete thd->lex->sphead;
+    sp->m_parser_data.finish_parsing_sp_body(thd);
+    delete sp;
+
     thd->lex->sphead= NULL;
   }
 }
@@ -2811,7 +2825,8 @@ void Query_tables_list::destroy_query_tables_list()
 */
 
 LEX::LEX()
-  :result(0), option_type(OPT_DEFAULT), is_lex_started(0)
+  :result(0), option_type(OPT_DEFAULT), is_change_password(false),
+  is_lex_started(0)
 {
 
   my_init_dynamic_array2(&plugins, sizeof(plugin_ref),

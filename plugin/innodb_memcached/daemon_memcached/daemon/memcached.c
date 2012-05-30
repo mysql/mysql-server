@@ -4413,6 +4413,52 @@ static char *process_delete_command(conn *c, token_t *tokens,
     return NULL;
 }
 
+static char *process_bind_command(conn *c, token_t *tokens,
+                                  const size_t ntokens) {
+    char *name;
+    size_t name_len;
+
+    assert(c != NULL);
+
+    if (ntokens > 3) {
+        out_string(c, "CLIENT_ERROR bad command line format.  "
+                      "Usage: bind <table_id_name>");
+        return NULL;
+    }
+
+    name = tokens[KEY_TOKEN].value;
+    name_len = tokens[KEY_TOKEN].length;
+
+    if (name_len > KEY_MAX_LENGTH || name_len == 0) {
+        out_string(c, "CLIENT_ERROR bad command line format");
+        return NULL;
+    }
+
+    ENGINE_ERROR_CODE ret = c->aiostat;
+    c->aiostat = ENGINE_SUCCESS;
+    c->ewouldblock = false;
+    if (ret == ENGINE_SUCCESS) {
+        ret = settings.engine.v1->bind(settings.engine.v0, c,
+                                       name, name_len);
+    }
+
+    /* For some reason the SLAB_INCR tries to access this... */
+    item_info info = { .nvalue = 1 };
+    switch (ret) {
+    case ENGINE_SUCCESS:
+        out_string(c, "SUCCEED");
+        break;
+    case ENGINE_EWOULDBLOCK:
+        c->ewouldblock = true;
+        return name;
+    case ENGINE_TMPFAIL:
+    default:
+        out_string(c, "NOT_FOUND");
+    }
+
+    return NULL;
+}
+
 static void process_verbosity_command(conn *c, token_t *tokens, const size_t ntokens) {
     unsigned int level;
 
@@ -4507,6 +4553,10 @@ static char* process_command(conn *c, char *command) {
     } else if (ntokens >= 3 && ntokens <= 5 && (strcmp(tokens[COMMAND_TOKEN].value, "delete") == 0)) {
 
         ret = process_delete_command(c, tokens, ntokens);
+
+    } else if (ntokens == 3 && (strcmp(tokens[COMMAND_TOKEN].value, "bind") == 0)) {
+
+        ret = process_bind_command(c, tokens, ntokens);
 
     } else if (ntokens >= 2 && (strcmp(tokens[COMMAND_TOKEN].value, "stats") == 0)) {
 

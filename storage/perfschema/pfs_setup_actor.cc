@@ -43,7 +43,7 @@ ulong setup_actor_max;
 PFS_setup_actor *setup_actor_array= NULL;
 
 /** Hash table for setup_actor records. */
-static LF_HASH setup_actor_hash;
+LF_HASH setup_actor_hash;
 /** True if @c setup_actor_hash is initialized. */
 static bool setup_actor_hash_inited= false;
 
@@ -100,10 +100,11 @@ C_MODE_END
 */
 int init_setup_actor_hash(void)
 {
-  if (! setup_actor_hash_inited)
+  if ((! setup_actor_hash_inited) && (setup_actor_max > 0))
   {
     lf_hash_init(&setup_actor_hash, sizeof(PFS_setup_actor*), LF_HASH_UNIQUE,
                  0, 0, setup_actor_hash_get_key, &my_charset_bin);
+    setup_actor_hash.size= setup_actor_max;
     setup_actor_hash_inited= true;
   }
   return 0;
@@ -167,7 +168,7 @@ int insert_setup_actor(const String *user, const String *host, const String *rol
   if (unlikely(pins == NULL))
     return HA_ERR_OUT_OF_MEM;
 
-  static uint setup_actor_monotonic_index= 0;
+  static uint PFS_ALIGNED setup_actor_monotonic_index= 0;
   uint index;
   uint attempts= 0;
   PFS_setup_actor *pfs;
@@ -175,8 +176,7 @@ int insert_setup_actor(const String *user, const String *host, const String *rol
   while (++attempts <= setup_actor_max)
   {
     /* See create_mutex() */
-    PFS_atomic::add_u32(& setup_actor_monotonic_index, 1);
-    index= setup_actor_monotonic_index % setup_actor_max;
+    index= PFS_atomic::add_u32(& setup_actor_monotonic_index, 1) % setup_actor_max;
     pfs= setup_actor_array + index;
 
     if (pfs->m_lock.is_free())

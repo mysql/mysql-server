@@ -1619,15 +1619,16 @@ log_flush_margin(void)
 Advances the smallest lsn for which there are unflushed dirty blocks in the
 buffer pool. NOTE: this function may only be called if the calling thread owns
 no synchronization objects!
-@return FALSE if there was a flush batch of the same type running,
+@return false if there was a flush batch of the same type running,
 which means that we could not start this flush batch */
 static
-ibool
+bool
 log_preflush_pool_modified_pages(
 /*=============================*/
 	lsn_t	new_oldest)	/*!< in: try to advance oldest_modified_lsn
 				at least to this lsn */
 {
+	bool	success;
 	ulint	n_pages;
 
 	if (recv_recovery_on) {
@@ -1643,13 +1644,12 @@ log_preflush_pool_modified_pages(
 		recv_apply_hashed_log_recs(TRUE);
 	}
 
-	n_pages = buf_flush_list(ULINT_MAX, new_oldest);
+	success = buf_flush_list(ULINT_MAX, new_oldest, &n_pages);
 
 	buf_flush_wait_batch_end(NULL, BUF_FLUSH_LIST);
 
-	if (n_pages == ULINT_UNDEFINED) {
-
-		return(FALSE);
+	if (!success) {
+		MONITOR_INC(MONITOR_FLUSH_SYNC_WAITS);
 	}
 
 	MONITOR_INC_VALUE_CUMULATIVE(
@@ -1658,7 +1658,7 @@ log_preflush_pool_modified_pages(
 		MONITOR_FLUSH_SYNC_PAGES,
 		n_pages);
 
-	return(TRUE);
+	return(success);
 }
 
 /******************************************************//**
@@ -2081,38 +2081,6 @@ log_make_checkpoint_at(
 }
 
 /****************************************************************//**
-Checks if an asynchronous flushing of dirty pages is required in the
-background. This function is only called from the page cleaner thread.
-@return lsn to which the flushing should happen or LSN_MAX
-if flushing is not required */
-UNIV_INTERN
-lsn_t
-log_async_flush_lsn(void)
-/*=====================*/
-{
-	lsn_t	age;
-	lsn_t	oldest_lsn;
-	lsn_t	new_lsn = LSN_MAX;
-
-	mutex_enter(&log_sys->mutex);
-
-	oldest_lsn = log_buf_pool_get_oldest_modification();
-
-	ut_a(log_sys->lsn >= oldest_lsn);
-	age = log_sys->lsn - oldest_lsn;
-
-	if (age > log_sys->max_modified_age_async) {
-		/* An asynchronous preflush is required */
-		ut_a(log_sys->lsn >= log_sys->max_modified_age_async);
-		new_lsn = log_sys->lsn - log_sys->max_modified_age_async;
-	}
-
-	mutex_exit(&log_sys->mutex);
-
-	return(new_lsn);
-}
-
-/****************************************************************//**
 Tries to establish a big enough margin of free space in the log groups, such
 that a new log entry can be catenated without an immediate need for a
 checkpoint. NOTE: this function may only be called if the calling thread
@@ -2129,7 +2097,7 @@ log_checkpoint_margin(void)
 	lsn_t		oldest_lsn;
 	ibool		checkpoint_sync;
 	ibool		do_checkpoint;
-	ibool		success;
+	bool		success;
 loop:
 	checkpoint_sync = FALSE;
 	do_checkpoint = FALSE;

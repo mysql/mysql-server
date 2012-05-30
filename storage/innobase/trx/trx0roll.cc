@@ -214,7 +214,7 @@ trx_rollback_for_mysql(
 		return(trx_rollback_for_mysql_low(trx));
 
 	case TRX_STATE_PREPARED:
-		assert_trx_in_rw_list(trx);
+		ut_ad(!trx_is_autocommit_non_locking(trx));
 		return(trx_rollback_for_mysql_low(trx));
 
 	case TRX_STATE_COMMITTED_IN_MEMORY:
@@ -623,18 +623,15 @@ trx_rollback_active(
 	if (trx_get_dict_operation(trx) != TRX_DICT_OP_NONE
 	    && trx->table_id != 0) {
 
-		/* If the transaction was for a dictionary operation, we
-		drop the relevant table, if it still exists */
-
-		fprintf(stderr,
-			"InnoDB: Dropping table with id "UINT64PF
-			" in recovery if it exists\n",
-			(ib_uint64_t) trx->table_id);
+		/* If the transaction was for a dictionary operation,
+		we drop the relevant table only if it is not flagged
+		as DISCARDED. If it still exists. */
 
 		table = dict_table_open_on_id(
 			trx->table_id, dictionary_locked, FALSE);
 
-		if (table) {
+		if (table && !dict_table_is_discarded(table)) {
+
 			dberr_t	err;
 
 			/* Ensure that the table doesn't get evicted from the
@@ -646,9 +643,10 @@ trx_rollback_active(
 
 			dict_table_close(table, dictionary_locked, FALSE);
 
-			fputs("InnoDB: Table found: dropping table ", stderr);
-			ut_print_name(stderr, trx, TRUE, table->name);
-			fputs(" in recovery\n", stderr);
+			ib_logf(IB_LOG_LEVEL_WARN,
+				"Dropping table '%s', with id " UINT64PF " "
+				"in recovery",
+				table->name, trx->table_id);
 
 			err = row_drop_table_for_mysql(table->name, trx, TRUE);
 			trx_commit_for_mysql(trx);
@@ -661,9 +659,8 @@ trx_rollback_active(
 		row_mysql_unlock_data_dictionary(trx);
 	}
 
-	fprintf(stderr, "\nInnoDB: Rolling back of trx id " TRX_ID_FMT
-		" completed\n",
-		trx->id);
+	ib_logf(IB_LOG_LEVEL_INFO,
+		"Rollback of trx with id " TRX_ID_FMT " completed", trx->id);
 
 	mem_heap_free(heap);
 

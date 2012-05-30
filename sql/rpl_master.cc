@@ -804,7 +804,8 @@ void mysql_binlog_send(THD* thd, char* log_ident, my_off_t pos,
     heartbeat_ts= &heartbeat_buf;
     set_timespec_nsec(*heartbeat_ts, 0);
   }
-  sql_print_information("Start binlog_dump to master_thread_id(%lu) slave_server(%d), pos(%s, %lu)",
+  if (log_warnings > 1)
+    sql_print_information("Start binlog_dump to master_thread_id(%lu) slave_server(%d), pos(%s, %lu)",
                         thd->thread_id, thd->server_id, log_ident, (ulong)pos);
   if (RUN_HOOK(binlog_transmit, transmit_start, (thd, flags, log_ident, pos)))
   {

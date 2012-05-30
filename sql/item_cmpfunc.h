@@ -513,7 +513,8 @@ public:
   {}
   longlong val_int() { return *trig_var ? args[0]->val_int() : 1; }
   enum Functype functype() const { return TRIG_COND_FUNC; };
-  const char *func_name() const { return "trigcond"; };
+  /// '<if>', to distinguish from the if() SQL function
+  const char *func_name() const { return "<if>"; };
   bool const_item() const { return FALSE; }
   bool *get_trig_var() { return trig_var; }
   /* The following is needed for ICP: */
@@ -1520,11 +1521,12 @@ public:
   longlong val_int();
   const char *func_name() const { return "<is_not_null_test>"; }
   void update_used_tables();
-  /*
-    we add RAND_TABLE_BIT to prevent moving this item from HAVING to WHERE
+  /**
+    We add RAND_TABLE_BIT to prevent moving this item from HAVING to WHERE.
+     
+    @retval Always RAND_TABLE_BIT
   */
-  table_map used_tables() const
-    { return used_tables_cache | RAND_TABLE_BIT; }
+  table_map get_initial_pseudo_tables() const { return RAND_TABLE_BIT; }
 };
 
 

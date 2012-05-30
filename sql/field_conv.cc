@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -98,14 +98,13 @@ static void do_field_to_null_str(Copy_field *copy)
 }
 
 
-int
-set_field_to_null(Field *field)
+type_conversion_status set_field_to_null(Field *field)
 {
   if (field->real_maybe_null())
   {
     field->set_null();
     field->reset();
-    return 0;
+    return TYPE_OK;
   }
   field->reset();
   switch (field->table->in_use->count_cuted_fields) {
@@ -113,14 +112,14 @@ set_field_to_null(Field *field)
     field->set_warning(Sql_condition::WARN_LEVEL_WARN, WARN_DATA_TRUNCATED, 1);
     /* fall through */
   case CHECK_FIELD_IGNORE:
-    return 0;
+    return TYPE_OK;
   case CHECK_FIELD_ERROR_FOR_NULL:
     if (!field->table->in_use->no_errors)
       my_error(ER_BAD_NULL_ERROR, MYF(0), field->field_name);
-    return -1;
+    return TYPE_ERR_NULL_CONSTRAINT_VIOLATION;
   }
-  DBUG_ASSERT(0); // impossible
-  return -1;
+  DBUG_ASSERT(false); // impossible
+  return TYPE_ERR_NULL_CONSTRAINT_VIOLATION;
 }
 
 
@@ -141,17 +140,17 @@ set_field_to_null(Field *field)
     If no_conversion was not set, an error message is printed
 */
 
-int
+type_conversion_status
 set_field_to_null_with_conversions(Field *field, bool no_conversions)
 {
   if (field->real_maybe_null())
   {
     field->set_null();
     field->reset();
-    return 0;
+    return TYPE_OK;
   }
   if (no_conversions)
-    return -1;
+    return TYPE_ERR_NULL_CONSTRAINT_VIOLATION;
 
   /*
     Check if this is a special type, which will get a special walue
@@ -165,7 +164,7 @@ set_field_to_null_with_conversions(Field *field, bool no_conversions)
   if (field->type() == MYSQL_TYPE_TIMESTAMP)
   {
     Item_func_now_local::store_in(field);
-    return 0;					// Ok to set time to NULL
+    return TYPE_OK;			// Ok to set time to NULL
   }
   
   // Note: we ignore any potential failure of reset() here.
@@ -174,21 +173,21 @@ set_field_to_null_with_conversions(Field *field, bool no_conversions)
   if (field == field->table->next_number_field)
   {
     field->table->auto_increment_field_not_null= FALSE;
-    return 0;				  // field is set in fill_record()
+    return TYPE_OK;		        // field is set in fill_record()
   }
   switch (field->table->in_use->count_cuted_fields) {
   case CHECK_FIELD_WARN:
     field->set_warning(Sql_condition::WARN_LEVEL_WARN, ER_BAD_NULL_ERROR, 1);
     /* fall through */
   case CHECK_FIELD_IGNORE:
-    return 0;
+    return TYPE_OK;
   case CHECK_FIELD_ERROR_FOR_NULL:
     if (!field->table->in_use->no_errors)
       my_error(ER_BAD_NULL_ERROR, MYF(0), field->field_name);
-    return -1;
+    return TYPE_ERR_NULL_CONSTRAINT_VIOLATION;
   }
-  DBUG_ASSERT(0); // impossible
-  return -1;
+  DBUG_ASSERT(false); // impossible
+  return TYPE_ERR_NULL_CONSTRAINT_VIOLATION;
 }
 
 
@@ -344,7 +343,7 @@ static void do_field_decimal(Copy_field *copy)
 }
 
 
-inline int copy_time_to_time(Field *from, Field *to)
+inline type_conversion_status copy_time_to_time(Field *from, Field *to)
 {
   MYSQL_TIME ltime;
   from->get_time(&ltime);
@@ -577,9 +576,6 @@ void Copy_field::set(uchar *to,Field *from)
     Field_blob::store. Is this in order to trigger the call to 
     well_formed_copy_nchars, by changing the pointer copy->tmp.ptr()?
     That call will take place anyway in all known cases.
-
-  - The above causes a truncation to MAX_FIELD_WIDTH. Is this the intended 
-    effect? Truncation is handled by well_formed_copy_nchars anyway.
  */
 void Copy_field::set(Field *to,Field *from,bool save)
 {
@@ -780,7 +776,7 @@ Copy_field::get_copy_func(Field *to,Field *from)
 
 /** Simple quick field convert that is called on insert. */
 
-int field_conv(Field *to,Field *from)
+type_conversion_status field_conv(Field *to,Field *from)
 {
   if (to->real_type() == from->real_type() &&
       !(to->type() == MYSQL_TYPE_BLOB && to->table->copy_blobs) &&
@@ -794,7 +790,7 @@ int field_conv(Field *to,Field *from)
       if (to_vc->length_bytes == from_vc->length_bytes)
       {
         copy_field_varstring(to_vc, from_vc);
-        return 0;
+        return TYPE_OK;
       }
     }
     if (to->pack_length() == from->pack_length() &&
@@ -816,7 +812,7 @@ int field_conv(Field *to,Field *from)
     {						// Identical fields
       // to->ptr==from->ptr may happen if one does 'UPDATE ... SET x=x'
       memmove(to->ptr, from->ptr, to->pack_length());
-      return 0;
+      return TYPE_OK;
     }
   }
   if (to->type() == MYSQL_TYPE_BLOB)
@@ -839,7 +835,7 @@ int field_conv(Field *to,Field *from)
       from->val_int() == 0)
   {
     ((Field_enum *)(to))->store_type(0);
-    return 0;
+    return TYPE_OK;
   }
   else if (from->is_temporal() && to->result_type() == INT_RESULT)
   {

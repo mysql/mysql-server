@@ -1,4 +1,4 @@
-# Copyright (c) 2010, 2011, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -192,12 +192,18 @@ INCLUDE_DIRECTORIES(
   ${CMAKE_SOURCE_DIR}/regex
   ${CMAKE_SOURCE_DIR}/sql
   ${CMAKE_SOURCE_DIR}/unittest/mytap
+  ${CMAKE_SOURCE_DIR}/storage/example
 )
 
 # main-wrapper library (with tap-compatible option).
-ADD_LIBRARY(gunit STATIC
+ADD_LIBRARY(gunit_small STATIC
   gunit_test_main.cc tap_event_listener.cc thread_utils.cc)
-TARGET_LINK_LIBRARIES(gunit mysys mytap dbug strings ${GTEST_LIBRARIES})
+ADD_LIBRARY(gunit_large STATIC
+  gunit_test_main_server.cc test_utils.cc tap_event_listener.cc thread_utils.cc)
+ADD_DEPENDENCIES(gunit_small GenError)
+ADD_DEPENDENCIES(gunit_large GenError)
+TARGET_LINK_LIBRARIES(gunit_small mysys mytap dbug strings ${GTEST_LIBRARIES})
+TARGET_LINK_LIBRARIES(gunit_large mysys mytap dbug strings ${GTEST_LIBRARIES})
 MESSAGE(STATUS "GTEST_LIBRARIES:${GTEST_LIBRARIES}")
 
 # Add some defines.
@@ -235,6 +241,7 @@ SET(TESTS
   dynarray
   filesort_buffer
   filesort_compare
+  my_fileutils
   mdl
   mdl_mytap
   my_bitmap
@@ -252,21 +259,21 @@ SET(SERVER_TESTS
   create_field
   delayable_insert_operation
   field
-  field_timestamp
+  get_diagnostics
   item
   item_func_now_local
+  join_tab_sort
   my_decimal
   opt_range
   opt_trace
-  sql_table
-  get_diagnostics
   segfault
-  join_tab_sort
+  sql_table
+  table_cache
 )
 
 FOREACH(test ${TESTS})
   ADD_EXECUTABLE(${test}-t ${test}-t.cc)
-  TARGET_LINK_LIBRARIES(${test}-t gunit sqlgunitlib strings dbug regex)
+  TARGET_LINK_LIBRARIES(${test}-t gunit_small sqlgunitlib strings dbug regex)
   IF(APPLE AND GTEST_DYLIB_LOCATION)
     ADD_CUSTOM_COMMAND(TARGET ${test}-t POST_BUILD
       COMMAND install_name_tool -change
@@ -277,13 +284,21 @@ FOREACH(test ${TESTS})
 ENDFOREACH()
 
 FOREACH(test ${SERVER_TESTS})
+  SET(SRC_FILES ${test}-t.cc)
   IF(WIN32)
-    ADD_EXECUTABLE(${test}-t ${test}-t.cc test_utils.cc ../../sql/nt_servc.cc)
-  ELSE()
-    ADD_EXECUTABLE(${test}-t ${test}-t.cc test_utils.cc)
+    LIST(APPEND SRC_FILES ../../sql/nt_servc.cc)
   ENDIF()
+  IF(test MATCHES "table_cache")
+    LIST(APPEND SRC_FILES ../../storage/example/ha_example.cc)
+    SET_SOURCE_FILES_PROPERTIES(
+      ../../storage/example/ha_example.cc
+      PROPERTIES COMPILE_FLAGS "-DDISABLE_DTRACE"
+    )
+  ENDIF()
+  ADD_EXECUTABLE(${test}-t ${SRC_FILES})
   TARGET_LINK_LIBRARIES(${test}-t sql binlog rpl master slave sql)
-  TARGET_LINK_LIBRARIES(${test}-t gunit sqlgunitlib strings dbug regex mysys)
+  TARGET_LINK_LIBRARIES(${test}-t gunit_large strings dbug regex mysys)
+  TARGET_LINK_LIBRARIES(${test}-t sql binlog rpl master slave sql)
   IF(APPLE AND GTEST_DYLIB_LOCATION)
     ADD_CUSTOM_COMMAND(TARGET ${test}-t POST_BUILD
       COMMAND install_name_tool -change

@@ -14,7 +14,7 @@
    along with this program; see the file COPYING. If not, write to the
    Free Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston,
    MA  02110-1301  USA.
-*/
+ */
 
 /* rsa.hpp provides RSA ES encrypt/decrypt, SSL (block type 1) sign and verify
 */
@@ -178,7 +178,8 @@ void RSA_Encryptor<Pad>::Encrypt(const byte* plain, word32 sz, byte* cipher,
                                  RandomNumberGenerator& rng)
 {
     PK_Lengths lengths(key_.GetModulus());
-    assert(sz <= lengths.FixedMaxPlaintextLength());
+    if (sz > lengths.FixedMaxPlaintextLength())
+        return;
 
     ByteBlock paddedBlock(lengths.PaddedBlockByteLength());
     padding_.Pad(plain, sz, paddedBlock.get_buffer(),
@@ -195,7 +196,6 @@ word32 RSA_Decryptor<Pad>::Decrypt(const byte* cipher, word32 sz, byte* plain,
                                    RandomNumberGenerator& rng)
 {
     PK_Lengths lengths(key_.GetModulus());
-    assert(sz == lengths.FixedCiphertextLength());
 
     if (sz != lengths.FixedCiphertextLength())
         return 0;

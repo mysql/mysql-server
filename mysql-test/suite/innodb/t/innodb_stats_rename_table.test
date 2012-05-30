@@ -1,0 +1,42 @@
+#
+# Test that RENAME TABLE renames the entries in
+# mysql.innodb_table_stats and mysql.innodb_index_stats
+#
+
+-- source include/have_innodb.inc
+
+-- vertical_results
+
+# confirm that nothing is present before the test
+SELECT table_name, n_rows
+FROM mysql.innodb_table_stats
+WHERE table_name IN ('stats_rename_old', 'stats_rename_new');
+
+SELECT table_name, index_name, stat_name, stat_value
+FROM mysql.innodb_index_stats
+WHERE table_name IN ('stats_rename_old', 'stats_rename_new');
+
+CREATE TABLE stats_rename_old (a INT, PRIMARY KEY (a))
+ENGINE=INNODB STATS_PERSISTENT=1;
+
+# confirm that CREATE inserted a zeroed entries
+SELECT table_name, n_rows
+FROM mysql.innodb_table_stats
+WHERE table_name IN ('stats_rename_old', 'stats_rename_new');
+
+SELECT table_name, index_name, stat_name, stat_value
+FROM mysql.innodb_index_stats
+WHERE table_name IN ('stats_rename_old', 'stats_rename_new');
+
+RENAME TABLE stats_rename_old TO stats_rename_new;
+
+# confirm that rows were updated correspondingly
+SELECT table_name, n_rows
+FROM mysql.innodb_table_stats
+WHERE table_name IN ('stats_rename_old', 'stats_rename_new');
+
+SELECT table_name, index_name, stat_name, stat_value
+FROM mysql.innodb_index_stats
+WHERE table_name IN ('stats_rename_old', 'stats_rename_new');
+
+DROP TABLE stats_rename_new;

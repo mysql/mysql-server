@@ -1241,11 +1241,14 @@ UNLOCK TABLES;
 --echo # Insert delayed
 --echo #
 # See also Bug#26464 - insert delayed + update + merge = corruption
-# Succeeds in embedded server - is converted to normal insert
+# Succeeds with deprecation warning in embedded server - is converted to normal
+# insert
 # Fails in normal server, ps-protocol - not supported by engine
 # Fails in normal server, normal protocol - not a base table
+--disable_warnings
 --error 0, ER_DELAYED_NOT_SUPPORTED, ER_WRONG_OBJECT
 INSERT DELAYED INTO t4 VALUES(44);
+--enable_warnings
 # Get rid of row in embedded server
 DELETE FROM t4 WHERE c1 = 44;
 INSERT DELAYED INTO t3 VALUES(33);

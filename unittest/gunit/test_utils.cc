@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -31,12 +31,7 @@ extern "C" void test_error_handler_hook(uint err, const char *str, myf MyFlags)
   EXPECT_EQ(expected_error, err) << str;
 }
 
-void Server_initializer::set_expected_error(uint val)
-{
-  expected_error= val;
-}
-
-void Server_initializer::SetUpTestCase()
+void setup_server_for_unit_tests()
 {
   static char *my_name= strdup(my_progname);
   char *argv[] = { my_name, 0 };
@@ -49,10 +44,15 @@ void Server_initializer::SetUpTestCase()
   error_handler_hook= test_error_handler_hook;
 }
 
-void Server_initializer::TearDownTestCase()
+void teardown_server_for_unit_tests()
 {
   delegates_destroy();
   xid_cache_free();
+}
+
+void Server_initializer::set_expected_error(uint val)
+{
+  expected_error= val;
 }
 
 void Server_initializer::SetUp()
