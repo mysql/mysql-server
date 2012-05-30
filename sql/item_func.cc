@@ -6971,8 +6971,6 @@ Item_func_sp::fix_fields(THD *thd, Item **ref)
   if (!m_sp->m_chistics->detistic)
     const_item_cache= false;
 
-  if (!tables_locked_cache)
-    const_item_cache= false;
   DBUG_RETURN(res);
 }
 
@@ -6981,10 +6979,10 @@ void Item_func_sp::update_used_tables()
 {
   Item_func::update_used_tables();
 
-  if (!m_sp->m_chistics->detistic || !tables_locked_cache)
+  if (!m_sp->m_chistics->detistic)
     const_item_cache= false;
 
-  /* This is reset by update_used_tables(). */
+  /* This is reset by Item_func::update_used_tables(). */
   with_stored_program= true;
 }
 
