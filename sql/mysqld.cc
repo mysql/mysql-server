@@ -493,6 +493,7 @@ ulong tc_heuristic_recover= 0;
 int32 thread_running;
 ulong thread_created;
 ulong back_log, connect_timeout, concurrency, server_id;
+ulong deprecated_table_cache_size;
 ulong table_cache_size, table_def_size;
 ulong table_cache_instances;
 ulong table_cache_size_per_instance;
@@ -3645,6 +3646,8 @@ int init_common_variables()
     {
       if (!open_files_limit)
       {
+        DBUG_ASSERT(false);
+
         /*
           If we have requested too much file handles than we bring
           max_connections in supported bounds.
@@ -6466,6 +6469,16 @@ void adjust_related_options()
   /* In bootstrap, disable grant tables (we are about to create them) */
   if (opt_bootstrap)
     opt_noacl= 1;
+
+  /*
+    For handle_options(), --table-cache and --table-open-cache
+    are distinct configuration parameters, and should not point to
+    the same global variable table_cache_size.
+    Use deprecated --table-cache if no value was given in --table-open-cache.
+  */
+  if ((table_cache_size == TABLE_OPEN_CACHE_DEFAULT) &&
+      (deprecated_table_cache_size != TABLE_OPEN_CACHE_DEFAULT))
+     table_cache_size= deprecated_table_cache_size;
 }
 
 vector<my_option> all_options;
@@ -6489,6 +6502,9 @@ struct my_option my_long_early_options[]=
    &opt_verbose, &opt_verbose, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"version", 'V', "Output version information and exit.", 0, 0, 0, GET_NO_ARG,
    NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"table_cache", 0, "Deprecated; use --table-open-cache instead.",
+   &deprecated_table_cache_size, &deprecated_table_cache_size, 0, GET_ULONG,
+   REQUIRED_ARG, TABLE_OPEN_CACHE_DEFAULT, 1, 512*1024L, 0, 1, 0},
   {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 
@@ -6857,9 +6873,6 @@ struct my_option my_long_options[]=
    "Multiple --plugin-load-add are supported.",
    0, 0, 0,
    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"table_cache", 0, "Deprecated; use --table-open-cache instead.",
-   &table_cache_size, &table_cache_size, 0, GET_ULONG,
-   REQUIRED_ARG, TABLE_OPEN_CACHE_DEFAULT, 1, 512*1024L, 0, 1, 0},
   {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 
