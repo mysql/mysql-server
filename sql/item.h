@@ -3248,7 +3248,7 @@ public:
 
 
   /**
-    Checks if the item tree that ref points to contains a subquery.
+    Checks if the item tree that ref points to contains a stored program.
   */
   virtual bool has_stored_program() const 
   { 

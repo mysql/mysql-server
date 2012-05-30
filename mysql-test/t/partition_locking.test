@@ -1332,6 +1332,15 @@ eval $get_handler_status_counts;
 --echo # 2 read_next (if more matches after the first match)
 --echo # 1 delete
 EXPLAIN PARTITIONS DELETE FROM t1 WHERE a = (SELECT a + 90 FROM t2 WHERE a = 1);
+FLUSH STATUS;
+DELETE FROM t1 PARTITION (p0)
+WHERE a = (SELECT a + 2 FROM t2 WHERE a = 1);
+eval $get_handler_status_counts;
+--echo # Impossible delete, all partitions pruned away after locking!
+--echo # 8 locks (2 table + 1 PARTITION(p0) + 1 (a = 1) partition lock/unlock)
+--echo # 1 read_key
+EXPLAIN PARTITIONS DELETE FROM t1 PARTITION (p0)
+WHERE a = (SELECT a + 2 FROM t2 WHERE a = 1);
 
 --echo #
 --echo # Test multi table DELETE

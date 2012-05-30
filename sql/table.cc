@@ -5041,7 +5041,7 @@ void TABLE::mark_columns_needed_for_delete()
 
 
 /**
-  @breif
+  @brief
   Mark columns needed for doing an update of a row
 
   @details
