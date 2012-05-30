@@ -2162,3 +2162,101 @@ SELECT * FROM t2;
 
 DROP TABLE t1, t2;
 
+--echo #
+--echo # Test subqueries/stored functions with UPDATE/DELETE/SELECT
+--echo #
+CREATE TABLE tq (id int, query varchar(255), PRIMARY KEY (id));
+CREATE TABLE tsq (id int, subquery varchar(255), PRIMARY KEY (id));
+CREATE TABLE t1 (a int, b varchar(255), PRIMARY KEY (a), KEY (b))
+ENGINE = InnoDB
+PARTITION BY HASH (a) PARTITIONS 3;
+CREATE TABLE t2 (a int, b varchar(255), PRIMARY KEY (a), KEY (b))
+ENGINE = InnoDB
+PARTITION BY HASH (a) PARTITIONS 3;
+START TRANSACTION;
+INSERT INTO t1 VALUES (1, "1");
+INSERT INTO t1 VALUES (2, "2");
+INSERT INTO t1 VALUES (8, "8");
+INSERT INTO t2 VALUES (1, "1");
+INSERT INTO t2 VALUES (2, "2");
+INSERT INTO t2 VALUES (8, "8");
+
+CREATE FUNCTION sf_add_hello(s VARCHAR(240))
+  RETURNS VARCHAR(246) DETERMINISTIC
+  RETURN CONCAT('hello ', s);
+CREATE FUNCTION sf_add_1(i INT)
+  RETURNS INT DETERMINISTIC
+  RETURN i + 1;
+delimiter |;
+CREATE FUNCTION sf_a_from_t1b_d(s varchar(128))
+  RETURNS INT DETERMINISTIC
+  BEGIN
+  DECLARE i INT;
+    SELECT a INTO i FROM t1 where b = s;
+    RETURN i;
+  END|
+CREATE FUNCTION sf_a_from_t1b(s varchar(128))
+  RETURNS INT
+  BEGIN
+  DECLARE i INT;
+    SELECT a INTO i FROM t1 where b = s;
+    RETURN i;
+  END|
+delimiter ;|
+
+INSERT INTO tq VALUES (1, "SELECT * FROM t2");
+INSERT INTO tq VALUES (2, "SELECT sf_add_1(a) - 1, sf_add_hello(b) FROM t2");
+INSERT INTO tq VALUES (3, "UPDATE t2 SET b = CONCAT('+', b)");
+INSERT INTO tq VALUES (4, "UPDATE t2 SET b = sf_add_hello(b)");
+INSERT INTO tq VALUES (5, "UPDATE t2 SET a = sf_add_1(a) + 4");
+INSERT INTO tq VALUES (6, "DELETE FROM t2");
+INSERT INTO tsq VALUES (1, "(SELECT a FROM t1 WHERE b = '1')");
+INSERT INTO tsq VALUES (2, "7 + (SELECT a FROM t1 WHERE b = '1')");
+INSERT INTO tsq VALUES (3, "sf_a_from_t1b('1')");
+INSERT INTO tsq VALUES (4, "sf_a_from_t1b_d('1')");
+INSERT INTO tsq VALUES (5, "7 + sf_a_from_t1b('1')");
+INSERT INTO tsq VALUES (6, "7 + sf_a_from_t1b_d('1')");
+COMMIT;
+
+let $subnr= 1;
+let $qnr= 1;
+
+let $query = `SELECT query FROM tq WHERE id = $qnr`;
+let $subq = `SELECT subquery FROM tsq WHERE id = $subnr`;
+while ($query != '')
+{
+  while ($subq != '')
+  {
+    eval EXPLAIN PARTITIONS $query WHERE a = $subq;
+    FLUSH STATUS;
+    START TRANSACTION;
+    eval $query WHERE a = $subq;
+    eval $get_handler_status_counts;
+    --sorted_result
+    SELECT * FROM t2;
+    ROLLBACK;
+    FLUSH STATUS;
+    # Cannot use START TRANSACTION with LOCK TABLES
+    SET autocommit = 0;
+    LOCK TABLES t1 read, t2 write;
+    eval $query WHERE a = $subq;
+    eval $get_handler_status_counts;
+    --sorted_result
+    SELECT * FROM t2;
+    ROLLBACK;
+    UNLOCK TABLES;
+    inc $subnr;
+    let $subq = `SELECT subquery FROM tsq WHERE id = $subnr`;
+  }
+  let $subnr= 1;
+  let $subq = `SELECT subquery FROM tsq WHERE id = $subnr`;
+  inc $qnr;
+  let $query = `SELECT query FROM tq WHERE id = $qnr`;
+}
+
+DROP FUNCTION sf_add_hello;
+DROP FUNCTION sf_add_1;
+DROP FUNCTION sf_a_from_t1b_d;
+DROP FUNCTION sf_a_from_t1b;
+
+DROP TABLE tq, tsq, t1, t2;

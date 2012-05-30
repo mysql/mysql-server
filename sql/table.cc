@@ -5040,10 +5040,11 @@ void TABLE::mark_columns_needed_for_delete()
 }
 
 
-/*
+/**
+  @breif
   Mark columns needed for doing an update of a row
 
-  DESCRIPTON
+  @details
     Some engines needs to have all columns in an update (to be able to
     build a complete row). If this is the case, we mark all not
     updated columns to be read.
@@ -5056,6 +5057,10 @@ void TABLE::mark_columns_needed_for_delete()
     mark all USED key columns as 'to-be-read'. This allows the engine to
     loop over the given record to find all changed keys and doesn't have to
     retrieve the row again.
+    
+    Unlike other similar methods, it doesn't mark fields used by triggers,
+    that is the responsibility of the caller to do, by using
+    Table_triggers_list::mark_used_fields(TRG_EVENT_UPDATE)!
 */
 
 void TABLE::mark_columns_needed_for_update()
