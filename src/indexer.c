@@ -104,20 +104,6 @@ disassociate_indexer_from_hot_dbs(DB_INDEXER *indexer) {
     }
 }
 
-static void
-indexer_add_refs(DB_INDEXER *indexer) {
-    toku_db_add_ref(indexer->i->src_db);
-    for (int i = 0; i < indexer->i->N; i++)
-        toku_db_add_ref(indexer->i->dest_dbs[i]);
-}
-
-static void
-indexer_release_refs(DB_INDEXER *indexer) {
-    toku_db_release_ref(indexer->i->src_db);
-    for (int i = 0; i < indexer->i->N; i++)
-        toku_db_release_ref(indexer->i->dest_dbs[i]);
-}
-
 /*
  *  free_indexer_resources() frees all of the resources associated with
  *      struct __toku_indexer_internal 
@@ -133,7 +119,6 @@ free_indexer_resources(DB_INDEXER *indexer) {
             indexer->i->fnums = NULL;
         }
         indexer_undo_do_destroy(indexer);
-        indexer_release_refs(indexer);
         // indexer->i
         toku_free(indexer->i);
         indexer->i = NULL;
@@ -231,7 +216,6 @@ create_exit:
     if ( rval == 0 ) {
 
         indexer_undo_do_init(indexer);
-        indexer_add_refs(indexer);
         
         *indexerp = indexer;
 
