@@ -2951,7 +2951,7 @@ innobase_change_buffering_inited_ok:
 
 	srv_log_buffer_size = (ulint) innobase_log_buffer_size;
 
-	if (!innobase_buffer_pool_instances) {
+	if (innobase_buffer_pool_instances == 0) {
 		innobase_buffer_pool_instances = 8;
 #ifdef _WIN32
 		if (innobase_buffer_pool_size > 1331 * 1024 * 1024) {
@@ -14770,7 +14770,7 @@ static MYSQL_SYSVAR_ULONG(purge_batch_size, srv_purge_batch_size,
 
 static MYSQL_SYSVAR_ULONG(purge_threads, srv_n_purge_threads,
   PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_READONLY,
-  "Purge threads can be from 0 to 32. Default is 1.",
+  "Purge threads can be from 1 to 32. Default is 1.",
   NULL, NULL,
   1,			/* Default setting */
   1,			/* Minimum value */
