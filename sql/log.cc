@@ -2814,7 +2814,7 @@ const char *MYSQL_LOG::generate_name(const char *log_name,
 MYSQL_BIN_LOG::MYSQL_BIN_LOG(uint *sync_period)
   :bytes_written(0), prepared_xids(0), file_id(1), open_count(1),
    need_start_event(TRUE),
-   sync_period_ptr(sync_period),
+   sync_period_ptr(sync_period), sync_counter(0),
    is_relay_log(0), signal_cnt(0),
    description_event_for_exec(0), description_event_for_queue(0)
 {
