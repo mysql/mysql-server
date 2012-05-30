@@ -723,6 +723,11 @@ public:
                                            of its arguments is or contains a
                                            subselect. Computed by fix_fields
                                            and updated by update_used_tables. */
+  my_bool with_stored_program;          /* If this item is a stored program
+                                           or some of its arguments is or
+                                           contains a stored program.
+                                           Computed by fix_fields and updated
+                                           by update_used_tables. */
 
   /**
     This variable is a cache of 'Needed tables are locked'. True if either
@@ -1684,6 +1689,7 @@ public:
     Checks if this item or any of its decendents contains a subquery.
   */
   virtual bool has_subquery() const { return with_subselect; }
+  virtual bool has_stored_program() const { return with_stored_program; }
 };
 
 
@@ -3238,6 +3244,16 @@ public:
   { 
     DBUG_ASSERT(ref);
     return (*ref)->has_subquery();
+  }
+
+
+  /**
+    Checks if the item tree that ref points to contains a subquery.
+  */
+  virtual bool has_stored_program() const 
+  { 
+    DBUG_ASSERT(ref);
+    return (*ref)->has_stored_program();
   }
 };
 
