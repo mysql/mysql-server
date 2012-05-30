@@ -925,7 +925,11 @@ DROP TABLE t1;
 CREATE TABLE t1 (a INT, b CHAR(1)) ENGINE=InnoDB;
 INSERT INTO t1 VALUES (3,'a'),(3,'b'),(1,'c'),(0,'d'),(1,'e');
 CREATE TABLE t2 (a INT, b CHAR(1)) ENGINE=InnoDB;
+CREATE TABLE t2i (a INT NOT NULL, b CHAR(1) NOT NULL) ENGINE=InnoDB;
+CREATE TABLE t2c (a INT NOT NULL, b CHAR(1) NOT NULL) ENGINE=InnoDB;
 INSERT INTO t2 SELECT * FROM t1;
+INSERT INTO t2i SELECT * FROM t1;
+INSERT INTO t2c SELECT * FROM t1;
 BEGIN;
 SELECT * FROM t1;
 a	b
@@ -937,7 +941,19 @@ a	b
 SET lock_wait_timeout=1;
 CREATE INDEX t1a ON t1(a);
 ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+ALTER TABLE t2 ADD PRIMARY KEY(a,b), ADD INDEX t2a(a), ALGORITHM=INPLACE;
+ERROR 42000: This version of MySQL doesn't yet support 'ALTER TABLE t2 ADD PRIMARY KEY(a,b), ADD INDEX t2a(a), ALGORITHM=INPLACE'
 CREATE INDEX t2a ON t2(a);
+ALTER TABLE t2i ADD PRIMARY KEY(a,b), ADD INDEX t2a(a), ALGORITHM=INPLACE;
+ALTER TABLE t2c ADD PRIMARY KEY(a,b), ADD INDEX t2a(a), ALGORITHM=COPY;
+SELECT * FROM t2i;
+ERROR HY000: Table definition has changed, please retry transaction
+SELECT * FROM t2i FORCE INDEX(t2a) ORDER BY a;
+ERROR HY000: Table definition has changed, please retry transaction
+SELECT * FROM t2c;
+ERROR HY000: Table definition has changed, please retry transaction
+SELECT * FROM t2c FORCE INDEX(t2a) ORDER BY a;
+ERROR HY000: Table definition has changed, please retry transaction
 SELECT * FROM t2;
 a	b
 3	a
@@ -955,7 +971,42 @@ a	b
 0	d
 1	e
 COMMIT;
+SELECT * FROM t2;
+a	b
+3	a
+3	b
+1	c
+0	d
+1	e
 SELECT * FROM t2 FORCE INDEX(t2a) ORDER BY a;
+a	b
+0	d
+1	c
+1	e
+3	a
+3	b
+SELECT * FROM t2i;
+a	b
+0	d
+1	c
+1	e
+3	a
+3	b
+SELECT * FROM t2i FORCE INDEX(t2a) ORDER BY a;
+a	b
+0	d
+1	c
+1	e
+3	a
+3	b
+SELECT * FROM t2c;
+a	b
+0	d
+1	c
+1	e
+3	a
+3	b
+SELECT * FROM t2c FORCE INDEX(t2a) ORDER BY a;
 a	b
 0	d
 1	c
@@ -972,4 +1023,20 @@ t2	CREATE TABLE `t2` (
   `b` char(1) DEFAULT NULL,
   KEY `t2a` (`b`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
-DROP TABLE t1,t2;
+show create table t2i;
+Table	Create Table
+t2i	CREATE TABLE `t2i` (
+  `a` int(11) NOT NULL,
+  `b` char(1) NOT NULL,
+  PRIMARY KEY (`a`,`b`),
+  KEY `t2a` (`a`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+show create table t2c;
+Table	Create Table
+t2c	CREATE TABLE `t2c` (
+  `a` int(11) NOT NULL,
+  `b` char(1) NOT NULL,
+  PRIMARY KEY (`a`,`b`),
+  KEY `t2a` (`a`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+DROP TABLE t1,t2,t2c,t2i;
