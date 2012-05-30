@@ -1889,8 +1889,9 @@ btr_cur_update_in_place(
 	ut_ad(dict_index_is_online_ddl(index) == !!(flags & BTR_CREATE_FLAG)
 	      || dict_index_is_clust(index));
 	ut_ad(!thr || thr_get_trx(thr)->id == trx_id);
-	ut_ad(thr || flags == (BTR_NO_UNDO_LOG_FLAG | BTR_NO_LOCKING_FLAG
-			       | BTR_CREATE_FLAG | BTR_KEEP_SYS_FLAG));
+	ut_ad(thr || (flags & ~BTR_KEEP_POS_FLAG)
+	      == (BTR_NO_UNDO_LOG_FLAG | BTR_NO_LOCKING_FLAG
+		  | BTR_CREATE_FLAG | BTR_KEEP_SYS_FLAG));
 
 #ifdef UNIV_DEBUG
 	if (btr_cur_print_record_ops) {
@@ -2031,8 +2032,9 @@ btr_cur_optimistic_update(
 	ut_ad(dict_index_is_online_ddl(index) == !!(flags & BTR_CREATE_FLAG)
 	      || dict_index_is_clust(index));
 	ut_ad(!thr || thr_get_trx(thr)->id == trx_id);
-	ut_ad(thr || flags == (BTR_NO_UNDO_LOG_FLAG | BTR_NO_LOCKING_FLAG
-			       | BTR_CREATE_FLAG | BTR_KEEP_SYS_FLAG));
+	ut_ad(thr || (flags & ~BTR_KEEP_POS_FLAG)
+	      == (BTR_NO_UNDO_LOG_FLAG | BTR_NO_LOCKING_FLAG
+		  | BTR_CREATE_FLAG | BTR_KEEP_SYS_FLAG));
 
 	*offsets = rec_get_offsets(rec, index, *offsets,
 				   ULINT_UNDEFINED, heap);
@@ -2305,8 +2307,9 @@ btr_cur_pessimistic_update(
 	ut_ad(dict_index_is_online_ddl(index) == !!(flags & BTR_CREATE_FLAG)
 	      || dict_index_is_clust(index));
 	ut_ad(!thr || thr_get_trx(thr)->id == trx_id);
-	ut_ad(thr || flags == (BTR_NO_UNDO_LOG_FLAG | BTR_NO_LOCKING_FLAG
-			       | BTR_CREATE_FLAG | BTR_KEEP_SYS_FLAG));
+	ut_ad(thr || (flags & ~BTR_KEEP_POS_FLAG)
+	      == (BTR_NO_UNDO_LOG_FLAG | BTR_NO_LOCKING_FLAG
+		  | BTR_CREATE_FLAG | BTR_KEEP_SYS_FLAG));
 
 	optim_err = btr_cur_optimistic_update(
 		flags, cursor, offsets, offsets_heap, update,
