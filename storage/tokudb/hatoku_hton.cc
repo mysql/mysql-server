@@ -1239,7 +1239,7 @@ cleanup:
     return error;
 }
 
-#define STATPRINT(legend, val) stat_print(thd, \
+#define STATPRINT(legend, val) if (legend && val) stat_print(thd,   \
                                           tokudb_hton_name, \
                                           strlen(tokudb_hton_name), \
                                           legend, \
