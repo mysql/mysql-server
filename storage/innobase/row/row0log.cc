@@ -1000,13 +1000,21 @@ row_log_table_apply_insert_low(
 	error = row_ins_clust_index_entry_low(
 		flags, BTR_MODIFY_TREE, index, entry, 0, thr);
 
-	if (error == DB_DUPLICATE_KEY) {
+	switch (error) {
+	case DB_SUCCESS:
+		break;
+	case DB_SUCCESS_LOCKED_REC:
+		/* The row had already been copied to the table. */
+		return(DB_SUCCESS);
+	case DB_DUPLICATE_KEY:
 		/* TODO: report the duplicate key unless the record is
 		a full match of what we tried to insert */
+		/* fall through */
+	default:
 		return(error);
 	}
 
-	while (error == DB_SUCCESS) {
+	do {
 		if (!(index = dict_table_get_next_index(index))) {
 			break;
 		}
@@ -1015,10 +1023,10 @@ row_log_table_apply_insert_low(
 		error = row_ins_sec_index_entry_low(
 			flags, BTR_MODIFY_TREE,
 			index, offsets_heap, heap, entry, thr);
-	}
+	} while (error == DB_SUCCESS);
 
 	if (error == DB_DUPLICATE_KEY) {
-		/* TODO: report dup */
+		/* TODO: report a duplicate */
 	}
 
 	return(error);
