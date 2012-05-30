@@ -1739,7 +1739,6 @@ recv_apply_hashed_log_recs(
 {
 	recv_addr_t* recv_addr;
 	ulint	i;
-	ulint	n_pages;
 	ibool	has_printed	= FALSE;
 	mtr_t	mtr;
 loop:
@@ -1838,6 +1837,8 @@ loop:
 	}
 
 	if (!allow_ibuf) {
+		bool	success;
+
 		/* Flush all the file pages to disk and invalidate them in
 		the buffer pool */
 
@@ -1845,8 +1846,9 @@ loop:
 		mutex_exit(&(recv_sys->mutex));
 		mutex_exit(&(log_sys->mutex));
 
-		n_pages = buf_flush_list(ULINT_MAX, LSN_MAX);
-		ut_a(n_pages != ULINT_UNDEFINED);
+		success = buf_flush_list(ULINT_MAX, LSN_MAX, NULL);
+
+		ut_a(success);
 
 		buf_flush_wait_batch_end(NULL, BUF_FLUSH_LIST);
 

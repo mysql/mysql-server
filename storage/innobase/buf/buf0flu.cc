@@ -1635,8 +1635,7 @@ NOTE 1: in the case of an LRU flush the calling thread may own latches to
 pages: to avoid deadlocks, this function must be written so that it cannot
 end up waiting for these latches! NOTE 2: in the case of a flush list flush,
 the calling thread is not allowed to own any latches on pages!
-@return number of blocks for which the write request was queued;
-ULINT_UNDEFINED if there was a flush of the same type already running */
+@return number of blocks for which the write request was queued */
 static
 ulint
 buf_flush_batch(
@@ -1800,7 +1799,7 @@ buf_flush_wait_batch_end(
 		}
 	} else {
 		thd_wait_begin(NULL, THD_WAIT_DISKIO);
-		os_event_wait(buf_pool->no_flush[type]);
+	os_event_wait(buf_pool->no_flush[type]);
 		thd_wait_end(NULL);
 	}
 }
@@ -1810,21 +1809,28 @@ This utility flushes dirty blocks from the end of the LRU list and also
 puts replaceable clean pages from the end of the LRU list to the free
 list.
 NOTE: The calling thread is not allowed to own any latches on pages!
-@return number of blocks for which the write request was queued;
-ULINT_UNDEFINED if there was a flush of the same type already running */
+@return true if a batch was queued successfully. false if another batch
+of same type was already running. */
 static
-ulint
+bool
 buf_flush_LRU(
 /*==========*/
 	buf_pool_t*	buf_pool,	/*!< in/out: buffer pool instance */
-	ulint		min_n)		/*!< in: wished minimum mumber of blocks
+	ulint		min_n,		/*!< in: wished minimum mumber of blocks
 					flushed (it is not guaranteed that the
 					actual number is that big, though) */
+	ulint*		n_processed)	/*!< out: the number of pages
+					which were processed is passed
+					back to caller. Ignored if NULL */
 {
 	ulint		page_count;
 
+	if (n_processed) {
+		*n_processed = 0;
+	}
+
 	if (!buf_flush_start(buf_pool, BUF_FLUSH_LRU)) {
-		return(ULINT_UNDEFINED);
+		return(false);
 	}
 
 	page_count = buf_flush_batch(buf_pool, BUF_FLUSH_LRU, min_n, 0);
@@ -1833,31 +1839,43 @@ buf_flush_LRU(
 
 	buf_flush_common(BUF_FLUSH_LRU, page_count);
 
-	return(page_count);
+	if (n_processed) {
+		*n_processed = page_count;
+	}
+
+	return(true);
 }
 
 /*******************************************************************//**
 This utility flushes dirty blocks from the end of the flush list of
 all buffer pool instances.
 NOTE: The calling thread is not allowed to own any latches on pages!
-@return number of blocks for which the write request was queued;
-ULINT_UNDEFINED if there was a flush of the same type already running */
+@return true if a batch was queued successfully for each buffer pool
+instance. false if another batch of same type was already running in
+at least one of the buffer pool instance */
 UNIV_INTERN
-ulint
+bool
 buf_flush_list(
 /*===========*/
 	ulint		min_n,		/*!< in: wished minimum mumber of blocks
 					flushed (it is not guaranteed that the
 					actual number is that big, though) */
-	lsn_t		lsn_limit)	/*!< in the case BUF_FLUSH_LIST all
+	lsn_t		lsn_limit,	/*!< in the case BUF_FLUSH_LIST all
 					blocks whose oldest_modification is
 					smaller than this should be flushed
 					(if their number does not exceed
 					min_n), otherwise ignored */
+	ulint*		n_processed)	/*!< out: the number of pages
+					which were processed is passed
+					back to caller. Ignored if NULL */
+
 {
 	ulint		i;
-	ulint		total_page_count = 0;
-	ibool		skipped = FALSE;
+	bool		success = true;
+
+	if (n_processed) {
+		*n_processed = 0;
+	}
 
 	if (min_n != ULINT_MAX) {
 		/* Ensure that flushing is spread evenly amongst the
@@ -1886,7 +1904,7 @@ buf_flush_list(
 			pools based on the assumption that it will
 			help in the retry which will follow the
 			failure. */
-			skipped = TRUE;
+			success = false;
 
 			continue;
 		}
@@ -1898,7 +1916,9 @@ buf_flush_list(
 
 		buf_flush_common(BUF_FLUSH_LIST, page_count);
 
-		total_page_count += page_count;
+		if (n_processed) {
+			*n_processed += page_count;
+		}
 
 		if (page_count) {
 			MONITOR_INC_VALUE_CUMULATIVE(
@@ -1909,8 +1929,7 @@ buf_flush_list(
 		}
 	}
 
-	return(lsn_limit != LSN_MAX && skipped
-	       ? ULINT_UNDEFINED : total_page_count);
+	return(success);
 }
 
 /******************************************************************//**
@@ -2034,16 +2053,17 @@ page_cleaner_flush_LRU_tail(void)
 		     j < srv_LRU_scan_depth;
 		     j += PAGE_CLEANER_LRU_BATCH_CHUNK_SIZE) {
 
-			ulint	n_flushed = buf_flush_LRU(buf_pool,
-				PAGE_CLEANER_LRU_BATCH_CHUNK_SIZE);
+			ulint	n_flushed = 0;
 
 			/* Currently page_cleaner is the only thread
 			that can trigger an LRU flush. It is possible
 			that a batch triggered during last iteration is
 			still running, */
-			if (n_flushed != ULINT_UNDEFINED) {
-				total_flushed += n_flushed;
-			}
+			buf_flush_LRU(buf_pool,
+				      PAGE_CLEANER_LRU_BATCH_CHUNK_SIZE,
+				      &n_flushed);
+
+			total_flushed += n_flushed;
 		}
 	}
 
@@ -2100,10 +2120,7 @@ page_cleaner_do_flush_batch(
 {
 	ulint n_flushed;
 
-	n_flushed = buf_flush_list(n_to_flush, lsn_limit);
-	if (n_flushed == ULINT_UNDEFINED) {
-		n_flushed = 0;
-	}
+	buf_flush_list(n_to_flush, lsn_limit, &n_flushed);
 
 	return(n_flushed);
 }
@@ -2418,12 +2435,14 @@ DECLARE_THREAD(buf_flush_page_cleaner_thread)(
 	buf_flush_wait_batch_end(NULL, BUF_FLUSH_LIST);
 	page_cleaner_wait_LRU_flush();
 
+	bool	success;
+
 	do {
 
-		n_flushed = buf_flush_list(PCT_IO(100), LSN_MAX);
+		success = buf_flush_list(PCT_IO(100), LSN_MAX, &n_flushed);
 		buf_flush_wait_batch_end(NULL, BUF_FLUSH_LIST);
 
-	} while (n_flushed > 0);
+	} while (!success || n_flushed > 0);
 
 	/* Some sanity checks */
 	ut_a(srv_get_active_thread_type() == SRV_NONE);
