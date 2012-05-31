@@ -257,6 +257,10 @@ public class QueryDomainTypeImpl<T> implements QueryDomainType<T> {
                         
                     }
                     op.beginDefinition();
+                    // set ordering if not already set to allow skip and limit to work
+                    if (ordering == null && (skip != 0 || limit != Long.MAX_VALUE)) {
+                        ordering = Ordering.ASCENDING;
+                    }
                     ((ScanOperation)op).setOrdering(ordering);
                     // set the expected columns into the operation
                     domainTypeHandler.operationGetValues(op);
