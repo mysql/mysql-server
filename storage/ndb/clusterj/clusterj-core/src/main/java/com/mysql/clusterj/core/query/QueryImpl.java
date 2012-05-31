@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2009, 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2009, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -52,6 +52,12 @@ public class QueryImpl<E> implements Query<E> {
     /** The limit */
     protected long limit = Long.MAX_VALUE;
 
+    /** The order */
+    protected Query.Ordering ordering = null;
+
+    /** The ordering fields */
+    protected String[] orderingFields = null;
+
     public QueryImpl(SessionImpl session, QueryDomainTypeImpl<E> dobj) {
         this.session = session;
         context = new QueryExecutionContextImpl(session);
@@ -89,6 +95,32 @@ public class QueryImpl<E> implements Query<E> {
         }
     }
 
+    /** Set ordering for this query. Verify that the ordering fields exist in the domain type.
+     * @param ordering the ordering for the query
+     * @param orderingFields the list of fields to order by
+     */
+    public void setOrdering(com.mysql.clusterj.Query.Ordering ordering,
+            String... orderingFields) {
+        this.ordering = ordering;
+        this.orderingFields = orderingFields;
+        // verify that all ordering fields actually are fields
+        StringBuilder builder = new StringBuilder();
+        String separator = "";
+        for (String orderingField : orderingFields) {
+            try {
+                dobj.get(orderingField);
+            } catch (ClusterJUserException ex) {
+                builder.append(separator);
+                builder.append(orderingField);
+                separator = ", ";
+            }
+        }
+        String errors = builder.toString();
+        if (errors.length() > 0) {
+            throw new ClusterJUserException(local.message("ERR_Ordering_Field_Does_Not_Exist", errors));
+        }
+    }
+
     public Results<E> execute(Object arg0) {
             throw new UnsupportedOperationException(
                     local.message("ERR_NotImplemented"));
@@ -109,7 +141,7 @@ public class QueryImpl<E> implements Query<E> {
     }
 
     public List<E> getResultList() {
-        List<E> results = dobj.getResultList(context, skip, limit);
+        List<E> results = dobj.getResultList(context, skip, limit, ordering, orderingFields);
         // create new context, copying the parameters, for another execution
         context = new QueryExecutionContextImpl(context);
         return results;

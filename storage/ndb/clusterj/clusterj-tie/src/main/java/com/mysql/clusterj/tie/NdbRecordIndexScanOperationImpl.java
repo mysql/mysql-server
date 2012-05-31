@@ -137,10 +137,12 @@ public class NdbRecordIndexScanOperationImpl extends NdbRecordScanOperationImpl 
                 handleError(returnCode, ndbIndexScanOperation);
             }
         } else {
-            // only one range defined
+            // zero or one range defined
             ndbIndexBound = getNdbIndexBound();
-            int returnCode = ndbIndexScanOperation.setBound(ndbRecordKeys.getNdbRecord(), ndbIndexBound);
-            handleError(returnCode, ndbIndexScanOperation);
+            if (ndbIndexBound != null) {
+                int returnCode = ndbIndexScanOperation.setBound(ndbRecordKeys.getNdbRecord(), ndbIndexBound);
+                handleError(returnCode, ndbIndexScanOperation);
+            }
         }
         clusterTransaction.postExecuteCallback(new Runnable() {
             // free structures used to define operation            

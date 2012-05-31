@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2010, 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -64,6 +64,7 @@ public final class CandidateIndexImpl {
     private ScanType scanType = PredicateImpl.ScanType.TABLE_SCAN;
     private int fieldScore = 1;
     protected int score = 0;
+    private boolean canBound = true;
 
     public CandidateIndexImpl(
             String className, Index storeIndex, boolean unique, AbstractDomainFieldHandlerImpl[] fields) {
@@ -202,6 +203,7 @@ public final class CandidateIndexImpl {
             // range index
             // leading columns need any kind of bound
             // extra credit for equals
+            boolean firstColumn = true;
             for (CandidateColumnImpl candidateColumn: candidateColumns) {
                 if ((candidateColumn.equalBound)) {
                     scanType = PredicateImpl.ScanType.INDEX_SCAN;
@@ -215,7 +217,9 @@ public final class CandidateIndexImpl {
                     }
                 } else if ((candidateColumn.inBound)) {
                     scanType = PredicateImpl.ScanType.INDEX_SCAN;
-                    multiRange = true;
+                    if (firstColumn) {
+                        multiRange = true;
+                    }
                     if (!lowerBoundDone) {
                         score += fieldScore;
                         lastLowerBoundColumn = candidateColumn;
@@ -252,6 +256,7 @@ public final class CandidateIndexImpl {
                         continue;
                     }
                 }
+                firstColumn = false;
             }
             if (lastLowerBoundColumn != null) {
                 lastLowerBoundColumn.markLastLowerBoundColumn();
@@ -432,6 +437,12 @@ public final class CandidateIndexImpl {
          */
         private int operationSetBounds(
                 QueryExecutionContext context, IndexScanOperation op, int index, int boundStatus) {
+            if (inPredicate != null && index == -1
+                    || !canBound) {
+                // "in" predicate cannot be used to set bounds unless it is the first column in the index
+                // if index scan but no valid bounds to set skip bounds
+                return BOUND_STATUS_BOTH_BOUNDS_DONE;
+            }
 
             int boundSet = PredicateImpl.NO_BOUND_SET;
 
@@ -534,19 +545,90 @@ public final class CandidateIndexImpl {
 
     /** Is this index usable in the current context?
      * If a primary or unique index, all parameters must be non-null.
-     * If a btree index, the parameter for the first comparison must be non-null
+     * If a btree index, the parameter for the first comparison must be non-null.
+     * If ordering is specified, the ordering fields must appear in the proper position in the index.
+     * <ul><li>Returns -1 if this index is unusable.
+     * </li><li>Returns 0 if this index is usable but has no filtering terms
+     * </li><li>Returns 1 if this index is usable and has at least one usable filtering term
+     * </li></ul>
      * @param context the query execution context
-     * @return true if all relevant parameters in the context are non-null
+     * @param orderingFields the fields in the ordering
+     * @return the usability of this index
      */
-    public boolean isUsable(QueryExecutionContext context) {
-        if (unique) {
-            return context.hasNoNullParameters();
-        } else {
-            // the first parameter must not be null
-            CandidateColumnImpl candidateColumn = candidateColumns[0];
-            PredicateImpl predicate = candidateColumn.predicate;
-            return predicate.isUsable(context);
+    public int isUsable(QueryExecutionContext context, String[] orderingFields) {
+        boolean ordering = orderingFields != null;
+        if (ordering && !containsAllOrderingFields(orderingFields)) {
+            return -1;
         }
+                
+        // ordering is ok; unique indexes have to have no null parameters
+        if (unique && score > 0) {
+            return context.hasNoNullParameters()?1:-1;
+        } else {
+            // index scan; the first parameter must not be null
+            if (candidateColumns == null) {
+                // this is a dummy index for "no where clause"
+                canBound = false;
+            } else {
+                CandidateColumnImpl candidateColumn = candidateColumns[0];
+                PredicateImpl predicate = candidateColumn.predicate;
+                canBound = predicate != null && predicate.isUsable(context);
+            }
+            // if first parameter is null, can scan but not bound
+            if (canBound) {
+                if (logger.isDebugEnabled()) logger.debug("for " + indexName + " canBound true -> returns 1");
+                scanType = PredicateImpl.ScanType.INDEX_SCAN;
+                return 1;
+            } else {
+                if (ordering) {
+                    if (logger.isDebugEnabled()) logger.debug("for " + indexName + " canBound false -> returns 0");
+                    scanType = PredicateImpl.ScanType.INDEX_SCAN;
+                    return 0;
+                } else {
+                    if (logger.isDebugEnabled()) logger.debug("for " + indexName + " canBound false -> returns -1");
+                    return -1;
+                }
+            }
+        }
+    }
+
+    /** Does this index contain all ordering fields?
+     * 
+     * @param orderingFields the ordering fields
+     * @return true if this ordered index contains all ordering fields in the proper position with no gaps
+     */
+    public boolean containsAllOrderingFields(String[] orderingFields) {
+        if (isUnique()) {
+            return false;
+        }
+        int candidateColumnIndex = 0;
+        if (orderingFields != null) {
+            for (String orderingField: orderingFields) {
+                if (candidateColumnIndex >= candidateColumns.length) {
+                    // too many columns in orderingFields for this index
+                    if (logger.isDebugEnabled()) logger.debug("Index " + indexName + " cannot be used because "
+                            + orderingField + " is not part of this index.");
+                    return false;
+                }
+                // each ordering field must correspond in order to the index fields
+                CandidateColumnImpl candidateColumn = candidateColumns[candidateColumnIndex++];
+                if (!orderingField.equals(candidateColumn.domainFieldHandler.getName())) {
+                    // the ordering field is not in the proper position in this candidate index
+                    if (logger.isDebugEnabled()) {
+                        logger.debug("Index " + indexName + " cannot be used because CandidateColumn "
+                            + candidateColumn.domainFieldHandler.getName() + " does not match " + orderingField);
+                    }
+                    return false;
+                }
+            }
+            if (logger.isDebugEnabled()) {
+                logger.debug("CandidateIndexImpl.containsAllOrderingFields found possible index (unique: "
+                        + unique + ") " + indexName);
+            }
+            scanType = PredicateImpl.ScanType.INDEX_SCAN;
+            return true;
+        }
+        return false;
     }
 
 }
