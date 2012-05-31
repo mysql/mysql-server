@@ -3,33 +3,15 @@
 
 [mysqld.1]
 
-# WARNING about open_files_limit and ulimit -n
-#
-# mysqld checks how many files can be opened on the machine,
-# and this is by definition very:
-# - os dependent, see OS_FILE_LIMIT, HAVE_GETRLIMIT
-# - configuration dependent, for each machine (ulimit -n), see
-#   my_set_max_open_files() in mysys/my_file.c,
-#   see getrlimit(RLIMIT_NOFILE)
-#
-# Based on the this, the server tunes _down_ max_connections and
-# table_cache_size to match the open_files_limit found,
-# which significantly interfere with this test.
-#
-# Solution: use a big table definition cache,
-# but small values for max_connection and table_open_cache,
-# to stay within open_files_limit of 1024.
-#
-# This is the best test we can do that has a chance to pass on all
-# platforms, while still providing code coverage.
-
-table_definition_cache=5000
+# Default values used in the server, out of the box
+table_definition_cache=400
 table_open_cache=400
-max_connections=200
+max_connections=151
 open_files_limit=1024
 
-# 10+max_connections+table_cache_size*2 = 10 + 200 + 400*2 = 1010
-# max_connections*5 = 200*5 = 1000
+# Disable the performacne schema.
+# Sizing does not occur then
+skip-performance-schema
 
 # Automated sizing for everything
 
