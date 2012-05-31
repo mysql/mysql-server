@@ -825,7 +825,7 @@ int terminate_slave_threads(Master_info* mi,int thread_mask,bool skip_lock)
       Flushes the relay log regardles of the sync_relay_log option.
     */
     if (mi->rli->relay_log.is_open() &&
-        mi->rli->relay_log.flush_and_sync(0, TRUE))
+        mi->rli->relay_log.flush_and_sync(true))
     {
       mysql_mutex_unlock(log_lock);
       DBUG_RETURN(ER_ERROR_DURING_FLUSH_LOGS);
@@ -1042,6 +1042,19 @@ int start_slave_threads(bool need_slave_mutex, bool wait_for_start,
   mysql_cond_t* cond_io=0, *cond_sql=0;
   int error=0;
   DBUG_ENTER("start_slave_threads");
+
+  if (!mi->inited || !mi->rli->inited)
+  {
+    if (!mi->inited)
+      mi->report(ERROR_LEVEL, ER_SLAVE_FATAL_ERROR,
+                 ER(ER_SLAVE_FATAL_ERROR),
+                 "Failed to initialize the master info structure");
+    else
+      mi->rli->report(ERROR_LEVEL, ER_SLAVE_FATAL_ERROR,
+                      ER(ER_SLAVE_FATAL_ERROR),
+                      "Failed to initialize the master info structure");
+    DBUG_RETURN(ER_SLAVE_FATAL_ERROR);
+  }
 
   if (need_slave_mutex)
   {

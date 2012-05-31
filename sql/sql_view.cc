@@ -412,7 +412,7 @@ bool mysql_create_view(THD *thd, TABLE_LIST *views,
   DBUG_ENTER("mysql_create_view");
 
   /* This is ensured in the parser. */
-  DBUG_ASSERT(!lex->proc_list.first && !lex->result &&
+  DBUG_ASSERT(!lex->proc_analyse && !lex->result &&
               !lex->param_list.elements);
 
   /*

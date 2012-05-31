@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2011, 2012 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -382,7 +382,7 @@ void my_thread_end(void)
     This must be done before trashing st_my_thread_var,
     because the LF_HASH depends on it.
   */
-  PSI_CALL(delete_current_thread)();
+  PSI_THREAD_CALL(delete_current_thread)();
 #endif
 
   if (tmp && tmp->init)
@@ -423,6 +423,10 @@ struct st_my_thread_var *_my_thread_var(void)
   return  my_pthread_getspecific(struct st_my_thread_var*,THR_KEY_mysys);
 }
 
+int set_mysys_var(struct st_my_thread_var *mysys_var)
+{
+  return my_pthread_setspecific_ptr(THR_KEY_mysys, mysys_var);
+}
 
 /****************************************************************************
   Get name of current thread.

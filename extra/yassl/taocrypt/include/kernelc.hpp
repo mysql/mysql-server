@@ -14,7 +14,7 @@
    along with this program; see the file COPYING. If not, write to the
    Free Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston,
    MA  02110-1301  USA.
-*/
+ */
 
 /* kernelc.hpp provides support for C std lib when compiled in kernel mode
 */
@@ -29,18 +29,6 @@
 extern "C" void* memcpy(void*, const void*, size_t);
 extern "C" void* memset(void*, int, size_t);
 extern "C" void  printk(char *fmt, ...);
-
-#define KERN_ERR "<3>"   /* error conditions */
-
-#if defined(NDEBUG)
-    #define assert(p)  	((void)0)
-#else
-    #define assert(expr)   \
-    if (!(expr))         { \
-         printk(KERN_ERR "Assertion failed! %s,%s,%s,line=%d\n", \
-         #expr,__FILE__,__FUNCTION__,__LINE__); }
-#endif
-
 
 
 #endif // TAOCRYPT_KERNELC_HPP

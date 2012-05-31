@@ -2985,7 +2985,9 @@ EXPLAIN
           "table": {
             "access_type": "eq_ref",
             "key": "<auto_key>",
-            "rows": 1
+            "key_length": "4",
+            "rows": 1,
+            "attached_condition": "((`test`.`t1`.`a` = `materialized subselect`.`a`))"
           },
           "query_block": {
             "select_id": 2,
@@ -3076,7 +3078,9 @@ EXPLAIN
           "table": {
             "access_type": "eq_ref",
             "key": "<auto_key>",
-            "rows": 1
+            "key_length": "5",
+            "rows": 1,
+            "attached_condition": "((`x`.`a` = `materialized subselect`.`a`))"
           },
           "query_block": {
             "select_id": 3,
@@ -3326,7 +3330,9 @@ EXPLAIN
               "table": {
                 "access_type": "eq_ref",
                 "key": "<auto_key>",
-                "rows": 1
+                "key_length": "5",
+                "rows": 1,
+                "attached_condition": "((`test`.`t3`.`a` = `materialized subselect`.`a`))"
               },
               "query_block": {
                 "select_id": 2,
@@ -3817,6 +3823,10 @@ select left(a1,7), left(a2,7)
 from t1_512
 where a1 in (select group_concat(b1) from t2_512 group by b2);
 left(a1,7)	left(a2,7)
+Warnings:
+Warning	1260	Row 1 was cut by GROUP_CONCAT()
+Warning	1260	Row 2 was cut by GROUP_CONCAT()
+Warning	1260	Row 3 was cut by GROUP_CONCAT()
 set @@group_concat_max_len = 256;
 explain extended select left(a1,7), left(a2,7)
 from t1_512
@@ -3830,6 +3840,10 @@ select left(a1,7), left(a2,7)
 from t1_512
 where a1 in (select group_concat(b1) from t2_512 group by b2);
 left(a1,7)	left(a2,7)
+Warnings:
+Warning	1260	Row 1 was cut by GROUP_CONCAT()
+Warning	1260	Row 2 was cut by GROUP_CONCAT()
+Warning	1260	Row 3 was cut by GROUP_CONCAT()
 drop table t1_512, t2_512, t3_512;
 set @blob_len = 513;
 set @suffix_len = @blob_len - @prefix_len;
@@ -3910,6 +3924,10 @@ select left(a1,7), left(a2,7)
 from t1_513
 where a1 in (select group_concat(b1) from t2_513 group by b2);
 left(a1,7)	left(a2,7)
+Warnings:
+Warning	1260	Row 1 was cut by GROUP_CONCAT()
+Warning	1260	Row 2 was cut by GROUP_CONCAT()
+Warning	1260	Row 3 was cut by GROUP_CONCAT()
 drop table t1_513, t2_513, t3_513;
 set @blob_len = 1024;
 set @suffix_len = @blob_len - @prefix_len;
@@ -3990,6 +4008,10 @@ select left(a1,7), left(a2,7)
 from t1_1024
 where a1 in (select group_concat(b1) from t2_1024 group by b2);
 left(a1,7)	left(a2,7)
+Warnings:
+Warning	1260	Row 1 was cut by GROUP_CONCAT()
+Warning	1260	Row 2 was cut by GROUP_CONCAT()
+Warning	1260	Row 3 was cut by GROUP_CONCAT()
 set @@group_concat_max_len = 256;
 explain extended select left(a1,7), left(a2,7)
 from t1_1024
@@ -4003,6 +4025,10 @@ select left(a1,7), left(a2,7)
 from t1_1024
 where a1 in (select group_concat(b1) from t2_1024 group by b2);
 left(a1,7)	left(a2,7)
+Warnings:
+Warning	1260	Row 1 was cut by GROUP_CONCAT()
+Warning	1260	Row 2 was cut by GROUP_CONCAT()
+Warning	1260	Row 3 was cut by GROUP_CONCAT()
 drop table t1_1024, t2_1024, t3_1024;
 set @blob_len = 1025;
 set @suffix_len = @blob_len - @prefix_len;
@@ -4083,6 +4109,10 @@ select left(a1,7), left(a2,7)
 from t1_1025
 where a1 in (select group_concat(b1) from t2_1025 group by b2);
 left(a1,7)	left(a2,7)
+Warnings:
+Warning	1260	Row 1 was cut by GROUP_CONCAT()
+Warning	1260	Row 2 was cut by GROUP_CONCAT()
+Warning	1260	Row 3 was cut by GROUP_CONCAT()
 set @@group_concat_max_len = 256;
 explain extended select left(a1,7), left(a2,7)
 from t1_1025
@@ -4096,6 +4126,10 @@ select left(a1,7), left(a2,7)
 from t1_1025
 where a1 in (select group_concat(b1) from t2_1025 group by b2);
 left(a1,7)	left(a2,7)
+Warnings:
+Warning	1260	Row 1 was cut by GROUP_CONCAT()
+Warning	1260	Row 2 was cut by GROUP_CONCAT()
+Warning	1260	Row 3 was cut by GROUP_CONCAT()
 drop table t1_1025, t2_1025, t3_1025;
 #
 # Bug#48868: Left outer join in subquery causes segmentation fault in
@@ -5074,7 +5108,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	8	100.00	NULL
 2	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	9	100.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`one` AS `one`,`test`.`t1`.`two` AS `two`,<in_optimizer>((`test`.`t1`.`one`,`test`.`t1`.`two`),<exists>(/* select#2 */ select `test`.`t2`.`one`,`test`.`t2`.`two` from `test`.`t2` where ((`test`.`t2`.`flag` = '0') and trigcond_if(outer_field_is_not_null, ((<cache>(`test`.`t1`.`one`) = `test`.`t2`.`one`) or isnull(`test`.`t2`.`one`)), true) and trigcond_if(outer_field_is_not_null, ((<cache>(`test`.`t1`.`two`) = `test`.`t2`.`two`) or isnull(`test`.`t2`.`two`)), true)) having (trigcond_if(outer_field_is_not_null, <is_not_null_test>(`test`.`t2`.`one`), true) and trigcond_if(outer_field_is_not_null, <is_not_null_test>(`test`.`t2`.`two`), true)))) AS `test` from `test`.`t1`
+Note	1003	/* select#1 */ select `test`.`t1`.`one` AS `one`,`test`.`t1`.`two` AS `two`,<in_optimizer>((`test`.`t1`.`one`,`test`.`t1`.`two`),<exists>(/* select#2 */ select `test`.`t2`.`one`,`test`.`t2`.`two` from `test`.`t2` where ((`test`.`t2`.`flag` = '0') and <if>(outer_field_is_not_null, ((<cache>(`test`.`t1`.`one`) = `test`.`t2`.`one`) or isnull(`test`.`t2`.`one`)), true) and <if>(outer_field_is_not_null, ((<cache>(`test`.`t1`.`two`) = `test`.`t2`.`two`) or isnull(`test`.`t2`.`two`)), true)) having (<if>(outer_field_is_not_null, <is_not_null_test>(`test`.`t2`.`one`), true) and <if>(outer_field_is_not_null, <is_not_null_test>(`test`.`t2`.`two`), true)))) AS `test` from `test`.`t1`
 explain extended SELECT one,two from t1 where ROW(one,two) IN (SELECT one,two FROM t2 WHERE flag = 'N');
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	8	100.00	Using where
@@ -5086,7 +5120,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	8	100.00	NULL
 2	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	9	100.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`one` AS `one`,`test`.`t1`.`two` AS `two`,<in_optimizer>((`test`.`t1`.`one`,`test`.`t1`.`two`),<exists>(/* select#2 */ select `test`.`t2`.`one`,`test`.`t2`.`two` from `test`.`t2` where ((`test`.`t2`.`flag` = '0') and trigcond_if(outer_field_is_not_null, ((<cache>(`test`.`t1`.`one`) = `test`.`t2`.`one`) or isnull(`test`.`t2`.`one`)), true) and trigcond_if(outer_field_is_not_null, ((<cache>(`test`.`t1`.`two`) = `test`.`t2`.`two`) or isnull(`test`.`t2`.`two`)), true)) having (trigcond_if(outer_field_is_not_null, <is_not_null_test>(`test`.`t2`.`one`), true) and trigcond_if(outer_field_is_not_null, <is_not_null_test>(`test`.`t2`.`two`), true)))) AS `test` from `test`.`t1`
+Note	1003	/* select#1 */ select `test`.`t1`.`one` AS `one`,`test`.`t1`.`two` AS `two`,<in_optimizer>((`test`.`t1`.`one`,`test`.`t1`.`two`),<exists>(/* select#2 */ select `test`.`t2`.`one`,`test`.`t2`.`two` from `test`.`t2` where ((`test`.`t2`.`flag` = '0') and <if>(outer_field_is_not_null, ((<cache>(`test`.`t1`.`one`) = `test`.`t2`.`one`) or isnull(`test`.`t2`.`one`)), true) and <if>(outer_field_is_not_null, ((<cache>(`test`.`t1`.`two`) = `test`.`t2`.`two`) or isnull(`test`.`t2`.`two`)), true)) having (<if>(outer_field_is_not_null, <is_not_null_test>(`test`.`t2`.`one`), true) and <if>(outer_field_is_not_null, <is_not_null_test>(`test`.`t2`.`two`), true)))) AS `test` from `test`.`t1`
 DROP TABLE t1,t2;
 CREATE TABLE t1 (a char(5), b char(5));
 INSERT INTO t1 VALUES (NULL,'aaa'), ('aaa','aaa');
@@ -5599,7 +5633,9 @@ EXPLAIN
           "table": {
             "access_type": "eq_ref",
             "key": "<auto_key>",
-            "rows": 1
+            "key_length": "3",
+            "rows": 1,
+            "attached_condition": "((`test`.`t2`.`Code` = `materialized subselect`.`Country`))"
           },
           "query_block": {
             "select_id": 2,
@@ -7355,7 +7391,9 @@ EXPLAIN
                 "table": {
                   "access_type": "eq_ref",
                   "key": "<auto_key>",
-                  "rows": 1
+                  "key_length": "8",
+                  "rows": 1,
+                  "attached_condition": "((`test`.`grandparent1`.`col_int_nokey` = `materialized subselect`.`p1`) and (`test`.`grandparent1`.`col_int_key` = `materialized subselect`.`p2`))"
                 },
                 "query_block": {
                   "select_id": 3,
@@ -7381,7 +7419,7 @@ EXPLAIN
                         "filtered": 100,
                         "using_index": true,
                         "using_join_buffer": "Block Nested Loop",
-                        "attached_condition": "trigcond_if(is_not_null_compl(parent2), (`test`.`parent1`.`col_int_nokey` = `test`.`parent2`.`col_int_key`), true)"
+                        "attached_condition": "<if>(is_not_null_compl(parent2), (`test`.`parent1`.`col_int_nokey` = `test`.`parent2`.`col_int_key`), true)"
                       }
                     }
                   ]

@@ -3088,9 +3088,14 @@ row_log_apply(
 
 	rw_lock_x_lock(dict_index_get_lock(index));
 
-	error = row_log_apply_ops(trx, index, &dup);
+	if (!dict_table_is_corrupted(index->table)) {
+		error = row_log_apply_ops(trx, index, &dup);
+	} else {
+		error = DB_SUCCESS;
+	}
 
 	if (error != DB_SUCCESS || dup.n_dup) {
+		ut_a(!dict_table_is_discarded(index->table));
 		/* We set the flag directly instead of invoking
 		dict_set_corrupted_index_cache_only(index) here,
 		because the index is not "public" yet. */

@@ -5869,7 +5869,7 @@ i_s_dict_fill_sys_tablestats(
 				table->stat_sum_of_other_index_sizes));
 
 		OK(fields[SYS_TABLESTATS_MODIFIED]->store(
-				table->stat_modified_counter));
+				(ulint) table->stat_modified_counter));
 	} else {
 		OK(field_store_string(fields[SYS_TABLESTATS_INIT],
 				      "Uninitialized"));

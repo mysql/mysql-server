@@ -14,7 +14,7 @@
    along with this program; see the file COPYING. If not, write to the
    Free Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston,
    MA  02110-1301  USA.
-*/
+ */
 
 /* based on Wei Dai's misc.h from CryptoPP, basic crypt types */
 
@@ -62,7 +62,7 @@ typedef unsigned int   word32;
 // compilers we've found 64-bit multiply insructions for
 #if defined(__GNUC__) || defined(_MSC_VER) || defined(__DECCXX)
     #if !(defined(__ICC) || defined(__INTEL_COMPILER))
-    #define HAVE_64_MULTIPLY
+        #define HAVE_64_MULTIPLY
     #endif
 #endif
 

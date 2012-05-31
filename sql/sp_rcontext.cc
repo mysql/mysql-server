@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,11 +16,12 @@
 #include "sql_priv.h"
 #include "unireg.h"
 #include "mysql.h"
-#include "sp_head.h"
+#include "sp.h"                                // sp_eval_expr
 #include "sql_cursor.h"
 #include "sp_rcontext.h"
 #include "sp_pcontext.h"
 #include "sql_tmp_table.h"                     // create_virtual_tmp_table
+#include "sp_instr.h"
 
 
 ///////////////////////////////////////////////////////////////////////////
@@ -151,14 +152,13 @@ bool sp_rcontext::set_return_value(THD *thd, Item **return_value_item)
 }
 
 
-bool sp_rcontext::push_cursor(sp_lex_keeper *lex_keeper,
-                              sp_instr_cpush *i)
+bool sp_rcontext::push_cursor(sp_instr_cpush *i)
 {
   /*
     We should create cursors in the callers arena, as
     it could be (and usually is) used in several instructions.
   */
-  sp_cursor *c= new (callers_arena->mem_root) sp_cursor(lex_keeper, i);
+  sp_cursor *c= new (callers_arena->mem_root) sp_cursor(i);
 
   if (c == NULL)
     return true;
@@ -223,10 +223,11 @@ bool sp_rcontext::handle_sql_condition(THD *thd,
 
   if (thd->is_error())
   {
-    found_handler=
-      cur_spi->m_ctx->find_handler(da->get_sqlstate(),
-                                   da->sql_errno(),
-                                   Sql_condition::WARN_LEVEL_ERROR);
+    sp_pcontext *cur_pctx= cur_spi->get_parsing_ctx();
+
+    found_handler= cur_pctx->find_handler(da->get_sqlstate(),
+                                          da->sql_errno(),
+                                          Sql_condition::WARN_LEVEL_ERROR);
 
     if (found_handler)
       found_condition= da->get_error_condition();
@@ -262,10 +263,11 @@ bool sp_rcontext::handle_sql_condition(THD *thd,
       if (c->get_level() == Sql_condition::WARN_LEVEL_WARN ||
           c->get_level() == Sql_condition::WARN_LEVEL_NOTE)
       {
-        const sp_handler *handler=
-          cur_spi->m_ctx->find_handler(c->get_sqlstate(),
-                                       c->get_sql_errno(),
-                                       c->get_level());
+        sp_pcontext *cur_pctx= cur_spi->get_parsing_ctx();
+
+        const sp_handler *handler= cur_pctx->find_handler(c->get_sqlstate(),
+                                                          c->get_sql_errno(),
+                                                          c->get_level());
         if (handler)
         {
           found_handler= handler;
@@ -363,12 +365,12 @@ uint sp_rcontext::exit_handler(Diagnostics_area *da)
 }
 
 
-int sp_rcontext::set_variable(THD *thd, Field *field, Item **value)
+bool sp_rcontext::set_variable(THD *thd, Field *field, Item **value)
 {
   if (!value)
   {
     field->set_null();
-    return 0;
+    return false;
   }
 
   return sp_eval_expr(thd, field, value);
@@ -418,63 +420,60 @@ bool sp_rcontext::set_case_expr(THD *thd, int case_expr_id,
 ///////////////////////////////////////////////////////////////////////////
 
 
-/*
+/**
   Open an SP cursor
 
-  SYNOPSIS
-    open()
-    THD		         Thread handler
+  @param thd  Thread context
 
-
-  RETURN
-   0 in case of success, -1 otherwise
+  @return Error status
 */
 
-int sp_cursor::open(THD *thd)
+bool sp_cursor::open(THD *thd)
 {
-  if (server_side_cursor)
+  if (m_server_side_cursor)
   {
     my_message(ER_SP_CURSOR_ALREADY_OPEN, ER(ER_SP_CURSOR_ALREADY_OPEN),
                MYF(0));
-    return -1;
+    return true;
   }
-  if (mysql_open_cursor(thd, &result, &server_side_cursor))
-    return -1;
-  return 0;
+
+  return mysql_open_cursor(thd, &m_result, &m_server_side_cursor);
 }
 
 
-int sp_cursor::close(THD *thd)
+bool sp_cursor::close(THD *thd)
 {
-  if (! server_side_cursor)
+  if (! m_server_side_cursor)
   {
     my_message(ER_SP_CURSOR_NOT_OPEN, ER(ER_SP_CURSOR_NOT_OPEN), MYF(0));
-    return -1;
+    return true;
   }
+
   destroy();
-  return 0;
+  return false;
 }
 
 
 void sp_cursor::destroy()
 {
-  delete server_side_cursor;
-  server_side_cursor= NULL;
+  delete m_server_side_cursor;
+  m_server_side_cursor= NULL;
 }
 
 
-int sp_cursor::fetch(THD *thd, List<sp_variable> *vars)
+bool sp_cursor::fetch(THD *thd, List<sp_variable> *vars)
 {
-  if (! server_side_cursor)
+  if (! m_server_side_cursor)
   {
     my_message(ER_SP_CURSOR_NOT_OPEN, ER(ER_SP_CURSOR_NOT_OPEN), MYF(0));
-    return -1;
+    return true;
   }
-  if (vars->elements != result.get_field_count())
+
+  if (vars->elements != m_result.get_field_count())
   {
     my_message(ER_SP_WRONG_NO_OF_FETCH_ARGS,
                ER(ER_SP_WRONG_NO_OF_FETCH_ARGS), MYF(0));
-    return -1;
+    return true;
   }
 
   DBUG_EXECUTE_IF("bug23032_emit_warning",
@@ -482,23 +481,23 @@ int sp_cursor::fetch(THD *thd, List<sp_variable> *vars)
                                ER_UNKNOWN_ERROR,
                                ER(ER_UNKNOWN_ERROR)););
 
-  result.set_spvar_list(vars);
+  m_result.set_spvar_list(vars);
 
   /* Attempt to fetch one row */
-  if (server_side_cursor->is_open())
-    server_side_cursor->fetch(1);
+  if (m_server_side_cursor->is_open())
+    m_server_side_cursor->fetch(1);
 
   /*
     If the cursor was pointing after the last row, the fetch will
     close it instead of sending any rows.
   */
-  if (! server_side_cursor->is_open())
+  if (! m_server_side_cursor->is_open())
   {
     my_message(ER_SP_FETCH_NO_DATA, ER(ER_SP_FETCH_NO_DATA), MYF(0));
-    return -1;
+    return true;
   }
 
-  return 0;
+  return false;
 }
 
 

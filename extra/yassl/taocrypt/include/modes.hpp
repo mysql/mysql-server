@@ -15,7 +15,7 @@
    along with this program; see the file COPYING. If not, write to the
    Free Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston,
    MA  02110-1301  USA.
-*/
+ */
 
 /* modes.hpp provides ECB and CBC modes for block cipher encryption/decryption
 */
@@ -61,9 +61,7 @@ public:
     explicit Mode_BASE(int sz, CipherDir dir, Mode mode) 
         : blockSz_(sz), reg_(reinterpret_cast<byte*>(r_)),
           tmp_(reinterpret_cast<byte*>(t_)), dir_(dir), mode_(mode)
-    { 
-        assert(sz <= MaxBlockSz);
-    }
+    {}
     virtual ~Mode_BASE() {}
 
     virtual void Process(byte*, const byte*, word32);
@@ -96,8 +94,7 @@ inline void Mode_BASE::Process(byte* out, const byte* in, word32 sz)
 {
     if (mode_ == ECB)
         ECB_Process(out, in, sz);
-    else if (mode_ == CBC)
-    {
+    else if (mode_ == CBC) {
         if (dir_ == ENCRYPTION)
             CBC_Encrypt(out, in, sz);
         else

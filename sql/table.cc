@@ -38,6 +38,7 @@
 #include "sql_select.h"
 #include "mdl.h"                 // MDL_wait_for_graph_visitor
 #include "opt_trace.h"           // opt_trace_disable_if_no_security_...
+#include "table_cache.h"         // table_cache_manager
 
 /* INFORMATION_SCHEMA name */
 LEX_STRING INFORMATION_SCHEMA_NAME= {C_STRING_WITH_LEN("information_schema")};
@@ -322,6 +323,7 @@ TABLE_SHARE *alloc_table_share(TABLE_LIST *table_list, const char *key,
   char *key_buff, *path_buff;
   char path[FN_REFLEN];
   uint path_length;
+  Table_cache_element **cache_element_array;
   DBUG_ENTER("alloc_table_share");
   DBUG_PRINT("enter", ("table: '%s'.'%s'",
                        table_list->db, table_list->table_name));
@@ -334,6 +336,8 @@ TABLE_SHARE *alloc_table_share(TABLE_LIST *table_list, const char *key,
                        &share, sizeof(*share),
                        &key_buff, key_length,
                        &path_buff, path_length + 1,
+                       &cache_element_array,
+                       table_cache_instances * sizeof(*cache_element_array),
                        NULL))
   {
     memset(share, 0, sizeof(*share));
@@ -358,9 +362,11 @@ TABLE_SHARE *alloc_table_share(TABLE_LIST *table_list, const char *key,
     share->table_map_id= ~0UL;
     share->cached_row_logging_check= -1;
 
-    share->used_tables.empty();
-    share->free_tables.empty();
     share->m_flush_tickets.empty();
+
+    memset(cache_element_array, 0,
+           table_cache_instances * sizeof(*cache_element_array));
+    share->cache_element= cache_element_array;
 
     memcpy((char*) &share->mem_root, (char*) &mem_root, sizeof(mem_root));
     mysql_mutex_init(key_TABLE_SHARE_LOCK_ha_data,
@@ -423,8 +429,6 @@ void init_tmp_table_share(THD *thd, TABLE_SHARE *share, const char *key,
   */
   share->table_map_id= (ulong) thd->query_id;
 
-  share->used_tables.empty();
-  share->free_tables.empty();
   share->m_flush_tickets.empty();
 
   DBUG_VOID_RETURN;
@@ -469,7 +473,7 @@ void TABLE_SHARE::destroy()
   }
 
 #ifdef HAVE_PSI_TABLE_INTERFACE
-  PSI_CALL(release_table_share)(m_psi);
+  PSI_TABLE_CALL(release_table_share)(m_psi);
 #endif
 
   /*
@@ -3259,6 +3263,7 @@ bool TABLE_SHARE::visit_subgraph(Wait_for_flush *wait_for_flush,
   TABLE *table;
   MDL_context *src_ctx= wait_for_flush->get_ctx();
   bool result= TRUE;
+  bool locked= FALSE;
 
   /*
     To protect used_tables list from being concurrently modified
@@ -3268,9 +3273,12 @@ bool TABLE_SHARE::visit_subgraph(Wait_for_flush *wait_for_flush,
     holding a write-lock on MDL_lock::m_rwlock.
   */
   if (gvisitor->m_lock_open_count++ == 0)
-    mysql_mutex_lock(&LOCK_open);
+  {
+    locked= TRUE;
+    table_cache_manager.lock_all_and_tdc();
+  }
 
-  TABLE_SHARE::TABLE_list::Iterator tables_it(used_tables);
+  Table_cache_iterator tables_it(this);
 
   /*
     In case of multiple searches running in parallel, avoid going
@@ -3309,8 +3317,12 @@ end_leave_node:
   gvisitor->leave_node(src_ctx);
 
 end:
-  if (gvisitor->m_lock_open_count-- == 1)
-    mysql_mutex_unlock(&LOCK_open);
+  gvisitor->m_lock_open_count--;
+  if (locked)
+  {
+    DBUG_ASSERT(gvisitor->m_lock_open_count == 0);
+    table_cache_manager.unlock_all_and_tdc();
+  }
 
   return result;
 }
@@ -4503,16 +4515,21 @@ Item *Field_iterator_table::create_item(THD *thd)
   SELECT_LEX *select= thd->lex->current_select;
 
   Item_field *item= new Item_field(thd, &select->context, *ptr);
-  if (item && thd->variables.sql_mode & MODE_ONLY_FULL_GROUP_BY &&
-      !thd->lex->in_sum_func &&
+  /*
+    This function creates Item-s which don't go through fix_fields(); see same
+    code in Item_field::fix_fields().
+    */
+  if (item && !thd->lex->in_sum_func &&
       select->cur_pos_in_all_fields != SELECT_LEX::ALL_FIELDS_UNDEF_POS)
   {
-    /*
-      This function creates Item-s which don't go through fix_fields(), so we
-      need to:
-    */
-    item->push_to_non_agg_fields(select);
-    select->set_non_agg_field_used(true);
+    if (thd->variables.sql_mode & MODE_ONLY_FULL_GROUP_BY)
+    {
+      item->push_to_non_agg_fields(select);
+      select->set_non_agg_field_used(true);
+    }
+    if (thd->lex->current_select->with_sum_func &&
+        !thd->lex->current_select->group_list.elements)
+      item->maybe_null= true;
   }
   return item;
 }

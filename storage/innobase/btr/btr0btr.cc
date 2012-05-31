@@ -701,9 +701,10 @@ static
 buf_block_t*
 btr_root_block_get(
 /*===============*/
-	dict_index_t*	index,	/*!< in: index tree */
-	ulint		mode,	/*!< in: either RW_S_LATCH or RW_X_LATCH */
-	mtr_t*		mtr)	/*!< in: mtr */
+	const dict_index_t*	index,	/*!< in: index tree */
+	ulint			mode,	/*!< in: either RW_S_LATCH
+					or RW_X_LATCH */
+	mtr_t*			mtr)	/*!< in: mtr */
 {
 	ulint		space;
 	ulint		zip_size;
@@ -737,8 +738,8 @@ UNIV_INTERN
 page_t*
 btr_root_get(
 /*=========*/
-	dict_index_t*	index,	/*!< in: index tree */
-	mtr_t*		mtr)	/*!< in: mtr */
+	const dict_index_t*	index,	/*!< in: index tree */
+	mtr_t*			mtr)	/*!< in: mtr */
 {
 	return(buf_block_get_frame(btr_root_block_get(index, RW_X_LATCH,
 						      mtr)));
@@ -776,6 +777,123 @@ btr_height_get(
 #endif /* UNIV_SYNC_DEBUG */
 
 	return(height);
+}
+
+/**************************************************************//**
+Checks a file segment header within a B-tree root page and updates
+the segment header space id.
+@return	TRUE if valid */
+static
+bool
+btr_root_fseg_adjust_on_import(
+/*===========================*/
+	fseg_header_t*	seg_header,	/*!< in/out: segment header */
+	page_zip_des_t*	page_zip,	/*!< in/out: compressed page,
+					or NULL */
+	ulint		space,		/*!< in: tablespace identifier */
+	mtr_t*		mtr)		/*!< in/out: mini-transaction */
+{
+	ulint	offset = mach_read_from_2(seg_header + FSEG_HDR_OFFSET);
+
+	if (offset < FIL_PAGE_DATA
+	    || offset > UNIV_PAGE_SIZE - FIL_PAGE_DATA_END) {
+
+		return(FALSE);
+
+	} else if (page_zip) {
+		mach_write_to_4(seg_header + FSEG_HDR_SPACE, space);
+		page_zip_write_header(page_zip, seg_header + FSEG_HDR_SPACE,
+				      4, mtr);
+	} else {
+		mlog_write_ulint(seg_header + FSEG_HDR_SPACE,
+				 space, MLOG_4BYTES, mtr);
+	}
+
+	return(TRUE);
+}
+
+/**************************************************************//**
+Checks and adjusts the root node of a tree during IMPORT TABLESPACE.
+@return error code, or DB_SUCCESS */
+UNIV_INTERN
+dberr_t
+btr_root_adjust_on_import(
+/*======================*/
+	const dict_index_t*	index)	/*!< in: index tree */
+{
+	dberr_t		err;
+	mtr_t		mtr;
+	page_t*		page;
+	buf_block_t*	block;
+	page_zip_des_t*	page_zip;
+	dict_table_t*	table		= index->table;
+	ulint		space_id	= dict_index_get_space(index);
+	ulint		zip_size	= dict_table_zip_size(table);
+	ulint		root_page_no	= dict_index_get_page(index);
+
+	mtr_start(&mtr);
+
+	mtr_set_log_mode(&mtr, MTR_LOG_NO_REDO);
+
+	DBUG_EXECUTE_IF("ib_import_trigger_corruption_3",
+			return(DB_CORRUPTION););
+
+	block = btr_block_get(
+		space_id, zip_size, root_page_no, RW_X_LATCH, index, &mtr);
+
+	page = buf_block_get_frame(block);
+	page_zip = buf_block_get_page_zip(block);
+
+	/* Check that this is a B-tree page and both the PREV and NEXT
+	pointers are FIL_NULL, because the root page does not have any
+	siblings. */
+	if (fil_page_get_type(page) != FIL_PAGE_INDEX
+	    || fil_page_get_prev(page) != FIL_NULL
+	    || fil_page_get_next(page) != FIL_NULL) {
+
+		err = DB_CORRUPTION;
+
+	} else if (dict_index_is_clust(index)) {
+		bool	page_is_compact_format;
+
+		page_is_compact_format = page_is_comp(page) > 0;
+
+		/* Check if the page format and table format agree. */
+		if (page_is_compact_format != dict_table_is_comp(table)) {
+			err = DB_CORRUPTION;
+		} else {
+
+			/* Check that the table flags and the tablespace
+			flags match. */
+			ulint	flags = fil_space_get_flags(table->space);
+
+			if (flags
+			    && flags != dict_tf_to_fsp_flags(table->flags)) {
+
+				err = DB_CORRUPTION;
+			} else {
+				err = DB_SUCCESS;
+			}
+		}
+	} else {
+		err = DB_SUCCESS;
+	}
+
+	/* Check and adjust the file segment headers, if all OK so far. */
+	if (err == DB_SUCCESS
+	    && (!btr_root_fseg_adjust_on_import(
+			FIL_PAGE_DATA + PAGE_BTR_SEG_LEAF
+			+ page, page_zip, space_id, &mtr)
+		|| !btr_root_fseg_adjust_on_import(
+			FIL_PAGE_DATA + PAGE_BTR_SEG_TOP
+			+ page, page_zip, space_id, &mtr))) {
+
+		err = DB_CORRUPTION;
+	}
+
+	mtr_commit(&mtr);
+
+	return(err);
 }
 
 /*************************************************************//**
@@ -3862,7 +3980,7 @@ btr_print_index(
 
 	mtr_commit(&mtr);
 
-	btr_validate_index(index, NULL);
+	btr_validate_index(index, 0);
 }
 #endif /* UNIV_BTR_PRINT */
 
@@ -4113,14 +4231,15 @@ btr_validate_report2(
 Validates index tree level.
 @return	TRUE if ok */
 static
-ibool
+bool
 btr_validate_level(
 /*===============*/
 	dict_index_t*	index,	/*!< in: index tree */
-	trx_t*		trx,	/*!< in: transaction or NULL */
+	const trx_t*	trx,	/*!< in: transaction or NULL */
 	ulint		level)	/*!< in: level number */
 {
 	ulint		space;
+	ulint		space_flags;
 	ulint		zip_size;
 	buf_block_t*	block;
 	page_t*		page;
@@ -4134,9 +4253,10 @@ btr_validate_level(
 	ulint		left_page_no;
 	page_cur_t	cursor;
 	dtuple_t*	node_ptr_tuple;
-	ibool		ret	= TRUE;
+	bool		ret	= true;
 	mtr_t		mtr;
 	mem_heap_t*	heap	= mem_heap_create(256);
+	fseg_header_t*	seg;
 	ulint*		offsets	= NULL;
 	ulint*		offsets2= NULL;
 #ifdef UNIV_ZIP_DEBUG
@@ -4149,12 +4269,36 @@ btr_validate_level(
 
 	block = btr_root_block_get(index, RW_X_LATCH, &mtr);
 	page = buf_block_get_frame(block);
+	seg = page + PAGE_HEADER + PAGE_BTR_SEG_TOP;
 
 	space = dict_index_get_space(index);
 	zip_size = dict_table_zip_size(index->table);
 
+	fil_space_get_latch(space, &space_flags);
+
+	if (zip_size != dict_tf_get_zip_size(space_flags)) {
+
+		ib_logf(IB_LOG_LEVEL_WARN,
+			"Flags mismatch: table=%lu, tablespace=%lu\n",
+			(ulint) index->table->flags, (ulint) space_flags);
+
+		mtr_commit(&mtr);
+
+		return(false);
+	}
+
 	while (level != btr_page_get_level(page, &mtr)) {
 		const rec_t*	node_ptr;
+
+		if (fseg_page_is_free(seg,
+				      block->page.space, block->page.offset)) {
+
+			btr_validate_report1(index, level, block);
+
+			ib_logf(IB_LOG_LEVEL_WARN, "page is free\n");
+
+			ret = false;
+		}
 
 		ut_a(space == buf_block_get_space(block));
 		ut_a(space == page_get_space_id(page));
@@ -4176,12 +4320,13 @@ btr_validate_level(
 
 	/* Now we are on the desired level. Loop through the pages on that
 	level. */
-loop:
-	if (trx_is_interrupted(trx)) {
-		mtr_commit(&mtr);
-		mem_heap_free(heap);
-		return(ret);
+
+	if (level == 0) {
+		/* Leaf pages are managed in their own file segment. */
+		seg -= PAGE_BTR_SEG_TOP - PAGE_BTR_SEG_LEAF;
 	}
+
+loop:
 	mem_heap_empty(heap);
 	offsets = offsets2 = NULL;
 	mtr_x_lock(dict_index_get_lock(index), &mtr);
@@ -4191,20 +4336,35 @@ loop:
 	ut_a(!page_zip || page_zip_validate(page_zip, page));
 #endif /* UNIV_ZIP_DEBUG */
 
-	/* Check ordering etc. of records */
+	ut_a(block->page.space == space);
 
-	if (!page_validate(page, index)) {
+	if (fseg_page_is_free(seg, block->page.space, block->page.offset)) {
+
 		btr_validate_report1(index, level, block);
 
-		ret = FALSE;
-	} else if (level == 0) {
+		ib_logf(IB_LOG_LEVEL_WARN, "Page is marked as free\n");
+		ret = false;
+
+	} else if (btr_page_get_index_id(page) != index->id) {
+
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"Page index id " IB_ID_FMT " != data dictionary "
+			"index id " IB_ID_FMT,
+			btr_page_get_index_id(page), index->id);
+
+		ret = false;
+
+	} else if (!page_validate(page, index)) {
+
+		btr_validate_report1(index, level, block);
+		ret = false;
+
+	} else if (level == 0 && !btr_index_page_validate(block, index)) {
+
 		/* We are on level 0. Check that the records have the right
 		number of fields, and field lengths are right. */
 
-		if (!btr_index_page_validate(block, index)) {
-
-			ret = FALSE;
-		}
+		ret = false;
 	}
 
 	ut_a(btr_page_get_level(page, &mtr) == level);
@@ -4230,7 +4390,7 @@ loop:
 			buf_page_print(page, 0, BUF_PAGE_PRINT_NO_CRASH);
 			buf_page_print(right_page, 0, BUF_PAGE_PRINT_NO_CRASH);
 
-			ret = FALSE;
+			ret = false;
 		}
 
 		if (page_is_comp(right_page) != page_is_comp(page)) {
@@ -4239,7 +4399,7 @@ loop:
 			buf_page_print(page, 0, BUF_PAGE_PRINT_NO_CRASH);
 			buf_page_print(right_page, 0, BUF_PAGE_PRINT_NO_CRASH);
 
-			ret = FALSE;
+			ret = false;
 
 			goto node_ptr_fails;
 		}
@@ -4272,7 +4432,7 @@ loop:
 			rec_print(stderr, rec, index);
 			putc('\n', stderr);
 
-			ret = FALSE;
+			ret = false;
 		}
 	}
 
@@ -4323,7 +4483,7 @@ loop:
 			fputs("InnoDB: record on page ", stderr);
 			rec_print_new(stderr, rec, offsets);
 			putc('\n', stderr);
-			ret = FALSE;
+			ret = false;
 
 			goto node_ptr_fails;
 		}
@@ -4353,7 +4513,7 @@ loop:
 				fputs("InnoDB: first rec ", stderr);
 				rec_print(stderr, first_rec, index);
 				putc('\n', stderr);
-				ret = FALSE;
+				ret = false;
 
 				goto node_ptr_fails;
 			}
@@ -4381,7 +4541,7 @@ loop:
 
 				if (btr_cur_get_rec(&right_node_cur)
 				    != right_node_ptr) {
-					ret = FALSE;
+					ret = false;
 					fputs("InnoDB: node pointer to"
 					      " the right page is wrong\n",
 					      stderr);
@@ -4407,7 +4567,7 @@ loop:
 				    != page_rec_get_next(
 					    page_get_infimum_rec(
 						    right_father_page))) {
-					ret = FALSE;
+					ret = false;
 					fputs("InnoDB: node pointer 2 to"
 					      " the right page is wrong\n",
 					      stderr);
@@ -4432,7 +4592,7 @@ loop:
 				if (page_get_page_no(right_father_page)
 				    != btr_page_get_next(father_page, &mtr)) {
 
-					ret = FALSE;
+					ret = false;
 					fputs("InnoDB: node pointer 3 to"
 					      " the right page is wrong\n",
 					      stderr);
@@ -4463,17 +4623,25 @@ node_ptr_fails:
 	on the next loop.  The page has already been checked. */
 	mtr_commit(&mtr);
 
-	if (right_page_no != FIL_NULL) {
+	if (trx_is_interrupted(trx)) {
+		/* Return FALSE if trx was interrupted. */
+		ret = false;
+
+	} else if (right_page_no != FIL_NULL) {
+
 		mtr_start(&mtr);
 
-		block = btr_block_get(space, zip_size, right_page_no,
-				      RW_X_LATCH, index, &mtr);
+		block = btr_block_get(
+			space, zip_size, right_page_no,
+			RW_X_LATCH, index, &mtr);
+
 		page = buf_block_get_frame(block);
 
 		goto loop;
 	}
 
 	mem_heap_free(heap);
+
 	return(ret);
 }
 
@@ -4481,40 +4649,39 @@ node_ptr_fails:
 Checks the consistency of an index tree.
 @return	TRUE if ok */
 UNIV_INTERN
-ibool
+bool
 btr_validate_index(
 /*===============*/
 	dict_index_t*	index,	/*!< in: index */
-	trx_t*		trx)	/*!< in: transaction or NULL */
+	const trx_t*	trx)	/*!< in: transaction or NULL */
 {
-	mtr_t	mtr;
-	page_t*	root;
-	ulint	i;
-	ulint	n;
-
 	/* Full Text index are implemented by auxiliary tables,
 	not the B-tree */
 	if (dict_index_is_online_ddl(index) || (index->type & DICT_FTS)) {
-		return(TRUE);
+		return(true);
 	}
 
+	mtr_t		mtr;
+
 	mtr_start(&mtr);
+
 	mtr_x_lock(dict_index_get_lock(index), &mtr);
 
-	root = btr_root_get(index, &mtr);
-	n = btr_page_get_level(root, &mtr);
+	bool	ok = true;
+	page_t*	root = btr_root_get(index, &mtr);
+	ulint	n = btr_page_get_level(root, &mtr);
 
-	for (i = 0; i <= n && !trx_is_interrupted(trx); i++) {
+	for (ulint i = 0; i <= n; ++i) {
+
 		if (!btr_validate_level(index, trx, n - i)) {
-
-			mtr_commit(&mtr);
-
-			return(FALSE);
+			ok = false;
+			break;
 		}
 	}
 
 	mtr_commit(&mtr);
 
-	return(TRUE);
+	return(ok);
 }
+
 #endif /* !UNIV_HOTBACKUP */
