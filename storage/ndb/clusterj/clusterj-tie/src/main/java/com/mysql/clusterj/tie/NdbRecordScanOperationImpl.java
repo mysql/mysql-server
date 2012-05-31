@@ -128,34 +128,42 @@ public abstract class NdbRecordScanOperationImpl extends NdbRecordOperationImpl 
     protected void getScanOptions() {
         long options = 0;
         int flags = 0;
-        scanOptions = db.createScanOptions();
-        if (ordering != null) {
-            options |= Type.SO_SCANFLAGS;
-            switch (ordering) {
-                case ASCENDING:
-                    flags = ScanFlag.SF_OrderBy;
-                    break;
-                case DESCENDING:
-                    flags = ScanFlag.SF_Descending;
-                    break;
-                default:
-                    throw new ClusterJFatalInternalException(local.message("ERR_Invalid_Ordering", ordering));
+        if (ordering != null
+                || multiRange
+                || lockMode != com.mysql.ndbjtie.ndbapi.NdbOperationConst.LockMode.LM_CommittedRead
+                || ndbScanFilter != null) {
+            // create scan options only if we have scan options to set
+            scanOptions = db.createScanOptions();
+            if (ordering != null) {
+                options |= Type.SO_SCANFLAGS;
+                switch (ordering) {
+                    case ASCENDING:
+                        flags = ScanFlag.SF_OrderBy;
+                        break;
+                    case DESCENDING:
+                        flags = ScanFlag.SF_Descending;
+                        break;
+                    default:
+                        throw new ClusterJFatalInternalException(local.message("ERR_Invalid_Ordering", ordering));
+                }
             }
+            if (multiRange) {
+                options |= Type.SO_SCANFLAGS;
+                flags |= ScanFlag.SF_MultiRange;
+            }
+            if (lockMode != com.mysql.ndbjtie.ndbapi.NdbOperationConst.LockMode.LM_CommittedRead) {
+                options |= Type.SO_SCANFLAGS;
+                flags |= ScanFlag.SF_KeyInfo;
+            }
+            if (ndbScanFilter != null) {
+                options |= (long)Type.SO_INTERPRETED;
+                scanOptions.interpretedCode(ndbScanFilter.getInterpretedCode());
+            }
+            if (flags != 0) {
+                scanOptions.scan_flags(flags);
+            }
+            scanOptions.optionsPresent(options);
         }
-        if (multiRange) {
-            options |= Type.SO_SCANFLAGS;
-            flags |= ScanFlag.SF_MultiRange;
-        }
-        if (lockMode != com.mysql.ndbjtie.ndbapi.NdbOperationConst.LockMode.LM_CommittedRead) {
-            options |= Type.SO_SCANFLAGS;
-            flags |= ScanFlag.SF_KeyInfo;
-        }
-        if (ndbScanFilter != null) {
-            options |= (long)Type.SO_INTERPRETED;
-            scanOptions.interpretedCode(ndbScanFilter.getInterpretedCode());
-        }
-        scanOptions.scan_flags(flags);
-        scanOptions.optionsPresent(options);
         if (logger.isDebugEnabled()) logger.debug("ScanOptions: " + dumpScanOptions(options, flags));
     }
 
