@@ -5640,6 +5640,14 @@ INSERT INTO t3 (col_varchar_key) VALUES
  ('c'), ('c'), ('q'), ('g'), ('e'), ('l'), (NULL), ('c'), ('h'), ('d'),
  ('c'), ('i'), ('t'), ('g'), ('q'), ('l'), ('n'), ('z'), ('n'), ('r'), ('p');
 
+-- disable_query_log
+-- disable_result_log
+ANALYZE TABLE t1;
+ANALYZE TABLE t2;
+ANALYZE TABLE t3;
+-- enable_result_log
+-- enable_query_log
+
 CREATE VIEW v1 AS
 SELECT table2.col_varchar_nokey AS field1
 FROM t2 AS table1
@@ -6049,6 +6057,13 @@ INSERT INTO t2 (col_int_nokey, col_time_key, col_time_nokey) VALUES
  (204, '22:21:15', '22:21:15'), (224, '12:24:37', '12:24:37'),
  (9, '15:02:08', '15:02:08'), (5, '23:59:59', '23:59:59'),
  (0, '08:23:30', '08:23:30'), (3, '08:32:22', '08:32:22');
+
+-- disable_query_log
+-- disable_result_log
+ANALYZE TABLE t1;
+ANALYZE TABLE t2;
+-- enable_result_log
+-- enable_query_log
 
 let $query=
 SELECT ot1.col_int_key AS x
