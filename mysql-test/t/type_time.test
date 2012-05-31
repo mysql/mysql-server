@@ -420,25 +420,8 @@ eval EXPLAIN EXTENDED $query;
 --sorted_result
 eval $query;
 
-let $query=SELECT outr.col_int_nokey
-FROM t2 as outr
-  STRAIGHT_JOIN t3 AS outr2
-  ON outr2.col_time_key > outr.col_datetime_key
-WHERE outr.col_int_nokey IN (
-  SELECT col_int_key
-  FROM t1 AS innr
-  WHERE innr.pk >= innr.col_int_nokey
-) AND (
-  outr.col_int_nokey <= 6
-  OR
-  outr.col_varchar_key IS NULL
-);
-eval EXPLAIN EXTENDED $query;
---sorted_result
-eval $query;
-
 DROP TABLE t1,t2,t3;
-SET TIMESTAMP=0; # back to current time
+SET TIMESTAMP = DEFAULT;
 
 --echo #
 --echo # End of 5.6 tests

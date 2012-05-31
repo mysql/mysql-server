@@ -446,7 +446,6 @@ void Item_subselect::fix_after_pullout(st_select_lex *parent_select,
 {
   /* Clear usage information for this subquery predicate object */
   used_tables_cache= 0;
-  const_item_cache= 1;
 
   /*
     Go through all query specification objects of the subquery and re-resolve
@@ -2094,7 +2093,6 @@ void Item_in_subselect::fix_after_pullout(st_select_lex *parent_select,
   left_expr->fix_after_pullout(parent_select, removed_select, &left_expr);
 
   used_tables_cache|= left_expr->used_tables();
-  const_item_cache&= left_expr->const_item();
 }
 
 
@@ -3299,9 +3297,9 @@ bool subselect_hash_sj_engine::setup(List<Item> *tmp_columns)
     DBUG_RETURN(TRUE);
   THD * const thd= item->unit->thd;
   if (tmp_result_sink->create_result_table(
-                         thd, tmp_columns, TRUE,
+                         thd, tmp_columns, true,
                          thd->variables.option_bits | TMP_TABLE_ALL_COLUMNS,
-                         "materialized subselect", TRUE, TRUE))
+                         "materialized-subquery", true, true))
     DBUG_RETURN(TRUE);
 
   tmp_table= tmp_result_sink->table;
@@ -3385,8 +3383,8 @@ bool subselect_hash_sj_engine::setup(List<Item> *tmp_columns)
   if (!(tmp_table_ref= (TABLE_LIST*) thd->calloc(sizeof(TABLE_LIST))))
     DBUG_RETURN(TRUE);
 
-  tmp_table_ref->init_one_table("", 0, "materialized subselect", 22,
-                                "materialized subselect", TL_READ);
+  tmp_table_ref->init_one_table("", 0, "materialized-subquery", 21,
+                                "materialized-subquery", TL_READ);
   tmp_table_ref->table= tmp_table;
 
   /* Name resolution context for all tmp_table columns created below. */

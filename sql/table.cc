@@ -3719,10 +3719,8 @@ bool TABLE_LIST::prep_where(THD *thd, Item **conds,
 
   if (where)
   {
-    if (!where->fixed && where->fix_fields(thd, &where))
-    {
+    if (!where->fixed && !where_processed && where->fix_fields(thd, &where))
       DBUG_RETURN(TRUE);
-    }
 
     /*
       check that it is not VIEW in which we insert with INSERT SELECT
