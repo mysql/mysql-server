@@ -1506,21 +1506,6 @@ env_cleaner_set_iterations(DB_ENV * env, u_int32_t iterations) {
 }
 
 static int
-locked_env_create_indexer(DB_ENV *env,
-                          DB_TXN *txn,
-                          DB_INDEXER **indexerp,
-                          DB *src_db,
-                          int N,
-                          DB *dest_dbs[N],
-                          uint32_t db_flags[N],
-                          uint32_t indexer_flags) {
-    toku_ydb_lock();
-    int r = toku_indexer_create_indexer(env, txn, indexerp, src_db, N, dest_dbs, db_flags, indexer_flags);
-    toku_ydb_unlock();
-    return r;
-}
-
-static int
 env_create_loader(DB_ENV *env,
                          DB_TXN *txn, 
                          DB_LOADER **blp, 
@@ -1533,8 +1518,6 @@ env_create_loader(DB_ENV *env,
     int r = toku_loader_create_loader(env, txn, blp, src_db, N, dbs, db_flags, dbt_flags, loader_flags);
     return r;
 }
-
-
 
 static int
 env_checkpointing_get_period(DB_ENV * env, u_int32_t *seconds) {
@@ -2181,7 +2164,6 @@ toku_env_create(DB_ENV ** envp, u_int32_t flags) {
     SENV(dbremove);
     SENV(dbrename);
     //SENV(set_noticecall);
-    SENV(create_indexer);
 #undef SENV
 #define USENV(name) result->name = env_ ## name
     // methods with locking done internally
@@ -2234,10 +2216,11 @@ toku_env_create(DB_ENV ** envp, u_int32_t flags) {
     USENV(set_redzone);
     USENV(log_flush);
     USENV(log_archive);    
+    USENV(create_loader);
 #undef USENV
-
     
     // unlocked methods
+    result->create_indexer = toku_indexer_create_indexer;
     result->txn_checkpoint = toku_env_txn_checkpoint;
     result->checkpointing_postpone = env_checkpointing_postpone;
     result->checkpointing_resume = env_checkpointing_resume;
@@ -2248,7 +2231,6 @@ toku_env_create(DB_ENV ** envp, u_int32_t flags) {
     result->get_engine_status_text = env_get_engine_status_text;
     result->crash = env_crash;  // handlerton's call to fractal tree layer on failed assert
     result->txn_begin = locked_txn_begin;
-    result->create_loader = env_create_loader;
 
     MALLOC(result->i);
     if (result->i == 0) { r = ENOMEM; goto cleanup; }
