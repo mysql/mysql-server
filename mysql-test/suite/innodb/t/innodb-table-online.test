@@ -65,7 +65,6 @@ connection con1;
 # This DEBUG_SYNC should not kick in yet, because the duplicate key will be
 # detected before we get a chance to apply the online log.
 SET DEBUG_SYNC = 'row_log_table_apply1_before SIGNAL scanned WAIT_FOR insert_done';
-SET DEBUG_SYNC = 'row_log_table_apply2_before WAIT_FOR rollback_done';
 # This will be a lock wait timeout on the meta-data lock,
 # because the transaction inserting (7,4,2) is still active.
 --error ER_LOCK_WAIT_TIMEOUT
@@ -102,22 +101,18 @@ eval $innodb_metrics_select;
 BEGIN;
 INSERT INTO t1 VALUES(4,7,2);
 SET DEBUG_SYNC = 'now SIGNAL insert_done';
-# Wait for the log to be applied,
-# so that a duplicate key error would be triggered.
-let $wait_condition=
-  SELECT COUNT(*) = 1 FROM information_schema.processlist
-  WHERE state = 'System lock' and
-        info = 'ALTER TABLE t1 DROP INDEX c2, ADD PRIMARY KEY(c1)';
---source include/wait_condition.inc
-ROLLBACK;
-SET DEBUG_SYNC = 'now SIGNAL rollback_done';
 
 connection con1;
-# Because the modification log will be applied in order, there will be
-# a duplicate key error on the (4,7,2) if the rollback occurred after
-# the log apply.
+# Because the modification log will be applied in order and we did
+# not roll back before the log apply, there will be a duplicate key
+# error on the (4,7,2).
 --error ER_DUP_ENTRY
 reap;
+
+connection default;
+ROLLBACK;
+
+connection con1;
 SHOW CREATE TABLE t1;
 # Now, rebuild the table without any concurrent DML, while no duplicate exists.
 --error ER_CANT_DROP_FIELD_OR_KEY
