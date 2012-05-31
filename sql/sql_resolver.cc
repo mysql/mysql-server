@@ -90,7 +90,7 @@ JOIN::prepare(TABLE_LIST *tables_init,
   conds= conds_init;
   order= ORDER_with_src(order_init, ESC_ORDER_BY);
   group_list= ORDER_with_src(group_init, ESC_GROUP_BY);
-  having= having_init;
+  having= having_for_explain= having_init;
   tables_list= tables_init;
   select_lex= select_lex_arg;
   select_lex->join= this;

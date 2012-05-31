@@ -331,6 +331,8 @@ inline bool sj_is_materialize_strategy(uint strategy)
 enum quick_type { QS_NONE, QS_RANGE, QS_DYNAMIC_RANGE};
 
 struct st_cache_field;
+class QEP_operation;
+class Filesort;
 
 typedef struct st_join_table : public Sql_alloc
 {
@@ -475,7 +477,7 @@ public:
     After optimization it contains chosen join buffering strategy (if any).
    */
   uint          use_join_cache;
-  JOIN_CACHE	*cache;
+  QEP_operation *op;
   /*
     Index condition for BKA access join
   */
@@ -539,6 +541,39 @@ public:
 
   /* NestedOuterJoins: Bitmap of nested joins this table is part of */
   nested_join_map embedding_map;
+
+  /* Tmp table info */
+  TMP_TABLE_PARAM *tmp_table_param;
+
+  /* Sorting related info */
+  Filesort *filesort;
+
+  /**
+    List of topmost expressions in the select list. The *next* JOIN TAB
+    in the plan should use it to obtain correct values. Same applicable to
+    all_fields. These lists are needed because after tmp tables functions
+    will be turned to fields. These variables are pointing to
+    tmp_fields_list[123]. Valid only for tmp tables and the last non-tmp
+    table in the query plan.
+    @see JOIN::make_tmp_tables_info()
+  */
+  List<Item> *fields;
+  /** List of all expressions in the select list */
+  List<Item> *all_fields;
+  /*
+    Pointer to the ref array slice which to switch to before sending
+    records. Valid only for tmp tables.
+  */
+  Ref_ptr_array *ref_array;
+
+  /** Number of records saved in tmp table */
+  ha_rows send_records;
+
+  /** HAVING condition for checking prior saving a record into tmp table*/
+  Item *having;
+
+  /** TRUE <=> remove duplicates on this table. */
+  bool distinct;
 
   void cleanup();
   inline bool is_using_loose_index_scan()
@@ -616,6 +651,9 @@ public:
   {
     return ref.has_guarded_conds();
   }
+  bool prepare_scan();
+  bool sort_table();
+  bool remove_duplicates();
 } JOIN_TAB;
 
 inline
@@ -672,7 +710,7 @@ st_join_table::st_join_table()
     limit(0),
     ref(),
     use_join_cache(0),
-    cache(NULL),
+    op(NULL),
 
     cache_idx_cond(NULL),
     cache_select(NULL),
@@ -692,7 +730,15 @@ st_join_table::st_join_table()
 
     keep_current_rowid(0),
     copy_current_rowid(NULL),
-    embedding_map(0)
+    embedding_map(0),
+    tmp_table_param(NULL),
+    filesort(NULL),
+    fields(NULL),
+    all_fields(NULL),
+    ref_array(NULL),
+    send_records(0),
+    having(NULL),
+    distinct(false)
 {
   /**
     @todo Add constructor to READ_RECORD.

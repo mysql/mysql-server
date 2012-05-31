@@ -4239,16 +4239,9 @@ public:
 
 class TMP_TABLE_PARAM :public Sql_alloc
 {
-private:
-  /* Prevent use of these (not safe because of lists and copy_field) */
-  TMP_TABLE_PARAM(const TMP_TABLE_PARAM &);
-  void operator=(TMP_TABLE_PARAM &);
-
 public:
   List<Item> copy_funcs;
-  List<Item> save_copy_funcs;
   Copy_field *copy_field, *copy_field_end;
-  Copy_field *save_copy_field, *save_copy_field_end;
   uchar	    *group_buff;
   Item	    **items_to_copy;			/* Fields in tmp table */
   MI_COLUMNDEF *recinfo,*start_recinfo;
@@ -4309,10 +4302,11 @@ public:
   bool bit_fields_as_long;
 
   TMP_TABLE_PARAM()
-    :copy_field(0), group_parts(0),
-     group_length(0), group_null_parts(0), schema_table(0),
-     precomputed_group_by(0), force_copy_fields(0), skip_create_table(FALSE),
-     bit_fields_as_long(0)
+    :copy_field(0), copy_field_end(0), group_parts(0),
+     group_length(0), group_null_parts(0),
+     using_indirect_summary_function(0),
+     schema_table(0), precomputed_group_by(0), force_copy_fields(0),
+     skip_create_table(FALSE), bit_fields_as_long(0)
   {}
   ~TMP_TABLE_PARAM()
   {
@@ -4324,8 +4318,8 @@ public:
     if (copy_field)				/* Fix for Intel compiler */
     {
       delete [] copy_field;
-      save_copy_field= copy_field= NULL;
-      save_copy_field_end= copy_field_end= NULL;
+      copy_field= NULL;
+      copy_field_end= NULL;
     }
   }
 };

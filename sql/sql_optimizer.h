@@ -52,13 +52,6 @@ class JOIN :public Sql_alloc
 public:
   JOIN_TAB *join_tab,**best_ref;
   JOIN_TAB **map2table;    ///< mapping between table indexes and JOIN_TABs
-  /**
-    Saved join_tab for:
-     1) subquery reexecution and
-     2) for EXPLAIN to backup join_tabs before and restore after JOIN::execute()
-        call that may substitute data with intermediate values.
-  */
-  JOIN_TAB *join_tab_save;
   TABLE    **table,**all_tables;
   /*
     The table which has an index that allows to produce the requried ordering.
@@ -137,9 +130,6 @@ public:
   ha_rows  best_rowcount;
   List<Item> *fields;
   List<Cached_item> group_fields, group_fields_cache;
-  TABLE    *tmp_table;
-  /// used to store 2 possible tmp table of SELECT
-  TABLE    *exec_tmp_table1, *exec_tmp_table2;
   THD	   *thd;
   Item_sum  **sum_funcs, ***sum_funcs_end;
   /** second copy of sumfuncs (for queries with 2 temporary tables */
@@ -161,25 +151,6 @@ public:
   */
   bool no_const_tables; 
   
-  /**
-    Copy of this JOIN to be used with temporary tables.
-
-    tmp_join is used when the JOIN needs to be "reusable" (e.g. in a subquery
-    that gets re-executed several times) and we know will use temporary tables
-    for materialization. The materialization to a temporary table overwrites the
-    JOIN structure to point to the temporary table after the materialization is
-    done. This is where tmp_join is used : it's a copy of the JOIN before the
-    materialization and is used in restoring before re-execution by overwriting
-    the current JOIN structure with the saved copy.
-    Because of this we should pay extra care of not freeing up helper structures
-    that are referenced by the original contents of the JOIN. We can check for
-    this by making sure the "current" join is not the temporary copy, e.g.
-    !tmp_join || tmp_join != join
- 
-    We should free these sub-structures at JOIN::destroy() if the "current" join
-    has a copy is not that copy.
-  */
-  JOIN *tmp_join;
   ROLLUP rollup;				///< Used with rollup
 
   bool select_distinct;				///< Set if SELECT DISTINCT
@@ -323,10 +294,8 @@ public:
 
   /**
     Buffer to gather GROUP BY, ORDER BY and DISTINCT QEP details for EXPLAIN
-    These are exactly same flags, but explain flags are used for explain,
-    while exec_flags are (destructively) checked by executor.
   */
-  Explain_format_flags explain_flags, exec_flags;
+  Explain_format_flags explain_flags;
 
   /** 
     JOIN::having is initially equal to select_lex->having, but may
@@ -347,7 +316,7 @@ public:
   */
   Item       *conds;                      ///< The where clause item tree
   Item       *having;                     ///< The having clause item tree
-  Item       *tmp_having; ///< To store having when processed temporary table
+  Item       *having_for_explain;    ///< Saved optimized HAVING for EXPLAIN
   TABLE_LIST *tables_list;           ///<hold 'tables' parameter of mysql_select
   List<TABLE_LIST> *join_list;       ///< list of joined tables in reverse order
   COND_EQUAL *cond_equal;
@@ -383,21 +352,17 @@ public:
   /* Temporary tables used to weed-out semi-join duplicates */
   List<TABLE> sj_tmp_tables;
   List<Semijoin_mat_exec> sjm_exec_list;
-
-  /* 
-    storage for caching buffers allocated during query execution. 
-    These buffers allocations need to be cached as the thread memory pool is
-    cleared only at the end of the execution of the whole query and not caching
-    allocations that occur in repetition at execution time will result in 
-    excessive memory usage.
-    Note: make_simple_join always creates an execution plan that accesses
-    a single table, thus it is sufficient to have a one-element array for
-    table_reexec.
-  */  
-  SORT_FIELD *sortorder;                        // make_unireg_sortorder()
-  TABLE *table_reexec[1];                       // make_simple_join()
-  JOIN_TAB *join_tab_reexec;                    // make_simple_join()
   /* end of allocation caching storage */
+
+  /**
+    Number of tmp tables actually used by the query.
+    @see JOIN::make_tmp_tables_info
+  */
+  uint8 tmp_tables;
+  /** TRUE <=> ref_pointer_array is set to items3. */
+  bool set_group_rpa;
+  /** Exec time only: TRUE <=> current group has been sent */
+  bool group_sent;
 
   JOIN(THD *thd_arg, List<Item> &fields_arg, ulonglong select_options_arg,
        select_result *result_arg)
@@ -411,7 +376,7 @@ public:
   void init(THD *thd_arg, List<Item> &fields_arg, ulonglong select_options_arg,
        select_result *result_arg)
   {
-    join_tab= join_tab_save= 0;
+    join_tab= 0;
     all_tables= 0;
     tables= 0;
     const_tables= 0;
@@ -426,19 +391,13 @@ public:
     fetch_limit= HA_POS_ERROR;
     min_ft_matches= HA_POS_ERROR;
     examined_rows= 0;
-    exec_tmp_table1= 0;
-    exec_tmp_table2= 0;
-    sortorder= 0;
-    table_reexec[0]= 0;
-    join_tab_reexec= 0;
     thd= thd_arg;
     sum_funcs= sum_funcs2= 0;
-    having= tmp_having= 0;
+    having= having_for_explain= 0;
     select_options= select_options_arg;
     result= result_arg;
     lock= thd_arg->lock;
     select_lex= 0; //for safety
-    tmp_join= 0;
     select_distinct= test(select_options & SELECT_DISTINCT);
     no_order= 0;
     simple_order= 0;
@@ -471,6 +430,9 @@ public:
     /* can help debugging (makes smaller test cases): */
     DBUG_EXECUTE_IF("no_const_tables",no_const_tables= TRUE;);
     first_select= sub_select;
+    tmp_tables= 0;
+    set_group_rpa= false;
+    group_sent= 0;
   }
 
   int prepare(TABLE_LIST *tables, uint wind_num,
@@ -487,8 +449,9 @@ public:
   bool alloc_func_list();
   bool flatten_subqueries();
   bool setup_subquery_materialization();
-  bool make_sum_func_list(List<Item> &all_fields, List<Item> &send_fields,
-			  bool before_group_by, bool recompute= FALSE);
+  bool make_sum_func_list(List<Item> &all_fields,
+                          List<Item> &send_fields,
+                          bool before_group_by, bool recompute= FALSE);
 
   /// Initialzes a slice, see comments for ref_ptrs above.
   Ref_ptr_array ref_ptr_array_slice(size_t slice_num)
@@ -574,6 +537,7 @@ public:
   bool generate_derived_keys();
   void drop_unused_derived_keys();
   bool get_best_combination();
+  bool add_sorting_to_table(JOIN_TAB *tab, ORDER_with_src *order);
 
 private:
   /**
@@ -603,6 +567,7 @@ private:
 
     @note Will modify JOIN object wrt sort/group attributes
 
+    @param tab              the JOIN_TAB object to attach created table to
     @param tmp_table_fields List of items that will be used to define
                             column types of the table.
     @param tmp_table_group  Group key to use for temporary table, NULL if none.
@@ -610,10 +575,11 @@ private:
                             @c tmp_fields list with Item_field items referring 
                             to fields in temporary table.
 
-    @returns Pointer to temporary table on success, NULL on failure
+    @returns false on success, true on failure
   */
-  TABLE* create_intermediate_table(List<Item> *tmp_table_fields,
-                                   ORDER_with_src &tmp_table_group, bool save_sum_fields);
+  bool create_intermediate_table(JOIN_TAB *tab, List<Item> *tmp_table_fields,
+                                 ORDER_with_src &tmp_table_group,
+                                 bool save_sum_fields);
   /**
     Create the first temporary table to be used for processing DISTINCT/ORDER
     BY/GROUP BY.
@@ -663,14 +629,13 @@ private:
     TRUE if the query contains an aggregate function but has no GROUP
     BY clause. 
   */
-  bool implicit_grouping;
+  bool implicit_grouping; 
 
   void set_prefix_tables();
-  bool make_simple_join(JOIN *join, TABLE *tmp_table);
   void cleanup_item_list(List<Item> &items) const;
   void set_semijoin_info();
   bool set_access_methods();
-  void init_tmp_tables_info();
+  bool make_tmp_tables_info();
 };
 
 

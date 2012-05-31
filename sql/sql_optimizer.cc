@@ -360,6 +360,8 @@ JOIN::optimize()
     DBUG_PRINT("info",("No tables"));
     best_rowcount= 1;
     error= 0;
+    if (make_tmp_tables_info())
+      DBUG_RETURN(1);
     DBUG_RETURN(0);
   }
   error= -1;					// Error is sent to client
@@ -753,7 +755,7 @@ JOIN::optimize()
     having= remove_eq_conds(thd, having, &select_lex->having_value);
     if (select_lex->having_value == Item::COND_FALSE)
     {
-      having= new Item_int((longlong) 0,1);
+      having= having_for_explain= new Item_int((longlong) 0,1);
       zero_result_cause= "Impossible HAVING noticed after reading const tables";
       error= 0;
       DBUG_RETURN(0);
@@ -967,13 +969,8 @@ JOIN::optimize()
     pick_table_access_method (&join_tab[i]);
   }
 
-  tmp_having= having;
-  if (!(select_options & SELECT_DESCRIBE))
-  {
-    having= NULL;
-  }
-
-  init_tmp_tables_info();
+  if (make_tmp_tables_info())
+    DBUG_RETURN(1);
 
   error= 0;
   DBUG_RETURN(0);
@@ -994,6 +991,7 @@ setup_subq_exit:
   Opt_trace_object trace_empty_result(trace, "empty_result");
   trace_empty_result.add_alnum("cause", zero_result_cause);
 
+  having_for_explain= having;
   error= 0;
   DBUG_RETURN(0);
 }
@@ -5563,7 +5561,8 @@ add_group_and_distinct_keys(JOIN *join, JOIN_TAB *join_tab)
                  (uchar*) &indexed_fields);
     cause= "distinct";
   }
-  else if (is_indexed_agg_distinct(join, &indexed_fields))
+  else if (join->tmp_table_param.sum_func_count &&
+           is_indexed_agg_distinct(join, &indexed_fields))
   {
     join->sort_and_group= 1;
     cause= "indexed_distinct_aggregate";

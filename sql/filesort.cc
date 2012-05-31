@@ -36,6 +36,7 @@
 #include "sql_select.h"
 #include "debug_sync.h"
 #include "opt_trace.h"
+#include "sql_optimizer.h"              // JOIN
 
 #include <algorithm>
 #include <utility>
@@ -150,15 +151,16 @@ static void trace_filesort_information(Opt_trace_context *trace,
 
   @param      thd            Current thread
   @param      table          Table to sort
-  @param      sortorder      How to sort the table
-  @param      s_length       Number of elements in sortorder
-  @param      select         Condition to apply to the rows
-  @param      max_rows       Return only this many rows
+  @param      filesort       How to sort the table
   @param      sort_positions Set to TRUE if we want to force sorting by position
                              (Needed by UPDATE/INSERT or ALTER TABLE or
                               when rowids are required by executor)
   @param[out] examined_rows  Store number of examined rows here
+                             This is the number of found rows before
+                             applying WHERE condition.
   @param[out] found_rows     Store the number of found rows here.
+                             This is the number of found rows after
+                             applying WHERE condition.
 
   @note
     If we sort by position (like if sort_positions is 1) filesort() will
@@ -167,13 +169,12 @@ static void trace_filesort_information(Opt_trace_context *trace,
   @retval
     HA_POS_ERROR	Error
   @retval
-    \#			Number of rows
+    \#			Number of rows in the result, could be less than
+                        found_rows if LIMIT were provided.
 */
 
-ha_rows filesort(THD *thd, TABLE *table, SORT_FIELD *sortorder, uint s_length,
-		 SQL_SELECT *select, ha_rows max_rows,
-                 bool sort_positions,
-                 ha_rows *examined_rows,
+ha_rows filesort(THD *thd, TABLE *table, Filesort *filesort,
+                 bool sort_positions, ha_rows *examined_rows,
                  ha_rows *found_rows)
 {
   int error;
@@ -186,20 +187,28 @@ ha_rows filesort(THD *thd, TABLE *table, SORT_FIELD *sortorder, uint s_length,
   bool multi_byte_charset;
   Bounded_queue<uchar, uchar> pq;
   Opt_trace_context * const trace= &thd->opt_trace;
+  SQL_SELECT *const select= filesort->select;
+  ha_rows max_rows= filesort->limit;
+  uint s_length= 0;
 
   DBUG_ENTER("filesort");
+
+  if (!(s_length= filesort->make_sortorder()))
+    DBUG_RETURN(HA_POS_ERROR);  /* purecov: inspected */
+
   /*
     We need a nameless wrapper, since we may be inside the "steps" of
     "join_execution".
   */
   Opt_trace_object trace_wrapper(trace);
-  trace_filesort_information(trace, sortorder, s_length);
+  trace_filesort_information(trace, filesort->sortorder, s_length);
 
 #ifdef SKIP_DBUG_IN_FILESORT
   DBUG_PUSH("");		/* No DBUG here */
 #endif
-  TABLE_LIST *tab= table->pos_in_table_list;
-  Item_subselect *subselect= tab ? tab->containing_subselect() : 0;
+  Item_subselect *subselect= table->reginfo.join_tab ?
+     table->reginfo.join_tab->join->select_lex->master_unit()->item :
+     NULL;
 
   MYSQL_FILESORT_START(table->s->db.str, table->s->table_name.str);
   DEBUG_SYNC(thd, "filesort_start");
@@ -225,7 +234,7 @@ ha_rows filesort(THD *thd, TABLE *table, SORT_FIELD *sortorder, uint s_length,
   buffpek=0;
   error= 1;
 
-  param.init_for_filesort(sortlength(thd, sortorder, s_length,
+  param.init_for_filesort(sortlength(thd, filesort->sortorder, s_length,
                                      &multi_byte_charset),
                           table,
                           thd->variables.max_length_for_sort_data,
@@ -319,7 +328,7 @@ ha_rows filesort(THD *thd, TABLE *table, SORT_FIELD *sortorder, uint s_length,
     goto err;
 
   param.sort_form= table;
-  param.end=(param.local_sortorder=sortorder)+s_length;
+  param.end= (param.local_sortorder= filesort->sortorder) + s_length;
   // New scope, because subquery execution must be traced within an array.
   {
     Opt_trace_array ota(trace, "filesort_execution");
@@ -489,6 +498,54 @@ void filesort_free_buffers(TABLE *table, bool full)
   table->sort.addon_field= NULL;
   DBUG_VOID_RETURN;
 }
+
+void Filesort::cleanup()
+{
+  if (select && own_select)
+  {
+    select->cleanup();
+    select= NULL;
+  }
+}
+
+uint Filesort::make_sortorder()
+{
+  uint count;
+  SORT_FIELD *sort,*pos;
+  ORDER *ord;
+  DBUG_ENTER("make_sortorder");
+
+
+  count=0;
+  for (ord = order; ord; ord= ord->next)
+    count++;
+  if (!sortorder)
+    sortorder= (SORT_FIELD*) sql_alloc(sizeof(SORT_FIELD) * (count + 1));
+  pos= sort= sortorder;
+
+  if (!pos)
+    DBUG_RETURN(0);
+
+  for (ord= order; ord; ord= ord->next, pos++)
+  {
+    Item *item= ord->item[0]->real_item();
+    pos->field= 0; pos->item= 0;
+    if (item->type() == Item::FIELD_ITEM)
+      pos->field= ((Item_field*) item)->field;
+    else if (item->type() == Item::SUM_FUNC_ITEM && !item->const_item())
+      pos->field= ((Item_sum*) item)->get_tmp_table_field();
+    else if (item->type() == Item::COPY_STR_ITEM)
+    {						// Blob patch
+      pos->item= ((Item_copy*) item)->get_item();
+    }
+    else
+      pos->item= *ord->item;
+    pos->reverse= (ord->direction == ORDER::ORDER_DESC);
+    DBUG_ASSERT(pos->field != NULL || pos->item != NULL);
+  }
+  DBUG_RETURN(count);
+}
+
 
 /**
   Makes an array of string pointers for info->sort_keys.
