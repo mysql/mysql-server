@@ -5892,16 +5892,16 @@ bool Item::eq_by_collation(Item *item, bool binary_cmp,
 bool Item::can_be_evaluated_now() const
 {
   DBUG_ENTER("Item::can_be_evaluated_now");
-  DBUG_PRINT("info", ("tables_locked_cache: %d", tables_locked_cache));
+
   if (tables_locked_cache)
     DBUG_RETURN(true);
-  DBUG_PRINT("info", ("has_subquery: %d", has_subquery()));
+
   if (has_subquery() || has_stored_program())
     const_cast<Item*>(this)->tables_locked_cache=
                                current_thd->lex->is_query_tables_locked();
   else
     const_cast<Item*>(this)->tables_locked_cache= true;
-  DBUG_PRINT("info", ("tables_locked_cache: %d", tables_locked_cache));
+
   DBUG_RETURN(tables_locked_cache);
 }
 

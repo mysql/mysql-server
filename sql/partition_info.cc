@@ -215,7 +215,7 @@ bool partition_info::set_partition_bitmaps(TABLE_LIST *table_list)
 
   DBUG_ASSERT(bitmaps_are_initialized);
   DBUG_ASSERT(table);
-  is_const_item_pruned= false;
+  is_pruning_completed= false;
   if (!bitmaps_are_initialized)
     DBUG_RETURN(TRUE);
 
