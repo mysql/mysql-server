@@ -89,7 +89,7 @@ ddl_pending_alter_table	1
 BEGIN;
 INSERT INTO t1 VALUES(4,7,2);
 SET DEBUG_SYNC = 'now SIGNAL insert_done';
-ERROR 23000: Duplicate entry '0' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '4' for key 'PRIMARY'
 ROLLBACK;
 SHOW CREATE TABLE t1;
 Table	Create Table
