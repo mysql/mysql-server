@@ -170,8 +170,10 @@ bool
 Item_func::fix_fields(THD *thd, Item **ref)
 {
   DBUG_ASSERT(fixed == 0 || basic_const_item());
+
   Item **arg,**arg_end;
   uchar buff[STACK_BUFF_ALLOC];			// Max argument in function
+
   st_select_lex::Resolve_place save_resolve= st_select_lex::RESOLVE_NONE;
   if (thd->lex->current_select != NULL)
   {

@@ -659,12 +659,13 @@ private:
   */
   void replace_item_field(const char* field_name, Item* new_item);
 
-
   /**
     TRUE if the query contains an aggregate function but has no GROUP
     BY clause. 
   */
-  bool implicit_grouping; 
+  bool implicit_grouping;
+
+  void set_prefix_tables();
   bool make_simple_join(JOIN *join, TABLE *tmp_table);
   void cleanup_item_list(List<Item> &items) const;
   void set_semijoin_info();

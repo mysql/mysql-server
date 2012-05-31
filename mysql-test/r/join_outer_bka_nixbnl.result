@@ -2059,4 +2059,50 @@ p1
 NULL
 DROP VIEW v1, v2;
 DROP TABLE t1, t2;
+#
+# Bug#13980954 Missing data on left join + null value + where..in
+#
+CREATE TABLE t1 (ik INT, vc varchar(1)) ENGINE=Innodb;
+explain format=json SELECT straight_join t1.vc, t1.ik
+FROM t1 JOIN t1 AS t2 ON t1.vc=t2.vc LEFT JOIN t1 AS t3 ON t1.vc=t3.vc;
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "nested_loop": [
+      {
+        "table": {
+          "table_name": "t1",
+          "access_type": "ALL",
+          "rows": 1,
+          "filtered": 100
+        }
+      },
+      {
+        "table": {
+          "table_name": "t2",
+          "access_type": "ALL",
+          "rows": 1,
+          "filtered": 100,
+          "attached_condition": "(`test`.`t2`.`vc` = `test`.`t1`.`vc`)"
+        }
+      },
+      {
+        "table": {
+          "table_name": "t3",
+          "access_type": "ALL",
+          "rows": 1,
+          "filtered": 100,
+          "attached_condition": "<if>(is_not_null_compl(t3), (`test`.`t3`.`vc` = `test`.`t1`.`vc`), true)"
+        }
+      }
+    ]
+  }
+}
+Warnings:
+Note	1003	/* select#1 */ select straight_join `test`.`t1`.`vc` AS `vc`,`test`.`t1`.`ik` AS `ik` from `test`.`t1` join `test`.`t1` `t2` left join `test`.`t1` `t3` on((`test`.`t3`.`vc` = `test`.`t1`.`vc`)) where (`test`.`t2`.`vc` = `test`.`t1`.`vc`)
+SELECT straight_join t1.vc, t1.ik
+FROM t1 JOIN t1 AS t2 ON t1.vc=t2.vc LEFT JOIN t1 AS t3 ON t1.vc=t3.vc;
+vc	ik
+DROP TABLE t1;
 set optimizer_switch=default;

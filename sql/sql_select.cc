@@ -539,6 +539,34 @@ static bool setup_semijoin_dups_elimination(JOIN *join, ulonglong options,
           }
         }
 
+        JOIN_TAB *const first_sj_tab= join->join_tab + first_table;
+        if (last_sj_tab->first_inner != NULL &&
+            first_sj_tab->first_inner != last_sj_tab->first_inner)
+        {
+          /*
+            The first duplicate weedout table is an outer table of an outer join
+            and the last duplicate weedout table is one of the inner tables of
+            the outer join.
+            In this case, we must assure that all the inner tables of the
+            outer join are part of the duplicate weedout operation.
+            This is to assure that NULL-extension for inner tables of an
+            outer join is performed before duplicate elimination is performed,
+            otherwise we will have extra NULL-extended rows being output, which
+            should have been eliminated as duplicates.
+          */
+          JOIN_TAB *tab= last_sj_tab->first_inner;
+          /*
+            First, locate the table that is the first inner table of the
+            outer join operation that first_sj_tab is outer for.
+          */
+          while (tab->first_upper != NULL &&
+                 tab->first_upper != first_sj_tab->first_inner)
+            tab= tab->first_upper;
+          // Then, extend the range with all inner tables of the join nest:
+          if (tab->first_inner->last_inner > last_sj_tab)
+            last_sj_tab= tab->first_inner->last_inner;
+        }
+
         SJ_TMP_TABLE::TAB sjtabs[MAX_TABLES];
         SJ_TMP_TABLE::TAB *last_tab= sjtabs;
         uint jt_rowid_offset= 0; // # tuple bytes are already occupied (w/o NULL bytes)
@@ -1217,15 +1245,11 @@ bool JOIN::set_access_methods()
 
   full_join= false;
 
-  table_map used_tables= OUTER_REF_TABLE_BIT;   // Outer row is already read
-
   for (uint tableno= 0; tableno < tables; tableno++)
   {
     JOIN_TAB *const tab=   join_tab + tableno;
-    TABLE    *const table= tab->table;
 
     DBUG_PRINT("info",("type: %d", tab->type));
-    used_tables|= table->map;
 
     // Set preliminary join cache setting based on decision from greedy search
     tab->use_join_cache= best_positions[tableno].use_join_buffer ?
@@ -1250,17 +1274,7 @@ bool JOIN::set_access_methods()
      }
     else
     {
-      /*
-        In a materialized semi-join nest, only the inner tables are available.
-        @see make_join_select()
-        @see Item_equal::get_subst_item()
-        @see eliminate_item_equal()
-      */
-      const table_map available_tables=
-        sj_is_materialize_strategy(tab->get_sj_strategy()) ?
-        (used_tables & tab->emb_sj_nest->sj_inner_tables) |
-        OUTER_REF_TABLE_BIT : used_tables;
-      if (create_ref_for_key(this, tab, keyuse, available_tables))
+      if (create_ref_for_key(this, tab, keyuse, tab->prefix_tables()))
         DBUG_RETURN(true);
     }
    }
@@ -1389,6 +1403,8 @@ bool create_ref_for_key(JOIN *join, JOIN_TAB *j, Key_use *org_keyuse,
     } while (keyuse->table == table && keyuse->key == key);
     DBUG_ASSERT(length > 0 && keyparts != 0);
   } /* not ftkey */
+
+  DBUG_ASSERT(keyparts > 0);
 
   /* set up fieldref */
   j->ref.key_parts=keyparts;
@@ -2194,6 +2210,26 @@ static bool setup_join_buffering(JOIN_TAB *tab, JOIN *join,
       tab->first_sj_inner_tab != (tab-1)->first_sj_inner_tab)     // 3
     prev_cache= NULL;
 
+  /*
+    The following code prevents use of join buffering when there is an
+    outer join operation and first match semi-join strategy is used, because:
+
+    Outer join needs a "match flag" to track that a row should be
+    NULL-complemented, such flag being attached to first inner table's cache
+    (tracks whether the cached row from outer table got a match, in which case
+    no NULL-complemented row is needed).
+
+    FirstMatch also needs a "match flag", such flag is attached to sj inner
+    table's cache (tracks whether the cached row from outer table already got
+    a first match in the sj-inner table, in which case we don't need to join
+    this cached row again)
+     - but a row in a cache has only one "match flag"
+     - so if "sj inner table"=="first inner", there is a problem. 
+  */
+  if (tab_sj_strategy == SJ_OPT_FIRST_MATCH &&
+      tab->is_inner_table_of_outer_join())
+    goto no_join_cache;
+
   switch (tab->type) {
   case JT_ALL:
     if (!bnl_on)
@@ -2544,7 +2580,7 @@ bool setup_sj_materialization(JOIN_TAB *tab)
       temptable record, we copy its columns to their corresponding columns
       in the record buffers for the source tables. 
     */
-    sjm->copy_field= new Copy_field[sjm->table_cols.elements];
+    sjm->copy_field= new Copy_field[sjm->table_cols.elements*2];
     it.rewind();
     for (uint i=0; i < sjm->table_cols.elements; i++)
     {
@@ -2574,12 +2610,22 @@ bool setup_sj_materialization(JOIN_TAB *tab)
          equality propagation, then we need to unpack it to the first
          element equality propagation member that refers to table that is
          within the subquery.
+         Because we do not have complete control over which fields are needed
+         in all condition generation, we also copy back the original items.
       */
-      Field *copy_to= get_best_field(static_cast<Item_field *>(item),
-                                     tab->join->cond_equal)->field;
-      sjm->copy_field[i].set(copy_to, sjm->table->field[i], FALSE);
+      Item_field *const item_field= static_cast<Item_field *>(item);
+      Field *copy_to= get_best_field(item_field, tab->join->cond_equal)->field;
+      sjm->copy_field[sjm->copy_field_count++].
+        set(copy_to, sjm->table->field[i], false);
       /* The write_set for source tables must be set up to allow the copying */
       bitmap_set_bit(copy_to->table->write_set, copy_to->field_index);
+      if (copy_to != item_field->field)
+      {
+        copy_to= item_field->field;
+        sjm->copy_field[sjm->copy_field_count++].
+          set(copy_to, sjm->table->field[i], false);
+        bitmap_set_bit(copy_to->table->write_set, copy_to->field_index);
+      }
     }
   }
 
@@ -3978,9 +4024,7 @@ check_reverse_order:
       while (keyuse->key != (uint)changed_key && keyuse->table == tab->table)
         keyuse++;
 
-      if (create_ref_for_key(tab->join, tab, keyuse, 
-                             tab->join->const_table_map |
-                             OUTER_REF_TABLE_BIT))
+      if (create_ref_for_key(tab->join, tab, keyuse, tab->prefix_tables()))
         goto use_filesort;
 
       DBUG_ASSERT(tab->type != JT_REF_OR_NULL && tab->type != JT_FT);
