@@ -34,7 +34,7 @@ if (USE_CTAGS)
       OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/ctags-stamp"
       COMMAND ${CTAGS} -o tags ${all_srcs} ${all_hdrs}
       COMMAND touch "${CMAKE_CURRENT_BINARY_DIR}/ctags-stamp"
-      DEPENDS ${all_srcs} ${all_hdrs} install_tdb_h generate_config_h
+      DEPENDS ${all_srcs} ${all_hdrs} install_tdb_h generate_config_h generate_log_code
       WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}")
     add_custom_target(build_ctags ALL DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/tags" ctags-stamp)
   endif ()
@@ -49,7 +49,7 @@ if (USE_ETAGS)
       OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/etags-stamp"
       COMMAND ${ETAGS} -o TAGS ${all_srcs} ${all_hdrs}
       COMMAND touch "${CMAKE_CURRENT_BINARY_DIR}/etags-stamp"
-      DEPENDS ${all_srcs} ${all_hdrs} install_tdb_h generate_config_h
+      DEPENDS ${all_srcs} ${all_hdrs} install_tdb_h generate_config_h generate_log_code
       WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}")
     add_custom_target(build_etags ALL DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/TAGS" etags-stamp)
   endif ()
@@ -64,7 +64,7 @@ if (USE_CSCOPE)
       OUTPUT "${CMAKE_CURRENT_SOURCE_DIR}/cscope.in.out"
       OUTPUT "${CMAKE_CURRENT_SOURCE_DIR}/cscope.po.out"
       COMMAND ${CSCOPE} -b -q -R
-      DEPENDS ${all_srcs} ${all_hdrs} install_tdb_h generate_config_h
+      DEPENDS ${all_srcs} ${all_hdrs} install_tdb_h generate_config_h generate_log_code
       WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}")
     add_custom_target(build_cscope.out ALL DEPENDS
       "${CMAKE_CURRENT_SOURCE_DIR}/cscope.out"
@@ -83,7 +83,7 @@ if (USE_GTAGS)
       OUTPUT "${CMAKE_CURRENT_SOURCE_DIR}/GRTAGS"
       OUTPUT "${CMAKE_CURRENT_SOURCE_DIR}/GPATH"
       COMMAND ${GTAGS} --gtagsconf "${CMAKE_CURRENT_SOURCE_DIR}/.globalrc"
-      DEPENDS ${all_srcs} ${all_hdrs} install_tdb_h generate_config_h
+      DEPENDS ${all_srcs} ${all_hdrs} install_tdb_h generate_config_h generate_log_code
       WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}")
     add_custom_target(build_GTAGS ALL DEPENDS
       "${CMAKE_CURRENT_SOURCE_DIR}/GTAGS"

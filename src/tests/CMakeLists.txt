@@ -361,7 +361,6 @@ if(BUILD_TESTING)
     endmacro(declare_custom_bdb_tests)
 
     declare_custom_bdb_tests(test1426.bdb)
-    file(COPY test1426.bdbdump DESTINATION .)
     configure_file(run_test1426.sh . COPYONLY)
     add_test(NAME test1426.tdb
       COMMAND run_test1426.sh
