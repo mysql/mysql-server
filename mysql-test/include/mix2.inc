@@ -1359,6 +1359,11 @@ drop table t1;
 
 eval create table t1 (a int not null, b int not null, c blob not null, d int not null, e int, primary key (a,b,c(255),d)) engine=$engine_type;
 insert into t1 values (2,2,"b",2,2),(1,1,"a",1,1),(3,3,"ab",3,3);
+-- disable_query_log
+-- disable_result_log
+analyze table t1;
+-- enable_result_log
+-- enable_query_log
 select * from t1 order by a,b,c,d;
 explain select * from t1 order by a,b,c,d;
 drop table t1;
