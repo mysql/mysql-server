@@ -399,7 +399,7 @@ my_crypt(char *to, const uchar *s1, const uchar *s2, uint len)
     *to++= *s1++ ^ *s2++;
 }
 
-#if defined(HAVE_OPENSSL) && !defined(HAVE_YASSL)
+#if defined(HAVE_OPENSSL)
 void my_make_scrambled_password(char *to, const char *password,
                                 size_t pass_len)
 {

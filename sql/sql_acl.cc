@@ -404,7 +404,7 @@ static LEX_STRING old_password_plugin_name= {
   C_STRING_WITH_LEN("mysql_old_password")
 };
 
-#if defined(HAVE_OPENSSL) && !defined(HAVE_YASSL)
+#if defined(HAVE_OPENSSL)
 LEX_STRING sha256_password_plugin_name= {
   C_STRING_WITH_LEN("sha256_password")
 };
@@ -1199,7 +1199,7 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
               if (my_strcasecmp(system_charset_info, tmpstr,
                                 old_password_plugin_name.str) == 0)
                 user.plugin= old_password_plugin_name;
-#if defined(HAVE_OPENSSL) && !defined(HAVE_YASSL)
+#if defined(HAVE_OPENSSL)
             else
               if (my_strcasecmp(system_charset_info, tmpstr,
                                 sha256_password_plugin_name.str) == 0)
@@ -2235,7 +2235,7 @@ bool change_password(THD *thd, const char *host, const char *user,
     acl_user->plugin.str= default_auth_plugin_name.str;
   }
   
-#if defined(HAVE_OPENSSL) && !defined(HAVE_YASSL)
+#if defined(HAVE_OPENSSL)
   /*
     update loaded acl entry:
     TODO Should password depend on @@old_variables here?
@@ -2607,7 +2607,7 @@ static bool test_if_create_new_users(THD *thd)
 bool auth_plugin_is_built_in(const char *plugin_name)
 {
  return (plugin_name == native_password_plugin_name.str ||
-#if defined(HAVE_OPENSSL) && !defined(HAVE_YASSL)
+#if defined(HAVE_OPENSSL)
          plugin_name == sha256_password_plugin_name.str ||
 #endif
          plugin_name == old_password_plugin_name.str);
@@ -2615,7 +2615,7 @@ bool auth_plugin_is_built_in(const char *plugin_name)
 
 void optimize_plugin_compare_by_pointer(LEX_STRING *plugin_name)
 {
-#if defined(HAVE_OPENSSL) && !defined(HAVE_YASSL)
+#if defined(HAVE_OPENSSL)
   if (my_strcasecmp(system_charset_info, sha256_password_plugin_name.str,
                     plugin_name->str) == 0)
   {
@@ -2656,7 +2656,7 @@ static int replace_user_table(THD *thd, TABLE *table, LEX_USER *combo,
   char what= (revoke_grant) ? 'N' : 'Y';
   uchar user_key[MAX_KEY_LENGTH];
   LEX *lex= thd->lex;
-#if defined(HAVE_OPENSSL) && !defined(HAVE_YASSL)
+#if defined(HAVE_OPENSSL)
   bool sha2_plugin= false;
 #endif
   DBUG_ENTER("replace_user_table");
@@ -2746,7 +2746,7 @@ static int replace_user_table(THD *thd, TABLE *table, LEX_USER *combo,
                                                system_charset_info);
     table->field[MYSQL_USER_FIELD_USER]->store(combo->user.str,combo->user.length,
                                                system_charset_info);
-#if defined(HAVE_OPENSSL) && !defined(HAVE_YASSL)
+#if defined(HAVE_OPENSSL)
     if (combo->plugin.str == sha256_password_plugin_name.str)
     {
       /* Use the authentication_string field */
@@ -2858,7 +2858,7 @@ static int replace_user_table(THD *thd, TABLE *table, LEX_USER *combo,
 
     if (password_len > 0)
     {
-#if defined(HAVE_OPENSSL) && !defined(HAVE_YASSL)
+#if defined(HAVE_OPENSSL)
       if (combo->plugin.str == sha256_password_plugin_name.str)
       {
         sha2_plugin= true;
@@ -4600,7 +4600,7 @@ int digest_password(THD *thd, LEX_USER *user_record)
   if (user_record->password.length == 0)
     return 0;
 
-#if defined(HAVE_OPENSSL) && !defined(HAVE_YASSL)
+#if defined(HAVE_OPENSSL)
   /*
     Transform password into a password hash 
   */
@@ -6001,7 +6001,7 @@ bool mysql_show_grants(THD *thd,LEX_USER *lex_user)
     global.append(lex_user->host.str,lex_user->host.length,
 		  system_charset_info);
     global.append ('\'');
-#if defined(HAVE_OPENSSL) && !defined(HAVE_YASSL)
+#if defined(HAVE_OPENSSL)
     if (acl_user->plugin.str == sha256_password_plugin_name.str)
     {
       global.append(STRING_WITH_LEN(" IDENTIFIED BY PASSWORD '"));
@@ -7206,7 +7206,7 @@ void append_user(THD *thd, String *str, LEX_USER *user, bool comma= true,
                                           user->password.length);
           str->append(tmp);
         }
-#if defined(HAVE_OPENSSL) && !defined(HAVE_YASSL)
+#if defined(HAVE_OPENSSL)
         else if (thd->variables.old_passwords == 2)
         {
           char tmp[CRYPT_MAX_PASSWORD_SIZE + 1];
@@ -8760,7 +8760,7 @@ int set_default_auth_plugin(char *plugin_name, int plugin_name_length)
   
   optimize_plugin_compare_by_pointer(&default_auth_plugin_name);
  
-#if defined(HAVE_OPENSSL) && !defined(HAVE_YASSL)
+#if defined(HAVE_OPENSSL)
   if (default_auth_plugin_name.str == sha256_password_plugin_name.str)
   {
     /*
@@ -10217,7 +10217,12 @@ server_mpvio_initialize(THD *thd, MPVIO_EXT *mpvio,
     (unsigned int) strlen(thd->security_ctx->host_or_ip);
   mpvio->auth_info.user_name= NULL;
   mpvio->auth_info.user_name_length= 0;
-  mpvio->vio_is_encrypted= 0;
+#if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
+  if (thd->net.vio && thd->net.vio->ssl_arg)
+    mpvio->vio_is_encrypted= 1;
+  else
+#endif /* HAVE_OPENSSL && !EMBEDDED_LIBRARY */
+    mpvio->vio_is_encrypted= 0;
   mpvio->status= MPVIO_EXT::FAILURE;
 
   mpvio->client_capabilities= thd->client_capabilities;
@@ -10715,11 +10720,11 @@ int my_vio_is_encrypted(MYSQL_PLUGIN_VIO *vio)
   return (mpvio->vio_is_encrypted);
 }
 
-#ifdef HAVE_OPENSSL
-#ifndef HAVE_YASSL
+#if defined(HAVE_OPENSSL)
+#define MAX_CIPHER_LENGTH 1024
+#if !defined(HAVE_YASSL)
 #define AUTH_DEFAULT_RSA_PRIVATE_KEY "private_key.pem"
 #define AUTH_DEFAULT_RSA_PUBLIC_KEY "public_key.pem"
-#define MAX_CIPHER_LENGTH 1024
 
 char *auth_rsa_private_key_path;
 char *auth_rsa_public_key_path;
@@ -10931,6 +10936,7 @@ int init_rsa_keys(void)
 
   return 0;
 }
+#endif // ifndef HAVE_YASSL
 
 static MYSQL_PLUGIN plugin_info_ptr;
 
@@ -10964,12 +10970,14 @@ static int sha256_password_authenticate(MYSQL_PLUGIN_VIO *vio,
   char  *user_salt_begin;
   char  *user_salt_end;
   char scramble[SCRAMBLE_LENGTH + 1];
-  unsigned char plain_text[MAX_CIPHER_LENGTH];
   char stage2[CRYPT_MAX_PASSWORD_SIZE + 1];
   String scramble_response_packet;
+#if !defined(HAVE_YASSL)
   int cipher_length= 0;
+  unsigned char plain_text[MAX_CIPHER_LENGTH];
   RSA *private_key= NULL;
   RSA *public_key= NULL;
+#endif
 
   DBUG_ENTER("sha256_password_authenticate");
 
@@ -11006,6 +11014,7 @@ static int sha256_password_authenticate(MYSQL_PLUGIN_VIO *vio,
 
   if (!my_vio_is_encrypted(vio))
   {
+ #if !defined(HAVE_YASSL)
     /*
       Since a password is being used it must be encrypted by RSA since no 
       other encryption is being active.
@@ -11072,6 +11081,9 @@ static int sha256_password_authenticate(MYSQL_PLUGIN_VIO *vio,
 
     if (pkt_len == 1)
       DBUG_RETURN(CR_ERROR);
+#else
+    DBUG_RETURN(CR_ERROR);
+#endif
   } // if(!my_vio_is_encrypter())
 
   /* A password was sent to an account without a password */
@@ -11111,6 +11123,7 @@ static int sha256_password_authenticate(MYSQL_PLUGIN_VIO *vio,
   DBUG_RETURN(CR_ERROR);
 }
 
+#if !defined(HAVE_YASSL)
 static MYSQL_SYSVAR_STR(private_key_path, auth_rsa_private_key_path,
         PLUGIN_VAR_READONLY,
         "A fully qualified path to the private RSA key used for authentication",
@@ -11142,7 +11155,7 @@ static struct st_mysql_auth old_password_handler=
   old_password_authenticate
 };
 
-#if defined(HAVE_OPENSSL) && !defined(HAVE_YASSL)
+#if defined(HAVE_OPENSSL)
 static struct st_mysql_auth sha256_password_handler=
 {
   MYSQL_AUTHENTICATION_INTERFACE_VERSION,
@@ -11182,7 +11195,7 @@ mysql_declare_plugin(mysql_password)
   NULL,                                         /* config options   */
   0,                                            /* flags            */
 }
-#if defined(HAVE_OPENSSL) && !defined(HAVE_YASSL)
+#if defined(HAVE_OPENSSL)
 ,
 {
   MYSQL_AUTHENTICATION_PLUGIN,                  /* type constant    */
@@ -11195,7 +11208,11 @@ mysql_declare_plugin(mysql_password)
   NULL,                                         /* Deinit function  */
   0x0100,                                       /* Version (1.0)    */
   NULL,                                         /* status variables */
+#if !defined(HAVE_YASSL)
   sha256_password_sysvars,                      /* system variables */
+#else
+  NULL,
+#endif
   NULL,                                         /* config options   */
   0                                             /* flags            */
 }

@@ -2242,7 +2242,7 @@ static auth_plugin_t clear_password_client_plugin=
   clear_password_auth_client
 };
 
-#if defined(HAVE_OPENSSL) && !defined(HAVE_YASSL) 
+#if defined(HAVE_OPENSSL)
 static auth_plugin_t sha256_password_client_plugin=
 {
   MYSQL_CLIENT_AUTHENTICATION_PLUGIN,
@@ -2268,7 +2268,7 @@ struct st_mysql_client_plugin *mysql_client_builtins[]=
   (struct st_mysql_client_plugin *)&native_password_client_plugin,
   (struct st_mysql_client_plugin *)&old_password_client_plugin,
   (struct st_mysql_client_plugin *)&clear_password_client_plugin,
-#if defined(HAVE_OPENSSL) && !defined(HAVE_YASSL) 
+#if defined(HAVE_OPENSSL)
   (struct st_mysql_client_plugin *) &sha256_password_client_plugin,
 #endif
 #ifdef AUTHENTICATION_WIN
