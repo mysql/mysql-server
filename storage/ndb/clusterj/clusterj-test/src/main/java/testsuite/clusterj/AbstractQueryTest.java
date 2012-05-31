@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2009, 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2009, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -25,6 +25,7 @@ import com.mysql.clusterj.query.QueryDomainType;
 import com.mysql.clusterj.query.Predicate;
 import com.mysql.clusterj.query.PredicateOperand;
 
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -64,6 +65,12 @@ abstract public class AbstractQueryTest extends AbstractClusterJModelTest {
     /** The upper limit (number of rows to return) */
     protected Long limit = null;
 
+    /** The ordering for the query */
+    protected Query.Ordering ordering = null;
+
+    /** The ordering fields for the query */
+    protected String[] orderingFields = null;
+
     @Override
     public void localSetUp() {
         setAutotransaction(false);
@@ -90,6 +97,11 @@ abstract public class AbstractQueryTest extends AbstractClusterJModelTest {
     protected void setLimits(long skip, long limit) {
         this.skip = skip;
         this.limit = limit;
+    }
+
+    protected void setOrdering(Query.Ordering ordering, String... orderingFields) {
+        this.ordering = ordering;
+        this.orderingFields = orderingFields;
     }
 
     class QueryHolder {
@@ -148,6 +160,7 @@ abstract public class AbstractQueryTest extends AbstractClusterJModelTest {
         public Predicate extraGreaterEqualAndLessEqual;
         public Query<?> query;
         public Set<Integer> expectedSet = new HashSet<Integer>();
+        public List<Integer> expectedList = new ArrayList<Integer>();
         public String expectedIndex;
         private Predicate equalOrIn;
         private Predicate extraIn;
@@ -244,6 +257,7 @@ abstract public class AbstractQueryTest extends AbstractClusterJModelTest {
         public void setExpectedResultIds(int... expecteds) {
             for (int expected:expecteds) {
                 expectedSet.add(expected);
+                expectedList.add(expected);
             }
         }
         public void setExtraParameterEqual(Object parameter) {
@@ -269,17 +283,28 @@ abstract public class AbstractQueryTest extends AbstractClusterJModelTest {
                     query.setLimits(0, limit);
                 }
             }
+            if (ordering != null) {
+                query.setOrdering(ordering, orderingFields);
+            }
             Set<Integer> actualSet = new HashSet<Integer>();
+            List<Integer> actualList = new ArrayList<Integer>();
             List<IdBase> resultList = (List<IdBase>) query.getResultList();
             for (IdBase result: resultList) {
                 printResultInstance(result);
                 actualSet.add(result.getId());
+                actualList.add(result.getId());
             }
             errorIfNotEqual("Wrong index used for " + theQuery + " query: ",
                     expectedIndex, query.explain().get("IndexUsed"));
-            errorIfNotEqual("Wrong ids returned from " + theQuery + " query: ",
-                    expectedSet, actualSet);
+            if (ordering != null) {
+                // must check ordering not just values
+                errorIfNotEqual("Wrong ids returned from ordered " + ordering + " " + theQuery + " query: ",
+                        expectedList, actualList);
+            } else {
+                errorIfNotEqual("Wrong ids returned from " + theQuery + " query: ",
+                        expectedSet, actualSet);
             }
+        }
 
         public void checkDeletePersistentAll(String where, int expectedNumberOfDeletedInstances) {
             if (limit != null) {
@@ -370,6 +395,21 @@ abstract public class AbstractQueryTest extends AbstractClusterJModelTest {
      * @param instance the instance to print if needed
      */
     protected void printResultInstance(IdBase instance) {
+    }
+
+    public void noWhereQuery(String propertyName, String expectedIndex,
+            Object parameterValue, int... expected) {
+        tx.begin();
+        QueryHolder holder = new QueryHolder(getInstanceType(), propertyName, expectedIndex);
+        // specify no where clause
+        // create the query
+        holder.createQuery(session);
+        // set the parameter value
+        holder.setParameterEqual(parameterValue);
+        // get the results
+        holder.setExpectedResultIds(expected);
+        holder.checkResults(propertyName + " noWhere");
+        tx.commit();
     }
 
     public void equalQuery(String propertyName, String expectedIndex,
