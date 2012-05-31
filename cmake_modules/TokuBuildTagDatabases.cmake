@@ -82,12 +82,14 @@ if (USE_GTAGS)
       OUTPUT "${CMAKE_CURRENT_SOURCE_DIR}/GTAGS"
       OUTPUT "${CMAKE_CURRENT_SOURCE_DIR}/GRTAGS"
       OUTPUT "${CMAKE_CURRENT_SOURCE_DIR}/GPATH"
+      OUTPUT "${CMAKE_CURRENT_SOURCE_DIR}/GSYMS"
       COMMAND ${GTAGS} --gtagsconf "${CMAKE_CURRENT_SOURCE_DIR}/.globalrc"
       DEPENDS ${all_srcs} ${all_hdrs} install_tdb_h generate_config_h generate_log_code
       WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}")
     add_custom_target(build_GTAGS ALL DEPENDS
       "${CMAKE_CURRENT_SOURCE_DIR}/GTAGS"
       "${CMAKE_CURRENT_SOURCE_DIR}/GRTAGS"
-      "${CMAKE_CURRENT_SOURCE_DIR}/GPATH")
+      "${CMAKE_CURRENT_SOURCE_DIR}/GPATH"
+      "${CMAKE_CURRENT_SOURCE_DIR}/GSYMS")
   endif ()
 endif ()
