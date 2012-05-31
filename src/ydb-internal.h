@@ -192,7 +192,7 @@ void toku_ydb_notef(const char *, ...);
 
 /* Environment related errors */
 int toku_env_is_panicked(DB_ENV *dbenv);
-void toku_locked_env_err(const DB_ENV * env, int error, const char *fmt, ...) 
+void toku_env_err(const DB_ENV * env, int error, const char *fmt, ...) 
                          __attribute__((__format__(__printf__, 3, 4)));
 
 typedef enum __toku_isolation_level { 
