@@ -48,7 +48,6 @@ t1	CREATE TABLE `t1` (
 BEGIN;
 INSERT INTO t1 VALUES(7,4,2);
 SET DEBUG_SYNC = 'row_log_table_apply1_before SIGNAL scanned WAIT_FOR insert_done';
-SET DEBUG_SYNC = 'row_log_table_apply2_before WAIT_FOR rollback_done';
 ALTER TABLE t1 DROP PRIMARY KEY, ADD UNIQUE INDEX(c2);
 ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 COMMIT;
@@ -90,9 +89,8 @@ ddl_pending_alter_table	1
 BEGIN;
 INSERT INTO t1 VALUES(4,7,2);
 SET DEBUG_SYNC = 'now SIGNAL insert_done';
-ROLLBACK;
-SET DEBUG_SYNC = 'now SIGNAL rollback_done';
 ERROR 23000: Duplicate entry '0' for key 'PRIMARY'
+ROLLBACK;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
