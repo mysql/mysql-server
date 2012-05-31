@@ -1270,6 +1270,9 @@ row_merge_read_clustered_index(
 	ulint			n_nonnull = 0;	/* number of columns
 						changed to NOT NULL */
 	ulint*			nonnull = NULL;	/* NOT NULL columns */
+	ulint			n_nullable = 0;	/* number of columns
+						changed to NULL */
+	ulint*			nullable = NULL;/* NULLable columns */
 	dict_index_t*		fts_index = NULL;/* FTS index */
 	doc_id_t		doc_id = 0;
 	doc_id_t		max_doc_id = 0;
@@ -1346,25 +1349,30 @@ row_merge_read_clustered_index(
 		}
 
 		nonnull = static_cast<ulint*>(
-			mem_alloc(n_cols * sizeof *nonnull));
+			mem_alloc(2 * n_cols * sizeof *nonnull));
+		nullable = nonnull + n_cols;
 
 		for (ulint i = 0; i < n_cols; i++) {
-			if (dict_table_get_nth_col(old_table, i)->prtype
-			    & DATA_NOT_NULL) {
+			/* TODO: adjust for ADD COLUMN, DROP COLUMN */
+			ulint	old_nonnull	= DATA_NOT_NULL
+				& dict_table_get_nth_col(old_table, i)->prtype;
+			ulint	new_nonnull	= DATA_NOT_NULL
+				& dict_table_get_nth_col(new_table, i)->prtype;
 
+			if (old_nonnull == new_nonnull) {
 				continue;
 			}
 
-			if (dict_table_get_nth_col(new_table, i)->prtype
-			    & DATA_NOT_NULL) {
-
+			if (old_nonnull) {
+				nullable[n_nullable++] = i;
+			} else {
 				nonnull[n_nonnull++] = i;
 			}
 		}
 
-		if (!n_nonnull) {
+		if (!n_nonnull && !n_nullable) {
 			mem_free(nonnull);
-			nonnull = NULL;
+			nonnull = nullable = NULL;
 		}
 	}
 
@@ -1439,7 +1447,7 @@ row_merge_read_clustered_index(
 				row = NULL;
 				mtr_commit(&mtr);
 				mem_heap_free(row_heap);
-				if (UNIV_LIKELY_NULL(nonnull)) {
+				if (nonnull) {
 					mem_free(nonnull);
 				}
 				goto write_buffers;
@@ -1536,7 +1544,7 @@ row_merge_read_clustered_index(
 			dtype_t*	field_type
 				= dfield_get_type(field);
 
-			ut_a(!(field_type->prtype & DATA_NOT_NULL));
+			ut_ad(!(field_type->prtype & DATA_NOT_NULL));
 
 			if (dfield_is_null(field)) {
 				err = DB_PRIMARY_KEY_IS_NULL;
@@ -1545,6 +1553,13 @@ row_merge_read_clustered_index(
 			}
 
 			field_type->prtype |= DATA_NOT_NULL;
+		}
+
+		for (ulint i = 0; i < n_nullable; i++) {
+			dtype_t*	field_type
+				= dfield_get_type(&row->fields[nullable[i]]);
+			ut_ad((field_type->prtype & DATA_NOT_NULL));
+			field_type->prtype &= ~DATA_NOT_NULL;
 		}
 
 		/* Get the next Doc ID */
@@ -1683,7 +1698,7 @@ func_exit:
 	mtr_commit(&mtr);
 	mem_heap_free(row_heap);
 
-	if (UNIV_LIKELY_NULL(nonnull)) {
+	if (nonnull) {
 		mem_free(nonnull);
 	}
 
