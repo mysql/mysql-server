@@ -37,7 +37,9 @@ void putLong(File file, uLong x);
 uLong  getLong(azio_stream *s);
 void read_header(azio_stream *s, unsigned char *buffer);
 
+#ifdef HAVE_PSI_INTERFACE
 extern PSI_file_key arch_key_file_data;
+#endif
 
 /* ===========================================================================
   Opens a gzip (.gz) file for reading or writing. The mode parameter
