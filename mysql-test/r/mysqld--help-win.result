@@ -1,8 +1,12 @@
 The following options may be given as the first argument:
 --print-defaults Print the program argument list and exit.
---no-defaults Don't read default options from any option file.
+--no-defaults Don't read default options from any option file,
+ except for login file.
 --defaults-file=# Only read default options from the given file #.
 --defaults-extra-file=# Read this file after the global files are read.
+--defaults-group-suffix=#
+ Also read groups with concat(group, suffix)
+--login-path=# Read this path from the login file.
 
  --abort-slave-event-count=# 
  Option used by mysql-test for debugging and testing of

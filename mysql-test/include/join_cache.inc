@@ -2015,6 +2015,9 @@ CREATE TABLE t2 (
 INSERT INTO t2 VALUES (9, '2002-08-25 20:35:06', 'e'),
                       (9, '2002-08-25 20:35:06', 'e');
 
+set @optimizer_switch_saved=@@session.optimizer_switch;
+set @@session.optimizer_switch='semijoin=off';
+
 let $query=SELECT PARENT1.col_varchar_key
 FROM t2 AS PARENT1 LEFT JOIN t1 USING (col_int_nokey)
 WHERE PARENT1.col_varchar_key IN
@@ -2024,5 +2027,7 @@ WHERE PARENT1.col_varchar_key IN
 ;
 eval EXPLAIN $query;
 eval $query;
+
+set @@session.optimizer_switch=@optimizer_switch_saved;
 
 DROP TABLE t1,t2;
