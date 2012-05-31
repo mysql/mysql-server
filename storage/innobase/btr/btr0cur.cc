@@ -482,7 +482,7 @@ btr_cur_search_to_nth_level(
 #else
 	switch (latch_mode) {
 	default:
-		if (level == 0) {
+		if (level == 0 || !dict_index_is_online_ddl(index)) {
 			break;
 		}
 		/* fall through */

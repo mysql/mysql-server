@@ -2576,6 +2576,7 @@ buf_pool_get_dirty_pages_count(
 {
 	ulint		count = 0;
 
+	buf_pool_mutex_enter(buf_pool);
 	buf_flush_list_mutex_enter(buf_pool);
 
 	buf_page_t*	bpage;
@@ -2594,6 +2595,7 @@ buf_pool_get_dirty_pages_count(
 	}
 
 	buf_flush_list_mutex_exit(buf_pool);
+	buf_pool_mutex_exit(buf_pool);
 
 	return(count);
 }

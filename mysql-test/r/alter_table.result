@@ -1651,6 +1651,12 @@ info: Records: 2  Duplicates: 0  Warnings: 0
 ALTER TABLE tm1 ADD COLUMN d VARCHAR(200);
 affected rows: 2
 info: Records: 2  Duplicates: 0  Warnings: 0
+ALTER TABLE ti1 ADD COLUMN d2 VARCHAR(200);
+affected rows: 2
+info: Records: 2  Duplicates: 0  Warnings: 0
+ALTER TABLE tm1 ADD COLUMN d2 VARCHAR(200);
+affected rows: 2
+info: Records: 2  Duplicates: 0  Warnings: 0
 ALTER TABLE ti1 ADD COLUMN e ENUM('a', 'b') FIRST;
 affected rows: 2
 info: Records: 2  Duplicates: 0  Warnings: 0
@@ -1669,12 +1675,6 @@ info: Records: 0  Duplicates: 0  Warnings: 0
 ALTER TABLE tm1 ADD INDEX im1(b);
 affected rows: 2
 info: Records: 2  Duplicates: 0  Warnings: 0
-ALTER TABLE ti1 ADD PRIMARY KEY (a);
-affected rows: 0
-info: Records: 0  Duplicates: 0  Warnings: 0
-ALTER TABLE tm1 ADD PRIMARY KEY (a);
-affected rows: 2
-info: Records: 2  Duplicates: 0  Warnings: 0
 ALTER TABLE ti1 ADD UNIQUE INDEX ii2 (c);
 affected rows: 0
 info: Records: 0  Duplicates: 0  Warnings: 0
@@ -1687,6 +1687,26 @@ info: Records: 0  Duplicates: 0  Warnings: 1
 Warnings:
 Warning	124	InnoDB rebuilding table to add column FTS_DOC_ID
 ALTER TABLE tm1 ADD FULLTEXT INDEX im3 (d);
+affected rows: 2
+info: Records: 2  Duplicates: 0  Warnings: 0
+ALTER TABLE ti1 ADD FULLTEXT INDEX ii4 (d2);
+affected rows: 0
+info: Records: 0  Duplicates: 0  Warnings: 0
+ALTER TABLE tm1 ADD FULLTEXT INDEX im4 (d2);
+affected rows: 2
+info: Records: 2  Duplicates: 0  Warnings: 0
+ALTER TABLE ti1 ADD PRIMARY KEY(a);
+ERROR HY000: InnoDB presently supports one FULLTEXT index creation at a time
+ALTER TABLE ti1 ADD PRIMARY KEY(a), ALGORITHM=COPY;
+affected rows: 2
+info: Records: 2  Duplicates: 0  Warnings: 0
+ALTER TABLE tm1 ADD PRIMARY KEY(a);
+affected rows: 2
+info: Records: 2  Duplicates: 0  Warnings: 0
+ALTER TABLE ti1 DROP COLUMN d2;
+affected rows: 2
+info: Records: 2  Duplicates: 0  Warnings: 0
+ALTER TABLE tm1 DROP COLUMN d2;
 affected rows: 2
 info: Records: 2  Duplicates: 0  Warnings: 0
 ALTER TABLE ti1 ADD CONSTRAINT fi1 FOREIGN KEY (b) REFERENCES ti2(a);
