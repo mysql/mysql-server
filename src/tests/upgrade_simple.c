@@ -32,9 +32,9 @@ static void test_shutdown(void);
 
 static char *env_dir = ENVDIR; // the default env_dir.
 
-static char * dir_v41_clean = "env_simple.4.1.1.cleanshutdown";
-static char * dir_v42_clean = "env_simple.4.2.0.cleanshutdown";
-static char * dir_v42_dirty = "env_simple.4.2.0.dirtyshutdown";
+static char * dir_v41_clean = OLDDATADIR "env_simple.4.1.1.cleanshutdown";
+static char * dir_v42_clean = OLDDATADIR "env_simple.4.2.0.cleanshutdown";
+static char * dir_v42_dirty = OLDDATADIR "env_simple.4.2.0.dirtyshutdown";
 static char * dir_v41_dirty_multilogfile = OLDDATADIR "env_preload.4.1.1.multilog.dirtyshutdown";
 static char * dir_v42_dirty_multilogfile = OLDDATADIR "env_preload.4.2.0.multilog.dirtyshutdown";
 
