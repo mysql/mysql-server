@@ -111,7 +111,6 @@ ins_node_create_entry_list(
 	dict_index_t*	index;
 	dtuple_t*	entry;
 
-	ut_ad(node->ins_type != INS_DIRECT);
 	ut_ad(node->entry_sys_heap);
 
 	UT_LIST_INIT(node->entry_list);
@@ -207,9 +206,7 @@ ins_node_set_new_row(
 
 	/* Create templates for index entries */
 
-	if (node->ins_type != INS_DIRECT) {
-		ins_node_create_entry_list(node);
-	}
+	ins_node_create_entry_list(node);
 
 	/* Allocate from entry_sys_heap buffers for sys fields */
 
@@ -2460,7 +2457,7 @@ row_ins_index_entry(
 /***********************************************************//**
 Sets the values of the dtuple fields in entry from the values of appropriate
 columns in row. */
-static
+static __attribute__((nonnull))
 void
 row_ins_index_entry_set_vals(
 /*=========================*/
@@ -2470,9 +2467,6 @@ row_ins_index_entry_set_vals(
 {
 	ulint	n_fields;
 	ulint	i;
-
-	ut_ad(row);
-	ut_ad(entry);
 
 	n_fields = dtuple_get_n_fields(entry);
 
@@ -2637,24 +2631,22 @@ row_ins(
 	ins_node_t*	node,	/*!< in: row insert node */
 	que_thr_t*	thr)	/*!< in: query thread */
 {
+	dberr_t	err;
+
 	if (node->state == INS_NODE_ALLOC_ROW_ID) {
 
 		row_ins_alloc_row_id_step(node);
 
 		node->index = dict_table_get_first_index(node->table);
+		node->entry = UT_LIST_GET_FIRST(node->entry_list);
 
-		switch (node->ins_type) {
-		case INS_DIRECT:
-			node->entry = NULL;
-			break;
-		case INS_SEARCHED:
-			node->entry = UT_LIST_GET_FIRST(node->entry_list);
+		if (node->ins_type == INS_SEARCHED) {
+
 			row_ins_get_row_from_select(node);
-			break;
-		case INS_VALUES:
-			node->entry = UT_LIST_GET_FIRST(node->entry_list);
+
+		} else if (node->ins_type == INS_VALUES) {
+
 			row_ins_get_row_from_values(node);
-			break;
 		}
 
 		node->state = INS_NODE_INSERT_ENTRIES;
@@ -2663,42 +2655,23 @@ row_ins(
 	ut_ad(node->state == INS_NODE_INSERT_ENTRIES);
 
 	while (node->index != NULL) {
-		dberr_t	err;
+		if (node->index->type != DICT_FTS) {
+			err = row_ins_index_entry_step(node, thr);
 
-		if (node->index->type & DICT_FTS) {
-			goto next_index;
+			if (err != DB_SUCCESS) {
+
+				return(err);
+			}
 		}
 
-		if (node->ins_type == INS_DIRECT) {
-			/* node->entry == NULL here, except when
-			row_ins_index_entry_step() returned
-			DB_LOCK_WAIT on the previous call and
-			row_insert_for_mysql() retried the insert. */
-			node->entry = row_build_index_entry(
-				node->row, NULL, node->index,
-				node->entry_sys_heap);
-		}
-
-		err = row_ins_index_entry_step(node, thr);
-
-		if (err != DB_SUCCESS) {
-
-			return(err);
-		}
-
-next_index:
 		node->index = dict_table_get_next_index(node->index);
-		node->entry = (node->ins_type != INS_DIRECT)
-			? UT_LIST_GET_NEXT(tuple_list, node->entry)
-			: NULL;
+		node->entry = UT_LIST_GET_NEXT(tuple_list, node->entry);
 
 		/* Skip corrupted secondary index and its entry */
 		while (node->index && dict_index_is_corrupted(node->index)) {
 
 			node->index = dict_table_get_next_index(node->index);
-			node->entry = (node->ins_type != INS_DIRECT)
-				? UT_LIST_GET_NEXT(tuple_list, node->entry)
-				: NULL;
+			node->entry = UT_LIST_GET_NEXT(tuple_list, node->entry);
 		}
 	}
 
