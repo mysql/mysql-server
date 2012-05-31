@@ -374,40 +374,37 @@ toku_txn_begin(DB_ENV *env, DB_TXN * stxn, DB_TXN ** txn, u_int32_t flags) {
     }
     flags &= ~iso_flags;
 
-    if (stxn) {
-        child_isolation = db_txn_struct_i(stxn)->iso;
-    }
-    else {
-        switch (iso_flags) {
-            case (DB_INHERIT_ISOLATION):
-                if (stxn) {
-                    child_isolation = db_txn_struct_i(stxn)->iso;
-                }
-                else {
-                    return toku_ydb_do_error(
-                        env, 
-                        EINVAL, 
-                        "Cannot set DB_INHERIT_ISOLATION when no parent exists\n"
-                        );                    
-                }
-                break;
-            case (DB_READ_COMMITTED):
-                child_isolation = TOKU_ISO_READ_COMMITTED;
-                break;
-            case (DB_READ_UNCOMMITTED):
-                child_isolation = TOKU_ISO_READ_UNCOMMITTED;
-                break;
-            case (DB_TXN_SNAPSHOT):
-                child_isolation = TOKU_ISO_SNAPSHOT;
-                break;
-            case (DB_SERIALIZABLE):
-            case (0):
-                child_isolation = TOKU_ISO_SERIALIZABLE;
-                break;
-            default:
-                assert(FALSE); // error path is above, so this should not happen
-                break;
-        }
+    switch (iso_flags) {
+        case (DB_INHERIT_ISOLATION):
+            if (stxn) {
+                child_isolation = db_txn_struct_i(stxn)->iso;
+            }
+            else {
+                return toku_ydb_do_error(
+                    env, 
+                    EINVAL, 
+                    "Cannot set DB_INHERIT_ISOLATION when no parent exists\n"
+                    );                    
+            }
+            break;
+        case (DB_READ_COMMITTED):
+            child_isolation = TOKU_ISO_READ_COMMITTED;
+            break;
+        case (DB_READ_UNCOMMITTED):
+            child_isolation = TOKU_ISO_READ_UNCOMMITTED;
+            break;
+        case (DB_TXN_SNAPSHOT):
+            child_isolation = TOKU_ISO_SNAPSHOT;
+            break;
+        case (DB_SERIALIZABLE):
+            child_isolation = TOKU_ISO_SERIALIZABLE;
+            break;
+        case (0):
+            child_isolation = stxn ? db_txn_struct_i(stxn)->iso : TOKU_ISO_SERIALIZABLE;
+            break;
+        default:
+            assert(FALSE); // error path is above, so this should not happen
+            break;
     }
     if (stxn && child_isolation != db_txn_struct_i(stxn)->iso) {
         return toku_ydb_do_error(
