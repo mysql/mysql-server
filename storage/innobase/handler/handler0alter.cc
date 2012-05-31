@@ -1569,7 +1569,7 @@ innobase_create_key_defs(
 created_clustered:
 		n_add = 1;
 
-		if (new_primary) {
+		if (rebuild) {
 			n_fts_add = 0;
 		}
 
@@ -1582,7 +1582,7 @@ created_clustered:
 				altered_table, key_info, i, TRUE, FALSE,
 				indexdef, heap);
 
-			if (new_primary && indexdef->ind_type & DICT_FTS) {
+			if (rebuild && indexdef->ind_type & DICT_FTS) {
 				n_fts_add++;
 			}
 
@@ -1599,7 +1599,7 @@ created_clustered:
 		}
 	}
 
-	if (new_primary && n_fts_add > 0) {
+	if (rebuild && n_fts_add > 0) {
 		if (!add_fts_doc_id && (fts_doc_id_col == ULINT_UNDEFINED)
 		    && !innobase_fts_check_doc_id_col(
 					NULL, altered_table,
@@ -1640,7 +1640,7 @@ created_clustered:
 		index->fields->prefix_len = 0;
 		index->ind_type = DICT_UNIQUE;
 
-		if (new_primary || add_fts_doc_id) {
+		if (rebuild) {
 			index->name = mem_heap_strdup(
 				heap, FTS_DOC_ID_INDEX_NAME);
 			ut_ad(!add_fts_doc_id
