@@ -99,6 +99,7 @@ clusterj_test_java = \
   $(clusterj_test_src)/testsuite/clusterj/QueryNotTest.java \
   $(clusterj_test_src)/testsuite/clusterj/QueryNullTest.java \
   $(clusterj_test_src)/testsuite/clusterj/QueryOrTest.java \
+  $(clusterj_test_src)/testsuite/clusterj/QueryOrderingTest.java \
   $(clusterj_test_src)/testsuite/clusterj/QueryPrimaryKeyTest.java \
   $(clusterj_test_src)/testsuite/clusterj/QueryStringTypesTest.java \
   $(clusterj_test_src)/testsuite/clusterj/QueryTableScanTest.java \
