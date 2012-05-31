@@ -1,7 +1,7 @@
 #ifndef PARTITION_INFO_INCLUDED
 #define PARTITION_INFO_INCLUDED
 
-/* Copyright (c) 2006, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -223,8 +223,15 @@ public:
   bool from_openfrm;
   bool has_null_value;
   bool column_list;                          // COLUMNS PARTITIONING, 5.5+
-  /** True if pruning has been done with cond->const_item(). */
-  bool is_const_item_pruned;
+  /**
+    True if pruning has been completed and can not be pruned any further,
+    even if there are subqueries or stored programs in the condition.
+
+    Some times it is needed to run prune_partitions() a second time to prune
+    read partitions after tables are locked, when subquery and
+    stored functions might have been evaluated.
+  */
+  bool is_pruning_completed;
 
   partition_info()
   : get_partition_id(NULL), get_part_partition_id(NULL),
@@ -257,7 +264,7 @@ public:
     list_of_part_fields(FALSE), list_of_subpart_fields(FALSE),
     linear_hash_ind(FALSE), fixed(FALSE),
     is_auto_partitioned(FALSE), from_openfrm(FALSE),
-    has_null_value(FALSE), column_list(FALSE), is_const_item_pruned(false)
+    has_null_value(FALSE), column_list(FALSE), is_pruning_completed(false)
   {
     partitions.empty();
     temp_partitions.empty();

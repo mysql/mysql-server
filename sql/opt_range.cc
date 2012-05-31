@@ -3111,13 +3111,12 @@ bool prune_partitions(THD *thd, TABLE *table, Item *pprune_cond)
   }
 
   /*
-    If the prepare stage only had constant items (also true when no subqueries
-    are used before locking), it is no use of running prune_partitions() twice
-    on the same statement.
+    If the prepare stage already have completed pruning successfully,
+    it is no use of running prune_partitions() again on the same condition.
     Since it will not be able to prune anything more than the previous call
     from the prepare step.
   */
-  if (part_info->is_const_item_pruned)
+  if (part_info->is_pruning_completed)
     DBUG_RETURN(false);
 
   PART_PRUNE_PARAM prune_param;
@@ -3165,10 +3164,26 @@ bool prune_partitions(THD *thd, TABLE *table, Item *pprune_cond)
     goto all_used;
 
   if (tree->type == SEL_TREE::IMPOSSIBLE)
+  {
+    /* Cannot improve the pruning any further. */
+    part_info->is_pruning_completed= true;
     goto end;
+  }
 
   if (tree->type != SEL_TREE::KEY && tree->type != SEL_TREE::KEY_SMALLER)
+  {
+    /*
+      If the condition can be evaluated now, we are done with pruning.
+
+      During the prepare phase, before locking, subqueries and stored programs
+      are not evaluated. So we need to run prune_partitions() a second time in
+      the optimize phase to prune partitions for reading, when subqueries and
+      stored programs may be evaluated.
+    */
+    if (pprune_cond->can_be_evaluated_now())
+      part_info->is_pruning_completed= true;
     goto all_used;
+  }
 
   if (tree->merges.is_empty())
   {
@@ -3218,6 +3233,9 @@ bool prune_partitions(THD *thd, TABLE *table, Item *pprune_cond)
     }
   }
   
+  /* Same here regarding avoid the second run in the optimize phase. */
+  if (pprune_cond->can_be_evaluated_now())
+    part_info->is_pruning_completed= true;
   goto end;
 
 all_used:
@@ -3251,7 +3269,6 @@ end:
   }
   if (bitmap_is_clear_all(&(prune_param.part_info->read_partitions)))
     table->all_partitions_pruned_away= true;
-  part_info->is_const_item_pruned= pprune_cond->const_item();
   DBUG_RETURN(false);
 }
 

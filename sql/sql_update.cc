@@ -437,6 +437,29 @@ int mysql_update(THD *thd,
   if (lock_tables(thd, table_list, thd->lex->table_count, 0))
     DBUG_RETURN(1);
 
+#ifdef WITH_PARTITION_STORAGE_ENGINE
+  /*
+    Also try a second time after locking, to prune when subqueries and
+    stored programs can be evaluated.
+  */
+  if (table->part_info)
+  {
+    if (prune_partitions(thd, table, conds))
+      DBUG_RETURN(1);
+    if (table->all_partitions_pruned_away)
+    {
+      /* No matching records */
+      if (thd->lex->describe)
+      {
+        error= explain_no_table(thd,
+                                "No matching rows after partition pruning");
+        goto exit_without_my_ok;
+      }
+      my_ok(thd);                            // No matching records
+      DBUG_RETURN(0);
+    }
+  }
+#endif
   /* Update the table->file->stats.records number */
   table->file->info(HA_STATUS_VARIABLE | HA_STATUS_NO_LOCK);
 
