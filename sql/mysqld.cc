@@ -2023,8 +2023,8 @@ static MYSQL_SOCKET create_socket(const struct addrinfo *addrinfo_list,
 
     char ip_addr[INET6_ADDRSTRLEN];
 
-    if (vio_get_normalized_ip_string(cur_ai->ai_addr, cur_ai->ai_addrlen,
-                                     ip_addr, sizeof (ip_addr)))
+    if (vio_getnameinfo(cur_ai->ai_addr, ip_addr, sizeof (ip_addr),
+                        NULL, 0, NI_NUMERICHOST))
     {
       ip_addr[0]= 0;
     }
@@ -2081,7 +2081,7 @@ static void network_init(void)
 
   if (mysqld_port != 0 && !opt_disable_networking && !opt_bootstrap)
   {
-    struct addrinfo *ai, *a;
+    struct addrinfo *ai;
     struct addrinfo hints;
 
     sql_print_information("Server hostname (bind-address): '%s'; port: %d",
@@ -2106,8 +2106,8 @@ static void network_init(void)
     {
       char ip_addr[INET6_ADDRSTRLEN];
 
-      if (vio_get_normalized_ip_string(cur_ai->ai_addr, cur_ai->ai_addrlen,
-                                       ip_addr, sizeof (ip_addr)))
+      if (vio_getnameinfo(cur_ai->ai_addr, ip_addr, sizeof (ip_addr),
+                          NULL, 0, NI_NUMERICHOST))
       {
         sql_print_error("Fails to print out IP-address.");
         continue;
@@ -2126,6 +2126,7 @@ static void network_init(void)
       returned by getaddrinfo();
     */
 
+    struct addrinfo *a;
     ip_sock= create_socket(ai, AF_INET, &a);
 
     if (mysql_socket_getfd(ip_sock) == INVALID_SOCKET)
@@ -2162,8 +2163,14 @@ static void network_init(void)
     if (a->ai_family == AF_INET6)
     {
       arg= 0;
-      (void) mysql_socket_setsockopt(ip_sock, IPPROTO_IPV6, IPV6_V6ONLY, (char*)&arg,
-                sizeof(arg));
+
+      if (mysql_socket_setsockopt(ip_sock, IPPROTO_IPV6, IPV6_V6ONLY,
+                                  (char *) &arg, sizeof (arg)))
+      {
+        sql_print_warning("Failed to reset IPV6_V6ONLY flag (error: %d). "
+                          "The server will listen to IPv6 addresses only.",
+                          (int) socket_errno);
+      }
     }
 #endif
     /*

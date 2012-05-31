@@ -666,6 +666,15 @@ dict_table_get_first_index(
 	const dict_table_t*	table)	/*!< in: table */
 	__attribute__((nonnull, warn_unused_result));
 /********************************************************************//**
+Gets the last index on the table.
+@return	index, NULL if none exists */
+UNIV_INLINE
+dict_index_t*
+dict_table_get_last_index(
+/*=======================*/
+	const dict_table_t*	table)	/*!< in: table */
+	__attribute__((nonnull, warn_unused_result));
+/********************************************************************//**
 Gets the next index on the table.
 @return	index, NULL if none left */
 UNIV_INLINE
@@ -676,6 +685,7 @@ dict_table_get_next_index(
 	__attribute__((nonnull, warn_unused_result));
 #else /* UNIV_DEBUG */
 # define dict_table_get_first_index(table) UT_LIST_GET_FIRST((table)->indexes)
+# define dict_table_get_last_index(table) UT_LIST_GET_LAST((table)->indexes)
 # define dict_table_get_next_index(index) UT_LIST_GET_NEXT(indexes, index)
 #endif /* UNIV_DEBUG */
 #endif /* !UNIV_HOTBACKUP */

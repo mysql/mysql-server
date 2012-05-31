@@ -957,43 +957,59 @@ row_get_prebuilt_insert_row(
 	row_prebuilt_t*	prebuilt)	/*!< in: prebuilt struct in MySQL
 					handle */
 {
-	ins_node_t*	node;
-	dtuple_t*	row;
-	dict_table_t*	table	= prebuilt->table;
+	dict_table_t*		table	= prebuilt->table;
+	const dict_index_t*	last_index = dict_table_get_last_index(table);
 
 	ut_ad(prebuilt && table && prebuilt->trx);
 
-	if (prebuilt->ins_node == NULL) {
+	/* Check if a new index has been added that prebuilt doesn't know
+	about. We need to rebuild the query graph. */
 
-		/* Not called before for this handle: create an insert node
-		and query graph to the prebuilt struct */
+	if (prebuilt->ins_node != 0) {
 
-		node = ins_node_create(INS_DIRECT, table, prebuilt->heap);
-
-		prebuilt->ins_node = node;
-
-		if (prebuilt->ins_upd_rec_buff == NULL) {
-			prebuilt->ins_upd_rec_buff = static_cast<byte*>(
-				mem_heap_alloc(
-					prebuilt->heap,
-					prebuilt->mysql_row_len));
+		if (prebuilt->trx_id >= last_index->trx_id) {
+			return(prebuilt->ins_node->row);
 		}
 
-		row = dtuple_create(prebuilt->heap,
-				    dict_table_get_n_cols(table));
+		que_graph_free_recursive(prebuilt->ins_graph);
 
-		dict_table_copy_types(row, table);
-
-		ins_node_set_new_row(node, row);
-
-		prebuilt->ins_graph = static_cast<que_fork_t*>(
-			que_node_get_parent(
-				pars_complete_graph_for_exec(
-					node,
-					prebuilt->trx, prebuilt->heap)));
-
-		prebuilt->ins_graph->state = QUE_FORK_ACTIVE;
+		prebuilt->ins_graph = 0;
 	}
+
+	/* Create an insert node and query graph to the prebuilt struct */
+
+	ins_node_t*		node;
+
+	node = ins_node_create(INS_DIRECT, table, prebuilt->heap);
+
+	prebuilt->ins_node = node;
+
+	if (prebuilt->ins_upd_rec_buff == 0) {
+		prebuilt->ins_upd_rec_buff = static_cast<byte*>(
+			mem_heap_alloc(
+				prebuilt->heap,
+				prebuilt->mysql_row_len));
+	}
+
+	dtuple_t*	row;
+
+	row = dtuple_create(prebuilt->heap, dict_table_get_n_cols(table));
+
+	dict_table_copy_types(row, table);
+
+	ins_node_set_new_row(node, row);
+
+	prebuilt->ins_graph = static_cast<que_fork_t*>(
+		que_node_get_parent(
+			pars_complete_graph_for_exec(
+				node,
+				prebuilt->trx, prebuilt->heap)));
+
+	prebuilt->ins_graph->state = QUE_FORK_ACTIVE;
+
+	ut_ad(prebuilt->trx_id == 0 || prebuilt->trx_id <= last_index->trx_id);
+
+	prebuilt->trx_id = last_index->trx_id;
 
 	return(prebuilt->ins_node->row);
 }
@@ -1073,10 +1089,8 @@ row_lock_table_autoinc_for_mysql(
 
 	trx->op_info = "setting auto-inc lock";
 
-	if (node == NULL) {
-		row_get_prebuilt_insert_row(prebuilt);
-		node = prebuilt->ins_node;
-	}
+	row_get_prebuilt_insert_row(prebuilt);
+	node = prebuilt->ins_node;
 
 	/* We use the insert query graph as the dummy graph needed
 	in the lock module call */
@@ -1266,10 +1280,8 @@ row_insert_for_mysql(
 
 	trx_start_if_not_started_xa(trx);
 
-	if (node == NULL) {
-		row_get_prebuilt_insert_row(prebuilt);
-		node = prebuilt->ins_node;
-	}
+	row_get_prebuilt_insert_row(prebuilt);
+	node = prebuilt->ins_node;
 
 	row_mysql_convert_row_to_innobase(node->row, prebuilt, mysql_rec);
 
