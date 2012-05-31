@@ -183,7 +183,6 @@ extern ulong delayed_rows_in_use,delayed_insert_errors;
 extern int32 slave_open_temp_tables;
 extern ulong query_cache_size, query_cache_min_res_unit;
 extern ulong slow_launch_threads, slow_launch_time;
-extern ulong deprecated_table_cache_size;
 extern ulong table_cache_size, table_def_size;
 extern ulong table_cache_size_per_instance, table_cache_instances;
 extern MYSQL_PLUGIN_IMPORT ulong max_connections;

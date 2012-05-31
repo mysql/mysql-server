@@ -898,7 +898,6 @@ The following options may be given as the first argument:
  safe-replicable. Since 5.0, SYSDATE() returns a `dynamic'
  value different for different invocations, even within
  the same statement.
- --table-cache=#     Deprecated; use --table-open-cache instead.
  --table-definition-cache=# 
  The number of cached table definitions
  --table-open-cache=# 
@@ -1212,7 +1211,6 @@ sync-master-info 0
 sync-relay-log 0
 sync-relay-log-info 0
 sysdate-is-now FALSE
-table-cache 400
 table-definition-cache 400
 table-open-cache 400
 table-open-cache-instances 1

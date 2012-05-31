@@ -56,7 +56,6 @@ static const ulong thread_per_share= 0;
 
 struct PFS_sizing_data
 {
-  const char* m_name;
   /** Default value for @c PFS_param.m_account_sizing. */
   ulong m_account_sizing;
   /** Default value for @c PFS_param.m_user_sizing. */
@@ -117,9 +116,8 @@ struct PFS_sizing_data
   float m_load_factor_static;
 };
 
-PFS_sizing_data tiny_data=
+PFS_sizing_data small_data=
 {
-  "HEURISTIC 1",
   /* Account / user / host */
   10, 5, 20,
   /* History sizes */
@@ -134,7 +132,6 @@ PFS_sizing_data tiny_data=
 
 PFS_sizing_data medium_data=
 {
-  "HEURISTIC 2",
   /* Account / user / host */
   100, 100, 100,
   /* History sizes */
@@ -147,9 +144,8 @@ PFS_sizing_data medium_data=
   0.70, 0.80, 0.90
 };
 
-PFS_sizing_data big_data=
+PFS_sizing_data large_data=
 {
-  "HEURISTIC 3",
   /* Account / user / host */
   100, 100, 100,
   /* History sizes */
@@ -197,7 +193,7 @@ PFS_sizing_data *estimate_hints(PFS_global_param *param)
       (param->m_hints.m_table_open_cache <= TABLE_OPEN_CACHE_DEFAULT))
   {
     /* The my.cnf used is either unchanged, or lower than factory defaults. */
-    return & tiny_data;
+    return & small_data;
   }
 
   if ((param->m_hints.m_max_connections <= MAX_CONNECTIONS_DEFAULT * 2) &&
@@ -209,7 +205,7 @@ PFS_sizing_data *estimate_hints(PFS_global_param *param)
   }
 
   /* Looks like a server in production. */
-  return & big_data;
+  return & large_data;
 }
 
 static void apply_heuristic(PFS_global_param *p, PFS_sizing_data *h)
