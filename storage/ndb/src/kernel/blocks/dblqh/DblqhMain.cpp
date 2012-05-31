@@ -2973,21 +2973,52 @@ void Dblqh::execTIME_SIGNAL(Signal* signal)
 /* INVOLVE COMMUNICATION WITH ACC AND TUP.                                   */
 /* ######################################################################### */
 
-void Dblqh::noFreeRecordLab(Signal* signal, 
-			    const LqhKeyReq * lqhKeyReq,
-			    Uint32 errCode) 
+/**
+ * earlyKeyReqAbort
+ *
+ * Exit early from handling an LQHKEYREQ request.
+ * Method determines which resources (if any) need freed, then
+ * signals requestor with error response.
+ * * Verify all required resources are freed if adding new callers *
+ */
+void Dblqh::earlyKeyReqAbort(Signal* signal, 
+                             const LqhKeyReq * lqhKeyReq,
+                             Uint32 errCode) 
 {
   jamEntry();
   const Uint32 transid1  = lqhKeyReq->transId1;
   const Uint32 transid2  = lqhKeyReq->transId2;
   const Uint32 reqInfo   = lqhKeyReq->requestInfo;
   
-  if(errCode == ZNO_FREE_MARKER_RECORDS_ERROR ||
-     errCode == ZNODE_SHUTDOWN_IN_PROGESS ||
-     errCode == ZNODE_FAILURE_ERROR){
+  bool tcConnectRecAllocated = (tcConnectptr.i != RNIL);
+
+  if (tcConnectRecAllocated)
+  {
     jam();
+    
+    /* Could have a commit-ack marker allocated. */
+    remove_commit_marker(tcConnectptr.p);
+    
+    /* Could have long key/attr sections linked */
+    ndbrequire(tcConnectptr.p->m_dealloc == 0);
+    releaseOprec(signal);
+    
+    
+    /* 
+     * Free the TcConnectRecord, ensuring that the
+     * table reference counts have not been incremented and
+     * so will not be decremented.
+     * Also verify that we're not present in the transid 
+     * hash
+     */
+    ndbrequire(tcConnectptr.p->tableref == RNIL);
+    /* Following is not 100% check, but a reasonable guard */
+    ndbrequire(tcConnectptr.p->nextHashRec == RNIL);
+    ndbrequire(tcConnectptr.p->prevHashRec == RNIL);
     releaseTcrec(signal, tcConnectptr);
   }
+
+  /* Now perform signalling */
 
   if (LqhKeyReq::getDirtyFlag(reqInfo) && 
       LqhKeyReq::getOperation(reqInfo) == ZREAD &&
@@ -3030,7 +3061,7 @@ void Dblqh::noFreeRecordLab(Signal* signal,
 	       LqhKeyRef::SignalLength, JBB);
   }//if
   return;
-}//Dblqh::noFreeRecordLab()
+}//Dblqh::earlyKeyReqAbort()
 
 Uint32
 Dblqh::get_table_state_error(Ptr<Tablerec> tabPtr) const
@@ -4349,10 +4380,11 @@ void Dblqh::execSIGNAL_DROPPED_REP(Signal* signal)
      * We will notify the client that their LQHKEYREQ
      * failed
      */
+    tcConnectptr.i = RNIL;
     const LqhKeyReq * const truncatedLqhKeyReq = 
       (LqhKeyReq *) &rep->originalData[0];
     
-    noFreeRecordLab(signal, truncatedLqhKeyReq, ZGET_DATAREC_ERROR);
+    earlyKeyReqAbort(signal, truncatedLqhKeyReq, ZGET_DATAREC_ERROR);
 
     break;
   }
@@ -4407,6 +4439,7 @@ void Dblqh::execLQHKEYREQ(Signal* signal)
 
   const LqhKeyReq * const lqhKeyReq = (LqhKeyReq *)signal->getDataPtr();
   SectionHandle handle(this, signal);
+  tcConnectptr.i = RNIL;
 
   {
     const NodeBitmask& all = globalTransporterRegistry.get_status_overloaded();
@@ -4419,7 +4452,7 @@ void Dblqh::execLQHKEYREQ(Signal* signal)
          */
         jam();
         releaseSections(handle);
-        noFreeRecordLab(signal, lqhKeyReq, ZTRANSPORTER_OVERLOADED_ERROR);
+        earlyKeyReqAbort(signal, lqhKeyReq, ZTRANSPORTER_OVERLOADED_ERROR);
         return;
       }
     }
@@ -4429,7 +4462,7 @@ void Dblqh::execLQHKEYREQ(Signal* signal)
   {
     jam();
     releaseSections(handle);
-    noFreeRecordLab(signal, lqhKeyReq, ZTRANSPORTER_OVERLOADED_ERROR);
+    earlyKeyReqAbort(signal, lqhKeyReq, ZTRANSPORTER_OVERLOADED_ERROR);
     return;
   }
 
@@ -4442,7 +4475,7 @@ void Dblqh::execLQHKEYREQ(Signal* signal)
 /* NO FREE TC RECORD AVAILABLE, THUS WE CANNOT HANDLE THE REQUEST.           */
 /* ------------------------------------------------------------------------- */
     releaseSections(handle);
-    noFreeRecordLab(signal, lqhKeyReq, ZNO_TC_CONNECT_ERROR);
+    earlyKeyReqAbort(signal, lqhKeyReq, ZNO_TC_CONNECT_ERROR);
     return;
   }//if
 
@@ -4488,14 +4521,14 @@ void Dblqh::execLQHKEYREQ(Signal* signal)
   const Uint8 op = LqhKeyReq::getOperation(Treqinfo);
   if ((op == ZREAD || op == ZREAD_EX) && !getAllowRead()){
     releaseSections(handle);
-    noFreeRecordLab(signal, lqhKeyReq, ZNODE_SHUTDOWN_IN_PROGESS);
+    earlyKeyReqAbort(signal, lqhKeyReq, ZNODE_SHUTDOWN_IN_PROGESS);
     return;
   }
 
   if (unlikely(get_node_status(refToNode(sig5)) != ZNODE_UP))
   {
     releaseSections(handle);
-    noFreeRecordLab(signal, lqhKeyReq, ZNODE_FAILURE_ERROR);
+    earlyKeyReqAbort(signal, lqhKeyReq, ZNODE_FAILURE_ERROR);
     return;
   }
   
@@ -4553,7 +4586,7 @@ void Dblqh::execLQHKEYREQ(Signal* signal)
       if (markerPtr.i == RNIL)
       {
         releaseSections(handle);
-        noFreeRecordLab(signal, lqhKeyReq, ZNO_FREE_MARKER_RECORDS_ERROR);
+        earlyKeyReqAbort(signal, lqhKeyReq, ZNO_FREE_MARKER_RECORDS_ERROR);
         return;
       }
       markerPtr.p->transid1 = sig1;
@@ -4708,8 +4741,7 @@ void Dblqh::execLQHKEYREQ(Signal* signal)
     if (unlikely(!ok))
     {
       jam();
-      terrorCode= ZGET_DATAREC_ERROR;
-      abortErrorLab(signal);
+      earlyKeyReqAbort(signal, lqhKeyReq, ZGET_DATAREC_ERROR);
       return;
     }
 
@@ -4725,8 +4757,9 @@ void Dblqh::execLQHKEYREQ(Signal* signal)
     {
       jam();
       ndbassert(! LqhKeyReq::getNrCopyFlag(Treqinfo));
-      terrorCode = ZNO_TUPLE_FOUND;
-      abortErrorLab(signal);
+      
+      /* Reply with NO_TUPLE_FOUND */
+      earlyKeyReqAbort(signal, lqhKeyReq, ZNO_TUPLE_FOUND);
       return;
     }
 
@@ -4784,6 +4817,9 @@ void Dblqh::execLQHKEYREQ(Signal* signal)
       return;
     }//if
   }//if
+  /* Check that no equal element exists */
+  ndbassert(findTransaction(regTcPtr->transid[0], regTcPtr->transid[1], 
+                            regTcPtr->tcOprec, 0) == ZNOT_FOUND);
   TcConnectionrecPtr localNextTcConnectptr;
   Uint32 hashIndex = (regTcPtr->transid[0] ^ regTcPtr->tcOprec) & 1023;
   localNextTcConnectptr.i = ctransidHash[hashIndex];
@@ -4797,6 +4833,7 @@ void Dblqh::execLQHKEYREQ(Signal* signal)
     ptrCheckGuard(localNextTcConnectptr, 
                   ctcConnectrecFileSize, tcConnectionrec);
     jam();
+    ndbassert(localNextTcConnectptr.p->prevHashRec == RNIL);
     localNextTcConnectptr.p->prevHashRec = tcConnectptr.i;
   }//if
   if (tabptr.i >= ctabrecFileSize) {
@@ -7244,9 +7281,12 @@ void Dblqh::deleteTransidHash(Signal* signal)
 
   prevHashptr.i = regTcPtr->prevHashRec;
   nextHashptr.i = regTcPtr->nextHashRec;
+  /* prevHashptr and nextHashptr may be RNIL when the bucket has 1 element */
+
   if (prevHashptr.i != RNIL) {
     jam();
     ptrCheckGuard(prevHashptr, ctcConnectrecFileSize, tcConnectionrec);
+    ndbassert(prevHashptr.p->nextHashRec == tcConnectptr.i);
     prevHashptr.p->nextHashRec = nextHashptr.i;
   } else {
     jam();
@@ -7255,11 +7295,13 @@ void Dblqh::deleteTransidHash(Signal* signal)
 /* A NEW LEADER OF THE LIST.                                                 */
 /* ------------------------------------------------------------------------- */
     Uint32 hashIndex = (regTcPtr->transid[0] ^ regTcPtr->tcOprec) & 1023;
+    ndbassert(ctransidHash[hashIndex] == tcConnectptr.i);
     ctransidHash[hashIndex] = nextHashptr.i;
   }//if
   if (nextHashptr.i != RNIL) {
     jam();
     ptrCheckGuard(nextHashptr, ctcConnectrecFileSize, tcConnectionrec);
+    ndbassert(nextHashptr.p->prevHashRec == tcConnectptr.i);
     nextHashptr.p->prevHashRec = prevHashptr.i;
   }//if
 
@@ -10456,6 +10498,11 @@ void Dblqh::execSCAN_FRAGREQ(Signal* signal)
   }//if
   cbookedAccOps += max_rows;
 
+  /* Check that no equal element already exists */
+  ndbassert(findTransaction(tcConnectptr.p->transid[0],
+                            tcConnectptr.p->transid[1],
+                            tcConnectptr.p->tcOprec,
+                            senderHi) == ZNOT_FOUND);
   hashIndex = (tcConnectptr.p->transid[0] ^ tcConnectptr.p->tcOprec) & 1023;
   nextHashptr.i = ctransidHash[hashIndex];
   ctransidHash[hashIndex] = tcConnectptr.i;
@@ -10468,6 +10515,7 @@ void Dblqh::execSCAN_FRAGREQ(Signal* signal)
      *   IF IT EXISTS
      * --------------------------------------------------------------------- */
     ptrCheckGuard(nextHashptr, ctcConnectrecFileSize, tcConnectionrec);
+    ndbassert(nextHashptr.p->prevHashRec == RNIL);
     nextHashptr.p->prevHashRec = tcConnectptr.i;
   }//if
   if ((! isLongReq ) && 
@@ -20808,6 +20856,8 @@ void Dblqh::initialiseTcrec(Signal* signal)
       tcConnectptr.p->attrInfoIVal = RNIL;
       tcConnectptr.p->m_flags= 0;
       tcConnectptr.p->tcTimer = 0;
+      tcConnectptr.p->nextHashRec = RNIL;
+      tcConnectptr.p->prevHashRec = RNIL;
       tcConnectptr.p->nextTcConnectrec = tcConnectptr.i + 1;
     }//for
     tcConnectptr.i = ctcConnectrecFileSize - 1;
@@ -23015,10 +23065,12 @@ Dblqh::execDUMP_STATE_ORD(Signal* signal)
   Uint32 ttcConnectrecFileSize = ctcConnectrecFileSize;
   if(arg == 2306)
   {
+    Uint32 bucketLen[1024];
     for(Uint32 i = 0; i<1024; i++)
     {
       TcConnectionrecPtr tcRec;
       tcRec.i = ctransidHash[i];
+      bucketLen[i] = 0;
       while(tcRec.i != RNIL)
       {
 	ptrCheckGuard(tcRec, ttcConnectrecFileSize, regTcConnectionrec);
@@ -23027,8 +23079,18 @@ Dblqh::execDUMP_STATE_ORD(Signal* signal)
 	signal->theData[1] = tcRec.i;
 	execDUMP_STATE_ORD(signal);
 	tcRec.i = tcRec.p->nextHashRec;
+        bucketLen[i]++;
       }
     }
+    ndbout << "LQH transid hash bucket lengths : " << endl;
+    for (Uint32 i = 0; i < 1024; i++)
+    {
+      if (bucketLen[i] > 0)
+      {
+        ndbout << " bucket " << i << " len " << bucketLen[i] << endl;
+      }
+    }
+    ndbout << "Done." << endl;
   }
 
   if(arg == 2307 || arg == 2308)
