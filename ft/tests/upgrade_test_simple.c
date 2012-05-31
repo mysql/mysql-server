@@ -119,9 +119,9 @@ with_open_tree(const char *fname, tree_cb cb, void *cb_extra)
 }
 
 #define TMPFTFMT "%s-tmpdata.ft_handle"
-static const char *origft_5_0 = "upgrade_test_data.ft.5.0";
-static const char *origft_4_2 = "upgrade_test_data.ft.4.2";
-static const char *not_flat_4_2 = "upgrade_test_data.ft.4.2.not.flat";
+static const char *origft_5_0 = TOKUSVNROOT "/tokudb.data/upgrade_test_data.ft.5.0.gz";
+static const char *origft_4_2 = TOKUSVNROOT "/tokudb.data/upgrade_test_data.ft.4.2.gz";
+static const char *not_flat_4_2 = TOKUSVNROOT "/tokudb.data/upgrade_test_data.ft.4.2.not.flat.gz";
 
 static int
 run_test(const char *prog, const char *origft) {
@@ -133,14 +133,11 @@ run_test(const char *prog, const char *origft) {
     size_t templen = strlen(progdir) + strlen(prog) + strlen(TMPFTFMT) - 1;
     char tempft[templen + 1];
     snprintf(tempft, templen + 1, TMPFTFMT, prog);
-    size_t fullorigftlen = strlen(progdir) + strlen(origft) + 1;
-    char fullorigft[fullorigftlen + 1];
-    snprintf(fullorigft, fullorigftlen + 1, "%s/%s", progdir, origft);
     toku_free(fullprog);
     {
-        size_t len = 4 + strlen(fullorigft) + strlen(tempft);
+        size_t len = 13 + strlen(origft) + strlen(tempft);
         char buf[len + 1];
-        snprintf(buf, len + 1, "gunzip -c %s.gz > %s", fullorigft, tempft);
+        snprintf(buf, len + 1, "gunzip -c %s > %s", origft, tempft);
         r = system(buf);
         CKERR(r);
     }
