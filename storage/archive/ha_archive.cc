@@ -114,7 +114,9 @@ static HASH archive_open_tables;
 #define DATA_BUFFER_SIZE 2       // Size of the data used in the data file
 #define ARCHIVE_CHECK_HEADER 254 // The number we use to determine corruption
 
+#ifdef HAVE_PSI_INTERFACE
 extern "C" PSI_file_key arch_key_file_data;
+#endif
 
 /* Static declarations for handerton */
 static handler *archive_create_handler(handlerton *hton, 
