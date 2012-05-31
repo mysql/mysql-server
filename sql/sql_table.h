@@ -19,6 +19,7 @@
 #include "my_global.h"                          /* my_bool */
 #include "my_pthread.h"
 #include "m_ctype.h"                            /* CHARSET_INFO */
+#include "mysql_com.h"                          /* enum_field_types */
 
 class Alter_info;
 class Alter_table_ctx;
@@ -197,7 +198,10 @@ int mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
 bool quick_rm_table(THD *thd, handlerton *base, const char *db,
                     const char *table_name, uint flags);
 void close_cached_table(THD *thd, TABLE *table);
-void sp_prepare_create_field(THD *thd, Create_field *sql_field);
+bool fill_field_definition(THD *thd,
+                           class sp_head *sp,
+                           enum enum_field_types field_type,
+                           Create_field *field_def);
 int prepare_create_field(Create_field *sql_field,
 			 uint *blob_columns,
 			 longlong table_flags);

@@ -74,6 +74,7 @@ char internal_table_name[2]= "*";
 char empty_c_string[1]= {0};    /* used for not defined db */
 
 LEX_STRING EMPTY_STR= { (char *) "", 0 };
+LEX_STRING NULL_STR=  { NULL, 0 };
 
 const char * const THD::DEFAULT_WHERE= "field list";
 
@@ -128,9 +129,10 @@ Key::Key(const Key &rhs, MEM_ROOT *mem_root)
 */
 
 Foreign_key::Foreign_key(const Foreign_key &rhs, MEM_ROOT *mem_root)
-  :Key(rhs),
+  :Key(rhs, mem_root),
+  ref_db(rhs.ref_db),
   ref_table(rhs.ref_table),
-  ref_columns(rhs.ref_columns),
+  ref_columns(rhs.ref_columns, mem_root),
   delete_opt(rhs.delete_opt),
   update_opt(rhs.update_opt),
   match_opt(rhs.match_opt)
@@ -331,6 +333,14 @@ THD *thd_get_current_thd()
   return current_thd;
 }
 
+extern "C"
+void thd_binlog_pos(const THD *thd,
+                    const char **file_var,
+                    unsigned long long *pos_var)
+{
+  thd->get_trans_pos(file_var, pos_var);
+}
+
 /**
   Set up various THD data for a new connection
 
@@ -347,9 +357,8 @@ void thd_new_connection_setup(THD *thd, char *stack_start)
   mysql_mutex_assert_owner(&LOCK_thread_count);
 #ifdef HAVE_PSI_INTERFACE
   thd_set_psi(thd,
-              PSI_CALL(new_thread)(key_thread_one_connection,
-                                   thd,
-                                   thd->thread_id));
+              PSI_THREAD_CALL(new_thread)
+                (key_thread_one_connection, thd, thd->thread_id));
 #endif
   thd->set_time();
   thd->prior_thr_create_utime= thd->thr_create_utime= thd->start_utime=
@@ -563,7 +572,7 @@ void THD::enter_stage(const PSI_stage_info *new_stage,
     proc_info= msg;
 
 #ifdef HAVE_PSI_THREAD_INTERFACE
-    PSI_CALL(set_thread_state)(msg);
+    PSI_THREAD_CALL(set_thread_state)(msg);
     MYSQL_SET_STAGE(m_current_stage_key, calling_file, calling_line);
 #endif
   }
@@ -787,6 +796,41 @@ bool Drop_table_error_handler::handle_condition(THD *thd,
 }
 
 
+void Open_tables_state::set_open_tables_state(Open_tables_state *state)
+{
+  this->open_tables= state->open_tables;
+
+  this->temporary_tables= state->temporary_tables;
+  this->derived_tables= state->derived_tables;
+
+  this->lock= state->lock;
+  this->extra_lock= state->extra_lock;
+
+  this->locked_tables_mode= state->locked_tables_mode;
+  this->current_tablenr= state->current_tablenr;
+
+  this->state_flags= state->state_flags;
+
+  this->reset_reprepare_observers();
+  for (int i= 0; i < state->m_reprepare_observers.elements(); ++i)
+    this->push_reprepare_observer(state->m_reprepare_observers.at(i));
+}
+
+
+void Open_tables_state::reset_open_tables_state()
+{
+  open_tables= NULL;
+  temporary_tables= NULL;
+  derived_tables= NULL;
+  lock= NULL;
+  extra_lock= NULL;
+  locked_tables_mode= LTM_NONE;
+  // JOH: What about resetting current_tablenr?
+  state_flags= 0U;
+  reset_reprepare_observers();
+}
+
+
 THD::THD(bool enable_plugins)
    :Statement(&main_lex, &main_mem_root, STMT_CONVENTIONAL_EXECUTION,
               /* statement id */ 0),
@@ -796,6 +840,8 @@ THD::THD(bool enable_plugins)
    binlog_unsafe_warning_flags(0),
    binlog_table_maps(0),
    binlog_accessed_db_names(NULL),
+   m_trans_log_file(NULL),
+   m_trans_end_pos(0),
    table_map_for_update(0),
    arg_of_last_insert_id_function(FALSE),
    first_successful_insert_id_in_prev_stmt(0),
@@ -806,6 +852,7 @@ THD::THD(bool enable_plugins)
    m_statement_psi(NULL),
    m_idle_psi(NULL),
    m_server_idle(false),
+   next_to_commit(NULL),
    is_fatal_error(0),
    transaction_rollback_request(0),
    is_fatal_sub_stmt_error(0),
@@ -873,6 +920,8 @@ THD::THD(bool enable_plugins)
   mysys_var=0;
   binlog_evt_union.do_union= FALSE;
   enable_slow_log= 0;
+  commit_error= 0;
+  durability_property= HA_REGULAR_DURABILITY;
 #ifndef DBUG_OFF
   dbug_sentry=THD_SENTRY_MAGIC;
 #endif
@@ -886,7 +935,7 @@ THD::THD(bool enable_plugins)
   cleanup_done= abort_on_warning= 0;
   peer_port= 0;					// For SHOW PROCESSLIST
   transaction.m_pending_rows_event= 0;
-  transaction.on= 1;
+  transaction.flags.enabled= true;
 #ifdef SIGNAL_WITH_VIO_CLOSE
   active_vio = 0;
 #endif
@@ -902,13 +951,13 @@ THD::THD(bool enable_plugins)
   *scramble= '\0';
 
   /* Call to init() below requires fully initialized Open_tables_state. */
-  reset_open_tables_state(this);
+  reset_open_tables_state();
 
   init();
 #if defined(ENABLED_PROFILING)
   profiling.set_thd(this);
 #endif
-  user_connect=(USER_CONN *)0;
+  m_user_connect= NULL;
   my_hash_init(&user_vars, system_charset_info, USER_VARS_HASH_SIZE, 0, 0,
                (my_hash_get_key) get_var_key,
                (my_hash_free_key) free_user_var, 0);
@@ -1409,6 +1458,14 @@ void THD::cleanup(void)
     ull= NULL;
   }
 
+  /*
+    Actions above might generate events for the binary log, so we
+    commit the current transaction coordinator after executing cleanup
+    actions.
+   */
+  if (tc_log)
+    tc_log->commit(this, true);
+
   cleanup_done=1;
   DBUG_VOID_RETURN;
 }
@@ -1423,7 +1480,6 @@ THD::~THD()
 
   /* Ensure that no one is using THD */
   mysql_mutex_lock(&LOCK_thd_data);
-  mysys_var=0;					// Safety (shouldn't be needed)
   mysql_mutex_unlock(&LOCK_thd_data);
 
   mysql_mutex_lock(&LOCK_status);
@@ -1756,6 +1812,7 @@ bool THD::store_globals()
     threads local storage with key THR_KEY_mysys. 
   */
   mysys_var=my_thread_var;
+  DBUG_PRINT("debug", ("mysys_var: 0x%llx", (ulonglong) mysys_var));
   /*
     Let mysqld define the thread id (not mysys)
     This allows us to move THD to different threads if needed.
@@ -3508,6 +3565,7 @@ void Security_context::init()
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   db_access= NO_ACCESS;
 #endif
+  password_expired= false; 
 }
 
 
@@ -3821,7 +3879,7 @@ void THD::reset_n_backup_open_tables_state(Open_tables_backup *backup)
   DBUG_ENTER("reset_n_backup_open_tables_state");
   backup->set_open_tables_state(this);
   backup->mdl_system_tables_svp= mdl_context.mdl_savepoint();
-  reset_open_tables_state(this);
+  reset_open_tables_state();
   state_flags|= Open_tables_state::BACKUPS_AVAIL;
   DBUG_VOID_RETURN;
 }
@@ -3839,7 +3897,7 @@ void THD::restore_backup_open_tables_state(Open_tables_backup *backup)
               derived_tables == 0 &&
               lock == 0 &&
               locked_tables_mode == LTM_NONE &&
-              m_reprepare_observer == NULL);
+              get_reprepare_observer() == NULL);
 
   set_open_tables_state(backup);
   DBUG_VOID_RETURN;
@@ -3924,6 +3982,16 @@ extern "C" bool thd_binlog_filter_ok(const MYSQL_THD thd)
 extern "C" bool thd_sqlcom_can_generate_row_events(const MYSQL_THD thd)
 {
   return sqlcom_can_generate_row_events(thd);
+}
+
+extern "C" enum durability_properties thd_get_durability_property(const MYSQL_THD thd)
+{
+  enum durability_properties ret= HA_REGULAR_DURABILITY;
+  
+  if (thd != NULL)
+    ret= thd->durability_property;
+
+  return ret;
 }
 
 #ifndef EMBEDDED_LIBRARY
@@ -4160,7 +4228,7 @@ void THD::inc_status_created_tmp_disk_tables()
 {
   status_var_increment(status_var.created_tmp_disk_tables);
 #ifdef HAVE_PSI_STATEMENT_INTERFACE
-  PSI_CALL(inc_statement_created_tmp_disk_tables)(m_statement_psi, 1);
+  PSI_STATEMENT_CALL(inc_statement_created_tmp_disk_tables)(m_statement_psi, 1);
 #endif
 }
 
@@ -4168,7 +4236,7 @@ void THD::inc_status_created_tmp_tables()
 {
   status_var_increment(status_var.created_tmp_tables);
 #ifdef HAVE_PSI_STATEMENT_INTERFACE
-  PSI_CALL(inc_statement_created_tmp_tables)(m_statement_psi, 1);
+  PSI_STATEMENT_CALL(inc_statement_created_tmp_tables)(m_statement_psi, 1);
 #endif
 }
 
@@ -4176,7 +4244,7 @@ void THD::inc_status_select_full_join()
 {
   status_var_increment(status_var.select_full_join_count);
 #ifdef HAVE_PSI_STATEMENT_INTERFACE
-  PSI_CALL(inc_statement_select_full_join)(m_statement_psi, 1);
+  PSI_STATEMENT_CALL(inc_statement_select_full_join)(m_statement_psi, 1);
 #endif
 }
 
@@ -4184,7 +4252,7 @@ void THD::inc_status_select_full_range_join()
 {
   status_var_increment(status_var.select_full_range_join_count);
 #ifdef HAVE_PSI_STATEMENT_INTERFACE
-  PSI_CALL(inc_statement_select_full_range_join)(m_statement_psi, 1);
+  PSI_STATEMENT_CALL(inc_statement_select_full_range_join)(m_statement_psi, 1);
 #endif
 }
 
@@ -4192,7 +4260,7 @@ void THD::inc_status_select_range()
 {
   status_var_increment(status_var.select_range_count);
 #ifdef HAVE_PSI_STATEMENT_INTERFACE
-  PSI_CALL(inc_statement_select_range)(m_statement_psi, 1);
+  PSI_STATEMENT_CALL(inc_statement_select_range)(m_statement_psi, 1);
 #endif
 }
 
@@ -4200,7 +4268,7 @@ void THD::inc_status_select_range_check()
 {
   status_var_increment(status_var.select_range_check_count);
 #ifdef HAVE_PSI_STATEMENT_INTERFACE
-  PSI_CALL(inc_statement_select_range_check)(m_statement_psi, 1);
+  PSI_STATEMENT_CALL(inc_statement_select_range_check)(m_statement_psi, 1);
 #endif
 }
 
@@ -4208,7 +4276,7 @@ void THD::inc_status_select_scan()
 {
   status_var_increment(status_var.select_scan_count);
 #ifdef HAVE_PSI_STATEMENT_INTERFACE
-  PSI_CALL(inc_statement_select_scan)(m_statement_psi, 1);
+  PSI_STATEMENT_CALL(inc_statement_select_scan)(m_statement_psi, 1);
 #endif
 }
 
@@ -4216,7 +4284,7 @@ void THD::inc_status_sort_merge_passes()
 {
   status_var_increment(status_var.filesort_merge_passes);
 #ifdef HAVE_PSI_STATEMENT_INTERFACE
-  PSI_CALL(inc_statement_sort_merge_passes)(m_statement_psi, 1);
+  PSI_STATEMENT_CALL(inc_statement_sort_merge_passes)(m_statement_psi, 1);
 #endif
 }
 
@@ -4224,7 +4292,7 @@ void THD::inc_status_sort_range()
 {
   status_var_increment(status_var.filesort_range_count);
 #ifdef HAVE_PSI_STATEMENT_INTERFACE
-  PSI_CALL(inc_statement_sort_range)(m_statement_psi, 1);
+  PSI_STATEMENT_CALL(inc_statement_sort_range)(m_statement_psi, 1);
 #endif
 }
 
@@ -4232,7 +4300,7 @@ void THD::inc_status_sort_rows(ha_rows count)
 {
   statistic_add(status_var.filesort_rows, count, &LOCK_status);
 #ifdef HAVE_PSI_STATEMENT_INTERFACE
-  PSI_CALL(inc_statement_sort_rows)(m_statement_psi, count);
+  PSI_STATEMENT_CALL(inc_statement_sort_rows)(m_statement_psi, count);
 #endif
 }
 
@@ -4240,7 +4308,7 @@ void THD::inc_status_sort_scan()
 {
   status_var_increment(status_var.filesort_scan_count);
 #ifdef HAVE_PSI_STATEMENT_INTERFACE
-  PSI_CALL(inc_statement_sort_scan)(m_statement_psi, 1);
+  PSI_STATEMENT_CALL(inc_statement_sort_scan)(m_statement_psi, 1);
 #endif
 }
 
@@ -4248,7 +4316,7 @@ void THD::set_status_no_index_used()
 {
   server_status|= SERVER_QUERY_NO_INDEX_USED;
 #ifdef HAVE_PSI_STATEMENT_INTERFACE
-  PSI_CALL(set_statement_no_index_used)(m_statement_psi);
+  PSI_STATEMENT_CALL(set_statement_no_index_used)(m_statement_psi);
 #endif
 }
 
@@ -4256,7 +4324,7 @@ void THD::set_status_no_good_index_used()
 {
   server_status|= SERVER_QUERY_NO_GOOD_INDEX_USED;
 #ifdef HAVE_PSI_STATEMENT_INTERFACE
-  PSI_CALL(set_statement_no_good_index_used)(m_statement_psi);
+  PSI_STATEMENT_CALL(set_statement_no_good_index_used)(m_statement_psi);
 #endif
 }
 
@@ -4264,7 +4332,7 @@ void THD::set_command(enum enum_server_command command)
 {
   m_command= command;
 #ifdef HAVE_PSI_THREAD_INTERFACE
-  PSI_CALL(set_thread_command)(m_command);
+  PSI_STATEMENT_CALL(set_thread_command)(m_command);
 #endif
 }
 
@@ -4278,7 +4346,7 @@ void THD::set_query(const CSET_STRING &string_arg)
   mysql_mutex_unlock(&LOCK_thd_data);
 
 #ifdef HAVE_PSI_THREAD_INTERFACE
-  PSI_CALL(set_thread_info)(query(), query_length());
+  PSI_THREAD_CALL(set_thread_info)(query(), query_length());
 #endif
 }
 
@@ -4496,117 +4564,6 @@ void xid_cache_delete(XID_STATE *xid_state)
 }
 
 
-/**
-   Allocates and initializes a MY_BITMAP bitmap, containing one bit per column
-   in the table. The table THD's MEM_ROOT is used to allocate memory.
-
-   @param      table   The table whose columns should be used as a template
-                       for the bitmap.
-   @param[out] bitmap  A pointer to the allocated bitmap.
-
-   @retval false Suceess.
-   @retval true Memory allocation error.
-*/
-static bool allocate_column_bitmap(TABLE *table, MY_BITMAP **bitmap)
-{
-  DBUG_ENTER("allocate_column_bitmap");
-  const uint number_bits= table->s->fields;
-  MY_BITMAP *the_struct;
-  my_bitmap_map *the_bits;
-
-  DBUG_ASSERT(current_thd == table->in_use);
-  if (multi_alloc_root(table->in_use->mem_root,
-                       &the_struct, sizeof(MY_BITMAP),
-                       &the_bits, bitmap_buffer_size(number_bits),
-                       NULL) == NULL)
-    DBUG_RETURN(true);
-
-  if (bitmap_init(the_struct, the_bits, number_bits, FALSE) != 0)
-    DBUG_RETURN(true);
-
-  *bitmap= the_struct;
-
-  DBUG_RETURN(false);
-}
-
-
-bool COPY_INFO::get_function_default_columns(TABLE *table)
-{
-  DBUG_ENTER("COPY_INFO::get_function_default_columns");
-
-  if (m_function_default_columns != NULL)
-    DBUG_RETURN(false);
-
-  if (allocate_column_bitmap(table, &m_function_default_columns))
-    DBUG_RETURN(true);
-
-  if (!m_manage_defaults)
-    DBUG_RETURN(false); // leave bitmap full of zeroes
-
-  /* Find columns with function default on insert or update. */
-  for (uint i= 0; i < table->s->fields; ++i)
-  {
-    Field *f= table->field[i];
-    if ((m_optype == INSERT_OPERATION && f->has_insert_default_function()) ||
-        (m_optype == UPDATE_OPERATION && f->has_update_default_function()))
-      bitmap_set_bit(m_function_default_columns, f->field_index);
-  }
-
-  /*
-    Remove explicitly assigned columns from the bitmap. The assignment
-    target (lvalue) may not always be a column (Item_field), e.g. we could
-    be inserting into a view, whose column is actually a base table's column
-    converted with COLLATE: the lvalue would then be an
-    Item_func_set_collation.
-    If the lvalue is an expression tree, we clear all columns in it from the
-    bitmap.
-  */
-  List<Item> *all_changed_columns[2]=
-    { m_changed_columns, m_changed_columns2 };
-  for (uint i= 0; i < 2; i++)
-  {
-    if (all_changed_columns[i] != NULL)
-    {
-      List_iterator<Item> lvalue_it(*all_changed_columns[i]);
-      Item *lvalue_item;
-      while ((lvalue_item= lvalue_it++) != NULL)
-        lvalue_item->walk(&Item::remove_column_from_bitmap,
-                          true,
-                          reinterpret_cast<uchar*>(m_function_default_columns));
-    }
-  }
-
-  DBUG_RETURN(false);
-}
-
-
-void COPY_INFO::set_function_defaults(TABLE *table)
-{
-  DBUG_ENTER("COPY_INFO::set_function_defaults");
-
-  DBUG_ASSERT(m_function_default_columns != NULL);
-
-  /* Quick reject test for checking the case when no defaults are invoked. */
-  if (bitmap_is_clear_all(m_function_default_columns))
-    DBUG_VOID_RETURN;
-
-  for (uint i= 0; i < table->s->fields; ++i)
-    if (bitmap_is_set(m_function_default_columns, i))
-    {
-      DBUG_ASSERT(bitmap_is_set(table->write_set, i));
-      switch (m_optype)
-      {
-      case INSERT_OPERATION:
-        table->field[i]->evaluate_insert_default_function();
-        break;
-      case UPDATE_OPERATION:
-        table->field[i]->evaluate_update_default_function();
-        break;
-      }
-    }
-  DBUG_VOID_RETURN;
-}
-
 void THD::set_next_event_pos(const char* _filename, ulonglong _pos)
 {
   char*& filename= binlog_next_event_pos.file_name;
@@ -4633,3 +4590,87 @@ void THD::clear_next_event_pos()
   binlog_next_event_pos.file_name= NULL;
   binlog_next_event_pos.pos= 0;
 };
+
+void THD::set_user_connect(USER_CONN *uc)
+{
+  DBUG_ENTER("THD::set_user_connect");
+
+  m_user_connect= uc;
+
+  DBUG_VOID_RETURN;
+}
+
+void THD::increment_user_connections_counter()
+{
+  DBUG_ENTER("THD::increment_user_connections_counter");
+
+  m_user_connect->connections++;
+
+  DBUG_VOID_RETURN;
+}
+
+void THD::decrement_user_connections_counter()
+{
+  DBUG_ENTER("THD::decrement_user_connections_counter");
+
+  DBUG_ASSERT(m_user_connect->connections > 0);
+  m_user_connect->connections--;
+
+  DBUG_VOID_RETURN;
+}
+
+void THD::increment_con_per_hour_counter()
+{
+  DBUG_ENTER("THD::decrement_conn_per_hour_counter");
+
+  m_user_connect->conn_per_hour++;
+
+  DBUG_VOID_RETURN;
+}
+
+void THD::increment_updates_counter()
+{
+  DBUG_ENTER("THD::increment_updates_counter");
+
+  m_user_connect->updates++;
+
+  DBUG_VOID_RETURN;
+}
+
+void THD::increment_questions_counter()
+{
+  DBUG_ENTER("THD::increment_updates_counter");
+
+  m_user_connect->questions++;
+
+  DBUG_VOID_RETURN;
+}
+
+/*
+  Reset per-hour user resource limits when it has been more than
+  an hour since they were last checked
+
+  SYNOPSIS:
+    time_out_user_resource_limits()
+
+  NOTE:
+    This assumes that the LOCK_user_conn mutex has been acquired, so it is
+    safe to test and modify members of the USER_CONN structure.
+*/
+void THD::time_out_user_resource_limits()
+{
+  mysql_mutex_assert_owner(&LOCK_user_conn);
+  ulonglong check_time= start_utime;
+  DBUG_ENTER("time_out_user_resource_limits");
+
+  /* If more than a hour since last check, reset resource checking */
+  if (check_time - m_user_connect->reset_utime >= LL(3600000000))
+  {
+    m_user_connect->questions=1;
+    m_user_connect->updates=0;
+    m_user_connect->conn_per_hour=0;
+    m_user_connect->reset_utime= check_time;
+  }
+
+  DBUG_VOID_RETURN;
+}

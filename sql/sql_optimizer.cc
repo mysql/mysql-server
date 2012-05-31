@@ -36,6 +36,7 @@
 #include "sql_parse.h"
 #include "my_bit.h"
 #include "lock.h"
+#include "abstract_query_plan.h"
 #include "opt_explain_format.h"  // Explain_format_flags
 
 #include <algorithm>
@@ -668,25 +669,6 @@ JOIN::optimize()
   calc_group_buffer(this, group_list);
   send_group_parts= tmp_table_param.group_parts; /* Save org parts */
 
-  if (procedure && procedure->group)
-  {
-    /*
-      Dead code since PROCEDURE ANALYSE() always has procedure->group == 0
-    */
-    DBUG_ASSERT(0);
-    procedure->group= group_list=
-      ORDER_with_src(remove_const(this, procedure->group, conds,
-                                  1, &simple_group, "PROCEDURE"),
-                     group_list.src); // should be procedure->group.src
-    if (thd->is_error())
-    {
-      error= 1;
-      DBUG_PRINT("error",("Error from remove_const"));
-      DBUG_RETURN(1);
-    }   
-    calc_group_buffer(this, group_list);
-  }
-
   if (test_if_subpart(group_list, order) ||
       (!group_list && tmp_table_param.sum_func_count))
   {
@@ -930,7 +912,7 @@ JOIN::optimize()
         }
 
         if ((ordered_index_usage != ordered_index_group_by) &&
-            tmp_table_param.quick_group && !procedure)
+            tmp_table_param.quick_group)
         {
           need_tmp=1;
           simple_order= simple_group= false; // Force tmp table without sort
@@ -946,6 +928,33 @@ JOIN::optimize()
         ordered_index_usage= ordered_index_order_by;
       }
     }
+  }
+
+  /**
+   * Push joins to handler(s) whenever possible.
+   * The handlers will inspect the QEP through the
+   * AQP (Abstract Query Plan), and extract from it
+   * whatewer it might implement of pushed execution.
+   * It is the responsibility if the handler to store any
+   * information it need for later execution of pushed queries.
+   *
+   * Currently pushed joins are only implemented by NDB.
+   * It only make sense to try pushing if > 1 tables.
+   */
+  if ((tables-const_tables) > 1)
+  {
+    const AQP::Join_plan plan(this);
+    if (ha_make_pushed_joins(thd, &plan))
+      DBUG_RETURN(1);
+  }
+
+  /**
+   * Set up access functions for the tables as
+   * required by the selected access type.
+   */
+  for (uint i= const_tables; i < tables; i++)
+  {
+    pick_table_access_method (&join_tab[i]);
   }
 
   tmp_having= having;
@@ -3203,12 +3212,14 @@ const_table_extraction_done:
              3. are part of semi-join, or
              4. have an expensive outer join condition.
                 DontEvaluateMaterializedSubqueryTooEarly
+             5. are blocked by handler for const table optimize.
           */
 	  if (eq_part.is_prefix(table->key_info[key].key_parts) &&
               !table->fulltext_searched &&                           // 1
               !tl->in_outer_join_nest() &&                           // 2
               !(tl->embedding && tl->embedding->sj_on_expr) &&       // 3
-              !(*s->on_expr_ref && (*s->on_expr_ref)->is_expensive())) // 4
+              !(*s->on_expr_ref && (*s->on_expr_ref)->is_expensive()) &&// 4
+              !(table->file->ha_table_flags() & HA_BLOCK_CONST_TABLE))  // 5
 	  {
             if (table->key_info[key].flags & HA_NOSAME)
             {
@@ -7776,8 +7787,6 @@ static bool
 only_eq_ref_tables(JOIN *join, ORDER *order, table_map tables,
                    table_map *cached_eq_ref_tables, table_map *eq_ref_tables)
 {
-  if (specialflag &  SPECIAL_SAFE_MODE)
-    return false;               // skip this optimize /* purecov: inspected */
   tables&= ~PSEUDO_TABLE_BITS;
   for (JOIN_TAB **tab=join->map2table ; tables ; tab++, tables>>=1)
   {

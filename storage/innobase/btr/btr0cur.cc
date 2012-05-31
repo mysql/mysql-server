@@ -700,6 +700,7 @@ retry_page_get:
 			? SYNC_IBUF_TREE_NODE : SYNC_TREE_NODE);
 	}
 
+	ut_ad(fil_page_get_type(page) == FIL_PAGE_INDEX);
 	ut_ad(index->id == btr_page_get_index_id(page));
 
 	if (UNIV_UNLIKELY(height == ULINT_UNDEFINED)) {
@@ -888,6 +889,7 @@ btr_cur_open_at_index_side_func(
 					 RW_NO_LATCH, NULL, BUF_GET,
 					 file, line, mtr);
 		page = buf_block_get_frame(block);
+		ut_ad(fil_page_get_type(page) == FIL_PAGE_INDEX);
 		ut_ad(index->id == btr_page_get_index_id(page));
 
 		block->check_index_page_at_flush = TRUE;
@@ -1013,6 +1015,7 @@ btr_cur_open_at_rnd_pos_func(
 					 RW_NO_LATCH, NULL, BUF_GET,
 					 file, line, mtr);
 		page = buf_block_get_frame(block);
+		ut_ad(fil_page_get_type(page) == FIL_PAGE_INDEX);
 		ut_ad(index->id == btr_page_get_index_id(page));
 
 		if (height == ULINT_UNDEFINED) {
@@ -1892,6 +1895,8 @@ btr_cur_update_in_place(
 	ut_ad(thr || (flags & ~BTR_KEEP_POS_FLAG)
 	      == (BTR_NO_UNDO_LOG_FLAG | BTR_NO_LOCKING_FLAG
 		  | BTR_CREATE_FLAG | BTR_KEEP_SYS_FLAG));
+	ut_ad(fil_page_get_type(btr_cur_get_page(cursor)) == FIL_PAGE_INDEX);
+	ut_ad(btr_page_get_index_id(btr_cur_get_page(cursor)) == index->id);
 
 #ifdef UNIV_DEBUG
 	if (btr_cur_print_record_ops) {
@@ -2035,6 +2040,8 @@ btr_cur_optimistic_update(
 	ut_ad(thr || (flags & ~BTR_KEEP_POS_FLAG)
 	      == (BTR_NO_UNDO_LOG_FLAG | BTR_NO_LOCKING_FLAG
 		  | BTR_CREATE_FLAG | BTR_KEEP_SYS_FLAG));
+	ut_ad(fil_page_get_type(page) == FIL_PAGE_INDEX);
+	ut_ad(btr_page_get_index_id(page) == index->id);
 
 	*offsets = rec_get_offsets(rec, index, *offsets,
 				   ULINT_UNDEFINED, heap);

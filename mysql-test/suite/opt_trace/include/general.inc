@@ -420,12 +420,12 @@ select * from information_schema.OPTIMIZER_TRACE|
 # and RETURN (1 trace). 1+2*(1+3+1)=11.
 # In ps-protocol mode, we have those 11, plus one for PREPARE of the
 # top SELECT.
-# We ask for a larger number (20) and will check how many we got.
+# We ask for a larger number (60) and will check how many we got.
 # Note that when semijoin features are disabled, the subquery is
 # treated differently: it is executed, so the order and amount of
 # executions of f1() becomes different, which changes the order of
 # substatements in the trace.
-set optimizer_trace_offset=-20, optimizer_trace_limit=20|
+set optimizer_trace_offset=-60, optimizer_trace_limit=60|
 select * from t6 where d in (select f1() from t2 where s="c")|
 select * from information_schema.OPTIMIZER_TRACE|
 select count(*) from information_schema.OPTIMIZER_TRACE|

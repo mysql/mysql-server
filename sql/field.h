@@ -406,6 +406,50 @@ inline enum_field_types real_type_to_type(enum_field_types real_type)
 }
 
 
+/**
+   Copies an integer value to a format comparable with memcmp(). The
+   format is characterized by the following:
+
+   - The sign bit goes first and is unset for negative values.
+   - The representation is big endian.
+
+   The function template can be instantiated to copy from little or
+   big endian values.
+
+   @tparam Is_big_endian True if the source integer is big endian.
+
+   @param to          Where to write the integer.
+   @param to_length   Size in bytes of the destination buffer.
+   @param from        Where to read the integer.
+   @param from_length Size in bytes of the source integer
+   @param is_unsigned True if the source integer is an unsigned value.
+*/
+template<bool Is_big_endian>
+void copy_integer(uchar *to, int to_length,
+                  const uchar* from, int from_length,
+                  bool is_unsigned)
+{
+  if (Is_big_endian)
+  {
+    if (is_unsigned)
+      to[0]= from[0];
+    else
+      to[0]= (char)(from[0] ^ 128); // Reverse the sign bit.
+    memcpy(to + 1, from + 1, to_length - 1);
+  }
+  else
+  {
+    const int sign_byte= from[from_length - 1];
+    if (is_unsigned)
+      to[0]= sign_byte;
+    else
+      to[0]= static_cast<char>(sign_byte ^ 128); // Reverse the sign bit.
+    for (int i= 1, j= from_length - 2; i < to_length; ++i, --j)
+      to[i]= from[j];
+  }
+}
+
+
 class Field
 {
   Field(const Item &);				/* Prevent use of these */
@@ -898,7 +942,18 @@ public:
   }
 
   virtual void make_field(Send_field *);
-  virtual void sort_string(uchar *buff,uint length)=0;
+
+  /**
+    Writes a copy of the current value in the record buffer, suitable for
+    sorting using byte-by-byte comparison. Integers are always in big-endian
+    regardless of hardware architecture. At most length bytes are written
+    into the buffer.
+
+    @param buff The buffer, assumed to be at least length bytes.
+
+    @param length Number of bytes to write.
+  */
+  virtual void make_sort_key(uchar *buff, uint length) = 0;
   virtual bool optimize_range(uint idx, uint part);
   /*
     This should be true for fields which, when compared with constant
@@ -1501,7 +1556,7 @@ public:
   longlong val_int(void);
   String *val_str(String*,String *);
   int cmp(const uchar *,const uchar *);
-  void sort_string(uchar *buff,uint length);
+  void make_sort_key(uchar *buff, uint length);
   void overflow(bool negative);
   bool zero_pack() const { return 0; }
   void sql_type(String &str) const;
@@ -1567,7 +1622,7 @@ public:
   bool get_time(MYSQL_TIME *ltime);
   String *val_str(String*, String *);
   int cmp(const uchar *, const uchar *);
-  void sort_string(uchar *buff, uint length);
+  void make_sort_key(uchar *buff, uint length);
   bool zero_pack() const { return 0; }
   void sql_type(String &str) const;
   uint32 max_display_length() { return field_length; }
@@ -1615,7 +1670,7 @@ public:
   String *val_str(String*,String *);
   bool send_binary(Protocol *protocol);
   int cmp(const uchar *,const uchar *);
-  void sort_string(uchar *buff,uint length);
+  void make_sort_key(uchar *buff, uint length);
   uint32 pack_length() const { return 1; }
   void sql_type(String &str) const;
   uint32 max_display_length() { return 4; }
@@ -1672,7 +1727,7 @@ public:
   String *val_str(String*,String *);
   bool send_binary(Protocol *protocol);
   int cmp(const uchar *,const uchar *);
-  void sort_string(uchar *buff,uint length);
+  void make_sort_key(uchar *buff, uint length);
   uint32 pack_length() const { return 2; }
   void sql_type(String &str) const;
   uint32 max_display_length() { return 6; }
@@ -1725,7 +1780,7 @@ public:
   String *val_str(String*,String *);
   bool send_binary(Protocol *protocol);
   int cmp(const uchar *,const uchar *);
-  void sort_string(uchar *buff,uint length);
+  void make_sort_key(uchar *buff, uint length);
   uint32 pack_length() const { return 3; }
   void sql_type(String &str) const;
   uint32 max_display_length() { return 8; }
@@ -1787,7 +1842,7 @@ public:
   bool send_binary(Protocol *protocol);
   String *val_str(String*,String *);
   int cmp(const uchar *,const uchar *);
-  void sort_string(uchar *buff,uint length);
+  void make_sort_key(uchar *buff, uint length);
   uint32 pack_length() const { return PACK_LENGTH; }
   void sql_type(String &str) const;
   uint32 max_display_length() { return MY_INT32_NUM_DECIMAL_DIGITS; }
@@ -1817,6 +1872,8 @@ public:
 #ifdef HAVE_LONG_LONG
 class Field_longlong :public Field_num {
 public:
+  static const int PACK_LENGTH= 8;
+
   Field_longlong(uchar *ptr_arg, uint32 len_arg, uchar *null_ptr_arg,
 	      uchar null_bit_arg,
 	      enum utype unireg_check_arg, const char *field_name_arg,
@@ -1849,8 +1906,8 @@ public:
   String *val_str(String*,String *);
   bool send_binary(Protocol *protocol);
   int cmp(const uchar *,const uchar *);
-  void sort_string(uchar *buff,uint length);
-  uint32 pack_length() const { return 8; }
+  void make_sort_key(uchar *buff, uint length);
+  uint32 pack_length() const { return PACK_LENGTH; }
   void sql_type(String &str) const;
   bool can_be_compared_as_longlong() const { return true; }
   uint32 max_display_length() { return 20; }
@@ -1909,7 +1966,7 @@ public:
   String *val_str(String*,String *);
   bool send_binary(Protocol *protocol);
   int cmp(const uchar *,const uchar *);
-  void sort_string(uchar *buff,uint length);
+  void make_sort_key(uchar *buff, uint length);
   uint32 pack_length() const { return sizeof(float); }
   uint row_pack_length() const { return pack_length(); }
   void sql_type(String &str) const;
@@ -1962,7 +2019,7 @@ public:
   String *val_str(String*,String *);
   bool send_binary(Protocol *protocol);
   int cmp(const uchar *,const uchar *);
-  void sort_string(uchar *buff,uint length);
+  void make_sort_key(uchar *buff, uint length);
   uint32 pack_length() const { return sizeof(double); }
   uint row_pack_length() const { return pack_length(); }
   void sql_type(String &str) const;
@@ -2015,7 +2072,7 @@ public:
   String *val_str(String *value,String *value2)
   { value2->length(0); return value2;}
   int cmp(const uchar *a, const uchar *b) { return 0;}
-  void sort_string(uchar *buff, uint length)  {}
+  void make_sort_key(uchar *buff, uint length)  {}
   uint32 pack_length() const { return 0; }
   void sql_type(String &str) const;
   uint32 max_display_length() { return 4; }
@@ -2412,11 +2469,7 @@ public:
 
   uint decimals() const { return dec; }
   const CHARSET_INFO *sort_charset() const { return &my_charset_bin; }
-  void sort_string(uchar *to, uint length)
-  {
-    DBUG_ASSERT(length == pack_length());
-    memcpy(to, ptr, length);
-  }
+  void make_sort_key(uchar *to, uint length) { memcpy(to, ptr, length); }
   int cmp(const uchar *a_ptr, const uchar *b_ptr)
   {
     return memcmp(a_ptr, b_ptr, pack_length());
@@ -2454,7 +2507,7 @@ public:
   }
   longlong val_int(void);
   int cmp(const uchar *,const uchar *);
-  void sort_string(uchar *buff,uint length);
+  void make_sort_key(uchar *buff, uint length);
   uint32 pack_length() const { return PACK_LENGTH; }
   void sql_type(String &str) const;
   bool zero_pack() const { return 0; }
@@ -2616,7 +2669,7 @@ public:
   String *val_str(String*,String *);
   bool send_binary(Protocol *protocol);
   int cmp(const uchar *,const uchar *);
-  void sort_string(uchar *buff,uint length);
+  void make_sort_key(uchar *buff, uint length);
   uint32 pack_length() const { return PACK_LENGTH; }
   void sql_type(String &str) const;
   bool zero_pack() const { return 1; }
@@ -2729,7 +2782,7 @@ public:
   longlong val_time_temporal();
   bool get_time(MYSQL_TIME *ltime);
   int cmp(const uchar *,const uchar *);
-  void sort_string(uchar *buff,uint length);
+  void make_sort_key(uchar *buff, uint length);
   uint32 pack_length() const { return 3; }
   void sql_type(String &str) const;
   bool zero_pack() const { return 1; }
@@ -2817,11 +2870,7 @@ public:
   void sql_type(String &str) const;
   bool zero_pack() const { return 1; }
   const CHARSET_INFO *sort_charset(void) const { return &my_charset_bin; }
-  void sort_string(uchar *to, uint length)
-  {
-    DBUG_ASSERT(length == pack_length());
-    memcpy(to, ptr, length);
-  }
+  void make_sort_key(uchar *to, uint length) { memcpy(to, ptr, length); }
   int cmp(const uchar *a_ptr, const uchar *b_ptr)
   {
     return memcmp(a_ptr, b_ptr, pack_length());
@@ -2893,7 +2942,7 @@ public:
   longlong val_int(void);
   String *val_str(String*,String *);
   int cmp(const uchar *,const uchar *);
-  void sort_string(uchar *buff,uint length);
+  void make_sort_key(uchar *buff, uint length);
   uint32 pack_length() const { return PACK_LENGTH; }
   void sql_type(String &str) const;
   bool zero_pack() const { return 1; }
@@ -3040,7 +3089,7 @@ public:
   String *val_str(String*,String *);
   my_decimal *val_decimal(my_decimal *);
   int cmp(const uchar *,const uchar *);
-  void sort_string(uchar *buff,uint length);
+  void make_sort_key(uchar *buff, uint length);
   void sql_type(String &str) const;
   virtual uchar *pack(uchar *to, const uchar *from,
                       uint max_length, bool low_byte_first);
@@ -3140,7 +3189,7 @@ public:
   {
     return cmp_max(a, b, ~0L);
   }
-  void sort_string(uchar *buff,uint length);
+  void make_sort_key(uchar *buff, uint length);
   uint get_key_image(uchar *buff,uint length, imagetype type);
   void set_key_image(const uchar *buff,uint length);
   void sql_type(String &str) const;
@@ -3241,7 +3290,7 @@ public:
   int key_cmp(const uchar *,const uchar*);
   int key_cmp(const uchar *str, uint length);
   uint32 key_length() const { return 0; }
-  void sort_string(uchar *buff,uint length);
+  void make_sort_key(uchar *buff, uint length);
   uint32 pack_length() const
   { return (uint32) (packlength + portable_sizeof_char_ptr); }
 
@@ -3449,7 +3498,7 @@ public:
   longlong val_int(void);
   String *val_str(String*,String *);
   int cmp(const uchar *,const uchar *);
-  void sort_string(uchar *buff,uint length);
+  void make_sort_key(uchar *buff, uint length);
   uint32 pack_length() const { return (uint32) packlength; }
   void store_type(ulonglong value);
   void sql_type(String &str) const;
@@ -3590,7 +3639,7 @@ public:
   uint get_key_image(uchar *buff, uint length, imagetype type);
   void set_key_image(const uchar *buff, uint length)
   { Field_bit::store((char*) buff, length, &my_charset_bin); }
-  void sort_string(uchar *buff, uint length)
+  void make_sort_key(uchar *buff, uint length)
   { get_key_image(buff, length, itRAW); }
   uint32 pack_length() const { return (uint32) (field_length + 7) / 8; }
   uint32 pack_length_in_rec() const { return bytes_in_rec; }

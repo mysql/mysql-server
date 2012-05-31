@@ -14,7 +14,7 @@
    along with this program; see the file COPYING. If not, write to the
    Free Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston,
    MA  02110-1301  USA.
-*/
+ */
 
 /* pwdbased.hpp defines PBKDF2 from PKCS #5
 */
@@ -48,8 +48,11 @@ word32 PBKDF2_HMAC<T>::DeriveKey(byte* derived, word32 dLen, const byte* pwd,
                                  word32 pLen, const byte* salt, word32 sLen,
                                  word32 iterations) const
 {
-	assert(dLen <= MaxDerivedKeyLength());
-	assert(iterations > 0);
+	if (dLen > MaxDerivedKeyLength())
+        return 0;
+
+    if (iterations < 0)
+        return 0;
 
     ByteBlock buffer(T::DIGEST_SIZE);
 	HMAC<T>   hmac;

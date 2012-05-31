@@ -216,9 +216,20 @@ UNIV_INTERN
 page_t*
 btr_root_get(
 /*=========*/
-	dict_index_t*	index,	/*!< in: index tree */
-	mtr_t*		mtr)	/*!< in: mtr */
+	const dict_index_t*	index,	/*!< in: index tree */
+	mtr_t*			mtr)	/*!< in: mtr */
 	__attribute__((nonnull));
+
+/**************************************************************//**
+Checks and adjusts the root node of a tree during IMPORT TABLESPACE.
+@return error code, or DB_SUCCESS */
+UNIV_INTERN
+dberr_t
+btr_root_adjust_on_import(
+/*======================*/
+	const dict_index_t*	index)	/*!< in: index tree */
+	__attribute__((nonnull, warn_unused_result));
+
 /**************************************************************//**
 Gets the height of the B-tree (the level of the root, when the leaf
 level is assumed to be 0). The caller must hold an S or X latch on
@@ -710,11 +721,11 @@ btr_index_rec_validate(
 Checks the consistency of an index tree.
 @return	TRUE if ok */
 UNIV_INTERN
-ibool
+bool
 btr_validate_index(
 /*===============*/
-	dict_index_t*	index,	/*!< in: index */
-	trx_t*		trx)	/*!< in: transaction or NULL */
+	dict_index_t*	index,			/*!< in: index */
+	const trx_t*	trx)			/*!< in: transaction or 0 */
 	__attribute__((nonnull(1), warn_unused_result));
 
 #define BTR_N_LEAF_PAGES	1

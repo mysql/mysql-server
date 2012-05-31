@@ -607,8 +607,6 @@ struct trx_sys_struct{
 	mutex_t		mutex;		/*!< mutex protecting most fields in
 					this structure except when noted
 					otherwise */
-	ulint		n_mysql_trx;	/*!< Number of transactions currently
-					allocated for MySQL */
 	ulint		n_prepared_trx;	/*!< Number of transactions currently
 					in the XA PREPARED state */
 	trx_id_t	max_trx_id;	/*!< The smallest number not yet

@@ -23,6 +23,7 @@
 
 #include "runtime.hpp"
 #include "openssl/ssl.h"   /* openssl compatibility test */
+#include "error.hpp"
 #include <stdio.h>
 #include <stdlib.h>
 #include <assert.h>
@@ -32,6 +33,10 @@
 #ifdef _WIN32
     #include <winsock2.h>
     #include <process.h>
+    #ifdef TEST_IPV6            // don't require newer SDK for IPV4
+	    #include <ws2tcpip.h>
+        #include <wspiapi.h>
+    #endif
     #define SOCKET_T unsigned int
 #else
     #include <string.h>
@@ -42,12 +47,22 @@
     #include <sys/time.h>
     #include <sys/types.h>
     #include <sys/socket.h>
+    #ifdef TEST_IPV6
+        #include <netdb.h>
+    #endif
     #include <pthread.h>
 #ifdef NON_BLOCKING
     #include <fcntl.h>
 #endif
     #define SOCKET_T int
 #endif /* _WIN32 */
+
+
+#ifdef _MSC_VER
+    // disable conversion warning
+    // 4996 warning to use MS extensions e.g., strcpy_s instead of strncpy
+    #pragma warning(disable:4244 4996)
+#endif
 
 
 #if !defined(_SOCKLEN_T) && (defined(_WIN32) || defined(__APPLE__))
@@ -64,16 +79,26 @@
 #endif
 
 
+#ifdef TEST_IPV6
+    typedef sockaddr_in6 SOCKADDR_IN_T;
+    #define AF_INET_V    AF_INET6
+#else
+    typedef sockaddr_in  SOCKADDR_IN_T;
+    #define AF_INET_V    AF_INET
+#endif
+   
+
 // Check if _POSIX_THREADS should be forced
 #if !defined(_POSIX_THREADS) && defined(__hpux)
 // HPUX does not define _POSIX_THREADS as it's not _fully_ implemented
+// Netware supports pthreads but does not announce it
 #define _POSIX_THREADS
 #endif
 
 
 #ifndef _POSIX_THREADS
     typedef unsigned int  THREAD_RETURN;
-    typedef unsigned long THREAD_TYPE;
+    typedef HANDLE        THREAD_TYPE;
     #define YASSL_API __stdcall
 #else
     typedef void*         THREAD_RETURN;
@@ -120,8 +145,8 @@ void start_thread(THREAD_FUNC, func_args*, THREAD_TYPE*);
 void join_thread(THREAD_TYPE);
 
 // yaSSL
-const char* const    yasslIP   = "127.0.0.1";
-const unsigned short yasslPort = 11111;
+const char* const    yasslIP      = "127.0.0.1";
+const unsigned short yasslPort    =  11111;
 
 
 // client
@@ -180,7 +205,7 @@ extern "C" {
 
 static int PasswordCallBack(char* passwd, int sz, int rw, void* userdata)
 {
-    strncpy(passwd, "12345678", sz);
+    strncpy(passwd, "yassl123", sz);
     return 8;
 }
 
@@ -300,14 +325,35 @@ inline void tcp_set_nonblocking(SOCKET_T& sockfd)
 }
 
 
-inline void tcp_socket(SOCKET_T& sockfd, sockaddr_in& addr)
+inline void tcp_socket(SOCKET_T& sockfd, SOCKADDR_IN_T& addr)
 {
-    sockfd = socket(AF_INET, SOCK_STREAM, 0);
+    sockfd = socket(AF_INET_V, SOCK_STREAM, 0);
     memset(&addr, 0, sizeof(addr));
-    addr.sin_family = AF_INET;
 
+#ifdef TEST_IPV6
+    addr.sin6_family = AF_INET_V;
+    addr.sin6_port = htons(yasslPort);
+    addr.sin6_addr = in6addr_loopback;
+
+    /* // for external testing later 
+    addrinfo hints;
+    memset(&hints, 0, sizeof(hints));
+    hints.ai_family   = AF_INET_V;
+    hints.ai_socktype = SOCK_STREAM;
+    hints.ai_flags    = AI_PASSIVE;
+
+    getaddrinfo(yasslIP6, yasslPortStr, &hints, info);
+    // then use info connect(sockfd, info->ai_addr, info->ai_addrlen)
+
+    if (*info == 0)
+        err_sys("getaddrinfo failed");
+        */   // end external testing later
+#else
+    addr.sin_family = AF_INET_V;
     addr.sin_port = htons(yasslPort);
     addr.sin_addr.s_addr = inet_addr(yasslIP);
+#endif
+
 }
 
 
@@ -318,13 +364,13 @@ inline void tcp_close(SOCKET_T& sockfd)
 #else
     close(sockfd);
 #endif
-    sockfd = -1;
+    sockfd = (SOCKET_T) -1;
 }
 
 
 inline void tcp_connect(SOCKET_T& sockfd)
 {
-    sockaddr_in addr;
+    SOCKADDR_IN_T addr;
     tcp_socket(sockfd, addr);
 
     if (connect(sockfd, (const sockaddr*)&addr, sizeof(addr)) != 0) {
@@ -336,8 +382,14 @@ inline void tcp_connect(SOCKET_T& sockfd)
 
 inline void tcp_listen(SOCKET_T& sockfd)
 {
-    sockaddr_in addr;
+    SOCKADDR_IN_T addr;
     tcp_socket(sockfd, addr);
+
+#ifndef _WIN32
+    int       on  = 1;
+    socklen_t len = sizeof(on);
+    setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &on, len);
+#endif
 
     if (bind(sockfd, (const sockaddr*)&addr, sizeof(addr)) != 0) {
         tcp_close(sockfd);
@@ -355,7 +407,7 @@ inline void tcp_accept(SOCKET_T& sockfd, SOCKET_T& clientfd, func_args& args)
 {
     tcp_listen(sockfd);
 
-    sockaddr_in client;
+    SOCKADDR_IN_T client;
     socklen_t client_len = sizeof(client);
 
 #if defined(_POSIX_THREADS) && defined(NO_MAIN_DRIVER)
@@ -369,7 +421,7 @@ inline void tcp_accept(SOCKET_T& sockfd, SOCKET_T& clientfd, func_args& args)
 
     clientfd = accept(sockfd, (sockaddr*)&client, (ACCEPT_THIRD_T)&client_len);
 
-    if (clientfd == -1) {
+    if (clientfd == (SOCKET_T) -1) {
         tcp_close(sockfd);
         err_sys("tcp accept failed");
     }
@@ -387,10 +439,8 @@ inline void showPeer(SSL* ssl)
         char* issuer  = X509_NAME_oneline(X509_get_issuer_name(peer), 0, 0);
         char* subject = X509_NAME_oneline(X509_get_subject_name(peer), 0, 0);
 
-        printf("peer's cert info:\n");
-        printf("issuer : %s\n", issuer);
-        printf("subject: %s\n", subject);
-
+        printf("peer's cert info:\n issuer : %s\n subject: %s\n", issuer,
+                                                                  subject);
         free(subject);
         free(issuer);
     }
@@ -433,6 +483,20 @@ inline DH* set_tmpDH(SSL_CTX* ctx)
     }
     SSL_CTX_set_tmp_dh(ctx, dh);
     return dh;
+}
+
+
+inline int verify_callback(int preverify_ok, X509_STORE_CTX* ctx)
+{
+    X509* err_cert = X509_STORE_CTX_get_current_cert(ctx);
+    int   err      = X509_STORE_CTX_get_error(ctx);
+    int   depth    = X509_STORE_CTX_get_error_depth(ctx);
+
+    // test allow self signed
+    if (err_cert && depth == 0 && err == TaoCrypt::SIG_OTHER_E)
+        return 1;
+
+    return 0;
 }
 
 

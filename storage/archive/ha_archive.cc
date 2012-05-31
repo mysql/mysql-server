@@ -119,6 +119,10 @@
 #define DATA_BUFFER_SIZE 2       // Size of the data used in the data file
 #define ARCHIVE_CHECK_HEADER 254 // The number we use to determine corruption
 
+#ifdef HAVE_PSI_INTERFACE
+extern "C" PSI_file_key arch_key_file_data;
+#endif
+
 /* Static declarations for handerton */
 static handler *archive_create_handler(handlerton *hton, 
                                        TABLE_SHARE *table, 
@@ -154,6 +158,14 @@ static PSI_mutex_info all_archive_mutexes[]=
   { &az_key_mutex_Archive_share_mutex, "Archive_share::mutex", 0}
 };
 
+PSI_file_key arch_key_file_metadata, arch_key_file_data, arch_key_file_frm;
+static PSI_file_info all_archive_files[]=
+{
+    { &arch_key_file_metadata, "metadata", 0},
+    { &arch_key_file_data, "data", 0},
+    { &arch_key_file_frm, "FRM", 0}
+};
+
 static void init_archive_psi_keys(void)
 {
   const char* category= "archive";
@@ -161,7 +173,11 @@ static void init_archive_psi_keys(void)
 
   count= array_elements(all_archive_mutexes);
   mysql_mutex_register(category, all_archive_mutexes, count);
+
+  count= array_elements(all_archive_files);
+  mysql_file_register(category, all_archive_files, count);
 }
+
 
 #endif /* HAVE_PSI_INTERFACE */
 
@@ -239,7 +255,7 @@ int archive_discover(handlerton *hton, THD* thd, const char *db,
 
   build_table_filename(az_file, sizeof(az_file) - 1, db, name, ARZ, 0);
 
-  if (!(my_stat(az_file, &file_stat, MYF(0))))
+  if (!(mysql_file_stat(arch_key_file_data, az_file, &file_stat, MYF(0))))
     goto err;
 
   if (!(azopen(&frm_stream, az_file, O_RDONLY|O_BINARY)))
@@ -291,18 +307,18 @@ int Archive_share::read_v1_metafile()
   DBUG_ENTER("Archive_share::read_v1_metafile");
 
   fn_format(file_name, data_file_name, "", ARM, MY_REPLACE_EXT);
-  if ((fd= my_open(file_name, O_RDONLY, MYF(0))) == -1)
+  if ((fd= mysql_file_open(arch_key_file_metadata, file_name, O_RDONLY, MYF(0))) == -1)
     DBUG_RETURN(-1);
 
-  if (my_read(fd, buf, sizeof(buf), MYF(0)) != sizeof(buf))
+  if (mysql_file_read(fd, buf, sizeof(buf), MYF(0)) != sizeof(buf))
   {
-    my_close(fd, MYF(0));
+    mysql_file_close(fd, MYF(0));
     DBUG_RETURN(-1);
   }
   
   rows_recorded= uint8korr(buf + META_V1_OFFSET_ROWS_RECORDED);
   crashed= buf[META_V1_OFFSET_CRASHED];
-  my_close(fd, MYF(0));
+  mysql_file_close(fd, MYF(0));
   DBUG_RETURN(0);
 }
 
@@ -329,16 +345,16 @@ int Archive_share::write_v1_metafile()
   buf[META_V1_OFFSET_CRASHED]= crashed;
 
   fn_format(file_name, data_file_name, "", ARM, MY_REPLACE_EXT);
-  if ((fd= my_open(file_name, O_WRONLY, MYF(0))) == -1)
+  if ((fd= mysql_file_open(arch_key_file_metadata, file_name, O_WRONLY, MYF(0))) == -1)
     DBUG_RETURN(-1);
 
-  if (my_write(fd, buf, sizeof(buf), MYF(0)) != sizeof(buf))
+  if (mysql_file_write(fd, buf, sizeof(buf), MYF(0)) != sizeof(buf))
   {
-    my_close(fd, MYF(0));
+    mysql_file_close(fd, MYF(0));
     DBUG_RETURN(-1);
   }
   
-  my_close(fd, MYF(0));
+  mysql_file_close(fd, MYF(0));
   DBUG_RETURN(0);
 }
 
@@ -656,20 +672,20 @@ void ha_archive::frm_load(const char *name, azio_stream *dst)
   fn_format(name_buff, name, "", ".frm", MY_REPLACE_EXT | MY_UNPACK_FILENAME);
 
   /* Here is where we open up the frm and pass it to archive to store */
-  if ((frm_file= my_open(name_buff, O_RDONLY, MYF(0))) >= 0)
+  if ((frm_file= mysql_file_open(arch_key_file_frm, name_buff, O_RDONLY, MYF(0))) >= 0)
   {
     if (!mysql_file_fstat(frm_file, &file_stat, MYF(MY_WME)))
     {
       frm_ptr= (uchar *) my_malloc(sizeof(uchar) * (size_t) file_stat.st_size, MYF(0));
       if (frm_ptr)
       {
-        if (my_read(frm_file, frm_ptr, (size_t) file_stat.st_size, MYF(0)) ==
+        if (mysql_file_read(frm_file, frm_ptr, (size_t) file_stat.st_size, MYF(0)) ==
             (size_t) file_stat.st_size)
           azwrite_frm(dst, (char *) frm_ptr, (size_t) file_stat.st_size);
         my_free(frm_ptr);
       }
     }
-    my_close(frm_file, MYF(0));
+    mysql_file_close(frm_file, MYF(0));
   }
   DBUG_VOID_RETURN;
 }
@@ -795,7 +811,7 @@ int ha_archive::create(const char *name, TABLE *table_arg,
     There is a chance that the file was "discovered". In this case
     just use whatever file is there.
   */
-  if (!(my_stat(name_buff, &file_stat, MYF(0))))
+  if (!(mysql_file_stat(arch_key_file_data, name_buff, &file_stat, MYF(0))))
   {
     my_errno= 0;
     if (!(azopen(&create_stream, name_buff, O_CREAT|O_RDWR|O_BINARY)))
@@ -1681,7 +1697,7 @@ int ha_archive::info(uint flag)
   {
     MY_STAT file_stat;  // Stat information for the data file
 
-    (void) my_stat(share->data_file_name, &file_stat, MYF(MY_WME));
+    (void) mysql_file_stat(arch_key_file_data, share->data_file_name, &file_stat, MYF(MY_WME));
 
     if (flag & HA_STATUS_TIME)
       stats.update_time= (ulong) file_stat.st_mtime;

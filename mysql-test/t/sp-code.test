@@ -734,3 +734,221 @@ DROP PROCEDURE testp_bug11763507;
 DROP FUNCTION testf_bug11763507;
 
 --echo #END OF BUG#11763507 test.
+
+--echo
+--echo # WL#4179: Stored programs: validation of stored program statements.
+--echo #
+--echo # Check that query string is stored only for the expressions, which
+--echo # reference tables or stored functions.
+--echo #
+--echo # Test cases in this file require SHOW ... CODE, which is available only
+--echo # in the debug mode.
+--echo
+
+CREATE TABLE t1(a INT);
+INSERT INTO t1 VALUES (10);
+
+CREATE TEMPORARY TABLE t2(a INT);
+INSERT INTO t2 VALUES (20);
+
+CREATE VIEW t3 AS SELECT 30;
+
+delimiter |;
+
+CREATE FUNCTION f() RETURNS INT
+  RETURN 1|
+
+CREATE PROCEDURE p1()
+BEGIN
+
+  # DEFAULT-expression
+
+  DECLARE x1 INT DEFAULT (SELECT 1 + 2);
+  DECLARE x2 INT DEFAULT (SELECT * FROM (SELECT 1 + 2) t1);
+  DECLARE x3 INT DEFAULT (SELECT * FROM t1);
+  DECLARE x4 INT DEFAULT (SELECT * FROM t2);
+  DECLARE x5 INT DEFAULT (SELECT * FROM t3);
+  DECLARE x6 INT DEFAULT (SELECT f());
+
+  # CURSOR-query.
+
+  DECLARE c1 CURSOR FOR SELECT (1 + 2) FROM dual;
+  DECLARE c2 CURSOR FOR SELECT * FROM (SELECT 1 + 2) t1;
+  DECLARE c3 CURSOR FOR SELECT * FROM t1;
+  DECLARE c4 CURSOR FOR SELECT * FROM t2;
+  DECLARE c5 CURSOR FOR SELECT * FROM t3;
+  DECLARE c6 CURSOR FOR SELECT f();
+
+  # IF-expression.
+
+  IF (SELECT 1 + 2) THEN
+    SET @dummy = 1;
+  END IF;
+
+  IF (SELECT * FROM (SELECT 1 + 2) t1) THEN
+    SET @dummy = 1;
+  END IF;
+
+  IF (SELECT * FROM t1) THEN
+    SET @dummy = 1;
+  END IF;
+
+  IF (SELECT * FROM t2) THEN
+    SET @dummy = 1;
+  END IF;
+
+  IF (SELECT * FROM t3) THEN
+    SET @dummy = 1;
+  END IF;
+
+  IF (SELECT f()) THEN
+    SET @dummy = 1;
+  END IF;
+
+  # SET-expression.
+
+  SET x1 = (SELECT 1 + 2);
+  SET x1 = (SELECT * FROM (SELECT 1 + 2) t1);
+  SET x1 = (SELECT * FROM t1);
+  SET x1 = (SELECT * FROM t2);
+  SET x1 = (SELECT * FROM t3);
+  SET x1 = (SELECT f());
+
+  # CASE-expressions.
+
+  CASE
+    WHEN (SELECT 1 + 2) = 1                     THEN SET @dummy = 1;
+    WHEN (SELECT * FROM (SELECT 1 + 2) t1) = 2  THEN SET @dummy = 1;
+    WHEN (SELECT * FROM t1) = 3                 THEN SET @dummy = 1;
+    WHEN (SELECT * FROM t2) = 3                 THEN SET @dummy = 1;
+    WHEN (SELECT * FROM t3) = 3                 THEN SET @dummy = 1;
+    WHEN (SELECT f()) = 3                       THEN SET @dummy = 1;
+  END CASE;
+
+  CASE (SELECT 1 + 2)
+    WHEN 1 THEN SET @dummy = 1;
+    ELSE SET @dummy = 1;
+  END CASE;
+
+  CASE (SELECT * FROM (SELECT 1 + 2) t1)
+    WHEN 1 THEN SET @dummy = 1;
+    ELSE SET @dummy = 1;
+  END CASE;
+
+  CASE (SELECT * FROM t1)
+    WHEN 1 THEN SET @dummy = 1;
+    ELSE SET @dummy = 1;
+  END CASE;
+
+  CASE (SELECT * FROM t2)
+    WHEN 1 THEN SET @dummy = 1;
+    ELSE SET @dummy = 1;
+  END CASE;
+
+  CASE (SELECT * FROM t3)
+    WHEN 1 THEN SET @dummy = 1;
+    ELSE SET @dummy = 1;
+  END CASE;
+
+  CASE (SELECT f())
+    WHEN 1 THEN SET @dummy = 1;
+    ELSE SET @dummy = 1;
+  END CASE;
+
+  # WHILE-expression.
+
+  WHILE (SELECT 1 - 1) DO
+    SET @dummy = 1;
+  END WHILE;
+
+  WHILE (SELECT * FROM (SELECT 1 - 1) t1) DO
+    SET @dummy = 1;
+  END WHILE;
+
+  WHILE (SELECT * FROM t1) - 10 DO
+    SET @dummy = 1;
+  END WHILE;
+
+  WHILE (SELECT * FROM t2) - 10 DO
+    SET @dummy = 1;
+  END WHILE;
+
+  WHILE (SELECT * FROM t3) - 10 DO
+    SET @dummy = 1;
+  END WHILE;
+
+  WHILE (SELECT f()) - 1 DO
+    SET @dummy = 1;
+  END WHILE;
+
+  # REPEAT-expression.
+
+  REPEAT
+    SET @dummy = 1;
+  UNTIL (SELECT 1 - 1) END REPEAT;
+
+  REPEAT
+    SET @dummy = 1;
+  UNTIL (SELECT * FROM (SELECT 1 - 1) t1) END REPEAT;
+
+  REPEAT
+    SET @dummy = 1;
+  UNTIL (SELECT * FROM t1) - 10 END REPEAT;
+
+  REPEAT
+    SET @dummy = 1;
+  UNTIL (SELECT * FROM t2) - 10 END REPEAT;
+
+  REPEAT
+    SET @dummy = 1;
+  UNTIL (SELECT * FROM t3) - 10 END REPEAT;
+  
+  REPEAT
+    SET @dummy = 1;
+  UNTIL (SELECT f()) - 1 END REPEAT;
+END|
+
+CREATE FUNCTION f1() RETURNS INT
+  RETURN (SELECT 1 + 2)|
+
+CREATE FUNCTION f2() RETURNS INT
+  RETURN (SELECT * FROM (SELECT 1 + 2) t1)|
+
+CREATE FUNCTION f3() RETURNS INT
+  RETURN (SELECT * FROM t1)|
+
+CREATE FUNCTION f4() RETURNS INT
+  RETURN (SELECT * FROM t2)|
+
+CREATE FUNCTION f5() RETURNS INT
+  RETURN (SELECT * FROM t3)|
+
+CREATE FUNCTION f6() RETURNS INT
+  RETURN f()|
+
+delimiter ;|
+
+--echo
+SHOW PROCEDURE CODE p1;
+--echo
+SHOW FUNCTION CODE f1;
+SHOW FUNCTION CODE f2;
+SHOW FUNCTION CODE f3;
+SHOW FUNCTION CODE f4;
+SHOW FUNCTION CODE f5;
+SHOW FUNCTION CODE f6;
+--echo
+
+DROP FUNCTION f;
+
+DROP PROCEDURE p1;
+DROP FUNCTION f1;
+DROP FUNCTION f2;
+DROP FUNCTION f3;
+DROP FUNCTION f4;
+DROP FUNCTION f5;
+DROP FUNCTION f6;
+
+DROP TABLE t1;
+DROP TEMPORARY TABLE t2;
+DROP VIEW t3;

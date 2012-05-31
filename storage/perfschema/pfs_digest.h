@@ -44,7 +44,7 @@ struct PFS_digest_hash
 };
 
 /** A statement digest stat record. */
-struct PFS_statements_digest_stat
+struct PFS_ALIGNED PFS_statements_digest_stat
 {
   /** Digest MD5 Hash. */
   PFS_digest_hash m_digest_hash;
@@ -210,5 +210,7 @@ inline void store_token_identifier(PSI_digest_storage* digest_storage,
     digest_storage->m_full= true;
   }
 }
+
+extern LF_HASH digest_hash;
 
 #endif

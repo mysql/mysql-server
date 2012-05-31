@@ -238,6 +238,9 @@ void reset_events_waits_global()
 
   for ( ; stat < stat_last; stat++)
     stat->reset();
+
+  global_table_io_stat.reset();
+  global_table_lock_stat.reset();
 }
 
 void reset_table_waits_by_table()

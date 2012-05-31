@@ -539,8 +539,7 @@ protected:
   enum_nested_loop_state join_matching_records(bool skip_last);
 
   /* Prepare to search for records that match records from the join buffer */
-  enum_nested_loop_state init_join_matching_records(RANGE_SEQ_IF *seq_funcs,
-                                                    uint ranges);
+  bool init_join_matching_records(RANGE_SEQ_IF *seq_funcs, uint ranges);
 
 public:
   

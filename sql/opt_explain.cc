@@ -599,12 +599,31 @@ bool Explain::explain_subqueries(select_result *result)
       fmt->entry()->using_temporary= true;
       fmt->entry()->col_join_type.set_const(join_type_str[JT_EQ_REF]);
       fmt->entry()->col_key.set_const("<auto_key>");
+
+      const subselect_hash_sj_engine * const engine=
+        static_cast<const subselect_hash_sj_engine *>
+        (unit->explain_subselect_engine);
+      const JOIN_TAB * const tmp_tab= engine->get_join_tab();
+
+      char buff_key_len[24];
+      fmt->entry()->col_key_len.set(buff_key_len,
+                                    longlong2str(tmp_tab->table->key_info[0].key_length,
+                                                 buff_key_len, 10) - buff_key_len);
+
+      if (explain_ref_key(fmt, tmp_tab->ref.key_parts,
+                          tmp_tab->ref.key_copy))
+        return true;
+
       fmt->entry()->col_rows.set(1);
 
-      const JOIN_TAB *tmp_tab= static_cast<const subselect_hash_sj_engine *>
-        (unit->explain_subselect_engine)->get_join_tab();
-      if (explain_ref_key(fmt, tmp_tab->ref.key_parts, tmp_tab->ref.key_copy))
-        return true;
+      Item * const cond= engine->get_cond_for_explain();
+      if (cond)
+      {
+        Lazy_condition *c= new Lazy_condition(cond);
+        if (c == NULL)
+          return true;
+        fmt->entry()->col_attached_condition.set(c);
+      }
     }
 
     if (mysql_explain_unit(thd, unit, result))
@@ -904,6 +923,46 @@ bool Explain_table_base::explain_extra_common(const SQL_SELECT *select,
     return true;
   }
 
+  const TABLE* pushed_root= table->file->root_of_pushed_join();
+  if (pushed_root)
+  {
+    char buf[128];
+    int len;
+    int pushed_id= 0;
+
+    for (JOIN_TAB* prev= join->join_tab; prev <= tab; prev++)
+    {
+      const TABLE* prev_root= prev->table->file->root_of_pushed_join();
+      if (prev_root == prev->table)
+      {
+        pushed_id++;
+        if (prev_root == pushed_root)
+          break;
+      }
+    }
+    if (pushed_root == table)
+    {
+      uint pushed_count= tab->table->file->number_of_pushed_joins();
+      len= my_snprintf(buf, sizeof(buf)-1,
+                       "Parent of %d pushed join@%d",
+                       pushed_count, pushed_id);
+    }
+    else
+    {
+      len= my_snprintf(buf, sizeof(buf)-1,
+                       "Child of '%s' in pushed join@%d",
+                       tab->table->file->parent_of_pushed_join()->alias,
+                       pushed_id);
+    }
+
+    {
+      StringBuffer<128> buff(cs);
+      buff.append(buf,len);
+      if (push_extra(ET_PUSHED_JOIN, buff))
+        return true;
+    }
+  }
+
   switch (quick_type) {
   case QUICK_SELECT_I::QS_TYPE_ROR_UNION:
   case QUICK_SELECT_I::QS_TYPE_ROR_INTERSECT:
@@ -1129,11 +1188,23 @@ bool Explain_join::shallow_explain()
         {
           fmt->entry()->col_join_type.set_const(join_type_str[JT_EQ_REF]);
           fmt->entry()->col_key.set_const("<auto_key>");
+          char buff_key_len[24];
+          fmt->entry()->col_key_len.set(buff_key_len,
+                                        longlong2str(sjm->table->key_info[0].key_length,
+                                                     buff_key_len, 10) - buff_key_len);
+
           fmt->entry()->col_rows.set(1);
 
           if (explain_ref_key(fmt, sjm->tab_ref->key_parts,
                               sjm->tab_ref->key_copy))
             return true;
+          if (sjm->in_equality)
+          {
+            Lazy_condition *c= new Lazy_condition(sjm->in_equality);
+            if (c == NULL)
+              return true;
+            fmt->entry()->col_attached_condition.set(c);
+          }
         }
       }
     }
@@ -1990,7 +2061,6 @@ bool mysql_explain_unit(THD *thd, SELECT_LEX_UNIT *unit, select_result *result)
                       first->order_list.first,
                       first->group_list.first,
                       first->having,
-                      thd->lex->proc_list.first,
                       first->options | thd->variables.option_bits | SELECT_DESCRIBE,
                       result, unit, first);
   }

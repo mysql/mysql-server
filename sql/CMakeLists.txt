@@ -49,6 +49,7 @@ IF(HAVE_VISIBILITY_HIDDEN)
 ENDIF()
 
 SET(SQL_SHARED_SOURCES
+  abstract_query_plan.cc
   datadict.cc
   debug_sync.cc
   derror.cc
@@ -110,9 +111,11 @@ SET(SQL_SHARED_SOURCES
   sp.cc
   sp_cache.cc
   sp_head.cc
+  sp_instr.cc
   sp_pcontext.cc 
   sp_rcontext.cc
   spatial.cc
+  string_service.cc
   sql_acl.cc
   sql_admin.cc
   sql_alloc_error_handler.cc
@@ -126,6 +129,7 @@ SET(SQL_SHARED_SOURCES
   sql_connect.cc
   sql_crypt.cc
   sql_cursor.cc
+  sql_data_change.cc
   sql_db.cc
   sql_delete.cc
   sql_derived.cc
@@ -174,6 +178,7 @@ SET(SQL_SHARED_SOURCES
   strfunc.cc
   sys_vars.cc
   table.cc
+  table_cache.cc
   thr_malloc.cc 
   transaction.cc
   tztime.cc
@@ -430,7 +435,10 @@ IF(INSTALL_LAYOUT STREQUAL "STANDALONE")
 # We need to create empty directories (data/test) the installation.  
 # This does not work with current CPack due to http://www.cmake.org/Bug/view.php?id=8767
 # Avoid completely empty directories and install dummy file instead.
-SET(DUMMY_FILE ${CMAKE_CURRENT_BINARY_DIR}/.empty ) 
+# Use a file extension so that it will be deleted in case someone does
+#   'drop database test'
+# See deletable_extentions.
+SET(DUMMY_FILE ${CMAKE_CURRENT_BINARY_DIR}/dummy.bak ) 
 FILE(WRITE ${DUMMY_FILE} "")
 INSTALL(FILES ${DUMMY_FILE} DESTINATION data/test COMPONENT DataFiles)
 
