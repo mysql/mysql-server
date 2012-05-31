@@ -1442,15 +1442,22 @@ trx_commit_complete_for_mysql(
 
 	ut_a(trx);
 
+	if (!trx->must_flush_log_later) {
+		return(0);
+	}
+
 	trx->op_info = "flushing log";
 
-	if (!trx->must_flush_log_later) {
+	switch (srv_flush_log_at_trx_commit) {
+	case 0:
 		/* Do nothing */
-	} else if (srv_flush_log_at_trx_commit == 0
-		   || thd_requested_durability(trx->mysql_thd)
-		   == HA_IGNORE_DURABILITY) {
-		/* Do nothing */
-	} else if (srv_flush_log_at_trx_commit == 1) {
+		break;
+	case 1:
+		if (thd_requested_durability(trx->mysql_thd)
+		    == HA_IGNORE_DURABILITY) {
+			break;
+		}
+
 		if (srv_unix_file_flush_method == SRV_UNIX_NOSYNC) {
 			/* Write the log but do not flush it to disk */
 
@@ -1461,12 +1468,17 @@ trx_commit_complete_for_mysql(
 
 			log_write_up_to(lsn, LOG_WAIT_ONE_GROUP, TRUE);
 		}
-	} else if (srv_flush_log_at_trx_commit == 2) {
+
+		break;
+	case 2:
+		if (thd_requested_durability(trx->mysql_thd)
+		    == HA_IGNORE_DURABILITY) {
+			break;
+		}
 
 		/* Write the log but do not flush it to disk */
-
 		log_write_up_to(lsn, LOG_WAIT_ONE_GROUP, FALSE);
-	} else {
+	default:
 		ut_error;
 	}
 
