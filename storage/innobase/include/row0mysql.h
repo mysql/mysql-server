@@ -724,6 +724,11 @@ struct row_prebuilt_struct {
 					columns in the table */
 	upd_node_t*	upd_node;	/*!< Innobase SQL update node used
 					to perform updates and deletes */
+	trx_id_t	trx_id;		/*!< The transaction id of the last
+					index of the table, when the insert
+					query graph was built. We use it for
+					checking whether the insert query
+					graphs needs to be rebuilt */
 	que_fork_t*	ins_graph;	/*!< Innobase SQL query graph used
 					in inserts */
 	que_fork_t*	upd_graph;	/*!< Innobase SQL query graph used
