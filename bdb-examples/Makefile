@@ -1,1 +1,0 @@
-LDFLAGS = -ldb
