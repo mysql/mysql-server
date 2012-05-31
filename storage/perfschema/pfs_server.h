@@ -108,6 +108,11 @@
 #ifndef PFS_DIGEST_SIZE
   #define PFS_DIGEST_SIZE 200
 #endif
+#ifndef PFS_CONNECT_ATTRS_SIZE
+  #define PFS_SESSION_CONNECT_ATTRS_SIZE 2048
+#endif
+
+
 
 /** Performance schema global sizing parameters. */
 struct PFS_global_param
@@ -240,6 +245,8 @@ struct PFS_global_param
   ulong m_events_statements_history_long_sizing;
   /** Maximum number of digests to be captured */
   ulong m_digest_sizing;
+  /** Maximum number of session attribute strings per thread */
+  ulong m_session_connect_attrs_sizing;
 };
 
 /**
