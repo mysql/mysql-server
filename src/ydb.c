@@ -1668,7 +1668,7 @@ locked_env_create_indexer(DB_ENV *env,
 }
 
 static int
-locked_env_create_loader(DB_ENV *env,
+env_create_loader(DB_ENV *env,
                          DB_TXN *txn, 
                          DB_LOADER **blp, 
                          DB *src_db, 
@@ -1677,9 +1677,7 @@ locked_env_create_loader(DB_ENV *env,
                          uint32_t db_flags[N], 
                          uint32_t dbt_flags[N], 
                          uint32_t loader_flags) {
-    toku_ydb_lock();
     int r = toku_loader_create_loader(env, txn, blp, src_db, N, dbs, db_flags, dbt_flags, loader_flags);
-    toku_ydb_unlock();
     return r;
 }
 
@@ -2440,7 +2438,6 @@ toku_env_create(DB_ENV ** envp, u_int32_t flags) {
     SENV(txn_stat);
     SENV(set_redzone);
     SENV(create_indexer);
-    SENV(create_loader);
     SENV(get_lock_timeout);
     SENV(set_lock_timeout);
 #undef SENV
@@ -2466,6 +2463,7 @@ toku_env_create(DB_ENV ** envp, u_int32_t flags) {
     result->set_errfile = toku_env_set_errfile;
     result->set_errpfx = toku_env_set_errpfx;
     result->txn_begin = locked_txn_begin;
+    result->create_loader = env_create_loader;
 
     MALLOC(result->i);
     if (result->i == 0) { r = ENOMEM; goto cleanup; }

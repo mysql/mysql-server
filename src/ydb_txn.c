@@ -281,6 +281,8 @@ locked_txn_id(DB_TXN *txn) {
 static int 
 toku_txn_txn_stat (DB_TXN *txn, struct txn_stat **txn_stat) {
     XMALLOC(*txn_stat);
+    // TODO: (Zardosht) make sure thread safety of this is resolved
+    // with some tokutxn lock that Leif is working on
     return toku_logger_txn_rollback_raw_count(db_txn_struct_i(txn)->tokutxn, &(*txn_stat)->rollback_raw_count);
 }
 

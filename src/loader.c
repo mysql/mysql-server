@@ -285,11 +285,9 @@ int toku_loader_create_loader(DB_ENV *env,
         if (loader->i->loader_flags & LOADER_USE_PUTS) {
             XCALLOC_N(loader->i->N, loader->i->ekeys);
             XCALLOC_N(loader->i->N, loader->i->evals);
-            toku_ydb_unlock();
             // the following function grabs the ydb lock, so we
             // first unlock before calling it
             rval = ft_loader_close_and_redirect(loader);
-            toku_ydb_lock();
             assert_zero(rval);
             for (int i=0; i<N; i++) {
                 loader->i->ekeys[i].flags = DB_DBT_REALLOC;
