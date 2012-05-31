@@ -1942,7 +1942,7 @@ static int calculate_password(String *str, char *buffer)
   if (thd)
     old_passwords= thd->variables.old_passwords;
   
-#if defined(HAVE_OPENSSL) && !defined(HAVE_YASSL)
+#if defined(HAVE_OPENSSL)
   if (old_passwords == 2)
   {
     my_make_scrambled_password(buffer, str->ptr(),
@@ -2023,7 +2023,7 @@ char *Item_func_password::
     buff= (char *) thd->alloc(SCRAMBLED_PASSWORD_CHAR_LENGTH + 1);
     my_make_scrambled_password_sha1(buff, password, pass_len);
   }
-#if defined(HAVE_OPENSSL) && !defined(HAVE_YASSL)
+#if defined(HAVE_OPENSSL)
   else
   {
     /* Allocate memory for the password scramble and one extra byte for \0 */
