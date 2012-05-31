@@ -16,7 +16,7 @@ SET GLOBAL innodb_file_per_table = on;
 # Save the initial number of concurrent sessions.
 --source include/count_sessions.inc
 
-CREATE TABLE t1 (c1 INT PRIMARY KEY, c2 INT NOT NULL, c3 TEXT)
+CREATE TABLE t1 (c1 INT PRIMARY KEY, c2 INT NOT NULL, c3 TEXT NOT NULL)
 ENGINE = InnoDB;
 INSERT INTO t1 VALUES (1,1,''), (2,2,''), (3,3,''), (4,4,''), (5,5,'');
 
@@ -220,7 +220,8 @@ ALTER TABLE t1 ADD PRIMARY KEY(c22f), CHANGE c2 c22f INT;
 --error ER_DUP_ENTRY
 ALTER TABLE t1 DROP PRIMARY KEY, ADD PRIMARY KEY(c22f), CHANGE c2 c22f INT;
 --send
-ALTER TABLE t1 DROP PRIMARY KEY, ADD PRIMARY KEY(c1,c22f), CHANGE c2 c22f INT;
+ALTER TABLE t1 DROP PRIMARY KEY, ADD PRIMARY KEY(c1,c22f), CHANGE c2 c22f INT,
+CHANGE c3 c3 TEXT NULL;
 
 connection default;
 SET DEBUG_SYNC = 'now WAIT_FOR rebuilt3';

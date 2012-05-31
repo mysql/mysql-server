@@ -1045,6 +1045,40 @@ row_log_table_apply_convert_mrec(
 			data = rec_get_nth_field(mrec, offsets, i, &len);
 			dfield_set_data(dfield, data, len);
 		}
+
+		ut_ad(dict_col_type_assert_equal(col,
+						 dfield_get_type(dfield)));
+
+		/* See if any columns were changed to NULL or NOT NULL. */
+		/* TODO: adjust for ADD COLUMN, DROP COLUMN */
+		if (col_no >= dict_table_get_n_cols(new_table)) {
+			continue;
+		}
+
+		const dict_col_t*	new_col
+			= dict_table_get_nth_col(new_table, col_no);
+		ut_ad(new_col->mtype == col->mtype);
+		/* Assert that prtype matches except for nullability. */
+		ut_ad(!((new_col->prtype ^ col->prtype) & ~DATA_NOT_NULL));
+		ut_ad(!((new_col->prtype ^ dfield_get_type(dfield)->prtype)
+			& ~DATA_NOT_NULL));
+
+		if (new_col->prtype == col->prtype) {
+			continue;
+		}
+
+		if ((new_col->prtype & DATA_NOT_NULL)
+		    && dfield_is_null(dfield)) {
+			/* We got a NULL value in a NOT NULL field. */
+			ut_ad(0);/* TODO: ALTER_COLUMN_NOT_NULLABLE */
+			return(NULL);
+		}
+
+		/* Adjust the DATA_NOT_NULL flag in the parsed row. */
+		dfield_get_type(dfield)->prtype = new_col->prtype;
+
+		ut_ad(dict_col_type_assert_equal(new_col,
+						 dfield_get_type(dfield)));
 	}
 
 	/* TODO: convert row to new_table->cols, in case columns are

@@ -3,7 +3,7 @@ call mtr.add_suppression("InnoDB: Error: table 'test/t1'");
 call mtr.add_suppression("MySQL is trying to open a table handle but the .ibd file for");
 SET @global_innodb_file_per_table_orig = @@global.innodb_file_per_table;
 SET GLOBAL innodb_file_per_table = on;
-CREATE TABLE t1 (c1 INT PRIMARY KEY, c2 INT NOT NULL, c3 TEXT)
+CREATE TABLE t1 (c1 INT PRIMARY KEY, c2 INT NOT NULL, c3 TEXT NOT NULL)
 ENGINE = InnoDB;
 INSERT INTO t1 VALUES (1,1,''), (2,2,''), (3,3,''), (4,4,''), (5,5,'');
 SET GLOBAL innodb_monitor_enable = module_ddl;
@@ -42,7 +42,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` int(11) NOT NULL,
   `c2` int(11) NOT NULL,
-  `c3` text,
+  `c3` text NOT NULL,
   PRIMARY KEY (`c1`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=REDUNDANT
 BEGIN;
@@ -63,7 +63,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` int(11) NOT NULL,
   `c2` int(11) NOT NULL,
-  `c3` text,
+  `c3` text NOT NULL,
   UNIQUE KEY `c2` (`c2`),
   UNIQUE KEY `c2_2` (`c2`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=COMPACT
@@ -74,7 +74,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` int(11) NOT NULL,
   `c2` int(11) NOT NULL,
-  `c3` text,
+  `c3` text NOT NULL,
   UNIQUE KEY `c2` (`c2`),
   UNIQUE KEY `c2_2` (`c2`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=COMPACT
@@ -96,7 +96,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` int(11) NOT NULL,
   `c2` int(11) NOT NULL,
-  `c3` text,
+  `c3` text NOT NULL,
   UNIQUE KEY `c2` (`c2`),
   UNIQUE KEY `c2_2` (`c2`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=COMPACT
@@ -155,7 +155,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` int(11) NOT NULL,
   `c2` int(11) NOT NULL,
-  `c3` text,
+  `c3` text NOT NULL,
   PRIMARY KEY (`c1`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=COMPACT
 SET DEBUG_SYNC = 'row_log_table_apply1_before SIGNAL rebuilt2 WAIT_FOR dml2_done';
@@ -214,7 +214,8 @@ ALTER TABLE t1 ADD PRIMARY KEY(c22f), CHANGE c2 c22f INT;
 ERROR 42000: Multiple primary key defined
 ALTER TABLE t1 DROP PRIMARY KEY, ADD PRIMARY KEY(c22f), CHANGE c2 c22f INT;
 ERROR 23000: Duplicate entry '5' for key 'PRIMARY'
-ALTER TABLE t1 DROP PRIMARY KEY, ADD PRIMARY KEY(c1,c22f), CHANGE c2 c22f INT;
+ALTER TABLE t1 DROP PRIMARY KEY, ADD PRIMARY KEY(c1,c22f), CHANGE c2 c22f INT,
+CHANGE c3 c3 TEXT NULL;
 SET DEBUG_SYNC = 'now WAIT_FOR rebuilt3';
 SELECT name, count FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE subsystem = 'ddl';
 name	count

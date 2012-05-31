@@ -56,8 +56,8 @@ static const Alter_inplace_info::HA_ALTER_FLAGS INNOBASE_INPLACE_REBUILD
 	= Alter_inplace_info::ADD_PK_INDEX
 	| Alter_inplace_info::DROP_PK_INDEX
 	| Alter_inplace_info::CHANGE_CREATE_OPTION
-	/*
 	| Alter_inplace_info::ALTER_COLUMN_NULLABLE
+	/*
 	| Alter_inplace_info::ALTER_COLUMN_NOT_NULLABLE
 	| Alter_inplace_info::ALTER_COLUMN_TYPE
 	| Alter_inplace_info::ALTER_COLUMN_EQUAL_PACK_LENGTH,
