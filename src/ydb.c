@@ -1156,14 +1156,14 @@ toku_env_log_archive(DB_ENV * env, char **list[], u_int32_t flags) {
 }
 
 static int 
-toku_env_log_flush(DB_ENV * env, const DB_LSN * lsn __attribute__((__unused__))) {
+env_log_flush(DB_ENV * env, const DB_LSN * lsn __attribute__((__unused__))) {
     HANDLE_PANICKED_ENV(env);
     // We just flush everything.  MySQL uses lsn==0 which means flush everything.  For anyone else using the log, it is correct to flush too much, so we are OK.
     return toku_logger_fsync(env->i->logger);
 }
 
 static int 
-toku_env_set_cachesize(DB_ENV * env, u_int32_t gbytes, u_int32_t bytes, int ncache) {
+env_set_cachesize(DB_ENV * env, u_int32_t gbytes, u_int32_t bytes, int ncache) {
     HANDLE_PANICKED_ENV(env);
     if (ncache != 1)
         return EINVAL;
@@ -1480,16 +1480,6 @@ locked_env_log_archive(DB_ENV * env, char **list[], u_int32_t flags) {
     toku_ydb_lock(); int r = toku_env_log_archive(env, list, flags); toku_ydb_unlock(); return r;
 }
 
-static int 
-locked_env_log_flush(DB_ENV * env, const DB_LSN * lsn) {
-    toku_ydb_lock(); int r = toku_env_log_flush(env, lsn); toku_ydb_unlock(); return r;
-}
-
-static int 
-locked_env_set_cachesize(DB_ENV *env, u_int32_t gbytes, u_int32_t bytes, int ncache) {
-    toku_ydb_lock(); int r = toku_env_set_cachesize(env, gbytes, bytes, ncache); toku_ydb_unlock(); return r;
-}
-
 
 static int
 env_checkpointing_set_period(DB_ENV * env, u_int32_t seconds) {
@@ -1499,11 +1489,6 @@ env_checkpointing_set_period(DB_ENV * env, u_int32_t seconds) {
     else
         r = toku_set_checkpoint_period(env->i->cachetable, seconds);
     return r;
-}
-
-static int
-locked_env_checkpointing_set_period(DB_ENV * env, u_int32_t seconds) {
-    toku_ydb_lock(); int r = env_checkpointing_set_period(env, seconds); toku_ydb_unlock(); return r;
 }
 
 static int
@@ -1517,11 +1502,6 @@ env_cleaner_set_period(DB_ENV * env, u_int32_t seconds) {
 }
 
 static int
-locked_env_cleaner_set_period(DB_ENV * env, u_int32_t seconds) {
-    toku_ydb_lock(); int r = env_cleaner_set_period(env, seconds); toku_ydb_unlock(); return r;
-}
-
-static int
 env_cleaner_set_iterations(DB_ENV * env, u_int32_t iterations) {
     HANDLE_PANICKED_ENV(env);
     int r;
@@ -1529,11 +1509,6 @@ env_cleaner_set_iterations(DB_ENV * env, u_int32_t iterations) {
     else
         r = toku_set_cleaner_iterations(env->i->cachetable, iterations);
     return r;
-}
-
-static int
-locked_env_cleaner_set_iterations(DB_ENV * env, u_int32_t iterations) {
-    toku_ydb_lock(); int r = env_cleaner_set_iterations(env, iterations); toku_ydb_unlock(); return r;
 }
 
 static int
@@ -1578,11 +1553,6 @@ env_checkpointing_get_period(DB_ENV * env, u_int32_t *seconds) {
 }
 
 static int
-locked_env_checkpointing_get_period(DB_ENV * env, u_int32_t *seconds) {
-    toku_ydb_lock(); int r = env_checkpointing_get_period(env, seconds); toku_ydb_unlock(); return r;
-}
-
-static int
 env_cleaner_get_period(DB_ENV * env, u_int32_t *seconds) {
     HANDLE_PANICKED_ENV(env);
     int r = 0;
@@ -1593,11 +1563,6 @@ env_cleaner_get_period(DB_ENV * env, u_int32_t *seconds) {
 }
 
 static int
-locked_env_cleaner_get_period(DB_ENV * env, u_int32_t *seconds) {
-    toku_ydb_lock(); int r = env_cleaner_get_period(env, seconds); toku_ydb_unlock(); return r;
-}
-
-static int
 env_cleaner_get_iterations(DB_ENV * env, u_int32_t *iterations) {
     HANDLE_PANICKED_ENV(env);
     int r = 0;
@@ -1605,11 +1570,6 @@ env_cleaner_get_iterations(DB_ENV * env, u_int32_t *iterations) {
     else 
         *iterations = toku_get_cleaner_iterations(env->i->cachetable);
     return r;
-}
-
-static int
-locked_env_cleaner_get_iterations(DB_ENV * env, u_int32_t *iterations) {
-    toku_ydb_lock(); int r = env_cleaner_get_iterations(env, iterations); toku_ydb_unlock(); return r;
 }
 
 static int
@@ -2226,15 +2186,7 @@ toku_env_create(DB_ENV ** envp, u_int32_t flags) {
 #define SENV(name) result->name = locked_env_ ## name
     SENV(dbremove);
     SENV(dbrename);
-    SENV(checkpointing_set_period);
-    SENV(checkpointing_get_period);
-    SENV(cleaner_set_period);
-    SENV(cleaner_get_period);
-    SENV(cleaner_set_iterations);
-    SENV(cleaner_get_iterations);
-    SENV(log_flush);
     //SENV(set_noticecall);
-    SENV(set_cachesize);
     SENV(log_archive);
     SENV(create_indexer);
 #undef SENV
@@ -2263,6 +2215,13 @@ toku_env_create(DB_ENV ** envp, u_int32_t flags) {
     USENV(set_errfile);
     USENV(set_errpfx);
     USENV(set_data_dir);
+    USENV(checkpointing_set_period);
+    USENV(checkpointing_get_period);
+    USENV(cleaner_set_period);
+    USENV(cleaner_get_period);
+    USENV(cleaner_set_iterations);
+    USENV(cleaner_get_iterations);
+    USENV(set_cachesize);
 #if DB_VERSION_MAJOR == 4 && DB_VERSION_MINOR >= 3
     USENV(get_cachesize);
 #endif
@@ -2280,6 +2239,7 @@ toku_env_create(DB_ENV ** envp, u_int32_t flags) {
     USENV(get_lock_timeout);
     USENV(set_lock_timeout);
     USENV(set_redzone);
+    USENV(log_flush);
     
 #undef USENV
 
