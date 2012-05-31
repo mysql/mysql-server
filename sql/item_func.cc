@@ -4784,9 +4784,14 @@ Item_func_set_user_var::update_hash(void *ptr, uint length,
     If we set a variable explicitely to NULL then keep the old
     result type of the variable
   */
-  if ((null_value= args[0]->null_value) && null_item)
+  // args[0]->null_value could be outdated
+  if (args[0]->type() == Item::FIELD_ITEM)
+    null_value= ((Item_field*)args[0])->field->is_null();
+  else
+    null_value= args[0]->null_value;
+  if (null_value && null_item)
     res_type= entry->type;                      // Don't change type of item
-  if (::update_hash(entry, (null_value= args[0]->null_value),
+  if (::update_hash(entry, null_value,
                     ptr, length, res_type, cs, dv, unsigned_arg))
   {
     null_value= 1;

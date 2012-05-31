@@ -5997,18 +5997,6 @@ LIMIT 30	{
             }
           },
           {
-            "creating_tmp_table": {
-              "tmp_table_info": {
-                "table": "intermediate_tmp_table",
-                "row_length": 419,
-                "key_length": 0,
-                "unique_constraint": false,
-                "location": "memory (heap)",
-                "row_limit_estimate": 2502
-              }
-            }
-          },
-          {
             "join_execution": {
               "select#": 2,
               "steps": [
@@ -6080,6 +6068,18 @@ LIMIT 30	{
                   }
                 }
               ]
+            }
+          },
+          {
+            "creating_tmp_table": {
+              "tmp_table_info": {
+                "table": "intermediate_tmp_table",
+                "row_length": 419,
+                "key_length": 0,
+                "unique_constraint": false,
+                "location": "memory (heap)",
+                "row_limit_estimate": 2502
+              }
             }
           },
           {
@@ -7569,18 +7569,6 @@ ORDER BY d1.f2 DESC LIMIT 30	{
             }
           },
           {
-            "creating_tmp_table": {
-              "tmp_table_info": {
-                "table": "intermediate_tmp_table",
-                "row_length": 206,
-                "key_length": 0,
-                "unique_constraint": false,
-                "location": "memory (heap)",
-                "row_limit_estimate": 5090
-              }
-            }
-          },
-          {
             "join_execution": {
               "select#": 2,
               "steps": [
@@ -7610,6 +7598,18 @@ ORDER BY d1.f2 DESC LIMIT 30	{
                   }
                 }
               ]
+            }
+          },
+          {
+            "creating_tmp_table": {
+              "tmp_table_info": {
+                "table": "intermediate_tmp_table",
+                "row_length": 206,
+                "key_length": 0,
+                "unique_constraint": false,
+                "location": "memory (heap)",
+                "row_limit_estimate": 5090
+              }
             }
           },
           {

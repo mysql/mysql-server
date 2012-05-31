@@ -7812,8 +7812,6 @@ copy_data_between_tables(TABLE *from,TABLE *to,
   Copy_field *copy,*copy_end;
   ulong found_count,delete_count;
   THD *thd= current_thd;
-  uint length= 0;
-  SORT_FIELD *sortorder;
   READ_RECORD info;
   TABLE_LIST   tables;
   List<Item>   fields;
@@ -7895,10 +7893,10 @@ copy_data_between_tables(TABLE *from,TABLE *to,
 
       if (thd->lex->select_lex.setup_ref_array(thd, order_num) ||
           setup_order(thd, thd->lex->select_lex.ref_pointer_array,
-                      &tables, fields, all_fields, order) ||
-          !(sortorder= make_unireg_sortorder(order, &length, NULL)) ||
-          (from->sort.found_records= filesort(thd, from, sortorder, length,
-                                              NULL, HA_POS_ERROR,
+                      &tables, fields, all_fields, order))
+        goto err;
+      Filesort fsort(order, HA_POS_ERROR, NULL);
+      if ((from->sort.found_records= filesort(thd, from, &fsort,
                                               true,
                                               &examined_rows, &found_rows)) ==
           HA_POS_ERROR)
