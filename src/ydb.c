@@ -1151,7 +1151,7 @@ panic_and_quit_early:
 }
 
 static int 
-toku_env_log_archive(DB_ENV * env, char **list[], u_int32_t flags) {
+env_log_archive(DB_ENV * env, char **list[], u_int32_t flags) {
     return toku_logger_log_archive(env->i->logger, list, flags);
 }
 
@@ -1474,12 +1474,6 @@ static int
 env_get_txn_from_xid (DB_ENV *env, /*in*/ TOKU_XA_XID *xid, /*out*/ DB_TXN **txnp) {
     return toku_txn_manager_get_txn_from_xid(toku_logger_get_txn_manager(env->i->logger), xid, txnp);
 }
-
-static int 
-locked_env_log_archive(DB_ENV * env, char **list[], u_int32_t flags) {
-    toku_ydb_lock(); int r = toku_env_log_archive(env, list, flags); toku_ydb_unlock(); return r;
-}
-
 
 static int
 env_checkpointing_set_period(DB_ENV * env, u_int32_t seconds) {
@@ -2187,7 +2181,6 @@ toku_env_create(DB_ENV ** envp, u_int32_t flags) {
     SENV(dbremove);
     SENV(dbrename);
     //SENV(set_noticecall);
-    SENV(log_archive);
     SENV(create_indexer);
 #undef SENV
 #define USENV(name) result->name = env_ ## name
@@ -2240,7 +2233,7 @@ toku_env_create(DB_ENV ** envp, u_int32_t flags) {
     USENV(set_lock_timeout);
     USENV(set_redzone);
     USENV(log_flush);
-    
+    USENV(log_archive);    
 #undef USENV
 
     
