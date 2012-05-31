@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -24,19 +24,24 @@
  pre- and end 'blank space' are removed from options and values. The
  following escape sequences are recognized in values:  \b \t \n \r \\
 
- The following arguments are handled automaticly;  If used, they must be
+ The following arguments are handled automatically;  If used, they must be
  first argument on the command line!
- --no-defaults	; no options are read.
+ --no-defaults	; no options are read, except for the ones provided in the
+                  login file.
  --defaults-file=full-path-to-default-file	; Only this file will be read.
  --defaults-extra-file=full-path-to-default-file ; Read this file before ~/
  --defaults-group-suffix  ; Also read groups with concat(group, suffix)
  --print-defaults	  ; Print the modified command line and exit
+ --login-path=login-path-name ; Read options under login-path-name from
+                                the login file.
 ****************************************************************************/
 
-#include "mysys_priv.h"
+#include "../mysys/mysys_priv.h"
+#include "my_default.h"
 #include "m_string.h"
 #include "m_ctype.h"
 #include <my_dir.h>
+#include <my_aes.h>
 #ifdef __WIN__
 #include <winbase.h>
 #endif
@@ -88,11 +93,22 @@ my_bool my_getopt_is_args_separator(const char* arg)
 const char *my_defaults_file=0;
 const char *my_defaults_group_suffix=0;
 const char *my_defaults_extra_file=0;
+const char *my_login_path= 0;
+const char *my_login_file= 0;
 
 static char my_defaults_file_buffer[FN_REFLEN];
 static char my_defaults_extra_file_buffer[FN_REFLEN];
 
+static char my_login_file_buffer[FN_REFLEN];
+const char my_key[MY_LOGIN_KEY_LEN];
+
 static my_bool defaults_already_read= FALSE;
+
+/* Set to TRUE, if --no-defaults is found. */
+static my_bool found_no_defaults= FALSE;
+
+/* Set to TRUE, when login file is being processed. */
+static my_bool is_login_file= FALSE;
 
 /* Which directories are searched for options (and in which order) */
 
@@ -131,6 +147,7 @@ static int search_default_file_with_ext(Process_option_func func,
                                         void *func_ctx,
 					const char *dir, const char *ext,
 					const char *config_file, int recursion_level);
+static my_bool mysql_file_getline(char *str, int size, MYSQL_FILE *file);
 
 
 /**
@@ -171,7 +188,7 @@ static char *remove_end_comment(char *ptr);
 
   RETURNS
    0   All OK
-   2   Out of memory or path to long
+   2   Out of memory or path too long
    3   Not able to get working directory
  */
 
@@ -206,10 +223,12 @@ fn_expand(const char *filename, char *result_buf)
   func                        Pointer to the function to process options
   func_ctx                    It's context. Usually it is the structure to
                               store additional options.
+  default_directories         List of default directories.
+
   DESCRIPTION
     Process the default options from argc & argv
     Read through each found config file looks and calls 'func' to process
-    each option.
+    each option. This function also reads options from login file.
 
   NOTES
     --defaults-group-suffix is only processed if we are called from
@@ -234,74 +253,124 @@ int my_search_option_files(const char *conf_file, int *argc, char ***argv,
   int error= 0;
   DBUG_ENTER("my_search_option_files");
 
-  /* Check if we want to force the use a specific default file */
-  *args_used+= get_defaults_options(*argc - *args_used, *argv + *args_used,
-                                    (char **) &forced_default_file,
-                                    (char **) &forced_extra_defaults,
-                                    (char **) &my_defaults_group_suffix);
-
-  if (! my_defaults_group_suffix)
-    my_defaults_group_suffix= getenv(STRINGIFY_ARG(DEFAULT_GROUP_SUFFIX_ENV));
-
-  if (forced_extra_defaults && !defaults_already_read)
+  /* Skip if default files have already been read. */
+  if (! defaults_already_read)
   {
-    int error= fn_expand(forced_extra_defaults, my_defaults_extra_file_buffer);
-    if (error)
-      DBUG_RETURN(error);
-    my_defaults_extra_file= my_defaults_extra_file_buffer;
+    /* Check if we want to force the use a specific default file */
+    *args_used+= get_defaults_options(*argc - *args_used, *argv + *args_used,
+                                      (char **) &forced_default_file,
+                                      (char **) &forced_extra_defaults,
+                                      (char **) &my_defaults_group_suffix,
+                                      (char **) &my_login_path);
+
+    if (! my_defaults_group_suffix)
+      my_defaults_group_suffix= getenv(STRINGIFY_ARG(DEFAULT_GROUP_SUFFIX_ENV));
+
+    if (forced_extra_defaults && !defaults_already_read)
+    {
+      int error= fn_expand(forced_extra_defaults,
+                           my_defaults_extra_file_buffer);
+      if (error)
+        DBUG_RETURN(error);
+
+      my_defaults_extra_file= my_defaults_extra_file_buffer;
+    }
+
+    if (forced_default_file && !defaults_already_read)
+    {
+      int error= fn_expand(forced_default_file, my_defaults_file_buffer);
+      if (error)
+        DBUG_RETURN(error);
+      my_defaults_file= my_defaults_file_buffer;
+    }
+
+    defaults_already_read= TRUE;
+
+    /*
+      We can only handle 'defaults-group-suffix' if we are called from
+      load_defaults() as otherwise we can't know the type of 'func_ctx'
+    */
+
+    if (my_defaults_group_suffix && func == handle_default_option)
+    {
+      /* Handle --defaults-group-suffix= */
+      uint i;
+      const char **extra_groups;
+      const size_t instance_len= strlen(my_defaults_group_suffix);
+      struct handle_option_ctx *ctx= (struct handle_option_ctx*) func_ctx;
+      char *ptr;
+      TYPELIB *group= ctx->group;
+
+      if (!(extra_groups=
+            (const char**)alloc_root(ctx->alloc,
+                                     (2*group->count+1)*sizeof(char*))))
+        DBUG_RETURN(2);
+
+      for (i= 0; i < group->count; i++)
+      {
+        size_t len;
+        extra_groups[i]= group->type_names[i];  /** copy group */
+
+        len= strlen(extra_groups[i]);
+        if (!(ptr= alloc_root(ctx->alloc, (uint) (len+instance_len+1))))
+          DBUG_RETURN(2);
+
+        extra_groups[i+group->count]= ptr;
+
+        /** Construct new group */
+        memcpy(ptr, extra_groups[i], len);
+        memcpy(ptr+len, my_defaults_group_suffix, instance_len+1);
+      }
+
+      group->count*= 2;
+      group->type_names= extra_groups;
+      group->type_names[group->count]= 0;
+    }
   }
-
-  if (forced_default_file && !defaults_already_read)
+  else if (my_login_path && func == handle_default_option)
   {
-    int error= fn_expand(forced_default_file, my_defaults_file_buffer);
-    if (error)
-      DBUG_RETURN(error);
-    my_defaults_file= my_defaults_file_buffer;
-  }
-
-  defaults_already_read= TRUE;
-
-  /*
-    We can only handle 'defaults-group-suffix' if we are called from
-    load_defaults() as otherwise we can't know the type of 'func_ctx'
-  */
-
-  if (my_defaults_group_suffix && func == handle_default_option)
-  {
-    /* Handle --defaults-group-suffix= */
+    /* Handle --login_path= */
     uint i;
+    size_t len;
     const char **extra_groups;
-    const size_t instance_len= strlen(my_defaults_group_suffix); 
+    size_t instance_len= 0;
     struct handle_option_ctx *ctx= (struct handle_option_ctx*) func_ctx;
     char *ptr;
     TYPELIB *group= ctx->group;
-    
-    if (!(extra_groups= 
-	  (const char**)alloc_root(ctx->alloc,
-                                   (2*group->count+1)*sizeof(char*))))
+
+    if (!(extra_groups= (const char**)alloc_root(ctx->alloc,
+                                                 (group->count + 3)
+                                                 * sizeof(char *))))
       DBUG_RETURN(2);
-    
+
     for (i= 0; i < group->count; i++)
     {
-      size_t len;
-      extra_groups[i]= group->type_names[i]; /** copy group */
-      
+      extra_groups[i]= group->type_names[i];    /** copy group */
+    }
+
+    extra_groups[i]= my_login_path;
+
+    if (my_defaults_group_suffix && func == handle_default_option)
+    {
+      instance_len= strlen(my_defaults_group_suffix);
       len= strlen(extra_groups[i]);
-      if (!(ptr= alloc_root(ctx->alloc, (uint) (len+instance_len+1))))
-       DBUG_RETURN(2);
-      
-      extra_groups[i+group->count]= ptr;
-      
+
+      if (!(ptr= alloc_root(ctx->alloc, (uint) (len + instance_len + 1))))
+        DBUG_RETURN(2);
+
+      extra_groups[i + 1]= ptr;
+
       /** Construct new group */
       memcpy(ptr, extra_groups[i], len);
-      memcpy(ptr+len, my_defaults_group_suffix, instance_len+1);
+      memcpy(ptr+len, my_defaults_group_suffix, instance_len + 1);
+      group->count += 1;
     }
-    
-    group->count*= 2;
+
+    group->count += 1;
     group->type_names= extra_groups;
     group->type_names[group->count]= 0;
   }
-  
+
   // If conf_file is an absolute path, we only read it
   if (dirname_length(conf_file))
   {
@@ -321,7 +390,7 @@ int my_search_option_files(const char *conf_file, int *argc, char ***argv,
       goto err;
     }
   }
-  else
+  else if (! found_no_defaults)
   {
     for (dirs= default_directories ; *dirs; dirs++)
     {
@@ -399,7 +468,9 @@ static int handle_default_option(void *in_ctx, const char *group_name,
 
 
 /*
-  Gets options from the command line
+  Gets options from the command line, however if --no-defaults
+  option is used, --defaults-file & --defaults-extra-file options
+  would be ignored.
 
   SYNOPSIS
     get_defaults_options()
@@ -407,6 +478,8 @@ static int handle_default_option(void *in_ctx, const char *group_name,
     argv			Pointer to argv of original program
     defaults                    --defaults-file option
     extra_defaults              --defaults-extra-file option
+    group_suffix                --defaults-group-suffix option
+    login_path                  --login-path option
 
   RETURN
     # Number of arguments used from *argv
@@ -417,32 +490,51 @@ static int handle_default_option(void *in_ctx, const char *group_name,
 int get_defaults_options(int argc, char **argv,
                          char **defaults,
                          char **extra_defaults,
-                         char **group_suffix)
+                         char **group_suffix,
+                         char **login_path)
 {
-  int org_argc= argc, prev_argc= 0;
-  *defaults= *extra_defaults= *group_suffix= 0;
+  int org_argc= argc, prev_argc= 0, default_option_count= 0;
+  *defaults= *extra_defaults= *group_suffix= *login_path= 0;
 
   while (argc >= 2 && argc != prev_argc)
   {
     /* Skip program name or previously handled argument */
     argv++;
     prev_argc= argc;                            /* To check if we found */
-    if (!*defaults && is_prefix(*argv,"--defaults-file="))
+    /* --no-defaults is always the first option. */
+    if (is_prefix(*argv,"--no-defaults") && ! default_option_count)
+    {
+       argc--;
+       default_option_count ++;
+       continue;
+    }
+    if (!*defaults && is_prefix(*argv, "--defaults-file=") && ! found_no_defaults)
     {
       *defaults= *argv + sizeof("--defaults-file=")-1;
        argc--;
+       default_option_count ++;
        continue;
     }
-    if (!*extra_defaults && is_prefix(*argv,"--defaults-extra-file="))
+    if (!*extra_defaults && is_prefix(*argv, "--defaults-extra-file=")
+        && ! found_no_defaults)
     {
       *extra_defaults= *argv + sizeof("--defaults-extra-file=")-1;
       argc--;
+      default_option_count ++;
       continue;
     }
     if (!*group_suffix && is_prefix(*argv, "--defaults-group-suffix="))
     {
       *group_suffix= *argv + sizeof("--defaults-group-suffix=")-1;
       argc--;
+      default_option_count ++;
+      continue;
+    }
+    if (!*login_path && is_prefix(*argv, "--login-path="))
+    {
+      *login_path= *argv + sizeof("--login-path=")-1;
+      argc--;
+      default_option_count ++;
       continue;
     }
   }
@@ -529,6 +621,12 @@ int my_load_defaults(const char *conf_file, const char **groups,
   uint args_sep= my_getopt_use_args_separator ? 1 : 0;
   DBUG_ENTER("load_defaults");
 
+  /*
+    Set it to FALSE, as this function can be invoked
+    multiple times with different conf_file.
+  */
+  defaults_already_read= FALSE;
+
   init_alloc_root(&alloc,512,0);
   if ((dirs= init_default_directories(&alloc)) == NULL)
     goto err;
@@ -536,37 +634,8 @@ int my_load_defaults(const char *conf_file, const char **groups,
     Check if the user doesn't want any default option processing
     --no-defaults is always the first option
   */
-  if (*argc >= 2 && !strcmp(argv[0][1],"--no-defaults"))
-  {
-    /* remove the --no-defaults argument and return only the other arguments */
-    uint i, j;
-    if (!(ptr=(char*) alloc_root(&alloc,sizeof(alloc)+
-				 (*argc + 1)*sizeof(char*))))
-      goto err;
-    res= (char**) (ptr+sizeof(alloc));
-    res[0]= **argv;				/* Copy program name */
-    j= 1;                 /* Start from 1 for the reset result args */
-    if (my_getopt_use_args_separator)
-    {
-      /* set arguments separator */
-      set_args_separator(&res[1]);
-      j++;
-    }
-    for (i=2 ; i < (uint) *argc ; i++, j++)
-      res[j]=argv[0][i];
-    res[j]=0;					/* End pointer */
-    /*
-      Update the argc, if have not added args separator, then we have
-      to decrease argc because we have removed the "--no-defaults".
-    */
-    if (!my_getopt_use_args_separator)
-      (*argc)--;
-    *argv=res;
-    *(MEM_ROOT*) ptr= alloc;			/* Save alloc root for free */
-    if (default_directories)
-      *default_directories= dirs;
-    DBUG_RETURN(0);
-  }
+  if (*argc >= 2 && !strcmp(argv[0][1], "--no-defaults"))
+    found_no_defaults= TRUE;
 
   group.count=0;
   group.name= "defaults";
@@ -582,13 +651,26 @@ int my_load_defaults(const char *conf_file, const char **groups,
   ctx.args= &args;
   ctx.group= &group;
 
-  if ((error= my_search_option_files(conf_file, argc, argv, &args_used,
+  if ((error= my_search_option_files(conf_file, argc, argv,
+                                    &args_used, handle_default_option,
+                                    (void *) &ctx, dirs)))
+  {
+    free_root(&alloc,MYF(0));
+    DBUG_RETURN(error);
+  }
+
+  /* Read options from login group. */
+  is_login_file= TRUE;
+  if (set_login_file_name() &&
+      (error= my_search_option_files(my_login_file,argc, argv, &args_used,
                                      handle_default_option, (void *) &ctx,
                                      dirs)))
   {
     free_root(&alloc,MYF(0));
     DBUG_RETURN(error);
   }
+  is_login_file= FALSE;
+
   /*
     Here error contains <> 0 only if we have a fully specified conf_file
     or a forced default file
@@ -631,6 +713,13 @@ int my_load_defaults(const char *conf_file, const char **groups,
   *argv= (char**) res;
   *(MEM_ROOT*) ptr= alloc;			/* Save alloc root for free */
   delete_dynamic(&args);
+
+  if (default_directories)
+    *default_directories= dirs;
+
+  if (found_no_defaults)
+    DBUG_RETURN(0);
+
   if (found_print_defaults)
   {
     int i;
@@ -642,9 +731,6 @@ int my_load_defaults(const char *conf_file, const char **groups,
     puts("");
     exit(0);
   }
-
-  if (default_directories)
-    *default_directories= dirs;
 
   DBUG_RETURN(0);
 
@@ -809,10 +895,19 @@ static int search_default_file_with_ext(Process_option_func opt_handler,
     }
   }
 #endif
-  if (!(fp= mysql_file_fopen(key_file_cnf, name, O_RDONLY, MYF(0))))
-    return 1;					/* Ignore wrong files */
+  if (is_login_file)
+  {
+    if ( !(fp = mysql_file_fopen(key_file_cnf, name, (O_RDONLY | O_BINARY),
+                                 MYF(0))))
+      return 1;                                 /* Ignore wrong files. */
+  }
+  else
+  {
+    if ( !(fp = mysql_file_fopen(key_file_cnf, name, O_RDONLY, MYF(0))))
+      return 1;                                 /* Ignore wrong files */
+  }
 
-  while (mysql_file_fgets(buff, sizeof(buff) - 1, fp))
+  while (mysql_file_getline(buff, sizeof(buff) - 1, fp))
   {
     line++;
     /* Ignore comment and empty lines */
@@ -1037,6 +1132,65 @@ static char *remove_end_comment(char *ptr)
 }
 
 
+/**
+  Read one line from the specified file. In case
+  of scrambled login file, the line read is first
+  decrypted and then returned.
+
+  @param str  [out]       Buffer to store the read text.
+  @param size [in]        At max, size-1 bytes to be read.
+  @param file [in]        Source file.
+
+  @return 1               Success
+          0               Error
+*/
+
+static my_bool mysql_file_getline(char *str, int size, MYSQL_FILE *file)
+{
+  uchar cipher[4096], len_buf[MAX_CIPHER_STORE_LEN];
+  int length= 0, cipher_len= 0;
+
+  if (is_login_file)
+  {
+    if (mysql_file_ftell(file, MYF(MY_WME)) == 0)
+    {
+      /* Move past unused bytes. */
+      mysql_file_fseek(file, 4, SEEK_SET, MYF(MY_WME));
+      if (mysql_file_fread(file, (uchar *) my_key, MY_LOGIN_KEY_LEN,
+                           MYF(MY_WME)) != MY_LOGIN_KEY_LEN)
+        return 0;
+    }
+
+    if (mysql_file_fread(file, len_buf, MAX_CIPHER_STORE_LEN,
+                         MYF(MY_WME)) == MAX_CIPHER_STORE_LEN)
+    {
+      cipher_len= sint4korr(len_buf);
+      if (cipher_len > size)
+        return 0;
+    }
+    else
+      return 0;
+
+    mysql_file_fread(file, cipher, cipher_len, MYF(MY_WME));
+    if ((length= my_aes_decrypt((const char *) cipher, cipher_len, str,
+                                my_key, MY_LOGIN_KEY_LEN)) < 0)
+    {
+      /* Attempt to decrypt failed. */
+      return 0;
+    }
+    str[length]= 0;
+    return 1;
+  }
+  else
+  {
+    if (mysql_file_fgets(str, size, file))
+      return 1;
+    else
+      return 0;
+  }
+}
+
+
 void my_print_default_files(const char *conf_file)
 {
   const char *empty_list[]= { "", 0 };
@@ -1114,9 +1268,13 @@ void print_defaults(const char *conf_file, const char **groups)
   }
   puts("\nThe following options may be given as the first argument:\n\
 --print-defaults        Print the program argument list and exit.\n\
---no-defaults           Don't read default options from any option file.\n\
+--no-defaults           Don't read default options from any option file,\n\
+                        except for login file.\n\
 --defaults-file=#       Only read default options from the given file #.\n\
---defaults-extra-file=# Read this file after the global files are read.");
+--defaults-extra-file=# Read this file after the global files are read.\n\
+--defaults-group-suffix=#\n\
+                        Also read groups with concat(group, suffix)\n\
+--login-path=#          Read this path from the login file.");
 }
 
 
@@ -1257,3 +1415,32 @@ static const char **init_default_directories(MEM_ROOT *alloc)
 
   return (errors > 0 ? NULL : dirs);
 }
+
+/**
+  Generate and store the login file name in my_login_file.
+
+  @return 1 - Success
+          0 - Failure
+*/
+
+int set_login_file_name()
+{
+    /* Read options from login group. */
+    if (getenv("MYSQL_TEST_LOGIN_FILE"))
+      sprintf(my_login_file_buffer, "%s", getenv("MYSQL_TEST_LOGIN_FILE"));
+#ifdef _WIN32
+    else if (getenv("APPDATA"))
+      sprintf(my_login_file_buffer, "%s\\MySQL\\.mylogin.cnf", getenv("APPDATA"));
+#else
+    else if (getenv("HOME"))
+      sprintf(my_login_file_buffer, "%s/.mylogin.cnf", getenv("HOME"));
+#endif
+    else
+    {
+      my_login_file= NULL;
+      return 0;
+    }
+    my_login_file= my_login_file_buffer;
+    return 1;
+}
+

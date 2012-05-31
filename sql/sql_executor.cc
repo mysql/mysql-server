@@ -1834,7 +1834,7 @@ sub_select_sjm(JOIN *join, JOIN_TAB *join_tab, bool end_of_records)
     last_tab->read_first_record= join_read_record_no_init;
     last_tab->read_record.copy_field= sjm->copy_field;
     last_tab->read_record.copy_field_end= sjm->copy_field +
-                                          sjm->table_cols.elements;
+                                          sjm->copy_field_count;
     last_tab->read_record.read_record= rr_sequential_and_unpack;
     DBUG_ASSERT(last_tab->read_record.unlock_row == rr_unlock_row);
 
@@ -1866,6 +1866,37 @@ sub_select_sjm(JOIN *join, JOIN_TAB *join_tab, bool end_of_records)
   DBUG_RETURN(rc);
 }
 
+
+/**
+  Perform one-time materialization for a join_tab object.
+
+  Includes derived table materialization and binding of rowid buffers,
+  if needed.
+  (Currently, semi-join materialization and subquery materialization are
+  handled by other means).
+
+  @param tab   join_tab object to perform materialize input data for.
+
+  @return      False if success, True if error
+*/
+
+static inline bool materialize_join_table(JOIN_TAB *tab)
+{
+  // Check whether materialization is required.
+  if (!tab->materialize_table ||
+      tab->table->pos_in_table_list->materialized)
+    return false;
+
+  // Materialize table prior to reading it
+  if ((*tab->materialize_table)(tab))
+    return true;
+
+  // Bind to the rowid buffer managed by the TABLE object.
+  if (tab->copy_current_rowid)
+    tab->copy_current_rowid->bind_buffer(tab->table->file->ref);
+
+  return false;
+}
 
 /*
   Fill the join buffer with partial records, retrieve all full  matches for them
@@ -1926,16 +1957,9 @@ sub_select_cache(JOIN *join, JOIN_TAB *join_tab, bool end_of_records)
     join->thd->send_kill_message();
     DBUG_RETURN(NESTED_LOOP_KILLED);
   }
-  /* Materialize table prior to reading it */
-  if (join_tab->materialize_table &&
-      !join_tab->table->pos_in_table_list->materialized)
-  {
-    if ((*join_tab->materialize_table)(join_tab))
-      DBUG_RETURN(NESTED_LOOP_ERROR);
-    // Bind to the rowid buffer managed by the TABLE object.
-    if (join_tab->copy_current_rowid)
-      join_tab->copy_current_rowid->bind_buffer(join_tab->table->file->ref);
-  }
+  if (materialize_join_table(join_tab))
+    DBUG_RETURN(NESTED_LOOP_ERROR);
+
   if (!test_if_use_dynamic_range_scan(join_tab))
   {
     if (!cache->put_record())
@@ -2132,16 +2156,8 @@ sub_select(JOIN *join,JOIN_TAB *join_tab,bool end_of_records)
 
   join->thd->get_stmt_da()->reset_current_row_for_warning();
 
-  /* Materialize table prior reading it */
-  if (join_tab->materialize_table &&
-      !join_tab->table->pos_in_table_list->materialized)
-  {
-    if ((*join_tab->materialize_table)(join_tab))
-      DBUG_RETURN(NESTED_LOOP_ERROR);
-    // Bind to the rowid buffer managed by the TABLE object.
-    if (join_tab->copy_current_rowid)
-      join_tab->copy_current_rowid->bind_buffer(join_tab->table->file->ref);
-  }
+  if (materialize_join_table(join_tab))
+    DBUG_RETURN(NESTED_LOOP_ERROR);
 
   enum_nested_loop_state rc= NESTED_LOOP_OK;
   bool in_first_read= true;
@@ -2221,8 +2237,7 @@ int do_sj_dups_weedout(THD *thd, SJ_TMP_TABLE *sjtbl)
   }
 
   uchar *ptr= sjtbl->tmp_table->record[0] + 1;
-  uchar *nulls_ptr= ptr;
-  /* Put the the rowids tuple into table->record[0]: */
+  // Put the rowids tuple into table->record[0]:
   // 1. Store the length 
   if (((Field_varstring*)(sjtbl->tmp_table->field[0]))->length_bytes == 1)
   {
@@ -2236,6 +2251,7 @@ int do_sj_dups_weedout(THD *thd, SJ_TMP_TABLE *sjtbl)
   }
 
   // 2. Zero the null bytes 
+  uchar *const nulls_ptr= ptr;
   if (sjtbl->null_bytes)
   {
     memset(ptr, 0, sjtbl->null_bytes);
@@ -2540,18 +2556,32 @@ evaluate_null_complemented_join_record(JOIN *join, JOIN_TAB *join_tab)
     The table join_tab is the first inner table of a outer join operation
     and no matches has been found for the current outer row.
   */
+  JOIN_TAB *first_inner_tab= join_tab;
   JOIN_TAB *last_inner_tab= join_tab->last_inner;
 
   DBUG_ENTER("evaluate_null_complemented_join_record");
 
   for ( ; join_tab <= last_inner_tab ; join_tab++)
   {
+    /*
+      Make sure that materialization is done, so that the rowid buffer is bound.
+      The materialized table itself is actually redundant, unless it is used
+      in a later table scan that needs to read rows.
+    */
+    if (materialize_join_table(join_tab))
+      DBUG_RETURN(NESTED_LOOP_ERROR);
+
     /* Change the the values of guard predicate variables. */
     join_tab->found= 1;
     join_tab->not_null_compl= 0;
     /* The outer row is complemented by nulls for each inner tables */
     restore_record(join_tab->table,s->default_values);  // Make empty record
     mark_as_null_row(join_tab->table);       // For group by without error
+    if (join_tab->flush_weedout_table && join_tab > first_inner_tab)
+    {
+      // sub_select() has not performed a reset for this table.
+      do_sj_reset(join_tab->flush_weedout_table);
+    }
     /* Check all attached conditions for inner table rows. */
     if (join_tab->condition() && !join_tab->condition()->val_int())
       DBUG_RETURN(NESTED_LOOP_OK);

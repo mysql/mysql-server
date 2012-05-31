@@ -4413,7 +4413,7 @@ public:
     :table_count(table_count), is_scan(is_scan),
     materialized(FALSE), table_param(), table_cols(),
     table(NULL), tab_ref(NULL), in_equality(NULL),
-    join_cond(NULL), copy_field(NULL)
+    join_cond(NULL), copy_field(NULL), copy_field_count(0)
   {}
 private:
   // Nobody deletes me apparently ...
@@ -4432,6 +4432,7 @@ public:
   Item *in_equality;            // See create_subquery_equalities()
   Item *join_cond;              // See comments in make_join_select()
   Copy_field *copy_field;       // Needed for materialization scan
+  uint copy_field_count;        // Number of columns to copy back
 };
 
 

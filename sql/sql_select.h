@@ -336,6 +336,31 @@ typedef struct st_join_table : public Sql_alloc
 {
   st_join_table();
 
+  table_map prefix_tables() const { return prefix_tables_map; }
+
+  table_map added_tables() const { return added_tables_map; }
+
+  /**
+    Set available tables for a table in a join plan.
+
+    @param prefix_tables: Set of tables available for this plan
+    @param prev_tables: Set of tables available for previous table, used to
+                        calculate set of tables added for this table.
+  */
+  void set_prefix_tables(table_map prefix_tables, table_map prev_tables)
+  {
+    prefix_tables_map= prefix_tables;
+    added_tables_map= prefix_tables & ~prev_tables;
+  }
+
+  /**
+    Add an available set of tables for a table in a join plan.
+
+    @param tables: Set of tables added for this table in plan.
+  */
+  void add_prefix_tables(table_map tables)
+  { prefix_tables_map|= tables; added_tables_map|= tables; }
+
   TABLE		*table;
   Key_use	*keyuse;			/**< pointer to first used key */
   SQL_SELECT	*select;
@@ -407,8 +432,27 @@ public:
     E(#records) is in found_records.
   */
   ha_rows       read_time;
-  
-  table_map	dependent,key_dependent;
+  /**
+    The set of tables that this table depends on. Used for outer join and
+    straight join dependencies.
+  */
+  table_map     dependent;
+  /**
+    The set of tables that are referenced by key from this table.
+  */
+  table_map     key_dependent;
+private:
+  /**
+    The set of all tables available in the join prefix for this table,
+    including the table handled by this JOIN_TAB.
+  */
+  table_map     prefix_tables_map;
+  /**
+    The set of tables added for this table, compared to the previous table
+    in the join prefix.
+  */
+  table_map     added_tables_map;
+public:
   uint		index;
   uint		used_fields,used_fieldlength,used_blobs;
   uint          used_null_fields;
@@ -611,6 +655,8 @@ st_join_table::st_join_table()
 
     dependent(0),
     key_dependent(0),
+    prefix_tables_map(0),
+    added_tables_map(0),
     index(0),
     used_fields(0),
     used_fieldlength(0),
