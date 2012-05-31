@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,11 +16,11 @@
 #include <my_global.h>
 #include <m_string.h>
 #include <stdlib.h>
-#include <my_sys.h>
 #include <mysys_err.h>
 #include <my_getopt.h>
 #include <errno.h>
 #include <m_string.h>
+#include "my_default.h"
 
 typedef void (*init_func_p)(const struct my_option *option, void *variable,
                             longlong value);

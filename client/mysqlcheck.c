@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2001, 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2001, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,6 +18,7 @@
 #define CHECK_VERSION "2.5.0"
 
 #include "client_priv.h"
+#include "my_default.h"
 #include <m_ctype.h>
 #include <mysql_version.h>
 #include <mysqld_error.h>
