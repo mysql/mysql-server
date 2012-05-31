@@ -30,6 +30,7 @@ Created 2011-05-26 Marko Makela
 #include "row0merge.h"
 #include "data0data.h"
 #include "que0que.h"
+#include "handler0alter.h"
 
 #include<set>
 
@@ -1103,10 +1104,6 @@ row_log_table_apply_insert_low(
 	case DB_SUCCESS_LOCKED_REC:
 		/* The row had already been copied to the table. */
 		return(DB_SUCCESS);
-	case DB_DUPLICATE_KEY:
-		/* TODO: report the duplicate key unless the record is
-		a full match of what we tried to insert */
-		/* fall through */
 	default:
 		return(error);
 	}
@@ -1121,10 +1118,6 @@ row_log_table_apply_insert_low(
 			flags, BTR_MODIFY_TREE,
 			index, offsets_heap, heap, entry, thr);
 	} while (error == DB_SUCCESS);
-
-	if (error == DB_DUPLICATE_KEY) {
-		/* TODO: report a duplicate */
-	}
 
 	return(error);
 }
@@ -1149,10 +1142,18 @@ row_log_table_apply_insert(
 	row_merge_dup_t*	dup)		/*!< in/out: for reporting
 						duplicate key errors */
 {
-	const dtuple_t*	row = row_log_table_apply_convert_mrec(
+	const dtuple_t*	row	= row_log_table_apply_convert_mrec(
 		mrec, offsets, heap, new_table, altered_table, dup);
-	return(row_log_table_apply_insert_low(thr, row, offsets_heap, heap,
-					      new_table, altered_table, dup));
+	dberr_t		error	= row_log_table_apply_insert_low(
+		thr, row, offsets_heap, heap, new_table, altered_table, dup);
+
+	if (error != DB_SUCCESS) {
+		/* Report the erroneous row using the old
+		version of the table. */
+		innobase_rec_to_mysql(dup->table, mrec, dup->index, offsets);
+	}
+
+	return(error);
 }
 
 /******************************************************//**
@@ -1330,6 +1331,10 @@ all_done:
 		}
 	}
 
+	/* We cannot invoke innobase_rec_to_mysql() to convert an
+	erroneous mrec to a MySQL row if a PRIMARY KEY is being created.
+	Error messages on delete should not need the row, though. Only
+	messages about duplicates or failed conversions use the row. */
 	return(row_log_table_apply_delete_low(&pcur, offsets, heap, &mtr));
 }
 
@@ -1367,6 +1372,7 @@ row_log_table_apply_update(
 	dict_index_t*	index = dict_table_get_first_index(new_table);
 	mtr_t		mtr;
 	btr_pcur_t	pcur;
+	dberr_t		error;
 
 	ut_ad(dtuple_get_n_fields_cmp(old_pk)
 	      == dict_index_get_n_unique(index));
@@ -1399,9 +1405,19 @@ row_log_table_apply_update(
 		mtr_commit(&mtr);
 insert:
 		/* The row was not found. Insert it. */
-		return(row_log_table_apply_insert_low(
-			       thr, row, offsets_heap, heap,
-			       new_table, altered_table, dup));
+		error = row_log_table_apply_insert_low(
+			thr, row, offsets_heap, heap,
+			new_table, altered_table, dup);
+
+		if (error != DB_SUCCESS) {
+err_exit:
+			/* Report the erroneous row using the old
+			version of the table. */
+			innobase_rec_to_mysql(
+				dup->table, mrec, dup->index, offsets);
+		}
+
+		return(error);
 	}
 
 	/* Update the record. */
@@ -1414,7 +1430,8 @@ insert:
 	const upd_t*	update	= row_upd_build_difference_binary(
 		index, entry, btr_pcur_get_rec(&pcur), cur_offsets,
 		false, NULL, heap);
-	dberr_t		error	= DB_SUCCESS;
+
+	error = DB_SUCCESS;
 
 	if (!update->n_fields) {
 		/* Nothing to do. */
@@ -1433,7 +1450,7 @@ delete_insert:
 		ut_ad(mtr.state == MTR_COMMITTED);
 
 		if (error != DB_SUCCESS) {
-			return(error);
+			goto err_exit;
 		}
 
 		goto insert;
@@ -1568,6 +1585,10 @@ delete_insert:
 
 func_exit:
 	mtr_commit(&mtr);
+	if (error != DB_SUCCESS) {
+		goto err_exit;
+	}
+
 	return(error);
 }
 
