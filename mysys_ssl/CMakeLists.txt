@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2012, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2012, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -13,20 +13,16 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
 
-ADD_DEFINITIONS("-DMYSQL_CLIENT")
+INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/include
+                    ${CMAKE_SOURCE_DIR}/mysys_ssl
+                    ${SSL_INCLUDE_DIRS})
 
-INCLUDE_DIRECTORIES(
-  ${CMAKE_SOURCE_DIR}/include
-  ${CMAKE_SOURCE_DIR}/mysys_ssl)
-
-ADD_EXECUTABLE(mysql_client_test mysql_client_test.c)
-TARGET_LINK_LIBRARIES(mysql_client_test mysqlclient)
-SET_TARGET_PROPERTIES(mysql_client_test PROPERTIES LINKER_LANGUAGE CXX)
-
-IF(WITH_UNIT_TESTS)
-  ADD_EXECUTABLE(bug25714 bug25714.c)
-  TARGET_LINK_LIBRARIES(bug25714 mysqlclient)
-  SET_TARGET_PROPERTIES(bug25714 PROPERTIES LINKER_LANGUAGE CXX)
+IF(SSL_DEFINES)
+ADD_DEFINITIONS(${SSL_DEFINES})
 ENDIF()
 
-INSTALL(TARGETS mysql_client_test DESTINATION ${INSTALL_BINDIR} COMPONENT Test)
+SET(MYSYS_SSL_SOURCES default.c my_getopt.c my_aes.cc)
+
+ADD_CONVENIENCE_LIBRARY(mysys_ssl ${MYSYS_SSL_SOURCES})
+TARGET_LINK_LIBRARIES(mysys_ssl dbug strings ${SSL_LIBRARIES})
+DTRACE_INSTRUMENT(mysys_ssl)
