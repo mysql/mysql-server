@@ -224,13 +224,13 @@ trx_get_trx_by_xid(
 	const XID*	xid);	/*!< in: X/Open XA transaction identifier */
 /**********************************************************************//**
 If required, flushes the log to disk if we called trx_commit_for_mysql()
-with trx->flush_log_later == TRUE.
-@return	0 or error number */
+with trx->flush_log_later == TRUE. */
 UNIV_INTERN
-ulint
+void
 trx_commit_complete_for_mysql(
 /*==========================*/
-	trx_t*	trx);	/*!< in: trx handle */
+	trx_t*	trx)	/*!< in/out: transaction */
+	__attribute__((nonnull));
 /**********************************************************************//**
 Marks the latest SQL statement ended. */
 UNIV_INTERN
