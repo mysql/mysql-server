@@ -10001,6 +10001,24 @@ int Rows_log_event::do_index_scan_and_update(Relay_log_info const *rli)
     /* we dont have a PK, or PK is not usable */
     goto INDEX_SCAN;
 
+  if ((table->file->ha_table_flags() & HA_READ_BEFORE_WRITE_REMOVAL))
+  {
+    /*
+      Read removal is possible since the engine supports write without
+      previous read using full primary key
+    */
+    DBUG_PRINT("info", ("using read before write removal"));
+    DBUG_ASSERT(m_key_index == m_table->s->primary_key);
+
+    /*
+      Tell the handler to ignore if key exists or not, since it's
+      not yet known if the key does exist(when using rbwr)
+    */
+    table->file->extra(HA_EXTRA_IGNORE_NO_KEY);
+
+    goto end;
+  }
+
   if ((table->file->ha_table_flags() & HA_PRIMARY_KEY_REQUIRED_FOR_POSITION))
   {
     /*
