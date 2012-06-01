@@ -9615,7 +9615,6 @@ ha_innobase::delete_table(
 	trx_t*	trx;
 	THD	*thd = ha_thd();
 	char	norm_name[1000];
-	char	errstr[1024];
 
 	DBUG_ENTER("ha_innobase::delete_table");
 
@@ -9634,21 +9633,6 @@ ha_innobase::delete_table(
 
 	if (IS_MAGIC_TABLE_AND_USER_DENIED_ACCESS(norm_name, thd)) {
 		DBUG_RETURN(HA_ERR_GENERIC);
-	}
-
-	dict_stats_remove_table_from_auto_recalc(norm_name);
-
-	/* Remove stats for this table and all of its indexes from the
-	persistent storage if it exists and if there are stats for this
-	table in there. This function creates its own trx and commits
-	it. */
-	error = dict_stats_drop_table(norm_name, errstr, sizeof(errstr));
-	if (error != DB_SUCCESS) {
-		ut_print_timestamp(stderr);
-		fprintf(stderr, " InnoDB: %s\n", errstr);
-
-		push_warning(thd, Sql_condition::WARN_LEVEL_WARN,
-			     ER_LOCK_WAIT_TIMEOUT, errstr);
 	}
 
 	parent_trx = check_trx_exists(thd);
