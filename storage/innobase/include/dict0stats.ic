@@ -26,7 +26,7 @@ Created Jan 23, 2012 Vasil Dimov
 #include "univ.i"
 #include "dict0dict.h" /* dict_table_stats_lock() */
 #include "dict0types.h" /* dict_table_t */
-#include "srv0srv.h" /* srv_stats_persistent */
+#include "srv0srv.h" /* srv_stats_persistent, srv_stats_auto_recalc */
 
 /*********************************************************************//**
 Set the persistent statistics flag for a given table. This is set only
@@ -103,19 +103,70 @@ dict_stats_is_persistent_enabled(
 /* @} */
 
 /*********************************************************************//**
+Set the auto recalc flag for a given table (only honored for a persistent
+stats enabled table). The flag is set only in the in-memory table object
+and is not saved in InnoDB files. It will be read from the .frm file upon
+first open from MySQL after a server restart.
+dict_stats_auto_recalc_set() @{ */
+UNIV_INLINE
+void
+dict_stats_auto_recalc_set(
+/*=======================*/
+	dict_table_t*	table,			/*!< in/out: table */
+	ibool		auto_recalc_on,		/*!< in: explicitly enabled */
+	ibool		auto_recalc_off)	/*!< in: explicitly disabled */
+{
+	ut_ad(!auto_recalc_on || !auto_recalc_off);
+
+	ib_uint32_t	stats_auto_recalc = 0;
+
+	if (auto_recalc_on) {
+		stats_auto_recalc |= DICT_STATS_AUTO_RECALC_ON;
+	}
+
+	if (auto_recalc_off) {
+		stats_auto_recalc |= DICT_STATS_AUTO_RECALC_OFF;
+	}
+
+	/* we rely on this assignment to be atomic */
+	table->stats_auto_recalc = stats_auto_recalc;
+}
+/* @} */
+
+/*********************************************************************//**
+Check whether auto recalc is enabled for a given table.
+dict_stats_auto_recalc_is_enabled() @{
+@return TRUE if enabled, FALSE otherwise */
+UNIV_INLINE
+ibool
+dict_stats_auto_recalc_is_enabled(
+/*==============================*/
+	const dict_table_t*	table)	/*!< in: table */
+{
+	/* we rely on this read to be atomic */
+	ib_uint32_t	stats_auto_recalc = table->stats_auto_recalc;
+
+	if (stats_auto_recalc & DICT_STATS_AUTO_RECALC_ON) {
+		ut_ad(!(stats_auto_recalc & DICT_STATS_AUTO_RECALC_OFF));
+		return(TRUE);
+	} else if (stats_auto_recalc & DICT_STATS_AUTO_RECALC_OFF) {
+		return(FALSE);
+	} else {
+		return(srv_stats_auto_recalc);
+	}
+}
+/* @} */
+
+/*********************************************************************//**
 Initialize table's stats for the first time when opening a table.
 dict_stats_init() @{ */
 UNIV_INLINE
 void
 dict_stats_init(
 /*============*/
-	dict_table_t*	table,	/*!< in/out: table */
-	ibool		ps_on,	/*!< in: persistent stats explicitly enabled */
-	ibool		ps_off)	/*!< in: persistent stats explicitly disabled */
+	dict_table_t*	table)	/*!< in/out: table */
 {
 	ut_ad(!mutex_own(&dict_sys->mutex));
-
-	dict_stats_set_persistent(table, ps_on, ps_off);
 
 	if (table->stat_initialized) {
 		return;

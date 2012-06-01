@@ -901,6 +901,8 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
     share->table_charset= get_charset((((uint) head[41]) << 8) + 
                                         (uint) head[38],MYF(0));
     share->null_field_first= 1;
+    share->stats_sample_pages= uint2korr(head+42);
+    share->stats_auto_recalc= static_cast<enum_stats_auto_recalc>(head[44]);
   }
   if (!share->table_charset)
   {
@@ -2775,11 +2777,10 @@ File create_frm(THD *thd, const char *name, const char *db,
     */
     fileinfo[39]= 0;
     fileinfo[40]= (uchar) create_info->row_type;
-    /* Next few bytes where for RAID support */
+    /* Bytes 41-46 were for RAID support; now reused for other purposes */
     fileinfo[41]= (uchar) (csid >> 8);
-    fileinfo[42]= 0;
-    fileinfo[43]= 0;
-    fileinfo[44]= 0;
+    int2store(fileinfo+42, create_info->stats_sample_pages & 0xffff);
+    fileinfo[44]= (uchar) create_info->stats_auto_recalc;
     fileinfo[45]= 0;
     fileinfo[46]= 0;
     int4store(fileinfo+47, key_length);

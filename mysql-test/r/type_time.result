@@ -441,6 +441,8 @@ CREATE TABLE t1 (col_time_key TIME, KEY(col_time_key)) ENGINE=InnoDB;
 INSERT INTO t1 VALUES ('00:00:00'),('-24:00:00'),('-48:00:00'),('24:00:00'),('48:00:00');
 CREATE TABLE t2 (col_datetime_key DATETIME, KEY(col_datetime_key)) ENGINE=InnoDB;
 INSERT INTO t2 SELECT * FROM t1;
+ANALYZE TABLE t1;
+ANALYZE TABLE t2;
 EXPLAIN EXTENDED SELECT * FROM
 t1 ignore INDEX (col_time_key)
 STRAIGHT_JOIN
