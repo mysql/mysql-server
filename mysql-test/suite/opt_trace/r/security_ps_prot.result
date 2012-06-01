@@ -443,7 +443,7 @@ insert into t1 values(current_user())	20	0
 # could see anyway:
 show create procedure p1;
 Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
-p1		CREATE DEFINER=`root`@`localhost` PROCEDURE `p1`()
+p1	NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `p1`()
     SQL SECURITY INVOKER
 begin
 declare b int;
@@ -474,7 +474,7 @@ freturn 3 36	20	0
 # could see anyway:
 show create function f1;
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
-f1		CREATE DEFINER=`root`@`localhost` FUNCTION `f1`() RETURNS int(11)
+f1	NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `f1`() RETURNS int(11)
     SQL SECURITY INVOKER
 begin
 declare b int;
@@ -574,7 +574,7 @@ freturn 3 36	20	0
 set optimizer_trace="enabled=off";
 show create function f1;
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
-f1		CREATE DEFINER=`root`@`localhost` FUNCTION `f1`() RETURNS int(11)
+f1	NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `f1`() RETURNS int(11)
     SQL SECURITY INVOKER
 begin
 declare b int;
@@ -615,19 +615,19 @@ user1@localhost
 set optimizer_trace="enabled=off";
 show create procedure p1;
 Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
-p1		NULL	latin1	latin1_swedish_ci	latin1_swedish_ci
+p1	NO_ENGINE_SUBSTITUTION	NULL	latin1	latin1_swedish_ci	latin1_swedish_ci
 show create function f1;
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
-f1		NULL	latin1	latin1_swedish_ci	latin1_swedish_ci
+f1	NO_ENGINE_SUBSTITUTION	NULL	latin1	latin1_swedish_ci	latin1_swedish_ci
 # Verify that optimizer trace does not influence the privilege
 # checking in SHOW CREATE:
 set optimizer_trace="enabled=on";
 show create procedure p1;
 Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
-p1		NULL	latin1	latin1_swedish_ci	latin1_swedish_ci
+p1	NO_ENGINE_SUBSTITUTION	NULL	latin1	latin1_swedish_ci	latin1_swedish_ci
 show create function f1;
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
-f1		NULL	latin1	latin1_swedish_ci	latin1_swedish_ci
+f1	NO_ENGINE_SUBSTITUTION	NULL	latin1	latin1_swedish_ci	latin1_swedish_ci
 set optimizer_trace_offset=0,optimizer_trace_limit=100;
 call p1();
 # Cannot see anything as it would expose body of routine
@@ -807,7 +807,7 @@ select 48 into b from dual	407	0
 freturn 3 36	20	0
 show create function f1;
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
-f1		CREATE DEFINER=`user1`@`localhost` FUNCTION `f1`() RETURNS int(11)
+f1	NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`user1`@`localhost` FUNCTION `f1`() RETURNS int(11)
 begin
 declare b int;
 select 48 into b from dual;
@@ -876,7 +876,7 @@ insert into t1 values(current_user())	20	0
 # could see anyway:
 show create procedure p1;
 Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
-p1		CREATE DEFINER=`user1`@`localhost` PROCEDURE `p1`()
+p1	NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`user1`@`localhost` PROCEDURE `p1`()
 begin
 declare b int;
 if (select count(*) from t1)
@@ -906,7 +906,7 @@ freturn 3 36	20	0
 # could see anyway:
 show create function f1;
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
-f1		CREATE DEFINER=`user1`@`localhost` FUNCTION `f1`() RETURNS int(11)
+f1	NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`user1`@`localhost` FUNCTION `f1`() RETURNS int(11)
 begin
 declare b int;
 select 48 into b from dual;
@@ -940,7 +940,7 @@ insert into t3 select * from t3	2502	0
 # could see anyway:
 show create trigger trg2;
 Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation
-trg2		CREATE DEFINER=`user1`@`localhost` trigger trg2 before insert on t2 for each row 
+trg2	NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`user1`@`localhost` trigger trg2 before insert on t2 for each row 
 begin
 insert into t3 select * from t3;
 end	latin1	latin1_swedish_ci	latin1_swedish_ci
