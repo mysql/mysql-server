@@ -1588,7 +1588,7 @@ public:
   bool fix_fields(THD *thd, Item **ref);
   void cleanup();
 #ifndef MCP_BUG13604447
-  bool escape_was_used_in_parsing() const { return escape_used_in_parsing; }a
+  bool escape_was_used_in_parsing() const { return escape_used_in_parsing; }
 #endif
 };
 
