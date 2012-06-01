@@ -1787,6 +1787,13 @@ CREATE TABLE t2 (
 
 INSERT INTO t2 VALUES ('2003-08-21 00:00:00','b');
 
+-- disable_query_log
+-- disable_result_log
+ANALYZE TABLE t1;
+ANALYZE TABLE t2;
+-- enable_query_log
+-- enable_result_log
+
 # need to force the index, or it picks BNL for t2 (lower cost),
 # whereas we want to test BKA
 let $query=
@@ -2015,6 +2022,9 @@ CREATE TABLE t2 (
 INSERT INTO t2 VALUES (9, '2002-08-25 20:35:06', 'e'),
                       (9, '2002-08-25 20:35:06', 'e');
 
+set @optimizer_switch_saved=@@session.optimizer_switch;
+set @@session.optimizer_switch='semijoin=off';
+
 let $query=SELECT PARENT1.col_varchar_key
 FROM t2 AS PARENT1 LEFT JOIN t1 USING (col_int_nokey)
 WHERE PARENT1.col_varchar_key IN
@@ -2024,5 +2034,7 @@ WHERE PARENT1.col_varchar_key IN
 ;
 eval EXPLAIN $query;
 eval $query;
+
+set @@session.optimizer_switch=@optimizer_switch_saved;
 
 DROP TABLE t1,t2;

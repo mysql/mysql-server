@@ -59,6 +59,7 @@ void test_oom()
   param.m_statement_class_sizing= 50;
   param.m_events_statements_history_sizing= 0;
   param.m_events_statements_history_long_sizing= 0;
+  param.m_session_connect_attrs_sizing= 0;
 
   /* Setup */
 

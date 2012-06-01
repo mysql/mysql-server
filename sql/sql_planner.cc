@@ -1833,6 +1833,8 @@ bool Optimize_table_order::best_extension_by_limited_search(
       }
       POSITION *const position= join->positions + idx;
 
+      // If optimizing a sj-mat nest, tables in this plan must be in nest:
+      DBUG_ASSERT(emb_sjm_nest == NULL || emb_sjm_nest == s->emb_sj_nest);
       /* Find the best access method from 's' to the current partial plan */
       POSITION loose_scan_pos;
       best_access_path(s, remaining_tables, idx, false, record_count, 
@@ -2172,6 +2174,7 @@ table_map Optimize_table_order::eq_ref_extension_by_limited_search(
       POSITION *const position= join->positions + idx;
       POSITION loose_scan_pos;
 
+      DBUG_ASSERT(emb_sjm_nest == NULL || emb_sjm_nest == s->emb_sj_nest);
       /* Find the best access method from 's' to the current partial plan */
       best_access_path(s, remaining_tables, idx, false, record_count,
                        position, &loose_scan_pos);
@@ -2413,7 +2416,7 @@ prev_record_reads(JOIN *join, uint idx, table_map found_ref)
 bool Optimize_table_order::fix_semijoin_strategies()
 {
   table_map remaining_tables= 0;
-  table_map handled_tabs= 0;
+  table_map handled_tables= 0;
 
   DBUG_ENTER("Optimize_table_order::fix_semijoin_strategies");
 
@@ -2427,14 +2430,14 @@ bool Optimize_table_order::fix_semijoin_strategies()
        tableno--)
   {
     POSITION *const pos= join->best_positions + tableno;
-    JOIN_TAB *const s= pos->table;
-    TABLE_LIST *const emb_sj_nest= s->emb_sj_nest;
+    TABLE_LIST *const emb_sj_nest= pos->table->emb_sj_nest;
     uint first;
     LINT_INIT(first); // Set by every branch except SJ_OPT_NONE which doesn't use it
 
-    if ((handled_tabs & s->table->map) || pos->sj_strategy == SJ_OPT_NONE)
+    if ((handled_tables & pos->table->table->map) ||
+        pos->sj_strategy == SJ_OPT_NONE)
     {
-      remaining_tables |= s->table->map;
+      remaining_tables|= pos->table->table->map;
       continue;
     }
 
@@ -2550,8 +2553,7 @@ bool Optimize_table_order::fix_semijoin_strategies()
                                      "DuplicateWeedout");
     }
     
-    uint i_end= first + join->best_positions[first].n_sj_tables;
-    for (uint i= first; i < i_end; i++)
+    for (uint i= first; i <= tableno; i++)
     {
       /*
         Eliminate stale strategies. See comment in the
@@ -2559,13 +2561,13 @@ bool Optimize_table_order::fix_semijoin_strategies()
       */
       if (i != first)
         join->best_positions[i].sj_strategy= SJ_OPT_NONE;
-      handled_tabs |= join->best_positions[i].table->table->map;
+      handled_tables|= join->best_positions[i].table->table->map;
     }
 
-    if (tableno != first)
-      pos->sj_strategy= SJ_OPT_NONE;
-    remaining_tables |= s->table->map;
+    remaining_tables |= pos->table->table->map;
   }
+
+  DBUG_ASSERT(remaining_tables == (join->all_table_map&~join->const_table_map));
 
   /* sjm.positions is no longer needed, reset the reference to it */
   List_iterator<TABLE_LIST> sj_list_it(join->select_lex->sj_nests);
@@ -2581,12 +2583,12 @@ bool Optimize_table_order::fix_semijoin_strategies()
   Check interleaving with an inner tables of an outer join for
   extension table.
 
-    Check if table next_tab can be added to current partial join order, and 
+    Check if table tab can be added to current partial join order, and 
     if yes, record that it has been added. This recording can be rolled back
     with backout_nj_state().
 
     The function assumes that both current partial join order and its
-    extension with next_tab are valid wrt table dependencies.
+    extension with tab are valid wrt table dependencies.
 
   @verbatim
      IMPLEMENTATION 
@@ -2640,10 +2642,10 @@ bool Optimize_table_order::fix_semijoin_strategies()
 
                               +---- current position
                               |
-             ... last_tab ))) | ( next_tab )  )..) | ...
-                                X          Y   Z   |
-                                                   +- need to move to this
-                                                      position.
+             ... last_tab ))) | ( tab )  )..) | ...
+                                X     Y   Z   |
+                                              +- need to move to this
+                                                 position.
 
          Notes about the position:
            The caller guarantees that there is no more then one X-bracket by 
@@ -2659,7 +2661,7 @@ bool Optimize_table_order::fix_semijoin_strategies()
              the partial join order.
   @endverbatim
 
-  @param next_tab   Table we're going to extend the current partial join with
+  @param tab   Table we're going to extend the current partial join with
 
   @retval
     FALSE  Join order extended, nested joins info about current join
@@ -2668,36 +2670,31 @@ bool Optimize_table_order::fix_semijoin_strategies()
     TRUE   Requested join order extension not allowed.
 */
 
-bool Optimize_table_order::check_interleaving_with_nj(JOIN_TAB *next_tab)
+bool Optimize_table_order::check_interleaving_with_nj(JOIN_TAB *tab)
 {
-  if (cur_embedding_map & ~next_tab->embedding_map)
+  if (cur_embedding_map & ~tab->embedding_map)
   {
     /* 
-      next_tab is outside of the "pair of brackets" we're currently in.
+      tab is outside of the "pair of brackets" we're currently in.
       Cannot add it.
     */
     return true;
   }
-  const TABLE_LIST *next_emb= next_tab->table->pos_in_table_list->embedding;
+  const TABLE_LIST *next_emb= tab->table->pos_in_table_list->embedding;
   /*
     Do update counters for "pairs of brackets" that we've left (marked as
     X,Y,Z in the above picture)
   */
-  for (;next_emb; next_emb= next_emb->embedding)
+  for (; next_emb != emb_sjm_nest; next_emb= next_emb->embedding)
   {
-    next_emb->nested_join->counter_++;
-    if (next_emb->nested_join->counter_ == 1)
-    {
-      /* 
-        next_emb is the first table inside a nested join we've "entered". In
-        the picture above, we're looking at the 'X' bracket. Don't exit yet as
-        X bracket might have Y pair bracket.
-      */
-      cur_embedding_map |= next_emb->nested_join->nj_map;
-    }
+    // Ignore join nests that are not outer joins.
+    if (!next_emb->nested_join->nj_map)
+      continue;
+
+    next_emb->nested_join->nj_counter++;
+    cur_embedding_map |= next_emb->nested_join->nj_map;
     
-    if (next_emb->nested_join->join_list.elements !=
-        next_emb->nested_join->counter_)
+    if (next_emb->nested_join->nj_total != next_emb->nested_join->nj_counter)
       break;
 
     /*
@@ -3331,27 +3328,43 @@ void Optimize_table_order::advance_sj_state(
       }
     }
   }
+  /*
+    LooseScan Strategy
+    ==================
 
-  /* LooseScan Strategy */
+    LooseScan requires that all dependent outer tables are not in the join
+    prefix. (see "LooseScan strategy" above setup_semijoin_dups_elimination()).
+    The tables must come in a rather strictly defined order:
+    1. The LooseScan driving table (which is a subquery inner table).
+    2. The remaining tables from the same semi-join nest as the above table.
+    3. The outer dependent tables, possibly mixed with outer non-dependent
+       tables.
+    Notice that any other semi-joined tables must be outside this table range.
+  */
   if (thd->optimizer_switch_flag(OPTIMIZER_SWITCH_LOOSE_SCAN))
   {
     POSITION *const first= join->positions+pos->first_loosescan_table; 
     /* 
       LooseScan strategy can't handle interleaving between tables from the 
       semi-join that LooseScan is handling and any other tables.
-
-      If we were considering LooseScan for the join prefix (1)
-         and the table we're adding creates an interleaving (2)
-      then 
-         stop considering loose scan
     */
-    if ((pos->first_loosescan_table != MAX_TABLES) &&   // (1)
-        (first->table->emb_sj_nest->sj_inner_tables & remaining_tables) && //(2)
-        emb_sj_nest != first->table->emb_sj_nest) //(2)
+    if (pos->first_loosescan_table != MAX_TABLES)
     {
-      pos->first_loosescan_table= MAX_TABLES;
+      if (first->table->emb_sj_nest->sj_inner_tables &
+          (remaining_tables | new_join_tab->table->map))
+      {
+        // Stage 2: Accept remaining tables from the semi-join nest:
+        if (emb_sj_nest != first->table->emb_sj_nest)
+          pos->first_loosescan_table= MAX_TABLES;
+      }
+      else
+      {
+        // Stage 3: Accept outer dependent and non-dependent tables:
+        DBUG_ASSERT(emb_sj_nest != first->table->emb_sj_nest);
+        if (emb_sj_nest != NULL)
+          pos->first_loosescan_table= MAX_TABLES;
+      }
     }
-
     /*
       If we got an option to use LooseScan for the current table, start
       considering using LooseScan strategy
@@ -3657,23 +3670,24 @@ void Optimize_table_order::backout_nj_state(const table_map remaining_tables,
   /* Restore the nested join state */
   TABLE_LIST *last_emb= tab->table->pos_in_table_list->embedding;
 
-  for (;last_emb != NULL; last_emb= last_emb->embedding)
+  for (; last_emb != emb_sjm_nest; last_emb= last_emb->embedding)
   {
-    if (last_emb->join_cond())
-    {
-      NESTED_JOIN *nest= last_emb->nested_join;
-      DBUG_ASSERT(nest->counter_ > 0);
+    NESTED_JOIN *const nest= last_emb->nested_join;
 
-      bool was_fully_covered= nest->is_fully_covered();
+    // Ignore join nests that are not outer joins.
+    if (!nest->nj_map)
+      continue;
 
-      if (--nest->counter_ == 0)
-        cur_embedding_map&= ~nest->nj_map;
+    DBUG_ASSERT(nest->nj_counter > 0);
 
-      if (!was_fully_covered)
-        break;
+    cur_embedding_map|= nest->nj_map;
+    bool was_fully_covered= nest->nj_total == nest->nj_counter;
 
-      cur_embedding_map|= nest->nj_map;
-    }
+    if (--nest->nj_counter == 0)
+      cur_embedding_map&= ~nest->nj_map;
+
+    if (!was_fully_covered)
+      break;
   }
 }
 

@@ -1257,8 +1257,8 @@ s1
 insert into t1 values (0);
 execute stmt1;
 s1
-0
 1
+0
 deallocate prepare stmt1;
 drop view v2;
 drop table t1, t2;

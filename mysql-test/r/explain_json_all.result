@@ -266,7 +266,7 @@ EXPLAIN
       "access_type": "ALL",
       "rows": 7,
       "filtered": 100,
-      "attached_condition": "(<in_optimizer>(`test`.`t1`.`i`,<exists>(select 1 from `test`.`t2` where ((`test`.`t1`.`i` = 10) and (<cache>(`test`.`t1`.`i`) = `test`.`t2`.`i`)))) or <in_optimizer>(`test`.`t1`.`i`,`test`.`t1`.`i` in ( <materialize> (select NULL from `test`.`t4` ), <primary_index_lookup>(`test`.`t1`.`i` in <temporary table> on distinct_key where ((`test`.`t1`.`i` = `materialized subselect`.`i`))))))",
+      "attached_condition": "(<in_optimizer>(`test`.`t1`.`i`,<exists>(select 1 from `test`.`t2` where ((`test`.`t1`.`i` = 10) and (<cache>(`test`.`t1`.`i`) = `test`.`t2`.`i`)))) or <in_optimizer>(`test`.`t1`.`i`,`test`.`t1`.`i` in ( <materialize> (select NULL from `test`.`t4` ), <primary_index_lookup>(`test`.`t1`.`i` in <temporary table> on distinct_key where ((`test`.`t1`.`i` = `materialized-subquery`.`i`))))))",
       "attached_subqueries": [
         {
           "using_temporary_table": true,
@@ -277,7 +277,7 @@ EXPLAIN
             "key": "<auto_key>",
             "key_length": "5",
             "rows": 1,
-            "attached_condition": "((`test`.`t1`.`i` = `materialized subselect`.`i`))"
+            "attached_condition": "((`test`.`t1`.`i` = `materialized-subquery`.`i`))"
           } /* table */,
           "query_block": {
             "select_id": 3,
@@ -316,7 +316,7 @@ EXPLAIN
 }
 Warnings:
 Note	1276	Field or reference 'test.t1.i' of SELECT #2 was resolved in SELECT #1
-Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` where (<in_optimizer>(`test`.`t1`.`i`,<exists>(/* select#2 */ select 1 from `test`.`t2` where ((`test`.`t1`.`i` = 10) and (<cache>(`test`.`t1`.`i`) = `test`.`t2`.`i`)))) or <in_optimizer>(`test`.`t1`.`i`,`test`.`t1`.`i` in ( <materialize> (/* select#3 */ select NULL from `test`.`t4` ), <primary_index_lookup>(`test`.`t1`.`i` in <temporary table> on distinct_key where ((`test`.`t1`.`i` = `materialized subselect`.`i`))))))
+Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` where (<in_optimizer>(`test`.`t1`.`i`,<exists>(/* select#2 */ select 1 from `test`.`t2` where ((`test`.`t1`.`i` = 10) and (<cache>(`test`.`t1`.`i`) = `test`.`t2`.`i`)))) or <in_optimizer>(`test`.`t1`.`i`,`test`.`t1`.`i` in ( <materialize> (/* select#3 */ select NULL from `test`.`t4` ), <primary_index_lookup>(`test`.`t1`.`i` in <temporary table> on distinct_key where ((`test`.`t1`.`i` = `materialized-subquery`.`i`))))))
 # simple UNION
 EXPLAIN             SELECT * FROM t1 UNION SELECT * FROM t2 UNION SELECT * FROM t3;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra

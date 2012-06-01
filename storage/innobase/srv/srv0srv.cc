@@ -59,6 +59,7 @@ Created 10/8/1995 Heikki Tuuri
 #include "btr0sea.h"
 #include "dict0load.h"
 #include "dict0boot.h"
+#include "dict0stats_background.h" /* dict_stats_event */
 #include "srv0start.h"
 #include "row0mysql.h"
 #include "ha_prototypes.h"
@@ -81,6 +82,8 @@ UNIV_INTERN ibool	srv_monitor_active = FALSE;
 UNIV_INTERN ibool	srv_error_monitor_active = FALSE;
 
 UNIV_INTERN ibool	srv_buf_dump_thread_active = FALSE;
+
+UNIV_INTERN ibool	srv_dict_stats_thread_active = FALSE;
 
 UNIV_INTERN const char*	srv_main_thread_op_info = "";
 
@@ -316,8 +319,9 @@ this many index pages, there are 2 ways to calculate statistics:
 * quick transient stats, that are used if persistent stats for the given
   table/index are not found in the innodb database */
 UNIV_INTERN unsigned long long	srv_stats_transient_sample_pages = 8;
-UNIV_INTERN my_bool		srv_stats_persistent = FALSE;
+UNIV_INTERN my_bool		srv_stats_persistent = TRUE;
 UNIV_INTERN unsigned long long	srv_stats_persistent_sample_pages = 20;
+UNIV_INTERN my_bool		srv_stats_auto_recalc = TRUE;
 
 UNIV_INTERN ibool	srv_use_doublewrite_buf	= TRUE;
 
@@ -1749,12 +1753,15 @@ srv_any_background_threads_are_active(void)
 		thread_active = "srv_monitor_thread";
 	} else if (srv_buf_dump_thread_active) {
 		thread_active = "buf_dump_thread";
+	} else if (srv_dict_stats_thread_active) {
+		thread_active = "dict_stats_thread";
 	}
 
 	os_event_set(srv_error_event);
 	os_event_set(srv_monitor_event);
 	os_event_set(srv_buf_dump_event);
 	os_event_set(lock_sys->timeout_event);
+	os_event_set(dict_stats_event);
 
 	return(thread_active);
 }

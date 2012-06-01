@@ -1696,6 +1696,13 @@ field4,field5,field6	{
             } /* creating_tmp_table */
           },
           {
+            "join_execution": {
+              "select#": 5,
+              "steps": [
+              ] /* steps */
+            } /* join_execution */
+          },
+          {
             "creating_tmp_table": {
               "tmp_table_info": {
                 "table": "intermediate_tmp_table",
@@ -1706,13 +1713,6 @@ field4,field5,field6	{
                 "row_limit_estimate": 80659
               } /* tmp_table_info */
             } /* creating_tmp_table */
-          },
-          {
-            "join_execution": {
-              "select#": 5,
-              "steps": [
-              ] /* steps */
-            } /* join_execution */
           },
           {
             "filesort_information": [

@@ -111,6 +111,12 @@ rollback;
 select a,left(b,40) from t1 natural join t2;
 a	left(b,40)
 1	1abcdefghijklmnopqrstuvwxyzAAAAAAAAAAAAA
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+analyze table t2;
+Table	Op	Msg_type	Msg_text
+test.t2	analyze	status	OK
 SELECT table_schema, table_name, row_format, data_length, index_length FROM information_schema.tables WHERE engine='innodb' AND table_schema != 'mysql';
 table_schema	table_name	row_format	data_length	index_length
 test	t1	Compressed	2048	1024

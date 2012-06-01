@@ -2682,7 +2682,7 @@ void st_select_lex::print(THD *thd, String *str, enum_query_type query_type)
   // having
   Item *cur_having= having;
   if (join)
-    cur_having= join->having;
+    cur_having= join->having_for_explain;
 
   if (cur_having || having_value != Item::COND_UNDEF)
   {

@@ -102,6 +102,10 @@ CREATE TABLE t1(a INT, b INT, c INT, d INT, e INT,
                 f INT, g INT, h INT, i INT, j INT,k INT);
 INSERT INTO t1 VALUES (),();
 
+-- disable_result_log
+ANALYZE TABLE t1;
+-- enable_result_log
+
 CREATE ALGORITHM=TEMPTABLE VIEW v1 AS SELECT * FROM t1;
 --echo #should have a derived table
 EXPLAIN SELECT * FROM v1;
@@ -246,6 +250,10 @@ CALL p1();
 DROP PROCEDURE p1;
 
 --echo # EXPLAIN with or wihtout PROCEDURE ANALYSE should be same:
+
+-- disable_result_log
+ANALYZE TABLE t1;
+-- enable_result_log
 
 let $query=SELECT * FROM t1, (SELECT * FROM t1) tt1 WHERE t1.a = tt1.a;
 eval EXPLAIN $query;

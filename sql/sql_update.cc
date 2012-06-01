@@ -536,17 +536,13 @@ int mysql_update(THD *thd,
 	to update
         NOTE: filesort will call table->prepare_for_position()
       */
-      uint         length= 0;
-      SORT_FIELD  *sortorder;
       ha_rows examined_rows;
       ha_rows found_rows;
+      Filesort fsort(order, limit, select);
 
       table->sort.io_cache = (IO_CACHE *) my_malloc(sizeof(IO_CACHE),
 						    MYF(MY_FAE | MY_ZEROFILL));
-      if (!(sortorder=make_unireg_sortorder(order, &length, NULL)) ||
-          (table->sort.found_records= filesort(thd, table, sortorder, length,
-                                               select, limit,
-                                               true,
+      if ((table->sort.found_records= filesort(thd, table, &fsort, true,
                                                &examined_rows, &found_rows))
           == HA_POS_ERROR)
       {

@@ -487,6 +487,12 @@ INSERT INTO t1 (a,b) VALUES
 # Create the FTS index Using Alter Table
 ALTER TABLE t1 ADD FULLTEXT INDEX idx (a,b);
 
+-- disable_query_log
+-- disable_result_log
+ANALYZE TABLE t1;
+-- enable_result_log
+-- enable_query_log
+
 SELECT * FROM t1 ORDER BY MATCH(a,b) AGAINST ('aac') DESC;
 SELECT * FROM t1 ORDER BY MATCH(a,b) AGAINST ('aab') DESC; 
 
@@ -833,6 +839,10 @@ INSERT INTO articles (title,body) VALUES
         ('MySQL vs. YourSQL','In the following database comparison ...'),
         ('MySQL Security','When configured properly, MySQL ...');
 
+-- disable_result_log
+ANALYZE TABLE articles;
+-- enable_result_log
+
 SELECT *,  MATCH(title, body) AGAINST ('-database +MySQL' IN BOOLEAN MODE) AS score from articles;
 
 SELECT *, MATCH(title, body) AGAINST ('+MySQL -database' IN BOOLEAN MODE) AS score  FROM articles;
@@ -1046,5 +1056,67 @@ select FTS_DOC_ID from t1 where MATCH(a,b) AGAINST("+search" IN BOOLEAN MODE);
 select FTS_DOC_ID from t1 where MATCH(a,b) AGAINST("+search +(support vector)" IN BOOLEAN MODE);
 select FTS_DOC_ID from t1 where MATCH(a,b) AGAINST("+search -(support vector)" IN BOOLEAN MODE);
 select FTS_DOC_ID, MATCH(a,b) AGAINST("support collections" IN BOOLEAN MODE) as x from t1;
+
+DROP TABLE t1;
+
+# Test for bug #14079609 - FTS: CRASH IN FTS_TRX_TABLE_CMP WITH SAVEPOINTS, XA
+
+CREATE TABLE t2 (`b` char(2),fulltext(`b`)) ENGINE=INNODB
+DEFAULT CHARSET=LATIN1;
+
+CREATE TABLE t3 LIKE t2;
+
+INSERT INTO `t2` VALUES();
+
+COMMIT WORK AND CHAIN;
+
+INSERT  INTO `t3` VALUES ();
+UPDATE  `t2` SET `b` = 'a';
+
+SAVEPOINT BATCH1;
+
+DROP TABLE t2;
+DROP TABLE t3;
+
+# Create FTS table
+CREATE TABLE t1 (
+        id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
+        a VARCHAR(200),
+        b TEXT
+        ) ENGINE = InnoDB;
+
+# Insert rows
+INSERT INTO t1 (a,b) VALUES
+        ('MySQL Tutorial','DBMS stands for DataBase ...')  ,
+        ('How To Use MySQL Well','After you went through a ...'),
+        ('Optimizing MySQL','In this tutorial we will show ...');
+
+# Create the FTS index Using Alter Table
+ALTER TABLE t1 ADD FULLTEXT INDEX idx (a,b);
+
+COMMIT WORK AND CHAIN;
+
+INSERT INTO t1 (a,b) VALUES
+        ('1001 MySQL Tricks','1. Never run mysqld as root. 2. ...'),
+        ('MySQL vs. YourSQL','In the following database comparison ...'),
+        ('MySQL Security','When configured properly, MySQL ...');
+
+SAVEPOINT BATCH1;
+
+SELECT id FROM t1 WHERE MATCH (a,b)
+        AGAINST ('MySQL' IN NATURAL LANGUAGE MODE);
+
+INSERT INTO t1 (a,b) VALUES
+        ('1002 MySQL Tricks','1. Never run mysqld as root. 2. ...'),
+        ('MySQL vs. YourSQL','In the following database comparison ...'),
+        ('MySQL Security','When configured properly, MySQL ...');
+
+
+ROLLBACK TO SAVEPOINT BATCH1;
+
+COMMIT;
+
+SELECT id FROM t1 WHERE MATCH (a,b)
+        AGAINST ('MySQL' IN NATURAL LANGUAGE MODE);
 
 DROP TABLE t1;
