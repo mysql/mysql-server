@@ -7129,6 +7129,8 @@ err:
 int Xid_log_event::do_apply_event(Relay_log_info const *rli)
 {
   int error= 0;
+  lex_start(thd);
+  mysql_reset_thd_for_next_command(thd);
   Relay_log_info *rli_ptr= const_cast<Relay_log_info *>(rli);
 
   /* For a slave Xid_log_event is COMMIT */
@@ -7176,8 +7178,21 @@ int Xid_log_event::do_apply_event(Relay_log_info const *rli)
                   sql_print_information("Crashing crash_after_update_pos_before_apply.");
                   DBUG_SUICIDE(););
 
+  /**
+    Commit operation expects the global transaction state variable 'xa_state'to
+    be set to 'XA_NOTR'. In order to simulate commit failure we set
+    the 'xa_state' to 'XA_IDLE' so that the commit reports 'ER_XAER_RMFAIL'
+    error.
+   */
+  DBUG_EXECUTE_IF("simulate_commit_failure",
+                  {
+                  thd->transaction.xid_state.xa_state = XA_IDLE;
+                  });
   error= do_commit(thd);
-
+  if(error)
+    rli->report(ERROR_LEVEL, thd->get_stmt_da()->sql_errno(),
+                "Error in Xid_log_event: Commit could not be completed, '%s'",
+                thd->get_stmt_da()->message());
 err:
   mysql_cond_broadcast(&rli_ptr->data_cond);
   mysql_mutex_unlock(&rli_ptr->data_lock);
@@ -7915,11 +7930,21 @@ int Create_file_log_event::do_apply_event(Relay_log_info const *rli)
   IO_CACHE file;
   int error = 1;
 
+  lex_start(thd);
+  mysql_reset_thd_for_next_command(thd);
   THD_STAGE_INFO(thd, stage_making_temp_file_create_before_load_data);
   memset(&file, 0, sizeof(file));
   ext= slave_load_file_stem(fname_buf, file_id, server_id, ".info");
   /* old copy may exist already */
   mysql_file_delete(key_file_log_event_info, fname_buf, MYF(0));
+  /**
+    To simulate file creation failure, convert the file name to a
+    directory by appending a "/" to the file name.
+   */
+  DBUG_EXECUTE_IF("simulate_file_create_error_create_log_event",
+                  {
+                  strcat(fname_buf,"/");
+                  });
   if ((fd= mysql_file_create(key_file_log_event_info,
                              fname_buf, CREATE_MODE,
                              O_WRONLY | O_BINARY | O_EXCL | O_NOFOLLOW,
@@ -7927,7 +7952,7 @@ int Create_file_log_event::do_apply_event(Relay_log_info const *rli)
       init_io_cache(&file, fd, IO_SIZE, WRITE_CACHE, (my_off_t)0, 0,
 		    MYF(MY_WME|MY_NABP)))
   {
-    rli->report(ERROR_LEVEL, my_errno,
+    rli->report(ERROR_LEVEL, thd->get_stmt_da()->sql_errno(),
                 "Error in Create_file event: could not open file '%s'",
                 fname_buf);
     goto err;
@@ -7960,9 +7985,17 @@ int Create_file_log_event::do_apply_event(Relay_log_info const *rli)
                 fname_buf);
     goto err;
   }
+  /**
+    To simulate file write failure,close the file before the write operation.
+    Write will fail with an error reporting file is UNOPENED. 
+   */
+  DBUG_EXECUTE_IF("simulate_file_write_error_create_log_event",
+                  {
+                  mysql_file_close(fd, MYF(0));
+                  });
   if (mysql_file_write(fd, (uchar*) block, block_len, MYF(MY_WME+MY_NABP)))
   {
-    rli->report(ERROR_LEVEL, my_errno,
+    rli->report(ERROR_LEVEL, thd->get_stmt_da()->sql_errno(),
                 "Error in Create_file event: write to '%s' failed",
                 fname_buf);
     goto err;
@@ -8244,6 +8277,8 @@ int Delete_file_log_event::pack_info(Protocol *protocol)
 int Delete_file_log_event::do_apply_event(Relay_log_info const *rli)
 {
   char fname[FN_REFLEN+TEMP_FILE_MAX_LEN];
+  lex_start(thd);
+  mysql_reset_thd_for_next_command(thd);
   char *ext= slave_load_file_stem(fname, file_id, server_id, ".data");
   mysql_file_delete(key_file_log_event_data, fname, MYF(MY_WME));
   strmov(ext, ".info");
@@ -8351,14 +8386,25 @@ int Execute_load_log_event::do_apply_event(Relay_log_info const *rli)
   IO_CACHE file;
   Load_log_event *lev= 0;
 
+  lex_start(thd);
+  mysql_reset_thd_for_next_command(thd);
   ext= slave_load_file_stem(fname, file_id, server_id, ".info");
+  /**
+    To simulate file open failure, convert the file name to a
+    directory by appending a "/" to the file name. File open
+    will fail with an error reporting it is not a directory.
+   */
+  DBUG_EXECUTE_IF("simulate_file_open_error_exec_event",
+                  {
+                  strcat(fname,"/");
+                  });
   if ((fd= mysql_file_open(key_file_log_event_info,
                            fname, O_RDONLY | O_BINARY | O_NOFOLLOW,
                            MYF(MY_WME))) < 0 ||
       init_io_cache(&file, fd, IO_SIZE, READ_CACHE, (my_off_t)0, 0,
 		    MYF(MY_WME|MY_NABP)))
   {
-    rli->report(ERROR_LEVEL, my_errno,
+    rli->report(ERROR_LEVEL, thd->get_stmt_da()->sql_errno(),
                 "Error in Exec_load event: could not open file '%s'",
                 fname);
     goto err;
