@@ -2145,18 +2145,10 @@ bool partition_info::is_field_in_part_expr(List<Item> &fields)
   DBUG_ENTER("is_fields_in_part_expr");
   while ((item= it++))
   {
-    if ((field= item->field_for_view_update()))
-    {
-      DBUG_ASSERT(field->field->table == table);
-      if (bitmap_is_set(&full_part_field_set, field->field->field_index))
-        DBUG_RETURN(true);
-    }
-    else
-    {
-      /* Some non-updateable entity. Should have been checked already. */
-      DBUG_ASSERT(0);
+    field= item->field_for_view_update();
+    DBUG_ASSERT(field->field->table == table);
+    if (bitmap_is_set(&full_part_field_set, field->field->field_index))
       DBUG_RETURN(true);
-    }
   }
   DBUG_RETURN(false);
 }
@@ -2185,20 +2177,12 @@ bool partition_info::is_full_part_expr_in_fields(List<Item> &fields)
   
     while ((item= it++))
     {
-      if (!(field= item->field_for_view_update()))
+      field= item->field_for_view_update();
+      DBUG_ASSERT(field->field->table == table);
+      if (*part_field == field->field)
       {
-        /* Some non-updateable entity. Should have been checked already. */
-        DBUG_ASSERT(0);
-        DBUG_RETURN(false);
-      }
-      else
-      {
-        DBUG_ASSERT(field->field->table == table);
-        if (*part_field == field->field)
-        {
-          found= true;
-          break;
-        }
+        found= true;
+        break;
       }
     }
     if (!found)
