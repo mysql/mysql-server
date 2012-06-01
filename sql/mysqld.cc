@@ -76,6 +76,7 @@
 
 #include "global_threads.h"
 #include "mysqld.h"
+#include "my_default.h"
 
 #ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
 #include "../storage/perfschema/pfs_server.h"
@@ -3652,8 +3653,6 @@ int init_common_variables()
     {
       if (!open_files_limit)
       {
-        DBUG_ASSERT(false);
-
         /*
           If we have requested too much file handles than we bring
           max_connections in supported bounds.

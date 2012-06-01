@@ -4931,19 +4931,24 @@ static int set_thread_connect_attrs_v1(const char *buffer, uint length,
 
   DBUG_ASSERT(buffer != NULL);
 
-  if (likely(thd != NULL))
+  if (likely(thd != NULL) && session_connect_attrs_size_per_thread > 0)
   {
     /* copy from the input buffer as much as we can fit */
-    uint copy_size= length < (uint) sizeof(thd->m_connect_attrs) ?
-      length : (uint) sizeof(thd->m_connect_attrs);
-
+    uint copy_size= (uint)(length < session_connect_attrs_size_per_thread ?
+                           length : session_connect_attrs_size_per_thread);
     thd->m_lock.allocated_to_dirty();
-    memcpy(thd->m_connect_attrs, buffer, copy_size);
-    thd->m_connect_attrs_length= copy_size;
-    thd->m_connect_attrs_cs= (const CHARSET_INFO *) from_cs;
+    memcpy(thd->m_session_connect_attrs, buffer, copy_size);
+    thd->m_session_connect_attrs_length= copy_size;
+    thd->m_session_connect_attrs_cs= (const CHARSET_INFO *) from_cs;
     thd->m_lock.dirty_to_allocated();
-
-    return (copy_size == length ? 0 : 1);
+    
+    if (copy_size == length)
+      return 0;
+    else
+    {
+      session_connect_attrs_lost++;
+      return 1;
+    }
   }
   return 0;
 }

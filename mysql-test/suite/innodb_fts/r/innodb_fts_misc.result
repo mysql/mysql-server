@@ -889,6 +889,7 @@ INSERT INTO articles (title,body) VALUES
 ('1001 MySQL Tricks','1. Never run mysqld as root. 2. ...'),
 ('MySQL vs. YourSQL','In the following database comparison ...'),
 ('MySQL Security','When configured properly, MySQL ...');
+ANALYZE TABLE articles;
 SELECT *,  MATCH(title, body) AGAINST ('-database +MySQL' IN BOOLEAN MODE) AS score from articles;
 id	title	body	score
 1	MySQL Tutorial	DBMS stands for DataBase ...	0

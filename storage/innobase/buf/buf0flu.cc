@@ -2282,6 +2282,7 @@ page_cleaner_flush_pages_if_needed(void)
 
 	MONITOR_SET(MONITOR_FLUSH_N_TO_FLUSH_REQUESTED, n_pages);
 
+	prev_pages = n_pages;
 	n_pages = page_cleaner_do_flush_batch(
 		n_pages, oldest_lsn + lsn_avg_rate * (age_factor + 1));
 

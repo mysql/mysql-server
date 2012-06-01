@@ -85,6 +85,8 @@ connection default;
 disconnect a;
 disconnect b;
 
+analyze table t1;
+analyze table t2;
 --replace_result 16384 {valid} 12288 {valid}
 --eval $query_i_s
 drop table t1,t2;

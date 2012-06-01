@@ -3,7 +3,7 @@ CREATE TABLE t1 (
 id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
 a VARCHAR(200),
 b TEXT
-) ENGINE = InnoDB;
+) ENGINE = InnoDB STATS_PERSISTENT=0;
 INSERT INTO t1 (a,b) VALUES
 ('MySQL Tutorial','DBMS stands for DataBase ...')  ,
 ('How To Use MySQL Well','After you went through a ...'),
@@ -21,7 +21,7 @@ t1	CREATE TABLE `t1` (
   PRIMARY KEY (`id`),
   FULLTEXT KEY `idx_1` (`a`),
   FULLTEXT KEY `idx_2` (`b`)
-) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=latin1
+) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=latin1 STATS_PERSISTENT=0
 START TRANSACTION;
 INSERT INTO t1 (a,b) VALUES
 ('1001 MySQL Tricks','1. Never run mysqld as root. 2. ...'),

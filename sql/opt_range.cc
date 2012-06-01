@@ -10954,9 +10954,6 @@ get_best_group_min_max(PARAM *param, SEL_TREE *tree, double read_time)
   }
 
   /* Check (SA1,SA4) and store the only MIN/MAX argument - the C attribute.*/
-  if (join->make_sum_func_list(join->all_fields, join->fields_list, 1))
-    DBUG_RETURN(NULL);
-
   is_agg_distinct = is_indexed_agg_distinct(join, &agg_distinct_flds);
 
   if ((!join->group_list) && /* Neither GROUP BY nor a DISTINCT query. */

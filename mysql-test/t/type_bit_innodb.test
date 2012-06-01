@@ -50,6 +50,9 @@ create table t1 (a bit(2)) engine=innodb;
 insert into t1 values (b'00'), (b'01'), (b'10'), (b'100');
 select a+0 from t1;
 alter table t1 add key (a);
+-- disable_result_log
+analyze table t1;
+-- enable_result_log
 explain select a+0 from t1;
 select a+0 from t1;
 drop table t1;
@@ -62,6 +65,9 @@ insert into t1 values
 (116, 390), (119, 368), (87, 351), (123, 411), (24, 398), (34, 202), (28, 499),
 (30, 83), (5, 178), (60, 343), (4, 245), (104, 280), (106, 446), (127, 403),   
 (44, 307), (68, 454), (57, 135);
+-- disable_result_log
+analyze table t1;
+-- enable_result_log
 explain select a+0 from t1;
 select a+0 from t1;
 explain select b+0 from t1;

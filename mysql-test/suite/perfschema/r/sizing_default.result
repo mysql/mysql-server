@@ -7,9 +7,6 @@ table_open_cache	400
 show variables like "max_connections";
 Variable_name	Value
 max_connections	151
-show variables like "open_files_limit";
-Variable_name	Value
-open_files_limit	1024
 show variables like "%performance_schema%";
 Variable_name	Value
 performance_schema	ON
@@ -39,6 +36,7 @@ performance_schema_max_table_handles	445
 performance_schema_max_table_instances	445
 performance_schema_max_thread_classes	50
 performance_schema_max_thread_instances	224
+performance_schema_session_connect_attrs_size	512
 performance_schema_setup_actors_size	100
 performance_schema_setup_objects_size	100
 performance_schema_users_size	5
@@ -57,6 +55,7 @@ Performance_schema_mutex_classes_lost	0
 Performance_schema_mutex_instances_lost	0
 Performance_schema_rwlock_classes_lost	0
 Performance_schema_rwlock_instances_lost	0
+Performance_schema_session_connect_attrs_lost	0
 Performance_schema_socket_classes_lost	0
 Performance_schema_socket_instances_lost	0
 Performance_schema_stage_classes_lost	0
@@ -100,9 +99,9 @@ performance_schema	rwlock_instances.memory	331008
 performance_schema	cond_instances.row_size	128
 performance_schema	cond_instances.row_count	836
 performance_schema	cond_instances.memory	107008
-performance_schema	threads.row_size	10048
+performance_schema	threads.row_size	1856
 performance_schema	threads.row_count	224
-performance_schema	threads.memory	2250752
+performance_schema	threads.memory	415744
 performance_schema	file_instances.row_size	768
 performance_schema	file_instances.row_count	1138
 performance_schema	file_instances.memory	873984
@@ -205,6 +204,9 @@ performance_schema	socket_instances.memory	68736
 performance_schema	events_statements_summary_by_digest.row_size	1280
 performance_schema	events_statements_summary_by_digest.row_count	1000
 performance_schema	events_statements_summary_by_digest.memory	1280000
+performance_schema	session_connect_attrs.row_size	224
+performance_schema	session_connect_attrs.row_count	512
+performance_schema	session_connect_attrs.memory	114688
 performance_schema	(account_hash).count	2
 performance_schema	(account_hash).size	10
 performance_schema	(digest_hash).count	0
@@ -217,8 +219,8 @@ performance_schema	(setup_actor_hash).count	1
 performance_schema	(setup_actor_hash).size	100
 performance_schema	(setup_object_hash).count	4
 performance_schema	(setup_object_hash).size	100
-performance_schema	(table_share_hash).count	81
+performance_schema	(table_share_hash).count	83
 performance_schema	(table_share_hash).size	445
 performance_schema	(user_hash).count	2
 performance_schema	(user_hash).size	5
-performance_schema	performance_schema.memory	37021792
+performance_schema	performance_schema.memory	35301472

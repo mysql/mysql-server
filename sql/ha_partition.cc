@@ -4632,12 +4632,26 @@ int ha_partition::index_init(uint inx, bool sorted)
   do
   {
     if (bitmap_is_set(&(m_part_info->read_partitions), (file - m_file)))
+    {
       if ((error= (*file)->ha_index_init(inx, sorted)))
-      {
-        DBUG_ASSERT(0);                           // Should never happen
-        break;
-      }
+        goto err;
+
+      DBUG_EXECUTE_IF("ha_partition_fail_index_init", {
+        file++;
+        error= HA_ERR_NO_PARTITION_FOUND;
+        goto err;
+      });
+    }
   } while (*(++file));
+err:
+  if (error)
+  {
+    for (file--; file >= m_file; file--)
+    {
+      if (bitmap_is_set(&m_part_info->read_partitions, (file - m_file)))
+        (void) (*file)->ha_index_end();
+    }
+  }
   DBUG_RETURN(error);
 }
 

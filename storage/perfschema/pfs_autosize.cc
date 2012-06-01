@@ -77,6 +77,8 @@ struct PFS_sizing_data
   ulong m_events_statements_history_long_sizing;
   /** Default value for @c PFS_param.m_digest_sizing. */
   ulong m_digest_sizing;
+  /** Default value for @c PFS_param.m_session_connect_attrs_sizing. */
+  ulong m_session_connect_attrs_sizing;
 
   /**
     Minimum number of tables to keep statistics for.
@@ -124,6 +126,8 @@ PFS_sizing_data small_data=
   5, 100, 5, 100, 5, 100,
   /* Digests */
   1000,
+  /* Session connect attrs. */
+  512,
   /* Min tables */
   200,
   /* Load factors */
@@ -138,6 +142,8 @@ PFS_sizing_data medium_data=
   10, 1000, 10, 1000, 10, 1000,
   /* Digests */
   5000,
+  /* Session connect attrs. */
+  512,
   /* Min tables */
   500,
   /* Load factors */
@@ -152,6 +158,8 @@ PFS_sizing_data large_data=
   10, 10000, 10, 10000, 10, 10000,
   /* Digests */
   10000,
+  /* Session connect attrs. */
+  512,
   /* Min tables */
   10000,
   /* Load factors */
@@ -281,13 +289,17 @@ static void apply_heuristic(PFS_global_param *p, PFS_sizing_data *h)
     p->m_digest_sizing= h->m_digest_sizing;
   }
 
+  if (p->m_session_connect_attrs_sizing < 0)
+  {
+    p->m_session_connect_attrs_sizing= h->m_session_connect_attrs_sizing;
+  }
+
   if (p->m_mutex_sizing < 0)
   {
     count= fixed_mutex_instances
       + con * mutex_per_connection
       + handle * mutex_per_handle
-      + share * mutex_per_share
-      ;
+      + share * mutex_per_share;
 
     p->m_mutex_sizing= apply_load_factor(count, h->m_load_factor_volatile);
   }
@@ -297,8 +309,7 @@ static void apply_heuristic(PFS_global_param *p, PFS_sizing_data *h)
     count= fixed_rwlock_instances
       + con * rwlock_per_connection
       + handle * rwlock_per_handle
-      + share * rwlock_per_share
-      ;
+      + share * rwlock_per_share;
 
     p->m_rwlock_sizing= apply_load_factor(count, h->m_load_factor_volatile);
   }
@@ -309,8 +320,7 @@ static void apply_heuristic(PFS_global_param *p, PFS_sizing_data *h)
     count= fixed_cond_instances
       + con * cond_per_connection
       + handle * cond_per_handle
-      + share * cond_per_share
-      ;
+      + share * cond_per_share;
 
     p->m_cond_sizing= apply_load_factor(count, h->m_load_factor_volatile);
   }
@@ -320,8 +330,7 @@ static void apply_heuristic(PFS_global_param *p, PFS_sizing_data *h)
     count= fixed_file_instances
       + con * file_per_connection
       + handle * file_per_handle
-      + share * file_per_share
-      ;
+      + share * file_per_share;
 
     count= max<ulong>(count, file);
     p->m_file_sizing= apply_load_factor(count, h->m_load_factor_normal);
@@ -332,8 +341,7 @@ static void apply_heuristic(PFS_global_param *p, PFS_sizing_data *h)
     count= fixed_socket_instances
       + con * socket_per_connection
       + handle * socket_per_handle
-      + share * socket_per_share
-      ;
+      + share * socket_per_share;
 
     p->m_socket_sizing= apply_load_factor(count, h->m_load_factor_volatile);
   }
@@ -343,8 +351,7 @@ static void apply_heuristic(PFS_global_param *p, PFS_sizing_data *h)
     count= fixed_thread_instances
       + con * thread_per_connection
       + handle * thread_per_handle
-      + share * thread_per_share
-      ;
+      + share * thread_per_share;
 
     p->m_thread_sizing= apply_load_factor(count, h->m_load_factor_volatile);
   }
@@ -367,6 +374,7 @@ void pfs_automated_sizing(PFS_global_param *param)
   DBUG_ASSERT(param->m_events_stages_history_long_sizing >= 0);
   DBUG_ASSERT(param->m_events_statements_history_sizing >= 0);
   DBUG_ASSERT(param->m_events_statements_history_long_sizing >= 0);
+  DBUG_ASSERT(param->m_session_connect_attrs_sizing >= 0);
 
   DBUG_ASSERT(param->m_mutex_sizing >= 0);
   DBUG_ASSERT(param->m_rwlock_sizing >= 0);
@@ -376,7 +384,5 @@ void pfs_automated_sizing(PFS_global_param *param)
   DBUG_ASSERT(param->m_thread_sizing >= 0);
   DBUG_ASSERT(param->m_table_sizing >= 0);
   DBUG_ASSERT(param->m_table_share_sizing >= 0);
-
-
 }
 

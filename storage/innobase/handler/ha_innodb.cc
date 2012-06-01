@@ -36,6 +36,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 #include <sql_acl.h>	// PROCESS_ACL
 #include <debug_sync.h> // DEBUG_SYNC
+#include <my_base.h>	// HA_OPTION_*
 #include <mysys_err.h>
 #include <mysql/innodb_priv.h>
 
@@ -73,6 +74,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "row0merge.h"
 #include "dict0boot.h"
 #include "dict0stats.h"
+#include "dict0stats_background.h"
 #include "ha_prototypes.h"
 #include "ut0mem.h"
 #include "ibuf0ibuf.h"
@@ -2115,6 +2117,56 @@ trx_is_started(
 	trx_t*	trx)	/* in: transaction */
 {
 	return(trx->state != TRX_STATE_NOT_STARTED);
+}
+
+/*********************************************************************//**
+Copy table flags from MySQL's HA_CREATE_INFO into an InnoDB table object.
+Those flags are stored in .frm file and end up in the MySQL table object,
+but are frequently used inside InnoDB so we keep their copies into the
+InnoDB table object. */
+UNIV_INTERN
+void
+innobase_copy_frm_flags_from_create_info(
+/*=====================================*/
+	dict_table_t*	innodb_table,		/*!< in/out: InnoDB table */
+	HA_CREATE_INFO*	create_info)		/*!< in: create info */
+{
+	dict_stats_set_persistent(
+		innodb_table,
+		create_info->table_options & HA_OPTION_STATS_PERSISTENT,
+		create_info->table_options & HA_OPTION_NO_STATS_PERSISTENT);
+
+	dict_stats_auto_recalc_set(
+		innodb_table,
+		create_info->stats_auto_recalc == HA_STATS_AUTO_RECALC_ON,
+		create_info->stats_auto_recalc == HA_STATS_AUTO_RECALC_OFF);
+
+	innodb_table->stats_sample_pages = create_info->stats_sample_pages;
+}
+
+/*********************************************************************//**
+Copy table flags from MySQL's TABLE_SHARE into an InnoDB table object.
+Those flags are stored in .frm file and end up in the MySQL table object,
+but are frequently used inside InnoDB so we keep their copies into the
+InnoDB table object. */
+UNIV_INTERN
+void
+innobase_copy_frm_flags_from_table_share(
+/*=====================================*/
+	dict_table_t*	innodb_table,		/*!< in/out: InnoDB table */
+	TABLE_SHARE*	table_share)		/*!< in: table share */
+{
+	dict_stats_set_persistent(
+		innodb_table,
+		table_share->db_create_options & HA_OPTION_STATS_PERSISTENT,
+		table_share->db_create_options & HA_OPTION_NO_STATS_PERSISTENT);
+
+	dict_stats_auto_recalc_set(
+		innodb_table,
+		table_share->stats_auto_recalc == HA_STATS_AUTO_RECALC_ON,
+		table_share->stats_auto_recalc == HA_STATS_AUTO_RECALC_OFF);
+
+	innodb_table->stats_sample_pages = table_share->stats_sample_pages;
 }
 
 /*********************************************************************//**
@@ -4643,10 +4695,9 @@ retry:
 
 table_opened:
 
-	dict_stats_init(
-		ib_table,
-		table->s->db_create_options & HA_OPTION_STATS_PERSISTENT,
-		table->s->db_create_options & HA_OPTION_NO_STATS_PERSISTENT);
+	innobase_copy_frm_flags_from_table_share(ib_table, table->s);
+
+	dict_stats_init(ib_table);
 
 	MONITOR_INC(MONITOR_TABLE_OPEN);
 
@@ -7259,6 +7310,7 @@ ha_innobase::index_read(
 	dberr_t		ret;
 
 	DBUG_ENTER("index_read");
+	DEBUG_SYNC_C("ha_innobase_index_read_begin");
 
 	ut_a(prebuilt->trx == thd_to_trx(user_thd));
 	ut_ad(key_len != 0 || find_flag != HA_READ_KEY_EXACT);
@@ -9347,10 +9399,8 @@ ha_innobase::create(
 
 	DBUG_ASSERT(innobase_table != 0);
 
-	dict_stats_set_persistent(
-		innobase_table, 
-		create_info->table_options & HA_OPTION_STATS_PERSISTENT,
-		create_info->table_options & HA_OPTION_NO_STATS_PERSISTENT);
+	innobase_copy_frm_flags_from_create_info(innobase_table, create_info);
+
 	dict_stats_update(innobase_table, DICT_STATS_EMPTY_TABLE, FALSE);
 
 	if (innobase_table) {
@@ -9585,6 +9635,8 @@ ha_innobase::delete_table(
 	if (IS_MAGIC_TABLE_AND_USER_DENIED_ACCESS(norm_name, thd)) {
 		DBUG_RETURN(HA_ERR_GENERIC);
 	}
+
+	dict_stats_remove_table_from_auto_recalc(norm_name);
 
 	/* Remove stats for this table and all of its indexes from the
 	persistent storage if it exists and if there are stats for this
@@ -13228,12 +13280,7 @@ ha_innobase::check_if_incompatible_data(
 	HA_CREATE_INFO*	info,
 	uint		table_changes)
 {
-	/* Copy the persistent stats flags from info->table_options to
-	prebuilt->table */
-	dict_stats_set_persistent(
-		prebuilt->table,
-		info->table_options & HA_OPTION_STATS_PERSISTENT,
-		info->table_options & HA_OPTION_NO_STATS_PERSISTENT);
+	innobase_copy_frm_flags_from_create_info(prebuilt->table, info);
 
 	if (table_changes != IS_EQUAL_YES) {
 
@@ -15153,7 +15200,15 @@ static MYSQL_SYSVAR_BOOL(stats_persistent, srv_stats_persistent,
   PLUGIN_VAR_OPCMDARG,
   "InnoDB persistent statistics enabled for all tables unless overridden "
   "at table level",
-  NULL, NULL, FALSE);
+  NULL, NULL, TRUE);
+
+static MYSQL_SYSVAR_BOOL(stats_auto_recalc, srv_stats_auto_recalc,
+  PLUGIN_VAR_OPCMDARG,
+  "InnoDB automatic recalculation of persistent statistics enabled for all "
+  "tables unless overridden at table level (automatic recalculation is only "
+  "done when InnoDB decides that the table has changed too much and needs a "
+  "new statistics)",
+  NULL, NULL, TRUE);
 
 static MYSQL_SYSVAR_ULONGLONG(stats_persistent_sample_pages,
   srv_stats_persistent_sample_pages,
@@ -15664,6 +15719,7 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(stats_transient_sample_pages),
   MYSQL_SYSVAR(stats_persistent),
   MYSQL_SYSVAR(stats_persistent_sample_pages),
+  MYSQL_SYSVAR(stats_auto_recalc),
   MYSQL_SYSVAR(adaptive_hash_index),
   MYSQL_SYSVAR(stats_method),
   MYSQL_SYSVAR(replication_delay),

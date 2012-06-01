@@ -194,7 +194,10 @@ struct PFS_global_param
   long m_events_statements_history_long_sizing;
   /** Maximum number of digests to be captured */
   long m_digest_sizing;
+  /** Maximum number of session attribute strings per thread */
+  long m_session_connect_attrs_sizing;
 
+  /** Sizing hints, for auto tuning. */
   PFS_sizing_hints m_hints;
 };
 
