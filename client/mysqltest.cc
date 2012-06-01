@@ -8259,8 +8259,12 @@ int main(int argc, char **argv)
     command->abort_on_error= (command->expected_errors.count == 0 &&
                               abort_on_error);
     
-    /* delimiter needs to be executed so we can continue to parse */
-    ok_to_do= cur_block->ok || command->type == Q_DELIMITER;
+    /*
+      some commmands need to be executed or at least parsed unconditionally,
+      because they change the grammar.
+    */
+    ok_to_do= cur_block->ok || command->type == Q_DELIMITER
+                            || command->type == Q_PERL;
     /*
       Some commands need to be "done" the first time if they may get
       re-iterated over in a true context. This can only happen if there's 
@@ -8271,8 +8275,7 @@ int main(int argc, char **argv)
       if (command->type == Q_SOURCE ||
           command->type == Q_ERROR ||
           command->type == Q_WRITE_FILE ||
-          command->type == Q_APPEND_FILE ||
-	  command->type == Q_PERL)
+          command->type == Q_APPEND_FILE)
       {
 	for (struct st_block *stb= cur_block-1; stb >= block_stack; stb--)
 	{
