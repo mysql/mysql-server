@@ -1232,7 +1232,7 @@ ON table2 .col_int_key = table1 .col_int_key
                                       "access_type": "scan",
                                       "using_join_cache": true,
                                       "rows": 3,
-                                      "cost": 2.207,
+                                      "cost": 2.2069,
                                       "chosen": false
                                     }
                                   ] /* considered_access_paths */
@@ -1286,7 +1286,7 @@ ON table2 .col_int_key = table1 .col_int_key
                                       "access_type": "scan",
                                       "using_join_cache": true,
                                       "rows": 3,
-                                      "cost": 2.207,
+                                      "cost": 2.2069,
                                       "chosen": false
                                     }
                                   ] /* considered_access_paths */
