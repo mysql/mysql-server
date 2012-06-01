@@ -146,22 +146,6 @@ toku_txn_commit_only(DB_TXN * txn, u_int32_t flags,
         toku_multi_operation_client_unlock();
     }
     toku_txn_maybe_fsync_log(logger, do_fsync_lsn, do_fsync);
-
-    //Promote list to parent (dbs that must close before abort)
-    if (txn->parent) {
-        //Combine lists.
-        while (!toku_list_empty(&db_txn_struct_i(txn)->dbs_that_must_close_before_abort)) {
-            struct toku_list *list = toku_list_pop(&db_txn_struct_i(txn)->dbs_that_must_close_before_abort);
-            toku_list_push(&db_txn_struct_i(txn->parent)->dbs_that_must_close_before_abort, list);
-        }
-    }
-    else {
-        //Empty the list
-        while (!toku_list_empty(&db_txn_struct_i(txn)->dbs_that_must_close_before_abort)) {
-            toku_list_pop(&db_txn_struct_i(txn)->dbs_that_must_close_before_abort);
-        }
-    }
-
     if (flags!=0) return EINVAL;
     return r;
 }
@@ -203,9 +187,6 @@ toku_txn_abort_only(DB_TXN * txn,
         assert(db_txn_struct_i(txn->parent)->child == txn);
         db_txn_struct_i(txn->parent)->child=NULL;
     }
-
-    //All dbs that must close before abort, must now be closed
-    assert(toku_list_empty(&db_txn_struct_i(txn)->dbs_that_must_close_before_abort));
 
     int r = toku_txn_abort_txn(db_txn_struct_i(txn)->tokutxn, poll, poll_extra);
     if (r!=0 && !toku_env_is_panicked(txn->mgrp)) {
@@ -461,7 +442,6 @@ toku_txn_begin(DB_ENV *env, DB_TXN * stxn, DB_TXN ** txn, u_int32_t flags) {
     memset(db_txn_struct_i(result), 0, sizeof *db_txn_struct_i(result));
     db_txn_struct_i(result)->flags = txn_flags;
     db_txn_struct_i(result)->iso = child_isolation;
-    toku_list_init(&db_txn_struct_i(result)->dbs_that_must_close_before_abort);
 
     // we used to initialize the transaction's lth here.
     // Now we initialize the lth only if the transaction needs the lth,
@@ -539,7 +519,6 @@ void toku_keep_prepared_txn_callback (DB_ENV *env, TOKUTXN tokutxn) {
     }
 #endif
     memset(db_txn_struct_i(result), 0, sizeof *db_txn_struct_i(result));
-    toku_list_init(&db_txn_struct_i(result)->dbs_that_must_close_before_abort);
 
     {
         int r = toku_lth_create(&db_txn_struct_i(result)->lth);

@@ -122,10 +122,6 @@ toku_db_close(DB * db) {
         // internal (non-user) dictionary has no dname
         env_note_db_closed(db->dbenv, db);  // tell env that this db is no longer in use by the user of this api (user-closed, may still be in use by fractal tree internals)
     }
-    //Remove from transaction's list of 'must close' if necessary.
-    if (!toku_list_empty(&db->i->dbs_that_must_close_before_abort))
-        toku_list_remove(&db->i->dbs_that_must_close_before_abort);
-
     r = toku_ft_handle_close(db->i->ft_handle, FALSE, ZERO_LSN);
     if (r == 0) {
         // go ahead and close this DB handle right away.
@@ -393,13 +389,6 @@ db_open_iname(DB * db, DB_TXN * txn, const char *iname_in_env, u_int32_t flags, 
         r = toku_ltm_get_lt(db->dbenv->i->ltm, &db->i->lt, db->i->dict_id, db->cmp_descriptor, toku_ft_get_bt_compare(db->i->ft_handle));
         if (r!=0) { goto error_cleanup; }
     }
-    //Add to transaction's list of 'must close' if necessary.
-    if (txn) {
-        //Do last so we don't have to undo.
-        toku_list_push(&db_txn_struct_i(txn)->dbs_that_must_close_before_abort,
-                  &db->i->dbs_that_must_close_before_abort);
-    }
-
     return 0;
  
 error_cleanup:
@@ -794,7 +783,6 @@ int toku_setup_db_internal (DB **dbp, DB_ENV *env, u_int32_t flags, FT_HANDLE br
         return ENOMEM;
     }
     memset(result->i, 0, sizeof *result->i);
-    toku_list_init(&result->i->dbs_that_must_close_before_abort);
     result->i->ft_handle = brt;
     result->i->opened = is_open;
     *dbp = result;

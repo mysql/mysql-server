@@ -31,7 +31,6 @@ struct __toku_db_internal {
     struct simple_dbt skey, sval; // static key and value
     BOOL key_compare_was_set;     // true if a comparison function was provided before call to db->open()  (if false, use environment's comparison function).  
     char *dname;                  // dname is constant for this handle (handle must be closed before file is renamed)
-    struct toku_list dbs_that_must_close_before_abort;
     DB_INDEXER *indexer;
 };
 
@@ -209,7 +208,6 @@ struct __toku_db_txn_internal {
     u_int32_t flags;
     TOKU_ISOLATION iso;
     DB_TXN *child;
-    struct toku_list dbs_that_must_close_before_abort;
     toku_mutex_t txn_mutex;
 };
 struct __toku_db_txn_external {
