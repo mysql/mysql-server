@@ -6172,6 +6172,14 @@ INSERT INTO t3 VALUES ('21:22:34'), ('10:50:38'), ('00:21:38'),
 ('03:53:16'), ('09:16:38'), ('15:37:26'), ('00:00:00'), ('05:03:03'),
 ('02:59:24'), ('00:01:58');
 
+-- disable_query_log
+-- disable_result_log
+ANALYZE TABLE t1;
+ANALYZE TABLE t2;
+ANALYZE TABLE t3;
+-- enable_result_log
+-- enable_query_log
+
 let $query=
 SELECT outr.col_int_nokey
 FROM t2 as outr
