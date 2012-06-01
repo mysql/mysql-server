@@ -84,7 +84,6 @@ static const Alter_inplace_info::HA_ALTER_FLAGS INNOBASE_ONLINE_OPERATIONS
 	| INNOBASE_ONLINE_CREATE
 	| Alter_inplace_info::DROP_INDEX
 	| Alter_inplace_info::DROP_UNIQUE_INDEX
-	| Alter_inplace_info::DROP_INDEX
 	| Alter_inplace_info::DROP_FOREIGN_KEY
 	| Alter_inplace_info::ALTER_COLUMN_NAME
 	| Alter_inplace_info::ADD_FOREIGN_KEY;
