@@ -3177,7 +3177,7 @@ WHERE t1.key1=t2.key1a AND t1.key2 > 1020	{
                       "access_type": "scan",
                       "using_join_cache": true,
                       "rows": 768,
-                      "cost": 59.535,
+                      "cost": 59.492,
                       "chosen": false
                     }
                   ] /* considered_access_paths */

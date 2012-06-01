@@ -206,10 +206,10 @@ ERROR 22007: Incorrect date value: '0000-00-00' for column 'c' at row 1
 SELECT * FROM t1 ORDER BY a;
 a	b	c
 1	master	0000-00-00
-SET @@global.sql_mode='';
-SET @@session.sql_mode='';
-SET @@global.sql_mode='';
-SET @@session.sql_mode='';
+SET @@global.sql_mode=DEFAULT;
+SET @@session.sql_mode=DEFAULT;
+SET @@global.sql_mode=DEFAULT;
+SET @@session.sql_mode=DEFAULT;
 DROP TABLE t1;
 
 *** clean up ***

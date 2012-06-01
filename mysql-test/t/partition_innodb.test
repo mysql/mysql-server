@@ -477,17 +477,17 @@ drop table t1;
 #
 # Bug 20397: Partitions: Crash when using non-existing engine
 #
+--error ER_UNKNOWN_STORAGE_ENGINE
 create table t1 (a int)
 engine = x
 partition by key (a);
-show create table t1;
-drop table t1;
 
 create table t1 (a int)
 engine = innodb
 partition by list (a)
 (partition p0 values in (0));
 
+--error ER_UNKNOWN_STORAGE_ENGINE
 alter table t1 engine = x;
 show create table t1;
 drop table t1;

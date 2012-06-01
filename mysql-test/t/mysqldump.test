@@ -130,7 +130,7 @@ create table t1(a int);
 set global sql_mode='ANSI_QUOTES';
 --exec $MYSQL_DUMP --comments=0 test
 --exec $MYSQL_DUMP --comments=0 --compatible=ansi test
-set global sql_mode='';
+set global sql_mode=DEFAULT;
 drop table t1;
 
 --echo #

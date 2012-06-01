@@ -3767,7 +3767,7 @@ ORDER BY tmp.f1, f0 LIMIT 30	{
                           "access_type": "scan",
                           "using_join_cache": true,
                           "rows": 500,
-                          "cost": 4.7057,
+                          "cost": 4.5736,
                           "chosen": true
                         }
                       ]
@@ -4048,7 +4048,7 @@ ORDER BY tmp.f1, f0 LIMIT 30 OFFSET 30	{
                           "access_type": "scan",
                           "using_join_cache": true,
                           "rows": 500,
-                          "cost": 4.7057,
+                          "cost": 4.5736,
                           "chosen": true
                         }
                       ]
@@ -4334,7 +4334,7 @@ ORDER BY tmp.f1, f0 LIMIT 30 OFFSET 30	{
                           "access_type": "scan",
                           "using_join_cache": true,
                           "rows": 500,
-                          "cost": 4.7057,
+                          "cost": 4.5736,
                           "chosen": true
                         }
                       ]
@@ -4648,7 +4648,7 @@ ORDER BY tmp.f1, f0 LIMIT 30 OFFSET 30	{
                           "access_type": "scan",
                           "using_join_cache": true,
                           "rows": 500,
-                          "cost": 4.7057,
+                          "cost": 4.5736,
                           "chosen": true
                         }
                       ]
@@ -5840,7 +5840,7 @@ LIMIT 30	{
                           "access_type": "scan",
                           "using_join_cache": true,
                           "rows": 75,
-                          "cost": 22.403,
+                          "cost": 21.202,
                           "chosen": false
                         }
                       ]
@@ -5905,7 +5905,7 @@ LIMIT 30	{
                           "access_type": "scan",
                           "using_join_cache": true,
                           "rows": 75,
-                          "cost": 22.403,
+                          "cost": 21.202,
                           "chosen": false
                         }
                       ]
@@ -7488,7 +7488,7 @@ ORDER BY d1.f2 DESC LIMIT 30	{
                           "access_type": "scan",
                           "using_join_cache": true,
                           "rows": 23,
-                          "cost": 13.119,
+                          "cost": 13.01,
                           "chosen": false
                         }
                       ]
