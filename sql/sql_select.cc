@@ -5109,6 +5109,7 @@ bool JOIN::make_tmp_tables_info()
   if (join_tab)
     join_tab[tables + tmp_tables - 1].next_select=
       setup_end_select_func(this, NULL);
+  group= has_group_by;
 
   DBUG_RETURN(false);
 }
