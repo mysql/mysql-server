@@ -76,6 +76,7 @@
 
 #include "global_threads.h"
 #include "mysqld.h"
+#include "my_default.h"
 
 #ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
 #include "../storage/perfschema/pfs_server.h"

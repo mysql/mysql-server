@@ -321,7 +321,7 @@ dict_mutex_exit_for_mysql(void)
 
 /** Get the latch that protects the stats of a given table */
 #define GET_TABLE_STATS_LATCH(table) \
-	(&dict_table_stats_latches[ut_fold_ull(table->id) \
+	(&dict_table_stats_latches[ut_fold_ull((ib_uint64_t) table) \
 				   % DICT_TABLE_STATS_LATCHES_SIZE])
 
 /**********************************************************************//**
@@ -429,14 +429,18 @@ dict_table_try_drop_aborted_and_mutex_exit(
 					drop indexes whose online creation
 					was aborted */
 {
-	if (try_drop && table != NULL && table->drop_aborted
+	if (try_drop
+	    && table != NULL
+	    && table->drop_aborted
 	    && table->n_ref_count == 1
 	    && dict_table_get_first_index(table)) {
+
 		/* Attempt to drop the indexes whose online creation
 		was aborted. */
 		table_id_t	table_id = table->id;
 
 		mutex_exit(&dict_sys->mutex);
+
 		dict_table_try_drop_aborted(table, table_id, 1);
 	} else {
 		mutex_exit(&dict_sys->mutex);
@@ -469,8 +473,9 @@ dict_table_close(
 	if they have been manually modified. We reset table->stat_initialized
 	only if table reference count is 0 because we do not want too frequent
 	stats re-reads (e.g. in other cases than FLUSH TABLE). */
-	if (dict_stats_is_persistent_enabled(table)
-	    && table->n_ref_count == 0) {
+	if (strchr(table->name, '/') != NULL
+	    && table->n_ref_count == 0
+	    && dict_stats_is_persistent_enabled(table)) {
 
 		dict_stats_deinit(table);
 	}

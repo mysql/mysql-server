@@ -45,6 +45,7 @@ Created 9/17/2000 Heikki Tuuri
 #include "dict0load.h"
 #include "dict0boot.h"
 #include "dict0stats.h"
+#include "dict0stats_background.h"
 #include "trx0roll.h"
 #include "trx0purge.h"
 #include "trx0rec.h"
@@ -1024,6 +1025,7 @@ row_update_statistics_if_needed(
 	dict_table_t*	table)	/*!< in: table */
 {
 	ib_uint64_t	counter;
+	ib_uint64_t	n_rows;
 
 	if (!table->stat_initialized) {
 		DBUG_EXECUTE_IF(
@@ -1034,21 +1036,25 @@ row_update_statistics_if_needed(
 		return;
 	}
 
-	/* Update the counter even for persistent stats enabled table
-	because it is displayed in INFORMATION_SCHEMA */
 	counter = table->stat_modified_counter++;
+	n_rows = dict_table_get_n_rows(table);
 
 	if (dict_stats_is_persistent_enabled(table)) {
+		if (counter > n_rows / 10 /* 10% */
+		    && dict_stats_auto_recalc_is_enabled(table)) {
+
+			dict_stats_enqueue_table_for_auto_recalc(table);
+			table->stat_modified_counter = 0;
+		}
 		return;
 	}
-	/* else */
 
 	/* Calculate new statistics if 1 / 16 of table has been modified
 	since the last time a statistics batch was run.
 	We calculate statistics at most every 16th round, since we may have
 	a counter table which is very small and updated very often. */
 
-	if (counter > 16 + table->stat_n_rows / 16) {
+	if (counter > 16 + n_rows / 16 /* 6.25% */) {
 
 		ut_ad(!mutex_own(&dict_sys->mutex));
 		/* this will reset table->stat_modified_counter to 0 */
@@ -3657,6 +3663,21 @@ retry:
 		}
 	}
 
+	dict_stats_wait_bg_to_stop_using_tables(table, NULL, trx);
+
+	dict_stats_remove_table_from_auto_recalc(table);
+
+	/* Remove stats for this table and all of its indexes from the
+	persistent storage if it exists and if there are stats for this
+	table in there. This function creates its own trx and commits
+	it. */
+	char	errstr[1024];
+	err = dict_stats_drop_table(name, errstr, sizeof(errstr));
+	if (err != DB_SUCCESS) {
+		ut_print_timestamp(stderr);
+		fprintf(stderr, " InnoDB: %s\n", errstr);
+	}
+
 	ut_a(table->n_foreign_key_checks_running == 0);
 
 	/* Move the table the the non-LRU list so that it isn't
@@ -3953,7 +3974,13 @@ check_next_foreign:
 
 				goto funct_exit;
 			}
+		}
 
+		/* The table->fts flag can be set on the table for which
+		the cluster index is being rebuilt. Such table might not have
+		DICT_TF2_FTS flag set. So keep this out of above
+		dict_table_has_fts_index condition */
+		if (table->fts) {
 			fts_free(table);
 		}
 

@@ -32,6 +32,7 @@ Smart ALTER TABLE
 #include "dict0crea.h"
 #include "dict0dict.h"
 #include "dict0stats.h"
+#include "dict0stats_background.h"
 #include "log0log.h"
 #include "row0log.h"
 #include "row0merge.h"
@@ -2176,6 +2177,14 @@ prepare_inplace_alter_table_dict(
 	row_mysql_lock_data_dictionary(trx);
 	dict_locked = true;
 
+	/* Wait for background stats processing to stop using the table that
+	we are going to alter. We know bg stats will not start using it again
+	until we are holding the data dict locked and we are holding it here
+	at least until checking ut_ad(user_table->n_ref_count == 1) below.
+	XXX what may happen if bg stats opens the table after we
+	have unlocked data dictionary below? */
+	dict_stats_wait_bg_to_stop_using_tables(user_table, NULL, trx);
+
 	online_retry_drop_indexes_low(indexed_table, trx);
 
 	ut_d(dict_table_check_for_dup_indexes(
@@ -3762,6 +3771,15 @@ ha_innobase::commit_inplace_alter_table(
 	or lock waits can happen in it during the data dictionary operation. */
 	row_mysql_lock_data_dictionary(trx);
 
+	/* Wait for background stats processing to stop using the
+	indexes that we are going to drop (if any). */
+	if (ctx != NULL && ctx->num_to_drop > 0) {
+		dict_stats_wait_bg_to_stop_using_tables(
+			prebuilt->table,
+			ctx->drop[0]->table,
+			trx);
+	}
+
 	if (new_clustered) {
 		dberr_t	error;
 		char*	tmp_name;
@@ -4179,10 +4197,23 @@ trx_commit:
 		}
 
 		if (ctx) {
+			bool	stats_init_called = false;
+
 			for (uint i = 0; i < ctx->num_to_add; i++) {
 				dict_index_t*	index = ctx->add[i];
 
 				if (!(index->type & DICT_FTS)) {
+
+					if (!stats_init_called) {
+						innobase_copy_frm_flags_from_table_share(
+							index->table,
+							altered_table->s);
+
+						dict_stats_init(index->table);
+
+						stats_init_called = true;
+					}
+
 					dict_stats_update_for_index(index);
 				}
 			}

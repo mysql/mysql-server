@@ -49,9 +49,8 @@ class Field_temporal_with_date_and_time;
 class Table_cache_element;
 
 /*
-  Used to identify NESTED_JOIN structures within a join (applicable only to
-  structures that have not been simplified away and embed more the one
-  element)
+  Used to identify NESTED_JOIN structures within a join (applicable to
+  structures representing outer joins that have not been simplified away).
 */
 typedef ulonglong nested_join_map;
 
@@ -336,6 +335,7 @@ public:
   uchar     *record_pointers;    /* If sorted in memory */
   ha_rows   found_records;      /* How many records in sort */
 
+  Filesort_info(): record_pointers(0) {};
   /** Sort filesort_buffer */
   void sort_buffer(Sort_param *param, uint count)
   { filesort_buffer.sort_buffer(param, count); }
@@ -655,6 +655,9 @@ struct TABLE_SHARE
 
   uint ref_count;                       /* How many TABLE objects uses this */
   uint key_block_size;			/* create key_block_size, if used */
+  uint stats_sample_pages;		/* number of pages to sample during
+					stats estimation, if used, otherwise 0. */
+  enum_stats_auto_recalc stats_auto_recalc; /* Automatic recalc of stats. */
   uint null_bytes, last_null_bit_pos;
   uint fields;				/* Number of fields */
   uint rec_buff_length;                 /* Size of table->record[] buffer */
@@ -1524,7 +1527,6 @@ public:
     nest's children).
   */
   table_map     sj_inner_tables;
-  Item_exists_subselect  *sj_subq_pred;
   Semijoin_mat_exec *sj_mat_exec;
 
   COND_EQUAL    *cond_equal;            /* Used with outer join */
@@ -2120,6 +2122,14 @@ struct Semijoin_mat_optimize
   Cost_estimate scan_cost;
 };
 
+/**
+  Struct st_nested_join is used to represent how tables are connected through
+  outer join operations and semi-join operations to form a query block.
+  Out of the parser, inner joins are also represented by st_nested_join
+  structs, but these are later flattened out by simplify_joins().
+  Some outer join nests are also flattened, when it can be determined that
+  they can be processed as inner joins instead of outer joins.
+*/
 typedef struct st_nested_join
 {
   List<TABLE_LIST>  join_list;       /* list of elements in the nested join */
@@ -2130,15 +2140,26 @@ typedef struct st_nested_join
     join nest. It is used exclusively within make_outerjoin_info().
    */
   struct st_join_table *first_nested;
-  /* 
+  /**
+    Number of tables and outer join nests administered by this nested join
+    object for the sake of cost analysis. Includes direct member tables as
+    well as tables included through semi-join nests, but notice that semi-join
+    nests themselves are not counted.
+  */
+  uint              nj_total;
+  /**
     Used to count tables in the nested join in 2 isolated places:
     1. In make_outerjoin_info(). 
-    2. check_interleaving_with_nj/restore_prev_nj_state (these are called
+    2. check_interleaving_with_nj/backout_nj_state (these are called
        by the join optimizer. 
     Before each use the counters are zeroed by reset_nj_counters.
   */
-  uint              counter_;
-  nested_join_map   nj_map;          /* Bit used to identify this nested join*/
+  uint              nj_counter;
+  /**
+    Bit identifying this nested join. Only nested joins representing the
+    outer join structure need this, other nests have bit set to zero.
+  */
+  nested_join_map   nj_map;
   /*
     Tables outside the semi-join that are used within the semi-join's
     ON condition (ie. the subquery WHERE clause and optional IN equalities).
@@ -2152,15 +2173,6 @@ typedef struct st_nested_join
   */
   List<Item>        sj_outer_exprs, sj_inner_exprs;
   Semijoin_mat_optimize sjm;
-  /**
-     True if this join nest node is completely covered by the query execution
-     plan. This means two things.
-
-     1. All tables on its @c join_list are covered by the plan.
-
-     2. All child join nest nodes are fully covered.
-   */
-  bool is_fully_covered() const { return join_list.elements == counter_; }
 } NESTED_JOIN;
 
 

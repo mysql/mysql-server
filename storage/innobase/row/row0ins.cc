@@ -1701,7 +1701,8 @@ row_ins_check_foreign_constraints(
 
 	foreign = UT_LIST_GET_FIRST(table->foreign_list);
 
-	DEBUG_SYNC_C("foreign_constraint_check_for_ins");
+	DEBUG_SYNC_C_IF_THD(thr_get_trx(thr)->mysql_thd,
+			    "foreign_constraint_check_for_ins");
 
 	while (foreign) {
 		if (foreign->foreign_index == index) {

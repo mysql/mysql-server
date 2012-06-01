@@ -4143,16 +4143,18 @@ Item_param::set_value(THD *thd, sp_rcontext *ctx, Item **it)
                       str_value.charset());
     collation.set(str_value.charset(), DERIVATION_COERCIBLE);
     decimals= 0;
-
+    item_type= Item::STRING_ITEM;
     break;
   }
 
   case REAL_RESULT:
     set_double(arg->val_real());
+    item_type= Item::REAL_ITEM;
     break;
 
   case INT_RESULT:
     set_int(arg->val_int(), arg->max_length);
+    item_type= Item::INT_ITEM;
     break;
 
   case DECIMAL_RESULT:
@@ -4164,6 +4166,7 @@ Item_param::set_value(THD *thd, sp_rcontext *ctx, Item **it)
       return TRUE;
 
     set_decimal(dv);
+    item_type= Item::DECIMAL_ITEM;
     break;
   }
 
@@ -4173,11 +4176,11 @@ Item_param::set_value(THD *thd, sp_rcontext *ctx, Item **it)
     DBUG_ASSERT(TRUE);  // Abort in debug mode.
 
     set_null();         // Set to NULL in release mode.
+    item_type= Item::NULL_ITEM;
     return FALSE;
   }
 
   item_result_type= arg->result_type();
-  item_type= arg->type();
   return FALSE;
 }
 

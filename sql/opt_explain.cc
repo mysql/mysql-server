@@ -20,6 +20,7 @@
 #include "sql_optimizer.h" // JOIN
 #include "sql_partition.h" // for make_used_partitions_str()
 #include "sql_join_buffer.h" // JOIN_CACHE
+#include "filesort.h"        // Filesort
 #include "opt_explain_format.h"
 
 typedef qep_row::extra extra;
@@ -329,6 +330,7 @@ private:
 
   uint tabnum; ///< current tab number in join->join_tab[]
   JOIN_TAB *tab; ///< current JOIN_TAB
+  SQL_SELECT *select; ///< current SQL_SELECT
   int quick_type; ///< current quick type, see anon. enum at QUICK_SELECT_I
   table_map used_tables; ///< accumulate used tables bitmap
   uint last_sjm_table; ///< last materialized semi-joined table
@@ -342,7 +344,7 @@ public:
   : Explain_table_base(CTX_JOIN, thd_arg, join_arg),
     need_tmp_table(need_tmp_table_arg),
     need_order(need_order_arg), distinct(distinct_arg),
-    tabnum(0), used_tables(0), last_sjm_table(MAX_TABLES),
+    tabnum(0), select(0), used_tables(0), last_sjm_table(MAX_TABLES),
     materialize_start(MAX_TABLES), materialize_end(MAX_TABLES)
   {
     /* it is not UNION: */
@@ -1018,8 +1020,9 @@ bool Explain_table_base::explain_extra_common(const SQL_SELECT *select,
       {
         if (fmt->is_hierarchical())
         {
-          Lazy_condition *c= new Lazy_condition(tab ? tab->condition()
-                                                    : select->cond);
+          Lazy_condition *c= new Lazy_condition(tab && !tab->filesort ?
+                                                tab->condition() :
+                                                select->cond);
           if (c == NULL)
             return true;
           fmt->entry()->col_attached_condition.set(c);
@@ -1162,10 +1165,12 @@ bool Explain_join::shallow_explain()
     table= tab->table;
     usable_keys= tab->keys;
     quick_type= -1;
+    select= (tab->filesort && tab->filesort->select) ?
+             tab->filesort->select : tab->select;
 
-    if (tab->type == JT_ALL && tab->select && tab->select->quick)
+    if (tab->type == JT_ALL && select && select->quick)
     {
-      quick_type= tab->select->quick->get_type();
+      quick_type= select->quick->get_type();
       tab->type= calc_join_type(quick_type);
     }
 
@@ -1293,8 +1298,8 @@ bool Explain_join::explain_key_and_len()
     return explain_key_and_len_index(tab->ref.key, tab->ref.key_length);
   else if (tab->type == JT_INDEX_SCAN)
     return explain_key_and_len_index(tab->index);
-  else if (tab->select && tab->select->quick)
-    return explain_key_and_len_quick(tab->select);
+  else if (select && select->quick)
+    return explain_key_and_len_quick(select);
   else
   {
     const TABLE_LIST *table_list= table->pos_in_table_list;
@@ -1338,8 +1343,8 @@ bool Explain_join::explain_rows_and_filtered()
     return false;
 
   double examined_rows;
-  if (tab->select && tab->select->quick)
-    examined_rows= rows2double(tab->select->quick->records);
+  if (select && select->quick)
+    examined_rows= rows2double(select->quick->records);
   else if (tab->type == JT_INDEX_SCAN || tab->type == JT_ALL)
   {
     if (tab->limit)
@@ -1402,7 +1407,6 @@ bool Explain_join::explain_extra()
   }
   else
   {
-    const SQL_SELECT *select= tab->select;
     uint keyno= MAX_KEY;
     if (tab->ref.key_parts)
       keyno= tab->ref.key;
@@ -1548,7 +1552,7 @@ bool Explain_join::explain_extra()
     if (tab->has_guarded_conds() && push_extra(ET_FULL_SCAN_ON_NULL_KEY))
       return true;
 
-    if (tabnum > 0 && tab[-1].next_select == sub_select_cache)
+    if (tabnum > 0 && tab->use_join_cache != JOIN_CACHE::ALG_NONE)
     {
       StringBuffer<64> buff(cs);
       if ((tab->use_join_cache & JOIN_CACHE::ALG_BNL))

@@ -9,6 +9,9 @@ CREATE TABLE t1 (
 ) ENGINE = InnoDB comment = 'original testcase by sroussey@network54.com';
 INSERT INTO t1 (message) VALUES ("Testing"),("table"),("testbug"),
         ("steve"),("is"),("cool"),("steve is cool");
+-- disable_result_log
+ANALYZE TABLE t1;
+-- enable_result_log
 # basic MATCH
 SELECT a, FORMAT(MATCH (message) AGAINST ('steve'),6) FROM t1 WHERE MATCH (message) AGAINST ('steve');
 SELECT a, MATCH (message) AGAINST ('steve' IN BOOLEAN MODE) FROM t1 WHERE MATCH (message) AGAINST ('steve');
@@ -37,6 +40,9 @@ SELECT a, MATCH (message) AGAINST ('steve' IN BOOLEAN MODE) as rel FROM t1 ORDER
 # for fulltext searches too
 #
 alter table t1 add key m (message);
+-- disable_result_log
+ANALYZE TABLE t1;
+-- enable_result_log
 explain SELECT message FROM t1 WHERE MATCH (message) AGAINST ('steve') ORDER BY message;
 SELECT message FROM t1 WHERE MATCH (message) AGAINST ('steve') ORDER BY message desc;
 
@@ -51,6 +57,9 @@ CREATE TABLE t1 (
   FULLTEXT(message)
 ) ENGINE = InnoDB;
 INSERT INTO t1 (message) VALUES ("testbug"),("testbug foobar");
+-- disable_result_log
+ANALYZE TABLE t1;
+-- enable_result_log
 SELECT a, MATCH (message) AGAINST ('t* f*' IN BOOLEAN MODE) as rel FROM t1;
 SELECT a, MATCH (message) AGAINST ('t* f*' IN BOOLEAN MODE) as rel FROM t1 ORDER BY rel,a;
 drop table t1;

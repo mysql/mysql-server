@@ -347,7 +347,7 @@ name	max_count	min_count	count	max_count_reset	min_count_reset	count_reset	statu
 metadata_table_handles_opened	NULL	NULL	0	NULL	NULL	0	disabled
 set global innodb_monitor_enable = metadata_table_handles_opened;
 drop table monitor_test;
-create table monitor_test(col int) engine = innodb;
+create table monitor_test(col int) engine = innodb stats_persistent=0;
 select * from monitor_test;
 col
 select name, max_count, min_count, count,

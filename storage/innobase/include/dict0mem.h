@@ -729,6 +729,8 @@ struct dict_table_struct{
 	unsigned	stat_initialized:1; /*!< TRUE if statistics have
 				been calculated the first time
 				after database startup or table creation */
+	ib_time_t	stats_last_recalc;
+				/*!< Timestamp of last recalc of the stats */
 	ib_uint32_t	stat_persistent;
 				/*!< The two bits below are set in the
 				::stat_persistent member and have the following
@@ -748,6 +750,33 @@ struct dict_table_struct{
 				this ever happens. */
 #define DICT_STATS_PERSISTENT_ON	(1 << 1)
 #define DICT_STATS_PERSISTENT_OFF	(1 << 2)
+	ib_uint32_t	stats_auto_recalc;
+				/*!< The two bits below are set in the
+				::stats_auto_recalc member and have
+				the following meaning:
+				1. _ON=0, _OFF=0, no explicit auto recalc
+				setting for this table, the value of the global
+				srv_stats_persistent_auto_recalc is used to
+				determine whether the table has auto recalc
+				enabled or not
+				2. _ON=0, _OFF=1, auto recalc is explicitly
+				disabled for this table, regardless of the
+				value of the global
+				srv_stats_persistent_auto_recalc
+				3. _ON=1, _OFF=0, auto recalc is explicitly
+				enabled for this table, regardless of the
+				value of the global
+				srv_stats_persistent_auto_recalc
+				4. _ON=1, _OFF=1, not allowed, we assert if
+				this ever happens. */
+#define DICT_STATS_AUTO_RECALC_ON	(1 << 1)
+#define DICT_STATS_AUTO_RECALC_OFF	(1 << 2)
+	ulint		stats_sample_pages;
+				/*!< the number of pages to sample for this
+				table during persistent stats estimation;
+				if this is 0, then the value of the global
+				srv_stats_persistent_sample_pages will be
+				used instead. */
 	ib_uint64_t	stat_n_rows;
 				/*!< approximate number of rows in the table;
 				we periodically calculate new estimates */
@@ -769,6 +798,21 @@ struct dict_table_struct{
 				calculation; this counter is not protected by
 				any latch, because this is only used for
 				heuristics */
+#define BG_STAT_NONE		0
+#define BG_STAT_IN_PROGRESS	(1 << 0)
+				/*!< BG_STAT_IN_PROGRESS is set in
+				stats_bg_flag when the background
+				stats code is working on this table. The DROP
+				TABLE code waits for this to be cleared
+				before proceeding. */
+#define BG_STAT_SHOULD_QUIT	(1 << 1)
+				/*!< BG_STAT_SHOULD_QUIT is set in
+				stats_bg_flag when DROP TABLE starts
+				waiting on BG_STAT_IN_PROGRESS to be cleared,
+				the background stats thread will detect this
+				and will eventually quit sooner */
+	byte		stats_bg_flag;
+				/*!< see BG_STAT_* above */
 				/* @} */
 	/*----------------------*/
 				/**!< The following fields are used by the
