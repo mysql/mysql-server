@@ -56,6 +56,7 @@ connection default;
 # This should be no-op.
 ALTER TABLE t MODIFY c2 INT NULL, ALGORITHM=INPLACE;
 
+--replace_column 1 #
 SELECT * FROM INFORMATION_SCHEMA.INNODB_SYS_TABLES
 WHERE NAME='test/t';
 
