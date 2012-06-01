@@ -3968,7 +3968,13 @@ check_next_foreign:
 
 				goto funct_exit;
 			}
+		}
 
+		/* The table->fts flag can be set on the table for which
+		the cluster index is being rebuilt. Such table might not have
+		DICT_TF2_FTS flag set. So keep this out of above
+		dict_table_has_fts_index condition */
+		if (table->fts) {
 			fts_free(table);
 		}
 
