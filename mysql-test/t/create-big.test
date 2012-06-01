@@ -132,10 +132,19 @@ set debug_sync='create_table_select_before_create SIGNAL parked WAIT_FOR go';
 --send create table t1 select 1 as i;
 connection addconroot1;
 set debug_sync='now WAIT_FOR parked';
---error ER_TABLE_EXISTS_ERROR
-alter table t3 rename to t1;
+--send alter table t3 rename to t1
+connection addconroot2;
+# Wait until the above ALTER TABLE RENAME is blocked due to CREATE
+let $wait_condition=
+    select count(*) = 1 from information_schema.processlist
+    where state = "Waiting for table metadata lock" and
+          info = "alter table t3 rename to t1";
+--source include/wait_condition.inc
 set debug_sync='now SIGNAL go';
 connection default;
+--reap
+connection addconroot1;
+--error ER_TABLE_EXISTS_ERROR
 --reap
 connection default;
 show create table t1;
@@ -146,11 +155,21 @@ set debug_sync='create_table_select_before_create SIGNAL parked WAIT_FOR go';
 --send create table t1 select 1 as i;
 connection addconroot1;
 set debug_sync='now WAIT_FOR parked';
---error ER_TABLE_EXISTS_ERROR
-alter table t3 rename to t1, add k int;
+--send alter table t3 rename to t1, add k int
+connection addconroot2;
+# Wait until the above ALTER TABLE RENAME is blocked due to CREATE
+let $wait_condition=
+    select count(*) = 1 from information_schema.processlist
+    where state = "Waiting for table metadata lock" and
+          info = "alter table t3 rename to t1, add k int";
+--source include/wait_condition.inc
 set debug_sync='now SIGNAL go';
 connection default;
 --reap
+connection addconroot1;
+--error ER_TABLE_EXISTS_ERROR
+--reap
+connection default;
 show create table t1;
 drop table t1,t3;
 
