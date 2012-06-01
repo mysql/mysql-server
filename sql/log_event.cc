@@ -3147,6 +3147,7 @@ Query_log_event::Query_log_event(const char* buf, uint event_len,
   if (!(start= data_buf = (Log_event::Byte*) my_malloc(catalog_len + 1 +
                                               time_zone_len + 1 +
                                               data_len + 1 +
+                                              QUERY_CACHE_DB_LENGTH_SIZE +
                                               QUERY_CACHE_FLAGS_SIZE +
                                               user.length + 1 +
                                               host.length + 1 +
