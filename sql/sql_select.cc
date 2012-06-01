@@ -10595,6 +10595,22 @@ void JOIN::cleanup(bool full)
         tmp_join->tmp_table_param.save_copy_field= 0;
     }
     tmp_table_param.cleanup();
+
+    if (!join_tab)
+    {
+      List_iterator<TABLE_LIST> li(*join_list);
+      TABLE_LIST *table_ref;
+      while ((table_ref= li++))
+      {
+        if (table_ref->table &&
+            table_ref->jtbm_subselect &&
+            table_ref->jtbm_subselect->is_jtbm_const_tab)
+        {
+          free_tmp_table(thd, table_ref->table);
+          table_ref->table= NULL;
+        }
+      }
+    }
   }
   DBUG_VOID_RETURN;
 }

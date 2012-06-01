@@ -5624,5 +5624,22 @@ show status like '%Handler_read%';
 
 drop table t1, t2, t3;
 
+--echo #
+--echo # MDEV-288 CHEAP SQ: Valgrind warnings "Memory lost" with IN and EXISTS nested subquery, materialization+semijoin
+--echo #
+
+CREATE TABLE t1 (a INT);
+INSERT INTO t1 VALUES (0),(8);
+
+CREATE TABLE t2 (b INT PRIMARY KEY);
+INSERT INTO t2 VALUES (1),(2);
+
+EXPLAIN
+SELECT * FROM t1 WHERE 4 IN (SELECT MAX(b) FROM t2 WHERE EXISTS (SELECT * FROM t1));
+SELECT * FROM t1 WHERE 4 IN (SELECT MAX(b) FROM t2 WHERE EXISTS (SELECT * FROM t1));
+
+drop table t1,t2;
+
+
 --echo # return optimizer switch changed in the beginning of this test
 set optimizer_switch=@subselect_tmp;
