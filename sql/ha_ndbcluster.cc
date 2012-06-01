@@ -7530,7 +7530,7 @@ static void transaction_checks(THD *thd, Thd_ndb *thd_ndb)
 {
   if (thd->lex->sql_command == SQLCOM_LOAD)
     thd_ndb->trans_options|= TNTO_TRANSACTIONS_OFF;
-  else if (!thd->transaction.on)
+  else if (!thd->transaction.flags.enabled)
     thd_ndb->trans_options|= TNTO_TRANSACTIONS_OFF;
   else if (!THDVAR(thd, use_transactions))
     thd_ndb->trans_options|= TNTO_TRANSACTIONS_OFF;
