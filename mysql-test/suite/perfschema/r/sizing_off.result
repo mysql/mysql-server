@@ -27,6 +27,7 @@ performance_schema_max_table_handles	-1
 performance_schema_max_table_instances	-1
 performance_schema_max_thread_classes	50
 performance_schema_max_thread_instances	-1
+performance_schema_session_connect_attrs_size	-1
 performance_schema_setup_actors_size	100
 performance_schema_setup_objects_size	100
 performance_schema_users_size	-1
@@ -45,6 +46,7 @@ Performance_schema_mutex_classes_lost	0
 Performance_schema_mutex_instances_lost	0
 Performance_schema_rwlock_classes_lost	0
 Performance_schema_rwlock_instances_lost	0
+Performance_schema_session_connect_attrs_lost	0
 Performance_schema_socket_classes_lost	0
 Performance_schema_socket_instances_lost	0
 Performance_schema_stage_classes_lost	0
@@ -54,159 +56,3 @@ Performance_schema_table_instances_lost	0
 Performance_schema_thread_classes_lost	0
 Performance_schema_thread_instances_lost	0
 Performance_schema_users_lost	0
-show engine performance_schema status;
-Type	Name	Status
-performance_schema	events_waits_current.row_size	184
-performance_schema	events_waits_current.row_count	0
-performance_schema	events_waits_history.row_size	184
-performance_schema	events_waits_history.row_count	0
-performance_schema	events_waits_history.memory	0
-performance_schema	events_waits_history_long.row_size	184
-performance_schema	events_waits_history_long.row_count	0
-performance_schema	events_waits_history_long.memory	0
-performance_schema	(pfs_mutex_class).row_size	256
-performance_schema	(pfs_mutex_class).row_count	0
-performance_schema	(pfs_mutex_class).memory	0
-performance_schema	(pfs_rwlock_class).row_size	256
-performance_schema	(pfs_rwlock_class).row_count	0
-performance_schema	(pfs_rwlock_class).memory	0
-performance_schema	(pfs_cond_class).row_size	192
-performance_schema	(pfs_cond_class).row_count	0
-performance_schema	(pfs_cond_class).memory	0
-performance_schema	(pfs_thread_class).row_size	192
-performance_schema	(pfs_thread_class).row_count	0
-performance_schema	(pfs_thread_class).memory	0
-performance_schema	(pfs_file_class).row_size	320
-performance_schema	(pfs_file_class).row_count	0
-performance_schema	(pfs_file_class).memory	0
-performance_schema	mutex_instances.row_size	192
-performance_schema	mutex_instances.row_count	0
-performance_schema	mutex_instances.memory	0
-performance_schema	rwlock_instances.row_size	192
-performance_schema	rwlock_instances.row_count	0
-performance_schema	rwlock_instances.memory	0
-performance_schema	cond_instances.row_size	128
-performance_schema	cond_instances.row_count	0
-performance_schema	cond_instances.memory	0
-performance_schema	threads.row_size	10048
-performance_schema	threads.row_count	0
-performance_schema	threads.memory	0
-performance_schema	file_instances.row_size	768
-performance_schema	file_instances.row_count	0
-performance_schema	file_instances.memory	0
-performance_schema	(pfs_file_handle).row_size	8
-performance_schema	(pfs_file_handle).row_count	0
-performance_schema	(pfs_file_handle).memory	0
-performance_schema	events_waits_summary_by_thread_by_event_name.row_size	32
-performance_schema	events_waits_summary_by_thread_by_event_name.row_count	0
-performance_schema	events_waits_summary_by_thread_by_event_name.memory	0
-performance_schema	(pfs_table_share).row_size	22208
-performance_schema	(pfs_table_share).row_count	0
-performance_schema	(pfs_table_share).memory	0
-performance_schema	(pfs_table).row_size	9280
-performance_schema	(pfs_table).row_count	0
-performance_schema	(pfs_table).memory	0
-performance_schema	setup_actors.row_size	256
-performance_schema	setup_actors.row_count	0
-performance_schema	setup_actors.memory	0
-performance_schema	setup_objects.row_size	448
-performance_schema	setup_objects.row_count	0
-performance_schema	setup_objects.memory	0
-performance_schema	events_waits_summary_global_by_event_name.row_size	32
-performance_schema	events_waits_summary_global_by_event_name.row_count	0
-performance_schema	events_waits_summary_global_by_event_name.memory	0
-performance_schema	(pfs_account).row_size	256
-performance_schema	(pfs_account).row_count	0
-performance_schema	(pfs_account).memory	0
-performance_schema	events_waits_summary_by_account_by_event_name.row_size	32
-performance_schema	events_waits_summary_by_account_by_event_name.row_count	0
-performance_schema	events_waits_summary_by_account_by_event_name.memory	0
-performance_schema	events_waits_summary_by_user_by_event_name.row_size	32
-performance_schema	events_waits_summary_by_user_by_event_name.row_count	0
-performance_schema	events_waits_summary_by_user_by_event_name.memory	0
-performance_schema	events_waits_summary_by_host_by_event_name.row_size	32
-performance_schema	events_waits_summary_by_host_by_event_name.row_count	0
-performance_schema	events_waits_summary_by_host_by_event_name.memory	0
-performance_schema	(pfs_user).row_size	128
-performance_schema	(pfs_user).row_count	0
-performance_schema	(pfs_user).memory	0
-performance_schema	(pfs_host).row_size	192
-performance_schema	(pfs_host).row_count	0
-performance_schema	(pfs_host).memory	0
-performance_schema	(pfs_stage_class).row_size	192
-performance_schema	(pfs_stage_class).row_count	0
-performance_schema	(pfs_stage_class).memory	0
-performance_schema	events_stages_history.row_size	88
-performance_schema	events_stages_history.row_count	0
-performance_schema	events_stages_history.memory	0
-performance_schema	events_stages_history_long.row_size	88
-performance_schema	events_stages_history_long.row_count	0
-performance_schema	events_stages_history_long.memory	0
-performance_schema	events_stages_summary_by_thread_by_event_name.row_size	32
-performance_schema	events_stages_summary_by_thread_by_event_name.row_count	0
-performance_schema	events_stages_summary_by_thread_by_event_name.memory	0
-performance_schema	events_stages_summary_global_by_event_name.row_size	32
-performance_schema	events_stages_summary_global_by_event_name.row_count	0
-performance_schema	events_stages_summary_global_by_event_name.memory	0
-performance_schema	events_stages_summary_by_account_by_event_name.row_size	32
-performance_schema	events_stages_summary_by_account_by_event_name.row_count	0
-performance_schema	events_stages_summary_by_account_by_event_name.memory	0
-performance_schema	events_stages_summary_by_user_by_event_name.row_size	32
-performance_schema	events_stages_summary_by_user_by_event_name.row_count	0
-performance_schema	events_stages_summary_by_user_by_event_name.memory	0
-performance_schema	events_stages_summary_by_host_by_event_name.row_size	32
-performance_schema	events_stages_summary_by_host_by_event_name.row_count	0
-performance_schema	events_stages_summary_by_host_by_event_name.memory	0
-performance_schema	(pfs_statement_class).row_size	192
-performance_schema	(pfs_statement_class).row_count	0
-performance_schema	(pfs_statement_class).memory	0
-performance_schema	events_statements_history.row_size	3024
-performance_schema	events_statements_history.row_count	0
-performance_schema	events_statements_history.memory	0
-performance_schema	events_statements_history_long.row_size	3024
-performance_schema	events_statements_history_long.row_count	0
-performance_schema	events_statements_history_long.memory	0
-performance_schema	events_statements_summary_by_thread_by_event_name.row_size	184
-performance_schema	events_statements_summary_by_thread_by_event_name.row_count	0
-performance_schema	events_statements_summary_by_thread_by_event_name.memory	0
-performance_schema	events_statements_summary_global_by_event_name.row_size	184
-performance_schema	events_statements_summary_global_by_event_name.row_count	0
-performance_schema	events_statements_summary_global_by_event_name.memory	0
-performance_schema	events_statements_summary_by_account_by_event_name.row_size	184
-performance_schema	events_statements_summary_by_account_by_event_name.row_count	0
-performance_schema	events_statements_summary_by_account_by_event_name.memory	0
-performance_schema	events_statements_summary_by_user_by_event_name.row_size	184
-performance_schema	events_statements_summary_by_user_by_event_name.row_count	0
-performance_schema	events_statements_summary_by_user_by_event_name.memory	0
-performance_schema	events_statements_summary_by_host_by_event_name.row_size	184
-performance_schema	events_statements_summary_by_host_by_event_name.row_count	0
-performance_schema	events_statements_summary_by_host_by_event_name.memory	0
-performance_schema	events_statements_current.row_size	3024
-performance_schema	events_statements_current.row_count	0
-performance_schema	events_statements_current.memory	0
-performance_schema	(pfs_socket_class).row_size	320
-performance_schema	(pfs_socket_class).row_count	0
-performance_schema	(pfs_socket_class).memory	0
-performance_schema	socket_instances.row_size	384
-performance_schema	socket_instances.row_count	0
-performance_schema	socket_instances.memory	0
-performance_schema	events_statements_summary_by_digest.row_size	1280
-performance_schema	events_statements_summary_by_digest.row_count	0
-performance_schema	events_statements_summary_by_digest.memory	0
-performance_schema	(account_hash).count	0
-performance_schema	(account_hash).size	0
-performance_schema	(digest_hash).count	0
-performance_schema	(digest_hash).size	0
-performance_schema	(filename_hash).count	0
-performance_schema	(filename_hash).size	0
-performance_schema	(host_hash).count	0
-performance_schema	(host_hash).size	0
-performance_schema	(setup_actor_hash).count	0
-performance_schema	(setup_actor_hash).size	0
-performance_schema	(setup_object_hash).count	0
-performance_schema	(setup_object_hash).size	0
-performance_schema	(table_share_hash).count	0
-performance_schema	(table_share_hash).size	0
-performance_schema	(user_hash).count	0
-performance_schema	(user_hash).size	0
-performance_schema	performance_schema.memory	0
