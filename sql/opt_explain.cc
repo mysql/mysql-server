@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -21,6 +21,7 @@
 #include "sql_partition.h" // for make_used_partitions_str()
 #include "sql_join_buffer.h" // JOIN_CACHE
 #include "opt_explain_format.h"
+#include "sql_base.h"      // lock_tables
 
 typedef qep_row::extra extra;
 
@@ -2042,8 +2043,26 @@ bool mysql_explain_unit(THD *thd, SELECT_LEX_UNIT *unit, select_result *result)
   {
     unit->fake_select_lex->select_number= UINT_MAX; // just for initialization
     unit->fake_select_lex->options|= SELECT_DESCRIBE;
-    res= unit->prepare(thd, result, SELECT_NO_UNLOCK | SELECT_DESCRIBE) ||
-         unit->optimize();
+
+    res= unit->prepare(thd, result, SELECT_NO_UNLOCK | SELECT_DESCRIBE);
+
+    if (res)
+      DBUG_RETURN(res);
+
+    /*
+      If tables are not locked at this point, it means that we have delayed
+      this step until after prepare stage (now), in order to do better
+      partition pruning.
+
+      We need to lock tables now in order to proceed with the remaning
+      stages of query optimization.
+    */
+    if (! thd->lex->is_query_tables_locked() &&
+        lock_tables(thd, thd->lex->query_tables, thd->lex->table_count, 0))
+      DBUG_RETURN(true);
+
+    res= unit->optimize();
+
     if (!res)
       unit->explain();
   }
@@ -2056,10 +2075,8 @@ bool mysql_explain_unit(THD *thd, SELECT_LEX_UNIT *unit, select_result *result)
                       first->table_list.first,
                       first->with_wild, first->item_list,
                       first->where,
-                      first->order_list.elements +
-                      first->group_list.elements,
-                      first->order_list.first,
-                      first->group_list.first,
+                      &first->order_list,
+                      &first->group_list,
                       first->having,
                       first->options | thd->variables.option_bits | SELECT_DESCRIBE,
                       result, unit, first);
