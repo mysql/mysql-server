@@ -3293,6 +3293,7 @@ innobase_drop_foreign(
 @param nth_col		0-based index of the column
 @param from		old column name
 @param to		new column name
+@param new_clustered	whether the table has been rebuilt
 @retval true		Failure
 @retval false		Success */
 static __attribute__((nonnull, warn_unused_result))
@@ -3304,19 +3305,25 @@ innobase_rename_column(
 	trx_t*			trx,
 	ulint			nth_col,
 	const char*		from,
-	const char*		to)
+	const char*		to,
+	bool			new_clustered)
 {
 	pars_info_t*	info;
 	dberr_t		error;
 
 	DBUG_ENTER("innobase_rename_column");
 
-	DBUG_ASSERT(trx_get_dict_operation(trx) == TRX_DICT_OP_INDEX);
+	DBUG_ASSERT(trx_get_dict_operation(trx)
+		    == new_clustered ? TRX_DICT_OP_TABLE : TRX_DICT_OP_INDEX);
 	ut_ad(trx->dict_operation_lock_mode == RW_X_LATCH);
 	ut_ad(mutex_own(&dict_sys->mutex));
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_EX));
 #endif /* UNIV_SYNC_DEBUG */
+
+	if (new_clustered) {
+		goto rename_foreign;
+	}
 
 	info = pars_info_create();
 
@@ -3392,6 +3399,7 @@ err_exit:
 		}
 	}
 
+rename_foreign:
 	trx->op_info = "renaming column in SYS_FOREIGN_COLS";
 
 	for (dict_foreign_t* foreign = UT_LIST_GET_FIRST(
@@ -3461,9 +3469,61 @@ err_exit:
 	}
 
 	trx->op_info = "";
-	/* Rename the column in the data dictionary cache. */
-	dict_mem_table_col_rename(prebuilt->table, nth_col, from, to);
+	if (!new_clustered) {
+		/* Rename the column in the data dictionary cache. */
+		dict_mem_table_col_rename(prebuilt->table, nth_col, from, to);
+	}
 	DBUG_RETURN(false);
+}
+
+/** Rename columns.
+@param ha_alter_info	Data used during in-place alter.
+@param new_clustered	whether the table has been rebuilt
+@param table		the TABLE
+@param table_share	the TABLE_SHARE
+@param prebuilt		the prebuilt struct
+@param trx		data dictionary transaction
+@retval true		Failure
+@retval false		Success */
+static __attribute__((nonnull, warn_unused_result))
+bool
+innobase_rename_columns(
+/*====================*/
+	Alter_inplace_info*	ha_alter_info,
+	bool			new_clustered,
+	const TABLE*		table,
+	const TABLE_SHARE*	table_share,
+	row_prebuilt_t*		prebuilt,
+	trx_t*			trx)
+{
+	List_iterator_fast<Create_field> cf_it;
+	uint i = 0;
+
+	for (Field** fp = table->field; *fp; fp++, i++) {
+		if (!((*fp)->flags & FIELD_IS_RENAMED)) {
+			continue;
+		}
+
+		cf_it.init(ha_alter_info->alter_info->create_list);
+		while (Create_field* cf = cf_it++) {
+			if (cf->field == *fp) {
+				if (innobase_rename_column(
+					    table_share,
+					    prebuilt, trx, i,
+					    cf->field->field_name,
+					    cf->field_name, new_clustered)) {
+					return(true);
+				}
+				goto processed_field;
+			}
+		}
+
+		ut_error;
+processed_field:
+		continue;
+	}
+
+	return(false);
 }
 
 /** Commit or rollback the changes made during
@@ -3605,6 +3665,14 @@ ha_innobase::commit_inplace_alter_table(
 			}
 		}
 
+		if ((ha_alter_info->handler_flags
+		     & Alter_inplace_info::ALTER_COLUMN_NAME)
+		    && innobase_rename_columns(ha_alter_info, true, table,
+					       table_share, prebuilt, trx)) {
+			err = -1;
+			goto drop_new_clustered;
+		}
+
 		/* A new clustered index was defined for the table
 		and there was no error at this point. We can
 		now rename the old table as a temporary table,
@@ -3716,33 +3784,10 @@ ha_innobase::commit_inplace_alter_table(
 
 	if (err == 0 && !new_clustered
 	    && (ha_alter_info->handler_flags
-		& Alter_inplace_info::ALTER_COLUMN_NAME)) {
-		List_iterator_fast<Create_field> cf_it;
-		uint i = 0;
-
-		for (Field** fp = table->field; *fp && err == 0; fp++, i++) {
-			if (!((*fp)->flags & FIELD_IS_RENAMED)) {
-				continue;
-			}
-
-			cf_it.init(ha_alter_info->alter_info->create_list);
-			while (Create_field* cf = cf_it++) {
-				if (cf->field == *fp) {
-					if (innobase_rename_column(
-						    table_share,
-						    prebuilt, trx, i,
-						    cf->field->field_name,
-						    cf->field_name)) {
-						err = -1;
-					}
-					goto processed_field;
-				}
-			}
-
-			ut_error;
-processed_field:
-			continue;
-		}
+		& Alter_inplace_info::ALTER_COLUMN_NAME)
+	    && innobase_rename_columns(ha_alter_info, false, table,
+				       table_share, prebuilt, trx)) {
+		err = -1;
 	}
 
 	if (err == 0 && ctx && ctx->num_to_add_fk > 0) {

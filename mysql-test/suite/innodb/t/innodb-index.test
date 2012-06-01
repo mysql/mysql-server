@@ -152,7 +152,8 @@ alter table t2 drop index b, drop index c, drop index d;
 create unique index dc on t2 (d,c);
 create index dc on t1 (b,c);
 # This should preserve the foreign key constraints.
-alter table t2 add primary key (alpha), change a alpha int;
+alter table t2 add primary key (alpha), change a alpha int,
+change b beta int not null;
 --disable_info
 insert into t1 values (1,1,1);
 insert into t3 values (1,1,1);
@@ -173,7 +174,7 @@ alter table t3 add constraint dc foreign key (a) references t1(a);
 SET FOREIGN_KEY_CHECKS=@OLD_FOREIGN_KEY_CHECKS;
 show create table t3;
 --enable_info
-alter table t2 drop index b, add index (b);
+alter table t2 drop index b, add index (beta);
 --disable_info
 show create table t2;
 --error ER_ROW_IS_REFERENCED_2

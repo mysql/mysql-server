@@ -445,7 +445,8 @@ info: Records: 0  Duplicates: 0  Warnings: 0
 create index dc on t1 (b,c);
 affected rows: 0
 info: Records: 0  Duplicates: 0  Warnings: 0
-alter table t2 add primary key (alpha), change a alpha int;
+alter table t2 add primary key (alpha), change a alpha int,
+change b beta int not null;
 affected rows: 0
 info: Records: 0  Duplicates: 0  Warnings: 0
 insert into t1 values (1,1,1);
@@ -482,22 +483,22 @@ t3	CREATE TABLE `t3` (
   KEY `c` (`c`),
   CONSTRAINT `dc` FOREIGN KEY (`a`) REFERENCES `t1` (`a`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
-alter table t2 drop index b, add index (b);
+alter table t2 drop index b, add index (beta);
 affected rows: 0
 info: Records: 0  Duplicates: 0  Warnings: 0
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `alpha` int(11) NOT NULL DEFAULT '0',
-  `b` int(11) NOT NULL,
+  `beta` int(11) NOT NULL,
   `c` int(11) NOT NULL,
   `d` int(11) NOT NULL,
   `e` int(11) DEFAULT NULL,
   PRIMARY KEY (`alpha`),
   UNIQUE KEY `dc` (`d`,`c`),
   KEY `c` (`c`),
-  KEY `b` (`b`),
-  CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`b`) REFERENCES `t1` (`b`) ON DELETE CASCADE,
+  KEY `beta` (`beta`),
+  CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`beta`) REFERENCES `t1` (`b`) ON DELETE CASCADE,
   CONSTRAINT `t2_ibfk_2` FOREIGN KEY (`c`) REFERENCES `t3` (`c`),
   CONSTRAINT `t2_ibfk_3` FOREIGN KEY (`d`) REFERENCES `t4` (`d`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
@@ -512,11 +513,11 @@ alter table t4 drop foreign key dc;
 affected rows: 0
 info: Records: 0  Duplicates: 0  Warnings: 0
 select * from t2;
-alpha	b	c	d	e
+alpha	beta	c	d	e
 1	1	1	1	1
 delete from t1;
 select * from t2;
-alpha	b	c	d	e
+alpha	beta	c	d	e
 drop table t2,t4,t3,t1;
 create table t1(a int not null, b int, c char(10), d varchar(20), primary key (a)) engine = innodb default charset=utf8;
 insert into t1 values (1,1,'ab','ab'),(2,2,'ac','ac'),(3,2,'ad','ad'),(4,4,'afe','afe');
