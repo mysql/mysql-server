@@ -2176,7 +2176,7 @@ int ha_ndbcluster::check_default_values(const NDBTAB* ndbtab)
 
       if ((! (field->flags & (PRI_KEY_FLAG |
                               NO_DEFAULT_VALUE_FLAG))) &&
-          (type_supports_default_value(field->real_type())))
+          type_supports_default_value(field->real_type()))
       {
         /* We expect Ndb to have a native default for this
          * column
