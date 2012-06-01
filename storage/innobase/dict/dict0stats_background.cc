@@ -153,20 +153,23 @@ dict_stats_dequeue_table_for_auto_recalc(
 /* @} */
 
 /*****************************************************************//**
-Remove a table id from the auto recalc list. */
-static
+Remove a table from the auto recalc list.
+dict_stats_remove_table_from_auto_recalc() */
+UNIV_INTERN
 void
-dict_stats_remove_table_id(
-/*=======================*/
-	table_id_t	id)	/*!< in: table id to remove */
+dict_stats_remove_table_from_auto_recalc(
+/*=====================================*/
+	const dict_table_t*	table)	/*!< in: table to remove */
 {
-	ut_ad(mutex_own(&auto_recalc_mutex));
+	ut_ad(mutex_own(&dict_sys->mutex));
 
-	ut_ad(id > 0);
+	mutex_enter(&auto_recalc_mutex);
+
+	ut_ad(table->id > 0);
 
 	for (ulint i = 0; i < auto_recalc_used; ++i) {
 
-		if (auto_recalc_list[i] == id) {
+		if (auto_recalc_list[i] == table->id) {
 
 			ut_memmove(
 				&auto_recalc_list[i],
@@ -174,40 +177,11 @@ dict_stats_remove_table_id(
 				(auto_recalc_used - i - 1)
 				* sizeof(auto_recalc_list[0]));
 
-			--auto_recalc_used;
+			auto_recalc_used--;
 
 			break;
 		}
 	}
-}
-
-/*****************************************************************//**
-Remove a table from the auto recalc list.
-dict_stats_remove_table_from_auto_recalc() */
-UNIV_INTERN
-void
-dict_stats_remove_table_from_auto_recalc(
-/*=====================================*/
-	const char*	table_name)	/*!< in: table name, e.g. "db/table" */
-{
-	dict_table_t*	table;
-
-	table = dict_table_open_on_name(
-		table_name, FALSE, FALSE, DICT_ERR_IGNORE_NONE);
-
-	if (table == NULL) {
-		return;
-	}
-
-	table_id_t	id = table->id;
-
-	dict_table_close(table, FALSE, FALSE);
-
-	mutex_enter(&auto_recalc_mutex);
-
-	dict_stats_remove_table_id(id);
-
-	ut_ad(auto_recalc_used <= auto_recalc_size);
 
 	mutex_exit(&auto_recalc_mutex);
 }
@@ -226,14 +200,19 @@ UNIV_INTERN
 void
 dict_stats_wait_bg_to_stop_using_tables(
 /*====================================*/
-	const dict_table_t*	table1,	/*!< in: table1 */
-	const dict_table_t*	table2,	/*!< in: table2, could be NULL */
-	trx_t*			trx)	/*!< in/out: transaction to use for
-					unlocking/locking the data dict */
+	dict_table_t*	table1,	/*!< in/out: table1 */
+	dict_table_t*	table2,	/*!< in/out: table2, could be NULL */
+	trx_t*		trx)	/*!< in/out: transaction to use for
+				unlocking/locking the data dict */
 {
 	while ((table1->stats_bg_flag & BG_STAT_IN_PROGRESS)
 	       || (table2 != NULL
 		   && (table2->stats_bg_flag & BG_STAT_IN_PROGRESS))) {
+
+		table1->stats_bg_flag |= BG_STAT_SHOULD_QUIT;
+		if (table2 != NULL) {
+			table2->stats_bg_flag |= BG_STAT_SHOULD_QUIT;
+		}
 
 		row_mysql_unlock_data_dictionary(trx);
 		os_thread_sleep(250000);
@@ -259,11 +238,15 @@ dict_stats_thread_init()
 	   any level would do here)
 	2) from row_update_statistics_if_needed()
 	   and released without latching anything else in between. We know
-	   that dict_sys->mutex (level SYNC_DICT) is not acquired when
+	   that dict_sys->mutex (SYNC_DICT) is not acquired when
 	   row_update_statistics_if_needed() is called and it may be acquired
-	   inside that function. So level SYNC_DICT is appropriate for
-	   auto_recalc_mutex. */
-	mutex_create(auto_recalc_mutex_key, &auto_recalc_mutex, SYNC_DICT);
+	   inside that function (thus a level <=SYNC_DICT would do).
+	3) from row_drop_table_for_mysql() after dict_sys->mutex (SYNC_DICT)
+	   and dict_operation_lock (SYNC_DICT_OPERATION) have been locked
+	   (thus a level <SYNC_DICT && <SYNC_DICT_OPERATION would do)
+	So we choose SYNC_STATS_AUTO_RECALC to be about below SYNC_DICT. */
+	mutex_create(auto_recalc_mutex_key, &auto_recalc_mutex,
+		     SYNC_STATS_AUTO_RECALC);
 
 	ut_ad(auto_recalc_list == NULL);
 
