@@ -23,6 +23,7 @@
 #include "records.h"
 #include "sql_priv.h"
 #include "records.h"
+#include "sql_list.h"
 #include "filesort.h"            // filesort_free_buffers
 #include "opt_range.h"                          // SQL_SELECT
 #include "sql_class.h"                          // THD

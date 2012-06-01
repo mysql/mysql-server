@@ -1,8 +1,12 @@
 The following options may be given as the first argument:
 --print-defaults Print the program argument list and exit.
---no-defaults Don't read default options from any option file.
+--no-defaults Don't read default options from any option file,
+ except for login file.
 --defaults-file=# Only read default options from the given file #.
 --defaults-extra-file=# Read this file after the global files are read.
+--defaults-group-suffix=#
+ Also read groups with concat(group, suffix)
+--login-path=# Read this path from the login file.
 
  --abort-slave-event-count=# 
  Option used by mysql-test for debugging and testing of
@@ -606,6 +610,9 @@ The following options may be given as the first argument:
  --performance-schema-max-thread-instances=# 
  Maximum number of instrumented threads. Use 0 to disable,
  -1 for automated sizing.
+ --performance-schema-session-connect-attrs-size=# 
+ Size of session attribute string buffer per thread. Use 0
+ to disable, -1 for automated sizing.
  --performance-schema-setup-actors-size=# 
  Maximum number of rows in SETUP_ACTORS.
  --performance-schema-setup-objects-size=# 
@@ -1133,6 +1140,7 @@ performance-schema-max-table-handles -1
 performance-schema-max-table-instances -1
 performance-schema-max-thread-classes 50
 performance-schema-max-thread-instances -1
+performance-schema-session-connect-attrs-size -1
 performance-schema-setup-actors-size 100
 performance-schema-setup-objects-size 100
 performance-schema-users-size -1

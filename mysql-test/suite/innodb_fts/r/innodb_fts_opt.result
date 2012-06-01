@@ -16,6 +16,8 @@ INSERT INTO wp (title, text) VALUES
 ('MySQL Security','When configured properly, MySQL ...');
 CREATE TABLE t1 (i INTEGER);
 INSERT INTO t1 SELECT FTS_DOC_ID FROM wp;
+ANALYZE TABLE t1;
+ANALYZE TABLE wp;
 SELECT FTS_DOC_ID, title, MATCH(title, text) AGAINST ('database') AS score1,
 MATCH(title, text) AGAINST ('mysql') AS score2 
 FROM wp;

@@ -528,7 +528,7 @@ CREATE TABLE t1 (
 
   KEY (col_int_key),
   KEY (col_varchar_key, col_int_key)
-);
+) stats_persistent=0;
 
 INSERT INTO t1 VALUES (NULL,2,'w');
 INSERT INTO t1 VALUES (7,9,'m');
@@ -552,7 +552,7 @@ INSERT INTO t1 VALUES (NULL,6,'f');
 
 CREATE TABLE t2 (
   c1 INTEGER NOT NULL
-);
+) stats_persistent=0;
 
 let query=
 SELECT table1.col_int_nokey
@@ -919,6 +919,12 @@ CREATE TABLE t3 (
 
 INSERT INTO t3 VALUES (NULL,'w'), (1,NULL), (2,'d');
 
+-- disable_query_log
+-- disable_result_log
+ANALYZE TABLE t3;
+-- enable_result_log
+-- enable_query_log
+
 # Bug was specific of IN->EXISTS:
 set @old_opt_switch=@@optimizer_switch;
 --disable_query_log
@@ -1031,6 +1037,13 @@ CREATE TABLE t2 (
 
 INSERT INTO t2 VALUES (4,1);
 
+-- disable_query_log
+-- disable_result_log
+ANALYZE TABLE t1;
+ANALYZE TABLE t2;
+-- enable_result_log
+-- enable_query_log
+
 let query=
 SELECT t1.d1, t2.pk, t2.i1
 FROM t1 STRAIGHT_JOIN t2 ON t2.i1
@@ -1060,6 +1073,13 @@ CREATE TABLE t2 (
   KEY (col_int_key)
 );
 INSERT INTO t2 VALUES (0,9),(3,10),(4,6),(6,1),(100,3),(200,5);
+
+-- disable_query_log
+-- disable_result_log
+ANALYZE TABLE t1;
+ANALYZE TABLE t2;
+-- enable_result_log
+-- enable_query_log
 
 let $query=
 SELECT t2.col_int_key AS field1

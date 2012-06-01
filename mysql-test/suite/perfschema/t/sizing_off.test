@@ -4,4 +4,3 @@
 
 show variables like "performance_schema%";
 show status like "performance_schema%";
-show engine performance_schema status;

@@ -1541,3 +1541,18 @@ CREATE VIEW v2 AS SELECT * FROM t2;
 UNION (SELECT NULL LIMIT 0);
 DROP VIEW v1, v2;
 DROP TABLE t1, t2;
+
+--echo #
+--echo # Bug#13980954 Missing data on left join + null value + where..in
+--echo #
+
+CREATE TABLE t1 (ik INT, vc varchar(1)) ENGINE=Innodb;
+
+let $query=
+SELECT straight_join t1.vc, t1.ik
+FROM t1 JOIN t1 AS t2 ON t1.vc=t2.vc LEFT JOIN t1 AS t3 ON t1.vc=t3.vc;
+
+eval explain format=json $query;
+eval $query;
+
+DROP TABLE t1;

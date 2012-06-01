@@ -389,7 +389,7 @@ drop table t1;
 # Bug #13293 Wrongly used index results in endless loop.
 # (was part of group_min_max.test)
 #
-create table t1 (f1 int, f2 char(1), primary key(f1,f2));
+create table t1 (f1 int, f2 char(1), primary key(f1,f2)) stats_persistent=0;
 insert into t1 values ( 1,"e"),(2,"a"),( 3,"c"),(4,"d");
 alter table t1 drop primary key, add primary key (f2, f1);
 explain select distinct f1 a, f1 b from t1;
@@ -412,6 +412,13 @@ if ($test_foreign_keys)
 INSERT INTO t1 VALUES (1,'A1'),(2,'A2'),(3,'B');
 INSERT INTO t2 VALUES (1,1),(2,2),(3,2),(4,3),(5,3);
 
+-- disable_query_log
+-- disable_result_log
+ANALYZE TABLE t1;
+ANALYZE TABLE t2;
+-- enable_result_log
+-- enable_query_log
+
 EXPLAIN
 SELECT COUNT(*) FROM t2 LEFT JOIN t1 ON t2.fkey = t1.id
   WHERE t1.name LIKE 'A%';
@@ -433,7 +440,7 @@ CREATE TABLE t1 (
   age tinyint(3) unsigned NOT NULL,
   PRIMARY KEY (id),
   INDEX (name,dept)
-) ENGINE=InnoDB;
+) ENGINE=InnoDB STATS_PERSISTENT=0;
 INSERT INTO t1(id, dept, age, name) VALUES
   (3987, 'cs1', 10, 'rs1'), (3988, 'cs2', 20, 'rs1'), (3995, 'cs3', 10, 'rs2'),
   (3996, 'cs4', 20, 'rs2'), (4003, 'cs5', 10, 'rs3'), (4004, 'cs6', 20, 'rs3'),
@@ -547,7 +554,7 @@ CREATE TABLE t2(
   acct_id int DEFAULT NULL,
   INDEX idx1 (stat_id, acct_id),
   INDEX idx2 (acct_id)
-) ENGINE=InnoDB;
+) ENGINE=InnoDB STATS_PERSISTENT=0;
 
 INSERT INTO t1(stat_id,acct_id) VALUES
   (1,759), (2,831), (3,785), (4,854), (1,921),
@@ -798,6 +805,12 @@ INSERT INTO t1 SELECT  a + 16, MOD(a + 16, 20), 1 FROM t1;
 INSERT INTO t1 SELECT  a + 32, MOD(a + 32, 20), 1 FROM t1;
 INSERT INTO t1 SELECT  a + 64, MOD(a + 64, 20), 1 FROM t1;
 
+-- disable_query_log
+-- disable_result_log
+ANALYZE TABLE t1;
+-- enable_result_log
+-- enable_query_log
+
 EXPLAIN SELECT b, SUM(c) FROM t1 GROUP BY b;
 EXPLAIN SELECT SQL_BIG_RESULT b, SUM(c) FROM t1 GROUP BY b;
 DROP TABLE t1;
@@ -860,6 +873,11 @@ CREATE TABLE t1 (a int, b int, PRIMARY KEY (a), KEY bkey (b)) ENGINE=InnoDB;
 INSERT INTO t1 VALUES (1,2),(3,2),(2,2),(4,2),(5,2),(6,2),(7,2),(8,2);
 INSERT INTO t1 SELECT a + 8, 2 FROM t1;
 INSERT INTO t1 SELECT a + 16, 1 FROM t1;
+-- disable_query_log
+-- disable_result_log
+ANALYZE TABLE t1;
+-- enable_result_log
+-- enable_query_log
 query_vertical EXPLAIN SELECT * FROM t1 WHERE b=2 ORDER BY a;
 SELECT * FROM t1 WHERE b=2 ORDER BY a;
 query_vertical EXPLAIN SELECT * FROM t1 WHERE b BETWEEN 1 AND 2 ORDER BY a;
@@ -872,6 +890,12 @@ CREATE TABLE t2 (a int, b int, c int, PRIMARY KEY (a), KEY bkey (b,c))
 INSERT INTO t2 VALUES (1,1,1),(3,1,1),(2,1,1),(4,1,1);
 INSERT INTO t2 SELECT a + 4, 1, 1 FROM t2;
 INSERT INTO t2 SELECT a + 8, 1, 1 FROM t2;
+
+-- disable_query_log
+-- disable_result_log
+ANALYZE TABLE t2;
+-- enable_result_log
+-- enable_query_log
 
 query_vertical EXPLAIN SELECT * FROM t2 WHERE b=1 ORDER BY a;
 SELECT * FROM t2 WHERE b=1 ORDER BY a;
@@ -1009,6 +1033,12 @@ DROP TABLE t1;
 CREATE TABLE t1 (a INT, b INT, PRIMARY KEY (a), INDEX b (b)) ENGINE=InnoDB;
 INSERT INTO t1(a,b) VALUES (1,1), (2,2), (3,2);
 
+-- disable_query_log
+-- disable_result_log
+ANALYZE TABLE t1;
+-- enable_result_log
+-- enable_query_log
+
 #The two queries below should produce different results, but they don't.
 query_vertical EXPLAIN SELECT * FROM t1 WHERE b=2 ORDER BY a ASC;
 SELECT * FROM t1 WHERE b=2 ORDER BY a ASC;
@@ -1091,6 +1121,12 @@ drop table t1;
 CREATE TABLE t1 (id int, type char(6), d int, INDEX idx(id,d)) ENGINE=InnoDB;
 INSERT INTO t1 VALUES 
   (191, 'member', 1), (NULL, 'member', 3), (NULL, 'member', 4), (201, 'member', 2); 
+
+-- disable_query_log
+-- disable_result_log
+ANALYZE TABLE t1;
+-- enable_result_log
+-- enable_query_log
 
 EXPLAIN SELECT * FROM t1 WHERE id=191 OR id IS NULL ORDER BY d;
 SELECT * FROM t1 WHERE id=191 OR id IS NULL ORDER BY d;
@@ -1512,6 +1548,12 @@ INSERT INTO t1 VALUES
   (4,1,2,'c2',NULL),(5,1,2,'c1',NULL),(2,1,3,'c2',NULL),(3,1,3,'c2',NULL),
   (4,1,3,'pk',NULL),(5,1,3,'c2',NULL),
   (2,1,4,'c_extra',NULL),(3,1,4,'c_extra',NULL);
+
+-- disable_query_log
+-- disable_result_log
+ANALYZE TABLE t1;
+-- enable_result_log
+-- enable_query_log
 
 EXPLAIN SELECT * FROM t1 FORCE INDEX (PRIMARY) WHERE tid = 1 AND vid = 3 ORDER BY idx DESC;
 
