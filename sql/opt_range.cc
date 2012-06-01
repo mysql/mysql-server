@@ -3064,46 +3064,61 @@ static void dbug_print_singlepoint_range(SEL_ARG **start, uint num);
 #endif
 
 
-/*
+/**
   Perform partition pruning for a given table and condition.
 
-  SYNOPSIS
-    prune_partitions()
-      thd           Thread handle
-      table         Table to perform partition pruning for
-      pprune_cond   Condition to use for partition pruning
+  @param      thd            Thread handle
+  @param      table          Table to perform partition pruning for
+  @param      pprune_cond    Condition to use for partition pruning
   
-  DESCRIPTION
-    This function assumes that all partitions are marked as unused when it
-    is invoked. The function analyzes the condition, finds partitions that
-    need to be used to retrieve the records that match the condition, and 
-    marks them as used by setting appropriate bit in part_info->read_partitions
-    In the worst case all partitions are marked as used.
+  @note This function assumes that lock_partitions are setup when it
+  is invoked. The function analyzes the condition, finds partitions that
+  need to be used to retrieve the records that match the condition, and 
+  marks them as used by setting appropriate bit in part_info->read_partitions
+  In the worst case all partitions are marked as used. If the table is not
+  yet locked, it will also unset bits in part_info->lock_partitions that is
+  not set in read_partitions.
 
-  NOTE
-    This function returns promptly if called for non-partitioned table.
+  This function returns promptly if called for non-partitioned table.
 
-  RETURN
-    TRUE   We've inferred that no partitions need to be used (i.e. no table
-           records will satisfy pprune_cond)
-    FALSE  Otherwise
+  @return Operation status
+    @retval true  Failure
+    @retval false Success
 */
 
 bool prune_partitions(THD *thd, TABLE *table, Item *pprune_cond)
 {
-  bool retval= FALSE;
   partition_info *part_info = table->part_info;
   DBUG_ENTER("prune_partitions");
+  table->all_partitions_pruned_away= false;
 
   if (!part_info)
     DBUG_RETURN(FALSE); /* not a partitioned table */
-  
+
   if (!pprune_cond)
   {
     mark_all_partitions_as_used(part_info);
     DBUG_RETURN(FALSE);
   }
   
+  /* No need to continue pruning if there is no more partitions to prune! */
+  if (bitmap_is_clear_all(&part_info->lock_partitions))
+    bitmap_clear_all(&part_info->read_partitions);
+  if (bitmap_is_clear_all(&part_info->read_partitions))
+  {
+    table->all_partitions_pruned_away= true;
+    DBUG_RETURN(false);
+  }
+
+  /*
+    If the prepare stage already have completed pruning successfully,
+    it is no use of running prune_partitions() again on the same condition.
+    Since it will not be able to prune anything more than the previous call
+    from the prepare step.
+  */
+  if (part_info->is_pruning_completed)
+    DBUG_RETURN(false);
+
   PART_PRUNE_PARAM prune_param;
   MEM_ROOT alloc;
   RANGE_OPT_PARAM  *range_par= &prune_param.range_param;
@@ -3150,12 +3165,25 @@ bool prune_partitions(THD *thd, TABLE *table, Item *pprune_cond)
 
   if (tree->type == SEL_TREE::IMPOSSIBLE)
   {
-    retval= TRUE;
+    /* Cannot improve the pruning any further. */
+    part_info->is_pruning_completed= true;
     goto end;
   }
 
   if (tree->type != SEL_TREE::KEY && tree->type != SEL_TREE::KEY_SMALLER)
+  {
+    /*
+      If the condition can be evaluated now, we are done with pruning.
+
+      During the prepare phase, before locking, subqueries and stored programs
+      are not evaluated. So we need to run prune_partitions() a second time in
+      the optimize phase to prune partitions for reading, when subqueries and
+      stored programs may be evaluated.
+    */
+    if (pprune_cond->can_be_evaluated_now())
+      part_info->is_pruning_completed= true;
     goto all_used;
+  }
 
   if (tree->merges.is_empty())
   {
@@ -3205,28 +3233,43 @@ bool prune_partitions(THD *thd, TABLE *table, Item *pprune_cond)
     }
   }
   
-  /*
-    res == 0 => no used partitions => retval=TRUE
-    res == 1 => some used partitions => retval=FALSE
-    res == -1 - we jump over this line to all_used:
-  */
-  retval= test(!res);
+  /* Same here regarding avoid the second run in the optimize phase. */
+  if (pprune_cond->can_be_evaluated_now())
+    part_info->is_pruning_completed= true;
   goto end;
 
 all_used:
-  retval= FALSE; // some partitions are used
   mark_all_partitions_as_used(prune_param.part_info);
 end:
   dbug_tmp_restore_column_maps(table->read_set, table->write_set, old_sets);
   thd->no_errors=0;
   thd->mem_root= range_par->old_root;
   free_root(&alloc,MYF(0));			// Return memory & allocator
-  /* Must be a subset of the locked partitions */
-  bitmap_intersect(&(prune_param.part_info->read_partitions),
-                   &(prune_param.part_info->lock_partitions));
+  /*
+    Must be a subset of the locked partitions.
+    lock_partitions contains the partitions marked by explicit partition
+    selection (... t PARTITION (pX) ...) and we must only use partitions
+    within that set.
+  */
+  bitmap_intersect(&prune_param.part_info->read_partitions,
+                   &prune_param.part_info->lock_partitions);
+  /*
+    If not yet locked, also prune partitions to lock if not UPDATEing
+    partition key fields. This will also prune lock_partitions if we are under
+    LOCK TABLES, so prune away calls to start_stmt().
+    TODO: enhance this prune locking to also allow pruning of
+    'UPDATE t SET part_key = const WHERE cond_is_prunable' so it adds
+    a lock for part_key partition.
+  */
+  if (!thd->lex->is_query_tables_locked() &&
+      !partition_key_modified(table, table->write_set))
+  {
+    bitmap_copy(&prune_param.part_info->lock_partitions,
+                &prune_param.part_info->read_partitions);
+  }
   if (bitmap_is_clear_all(&(prune_param.part_info->read_partitions)))
-    retval= TRUE;
-  DBUG_RETURN(retval);
+    table->all_partitions_pruned_away= true;
+  DBUG_RETURN(false);
 }
 
 
@@ -6406,6 +6449,16 @@ static bool save_value_and_handle_conversion(SEL_ARG **tree,
 {
   // A SEL_ARG should not have been created for this predicate yet.
   DBUG_ASSERT(*tree == NULL);
+
+  if (!value->can_be_evaluated_now())
+  {
+    /*
+      We cannot evaluate the value yet (i.e. required tables are not yet
+      locked.)
+      This is the case of prune_partitions() called during JOIN::prepare().
+    */
+    return true;
+  }
 
   // For comparison purposes allow invalid dates like 2000-01-32
   const sql_mode_t orig_sql_mode= field->table->in_use->variables.sql_mode;

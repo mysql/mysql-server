@@ -1844,8 +1844,10 @@ DROP TABLE t1;
 --echo # Bug#13008220 HANDLER SQL STATEMENT CAN MISS TO INITIALIZE
 --echo #              FOR RANDOM READ
 --echo #
+--echo # A handler can only have one active 'cursor' at a time,
+--echo # so switching between index and/or random should restart the cursor.
 
-CREATE TABLE t1(a INT, b INT, KEY b(b));
+CREATE TABLE t1(a INT, b INT, KEY b(b), KEY ab(a, b));
 INSERT INTO t1 VALUES (2, 20), (1, 10), (4, 40), (3, 30);
 HANDLER t1 OPEN;
 HANDLER t1 READ b FIRST;
@@ -1868,5 +1870,13 @@ HANDLER t1 READ b NEXT;
 HANDLER t1 READ b NEXT;
 HANDLER t1 READ NEXT;
 HANDLER t1 READ b NEXT;
+HANDLER t1 READ FIRST;
+HANDLER t1 READ b PREV;
+HANDLER t1 READ b LAST;
+HANDLER t1 READ NEXT;
+HANDLER t1 READ ab FIRST;
+HANDLER t1 READ b NEXT;
+HANDLER t1 READ ab LAST;
+HANDLER t1 READ b PREV;
 HANDLER t1 CLOSE;
 DROP TABLE t1;

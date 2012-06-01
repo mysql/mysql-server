@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -529,11 +529,13 @@ void Item_sum::update_used_tables ()
   {
     used_tables_cache= 0;
     with_subselect= false;
+    with_stored_program= false;
     for (uint i=0 ; i < arg_count ; i++)
     {
       args[i]->update_used_tables();
       used_tables_cache|= args[i]->used_tables();
       with_subselect|= args[i]->has_subquery();
+      with_stored_program|= args[i]->has_stored_program();
     }
 
     used_tables_cache&= PSEUDO_TABLE_BITS;
