@@ -279,6 +279,11 @@ INSERT INTO t1 VALUES ('00:00:00'),('-24:00:00'),('-48:00:00'),('24:00:00'),('48
 CREATE TABLE t2 (col_datetime_key DATETIME, KEY(col_datetime_key)) ENGINE=InnoDB;
 INSERT INTO t2 SELECT * FROM t1;
 
+-- disable_result_log
+ANALYZE TABLE t1;
+ANALYZE TABLE t2;
+-- enable_result_log
+
 let $cnt_0=5;
 let $operator= =;
 # For operator in =, >=, >, <=, <

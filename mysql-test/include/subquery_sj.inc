@@ -4213,6 +4213,13 @@ WHERE outr.col_varchar_key IN (SELECT innr.col_varchar_key
   AND outr.col_varchar_nokey < 't'
 ORDER BY outr.col_varchar_key, outr.pk;
 
+-- disable_query_log
+-- disable_result_log
+ANALYZE TABLE t1;
+ANALYZE TABLE t2;
+-- enable_result_log
+-- enable_query_log
+
 eval EXPLAIN $query;
 eval $query;
 
@@ -4372,6 +4379,16 @@ CREATE TABLE t3 (
 ) ENGINE=InnoDB;
 
 INSERT INTO t3 VALUES (10);
+
+-- disable_query_log
+-- disable_result_log
+ANALYZE TABLE t1;
+ANALYZE TABLE t2;
+ANALYZE TABLE t3;
+ANALYZE TABLE grandparent1;
+ANALYZE TABLE parent1;
+-- enable_result_log
+-- enable_query_log
 
 let $query=
 SELECT *
@@ -4681,6 +4698,13 @@ let $query=
 eval CREATE TABLE t2
   $query
 ;
+
+-- disable_query_log
+-- disable_result_log
+ANALYZE TABLE t1;
+ANALYZE TABLE t2;
+-- enable_result_log
+-- enable_query_log
 
 eval EXPLAIN SELECT *
 FROM t2
@@ -5059,6 +5083,13 @@ INSERT INTO t2 VALUES
  (13,4,'b','b'), (14,4,'x','x'), (15,7,'g','g'), (16,4,'p','p'),
  (17,1,'q','q'), (18,9,'w','w'), (19,4,'d','d'), (20,8,'e','e');
 
+-- disable_query_log
+-- disable_result_log
+ANALYZE TABLE t1;
+ANALYZE TABLE t2;
+-- enable_result_log
+-- enable_query_log
+
 let $query=
 SELECT ot1.col_int_key AS field1
 FROM t2 AS ot1, t2 AS ot2
@@ -5101,6 +5132,12 @@ INSERT INTO t2 VALUES
  (4,'j'), (6,'v'), (3,'c'), (5,'m'), (3,'d'), (246,'d'), (2,'y'), (9,'t'),
  (3,'d'), (8,'s'), (1,'r'), (8,'m'), (8,'b'), (5,'x'), (7,'g'), (5,'p'),
  (1,'q'), (6,'w'), (2,'d'), (9,'e');
+
+-- disable_query_log
+-- disable_result_log
+ANALYZE TABLE t2;
+-- enable_result_log
+-- enable_query_log
 
 let $query=
 SELECT col_varchar_nokey
@@ -5603,6 +5640,14 @@ INSERT INTO t3 (col_varchar_key) VALUES
  ('c'), ('c'), ('q'), ('g'), ('e'), ('l'), (NULL), ('c'), ('h'), ('d'),
  ('c'), ('i'), ('t'), ('g'), ('q'), ('l'), ('n'), ('z'), ('n'), ('r'), ('p');
 
+-- disable_query_log
+-- disable_result_log
+ANALYZE TABLE t1;
+ANALYZE TABLE t2;
+ANALYZE TABLE t3;
+-- enable_result_log
+-- enable_query_log
+
 CREATE VIEW v1 AS
 SELECT table2.col_varchar_nokey AS field1
 FROM t2 AS table1
@@ -6012,6 +6057,13 @@ INSERT INTO t2 (col_int_nokey, col_time_key, col_time_nokey) VALUES
  (204, '22:21:15', '22:21:15'), (224, '12:24:37', '12:24:37'),
  (9, '15:02:08', '15:02:08'), (5, '23:59:59', '23:59:59'),
  (0, '08:23:30', '08:23:30'), (3, '08:32:22', '08:32:22');
+
+-- disable_query_log
+-- disable_result_log
+ANALYZE TABLE t1;
+ANALYZE TABLE t2;
+-- enable_result_log
+-- enable_query_log
 
 let $query=
 SELECT ot1.col_int_key AS x

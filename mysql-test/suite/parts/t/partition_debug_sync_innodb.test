@@ -50,7 +50,7 @@ DROP TABLE t1;
 --echo # Bug#50561: ALTER PARTITIONS does not have adequate lock, breaks with
 --echo #            concurrent I_S query
 create table t1 (a int)
-engine = innodb
+engine = innodb stats_persistent=0
 partition by range (a)
 (partition p0 values less than MAXVALUE);
 insert into t1 values (1), (11), (21), (33);
