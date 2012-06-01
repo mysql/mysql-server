@@ -453,7 +453,7 @@ ERROR HY000: Cannot drop index 'b': needed in a foreign key constraint
 alter table t2 drop index b, drop index c, drop index d;
 ERROR HY000: Cannot drop index 'b': needed in a foreign key constraint
 alter table t2 MODIFY b INT NOT NULL, ALGORITHM=COPY;
-ERROR HY000: Error on rename of './#sql-temporary' to './test/t2' (errno: 150 - Foreign key constraint is incorrectly formed)
+ERROR HY000: Error on rename of '#sql-temporary' to './test/t2' (errno: 150 - Foreign key constraint is incorrectly formed)
 alter table t2 MODIFY b INT NOT NULL, ALGORITHM=INPLACE;
 ERROR HY000: Column 'b' cannot be NOT NULL: needed in a foreign key constraint 'test/t2_ibfk_1' SET NULL
 create unique index dc on t2 (d,c);
@@ -491,7 +491,7 @@ t4	CREATE TABLE `t4` (
   CONSTRAINT `dc` FOREIGN KEY (`a`) REFERENCES `t1` (`a`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 alter table t3 add constraint dc foreign key (a) references t1(a);
-ERROR HY000: Can't create table '#sql-temporary' (errno: 121)
+ERROR HY000: Can't create table 'test.#sql-temporary' (errno: 121)
 SET FOREIGN_KEY_CHECKS=0;
 alter table t3 add constraint dc foreign key (a) references t1(a);
 ERROR HY000: Failed to add the foreign key constraint 'test/dc' to system tables
@@ -941,13 +941,13 @@ PRIMARY KEY (c1)
 SET FOREIGN_KEY_CHECKS=0;
 ALTER TABLE t2 ADD CONSTRAINT fk_t2_ca
 FOREIGN KEY (c3,c2) REFERENCES t1(c1,c1), ALGORITHM=COPY;
-ERROR HY000: Can't create table '#sql-temporary' (errno: 150)
+ERROR HY000: Can't create table 'test.#sql-temporary' (errno: 150)
 ALTER TABLE t2 ADD CONSTRAINT fk_t2_ca
 FOREIGN KEY (c3,c2) REFERENCES t1(c1,c1);
 ERROR HY000: Failed to add the foreign key constaint. Missing index for constraint 'fk_t2_ca' in the referenced table 't1'
 ALTER TABLE t2 ADD CONSTRAINT fk_t2_ca
 FOREIGN KEY (c3,c2) REFERENCES t1(c1,c2), ALGORITHM=COPY;
-ERROR HY000: Can't create table '#sql-temporary' (errno: 150)
+ERROR HY000: Can't create table 'test.#sql-temporary' (errno: 150)
 ALTER TABLE t2 ADD CONSTRAINT fk_t2_ca
 FOREIGN KEY (c3,c2) REFERENCES t1(c1,c2);
 ERROR HY000: Failed to add the foreign key constaint. Missing index for constraint 'fk_t2_ca' in the referenced table 't1'
@@ -960,13 +960,13 @@ affected rows: 0
 info: Records: 0  Duplicates: 0  Warnings: 0
 ALTER TABLE t2 ADD CONSTRAINT fk_t2_ca
 FOREIGN KEY (c3,c2) REFERENCES t1(c2,c1), ALGORITHM=COPY;
-ERROR HY000: Can't create table '#sql-temporary' (errno: 150)
+ERROR HY000: Can't create table 'test.#sql-temporary' (errno: 150)
 ALTER TABLE t1 MODIFY COLUMN c2 BIGINT(12) NOT NULL;
 affected rows: 0
 info: Records: 0  Duplicates: 0  Warnings: 0
 ALTER TABLE t2 ADD CONSTRAINT fk_t2_ca
 FOREIGN KEY (c3,c2) REFERENCES t1(c1,c2), ALGORITHM=COPY;
-ERROR HY000: Can't create table '#sql-temporary' (errno: 150)
+ERROR HY000: Can't create table 'test.#sql-temporary' (errno: 150)
 ALTER TABLE t2 ADD CONSTRAINT fk_t2_ca
 FOREIGN KEY (c3,c2) REFERENCES t1(c1,c2);
 ERROR HY000: Failed to add the foreign key constaint. Missing index for constraint 'fk_t2_ca' in the referenced table 't1'
