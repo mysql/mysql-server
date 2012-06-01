@@ -1389,6 +1389,14 @@ void close_thread_tables(THD *thd)
     mark_used_tables_as_free_for_reuse(thd, thd->open_tables);
 
     /*
+      Mark this statement as one that has "unlocked" its tables.
+      For purposes of Query_tables_list::lock_tables_state we treat
+      any statement which passed through close_thread_tables() as
+      such.
+    */
+    thd->lex->lock_tables_state= Query_tables_list::LTS_NOT_LOCKED;
+
+    /*
       We are under simple LOCK TABLES or we're inside a sub-statement
       of a prelocked statement, so should not do anything else.
 
@@ -1431,6 +1439,9 @@ void close_thread_tables(THD *thd)
     mysql_unlock_tables(thd, thd->lock);
     thd->lock=0;
   }
+
+  thd->lex->lock_tables_state= Query_tables_list::LTS_NOT_LOCKED;
+
   /*
     Closing a MERGE child before the parent would be fatal if the
     other thread tries to abort the MERGE lock in between.
@@ -3074,6 +3085,22 @@ table_found:
   DBUG_ASSERT(table->file->pushed_cond == NULL);
   table_list->updatable= 1; // It is not derived table nor non-updatable VIEW
   table_list->table= table;
+
+#ifdef WITH_PARTITION_STORAGE_ENGINE
+  if (table->part_info)
+  {
+
+    /* Set all [named] partitions as used. */
+    if (table->part_info->set_partition_bitmaps(table_list))
+      DBUG_RETURN(true);
+  }
+  else if (table_list->partition_names)
+  {
+    /* Don't allow PARTITION () clause on a nonpartitioned table */
+    my_error(ER_PARTITION_CLAUSE_ON_NONPARTITIONED, MYF(0));
+    DBUG_RETURN(true);
+  }
+#endif
 
   table->init(thd, table_list);
 
@@ -4789,47 +4816,6 @@ open_tables_check_upgradable_mdl(THD *thd, TABLE_LIST *tables_start,
 }
 
 
-#ifdef WITH_PARTITION_STORAGE_ENGINE
-/*
-  TODO: Move all this to prune_partitions() when implementing WL#4443.
-  Needs all items and conds fixed (as in first part in JOIN::optimize,
-  mysql_prepare_delete). Ensure that prune_partitions() is called for all
-  statements supported by WL#5217.
-
-  TODO: When adding support for FK in partitioned tables, update this function
-  so the referenced table get correct locking.
-*/
-static bool prune_partition_locks(TABLE_LIST *tables)
-{
-  TABLE_LIST *table;
-  DBUG_ENTER("prune_partition_locks");
-  for (table= tables; table; table= table->next_global)
-  {
-    /* Avoid to lock/start_stmt partitions not used in the statement. */
-    if (!table->placeholder())
-    {
-      if (table->table->part_info)
-      {
-        /*
-          Initialize and set partitions bitmaps, using table's mem_root,
-          destroyed in closefrm().
-        */
-        if (table->table->part_info->set_partition_bitmaps(table))
-          DBUG_RETURN(TRUE);
-      }
-      else if (table->partition_names && table->partition_names->elements)
-      {
-        /* Don't allow PARTITION () clause on a nonpartitioned table */
-        my_error(ER_PARTITION_CLAUSE_ON_NONPARTITIONED, MYF(0));
-        DBUG_RETURN(TRUE);
-      }
-    }
-  }
-  DBUG_RETURN(FALSE);
-}
-#endif /* WITH_PARTITION_STORAGE_ENGINE */
-
-
 /**
   Open all tables in list
 
@@ -5112,16 +5098,6 @@ restart:
       }
     }
   }
-
-#ifdef WITH_PARTITION_STORAGE_ENGINE
-  /* TODO: move this to prune_partitions() when implementing WL#4443. */
-  /* Prune partitions to avoid unneccesary locks */
-  if (prune_partition_locks(*start))
-  {
-    error= TRUE;
-    goto err;
-  }
-#endif
 
 err:
   free_root(&new_frm_mem, MYF(0));              // Free pre-alloced block
@@ -5625,34 +5601,33 @@ err:
 }
 
 
-/*
+/**
   Open all tables in list and process derived tables
 
-  SYNOPSIS
-    open_normal_and_derived_tables
-    thd		- thread handler
-    tables	- list of tables for open
-    flags       - bitmap of flags to modify how the tables will be open:
-                  MYSQL_LOCK_IGNORE_FLUSH - open table even if someone has
-                  done a flush on it.
+  @param       thd      thread handler
+  @param       tables   list of tables for open
+  @param       flags    bitmap of flags to modify how the tables will be open:
+                        MYSQL_LOCK_IGNORE_FLUSH - open table even if someone has
+                        done a flush on it.
 
-  RETURN
-    FALSE - ok
-    TRUE  - error
+  @retval false - ok
+  @retval true  - error
 
-  NOTE 
+  @note
     This is to be used on prepare stage when you don't read any
     data from the tables.
+
+  @note
+    Updates Query_tables_list::table_count as side-effect.
 */
 
 bool open_normal_and_derived_tables(THD *thd, TABLE_LIST *tables, uint flags)
 {
   DML_prelocking_strategy prelocking_strategy;
-  uint counter;
   MDL_savepoint mdl_savepoint= thd->mdl_context.mdl_savepoint();
   DBUG_ENTER("open_normal_and_derived_tables");
-  DBUG_ASSERT(!thd->fill_derived_tables());
-  if (open_tables(thd, &tables, &counter, flags, &prelocking_strategy) ||
+  if (open_tables(thd, &tables, &thd->lex->table_count, flags,
+                  &prelocking_strategy) ||
       mysql_handle_derived(thd->lex, &mysql_derived_prepare))
     goto end;
 
@@ -5665,7 +5640,8 @@ end:
     transaction of the enclosing statement.
   */
   DBUG_ASSERT(thd->transaction.stmt.is_empty() ||
-              (thd->state_flags & Open_tables_state::BACKUPS_AVAIL));
+              (thd->state_flags & Open_tables_state::BACKUPS_AVAIL) ||
+              thd->in_sub_stmt);
   close_thread_tables(thd);
   /* Don't keep locks for a failed statement. */
   thd->mdl_context.rollback_to_savepoint(mdl_savepoint);
@@ -5742,8 +5718,23 @@ bool lock_tables(THD *thd, TABLE_LIST *tables, uint count,
   DBUG_ASSERT(thd->locked_tables_mode <= LTM_LOCK_TABLES ||
               !thd->lex->requires_prelocking());
 
+  /*
+    lock_tables() should not be called if this statement has
+    already locked its tables.
+  */
+  DBUG_ASSERT(thd->lex->lock_tables_state == Query_tables_list::LTS_NOT_LOCKED);
+
   if (!tables && !thd->lex->requires_prelocking())
+  {
+    /*
+      Even though we are not really locking any tables mark this
+      statement as one that has locked its tables, so we won't
+      call this function second time for the same execution of
+      the same statement.
+    */
+    thd->lex->lock_tables_state= Query_tables_list::LTS_LOCKED;
     DBUG_RETURN(thd->decide_logging_format(tables));
+  }
 
   /*
     Check for thd->locked_tables_mode to avoid a redundant
@@ -5928,6 +5919,13 @@ bool lock_tables(THD *thd, TABLE_LIST *tables, uint count,
       thd->locked_tables_mode= LTM_PRELOCKED_UNDER_LOCK_TABLES;
     }
   }
+
+  /*
+    Mark the statement as having tables locked. For purposes
+    of Query_tables_list::lock_tables_state we treat any
+    statement which passes through lock_tables() as such.
+  */
+  thd->lex->lock_tables_state= Query_tables_list::LTS_LOCKED;
 
   DBUG_RETURN(thd->decide_logging_format(tables));
 }
@@ -6267,6 +6265,16 @@ bool open_temporary_table(THD *thd, TABLE_LIST *tl)
     }
     DBUG_RETURN(FALSE);
   }
+
+#ifdef WITH_PARTITION_STORAGE_ENGINE
+  if (tl->partition_names)
+  {
+    /* Partitioned temporary tables is not supported. */
+    DBUG_ASSERT(!table->part_info);
+    my_error(ER_PARTITION_CLAUSE_ON_NONPARTITIONED, MYF(0));
+    DBUG_RETURN(true);
+  }
+#endif
 
   if (table->query_id)
   {
@@ -8806,33 +8814,31 @@ err_no_arena:
 /*
   Fill fields with given items.
 
-  SYNOPSIS
-    fill_record()
-    thd           thread handler
-    fields        Item_fields list to be filled
-    values        values to fill with
-    ignore_errors TRUE if we should ignore errors
+  @param thd           thread handler
+  @param fields        Item_fields list to be filled
+  @param values        values to fill with
+  @param ignore_errors TRUE if we should ignore errors
+  @param bitmap        Bitmap over fields to fill
 
-  NOTE
-    fill_record() may set table->auto_increment_field_not_null and a
-    caller should make sure that it is reset after their last call to this
-    function.
+  @note fill_record() may set table->auto_increment_field_not_null and a
+  caller should make sure that it is reset after their last call to this
+  function.
 
-  RETURN
-    FALSE   OK
-    TRUE    error occured
+  @return Operation status
+    @retval false   OK
+    @retval true    Error occured
 */
 
-static bool
+bool
 fill_record(THD * thd, List<Item> &fields, List<Item> &values,
-            bool ignore_errors)
+            bool ignore_errors, MY_BITMAP *bitmap)
 {
   List_iterator_fast<Item> f(fields),v(values);
   Item *value, *fld;
   Item_field *field;
   TABLE *table= 0;
   DBUG_ENTER("fill_record");
-
+  DBUG_ASSERT(fields.elements == values.elements);
   /*
     Reset the table->auto_increment_field_not_null as it is valid for
     only one row.
@@ -8844,7 +8850,7 @@ fill_record(THD * thd, List<Item> &fields, List<Item> &values,
       thus we safely can take table from the first field.
     */
     fld= (Item_field*)f++;
-    if (!(field= fld->filed_for_view_update()))
+    if (!(field= fld->field_for_view_update()))
     {
       my_error(ER_NONUPDATEABLE_COLUMN, MYF(0), fld->item_name.ptr());
       goto err;
@@ -8855,13 +8861,16 @@ fill_record(THD * thd, List<Item> &fields, List<Item> &values,
   }
   while ((fld= f++))
   {
-    if (!(field= fld->filed_for_view_update()))
+    if (!(field= fld->field_for_view_update()))
     {
       my_error(ER_NONUPDATEABLE_COLUMN, MYF(0), fld->item_name.ptr());
       goto err;
     }
     value=v++;
     Field *rfield= field->field;
+    /* If bitmap over wanted fields are set, skip non marked fields. */
+    if (bitmap && !bitmap_is_set(bitmap, rfield->field_index))
+      continue;
     table= rfield->table;
     if (rfield == table->next_number_field)
       table->auto_increment_field_not_null= TRUE;
@@ -8908,34 +8917,33 @@ fill_record_n_invoke_before_triggers(THD *thd, List<Item> &fields,
                                      Table_triggers_list *triggers,
                                      enum trg_event_type event)
 {
-  return (fill_record(thd, fields, values, ignore_errors) ||
+  return (fill_record(thd, fields, values, ignore_errors, NULL) ||
           (triggers && triggers->process_triggers(thd, event,
                                                  TRG_ACTION_BEFORE, TRUE)));
 }
 
 
-/*
-  Fill field buffer with values from Field list
+/**
+  Fill field buffer with values from Field list.
 
-  SYNOPSIS
-    fill_record()
-    thd           thread handler
-    ptr           pointer on pointer to record
-    values        list of fields
-    ignore_errors TRUE if we should ignore errors
+  @param thd           thread handler
+  @param ptr           pointer on pointer to record
+  @param values        list of fields
+  @param ignore_errors True if we should ignore errors
+  @param bitmap        Bitmap over fields to fill
 
-  NOTE
-    fill_record() may set table->auto_increment_field_not_null and a
-    caller should make sure that it is reset after their last call to this
-    function.
+  @note fill_record() may set table->auto_increment_field_not_null and a
+  caller should make sure that it is reset after their last call to this
+  function.
 
-  RETURN
-    FALSE   OK
-    TRUE    error occured
+  @return Operation status
+    @retval false   OK
+    @retval true    Error occured
 */
 
 bool
-fill_record(THD *thd, Field **ptr, List<Item> &values, bool ignore_errors)
+fill_record(THD *thd, Field **ptr, List<Item> &values, bool ignore_errors,
+            MY_BITMAP *bitmap)
 {
   List_iterator_fast<Item> v(values);
   Item *value;
@@ -8960,11 +8968,15 @@ fill_record(THD *thd, Field **ptr, List<Item> &values, bool ignore_errors)
   {
     value=v++;
     table= field->table;
+    /* If bitmap over wanted fields are set, skip non marked fields. */
+    if (bitmap && !bitmap_is_set(bitmap, field->field_index))
+      continue;
     if (field == table->next_number_field)
       table->auto_increment_field_not_null= TRUE;
     if (value->save_in_field(field, 0) == TYPE_ERR_NULL_CONSTRAINT_VIOLATION)
       goto err;
   }
+  DBUG_ASSERT(thd->is_error() || !v++);      // No extra value!
   DBUG_RETURN(thd->is_error());
 
 err:
@@ -9003,7 +9015,7 @@ fill_record_n_invoke_before_triggers(THD *thd, Field **ptr,
                                      Table_triggers_list *triggers,
                                      enum trg_event_type event)
 {
-  return (fill_record(thd, ptr, values, ignore_errors) ||
+  return (fill_record(thd, ptr, values, ignore_errors, NULL) ||
           (triggers && triggers->process_triggers(thd, event,
                                                  TRG_ACTION_BEFORE, TRUE)));
 }
@@ -9416,7 +9428,6 @@ open_system_tables_for_read(THD *thd, TABLE_LIST *table_list,
     we also have to backup and reset/and then restore part of LEX
     which is accessed by open_tables() in order to determine if
     prelocking is needed and what tables should be added for it.
-    close_system_tables() doesn't require such treatment.
   */
   lex->reset_n_backup_query_tables_list(&query_tables_list_backup);
   thd->reset_n_backup_open_tables_state(backup);
@@ -9455,7 +9466,16 @@ open_system_tables_for_read(THD *thd, TABLE_LIST *table_list,
 void
 close_system_tables(THD *thd, Open_tables_backup *backup)
 {
+  Query_tables_list query_tables_list_backup;
+
+  /*
+    In order not affect execution of current statement we have to
+    backup/reset/restore Query_tables_list part of LEX, which is
+    accessed and updated in the process of closing tables.
+  */
+  thd->lex->reset_n_backup_query_tables_list(&query_tables_list_backup);
   close_thread_tables(thd);
+  thd->lex->restore_backup_query_tables_list(&query_tables_list_backup);
   thd->restore_backup_open_tables_state(backup);
 }
 

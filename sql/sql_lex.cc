@@ -2794,6 +2794,8 @@ void Query_tables_list::reset_query_tables_list(bool init)
   sroutines_list_own_elements= 0;
   binlog_stmt_flags= 0;
   stmt_accessed_table_flag= 0;
+  lock_tables_state= LTS_NOT_LOCKED;
+  table_count= 0;
 }
 
 
@@ -3347,6 +3349,9 @@ TABLE_LIST *LEX::unlink_first_table(bool *link_to_local)
       query_tables_last= &query_tables;
     first->next_global= 0;
 
+    if (query_tables_own_last == &first->next_global)
+      query_tables_own_last= &query_tables;
+
     /*
       and from local list if it is not empty
     */
@@ -3429,6 +3434,10 @@ void LEX::link_first_table_back(TABLE_LIST *first,
       query_tables->prev_global= &first->next_global;
     else
       query_tables_last= &first->next_global;
+
+    if (query_tables_own_last == &query_tables)
+      query_tables_own_last= &first->next_global;
+
     query_tables= first;
 
     if (link_to_local)

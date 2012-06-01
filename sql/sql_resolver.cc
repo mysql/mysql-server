@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -339,6 +339,22 @@ JOIN::prepare(TABLE_LIST *tables_init,
     goto err;
   if (alloc_func_list())
     goto err;
+
+#ifdef WITH_PARTITION_STORAGE_ENGINE
+  {
+    TABLE_LIST *tbl;
+    for (tbl= select_lex->leaf_tables; tbl; tbl= tbl->next_leaf)
+    {
+      /* 
+        This will only prune constant conditions, which will be used for
+        lock pruning.
+      */
+      Item *prune_cond= tbl->join_cond() ? tbl->join_cond() : conds;
+      if (prune_partitions(thd, tbl->table, prune_cond))
+        goto err;
+    }
+  }
+#endif
 
   DBUG_RETURN(0); // All OK
 

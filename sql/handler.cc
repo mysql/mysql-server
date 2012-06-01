@@ -2362,6 +2362,8 @@ THD *handler::ha_thd(void) const
 void handler::unbind_psi()
 {
 #ifdef HAVE_PSI_TABLE_INTERFACE
+  DBUG_ASSERT(m_lock_type == F_UNLCK);
+  DBUG_ASSERT(inited == NONE);
   /*
     Notify the instrumentation that this table is not owned
     by this thread any more.
@@ -2373,6 +2375,8 @@ void handler::unbind_psi()
 void handler::rebind_psi()
 {
 #ifdef HAVE_PSI_TABLE_INTERFACE
+  DBUG_ASSERT(m_lock_type == F_UNLCK);
+  DBUG_ASSERT(inited == NONE);
   /*
     Notify the instrumentation that this table is now owned
     by this thread.
@@ -2429,8 +2433,16 @@ int handler::ha_open(TABLE *table_arg, const char *name, int mode,
     DBUG_ASSERT(m_psi == NULL);
     DBUG_ASSERT(table_share != NULL);
 #ifdef HAVE_PSI_TABLE_INTERFACE
-    PSI_table_share *share_psi= ha_table_share_psi(table_share);
-    m_psi= PSI_TABLE_CALL(open_table)(share_psi, this);
+    /*
+      Do not call this for partitions handlers, since it may take too much
+      resources.
+      So only use the m_psi on table level, not for individual partitions.
+    */
+    if (!(test_if_locked & HA_OPEN_NO_PSI_CALL))
+    {
+      PSI_table_share *share_psi= ha_table_share_psi(table_share);
+      m_psi= PSI_TABLE_CALL(open_table)(share_psi, this);
+    }
 #endif
 
     if (table->s->db_options_in_use & HA_OPTION_READ_ONLY_DATA)
@@ -2463,6 +2475,7 @@ int handler::ha_close(void)
   PSI_TABLE_CALL(close_table)(m_psi);
   m_psi= NULL; /* instrumentation handle, invalid after close_table() */
 #endif
+  // TODO: set table= NULL to mark the handler as closed?
   DBUG_ASSERT(m_psi == NULL);
   DBUG_ASSERT(m_lock_type == F_UNLCK);
   DBUG_ASSERT(inited == NONE);
@@ -2795,7 +2808,6 @@ int handler::ha_index_next_same(uchar *buf, const uchar *key, uint keylen)
     { result= index_next_same(buf, key, keylen); })
   return result;
 }
-
 
 
 /**
@@ -5993,6 +6005,7 @@ int DsMrr_impl::dsmrr_fill_buffer()
   char *range_info;
   int res= 0;
   DBUG_ENTER("DsMrr_impl::dsmrr_fill_buffer");
+  DBUG_ASSERT(rowids_buf < rowids_buf_end);
 
   rowids_buf_cur= rowids_buf;
   while ((rowids_buf_cur < rowids_buf_end) && 
@@ -6887,19 +6900,6 @@ int handler::ha_external_lock(THD *thd, int lock_type)
                lock_type == F_UNLCK));
   /* SQL HANDLER call locks/unlock while scanning (RND/INDEX). */
   DBUG_ASSERT(inited == NONE || table->open_by_handler);
-#ifndef DBUG_OFF
-  /*
-    If this handler is cloned, then table->file is not this handler!
-    TODO: have an indicator in the handler to show that it is clone,
-    since table->file may point to ha_partition too...
-  */
-  if (table->key_read != 0 && table->file == this)
-  {
-    DBUG_PRINT("error", ("key_read != 0 (%d)", table->key_read));
-    table->key_read= 0;
-    DBUG_ASSERT(0);
-  }
-#endif
 
   if (MYSQL_HANDLER_RDLOCK_START_ENABLED() ||
       MYSQL_HANDLER_WRLOCK_START_ENABLED() ||
@@ -6934,13 +6934,12 @@ int handler::ha_external_lock(THD *thd, int lock_type)
 
   if (error == 0)
   {
-    cached_table_flags= table_flags();
-
     /*
       The lock type is needed by MRR when creating a clone of this handler
       object.
     */
     m_lock_type= lock_type;
+    cached_table_flags= table_flags();
   }
 
   if (MYSQL_HANDLER_RDLOCK_DONE_ENABLED() ||
