@@ -11791,7 +11791,8 @@ int report_error(TABLE *table, int error)
     Locking reads can legally return also these errors, do not
     print them to the .err log
   */
-  if (error != HA_ERR_LOCK_DEADLOCK && error != HA_ERR_LOCK_WAIT_TIMEOUT)
+  if (error != HA_ERR_LOCK_DEADLOCK && error != HA_ERR_LOCK_WAIT_TIMEOUT
+      && !table->in_use->killed)
     sql_print_error("Got error %d when reading table '%s'",
 		    error, table->s->path.str);
   table->file->print_error(error,MYF(0));
