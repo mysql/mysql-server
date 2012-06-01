@@ -68,7 +68,6 @@ char * toku_cachefile_fname_in_cwd (CACHEFILE cf);
 // TODO: #1510  Add comments on how these behave
 int toku_cachetable_begin_checkpoint (CACHETABLE ct, TOKULOGGER);
 int toku_cachetable_end_checkpoint(CACHETABLE ct, TOKULOGGER logger, 
-                                   void (*ydb_lock)(void), void (*ydb_unlock)(void),
                                    void (*testcallback_f)(void*),  void * testextra);
 
 // Shuts down checkpoint thread

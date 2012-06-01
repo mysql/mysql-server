@@ -44,8 +44,6 @@ static void *run_end_checkpoint(void *arg) {
     int r = toku_cachetable_end_checkpoint(
         ct, 
         NULL, 
-        fake_ydb_lock,
-        fake_ydb_unlock,
         NULL,
         NULL
         );

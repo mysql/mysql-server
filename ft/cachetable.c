@@ -194,7 +194,6 @@ static inline void ctpair_destroy(PAIR p) {
 
 // The cachetable is as close to an ENV as we get.
 // There are 3 locks, must be taken in this order
-// TODO: review the removal of this mutex, since it is only ever held when the ydb lock is held
 //      cachetable_mutex
 //      cachefiles_mutex
 struct cachetable {
@@ -3505,7 +3504,6 @@ int toku_cachetable_get_checkpointing_user_data_status (void) {
 
 int
 toku_cachetable_end_checkpoint(CACHETABLE ct, TOKULOGGER logger,
-                               void (*ydb_lock)(void), void (*ydb_unlock)(void),
                                void (*testcallback_f)(void*),  void * testextra) {
     // Requires:   The big checkpoint lock must be held (see checkpoint.c).
     // Algorithm:  Write all pending nodes to disk
@@ -3609,9 +3607,7 @@ toku_cachetable_end_checkpoint(CACHETABLE ct, TOKULOGGER logger,
             // checking for function existing so that this function
             // can be called from cachetable tests
             if (cf->note_unpin_by_checkpoint) {
-                ydb_lock();
                 int r = cf->note_unpin_by_checkpoint(cf, cf->userdata);
-                ydb_unlock();
                 if (r!=0) {
                     retval = r;
                     goto panic;

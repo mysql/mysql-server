@@ -402,8 +402,6 @@ static void *checkpoints(void *arg) {
         r = toku_cachetable_end_checkpoint(
             ct, 
             NULL, 
-            fake_ydb_lock,
-            fake_ydb_unlock,
             NULL,
             NULL
             );

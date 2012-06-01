@@ -155,8 +155,6 @@ cachetable_test (BOOL write_first, BOOL write_second, BOOL start_checkpoint) {
         r = toku_cachetable_end_checkpoint(
             ct, 
             NULL, 
-            fake_ydb_lock,
-            fake_ydb_unlock,
             NULL,
             NULL
             );
