@@ -19,7 +19,8 @@ SET GLOBAL innodb_file_per_table = on;
 # Save the initial number of concurrent sessions.
 --source include/count_sessions.inc
 
-CREATE TABLE t1 (c1 INT PRIMARY KEY, c2 INT, c3 TEXT) ENGINE = InnoDB;
+CREATE TABLE t1 (c1 INT PRIMARY KEY, c2 INT, c3 TEXT)
+ENGINE=InnoDB STATS_PERSISTENT=0;
 INSERT INTO t1 VALUES (1,1,''), (2,2,''), (3,3,''), (4,4,''), (5,5,'');
 
 SET GLOBAL innodb_monitor_enable = module_ddl;
@@ -134,12 +135,17 @@ UPDATE mysql.innodb_index_stats SET stat_value = 5
 WHERE database_name = 'test' AND table_name= 't1' AND index_name = 'PRIMARY'
 AND stat_value = 6;
 --replace_column 4 LAST_UPDATE
-SELECT * FROM mysql.innodb_index_stats;
+SELECT * FROM mysql.innodb_index_stats WHERE table_name IN ('t1');
 CREATE TABLE t1_c2_stats SELECT * FROM mysql.innodb_index_stats
 WHERE database_name = 'test' AND table_name = 't1' and index_name = 'c2';
+# in Embedded mode (./mtr --embedded-server) the t1_c2_stats table gets
+# created in MyISAM format by default even if we set
+# default_storage_engine='innodb'
+ALTER TABLE t1_c2_stats ENGINE=INNODB;
 DROP INDEX c2 ON t1;
+ANALYZE TABLE t1_c2_stats;
 --replace_column 4 LAST_UPDATE
-SELECT * FROM mysql.innodb_index_stats;
+SELECT * FROM mysql.innodb_index_stats WHERE table_name IN ('t1', 't1_c2_stats');
 
 connection con1;
 let $ID= `SELECT @id := CONNECTION_ID()`;

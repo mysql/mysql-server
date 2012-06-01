@@ -137,6 +137,9 @@ INSERT INTO fts_test (title, text) VALUES
         ('1001 MySQL Tricks','1. Never run mysqld as root. 2. ...'),
         ('MySQL vs. YourSQL','In the following database comparison ...'),
         ('MySQL Security','When configured properly, MySQL ...');
+-- disable_result_log
+ANALYZE TABLE fts_test;
+-- enable_result_log
 set @@auto_increment_increment=1;
 
 select *, match(title, text)  AGAINST ('database') as score
