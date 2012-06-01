@@ -1,17 +1,17 @@
 SET @start_value = @@global.max_connect_errors;
 SELECT @start_value;
 @start_value
-10
+100
 '#--------------------FN_DYNVARS_073_01------------------------#'
 SET @@global.max_connect_errors = 5000;
 SET @@global.max_connect_errors = DEFAULT;
 SELECT @@global.max_connect_errors;
 @@global.max_connect_errors
-10
+100
 '#---------------------FN_DYNVARS_073_02-------------------------#'
 SET @@global.max_connect_errors = @start_value;
-SELECT @@global.max_connect_errors = 10;
-@@global.max_connect_errors = 10
+SELECT @@global.max_connect_errors = 100;
+@@global.max_connect_errors = 100
 1
 '#--------------------FN_DYNVARS_073_03------------------------#'
 SET @@global.max_connect_errors = 4096;
@@ -131,4 +131,4 @@ ERROR 42S22: Unknown column 'max_connect_errors' in 'field list'
 SET @@global.max_connect_errors = @start_value;
 SELECT @@global.max_connect_errors;
 @@global.max_connect_errors
-10
+100

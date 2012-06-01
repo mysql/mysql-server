@@ -19810,7 +19810,7 @@ static void test_bug56976()
   const char*   query = "SELECT LENGTH(?)";
   char *long_buffer;
   unsigned long i, packet_len = 256 * 1024L;
-  unsigned long dos_len    = 2 * 1024 * 1024L;
+  unsigned long dos_len    = 8 * 1024 * 1024L;
 
   DBUG_ENTER("test_bug56976");
   myheader("test_bug56976");

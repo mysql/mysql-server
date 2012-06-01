@@ -1131,7 +1131,7 @@ SELECT space(date_add(101, INTERVAL CHAR('1' USING utf16) hour_second));
 space(date_add(101, INTERVAL CHAR('1' USING utf16) hour_second))
 NULL
 Warnings:
-Warning	1301	Result of space() was larger than max_allowed_packet (1048576) - truncated
+Warning	1301	Result of space() was larger than max_allowed_packet (4194304) - truncated
 #
 # Bug#11750518 41090: ORDER BY TRUNCATES GROUP_CONCAT RESULT
 #

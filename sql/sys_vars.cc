@@ -525,7 +525,7 @@ static Sys_var_ulong Sys_back_log(
        "MySQL can have. This comes into play when the main MySQL thread "
        "gets very many connection requests in a very short time",
        READ_ONLY GLOBAL_VAR(back_log), CMD_LINE(REQUIRED_ARG),
-       VALID_RANGE(1, 65535), DEFAULT(50), BLOCK_SIZE(1));
+       VALID_RANGE(0, 65535), DEFAULT(0), BLOCK_SIZE(1));
 
 static Sys_var_charptr Sys_basedir(
        "basedir", "Path to installation directory. All paths are "
@@ -1208,7 +1208,7 @@ static Sys_var_ulong Sys_flush_time(
        "given interval",
        GLOBAL_VAR(flush_time),
        CMD_LINE(REQUIRED_ARG), VALID_RANGE(0, LONG_TIMEOUT),
-       DEFAULT(FLUSH_TIME), BLOCK_SIZE(1));
+       DEFAULT(0), BLOCK_SIZE(1));
 
 static bool check_ftb_syntax(sys_var *self, THD *thd, set_var *var)
 {
@@ -1314,7 +1314,7 @@ static Sys_var_ulong Sys_join_buffer_size(
        "join_buffer_size",
        "The size of the buffer that is used for full joins",
        SESSION_VAR(join_buff_size), CMD_LINE(REQUIRED_ARG),
-       VALID_RANGE(128, ULONG_MAX), DEFAULT(128*1024), BLOCK_SIZE(128));
+       VALID_RANGE(128, ULONG_MAX), DEFAULT(256 * 1024), BLOCK_SIZE(128));
 
 static Sys_var_keycache Sys_key_buffer_size(
        "key_buffer_size", "The size of the buffer used for "
@@ -1559,7 +1559,7 @@ static Sys_var_ulong Sys_max_allowed_packet(
        "max_allowed_packet",
        "Max packet length to send to or receive from the server",
        SESSION_VAR(max_allowed_packet), CMD_LINE(REQUIRED_ARG),
-       VALID_RANGE(1024, 1024*1024*1024), DEFAULT(1024*1024),
+       VALID_RANGE(1024, 1024 * 1024 * 1024), DEFAULT(4096 * 1024),
        BLOCK_SIZE(1024), NO_MUTEX_GUARD, NOT_IN_BINLOG,
        ON_CHECK(check_max_allowed_packet));
 
@@ -1623,7 +1623,7 @@ static Sys_var_ulong Sys_max_connect_errors(
        "If there is more than this number of interrupted connections from "
        "a host this host will be blocked from further connections",
        GLOBAL_VAR(max_connect_errors), CMD_LINE(REQUIRED_ARG),
-       VALID_RANGE(1, ULONG_MAX), DEFAULT(MAX_CONNECT_ERRORS),
+       VALID_RANGE(1, ULONG_MAX), DEFAULT(100),
        BLOCK_SIZE(1));
 
 static bool check_max_delayed_threads(sys_var *self, THD *thd, set_var *var)
@@ -2673,8 +2673,8 @@ static Sys_var_set Sys_sql_mode(
        "Syntax: sql-mode=mode[,mode[,mode...]]. See the manual for the "
        "complete list of valid sql modes",
        SESSION_VAR(sql_mode), CMD_LINE(REQUIRED_ARG),
-       sql_mode_names, DEFAULT(0), NO_MUTEX_GUARD, NOT_IN_BINLOG,
-       ON_CHECK(check_sql_mode), ON_UPDATE(fix_sql_mode));
+       sql_mode_names, DEFAULT(MODE_NO_ENGINE_SUBSTITUTION), NO_MUTEX_GUARD,
+       NOT_IN_BINLOG, ON_CHECK(check_sql_mode), ON_UPDATE(fix_sql_mode));
 
 #if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
 #define SSL_OPT(X) CMD_LINE(REQUIRED_ARG,X)

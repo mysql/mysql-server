@@ -276,12 +276,12 @@ SELECT * FROM t1 ORDER BY a;
 --error 1292
 INSERT INTO t1 VALUES (1, 'slave', '0000-00-00');
 SELECT * FROM t1 ORDER BY a;
-SET @@global.sql_mode='';
-SET @@session.sql_mode='';
+SET @@global.sql_mode=DEFAULT;
+SET @@session.sql_mode=DEFAULT;
 
 --connection master
-SET @@global.sql_mode='';
-SET @@session.sql_mode='';
+SET @@global.sql_mode=DEFAULT;
+SET @@session.sql_mode=DEFAULT;
 DROP TABLE t1;
 --echo
 

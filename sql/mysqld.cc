@@ -3666,6 +3666,11 @@ int init_common_variables()
     }
     open_files_limit= files;
   }
+
+  /* Fix back_log */
+  if (back_log == 0 && (back_log= 50 + max_connections / 5) > 900)
+    back_log= 900;
+
   unireg_init(opt_specialflag); /* Set up extern variabels */
   if (!(my_default_lc_messages=
         my_locale_by_name(lc_messages)))

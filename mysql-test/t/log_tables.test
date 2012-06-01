@@ -262,6 +262,7 @@ set default_storage_engine= MEMORY;
 # If compiled in/enabled ER_UNSUPORTED_LOG_ENGINE
 # If not (i.e. not existant) it will show a warning
 # and use the current one.
+--error ER_UNKNOWN_STORAGE_ENGINE
 alter table mysql.slow_log engine=NonExistentEngine;
 --error ER_UNSUPORTED_LOG_ENGINE
 alter table mysql.slow_log engine=memory;

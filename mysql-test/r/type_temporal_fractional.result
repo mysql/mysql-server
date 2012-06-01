@@ -5354,7 +5354,7 @@ SELECT a;
 END//
 SHOW CREATE PROCEDURE p1//
 Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
-p1		CREATE DEFINER=`root`@`localhost` PROCEDURE `p1`()
+p1	NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `p1`()
 BEGIN
 DECLARE a TIME(6);
 SET a='11:22:33.123';
@@ -5370,7 +5370,7 @@ SELECT a;
 END//
 SHOW CREATE PROCEDURE p1//
 Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
-p1		CREATE DEFINER=`root`@`localhost` PROCEDURE `p1`(a TIME(6))
+p1	NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `p1`(a TIME(6))
 BEGIN
 SELECT a;
 END	latin1	latin1_swedish_ci	latin1_swedish_ci
@@ -5396,7 +5396,7 @@ DROP TABLE t1;
 END//
 SHOW CREATE PROCEDURE p1//
 Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
-p1		CREATE DEFINER=`root`@`localhost` PROCEDURE `p1`()
+p1	NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `p1`()
 BEGIN
 DECLARE a TIME(6);
 CREATE TABLE t1 AS SELECT a;
@@ -5415,7 +5415,7 @@ RETURN a;
 END//
 SHOW CREATE FUNCTION p1//
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
-p1		CREATE DEFINER=`root`@`localhost` FUNCTION `p1`(a TIME(6)) RETURNS time(6)
+p1	NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `p1`(a TIME(6)) RETURNS time(6)
 BEGIN
 RETURN a;
 END	latin1	latin1_swedish_ci	latin1_swedish_ci
@@ -10271,7 +10271,7 @@ SELECT a;
 END//
 SHOW CREATE PROCEDURE p1//
 Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
-p1		CREATE DEFINER=`root`@`localhost` PROCEDURE `p1`()
+p1	NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `p1`()
 BEGIN
 DECLARE a DATETIME(6);
 SET a='2001-01-01 11:22:33.123';
@@ -10287,7 +10287,7 @@ SELECT a;
 END//
 SHOW CREATE PROCEDURE p1//
 Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
-p1		CREATE DEFINER=`root`@`localhost` PROCEDURE `p1`(a DATETIME(6))
+p1	NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `p1`(a DATETIME(6))
 BEGIN
 SELECT a;
 END	latin1	latin1_swedish_ci	latin1_swedish_ci
@@ -10313,7 +10313,7 @@ DROP TABLE t1;
 END//
 SHOW CREATE PROCEDURE p1//
 Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
-p1		CREATE DEFINER=`root`@`localhost` PROCEDURE `p1`()
+p1	NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `p1`()
 BEGIN
 DECLARE a DATETIME(6);
 CREATE TABLE t1 AS SELECT a;
@@ -10332,7 +10332,7 @@ RETURN a;
 END//
 SHOW CREATE FUNCTION p1//
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
-p1		CREATE DEFINER=`root`@`localhost` FUNCTION `p1`(a DATETIME(6)) RETURNS datetime(6)
+p1	NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `p1`(a DATETIME(6)) RETURNS datetime(6)
 BEGIN
 RETURN a;
 END	latin1	latin1_swedish_ci	latin1_swedish_ci
@@ -14638,7 +14638,7 @@ SELECT a;
 END//
 SHOW CREATE PROCEDURE p1//
 Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
-p1		CREATE DEFINER=`root`@`localhost` PROCEDURE `p1`()
+p1	NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `p1`()
 BEGIN
 DECLARE a TIMESTAMP(6);
 SET a='2001-01-01 11:22:33.123';
@@ -14654,7 +14654,7 @@ SELECT a;
 END//
 SHOW CREATE PROCEDURE p1//
 Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
-p1		CREATE DEFINER=`root`@`localhost` PROCEDURE `p1`(a TIMESTAMP(6))
+p1	NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `p1`(a TIMESTAMP(6))
 BEGIN
 SELECT a;
 END	latin1	latin1_swedish_ci	latin1_swedish_ci
@@ -14682,7 +14682,7 @@ DROP TABLE t1;
 END//
 SHOW CREATE PROCEDURE p1//
 Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
-p1		CREATE DEFINER=`root`@`localhost` PROCEDURE `p1`()
+p1	NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `p1`()
 BEGIN
 DECLARE a TIMESTAMP(6);
 CREATE TABLE t1 AS SELECT a;
@@ -14701,7 +14701,7 @@ RETURN a;
 END//
 SHOW CREATE FUNCTION p1//
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
-p1		CREATE DEFINER=`root`@`localhost` FUNCTION `p1`(a TIMESTAMP(6)) RETURNS timestamp(6)
+p1	NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `p1`(a TIMESTAMP(6)) RETURNS timestamp(6)
 BEGIN
 RETURN a;
 END	latin1	latin1_swedish_ci	latin1_swedish_ci

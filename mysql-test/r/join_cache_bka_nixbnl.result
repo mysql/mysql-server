@@ -33,7 +33,7 @@ COUNT(*)
 984
 show variables like 'join_buffer_size';
 Variable_name	Value
-join_buffer_size	131072
+join_buffer_size	262144
 EXPLAIN
 SELECT City.Name, Country.Name FROM City,Country
 WHERE City.Country=Country.Code AND 
@@ -409,7 +409,7 @@ Lünen	Germany	German
 set join_buffer_size=default;
 show variables like 'join_buffer_size';
 Variable_name	Value
-join_buffer_size	131072
+join_buffer_size	262144
 DROP DATABASE world;
 CREATE DATABASE world;
 use world;
@@ -440,7 +440,7 @@ INDEX (Percentage)
 );
 show variables like 'join_buffer_size';
 Variable_name	Value
-join_buffer_size	131072
+join_buffer_size	262144
 EXPLAIN
 SELECT City.Name, Country.Name FROM City,Country
 WHERE City.Country=Country.Code AND 
@@ -961,7 +961,7 @@ Vilnius
 set join_buffer_size=default;
 show variables like 'join_buffer_size';
 Variable_name	Value
-join_buffer_size	131072
+join_buffer_size	262144
 SELECT City.Name, Country.Name FROM City,Country
 WHERE City.Country=Country.Code AND City.Population > 3000000;
 Name	Name

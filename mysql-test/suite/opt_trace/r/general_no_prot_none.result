@@ -2981,12 +2981,12 @@ explain select * from t1,t2	{
                           "access_type": "scan",
                           "using_join_cache": true,
                           "rows": 3,
-                          "cost": 2.0053,
+                          "cost": 2.0052,
                           "chosen": true
                         }
                       ] /* considered_access_paths */
                     } /* best_access_path */,
-                    "cost_for_plan": 5.6087,
+                    "cost_for_plan": 5.6086,
                     "rows_for_plan": 6,
                     "chosen": true
                   }
@@ -3020,12 +3020,12 @@ explain select * from t1,t2	{
                           "access_type": "scan",
                           "using_join_cache": true,
                           "rows": 2,
-                          "cost": 2.0036,
+                          "cost": 2.0035,
                           "chosen": true
                         }
                       ] /* considered_access_paths */
                     } /* best_access_path */,
-                    "cost_for_plan": 5.8088,
+                    "cost_for_plan": 5.8087,
                     "rows_for_plan": 6,
                     "pruned_by_cost": true
                   }
@@ -3642,12 +3642,12 @@ WHERE c2 IN ( SELECT c2 FROM t2 WHERE c2 IN ( 1 ) )	{
                           "access_type": "scan",
                           "using_join_cache": true,
                           "rows": 3,
-                          "cost": 2.0054,
+                          "cost": 2.0052,
                           "chosen": true
                         }
                       ] /* considered_access_paths */
                     } /* best_access_path */,
-                    "cost_for_plan": 6.4105,
+                    "cost_for_plan": 6.4104,
                     "rows_for_plan": 9,
                     "chosen": true
                   }
@@ -5064,12 +5064,12 @@ select * from t1 left join t2 on t2.a=500 where t2.a is NULL	{
                           "access_type": "scan",
                           "using_join_cache": true,
                           "rows": 2,
-                          "cost": 2.0036,
+                          "cost": 2.0035,
                           "chosen": true
                         }
                       ] /* considered_access_paths */
                     } /* best_access_path */,
-                    "cost_for_plan": 5.207,
+                    "cost_for_plan": 5.2069,
                     "rows_for_plan": 4,
                     "chosen": true
                   }

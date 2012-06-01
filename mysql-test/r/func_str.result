@@ -355,7 +355,7 @@ select length(repeat("a",100000000)),length(repeat("a",1000*64));
 length(repeat("a",100000000))	length(repeat("a",1000*64))
 NULL	64000
 Warnings:
-Warning	1301	Result of repeat() was larger than max_allowed_packet (1048576) - truncated
+Warning	1301	Result of repeat() was larger than max_allowed_packet (4194304) - truncated
 select position("0" in "baaa" in (1)),position("0" in "1" in (1,2,3)),position("sql" in ("mysql"));
 position("0" in "baaa" in (1))	position("0" in "1" in (1,2,3))	position("sql" in ("mysql"))
 1	0	3
@@ -2020,7 +2020,7 @@ select repeat('hello', 4294967295);
 repeat('hello', 4294967295)
 NULL
 Warnings:
-Warning	1301	Result of repeat() was larger than max_allowed_packet (1048576) - truncated
+Warning	1301	Result of repeat() was larger than max_allowed_packet (4194304) - truncated
 select repeat('hello', -4294967296);
 repeat('hello', -4294967296)
 
@@ -2028,7 +2028,7 @@ select repeat('hello', 4294967296);
 repeat('hello', 4294967296)
 NULL
 Warnings:
-Warning	1301	Result of repeat() was larger than max_allowed_packet (1048576) - truncated
+Warning	1301	Result of repeat() was larger than max_allowed_packet (4194304) - truncated
 select repeat('hello', -4294967297);
 repeat('hello', -4294967297)
 
@@ -2036,7 +2036,7 @@ select repeat('hello', 4294967297);
 repeat('hello', 4294967297)
 NULL
 Warnings:
-Warning	1301	Result of repeat() was larger than max_allowed_packet (1048576) - truncated
+Warning	1301	Result of repeat() was larger than max_allowed_packet (4194304) - truncated
 select repeat('hello', -18446744073709551615);
 repeat('hello', -18446744073709551615)
 
@@ -2047,7 +2047,7 @@ select repeat('hello', 18446744073709551615);
 repeat('hello', 18446744073709551615)
 NULL
 Warnings:
-Warning	1301	Result of repeat() was larger than max_allowed_packet (1048576) - truncated
+Warning	1301	Result of repeat() was larger than max_allowed_packet (4194304) - truncated
 select repeat('hello', -18446744073709551616);
 repeat('hello', -18446744073709551616)
 
@@ -2060,7 +2060,7 @@ NULL
 Warnings:
 Warning	1292	Truncated incorrect DECIMAL value: ''
 Warning	1292	Truncated incorrect DECIMAL value: ''
-Warning	1301	Result of repeat() was larger than max_allowed_packet (1048576) - truncated
+Warning	1301	Result of repeat() was larger than max_allowed_packet (4194304) - truncated
 select repeat('hello', -18446744073709551617);
 repeat('hello', -18446744073709551617)
 
@@ -2073,7 +2073,7 @@ NULL
 Warnings:
 Warning	1292	Truncated incorrect DECIMAL value: ''
 Warning	1292	Truncated incorrect DECIMAL value: ''
-Warning	1301	Result of repeat() was larger than max_allowed_packet (1048576) - truncated
+Warning	1301	Result of repeat() was larger than max_allowed_packet (4194304) - truncated
 select space(-1);
 space(-1)
 
@@ -2084,7 +2084,7 @@ select space(4294967295);
 space(4294967295)
 NULL
 Warnings:
-Warning	1301	Result of space() was larger than max_allowed_packet (1048576) - truncated
+Warning	1301	Result of space() was larger than max_allowed_packet (4194304) - truncated
 select space(-4294967296);
 space(-4294967296)
 
@@ -2092,7 +2092,7 @@ select space(4294967296);
 space(4294967296)
 NULL
 Warnings:
-Warning	1301	Result of space() was larger than max_allowed_packet (1048576) - truncated
+Warning	1301	Result of space() was larger than max_allowed_packet (4194304) - truncated
 select space(-4294967297);
 space(-4294967297)
 
@@ -2100,7 +2100,7 @@ select space(4294967297);
 space(4294967297)
 NULL
 Warnings:
-Warning	1301	Result of space() was larger than max_allowed_packet (1048576) - truncated
+Warning	1301	Result of space() was larger than max_allowed_packet (4194304) - truncated
 select space(-18446744073709551615);
 space(-18446744073709551615)
 
@@ -2111,7 +2111,7 @@ select space(18446744073709551615);
 space(18446744073709551615)
 NULL
 Warnings:
-Warning	1301	Result of space() was larger than max_allowed_packet (1048576) - truncated
+Warning	1301	Result of space() was larger than max_allowed_packet (4194304) - truncated
 select space(-18446744073709551616);
 space(-18446744073709551616)
 
@@ -2124,7 +2124,7 @@ NULL
 Warnings:
 Warning	1292	Truncated incorrect DECIMAL value: ''
 Warning	1292	Truncated incorrect DECIMAL value: ''
-Warning	1301	Result of space() was larger than max_allowed_packet (1048576) - truncated
+Warning	1301	Result of space() was larger than max_allowed_packet (4194304) - truncated
 select space(-18446744073709551617);
 space(-18446744073709551617)
 
@@ -2137,7 +2137,7 @@ NULL
 Warnings:
 Warning	1292	Truncated incorrect DECIMAL value: ''
 Warning	1292	Truncated incorrect DECIMAL value: ''
-Warning	1301	Result of space() was larger than max_allowed_packet (1048576) - truncated
+Warning	1301	Result of space() was larger than max_allowed_packet (4194304) - truncated
 select rpad('hello', -1, '1');
 rpad('hello', -1, '1')
 NULL
@@ -2148,7 +2148,7 @@ select rpad('hello', 4294967295, '1');
 rpad('hello', 4294967295, '1')
 NULL
 Warnings:
-Warning	1301	Result of rpad() was larger than max_allowed_packet (1048576) - truncated
+Warning	1301	Result of rpad() was larger than max_allowed_packet (4194304) - truncated
 select rpad('hello', -4294967296, '1');
 rpad('hello', -4294967296, '1')
 NULL
@@ -2156,7 +2156,7 @@ select rpad('hello', 4294967296, '1');
 rpad('hello', 4294967296, '1')
 NULL
 Warnings:
-Warning	1301	Result of rpad() was larger than max_allowed_packet (1048576) - truncated
+Warning	1301	Result of rpad() was larger than max_allowed_packet (4194304) - truncated
 select rpad('hello', -4294967297, '1');
 rpad('hello', -4294967297, '1')
 NULL
@@ -2164,7 +2164,7 @@ select rpad('hello', 4294967297, '1');
 rpad('hello', 4294967297, '1')
 NULL
 Warnings:
-Warning	1301	Result of rpad() was larger than max_allowed_packet (1048576) - truncated
+Warning	1301	Result of rpad() was larger than max_allowed_packet (4194304) - truncated
 select rpad('hello', -18446744073709551615, '1');
 rpad('hello', -18446744073709551615, '1')
 NULL
@@ -2175,7 +2175,7 @@ select rpad('hello', 18446744073709551615, '1');
 rpad('hello', 18446744073709551615, '1')
 NULL
 Warnings:
-Warning	1301	Result of rpad() was larger than max_allowed_packet (1048576) - truncated
+Warning	1301	Result of rpad() was larger than max_allowed_packet (4194304) - truncated
 select rpad('hello', -18446744073709551616, '1');
 rpad('hello', -18446744073709551616, '1')
 NULL
@@ -2188,7 +2188,7 @@ NULL
 Warnings:
 Warning	1292	Truncated incorrect DECIMAL value: ''
 Warning	1292	Truncated incorrect DECIMAL value: ''
-Warning	1301	Result of rpad() was larger than max_allowed_packet (1048576) - truncated
+Warning	1301	Result of rpad() was larger than max_allowed_packet (4194304) - truncated
 select rpad('hello', -18446744073709551617, '1');
 rpad('hello', -18446744073709551617, '1')
 NULL
@@ -2201,7 +2201,7 @@ NULL
 Warnings:
 Warning	1292	Truncated incorrect DECIMAL value: ''
 Warning	1292	Truncated incorrect DECIMAL value: ''
-Warning	1301	Result of rpad() was larger than max_allowed_packet (1048576) - truncated
+Warning	1301	Result of rpad() was larger than max_allowed_packet (4194304) - truncated
 select lpad('hello', -1, '1');
 lpad('hello', -1, '1')
 NULL
@@ -2212,7 +2212,7 @@ select lpad('hello', 4294967295, '1');
 lpad('hello', 4294967295, '1')
 NULL
 Warnings:
-Warning	1301	Result of lpad() was larger than max_allowed_packet (1048576) - truncated
+Warning	1301	Result of lpad() was larger than max_allowed_packet (4194304) - truncated
 select lpad('hello', -4294967296, '1');
 lpad('hello', -4294967296, '1')
 NULL
@@ -2220,7 +2220,7 @@ select lpad('hello', 4294967296, '1');
 lpad('hello', 4294967296, '1')
 NULL
 Warnings:
-Warning	1301	Result of lpad() was larger than max_allowed_packet (1048576) - truncated
+Warning	1301	Result of lpad() was larger than max_allowed_packet (4194304) - truncated
 select lpad('hello', -4294967297, '1');
 lpad('hello', -4294967297, '1')
 NULL
@@ -2228,7 +2228,7 @@ select lpad('hello', 4294967297, '1');
 lpad('hello', 4294967297, '1')
 NULL
 Warnings:
-Warning	1301	Result of lpad() was larger than max_allowed_packet (1048576) - truncated
+Warning	1301	Result of lpad() was larger than max_allowed_packet (4194304) - truncated
 select lpad('hello', -18446744073709551615, '1');
 lpad('hello', -18446744073709551615, '1')
 NULL
@@ -2239,7 +2239,7 @@ select lpad('hello', 18446744073709551615, '1');
 lpad('hello', 18446744073709551615, '1')
 NULL
 Warnings:
-Warning	1301	Result of lpad() was larger than max_allowed_packet (1048576) - truncated
+Warning	1301	Result of lpad() was larger than max_allowed_packet (4194304) - truncated
 select lpad('hello', -18446744073709551616, '1');
 lpad('hello', -18446744073709551616, '1')
 NULL
@@ -2252,7 +2252,7 @@ NULL
 Warnings:
 Warning	1292	Truncated incorrect DECIMAL value: ''
 Warning	1292	Truncated incorrect DECIMAL value: ''
-Warning	1301	Result of lpad() was larger than max_allowed_packet (1048576) - truncated
+Warning	1301	Result of lpad() was larger than max_allowed_packet (4194304) - truncated
 select lpad('hello', -18446744073709551617, '1');
 lpad('hello', -18446744073709551617, '1')
 NULL
@@ -2265,7 +2265,7 @@ NULL
 Warnings:
 Warning	1292	Truncated incorrect DECIMAL value: ''
 Warning	1292	Truncated incorrect DECIMAL value: ''
-Warning	1301	Result of lpad() was larger than max_allowed_packet (1048576) - truncated
+Warning	1301	Result of lpad() was larger than max_allowed_packet (4194304) - truncated
 SET @orig_sql_mode = @@SQL_MODE;
 SET SQL_MODE=traditional;
 SELECT CHAR(0xff,0x8f USING utf8);
@@ -2882,7 +2882,7 @@ SELECT ((0xf3) * (rpad(1.0,2048,1)) << (0xcc));
 #              EXTRAORDINARY LONG TIME TO EXECUTE
 SELECT @tmp_max:= @@global.max_allowed_packet;
 @tmp_max:= @@global.max_allowed_packet
-1048576
+4194304
 SET @@global.max_allowed_packet=1024*1024*1024;
 SELECT @@global.max_allowed_packet;
 @@global.max_allowed_packet
@@ -4390,7 +4390,7 @@ SELECT LENGTH(TO_BASE64(REPEAT('a', @@max_allowed_packet-10)));
 LENGTH(TO_BASE64(REPEAT('a', @@max_allowed_packet-10)))
 NULL
 Warnings:
-Warning	1301	Result of to_base64() was larger than max_allowed_packet (1048576) - truncated
+Warning	1301	Result of to_base64() was larger than max_allowed_packet (4194304) - truncated
 #
 # Testing base64 with various data types
 #
@@ -4438,7 +4438,7 @@ DROP TABLE t1;
 #
 SELECT @tmp_max:= @@global.max_allowed_packet;
 @tmp_max:= @@global.max_allowed_packet
-1048576
+4194304
 SET @@global.max_allowed_packet=1024*1024*1024;
 SELECT @@global.max_allowed_packet;
 @@global.max_allowed_packet
@@ -4453,7 +4453,7 @@ SELECT SPACE(@@global.max_allowed_packet*2);
 SPACE(@@global.max_allowed_packet*2)
 NULL
 Warnings:
-Warning	1301	Result of space() was larger than max_allowed_packet (1048576) - truncated
+Warning	1301	Result of space() was larger than max_allowed_packet (4194304) - truncated
 SET NAMES latin1;
 PREPARE stmt FROM "SELECT COLLATION(space(2))";
 EXECUTE stmt;

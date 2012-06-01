@@ -71,7 +71,7 @@ CREATE TABLE t1 (a int not null auto_increment, data1 LONGBLOB,
 --sync_slave_with_master
 --connection master
 
-INSERT INTO t1 (data1, data2, data3) VALUES (repeat('a',1000000), repeat('a', 1000000), repeat('a', 1000000));
+INSERT INTO t1 (data1, data2, data3) VALUES (repeat('a', @@global.max_allowed_packet), repeat('a', @@global.max_allowed_packet), repeat('a', @@global.max_allowed_packet));
 
 SELECT LENGTH(data1), LENGTH(data2), LENGTH(data3) FROM t1 WHERE a = 1;
 

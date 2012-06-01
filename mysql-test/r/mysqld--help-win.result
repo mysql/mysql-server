@@ -922,7 +922,7 @@ auto-increment-increment 1
 auto-increment-offset 1
 autocommit TRUE
 automatic-sp-privileges TRUE
-back-log 50
+back-log 80
 big-tables FALSE
 bind-address 0.0.0.0
 binlog-cache-size 32768
@@ -963,7 +963,7 @@ event-scheduler OFF
 expire-logs-days 0
 external-locking FALSE
 flush FALSE
-flush-time 1800
+flush-time 0
 ft-boolean-syntax + -><()~*:""&|
 ft-max-word-len 84
 ft-min-word-len 4
@@ -980,7 +980,7 @@ init-connect
 init-file (No default value)
 init-slave 
 interactive-timeout 28800
-join-buffer-size 131072
+join-buffer-size 262144
 keep-files-on-create FALSE
 key-buffer-size 8388608
 key-cache-age-threshold 300
@@ -1016,12 +1016,12 @@ master-info-file master.info
 master-info-repository FILE
 master-retry-count 86400
 master-verify-checksum FALSE
-max-allowed-packet 1048576
+max-allowed-packet 4194304
 max-binlog-cache-size 18446744073709547520
 max-binlog-dump-events 0
 max-binlog-size 1073741824
 max-binlog-stmt-cache-size 18446744073709547520
-max-connect-errors 10
+max-connect-errors 100
 max-connections 151
 max-delayed-threads 20
 max-error-count 64
@@ -1168,7 +1168,7 @@ slow-query-log FALSE
 slow-start-timeout 15000
 sort-buffer-size 262144
 sporadic-binlog-dump-fail FALSE
-sql-mode 
+sql-mode NO_ENGINE_SUBSTITUTION
 stored-program-cache 256
 symbolic-links FALSE
 sync-binlog 0
