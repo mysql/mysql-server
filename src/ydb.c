@@ -520,7 +520,7 @@ maybe_upgrade_persistent_environment_dictionary(DB_ENV * env, DB_TXN * txn, LSN 
         const uint32_t curr_env_ver_d = toku_htod32(FT_LAYOUT_VERSION);
         toku_fill_dbt(&key, curr_env_ver_key, strlen(curr_env_ver_key));
         toku_fill_dbt(&val, &curr_env_ver_d, sizeof(curr_env_ver_d));
-        r = toku_db_put(persistent_environment, txn, &key, &val, 0, TRUE);
+        r = toku_db_put(persistent_environment, txn, &key, &val, 0, FALSE);
         assert_zero(r);
 
         // although the variable name is last_lsn_of_v13, this key really represents
@@ -529,19 +529,19 @@ maybe_upgrade_persistent_environment_dictionary(DB_ENV * env, DB_TXN * txn, LSN 
         uint64_t last_lsn_of_v13_d = toku_htod64(last_lsn_of_clean_shutdown_read_from_log.lsn);
         toku_fill_dbt(&key, last_lsn_of_v13_key, strlen(last_lsn_of_v13_key));
         toku_fill_dbt(&val, &last_lsn_of_v13_d, sizeof(last_lsn_of_v13_d));
-        r = toku_db_put(persistent_environment, txn, &key, &val, 0, TRUE);
+        r = toku_db_put(persistent_environment, txn, &key, &val, 0, FALSE);
         assert_zero(r);
         
         time_t upgrade_v19_time_d = toku_htod64(time(NULL));
         toku_fill_dbt(&key, upgrade_v19_time_key, strlen(upgrade_v19_time_key));
         toku_fill_dbt(&val, &upgrade_v19_time_d, sizeof(upgrade_v19_time_d));
-        r = toku_db_put(persistent_environment, txn, &key, &val, DB_NOOVERWRITE, TRUE);
+        r = toku_db_put(persistent_environment, txn, &key, &val, DB_NOOVERWRITE, FALSE);
         assert_zero(r);
 
         uint64_t upgrade_v19_footprint_d = toku_htod64(toku_log_upgrade_get_footprint());
         toku_fill_dbt(&key, upgrade_v19_footprint_key, strlen(upgrade_v19_footprint_key));
         toku_fill_dbt(&val, &upgrade_v19_footprint_d, sizeof(upgrade_v19_footprint_d));
-        r = toku_db_put(persistent_environment, txn, &key, &val, DB_NOOVERWRITE, TRUE);
+        r = toku_db_put(persistent_environment, txn, &key, &val, DB_NOOVERWRITE, FALSE);
         assert_zero(r);
     }
     return r;
@@ -959,18 +959,18 @@ env_open(DB_ENV * env, const char *home, u_int32_t flags, int mode) {
 
             toku_fill_dbt(&key, orig_env_ver_key, strlen(orig_env_ver_key));
             toku_fill_dbt(&val, &environment_version, sizeof(environment_version));
-            r = toku_db_put(env->i->persistent_environment, txn, &key, &val, 0, TRUE);
+            r = toku_db_put(env->i->persistent_environment, txn, &key, &val, 0, FALSE);
             assert_zero(r);
 
             toku_fill_dbt(&key, curr_env_ver_key, strlen(curr_env_ver_key));
             toku_fill_dbt(&val, &environment_version, sizeof(environment_version));
-            r = toku_db_put(env->i->persistent_environment, txn, &key, &val, 0, TRUE);
+            r = toku_db_put(env->i->persistent_environment, txn, &key, &val, 0, FALSE);
             assert_zero(r);
 
             time_t creation_time_d = toku_htod64(time(NULL));
             toku_fill_dbt(&key, creation_time_key, strlen(creation_time_key));
             toku_fill_dbt(&val, &creation_time_d, sizeof(creation_time_d));
-            r = toku_db_put(env->i->persistent_environment, txn, &key, &val, 0, TRUE);
+            r = toku_db_put(env->i->persistent_environment, txn, &key, &val, 0, FALSE);
             assert_zero(r);
         }
         else {

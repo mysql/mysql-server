@@ -3246,14 +3246,14 @@ log_open_txn (OMTVALUE txnv, u_int32_t UU(index), void *UU(extra)) {
         int r = toku_log_xstillopen(logger, NULL, 0,
                                     toku_txn_get_txnid(txn),
                                     toku_txn_get_txnid(toku_logger_txn_parent(txn)),
-                                    txn->rollentry_raw_count,
+                                    txn->roll_info.rollentry_raw_count,
                                     open_filenums,
                                     txn->force_fsync_on_commit,
-                                    txn->num_rollback_nodes,
-                                    txn->num_rollentries,
-                                    txn->spilled_rollback_head,
-                                    txn->spilled_rollback_tail,
-                                    txn->current_rollback);
+                                    txn->roll_info.num_rollback_nodes,
+                                    txn->roll_info.num_rollentries,
+                                    txn->roll_info.spilled_rollback_head,
+                                    txn->roll_info.spilled_rollback_tail,
+                                    txn->roll_info.current_rollback);
         assert(r==0);
         return 0;
     }
@@ -3263,14 +3263,14 @@ log_open_txn (OMTVALUE txnv, u_int32_t UU(index), void *UU(extra)) {
         int r = toku_log_xstillopenprepared(logger, NULL, 0,
                                             toku_txn_get_txnid(txn),
                                             &xa_xid,
-                                            txn->rollentry_raw_count,
+                                            txn->roll_info.rollentry_raw_count,
                                             open_filenums,
                                             txn->force_fsync_on_commit,
-                                            txn->num_rollback_nodes,
-                                            txn->num_rollentries,
-                                            txn->spilled_rollback_head,
-                                            txn->spilled_rollback_tail,
-                                            txn->current_rollback);
+                                            txn->roll_info.num_rollback_nodes,
+                                            txn->roll_info.num_rollentries,
+                                            txn->roll_info.spilled_rollback_head,
+                                            txn->roll_info.spilled_rollback_tail,
+                                            txn->roll_info.current_rollback);
         assert(r==0);
         return 0;
     }

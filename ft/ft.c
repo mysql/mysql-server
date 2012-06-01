@@ -776,11 +776,11 @@ toku_dictionary_redirect_abort(FT old_h, FT new_h, TOKUTXN txn) {
  *****/
 
 int 
-toku_dictionary_redirect (const char *dst_fname_in_env, FT_HANDLE old_ft, TOKUTXN txn) {
+toku_dictionary_redirect (const char *dst_fname_in_env, FT_HANDLE old_ft_h, TOKUTXN txn) {
 // Input args:
 //   new file name for dictionary (relative to env)
-//   old_ft is a live brt of open handle ({DB, BRT} pair) that currently refers to old dictionary file.
-//   (old_ft may be one of many handles to the dictionary.)
+//   old_ft_h is a live brt of open handle ({DB, BRT} pair) that currently refers to old dictionary file.
+//   (old_ft_h may be one of many handles to the dictionary.)
 //   txn that created the loader
 // Requires: 
 //   ydb_lock is held.
@@ -797,11 +797,11 @@ toku_dictionary_redirect (const char *dst_fname_in_env, FT_HANDLE old_ft, TOKUTX
 //   If the txn aborts, then this operation will be undone
     int r;
 
-    FT old_h = old_ft->ft;
+    FT old_ft = old_ft_h->ft;
 
     // dst file should not be open.  (implies that dst and src are different because src must be open.)
     {
-        CACHETABLE ct = toku_cachefile_get_cachetable(old_h->cf);
+        CACHETABLE ct = toku_cachefile_get_cachetable(old_ft->cf);
         CACHEFILE cf;
         r = toku_cachefile_of_iname_in_env(ct, dst_fname_in_env, &cf);
         if (r==0) {
@@ -813,25 +813,24 @@ toku_dictionary_redirect (const char *dst_fname_in_env, FT_HANDLE old_ft, TOKUTX
     }
 
     if (txn) {
-        r = toku_txn_note_ft(txn, old_h);  // mark old brt as touched by this txn
-        assert_zero(r);
+        toku_txn_maybe_note_ft(txn, old_ft);  // mark old ft as touched by this txn
     }
 
-    FT new_h;
-    r = dictionary_redirect_internal(dst_fname_in_env, old_h, txn, &new_h);
+    FT new_ft;
+    r = dictionary_redirect_internal(dst_fname_in_env, old_ft, txn, &new_ft);
     assert_zero(r);
 
     // make rollback log entry
     if (txn) {
-        r = toku_txn_note_ft(txn, new_h); // mark new brt as touched by this txn
+        toku_txn_maybe_note_ft(txn, new_ft); // mark new ft as touched by this txn
 
-        FILENUM old_filenum = toku_cachefile_filenum(old_h->cf);
-        FILENUM new_filenum = toku_cachefile_filenum(new_h->cf);
+        FILENUM old_filenum = toku_cachefile_filenum(old_ft->cf);
+        FILENUM new_filenum = toku_cachefile_filenum(new_ft->cf);
         r = toku_logger_save_rollback_dictionary_redirect(txn, old_filenum, new_filenum);
         assert_zero(r);
 
         TXNID xid = toku_txn_get_txnid(txn);
-        toku_ft_suppress_rollbacks(new_h, txn);
+        toku_ft_suppress_rollbacks(new_ft, txn);
         r = toku_log_suppress_rollback(txn->logger, NULL, 0, new_filenum, xid);
         assert_zero(r);
     }
@@ -849,29 +848,14 @@ static int find_xid (OMTVALUE v, void *txnv) {
     return 0;
 }
 
-// returns if ref was added
-BOOL
-toku_ft_maybe_add_txn_ref(FT h, TOKUTXN txn) {
-    BOOL ref_added = FALSE;
-    OMTVALUE txnv;
-    u_int32_t index;
-    toku_ft_grab_reflock(h);
-    // Does brt already know about transaction txn?
-    int r = toku_omt_find_zero(h->txns, find_xid, txn, &txnv, &index);
-    if (r==0) {
-        // It's already there.
-        assert((TOKUTXN)txnv==txn);
-        ref_added = FALSE;
-        goto exit;
-    }
-    // Otherwise it's not there.
-    // Insert reference to transaction into brt
-    r = toku_omt_insert_at(h->txns, txn, index);
+// Insert reference to transaction into ft
+void
+toku_ft_add_txn_ref(FT ft, TOKUTXN txn) {
+    toku_ft_grab_reflock(ft);
+    uint32_t idx;
+    int r = toku_omt_insert(ft->txns, txn, find_xid, txn, &idx);
     assert(r==0);
-    ref_added = TRUE;
-exit:
-    toku_ft_release_reflock(h);
-    return ref_added;
+    toku_ft_release_reflock(ft);
 }
 
 static void

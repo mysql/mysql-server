@@ -34,7 +34,16 @@ void toku_txn_manager_destroy(TXN_MANAGER txn_manager);
 TXNID toku_txn_manager_get_oldest_living_xid(TXN_MANAGER txn_manager, time_t * oldest_living_starttime);
 
 // Assign a txnid. Log the txn begin in the recovery log. Initialize the txn live lists.
-void toku_txn_manager_start_txn(TXN_MANAGER txn_manager, TOKUTXN txn);
+// Also, create the txn.
+int toku_txn_manager_start_txn(
+    TOKUTXN *txnp,
+    TXN_MANAGER txn_manager,
+    TOKUTXN parent,
+    TOKULOGGER logger,
+    TXNID xid,
+    TXN_SNAPSHOT_TYPE snapshot_type,
+    DB_TXN *container_db_txn,
+    bool for_recovery);
 void toku_txn_manager_finish_txn(TXN_MANAGER txn_manager, TOKUTXN txn);
 
 void toku_txn_manager_clone_state_for_gc(

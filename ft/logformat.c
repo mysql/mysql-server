@@ -573,6 +573,7 @@ generate_rollbacks (void) {
 
 		    fprintf(hf, ");\n");
 		    fprintf(cf, ") {\n");
+                    fprintf(cf, "  toku_txn_lock(txn);\n");
                     fprintf(cf, "  ROLLBACK_LOG_NODE log;\n");
                     fprintf(cf, "  toku_get_and_pin_rollback_log_for_new_entry(txn, &log);\n");
 		    // 'memdup' all BYTESTRINGS here
@@ -601,19 +602,20 @@ generate_rollbacks (void) {
 		    fprintf(cf, "  struct roll_entry *v;\n");
 		    fprintf(cf, "  size_t mem_needed = sizeof(v->u.%s) + __builtin_offsetof(struct roll_entry, u.%s);\n", lt->name, lt->name);
 		    fprintf(cf, "  v = toku_malloc_in_rollback(log, mem_needed);\n");
-		    fprintf(cf, "  if (v==0) return errno;\n");
+		    fprintf(cf, "  assert(v);\n");
 		    fprintf(cf, "  v->cmd = (enum rt_cmd)%u;\n", lt->command_and_flags&0xff);
 		    DO_FIELDS(field_type, lt, fprintf(cf, "  v->u.%s.%s = %s;\n", lt->name, field_type->name, field_type->name));
 		    fprintf(cf, "  v->prev = log->newest_logentry;\n");
 		    fprintf(cf, "  if (log->oldest_logentry==NULL) log->oldest_logentry=v;\n");
 		    fprintf(cf, "  log->newest_logentry = v;\n");
 		    fprintf(cf, "  log->rollentry_resident_bytecount += rollback_fsize;\n");
-		    fprintf(cf, "  txn->rollentry_raw_count          += rollback_fsize;\n");
-                    fprintf(cf, "  txn->num_rollentries++;\n");
+		    fprintf(cf, "  txn->roll_info.rollentry_raw_count          += rollback_fsize;\n");
+                    fprintf(cf, "  txn->roll_info.num_rollentries++;\n");
                     fprintf(cf, "  log->dirty = TRUE;\n");
 		    fprintf(cf, "  // spill and unpin assert success internally\n");
 		    fprintf(cf, "  toku_maybe_spill_rollbacks(txn, log);\n");
 		    fprintf(cf, "  toku_rollback_log_unpin(txn, log);\n");
+                    fprintf(cf, "  toku_txn_unlock(txn);\n");
 		    fprintf(cf, "  return 0;\n}\n");
 	    });
 

@@ -480,7 +480,7 @@ recover_transaction(TOKUTXN *txnp, TXNID xid, TXNID parentxid, TOKULOGGER logger
         assert(r == 0);
         assert(txn==NULL);
     }
-    r = toku_txn_begin_with_xid(parent, &txn, logger, xid, TXN_SNAPSHOT_NONE, NULL);
+    r = toku_txn_begin_with_xid(parent, &txn, logger, xid, TXN_SNAPSHOT_NONE, NULL, true);
     assert(r == 0);
     if (txnp) *txnp = txn;
     return 0;
@@ -623,10 +623,9 @@ static int toku_recover_suppress_rollback (struct logtype_suppress_rollback *UU(
         r = toku_txnid2txn(renv->logger, l->xid, &txn);
         assert(r == 0);
         assert(txn!=NULL);
-        FT h = tuple->ft_handle->ft;
-        toku_ft_suppress_rollbacks(h, txn);
-	r = toku_txn_note_ft(txn, tuple->ft_handle->ft);
-	assert(r==0);
+        FT ft = tuple->ft_handle->ft;
+        toku_ft_suppress_rollbacks(ft, txn);
+        toku_txn_maybe_note_ft(txn, ft);
     }
     return 0;
 }
@@ -884,9 +883,8 @@ static int toku_recover_enq_insert (struct logtype_enq_insert *l, RECOVER_ENV re
         toku_fill_dbt(&valdbt, l->value.data, l->value.len);
         r = toku_ft_maybe_insert(tuple->ft_handle, &keydbt, &valdbt, txn, TRUE, l->lsn, FALSE, FT_INSERT);
         assert(r == 0);
-	r = toku_txn_note_ft(txn, tuple->ft_handle->ft);
-	assert(r == 0);
-    }    
+        toku_txn_maybe_note_ft(txn, tuple->ft_handle->ft);
+    }
     return 0;
 }
 

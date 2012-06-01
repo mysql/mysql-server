@@ -59,6 +59,8 @@ set(FT_SOURCES
   quicklz.c
   recover.c
   rollback.c
+  rollback-apply.c
+  rollback-ct-callbacks.c
   roll.c
   sort.c
   sub_block.c
