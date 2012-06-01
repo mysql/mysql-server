@@ -7,10 +7,14 @@ let $format=`select @@innodb_file_format`;
 set global innodb_file_per_table=on;
 set global innodb_file_format='Barracuda';
 
+SET @OLD_FOREIGN_KEY_CHECKS=@@FOREIGN_KEY_CHECKS;
+
 # Bug#13654923 BOGUS DEBUG ASSERTION IN INDEX CREATION FOR ZERO-LENGTH RECORD
 create table t1(a varchar(2) primary key) engine=innodb;
 insert into t1 values('');
+--enable_info
 create index t1a1 on t1(a(1));
+--disable_info
 drop table t1;
 
 create table t1(a int not null, b int, c char(10) not null, d varchar(20)) engine = innodb;
@@ -20,19 +24,26 @@ commit;
 alter table t1 add index b (b), add index b (b);
 --error ER_DUP_FIELDNAME
 alter table t1 add index (b,b);
+--enable_info
 alter table t1 add index d2 (d);
+--disable_info
 show create table t1;
 explain select * from t1 force index(d2) order by d;
 select * from t1 force index (d2) order by d;
 --error ER_DUP_ENTRY
 alter table t1 add unique index (b);
 show create table t1;
+--enable_info
 alter table t1 add index (b);
+--disable_info
 show create table t1;
 
+--enable_info
 alter table t1 add unique index (c), add index (d);
+--disable_info
 show create table t1;
 explain select * from t1 force index(c) order by c;
+--enable_info
 alter table t1 add primary key (a), drop index c;
 show create table t1;
 --error ER_MULTIPLE_PRI_KEY
@@ -40,10 +51,13 @@ alter table t1 add primary key (c);
 --error ER_DUP_ENTRY
 alter table t1 drop primary key, add primary key (b);
 create unique index c on t1 (c);
+--disable_info
 show create table t1;
 explain select * from t1 force index(c) order by c;
 select * from t1 force index(c) order by c;
+--enable_info
 alter table t1 drop index b, add index (b);
+--disable_info
 show create table t1;
 insert into t1 values(6,1,'ggg','ggg');
 select * from t1;
@@ -59,10 +73,12 @@ drop table t1;
 create table t1(a int not null, b int, c char(10), d varchar(20), primary key (a)) engine = innodb;
 insert into t1 values (1,1,'ab','ab'),(2,2,'ac','ac'),(3,3,'ad','ad'),(4,4,'afe','afe');
 commit;
+--enable_info
 alter table t1 add index (c(2));
 show create table t1;
 alter table t1 add unique index (d(10));
 show create table t1;
+--disable_info
 insert into t1 values(5,1,'ggg','ggg');
 select * from t1;
 select * from t1 force index(c) order by c;
@@ -71,7 +87,9 @@ explain select * from t1 order by b;
 explain select * from t1 force index(c) order by c;
 explain select * from t1 force index(d) order by d;
 show create table t1;
+--enable_info
 alter table t1 drop index d;
+--disable_info
 insert into t1 values(8,9,'fff','fff');
 select * from t1;
 select * from t1 force index(c) order by c;
@@ -84,19 +102,25 @@ drop table t1;
 create table t1(a int not null, b int, c char(10), d varchar(20), primary key (a)) engine = innodb;
 insert into t1 values (1,1,'ab','ab'),(2,2,'ac','ac'),(3,2,'ad','ad'),(4,4,'afe','afe');
 commit;
+--enable_info
 alter table t1 add unique index (b,c);
+--disable_info
 insert into t1 values(8,9,'fff','fff');
 select * from t1;
 select * from t1 force index(b) order by b;
 explain select * from t1 force index(b) order by b;
 show create table t1;
+--enable_info
 alter table t1 add index (b,c);
+--disable_info
 insert into t1 values(11,11,'kkk','kkk');
 select * from t1;
 select * from t1 force index(b) order by b;
 explain select * from t1 force index(b) order by b;
 show create table t1;
+--enable_info
 alter table t1 add unique index (c,d);
+--disable_info
 insert into t1 values(13,13,'yyy','aaa');
 select * from t1;
 select * from t1 force index(b) order by b;
@@ -123,32 +147,44 @@ alter table t4 drop index d;
 alter table t2 drop index b;
 --error ER_DROP_INDEX_FK
 alter table t2 drop index b, drop index c, drop index d;
+--enable_info
 # Apparently, the following makes mysql_alter_table() drop index d.
 create unique index dc on t2 (d,c);
 create index dc on t1 (b,c);
 # This should preserve the foreign key constraints.
-alter table t2 add primary key (a);
+alter table t2 add primary key (alpha), change a alpha int;
+--disable_info
 insert into t1 values (1,1,1);
 insert into t3 values (1,1,1);
 insert into t4 values (1,1,1);
 insert into t2 values (1,1,1,1,1);
 commit;
+--enable_info
 alter table t4 add constraint dc foreign key (a) references t1(a);
+--disable_info
 show create table t4;
 --replace_regex /'test\.#sql-[0-9a-f_]*'/'#sql-temporary'/
 # a foreign key 'test/dc' already exists
 --error ER_CANT_CREATE_TABLE
 alter table t3 add constraint dc foreign key (a) references t1(a);
+SET FOREIGN_KEY_CHECKS=0;
+--error ER_FK_FAIL_ADD_SYSTEM
+alter table t3 add constraint dc foreign key (a) references t1(a);
+SET FOREIGN_KEY_CHECKS=@OLD_FOREIGN_KEY_CHECKS;
 show create table t3;
+--enable_info
 alter table t2 drop index b, add index (b);
+--disable_info
 show create table t2;
 --error ER_ROW_IS_REFERENCED_2
 delete from t1;
 --error ER_CANT_DROP_FIELD_OR_KEY
 drop index dc on t4;
 --error ER_CANT_DROP_FIELD_OR_KEY
+--enable_info
 alter table t3 drop foreign key dc;
 alter table t4 drop foreign key dc;
+--disable_info
 select * from t2;
 delete from t1;
 select * from t2;
@@ -190,7 +226,9 @@ drop table t1;
 
 create table t1(a int not null, b int not null, c int, primary key (a), key(c)) engine=innodb;
 insert into t1 values (5,1,5),(4,2,4),(3,3,3),(2,4,2),(1,5,1);
+--enable_info
 alter table t1 add unique index (b);
+--disable_info
 insert into t1 values (10,20,20),(11,19,19),(12,18,18),(13,17,17);
 show create table t1;
 check table t1;
@@ -204,7 +242,9 @@ drop table t1;
 
 create table t1(a int not null, b int not null) engine=innodb;
 insert into t1 values (1,1);
+--enable_info
 alter table t1 add primary key(b);
+--disable_info
 insert into t1 values (2,2);
 show create table t1;
 check table t1;
@@ -217,7 +257,9 @@ drop table t1;
 
 create table t1(a int not null) engine=innodb;
 insert into t1 values (1);
+--enable_info
 alter table t1 add primary key(a);
+--disable_info
 insert into t1 values (2);
 show create table t1;
 check table t1;
@@ -236,7 +278,7 @@ eval set global innodb_file_format_max=$format;
 # constraint modifications (Issue #70, Bug #38786)
 #
 SET @OLD_UNIQUE_CHECKS=@@UNIQUE_CHECKS, UNIQUE_CHECKS=0;
-SET @OLD_FOREIGN_KEY_CHECKS=@@FOREIGN_KEY_CHECKS, FOREIGN_KEY_CHECKS=0;
+SET FOREIGN_KEY_CHECKS=0;
 
 CREATE TABLE t1(
   c1	BIGINT(12) NOT NULL,
@@ -279,8 +321,10 @@ CREATE TABLE t2(
   PRIMARY KEY (c1,c2,c3)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 
+SET FOREIGN_KEY_CHECKS=0;
 ALTER TABLE t2 ADD CONSTRAINT fk_t2_ca
  FOREIGN KEY (c3) REFERENCES t1(c1);
+SET FOREIGN_KEY_CHECKS=@OLD_FOREIGN_KEY_CHECKS;
 
 SHOW CREATE TABLE t2;
 
@@ -310,26 +354,48 @@ CREATE TABLE t2(
   PRIMARY KEY (c1)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 
+SET FOREIGN_KEY_CHECKS=0;
+--enable_info
+
 --replace_regex /'test\.#sql-[0-9_a-f-]*'/'#sql-temporary'/
 --error ER_CANT_CREATE_TABLE
+ALTER TABLE t2 ADD CONSTRAINT fk_t2_ca
+ FOREIGN KEY (c3,c2) REFERENCES t1(c1,c1), ALGORITHM=COPY;
+--error ER_FK_NO_INDEX_PARENT
 ALTER TABLE t2 ADD CONSTRAINT fk_t2_ca
  FOREIGN KEY (c3,c2) REFERENCES t1(c1,c1);
 --replace_regex /'test\.#sql-[0-9_a-f-]*'/'#sql-temporary'/
 --error ER_CANT_CREATE_TABLE
 ALTER TABLE t2 ADD CONSTRAINT fk_t2_ca
+ FOREIGN KEY (c3,c2) REFERENCES t1(c1,c2), ALGORITHM=COPY;
+--error ER_FK_NO_INDEX_PARENT
+ALTER TABLE t2 ADD CONSTRAINT fk_t2_ca
  FOREIGN KEY (c3,c2) REFERENCES t1(c1,c2);
+
+# FIXME (WL#6251 problem): this should fail, like the ALGORITHM=COPY below
+ALTER TABLE t2 ADD CONSTRAINT fk_t2_ca
+ FOREIGN KEY (c3,c2) REFERENCES t1(c2,c1);
+ALTER TABLE t2 DROP FOREIGN KEY fk_t2_ca;
+
 --replace_regex /'test\.#sql-[0-9_a-f-]*'/'#sql-temporary'/
 --error ER_CANT_CREATE_TABLE
 ALTER TABLE t2 ADD CONSTRAINT fk_t2_ca
- FOREIGN KEY (c3,c2) REFERENCES t1(c2,c1);
+ FOREIGN KEY (c3,c2) REFERENCES t1(c2,c1), ALGORITHM=COPY;
+
 ALTER TABLE t1 MODIFY COLUMN c2 BIGINT(12) NOT NULL;
 --replace_regex /'test\.#sql-[0-9_a-f-]*'/'#sql-temporary'/
 --error ER_CANT_CREATE_TABLE
+ALTER TABLE t2 ADD CONSTRAINT fk_t2_ca
+ FOREIGN KEY (c3,c2) REFERENCES t1(c1,c2), ALGORITHM=COPY;
+--error ER_FK_NO_INDEX_PARENT
 ALTER TABLE t2 ADD CONSTRAINT fk_t2_ca
  FOREIGN KEY (c3,c2) REFERENCES t1(c1,c2);
 
 ALTER TABLE t2 ADD CONSTRAINT fk_t2_ca
  FOREIGN KEY (c3,c2) REFERENCES t1(c2,c1);
+
+SET FOREIGN_KEY_CHECKS=@OLD_FOREIGN_KEY_CHECKS;
+
 SHOW CREATE TABLE t1;
 SHOW CREATE TABLE t2;
 CREATE INDEX i_t2_c2_c1 ON t2(c2, c1);
@@ -338,6 +404,7 @@ CREATE INDEX i_t2_c3_c1_c2 ON t2(c3, c1, c2);
 SHOW CREATE TABLE t2;
 CREATE INDEX i_t2_c3_c2 ON t2(c3, c2);
 SHOW CREATE TABLE t2;
+--disable_info
 
 DROP TABLE t2;
 DROP TABLE t1;
@@ -365,9 +432,11 @@ CREATE INDEX t1a ON t1(a);
 # InnoDB cannot change a column to NOT NULL yet
 --error ER_NOT_SUPPORTED_YET
 ALTER TABLE t2 ADD PRIMARY KEY(a,b), ADD INDEX t2a(a), ALGORITHM=INPLACE;
+--enable_info
 CREATE INDEX t2a ON t2(a);
 ALTER TABLE t2i ADD PRIMARY KEY(a,b), ADD INDEX t2a(a), ALGORITHM=INPLACE;
 ALTER TABLE t2c ADD PRIMARY KEY(a,b), ADD INDEX t2a(a), ALGORITHM=COPY;
+--disable_info
 connection b;
 # t2i and t2c are too new for this transaction, because they were rebuilt
 --error ER_TABLE_DEF_CHANGED
@@ -401,5 +470,7 @@ alter table t2 drop index t2a, add index t2a(b);
 show create table t2;
 show create table t2i;
 show create table t2c;
+
+--disable_info
 
 DROP TABLE t1,t2,t2c,t2i;
