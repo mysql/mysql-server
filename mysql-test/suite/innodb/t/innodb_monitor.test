@@ -197,7 +197,7 @@ set global innodb_monitor_enable = metadata_table_handles_opened;
 drop table monitor_test;
 
 # Create a new table to test "metadata_table_handles_opened" counter
-create table monitor_test(col int) engine = innodb;
+create table monitor_test(col int) engine = innodb stats_persistent=0;
 
 select * from monitor_test;
 

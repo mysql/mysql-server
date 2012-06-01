@@ -5934,6 +5934,14 @@ CREATE TABLE t0 (
 );
 INSERT INTO t0 VALUES (7);
 
+-- disable_query_log
+-- disable_result_log
+ANALYZE TABLE t0;
+ANALYZE TABLE t1;
+ANALYZE TABLE t2;
+-- enable_result_log
+-- enable_query_log
+
 SELECT col_varchar_nokey
 FROM t1
 WHERE (7) NOT IN

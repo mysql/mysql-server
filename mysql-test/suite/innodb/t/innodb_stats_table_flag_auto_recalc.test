@@ -1,0 +1,83 @@
+#
+# Test CREATE TABLE ... STATS_AUTO_RECALC=0|1|default
+#
+
+-- source include/have_innodb.inc
+# include/restart_mysqld.inc does not work in embedded mode 
+-- source include/not_embedded.inc 
+
+-- vertical_results
+
+CREATE TABLE test_ps_auto_recalc (a INT, PRIMARY KEY (a)) ENGINE=INNODB;
+
+SHOW CREATE TABLE test_ps_auto_recalc;
+SELECT create_options FROM information_schema.tables
+WHERE table_name='test_ps_auto_recalc';
+
+ALTER TABLE test_ps_auto_recalc STATS_AUTO_RECALC=1;
+
+# confirm that the flag survives server restart
+-- source include/restart_mysqld.inc
+
+SHOW CREATE TABLE test_ps_auto_recalc;
+SELECT create_options FROM information_schema.tables
+WHERE table_name='test_ps_auto_recalc';
+
+DROP TABLE test_ps_auto_recalc;
+
+##
+
+CREATE TABLE test_ps_auto_recalc (a INT, PRIMARY KEY (a)) ENGINE=INNODB
+STATS_AUTO_RECALC=default;
+
+SHOW CREATE TABLE test_ps_auto_recalc;
+SELECT create_options FROM information_schema.tables
+WHERE table_name='test_ps_auto_recalc';
+
+DROP TABLE test_ps_auto_recalc;
+
+##
+
+CREATE TABLE test_ps_auto_recalc (a INT, PRIMARY KEY (a)) ENGINE=INNODB
+STATS_AUTO_RECALC=0;
+
+# confirm that the flag survives server restart
+-- source include/restart_mysqld.inc
+
+SHOW CREATE TABLE test_ps_auto_recalc;
+SELECT create_options FROM information_schema.tables
+WHERE table_name='test_ps_auto_recalc';
+
+ALTER TABLE test_ps_auto_recalc STATS_AUTO_RECALC=1;
+
+# confirm that the flag survives server restart
+-- source include/restart_mysqld.inc
+
+SHOW CREATE TABLE test_ps_auto_recalc;
+SELECT create_options FROM information_schema.tables
+WHERE table_name='test_ps_auto_recalc';
+
+DROP TABLE test_ps_auto_recalc;
+
+##
+
+CREATE TABLE test_ps_auto_recalc (a INT, PRIMARY KEY (a)) ENGINE=INNODB
+STATS_AUTO_RECALC=1;
+
+# confirm that the flag survives server restart
+-- source include/restart_mysqld.inc
+
+SHOW CREATE TABLE test_ps_auto_recalc;
+SELECT create_options FROM information_schema.tables
+WHERE table_name='test_ps_auto_recalc';
+
+ALTER TABLE test_ps_auto_recalc STATS_AUTO_RECALC=0;
+
+# confirm that the flag survives server restart
+-- source include/restart_mysqld.inc
+
+SHOW CREATE TABLE test_ps_auto_recalc;
+SELECT create_options FROM information_schema.tables
+WHERE table_name='test_ps_auto_recalc';
+
+DROP TABLE test_ps_auto_recalc;

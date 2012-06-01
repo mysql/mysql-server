@@ -1,8 +1,10 @@
-CREATE TABLE t(a INT)ENGINE=InnoDB;
+call mtr.add_suppression('InnoDB: Error: Table "mysql"."innodb_(table|index)_stats" not found');
+call mtr.add_suppression('InnoDB: Error: Fetch of persistent statistics requested');
+CREATE TABLE t(a INT)ENGINE=InnoDB STATS_PERSISTENT=0;
 RENAME TABLE t TO u;
 DROP TABLE u;
 SELECT @@innodb_fast_shutdown;
 @@innodb_fast_shutdown
 0
 Last record of ID_IND root page (9):
-18080000180500c0000000000000000c5359535f464f524549474e5f434f4c53
+1808000018050110000000000000000c5359535f464f524549474e5f434f4c53

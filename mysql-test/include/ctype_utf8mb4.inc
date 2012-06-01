@@ -1284,6 +1284,11 @@ eval CREATE TABLE crashtest (crash char(10)) DEFAULT CHARSET=utf8mb4 ENGINE $eng
 INSERT INTO crashtest VALUES ('35'), ('36'), ('37');
 SELECT * FROM crashtest ORDER BY CHAR(crash USING utf8mb4);
 INSERT INTO crashtest VALUES ('-1000');
+-- disable_query_log
+-- disable_result_log
+ANALYZE TABLE crashtest;
+-- enable_result_log
+-- enable_query_log
 EXPLAIN SELECT * FROM crashtest ORDER BY CHAR(crash USING utf8mb4);
 SELECT * FROM crashtest ORDER BY CHAR(crash USING utf8mb4);
 DROP TABLE crashtest;

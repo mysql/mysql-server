@@ -2836,7 +2836,7 @@ void JOIN::set_prefix_tables()
   */
   table_map current_tables_map= const_table_map | OUTER_REF_TABLE_BIT;
   table_map prev_tables_map= (table_map) 0;
-  table_map saved_tables_map;
+  table_map saved_tables_map= (table_map) 0;
 
   JOIN_TAB *last_non_sjm_tab= NULL; // Track the last non-sjm table
 

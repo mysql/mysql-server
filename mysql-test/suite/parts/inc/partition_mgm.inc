@@ -59,6 +59,12 @@ ALTER TABLE TableA COALESCE PARTITION 4;
 SELECT * FROM TableA;
 SHOW CREATE TABLE TableA;
 
+-- disable_query_log
+-- disable_result_log
+ANALYZE TABLE TableA;
+-- enable_result_log
+-- enable_query_log
+
 --echo # Test of EXCHANGE PARTITION WITH TABLE
 if (!$native_partitioning)
 {
