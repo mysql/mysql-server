@@ -11,7 +11,7 @@ partition by list (a)
 (partition p1 values in (0));
 --error ER_WRONG_PARTITION_NAME
 alter table t1 truncate partition p1,p1;
---error ER_WRONG_PARTITION_NAME
+--error ER_UNKNOWN_PARTITION
 alter table t1 truncate partition p0;
 drop table t1;
 
