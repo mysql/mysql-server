@@ -133,9 +133,9 @@ drop table t1;
 create table t1(a int not null, b int not null, c int, primary key (a), key (b)) engine = innodb;
 create table t3(a int not null, c int not null, d int, primary key (a), key (c)) engine = innodb;
 create table t4(a int not null, d int not null, e int, primary key (a), key (d)) engine = innodb;
-create table t2(a int not null, b int not null, c int not null, d int not null, e int,
-foreign key (b) references t1(b) on delete cascade,
-foreign key (c) references t3(c), foreign key (d) references t4(d))
+create table t2(a int not null, b int, c int, d int, e int,
+foreign key (b) references t1(b) on delete set null,
+foreign key (c) references t3(c), foreign key (d) references t4(d) on update set null)
 engine = innodb;
 --error ER_DROP_INDEX_FK
 alter table t1 drop index b;
@@ -147,13 +147,24 @@ alter table t4 drop index d;
 alter table t2 drop index b;
 --error ER_DROP_INDEX_FK
 alter table t2 drop index b, drop index c, drop index d;
+--replace_regex /test\/#sql-[0-9a-f_]*'/#sql-temporary'/
+--error ER_ERROR_ON_RENAME
+alter table t2 MODIFY b INT NOT NULL, ALGORITHM=COPY;
+--error ER_FK_COLUMN_NOT_NULL
+alter table t2 MODIFY b INT NOT NULL, ALGORITHM=INPLACE;
 --enable_info
 # Apparently, the following makes mysql_alter_table() drop index d.
 create unique index dc on t2 (d,c);
 create index dc on t1 (b,c);
 # This should preserve the foreign key constraints.
+--error ER_FK_COLUMN_NOT_NULL
 alter table t2 add primary key (alpha), change a alpha int,
-change b beta int not null;
+change b beta int not null, change c charlie int not null;
+--error ER_FK_COLUMN_NOT_NULL
+alter table t2 add primary key (alpha), change a alpha int,
+change c charlie int not null, change d delta int not null;
+alter table t2 add primary key (alpha), change a alpha int,
+change b beta int, modify c int not null;
 --disable_info
 insert into t1 values (1,1,1);
 insert into t3 values (1,1,1);
@@ -416,8 +427,8 @@ connection a;
 CREATE TABLE t1 (a INT, b CHAR(1)) ENGINE=InnoDB;
 INSERT INTO t1 VALUES (3,'a'),(3,'b'),(1,'c'),(0,'d'),(1,'e');
 CREATE TABLE t2 (a INT, b CHAR(1)) ENGINE=InnoDB;
-CREATE TABLE t2i (a INT NOT NULL, b CHAR(1) NOT NULL) ENGINE=InnoDB;
-CREATE TABLE t2c (a INT NOT NULL, b CHAR(1) NOT NULL) ENGINE=InnoDB;
+CREATE TABLE t2i (a INT, b CHAR(1) NOT NULL) ENGINE=InnoDB;
+CREATE TABLE t2c (a INT, b CHAR(1) NOT NULL) ENGINE=InnoDB;
 INSERT INTO t2 SELECT * FROM t1;
 INSERT INTO t2i SELECT * FROM t1;
 INSERT INTO t2c SELECT * FROM t1;
@@ -430,9 +441,6 @@ connection a;
 SET lock_wait_timeout=1;
 --error ER_LOCK_WAIT_TIMEOUT
 CREATE INDEX t1a ON t1(a);
-# InnoDB cannot change a column to NOT NULL yet
---error ER_NOT_SUPPORTED_YET
-ALTER TABLE t2 ADD PRIMARY KEY(a,b), ADD INDEX t2a(a), ALGORITHM=INPLACE;
 --enable_info
 CREATE INDEX t2a ON t2(a);
 ALTER TABLE t2i ADD PRIMARY KEY(a,b), ADD INDEX t2a(a), ALGORITHM=INPLACE;

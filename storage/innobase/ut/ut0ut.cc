@@ -763,8 +763,8 @@ ut_strerr(
 		return("Too many concurrent transactions");
 	case DB_UNSUPPORTED:
 		return("Unsupported");
-	case DB_PRIMARY_KEY_IS_NULL:
-		return("Primary key is NULL");
+	case DB_INVALID_NULL:
+		return("NULL value encountered in NOT NULL column");
 	case DB_STATS_DO_NOT_EXIST:
 		return("Persistent statistics do not exist");
 	case DB_FAIL:

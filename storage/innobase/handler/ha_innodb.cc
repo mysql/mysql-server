@@ -1436,21 +1436,11 @@ convert_error_code_to_mysql(
 
 		return(HA_ERR_LOCK_TABLE_FULL);
 
-	case DB_PRIMARY_KEY_IS_NULL:
-		return(ER_PRIMARY_CANT_HAVE_NULL);
-
 	case DB_FTS_INVALID_DOCID:
 		return(HA_FTS_INVALID_DOCID);
 
 	case DB_TOO_MANY_CONCURRENT_TRXS:
-		/* New error code HA_ERR_TOO_MANY_CONCURRENT_TRXS is only
-		available in 5.1.38 and later, but the plugin should still
-		work with previous versions of MySQL. */
-#ifdef HA_ERR_TOO_MANY_CONCURRENT_TRXS
 		return(HA_ERR_TOO_MANY_CONCURRENT_TRXS);
-#else /* HA_ERR_TOO_MANY_CONCURRENT_TRXS */
-		return(HA_ERR_RECORD_FILE_FULL);
-#endif /* HA_ERR_TOO_MANY_CONCURRENT_TRXS */
 	case DB_UNSUPPORTED:
 		return(HA_ERR_UNSUPPORTED);
 	case DB_INDEX_CORRUPT:

@@ -6,12 +6,12 @@
 CREATE TABLE t (c1 INT PRIMARY KEY, c2 INT NOT NULL, c3 INT) ENGINE=InnoDB;
 INSERT INTO t VALUES (1,2,3),(4,5,6),(7,8,9);
 
+--enable_info
 # This one will be a no-op.
 # MySQL should perhaps issue an error, because it refuses to modify
 # the PRIMARY KEY column c1 from NOT NULL to NULL.
 ALTER TABLE t CHANGE c1 c1 INT NULL FIRST, ALGORITHM=INPLACE;
 
---error ER_NOT_SUPPORTED_YET
 ALTER TABLE t MODIFY c3 INT NOT NULL, ALGORITHM=INPLACE;
 
 # Request some conflicting changes for a single column.
@@ -25,8 +25,9 @@ ALTER TABLE t MODIFY c2 INT UNSIGNED, MODIFY c2 INT;
 ALTER TABLE t MODIFY c2 CHAR(1) NOT NULL, MODIFY c2 INT NOT NULL;
 
 # No-ops.
-ALTER TABLE t CHANGE c2 c2 INT NOT NULL, ALGORITHM=INPLACE, LOCK=NONE;
-ALTER TABLE t MODIFY c2 INT NOT NULL, ALGORITHM=INPLACE, LOCK=NONE;
+ALTER TABLE t CHANGE c2 c2 INT NOT NULL;
+ALTER TABLE t MODIFY c2 INT NOT NULL;
+--disable_info
 
 connect (con1,localhost,root,,);
 connection con1;

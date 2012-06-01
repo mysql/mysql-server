@@ -250,22 +250,41 @@ CHECK TABLE t1;
 ALTER TABLE t1 DROP PRIMARY KEY, ADD PRIMARY KEY c3p5(c3(5));
 UPDATE t1 SET c3 = NULL WHERE c3 = '';
 SET lock_wait_timeout = 1;
-SET DEBUG_SYNC = 'row_log_table_apply1_before SIGNAL c3p5_created WAIT_FOR ins_done';
 --error ER_MULTIPLE_PRI_KEY
 ALTER TABLE t1 ADD PRIMARY KEY c3p5(c3(5));
-# We do not support changing a column to NOT NULL yet.
---error ER_NOT_SUPPORTED_YET
+--error ER_INVALID_USE_OF_NULL
 ALTER TABLE t1 DROP PRIMARY KEY, ADD PRIMARY KEY c3p5(c3(5)),
 ALGORITHM = INPLACE;
 
+--error ER_INVALID_USE_OF_NULL
+ALTER TABLE t1 MODIFY c3 TEXT NOT NULL;
 UPDATE t1 SET c3=CONCAT(c1,REPEAT('foo',c1)) WHERE c3 IS NULL;
---error ER_NOT_SUPPORTED_YET
-ALTER TABLE t1 MODIFY c3 TEXT NOT NULL, ALGORITHM = INPLACE;
+
+SET DEBUG_SYNC = 'row_log_table_apply1_before SIGNAL c3p5_created0 WAIT_FOR ins_done0';
+--send
 ALTER TABLE t1 MODIFY c3 TEXT NOT NULL;
 
+connection default;
+
+SET DEBUG_SYNC = 'now WAIT_FOR c3p5_created0';
+BEGIN;
+INSERT INTO t1 VALUES(347,33101,'Pikku kakkosen posti');
+INSERT INTO t1 VALUES(33101,347,NULL);
+SET DEBUG_SYNC = 'now SIGNAL ins_done0';
+
+connection con1;
+--error ER_INVALID_USE_OF_NULL
+reap;
+
+connection default;
+ROLLBACK;
+connection con1;
+
+ALTER TABLE t1 MODIFY c3 TEXT NOT NULL;
+
+SET DEBUG_SYNC = 'row_log_table_apply1_before SIGNAL c3p5_created WAIT_FOR ins_done';
 --send
-ALTER TABLE t1 DROP PRIMARY KEY, ADD PRIMARY KEY c3p5(c3(5)),
-ALGORITHM = INPLACE;
+ALTER TABLE t1 DROP PRIMARY KEY, ADD PRIMARY KEY c3p5(c3(5));
 
 connection default;
 SET DEBUG_SYNC = 'now WAIT_FOR c3p5_created';
