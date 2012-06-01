@@ -2029,7 +2029,24 @@ end:
     doing_key_read= 1;
     head->mark_columns_used_by_index(index);
   }
+
   head->prepare_for_position();
+
+  if (head->no_keyread)
+  {
+    /*
+      We can get here when doing multi-table delete and having index_merge
+      condition on a table that we're deleting from. It probably doesn't make
+      sense to use index_merge, but de-facto it is used.
+
+      When it is used, we need to index columns to be read (before maria-5.3,
+      read_multi_range_first() would set it). 
+      We shouldn't call mark_columns_used_by_index(), because it calls 
+      enable_keyread(), which is not allowed.
+    */
+    head->mark_columns_used_by_index_no_reset(index, head->read_set);
+  }
+
   head->file= org_file;
   head->key_read= org_key_read;
   bitmap_copy(&column_bitmap, head->read_set);
