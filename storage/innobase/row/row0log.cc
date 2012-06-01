@@ -860,8 +860,7 @@ row_log_table_get_pk(
 			field = rec_get_nth_field(rec, offsets, i, &len);
 
 			if (len == UNIV_SQL_NULL) {
-				new_index->online_log->error
-					= DB_PRIMARY_KEY_IS_NULL;
+				new_index->online_log->error = DB_INVALID_NULL;
 				tuple = NULL;
 				goto func_exit;
 			}
@@ -1002,29 +1001,31 @@ row_log_table_is_rollback(
 
 /******************************************************//**
 Converts a log record to a table row.
-@return converted row */
+@return converted row, or NULL if the conversion fails */
 static __attribute__((nonnull, warn_unused_result))
 const dtuple_t*
 row_log_table_apply_convert_mrec(
 /*=============================*/
 	const mrec_t*		mrec,		/*!< in: merge record */
+	const dict_index_t*	index,		/*!< in: index of mrec */
 	const ulint*		offsets,	/*!< in: offsets of mrec */
 	mem_heap_t*		heap,		/*!< in/out: memory heap */
 	dict_table_t*		new_table,	/*!< in/out: table
 						being rebuilt */
 	const struct TABLE*	altered_table,	/*!< in: new MySQL
 						table definition */
-	const row_merge_dup_t*	dup)		/*!< in: old index and table */
+	dberr_t*		error)		/*!< out: DB_SUCCESS or
+						reason of failure */
 {
 	dtuple_t*	row;
 
 	/* This is based on row_build(). */
-	row = dtuple_create(heap, dict_table_get_n_cols(dup->index->table));
-	dict_table_copy_types(row, dup->index->table);
+	row = dtuple_create(heap, dict_table_get_n_cols(index->table));
+	dict_table_copy_types(row, index->table);
 
 	for (ulint i = 0; i < rec_offs_n_fields(offsets); i++) {
 		const dict_field_t*	ind_field
-			= dict_index_get_nth_field(dup->index, i);
+			= dict_index_get_nth_field(index, i);
 		const dict_col_t*	col
 			= dict_field_get_col(ind_field);
 		ulint			col_no
@@ -1037,7 +1038,7 @@ row_log_table_apply_convert_mrec(
 		if (rec_offs_nth_extern(offsets, i)) {
 			data = btr_rec_copy_externally_stored_field(
 				mrec, offsets,
-				dict_table_zip_size(dup->index->table),
+				dict_table_zip_size(index->table),
 				i, &len, heap);
 			ut_a(data);
 			dfield_set_data(dfield, data, len);
@@ -1069,8 +1070,8 @@ row_log_table_apply_convert_mrec(
 
 		if ((new_col->prtype & DATA_NOT_NULL)
 		    && dfield_is_null(dfield)) {
-			/* We got a NULL value in a NOT NULL field. */
-			ut_ad(0);/* TODO: ALTER_COLUMN_NOT_NULLABLE */
+			/* We got a NULL value for a NOT NULL column. */
+			*error = DB_INVALID_NULL;
 			return(NULL);
 		}
 
@@ -1084,6 +1085,7 @@ row_log_table_apply_convert_mrec(
 	/* TODO: convert row to new_table->cols, in case columns are
 	added or dropped or reordered */
 
+	*error = DB_SUCCESS;
 	return(row);
 }
 
@@ -1176,10 +1178,18 @@ row_log_table_apply_insert(
 	row_merge_dup_t*	dup)		/*!< in/out: for reporting
 						duplicate key errors */
 {
+	dberr_t		error;
 	const dtuple_t*	row	= row_log_table_apply_convert_mrec(
-		mrec, offsets, heap, new_table, altered_table, dup);
-	dberr_t		error	= row_log_table_apply_insert_low(
-		thr, row, offsets_heap, heap, new_table, altered_table, dup);
+		mrec, dup->index, offsets, heap, new_table, altered_table,
+		&error);
+
+	ut_ad(!row == (error != DB_SUCCESS));
+
+	if (row) {
+		error = row_log_table_apply_insert_low(
+			thr, row, offsets_heap, heap,
+			new_table, altered_table, dup);
+	}
 
 	if (error != DB_SUCCESS) {
 		/* Report the erroneous row using the old
@@ -1415,7 +1425,14 @@ row_log_table_apply_update(
 	      + (dup->index->online_log->same_pk ? 0 : 2));
 
 	row = row_log_table_apply_convert_mrec(
-		mrec, offsets, heap, new_table, altered_table, dup);
+		mrec, dup->index, offsets, heap,
+		new_table, altered_table, &error);
+
+	ut_ad(!row == (error != DB_SUCCESS));
+
+	if (!row) {
+		goto err_exit;
+	}
 
 	mtr_start(&mtr);
 	btr_pcur_open(index, old_pk, PAGE_CUR_LE,

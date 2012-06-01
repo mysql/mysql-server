@@ -57,8 +57,8 @@ static const Alter_inplace_info::HA_ALTER_FLAGS INNOBASE_INPLACE_REBUILD
 	| Alter_inplace_info::DROP_PK_INDEX
 	| Alter_inplace_info::CHANGE_CREATE_OPTION
 	| Alter_inplace_info::ALTER_COLUMN_NULLABLE
-	/*
 	| Alter_inplace_info::ALTER_COLUMN_NOT_NULLABLE
+	/*
 	| Alter_inplace_info::ALTER_COLUMN_TYPE
 	| Alter_inplace_info::ALTER_COLUMN_EQUAL_PACK_LENGTH,
 	| Alter_inplace_info::ALTER_COLUMN_ORDER
@@ -124,9 +124,6 @@ my_error_innodb(
 		my_error(ER_INDEX_COLUMN_TOO_LONG, MYF(0),
 			 DICT_MAX_FIELD_LEN_BY_FORMAT_FLAG(flags));
 		break;
-	case DB_PRIMARY_KEY_IS_NULL:
-		my_error(ER_PRIMARY_CANT_HAVE_NULL, MYF(0));
-		break;
 	case DB_TOO_MANY_CONCURRENT_TRXS:
 		my_error(ER_TOO_MANY_CONCURRENT_TRXS, MYF(0));
 		break;
@@ -143,6 +140,10 @@ my_error_innodb(
 		my_error(ER_TOO_BIG_ROWSIZE, MYF(0),
 			 page_get_free_space_of_empty(
 				 flags & DICT_TF_COMPACT) / 2);
+		break;
+	case DB_INVALID_NULL:
+		/* TODO: report the row, as we do for DB_DUPLICATE_KEY */
+		my_error(ER_INVALID_USE_OF_NULL, MYF(0));
 		break;
 #ifdef UNIV_DEBUG
 	case DB_SUCCESS:
@@ -1865,11 +1866,184 @@ online_retry_drop_indexes_with_trx(
 	}
 }
 
+/** Determines if InnoDB is dropping a foreign key constraint.
+@param foreign		the constraint
+@param drop_fk		constraints being dropped
+@param n_drop_fk	number of constraints that are being dropped
+@return whether the constraint is being dropped */
+inline __attribute__((pure, nonnull, warn_unused_result))
+bool
+innobase_dropping_foreign(
+/*======================*/
+	const dict_foreign_t*	foreign,
+	dict_foreign_t**	drop_fk,
+	ulint			n_drop_fk)
+{
+	while (n_drop_fk--) {
+		if (*drop_fk++ == foreign) {
+			return(true);
+		}
+	}
+
+	return(false);
+}
+
+/** Determines if an InnoDB FOREIGN KEY constraint depends on a
+column that is being dropped or modified to NOT NULL.
+@param user_table	InnoDB table as it is before the ALTER operation
+@param col_name		Name of the column being altered
+@param drop_fk		constraints being dropped
+@param n_drop_fk	number of constraints that are being dropped
+@param drop		true=drop column, false=set NOT NULL
+@retval true		Failure (will call my_error())
+@retval false		Success
+*/
+static __attribute__((pure, nonnull, warn_unused_result))
+bool
+innobase_check_foreigns_low(
+/*========================*/
+	const dict_table_t*	user_table,
+	dict_foreign_t**	drop_fk,
+	ulint			n_drop_fk,
+	const char*		col_name,
+	bool			drop)
+{
+	ut_ad(mutex_own(&dict_sys->mutex));
+
+	/* Check if any FOREIGN KEY constraints are defined on this
+	column. */
+	for (const dict_foreign_t* foreign = UT_LIST_GET_FIRST(
+		     user_table->foreign_list);
+	     foreign;
+	     foreign = UT_LIST_GET_NEXT(foreign_list, foreign)) {
+		if (!drop && !(foreign->type
+			       & (DICT_FOREIGN_ON_DELETE_SET_NULL
+				  | DICT_FOREIGN_ON_UPDATE_SET_NULL))) {
+			continue;
+		}
+
+		if (innobase_dropping_foreign(foreign, drop_fk, n_drop_fk)) {
+			continue;
+		}
+
+		for (unsigned f = 0; f < foreign->n_fields; f++) {
+			if (!strcmp(foreign->foreign_col_names[f],
+				   col_name)) {
+				my_error(drop
+					 ? ER_FK_COLUMN_CANNOT_DROP
+					 : ER_FK_COLUMN_NOT_NULL, MYF(0),
+					 col_name, foreign->id);
+				return(true);
+			}
+		}
+	}
+
+	if (!drop) {
+		/* SET NULL clauses on foreign key constraints of
+		child tables affect the child tables, not the parent table.
+		The column can be NOT NULL in the parent table. */
+		return(false);
+	}
+
+	/* Check if any FOREIGN KEY constraints in other tables are
+	referring to the column that is being dropped. */
+	for (const dict_foreign_t* foreign = UT_LIST_GET_FIRST(
+		     user_table->referenced_list);
+	     foreign;
+	     foreign = UT_LIST_GET_NEXT(referenced_list, foreign)) {
+		if (innobase_dropping_foreign(foreign, drop_fk, n_drop_fk)) {
+			continue;
+		}
+
+		for (unsigned f = 0; f < foreign->n_fields; f++) {
+			if (strcmp(foreign->referenced_col_names[f],
+				   col_name)) {
+				continue;
+			}
+
+			ulint	namelen
+				= strlen(foreign->foreign_table_name)
+				+ sizeof srv_mysql50_table_name_prefix;
+			char*	name = static_cast<char*>(
+				ut_malloc(namelen));
+			if (name) {
+				strcpy(name, foreign->foreign_table_name);
+				innobase_convert_tablename(name);
+				ut_ad(strlen(name) < namelen);
+
+				my_error(ER_FK_COLUMN_CANNOT_DROP_CHILD,
+					 MYF(0), col_name, foreign->id,
+					 name);
+				ut_free(name);
+			} else {
+				/* Tolerate malloc() failure and display
+				the raw table name in the error message. */
+				my_error(ER_FK_COLUMN_CANNOT_DROP_CHILD,
+					 MYF(0), col_name, foreign->id,
+					 foreign->foreign_table_name);
+			}
+
+			return(true);
+		}
+	}
+
+	return(false);
+}
+
+/** Determines if an InnoDB FOREIGN KEY constraint depends on a
+column that is being dropped or modified to NOT NULL.
+@param ha_alter_info	Data used during in-place alter
+@param altered_table	MySQL table that is being altered
+@param old_table	MySQL table as it is before the ALTER operation
+@param user_table	InnoDB table as it is before the ALTER operation
+@param drop_fk		constraints being dropped
+@param n_drop_fk	number of constraints that are being dropped
+@retval true		Failure (will call my_error())
+@retval false		Success
+*/
+static __attribute__((pure, nonnull, warn_unused_result))
+bool
+innobase_check_foreigns(
+/*====================*/
+	Alter_inplace_info*	ha_alter_info,
+	const TABLE*		altered_table,
+	const TABLE*		old_table,
+	const dict_table_t*	user_table,
+	dict_foreign_t**	drop_fk,
+	ulint			n_drop_fk)
+{
+	List_iterator_fast<Create_field> cf_it;
+
+	for (Field** fp = old_table->field; *fp; fp++) {
+		cf_it.init(ha_alter_info->alter_info->create_list);
+		const Create_field* new_field;
+
+		ut_ad(!(*fp)->null_ptr == !!((*fp)->flags & NOT_NULL_FLAG));
+
+		while ((new_field = cf_it++)) {
+			if (new_field->field == *fp) {
+				break;
+			}
+		}
+
+		if (!new_field || (new_field->flags & NOT_NULL_FLAG)) {
+			if (innobase_check_foreigns_low(
+				    user_table, drop_fk, n_drop_fk,
+				    (*fp)->field_name, !new_field)) {
+				return(true);
+			}
+		}
+	}
+
+	return(false);
+}
+
 /** Update internal structures with concurrent writes blocked,
 while preparing ALTER TABLE.
 
 @param ha_alter_info	Data used during in-place alter
 @param altered_table	MySQL table that is being altered
+@param old_table	MySQL table as it is before the ALTER operation
 @param user_table	InnoDB table that is being altered
 @param user_trx		User transaction, for locking the table
 @param table_name	Table name in MySQL
@@ -1892,6 +2066,7 @@ prepare_inplace_alter_table_dict(
 /*=============================*/
 	Alter_inplace_info*	ha_alter_info,
 	const TABLE*		altered_table,
+	const TABLE*		old_table,
 	dict_table_t*		user_table,
 	trx_t*			user_trx,
 	const char*		table_name,
@@ -2022,6 +2197,12 @@ prepare_inplace_alter_table_dict(
 					  trx->mysql_thd,
 					  srv_file_per_table,
 					  &flags, &flags2)) {
+			goto new_clustered_failed;
+		}
+
+		if (innobase_check_foreigns(
+			    ha_alter_info, altered_table, old_table,
+			    user_table, drop_foreign, n_drop_foreign)) {
 			goto new_clustered_failed;
 		}
 
@@ -2418,28 +2599,6 @@ error_handled:
 	srv_active_wake_master_thread();
 
 	DBUG_RETURN(true);
-}
-
-/** Determines if InnoDB is dropping a foreign key constraint.
-@param foreign		the constraint
-@param drop_fk		constraints being dropped
-@param n_drop_fk	number of constraints that are being dropped
-@return whether the constraint is being dropped */
-inline __attribute__((pure, nonnull, warn_unused_result))
-bool
-innobase_dropping_foreign(
-/*======================*/
-	const dict_foreign_t*	foreign,
-	dict_foreign_t**	drop_fk,
-	ulint			n_drop_fk)
-{
-	while (n_drop_fk--) {
-		if (*drop_fk++ == foreign) {
-			return(true);
-		}
-	}
-
-	return(false);
 }
 
 /** Determine if fulltext indexes exist in a given table.
@@ -2970,8 +3129,9 @@ err_exit:
 
 	DBUG_ASSERT(user_thd == prebuilt->trx->mysql_thd);
 	DBUG_RETURN(prepare_inplace_alter_table_dict(
-			    ha_alter_info, altered_table, prebuilt->table,
-			    prebuilt->trx, table_share->table_name.str,
+			    ha_alter_info, altered_table, table,
+			    prebuilt->table, prebuilt->trx,
+			    table_share->table_name.str,
 			    heap, drop_index, n_drop_index,
 			    drop_fk, n_drop_fk, add_fk, n_add_fk,
 			    num_fts_index,
