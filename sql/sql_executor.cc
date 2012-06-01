@@ -70,7 +70,6 @@ static int join_read_always_key(JOIN_TAB *tab);
 static int join_no_more_records(READ_RECORD *info);
 static int join_read_next(READ_RECORD *info);
 static int test_if_quick_select(JOIN_TAB *tab);
-static bool test_if_use_dynamic_range_scan(JOIN_TAB *join_tab);
 static int join_read_next_same(READ_RECORD *info);
 static int join_read_prev(READ_RECORD *info);
 static int join_ft_read_first(JOIN_TAB *tab);
@@ -1198,7 +1197,7 @@ sub_select_op(JOIN *join, JOIN_TAB *join_tab, bool end_of_records)
     setup_join_buffering() disables join buffering if QS_DYNAMIC_RANGE is
     enabled.
   */
-  DBUG_ASSERT(!test_if_use_dynamic_range_scan(join_tab));
+  DBUG_ASSERT(join_tab->use_quick != QS_DYNAMIC_RANGE);
 
   DBUG_RETURN(op->put_record());
 }
@@ -2467,14 +2466,6 @@ int read_first_record_seq(JOIN_TAB *tab)
 }
 
 
-static 
-bool test_if_use_dynamic_range_scan(JOIN_TAB *join_tab)
-{
-    return (join_tab->use_quick == QS_DYNAMIC_RANGE && 
-            test_if_quick_select(join_tab) > 0);
-}
-
-
 /**
   @brief Prepare table for reading rows and read first record.
   @details
@@ -2557,12 +2548,11 @@ bool
 JOIN_TAB::sort_table()
 {
   int rc;
-  const bool is_order_by= (filesort->order == join->order);
   DBUG_PRINT("info",("Sorting for index"));
   THD_STAGE_INFO(join->thd, stage_creating_sort_index);
-  DBUG_ASSERT(join->ordered_index_usage !=
-              (is_order_by ? JOIN::ordered_index_order_by :
-                             JOIN::ordered_index_group_by));
+  DBUG_ASSERT(join->ordered_index_usage != (filesort->order == join->order ?
+                                            JOIN::ordered_index_order_by :
+                                            JOIN::ordered_index_group_by));
   rc= create_sort_index(join->thd, join, this);
   return (rc != 0);
 }
