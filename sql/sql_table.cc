@@ -5429,8 +5429,10 @@ static bool fill_alter_inplace_info(THD *thd,
   */
   for (f_ptr= table->field; (field= *f_ptr); f_ptr++)
   {
+#ifndef MCP_BUG14096759
     /* Clear marker for field in new index we are going to set later. */
     field->flags&= ~FIELD_IN_ADD_INDEX;
+#endif
     /* Clear marker for renamed field which we are going to set later. */
     field->flags&= ~FIELD_IS_RENAMED;
 
@@ -5745,6 +5747,7 @@ static bool fill_alter_inplace_info(THD *thd,
     }
     else
       ha_alter_info->handler_flags|= Alter_inplace_info::ADD_INDEX;
+#ifndef MCP_BUG14096759
     /* Mark all fields in the new index */
     KEY_PART_INFO *key_part= new_key->key_part;
     KEY_PART_INFO *end= key_part + new_key->key_parts;
@@ -5761,6 +5764,7 @@ static bool fill_alter_inplace_info(THD *thd,
         field->flags|= FIELD_IN_ADD_INDEX;
       }
     }
+#endif
   }
 
   DBUG_RETURN(false);

@@ -114,7 +114,14 @@ enum enum_server_command
 #define BINCMP_FLAG	131072		/* Intern: Used by sql_yacc */
 #define GET_FIXED_FIELDS_FLAG (1 << 18) /* Used to get fields in item tree */
 #define FIELD_IN_PART_FUNC_FLAG (1 << 19)/* Field part of partition func */
+#ifndef MCP_BUG14096759
 #define FIELD_IN_ADD_INDEX (1<< 20)
+#else
+/*
+  #define FIELD_IN_ADD_INDEX (1<< 20)
+  Was part of old online ALTER API, flag is now unused.
+*/
+#endif
 #define FIELD_IS_RENAMED (1<< 21)       /* Intern: Field is being renamed */
 #define FIELD_FLAGS_STORAGE_MEDIA 22    /* Field storage media, bit 22-23 */
 #define FIELD_FLAGS_STORAGE_MEDIA_MASK (3 << FIELD_FLAGS_STORAGE_MEDIA)
