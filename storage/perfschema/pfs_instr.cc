@@ -82,6 +82,10 @@ uint statement_stack_max;
 ulong locker_lost= 0;
 /** Number of statement lost. @sa STATEMENT_STACK_SIZE. */
 ulong statement_lost= 0;
+/** Size of connection attribute storage per thread */
+ulong session_connect_attrs_size_per_thread;
+/** Number of connection attributes lost */
+ulong session_connect_attrs_lost= 0;
 
 /**
   Mutex instrumentation instances array.
@@ -157,6 +161,7 @@ static PFS_events_waits *thread_waits_history_array= NULL;
 static PFS_events_stages *thread_stages_history_array= NULL;
 static PFS_events_statements *thread_statements_history_array= NULL;
 static PFS_events_statements *thread_statements_stack_array= NULL;
+static char *thread_session_connect_attrs_array= NULL;
 
 /** Hash table for instrumented files. */
 LF_HASH filename_hash;
@@ -174,6 +179,7 @@ int init_instruments(const PFS_global_param *param)
   uint thread_stages_history_sizing;
   uint thread_statements_history_sizing;
   uint thread_statements_stack_sizing;
+  uint thread_session_connect_attrs_sizing;
   uint index;
 
   /* Make sure init_event_name_sizing is called */
@@ -219,6 +225,11 @@ int init_instruments(const PFS_global_param *param)
 
   thread_instr_class_statements_sizing= param->m_thread_sizing
     * param->m_statement_class_sizing;
+
+  session_connect_attrs_size_per_thread= param->m_session_connect_attrs_sizing;
+  thread_session_connect_attrs_sizing= param->m_thread_sizing
+    * session_connect_attrs_size_per_thread;
+  session_connect_attrs_lost= 0;
 
   mutex_array= NULL;
   rwlock_array= NULL;
@@ -365,6 +376,14 @@ int init_instruments(const PFS_global_param *param)
       thread_instr_class_statements_array[index].reset();
   }
 
+  if (thread_session_connect_attrs_sizing > 0)
+  {
+    thread_session_connect_attrs_array=
+      (char *)pfs_malloc(thread_session_connect_attrs_sizing, MYF(MY_ZEROFILL));
+    if (unlikely(thread_session_connect_attrs_array == NULL))
+      return 1;
+  }
+
   for (index= 0; index < thread_max; index++)
   {
     thread_array[index].m_waits_history=
@@ -381,6 +400,8 @@ int init_instruments(const PFS_global_param *param)
       &thread_statements_stack_array[index * statement_stack_max];
     thread_array[index].m_instr_class_statements_stats=
       &thread_instr_class_statements_array[index * statement_class_max];
+    thread_array[index].m_session_connect_attrs=
+      &thread_session_connect_attrs_array[index * session_connect_attrs_size_per_thread];
   }
 
   if (wait_class_max > 0)
@@ -465,6 +486,8 @@ void cleanup_instruments(void)
   global_instr_class_stages_array= NULL;
   pfs_free(global_instr_class_statements_array);
   global_instr_class_statements_array= NULL;
+  pfs_free(thread_session_connect_attrs_array);
+  thread_session_connect_attrs_array=NULL;
 }
 
 C_MODE_START

@@ -19,6 +19,10 @@ INSERT INTO articles (title,body) VALUES
 	('MySQL vs. YourSQL','In the following database comparison ...'),
 	('MySQL Security','When configured properly, MySQL ...');
 
+-- disable_result_log
+ANALYZE TABLE articles;
+-- enable_result_log
+
 # Look for 'Database' in table article
 SELECT * FROM articles
 	WHERE MATCH (title,body)

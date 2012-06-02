@@ -36,7 +36,7 @@ DROP TABLE t1;
 # Bug#50561: ALTER PARTITIONS does not have adequate lock, breaks with
 #            concurrent I_S query
 create table t1 (a int)
-engine = innodb
+engine = innodb stats_persistent=0
 partition by range (a)
 (partition p0 values less than MAXVALUE);
 insert into t1 values (1), (11), (21), (33);
@@ -50,7 +50,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1 STATS_PERSISTENT=0
 /*!50100 PARTITION BY RANGE (a)
 (PARTITION p0 VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */
 t1#P#p0.ibd
@@ -81,7 +81,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1 STATS_PERSISTENT=0
 /*!50100 PARTITION BY RANGE (a)
 (PARTITION p0 VALUES LESS THAN (10) ENGINE = InnoDB,
  PARTITION p10 VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */

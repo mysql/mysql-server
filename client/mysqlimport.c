@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -23,6 +23,7 @@
 #define IMPORT_VERSION "3.7"
 
 #include "client_priv.h"
+#include "my_default.h"
 #include "mysql_version.h"
 #ifdef HAVE_LIBPTHREAD
 #include <my_pthread.h>

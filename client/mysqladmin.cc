@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,6 +18,7 @@
 /* maintaince of mysql databases */
 
 #include "client_priv.h"
+#include "my_default.h"
 #include <signal.h>
 #include <my_pthread.h>				/* because of signal()	*/
 #include <sys/stat.h>

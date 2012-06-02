@@ -45,6 +45,7 @@ Created 9/17/2000 Heikki Tuuri
 #include "dict0load.h"
 #include "dict0boot.h"
 #include "dict0stats.h"
+#include "dict0stats_background.h"
 #include "trx0roll.h"
 #include "trx0purge.h"
 #include "trx0rec.h"
@@ -957,43 +958,59 @@ row_get_prebuilt_insert_row(
 	row_prebuilt_t*	prebuilt)	/*!< in: prebuilt struct in MySQL
 					handle */
 {
-	ins_node_t*	node;
-	dtuple_t*	row;
-	dict_table_t*	table	= prebuilt->table;
+	dict_table_t*		table	= prebuilt->table;
+	const dict_index_t*	last_index = dict_table_get_last_index(table);
 
 	ut_ad(prebuilt && table && prebuilt->trx);
 
-	if (prebuilt->ins_node == NULL) {
+	/* Check if a new index has been added that prebuilt doesn't know
+	about. We need to rebuild the query graph. */
 
-		/* Not called before for this handle: create an insert node
-		and query graph to the prebuilt struct */
+	if (prebuilt->ins_node != 0) {
 
-		node = ins_node_create(INS_DIRECT, table, prebuilt->heap);
-
-		prebuilt->ins_node = node;
-
-		if (prebuilt->ins_upd_rec_buff == NULL) {
-			prebuilt->ins_upd_rec_buff = static_cast<byte*>(
-				mem_heap_alloc(
-					prebuilt->heap,
-					prebuilt->mysql_row_len));
+		if (prebuilt->trx_id >= last_index->trx_id) {
+			return(prebuilt->ins_node->row);
 		}
 
-		row = dtuple_create(prebuilt->heap,
-				    dict_table_get_n_cols(table));
+		que_graph_free_recursive(prebuilt->ins_graph);
 
-		dict_table_copy_types(row, table);
-
-		ins_node_set_new_row(node, row);
-
-		prebuilt->ins_graph = static_cast<que_fork_t*>(
-			que_node_get_parent(
-				pars_complete_graph_for_exec(
-					node,
-					prebuilt->trx, prebuilt->heap)));
-
-		prebuilt->ins_graph->state = QUE_FORK_ACTIVE;
+		prebuilt->ins_graph = 0;
 	}
+
+	/* Create an insert node and query graph to the prebuilt struct */
+
+	ins_node_t*		node;
+
+	node = ins_node_create(INS_DIRECT, table, prebuilt->heap);
+
+	prebuilt->ins_node = node;
+
+	if (prebuilt->ins_upd_rec_buff == 0) {
+		prebuilt->ins_upd_rec_buff = static_cast<byte*>(
+			mem_heap_alloc(
+				prebuilt->heap,
+				prebuilt->mysql_row_len));
+	}
+
+	dtuple_t*	row;
+
+	row = dtuple_create(prebuilt->heap, dict_table_get_n_cols(table));
+
+	dict_table_copy_types(row, table);
+
+	ins_node_set_new_row(node, row);
+
+	prebuilt->ins_graph = static_cast<que_fork_t*>(
+		que_node_get_parent(
+			pars_complete_graph_for_exec(
+				node,
+				prebuilt->trx, prebuilt->heap)));
+
+	prebuilt->ins_graph->state = QUE_FORK_ACTIVE;
+
+	ut_ad(prebuilt->trx_id == 0 || prebuilt->trx_id <= last_index->trx_id);
+
+	prebuilt->trx_id = last_index->trx_id;
 
 	return(prebuilt->ins_node->row);
 }
@@ -1008,6 +1025,7 @@ row_update_statistics_if_needed(
 	dict_table_t*	table)	/*!< in: table */
 {
 	ib_uint64_t	counter;
+	ib_uint64_t	n_rows;
 
 	if (!table->stat_initialized) {
 		DBUG_EXECUTE_IF(
@@ -1018,21 +1036,25 @@ row_update_statistics_if_needed(
 		return;
 	}
 
-	/* Update the counter even for persistent stats enabled table
-	because it is displayed in INFORMATION_SCHEMA */
 	counter = table->stat_modified_counter++;
+	n_rows = dict_table_get_n_rows(table);
 
 	if (dict_stats_is_persistent_enabled(table)) {
+		if (counter > n_rows / 10 /* 10% */
+		    && dict_stats_auto_recalc_is_enabled(table)) {
+
+			dict_stats_enqueue_table_for_auto_recalc(table);
+			table->stat_modified_counter = 0;
+		}
 		return;
 	}
-	/* else */
 
 	/* Calculate new statistics if 1 / 16 of table has been modified
 	since the last time a statistics batch was run.
 	We calculate statistics at most every 16th round, since we may have
 	a counter table which is very small and updated very often. */
 
-	if (counter > 16 + table->stat_n_rows / 16) {
+	if (counter > 16 + n_rows / 16 /* 6.25% */) {
 
 		ut_ad(!mutex_own(&dict_sys->mutex));
 		/* this will reset table->stat_modified_counter to 0 */
@@ -1073,10 +1095,8 @@ row_lock_table_autoinc_for_mysql(
 
 	trx->op_info = "setting auto-inc lock";
 
-	if (node == NULL) {
-		row_get_prebuilt_insert_row(prebuilt);
-		node = prebuilt->ins_node;
-	}
+	row_get_prebuilt_insert_row(prebuilt);
+	node = prebuilt->ins_node;
 
 	/* We use the insert query graph as the dummy graph needed
 	in the lock module call */
@@ -1266,10 +1286,8 @@ row_insert_for_mysql(
 
 	trx_start_if_not_started_xa(trx);
 
-	if (node == NULL) {
-		row_get_prebuilt_insert_row(prebuilt);
-		node = prebuilt->ins_node;
-	}
+	row_get_prebuilt_insert_row(prebuilt);
+	node = prebuilt->ins_node;
 
 	row_mysql_convert_row_to_innobase(node->row, prebuilt, mysql_rec);
 
@@ -3645,6 +3663,21 @@ retry:
 		}
 	}
 
+	dict_stats_wait_bg_to_stop_using_tables(table, NULL, trx);
+
+	dict_stats_remove_table_from_auto_recalc(table);
+
+	/* Remove stats for this table and all of its indexes from the
+	persistent storage if it exists and if there are stats for this
+	table in there. This function creates its own trx and commits
+	it. */
+	char	errstr[1024];
+	err = dict_stats_drop_table(name, errstr, sizeof(errstr));
+	if (err != DB_SUCCESS) {
+		ut_print_timestamp(stderr);
+		fprintf(stderr, " InnoDB: %s\n", errstr);
+	}
+
 	ut_a(table->n_foreign_key_checks_running == 0);
 
 	/* Move the table the the non-LRU list so that it isn't
@@ -3935,7 +3968,13 @@ check_next_foreign:
 
 				goto funct_exit;
 			}
+		}
 
+		/* The table->fts flag can be set on the table for which
+		the cluster index is being rebuilt. Such table might not have
+		DICT_TF2_FTS flag set. So keep this out of above
+		dict_table_has_fts_index condition */
+		if (table->fts) {
 			fts_free(table);
 		}
 

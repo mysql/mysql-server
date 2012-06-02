@@ -552,7 +552,6 @@ public:
   virtual bool may_be_null() const;
   virtual bool is_executed() const { return executed; }
   virtual enum_engine_type engine_type() const { return SINGLE_SELECT_ENGINE; }
-  bool save_join_if_explain(); 
 
   friend class subselect_hash_sj_engine;
   friend class Item_in_subselect;

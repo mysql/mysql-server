@@ -328,13 +328,6 @@ extern uint statement_stack_max;
 /** The maximun number of passes in @sa PFS_scan. */
 #define PFS_MAX_SCAN_PASS 2
 
-/** 
-  @def MAX_CONNECT_ATTRS_BYTE_SIZE
-  The maximum number of bytes that will be reserved in each thread
-  for the connection attributes
-*/
-#define MAX_CONNECT_ATTRS_BYTE_SIZE 8192
-
 /**
   Helper to scan circular buffers.
   Given a buffer of size [0, max_size - 1],
@@ -522,11 +515,11 @@ struct PFS_ALIGNED PFS_thread : PFS_connection_slice
   PFS_account *m_account;
 
   /** a buffer for the connection attributes */
-  char m_connect_attrs[MAX_CONNECT_ATTRS_BYTE_SIZE];
+  char *m_session_connect_attrs;
   /** length used by @c m_connect_attrs */
-  uint m_connect_attrs_length;
+  uint m_session_connect_attrs_length;
   /** character set in which @c m_connect_attrs are encoded */
-  const CHARSET_INFO *m_connect_attrs_cs;
+  const CHARSET_INFO *m_session_connect_attrs_cs;
 };
 
 extern PFS_single_stat *global_instr_class_waits_array;
@@ -591,6 +584,8 @@ extern ulong events_stages_history_per_thread;
 extern ulong events_statements_history_per_thread;
 extern ulong locker_lost;
 extern ulong statement_lost;
+extern ulong session_connect_attrs_lost;
+extern ulong session_connect_attrs_size_per_thread;
 
 /* Exposing the data directly, for iterators. */
 
