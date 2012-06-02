@@ -2282,6 +2282,7 @@ page_cleaner_flush_pages_if_needed(void)
 
 	MONITOR_SET(MONITOR_FLUSH_N_TO_FLUSH_REQUESTED, n_pages);
 
+	prev_pages = n_pages;
 	n_pages = page_cleaner_do_flush_batch(
 		n_pages, oldest_lsn + lsn_avg_rate * (age_factor + 1));
 
@@ -2576,6 +2577,7 @@ buf_pool_get_dirty_pages_count(
 {
 	ulint		count = 0;
 
+	buf_pool_mutex_enter(buf_pool);
 	buf_flush_list_mutex_enter(buf_pool);
 
 	buf_page_t*	bpage;
@@ -2594,6 +2596,7 @@ buf_pool_get_dirty_pages_count(
 	}
 
 	buf_flush_list_mutex_exit(buf_pool);
+	buf_pool_mutex_exit(buf_pool);
 
 	return(count);
 }

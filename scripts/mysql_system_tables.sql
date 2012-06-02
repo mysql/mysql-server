@@ -100,6 +100,37 @@ CREATE TABLE IF NOT EXISTS event ( db char(64) CHARACTER SET utf8 COLLATE utf8_b
 
 CREATE TABLE IF NOT EXISTS ndb_binlog_index (Position BIGINT UNSIGNED NOT NULL, File VARCHAR(255) NOT NULL, epoch BIGINT UNSIGNED NOT NULL, inserts INT UNSIGNED NOT NULL, updates INT UNSIGNED NOT NULL, deletes INT UNSIGNED NOT NULL, schemaops INT UNSIGNED NOT NULL, orig_server_id INT UNSIGNED NOT NULL, orig_epoch BIGINT UNSIGNED NOT NULL, gci INT UNSIGNED NOT NULL, PRIMARY KEY(epoch, orig_server_id, orig_epoch)) ENGINE=MYISAM;
 
+SET @sql_mode_orig=@@SESSION.sql_mode;
+SET SESSION sql_mode='NO_ENGINE_SUBSTITUTION';
+
+CREATE TABLE IF NOT EXISTS innodb_table_stats (
+	database_name			VARCHAR(64) NOT NULL,
+	table_name			VARCHAR(64) NOT NULL,
+	last_update			TIMESTAMP NOT NULL,
+	n_rows				BIGINT UNSIGNED NOT NULL,
+	clustered_index_size		BIGINT UNSIGNED NOT NULL,
+	sum_of_other_index_sizes	BIGINT UNSIGNED NOT NULL,
+	PRIMARY KEY (database_name, table_name)
+) ENGINE=INNODB DEFAULT CHARSET=utf8 COLLATE=utf8_bin STATS_PERSISTENT=0;
+
+CREATE TABLE IF NOT EXISTS innodb_index_stats (
+	database_name			VARCHAR(64) NOT NULL,
+	table_name			VARCHAR(64) NOT NULL,
+	index_name			VARCHAR(64) NOT NULL,
+	last_update			TIMESTAMP NOT NULL,
+	/* there are at least:
+	stat_name='size'
+	stat_name='n_leaf_pages'
+	stat_name='n_diff_pfx%' */
+	stat_name			VARCHAR(64) NOT NULL,
+	stat_value			BIGINT UNSIGNED NOT NULL,
+	sample_size			BIGINT UNSIGNED,
+	stat_description		VARCHAR(1024) NOT NULL,
+	PRIMARY KEY (database_name, table_name, index_name, stat_name)
+) ENGINE=INNODB DEFAULT CHARSET=utf8 COLLATE=utf8_bin STATS_PERSISTENT=0;
+
+SET SESSION sql_mode=@sql_mode_orig;
+
 set @have_innodb= (select count(engine) from information_schema.engines where engine='INNODB' and support != 'NO');
 
 SET @cmd="CREATE TABLE IF NOT EXISTS slave_relay_log_info (
@@ -170,37 +201,6 @@ SET @str=IF(@have_innodb <> 0, CONCAT(@cmd, ' ENGINE= INNODB;'), CONCAT(@cmd, ' 
 PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;
-
-SET @sql_mode_orig=@@SESSION.sql_mode;
-SET SESSION sql_mode='NO_ENGINE_SUBSTITUTION';
-
-CREATE TABLE IF NOT EXISTS innodb_table_stats (
-	database_name			VARCHAR(64) NOT NULL,
-	table_name			VARCHAR(64) NOT NULL,
-	last_update			TIMESTAMP NOT NULL,
-	n_rows				BIGINT UNSIGNED NOT NULL,
-	clustered_index_size		BIGINT UNSIGNED NOT NULL,
-	sum_of_other_index_sizes	BIGINT UNSIGNED NOT NULL,
-	PRIMARY KEY (database_name, table_name)
-) ENGINE=INNODB DEFAULT CHARSET=utf8 COLLATE=utf8_bin STATS_PERSISTENT=0;
-
-CREATE TABLE IF NOT EXISTS innodb_index_stats (
-	database_name			VARCHAR(64) NOT NULL,
-	table_name			VARCHAR(64) NOT NULL,
-	index_name			VARCHAR(64) NOT NULL,
-	last_update			TIMESTAMP NOT NULL,
-	/* there are at least:
-	stat_name='size'
-	stat_name='n_leaf_pages'
-	stat_name='n_diff_pfx%' */
-	stat_name			VARCHAR(64) NOT NULL,
-	stat_value			BIGINT UNSIGNED NOT NULL,
-	sample_size			BIGINT UNSIGNED,
-	stat_description		VARCHAR(1024) NOT NULL,
-	PRIMARY KEY (database_name, table_name, index_name, stat_name)
-) ENGINE=INNODB DEFAULT CHARSET=utf8 COLLATE=utf8_bin STATS_PERSISTENT=0;
-
-SET SESSION sql_mode=@sql_mode_orig;
 
 --
 -- PERFORMANCE SCHEMA INSTALLATION

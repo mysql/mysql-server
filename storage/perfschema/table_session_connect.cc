@@ -186,8 +186,9 @@ void table_session_connect::make_row(PFS_thread *pfs, uint ordinal)
     return;
 
   /* populate the row */
-  if (read_nth_attr(pfs->m_connect_attrs, pfs->m_connect_attrs_length,
-                    pfs->m_connect_attrs_cs,
+  if (read_nth_attr(pfs->m_session_connect_attrs,
+                    pfs->m_session_connect_attrs_length,
+                    pfs->m_session_connect_attrs_cs,
                     ordinal,
                     m_row.m_attr_name, (uint) sizeof(m_row.m_attr_name),
                     &m_row.m_attr_name_length,

@@ -268,26 +268,22 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, Item *conds,
 
   if (need_sort)
   {
-    uint         length= 0;
-    SORT_FIELD  *sortorder;
     ha_rows examined_rows;
     ha_rows found_rows;
     
     {
+      Filesort fsort(order, HA_POS_ERROR, select);
       DBUG_ASSERT(usable_index == MAX_KEY);
       table->sort.io_cache= (IO_CACHE *) my_malloc(sizeof(IO_CACHE),
                                                    MYF(MY_FAE | MY_ZEROFILL));
-    
-      if (!(sortorder= make_unireg_sortorder(order, &length, NULL)) ||
-	  (table->sort.found_records= filesort(thd, table, sortorder, length,
-                                               select, HA_POS_ERROR,
-                                               true,
+
+      if ((table->sort.found_records= filesort(thd, table, &fsort, true,
                                                &examined_rows, &found_rows))
 	  == HA_POS_ERROR)
       {
         delete select;
         free_underlaid_joins(thd, &thd->lex->select_lex);
-        DBUG_RETURN(TRUE);
+        DBUG_RETURN(true);
       }
       thd->inc_examined_row_count(examined_rows);
       /*
