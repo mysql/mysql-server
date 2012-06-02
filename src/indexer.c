@@ -329,27 +329,23 @@ close_indexer(DB_INDEXER *indexer) {
     int r = 0;
     (void) __sync_fetch_and_sub(&STATUS_VALUE(INDEXER_CURRENT), 1);
 
-    toku_ydb_lock();
-    {
-        // Mark txn as needing a checkpoint.  
-        // (This will cause a local checkpoint of created index files, which is necessary 
-        //   because these files are not necessarily on disk and all the operations 
-        //   to create them are not in the recovery log.)
-        DB_TXN     *txn = indexer->i->txn;
-        TOKUTXN tokutxn = db_txn_struct_i(txn)->tokutxn;
-        //BRT brt;  // caused a warning with -Wunused-but-set-variable
-        //DB *db;
-        for (int which_db = 0; which_db < indexer->i->N ; which_db++) {
-            //db = indexer->i->dest_dbs[which_db];
-            //brt = db_struct_i(db)->ft_handle;
-            toku_txn_require_checkpoint_on_commit(tokutxn);
-        }
-
-        // Disassociate the indexer from the hot db and free_indexer
-        disassociate_indexer_from_hot_dbs(indexer);
-        free_indexer(indexer);
+    // Mark txn as needing a checkpoint.  
+    // (This will cause a local checkpoint of created index files, which is necessary 
+    //   because these files are not necessarily on disk and all the operations 
+    //   to create them are not in the recovery log.)
+    DB_TXN     *txn = indexer->i->txn;
+    TOKUTXN tokutxn = db_txn_struct_i(txn)->tokutxn;
+    //BRT brt;  // caused a warning with -Wunused-but-set-variable
+    //DB *db;
+    for (int which_db = 0; which_db < indexer->i->N ; which_db++) {
+        //db = indexer->i->dest_dbs[which_db];
+        //brt = db_struct_i(db)->ft_handle;
+        toku_txn_require_checkpoint_on_commit(tokutxn);
     }
-    toku_ydb_unlock();
+
+    // Disassociate the indexer from the hot db and free_indexer
+    disassociate_indexer_from_hot_dbs(indexer);
+    free_indexer(indexer);
 
     if ( r == 0 ) {
         (void) __sync_fetch_and_add(&STATUS_VALUE(INDEXER_CLOSE), 1);
@@ -363,14 +359,9 @@ static int
 abort_indexer(DB_INDEXER *indexer) {
     (void) __sync_fetch_and_sub(&STATUS_VALUE(INDEXER_CURRENT), 1);
     (void) __sync_fetch_and_add(&STATUS_VALUE(INDEXER_ABORT), 1);
-    
-    toku_ydb_lock();
-    {
-        // Disassociate the indexer from the hot db and free_indexer
-        disassociate_indexer_from_hot_dbs(indexer);
-        free_indexer(indexer);
-    }
-    toku_ydb_unlock();
+    // Disassociate the indexer from the hot db and free_indexer
+    disassociate_indexer_from_hot_dbs(indexer);
+    free_indexer(indexer);
     return 0;
 }
 
