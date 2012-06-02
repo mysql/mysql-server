@@ -3896,7 +3896,7 @@ int ha_tokudb::write_row(uchar * record) {
         }
     }
     
-    txn = create_sub_trans ? sub_trans : transaction;    
+    txn = create_sub_trans ? sub_trans : transaction;
 
     if (tokudb_debug & TOKUDB_DEBUG_CHECK_KEY) {
         test_row_packing(record,&prim_key,&row);
@@ -7484,7 +7484,9 @@ int ha_tokudb::tokudb_add_index(
         error = indexer->build(indexer);
         if (error) { goto cleanup; }
 
+        rw_wrlock(&share->num_DBs_lock);
         error = indexer->close(indexer);
+        rw_unlock(&share->num_DBs_lock);
         if (error) { goto cleanup; }
         indexer = NULL;
     }
@@ -7660,7 +7662,9 @@ cleanup:
     if (indexer != NULL) {
         sprintf(status_msg, "aborting creation of indexes.");
         thd_proc_info(thd, status_msg);
+        rw_wrlock(&share->num_DBs_lock);
         indexer->abort(indexer);
+        rw_unlock(&share->num_DBs_lock);
     }
     if (error == DB_LOCK_NOTGRANTED && ((tokudb_debug & TOKUDB_DEBUG_HIDE_DDL_LOCK_ERRORS) == 0)) {
         sql_print_error("Could not add indexes to table %s because \
