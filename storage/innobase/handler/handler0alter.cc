@@ -969,40 +969,6 @@ innobase_rec_reset(
 	}
 }
 
-/******************************************************************//**
-Removes the filename encoding of a database and table name. */
-static
-void
-innobase_convert_tablename(
-/*=======================*/
-	char*	s)	/*!< in: identifier; out: decoded identifier */
-{
-	uint	errors;
-
-	char*	slash = strchr(s, '/');
-
-	if (slash) {
-		char*	t;
-		/* Temporarily replace the '/' with NUL. */
-		*slash = 0;
-		/* Convert the database name. */
-		strconvert(&my_charset_filename, s, system_charset_info,
-			   s, slash - s + 1, &errors);
-
-		t = s + strlen(s);
-		ut_ad(slash >= t);
-		/* Append a  '.' after the database name. */
-		*t++ = '.';
-		slash++;
-		/* Convert the table name. */
-		strconvert(&my_charset_filename, slash, system_charset_info,
-			   t, slash - t + strlen(slash), &errors);
-	} else {
-		strconvert(&my_charset_filename, s,
-			   system_charset_info, s, strlen(s), &errors);
-	}
-}
-
 /*******************************************************************//**
 This function checks that index keys are sensible.
 @return	0 or error number */
@@ -1958,32 +1924,22 @@ innobase_check_foreigns_low(
 		}
 
 		for (unsigned f = 0; f < foreign->n_fields; f++) {
+			char display_name[FN_REFLEN];
+
 			if (strcmp(foreign->referenced_col_names[f],
 				   col_name)) {
 				continue;
 			}
 
-			ulint	namelen
-				= strlen(foreign->foreign_table_name)
-				+ sizeof srv_mysql50_table_name_prefix;
-			char*	name = static_cast<char*>(
-				ut_malloc(namelen));
-			if (name) {
-				strcpy(name, foreign->foreign_table_name);
-				innobase_convert_tablename(name);
-				ut_ad(strlen(name) < namelen);
-
-				my_error(ER_FK_COLUMN_CANNOT_DROP_CHILD,
-					 MYF(0), col_name, foreign->id,
-					 name);
-				ut_free(name);
-			} else {
-				/* Tolerate malloc() failure and display
-				the raw table name in the error message. */
-				my_error(ER_FK_COLUMN_CANNOT_DROP_CHILD,
-					 MYF(0), col_name, foreign->id,
-					 foreign->foreign_table_name);
-			}
+			char* buf_end = innobase_convert_name(
+				display_name, (sizeof display_name) - 1,
+				foreign->foreign_table_name,
+				strlen(foreign->foreign_table_name),
+				NULL, TRUE);
+			*buf_end = '\0';
+			my_error(ER_FK_COLUMN_CANNOT_DROP_CHILD,
+				 MYF(0), col_name, foreign->id,
+				 display_name);
 
 			return(true);
 		}
