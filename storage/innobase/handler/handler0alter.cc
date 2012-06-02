@@ -1691,27 +1691,29 @@ innobase_check_column_length(
 }
 
 /*******************************************************************//**
-Create a temporary tablename using query id, thread id, and id
-@return	temporary tablename */
-static
+Adjust a temporary tablename.
+@return	temporary tablename suitable for InnoDB use */
+static __attribute__((nonnull, warn_unused_result))
 char*
 innobase_create_temporary_tablename(
 /*================================*/
-	mem_heap_t*	heap,		/*!< in: memory heap */
-	char		id,		/*!< in: identifier [0-9a-zA-Z] */
-	const char*     table_name)	/*!< in: table name */
+	mem_heap_t*	heap,	/*!< in: memory heap */
+	const char*	dbtab,	/*!< in: database/table name */
+	const THD*	thd,	/*!< in: MySQL thread */
+	bool		n2)	/*!< in: whether to add '2' to the name */
 {
-	char*			name;
-	ulint			len;
-	static const char	suffix[] = "@0023 "; /* "# " */
+	const char*	dbend	= strchr(dbtab, '/');
+	ut_ad(dbend);
+	size_t		dblen	= dbend - dbtab + 1;
+	size_t		size = tmp_file_prefix_length + 4 + 9 + 9 + dblen;
 
-	len = strlen(table_name);
-
-	name = (char*) mem_heap_alloc(heap, len + sizeof suffix);
-	memcpy(name, table_name, len);
-	memcpy(name + len, suffix, sizeof suffix);
-	name[len + (sizeof suffix - 2)] = id;
-
+	char*	name = static_cast<char*>(mem_heap_alloc(heap, size));
+	memcpy(name, dbtab, dblen);
+	my_snprintf(name + dblen, size - dblen,
+		    n2
+		    ? (tmp_file_prefix "2-%lx-%lx")
+		    : (tmp_file_prefix "-%lx_%lx"),
+		    current_pid, thd_get_thread_id(thd));
 	return(name);
 }
 
@@ -2195,7 +2197,7 @@ prepare_inplace_alter_table_dict(
 
 	if (new_clustered) {
 		char*	new_table_name = innobase_create_temporary_tablename(
-			heap, '1', indexed_table->name);
+			heap, indexed_table->name, user_thd, false);
 		ulint	flags;
 		ulint	flags2;
 		ulint	n_cols;
@@ -2231,6 +2233,7 @@ prepare_inplace_alter_table_dict(
 
 		/* Create the table. */
 		trx_set_dict_operation(trx, TRX_DICT_OP_TABLE);
+
 		/* The initial space id 0 may be overridden later. */
 		indexed_table = dict_mem_table_create(
 			new_table_name, 0, n_cols, flags, flags2);
@@ -2341,12 +2344,11 @@ col_fail:
 			break;
 		case DB_TABLESPACE_ALREADY_EXISTS:
 		case DB_DUPLICATE_KEY:
-			innobase_convert_tablename(new_table_name);
 			my_error(HA_ERR_TABLE_EXIST, MYF(0),
-				 new_table_name);
+				 altered_table->s->table_name.str);
 			goto new_clustered_failed;
 		default:
-			my_error_innodb(trx->error_state, table_name, flags);
+			my_error_innodb(error, table_name, flags);
 		new_clustered_failed:
 			DBUG_ASSERT(trx != user_trx);
 			trx_rollback_to_savepoint(trx, NULL);
@@ -3340,15 +3342,18 @@ rollback_inplace_alter_table(
 	row_mysql_lock_data_dictionary(ctx->trx);
 
 	if (prebuilt->table != ctx->indexed_table) {
+		dberr_t	err;
+		ulint	flags	= ctx->indexed_table->flags;
 		/* Drop the table. */
 		dict_table_close(ctx->indexed_table, TRUE, FALSE);
-		switch (row_merge_drop_table(ctx->trx, ctx->indexed_table)) {
+		err = row_merge_drop_table(ctx->trx, ctx->indexed_table);
+
+		switch (err) {
 		case DB_SUCCESS:
 			break;
 		default:
-			my_error_innodb(ctx->trx->error_state,
-					table_share->table_name.str,
-					prebuilt->table->flags);
+			my_error_innodb(err, table_share->table_name.str,
+					flags);
 			fail = true;
 		}
 
@@ -3856,7 +3861,7 @@ ha_innobase::commit_inplace_alter_table(
 		rename the new temporary table as the old
 		table and drop the old table. */
 		tmp_name = innobase_create_temporary_tablename(
-			ctx->heap, '2', prebuilt->table->name);
+			ctx->heap, ctx->indexed_table->name, user_thd, true);
 
 		error = row_merge_rename_tables(
 			prebuilt->table, ctx->indexed_table,
@@ -3881,7 +3886,6 @@ ha_innobase::commit_inplace_alter_table(
 		case DB_TABLESPACE_ALREADY_EXISTS:
 		case DB_DUPLICATE_KEY:
 			ut_a(ctx->indexed_table->n_ref_count == 1);
-			innobase_convert_tablename(tmp_name);
 			my_error(ER_TABLE_EXISTS_ERROR, MYF(0), tmp_name);
 			err = HA_ERR_TABLE_EXIST;
 			goto drop_new_clustered;

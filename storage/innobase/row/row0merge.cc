@@ -3027,6 +3027,10 @@ row_merge_rename_tables(
 
 	trx->op_info = "renaming tables";
 
+	DBUG_EXECUTE_IF(
+		"ib_rebuild_cannot_rename",
+		err = DB_ERROR; goto err_exit;);
+
 	/* We use the private SQL parser of Innobase to generate the query
 	graphs needed in updating the dictionary data in system tables. */
 
@@ -3059,6 +3063,10 @@ row_merge_rename_tables(
 		err = DB_ERROR;
 		goto err_exit;
 	}
+
+	DBUG_EXECUTE_IF(
+		"ib_rebuild_cannot_load_fk",
+		err = DB_ERROR; goto err_exit;);
 
 	err = dict_load_foreigns(old_name, FALSE, TRUE);
 
