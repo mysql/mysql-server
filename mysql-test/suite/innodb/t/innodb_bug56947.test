@@ -2,15 +2,28 @@
 # Bug #56947 valgrind reports a memory leak in innodb-plugin.innodb-index
 #
 -- source include/have_innodb.inc
+-- source include/have_debug.inc
 
-SET @old_innodb_file_per_table=@@innodb_file_per_table;
-# avoid a message about filed *.ibd file creation in the error log
 SET GLOBAL innodb_file_per_table=0;
 create table bug56947(a int not null) engine = innodb;
-CREATE TABLE `bug56947#1`(a int) ENGINE=InnoDB;
---error 156
+
+SET DEBUG='+d,ib_rebuild_cannot_rename';
+--error ER_GET_ERRNO
 alter table bug56947 add unique index (a);
-drop table `bug56947#1`;
+SET DEBUG='-d,ib_rebuild_cannot_rename';
+check table bug56947;
+
+# Bug#14145138 causes a DROP TABLE in this ALTER TABLE.
+call mtr.add_suppression("Cannot open table test/bug56947 from the internal");
+call mtr.add_suppression("InnoDB: Error:");
+SET DEBUG='+d,ib_rebuild_cannot_load_fk';
+--error ER_GET_ERRNO
+alter table bug56947 add unique index (a);
+SET DEBUG='-d,ib_rebuild_cannot_load_fk';
+check table bug56947;
+# TODO: fix this bug
+--error ER_NO_SUCH_TABLE
+show create table bug56947;
+
+--error ER_BAD_TABLE_ERROR
 drop table bug56947;
---disable_query_log
-SET GLOBAL innodb_file_per_table=@old_innodb_file_per_table;

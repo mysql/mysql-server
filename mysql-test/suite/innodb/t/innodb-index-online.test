@@ -335,17 +335,6 @@ reap;
 # Index c3p5 should still exist in the data dictionary cache.
 eval $innodb_metrics_select;
 
-CREATE TABLE `t1#2`(a INT PRIMARY KEY) ENGINE = InnoDB;
---error ER_TABLE_EXISTS_ERROR
-CREATE FULLTEXT INDEX ft ON t1 (c3);
-# The failed CREATE FULLTEXT INDEX should have cleaned up c3p5 from the cache.
-eval $innodb_metrics_select;
-
-DROP TABLE `t1#2`;
-
-call mtr.add_suppression("InnoDB: Error creating.*t1@00231.ibd");
-call mtr.add_suppression("InnoDB: Error number 17 means 'File exists'");
-
 SET DEBUG_SYNC = 'row_log_apply_before SIGNAL c2g_created WAIT_FOR dml4_done';
 # The lock upgrade at the end of the ALTER will conflict with the DISCARD.
 SET lock_wait_timeout = 1;
@@ -380,10 +369,9 @@ connection default;
 reap;
 
 SHOW CREATE TABLE t1;
-SHOW CREATE TABLE t1;
-# The ER_NO_SUCH_TABLE is being thrown by ha_innobase::open().
-# The table does exist, only the tablespace does not exist.
 ALTER TABLE t1 DROP INDEX c2d, DROP INDEX c2f;
+# The ALTER TABLE should have cleaned up c3p5 from the cache.
+eval $innodb_metrics_select;
 ALTER TABLE t1 ADD INDEX c2h(c22f), ALGORITHM = INPLACE;
 --error ER_DUP_KEYNAME
 ALTER TABLE t1 ADD INDEX c2h(c22f), ALGORITHM = COPY;
