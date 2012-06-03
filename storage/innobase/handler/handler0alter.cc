@@ -3165,8 +3165,7 @@ ok_exit:
 		prebuilt->trx,
 		prebuilt->table, ctx->indexed_table,
 		ctx->online,
-		ctx->add, ctx->add_key_numbers, ctx->num_to_add,
-		table, altered_table);
+		ctx->add, ctx->add_key_numbers, ctx->num_to_add, table);
 #ifndef DBUG_OFF
 oom:
 #endif /* !DBUG_OFF */
@@ -3174,7 +3173,7 @@ oom:
 	    && ctx->indexed_table != prebuilt->table) {
 		DEBUG_SYNC_C("row_log_table_apply1_before");
 		error = row_log_table_apply(
-			ctx->thr, prebuilt->table, table, altered_table);
+			ctx->thr, prebuilt->table, table);
 	}
 
 	/* After an error, remove all those index definitions
@@ -3754,7 +3753,7 @@ ha_innobase::commit_inplace_alter_table(
 			DEBUG_SYNC_C("row_log_table_apply2_before");
 			error = row_log_table_apply(
 				ctx->thr, prebuilt->table,
-				table, altered_table);
+				table);
 
 			switch (error) {
 				KEY*	dup_key;

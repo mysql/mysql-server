@@ -1012,8 +1012,6 @@ row_log_table_apply_convert_mrec(
 	mem_heap_t*		heap,		/*!< in/out: memory heap */
 	dict_table_t*		new_table,	/*!< in/out: table
 						being rebuilt */
-	const struct TABLE*	altered_table,	/*!< in: new MySQL
-						table definition */
 	dberr_t*		error)		/*!< out: DB_SUCCESS or
 						reason of failure */
 {
@@ -1104,8 +1102,6 @@ row_log_table_apply_insert_low(
 	mem_heap_t*		heap,		/*!< in/out: memory heap */
 	dict_table_t*		new_table,	/*!< in/out: table
 						being rebuilt */
-	const struct TABLE*	altered_table,	/*!< in: new MySQL
-						table definition */
 	row_merge_dup_t*	dup)		/*!< in/out: for reporting
 						duplicate key errors */
 {
@@ -1173,22 +1169,19 @@ row_log_table_apply_insert(
 	mem_heap_t*		heap,		/*!< in/out: memory heap */
 	dict_table_t*		new_table,	/*!< in/out: table
 						being rebuilt */
-	const struct TABLE*	altered_table,	/*!< in: new MySQL
-						table definition */
 	row_merge_dup_t*	dup)		/*!< in/out: for reporting
 						duplicate key errors */
 {
 	dberr_t		error;
 	const dtuple_t*	row	= row_log_table_apply_convert_mrec(
-		mrec, dup->index, offsets, heap, new_table, altered_table,
+		mrec, dup->index, offsets, heap, new_table,
 		&error);
 
 	ut_ad(!row == (error != DB_SUCCESS));
 
 	if (row) {
 		error = row_log_table_apply_insert_low(
-			thr, row, offsets_heap, heap,
-			new_table, altered_table, dup);
+			thr, row, offsets_heap, heap, new_table, dup);
 	}
 
 	if (error != DB_SUCCESS) {
@@ -1403,8 +1396,6 @@ row_log_table_apply_update(
 	mem_heap_t*		heap,		/*!< in/out: memory heap */
 	dict_table_t*		new_table,	/*!< in/out: table
 						being rebuilt */
-	const struct TABLE*	altered_table,	/*!< in: new MySQL
-						table definition */
 	row_merge_dup_t*	dup,		/*!< in/out: for reporting
 						duplicate key errors */
 	const dtuple_t*		old_pk)		/*!< in: PRIMARY KEY and
@@ -1425,8 +1416,7 @@ row_log_table_apply_update(
 	      + (dup->index->online_log->same_pk ? 0 : 2));
 
 	row = row_log_table_apply_convert_mrec(
-		mrec, dup->index, offsets, heap,
-		new_table, altered_table, &error);
+		mrec, dup->index, offsets, heap, new_table, &error);
 
 	ut_ad(!row == (error != DB_SUCCESS));
 
@@ -1457,8 +1447,7 @@ row_log_table_apply_update(
 insert:
 		/* The row was not found. Insert it. */
 		error = row_log_table_apply_insert_low(
-			thr, row, offsets_heap, heap,
-			new_table, altered_table, dup);
+			thr, row, offsets_heap, heap, new_table, dup);
 
 		if (error != DB_SUCCESS) {
 err_exit:
@@ -1658,8 +1647,6 @@ row_log_table_apply_op(
 						DB_TRX_ID in new index */
 	dict_table_t*		new_table,	/*!< in/out: table
 						being rebuilt */
-	const struct TABLE*	altered_table,	/*!< in: new MySQL
-						table definition */
 	row_merge_dup_t*	dup,		/*!< in/out: for reporting
 						duplicate key errors */
 	dberr_t*		error,		/*!< out: DB_SUCCESS
@@ -1725,8 +1712,7 @@ row_log_table_apply_op(
 				    trx_read_trx_id(db_trx_id))) {
 				*error = row_log_table_apply_insert(
 					thr, mrec, offsets, offsets_heap,
-					heap,
-					new_table, altered_table, dup);
+					heap, new_table, dup);
 			}
 		}
 		break;
@@ -1896,7 +1882,7 @@ row_log_table_apply_op(
 				*error = row_log_table_apply_update(
 					thr, trx_id_col, new_trx_id_col,
 					mrec, offsets, offsets_heap, heap,
-					new_table, altered_table, dup, old_pk);
+					new_table, dup, old_pk);
 			}
 		}
 
@@ -1916,8 +1902,6 @@ dberr_t
 row_log_table_apply_ops(
 /*====================*/
 	que_thr_t*	thr,	/*!< in: query graph */
-	struct TABLE*	altered_table,
-				/*!< in: new MySQL table definition */
 	row_merge_dup_t*dup)	/*!< in/out: for reporting duplicate key
 				errors */
 {
@@ -2092,7 +2076,7 @@ all_done:
 		       (&index->online_log->head.buf)[1] - mrec_end);
 		mrec = row_log_table_apply_op(
 			thr, trx_id_col, new_trx_id_col,
-			index->online_log->table, altered_table,
+			index->online_log->table,
 			dup, &error, offsets_heap, heap,
 			index->online_log->head.buf,
 			(&index->online_log->head.buf)[1], offsets);
@@ -2191,7 +2175,7 @@ all_done:
 
 		next_mrec = row_log_table_apply_op(
 			thr, trx_id_col, new_trx_id_col,
-			index->online_log->table, altered_table,
+			index->online_log->table,
 			dup, &error, offsets_heap, heap,
 			mrec, mrec_end, offsets);
 
@@ -2258,10 +2242,8 @@ row_log_table_apply(
 	que_thr_t*	thr,	/*!< in: query graph */
 	dict_table_t*	old_table,
 				/*!< in: old table */
-	struct TABLE*	table,	/*!< in/out: MySQL table
+	struct TABLE*	table)	/*!< in/out: MySQL table
 				(for reporting duplicates) */
-	struct TABLE*	altered_table)
-				/*!< in: new MySQL table definition */
 {
 	dberr_t		error;
 	dict_index_t*	clust_index;
@@ -2288,8 +2270,7 @@ row_log_table_apply(
 		ut_ad(0);
 		error = DB_ERROR;
 	} else {
-		error = row_log_table_apply_ops(
-			thr, altered_table, &dup);
+		error = row_log_table_apply_ops(thr, &dup);
 	}
 
 	rw_lock_x_unlock(dict_index_get_lock(clust_index));

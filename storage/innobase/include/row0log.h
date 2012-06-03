@@ -176,10 +176,8 @@ row_log_table_apply(
 	que_thr_t*	thr,	/*!< in: query graph */
 	dict_table_t*	old_table,
 				/*!< in: old table */
-	struct TABLE*	table,	/*!< in/out: MySQL table
+	struct TABLE*	table)	/*!< in/out: MySQL table
 				(for reporting duplicates) */
-	struct TABLE*	altered_table)
-				/*!< in: new MySQL table definition */
 	__attribute__((nonnull, warn_unused_result));
 
 /******************************************************//**
