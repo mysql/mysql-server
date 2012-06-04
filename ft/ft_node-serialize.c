@@ -67,17 +67,15 @@ static inline void do_toku_trace(const char *cp, int len) {
 static int num_cores = 0; // cache the number of cores for the parallelization
 static struct toku_thread_pool *ft_pool = NULL;
 
-int 
+void 
 toku_ft_serialize_layer_init(void) {
     num_cores = toku_os_get_number_active_processors();
     int r = toku_thread_pool_create(&ft_pool, num_cores); lazy_assert_zero(r);
-    return 0;
 }
 
-int 
+void
 toku_ft_serialize_layer_destroy(void) {
     toku_thread_pool_destroy(&ft_pool);
-    return 0;
 }
 
 enum {FILE_CHANGE_INCREMENT = (16<<20)};

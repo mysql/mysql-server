@@ -19,8 +19,7 @@ main(int argc, char *const argv[]) {
     int ri = toku_portability_init();
     assert(ri==0);
     int r = test_main(argc, argv);
-    int rd = toku_portability_destroy();
-    assert(rd==0);
+    toku_portability_destroy();
     return r;
 }
 

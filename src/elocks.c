@@ -93,7 +93,7 @@ toku_ydb_lock(void) {
     // Update status
     STATUS_VALUE(YDB_LOCK_TAKEN)++;
     if (new_num_waiters > STATUS_VALUE(YDB_MAX_WAITERS)) 
-	STATUS_VALUE(YDB_MAX_WAITERS) = new_num_waiters;
+        STATUS_VALUE(YDB_MAX_WAITERS) = new_num_waiters;
     STATUS_VALUE(YDB_TOTAL_TIME_SINCE_START) = now - ydb_big_lock.starttime;
 }
 
@@ -105,7 +105,7 @@ ydb_unlock_internal(unsigned long useconds) {
     tokutime_t time_held = now - ydb_big_lock.acquired_time;
     STATUS_VALUE(YDB_TOTAL_TIME_YDB_LOCK_HELD) += time_held;
     if (time_held > STATUS_VALUE(YDB_MAX_TIME_YDB_LOCK_HELD))
-	STATUS_VALUE(YDB_MAX_TIME_YDB_LOCK_HELD) = time_held;
+        STATUS_VALUE(YDB_MAX_TIME_YDB_LOCK_HELD) = time_held;
     STATUS_VALUE(YDB_TOTAL_TIME_SINCE_START) = now - ydb_big_lock.starttime;
 
     toku_mutex_unlock(&ydb_big_lock.lock);
@@ -113,7 +113,7 @@ ydb_unlock_internal(unsigned long useconds) {
     int new_num_waiters = __sync_add_and_fetch(&STATUS_VALUE(YDB_NUM_WAITERS_NOW), -1);
 
     if (new_num_waiters > 0 && useconds > 0) {
-	__sync_add_and_fetch(&STATUS_VALUE(YDB_TOTAL_SLEEP_TIME), useconds);
+        __sync_add_and_fetch(&STATUS_VALUE(YDB_TOTAL_SLEEP_TIME), useconds);
         usleep(useconds);
     }
 }

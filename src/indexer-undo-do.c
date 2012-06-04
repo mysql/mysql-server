@@ -24,6 +24,7 @@
 #include <ft/ule.h>
 #include <ft/xids.h>
 #include "ft/txn_manager.h"
+#include <ft/checkpoint.h>
 #include "ydb_row_lock.h"
 
 #include "indexer-internal.h"
@@ -77,13 +78,12 @@ static int indexer_append_xid(DB_INDEXER *indexer, TXNID xid, XIDS *xids_result)
 static BOOL indexer_find_prev_xr(DB_INDEXER *indexer, ULEHANDLE ule, uint64_t xrindex, uint64_t *prev_xrindex);
 
 static int indexer_generate_hot_key_val(DB_INDEXER *indexer, DB *hotdb, ULEHANDLE ule, UXRHANDLE uxr, DBT *hotkey, DBT *hotval);
-static int indexer_ft_delete_provisional(DB_INDEXER *indexer, DB *hotdb, DBT *hotkey, XIDS xids);
+static int indexer_ft_delete_provisional(DB_INDEXER *indexer, DB *hotdb, DBT *hotkey, XIDS xids, TOKUTXN txn);
 static int indexer_ft_delete_committed(DB_INDEXER *indexer, DB *hotdb, DBT *hotkey, XIDS xids);
-static int indexer_ft_insert_provisional(DB_INDEXER *indexer, DB *hotdb, DBT *hotkey, DBT *hotval, XIDS xids);
+static int indexer_ft_insert_provisional(DB_INDEXER *indexer, DB *hotdb, DBT *hotkey, DBT *hotval, XIDS xids, TOKUTXN txn);
 static int indexer_ft_insert_committed(DB_INDEXER *indexer, DB *hotdb, DBT *hotkey, DBT *hotval, XIDS xids);
 static int indexer_ft_commit(DB_INDEXER *indexer, DB *hotdb, DBT *hotkey, XIDS xids);
-static int indexer_lock_key(DB_INDEXER *indexer, DB *hotdb, DBT *key, TXNID outermost_live_xid);
-static TOKUTXN_STATE indexer_xid_state(DB_INDEXER *indexer, TXNID xid);
+static int indexer_lock_key(DB_INDEXER *indexer, DB *hotdb, DBT *key, TXNID outermost_live_xid, TOKUTXN txn);
 
 
 // initialize undo globals located in the indexer private object
@@ -177,43 +177,113 @@ indexer_undo_do_committed(DB_INDEXER *indexer, DB *hotdb, ULEHANDLE ule) {
     return result;
 }
 
+static void fill_prov_info(
+    ULEHANDLE ule,
+    TXNID* prov_ids,
+    TOKUTXN_STATE* prov_states,
+    TOKUTXN* prov_txns,
+    DB_INDEXER *indexer
+    )
+{
+    uint32_t num_provisional = ule_get_num_provisional(ule);
+    uint32_t num_committed = ule_get_num_committed(ule);
+    DB_ENV *env = indexer->i->env;
+    TXN_MANAGER txn_manager = toku_logger_get_txn_manager(env->i->logger);
+    toku_txn_manager_suspend(txn_manager);
+    for (uint32_t i = 0; i < num_provisional; i++) {
+        UXRHANDLE uxr = ule_get_uxr(ule, num_committed+i);
+        prov_ids[i] = uxr_get_txnid(uxr);
+        if (indexer->i->test_xid_state) {
+            prov_states[i] = indexer->i->test_xid_state(indexer, prov_ids[i]);
+            prov_txns[i] = NULL;
+        }
+        else {
+            TOKUTXN txn = NULL;
+            toku_txn_manager_id2txn_unlocked(
+                txn_manager, 
+                prov_ids[i], 
+                &txn
+                );
+            prov_txns[i] = txn;
+            if (txn) {
+                prov_states[i] = toku_txn_get_state(txn);
+                if (prov_states[i] == TOKUTXN_LIVE || prov_states[i] == TOKUTXN_LIVE) {
+                    // pin
+                    toku_txn_manager_pin_live_txn_unlocked(txn_manager, txn);
+                }
+            }
+            else {
+                prov_states[i] = TOKUTXN_RETIRED;
+            }
+        }
+    }
+    toku_txn_manager_resume(txn_manager);
+}
+
+static void release_txns(
+    ULEHANDLE ule,
+    TOKUTXN_STATE* prov_states,
+    TOKUTXN* prov_txns,
+    DB_INDEXER *indexer
+    )
+{
+    uint32_t num_provisional = ule_get_num_provisional(ule);
+    DB_ENV *env = indexer->i->env;
+    TXN_MANAGER txn_manager = toku_logger_get_txn_manager(env->i->logger);
+    BOOL some_txn_pinned = FALSE;
+    if (indexer->i->test_xid_state) {
+        goto exit;
+    }
+    // see if any txn pinned before bothering to grab txn_manager lock
+    for (u_int32_t i = 0; i < num_provisional; i++) {
+        if (prov_states[i] == TOKUTXN_LIVE || prov_states[i] == TOKUTXN_LIVE) {
+            assert(prov_txns[i]);
+            some_txn_pinned = TRUE;
+        }
+    }
+    if (some_txn_pinned) {
+        toku_txn_manager_suspend(txn_manager);
+        for (u_int32_t i = 0; i < num_provisional; i++) {
+            if (prov_states[i] == TOKUTXN_LIVE || prov_states[i] == TOKUTXN_LIVE) {
+                toku_txn_manager_unpin_live_txn_unlocked(txn_manager, prov_txns[i]);
+            }
+        }
+        toku_txn_manager_resume(txn_manager);
+    }
+exit:
+    return;
+}
+
 static int
 indexer_undo_do_provisional(DB_INDEXER *indexer, DB *hotdb, ULEHANDLE ule) {
     int result = 0;
-    BOOL txn_manager_suspended = FALSE;
-    TXN_MANAGER txn_manager = toku_logger_get_txn_manager(indexer->i->env->i->logger);
+    uint32_t num_committed = ule_get_num_committed(ule);
+    uint32_t num_provisional = ule_get_num_provisional(ule);
     indexer_commit_keys_set_empty(&indexer->i->commit_keys);
-    toku_txn_manager_suspend(txn_manager);
-    txn_manager_suspended = TRUE;
 
     // init the xids to the root xid
     XIDS xids = xids_get_root_xids();
 
+    TXNID prov_ids[num_provisional];
+    TOKUTXN_STATE prov_states[num_provisional];
+    TOKUTXN prov_txns[num_provisional];
+    memset(prov_txns, 0, sizeof(prov_txns));
+    if (num_provisional == 0) {
+        goto exit;
+    }
+
+    fill_prov_info(ule, prov_ids, prov_states, prov_txns, indexer);
+    TXNID outermost_xid_state = prov_states[0];
+    
     // scan the provisional stack from the outermost to the innermost transaction record
-    uint32_t num_committed = ule_get_num_committed(ule);
-    uint32_t num_provisional = ule_get_num_provisional(ule);
-    BOOL outermost_retired = FALSE;
-    TXNID outermost_xid = TXNID_NONE;
-    TOKUTXN_STATE outermost_xid_state = TOKUTXN_RETIRED;
-    if (num_provisional) {
-        outermost_xid = uxr_get_txnid(ule_get_uxr(ule, num_committed));
-        outermost_xid_state = indexer_xid_state(indexer, outermost_xid);
-        outermost_retired = outermost_xid_state == TOKUTXN_RETIRED;
-    }
-    else {
-        outermost_retired = TRUE;
-    }
-    if (outermost_retired) {        
-        toku_txn_manager_resume(txn_manager);
-        txn_manager_suspended = FALSE;
-    }
+    TOKUTXN curr_txn = NULL;
     for (uint64_t xrindex = num_committed; xrindex < num_committed + num_provisional; xrindex++) {
 
         // get the ith transaction record
         UXRHANDLE uxr = ule_get_uxr(ule, xrindex);
 
         TXNID this_xid = uxr_get_txnid(uxr);
-        TOKUTXN_STATE this_xid_state = outermost_retired ? TOKUTXN_RETIRED : indexer_xid_state(indexer, this_xid);
+        TOKUTXN_STATE this_xid_state = prov_states[xrindex - num_committed];
 
         if (this_xid_state == TOKUTXN_ABORTING) {
             break;         // nothing to do once we reach a transaction that is aborting
@@ -221,10 +291,15 @@ indexer_undo_do_provisional(DB_INDEXER *indexer, DB *hotdb, ULEHANDLE ule) {
         
         if (xrindex == num_committed) { // if this is the outermost xr
             result = indexer_set_xid(indexer, this_xid, &xids);    // always add the outermost xid to the XIDS list
+            curr_txn = prov_txns[xrindex - num_committed];
         } else {
             switch (this_xid_state) {
             case TOKUTXN_LIVE:
                 result = indexer_append_xid(indexer, this_xid, &xids); // append a live xid to the XIDS list
+                curr_txn = prov_txns[xrindex - num_committed];
+                if (!indexer->i->test_xid_state) {
+                    assert(curr_txn);
+                }
                 break;
             case TOKUTXN_PREPARING:
                 assert(0); // not allowed
@@ -242,9 +317,9 @@ indexer_undo_do_provisional(DB_INDEXER *indexer, DB *hotdb, ULEHANDLE ule) {
             assert(this_xid_state == TOKUTXN_RETIRED);
         }
 
-        if (uxr_is_placeholder(uxr))
+        if (uxr_is_placeholder(uxr)) {
             continue;         // skip placeholders
-
+        }
         // undo
         uint64_t prev_xrindex;
         BOOL prev_xrindex_found = indexer_find_prev_xr(indexer, ule, xrindex, &prev_xrindex);
@@ -261,9 +336,9 @@ indexer_undo_do_provisional(DB_INDEXER *indexer, DB *hotdb, ULEHANDLE ule) {
                     case TOKUTXN_LIVE:
                     case TOKUTXN_PREPARING:
                         assert(this_xid_state != TOKUTXN_ABORTING);
-                        result = indexer_ft_delete_provisional(indexer, hotdb, &indexer->i->hotkey, xids);
+                        result = indexer_ft_delete_provisional(indexer, hotdb, &indexer->i->hotkey, xids, curr_txn);
                         if (result == 0)
-                            result = indexer_lock_key(indexer, hotdb, &indexer->i->hotkey, outermost_xid);
+                            result = indexer_lock_key(indexer, hotdb, &indexer->i->hotkey, prov_ids[0], curr_txn);
                         break;
                     case TOKUTXN_COMMITTING:
                     case TOKUTXN_RETIRED:
@@ -293,9 +368,10 @@ indexer_undo_do_provisional(DB_INDEXER *indexer, DB *hotdb, ULEHANDLE ule) {
                 case TOKUTXN_LIVE:
                 case TOKUTXN_PREPARING:
                     assert(this_xid_state != TOKUTXN_ABORTING);
-                    result = indexer_ft_insert_provisional(indexer, hotdb, &indexer->i->hotkey, &indexer->i->hotval, xids);
-                    if (result == 0) 
-                        result = indexer_lock_key(indexer, hotdb, &indexer->i->hotkey, outermost_xid);
+                    result = indexer_ft_insert_provisional(indexer, hotdb, &indexer->i->hotkey, &indexer->i->hotval, xids, curr_txn);
+                    if (result == 0) {
+                        result = indexer_lock_key(indexer, hotdb, &indexer->i->hotkey, prov_ids[0], prov_txns[0]);
+                    }
                     break;
                 case TOKUTXN_COMMITTING:
                 case TOKUTXN_RETIRED:
@@ -319,10 +395,14 @@ indexer_undo_do_provisional(DB_INDEXER *indexer, DB *hotdb, ULEHANDLE ule) {
     for (int i = 0; result == 0 && i < indexer_commit_keys_valid(&indexer->i->commit_keys); i++) {
         result = indexer_ft_commit(indexer, hotdb, &indexer->i->commit_keys.keys[i], xids);
     }
+
+    // be careful with this in the future. Right now, only exit path
+    // is BEFORE we call fill_prov_info, so this happens before exit
+    // If in the future we add a way to exit after fill_prov_info,
+    // then this will need to be handled below exit
+    release_txns(ule, prov_states, prov_txns, indexer);
+exit:
     xids_destroy(&xids);
-    if (txn_manager_suspended) {
-        toku_txn_manager_resume(toku_logger_get_txn_manager(indexer->i->env->i->logger));
-    }
     return result;
 }
 
@@ -396,46 +476,14 @@ indexer_generate_hot_key_val(DB_INDEXER *indexer, DB *hotdb, ULEHANDLE ule, UXRH
     return result;
 }
 
-// return the state of a transaction given a transaction id.  if the transaction no longer exists, 
-// then return TOKUTXN_RETIRED.
-static TOKUTXN_STATE
-indexer_xid_state(DB_INDEXER *indexer, TXNID xid) {
-    TOKUTXN_STATE result;
-    // TEST
-    if (indexer->i->test_xid_state) {
-        result = indexer->i->test_xid_state(indexer, xid);
-    } else {
-        DB_ENV *env = indexer->i->env;
-        TOKUTXN txn = NULL;
-        toku_txn_manager_id2txn_unlocked(
-            toku_logger_get_txn_manager(env->i->logger), 
-            xid, 
-            &txn
-            );
-        if (txn) 
-            result = toku_txn_get_state(txn);
-        else 
-            result = TOKUTXN_RETIRED;
-    }
-    return result;
-}
-
 // Take a write lock on the given key for the outermost xid in the xids list.
 static int 
-indexer_lock_key(DB_INDEXER *indexer, DB *hotdb, DBT *key, TXNID outermost_live_xid) {
+indexer_lock_key(DB_INDEXER *indexer, DB *hotdb, DBT *key, TXNID outermost_live_xid, TOKUTXN txn) {
     int result = 0;
     // TEST
     if (indexer->i->test_lock_key) {
         result = indexer->i->test_lock_key(indexer, outermost_live_xid, hotdb, key);
     } else {
-        DB_ENV *env = indexer->i->env;
-        TOKUTXN txn = NULL;
-        toku_txn_manager_id2txn_unlocked(
-            toku_logger_get_txn_manager(env->i->logger), 
-            outermost_live_xid, 
-            &txn
-            );
-        assert(txn != NULL);
         result = toku_grab_write_lock(hotdb, key, txn);
     }
     return result;
@@ -460,26 +508,10 @@ indexer_find_prev_xr(DB_INDEXER *UU(indexer), ULEHANDLE ule, uint64_t xrindex, u
     return prev_found;
 }
 
-// get the innermost live txn from the xids stack.  the xid on the top of the xids stack must be live
-// when calling this function.  the indexer_append_xid only appends live xid's onto the stack.
-static TOKUTXN
-indexer_get_innermost_live_txn(DB_INDEXER *indexer, XIDS xids) {
-    DB_ENV *env = indexer->i->env;
-    uint8_t num_xids = xids_get_num_xids(xids);
-    TXNID xid = xids_get_xid(xids, (u_int8_t)(num_xids-1));
-    TOKUTXN txn = NULL;
-    toku_txn_manager_id2txn_unlocked(
-        toku_logger_get_txn_manager(env->i->logger), 
-        xid, 
-        &txn
-        );
-    return txn;
-}
-
 // inject "delete" message into brt with logging in recovery and rollback logs,
 // and making assocation between txn and brt
 static int 
-indexer_ft_delete_provisional(DB_INDEXER *indexer, DB *hotdb, DBT *hotkey, XIDS xids) {
+indexer_ft_delete_provisional(DB_INDEXER *indexer, DB *hotdb, DBT *hotkey, XIDS xids, TOKUTXN txn) {
     int result = 0;
     // TEST
     if (indexer->i->test_delete_provisional) {
@@ -487,9 +519,16 @@ indexer_ft_delete_provisional(DB_INDEXER *indexer, DB *hotdb, DBT *hotkey, XIDS 
     } else {
         result = toku_ydb_check_avail_fs_space(indexer->i->env);
         if (result == 0) {
-            TOKUTXN txn = indexer_get_innermost_live_txn(indexer, xids);
             assert(txn != NULL);
+            // Not sure if this is really necessary, as
+            // the hot index DB should have to be checkpointed
+            // upon commit of the hot index transaction, but
+            // it is safe to do this
+            // this question apples to delete_committed, insert_provisional
+            // and insert_committed
+            toku_multi_operation_client_lock();
             result = toku_ft_maybe_delete (hotdb->i->ft_handle, hotkey, txn, FALSE, ZERO_LSN, TRUE);
+            toku_multi_operation_client_unlock();
         }
     }
     return result;	
@@ -504,8 +543,14 @@ indexer_ft_delete_committed(DB_INDEXER *indexer, DB *hotdb, DBT *hotkey, XIDS xi
         result = indexer->i->test_delete_committed(indexer, hotdb, hotkey, xids);
     } else {
         result = toku_ydb_check_avail_fs_space(indexer->i->env);
-        if (result == 0) 
+        if (result == 0) {
+            // MO lock needed because toku_ft_root_put_cmd must be atomic
+            // with respect to checkpointing
+            // comment/question in indexer_ft_delete_provisional applies
+            toku_multi_operation_client_lock();
             result = toku_ft_send_delete(db_struct_i(hotdb)->ft_handle, hotkey, xids);
+            toku_multi_operation_client_unlock();
+        }
     }
     return result;
 }
@@ -513,7 +558,7 @@ indexer_ft_delete_committed(DB_INDEXER *indexer, DB *hotdb, DBT *hotkey, XIDS xi
 // inject "insert" message into brt with logging in recovery and rollback logs,
 // and making assocation between txn and brt
 static int 
-indexer_ft_insert_provisional(DB_INDEXER *indexer, DB *hotdb, DBT *hotkey, DBT *hotval, XIDS xids) {
+indexer_ft_insert_provisional(DB_INDEXER *indexer, DB *hotdb, DBT *hotkey, DBT *hotval, XIDS xids, TOKUTXN txn) {
     int result = 0;
     // TEST
     if (indexer->i->test_insert_provisional) {
@@ -521,12 +566,14 @@ indexer_ft_insert_provisional(DB_INDEXER *indexer, DB *hotdb, DBT *hotkey, DBT *
     } else {
         result = toku_ydb_check_avail_fs_space(indexer->i->env);
         if (result == 0) {
-            TOKUTXN txn = indexer_get_innermost_live_txn(indexer, xids);
             assert(txn != NULL);
+            // comment/question in indexer_ft_delete_provisional applies
+            toku_multi_operation_client_lock();
             result = toku_ft_maybe_insert (hotdb->i->ft_handle, hotkey, hotval, txn, FALSE, ZERO_LSN, TRUE, FT_INSERT);
+            toku_multi_operation_client_unlock();
         }
     }
-    return result;	
+    return result;
 }
 
 // send an insert message into the tree without rollback or recovery logging
@@ -539,8 +586,14 @@ indexer_ft_insert_committed(DB_INDEXER *indexer, DB *hotdb, DBT *hotkey, DBT *ho
         result = indexer->i->test_insert_committed(indexer, hotdb, hotkey, hotval, xids);
     } else {
         result = toku_ydb_check_avail_fs_space(indexer->i->env);
-        if (result == 0)
+        if (result == 0) {
+            // MO lock needed because toku_ft_root_put_cmd must be atomic
+            // with respect to checkpointing
+            // comment/question in indexer_ft_delete_provisional applies
+            toku_multi_operation_client_lock();
             result  = toku_ft_send_insert(db_struct_i(hotdb)->ft_handle, hotkey, hotval, xids, FT_INSERT);
+            toku_multi_operation_client_unlock();
+        }
     }
     return result;
 }

@@ -27,6 +27,8 @@ struct txn_manager {
     time_t oldest_living_starttime;   // timestamp in seconds of when txn with oldest_living_xid started
     struct toku_list prepared_txns; // transactions that have been prepared and are unresolved, but have not been returned through txn_recover.
     struct toku_list prepared_and_returned_txns; // transactions that have been prepared and unresolved, and have been returned through txn_recover.  We need this list so that we can restart the recovery.
+
+    toku_cond_t wait_for_unpin_of_txn;
 };
 
 static TXN_MANAGER_STATUS_S txn_manager_status;
@@ -201,6 +203,8 @@ void toku_txn_manager_init(TXN_MANAGER* txn_managerp) {
     txn_manager->oldest_living_starttime = 0;
     toku_list_init(&txn_manager->prepared_txns);
     toku_list_init(&txn_manager->prepared_and_returned_txns);
+
+    toku_cond_init(&txn_manager->wait_for_unpin_of_txn, 0);
     *txn_managerp = txn_manager;
 }
 
@@ -210,6 +214,7 @@ void toku_txn_manager_destroy(TXN_MANAGER txn_manager) {
     toku_omt_destroy(&txn_manager->live_root_txns);
     toku_omt_destroy(&txn_manager->snapshot_txnids);
     toku_omt_destroy(&txn_manager->live_list_reverse);
+    toku_cond_destroy(&txn_manager->wait_for_unpin_of_txn);
     toku_free(txn_manager);
 }
 
@@ -692,6 +697,16 @@ void toku_txn_manager_note_abort_txn(TXN_MANAGER txn_manager, TOKUTXN txn) {
         invalidate_xa_xid(&txn->xa_xid);
         toku_list_remove(&txn->prepared_txns_link);
     }
+    // for hot indexing, if hot index is processing
+    // this transaction in some leafentry, then we cannot change
+    // the state to commit or abort until
+    // hot index is done with that leafentry
+    while (txn->num_pin > 0) {
+        toku_cond_wait(
+            &txn_manager->wait_for_unpin_of_txn, 
+            &txn_manager->txn_manager_lock
+            );
+    }
     txn->state = TOKUTXN_ABORTING;
     toku_mutex_unlock(&txn_manager->txn_manager_lock);
 }
@@ -701,6 +716,16 @@ void toku_txn_manager_note_commit_txn(TXN_MANAGER txn_manager, TOKUTXN txn) {
     if (txn->state==TOKUTXN_PREPARING) {
         invalidate_xa_xid(&txn->xa_xid);
         toku_list_remove(&txn->prepared_txns_link);
+    }
+    // for hot indexing, if hot index is processing
+    // this transaction in some leafentry, then we cannot change
+    // the state to commit or abort until
+    // hot index is done with that leafentry
+    while (txn->num_pin > 0) {
+        toku_cond_wait(
+            &txn_manager->wait_for_unpin_of_txn, 
+            &txn_manager->txn_manager_lock
+            );
     }
     txn->state = TOKUTXN_COMMITTING;
     toku_mutex_unlock(&txn_manager->txn_manager_lock);
@@ -749,6 +774,20 @@ exit:
 }
 
 // needed for hot indexing
+void toku_txn_manager_pin_live_txn_unlocked(TXN_MANAGER UU(txn_manager), TOKUTXN txn) {
+    assert(txn->state == TOKUTXN_LIVE || txn->state == TOKUTXN_PREPARING);
+    txn->num_pin++;
+}
+
+void toku_txn_manager_unpin_live_txn_unlocked(TXN_MANAGER txn_manager, TOKUTXN txn) {
+    assert(txn->state == TOKUTXN_LIVE || txn->state == TOKUTXN_PREPARING);
+    assert(txn->num_pin > 0);
+    txn->num_pin--;
+    if (txn->num_pin == 0) {
+        toku_cond_broadcast(&txn_manager->wait_for_unpin_of_txn);
+    }
+}
+
 void toku_txn_manager_suspend(TXN_MANAGER txn_manager) {
     toku_mutex_lock(&txn_manager->txn_manager_lock);    
 }

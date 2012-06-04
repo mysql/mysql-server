@@ -170,7 +170,8 @@ toku_txn_create_txn (
         .txnid64 = xid,
         .ancestor_txnid64 = (parent_tokutxn ? parent_tokutxn->ancestor_txnid64 : xid),
         .xids = xids,
-        .roll_info = roll_info
+        .roll_info = roll_info,
+        .num_pin = 0
     };
 
 

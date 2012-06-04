@@ -374,6 +374,39 @@ do_del_multiple(DB_TXN *txn, uint32_t num_dbs, DB *db_array[], DBT keys[], DB *s
     return r;
 }
 
+//
+// if a hot index is in progress, gets the indexer
+// also verifies that there is at most one hot index
+// in progress. If it finds more than one, then returns EINVAL
+// 
+static int
+get_indexer_if_exists(
+    uint32_t num_dbs, 
+    DB **db_array, 
+    DB_INDEXER** indexerp
+    ) 
+{
+    int r = 0;
+    DB_INDEXER* first_indexer = NULL;
+    for (uint32_t i = 0; i < num_dbs; i++) {
+        DB_INDEXER* indexer = toku_db_get_indexer(db_array[i]);
+        if (indexer) {
+            if (!first_indexer) {
+                first_indexer = indexer;
+            }
+            else {
+                if (first_indexer != indexer) {
+                    r = EINVAL;
+                }
+            }
+        }
+    }
+    if (r == 0) {
+        *indexerp = first_indexer;
+    }
+    return r;
+}
+
 int
 env_del_multiple(
     DB_ENV *env, 
@@ -388,6 +421,7 @@ env_del_multiple(
 {
     int r;
     DBT del_keys[num_dbs];
+    DB_INDEXER* indexer = NULL;
 
     HANDLE_PANICKED_ENV(env);
 
@@ -401,6 +435,10 @@ env_del_multiple(
     }
 
     HANDLE_ILLEGAL_WORKING_PARENT_TXN(env, txn);
+    r = get_indexer_if_exists(num_dbs, db_array, &indexer);
+    if (r) {
+        goto cleanup;
+    }
 
     {
     uint32_t lock_flags[num_dbs];
@@ -442,7 +480,10 @@ env_del_multiple(
         brts[which_db] = db->i->ft_handle;
     }
 
-    toku_ydb_lock();
+    if (indexer) {
+        toku_indexer_lock(indexer);
+    }
+    toku_multi_operation_client_lock();
     if (num_dbs == 1) {
         r = log_del_single(txn, brts[0], &del_keys[0]);
     }
@@ -452,7 +493,10 @@ env_del_multiple(
     if (r == 0) 
         r = do_del_multiple(txn, num_dbs, db_array, del_keys, src_db, src_key);
     }
-    toku_ydb_unlock();
+    toku_multi_operation_client_unlock();
+    if (indexer) {
+        toku_indexer_unlock(indexer);
+    }
 
 cleanup:
     if (r == 0)
@@ -527,6 +571,7 @@ env_put_multiple_internal(
     int r;
     DBT put_keys[num_dbs];
     DBT put_vals[num_dbs];
+    DB_INDEXER* indexer = NULL;
 
     HANDLE_PANICKED_ENV(env);
 
@@ -544,6 +589,10 @@ env_put_multiple_internal(
     }
 
     HANDLE_ILLEGAL_WORKING_PARENT_TXN(env, txn);
+    r = get_indexer_if_exists(num_dbs, db_array, &indexer);
+    if (r) {
+        goto cleanup;
+    }
 
     for (uint32_t which_db = 0; which_db < num_dbs; which_db++) {
         DB *db = db_array[which_db];
@@ -587,7 +636,10 @@ env_put_multiple_internal(
         brts[which_db] = db->i->ft_handle;
     }
     
-    toku_ydb_lock();
+    if (indexer) {
+        toku_indexer_lock(indexer);
+    }
+    toku_multi_operation_client_lock();
     if (num_dbs == 1) {
         r = log_put_single(txn, brts[0], &put_keys[0], &put_vals[0]);
     }
@@ -597,7 +649,10 @@ env_put_multiple_internal(
     if (r == 0) {
         r = do_put_multiple(txn, num_dbs, db_array, put_keys, put_vals, src_db, src_key);
     }
-    toku_ydb_unlock();
+    toku_multi_operation_client_unlock();
+    if (indexer) {
+        toku_indexer_unlock(indexer);
+    }
 
 cleanup:
     if (r == 0)
@@ -617,6 +672,7 @@ env_update_multiple(DB_ENV *env, DB *src_db, DB_TXN *txn,
     int r = 0;
 
     HANDLE_PANICKED_ENV(env);
+    DB_INDEXER* indexer = NULL;
 
     if (!txn) {
         r = EINVAL;
@@ -628,6 +684,10 @@ env_update_multiple(DB_ENV *env, DB *src_db, DB_TXN *txn,
     }
 
     HANDLE_ILLEGAL_WORKING_PARENT_TXN(env, txn);
+    r = get_indexer_if_exists(num_dbs, db_array, &indexer);
+    if (r) {
+        goto cleanup;
+    }
 
     {
         uint32_t n_del_dbs = 0;
@@ -731,9 +791,10 @@ env_update_multiple(DB_ENV *env, DB *src_db, DB_TXN *txn,
                 n_put_dbs++;
             }
         }
-        // grab the ydb lock for the actual work that 
-        // depends on it
-        toku_ydb_lock();
+        if (indexer) {
+            toku_indexer_lock(indexer);
+        }
+        toku_multi_operation_client_lock();
         if (r == 0 && n_del_dbs > 0) {
             if (n_del_dbs == 1)
                 r = log_del_single(txn, del_fts[0], &del_keys[0]);
@@ -751,7 +812,10 @@ env_update_multiple(DB_ENV *env, DB *src_db, DB_TXN *txn,
             if (r == 0)
                 r = do_put_multiple(txn, n_put_dbs, put_dbs, put_keys, put_vals, src_db, new_src_key);
         }
-        toku_ydb_unlock();
+        toku_multi_operation_client_unlock();
+        if (indexer) {
+            toku_indexer_unlock(indexer);
+        }
     }
 
 cleanup:

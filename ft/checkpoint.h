@@ -58,7 +58,7 @@ void toku_multi_operation_client_unlock(void);
 
 // Initialize the checkpoint mechanism, must be called before any client operations.
 // Must pass in function pointers to take/release ydb lock.
-void toku_checkpoint_init(void (*ydb_lock_callback)(void), void (*ydb_unlock_callback)(void));
+void toku_checkpoint_init(void);
 
 void toku_checkpoint_destroy(void);
 

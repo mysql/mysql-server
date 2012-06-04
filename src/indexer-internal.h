@@ -12,6 +12,7 @@
 #define TOKU_INDEXER_INTERNAL_H
 
 #include <ft/txn_state.h>
+#include <toku_pthread.h>
 
 // the indexer_commit_keys is an ordered set of keys described by a DBT in the keys array.
 // the array is a resizeable array with max size "max_keys" and current size "current_keys".
@@ -24,7 +25,8 @@ struct indexer_commit_keys {
 
 struct __toku_indexer_internal {
     DB_ENV *env;
-    DB_TXN *txn;
+    DB_TXN *txn;    
+    toku_mutex_t indexer_lock;
     DB *src_db;
     int N;
     DB **dest_dbs; /* [N] */

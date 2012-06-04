@@ -172,6 +172,7 @@ struct tokutxn {
     // Protected by the txn manager lock:
     TOKUTXN_STATE state;
     struct toku_list prepared_txns_link; // list of prepared transactions
+    uint32_t num_pin;
 };
 
 static inline int
