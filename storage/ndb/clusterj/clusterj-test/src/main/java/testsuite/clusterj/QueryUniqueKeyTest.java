@@ -54,7 +54,7 @@ public class QueryUniqueKeyTest extends AbstractClusterJModelTest {
      * Fail if any errors during the tests.
      */
     public void testUniqueKey() {
-//        uniqueKeyBetweenQuery();
+        uniqueKeyBetweenQuery();
         uniqueKeyEqualQuery();
         uniqueKeyGreaterEqualQuery();
         uniqueKeyGreaterThanQuery();
@@ -254,45 +254,45 @@ public class QueryUniqueKeyTest extends AbstractClusterJModelTest {
         tx.commit();
     }
 
-//    public void uniqueKeyBetweenQuery() {
-//
-//        tx.begin();
-//        // QueryBuilder is the sessionFactory for queries
-//        QueryBuilder builder = session.getQueryBuilder();
-//        // QueryDomainType is the main interface
-//        QueryDomainType dobj = builder.createQueryDefinition(Dn2id.class);
-//
-//        // parameter name
-//        PredicateOperand lower = dobj.param("lower");
-//        // parameter name
-//        PredicateOperand upper = dobj.param("upper");
-//        // property name
-//        PredicateOperand column = dobj.get("eid");
-//        // compare the column with the parameter
-//        Predicate compare = column.between(lower, upper);
-//        // set the where clause into the query 
-//        dobj.where(compare);
-//        // create a query instance
-//        Query query = session.createQuery(dobj);
-//
-//        // set the parameter values
-//        query.setParameter("lower", (long)5);
-//        query.setParameter("upper", (long)7);
-//        // get the results
-//        List<Dn2id> results = query.getResultList();
-//        // consistency check the results
-//        consistencyCheck(results);
-//        // verify we got the right instances
-//        Set<Long> expected = new HashSet<Long>();
-//        expected.add((long)5);
-//        expected.add((long)6);
-//        expected.add((long)7);
-//        Set<Long> actual = new HashSet<Long>();
-//        for (Dn2id dn2id: results) {
-//            actual.add(dn2id.getEid());
-//        }
-//        errorIfNotEqual("Wrong Dn2id eids returned from uniqueKeyBetweenQuery query: ",
-//                expected, actual);
-//        tx.commit();
-//    }
+    public void uniqueKeyBetweenQuery() {
+
+        tx.begin();
+        // QueryBuilder is the sessionFactory for queries
+        QueryBuilder builder = session.getQueryBuilder();
+        // QueryDomainType is the main interface
+        QueryDomainType dobj = builder.createQueryDefinition(Dn2id.class);
+
+        // parameter name
+        PredicateOperand lower = dobj.param("lower");
+        // parameter name
+        PredicateOperand upper = dobj.param("upper");
+        // property name
+        PredicateOperand column = dobj.get("eid");
+        // compare the column with the parameter
+        Predicate compare = column.between(lower, upper);
+        // set the where clause into the query 
+        dobj.where(compare);
+        // create a query instance
+        Query query = session.createQuery(dobj);
+
+        // set the parameter values
+        query.setParameter("lower", (long)5);
+        query.setParameter("upper", (long)7);
+        // get the results
+        List<Dn2id> results = query.getResultList();
+        // consistency check the results
+        consistencyCheck(results);
+        // verify we got the right instances
+        Set<Long> expected = new HashSet<Long>();
+        expected.add((long)5);
+        expected.add((long)6);
+        expected.add((long)7);
+        Set<Long> actual = new HashSet<Long>();
+        for (Dn2id dn2id: results) {
+            actual.add(dn2id.getEid());
+        }
+        errorIfNotEqual("Wrong Dn2id eids returned from uniqueKeyBetweenQuery query: ",
+                expected, actual);
+        tx.commit();
+    }
 }
