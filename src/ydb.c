@@ -1806,7 +1806,6 @@ env_get_engine_status_num_rows (DB_ENV * UU(env), uint64_t * num_rowsp) {
     num_rows += YDB_LAYER_STATUS_NUM_ROWS;
     num_rows += YDB_C_LAYER_STATUS_NUM_ROWS;
     num_rows += YDB_WRITE_LAYER_STATUS_NUM_ROWS;
-    num_rows += YDB_LOCK_STATUS_NUM_ROWS;
     num_rows += LE_STATUS_NUM_ROWS;
     num_rows += CP_STATUS_NUM_ROWS;
     num_rows += CT_STATUS_NUM_ROWS;
