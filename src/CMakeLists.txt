@@ -16,7 +16,6 @@ set(tokudb_srcs
   loader.c
   indexer.c
   indexer-undo-do.c
-  elocks.c
   )
 
 ## make the shared library

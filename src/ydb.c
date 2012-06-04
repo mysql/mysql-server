@@ -193,12 +193,7 @@ int
 toku_ydb_init(void) {
     int r = 0;
     //Lower level must be initialized first.
-    if (r==0) {
-        r = toku_ft_layer_init();
-    }
-    if (r==0) {
-        toku_ydb_lock_init();
-    }
+    r = toku_ft_layer_init();
     return r;
 }
 
@@ -206,7 +201,6 @@ toku_ydb_init(void) {
 void 
 toku_ydb_destroy(void) {
     if (env_is_panicked == 0) {
-        toku_ydb_lock_destroy();
         toku_ft_layer_destroy();
     }
 }
@@ -1883,13 +1877,6 @@ env_get_engine_status (DB_ENV * env, TOKU_ENGINE_STATUS_ROW engstat, uint64_t ma
             ydb_write_layer_get_status(&ydb_write_stat);
             for (int i = 0; i < YDB_WRITE_LAYER_STATUS_NUM_ROWS && row < maxrows; i++) {
                 engstat[row++] = ydb_write_stat.status[i];
-            }
-        }
-        {
-            YDB_LOCK_STATUS_S ydb_lock_status;
-            toku_ydb_lock_get_status(&ydb_lock_status);
-            for (int i = 0; i < YDB_LOCK_STATUS_NUM_ROWS && row < maxrows; i++) {
-                engstat[row++] = ydb_lock_status.status[i];
             }
         }
         {
