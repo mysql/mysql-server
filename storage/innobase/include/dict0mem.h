@@ -175,7 +175,7 @@ ROW_FORMAT=REDUNDANT.  InnoDB engines do not check these flags
 for unknown bits in order to protect backward incompatibility. */
 /* @{ */
 /** Total number of bits in table->flags2. */
-#define DICT_TF2_BITS			5
+#define DICT_TF2_BITS			6
 #define DICT_TF2_BIT_MASK		~(~0 << DICT_TF2_BITS)
 
 /** TEMPORARY; TRUE for tables from CREATE TEMPORARY TABLE. */
@@ -190,6 +190,9 @@ This is a transient bit for index build */
 /** This bit is used during table creation to indicate that it will
 use its own tablespace instead of the system tablespace. */
 #define DICT_TF2_USE_TABLESPACE		16
+
+/** Set when we discard/detach the tablespace */
+#define DICT_TF2_DISCARDED		32
 /* @} */
 
 #define DICT_TF2_FLAG_SET(table, flag)				\
@@ -483,6 +486,8 @@ struct dict_index_struct{
 	unsigned	n_nullable:10;/*!< number of nullable fields */
 	unsigned	cached:1;/*!< TRUE if the index object is in the
 				dictionary cache */
+	unsigned	to_be_dropped:1;
+				/*!< TRUE if the index is to be dropped */
 	unsigned	online_status:2;
 				/*!< enum online_index_status */
 	dict_field_t*	fields;	/*!< array of field descriptions */
@@ -642,11 +647,6 @@ struct dict_table_struct{
 				tablespace and the .ibd file is missing; then
 				we must return in ha_innodb.cc an error if the
 				user tries to query such an orphaned table */
-	unsigned	tablespace_discarded:1;
-				/*!< this flag is set TRUE when the user
-				calls DISCARD TABLESPACE on this
-				table, and reset to FALSE in IMPORT
-				TABLESPACE */
 	unsigned	cached:1;/*!< TRUE if the table object has been added
 				to the dictionary cache */
 	unsigned	n_def:10;/*!< number of columns defined so far */
@@ -725,6 +725,8 @@ struct dict_table_struct{
 	unsigned	stat_initialized:1; /*!< TRUE if statistics have
 				been calculated the first time
 				after database startup or table creation */
+	ib_time_t	stats_last_recalc;
+				/*!< Timestamp of last recalc of the stats */
 	ib_uint32_t	stat_persistent;
 				/*!< The two bits below are set in the
 				::stat_persistent member and have the following
@@ -744,6 +746,33 @@ struct dict_table_struct{
 				this ever happens. */
 #define DICT_STATS_PERSISTENT_ON	(1 << 1)
 #define DICT_STATS_PERSISTENT_OFF	(1 << 2)
+	ib_uint32_t	stats_auto_recalc;
+				/*!< The two bits below are set in the
+				::stats_auto_recalc member and have
+				the following meaning:
+				1. _ON=0, _OFF=0, no explicit auto recalc
+				setting for this table, the value of the global
+				srv_stats_persistent_auto_recalc is used to
+				determine whether the table has auto recalc
+				enabled or not
+				2. _ON=0, _OFF=1, auto recalc is explicitly
+				disabled for this table, regardless of the
+				value of the global
+				srv_stats_persistent_auto_recalc
+				3. _ON=1, _OFF=0, auto recalc is explicitly
+				enabled for this table, regardless of the
+				value of the global
+				srv_stats_persistent_auto_recalc
+				4. _ON=1, _OFF=1, not allowed, we assert if
+				this ever happens. */
+#define DICT_STATS_AUTO_RECALC_ON	(1 << 1)
+#define DICT_STATS_AUTO_RECALC_OFF	(1 << 2)
+	ulint		stats_sample_pages;
+				/*!< the number of pages to sample for this
+				table during persistent stats estimation;
+				if this is 0, then the value of the global
+				srv_stats_persistent_sample_pages will be
+				used instead. */
 	ib_uint64_t	stat_n_rows;
 				/*!< approximate number of rows in the table;
 				we periodically calculate new estimates */
@@ -765,6 +794,21 @@ struct dict_table_struct{
 				calculation; this counter is not protected by
 				any latch, because this is only used for
 				heuristics */
+#define BG_STAT_NONE		0
+#define BG_STAT_IN_PROGRESS	(1 << 0)
+				/*!< BG_STAT_IN_PROGRESS is set in
+				stats_bg_flag when the background
+				stats code is working on this table. The DROP
+				TABLE code waits for this to be cleared
+				before proceeding. */
+#define BG_STAT_SHOULD_QUIT	(1 << 1)
+				/*!< BG_STAT_SHOULD_QUIT is set in
+				stats_bg_flag when DROP TABLE starts
+				waiting on BG_STAT_IN_PROGRESS to be cleared,
+				the background stats thread will detect this
+				and will eventually quit sooner */
+	byte		stats_bg_flag;
+				/*!< see BG_STAT_* above */
 				/* @} */
 	/*----------------------*/
 				/**!< The following fields are used by the
@@ -810,6 +854,14 @@ struct dict_table_struct{
 				Protected by lock_sys->mutex. */
 	fts_t*		fts;	/* FTS specific state variables */
 				/* @} */
+	/*----------------------*/
+
+	ib_quiesce_t	 quiesce;/*!< Quiescing states, protected by the
+				dict_index_t::lock. ie. we can only change
+				the state if we acquire all the latches
+				(dict_index_t::lock) in X mode of this table's
+				indexes. */
+
 	/*----------------------*/
 	ulint		n_rec_locks;
 				/*!< Count of the number of record locks on

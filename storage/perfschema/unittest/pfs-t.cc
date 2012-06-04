@@ -111,6 +111,7 @@ void test_bootstrap()
   param.m_events_statements_history_sizing= 0;
   param.m_events_statements_history_long_sizing= 0;
   param.m_digest_sizing= 0;
+  param.m_session_connect_attrs_sizing= 0;
 
   boot= initialize_performance_schema(& param);
   ok(boot != NULL, "boot");
@@ -168,6 +169,7 @@ PSI * load_perfschema()
   param.m_events_statements_history_sizing= 0;
   param.m_events_statements_history_long_sizing= 0;
   param.m_digest_sizing= 0;
+  param.m_session_connect_attrs_sizing= 0;
 
   /* test_bootstrap() covered this, assuming it just works */
   boot= initialize_performance_schema(& param);
@@ -1485,6 +1487,8 @@ void test_event_name_index()
   memset(& param, 0xFF, sizeof(param));
   param.m_enabled= true;
 
+  /* NOTE: Need to add 3 to each index: table io, table lock, idle */
+
   /* Per mutex info waits should be at [0..9] */
   param.m_mutex_class_sizing= 10;
   /* Per rwlock info waits should be at [10..29] */
@@ -1509,6 +1513,7 @@ void test_event_name_index()
   param.m_events_statements_history_sizing= 0;
   param.m_events_statements_history_long_sizing= 0;
   param.m_digest_sizing= 0;
+  param.m_session_connect_attrs_sizing= 0;
 
   param.m_mutex_sizing= 0;
   param.m_rwlock_sizing= 0;
@@ -1540,10 +1545,10 @@ void test_event_name_index()
   psi->register_mutex("X", dummy_mutexes, 2);
   mutex_class= find_mutex_class(dummy_mutex_key_1);
   ok(mutex_class != NULL, "mutex class 1");
-  ok(mutex_class->m_event_name_index == 0, "index 0");
+  ok(mutex_class->m_event_name_index == 3, "index 3");
   mutex_class= find_mutex_class(dummy_mutex_key_2);
   ok(mutex_class != NULL, "mutex class 2");
-  ok(mutex_class->m_event_name_index == 1, "index 1");
+  ok(mutex_class->m_event_name_index == 4, "index 4");
 
   PFS_rwlock_class *rwlock_class;
   PSI_rwlock_key dummy_rwlock_key_1;
@@ -1557,10 +1562,10 @@ void test_event_name_index()
   psi->register_rwlock("X", dummy_rwlocks, 2);
   rwlock_class= find_rwlock_class(dummy_rwlock_key_1);
   ok(rwlock_class != NULL, "rwlock class 1");
-  ok(rwlock_class->m_event_name_index == 10, "index 10");
+  ok(rwlock_class->m_event_name_index == 13, "index 13");
   rwlock_class= find_rwlock_class(dummy_rwlock_key_2);
   ok(rwlock_class != NULL, "rwlock class 2");
-  ok(rwlock_class->m_event_name_index == 11, "index 11");
+  ok(rwlock_class->m_event_name_index == 14, "index 14");
 
   PFS_cond_class *cond_class;
   PSI_cond_key dummy_cond_key_1;
@@ -1574,10 +1579,10 @@ void test_event_name_index()
   psi->register_cond("X", dummy_conds, 2);
   cond_class= find_cond_class(dummy_cond_key_1);
   ok(cond_class != NULL, "cond class 1");
-  ok(cond_class->m_event_name_index == 30, "index 30");
+  ok(cond_class->m_event_name_index == 33, "index 33");
   cond_class= find_cond_class(dummy_cond_key_2);
   ok(cond_class != NULL, "cond class 2");
-  ok(cond_class->m_event_name_index == 31, "index 31");
+  ok(cond_class->m_event_name_index == 34, "index 34");
 
   PFS_file_class *file_class;
   PSI_file_key dummy_file_key_1;
@@ -1591,10 +1596,10 @@ void test_event_name_index()
   psi->register_file("X", dummy_files, 2);
   file_class= find_file_class(dummy_file_key_1);
   ok(file_class != NULL, "file class 1");
-  ok(file_class->m_event_name_index == 70, "index 70");
+  ok(file_class->m_event_name_index == 73, "index 73");
   file_class= find_file_class(dummy_file_key_2);
   ok(file_class != NULL, "file class 2");
-  ok(file_class->m_event_name_index == 71, "index 71");
+  ok(file_class->m_event_name_index == 74, "index 74");
 
   PFS_socket_class *socket_class;
   PSI_socket_key dummy_socket_key_1;
@@ -1608,13 +1613,13 @@ void test_event_name_index()
   psi->register_socket("X", dummy_sockets, 2);
   socket_class= find_socket_class(dummy_socket_key_1);
   ok(socket_class != NULL, "socket class 1");
-  ok(socket_class->m_event_name_index == 150, "index 150");
+  ok(socket_class->m_event_name_index == 153, "index 153");
   socket_class= find_socket_class(dummy_socket_key_2);
   ok(socket_class != NULL, "socket class 2");
-  ok(socket_class->m_event_name_index == 151, "index 151");
+  ok(socket_class->m_event_name_index == 154, "index 154");
 
-  ok(global_table_io_class.m_event_name_index == 310, "index 310");
-  ok(global_table_lock_class.m_event_name_index == 311, "index 311");
+  ok(global_table_io_class.m_event_name_index == 0, "index 0");
+  ok(global_table_lock_class.m_event_name_index == 1, "index 1");
   ok(wait_class_max= 313, "313 event names"); // 3 global classes
 }
 

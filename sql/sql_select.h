@@ -331,10 +331,37 @@ inline bool sj_is_materialize_strategy(uint strategy)
 enum quick_type { QS_NONE, QS_RANGE, QS_DYNAMIC_RANGE};
 
 struct st_cache_field;
+class QEP_operation;
+class Filesort;
 
 typedef struct st_join_table : public Sql_alloc
 {
   st_join_table();
+
+  table_map prefix_tables() const { return prefix_tables_map; }
+
+  table_map added_tables() const { return added_tables_map; }
+
+  /**
+    Set available tables for a table in a join plan.
+
+    @param prefix_tables: Set of tables available for this plan
+    @param prev_tables: Set of tables available for previous table, used to
+                        calculate set of tables added for this table.
+  */
+  void set_prefix_tables(table_map prefix_tables, table_map prev_tables)
+  {
+    prefix_tables_map= prefix_tables;
+    added_tables_map= prefix_tables & ~prev_tables;
+  }
+
+  /**
+    Add an available set of tables for a table in a join plan.
+
+    @param tables: Set of tables added for this table in plan.
+  */
+  void add_prefix_tables(table_map tables)
+  { prefix_tables_map|= tables; added_tables_map|= tables; }
 
   TABLE		*table;
   Key_use	*keyuse;			/**< pointer to first used key */
@@ -407,8 +434,27 @@ public:
     E(#records) is in found_records.
   */
   ha_rows       read_time;
-  
-  table_map	dependent,key_dependent;
+  /**
+    The set of tables that this table depends on. Used for outer join and
+    straight join dependencies.
+  */
+  table_map     dependent;
+  /**
+    The set of tables that are referenced by key from this table.
+  */
+  table_map     key_dependent;
+private:
+  /**
+    The set of all tables available in the join prefix for this table,
+    including the table handled by this JOIN_TAB.
+  */
+  table_map     prefix_tables_map;
+  /**
+    The set of tables added for this table, compared to the previous table
+    in the join prefix.
+  */
+  table_map     added_tables_map;
+public:
   uint		index;
   uint		used_fields,used_fieldlength,used_blobs;
   uint          used_null_fields;
@@ -431,7 +477,7 @@ public:
     After optimization it contains chosen join buffering strategy (if any).
    */
   uint          use_join_cache;
-  JOIN_CACHE	*cache;
+  QEP_operation *op;
   /*
     Index condition for BKA access join
   */
@@ -495,6 +541,39 @@ public:
 
   /* NestedOuterJoins: Bitmap of nested joins this table is part of */
   nested_join_map embedding_map;
+
+  /* Tmp table info */
+  TMP_TABLE_PARAM *tmp_table_param;
+
+  /* Sorting related info */
+  Filesort *filesort;
+
+  /**
+    List of topmost expressions in the select list. The *next* JOIN TAB
+    in the plan should use it to obtain correct values. Same applicable to
+    all_fields. These lists are needed because after tmp tables functions
+    will be turned to fields. These variables are pointing to
+    tmp_fields_list[123]. Valid only for tmp tables and the last non-tmp
+    table in the query plan.
+    @see JOIN::make_tmp_tables_info()
+  */
+  List<Item> *fields;
+  /** List of all expressions in the select list */
+  List<Item> *all_fields;
+  /*
+    Pointer to the ref array slice which to switch to before sending
+    records. Valid only for tmp tables.
+  */
+  Ref_ptr_array *ref_array;
+
+  /** Number of records saved in tmp table */
+  ha_rows send_records;
+
+  /** HAVING condition for checking prior saving a record into tmp table*/
+  Item *having;
+
+  /** TRUE <=> remove duplicates on this table. */
+  bool distinct;
 
   void cleanup();
   inline bool is_using_loose_index_scan()
@@ -572,6 +651,9 @@ public:
   {
     return ref.has_guarded_conds();
   }
+  bool prepare_scan();
+  bool sort_table();
+  bool remove_duplicates();
 } JOIN_TAB;
 
 inline
@@ -611,6 +693,8 @@ st_join_table::st_join_table()
 
     dependent(0),
     key_dependent(0),
+    prefix_tables_map(0),
+    added_tables_map(0),
     index(0),
     used_fields(0),
     used_fieldlength(0),
@@ -626,7 +710,7 @@ st_join_table::st_join_table()
     limit(0),
     ref(),
     use_join_cache(0),
-    cache(NULL),
+    op(NULL),
 
     cache_idx_cond(NULL),
     cache_select(NULL),
@@ -646,7 +730,15 @@ st_join_table::st_join_table()
 
     keep_current_rowid(0),
     copy_current_rowid(NULL),
-    embedding_map(0)
+    embedding_map(0),
+    tmp_table_param(NULL),
+    filesort(NULL),
+    fields(NULL),
+    all_fields(NULL),
+    ref_array(NULL),
+    send_records(0),
+    having(NULL),
+    distinct(false)
 {
   /**
     @todo Add constructor to READ_RECORD.
@@ -1139,7 +1231,7 @@ bool handle_select(THD *thd, LEX *lex, select_result *result,
 bool mysql_select(THD *thd,
                   TABLE_LIST *tables, uint wild_num,  List<Item> &list,
                   Item *conds, uint og_num, ORDER *order, ORDER *group,
-                  Item *having, ORDER *proc_param, ulonglong select_type, 
+                  Item *having, ulonglong select_type, 
                   select_result *result, SELECT_LEX_UNIT *unit, 
                   SELECT_LEX *select_lex);
 void free_underlaid_joins(THD *thd, SELECT_LEX *select);

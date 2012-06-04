@@ -32,8 +32,8 @@ Created 12/7/1995 Heikki Tuuri
 
 #ifndef UNIV_HOTBACKUP
 /********************************************************//**
-Writes 1 - 4 bytes to a file page buffered in the buffer pool.
-Writes the corresponding log record to the mini-transaction log. */
+Writes 1, 2 or 4 bytes to a file page. Writes the corresponding log
+record to the mini-transaction log if mtr is not NULL. */
 UNIV_INTERN
 void
 mlog_write_ulint(
@@ -43,8 +43,8 @@ mlog_write_ulint(
 	byte	type,	/*!< in: MLOG_1BYTE, MLOG_2BYTES, MLOG_4BYTES */
 	mtr_t*	mtr);	/*!< in: mini-transaction handle */
 /********************************************************//**
-Writes 8 bytes to a file page buffered in the buffer pool.
-Writes the corresponding log record to the mini-transaction log. */
+Writes 8 bytes to a file page. Writes the corresponding log
+record to the mini-transaction log, only if mtr is not NULL */
 UNIV_INTERN
 void
 mlog_write_ull(
@@ -217,12 +217,13 @@ UNIV_INTERN
 byte*
 mlog_open_and_write_index(
 /*======================*/
-	mtr_t*		mtr,	/*!< in: mtr */
-	const byte*	rec,	/*!< in: index record or page */
-	dict_index_t*	index,	/*!< in: record descriptor */
-	byte		type,	/*!< in: log item type */
-	ulint		size);	/*!< in: requested buffer size in bytes
-				(if 0, calls mlog_close() and returns NULL) */
+	mtr_t*			mtr,	/*!< in: mtr */
+	const byte*		rec,	/*!< in: index record or page */
+	const dict_index_t*	index,	/*!< in: record descriptor */
+	byte			type,	/*!< in: log item type */
+	ulint			size);	/*!< in: requested buffer size in bytes
+					(if 0, calls mlog_close() and
+					returns NULL) */
 #endif /* !UNIV_HOTBACKUP */
 
 /********************************************************//**

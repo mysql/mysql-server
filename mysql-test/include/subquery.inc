@@ -38,7 +38,7 @@ SELECT 1 IN (SELECT 1);
 SELECT 1 FROM (SELECT 1 as a) b WHERE 1 IN (SELECT (SELECT a));
 -- error ER_WRONG_USAGE
 select (SELECT 1 FROM (SELECT 1) a PROCEDURE ANALYSE(1));
--- error ER_WRONG_PARAMETERS_TO_PROCEDURE
+-- error ER_PARSE_ERROR
 SELECT 1 FROM (SELECT 1) a PROCEDURE ANALYSE((SELECT 1));
 -- error ER_BAD_FIELD_ERROR
 SELECT (SELECT 1) as a FROM (SELECT 1) b WHERE (SELECT a) IS NULL;
@@ -3910,7 +3910,6 @@ SELECT a, ROW(11, 12) = (SELECT a, 12), ROW(11, 12) IN (SELECT a, 12) FROM t1;
 # The x alias is used below to workaround bug #40674.
 # Regression tests for sum function on outer column in subselect from dual:
 SELECT a AS x, ROW(11, 12) = (SELECT MAX(x), 22), ROW(11, 12) IN (SELECT MAX(x), 22) FROM t1;
---echo # 2nd and 3rd columns should be same for x == 11 only
 SELECT a AS x, ROW(11, 12) = (SELECT MAX(x), 12), ROW(11, 12) IN (SELECT MAX(x), 12) FROM t1;
 
 DROP TABLE t1;
@@ -5869,6 +5868,18 @@ DROP VIEW v1, v2;
 DROP TABLE m, o, integers;
 
 --echo #
+--echo # Bug#13721076 CRASH WITH TIME TYPE/TIMESTAMP() AND WARNINGS IN SUBQUERY
+--echo #
+
+CREATE TABLE t1(a TIME NOT NULL);
+INSERT INTO t1 VALUES ('00:00:32');
+
+SELECT 1 FROM t1 WHERE a >
+(SELECT timestamp(a) AS a FROM t1);
+
+DROP TABLE t1;
+
+--echo #
 --echo # Bug #13736664 RIGHT JOIN+WHERE QUERY GIVES DIFF RESULTS WHEN USING
 --echo # SELECT * SUBQ FOR TABLES
 --echo #
@@ -5922,6 +5933,14 @@ CREATE TABLE t0 (
  i1 INTEGER NOT NULL PRIMARY KEY
 );
 INSERT INTO t0 VALUES (7);
+
+-- disable_query_log
+-- disable_result_log
+ANALYZE TABLE t0;
+ANALYZE TABLE t1;
+ANALYZE TABLE t2;
+-- enable_result_log
+-- enable_query_log
 
 SELECT col_varchar_nokey
 FROM t1
@@ -5988,6 +6007,38 @@ eval explain extended $query;
 eval $query;
 
 DROP TABLE t0, t1, t2;
+
+
+--echo #
+--echo # Bug #13639204 64111: CRASH ON SELECT SUBQUERY WITH NON UNIQUE
+--echo # INDEX
+--echo #
+CREATE TABLE t1 (
+id int
+) ENGINE=InnoDB;
+INSERT INTO t1 (id) VALUES (11);
+
+CREATE TABLE t2 (
+t1_id int,
+position int,
+KEY t1_id (t1_id),
+KEY t1_id_position (t1_id,position)
+) ENGINE=InnoDB;
+
+let $query=SELECT
+(SELECT position FROM t2
+WHERE t2.t1_id = t1.id
+ORDER BY t2.t1_id , t2.position
+LIMIT 10,1
+) AS maxkey
+FROM t1
+LIMIT 1;
+
+eval EXPLAIN $query;
+eval $query;
+
+DROP TABLE t1,t2;
+
 
 --echo #
 --echo # Bug#13731417 WRONG RESULT WITH NOT IN (SUBQUERY) AND

@@ -51,7 +51,8 @@ static const char *traditional_extra_tags[ET_total]=
   "Using join buffer",                 // ET_USING_JOIN_BUFFER 
   "const row not found",               // ET_CONST_ROW_NOT_FOUND
   "unique row not found",              // ET_UNIQUE_ROW_NOT_FOUND
-  "Impossible ON condition"            // ET_IMPOSSIBLE_ON_CONDITION
+  "Impossible ON condition",           // ET_IMPOSSIBLE_ON_CONDITION
+  ""                                   // ET_PUSHED_JOIN
 };
 
 
@@ -63,7 +64,7 @@ bool Explain_format_traditional::send_headers(select_result *result)
           current_thd->send_explain_fields(output));
 }
 
-static bool push(List<Item> *items, const qep_row::mem_root_str &s,
+static bool push(List<Item> *items, qep_row::mem_root_str &s,
                  Item_null *nil)
 {
   if (s.is_empty())
@@ -202,6 +203,7 @@ bool Explain_format_traditional::flush_entry()
           break;
         }
         if (e->tag != ET_FIRST_MATCH && // for backward compatibility
+            e->tag != ET_PUSHED_JOIN &&
             buff.append(" "))
           return true;
         if (brackets && buff.append("("))

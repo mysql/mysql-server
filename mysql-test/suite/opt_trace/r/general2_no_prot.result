@@ -609,11 +609,11 @@ TRACE
                 },
                 {
                   "table": "`t2`",
-                  "attached": "trigcond_if(is_not_null_compl(t2..t3), (`t2`.`i` = `t1`.`i`), true)"
+                  "attached": "<if>(is_not_null_compl(t2..t3), (`t2`.`i` = `t1`.`i`), true)"
                 },
                 {
                   "table": "`t3`",
-                  "attached": "((trigcond_if(found_match(t3), trigcond_if(found_match(t2..t3), isnull(`t3`.`i`), true), true) and trigcond_if(is_not_null_compl(t3), (`t2`.`i` = `t1`.`i`), true)) and trigcond_if(is_not_null_compl(t3), (`t3`.`i` = `t1`.`i`), true))"
+                  "attached": "(<if>(found_match(t3), <if>(found_match(t2..t3), isnull(`t3`.`i`), true), true) and <if>(is_not_null_compl(t3), (`t3`.`i` = `t1`.`i`), true))"
                 }
               ] /* attached_conditions_summary */
             } /* attaching_conditions_to_tables */
@@ -1647,7 +1647,7 @@ insert into t1 values(3)	{
   "steps": [
   ] /* steps */
 }	0	0
-SET  @a=(select count(a) from t1 where a>0)	{
+SET @a=(select count(a) from t1 where a>0)	{
   "steps": [
     {
       "join_preparation": {
@@ -1895,11 +1895,11 @@ set_case_expr (15) 0 (select count(`a`) from `test`.`t1` where (`a` > 1))	{
     }
   ] /* steps */
 }	0	0
-jump_if_not 11(15) (case_expr@0 = 2)	{
+jump_if_not_case_when 11(15) (case_expr@0 = 2)	{
   "steps": [
   ] /* steps */
 }	0	0
-SET  @b=2	{
+SET @b=2	{
   "steps": [
   ] /* steps */
 }	0	0
@@ -2542,7 +2542,7 @@ table3.col_varchar_10_utf8_key	{
                 },
                 {
                   "table": "`t2` `table3`",
-                  "attached": "trigcond_if(is_not_null_compl(table3), (convert(NULL using utf8) >= `table3`.`col_varchar_10_utf8_key`), true)"
+                  "attached": "<if>(is_not_null_compl(table3), (convert(NULL using utf8) >= `table3`.`col_varchar_10_utf8_key`), true)"
                 }
               ] /* attached_conditions_summary */
             } /* attaching_conditions_to_tables */

@@ -251,6 +251,8 @@ SHOW CREATE TABLE articles;
 # Create the FTS index Using Alter Table. 
 ALTER TABLE articles ADD FULLTEXT INDEX idx (title,body);
 
+ANALYZE TABLE articles;
+
 # search default stopword with innodb_ft_enable_stopword is OFF.
 # All records expected as stopwod filtering is OFF and we created 
 # new FTS index.
@@ -525,6 +527,9 @@ ALTER TABLE articles ADD FULLTEXT INDEX idx (title,body);
 --echo "In connection 1"
 --connection con1
 select @@innodb_ft_enable_stopword;
+
+ANALYZE TABLE articles;
+
 # result expected as index created before setting innodb_ft_enable_stopword varaible off
 SELECT * FROM articles WHERE MATCH(title,body) AGAINST ("where will");
 SELECT * FROM articles WHERE MATCH(title,body) AGAINST ("when");

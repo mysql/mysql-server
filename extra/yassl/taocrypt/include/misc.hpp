@@ -14,7 +14,7 @@
    along with this program; see the file COPYING. If not, write to the
    Free Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston,
    MA  02110-1301  USA.
-*/
+ */
 
 /* based on Wei Dai's misc.h from CryptoPP */
 
@@ -24,7 +24,6 @@
 
 #if !defined(DO_TAOCRYPT_KERNEL_MODE)
     #include <stdlib.h>
-    #include <assert.h>
     #include <string.h>
 #else
     #include "kernelc.hpp"
@@ -62,30 +61,30 @@ void CleanUp();
     template<typename T>
     void tcDelete(T* ptr)
     {
-    if (ptr) ptr->~T();
-    ::operator delete(ptr, TaoCrypt::tc);
+        if (ptr) ptr->~T();
+        ::operator delete(ptr, TaoCrypt::tc);
     }
 
     template<typename T>
     void tcArrayDelete(T* ptr)
     {
-    // can't do array placement destruction since not tracking size in
-    // allocation, only allow builtins to use array placement since they
-    // don't need destructors called
-    typedef char builtin[IsFundamentalType<T>::Yes ? 1 : -1];
-    (void)sizeof(builtin);
+        // can't do array placement destruction since not tracking size in
+        // allocation, only allow builtins to use array placement since they
+        // don't need destructors called
+        typedef char builtin[IsFundamentalType<T>::Yes ? 1 : -1];
+        (void)sizeof(builtin);
 
-    ::operator delete[](ptr, TaoCrypt::tc);
+        ::operator delete[](ptr, TaoCrypt::tc);
     }
 
     #define NEW_TC new (TaoCrypt::tc)
 
 
     // to resolve compiler generated operator delete on base classes with
-    // virtual destructors (when on stack), make sure doesn't get called
+    // virtual destructors (when on stack)
     class virtual_base {
     public:
-    static void operator delete(void*) { assert(0); }
+        static void operator delete(void*) { }
     };
 
 #else // YASSL_PURE_C
@@ -366,7 +365,6 @@ inline bool IsPowerOf2(T n)
 template <class T1, class T2>
 inline T2 ModPowerOf2(T1 a, T2 b)
 {
-    assert(IsPowerOf2(b));
     return T2(a) & (b-1);
 }
 
@@ -409,14 +407,12 @@ inline bool IsAligned(const void* p, T* dummy = 0)	// VC60 workaround
 
 template <class T> inline T rotlFixed(T x, unsigned int y)
 {
-    assert(y < sizeof(T)*8);
-        return (x<<y) | (x>>(sizeof(T)*8-y));
+    return (x<<y) | (x>>(sizeof(T)*8-y));
 }
 
 template <class T> inline T rotrFixed(T x, unsigned int y)
 {
-    assert(y < sizeof(T)*8);
-        return (x>>y) | (x<<(sizeof(T)*8-y));
+    return (x>>y) | (x<<(sizeof(T)*8-y));
 }
 
 #ifdef INTEL_INTRINSICS
@@ -425,13 +421,11 @@ template <class T> inline T rotrFixed(T x, unsigned int y)
 
 template<> inline word32 rotlFixed(word32 x, word32 y)
 {
-    assert(y < 32);
     return y ? _lrotl(x, y) : x;
 }
 
 template<> inline word32 rotrFixed(word32 x, word32 y)
 {
-    assert(y < 32);
     return y ? _lrotr(x, y) : x;
 }
 
@@ -441,7 +435,9 @@ template<> inline word32 rotrFixed(word32 x, word32 y)
 #undef min
 #endif 
 
-inline word32 min(word32 a, word32 b)
+
+template <class T>
+inline const T& min(const T& a, const T& b)
 {
     return a < b ? a : b;
 }
@@ -486,7 +482,6 @@ inline word64 ByteReverse(word64 value)
 template <typename T>
 inline void ByteReverse(T* out, const T* in, word32 byteCount)
 {
-    assert(byteCount % sizeof(T) == 0);
     word32 count = byteCount/sizeof(T);
     for (word32 i=0; i<count; i++)
         out[i] = ByteReverse(in[i]);
@@ -574,7 +569,6 @@ inline void GetUserKey(ByteOrder order, T* out, word32 outlen, const byte* in,
                        word32 inlen)
 {
     const unsigned int U = sizeof(T);
-    assert(inlen <= outlen*U);
     memcpy(out, in, inlen);
     memset((byte *)out+inlen, 0, outlen*U-inlen);
     ByteReverseIf(out, out, RoundUpToMultipleOf(inlen, U), order);
@@ -583,7 +577,8 @@ inline void GetUserKey(ByteOrder order, T* out, word32 outlen, const byte* in,
 
 #ifdef _MSC_VER
     // disable conversion warning
-    #pragma warning(disable:4244)
+    // 4996 warning to use MS extensions e.g., strcpy_s instead of strncpy
+    #pragma warning(disable:4244 4996)
 #endif
 
 
@@ -678,10 +673,7 @@ template <class T>
 inline T GetWord(bool assumeAligned, ByteOrder order, const byte *block)
 {
     if (assumeAligned)
-    {
-        assert(IsAligned<T>(block));
         return ByteReverseIf(*reinterpret_cast<const T *>(block), order);
-    }
     else
         return UnalignedGetWord<T>(order, block);
 }
@@ -699,7 +691,6 @@ inline void PutWord(bool assumeAligned, ByteOrder order, byte* block, T value,
 {
     if (assumeAligned)
     {
-        assert(IsAligned<T>(block));
         if (xorBlock)
             *reinterpret_cast<T *>(block) = ByteReverseIf(value, order) 
                 ^ *reinterpret_cast<const T *>(xorBlock);
@@ -752,7 +743,11 @@ private:
     byte *m_block;
 };
 
-template <class T, class B, bool A=true>
+/*
+  XXX MYSQL: Setting A (assumeAligned) to false,
+  keeping it true might trigger segfault on SPARC.
+*/
+template <class T, class B, bool A= false>
 struct BlockGetAndPut
 {
     // function needed because of C++ grammatical ambiguity between
@@ -812,7 +807,6 @@ inline T SafeLeftShift(T value)
 inline
 word ShiftWordsLeftByBits(word* r, unsigned int n, unsigned int shiftBits)
 {
-    assert (shiftBits<WORD_BITS);
     word u, carry=0;
     if (shiftBits)
         for (unsigned int i=0; i<n; i++)
@@ -828,7 +822,6 @@ word ShiftWordsLeftByBits(word* r, unsigned int n, unsigned int shiftBits)
 inline
 word ShiftWordsRightByBits(word* r, unsigned int n, unsigned int shiftBits)
 {
-    assert (shiftBits<WORD_BITS);
     word u, carry=0;
     if (shiftBits)
         for (int i=n-1; i>=0; i--)

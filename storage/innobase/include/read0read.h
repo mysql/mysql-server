@@ -148,7 +148,7 @@ struct read_view_struct{
 	trx_id_t*	trx_ids;/*!< Additional trx ids which the read should
 				not see: typically, these are the read-write
 				active transactions at the time when the read
-			       	is serialized, except the reading transaction
+				is serialized, except the reading transaction
 				itself; the trx ids in this array are in a
 				descending order. These trx_ids should be
 				between the "low" and "high" water marks,

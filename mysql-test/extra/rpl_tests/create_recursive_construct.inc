@@ -165,6 +165,10 @@
 --let $CRC_RET_desc=
 --let $CRC_name=
 --let $CRC_create=
+--let $CRC_expected_number_of_warnings= $CRC_ARG_expected_number_of_warnings
+--let $CRC_expected_number_of_warnings_normal_protocol= $CRC_ARG_expected_number_of_warnings
+--let $CRC_expected_number_of_warnings_ps_protocol= $CRC_ARG_expected_number_of_warnings
+--let $CRC_expected_number_of_warnings_after_reset= 0
 
 ######## func_retval ########
 # if inside if in lieu of AND operand
@@ -289,6 +293,18 @@ if ($CRC_ARG_type == 7) {
   --let $CRC_RET_drop=
   --let $CRC_RET_is_toplevel= 1
   --let $CRC_RET_desc= $CRC_ARG_desc
+  --let $CRC_expected_number_of_warnings_normal_protocol= `select $CRC_ARG_expected_number_of_deprecation_warnings + $CRC_ARG_expected_number_of_warnings`
+  --let $CRC_expected_number_of_warnings_ps_protocol= $CRC_ARG_expected_number_of_warnings
+  --let $CRC_expected_number_of_warnings_after_reset_normal_protocol= `select $CRC_ARG_expected_number_of_deprecation_warnings + $CRC_expected_number_of_warnings_after_reset`
+  --let $CRC_expected_number_of_warnings_after_reset_ps_protocol= $CRC_expected_number_of_warnings_after_reset
+
+  --let $CRC_expected_number_of_warnings= $CRC_expected_number_of_warnings_normal_protocol
+  --let $CRC_expected_number_of_warnings_after_reset= $CRC_expected_number_of_warnings_after_reset_normal_protocol
+  if ($PS_PROTOCOL)
+  {
+    --let $CRC_expected_number_of_warnings= $CRC_expected_number_of_warnings_ps_protocol
+    --let $CRC_expected_number_of_warnings_after_reset= $CRC_expected_number_of_warnings_after_reset_ps_protocol
+  }
 }
 
 ######## execute! ########
@@ -299,13 +315,21 @@ if ($CRC_RET_stmt_sidef) {
     --eval $CRC_create
   }
 
-  --echo * binlog_format = STATEMENT: expect $CRC_ARG_expected_number_of_warnings warnings.
+  if ($CRC_expected_number_of_warnings_normal_protocol == $CRC_expected_number_of_warnings_ps_protocol)
+  {
+    --echo * binlog_format = STATEMENT: expect $CRC_expected_number_of_warnings warnings.
+  }
+  if ($CRC_expected_number_of_warnings_normal_protocol != $CRC_expected_number_of_warnings_ps_protocol)
+  {
+    --echo * binlog_format = STATEMENT: expect $CRC_expected_number_of_warnings_normal_protocol warnings. $CRC_expected_number_of_warnings_ps_protocol with ps-protocol.
+  }
   --eval $CRC_RET_stmt_sidef
   --let $n_warnings= `SHOW COUNT(*) WARNINGS`
-  if ($n_warnings != $CRC_ARG_expected_number_of_warnings) {
-    --echo ******** Failure! Expected $CRC_ARG_expected_number_of_warnings warnings, got $n_warnings warnings. ********
-    SHOW WARNINGS;
-    SHOW BINLOG EVENTS;
+
+  if ($n_warnings != $CRC_expected_number_of_warnings) {
+    --echo ******** Failure! Expected $CRC_expected_number_of_warnings warnings, got $n_warnings warnings. ********
+#    SHOW WARNINGS;
+#    SHOW BINLOG EVENTS;
     --die Wrong number of warnings.
   }
 
@@ -314,13 +338,13 @@ if ($CRC_RET_stmt_sidef) {
   # happens.
   --disable_query_log
 
-  --echo * SQL_LOG_BIN = 0: expect nothing logged and no warning.
+  --echo * SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
   SET SQL_LOG_BIN = 0;
   RESET MASTER;
   --eval $CRC_RET_stmt_sidef
   --let $n_warnings= `SHOW COUNT(*) WARNINGS`
-  if ($n_warnings) {
-    --echo ******** Failure! Expected 0 warnings, got $n_warnings warnings. ********
+  if ($n_warnings != $CRC_expected_number_of_warnings_after_reset) {
+    --echo ******** Failure! Expected $CRC_expected_number_of_warnings_after_reset warnings, got $n_warnings warnings. ********
     SHOW WARNINGS;
     SHOW BINLOG EVENTS;
     --die Wrong number of warnings.
@@ -339,8 +363,8 @@ if ($CRC_RET_stmt_sidef) {
   RESET MASTER;
   --eval $CRC_RET_stmt_sidef
   --let $n_warnings= `SHOW COUNT(*) WARNINGS`
-  if ($n_warnings) {
-    --echo ******** Failure! Expected 0 warnings, got $n_warnings warnings. ********
+  if ($n_warnings != $CRC_expected_number_of_warnings_after_reset) {
+    --echo ******** Failure! Expected $CRC_expected_number_of_warnings_after_reset warnings, got $n_warnings warnings. ********
     SHOW WARNINGS;
     SHOW BINLOG EVENTS;
     --die Warnings printed

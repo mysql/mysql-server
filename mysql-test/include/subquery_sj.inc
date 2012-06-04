@@ -1092,7 +1092,442 @@ where a1 in (select group_concat(b1) from t2_1025 group by b2);
 
 drop table t1_1025, t2_1025, t3_1025;
 
+--echo #
+--echo # WL#5561: Enable semi join transformation with outer join.
+--echo #
 
+CREATE TABLE ot1(a INT);
+CREATE TABLE ot2(a INT);
+CREATE TABLE ot3(a INT);
+CREATE TABLE it1(a INT);
+CREATE TABLE it2(a INT);
+CREATE TABLE it3(a INT);
+
+INSERT INTO ot1 VALUES(0),(1),(2),(3),(4),(5),(6),(7);
+INSERT INTO ot2 VALUES(0),(2),(4),(6);
+INSERT INTO ot3 VALUES(0),(3),(6);
+INSERT INTO it1 VALUES(0),(1),(2),(3),(4),(5),(6),(7);
+INSERT INTO it2 VALUES(0),(2),(4),(6);
+INSERT INTO it3 VALUES(0),(3),(6);
+
+--echo # Test cases, Subquery Pattern 1
+
+--echo # Example SQ1.1:
+
+let $query=
+SELECT *
+FROM ot1 LEFT JOIN ot2 ON ot1.a=ot2.a
+WHERE ot1.a IN (SELECT a FROM it3);
+eval explain $query;
+--sorted_result
+eval $query;
+
+--echo # Example SQ1.2:
+
+let $query=
+SELECT *
+FROM ot1 LEFT JOIN ot2 ON ot1.a=ot2.a
+WHERE COALESCE(ot2.a,0) IN (SELECT a FROM it3);
+eval explain $query;
+--sorted_result
+eval $query;
+
+--echo # Example SQ1.3:
+
+let $query=
+SELECT *
+FROM ot1 LEFT JOIN ot2 ON ot1.a=ot2.a
+WHERE (ot1.a,ot2.a) IN (SELECT a, a FROM it3);
+eval explain $query;
+--sorted_result
+eval $query;
+
+--echo # More test cases
+
+--sorted_result
+SELECT *
+FROM ot1 LEFT JOIN ot2 ON ot1.a=ot2.a+0
+WHERE ot1.a IN (SELECT a FROM it3);
+
+--sorted_result
+SELECT *
+FROM ot1 LEFT JOIN ot2 ON ot1.a=ot2.a+0
+WHERE ot1.a IN (SELECT a+0 FROM it3);
+
+--sorted_result
+SELECT *
+FROM ot1 LEFT JOIN ot2 ON ot1.a=ot2.a+0
+WHERE COALESCE(ot2.a,0) IN (SELECT a FROM it3);
+
+--sorted_result
+SELECT *
+FROM ot1 LEFT JOIN ot2 ON ot1.a=ot2.a
+WHERE COALESCE(ot2.a,0) IN (SELECT a+0 FROM it3);
+
+--sorted_result
+SELECT *
+FROM ot1 LEFT JOIN ot2 ON ot1.a=ot2.a+0
+WHERE (ot1.a,ot2.a) IN (SELECT a, a FROM it3);
+
+--sorted_result
+SELECT *
+FROM ot1 LEFT JOIN ot2 ON ot1.a=ot2.a
+         LEFT JOIN ot3 ON ot1.a=ot3.a
+WHERE ot1.a IN (SELECT a FROM it3);
+
+--sorted_result
+SELECT *
+FROM ot1 LEFT JOIN ot2 ON ot1.a=ot2.a
+         LEFT JOIN ot3 ON ot1.a=ot3.a
+WHERE COALESCE(ot2.a,0) IN (SELECT a FROM it3);
+
+--sorted_result
+SELECT *
+FROM ot1 LEFT JOIN ot2 ON ot1.a=ot2.a
+         LEFT JOIN ot3 ON ot1.a=ot3.a
+WHERE COALESCE(ot3.a,0) IN (SELECT a FROM it3);
+
+--sorted_result
+SELECT *
+FROM ot1 LEFT JOIN ot2 ON ot1.a=ot2.a
+         LEFT JOIN ot3 ON ot2.a=ot3.a
+WHERE ot1.a IN (SELECT a FROM it3);
+
+--sorted_result
+SELECT *
+FROM ot1 LEFT JOIN ot2 ON ot1.a=ot2.a
+         LEFT JOIN ot3 ON ot2.a=ot3.a
+WHERE COALESCE(ot2.a,0) IN (SELECT a FROM it3);
+
+--sorted_result
+SELECT *
+FROM ot1 LEFT JOIN ot2 ON ot1.a=ot2.a
+         LEFT JOIN ot3 ON ot2.a=ot3.a
+WHERE COALESCE(ot3.a,0) IN (SELECT a FROM it3);
+
+--echo # Test cases, Subquery Pattern 2
+
+--echo # Example SQ2.1:
+
+let $query=
+SELECT *
+FROM ot1 JOIN ot2 ON ot1.a=ot2.a AND ot1.a IN (SELECT a FROM it3);
+eval explain $query;
+--sorted_result
+eval $query;
+
+--echo # Example SQ2.2:
+
+let $query=
+SELECT *
+FROM ot1 JOIN ot2 ON ot1.a=ot2.a AND ot1.a IN (SELECT a FROM it2)
+                                 AND ot2.a IN (SELECT a FROM it3);
+eval explain $query;
+--sorted_result
+eval $query;
+
+--echo # More test cases
+
+--sorted_result
+SELECT *
+FROM ot1 JOIN ot2 ON ot1.a=ot2.a+0 AND ot1.a IN (SELECT a FROM it3);
+
+--sorted_result
+SELECT *
+FROM ot1 JOIN ot2 ON ot1.a=ot2.a AND ot1.a IN (SELECT a+0 FROM it3);
+
+--sorted_result
+SELECT *
+FROM ot1 JOIN ot2 ON ot1.a=ot2.a+0 AND ot2.a IN (SELECT a FROM it3);
+
+--sorted_result
+SELECT *
+FROM ot1 JOIN ot2 ON ot1.a=ot2.a AND ot2.a IN (SELECT a+0 FROM it3);
+
+--sorted_result
+SELECT *
+FROM ot1 JOIN ot2 ON ot1.a=ot2.a AND ot1.a IN (SELECT a+0 FROM it2)
+                                 AND ot2.a IN (SELECT a+0 FROM it3);
+
+--sorted_result
+SELECT *
+FROM ot1 JOIN ot2 ON ot1.a=ot2.a AND ot1.a IN (SELECT a FROM it3)
+         JOIN ot3 ON ot2.a=ot3.a AND ot3.a IN (SELECT a FROM it3);
+
+--echo # Test cases, Subquery Pattern 3
+
+--echo # Example SQ3.1:
+
+let $query=
+SELECT *
+FROM ot1 LEFT JOIN ot2 ON ot1.a=ot2.a AND ot1.a IN (SELECT a FROM it3);
+eval explain $query;
+--sorted_result
+eval $query;
+
+--echo # Example SQ3.2:
+
+let $query=
+SELECT *
+FROM ot1 LEFT JOIN ot2 ON ot1.a=ot2.a AND ot2.a IN (SELECT a FROM it2);
+eval explain $query;
+--sorted_result
+eval $query;
+
+--echo # Example SQ3.3
+
+let $query=
+SELECT *
+FROM ot1 LEFT JOIN ot2 ON ot1.a=ot2.a AND ot1.a IN (SELECT a FROM it1)
+                                      AND ot2.a IN (SELECT a FROM it2);
+eval explain $query;
+--sorted_result
+eval $query;
+
+--echo # Example SQ3.4
+
+let $query=
+SELECT *
+FROM ot1 LEFT JOIN ot2 ON ot1.a=ot2.a AND
+                         (ot1.a, ot2.a) IN (SELECT it1.a, it2.a
+                                            FROM it1 JOIN it2 ON it1.a=it2.a);
+eval explain $query;
+--sorted_result
+eval $query;
+
+--echo # More test cases
+
+--sorted_result
+SELECT *
+FROM ot1 LEFT JOIN ot2 ON ot1.a=ot2.a+0 AND ot1.a IN (SELECT a FROM it3);
+
+--sorted_result
+SELECT *
+FROM ot1 LEFT JOIN ot2 ON ot1.a=ot2.a AND ot1.a IN (SELECT a+0 FROM it3);
+
+--sorted_result
+SELECT *
+FROM ot1 LEFT JOIN ot2 ON ot1.a=ot2.a+0 AND ot2.a IN (SELECT a FROM it2);
+
+--sorted_result
+SELECT *
+FROM ot1 LEFT JOIN ot2 ON ot1.a=ot2.a AND ot2.a IN (SELECT a+0 FROM it2);
+
+--sorted_result
+SELECT *
+FROM ot1 LEFT JOIN ot2 ON ot1.a=ot2.a+0 AND ot1.a IN (SELECT a+0 FROM it1)
+                                        AND ot2.a IN (SELECT a+0 FROM it2);
+
+--sorted_result
+SELECT *
+FROM ot1 LEFT JOIN ot2 ON ot1.a=ot2.a+0 AND
+                         (ot1.a, ot2.a) IN (SELECT it1.a+0, it2.a+0
+                                            FROM it1 JOIN it2 ON it1.a=it2.a);
+
+--sorted_result
+SELECT *
+FROM ot1 LEFT JOIN ot2 ON ot1.a=ot2.a AND ot1.a IN (SELECT a FROM it3)
+         LEFT JOIN ot3 ON ot2.a=ot3.a AND ot3.a IN (SELECT a FROM it3);
+
+--sorted_result
+SELECT *
+FROM ot1 LEFT JOIN ot2 ON ot1.a=ot2.a+0 AND ot1.a IN (SELECT a FROM it3)
+         LEFT JOIN ot3 ON ot2.a=ot3.a+0 AND ot3.a IN (SELECT a FROM it3);
+
+--echo # Test cases, Subquery Pattern 4
+
+--echo # Example SQ4.1:
+
+let $query=
+SELECT *
+FROM   ot1
+     LEFT JOIN
+       (ot2 JOIN ot3 ON ot2.a=ot3.a)
+     ON ot1.a=ot2.a AND ot1.a IN (SELECT a FROM it1);
+eval explain $query;
+--sorted_result
+eval $query;
+
+--echo # Example SQ4.2:
+
+let $query=
+SELECT *
+FROM   ot1
+     JOIN
+       (ot2 JOIN ot3 ON ot2.a=ot3.a)
+     ON ot1.a=ot2.a AND ot1.a IN (SELECT a FROM it1);
+eval explain $query;
+--sorted_result
+eval $query;
+
+--echo # Example SQ4.3:
+
+let $query=
+SELECT *
+FROM   ot1
+     JOIN
+       (ot2 LEFT JOIN ot3 ON ot2.a=ot3.a)
+     ON ot1.a=ot2.a AND ot1.a IN (SELECT a FROM it1);
+eval explain $query;
+--sorted_result
+eval $query;
+
+--echo # Example SQ4.4:
+
+let $query=
+SELECT *
+FROM   ot1
+     LEFT JOIN
+       (ot2 LEFT JOIN ot3 ON ot2.a=ot3.a)
+     ON ot1.a=ot2.a AND ot1.a IN (SELECT a FROM it1);
+eval explain $query;
+--sorted_result
+eval $query;
+
+--echo # More test cases
+
+--sorted_result
+SELECT *
+FROM   ot1
+     LEFT JOIN
+       (ot2 JOIN ot3 ON ot2.a=ot3.a+0)
+     ON ot1.a=ot2.a AND ot1.a IN (SELECT a FROM it1);
+
+--sorted_result
+SELECT *
+FROM   ot1
+     LEFT JOIN
+       (ot2 JOIN ot3 ON ot2.a=ot3.a)
+     ON ot1.a=ot2.a+0 AND ot1.a IN (SELECT a FROM it1);
+
+--sorted_result
+SELECT *
+FROM   ot1
+     LEFT JOIN
+       (ot2 JOIN ot3 ON ot2.a=ot3.a)
+     ON ot1.a=ot2.a AND ot1.a IN (SELECT a+0 FROM it1);
+
+--sorted_result
+SELECT *
+FROM   ot1
+     JOIN
+       (ot2 JOIN ot3 ON ot2.a=ot3.a+0)
+     ON ot1.a=ot2.a AND ot1.a IN (SELECT a FROM it1);
+
+--sorted_result
+SELECT *
+FROM   ot1
+     JOIN
+       (ot2 JOIN ot3 ON ot2.a=ot3.a)
+     ON ot1.a=ot2.a+0 AND ot1.a IN (SELECT a FROM it1);
+
+--sorted_result
+SELECT *
+FROM   ot1
+     JOIN
+       (ot2 JOIN ot3 ON ot2.a=ot3.a)
+     ON ot1.a=ot2.a AND ot1.a IN (SELECT a+0 FROM it1);
+
+--sorted_result
+SELECT *
+FROM   ot1
+     JOIN
+       (ot2 LEFT JOIN ot3 ON ot2.a=ot3.a+0)
+     ON ot1.a=ot2.a AND ot1.a IN (SELECT a FROM it1);
+
+--sorted_result
+SELECT *
+FROM   ot1
+     JOIN
+       (ot2 LEFT JOIN ot3 ON ot2.a=ot3.a)
+     ON ot1.a=ot2.a+0 AND ot1.a IN (SELECT a FROM it1);
+
+--sorted_result
+SELECT *
+FROM   ot1
+     JOIN
+       (ot2 LEFT JOIN ot3 ON ot2.a=ot3.a)
+     ON ot1.a=ot2.a AND ot1.a IN (SELECT a+0 FROM it1);
+
+--sorted_result
+SELECT *
+FROM   ot1
+     LEFT JOIN
+       (ot2 LEFT JOIN ot3 ON ot2.a=ot3.a+0)
+     ON ot1.a=ot2.a AND ot1.a IN (SELECT a FROM it1);
+
+--sorted_result
+SELECT *
+FROM   ot1
+     LEFT JOIN
+       (ot2 LEFT JOIN ot3 ON ot2.a=ot3.a)
+     ON ot1.a=ot2.a+0 AND ot1.a IN (SELECT a FROM it1);
+
+--sorted_result
+SELECT *
+FROM   ot1
+     LEFT JOIN
+       (ot2 LEFT JOIN ot3 ON ot2.a=ot3.a)
+     ON ot1.a=ot2.a AND ot1.a IN (SELECT a+0 FROM it1);
+
+--sorted_result
+SELECT *
+FROM   ot1
+     LEFT JOIN
+       (ot2 LEFT JOIN ot3 ON ot2.a=ot3.a)
+     ON ot1.a=ot2.a AND ot1.a IN (SELECT a FROM it1)
+     LEFT JOIN
+       ot1 AS ot4
+     ON ot2.a=ot4.a;
+
+--sorted_result
+SELECT *
+FROM   ot1
+     LEFT JOIN
+       (ot2 LEFT JOIN ot3 ON ot2.a=ot3.a
+            LEFT JOIN ot1 AS ot4 ON ot3.a=ot4.a)
+     ON ot1.a=ot2.a AND ot1.a IN (SELECT a FROM it1);
+
+DROP TABLE ot1,ot2,ot3,it1,it2,it3;
+
+CREATE TABLE t (
+  a INTEGER DEFAULT NULL
+) ENGINE=InnoDB;
+INSERT INTO t VALUES (1);
+
+CREATE TABLE t2 (
+  a INTEGER DEFAULT NULL
+) ENGINE=InnoDB;
+INSERT INTO t2 VALUES (1),(1);
+
+CREATE TABLE t4 (
+  a INTEGER DEFAULT NULL
+) ENGINE=InnoDB;
+INSERT INTO t4 VALUES (1),(1);
+
+CREATE TABLE v (
+  a INTEGER DEFAULT NULL
+) ENGINE=InnoDB;
+INSERT INTO v VALUES (1),(1);
+
+let $query=
+SELECT *
+FROM t AS t1
+     LEFT JOIN
+      (t2
+       LEFT JOIN t AS t3
+       ON t3.a IN (SELECT a FROM t AS it)
+       JOIN t4
+       ON t4.a=100
+      )
+     ON TRUE
+WHERE t1.a IN (SELECT * FROM v AS it2);
+eval explain $query;
+eval $query;
+
+DROP TABLE t,t2,t4,v;
+
+--echo # End of WL#5561
 
 --echo #
 --echo # Bug#48868: Left outer join in subquery causes segmentation fault in
@@ -1846,6 +2281,7 @@ SELECT t1field
 FROM t1
 WHERE t1field IN (SELECT v1field FROM v1);
 
+--sorted_result
 SELECT t1.t1field
 FROM t1 LEFT JOIN t1 AS t2 ON t1.t1field IN (SELECT v1field FROM v1);
 
@@ -3527,9 +3963,12 @@ FROM   ot1
      ON ot1.a=ot2.a AND ot1.a IN (SELECT a from it1);
 
 eval explain $query;
+--sorted_result
 eval $query;
 eval prepare s from '$query';
+--sorted_result
 execute s;
+--sorted_result
 execute s;
 deallocate prepare s;
 
@@ -3774,6 +4213,13 @@ WHERE outr.col_varchar_key IN (SELECT innr.col_varchar_key
   AND outr.col_varchar_nokey < 't'
 ORDER BY outr.col_varchar_key, outr.pk;
 
+-- disable_query_log
+-- disable_result_log
+ANALYZE TABLE t1;
+ANALYZE TABLE t2;
+-- enable_result_log
+-- enable_query_log
+
 eval EXPLAIN $query;
 eval $query;
 
@@ -3827,6 +4273,7 @@ WHERE (grandparent1.col_varchar_key) IN
                 ON (child1.col_varchar_key > child2.col_varchar_nokey)));
 
 eval EXPLAIN $query;
+--sorted_result
 eval $query;
 
 DROP TABLE t1, t2;
@@ -3932,6 +4379,16 @@ CREATE TABLE t3 (
 ) ENGINE=InnoDB;
 
 INSERT INTO t3 VALUES (10);
+
+-- disable_query_log
+-- disable_result_log
+ANALYZE TABLE t1;
+ANALYZE TABLE t2;
+ANALYZE TABLE t3;
+ANALYZE TABLE grandparent1;
+ANALYZE TABLE parent1;
+-- enable_result_log
+-- enable_query_log
 
 let $query=
 SELECT *
@@ -4241,6 +4698,13 @@ let $query=
 eval CREATE TABLE t2
   $query
 ;
+
+-- disable_query_log
+-- disable_result_log
+ANALYZE TABLE t1;
+ANALYZE TABLE t2;
+-- enable_result_log
+-- enable_query_log
 
 eval EXPLAIN SELECT *
 FROM t2
@@ -4619,6 +5083,13 @@ INSERT INTO t2 VALUES
  (13,4,'b','b'), (14,4,'x','x'), (15,7,'g','g'), (16,4,'p','p'),
  (17,1,'q','q'), (18,9,'w','w'), (19,4,'d','d'), (20,8,'e','e');
 
+-- disable_query_log
+-- disable_result_log
+ANALYZE TABLE t1;
+ANALYZE TABLE t2;
+-- enable_result_log
+-- enable_query_log
+
 let $query=
 SELECT ot1.col_int_key AS field1
 FROM t2 AS ot1, t2 AS ot2
@@ -4661,6 +5132,12 @@ INSERT INTO t2 VALUES
  (4,'j'), (6,'v'), (3,'c'), (5,'m'), (3,'d'), (246,'d'), (2,'y'), (9,'t'),
  (3,'d'), (8,'s'), (1,'r'), (8,'m'), (8,'b'), (5,'x'), (7,'g'), (5,'p'),
  (1,'q'), (6,'w'), (2,'d'), (9,'e');
+
+-- disable_query_log
+-- disable_result_log
+ANALYZE TABLE t2;
+-- enable_result_log
+-- enable_query_log
 
 let $query=
 SELECT col_varchar_nokey
@@ -4851,7 +5328,6 @@ WHERE col_int_key IN (
   FROM v1 AS alias1
   WHERE alias1.col_varchar_key < 'v'
 );
-
 eval $query;
 eval prepare stmt FROM "$query";
 execute stmt;
@@ -4950,5 +5426,1001 @@ HAVING (1, 2) IN (
 --eval $query
 
 DROP TABLE t1,t2;
+
+--echo # Bug#13838810: Segfault in evaluate_null_complemented_join_record
+
+CREATE TABLE t1 (
+  pk int NOT NULL,
+  col_int_nokey int DEFAULT NULL,
+  col_int_key int DEFAULT NULL,
+  col_varchar_key varchar(1) DEFAULT NULL,
+  PRIMARY KEY (pk),
+  KEY col_int_key (col_int_key),
+  KEY col_varchar_key (col_varchar_key,col_int_key)
+) ENGINE=InnoDB;
+
+INSERT INTO t1 VALUES (10,NULL,8,'x');
+
+CREATE TABLE t2 (
+  pk int NOT NULL,
+  col_varchar_nokey varchar(1) DEFAULT NULL,
+  PRIMARY KEY (pk)
+) ENGINE=InnoDB;
+
+INSERT INTO t2 VALUES (1,'x');
+
+CREATE TABLE t3 (
+  pk int NOT NULL,
+  col_varchar_key varchar(1) DEFAULT NULL,
+  col_varchar_nokey varchar(1) DEFAULT NULL,
+  PRIMARY KEY (pk),
+  KEY col_varchar_key (col_varchar_key)
+) ENGINE=InnoDB;
+
+INSERT INTO t3 VALUES
+ (1,'v','v'), (2,'v','v'), (3,'c','c'), (4,NULL,NULL);
+
+let $query=
+SELECT table1.pk,table2.pk, table3.pk
+FROM t2 AS table1
+     LEFT JOIN t1 AS table2
+       LEFT JOIN t1 AS table3
+       ON table3.col_int_key = table2.col_int_key
+     ON table3.pk = table2.col_int_nokey AND
+        table1.col_varchar_nokey IN (
+        SELECT subquery3_t1.col_varchar_nokey
+        FROM t3 AS subquery3_t1
+             LEFT JOIN t1 AS subquery3_t2
+             ON subquery3_t2.col_varchar_key = subquery3_t1.col_varchar_key
+        WHERE subquery3_t2.col_int_nokey <> 9
+    )
+;
+
+eval EXPLAIN $query;
+eval $query;
+
+DROP TABLE t1, t2, t3;
+
+--echo Extra test case for specific code coverage
+
+CREATE TABLE t1(pk INTEGER);
+INSERT INTO t1 VALUES(1), (2);
+
+let $query=
+SELECT *
+FROM t1 AS ot1 LEFT JOIN t1 AS ot2
+     ON ot1.pk=ot2.pk AND
+        ot2.pk IN
+           (SELECT it1.pk
+            FROM t1 AS it1 LEFT JOIN t1 AS it2 ON it1.pk=it2.pk);
+eval explain $query;
+eval $query;
+
+DROP TABLE t1;
+
+--echo # End of test for bug#13838810.
+
+--echo #
+--echo # BUG#13685026 ASSERTION CUR_SJ_INNER_TABLES == 0 IN
+--echo # --OPTIMIZE_TABLE_ORDER::CHOOSE_TABLE_ORDER
+--echo #
+
+CREATE TABLE t1 (
+  col_int_key INT(11) NOT NULL,
+  col_datetime_key DATETIME NOT NULL,
+  col_varchar_key VARCHAR(1) NOT NULL,
+  col_varchar_nokey VARCHAR(1) NOT NULL,
+  KEY col_int_key (col_int_key),
+  KEY col_datetime_key (col_datetime_key),
+  KEY col_varchar_key (col_varchar_key,col_int_key)
+);
+
+INSERT INTO t1 VALUES (0,'2002-02-13 17:30:06','j','j');
+INSERT INTO t1 VALUES (8,'2008-09-27 00:34:58','v','v');
+
+CREATE TABLE t2 (
+  col_int_key INT(11) NOT NULL,
+  col_datetime_key DATETIME NOT NULL,
+  col_varchar_key VARCHAR(1) NOT NULL,
+  col_varchar_nokey VARCHAR(1) NOT NULL,
+  KEY col_int_key (col_int_key),
+  KEY col_datetime_key (col_datetime_key),
+  KEY col_varchar_key (col_varchar_key,col_int_key)
+);
+
+INSERT INTO t2 VALUES (7,'2003-08-21 00:00:00','b','b');
+
+SET @old_depth=@@optimizer_search_depth;
+SET optimizer_search_depth=4;
+
+let $query=SELECT col_datetime_key
+FROM t1 as outr
+WHERE col_datetime_key IN (
+  SELECT alias1.col_datetime_key
+  FROM t1 AS alias1
+    LEFT JOIN t1 as alias3
+      STRAIGHT_JOIN ( t2 AS alias4
+        JOIN t1 AS alias5
+        ON alias5.col_varchar_key <= alias4.col_varchar_nokey )
+      ON alias5.col_int_key < alias4.col_int_key
+    ON alias5.col_varchar_key = alias4.col_varchar_key
+);
+
+eval EXPLAIN $query;
+eval $query;
+
+DROP TABLE t1,t2;
+SET @@optimizer_search_depth=@old_depth;
+
+--echo #
+--echo # Bug#13845930: Segfault in st_join_table::and_with_condition
+--echo #
+
+CREATE TABLE t1 (
+  col_int INTEGER
+);
+
+CREATE TABLE t2 (
+  col_varchar_1 VARCHAR(1),
+  col_varchar_2 VARCHAR(1)
+);
+
+INSERT INTO t2 VALUES ('x','x'), ('c','c');
+
+PREPARE stmt FROM '
+SELECT alias2.col_varchar_2 AS field1
+FROM t2 AS alias1
+     JOIN
+      (t2 AS alias2
+       LEFT JOIN t2 AS alias3
+       ON (8, 92) IN
+          (SELECT sq1_alias1.col_int,
+                  sq1_alias2.col_int
+           FROM t1 AS sq1_alias1 JOIN t1 AS sq1_alias2
+          )
+      )
+     ON alias3.col_varchar_1 = alias2.col_varchar_2
+';
+
+EXECUTE stmt;
+EXECUTE stmt;
+
+DEALLOCATE prepare stmt;
+
+DROP TABLE t1, t2;
+
+--echo # End of test for bug#13845930.
+
+--echo #
+--echo # Bug#13855925: Assert 'prebuilt->search_tuple->n_fields > 0'
+--echo #               in ha_innobase::index_read
+--echo #
+
+CREATE TABLE t1 (
+  pk INTEGER AUTO_INCREMENT,
+  col_int_nokey INT,
+  col_int_key INT,
+  col_varchar_key VARCHAR(1),
+  col_varchar_nokey VARCHAR(1),
+  PRIMARY KEY (pk),
+  KEY (col_varchar_key)
+) ENGINE=INNODB;
+
+INSERT INTO t1 (
+  col_int_key, col_int_nokey,
+  col_varchar_key, col_varchar_nokey
+) VALUES
+ (4, 2, 'v','v'), (62, 150, 'v','v'), (7, NULL, 'c','c'), (1, 2, NULL, NULL),
+ (0, 5, 'x','x'), (7, 3, 'i','i'), (7, 1, 'e','e'), (1, 4, 'p','p'),
+ (7, NULL, 's','s'), (1, 2, 'j','j'), (5, 6, 'z','z'), (2, 6, 'c','c'),
+ (0, 8, 'a','a'), (1, 2, 'q','q'), (8, 6, 'y','y'), (1, 8, NULL, NULL),
+ (1, 3, 'r','r'), (9, 3, 'v','v'), (1, 9, NULL, NULL), (5, 6, 'r','r');
+
+CREATE TABLE t2 (
+  pk INT AUTO_INCREMENT,
+  col_int_nokey INT,
+  col_int_key INT,
+  PRIMARY KEY (pk),
+  KEY (col_int_key)
+) AUTO_INCREMENT=10 ENGINE=INNODB;
+
+INSERT INTO t2 (col_int_key, col_int_nokey) VALUES
+ (8, NULL), (7, 8), (1, 1), (7, 9), (9, 4), (NULL, 3), (1, 2), (9, NULL),
+ (2, 2), (9, NULL), (2, 6), (4, 7), (0, 2), (4, 5), (8, 7), (NULL, 6),
+ (NULL, 6), (0, 2), (NULL, 9), (8, 6);
+
+CREATE TABLE t3 (
+  pk INT AUTO_INCREMENT,
+  col_varchar_key VARCHAR(1),
+  PRIMARY KEY (pk),
+  KEY (col_varchar_key)
+) ENGINE=INNODB;
+
+INSERT INTO t3 (col_varchar_key) VALUES
+ ('c'), ('c'), ('q'), ('g'), ('e'), ('l'), (NULL), ('c'), ('h'), ('d'),
+ ('c'), ('i'), ('t'), ('g'), ('q'), ('l'), ('n'), ('z'), ('n'), ('r'), ('p');
+
+-- disable_query_log
+-- disable_result_log
+ANALYZE TABLE t1;
+ANALYZE TABLE t2;
+ANALYZE TABLE t3;
+-- enable_result_log
+-- enable_query_log
+
+CREATE VIEW v1 AS
+SELECT table2.col_varchar_nokey AS field1
+FROM t2 AS table1
+     INNER JOIN (t1 AS table2
+       STRAIGHT_JOIN t2 AS table3
+       ON table3.col_int_key = table2.pk AND
+          table3.col_int_nokey = ANY
+           (SELECT subquery1_t2.col_int_nokey AS subquery1_field1
+            FROM t2 AS subquery1_t1
+                 RIGHT OUTER JOIN t1 AS subquery1_t2
+                   INNER JOIN t1 AS subquery1_t3
+                   ON subquery1_t3.col_int_key = subquery1_t2.pk
+                 ON subquery1_t3.col_varchar_key=subquery1_t2.col_varchar_nokey
+            WHERE subquery1_t1.pk > 1
+           )
+      )
+     ON table3.col_int_key IN
+       (SELECT subquery2_t1.col_int_key AS subquery2_field1
+        FROM t2 AS subquery2_t1
+             RIGHT OUTER JOIN t3 AS subquery2_t2
+               LEFT OUTER JOIN t1 AS subquery2_t3
+               ON subquery2_t3.col_varchar_key = subquery2_t2.col_varchar_key
+             ON subquery2_t3.pk = subquery2_t2.pk
+       )
+;
+
+explain SELECT * FROM v1;
+SELECT * FROM v1;
+
+DROP VIEW v1;
+DROP TABLE t1,t2,t3;
+
+--echo # End of test for bug#13855925.
+
+--echo #
+--echo # Bug#13897959: Segfault in setup_semijoin_dups_elimination()
+--echo #
+
+CREATE TABLE t1 (
+  col_datetime_key DATETIME DEFAULT NULL,
+  KEY col_datetime_key (col_datetime_key)
+) ENGINE=MyISAM;
+
+INSERT INTO t1 VALUES
+ ('2001-04-18 00:00:00'), ('2008-12-18 19:39:55'),
+ ('2000-08-01 12:19:39'), ('2004-09-25 21:29:06'),
+ ('2009-09-20 09:11:48'), ('2004-03-27 09:32:04');
+
+CREATE TABLE t2 (
+  col_date_nokey date DEFAULT NULL,
+  col_time_key time DEFAULT NULL,
+  col_datetime_key datetime DEFAULT NULL,
+  col_varchar_key varchar(1) DEFAULT NULL,
+  col_varchar_nokey varchar(1) DEFAULT NULL,
+  KEY col_time_key (col_time_key),
+  KEY col_datetime_key (col_datetime_key),
+  KEY col_varchar_key(col_varchar_key)
+) ENGINE=MyISAM;
+
+INSERT INTO t2 VALUES ('1900-01-01',NULL,'2001-11-04 19:07:55','x','x');
+
+SELECT grandparent1.col_varchar_nokey
+FROM t2 AS grandparent1 LEFT JOIN t1 USING (col_datetime_key)
+WHERE grandparent1.col_varchar_nokey IN (
+  SELECT col_varchar_nokey
+  FROM t2 AS parent1
+  WHERE parent1.col_time_key > grandparent1.col_date_nokey
+);
+
+DROP TABLE t1, t2;
+
+--echo # End of test for bug#13897959.
+
+--echo #
+--echo # Bug#13898625 ASSERT `(REMAINING_TABLES_AFTER != 0) ...' IN
+--echo # BEST_EXTENSION_BY_LIMITED_SEARCH
+--echo #
+
+CREATE TABLE t1 (
+  pk int(11) NOT NULL,
+  col_int_nokey INT,
+  col_int_key INT,
+  col_varchar_key VARCHAR(1),
+  col_varchar_nokey VARCHAR(1),
+  PRIMARY KEY (pk),
+  KEY col_int_key (col_int_key),
+  KEY col_varchar_key (col_varchar_key,col_int_key)
+);
+
+INSERT INTO t1 VALUES (26,6,NULL,'f','f');
+INSERT INTO t1 VALUES (29,6,8,'c','c');
+
+CREATE TABLE t2 (
+  pk INT NOT NULL,
+  col_int_nokey INT,
+  col_int_key INT,
+  col_varchar_key VARCHAR(1),
+  col_varchar_nokey VARCHAR(1),
+  PRIMARY KEY (pk),
+  KEY col_int_key (col_int_key),
+  KEY col_varchar_key (col_varchar_key,col_int_key)
+);
+
+INSERT INTO t2 VALUES (1,2,4,'v','v');
+INSERT INTO t2 VALUES (2,150,62,'v','v');
+INSERT INTO t2 VALUES (5,5,0,'x','x');
+INSERT INTO t2 VALUES (6,3,7,'i','i');
+INSERT INTO t2 VALUES (7,1,7,'e','e');
+
+CREATE VIEW view_c AS SELECT * FROM t2;
+
+let $query=
+  SELECT SUM( alias1.col_varchar_key ) AS field1
+  FROM t1 AS alias1
+    RIGHT JOIN t2 AS alias2
+      INNER JOIN t1 AS alias3
+      ON (alias3.col_varchar_key = alias2.col_varchar_key )
+    ON ( "v" ) IN (
+        SELECT sq1_alias1.col_varchar_nokey AS sq1_field1
+        FROM t1 AS sq1_alias1
+    )
+  WHERE alias3.pk IN (
+    SELECT sq2_alias1.col_int_key AS sq2_field1
+    FROM ( view_c AS sq2_alias1, t1 AS sq2_alias2 )
+  )
+;
+
+eval PREPARE prep_stmt_7430 FROM '$query';
+EXECUTE prep_stmt_7430;
+EXECUTE prep_stmt_7430;
+eval EXPLAIN $query;
+
+# Assertion sj_inner_tables == ((remaining_tables |
+# new_join_tab->table->map) & sj_inner_tables)
+
+let $query=
+  SELECT SUM( alias1.col_varchar_key ) AS field1
+  FROM t1 AS alias1
+    RIGHT JOIN t2 AS alias2
+      INNER JOIN t1 AS alias3
+      ON (alias3.col_varchar_key = alias2.col_varchar_key )
+    ON ( "v" ) IN (
+        SELECT sq1_alias1.col_varchar_nokey AS sq1_field1
+        FROM t1 AS sq1_alias1
+    )
+  WHERE alias3.pk IN (
+    SELECT sq2_alias1.col_int_key AS sq2_field1
+    FROM ( view_c AS sq2_alias1 , t1 AS sq2_alias2 )
+    WHERE sq2_alias1.col_varchar_nokey <> alias2.col_varchar_key
+      AND sq2_alias1.col_varchar_key < "l"
+  )
+;
+
+eval PREPARE prep_stmt_7430 FROM '$query';
+EXECUTE prep_stmt_7430;
+EXECUTE prep_stmt_7430;
+eval EXPLAIN $query;
+
+DROP TABLE t1,t2;
+DROP VIEW view_c;
+
+--echo #
+--echo # Bug#13902463 SEGFAULT IN BITMAP<64U>::MERGE OR ADD_KEY_FIELD
+--echo # ON SECOND EXEC OF PREP STMT
+--echo #
+
+CREATE TABLE t1 (
+  pk INT,
+  col_int_nokey INT,
+  col_int_key INT,
+  col_varchar_key VARCHAR(1),
+  col_varchar_nokey VARCHAR(1),
+  KEY col_varchar_key (col_varchar_key)
+);
+
+CREATE VIEW view_b AS SELECT * FROM t1;
+
+let $query=
+  SELECT alias2.col_varchar_nokey AS field1
+  FROM t1 AS alias1
+    INNER JOIN t1 AS alias2
+    ON (alias1.col_varchar_key = alias2.col_varchar_nokey
+      AND ( alias1.col_int_key ) IN (
+        SELECT t1.col_int_nokey
+        FROM t1
+      )
+    )
+  WHERE alias1.col_varchar_key IN (
+    SELECT sq2_alias2.col_varchar_nokey AS sq2_field1
+    FROM view_b AS sq2_alias1
+      INNER JOIN t1 AS sq2_alias2
+      ON (sq2_alias2.col_varchar_key = sq2_alias1.col_varchar_key )
+    WHERE sq2_alias1.pk > alias2.pk
+  )
+;
+
+eval PREPARE prep_stmt_20421 FROM '$query';
+EXECUTE prep_stmt_20421;
+EXECUTE prep_stmt_20421;
+eval EXPLAIN $query;
+
+ALTER TABLE t1 DROP INDEX col_varchar_key;
+# Assertion join->best_read < double(1.79769313486231570815e+308L)
+eval PREPARE prep_stmt_20421 FROM '$query';
+EXECUTE prep_stmt_20421;
+EXECUTE prep_stmt_20421;
+eval EXPLAIN $query;
+
+DROP TABLE t1;
+DROP VIEW view_b;
+
+--echo #
+--echo # Bug#13907277: Segfault in evaluate_null_complemented_join_record
+--echo #
+
+CREATE TABLE t1 (
+  pk INTEGER,
+  col_varchar_nokey VARCHAR(1),
+  col_varchar_key VARCHAR(1),
+  PRIMARY KEY (pk)
+);
+INSERT INTO t1 VALUES (1, 'x', 'x');
+
+CREATE TABLE t2 (
+  pk INTEGER,
+  PRIMARY KEY (pk)
+);
+INSERT INTO t2 VALUES (1);
+
+CREATE TABLE t3 (
+  pk INTEGER,
+  col_int_nokey INTEGER,
+  col_int_key INTEGER,
+  col_varchar_nokey VARCHAR(1),
+  PRIMARY KEY (pk)
+);
+INSERT INTO t3 VALUES (1, 6, 5, 'r');
+
+let $query=
+SELECT outer_t1.pk, outer_t2.pk
+FROM t3 AS outer_t1
+     RIGHT JOIN t2 AS outer_t2
+     ON outer_t1.col_int_nokey IN
+        (SELECT inner_t1.col_int_nokey
+         FROM t3 AS inner_t1
+              LEFT JOIN t1 AS inner_t2
+                INNER JOIN t1 AS inner_t3
+                ON inner_t3.pk = inner_t2.pk
+              ON inner_t3.col_varchar_nokey = inner_t2.col_varchar_key
+        );
+
+eval explain $query;
+eval $query;
+
+DROP TABLE t1, t2, t3;
+
+--echo # End of test for bug#13907277.
+
+--echo #
+--echo # Bug#13955713: Assert 'JOIN->best_read < ...' on second execution
+--echo #
+
+CREATE TABLE t1 (
+  pk INTEGER,
+  col_varchar_key VARCHAR(1),
+  col_varchar_nokey VARCHAR(1)
+);
+
+PREPARE stmt FROM "
+SELECT MIN(alias2.col_varchar_key) AS field1
+FROM t1 AS alias1
+     INNER JOIN (t1 AS alias2
+       INNER JOIN t1 AS alias3
+       ON 8 IN
+         (SELECT sq1_alias1.pk AS sq1_field2
+          FROM t1 AS sq1_alias1
+          WHERE 9 IN
+             (SELECT SUM(t1_sq1_alias1.pk) AS t1_sq1_field2
+              FROM t1 AS t1_sq1_alias1
+             )
+         )
+     )
+     ON alias3.col_varchar_nokey = alias2.col_varchar_key
+WHERE EXISTS
+   (SELECT sq2_alias1.pk AS sq2_field1
+    FROM t1 AS sq2_alias1
+    WHERE sq2_alias1.col_varchar_key < alias1.col_varchar_nokey
+   )
+";
+
+EXECUTE stmt;
+EXECUTE stmt;
+
+DEALLOCATE PREPARE stmt;
+DROP TABLE t1;
+
+--echo # End of test for bug#13955713.
+
+--echo #
+--echo # Bug#13956813: Segfault in memcpy from Join_cache::write_record_data()
+--echo #
+
+CREATE TABLE t1 (
+  pk INT,
+  col_varchar_key VARCHAR(1),
+  col_varchar_nokey VARCHAR(1)
+);
+
+CREATE TABLE t2 (
+  pk INT,
+  col_varchar_key VARCHAR(1),
+  col_varchar_nokey VARCHAR(1)
+);
+
+INSERT INTO t2 VALUES
+ (10,'j','j'), (11,'z','z'), (12,'c','c'), (13,'a','a'),
+ (14,'q','q'), (15,'y','y'), (16,NULL,NULL), (17,'r','r'),
+ (18,'v','v'), (19,NULL,NULL), (20,'r','r');
+
+CREATE TABLE t3 (
+  pk INT,
+  col_int_key INT,
+  col_varchar_key VARCHAR(1),
+  KEY col_int_key (col_int_key)
+);
+
+INSERT INTO t3 VALUES
+ (15,NULL,'u'), (16,1,'m'), (17,9,NULL), (18,2,'o'),
+ (19,9,'w'), (20,2,'m'), (21,4,'q'), (22,0,NULL),
+ (23,4,'d'), (24,8,'g'), (25,NULL,'x'), (26,NULL,'f'),
+ (27,0,'p'), (28,NULL,'j'), (29,8,'c');
+
+CREATE VIEW view_inline_0 AS
+SELECT t1.*
+FROM t1 INNER JOIN t3
+     ON t1.pk = t3.pk;
+
+CREATE VIEW view_inline_1 AS
+SELECT sq2_alias2.col_varchar_key AS sq2_field1,
+       sq2_alias1.col_varchar_key AS sq2_field2
+FROM t3 AS sq2_alias1 LEFT OUTER JOIN t3 AS sq2_alias2
+     ON sq2_alias1.pk = sq2_alias2.col_int_key;
+
+CREATE VIEW view_inline_2 AS
+SELECT 'p', 'p' UNION SELECT 'k', 's';
+
+let $query=
+SELECT SUM(alias1.col_varchar_nokey) AS field2
+FROM t2 AS alias2
+     LEFT JOIN (SELECT * FROM view_inline_0) AS alias1
+     ON alias2.col_varchar_key = alias1.col_varchar_key AND
+        (alias2.col_varchar_nokey, alias2.col_varchar_key) IN
+        (SELECT * FROM view_inline_1
+        )
+WHERE (alias1.col_varchar_key, alias1.col_varchar_nokey) IN
+   (SELECT * FROM view_inline_2
+   );
+
+eval explain $query;
+eval $query;
+
+DROP VIEW view_inline_0, view_inline_1, view_inline_2;
+DROP TABLE t1, t2, t3;
+
+--echo # End of test for bug#13956813.
+
+--echo #
+--echo # Bug#13974177: Assert !(tab->table->regginfo.not_exists_optimize...
+--echo #
+
+CREATE TABLE t1 (
+  pk INTEGER AUTO_INCREMENT,
+  col_int_nokey INTEGER,
+  col_int_key INTEGER,
+  col_varchar_key VARCHAR(1),
+  col_varchar_nokey VARCHAR(1),
+  PRIMARY KEY (pk),
+  KEY (col_int_key),
+  KEY (col_varchar_key, col_int_key)
+);
+
+INSERT INTO t1(col_int_key, col_int_nokey, col_varchar_key, col_varchar_nokey)
+VALUES
+ (0, 4, 'j', 'j'), (8, 6, 'v', 'v'), (1, 3, 'c', 'c'), (8, 5, 'm', 'm'),
+ (9, 3, 'd', 'd'), (24, 246, 'd', 'd'), (6, 2, 'y', 'y'), (1, 9, 't', 't'),
+ (6, 3, 'd', 'd'), (2, 8, 's', 's'), (4, 1, 'r', 'r'), (8, 8, 'm', 'm'),
+ (4, 8, 'b', 'b'), (4, 5, 'x', 'x'), (7, 7, 'g', 'g'), (4, 5, 'p', 'p'),
+ (1, 1, 'q', 'q'), (9, 6, 'w', 'w'), (4, 2, 'd', 'd'), (8, 9, 'e', 'e');
+
+CREATE TABLE t2 (
+  pk INTEGER AUTO_INCREMENT,
+  col_int_nokey INTEGER NOT NULL,
+  col_time_key TIME NOT NULL,
+  col_time_nokey TIME NOT NULL,
+  PRIMARY KEY (pk),
+  KEY (col_time_key)
+) ENGINE=InnoDB;
+
+INSERT INTO t2 (col_int_nokey, col_time_key, col_time_nokey) VALUES
+ (7, '00:00:00', '00:00:00'), (0, '00:00:00', '00:00:00'),
+ (9, '06:35:17', '06:35:17'), (3, '18:07:14', '18:07:14'),
+ (4, '20:36:52', '20:36:52'), (2, '21:29:07', '21:29:07'),
+ (5, '23:45:57', '23:45:57'), (3, '22:54:57', '22:54:57'),
+ (1, '18:45:09', '18:45:09'), (3, '14:30:46', '14:30:46'),
+ (6, '19:23:43', '19:23:43'), (7, '03:39:30', '03:39:30'),
+ (5, '23:37:52', '23:37:52'), (1, '16:59:30', '16:59:30'),
+ (204, '22:21:15', '22:21:15'), (224, '12:24:37', '12:24:37'),
+ (9, '15:02:08', '15:02:08'), (5, '23:59:59', '23:59:59'),
+ (0, '08:23:30', '08:23:30'), (3, '08:32:22', '08:32:22');
+
+-- disable_query_log
+-- disable_result_log
+ANALYZE TABLE t1;
+ANALYZE TABLE t2;
+-- enable_result_log
+-- enable_query_log
+
+let $query=
+SELECT ot1.col_int_key AS x
+FROM t1 AS ot2
+      LEFT JOIN t1 AS ot1
+      ON ot2.col_varchar_nokey > ot1.col_varchar_key
+WHERE (ot1.col_int_nokey, ot1.pk) IN
+   (SELECT it1.pk AS x,
+           it1.col_int_nokey AS y
+    FROM t2 AS it2
+         LEFT JOIN t2 AS it1
+         ON it2.col_time_nokey = it1.col_time_key
+   ) AND ot1.pk IS NULL
+;
+
+eval explain $query;
+eval $query;
+
+DROP TABLE t1, t2;
+
+--echo # End of test for bug#13974177.
+
+--echo #
+--echo # Bug#13971022: Assert 'keyparts > 0' failed in create_ref_for_key...
+--echo #
+
+CREATE TABLE t1 (
+  pk INT,
+  col_int_key INT,
+  col_varchar_key VARCHAR(1),
+  PRIMARY KEY (pk),
+  KEY col_varchar_key (col_varchar_key,col_int_key)
+);
+
+CREATE TABLE t2 (
+  pk INT,
+  col_int_key INT,
+  col_varchar_key VARCHAR(1),
+  col_varchar_nokey VARCHAR(1),
+  PRIMARY KEY (pk)
+) ENGINE=InnoDB;
+
+CREATE TABLE t3 (
+  i INT
+);
+
+let $query=
+SELECT table1.pk AS field1
+FROM ( SELECT subquery1_t1. *
+       FROM t2 AS subquery1_t1
+            JOIN t2 AS subquery1_t2
+            ON subquery1_t2.pk = subquery1_t1.pk) AS table1
+     STRAIGHT_JOIN t2 AS table2
+     ON table1.col_int_key IN (SELECT 7 FROM t3)
+WHERE table1.col_varchar_nokey IN
+   (SELECT subquery3_t1.col_varchar_key AS subquery3_field1
+    FROM t1 AS subquery3_t1
+   )
+;
+
+eval explain $query;
+eval $query;
+
+DROP TABLE t1, t2, t3;
+
+--echo # End of test for bug#13971022.
+
+--echo #
+--echo # Bug#13623473 "MISSING ROWS ON SELECT AND JOIN WITH
+--echo # TIME/DATETIME COMPARE" - Subquery part of test.
+--echo #
+
+SET TIMESTAMP=UNIX_TIMESTAMP('2012-01-31 10:14:35');
+
+CREATE TABLE t1 (
+  pk INT NOT NULL,
+  col_int_nokey INT,
+  col_int_key INT NOT NULL,
+  PRIMARY KEY (pk),
+  KEY col_int_key (col_int_key)
+) ENGINE=InnoDB;
+
+INSERT INTO t1 VALUES (10,1,7), (11,7,0), (12,4,9), (13,7,3),
+(14,0,4), (15,2,2), (16,9,5), (17,4,3), (18,0,1), (19,9,3), (20,1,6),
+(21,3,7), (22,8,5), (23,8,1), (24,18,204), (25,84,224), (26,6,9),
+(27,3,5), (28,6,0), (29,6,3);
+
+CREATE TABLE t2 (
+  col_int_nokey INT NOT NULL,
+  col_datetime_key DATETIME NOT NULL,
+  col_varchar_key VARCHAR(1) NOT NULL,
+  KEY col_datetime_key (col_datetime_key),
+  KEY col_varchar_key (col_varchar_key)
+) ENGINE=InnoDB;
+
+INSERT INTO t2 VALUES (1,'2001-11-04 19:07:55','k');
+
+CREATE TABLE t3 (
+  col_time_key TIME,
+  KEY col_time_key (col_time_key)
+) ENGINE=InnoDB;
+
+INSERT INTO t3 VALUES ('21:22:34'), ('10:50:38'), ('00:21:38'),
+('04:08:02'), ('16:25:11'), ('10:14:58'), ('19:47:59'), ('11:14:24'),
+('00:00:00'), ('00:00:00'), ('15:57:25'), ('07:05:51'), ('19:22:21'),
+('03:53:16'), ('09:16:38'), ('15:37:26'), ('00:00:00'), ('05:03:03'),
+('02:59:24'), ('00:01:58');
+
+-- disable_query_log
+-- disable_result_log
+ANALYZE TABLE t1;
+ANALYZE TABLE t2;
+ANALYZE TABLE t3;
+-- enable_result_log
+-- enable_query_log
+
+let $query=
+SELECT outr.col_int_nokey
+FROM t2 as outr
+  STRAIGHT_JOIN t3 AS outr2
+  ON outr2.col_time_key > outr.col_datetime_key
+WHERE outr.col_int_nokey IN (
+  SELECT col_int_key
+  FROM t1 AS innr
+  WHERE innr.pk >= innr.col_int_nokey
+) AND (
+  outr.col_int_nokey <= 6
+  OR
+  outr.col_varchar_key IS NULL
+);
+eval EXPLAIN EXTENDED $query;
+--sorted_result
+eval $query;
+
+DROP TABLE t1,t2,t3;
+
+SET TIMESTAMP = DEFAULT;
+
+--echo # End of test for bug#13623473.
+
+--echo #
+--echo # Bug#13980954: Missing data on left join + null value + where..in
+--echo #
+
+CREATE TABLE t1 (
+  ik INT,
+  vc varchar(1)
+);
+
+INSERT INTO t1 VALUES (8, 'x'), (NULL, 'x');
+
+CREATE TABLE t2 (
+  ik INT,
+  vc varchar(1)
+);
+
+INSERT INTO t2 VALUES
+ (0, 'x'), (7, 'i'), (7, 'e'), (1, 'p'), (7, 's'), (1, 'j');
+
+let $query=
+SELECT t2.vc, t2.ik AS t2_ik, t1.ik AS t1_ik
+FROM t2 LEFT JOIN t1 ON t2.vc=t1.vc
+WHERE t2.vc IN (SELECT vc FROM t2 AS t3);
+
+eval explain format=json $query;
+eval $query;
+
+DROP TABLE t1, t2;
+
+--echo # End of test for bug#13980954.
+
+--echo #
+--echo # Bug#14048292: Segfault in Item_field::result_type on 2nd execution
+--echo #               of prep stmt with join of view
+--echo #
+
+CREATE TABLE t1 (
+  col_int INT
+);
+
+INSERT INTO t1 VALUES (0), (1);
+
+CREATE VIEW view_t1 AS SELECT * FROM t1;
+
+let $query=
+SELECT alias1.col_int
+FROM t1 AS alias1
+     LEFT JOIN view_t1 AS alias2
+     ON alias1.col_int IN
+       (SELECT sq1_alias1.col_int
+        FROM t1 AS sq1_alias1
+       );
+
+eval explain $query;
+
+eval PREPARE stmt FROM "$query";
+EXECUTE stmt;
+EXECUTE stmt;
+
+DEALLOCATE PREPARE stmt;
+DROP VIEW view_t1;
+DROP TABLE t1;
+
+--echo # End of test for bug#14048292.
+
+--echo #
+--echo # Bug#14064201: Missing data on join of derived table + WHERE .. IN
+--echo #               with two operands
+--echo #
+
+CREATE TABLE t1 (
+  col_varchar_nokey VARCHAR(1)
+);
+
+INSERT INTO t1 VALUES
+ ('v'), ('s'), ('l'), ('y'), ('c'), ('i'), ('h'), ('q'), ('a'), ('v'),
+ ('u'), ('s'), ('y'), ('z'), ('h'), ('p'), ('e'), ('i'), ('y'), ('w');
+
+CREATE TABLE t2 (
+  col_varchar_key VARCHAR(1),
+  col_varchar_nokey VARCHAR(1),
+  KEY col_varchar_key(col_varchar_key)
+);
+
+INSERT INTO t2 VALUES
+ ('j','j'), ('v','v'), ('c','c'), ('m','m'), ('d','d'), ('d','d'), ('y','y');
+
+let $query=
+SELECT *
+FROM (SELECT * FROM t2) AS derived1
+     LEFT JOIN t1
+     USING (col_varchar_nokey)
+WHERE (col_varchar_nokey, col_varchar_nokey) IN
+   (SELECT col_varchar_nokey, col_varchar_key
+    FROM t2 AS derived2
+   );
+
+eval explain format=json $query;
+eval $query;
+
+DROP TABLE t1, t2;
+
+CREATE TABLE t1 (
+  col_int_nokey int NOT NULL,
+  col_int_key int NOT NULL,
+  KEY col_int_key (col_int_key)
+);
+
+INSERT INTO t1 VALUES
+ (1,7), (7,0), (4,9), (7,3), (0,4), (2,2), (9,5), (4,3), (0,1), (9,3),
+ (1,6), (3,7), (8,5), (8,1), (18,204), (84,224), (6,9), (3,5), (6,0), (6,3);
+
+CREATE TABLE t2 (
+  col_int_nokey int NOT NULL,
+  col_int_key int NOT NULL,
+  KEY col_int_key (col_int_key)
+);
+
+INSERT INTO t2 VALUES
+ (4,0), (6,8), (3,1), (5,8), (3,9), (246,24), (2,6), (9,1), (3,6), (8,2),
+ (1,4), (8,8), (8,4), (5,4), (7,7), (5,4), (1,1), (6,9), (2,4), (9,8);
+
+let $query=
+SELECT grandparent1.*
+FROM t1 AS grandparent1
+     LEFT JOIN t1 USING (col_int_nokey)
+WHERE (col_int_nokey, col_int_nokey) IN
+   (SELECT col_int_nokey, col_int_key
+    FROM t2
+   );
+
+eval explain format=json $query;
+eval $query;
+
+DROP TABLE t1, t2;
+
+CREATE TABLE t1 (  
+  pk int,  
+  col_int_key int,  
+  col_datetime_key datetime,  
+  col_varchar_key varchar(1),  
+  col_varchar_nokey varchar(1),  
+  PRIMARY KEY (pk),  
+  KEY col_int_key (col_int_key),  
+  KEY col_datetime_key (col_datetime_key),  
+  KEY col_varchar_key (col_varchar_key,col_int_key)
+) engine=MyISAM;
+ 
+INSERT INTO t1 VALUES
+ (10,7,'2004-06-06 04:22:12','v','v'), (11,0,'2005-11-13 01:12:31','s','s'),
+ (12,9,'2002-05-04 01:50:00','l','l'), (13,3,'2004-10-27 10:28:45','y','y'),
+ (14,4,'2006-07-22 05:24:23','c','c'), (15,2,'2002-05-16 21:34:03','i','i'),
+ (16,5,'2008-04-17 10:45:30','h','h'), (17,3,'2009-04-21 02:58:02','q','q'),
+ (18,1,'2008-01-11 11:01:51','a','a'), (19,3,'1900-01-01 00:00:00','v','v'),
+ (20,6,'2007-05-17 18:24:57','u','u'), (21,7,'2007-08-07 00:00:00','s','s'),
+ (22,5,'2001-08-28 00:00:00','y','y'), (23,1,'2004-04-16 00:27:28','z','z'),
+ (24,204,'2005-05-03 07:06:22','h','h'), (25,224,'2009-03-11 17:09:50','p','p'),
+ (26,9,'2007-12-08 01:54:28','e','e'), (27,5,'2009-07-28 18:19:54','i','i'),
+ (28,0,'2008-06-08 00:00:00','y','y'), (29,3,'2005-02-09 09:20:26','w','w');
+ 
+CREATE TABLE t2 (
+  pk int,
+  col_int_key int,
+  col_datetime_key datetime,
+  col_varchar_key varchar(1),
+  col_varchar_nokey varchar(1),
+  PRIMARY KEY (pk),
+  KEY col_int_key (col_int_key),
+  KEY col_datetime_key (col_datetime_key),
+  KEY col_varchar_key (col_varchar_key,col_int_key)
+) engine=MyISAM;
+ 
+INSERT INTO t2 VALUES
+ (1,0,'2002-02-13 17:30:06','j','j'), (2,8,'2008-09-27 00:34:58','v','v'),
+ (3,1,'2007-05-28 00:00:00','c','c'), (4,8,'2009-07-25 09:21:20','m','m'),
+ (5,9,'2002-01-16 00:00:00','d','d'), (6,24,'2006-10-12 04:32:53','d','d'),
+ (7,6,'2001-02-15 03:08:38','y','y'), (8,1,'2004-10-02 20:31:15','t','t'),
+ (9,6,'2002-08-20 22:48:00','d','d'), (10,2,'1900-01-01 00:00:00','s','s'),
+ (11,4,'2005-08-15 00:00:00','r','r'), (12,8,'1900-01-01 00:00:00','m','m'),
+ (13,4,'2008-05-16 08:09:06','b','b'), (14,4,'2001-01-20 12:47:23','x','x'),
+ (15,7,'2008-07-02 00:00:00','g','g'), (16,4,'1900-01-01 00:00:00','p','p'),
+ (17,1,'2002-12-08 11:34:58','q','q'), (18,9,'1900-01-01 00:00:00','w','w'),
+ (19,4,'1900-01-01 00:00:00','d','d'), (20,8,'2002-08-25 20:35:06','e','e');
+ 
+SELECT alias1.col_datetime_key
+FROM t2 AS alias1
+     RIGHT JOIN t2 AS alias2
+       JOIN t2 AS alias3
+       ON alias3.pk = alias2.pk
+     ON alias3.col_varchar_nokey = alias2.col_varchar_key OR
+        alias2.col_varchar_nokey
+WHERE (alias2.col_varchar_key, alias2.col_varchar_key) IN
+       (SELECT sq2_alias2.col_varchar_key, sq2_alias1.col_varchar_nokey
+        FROM t1 AS sq2_alias1, t1 AS sq2_alias2
+        WHERE sq2_alias2.col_int_key < 2);
+ 
+ALTER TABLE t1 DISABLE KEYS;
+ALTER TABLE t2 DISABLE KEYS;
+
+let $query=
+SELECT alias1.col_datetime_key
+FROM t2 AS alias1
+     RIGHT JOIN t2 AS alias2
+       JOIN t2 AS alias3
+       ON alias3.pk = alias2.pk
+     ON alias3.col_varchar_nokey = alias2.col_varchar_key OR
+        alias2.col_varchar_nokey
+WHERE (alias2.col_varchar_key, alias2.col_varchar_key) IN
+       (SELECT sq2_alias2.col_varchar_key, sq2_alias1.col_varchar_nokey
+        FROM t1 AS sq2_alias1, t1 AS sq2_alias2
+        WHERE sq2_alias2.col_int_key < 2);
+
+eval explain format=json $query;
+eval $query;
+
+DROP TABLE t1, t2;
+
+--echo # End of test for bug#14064201.
 
 --echo # End of 5.6 tests

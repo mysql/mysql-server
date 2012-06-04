@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -3987,23 +3987,40 @@ Query_log_event::Query_log_event(const char* buf, uint event_len,
       pos= (const uchar*) end;                         // Break loop
     }
   }
-  
+
+  /**
+    Layout for the data buffer is as follows
+    +--------+-----------+------+------+---------+----+-------+
+    | catlog | time_zone | user | host | db name | \0 | Query |
+    +--------+-----------+------+------+---------+----+-------+
+
+    To support the query cache we append the following buffer to the above
+    +-------+----------------------------------------+-------+
+    |db len | uninitiatlized space of size of db len | FLAGS |
+    +-------+----------------------------------------+-------+
+
+    The area of buffer starting from Query field all the way to the end belongs
+    to the Query buffer and its structure is described in alloc_query() in
+    sql_parse.cc
+    */
+
 #if !defined(MYSQL_CLIENT) && defined(HAVE_QUERY_CACHE)
-  if (!(start= data_buf = (Log_event::Byte*) my_malloc(catalog_len + 1 +
-                                              time_zone_len + 1 +
-                                              data_len + 1 +
-                                              QUERY_CACHE_FLAGS_SIZE +
-                                              user.length + 1 +
-                                              host.length + 1 +
-                                              db_len + 1,
-                                              MYF(MY_WME))))
+  if (!(start= data_buf = (Log_event::Byte*) my_malloc(catalog_len + 1
+                                                    +  time_zone_len + 1
+                                                    +  user.length + 1
+                                                    +  host.length + 1
+                                                    +  data_len + 1
+                                                    +  sizeof(size_t)//for db_len
+                                                    +  db_len + 1
+                                                    +  QUERY_CACHE_FLAGS_SIZE,
+                                                       MYF(MY_WME))))
 #else
-  if (!(start= data_buf = (Log_event::Byte*) my_malloc(catalog_len + 1 +
-                                             time_zone_len + 1 +
-                                             data_len + 1 +
-                                             user.length + 1 +
-                                             host.length + 1,
-                                             MYF(MY_WME))))
+  if (!(start= data_buf = (Log_event::Byte*) my_malloc(catalog_len + 1
+                                                    +  time_zone_len + 1
+                                                    +  user.length + 1
+                                                    +  host.length + 1
+                                                    +  data_len + 1,
+                                                       MYF(MY_WME))))
 #endif
       DBUG_VOID_RETURN;
   if (catalog_len)                                  // If catalog is given
@@ -4043,6 +4060,14 @@ Query_log_event::Query_log_event(const char* buf, uint event_len,
   db= (char *)start;
   query= (char *)(start + db_len + 1);
   q_len= data_len - db_len -1;
+  /**
+    Append the db length at the end of the buffer. This will be used by
+    Query_cache::send_result_to_client() in case the query cache is On.
+   */
+#if !defined(MYSQL_CLIENT) && defined(HAVE_QUERY_CACHE)
+  size_t db_length= (size_t)db_len;
+  memcpy(start + data_len + 1, &db_length, sizeof(size_t));
+#endif
   DBUG_VOID_RETURN;
 }
 
@@ -4228,6 +4253,12 @@ void Query_log_event::print(FILE* file, PRINT_EVENT_INFO* print_event_info)
 {
   IO_CACHE *const head= &print_event_info->head_cache;
 
+  /**
+    reduce the size of io cache so that the write function is called
+    for every call to my_b_write().
+   */
+  DBUG_EXECUTE_IF ("simulate_file_write_error",
+                   {head->write_pos= head->write_end- 500;});
   print_query_header(head, print_event_info);
   my_b_write(head, (uchar*) query, q_len);
   my_b_printf(head, "\n%s\n", print_event_info->delimiter);
@@ -4328,6 +4359,35 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli)
   return do_apply_event(rli, query, q_len);
 }
 
+/*
+  is_silent_error
+
+  Return true if the thread has an error which should be
+  handled silently
+*/
+  
+static bool is_silent_error(THD* thd)
+{
+  DBUG_ENTER("is_silent_error");
+  Diagnostics_area::Sql_condition_iterator it=
+    thd->get_stmt_da()->sql_conditions();
+  const Sql_condition *err;
+  while ((err= it++))
+  {
+    DBUG_PRINT("info", ("has condition %d %s", err->get_sql_errno(),
+                        err->get_message_text()));
+    switch (err->get_sql_errno())
+    {
+    case ER_SLAVE_SILENT_RETRY_TRANSACTION:
+    {
+      DBUG_RETURN(true);
+    }
+    default:
+      break;
+    }
+  }
+  DBUG_RETURN(false);
+}
 
 /**
   @todo
@@ -4677,11 +4737,14 @@ Default database: '%s'. Query: '%s'",
     */
     else if (thd->is_slave_error || thd->is_fatal_error)
     {
-      rli->report(ERROR_LEVEL, actual_error,
-                      "Error '%s' on query. Default database: '%s'. Query: '%s'",
-                      (actual_error ? thd->get_stmt_da()->message() :
-                       "unexpected success or fatal error"),
-                      print_slave_db_safe(thd->db), query_arg);
+      if (!is_silent_error(thd))
+      {
+        rli->report(ERROR_LEVEL, actual_error,
+                    "Error '%s' on query. Default database: '%s'. Query: '%s'",
+                    (actual_error ? thd->get_stmt_da()->message() :
+                     "unexpected success or fatal error"),
+                    print_slave_db_safe(thd->db), query_arg);
+      }
       thd->is_slave_error= 1;
     }
 
@@ -4779,7 +4842,8 @@ int Query_log_event::do_update_pos(Relay_log_info *rli)
        if (!strcmp("COMMIT", query))
        {
          sql_print_information("Crashing crash_after_commit_and_update_pos.");
-         rli->flush_info(TRUE);
+         rli->flush_info(true);
+         ha_flush_logs(0); 
          DBUG_SUICIDE();
        }
   );
@@ -7065,6 +7129,8 @@ err:
 int Xid_log_event::do_apply_event(Relay_log_info const *rli)
 {
   int error= 0;
+  lex_start(thd);
+  mysql_reset_thd_for_next_command(thd);
   Relay_log_info *rli_ptr= const_cast<Relay_log_info *>(rli);
 
   /* For a slave Xid_log_event is COMMIT */
@@ -7112,8 +7178,21 @@ int Xid_log_event::do_apply_event(Relay_log_info const *rli)
                   sql_print_information("Crashing crash_after_update_pos_before_apply.");
                   DBUG_SUICIDE(););
 
+  /**
+    Commit operation expects the global transaction state variable 'xa_state'to
+    be set to 'XA_NOTR'. In order to simulate commit failure we set
+    the 'xa_state' to 'XA_IDLE' so that the commit reports 'ER_XAER_RMFAIL'
+    error.
+   */
+  DBUG_EXECUTE_IF("simulate_commit_failure",
+                  {
+                  thd->transaction.xid_state.xa_state = XA_IDLE;
+                  });
   error= do_commit(thd);
-
+  if(error)
+    rli->report(ERROR_LEVEL, thd->get_stmt_da()->sql_errno(),
+                "Error in Xid_log_event: Commit could not be completed, '%s'",
+                thd->get_stmt_da()->message());
 err:
   mysql_cond_broadcast(&rli_ptr->data_cond);
   mysql_mutex_unlock(&rli_ptr->data_lock);
@@ -7522,7 +7601,7 @@ int User_var_log_event::do_apply_event(Relay_log_info const *rli)
       return 0;
     }
   }
-  Item_func_set_user_var e(NameString(name, name_len, false), it);
+  Item_func_set_user_var e(Name_string(name, name_len, false), it);
   /*
     Item_func_set_user_var can't substitute something else on its place =>
     0 can be passed as last argument (reference on item)
@@ -7851,11 +7930,21 @@ int Create_file_log_event::do_apply_event(Relay_log_info const *rli)
   IO_CACHE file;
   int error = 1;
 
+  lex_start(thd);
+  mysql_reset_thd_for_next_command(thd);
   THD_STAGE_INFO(thd, stage_making_temp_file_create_before_load_data);
   memset(&file, 0, sizeof(file));
   ext= slave_load_file_stem(fname_buf, file_id, server_id, ".info");
   /* old copy may exist already */
   mysql_file_delete(key_file_log_event_info, fname_buf, MYF(0));
+  /**
+    To simulate file creation failure, convert the file name to a
+    directory by appending a "/" to the file name.
+   */
+  DBUG_EXECUTE_IF("simulate_file_create_error_create_log_event",
+                  {
+                  strcat(fname_buf,"/");
+                  });
   if ((fd= mysql_file_create(key_file_log_event_info,
                              fname_buf, CREATE_MODE,
                              O_WRONLY | O_BINARY | O_EXCL | O_NOFOLLOW,
@@ -7863,7 +7952,7 @@ int Create_file_log_event::do_apply_event(Relay_log_info const *rli)
       init_io_cache(&file, fd, IO_SIZE, WRITE_CACHE, (my_off_t)0, 0,
 		    MYF(MY_WME|MY_NABP)))
   {
-    rli->report(ERROR_LEVEL, my_errno,
+    rli->report(ERROR_LEVEL, thd->get_stmt_da()->sql_errno(),
                 "Error in Create_file event: could not open file '%s'",
                 fname_buf);
     goto err;
@@ -7896,9 +7985,17 @@ int Create_file_log_event::do_apply_event(Relay_log_info const *rli)
                 fname_buf);
     goto err;
   }
+  /**
+    To simulate file write failure,close the file before the write operation.
+    Write will fail with an error reporting file is UNOPENED. 
+   */
+  DBUG_EXECUTE_IF("simulate_file_write_error_create_log_event",
+                  {
+                  mysql_file_close(fd, MYF(0));
+                  });
   if (mysql_file_write(fd, (uchar*) block, block_len, MYF(MY_WME+MY_NABP)))
   {
-    rli->report(ERROR_LEVEL, my_errno,
+    rli->report(ERROR_LEVEL, thd->get_stmt_da()->sql_errno(),
                 "Error in Create_file event: write to '%s' failed",
                 fname_buf);
     goto err;
@@ -8180,6 +8277,8 @@ int Delete_file_log_event::pack_info(Protocol *protocol)
 int Delete_file_log_event::do_apply_event(Relay_log_info const *rli)
 {
   char fname[FN_REFLEN+TEMP_FILE_MAX_LEN];
+  lex_start(thd);
+  mysql_reset_thd_for_next_command(thd);
   char *ext= slave_load_file_stem(fname, file_id, server_id, ".data");
   mysql_file_delete(key_file_log_event_data, fname, MYF(MY_WME));
   strmov(ext, ".info");
@@ -8287,14 +8386,25 @@ int Execute_load_log_event::do_apply_event(Relay_log_info const *rli)
   IO_CACHE file;
   Load_log_event *lev= 0;
 
+  lex_start(thd);
+  mysql_reset_thd_for_next_command(thd);
   ext= slave_load_file_stem(fname, file_id, server_id, ".info");
+  /**
+    To simulate file open failure, convert the file name to a
+    directory by appending a "/" to the file name. File open
+    will fail with an error reporting it is not a directory.
+   */
+  DBUG_EXECUTE_IF("simulate_file_open_error_exec_event",
+                  {
+                  strcat(fname,"/");
+                  });
   if ((fd= mysql_file_open(key_file_log_event_info,
                            fname, O_RDONLY | O_BINARY | O_NOFOLLOW,
                            MYF(MY_WME))) < 0 ||
       init_io_cache(&file, fd, IO_SIZE, READ_CACHE, (my_off_t)0, 0,
 		    MYF(MY_WME|MY_NABP)))
   {
-    rli->report(ERROR_LEVEL, my_errno,
+    rli->report(ERROR_LEVEL, thd->get_stmt_da()->sql_errno(),
                 "Error in Exec_load event: could not open file '%s'",
                 fname);
     goto err;
@@ -9951,6 +10061,24 @@ int Rows_log_event::do_index_scan_and_update(Relay_log_info const *rli)
     /* we dont have a PK, or PK is not usable */
     goto INDEX_SCAN;
 
+  if ((table->file->ha_table_flags() & HA_READ_BEFORE_WRITE_REMOVAL))
+  {
+    /*
+      Read removal is possible since the engine supports write without
+      previous read using full primary key
+    */
+    DBUG_PRINT("info", ("using read before write removal"));
+    DBUG_ASSERT(m_key_index == m_table->s->primary_key);
+
+    /*
+      Tell the handler to ignore if key exists or not, since it's
+      not yet known if the key does exist(when using rbwr)
+    */
+    table->file->extra(HA_EXTRA_IGNORE_NO_KEY);
+
+    goto end;
+  }
+
   if ((table->file->ha_table_flags() & HA_PRIMARY_KEY_REQUIRED_FOR_POSITION))
   {
     /*
@@ -10548,9 +10676,24 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
     {
       DBUG_PRINT("debug", ("Checking compability of tables to lock - tables_to_lock: %p",
                            rli->tables_to_lock));
+
+      /**
+        When using RBR and MyISAM MERGE tables the base tables that make
+        up the MERGE table can be appended to the list of tables to lock.
+  
+        Thus, we just check compatibility for those that tables that have
+        a correspondent table map event (ie, those that are actually going
+        to be accessed while applying the event). That's why the loop stops
+        at rli->tables_to_lock_count .
+
+        NOTE: The base tables are added here are removed when 
+              close_thread_tables is called.
+       */
       RPL_TABLE_LIST *ptr= rli->tables_to_lock;
-      for ( ; ptr ; ptr= static_cast<RPL_TABLE_LIST*>(ptr->next_global))
+      for (uint i= 0 ; ptr && (i < rli->tables_to_lock_count);
+           ptr= static_cast<RPL_TABLE_LIST*>(ptr->next_global), i++)
       {
+        DBUG_ASSERT(ptr->m_tabledef_valid);
         TABLE *conv_table;
         if (!ptr->m_tabledef.compatible_with(thd, const_cast<Relay_log_info*>(rli),
                                              ptr->table, &conv_table))
@@ -10588,10 +10731,10 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
       Rows_log_event, we can invalidate the query cache for the
       associated table.
      */
-    for (TABLE_LIST *ptr= rli->tables_to_lock ; ptr ; ptr= ptr->next_global)
-    {
+    TABLE_LIST *ptr= rli->tables_to_lock;
+    for (uint i=0 ;  ptr && (i < rli->tables_to_lock_count); ptr= ptr->next_global, i++)
       const_cast<Relay_log_info*>(rli)->m_table_map.set_table(ptr->table_id, ptr->table);
-    }
+
 #ifdef HAVE_QUERY_CACHE
     query_cache.invalidate_locked_for_write(rli->tables_to_lock);
 #endif
@@ -11443,9 +11586,9 @@ check_table_map(Relay_log_info const *rli, RPL_TABLE_LIST *table_list)
     res= FILTERED_OUT;
   else
   {
-    for(RPL_TABLE_LIST *ptr= static_cast<RPL_TABLE_LIST*>(rli->tables_to_lock);
-        ptr; 
-        ptr= static_cast<RPL_TABLE_LIST*>(ptr->next_local))
+    RPL_TABLE_LIST *ptr= static_cast<RPL_TABLE_LIST*>(rli->tables_to_lock);
+    for(uint i=0 ; ptr && (i< rli->tables_to_lock_count); 
+        ptr= static_cast<RPL_TABLE_LIST*>(ptr->next_local), i++)
     {
       if (ptr->table_id == table_list->table_id)
       {

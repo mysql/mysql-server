@@ -39,7 +39,7 @@ ulong setup_object_max;
 
 PFS_setup_object *setup_object_array= NULL;
 
-static LF_HASH setup_object_hash;
+LF_HASH setup_object_hash;
 static bool setup_object_hash_inited= false;
 
 /**
@@ -95,10 +95,11 @@ C_MODE_END
 */
 int init_setup_object_hash(void)
 {
-  if (! setup_object_hash_inited)
+  if ((! setup_object_hash_inited) && (setup_object_max > 0))
   {
     lf_hash_init(&setup_object_hash, sizeof(PFS_setup_object*), LF_HASH_UNIQUE,
                  0, 0, setup_object_hash_get_key, &my_charset_bin);
+    setup_object_hash.size= setup_object_max;
     setup_object_hash_inited= true;
   }
   return 0;
@@ -161,7 +162,7 @@ int insert_setup_object(enum_object_type object_type, const String *schema,
   if (unlikely(pins == NULL))
     return HA_ERR_OUT_OF_MEM;
 
-  static uint setup_object_monotonic_index= 0;
+  static uint PFS_ALIGNED setup_object_monotonic_index= 0;
   uint index;
   uint attempts= 0;
   PFS_setup_object *pfs;
@@ -169,8 +170,7 @@ int insert_setup_object(enum_object_type object_type, const String *schema,
   while (++attempts <= setup_object_max)
   {
     /* See create_mutex() */
-    PFS_atomic::add_u32(& setup_object_monotonic_index, 1);
-    index= setup_object_monotonic_index % setup_object_max;
+    index= PFS_atomic::add_u32(& setup_object_monotonic_index, 1) % setup_object_max;
     pfs= setup_object_array + index;
 
     if (pfs->m_lock.is_free())

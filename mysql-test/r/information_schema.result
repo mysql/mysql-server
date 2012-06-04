@@ -698,6 +698,7 @@ max_questions	select,insert,update,references
 max_connections	select,insert,update,references
 max_user_connections	select,insert,update,references
 authentication_string	select,insert,update,references
+password_expired	select,insert,update,references
 use test;
 create function sub1(i int) returns int
 return i+1;
@@ -2087,6 +2088,11 @@ SELECT MAX(a) FROM information_schema.engines RIGHT JOIN t1 ON 1;
 MAX(a)
 1
 DROP TABLE t1;
+#
+# BUG#13463397 - 63562: UNKNOWN DATABASE INFORMATION_SCHEMA 
+#
+CREATE PROCEDURE information_schema.is() BEGIN END;
+ERROR 42000: Access denied for user 'root'@'localhost' to database 'information_schema'
 #
 # End of 5.6 tests
 #

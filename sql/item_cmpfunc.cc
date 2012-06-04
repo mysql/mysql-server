@@ -1916,7 +1916,7 @@ void Item_in_optimizer::fix_after_pullout(st_select_lex *parent_select,
                                           st_select_lex *removed_select,
                                           Item **ref)
 {
-  used_tables_cache=0;
+  used_tables_cache= get_initial_pseudo_tables();
   not_null_tables_cache= 0;
   const_item_cache= 1;
 
@@ -2750,6 +2750,7 @@ Item_func_ifnull::fix_length_and_dec()
 {
   uint32 char_length;
   agg_result_type(&hybrid_type, args, 2);
+  cached_field_type= agg_field_type(args, 2);
   maybe_null=args[1]->maybe_null;
   decimals= max(args[0]->decimals, args[1]->decimals);
   unsigned_flag= args[0]->unsigned_flag && args[1]->unsigned_flag;
@@ -2769,7 +2770,7 @@ Item_func_ifnull::fix_length_and_dec()
 
   switch (hybrid_type) {
   case STRING_RESULT:
-    if (agg_arg_charsets_for_comparison(collation, args, arg_count))
+    if (count_string_result_length(cached_field_type, args, arg_count))
       return;
     break;
   case DECIMAL_RESULT:
@@ -2783,7 +2784,6 @@ Item_func_ifnull::fix_length_and_dec()
     DBUG_ASSERT(0);
   }
   fix_char_length(char_length);
-  cached_field_type= agg_field_type(args, 2);
 }
 
 
@@ -4817,7 +4817,7 @@ void Item_cond::fix_after_pullout(st_select_lex *parent_select,
   List_iterator<Item> li(list);
   Item *item;
 
-  used_tables_cache= 0;
+  used_tables_cache= get_initial_pseudo_tables();
   const_item_cache= true;
 
   if (functype() == COND_AND_FUNC && abort_on_null)
@@ -5183,22 +5183,19 @@ longlong Item_is_not_null_test::val_int()
 */
 void Item_is_not_null_test::update_used_tables()
 {
+  const table_map initial_pseudo_tables= get_initial_pseudo_tables();
+  used_tables_cache= initial_pseudo_tables;
   if (!args[0]->maybe_null)
   {
-    used_tables_cache= 0;			/* is always true */
-    cached_value= (longlong) 1;
+    cached_value= 1;
+    return;
   }
-  else
-  {
-    args[0]->update_used_tables();
-    with_subselect= args[0]->has_subquery();
-
-    if (!(used_tables_cache=args[0]->used_tables()) && !with_subselect)
-    {
-      /* Remember if the value is always NULL or never NULL */
-      cached_value= (longlong) !args[0]->is_null();
-    }
-  }
+  args[0]->update_used_tables();
+  with_subselect= args[0]->has_subquery();
+  used_tables_cache|= args[0]->used_tables();
+  if (used_tables_cache == initial_pseudo_tables && !with_subselect)
+    /* Remember if the value is always NULL or never NULL */
+    cached_value= !args[0]->is_null();
 }
 
 
@@ -5359,8 +5356,8 @@ bool Item_func_like::fix_fields(THD *thd, Item **ref)
       }
       if (canDoTurboBM)
       {
-        pattern     = first + 1;
         pattern_len = (int) len - 2;
+        pattern     = thd->strmake(first + 1, pattern_len);
         DBUG_PRINT("info", ("Initializing pattern: '%s'", first));
         int *suff = (int*) thd->alloc((int) (sizeof(int)*
                                       ((pattern_len + 1)*2+
@@ -6294,13 +6291,13 @@ void Item_func_trig_cond::print(String *str, enum_query_type query_type)
 {
   /*
     Print:
-    trigcond_if(<property><(optional list of source tables)>, condition, TRUE)
+    <if>(<property><(optional list of source tables)>, condition, TRUE)
     which means: if a certain property (<property>) is true, then return
     the value of <condition>, else return TRUE. If source tables are
     present, they are the owner of the property.
   */
   str->append(func_name());
-  str->append("_if(");
+  str->append("(");
   switch(trig_type)
   {
   case IS_NOT_NULL_COMPL:

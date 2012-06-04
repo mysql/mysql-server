@@ -23,6 +23,7 @@ extern "C" {
 #endif
 
 #include <mysql.h>
+#include <hash.h>
 
 extern const char	*unknown_sqlstate;
 extern const char	*cant_connect_sqlstate;
@@ -33,7 +34,9 @@ struct st_mysql_options_extention {
   char *default_auth;
   char *ssl_crl;				/* PEM CRL file */
   char *ssl_crlpath;				/* PEM directory of CRL-s? */
+  HASH connection_attributes;
   char *server_public_key_path;
+  size_t connection_attributes_length;
 };
 
 typedef struct st_mysql_methods
@@ -106,6 +109,7 @@ int mysql_client_plugin_init();
 void mysql_client_plugin_deinit();
 struct st_mysql_client_plugin;
 extern struct st_mysql_client_plugin *mysql_client_builtins[];
+uchar * send_client_connect_attrs(MYSQL *mysql, uchar *buf);
 
 #ifdef	__cplusplus
 }

@@ -959,13 +959,8 @@ PFS_object_wait_visitor::~PFS_object_wait_visitor()
 
 void PFS_object_wait_visitor::visit_global()
 {
-  uint index;
-
-  index= global_table_io_class.m_event_name_index;
-  m_stat.aggregate(& global_instr_class_waits_array[index]);
-
-  index= global_table_lock_class.m_event_name_index;
-  m_stat.aggregate(& global_instr_class_waits_array[index]);
+  global_table_io_stat.sum(& m_stat);
+  global_table_lock_stat.sum(& m_stat);
 }
 
 void PFS_object_wait_visitor::visit_table_share(PFS_table_share *pfs)
@@ -992,8 +987,7 @@ PFS_table_io_wait_visitor::~PFS_table_io_wait_visitor()
 
 void PFS_table_io_wait_visitor::visit_global()
 {
-  uint index= global_table_io_class.m_event_name_index;
-  m_stat.aggregate(& global_instr_class_waits_array[index]);
+  global_table_io_stat.sum(& m_stat);
 }
 
 void PFS_table_io_wait_visitor::visit_table_share(PFS_table_share *pfs)
@@ -1100,8 +1094,7 @@ PFS_table_lock_wait_visitor::~PFS_table_lock_wait_visitor()
 
 void PFS_table_lock_wait_visitor::visit_global()
 {
-  uint index= global_table_lock_class.m_event_name_index;
-  m_stat.aggregate(& global_instr_class_waits_array[index]);
+  global_table_lock_stat.sum(& m_stat);
 }
 
 void PFS_table_lock_wait_visitor::visit_table_share(PFS_table_share *pfs)

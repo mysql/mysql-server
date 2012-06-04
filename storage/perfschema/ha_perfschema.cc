@@ -166,6 +166,8 @@ static struct st_mysql_show_var pfs_status_vars[]=
     (char*) &statement_class_lost, SHOW_LONG},
   {"Performance_schema_digest_lost",
     (char*) &digest_lost, SHOW_LONG},
+  {"Performance_schema_session_connect_attrs_lost",
+    (char*) &session_connect_attrs_lost, SHOW_LONG},
   {NullS, NullS, SHOW_LONG}
 };
 

@@ -20,6 +20,7 @@
 #include "sql_optimizer.h" // JOIN
 #include "sql_partition.h" // for make_used_partitions_str()
 #include "sql_join_buffer.h" // JOIN_CACHE
+#include "filesort.h"        // Filesort
 #include "opt_explain_format.h"
 
 typedef qep_row::extra extra;
@@ -59,6 +60,20 @@ protected:
   JOIN::ORDER_with_src group_list; //< GROUP BY item tee list
 
 protected:
+  class Lazy_condition: public Lazy
+  {
+    Item *const condition;
+  public:
+    Lazy_condition(Item *condition_arg): condition(condition_arg) {}
+    virtual bool eval(String *ret)
+    {
+      ret->length(0);
+      if (condition)
+        condition->print(ret, QT_ORDINARY);
+      return false;
+    }
+  };
+
   explicit Explain(Explain_context_enum context_type_arg,
                    THD *thd_arg, JOIN *join_arg= NULL)
   : thd(thd_arg),
@@ -315,6 +330,7 @@ private:
 
   uint tabnum; ///< current tab number in join->join_tab[]
   JOIN_TAB *tab; ///< current JOIN_TAB
+  SQL_SELECT *select; ///< current SQL_SELECT
   int quick_type; ///< current quick type, see anon. enum at QUICK_SELECT_I
   table_map used_tables; ///< accumulate used tables bitmap
   uint last_sjm_table; ///< last materialized semi-joined table
@@ -328,7 +344,7 @@ public:
   : Explain_table_base(CTX_JOIN, thd_arg, join_arg),
     need_tmp_table(need_tmp_table_arg),
     need_order(need_order_arg), distinct(distinct_arg),
-    tabnum(0), used_tables(0), last_sjm_table(MAX_TABLES),
+    tabnum(0), select(0), used_tables(0), last_sjm_table(MAX_TABLES),
     materialize_start(MAX_TABLES), materialize_end(MAX_TABLES)
   {
     /* it is not UNION: */
@@ -585,12 +601,31 @@ bool Explain::explain_subqueries(select_result *result)
       fmt->entry()->using_temporary= true;
       fmt->entry()->col_join_type.set_const(join_type_str[JT_EQ_REF]);
       fmt->entry()->col_key.set_const("<auto_key>");
+
+      const subselect_hash_sj_engine * const engine=
+        static_cast<const subselect_hash_sj_engine *>
+        (unit->explain_subselect_engine);
+      const JOIN_TAB * const tmp_tab= engine->get_join_tab();
+
+      char buff_key_len[24];
+      fmt->entry()->col_key_len.set(buff_key_len,
+                                    longlong2str(tmp_tab->table->key_info[0].key_length,
+                                                 buff_key_len, 10) - buff_key_len);
+
+      if (explain_ref_key(fmt, tmp_tab->ref.key_parts,
+                          tmp_tab->ref.key_copy))
+        return true;
+
       fmt->entry()->col_rows.set(1);
 
-      const JOIN_TAB *tmp_tab= static_cast<const subselect_hash_sj_engine *>
-        (unit->explain_subselect_engine)->get_join_tab();
-      if (explain_ref_key(fmt, tmp_tab->ref.key_parts, tmp_tab->ref.key_copy))
-        return true;
+      Item * const cond= engine->get_cond_for_explain();
+      if (cond)
+      {
+        Lazy_condition *c= new Lazy_condition(cond);
+        if (c == NULL)
+          return true;
+        fmt->entry()->col_attached_condition.set(c);
+      }
     }
 
     if (mysql_explain_unit(thd, unit, result))
@@ -890,6 +925,46 @@ bool Explain_table_base::explain_extra_common(const SQL_SELECT *select,
     return true;
   }
 
+  const TABLE* pushed_root= table->file->root_of_pushed_join();
+  if (pushed_root)
+  {
+    char buf[128];
+    int len;
+    int pushed_id= 0;
+
+    for (JOIN_TAB* prev= join->join_tab; prev <= tab; prev++)
+    {
+      const TABLE* prev_root= prev->table->file->root_of_pushed_join();
+      if (prev_root == prev->table)
+      {
+        pushed_id++;
+        if (prev_root == pushed_root)
+          break;
+      }
+    }
+    if (pushed_root == table)
+    {
+      uint pushed_count= tab->table->file->number_of_pushed_joins();
+      len= my_snprintf(buf, sizeof(buf)-1,
+                       "Parent of %d pushed join@%d",
+                       pushed_count, pushed_id);
+    }
+    else
+    {
+      len= my_snprintf(buf, sizeof(buf)-1,
+                       "Child of '%s' in pushed join@%d",
+                       tab->table->file->parent_of_pushed_join()->alias,
+                       pushed_id);
+    }
+
+    {
+      StringBuffer<128> buff(cs);
+      buff.append(buf,len);
+      if (push_extra(ET_PUSHED_JOIN, buff))
+        return true;
+    }
+  }
+
   switch (quick_type) {
   case QUICK_SELECT_I::QS_TYPE_ROR_UNION:
   case QUICK_SELECT_I::QS_TYPE_ROR_INTERSECT:
@@ -945,15 +1020,12 @@ bool Explain_table_base::explain_extra_common(const SQL_SELECT *select,
       {
         if (fmt->is_hierarchical())
         {
-          StringBuffer<160> buff(cs);
-          if (tab)
-          {
-            if (tab->condition())
-              tab->condition()->print(&buff, QT_ORDINARY);
-          }
-          else
-            select->cond->print(&buff, QT_ORDINARY);
-          fmt->entry()->col_attached_condition.set(buff);
+          Lazy_condition *c= new Lazy_condition(tab && !tab->filesort ?
+                                                tab->condition() :
+                                                select->cond);
+          if (c == NULL)
+            return true;
+          fmt->entry()->col_attached_condition.set(c);
         }
         else if (push_extra(ET_USING_WHERE))
           return true;
@@ -1093,10 +1165,12 @@ bool Explain_join::shallow_explain()
     table= tab->table;
     usable_keys= tab->keys;
     quick_type= -1;
+    select= (tab->filesort && tab->filesort->select) ?
+             tab->filesort->select : tab->select;
 
-    if (tab->type == JT_ALL && tab->select && tab->select->quick)
+    if (tab->type == JT_ALL && select && select->quick)
     {
-      quick_type= tab->select->quick->get_type();
+      quick_type= select->quick->get_type();
       tab->type= calc_join_type(quick_type);
     }
 
@@ -1119,11 +1193,23 @@ bool Explain_join::shallow_explain()
         {
           fmt->entry()->col_join_type.set_const(join_type_str[JT_EQ_REF]);
           fmt->entry()->col_key.set_const("<auto_key>");
+          char buff_key_len[24];
+          fmt->entry()->col_key_len.set(buff_key_len,
+                                        longlong2str(sjm->table->key_info[0].key_length,
+                                                     buff_key_len, 10) - buff_key_len);
+
           fmt->entry()->col_rows.set(1);
 
           if (explain_ref_key(fmt, sjm->tab_ref->key_parts,
                               sjm->tab_ref->key_copy))
             return true;
+          if (sjm->in_equality)
+          {
+            Lazy_condition *c= new Lazy_condition(sjm->in_equality);
+            if (c == NULL)
+              return true;
+            fmt->entry()->col_attached_condition.set(c);
+          }
         }
       }
     }
@@ -1212,8 +1298,8 @@ bool Explain_join::explain_key_and_len()
     return explain_key_and_len_index(tab->ref.key, tab->ref.key_length);
   else if (tab->type == JT_INDEX_SCAN)
     return explain_key_and_len_index(tab->index);
-  else if (tab->select && tab->select->quick)
-    return explain_key_and_len_quick(tab->select);
+  else if (select && select->quick)
+    return explain_key_and_len_quick(select);
   else
   {
     const TABLE_LIST *table_list= table->pos_in_table_list;
@@ -1257,8 +1343,8 @@ bool Explain_join::explain_rows_and_filtered()
     return false;
 
   double examined_rows;
-  if (tab->select && tab->select->quick)
-    examined_rows= rows2double(tab->select->quick->records);
+  if (select && select->quick)
+    examined_rows= rows2double(select->quick->records);
   else if (tab->type == JT_INDEX_SCAN || tab->type == JT_ALL)
   {
     if (tab->limit)
@@ -1304,10 +1390,10 @@ bool Explain_join::explain_extra()
     {
       if (fmt->is_hierarchical())
       {
-        StringBuffer<160> buff(cs);
-        if (tab &&  tab->condition())
-          tab->condition()->print(&buff, QT_ORDINARY);
-        fmt->entry()->col_attached_condition.set(buff);
+        Lazy_condition *c= new Lazy_condition(tab->condition());
+        if (c == NULL)
+          return true;
+        fmt->entry()->col_attached_condition.set(c);
       }
       else if (push_extra(ET_USING_WHERE))
         return true;
@@ -1321,7 +1407,6 @@ bool Explain_join::explain_extra()
   }
   else
   {
-    const SQL_SELECT *select= tab->select;
     uint keyno= MAX_KEY;
     if (tab->ref.key_parts)
       keyno= tab->ref.key;
@@ -1467,7 +1552,7 @@ bool Explain_join::explain_extra()
     if (tab->has_guarded_conds() && push_extra(ET_FULL_SCAN_ON_NULL_KEY))
       return true;
 
-    if (tabnum > 0 && tab[-1].next_select == sub_select_cache)
+    if (tabnum > 0 && tab->use_join_cache != JOIN_CACHE::ALG_NONE)
     {
       StringBuffer<64> buff(cs);
       if ((tab->use_join_cache & JOIN_CACHE::ALG_BNL))
@@ -1980,7 +2065,6 @@ bool mysql_explain_unit(THD *thd, SELECT_LEX_UNIT *unit, select_result *result)
                       first->order_list.first,
                       first->group_list.first,
                       first->having,
-                      thd->lex->proc_list.first,
                       first->options | thd->variables.option_bits | SELECT_DESCRIBE,
                       result, unit, first);
   }

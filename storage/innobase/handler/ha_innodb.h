@@ -38,29 +38,19 @@ typedef struct innodb_idx_translate_struct {
 
 
 /** InnoDB table share */
-class Innobase_share : public Handler_share
-{
-public:
+typedef struct st_innobase_share {
 	THR_LOCK		lock;		/*!< MySQL lock protecting
 						this structure */
+	const char*		table_name;	/*!< InnoDB table name */
+	uint			use_count;	/*!< reference count,
+						incremented in get_share()
+						and decremented in
+						free_share() */
+	void*			table_name_hash;/*!< hash table chain node */
 	innodb_idx_translate_t	idx_trans_tbl;	/*!< index translation
 						table between MySQL and
 						Innodb */
-	Innobase_share()
-	{
-		thr_lock_init(&lock);
-		idx_trans_tbl.index_mapping = NULL;
-		idx_trans_tbl.index_count = 0;
-		idx_trans_tbl.array_size = 0;
-	}
-	~Innobase_share()
-	{
-		thr_lock_delete(&lock);
-
-		/* Free any memory from index translation table */
-		my_free(idx_trans_tbl.index_mapping);
-	}
-};
+} INNOBASE_SHARE;
 
 
 /** InnoDB B-tree index */
@@ -83,7 +73,7 @@ class ha_innobase: public handler
 					currently using the handle; this is
 					set in external_lock function */
 	THR_LOCK_DATA	lock;
-	Innobase_share*	share;		/*!< information for MySQL
+	INNOBASE_SHARE*	share;		/*!< information for MySQL
 					table locking */
 
 	uchar*		upd_buf;	/*!< buffer used in updates */
@@ -139,6 +129,7 @@ class ha_innobase: public handler
 	const key_map* keys_to_use_for_scanning();
 
 	int open(const char *name, int mode, uint test_if_locked);
+	handler* clone(const char *name, MEM_ROOT *mem_root);
 	int close(void);
 	double scan_time();
 	double read_time(uint index, uint ranges, ha_rows rows);
@@ -360,8 +351,6 @@ public:
 private:
 	/** The multi range read session object */
 	DsMrr_impl ds_mrr;
-	/** Connects/gets Innobase_share in TABLE_SHARE */
-	Innobase_share* get_share();
 	/* @} */
 };
 
@@ -378,16 +367,6 @@ LEX_STRING* thd_query_string(MYSQL_THD thd);
 extern "C" {
 
 struct charset_info_st *thd_charset(MYSQL_THD thd);
-
-/** Get the file name of the MySQL binlog.
- * @return the name of the binlog file
- */
-const char* mysql_bin_log_file_name(void);
-
-/** Get the current position of the MySQL binlog.
- * @return byte offset from the beginning of the binlog
- */
-ulonglong mysql_bin_log_file_pos(void);
 
 /**
   Check if a user thread is a replication slave thread
@@ -434,6 +413,13 @@ bool thd_binlog_filter_ok(const MYSQL_THD thd);
 */
 bool thd_sqlcom_can_generate_row_events(const MYSQL_THD thd);
 
+/**
+  Gets information on the durability property requested by
+  a thread.
+  @param  thd   Thread handle
+  @return a durability property.
+*/
+enum durability_properties thd_get_durability_property(const MYSQL_THD thd);
 } /* extern "C" */
 
 typedef struct trx_struct trx_t;
@@ -552,7 +538,7 @@ innobase_fts_check_doc_id_index(
 						or NULL if none */
 	ulint*			fts_doc_col_no)	/*!< out: The column number for
 						Doc ID */
-	__attribute__((nonnull(1), warn_unused_result));
+	__attribute__((warn_unused_result));
 
 /*******************************************************************//**
 Check whether the table has a unique index with FTS_DOC_ID_INDEX_NAME
@@ -596,3 +582,27 @@ innobase_fts_count_matches(
 /** "GEN_CLUST_INDEX" is the name reserved for InnoDB default
 system clustered index when there is no primary key. */
 extern const char innobase_index_reserve_name[];
+
+/*********************************************************************//**
+Copy table flags from MySQL's HA_CREATE_INFO into an InnoDB table object.
+Those flags are stored in .frm file and end up in the MySQL table object,
+but are frequently used inside InnoDB so we keep their copies into the
+InnoDB table object. */
+UNIV_INTERN
+void
+innobase_copy_frm_flags_from_create_info(
+/*=====================================*/
+	dict_table_t*	innodb_table,		/*!< in/out: InnoDB table */
+	HA_CREATE_INFO*	create_info);		/*!< in: create info */
+
+/*********************************************************************//**
+Copy table flags from MySQL's TABLE_SHARE into an InnoDB table object.
+Those flags are stored in .frm file and end up in the MySQL table object,
+but are frequently used inside InnoDB so we keep their copies into the
+InnoDB table object. */
+UNIV_INTERN
+void
+innobase_copy_frm_flags_from_table_share(
+/*=====================================*/
+	dict_table_t*	innodb_table,		/*!< in/out: InnoDB table */
+	TABLE_SHARE*	table_share);		/*!< in: table share */

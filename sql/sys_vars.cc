@@ -1,4 +1,4 @@
-/* Copyright (c) 2009, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2009, 2011, 2012 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -55,6 +55,7 @@
 #include "sql_base.h"                           // close_cached_tables
 #include "hostname.h"                           // host_cache_size
 #include "sql_show.h"                           // opt_ignore_db_dirs
+#include "table_cache.h"                        // Table_cache_manager
 
 #ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
 #include "../storage/perfschema/pfs_server.h"
@@ -495,6 +496,14 @@ static Sys_var_ulong Sys_pfs_digest_size(
        DEFAULT(PFS_DIGEST_SIZE),
        BLOCK_SIZE(1), PFS_TRAILING_PROPERTIES);
 
+static Sys_var_ulong Sys_pfs_connect_attrs_size(
+       "performance_schema_session_connect_attrs_size",
+       "Size of session attribute string buffer per thread.",
+       READ_ONLY GLOBAL_VAR(pfs_param.m_session_connect_attrs_sizing),
+       CMD_LINE(REQUIRED_ARG), VALID_RANGE(0, 1024 * 1024),
+       DEFAULT(PFS_SESSION_CONNECT_ATTRS_SIZE),
+       BLOCK_SIZE(1), PFS_TRAILING_PROPERTIES);
+
 #endif /* WITH_PERFSCHEMA_STORAGE_ENGINE */
 
 static Sys_var_ulong Sys_auto_increment_increment(
@@ -571,6 +580,16 @@ static Sys_var_ulong Sys_binlog_stmt_cache_size(
        VALID_RANGE(IO_SIZE, ULONG_MAX), DEFAULT(32768), BLOCK_SIZE(IO_SIZE),
        NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0),
        ON_UPDATE(fix_binlog_stmt_cache_size));
+
+static Sys_var_int32 Sys_binlog_max_flush_queue_time(
+       "binlog_max_flush_queue_time",
+       "The maximum time that the binary log group commit will keep reading"
+       " transactions before it flush the transactions to the binary log (and"
+       " optionally sync, depending on the value of sync_binlog).",
+       GLOBAL_VAR(opt_binlog_max_flush_queue_time),
+       CMD_LINE(REQUIRED_ARG),
+       VALID_RANGE(0, 100000), DEFAULT(0), BLOCK_SIZE(1),
+       NO_MUTEX_GUARD, NOT_IN_BINLOG);
 
 static bool check_has_super(sys_var *self, THD *thd, set_var *var)
 {
@@ -851,6 +870,13 @@ static Sys_var_mybool Sys_binlog_rows_query(
        "Allow writing of Rows_query_log events into binary log.",
        SESSION_VAR(binlog_rows_query_log_events),
        CMD_LINE(OPT_ARG), DEFAULT(FALSE));
+
+static Sys_var_mybool Sys_binlog_order_commits(
+       "binlog_order_commits",
+       "Issue internal commit calls in the same order as transactions are"
+       " written to the binary log. Default is to order commits.",
+       GLOBAL_VAR(opt_binlog_order_commits),
+       CMD_LINE(OPT_ARG), DEFAULT(TRUE));
 
 static Sys_var_ulong Sys_bulk_insert_buff_size(
        "bulk_insert_buffer_size", "Size of tree cache used in bulk "
@@ -2749,10 +2775,29 @@ static Sys_var_ulong Sys_table_def_size(
        VALID_RANGE(TABLE_DEF_CACHE_MIN, 512*1024),
        DEFAULT(TABLE_DEF_CACHE_DEFAULT), BLOCK_SIZE(1));
 
+static bool fix_table_cache_size(sys_var *self, THD *thd, enum_var_type type)
+{
+  /*
+    table_open_cache parameter is a soft limit for total number of objects
+    in all table cache instances. Once this value is updated we need to
+    update value of a per-instance soft limit on table cache size.
+  */
+  table_cache_size_per_instance= table_cache_size / table_cache_instances;
+  return false;
+}
+
 static Sys_var_ulong Sys_table_cache_size(
-       "table_open_cache", "The number of cached open tables",
+       "table_open_cache", "The number of cached open tables "
+       "(total for all table cache instances)",
        GLOBAL_VAR(table_cache_size), CMD_LINE(REQUIRED_ARG),
        VALID_RANGE(1, 512*1024), DEFAULT(TABLE_OPEN_CACHE_DEFAULT),
+       BLOCK_SIZE(1), NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(NULL),
+       ON_UPDATE(fix_table_cache_size));
+
+static Sys_var_ulong Sys_table_cache_instances(
+       "table_open_cache_instances", "The number of table cache instances",
+       READ_ONLY GLOBAL_VAR(table_cache_instances), CMD_LINE(REQUIRED_ARG),
+       VALID_RANGE(1, Table_cache_manager::MAX_TABLE_CACHES), DEFAULT(1),
        BLOCK_SIZE(1));
 
 static Sys_var_ulong Sys_thread_cache_size(
@@ -3820,8 +3865,9 @@ static Sys_var_uint Sys_checkpoint_mts_group(
 #endif /* HAVE_REPLICATION */
 
 static Sys_var_uint Sys_sync_binlog_period(
-       "sync_binlog", "Synchronously flush binary log to disk after "
-       "every #th event. Use 0 (default) to disable synchronous flushing",
+       "sync_binlog", "Synchronously flush binary log to disk after"
+       " every #th write to the file. Use 0 (default) to disable synchronous"
+       " flushing",
        GLOBAL_VAR(sync_binlog_period), CMD_LINE(REQUIRED_ARG),
        VALID_RANGE(0, UINT_MAX), DEFAULT(0), BLOCK_SIZE(1));
 

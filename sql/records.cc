@@ -23,6 +23,7 @@
 #include "records.h"
 #include "sql_priv.h"
 #include "records.h"
+#include "sql_list.h"
 #include "filesort.h"            // filesort_free_buffers
 #include "opt_range.h"                          // SQL_SELECT
 #include "sql_class.h"                          // THD
@@ -246,7 +247,6 @@ bool init_read_record(READ_RECORD *info,THD *thd, TABLE *table,
     */
     if (!disable_rr_cache &&
         !table->sort.addon_field &&
-        ! (specialflag & SPECIAL_SAFE_MODE) &&
 	thd->variables.read_rnd_buff_size &&
 	!(table->file->ha_table_flags() & HA_FAST_KEY_READ) &&
 	(table->db_stat & HA_READ_ONLY ||
