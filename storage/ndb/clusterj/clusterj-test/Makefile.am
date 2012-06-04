@@ -105,7 +105,6 @@ clusterj_test_java = \
   $(clusterj_test_src)/testsuite/clusterj/QueryTimeAsUtilDateTypesTest.java \
   $(clusterj_test_src)/testsuite/clusterj/QueryTimestampAsSqlTimestampTypesTest.java \
   $(clusterj_test_src)/testsuite/clusterj/QueryTimestampAsUtilDateTypesTest.java \
-  $(clusterj_test_src)/testsuite/clusterj/QueryUniqueKeyTest.java \
   $(clusterj_test_src)/testsuite/clusterj/QueryYearTypesTest.java \
   $(clusterj_test_src)/testsuite/clusterj/SaveTest.java \
   $(clusterj_test_src)/testsuite/clusterj/SchemaChangeTest.java \
