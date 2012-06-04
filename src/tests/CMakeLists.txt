@@ -207,6 +207,7 @@ if(BUILD_TESTING)
       test_4015.c
       test_4368.c
       test_4657.c
+      test_5015.c
       test_abort1.c
       test_abort4.c
       test_abort5.c
