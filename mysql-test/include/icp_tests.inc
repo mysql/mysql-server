@@ -874,3 +874,21 @@ show status like "Handler_icp%";
 
 DROP TABLE t1;
 
+#
+# MDEV-308 lp:1008516 - Failing assertion: templ->mysql_col_len == len
+#
+create table t1 (a int,b char(5),primary key (a), key (b(1)));
+insert into t1 values ('a','b');
+select 1 from t1 where a and b >= 'aa';
+drop table t1;
+
+--echo #
+--echo # Bug#58015 "Assert in row_sel_field_store_in_mysql_format
+--echo #            when running innodb_mrr_icp test"
+--echo #
+
+create table t1 (a char(2) charset utf8,b double, primary key (a(1)),key (b));
+insert into t1 values ('',1);
+select 1 from t1 where b <= 1 and a <> '';
+drop table t1;
+
