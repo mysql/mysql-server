@@ -2332,6 +2332,8 @@ JOIN::exec()
   List<Item> *curr_all_fields= &all_fields;
   List<Item> *curr_fields_list= &fields_list;
   TABLE *curr_tmp_table= 0;
+  bool tmp_having_used_tables_updated= FALSE;
+
   /*
     Initialize examined rows here because the values from all join parts
     must be accumulated in examined_row_count. Hence every join
@@ -2580,12 +2582,22 @@ JOIN::exec()
     if (curr_tmp_table->distinct)
       curr_join->select_distinct=0;		/* Each row is unique */
     
+
+    /*
+      curr_join->join_free() will call JOIN::cleanup(full=TRUE). It will not 
+      be safe to call update_used_tables() after that.
+    */
+    if (curr_join->tmp_having)
+    {
+      curr_join->tmp_having->update_used_tables();
+      tmp_having_used_tables_updated= TRUE;
+    }
+
     curr_join->join_free();			/* Free quick selects */
+
     if (curr_join->select_distinct && ! curr_join->group_list)
     {
       thd_proc_info(thd, "Removing duplicates");
-      if (curr_join->tmp_having)
-	curr_join->tmp_having->update_used_tables();
       if (remove_duplicates(curr_join, curr_tmp_table,
 			    *curr_fields_list, curr_join->tmp_having))
 	DBUG_VOID_RETURN;
@@ -2662,7 +2674,8 @@ JOIN::exec()
 	! curr_join->sort_and_group)
     {
       // Some tables may have been const
-      curr_join->tmp_having->update_used_tables();
+      if (!tmp_having_used_tables_updated)
+        curr_join->tmp_having->update_used_tables();
       JOIN_TAB *curr_table= &curr_join->join_tab[curr_join->const_tables];
       table_map used_tables= (curr_join->const_table_map |
 			      curr_table->table->map);
@@ -18644,6 +18657,14 @@ check_reverse_order:
           tab->limit= 0;
           goto use_filesort;           // Reverse sort failed -> filesort
         }
+        /*
+          Cancel Pushed Index Condition, as it doesn't work for reverse scans.
+        */
+        if (tab->select && tab->select->pre_idx_push_select_cond)
+	{
+          tab->set_cond(tab->select->pre_idx_push_select_cond);
+           tab->table->file->cancel_pushed_idx_cond();
+        }
         if (select->quick == save_quick)
           save_quick= 0;                // make_reverse() consumed it
         select->set_quick(tmp);
@@ -18659,6 +18680,14 @@ check_reverse_order:
         */
         tab->read_first_record= join_read_last_key;
         tab->read_record.read_record= join_read_prev_same;
+        /*
+          Cancel Pushed Index Condition, as it doesn't work for reverse scans.
+        */
+        if (tab->select && tab->select->pre_idx_push_select_cond)
+	{
+          tab->set_cond(tab->select->pre_idx_push_select_cond);
+           tab->table->file->cancel_pushed_idx_cond();
+        }
       }
     }
     else if (select && select->quick)

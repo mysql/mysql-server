@@ -279,7 +279,7 @@ public:
   subs_type substype() { return SINGLEROW_SUBS; }
 
   void reset();
-  void no_rows_in_result() { reset(); make_const(); }
+  void no_rows_in_result();
   bool select_transformer(JOIN *join);
   void store(uint i, Item* item);
   double val_real();

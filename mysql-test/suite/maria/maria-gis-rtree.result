@@ -306,6 +306,10 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 SELECT fid, AsText(g) FROM t2 WHERE Within(g, 
 GeomFromText('Polygon((40 40,60 40,60 60,40 60,40 40))'));
 fid	AsText(g)
+45	LINESTRING(51 51,60 60)
+46	LINESTRING(51 41,60 50)
+55	LINESTRING(41 51,50 60)
+56	LINESTRING(41 41,50 50)
 DELETE FROM t2 WHERE Within(g, Envelope(GeometryFromWKB(LineString(Point(10 * 10 - 9, 10 * 10 - 9), Point(10 * 10, 10 * 10)))));
 SELECT count(*) FROM t2;
 count(*)

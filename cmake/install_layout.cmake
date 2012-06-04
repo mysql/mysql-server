@@ -77,9 +77,7 @@ IF(UNIX)
   IF(INSTALL_LAYOUT MATCHES "RPM")
     SET(default_prefix "/usr")
   ELSEIF(INSTALL_LAYOUT MATCHES "DEB")
-    SET(default_prefix "/opt/mysql/server-${MYSQL_BASE_VERSION}")
-    # This is required to avoid "cpack -GDEB" default of prefix=/usr
-    SET(CPACK_SET_DESTDIR ON)
+    SET(default_prefix "/usr")
   ELSEIF(INSTALL_LAYOUT MATCHES "SVR4")
     SET(default_prefix "/opt/mysql/mysql")
   ELSE()
@@ -191,7 +189,7 @@ SET(INSTALL_SUPPORTFILESDIR_DEB         "support-files")
 SET(INSTALL_MYSQLDATADIR_DEB            "/var/lib/mysql")
 SET(INSTALL_PLUGINTESTDIR_DEB           ${plugin_tests})
 
-SET(INSTALL_UNIX_ADDRDIR_DEB            "/tmp/mysql.sock")
+SET(INSTALL_UNIX_ADDRDIR_DEB            "/var/run/mysqld/mysqld.sock")
 #
 # SVR4 layout
 #
