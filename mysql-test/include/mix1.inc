@@ -1626,6 +1626,13 @@ CREATE TABLE t2 (
 insert into t1 values (0),(1),(2),(3),(4);
 insert into t2 select A.a + 10 *B.a, 1, 'filler' from t1 A, t1 B;
 
+-- disable_query_log
+-- disable_result_log
+analyze table t1;
+analyze table t2;
+-- enable_result_log
+-- enable_query_log
+
 explain select * from t1, t2 where t2.a=t1.a and t2.b + 1;
 select * from t1, t2 where t2.a=t1.a and t2.b + 1;
 
