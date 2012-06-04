@@ -217,6 +217,8 @@ row_build(
 					of an index, or NULL if
 					index->table should be
 					consulted instead */
+	const ulint*		col_map,/*!< in: mapping of old column
+					numbers to new ones, or NULL */
 	row_ext_t**		ext,	/*!< out, own: cache of
 					externally stored column
 					prefixes, or NULL */
@@ -225,14 +227,10 @@ row_build(
 {
 	const byte*		copy;
 	dtuple_t*		row;
-	const dict_table_t*	table;
-	ulint			n_fields;
 	ulint			n_ext_cols;
 	ulint*			ext_cols	= NULL; /* remove warning */
 	ulint			len;
-	ulint			row_len;
 	byte*			buf;
-	ulint			i;
 	ulint			j;
 	mem_heap_t*		tmp_heap	= NULL;
 	ulint			offsets_[REC_OFFS_NORMAL_SIZE];
@@ -241,6 +239,7 @@ row_build(
 	ut_ad(index && rec && heap);
 	ut_ad(dict_index_is_clust(index));
 	ut_ad(!mutex_own(&trx_sys->mutex));
+	ut_ad(!col_map || col_table);
 
 	if (!offsets) {
 		offsets = rec_get_offsets(rec, index, offsets_,
@@ -272,17 +271,6 @@ row_build(
 		copy = rec;
 	}
 
-	table = index->table;
-	row_len = dict_table_get_n_cols(table);
-
-	row = dtuple_create(heap, row_len);
-
-	dict_table_copy_types(row, table);
-
-	dtuple_set_info_bits(row, rec_get_info_bits(
-				     rec, dict_table_is_comp(table)));
-
-	n_fields = rec_offs_n_fields(offsets);
 	n_ext_cols = rec_offs_n_extern(offsets);
 	if (n_ext_cols) {
 		ext_cols = static_cast<ulint*>(
@@ -292,33 +280,62 @@ row_build(
 	/* Avoid a debug assertion in rec_offs_validate(). */
 	rec_offs_make_valid(copy, index, const_cast<ulint*>(offsets));
 
-	for (i = j = 0; i < n_fields; i++) {
-		dict_field_t*		ind_field
+	if (!col_table) {
+		ut_ad(!col_map);
+		col_table = index->table;
+	}
+
+	//row = dtuple_copy(heap, default_row);// todo: ADD_COLUMN
+	row = dtuple_create(heap, dict_table_get_n_cols(col_table));
+
+	dict_table_copy_types(row, col_table);
+	dtuple_set_info_bits(row, rec_get_info_bits(
+				     copy, rec_offs_comp(offsets)));
+
+	j = 0;
+
+	for (ulint i = 0; i < rec_offs_n_fields(offsets); i++) {
+		const dict_field_t*	ind_field
 			= dict_index_get_nth_field(index, i);
+
+		if (ind_field->prefix_len) {
+			/* Column prefixes can only occur in key
+			fields, which cannot be stored externally. For
+			a column prefix, there should also be the full
+			field in the clustered index tuple. The row
+			tuple comprises full fields, not prefixes. */
+			ut_ad(!rec_offs_nth_extern(offsets, i));
+			continue;
+		}
+
 		const dict_col_t*	col
 			= dict_field_get_col(ind_field);
 		ulint			col_no
 			= dict_col_get_no(col);
-		dfield_t*		dfield
-			= dtuple_get_nth_field(row, col_no);
 
-		if (ind_field->prefix_len == 0) {
+		if (col_map) {
+			col_no = col_map[col_no];
 
-			const byte*	field = rec_get_nth_field(
-				copy, offsets, i, &len);
-
-			dfield_set_data(dfield, field, len);
+			if (col_no == ULINT_UNDEFINED) {
+				/* dropped column */
+				continue;
+			}
+		} else if (col_no >= dict_table_get_n_cols(col_table)) {
+			/* dropped last columns */
+			continue;
 		}
+
+		dfield_t*	dfield = dtuple_get_nth_field(row, col_no);
+
+		const byte*	field = rec_get_nth_field(
+			copy, offsets, i, &len);
+
+		dfield_set_data(dfield, field, len);
 
 		if (rec_offs_nth_extern(offsets, i)) {
 			dfield_set_ext(dfield);
 
-			if (UNIV_LIKELY_NULL(col_table)) {
-				ut_a(col_no
-				     < dict_table_get_n_cols(col_table));
-				col = dict_table_get_nth_col(
-					col_table, col_no);
-			}
+			col = dict_table_get_nth_col(col_table, col_no);
 
 			if (col->ord_part) {
 				/* We will have to fetch prefixes of

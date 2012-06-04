@@ -1584,7 +1584,7 @@ row_upd_store_row(
 	}
 
 	node->row = row_build(ROW_COPY_DATA, clust_index, rec, offsets,
-			      NULL, ext, node->heap);
+			      NULL, NULL, ext, node->heap);
 	if (node->is_delete) {
 		node->upd_row = NULL;
 		node->upd_ext = NULL;

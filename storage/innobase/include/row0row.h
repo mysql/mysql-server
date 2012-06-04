@@ -143,12 +143,14 @@ row_build(
 					consulted instead; the user
 					columns in this table should be
 					the same columns as in index->table */
+	const ulint*		col_map,/*!< in: mapping of old column
+					numbers to new ones, or NULL */
 	row_ext_t**		ext,	/*!< out, own: cache of
 					externally stored column
 					prefixes, or NULL */
 	mem_heap_t*		heap)	/*!< in: memory heap from which
 					the memory needed is allocated */
-	__attribute__((nonnull(2,3,7), warn_unused_result));
+	__attribute__((nonnull(2,3,8), warn_unused_result));
 /*******************************************************************//**
 Converts an index record to a typed data tuple.
 @return index entry built; does not set info_bits, and the data fields
