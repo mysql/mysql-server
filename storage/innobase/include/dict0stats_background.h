@@ -56,7 +56,7 @@ UNIV_INTERN
 void
 dict_stats_remove_table_from_auto_recalc(
 /*=====================================*/
-	const char*	table_name);	/*!< in: table name, e.g. "db/table" */
+	const dict_table_t*	table);	/*!< in: table to remove */
 /* @} */
 
 /*****************************************************************//**
@@ -73,9 +73,10 @@ UNIV_INTERN
 void
 dict_stats_wait_bg_to_stop_using_tables(
 /*====================================*/
-	const dict_table_t*	table1,	/*!< in: table1 */
-	const dict_table_t*	table2,	/*!< in: table2, could be NULL */
-	trx_t*			trx);
+	dict_table_t*	table1,	/*!< in/out: table1 */
+	dict_table_t*	table2,	/*!< in/out: table2, could be NULL */
+	trx_t*		trx);	/*!< in/out: transaction to use for
+				unlocking/locking the data dict */
 /* @} */
 
 /*****************************************************************//**

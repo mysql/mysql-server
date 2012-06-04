@@ -3663,13 +3663,19 @@ retry:
 		}
 	}
 
-	/* Wait for background stats to finish using the table and
-	instruct it to do so earlier */
-	while (table->stats_bg_flag & BG_STAT_IN_PROGRESS) {
-		table->stats_bg_flag |= BG_STAT_SHOULD_QUIT;
-		row_mysql_unlock_data_dictionary(trx);
-		os_thread_sleep(250000);
-		row_mysql_lock_data_dictionary(trx);
+	dict_stats_wait_bg_to_stop_using_tables(table, NULL, trx);
+
+	dict_stats_remove_table_from_auto_recalc(table);
+
+	/* Remove stats for this table and all of its indexes from the
+	persistent storage if it exists and if there are stats for this
+	table in there. This function creates its own trx and commits
+	it. */
+	char	errstr[1024];
+	err = dict_stats_drop_table(name, errstr, sizeof(errstr));
+	if (err != DB_SUCCESS) {
+		ut_print_timestamp(stderr);
+		fprintf(stderr, " InnoDB: %s\n", errstr);
 	}
 
 	ut_a(table->n_foreign_key_checks_running == 0);
@@ -3962,7 +3968,13 @@ check_next_foreign:
 
 				goto funct_exit;
 			}
+		}
 
+		/* The table->fts flag can be set on the table for which
+		the cluster index is being rebuilt. Such table might not have
+		DICT_TF2_FTS flag set. So keep this out of above
+		dict_table_has_fts_index condition */
+		if (table->fts) {
 			fts_free(table);
 		}
 

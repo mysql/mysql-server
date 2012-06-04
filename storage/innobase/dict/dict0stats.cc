@@ -3053,9 +3053,8 @@ dict_stats_drop_table(
 	char		database_name[MAX_DATABASE_NAME_LEN + 1];
 	const char*	table_name_strip; /* without leading db name */
 	dberr_t		ret;
-	dict_stats_t*	dict_stats;
 
-	ut_ad(!mutex_own(&dict_sys->mutex));
+	ut_ad(mutex_own(&dict_sys->mutex));
 
 	/* skip tables that do not contain a database name
 	e.g. if we are dropping SYS_TABLES */
@@ -3071,12 +3070,9 @@ dict_stats_drop_table(
 		return(DB_SUCCESS);
 	}
 
-	/* Increment table reference count to prevent the tables from
-	being DROPped just before que_eval_sql(). */
-	dict_stats = dict_stats_open();
-
-	if (dict_stats == NULL) {
-		/* stats tables do not exist or have unexpected structure */
+	if (!dict_stats_persistent_storage_check(TRUE)) {
+		/* If stats tables are gone, then there is nothing to
+		delete from them. */
 		return(DB_SUCCESS);
 	}
 
@@ -3086,8 +3082,6 @@ dict_stats_drop_table(
 
 	table_name_strip = dict_remove_db_name(table_name);
 
-	mutex_enter(&dict_sys->mutex);
-
 	ret = dict_stats_delete_from_table_stats(database_name,
 						 table_name_strip);
 
@@ -3095,8 +3089,6 @@ dict_stats_drop_table(
 		ret = dict_stats_delete_from_index_stats(database_name,
 							 table_name_strip);
 	}
-
-	mutex_exit(&dict_sys->mutex);
 
 	if (ret != DB_SUCCESS) {
 
@@ -3121,8 +3113,6 @@ dict_stats_drop_table(
 			    TABLE_STATS_NAME_PRINT,
 			    database_name, table_name_strip);
 	}
-
-	dict_stats_close(dict_stats);
 
 	return(ret);
 }
