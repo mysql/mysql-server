@@ -1685,7 +1685,7 @@ mysql_declare_plugin(tokudb)
     tokudb_hton_name, 
     "Tokutek Inc", 
     "Tokutek TokuDB Storage Engine with Fractal Tree(tm) Technology",
-    PLUGIN_LICENSE_GPL,
+    PLUGIN_LICENSE_PROPRIETARY,
     tokudb_init_func,          /* plugin init */
     tokudb_done_func,          /* plugin deinit */
     TOKUDB_PLUGIN_VERSION,     /* 4.0.0 */
@@ -1702,7 +1702,7 @@ mysql_declare_plugin(tokudb)
     "TokuDB_user_data", 
     "Tokutek Inc", 
     "Tokutek TokuDB Storage Engine with Fractal Tree(tm) Technology",
-    PLUGIN_LICENSE_GPL,
+    PLUGIN_LICENSE_PROPRIETARY,
     tokudb_user_data_init,     /* plugin init */
     tokudb_user_data_done,     /* plugin deinit */
     TOKUDB_PLUGIN_VERSION,     /* 4.0.0 */
@@ -1719,7 +1719,7 @@ mysql_declare_plugin(tokudb)
     "TokuDB_user_data_exact", 
     "Tokutek Inc", 
     "Tokutek TokuDB Storage Engine with Fractal Tree(tm) Technology",
-    PLUGIN_LICENSE_GPL,
+    PLUGIN_LICENSE_PROPRIETARY,
     tokudb_user_data_exact_init,     /* plugin init */
     tokudb_user_data_exact_done,     /* plugin deinit */
     TOKUDB_PLUGIN_VERSION,     /* 4.0.0 */
@@ -1741,7 +1741,7 @@ maria_declare_plugin(tokudb)
     tokudb_hton_name, 
     "Tokutek Inc", 
     "Tokutek TokuDB Storage Engine with Fractal Tree(tm) Technology",
-    PLUGIN_LICENSE_GPL,
+    PLUGIN_LICENSE_PROPRIETARY,
     tokudb_init_func,          /* plugin init */
     tokudb_done_func,          /* plugin deinit */
     TOKUDB_PLUGIN_VERSION,     /* 4.0.0 */
@@ -1756,7 +1756,7 @@ maria_declare_plugin(tokudb)
     "TokuDB_user_data", 
     "Tokutek Inc", 
     "Tokutek TokuDB Storage Engine with Fractal Tree(tm) Technology",
-    PLUGIN_LICENSE_GPL,
+    PLUGIN_LICENSE_PROPRIETARY,
     tokudb_user_data_init,     /* plugin init */
     tokudb_user_data_done,     /* plugin deinit */
     TOKUDB_PLUGIN_VERSION,     /* 4.0.0 */
@@ -1771,7 +1771,7 @@ maria_declare_plugin(tokudb)
     "TokuDB_user_data_exact", 
     "Tokutek Inc", 
     "Tokutek TokuDB Storage Engine with Fractal Tree(tm) Technology",
-    PLUGIN_LICENSE_GPL,
+    PLUGIN_LICENSE_PROPRIETARY,
     tokudb_user_data_exact_init,     /* plugin init */
     tokudb_user_data_exact_done,     /* plugin deinit */
     TOKUDB_PLUGIN_VERSION,     /* 4.0.0 */
