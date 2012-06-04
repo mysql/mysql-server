@@ -216,8 +216,7 @@ toku_logger_close_rollback(TOKULOGGER logger, BOOL recovery_failed) {
                 toku_block_verify_no_data_blocks_except_root_unlocked(ft->blocktable, ft->h->root_blocknum);
             }
             assert(!ft->h->dirty);
-            ft_to_close = toku_ft_get_some_existing_ft_handle(ft);
-            assert(ft_to_close);
+            ft_to_close = toku_ft_get_only_existing_ft_handle(ft);
             {
                 BOOL is_empty;
                 is_empty = toku_ft_is_empty_fast(ft_to_close);
